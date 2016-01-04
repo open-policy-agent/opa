@@ -1,0 +1,80 @@
+// Copyright 2015 The OPA Authors.  All rights reserved.
+// Use of this source code is governed by an Apache2
+// license that can be found in the LICENSE file.
+
+{
+
+package jsonlog
+
+// part of the initializer code block omitted for brevity
+
+var ops = map[string]func(int, int) int {
+    "+": func(l, r int) int {
+        return l + r
+    },
+    "-": func(l, r int) int {
+        return l - r
+    },
+    "*": func(l, r int) int {
+        return l * r
+    },
+    "/": func(l, r int) int {
+        return l / r
+    },
+}
+
+func toIfaceSlice(v interface{}) []interface{} {
+    if v == nil {
+        return nil
+    }
+    return v.([]interface{})
+}
+
+func eval(first, rest interface{}) int {
+    l := first.(int)
+    restSl := toIfaceSlice(rest)
+    for _, v := range restSl {
+        restExpr := toIfaceSlice(v)
+        r := restExpr[3].(int)
+        op := restExpr[1].(string)
+        l = ops[op](l, r)
+    }
+    return l
+}
+}
+
+
+Input <- expr:Expr EOF {
+    return expr, nil
+}
+
+Expr <- _ first:Term rest:( _ AddOp _ Term )* _ {
+    return eval(first, rest), nil
+}
+
+Term <- first:Factor rest:( _ MulOp _ Factor )* {
+    return eval(first, rest), nil
+}
+
+Factor <- '(' expr:Expr ')' {
+    return expr, nil
+} / integer:Integer {
+    return integer, nil
+}
+
+AddOp <- ( '+' / '-' ) {
+    return string(c.text), nil
+}
+
+MulOp <- ( '*' / '/' ) {
+    return string(c.text), nil
+}
+
+Integer <- '-'? [0-9]+ {
+    return strconv.Atoi(string(c.text))
+}
+
+_ "whitespace" <- [ \n\t\r]*
+
+EOF <- !.
+
