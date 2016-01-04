@@ -1,2 +1,4 @@
 language: go
 
+install: ./install-deps-gen-code.sh
+
