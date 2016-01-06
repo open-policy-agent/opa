@@ -9,49 +9,6 @@
 // [1]: http://www.ecma-international.org/publications/files/ECMA-ST/ECMA-404.pdf
 package jsonlog
 
-const (
-    // note: iota is built into Go and is auto-incremented
-    NULL = iota
-    BOOLEAN = iota
-    NUMBER = iota
-    STRING = iota
-    VARIABLE = iota
-    REFERENCE = iota
-    ARRAY = iota
-    DICTIONARY = iota
-)
-
-// Location records a position in source code
-type Location struct {
-    File string
-    Row int
-    Col int
-}
-
-func NewLocation(file string, row int, col int) *Location {
-    l := Location{File: file, Row: row, Col: col}
-    return &l
-}
-
-// Term is an argument to a function
-type Term struct {
-    Value interface{}   // actual value, as represented by Go
-    Kind int            // type of Term: one of the consts defined above
-    Name []byte         // original string representation
-    Location *Location  // text location in original source
-}
-
-// NewTerm creates a new Term
-func NewTerm(x interface{}, kind int, orig []byte, file string, row int, col int) *Term {
-    t := Term{Value: x, Kind: kind, Name: orig, Location: NewLocation(file, row, col)}
-    return &t
-}
-
-// Equal checks if two terms are equal
-func (t1 *Term) Equal (t2 *Term) bool {
-    return t1.Kind == t2.Kind && t1.Value == t2.Value
-}
-
 func toIfaceSlice(v interface{}) []interface{} {
     if v == nil {
         return nil
@@ -65,33 +22,25 @@ Prog <- _ vals:Term+ EOF {
         return make([]interface{}, 0), nil
     }
     return vals.([]interface{}), nil
-    // valsSl := toIfaceSlice(vals)
-    // return valsSl, nil
-    // switch len(valsSl) {
-    // case 0:
-    //     return nil, nil
-    // case 1:
-    //     return valsSl[0], nil
-    // default:
-    //     return valsSl, nil
-    // }
 }
 
 Term <- val:( Dictionary / Array / Number / String / Bool / Null ) _ {
     return val, nil
 }
 
-Dictionary <- '{' _ vals:( String _ ':' _ Value ( ',' _ String _ ':' _ Value )* )? '}' {
-    res := make(map[string]interface{})
+Dictionary <- '{' _ vals:( String _ ':' _ Term ( ',' _ String _ ':' _ Term )* )? '}' {
     valsSl := toIfaceSlice(vals)
     if len(valsSl) == 0 {
-        return res, nil
+        return NewTerm([]*Term{}, DICTIONARY, c.text, "", c.pos.line, c.pos.col), nil
     }
-    res[valsSl[0].(string)] = valsSl[4]
     restSl := toIfaceSlice(valsSl[5])
+    // Storing dictionary arguments as a set of KeyValue pairs since we may not be
+    //   able to evaluate the keys (e.g. the key may be a variable)
+    res := NewKeyValueSet()
+    res.Add(NewKeyValue(valsSl[0].(*Term), valsSl[4].(*Term)))
     for _, v := range restSl {
         vSl := toIfaceSlice(v)
-        res[vSl[2].(string)] = vSl[6]
+        res.Add(NewKeyValue(vSl[2].(*Term), vSl[6].(*Term)))
     }
     t := NewTerm(res, DICTIONARY, c.text, "", c.pos.line, c.pos.col)
     return t, nil //res, nil
@@ -100,13 +49,13 @@ Dictionary <- '{' _ vals:( String _ ':' _ Value ( ',' _ String _ ':' _ Value )* 
 Array <- '[' _ vals:( Value ( ',' _ Value )* )? ']' {
     valsSl := toIfaceSlice(vals)
     if len(valsSl) == 0 {
-        return []interface{}{}, nil
+        return NewTerm([]*Term{}, ARRAY, c.text, "", c.pos.line, c.pos.col), nil
     }
-    res := []interface{}{valsSl[0]}
     restSl := toIfaceSlice(valsSl[1])
-    for _, v := range restSl {
+    res := make([]*Term, 1 + len(valsSl))
+    for i, v := range restSl {
         vSl := toIfaceSlice(v)
-        res = append(res, vSl[2])
+        res[i] = vSl[2].(*Term)
     }
     t := NewTerm(res, ARRAY, c.text, "", c.pos.line, c.pos.col)
     return t, nil //res, nil
