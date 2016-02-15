@@ -5,9 +5,11 @@
 package jsonlog
 
 import (
-	"testing"
 	"fmt"
+	"testing"
 )
+
+var _ = fmt.Printf
 
 func testTermEqual(t *testing.T, x *Term, y *Term) {
 	if !x.Equal(y) {
@@ -27,19 +29,19 @@ func TestEqualJsonTerms(t *testing.T) {
 	testTermEqual(t, GoTerm(true), GoTerm(true))
 	testTermEqual(t, GoTerm(5), GoTerm(5))
 	testTermEqual(t, GoTerm("a string"), GoTerm("a string"))
-	testTermEqual(t, GoTerm(map[int]int{1:2}), GoTerm(map[int]int{1:2}))
-	testTermEqual(t, GoTerm(map[int]int{1:2, 3:4}), GoTerm(map[int]int{1:2, 3:4}))
+	testTermEqual(t, GoTerm(map[int]int{1: 2}), GoTerm(map[int]int{1: 2}))
+	testTermEqual(t, GoTerm(map[int]int{1: 2, 3: 4}), GoTerm(map[int]int{1: 2, 3: 4}))
 	testTermEqual(t, GoTerm([]int{1, 2, 3}), GoTerm([]int{1, 2, 3}))
 
 	testTermNotEqual(t, NewNull(), GoTerm(true))
 	testTermNotEqual(t, GoTerm(true), GoTerm(false))
 	testTermNotEqual(t, GoTerm(5), GoTerm(7))
 	testTermNotEqual(t, GoTerm("a string"), GoTerm("abc"))
-	testTermNotEqual(t, GoTerm(map[int]int{3:2}), GoTerm(map[int]int{1:2}))
-	testTermNotEqual(t, GoTerm(map[int]int{1:2, 3:7}), GoTerm(map[int]int{1:2, 3:4}))
+	testTermNotEqual(t, GoTerm(map[int]int{3: 2}), GoTerm(map[int]int{1: 2}))
+	testTermNotEqual(t, GoTerm(map[int]int{1: 2, 3: 7}), GoTerm(map[int]int{1: 2, 3: 4}))
 	testTermNotEqual(t, GoTerm(5), GoTerm("a string"))
 	testTermNotEqual(t, GoTerm(1), GoTerm(true))
-	testTermNotEqual(t, GoTerm(map[int]int{1:2, 3:7}), GoTerm([]int{1, 2, 3, 7}))
+	testTermNotEqual(t, GoTerm(map[int]int{1: 2, 3: 7}), GoTerm([]int{1, 2, 3, 7}))
 	testTermNotEqual(t, GoTerm([]int{1, 2, 3}), GoTerm([]int{1, 2, 4}))
 }
 
@@ -111,7 +113,5 @@ func TestDictionaryTerms(t *testing.T) {
 //  Special case since nil could be either NULL or
 //  an empty array.
 func NewNull() *Term {
-    return NewTerm(nil, NULL, []byte(""), "", 0, 0)
+	return NewTerm(nil, NULL, []byte(""), "", 0, 0)
 }
-
-
