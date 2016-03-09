@@ -1,2 +1,33 @@
-# opa
-A library of policy algorithms deployed as an agent to policy-enable any product or service
+# OPA: Open Policy Agent
+
+OPA is an open source project which can help policy enable any application.
+
+## What is Policy?
+
+Policy defines expected behavior in response to specific events within an application. The implementation of policy can vary greatly within and across applications, e.g, it may be maintained manually by administrators, documented on wiki pages, hardcoded in applications, exposed through configuration, etc. Often, these policies are not part of the application's core business logic.
+
+There are many examples of functionality within applications which can benefit from rich policy control, e.g, API authorization, VM and container placement, auto-scaling, auto-healing, etc.
+
+## What is Policy Enabling?
+
+Policy enabling an application decouples the policy implementation from the business logic so that administrators can define policy without changing the application while still keeping up with the size, complexity, and dynamic nature of modern applications.
+
+## What does OPA provide?
+
+OPA provides a domain specific language (DSL) for defining policies relevant to your application and an open source policy engine which can be deployed alongside your application.
+
+OPA exposes APIs over HTTP which your applications or administrators can use to:
+
+- Create and manage policies.
+- Insert, delete, or modify data relevant for policy.
+- Check if an action would violate policy.
+- Query for alternatives which comply with policy.
+- Subscribe to policy violation notifications.
+
+## Project Information
+
+- License: [Apache Version 2.0](./LICENSE)
+- Bugs, Features: [Github Issues](https://github.com/open-policy-agent/opa/issues)
+- Mailing List: [open-policy-agent on Google Groups](https://groups.google.com/forum/?hl=en#!forum/open-policy-agent)
+- Roadmap: [ROADMAP.md](./ROADMAP.md)
+- Continuous Integration: [![Build Status](https://travis-ci.org/open-policy-agent/opa.svg?branch=master)](https://travis-ci.org/open-policy-agent/opa)
