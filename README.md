@@ -14,15 +14,7 @@ Policy enabling an application decouples the policy implementation from the busi
 
 ## What does OPA provide?
 
-OPA provides a domain specific language (DSL) for defining policies relevant to your application and an open source policy engine which can be deployed alongside your application.
-
-OPA exposes APIs over HTTP which your applications or administrators can use to:
-
-- Create and manage policies.
-- Insert, delete, or modify data relevant for policy.
-- Check if an action would violate policy.
-- Query for alternatives which comply with policy.
-- Subscribe to policy violation notifications.
+OPA provides an open source policy engine implementation which simplifies the task of policy enabling applications. Application developers do not need to design a policy language, build a compiler or interpreter, or implement policy language analysis tools in order to policy enable their applications.
 
 ## Project Information
 
