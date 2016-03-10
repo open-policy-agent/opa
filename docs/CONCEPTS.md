@@ -283,12 +283,7 @@ Content-Type: application/json
 ]
 ```
 
-<!--
+
 ## What's Next
 
-// Once at least one of these exist we can link to them. For now this section is hidden.
-
 For more information on how to write policy definitions and queries, see [Opalog: OPA's Query Language](./LANGUAGE.md).
-
-For more information on the architecture of OPA, see [OPA's Architecture](./ARCHITECTURE.md).
--->
