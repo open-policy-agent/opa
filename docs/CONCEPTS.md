@@ -22,15 +22,15 @@ This document describes the main concepts in OPA. After reading this document yo
 Conceptually, OPA is a collection of algorithms that answer questions about policy. At a high level, using OPA involves:
 
 - Writing policies a declarative language ("Opalog") and loading them into OPA.
-- Pushing internal application state that is relevant ot policy into OPA.
+- Pushing internal application state that is relevant to policy into OPA.
 - Executing queries via OPA's APIs to answer questions about operations governed by policy.
-- Reacting to notifications delivered byt OPA when policy is violated.
+- Reacting to notifications delivered by OPA when policy is violated.
 
 ## Deployment
 
 <deployment.svg>
 
-In order to support arbitrary langagues, runtimes, and frameworks, OPA is deployed as a host-local daemon alongside applications. OPA supports deployment directly on hosts as an operating system daemon or it can be deployed in a container.
+In order to support arbitrary languages, runtimes, and frameworks, OPA is deployed as a host-local daemon alongside applications. OPA supports deployment directly on hosts as an operating system daemon or it can be deployed in a container.
 
 When OPA is started for the first time it contains no policies or data. Applications or deployment automation typically include pre-defined policies that are loaded into OPA at deploy time and updated during upgrades. Administrators can manually add, remove, and change policies as needed however this is typically an exception.
 
@@ -120,7 +120,7 @@ The key aspects of Opalog are illustrated by this example:
 
 - Rules define the content of virtual documents. In this case, we create two virtual documents: `violations` and `connected_to_public`.
 
-- Rules consist of assertions against data stored in OPA. In this case the asertions are expressions which test for equality and membership of `servers`, `networks`, and `ports` documents.
+- Rules consist of assertions against data stored in OPA. In this case the assertions are expressions which test for equality and membership of `servers`, `networks`, and `ports` documents.
 
 - Expressions can referenced nested documents, e.g, `ports[i].networks[]` references the network IDs stored in an array on each port document.
 
