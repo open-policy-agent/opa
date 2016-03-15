@@ -39,6 +39,8 @@ OPA exposes several APIs to simplify integration:
 
 OPA's policy engine supports a purpose built declarative language for policy. Developers do not have to design a policy language, build a compiler or interpreter, or implement other language analysis tools to policy enable their applications.
 
+For more details, see the [OPA Concepts](./docs/CONCEPTS.md) document.
+
 ## Project Information
 
 - License: [Apache Version 2.0](./LICENSE)
