@@ -48,3 +48,7 @@ For more details, see the [OPA Concepts](./docs/CONCEPTS.md) document.
 - Mailing List: [open-policy-agent on Google Groups](https://groups.google.com/forum/?hl=en#!forum/open-policy-agent)
 - Roadmap: [ROADMAP.md](./ROADMAP.md)
 - Continuous Integration: [![Build Status](https://travis-ci.org/open-policy-agent/opa.svg?branch=master)](https://travis-ci.org/open-policy-agent/opa)
+
+## External Documents
+
+- [Design Doc for Open Policy Agent](https://docs.google.com/document/d/1JSOmiKUr5ZEIT61wgDtGHvz2vgOrtumJrECEzHBqJW0/edit)
