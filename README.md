@@ -1,6 +1,6 @@
 # OPA: Open Policy Agent
 
-OPA is an open source project which can help policy enable any application.
+An open source project to policy enable any application.
 
 ## What is Policy?
 
@@ -8,7 +8,7 @@ Policy defines expected behavior in response to specific events within an applic
 
 There are many examples of functionality within applications which can benefit from rich policy control, e.g, API authorization, VM and container placement, auto-scaling, auto-healing, etc.
 
-The approach to policy can vary greatly within and across applications. For example, policy is often written in natural language (English), stored in documents such as wiki pages, and enforced manually by the administrators of the the application. 
+The approach to policy can vary greatly within and across applications. For example, policy is often written in natural language (English), stored in documents such as wiki pages, and enforced manually by the administrators of the the application.
 
 When the cost of manually maintaining and enforcing policy is too high, policy is often defined in way that computers can understand: the application's implementation is updated to include the definition of policy and the means for enforcing it. Because most applications are implemented in **imperative languages** (such as Java or Python) the policy definition tends to focus on *how* the policy is enforced rather than *what* the expected behavior or state should be. This makes it hard for people unfamiliar with the application's implementation to know what the expected behavior or state should be. Furthermore, because policy is defined in the application's implementation, it is hard to adapt the policy without rebuilding, retesting, and redeploying the application. Deploy-time configuration may address this to some extent but is often incomplete or too course-grained.
 
@@ -39,7 +39,7 @@ OPA exposes several APIs to simplify integration:
 
 OPA's policy engine supports a purpose built declarative language for policy. Developers do not have to design a policy language, build a compiler or interpreter, or implement other language analysis tools to policy enable their applications.
 
-For more details, see the [OPA Concepts](./docs/CONCEPTS.md) document.
+For more details, see the [Concepts](./docs/CONCEPTS.md) document.
 
 ## Project Information
 
