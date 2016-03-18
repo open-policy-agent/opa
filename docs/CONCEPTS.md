@@ -48,7 +48,7 @@ These core requirements capture the guiding principles behind the concepts and d
 ## Overview
 
 Conceptually, OPA is a collection of algorithms that answer questions about policy.
-![Overview](./overview.png)
+<img src="https://rawgit.com/tsandall/opa/fix-images/docs/overview.svg" />
 
 At a high level, using OPA involves:
 
@@ -68,7 +68,7 @@ When OPA is started for the first time it contains no policies or data. Applicat
 
 Applications interact with OPA via HTTP.
 
-![Deployment](./deployment.png)
+<img src="https://rawgit.com/tsandall/opa/fix-images/docs/deployment.svg" />
 
 ## APIs
 
@@ -186,11 +186,11 @@ Conceptually, there are two kinds of documents in OPA:
 
 **Virtual documents** are defined by rules inside policies. OPA computes the contents of virtual documents when callers execute queries against rules or when dependant documents are modified. Virtual documents are defined in terms of base documents and other virtual documents. Policy authors can use virtual documents to define abstractions which are useful for expressing high level policy and insulating policy from schema changes in low level data.
 
-![Data Model](data-model-dependencies.png)
+<img src="https://rawgit.com/tsandall/opa/fix-images/docs/data-model-dependencies.svg" />
 
 When defining policies, rules are written which contain expressions that reference documents. The language that rules are written in ("Opalog") lets you reference base documents and virtual documents in exactly the same way.
 
-![Data Model Logical](data-model-logical.png)
+<img src="https://rawgit.com/tsandall/opa/fix-images/docs/data-model-logical.svg" />
 
 ## <a name="policies"></a> Policies
 
