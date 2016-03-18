@@ -175,8 +175,6 @@ Lastly, policy writers can use OPA's APIs to obtain detailed explanations of que
 
 ## Data Model
 
-![Data Model](data-model.png)
-
 OPA is designed to support document-oriented models such as JSON. Documents consist of scalars (i.e, booleans, strings, numbers, and null) and collections (i.e, objects, arrays, and sets). The document model was selected for OPA because of its prevalence in modern application stacks. For example, most applications today expose APIs which produce and consume JSON and many modern applications rely on document-oriented databases or document support in existing relational databases.
 
 Conceptually, there are two kinds of documents in OPA:
@@ -188,7 +186,11 @@ Conceptually, there are two kinds of documents in OPA:
 
 **Virtual documents** are defined by rules inside policies. OPA computes the contents of virtual documents when callers execute queries against rules or when dependant documents are modified. Virtual documents are defined in terms of base documents and other virtual documents. Policy authors can use virtual documents to define abstractions which are useful for expressing high level policy and insulating policy from schema changes in low level data.
 
+![Data Model](data-model-dependencies.png)
+
 When defining policies, rules are written which contain expressions that reference documents. The language that rules are written in ("Opalog") lets you reference base documents and virtual documents in exactly the same way.
+
+![Data Model Logical](data-model-logical.png)
 
 ## <a name="policies"></a> Policies
 
@@ -244,9 +246,9 @@ import data.ports                               # same but for data.ports
 violations[] = server :-                        # a server exists in the violations set if:
 	server = servers[]                          # the server exists in the servers collection
 	server.protocols[] = "http"                 # and the server has http in its protocols collection
-	connected_to_public[] = server              # and the server exists in the connected_to_public collection
+	public_servers[] = server                   # and the server exists in the public_servers collection
 
-connected_to_public[] = server :-               # a server exists in the connected_to_public set if:
+public_servers[] = server :-                    # a server exists in the public_servers set if:
 	server = servers[]                          # the server exists in the servers collection
 	server.ports[] = ports[i].id                # and the server is connected to a port in the ports collection
 	ports[i].networks[] = networks[j].id        # and the port is connected to a network in the networks collection
@@ -255,7 +257,7 @@ connected_to_public[] = server :-               # a server exists in the connect
 
 The key aspects of Opalog are illustrated by this example:
 
-- Rules define the content of virtual documents. In this case, we create two virtual documents: `violations` and `connected_to_public`.
+- Rules define the content of virtual documents. In this case, we create two virtual documents: `violations` and `public_servers`.
 
 - Rules consist of assertions against data stored in OPA. In this case the assertions are expressions which test for equality and membership of `servers`, `networks`, and `ports` documents.
 
