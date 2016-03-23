@@ -134,7 +134,7 @@ Content-Type: application/json-patch+json
 
 Conceptually, all data stored in OPA exists within a single document ("data").
 
-Applications execute queries when handling operations that are governed by policy. The query response tells the application what to do with the operation, e.g, reject the API call or place the VM on a specific host. Queries are executed via the Data API by performing a GET on the appropriate path. See the [Policies](#policies) section for examples.
+Applications execute queries when handling operations that are governed by policy. The query response tells the application what to do with the operation, e.g., reject the API call or place the VM on a specific host. Queries are executed via the Data API by performing a GET on the appropriate path. See the [Policies](#policies) section for examples.
 
 Queries can also be performed against data pushed into OPA. For example, the request below queries for the "servers" added above.
 
@@ -175,7 +175,7 @@ Lastly, policy writers can use OPA's APIs to obtain detailed explanations of que
 
 ## Data Model
 
-OPA is designed to support document-oriented models such as JSON. Documents consist of scalars (i.e, booleans, strings, numbers, and null) and collections (i.e, objects, arrays, and sets). The document model was selected for OPA because of its prevalence in modern application stacks. For example, most applications today expose APIs which produce and consume JSON and many modern applications rely on document-oriented databases or document support in existing relational databases.
+OPA is designed to support document-oriented models such as JSON. Documents consist of scalars (i.e., booleans, strings, numbers, and null) and collections (i.e., objects, arrays, and sets). The document model was selected for OPA because of its prevalence in modern application stacks. For example, most applications today expose APIs which produce and consume JSON and many modern applications rely on document-oriented databases or document support in existing relational databases.
 
 Conceptually, there are two kinds of documents in OPA:
 
@@ -198,7 +198,7 @@ Policies are defined in OPA's native query language: Opalog.
 
 Opalog is a declarative language based on [Datalog](https://en.wikipedia.org/wiki/Datalog). Opalog allows policy writers to define modules which contain rules. Rules contain expressions which assert facts about the expected state of documents stored in OPA. The documents referenced in rules may be base documents pushed by applications integrated with OPA or virtual documents defined by other rules.
 
-To support document-oriented models such as JSON, Opalog has rich support for referencing nested documents (i.e, documents inside arrays or objects). The syntax for referencing nested documents is based on dictionary and array access in languages like Python as well as JSON Path.
+To support document-oriented models such as JSON, Opalog has rich support for referencing nested documents (i.e., documents inside arrays or objects). The syntax for referencing nested documents is based on dictionary and array access in languages like Python as well as JSON Path.
 
 Let's look at an example.
 
@@ -261,7 +261,7 @@ The key aspects of Opalog are illustrated by this example:
 
 - Rules consist of assertions against data stored in OPA. In this case the assertions are expressions which test for equality and membership of `servers`, `networks`, and `ports` documents.
 
-- Expressions can referenced nested documents, e.g, `ports[i].networks[]` references the network IDs stored in an array on each port document.
+- Expressions can referenced nested documents, e.g., `ports[i].networks[]` references the network IDs stored in an array on each port document.
 
 - Expressions can reference elements in a collection using the `[]` and `[<variable>]` syntax. When this is done, OPA knows to iterate over elements of the collection when processing queries.
 
