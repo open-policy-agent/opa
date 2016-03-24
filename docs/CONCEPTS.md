@@ -86,11 +86,11 @@ Content-Type: text/plain
 
 package opa.examples
 
-violations[] = server :-
-	server = data.servers[]
-	server.protocols[] = "http"
-	server.ports[] = data.ports[i].id
-	data.ports[i].networks[] = data.networks[j].id
+violations[server] :-
+	server = data.servers[_]
+	server.protocols[_] = "http"
+	server.ports[_] = data.ports[i].id
+	data.ports[i].networks[_] = data.networks[j].id
 	data.networks[j].public = true
 ```
 
@@ -190,7 +190,7 @@ Conceptually, there are two kinds of documents in OPA:
 
 When defining policies, rules are written which contain expressions that reference documents. The language that rules are written in ("Opalog") lets you reference base documents and virtual documents in exactly the same way.
 
-<img src="https://cdn.rawgit.com/open-policy-agent/opa/9f5f1e6fa68fd0ee627122b9e5c8809519e5bba8/docs/data-model-logical.svg" />
+<img src="https://cdn.rawgit.com/open-policy-agent/opa/86672fab147c476cb8e8b0950b6c4fd48b5b2014/docs/data-model-logical.svg" />
 
 ## <a name="policies"></a> Policies
 
@@ -243,15 +243,15 @@ import data.servers                             # import the data.servers docume
 import data.networks                            # same but for data.networks
 import data.ports                               # same but for data.ports
 
-violations[] = server :-                        # a server exists in the violations set if:
-	server = servers[]                          # the server exists in the servers collection
-	server.protocols[] = "http"                 # and the server has http in its protocols collection
-	public_servers[] = server                   # and the server exists in the public_servers collection
+violations[server] :-                           # a server exists in the violations set if:
+	server = servers[_],                        # the server exists in the servers collection
+	server.protocols[_] = "http",               # and the server has http in its protocols collection
+	public_servers[server]                      # and the server exists in the public_servers set
 
-public_servers[] = server :-                    # a server exists in the public_servers set if:
-	server = servers[]                          # the server exists in the servers collection
-	server.ports[] = ports[i].id                # and the server is connected to a port in the ports collection
-	ports[i].networks[] = networks[j].id        # and the port is connected to a network in the networks collection
+public_servers[server] :-                       # a server exists in the public_servers set if:
+	server = servers[_],                        # the server exists in the servers collection
+	server.ports[_] = ports[i].id,              # and the server is connected to a port in the ports collection
+	ports[i].networks[_] = networks[j].id,      # and the port is connected to a network in the networks collection
 	networks[j].public = true                   # and the network is public
 ```
 
