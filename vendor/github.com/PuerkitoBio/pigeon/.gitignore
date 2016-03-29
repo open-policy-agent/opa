@@ -1,0 +1,10 @@
+.*.swp
+.*.swo
+.swp
+*.test
+bootstrap/cmd/bootstrap-pigeon/bootstrap-pigeon
+bootstrap/cmd/bootstrap-build/bootstrap-build
+bootstrap/cmd/pegscan/pegscan
+bootstrap/cmd/pegparse/pegparse
+bin/
+pigeon

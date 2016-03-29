@@ -1,4 +1,4 @@
 language: go
-
-install: ./install-deps-gen-code.sh
-
+go:
+  - 1.5
+  - 1.6

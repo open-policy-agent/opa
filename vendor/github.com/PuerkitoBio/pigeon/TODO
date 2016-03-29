@@ -1,0 +1,3 @@
+- refactor implementation as a VM to avoid stack overflow in pathological cases (and maybe better performance): in branch wip-vm
+? options like current receiver name read directly from the grammar file
+? type annotations for generated code functions
