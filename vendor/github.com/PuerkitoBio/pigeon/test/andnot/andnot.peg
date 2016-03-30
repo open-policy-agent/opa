@@ -1,0 +1,35 @@
+{
+package main
+
+func main() {
+	in := os.Stdin
+	if len(os.Args) > 1 {
+		f, err := os.Open(os.Args[1])
+		if err != nil {
+			log.Fatal(err)
+		}
+		defer f.Close()
+		in = f
+	}
+	got, err := ParseReader("", in)
+	fmt.Println(got, err)
+}
+
+func toString(v interface{}) string {
+    ifSl := v.([]interface{})
+    var res string
+    for _, s := range ifSl {
+        res += string(s.([]byte))
+    }
+    return res
+}
+}
+
+Input ← _ AB _ EOF
+
+AB ← abees:[ab]+ &{ return strings.HasSuffix(toString(abees), "b"), nil } / CD
+CD ← ceedees:[cd]+ !{ return strings.HasSuffix(toString(ceedees), "c"), nil }
+
+_ ← [ \t\n\r]*
+EOF ← !.
+
