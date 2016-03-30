@@ -101,7 +101,7 @@ If you need to update the dependencies:
 
 ## Opalog
 
-If you need to modify the Opalog syntax you must update jsonlog/parser.peg
+If you need to modify the Opalog syntax you must update opalog/parser.peg
 and run `make generate` to re-generate the parser code.
 
 > If you encounter an error because "pigeon" is not installed, run `glide

@@ -2,7 +2,7 @@
 # Use of this source code is governed by an Apache2
 # license that can be found in the LICENSE file.
 
-PACKAGES := github.com/open-policy-agent/opa/jsonlog/.../ \
+PACKAGES := github.com/open-policy-agent/opa/opalog/.../ \
 	github.com/open-policy-agent/opa/cmd/.../
 
 BUILD_COMMIT := $(shell ./build/get-build-commit.sh)
