@@ -6,24 +6,22 @@ package opalog
 
 import (
 	"fmt"
-	"reflect"
 	"testing"
 )
 
 var _ = fmt.Printf
 
 func TestScalarTerms(t *testing.T) {
-	assertParseOneTerm(t, "null", "null", reflectTerm(nil))
-	assertParseOneTerm(t, "true", "true", reflectTerm(true))
-	assertParseOneTerm(t, "false", "false", reflectTerm(false))
-	assertParseOneTerm(t, "integer", "53", reflectTerm(53))
-	assertParseOneTerm(t, "integer2", "-53", reflectTerm(-53))
-	assertParseOneTerm(t, "float", "16.7", reflectTerm(16.7))
-	assertParseOneTerm(t, "float2", "-16.7", reflectTerm(-16.7))
-	assertParseOneTerm(t, "exponent", "6e7", reflectTerm(6e7))
-	assertParseOneTerm(t, "string", "\"a string\"", reflectTerm("a string"))
-	assertParseOneTerm(t, "string", "\"a string u6abc7def8abc0def with unicode\"",
-		reflectTerm("a string u6abc7def8abc0def with unicode"))
+	assertParseOneTerm(t, "null", "null", NullTerm())
+	assertParseOneTerm(t, "true", "true", BooleanTerm(true))
+	assertParseOneTerm(t, "false", "false", BooleanTerm(false))
+	assertParseOneTerm(t, "integer", "53", NumberTerm(53))
+	assertParseOneTerm(t, "integer2", "-53", NumberTerm(-53))
+	assertParseOneTerm(t, "float", "16.7", NumberTerm(16.7))
+	assertParseOneTerm(t, "float2", "-16.7", NumberTerm(-16.7))
+	assertParseOneTerm(t, "exponent", "6e7", NumberTerm(6e7))
+	assertParseOneTerm(t, "string", "\"a string\"", StringTerm("a string"))
+	assertParseOneTerm(t, "string", "\"a string u6abc7def8abc0def with unicode\"", StringTerm("a string u6abc7def8abc0def with unicode"))
 	assertParseOneTermFail(t, "hex", "6abc")
 	assertParseOneTermFail(t, "non-string", "'a string'")
 	assertParseOneTermFail(t, "non-number", "6zxy")
@@ -33,69 +31,64 @@ func TestScalarTerms(t *testing.T) {
 	assertParseOneTermFail(t, "non-number5", "6false")
 	assertParseOneTermFail(t, "non-number6", "6[null, null]")
 	assertParseOneTermFail(t, "non-number7", "6{\"foo\": \"bar\"}")
-    assertParseOneTermFail(t, "out-of-range", "1e1000")
+	assertParseOneTermFail(t, "out-of-range", "1e1000")
 }
 
 func TestVarTerms(t *testing.T) {
-	assertParseOneTerm(t, "var", "foo", reflectTerm(NewVar("foo")))
-	assertParseOneTerm(t, "var", "foo_bar", reflectTerm(NewVar("foo_bar")))
-	assertParseOneTerm(t, "var", "foo0", reflectTerm(NewVar("foo0")))
-
+	assertParseOneTerm(t, "var", "foo", VarTerm("foo"))
+	assertParseOneTerm(t, "var", "foo_bar", VarTerm("foo_bar"))
+	assertParseOneTerm(t, "var", "foo0", VarTerm("foo0"))
 	assertParseOneTermFail(t, "non-var", "foo-bar")
 	assertParseOneTermFail(t, "non-var2", "foo-7")
 }
 
+func TestRefTerms(t *testing.T) {
+	assertParseOneTerm(t, "constants", "foo.bar.baz", RefTerm(VarTerm("foo"), StringTerm("bar"), StringTerm("baz")))
+	assertParseOneTerm(t, "constants 2", "foo.bar[0].baz", RefTerm(VarTerm("foo"), StringTerm("bar"), NumberTerm(0), StringTerm("baz")))
+	assertParseOneTerm(t, "variables", "foo.bar[0].baz[i]", RefTerm(VarTerm("foo"), StringTerm("bar"), NumberTerm(0), StringTerm("baz"), VarTerm("i")))
+}
+
 func TestObjectWithScalars(t *testing.T) {
-	assertParseOneTerm(t, "number", "{\"abc\": 7, \"def\": 8}", reflectTerm(map[string]int{"abc": 7, "def": 8}))
-	assertParseOneTerm(t, "bool", "{\"abc\": false, \"def\": true}", reflectTerm(map[string]bool{"abc": false, "def": true}))
-	assertParseOneTerm(t, "string", "{\"abc\": \"foo\", \"def\": \"bar\"}", reflectTerm(map[string]string{"abc": "foo", "def": "bar"}))
-	assertParseOneTerm(t, "mixed", "{\"abc\": 7, \"def\": null}", reflectTerm(map[string]interface{}{"abc": 7, "def": nil}))
-    assertParseOneTerm(t, "number key", "{8: 7, \"def\": null}", reflectTerm(map[interface{}]interface{}{8: 7, "def": nil}))
-    assertParseOneTerm(t, "number key 2", "{8.5: 7, \"def\": null}", reflectTerm(map[interface{}]interface{}{8.5: 7, "def": nil}))
-    assertParseOneTerm(t, "bool key", "{true: false}", reflectTerm(map[bool]bool{true: false}))
+	assertParseOneTerm(t, "number", "{\"abc\": 7, \"def\": 8}", ObjectTerm(Item(StringTerm("abc"), NumberTerm(7)), Item(StringTerm("def"), NumberTerm(8))))
+	assertParseOneTerm(t, "bool", "{\"abc\": false, \"def\": true}", ObjectTerm(Item(StringTerm("abc"), BooleanTerm(false)), Item(StringTerm("def"), BooleanTerm(true))))
+	assertParseOneTerm(t, "string", "{\"abc\": \"foo\", \"def\": \"bar\"}", ObjectTerm(Item(StringTerm("abc"), StringTerm("foo")), Item(StringTerm("def"), StringTerm("bar"))))
+	assertParseOneTerm(t, "mixed", "{\"abc\": 7, \"def\": null}", ObjectTerm(Item(StringTerm("abc"), NumberTerm(7)), Item(StringTerm("def"), NullTerm())))
+	assertParseOneTerm(t, "number key", "{8: 7, \"def\": null}", ObjectTerm(Item(NumberTerm(8), NumberTerm(7)), Item(StringTerm("def"), NullTerm())))
+	assertParseOneTerm(t, "number key 2", "{8.5: 7, \"def\": null}", ObjectTerm(Item(NumberTerm(8.5), NumberTerm(7)), Item(StringTerm("def"), NullTerm())))
+	assertParseOneTerm(t, "bool key", "{true: false}", ObjectTerm(Item(BooleanTerm(true), BooleanTerm(false))))
 }
 
 func TestObjectWithVars(t *testing.T) {
-
-	assertParseOneTerm(t, "var keys", "{foo: \"bar\", bar: 64}", newObjectTerm([]*KeyValue{
-		NewKeyValue(reflectTerm(NewVar("foo")), reflectTerm("bar")),
-		NewKeyValue(reflectTerm(NewVar("bar")), reflectTerm(64)),
-	}))
-
-	assertParseOneTerm(t, "nested var keys", "{baz: {foo: \"bar\", bar: qux}}", newObjectTerm([]*KeyValue{
-		NewKeyValue(reflectTerm(NewVar("baz")), newObjectTerm([]*KeyValue{
-			NewKeyValue(reflectTerm(NewVar("foo")), reflectTerm("bar")),
-			NewKeyValue(reflectTerm(NewVar("bar")), reflectTerm(NewVar("qux"))),
-		})),
-	}))
+	assertParseOneTerm(t, "var keys", "{foo: \"bar\", bar: 64}", ObjectTerm(Item(VarTerm("foo"), StringTerm("bar")), Item(VarTerm("bar"), NumberTerm(64))))
+	assertParseOneTerm(t, "nested var keys", "{baz: {foo: \"bar\", bar: qux}}", ObjectTerm(Item(VarTerm("baz"), ObjectTerm(Item(VarTerm("foo"), StringTerm("bar")), Item(VarTerm("bar"), VarTerm("qux"))))))
 }
 
 func TestArrayWithScalars(t *testing.T) {
-	assertParseOneTerm(t, "number", "[1,2,3,4.5]", reflectTerm([]float64{1, 2, 3, 4.5}))
-	assertParseOneTerm(t, "bool", "[true, false, true]", reflectTerm([]bool{true, false, true}))
-	assertParseOneTerm(t, "string", "[\"foo\", \"bar\"]", reflectTerm([]string{"foo", "bar"}))
-	assertParseOneTerm(t, "mixed", "[null, true, 42]", reflectTerm([]interface{}{nil, true, 42}))
+	assertParseOneTerm(t, "number", "[1,2,3,4.5]", ArrayTerm(NumberTerm(1), NumberTerm(2), NumberTerm(3), NumberTerm(4.5)))
+	assertParseOneTerm(t, "bool", "[true, false, true]", ArrayTerm(BooleanTerm(true), BooleanTerm(false), BooleanTerm(true)))
+	assertParseOneTerm(t, "string", "[\"foo\", \"bar\"]", ArrayTerm(StringTerm("foo"), StringTerm("bar")))
+	assertParseOneTerm(t, "mixed", "[null, true, 42]", ArrayTerm(NullTerm(), BooleanTerm(true), NumberTerm(42)))
 }
 
 func TestArrayWithVars(t *testing.T) {
-	assertParseOneTerm(t, "var elements", "[foo, bar, 42]", newArrayTerm([]*Term{reflectTerm(NewVar("foo")), reflectTerm(NewVar("bar")), reflectTerm(42)}))
-	assertParseOneTerm(t, "nested var elements", "[[foo, true], [null, bar], 42]", newArrayTerm(
-		[]*Term{
-			newArrayTerm([]*Term{reflectTerm(NewVar("foo")), reflectTerm(true)}),
-			newArrayTerm([]*Term{reflectTerm(nil), reflectTerm(NewVar("bar"))}),
-			reflectTerm(42),
-		},
-	))
+	assertParseOneTerm(t, "var elements", "[foo, bar, 42]", ArrayTerm(VarTerm("foo"), VarTerm("bar"), NumberTerm(42)))
+	assertParseOneTerm(t, "nested var elements", "[[foo, true], [null, bar], 42]", ArrayTerm(ArrayTerm(VarTerm("foo"), BooleanTerm(true)), ArrayTerm(NullTerm(), VarTerm("bar")), NumberTerm(42)))
+}
+
+func TestEmptyComposites(t *testing.T) {
+    assertParseOneTerm(t, "empty object", "{}", ObjectTerm())
+    assertParseOneTerm(t, "emtpy array", "[]", ArrayTerm())
 }
 
 func TestNestedComposites(t *testing.T) {
-    assertParseOneTerm(t, "nested composites", "[{foo: [\"bar\", baz]}]", newArrayTerm([]*Term{
-        newObjectTerm([]*KeyValue{
-            NewKeyValue(reflectTerm(NewVar("foo")), newArrayTerm([]*Term{
-                reflectTerm("bar"), reflectTerm(NewVar("baz")),
-            })),
-        }),
-    }))
+	assertParseOneTerm(t, "nested composites", "[{foo: [\"bar\", baz]}]", ArrayTerm(ObjectTerm(Item(VarTerm("foo"), ArrayTerm(StringTerm("bar"), VarTerm("baz"))))))
+}
+
+func TestCompositesWithRefs(t *testing.T) {
+	ref1 := RefTerm(VarTerm("a"), VarTerm("i"), StringTerm("b"))
+	ref2 := RefTerm(VarTerm("c"), NumberTerm(0), StringTerm("d"), StringTerm("e"), VarTerm("j"))
+	assertParseOneTerm(t, "ref keys", "[{a[i].b: 8, c[0][\"d\"].e[j]: f}]", ArrayTerm(ObjectTerm(Item(ref1, NumberTerm(8)), Item(ref2, VarTerm("f")))))
+	assertParseOneTerm(t, "ref values", "[{8: a[i].b, f: c[0][\"d\"].e[j]}]", ArrayTerm(ObjectTerm(Item(NumberTerm(8), ref1), Item(VarTerm("f"), ref2))))
 }
 
 func assertTermEqual(t *testing.T, x *Term, y *Term) {
@@ -142,66 +135,4 @@ func assertParseOneTermFail(t *testing.T, msg string, expr string) {
 	} else {
 		t.Errorf("Error on test %s: failed to error when parsing %v: %v", msg, expr, parsed)
 	}
-}
-
-func newObjectTerm(o []*KeyValue) *Term {
-	set := NewKeyValueSet()
-	for _, v := range o {
-		set.Add(v)
-	}
-	return NewTerm(set, OBJECT, []byte(""), "", 0, 0)
-}
-
-func newArrayTerm(arr []*Term) *Term {
-	return NewTerm(arr, ARRAY, []byte(""), "", 0, 0)
-}
-
-func reflectTerm(x interface{}) *Term {
-
-	if x == nil {
-		return NewTerm(nil, NULL, []byte(""), "", 0, 0)
-	}
-
-	if v, ok := x.(*Var); ok {
-		return NewTerm(v, VAR, []byte(""), "", 0, 0)
-	}
-
-	var val interface{}
-	var typ int
-	switch reflect.TypeOf(x).Kind() {
-	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64,
-		reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		val = float64(reflect.ValueOf(x).Int())
-		typ = NUMBER
-	case reflect.Float32, reflect.Float64:
-		val = float64(reflect.ValueOf(x).Float())
-		typ = NUMBER
-	case reflect.String:
-		val = x
-		typ = STRING
-	case reflect.Bool:
-		val = x
-		typ = BOOLEAN
-	case reflect.Map:
-		kvset := NewKeyValueSet()
-		xval := reflect.ValueOf(x)
-		for _, key := range xval.MapKeys() {
-			kvset.Add(NewKeyValue(reflectTerm(key.Interface()), reflectTerm(xval.MapIndex(key).Interface())))
-		}
-		val = kvset
-		typ = OBJECT
-	case reflect.Slice, reflect.Array:
-		xval := reflect.ValueOf(x)
-		length := xval.Len()
-		arr := make([]*Term, length)
-		for i := 0; i < length; i++ {
-			arr[i] = reflectTerm(xval.Index(i).Interface())
-		}
-		val = arr
-		typ = ARRAY
-	default:
-		panic(fmt.Sprintf("Unexpected type of term: %v", x))
-	}
-
-	return NewTerm(val, typ, []byte(""), "", 0, 0)
 }

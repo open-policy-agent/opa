@@ -16,9 +16,10 @@ Requirements:
 
 ## Getting Started
 
-After cloning the repository, you can run `make all` to build the project and
-execute all of the tests. If this succeeds, there should be a binary
-in the top directory (opa).
+After cloning the repository, run `make deps` to install the parser generator ("pigeon") into your workspace.
+
+Next, run `make all` to build the project and execute all of the tests. If
+this succeeds, there should be a new binary in the top level directory ("opa").
 
 Verify the build was successful by running `opa version`.
 
@@ -101,12 +102,4 @@ If you need to update the dependencies:
 
 ## Opalog
 
-If you need to modify the Opalog syntax you must update opalog/parser.peg
-and run `make generate` to re-generate the parser code.
-
-> If you encounter an error because "pigeon" is not installed, run `glide
-> rebuild` to build and install the vendored dependencies (which include the
-> parser generator). Note, you will need to have [Glide](https://github.com/Masterminds/glide)
-> installed for this.
-
-Commit the changes to the parser.peg and parser.go files.
+If you need to modify the Opalog syntax you must update opalog/opalog.peg. Both `make build` and `make test` will re-generate the parser but if you want to test the parser generation explicitly you can run `make generate`.

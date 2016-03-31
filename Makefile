@@ -18,17 +18,21 @@ GO := go
 GO15VENDOREXPERIMENT := 1
 export GO15VENDOREXPERIMENT
 
-.PHONY: all generate build test clean
+.PHONY: all deps generate build test clean
 
 all: build test
+
+deps:
+	$(GO) install ./vendor/github.com/PuerkitoBio/pigeon
+	$(GO) install ./vendor/golang.org/x/tools/cmd/goimports
 
 generate:
 	$(GO) generate
 
-build:
+build: generate
 	$(GO) build -o opa $(LDFLAGS)
 
-test:
+test: generate
 	$(GO) test -v $(PACKAGES)
 
 clean:

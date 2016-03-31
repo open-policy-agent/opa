@@ -4,6 +4,12 @@ package opalog
 //
 // BUGS: the escaped forward solidus (`\/`) is not currently handled for strings.
 //
+
+func currentLocation(c *current) *Location {
+    // TODO: Is it possible to propagate  file names into the parser?
+    return NewLocation(c.text, "", c.pos.line, c.pos.col)
+}
+
 }
 
 Prog <- _ head:Term tail:( ws Term )*  EOF {
@@ -14,7 +20,7 @@ Prog <- _ head:Term tail:( ws Term )*  EOF {
     return append([]interface{}{head}, tailSlice...), nil
 }
 
-Term <- val:( Composite / Scalar / Var ) {
+Term <- val:( Composite / Scalar / Ref / Var ) {
     return val, nil
 }
 
@@ -22,92 +28,104 @@ Composite <- Object / Array
 
 Scalar <- Number / String / Bool / Null
 
-Key <- Scalar / Var
+Key <- Scalar / Ref / Var
 
 Object <- '{' _ head:(Key _ ':' _ Term)? tail:( _ ',' _ Key _ ':' _ Term )* _ '}' {
-    set := NewKeyValueSet()
+   var buf [][2]*Term
 
-    // Empty object.
-    if head == nil {
-        return NewTerm(set, OBJECT, c.text, "", c.pos.line, c.pos.col), nil
-    }
+   // Empty object.
+   if head == nil {
+       return ObjectTermWithLoc(buf, currentLocation(c)), nil
+   }
 
-    // Non-empty object, first key/value pair.
-    // The "head" variable is a slice containing exactly 5 elements (see rule definition above):
-    // [key whitespace colon whitespace key] where the whitespace elements may be nil.
-    headSlice := head.([]interface{})
-    set.Add(NewKeyValue(headSlice[0].(*Term), headSlice[len(headSlice) - 1].(*Term)))
+   // Non-empty object, first key/value pair.
+   // The "head" variable is a slice containing exactly 5 elements (see rule definition above):
+   // [key whitespace colon whitespace key] where the whitespace elements may be nil.
+   headSlice := head.([]interface{})
+   buf = append(buf, Item(headSlice[0].(*Term), headSlice[len(headSlice) - 1].(*Term)))
 
-    // Non-empty object, remaining key/value pairs.
-    tailSlice := tail.([]interface{})
-    for _, v := range tailSlice {
-        s := v.([]interface{})
-        // The "s" variable is a slice containing exactly 8 elements (see rule definition above).
-        // This is similar to the "head" variable."
-        set.Add(NewKeyValue(s[3].(*Term), s[len(s) - 1].(*Term)))
-    }
+   // Non-empty object, remaining key/value pairs.
+   tailSlice := tail.([]interface{})
+   for _, v := range tailSlice {
+       s := v.([]interface{})
+       // The "s" variable is a slice containing exactly 8 elements (see rule definition above).
+       // This is similar to the "head" variable."
+       buf = append(buf, Item(s[3].(*Term), s[len(s) - 1].(*Term)))
+   }
 
-    result := NewTerm(set, OBJECT, c.text, "", c.pos.line, c.pos.col)
-    return result, nil
+   return ObjectTermWithLoc(buf, currentLocation(c)), nil
 }
 
 Array <- '[' _  head:Term? tail:(_ ',' _ Term)* _ ']' {
 
-    // Empty array.
-    if head == nil {
-        return NewTerm([]*Term{}, ARRAY, c.text, "", c.pos.line, c.pos.col), nil
-    }
+    var buf []*Term
 
-    // Non-empty array, first element.
-    var arr []*Term
-    arr = append(arr, head.(*Term))
+   // Empty array.
+   if head == nil {
+       return ArrayTermWithLoc(buf, currentLocation(c)), nil
+   }
 
-    // Non-empty array, remaining elements.
-    tailSlice := tail.([]interface{})
-    for _, v := range tailSlice {
-        s := v.([]interface{})
-        // The "s" is a slice containing exactly 4 elements (see rule definition above).
-        // [whitespace comma whitespace value] where the whitespace elements may be nil.
-        arr = append(arr, s[len(s) - 1].(*Term))
-    }
+   // Non-empty array, first element.
+   buf = append(buf, head.(*Term))
 
-    result := NewTerm(arr, ARRAY, c.text, "", c.pos.line, c.pos.col)
-    return result, nil
+   // Non-empty array, remaining elements.
+   tailSlice := tail.([]interface{})
+   for _, v := range tailSlice {
+       s := v.([]interface{})
+       // The "s" is a slice containing exactly 4 elements (see rule definition above).
+       // [whitespace comma whitespace value] where the whitespace elements may be nil.
+       buf = append(buf, s[len(s) - 1].(*Term))
+   }
+
+   return ArrayTermWithLoc(buf, currentLocation(c)), nil
+}
+
+Ref <- head:Var tail:( RefDot / RefBracket )+ {
+   buf := []*Term{head.(*Term)}
+
+   tailSlice := tail.([]interface{})
+   for _, v := range tailSlice {
+       buf = append(buf, v.(*Term))
+   }
+
+   return RefTermWithLoc(buf, currentLocation(c)), nil
+}
+
+RefDot <- "." val:Var {
+    // Convert the Var into a string because 'foo.bar.baz' is equivalent to 'foo["bar"]["baz"]'.
+    return StringTermWithLoc(string(val.(*Term).Value.(Var)), currentLocation(c)), nil
+}
+
+RefBracket <- "[" val:(Scalar / Var) "]" {
+    return val, nil
 }
 
 Var <- vals:( AsciiLetter (AsciiLetter / DecimalDigit)* ) {
-    v := &Var{string(c.text)}
-    t := NewTerm(v, VAR, c.text, "", c.pos.line, c.pos.col)
-    return t, nil
+    return VarTermWithLoc(string(c.text), currentLocation(c)), nil
 }
 
 Number <- '-'? Integer ( '.' DecimalDigit+ )? Exponent? {
     // JSON numbers have the same syntax as Go's, and are parseable using
     // strconv.
     v, err := strconv.ParseFloat(string(c.text), 64)
-    t := NewTerm(v, NUMBER, c.text, "", c.pos.line, c.pos.col)
-    return t, err
+    return NumberTermWithLoc(v, currentLocation(c)), err
 }
 
 String <- '"' ( !EscapedChar . / '\\' EscapeSequence )* '"' {
     // TODO : the forward slash (solidus) is not a valid escape in Go, it will
     // fail if there's one in the string
     v, err := strconv.Unquote(string(c.text))
-    t := NewTerm(v, STRING, c.text, "", c.pos.line, c.pos.col)
-    return t, err // v, err
+    return StringTermWithLoc(v, currentLocation(c)), err
 }
 
 Bool <- "true" {
-    t := NewTerm(true, BOOLEAN, c.text, "", c.pos.line, c.pos.col)
-    return t, nil
+    return BooleanTermWithLoc(true, currentLocation(c)), nil
 } / "false" {
-    t := NewTerm(false, BOOLEAN, c.text, "", c.pos.line, c.pos.col)
-    return t, nil
+    return BooleanTermWithLoc(false, currentLocation(c)), nil
 }
 
 Null <- "null" {
-    t := NewTerm(nil, NULL, c.text, "", c.pos.line, c.pos.col)
-    return t, nil
+    return NullTermWithLoc(currentLocation(c)), nil
 }
 
 Integer <- '0' / NonZeroDecimalDigit DecimalDigit*
