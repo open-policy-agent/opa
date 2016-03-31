@@ -17,5 +17,5 @@ func main() {
 
 // Opalog parser generation:
 //
-//go:generate pigeon -o jsonlog/parser.go jsonlog/jsonlog.peg
-//go:generate goimports -w jsonlog/parser.go
+//go:generate pigeon -o opalog/parser.go opalog/opalog.peg
+//go:generate goimports -w opalog/parser.go

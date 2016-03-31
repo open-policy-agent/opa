@@ -1,0 +1,137 @@
+{
+package opalog
+
+//
+// BUGS: the escaped forward solidus (`\/`) is not currently handled for strings.
+//
+}
+
+Prog <- _ head:Term tail:( ws Term )*  EOF {
+    if head == nil {
+        return make([]interface{}, 0), nil
+    }
+    tailSlice := tail.([]interface{})
+    return append([]interface{}{head}, tailSlice...), nil
+}
+
+Term <- val:( Composite / Scalar / Var ) {
+    return val, nil
+}
+
+Composite <- Object / Array
+
+Scalar <- Number / String / Bool / Null
+
+Key <- Scalar / Var
+
+Object <- '{' _ head:(Key _ ':' _ Term)? tail:( _ ',' _ Key _ ':' _ Term )* _ '}' {
+    set := NewKeyValueSet()
+
+    // Empty object.
+    if head == nil {
+        return NewTerm(set, OBJECT, c.text, "", c.pos.line, c.pos.col), nil
+    }
+
+    // Non-empty object, first key/value pair.
+    // The "head" variable is a slice containing exactly 5 elements (see rule definition above):
+    // [key whitespace colon whitespace key] where the whitespace elements may be nil.
+    headSlice := head.([]interface{})
+    set.Add(NewKeyValue(headSlice[0].(*Term), headSlice[len(headSlice) - 1].(*Term)))
+
+    // Non-empty object, remaining key/value pairs.
+    tailSlice := tail.([]interface{})
+    for _, v := range tailSlice {
+        s := v.([]interface{})
+        // The "s" variable is a slice containing exactly 8 elements (see rule definition above).
+        // This is similar to the "head" variable."
+        set.Add(NewKeyValue(s[3].(*Term), s[len(s) - 1].(*Term)))
+    }
+
+    result := NewTerm(set, OBJECT, c.text, "", c.pos.line, c.pos.col)
+    return result, nil
+}
+
+Array <- '[' _  head:Term? tail:(_ ',' _ Term)* _ ']' {
+
+    // Empty array.
+    if head == nil {
+        return NewTerm([]*Term{}, ARRAY, c.text, "", c.pos.line, c.pos.col), nil
+    }
+
+    // Non-empty array, first element.
+    var arr []*Term
+    arr = append(arr, head.(*Term))
+
+    // Non-empty array, remaining elements.
+    tailSlice := tail.([]interface{})
+    for _, v := range tailSlice {
+        s := v.([]interface{})
+        // The "s" is a slice containing exactly 4 elements (see rule definition above).
+        // [whitespace comma whitespace value] where the whitespace elements may be nil.
+        arr = append(arr, s[len(s) - 1].(*Term))
+    }
+
+    result := NewTerm(arr, ARRAY, c.text, "", c.pos.line, c.pos.col)
+    return result, nil
+}
+
+Var <- vals:( AsciiLetter (AsciiLetter / DecimalDigit)* ) {
+    v := &Var{string(c.text)}
+    t := NewTerm(v, VAR, c.text, "", c.pos.line, c.pos.col)
+    return t, nil
+}
+
+Number <- '-'? Integer ( '.' DecimalDigit+ )? Exponent? {
+    // JSON numbers have the same syntax as Go's, and are parseable using
+    // strconv.
+    v, err := strconv.ParseFloat(string(c.text), 64)
+    t := NewTerm(v, NUMBER, c.text, "", c.pos.line, c.pos.col)
+    return t, err
+}
+
+String <- '"' ( !EscapedChar . / '\\' EscapeSequence )* '"' {
+    // TODO : the forward slash (solidus) is not a valid escape in Go, it will
+    // fail if there's one in the string
+    v, err := strconv.Unquote(string(c.text))
+    t := NewTerm(v, STRING, c.text, "", c.pos.line, c.pos.col)
+    return t, err // v, err
+}
+
+Bool <- "true" {
+    t := NewTerm(true, BOOLEAN, c.text, "", c.pos.line, c.pos.col)
+    return t, nil
+} / "false" {
+    t := NewTerm(false, BOOLEAN, c.text, "", c.pos.line, c.pos.col)
+    return t, nil
+}
+
+Null <- "null" {
+    t := NewTerm(nil, NULL, c.text, "", c.pos.line, c.pos.col)
+    return t, nil
+}
+
+Integer <- '0' / NonZeroDecimalDigit DecimalDigit*
+
+Exponent <- 'e'i [+-]? DecimalDigit+
+
+AsciiLetter <- [A-Za-z_]
+
+EscapedChar <- [\x00-\x1f"\\]
+
+EscapeSequence <- SingleCharEscape / UnicodeEscape
+
+SingleCharEscape <- ["\\/bfnrt]
+
+UnicodeEscape <- 'u' HexDigit HexDigit HexDigit HexDigit
+
+DecimalDigit <- [0-9]
+
+NonZeroDecimalDigit <- [1-9]
+
+HexDigit <- [0-9a-f]i
+
+_ "whitespace" <- [ \t\r\n]*
+
+ws "whitespace" <- [ \t\r\n]+
+
+EOF <- !.
