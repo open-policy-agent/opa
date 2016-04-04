@@ -945,14 +945,11 @@ func (cc *ClientConn) encodeHeaders(req *http.Request, addGzipHeader bool, trail
 			// Host is :authority, already sent.
 			// Content-Length is automatic, set below.
 			continue
-		case "connection", "proxy-connection", "transfer-encoding", "upgrade":
+		case "connection", "proxy-connection", "transfer-encoding", "upgrade", "keep-alive":
 			// Per 8.1.2.2 Connection-Specific Header
 			// Fields, don't send connection-specific
-			// fields. We deal with these earlier in
-			// RoundTrip, deciding whether they're
-			// error-worthy, but we don't want to mutate
-			// the user's *Request so at this point, just
-			// skip over them at this point.
+			// fields. We have already checked if any
+			// are error-worthy so just ignore the rest.
 			continue
 		case "user-agent":
 			// Match Go's http1 behavior: at most one
