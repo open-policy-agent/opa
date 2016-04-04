@@ -65,8 +65,8 @@ func (ri RawInstruction) Disassemble() Instruction {
 				return ri
 			}
 			return LoadExtension{Num: ExtLen}
-		case opAddrModeIPv4HeaderLen:
-			return LoadIPv4HeaderLen{Off: ri.K}
+		case opAddrModeMemShift:
+			return LoadMemShift{Off: ri.K}
 		default:
 			return ri
 		}
@@ -209,15 +209,19 @@ func (a LoadIndirect) Assemble() (RawInstruction, error) {
 	return assembleLoad(RegA, a.Size, opAddrModeIndirect, a.Off)
 }
 
-// LoadIPv4HeaderLen loads into register X the length of the IPv4
-// header whose first byte is packet[Off].
-type LoadIPv4HeaderLen struct {
+// LoadMemShift multiplies the first 4 bits of the byte at packet[Off]
+// by 4 and stores the result in register X.
+//
+// This instruction is mainly useful to load into X the length of an
+// IPv4 packet header in a single instruction, rather than have to do
+// the arithmetic on the header's first byte by hand.
+type LoadMemShift struct {
 	Off uint32
 }
 
 // Assemble implements the Instruction Assemble method.
-func (a LoadIPv4HeaderLen) Assemble() (RawInstruction, error) {
-	return assembleLoad(RegX, 1, opAddrModeIPv4HeaderLen, a.Off)
+func (a LoadMemShift) Assemble() (RawInstruction, error) {
+	return assembleLoad(RegX, 1, opAddrModeMemShift, a.Off)
 }
 
 // LoadExtension invokes a linux-specific extension and stores the

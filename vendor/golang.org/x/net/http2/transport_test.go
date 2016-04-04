@@ -1642,6 +1642,11 @@ func TestTransportRejectsConnHeaders(t *testing.T) {
 			value: []string{"123"},
 			want:  "Accept-Encoding,User-Agent",
 		},
+		{
+			key:   "Keep-Alive",
+			value: []string{"doop"},
+			want:  "Accept-Encoding,User-Agent",
+		},
 	}
 
 	for _, tt := range tests {

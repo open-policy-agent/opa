@@ -29,7 +29,7 @@ var allInstructions = []Instruction{
 	LoadIndirect{Off: 42, Size: 2},
 	LoadIndirect{Off: 42, Size: 4},
 
-	LoadIPv4HeaderLen{Off: 42},
+	LoadMemShift{Off: 42},
 
 	LoadExtension{Num: ExtLen},
 	LoadExtension{Num: ExtProto},

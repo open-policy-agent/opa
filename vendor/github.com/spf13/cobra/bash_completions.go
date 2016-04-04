@@ -61,7 +61,7 @@ __contains_word()
 
 __handle_reply()
 {
-    __debug "${FUNCNAME}"
+    __debug "${FUNCNAME[0]}"
     case $cur in
         -*)
             if [[ $(type -t compopt) = "builtin" ]]; then
@@ -75,7 +75,7 @@ __handle_reply()
             fi
             COMPREPLY=( $(compgen -W "${allflags[*]}" -- "$cur") )
             if [[ $(type -t compopt) = "builtin" ]]; then
-                [[ $COMPREPLY == *= ]] || compopt +o nospace
+                [[ "${COMPREPLY[0]}" == *= ]] || compopt +o nospace
             fi
 
             # complete after --flag=abc
@@ -88,11 +88,13 @@ __handle_reply()
                 flag="${cur%%=*}"
                 __index_of_word "${flag}" "${flags_with_completion[@]}"
                 if [[ ${index} -ge 0 ]]; then
-                    COMPREPLY=() PREFIX="" cur="${cur#*=}"
+                    COMPREPLY=()
+                    PREFIX=""
+                    cur="${cur#*=}"
                     ${flags_completion[${index}]}
                     if [ -n "${ZSH_VERSION}" ]; then
                         # zfs completion needs --flag= prefix
-                        eval COMPREPLY=( "\${COMPREPLY[@]/#/${flag}=}" )
+                        eval "COMPREPLY=( \"\${COMPREPLY[@]/#/${flag}=}\" )"
                     fi
                 fi
             fi
@@ -123,6 +125,10 @@ __handle_reply()
     fi
     COMPREPLY=( $(compgen -W "${completions[*]}" -- "$cur") )
 
+    if [[ ${#COMPREPLY[@]} -eq 0 && ${#noun_aliases[@]} -gt 0 && ${#must_have_one_noun[@]} -ne 0 ]]; then
+        COMPREPLY=( $(compgen -W "${noun_aliases[*]}" -- "$cur") )
+    fi
+
     if [[ ${#COMPREPLY[@]} -eq 0 ]]; then
         declare -F __custom_func >/dev/null && __custom_func
     fi
@@ -145,7 +151,7 @@ __handle_subdirs_in_dir_flag()
 
 __handle_flag()
 {
-    __debug "${FUNCNAME}: c is $c words[c] is ${words[c]}"
+    __debug "${FUNCNAME[0]}: c is $c words[c] is ${words[c]}"
 
     # if a command required a flag, and we found it, unset must_have_one_flag()
     local flagname=${words[c]}
@@ -156,15 +162,15 @@ __handle_flag()
         flagname=${flagname%%=*} # strip everything after the =
         flagname="${flagname}=" # but put the = back
     fi
-    __debug "${FUNCNAME}: looking for ${flagname}"
+    __debug "${FUNCNAME[0]}: looking for ${flagname}"
     if __contains_word "${flagname}" "${must_have_one_flag[@]}"; then
         must_have_one_flag=()
     fi
 
     # keep flag value with flagname as flaghash
-    if [ ${flagvalue} ] ; then
+    if [ -n "${flagvalue}" ] ; then
         flaghash[${flagname}]=${flagvalue}
-    elif [ ${words[ $((c+1)) ]} ] ; then
+    elif [ -n "${words[ $((c+1)) ]}" ] ; then
         flaghash[${flagname}]=${words[ $((c+1)) ]}
     else
         flaghash[${flagname}]="true" # pad "true" for bool flag
@@ -185,11 +191,11 @@ __handle_flag()
 
 __handle_noun()
 {
-    __debug "${FUNCNAME}: c is $c words[c] is ${words[c]}"
+    __debug "${FUNCNAME[0]}: c is $c words[c] is ${words[c]}"
 
     if __contains_word "${words[c]}" "${must_have_one_noun[@]}"; then
         must_have_one_noun=()
-    elif __contains_word "${words[c]%s}" "${must_have_one_noun[@]}"; then
+    elif __contains_word "${words[c]}" "${noun_aliases[@]}"; then
         must_have_one_noun=()
     fi
 
@@ -199,20 +205,20 @@ __handle_noun()
 
 __handle_command()
 {
-    __debug "${FUNCNAME}: c is $c words[c] is ${words[c]}"
+    __debug "${FUNCNAME[0]}: c is $c words[c] is ${words[c]}"
 
     local next_command
     if [[ -n ${last_command} ]]; then
         next_command="_${last_command}_${words[c]//:/__}"
     else
         if [[ $c -eq 0 ]]; then
-            next_command="_$(basename ${words[c]//:/__})"
+            next_command="_$(basename "${words[c]//:/__}")"
         else
             next_command="_${words[c]//:/__}"
         fi
     fi
     c=$((c+1))
-    __debug "${FUNCNAME}: looking for ${next_command}"
+    __debug "${FUNCNAME[0]}: looking for ${next_command}"
     declare -F $next_command >/dev/null && $next_command
 }
 
@@ -222,12 +228,12 @@ __handle_word()
         __handle_reply
         return
     fi
-    __debug "${FUNCNAME}: c is $c words[c] is ${words[c]}"
+    __debug "${FUNCNAME[0]}: c is $c words[c] is ${words[c]}"
     if [[ "${words[c]}" == -* ]]; then
         __handle_flag
     elif __contains_word "${words[c]}" "${commands[@]}"; then
         __handle_command
-    elif [[ $c -eq 0 ]] && __contains_word "$(basename ${words[c]})" "${commands[@]}"; then
+    elif [[ $c -eq 0 ]] && __contains_word "$(basename "${words[c]}")" "${commands[@]}"; then
         __handle_command
     else
         __handle_noun
@@ -460,13 +466,26 @@ func writeRequiredFlag(cmd *Command, w io.Writer) error {
 	return visitErr
 }
 
-func writeRequiredNoun(cmd *Command, w io.Writer) error {
+func writeRequiredNouns(cmd *Command, w io.Writer) error {
 	if _, err := fmt.Fprintf(w, "    must_have_one_noun=()\n"); err != nil {
 		return err
 	}
 	sort.Sort(sort.StringSlice(cmd.ValidArgs))
 	for _, value := range cmd.ValidArgs {
 		if _, err := fmt.Fprintf(w, "    must_have_one_noun+=(%q)\n", value); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func writeArgAliases(cmd *Command, w io.Writer) error {
+	if _, err := fmt.Fprintf(w, "    noun_aliases=()\n"); err != nil {
+		return err
+	}
+	sort.Sort(sort.StringSlice(cmd.ArgAliases))
+	for _, value := range cmd.ArgAliases {
+		if _, err := fmt.Fprintf(w, "    noun_aliases+=(%q)\n", value); err != nil {
 			return err
 		}
 	}
@@ -500,7 +519,10 @@ func gen(cmd *Command, w io.Writer) error {
 	if err := writeRequiredFlag(cmd, w); err != nil {
 		return err
 	}
-	if err := writeRequiredNoun(cmd, w); err != nil {
+	if err := writeRequiredNouns(cmd, w); err != nil {
+		return err
+	}
+	if err := writeArgAliases(cmd, w); err != nil {
 		return err
 	}
 	if _, err := fmt.Fprintf(w, "}\n\n"); err != nil {

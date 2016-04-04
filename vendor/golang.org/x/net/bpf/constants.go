@@ -179,9 +179,8 @@ const (
 	opAddrModeAbsolute
 	opAddrModeIndirect
 	opAddrModeScratch
-	// These are actually extensions, not addressing modes.
-	opAddrModePacketLen
-	opAddrModeIPv4HeaderLen
+	opAddrModePacketLen // actually an extension, not an addressing mode.
+	opAddrModeMemShift
 )
 
 const (
