@@ -8,6 +8,7 @@ import "github.com/spf13/cobra"
 import "path"
 import "os"
 
+// RootCommand is the base CLI command that all subcommands are added to.
 var RootCommand = &cobra.Command{
 	Use:   path.Base(os.Args[0]),
 	Short: "Open Policy Agent (OPA)",

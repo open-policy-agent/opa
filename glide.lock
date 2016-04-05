@@ -1,5 +1,5 @@
-hash: a0c5cde7a83a30f6cffbeaf27a08a4c566b0d740e24ab8bb3161f9315cd1d58e
-updated: 2016-04-04T10:43:40.051156348-07:00
+hash: 3d658b2801a5a719294fa1eb719a2da3b63a220fbaa66d918c4fcfdc677c51aa
+updated: 2016-04-05T09:24:23.839542269-07:00
 imports:
 - name: github.com/armon/consul-api
   version: dcfedd50ed5334f96adee43fc88518a4f095e15c
@@ -9,6 +9,8 @@ imports:
   version: 003851be7bb0694fe3cc457a49529a19388ee7cf
 - name: github.com/cpuguy83/go-md2man
   version: 2724a9c9051aa62e9cca11304e7dd518e9e41599
+- name: github.com/golang/lint
+  version: 8f348af5e29faa4262efdc14302797f23774e477
 - name: github.com/hashicorp/hcl
   version: 2604f3bda7e8960c1be1063709e7d7f0765048d0
 - name: github.com/kr/pretty
@@ -44,7 +46,7 @@ imports:
 - name: golang.org/x/crypto
   version: 9e7f5dc375abeb9619ea3c5c58502c428f457aa2
 - name: golang.org/x/net
-  version: 024ed629fd292398cfd43c9678a5bf004f7defdc
+  version: 318395d8b12f5dd0f1b7cd0fbb95195f49acb0f9
 - name: golang.org/x/text
   version: 1b466db55e0ba5d56ef5315c728216b42f796491
 - name: golang.org/x/tools

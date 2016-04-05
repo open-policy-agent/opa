@@ -18,13 +18,17 @@ Requirements:
 
 After cloning the repository, run `make deps` to install the parser generator ("pigeon") into your workspace.
 
-Next, run `make all` to build the project and execute all of the tests. If
-this succeeds, there should be a new binary in the top level directory ("opa").
+Next, run `make all` to build the project, execute all of the tests, and run
+static analysis checks against the code. If this succeeds, there should be a
+new binary in the top level directory ("opa").
 
 Verify the build was successful by running `opa version`.
 
 You can re-build the project with `make build` and execute all of the tests
 with `make test`.
+
+The static analysis checks (i.e., `go fmt`, `golint`, and `go vet` can be run
+with `make check`).
 
 ## Workflow
 
@@ -57,7 +61,9 @@ with `make test`.
 
 1. Develop your changes and regularly update your local branch against upstream.
 
-	- Make sure you run `go fmt` on your code before submitting a Pull Request.
+    - Be sure to run `make check` before submitting your pull request. You
+      may need to run `go fmt` on your code to make it comply with standard Go
+      style.
 
 1. Commit changes and push to your fork.
 
@@ -86,7 +92,7 @@ contained in the vendor directory.
 
 If you need to add a dependency to the project:
 
-1. Run `glide get <package>` to download the package.
+1. Run `glide get <package> --update-vendored` to download the package.
     - This command should be used instead of `go get <package>`.
 	- The package will be stored under the vendor directory.
 	- The glide.yaml file will be updated.

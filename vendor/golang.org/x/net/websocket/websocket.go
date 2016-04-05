@@ -209,9 +209,6 @@ func (ws *Conn) Write(msg []byte) (n int, err error) {
 	}
 	n, err = w.Write(msg)
 	w.Close()
-	if err != nil {
-		return n, err
-	}
 	return n, err
 }
 
