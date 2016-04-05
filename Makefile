@@ -1,4 +1,4 @@
-# Copyright 2015 The OPA Authors.  All rights reserved.
+# Copyright 2016 The OPA Authors.  All rights reserved.
 # Use of this source code is governed by an Apache2
 # license that can be found in the LICENSE file.
 
@@ -18,9 +18,9 @@ GO := go
 GO15VENDOREXPERIMENT := 1
 export GO15VENDOREXPERIMENT
 
-.PHONY: all deps generate build test clean
+.PHONY: all deps generate build test check check-fmt check-vet check-lint clean
 
-all: build test
+all: build test check
 
 deps:
 	$(GO) install ./vendor/github.com/PuerkitoBio/pigeon
@@ -34,6 +34,17 @@ build: generate
 
 test: generate
 	$(GO) test -v $(PACKAGES)
+
+check: check-fmt check-vet check-lint
+
+check-fmt:
+	./build/check-fmt.sh
+
+check-vet:
+	./build/check-vet.sh
+
+check-lint:
+	./build/check-lint.sh
 
 clean:
 	rm -f ./opa
