@@ -11,8 +11,8 @@ func TestEqualTerms(t *testing.T) {
 	assertTermEqual(t, BooleanTerm(true), BooleanTerm(true))
 	assertTermEqual(t, NumberTerm(5), NumberTerm(5))
 	assertTermEqual(t, StringTerm("a string"), StringTerm("a string"))
-    assertTermEqual(t, ObjectTerm(), ObjectTerm())
-    assertTermEqual(t, ArrayTerm(), ArrayTerm())
+	assertTermEqual(t, ObjectTerm(), ObjectTerm())
+	assertTermEqual(t, ArrayTerm(), ArrayTerm())
 	assertTermEqual(t, ObjectTerm(Item(NumberTerm(1), NumberTerm(2))), ObjectTerm(Item(NumberTerm(1), NumberTerm(2))))
 	assertTermEqual(t, ObjectTerm(Item(NumberTerm(1), NumberTerm(2)), Item(NumberTerm(3), NumberTerm(4))), ObjectTerm(Item(NumberTerm(1), NumberTerm(2)), Item(NumberTerm(3), NumberTerm(4))))
 	assertTermEqual(t, ArrayTerm(NumberTerm(1), NumberTerm(2), NumberTerm(3)), ArrayTerm(NumberTerm(1), NumberTerm(2), NumberTerm(3)))
@@ -46,14 +46,14 @@ func TestTermsToString(t *testing.T) {
 	assertToString(t, RefTerm(VarTerm("foo"), StringTerm("bar")).Value, "foo.bar")
 	assertToString(t, RefTerm(VarTerm("foo"), StringTerm("bar"), VarTerm("i"), NumberTerm(0), StringTerm("baz")).Value, "foo.bar[i][0].baz")
 	assertToString(t, RefTerm(VarTerm("foo"), BooleanTerm(false), NullTerm(), StringTerm("bar")).Value, "foo[false][null].bar")
-    assertToString(t, ArrayTerm().Value, "[]")
-    assertToString(t, ObjectTerm().Value, "{}")
+	assertToString(t, ArrayTerm().Value, "[]")
+	assertToString(t, ObjectTerm().Value, "{}")
 	assertToString(t, ArrayTerm(ObjectTerm(Item(VarTerm("foo"), ArrayTerm(RefTerm(VarTerm("bar"), VarTerm("i"))))), StringTerm("foo"), BooleanTerm(true), NullTerm(), NumberTerm(42.1)).Value, "[{foo: [bar[i]]}, \"foo\", true, null, 42.1]")
 }
 
 func assertToString(t *testing.T, val Value, expected string) {
 	result := val.String()
 	if result != expected {
-		t.Errorf("Expected %v for %f but got %v", expected, val, result)
+		t.Errorf("Expected %v but got %v", expected, result)
 	}
 }

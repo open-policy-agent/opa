@@ -76,8 +76,8 @@ func TestArrayWithVars(t *testing.T) {
 }
 
 func TestEmptyComposites(t *testing.T) {
-    assertParseOneTerm(t, "empty object", "{}", ObjectTerm())
-    assertParseOneTerm(t, "emtpy array", "[]", ArrayTerm())
+	assertParseOneTerm(t, "empty object", "{}", ObjectTerm())
+	assertParseOneTerm(t, "emtpy array", "[]", ArrayTerm())
 }
 
 func TestNestedComposites(t *testing.T) {

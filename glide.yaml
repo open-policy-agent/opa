@@ -1,7 +1,8 @@
 package: github.com/open-policy-agent/opa
 import:
-  - package: github.com/PuerkitoBio/pigeon
-  - package: golang.org/x/tools
-    subpackages:
-      - cmd/goimports
-  - package: github.com/spf13/cobra
+- package: github.com/PuerkitoBio/pigeon
+- package: golang.org/x/tools
+  subpackages:
+  - cmd/goimports
+- package: github.com/spf13/cobra
+- package: github.com/golang/lint
