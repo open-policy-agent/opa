@@ -34,6 +34,9 @@ type Value interface {
 	// Equal returns true if this value equals the other value.
 	Equal(other Value) bool
 
+	// IsGround returns true if this value is not a variable or contains no variables.
+	IsGround() bool
+
 	// String returns a human readable string representation of the value.
 	String() string
 }
@@ -47,10 +50,21 @@ type Term struct {
 // Equal returns true if this term equals the other term. Equality is
 // defined for each kind of term.
 func (term *Term) Equal(other *Term) bool {
+	if term == nil && other != nil {
+		return false
+	}
+	if term != nil && other == nil {
+		return false
+	}
 	if term == other {
 		return true
 	}
 	return term.Value.Equal(other.Value)
+}
+
+// IsGround returns true if this terms' Value is ground.
+func (term *Term) IsGround() bool {
+	return term.Value.IsGround()
 }
 
 func (term *Term) String() string {
@@ -65,11 +79,6 @@ func NullTerm() *Term {
 	return &Term{Value: Null{}}
 }
 
-// NullTermWithLoc creates a new Term with a Null value and a Location.
-func NullTermWithLoc(loc *Location) *Term {
-	return &Term{Value: Null{}, Location: loc}
-}
-
 // Equal returns true if the other term Value is also Null.
 func (null Null) Equal(other Value) bool {
 	switch other.(type) {
@@ -78,6 +87,11 @@ func (null Null) Equal(other Value) bool {
 	default:
 		return false
 	}
+}
+
+// IsGround always returns true.
+func (null Null) IsGround() bool {
+	return true
 }
 
 func (null Null) String() string {
@@ -92,11 +106,6 @@ func BooleanTerm(b bool) *Term {
 	return &Term{Value: Boolean(b)}
 }
 
-// BooleanTermWithLoc creates a new Term with a Boolean value and a Location.
-func BooleanTermWithLoc(b bool, loc *Location) *Term {
-	return &Term{Value: Boolean(b), Location: loc}
-}
-
 // Equal returns true if the other Value is a Boolean and is equal.
 func (bol Boolean) Equal(other Value) bool {
 	switch other := other.(type) {
@@ -105,6 +114,11 @@ func (bol Boolean) Equal(other Value) bool {
 	default:
 		return false
 	}
+}
+
+// IsGround always returns true.
+func (bol Boolean) IsGround() bool {
+	return true
 }
 
 func (bol Boolean) String() string {
@@ -119,11 +133,6 @@ func NumberTerm(n float64) *Term {
 	return &Term{Value: Number(n)}
 }
 
-// NumberTermWithLoc creates a new Term with a Number value and a Location.
-func NumberTermWithLoc(n float64, loc *Location) *Term {
-	return &Term{Value: Number(n), Location: loc}
-}
-
 // Equal returns true if the other Value is a Number and is equal.
 func (num Number) Equal(other Value) bool {
 	switch other := other.(type) {
@@ -132,6 +141,11 @@ func (num Number) Equal(other Value) bool {
 	default:
 		return false
 	}
+}
+
+// IsGround always returns true.
+func (num Number) IsGround() bool {
+	return true
 }
 
 func (num Number) String() string {
@@ -146,11 +160,6 @@ func StringTerm(s string) *Term {
 	return &Term{Value: String(s)}
 }
 
-// StringTermWithLoc creates a new Term with a String value and a Location.
-func StringTermWithLoc(s string, loc *Location) *Term {
-	return &Term{Value: String(s), Location: loc}
-}
-
 // Equal returns true if the other Value is a String and is equal.
 func (str String) Equal(other Value) bool {
 	switch other := other.(type) {
@@ -159,6 +168,11 @@ func (str String) Equal(other Value) bool {
 	default:
 		return false
 	}
+}
+
+// IsGround always returns true.
+func (str String) IsGround() bool {
+	return true
 }
 
 func (str String) String() string {
@@ -173,11 +187,6 @@ func VarTerm(v string) *Term {
 	return &Term{Value: Var(v)}
 }
 
-// VarTermWithLoc creates a new Term with a Variable value and a Location.
-func VarTermWithLoc(v string, loc *Location) *Term {
-	return &Term{Value: Var(v), Location: loc}
-}
-
 // Equal returns true if the other Value is a Variable and has the same value
 // (name).
 func (variable Var) Equal(other Value) bool {
@@ -189,11 +198,16 @@ func (variable Var) Equal(other Value) bool {
 	}
 }
 
+// IsGround always returns false.
+func (variable Var) IsGround() bool {
+	return false
+}
+
 func (variable Var) String() string {
 	return string(variable)
 }
 
-// Ref represents a variable as defined by Opalog.
+// Ref represents a reference as defined by Opalog.
 type Ref []*Term
 
 // RefTerm creates a new Term with a Ref value.
@@ -201,29 +215,22 @@ func RefTerm(r ...*Term) *Term {
 	return &Term{Value: Ref(r)}
 }
 
-// RefTermWithLoc creates a new Term with a Ref value and a Location.
-func RefTermWithLoc(r []*Term, loc *Location) *Term {
-	return &Term{Value: Ref(r), Location: loc}
-}
-
 // Equal returns true if the other Value is a Ref and the elements of the
 // other Ref are equal to the this Ref.
 func (ref Ref) Equal(other Value) bool {
 	switch other := other.(type) {
 	case Ref:
-		if len(ref) == len(other) {
-			for i := range ref {
-				if !ref[i].Equal(other[i]) {
-					return false
-				}
-			}
-			return true
-		}
+		return termSliceEqual(ref, other)
 	}
 	return false
 }
 
-var varRegexp = regexp.MustCompile("[[:alpha:]_][[:alpha:][:digit:]_]+")
+// IsGround returns true if all of the parts of the Ref are ground.
+func (ref Ref) IsGround() bool {
+	return termSliceIsGround(ref)
+}
+
+var varRegexp = regexp.MustCompile("^[[:alpha:]_][[:alpha:][:digit:]_]*$")
 
 func (ref Ref) String() string {
 	buf := []string{string(ref[0].Value.(Var))}
@@ -253,27 +260,20 @@ func ArrayTerm(a ...*Term) *Term {
 	return &Term{Value: Array(a)}
 }
 
-// ArrayTermWithLoc creates a new Term with an Array value and a Location.
-func ArrayTermWithLoc(a []*Term, loc *Location) *Term {
-	return &Term{Value: Array(a), Location: loc}
-}
-
 // Equal returns true if the other Value is an Array and the elements of the
 // other Array are equal to the elements of this Array. The elements are
 // ordered.
 func (arr Array) Equal(other Value) bool {
 	switch other := other.(type) {
 	case Array:
-		if len(arr) == len(other) {
-			for i := range arr {
-				if !arr[i].Equal(other[i]) {
-					return false
-				}
-			}
-			return true
-		}
+		return termSliceEqual(arr, other)
 	}
 	return false
+}
+
+// IsGround returns true if all of the Array elements are ground.
+func (arr Array) IsGround() bool {
+	return termSliceIsGround(arr)
 }
 
 func (arr Array) String() string {
@@ -300,11 +300,6 @@ func ObjectTerm(o ...[2]*Term) *Term {
 	return &Term{Value: Object(o)}
 }
 
-// ObjectTermWithLoc creates a new Term with an Object value and a Location.
-func ObjectTermWithLoc(o [][2]*Term, loc *Location) *Term {
-	return &Term{Value: Object(o), Location: loc}
-}
-
 // Equal returns true if the other Value is an Object and the key/value pairs
 // of the Other object are equal to the key/value pairs of this Object. The
 // key/value pairs are ordered.
@@ -326,10 +321,44 @@ func (obj Object) Equal(other Value) bool {
 	return false
 }
 
+// IsGround returns true if all of the Object key/value pairs are ground.
+func (obj Object) IsGround() bool {
+	for i := range obj {
+		if !obj[i][0].IsGround() {
+			return false
+		}
+		if !obj[i][1].IsGround() {
+			return false
+		}
+	}
+	return true
+}
+
 func (obj Object) String() string {
 	var buf []string
 	for _, p := range obj {
 		buf = append(buf, fmt.Sprintf("%s: %s", p[0], p[1]))
 	}
 	return "{" + strings.Join(buf, ", ") + "}"
+}
+
+func termSliceEqual(a, b []*Term) bool {
+	if len(a) == len(b) {
+		for i := range a {
+			if !a[i].Equal(b[i]) {
+				return false
+			}
+		}
+		return true
+	}
+	return false
+}
+
+func termSliceIsGround(a []*Term) bool {
+	for _, v := range a {
+		if !v.IsGround() {
+			return false
+		}
+	}
+	return true
 }
