@@ -18,7 +18,7 @@ GO := go
 GO15VENDOREXPERIMENT := 1
 export GO15VENDOREXPERIMENT
 
-.PHONY: all deps generate build test check check-fmt check-vet check-lint clean
+.PHONY: all deps generate build test check check-fmt check-vet check-lint fmt clean
 
 all: build test check
 
@@ -46,6 +46,9 @@ check-vet:
 
 check-lint:
 	./build/check-lint.sh
+
+fmt:
+	$(GO) fmt $(PACKAGES)
 
 clean:
 	rm -f ./opa

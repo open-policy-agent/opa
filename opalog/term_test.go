@@ -51,6 +51,18 @@ func TestTermsToString(t *testing.T) {
 	assertToString(t, ArrayTerm(ObjectTerm(Item(VarTerm("foo"), ArrayTerm(RefTerm(VarTerm("bar"), VarTerm("i"))))), StringTerm("foo"), BooleanTerm(true), NullTerm(), NumberTerm(42.1)).Value, "[{foo: [bar[i]]}, \"foo\", true, null, 42.1]")
 }
 
+func assertTermEqual(t *testing.T, x *Term, y *Term) {
+	if !x.Equal(y) {
+		t.Errorf("Failure on equality: \n%s and \n%s\n", x, y)
+	}
+}
+
+func assertTermNotEqual(t *testing.T, x *Term, y *Term) {
+	if x.Equal(y) {
+		t.Errorf("Failure on non-equality: \n%s and \n%s\n", x, y)
+	}
+}
+
 func assertToString(t *testing.T, val Value, expected string) {
 	result := val.String()
 	if result != expected {

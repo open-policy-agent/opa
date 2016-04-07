@@ -5,19 +5,166 @@ package opalog
 // BUGS: the escaped forward solidus (`\/`) is not currently handled for strings.
 //
 
+// currentLocation converts the parser context to a Location object.
 func currentLocation(c *current) *Location {
-    // TODO: Is it possible to propagate  file names into the parser?
+    // TODO(tsandall): is it possible to access the filename from inside the parser?
     return NewLocation(c.text, "", c.pos.line, c.pos.col)
 }
 
 }
 
-Prog <- _ head:Term tail:( ws Term )*  EOF {
-    if head == nil {
-        return make([]interface{}, 0), nil
+Program <- _ vals:(head:Stmt tail:(ws Stmt)*)? _ EOF {
+    var buf []interface{}
+
+    if vals == nil {
+        return buf, nil
     }
+
+    ifaceSlice := vals.([]interface{})
+    head := ifaceSlice[0]
+    buf = append(buf, head)
+    for _, tail := range ifaceSlice[1].([]interface{}) {
+        stmt := tail.([]interface{})[1]
+        buf = append(buf, stmt)
+    }
+
+    return buf, nil
+}
+
+Stmt <- val:(Package / Import / Rule / Body / Comment) {
+    return val, nil
+}
+
+Package <- "package" ws val:(Ref / Var) {
+    // All packages are implicitly declared under the default root document.
+    path := RefTerm(DefaultRootDocument)
+    switch v := val.(*Term).Value.(type) {
+    case Ref:
+        // Convert head of package Ref to String because it will be prefixed
+        // with the root document variable.
+        head := v[0]
+        head = StringTerm(string(head.Value.(Var)))
+        head.Location = v[0].Location
+        tail := v[1:]
+        if !tail.IsGround() {
+            return nil, fmt.Errorf("package name cannot contain variables: %v", v)
+        }
+
+        // We do not allow non-string values in package names.
+        // Because documents are typically represented as JSON, non-string keys are
+        // not allowed for now.
+        // TODO(tsandall): consider special syntax for namespacing under arrays.
+        for _, p := range tail {
+            _, ok := p.Value.(String)
+            if !ok {
+                return nil, fmt.Errorf("package name cannot contain non-string values: %v", v)
+            }
+        }
+        path.Value = append(path.Value.(Ref), head)
+        path.Value = append(path.Value.(Ref), tail...)
+    case Var:
+        s := StringTerm(string(v))
+        s.Location = val.(*Term).Location
+        path.Value = append(path.Value.(Ref), s)
+    }
+    pkg := &Package{Location: currentLocation(c), Path: path.Value.(Ref)}
+    return pkg, nil
+}
+
+Import <- "import" ws path:(Ref / Var) alias:(ws "as" ws Var)? {
+    imp := &Import{}
+    imp.Location = currentLocation(c)
+    imp.Path = path.(*Term).Value
+    switch p := imp.Path.(type) {
+    case Ref:
+        if !p[1:].IsGround() {
+            return nil, fmt.Errorf("import cannot contain variables in tail: %v", p)
+        }
+    }
+    if alias == nil {
+        return imp, nil
+    }
+    aliasSlice := alias.([]interface{})
+    // Import definition above describes the "alias" slice. We only care about the "Var" element.
+    imp.Alias = aliasSlice[3].(*Term).Value.(Var)
+    return imp, nil
+}
+
+// TODO(tsandall): update to handle underscore variables
+Rule <- name:Var key:( _ "[" _ Term _ "]" _ )? value:( _ "=" _ Term )? body:( _ ":-" _ Body) {
+
+    if key == nil && value == nil {
+        return nil, fmt.Errorf("rule head must include key and/or value: %v", name)
+    }
+
+    rule := &Rule{}
+    rule.Location = currentLocation(c)
+    rule.Name = name.(*Term).Value.(Var)
+
+    if key != nil {
+        keySlice := key.([]interface{})
+        // Rule definition above describes the "key" slice. We care about the "Term" element.
+        rule.Key = keySlice[3].(*Term)
+        _, ok := rule.Key.Value.(Var)
+        if !ok {
+            return nil, fmt.Errorf("rule key must be a variable: %v", rule.Key)
+        }
+    }
+
+    if value != nil {
+        valueSlice := value.([]interface{})
+        // Rule definition above describes the "value" slice. We care about the "Term" element.
+        rule.Value = valueSlice[len(valueSlice)-1].(*Term)
+    }
+
+    // Rule definition above describes the "body" slice. We only care about the "Body" element.
+    rule.Body = body.([]interface{})[3].(Body)
+
+    return rule, nil
+}
+
+Body <- head:Expr tail:( _ "," _ Expr)* {
+    var buf Body
+    buf = append(buf, head.(*Expr))
+    for _, s := range tail.([]interface{}) {
+        expr := s.([]interface{})[3].(*Expr)
+        buf = append(buf, expr)
+    }
+    return buf, nil
+}
+
+Expr <- neg:( "not" ws )? val:(InfixExpr / PrefixExpr / Term) {
+    expr := &Expr{}
+    expr.Location = currentLocation(c)
+    expr.Negated = neg != nil
+    expr.Terms = val
+    return expr, nil
+}
+
+InfixExpr <- left:Term _ op:InfixOp _ right:Term {
+    return []*Term{op.(*Term), left.(*Term), right.(*Term)}, nil
+}
+
+InfixOp <- val:("=" / "!=" / "<=" / ">=" / "<" / ">") {
+    operator := VarTerm(string(c.text))
+    operator.Location = currentLocation(c)
+	return operator, nil
+}
+
+PrefixExpr <- op:Var "(" _ head:Term? tail:( _ "," _ Term )* _  ")" {
+    buf := []*Term{op.(*Term)}
+    if head == nil {
+        return buf, nil
+    }
+    buf = append(buf, head.(*Term))
+
+    // PrefixExpr above describes the "tail" structure. We only care about the "Term" elements.
     tailSlice := tail.([]interface{})
-    return append([]interface{}{head}, tailSlice...), nil
+    for _, v := range tailSlice {
+        s := v.([]interface{})
+        buf = append(buf, s[len(s) - 1].(*Term))
+    }
+    return buf, nil
 }
 
 Term <- val:( Composite / Scalar / Ref / Var ) {
@@ -31,102 +178,119 @@ Scalar <- Number / String / Bool / Null
 Key <- Scalar / Ref / Var
 
 Object <- '{' _ head:(Key _ ':' _ Term)? tail:( _ ',' _ Key _ ':' _ Term )* _ '}' {
-   var buf [][2]*Term
+   obj := ObjectTerm()
+   obj.Location = currentLocation(c)
 
    // Empty object.
    if head == nil {
-       return ObjectTermWithLoc(buf, currentLocation(c)), nil
+       return obj, nil
    }
 
-   // Non-empty object, first key/value pair.
-   // The "head" variable is a slice containing exactly 5 elements (see rule definition above):
-   // [key whitespace colon whitespace key] where the whitespace elements may be nil.
+   // Object definition above describes the "head" structure. We only care about the "Key" and "Term" elements.
    headSlice := head.([]interface{})
-   buf = append(buf, Item(headSlice[0].(*Term), headSlice[len(headSlice) - 1].(*Term)))
+   obj.Value = append(obj.Value.(Object), Item(headSlice[0].(*Term), headSlice[len(headSlice) - 1].(*Term)))
 
    // Non-empty object, remaining key/value pairs.
    tailSlice := tail.([]interface{})
    for _, v := range tailSlice {
        s := v.([]interface{})
-       // The "s" variable is a slice containing exactly 8 elements (see rule definition above).
-       // This is similar to the "head" variable."
-       buf = append(buf, Item(s[3].(*Term), s[len(s) - 1].(*Term)))
+       // Object definition above describes the "tail" structure. We only care about the "Key" and "Term" elements.
+       obj.Value = append(obj.Value.(Object), Item(s[3].(*Term), s[len(s) - 1].(*Term)))
    }
 
-   return ObjectTermWithLoc(buf, currentLocation(c)), nil
+   return obj, nil
 }
 
 Array <- '[' _  head:Term? tail:(_ ',' _ Term)* _ ']' {
 
-    var buf []*Term
+   arr := ArrayTerm()
+   arr.Location = currentLocation(c)
 
    // Empty array.
    if head == nil {
-       return ArrayTermWithLoc(buf, currentLocation(c)), nil
+       return arr, nil
    }
 
    // Non-empty array, first element.
-   buf = append(buf, head.(*Term))
+   arr.Value = append(arr.Value.(Array), head.(*Term))
 
    // Non-empty array, remaining elements.
    tailSlice := tail.([]interface{})
    for _, v := range tailSlice {
        s := v.([]interface{})
-       // The "s" is a slice containing exactly 4 elements (see rule definition above).
-       // [whitespace comma whitespace value] where the whitespace elements may be nil.
-       buf = append(buf, s[len(s) - 1].(*Term))
+       // Array definition above describes the "tail" structure. We only care about the "Term" elements.
+       arr.Value = append(arr.Value.(Array), s[len(s) - 1].(*Term))
    }
 
-   return ArrayTermWithLoc(buf, currentLocation(c)), nil
+   return arr, nil
 }
 
 Ref <- head:Var tail:( RefDot / RefBracket )+ {
-   buf := []*Term{head.(*Term)}
+
+   ref := RefTerm(head.(*Term))
+   ref.Location = currentLocation(c)
 
    tailSlice := tail.([]interface{})
    for _, v := range tailSlice {
-       buf = append(buf, v.(*Term))
+       ref.Value = append(ref.Value.(Ref), v.(*Term))
    }
 
-   return RefTermWithLoc(buf, currentLocation(c)), nil
+   return ref, nil
 }
 
 RefDot <- "." val:Var {
     // Convert the Var into a string because 'foo.bar.baz' is equivalent to 'foo["bar"]["baz"]'.
-    return StringTermWithLoc(string(val.(*Term).Value.(Var)), currentLocation(c)), nil
+    str := StringTerm(string(val.(*Term).Value.(Var)))
+    str.Location = currentLocation(c)
+    return str, nil
 }
 
 RefBracket <- "[" val:(Scalar / Var) "]" {
     return val, nil
 }
 
-Var <- vals:( AsciiLetter (AsciiLetter / DecimalDigit)* ) {
-    return VarTermWithLoc(string(c.text), currentLocation(c)), nil
+Var <- !Reserved AsciiLetter (AsciiLetter / DecimalDigit)* {
+    str := string(c.text)
+    variable := VarTerm(str)
+    variable.Location = currentLocation(c)
+    return variable, nil
 }
 
 Number <- '-'? Integer ( '.' DecimalDigit+ )? Exponent? {
     // JSON numbers have the same syntax as Go's, and are parseable using
     // strconv.
     v, err := strconv.ParseFloat(string(c.text), 64)
-    return NumberTermWithLoc(v, currentLocation(c)), err
+    num := NumberTerm(v)
+    num.Location = currentLocation(c)
+    return num, err
 }
 
 String <- '"' ( !EscapedChar . / '\\' EscapeSequence )* '"' {
     // TODO : the forward slash (solidus) is not a valid escape in Go, it will
     // fail if there's one in the string
     v, err := strconv.Unquote(string(c.text))
-    return StringTermWithLoc(v, currentLocation(c)), err
+    str := StringTerm(v)
+    str.Location = currentLocation(c)
+    return str, err
 }
 
 Bool <- "true" {
-    return BooleanTermWithLoc(true, currentLocation(c)), nil
+    bol := BooleanTerm(true)
+    bol.Location = currentLocation(c)
+    return bol, nil
 } / "false" {
-    return BooleanTermWithLoc(false, currentLocation(c)), nil
+    bol := BooleanTerm(false)
+    bol.Location = currentLocation(c)
+    return bol, nil
 }
 
 Null <- "null" {
-    return NullTermWithLoc(currentLocation(c)), nil
+    null := NullTerm()
+    null.Location = currentLocation(c)
+    return null, nil
 }
+
+Reserved <- ("not" / "package" / "import" / "null" / "true" / "false")
 
 Integer <- '0' / NonZeroDecimalDigit DecimalDigit*
 
@@ -146,10 +310,12 @@ DecimalDigit <- [0-9]
 
 NonZeroDecimalDigit <- [1-9]
 
-HexDigit <- [0-9a-f]i
-
-_ "whitespace" <- [ \t\r\n]*
+HexDigit <- [0-9a-f]
 
 ws "whitespace" <- [ \t\r\n]+
+
+_ "whitespace" <- ( [ \t\r\n] / Comment )*
+
+Comment <- [ \t]* "#" [^\r\n]*
 
 EOF <- !.
