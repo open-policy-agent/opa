@@ -77,7 +77,7 @@ Import <- "import" ws path:(Ref / Var) alias:(ws "as" ws Var)? {
     imp.Path = path.(*Term).Value
     switch p := imp.Path.(type) {
     case Ref:
-        if !p[1:].IsGround() {
+        if !p.IsGround() {
             return nil, fmt.Errorf("import cannot contain variables in tail: %v", p)
         }
     }

@@ -2,8 +2,10 @@
 # Use of this source code is governed by an Apache2
 # license that can be found in the LICENSE file.
 
-PACKAGES := github.com/open-policy-agent/opa/opalog/.../ \
-	github.com/open-policy-agent/opa/cmd/.../
+PACKAGES := \
+	github.com/open-policy-agent/opa/cmd/.../ \
+	github.com/open-policy-agent/opa/eval/.../ \
+	github.com/open-policy-agent/opa/opalog/.../
 
 BUILD_COMMIT := $(shell ./build/get-build-commit.sh)
 BUILD_TIMESTAMP := $(shell ./build/get-build-timestamp.sh)
@@ -40,7 +42,7 @@ COVER_PACKAGES=$(PACKAGES)
 $(COVER_PACKAGES):
 	@mkdir -p coverage/$(shell dirname $@)
 	go test -covermode=count -coverprofile=coverage/$(shell dirname $@)/coverage.out $@
-	go tool cover -html=coverage/$(shell dirname $@)/coverage.out
+	go tool cover -html=coverage/$(shell dirname $@)/coverage.out || true
 
 cover: $(COVER_PACKAGES)
 
