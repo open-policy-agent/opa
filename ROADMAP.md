@@ -21,8 +21,6 @@
 ### Features
 
 - Modules (e.g, packages and imports)
-- Explanations via tracing
-- Transactions via read-write locking
 - API-based policy management
 
 ### APIs
@@ -64,10 +62,11 @@ These will be initial drafts and future development will be evaluated to see if 
 
 ### Features
 
+- Explanations
+- Transactions
 - Materialized Views
 - Triggers
 - Aggregates (min, max, average, etc.)
-- Transactions via MVCC
 
 ### Infrastructure
 
