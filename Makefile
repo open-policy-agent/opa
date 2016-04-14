@@ -18,7 +18,7 @@ GO := go
 GO15VENDOREXPERIMENT := 1
 export GO15VENDOREXPERIMENT
 
-.PHONY: all deps generate build test check check-fmt check-vet check-lint fmt clean
+.PHONY: all deps generate build test cover check check-fmt check-vet check-lint fmt clean
 
 all: build test check
 
@@ -35,6 +35,14 @@ build: generate
 
 test: generate
 	$(GO) test -v $(PACKAGES)
+
+COVER_PACKAGES=$(PACKAGES)
+$(COVER_PACKAGES):
+	@mkdir -p coverage/$(shell dirname $@)
+	go test -covermode=count -coverprofile=coverage/$(shell dirname $@)/coverage.out $@
+	go tool cover -html=coverage/$(shell dirname $@)/coverage.out
+
+cover: $(COVER_PACKAGES)
 
 check: check-fmt check-vet check-lint
 
