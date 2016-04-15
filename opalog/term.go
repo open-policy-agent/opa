@@ -39,6 +39,9 @@ type Value interface {
 
 	// String returns a human readable string representation of the value.
 	String() string
+
+	// Returns hash code of the value.
+	Hash() int
 }
 
 // Term is an argument to a function.
@@ -89,6 +92,11 @@ func (null Null) Equal(other Value) bool {
 	}
 }
 
+// Hash returns the hash code for the Value.
+func (null Null) Hash() int {
+	return 0
+}
+
 // IsGround always returns true.
 func (null Null) IsGround() bool {
 	return true
@@ -116,6 +124,14 @@ func (bol Boolean) Equal(other Value) bool {
 	}
 }
 
+// Hash returns the hash code for the Value.
+func (bol Boolean) Hash() int {
+	if bol {
+		return 1
+	}
+	return 0
+}
+
 // IsGround always returns true.
 func (bol Boolean) IsGround() bool {
 	return true
@@ -141,6 +157,11 @@ func (num Number) Equal(other Value) bool {
 	default:
 		return false
 	}
+}
+
+// Hash returns the hash code for the Value.
+func (num Number) Hash() int {
+	return int(num)
 }
 
 // IsGround always returns true.
@@ -179,6 +200,11 @@ func (str String) String() string {
 	return strconv.Quote(string(str))
 }
 
+// Hash returns the hash code for the Value.
+func (str String) Hash() int {
+	return stringHash(string(str))
+}
+
 // Var represents a variable as defined by Opalog.
 type Var string
 
@@ -196,6 +222,11 @@ func (variable Var) Equal(other Value) bool {
 	default:
 		return false
 	}
+}
+
+// Hash returns the hash code for the Value.
+func (variable Var) Hash() int {
+	return stringHash(string(variable))
 }
 
 // IsGround always returns false.
@@ -230,6 +261,11 @@ func (ref Ref) Equal(other Value) bool {
 	return false
 }
 
+// Hash returns the hash code for the Value.
+func (ref Ref) Hash() int {
+	return termSliceHash(ref)
+}
+
 // IsGround returns true if all of the parts of the Ref are ground.
 func (ref Ref) IsGround() bool {
 	return termSliceIsGround(ref[1:])
@@ -238,12 +274,18 @@ func (ref Ref) IsGround() bool {
 var varRegexp = regexp.MustCompile("^[[:alpha:]_][[:alpha:][:digit:]_]*$")
 
 func (ref Ref) String() string {
-	buf := []string{string(ref[0].Value.(Var))}
-	for _, p := range ref[1:] {
+	var buf []string
+	path := ref
+	switch v := ref[0].Value.(type) {
+	case Var:
+		buf = append(buf, string(v))
+		path = path[1:]
+	}
+	for _, p := range path {
 		switch p := p.Value.(type) {
 		case String:
 			str := string(p)
-			if varRegexp.MatchString(str) {
+			if varRegexp.MatchString(str) && len(buf) > 0 {
 				buf = append(buf, "."+str)
 			} else {
 				buf = append(buf, "["+p.String()+"]")
@@ -254,6 +296,9 @@ func (ref Ref) String() string {
 	}
 	return strings.Join(buf, "")
 }
+
+// QueryIterator defines the interface for querying AST documents with references.
+type QueryIterator func(map[Var]Value, Value) error
 
 // Array represents an array as defined by Opalog. Arrays are similar to the
 // same types as defined by JSON with the exception that they can contain Vars
@@ -276,9 +321,19 @@ func (arr Array) Equal(other Value) bool {
 	return false
 }
 
+// Hash returns the hash code for the Value.
+func (arr Array) Hash() int {
+	return termSliceHash(arr)
+}
+
 // IsGround returns true if all of the Array elements are ground.
 func (arr Array) IsGround() bool {
 	return termSliceIsGround(arr)
+}
+
+// Query invokes the iterator for each referenced value inside the array.
+func (arr Array) Query(ref Ref, iter QueryIterator) error {
+	return arr.queryRec(ref, make(map[Var]Value), iter)
 }
 
 func (arr Array) String() string {
@@ -287,6 +342,32 @@ func (arr Array) String() string {
 		buf = append(buf, e.String())
 	}
 	return "[" + strings.Join(buf, ", ") + "]"
+}
+
+func (arr Array) queryRec(ref Ref, keys map[Var]Value, iter QueryIterator) error {
+	if len(ref) == 0 {
+		return iter(keys, arr)
+	}
+	switch head := ref[0].Value.(type) {
+	case Var:
+		tail := ref[1:]
+		for i, v := range arr {
+			keys[head] = Number(i)
+			if err := queryRec(v.Value, ref, tail, keys, iter, true); err != nil {
+				return err
+			}
+		}
+		return nil
+	case Number:
+		idx := int(head)
+		if len(arr) < idx {
+			return fmt.Errorf("unexpected index in %v: out of bounds: %v", ref, idx)
+		}
+		tail := ref[1:]
+		return queryRec(arr[idx].Value, ref, tail, keys, iter, false)
+	default:
+		return fmt.Errorf("unexpected non-numeric index in %v: %v (%T)", ref, head, head)
+	}
 }
 
 // Object represents an object as defined by Opalog. Objects are similar to
@@ -298,11 +379,6 @@ type Object [][2]*Term
 // representing a key/value pair in an Object.
 func Item(key, value *Term) [2]*Term {
 	return [2]*Term{key, value}
-}
-
-// ObjectTerm creates a new Term with an Object value.
-func ObjectTerm(o ...[2]*Term) *Term {
-	return &Term{Value: Object(o)}
 }
 
 // Equal returns true if the other Value is an Object and the key/value pairs
@@ -326,6 +402,16 @@ func (obj Object) Equal(other Value) bool {
 	return false
 }
 
+// Hash returns the hash code for the Value.
+func (obj Object) Hash() int {
+	var hash int
+	for i := range obj {
+		hash += obj[i][0].Value.Hash()
+		hash += obj[i][1].Value.Hash()
+	}
+	return hash
+}
+
 // IsGround returns true if all of the Object key/value pairs are ground.
 func (obj Object) IsGround() bool {
 	for i := range obj {
@@ -339,12 +425,90 @@ func (obj Object) IsGround() bool {
 	return true
 }
 
+// ObjectTerm creates a new Term with an Object value.
+func ObjectTerm(o ...[2]*Term) *Term {
+	return &Term{Value: Object(o)}
+}
+
+// Query invokes the iterator for each referenced value inside the object.
+func (obj Object) Query(ref Ref, iter QueryIterator) error {
+	return obj.queryRec(ref, make(map[Var]Value), iter)
+}
+
 func (obj Object) String() string {
 	var buf []string
 	for _, p := range obj {
 		buf = append(buf, fmt.Sprintf("%s: %s", p[0], p[1]))
 	}
 	return "{" + strings.Join(buf, ", ") + "}"
+}
+
+func (obj Object) queryRec(ref Ref, keys map[Var]Value, iter QueryIterator) error {
+	if len(ref) == 0 {
+		return iter(keys, obj)
+	}
+	switch head := ref[0].Value.(type) {
+	case Var:
+		tail := ref[1:]
+		for _, i := range obj {
+			keys[head] = i[0].Value
+			if err := queryRec(i[1].Value, ref, tail, keys, iter, true); err != nil {
+				return err
+			}
+		}
+		return nil
+
+	default:
+		found := false
+		tail := ref[1:]
+		for _, i := range obj {
+			if i[0].Value.Equal(head) {
+				if err := queryRec(i[1].Value, ref, tail, keys, iter, false); err != nil {
+					return err
+				}
+				found = true
+				break
+			}
+		}
+		if !found {
+			return fmt.Errorf("missing key %v: %v", head, ref)
+		}
+		return nil
+	}
+}
+
+func queryRec(v Value, ref Ref, tail Ref, keys map[Var]Value, iter QueryIterator, skipScalar bool) error {
+	if len(tail) == 0 {
+		if err := iter(keys, v); err != nil {
+			return err
+		}
+	} else {
+		switch v := v.(type) {
+		case Array:
+			if err := v.queryRec(tail, keys, iter); err != nil {
+				return err
+			}
+		case Object:
+			if err := v.queryRec(tail, keys, iter); err != nil {
+				return err
+			}
+		default:
+			if !skipScalar {
+				return fmt.Errorf("unexpected non-composite at %v: %v", ref, v)
+			}
+		}
+	}
+	return nil
+}
+
+func stringHash(s string) int {
+	// FNV-1a hashing
+	var hash uint32
+	for i := 0; i < len(s); i++ {
+		hash ^= uint32(s[i])
+		hash *= 16777619
+	}
+	return int(hash)
 }
 
 func termSliceEqual(a, b []*Term) bool {
@@ -357,6 +521,14 @@ func termSliceEqual(a, b []*Term) bool {
 		return true
 	}
 	return false
+}
+
+func termSliceHash(a []*Term) int {
+	var hash int
+	for _, v := range a {
+		hash += v.Value.Hash()
+	}
+	return hash
 }
 
 func termSliceIsGround(a []*Term) bool {

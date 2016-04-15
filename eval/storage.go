@@ -74,7 +74,7 @@ func (store Storage) Lookup(path opalog.Ref) (interface{}, error) {
 
 	var node interface{} = store
 
-	for _, v := range path {
+	for i, v := range path {
 		switch n := node.(type) {
 		case Storage:
 			// The first element in a reference is always a Var so we have
@@ -106,8 +106,10 @@ func (store Storage) Lookup(path opalog.Ref) (interface{}, error) {
 				return nil, notFoundError("cannot find path %v in storage, path references array using negative index: %v", path, idx)
 			}
 			node = n[idx]
+		case *opalog.Rule:
+			return nil, notFoundError("cannot find path %v in storage, path references rule at index: %v", path, i-1)
 		default:
-			return nil, &StorageError{Code: StorageInternalErr, Message: fmt.Sprintf("cannot lookup object with non-string key: %v", path)}
+			return nil, notFoundError("cannot find path %v in storage, path references non-collection type at index: %v", path, i)
 		}
 	}
 

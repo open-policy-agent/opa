@@ -130,23 +130,25 @@ func (rule *Rule) Equal(other *Rule) bool {
 type DocKind int
 
 const (
-	// ScalarDoc represents a scalar document type.
-	ScalarDoc = iota
-	// SetDoc represents the set document type.
-	SetDoc = iota
-	// ObjectDoc represents the object document type.
-	ObjectDoc = iota
+	// CompleteDoc represents a document that is completely defined by the rule.
+	CompleteDoc = iota
+
+	// PartialSetDoc represents a set document that is partially defined by the rule.
+	PartialSetDoc = iota
+
+	// PartialObjectDoc represents an object document that is partially defined by the rule.
+	PartialObjectDoc = iota
 )
 
 // DocKind returns the type of document produced by this rule.
 func (rule *Rule) DocKind() DocKind {
 	if rule.Key != nil {
 		if rule.Value != nil {
-			return ObjectDoc
+			return PartialObjectDoc
 		}
-		return SetDoc
+		return PartialSetDoc
 	}
-	return ScalarDoc
+	return CompleteDoc
 }
 
 func (rule *Rule) String() string {
