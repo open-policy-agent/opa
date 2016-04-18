@@ -126,6 +126,29 @@ func (rule *Rule) Equal(other *Rule) bool {
 	return rule.Body.Equal(other.Body)
 }
 
+// DocKind represents the collection of document types that can be produced by rules.
+type DocKind int
+
+const (
+	// ScalarDoc represents a scalar document type.
+	ScalarDoc = iota
+	// SetDoc represents the set document type.
+	SetDoc = iota
+	// ObjectDoc represents the object document type.
+	ObjectDoc = iota
+)
+
+// DocKind returns the type of document produced by this rule.
+func (rule *Rule) DocKind() DocKind {
+	if rule.Key != nil {
+		if rule.Value != nil {
+			return ObjectDoc
+		}
+		return SetDoc
+	}
+	return ScalarDoc
+}
+
 func (rule *Rule) String() string {
 	var buf []string
 	if rule.Key != nil {

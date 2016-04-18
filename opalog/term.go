@@ -210,6 +210,11 @@ func (variable Var) String() string {
 // Ref represents a reference as defined by Opalog.
 type Ref []*Term
 
+// EmptyRef returns a new, empty reference.
+func EmptyRef() Ref {
+	return Ref([]*Term{})
+}
+
 // RefTerm creates a new Term with a Ref value.
 func RefTerm(r ...*Term) *Term {
 	return &Term{Value: Ref(r)}
@@ -227,7 +232,7 @@ func (ref Ref) Equal(other Value) bool {
 
 // IsGround returns true if all of the parts of the Ref are ground.
 func (ref Ref) IsGround() bool {
-	return termSliceIsGround(ref)
+	return termSliceIsGround(ref[1:])
 }
 
 var varRegexp = regexp.MustCompile("^[[:alpha:]_][[:alpha:][:digit:]_]*$")
