@@ -14,7 +14,7 @@ import "fmt"
 // step and binding. This avoids the need to undo steps and bindings
 // each time the proof fails but this may be too expensive.
 type TopDownContext struct {
-	Rule     *opalog.Rule
+	Query    opalog.Body
 	Bindings *hashMap
 	Index    int
 	Previous *TopDownContext
@@ -23,13 +23,13 @@ type TopDownContext struct {
 
 // Current returns the current expression to evaluate.
 func (ctx *TopDownContext) Current() *opalog.Expr {
-	return ctx.Rule.Body[ctx.Index]
+	return ctx.Query[ctx.Index]
 }
 
 // Step returns a new context to evaluate the next expression.
 func (ctx *TopDownContext) Step() *TopDownContext {
 	return &TopDownContext{
-		Rule:     ctx.Rule,
+		Query:    ctx.Query,
 		Bindings: ctx.Bindings,
 		Index:    ctx.Index + 1,
 		Previous: ctx.Previous,
@@ -40,7 +40,7 @@ func (ctx *TopDownContext) Step() *TopDownContext {
 // Child returns a new context to evaluate a rule that was referenced by this context.
 func (ctx *TopDownContext) Child(rule *opalog.Rule, bindings *hashMap) *TopDownContext {
 	return &TopDownContext{
-		Rule:     rule,
+		Query:    rule.Body,
 		Bindings: bindings,
 		Previous: ctx,
 		Store:    ctx.Store,
@@ -105,9 +105,48 @@ type TopDownIterator func(*TopDownContext) error
 
 // TopDown runs the evaluation algorithm on the contxet and calls the iterator
 // foreach context that contains bindings that satisfy all of the expressions
-// inside the rule.
+// inside the body.
 func TopDown(ctx *TopDownContext, iter TopDownIterator) error {
 	return evalRule(ctx, iter)
+}
+
+// TopDownQuery returns the document identified by the path.
+//
+// If the storage node identified by the path is a collection of rules, then the TopDown
+// algorithm is run to generate the virtual document defined by the rules.
+func TopDownQuery(store Storage, path []string) (interface{}, error) {
+
+	var ref opalog.Ref
+	ref = append(ref, opalog.VarTerm(path[0]))
+	for _, v := range path[1:] {
+		ref = append(ref, opalog.StringTerm(v))
+	}
+
+	node, err := store.Lookup(ref)
+	if err != nil {
+		return nil, err
+	}
+
+	switch node := node.(type) {
+	case []*opalog.Rule:
+		if len(node) == 0 {
+			return Undefined{}, nil
+		}
+		// This assumes that all the rules identified by the path are of the same
+		// type. This is checked at compile time.
+		switch node[0].DocKind() {
+		case opalog.CompleteDoc:
+			return topDownQueryCompleteDoc(store, node)
+		case opalog.PartialObjectDoc:
+			return topDownQueryPartialObjectDoc(store, node)
+		case opalog.PartialSetDoc:
+			return topDownQueryPartialSetDoc(store, node)
+		default:
+			return nil, fmt.Errorf("invalid document (kind: %v): %v", node[0].DocKind(), ref)
+		}
+	default:
+		return node, nil
+	}
 }
 
 // Undefined represents the absence of bindings that satisfy a completely defined rule.
@@ -116,65 +155,6 @@ type Undefined struct{}
 
 func (undefined Undefined) String() string {
 	return "<undefined>"
-}
-
-// TopDownQuery returns the result of executing the evaluation algorithm and collecting
-// all of the binding values that satisfy all of the expressions in the rule. In the case
-// of rules that are completely definined (i.e., rules that are not defined incrementally),
-// the Undefined value is returned to indicate that there are no bindings that satisfy all
-// of the expressions in the rule.
-func TopDownQuery(ctx *TopDownContext) (interface{}, error) {
-	switch ctx.Rule.DocKind() {
-	case opalog.PartialSetDoc:
-		result := []interface{}{}
-		key := ctx.Rule.Key.Value.(opalog.Var)
-		err := TopDown(ctx, func(ctx *TopDownContext) error {
-			value, err := dereferenceVar(key, ctx)
-			if err != nil {
-				return err
-			}
-			result = append(result, value)
-			return nil
-		})
-		return result, err
-
-	case opalog.PartialObjectDoc:
-		result := map[string]interface{}{}
-		key := ctx.Rule.Key.Value.(opalog.Var)
-		value := ctx.Rule.Value.Value.(opalog.Var)
-		err := TopDown(ctx, func(ctx *TopDownContext) error {
-			key, err := dereferenceVar(key, ctx)
-			if err != nil {
-				return err
-			}
-			asStr, ok := key.(string)
-			if !ok {
-				return fmt.Errorf("cannot produce object with non-string key: %v", key)
-			}
-			value, err := dereferenceVar(value, ctx)
-			if err != nil {
-				return err
-			}
-			result[asStr] = value
-			return nil
-		})
-		return result, err
-
-	case opalog.CompleteDoc:
-		isDefined := false
-		err := TopDown(ctx, func(ctx *TopDownContext) error {
-			isDefined = true
-			return nil
-		})
-		if err != nil {
-			return nil, err
-		}
-		if !isDefined {
-			return Undefined{}, nil
-		}
-		return valueToInterface(ctx.Rule.Value.Value, ctx)
-	}
-	panic(fmt.Sprintf("illegal argument: %v", ctx.Rule.DocKind()))
 }
 
 type builtinFunction func(*TopDownContext, *opalog.Expr, TopDownIterator) error
@@ -527,8 +507,13 @@ func evalRefRec(ctx *TopDownContext, ref opalog.Ref, iter TopDownIterator, path 
 		}
 
 		switch node := node.(type) {
-		case *opalog.Rule:
-			return evalRefRule(ctx, ref, path, node, iter)
+		case []*opalog.Rule:
+			for _, rule := range node {
+				if err := evalRefRule(ctx, ref, path, rule, iter); err != nil {
+					return err
+				}
+			}
+			return nil
 		default:
 			return evalRefRec(ctx, tail, iter, path)
 		}
@@ -757,7 +742,7 @@ func evalRefRuleResult(ctx *TopDownContext, ref opalog.Ref, suffix opalog.Ref, r
 }
 
 func evalRule(ctx *TopDownContext, iter TopDownIterator) error {
-	if ctx.Index >= len(ctx.Rule.Body) {
+	if ctx.Index >= len(ctx.Query) {
 		return iter(ctx)
 	}
 	return evalTerms(ctx, func(ctx *TopDownContext) error {
@@ -977,6 +962,96 @@ func plugValue(v opalog.Value, bindings *hashMap) opalog.Value {
 		}
 		return v
 	}
+}
+
+func topDownQueryCompleteDoc(store Storage, rules []*opalog.Rule) (interface{}, error) {
+
+	if len(rules) > 1 {
+		return nil, fmt.Errorf("multiple conflicting rules: %v", rules[0].Name)
+	}
+
+	rule := rules[0]
+
+	ctx := &TopDownContext{
+		Query:    rule.Body,
+		Bindings: newHashMap(),
+		Store:    store,
+	}
+
+	isDefined := false
+	err := TopDown(ctx, func(ctx *TopDownContext) error {
+		isDefined = true
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	if !isDefined {
+		return Undefined{}, nil
+	}
+
+	return valueToInterface(rule.Value.Value, ctx)
+}
+
+func topDownQueryPartialObjectDoc(store Storage, rules []*opalog.Rule) (interface{}, error) {
+
+	result := map[string]interface{}{}
+
+	for _, rule := range rules {
+		ctx := &TopDownContext{
+			Query:    rule.Body,
+			Bindings: newHashMap(),
+			Store:    store,
+		}
+		key := rule.Key.Value.(opalog.Var)
+		value := rule.Value.Value.(opalog.Var)
+		err := TopDown(ctx, func(ctx *TopDownContext) error {
+			key, err := dereferenceVar(key, ctx)
+			if err != nil {
+				return err
+			}
+			asStr, ok := key.(string)
+			if !ok {
+				return fmt.Errorf("cannot produce object with non-string key: %v", key)
+			}
+			value, err := dereferenceVar(value, ctx)
+			if err != nil {
+				return err
+			}
+			result[asStr] = value
+			return nil
+		})
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return result, nil
+}
+
+func topDownQueryPartialSetDoc(store Storage, rules []*opalog.Rule) (interface{}, error) {
+	result := []interface{}{}
+	for _, rule := range rules {
+		ctx := &TopDownContext{
+			Query:    rule.Body,
+			Bindings: newHashMap(),
+			Store:    store,
+		}
+		key := rule.Key.Value.(opalog.Var)
+		err := TopDown(ctx, func(ctx *TopDownContext) error {
+			value, err := dereferenceVar(key, ctx)
+			if err != nil {
+				return err
+			}
+			result = append(result, value)
+			return nil
+		})
+
+		if err != nil {
+			return nil, err
+		}
+	}
+	return result, nil
 }
 
 // valueToInterface returns the underlying Go value associated with an AST value.

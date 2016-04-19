@@ -102,10 +102,10 @@ func TestEvalRef(t *testing.T) {
 func TestEvalTerms(t *testing.T) {
 
 	tests := []struct {
-		rule     string
+		body     string
 		expected string
 	}{
-		{"p[x] :- c[i][j][k] = x", `[
+		{"c[i][j][k] = x", `[
             {"i": 0, "j": "x", "k": 0},
             {"i": 0, "j": "x", "k": 1},
             {"i": 0, "j": "x", "k": 2},
@@ -114,7 +114,7 @@ func TestEvalTerms(t *testing.T) {
             {"i": 0, "j": "z", "k": "p"},
             {"i": 0, "j": "z", "k": "q"}
         ]`},
-		{"p[x] :- d[x][y] = a[i]", `[
+		{"d[x][y] = a[i]", `[
             {"x": "e", "y": 0, "i": 0},
             {"x": "e", "y": 0, "i": 1},
             {"x": "e", "y": 0, "i": 2},
@@ -124,11 +124,11 @@ func TestEvalTerms(t *testing.T) {
             {"x": "e", "y": 1, "i": 2},
             {"x": "e", "y": 1, "i": 3}
         ]`},
-		{"p[x] :- d[x][y] = {1: 2}", `[
+		{"d[x][y] = {1: 2}", `[
 			{"x": "e", "y": 0},
 			{"x": "e", "y": 1}
 		]`},
-		{"p[x] :- d[x][y] = z[i]", `[]`},
+		{"d[x][y] = z[i]", `[]`},
 	}
 
 	data := loadSmallTestData()
@@ -136,7 +136,7 @@ func TestEvalTerms(t *testing.T) {
 	for i, tc := range tests {
 
 		ctx := &TopDownContext{
-			Rule:     parseRule(tc.rule),
+			Query:    parseBody(tc.body),
 			Store:    NewStorageFromJSONObject(data),
 			Bindings: newHashMap(),
 		}
@@ -232,26 +232,8 @@ func TestTopDownCompleteDoc(t *testing.T) {
 	data := loadSmallTestData()
 
 	for i, tc := range tests {
-
-		ctx := &TopDownContext{
-			Rule:     parseRule(tc.rule),
-			Store:    NewStorageFromJSONObject(data),
-			Bindings: newHashMap(),
-		}
-
-		expected := loadExpectedResult(tc.expected)
-		result, err := TopDownQuery(ctx)
-
-		if err != nil {
-			t.Errorf("Test case %d (%v): unexpected error: %v", i+1, tc.note, err)
-			continue
-		}
-
-		if !reflect.DeepEqual(result, expected) {
-			t.Errorf("Test case %d (%v): expected %v but got: %v", i+1, tc.note, expected, result)
-		}
+		runTopDownTestCase(t, data, i, tc.note, []string{tc.rule}, tc.expected)
 	}
-
 }
 
 func TestTopDownPartialSetDoc(t *testing.T) {
@@ -273,27 +255,8 @@ func TestTopDownPartialSetDoc(t *testing.T) {
 	data := loadSmallTestData()
 
 	for i, tc := range tests {
-		ctx := &TopDownContext{
-			Rule:     parseRule(tc.rule),
-			Store:    NewStorageFromJSONObject(data),
-			Bindings: newHashMap(),
-		}
-
-		expected := loadExpectedResult(tc.expected)
-		result, err := TopDownQuery(ctx)
-
-		if err != nil {
-			t.Errorf("Test case %d (%v): unexpected error: %v", i+1, tc.note, err)
-			continue
-		}
-
-		sort.Sort(ResultSet(result.([]interface{})))
-
-		if !reflect.DeepEqual(result, expected) {
-			t.Errorf("Test case %d (%v): expected %v but got: %v", i+1, tc.note, expected, result)
-		}
+		runTopDownTestCase(t, data, i, tc.note, []string{tc.rule}, tc.expected)
 	}
-
 }
 
 func TestTopDownPartialObjectDoc(t *testing.T) {
@@ -311,31 +274,7 @@ func TestTopDownPartialObjectDoc(t *testing.T) {
 	data := loadSmallTestData()
 
 	for i, tc := range tests {
-
-		ctx := &TopDownContext{
-			Rule:     parseRule(tc.rule),
-			Store:    NewStorageFromJSONObject(data),
-			Bindings: newHashMap(),
-		}
-
-		switch e := tc.expected.(type) {
-		case string:
-			expected := loadExpectedResult(e)
-			result, err := TopDownQuery(ctx)
-			if err != nil {
-				t.Errorf("Test case %d (%v): unexpected error: %v", i+1, tc.note, err)
-				continue
-			}
-			if !reflect.DeepEqual(result, expected) {
-				t.Errorf("Test case %d (%v): expected %v but got %v", i+1, tc.note, expected, result)
-			}
-		case error:
-			_, err := TopDownQuery(ctx)
-			if !reflect.DeepEqual(err, e) {
-				t.Errorf("Test case %d (%v): expected error %v but got %v", i+1, tc.note, e, err)
-			}
-		}
-
+		runTopDownTestCase(t, data, i, tc.note, []string{tc.rule}, tc.expected)
 	}
 }
 
@@ -406,8 +345,8 @@ func TestTopDownEqExpr(t *testing.T) {
 		{"pattern: object multiple vars 2", `p[z] :- {"x": x, "y": 2} = {"x": 1, "y": y}, z = [x, y]`, "[[1, 2]]"},
 		{"pattern: object ref", `p[x] :- {"p": c[0].x[0], "q": x} = c[i][j]`, `[false]`},
 		{"pattern: object non-ground ref", `p[x] :- {"a": 1, "b": x} = {"a": 1, "b": c[0].x[i]}`, `[true, false, "foo"]`},
-		{"pattern: object = ref", `t[x] :- {"p": p, "q": q} = c[i][j], x = [i, j, p, q]`, `[[0, "z", true, false]]`},
-		{"pattern: object = ref (reversed)", `t[x] :- c[i][j] = {"p": p, "q": q}, x = [i, j, p, q]`, `[[0, "z", true, false]]`},
+		{"pattern: object = ref", `p[x] :- {"p": a, "q": b} = c[i][j], x = [i, j, a, b]`, `[[0, "z", true, false]]`},
+		{"pattern: object = ref (reversed)", `p[x] :- c[i][j] = {"p": a, "q": b}, x = [i, j, a, b]`, `[[0, "z", true, false]]`},
 		{"pattern: object = var", `p[x] :- {"a": 1, "b": b} = x, b = 2`, `[{"a": 1, "b": 2}]`},
 		{"pattern: object/array nested", `p[ys] :- f[i] = {"xs": [2.0], "ys": ys}`, `[[3.0]]`},
 		{"pattern: object/array nested 2", `p[v] :- f[i] = {"xs": [x], "ys": [y]}, v = [x, y]`, `[[1.0, 2.0], [2.0, 3.0]]`},
@@ -416,38 +355,8 @@ func TestTopDownEqExpr(t *testing.T) {
 	data := loadSmallTestData()
 
 	for i, tc := range tests {
-
-		ctx := &TopDownContext{
-			Rule:     parseRule(tc.rule),
-			Store:    NewStorageFromJSONObject(data),
-			Bindings: newHashMap(),
-		}
-
-		switch e := tc.expected.(type) {
-		case error:
-			_, err := TopDownQuery(ctx)
-			if !reflect.DeepEqual(err, e) {
-				t.Errorf("Test case %d (%v): expected error %v but got %v", i+1, tc.note, e, err)
-			}
-		case string:
-			expected := loadExpectedResult(e)
-			result, err := TopDownQuery(ctx)
-
-			switch ctx.Rule.DocKind() {
-			case opalog.PartialSetDoc:
-				sort.Sort(ResultSet(result.([]interface{})))
-			}
-
-			if err != nil {
-				t.Errorf("Test case %d (%v): unexpected error: %v", i+1, tc.note, err)
-				continue
-			}
-			if !reflect.DeepEqual(result, expected) {
-				t.Errorf("Test case %d (%v): expected %v but got: %v", i+1, tc.note, expected, result)
-			}
-		}
+		runTopDownTestCase(t, data, i, tc.note, []string{tc.rule}, tc.expected)
 	}
-
 }
 
 func TestTopDownVirtualDocs(t *testing.T) {
@@ -501,48 +410,8 @@ func TestTopDownVirtualDocs(t *testing.T) {
 	data := loadSmallTestData()
 
 	for i, tc := range tests {
-
-		rules := parseRules(tc.rules)
-		store := NewStorageFromJSONObject(data)
-		for _, rule := range rules {
-			store[string(rule.Name)] = rule
-		}
-
-		ctx := &TopDownContext{
-			Rule:     rules[0],
-			Store:    store,
-			Bindings: newHashMap(),
-		}
-
-		switch e := tc.expected.(type) {
-
-		case error:
-			result, err := TopDownQuery(ctx)
-			if err == nil {
-				t.Errorf("Test case %d (%v): expected error but got: %v", i+1, tc.note, result)
-				continue
-			}
-			if !reflect.DeepEqual(err, e) {
-				t.Errorf("Test case %d (%v): expected error %v but got: %v", i+1, tc.note, e, err)
-			}
-
-		case string:
-			expected := loadExpectedResult(e)
-			result, err := TopDownQuery(ctx)
-			if err != nil {
-				t.Errorf("Test case %d (%v): unexpected error: %v", i+1, tc.note, err)
-				continue
-			}
-			switch ctx.Rule.DocKind() {
-			case opalog.PartialSetDoc:
-				sort.Sort(ResultSet(result.([]interface{})))
-			}
-			if !reflect.DeepEqual(result, expected) {
-				t.Errorf("Test case %d (%v): expected %v but got: %v", i+1, tc.note, expected, result)
-			}
-		}
+		runTopDownTestCase(t, data, i, tc.note, tc.rules, tc.expected)
 	}
-
 }
 
 func TestTopDownVarReferences(t *testing.T) {
@@ -564,46 +433,27 @@ func TestTopDownVarReferences(t *testing.T) {
 	data := loadSmallTestData()
 
 	for i, tc := range tests {
+		runTopDownTestCase(t, data, i, tc.note, tc.rules, tc.expected)
+	}
+}
 
-		rules := parseRules(tc.rules)
-		store := NewStorageFromJSONObject(data)
-		for _, rule := range rules {
-			store[string(rule.Name)] = rule
-		}
+func TestTopDownDisjunction(t *testing.T) {
 
-		ctx := &TopDownContext{
-			Rule:     rules[0],
-			Store:    store,
-			Bindings: newHashMap(),
-		}
+	tests := []struct {
+		note     string
+		rules    []string
+		expected interface{}
+	}{
+		{"incr: query set", []string{"p[x] :- a[i] = x", "p[y] :- b[j] = y"}, `[1,2,3,4,"hello","goodbye"]`},
+		{"incr: query object", []string{"p[k] = v :- b[v] = k", "p[k] = v :- a[i] = v, g[k][j] = v"}, `{"b": 2, "c": 4, "hello": "v1", "goodbye": "v2", "a": 1}`},
+		{"incr: eval set", []string{"p[x] :- q[x]", "q[x] :- a[i] = x", "q[y] :- b[j] = y"}, `[1,2,3,4,"hello","goodbye"]`},
+		{"incr: eval object", []string{"p[k] = v :- q[k] = v", "q[k] = v :- b[v] = k", "q[k] = v :- a[i] = v, g[k][j] = v"}, `{"b": 2, "c": 4, "hello": "v1", "goodbye": "v2", "a": 1}`},
+	}
 
-		switch e := tc.expected.(type) {
+	data := loadSmallTestData()
 
-		case error:
-			result, err := TopDownQuery(ctx)
-			if err == nil {
-				t.Errorf("Test case %d (%v): expected error but got: %v", i+1, tc.note, result)
-				continue
-			}
-			if !reflect.DeepEqual(err, e) {
-				t.Errorf("Test case %d (%v): expected error %v but got: %v", i+1, tc.note, e, err)
-			}
-
-		case string:
-			expected := loadExpectedResult(e)
-			result, err := TopDownQuery(ctx)
-			if err != nil {
-				t.Errorf("Test case %d (%v): unexpected error: %v", i+1, tc.note, err)
-				continue
-			}
-			switch ctx.Rule.DocKind() {
-			case opalog.PartialSetDoc:
-				sort.Sort(ResultSet(result.([]interface{})))
-			}
-			if !reflect.DeepEqual(result, expected) {
-				t.Errorf("Test case %d (%v): expected %v but got: %v", i+1, tc.note, expected, result)
-			}
-		}
+	for i, tc := range tests {
+		runTopDownTestCase(t, data, i, tc.note, tc.rules, tc.expected)
 	}
 }
 
@@ -681,6 +531,27 @@ func loadSmallTestData() map[string]interface{} {
 	return data
 }
 
+func newStorage(data map[string]interface{}, rules []*opalog.Rule) Storage {
+	byName := map[opalog.Var][]*opalog.Rule{}
+	for _, rule := range rules {
+		s, ok := byName[rule.Name]
+		if !ok {
+			s = []*opalog.Rule{}
+		}
+		s = append(s, rule)
+		byName[rule.Name] = s
+	}
+	store := NewStorageFromJSONObject(data)
+	for name, rules := range byName {
+		store[string(name)] = rules
+	}
+	return store
+}
+
+func parseBody(input string) opalog.Body {
+	return opalog.MustParseStatement(input).(opalog.Body)
+}
+
 func parseRef(input string) opalog.Ref {
 	body := opalog.MustParseStatement(input).(opalog.Body)
 	return body[0].Terms.(*opalog.Term).Value.(opalog.Ref)
@@ -691,7 +562,7 @@ func parseRule(input string) *opalog.Rule {
 }
 
 func parseRules(input []string) []*opalog.Rule {
-	var rules []*opalog.Rule
+	rules := []*opalog.Rule{}
 	for i := range input {
 		rules = append(rules, parseRule(input[i]))
 	}
@@ -700,6 +571,40 @@ func parseRules(input []string) []*opalog.Rule {
 
 func parseTerm(input string) *opalog.Term {
 	return opalog.MustParseStatement(input).(opalog.Body)[0].Terms.(*opalog.Term)
+}
+
+func runTopDownTestCase(t *testing.T, data map[string]interface{}, i int, note string, rules []string, expected interface{}) {
+
+	ruleSlice := parseRules(rules)
+	store := newStorage(data, ruleSlice)
+
+	switch e := expected.(type) {
+
+	case error:
+		result, err := TopDownQuery(store, []string{"p"})
+		if err == nil {
+			t.Errorf("Test case %d (%v): expected error but got: %v", i+1, note, result)
+			return
+		}
+		if !reflect.DeepEqual(err, e) {
+			t.Errorf("Test case %d (%v): expected error %v but got: %v", i+1, note, e, err)
+		}
+
+	case string:
+		expected := loadExpectedResult(e)
+		result, err := TopDownQuery(store, []string{"p"})
+		if err != nil {
+			t.Errorf("Test case %d (%v): unexpected error: %v", i+1, note, err)
+			return
+		}
+		switch store["p"].([]*opalog.Rule)[0].DocKind() {
+		case opalog.PartialSetDoc:
+			sort.Sort(ResultSet(result.([]interface{})))
+		}
+		if !reflect.DeepEqual(result, expected) {
+			t.Errorf("Test case %d (%v): expected %v but got: %v", i+1, note, expected, result)
+		}
+	}
 }
 
 // ResultSet is used to sort set documents produeced by rules for comparison purposes.
