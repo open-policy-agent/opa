@@ -457,6 +457,30 @@ func TestTopDownDisjunction(t *testing.T) {
 	}
 }
 
+func TestTopDownNegation(t *testing.T) {
+	tests := []struct {
+		note     string
+		rules    []string
+		expected interface{}
+	}{
+		{"neg: constants", []string{"p = true :- not true = false"}, "true"},
+		{"neg: constants", []string{"p = true :- not true = true"}, ""},
+		{"neg: array contains", []string{"p = true :- not a[_] = 9999"}, "true"},
+		{"neg: array diff", []string{"p = true :- not a[_] = 4"}, ""},
+		{"neg: object values contains", []string{`p = true :- not b[_] = "deadbeef"`}, "true"},
+		{"neg: object values diff", []string{`p = true :- not b[_] = "goodbye"`}, ""},
+		{"neg: set contains", []string{`p = true :- not q["v0"]`, `q[x] :- b[x] = v`}, "true"},
+		{"neg: set diff", []string{`p = true :- not q["v2"]`, `q[x] :- b[x] = v`}, ""},
+		{"neg: multiple exprs", []string{"p[x] :- a[x] = i, not g[j][k] = x, f[l][m][n] = x"}, "[3]"},
+	}
+
+	data := loadSmallTestData()
+
+	for i, tc := range tests {
+		runTopDownTestCase(t, data, i, tc.note, tc.rules, tc.expected)
+	}
+}
+
 func loadExpectedBindings(input string) []*hashMap {
 	var data []map[string]interface{}
 	if err := json.Unmarshal([]byte(input), &data); err != nil {

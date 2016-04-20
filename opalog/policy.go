@@ -191,6 +191,13 @@ func (body Body) String() string {
 	return strings.Join(buf, ", ")
 }
 
+// Complement returns a copy of this expression with the negation flag flipped.
+func (expr *Expr) Complement() *Expr {
+	cpy := *expr
+	cpy.Negated = !cpy.Negated
+	return &cpy
+}
+
 // Equal returns true if this Expr equals the other Expr.
 // Two expressions are considered equal if both expressions are negated (or not),
 // are built-ins (or not), and have the same ordered terms.

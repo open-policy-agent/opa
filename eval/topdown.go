@@ -107,7 +107,7 @@ type TopDownIterator func(*TopDownContext) error
 // foreach context that contains bindings that satisfy all of the expressions
 // inside the body.
 func TopDown(ctx *TopDownContext, iter TopDownIterator) error {
-	return evalRule(ctx, iter)
+	return evalContext(ctx, iter)
 }
 
 // TopDownQuery returns the document identified by the path.
@@ -171,6 +171,51 @@ func dereferenceVar(v opalog.Var, ctx *TopDownContext) (interface{}, error) {
 		return nil, fmt.Errorf("unbound variable: %v", v)
 	}
 	return valueToInterface(binding, ctx)
+}
+
+func evalContext(ctx *TopDownContext, iter TopDownIterator) error {
+
+	if ctx.Index >= len(ctx.Query) {
+		return iter(ctx)
+	}
+
+	if ctx.Current().Negated {
+		return evalContextNegated(ctx, iter)
+	}
+
+	return evalTerms(ctx, func(ctx *TopDownContext) error {
+		return evalExpr(ctx, func(ctx *TopDownContext) error {
+			ctx = ctx.Step()
+			return evalContext(ctx, iter)
+		})
+	})
+}
+
+func evalContextNegated(ctx *TopDownContext, iter TopDownIterator) error {
+
+	negation := &TopDownContext{
+		Query:    opalog.Body([]*opalog.Expr{ctx.Current().Complement()}),
+		Bindings: ctx.Bindings,
+		Previous: ctx,
+		Store:    ctx.Store,
+	}
+
+	isDefined := false
+
+	err := evalContext(negation, func(*TopDownContext) error {
+		isDefined = true
+		return nil
+	})
+
+	if err != nil {
+		return err
+	}
+
+	if !isDefined {
+		return evalContext(ctx.Step(), iter)
+	}
+
+	return nil
 }
 
 func evalEq(ctx *TopDownContext, expr *opalog.Expr, iter TopDownIterator) error {
@@ -739,18 +784,6 @@ func evalRefRuleResult(ctx *TopDownContext, ref opalog.Ref, suffix opalog.Ref, r
 		ctx = ctx.BindRef(ref, result)
 		return iter(ctx)
 	}
-}
-
-func evalRule(ctx *TopDownContext, iter TopDownIterator) error {
-	if ctx.Index >= len(ctx.Query) {
-		return iter(ctx)
-	}
-	return evalTerms(ctx, func(ctx *TopDownContext) error {
-		return evalExpr(ctx, func(ctx *TopDownContext) error {
-			ctx = ctx.Step()
-			return evalRule(ctx, iter)
-		})
-	})
 }
 
 // evalTerms is used to get bindings for variables in individual terms.
