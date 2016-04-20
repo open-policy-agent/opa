@@ -242,6 +242,17 @@ func (f *FlagSet) HasFlags() bool {
 	return len(f.formal) > 0
 }
 
+// HasAvailableFlags returns a bool to indicate if the FlagSet has any flags
+// definied that are not hidden or deprecated.
+func (f *FlagSet) HasAvailableFlags() bool {
+	for _, flag := range f.formal {
+		if !flag.Hidden && len(flag.Deprecated) == 0 {
+			return true
+		}
+	}
+	return false
+}
+
 // VisitAll visits the command-line flags in lexicographical order, calling
 // fn for each.  It visits all flags, even those not set.
 func VisitAll(fn func(*Flag)) {

@@ -6,6 +6,7 @@ package width
 
 import (
 	"bytes"
+	"strings"
 	"testing"
 
 	"golang.org/x/text/internal/testtext"
@@ -50,75 +51,133 @@ func TestFoldSingleRunes(t *testing.T) {
 	}
 }
 
+type transformTest struct {
+	desc  string
+	src   string
+	nBuf  int
+	nDst  int
+	atEOF bool
+	dst   string
+	nSrc  int
+	err   error
+}
+
+func (tc *transformTest) doTest(t *testing.T, tr Transformer) {
+	b := make([]byte, tc.nBuf)
+	nDst, nSrc, err := tr.Transform(b, []byte(tc.src), tc.atEOF)
+	if got := string(b[:nDst]); got != tc.dst[:nDst] {
+		t.Errorf("%s: dst was %+q; want %+q", tc.desc, got, tc.dst)
+	}
+	if nDst != tc.nDst {
+		t.Errorf("%s: nDst was %d; want %d", tc.desc, nDst, tc.nDst)
+	}
+	if nSrc != tc.nSrc {
+		t.Errorf("%s: nSrc was %d; want %d", tc.desc, nSrc, tc.nSrc)
+	}
+	if err != tc.err {
+		t.Errorf("%s: error was %v; want %v", tc.desc, err, tc.err)
+	}
+	if got := tr.String(tc.src); got != tc.dst {
+		t.Errorf("%s:String(%q) = %q; want %q", tc.desc, tc.src, got, tc.dst)
+	}
+}
+
 func TestFold(t *testing.T) {
-	for _, tc := range []struct {
-		desc  string
-		src   string
-		nDst  int
-		atEOF bool
-		dst   string
-		nSrc  int
-		err   error
-	}{{
+	for _, tc := range []transformTest{{
 		desc:  "empty",
 		src:   "",
+		nBuf:  10,
 		dst:   "",
-		nDst:  10,
+		nDst:  0,
 		nSrc:  0,
 		atEOF: false,
 		err:   nil,
 	}, {
 		desc:  "short source 1",
 		src:   "a\xc2",
-		dst:   "a",
-		nDst:  10,
+		nBuf:  10,
+		dst:   "a\xc2",
+		nDst:  1,
 		nSrc:  1,
 		atEOF: false,
 		err:   transform.ErrShortSrc,
 	}, {
 		desc:  "short source 2",
 		src:   "a\xe0\x80",
-		dst:   "a",
-		nDst:  10,
+		nBuf:  10,
+		dst:   "a\xe0\x80",
+		nDst:  1,
 		nSrc:  1,
 		atEOF: false,
 		err:   transform.ErrShortSrc,
 	}, {
 		desc:  "incomplete but terminated source 1",
 		src:   "a\xc2",
+		nBuf:  10,
 		dst:   "a\xc2",
-		nDst:  10,
+		nDst:  2,
 		nSrc:  2,
 		atEOF: true,
 		err:   nil,
 	}, {
 		desc:  "incomplete but terminated source 2",
 		src:   "a\xe0\x80",
+		nBuf:  10,
 		dst:   "a\xe0\x80",
-		nDst:  10,
+		nDst:  3,
 		nSrc:  3,
 		atEOF: true,
 		err:   nil,
 	}, {
 		desc:  "exact fit dst",
 		src:   "a\uff01",
+		nBuf:  2,
 		dst:   "a!",
 		nDst:  2,
 		nSrc:  4,
 		atEOF: false,
 		err:   nil,
 	}, {
-		desc:  "short dst 1",
-		src:   "a\uffe0",
-		dst:   "a",
+		desc:  "exact fit dst and src ascii",
+		src:   "ab",
+		nBuf:  2,
+		dst:   "ab",
 		nDst:  2,
+		nSrc:  2,
+		atEOF: true,
+		err:   nil,
+	}, {
+		desc:  "empty dst",
+		src:   "\u0300",
+		nBuf:  0,
+		dst:   "\u0300",
+		nDst:  0,
+		nSrc:  0,
+		atEOF: true,
+		err:   transform.ErrShortDst,
+	}, {
+		desc:  "empty dst ascii",
+		src:   "a",
+		nBuf:  0,
+		dst:   "a",
+		nDst:  0,
+		nSrc:  0,
+		atEOF: true,
+		err:   transform.ErrShortDst,
+	}, {
+		desc:  "short dst 1",
+		src:   "a\uffe0", // ￠
+		nBuf:  2,
+		dst:   "a\u00a2", // ¢
+		nDst:  1,
 		nSrc:  1,
 		atEOF: false,
 		err:   transform.ErrShortDst,
 	}, {
 		desc:  "short dst 2",
 		src:   "不夠",
-		dst:   "不",
+		nBuf:  3,
+		dst:   "不夠",
 		nDst:  3,
 		nSrc:  3,
 		atEOF: true,
@@ -126,31 +185,32 @@ func TestFold(t *testing.T) {
 	}, {
 		desc:  "short dst fast path",
 		src:   "fast",
-		dst:   "fas",
 		nDst:  3,
+		dst:   "fast",
+		nBuf:  3,
 		nSrc:  3,
+		atEOF: true,
+		err:   transform.ErrShortDst,
+	}, {
+		desc:  "short dst larger buffer",
+		src:   "\uff21" + strings.Repeat("0", 127) + "B",
+		nBuf:  128,
+		dst:   "A" + strings.Repeat("0", 127) + "B",
+		nDst:  128,
+		nSrc:  130,
 		atEOF: true,
 		err:   transform.ErrShortDst,
 	}, {
 		desc:  "fast path alternation",
 		src:   "fast路徑fast路徑",
+		nBuf:  20,
 		dst:   "fast路徑fast路徑",
 		nDst:  20,
 		nSrc:  20,
 		atEOF: true,
 		err:   nil,
 	}} {
-		b := make([]byte, tc.nDst)
-		nDst, nSrc, err := Fold.Transform(b, []byte(tc.src), tc.atEOF)
-		if got := string(b[:nDst]); got != tc.dst {
-			t.Errorf("%s: dst was %+q; want %+q", tc.desc, got, tc.dst)
-		}
-		if nSrc != tc.nSrc {
-			t.Errorf("%s: nSrc was %d; want %d", tc.desc, nSrc, tc.nSrc)
-		}
-		if err != tc.err {
-			t.Errorf("%s: error was %v; want %v", tc.desc, err, tc.err)
-		}
+		tc.doTest(t, Fold)
 	}
 }
 
@@ -169,74 +229,92 @@ func TestWidenSingleRunes(t *testing.T) {
 }
 
 func TestWiden(t *testing.T) {
-	for _, tc := range []struct {
-		desc  string
-		src   string
-		nDst  int
-		atEOF bool
-		dst   string
-		nSrc  int
-		err   error
-	}{{
+	for _, tc := range []transformTest{{
 		desc:  "empty",
 		src:   "",
+		nBuf:  10,
 		dst:   "",
-		nDst:  10,
+		nDst:  0,
 		nSrc:  0,
 		atEOF: false,
 		err:   nil,
 	}, {
 		desc:  "short source 1",
 		src:   "a\xc2",
-		dst:   "ａ",
-		nDst:  10,
+		nBuf:  10,
+		dst:   "ａ\xc2",
+		nDst:  3,
 		nSrc:  1,
 		atEOF: false,
 		err:   transform.ErrShortSrc,
 	}, {
 		desc:  "short source 2",
 		src:   "a\xe0\x80",
-		dst:   "ａ",
-		nDst:  10,
+		nBuf:  10,
+		dst:   "ａ\xe0\x80",
+		nDst:  3,
 		nSrc:  1,
 		atEOF: false,
 		err:   transform.ErrShortSrc,
 	}, {
 		desc:  "incomplete but terminated source 1",
 		src:   "a\xc2",
+		nBuf:  10,
 		dst:   "ａ\xc2",
-		nDst:  10,
+		nDst:  4,
 		nSrc:  2,
 		atEOF: true,
 		err:   nil,
 	}, {
 		desc:  "incomplete but terminated source 2",
 		src:   "a\xe0\x80",
+		nBuf:  10,
 		dst:   "ａ\xe0\x80",
-		nDst:  10,
+		nDst:  5,
 		nSrc:  3,
 		atEOF: true,
 		err:   nil,
 	}, {
 		desc:  "exact fit dst",
 		src:   "a!",
+		nBuf:  6,
 		dst:   "ａ\uff01",
 		nDst:  6,
 		nSrc:  2,
 		atEOF: false,
 		err:   nil,
 	}, {
+		desc:  "empty dst",
+		src:   "\u0300",
+		nBuf:  0,
+		dst:   "\u0300",
+		nDst:  0,
+		nSrc:  0,
+		atEOF: true,
+		err:   transform.ErrShortDst,
+	}, {
+		desc:  "empty dst ascii",
+		src:   "a",
+		nBuf:  0,
+		dst:   "ａ",
+		nDst:  0,
+		nSrc:  0,
+		atEOF: true,
+		err:   transform.ErrShortDst,
+	}, {
 		desc:  "short dst 1",
 		src:   "a\uffe0",
-		dst:   "ａ",
-		nDst:  4,
+		nBuf:  4,
+		dst:   "ａ\uffe0",
+		nDst:  3,
 		nSrc:  1,
 		atEOF: false,
 		err:   transform.ErrShortDst,
 	}, {
 		desc:  "short dst 2",
 		src:   "不夠",
-		dst:   "不",
+		nBuf:  3,
+		dst:   "不夠",
 		nDst:  3,
 		nSrc:  3,
 		atEOF: true,
@@ -244,7 +322,8 @@ func TestWiden(t *testing.T) {
 	}, {
 		desc:  "short dst ascii",
 		src:   "ascii",
-		dst:   "\uff41",
+		nBuf:  3,
+		dst:   "ａｓｃｉｉ", // U+ff41, ...
 		nDst:  3,
 		nSrc:  1,
 		atEOF: true,
@@ -252,23 +331,14 @@ func TestWiden(t *testing.T) {
 	}, {
 		desc:  "ambiguous",
 		src:   "\uffe9",
+		nBuf:  4,
 		dst:   "\u2190",
-		nDst:  4,
+		nDst:  3,
 		nSrc:  3,
 		atEOF: false,
 		err:   nil,
 	}} {
-		b := make([]byte, tc.nDst)
-		nDst, nSrc, err := Widen.Transform(b, []byte(tc.src), tc.atEOF)
-		if got := string(b[:nDst]); got != tc.dst {
-			t.Errorf("%s: dst was %+q; want %+q", tc.desc, got, tc.dst)
-		}
-		if nSrc != tc.nSrc {
-			t.Errorf("%s: nSrc was %d; want %d", tc.desc, nSrc, tc.nSrc)
-		}
-		if err != tc.err {
-			t.Errorf("%s: error was %v; want %v", tc.desc, err, tc.err)
-		}
+		tc.doTest(t, Widen)
 	}
 }
 
@@ -287,74 +357,101 @@ func TestNarrowSingleRunes(t *testing.T) {
 }
 
 func TestNarrow(t *testing.T) {
-	for _, tc := range []struct {
-		desc  string
-		src   string
-		nDst  int
-		atEOF bool
-		dst   string
-		nSrc  int
-		err   error
-	}{{
+	for _, tc := range []transformTest{{
 		desc:  "empty",
 		src:   "",
+		nBuf:  10,
 		dst:   "",
-		nDst:  10,
+		nDst:  0,
 		nSrc:  0,
 		atEOF: false,
 		err:   nil,
 	}, {
 		desc:  "short source 1",
 		src:   "a\xc2",
-		dst:   "a",
-		nDst:  10,
+		nBuf:  10,
+		dst:   "a\xc2",
+		nDst:  1,
 		nSrc:  1,
 		atEOF: false,
 		err:   transform.ErrShortSrc,
 	}, {
 		desc:  "short source 2",
 		src:   "ａ\xe0\x80",
-		dst:   "a",
-		nDst:  10,
+		nBuf:  10,
+		dst:   "a\xe0\x80",
+		nDst:  1,
 		nSrc:  3,
 		atEOF: false,
 		err:   transform.ErrShortSrc,
 	}, {
 		desc:  "incomplete but terminated source 1",
 		src:   "ａ\xc2",
+		nBuf:  10,
 		dst:   "a\xc2",
-		nDst:  10,
+		nDst:  2,
 		nSrc:  4,
 		atEOF: true,
 		err:   nil,
 	}, {
 		desc:  "incomplete but terminated source 2",
 		src:   "ａ\xe0\x80",
+		nBuf:  10,
 		dst:   "a\xe0\x80",
-		nDst:  10,
+		nDst:  3,
 		nSrc:  5,
 		atEOF: true,
 		err:   nil,
 	}, {
 		desc:  "exact fit dst",
 		src:   "ａ\uff01",
+		nBuf:  2,
 		dst:   "a!",
 		nDst:  2,
 		nSrc:  6,
 		atEOF: false,
 		err:   nil,
 	}, {
-		desc:  "short dst 1",
-		src:   "ａ\uffe0",
-		dst:   "a",
+		desc:  "exact fit dst",
+		src:   "a\uff01",
+		nBuf:  2,
+		dst:   "a!",
 		nDst:  2,
+		nSrc:  4,
+		atEOF: false,
+		err:   nil,
+	}, {
+		desc:  "empty dst",
+		src:   "\u0300",
+		nBuf:  0,
+		dst:   "\u0300",
+		nDst:  0,
+		nSrc:  0,
+		atEOF: true,
+		err:   transform.ErrShortDst,
+	}, {
+		desc:  "empty dst ascii",
+		src:   "a",
+		nBuf:  0,
+		dst:   "a",
+		nDst:  0,
+		nSrc:  0,
+		atEOF: true,
+		err:   transform.ErrShortDst,
+	}, {
+		desc:  "short dst 1",
+		src:   "ａ\uffe0", // ￠
+		nBuf:  2,
+		dst:   "a\u00a2", // ¢
+		nDst:  1,
 		nSrc:  3,
 		atEOF: false,
 		err:   transform.ErrShortDst,
 	}, {
 		desc:  "short dst 2",
 		src:   "不夠",
-		dst:   "不",
+		nBuf:  3,
+		dst:   "不夠",
 		nDst:  3,
 		nSrc:  3,
 		atEOF: true,
@@ -363,41 +460,44 @@ func TestNarrow(t *testing.T) {
 		// Create a narrow variant of ambiguous runes, if they exist.
 		desc:  "ambiguous",
 		src:   "\u2190",
+		nBuf:  4,
 		dst:   "\uffe9",
-		nDst:  4,
+		nDst:  3,
 		nSrc:  3,
 		atEOF: false,
 		err:   nil,
 	}, {
 		desc:  "short dst fast path",
 		src:   "fast",
-		dst:   "fas",
+		nBuf:  3,
+		dst:   "fast",
 		nDst:  3,
 		nSrc:  3,
 		atEOF: true,
 		err:   transform.ErrShortDst,
 	}, {
+		desc:  "short dst larger buffer",
+		src:   "\uff21" + strings.Repeat("0", 127) + "B",
+		nBuf:  128,
+		dst:   "A" + strings.Repeat("0", 127) + "B",
+		nDst:  128,
+		nSrc:  130,
+		atEOF: true,
+		err:   transform.ErrShortDst,
+	}, {
 		desc:  "fast path alternation",
 		src:   "fast路徑fast路徑",
+		nBuf:  20,
 		dst:   "fast路徑fast路徑",
 		nDst:  20,
 		nSrc:  20,
 		atEOF: true,
 		err:   nil,
 	}} {
-		b := make([]byte, tc.nDst)
-		nDst, nSrc, err := Narrow.Transform(b, []byte(tc.src), tc.atEOF)
-		if got := string(b[:nDst]); got != tc.dst {
-			t.Errorf("%s: dst was %+q; want %+q", tc.desc, got, tc.dst)
-		}
-		if nSrc != tc.nSrc {
-			t.Errorf("%s: nSrc was %d; want %d", tc.desc, nSrc, tc.nSrc)
-		}
-		if err != tc.err {
-			t.Errorf("%s: error was %v; want %v", tc.desc, err, tc.err)
-		}
+		tc.doTest(t, Narrow)
 	}
 }
+
 func bench(b *testing.B, t Transformer, s string) {
 	dst := make([]byte, 1024)
 	src := []byte(s)

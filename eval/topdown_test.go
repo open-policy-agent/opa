@@ -128,6 +128,10 @@ func TestEvalTerms(t *testing.T) {
 			{"x": "e", "y": 0},
 			{"x": "e", "y": 1}
 		]`},
+		{"d[x][y] = d[x][y]", `[
+			{"x": "e", "y": 0},
+			{"x": "e", "y": 1}
+		]`},
 		{"d[x][y] = z[i]", `[]`},
 	}
 
@@ -513,6 +517,11 @@ func loadExpectedResult(input string) interface{} {
 	if err := json.Unmarshal([]byte(input), &data); err != nil {
 		panic(err)
 	}
+	return data
+}
+
+func loadExpectedSortedResult(input string) interface{} {
+	data := loadExpectedResult(input)
 	switch data := data.(type) {
 	case []interface{}:
 		sort.Sort(ResultSet(data))
@@ -547,6 +556,10 @@ func loadSmallTestData() map[string]interface{} {
 			"b": [0, 2, 0, 0],
 			"c": [0, 0, 0, 4]
 		},
+		"h": [
+			[1,2,3],
+			[2,3,4]
+		],
         "z": []
     }`), &data)
 	if err != nil {
@@ -615,7 +628,7 @@ func runTopDownTestCase(t *testing.T, data map[string]interface{}, i int, note s
 		}
 
 	case string:
-		expected := loadExpectedResult(e)
+		expected := loadExpectedSortedResult(e)
 		result, err := TopDownQuery(&TopDownQueryParams{Store: store, Path: []string{"p"}})
 		if err != nil {
 			t.Errorf("Test case %d (%v): unexpected error: %v", i+1, note, err)

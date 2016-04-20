@@ -1,4 +1,4 @@
-// +build -windows
+// +build !windows
 // TODO(jen20): These need fixing on Windows but printer is not used right now
 // and red CI is making it harder to process other bugs, so ignore until
 // we get around to fixing them.package printer
@@ -116,27 +116,17 @@ func diff(aname, bname string, a, b []byte) error {
 // src is syntactically correct, and returns the resulting src or an error
 // if any.
 func format(src []byte) ([]byte, error) {
-	// parse src
-	node, err := parser.Parse(src)
+	formatted, err := Format(src)
 	if err != nil {
-		return nil, fmt.Errorf("parse: %s\n%s", err, src)
-	}
-
-	var buf bytes.Buffer
-
-	cfg := &Config{}
-	if err := cfg.Fprint(&buf, node); err != nil {
-		return nil, fmt.Errorf("print: %s", err)
+		return nil, err
 	}
 
 	// make sure formatted output is syntactically correct
-	res := buf.Bytes()
-
-	if _, err := parser.Parse(src); err != nil {
+	if _, err := parser.Parse(formatted); err != nil {
 		return nil, fmt.Errorf("parse: %s\n%s", err, src)
 	}
 
-	return res, nil
+	return formatted, nil
 }
 
 // lineAt returns the line in text starting at offset offs.

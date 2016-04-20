@@ -13,20 +13,16 @@ package main // import "golang.org/x/tools/cmd/guru"
 
 import (
 	"bufio"
-	"bytes"
-	"encoding/json"
-	"encoding/xml"
 	"flag"
 	"fmt"
 	"go/build"
+	"go/token"
 	"io"
-	"io/ioutil"
 	"log"
 	"os"
-	"path/filepath"
 	"runtime/pprof"
-	"strconv"
 	"strings"
+	"sync"
 
 	"golang.org/x/tools/go/buildutil"
 )
@@ -36,7 +32,7 @@ var (
 	modifiedFlag   = flag.Bool("modified", false, "read archive of modified files from standard input")
 	scopeFlag      = flag.String("scope", "", "comma-separated list of `packages` the analysis should be limited to")
 	ptalogFlag     = flag.String("ptalog", "", "write points-to analysis log to `file`")
-	formatFlag     = flag.String("format", "plain", "output `format`; one of {plain,json,xml}")
+	jsonFlag       = flag.Bool("json", false, "emit output in JSON format")
 	reflectFlag    = flag.Bool("reflect", false, "analyze reflection soundly (slow)")
 	cpuprofileFlag = flag.String("cpuprofile", "", "write CPU profile to `file`")
 )
@@ -71,11 +67,10 @@ of the syntax element to query.  For example:
 	foo.go:#123,#128
 	bar.go:#123
 
-The -format flag controls the output format:
-	plain	an editor-friendly format in which every line of output
-		is of the form "pos: text", where pos is "-" if unknown.
-	json	structured data in JSON syntax.
-	xml	structured data in XML syntax.
+The -json flag causes guru to emit output in JSON format;
+	golang.org/x/tools/cmd/guru/serial defines its schema.
+	Otherwise, the output is in an editor-friendly format in which
+	every line has the form "pos: text", where pos is "-" if unknown.
 
 The -modified flag causes guru to read an archive from standard input.
 	Files in this archive will be used in preference to those in
@@ -163,21 +158,13 @@ func main() {
 		defer pprof.StopCPUProfile()
 	}
 
-	// -format flag
-	switch *formatFlag {
-	case "json", "plain", "xml":
-		// ok
-	default:
-		log.Fatalf("illegal -format value: %q.\n"+useHelp, *formatFlag)
-	}
-
 	ctxt := &build.Default
 
 	// If there were modified files,
 	// read them from the standard input and
 	// overlay them on the build context.
 	if *modifiedFlag {
-		modified, err := parseArchive(os.Stdin)
+		modified, err := buildutil.ParseOverlayArchive(os.Stdin)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -187,106 +174,43 @@ func main() {
 		// but the loader's cgo preprocessing currently does not.
 
 		if len(modified) > 0 {
-			ctxt = useModifiedFiles(ctxt, modified)
+			ctxt = buildutil.OverlayContext(ctxt, modified)
 		}
+	}
+
+	var outputMu sync.Mutex
+	output := func(fset *token.FileSet, qr QueryResult) {
+		outputMu.Lock()
+		defer outputMu.Unlock()
+		if *jsonFlag {
+			// JSON output
+			fmt.Printf("%s\n", qr.JSON(fset))
+		} else {
+			// plain output
+			printf := func(pos interface{}, format string, args ...interface{}) {
+				fprintf(os.Stdout, fset, pos, format, args...)
+			}
+			qr.PrintPlain(printf)
+		}
+	}
+
+	// Avoid corner case of split("").
+	var scope []string
+	if *scopeFlag != "" {
+		scope = strings.Split(*scopeFlag, ",")
 	}
 
 	// Ask the guru.
 	query := Query{
-		Mode:       mode,
 		Pos:        posn,
 		Build:      ctxt,
-		Scope:      strings.Split(*scopeFlag, ","),
+		Scope:      scope,
 		PTALog:     ptalog,
 		Reflection: *reflectFlag,
+		Output:     output,
 	}
 
-	if err := Run(&query); err != nil {
+	if err := Run(mode, &query); err != nil {
 		log.Fatal(err)
 	}
-
-	// Print the result.
-	switch *formatFlag {
-	case "json":
-		b, err := json.MarshalIndent(query.Serial(), "", "\t")
-		if err != nil {
-			log.Fatalf("JSON error: %s", err)
-		}
-		os.Stdout.Write(b)
-
-	case "xml":
-		b, err := xml.MarshalIndent(query.Serial(), "", "\t")
-		if err != nil {
-			log.Fatalf("XML error: %s", err)
-		}
-		os.Stdout.Write(b)
-
-	case "plain":
-		query.WriteTo(os.Stdout)
-	}
-}
-
-func parseArchive(archive io.Reader) (map[string][]byte, error) {
-	modified := make(map[string][]byte)
-	r := bufio.NewReader(archive)
-	for {
-		// Read file name.
-		filename, err := r.ReadString('\n')
-		if err != nil {
-			if err == io.EOF {
-				break // OK
-			}
-			return nil, fmt.Errorf("reading modified file name: %v", err)
-		}
-		filename = filepath.Clean(strings.TrimSpace(filename))
-
-		// Read file size.
-		sz, err := r.ReadString('\n')
-		if err != nil {
-			return nil, fmt.Errorf("reading size of modified file %s: %v", filename, err)
-		}
-		sz = strings.TrimSpace(sz)
-		size, err := strconv.ParseInt(sz, 10, 32)
-		if err != nil {
-			return nil, fmt.Errorf("parsing size of modified file %s: %v", filename, err)
-		}
-
-		// Read file content.
-		var content bytes.Buffer
-		content.Grow(int(size))
-		if _, err := io.CopyN(&content, r, size); err != nil {
-			return nil, fmt.Errorf("reading modified file %s: %v", filename, err)
-		}
-		modified[filename] = content.Bytes()
-	}
-
-	return modified, nil
-}
-
-// useModifiedFiles augments the provided build.Context by the
-// mapping from file names to alternative contents.
-func useModifiedFiles(orig *build.Context, modified map[string][]byte) *build.Context {
-	rc := func(data []byte) (io.ReadCloser, error) {
-		return ioutil.NopCloser(bytes.NewBuffer(data)), nil
-	}
-
-	copy := *orig // make a copy
-	ctxt := &copy
-	ctxt.OpenFile = func(path string) (io.ReadCloser, error) {
-		// Fast path: names match exactly.
-		if content, ok := modified[path]; ok {
-			return rc(content)
-		}
-
-		// Slow path: check for same file under a different
-		// alias, perhaps due to a symbolic link.
-		for filename, content := range modified {
-			if sameFile(path, filename) {
-				return rc(content)
-			}
-		}
-
-		return buildutil.OpenFile(orig, path)
-	}
-	return ctxt
 }

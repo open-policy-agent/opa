@@ -6,3 +6,5 @@ import:
   - cmd/goimports
 - package: github.com/spf13/cobra
 - package: github.com/golang/lint
+- package: github.com/peterh/liner
+- package: github.com/apcera/termtables

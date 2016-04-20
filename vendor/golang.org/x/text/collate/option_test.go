@@ -5,6 +5,7 @@ package collate
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 
 	"golang.org/x/text/collate/colltab"
@@ -180,5 +181,29 @@ func TestOptions(t *testing.T) {
 			t.Errorf("%d: got %v; want %v", i, c.options, tt.out)
 		}
 	}
+}
 
+func TestAlternateSortTypes(t *testing.T) {
+	testCases := []struct {
+		lang string
+		in   []string
+		want []string
+	}{{
+		lang: "zh,cmn,zh-Hant-u-co-pinyin,zh-HK-u-co-pinyin,zh-pinyin",
+		in:   []string{"爸爸", "妈妈", "儿子", "女儿"},
+		want: []string{"爸爸", "儿子", "妈妈", "女儿"},
+	}, {
+		lang: "zh-Hant,zh-u-co-stroke,zh-Hant-u-co-stroke",
+		in:   []string{"爸爸", "妈妈", "儿子", "女儿"},
+		want: []string{"儿子", "女儿", "妈妈", "爸爸"},
+	}}
+	for _, tc := range testCases {
+		for _, tag := range strings.Split(tc.lang, ",") {
+			got := append([]string{}, tc.in...)
+			New(language.MustParse(tag)).SortStrings(got)
+			if !reflect.DeepEqual(got, tc.want) {
+				t.Errorf("New(%s).SortStrings(%v) = %v; want %v", tag, tc.in, got, tc.want)
+			}
+		}
+	}
 }

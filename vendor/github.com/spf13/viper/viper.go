@@ -31,12 +31,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fsnotify/fsnotify"
 	"github.com/kr/pretty"
 	"github.com/mitchellh/mapstructure"
 	"github.com/spf13/cast"
 	jww "github.com/spf13/jwalterweatherman"
 	"github.com/spf13/pflag"
-	"gopkg.in/fsnotify.v1"
 )
 
 var v *Viper
@@ -540,7 +540,7 @@ func (v *Viper) GetString(key string) string {
 	return cast.ToString(v.Get(key))
 }
 
-// Returns the value associated with the key asa boolean
+// Returns the value associated with the key as a boolean
 func GetBool(key string) bool { return v.GetBool(key) }
 func (v *Viper) GetBool(key string) bool {
 	return cast.ToBool(v.Get(key))

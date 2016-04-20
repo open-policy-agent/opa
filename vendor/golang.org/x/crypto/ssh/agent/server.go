@@ -49,6 +49,9 @@ func marshalKey(k *Key) []byte {
 	return ssh.Marshal(&record)
 }
 
+// See [PROTOCOL.agent], section 2.5.1.
+const agentV1IdentitiesAnswer = 2
+
 type agentV1IdentityMsg struct {
 	Numkeys uint32 `sshtype:"2"`
 }
@@ -69,6 +72,10 @@ func (s *server) processRequest(data []byte) (interface{}, error) {
 	switch data[0] {
 	case agentRequestV1Identities:
 		return &agentV1IdentityMsg{0}, nil
+
+	case agentRemoveAllV1Identities:
+		return nil, nil
+
 	case agentRemoveIdentity:
 		var req agentRemoveIdentityMsg
 		if err := ssh.Unmarshal(data, &req); err != nil {

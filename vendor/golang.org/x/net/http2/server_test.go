@@ -188,7 +188,7 @@ func (st *serverTester) loopNum() int {
 
 // awaitIdle heuristically awaits for the server conn's select loop to be idle.
 // The heuristic is that the server connection's serve loop must schedule
-// 50 times in a row without any channel sends or receives occuring.
+// 50 times in a row without any channel sends or receives occurring.
 func (st *serverTester) awaitIdle() {
 	remain := 50
 	last := st.loopNum()
@@ -3156,6 +3156,27 @@ func TestServerHandleCustomConn(t *testing.T) {
 	}
 }
 
+// golang.org/issue/14214
+func TestServer_Rejects_ConnHeaders(t *testing.T) {
+	testServerResponse(t, func(w http.ResponseWriter, r *http.Request) error {
+		t.Errorf("should not get to Handler")
+		return nil
+	}, func(st *serverTester) {
+		st.bodylessReq1("connection", "foo")
+		hf := st.wantHeaders()
+		goth := st.decodeHeader(hf.HeaderBlockFragment())
+		wanth := [][2]string{
+			{":status", "400"},
+			{"content-type", "text/plain; charset=utf-8"},
+			{"x-content-type-options", "nosniff"},
+			{"content-length", "51"},
+		}
+		if !reflect.DeepEqual(goth, wanth) {
+			t.Errorf("Got headers %v; want %v", goth, wanth)
+		}
+	})
+}
+
 type hpackEncoder struct {
 	enc *hpack.Encoder
 	buf bytes.Buffer
@@ -3178,4 +3199,46 @@ func (he *hpackEncoder) encodeHeaderRaw(t *testing.T, headers ...string) []byte 
 		headers = headers[2:]
 	}
 	return he.buf.Bytes()
+}
+
+func TestCheckValidHTTP2Request(t *testing.T) {
+	tests := []struct {
+		req  *http.Request
+		want error
+	}{
+		{
+			req:  &http.Request{Header: http.Header{"Te": {"trailers"}}},
+			want: nil,
+		},
+		{
+			req:  &http.Request{Header: http.Header{"Te": {"trailers", "bogus"}}},
+			want: errors.New(`request header "TE" may only be "trailers" in HTTP/2`),
+		},
+		{
+			req:  &http.Request{Header: http.Header{"Foo": {""}}},
+			want: nil,
+		},
+		{
+			req:  &http.Request{Header: http.Header{"Connection": {""}}},
+			want: errors.New(`request header "Connection" is not valid in HTTP/2`),
+		},
+		{
+			req:  &http.Request{Header: http.Header{"Proxy-Connection": {""}}},
+			want: errors.New(`request header "Proxy-Connection" is not valid in HTTP/2`),
+		},
+		{
+			req:  &http.Request{Header: http.Header{"Keep-Alive": {""}}},
+			want: errors.New(`request header "Keep-Alive" is not valid in HTTP/2`),
+		},
+		{
+			req:  &http.Request{Header: http.Header{"Upgrade": {""}}},
+			want: errors.New(`request header "Upgrade" is not valid in HTTP/2`),
+		},
+	}
+	for i, tt := range tests {
+		got := checkValidHTTP2Request(tt.req)
+		if !reflect.DeepEqual(got, tt.want) {
+			t.Errorf("%d. checkValidHTTP2Request = %v; want %v", i, got, tt.want)
+		}
+	}
 }

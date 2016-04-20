@@ -73,6 +73,10 @@
   nil
   "The global timer used for highlighting identifiers.")
 
+(defvar go-guru--last-enclosing
+  nil
+  "The remaining enclosing regions of the previous go-expand-region invocation.")
+
 ;; Extend go-mode-map.
 (let ((m (define-prefix-command 'go-guru-map)))
   (define-key m "d" #'go-guru-describe)
@@ -85,7 +89,8 @@
   (define-key m "s" #'go-guru-callstack) ; s for stack
   (define-key m "e" #'go-guru-whicherrs) ; e for error
   (define-key m "<" #'go-guru-callers)
-  (define-key m ">" #'go-guru-callees))
+  (define-key m ">" #'go-guru-callees)
+  (define-key m "x" #'go-guru-expand-region)) ;; x for expand
 
 (define-key go-mode-map (kbd "C-c C-o") #'go-guru-map)
 
@@ -257,10 +262,14 @@ If BUFFER, return the number of characters in that buffer instead."
     (string-bytes (buffer-substring (point-min)
                                     (point-max)))))
 
-;; FIXME(dominikh): go-guru--goto-pos-no-file and go-guru--goto-pos
-;; assume that Guru is giving rune offsets in the columns field.
-;; However, it is giving us byte offsets, causing us to highlight
-;; wrong ranges as soon as there's any multi-byte runes in the line.
+(defun go-guru--goto-byte (offset)
+  "Go to the OFFSETth byte in the buffer."
+  (goto-char (byte-to-position offset)))
+
+(defun go-guru--goto-byte-column (offset)
+  "Go to the OFFSETth byte in the current line."
+  (goto-char (byte-to-position (+ (position-bytes (point-at-bol)) (1- offset)))))
+
 (defun go-guru--goto-pos (posn)
   "Find the file containing the position POSN (of the form `file:line:col')
 set the point to it, switching the current buffer."
@@ -268,7 +277,7 @@ set the point to it, switching the current buffer."
     (find-file (car file-line-pos))
     (goto-char (point-min))
     (forward-line (1- (string-to-number (cadr file-line-pos))))
-    (forward-char (1- (string-to-number (caddr file-line-pos))))))
+    (go-guru--goto-byte-column (string-to-number (caddr file-line-pos)))))
 
 (defun go-guru--goto-pos-no-file (posn)
   "Given `file:line:col', go to the line and column. The file
@@ -276,7 +285,7 @@ component will be ignored."
   (let ((file-line-pos (split-string posn ":")))
     (goto-char (point-min))
     (forward-line (1- (string-to-number (cadr file-line-pos))))
-    (forward-char (1- (string-to-number (caddr file-line-pos))))))
+    (go-guru--goto-byte-column (string-to-number (caddr file-line-pos)))))
 
 ;;;###autoload
 (defun go-guru-callees ()
@@ -301,11 +310,9 @@ function containing the current point."
 (defun go-guru-definition ()
   "Jump to the definition of the selected identifier."
   (interactive)
-  ;; TODO(adonovan): use -format=sexpr when available to avoid a
-  ;; dependency and to simplify parsing.
-  (let* ((res (with-current-buffer (go-guru--exec "definition" nil '("-format=json"))
+  (let* ((res (with-current-buffer (go-guru--exec "definition" nil '("-json"))
 		(goto-char (point-min))
-		(cdr (car (json-read)))))
+		(json-read)))
 	 (desc (cdr (assoc 'desc res))))
     (push-mark)
     (ring-insert find-tag-marker-ring (point-marker))
@@ -360,11 +367,10 @@ expression (of type 'error') may refer."
 
 (defun go-guru-what ()
   "Run a 'what' query and return the parsed JSON response as an
-associative list."
-  (let ((res (with-current-buffer (go-guru--exec "what" nil '("-format=json") t)
-	       (goto-char (point-min))
-	       (cdr (car (json-read))))))
-    res))
+association list."
+  (with-current-buffer (go-guru--exec "what" nil '("-json") t)
+    (goto-char (point-min))
+    (json-read)))
 
 (defun go-guru--hl-symbols (posn face id)
   "Highlight the symbols at the positions POSN by creating
@@ -449,6 +455,38 @@ timeout."
 
 ;; TODO(dominikh): a future feature may be to cycle through all uses
 ;; of an identifier.
+
+(defun go-guru--enclosing ()
+  "Return a list of enclosing regions."
+  (cdr (assoc 'enclosing (go-guru-what))))
+
+(defun go-guru--enclosing-unique ()
+  "Return a list of enclosing regions, with duplicates removed.
+Two regions are considered equal if they have the same start and
+end point."
+  (let ((enclosing (go-guru--enclosing)))
+    (cl-remove-duplicates enclosing
+                          :from-end t
+                          :test (lambda (a b)
+                                  (and (= (cdr (assoc 'start a))
+                                          (cdr (assoc 'start b)))
+                                       (= (cdr (assoc 'end a))
+                                          (cdr (assoc 'end b))))))))
+
+(defun go-guru-expand-region ()
+  "Expand region to the next enclosing syntactic unit."
+  (interactive)
+  (let* ((enclosing (if (eq last-command #'go-guru-expand-region)
+                        go-guru--last-enclosing
+                      (go-guru--enclosing-unique)))
+         (block (if (> (length enclosing) 0) (elt enclosing 0))))
+    (when block
+      (go-guru--goto-byte (1+ (cdr (assoc 'start block))))
+      (set-mark (byte-to-position (1+ (cdr (assoc 'end block)))))
+      (setq go-guru--last-enclosing (subseq enclosing 1))
+      (message "Region: %s" (cdr (assoc 'desc block)))
+      (setq deactivate-mark nil))))
+
 
 (provide 'go-guru)
 

@@ -22,6 +22,15 @@ type TopDownContext struct {
 	Tracer   Tracer
 }
 
+// NewTopDownContext creates a new TopDownContext with no bindings.
+func NewTopDownContext(query opalog.Body, store Storage) *TopDownContext {
+	return &TopDownContext{
+		Query:    query,
+		Bindings: newHashMap(),
+		Store:    store,
+	}
+}
+
 // BindRef returns a new TopDownContext with bindings that map the reference to the value.
 func (ctx *TopDownContext) BindRef(ref opalog.Ref, value opalog.Value) *TopDownContext {
 	cpy := *ctx
@@ -150,7 +159,7 @@ func TopDownQuery(params *TopDownQueryParams) (interface{}, error) {
 		ref = append(ref, opalog.StringTerm(v))
 	}
 
-	node, err := params.Store.Lookup(ref)
+	node, err := lookup(params.Store, ref)
 	if err != nil {
 		return nil, err
 	}
@@ -185,6 +194,67 @@ func (undefined Undefined) String() string {
 	return "<undefined>"
 }
 
+// ValueToInterface returns the underlying Go value associated with an AST value.
+// If the value is a reference, the reference is fetched from storage. Composite
+// AST values such as objects and arrays are converted recursively.
+func ValueToInterface(v opalog.Value, ctx *TopDownContext) (interface{}, error) {
+
+	switch v := v.(type) {
+
+	// Scalars easily convert to native values.
+	case opalog.Null:
+		return nil, nil
+	case opalog.Boolean:
+		return bool(v), nil
+	case opalog.Number:
+		return float64(v), nil
+	case opalog.String:
+		return string(v), nil
+
+	// Recursively convert array into []interface{}...
+	case opalog.Array:
+		buf := []interface{}{}
+		for _, x := range v {
+			x1, err := ValueToInterface(x.Value, ctx)
+			if err != nil {
+				return nil, err
+			}
+			buf = append(buf, x1)
+		}
+		return buf, nil
+
+	// Recursively convert object into map[string]interface{}...
+	case opalog.Object:
+		buf := map[string]interface{}{}
+		for _, x := range v {
+			k, err := ValueToInterface(x[0].Value, ctx)
+			if err != nil {
+				return nil, err
+			}
+			asStr, stringKey := k.(string)
+			if !stringKey {
+				return nil, fmt.Errorf("cannot convert object with non-string key to map: %v", k)
+			}
+			v, err := ValueToInterface(x[1].Value, ctx)
+			if err != nil {
+				return nil, err
+			}
+			buf[asStr] = v
+		}
+		return buf, nil
+
+	// References convert to native values via lookup.
+	case opalog.Ref:
+		return lookup(ctx.Store, v)
+
+	default:
+		// If none of the above cases are hit, something is very wrong, e.g., the caller
+		// is attempting to convert a variable to a native Go value (which represents an
+		// issue with the callers logic.)
+		panic(fmt.Sprintf("illegal argument: %v", v))
+	}
+}
+
 type builtinFunction func(*TopDownContext, *opalog.Expr, TopDownIterator) error
 
 var builtinFunctions = map[opalog.Var]builtinFunction{
@@ -198,7 +268,7 @@ func dereferenceVar(v opalog.Var, ctx *TopDownContext) (interface{}, error) {
 	if binding == nil {
 		return nil, fmt.Errorf("unbound variable: %v", v)
 	}
-	return valueToInterface(binding, ctx)
+	return ValueToInterface(binding, ctx)
 }
 
 func evalContext(ctx *TopDownContext, iter TopDownIterator) error {
@@ -260,11 +330,11 @@ func evalEq(ctx *TopDownContext, expr *opalog.Expr, iter TopDownIterator) error 
 }
 
 func evalEqGround(ctx *TopDownContext, a opalog.Value, b opalog.Value, iter TopDownIterator) error {
-	av, err := valueToInterface(a, ctx)
+	av, err := ValueToInterface(a, ctx)
 	if err != nil {
 		return err
 	}
-	bv, err := valueToInterface(b, ctx)
+	bv, err := ValueToInterface(b, ctx)
 	if err != nil {
 		return err
 	}
@@ -334,7 +404,7 @@ func evalEqUnifyArray(ctx *TopDownContext, a opalog.Array, b opalog.Value, iter 
 
 func evalEqUnifyArrayRef(ctx *TopDownContext, a opalog.Array, b opalog.Ref, iter TopDownIterator) error {
 
-	r, err := ctx.Store.Lookup(b)
+	r, err := lookup(ctx.Store, b)
 	if err != nil {
 		return err
 	}
@@ -411,7 +481,7 @@ func evalEqUnifyObject(ctx *TopDownContext, a opalog.Object, b opalog.Value, ite
 
 func evalEqUnifyObjectRef(ctx *TopDownContext, a opalog.Object, b opalog.Ref, iter TopDownIterator) error {
 
-	r, err := ctx.Store.Lookup(b)
+	r, err := lookup(ctx.Store, b)
 
 	if err != nil {
 		return err
@@ -545,7 +615,7 @@ func evalRef(ctx *TopDownContext, ref opalog.Ref, iter TopDownIterator) error {
 func evalRefRec(ctx *TopDownContext, ref opalog.Ref, iter TopDownIterator, path opalog.Ref) error {
 
 	if len(ref) == 0 {
-		_, err := ctx.Store.Lookup(path)
+		_, err := lookup(ctx.Store, path)
 		if err != nil {
 			switch err := err.(type) {
 			case *StorageError:
@@ -573,7 +643,7 @@ func evalRefRec(ctx *TopDownContext, ref opalog.Ref, iter TopDownIterator, path 
 		}
 
 		path = append(path, head)
-		node, err := ctx.Store.Lookup(path)
+		node, err := lookup(ctx.Store, path)
 		if err != nil {
 			switch err := err.(type) {
 			case *StorageError:
@@ -612,7 +682,7 @@ func evalRefRec(ctx *TopDownContext, ref opalog.Ref, iter TopDownIterator, path 
 
 	// Binding does not exist, we will lookup the collection and enumerate
 	// the keys below.
-	node, err := ctx.Store.Lookup(path)
+	node, err := lookup(ctx.Store, path)
 	if err != nil {
 		switch err := err.(type) {
 		case *StorageError:
@@ -935,6 +1005,14 @@ func evalTermsRecObject(ctx *TopDownContext, obj opalog.Object, idx int, iter To
 	}
 }
 
+func lookup(store Storage, ref opalog.Ref) (interface{}, error) {
+	path, err := ref.Underlying()
+	if err != nil {
+		return nil, err
+	}
+	return store.Get(path)
+}
+
 func plugExpr(expr *opalog.Expr, bindings *hashMap) *opalog.Expr {
 	plugged := *expr
 	switch ts := plugged.Terms.(type) {
@@ -1057,7 +1135,7 @@ func topDownQueryCompleteDoc(params *TopDownQueryParams, rules []*opalog.Rule) (
 		return Undefined{}, nil
 	}
 
-	return valueToInterface(rule.Value.Value, ctx)
+	return ValueToInterface(rule.Value.Value, ctx)
 }
 
 func topDownQueryPartialObjectDoc(params *TopDownQueryParams, rules []*opalog.Rule) (interface{}, error) {
@@ -1121,67 +1199,6 @@ func topDownQueryPartialSetDoc(params *TopDownQueryParams, rules []*opalog.Rule)
 		}
 	}
 	return result, nil
-}
-
-// valueToInterface returns the underlying Go value associated with an AST value.
-// If the value is a reference, the reference is fetched from storage. Composite
-// AST values such as objects and arrays are converted recursively.
-func valueToInterface(v opalog.Value, ctx *TopDownContext) (interface{}, error) {
-
-	switch v := v.(type) {
-
-	// Scalars easily convert to native values.
-	case opalog.Null:
-		return nil, nil
-	case opalog.Boolean:
-		return bool(v), nil
-	case opalog.Number:
-		return float64(v), nil
-	case opalog.String:
-		return string(v), nil
-
-	// Recursively convert array into []interface{}...
-	case opalog.Array:
-		buf := []interface{}{}
-		for _, x := range v {
-			x1, err := valueToInterface(x.Value, ctx)
-			if err != nil {
-				return nil, err
-			}
-			buf = append(buf, x1)
-		}
-		return buf, nil
-
-	// Recursively convert object into map[string]interface{}...
-	case opalog.Object:
-		buf := map[string]interface{}{}
-		for _, x := range v {
-			k, err := valueToInterface(x[0].Value, ctx)
-			if err != nil {
-				return nil, err
-			}
-			asStr, stringKey := k.(string)
-			if !stringKey {
-				return nil, fmt.Errorf("cannot convert object with non-string key to map: %v", k)
-			}
-			v, err := valueToInterface(x[1].Value, ctx)
-			if err != nil {
-				return nil, err
-			}
-			buf[asStr] = v
-		}
-		return buf, nil
-
-	// References convert to native values via lookup.
-	case opalog.Ref:
-		return ctx.Store.Lookup(v)
-
-	default:
-		// If none of the above cases are hit, something is very wrong, e.g., the caller
-		// is attempting to convert a variable to a native Go value (which represents an
-		// issue with the callers logic.)
-		panic(fmt.Sprintf("illegal argument: %v", v))
-	}
 }
 
 // walkValue invokes the iterator for each AST value contained inside the supplied AST value.

@@ -2,41 +2,20 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package webdav etc etc TODO.
+// Package webdav provides a WebDAV server implementation.
 package webdav // import "golang.org/x/net/webdav"
 
 import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"net/url"
 	"os"
 	"path"
-	"runtime"
 	"strings"
 	"time"
 )
-
-// Package webdav's XML output requires the standard library's encoding/xml
-// package version 1.5 or greater. Otherwise, it will produce malformed XML.
-//
-// As of May 2015, the Go stable release is version 1.4, so we print a message
-// to let users know that this golang.org/x/etc package won't work yet.
-//
-// This package also won't work with Go 1.3 and earlier, but making this
-// runtime version check catch all the earlier versions too, and not just
-// "1.4.x", isn't worth the complexity.
-//
-// TODO: delete this check at some point after Go 1.5 is released.
-var go1Dot4 = strings.HasPrefix(runtime.Version(), "go1.4.")
-
-func init() {
-	if go1Dot4 {
-		log.Println("package webdav requires Go version 1.5 or greater")
-	}
-}
 
 type Handler struct {
 	// Prefix is the URL path prefix to strip from WebDAV resource paths.
