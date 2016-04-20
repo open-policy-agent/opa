@@ -19,32 +19,19 @@ type TopDownContext struct {
 	Index    int
 	Previous *TopDownContext
 	Store    Storage
+	Tracer   Tracer
 }
 
-// Current returns the current expression to evaluate.
-func (ctx *TopDownContext) Current() *opalog.Expr {
-	return ctx.Query[ctx.Index]
-}
-
-// Step returns a new context to evaluate the next expression.
-func (ctx *TopDownContext) Step() *TopDownContext {
-	return &TopDownContext{
-		Query:    ctx.Query,
-		Bindings: ctx.Bindings,
-		Index:    ctx.Index + 1,
-		Previous: ctx.Previous,
-		Store:    ctx.Store,
-	}
-}
-
-// Child returns a new context to evaluate a rule that was referenced by this context.
-func (ctx *TopDownContext) Child(rule *opalog.Rule, bindings *hashMap) *TopDownContext {
-	return &TopDownContext{
-		Query:    rule.Body,
-		Bindings: bindings,
-		Previous: ctx,
-		Store:    ctx.Store,
-	}
+// BindRef returns a new TopDownContext with bindings that map the reference to the value.
+func (ctx *TopDownContext) BindRef(ref opalog.Ref, value opalog.Value) *TopDownContext {
+	cpy := *ctx
+	cpy.Bindings = newHashMap()
+	ctx.Bindings.Iter(func(k opalog.Value, v opalog.Value) bool {
+		cpy.Bindings.Put(k, v)
+		return false
+	})
+	cpy.Bindings.Put(ref, value)
+	return &cpy
 }
 
 // BindVar returns a new TopDownContext with bindings that map the variable to the value.
@@ -88,16 +75,50 @@ func (ctx *TopDownContext) BindVar(variable opalog.Var, value opalog.Value) *Top
 	return &cpy
 }
 
-// BindRef returns a new TopDownContext with bindings that map the reference to the value.
-func (ctx *TopDownContext) BindRef(ref opalog.Ref, value opalog.Value) *TopDownContext {
+// Child returns a new context to evaluate a rule that was referenced by this context.
+func (ctx *TopDownContext) Child(rule *opalog.Rule, bindings *hashMap) *TopDownContext {
 	cpy := *ctx
-	cpy.Bindings = newHashMap()
-	ctx.Bindings.Iter(func(k opalog.Value, v opalog.Value) bool {
-		cpy.Bindings.Put(k, v)
-		return false
-	})
-	cpy.Bindings.Put(ref, value)
+	cpy.Query = rule.Body
+	cpy.Bindings = bindings
+	cpy.Previous = ctx
 	return &cpy
+}
+
+// Current returns the current expression to evaluate.
+func (ctx *TopDownContext) Current() *opalog.Expr {
+	return ctx.Query[ctx.Index]
+}
+
+// Step returns a new context to evaluate the next expression.
+func (ctx *TopDownContext) Step() *TopDownContext {
+	cpy := *ctx
+	cpy.Index++
+	return &cpy
+}
+
+func (ctx *TopDownContext) trace(f string, a ...interface{}) {
+	if ctx.Tracer == nil {
+		return
+	}
+	if ctx.Tracer.Enabled() {
+		ctx.Tracer.Trace(ctx, f, a...)
+	}
+}
+
+func (ctx *TopDownContext) traceEval() {
+	ctx.trace("Eval %v", ctx.Current())
+}
+
+func (ctx *TopDownContext) traceTry(expr *opalog.Expr) {
+	ctx.trace(" Try %v", expr)
+}
+
+func (ctx *TopDownContext) traceSuccess(expr *opalog.Expr) {
+	ctx.trace("  Success %v", expr)
+}
+
+func (ctx *TopDownContext) traceFinish() {
+	ctx.trace("   Finish %v", ctx.Bindings)
 }
 
 // TopDownIterator is the interface for processing contexts.
@@ -110,19 +131,26 @@ func TopDown(ctx *TopDownContext, iter TopDownIterator) error {
 	return evalContext(ctx, iter)
 }
 
+// TopDownQueryParams defines input parameters for the query interface.
+type TopDownQueryParams struct {
+	Store  Storage
+	Tracer Tracer
+	Path   []string
+}
+
 // TopDownQuery returns the document identified by the path.
 //
 // If the storage node identified by the path is a collection of rules, then the TopDown
 // algorithm is run to generate the virtual document defined by the rules.
-func TopDownQuery(store Storage, path []string) (interface{}, error) {
+func TopDownQuery(params *TopDownQueryParams) (interface{}, error) {
 
 	var ref opalog.Ref
-	ref = append(ref, opalog.VarTerm(path[0]))
-	for _, v := range path[1:] {
+	ref = append(ref, opalog.VarTerm(params.Path[0]))
+	for _, v := range params.Path[1:] {
 		ref = append(ref, opalog.StringTerm(v))
 	}
 
-	node, err := store.Lookup(ref)
+	node, err := params.Store.Lookup(ref)
 	if err != nil {
 		return nil, err
 	}
@@ -136,11 +164,11 @@ func TopDownQuery(store Storage, path []string) (interface{}, error) {
 		// type. This is checked at compile time.
 		switch node[0].DocKind() {
 		case opalog.CompleteDoc:
-			return topDownQueryCompleteDoc(store, node)
+			return topDownQueryCompleteDoc(params, node)
 		case opalog.PartialObjectDoc:
-			return topDownQueryPartialObjectDoc(store, node)
+			return topDownQueryPartialObjectDoc(params, node)
 		case opalog.PartialSetDoc:
-			return topDownQueryPartialSetDoc(store, node)
+			return topDownQueryPartialSetDoc(params, node)
 		default:
 			return nil, fmt.Errorf("invalid document (kind: %v): %v", node[0].DocKind(), ref)
 		}
@@ -176,8 +204,11 @@ func dereferenceVar(v opalog.Var, ctx *TopDownContext) (interface{}, error) {
 func evalContext(ctx *TopDownContext, iter TopDownIterator) error {
 
 	if ctx.Index >= len(ctx.Query) {
+		ctx.traceFinish()
 		return iter(ctx)
 	}
+
+	ctx.traceEval()
 
 	if ctx.Current().Negated {
 		return evalContextNegated(ctx, iter)
@@ -193,16 +224,14 @@ func evalContext(ctx *TopDownContext, iter TopDownIterator) error {
 
 func evalContextNegated(ctx *TopDownContext, iter TopDownIterator) error {
 
-	negation := &TopDownContext{
-		Query:    opalog.Body([]*opalog.Expr{ctx.Current().Complement()}),
-		Bindings: ctx.Bindings,
-		Previous: ctx,
-		Store:    ctx.Store,
-	}
+	negation := *ctx
+	negation.Query = opalog.Body([]*opalog.Expr{ctx.Current().Complement()})
+	negation.Index = 0
+	negation.Previous = ctx
 
 	isDefined := false
 
-	err := evalContext(negation, func(*TopDownContext) error {
+	err := evalContext(&negation, func(*TopDownContext) error {
 		isDefined = true
 		return nil
 	})
@@ -224,7 +253,10 @@ func evalEq(ctx *TopDownContext, expr *opalog.Expr, iter TopDownIterator) error 
 	a := operands[1].Value
 	b := operands[2].Value
 
-	return evalEqUnify(ctx, a, b, iter)
+	return evalEqUnify(ctx, a, b, func(ctx *TopDownContext) error {
+		ctx.traceSuccess(expr)
+		return iter(ctx)
+	})
 }
 
 func evalEqGround(ctx *TopDownContext, a opalog.Value, b opalog.Value, iter TopDownIterator) error {
@@ -481,6 +513,7 @@ func evalEqUnifyVar(ctx *TopDownContext, a opalog.Var, b opalog.Value, iter TopD
 
 func evalExpr(ctx *TopDownContext, iter TopDownIterator) error {
 	expr := plugExpr(ctx.Current(), ctx.Bindings)
+	ctx.traceTry(expr)
 	switch tt := expr.Terms.(type) {
 	case []*opalog.Term:
 		builtin := builtinFunctions[tt[0].Value.(opalog.Var)]
@@ -997,7 +1030,7 @@ func plugValue(v opalog.Value, bindings *hashMap) opalog.Value {
 	}
 }
 
-func topDownQueryCompleteDoc(store Storage, rules []*opalog.Rule) (interface{}, error) {
+func topDownQueryCompleteDoc(params *TopDownQueryParams, rules []*opalog.Rule) (interface{}, error) {
 
 	if len(rules) > 1 {
 		return nil, fmt.Errorf("multiple conflicting rules: %v", rules[0].Name)
@@ -1008,7 +1041,8 @@ func topDownQueryCompleteDoc(store Storage, rules []*opalog.Rule) (interface{}, 
 	ctx := &TopDownContext{
 		Query:    rule.Body,
 		Bindings: newHashMap(),
-		Store:    store,
+		Store:    params.Store,
+		Tracer:   params.Tracer,
 	}
 
 	isDefined := false
@@ -1026,7 +1060,7 @@ func topDownQueryCompleteDoc(store Storage, rules []*opalog.Rule) (interface{}, 
 	return valueToInterface(rule.Value.Value, ctx)
 }
 
-func topDownQueryPartialObjectDoc(store Storage, rules []*opalog.Rule) (interface{}, error) {
+func topDownQueryPartialObjectDoc(params *TopDownQueryParams, rules []*opalog.Rule) (interface{}, error) {
 
 	result := map[string]interface{}{}
 
@@ -1034,7 +1068,8 @@ func topDownQueryPartialObjectDoc(store Storage, rules []*opalog.Rule) (interfac
 		ctx := &TopDownContext{
 			Query:    rule.Body,
 			Bindings: newHashMap(),
-			Store:    store,
+			Store:    params.Store,
+			Tracer:   params.Tracer,
 		}
 		key := rule.Key.Value.(opalog.Var)
 		value := rule.Value.Value.(opalog.Var)
@@ -1062,13 +1097,14 @@ func topDownQueryPartialObjectDoc(store Storage, rules []*opalog.Rule) (interfac
 	return result, nil
 }
 
-func topDownQueryPartialSetDoc(store Storage, rules []*opalog.Rule) (interface{}, error) {
+func topDownQueryPartialSetDoc(params *TopDownQueryParams, rules []*opalog.Rule) (interface{}, error) {
 	result := []interface{}{}
 	for _, rule := range rules {
 		ctx := &TopDownContext{
 			Query:    rule.Body,
 			Bindings: newHashMap(),
-			Store:    store,
+			Store:    params.Store,
+			Tracer:   params.Tracer,
 		}
 		key := rule.Key.Value.(opalog.Var)
 		err := TopDown(ctx, func(ctx *TopDownContext) error {

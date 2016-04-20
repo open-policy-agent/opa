@@ -605,7 +605,7 @@ func runTopDownTestCase(t *testing.T, data map[string]interface{}, i int, note s
 	switch e := expected.(type) {
 
 	case error:
-		result, err := TopDownQuery(store, []string{"p"})
+		result, err := TopDownQuery(&TopDownQueryParams{Store: store, Path: []string{"p"}})
 		if err == nil {
 			t.Errorf("Test case %d (%v): expected error but got: %v", i+1, note, result)
 			return
@@ -616,7 +616,7 @@ func runTopDownTestCase(t *testing.T, data map[string]interface{}, i int, note s
 
 	case string:
 		expected := loadExpectedResult(e)
-		result, err := TopDownQuery(store, []string{"p"})
+		result, err := TopDownQuery(&TopDownQueryParams{Store: store, Path: []string{"p"}})
 		if err != nil {
 			t.Errorf("Test case %d (%v): unexpected error: %v", i+1, note, err)
 			return
