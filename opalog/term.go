@@ -413,7 +413,7 @@ func (arr Array) queryRec(ref Ref, keys map[Var]Value, iter QueryIterator) error
 		return nil
 	case Number:
 		idx := int(head)
-		if len(arr) < idx {
+		if len(arr) <= idx {
 			return fmt.Errorf("unexpected index in %v: out of bounds: %v", ref, idx)
 		}
 		tail := ref[1:]

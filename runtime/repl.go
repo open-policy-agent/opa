@@ -302,28 +302,10 @@ func (r *Repl) printHeader(table *termtables.Table, body opalog.Body) {
 		switch ts := expr.Terms.(type) {
 		case []*opalog.Term:
 			for _, t := range ts[1:] {
-				switch v := t.Value.(type) {
-				case opalog.Ref:
-					for _, t := range v[1:] {
-						if !t.IsGround() {
-							fields[t.String()] = struct{}{}
-						}
-					}
-				case opalog.Var:
-					fields[v.String()] = struct{}{}
-				}
+				buildHeader(fields, t)
 			}
 		case *opalog.Term:
-			switch tv := ts.Value.(type) {
-			case opalog.Ref:
-				for _, t := range tv[1:] {
-					if !t.IsGround() {
-						fields[t.String()] = struct{}{}
-					}
-				}
-			case opalog.Var:
-				fields[tv.String()] = struct{}{}
-			}
+			buildHeader(fields, ts)
 		}
 	}
 
@@ -332,7 +314,9 @@ func (r *Repl) printHeader(table *termtables.Table, body opalog.Body) {
 	for k := range fields {
 		keys = append(keys, k)
 	}
+
 	sort.Strings(keys)
+
 	s := []interface{}{}
 	for _, k := range keys {
 		s = append(s, k)
@@ -397,5 +381,27 @@ func (r *Repl) saveHistory(prompt *liner.State) {
 	if f, err := os.Create(r.HistoryPath); err == nil {
 		prompt.WriteHistory(f)
 		f.Close()
+	}
+}
+
+func buildHeader(fields map[string]struct{}, term *opalog.Term) {
+	switch v := term.Value.(type) {
+	case opalog.Ref:
+		for _, t := range v[1:] {
+			buildHeader(fields, t)
+		}
+	case opalog.Var:
+		fields[string(v)] = struct{}{}
+
+	case opalog.Object:
+		for _, i := range v {
+			buildHeader(fields, i[0])
+			buildHeader(fields, i[1])
+		}
+
+	case opalog.Array:
+		for _, e := range v {
+			buildHeader(fields, e)
+		}
 	}
 }

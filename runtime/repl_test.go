@@ -7,9 +7,11 @@ package runtime
 import (
 	"bytes"
 	"encoding/json"
+	"reflect"
 	"testing"
 
 	"github.com/open-policy-agent/opa/eval"
+	"github.com/open-policy-agent/opa/opalog"
 )
 
 func TestOneShotEmptyBufferOneExpr(t *testing.T) {
@@ -57,6 +59,19 @@ func TestOneShotBufferedRule(t *testing.T) {
 	expectOutput(t, buffer.String(), "")
 	repl.OneShot("")
 	expectOutput(t, buffer.String(), "defined\n")
+}
+
+func TestBuildHeader(t *testing.T) {
+	expr := opalog.MustParseStatement(`[{"a": x, "b": a.b[y]}] = [{"a": 1, "b": 2}]`).(opalog.Body)[0]
+	terms := expr.Terms.([]*opalog.Term)
+	result := map[string]struct{}{}
+	buildHeader(result, terms[1])
+	expected := map[string]struct{}{
+		"x": struct{}{}, "y": struct{}{},
+	}
+	if !reflect.DeepEqual(result, expected) {
+		t.Errorf("Build header expected %v but got %v", expected, result)
+	}
 }
 
 func expectOutput(t *testing.T, output string, expected string) {
