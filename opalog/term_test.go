@@ -4,7 +4,107 @@
 
 package opalog
 
-import "testing"
+import (
+	"fmt"
+	"reflect"
+	"sort"
+	"testing"
+)
+
+func TestQuery(t *testing.T) {
+
+	stmt := MustParseStatement(`
+		{
+			"a": [
+				[true, {"b": [4]}, {"c": "d"}]
+			],
+			"e": {
+				100: "true"
+			}
+		}
+	`)
+
+	obj := stmt.(Body)[0].Terms.(*Term).Value.(Object)
+
+	var tests = []struct {
+		note     string
+		ref      interface{}
+		expected interface{}
+	}{
+		{"object base", `a[0][1]`, []string{`[{"b": [4]}]`, "[{}]"}},
+		{"array base", `a[0][1]["b"]`, []string{"[[4]]", "[{}]"}},
+		{"array non-base", `a[0][1]["b"][0]`, []string{"[4]", "[{}]"}},
+		{"object non-base", `a[0][2]["c"]`, []string{`["d"]`, "[{}]"}},
+		{"object nested", `e[100]`, []string{`["true"]`, "[{}]"}},
+		{"vars", `a[i][j][k]`, []string{`[[4], "d"]`, `[{i:0, j:1, k:"b"}, {i:0, j:2, k:"c"}]`}},
+		{"vars/mixed", `a[0][j][k]`, []string{`[[4], "d"]`, `[{j:1, k:"b"}, {j:2, k:"c"}]`}},
+		{"array bad index type", `a["0"]`, fmt.Errorf(`unexpected non-numeric index in ["0"]: "0" (opalog.String)`)},
+		{"array bad index value", "a[19999]", fmt.Errorf(`unexpected index in [19999]: out of bounds: 19999`)},
+		{"array bad element type", "a[0][0][1]", fmt.Errorf(`unexpected non-composite at [0][1]: true`)},
+		{"object bad key", `e["hello"]`, fmt.Errorf(`missing key "hello": ["hello"]`)},
+		{"object bad value type", "e[100][1]", fmt.Errorf(`unexpected non-composite at [100][1]: "true"`)},
+	}
+
+	for i, tc := range tests {
+
+		var ref Ref
+		switch r := tc.ref.(type) {
+		case Ref:
+			ref = r
+		case string:
+			ref = MustParseStatement(r).(Body)[0].Terms.(*Term).Value.(Ref)
+			head := String(ref[0].Value.(Var))
+			ref[0] = &Term{Value: head}
+		}
+
+		var collectedKeys Array
+		var collectedValues Array
+		collect := func(keys map[Var]Value, v Value) error {
+			collectedValues = append(collectedValues, &Term{Value: v})
+			var obj Object
+			var tmp []string
+			for k := range keys {
+				tmp = append(tmp, string(k))
+			}
+			sort.Strings(tmp)
+			for _, k := range tmp {
+				obj = append(obj, [2]*Term{&Term{Value: Var(k)}, &Term{Value: keys[Var(k)]}})
+			}
+			collectedKeys = append(collectedKeys, &Term{Value: obj})
+			return nil
+		}
+
+		err := obj.Query(ref, collect)
+
+		switch e := tc.expected.(type) {
+
+		case []string:
+			if err != nil {
+				t.Errorf("Test case %d (%v): unexpected error: %v", i+1, tc.note, err)
+				continue
+			}
+
+			expectedValues := MustParseStatement(e[0]).(Body)[0].Terms.(*Term).Value
+
+			if !collectedValues.Equal(expectedValues) {
+				t.Errorf("Test case %d (%v): expected %v but got: %v", i+1, tc.note, expectedValues, collectedValues)
+				continue
+			}
+
+			expectedKeys := MustParseStatement(e[1]).(Body)[0].Terms.(*Term).Value
+
+			if !collectedKeys.Equal(expectedKeys) {
+				t.Errorf("Test case %d (%v): expected keys %v but got: %v", i+1, tc.note, expectedKeys, collectedKeys)
+			}
+		case error:
+			if !reflect.DeepEqual(e, err) {
+				t.Errorf("Test case %d (%v): expected error %v but got: %v", i+1, tc.note, e, err)
+				continue
+			}
+		}
+
+	}
+}
 
 func TestEqualTerms(t *testing.T) {
 	assertTermEqual(t, NullTerm(), NullTerm())
@@ -30,6 +130,29 @@ func TestEqualTerms(t *testing.T) {
 	assertTermNotEqual(t, ArrayTerm(NumberTerm(1), NumberTerm(2), NumberTerm(3)), ArrayTerm(NumberTerm(1), NumberTerm(2), NumberTerm(4)))
 	assertTermNotEqual(t, VarTerm("foo"), VarTerm("bar"))
 	assertTermNotEqual(t, RefTerm(VarTerm("foo"), VarTerm("i"), NumberTerm(2)), RefTerm(VarTerm("foo"), StringTerm("i"), NumberTerm(2)))
+}
+
+func TestHash(t *testing.T) {
+
+	doc := `
+		{
+			"a": [
+				[true, {"b": [null]}, {"c": "d"}]
+			],
+			"e": {
+				100: a[i].b
+			}
+		}
+	`
+
+	stmt1 := MustParseStatement(doc)
+	stmt2 := MustParseStatement(doc)
+
+	obj1 := stmt1.(Body)[0].Terms.(*Term).Value.(Object)
+	obj2 := stmt2.(Body)[0].Terms.(*Term).Value.(Object)
+	if obj1.Hash() != obj2.Hash() {
+		t.Errorf("Expected hash codes to be equal")
+	}
 }
 
 func TestTermsToString(t *testing.T) {

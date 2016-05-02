@@ -7,11 +7,6 @@ package eval
 import "github.com/open-policy-agent/opa/opalog"
 import "fmt"
 
-var _ = fmt.Println
-
-// Bindings is the structure used to ground expressions.
-type Bindings map[opalog.Var]opalog.Value
-
 // TopDownContext contains the state of the evaluation process.
 //
 // TODO(tsandall): profile perf/memory usage with current approach;
@@ -19,30 +14,27 @@ type Bindings map[opalog.Var]opalog.Value
 // step and binding. This avoids the need to undo steps and bindings
 // each time the proof fails but this may be too expensive.
 type TopDownContext struct {
-	Rule     *opalog.Rule
-	Bindings Bindings
+	Query    opalog.Body
+	Bindings *hashMap
 	Index    int
 	Previous *TopDownContext
 	Store    Storage
+	Tracer   Tracer
 }
 
-// Current returns the current expression to evaluate.
-func (ctx *TopDownContext) Current() *opalog.Expr {
-	return ctx.Rule.Body[ctx.Index]
+// BindRef returns a new TopDownContext with bindings that map the reference to the value.
+func (ctx *TopDownContext) BindRef(ref opalog.Ref, value opalog.Value) *TopDownContext {
+	cpy := *ctx
+	cpy.Bindings = newHashMap()
+	ctx.Bindings.Iter(func(k opalog.Value, v opalog.Value) bool {
+		cpy.Bindings.Put(k, v)
+		return false
+	})
+	cpy.Bindings.Put(ref, value)
+	return &cpy
 }
 
-// Step returns a new context to evaluate the next expression.
-func (ctx *TopDownContext) Step() *TopDownContext {
-	return &TopDownContext{
-		Rule:     ctx.Rule,
-		Bindings: ctx.Bindings,
-		Index:    ctx.Index + 1,
-		Previous: ctx.Previous,
-		Store:    ctx.Store,
-	}
-}
-
-// Bind returns a new TopDownContext with Bindings that map the variable to the value.
+// BindVar returns a new TopDownContext with bindings that map the variable to the value.
 //
 // If the caller attempts to bind a variable to itself (e.g., "x = x"), no mapping is added. This
 // is effectively a no-op.
@@ -51,7 +43,14 @@ func (ctx *TopDownContext) Step() *TopDownContext {
 // context that cannot be evaluated. E.g., "x = [x]".
 //
 // Binding a variable to some value also updates existing bindings to that variable.
-func (ctx *TopDownContext) Bind(variable opalog.Var, value opalog.Value) *TopDownContext {
+//
+// TODO(tsandall): potential optimization:
+//
+// The current implementation eagerly flattens the bindings by updating existing
+// bindings each time a new binding is added. E.g., if Bind(y, [1,2,x]) and Bind(x, 3) are called
+// (one after the other), the binding for "y" will be updated. It may be possible to defer this
+// to a later stage, e.g., when plugging the values.
+func (ctx *TopDownContext) BindVar(variable opalog.Var, value opalog.Value) *TopDownContext {
 	if variable.Equal(value) {
 		return ctx
 	}
@@ -65,12 +64,61 @@ func (ctx *TopDownContext) Bind(variable opalog.Var, value opalog.Value) *TopDow
 		return nil
 	}
 	cpy := *ctx
-	cpy.Bindings = make(Bindings)
-	for k, v := range ctx.Bindings {
-		cpy.Bindings[k] = plugValue(v, Bindings{variable: value})
-	}
-	cpy.Bindings[variable] = value
+	cpy.Bindings = newHashMap()
+	tmp := newHashMap()
+	tmp.Put(variable, value)
+	ctx.Bindings.Iter(func(k opalog.Value, v opalog.Value) bool {
+		cpy.Bindings.Put(k, plugValue(v, tmp))
+		return false
+	})
+	cpy.Bindings.Put(variable, value)
 	return &cpy
+}
+
+// Child returns a new context to evaluate a rule that was referenced by this context.
+func (ctx *TopDownContext) Child(rule *opalog.Rule, bindings *hashMap) *TopDownContext {
+	cpy := *ctx
+	cpy.Query = rule.Body
+	cpy.Bindings = bindings
+	cpy.Previous = ctx
+	return &cpy
+}
+
+// Current returns the current expression to evaluate.
+func (ctx *TopDownContext) Current() *opalog.Expr {
+	return ctx.Query[ctx.Index]
+}
+
+// Step returns a new context to evaluate the next expression.
+func (ctx *TopDownContext) Step() *TopDownContext {
+	cpy := *ctx
+	cpy.Index++
+	return &cpy
+}
+
+func (ctx *TopDownContext) trace(f string, a ...interface{}) {
+	if ctx.Tracer == nil {
+		return
+	}
+	if ctx.Tracer.Enabled() {
+		ctx.Tracer.Trace(ctx, f, a...)
+	}
+}
+
+func (ctx *TopDownContext) traceEval() {
+	ctx.trace("Eval %v", ctx.Current())
+}
+
+func (ctx *TopDownContext) traceTry(expr *opalog.Expr) {
+	ctx.trace(" Try %v", expr)
+}
+
+func (ctx *TopDownContext) traceSuccess(expr *opalog.Expr) {
+	ctx.trace("  Success %v", expr)
+}
+
+func (ctx *TopDownContext) traceFinish() {
+	ctx.trace("   Finish %v", ctx.Bindings)
 }
 
 // TopDownIterator is the interface for processing contexts.
@@ -78,9 +126,55 @@ type TopDownIterator func(*TopDownContext) error
 
 // TopDown runs the evaluation algorithm on the contxet and calls the iterator
 // foreach context that contains bindings that satisfy all of the expressions
-// inside the rule.
+// inside the body.
 func TopDown(ctx *TopDownContext, iter TopDownIterator) error {
-	return evalRule(ctx, iter)
+	return evalContext(ctx, iter)
+}
+
+// TopDownQueryParams defines input parameters for the query interface.
+type TopDownQueryParams struct {
+	Store  Storage
+	Tracer Tracer
+	Path   []string
+}
+
+// TopDownQuery returns the document identified by the path.
+//
+// If the storage node identified by the path is a collection of rules, then the TopDown
+// algorithm is run to generate the virtual document defined by the rules.
+func TopDownQuery(params *TopDownQueryParams) (interface{}, error) {
+
+	var ref opalog.Ref
+	ref = append(ref, opalog.VarTerm(params.Path[0]))
+	for _, v := range params.Path[1:] {
+		ref = append(ref, opalog.StringTerm(v))
+	}
+
+	node, err := params.Store.Lookup(ref)
+	if err != nil {
+		return nil, err
+	}
+
+	switch node := node.(type) {
+	case []*opalog.Rule:
+		if len(node) == 0 {
+			return Undefined{}, nil
+		}
+		// This assumes that all the rules identified by the path are of the same
+		// type. This is checked at compile time.
+		switch node[0].DocKind() {
+		case opalog.CompleteDoc:
+			return topDownQueryCompleteDoc(params, node)
+		case opalog.PartialObjectDoc:
+			return topDownQueryPartialObjectDoc(params, node)
+		case opalog.PartialSetDoc:
+			return topDownQueryPartialSetDoc(params, node)
+		default:
+			return nil, fmt.Errorf("invalid document (kind: %v): %v", node[0].DocKind(), ref)
+		}
+	default:
+		return node, nil
+	}
 }
 
 // Undefined represents the absence of bindings that satisfy a completely defined rule.
@@ -89,65 +183,6 @@ type Undefined struct{}
 
 func (undefined Undefined) String() string {
 	return "<undefined>"
-}
-
-// TopDownQuery returns the result of executing the evaluation algorithm and collecting
-// all of the binding values that satisfy all of the expressions in the rule. In the case
-// of rules that are completely definined (i.e., rules that are not defined incrementally),
-// the Undefined value is returned to indicate that there are no bindings that satisfy all
-// of the expressions in the rule.
-func TopDownQuery(ctx *TopDownContext) (interface{}, error) {
-	switch ctx.Rule.DocKind() {
-	case opalog.SetDoc:
-		result := []interface{}{}
-		key := ctx.Rule.Key.Value.(opalog.Var)
-		err := TopDown(ctx, func(ctx *TopDownContext) error {
-			value, err := dereferenceVar(key, ctx)
-			if err != nil {
-				return err
-			}
-			result = append(result, value)
-			return nil
-		})
-		return result, err
-
-	case opalog.ObjectDoc:
-		result := map[string]interface{}{}
-		key := ctx.Rule.Key.Value.(opalog.Var)
-		value := ctx.Rule.Value.Value.(opalog.Var)
-		err := TopDown(ctx, func(ctx *TopDownContext) error {
-			key, err := dereferenceVar(key, ctx)
-			if err != nil {
-				return err
-			}
-			asStr, ok := key.(string)
-			if !ok {
-				return fmt.Errorf("cannot produce object with non-string key: %v", key)
-			}
-			value, err := dereferenceVar(value, ctx)
-			if err != nil {
-				return err
-			}
-			result[asStr] = value
-			return nil
-		})
-		return result, err
-
-	case opalog.ScalarDoc:
-		isDefined := false
-		err := TopDown(ctx, func(ctx *TopDownContext) error {
-			isDefined = true
-			return nil
-		})
-		if err != nil {
-			return nil, err
-		}
-		if !isDefined {
-			return Undefined{}, nil
-		}
-		return valueToInterface(ctx.Rule.Value.Value, ctx)
-	}
-	panic(fmt.Sprintf("illegal argument: %v", ctx.Rule.DocKind()))
 }
 
 type builtinFunction func(*TopDownContext, *opalog.Expr, TopDownIterator) error
@@ -159,12 +194,57 @@ var builtinFunctions = map[opalog.Var]builtinFunction{
 // dereferenceVar is used to lookup the variable binding and convert the value to
 // a native Go type.
 func dereferenceVar(v opalog.Var, ctx *TopDownContext) (interface{}, error) {
-	binding, ok := ctx.Bindings[v]
-	if !ok {
+	binding := ctx.Bindings.Get(v)
+	if binding == nil {
 		return nil, fmt.Errorf("unbound variable: %v", v)
 	}
-
 	return valueToInterface(binding, ctx)
+}
+
+func evalContext(ctx *TopDownContext, iter TopDownIterator) error {
+
+	if ctx.Index >= len(ctx.Query) {
+		ctx.traceFinish()
+		return iter(ctx)
+	}
+
+	ctx.traceEval()
+
+	if ctx.Current().Negated {
+		return evalContextNegated(ctx, iter)
+	}
+
+	return evalTerms(ctx, func(ctx *TopDownContext) error {
+		return evalExpr(ctx, func(ctx *TopDownContext) error {
+			ctx = ctx.Step()
+			return evalContext(ctx, iter)
+		})
+	})
+}
+
+func evalContextNegated(ctx *TopDownContext, iter TopDownIterator) error {
+
+	negation := *ctx
+	negation.Query = opalog.Body([]*opalog.Expr{ctx.Current().Complement()})
+	negation.Index = 0
+	negation.Previous = ctx
+
+	isDefined := false
+
+	err := evalContext(&negation, func(*TopDownContext) error {
+		isDefined = true
+		return nil
+	})
+
+	if err != nil {
+		return err
+	}
+
+	if !isDefined {
+		return evalContext(ctx.Step(), iter)
+	}
+
+	return nil
 }
 
 func evalEq(ctx *TopDownContext, expr *opalog.Expr, iter TopDownIterator) error {
@@ -173,7 +253,10 @@ func evalEq(ctx *TopDownContext, expr *opalog.Expr, iter TopDownIterator) error 
 	a := operands[1].Value
 	b := operands[2].Value
 
-	return evalEqUnify(ctx, a, b, iter)
+	return evalEqUnify(ctx, a, b, func(ctx *TopDownContext) error {
+		ctx.traceSuccess(expr)
+		return iter(ctx)
+	})
 }
 
 func evalEqGround(ctx *TopDownContext, a opalog.Value, b opalog.Value, iter TopDownIterator) error {
@@ -266,31 +349,21 @@ func evalEqUnifyArrayRef(ctx *TopDownContext, a opalog.Array, b opalog.Ref, iter
 	}
 
 	for i := range a {
-		if isScalar(a[i].Value) {
-			v, err := valueToInterface(a[i].Value, ctx)
-			if err != nil {
-				return err
-			}
-			if Compare(v, slice[i]) != 0 {
-				return nil
-			}
-		} else {
-			var tmp *TopDownContext
-			child := make(opalog.Ref, len(b), len(b)+1)
-			copy(child, b)
-			child = append(child, opalog.NumberTerm(float64(i)))
-			err := evalEqUnify(ctx, a[i].Value, child, func(ctx *TopDownContext) error {
-				tmp = ctx
-				return nil
-			})
-			if err != nil {
-				return err
-			}
-			if tmp == nil {
-				return nil
-			}
-			ctx = tmp
+		var tmp *TopDownContext
+		child := make(opalog.Ref, len(b), len(b)+1)
+		copy(child, b)
+		child = append(child, opalog.NumberTerm(float64(i)))
+		err := evalEqUnify(ctx, a[i].Value, child, func(ctx *TopDownContext) error {
+			tmp = ctx
+			return nil
+		})
+		if err != nil {
+			return err
 		}
+		if tmp == nil {
+			return nil
+		}
+		ctx = tmp
 	}
 	return iter(ctx)
 }
@@ -431,7 +504,7 @@ func evalEqUnifyObjects(ctx *TopDownContext, a opalog.Object, b opalog.Object, i
 }
 
 func evalEqUnifyVar(ctx *TopDownContext, a opalog.Var, b opalog.Value, iter TopDownIterator) error {
-	ctx = ctx.Bind(a, b)
+	ctx = ctx.BindVar(a, b)
 	if ctx == nil {
 		return nil
 	}
@@ -440,6 +513,7 @@ func evalEqUnifyVar(ctx *TopDownContext, a opalog.Var, b opalog.Value, iter TopD
 
 func evalExpr(ctx *TopDownContext, iter TopDownIterator) error {
 	expr := plugExpr(ctx.Current(), ctx.Bindings)
+	ctx.traceTry(expr)
 	switch tt := expr.Terms.(type) {
 	case []*opalog.Term:
 		builtin := builtinFunctions[tt[0].Value.(opalog.Var)]
@@ -457,7 +531,7 @@ func evalExpr(ctx *TopDownContext, iter TopDownIterator) error {
 			}
 			return nil
 		default:
-			panic("not implemented: set membership and implicit casts")
+			return fmt.Errorf("implicit cast not supported: %v", tv)
 		}
 	default:
 		panic(fmt.Sprintf("illegal argument: %v", tt))
@@ -489,18 +563,55 @@ func evalRefRec(ctx *TopDownContext, ref opalog.Ref, iter TopDownIterator, path 
 
 	headVar, isVar := head.Value.(opalog.Var)
 
-	if !isVar || len(path) == 0 {
+	// Handle head of reference.
+	if isVar && len(path) == 0 {
+
+		// Check if head has a binding. E.g., x = [1,2,3], x[i] = 1
+		binding := ctx.Bindings.Get(headVar)
+		if binding != nil {
+			return evalRefRuleResult(ctx, ref, ref[1:], binding, iter)
+		}
+
+		path = append(path, head)
+		node, err := ctx.Store.Lookup(path)
+		if err != nil {
+			switch err := err.(type) {
+			case *StorageError:
+				if err.Code == StorageNotFoundErr {
+					return nil
+				}
+			}
+			return err
+		}
+
+		switch node := node.(type) {
+		case []*opalog.Rule:
+			for _, rule := range node {
+				if err := evalRefRule(ctx, ref, path, rule, iter); err != nil {
+					return err
+				}
+			}
+			return nil
+		default:
+			return evalRefRec(ctx, tail, iter, path)
+		}
+	}
+
+	// Handle constants in reference.
+	if !isVar {
 		path = append(path, head)
 		return evalRefRec(ctx, tail, iter, path)
 	}
 
-	binding, isBound := ctx.Bindings[headVar]
-
-	if isBound {
+	// Binding already exists for variable. Treat it as a constant.
+	binding := ctx.Bindings.Get(headVar)
+	if binding != nil {
 		path = append(path, &opalog.Term{Value: binding})
 		return evalRefRec(ctx, tail, iter, path)
 	}
 
+	// Binding does not exist, we will lookup the collection and enumerate
+	// the keys below.
 	node, err := ctx.Store.Lookup(path)
 	if err != nil {
 		switch err := err.(type) {
@@ -515,7 +626,7 @@ func evalRefRec(ctx *TopDownContext, ref opalog.Ref, iter TopDownIterator, path 
 	switch node := node.(type) {
 	case map[string]interface{}:
 		for key := range node {
-			cpy := ctx.Bind(headVar, opalog.String(key))
+			cpy := ctx.BindVar(headVar, opalog.String(key))
 			path = append(path, opalog.StringTerm(key))
 			err := evalRefRec(cpy, tail, iter, path)
 			if err != nil {
@@ -526,7 +637,7 @@ func evalRefRec(ctx *TopDownContext, ref opalog.Ref, iter TopDownIterator, path 
 		return nil
 	case []interface{}:
 		for i := range node {
-			cpy := ctx.Bind(headVar, opalog.Number(i))
+			cpy := ctx.BindVar(headVar, opalog.Number(i))
 			path = append(path, opalog.NumberTerm(float64(i)))
 			err := evalRefRec(cpy, tail, iter, path)
 			if err != nil {
@@ -540,18 +651,183 @@ func evalRefRec(ctx *TopDownContext, ref opalog.Ref, iter TopDownIterator, path 
 	}
 }
 
-func evalRule(ctx *TopDownContext, iter TopDownIterator) error {
-	if ctx.Index >= len(ctx.Rule.Body) {
-		return iter(ctx)
+func evalRefRule(ctx *TopDownContext, ref opalog.Ref, path opalog.Ref, rule *opalog.Rule, iter TopDownIterator) error {
+
+	switch rule.DocKind() {
+	case opalog.PartialSetDoc:
+		return evalRefRulePartialSetDoc(ctx, ref, path, rule, iter)
+	case opalog.PartialObjectDoc:
+		return evalRefRulePartialObjectDoc(ctx, ref, path, rule, iter)
+	case opalog.CompleteDoc:
+		return evalRefRuleCompleteDoc(ctx, ref, path, rule, iter)
+	default:
+		panic(fmt.Sprintf("illegal argument: %v", rule))
 	}
-	return evalTerms(ctx, func(ctx *TopDownContext) error {
-		return evalExpr(ctx, func(ctx *TopDownContext) error {
-			ctx = ctx.Step()
-			return evalRule(ctx, iter)
-		})
+
+}
+
+func evalRefRuleCompleteDoc(ctx *TopDownContext, ref opalog.Ref, path opalog.Ref, rule *opalog.Rule, iter TopDownIterator) error {
+	suffix := ref[len(path):]
+	if len(suffix) == 0 {
+		return fmt.Errorf("not implemented: %v %v %v", ref, path, rule)
+	}
+
+	bindings := newHashMap()
+	child := ctx.Child(rule, bindings)
+
+	return TopDown(child, func(child *TopDownContext) error {
+		switch v := rule.Value.Value.(type) {
+		case opalog.Object:
+			return evalRefRuleResult(ctx, ref, suffix, v, iter)
+		case opalog.Array:
+			return evalRefRuleResult(ctx, ref, suffix, v, iter)
+		default:
+			return fmt.Errorf("cannot dereference value (%T) in %v", rule.Value.Value, rule)
+		}
 	})
 }
 
+func evalRefRulePartialObjectDoc(ctx *TopDownContext, ref opalog.Ref, path opalog.Ref, rule *opalog.Rule, iter TopDownIterator) error {
+	suffix := ref[len(path):]
+	if len(suffix) == 0 {
+		return fmt.Errorf("not implemented: %v %v %v", ref, path, rule)
+	}
+
+	if !suffix[0].IsGround() {
+		child := ctx.Child(rule, newHashMap())
+		return TopDown(child, func(child *TopDownContext) error {
+			key := child.Bindings.Get(rule.Key.Value)
+			if key == nil {
+				return fmt.Errorf("unbound variable: %v", rule.Key)
+			}
+			value := child.Bindings.Get(rule.Value.Value)
+			if value == nil {
+				return fmt.Errorf("unbound variable: %v", rule.Value)
+			}
+			ctx = ctx.BindVar(suffix[0].Value.(opalog.Var), key)
+			return evalRefRuleResult(ctx, ref, ref[len(path)+1:], value, iter)
+		})
+	}
+
+	bindings := newHashMap()
+	bindings.Put(rule.Key.Value, suffix[0].Value)
+	child := ctx.Child(rule, bindings)
+
+	return TopDown(child, func(child *TopDownContext) error {
+		value := child.Bindings.Get(rule.Value.Value)
+		if value == nil {
+			return fmt.Errorf("unbound variable: %v", rule.Value)
+		}
+		return evalRefRuleResult(ctx, ref, ref[len(path)+1:], value, iter)
+	})
+}
+
+func evalRefRulePartialSetDoc(ctx *TopDownContext, ref opalog.Ref, path opalog.Ref, rule *opalog.Rule, iter TopDownIterator) error {
+	suffix := ref[len(path):]
+	if len(suffix) == 0 {
+		return fmt.Errorf("not implemented: %v %v %v", ref, path, rule)
+	}
+
+	if len(suffix) > 1 {
+		// TODO(tsandall): attempting to dereference set lookup
+		// results in undefined value, catch this using static analysis
+		return nil
+	}
+
+	if !suffix[0].IsGround() {
+		child := ctx.Child(rule, newHashMap())
+		return TopDown(child, func(child *TopDownContext) error {
+			value := child.Bindings.Get(rule.Key.Value)
+			if value == nil {
+				return fmt.Errorf("unbound variable: %v", rule.Key)
+			}
+			// Take the output of the child context and bind (1) the value to
+			// the variable from this context and (2) the reference to true
+			// so that expression will be defined. E.g., given a simple rule:
+			// "p = true :- q[x]", we say that "p" should be defined if "q"
+			// is defined for some value "x".
+			ctx = ctx.BindVar(suffix[0].Value.(opalog.Var), value)
+			ctx = ctx.BindRef(ref[:len(path)+1], opalog.Boolean(true))
+			return iter(ctx)
+		})
+	}
+
+	bindings := newHashMap()
+	bindings.Put(rule.Key.Value, suffix[0].Value)
+	child := ctx.Child(rule, bindings)
+	return TopDown(child, func(child *TopDownContext) error {
+		// See comment above for explanation of why the reference is bound to true.
+		ctx = ctx.BindRef(ref[:len(path)+1], opalog.Boolean(true))
+		return iter(ctx)
+	})
+
+}
+
+func evalRefRuleResult(ctx *TopDownContext, ref opalog.Ref, suffix opalog.Ref, result opalog.Value, iter TopDownIterator) error {
+
+	switch result := result.(type) {
+	case opalog.Ref:
+		// Below we concatenate the result of evaluating a rule with the rest of the reference
+		// to be evaluated.
+		//
+		// E.g., given two rules: q[k] = v :- a[k] = v and p = true :- q[k].a[i] = 100
+		// when evaluating the expression in "p", this function will be called with a binding for
+		// "q[k]" and "k". This leaves the remaining part of the reference (i.e., ["a"][i])
+		// needing to be processed. This is done by substituting the prefix of the original reference
+		// with the binding. In this case, the prefix is "q[k]" and the binding value would be
+		// "a[<some key>]".
+		var binding opalog.Ref
+		binding = append(binding, result...)
+		binding = append(binding, suffix...)
+		return evalRefRec(ctx, suffix, func(ctx *TopDownContext) error {
+			ctx = ctx.BindRef(ref, plugValue(binding, ctx.Bindings))
+			return iter(ctx)
+		}, result)
+
+	case opalog.Array:
+		if len(suffix) > 0 {
+			return result.Query(suffix, func(keys map[opalog.Var]opalog.Value, value opalog.Value) error {
+				ctx = ctx.BindRef(ref, value)
+				for k, v := range keys {
+					ctx = ctx.BindVar(k, v)
+				}
+				return iter(ctx)
+			})
+		}
+		ctx.BindRef(ref, result)
+		return iter(ctx)
+
+	case opalog.Object:
+		if len(suffix) > 0 {
+			return result.Query(suffix, func(keys map[opalog.Var]opalog.Value, value opalog.Value) error {
+				ctx = ctx.BindRef(ref, value)
+				for k, v := range keys {
+					ctx = ctx.BindVar(k, v)
+				}
+				return iter(ctx)
+			})
+		}
+		ctx.BindRef(ref, result)
+		return iter(ctx)
+
+	default:
+		if len(suffix) > 0 {
+			return nil
+		}
+		ctx = ctx.BindRef(ref, result)
+		return iter(ctx)
+	}
+}
+
+// evalTerms is used to get bindings for variables in individual terms.
+//
+// Before an expression is evaluated, this function is called to find bindings
+// for variables used in references inside the expression. Finding bindings for
+// variables used in references involves iterating collections in storage or
+// evaluating rules identified by the references. In either case, this function
+// will invoke the iterator with each set of bindings that should be evaluated.
+//
+// TODO(tsandall): extend to support indexing.
 func evalTerms(ctx *TopDownContext, iter TopDownIterator) error {
 	expr := ctx.Current()
 	var ts []*opalog.Term
@@ -580,26 +856,86 @@ func evalTermsRec(ctx *TopDownContext, iter TopDownIterator, ts []*opalog.Term) 
 		return evalRef(ctx, head, func(ctx *TopDownContext) error {
 			return evalTermsRec(ctx, iter, tail)
 		})
+	case opalog.Array:
+		return evalTermsRecArray(ctx, head, 0, func(ctx *TopDownContext) error {
+			return evalTermsRec(ctx, iter, tail)
+		})
+	case opalog.Object:
+		return evalTermsRecObject(ctx, head, 0, func(ctx *TopDownContext) error {
+			return evalTermsRec(ctx, iter, tail)
+		})
 	default:
 		return evalTermsRec(ctx, iter, tail)
 	}
 }
 
-func isScalar(v opalog.Value) bool {
-	switch v.(type) {
-	case opalog.Null:
-		return true
-	case opalog.Boolean:
-		return true
-	case opalog.Number:
-		return true
-	case opalog.String:
-		return true
+func evalTermsRecArray(ctx *TopDownContext, arr opalog.Array, idx int, iter TopDownIterator) error {
+	if idx >= len(arr) {
+		return iter(ctx)
 	}
-	return false
+	switch v := arr[idx].Value.(type) {
+	case opalog.Ref:
+		return evalRef(ctx, v, func(ctx *TopDownContext) error {
+			return evalTermsRecArray(ctx, arr, idx+1, iter)
+		})
+	case opalog.Array:
+		return evalTermsRecArray(ctx, v, 0, func(ctx *TopDownContext) error {
+			return evalTermsRecArray(ctx, arr, idx+1, iter)
+		})
+	case opalog.Object:
+		return evalTermsRecObject(ctx, v, 0, func(ctx *TopDownContext) error {
+			return evalTermsRecArray(ctx, arr, idx+1, iter)
+		})
+	default:
+		return evalTermsRecArray(ctx, arr, idx+1, iter)
+	}
 }
 
-func plugExpr(expr *opalog.Expr, bindings Bindings) *opalog.Expr {
+func evalTermsRecObject(ctx *TopDownContext, obj opalog.Object, idx int, iter TopDownIterator) error {
+	if idx >= len(obj) {
+		return iter(ctx)
+	}
+	switch k := obj[idx][0].Value.(type) {
+	case opalog.Ref:
+		return evalRef(ctx, k, func(ctx *TopDownContext) error {
+			switch v := obj[idx][1].Value.(type) {
+			case opalog.Ref:
+				return evalRef(ctx, v, func(ctx *TopDownContext) error {
+					return evalTermsRecObject(ctx, obj, idx+1, iter)
+				})
+			case opalog.Array:
+				return evalTermsRecArray(ctx, v, 0, func(ctx *TopDownContext) error {
+					return evalTermsRecObject(ctx, obj, idx+1, iter)
+				})
+			case opalog.Object:
+				return evalTermsRecObject(ctx, v, 0, func(ctx *TopDownContext) error {
+					return evalTermsRecObject(ctx, obj, idx+1, iter)
+				})
+			default:
+				return evalTermsRecObject(ctx, obj, idx+1, iter)
+			}
+		})
+	default:
+		switch v := obj[idx][1].Value.(type) {
+		case opalog.Ref:
+			return evalRef(ctx, v, func(ctx *TopDownContext) error {
+				return evalTermsRecObject(ctx, obj, idx+1, iter)
+			})
+		case opalog.Array:
+			return evalTermsRecArray(ctx, v, 0, func(ctx *TopDownContext) error {
+				return evalTermsRecObject(ctx, obj, idx+1, iter)
+			})
+		case opalog.Object:
+			return evalTermsRecObject(ctx, v, 0, func(ctx *TopDownContext) error {
+				return evalTermsRecObject(ctx, obj, idx+1, iter)
+			})
+		default:
+			return evalTermsRecObject(ctx, obj, idx+1, iter)
+		}
+	}
+}
+
+func plugExpr(expr *opalog.Expr, bindings *hashMap) *opalog.Expr {
 	plugged := *expr
 	switch ts := plugged.Terms.(type) {
 	case []*opalog.Term:
@@ -617,12 +953,7 @@ func plugExpr(expr *opalog.Expr, bindings Bindings) *opalog.Expr {
 	return &plugged
 }
 
-func plugTerm(term *opalog.Term, bindings Bindings) *opalog.Term {
-
-	if term.IsGround() {
-		return term
-	}
-
+func plugTerm(term *opalog.Term, bindings *hashMap) *opalog.Term {
 	switch v := term.Value.(type) {
 	case opalog.Var:
 		return &opalog.Term{Value: plugValue(v, bindings)}
@@ -643,25 +974,31 @@ func plugTerm(term *opalog.Term, bindings Bindings) *opalog.Term {
 		return &plugged
 
 	default:
-		panic("unreachable")
+		if !term.IsGround() {
+			panic("unreachable")
+		}
+		return term
 	}
 }
 
-func plugValue(v opalog.Value, bindings Bindings) opalog.Value {
-
-	if v.IsGround() {
-		return v
-	}
+func plugValue(v opalog.Value, bindings *hashMap) opalog.Value {
 
 	switch v := v.(type) {
 	case opalog.Var:
-		binding, ok := bindings[v]
-		if !ok {
+		binding := bindings.Get(v)
+		if binding == nil {
 			return v
 		}
 		return binding
 
 	case opalog.Ref:
+		binding := bindings.Get(v)
+		if binding != nil {
+			return binding
+		}
+		if v.IsGround() {
+			return v
+		}
 		var buf opalog.Ref
 		buf = append(buf, v[0])
 		for _, p := range v[1:] {
@@ -686,8 +1023,104 @@ func plugValue(v opalog.Value, bindings Bindings) opalog.Value {
 		return buf
 
 	default:
-		panic("unreachable")
+		if !v.IsGround() {
+			panic("unreachable")
+		}
+		return v
 	}
+}
+
+func topDownQueryCompleteDoc(params *TopDownQueryParams, rules []*opalog.Rule) (interface{}, error) {
+
+	if len(rules) > 1 {
+		return nil, fmt.Errorf("multiple conflicting rules: %v", rules[0].Name)
+	}
+
+	rule := rules[0]
+
+	ctx := &TopDownContext{
+		Query:    rule.Body,
+		Bindings: newHashMap(),
+		Store:    params.Store,
+		Tracer:   params.Tracer,
+	}
+
+	isDefined := false
+	err := TopDown(ctx, func(ctx *TopDownContext) error {
+		isDefined = true
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	if !isDefined {
+		return Undefined{}, nil
+	}
+
+	return valueToInterface(rule.Value.Value, ctx)
+}
+
+func topDownQueryPartialObjectDoc(params *TopDownQueryParams, rules []*opalog.Rule) (interface{}, error) {
+
+	result := map[string]interface{}{}
+
+	for _, rule := range rules {
+		ctx := &TopDownContext{
+			Query:    rule.Body,
+			Bindings: newHashMap(),
+			Store:    params.Store,
+			Tracer:   params.Tracer,
+		}
+		key := rule.Key.Value.(opalog.Var)
+		value := rule.Value.Value.(opalog.Var)
+		err := TopDown(ctx, func(ctx *TopDownContext) error {
+			key, err := dereferenceVar(key, ctx)
+			if err != nil {
+				return err
+			}
+			asStr, ok := key.(string)
+			if !ok {
+				return fmt.Errorf("cannot produce object with non-string key: %v", key)
+			}
+			value, err := dereferenceVar(value, ctx)
+			if err != nil {
+				return err
+			}
+			result[asStr] = value
+			return nil
+		})
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return result, nil
+}
+
+func topDownQueryPartialSetDoc(params *TopDownQueryParams, rules []*opalog.Rule) (interface{}, error) {
+	result := []interface{}{}
+	for _, rule := range rules {
+		ctx := &TopDownContext{
+			Query:    rule.Body,
+			Bindings: newHashMap(),
+			Store:    params.Store,
+			Tracer:   params.Tracer,
+		}
+		key := rule.Key.Value.(opalog.Var)
+		err := TopDown(ctx, func(ctx *TopDownContext) error {
+			value, err := dereferenceVar(key, ctx)
+			if err != nil {
+				return err
+			}
+			result = append(result, value)
+			return nil
+		})
+
+		if err != nil {
+			return nil, err
+		}
+	}
+	return result, nil
 }
 
 // valueToInterface returns the underlying Go value associated with an AST value.

@@ -4,7 +4,10 @@
 
 package eval
 
-import "sort"
+import (
+	"fmt"
+	"sort"
+)
 
 // Compare returns 0 if a equals b, -1 if a is less than b, and 1 if b is than a.
 //
@@ -117,7 +120,8 @@ func Compare(a, b interface{}) int {
 			return 1
 		}
 	}
-	panic("unreachable")
+
+	panic(fmt.Sprintf("illegal arguments of type %T and type %T", a, b))
 }
 
 const (
@@ -144,5 +148,5 @@ func sortOrder(v interface{}) int {
 	case map[string]interface{}:
 		return objectSort
 	}
-	panic("unreachable")
+	panic(fmt.Sprintf("illegal argument of type %T", v))
 }
