@@ -1,12 +1,12 @@
 // A standalone comment 
 
 aligned {
-	# Standalone 1
+  # Standalone 1
 
-	a       = "bar" # yoo1
-	default = "bar" # yoo2
+  a       = "bar" # yoo1
+  default = "bar" # yoo2
 
-	# Standalone 2
+  # Standalone 2
 }
 
 # Standalone 3
@@ -14,3 +14,4 @@ aligned {
 numbers = [1, 2] // another line here
 
 # Standalone 4
+

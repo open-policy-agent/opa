@@ -39,7 +39,7 @@ func TestQuery(t *testing.T) {
 		{"vars", `a[i][j][k]`, []string{`[[4], "d"]`, `[{i:0, j:1, k:"b"}, {i:0, j:2, k:"c"}]`}},
 		{"vars/mixed", `a[0][j][k]`, []string{`[[4], "d"]`, `[{j:1, k:"b"}, {j:2, k:"c"}]`}},
 		{"array bad index type", `a["0"]`, fmt.Errorf(`unexpected non-numeric index in ["0"]: "0" (opalog.String)`)},
-		{"array bad index value", "a[19999]", fmt.Errorf(`unexpected index in [19999]: out of bounds: 19999`)},
+		{"array bad index value", "a[1]", fmt.Errorf(`unexpected index in [1]: out of bounds: 1`)},
 		{"array bad element type", "a[0][0][1]", fmt.Errorf(`unexpected non-composite at [0][1]: true`)},
 		{"object bad key", `e["hello"]`, fmt.Errorf(`missing key "hello": ["hello"]`)},
 		{"object bad value type", "e[100][1]", fmt.Errorf(`unexpected non-composite at [100][1]: "true"`)},
@@ -174,6 +174,19 @@ func TestTermsToString(t *testing.T) {
 	assertToString(t, ArrayTerm(ObjectTerm(Item(VarTerm("foo"), ArrayTerm(RefTerm(VarTerm("bar"), VarTerm("i"))))), StringTerm("foo"), BooleanTerm(true), NullTerm(), NumberTerm(42.1)).Value, "[{foo: [bar[i]]}, \"foo\", true, null, 42.1]")
 }
 
+func TestRefUnderlying(t *testing.T) {
+
+	assertUnderlying(t, RefTerm().Value.(Ref), []interface{}{})
+	assertUnderlying(t, RefTerm(VarTerm("a")).Value.(Ref), []interface{}{"a"})
+	assertUnderlying(t, RefTerm(StringTerm("a")).Value.(Ref), []interface{}{"a"})
+	assertUnderlying(t, RefTerm(NullTerm()).Value.(Ref), []interface{}{nil})
+	assertUnderlying(t, RefTerm(BooleanTerm(false)).Value.(Ref), []interface{}{false})
+	assertUnderlying(t, RefTerm(NumberTerm(3)).Value.(Ref), []interface{}{float64(3)})
+	assertUnderlying(t, RefTerm(VarTerm("a"), StringTerm("b"), NumberTerm(4)).Value.(Ref), []interface{}{"a", "b", float64(4)})
+	assertUnderlyingError(t, RefTerm(VarTerm("a"), VarTerm("i")).Value.(Ref), fmt.Errorf("cannot get underlying value for non-ground ref: a[i]"))
+
+}
+
 func assertTermEqual(t *testing.T, x *Term, y *Term) {
 	if !x.Equal(y) {
 		t.Errorf("Failure on equality: \n%s and \n%s\n", x, y)
@@ -190,5 +203,27 @@ func assertToString(t *testing.T, val Value, expected string) {
 	result := val.String()
 	if result != expected {
 		t.Errorf("Expected %v but got %v", expected, result)
+	}
+}
+
+func assertUnderlying(t *testing.T, ref Ref, expected []interface{}) {
+	u, err := ref.Underlying()
+	if err != nil {
+		t.Errorf("Unexpected error: %v", err)
+		return
+	}
+	if !reflect.DeepEqual(u, expected) {
+		t.Errorf("Expected %v but got %v", expected, u)
+	}
+}
+
+func assertUnderlyingError(t *testing.T, ref Ref, expected error) {
+	u, err := ref.Underlying()
+	if err == nil {
+		t.Errorf("Expected error but got %v", u)
+		return
+	}
+	if !reflect.DeepEqual(err, expected) {
+		t.Errorf("Expected %v but got %v", expected, err)
 	}
 }

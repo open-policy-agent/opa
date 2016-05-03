@@ -52,7 +52,7 @@ func genzsys() error {
 	if err != nil {
 		return err
 	}
-	// The ipv4 pacakge still supports go1.2, and so we need to
+	// The ipv4 package still supports go1.2, and so we need to
 	// take care of additional platforms in go1.3 and above for
 	// working with go1.2.
 	switch {

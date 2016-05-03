@@ -65,7 +65,7 @@ func (w twriter) Write(p []byte) (n int, err error) {
 	return len(p), nil
 }
 
-// like encodeHeader, but don't add implicit psuedo headers.
+// like encodeHeader, but don't add implicit pseudo headers.
 func encodeHeaderNoImplicit(t *testing.T, headers ...string) []byte {
 	var buf bytes.Buffer
 	enc := hpack.NewEncoder(&buf)

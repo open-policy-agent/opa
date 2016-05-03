@@ -2,10 +2,10 @@
 
 // This comes from Terraform, as a test
 variable "foo" {
-	# Standalone comment should be still here
+  # Standalone comment should be still here
 
-	default     = "bar"
-	description = "bar" # yooo
+  default     = "bar"
+  description = "bar" # yooo
 }
 
 /* This is a multi line standalone
@@ -21,16 +21,16 @@ numbers = [1, 2] // another line here
 
 # Another comment
 variable = {
-	description = "bar" # another yooo
+  description = "bar" # another yooo
 
-	foo {
-		# Nested standalone
+  foo {
+    # Nested standalone
 
-		bar = "fatih"
-	}
+    bar = "fatih"
+  }
 }
 
 // lead comment
 foo {
-	bar = "fatih" // line comment 2 
+  bar = "fatih" // line comment 2 
 } // line comment 3

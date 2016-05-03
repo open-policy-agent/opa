@@ -128,6 +128,10 @@ func TestEvalTerms(t *testing.T) {
 			{"x": "e", "y": 0},
 			{"x": "e", "y": 1}
 		]`},
+		{"d[x][y] = d[x][y]", `[
+			{"x": "e", "y": 0},
+			{"x": "e", "y": 1}
+		]`},
 		{"d[x][y] = z[i]", `[]`},
 	}
 
@@ -227,6 +231,7 @@ func TestTopDownCompleteDoc(t *testing.T) {
 		{`object/nested composites: {"a": [1], "b": [2], "c": [3]}`,
 			`p = {"a": [1], "b": [2], "c": [3]} :- true`,
 			`{"a": [1], "b": [2], "c": [3]}`},
+		{"var/var", "p = true :- x = y", ""},
 	}
 
 	data := loadSmallTestData()
@@ -250,6 +255,7 @@ func TestTopDownPartialSetDoc(t *testing.T) {
 		{"nested composites", "p[x] :- f[i] = x", `[{"xs": [1.0], "ys": [2.0]}, {"xs": [2.0], "ys": [3.0]}]`},
 		{"deep ref/heterogeneous", "p[x] :- c[i][j][k] = x", `[null, 3.14159, true, false, true, false, "foo"]`},
 		{"composite var value", "p[x] :- x = [i, a[i]]", "[[0,1],[1,2],[2,3],[3,4]]"},
+		{"var/var", "p[x] :- x = y", "[]"},
 	}
 
 	data := loadSmallTestData()
@@ -269,6 +275,8 @@ func TestTopDownPartialObjectDoc(t *testing.T) {
 		{"composites", "p[k] = v :- d[k] = v", `{"e": ["bar", "baz"]}`},
 		{"non-string key", "p[k] = v :- a[k] = v", fmt.Errorf("cannot produce object with non-string key: 0")},
 		{"body/join var", "p[k] = v :- a[i] = v, g[k][i] = v", `{"a": 1, "b": 2, "c": 4}`},
+		{"var/var key", "p[k] = v :- v = 1, k = x", "{}"},
+		{"var/var val", `p[k] = v :- k = "x", v = x`, "{}"},
 	}
 
 	data := loadSmallTestData()
@@ -371,6 +379,7 @@ func TestTopDownVirtualDocs(t *testing.T) {
 		{"input: set 2", []string{"p[x] :- q[1] = x", "q[x] :- a[i] = x"}, "[true]"},
 		{"input: set embedded", []string{`p[x] :- x = {"b": [q[2]]}`, `q[x] :- a[i] = x`}, `[{"b": [true]}]`},
 		{"input: set undefined", []string{"p = true :- q[1000]", "q[x] :- a[x] = y"}, ""},
+		{"input: set ground var", []string{"p[x] :- x = 1, q[x]", "q[y] :- a = [1,2,3,4], a[y] = i"}, "[1]"},
 		{"input: object 1", []string{"p = true :- q[1] = 2", "q[i] = x :- a[i] = x"}, "true"},
 		{"input: object 2", []string{"p = true :- q[1] = 0", "q[x] = i :- a[i] = x"}, "true"},
 		{"input: object embedded 1", []string{"p[x] :- x = [1, q[3], q[2]]", "q[i] = x :- a[i] = x"}, "[[1,4,3]]"},
@@ -380,6 +389,12 @@ func TestTopDownVirtualDocs(t *testing.T) {
 		{"input: object undefined key 2", []string{`p = true :- q["foo"] = 2`, `q[i] = x :- a[i] = x`}, ""},
 		{"input: object dereference ground", []string{`p = true :- q[0]["x"][1] = false`, `q[i] = x :- x = c[i]`}, "true"},
 		{"input: object defererence non-ground", []string{`p = true :- q[0][x][y] = false`, `q[i] = x :- x = c[i]`}, "true"},
+		{"input: object ground var key", []string{`p[y] :- x = "b", q[x] = y`, `q[k] = v :- a = {"a": 1, "b": 2}, a[k] = v`}, "[2]"},
+		{"input: variable binding substitution", []string{
+			"p[x] = y :- r[z] = y, q[x] = z",
+			`r[k] = v :- a = {"a": 1, "b": 2, "c": 3, "d": 4}, a[k] = v`,
+			`q[y] = x :- b = {"a": "a", "b": "b", "d": "d"}, b[y] = x`},
+			`{"a": 1, "b": 2, "d": 4}`},
 
 		// output from partial set and object docs
 		{"output: set", []string{"p[x] :- q[x]", "q[y] :- a[i] = y"}, "[1,2,3,4]"},
@@ -390,11 +405,26 @@ func TestTopDownVirtualDocs(t *testing.T) {
 		{"output: object dereference ground", []string{`p[i] :- q[i]["x"][1] = false`, `q[i] = x :- x = c[i]`}, "[0]"},
 		{"output: object defererence non-ground", []string{`p[r] :- q[x][y][z] = false, r = [x, y, z]`, `q[i] = x :- x = c[i]`}, `[[0, "x", 1], [0, "z", "q"]]`},
 
+		// input+output from partial set/object docs
+		{"i/o: objects", []string{
+			"p[x] :- q[x] = r[x]",
+			`q[x] = y :- a = {"a": 1, "b": 2, "d": 4}, a[x] = y`,
+			`r[t] = u :- b = {"a": 1, "b": 2, "c": 4, "d": 3}, b[t] = u`},
+			`["a", "b"]`},
+
+		{"i/o: undefined keys", []string{
+			"p[y] :- q[x], r[x] = y",
+			`q[x] :- a = ["a", "b", "c", "d"], a[i] = x`,
+			`r[k] = v :- b = {"a": 1, "b": 2, "d": 4}, b[k] = v`},
+			`[1, 2, 4]`},
+
 		// input/output to/from complete docs
 		{"input: complete array", []string{"p = true :- q[1] = 2", "q = [1,2,3,4] :- true"}, "true"},
 		{"input: complete object", []string{`p = true :- q["b"] = 2`, `q = {"a": 1, "b": 2} :- true`}, "true"},
 		{"input: complete array dereference ground", []string{"p = true :- q[1][1] = 3", "q = [[0,1], [2,3]] :- true"}, "true"},
 		{"input: complete object dereference ground", []string{`p = true :- q["b"][1] = 4`, `q = {"a": [1, 2], "b": [3, 4]} :- true`}, "true"},
+		{"input: complete array ground index", []string{"p[y] :- a=[1,2], a[i]=x, q[x]=y", "q = [1,2,3,4] :- true"}, "[2,3]"},
+		{"input: complete object ground key", []string{`p[y] :- a=["b","c"], a[i]=x, q[x]=y`, `q = {"a":1,"b":2,"c":3,"d":4} :- true`}, "[2,3]"},
 		{"output: complete array", []string{"p[x] :- q[i] = e, x = [i,e]", "q = [1,2,3,4] :- true"}, "[[0,1],[1,2],[2,3],[3,4]]"},
 		{"output: complete object", []string{"p[x] :- q[i] = e, x = [i,e]", `q = {"a": 1, "b": 2} :- true`}, `[["a", 1], ["b", 2]]`},
 		{"output: complete array dereference non-ground", []string{"p[r] :- q[i][j] = 2, r = [i, j]", "q = [[1,2], [3,2]] :- true"}, "[[0, 1], [1, 1]]"},
@@ -422,12 +452,14 @@ func TestTopDownVarReferences(t *testing.T) {
 		expected interface{}
 	}{
 		// TODO(tsandall) dereferenced variables must be bound beforehand (safety check)
-		{"var ground", []string{"p[x] :- v = [[1,2],[2,3],[3,4]], x = v[2][1]"}, "[4]"},
-		{"var non-ground", []string{"p[x] :- v = [[1,2],[2,3],[3,4]], x = v[i][j]"}, "[1,2,2,3,3,4]"},
-		{"var mixed", []string{`p[x] = y :- v = [{"a": 1, "b": 2}, {"c": 3, "z": [4]}], y = v[i][x][j]`}, `{"z": 4}`},
+		{"ground", []string{"p[x] :- v = [[1,2],[2,3],[3,4]], x = v[2][1]"}, "[4]"},
+		{"non-ground", []string{"p[x] :- v = [[1,2],[2,3],[3,4]], x = v[i][j]"}, "[1,2,2,3,3,4]"},
+		{"mixed", []string{`p[x] = y :- v = [{"a": 1, "b": 2}, {"c": 3, "z": [4]}], y = v[i][x][j]`}, `{"z": 4}`},
 		{"ref binding", []string{"p[x] :- v = c[i][j], x = v[k], x = true"}, "[true, true]"},
 		{"embedded", []string{`p[x] :- v = [1,2,3], x = [{"a": v[i]}]`}, `[[{"a": 1}], [{"a": 2}], [{"a": 3}]]`},
 		{"embedded ref binding", []string{"p[x] :- v = c[i][j], w = [v[0], v[1]], x = w[y]"}, "[null, false, true, 3.14159]"},
+		{"array: ground var", []string{"p[y] :- a = [1,2,3,4], b = [1,2,999], b[i] = x, a[x] = y"}, "[2,3]"},
+		{"object: ground var", []string{`p[y] :- a = {"a": 1, "b": 2, "c": 3}, b = ["a", "c", "deadbeef"], b[i] = x, a[x] = y`}, "[1, 3]"},
 	}
 
 	data := loadSmallTestData()
@@ -513,6 +545,11 @@ func loadExpectedResult(input string) interface{} {
 	if err := json.Unmarshal([]byte(input), &data); err != nil {
 		panic(err)
 	}
+	return data
+}
+
+func loadExpectedSortedResult(input string) interface{} {
+	data := loadExpectedResult(input)
 	switch data := data.(type) {
 	case []interface{}:
 		sort.Sort(ResultSet(data))
@@ -547,6 +584,10 @@ func loadSmallTestData() map[string]interface{} {
 			"b": [0, 2, 0, 0],
 			"c": [0, 0, 0, 4]
 		},
+		"h": [
+			[1,2,3],
+			[2,3,4]
+		],
         "z": []
     }`), &data)
 	if err != nil {
@@ -615,7 +656,7 @@ func runTopDownTestCase(t *testing.T, data map[string]interface{}, i int, note s
 		}
 
 	case string:
-		expected := loadExpectedResult(e)
+		expected := loadExpectedSortedResult(e)
 		result, err := TopDownQuery(&TopDownQueryParams{Store: store, Path: []string{"p"}})
 		if err != nil {
 			t.Errorf("Test case %d (%v): unexpected error: %v", i+1, note, err)

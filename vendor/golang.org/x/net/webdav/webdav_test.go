@@ -147,10 +147,10 @@ func TestPrefix(t *testing.T) {
 		}
 		sort.Strings(got)
 		want := map[string][]string{
-			"/":       []string{"/", "/a", "/a/b", "/a/b/c", "/a/b/e", "/a/b/e/f"},
-			"/a/":     []string{"/", "/b", "/b/c", "/b/e", "/b/e/f"},
-			"/a/b/":   []string{"/", "/c", "/e", "/e/f"},
-			"/a/b/c/": []string{"/"},
+			"/":       {"/", "/a", "/a/b", "/a/b/c", "/a/b/e", "/a/b/e/f"},
+			"/a/":     {"/", "/b", "/b/c", "/b/e", "/b/e/f"},
+			"/a/b/":   {"/", "/c", "/e", "/e/f"},
+			"/a/b/c/": {"/"},
 		}[prefix]
 		if !reflect.DeepEqual(got, want) {
 			t.Errorf("prefix=%-9q find:\ngot  %v\nwant %v", prefix, got, want)

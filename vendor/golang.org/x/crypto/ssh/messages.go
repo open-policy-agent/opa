@@ -124,6 +124,10 @@ type userAuthRequestMsg struct {
 	Payload []byte `ssh:"rest"`
 }
 
+// Used for debug printouts of packets.
+type userAuthSuccessMsg struct {
+}
+
 // See RFC 4252, section 5.1
 const msgUserAuthFailure = 51
 
@@ -157,6 +161,13 @@ type channelOpenMsg struct {
 
 const msgChannelExtendedData = 95
 const msgChannelData = 94
+
+// Used for debug print outs of packets.
+type channelDataMsg struct {
+	PeersId uint32 `sshtype:"94"`
+	Length  uint32
+	Rest    []byte `ssh:"rest"`
+}
 
 // See RFC 4254, section 5.1.
 const msgChannelOpenConfirm = 91
@@ -687,6 +698,8 @@ func decode(packet []byte) (interface{}, error) {
 		msg = new(kexDHReplyMsg)
 	case msgUserAuthRequest:
 		msg = new(userAuthRequestMsg)
+	case msgUserAuthSuccess:
+		return new(userAuthSuccessMsg), nil
 	case msgUserAuthFailure:
 		msg = new(userAuthFailureMsg)
 	case msgUserAuthPubKeyOk:
@@ -699,6 +712,8 @@ func decode(packet []byte) (interface{}, error) {
 		msg = new(globalRequestFailureMsg)
 	case msgChannelOpen:
 		msg = new(channelOpenMsg)
+	case msgChannelData:
+		msg = new(channelDataMsg)
 	case msgChannelOpenConfirm:
 		msg = new(channelOpenConfirmMsg)
 	case msgChannelOpenFailure:

@@ -76,7 +76,8 @@ type AddedKey struct {
 
 // See [PROTOCOL.agent], section 3.
 const (
-	agentRequestV1Identities = 1
+	agentRequestV1Identities   = 1
+	agentRemoveAllV1Identities = 9
 
 	// 3.2 Requests from client to agent for protocol 2 key operations
 	agentAddIdentity         = 17
@@ -376,6 +377,8 @@ func unmarshal(packet []byte) (interface{}, error) {
 		msg = new(identitiesAnswerAgentMsg)
 	case agentSignResponse:
 		msg = new(signResponseAgentMsg)
+	case agentV1IdentitiesAnswer:
+		msg = new(agentV1IdentityMsg)
 	default:
 		return nil, fmt.Errorf("agent: unknown type tag %d", packet[0])
 	}

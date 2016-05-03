@@ -1,60 +1,22 @@
-hash: 3d658b2801a5a719294fa1eb719a2da3b63a220fbaa66d918c4fcfdc677c51aa
-updated: 2016-04-05T09:24:23.839542269-07:00
+hash: b87d4690bc63145c6d84283e7db811522ea81720e06458026768ccf55ae1acf5
+updated: 2016-04-22T11:25:26.611039123-07:00
 imports:
-- name: github.com/armon/consul-api
-  version: dcfedd50ed5334f96adee43fc88518a4f095e15c
-- name: github.com/BurntSushi/toml
-  version: bbd5bb678321a0d6e58f1099321dfa73391c1b6f
-- name: github.com/coreos/go-etcd
-  version: 003851be7bb0694fe3cc457a49529a19388ee7cf
-- name: github.com/cpuguy83/go-md2man
-  version: 2724a9c9051aa62e9cca11304e7dd518e9e41599
+- name: github.com/apcera/termtables
+  version: 683d3fb424194f29991b0442b37521de9bc9d66b
 - name: github.com/golang/lint
   version: 8f348af5e29faa4262efdc14302797f23774e477
-- name: github.com/hashicorp/hcl
-  version: 2604f3bda7e8960c1be1063709e7d7f0765048d0
-- name: github.com/kr/pretty
-  version: add1dbc86daf0f983cd4a48ceb39deb95c729b67
-- name: github.com/kr/pty
-  version: f7ee69f31298ecbe5d2b349c711e2547a617d398
-- name: github.com/kr/text
-  version: bb797dc4fb8320488f47bf11de07a733d7233e1f
-- name: github.com/magiconair/properties
-  version: c265cfa48dda6474e208715ca93e987829f572f8
-- name: github.com/mitchellh/mapstructure
-  version: d2dd0262208475919e1a362f675cfc0e7c10e905
+- name: github.com/inconshreveable/mousetrap
+  version: 76626ae9c91c4f2a10f34cad8ce83ea42c93bb75
+- name: github.com/peterh/liner
+  version: 49ca65981c3cd7db64145977af1d186e9d317afa
 - name: github.com/PuerkitoBio/pigeon
   version: a5221784523de14130c00a8c389148a1b2ad260c
-- name: github.com/russross/blackfriday
-  version: b43df972fb5fdf3af8d2e90f38a69d374fe26dd0
-- name: github.com/shurcooL/sanitized_anchor_name
-  version: 10ef21a441db47d8b13ebcc5fd2310f636973c77
-- name: github.com/spf13/cast
-  version: 27b586b42e29bec072fe7379259cc719e1289da6
 - name: github.com/spf13/cobra
   version: 4c05eb1145f16d0e6bb4a3e1b6d769f4713cb41f
-- name: github.com/spf13/jwalterweatherman
-  version: 33c24e77fb80341fe7130ee7c594256ff08ccc46
 - name: github.com/spf13/pflag
-  version: 7f60f83a2c81bc3c3c0d5297f61ddfa68da9d3b7
-- name: github.com/spf13/viper
-  version: c975dc1b4eacf4ec7fdbf0873638de5d090ba323
-- name: github.com/ugorji/go
-  version: a396ed22fc049df733440d90efe17475e3929ccb
-- name: github.com/xordataexchange/crypt
-  version: 749e360c8f236773f28fc6d3ddfce4a470795227
-- name: golang.org/x/crypto
-  version: 9e7f5dc375abeb9619ea3c5c58502c428f457aa2
-- name: golang.org/x/net
-  version: 318395d8b12f5dd0f1b7cd0fbb95195f49acb0f9
-- name: golang.org/x/text
-  version: 1b466db55e0ba5d56ef5315c728216b42f796491
+  version: 8f6a28b0916586e7f22fe931ae2fcfc380b1c0e6
 - name: golang.org/x/tools
-  version: f2e4f834ecb7acd0edd3ba4d2d777b55f1a42470
+  version: 477d3b98e5c650e877b858e6c26b9de2ef46341a
   subpackages:
   - cmd/goimports
-- name: gopkg.in/fsnotify.v1
-  version: 875cf421b32f8f1b31bd43776297876d01542279
-- name: gopkg.in/yaml.v2
-  version: a83829b6f1293c91addabc89d0571c246397bbf4
 devImports: []

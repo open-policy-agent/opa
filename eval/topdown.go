@@ -22,6 +22,15 @@ type TopDownContext struct {
 	Tracer   Tracer
 }
 
+// NewTopDownContext creates a new TopDownContext with no bindings.
+func NewTopDownContext(query opalog.Body, store Storage) *TopDownContext {
+	return &TopDownContext{
+		Query:    query,
+		Bindings: newHashMap(),
+		Store:    store,
+	}
+}
+
 // BindRef returns a new TopDownContext with bindings that map the reference to the value.
 func (ctx *TopDownContext) BindRef(ref opalog.Ref, value opalog.Value) *TopDownContext {
 	cpy := *ctx
@@ -81,6 +90,7 @@ func (ctx *TopDownContext) Child(rule *opalog.Rule, bindings *hashMap) *TopDownC
 	cpy.Query = rule.Body
 	cpy.Bindings = bindings
 	cpy.Previous = ctx
+	cpy.Index = 0
 	return &cpy
 }
 
@@ -150,7 +160,7 @@ func TopDownQuery(params *TopDownQueryParams) (interface{}, error) {
 		ref = append(ref, opalog.StringTerm(v))
 	}
 
-	node, err := params.Store.Lookup(ref)
+	node, err := lookup(params.Store, ref)
 	if err != nil {
 		return nil, err
 	}
@@ -185,6 +195,67 @@ func (undefined Undefined) String() string {
 	return "<undefined>"
 }
 
+// ValueToInterface returns the underlying Go value associated with an AST value.
+// If the value is a reference, the reference is fetched from storage. Composite
+// AST values such as objects and arrays are converted recursively.
+func ValueToInterface(v opalog.Value, ctx *TopDownContext) (interface{}, error) {
+
+	switch v := v.(type) {
+
+	// Scalars easily convert to native values.
+	case opalog.Null:
+		return nil, nil
+	case opalog.Boolean:
+		return bool(v), nil
+	case opalog.Number:
+		return float64(v), nil
+	case opalog.String:
+		return string(v), nil
+
+	// Recursively convert array into []interface{}...
+	case opalog.Array:
+		buf := []interface{}{}
+		for _, x := range v {
+			x1, err := ValueToInterface(x.Value, ctx)
+			if err != nil {
+				return nil, err
+			}
+			buf = append(buf, x1)
+		}
+		return buf, nil
+
+	// Recursively convert object into map[string]interface{}...
+	case opalog.Object:
+		buf := map[string]interface{}{}
+		for _, x := range v {
+			k, err := ValueToInterface(x[0].Value, ctx)
+			if err != nil {
+				return nil, err
+			}
+			asStr, stringKey := k.(string)
+			if !stringKey {
+				return nil, fmt.Errorf("cannot convert object with non-string key to map: %v", k)
+			}
+			v, err := ValueToInterface(x[1].Value, ctx)
+			if err != nil {
+				return nil, err
+			}
+			buf[asStr] = v
+		}
+		return buf, nil
+
+	// References convert to native values via lookup.
+	case opalog.Ref:
+		return lookup(ctx.Store, v)
+
+	default:
+		// If none of the above cases are hit, something is very wrong, e.g., the caller
+		// is attempting to convert a variable to a native Go value (which represents an
+		// issue with the callers logic.)
+		panic(fmt.Sprintf("illegal argument: %v", v))
+	}
+}
+
 type builtinFunction func(*TopDownContext, *opalog.Expr, TopDownIterator) error
 
 var builtinFunctions = map[opalog.Var]builtinFunction{
@@ -198,12 +269,29 @@ func dereferenceVar(v opalog.Var, ctx *TopDownContext) (interface{}, error) {
 	if binding == nil {
 		return nil, fmt.Errorf("unbound variable: %v", v)
 	}
-	return valueToInterface(binding, ctx)
+	return ValueToInterface(binding, ctx)
 }
 
 func evalContext(ctx *TopDownContext, iter TopDownIterator) error {
 
 	if ctx.Index >= len(ctx.Query) {
+
+		// Check if the bindings contain values that are non-ground. E.g.,
+		// suppose the query's final expression is "x = y" and "x" and "y"
+		// do not appear elsewhere in the query. In this case, "x" and "y"
+		// will be bound to each other; they will not be ground and so
+		// the proof should not be considered successful.
+		isNonGround := ctx.Bindings.Iter(func(k, v opalog.Value) bool {
+			if !v.IsGround() {
+				return true
+			}
+			return false
+		})
+
+		if isNonGround {
+			return nil
+		}
+
 		ctx.traceFinish()
 		return iter(ctx)
 	}
@@ -229,10 +317,10 @@ func evalContextNegated(ctx *TopDownContext, iter TopDownIterator) error {
 	negation.Index = 0
 	negation.Previous = ctx
 
-	isDefined := false
+	isTrue := false
 
 	err := evalContext(&negation, func(*TopDownContext) error {
-		isDefined = true
+		isTrue = true
 		return nil
 	})
 
@@ -240,7 +328,7 @@ func evalContextNegated(ctx *TopDownContext, iter TopDownIterator) error {
 		return err
 	}
 
-	if !isDefined {
+	if !isTrue {
 		return evalContext(ctx.Step(), iter)
 	}
 
@@ -253,18 +341,15 @@ func evalEq(ctx *TopDownContext, expr *opalog.Expr, iter TopDownIterator) error 
 	a := operands[1].Value
 	b := operands[2].Value
 
-	return evalEqUnify(ctx, a, b, func(ctx *TopDownContext) error {
-		ctx.traceSuccess(expr)
-		return iter(ctx)
-	})
+	return evalEqUnify(ctx, a, b, iter)
 }
 
 func evalEqGround(ctx *TopDownContext, a opalog.Value, b opalog.Value, iter TopDownIterator) error {
-	av, err := valueToInterface(a, ctx)
+	av, err := ValueToInterface(a, ctx)
 	if err != nil {
 		return err
 	}
-	bv, err := valueToInterface(b, ctx)
+	bv, err := ValueToInterface(b, ctx)
 	if err != nil {
 		return err
 	}
@@ -334,7 +419,7 @@ func evalEqUnifyArray(ctx *TopDownContext, a opalog.Array, b opalog.Value, iter 
 
 func evalEqUnifyArrayRef(ctx *TopDownContext, a opalog.Array, b opalog.Ref, iter TopDownIterator) error {
 
-	r, err := ctx.Store.Lookup(b)
+	r, err := lookup(ctx.Store, b)
 	if err != nil {
 		return err
 	}
@@ -411,7 +496,7 @@ func evalEqUnifyObject(ctx *TopDownContext, a opalog.Object, b opalog.Value, ite
 
 func evalEqUnifyObjectRef(ctx *TopDownContext, a opalog.Object, b opalog.Ref, iter TopDownIterator) error {
 
-	r, err := ctx.Store.Lookup(b)
+	r, err := lookup(ctx.Store, b)
 
 	if err != nil {
 		return err
@@ -522,7 +607,10 @@ func evalExpr(ctx *TopDownContext, iter TopDownIterator) error {
 			// this should never happen.
 			panic("unreachable")
 		}
-		return builtin(ctx, expr, iter)
+		return builtin(ctx, expr, func(ctx *TopDownContext) error {
+			ctx.traceSuccess(expr)
+			return iter(ctx)
+		})
 	case *opalog.Term:
 		switch tv := tt.Value.(type) {
 		case opalog.Boolean:
@@ -545,7 +633,7 @@ func evalRef(ctx *TopDownContext, ref opalog.Ref, iter TopDownIterator) error {
 func evalRefRec(ctx *TopDownContext, ref opalog.Ref, iter TopDownIterator, path opalog.Ref) error {
 
 	if len(ref) == 0 {
-		_, err := ctx.Store.Lookup(path)
+		_, err := lookup(ctx.Store, path)
 		if err != nil {
 			switch err := err.(type) {
 			case *StorageError:
@@ -573,7 +661,7 @@ func evalRefRec(ctx *TopDownContext, ref opalog.Ref, iter TopDownIterator, path 
 		}
 
 		path = append(path, head)
-		node, err := ctx.Store.Lookup(path)
+		node, err := lookup(ctx.Store, path)
 		if err != nil {
 			switch err := err.(type) {
 			case *StorageError:
@@ -612,7 +700,7 @@ func evalRefRec(ctx *TopDownContext, ref opalog.Ref, iter TopDownIterator, path 
 
 	// Binding does not exist, we will lookup the collection and enumerate
 	// the keys below.
-	node, err := ctx.Store.Lookup(path)
+	node, err := lookup(ctx.Store, path)
 	if err != nil {
 		switch err := err.(type) {
 		case *StorageError:
@@ -693,7 +781,21 @@ func evalRefRulePartialObjectDoc(ctx *TopDownContext, ref opalog.Ref, path opalo
 		return fmt.Errorf("not implemented: %v %v %v", ref, path, rule)
 	}
 
-	if !suffix[0].IsGround() {
+	key := plugValue(suffix[0].Value, ctx.Bindings)
+
+	// There are two cases being handled below. The first case is for when
+	// the object key is ground in the original expression or there is a
+	// binding available for the variable in the original expression.
+	//
+	// In the first case, the rule is evaluated and the value of the key variable
+	// in the child context is copied into the current context.
+	//
+	// In the second case, the rule is evaluated with the value of the key variable
+	// from this context.
+	//
+	// NOTE: if at some point multiple variables are supported here, it may be
+	// cleaner to generalize this (instead of having two separate branches).
+	if !key.IsGround() {
 		child := ctx.Child(rule, newHashMap())
 		return TopDown(child, func(child *TopDownContext) error {
 			key := child.Bindings.Get(rule.Key.Value)
@@ -710,7 +812,7 @@ func evalRefRulePartialObjectDoc(ctx *TopDownContext, ref opalog.Ref, path opalo
 	}
 
 	bindings := newHashMap()
-	bindings.Put(rule.Key.Value, suffix[0].Value)
+	bindings.Put(rule.Key.Value, key)
 	child := ctx.Child(rule, bindings)
 
 	return TopDown(child, func(child *TopDownContext) error {
@@ -734,7 +836,12 @@ func evalRefRulePartialSetDoc(ctx *TopDownContext, ref opalog.Ref, path opalog.R
 		return nil
 	}
 
-	if !suffix[0].IsGround() {
+	// See comment in evalRefRulePartialObjectDoc about the two branches below.
+	// The behaviour is similar for sets.
+
+	key := plugValue(suffix[0].Value, ctx.Bindings)
+
+	if !key.IsGround() {
 		child := ctx.Child(rule, newHashMap())
 		return TopDown(child, func(child *TopDownContext) error {
 			value := child.Bindings.Get(rule.Key.Value)
@@ -746,15 +853,16 @@ func evalRefRulePartialSetDoc(ctx *TopDownContext, ref opalog.Ref, path opalog.R
 			// so that expression will be defined. E.g., given a simple rule:
 			// "p = true :- q[x]", we say that "p" should be defined if "q"
 			// is defined for some value "x".
-			ctx = ctx.BindVar(suffix[0].Value.(opalog.Var), value)
+			ctx = ctx.BindVar(key.(opalog.Var), value)
 			ctx = ctx.BindRef(ref[:len(path)+1], opalog.Boolean(true))
 			return iter(ctx)
 		})
 	}
 
 	bindings := newHashMap()
-	bindings.Put(rule.Key.Value, suffix[0].Value)
+	bindings.Put(rule.Key.Value, key)
 	child := ctx.Child(rule, bindings)
+
 	return TopDown(child, func(child *TopDownContext) error {
 		// See comment above for explanation of why the reference is bound to true.
 		ctx = ctx.BindRef(ref[:len(path)+1], opalog.Boolean(true))
@@ -786,32 +894,47 @@ func evalRefRuleResult(ctx *TopDownContext, ref opalog.Ref, suffix opalog.Ref, r
 
 	case opalog.Array:
 		if len(suffix) > 0 {
-			return result.Query(suffix, func(keys map[opalog.Var]opalog.Value, value opalog.Value) error {
+			var pluggedSuffix opalog.Ref
+			for _, t := range suffix {
+				pluggedSuffix = append(pluggedSuffix, plugTerm(t, ctx.Bindings))
+			}
+			result.Query(pluggedSuffix, func(keys map[opalog.Var]opalog.Value, value opalog.Value) error {
 				ctx = ctx.BindRef(ref, value)
 				for k, v := range keys {
 					ctx = ctx.BindVar(k, v)
 				}
 				return iter(ctx)
 			})
+			// Ignore the error code. If the suffix references a non-existent document,
+			// the expression is undefined.
+			return nil
 		}
-		ctx.BindRef(ref, result)
-		return iter(ctx)
+		// This can't be hit because we have checks in the evalRefRule* functions that catch this.
+		panic(fmt.Sprintf("illegal value: %v %v %v", ref, suffix, result))
 
 	case opalog.Object:
 		if len(suffix) > 0 {
-			return result.Query(suffix, func(keys map[opalog.Var]opalog.Value, value opalog.Value) error {
+			var pluggedSuffix opalog.Ref
+			for _, t := range suffix {
+				pluggedSuffix = append(pluggedSuffix, plugTerm(t, ctx.Bindings))
+			}
+			result.Query(pluggedSuffix, func(keys map[opalog.Var]opalog.Value, value opalog.Value) error {
 				ctx = ctx.BindRef(ref, value)
 				for k, v := range keys {
 					ctx = ctx.BindVar(k, v)
 				}
 				return iter(ctx)
 			})
+			// Ignore the error code. If the suffix references a non-existent document,
+			// the expression is undefined.
+			return nil
 		}
-		ctx.BindRef(ref, result)
-		return iter(ctx)
+		// This can't be hit because we have checks in the evalRefRule* functions that catch this.
+		panic(fmt.Sprintf("illegal value: %v %v %v", ref, suffix, result))
 
 	default:
 		if len(suffix) > 0 {
+			// This is not defined because it attempts to dereference a scalar.
 			return nil
 		}
 		ctx = ctx.BindRef(ref, result)
@@ -935,6 +1058,14 @@ func evalTermsRecObject(ctx *TopDownContext, obj opalog.Object, idx int, iter To
 	}
 }
 
+func lookup(store Storage, ref opalog.Ref) (interface{}, error) {
+	path, err := ref.Underlying()
+	if err != nil {
+		return nil, err
+	}
+	return store.Get(path)
+}
+
 func plugExpr(expr *opalog.Expr, bindings *hashMap) *opalog.Expr {
 	plugged := *expr
 	switch ts := plugged.Terms.(type) {
@@ -1045,19 +1176,19 @@ func topDownQueryCompleteDoc(params *TopDownQueryParams, rules []*opalog.Rule) (
 		Tracer:   params.Tracer,
 	}
 
-	isDefined := false
+	isTrue := false
 	err := TopDown(ctx, func(ctx *TopDownContext) error {
-		isDefined = true
+		isTrue = true
 		return nil
 	})
 	if err != nil {
 		return nil, err
 	}
-	if !isDefined {
+	if !isTrue {
 		return Undefined{}, nil
 	}
 
-	return valueToInterface(rule.Value.Value, ctx)
+	return ValueToInterface(rule.Value.Value, ctx)
 }
 
 func topDownQueryPartialObjectDoc(params *TopDownQueryParams, rules []*opalog.Rule) (interface{}, error) {
@@ -1121,67 +1252,6 @@ func topDownQueryPartialSetDoc(params *TopDownQueryParams, rules []*opalog.Rule)
 		}
 	}
 	return result, nil
-}
-
-// valueToInterface returns the underlying Go value associated with an AST value.
-// If the value is a reference, the reference is fetched from storage. Composite
-// AST values such as objects and arrays are converted recursively.
-func valueToInterface(v opalog.Value, ctx *TopDownContext) (interface{}, error) {
-
-	switch v := v.(type) {
-
-	// Scalars easily convert to native values.
-	case opalog.Null:
-		return nil, nil
-	case opalog.Boolean:
-		return bool(v), nil
-	case opalog.Number:
-		return float64(v), nil
-	case opalog.String:
-		return string(v), nil
-
-	// Recursively convert array into []interface{}...
-	case opalog.Array:
-		buf := []interface{}{}
-		for _, x := range v {
-			x1, err := valueToInterface(x.Value, ctx)
-			if err != nil {
-				return nil, err
-			}
-			buf = append(buf, x1)
-		}
-		return buf, nil
-
-	// Recursively convert object into map[string]interface{}...
-	case opalog.Object:
-		buf := map[string]interface{}{}
-		for _, x := range v {
-			k, err := valueToInterface(x[0].Value, ctx)
-			if err != nil {
-				return nil, err
-			}
-			asStr, stringKey := k.(string)
-			if !stringKey {
-				return nil, fmt.Errorf("cannot convert object with non-string key to map: %v", k)
-			}
-			v, err := valueToInterface(x[1].Value, ctx)
-			if err != nil {
-				return nil, err
-			}
-			buf[asStr] = v
-		}
-		return buf, nil
-
-	// References convert to native values via lookup.
-	case opalog.Ref:
-		return ctx.Store.Lookup(v)
-
-	default:
-		// If none of the above cases are hit, something is very wrong, e.g., the caller
-		// is attempting to convert a variable to a native Go value (which represents an
-		// issue with the callers logic.)
-		panic(fmt.Sprintf("illegal argument: %v", v))
-	}
 }
 
 // walkValue invokes the iterator for each AST value contained inside the supplied AST value.

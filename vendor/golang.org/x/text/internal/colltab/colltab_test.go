@@ -18,8 +18,9 @@ func TestMatchLang(t *testing.T) {
 		7:  language.Serbian,
 		8:  language.MustParse("sr-Latn"),
 		9:  language.Chinese,
-		10: language.SimplifiedChinese, // Cannot match.
-		11: language.TraditionalChinese,
+		10: language.MustParse("zh-u-co-stroke"),
+		11: language.MustParse("zh-Hant-u-co-pinyin"),
+		12: language.TraditionalChinese,
 	}
 	for i, tc := range []struct {
 		x int
@@ -39,10 +40,17 @@ func TestMatchLang(t *testing.T) {
 		{1, language.MustParse("bs-Latn")}, // Estimated script drops.
 		{8, language.MustParse("sr-Latn")},
 		{9, language.Chinese},
-		{10, language.SimplifiedChinese}, // Default script drops.
-		{11, language.TraditionalChinese},
-		{11, language.MustParse("und-TW")},     // Infer script and language.
-		{11, language.MustParse("und-HK")},     // Infer script and language.
+		{9, language.SimplifiedChinese},
+		{12, language.TraditionalChinese},
+		{11, language.MustParse("zh-Hant-u-co-pinyin")},
+		// TODO: should this be 12? Either inherited value (10) or default is
+		// fine in this case, though. Other locales are not affected.
+		{10, language.MustParse("zh-Hant-u-co-stroke")},
+		// There is no "phonebk" sorting order for zh-Hant, so use default.
+		{12, language.MustParse("zh-Hant-u-co-phonebk")},
+		{10, language.MustParse("zh-u-co-stroke")},
+		{12, language.MustParse("und-TW")},     // Infer script and language.
+		{12, language.MustParse("und-HK")},     // Infer script and language.
 		{6, language.MustParse("und-BR")},      // Infer script and language.
 		{6, language.MustParse("und-PT")},      // Infer script and language.
 		{2, language.MustParse("und-Latn-DE")}, // Infer language.

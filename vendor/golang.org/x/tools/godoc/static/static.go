@@ -560,6 +560,7 @@ and code is licensed under a <a href="/LICENSE">BSD license</a>.<br>
 {{if .Playground}}
 <script type="text/javascript" src="/lib/godoc/playground.js"></script>
 {{end}}
+{{with .Version}}<script>var goVersion = {{printf "%q" .}};</script>{{end}}
 <script type="text/javascript" src="/lib/godoc/godocs.js"></script>
 
 </body>
@@ -866,6 +867,14 @@ function personalizeInstallInstructions() {
   window.location = download;
 }
 
+function updateVersionTags() {
+  var v = window.goVersion;
+  if (/^go[0-9.]+$/.test(v)) {
+    $(".versionTag").empty().text(v);
+    $(".whereTag").hide();
+  }
+}
+
 $(document).ready(function() {
   bindSearchEvents();
   generateTOC();
@@ -882,6 +891,7 @@ $(document).ready(function() {
   setupCallgraphs();
   toggleHash();
   personalizeInstallInstructions();
+  updateVersionTags();
 
   // godoc.html defines window.initFuncs in the <head> tag, and root.html and
   // codewalk.js push their on-page-ready functions to the list.
@@ -1792,7 +1802,7 @@ function cgAddChild(tree, ul, cgn) {
 			<h2 id="pkg-note-{{$marker}}">{{noteTitle $marker | html}}s</h2>
 			<ul style="list-style: none; padding: 0;">
 			{{range .}}
-			<li><a href="{{posLink_url $ .}}">&#x261e;</a> {{html .Body}}</li>
+			<li><a href="{{posLink_url $ .}}" style="float: left;">&#x261e;</a> {{comment_html .Body}}</li>
 			{{end}}
 			</ul>
 		{{end}}

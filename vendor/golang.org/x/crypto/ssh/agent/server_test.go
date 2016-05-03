@@ -75,3 +75,35 @@ func TestSetupForwardAgent(t *testing.T) {
 	testAgentInterface(t, agentClient, testPrivateKeys["rsa"], nil, 0)
 	conn.Close()
 }
+
+func TestV1ProtocolMessages(t *testing.T) {
+	c1, c2, err := netPipe()
+	if err != nil {
+		t.Fatalf("netPipe: %v", err)
+	}
+	defer c1.Close()
+	defer c2.Close()
+	c := NewClient(c1)
+
+	go ServeAgent(NewKeyring(), c2)
+
+	testV1ProtocolMessages(t, c.(*client))
+}
+
+func testV1ProtocolMessages(t *testing.T, c *client) {
+	reply, err := c.call([]byte{agentRequestV1Identities})
+	if err != nil {
+		t.Fatalf("v1 request all failed: %v", err)
+	}
+	if msg, ok := reply.(*agentV1IdentityMsg); !ok || msg.Numkeys != 0 {
+		t.Fatalf("invalid request all response: %#v", reply)
+	}
+
+	reply, err = c.call([]byte{agentRemoveAllV1Identities})
+	if err != nil {
+		t.Fatalf("v1 remove all failed: %v", err)
+	}
+	if _, ok := reply.(*successAgentMsg); !ok {
+		t.Fatalf("invalid remove all response: %#v", reply)
+	}
+}

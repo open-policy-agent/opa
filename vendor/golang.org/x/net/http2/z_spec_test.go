@@ -37,7 +37,7 @@ func loadSpec() {
 }
 
 // covers marks all sentences for section sec in defaultSpecCoverage. Sentences not
-// "covered" will be included in report outputed by TestSpecCoverage.
+// "covered" will be included in report outputted by TestSpecCoverage.
 func covers(sec, sentences string) {
 	loadSpecOnce.Do(loadSpec)
 	defaultSpecCoverage.cover(sec, sentences)

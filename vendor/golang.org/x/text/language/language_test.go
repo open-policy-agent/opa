@@ -504,6 +504,7 @@ func TestCanonicalize(t *testing.T) {
 		{"no", "nb", Legacy | CLDR},
 		{"cmn", "cmn", Legacy},
 		{"cmn", "zh", Macro},
+		{"cmn-u-co-stroke", "zh-u-co-stroke", Macro},
 		{"yue", "yue", Macro},
 		{"nb", "no", Macro},
 		{"nb", "nb", Macro | CLDR},
@@ -529,6 +530,9 @@ func TestCanonicalize(t *testing.T) {
 		if in.String() != tt.out {
 			t.Errorf("%d:%s: was %s; want %s", i, tt.in, in.String(), tt.out)
 		}
+		if int(in.pVariant) > int(in.pExt) || int(in.pExt) > len(in.str) {
+			t.Errorf("%d:%s:offsets %d <= %d <= %d must be true", i, tt.in, in.pVariant, in.pExt, len(in.str))
+		}
 	}
 	// Test idempotence.
 	for _, base := range Supported.BaseLanguages() {
@@ -549,6 +553,7 @@ func TestTypeForKey(t *testing.T) {
 		{"co", "en-u-co-phonebk-cu-aud", "phonebk"},
 		{"co", "x-foo-u-co-phonebk", ""},
 		{"nu", "en-u-co-phonebk-nu-arabic", "arabic"},
+		{"kc", "cmn-u-co-stroke", ""},
 	}
 	for _, tt := range tests {
 		if v := Make(tt.in).TypeForKey(tt.key); v != tt.out {
