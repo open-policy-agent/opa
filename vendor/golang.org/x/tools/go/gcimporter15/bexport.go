@@ -52,8 +52,9 @@ type exporter struct {
 	typIndex map[types.Type]int
 
 	// position encoding
-	prevFile string
-	prevLine int
+	posInfoFormat bool
+	prevFile      string
+	prevLine      int
 
 	// debugging support
 	written int // bytes written
@@ -64,10 +65,11 @@ type exporter struct {
 // If no file set is provided, position info will be missing.
 func BExportData(fset *token.FileSet, pkg *types.Package) []byte {
 	p := exporter{
-		fset:     fset,
-		strIndex: map[string]int{"": 0}, // empty string is mapped to 0
-		pkgIndex: make(map[*types.Package]int),
-		typIndex: make(map[types.Type]int),
+		fset:          fset,
+		strIndex:      map[string]int{"": 0}, // empty string is mapped to 0
+		pkgIndex:      make(map[*types.Package]int),
+		typIndex:      make(map[types.Type]int),
+		posInfoFormat: true, // TODO(gri) might become a flag, eventually
 	}
 
 	// first byte indicates low-level encoding format
@@ -76,6 +78,9 @@ func BExportData(fset *token.FileSet, pkg *types.Package) []byte {
 		format = 'd'
 	}
 	p.rawByte(format)
+
+	// posInfo exported or not?
+	p.bool(p.posInfoFormat)
 
 	// --- generic export data ---
 
@@ -200,25 +205,56 @@ func (p *exporter) obj(obj types.Object) {
 }
 
 func (p *exporter) pos(obj types.Object) {
-	var file string
-	var line int
+	if !p.posInfoFormat {
+		return
+	}
+
+	file, line := p.fileLine(obj)
+	if file == p.prevFile {
+		// common case: write line delta
+		// delta == 0 means different file or no line change
+		delta := line - p.prevLine
+		p.int(delta)
+		if delta == 0 {
+			p.int(-1) // -1 means no file change
+		}
+	} else {
+		// different file
+		p.int(0)
+		// Encode filename as length of common prefix with previous
+		// filename, followed by (possibly empty) suffix. Filenames
+		// frequently share path prefixes, so this can save a lot
+		// of space and make export data size less dependent on file
+		// path length. The suffix is unlikely to be empty because
+		// file names tend to end in ".go".
+		n := commonPrefixLen(p.prevFile, file)
+		p.int(n)           // n >= 0
+		p.string(file[n:]) // write suffix only
+		p.prevFile = file
+		p.int(line)
+	}
+	p.prevLine = line
+}
+
+func (p *exporter) fileLine(obj types.Object) (file string, line int) {
 	if p.fset != nil {
 		pos := p.fset.Position(obj.Pos())
 		file = pos.Filename
 		line = pos.Line
 	}
+	return
+}
 
-	if file == p.prevFile && line != p.prevLine {
-		// common case: write delta-encoded line number
-		p.int(line - p.prevLine) // != 0
-	} else {
-		// uncommon case: filename changed, or line didn't change
-		p.int(0)
-		p.string(file)
-		p.int(line)
-		p.prevFile = file
+func commonPrefixLen(a, b string) int {
+	if len(a) > len(b) {
+		a, b = b, a
 	}
-	p.prevLine = line
+	// len(a) <= len(b)
+	i := 0
+	for i < len(a) && a[i] == b[i] {
+		i++
+	}
+	return i
 }
 
 func (p *exporter) qualifiedName(obj types.Object) {
@@ -454,8 +490,11 @@ func (p *exporter) paramList(params *types.Tuple, variadic bool) {
 		}
 		p.typ(t)
 		if n > 0 {
-			p.string(q.Name())
-			p.pkg(q.Pkg(), false)
+			name := q.Name()
+			p.string(name)
+			if name != "_" {
+				p.pkg(q.Pkg(), false)
+			}
 		}
 		p.string("") // no compiler-specific info
 	}
@@ -561,6 +600,20 @@ func valueToRat(x constant.Value) *big.Rat {
 		bytes[i], bytes[len(bytes)-1-i] = bytes[len(bytes)-1-i], bytes[i]
 	}
 	return new(big.Rat).SetInt(new(big.Int).SetBytes(bytes))
+}
+
+func (p *exporter) bool(b bool) bool {
+	if trace {
+		p.tracef("[")
+		defer p.tracef("= %v] ", b)
+	}
+
+	x := 0
+	if b {
+		x = 1
+	}
+	p.int(x)
+	return b
 }
 
 // ----------------------------------------------------------------------------

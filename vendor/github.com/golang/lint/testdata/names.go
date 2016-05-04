@@ -85,3 +85,7 @@ func case3_1(case3_2 int) (case3_3 string) {
 
 	return ""
 }
+
+type t struct{}
+
+func (t) LastInsertId() (int64, error) { return 0, nil } // okay because it matches a known style violation

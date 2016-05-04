@@ -6,10 +6,6 @@
 
 // This file is a copy of $GOROOT/src/go/internal/gcimporter/bimport.go, tagged for go1.5.
 
-// Copyright 2015 The Go Authors. All rights reserved.
-// Use of this source code is governed by a BSD-style
-// license that can be found in the LICENSE file.
-
 package gcimporter
 
 import (
@@ -19,6 +15,7 @@ import (
 	"go/token"
 	"go/types"
 	"sort"
+	"strings"
 	"unicode"
 	"unicode/utf8"
 )
@@ -35,8 +32,9 @@ type importer struct {
 	typList []types.Type     // in order of appearance
 
 	// position encoding
-	prevFile string
-	prevLine int
+	posInfoFormat bool
+	prevFile      string
+	prevLine      int
 
 	// debugging support
 	debugFormat bool
@@ -64,6 +62,8 @@ func BImportData(imports map[string]*types.Package, data []byte, path string) (i
 	default:
 		return p.read, nil, fmt.Errorf("invalid encoding format in export data: got %q; want 'c' or 'd'", format)
 	}
+
+	p.posInfoFormat = p.int() != 0
 
 	// --- generic export data ---
 
@@ -202,15 +202,20 @@ func (p *importer) obj(tag int) {
 }
 
 func (p *importer) pos() {
+	if !p.posInfoFormat {
+		return
+	}
+
 	file := p.prevFile
 	line := p.prevLine
-
 	if delta := p.int(); delta != 0 {
+		// line changed
 		line += delta
-	} else {
-		file = p.string()
-		line = p.int()
+	} else if n := p.int(); n >= 0 {
+		// file changed
+		file = p.prevFile[:n] + p.string()
 		p.prevFile = file
+		line = p.int()
 	}
 	p.prevLine = line
 
@@ -505,7 +510,12 @@ func (p *importer) param(named bool) (*types.Var, bool) {
 		if name == "" {
 			panic("expected named parameter")
 		}
-		pkg = p.pkg()
+		if name != "_" {
+			pkg = p.pkg()
+		}
+		if i := strings.Index(name, "·"); i > 0 {
+			name = name[:i] // cut off gc-specific parameter numbering
+		}
 	}
 
 	// read and discard compiler-specific info

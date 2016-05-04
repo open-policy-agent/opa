@@ -1,22 +1,27 @@
-hash: b87d4690bc63145c6d84283e7db811522ea81720e06458026768ccf55ae1acf5
-updated: 2016-04-22T11:25:26.611039123-07:00
+hash: b83f7fe2bc145c3d1fb1b4d2dfcd824133609907df0a90ca9372bd4d2edf34b6
+updated: 2016-05-04T13:23:16.671370976-07:00
 imports:
 - name: github.com/apcera/termtables
   version: 683d3fb424194f29991b0442b37521de9bc9d66b
+  subpackages:
+  - locale
+  - term
 - name: github.com/golang/lint
-  version: 8f348af5e29faa4262efdc14302797f23774e477
+  version: c7bacac2b21ca01afa1dee0acf64df3ce047c28f
 - name: github.com/inconshreveable/mousetrap
   version: 76626ae9c91c4f2a10f34cad8ce83ea42c93bb75
 - name: github.com/peterh/liner
-  version: 49ca65981c3cd7db64145977af1d186e9d317afa
+  version: 0e4af131b90a9786839c8b1b01717be263e8555a
+- name: github.com/pkg/errors
+  version: 0d62637d0446292fceb852ab68e3ce6e07bddc00
 - name: github.com/PuerkitoBio/pigeon
   version: a5221784523de14130c00a8c389148a1b2ad260c
 - name: github.com/spf13/cobra
-  version: 4c05eb1145f16d0e6bb4a3e1b6d769f4713cb41f
+  version: 336d629de064dbb12166b46c06039dbcfb935de1
 - name: github.com/spf13/pflag
-  version: 8f6a28b0916586e7f22fe931ae2fcfc380b1c0e6
+  version: cb88ea77998c3f024757528e3305022ab50b43be
 - name: golang.org/x/tools
-  version: 477d3b98e5c650e877b858e6c26b9de2ef46341a
+  version: 0b2f4dcf4db5371000beb66b65cde17aa91a28a2
   subpackages:
   - cmd/goimports
 devImports: []

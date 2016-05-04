@@ -19,7 +19,11 @@ import (
 	"github.com/golang/lint"
 )
 
-var minConfidence = flag.Float64("min_confidence", 0.8, "minimum confidence of a problem to print it")
+var (
+	minConfidence = flag.Float64("min_confidence", 0.8, "minimum confidence of a problem to print it")
+	setExitStatus = flag.Bool("set_exit_status", false, "set exit status to 1 if any issues are found")
+	suggestions   int
+)
 
 func usage() {
 	fmt.Fprintf(os.Stderr, "Usage of %s:\n", os.Args[0])
@@ -56,6 +60,11 @@ func main() {
 	default:
 		lintFiles(flag.Args()...)
 	}
+
+	if *setExitStatus && suggestions > 0 {
+		fmt.Fprintf(os.Stderr, "Found %d lint suggestions; failing.\n", suggestions)
+		os.Exit(1)
+	}
 }
 
 func isDir(filename string) bool {
@@ -88,6 +97,7 @@ func lintFiles(filenames ...string) {
 	for _, p := range ps {
 		if p.Confidence >= *minConfidence {
 			fmt.Printf("%v: %s\n", p.Position, p.Text)
+			suggestions++
 		}
 	}
 }
