@@ -13,8 +13,8 @@ import (
 	"strings"
 
 	"github.com/apcera/termtables"
+	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/eval"
-	"github.com/open-policy-agent/opa/opalog"
 	"github.com/peterh/liner"
 )
 
@@ -167,7 +167,7 @@ func (r *Repl) evalBufferOne() bool {
 	// The user may enter lines with comments on the end or
 	// multiple lines with comments interspersed. In these cases
 	// the parser will return multiple statements.
-	stmts, err := opalog.ParseStatements(line)
+	stmts, err := ast.ParseStatements(line)
 
 	if err != nil {
 		return false
@@ -191,7 +191,7 @@ func (r *Repl) evalBufferMulti() bool {
 		return false
 	}
 
-	stmts, err := opalog.ParseStatements(line)
+	stmts, err := ast.ParseStatements(line)
 
 	if err != nil {
 		fmt.Fprintln(r.Output, "parse error:", err)
@@ -207,15 +207,15 @@ func (r *Repl) evalBufferMulti() bool {
 
 func (r *Repl) evalStatement(stmt interface{}) bool {
 	switch stmt := stmt.(type) {
-	case opalog.Body:
+	case ast.Body:
 		return r.evalBody(stmt)
-	case *opalog.Rule:
+	case *ast.Rule:
 		return r.evalRule(stmt)
 	}
 	return false
 }
 
-func (r *Repl) evalBody(body opalog.Body) bool {
+func (r *Repl) evalBody(body ast.Body) bool {
 
 	ctx := eval.NewTopDownContext(body, r.Runtime.Store)
 	if r.Trace {
@@ -236,8 +236,8 @@ func (r *Repl) evalBody(body opalog.Body) bool {
 	err := eval.TopDown(ctx, func(ctx *eval.TopDownContext) error {
 		var err error
 		row := map[string]interface{}{}
-		ctx.Bindings.Iter(func(k, v opalog.Value) bool {
-			if _, isVar := k.(opalog.Var); !isVar {
+		ctx.Bindings.Iter(func(k, v ast.Value) bool {
+			if _, isVar := k.(ast.Var); !isVar {
 				return false
 			}
 			r, e := eval.ValueToInterface(v, ctx)
@@ -281,7 +281,7 @@ func (r *Repl) evalBody(body opalog.Body) bool {
 	return false
 }
 
-func (r *Repl) printResults(body opalog.Body, results []map[string]interface{}) {
+func (r *Repl) printResults(body ast.Body, results []map[string]interface{}) {
 	table := termtables.CreateTable()
 	r.printHeader(table, body)
 	for _, row := range results {
@@ -290,7 +290,7 @@ func (r *Repl) printResults(body opalog.Body, results []map[string]interface{}) 
 	fmt.Fprintf(r.Output, table.Render())
 }
 
-func (r *Repl) printHeader(table *termtables.Table, body opalog.Body) {
+func (r *Repl) printHeader(table *termtables.Table, body ast.Body) {
 
 	// Build set of fields for the output. The fields are the variables from inside the body.
 	// If the variable appears multiple times, we only want a single field so store them in a
@@ -300,11 +300,11 @@ func (r *Repl) printHeader(table *termtables.Table, body opalog.Body) {
 	// TODO(tsandall): perhaps we could refactor this to use a "walk" function on the body.
 	for _, expr := range body {
 		switch ts := expr.Terms.(type) {
-		case []*opalog.Term:
+		case []*ast.Term:
 			for _, t := range ts[1:] {
 				buildHeader(fields, t)
 			}
-		case *opalog.Term:
+		case *ast.Term:
 			buildHeader(fields, ts)
 		}
 	}
@@ -350,11 +350,11 @@ func (r *Repl) printRow(table *termtables.Table, row map[string]interface{}) {
 	table.AddRow(buf...)
 }
 
-func (r *Repl) evalRule(rule *opalog.Rule) bool {
+func (r *Repl) evalRule(rule *ast.Rule) bool {
 
 	path := []interface{}{string(rule.Name)}
 
-	if err := r.Runtime.Store.Patch(eval.StorageAdd, path, []*opalog.Rule{rule}); err != nil {
+	if err := r.Runtime.Store.Patch(eval.StorageAdd, path, []*ast.Rule{rule}); err != nil {
 		fmt.Fprintln(r.Output, "unexpected error:", err)
 		return true
 	}
@@ -384,22 +384,22 @@ func (r *Repl) saveHistory(prompt *liner.State) {
 	}
 }
 
-func buildHeader(fields map[string]struct{}, term *opalog.Term) {
+func buildHeader(fields map[string]struct{}, term *ast.Term) {
 	switch v := term.Value.(type) {
-	case opalog.Ref:
+	case ast.Ref:
 		for _, t := range v[1:] {
 			buildHeader(fields, t)
 		}
-	case opalog.Var:
+	case ast.Var:
 		fields[string(v)] = struct{}{}
 
-	case opalog.Object:
+	case ast.Object:
 		for _, i := range v {
 			buildHeader(fields, i[0])
 			buildHeader(fields, i[1])
 		}
 
-	case opalog.Array:
+	case ast.Array:
 		for _, e := range v {
 			buildHeader(fields, e)
 		}

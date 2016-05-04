@@ -1,5 +1,5 @@
 {
-package opalog
+package ast
 
 //
 // BUGS: the escaped forward solidus (`\/`) is not currently handled for strings.

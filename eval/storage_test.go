@@ -12,7 +12,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/open-policy-agent/opa/opalog"
+	"github.com/open-policy-agent/opa/ast"
 )
 
 func TestLoadFromJSONFiles(t *testing.T) {
@@ -291,7 +291,7 @@ func TestStorageIndexingAddDeepRef(t *testing.T) {
 	}
 }
 
-func newStorageWithIndices(r ...opalog.Ref) *Storage {
+func newStorageWithIndices(r ...ast.Ref) *Storage {
 	data := loadSmallTestData()
 	store := NewStorageFromJSONObject(data)
 	for _, x := range r {
@@ -300,7 +300,7 @@ func newStorageWithIndices(r ...opalog.Ref) *Storage {
 	return store
 }
 
-func mustBuild(store *Storage, ref opalog.Ref) {
+func mustBuild(store *Storage, ref ast.Ref) {
 	err := store.Indices.Build(store, ref)
 	if err != nil {
 		panic(err)
@@ -320,9 +320,9 @@ func path(input interface{}) []interface{} {
 		return input
 	case string:
 		switch v := parseTerm(input).Value.(type) {
-		case opalog.Var:
+		case ast.Var:
 			return []interface{}{string(v)}
-		case opalog.Ref:
+		case ast.Ref:
 			path, err := v.Underlying()
 			if err != nil {
 				panic(err)

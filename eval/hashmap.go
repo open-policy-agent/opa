@@ -7,11 +7,11 @@ package eval
 import "fmt"
 import "strings"
 
-import "github.com/open-policy-agent/opa/opalog"
+import "github.com/open-policy-agent/opa/ast"
 
 type hashEntry struct {
-	k    opalog.Value
-	v    opalog.Value
+	k    ast.Value
+	v    ast.Value
 	next *hashEntry
 }
 
@@ -26,7 +26,7 @@ func newHashMap() *hashMap {
 
 func (hm *hashMap) Copy() *hashMap {
 	cpy := newHashMap()
-	hm.Iter(func(k, v opalog.Value) bool {
+	hm.Iter(func(k, v ast.Value) bool {
 		cpy.Put(k, v)
 		return false
 	})
@@ -37,7 +37,7 @@ func (hm *hashMap) Equal(other *hashMap) bool {
 	if hm.Len() != other.Len() {
 		return false
 	}
-	return !hm.Iter(func(k, v opalog.Value) bool {
+	return !hm.Iter(func(k, v ast.Value) bool {
 		ov := other.Get(k)
 		if ov == nil {
 			return true
@@ -46,7 +46,7 @@ func (hm *hashMap) Equal(other *hashMap) bool {
 	})
 }
 
-func (hm *hashMap) Get(k opalog.Value) opalog.Value {
+func (hm *hashMap) Get(k ast.Value) ast.Value {
 	hash := k.Hash()
 	for entry := hm.table[hash]; entry != nil; entry = entry.next {
 		if entry.k.Equal(k) {
@@ -58,7 +58,7 @@ func (hm *hashMap) Get(k opalog.Value) opalog.Value {
 
 func (hm *hashMap) Hash() int {
 	var hash int
-	hm.Iter(func(k, v opalog.Value) bool {
+	hm.Iter(func(k, v ast.Value) bool {
 		hash += k.Hash() + v.Hash()
 		return false
 	})
@@ -69,7 +69,7 @@ func (hm *hashMap) Hash() int {
 // If the iter function returns true, iteration stops and the return value is true.
 // If the iter function never returns true, iteration proceeds through all elements
 // and the return value is false.
-func (hm *hashMap) Iter(iter func(opalog.Value, opalog.Value) bool) bool {
+func (hm *hashMap) Iter(iter func(ast.Value, ast.Value) bool) bool {
 	for _, entry := range hm.table {
 		for ; entry != nil; entry = entry.next {
 			if iter(entry.k, entry.v) {
@@ -84,7 +84,7 @@ func (hm *hashMap) Len() int {
 	return hm.size
 }
 
-func (hm *hashMap) Put(k opalog.Value, v opalog.Value) {
+func (hm *hashMap) Put(k ast.Value, v ast.Value) {
 	hash := k.Hash()
 	head := hm.table[hash]
 	for entry := head; entry != nil; entry = entry.next {
@@ -99,7 +99,7 @@ func (hm *hashMap) Put(k opalog.Value, v opalog.Value) {
 
 func (hm *hashMap) String() string {
 	var buf []string
-	hm.Iter(func(k opalog.Value, v opalog.Value) bool {
+	hm.Iter(func(k ast.Value, v ast.Value) bool {
 		buf = append(buf, fmt.Sprintf("%v: %v", k, v))
 		return false
 	})
@@ -111,7 +111,7 @@ func (hm *hashMap) String() string {
 // from the other hashMap overwrites the value from this hashMap.
 func (hm *hashMap) Update(other *hashMap) *hashMap {
 	updated := hm.Copy()
-	other.Iter(func(k, v opalog.Value) bool {
+	other.Iter(func(k, v ast.Value) bool {
 		updated.Put(k, v)
 		return false
 	})

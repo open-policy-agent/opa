@@ -2,7 +2,7 @@
 // Use of this source code is governed by an Apache2
 // license that can be found in the LICENSE file.
 
-package opalog
+package ast
 
 import (
 	"fmt"
@@ -38,7 +38,7 @@ func TestQuery(t *testing.T) {
 		{"object nested", `e[100]`, []string{`["true"]`, "[{}]"}},
 		{"vars", `a[i][j][k]`, []string{`[[4], "d"]`, `[{i:0, j:1, k:"b"}, {i:0, j:2, k:"c"}]`}},
 		{"vars/mixed", `a[0][j][k]`, []string{`[[4], "d"]`, `[{j:1, k:"b"}, {j:2, k:"c"}]`}},
-		{"array bad index type", `a["0"]`, fmt.Errorf(`unexpected non-numeric index in ["0"]: "0" (opalog.String)`)},
+		{"array bad index type", `a["0"]`, fmt.Errorf(`unexpected non-numeric index in ["0"]: "0" (ast.String)`)},
 		{"array bad index value", "a[1]", fmt.Errorf(`unexpected index in [1]: out of bounds: 1`)},
 		{"array bad element type", "a[0][0][1]", fmt.Errorf(`unexpected non-composite at [0][1]: true`)},
 		{"object bad key", `e["hello"]`, fmt.Errorf(`missing key "hello": ["hello"]`)},

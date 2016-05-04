@@ -10,7 +10,7 @@ import "encoding/json"
 import "reflect"
 import "sort"
 
-import "github.com/open-policy-agent/opa/opalog"
+import "github.com/open-policy-agent/opa/ast"
 
 func TestEvalRef(t *testing.T) {
 
@@ -169,16 +169,16 @@ func TestEvalTerms(t *testing.T) {
 
 func TestPlugValue(t *testing.T) {
 
-	a := opalog.Var("a")
-	b := opalog.Var("b")
-	c := opalog.Var("c")
-	k := opalog.Var("k")
-	v := opalog.Var("v")
+	a := ast.Var("a")
+	b := ast.Var("b")
+	c := ast.Var("c")
+	k := ast.Var("k")
+	v := ast.Var("v")
 	cs := parseTerm("[c]").Value
 	ks := parseTerm(`{k: "world"}`).Value
 	vs := parseTerm(`{"hello": v}`).Value
-	hello := opalog.String("hello")
-	world := opalog.String("world")
+	hello := ast.String("hello")
+	world := ast.String("world")
 
 	ctx1 := &TopDownContext{Bindings: newHashMap()}
 	ctx1 = ctx1.BindVar(a, b)
@@ -522,9 +522,9 @@ func loadExpectedBindings(input string) []*hashMap {
 		for k, v := range bindings {
 			switch v := v.(type) {
 			case string:
-				buf.Put(opalog.Var(k), opalog.String(v))
+				buf.Put(ast.Var(k), ast.String(v))
 			case float64:
-				buf.Put(opalog.Var(k), opalog.Number(v))
+				buf.Put(ast.Var(k), ast.Number(v))
 			default:
 				panic("unreachable")
 			}
@@ -607,12 +607,12 @@ func loadSmallTestData() map[string]interface{} {
 	return data
 }
 
-func newStorage(data map[string]interface{}, rules []*opalog.Rule) *Storage {
-	byName := map[opalog.Var][]*opalog.Rule{}
+func newStorage(data map[string]interface{}, rules []*ast.Rule) *Storage {
+	byName := map[ast.Var][]*ast.Rule{}
 	for _, rule := range rules {
 		s, ok := byName[rule.Name]
 		if !ok {
-			s = []*opalog.Rule{}
+			s = []*ast.Rule{}
 		}
 		s = append(s, rule)
 		byName[rule.Name] = s
@@ -627,29 +627,29 @@ func newStorage(data map[string]interface{}, rules []*opalog.Rule) *Storage {
 	return store
 }
 
-func parseBody(input string) opalog.Body {
-	return opalog.MustParseStatement(input).(opalog.Body)
+func parseBody(input string) ast.Body {
+	return ast.MustParseStatement(input).(ast.Body)
 }
 
-func parseRef(input string) opalog.Ref {
-	body := opalog.MustParseStatement(input).(opalog.Body)
-	return body[0].Terms.(*opalog.Term).Value.(opalog.Ref)
+func parseRef(input string) ast.Ref {
+	body := ast.MustParseStatement(input).(ast.Body)
+	return body[0].Terms.(*ast.Term).Value.(ast.Ref)
 }
 
-func parseRule(input string) *opalog.Rule {
-	return opalog.MustParseStatement(input).(*opalog.Rule)
+func parseRule(input string) *ast.Rule {
+	return ast.MustParseStatement(input).(*ast.Rule)
 }
 
-func parseRules(input []string) []*opalog.Rule {
-	rules := []*opalog.Rule{}
+func parseRules(input []string) []*ast.Rule {
+	rules := []*ast.Rule{}
 	for i := range input {
 		rules = append(rules, parseRule(input[i]))
 	}
 	return rules
 }
 
-func parseTerm(input string) *opalog.Term {
-	return opalog.MustParseStatement(input).(opalog.Body)[0].Terms.(*opalog.Term)
+func parseTerm(input string) *ast.Term {
+	return ast.MustParseStatement(input).(ast.Body)[0].Terms.(*ast.Term)
 }
 
 func runTopDownTestCase(t *testing.T, data map[string]interface{}, i int, note string, rules []string, expected interface{}) {
@@ -676,8 +676,8 @@ func runTopDownTestCase(t *testing.T, data map[string]interface{}, i int, note s
 			t.Errorf("Test case %d (%v): unexpected error: %v", i+1, note, err)
 			return
 		}
-		switch store.MustGet([]interface{}{"p"}).([]*opalog.Rule)[0].DocKind() {
-		case opalog.PartialSetDoc:
+		switch store.MustGet([]interface{}{"p"}).([]*ast.Rule)[0].DocKind() {
+		case ast.PartialSetDoc:
 			sort.Sort(ResultSet(result.([]interface{})))
 		}
 		if !reflect.DeepEqual(result, expected) {

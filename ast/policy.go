@@ -2,7 +2,7 @@
 // Use of this source code is governed by an Apache2
 // license that can be found in the LICENSE file.
 
-package opalog
+package ast
 
 import "fmt"
 import "strings"
@@ -43,7 +43,7 @@ type (
 		Alias    Var
 	}
 
-	// Rule represents a rule as defined by Opalog. Rules define the
+	// Rule represents a rule as defined in the language. Rules define the
 	// content of documents that represent policy decisions.
 	Rule struct {
 		Location *Location
