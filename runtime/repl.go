@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math/rand"
 	"os"
 	"sort"
 	"strings"
@@ -155,6 +156,45 @@ func (r *Repl) cmdTrace() bool {
 	return false
 }
 
+func (r *Repl) compileBody(body ast.Body) (ast.Body, error) {
+	rule := &ast.Rule{
+		Name: ast.Var(randString(32)),
+		Body: body,
+	}
+	// TODO(tsandall): refactor to use current implicit module
+	p := ast.Ref{ast.DefaultRootDocument}
+	m := &ast.Module{
+		Package: &ast.Package{
+			Path: p,
+		},
+		Rules: []*ast.Rule{rule},
+	}
+	c := ast.NewCompiler()
+	c.Compile([]*ast.Module{m})
+	if len(c.Errors) > 0 {
+		return nil, fmt.Errorf(c.FlattenErrors())
+	}
+	return c.Modules[0].Rules[0].Body, nil
+}
+
+func (r *Repl) compileRule(rule *ast.Rule) (*ast.Rule, error) {
+	// TODO(tsandall): refactor to use current implicit module
+	// TODO(tsandall): refactor to update current implicit module
+	p := ast.Ref{ast.DefaultRootDocument}
+	m := &ast.Module{
+		Package: &ast.Package{
+			Path: p,
+		},
+		Rules: []*ast.Rule{rule},
+	}
+	c := ast.NewCompiler()
+	c.Compile([]*ast.Module{m})
+	if len(c.Errors) > 0 {
+		return nil, fmt.Errorf(c.FlattenErrors())
+	}
+	return c.Modules[0].Rules[0], nil
+}
+
 func (r *Repl) evalBufferOne() bool {
 
 	line := strings.Join(r.Buffer, "\n")
@@ -206,11 +246,21 @@ func (r *Repl) evalBufferMulti() bool {
 }
 
 func (r *Repl) evalStatement(stmt interface{}) bool {
-	switch stmt := stmt.(type) {
+	switch s := stmt.(type) {
 	case ast.Body:
-		return r.evalBody(stmt)
+		s, err := r.compileBody(s)
+		if err != nil {
+			fmt.Fprintln(r.Output, "compile error:", err)
+			return false
+		}
+		return r.evalBody(s)
 	case *ast.Rule:
-		return r.evalRule(stmt)
+		s, err := r.compileRule(s)
+		if err != nil {
+			fmt.Fprintln(r.Output, "compile error:", err)
+			return false
+		}
+		return r.evalRule(s)
 	}
 	return false
 }
@@ -404,4 +454,15 @@ func buildHeader(fields map[string]struct{}, term *ast.Term) {
 			buildHeader(fields, e)
 		}
 	}
+}
+
+// randString returns a random string of letters.
+// http://stackoverflow.com/a/31832326
+func randString(length int) string {
+	letters := []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
+	s := make([]rune, length)
+	for i := range s {
+		s[i] = letters[rand.Intn(len(letters))]
+	}
+	return string(s)
 }

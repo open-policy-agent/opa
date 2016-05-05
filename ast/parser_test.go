@@ -11,6 +11,27 @@ import (
 
 var _ = fmt.Printf
 
+const (
+	testModule = `
+package opa.examples                            # this policy belongs the opa.examples package
+
+import data.servers                             # import the data.servers document to refer to it as "servers" instead of "data.servers"
+import data.networks                            # same but for data.networks
+import data.ports                               # same but for data.ports
+
+violations[server] :-                           # a server exists in the violations set if:
+    server = servers[_],                        # the server exists in the servers collection
+    server.protocols[_] = "http",               # and the server has http in its protocols collection
+    public_servers[server]                      # and the server exists in the public_servers set
+
+public_servers[server] :-                       # a server exists in the public_servers set if:
+    server = servers[_],                        # the server exists in the servers collection
+    server.ports[_] = ports[i].id,              # and the server is connected to a port in the ports collection
+    ports[i].networks[_] = networks[j].id,      # and the port is connected to a network in the networks collection
+    networks[j].public = true                   # and the network is public
+    `
+)
+
 func TestScalarTerms(t *testing.T) {
 	assertParseOneTerm(t, "null", "null", NullTerm())
 	assertParseOneTerm(t, "true", "true", BooleanTerm(true))
@@ -284,25 +305,6 @@ func TestComments(t *testing.T) {
 }
 
 func TestExample(t *testing.T) {
-	testModule := `
-package opa.examples                            # this policy belongs the opa.examples package
-
-import data.servers                             # import the data.servers document to refer to it as "servers" instead of "data.servers"
-import data.networks                            # same but for data.networks
-import data.ports                               # same but for data.ports
-
-violations[server] :-                           # a server exists in the violations set if:
-    server = servers[_],                        # the server exists in the servers collection
-    server.protocols[_] = "http",               # and the server has http in its protocols collection
-    public_servers[server]                      # and the server exists in the public_servers set
-
-public_servers[server] :-                       # a server exists in the public_servers set if:
-    server = servers[_],                        # the server exists in the servers collection
-    server.ports[_] = ports[i].id,              # and the server is connected to a port in the ports collection
-    ports[i].networks[_] = networks[j].id,      # and the port is connected to a network in the networks collection
-    networks[j].public = true                   # and the network is public
-    `
-
 	assertParseModule(t, "example module", testModule, &Module{
 		Package: MustParseStatement("package opa.examples").(*Package),
 		Imports: []*Import{

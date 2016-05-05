@@ -21,12 +21,15 @@ func (t *mockTracer) Trace(ctx *TopDownContext, f string, a ...interface{}) {
 
 func TestTracer(t *testing.T) {
 
-	rules := parseRules([]string{
+	mods := compileRules([]string{"data.a"}, []string{
 		"p[x] :- q[x] = y",
 		"q[i] = j :- a[i] = j",
 	})
 
-	store := newStorage(loadSmallTestData(), rules)
+	store, err := NewStorage([]map[string]interface{}{loadSmallTestData()}, mods)
+	if err != nil {
+		panic(err)
+	}
 
 	tracer := &mockTracer{[]string{}}
 

@@ -13,9 +13,9 @@ import (
 
 // Params stores the configuration for an OPA instance.
 type Params struct {
-	Server       bool
-	BaseDocPaths []string
-	HistoryPath  string
+	Server      bool
+	Paths       []string
+	HistoryPath string
 }
 
 // Runtime represents a single OPA instance.
@@ -26,7 +26,7 @@ type Runtime struct {
 // Start is the entry point of an OPA instance.
 func (rt *Runtime) Start(params *Params) {
 
-	store, err := eval.NewStorageFromJSONFiles(params.BaseDocPaths)
+	store, err := eval.NewStorageFromFiles(params.Paths)
 
 	if err != nil {
 		fmt.Println("failed to open storage:", err)

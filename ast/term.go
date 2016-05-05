@@ -8,6 +8,7 @@ import "fmt"
 import "regexp"
 import "strconv"
 import "strings"
+import "hash/fnv"
 
 // Location records a position in source code
 type Location struct {
@@ -202,7 +203,9 @@ func (str String) String() string {
 
 // Hash returns the hash code for the Value.
 func (str String) Hash() int {
-	return stringHash(string(str))
+	h := fnv.New64a()
+	h.Write([]byte(str))
+	return int(h.Sum64())
 }
 
 // Var represents a variable as defined by the language.
@@ -226,7 +229,9 @@ func (variable Var) Equal(other Value) bool {
 
 // Hash returns the hash code for the Value.
 func (variable Var) Hash() int {
-	return stringHash(string(variable))
+	h := fnv.New64a()
+	h.Write([]byte(variable))
+	return int(h.Sum64())
 }
 
 // IsGround always returns false.
@@ -277,6 +282,9 @@ func (ref Ref) IsGround() bool {
 var varRegexp = regexp.MustCompile("^[[:alpha:]_][[:alpha:][:digit:]_]*$")
 
 func (ref Ref) String() string {
+	if len(ref) == 0 {
+		return ""
+	}
 	var buf []string
 	path := ref
 	switch v := ref[0].Value.(type) {
@@ -329,7 +337,7 @@ func (ref Ref) Underlying() ([]interface{}, error) {
 	case Null:
 		r = append(r, nil)
 	default:
-		panic(fmt.Sprintf("illegal value: %v", head))
+		panic(fmt.Sprintf("illegal value: %v %v", head, ref))
 	}
 
 	for _, v := range ref[1:] {
@@ -343,7 +351,7 @@ func (ref Ref) Underlying() ([]interface{}, error) {
 		case Null:
 			r = append(r, nil)
 		default:
-			panic(fmt.Sprintf("illegal value: %v", v))
+			panic(fmt.Sprintf("illegal value: %v %v", v, ref))
 		}
 	}
 
@@ -552,16 +560,6 @@ func queryRec(v Value, ref Ref, tail Ref, keys map[Var]Value, iter QueryIterator
 		}
 	}
 	return nil
-}
-
-func stringHash(s string) int {
-	// FNV-1a hashing
-	var hash uint32
-	for i := 0; i < len(s); i++ {
-		hash ^= uint32(s[i])
-		hash *= 16777619
-	}
-	return int(hash)
 }
 
 func termSliceEqual(a, b []*Term) bool {

@@ -4,13 +4,15 @@
 
 package eval
 
-import "testing"
-import "fmt"
-import "encoding/json"
-import "reflect"
-import "sort"
+import (
+	"encoding/json"
+	"fmt"
+	"reflect"
+	"sort"
+	"testing"
 
-import "github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/ast"
+)
 
 func TestEvalRef(t *testing.T) {
 
@@ -18,12 +20,12 @@ func TestEvalRef(t *testing.T) {
 		ref      string
 		expected interface{}
 	}{
-		{"c[i][j]", `[
+		{"data.c[i][j]", `[
             {"i": 0, "j": "x"},
             {"i": 0, "j": "y"},
             {"i": 0, "j": "z"}
          ]`},
-		{"c[i][j][k]", `[
+		{"data.c[i][j][k]", `[
             {"i": 0, "j": "x", "k": 0},
             {"i": 0, "j": "x", "k": 1},
             {"i": 0, "j": "x", "k": 2},
@@ -32,28 +34,28 @@ func TestEvalRef(t *testing.T) {
             {"i": 0, "j": "z", "k": "p"},
             {"i": 0, "j": "z", "k": "q"}
         ]`},
-		{"d[x][y]", `[
+		{"data.d[x][y]", `[
             {"x": "e", "y": 0},
             {"x": "e", "y": 1}
         ]`},
-		{`c[i]["x"][k]`, `[
+		{`data.c[i]["x"][k]`, `[
             {"i": 0, "k": 0},
             {"i": 0, "k": 1},
             {"i": 0, "k": 2}
         ]`},
-		{"c[i][j][i]", `[
+		{"data.c[i][j][i]", `[
             {"i": 0, "j": "x"},
             {"i": 0, "j": "y"}
         ]`},
-		{`c[i]["deadbeef"][k]`, nil},
-		{`c[999]`, nil},
+		{`data.c[i]["deadbeef"][k]`, nil},
+		{`data.c[999]`, nil},
 	}
 
 	data := loadSmallTestData()
 
 	ctx := &TopDownContext{
 		Store:    NewStorageFromJSONObject(data),
-		Bindings: newHashMap(),
+		Bindings: NewBindings(),
 	}
 
 	for i, tc := range tests {
@@ -61,7 +63,7 @@ func TestEvalRef(t *testing.T) {
 		switch e := tc.expected.(type) {
 		case nil:
 			var tmp *TopDownContext
-			err := evalRef(ctx, parseRef(tc.ref), func(ctx *TopDownContext) error {
+			err := evalRef(ctx, ast.MustParseRef(tc.ref), func(ctx *TopDownContext) error {
 				tmp = ctx
 				return nil
 			})
@@ -74,10 +76,10 @@ func TestEvalRef(t *testing.T) {
 			}
 		case string:
 			expected := loadExpectedBindings(e)
-			err := evalRef(ctx, parseRef(tc.ref), func(ctx *TopDownContext) error {
+			err := evalRef(ctx, ast.MustParseRef(tc.ref), func(ctx *TopDownContext) error {
 				if len(expected) > 0 {
 					for j, exp := range expected {
-						if reflect.DeepEqual(exp, ctx.Bindings) {
+						if exp.Equal(ctx.Bindings) {
 							tmp := expected[:j]
 							expected = append(tmp, expected[j+1:]...)
 							return nil
@@ -105,7 +107,7 @@ func TestEvalTerms(t *testing.T) {
 		body     string
 		expected string
 	}{
-		{"c[i][j][k] = x", `[
+		{"data.c[i][j][k] = x", `[
             {"i": 0, "j": "x", "k": 0},
             {"i": 0, "j": "x", "k": 1},
             {"i": 0, "j": "x", "k": 2},
@@ -114,7 +116,7 @@ func TestEvalTerms(t *testing.T) {
             {"i": 0, "j": "z", "k": "p"},
             {"i": 0, "j": "z", "k": "q"}
         ]`},
-		{"a[i] = h[j][k]", `[
+		{"data.a[i] = data.h[j][k]", `[
             {"i": 0, "j": 0, "k": 0},
 			{"i": 1, "j": 0, "k": 1},
 			{"i": 1, "j": 1, "k": 0},
@@ -122,14 +124,14 @@ func TestEvalTerms(t *testing.T) {
 			{"i": 2, "j": 1, "k": 1},
 			{"i": 3, "j": 1, "k": 2}
         ]`},
-		{`d[x][y] = "baz"`, `[
+		{`data.d[x][y] = "baz"`, `[
 			{"x": "e", "y": 1}
 		]`},
-		{"d[x][y] = d[x][y]", `[
+		{"data.d[x][y] = data.d[x][y]", `[
 			{"x": "e", "y": 0},
 			{"x": "e", "y": 1}
 		]`},
-		{"d[x][y] = z[i]", `[]`},
+		{"data.d[x][y] = data.z[i]", `[]`},
 	}
 
 	data := loadSmallTestData()
@@ -137,9 +139,9 @@ func TestEvalTerms(t *testing.T) {
 	for i, tc := range tests {
 
 		ctx := &TopDownContext{
-			Query:    parseBody(tc.body),
+			Query:    ast.MustParseBody(tc.body),
 			Store:    NewStorageFromJSONObject(data),
-			Bindings: newHashMap(),
+			Bindings: NewBindings(),
 		}
 
 		expected := loadExpectedBindings(tc.expected)
@@ -147,7 +149,7 @@ func TestEvalTerms(t *testing.T) {
 		err := evalTerms(ctx, func(ctx *TopDownContext) error {
 			if len(expected) > 0 {
 				for j, exp := range expected {
-					if reflect.DeepEqual(exp, ctx.Bindings) {
+					if exp.Equal(ctx.Bindings) {
 						tmp := expected[:j]
 						expected = append(tmp, expected[j+1:]...)
 						return nil
@@ -174,25 +176,25 @@ func TestPlugValue(t *testing.T) {
 	c := ast.Var("c")
 	k := ast.Var("k")
 	v := ast.Var("v")
-	cs := parseTerm("[c]").Value
-	ks := parseTerm(`{k: "world"}`).Value
-	vs := parseTerm(`{"hello": v}`).Value
+	cs := ast.MustParseTerm("[c]").Value
+	ks := ast.MustParseTerm(`{k: "world"}`).Value
+	vs := ast.MustParseTerm(`{"hello": v}`).Value
 	hello := ast.String("hello")
 	world := ast.String("world")
 
-	ctx1 := &TopDownContext{Bindings: newHashMap()}
+	ctx1 := &TopDownContext{Bindings: NewBindings()}
 	ctx1 = ctx1.BindVar(a, b)
 	ctx1 = ctx1.BindVar(b, cs)
 	ctx1 = ctx1.BindVar(c, ks)
 	ctx1 = ctx1.BindVar(k, hello)
 
-	ctx2 := &TopDownContext{Bindings: newHashMap()}
+	ctx2 := &TopDownContext{Bindings: NewBindings()}
 	ctx2 = ctx2.BindVar(a, b)
 	ctx2 = ctx2.BindVar(b, cs)
 	ctx2 = ctx2.BindVar(c, vs)
 	ctx2 = ctx2.BindVar(v, world)
 
-	expected := parseTerm(`[{"hello": "world"}]`).Value
+	expected := ast.MustParseTerm(`[{"hello": "world"}]`).Value
 
 	r1 := plugValue(a, ctx1.Bindings)
 
@@ -320,7 +322,7 @@ func TestTopDownEqExpr(t *testing.T) {
 		{"ground: ref 4", `p = true :- c[0].x[1] = c[0].z["q"]`, "true"},
 
 		// variables
-		{"var: a=b=c", "p[a] :- a = b, c = 42, b = c", "[42]"},
+		{"var: x=y=z", "p[x] :- x = y, z = 42, y = z", "[42]"},
 		{"var: ref value", "p = true :- a[3] = x, x = 4", "true"},
 		{"var: ref values", "p = true :- a[i] = x, x = 2", "true"},
 		{"var: ref key", "p = true :- a[i] = 4, x = 3", "true"},
@@ -350,9 +352,9 @@ func TestTopDownEqExpr(t *testing.T) {
 		{"pattern: object multiple vars 2", `p[z] :- {"x": x, "y": 2} = {"x": 1, "y": y}, z = [x, y]`, "[[1, 2]]"},
 		{"pattern: object ref", `p[x] :- {"p": c[0].x[0], "q": x} = c[i][j]`, `[false]`},
 		{"pattern: object non-ground ref", `p[x] :- {"a": 1, "b": x} = {"a": 1, "b": c[0].x[i]}`, `[true, false, "foo"]`},
-		{"pattern: object = ref", `p[x] :- {"p": a, "q": b} = c[i][j], x = [i, j, a, b]`, `[[0, "z", true, false]]`},
-		{"pattern: object = ref (reversed)", `p[x] :- c[i][j] = {"p": a, "q": b}, x = [i, j, a, b]`, `[[0, "z", true, false]]`},
-		{"pattern: object = var", `p[x] :- {"a": 1, "b": b} = x, b = 2`, `[{"a": 1, "b": 2}]`},
+		{"pattern: object = ref", `p[x] :- {"p": y, "q": z} = c[i][j], x = [i, j, y, z]`, `[[0, "z", true, false]]`},
+		{"pattern: object = ref (reversed)", `p[x] :- c[i][j] = {"p": y, "q": z}, x = [i, j, y, z]`, `[[0, "z", true, false]]`},
+		{"pattern: object = var", `p[x] :- {"a": 1, "b": y} = x, y = 2`, `[{"a": 1, "b": 2}]`},
 		{"pattern: object/array nested", `p[ys] :- f[i] = {"xs": [2.0], "ys": ys}`, `[[3.0]]`},
 		{"pattern: object/array nested 2", `p[v] :- f[i] = {"xs": [x], "ys": [y]}, v = [x, y]`, `[[1.0, 2.0], [2.0, 3.0]]`},
 	}
@@ -386,11 +388,11 @@ func TestTopDownVirtualDocs(t *testing.T) {
 		{"input: object undefined key 2", []string{`p = true :- q["foo"] = 2`, `q[i] = x :- a[i] = x`}, ""},
 		{"input: object dereference ground", []string{`p = true :- q[0]["x"][1] = false`, `q[i] = x :- x = c[i]`}, "true"},
 		{"input: object defererence non-ground", []string{`p = true :- q[0][x][y] = false`, `q[i] = x :- x = c[i]`}, "true"},
-		{"input: object ground var key", []string{`p[y] :- x = "b", q[x] = y`, `q[k] = v :- a = {"a": 1, "b": 2}, a[k] = v`}, "[2]"},
+		{"input: object ground var key", []string{`p[y] :- x = "b", q[x] = y`, `q[k] = v :- x = {"a": 1, "b": 2}, x[k] = v`}, "[2]"},
 		{"input: variable binding substitution", []string{
 			"p[x] = y :- r[z] = y, q[x] = z",
-			`r[k] = v :- a = {"a": 1, "b": 2, "c": 3, "d": 4}, a[k] = v`,
-			`q[y] = x :- b = {"a": "a", "b": "b", "d": "d"}, b[y] = x`},
+			`r[k] = v :- x = {"a": 1, "b": 2, "c": 3, "d": 4}, x[k] = v`,
+			`q[y] = x :- z = {"a": "a", "b": "b", "d": "d"}, z[y] = x`},
 			`{"a": 1, "b": 2, "d": 4}`},
 
 		// output from partial set and object docs
@@ -405,14 +407,14 @@ func TestTopDownVirtualDocs(t *testing.T) {
 		// input+output from partial set/object docs
 		{"i/o: objects", []string{
 			"p[x] :- q[x] = r[x]",
-			`q[x] = y :- a = {"a": 1, "b": 2, "d": 4}, a[x] = y`,
-			`r[t] = u :- b = {"a": 1, "b": 2, "c": 4, "d": 3}, b[t] = u`},
+			`q[x] = y :- z = {"a": 1, "b": 2, "d": 4}, z[x] = y`,
+			`r[k] = v :- x = {"a": 1, "b": 2, "c": 4, "d": 3}, x[k] = v`},
 			`["a", "b"]`},
 
 		{"i/o: undefined keys", []string{
 			"p[y] :- q[x], r[x] = y",
-			`q[x] :- a = ["a", "b", "c", "d"], a[i] = x`,
-			`r[k] = v :- b = {"a": 1, "b": 2, "d": 4}, b[k] = v`},
+			`q[x] :- z = ["a", "b", "c", "d"], z[y] = x`,
+			`r[k] = v :- x = {"a": 1, "b": 2, "d": 4}, x[k] = v`},
 			`[1, 2, 4]`},
 
 		// input/output to/from complete docs
@@ -420,8 +422,8 @@ func TestTopDownVirtualDocs(t *testing.T) {
 		{"input: complete object", []string{`p = true :- q["b"] = 2`, `q = {"a": 1, "b": 2} :- true`}, "true"},
 		{"input: complete array dereference ground", []string{"p = true :- q[1][1] = 3", "q = [[0,1], [2,3]] :- true"}, "true"},
 		{"input: complete object dereference ground", []string{`p = true :- q["b"][1] = 4`, `q = {"a": [1, 2], "b": [3, 4]} :- true`}, "true"},
-		{"input: complete array ground index", []string{"p[y] :- a=[1,2], a[i]=x, q[x]=y", "q = [1,2,3,4] :- true"}, "[2,3]"},
-		{"input: complete object ground key", []string{`p[y] :- a=["b","c"], a[i]=x, q[x]=y`, `q = {"a":1,"b":2,"c":3,"d":4} :- true`}, "[2,3]"},
+		{"input: complete array ground index", []string{"p[x] :- z = [1, 2], z[i] = y, q[y] = x", "q = [1,2,3,4] :- true"}, "[2,3]"},
+		{"input: complete object ground key", []string{`p[x] :- z = ["b", "c"], z[i] = y, q[y] = x`, `q = {"a":1,"b":2,"c":3,"d":4} :- true`}, "[2,3]"},
 		{"output: complete array", []string{"p[x] :- q[i] = e, x = [i,e]", "q = [1,2,3,4] :- true"}, "[[0,1],[1,2],[2,3],[3,4]]"},
 		{"output: complete object", []string{"p[x] :- q[i] = e, x = [i,e]", `q = {"a": 1, "b": 2} :- true`}, `[["a", 1], ["b", 2]]`},
 		{"output: complete array dereference non-ground", []string{"p[r] :- q[i][j] = 2, r = [i, j]", "q = [[1,2], [3,2]] :- true"}, "[[0, 1], [1, 1]]"},
@@ -455,8 +457,8 @@ func TestTopDownVarReferences(t *testing.T) {
 		{"ref binding", []string{"p[x] :- v = c[i][j], x = v[k], x = true"}, "[true, true]"},
 		{"embedded", []string{`p[x] :- v = [1,2,3], x = [{"a": v[i]}]`}, `[[{"a": 1}], [{"a": 2}], [{"a": 3}]]`},
 		{"embedded ref binding", []string{"p[x] :- v = c[i][j], w = [v[0], v[1]], x = w[y]"}, "[null, false, true, 3.14159]"},
-		{"array: ground var", []string{"p[y] :- a = [1,2,3,4], b = [1,2,999], b[i] = x, a[x] = y"}, "[2,3]"},
-		{"object: ground var", []string{`p[y] :- a = {"a": 1, "b": 2, "c": 3}, b = ["a", "c", "deadbeef"], b[i] = x, a[x] = y`}, "[1, 3]"},
+		{"array: ground var", []string{"p[x] :- i = [1,2,3,4], j = [1,2,999], j[k] = y, i[y] = x"}, "[2,3]"},
+		{"object: ground var", []string{`p[x] :- i = {"a": 1, "b": 2, "c": 3}, j = ["a", "c", "deadbeef"], j[k] = y, i[y] = x`}, "[1, 3]"},
 		{"avoids indexer", []string{"p = true :- somevar = [1,2,3], somevar[i] = 2"}, "true"},
 	}
 
@@ -501,7 +503,7 @@ func TestTopDownNegation(t *testing.T) {
 		{"neg: object values diff", []string{`p = true :- not b[_] = "goodbye"`}, ""},
 		{"neg: set contains", []string{`p = true :- not q["v0"]`, `q[x] :- b[x] = v`}, "true"},
 		{"neg: set diff", []string{`p = true :- not q["v2"]`, `q[x] :- b[x] = v`}, ""},
-		{"neg: multiple exprs", []string{"p[x] :- a[x] = i, not g[j][k] = x, f[l][m][n] = x"}, "[3]"},
+		{"neg: multiple exprs", []string{"p[x] :- a[x] = i, not g[j][k] = x, f[v][y][z] = x"}, "[3]"},
 	}
 
 	data := loadSmallTestData()
@@ -511,14 +513,81 @@ func TestTopDownNegation(t *testing.T) {
 	}
 }
 
-func loadExpectedBindings(input string) []*hashMap {
+func TestTopDownEmbeddedVirtualDoc(t *testing.T) {
+
+	mods := compileModules([]string{
+		`package b.c.d
+
+		 import data.a
+		 import data.g
+
+		 p[x] :- a[i] = x, q[x]
+		 q[x] :- g[j][k] = x`})
+
+	data := loadSmallTestData()
+	store, err := NewStorage([]map[string]interface{}{data}, mods)
+	if err != nil {
+		panic(err)
+	}
+
+	assertTopDown(t, store, 0, "deep embedded vdoc", []string{"b", "c", "d", "p"}, "[1, 2, 4]")
+}
+
+func compileModules(input []string) []*ast.Module {
+
+	mods := []*ast.Module{}
+
+	for _, i := range input {
+		mods = append(mods, ast.MustParseModule(i))
+	}
+
+	c := ast.NewCompiler()
+	if c.Compile(mods); c.Failed() {
+		panic(c.FlattenErrors())
+	}
+
+	return c.Modules
+}
+
+func compileRules(imports []string, input []string) []*ast.Module {
+
+	rules := []*ast.Rule{}
+	for _, i := range input {
+		rules = append(rules, ast.MustParseRule(i))
+	}
+
+	is := []*ast.Import{}
+	for _, i := range imports {
+		is = append(is, &ast.Import{
+			Path: ast.MustParseRef(i),
+		})
+	}
+
+	p := ast.Ref{ast.DefaultRootDocument}
+	m := &ast.Module{
+		Package: &ast.Package{
+			Path: p,
+		},
+		Imports: is,
+		Rules:   rules,
+	}
+
+	c := ast.NewCompiler()
+	if c.Compile([]*ast.Module{m}); c.Failed() {
+		panic(c.FlattenErrors())
+	}
+
+	return c.Modules
+}
+
+func loadExpectedBindings(input string) []*Bindings {
 	var data []map[string]interface{}
 	if err := json.Unmarshal([]byte(input), &data); err != nil {
 		panic(err)
 	}
-	var expected []*hashMap
+	var expected []*Bindings
 	for _, bindings := range data {
-		buf := newHashMap()
+		buf := NewBindings()
 		for k, v := range bindings {
 			switch v := v.(type) {
 			case string:
@@ -557,6 +626,12 @@ func loadExpectedSortedResult(input string) interface{} {
 	}
 }
 
+// loadSmallTestData returns base documents that are referenced
+// throughout the topdown test suite.
+//
+// Avoid the following top-level keys: i, j, k, p, q, r, v, x, y, z.
+// These are used for rule names, local variables, etc.
+//
 func loadSmallTestData() map[string]interface{} {
 	var data map[string]interface{}
 	err := json.Unmarshal([]byte(`{
@@ -586,7 +661,7 @@ func loadSmallTestData() map[string]interface{} {
 			[1,2,3],
 			[2,3,4]
 		],
-		"i": [
+		"l": [
 			{
 				"a": "bob",
 				"b": -1,
@@ -599,7 +674,7 @@ func loadSmallTestData() map[string]interface{} {
 				"d": null
 			}
 		],
-        "z": []
+        "m": []
     }`), &data)
 	if err != nil {
 		panic(err)
@@ -607,76 +682,44 @@ func loadSmallTestData() map[string]interface{} {
 	return data
 }
 
-func newStorage(data map[string]interface{}, rules []*ast.Rule) *Storage {
-	byName := map[ast.Var][]*ast.Rule{}
-	for _, rule := range rules {
-		s, ok := byName[rule.Name]
-		if !ok {
-			s = []*ast.Rule{}
-		}
-		s = append(s, rule)
-		byName[rule.Name] = s
-	}
-	store := NewStorageFromJSONObject(data)
-	for name, rules := range byName {
-		err := store.Patch(StorageAdd, []interface{}{string(name)}, rules)
-		if err != nil {
-			panic(err)
-		}
-	}
-	return store
-}
-
-func parseBody(input string) ast.Body {
-	return ast.MustParseStatement(input).(ast.Body)
-}
-
-func parseRef(input string) ast.Ref {
-	body := ast.MustParseStatement(input).(ast.Body)
-	return body[0].Terms.(*ast.Term).Value.(ast.Ref)
-}
-
-func parseRule(input string) *ast.Rule {
-	return ast.MustParseStatement(input).(*ast.Rule)
-}
-
-func parseRules(input []string) []*ast.Rule {
-	rules := []*ast.Rule{}
-	for i := range input {
-		rules = append(rules, parseRule(input[i]))
-	}
-	return rules
-}
-
-func parseTerm(input string) *ast.Term {
-	return ast.MustParseStatement(input).(ast.Body)[0].Terms.(*ast.Term)
-}
-
 func runTopDownTestCase(t *testing.T, data map[string]interface{}, i int, note string, rules []string, expected interface{}) {
+	imports := []string{}
+	for k := range data {
+		imports = append(imports, "data."+k)
+	}
+	store, err := NewStorage([]map[string]interface{}{data}, compileRules(imports, rules))
+	if err != nil {
+		panic(err)
+	}
+	assertTopDown(t, store, i, note, []string{"p"}, expected)
+}
 
-	ruleSlice := parseRules(rules)
-	store := newStorage(data, ruleSlice)
+func assertTopDown(t *testing.T, store *Storage, i int, note string, path []string, expected interface{}) {
 
 	switch e := expected.(type) {
 
 	case error:
-		result, err := TopDownQuery(&TopDownQueryParams{Store: store, Path: []string{"p"}})
+		result, err := TopDownQuery(&TopDownQueryParams{Store: store, Path: path})
 		if err == nil {
 			t.Errorf("Test case %d (%v): expected error but got: %v", i+1, note, result)
 			return
 		}
-		if !reflect.DeepEqual(err, e) {
+		if err.Error() != e.Error() {
 			t.Errorf("Test case %d (%v): expected error %v but got: %v", i+1, note, e, err)
 		}
 
 	case string:
 		expected := loadExpectedSortedResult(e)
-		result, err := TopDownQuery(&TopDownQueryParams{Store: store, Path: []string{"p"}})
+		result, err := TopDownQuery(&TopDownQueryParams{Store: store, Path: path})
 		if err != nil {
 			t.Errorf("Test case %d (%v): unexpected error: %v", i+1, note, err)
 			return
 		}
-		switch store.MustGet([]interface{}{"p"}).([]*ast.Rule)[0].DocKind() {
+		p := []interface{}{}
+		for _, x := range path {
+			p = append(p, x)
+		}
+		switch store.MustGet(p).([]*ast.Rule)[0].DocKind() {
 		case ast.PartialSetDoc:
 			sort.Sort(ResultSet(result.([]interface{})))
 		}
