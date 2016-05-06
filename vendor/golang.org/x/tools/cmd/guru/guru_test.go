@@ -160,18 +160,22 @@ func doQuery(out io.Writer, q *query, json bool) {
 	buildContext.GOPATH = "testdata"
 	pkg := filepath.Dir(strings.TrimPrefix(q.filename, "testdata/src/"))
 
-	var outputMu sync.Mutex // guards out, jsons
-	var jsons []string
-	output := func(fset *token.FileSet, qr guru.QueryResult) {
+	gopathAbs, _ := filepath.Abs(buildContext.GOPATH)
+
+	var outputMu sync.Mutex // guards outputs
+	var outputs []string    // JSON objects or lines of text
+	outputFn := func(fset *token.FileSet, qr guru.QueryResult) {
 		outputMu.Lock()
 		defer outputMu.Unlock()
 		if json {
-			jsons = append(jsons, string(qr.JSON(fset)))
+			jsonstr := string(qr.JSON(fset))
+			// Sanitize any absolute filenames that creep in.
+			jsonstr = strings.Replace(jsonstr, gopathAbs, "$GOPATH", -1)
+			outputs = append(outputs, jsonstr)
 		} else {
 			// suppress position information
 			qr.PrintPlain(func(_ interface{}, format string, args ...interface{}) {
-				fmt.Fprintf(out, format, args...)
-				io.WriteString(out, "\n")
+				outputs = append(outputs, fmt.Sprintf(format, args...))
 			})
 		}
 	}
@@ -181,7 +185,7 @@ func doQuery(out io.Writer, q *query, json bool) {
 		Build:      &buildContext,
 		Scope:      []string{pkg},
 		Reflection: true,
-		Output:     output,
+		Output:     outputFn,
 	}
 
 	if err := guru.Run(q.verb, &query); err != nil {
@@ -189,14 +193,18 @@ func doQuery(out io.Writer, q *query, json bool) {
 		return
 	}
 
-	if json {
-		if q.verb == "referrers" {
-			sort.Strings(jsons[1:]) // for determinism
-		}
-		for _, json := range jsons {
-			fmt.Fprintf(out, "%s\n", json)
-		}
-	} else {
+	// In a "referrers" query, references are sorted within each
+	// package but packages are visited in arbitrary order,
+	// so for determinism we sort them.  Line 0 is a caption.
+	if q.verb == "referrers" {
+		sort.Strings(outputs[1:])
+	}
+
+	for _, output := range outputs {
+		fmt.Fprintf(out, "%s\n", output)
+	}
+
+	if !json {
 		io.WriteString(out, "\n")
 	}
 }
@@ -226,6 +234,7 @@ func TestGuru(t *testing.T) {
 		// TODO(adonovan): most of these are very similar; combine them.
 		"testdata/src/calls-json/main.go",
 		"testdata/src/peers-json/main.go",
+		"testdata/src/definition-json/main.go",
 		"testdata/src/describe-json/main.go",
 		"testdata/src/implements-json/main.go",
 		"testdata/src/implements-methods-json/main.go",

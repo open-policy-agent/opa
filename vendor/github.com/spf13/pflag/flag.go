@@ -778,6 +778,9 @@ func (f *FlagSet) parseLongArg(s string, args []string) (a []string, err error) 
 }
 
 func (f *FlagSet) parseSingleShortArg(shorthands string, args []string) (outShorts string, outArgs []string, err error) {
+	if strings.HasPrefix(shorthands, "test.") {
+		return
+	}
 	outArgs = args
 	outShorts = shorthands[1:]
 	c := shorthands[0]

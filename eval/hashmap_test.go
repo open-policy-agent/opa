@@ -24,7 +24,7 @@ func TestHashmapOverwrite(t *testing.T) {
 	}
 }
 
-func TestIter(t *testing.T) {
+func TestHashmapIter(t *testing.T) {
 	m := newHashMap()
 	keys := []opalog.Number{opalog.Number(1), opalog.Number(2), opalog.Number(1.4)}
 	value := opalog.Null{}
@@ -47,5 +47,38 @@ func TestIter(t *testing.T) {
 	}
 	if !reflect.DeepEqual(results, expected) {
 		t.Errorf("Expected %v but got %v", expected, results)
+	}
+}
+
+func TestHashmapCompare(t *testing.T) {
+	m := newHashMap()
+	n := newHashMap()
+	k1 := opalog.String("k1")
+	k2 := opalog.String("k2")
+	k3 := opalog.String("k3")
+	v1 := parseTerm(`[{"a": 1, "b": 2}, {"c": 3}]`).Value
+	v2 := parseTerm(`[{"a": 1, "b": 2}, {"c": 4}]`).Value
+	m.Put(k1, v1)
+	if m.Equal(n) {
+		t.Errorf("Expected hash maps of different size to be non-equal for %v and %v", m, n)
+		return
+	}
+	n.Put(k1, v1)
+	if m.Hash() != n.Hash() {
+		t.Errorf("Expected hashes to equal for %v and %v", m, n)
+		return
+	}
+	if !m.Equal(n) {
+		t.Errorf("Expected hash maps to be equal for %v and %v", m, n)
+		return
+	}
+	m.Put(k2, v2)
+	n.Put(k3, v2)
+	if m.Hash() == n.Hash() {
+		t.Errorf("Did not expect hashes to equal for %v and %v", m, n)
+		return
+	}
+	if m.Equal(n) {
+		t.Errorf("Did not expect hash maps to be equal for %v and %v", m, n)
 	}
 }

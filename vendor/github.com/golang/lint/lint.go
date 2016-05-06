@@ -522,6 +522,14 @@ func (f *file) lintExported() {
 
 var allCapsRE = regexp.MustCompile(`^[A-Z0-9_]+$`)
 
+// knownNameExceptions is a set of names that are known to be exempt from naming checks.
+// This is usually because they are constrained by having to match names in the
+// standard library.
+var knownNameExceptions = map[string]bool{
+	"LastInsertId": true, // must match database/sql
+	"kWh":          true,
+}
+
 // lintNames examines all names in the file.
 // It complains if any use underscores or incorrect known initialisms.
 func (f *file) lintNames() {
@@ -532,6 +540,9 @@ func (f *file) lintNames() {
 
 	check := func(id *ast.Ident, thing string) {
 		if id.Name == "_" {
+			return
+		}
+		if knownNameExceptions[id.Name] {
 			return
 		}
 

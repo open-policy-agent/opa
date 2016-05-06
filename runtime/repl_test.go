@@ -14,6 +14,20 @@ import (
 	"github.com/open-policy-agent/opa/opalog"
 )
 
+func TestDump(t *testing.T) {
+	input := `{"a": [1,2,3,4]}`
+	var data map[string]interface{}
+	err := json.Unmarshal([]byte(input), &data)
+	if err != nil {
+		panic(err)
+	}
+	store := eval.NewStorageFromJSONObject(data)
+	var buffer bytes.Buffer
+	repl := newRepl(store, &buffer)
+	repl.cmdDump()
+	expectOutput(t, buffer.String(), "map[a:[1 2 3 4]]\n")
+}
+
 func TestOneShotEmptyBufferOneExpr(t *testing.T) {
 	store := newTestStorage()
 	var buffer bytes.Buffer
@@ -80,13 +94,13 @@ func expectOutput(t *testing.T, output string, expected string) {
 	}
 }
 
-func newRepl(store eval.Storage, buffer *bytes.Buffer) *Repl {
+func newRepl(store *eval.Storage, buffer *bytes.Buffer) *Repl {
 	runtime := &Runtime{Store: store}
 	repl := NewRepl(runtime, "", buffer)
 	return repl
 }
 
-func newTestStorage() eval.Storage {
+func newTestStorage() *eval.Storage {
 	input := `
     {
         "a": [

@@ -114,18 +114,15 @@ func TestEvalTerms(t *testing.T) {
             {"i": 0, "j": "z", "k": "p"},
             {"i": 0, "j": "z", "k": "q"}
         ]`},
-		{"d[x][y] = a[i]", `[
-            {"x": "e", "y": 0, "i": 0},
-            {"x": "e", "y": 0, "i": 1},
-            {"x": "e", "y": 0, "i": 2},
-            {"x": "e", "y": 0, "i": 3},
-            {"x": "e", "y": 1, "i": 0},
-            {"x": "e", "y": 1, "i": 1},
-            {"x": "e", "y": 1, "i": 2},
-            {"x": "e", "y": 1, "i": 3}
+		{"a[i] = h[j][k]", `[
+            {"i": 0, "j": 0, "k": 0},
+			{"i": 1, "j": 0, "k": 1},
+			{"i": 1, "j": 1, "k": 0},
+			{"i": 2, "j": 0, "k": 2},
+			{"i": 2, "j": 1, "k": 1},
+			{"i": 3, "j": 1, "k": 2}
         ]`},
-		{"d[x][y] = {1: 2}", `[
-			{"x": "e", "y": 0},
+		{`d[x][y] = "baz"`, `[
 			{"x": "e", "y": 1}
 		]`},
 		{"d[x][y] = d[x][y]", `[
@@ -460,6 +457,7 @@ func TestTopDownVarReferences(t *testing.T) {
 		{"embedded ref binding", []string{"p[x] :- v = c[i][j], w = [v[0], v[1]], x = w[y]"}, "[null, false, true, 3.14159]"},
 		{"array: ground var", []string{"p[y] :- a = [1,2,3,4], b = [1,2,999], b[i] = x, a[x] = y"}, "[2,3]"},
 		{"object: ground var", []string{`p[y] :- a = {"a": 1, "b": 2, "c": 3}, b = ["a", "c", "deadbeef"], b[i] = x, a[x] = y`}, "[1, 3]"},
+		{"avoids indexer", []string{"p = true :- somevar = [1,2,3], somevar[i] = 2"}, "true"},
 	}
 
 	data := loadSmallTestData()
@@ -588,6 +586,19 @@ func loadSmallTestData() map[string]interface{} {
 			[1,2,3],
 			[2,3,4]
 		],
+		"i": [
+			{
+				"a": "bob",
+				"b": -1,
+				"c": [1,2,3,4]
+			},
+			{
+				"a": "alice",
+				"b": 1,
+				"c": [2,3,4,5],
+				"d": null
+			}
+		],
         "z": []
     }`), &data)
 	if err != nil {
@@ -596,7 +607,7 @@ func loadSmallTestData() map[string]interface{} {
 	return data
 }
 
-func newStorage(data map[string]interface{}, rules []*opalog.Rule) Storage {
+func newStorage(data map[string]interface{}, rules []*opalog.Rule) *Storage {
 	byName := map[opalog.Var][]*opalog.Rule{}
 	for _, rule := range rules {
 		s, ok := byName[rule.Name]
@@ -608,7 +619,10 @@ func newStorage(data map[string]interface{}, rules []*opalog.Rule) Storage {
 	}
 	store := NewStorageFromJSONObject(data)
 	for name, rules := range byName {
-		store[string(name)] = rules
+		err := store.Patch(StorageAdd, []interface{}{string(name)}, rules)
+		if err != nil {
+			panic(err)
+		}
 	}
 	return store
 }
@@ -662,7 +676,7 @@ func runTopDownTestCase(t *testing.T, data map[string]interface{}, i int, note s
 			t.Errorf("Test case %d (%v): unexpected error: %v", i+1, note, err)
 			return
 		}
-		switch store["p"].([]*opalog.Rule)[0].DocKind() {
+		switch store.MustGet([]interface{}{"p"}).([]*opalog.Rule)[0].DocKind() {
 		case opalog.PartialSetDoc:
 			sort.Sort(ResultSet(result.([]interface{})))
 		}

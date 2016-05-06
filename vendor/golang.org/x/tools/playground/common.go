@@ -15,7 +15,7 @@ import (
 	"net/http"
 )
 
-const baseURL = "http://play.golang.org"
+const baseURL = "https://golang.org"
 
 func init() {
 	http.HandleFunc("/compile", bounce)

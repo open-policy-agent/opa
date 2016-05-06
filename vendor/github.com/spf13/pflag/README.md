@@ -85,7 +85,7 @@ fmt.Println("flagvar has value ", flagvar)
 ```
 
 There are helpers function to get values later if you have the FlagSet but
-it was difficult to keep up with all of the the flag pointers in your code.
+it was difficult to keep up with all of the flag pointers in your code.
 If you have a pflag.FlagSet with a flag called 'flagname' of type int you
 can use GetInt() to get the int value. But notice that 'flagname' must exist
 and it must be an int. GetString("flagname") will fail.

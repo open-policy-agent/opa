@@ -5,6 +5,7 @@
 package eval
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -134,6 +135,7 @@ func TestStoragePatch(t *testing.T) {
 		{"add arr/arr", "add", path("h[1][2]"), `"x"`, nil, path("h"), `[[1,2,3], [2,3,"x",4]]`},
 		{"add obj/arr", "add", path("d.e[1]"), `"x"`, nil, path("d"), `{"e": ["bar", "x", "baz"]}`},
 		{"add obj", "add", path("b.vNew"), `"x"`, nil, path("b"), `{"v1": "hello", "v2": "goodbye", "vNew": "x"}`},
+		{"add obj (existing)", "add", path("b.v2"), `"x"`, nil, path("b"), `{"v1": "hello", "v2": "x"}`},
 
 		{"append root/arr", "add", path(`a["-"]`), `"x"`, nil, path("a"), `[1,2,3,4,"x"]`},
 		{"append obj/arr", "add", path(`c[0].x["-"]`), `"x"`, nil, path("c[0].x"), `[true,false,"foo","x"]`},
@@ -162,11 +164,11 @@ func TestStoragePatch(t *testing.T) {
 		{"err: append obj/arr", "add", path(`c[0].deadbeef["-"]`), `"x"`, notFoundError(path("c[0].deadbeef"), doesNotExistMsg), nil, nil},
 		{"err: append arr/arr (out of range)", "add", path(`h[9999]["-"]`), `"x"`, notFoundError(path("h[9999]"), outOfRangeMsg), nil, nil},
 		{"err: append arr/arr (non-array)", "add", path(`b.v1["-"]`), "1", notFoundError(path("b.v1"), nonArrayMsg("v1")), nil, nil},
-		{"err: remove missing", "remove", path("dead.beef[0]"), "", notFoundError(path("dead.beef"), doesNotExistMsg), nil, nil},
+		{"err: remove missing", "remove", path("dead.beef[0]"), "", notFoundError(path("dead.beef[0]"), doesNotExistMsg), nil, nil},
 		{"err: remove obj (non string)", "remove", path("b[100]"), "", notFoundError(path("b[100]"), objectKeyTypeMsg(float64(100))), nil, nil},
 		{"err: remove obj (missing)", "remove", path("b.deadbeef"), "", notFoundError(path("b.deadbeef"), doesNotExistMsg), nil, nil},
 		{"err: replace root (missing)", "replace", path("deadbeef"), "1", notFoundError(path("deadbeef"), doesNotExistMsg), nil, nil},
-		{"err: replace missing", "replace", "dead.beef[1]", "1", notFoundError(path("dead.beef"), doesNotExistMsg), nil, nil},
+		{"err: replace missing", "replace", "dead.beef[1]", "1", notFoundError(path("dead.beef[1]"), doesNotExistMsg), nil, nil},
 	}
 
 	for i, tc := range tests {
@@ -237,6 +239,79 @@ func TestStoragePatch(t *testing.T) {
 
 	}
 
+}
+
+func TestStorageIndexingBasicUpdate(t *testing.T) {
+	refA := parseRef("a[i]")
+	refB := parseRef("b[x]")
+	store := newStorageWithIndices(refA, refB)
+
+	mustPatch(store, StorageAdd, path(`a["-"]`), float64(100))
+
+	index := store.Indices.Get(refA)
+	if index != nil {
+		t.Errorf("Expected index to be removed after patch: %v", index)
+	}
+
+	index = store.Indices.Get(refB)
+	if index == nil {
+		t.Errorf("Expected index to be intact after patch: %v", refB)
+	}
+}
+
+func TestStorageIndexingAddDeepPath(t *testing.T) {
+	ref := parseRef("i[x]")
+	refD := parseRef("i[x].d")
+	store := newStorageWithIndices(ref, refD)
+
+	mustPatch(store, StorageAdd, path(`i[0].c["-"]`), float64(5))
+
+	index := store.Indices.Get(ref)
+	if index != nil {
+		t.Errorf("Expected index to be removed after patch: %v", index)
+	}
+
+	index = store.Indices.Get(refD)
+	if index == nil {
+		t.Errorf("Expected index to be intact after patch: %v", refD)
+	}
+}
+
+func TestStorageIndexingAddDeepRef(t *testing.T) {
+	ref := parseRef("i[x].a")
+	store := newStorageWithIndices(ref)
+	var data interface{}
+	json.Unmarshal([]byte(`{"a": "eve", "b": 100, "c": [999,999,999]}`), &data)
+
+	mustPatch(store, StorageAdd, path(`i["-"]`), data)
+
+	index := store.Indices.Get(ref)
+	if index != nil {
+		t.Errorf("Expected index to be removed after patch: %v", index)
+	}
+}
+
+func newStorageWithIndices(r ...opalog.Ref) *Storage {
+	data := loadSmallTestData()
+	store := NewStorageFromJSONObject(data)
+	for _, x := range r {
+		mustBuild(store, x)
+	}
+	return store
+}
+
+func mustBuild(store *Storage, ref opalog.Ref) {
+	err := store.Indices.Build(store, ref)
+	if err != nil {
+		panic(err)
+	}
+}
+
+func mustPatch(store *Storage, op StorageOp, path []interface{}, value interface{}) {
+	err := store.Patch(op, path, value)
+	if err != nil {
+		panic(err)
+	}
 }
 
 func path(input interface{}) []interface{} {

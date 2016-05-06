@@ -48,14 +48,18 @@ type winSize struct {
 	xpixel, ypixel uint16
 }
 
-func (s *State) getColumns() {
+func (s *State) getColumns() bool {
 	var ws winSize
 	ok, _, _ := syscall.Syscall(syscall.SYS_IOCTL, uintptr(syscall.Stdout),
 		syscall.TIOCGWINSZ, uintptr(unsafe.Pointer(&ws)))
-	if ok < 0 {
-		s.columns = 80
+	if int(ok) < 0 {
+		return false
 	}
 	s.columns = int(ws.col)
+	if cursorColumn && s.columns > 1 {
+		s.columns--
+	}
+	return true
 }
 
 func (s *State) checkOutput() {

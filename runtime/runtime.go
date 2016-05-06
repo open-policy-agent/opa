@@ -20,7 +20,7 @@ type Params struct {
 
 // Runtime represents a single OPA instance.
 type Runtime struct {
-	Store eval.Storage
+	Store *eval.Storage
 }
 
 // Start is the entry point of an OPA instance.
