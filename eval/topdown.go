@@ -956,23 +956,18 @@ func evalRefRuleResult(ctx *TopDownContext, ref ast.Ref, suffix ast.Ref, result 
 // variables used in references involves iterating collections in storage or
 // evaluating rules identified by the references. In either case, this function
 // will invoke the iterator with each set of bindings that should be evaluated.
-//
-// TODO(tsandall): extend to support indexing.
 func evalTerms(ctx *TopDownContext, iter TopDownIterator) error {
 
 	expr := ctx.Current()
-	var ts []*ast.Term
-	switch t := expr.Terms.(type) {
-	case []*ast.Term:
-		ts = t
-	case *ast.Term:
-		ts = append(ts, t)
-	default:
-		panic(fmt.Sprintf("illegal argument: %v", t))
-	}
 
-	if indexAvailable(ctx, ts) {
+	// Check if indexing is available for this expression. Need to
+	// perform check on the plugged version of the expression, otherwise
+	// the index will return false positives.
+	plugged := plugExpr(expr, ctx.Bindings)
 
+	if indexAvailable(ctx, plugged) {
+
+		ts := plugged.Terms.([]*ast.Term)
 		ref, isRef := ts[1].Value.(ast.Ref)
 
 		if isRef {
@@ -996,6 +991,16 @@ func evalTerms(ctx *TopDownContext, iter TopDownIterator) error {
 				return evalTermsIndexed(ctx, iter, ref, ts[1])
 			}
 		}
+	}
+
+	var ts []*ast.Term
+	switch t := expr.Terms.(type) {
+	case []*ast.Term:
+		ts = t
+	case *ast.Term:
+		ts = append(ts, t)
+	default:
+		panic(fmt.Sprintf("illegal argument: %v", t))
 	}
 
 	return evalTermsRec(ctx, iter, ts)
@@ -1127,25 +1132,30 @@ func evalTermsRecObject(ctx *TopDownContext, obj ast.Object, idx int, iter TopDo
 // Indexing is used on equality expressions where both sides are non-ground refs (to base docs) or one
 // side is a non-ground ref (to a base doc) and the other side is any ground term. In the future, indexing
 // may be used on references embedded inside array/object values.
-func indexAvailable(ctx *TopDownContext, terms []*ast.Term) bool {
+func indexAvailable(ctx *TopDownContext, expr *ast.Expr) bool {
 
-	// Indexing can only be used when evaluating equality expressions.
-	if !terms[0].Value.Equal(equalityBuiltin) {
+	ts, ok := expr.Terms.([]*ast.Term)
+	if !ok {
 		return false
 	}
 
-	pluggedA := plugTerm(terms[1], ctx.Bindings)
-	pluggedB := plugTerm(terms[2], ctx.Bindings)
-
-	_, isRefA := pluggedA.Value.(ast.Ref)
-	_, isRefB := pluggedB.Value.(ast.Ref)
-
-	if isRefA && !pluggedA.IsGround() {
-		return pluggedB.IsGround() || isRefB
+	// Indexing can only be used when evaluating equality expressions.
+	if !ts[0].Value.Equal(equalityBuiltin) {
+		return false
 	}
 
-	if isRefB && !pluggedB.IsGround() {
-		return pluggedA.IsGround() || isRefA
+	a := ts[1].Value
+	b := ts[2].Value
+
+	_, isRefA := a.(ast.Ref)
+	_, isRefB := b.(ast.Ref)
+
+	if isRefA && !a.IsGround() {
+		return b.IsGround() || isRefB
+	}
+
+	if isRefB && !b.IsGround() {
+		return a.IsGround() || isRefA
 	}
 
 	return false

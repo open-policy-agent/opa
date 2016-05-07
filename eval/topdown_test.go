@@ -533,6 +533,75 @@ func TestTopDownEmbeddedVirtualDoc(t *testing.T) {
 	assertTopDown(t, store, 0, "deep embedded vdoc", []string{"b", "c", "d", "p"}, "[1, 2, 4]")
 }
 
+func TestExample(t *testing.T) {
+
+	bd := `
+		{
+			"servers": [
+				{"id": "s1", "name": "app", "protocols": ["https", "ssh"], "ports": ["p1", "p2", "p3"]},
+				{"id": "s2", "name": "db", "protocols": ["mysql"], "ports": ["p3"]},
+				{"id": "s3", "name": "cache", "protocols": ["memcache", "http"], "ports": ["p3"]},
+				{"id": "s4", "name": "dev", "protocols": ["http"], "ports": ["p1", "p2"]}
+			],
+			"networks": [
+				{"id": "n1", "public": false},
+				{"id": "n2", "public": false},
+				{"id": "n3", "public": true}
+			],
+			"ports": [
+				{"id": "p1", "networks": ["n1"]},
+				{"id": "p2", "networks": ["n3"]},
+				{"id": "p3", "networks": ["n2"]}
+			]
+		}
+	`
+
+	vd := `
+		package opa.example
+
+		import data.servers
+		import data.networks
+		import data.ports
+
+		public_servers[server] :-
+			server = servers[i],
+			server.ports[j] = ports[k].id,
+			ports[k].networks[l] = networks[m].id,
+			networks[m].public = true
+
+		violations[server] :-
+			server = servers[i],
+			server.protocols[j] = "http",
+			public_servers[server]
+	`
+
+	var doc map[string]interface{}
+
+	if err := json.Unmarshal([]byte(bd), &doc); err != nil {
+		panic(err)
+	}
+
+	mods := compileModules([]string{vd})
+
+	store, err := NewStorage([]map[string]interface{}{doc}, mods)
+	if err != nil {
+		panic(err)
+	}
+
+	assertTopDown(t, store, 0, "public servers", []string{"opa", "example", "public_servers"}, `
+		[
+			{"id": "s1", "name": "app", "protocols": ["https", "ssh"], "ports": ["p1", "p2", "p3"]},
+			{"id": "s4", "name": "dev", "protocols": ["http"], "ports": ["p1", "p2"]}
+		]
+	`)
+
+	assertTopDown(t, store, 0, "violations", []string{"opa", "example", "violations"}, `
+		[
+			{"id": "s4", "name": "dev", "protocols": ["http"], "ports": ["p1", "p2"]}
+		]
+	`)
+}
+
 func compileModules(input []string) []*ast.Module {
 
 	mods := []*ast.Module{}
