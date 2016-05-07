@@ -50,7 +50,7 @@ func objectKeyTypeMsg(v interface{}) string {
 }
 
 func nonCollectionMsg(v interface{}) string {
-	return fmt.Sprintf("path refers to non-object/non-array document with element %v", v)
+	return fmt.Sprintf("path refers to non-collection document with element %v", v)
 }
 
 func nonArrayMsg(v interface{}) string {
@@ -216,7 +216,7 @@ func (store *Storage) MakePath(path []interface{}) error {
 		case map[string]interface{}:
 		case []interface{}:
 		default:
-			return fmt.Errorf("cannot make path %v through non-collection document at %v", path, tmp)
+			return fmt.Errorf("non-collection document: %v", path)
 		}
 	}
 	return nil

@@ -179,7 +179,7 @@ func TopDownQuery(params *TopDownQueryParams) (interface{}, error) {
 		case ast.PartialSetDoc:
 			return topDownQueryPartialSetDoc(params, node)
 		default:
-			return nil, fmt.Errorf("invalid document (kind: %v): %v", node[0].DocKind(), ref)
+			return nil, fmt.Errorf("illegal document type %T: %v", node[0].DocKind(), ref)
 		}
 	default:
 		return node, nil
@@ -233,7 +233,7 @@ func ValueToInterface(v ast.Value, ctx *TopDownContext) (interface{}, error) {
 			}
 			asStr, stringKey := k.(string)
 			if !stringKey {
-				return nil, fmt.Errorf("cannot convert object with non-string key to map: %v", k)
+				return nil, fmt.Errorf("illegal object key type %T: %v", k, k)
 			}
 			v, err := ValueToInterface(x[1].Value, ctx)
 			if err != nil {
@@ -507,7 +507,7 @@ func evalEqUnifyObjectRef(ctx *TopDownContext, a ast.Object, b ast.Ref, iter Top
 
 	for i := range a {
 		if !a[i][0].IsGround() {
-			return fmt.Errorf("cannot unify object with variable key: %v", a[i][0])
+			return fmt.Errorf("illegal variable object key: %v", a[i][0])
 		}
 	}
 
@@ -524,7 +524,7 @@ func evalEqUnifyObjectRef(ctx *TopDownContext, a ast.Object, b ast.Ref, iter Top
 		// TODO(tsandall): support non-string keys in storage.
 		k, ok := a[i][0].Value.(ast.String)
 		if !ok {
-			return fmt.Errorf("cannot unify object with non-string key: %v", a[i][0])
+			return fmt.Errorf("illegal object key type %T: %v", a[i][0], a[i][0])
 		}
 
 		_, ok = obj[string(k)]
@@ -559,10 +559,10 @@ func evalEqUnifyObjects(ctx *TopDownContext, a ast.Object, b ast.Object, iter To
 
 	for i := range a {
 		if !a[i][0].IsGround() {
-			return fmt.Errorf("cannot unify object with variable key: %v", a[i][0])
+			return fmt.Errorf("illegal variable object key: %v", a[i][0])
 		}
 		if !b[i][0].IsGround() {
-			return fmt.Errorf("cannot unify object with variable key: %v", b[i][0])
+			return fmt.Errorf("illegal variable object key: %v", b[i][0])
 		}
 	}
 
@@ -608,7 +608,7 @@ func evalExpr(ctx *TopDownContext, iter TopDownIterator) error {
 		if builtin == nil {
 			// Operator validation is done at compile-time so we panic here because
 			// this should never happen.
-			panic("unreachable")
+			panic(fmt.Sprintf("illegal built-in: %v", tt[0]))
 		}
 		return builtin(ctx, expr, func(ctx *TopDownContext) error {
 			ctx.traceSuccess(expr)
@@ -622,7 +622,7 @@ func evalExpr(ctx *TopDownContext, iter TopDownIterator) error {
 			}
 			return nil
 		default:
-			return fmt.Errorf("implicit cast not supported: %v", tv)
+			return fmt.Errorf("illegal implicit cast: %v", tv)
 		}
 	default:
 		panic(fmt.Sprintf("illegal argument: %v", tt))
@@ -635,7 +635,7 @@ func evalRef(ctx *TopDownContext, ref ast.Ref, iter TopDownIterator) error {
 	if !ref[0].Equal(ast.DefaultRootDocument) {
 		v := ctx.Bindings.Get(ref[0].Value)
 		if v == nil {
-			return fmt.Errorf("unbound variable %v in: %v", ref[0], ref)
+			return fmt.Errorf("unbound variable %v: %v", ref[0], ref)
 		}
 		return evalRefRuleResult(ctx, ref, ref[1:], v, iter)
 	}
@@ -696,7 +696,7 @@ func evalRefRecEnumColl(ctx *TopDownContext, path, tail ast.Ref, iter TopDownIte
 		}
 		return nil
 	default:
-		return fmt.Errorf("unexpected non-composite encountered via reference %v at path: %v", tail, path)
+		return fmt.Errorf("non-collection document: %v", path)
 	}
 }
 
@@ -777,7 +777,7 @@ func evalRefRuleCompleteDoc(ctx *TopDownContext, ref ast.Ref, path ast.Ref, rule
 		case ast.Array:
 			return evalRefRuleResult(ctx, ref, suffix, v, iter)
 		default:
-			return fmt.Errorf("cannot dereference value (%T) in %v", rule.Value.Value, rule)
+			return fmt.Errorf("illegal dereference %T: %v", rule.Value.Value, rule)
 		}
 	})
 }
@@ -1209,7 +1209,7 @@ func indexBuildLazy(ctx *TopDownContext, ref ast.Ref) (bool, error) {
 
 func lookup(store *Storage, ref ast.Ref) (interface{}, error) {
 	if !ref[0].Equal(ast.DefaultRootDocument) {
-		return nil, fmt.Errorf("reference refers to bad root document: %v", ref[0])
+		return nil, fmt.Errorf("illegal root %v: %v", ref[0], ref)
 	}
 	path, err := ref[1:].Underlying()
 	if err != nil {
@@ -1389,7 +1389,7 @@ func topDownQueryPartialObjectDoc(params *TopDownQueryParams, rules []*ast.Rule)
 			}
 			asStr, ok := key.(string)
 			if !ok {
-				return fmt.Errorf("cannot produce object with non-string key: %v", key)
+				return fmt.Errorf("illegal object key type %T: %v", key, key)
 			}
 			value, err := dereferenceVar(value, ctx)
 			if err != nil {

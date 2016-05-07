@@ -67,7 +67,7 @@ func (r *Repl) Loop() {
 		}
 
 		if err != nil {
-			fmt.Fprintln(r.Output, "unexpected error:", err)
+			fmt.Fprintln(r.Output, "error (fatal):", err)
 			os.Exit(1)
 		}
 
@@ -234,7 +234,7 @@ func (r *Repl) evalBufferMulti() bool {
 	stmts, err := ast.ParseStatements(line)
 
 	if err != nil {
-		fmt.Fprintln(r.Output, "parse error:", err)
+		fmt.Fprintln(r.Output, "error:", err)
 		return false
 	}
 
@@ -250,14 +250,14 @@ func (r *Repl) evalStatement(stmt interface{}) bool {
 	case ast.Body:
 		s, err := r.compileBody(s)
 		if err != nil {
-			fmt.Fprintln(r.Output, "compile error:", err)
+			fmt.Fprintln(r.Output, "error:", err)
 			return false
 		}
 		return r.evalBody(s)
 	case *ast.Rule:
 		s, err := r.compileRule(s)
 		if err != nil {
-			fmt.Fprintln(r.Output, "compile error:", err)
+			fmt.Fprintln(r.Output, "error:", err)
 			return false
 		}
 		return r.evalRule(s)
@@ -313,7 +313,7 @@ func (r *Repl) evalBody(body ast.Body) bool {
 	})
 
 	if err != nil {
-		fmt.Fprintf(r.Output, "unknown error: %v\n", err)
+		fmt.Fprintf(r.Output, "error: %v\n", err)
 		return false
 	}
 
@@ -405,7 +405,7 @@ func (r *Repl) evalRule(rule *ast.Rule) bool {
 	path := []interface{}{string(rule.Name)}
 
 	if err := r.Runtime.Store.Patch(eval.StorageAdd, path, []*ast.Rule{rule}); err != nil {
-		fmt.Fprintln(r.Output, "unexpected error:", err)
+		fmt.Fprintln(r.Output, "error:", err)
 		return true
 	}
 
