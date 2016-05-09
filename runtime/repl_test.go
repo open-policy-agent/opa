@@ -10,8 +10,8 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/eval"
-	"github.com/open-policy-agent/opa/opalog"
 )
 
 func TestDump(t *testing.T) {
@@ -76,8 +76,8 @@ func TestOneShotBufferedRule(t *testing.T) {
 }
 
 func TestBuildHeader(t *testing.T) {
-	expr := opalog.MustParseStatement(`[{"a": x, "b": a.b[y]}] = [{"a": 1, "b": 2}]`).(opalog.Body)[0]
-	terms := expr.Terms.([]*opalog.Term)
+	expr := ast.MustParseStatement(`[{"a": x, "b": a.b[y]}] = [{"a": 1, "b": 2}]`).(ast.Body)[0]
+	terms := expr.Terms.([]*ast.Term)
 	result := map[string]struct{}{}
 	buildHeader(result, terms[1])
 	expected := map[string]struct{}{

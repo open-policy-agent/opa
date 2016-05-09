@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/open-policy-agent/opa/opalog"
+	"github.com/open-policy-agent/opa/ast"
 )
 
 // StorageErrorCode represents the collection of error types that can be
@@ -163,9 +163,9 @@ func (store *Storage) Patch(op StorageOp, path []interface{}, value interface{})
 	// Drop the indices that are affected by this patch. This is inefficient for mixed read-write
 	// access patterns, but it's easy and simple for now. Once we have more information about
 	// the use cases, we can optimize this.
-	r := []opalog.Ref{}
+	r := []ast.Ref{}
 
-	err := store.Indices.Iter(func(ref opalog.Ref, index *Index) error {
+	err := store.Indices.Iter(func(ref ast.Ref, index *Index) error {
 		if !commonPrefix(ref, path) {
 			return nil
 		}
@@ -202,28 +202,28 @@ func (store *Storage) String() string {
 // commonPrefix returns true the reference is a prefix of the path or vice versa.
 // The shorter value is the prefix of the other if all of the ground elements
 // are equal to the elements at the same indices in the other.
-func commonPrefix(ref opalog.Ref, path []interface{}) bool {
+func commonPrefix(ref ast.Ref, path []interface{}) bool {
 
 	min := len(ref)
 	if len(path) < min {
 		min = len(path)
 	}
 
-	cmp := func(a opalog.Value, b interface{}) bool {
+	cmp := func(a ast.Value, b interface{}) bool {
 		switch a := a.(type) {
-		case opalog.Null:
+		case ast.Null:
 			if b == nil {
 				return true
 			}
-		case opalog.Boolean:
+		case ast.Boolean:
 			if b, ok := b.(bool); ok {
 				return b == bool(a)
 			}
-		case opalog.Number:
+		case ast.Number:
 			if b, ok := b.(float64); ok {
 				return b == float64(a)
 			}
-		case opalog.String:
+		case ast.String:
 			if b, ok := b.(string); ok {
 				return b == string(a)
 			}
@@ -231,7 +231,7 @@ func commonPrefix(ref opalog.Ref, path []interface{}) bool {
 		return false
 	}
 
-	v := opalog.String(ref[0].Value.(opalog.Var))
+	v := ast.String(ref[0].Value.(ast.Var))
 
 	if !cmp(v, path[0]) {
 		return false

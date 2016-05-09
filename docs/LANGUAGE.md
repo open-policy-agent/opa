@@ -1,28 +1,28 @@
-# Opalog: OPA's Query Language
+# Rego: OPA's Query Language
 
-OPA includes a policy engine that is purpose built for reasoning about information represented in structured documents such as JSON. Data stored in in the policy engine can be queried using OPA's native query language: Opalog.
+OPA includes a policy engine that is purpose built for reasoning about information represented in structured documents such as JSON. Data stored in in the policy engine can be queried using OPA's native query language: Rego.
 
-## What is Opalog?
+## What is Rego?
 
-Opalog was inspired by [Datalog](https://en.wikipedia.org/wiki/Datalog), which is a well understood, decades old query language. Opalog extends Datalog to support structured document models such as JSON.
+Rego was inspired by [Datalog](https://en.wikipedia.org/wiki/Datalog), which is a well understood, decades old query language. Rego extends Datalog to support structured document models such as JSON.
 
-Opalog queries are assertions on data stored in OPA. These queries can be used to define policies that enumerate instances of data that violate the expected state of the system.
+Rego queries are assertions on data stored in OPA. These queries can be used to define policies that enumerate instances of data that violate the expected state of the system.
 
-## Why use Opalog?
+## Why use Rego?
 
-Use Opalog for defining policy that is easy to read and write.
+Use Rego for defining policy that is easy to read and write.
 
-Opalog focuses on providing powerful support for referencing nested documents and ensuring that queries are correct and unambiguous.
+Rego focuses on providing powerful support for referencing nested documents and ensuring that queries are correct and unambiguous.
 
-Opalog is declarative so policy authors can focus on what queries should return rather than how queries should be executed. These queries are simpler and more concise than the equivalent in an imperative language. Like other applications which support declarative query languages, OPA is able to optimize queries to improve performance, e.g., indexing, concurrent evaluation, reordering, etc.
+Rego is declarative so policy authors can focus on what queries should return rather than how queries should be executed. These queries are simpler and more concise than the equivalent in an imperative language. Like other applications which support declarative query languages, OPA is able to optimize queries to improve performance, e.g., indexing, concurrent evaluation, reordering, etc.
 
 ## The Basics
 
-This section introduces the main aspsects of Opalog.
+This section introduces the main aspsects of Rego.
 
 The simplest rule is a single expression and is defined in terms of a [Scalar Value](#scalar-values):
 
-```opalog
+```rego
 pi = 3.14159
 ```
 
@@ -35,7 +35,7 @@ pi
 
 Rules can also be defined in terms of [Composite Values](#composite-values):
 
-```opalog
+```rego
 rect = {"width": 2, "height": 4}
 ```
 
@@ -48,7 +48,7 @@ rect
 
 Many expressions are defined in terms of [Equality](#equality). These expressions can be thought of as assertions. The simplest example of a rule containing an equality expression involves two scalar values:
 
-```opalog
+```rego
 v :- 42 = "the meaning of life"
 ```
 
@@ -61,7 +61,7 @@ v
 
 The order of operands in an equality expression does not matter:
 
-```opalog
+```rego
 u :- "the meaning of life" = 42
 ```
 
@@ -74,7 +74,7 @@ u
 
 We can define rules in terms of [Variables](#variables) as well:
 
-```opalog
+```rego
 t :- x = 42, y = 41, x > y
 ```
 
@@ -89,7 +89,7 @@ t
 
 The order of expressions in a rule does not affect the document's content:
 
-```opalog
+```rego
 s :- x > y, y = 41, x = 42
 ```
 
@@ -100,9 +100,9 @@ s
 # true
 ```
 
-Opalog supports [References](#references) to nested documents. For example:
+Rego supports [References](#references) to nested documents. For example:
 
-```opalog
+```rego
 sites = [{"name": "prod"}, {"name": "smoke1"}, {"name": "dev"}]
 r :- sites[i].name = "prod"
 ```
@@ -118,7 +118,7 @@ r
 
 We can generalize the example above with a rule that defines a set document instead of a boolean document:
 
-```opalog
+```rego
 sites = [{"name": "prod"}, {"name": "smoke1"}, {"name": "dev"}]
 q[name] :- sites[i].name = name
 ```
@@ -132,7 +132,7 @@ q
 
 We can re-write the rule "r" from above to make use of "q". We will call the new rule "p":
 
-```opalog
+```rego
 p :- q["prod"]
 ```
 
@@ -154,17 +154,17 @@ q["dev"]
 ```
 
 If you made it this far, congratulations. This section introduced the main
-aspects of Opalog. The rest of this document describes the individual aspects of Opalog in detail and is useful as a reference when reading and writing policy. Opalog's syntax is defined at the end of this document in the [Opalog Grammar](#grammar) section.
+aspects of Rego. The rest of this document describes the individual aspects of Rego in detail and is useful as a reference when reading and writing policy. Rego's syntax is defined at the end of this document in the [Rego Grammar](#grammar) section.
 
 ## <a name="scalar-values"></a> Scalar Values
 
-Scalar values are the simplest type of term in Opalog. Scalar values can be
+Scalar values are the simplest type of term in Rego. Scalar values can be
 strings, numbers, booleans, or null.
 
 Documents can be defined solely in terms of scalar values. This is useful for
 defining constants that are referenced in multiple places. For example:
 
-```opalog
+```rego
 greeting   = "Hello"
 max_height = 42
 pi         = 3.14159
@@ -196,7 +196,7 @@ sentinel
 Composite values define collections. In simple cases, composite values
 can be treated as constants like [Scalar Values](#scalar-values):
 
-```opalog
+```rego
 cube = {"width": 3, "height": 4, "depth": 5}
 ```
 
@@ -210,7 +210,7 @@ cube.width
 Composite values can also be defined in terms of [Variables](#variables) or
 [References](#references). For example:
 
-```opalog
+```rego
 p[x] :-
   foo = 42,
   bar = false,
@@ -230,15 +230,15 @@ define abstractions over raw data and other rules.
 
 ## <a name="variables"></a> Variables
 
-Variables are another kind of term in Opalog. They can appear in both the
+Variables are another kind of term in Rego. They can appear in both the
 head and body of rules.
 
 Variables appearing in the head of a rule can be thought of as input and
-output of the rule. Unlike many programming languages, where a variable is either an input or an output, in Opalog a variable is simultaneously an input and an output. If a query supplies a value for a variable, that variable is an input, and if the query does not supply a value for a variable, that variable is an output.
+output of the rule. Unlike many programming languages, where a variable is either an input or an output, in Rego a variable is simultaneously an input and an output. If a query supplies a value for a variable, that variable is an input, and if the query does not supply a value for a variable, that variable is an output.
 
 For example:
 
-```opalog
+```rego
 sites = [{"name": "prod"}, {"name": "smoke1"}, {"name": "dev"}]
 q[name] :- sites[i].name = name
 ```
@@ -340,7 +340,7 @@ The underscore is special because it cannot be referred to by other parts of the
 
 Rules are often written in terms of multiple expressions that contain references to documents. In the following example, the rule defines a set of tuples where each tuple contains an application name and a hostname of a server where the application is deployed.
 
-```opalog
+```rego
 apps_and_hostnames[pair] :-
     apps[i].name = name,
     apps[i].servers[_] = server,
@@ -369,13 +369,13 @@ Don't worry about understanding everything in this example right now. There are 
 
 1. Several variables appear more than once in the body. When a variable is used in multiple locations, OPA will only produce documents for the rule with the variable bound to the same value in all expressions.
 
-2. The rule is joining the "apps" and "sites" documents implicitly. In Opalog (and other languages based on Datalog) joins are implicit.
+2. The rule is joining the "apps" and "sites" documents implicitly. In Rego (and other languages based on Datalog) joins are implicit.
 
 ### Self-Joins
 
 Using a different key on the same array or object provides the equivalent of self-join in SQL. For example, the following rule defines a document containing apps deployed on the same site as "mysql":
 
-```opalog
+```rego
 same_site[name] :-
     apps[i].name = "mysql",
     apps[i].servers[_] = server,
@@ -406,7 +406,7 @@ in the [Examples](#examples) section.
 
 The following rule documents a set containing the hostnames of all servers:
 
-```opalog
+```rego
 hostnames[name] :- sites[_].servers[_].hostname = name
 ```
 
@@ -426,7 +426,7 @@ hostnames
 # ]
 ```
 
-This example introduces a few important aspects of Opalog.
+This example introduces a few important aspects of Rego.
 
 First, the rule defines a set document where the contents are defined by the
 variable "name". We know this rule defines a set document because the head only includes a key. All rules have the following form (where key, value, and body are all optional):
@@ -435,7 +435,7 @@ variable "name". We know this rule defines a set document because the head only 
 <name> <key>? <value>? <body>?
 ```
 
-For a more formal definition of the rule syntax, see the [Opalog Grammar](#grammar) section at the end of this document.
+For a more formal definition of the rule syntax, see the [Rego Grammar](#grammar) section at the end of this document.
 
 > Set documents are collections of values without keys. OPA represents set documents as arrays when serializing to JSON or other formats which do not support a set data type. The important distinction between sets and arrays or objects is that sets are unkeyed while arrays and objects are keyed, i.e., you cannot refer to the index of an element within a set.
 
@@ -447,7 +447,7 @@ Third, the `sites[_].servers[_].hostname = name` expression binds the value of t
 
 Rules that define objects are very similar to rules that define sets.
 
-```opalog
+```rego
 apps_by_hostname[hostname] = app :-
     sites[_].servers[_] = server,
     server.hostname = hostname,
@@ -477,7 +477,7 @@ rule is the union of the document content for each of the individual rules.
 For example, we can write a rule that abstracts over our "servers" and
 "containers" data as "instances":
 
-```opalog
+```rego
 instances[instance] :-
     sites[_].servers[_] = server,
     instance = {"address": server.hostname, "name": server.name}
@@ -502,7 +502,7 @@ For safety, a variable appearing in a negated expression must also appear in ano
 
 The simplest use of negation involves only scalar values or variables and is equivalent to complementing the operator:
 
-```opalog
+```rego
 t :- 42 = x, not x = "the meaning of life"
 ```
 
@@ -520,7 +520,7 @@ collection. I.e., complementing the operator in an expression such as `p[_] =
 For example, we can write a rule that defines a document containing names of
 apps not deployed on the "prod" site:
 
-```opalog
+```rego
 not_in_production[name] :-
     apps[i].name = name,
     not prod_server_names[name]
@@ -539,7 +539,7 @@ not_in_production
 
 ## Modules
 
-In Opalog, policies are defined inside *modules*. Modules consist of:
+In Rego, policies are defined inside *modules*. Modules consist of:
 
 - Exactly one [Package](#packages) declaration.
 - Zero or more [Import](#imports) statements.
@@ -564,7 +564,7 @@ The rules defined in a module are automatically exported. I.e., they can be
 queried under OPA's [Data API](CONCEPTS.md#data-api) provided the appropriate
 package is given, e.g., given the following module:
 
-```opalog
+```rego
 package opa.examples
 
 pi = 3.14159
@@ -588,7 +588,7 @@ Modules use the same syntax to declare dependencies on [Base
 Documents](./CONCEPTS.md#data-model) and [Virtual
 Documents](./CONCEPTS.md#data-model).
 
-```opalog
+```rego
 package opa.examples
 
 import data.servers
@@ -601,7 +601,7 @@ http_servers[server] :-
 Imports can include an optional `alias` statement to handle namespacing
 issues:
 
-```opalog
+```rego
 package opa.examples
 
 import data.servers as my_servers
@@ -648,7 +648,7 @@ deployment environment. These documents are referenced in other sections
 above. If you are experimenting with OPA, you can copy-paste the content below
 into an OPA CLI session and reference it when following along above.
 
-```opalog
+```rego
 sites :- [
     {
         "region": "east",
@@ -731,9 +731,9 @@ containers :- [
 ]
 ```
 
-## <a name="grammar"></a> Opalog Grammar
+## <a name="grammar"></a> Rego Grammar
 
-Opalog's syntax is defined by the following grammar:
+Rego's syntax is defined by the following grammar:
 
 ```
 module         = package { import } policy

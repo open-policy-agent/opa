@@ -106,6 +106,6 @@ If you need to update the dependencies:
 1. Commit the changes to the glide.lock file and any files under the vendor
    directory.
 
-## Opalog
+## Rego
 
-If you need to modify the Opalog syntax you must update opalog/opalog.peg. Both `make build` and `make test` will re-generate the parser but if you want to test the parser generation explicitly you can run `make generate`.
+If you need to modify the Rego syntax you must update ast/rego.peg. Both `make build` and `make test` will re-generate the parser but if you want to test the parser generation explicitly you can run `make generate`.

@@ -15,7 +15,7 @@ func main() {
 	}
 }
 
-// Opalog parser generation:
+// Rego parser generation:
 //
-//go:generate pigeon -o opalog/parser.go opalog/opalog.peg
-//go:generate goimports -w opalog/parser.go
+//go:generate pigeon -o ast/parser.go ast/rego.peg
+//go:generate goimports -w ast/parser.go

@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/open-policy-agent/opa/opalog"
+	"github.com/open-policy-agent/opa/ast"
 )
 
 // Indices contains a mapping of non-ground references to values to sets of bindings.
@@ -34,7 +34,7 @@ type Indices struct {
 }
 
 type indicesNode struct {
-	key  opalog.Ref
+	key  ast.Ref
 	val  *Index
 	next *indicesNode
 }
@@ -48,9 +48,9 @@ func NewIndices() *Indices {
 
 // Build initializes the references' index by walking the store for the reference and
 // creating the index that maps values to bindings.
-func (ind *Indices) Build(store *Storage, ref opalog.Ref) error {
+func (ind *Indices) Build(store *Storage, ref ast.Ref) error {
 	index := NewIndex()
-	err := iterStorage(store, ref, opalog.EmptyRef(), newHashMap(), func(bindings *hashMap, val interface{}) {
+	err := iterStorage(store, ref, ast.EmptyRef(), newHashMap(), func(bindings *hashMap, val interface{}) {
 		index.Add(val, bindings)
 	})
 	if err != nil {
@@ -68,7 +68,7 @@ func (ind *Indices) Build(store *Storage, ref opalog.Ref) error {
 }
 
 // Drop removes the index for the reference.
-func (ind *Indices) Drop(ref opalog.Ref) {
+func (ind *Indices) Drop(ref ast.Ref) {
 	hashCode := ref.Hash()
 	var prev *indicesNode
 	for entry := ind.table[hashCode]; entry != nil; entry = entry.next {
@@ -84,7 +84,7 @@ func (ind *Indices) Drop(ref opalog.Ref) {
 }
 
 // Get returns the reference's index.
-func (ind *Indices) Get(ref opalog.Ref) *Index {
+func (ind *Indices) Get(ref ast.Ref) *Index {
 	node := ind.getNode(ref)
 	if node != nil {
 		return node.val
@@ -93,7 +93,7 @@ func (ind *Indices) Get(ref opalog.Ref) *Index {
 }
 
 // Iter calls the iter function for each of the indices.
-func (ind *Indices) Iter(iter func(opalog.Ref, *Index) error) error {
+func (ind *Indices) Iter(iter func(ast.Ref, *Index) error) error {
 	for _, head := range ind.table {
 		for entry := head; entry != nil; entry = entry.next {
 			if err := iter(entry.key, entry.val); err != nil {
@@ -115,7 +115,7 @@ func (ind *Indices) String() string {
 	return "{" + strings.Join(buf, ", ") + "}"
 }
 
-func (ind *Indices) getNode(ref opalog.Ref) *indicesNode {
+func (ind *Indices) getNode(ref ast.Ref) *indicesNode {
 	hashCode := ref.Hash()
 	for entry := ind.table[hashCode]; entry != nil; entry = entry.next {
 		if entry.key.Equal(ref) {
@@ -292,7 +292,7 @@ func hash(v interface{}) int {
 	panic(fmt.Sprintf("illegal argument: %v (%T)", v, v))
 }
 
-func iterStorage(store *Storage, ref opalog.Ref, path opalog.Ref, bindings *hashMap, iter func(*hashMap, interface{})) error {
+func iterStorage(store *Storage, ref ast.Ref, path ast.Ref, bindings *hashMap, iter func(*hashMap, interface{})) error {
 
 	if len(ref) == 0 {
 
@@ -315,7 +315,7 @@ func iterStorage(store *Storage, ref opalog.Ref, path opalog.Ref, bindings *hash
 	head := ref[0]
 	tail := ref[1:]
 
-	headVar, isVar := head.Value.(opalog.Var)
+	headVar, isVar := head.Value.(ast.Var)
 
 	if !isVar || len(path) == 0 {
 		path = append(path, head)
@@ -337,9 +337,9 @@ func iterStorage(store *Storage, ref opalog.Ref, path opalog.Ref, bindings *hash
 	switch node := node.(type) {
 	case map[string]interface{}:
 		for key := range node {
-			path = append(path, opalog.StringTerm(key))
+			path = append(path, ast.StringTerm(key))
 			cpy := bindings.Copy()
-			cpy.Put(headVar, opalog.String(key))
+			cpy.Put(headVar, ast.String(key))
 			err := iterStorage(store, tail, path, cpy, iter)
 			if err != nil {
 				return err
@@ -348,9 +348,9 @@ func iterStorage(store *Storage, ref opalog.Ref, path opalog.Ref, bindings *hash
 		}
 	case []interface{}:
 		for i := range node {
-			path = append(path, opalog.NumberTerm(float64(i)))
+			path = append(path, ast.NumberTerm(float64(i)))
 			cpy := bindings.Copy()
-			cpy.Put(headVar, opalog.Number(float64(i)))
+			cpy.Put(headVar, ast.Number(float64(i)))
 			err := iterStorage(store, tail, path, cpy, iter)
 			if err != nil {
 				return err

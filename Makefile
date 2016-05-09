@@ -3,9 +3,9 @@
 # license that can be found in the LICENSE file.
 
 PACKAGES := \
+	github.com/open-policy-agent/opa/ast/.../ \
 	github.com/open-policy-agent/opa/cmd/.../ \
 	github.com/open-policy-agent/opa/eval/.../ \
-	github.com/open-policy-agent/opa/opalog/.../ \
 	github.com/open-policy-agent/opa/runtime/.../
 
 BUILD_COMMIT := $(shell ./build/get-build-commit.sh)

@@ -2,7 +2,7 @@
 // Use of this source code is governed by an Apache2
 // license that can be found in the LICENSE file.
 
-package opalog
+package ast
 
 import "fmt"
 import "regexp"
@@ -205,7 +205,7 @@ func (str String) Hash() int {
 	return stringHash(string(str))
 }
 
-// Var represents a variable as defined by Opalog.
+// Var represents a variable as defined by the language.
 type Var string
 
 // VarTerm creates a new Term with a Variable value.
@@ -238,7 +238,7 @@ func (variable Var) String() string {
 	return string(variable)
 }
 
-// Ref represents a reference as defined by Opalog.
+// Ref represents a reference as defined by the language.
 type Ref []*Term
 
 // EmptyRef returns a new, empty reference.
@@ -353,7 +353,7 @@ func (ref Ref) Underlying() ([]interface{}, error) {
 // QueryIterator defines the interface for querying AST documents with references.
 type QueryIterator func(map[Var]Value, Value) error
 
-// Array represents an array as defined by Opalog. Arrays are similar to the
+// Array represents an array as defined by the language. Arrays are similar to the
 // same types as defined by JSON with the exception that they can contain Vars
 // and References.
 type Array []*Term
@@ -423,7 +423,7 @@ func (arr Array) queryRec(ref Ref, keys map[Var]Value, iter QueryIterator) error
 	}
 }
 
-// Object represents an object as defined by Opalog. Objects are similar to
+// Object represents an object as defined by the language. Objects are similar to
 // the same types as defined by JSON with the exception that they can contain
 // Vars and References.
 type Object [][2]*Term

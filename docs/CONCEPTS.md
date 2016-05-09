@@ -53,7 +53,7 @@ Conceptually, OPA is a collection of algorithms that answer questions about poli
 At a high level, using OPA involves:
 
 - Deploying OPA on servers alongside applications.
-- Writing policies a declarative language ("Opalog") and loading them into OPA.
+- Writing policies a declarative language ("Rego") and loading them into OPA.
 - Pushing application state that is relevant to policy into OPA.
 - Executing queries via OPA's APIs to answer questions about operations governed by policy.
 - Reacting to notifications delivered by OPA when policy is violated.
@@ -188,17 +188,17 @@ Conceptually, there are two kinds of documents in OPA:
 
 <img src="https://cdn.rawgit.com/open-policy-agent/opa/9f5f1e6fa68fd0ee627122b9e5c8809519e5bba8/docs/data-model-dependencies.svg" />
 
-When defining policies, rules are written which contain expressions that reference documents. The language that rules are written in ("Opalog") lets you reference base documents and virtual documents in exactly the same way.
+When defining policies, rules are written which contain expressions that reference documents. The language that rules are written in ("Rego") lets you reference base documents and virtual documents in exactly the same way.
 
 <img src="https://cdn.rawgit.com/open-policy-agent/opa/86672fab147c476cb8e8b0950b6c4fd48b5b2014/docs/data-model-logical.svg" />
 
 ## <a name="policies"></a> Policies
 
-Policies are defined in OPA's native query language: Opalog.
+Policies are defined in OPA's native query language: Rego.
 
-Opalog is a declarative language based on [Datalog](https://en.wikipedia.org/wiki/Datalog). Opalog allows policy writers to define modules which contain rules. Rules contain expressions which assert facts about the expected state of documents stored in OPA. The documents referenced in rules may be base documents pushed by applications integrated with OPA or virtual documents defined by other rules.
+Rego is a declarative language based on [Datalog](https://en.wikipedia.org/wiki/Datalog). Rego allows policy writers to define modules which contain rules. Rules contain expressions which assert facts about the expected state of documents stored in OPA. The documents referenced in rules may be base documents pushed by applications integrated with OPA or virtual documents defined by other rules.
 
-To support document-oriented models such as JSON, Opalog has rich support for referencing nested documents (i.e., documents inside arrays or objects). The syntax for referencing nested documents is based on dictionary and array access in languages like Python as well as JSON Path.
+To support document-oriented models such as JSON, Rego has rich support for referencing nested documents (i.e., documents inside arrays or objects). The syntax for referencing nested documents is based on dictionary and array access in languages like Python as well as JSON Path.
 
 Let's look at an example.
 
@@ -236,7 +236,7 @@ Content-Type: application/json
 
 We can write a rule which enumerates servers that expose HTTP (but not HTTPS) and are connected to public networks. These represent violations of policy.
 
-```opalog
+```rego
 package opa.examples                            # this policy belongs the opa.examples package
 
 import data.servers                             # import the data.servers document to refer to it as "servers" instead of "data.servers"
@@ -255,7 +255,7 @@ public_servers[server] :-                       # a server exists in the public_
 	networks[j].public = true                   # and the network is public
 ```
 
-The key aspects of Opalog are illustrated by this example:
+The key aspects of Rego are illustrated by this example:
 
 - Rules define the content of virtual documents. In this case, we create two virtual documents: `violations` and `public_servers`.
 
@@ -286,4 +286,4 @@ Content-Type: application/json
 
 ## What's Next
 
-For more information on how to write policy definitions and queries, see [Opalog: OPA's Query Language](./LANGUAGE.md).
+For more information on how to write policy definitions and queries, see [Rego: OPA's Query Language](./LANGUAGE.md).

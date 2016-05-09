@@ -9,14 +9,14 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/open-policy-agent/opa/opalog"
+	"github.com/open-policy-agent/opa/ast"
 )
 
 func TestHashmapOverwrite(t *testing.T) {
 	m := newHashMap()
-	key := opalog.String("hello")
-	expected := opalog.String("goodbye")
-	m.Put(key, opalog.String("world"))
+	key := ast.String("hello")
+	expected := ast.String("goodbye")
+	m.Put(key, ast.String("world"))
 	m.Put(key, expected)
 	result := m.Get(key)
 	if result != expected {
@@ -26,8 +26,8 @@ func TestHashmapOverwrite(t *testing.T) {
 
 func TestHashmapIter(t *testing.T) {
 	m := newHashMap()
-	keys := []opalog.Number{opalog.Number(1), opalog.Number(2), opalog.Number(1.4)}
-	value := opalog.Null{}
+	keys := []ast.Number{ast.Number(1), ast.Number(2), ast.Number(1.4)}
+	value := ast.Null{}
 	for _, k := range keys {
 		m.Put(k, value)
 	}
@@ -35,15 +35,15 @@ func TestHashmapIter(t *testing.T) {
 	if len(m.table) != 2 {
 		panic(fmt.Sprintf("Expected collision: %v", m))
 	}
-	results := map[opalog.Value]opalog.Value{}
-	m.Iter(func(k opalog.Value, v opalog.Value) bool {
+	results := map[ast.Value]ast.Value{}
+	m.Iter(func(k ast.Value, v ast.Value) bool {
 		results[k] = v
 		return false
 	})
-	expected := map[opalog.Value]opalog.Value{
-		opalog.Number(1):   value,
-		opalog.Number(2):   value,
-		opalog.Number(1.4): value,
+	expected := map[ast.Value]ast.Value{
+		ast.Number(1):   value,
+		ast.Number(2):   value,
+		ast.Number(1.4): value,
 	}
 	if !reflect.DeepEqual(results, expected) {
 		t.Errorf("Expected %v but got %v", expected, results)
@@ -53,9 +53,9 @@ func TestHashmapIter(t *testing.T) {
 func TestHashmapCompare(t *testing.T) {
 	m := newHashMap()
 	n := newHashMap()
-	k1 := opalog.String("k1")
-	k2 := opalog.String("k2")
-	k3 := opalog.String("k3")
+	k1 := ast.String("k1")
+	k2 := ast.String("k2")
+	k3 := ast.String("k3")
 	v1 := parseTerm(`[{"a": 1, "b": 2}, {"c": 3}]`).Value
 	v2 := parseTerm(`[{"a": 1, "b": 2}, {"c": 4}]`).Value
 	m.Put(k1, v1)

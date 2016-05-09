@@ -2,13 +2,13 @@
 // Use of this source code is governed by an Apache2
 // license that can be found in the LICENSE file.
 
-// This file contains extra functions for parsing Opalog.
+// This file contains extra functions for parsing Rego.
 // Most of the parsing is handled by the auto-generated code in
 // parser.go, however, there are additional utilities that are
-// helpful for dealing with Opalog source inputs (e.g., REPL
+// helpful for dealing with Rego source inputs (e.g., REPL
 // statements, source files, etc.)
 
-package opalog
+package ast
 
 import "fmt"
 
