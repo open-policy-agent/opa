@@ -1,5 +1,5 @@
-hash: b83f7fe2bc145c3d1fb1b4d2dfcd824133609907df0a90ca9372bd4d2edf34b6
-updated: 2016-05-04T13:23:16.671370976-07:00
+hash: 31c9b7e9f98ce4ccaadc502360c930f22151e9ccb77eba12f030fd87edfd8c9f
+updated: 2016-05-09T16:58:07.015114036-07:00
 imports:
 - name: github.com/apcera/termtables
   version: 683d3fb424194f29991b0442b37521de9bc9d66b
@@ -8,20 +8,24 @@ imports:
   - term
 - name: github.com/golang/lint
   version: c7bacac2b21ca01afa1dee0acf64df3ce047c28f
+- name: github.com/gorilla/context
+  version: a8d44e7d8e4d532b6a27a02dd82abb31cc1b01bd
+- name: github.com/gorilla/mux
+  version: 9c19ed558d5df4da88e2ade9c8940d742aef0e7e
 - name: github.com/inconshreveable/mousetrap
   version: 76626ae9c91c4f2a10f34cad8ce83ea42c93bb75
 - name: github.com/peterh/liner
   version: 0e4af131b90a9786839c8b1b01717be263e8555a
 - name: github.com/pkg/errors
-  version: 0d62637d0446292fceb852ab68e3ce6e07bddc00
+  version: 502e17a0cb34bd200593552492e458d89cf6a64f
 - name: github.com/PuerkitoBio/pigeon
   version: a5221784523de14130c00a8c389148a1b2ad260c
 - name: github.com/spf13/cobra
-  version: 336d629de064dbb12166b46c06039dbcfb935de1
+  version: 0f866a6211e33cde2091d9290c08f6afd6c9ebbc
 - name: github.com/spf13/pflag
   version: cb88ea77998c3f024757528e3305022ab50b43be
 - name: golang.org/x/tools
-  version: 0b2f4dcf4db5371000beb66b65cde17aa91a28a2
+  version: 3f1f7eeff104d9ef829677f12b9780dfdd26a96a
   subpackages:
   - cmd/goimports
 devImports: []
