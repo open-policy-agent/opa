@@ -6,6 +6,7 @@ package eval
 
 import (
 	"fmt"
+	"hash/fnv"
 	"strings"
 
 	"github.com/open-policy-agent/opa/ast"
@@ -50,7 +51,7 @@ func NewIndices() *Indices {
 // creating the index that maps values to bindings.
 func (ind *Indices) Build(store *Storage, ref ast.Ref) error {
 	index := NewIndex()
-	err := iterStorage(store, ref, ast.EmptyRef(), newHashMap(), func(bindings *hashMap, val interface{}) {
+	err := iterStorage(store, ref, ast.EmptyRef(), NewBindings(), func(bindings *Bindings, val interface{}) {
 		index.Add(val, bindings)
 	})
 	if err != nil {
@@ -146,7 +147,7 @@ func NewIndex() *Index {
 
 // Add updates the index to include new bindings for the value.
 // If the bindings already exist for the value, no change is made.
-func (ind *Index) Add(val interface{}, bindings *hashMap) {
+func (ind *Index) Add(val interface{}, bindings *Bindings) {
 
 	node := ind.getNode(val)
 	if node != nil {
@@ -168,7 +169,7 @@ func (ind *Index) Add(val interface{}, bindings *hashMap) {
 }
 
 // Iter calls the iter function for each set of bindings for the value.
-func (ind *Index) Iter(val interface{}, iter func(*hashMap) error) error {
+func (ind *Index) Iter(val interface{}, iter func(*Bindings) error) error {
 	node := ind.getNode(val)
 	if node == nil {
 		return nil
@@ -202,7 +203,7 @@ func (ind *Index) String() string {
 }
 
 type bindingSetNode struct {
-	val  *hashMap
+	val  *Bindings
 	next *bindingSetNode
 }
 
@@ -216,7 +217,7 @@ func newBindingSet() *bindingSet {
 	}
 }
 
-func (set *bindingSet) Add(val *hashMap) {
+func (set *bindingSet) Add(val *Bindings) {
 	node := set.getNode(val)
 	if node != nil {
 		return
@@ -226,7 +227,7 @@ func (set *bindingSet) Add(val *hashMap) {
 	set.table[hashCode] = &bindingSetNode{val, head}
 }
 
-func (set *bindingSet) Iter(iter func(*hashMap) error) error {
+func (set *bindingSet) Iter(iter func(*Bindings) error) error {
 	for _, head := range set.table {
 		for entry := head; entry != nil; entry = entry.next {
 			if err := iter(entry.val); err != nil {
@@ -239,14 +240,14 @@ func (set *bindingSet) Iter(iter func(*hashMap) error) error {
 
 func (set *bindingSet) String() string {
 	buf := []string{}
-	set.Iter(func(bindings *hashMap) error {
+	set.Iter(func(bindings *Bindings) error {
 		buf = append(buf, bindings.String())
 		return nil
 	})
 	return "{" + strings.Join(buf, ", ") + "}"
 }
 
-func (set *bindingSet) getNode(val *hashMap) *bindingSetNode {
+func (set *bindingSet) getNode(val *Bindings) *bindingSetNode {
 	hashCode := val.Hash()
 	for entry := set.table[hashCode]; entry != nil; entry = entry.next {
 		if entry.val.Equal(val) {
@@ -271,14 +272,9 @@ func hash(v interface{}) int {
 		}
 		return h
 	case string:
-		// TOOD(tsandall) move to utils package
-		// FNV-1a hashing
-		var h uint32
-		for i := 0; i < len(v); i++ {
-			h ^= uint32(v[i])
-			h *= 16777619
-		}
-		return int(h)
+		h := fnv.New64a()
+		h.Write([]byte(v))
+		return int(h.Sum64())
 	case bool:
 		if v {
 			return 1
@@ -292,12 +288,10 @@ func hash(v interface{}) int {
 	panic(fmt.Sprintf("illegal argument: %v (%T)", v, v))
 }
 
-func iterStorage(store *Storage, ref ast.Ref, path ast.Ref, bindings *hashMap, iter func(*hashMap, interface{})) error {
+func iterStorage(store *Storage, ref ast.Ref, path ast.Ref, bindings *Bindings, iter func(*Bindings, interface{})) error {
 
 	if len(ref) == 0 {
-
-		p, _ := path.Underlying()
-		node, err := store.Get(p)
+		node, err := lookup(store, path)
 		if err != nil {
 			switch err := err.(type) {
 			case *StorageError:
@@ -322,8 +316,7 @@ func iterStorage(store *Storage, ref ast.Ref, path ast.Ref, bindings *hashMap, i
 		return iterStorage(store, tail, path, bindings, iter)
 	}
 
-	p, _ := path.Underlying()
-	node, err := store.Get(p)
+	node, err := lookup(store, path)
 	if err != nil {
 		switch err := err.(type) {
 		case *StorageError:

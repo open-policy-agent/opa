@@ -32,10 +32,10 @@ func TestOneShotEmptyBufferOneExpr(t *testing.T) {
 	store := newTestStorage()
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
-	repl.OneShot("a[i].b.c[j] = 2")
+	repl.OneShot("data.a[i].b.c[j] = 2")
 	expectOutput(t, buffer.String(), "+---+---+\n| i | j |\n+---+---+\n| 0 | 1 |\n+---+---+\n")
 	buffer.Reset()
-	repl.OneShot("a[i].b.c[j] = \"deadbeef\"")
+	repl.OneShot("data.a[i].b.c[j] = \"deadbeef\"")
 	expectOutput(t, buffer.String(), "false\n")
 }
 
@@ -43,7 +43,7 @@ func TestOneShotEmptyBufferOneRule(t *testing.T) {
 	store := newTestStorage()
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
-	repl.OneShot("p[x] :- a[i] = x")
+	repl.OneShot("p[x] :- data.a[i] = x")
 	expectOutput(t, buffer.String(), "defined\n")
 }
 
@@ -51,7 +51,7 @@ func TestOneShotBufferedExpr(t *testing.T) {
 	store := newTestStorage()
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
-	repl.OneShot("a[i].b.c[j] = ")
+	repl.OneShot("data.a[i].b.c[j] = ")
 	expectOutput(t, buffer.String(), "")
 	repl.OneShot("2")
 	expectOutput(t, buffer.String(), "")
@@ -76,7 +76,7 @@ func TestOneShotBufferedRule(t *testing.T) {
 }
 
 func TestBuildHeader(t *testing.T) {
-	expr := ast.MustParseStatement(`[{"a": x, "b": a.b[y]}] = [{"a": 1, "b": 2}]`).(ast.Body)[0]
+	expr := ast.MustParseStatement(`[{"a": x, "b": data.a.b[y]}] = [{"a": 1, "b": 2}]`).(ast.Body)[0]
 	terms := expr.Terms.([]*ast.Term)
 	result := map[string]struct{}{}
 	buildHeader(result, terms[1])

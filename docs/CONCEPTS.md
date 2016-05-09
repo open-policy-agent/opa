@@ -216,7 +216,7 @@ Content-Type: application/json
 
 {
   "servers": [
-    {"id": "s1", "name": "app", "protocols": ["http", "https", "ssh"], "ports": ["p1", "p2", "p3"]},
+    {"id": "s1", "name": "app", "protocols": ["https", "ssh"], "ports": ["p1", "p2", "p3"]},
     {"id": "s2", "name": "db", "protocols": ["mysql"], "ports": ["p3"]},
     {"id": "s3", "name": "cache", "protocols": ["memcache", "http"], "ports": ["p3"]},
     {"id": "s4", "name": "dev", "protocols": ["http"], "ports": ["p1", "p2"]}
@@ -237,7 +237,7 @@ Content-Type: application/json
 We can write a rule which enumerates servers that expose HTTP (but not HTTPS) and are connected to public networks. These represent violations of policy.
 
 ```rego
-package opa.examples                            # this policy belongs the opa.examples package
+package opa.example                            # this policy belongs the opa.example package
 
 import data.servers                             # import the data.servers document to refer to it as "servers" instead of "data.servers"
 import data.networks                            # same but for data.networks
@@ -261,9 +261,9 @@ The key aspects of Rego are illustrated by this example:
 
 - Rules consist of assertions against data stored in OPA. In this case the assertions are expressions which test for equality and membership of `servers`, `networks`, and `ports` documents.
 
-- Expressions can referenced nested documents, e.g., `ports[i].networks[]` references the network IDs stored in an array on each port document.
+- Expressions can referenced nested documents, e.g., `ports[i].networks[_]` references the network IDs stored in an array on each port document.
 
-- Expressions can reference elements in a collection using the `[]` and `[<variable>]` syntax. When this is done, OPA knows to iterate over elements of the collection when processing queries.
+- Expressions can reference elements in a collection using the `[_]` and `[<variable>]` syntax. When this is done, OPA knows to iterate over elements of the collection when processing queries.
 
 If we query for the document produced by this rule, we receive an array of servers that expose an HTTP server and are connected to a public network:
 
@@ -278,7 +278,6 @@ HTTP/1.1 200 OK
 Content-Type: application/json
 
 [
-  {"id": "s1", "name": "app-server", "protocols": ["http", "https", "ssh"], "ports": ["p1", "p2", "p3"]},
   {"id": "s4", "name": "dev", "protocols": ["http"], "ports": ["p2"]}
 ]
 ```

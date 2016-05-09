@@ -6,7 +6,8 @@ PACKAGES := \
 	github.com/open-policy-agent/opa/ast/.../ \
 	github.com/open-policy-agent/opa/cmd/.../ \
 	github.com/open-policy-agent/opa/eval/.../ \
-	github.com/open-policy-agent/opa/runtime/.../
+	github.com/open-policy-agent/opa/runtime/.../ \
+	github.com/open-policy-agent/opa/util/.../
 
 BUILD_COMMIT := $(shell ./build/get-build-commit.sh)
 BUILD_TIMESTAMP := $(shell ./build/get-build-timestamp.sh)

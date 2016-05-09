@@ -31,11 +31,11 @@ When the runtime is started as a shell, users can define rules and
 evaluate expressions interactively. When the runtime is started as
 a server, users can access OPA's APIs via HTTP.
 
-The runtime can be initialized with one or more JSON files that
-represent base documents.
+The runtime can be initialized with one or more files that represent
+base documents (e.g., example.json) or policies (e.g., example.rego).
 `,
 		Run: func(cmd *cobra.Command, args []string) {
-			params.BaseDocPaths = args
+			params.Paths = args
 			rt := &runtime.Runtime{}
 			rt.Start(params)
 		},

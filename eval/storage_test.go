@@ -15,53 +15,59 @@ import (
 	"github.com/open-policy-agent/opa/ast"
 )
 
-func TestLoadFromJSONFiles(t *testing.T) {
-	tmp1, err := ioutil.TempFile("", "file1")
+func TestLoadFromFiles(t *testing.T) {
+	tmp1, err := ioutil.TempFile("", "docFile")
 	if err != nil {
 		panic(err)
 	}
-
 	defer os.Remove(tmp1.Name())
-
-	tmp2, err := ioutil.TempFile("", "file2")
-	if err != nil {
-		panic(err)
-	}
-
-	defer os.Remove(tmp2.Name())
-
-	doc1 := `{"foo": "bar"}`
-	doc2 := `{"bar": "baz"}`
-
+	doc1 := `{"foo": "bar", "a": {"b": {"d": [1]}}}`
 	if _, err := tmp1.Write([]byte(doc1)); err != nil {
 		panic(err)
 	}
-
-	if _, err := tmp2.Write([]byte(doc2)); err != nil {
+	if err := tmp1.Close(); err != nil {
 		panic(err)
 	}
 
-	if err := tmp1.Close(); err != nil {
+	tmp2, err := ioutil.TempFile("", "policyFile")
+	if err != nil {
+		panic(err)
+	}
+	defer os.Remove(tmp2.Name())
+	mod1 := `
+	package a.b.c
+	import data.foo
+	p = true :- foo = "bar"
+	p = true :- 1 = 2
+	`
+	if _, err := tmp2.Write([]byte(mod1)); err != nil {
 		panic(err)
 	}
 	if err := tmp2.Close(); err != nil {
 		panic(err)
 	}
 
-	store, err := NewStorageFromJSONFiles([]string{tmp1.Name(), tmp2.Name()})
-
+	store, err := NewStorageFromFiles([]string{tmp1.Name(), tmp2.Name()})
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
+		return
 	}
 
-	exp, err := store.Get(path("foo"))
-	if Compare(exp, "bar") != 0 || err != nil {
-		t.Errorf("Expected %v but got %v (err: %v)", "bar", exp, err)
+	r, err := store.Get(path("foo"))
+	if Compare(r, "bar") != 0 || err != nil {
+		t.Errorf("Expected %v but got %v (err: %v)", "bar", r, err)
+		return
 	}
 
-	exp, err = store.Get(path("bar"))
-	if Compare(exp, "baz") != 0 || err != nil {
-		t.Errorf("Expected %v but got %v (err: %v)", "baz", exp, err)
+	r, err = store.Get(path("a.b.c.p"))
+	rules, ok := r.([]*ast.Rule)
+	if !ok {
+		t.Errorf("Expected rules but got: %v", r)
+		return
+	}
+	if !rules[0].Name.Equal(ast.Var("p")) {
+		t.Errorf("Expected rule p but got: %v", rules[0])
+		return
 	}
 }
 
@@ -94,7 +100,7 @@ func TestStorageGet(t *testing.T) {
 	store := NewStorageFromJSONObject(data)
 
 	for idx, tc := range tests {
-		ref := parseRef(tc.ref)
+		ref := ast.MustParseRef(tc.ref)
 		path, err := ref.Underlying()
 		if err != nil {
 			panic(err)
@@ -242,8 +248,8 @@ func TestStoragePatch(t *testing.T) {
 }
 
 func TestStorageIndexingBasicUpdate(t *testing.T) {
-	refA := parseRef("a[i]")
-	refB := parseRef("b[x]")
+	refA := ast.MustParseRef("data.a[i]")
+	refB := ast.MustParseRef("data.b[x]")
 	store := newStorageWithIndices(refA, refB)
 
 	mustPatch(store, StorageAdd, path(`a["-"]`), float64(100))
@@ -260,11 +266,11 @@ func TestStorageIndexingBasicUpdate(t *testing.T) {
 }
 
 func TestStorageIndexingAddDeepPath(t *testing.T) {
-	ref := parseRef("i[x]")
-	refD := parseRef("i[x].d")
+	ref := ast.MustParseRef("data.l[x]")
+	refD := ast.MustParseRef("data.l[x].d")
 	store := newStorageWithIndices(ref, refD)
 
-	mustPatch(store, StorageAdd, path(`i[0].c["-"]`), float64(5))
+	mustPatch(store, StorageAdd, path(`l[0].c["-"]`), float64(5))
 
 	index := store.Indices.Get(ref)
 	if index != nil {
@@ -278,12 +284,12 @@ func TestStorageIndexingAddDeepPath(t *testing.T) {
 }
 
 func TestStorageIndexingAddDeepRef(t *testing.T) {
-	ref := parseRef("i[x].a")
+	ref := ast.MustParseRef("data.l[x].a")
 	store := newStorageWithIndices(ref)
 	var data interface{}
 	json.Unmarshal([]byte(`{"a": "eve", "b": 100, "c": [999,999,999]}`), &data)
 
-	mustPatch(store, StorageAdd, path(`i["-"]`), data)
+	mustPatch(store, StorageAdd, path(`l["-"]`), data)
 
 	index := store.Indices.Get(ref)
 	if index != nil {
@@ -319,7 +325,7 @@ func path(input interface{}) []interface{} {
 	case []interface{}:
 		return input
 	case string:
-		switch v := parseTerm(input).Value.(type) {
+		switch v := ast.MustParseTerm(input).Value.(type) {
 		case ast.Var:
 			return []interface{}{string(v)}
 		case ast.Ref:

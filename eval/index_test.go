@@ -7,8 +7,9 @@ package eval
 import (
 	"encoding/json"
 	"fmt"
-	"reflect"
 	"testing"
+
+	"github.com/open-policy-agent/opa/ast"
 )
 
 func TestIndicesBuild(t *testing.T) {
@@ -19,10 +20,10 @@ func TestIndicesBuild(t *testing.T) {
 		value    interface{}
 		expected string
 	}{
-		{"single var", "a[i]", float64(2), `[{"i": 1}]`},
-		{"two var", "d[x][y]", "baz", `[{"x": "e", "y": 1}]`},
-		{"partial ground", `c[i]["y"][j]`, nil, `[{"i": 0, "j": 0}]`},
-		{"multiple bindings", "g[x][y]", float64(0), `[
+		{"single var", "data.a[i]", float64(2), `[{"i": 1}]`},
+		{"two var", "data.d[x][y]", "baz", `[{"x": "e", "y": 1}]`},
+		{"partial ground", `data.c[i]["y"][j]`, nil, `[{"i": 0, "j": 0}]`},
+		{"multiple bindings", "data.g[x][y]", float64(0), `[
 			{"x": "a", "y": 1},
 			{"x": "a", "y": 2},
 			{"x": "a", "y": 3},
@@ -47,7 +48,7 @@ func TestIndicesAdd(t *testing.T) {
 	data := loadSmallTestData()
 	store := NewStorageFromJSONObject(data)
 
-	ref := parseRef("d[x][y]")
+	ref := ast.MustParseRef("data.d[x][y]")
 
 	indices.Build(store, ref)
 	index := indices.Get(ref)
@@ -76,7 +77,7 @@ func runIndexBuildTestCase(t *testing.T, i int, note string, refStr string, expe
 	indices := NewIndices()
 	data := loadSmallTestData()
 	store := NewStorageFromJSONObject(data)
-	ref := parseRef(refStr)
+	ref := ast.MustParseRef(refStr)
 
 	if indices.Get(ref) != nil {
 		t.Errorf("Test case %d (%v): Did not expect indices to contain %v yet", i, note, ref)
@@ -95,16 +96,16 @@ func runIndexBuildTestCase(t *testing.T, i int, note string, refStr string, expe
 		return
 	}
 
-	assertBindingsEqual(t, fmt.Sprintf("Test case %d (%v)", i+1, note), index, value, expectedStr)
+	assertBindingsEqual(t, fmt.Sprintf("Test case %d (%v)", i, note), index, value, expectedStr)
 }
 
 func assertBindingsEqual(t *testing.T, note string, index *Index, value interface{}, expectedStr string) {
 
 	expected := loadExpectedBindings(expectedStr)
 
-	err := index.Iter(value, func(bindings *hashMap) error {
+	err := index.Iter(value, func(bindings *Bindings) error {
 		for j := range expected {
-			if reflect.DeepEqual(expected[j], bindings) {
+			if expected[j].Equal(bindings) {
 				tmp := expected[:j]
 				expected = append(tmp, expected[j+1:]...)
 				return nil
