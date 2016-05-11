@@ -4,10 +4,14 @@
 
 package ast
 
-import "fmt"
-import "regexp"
-import "strconv"
-import "strings"
+import (
+	"encoding/json"
+	"fmt"
+	"regexp"
+	"strconv"
+	"strings"
+)
+
 import "hash/fnv"
 
 // Location records a position in source code
@@ -48,7 +52,7 @@ type Value interface {
 // Term is an argument to a function.
 type Term struct {
 	Value    Value     // the value of the Term as represented in Go
-	Location *Location // the location of the Term in the source
+	Location *Location `json:"-"` // the location of the Term in the source
 }
 
 // Equal returns true if this term equals the other term. Equality is
@@ -71,8 +75,53 @@ func (term *Term) IsGround() bool {
 	return term.Value.IsGround()
 }
 
+// MarshalJSON returns the JSON encoding of the term.
+// Specialized marshalling logic is required to include a type hint
+// for Value.
+func (term *Term) MarshalJSON() ([]byte, error) {
+	var typ string
+	switch term.Value.(type) {
+	case Null:
+		typ = "null"
+	case Boolean:
+		typ = "boolean"
+	case Number:
+		typ = "number"
+	case String:
+		typ = "string"
+	case Ref:
+		typ = "ref"
+	case Var:
+		typ = "var"
+	case Array:
+		typ = "array"
+	case Object:
+		typ = "object"
+	}
+	d := map[string]interface{}{
+		"Type":  typ,
+		"Value": term.Value,
+	}
+	return json.Marshal(d)
+}
+
 func (term *Term) String() string {
 	return term.Value.String()
+}
+
+// UnmarshalJSON parses the byte array and stores the result in term.
+// Specialized unmarshalling is required to handle Value.
+func (term *Term) UnmarshalJSON(bs []byte) error {
+	v := map[string]interface{}{}
+	if err := json.Unmarshal(bs, &v); err != nil {
+		return err
+	}
+	val, err := unmarshalValue(v)
+	if err != nil {
+		return err
+	}
+	term.Value = val
+	return nil
 }
 
 // Null represents the null value defined by JSON.
@@ -589,4 +638,106 @@ func termSliceIsGround(a []*Term) bool {
 		}
 	}
 	return true
+}
+
+func unmarshalError(v interface{}, e string) error {
+	return fmt.Errorf("ast: cannot unmarshal %T into Go value of type %v", v, e)
+}
+
+func unmarshalTermSlice(d map[string]interface{}) ([]*Term, error) {
+	s, ok := d["Value"].([]interface{})
+	if !ok {
+		return nil, unmarshalError(d["Value"], "[]interface{}")
+	}
+	buf := []*Term{}
+	for _, i := range s {
+		m, ok := i.(map[string]interface{})
+		if !ok {
+			return nil, unmarshalError(i, "map[string]interface{}")
+		}
+		v, err := unmarshalValue(m)
+		if err != nil {
+			return nil, err
+		}
+		buf = append(buf, &Term{Value: v})
+	}
+	return buf, nil
+}
+
+func unmarshalValue(d map[string]interface{}) (Value, error) {
+	switch d["Type"] {
+	case "null":
+		return Null{}, nil
+	case "boolean":
+		b, ok := d["Value"].(bool)
+		if !ok {
+			return nil, unmarshalError(d["Value"], "bool")
+		}
+		return Boolean(b), nil
+	case "number":
+		f, ok := d["Value"].(float64)
+		if !ok {
+			return nil, unmarshalError(d["Value"], "float64")
+		}
+		return Number(f), nil
+	case "string":
+		s, ok := d["Value"].(string)
+		if !ok {
+			return nil, unmarshalError(d["Value"], "string")
+		}
+		return String(s), nil
+	case "ref":
+		s, err := unmarshalTermSlice(d)
+		if err != nil {
+			return nil, err
+		}
+		return Ref(s), nil
+	case "var":
+		s, ok := d["Value"].(string)
+		if !ok {
+			return nil, unmarshalError(d["Value"], "ast.Var")
+		}
+		return Var(s), nil
+	case "array":
+		s, err := unmarshalTermSlice(d)
+		if err != nil {
+			return nil, err
+		}
+		return Array(s), nil
+	case "object":
+		buf := Object{}
+		s, ok := d["Value"].([]interface{})
+		if !ok {
+			return nil, unmarshalError(d["Value"], "[]interface{}")
+		}
+		for _, i := range s {
+			p, ok := i.([]interface{})
+			if !ok {
+				return nil, unmarshalError(i, "[]interface{}")
+			}
+			if len(p) != 2 {
+				return nil, unmarshalError(p, "[2]interface{}")
+			}
+			km, ok := p[0].(map[string]interface{})
+			if !ok {
+				return nil, unmarshalError(p[0], "map[string]interface{}")
+			}
+			k, err := unmarshalValue(km)
+			if err != nil {
+				return nil, err
+			}
+			vm, ok := p[1].(map[string]interface{})
+			if !ok {
+				return nil, unmarshalError(p[1], "map[string]interface{}")
+			}
+			v, err := unmarshalValue(vm)
+			if err != nil {
+				return nil, err
+			}
+			buf = append(buf, [2]*Term{&Term{Value: k}, &Term{Value: v}})
+		}
+		return buf, nil
+	default:
+		return nil, fmt.Errorf("ast: cannot unmarshal Term with Type %v", d["Type"])
+	}
 }

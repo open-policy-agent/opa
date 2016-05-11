@@ -4,7 +4,38 @@
 
 package ast
 
-import "testing"
+import (
+	"encoding/json"
+	"reflect"
+	"testing"
+)
+
+func TestModuleJSONRoundTrip(t *testing.T) {
+	mod := MustParseModule(`
+	package a.b.c
+	import data.x.y as z
+	import data.u.i
+	p = [1,2,{"foo":3}] :- r[x] = 1, not q[x]
+	r[y] = v :- i[1] = y, v = i[2]
+	q[x] :- a=[true,false,null,{"x":[1,2,3]}], a[i] = x
+	`)
+
+	bs, err := json.Marshal(mod)
+	if err != nil {
+		panic(err)
+	}
+
+	roundtrip := &Module{}
+
+	err = json.Unmarshal(bs, roundtrip)
+	if err != nil {
+		panic(err)
+	}
+
+	if !roundtrip.Equal(mod) {
+		t.Errorf("Expected roundtripped module to be equal to original:\nExpected:\n\n%v\n\nGot:\n\n%v\n", mod, roundtrip)
+	}
+}
 
 func TestPackageEquals(t *testing.T) {
 	pkg1 := &Package{Path: RefTerm(VarTerm("foo"), StringTerm("bar"), StringTerm("baz")).Value.(Ref)}
@@ -26,12 +57,12 @@ func TestPackageString(t *testing.T) {
 }
 
 func TestImportEquals(t *testing.T) {
-	imp1 := &Import{Path: Var("foo"), Alias: Var("bar")}
-	imp11 := &Import{Path: Var("foo"), Alias: Var("bar")}
-	imp2 := &Import{Path: Var("foo")}
-	imp3 := &Import{Path: RefTerm(VarTerm("bar"), VarTerm("baz"), VarTerm("qux")).Value, Alias: Var("corge")}
-	imp33 := &Import{Path: RefTerm(VarTerm("bar"), VarTerm("baz"), VarTerm("qux")).Value, Alias: Var("corge")}
-	imp4 := &Import{Path: RefTerm(VarTerm("bar"), VarTerm("baz"), VarTerm("qux")).Value}
+	imp1 := &Import{Path: VarTerm("foo"), Alias: Var("bar")}
+	imp11 := &Import{Path: VarTerm("foo"), Alias: Var("bar")}
+	imp2 := &Import{Path: VarTerm("foo")}
+	imp3 := &Import{Path: RefTerm(VarTerm("bar"), VarTerm("baz"), VarTerm("qux")), Alias: Var("corge")}
+	imp33 := &Import{Path: RefTerm(VarTerm("bar"), VarTerm("baz"), VarTerm("qux")), Alias: Var("corge")}
+	imp4 := &Import{Path: RefTerm(VarTerm("bar"), VarTerm("baz"), VarTerm("qux"))}
 	assertImportsEqual(t, imp1, imp1)
 	assertImportsEqual(t, imp1, imp11)
 	assertImportsEqual(t, imp3, imp3)
@@ -47,10 +78,10 @@ func TestImportEquals(t *testing.T) {
 }
 
 func TestImportString(t *testing.T) {
-	imp1 := &Import{Path: Var("foo"), Alias: Var("bar")}
-	imp2 := &Import{Path: Var("foo")}
-	imp3 := &Import{Path: RefTerm(VarTerm("bar"), StringTerm("baz"), StringTerm("qux")).Value, Alias: Var("corge")}
-	imp4 := &Import{Path: RefTerm(VarTerm("bar"), StringTerm("baz"), StringTerm("qux")).Value}
+	imp1 := &Import{Path: VarTerm("foo"), Alias: Var("bar")}
+	imp2 := &Import{Path: VarTerm("foo")}
+	imp3 := &Import{Path: RefTerm(VarTerm("bar"), StringTerm("baz"), StringTerm("qux")), Alias: Var("corge")}
+	imp4 := &Import{Path: RefTerm(VarTerm("bar"), StringTerm("baz"), StringTerm("qux"))}
 	assertImportToString(t, imp1, "import foo as bar")
 	assertImportToString(t, imp2, "import foo")
 	assertImportToString(t, imp3, "import bar.baz.qux as corge")
@@ -124,6 +155,48 @@ func TextExprString(t *testing.T) {
 	assertExprString(t, expr2, "not q.r[x]")
 	assertExprString(t, expr3, "eq(\"a\", 17.1)")
 	assertExprString(t, expr4, "ne({foo: [1, a.b]}, false)")
+}
+
+func TestExprBadJSON(t *testing.T) {
+
+	assert := func(js string, exp error) {
+		expr := Expr{}
+		err := json.Unmarshal([]byte(js), &expr)
+		if !reflect.DeepEqual(exp, err) {
+			t.Errorf("Expected %v but got: %v", exp, err)
+		}
+	}
+
+	js := `
+	{
+		"Negated": 100,
+		"Terms": {
+			"Value": "foo",
+			"Type": "string"
+		}
+	}
+	`
+
+	exp := unmarshalError(100.0, "bool")
+	assert(js, exp)
+
+	js = `
+	{
+		"Terms": [
+			"foo"
+		]
+	}
+	`
+	exp = unmarshalError("foo", "map[string]interface{}")
+	assert(js, exp)
+
+	js = `
+	{
+		"Terms": "bad value" 
+	}
+	`
+	exp = unmarshalError("bad value", "Term or []Term")
+	assert(js, exp)
 }
 
 func TestRuleHeadEquals(t *testing.T) {

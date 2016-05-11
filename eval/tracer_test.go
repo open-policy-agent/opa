@@ -21,14 +21,21 @@ func (t *mockTracer) Trace(ctx *TopDownContext, f string, a ...interface{}) {
 
 func TestTracer(t *testing.T) {
 
+	data := loadSmallTestData()
+
 	mods := compileRules([]string{"data.a"}, []string{
 		"p[x] :- q[x] = y",
 		"q[i] = j :- a[i] = j",
 	})
 
-	store, err := NewStorage([]map[string]interface{}{loadSmallTestData()}, mods)
-	if err != nil {
-		panic(err)
+	store := NewStorageFromJSONObject(data)
+	policyStore := NewPolicyStore(store, "")
+
+	for id, mod := range mods {
+		err := policyStore.Add(id, mod, []byte(""), false)
+		if err != nil {
+			panic(err)
+		}
 	}
 
 	tracer := &mockTracer{[]string{}}

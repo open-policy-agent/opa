@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"math/rand"
 	"os"
 	"sort"
 	"strings"
@@ -33,6 +32,7 @@ type Repl struct {
 	InitPrompt   string
 	BufferPrompt string
 	Buffer       []string
+	nextID       int
 }
 
 // NewRepl creates a new Repl.
@@ -157,8 +157,10 @@ func (r *Repl) cmdTrace() bool {
 }
 
 func (r *Repl) compileBody(body ast.Body) (ast.Body, error) {
+	name := fmt.Sprintf("repl%d", r.nextID)
+	r.nextID++
 	rule := &ast.Rule{
-		Name: ast.Var(randString(32)),
+		Name: ast.Var(name),
 		Body: body,
 	}
 	// TODO(tsandall): refactor to use current implicit module
@@ -170,11 +172,11 @@ func (r *Repl) compileBody(body ast.Body) (ast.Body, error) {
 		Rules: []*ast.Rule{rule},
 	}
 	c := ast.NewCompiler()
-	c.Compile(map[string]*ast.Module{"tmp": m})
+	c.Compile(map[string]*ast.Module{name: m})
 	if len(c.Errors) > 0 {
 		return nil, fmt.Errorf(c.FlattenErrors())
 	}
-	return c.Modules["tmp"].Rules[0].Body, nil
+	return c.Modules[name].Rules[0].Body, nil
 }
 
 func (r *Repl) compileRule(rule *ast.Rule) (*ast.Rule, error) {
@@ -454,15 +456,4 @@ func buildHeader(fields map[string]struct{}, term *ast.Term) {
 			buildHeader(fields, e)
 		}
 	}
-}
-
-// randString returns a random string of letters.
-// http://stackoverflow.com/a/31832326
-func randString(length int) string {
-	letters := []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
-	s := make([]rune, length)
-	for i := range s {
-		s[i] = letters[rand.Intn(len(letters))]
-	}
-	return string(s)
 }

@@ -1,5 +1,11 @@
+# development environment
 .DS_Store
 .vscode
+
+# build artifacts
+coverage
 opa
 ast/parser.go
-coverage
+
+# runtime artifacts
+policies

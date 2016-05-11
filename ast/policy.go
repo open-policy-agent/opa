@@ -4,8 +4,11 @@
 
 package ast
 
-import "fmt"
-import "strings"
+import (
+	"encoding/json"
+	"fmt"
+	"strings"
+)
 
 // DefaultRootDocument is the default root document.
 // All package directives inside source files are implicitly
@@ -31,25 +34,25 @@ type (
 	// Package represents the namespace of the documents produced
 	// by rules inside the module.
 	Package struct {
-		Location *Location
+		Location *Location `json:"-"`
 		Path     Ref
 	}
 
 	// Import represents a dependency on a document outside of the policy
 	// namespace. Imports are optional.
 	Import struct {
-		Location *Location
-		Path     Value
-		Alias    Var
+		Location *Location `json:"-"`
+		Path     *Term
+		Alias    Var `json:",omitempty"`
 	}
 
 	// Rule represents a rule as defined in the language. Rules define the
 	// content of documents that represent policy decisions.
 	Rule struct {
-		Location *Location
+		Location *Location `json:"-"`
 		Name     Var
-		Key      *Term
-		Value    *Term
+		Key      *Term `json:",omitempty"`
+		Value    *Term `json:",omitempty"`
 		Body     Body
 	}
 
@@ -58,8 +61,8 @@ type (
 
 	// Expr represents a single expression contained inside the body of a rule.
 	Expr struct {
-		Location *Location
-		Negated  bool
+		Location *Location `json:"-"`
+		Negated  bool      `json:",omitempty"`
 		Terms    interface{}
 	}
 )
@@ -262,6 +265,51 @@ func (expr *Expr) String() string {
 		buf = append(buf, t.String())
 	}
 	return strings.Join(buf, " ")
+}
+
+// UnmarshalJSON parses the byte array and stores the result in expr.
+func (expr *Expr) UnmarshalJSON(bs []byte) error {
+	v := map[string]interface{}{}
+	if err := json.Unmarshal(bs, &v); err != nil {
+		return err
+	}
+
+	n, ok := v["Negated"]
+	if !ok {
+		expr.Negated = false
+	} else {
+		b, ok := n.(bool)
+		if !ok {
+			return unmarshalError(n, "bool")
+		}
+		expr.Negated = b
+	}
+
+	switch ts := v["Terms"].(type) {
+	case map[string]interface{}:
+		v, err := unmarshalValue(ts)
+		if err != nil {
+			return err
+		}
+		expr.Terms = &Term{Value: v}
+	case []interface{}:
+		buf := []*Term{}
+		for _, v := range ts {
+			e, ok := v.(map[string]interface{})
+			if !ok {
+				return unmarshalError(v, "map[string]interface{}")
+			}
+			v, err := unmarshalValue(e)
+			if err != nil {
+				return err
+			}
+			buf = append(buf, &Term{Value: v})
+		}
+		expr.Terms = buf
+	default:
+		return unmarshalError(v["Terms"], "Term or []Term")
+	}
+	return nil
 }
 
 // NewBuiltinExpr creates a new Expr object with the supplied terms.

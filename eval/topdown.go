@@ -660,11 +660,8 @@ func evalRefRecEnumColl(ctx *TopDownContext, path, tail ast.Ref, iter TopDownIte
 
 	node, err := lookup(ctx.Store, path)
 	if err != nil {
-		switch err := err.(type) {
-		case *StorageError:
-			if err.Code == StorageNotFoundErr {
-				return nil
-			}
+		if IsStorageNotFound(err) {
+			return nil
 		}
 		return err
 	}
@@ -715,11 +712,8 @@ func evalRefRecGround(ctx *TopDownContext, path, tail ast.Ref, iter TopDownItera
 	path = append(path, tail[0])
 	node, err := lookupRule(ctx.Store, path)
 	if err != nil {
-		switch err := err.(type) {
-		case *StorageError:
-			if err.Code == StorageNotFoundErr {
-				return nil
-			}
+		if IsStorageNotFound(err) {
+			return nil
 		}
 		return err
 	}
@@ -1221,11 +1215,8 @@ func lookup(store *Storage, ref ast.Ref) (interface{}, error) {
 func lookupExists(store *Storage, ref ast.Ref) (bool, error) {
 	_, err := lookup(store, ref)
 	if err != nil {
-		switch err := err.(type) {
-		case *StorageError:
-			if err.Code == StorageNotFoundErr {
-				return false, nil
-			}
+		if IsStorageNotFound(err) {
+			return false, nil
 		}
 		return false, err
 	}

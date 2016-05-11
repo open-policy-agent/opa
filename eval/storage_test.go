@@ -7,69 +7,11 @@ package eval
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
-	"os"
 	"reflect"
 	"testing"
 
 	"github.com/open-policy-agent/opa/ast"
 )
-
-func TestLoadFromFiles(t *testing.T) {
-	tmp1, err := ioutil.TempFile("", "docFile")
-	if err != nil {
-		panic(err)
-	}
-	defer os.Remove(tmp1.Name())
-	doc1 := `{"foo": "bar", "a": {"b": {"d": [1]}}}`
-	if _, err := tmp1.Write([]byte(doc1)); err != nil {
-		panic(err)
-	}
-	if err := tmp1.Close(); err != nil {
-		panic(err)
-	}
-
-	tmp2, err := ioutil.TempFile("", "policyFile")
-	if err != nil {
-		panic(err)
-	}
-	defer os.Remove(tmp2.Name())
-	mod1 := `
-	package a.b.c
-	import data.foo
-	p = true :- foo = "bar"
-	p = true :- 1 = 2
-	`
-	if _, err := tmp2.Write([]byte(mod1)); err != nil {
-		panic(err)
-	}
-	if err := tmp2.Close(); err != nil {
-		panic(err)
-	}
-
-	store, err := NewStorageFromFiles([]string{tmp1.Name(), tmp2.Name()})
-	if err != nil {
-		t.Errorf("Unexpected error: %v", err)
-		return
-	}
-
-	r, err := store.Get(path("foo"))
-	if Compare(r, "bar") != 0 || err != nil {
-		t.Errorf("Expected %v but got %v (err: %v)", "bar", r, err)
-		return
-	}
-
-	r, err = store.Get(path("a.b.c.p"))
-	rules, ok := r.([]*ast.Rule)
-	if !ok {
-		t.Errorf("Expected rules but got: %v", r)
-		return
-	}
-	if !rules[0].Name.Equal(ast.Var("p")) {
-		t.Errorf("Expected rule p but got: %v", rules[0])
-		return
-	}
-}
 
 func TestStorageGet(t *testing.T) {
 

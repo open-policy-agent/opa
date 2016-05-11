@@ -74,8 +74,8 @@ Package <- "package" ws val:(Ref / Var) {
 Import <- "import" ws path:(Ref / Var) alias:(ws "as" ws Var)? {
     imp := &Import{}
     imp.Location = currentLocation(c)
-    imp.Path = path.(*Term).Value
-    switch p := imp.Path.(type) {
+    imp.Path = path.(*Term)
+    switch p := imp.Path.Value.(type) {
     case Ref:
         if !p.IsGround() {
             return nil, fmt.Errorf("import cannot contain variables in tail: %v", p)

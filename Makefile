@@ -37,14 +37,17 @@ generate:
 build: generate
 	$(GO) build -o opa $(LDFLAGS)
 
+install: generate
+	$(GO) install $(LDFLAGS)
+
 test: generate
 	$(GO) test -v $(PACKAGES)
 
 COVER_PACKAGES=$(PACKAGES)
 $(COVER_PACKAGES):
 	@mkdir -p coverage/$(shell dirname $@)
-	go test -covermode=count -coverprofile=coverage/$(shell dirname $@)/coverage.out $@
-	go tool cover -html=coverage/$(shell dirname $@)/coverage.out || true
+	$(GO) test -covermode=count -coverprofile=coverage/$(shell dirname $@)/coverage.out $@
+	$(GO) tool cover -html=coverage/$(shell dirname $@)/coverage.out || true
 
 cover: $(COVER_PACKAGES)
 

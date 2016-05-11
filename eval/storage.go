@@ -5,12 +5,9 @@
 package eval
 
 import (
-	"encoding/json"
 	"fmt"
-	"os"
 
 	"github.com/open-policy-agent/opa/ast"
-	"github.com/pkg/errors"
 )
 
 // StorageErrorCode represents the collection of error types that can be
@@ -34,6 +31,15 @@ type StorageError struct {
 
 func (err *StorageError) Error() string {
 	return fmt.Sprintf("storage error (code: %d): %v", err.Code, err.Message)
+}
+
+// IsStorageNotFound returns true if this error is a StorageNotFoundErr
+func IsStorageNotFound(err error) bool {
+	switch err := err.(type) {
+	case *StorageError:
+		return err.Code == StorageNotFoundErr
+	}
+	return false
 }
 
 var doesNotExistMsg = "document does not exist"
@@ -62,6 +68,11 @@ func notFoundError(path []interface{}, f string, a ...interface{}) *StorageError
 	if len(f) > 0 {
 		msg += ", " + fmt.Sprintf(f, a...)
 	}
+	return notFoundErrorf(msg)
+}
+
+func notFoundErrorf(f string, a ...interface{}) *StorageError {
+	msg := fmt.Sprintf(f, a...)
 	return &StorageError{
 		Code:    StorageNotFoundErr,
 		Message: msg,
@@ -74,110 +85,18 @@ type Storage struct {
 	data    map[string]interface{}
 }
 
-// NewEmptyStorage is a helper for creating a new, empty Storage.
-func NewEmptyStorage() *Storage {
+// NewStorage is a helper for creating a new, empty Storage.
+func NewStorage() *Storage {
 	return &Storage{
 		Indices: NewIndices(),
 		data:    map[string]interface{}{},
 	}
 }
 
-// NewStorage is a helper for creating a new Storage containing
-// the given base documents and rules.
-func NewStorage(docs []map[string]interface{}, mods map[string]*ast.Module) (*Storage, error) {
-
-	store := NewEmptyStorage()
-
-	for _, d := range docs {
-		// TODO(tsandall): recursive merge instead of replace?
-		for k, v := range d {
-			if err := store.Patch(StorageAdd, []interface{}{k}, v); err != nil {
-				return nil, err
-			}
-		}
-	}
-
-	for _, m := range mods {
-
-		for _, r := range m.Rules {
-
-			fqn := append(ast.Ref{}, m.Package.Path...)
-			fqn = append(fqn, &ast.Term{Value: ast.String(r.Name)})
-
-			path, _ := fqn.Underlying()
-			path = path[1:]
-
-			err := store.MakePath(path[:len(path)-1])
-			if err != nil {
-				return nil, errors.Wrapf(err, "unable to make path for rule set")
-			}
-
-			node, err := store.Get(path)
-			if err != nil {
-				switch err := err.(type) {
-				case *StorageError:
-					if err.Code == StorageNotFoundErr {
-						rules := []*ast.Rule{r}
-						if err := store.Patch(StorageAdd, path, rules); err != nil {
-							return nil, errors.Wrapf(err, "unable to add new rule set")
-						}
-						continue
-					}
-				}
-				return nil, err
-			}
-
-			rs, ok := node.([]*ast.Rule)
-			if !ok {
-				return nil, fmt.Errorf("unable to add rule to base document")
-			}
-
-			rs = append(rs, r)
-
-			if err := store.Patch(StorageReplace, path, rs); err != nil {
-				return nil, errors.Wrapf(err, "unable to add rule to existing rule set")
-			}
-		}
-	}
-
-	return store, nil
-}
-
-// NewStorageFromFiles is a helper for creating a new Storage containing
-// documents stored in files and/or policy modules.
-func NewStorageFromFiles(files []string) (*Storage, error) {
-
-	modules := map[string]*ast.Module{}
-	docs := []map[string]interface{}{}
-
-	for _, file := range files {
-		m, astErr := ast.ParseModuleFile(file)
-		if astErr == nil {
-			modules[file] = m
-			continue
-		}
-		d, jsonErr := parseJSONObjectFile(file)
-		if jsonErr == nil {
-			docs = append(docs, d)
-			continue
-		}
-		// TODO(tsandall): add heuristic to determine whether this supposed
-		// to be a policy module or a JSON file. Format appropriate error.
-		return nil, fmt.Errorf("parse error: %v: %v: %v", file, astErr, jsonErr)
-	}
-
-	c := ast.NewCompiler()
-	c.Compile(modules)
-	if c.Failed() {
-		return nil, fmt.Errorf(c.FlattenErrors())
-	}
-
-	return NewStorage(docs, c.Modules)
-}
-
 // NewStorageFromJSONObject returns Storage by converting from map[string]interface{}
+// This is mostly for test purposes.
 func NewStorageFromJSONObject(data map[string]interface{}) *Storage {
-	store := NewEmptyStorage()
+	store := NewStorage()
 	for k, v := range data {
 		if err := store.Patch(StorageAdd, []interface{}{k}, v); err != nil {
 			panic(err)
@@ -660,18 +579,4 @@ func checkArrayIndex(path []interface{}, node []interface{}, v interface{}) (int
 		return 0, notFoundError(path, outOfRangeMsg)
 	}
 	return i, nil
-}
-
-func parseJSONObjectFile(file string) (map[string]interface{}, error) {
-	f, err := os.Open(file)
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-	reader := json.NewDecoder(f)
-	var data map[string]interface{}
-	if err := reader.Decode(&data); err != nil {
-		return nil, err
-	}
-	return data, nil
 }

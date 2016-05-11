@@ -525,9 +525,15 @@ func TestTopDownEmbeddedVirtualDoc(t *testing.T) {
 		 q[x] :- g[j][k] = x`})
 
 	data := loadSmallTestData()
-	store, err := NewStorage([]map[string]interface{}{data}, mods)
-	if err != nil {
-		panic(err)
+
+	store := NewStorageFromJSONObject(data)
+	policyStore := NewPolicyStore(store, "")
+
+	for id, mod := range mods {
+		err := policyStore.Add(id, mod, []byte(""), false)
+		if err != nil {
+			panic(err)
+		}
 	}
 
 	assertTopDown(t, store, 0, "deep embedded vdoc", []string{"b", "c", "d", "p"}, "[1, 2, 4]")
@@ -583,9 +589,14 @@ func TestExample(t *testing.T) {
 
 	mods := compileModules([]string{vd})
 
-	store, err := NewStorage([]map[string]interface{}{doc}, mods)
-	if err != nil {
-		panic(err)
+	store := NewStorageFromJSONObject(doc)
+	policyStore := NewPolicyStore(store, "")
+
+	for id, mod := range mods {
+		err := policyStore.Add(id, mod, []byte(""), false)
+		if err != nil {
+			panic(err)
+		}
 	}
 
 	assertTopDown(t, store, 0, "public servers", []string{"opa", "example", "public_servers"}, `
@@ -629,7 +640,7 @@ func compileRules(imports []string, input []string) map[string]*ast.Module {
 	is := []*ast.Import{}
 	for _, i := range imports {
 		is = append(is, &ast.Import{
-			Path: ast.MustParseRef(i),
+			Path: ast.MustParseTerm(i),
 		})
 	}
 
@@ -757,10 +768,19 @@ func runTopDownTestCase(t *testing.T, data map[string]interface{}, i int, note s
 	for k := range data {
 		imports = append(imports, "data."+k)
 	}
-	store, err := NewStorage([]map[string]interface{}{data}, compileRules(imports, rules))
-	if err != nil {
-		panic(err)
+
+	mods := compileRules(imports, rules)
+
+	store := NewStorageFromJSONObject(data)
+	policyStore := NewPolicyStore(store, "")
+
+	for id, mod := range mods {
+		err := policyStore.Add(id, mod, []byte(""), false)
+		if err != nil {
+			panic(err)
+		}
 	}
+
 	assertTopDown(t, store, i, note, []string{"p"}, expected)
 }
 

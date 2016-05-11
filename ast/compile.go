@@ -196,7 +196,7 @@ func (c *Compiler) setGlobals() {
 		// Populate globals with imports within this module.
 		for _, i := range m.Imports {
 			if len(i.Alias) > 0 {
-				switch p := i.Path.(type) {
+				switch p := i.Path.Value.(type) {
 				case Ref:
 					globals[i.Alias] = p
 				case Var:
@@ -205,7 +205,7 @@ func (c *Compiler) setGlobals() {
 					c.err("unexpected %T: %v", p, i)
 				}
 			} else {
-				switch p := i.Path.(type) {
+				switch p := i.Path.Value.(type) {
 				case Ref:
 					switch v := p[len(p)-1].Value.(type) {
 					case String:

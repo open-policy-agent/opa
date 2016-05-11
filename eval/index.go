@@ -293,11 +293,8 @@ func iterStorage(store *Storage, ref ast.Ref, path ast.Ref, bindings *Bindings, 
 	if len(ref) == 0 {
 		node, err := lookup(store, path)
 		if err != nil {
-			switch err := err.(type) {
-			case *StorageError:
-				if err.Code == StorageNotFoundErr {
-					return nil
-				}
+			if IsStorageNotFound(err) {
+				return nil
 			}
 			return err
 		}
@@ -318,11 +315,8 @@ func iterStorage(store *Storage, ref ast.Ref, path ast.Ref, bindings *Bindings, 
 
 	node, err := lookup(store, path)
 	if err != nil {
-		switch err := err.(type) {
-		case *StorageError:
-			if err.Code == StorageNotFoundErr {
-				return nil
-			}
+		if IsStorageNotFound(err) {
+			return nil
 		}
 		return err
 	}
