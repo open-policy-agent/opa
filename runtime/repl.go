@@ -170,11 +170,11 @@ func (r *Repl) compileBody(body ast.Body) (ast.Body, error) {
 		Rules: []*ast.Rule{rule},
 	}
 	c := ast.NewCompiler()
-	c.Compile([]*ast.Module{m})
+	c.Compile(map[string]*ast.Module{"tmp": m})
 	if len(c.Errors) > 0 {
 		return nil, fmt.Errorf(c.FlattenErrors())
 	}
-	return c.Modules[0].Rules[0].Body, nil
+	return c.Modules["tmp"].Rules[0].Body, nil
 }
 
 func (r *Repl) compileRule(rule *ast.Rule) (*ast.Rule, error) {
@@ -188,11 +188,11 @@ func (r *Repl) compileRule(rule *ast.Rule) (*ast.Rule, error) {
 		Rules: []*ast.Rule{rule},
 	}
 	c := ast.NewCompiler()
-	c.Compile([]*ast.Module{m})
+	c.Compile(map[string]*ast.Module{"tmp": m})
 	if len(c.Errors) > 0 {
 		return nil, fmt.Errorf(c.FlattenErrors())
 	}
-	return c.Modules[0].Rules[0], nil
+	return c.Modules["tmp"].Rules[0], nil
 }
 
 func (r *Repl) evalBufferOne() bool {

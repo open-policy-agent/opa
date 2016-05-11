@@ -84,7 +84,7 @@ func NewEmptyStorage() *Storage {
 
 // NewStorage is a helper for creating a new Storage containing
 // the given base documents and rules.
-func NewStorage(docs []map[string]interface{}, mods []*ast.Module) (*Storage, error) {
+func NewStorage(docs []map[string]interface{}, mods map[string]*ast.Module) (*Storage, error) {
 
 	store := NewEmptyStorage()
 
@@ -147,13 +147,13 @@ func NewStorage(docs []map[string]interface{}, mods []*ast.Module) (*Storage, er
 // documents stored in files and/or policy modules.
 func NewStorageFromFiles(files []string) (*Storage, error) {
 
-	modules := []*ast.Module{}
+	modules := map[string]*ast.Module{}
 	docs := []map[string]interface{}{}
 
 	for _, file := range files {
 		m, astErr := ast.ParseModuleFile(file)
 		if astErr == nil {
-			modules = append(modules, m)
+			modules[file] = m
 			continue
 		}
 		d, jsonErr := parseJSONObjectFile(file)

@@ -602,12 +602,13 @@ func TestExample(t *testing.T) {
 	`)
 }
 
-func compileModules(input []string) []*ast.Module {
+func compileModules(input []string) map[string]*ast.Module {
 
-	mods := []*ast.Module{}
+	mods := map[string]*ast.Module{}
 
-	for _, i := range input {
-		mods = append(mods, ast.MustParseModule(i))
+	for idx, i := range input {
+		id := fmt.Sprintf("testMod%d", idx)
+		mods[id] = ast.MustParseModule(i)
 	}
 
 	c := ast.NewCompiler()
@@ -618,7 +619,7 @@ func compileModules(input []string) []*ast.Module {
 	return c.Modules
 }
 
-func compileRules(imports []string, input []string) []*ast.Module {
+func compileRules(imports []string, input []string) map[string]*ast.Module {
 
 	rules := []*ast.Rule{}
 	for _, i := range input {
@@ -642,7 +643,7 @@ func compileRules(imports []string, input []string) []*ast.Module {
 	}
 
 	c := ast.NewCompiler()
-	if c.Compile([]*ast.Module{m}); c.Failed() {
+	if c.Compile(map[string]*ast.Module{"testMod": m}); c.Failed() {
 		panic(c.FlattenErrors())
 	}
 

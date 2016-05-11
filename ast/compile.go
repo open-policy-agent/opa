@@ -22,7 +22,7 @@ type Compiler struct {
 	// Modules contains the compiled modules. The compiled modules are the
 	// output of the compilation process. If the compilation process failed,
 	// there is no guarantee about the state of the modules.
-	Modules []*Module
+	Modules map[string]*Module
 
 	// Exports contains a mapping of package paths to variables. The variables
 	// represent externally accessible symbols. For now the only type of
@@ -71,7 +71,7 @@ func NewCompiler() *Compiler {
 // Compile runs the compilation process on the input modules.
 // The output of the compilation process can be obtained from
 // the Errors or Modules attributes of the Compiler.
-func (c *Compiler) Compile(mods []*Module) {
+func (c *Compiler) Compile(mods map[string]*Module) {
 
 	// TODO(tsandall): should the modules be deep copied?
 	c.Modules = mods
