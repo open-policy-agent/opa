@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/util"
 )
 
 func TestEvalRef(t *testing.T) {
@@ -824,7 +825,7 @@ type ResultSet []interface{}
 
 // Less returns true if the i'th index of resultSet is less than the j'th index.
 func (resultSet ResultSet) Less(i, j int) bool {
-	return Compare(resultSet[i], resultSet[j]) < 0
+	return util.Compare(resultSet[i], resultSet[j]) < 0
 }
 
 // Swap exchanges the i'th and j'th values in resultSet.

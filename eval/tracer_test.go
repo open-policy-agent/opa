@@ -7,6 +7,8 @@ package eval
 import (
 	"fmt"
 	"testing"
+
+	"github.com/open-policy-agent/opa/util"
 )
 
 type mockTracer struct {
@@ -53,7 +55,7 @@ func TestTracer(t *testing.T) {
 
 	expected := []interface{}{float64(0), float64(1), float64(2), float64(3)}
 
-	if Compare(result, expected) != 0 {
+	if util.Compare(result, expected) != 0 {
 		t.Errorf("Unexpected result in tracing test: %v", result)
 		return
 	}

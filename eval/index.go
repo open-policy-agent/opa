@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/util"
 )
 
 // Indices contains a mapping of non-ground references to values to sets of bindings.
@@ -181,7 +182,7 @@ func (ind *Index) getNode(val interface{}) *indexNode {
 	hashCode := hash(val)
 	head := ind.table[hashCode]
 	for entry := head; entry != nil; entry = entry.next {
-		if Compare(entry.key, val) == 0 {
+		if util.Compare(entry.key, val) == 0 {
 			return entry
 		}
 	}

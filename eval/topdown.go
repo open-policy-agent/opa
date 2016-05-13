@@ -8,6 +8,7 @@ import (
 	"fmt"
 
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/util"
 	"github.com/pkg/errors"
 )
 
@@ -356,7 +357,7 @@ func evalEqGround(ctx *TopDownContext, a ast.Value, b ast.Value, iter TopDownIte
 	if err != nil {
 		return err
 	}
-	if Compare(av, bv) == 0 {
+	if util.Compare(av, bv) == 0 {
 		return iter(ctx)
 	}
 	return nil
