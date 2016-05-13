@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/util"
 )
 
@@ -30,11 +31,11 @@ func TestTracer(t *testing.T) {
 		"q[i] = j :- a[i] = j",
 	})
 
-	store := NewStorageFromJSONObject(data)
-	policyStore := NewPolicyStore(store, "")
+	ds := storage.NewDataStoreFromJSONObject(data)
+	ps := storage.NewPolicyStore(ds, "")
 
 	for id, mod := range mods {
-		err := policyStore.Add(id, mod, []byte(""), false)
+		err := ps.Add(id, mod, []byte(""), false)
 		if err != nil {
 			panic(err)
 		}
@@ -43,9 +44,9 @@ func TestTracer(t *testing.T) {
 	tracer := &mockTracer{[]string{}}
 
 	params := &TopDownQueryParams{
-		Store:  store,
-		Tracer: tracer,
-		Path:   []string{"p"}}
+		DataStore: ds,
+		Tracer:    tracer,
+		Path:      []string{"p"}}
 
 	result, err := TopDownQuery(params)
 	if err != nil {

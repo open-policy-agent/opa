@@ -12,7 +12,7 @@ import (
 	"testing"
 
 	"github.com/open-policy-agent/opa/ast"
-	"github.com/open-policy-agent/opa/eval"
+	"github.com/open-policy-agent/opa/util"
 )
 
 func TestInit(t *testing.T) {
@@ -76,13 +76,13 @@ func TestInit(t *testing.T) {
 		return
 	}
 
-	node, err := rt.Store.Get(path("foo"))
-	if eval.Compare(node, "bar") != 0 || err != nil {
+	node, err := rt.DataStore.Get(path("foo"))
+	if util.Compare(node, "bar") != 0 || err != nil {
 		t.Errorf("Expected %v but got %v (err: %v)", "bar", node, err)
 		return
 	}
 
-	node, err = rt.Store.Get(path("a.b.c.p"))
+	node, err = rt.DataStore.Get(path("a.b.c.p"))
 	rules, ok := node.([]*ast.Rule)
 	if !ok {
 		t.Errorf("Expected rules but got: %v", node)
@@ -93,7 +93,7 @@ func TestInit(t *testing.T) {
 		return
 	}
 
-	node, err = rt.Store.Get(path("a.b.c.q"))
+	node, err = rt.DataStore.Get(path("a.b.c.q"))
 	rules, ok = node.([]*ast.Rule)
 	if !ok {
 		t.Errorf("Expected rules but got: %v", node)

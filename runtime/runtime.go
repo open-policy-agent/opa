@@ -12,7 +12,7 @@ import (
 	"path/filepath"
 
 	"github.com/open-policy-agent/opa/ast"
-	"github.com/open-policy-agent/opa/eval"
+	"github.com/open-policy-agent/opa/storage"
 	"github.com/pkg/errors"
 )
 
@@ -42,8 +42,8 @@ type Params struct {
 
 // Runtime represents a single OPA instance.
 type Runtime struct {
-	Store       *eval.Storage
-	PolicyStore *eval.PolicyStore
+	DataStore   *storage.DataStore
+	PolicyStore *storage.PolicyStore
 }
 
 // Init initializes the OPA instance.
@@ -61,29 +61,29 @@ func (rt *Runtime) Init(params *Params) error {
 	}
 
 	// Open data store and load base documents.
-	dataStore := eval.NewStorage()
+	ds := storage.NewDataStore()
 
 	for _, doc := range parsed.docs {
 		for k, v := range doc {
-			if err := dataStore.Patch(eval.StorageAdd, []interface{}{k}, v); err != nil {
+			if err := ds.Patch(storage.AddOp, []interface{}{k}, v); err != nil {
 				return errors.Wrap(err, "unable to open data store")
 			}
 		}
 	}
 
 	// Open policy store and load existing policies.
-	policyStore := eval.NewPolicyStore(dataStore, params.PolicyDir)
-	if err := policyStore.Open(eval.LoadPolicies); err != nil {
+	ps := storage.NewPolicyStore(ds, params.PolicyDir)
+	if err := ps.Open(storage.LoadPolicies); err != nil {
 		return errors.Wrap(err, "unable to open policy store")
 	}
 
 	// Load policies provided via input.
-	if err := compileAndStoreInputs(parsed.modules, policyStore); err != nil {
+	if err := compileAndStoreInputs(parsed.modules, ps); err != nil {
 		return errors.Wrapf(err, "compile error")
 	}
 
-	rt.PolicyStore = policyStore
-	rt.Store = dataStore
+	rt.PolicyStore = ps
+	rt.DataStore = ds
 
 	return nil
 }
@@ -114,7 +114,7 @@ func (rt *Runtime) startRepl(params *Params) {
 	repl.Loop()
 }
 
-func compileAndStoreInputs(parsed map[string]*parsedModule, policyStore *eval.PolicyStore) error {
+func compileAndStoreInputs(parsed map[string]*parsedModule, policyStore *storage.PolicyStore) error {
 
 	mods := policyStore.List()
 	for _, p := range parsed {

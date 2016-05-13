@@ -2,7 +2,7 @@
 // Use of this source code is governed by an Apache2
 // license that can be found in the LICENSE file.
 
-package eval
+package storage
 
 import (
 	"encoding/json"
@@ -39,7 +39,7 @@ func TestStorageGet(t *testing.T) {
 		{"b.vdeadbeef", notFoundError(path("b.vdeadbeef"), doesNotExistMsg)},
 	}
 
-	store := NewStorageFromJSONObject(data)
+	ds := NewDataStoreFromJSONObject(data)
 
 	for idx, tc := range tests {
 		ref := ast.MustParseRef(tc.ref)
@@ -47,7 +47,7 @@ func TestStorageGet(t *testing.T) {
 		if err != nil {
 			panic(err)
 		}
-		result, err := store.Get(path)
+		result, err := ds.Get(path)
 		switch e := tc.expected.(type) {
 		case error:
 			if err == nil {
@@ -121,24 +121,24 @@ func TestStoragePatch(t *testing.T) {
 
 	for i, tc := range tests {
 		data := loadSmallTestData()
-		store := NewStorageFromJSONObject(data)
+		ds := NewDataStoreFromJSONObject(data)
 
 		// Perform patch and check result
 		value := loadExpectedSortedResult(tc.value)
 
-		var op StorageOp
+		var op PatchOp
 		switch tc.op {
 		case "add":
-			op = StorageAdd
+			op = AddOp
 		case "remove":
-			op = StorageRemove
+			op = RemoveOp
 		case "replace":
-			op = StorageReplace
+			op = ReplaceOp
 		default:
 			panic(fmt.Sprintf("illegal value: %v", tc.op))
 		}
 
-		err := store.Patch(op, path(tc.path), value)
+		err := ds.Patch(op, path(tc.path), value)
 
 		if tc.expected == nil {
 			if err != nil {
@@ -161,7 +161,7 @@ func TestStoragePatch(t *testing.T) {
 		}
 
 		// Perform get and verify result
-		result, err := store.Get(path(tc.getPath))
+		result, err := ds.Get(path(tc.getPath))
 		switch expected := tc.getExpected.(type) {
 		case error:
 			if err == nil {
@@ -192,16 +192,16 @@ func TestStoragePatch(t *testing.T) {
 func TestStorageIndexingBasicUpdate(t *testing.T) {
 	refA := ast.MustParseRef("data.a[i]")
 	refB := ast.MustParseRef("data.b[x]")
-	store := newStorageWithIndices(refA, refB)
+	ds := newStorageWithIndices(refA, refB)
 
-	mustPatch(store, StorageAdd, path(`a["-"]`), float64(100))
+	mustPatch(ds, AddOp, path(`a["-"]`), float64(100))
 
-	index := store.Indices.Get(refA)
+	index := ds.Indices.Get(refA)
 	if index != nil {
 		t.Errorf("Expected index to be removed after patch: %v", index)
 	}
 
-	index = store.Indices.Get(refB)
+	index = ds.Indices.Get(refB)
 	if index == nil {
 		t.Errorf("Expected index to be intact after patch: %v", refB)
 	}
@@ -210,16 +210,16 @@ func TestStorageIndexingBasicUpdate(t *testing.T) {
 func TestStorageIndexingAddDeepPath(t *testing.T) {
 	ref := ast.MustParseRef("data.l[x]")
 	refD := ast.MustParseRef("data.l[x].d")
-	store := newStorageWithIndices(ref, refD)
+	ds := newStorageWithIndices(ref, refD)
 
-	mustPatch(store, StorageAdd, path(`l[0].c["-"]`), float64(5))
+	mustPatch(ds, AddOp, path(`l[0].c["-"]`), float64(5))
 
-	index := store.Indices.Get(ref)
+	index := ds.Indices.Get(ref)
 	if index != nil {
 		t.Errorf("Expected index to be removed after patch: %v", index)
 	}
 
-	index = store.Indices.Get(refD)
+	index = ds.Indices.Get(refD)
 	if index == nil {
 		t.Errorf("Expected index to be intact after patch: %v", refD)
 	}
@@ -227,39 +227,129 @@ func TestStorageIndexingAddDeepPath(t *testing.T) {
 
 func TestStorageIndexingAddDeepRef(t *testing.T) {
 	ref := ast.MustParseRef("data.l[x].a")
-	store := newStorageWithIndices(ref)
+	ds := newStorageWithIndices(ref)
 	var data interface{}
 	json.Unmarshal([]byte(`{"a": "eve", "b": 100, "c": [999,999,999]}`), &data)
 
-	mustPatch(store, StorageAdd, path(`l["-"]`), data)
+	mustPatch(ds, AddOp, path(`l["-"]`), data)
 
-	index := store.Indices.Get(ref)
+	index := ds.Indices.Get(ref)
 	if index != nil {
 		t.Errorf("Expected index to be removed after patch: %v", index)
 	}
 }
 
-func newStorageWithIndices(r ...ast.Ref) *Storage {
-	data := loadSmallTestData()
-	store := NewStorageFromJSONObject(data)
-	for _, x := range r {
-		mustBuild(store, x)
+func loadExpectedBindings(input string) []*Bindings {
+	var data []map[string]interface{}
+	if err := json.Unmarshal([]byte(input), &data); err != nil {
+		panic(err)
 	}
-	return store
+	var expected []*Bindings
+	for _, bindings := range data {
+		buf := NewBindings()
+		for k, v := range bindings {
+			switch v := v.(type) {
+			case string:
+				buf.Put(ast.Var(k), ast.String(v))
+			case float64:
+				buf.Put(ast.Var(k), ast.Number(v))
+			default:
+				panic("unreachable")
+			}
+		}
+		expected = append(expected, buf)
+	}
+
+	return expected
 }
 
-func mustBuild(store *Storage, ref ast.Ref) {
+func loadExpectedResult(input string) interface{} {
+	if len(input) == 0 {
+		return nil
+	}
+	var data interface{}
+	if err := json.Unmarshal([]byte(input), &data); err != nil {
+		panic(err)
+	}
+	return data
+}
+
+func loadExpectedSortedResult(input string) interface{} {
+	data := loadExpectedResult(input)
+	switch data := data.(type) {
+	case []interface{}:
+		return data
+	default:
+		return data
+	}
+}
+
+func loadSmallTestData() map[string]interface{} {
+	var data map[string]interface{}
+	err := json.Unmarshal([]byte(`{
+        "a": [1,2,3,4],
+        "b": {
+            "v1": "hello",
+            "v2": "goodbye"
+        },
+        "c": [{
+            "x": [true, false, "foo"],
+            "y": [null, 3.14159],
+            "z": {"p": true, "q": false}
+        }],
+        "d": {
+            "e": ["bar", "baz"]
+        },
+		"g": {
+			"a": [1, 0, 0, 0],
+			"b": [0, 2, 0, 0],
+			"c": [0, 0, 0, 4]
+		},
+		"h": [
+			[1,2,3],
+			[2,3,4]
+		],
+		"l": [
+			{
+				"a": "bob",
+				"b": -1,
+				"c": [1,2,3,4]
+			},
+			{
+				"a": "alice",
+				"b": 1,
+				"c": [2,3,4,5],
+				"d": null
+			}
+		]
+    }`), &data)
+	if err != nil {
+		panic(err)
+	}
+	return data
+}
+
+func mustBuild(store *DataStore, ref ast.Ref) {
 	err := store.Indices.Build(store, ref)
 	if err != nil {
 		panic(err)
 	}
 }
 
-func mustPatch(store *Storage, op StorageOp, path []interface{}, value interface{}) {
+func mustPatch(store *DataStore, op PatchOp, path []interface{}, value interface{}) {
 	err := store.Patch(op, path, value)
 	if err != nil {
 		panic(err)
 	}
+}
+
+func newStorageWithIndices(r ...ast.Ref) *DataStore {
+	data := loadSmallTestData()
+	store := NewDataStoreFromJSONObject(data)
+	for _, x := range r {
+		mustBuild(store, x)
+	}
+	return store
 }
 
 func path(input interface{}) []interface{} {

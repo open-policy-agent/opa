@@ -15,6 +15,7 @@ import (
 	"github.com/apcera/termtables"
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/eval"
+	"github.com/open-policy-agent/opa/storage"
 	"github.com/peterh/liner"
 )
 
@@ -113,7 +114,7 @@ func (r *Repl) OneShot(line string) bool {
 }
 
 func (r *Repl) cmdDump() bool {
-	fmt.Fprintln(r.Output, r.Runtime.Store)
+	fmt.Fprintln(r.Output, r.Runtime.DataStore)
 	return false
 }
 
@@ -269,7 +270,7 @@ func (r *Repl) evalStatement(stmt interface{}) bool {
 
 func (r *Repl) evalBody(body ast.Body) bool {
 
-	ctx := eval.NewTopDownContext(body, r.Runtime.Store)
+	ctx := eval.NewTopDownContext(body, r.Runtime.DataStore)
 	if r.Trace {
 		ctx.Tracer = &eval.StdoutTracer{}
 	}
@@ -406,7 +407,7 @@ func (r *Repl) evalRule(rule *ast.Rule) bool {
 
 	path := []interface{}{string(rule.Name)}
 
-	if err := r.Runtime.Store.Patch(eval.StorageAdd, path, []*ast.Rule{rule}); err != nil {
+	if err := r.Runtime.DataStore.Patch(storage.AddOp, path, []*ast.Rule{rule}); err != nil {
 		fmt.Fprintln(r.Output, "error:", err)
 		return true
 	}

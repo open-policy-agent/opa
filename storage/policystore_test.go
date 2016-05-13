@@ -2,7 +2,7 @@
 // Use of this source code is governed by an Apache2
 // license that can be found in the LICENSE file.
 
-package eval
+package storage
 
 import (
 	"io/ioutil"
@@ -29,7 +29,7 @@ func TestPolicyStoreDefaultOpen(t *testing.T) {
 		panic(err)
 	}
 
-	dataStore := NewStorage()
+	dataStore := NewDataStore()
 	policyStore := NewPolicyStore(dataStore, dir)
 
 	err = policyStore.Open(LoadPolicies)
@@ -236,7 +236,7 @@ func TestPolicyStoreUpdate(t *testing.T) {
 	}
 
 	node, err = f.dataStore.Get(path("a.b.q"))
-	if !IsStorageNotFound(err) {
+	if !IsNotFound(err) {
 		t.Errorf("Expected storage not found error but got: %v (err: %v)", node, err)
 		return
 	}
@@ -259,7 +259,7 @@ const (
 
 type fixture struct {
 	policyStore *PolicyStore
-	dataStore   *Storage
+	dataStore   *DataStore
 }
 
 func newFixture() *fixture {
@@ -269,7 +269,7 @@ func newFixture() *fixture {
 		panic(err)
 	}
 
-	dataStore := NewStorage()
+	dataStore := NewDataStore()
 	policyStore := NewPolicyStore(dataStore, dir)
 	err = policyStore.Open(func(map[string][]byte) (map[string]*ast.Module, error) {
 		return nil, nil

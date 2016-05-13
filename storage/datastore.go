@@ -2,7 +2,7 @@
 // Use of this source code is governed by an Apache2
 // license that can be found in the LICENSE file.
 
-package eval
+package storage
 
 import (
 	"fmt"
@@ -10,34 +10,34 @@ import (
 	"github.com/open-policy-agent/opa/ast"
 )
 
-// StorageErrorCode represents the collection of error types that can be
+// ErrCode represents the collection of error types that can be
 // returned by Storage.
-type StorageErrorCode int
+type ErrCode int
 
 const (
-	// StorageInternalErr indicates an unknown, internal error has occurred.
-	StorageInternalErr StorageErrorCode = iota
+	// InternalErr indicates an unknown, internal error has occurred.
+	InternalErr ErrCode = iota
 
-	// StorageNotFoundErr indicates the path used in the storage operation does not
+	// NotFoundErr indicates the path used in the storage operation does not
 	// locate a document.
-	StorageNotFoundErr = iota
+	NotFoundErr = iota
 )
 
-// StorageError is the error type returned by Storage functions.
-type StorageError struct {
-	Code    StorageErrorCode
+// Error is the error type returned by Storage functions.
+type Error struct {
+	Code    ErrCode
 	Message string
 }
 
-func (err *StorageError) Error() string {
+func (err *Error) Error() string {
 	return fmt.Sprintf("storage error (code: %d): %v", err.Code, err.Message)
 }
 
-// IsStorageNotFound returns true if this error is a StorageNotFoundErr
-func IsStorageNotFound(err error) bool {
+// IsNotFound returns true if this error is a NotFoundErr
+func IsNotFound(err error) bool {
 	switch err := err.(type) {
-	case *StorageError:
-		return err.Code == StorageNotFoundErr
+	case *Error:
+		return err.Code == NotFoundErr
 	}
 	return false
 }
@@ -63,7 +63,7 @@ func nonArrayMsg(v interface{}) string {
 	return fmt.Sprintf("path refers to non-array document with element %v", v)
 }
 
-func notFoundError(path []interface{}, f string, a ...interface{}) *StorageError {
+func notFoundError(path []interface{}, f string, a ...interface{}) *Error {
 	msg := fmt.Sprintf("bad path: %v", path)
 	if len(f) > 0 {
 		msg += ", " + fmt.Sprintf(f, a...)
@@ -71,58 +71,71 @@ func notFoundError(path []interface{}, f string, a ...interface{}) *StorageError
 	return notFoundErrorf(msg)
 }
 
-func notFoundErrorf(f string, a ...interface{}) *StorageError {
+func notFoundErrorf(f string, a ...interface{}) *Error {
 	msg := fmt.Sprintf(f, a...)
-	return &StorageError{
-		Code:    StorageNotFoundErr,
+	return &Error{
+		Code:    NotFoundErr,
 		Message: msg,
 	}
 }
 
-// Storage is the backend containing rules and data.
-type Storage struct {
+// DataStore is the backend containing rule references and data.
+type DataStore struct {
 	Indices *Indices
 	data    map[string]interface{}
 }
 
-// NewStorage is a helper for creating a new, empty Storage.
-func NewStorage() *Storage {
-	return &Storage{
+// NewDataStore returns an empty DataStore.
+func NewDataStore() *DataStore {
+	return &DataStore{
 		Indices: NewIndices(),
 		data:    map[string]interface{}{},
 	}
 }
 
-// NewStorageFromJSONObject returns Storage by converting from map[string]interface{}
-// This is mostly for test purposes.
-func NewStorageFromJSONObject(data map[string]interface{}) *Storage {
-	store := NewStorage()
+// NewDataStoreFromJSONObject returns a new DataStore containing
+// the supplied documents. This is mostly for test purposes.
+func NewDataStoreFromJSONObject(data map[string]interface{}) *DataStore {
+	ds := NewDataStore()
 	for k, v := range data {
-		if err := store.Patch(StorageAdd, []interface{}{k}, v); err != nil {
+		if err := ds.Patch(AddOp, []interface{}{k}, v); err != nil {
 			panic(err)
 		}
 	}
-	return store
+	return ds
 }
 
 // Get returns the value in Storage referenced by path.
 // If the lookup fails, an error is returned with a message indicating
 // why the failure occurred.
-func (store *Storage) Get(path []interface{}) (interface{}, error) {
-	return get(store.data, path)
+func (ds *DataStore) Get(path []interface{}) (interface{}, error) {
+	return get(ds.data, path)
+}
+
+// GetRef returns the value in Storage referred to by the reference.
+// This is a convienence function.
+func (ds *DataStore) GetRef(ref ast.Ref) (interface{}, error) {
+	if !ref[0].Equal(ast.DefaultRootDocument) {
+		return nil, fmt.Errorf("illegal root %v: %v", ref[0], ref)
+	}
+	path, err := ref[1:].Underlying()
+	if err != nil {
+		return nil, err
+	}
+	return ds.Get(path)
 }
 
 // MakePath ensures the specified path exists by creating elements as necessary.
-func (store *Storage) MakePath(path []interface{}) error {
+func (ds *DataStore) MakePath(path []interface{}) error {
 	var tmp []interface{}
 	for _, p := range path {
 		tmp = append(tmp, p)
-		node, err := store.Get(tmp)
+		node, err := ds.Get(tmp)
 		if err != nil {
 			switch err := err.(type) {
-			case *StorageError:
-				if err.Code == StorageNotFoundErr {
-					err := store.Patch(StorageAdd, tmp, map[string]interface{}{})
+			case *Error:
+				if err.Code == NotFoundErr {
+					err := ds.Patch(AddOp, tmp, map[string]interface{}{})
 					if err != nil {
 						return err
 					}
@@ -143,27 +156,22 @@ func (store *Storage) MakePath(path []interface{}) error {
 
 // MustGet returns the value in Storage reference by path.
 // If the lookup fails, the function will panic.
-func (store *Storage) MustGet(path []interface{}) interface{} {
-	return mustGet(store.data, path)
+func (ds *DataStore) MustGet(path []interface{}) interface{} {
+	return mustGet(ds.data, path)
 }
 
-// StorageOp is the enumeration of supposed modifications.
-type StorageOp int
+// PatchOp is the enumeration of supposed modifications.
+type PatchOp int
 
+// Patch supports add, remove, and replace operations.
 const (
-
-	// StorageAdd represents an additive operation.
-	StorageAdd StorageOp = iota
-
-	// StorageRemove represents a removal operation.
-	StorageRemove = iota
-
-	// StorageReplace represents a replacement operation.
-	StorageReplace = iota
+	AddOp     PatchOp = iota
+	RemoveOp          = iota
+	ReplaceOp         = iota
 )
 
 // Patch modifies the store by performing the associated add/remove/replace operation on the given path.
-func (store *Storage) Patch(op StorageOp, path []interface{}, value interface{}) error {
+func (ds *DataStore) Patch(op PatchOp, path []interface{}, value interface{}) error {
 
 	if len(path) == 0 {
 		return notFoundError(path, nonEmptyMsg)
@@ -179,7 +187,7 @@ func (store *Storage) Patch(op StorageOp, path []interface{}, value interface{})
 	// the use cases, we can optimize this.
 	r := []ast.Ref{}
 
-	err := store.Indices.Iter(func(ref ast.Ref, index *Index) error {
+	err := ds.Indices.Iter(func(ref ast.Ref, index *Index) error {
 		if !commonPrefix(ref[1:], path) {
 			return nil
 		}
@@ -192,25 +200,25 @@ func (store *Storage) Patch(op StorageOp, path []interface{}, value interface{})
 	}
 
 	for _, ref := range r {
-		store.Indices.Drop(ref)
+		ds.Indices.Drop(ref)
 	}
 
 	// Perform in-place update on data.
 	switch op {
-	case StorageAdd:
-		return add(store.data, path, value)
-	case StorageRemove:
-		return remove(store.data, path)
-	case StorageReplace:
-		return replace(store.data, path, value)
+	case AddOp:
+		return add(ds.data, path, value)
+	case RemoveOp:
+		return remove(ds.data, path)
+	case ReplaceOp:
+		return replace(ds.data, path, value)
 	}
 
 	// Unreachable.
 	return nil
 }
 
-func (store *Storage) String() string {
-	return fmt.Sprintf("%v", store.data)
+func (ds *DataStore) String() string {
+	return fmt.Sprintf("%v", ds.data)
 }
 
 // commonPrefix returns true the reference is a prefix of the path or vice versa.

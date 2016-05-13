@@ -2,7 +2,7 @@
 // Use of this source code is governed by an Apache2
 // license that can be found in the LICENSE file.
 
-package eval
+package storage
 
 import (
 	"encoding/json"
@@ -46,7 +46,7 @@ func TestIndicesAdd(t *testing.T) {
 
 	indices := NewIndices()
 	data := loadSmallTestData()
-	store := NewStorageFromJSONObject(data)
+	store := NewDataStoreFromJSONObject(data)
 
 	ref := ast.MustParseRef("data.d[x][y]")
 
@@ -76,7 +76,7 @@ func runIndexBuildTestCase(t *testing.T, i int, note string, refStr string, expe
 
 	indices := NewIndices()
 	data := loadSmallTestData()
-	store := NewStorageFromJSONObject(data)
+	store := NewDataStoreFromJSONObject(data)
 	ref := ast.MustParseRef(refStr)
 
 	if indices.Get(ref) != nil {

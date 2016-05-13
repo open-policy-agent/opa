@@ -17,6 +17,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/eval"
+	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/version"
 	"github.com/pkg/errors"
 )
@@ -129,7 +130,7 @@ func (s *Server) execQuery(qStr string) (resultSetV1, error) {
 
 	compiled := c.Modules[""].Rules[0].Body
 
-	ctx := eval.NewTopDownContext(compiled, s.Runtime.Store)
+	ctx := eval.NewTopDownContext(compiled, s.Runtime.DataStore)
 
 	results := resultSetV1{}
 
@@ -194,8 +195,8 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	path := strings.Split(vars["path"], "/")
 	params := &eval.TopDownQueryParams{
-		Store: s.Runtime.Store,
-		Path:  path,
+		DataStore: s.Runtime.DataStore,
+		Path:      path,
 	}
 
 	s.mtx.RLock()
@@ -231,16 +232,16 @@ func (s *Server) v1DataPatch(w http.ResponseWriter, r *http.Request) {
 
 	for i := range ops {
 
-		var op eval.StorageOp
+		var op storage.PatchOp
 
 		// TODO this could be refactored for failure handling
 		switch ops[i].Op {
 		case "add":
-			op = eval.StorageAdd
+			op = storage.AddOp
 		case "remove":
-			op = eval.StorageRemove
+			op = storage.RemoveOp
 		case "replace":
-			op = eval.StorageReplace
+			op = storage.ReplaceOp
 		default:
 			handleErrorf(w, 400, "bad patch operation: %v", ops[i].Op)
 			return
@@ -255,7 +256,7 @@ func (s *Server) v1DataPatch(w http.ResponseWriter, r *http.Request) {
 			path = append(path, x)
 		}
 
-		if err := s.Runtime.Store.Patch(op, path, ops[i].Value); err != nil {
+		if err := s.Runtime.DataStore.Patch(op, path, ops[i].Value); err != nil {
 			handleErrorAuto(w, err)
 			return
 		}
@@ -427,7 +428,7 @@ func handleError(w http.ResponseWriter, code int, err error) {
 func handleErrorAuto(w http.ResponseWriter, err error) {
 	var prev error
 	for curr := err; curr != prev; {
-		if eval.IsStorageNotFound(curr) {
+		if storage.IsNotFound(curr) {
 			handleError(w, 404, err)
 			return
 		}

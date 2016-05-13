@@ -7,6 +7,7 @@ PACKAGES := \
 	github.com/open-policy-agent/opa/cmd/.../ \
 	github.com/open-policy-agent/opa/eval/.../ \
 	github.com/open-policy-agent/opa/runtime/.../ \
+	github.com/open-policy-agent/opa/storage/.../ \
 	github.com/open-policy-agent/opa/util/.../
 
 BUILD_COMMIT := $(shell ./build/get-build-commit.sh)

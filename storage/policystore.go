@@ -2,7 +2,7 @@
 // Use of this source code is governed by an Apache2
 // license that can be found in the LICENSE file.
 
-package eval
+package storage
 
 import (
 	"fmt"
@@ -18,7 +18,7 @@ import (
 // PolicyStore provides a storage abstraction for policy definitions and modules.
 //
 type PolicyStore struct {
-	dataStore *Storage
+	dataStore *DataStore
 	policyDir string
 	raw       map[string][]byte
 	modules   map[string]*ast.Module
@@ -47,7 +47,7 @@ func LoadPolicies(bufs map[string][]byte) (map[string]*ast.Module, error) {
 }
 
 // NewPolicyStore returns an empty PolicyStore.
-func NewPolicyStore(store *Storage, policyDir string) *PolicyStore {
+func NewPolicyStore(store *DataStore, policyDir string) *PolicyStore {
 	return &PolicyStore{
 		dataStore: store,
 		policyDir: policyDir,
@@ -232,10 +232,10 @@ func (p *PolicyStore) installRule(path []interface{}, rule *ast.Rule) error {
 	node, err := p.dataStore.Get(path)
 	if err != nil {
 		switch err := err.(type) {
-		case *StorageError:
-			if err.Code == StorageNotFoundErr {
+		case *Error:
+			if err.Code == NotFoundErr {
 				rules := []*ast.Rule{rule}
-				if err := p.dataStore.Patch(StorageAdd, path, rules); err != nil {
+				if err := p.dataStore.Patch(AddOp, path, rules); err != nil {
 					return errors.Wrapf(err, "unable to add new rule set")
 				}
 				return nil
@@ -257,7 +257,7 @@ func (p *PolicyStore) installRule(path []interface{}, rule *ast.Rule) error {
 
 	rs = append(rs, rule)
 
-	if err := p.dataStore.Patch(StorageReplace, path, rs); err != nil {
+	if err := p.dataStore.Patch(ReplaceOp, path, rs); err != nil {
 		return errors.Wrapf(err, "unable to add rule to existing rule set")
 	}
 
@@ -290,7 +290,7 @@ func (p *PolicyStore) uninstallRule(path []interface{}, rule *ast.Rule) error {
 
 	node, err := p.dataStore.Get(path)
 
-	if IsStorageNotFound(err) {
+	if IsNotFound(err) {
 		return nil
 	}
 
@@ -314,8 +314,8 @@ func (p *PolicyStore) uninstallRule(path []interface{}, rule *ast.Rule) error {
 	}
 
 	if len(rs) == 0 {
-		return p.dataStore.Patch(StorageRemove, path, nil)
+		return p.dataStore.Patch(RemoveOp, path, nil)
 	}
 
-	return p.dataStore.Patch(StorageReplace, path, rs)
+	return p.dataStore.Patch(ReplaceOp, path, rs)
 }

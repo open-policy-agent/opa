@@ -11,7 +11,7 @@ import (
 	"testing"
 
 	"github.com/open-policy-agent/opa/ast"
-	"github.com/open-policy-agent/opa/eval"
+	"github.com/open-policy-agent/opa/storage"
 )
 
 func TestDump(t *testing.T) {
@@ -21,7 +21,7 @@ func TestDump(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	store := eval.NewStorageFromJSONObject(data)
+	store := storage.NewDataStoreFromJSONObject(data)
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
 	repl.cmdDump()
@@ -94,13 +94,13 @@ func expectOutput(t *testing.T, output string, expected string) {
 	}
 }
 
-func newRepl(store *eval.Storage, buffer *bytes.Buffer) *Repl {
-	runtime := &Runtime{Store: store}
+func newRepl(store *storage.DataStore, buffer *bytes.Buffer) *Repl {
+	runtime := &Runtime{DataStore: store}
 	repl := NewRepl(runtime, "", buffer)
 	return repl
 }
 
-func newTestStorage() *eval.Storage {
+func newTestStorage() *storage.DataStore {
 	input := `
     {
         "a": [
@@ -122,5 +122,5 @@ func newTestStorage() *eval.Storage {
 	if err != nil {
 		panic(err)
 	}
-	return eval.NewStorageFromJSONObject(data)
+	return storage.NewDataStoreFromJSONObject(data)
 }
