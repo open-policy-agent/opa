@@ -11,3 +11,4 @@ import:
 - package: github.com/pkg/errors
 - package: github.com/gorilla/mux
 - package: github.com/gorilla/context
+- package: github.com/golang/glog

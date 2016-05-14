@@ -1,6 +1,6 @@
 # errors [![Travis-CI](https://travis-ci.org/pkg/errors.svg)](https://travis-ci.org/pkg/errors) [![GoDoc](https://godoc.org/github.com/pkg/errors?status.svg)](http://godoc.org/github.com/pkg/errors) [![Report card](https://goreportcard.com/badge/github.com/pkg/errors)](https://goreportcard.com/report/github.com/pkg/errors)
 
-Package errors implements functions for manipulating errors.
+Package errors provides simple error handling primitives.
 
 The traditional error handling idiom in Go is roughly akin to
 ```go

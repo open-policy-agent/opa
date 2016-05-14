@@ -1,4 +1,4 @@
-// Package errors implements functions for manipulating errors.
+// Package errors provides simple error handling primitives.
 //
 // The traditional error handling idiom in Go is roughly akin to
 //
@@ -51,7 +51,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"os"
 	"runtime"
 	"strings"
 )
@@ -202,7 +201,7 @@ func Cause(err error) error {
 	return err
 }
 
-// Print prints the error to Stderr.
+// Fprint prints the error to the supplied writer.
 // If the error implements the Causer interface described in Cause
 // Print will recurse into the error's cause.
 // If the error implements the inteface:
@@ -212,12 +211,6 @@ func Cause(err error) error {
 //     }
 //
 // Print will also print the file and line of the error.
-func Print(err error) {
-	Fprint(os.Stderr, err)
-}
-
-// Fprint prints the error to the supplied writer.
-// The format of the output is the same as Print.
 // If err is nil, nothing is printed.
 func Fprint(w io.Writer, err error) {
 	type location interface {

@@ -1,11 +1,13 @@
-hash: 31c9b7e9f98ce4ccaadc502360c930f22151e9ccb77eba12f030fd87edfd8c9f
-updated: 2016-05-09T16:58:07.015114036-07:00
+hash: 3a5ccacd36f8f645111341d62e7d4dec495008b9a8aafdbaedf3de4c8547bd07
+updated: 2016-05-14T09:38:59.09198485-07:00
 imports:
 - name: github.com/apcera/termtables
   version: 683d3fb424194f29991b0442b37521de9bc9d66b
   subpackages:
   - locale
   - term
+- name: github.com/golang/glog
+  version: 23def4e6c14b4da8ac2ed8007337bc5eb5007998
 - name: github.com/golang/lint
   version: c7bacac2b21ca01afa1dee0acf64df3ce047c28f
 - name: github.com/gorilla/context
@@ -17,7 +19,7 @@ imports:
 - name: github.com/peterh/liner
   version: 0e4af131b90a9786839c8b1b01717be263e8555a
 - name: github.com/pkg/errors
-  version: 502e17a0cb34bd200593552492e458d89cf6a64f
+  version: d814416a46cbb066b728cfff58d30a986bc9ddbe
 - name: github.com/PuerkitoBio/pigeon
   version: a5221784523de14130c00a8c389148a1b2ad260c
 - name: github.com/spf13/cobra
@@ -25,7 +27,7 @@ imports:
 - name: github.com/spf13/pflag
   version: cb88ea77998c3f024757528e3305022ab50b43be
 - name: golang.org/x/tools
-  version: 3f1f7eeff104d9ef829677f12b9780dfdd26a96a
+  version: c86fe5956d4575f29850535871a97abbd403a145
   subpackages:
   - cmd/goimports
 devImports: []
