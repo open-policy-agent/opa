@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/golang/glog"
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/pkg/errors"
@@ -104,6 +105,8 @@ func (rt *Runtime) Start(params *Params) {
 }
 
 func (rt *Runtime) startServer(params *Params) {
+	glog.Warning("First line of log stream.")
+	glog.V(2).Infof("Server listening address: %v.", params.Addr)
 	persist := len(params.PolicyDir) > 0
 	server := NewServer(rt, params.Addr, persist)
 	server.Loop()

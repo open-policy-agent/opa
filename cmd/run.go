@@ -5,12 +5,16 @@
 package cmd
 
 import (
+	"flag"
 	"os"
 	"path"
 	"path/filepath"
+	"reflect"
+	"strings"
 
 	"github.com/open-policy-agent/opa/runtime"
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 )
 
 // default filename for the interactive shell's history
@@ -70,6 +74,9 @@ In addition, API calls to delete policies will remove the definition file.
 	runCommand.Flags().StringVarP(&params.PolicyDir, "policy-dir", "p", "", "set directory to store policy definitions")
 	runCommand.Flags().StringVarP(&params.Addr, "addr", "a", defaultAddr, "set listening address of the server")
 
+	wrapFlags(runCommand.Flags())
+	flag.Parse()
+
 	usageTemplate := `Usage:
   {{.UseLine}} [flags] [files]
 
@@ -96,4 +103,37 @@ func policyDir() string {
 		return defaultPolicyDir
 	}
 	return filepath.Join(cwd, defaultPolicyDir)
+}
+
+type flagWrapper struct {
+	inner flag.Value
+	typ   string
+}
+
+func (f *flagWrapper) String() string {
+	return f.inner.String()
+}
+
+func (f *flagWrapper) Set(s string) error {
+	return f.inner.Set(s)
+}
+
+func (f *flagWrapper) Type() string {
+	return f.typ
+}
+
+func wrapFlag(v flag.Value) pflag.Value {
+	if pf, ok := v.(pflag.Value); ok {
+		return pf
+	}
+	return &flagWrapper{
+		inner: v,
+		typ:   strings.TrimSuffix(reflect.TypeOf(v).Elem().Name(), "Value"),
+	}
+}
+
+func wrapFlags(flags *pflag.FlagSet) {
+	flag.CommandLine.VisitAll(func(flg *flag.Flag) {
+		flags.Var(wrapFlag(flg.Value), flg.Name, flg.Usage)
+	})
 }
