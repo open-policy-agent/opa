@@ -10,6 +10,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -193,7 +194,8 @@ func (s *Server) registerHandlerV1(path string, method string, h func(http.Respo
 
 func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	path := strings.Split(vars["path"], "/")
+	path := splitPath(vars["path"])
+
 	params := &eval.TopDownQueryParams{
 		DataStore: s.Runtime.DataStore,
 		Path:      path,
@@ -214,7 +216,7 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) v1DataPatch(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	root := strings.Split(vars["path"], "/")
+	root := splitPath(vars["path"])
 
 	ops := []patchV1{}
 	if err := json.NewDecoder(r.Body).Decode(&ops); err != nil {
@@ -247,8 +249,7 @@ func (s *Server) v1DataPatch(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		parts := strings.Split(ops[i].Path[1:], "/")
-
+		parts := splitPath(ops[i].Path[1:])
 		for _, x := range parts {
 			if x == "" {
 				continue
@@ -419,6 +420,20 @@ func (s *Server) v1QueryGet(w http.ResponseWriter, r *http.Request) {
 	}
 
 	handleResponseJSON(w, 200, results)
+}
+
+func splitPath(s string) []interface{} {
+	p := strings.Split(s, "/")
+	r := []interface{}{}
+	for _, x := range p {
+		i, err := strconv.Atoi(x)
+		if err != nil {
+			r = append(r, x)
+		} else {
+			r = append(r, float64(i))
+		}
+	}
+	return r
 }
 
 func handleError(w http.ResponseWriter, code int, err error) {

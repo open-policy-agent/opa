@@ -46,7 +46,7 @@ func TestTracer(t *testing.T) {
 	params := &TopDownQueryParams{
 		DataStore: ds,
 		Tracer:    tracer,
-		Path:      []string{"p"}}
+		Path:      []interface{}{"p"}}
 
 	result, err := TopDownQuery(params)
 	if err != nil {

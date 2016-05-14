@@ -788,10 +788,15 @@ func runTopDownTestCase(t *testing.T, data map[string]interface{}, i int, note s
 
 func assertTopDown(t *testing.T, store *storage.DataStore, i int, note string, path []string, expected interface{}) {
 
+	p := []interface{}{}
+	for _, x := range path {
+		p = append(p, x)
+	}
+
 	switch e := expected.(type) {
 
 	case error:
-		result, err := TopDownQuery(&TopDownQueryParams{DataStore: store, Path: path})
+		result, err := TopDownQuery(&TopDownQueryParams{DataStore: store, Path: p})
 		if err == nil {
 			t.Errorf("Test case %d (%v): expected error but got: %v", i+1, note, result)
 			return
@@ -802,7 +807,7 @@ func assertTopDown(t *testing.T, store *storage.DataStore, i int, note string, p
 
 	case string:
 		expected := loadExpectedSortedResult(e)
-		result, err := TopDownQuery(&TopDownQueryParams{DataStore: store, Path: path})
+		result, err := TopDownQuery(&TopDownQueryParams{DataStore: store, Path: p})
 		if err != nil {
 			t.Errorf("Test case %d (%v): unexpected error: %v", i+1, note, err)
 			return

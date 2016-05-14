@@ -147,7 +147,7 @@ func TopDown(ctx *TopDownContext, iter TopDownIterator) error {
 type TopDownQueryParams struct {
 	DataStore *storage.DataStore
 	Tracer    Tracer
-	Path      []string
+	Path      []interface{}
 }
 
 // TopDownQuery returns the document identified by the path.
@@ -158,7 +158,18 @@ func TopDownQuery(params *TopDownQueryParams) (interface{}, error) {
 
 	ref := ast.Ref{ast.DefaultRootDocument}
 	for _, v := range params.Path {
-		ref = append(ref, ast.StringTerm(v))
+		switch v := v.(type) {
+		case float64:
+			ref = append(ref, ast.NumberTerm(v))
+		case string:
+			ref = append(ref, ast.StringTerm(v))
+		case bool:
+			ref = append(ref, ast.BooleanTerm(v))
+		case nil:
+			ref = append(ref, ast.NullTerm())
+		default:
+			return nil, fmt.Errorf("bad path element: %v (%T)", v, v)
+		}
 	}
 
 	node, err := params.DataStore.GetRef(ref)

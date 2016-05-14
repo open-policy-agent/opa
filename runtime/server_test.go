@@ -59,6 +59,64 @@ func TestDataPatchV1(t *testing.T) {
 	}
 }
 
+func TestDataPatchArrayAccessV1(t *testing.T) {
+	f := newFixture(t)
+	patch1 := newReqV1("PATCH", "/data/x", `[{"op": "add", "path": "/", "value": {
+		"y": [
+			{"z": [
+				1, 2, 3
+			]},
+			{"z": [
+				4, 5, 6
+			]}
+		]
+	}}]`)
+
+	f.server.Router.ServeHTTP(f.recorder, patch1)
+
+	if f.recorder.Code != 204 {
+		t.Errorf("Unexpected error: %v", f.recorder)
+		return
+	}
+
+	get1 := newReqV1("GET", "/data/x/y/1/z/2", "")
+	f.reset()
+	f.server.Router.ServeHTTP(f.recorder, get1)
+
+	resp := f.loadResponse().(float64)
+	exp1 := float64(6)
+	if exp1 != resp {
+		t.Errorf("Expected %v but got: %v", exp1, resp)
+		return
+	}
+
+	patch2 := newReqV1("PATCH", "/data/x/y/1", `[{"op": "add", "path": "/z/1", "value": 100}]`)
+	f.reset()
+	f.server.Router.ServeHTTP(f.recorder, patch2)
+
+	if f.recorder.Code != 204 {
+		t.Errorf("Unexpected error: %v", f.recorder)
+		return
+	}
+
+	get2 := newReqV1("GET", "/data/x/y/1/z", "")
+	f.reset()
+	f.server.Router.ServeHTTP(f.recorder, get2)
+
+	if f.recorder.Code != 200 {
+		t.Errorf("Unexpected error: %v", f.recorder)
+		return
+	}
+
+	resp2 := f.loadResponse().([]interface{})
+	exp2 := []interface{}{float64(4), float64(100), float64(5), float64(6)}
+	if !reflect.DeepEqual(exp2, resp2) {
+		t.Errorf("Expected %v but got: %v", exp2, resp2)
+		return
+	}
+
+}
+
 func TestIndexGet(t *testing.T) {
 	f := newFixture(t)
 	get, err := http.NewRequest("GET", `/?q=foo = 1`, strings.NewReader(""))
