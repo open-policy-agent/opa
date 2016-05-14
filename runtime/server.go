@@ -99,7 +99,8 @@ func NewServer(rt *Runtime, addr string, persist bool) *Server {
 
 // Loop starts the server. This function does not return.
 func (s *Server) Loop() {
-	http.ListenAndServe(s.Addr, s.Router)
+	wrapped := NewLoggingHandler(s.Router)
+	http.ListenAndServe(s.Addr, wrapped)
 }
 
 func (s *Server) execQuery(qStr string) (resultSetV1, error) {
