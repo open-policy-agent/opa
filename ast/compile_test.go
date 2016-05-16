@@ -5,6 +5,7 @@
 package ast
 
 import (
+	"fmt"
 	"reflect"
 	"sort"
 	"testing"
@@ -129,6 +130,84 @@ func TestCompilerCheckSafetyHead(t *testing.T) {
 		t.Errorf("Expected exactly 3 errors but got: %v", c.Errors)
 		return
 	}
+}
+
+func TestCompilerCheckSafetyBodyReordering(t *testing.T) {
+	c := NewCompiler()
+	c.Modules = getCompilerTestModules()
+	c.Modules["newMod"] = MustParseModule(`
+	package a.b
+	needsReorder = true :- a[i] = x, a = [1,2,3,4]
+	`)
+	c.setExports()
+	c.setGlobals()
+	c.resolveAllRefs()
+	c.checkSafetyHead()
+
+	c.checkSafetyBody()
+
+	assertNotFailed(t, c)
+
+	expected := MustParseBody(`
+	a = [1,2,3,4], a[i] = x
+	`)
+
+	reordered := c.Modules["newMod"].Rules[0].Body
+
+	if !expected.Equal(reordered) {
+		t.Errorf("Expected body to be re-ordered and equal to %v but got: %v", expected, reordered)
+	}
+}
+
+func TestCompilerCheckSafetyBodyErrors(t *testing.T) {
+	c := NewCompiler()
+
+	c.Modules = getCompilerTestModules()
+	c.Modules["newMod"] = MustParseModule(`
+	package a.b
+
+	# a would be unbound
+	unboundRef1 = true :- a.b.c = "foo"
+
+	# a would be unbound
+	unboundRef2 = true :- {"foo": [{"bar": a.b.c}]} = {"foo": [{"bar": "baz"}]}
+
+	# i and x would be unbound
+	unboundNegated1 = true :- a = [1,2,3,4], not a[i] = x
+
+	# i and x would be unbound even though x appears in head
+	unboundNegated2[x] :- a = [1,2,3,4], not a[i] = x
+
+	# x, i, and j would be unbound even though they appear in other expressions
+	unboundNegated3[x] = true :- a = [1,2,3,4], b = [1,2,3,4], not a[i] = x, not b[j] = x
+
+	# i and j would be unbound even though they are in embedded references
+	unboundNegated4 =  true :- a = [{"foo": ["bar", "baz"]}], not a[0].foo = [a[0].foo[i], a[0].foo[j]]
+
+	# i and x would be bound in the last expression so the third expression is safe
+	negatedSafe = true :- a = [1,2,3,4], b = [1,2,3,4], not a[i] = x, b[i] = x
+	`)
+
+	c.setExports()
+	c.setGlobals()
+	c.resolveAllRefs()
+	c.checkSafetyHead()
+
+	c.checkSafetyBody()
+
+	expected := []error{
+		fmt.Errorf("unsafe variables in unboundRef1: a"),
+		fmt.Errorf("unsafe variables in unboundRef2: a"),
+		fmt.Errorf("unsafe variables in unboundNegated1: i, x"),
+		fmt.Errorf("unsafe variables in unboundNegated2: i, x"),
+		fmt.Errorf("unsafe variables in unboundNegated3: i, j, x"),
+		fmt.Errorf("unsafe variables in unboundNegated4: i, j"),
+	}
+
+	if !reflect.DeepEqual(expected, c.Errors) {
+		t.Errorf("Expected %v but got:%v", expected, c.Errors)
+	}
+
 }
 
 func assertExports(t *testing.T, c *Compiler, path string, expected []string) {

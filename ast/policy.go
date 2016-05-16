@@ -193,6 +193,16 @@ func (rule *Rule) Walk(iter Walker) bool {
 	return rule.Body.Walk(iter)
 }
 
+// Contains returns true if this body contains the given expression.
+func (body Body) Contains(x *Expr) bool {
+	for _, e := range body {
+		if e.Equal(x) {
+			return true
+		}
+	}
+	return false
+}
+
 // Equal returns true if this Body is equal to the other Body.
 // Two bodies are equal if consist of equal, ordered expressions.
 func (body Body) Equal(other Body) bool {

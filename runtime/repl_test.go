@@ -65,7 +65,7 @@ func TestOneShotBufferedRule(t *testing.T) {
 	repl := newRepl(store, &buffer)
 	repl.OneShot("p[x] :- ")
 	expectOutput(t, buffer.String(), "")
-	repl.OneShot("a[i]")
+	repl.OneShot("data.a[i]")
 	expectOutput(t, buffer.String(), "")
 	repl.OneShot(" = ")
 	expectOutput(t, buffer.String(), "")

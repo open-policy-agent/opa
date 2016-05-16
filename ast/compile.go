@@ -6,6 +6,7 @@ package ast
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/open-policy-agent/opa/util"
@@ -91,6 +92,10 @@ func (c *Compiler) Compile(mods map[string]*Module) {
 	if c.checkSafetyHead(); c.Failed() {
 		return
 	}
+
+	if c.checkSafetyBody(); c.Failed() {
+		return
+	}
 }
 
 // Failed returns true if a compilation error has been encountered.
@@ -116,6 +121,140 @@ func (c *Compiler) FlattenErrors() string {
 	}
 
 	return fmt.Sprintf("%d errors occurred:\n%s", len(c.Errors), strings.Join(b, "\n"))
+}
+
+// checkSafetyBody ensures that variables appearing in negated expressions or non-target
+// positions of built-in expressions will be bound when evaluating the rule from left
+// to right. If the variable is bound in an expression that would be processed *after*
+// the negated or built-in expression, the expressions will be re-ordered.
+func (c *Compiler) checkSafetyBody() {
+	for _, m := range c.Modules {
+		for _, r := range m.Rules {
+
+			// Build map of expression to variables contained in the expression that
+			// are (potentially) unsafe. That is, any variable that is not a global.
+			unsafe := map[*Expr]map[Var]struct{}{}
+			for _, e := range r.Body {
+				cv := &collectAllVarsVisitor{}
+				e.Walk(cv.Walk)
+				for _, v := range cv.Vars {
+					// TODO(tsandall): consider including certain built-in variables
+					// in the Globals. E.g., data, =, !=, etc.
+					if DefaultRootDocument.Value.Equal(v) {
+						continue
+					}
+					if _, ok := c.Globals[m][v]; !ok {
+						if u, ok := unsafe[e]; ok {
+							u[v] = struct{}{}
+						} else {
+							unsafe[e] = map[Var]struct{}{v: struct{}{}}
+						}
+					}
+				}
+			}
+
+			safe := map[Var]struct{}{}
+			reordered := Body{}
+
+			for _, e := range r.Body {
+
+				// Update "safe" map to include variables in this expression
+				// that are safe, i.e., variables in the target positions
+				// of built-ins or variables in references.
+				if !e.Negated {
+					switch ts := e.Terms.(type) {
+					case *Term:
+						if r, ok := ts.Value.(Ref); ok {
+							cv := &collectAllVarsVisitor{}
+							for _, t := range r[1:] {
+								t.Walk(cv.Walk)
+							}
+							for _, v := range cv.Vars {
+								safe[v] = struct{}{}
+							}
+						}
+					case []*Term:
+						b := BuiltinMap[ts[0].Value.(Var)]
+						for i, t := range ts[1:] {
+							if t.IsGround() {
+								continue
+							}
+							if b.UnifiesRecursively(i) {
+								cv := &collectAllVarsVisitor{}
+								// If the term is a reference, any variables
+								// in the reference (except the head) are safe.
+								// Make a copy of the term so that we can exclude
+								// the head while walking the rest of the reference.
+								tmp := *t
+								if r, ok := t.Value.(Ref); ok {
+									tmp.Value = r[1:]
+								}
+								tmp.Walk(cv.Walk)
+								for _, v := range cv.Vars {
+									safe[v] = struct{}{}
+								}
+								continue
+							}
+							if v, ok := t.Value.(Var); ok {
+								if b.Unifies(i) {
+									safe[v] = struct{}{}
+									continue
+								}
+							}
+						}
+					}
+				}
+
+				// Update the set of unsafe variables for this expression and
+				// check if the expression is safe.
+				for v := range unsafe[e] {
+					if _, ok := safe[v]; ok {
+						delete(unsafe[e], v)
+					}
+				}
+
+				if len(unsafe[e]) == 0 {
+					reordered = append(reordered, e)
+					delete(unsafe, e)
+
+					// Check if other expressions in the body are considered safe
+					// now. If they are considered safe now, they can be added
+					// to the end of the re-ordered body.
+					for _, e := range r.Body {
+						if reordered.Contains(e) {
+							continue
+						}
+						for v := range unsafe[e] {
+							if _, ok := safe[v]; ok {
+								delete(unsafe[e], v)
+							}
+						}
+						if len(unsafe[e]) == 0 {
+							reordered = append(reordered, e)
+							delete(unsafe, e)
+						}
+					}
+				}
+			}
+
+			if len(unsafe) != 0 {
+				vars := map[Var]struct{}{}
+				for _, vs := range unsafe {
+					for v := range vs {
+						vars[v] = struct{}{}
+					}
+				}
+				unique := []string{}
+				for v := range vars {
+					unique = append(unique, string(v))
+				}
+				sort.Strings(unique)
+				c.err("unsafe variables in %v: %v", r.Name, strings.Join(unique, ", "))
+			} else {
+				r.Body = reordered
+			}
+		}
+	}
 }
 
 // checkSafetyHead ensures that variables appearing in the head of a
@@ -158,7 +297,7 @@ func (c *Compiler) checkSafetyHead() {
 
 			if len(headVars) > 0 {
 				for _, v := range headVars {
-					c.err("unbound variable in head of %v: %v", r.Name, v)
+					c.err("unsafe variable from head of %v: %v", r.Name, v)
 				}
 			}
 		}
@@ -193,6 +332,83 @@ func (c *Compiler) resolveAllRefs() {
 				}
 			}
 		}
+	}
+}
+
+func (c *Compiler) resolveRef(globals map[Var]Value, ref Ref) Ref {
+
+	global := globals[ref[0].Value.(Var)]
+	if global == nil {
+		return ref
+	}
+	fqn := Ref{}
+	switch global := global.(type) {
+	case Ref:
+		fqn = append(fqn, global...)
+		for _, p := range ref[1:] {
+			switch v := p.Value.(type) {
+			case Var:
+				global := globals[v]
+				if global != nil {
+					_, isRef := global.(Ref)
+					if isRef {
+						c.err("nested references in %v: %v => %v", ref, v, global)
+						return ref
+					}
+					fqn = append(fqn, &Term{Location: p.Location, Value: global})
+				} else {
+					fqn = append(fqn, p)
+				}
+			default:
+				fqn = append(fqn, p)
+			}
+		}
+	case Var:
+		fqn = append(fqn, &Term{Value: global})
+		fqn = append(fqn, ref[1:]...)
+	default:
+		c.err("unexpected %T: %v", global, global)
+		return ref
+	}
+
+	return fqn
+}
+
+func (c *Compiler) resolveRefs(globals map[Var]Value, term *Term) *Term {
+	switch v := term.Value.(type) {
+	case Var:
+		if r, ok := globals[v]; ok {
+			cpy := *term
+			cpy.Value = r
+			return &cpy
+		}
+		return term
+	case Ref:
+		fqn := c.resolveRef(globals, v)
+		cpy := *term
+		cpy.Value = fqn
+		return &cpy
+	case Object:
+		o := Object{}
+		for _, i := range v {
+			k := c.resolveRefs(globals, i[0])
+			v := c.resolveRefs(globals, i[1])
+			o = append(o, Item(k, v))
+		}
+		cpy := *term
+		cpy.Value = o
+		return &cpy
+	case Array:
+		a := Array{}
+		for _, e := range v {
+			x := c.resolveRefs(globals, e)
+			a = append(a, x)
+		}
+		cpy := *term
+		cpy.Value = a
+		return &cpy
+	default:
+		return term
 	}
 }
 
@@ -276,79 +492,26 @@ func (c *Compiler) setGlobals() {
 	}
 }
 
-func (c *Compiler) resolveRefs(globals map[Var]Value, term *Term) *Term {
-	switch v := term.Value.(type) {
-	case Var:
-		if r, ok := globals[v]; ok {
-			cpy := *term
-			cpy.Value = r
-			return &cpy
-		}
-		return term
-	case Ref:
-		fqn := c.resolveRef(globals, v)
-		cpy := *term
-		cpy.Value = fqn
-		return &cpy
-	case Object:
-		o := Object{}
-		for _, i := range v {
-			k := c.resolveRefs(globals, i[0])
-			v := c.resolveRefs(globals, i[1])
-			o = append(o, Item(k, v))
-		}
-		cpy := *term
-		cpy.Value = o
-		return &cpy
-	case Array:
-		a := Array{}
-		for _, e := range v {
-			x := c.resolveRefs(globals, e)
-			a = append(a, x)
-		}
-		cpy := *term
-		cpy.Value = a
-		return &cpy
-	default:
-		return term
-	}
+type collectAllVarsVisitor struct {
+	Vars []Var
 }
 
-func (c *Compiler) resolveRef(globals map[Var]Value, ref Ref) Ref {
-
-	global := globals[ref[0].Value.(Var)]
-	if global == nil {
-		return ref
-	}
-	fqn := Ref{}
-	switch global := global.(type) {
-	case Ref:
-		fqn = append(fqn, global...)
-		for _, p := range ref[1:] {
-			switch v := p.Value.(type) {
-			case Var:
-				global := globals[v]
-				if global != nil {
-					_, isRef := global.(Ref)
-					if isRef {
-						c.err("nested references in %v: %v => %v", ref, v, global)
-						return ref
-					}
-					fqn = append(fqn, &Term{Location: p.Location, Value: global})
-				} else {
-					fqn = append(fqn, p)
-				}
-			default:
-				fqn = append(fqn, p)
+func (cv *collectAllVarsVisitor) Walk(v interface{}) bool {
+	// Handle expressions as special case so that the built-in function
+	// name can be excluded from the results.
+	if e, ok := v.(*Expr); ok {
+		switch ts := e.Terms.(type) {
+		case *Term:
+			ts.Walk(cv.Walk)
+		case []*Term:
+			for _, t := range ts[1:] {
+				t.Walk(cv.Walk)
 			}
 		}
-	case Var:
-		fqn = append(fqn, &Term{Value: global})
-		fqn = append(fqn, ref[1:]...)
-	default:
-		c.err("unexpected %T: %v", global, global)
-		return ref
+		return true
 	}
-
-	return fqn
+	if v, ok := v.(*Term).Value.(Var); ok {
+		cv.Vars = append(cv.Vars, v)
+	}
+	return false
 }

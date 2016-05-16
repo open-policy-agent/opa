@@ -20,15 +20,15 @@ import data.networks                            # same but for data.networks
 import data.ports                               # same but for data.ports
 
 violations[server] :-                           # a server exists in the violations set if:
-    server = servers[_],                        # the server exists in the servers collection
-    server.protocols[_] = "http",               # and the server has http in its protocols collection
+    server = servers[i],                        # the server exists in the servers collection
+    server.protocols[j] = "http",               # and the server has http in its protocols collection
     public_servers[server]                      # and the server exists in the public_servers set
 
 public_servers[server] :-                       # a server exists in the public_servers set if:
-    server = servers[_],                        # the server exists in the servers collection
-    server.ports[_] = ports[i].id,              # and the server is connected to a port in the ports collection
-    ports[i].networks[_] = networks[j].id,      # and the port is connected to a network in the networks collection
-    networks[j].public = true                   # and the network is public
+    server = servers[i],                        # the server exists in the servers collection
+    server.ports[j] = ports[k].id,              # and the server is connected to a port in the ports collection
+    ports[k].networks[l] = networks[m].id,      # and the port is connected to a network in the networks collection
+    networks[m].public = true                   # and the network is public
     `
 )
 
@@ -314,14 +314,14 @@ func TestExample(t *testing.T) {
 		},
 		Rules: []*Rule{
 			MustParseStatement(`violations[server] :-
-                         server = servers[_],
-                         server.protocols[_] = "http",
+                         server = servers[i],
+                         server.protocols[j] = "http",
                          public_servers[server]`).(*Rule),
 			MustParseStatement(`public_servers[server] :-
-                         server = servers[_],
-                         server.ports[_] = ports[i].id,
-                         ports[i].networks[_] = networks[j].id,
-                         networks[j].public = true`).(*Rule),
+                         server = servers[i],
+                         server.ports[j] = ports[k].id,
+                         ports[k].networks[l] = networks[m].id,
+                         networks[m].public = true`).(*Rule),
 		},
 	})
 }

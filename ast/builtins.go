@@ -4,14 +4,6 @@
 
 package ast
 
-// Builtin represents a built-in function supported by OPA. Every
-// built-in function is identified by a name.
-type Builtin struct {
-	Name      Var
-	NumArgs   int
-	TargetPos []int
-}
-
 // Builtins is the registry of built-in functions supported by
 // OPA. When adding a new built-in function to OPA, update this
 // list.
@@ -25,9 +17,41 @@ var BuiltinMap map[Var]*Builtin
 
 // Equality represents the "=" operator/function.
 var Equality = &Builtin{
-	Name:      Var("="),
-	NumArgs:   2,
-	TargetPos: []int{0, 1},
+	Name:         Var("="),
+	NumArgs:      2,
+	RecTargetPos: []int{0, 1},
+}
+
+// Builtin represents a built-in function supported by OPA. Every
+// built-in function is uniquely identified by a name.
+type Builtin struct {
+	Name         Var
+	NumArgs      int
+	TargetPos    []int
+	RecTargetPos []int
+}
+
+// Unifies returns true if a term in the given position will unify
+// non-recursively or recursively.
+func (b *Builtin) Unifies(i int) bool {
+	for _, x := range b.TargetPos {
+		if x == i {
+			return true
+		}
+	}
+	return b.UnifiesRecursively(i)
+}
+
+// UnifiesRecursively returns true if a term in the given position will
+// unify recursively, i.e., variables embedded inside a collection type
+// will unify.
+func (b *Builtin) UnifiesRecursively(i int) bool {
+	for _, x := range b.RecTargetPos {
+		if x == i {
+			return true
+		}
+	}
+	return false
 }
 
 func init() {
