@@ -124,6 +124,47 @@ func (term *Term) UnmarshalJSON(bs []byte) error {
 	return nil
 }
 
+// Walk calls the iter function for this term and then
+// recurses on the term value if the term value is a
+// composite (i.e., array, object, or ref).
+func (term *Term) Walk(iter Walker) bool {
+	switch v := term.Value.(type) {
+	case Ref:
+		if iter(term) {
+			return true
+		}
+		for _, t := range v {
+			if t.Walk(iter) {
+				return true
+			}
+		}
+	case Object:
+		if iter(term) {
+			return true
+		}
+		for _, p := range v {
+			if p[0].Walk(iter) {
+				return true
+			}
+			if p[1].Walk(iter) {
+				return true
+			}
+		}
+	case Array:
+		if iter(term) {
+			return true
+		}
+		for _, t := range v {
+			if t.Walk(iter) {
+				return true
+			}
+		}
+	default:
+		return iter(term)
+	}
+	return false
+}
+
 // Null represents the null value defined by JSON.
 type Null struct{}
 

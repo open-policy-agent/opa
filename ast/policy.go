@@ -21,6 +21,12 @@ var Keywords = [...]string{
 	"package", "import", "not",
 }
 
+// Walker defines the interface that callers can use to
+// iterate the AST elements. The only argument passed to the walker
+// is the AST element. Iteration is stopped when the walker returns
+// true or all AST elements have been visited.
+type Walker func(v interface{}) bool
+
 type (
 	// Module represents a collection of policies (defined by rules)
 	// within a namespace (defined by the package) and optional
@@ -172,6 +178,21 @@ func (rule *Rule) String() string {
 	return strings.Join(buf, " ")
 }
 
+// Walk calls the iterator on the rule itself and then recurses
+// on the key, value, and body elements.
+func (rule *Rule) Walk(iter Walker) bool {
+	if iter(rule) {
+		return true
+	}
+	if rule.Key != nil && rule.Key.Walk(iter) {
+		return true
+	}
+	if rule.Value != nil && rule.Value.Walk(iter) {
+		return true
+	}
+	return rule.Body.Walk(iter)
+}
+
 // Equal returns true if this Body is equal to the other Body.
 // Two bodies are equal if consist of equal, ordered expressions.
 func (body Body) Equal(other Body) bool {
@@ -192,6 +213,20 @@ func (body Body) String() string {
 		buf = append(buf, v.String())
 	}
 	return strings.Join(buf, ", ")
+}
+
+// Walk calls the iterator for this body and then recurses
+// on each expression.
+func (body Body) Walk(iter Walker) bool {
+	if iter(body) {
+		return true
+	}
+	for _, expr := range body {
+		if expr.Walk(iter) {
+			return true
+		}
+	}
+	return false
 }
 
 // Complement returns a copy of this expression with the negation flag flipped.
@@ -310,6 +345,26 @@ func (expr *Expr) UnmarshalJSON(bs []byte) error {
 		return unmarshalError(v["Terms"], "Term or []Term")
 	}
 	return nil
+}
+
+// Walk calls the iter function for each term in the expression.
+func (expr *Expr) Walk(iter Walker) bool {
+	if iter(expr) {
+		return true
+	}
+	switch ts := expr.Terms.(type) {
+	case []*Term:
+		for _, t := range ts {
+			if t.Walk(iter) {
+				return true
+			}
+		}
+	case *Term:
+		if ts.Walk(iter) {
+			return true
+		}
+	}
+	return false
 }
 
 // NewBuiltinExpr creates a new Expr object with the supplied terms.
