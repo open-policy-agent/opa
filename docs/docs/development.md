@@ -1,6 +1,11 @@
-# Development
+---
+layout: docs
+title: Development
+section: docs
+sort_order: 100
+---
 
-## Environment
+## Development Environment
 
 OPA is written in the [Go](https://golang.org) programming language.
 

@@ -1,4 +1,12 @@
-# Concepts
+---
+layout: docs
+title: Architecture
+section: docs
+sort_order: 2
+---
+
+Architecture
+------------
 
 OPA provides an open source policy engine that can be used to policy enable applications. Policy enabling applications decouples the policy that governs how applications behave from the implementation of those applications. This allows administrators to create and manage policy without requiring changes to the application. This eases some of the challenges of maintaining applications in complex modern deployment environments.
 
@@ -15,7 +23,8 @@ OPA is purpose built for modern deployment environments and can be integrated wi
 
 This document describes the main concepts in OPA. After reading this document you should have a better idea of how OPA is deployed and interacted with by applications and users.
 
-## Requirements
+Requirements
+------------
 
 Before diving into the concepts behind OPA, it is useful to review the requirements placed on a policy engine to successfully policy enable applications.
 
@@ -45,7 +54,8 @@ Before diving into the concepts behind OPA, it is useful to review the requireme
 
 These core requirements capture the guiding principles behind the concepts and design of OPA.
 
-## Overview
+Overview
+--------
 
 Conceptually, OPA is a collection of algorithms that answer questions about policy.
 <img src="https://cdn.rawgit.com/open-policy-agent/opa/9f5f1e6fa68fd0ee627122b9e5c8809519e5bba8/docs/overview.svg" />
@@ -58,7 +68,8 @@ At a high level, using OPA involves:
 - Executing queries via OPA's APIs to answer questions about operations governed by policy.
 - Reacting to notifications delivered by OPA when policy is violated.
 
-## Deployment
+Deployment
+----------
 
 In order to support arbitrary languages, frameworks and runtimes, OPA is deployed as a host-local daemon ("opad") alongside applications. OPA can be deployed directly on hosts as an operating system daemon or in a container.
 
@@ -70,7 +81,8 @@ Applications interact with OPA via HTTP.
 
 <img src="https://cdn.rawgit.com/open-policy-agent/opa/9f5f1e6fa68fd0ee627122b9e5c8809519e5bba8/docs/deployment.svg" />
 
-## APIs
+APIs
+----
 
 OPA exposes its APIs over HTTP and uses JSON as the default interchange format. The APIs are RESTful with the exception of certain streaming operations. HTTP and JSON are used because they are well supported in most application development languages and provide a low barrier to integration.
 
@@ -173,7 +185,8 @@ OPA exposes transactional APIs to operate on consistent snapshots of data stored
 
 Lastly, policy writers can use OPA's APIs to obtain detailed explanations of query processing to understand why queries are returning specific results. This is useful for debugging queries.
 
-## Data Model
+Data Model
+----------
 
 OPA is designed to support document-oriented models such as JSON. Documents consist of scalars (i.e., booleans, strings, numbers, and null) and collections (i.e., objects, arrays, and sets). The document model was selected for OPA because of its prevalence in modern application stacks. For example, most applications today expose APIs which produce and consume JSON and many modern applications rely on document-oriented databases or document support in existing relational databases.
 
@@ -192,7 +205,8 @@ When defining policies, rules are written which contain expressions that referen
 
 <img src="https://cdn.rawgit.com/open-policy-agent/opa/86672fab147c476cb8e8b0950b6c4fd48b5b2014/docs/data-model-logical.svg" />
 
-## <a name="policies"></a> Policies
+<a name="policies"></a> Policies
+--------------------------------
 
 Policies are defined in OPA's native query language: Rego.
 
@@ -281,8 +295,3 @@ Content-Type: application/json
   {"id": "s4", "name": "dev", "protocols": ["http"], "ports": ["p2"]}
 ]
 ```
-
-
-## What's Next
-
-For more information on how to write policy definitions and queries, see [Rego: OPA's Query Language](./LANGUAGE.md).

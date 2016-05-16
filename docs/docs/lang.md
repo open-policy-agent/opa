@@ -1,3 +1,10 @@
+---
+layout: docs
+title: Language
+section: docs
+sort_order: 3
+---
+
 # Rego: OPA's Query Language
 
 OPA includes a policy engine that is purpose built for reasoning about information represented in structured documents such as JSON. Data stored in in the policy engine can be queried using OPA's native query language: Rego.
