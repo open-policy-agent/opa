@@ -111,6 +111,26 @@ func TestCompilerResolveAllRefs(t *testing.T) {
 	}
 }
 
+func TestCompilerCheckSafetyHead(t *testing.T) {
+	c := NewCompiler()
+	c.Modules = getCompilerTestModules()
+	c.Modules["newMod"] = MustParseModule(`
+	package a.b
+	unboundKey[x] = y :- q[y] = {"foo": [1,2,[{"bar": y}]]}
+	unboundVal[y] = x :- q[y] = {"foo": [1,2,[{"bar": y}]]}
+	unboundCompositeVal[y] = [{"foo": x, "bar": y}] :- q[y] = {"foo": [1,2,[{"bar": y}]]}
+	`)
+	c.setExports()
+	c.setGlobals()
+	c.resolveAllRefs()
+	assertNotFailed(t, c)
+	c.checkSafetyHead()
+	if len(c.Errors) != 3 {
+		t.Errorf("Expected exactly 3 errors but got: %v", c.Errors)
+		return
+	}
+}
+
 func assertExports(t *testing.T, c *Compiler, path string, expected []string) {
 
 	p := MustParseRef(path)

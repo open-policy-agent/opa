@@ -87,6 +87,10 @@ func (c *Compiler) Compile(mods map[string]*Module) {
 	if c.resolveAllRefs(); c.Failed() {
 		return
 	}
+
+	if c.checkSafetyHead(); c.Failed() {
+		return
+	}
 }
 
 // Failed returns true if a compilation error has been encountered.
@@ -112,6 +116,53 @@ func (c *Compiler) FlattenErrors() string {
 	}
 
 	return fmt.Sprintf("%d errors occurred:\n%s", len(c.Errors), strings.Join(b, "\n"))
+}
+
+// checkSafetyHead ensures that variables appearing in the head of a
+// rule also appear in the body.
+func (c *Compiler) checkSafetyHead() {
+	for _, m := range c.Modules {
+		for _, r := range m.Rules {
+
+			headVars := []*Term{}
+
+			// Accumulate variables appearing in the head of the rule.
+			// Stop as soon as the body is encountered.
+			r.Walk(func(v interface{}) bool {
+				switch v := v.(type) {
+				case Body:
+					return true
+				case *Term:
+					if _, ok := v.Value.(Var); ok {
+						headVars = append(headVars, v)
+					}
+				}
+				return false
+			})
+
+			// Walk over all terms in the body until all variables
+			// in the head have been seen or there are no more elements.
+			r.Body.Walk(func(v interface{}) bool {
+				t, ok := v.(*Term)
+				if !ok {
+					return false
+				}
+				for i := range headVars {
+					if headVars[i].Equal(t) {
+						headVars = append(headVars[:i], headVars[i+1:]...)
+						break
+					}
+				}
+				return len(headVars) == 0
+			})
+
+			if len(headVars) > 0 {
+				for _, v := range headVars {
+					c.err("unbound variable in head of %v: %v", r.Name, v)
+				}
+			}
+		}
+	}
 }
 
 func (c *Compiler) err(f string, a ...interface{}) {
