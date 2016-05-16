@@ -270,12 +270,8 @@ func ValueToInterface(v ast.Value, ctx *TopDownContext) (interface{}, error) {
 
 type builtinFunction func(*TopDownContext, *ast.Expr, TopDownIterator) error
 
-const (
-	equalityBuiltin = ast.Var("=")
-)
-
 var builtinFunctions = map[ast.Var]builtinFunction{
-	equalityBuiltin: evalEq,
+	ast.Equality.Name: evalEq,
 }
 
 // dereferenceVar is used to lookup the variable binding and convert the value to
@@ -1147,7 +1143,7 @@ func indexAvailable(ctx *TopDownContext, expr *ast.Expr) bool {
 	}
 
 	// Indexing can only be used when evaluating equality expressions.
-	if !ts[0].Value.Equal(equalityBuiltin) {
+	if !ts[0].Value.Equal(ast.Equality.Name) {
 		return false
 	}
 
