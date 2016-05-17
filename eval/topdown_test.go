@@ -12,6 +12,8 @@ import (
 	"testing"
 
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/storage"
+	"github.com/open-policy-agent/opa/util"
 )
 
 func TestEvalRef(t *testing.T) {
@@ -54,8 +56,8 @@ func TestEvalRef(t *testing.T) {
 	data := loadSmallTestData()
 
 	ctx := &TopDownContext{
-		Store:    NewStorageFromJSONObject(data),
-		Bindings: NewBindings(),
+		DataStore: storage.NewDataStoreFromJSONObject(data),
+		Bindings:  storage.NewBindings(),
 	}
 
 	for i, tc := range tests {
@@ -139,9 +141,9 @@ func TestEvalTerms(t *testing.T) {
 	for i, tc := range tests {
 
 		ctx := &TopDownContext{
-			Query:    ast.MustParseBody(tc.body),
-			Store:    NewStorageFromJSONObject(data),
-			Bindings: NewBindings(),
+			Query:     ast.MustParseBody(tc.body),
+			DataStore: storage.NewDataStoreFromJSONObject(data),
+			Bindings:  storage.NewBindings(),
 		}
 
 		expected := loadExpectedBindings(tc.expected)
@@ -182,13 +184,13 @@ func TestPlugValue(t *testing.T) {
 	hello := ast.String("hello")
 	world := ast.String("world")
 
-	ctx1 := &TopDownContext{Bindings: NewBindings()}
+	ctx1 := &TopDownContext{Bindings: storage.NewBindings()}
 	ctx1 = ctx1.BindVar(a, b)
 	ctx1 = ctx1.BindVar(b, cs)
 	ctx1 = ctx1.BindVar(c, ks)
 	ctx1 = ctx1.BindVar(k, hello)
 
-	ctx2 := &TopDownContext{Bindings: NewBindings()}
+	ctx2 := &TopDownContext{Bindings: storage.NewBindings()}
 	ctx2 = ctx2.BindVar(a, b)
 	ctx2 = ctx2.BindVar(b, cs)
 	ctx2 = ctx2.BindVar(c, vs)
@@ -525,9 +527,15 @@ func TestTopDownEmbeddedVirtualDoc(t *testing.T) {
 		 q[x] :- g[j][k] = x`})
 
 	data := loadSmallTestData()
-	store, err := NewStorage([]map[string]interface{}{data}, mods)
-	if err != nil {
-		panic(err)
+
+	store := storage.NewDataStoreFromJSONObject(data)
+	policyStore := storage.NewPolicyStore(store, "")
+
+	for id, mod := range mods {
+		err := policyStore.Add(id, mod, []byte(""), false)
+		if err != nil {
+			panic(err)
+		}
 	}
 
 	assertTopDown(t, store, 0, "deep embedded vdoc", []string{"b", "c", "d", "p"}, "[1, 2, 4]")
@@ -583,9 +591,14 @@ func TestExample(t *testing.T) {
 
 	mods := compileModules([]string{vd})
 
-	store, err := NewStorage([]map[string]interface{}{doc}, mods)
-	if err != nil {
-		panic(err)
+	store := storage.NewDataStoreFromJSONObject(doc)
+	policyStore := storage.NewPolicyStore(store, "")
+
+	for id, mod := range mods {
+		err := policyStore.Add(id, mod, []byte(""), false)
+		if err != nil {
+			panic(err)
+		}
 	}
 
 	assertTopDown(t, store, 0, "public servers", []string{"opa", "example", "public_servers"}, `
@@ -602,12 +615,13 @@ func TestExample(t *testing.T) {
 	`)
 }
 
-func compileModules(input []string) []*ast.Module {
+func compileModules(input []string) map[string]*ast.Module {
 
-	mods := []*ast.Module{}
+	mods := map[string]*ast.Module{}
 
-	for _, i := range input {
-		mods = append(mods, ast.MustParseModule(i))
+	for idx, i := range input {
+		id := fmt.Sprintf("testMod%d", idx)
+		mods[id] = ast.MustParseModule(i)
 	}
 
 	c := ast.NewCompiler()
@@ -618,7 +632,7 @@ func compileModules(input []string) []*ast.Module {
 	return c.Modules
 }
 
-func compileRules(imports []string, input []string) []*ast.Module {
+func compileRules(imports []string, input []string) map[string]*ast.Module {
 
 	rules := []*ast.Rule{}
 	for _, i := range input {
@@ -628,7 +642,7 @@ func compileRules(imports []string, input []string) []*ast.Module {
 	is := []*ast.Import{}
 	for _, i := range imports {
 		is = append(is, &ast.Import{
-			Path: ast.MustParseRef(i),
+			Path: ast.MustParseTerm(i),
 		})
 	}
 
@@ -642,21 +656,21 @@ func compileRules(imports []string, input []string) []*ast.Module {
 	}
 
 	c := ast.NewCompiler()
-	if c.Compile([]*ast.Module{m}); c.Failed() {
+	if c.Compile(map[string]*ast.Module{"testMod": m}); c.Failed() {
 		panic(c.FlattenErrors())
 	}
 
 	return c.Modules
 }
 
-func loadExpectedBindings(input string) []*Bindings {
+func loadExpectedBindings(input string) []*storage.Bindings {
 	var data []map[string]interface{}
 	if err := json.Unmarshal([]byte(input), &data); err != nil {
 		panic(err)
 	}
-	var expected []*Bindings
+	var expected []*storage.Bindings
 	for _, bindings := range data {
-		buf := NewBindings()
+		buf := storage.NewBindings()
 		for k, v := range bindings {
 			switch v := v.(type) {
 			case string:
@@ -688,7 +702,7 @@ func loadExpectedSortedResult(input string) interface{} {
 	data := loadExpectedResult(input)
 	switch data := data.(type) {
 	case []interface{}:
-		sort.Sort(ResultSet(data))
+		sort.Sort(resultSet(data))
 		return data
 	default:
 		return data
@@ -756,19 +770,33 @@ func runTopDownTestCase(t *testing.T, data map[string]interface{}, i int, note s
 	for k := range data {
 		imports = append(imports, "data."+k)
 	}
-	store, err := NewStorage([]map[string]interface{}{data}, compileRules(imports, rules))
-	if err != nil {
-		panic(err)
+
+	mods := compileRules(imports, rules)
+
+	store := storage.NewDataStoreFromJSONObject(data)
+	policyStore := storage.NewPolicyStore(store, "")
+
+	for id, mod := range mods {
+		err := policyStore.Add(id, mod, []byte(""), false)
+		if err != nil {
+			panic(err)
+		}
 	}
+
 	assertTopDown(t, store, i, note, []string{"p"}, expected)
 }
 
-func assertTopDown(t *testing.T, store *Storage, i int, note string, path []string, expected interface{}) {
+func assertTopDown(t *testing.T, store *storage.DataStore, i int, note string, path []string, expected interface{}) {
+
+	p := []interface{}{}
+	for _, x := range path {
+		p = append(p, x)
+	}
 
 	switch e := expected.(type) {
 
 	case error:
-		result, err := TopDownQuery(&TopDownQueryParams{Store: store, Path: path})
+		result, err := TopDownQuery(&TopDownQueryParams{DataStore: store, Path: p})
 		if err == nil {
 			t.Errorf("Test case %d (%v): expected error but got: %v", i+1, note, result)
 			return
@@ -779,7 +807,7 @@ func assertTopDown(t *testing.T, store *Storage, i int, note string, path []stri
 
 	case string:
 		expected := loadExpectedSortedResult(e)
-		result, err := TopDownQuery(&TopDownQueryParams{Store: store, Path: path})
+		result, err := TopDownQuery(&TopDownQueryParams{DataStore: store, Path: p})
 		if err != nil {
 			t.Errorf("Test case %d (%v): unexpected error: %v", i+1, note, err)
 			return
@@ -790,7 +818,7 @@ func assertTopDown(t *testing.T, store *Storage, i int, note string, path []stri
 		}
 		switch store.MustGet(p).([]*ast.Rule)[0].DocKind() {
 		case ast.PartialSetDoc:
-			sort.Sort(ResultSet(result.([]interface{})))
+			sort.Sort(resultSet(result.([]interface{})))
 		}
 		if !reflect.DeepEqual(result, expected) {
 			t.Errorf("Test case %d (%v): expected %v but got: %v", i+1, note, expected, result)
@@ -798,22 +826,18 @@ func assertTopDown(t *testing.T, store *Storage, i int, note string, path []stri
 	}
 }
 
-// ResultSet is used to sort set documents produeced by rules for comparison purposes.
-type ResultSet []interface{}
+type resultSet []interface{}
 
-// Less returns true if the i'th index of resultSet is less than the j'th index.
-func (resultSet ResultSet) Less(i, j int) bool {
-	return Compare(resultSet[i], resultSet[j]) < 0
+func (rs resultSet) Less(i, j int) bool {
+	return util.Compare(rs[i], rs[j]) < 0
 }
 
-// Swap exchanges the i'th and j'th values in resultSet.
-func (resultSet ResultSet) Swap(i, j int) {
-	tmp := resultSet[i]
-	resultSet[i] = resultSet[j]
-	resultSet[j] = tmp
+func (rs resultSet) Swap(i, j int) {
+	tmp := rs[i]
+	rs[i] = rs[j]
+	rs[j] = tmp
 }
 
-// Len returns the size of the resultSet.
-func (resultSet ResultSet) Len() int {
-	return len(resultSet)
+func (rs resultSet) Len() int {
+	return len(rs)
 }

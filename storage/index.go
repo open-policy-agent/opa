@@ -2,7 +2,7 @@
 // Use of this source code is governed by an Apache2
 // license that can be found in the LICENSE file.
 
-package eval
+package storage
 
 import (
 	"fmt"
@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/util"
 )
 
 // Indices contains a mapping of non-ground references to values to sets of bindings.
@@ -49,7 +50,7 @@ func NewIndices() *Indices {
 
 // Build initializes the references' index by walking the store for the reference and
 // creating the index that maps values to bindings.
-func (ind *Indices) Build(store *Storage, ref ast.Ref) error {
+func (ind *Indices) Build(store *DataStore, ref ast.Ref) error {
 	index := NewIndex()
 	err := iterStorage(store, ref, ast.EmptyRef(), NewBindings(), func(bindings *Bindings, val interface{}) {
 		index.Add(val, bindings)
@@ -181,7 +182,7 @@ func (ind *Index) getNode(val interface{}) *indexNode {
 	hashCode := hash(val)
 	head := ind.table[hashCode]
 	for entry := head; entry != nil; entry = entry.next {
-		if Compare(entry.key, val) == 0 {
+		if util.Compare(entry.key, val) == 0 {
 			return entry
 		}
 	}
@@ -288,16 +289,13 @@ func hash(v interface{}) int {
 	panic(fmt.Sprintf("illegal argument: %v (%T)", v, v))
 }
 
-func iterStorage(store *Storage, ref ast.Ref, path ast.Ref, bindings *Bindings, iter func(*Bindings, interface{})) error {
+func iterStorage(store *DataStore, ref ast.Ref, path ast.Ref, bindings *Bindings, iter func(*Bindings, interface{})) error {
 
 	if len(ref) == 0 {
-		node, err := lookup(store, path)
+		node, err := store.GetRef(path)
 		if err != nil {
-			switch err := err.(type) {
-			case *StorageError:
-				if err.Code == StorageNotFoundErr {
-					return nil
-				}
+			if IsNotFound(err) {
+				return nil
 			}
 			return err
 		}
@@ -316,13 +314,10 @@ func iterStorage(store *Storage, ref ast.Ref, path ast.Ref, bindings *Bindings, 
 		return iterStorage(store, tail, path, bindings, iter)
 	}
 
-	node, err := lookup(store, path)
+	node, err := store.GetRef(path)
 	if err != nil {
-		switch err := err.(type) {
-		case *StorageError:
-			if err.Code == StorageNotFoundErr {
-				return nil
-			}
+		if IsNotFound(err) {
+			return nil
 		}
 		return err
 	}

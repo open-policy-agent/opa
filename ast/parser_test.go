@@ -200,12 +200,12 @@ func TestPackage(t *testing.T) {
 }
 
 func TestImport(t *testing.T) {
-	assertParseImport(t, "single", "import foo", &Import{Path: VarTerm("foo").Value})
-	ref := RefTerm(VarTerm("foo"), StringTerm("bar"), StringTerm("baz")).Value
+	assertParseImport(t, "single", "import foo", &Import{Path: VarTerm("foo")})
+	ref := RefTerm(VarTerm("foo"), StringTerm("bar"), StringTerm("baz"))
 	assertParseImport(t, "multiple", "import foo.bar.baz", &Import{Path: ref})
-	assertParseImport(t, "single alias", "import foo as bar", &Import{Path: VarTerm("foo").Value, Alias: Var("bar")})
+	assertParseImport(t, "single alias", "import foo as bar", &Import{Path: VarTerm("foo"), Alias: Var("bar")})
 	assertParseImport(t, "multiple alias", "import foo.bar.baz as qux", &Import{Path: ref, Alias: Var("qux")})
-	ref2 := RefTerm(VarTerm("foo"), StringTerm("bar"), StringTerm("white space")).Value
+	ref2 := RefTerm(VarTerm("foo"), StringTerm("bar"), StringTerm("white space"))
 	assertParseImport(t, "white space", "import foo.bar[\"white space\"]", &Import{Path: ref2})
 	assertParseError(t, "non-ground ref", "import foo[x]")
 }

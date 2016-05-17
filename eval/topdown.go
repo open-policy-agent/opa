@@ -8,6 +8,8 @@ import (
 	"fmt"
 
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/storage"
+	"github.com/open-policy-agent/opa/util"
 	"github.com/pkg/errors"
 )
 
@@ -18,20 +20,20 @@ import (
 // step and binding. This avoids the need to undo steps and bindings
 // each time the proof fails but this may be too expensive.
 type TopDownContext struct {
-	Query    ast.Body
-	Bindings *Bindings
-	Index    int
-	Previous *TopDownContext
-	Store    *Storage
-	Tracer   Tracer
+	Query     ast.Body
+	Bindings  *storage.Bindings
+	Index     int
+	Previous  *TopDownContext
+	DataStore *storage.DataStore
+	Tracer    Tracer
 }
 
 // NewTopDownContext creates a new TopDownContext with no bindings.
-func NewTopDownContext(query ast.Body, store *Storage) *TopDownContext {
+func NewTopDownContext(query ast.Body, ds *storage.DataStore) *TopDownContext {
 	return &TopDownContext{
-		Query:    query,
-		Bindings: NewBindings(),
-		Store:    store,
+		Query:     query,
+		Bindings:  storage.NewBindings(),
+		DataStore: ds,
 	}
 }
 
@@ -73,8 +75,8 @@ func (ctx *TopDownContext) BindVar(variable ast.Var, value ast.Value) *TopDownCo
 		return nil
 	}
 	cpy := *ctx
-	cpy.Bindings = NewBindings()
-	tmp := NewBindings()
+	cpy.Bindings = storage.NewBindings()
+	tmp := storage.NewBindings()
 	tmp.Put(variable, value)
 	ctx.Bindings.Iter(func(k, v ast.Value) bool {
 		cpy.Bindings.Put(k, plugValue(v, tmp))
@@ -85,7 +87,7 @@ func (ctx *TopDownContext) BindVar(variable ast.Var, value ast.Value) *TopDownCo
 }
 
 // Child returns a new context to evaluate a rule that was referenced by this context.
-func (ctx *TopDownContext) Child(rule *ast.Rule, bindings *Bindings) *TopDownContext {
+func (ctx *TopDownContext) Child(rule *ast.Rule, bindings *storage.Bindings) *TopDownContext {
 	cpy := *ctx
 	cpy.Query = rule.Body
 	cpy.Bindings = bindings
@@ -143,9 +145,9 @@ func TopDown(ctx *TopDownContext, iter TopDownIterator) error {
 
 // TopDownQueryParams defines input parameters for the query interface.
 type TopDownQueryParams struct {
-	Store  *Storage
-	Tracer Tracer
-	Path   []string
+	DataStore *storage.DataStore
+	Tracer    Tracer
+	Path      []interface{}
 }
 
 // TopDownQuery returns the document identified by the path.
@@ -156,10 +158,21 @@ func TopDownQuery(params *TopDownQueryParams) (interface{}, error) {
 
 	ref := ast.Ref{ast.DefaultRootDocument}
 	for _, v := range params.Path {
-		ref = append(ref, ast.StringTerm(v))
+		switch v := v.(type) {
+		case float64:
+			ref = append(ref, ast.NumberTerm(v))
+		case string:
+			ref = append(ref, ast.StringTerm(v))
+		case bool:
+			ref = append(ref, ast.BooleanTerm(v))
+		case nil:
+			ref = append(ref, ast.NullTerm())
+		default:
+			return nil, fmt.Errorf("bad path element: %v (%T)", v, v)
+		}
 	}
 
-	node, err := lookup(params.Store, ref)
+	node, err := params.DataStore.GetRef(ref)
 	if err != nil {
 		return nil, err
 	}
@@ -245,7 +258,7 @@ func ValueToInterface(v ast.Value, ctx *TopDownContext) (interface{}, error) {
 
 	// References convert to native values via lookup.
 	case ast.Ref:
-		return lookup(ctx.Store, v)
+		return ctx.DataStore.GetRef(v)
 
 	default:
 		// If none of the above cases are hit, something is very wrong, e.g., the caller
@@ -356,7 +369,7 @@ func evalEqGround(ctx *TopDownContext, a ast.Value, b ast.Value, iter TopDownIte
 	if err != nil {
 		return err
 	}
-	if Compare(av, bv) == 0 {
+	if util.Compare(av, bv) == 0 {
 		return iter(ctx)
 	}
 	return nil
@@ -422,7 +435,7 @@ func evalEqUnifyArray(ctx *TopDownContext, a ast.Array, b ast.Value, iter TopDow
 
 func evalEqUnifyArrayRef(ctx *TopDownContext, a ast.Array, b ast.Ref, iter TopDownIterator) error {
 
-	r, err := lookup(ctx.Store, b)
+	r, err := ctx.DataStore.GetRef(b)
 	if err != nil {
 		return err
 	}
@@ -499,7 +512,7 @@ func evalEqUnifyObject(ctx *TopDownContext, a ast.Object, b ast.Value, iter TopD
 
 func evalEqUnifyObjectRef(ctx *TopDownContext, a ast.Object, b ast.Ref, iter TopDownIterator) error {
 
-	r, err := lookup(ctx.Store, b)
+	r, err := ctx.DataStore.GetRef(b)
 
 	if err != nil {
 		return err
@@ -658,13 +671,10 @@ func evalRefRec(ctx *TopDownContext, path, tail ast.Ref, iter TopDownIterator) e
 
 func evalRefRecEnumColl(ctx *TopDownContext, path, tail ast.Ref, iter TopDownIterator) error {
 
-	node, err := lookup(ctx.Store, path)
+	node, err := ctx.DataStore.GetRef(path)
 	if err != nil {
-		switch err := err.(type) {
-		case *StorageError:
-			if err.Code == StorageNotFoundErr {
-				return nil
-			}
+		if storage.IsNotFound(err) {
+			return nil
 		}
 		return err
 	}
@@ -701,7 +711,7 @@ func evalRefRecEnumColl(ctx *TopDownContext, path, tail ast.Ref, iter TopDownIte
 }
 
 func evalRefRecFinish(ctx *TopDownContext, path ast.Ref, iter TopDownIterator) error {
-	ok, err := lookupExists(ctx.Store, path)
+	ok, err := lookupExists(ctx.DataStore, path)
 	if err == nil && ok {
 		return iter(ctx)
 	}
@@ -713,13 +723,10 @@ func evalRefRecGround(ctx *TopDownContext, path, tail ast.Ref, iter TopDownItera
 	// If the node exists and is a rule, evaluate the rule to produce a virtual doc.
 	// Otherwise, process the rest of the reference.
 	path = append(path, tail[0])
-	node, err := lookupRule(ctx.Store, path)
+	node, err := lookupRule(ctx.DataStore, path)
 	if err != nil {
-		switch err := err.(type) {
-		case *StorageError:
-			if err.Code == StorageNotFoundErr {
-				return nil
-			}
+		if storage.IsNotFound(err) {
+			return nil
 		}
 		return err
 	}
@@ -767,7 +774,7 @@ func evalRefRuleCompleteDoc(ctx *TopDownContext, ref ast.Ref, path ast.Ref, rule
 		return fmt.Errorf("not implemented: %v %v %v", ref, path, rule)
 	}
 
-	bindings := NewBindings()
+	bindings := storage.NewBindings()
 	child := ctx.Child(rule, bindings)
 
 	return TopDown(child, func(child *TopDownContext) error {
@@ -803,7 +810,7 @@ func evalRefRulePartialObjectDoc(ctx *TopDownContext, ref ast.Ref, path ast.Ref,
 	// NOTE: if at some point multiple variables are supported here, it may be
 	// cleaner to generalize this (instead of having two separate branches).
 	if !key.IsGround() {
-		child := ctx.Child(rule, NewBindings())
+		child := ctx.Child(rule, storage.NewBindings())
 		return TopDown(child, func(child *TopDownContext) error {
 			key := child.Bindings.Get(rule.Key.Value)
 			if key == nil {
@@ -818,7 +825,7 @@ func evalRefRulePartialObjectDoc(ctx *TopDownContext, ref ast.Ref, path ast.Ref,
 		})
 	}
 
-	bindings := NewBindings()
+	bindings := storage.NewBindings()
 	bindings.Put(rule.Key.Value, key)
 	child := ctx.Child(rule, bindings)
 
@@ -849,7 +856,7 @@ func evalRefRulePartialSetDoc(ctx *TopDownContext, ref ast.Ref, path ast.Ref, ru
 	key := plugValue(suffix[0].Value, ctx.Bindings)
 
 	if !key.IsGround() {
-		child := ctx.Child(rule, NewBindings())
+		child := ctx.Child(rule, storage.NewBindings())
 		return TopDown(child, func(child *TopDownContext) error {
 			value := child.Bindings.Get(rule.Key.Value)
 			if value == nil {
@@ -866,7 +873,7 @@ func evalRefRulePartialSetDoc(ctx *TopDownContext, ref ast.Ref, path ast.Ref, ru
 		})
 	}
 
-	bindings := NewBindings()
+	bindings := storage.NewBindings()
 	bindings.Put(rule.Key.Value, key)
 	child := ctx.Child(rule, bindings)
 
@@ -1018,14 +1025,14 @@ func evalTermsIndexed(ctx *TopDownContext, iter TopDownIterator, indexed ast.Ref
 		}
 
 		// Get the index for the indexed term. If the term is indexed, this should not fail.
-		index := ctx.Store.Indices.Get(indexed)
+		index := ctx.DataStore.Indices.Get(indexed)
 		if index == nil {
 			return fmt.Errorf("missing index: %v", indexed)
 		}
 
 		// Iterate the bindings for the indexed term that when applied to the reference
 		// would locate the non-indexed value obtained above.
-		return index.Iter(nonIndexedValue, func(bindings *Bindings) error {
+		return index.Iter(nonIndexedValue, func(bindings *storage.Bindings) error {
 			ctx.Bindings = ctx.Bindings.Update(bindings)
 			return iter(ctx)
 		})
@@ -1171,7 +1178,7 @@ func indexBuildLazy(ctx *TopDownContext, ref ast.Ref) (bool, error) {
 	}
 
 	// Check if index was already built.
-	if ctx.Store.Indices.Get(ref) != nil {
+	if ctx.DataStore.Indices.Get(ref) != nil {
 		return true, nil
 	}
 
@@ -1182,7 +1189,7 @@ func indexBuildLazy(ctx *TopDownContext, ref ast.Ref) (bool, error) {
 
 	// Ignore refs against virtual docs.
 	tmp := ast.Ref{ref[0], ref[1]}
-	r, err := lookupRule(ctx.Store, tmp)
+	r, err := lookupRule(ctx.DataStore, tmp)
 	if err != nil || r != nil {
 		return false, err
 	}
@@ -1194,46 +1201,32 @@ func indexBuildLazy(ctx *TopDownContext, ref ast.Ref) (bool, error) {
 		}
 
 		tmp = append(tmp, p)
-		r, err := lookupRule(ctx.Store, tmp)
+		r, err := lookupRule(ctx.DataStore, tmp)
 		if err != nil || r != nil {
 			return false, err
 		}
 	}
 
-	if err := ctx.Store.Indices.Build(ctx.Store, ref); err != nil {
+	if err := ctx.DataStore.Indices.Build(ctx.DataStore, ref); err != nil {
 		return false, err
 	}
 
 	return true, nil
 }
 
-func lookup(store *Storage, ref ast.Ref) (interface{}, error) {
-	if !ref[0].Equal(ast.DefaultRootDocument) {
-		return nil, fmt.Errorf("illegal root %v: %v", ref[0], ref)
-	}
-	path, err := ref[1:].Underlying()
+func lookupExists(ds *storage.DataStore, ref ast.Ref) (bool, error) {
+	_, err := ds.GetRef(ref)
 	if err != nil {
-		return nil, err
-	}
-	return store.Get(path)
-}
-
-func lookupExists(store *Storage, ref ast.Ref) (bool, error) {
-	_, err := lookup(store, ref)
-	if err != nil {
-		switch err := err.(type) {
-		case *StorageError:
-			if err.Code == StorageNotFoundErr {
-				return false, nil
-			}
+		if storage.IsNotFound(err) {
+			return false, nil
 		}
 		return false, err
 	}
 	return true, nil
 }
 
-func lookupRule(store *Storage, ref ast.Ref) ([]*ast.Rule, error) {
-	r, err := lookup(store, ref)
+func lookupRule(ds *storage.DataStore, ref ast.Ref) ([]*ast.Rule, error) {
+	r, err := ds.GetRef(ref)
 	if err != nil {
 		return nil, err
 	}
@@ -1245,7 +1238,7 @@ func lookupRule(store *Storage, ref ast.Ref) ([]*ast.Rule, error) {
 	}
 }
 
-func plugExpr(expr *ast.Expr, bindings *Bindings) *ast.Expr {
+func plugExpr(expr *ast.Expr, bindings *storage.Bindings) *ast.Expr {
 	plugged := *expr
 	switch ts := plugged.Terms.(type) {
 	case []*ast.Term:
@@ -1263,7 +1256,7 @@ func plugExpr(expr *ast.Expr, bindings *Bindings) *ast.Expr {
 	return &plugged
 }
 
-func plugTerm(term *ast.Term, bindings *Bindings) *ast.Term {
+func plugTerm(term *ast.Term, bindings *storage.Bindings) *ast.Term {
 	switch v := term.Value.(type) {
 	case ast.Var:
 		return &ast.Term{Value: plugValue(v, bindings)}
@@ -1291,7 +1284,7 @@ func plugTerm(term *ast.Term, bindings *Bindings) *ast.Term {
 	}
 }
 
-func plugValue(v ast.Value, bindings *Bindings) ast.Value {
+func plugValue(v ast.Value, bindings *storage.Bindings) ast.Value {
 
 	switch v := v.(type) {
 	case ast.Var:
@@ -1348,10 +1341,10 @@ func topDownQueryCompleteDoc(params *TopDownQueryParams, rules []*ast.Rule) (int
 	rule := rules[0]
 
 	ctx := &TopDownContext{
-		Query:    rule.Body,
-		Bindings: NewBindings(),
-		Store:    params.Store,
-		Tracer:   params.Tracer,
+		Query:     rule.Body,
+		Bindings:  storage.NewBindings(),
+		DataStore: params.DataStore,
+		Tracer:    params.Tracer,
 	}
 
 	isTrue := false
@@ -1375,10 +1368,10 @@ func topDownQueryPartialObjectDoc(params *TopDownQueryParams, rules []*ast.Rule)
 
 	for _, rule := range rules {
 		ctx := &TopDownContext{
-			Query:    rule.Body,
-			Bindings: NewBindings(),
-			Store:    params.Store,
-			Tracer:   params.Tracer,
+			Query:     rule.Body,
+			Bindings:  storage.NewBindings(),
+			DataStore: params.DataStore,
+			Tracer:    params.Tracer,
 		}
 		key := rule.Key.Value.(ast.Var)
 		value := rule.Value.Value.(ast.Var)
@@ -1410,10 +1403,10 @@ func topDownQueryPartialSetDoc(params *TopDownQueryParams, rules []*ast.Rule) (i
 	result := []interface{}{}
 	for _, rule := range rules {
 		ctx := &TopDownContext{
-			Query:    rule.Body,
-			Bindings: NewBindings(),
-			Store:    params.Store,
-			Tracer:   params.Tracer,
+			Query:     rule.Body,
+			Bindings:  storage.NewBindings(),
+			DataStore: params.DataStore,
+			Tracer:    params.Tracer,
 		}
 		key := rule.Key.Value.(ast.Var)
 		err := TopDown(ctx, func(ctx *TopDownContext) error {

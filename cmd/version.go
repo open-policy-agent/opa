@@ -4,9 +4,12 @@
 
 package cmd
 
-import "fmt"
-import "github.com/spf13/cobra"
-import "github.com/open-policy-agent/opa/version"
+import (
+	"fmt"
+
+	"github.com/open-policy-agent/opa/version"
+	"github.com/spf13/cobra"
+)
 
 var versionCommand = &cobra.Command{
 	Use:   "version",

@@ -5,15 +5,26 @@
 package cmd
 
 import (
+	"flag"
 	"os"
 	"path"
+	"path/filepath"
+	"reflect"
+	"strings"
 
 	"github.com/open-policy-agent/opa/runtime"
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 )
 
 // default filename for the interactive shell's history
 var defaultHistoryFile = ".opa_history"
+
+// default policy definition storage directory
+var defaultPolicyDir = "policies"
+
+// default listening address for the server
+var defaultAddr = ":8181"
 
 func init() {
 
@@ -24,6 +35,18 @@ func init() {
 		Short: "Start OPA in interative or server mode",
 		Long: `Start an instance of the Open Policy Agent (OPA).
 
+To run the interactive shell:
+
+	$ opa run
+
+To run the server without saving policies:
+
+	$ opa run -s
+
+To run the server and persist policies to a local directory:
+
+	$ opa run -s -p ./policies/
+
 The 'run' command starts an instance of the OPA runtime. The OPA
 runtime can be started as an interactive shell or a server.
 
@@ -33,6 +56,11 @@ a server, users can access OPA's APIs via HTTP.
 
 The runtime can be initialized with one or more files that represent
 base documents (e.g., example.json) or policies (e.g., example.rego).
+
+If the --policy-dir option is specified any files inside the directory
+will be considered policy definitions and will be loaded on startup. API
+calls to create new policies save the definition file to this direcory.
+In addition, API calls to delete policies will remove the definition file.
 `,
 		Run: func(cmd *cobra.Command, args []string) {
 			params.Paths = args
@@ -43,10 +71,15 @@ base documents (e.g., example.json) or policies (e.g., example.rego).
 
 	runCommand.Flags().BoolVarP(&params.Server, "server", "s", false, "start the runtime in server mode")
 	runCommand.Flags().StringVarP(&params.HistoryPath, "history", "H", historyPath(), "set path of history file")
+	runCommand.Flags().StringVarP(&params.PolicyDir, "policy-dir", "p", "", "set directory to store policy definitions")
+	runCommand.Flags().StringVarP(&params.Addr, "addr", "a", defaultAddr, "set listening address of the server")
+
+	wrapFlags(runCommand.Flags())
+	flag.Parse()
 
 	usageTemplate := `Usage:
   {{.UseLine}} [flags] [files]
-  
+
 Flags:
 {{.LocalFlags.FlagUsages | trimRightSpace}}
 `
@@ -62,4 +95,45 @@ func historyPath() string {
 		return defaultHistoryFile
 	}
 	return path.Join(home, defaultHistoryFile)
+}
+
+func policyDir() string {
+	cwd, err := os.Getwd()
+	if err != nil {
+		return defaultPolicyDir
+	}
+	return filepath.Join(cwd, defaultPolicyDir)
+}
+
+type flagWrapper struct {
+	inner flag.Value
+	typ   string
+}
+
+func (f *flagWrapper) String() string {
+	return f.inner.String()
+}
+
+func (f *flagWrapper) Set(s string) error {
+	return f.inner.Set(s)
+}
+
+func (f *flagWrapper) Type() string {
+	return f.typ
+}
+
+func wrapFlag(v flag.Value) pflag.Value {
+	if pf, ok := v.(pflag.Value); ok {
+		return pf
+	}
+	return &flagWrapper{
+		inner: v,
+		typ:   strings.TrimSuffix(reflect.TypeOf(v).Elem().Name(), "Value"),
+	}
+}
+
+func wrapFlags(flags *pflag.FlagSet) {
+	flag.CommandLine.VisitAll(func(flg *flag.Flag) {
+		flags.Var(wrapFlag(flg.Value), flg.Name, flg.Usage)
+	})
 }

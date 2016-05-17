@@ -22,7 +22,7 @@ func TestCompilerExample(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	c.Compile([]*Module{m})
+	c.Compile(map[string]*Module{"testMod": m})
 	assertNotFailed(t, c)
 }
 
@@ -46,20 +46,20 @@ func TestCompilerSetGlobals(t *testing.T) {
 	c.setGlobals()
 
 	assertNotFailed(t, c)
-	assertGlobals(t, c, c.Modules[3], "{}")
-	assertGlobals(t, c, c.Modules[2], `{
+	assertGlobals(t, c, c.Modules["mod4"], "{}")
+	assertGlobals(t, c, c.Modules["mod1"], `{
 		r: data.a.b.c.r,
 		p: data.a.b.c.p,
 		q: data.a.b.c.q,
 		z: data.a.b.c.z,
 		foo: data.x.y.z,
 		k: data.g.h.k}`)
-	assertGlobals(t, c, c.Modules[1], `{
+	assertGlobals(t, c, c.Modules["mod3"], `{
 		t: data.a.b.d.t,
 		x: data.a.b.d.x,
 		y: x,
 		req: req}`)
-	assertGlobals(t, c, c.Modules[0], `{
+	assertGlobals(t, c, c.Modules["mod2"], `{
 		r: data.a.b.c.r,
 		p: data.x.y.p,
 		q: data.a.b.c.q,
@@ -77,7 +77,7 @@ func TestCompilerResolveAllRefs(t *testing.T) {
 
 	assertNotFailed(t, c)
 
-	mod1 := c.Modules[2]
+	mod1 := c.Modules["mod1"]
 	p := mod1.Rules[0]
 	expr1 := p.Body[0]
 	term := expr1.Terms.(*Term)
@@ -93,7 +93,7 @@ func TestCompilerResolveAllRefs(t *testing.T) {
 		t.Errorf("Wrong term (global in same package/diff module): expected %v but got: %v", e, term)
 	}
 
-	mod2 := c.Modules[0]
+	mod2 := c.Modules["mod2"]
 	r := mod2.Rules[0]
 	expr3 := r.Body[1]
 	term = expr3.Terms.([]*Term)[1]
@@ -102,7 +102,7 @@ func TestCompilerResolveAllRefs(t *testing.T) {
 		t.Errorf("Wrong term (var import): expected %v but got: %v", e, term)
 	}
 
-	mod3 := c.Modules[1]
+	mod3 := c.Modules["mod3"]
 	expr4 := mod3.Rules[0].Body[0]
 	term = expr4.Terms.([]*Term)[2]
 	e = MustParseTerm("{x.secret: [x.keyid]}")
@@ -195,7 +195,7 @@ func assertNotFailed(t *testing.T, c *Compiler) {
 	}
 }
 
-func getCompilerTestModules() []*Module {
+func getCompilerTestModules() map[string]*Module {
 
 	mod1 := MustParseModule(`
 	package a.b.c
@@ -227,5 +227,5 @@ func getCompilerTestModules() []*Module {
 	package a.b.empty
 	`)
 
-	return []*Module{mod2, mod3, mod1, mod4}
+	return map[string]*Module{"mod2": mod2, "mod3": mod3, "mod1": mod1, "mod4": mod4}
 }

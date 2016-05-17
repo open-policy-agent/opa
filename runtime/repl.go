@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"math/rand"
 	"os"
 	"sort"
 	"strings"
@@ -16,6 +15,7 @@ import (
 	"github.com/apcera/termtables"
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/eval"
+	"github.com/open-policy-agent/opa/storage"
 	"github.com/peterh/liner"
 )
 
@@ -33,6 +33,7 @@ type Repl struct {
 	InitPrompt   string
 	BufferPrompt string
 	Buffer       []string
+	nextID       int
 }
 
 // NewRepl creates a new Repl.
@@ -113,7 +114,7 @@ func (r *Repl) OneShot(line string) bool {
 }
 
 func (r *Repl) cmdDump() bool {
-	fmt.Fprintln(r.Output, r.Runtime.Store)
+	fmt.Fprintln(r.Output, r.Runtime.DataStore)
 	return false
 }
 
@@ -157,8 +158,10 @@ func (r *Repl) cmdTrace() bool {
 }
 
 func (r *Repl) compileBody(body ast.Body) (ast.Body, error) {
+	name := fmt.Sprintf("repl%d", r.nextID)
+	r.nextID++
 	rule := &ast.Rule{
-		Name: ast.Var(randString(32)),
+		Name: ast.Var(name),
 		Body: body,
 	}
 	// TODO(tsandall): refactor to use current implicit module
@@ -170,11 +173,11 @@ func (r *Repl) compileBody(body ast.Body) (ast.Body, error) {
 		Rules: []*ast.Rule{rule},
 	}
 	c := ast.NewCompiler()
-	c.Compile([]*ast.Module{m})
+	c.Compile(map[string]*ast.Module{name: m})
 	if len(c.Errors) > 0 {
 		return nil, fmt.Errorf(c.FlattenErrors())
 	}
-	return c.Modules[0].Rules[0].Body, nil
+	return c.Modules[name].Rules[0].Body, nil
 }
 
 func (r *Repl) compileRule(rule *ast.Rule) (*ast.Rule, error) {
@@ -188,11 +191,11 @@ func (r *Repl) compileRule(rule *ast.Rule) (*ast.Rule, error) {
 		Rules: []*ast.Rule{rule},
 	}
 	c := ast.NewCompiler()
-	c.Compile([]*ast.Module{m})
+	c.Compile(map[string]*ast.Module{"tmp": m})
 	if len(c.Errors) > 0 {
 		return nil, fmt.Errorf(c.FlattenErrors())
 	}
-	return c.Modules[0].Rules[0], nil
+	return c.Modules["tmp"].Rules[0], nil
 }
 
 func (r *Repl) evalBufferOne() bool {
@@ -267,7 +270,7 @@ func (r *Repl) evalStatement(stmt interface{}) bool {
 
 func (r *Repl) evalBody(body ast.Body) bool {
 
-	ctx := eval.NewTopDownContext(body, r.Runtime.Store)
+	ctx := eval.NewTopDownContext(body, r.Runtime.DataStore)
 	if r.Trace {
 		ctx.Tracer = &eval.StdoutTracer{}
 	}
@@ -404,7 +407,7 @@ func (r *Repl) evalRule(rule *ast.Rule) bool {
 
 	path := []interface{}{string(rule.Name)}
 
-	if err := r.Runtime.Store.Patch(eval.StorageAdd, path, []*ast.Rule{rule}); err != nil {
+	if err := r.Runtime.DataStore.Patch(storage.AddOp, path, []*ast.Rule{rule}); err != nil {
 		fmt.Fprintln(r.Output, "error:", err)
 		return true
 	}
@@ -454,15 +457,4 @@ func buildHeader(fields map[string]struct{}, term *ast.Term) {
 			buildHeader(fields, e)
 		}
 	}
-}
-
-// randString returns a random string of letters.
-// http://stackoverflow.com/a/31832326
-func randString(length int) string {
-	letters := []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
-	s := make([]rune, length)
-	for i := range s {
-		s[i] = letters[rand.Intn(len(letters))]
-	}
-	return string(s)
 }

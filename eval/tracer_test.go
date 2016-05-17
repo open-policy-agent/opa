@@ -7,6 +7,9 @@ package eval
 import (
 	"fmt"
 	"testing"
+
+	"github.com/open-policy-agent/opa/storage"
+	"github.com/open-policy-agent/opa/util"
 )
 
 type mockTracer struct {
@@ -21,22 +24,29 @@ func (t *mockTracer) Trace(ctx *TopDownContext, f string, a ...interface{}) {
 
 func TestTracer(t *testing.T) {
 
+	data := loadSmallTestData()
+
 	mods := compileRules([]string{"data.a"}, []string{
 		"p[x] :- q[x] = y",
 		"q[i] = j :- a[i] = j",
 	})
 
-	store, err := NewStorage([]map[string]interface{}{loadSmallTestData()}, mods)
-	if err != nil {
-		panic(err)
+	ds := storage.NewDataStoreFromJSONObject(data)
+	ps := storage.NewPolicyStore(ds, "")
+
+	for id, mod := range mods {
+		err := ps.Add(id, mod, []byte(""), false)
+		if err != nil {
+			panic(err)
+		}
 	}
 
 	tracer := &mockTracer{[]string{}}
 
 	params := &TopDownQueryParams{
-		Store:  store,
-		Tracer: tracer,
-		Path:   []string{"p"}}
+		DataStore: ds,
+		Tracer:    tracer,
+		Path:      []interface{}{"p"}}
 
 	result, err := TopDownQuery(params)
 	if err != nil {
@@ -46,7 +56,7 @@ func TestTracer(t *testing.T) {
 
 	expected := []interface{}{float64(0), float64(1), float64(2), float64(3)}
 
-	if Compare(result, expected) != 0 {
+	if util.Compare(result, expected) != 0 {
 		t.Errorf("Unexpected result in tracing test: %v", result)
 		return
 	}
