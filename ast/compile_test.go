@@ -368,7 +368,28 @@ func TestCompilerCheckRecursion(t *testing.T) {
 	if len(expected) > 0 {
 		t.Errorf("Missing errors in recursion check: %v", expected)
 	}
+}
 
+func TestCompilerCheckBuiltinOperators(t *testing.T) {
+	c := NewCompiler()
+	c.Modules = map[string]*Module{
+		"newMod": MustParseModule(
+			`
+			package a.b.c
+			p = true :- deadbeef(1,2,3)
+			`,
+		),
+	}
+
+	c.checkBuiltinOperators()
+
+	expected := []error{
+		fmt.Errorf("bad built-in operator in p: deadbeef"),
+	}
+
+	if !reflect.DeepEqual(c.Errors, expected) {
+		t.Errorf("Expected exactly one error with bad built-in operator but got: %v", c.Errors)
+	}
 }
 
 func assertExports(t *testing.T, c *Compiler, path string, expected []string) {

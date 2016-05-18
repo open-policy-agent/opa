@@ -117,6 +117,7 @@ func (c *Compiler) Compile(mods map[string]*Module) {
 		c.checkSafetyBody,
 		c.setRuleGraph,
 		c.checkRecursion,
+		c.checkBuiltinOperators,
 	}
 
 	for _, s := range stages {
@@ -149,6 +150,23 @@ func (c *Compiler) FlattenErrors() string {
 	}
 
 	return fmt.Sprintf("%d errors occurred:\n%s", len(c.Errors), strings.Join(b, "\n"))
+}
+
+func (c *Compiler) checkBuiltinOperators() {
+	for _, m := range c.Modules {
+		for _, r := range m.Rules {
+			for _, expr := range r.Body {
+				ts, ok := expr.Terms.([]*Term)
+				if !ok {
+					continue
+				}
+				operator := ts[0].Value.(Var)
+				if _, ok := BuiltinMap[operator]; !ok {
+					c.err("bad built-in operator in %v: %v", r.Name, operator)
+				}
+			}
+		}
+	}
 }
 
 // checkRecursion ensures that there are no recursive rule definitions, i.e., there are
