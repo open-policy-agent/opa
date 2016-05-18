@@ -120,19 +120,19 @@ func TestEvalTerms(t *testing.T) {
         ]`},
 		{"data.a[i] = data.h[j][k]", `[
             {"i": 0, "j": 0, "k": 0},
-			{"i": 1, "j": 0, "k": 1},
-			{"i": 1, "j": 1, "k": 0},
-			{"i": 2, "j": 0, "k": 2},
-			{"i": 2, "j": 1, "k": 1},
-			{"i": 3, "j": 1, "k": 2}
+            {"i": 1, "j": 0, "k": 1},
+            {"i": 1, "j": 1, "k": 0},
+            {"i": 2, "j": 0, "k": 2},
+            {"i": 2, "j": 1, "k": 1},
+            {"i": 3, "j": 1, "k": 2}
         ]`},
 		{`data.d[x][y] = "baz"`, `[
-			{"x": "e", "y": 1}
-		]`},
+            {"x": "e", "y": 1}
+        ]`},
 		{"data.d[x][y] = data.d[x][y]", `[
-			{"x": "e", "y": 0},
-			{"x": "e", "y": 1}
-		]`},
+            {"x": "e", "y": 0},
+            {"x": "e", "y": 1}
+        ]`},
 		{"data.d[x][y] = data.z[i]", `[]`},
 	}
 
@@ -525,11 +525,11 @@ func TestTopDownEmbeddedVirtualDoc(t *testing.T) {
 	mods := compileModules([]string{
 		`package b.c.d
 
-		 import data.a
-		 import data.g
+         import data.a
+         import data.g
 
-		 p[x] :- a[i] = x, q[x]
-		 q[x] :- g[j][k] = x`})
+         p[x] :- a[i] = x, q[x]
+         q[x] :- g[j][k] = x`})
 
 	data := loadSmallTestData()
 
@@ -549,44 +549,44 @@ func TestTopDownEmbeddedVirtualDoc(t *testing.T) {
 func TestExample(t *testing.T) {
 
 	bd := `
-		{
-			"servers": [
-				{"id": "s1", "name": "app", "protocols": ["https", "ssh"], "ports": ["p1", "p2", "p3"]},
-				{"id": "s2", "name": "db", "protocols": ["mysql"], "ports": ["p3"]},
-				{"id": "s3", "name": "cache", "protocols": ["memcache", "http"], "ports": ["p3"]},
-				{"id": "s4", "name": "dev", "protocols": ["http"], "ports": ["p1", "p2"]}
-			],
-			"networks": [
-				{"id": "n1", "public": false},
-				{"id": "n2", "public": false},
-				{"id": "n3", "public": true}
-			],
-			"ports": [
-				{"id": "p1", "networks": ["n1"]},
-				{"id": "p2", "networks": ["n3"]},
-				{"id": "p3", "networks": ["n2"]}
-			]
-		}
-	`
+        {
+            "servers": [
+                {"id": "s1", "name": "app", "protocols": ["https", "ssh"], "ports": ["p1", "p2", "p3"]},
+                {"id": "s2", "name": "db", "protocols": ["mysql"], "ports": ["p3"]},
+                {"id": "s3", "name": "cache", "protocols": ["memcache", "http"], "ports": ["p3"]},
+                {"id": "s4", "name": "dev", "protocols": ["http"], "ports": ["p1", "p2"]}
+            ],
+            "networks": [
+                {"id": "n1", "public": false},
+                {"id": "n2", "public": false},
+                {"id": "n3", "public": true}
+            ],
+            "ports": [
+                {"id": "p1", "networks": ["n1"]},
+                {"id": "p2", "networks": ["n3"]},
+                {"id": "p3", "networks": ["n2"]}
+            ]
+        }
+    `
 
 	vd := `
-		package opa.example
+        package opa.example
 
-		import data.servers
-		import data.networks
-		import data.ports
+        import data.servers
+        import data.networks
+        import data.ports
 
-		public_servers[server] :-
-			server = servers[i],
-			server.ports[j] = ports[k].id,
-			ports[k].networks[l] = networks[m].id,
-			networks[m].public = true
+        public_servers[server] :-
+            server = servers[i],
+            server.ports[j] = ports[k].id,
+            ports[k].networks[l] = networks[m].id,
+            networks[m].public = true
 
-		violations[server] :-
-			server = servers[i],
-			server.protocols[j] = "http",
-			public_servers[server]
-	`
+        violations[server] :-
+            server = servers[i],
+            server.protocols[j] = "http",
+            public_servers[server]
+    `
 
 	var doc map[string]interface{}
 
@@ -607,17 +607,17 @@ func TestExample(t *testing.T) {
 	}
 
 	assertTopDown(t, store, 0, "public servers", []string{"opa", "example", "public_servers"}, `
-		[
-			{"id": "s1", "name": "app", "protocols": ["https", "ssh"], "ports": ["p1", "p2", "p3"]},
-			{"id": "s4", "name": "dev", "protocols": ["http"], "ports": ["p1", "p2"]}
-		]
-	`)
+        [
+            {"id": "s1", "name": "app", "protocols": ["https", "ssh"], "ports": ["p1", "p2", "p3"]},
+            {"id": "s4", "name": "dev", "protocols": ["http"], "ports": ["p1", "p2"]}
+        ]
+    `)
 
 	assertTopDown(t, store, 0, "violations", []string{"opa", "example", "violations"}, `
-		[
-			{"id": "s4", "name": "dev", "protocols": ["http"], "ports": ["p1", "p2"]}
-		]
-	`)
+        [
+            {"id": "s4", "name": "dev", "protocols": ["http"], "ports": ["p1", "p2"]}
+        ]
+    `)
 }
 
 func compileModules(input []string) map[string]*ast.Module {
@@ -740,28 +740,28 @@ func loadSmallTestData() map[string]interface{} {
             {"xs": [1.0], "ys": [2.0]},
             {"xs": [2.0], "ys": [3.0]}
         ],
-		"g": {
-			"a": [1, 0, 0, 0],
-			"b": [0, 2, 0, 0],
-			"c": [0, 0, 0, 4]
-		},
-		"h": [
-			[1,2,3],
-			[2,3,4]
-		],
-		"l": [
-			{
-				"a": "bob",
-				"b": -1,
-				"c": [1,2,3,4]
-			},
-			{
-				"a": "alice",
-				"b": 1,
-				"c": [2,3,4,5],
-				"d": null
-			}
-		],
+        "g": {
+            "a": [1, 0, 0, 0],
+            "b": [0, 2, 0, 0],
+            "c": [0, 0, 0, 4]
+        },
+        "h": [
+            [1,2,3],
+            [2,3,4]
+        ],
+        "l": [
+            {
+                "a": "bob",
+                "b": -1,
+                "c": [1,2,3,4]
+            },
+            {
+                "a": "alice",
+                "b": 1,
+                "c": [2,3,4,5],
+                "d": null
+            }
+        ],
         "m": []
     }`), &data)
 	if err != nil {

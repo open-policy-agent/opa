@@ -11,6 +11,60 @@ import (
 	"testing"
 )
 
+func TestModuleTree(t *testing.T) {
+
+	mods := getCompilerTestModules()
+	tree := NewModuleTree(mods)
+
+	if tree.Size() != 4 {
+		t.Errorf("Expected size of 4 in module tree but got: %v", tree.Size())
+	}
+
+	if r1 := findRules(tree, MustParseRef("data.a.b.c")); len(r1) != 0 {
+		t.Errorf("Expected empty result from findRules(data.a.b.c) but got: %v", r1)
+		return
+	}
+
+	if r2 := findRules(tree, MustParseRef("a[x]")); len(r2) != 0 {
+		t.Errorf("Expected empty result from findRules(a[x]) but got: %v", r2)
+		return
+	}
+
+	r3 := findRules(tree, MustParseRef("data.a.b.c.p"))
+	expected3 := []*Rule{mods["mod1"].Rules[0]}
+
+	if !reflect.DeepEqual(r3, expected3) {
+		t.Errorf("Expected %v from findRules(data.a.b.c.p) but got: %v", expected3, r3)
+		return
+	}
+
+	r4 := findRules(tree, MustParseRef("data.a.b.c.p[x]"))
+	if !reflect.DeepEqual(r4, expected3) {
+		t.Errorf("Expected %v from findRules(data.a.b.c.p[x]) but got: %v", expected3, r4)
+		return
+	}
+
+	r5 := []string{}
+	for _, r := range findRules(tree, MustParseRef("data.a.b[i][j][k]")) {
+		r5 = append(r5, string(r.Name))
+	}
+	sort.Strings(r5)
+
+	expected5 := []string{}
+	for _, m := range mods {
+		for _, r := range m.Rules {
+			expected5 = append(expected5, string(r.Name))
+		}
+	}
+
+	sort.Strings(expected5)
+
+	if !reflect.DeepEqual(r5, expected5) {
+		t.Errorf("Expected %v from findRules(data.a.b.c.p[x]) but got: %v", expected5, r5)
+		return
+	}
+}
+
 func TestCompilerEmpty(t *testing.T) {
 	c := NewCompiler()
 	c.Compile(nil)
@@ -163,7 +217,8 @@ func TestCompilerCheckSafetyBodyErrors(t *testing.T) {
 	c := NewCompiler()
 
 	c.Modules = getCompilerTestModules()
-	c.Modules["newMod"] = MustParseModule(`
+	c.Modules = map[string]*Module{
+		"newMod": MustParseModule(`
 	package a.b
 
 	# a would be unbound
@@ -186,7 +241,7 @@ func TestCompilerCheckSafetyBodyErrors(t *testing.T) {
 
 	# i and x would be bound in the last expression so the third expression is safe
 	negatedSafe = true :- a = [1,2,3,4], b = [1,2,3,4], not a[i] = x, b[i] = x
-	`)
+	`)}
 
 	c.setExports()
 	c.setGlobals()
@@ -206,6 +261,112 @@ func TestCompilerCheckSafetyBodyErrors(t *testing.T) {
 
 	if !reflect.DeepEqual(expected, c.Errors) {
 		t.Errorf("Expected %v but got:%v", expected, c.Errors)
+	}
+
+}
+
+func TestCompilerSetRuleGraph(t *testing.T) {
+	c := NewCompiler()
+	c.Modules = getCompilerTestModules()
+
+	c.setExports()
+	c.setGlobals()
+	c.resolveAllRefs()
+	c.checkSafetyBody()
+	c.setModuleTree()
+	c.setRuleGraph()
+
+	assertNotFailed(t, c)
+
+	mod1 := c.Modules["mod1"]
+	p := mod1.Rules[0]
+	q := mod1.Rules[1]
+	mod2 := c.Modules["mod2"]
+	r := mod2.Rules[0]
+
+	edges := map[*Rule]struct{}{
+		q: struct{}{},
+		r: struct{}{},
+	}
+
+	if !reflect.DeepEqual(edges, c.RuleGraph[p]) {
+		t.Errorf("Expected dependencies for p to be q and r but got: %v", c.RuleGraph[p])
+	}
+
+}
+
+func TestCompilerCheckRecursion(t *testing.T) {
+	c := NewCompiler()
+	c.Modules = map[string]*Module{
+		"newMod1": MustParseModule(`
+						package rec
+						s = true :- t
+						t = true :- s
+						a = true :- b
+						b = true :- c
+						c = true :- d, e
+						d = true :- true
+						e = true :- a`),
+		"newMod2": MustParseModule(`
+						package rec
+						x = true :- s
+						`),
+		"newMod3": MustParseModule(`
+						package rec2
+						import data.rec.x
+						y = true :- x
+						`),
+		"newMod4": MustParseModule(`
+						package rec3
+						p[x] = y :- data.rec4[x][y] = z
+						`),
+		"newMod5": MustParseModule(`
+						package rec4
+						import data.rec3.p
+						q[x] = y :- p[x] = y
+						`),
+	}
+	c.setExports()
+	c.setGlobals()
+	c.resolveAllRefs()
+	c.checkSafetyBody()
+	c.setModuleTree()
+	c.setRuleGraph()
+
+	c.checkRecursion()
+
+	expected := []error{
+		fmt.Errorf("recursion found in s: s, t, s"),
+		fmt.Errorf("recursion found in t: t, s, t"),
+		fmt.Errorf("recursion found in a: a, b, c, e, a"),
+		fmt.Errorf("recursion found in b: b, c, e, a, b"),
+		fmt.Errorf("recursion found in c: c, e, a, b, c"),
+		fmt.Errorf("recursion found in e: e, a, b, c, e"),
+		fmt.Errorf("recursion found in p: p, q, p"),
+		fmt.Errorf("recursion found in q: q, p, q"),
+	}
+
+	if len(c.Errors) != len(expected) {
+		t.Errorf("Expected exactly %v errors but got: %v", len(expected), c.Errors)
+		return
+	}
+
+	for _, x := range c.Errors {
+		found := false
+		for i, y := range expected {
+			if reflect.DeepEqual(x, y) {
+				found = true
+				expected = append(expected[:i], expected[i+1:]...)
+				break
+			}
+		}
+		if !found {
+			t.Errorf("Unexpected error in recursion check: %v", x)
+		}
+	}
+
+	if len(expected) > 0 {
+		t.Errorf("Missing errors in recursion check: %v", expected)
 	}
 
 }

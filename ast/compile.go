@@ -50,6 +50,7 @@ type Compiler struct {
 	// package a.b.c
 	//
 	// import data.e.f
+	// import y as z
 	//
 	// p = true :- q[x] = 1
 	// q[x] :- f.r[x], not f.m[x]
@@ -57,15 +58,38 @@ type Compiler struct {
 	// In this case, the mapping would be
 	//
 	// {
-	//  <modptr>: {q: data.a.b.c.q, f: data.e.f, p: data.a.b.q}
+	//  <modptr>: {q: data.a.b.c.q, f: data.e.f, p: data.a.b.c.p, z: y}
 	// }
 	Globals map[*Module]map[Var]Value
+
+	// ModuleTree organizes the modules into a tree where each node is keyed
+	// by an element in the module's package path. E.g., given modules containg
+	// the following package directives: "a", "a.b", "a.c", and "a.b", the
+	// resulting module tree would be:
+	//
+	//  root
+	//    |
+	//    +--- data (no modules)
+	//           |
+	//           +--- a (1 module)
+	//                |
+	//                +--- b (2 modules)
+	//                |
+	//                +--- c (1 module)
+	//
+	ModuleTree *ModuleTreeNode
+
+	// RuleGraph represents the rule dependencies.
+	// An edge (u, v) is added to the graph if rule "u" depends on rule "v".
+	// A rule depends on another rule if it refers to it.
+	RuleGraph map[*Rule]map[*Rule]struct{}
 }
 
 // NewCompiler returns a new empty compiler.
 func NewCompiler() *Compiler {
 	return &Compiler{
-		Globals: map[*Module]map[Var]Value{},
+		Globals:   map[*Module]map[Var]Value{},
+		RuleGraph: map[*Rule]map[*Rule]struct{}{},
 	}
 }
 
@@ -74,27 +98,31 @@ func NewCompiler() *Compiler {
 // the Errors or Modules attributes of the Compiler.
 func (c *Compiler) Compile(mods map[string]*Module) {
 
+	// TODO(tsandall): need to revisit the error messages. E.g.,
+	// errors local to a rule should include rule name, package path,
+	// and potentially a snippet of text identifying the source of the
+	// the problem. In some cases a useful tip could be provided, e.g.,
+	// "Did you mean to assign 'u' to something?"
+
 	// TODO(tsandall): should the modules be deep copied?
+
 	c.Modules = mods
 
-	if c.setExports(); c.Failed() {
-		return
+	stages := []func(){
+		c.setExports,
+		c.setGlobals,
+		c.setModuleTree,
+		c.resolveAllRefs,
+		c.checkSafetyHead,
+		c.checkSafetyBody,
+		c.setRuleGraph,
+		c.checkRecursion,
 	}
 
-	if c.setGlobals(); c.Failed() {
-		return
-	}
-
-	if c.resolveAllRefs(); c.Failed() {
-		return
-	}
-
-	if c.checkSafetyHead(); c.Failed() {
-		return
-	}
-
-	if c.checkSafetyBody(); c.Failed() {
-		return
+	for _, s := range stages {
+		if s(); c.Failed() {
+			return
+		}
 	}
 }
 
@@ -121,6 +149,24 @@ func (c *Compiler) FlattenErrors() string {
 	}
 
 	return fmt.Sprintf("%d errors occurred:\n%s", len(c.Errors), strings.Join(b, "\n"))
+}
+
+// checkRecursion ensures that there are no recursive rule definitions, i.e., there are
+// no cycles in the RuleGraph.
+func (c *Compiler) checkRecursion() {
+	for r := range c.RuleGraph {
+		t := &ruleGraphTraveral{
+			graph:   c.RuleGraph,
+			visited: map[*Rule]struct{}{},
+		}
+		if p := util.DFS(t, r, r); len(p) > 0 {
+			n := []string{}
+			for _, x := range p {
+				n = append(n, string(x.(*Rule).Name))
+			}
+			c.err("recursion found in %v: %v", r.Name, strings.Join(n, ", "))
+		}
+	}
 }
 
 // checkSafetyBody ensures that variables appearing in negated expressions or non-target
@@ -492,6 +538,84 @@ func (c *Compiler) setGlobals() {
 	}
 }
 
+func (c *Compiler) setModuleTree() {
+	c.ModuleTree = NewModuleTree(c.Modules)
+}
+
+func (c *Compiler) setRuleGraph() {
+	for _, m := range c.Modules {
+		for _, r := range m.Rules {
+			// Walk over all of the references in the rule body and
+			// lookup the rules they may refer to. These rules are
+			// the dependencies of the current rule. Add these dependencies
+			// to the graph.
+			edges, ok := c.RuleGraph[r]
+			if !ok {
+				edges = map[*Rule]struct{}{}
+				c.RuleGraph[r] = edges
+			}
+			r.Body.Walk(func(v interface{}) bool {
+				if t, ok := v.(*Term); ok {
+					if ref, ok := t.Value.(Ref); ok {
+						for _, v := range findRules(c.ModuleTree, ref) {
+							edges[v] = struct{}{}
+						}
+					}
+				}
+				return false
+			})
+		}
+	}
+}
+
+// ModuleTreeNode represents a node in the module tree. The module
+// tree is keyed by the package path.
+type ModuleTreeNode struct {
+	Key      string
+	Modules  []*Module
+	Children map[string]*ModuleTreeNode
+}
+
+// NewModuleTree returns a new ModuleTreeNode that represents the root
+// of the module tree populated with the given modules.
+func NewModuleTree(mods map[string]*Module) *ModuleTreeNode {
+	root := &ModuleTreeNode{
+		Children: map[string]*ModuleTreeNode{},
+	}
+	for _, m := range mods {
+		node := root
+		for _, x := range m.Package.Path {
+			var s string
+			switch v := x.Value.(type) {
+			case Var:
+				s = string(v)
+			case String:
+				s = string(v)
+			}
+			c, ok := node.Children[s]
+			if !ok {
+				c = &ModuleTreeNode{
+					Key:      s,
+					Children: map[string]*ModuleTreeNode{},
+				}
+				node.Children[s] = c
+			}
+			node = c
+		}
+		node.Modules = append(node.Modules, m)
+	}
+	return root
+}
+
+// Size returns the number of modules in the tree.
+func (n *ModuleTreeNode) Size() int {
+	s := len(n.Modules)
+	for _, c := range n.Children {
+		s += c.Size()
+	}
+	return s
+}
+
 type collectAllVarsVisitor struct {
 	Vars []Var
 }
@@ -514,4 +638,81 @@ func (cv *collectAllVarsVisitor) Walk(v interface{}) bool {
 		cv.Vars = append(cv.Vars, v)
 	}
 	return false
+}
+
+type ruleGraphTraveral struct {
+	graph   map[*Rule]map[*Rule]struct{}
+	visited map[*Rule]struct{}
+}
+
+func (g *ruleGraphTraveral) Edges(x util.T) []util.T {
+	u := x.(*Rule)
+	edges := g.graph[u]
+	r := []util.T{}
+	for v := range edges {
+		r = append(r, v)
+	}
+	return r
+}
+
+func (g *ruleGraphTraveral) Visited(x util.T) bool {
+	u := x.(*Rule)
+	_, ok := g.visited[u]
+	g.visited[u] = struct{}{}
+	return ok
+}
+
+func (g *ruleGraphTraveral) Equals(a, b util.T) bool {
+	return a.(*Rule) == b.(*Rule)
+}
+
+// findRules returns a slice of rules that are referred to
+// by the reference "ref". For example, suppose a package
+// "a.b.c" contains rules "p" and "q". If this function
+// is called with a ref "a.b.c.p" (or a.b.c.p[x] or ...) the
+// result would contain a single value: rule p. If this function
+// is called with "a.b.c", the result would be empty. Lastly,
+// if this function is called with a reference containing
+// variables, such as: "a.b.c[x]", the result will contain
+// rule "p" and rule "q".
+func findRules(node *ModuleTreeNode, ref Ref) []*Rule {
+	k := string(ref[0].Value.(Var))
+	if node, ok := node.Children[k]; ok {
+		return findRulesRec(node, ref[1:])
+	}
+	return nil
+}
+
+func findRulesRec(node *ModuleTreeNode, ref Ref) []*Rule {
+	if len(ref) == 0 {
+		return nil
+	}
+	switch v := ref[0].Value.(type) {
+	case Var:
+		result := []*Rule{}
+		tail := ref[1:]
+		for _, n := range node.Children {
+			result = append(result, findRulesRec(n, tail)...)
+		}
+		for _, m := range node.Modules {
+			result = append(result, m.Rules...)
+		}
+		return result
+	case String:
+		k := string(v)
+		if node, ok := node.Children[k]; ok {
+			return findRulesRec(node, ref[1:])
+		}
+		result := []*Rule{}
+		for _, m := range node.Modules {
+			for _, r := range m.Rules {
+				if string(r.Name) == k {
+					result = append(result, r)
+				}
+			}
+		}
+		return result
+	default:
+		return nil
+	}
 }
