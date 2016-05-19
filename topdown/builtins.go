@@ -9,5 +9,10 @@ import "github.com/open-policy-agent/opa/ast"
 type builtinFunction func(*Context, *ast.Expr, Iterator) error
 
 var builtinFunctions = map[ast.Var]builtinFunction{
-	ast.Equality.Name: evalEq,
+	ast.Equality.Name:      evalEq,
+	ast.GreaterThan.Name:   evalIneq(compareGreaterThan),
+	ast.GreaterThanEq.Name: evalIneq(compareGreaterThanEq),
+	ast.LessThan.Name:      evalIneq(compareLessThan),
+	ast.LessThanEq.Name:    evalIneq(compareLessThanEq),
+	ast.NotEqual.Name:      evalIneq(compareNotEq),
 }

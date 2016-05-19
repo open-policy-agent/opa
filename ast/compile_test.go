@@ -241,6 +241,9 @@ func TestCompilerCheckSafetyBodyErrors(t *testing.T) {
 
 	# i and x would be bound in the last expression so the third expression is safe
 	negatedSafe = true :- a = [1,2,3,4], b = [1,2,3,4], not a[i] = x, b[i] = x
+
+	# x would be unbound because it does not appear in the target position of any expression
+	unboundNoTarget = true :- x > 0, x <= 3, x != 2
 	`)}
 
 	c.setExports()
@@ -257,6 +260,7 @@ func TestCompilerCheckSafetyBodyErrors(t *testing.T) {
 		fmt.Errorf("unsafe variables in unboundNegated2: i, x"),
 		fmt.Errorf("unsafe variables in unboundNegated3: i, j, x"),
 		fmt.Errorf("unsafe variables in unboundNegated4: i, j"),
+		fmt.Errorf("unsafe variables in unboundNoTarget: x"),
 	}
 
 	if !reflect.DeepEqual(expected, c.Errors) {

@@ -280,15 +280,6 @@ func (expr *Expr) IsEquality() bool {
 	return terms[0].Equal(VarTerm("="))
 }
 
-var builtinNames = map[string]string{
-	"=":  "eq",
-	"<":  "lt",
-	">":  "gt",
-	"<=": "lte",
-	">=": "gte",
-	"!=": "ne",
-}
-
 func (expr *Expr) String() string {
 	var buf []string
 	if expr.Negated {
@@ -300,12 +291,14 @@ func (expr *Expr) String() string {
 		for _, v := range t[1:] {
 			args = append(args, v.String())
 		}
-		name, ok := builtinNames[string(t[0].Value.(Var))]
-		if !ok {
-			name = t[0].String()
+		var name string
+		if b, ok := BuiltinMap[t[0].Value.(Var)]; ok {
+			name = b.GetPrintableName()
+		} else {
+			name = t[0].Value.(Var).String()
 		}
-		builtinStr := fmt.Sprintf("%s(%s)", name, strings.Join(args, ", "))
-		buf = append(buf, builtinStr)
+		s := fmt.Sprintf("%s(%s)", name, strings.Join(args, ", "))
+		buf = append(buf, s)
 	case *Term:
 		buf = append(buf, t.String())
 	}

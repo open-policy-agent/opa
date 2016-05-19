@@ -368,6 +368,32 @@ func TestTopDownEqExpr(t *testing.T) {
 	}
 }
 
+func TestTopDownIneqExpr(t *testing.T) {
+
+	tests := []struct {
+		note     string
+		rule     string
+		expected interface{}
+	}{
+		{"noteq", "p = true :- 0 != 1, a[i] = x, x != 2", "true"},
+		{"gt", "p = true :- 1 > 0, a[i] = x, x > 2", "true"},
+		{"gteq", "p = true :- 1 >= 1, a[i] = x, x >= 4", "true"},
+		{"lt", "p = true :- -1 < 0, a[i] = x, x < 5", "true"},
+		{"lteq", "p = true :- -1 <= 0, a[i] = x, x <= 1", "true"},
+		{"undefined: noteq", "p = true :- 0 != 0", ""},
+		{"undefined: gt", "p = true :- 1 > 2", ""},
+		{"undefined: gteq", "p = true :- 1 >= 2", ""},
+		{"undefined: lt", "p = true :- 1 < -1", ""},
+		{"undefined: lteq", "p = true :- 1 < -1", ""},
+	}
+
+	data := loadSmallTestData()
+
+	for i, tc := range tests {
+		runTopDownTestCase(t, data, i, tc.note, []string{tc.rule}, tc.expected)
+	}
+}
+
 func TestTopDownVirtualDocs(t *testing.T) {
 
 	tests := []struct {
