@@ -14,8 +14,8 @@ import (
 
 	"github.com/olekukonko/tablewriter"
 	"github.com/open-policy-agent/opa/ast"
-	"github.com/open-policy-agent/opa/eval"
 	"github.com/open-policy-agent/opa/storage"
+	"github.com/open-policy-agent/opa/topdown"
 	"github.com/peterh/liner"
 )
 
@@ -270,9 +270,9 @@ func (r *Repl) evalStatement(stmt interface{}) bool {
 
 func (r *Repl) evalBody(body ast.Body) bool {
 
-	ctx := eval.NewTopDownContext(body, r.Runtime.DataStore)
+	ctx := topdown.NewContext(body, r.Runtime.DataStore)
 	if r.Trace {
-		ctx.Tracer = &eval.StdoutTracer{}
+		ctx.Tracer = &topdown.StdoutTracer{}
 	}
 
 	// Flag indicates whether the query was defined for some context.
@@ -286,14 +286,14 @@ func (r *Repl) evalBody(body ast.Body) bool {
 	var results []map[string]interface{}
 
 	// Execute query and accumulate results.
-	err := eval.TopDown(ctx, func(ctx *eval.TopDownContext) error {
+	err := topdown.Eval(ctx, func(ctx *topdown.Context) error {
 		var err error
 		row := map[string]interface{}{}
 		ctx.Bindings.Iter(func(k, v ast.Value) bool {
 			if _, isVar := k.(ast.Var); !isVar {
 				return false
 			}
-			r, e := eval.ValueToInterface(v, ctx)
+			r, e := topdown.ValueToInterface(v, ctx)
 			if e != nil {
 				err = e
 				return true

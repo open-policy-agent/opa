@@ -2,7 +2,7 @@
 // Use of this source code is governed by an Apache2
 // license that can be found in the LICENSE file.
 
-package eval
+package topdown
 
 import (
 	"encoding/json"
@@ -55,7 +55,7 @@ func TestEvalRef(t *testing.T) {
 
 	data := loadSmallTestData()
 
-	ctx := &TopDownContext{
+	ctx := &Context{
 		DataStore: storage.NewDataStoreFromJSONObject(data),
 		Bindings:  storage.NewBindings(),
 	}
@@ -64,8 +64,8 @@ func TestEvalRef(t *testing.T) {
 
 		switch e := tc.expected.(type) {
 		case nil:
-			var tmp *TopDownContext
-			err := evalRef(ctx, ast.MustParseRef(tc.ref), func(ctx *TopDownContext) error {
+			var tmp *Context
+			err := evalRef(ctx, ast.MustParseRef(tc.ref), func(ctx *Context) error {
 				tmp = ctx
 				return nil
 			})
@@ -78,7 +78,7 @@ func TestEvalRef(t *testing.T) {
 			}
 		case string:
 			expected := loadExpectedBindings(e)
-			err := evalRef(ctx, ast.MustParseRef(tc.ref), func(ctx *TopDownContext) error {
+			err := evalRef(ctx, ast.MustParseRef(tc.ref), func(ctx *Context) error {
 				if len(expected) > 0 {
 					for j, exp := range expected {
 						if exp.Equal(ctx.Bindings) {
@@ -140,7 +140,7 @@ func TestEvalTerms(t *testing.T) {
 
 	for i, tc := range tests {
 
-		ctx := &TopDownContext{
+		ctx := &Context{
 			Query:     ast.MustParseBody(tc.body),
 			DataStore: storage.NewDataStoreFromJSONObject(data),
 			Bindings:  storage.NewBindings(),
@@ -148,7 +148,7 @@ func TestEvalTerms(t *testing.T) {
 
 		expected := loadExpectedBindings(tc.expected)
 
-		err := evalTerms(ctx, func(ctx *TopDownContext) error {
+		err := evalTerms(ctx, func(ctx *Context) error {
 			if len(expected) > 0 {
 				for j, exp := range expected {
 					if exp.Equal(ctx.Bindings) {
@@ -184,13 +184,13 @@ func TestPlugValue(t *testing.T) {
 	hello := ast.String("hello")
 	world := ast.String("world")
 
-	ctx1 := &TopDownContext{Bindings: storage.NewBindings()}
+	ctx1 := &Context{Bindings: storage.NewBindings()}
 	ctx1 = ctx1.BindVar(a, b)
 	ctx1 = ctx1.BindVar(b, cs)
 	ctx1 = ctx1.BindVar(c, ks)
 	ctx1 = ctx1.BindVar(k, hello)
 
-	ctx2 := &TopDownContext{Bindings: storage.NewBindings()}
+	ctx2 := &Context{Bindings: storage.NewBindings()}
 	ctx2 = ctx2.BindVar(a, b)
 	ctx2 = ctx2.BindVar(b, cs)
 	ctx2 = ctx2.BindVar(c, vs)
@@ -801,7 +801,7 @@ func assertTopDown(t *testing.T, store *storage.DataStore, i int, note string, p
 	switch e := expected.(type) {
 
 	case error:
-		result, err := TopDownQuery(&TopDownQueryParams{DataStore: store, Path: p})
+		result, err := Query(&QueryParams{DataStore: store, Path: p})
 		if err == nil {
 			t.Errorf("Test case %d (%v): expected error but got: %v", i+1, note, result)
 			return
@@ -812,7 +812,7 @@ func assertTopDown(t *testing.T, store *storage.DataStore, i int, note string, p
 
 	case string:
 		expected := loadExpectedSortedResult(e)
-		result, err := TopDownQuery(&TopDownQueryParams{DataStore: store, Path: p})
+		result, err := Query(&QueryParams{DataStore: store, Path: p})
 		if err != nil {
 			t.Errorf("Test case %d (%v): unexpected error: %v", i+1, note, err)
 			return

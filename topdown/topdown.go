@@ -2,7 +2,7 @@
 // Use of this source code is governed by an Apache2
 // license that can be found in the LICENSE file.
 
-package eval
+package topdown
 
 import (
 	"fmt"
@@ -13,39 +13,39 @@ import (
 	"github.com/pkg/errors"
 )
 
-// TopDownContext contains the state of the evaluation process.
+// Context contains the state of the evaluation process.
 //
 // TODO(tsandall): profile perf/memory usage with current approach;
-// the current approach copies the TopDownContext structure for each
+// the current approach copies the Context structure for each
 // step and binding. This avoids the need to undo steps and bindings
 // each time the proof fails but this may be too expensive.
-type TopDownContext struct {
+type Context struct {
 	Query     ast.Body
 	Bindings  *storage.Bindings
 	Index     int
-	Previous  *TopDownContext
+	Previous  *Context
 	DataStore *storage.DataStore
 	Tracer    Tracer
 }
 
-// NewTopDownContext creates a new TopDownContext with no bindings.
-func NewTopDownContext(query ast.Body, ds *storage.DataStore) *TopDownContext {
-	return &TopDownContext{
+// NewContext creates a new Context with no bindings.
+func NewContext(query ast.Body, ds *storage.DataStore) *Context {
+	return &Context{
 		Query:     query,
 		Bindings:  storage.NewBindings(),
 		DataStore: ds,
 	}
 }
 
-// BindRef returns a new TopDownContext with bindings that map the reference to the value.
-func (ctx *TopDownContext) BindRef(ref ast.Ref, value ast.Value) *TopDownContext {
+// BindRef returns a new Context with bindings that map the reference to the value.
+func (ctx *Context) BindRef(ref ast.Ref, value ast.Value) *Context {
 	cpy := *ctx
 	cpy.Bindings = ctx.Bindings.Copy()
 	cpy.Bindings.Put(ref, value)
 	return &cpy
 }
 
-// BindVar returns a new TopDownContext with bindings that map the variable to the value.
+// BindVar returns a new Context with bindings that map the variable to the value.
 //
 // If the caller attempts to bind a variable to itself (e.g., "x = x"), no mapping is added. This
 // is effectively a no-op.
@@ -61,7 +61,7 @@ func (ctx *TopDownContext) BindRef(ref ast.Ref, value ast.Value) *TopDownContext
 // bindings each time a new binding is added. E.g., if Bind(y, [1,2,x]) and Bind(x, 3) are called
 // (one after the other), the binding for "y" will be updated. It may be possible to defer this
 // to a later stage, e.g., when plugging the values.
-func (ctx *TopDownContext) BindVar(variable ast.Var, value ast.Value) *TopDownContext {
+func (ctx *Context) BindVar(variable ast.Var, value ast.Value) *Context {
 	if variable.Equal(value) {
 		return ctx
 	}
@@ -87,7 +87,7 @@ func (ctx *TopDownContext) BindVar(variable ast.Var, value ast.Value) *TopDownCo
 }
 
 // Child returns a new context to evaluate a rule that was referenced by this context.
-func (ctx *TopDownContext) Child(rule *ast.Rule, bindings *storage.Bindings) *TopDownContext {
+func (ctx *Context) Child(rule *ast.Rule, bindings *storage.Bindings) *Context {
 	cpy := *ctx
 	cpy.Query = rule.Body
 	cpy.Bindings = bindings
@@ -97,18 +97,18 @@ func (ctx *TopDownContext) Child(rule *ast.Rule, bindings *storage.Bindings) *To
 }
 
 // Current returns the current expression to evaluate.
-func (ctx *TopDownContext) Current() *ast.Expr {
+func (ctx *Context) Current() *ast.Expr {
 	return ctx.Query[ctx.Index]
 }
 
 // Step returns a new context to evaluate the next expression.
-func (ctx *TopDownContext) Step() *TopDownContext {
+func (ctx *Context) Step() *Context {
 	cpy := *ctx
 	cpy.Index++
 	return &cpy
 }
 
-func (ctx *TopDownContext) trace(f string, a ...interface{}) {
+func (ctx *Context) trace(f string, a ...interface{}) {
 	if ctx.Tracer == nil {
 		return
 	}
@@ -117,44 +117,44 @@ func (ctx *TopDownContext) trace(f string, a ...interface{}) {
 	}
 }
 
-func (ctx *TopDownContext) traceEval() {
+func (ctx *Context) traceEval() {
 	ctx.trace("Eval %v", ctx.Current())
 }
 
-func (ctx *TopDownContext) traceTry(expr *ast.Expr) {
+func (ctx *Context) traceTry(expr *ast.Expr) {
 	ctx.trace(" Try %v", expr)
 }
 
-func (ctx *TopDownContext) traceSuccess(expr *ast.Expr) {
+func (ctx *Context) traceSuccess(expr *ast.Expr) {
 	ctx.trace("  Success %v", expr)
 }
 
-func (ctx *TopDownContext) traceFinish() {
+func (ctx *Context) traceFinish() {
 	ctx.trace("   Finish %v", ctx.Bindings)
 }
 
-// TopDownIterator is the interface for processing contexts.
-type TopDownIterator func(*TopDownContext) error
+// Iterator is the interface for processing contexts.
+type Iterator func(*Context) error
 
-// TopDown runs the evaluation algorithm on the contxet and calls the iterator
+// Eval runs the evaluation algorithm on the contxet and calls the iterator
 // foreach context that contains bindings that satisfy all of the expressions
 // inside the body.
-func TopDown(ctx *TopDownContext, iter TopDownIterator) error {
+func Eval(ctx *Context, iter Iterator) error {
 	return evalContext(ctx, iter)
 }
 
-// TopDownQueryParams defines input parameters for the query interface.
-type TopDownQueryParams struct {
+// QueryParams defines input parameters for the query interface.
+type QueryParams struct {
 	DataStore *storage.DataStore
 	Tracer    Tracer
 	Path      []interface{}
 }
 
-// TopDownQuery returns the document identified by the path.
+// Query returns the document identified by the path.
 //
 // If the storage node identified by the path is a collection of rules, then the TopDown
 // algorithm is run to generate the virtual document defined by the rules.
-func TopDownQuery(params *TopDownQueryParams) (interface{}, error) {
+func Query(params *QueryParams) (interface{}, error) {
 
 	ref := ast.Ref{ast.DefaultRootDocument}
 	for _, v := range params.Path {
@@ -200,7 +200,7 @@ func TopDownQuery(params *TopDownQueryParams) (interface{}, error) {
 }
 
 // Undefined represents the absence of bindings that satisfy a completely defined rule.
-// See the documentation for TopDownQuery for more details.
+// See the documentation for Query for more details.
 type Undefined struct{}
 
 func (undefined Undefined) String() string {
@@ -210,7 +210,7 @@ func (undefined Undefined) String() string {
 // ValueToInterface returns the underlying Go value associated with an AST value.
 // If the value is a reference, the reference is fetched from storage. Composite
 // AST values such as objects and arrays are converted recursively.
-func ValueToInterface(v ast.Value, ctx *TopDownContext) (interface{}, error) {
+func ValueToInterface(v ast.Value, ctx *Context) (interface{}, error) {
 
 	switch v := v.(type) {
 
@@ -268,7 +268,7 @@ func ValueToInterface(v ast.Value, ctx *TopDownContext) (interface{}, error) {
 	}
 }
 
-type builtinFunction func(*TopDownContext, *ast.Expr, TopDownIterator) error
+type builtinFunction func(*Context, *ast.Expr, Iterator) error
 
 var builtinFunctions = map[ast.Var]builtinFunction{
 	ast.Equality.Name: evalEq,
@@ -276,7 +276,7 @@ var builtinFunctions = map[ast.Var]builtinFunction{
 
 // dereferenceVar is used to lookup the variable binding and convert the value to
 // a native Go type.
-func dereferenceVar(v ast.Var, ctx *TopDownContext) (interface{}, error) {
+func dereferenceVar(v ast.Var, ctx *Context) (interface{}, error) {
 	binding := ctx.Bindings.Get(v)
 	if binding == nil {
 		return nil, fmt.Errorf("unbound variable: %v", v)
@@ -284,7 +284,7 @@ func dereferenceVar(v ast.Var, ctx *TopDownContext) (interface{}, error) {
 	return ValueToInterface(binding.(ast.Value), ctx)
 }
 
-func evalContext(ctx *TopDownContext, iter TopDownIterator) error {
+func evalContext(ctx *Context, iter Iterator) error {
 
 	if ctx.Index >= len(ctx.Query) {
 
@@ -314,15 +314,15 @@ func evalContext(ctx *TopDownContext, iter TopDownIterator) error {
 		return evalContextNegated(ctx, iter)
 	}
 
-	return evalTerms(ctx, func(ctx *TopDownContext) error {
-		return evalExpr(ctx, func(ctx *TopDownContext) error {
+	return evalTerms(ctx, func(ctx *Context) error {
+		return evalExpr(ctx, func(ctx *Context) error {
 			ctx = ctx.Step()
 			return evalContext(ctx, iter)
 		})
 	})
 }
 
-func evalContextNegated(ctx *TopDownContext, iter TopDownIterator) error {
+func evalContextNegated(ctx *Context, iter Iterator) error {
 
 	negation := *ctx
 	negation.Query = ast.Body([]*ast.Expr{ctx.Current().Complement()})
@@ -331,7 +331,7 @@ func evalContextNegated(ctx *TopDownContext, iter TopDownIterator) error {
 
 	isTrue := false
 
-	err := evalContext(&negation, func(*TopDownContext) error {
+	err := evalContext(&negation, func(*Context) error {
 		isTrue = true
 		return nil
 	})
@@ -347,7 +347,7 @@ func evalContextNegated(ctx *TopDownContext, iter TopDownIterator) error {
 	return nil
 }
 
-func evalEq(ctx *TopDownContext, expr *ast.Expr, iter TopDownIterator) error {
+func evalEq(ctx *Context, expr *ast.Expr, iter Iterator) error {
 
 	operands := expr.Terms.([]*ast.Term)
 	a := operands[1].Value
@@ -356,7 +356,7 @@ func evalEq(ctx *TopDownContext, expr *ast.Expr, iter TopDownIterator) error {
 	return evalEqUnify(ctx, a, b, iter)
 }
 
-func evalEqGround(ctx *TopDownContext, a ast.Value, b ast.Value, iter TopDownIterator) error {
+func evalEqGround(ctx *Context, a ast.Value, b ast.Value, iter Iterator) error {
 	av, err := ValueToInterface(a, ctx)
 	if err != nil {
 		return err
@@ -387,7 +387,7 @@ func evalEqGround(ctx *TopDownContext, a ast.Value, b ast.Value, iter TopDownIte
 //
 // In cases involving references, OPA assumes that the references are ground at this stage.
 // As a result, references are just special cases of the normal scalar/composite unification.
-func evalEqUnify(ctx *TopDownContext, a ast.Value, b ast.Value, iter TopDownIterator) error {
+func evalEqUnify(ctx *Context, a ast.Value, b ast.Value, iter Iterator) error {
 
 	// Plug bindings into both terms because this will be called recursively and there may be
 	// new bindings that have been made as part of unification.
@@ -416,7 +416,7 @@ func evalEqUnify(ctx *TopDownContext, a ast.Value, b ast.Value, iter TopDownIter
 
 }
 
-func evalEqUnifyArray(ctx *TopDownContext, a ast.Array, b ast.Value, iter TopDownIterator) error {
+func evalEqUnifyArray(ctx *Context, a ast.Array, b ast.Value, iter Iterator) error {
 	switch b := b.(type) {
 	case ast.Var:
 		return evalEqUnifyVar(ctx, b, a, iter)
@@ -429,7 +429,7 @@ func evalEqUnifyArray(ctx *TopDownContext, a ast.Array, b ast.Value, iter TopDow
 	}
 }
 
-func evalEqUnifyArrayRef(ctx *TopDownContext, a ast.Array, b ast.Ref, iter TopDownIterator) error {
+func evalEqUnifyArrayRef(ctx *Context, a ast.Array, b ast.Ref, iter Iterator) error {
 
 	r, err := ctx.DataStore.GetRef(b)
 	if err != nil {
@@ -446,11 +446,11 @@ func evalEqUnifyArrayRef(ctx *TopDownContext, a ast.Array, b ast.Ref, iter TopDo
 	}
 
 	for i := range a {
-		var tmp *TopDownContext
+		var tmp *Context
 		child := make(ast.Ref, len(b), len(b)+1)
 		copy(child, b)
 		child = append(child, ast.NumberTerm(float64(i)))
-		err := evalEqUnify(ctx, a[i].Value, child, func(ctx *TopDownContext) error {
+		err := evalEqUnify(ctx, a[i].Value, child, func(ctx *Context) error {
 			tmp = ctx
 			return nil
 		})
@@ -465,7 +465,7 @@ func evalEqUnifyArrayRef(ctx *TopDownContext, a ast.Array, b ast.Ref, iter TopDo
 	return iter(ctx)
 }
 
-func evalEqUnifyArrays(ctx *TopDownContext, a ast.Array, b ast.Array, iter TopDownIterator) error {
+func evalEqUnifyArrays(ctx *Context, a ast.Array, b ast.Array, iter Iterator) error {
 	aLen := len(a)
 	bLen := len(b)
 	if aLen != bLen {
@@ -474,8 +474,8 @@ func evalEqUnifyArrays(ctx *TopDownContext, a ast.Array, b ast.Array, iter TopDo
 	for i := 0; i < aLen; i++ {
 		ai := a[i].Value
 		bi := b[i].Value
-		var tmp *TopDownContext
-		err := evalEqUnify(ctx, ai, bi, func(ctx *TopDownContext) error {
+		var tmp *Context
+		err := evalEqUnify(ctx, ai, bi, func(ctx *Context) error {
 			tmp = ctx
 			return nil
 		})
@@ -493,7 +493,7 @@ func evalEqUnifyArrays(ctx *TopDownContext, a ast.Array, b ast.Array, iter TopDo
 // evalEqUnifyObject attempts to unify the object "a" with some other value "b".
 // TODO(tsandal): unification of object keys (or unordered sets in general) is not
 // supported because it would be too expensive. We may revisit this in the future.
-func evalEqUnifyObject(ctx *TopDownContext, a ast.Object, b ast.Value, iter TopDownIterator) error {
+func evalEqUnifyObject(ctx *Context, a ast.Object, b ast.Value, iter Iterator) error {
 	switch b := b.(type) {
 	case ast.Var:
 		return evalEqUnifyVar(ctx, b, a, iter)
@@ -506,7 +506,7 @@ func evalEqUnifyObject(ctx *TopDownContext, a ast.Object, b ast.Value, iter TopD
 	}
 }
 
-func evalEqUnifyObjectRef(ctx *TopDownContext, a ast.Object, b ast.Ref, iter TopDownIterator) error {
+func evalEqUnifyObjectRef(ctx *Context, a ast.Object, b ast.Ref, iter Iterator) error {
 
 	r, err := ctx.DataStore.GetRef(b)
 
@@ -544,8 +544,8 @@ func evalEqUnifyObjectRef(ctx *TopDownContext, a ast.Object, b ast.Ref, iter Top
 		child := make(ast.Ref, len(b), len(b)+1)
 		copy(child, b)
 		child = append(child, a[i][0])
-		var tmp *TopDownContext
-		err := evalEqUnify(ctx, a[i][1].Value, child, func(ctx *TopDownContext) error {
+		var tmp *Context
+		err := evalEqUnify(ctx, a[i][1].Value, child, func(ctx *Context) error {
 			tmp = ctx
 			return nil
 		})
@@ -560,7 +560,7 @@ func evalEqUnifyObjectRef(ctx *TopDownContext, a ast.Object, b ast.Ref, iter Top
 	return iter(ctx)
 }
 
-func evalEqUnifyObjects(ctx *TopDownContext, a ast.Object, b ast.Object, iter TopDownIterator) error {
+func evalEqUnifyObjects(ctx *Context, a ast.Object, b ast.Object, iter Iterator) error {
 
 	if len(a) != len(b) {
 		return nil
@@ -576,10 +576,10 @@ func evalEqUnifyObjects(ctx *TopDownContext, a ast.Object, b ast.Object, iter To
 	}
 
 	for i := range a {
-		var tmp *TopDownContext
+		var tmp *Context
 		for j := range b {
 			if b[j][0].Equal(a[i][0]) {
-				err := evalEqUnify(ctx, a[i][1].Value, b[j][1].Value, func(ctx *TopDownContext) error {
+				err := evalEqUnify(ctx, a[i][1].Value, b[j][1].Value, func(ctx *Context) error {
 					tmp = ctx
 					return nil
 				})
@@ -600,7 +600,7 @@ func evalEqUnifyObjects(ctx *TopDownContext, a ast.Object, b ast.Object, iter To
 	return iter(ctx)
 }
 
-func evalEqUnifyVar(ctx *TopDownContext, a ast.Var, b ast.Value, iter TopDownIterator) error {
+func evalEqUnifyVar(ctx *Context, a ast.Var, b ast.Value, iter Iterator) error {
 	ctx = ctx.BindVar(a, b)
 	if ctx == nil {
 		return nil
@@ -608,7 +608,7 @@ func evalEqUnifyVar(ctx *TopDownContext, a ast.Var, b ast.Value, iter TopDownIte
 	return iter(ctx)
 }
 
-func evalExpr(ctx *TopDownContext, iter TopDownIterator) error {
+func evalExpr(ctx *Context, iter Iterator) error {
 	expr := plugExpr(ctx.Current(), ctx.Bindings)
 	ctx.traceTry(expr)
 	switch tt := expr.Terms.(type) {
@@ -619,7 +619,7 @@ func evalExpr(ctx *TopDownContext, iter TopDownIterator) error {
 			// this should never happen.
 			panic(fmt.Sprintf("illegal built-in: %v", tt[0]))
 		}
-		return builtin(ctx, expr, func(ctx *TopDownContext) error {
+		return builtin(ctx, expr, func(ctx *Context) error {
 			ctx.traceSuccess(expr)
 			return iter(ctx)
 		})
@@ -638,7 +638,7 @@ func evalExpr(ctx *TopDownContext, iter TopDownIterator) error {
 	}
 }
 
-func evalRef(ctx *TopDownContext, ref ast.Ref, iter TopDownIterator) error {
+func evalRef(ctx *Context, ref ast.Ref, iter Iterator) error {
 	// If this reference refers to a local variable, evaluate against the binding.
 	// Otherwise, evaluate against the database.
 	if !ref[0].Equal(ast.DefaultRootDocument) {
@@ -652,7 +652,7 @@ func evalRef(ctx *TopDownContext, ref ast.Ref, iter TopDownIterator) error {
 	return evalRefRec(ctx, ast.Ref{ref[0]}, ref[1:], iter)
 }
 
-func evalRefRec(ctx *TopDownContext, path, tail ast.Ref, iter TopDownIterator) error {
+func evalRefRec(ctx *Context, path, tail ast.Ref, iter Iterator) error {
 
 	if len(tail) == 0 {
 		return evalRefRecFinish(ctx, path, iter)
@@ -665,7 +665,7 @@ func evalRefRec(ctx *TopDownContext, path, tail ast.Ref, iter TopDownIterator) e
 	return evalRefRecNonGround(ctx, path, tail, iter)
 }
 
-func evalRefRecEnumColl(ctx *TopDownContext, path, tail ast.Ref, iter TopDownIterator) error {
+func evalRefRecEnumColl(ctx *Context, path, tail ast.Ref, iter Iterator) error {
 
 	node, err := ctx.DataStore.GetRef(path)
 	if err != nil {
@@ -706,7 +706,7 @@ func evalRefRecEnumColl(ctx *TopDownContext, path, tail ast.Ref, iter TopDownIte
 	}
 }
 
-func evalRefRecFinish(ctx *TopDownContext, path ast.Ref, iter TopDownIterator) error {
+func evalRefRecFinish(ctx *Context, path ast.Ref, iter Iterator) error {
 	ok, err := lookupExists(ctx.DataStore, path)
 	if err == nil && ok {
 		return iter(ctx)
@@ -714,7 +714,7 @@ func evalRefRecFinish(ctx *TopDownContext, path ast.Ref, iter TopDownIterator) e
 	return err
 }
 
-func evalRefRecGround(ctx *TopDownContext, path, tail ast.Ref, iter TopDownIterator) error {
+func evalRefRecGround(ctx *Context, path, tail ast.Ref, iter Iterator) error {
 	// Check if the node exists. If the node does not exist, stop.
 	// If the node exists and is a rule, evaluate the rule to produce a virtual doc.
 	// Otherwise, process the rest of the reference.
@@ -737,7 +737,7 @@ func evalRefRecGround(ctx *TopDownContext, path, tail ast.Ref, iter TopDownItera
 	return evalRefRec(ctx, path, tail[1:], iter)
 }
 
-func evalRefRecNonGround(ctx *TopDownContext, path, tail ast.Ref, iter TopDownIterator) error {
+func evalRefRecNonGround(ctx *Context, path, tail ast.Ref, iter Iterator) error {
 	// Check if the variable has a binding.
 	// If there is a binding, process the rest of the reference normally.
 	// If there is no binding, enumerate the collection referred to by the path.
@@ -749,7 +749,7 @@ func evalRefRecNonGround(ctx *TopDownContext, path, tail ast.Ref, iter TopDownIt
 	return evalRefRecEnumColl(ctx, path, tail, iter)
 }
 
-func evalRefRule(ctx *TopDownContext, ref ast.Ref, path ast.Ref, rule *ast.Rule, iter TopDownIterator) error {
+func evalRefRule(ctx *Context, ref ast.Ref, path ast.Ref, rule *ast.Rule, iter Iterator) error {
 
 	switch rule.DocKind() {
 	case ast.PartialSetDoc:
@@ -764,7 +764,7 @@ func evalRefRule(ctx *TopDownContext, ref ast.Ref, path ast.Ref, rule *ast.Rule,
 
 }
 
-func evalRefRuleCompleteDoc(ctx *TopDownContext, ref ast.Ref, path ast.Ref, rule *ast.Rule, iter TopDownIterator) error {
+func evalRefRuleCompleteDoc(ctx *Context, ref ast.Ref, path ast.Ref, rule *ast.Rule, iter Iterator) error {
 	suffix := ref[len(path):]
 	if len(suffix) == 0 {
 		return fmt.Errorf("not implemented: %v %v %v", ref, path, rule)
@@ -773,7 +773,7 @@ func evalRefRuleCompleteDoc(ctx *TopDownContext, ref ast.Ref, path ast.Ref, rule
 	bindings := storage.NewBindings()
 	child := ctx.Child(rule, bindings)
 
-	return TopDown(child, func(child *TopDownContext) error {
+	return Eval(child, func(child *Context) error {
 		switch v := rule.Value.Value.(type) {
 		case ast.Object:
 			return evalRefRuleResult(ctx, ref, suffix, v, iter)
@@ -785,7 +785,7 @@ func evalRefRuleCompleteDoc(ctx *TopDownContext, ref ast.Ref, path ast.Ref, rule
 	})
 }
 
-func evalRefRulePartialObjectDoc(ctx *TopDownContext, ref ast.Ref, path ast.Ref, rule *ast.Rule, iter TopDownIterator) error {
+func evalRefRulePartialObjectDoc(ctx *Context, ref ast.Ref, path ast.Ref, rule *ast.Rule, iter Iterator) error {
 	suffix := ref[len(path):]
 	if len(suffix) == 0 {
 		return fmt.Errorf("not implemented: %v %v %v", ref, path, rule)
@@ -807,7 +807,7 @@ func evalRefRulePartialObjectDoc(ctx *TopDownContext, ref ast.Ref, path ast.Ref,
 	// cleaner to generalize this (instead of having two separate branches).
 	if !key.IsGround() {
 		child := ctx.Child(rule, storage.NewBindings())
-		return TopDown(child, func(child *TopDownContext) error {
+		return Eval(child, func(child *Context) error {
 			key := child.Bindings.Get(rule.Key.Value)
 			if key == nil {
 				return fmt.Errorf("unbound variable: %v", rule.Key)
@@ -825,7 +825,7 @@ func evalRefRulePartialObjectDoc(ctx *TopDownContext, ref ast.Ref, path ast.Ref,
 	bindings.Put(rule.Key.Value, key)
 	child := ctx.Child(rule, bindings)
 
-	return TopDown(child, func(child *TopDownContext) error {
+	return Eval(child, func(child *Context) error {
 		value := child.Bindings.Get(rule.Value.Value)
 		if value == nil {
 			return fmt.Errorf("unbound variable: %v", rule.Value)
@@ -834,7 +834,7 @@ func evalRefRulePartialObjectDoc(ctx *TopDownContext, ref ast.Ref, path ast.Ref,
 	})
 }
 
-func evalRefRulePartialSetDoc(ctx *TopDownContext, ref ast.Ref, path ast.Ref, rule *ast.Rule, iter TopDownIterator) error {
+func evalRefRulePartialSetDoc(ctx *Context, ref ast.Ref, path ast.Ref, rule *ast.Rule, iter Iterator) error {
 	suffix := ref[len(path):]
 	if len(suffix) == 0 {
 		return fmt.Errorf("not implemented: %v %v %v", ref, path, rule)
@@ -853,7 +853,7 @@ func evalRefRulePartialSetDoc(ctx *TopDownContext, ref ast.Ref, path ast.Ref, ru
 
 	if !key.IsGround() {
 		child := ctx.Child(rule, storage.NewBindings())
-		return TopDown(child, func(child *TopDownContext) error {
+		return Eval(child, func(child *Context) error {
 			value := child.Bindings.Get(rule.Key.Value)
 			if value == nil {
 				return fmt.Errorf("unbound variable: %v", rule.Key)
@@ -873,7 +873,7 @@ func evalRefRulePartialSetDoc(ctx *TopDownContext, ref ast.Ref, path ast.Ref, ru
 	bindings.Put(rule.Key.Value, key)
 	child := ctx.Child(rule, bindings)
 
-	return TopDown(child, func(child *TopDownContext) error {
+	return Eval(child, func(child *Context) error {
 		// See comment above for explanation of why the reference is bound to true.
 		ctx = ctx.BindRef(ref[:len(path)+1], ast.Boolean(true))
 		return iter(ctx)
@@ -881,7 +881,7 @@ func evalRefRulePartialSetDoc(ctx *TopDownContext, ref ast.Ref, path ast.Ref, ru
 
 }
 
-func evalRefRuleResult(ctx *TopDownContext, ref ast.Ref, suffix ast.Ref, result ast.Value, iter TopDownIterator) error {
+func evalRefRuleResult(ctx *Context, ref ast.Ref, suffix ast.Ref, result ast.Value, iter Iterator) error {
 
 	switch result := result.(type) {
 	case ast.Ref:
@@ -897,7 +897,7 @@ func evalRefRuleResult(ctx *TopDownContext, ref ast.Ref, suffix ast.Ref, result 
 		var binding ast.Ref
 		binding = append(binding, result...)
 		binding = append(binding, suffix...)
-		return evalRefRec(ctx, result, suffix, func(ctx *TopDownContext) error {
+		return evalRefRec(ctx, result, suffix, func(ctx *Context) error {
 			ctx = ctx.BindRef(ref, plugValue(binding, ctx.Bindings))
 			return iter(ctx)
 		})
@@ -959,7 +959,7 @@ func evalRefRuleResult(ctx *TopDownContext, ref ast.Ref, suffix ast.Ref, result 
 // variables used in references involves iterating collections in storage or
 // evaluating rules identified by the references. In either case, this function
 // will invoke the iterator with each set of bindings that should be evaluated.
-func evalTerms(ctx *TopDownContext, iter TopDownIterator) error {
+func evalTerms(ctx *Context, iter Iterator) error {
 
 	expr := ctx.Current()
 
@@ -1009,9 +1009,9 @@ func evalTerms(ctx *TopDownContext, iter TopDownIterator) error {
 	return evalTermsRec(ctx, iter, ts)
 }
 
-func evalTermsIndexed(ctx *TopDownContext, iter TopDownIterator, indexed ast.Ref, nonIndexed *ast.Term) error {
+func evalTermsIndexed(ctx *Context, iter Iterator, indexed ast.Ref, nonIndexed *ast.Term) error {
 
-	iterateIndex := func(ctx *TopDownContext) error {
+	iterateIndex := func(ctx *Context) error {
 
 		// Evaluate the non-indexed term.
 		plugged := plugTerm(nonIndexed, ctx.Bindings)
@@ -1038,7 +1038,7 @@ func evalTermsIndexed(ctx *TopDownContext, iter TopDownIterator, indexed ast.Ref
 	return evalTermsRec(ctx, iterateIndex, []*ast.Term{nonIndexed})
 }
 
-func evalTermsRec(ctx *TopDownContext, iter TopDownIterator, ts []*ast.Term) error {
+func evalTermsRec(ctx *Context, iter Iterator, ts []*ast.Term) error {
 
 	if len(ts) == 0 {
 		return iter(ctx)
@@ -1049,15 +1049,15 @@ func evalTermsRec(ctx *TopDownContext, iter TopDownIterator, ts []*ast.Term) err
 
 	switch head := head.Value.(type) {
 	case ast.Ref:
-		return evalRef(ctx, head, func(ctx *TopDownContext) error {
+		return evalRef(ctx, head, func(ctx *Context) error {
 			return evalTermsRec(ctx, iter, tail)
 		})
 	case ast.Array:
-		return evalTermsRecArray(ctx, head, 0, func(ctx *TopDownContext) error {
+		return evalTermsRecArray(ctx, head, 0, func(ctx *Context) error {
 			return evalTermsRec(ctx, iter, tail)
 		})
 	case ast.Object:
-		return evalTermsRecObject(ctx, head, 0, func(ctx *TopDownContext) error {
+		return evalTermsRecObject(ctx, head, 0, func(ctx *Context) error {
 			return evalTermsRec(ctx, iter, tail)
 		})
 	default:
@@ -1065,21 +1065,21 @@ func evalTermsRec(ctx *TopDownContext, iter TopDownIterator, ts []*ast.Term) err
 	}
 }
 
-func evalTermsRecArray(ctx *TopDownContext, arr ast.Array, idx int, iter TopDownIterator) error {
+func evalTermsRecArray(ctx *Context, arr ast.Array, idx int, iter Iterator) error {
 	if idx >= len(arr) {
 		return iter(ctx)
 	}
 	switch v := arr[idx].Value.(type) {
 	case ast.Ref:
-		return evalRef(ctx, v, func(ctx *TopDownContext) error {
+		return evalRef(ctx, v, func(ctx *Context) error {
 			return evalTermsRecArray(ctx, arr, idx+1, iter)
 		})
 	case ast.Array:
-		return evalTermsRecArray(ctx, v, 0, func(ctx *TopDownContext) error {
+		return evalTermsRecArray(ctx, v, 0, func(ctx *Context) error {
 			return evalTermsRecArray(ctx, arr, idx+1, iter)
 		})
 	case ast.Object:
-		return evalTermsRecObject(ctx, v, 0, func(ctx *TopDownContext) error {
+		return evalTermsRecObject(ctx, v, 0, func(ctx *Context) error {
 			return evalTermsRecArray(ctx, arr, idx+1, iter)
 		})
 	default:
@@ -1087,24 +1087,24 @@ func evalTermsRecArray(ctx *TopDownContext, arr ast.Array, idx int, iter TopDown
 	}
 }
 
-func evalTermsRecObject(ctx *TopDownContext, obj ast.Object, idx int, iter TopDownIterator) error {
+func evalTermsRecObject(ctx *Context, obj ast.Object, idx int, iter Iterator) error {
 	if idx >= len(obj) {
 		return iter(ctx)
 	}
 	switch k := obj[idx][0].Value.(type) {
 	case ast.Ref:
-		return evalRef(ctx, k, func(ctx *TopDownContext) error {
+		return evalRef(ctx, k, func(ctx *Context) error {
 			switch v := obj[idx][1].Value.(type) {
 			case ast.Ref:
-				return evalRef(ctx, v, func(ctx *TopDownContext) error {
+				return evalRef(ctx, v, func(ctx *Context) error {
 					return evalTermsRecObject(ctx, obj, idx+1, iter)
 				})
 			case ast.Array:
-				return evalTermsRecArray(ctx, v, 0, func(ctx *TopDownContext) error {
+				return evalTermsRecArray(ctx, v, 0, func(ctx *Context) error {
 					return evalTermsRecObject(ctx, obj, idx+1, iter)
 				})
 			case ast.Object:
-				return evalTermsRecObject(ctx, v, 0, func(ctx *TopDownContext) error {
+				return evalTermsRecObject(ctx, v, 0, func(ctx *Context) error {
 					return evalTermsRecObject(ctx, obj, idx+1, iter)
 				})
 			default:
@@ -1114,15 +1114,15 @@ func evalTermsRecObject(ctx *TopDownContext, obj ast.Object, idx int, iter TopDo
 	default:
 		switch v := obj[idx][1].Value.(type) {
 		case ast.Ref:
-			return evalRef(ctx, v, func(ctx *TopDownContext) error {
+			return evalRef(ctx, v, func(ctx *Context) error {
 				return evalTermsRecObject(ctx, obj, idx+1, iter)
 			})
 		case ast.Array:
-			return evalTermsRecArray(ctx, v, 0, func(ctx *TopDownContext) error {
+			return evalTermsRecArray(ctx, v, 0, func(ctx *Context) error {
 				return evalTermsRecObject(ctx, obj, idx+1, iter)
 			})
 		case ast.Object:
-			return evalTermsRecObject(ctx, v, 0, func(ctx *TopDownContext) error {
+			return evalTermsRecObject(ctx, v, 0, func(ctx *Context) error {
 				return evalTermsRecObject(ctx, obj, idx+1, iter)
 			})
 		default:
@@ -1135,7 +1135,7 @@ func evalTermsRecObject(ctx *TopDownContext, obj ast.Object, idx int, iter TopDo
 // Indexing is used on equality expressions where both sides are non-ground refs (to base docs) or one
 // side is a non-ground ref (to a base doc) and the other side is any ground term. In the future, indexing
 // may be used on references embedded inside array/object values.
-func indexAvailable(ctx *TopDownContext, expr *ast.Expr) bool {
+func indexAvailable(ctx *Context, expr *ast.Expr) bool {
 
 	ts, ok := expr.Terms.([]*ast.Term)
 	if !ok {
@@ -1167,7 +1167,7 @@ func indexAvailable(ctx *TopDownContext, expr *ast.Expr) bool {
 // indexBuildLazy returns true if there is an index built for this term. If there is no index
 // currently built for the term, but the term is a candidate for indexing, ther index will be
 // built on the fly.
-func indexBuildLazy(ctx *TopDownContext, ref ast.Ref) (bool, error) {
+func indexBuildLazy(ctx *Context, ref ast.Ref) (bool, error) {
 
 	if ref.IsGround() {
 		return false, nil
@@ -1328,7 +1328,7 @@ func plugValue(v ast.Value, bindings *storage.Bindings) ast.Value {
 	}
 }
 
-func topDownQueryCompleteDoc(params *TopDownQueryParams, rules []*ast.Rule) (interface{}, error) {
+func topDownQueryCompleteDoc(params *QueryParams, rules []*ast.Rule) (interface{}, error) {
 
 	if len(rules) > 1 {
 		return nil, fmt.Errorf("multiple conflicting rules: %v", rules[0].Name)
@@ -1336,7 +1336,7 @@ func topDownQueryCompleteDoc(params *TopDownQueryParams, rules []*ast.Rule) (int
 
 	rule := rules[0]
 
-	ctx := &TopDownContext{
+	ctx := &Context{
 		Query:     rule.Body,
 		Bindings:  storage.NewBindings(),
 		DataStore: params.DataStore,
@@ -1344,7 +1344,7 @@ func topDownQueryCompleteDoc(params *TopDownQueryParams, rules []*ast.Rule) (int
 	}
 
 	isTrue := false
-	err := TopDown(ctx, func(ctx *TopDownContext) error {
+	err := Eval(ctx, func(ctx *Context) error {
 		isTrue = true
 		return nil
 	})
@@ -1358,12 +1358,12 @@ func topDownQueryCompleteDoc(params *TopDownQueryParams, rules []*ast.Rule) (int
 	return ValueToInterface(rule.Value.Value, ctx)
 }
 
-func topDownQueryPartialObjectDoc(params *TopDownQueryParams, rules []*ast.Rule) (interface{}, error) {
+func topDownQueryPartialObjectDoc(params *QueryParams, rules []*ast.Rule) (interface{}, error) {
 
 	result := map[string]interface{}{}
 
 	for _, rule := range rules {
-		ctx := &TopDownContext{
+		ctx := &Context{
 			Query:     rule.Body,
 			Bindings:  storage.NewBindings(),
 			DataStore: params.DataStore,
@@ -1371,7 +1371,7 @@ func topDownQueryPartialObjectDoc(params *TopDownQueryParams, rules []*ast.Rule)
 		}
 		key := rule.Key.Value.(ast.Var)
 		value := rule.Value.Value.(ast.Var)
-		err := TopDown(ctx, func(ctx *TopDownContext) error {
+		err := Eval(ctx, func(ctx *Context) error {
 			key, err := dereferenceVar(key, ctx)
 			if err != nil {
 				return err
@@ -1395,17 +1395,17 @@ func topDownQueryPartialObjectDoc(params *TopDownQueryParams, rules []*ast.Rule)
 	return result, nil
 }
 
-func topDownQueryPartialSetDoc(params *TopDownQueryParams, rules []*ast.Rule) (interface{}, error) {
+func topDownQueryPartialSetDoc(params *QueryParams, rules []*ast.Rule) (interface{}, error) {
 	result := []interface{}{}
 	for _, rule := range rules {
-		ctx := &TopDownContext{
+		ctx := &Context{
 			Query:     rule.Body,
 			Bindings:  storage.NewBindings(),
 			DataStore: params.DataStore,
 			Tracer:    params.Tracer,
 		}
 		key := rule.Key.Value.(ast.Var)
-		err := TopDown(ctx, func(ctx *TopDownContext) error {
+		err := Eval(ctx, func(ctx *Context) error {
 			value, err := dereferenceVar(key, ctx)
 			if err != nil {
 				return err

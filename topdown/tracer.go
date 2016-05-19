@@ -2,7 +2,7 @@
 // Use of this source code is governed by an Apache2
 // license that can be found in the LICENSE file.
 
-package eval
+package topdown
 
 import (
 	"fmt"
@@ -16,7 +16,7 @@ type Tracer interface {
 	Enabled() bool
 
 	// Trace emits a message if the tracer is enabled.
-	Trace(ctx *TopDownContext, f string, a ...interface{})
+	Trace(ctx *Context, f string, a ...interface{})
 }
 
 // StdoutTracer writes trace messages to stdout.
@@ -26,7 +26,7 @@ type StdoutTracer struct{}
 func (t *StdoutTracer) Enabled() bool { return true }
 
 // Trace writes a trace message to stdout.
-func (t *StdoutTracer) Trace(ctx *TopDownContext, f string, a ...interface{}) {
+func (t *StdoutTracer) Trace(ctx *Context, f string, a ...interface{}) {
 	var padding string
 	i := 0
 	for ; ctx != nil; ctx = ctx.Previous {

@@ -2,7 +2,7 @@
 // Use of this source code is governed by an Apache2
 // license that can be found in the LICENSE file.
 
-package eval
+package topdown
 
 import (
 	"fmt"
@@ -18,7 +18,7 @@ type mockTracer struct {
 
 func (t *mockTracer) Enabled() bool { return true }
 
-func (t *mockTracer) Trace(ctx *TopDownContext, f string, a ...interface{}) {
+func (t *mockTracer) Trace(ctx *Context, f string, a ...interface{}) {
 	t.buf = append(t.buf, fmt.Sprintf(f, a))
 }
 
@@ -43,12 +43,12 @@ func TestTracer(t *testing.T) {
 
 	tracer := &mockTracer{[]string{}}
 
-	params := &TopDownQueryParams{
+	params := &QueryParams{
 		DataStore: ds,
 		Tracer:    tracer,
 		Path:      []interface{}{"p"}}
 
-	result, err := TopDownQuery(params)
+	result, err := Query(params)
 	if err != nil {
 		t.Errorf("Unexpected error in tracing test: %v", err)
 		return
