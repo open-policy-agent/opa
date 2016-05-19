@@ -23,22 +23,26 @@ type Params struct {
 	// Addr is the listening address that the OPA server will bind to.
 	Addr string
 
-	// Server flag controls whether the OPA instance will start a server.
-	// By default, the OPA instance acts as an interactive shell.
-	Server bool
+	// HistoryPath is the filename to store the interactive shell user
+	// input history.
+	HistoryPath string
+
+	// Output format controls how the REPL will print query results.
+	// Default: "pretty".
+	OutputFormat string
 
 	// Paths contains filenames of base documents and policy modules to
 	// load on startup.
 	Paths []string
 
-	// HistoryPath is the filename to store the interactive shell user
-	// input history.
-	HistoryPath string
-
 	// PolicyDir is the filename of the directory to persist policy
 	// definitions in. Policy definitions stored in this directory
 	// are automatically loaded on startup.
 	PolicyDir string
+
+	// Server flag controls whether the OPA instance will start a server.
+	// By default, the OPA instance acts as an interactive shell.
+	Server bool
 }
 
 // Runtime represents a single OPA instance.
@@ -113,7 +117,7 @@ func (rt *Runtime) startServer(params *Params) {
 }
 
 func (rt *Runtime) startRepl(params *Params) {
-	repl := NewRepl(rt, params.HistoryPath, os.Stdout)
+	repl := NewRepl(rt, params.HistoryPath, os.Stdout, params.OutputFormat)
 	repl.Loop()
 }
 

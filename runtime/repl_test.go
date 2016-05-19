@@ -75,6 +75,56 @@ func TestOneShotBufferedRule(t *testing.T) {
 	expectOutput(t, buffer.String(), "defined\n")
 }
 
+func TestOneShotJSON(t *testing.T) {
+	store := newTestStorage()
+	var buffer bytes.Buffer
+	repl := newRepl(store, &buffer)
+	repl.OutputFormat = "json"
+	repl.OneShot("data.a[i] = x")
+	var expected interface{}
+	input := `
+	[
+		{
+			"i": 0,
+			"x": {
+			"b": {
+				"c": [
+				true,
+				2,
+				false
+				]
+			}
+			}
+		},
+		{
+			"i": 1,
+			"x": {
+			"b": {
+				"c": [
+				false,
+				true,
+				1
+				]
+			}
+			}
+		}
+	]
+	`
+	if err := json.Unmarshal([]byte(input), &expected); err != nil {
+		panic(err)
+	}
+
+	var result interface{}
+
+	if err := json.Unmarshal(buffer.Bytes(), &result); err != nil {
+		t.Errorf("Unexpected output format: %v", err)
+		return
+	}
+	if !reflect.DeepEqual(expected, result) {
+		t.Errorf("Expected %v but got: %v", expected, result)
+	}
+}
+
 func TestBuildHeader(t *testing.T) {
 	expr := ast.MustParseStatement(`[{"a": x, "b": data.a.b[y]}] = [{"a": 1, "b": 2}]`).(ast.Body)[0]
 	terms := expr.Terms.([]*ast.Term)
@@ -96,7 +146,7 @@ func expectOutput(t *testing.T, output string, expected string) {
 
 func newRepl(store *storage.DataStore, buffer *bytes.Buffer) *Repl {
 	runtime := &Runtime{DataStore: store}
-	repl := NewRepl(runtime, "", buffer)
+	repl := NewRepl(runtime, "", buffer, "")
 	return repl
 }
 

@@ -27,6 +27,7 @@ const (
 // Repl represeents an instance of the interactive shell.
 type Repl struct {
 	Output       io.Writer
+	OutputFormat string
 	Trace        bool
 	Runtime      *Runtime
 	HistoryPath  string
@@ -37,9 +38,10 @@ type Repl struct {
 }
 
 // NewRepl creates a new Repl.
-func NewRepl(rt *Runtime, historyPath string, output io.Writer) *Repl {
+func NewRepl(rt *Runtime, historyPath string, output io.Writer, outputFormat string) *Repl {
 	return &Repl{
 		Output:       output,
+		OutputFormat: outputFormat,
 		Trace:        false,
 		Runtime:      rt,
 		HistoryPath:  historyPath,
@@ -90,6 +92,10 @@ func (r *Repl) OneShot(line string) bool {
 		switch strings.TrimSpace(strings.ToLower(line)) {
 		case "dump":
 			return r.cmdDump()
+		case "json":
+			return r.cmdFormat("json")
+		case "pretty":
+			return r.cmdFormat("pretty")
 		case "trace":
 			return r.cmdTrace()
 		case "?":
@@ -119,6 +125,11 @@ func (r *Repl) cmdDump() bool {
 }
 
 func (r *Repl) cmdExit() bool {
+	return true
+}
+
+func (r *Repl) cmdFormat(s string) bool {
+	r.OutputFormat = s
 	return false
 }
 
@@ -129,11 +140,13 @@ func (r *Repl) cmdHelp() bool {
 		note string
 	}{
 		{"<stmt>", "evaluate the statement"},
+		{"json", "set output format to JSON"},
+		{"pretty", "set output format to pretty"},
 		{"dump", "dump the raw storage content"},
 		{"trace", "toggle stdout tracing"},
-		{"ctrl+l", "clear the screen"},
 		{"help", "print this message (or ?)"},
 		{"exit", "exit back to shell (or ctrl+c, ctrl+d, quit)"},
+		{"ctrl+l", "clear the screen"},
 	}
 
 	maxLength := 0
@@ -334,16 +347,63 @@ func (r *Repl) evalBody(body ast.Body) bool {
 	return false
 }
 
+func (r *Repl) evalRule(rule *ast.Rule) bool {
+
+	path := []interface{}{string(rule.Name)}
+
+	if err := r.Runtime.DataStore.Patch(storage.AddOp, path, []*ast.Rule{rule}); err != nil {
+		fmt.Fprintln(r.Output, "error:", err)
+		return true
+	}
+
+	fmt.Fprintln(r.Output, "defined")
+	return false
+}
+
+func (r *Repl) getPrompt() string {
+	if len(r.Buffer) > 0 {
+		return r.BufferPrompt
+	}
+	return r.InitPrompt
+}
+
+func (r *Repl) loadHistory(prompt *liner.State) {
+	if f, err := os.Open(r.HistoryPath); err == nil {
+		prompt.ReadHistory(f)
+		f.Close()
+	}
+}
+
 func (r *Repl) printResults(body ast.Body, results []map[string]interface{}) {
+
+	switch r.OutputFormat {
+	case "json":
+		r.printJSON(results)
+	default:
+		r.printPretty(body, results)
+	}
+
+}
+
+func (r *Repl) printJSON(results []map[string]interface{}) {
+	buf, err := json.MarshalIndent(results, "", "  ")
+	if err != nil {
+		fmt.Fprintln(r.Output, err)
+		return
+	}
+	fmt.Fprintln(r.Output, string(buf))
+}
+
+func (r *Repl) printPretty(body ast.Body, results []map[string]interface{}) {
 	table := tablewriter.NewWriter(r.Output)
-	r.printHeader(table, body)
+	r.printPrettyHeader(table, body)
 	for _, row := range results {
-		r.printRow(table, row)
+		r.printPrettyRow(table, row)
 	}
 	table.Render()
 }
 
-func (r *Repl) printHeader(table *tablewriter.Table, body ast.Body) {
+func (r *Repl) printPrettyHeader(table *tablewriter.Table, body ast.Body) {
 
 	// Build set of fields for the output. The fields are the variables from inside the body.
 	// If the variable appears multiple times, we only want a single field so store them in a
@@ -372,7 +432,7 @@ func (r *Repl) printHeader(table *tablewriter.Table, body ast.Body) {
 	table.SetHeader(keys)
 }
 
-func (r *Repl) printRow(table *tablewriter.Table, row map[string]interface{}) {
+func (r *Repl) printPrettyRow(table *tablewriter.Table, row map[string]interface{}) {
 
 	// Arrange fields in same order as header.
 	keys := []string{}
@@ -394,33 +454,6 @@ func (r *Repl) printRow(table *tablewriter.Table, row map[string]interface{}) {
 
 	// Add fields to table in sorted order.
 	table.Append(buf)
-}
-
-func (r *Repl) evalRule(rule *ast.Rule) bool {
-
-	path := []interface{}{string(rule.Name)}
-
-	if err := r.Runtime.DataStore.Patch(storage.AddOp, path, []*ast.Rule{rule}); err != nil {
-		fmt.Fprintln(r.Output, "error:", err)
-		return true
-	}
-
-	fmt.Fprintln(r.Output, "defined")
-	return false
-}
-
-func (r *Repl) getPrompt() string {
-	if len(r.Buffer) > 0 {
-		return r.BufferPrompt
-	}
-	return r.InitPrompt
-}
-
-func (r *Repl) loadHistory(prompt *liner.State) {
-	if f, err := os.Open(r.HistoryPath); err == nil {
-		prompt.ReadHistory(f)
-		f.Close()
-	}
 }
 
 func (r *Repl) saveHistory(prompt *liner.State) {
