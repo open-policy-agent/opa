@@ -4,8 +4,10 @@
 
 # build artifacts
 coverage
-opa
 ast/parser.go
+opa
+opa_linux_amd64
+opa_darwin_amd64
 
 # runtime artifacts
 policies

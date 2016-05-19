@@ -68,7 +68,7 @@ CHANGELOG.md snippet and uploading the packages from the build phase.
 1. Run command to build packages. This will produce a bunch of binaries (e.g., amd64/linux, i386/linux, amd64/darwin, etc.) that can be published (“distributions”).
 
 	```
-	make dist
+	make build CROSSCOMPILE="linux/amd64 darwin/amd64"
 	```
 
 ## Publishing
