@@ -1,8 +1,6 @@
 hash: 0a02b01206ff3a59dcdf432903f0c3e1abc7692a6a6ba59caba19005bf8c46dc
 updated: 2016-05-19T09:13:26.432649187-07:00
 imports:
-- name: github.com/apcera/termtables
-  version: 683d3fb424194f29991b0442b37521de9bc9d66b
 - name: github.com/golang/glog
   version: 23def4e6c14b4da8ac2ed8007337bc5eb5007998
 - name: github.com/golang/lint
