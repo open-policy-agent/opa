@@ -12,7 +12,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/apcera/termtables"
+	"github.com/olekukonko/tablewriter"
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/eval"
 	"github.com/open-policy-agent/opa/storage"
@@ -335,15 +335,15 @@ func (r *Repl) evalBody(body ast.Body) bool {
 }
 
 func (r *Repl) printResults(body ast.Body, results []map[string]interface{}) {
-	table := termtables.CreateTable()
+	table := tablewriter.NewWriter(r.Output)
 	r.printHeader(table, body)
 	for _, row := range results {
 		r.printRow(table, row)
 	}
-	fmt.Fprintf(r.Output, table.Render())
+	table.Render()
 }
 
-func (r *Repl) printHeader(table *termtables.Table, body ast.Body) {
+func (r *Repl) printHeader(table *tablewriter.Table, body ast.Body) {
 
 	// Build set of fields for the output. The fields are the variables from inside the body.
 	// If the variable appears multiple times, we only want a single field so store them in a
@@ -362,24 +362,17 @@ func (r *Repl) printHeader(table *termtables.Table, body ast.Body) {
 		}
 	}
 
-	// Store fields by name.
+	// Sort/display fields by name.
 	keys := []string{}
 	for k := range fields {
 		keys = append(keys, k)
 	}
 
 	sort.Strings(keys)
-
-	s := []interface{}{}
-	for _, k := range keys {
-		s = append(s, k)
-	}
-
-	// Add fields to table in sorted order.
-	table.AddHeaders(s...)
+	table.SetHeader(keys)
 }
 
-func (r *Repl) printRow(table *termtables.Table, row map[string]interface{}) {
+func (r *Repl) printRow(table *tablewriter.Table, row map[string]interface{}) {
 
 	// Arrange fields in same order as header.
 	keys := []string{}
@@ -389,18 +382,18 @@ func (r *Repl) printRow(table *termtables.Table, row map[string]interface{}) {
 
 	sort.Strings(keys)
 
-	buf := []interface{}{}
+	buf := []string{}
 	for _, k := range keys {
 		js, err := json.Marshal(row[k])
 		if err != nil {
-			buf = append(buf, err)
+			buf = append(buf, err.Error())
 		} else {
 			buf = append(buf, string(js))
 		}
 	}
 
 	// Add fields to table in sorted order.
-	table.AddRow(buf...)
+	table.Append(buf)
 }
 
 func (r *Repl) evalRule(rule *ast.Rule) bool {

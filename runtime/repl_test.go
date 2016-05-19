@@ -33,7 +33,7 @@ func TestOneShotEmptyBufferOneExpr(t *testing.T) {
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
 	repl.OneShot("data.a[i].b.c[j] = 2")
-	expectOutput(t, buffer.String(), "+---+---+\n| i | j |\n+---+---+\n| 0 | 1 |\n+---+---+\n")
+	expectOutput(t, buffer.String(), "+---+---+\n| I | J |\n+---+---+\n| 0 | 1 |\n+---+---+\n")
 	buffer.Reset()
 	repl.OneShot("data.a[i].b.c[j] = \"deadbeef\"")
 	expectOutput(t, buffer.String(), "false\n")
@@ -56,7 +56,7 @@ func TestOneShotBufferedExpr(t *testing.T) {
 	repl.OneShot("2")
 	expectOutput(t, buffer.String(), "")
 	repl.OneShot("")
-	expectOutput(t, buffer.String(), "+---+---+\n| i | j |\n+---+---+\n| 0 | 1 |\n+---+---+\n")
+	expectOutput(t, buffer.String(), "+---+---+\n| I | J |\n+---+---+\n| 0 | 1 |\n+---+---+\n")
 }
 
 func TestOneShotBufferedRule(t *testing.T) {
