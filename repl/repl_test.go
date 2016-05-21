@@ -2,7 +2,7 @@
 // Use of this source code is governed by an Apache2
 // license that can be found in the LICENSE file.
 
-package runtime
+package repl
 
 import (
 	"bytes"
@@ -144,9 +144,8 @@ func expectOutput(t *testing.T, output string, expected string) {
 	}
 }
 
-func newRepl(store *storage.DataStore, buffer *bytes.Buffer) *Repl {
-	runtime := &Runtime{DataStore: store}
-	repl := NewRepl(runtime, "", buffer, "")
+func newRepl(store *storage.DataStore, buffer *bytes.Buffer) *REPL {
+	repl := New(store, "", buffer, "")
 	return repl
 }
 

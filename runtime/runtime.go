@@ -13,6 +13,7 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/repl"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/pkg/errors"
 )
@@ -117,7 +118,7 @@ func (rt *Runtime) startServer(params *Params) {
 }
 
 func (rt *Runtime) startRepl(params *Params) {
-	repl := NewRepl(rt, params.HistoryPath, os.Stdout, params.OutputFormat)
+	repl := repl.New(rt.DataStore, params.HistoryPath, os.Stdout, params.OutputFormat)
 	repl.Loop()
 }
 
