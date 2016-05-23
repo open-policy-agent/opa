@@ -84,8 +84,7 @@ func TestCompilerExample(t *testing.T) {
 func TestCompilerSetExports(t *testing.T) {
 	c := NewCompiler()
 	c.Modules = getCompilerTestModules()
-
-	c.setExports()
+	compileStages(c, "", "setExports")
 
 	assertNotFailed(t, c)
 	assertExports(t, c, "data.a.b.d", []string{"t", "x"})
@@ -96,9 +95,7 @@ func TestCompilerSetExports(t *testing.T) {
 func TestCompilerSetGlobals(t *testing.T) {
 	c := NewCompiler()
 	c.Modules = getCompilerTestModules()
-	c.setExports()
-
-	c.setGlobals()
+	compileStages(c, "", "setGlobals")
 
 	assertNotFailed(t, c)
 	assertGlobals(t, c, c.Modules["mod4"], "{}")
@@ -125,10 +122,7 @@ func TestCompilerSetGlobals(t *testing.T) {
 func TestCompilerResolveAllRefs(t *testing.T) {
 	c := NewCompiler()
 	c.Modules = getCompilerTestModules()
-	c.setExports()
-	c.setGlobals()
-
-	c.resolveAllRefs()
+	compileStages(c, "", "resolveAllRefs")
 
 	assertNotFailed(t, c)
 
@@ -175,11 +169,8 @@ func TestCompilerCheckSafetyHead(t *testing.T) {
 	unboundVal[y] = x :- q[y] = {"foo": [1,2,[{"bar": y}]]}
 	unboundCompositeVal[y] = [{"foo": x, "bar": y}] :- q[y] = {"foo": [1,2,[{"bar": y}]]}
 	`)
-	c.setExports()
-	c.setGlobals()
-	c.resolveAllRefs()
-	assertNotFailed(t, c)
-	c.checkSafetyHead()
+	compileStages(c, "", "checkSafetyHead")
+
 	if len(c.Errors) != 3 {
 		t.Errorf("Expected exactly 3 errors but got: %v", c.Errors)
 		return
@@ -193,12 +184,7 @@ func TestCompilerCheckSafetyBodyReordering(t *testing.T) {
 	package a.b
 	needsReorder = true :- a[i] = x, a = [1,2,3,4]
 	`)
-	c.setExports()
-	c.setGlobals()
-	c.resolveAllRefs()
-	c.checkSafetyHead()
-
-	c.checkSafetyBody()
+	compileStages(c, "", "checkSafetyBody")
 
 	assertNotFailed(t, c)
 
@@ -220,6 +206,10 @@ func TestCompilerCheckSafetyBodyErrors(t *testing.T) {
 	c.Modules = map[string]*Module{
 		"newMod": MustParseModule(`
 	package a.b
+
+	import a.b.c as foo
+	import x as bar
+	import data.m.n as baz
 
 	# a would be unbound
 	unboundRef1 = true :- a.b.c = "foo"
@@ -244,14 +234,12 @@ func TestCompilerCheckSafetyBodyErrors(t *testing.T) {
 
 	# x would be unbound because it does not appear in the target position of any expression
 	unboundNoTarget = true :- x > 0, x <= 3, x != 2
+
+	negatedImport1 = true :- not foo
+	negatedImport2 = true :- not bar
+	negatedImport3 = true :- not baz
 	`)}
-
-	c.setExports()
-	c.setGlobals()
-	c.resolveAllRefs()
-	c.checkSafetyHead()
-
-	c.checkSafetyBody()
+	compileStages(c, "", "checkSafetyBody")
 
 	expected := []error{
 		fmt.Errorf("unsafe variables in unboundRef1: a"),
@@ -272,13 +260,7 @@ func TestCompilerCheckSafetyBodyErrors(t *testing.T) {
 func TestCompilerSetRuleGraph(t *testing.T) {
 	c := NewCompiler()
 	c.Modules = getCompilerTestModules()
-
-	c.setExports()
-	c.setGlobals()
-	c.resolveAllRefs()
-	c.checkSafetyBody()
-	c.setModuleTree()
-	c.setRuleGraph()
+	compileStages(c, "", "setRuleGraph")
 
 	assertNotFailed(t, c)
 
@@ -330,14 +312,8 @@ func TestCompilerCheckRecursion(t *testing.T) {
 						q[x] = y :- p[x] = y
 						`),
 	}
-	c.setExports()
-	c.setGlobals()
-	c.resolveAllRefs()
-	c.checkSafetyBody()
-	c.setModuleTree()
-	c.setRuleGraph()
 
-	c.checkRecursion()
+	compileStages(c, "", "checkRecursion")
 
 	expected := []error{
 		fmt.Errorf("recursion found in s: s, t, s"),
@@ -385,7 +361,7 @@ func TestCompilerCheckBuiltinOperators(t *testing.T) {
 		),
 	}
 
-	c.checkBuiltinOperators()
+	compileStages(c, "", "checkBuiltinOperators")
 
 	expected := []error{
 		fmt.Errorf("bad built-in operator in p: deadbeef"),
@@ -477,6 +453,29 @@ func assertGlobals(t *testing.T, c *Compiler, mod *Module, expected string) {
 func assertNotFailed(t *testing.T, c *Compiler) {
 	if c.Failed() {
 		t.Errorf("Unexpected compilation error: %v", c.FlattenErrors())
+	}
+}
+
+func compileStages(c *Compiler, from string, to string) {
+	start := 0
+	end := len(c.stages) - 1
+	for i, s := range c.stages {
+		if s.name == from {
+			start = i
+			break
+		}
+	}
+	for i, s := range c.stages {
+		if s.name == to {
+			end = i
+			break
+		}
+	}
+	for i := start; i <= end; i++ {
+		s := c.stages[i]
+		if s.f(); c.Failed() {
+			return
+		}
 	}
 }
 

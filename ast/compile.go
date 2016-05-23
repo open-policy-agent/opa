@@ -83,14 +83,36 @@ type Compiler struct {
 	// An edge (u, v) is added to the graph if rule "u" depends on rule "v".
 	// A rule depends on another rule if it refers to it.
 	RuleGraph map[*Rule]map[*Rule]struct{}
+
+	stages []stage
+}
+
+type stage struct {
+	f    func()
+	name string
 }
 
 // NewCompiler returns a new empty compiler.
 func NewCompiler() *Compiler {
-	return &Compiler{
+
+	c := &Compiler{
 		Globals:   map[*Module]map[Var]Value{},
 		RuleGraph: map[*Rule]map[*Rule]struct{}{},
 	}
+
+	c.stages = []stage{
+		stage{c.setExports, "setExports"},
+		stage{c.setGlobals, "setGlobals"},
+		stage{c.setModuleTree, "setModuleTree"},
+		stage{c.checkSafetyHead, "checkSafetyHead"},
+		stage{c.checkSafetyBody, "checkSafetyBody"},
+		stage{c.checkBuiltinOperators, "checkBuiltinOperators"},
+		stage{c.resolveAllRefs, "resolveAllRefs"},
+		stage{c.setRuleGraph, "setRuleGraph"},
+		stage{c.checkRecursion, "checkRecursion"},
+	}
+
+	return c
 }
 
 // Compile runs the compilation process on the input modules.
@@ -103,25 +125,13 @@ func (c *Compiler) Compile(mods map[string]*Module) {
 	// and potentially a snippet of text identifying the source of the
 	// the problem. In some cases a useful tip could be provided, e.g.,
 	// "Did you mean to assign 'u' to something?"
-
+	//
 	// TODO(tsandall): should the modules be deep copied?
 
 	c.Modules = mods
 
-	stages := []func(){
-		c.setExports,
-		c.setGlobals,
-		c.setModuleTree,
-		c.resolveAllRefs,
-		c.checkSafetyHead,
-		c.checkSafetyBody,
-		c.setRuleGraph,
-		c.checkRecursion,
-		c.checkBuiltinOperators,
-	}
-
-	for _, s := range stages {
-		if s(); c.Failed() {
+	for _, s := range c.stages {
+		if s.f(); c.Failed() {
 			return
 		}
 	}
@@ -152,6 +162,10 @@ func (c *Compiler) FlattenErrors() string {
 	return fmt.Sprintf("%d errors occurred:\n%s", len(c.Errors), strings.Join(b, "\n"))
 }
 
+// checkBuiltinOperators ensures that all built-in operators are defined in the global
+// BuiltinMap.
+//
+// NOTE(tsandall): in the future this could potentially be replaced with a schema check.
 func (c *Compiler) checkBuiltinOperators() {
 	for _, m := range c.Modules {
 		for _, r := range m.Rules {
