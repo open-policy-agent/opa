@@ -45,6 +45,7 @@ func TestTracer(t *testing.T) {
 
 	params := &QueryParams{
 		DataStore: ds,
+		Globals:   storage.NewBindings(),
 		Tracer:    tracer,
 		Path:      []interface{}{"p"}}
 

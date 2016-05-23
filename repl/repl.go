@@ -297,7 +297,7 @@ func (r *REPL) evalBody(body ast.Body) bool {
 	err := topdown.Eval(ctx, func(ctx *topdown.Context) error {
 		var err error
 		row := map[string]interface{}{}
-		ctx.Bindings.Iter(func(k, v ast.Value) bool {
+		ctx.Locals.Iter(func(k, v ast.Value) bool {
 			if _, isVar := k.(ast.Var); !isVar {
 				return false
 			}

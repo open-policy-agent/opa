@@ -142,7 +142,7 @@ func (s *Server) execQuery(qStr string) (resultSetV1, error) {
 	err = topdown.Eval(ctx, func(ctx *topdown.Context) error {
 		result := map[string]interface{}{}
 		var err error
-		ctx.Bindings.Iter(func(k, v ast.Value) bool {
+		ctx.Locals.Iter(func(k, v ast.Value) bool {
 			kv, ok := k.(ast.Var)
 			if !ok {
 				return false

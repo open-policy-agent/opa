@@ -57,7 +57,8 @@ func TestEvalRef(t *testing.T) {
 
 	ctx := &Context{
 		DataStore: storage.NewDataStoreFromJSONObject(data),
-		Bindings:  storage.NewBindings(),
+		Globals:   storage.NewBindings(),
+		Locals:    storage.NewBindings(),
 	}
 
 	for i, tc := range tests {
@@ -81,7 +82,7 @@ func TestEvalRef(t *testing.T) {
 			err := evalRef(ctx, ast.MustParseRef(tc.ref), func(ctx *Context) error {
 				if len(expected) > 0 {
 					for j, exp := range expected {
-						if exp.Equal(ctx.Bindings) {
+						if exp.Equal(ctx.Locals) {
 							tmp := expected[:j]
 							expected = append(tmp, expected[j+1:]...)
 							return nil
@@ -89,7 +90,7 @@ func TestEvalRef(t *testing.T) {
 					}
 				}
 				// If there was not a matching expected binding, treat this case as a failure.
-				return fmt.Errorf("unexpected bindings: %v", ctx.Bindings)
+				return fmt.Errorf("unexpected bindings: %v", ctx.Locals)
 			})
 			if err != nil {
 				t.Errorf("Test case %d: expected success but got error: %v", i+1, err)
@@ -143,7 +144,8 @@ func TestEvalTerms(t *testing.T) {
 		ctx := &Context{
 			Query:     ast.MustParseBody(tc.body),
 			DataStore: storage.NewDataStoreFromJSONObject(data),
-			Bindings:  storage.NewBindings(),
+			Globals:   storage.NewBindings(),
+			Locals:    storage.NewBindings(),
 		}
 
 		expected := loadExpectedBindings(tc.expected)
@@ -151,7 +153,7 @@ func TestEvalTerms(t *testing.T) {
 		err := evalTerms(ctx, func(ctx *Context) error {
 			if len(expected) > 0 {
 				for j, exp := range expected {
-					if exp.Equal(ctx.Bindings) {
+					if exp.Equal(ctx.Locals) {
 						tmp := expected[:j]
 						expected = append(tmp, expected[j+1:]...)
 						return nil
@@ -159,7 +161,7 @@ func TestEvalTerms(t *testing.T) {
 				}
 			}
 			// If there was not a matching expected binding, treat this case as a failure.
-			return fmt.Errorf("unexpected bindings: %v", ctx.Bindings)
+			return fmt.Errorf("unexpected bindings: %v", ctx.Locals)
 		})
 		if err != nil {
 			t.Errorf("Test case %d: expected success but got error: %v", i+1, err)
@@ -184,13 +186,13 @@ func TestPlugValue(t *testing.T) {
 	hello := ast.String("hello")
 	world := ast.String("world")
 
-	ctx1 := &Context{Bindings: storage.NewBindings()}
+	ctx1 := &Context{Locals: storage.NewBindings()}
 	ctx1 = ctx1.BindVar(a, b)
 	ctx1 = ctx1.BindVar(b, cs)
 	ctx1 = ctx1.BindVar(c, ks)
 	ctx1 = ctx1.BindVar(k, hello)
 
-	ctx2 := &Context{Bindings: storage.NewBindings()}
+	ctx2 := &Context{Locals: storage.NewBindings()}
 	ctx2 = ctx2.BindVar(a, b)
 	ctx2 = ctx2.BindVar(b, cs)
 	ctx2 = ctx2.BindVar(c, vs)
@@ -198,14 +200,14 @@ func TestPlugValue(t *testing.T) {
 
 	expected := ast.MustParseTerm(`[{"hello": "world"}]`).Value
 
-	r1 := plugValue(a, ctx1.Bindings)
+	r1 := plugValue(a, ctx1)
 
 	if !expected.Equal(r1) {
 		t.Errorf("Expected %v but got %v", expected, r1)
 		return
 	}
 
-	r2 := plugValue(a, ctx2.Bindings)
+	r2 := plugValue(a, ctx2)
 
 	if !expected.Equal(r2) {
 		t.Errorf("Expected %v but got %v", expected, r2)
@@ -569,7 +571,34 @@ func TestTopDownEmbeddedVirtualDoc(t *testing.T) {
 		}
 	}
 
-	assertTopDown(t, store, 0, "deep embedded vdoc", []string{"b", "c", "d", "p"}, "[1, 2, 4]")
+	assertTopDown(t, store, 0, "deep embedded vdoc", []string{"b", "c", "d", "p"}, "{}", "[1, 2, 4]")
+}
+
+func TestTopDownGlobalVars(t *testing.T) {
+	mods := compileModules([]string{
+		`package z
+		 import data.a
+		 import req1
+		 import req2 as req2as
+		 p = true :- a[i] = x, req1.foo = x, req2as.bar = x, q[x]
+		 q[x] :- req1.foo = x, req2as.bar = x, r[x]
+		 r[x] :- {"foo": req2as.bar, "bar": [x]} = {"foo": x, "bar": [req1.foo]}`})
+
+	data := loadSmallTestData()
+	store := storage.NewDataStoreFromJSONObject(data)
+	policyStore := storage.NewPolicyStore(store, "")
+
+	for id, mod := range mods {
+		err := policyStore.Add(id, mod, []byte(""), false)
+		if err != nil {
+			panic(err)
+		}
+	}
+
+	assertTopDown(t, store, 0, "global vars", []string{"z", "p"}, `{
+		req1: {"foo": 4},
+		req2: {"bar": 4}
+	}`, "true")
 }
 
 func TestExample(t *testing.T) {
@@ -632,14 +661,14 @@ func TestExample(t *testing.T) {
 		}
 	}
 
-	assertTopDown(t, store, 0, "public servers", []string{"opa", "example", "public_servers"}, `
+	assertTopDown(t, store, 0, "public servers", []string{"opa", "example", "public_servers"}, "{}", `
         [
             {"id": "s1", "name": "app", "protocols": ["https", "ssh"], "ports": ["p1", "p2", "p3"]},
             {"id": "s4", "name": "dev", "protocols": ["http"], "ports": ["p1", "p2"]}
         ]
     `)
 
-	assertTopDown(t, store, 0, "violations", []string{"opa", "example", "violations"}, `
+	assertTopDown(t, store, 0, "violations", []string{"opa", "example", "violations"}, "{}", `
         [
             {"id": "s4", "name": "dev", "protocols": ["http"], "ports": ["p1", "p2"]}
         ]
@@ -814,10 +843,15 @@ func runTopDownTestCase(t *testing.T, data map[string]interface{}, i int, note s
 		}
 	}
 
-	assertTopDown(t, store, i, note, []string{"p"}, expected)
+	assertTopDown(t, store, i, note, []string{"p"}, "{}", expected)
 }
 
-func assertTopDown(t *testing.T, store *storage.DataStore, i int, note string, path []string, expected interface{}) {
+func assertTopDown(t *testing.T, store *storage.DataStore, i int, note string, path []string, globals string, expected interface{}) {
+
+	g := storage.NewBindings()
+	for _, i := range ast.MustParseTerm(globals).Value.(ast.Object) {
+		g.Put(i[0].Value, i[1].Value)
+	}
 
 	p := []interface{}{}
 	for _, x := range path {
@@ -827,7 +861,7 @@ func assertTopDown(t *testing.T, store *storage.DataStore, i int, note string, p
 	switch e := expected.(type) {
 
 	case error:
-		result, err := Query(&QueryParams{DataStore: store, Path: p})
+		result, err := Query(&QueryParams{DataStore: store, Path: p, Globals: g})
 		if err == nil {
 			t.Errorf("Test case %d (%v): expected error but got: %v", i+1, note, result)
 			return
@@ -838,7 +872,7 @@ func assertTopDown(t *testing.T, store *storage.DataStore, i int, note string, p
 
 	case string:
 		expected := loadExpectedSortedResult(e)
-		result, err := Query(&QueryParams{DataStore: store, Path: p})
+		result, err := Query(&QueryParams{DataStore: store, Path: p, Globals: g})
 		if err != nil {
 			t.Errorf("Test case %d (%v): unexpected error: %v", i+1, note, err)
 			return

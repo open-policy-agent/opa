@@ -55,8 +55,8 @@ func evalEqUnify(ctx *Context, a ast.Value, b ast.Value, iter Iterator) error {
 
 	// Plug bindings into both terms because this will be called recursively and there may be
 	// new bindings that have been made as part of unification.
-	a = plugValue(a, ctx.Bindings)
-	b = plugValue(b, ctx.Bindings)
+	a = plugValue(a, ctx)
+	b = plugValue(b, ctx)
 
 	switch a := a.(type) {
 	case ast.Var:

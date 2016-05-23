@@ -20,7 +20,8 @@ import (
 // each time the proof fails but this may be too expensive.
 type Context struct {
 	Query     ast.Body
-	Bindings  *storage.Bindings
+	Globals   *storage.Bindings
+	Locals    *storage.Bindings
 	Index     int
 	Previous  *Context
 	DataStore *storage.DataStore
@@ -31,16 +32,28 @@ type Context struct {
 func NewContext(query ast.Body, ds *storage.DataStore) *Context {
 	return &Context{
 		Query:     query,
-		Bindings:  storage.NewBindings(),
+		Globals:   storage.NewBindings(),
+		Locals:    storage.NewBindings(),
 		DataStore: ds,
 	}
+}
+
+// Binding returns the value bound to the given key.
+func (ctx *Context) Binding(k ast.Value) ast.Value {
+	if v := ctx.Locals.Get(k); v != nil {
+		return v
+	}
+	if v := ctx.Globals.Get(k); v != nil {
+		return v
+	}
+	return nil
 }
 
 // BindRef returns a new Context with bindings that map the reference to the value.
 func (ctx *Context) BindRef(ref ast.Ref, value ast.Value) *Context {
 	cpy := *ctx
-	cpy.Bindings = ctx.Bindings.Copy()
-	cpy.Bindings.Put(ref, value)
+	cpy.Locals = ctx.Locals.Copy()
+	cpy.Locals.Put(ref, value)
 	return &cpy
 }
 
@@ -73,23 +86,30 @@ func (ctx *Context) BindVar(variable ast.Var, value ast.Value) *Context {
 	if occurs {
 		return nil
 	}
+
 	cpy := *ctx
-	cpy.Bindings = storage.NewBindings()
-	tmp := storage.NewBindings()
-	tmp.Put(variable, value)
-	ctx.Bindings.Iter(func(k, v ast.Value) bool {
-		cpy.Bindings.Put(k, plugValue(v, tmp))
+	cpy.Locals = storage.NewBindings()
+	cpy.Locals.Put(variable, value)
+
+	ctx.Locals.Iter(func(k, v ast.Value) bool {
+		// Copy all bindings except the one for this variable.
+		// If this context already contains a binding for this variable,
+		// it should be overwritten with the new value, so ignore the old
+		// value here.
+		if cpy.Locals.Get(k) == nil {
+			cpy.Locals.Put(k, plugValue(v, &cpy))
+		}
 		return false
 	})
-	cpy.Bindings.Put(variable, value)
+
 	return &cpy
 }
 
 // Child returns a new context to evaluate a rule that was referenced by this context.
-func (ctx *Context) Child(rule *ast.Rule, bindings *storage.Bindings) *Context {
+func (ctx *Context) Child(rule *ast.Rule, locals *storage.Bindings) *Context {
 	cpy := *ctx
 	cpy.Query = rule.Body
-	cpy.Bindings = bindings
+	cpy.Locals = locals
 	cpy.Previous = ctx
 	cpy.Index = 0
 	return &cpy
@@ -129,7 +149,7 @@ func (ctx *Context) traceSuccess(expr *ast.Expr) {
 }
 
 func (ctx *Context) traceFinish() {
-	ctx.trace("   Finish %v", ctx.Bindings)
+	ctx.trace("   Finish %v", ctx.Locals)
 }
 
 // Iterator is the interface for processing contexts.
@@ -145,6 +165,7 @@ func Eval(ctx *Context, iter Iterator) error {
 // QueryParams defines input parameters for the query interface.
 type QueryParams struct {
 	DataStore *storage.DataStore
+	Globals   *storage.Bindings
 	Tracer    Tracer
 	Path      []interface{}
 }
@@ -270,7 +291,7 @@ func ValueToInterface(v ast.Value, ctx *Context) (interface{}, error) {
 // dereferenceVar is used to lookup the variable binding and convert the value to
 // a native Go type.
 func dereferenceVar(v ast.Var, ctx *Context) (interface{}, error) {
-	binding := ctx.Bindings.Get(v)
+	binding := ctx.Binding(v)
 	if binding == nil {
 		return nil, fmt.Errorf("unbound variable: %v", v)
 	}
@@ -286,7 +307,7 @@ func evalContext(ctx *Context, iter Iterator) error {
 		// do not appear elsewhere in the query. In this case, "x" and "y"
 		// will be bound to each other; they will not be ground and so
 		// the proof should not be considered successful.
-		isNonGround := ctx.Bindings.Iter(func(k, v ast.Value) bool {
+		isNonGround := ctx.Locals.Iter(func(k, v ast.Value) bool {
 			if !v.IsGround() {
 				return true
 			}
@@ -341,7 +362,7 @@ func evalContextNegated(ctx *Context, iter Iterator) error {
 }
 
 func evalExpr(ctx *Context, iter Iterator) error {
-	expr := plugExpr(ctx.Current(), ctx.Bindings)
+	expr := plugExpr(ctx.Current(), ctx)
 	ctx.traceTry(expr)
 	switch tt := expr.Terms.(type) {
 	case []*ast.Term:
@@ -374,7 +395,7 @@ func evalRef(ctx *Context, ref ast.Ref, iter Iterator) error {
 	// If this reference refers to a local variable, evaluate against the binding.
 	// Otherwise, evaluate against the database.
 	if !ref[0].Equal(ast.DefaultRootDocument) {
-		v := ctx.Bindings.Get(ref[0].Value)
+		v := ctx.Binding(ref[0].Value)
 		if v == nil {
 			return fmt.Errorf("unbound variable %v: %v", ref[0], ref)
 		}
@@ -473,7 +494,7 @@ func evalRefRecNonGround(ctx *Context, path, tail ast.Ref, iter Iterator) error 
 	// Check if the variable has a binding.
 	// If there is a binding, process the rest of the reference normally.
 	// If there is no binding, enumerate the collection referred to by the path.
-	plugged := plugTerm(tail[0], ctx.Bindings)
+	plugged := plugTerm(tail[0], ctx)
 	if plugged.IsGround() {
 		path = append(path, plugged)
 		return evalRefRec(ctx, path, tail[1:], iter)
@@ -523,7 +544,7 @@ func evalRefRulePartialObjectDoc(ctx *Context, ref ast.Ref, path ast.Ref, rule *
 		return fmt.Errorf("not implemented: %v %v %v", ref, path, rule)
 	}
 
-	key := plugValue(suffix[0].Value, ctx.Bindings)
+	key := plugValue(suffix[0].Value, ctx)
 
 	// There are two cases being handled below. The first case is for when
 	// the object key is ground in the original expression or there is a
@@ -540,11 +561,11 @@ func evalRefRulePartialObjectDoc(ctx *Context, ref ast.Ref, path ast.Ref, rule *
 	if !key.IsGround() {
 		child := ctx.Child(rule, storage.NewBindings())
 		return Eval(child, func(child *Context) error {
-			key := child.Bindings.Get(rule.Key.Value)
+			key := child.Binding(rule.Key.Value)
 			if key == nil {
 				return fmt.Errorf("unbound variable: %v", rule.Key)
 			}
-			value := child.Bindings.Get(rule.Value.Value)
+			value := child.Binding(rule.Value.Value)
 			if value == nil {
 				return fmt.Errorf("unbound variable: %v", rule.Value)
 			}
@@ -558,7 +579,7 @@ func evalRefRulePartialObjectDoc(ctx *Context, ref ast.Ref, path ast.Ref, rule *
 	child := ctx.Child(rule, bindings)
 
 	return Eval(child, func(child *Context) error {
-		value := child.Bindings.Get(rule.Value.Value)
+		value := child.Binding(rule.Value.Value)
 		if value == nil {
 			return fmt.Errorf("unbound variable: %v", rule.Value)
 		}
@@ -581,12 +602,12 @@ func evalRefRulePartialSetDoc(ctx *Context, ref ast.Ref, path ast.Ref, rule *ast
 	// See comment in evalRefRulePartialObjectDoc about the two branches below.
 	// The behaviour is similar for sets.
 
-	key := plugValue(suffix[0].Value, ctx.Bindings)
+	key := plugValue(suffix[0].Value, ctx)
 
 	if !key.IsGround() {
 		child := ctx.Child(rule, storage.NewBindings())
 		return Eval(child, func(child *Context) error {
-			value := child.Bindings.Get(rule.Key.Value)
+			value := child.Binding(rule.Key.Value)
 			if value == nil {
 				return fmt.Errorf("unbound variable: %v", rule.Key)
 			}
@@ -630,7 +651,7 @@ func evalRefRuleResult(ctx *Context, ref ast.Ref, suffix ast.Ref, result ast.Val
 		binding = append(binding, result...)
 		binding = append(binding, suffix...)
 		return evalRefRec(ctx, result, suffix, func(ctx *Context) error {
-			ctx = ctx.BindRef(ref, plugValue(binding, ctx.Bindings))
+			ctx = ctx.BindRef(ref, plugValue(binding, ctx))
 			return iter(ctx)
 		})
 
@@ -638,7 +659,7 @@ func evalRefRuleResult(ctx *Context, ref ast.Ref, suffix ast.Ref, result ast.Val
 		if len(suffix) > 0 {
 			var pluggedSuffix ast.Ref
 			for _, t := range suffix {
-				pluggedSuffix = append(pluggedSuffix, plugTerm(t, ctx.Bindings))
+				pluggedSuffix = append(pluggedSuffix, plugTerm(t, ctx))
 			}
 			result.Query(pluggedSuffix, func(keys map[ast.Var]ast.Value, value ast.Value) error {
 				ctx = ctx.BindRef(ref, value)
@@ -658,7 +679,7 @@ func evalRefRuleResult(ctx *Context, ref ast.Ref, suffix ast.Ref, result ast.Val
 		if len(suffix) > 0 {
 			var pluggedSuffix ast.Ref
 			for _, t := range suffix {
-				pluggedSuffix = append(pluggedSuffix, plugTerm(t, ctx.Bindings))
+				pluggedSuffix = append(pluggedSuffix, plugTerm(t, ctx))
 			}
 			result.Query(pluggedSuffix, func(keys map[ast.Var]ast.Value, value ast.Value) error {
 				ctx = ctx.BindRef(ref, value)
@@ -698,7 +719,7 @@ func evalTerms(ctx *Context, iter Iterator) error {
 	// Check if indexing is available for this expression. Need to
 	// perform check on the plugged version of the expression, otherwise
 	// the index will return false positives.
-	plugged := plugExpr(expr, ctx.Bindings)
+	plugged := plugExpr(expr, ctx)
 
 	if indexAvailable(ctx, plugged) {
 
@@ -746,7 +767,7 @@ func evalTermsIndexed(ctx *Context, iter Iterator, indexed ast.Ref, nonIndexed *
 	iterateIndex := func(ctx *Context) error {
 
 		// Evaluate the non-indexed term.
-		plugged := plugTerm(nonIndexed, ctx.Bindings)
+		plugged := plugTerm(nonIndexed, ctx)
 		nonIndexedValue, err := ValueToInterface(plugged.Value, ctx)
 		if err != nil {
 			return err
@@ -761,7 +782,7 @@ func evalTermsIndexed(ctx *Context, iter Iterator, indexed ast.Ref, nonIndexed *
 		// Iterate the bindings for the indexed term that when applied to the reference
 		// would locate the non-indexed value obtained above.
 		return index.Iter(nonIndexedValue, func(bindings *storage.Bindings) error {
-			ctx.Bindings = ctx.Bindings.Update(bindings)
+			ctx.Locals = ctx.Locals.Update(bindings)
 			return iter(ctx)
 		})
 
@@ -966,42 +987,42 @@ func lookupRule(ds *storage.DataStore, ref ast.Ref) ([]*ast.Rule, error) {
 	}
 }
 
-func plugExpr(expr *ast.Expr, bindings *storage.Bindings) *ast.Expr {
+func plugExpr(expr *ast.Expr, ctx *Context) *ast.Expr {
 	plugged := *expr
 	switch ts := plugged.Terms.(type) {
 	case []*ast.Term:
 		var buf []*ast.Term
 		buf = append(buf, ts[0])
 		for _, term := range ts[1:] {
-			buf = append(buf, plugTerm(term, bindings))
+			buf = append(buf, plugTerm(term, ctx))
 		}
 		plugged.Terms = buf
 	case *ast.Term:
-		plugged.Terms = plugTerm(ts, bindings)
+		plugged.Terms = plugTerm(ts, ctx)
 	default:
 		panic(fmt.Sprintf("illegal argument: %v", ts))
 	}
 	return &plugged
 }
 
-func plugTerm(term *ast.Term, bindings *storage.Bindings) *ast.Term {
+func plugTerm(term *ast.Term, ctx *Context) *ast.Term {
 	switch v := term.Value.(type) {
 	case ast.Var:
-		return &ast.Term{Value: plugValue(v, bindings)}
+		return &ast.Term{Value: plugValue(v, ctx)}
 
 	case ast.Ref:
 		plugged := *term
-		plugged.Value = plugValue(v, bindings)
+		plugged.Value = plugValue(v, ctx)
 		return &plugged
 
 	case ast.Array:
 		plugged := *term
-		plugged.Value = plugValue(v, bindings)
+		plugged.Value = plugValue(v, ctx)
 		return &plugged
 
 	case ast.Object:
 		plugged := *term
-		plugged.Value = plugValue(v, bindings)
+		plugged.Value = plugValue(v, ctx)
 		return &plugged
 
 	default:
@@ -1012,18 +1033,18 @@ func plugTerm(term *ast.Term, bindings *storage.Bindings) *ast.Term {
 	}
 }
 
-func plugValue(v ast.Value, bindings *storage.Bindings) ast.Value {
+func plugValue(v ast.Value, ctx *Context) ast.Value {
 
 	switch v := v.(type) {
 	case ast.Var:
-		binding := bindings.Get(v)
+		binding := ctx.Binding(v)
 		if binding == nil {
 			return v
 		}
 		return binding.(ast.Value)
 
 	case ast.Ref:
-		if binding := bindings.Get(v); binding != nil {
+		if binding := ctx.Binding(v); binding != nil {
 			return binding.(ast.Value)
 		}
 		if v.IsGround() {
@@ -1032,22 +1053,22 @@ func plugValue(v ast.Value, bindings *storage.Bindings) ast.Value {
 		var buf ast.Ref
 		buf = append(buf, v[0])
 		for _, p := range v[1:] {
-			buf = append(buf, plugTerm(p, bindings))
+			buf = append(buf, plugTerm(p, ctx))
 		}
 		return buf
 
 	case ast.Array:
 		var buf ast.Array
 		for _, e := range v {
-			buf = append(buf, plugTerm(e, bindings))
+			buf = append(buf, plugTerm(e, ctx))
 		}
 		return buf
 
 	case ast.Object:
 		var buf ast.Object
 		for _, e := range v {
-			k := plugTerm(e[0], bindings)
-			v := plugTerm(e[1], bindings)
+			k := plugTerm(e[0], ctx)
+			v := plugTerm(e[1], ctx)
 			buf = append(buf, [...]*ast.Term{k, v})
 		}
 		return buf
@@ -1070,7 +1091,8 @@ func topDownQueryCompleteDoc(params *QueryParams, rules []*ast.Rule) (interface{
 
 	ctx := &Context{
 		Query:     rule.Body,
-		Bindings:  storage.NewBindings(),
+		Globals:   params.Globals,
+		Locals:    storage.NewBindings(),
 		DataStore: params.DataStore,
 		Tracer:    params.Tracer,
 	}
@@ -1097,7 +1119,8 @@ func topDownQueryPartialObjectDoc(params *QueryParams, rules []*ast.Rule) (inter
 	for _, rule := range rules {
 		ctx := &Context{
 			Query:     rule.Body,
-			Bindings:  storage.NewBindings(),
+			Globals:   params.Globals,
+			Locals:    storage.NewBindings(),
 			DataStore: params.DataStore,
 			Tracer:    params.Tracer,
 		}
@@ -1132,7 +1155,8 @@ func topDownQueryPartialSetDoc(params *QueryParams, rules []*ast.Rule) (interfac
 	for _, rule := range rules {
 		ctx := &Context{
 			Query:     rule.Body,
-			Bindings:  storage.NewBindings(),
+			Globals:   params.Globals,
+			Locals:    storage.NewBindings(),
 			DataStore: params.DataStore,
 			Tracer:    params.Tracer,
 		}
