@@ -348,9 +348,6 @@ func TestTopDownEqExpr(t *testing.T) {
 
 		// objects and variables
 		{"pattern: object val", `p[y] :- {"x": y} = {"x": "y"}`, `["y"]`},
-		{"pattern: var key error 1", `p[x] :- {x: "y"} = {"x": "y"}`, fmt.Errorf("illegal variable object key: x")},
-		{"pattern: var key error 2", `p[x] :- {"x": "y"} = {x: "y"}`, fmt.Errorf("illegal variable object key: x")},
-		{"pattern: var key error 3", `p = true :- {"x": [{y: "z"}]} = {"x": [{"y": "z"}]}`, fmt.Errorf("illegal variable object key: y")},
 		{"pattern: object same var", `p[x] :- {"x": x, "y": x} = {"x": 1, "y": 1}`, "[1]"},
 		{"pattern: object multiple vars", `p[z] :- {"x": x, "y": y} = {"x": 1, "y": 2}, z = [x, y]`, "[[1, 2]]"},
 		{"pattern: object multiple vars 2", `p[z] :- {"x": x, "y": 2} = {"x": 1, "y": y}, z = [x, y]`, "[[1, 2]]"},

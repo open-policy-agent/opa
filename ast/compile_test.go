@@ -183,19 +183,26 @@ func TestCompilerCheckSafetyBodyReordering(t *testing.T) {
 	c.Modules["newMod"] = MustParseModule(`
 	package a.b
 	needsReorder = true :- a[i] = x, a = [1,2,3,4]
+	needsReorderNegated = true :- a = [true, false], b = [true, false], not a[i], b[i]
 	`)
 	compileStages(c, "", "checkSafetyBody")
 
 	assertNotFailed(t, c)
 
-	expected := MustParseBody(`
-	a = [1,2,3,4], a[i] = x
-	`)
+	expected1 := MustParseBody(`a = [1,2,3,4], a[i] = x`)
 
-	reordered := c.Modules["newMod"].Rules[0].Body
+	reordered1 := c.Modules["newMod"].Rules[0].Body
 
-	if !expected.Equal(reordered) {
-		t.Errorf("Expected body to be re-ordered and equal to %v but got: %v", expected, reordered)
+	if !expected1.Equal(reordered1) {
+		t.Errorf("Expected body to be re-ordered and equal to %v but got: %v", expected1, reordered1)
+	}
+
+	expected2 := MustParseBody(`a = [true, false], b = [true, false], b[i], not a[i]`)
+
+	reordered2 := c.Modules["newMod"].Rules[1].Body
+
+	if !expected2.Equal(reordered2) {
+		t.Errorf("Expected body to be re-ordered and equal to %v but got: %v", expected2, reordered2)
 	}
 }
 
@@ -211,11 +218,17 @@ func TestCompilerCheckSafetyBodyErrors(t *testing.T) {
 	import x as bar
 	import data.m.n as baz
 
+	# deadbeef is not a built-interface{}
+	badBuiltin = true :- deadbeef(1,2,3)
+
 	# a would be unbound
 	unboundRef1 = true :- a.b.c = "foo"
 
 	# a would be unbound
 	unboundRef2 = true :- {"foo": [{"bar": a.b.c}]} = {"foo": [{"bar": "baz"}]}
+
+	# i will be bound even though it's in a non-output position
+	inputPosRef = true :- a = [1,2,3,4], a[i] != 100
 
 	# i and x would be unbound
 	unboundNegated1 = true :- a = [1,2,3,4], not a[i] = x
@@ -242,13 +255,14 @@ func TestCompilerCheckSafetyBodyErrors(t *testing.T) {
 	compileStages(c, "", "checkSafetyBody")
 
 	expected := []error{
-		fmt.Errorf("unsafe variables in unboundRef1: a"),
-		fmt.Errorf("unsafe variables in unboundRef2: a"),
-		fmt.Errorf("unsafe variables in unboundNegated1: i, x"),
-		fmt.Errorf("unsafe variables in unboundNegated2: i, x"),
-		fmt.Errorf("unsafe variables in unboundNegated3: i, j, x"),
-		fmt.Errorf("unsafe variables in unboundNegated4: i, j"),
-		fmt.Errorf("unsafe variables in unboundNoTarget: x"),
+		fmt.Errorf("unsafe variables in badBuiltin: [deadbeef]"),
+		fmt.Errorf("unsafe variables in unboundRef1: [a]"),
+		fmt.Errorf("unsafe variables in unboundRef2: [a]"),
+		fmt.Errorf("unsafe variables in unboundNegated1: [i x]"),
+		fmt.Errorf("unsafe variables in unboundNegated2: [i x]"),
+		fmt.Errorf("unsafe variables in unboundNegated3: [i j x]"),
+		fmt.Errorf("unsafe variables in unboundNegated4: [i j]"),
+		fmt.Errorf("unsafe variables in unboundNoTarget: [x]"),
 	}
 
 	if !reflect.DeepEqual(expected, c.Errors) {
@@ -347,28 +361,6 @@ func TestCompilerCheckRecursion(t *testing.T) {
 
 	if len(expected) > 0 {
 		t.Errorf("Missing errors in recursion check: %v", expected)
-	}
-}
-
-func TestCompilerCheckBuiltinOperators(t *testing.T) {
-	c := NewCompiler()
-	c.Modules = map[string]*Module{
-		"newMod": MustParseModule(
-			`
-			package a.b.c
-			p = true :- deadbeef(1,2,3)
-			`,
-		),
-	}
-
-	compileStages(c, "", "checkBuiltinOperators")
-
-	expected := []error{
-		fmt.Errorf("bad built-in operator in p: deadbeef"),
-	}
-
-	if !reflect.DeepEqual(c.Errors, expected) {
-		t.Errorf("Expected exactly one error with bad built-in operator but got: %v", c.Errors)
 	}
 }
 

@@ -131,6 +131,16 @@ func TestExprEquals(t *testing.T) {
 	assertExprNotEqual(t, expr20, expr23)
 }
 
+func TestExprOutputVars(t *testing.T) {
+	body := MustParseBody(`{"a": [{x: y}, b[z]]} = c[i], [{"a": d[j][k]}] != xs`)
+	one := body[0]
+	vars := one.OutputVars()
+	expected := NewVarSet(Var("y"), Var("z"), Var("i"))
+	if !reflect.DeepEqual(expected, vars) {
+		t.Errorf("Expected output vars %v from %v but got: %v", expected, one, vars)
+	}
+}
+
 func TextExprString(t *testing.T) {
 	expr1 := &Expr{
 		Terms: RefTerm(VarTerm("q"), StringTerm("r"), VarTerm("x")),
@@ -234,43 +244,6 @@ func TestRuleBodyEquals(t *testing.T) {
 	// Different expressions/different order
 	assertRulesNotEqual(t, ruleTrue1, ruleFalse1)
 	assertRulesNotEqual(t, ruleTrueFalse, ruleFalseTrue)
-}
-
-func TestWalker(t *testing.T) {
-
-	rule := MustParseRule(`t[x] :- p[x] = {"foo": [y,2,{"bar": 3}]}, not q[x]`)
-	elements := []interface{}{}
-	rule.Walk(func(v interface{}) bool {
-		elements = append(elements, v)
-		return false
-	})
-
-	/*
-		rule
-			x
-			body
-				expr1
-					=
-					ref1
-						p
-						x
-					object1
-						"foo"
-						array
-							y
-							2
-							object2
-								"bar"
-								3
-				expr2
-					ref2
-						q
-						x
-	*/
-	if len(elements) != 20 {
-		t.Errorf("Expected exactly 20 elements in AST but got: %v", elements)
-	}
-
 }
 
 func TestRuleString(t *testing.T) {

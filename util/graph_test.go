@@ -33,6 +33,7 @@ func (t *testTraversal) Visited(x T) bool {
 }
 
 func TestGraphDFS(t *testing.T) {
+
 	g := map[int]map[int]struct{}{
 		1: map[int]struct{}{
 			2: struct{}{},
@@ -41,7 +42,9 @@ func TestGraphDFS(t *testing.T) {
 			3: struct{}{},
 			4: struct{}{},
 		},
-		3: map[int]struct{}{},
+		3: map[int]struct{}{
+			2: struct{}{},
+		},
 		4: map[int]struct{}{
 			1: struct{}{},
 		},

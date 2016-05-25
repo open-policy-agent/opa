@@ -6,7 +6,6 @@ package ast
 
 import (
 	"fmt"
-	"sort"
 	"strings"
 
 	"github.com/open-policy-agent/opa/util"
@@ -106,7 +105,6 @@ func NewCompiler() *Compiler {
 		stage{c.setModuleTree, "setModuleTree"},
 		stage{c.checkSafetyHead, "checkSafetyHead"},
 		stage{c.checkSafetyBody, "checkSafetyBody"},
-		stage{c.checkBuiltinOperators, "checkBuiltinOperators"},
 		stage{c.resolveAllRefs, "resolveAllRefs"},
 		stage{c.setRuleGraph, "setRuleGraph"},
 		stage{c.checkRecursion, "checkRecursion"},
@@ -162,27 +160,6 @@ func (c *Compiler) FlattenErrors() string {
 	return fmt.Sprintf("%d errors occurred:\n%s", len(c.Errors), strings.Join(b, "\n"))
 }
 
-// checkBuiltinOperators ensures that all built-in operators are defined in the global
-// BuiltinMap.
-//
-// NOTE(tsandall): in the future this could potentially be replaced with a schema check.
-func (c *Compiler) checkBuiltinOperators() {
-	for _, m := range c.Modules {
-		for _, r := range m.Rules {
-			for _, expr := range r.Body {
-				ts, ok := expr.Terms.([]*Term)
-				if !ok {
-					continue
-				}
-				operator := ts[0].Value.(Var)
-				if _, ok := BuiltinMap[operator]; !ok {
-					c.err("bad built-in operator in %v: %v", r.Name, operator)
-				}
-			}
-		}
-	}
-}
-
 // checkRecursion ensures that there are no recursive rule definitions, i.e., there are
 // no cycles in the RuleGraph.
 func (c *Compiler) checkRecursion() {
@@ -203,131 +180,17 @@ func (c *Compiler) checkRecursion() {
 
 // checkSafetyBody ensures that variables appearing in negated expressions or non-target
 // positions of built-in expressions will be bound when evaluating the rule from left
-// to right. If the variable is bound in an expression that would be processed *after*
-// the negated or built-in expression, the expressions will be re-ordered.
+// to right, re-ordering as necessary.
 func (c *Compiler) checkSafetyBody() {
 	for _, m := range c.Modules {
+		globals := ReservedVars.Copy()
+		for v := range c.Globals[m] {
+			globals.Add(v)
+		}
 		for _, r := range m.Rules {
-
-			// Build map of expression to variables contained in the expression that
-			// are (potentially) unsafe. That is, any variable that is not a global.
-			unsafe := map[*Expr]map[Var]struct{}{}
-			for _, e := range r.Body {
-				cv := &collectAllVarsVisitor{}
-				e.Walk(cv.Walk)
-				for _, v := range cv.Vars {
-					// TODO(tsandall): consider including certain built-in variables
-					// in the Globals. E.g., data, =, !=, etc.
-					if DefaultRootDocument.Value.Equal(v) {
-						continue
-					}
-					if _, ok := c.Globals[m][v]; !ok {
-						if u, ok := unsafe[e]; ok {
-							u[v] = struct{}{}
-						} else {
-							unsafe[e] = map[Var]struct{}{v: struct{}{}}
-						}
-					}
-				}
-			}
-
-			safe := map[Var]struct{}{}
-			reordered := Body{}
-
-			for _, e := range r.Body {
-
-				// Update "safe" map to include variables in this expression
-				// that are safe, i.e., variables in the target positions
-				// of built-ins or variables in references.
-				if !e.Negated {
-					switch ts := e.Terms.(type) {
-					case *Term:
-						if r, ok := ts.Value.(Ref); ok {
-							cv := &collectAllVarsVisitor{}
-							for _, t := range r[1:] {
-								t.Walk(cv.Walk)
-							}
-							for _, v := range cv.Vars {
-								safe[v] = struct{}{}
-							}
-						}
-					case []*Term:
-						b := BuiltinMap[ts[0].Value.(Var)]
-						for i, t := range ts[1:] {
-							if t.IsGround() {
-								continue
-							}
-							if b.UnifiesRecursively(i) {
-								cv := &collectAllVarsVisitor{}
-								// If the term is a reference, any variables
-								// in the reference (except the head) are safe.
-								// Make a copy of the term so that we can exclude
-								// the head while walking the rest of the reference.
-								tmp := *t
-								if r, ok := t.Value.(Ref); ok {
-									tmp.Value = r[1:]
-								}
-								tmp.Walk(cv.Walk)
-								for _, v := range cv.Vars {
-									safe[v] = struct{}{}
-								}
-								continue
-							}
-							if v, ok := t.Value.(Var); ok {
-								if b.Unifies(i) {
-									safe[v] = struct{}{}
-									continue
-								}
-							}
-						}
-					}
-				}
-
-				// Update the set of unsafe variables for this expression and
-				// check if the expression is safe.
-				for v := range unsafe[e] {
-					if _, ok := safe[v]; ok {
-						delete(unsafe[e], v)
-					}
-				}
-
-				if len(unsafe[e]) == 0 {
-					reordered = append(reordered, e)
-					delete(unsafe, e)
-
-					// Check if other expressions in the body are considered safe
-					// now. If they are considered safe now, they can be added
-					// to the end of the re-ordered body.
-					for _, e := range r.Body {
-						if reordered.Contains(e) {
-							continue
-						}
-						for v := range unsafe[e] {
-							if _, ok := safe[v]; ok {
-								delete(unsafe[e], v)
-							}
-						}
-						if len(unsafe[e]) == 0 {
-							reordered = append(reordered, e)
-							delete(unsafe, e)
-						}
-					}
-				}
-			}
-
+			reordered, unsafe := reorderBodyForSafety(globals, r.Body)
 			if len(unsafe) != 0 {
-				vars := map[Var]struct{}{}
-				for _, vs := range unsafe {
-					for v := range vs {
-						vars[v] = struct{}{}
-					}
-				}
-				unique := []string{}
-				for v := range vars {
-					unique = append(unique, string(v))
-				}
-				sort.Strings(unique)
-				c.err("unsafe variables in %v: %v", r.Name, strings.Join(unique, ", "))
+				c.err("unsafe variables in %v: %v", r.Name, unsafe.Vars())
 			} else {
 				r.Body = reordered
 			}
@@ -335,47 +198,16 @@ func (c *Compiler) checkSafetyBody() {
 	}
 }
 
-// checkSafetyHead ensures that variables appearing in the head of a
+// checkSafetyHeads ensures that variables appearing in the head of a
 // rule also appear in the body.
 func (c *Compiler) checkSafetyHead() {
 	for _, m := range c.Modules {
 		for _, r := range m.Rules {
-
-			headVars := []*Term{}
-
-			// Accumulate variables appearing in the head of the rule.
-			// Stop as soon as the body is encountered.
-			r.Walk(func(v interface{}) bool {
-				switch v := v.(type) {
-				case Body:
-					return true
-				case *Term:
-					if _, ok := v.Value.(Var); ok {
-						headVars = append(headVars, v)
-					}
-				}
-				return false
-			})
-
-			// Walk over all terms in the body until all variables
-			// in the head have been seen or there are no more elements.
-			r.Body.Walk(func(v interface{}) bool {
-				t, ok := v.(*Term)
-				if !ok {
-					return false
-				}
-				for i := range headVars {
-					if headVars[i].Equal(t) {
-						headVars = append(headVars[:i], headVars[i+1:]...)
-						break
-					}
-				}
-				return len(headVars) == 0
-			})
-
-			if len(headVars) > 0 {
-				for _, v := range headVars {
-					c.err("unsafe variable from head of %v: %v", r.Name, v)
+			headVars := r.HeadVars()
+			bodyVars := r.Body.Vars()
+			for headVar := range headVars {
+				if _, ok := bodyVars[headVar]; !ok {
+					c.err("unsafe variable from head of %v: %v", r.Name, headVar)
 				}
 			}
 		}
@@ -582,20 +414,18 @@ func (c *Compiler) setRuleGraph() {
 			// the dependencies of the current rule. Add these dependencies
 			// to the graph.
 			edges, ok := c.RuleGraph[r]
+
 			if !ok {
 				edges = map[*Rule]struct{}{}
 				c.RuleGraph[r] = edges
 			}
-			r.Body.Walk(func(v interface{}) bool {
-				if t, ok := v.(*Term); ok {
-					if ref, ok := t.Value.(Ref); ok {
-						for _, v := range findRules(c.ModuleTree, ref) {
-							edges[v] = struct{}{}
-						}
-					}
-				}
-				return false
-			})
+
+			vis := &ruleGraphBuilder{
+				moduleTree: c.ModuleTree,
+				edges:      edges,
+			}
+
+			Walk(vis, r.Body)
 		}
 	}
 }
@@ -648,28 +478,20 @@ func (n *ModuleTreeNode) Size() int {
 	return s
 }
 
-type collectAllVarsVisitor struct {
-	Vars []Var
+type ruleGraphBuilder struct {
+	moduleTree *ModuleTreeNode
+	edges      map[*Rule]struct{}
 }
 
-func (cv *collectAllVarsVisitor) Walk(v interface{}) bool {
-	// Handle expressions as special case so that the built-in function
-	// name can be excluded from the results.
-	if e, ok := v.(*Expr); ok {
-		switch ts := e.Terms.(type) {
-		case *Term:
-			ts.Walk(cv.Walk)
-		case []*Term:
-			for _, t := range ts[1:] {
-				t.Walk(cv.Walk)
-			}
-		}
-		return true
+func (vis *ruleGraphBuilder) Visit(v interface{}) Visitor {
+	ref, ok := v.(Ref)
+	if !ok {
+		return vis
 	}
-	if v, ok := v.(*Term).Value.(Var); ok {
-		cv.Vars = append(cv.Vars, v)
+	for _, v := range findRules(vis.moduleTree, ref) {
+		vis.edges[v] = struct{}{}
 	}
-	return false
+	return nil
 }
 
 type ruleGraphTraveral struct {
@@ -696,6 +518,24 @@ func (g *ruleGraphTraveral) Visited(x util.T) bool {
 
 func (g *ruleGraphTraveral) Equals(a, b util.T) bool {
 	return a.(*Rule) == b.(*Rule)
+}
+
+type unsafeVars map[*Expr]VarSet
+
+func (vs unsafeVars) Add(e *Expr, v Var) {
+	if u, ok := vs[e]; ok {
+		u[v] = struct{}{}
+	} else {
+		vs[e] = VarSet{v: struct{}{}}
+	}
+}
+
+func (vs unsafeVars) Vars() VarSet {
+	r := VarSet{}
+	for _, s := range vs {
+		r.Update(s)
+	}
+	return r
 }
 
 // findRules returns a slice of rules that are referred to
@@ -747,4 +587,66 @@ func findRulesRec(node *ModuleTreeNode, ref Ref) []*Rule {
 	default:
 		return nil
 	}
+}
+
+// reorderBodyForSafety returns a copy of the body ordered such that
+// left to right evaluation of the body will not encounter unbound variables
+// in input positions or negated expressions.
+//
+// Expressions are added to the re-ordered body as soon as they are considered
+// safe. If multiple expressions become safe in the same pass, they are added
+// in their original order. This results in minimal re-ordering of the body.
+//
+// If the body cannot be reordered to ensure safety, the second return value
+// contains a mapping of expressions to unsafe variables in those expressions.
+func reorderBodyForSafety(globals VarSet, body Body) (Body, unsafeVars) {
+
+	reordered := Body{}
+	unsafe := unsafeVars{}
+
+	for _, e := range body {
+		for v := range e.Vars() {
+			if !globals.Contains(v) {
+				unsafe.Add(e, v)
+			}
+		}
+	}
+
+	safe := VarSet{}
+
+	for _, e := range body {
+
+		safe.Update(e.OutputVars())
+
+		for v := range unsafe[e] {
+			if safe.Contains(v) {
+				delete(unsafe[e], v)
+			}
+		}
+
+		if len(unsafe[e]) == 0 {
+			reordered = append(reordered, e)
+			delete(unsafe, e)
+
+			// Check if other expressions in the body are considered safe
+			// now. If they are considered safe now, they can be added
+			// to the end of the re-ordered body.
+			for _, e := range body {
+				if reordered.Contains(e) {
+					continue
+				}
+				for v := range unsafe[e] {
+					if safe.Contains(v) {
+						delete(unsafe[e], v)
+					}
+				}
+				if len(unsafe[e]) == 0 {
+					reordered = append(reordered, e)
+					delete(unsafe, e)
+				}
+			}
+		}
+	}
+
+	return reordered, unsafe
 }

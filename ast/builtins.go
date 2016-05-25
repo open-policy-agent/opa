@@ -4,10 +4,21 @@
 
 package ast
 
-// Builtins is the registry of built-in functions supported by
-// OPA. When adding a new built-in function to OPA, update this
+// Builtins is the registry of built-in functions supported by OPA.
+// Call RegisterBuiltin to add a new built-in.
+var Builtins []*Builtin
+
+// RegisterBuiltin adds a new built-in function to the registry.
+func RegisterBuiltin(b *Builtin) {
+	Builtins = append(Builtins, b)
+	BuiltinMap[b.Name] = b
+	ReservedVars.Add(b.Name)
+}
+
+// DefaultBuiltins is the registry of built-in functions supported in OPA
+// by default. When adding a new built-in function to OPA, update this
 // list.
-var Builtins = [...]*Builtin{
+var DefaultBuiltins = [...]*Builtin{
 	Equality,
 	GreaterThan, GreaterThanEq, LessThan, LessThanEq, NotEqual,
 }
@@ -105,7 +116,7 @@ func (b *Builtin) UnifiesRecursively(i int) bool {
 
 func init() {
 	BuiltinMap = map[Var]*Builtin{}
-	for _, b := range Builtins {
-		BuiltinMap[b.Name] = b
+	for _, b := range DefaultBuiltins {
+		RegisterBuiltin(b)
 	}
 }

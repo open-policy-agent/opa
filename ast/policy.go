@@ -21,11 +21,8 @@ var Keywords = [...]string{
 	"package", "import", "not",
 }
 
-// Walker defines the interface that callers can use to
-// iterate the AST elements. The only argument passed to the walker
-// is the AST element. Iteration is stopped when the walker returns
-// true or all AST elements have been visited.
-type Walker func(v interface{}) bool
+// ReservedVars is the set of reserved variable names.
+var ReservedVars = NewVarSet(DefaultRootDocument.Value.(Var))
 
 type (
 	// Module represents a collection of policies (defined by rules)
@@ -160,6 +157,19 @@ func (rule *Rule) DocKind() DocKind {
 	return CompleteDoc
 }
 
+// HeadVars returns map where keys represent all of the variables found in the
+// head of the rule. The values of the map are ignored.
+func (rule *Rule) HeadVars() VarSet {
+	vis := &varVisitor{vars: VarSet{}}
+	if rule.Key != nil {
+		Walk(vis, rule.Key)
+	}
+	if rule.Value != nil {
+		Walk(vis, rule.Value)
+	}
+	return vis.vars
+}
+
 func (rule *Rule) String() string {
 	var buf []string
 	if rule.Key != nil {
@@ -176,21 +186,6 @@ func (rule *Rule) String() string {
 		buf = append(buf, rule.Body.String())
 	}
 	return strings.Join(buf, " ")
-}
-
-// Walk calls the iterator on the rule itself and then recurses
-// on the key, value, and body elements.
-func (rule *Rule) Walk(iter Walker) bool {
-	if iter(rule) {
-		return true
-	}
-	if rule.Key != nil && rule.Key.Walk(iter) {
-		return true
-	}
-	if rule.Value != nil && rule.Value.Walk(iter) {
-		return true
-	}
-	return rule.Body.Walk(iter)
 }
 
 // Contains returns true if this body contains the given expression.
@@ -225,18 +220,12 @@ func (body Body) String() string {
 	return strings.Join(buf, ", ")
 }
 
-// Walk calls the iterator for this body and then recurses
-// on each expression.
-func (body Body) Walk(iter Walker) bool {
-	if iter(body) {
-		return true
-	}
-	for _, expr := range body {
-		if expr.Walk(iter) {
-			return true
-		}
-	}
-	return false
+// Vars returns map where keys represent all of the variables found in the
+// body. The values of the map are ignored.
+func (body Body) Vars() VarSet {
+	vis := &varVisitor{vars: VarSet{}}
+	Walk(vis, body)
+	return vis.vars
 }
 
 // Complement returns a copy of this expression with the negation flag flipped.
@@ -278,6 +267,48 @@ func (expr *Expr) IsEquality() bool {
 		return false
 	}
 	return terms[0].Equal(VarTerm("="))
+}
+
+// OutputVars returns the set of variables that would be bound by
+// evaluating this expression in isolation.
+func (expr *Expr) OutputVars() VarSet {
+
+	result := VarSet{}
+	if expr.Negated {
+		return result
+	}
+
+	vis := &varVisitor{
+		skipRefHead:    true,
+		skipObjectKeys: true,
+		vars:           VarSet{},
+	}
+
+	switch ts := expr.Terms.(type) {
+	case *Term:
+		if r, ok := ts.Value.(Ref); ok {
+			Walk(vis, r)
+		}
+	case []*Term:
+		b := BuiltinMap[ts[0].Value.(Var)]
+		for i, t := range ts[1:] {
+			switch v := t.Value.(type) {
+			case Object, Array:
+				if b.UnifiesRecursively(i) {
+					Walk(vis, v)
+				}
+			case Var:
+				if b.Unifies(i) {
+					result.Add(v)
+				}
+			case Ref:
+				Walk(vis, v)
+			}
+		}
+	}
+
+	result.Update(vis.vars)
+	return result
 }
 
 func (expr *Expr) String() string {
@@ -350,28 +381,44 @@ func (expr *Expr) UnmarshalJSON(bs []byte) error {
 	return nil
 }
 
-// Walk calls the iter function for each term in the expression.
-func (expr *Expr) Walk(iter Walker) bool {
-	if iter(expr) {
-		return true
-	}
-	switch ts := expr.Terms.(type) {
-	case []*Term:
-		for _, t := range ts {
-			if t.Walk(iter) {
-				return true
-			}
-		}
-	case *Term:
-		if ts.Walk(iter) {
-			return true
-		}
-	}
-	return false
+// Vars returns a VarSet containing all of the variables in the expression.
+func (expr *Expr) Vars() VarSet {
+	vis := &varVisitor{vars: VarSet{}}
+	Walk(vis, expr)
+	return vis.vars
 }
 
 // NewBuiltinExpr creates a new Expr object with the supplied terms.
 // The builtin operator must be the first term.
 func NewBuiltinExpr(terms ...*Term) *Expr {
 	return &Expr{Terms: terms}
+}
+
+type varVisitor struct {
+	skipRefHead    bool
+	skipObjectKeys bool
+	vars           VarSet
+}
+
+func (vis *varVisitor) Visit(v interface{}) Visitor {
+	if vis.skipObjectKeys {
+		if o, ok := v.(Object); ok {
+			for _, i := range o {
+				Walk(vis, i[1])
+			}
+			return nil
+		}
+	}
+	if vis.skipRefHead {
+		if r, ok := v.(Ref); ok {
+			for _, t := range r[1:] {
+				Walk(vis, t)
+			}
+			return nil
+		}
+	}
+	if v, ok := v.(Var); ok {
+		vis.vars.Add(v)
+	}
+	return vis
 }
