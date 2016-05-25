@@ -7,8 +7,8 @@ import:
 - package: github.com/spf13/cobra
 - package: github.com/golang/lint
 - package: github.com/peterh/liner
-- package: github.com/apcera/termtables
 - package: github.com/pkg/errors
 - package: github.com/gorilla/mux
 - package: github.com/gorilla/context
 - package: github.com/golang/glog
+- package: github.com/olekukonko/tablewriter

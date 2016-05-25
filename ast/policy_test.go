@@ -131,6 +131,16 @@ func TestExprEquals(t *testing.T) {
 	assertExprNotEqual(t, expr20, expr23)
 }
 
+func TestExprOutputVars(t *testing.T) {
+	body := MustParseBody(`{"a": [{x: y}, b[z]]} = c[i], [{"a": d[j][k]}] != xs`)
+	one := body[0]
+	vars := one.OutputVars()
+	expected := NewVarSet(Var("y"), Var("z"), Var("i"))
+	if !reflect.DeepEqual(expected, vars) {
+		t.Errorf("Expected output vars %v from %v but got: %v", expected, one, vars)
+	}
+}
+
 func TextExprString(t *testing.T) {
 	expr1 := &Expr{
 		Terms: RefTerm(VarTerm("q"), StringTerm("r"), VarTerm("x")),

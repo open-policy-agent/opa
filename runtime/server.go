@@ -17,8 +17,8 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/open-policy-agent/opa/ast"
-	"github.com/open-policy-agent/opa/eval"
 	"github.com/open-policy-agent/opa/storage"
+	"github.com/open-policy-agent/opa/topdown"
 	"github.com/open-policy-agent/opa/version"
 	"github.com/pkg/errors"
 )
@@ -132,22 +132,22 @@ func (s *Server) execQuery(qStr string) (resultSetV1, error) {
 
 	compiled := c.Modules[""].Rules[0].Body
 
-	ctx := eval.NewTopDownContext(compiled, s.Runtime.DataStore)
+	ctx := topdown.NewContext(compiled, s.Runtime.DataStore)
 
 	results := resultSetV1{}
 
 	s.mtx.RLock()
 	defer s.mtx.RUnlock()
 
-	err = eval.TopDown(ctx, func(ctx *eval.TopDownContext) error {
+	err = topdown.Eval(ctx, func(ctx *topdown.Context) error {
 		result := map[string]interface{}{}
 		var err error
-		ctx.Bindings.Iter(func(k, v ast.Value) bool {
+		ctx.Locals.Iter(func(k, v ast.Value) bool {
 			kv, ok := k.(ast.Var)
 			if !ok {
 				return false
 			}
-			vv, e := eval.ValueToInterface(v, ctx)
+			vv, e := topdown.ValueToInterface(v, ctx)
 			if err != nil {
 				err = e
 				return true
@@ -197,7 +197,7 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	path := splitPath(vars["path"])
 
-	params := &eval.TopDownQueryParams{
+	params := &topdown.QueryParams{
 		DataStore: s.Runtime.DataStore,
 		Path:      path,
 	}
@@ -205,7 +205,7 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 	s.mtx.RLock()
 	defer s.mtx.RUnlock()
 
-	result, err := eval.TopDownQuery(params)
+	result, err := topdown.Query(params)
 
 	if err != nil {
 		handleErrorAuto(w, err)

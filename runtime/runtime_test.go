@@ -58,7 +58,7 @@ func TestInit(t *testing.T) {
 
 	err = ioutil.WriteFile(tmp4, []byte(`
 	package a.b.c
-	q = true :- p
+	q = true :- false
 	`), 0644)
 	if err != nil {
 		panic(err)

@@ -21,6 +21,9 @@ var Keywords = [...]string{
 	"package", "import", "not",
 }
 
+// ReservedVars is the set of reserved variable names.
+var ReservedVars = NewVarSet(DefaultRootDocument.Value.(Var))
+
 type (
 	// Module represents a collection of policies (defined by rules)
 	// within a namespace (defined by the package) and optional
@@ -154,6 +157,19 @@ func (rule *Rule) DocKind() DocKind {
 	return CompleteDoc
 }
 
+// HeadVars returns map where keys represent all of the variables found in the
+// head of the rule. The values of the map are ignored.
+func (rule *Rule) HeadVars() VarSet {
+	vis := &varVisitor{vars: VarSet{}}
+	if rule.Key != nil {
+		Walk(vis, rule.Key)
+	}
+	if rule.Value != nil {
+		Walk(vis, rule.Value)
+	}
+	return vis.vars
+}
+
 func (rule *Rule) String() string {
 	var buf []string
 	if rule.Key != nil {
@@ -170,6 +186,16 @@ func (rule *Rule) String() string {
 		buf = append(buf, rule.Body.String())
 	}
 	return strings.Join(buf, " ")
+}
+
+// Contains returns true if this body contains the given expression.
+func (body Body) Contains(x *Expr) bool {
+	for _, e := range body {
+		if e.Equal(x) {
+			return true
+		}
+	}
+	return false
 }
 
 // Equal returns true if this Body is equal to the other Body.
@@ -192,6 +218,14 @@ func (body Body) String() string {
 		buf = append(buf, v.String())
 	}
 	return strings.Join(buf, ", ")
+}
+
+// Vars returns map where keys represent all of the variables found in the
+// body. The values of the map are ignored.
+func (body Body) Vars() VarSet {
+	vis := &varVisitor{vars: VarSet{}}
+	Walk(vis, body)
+	return vis.vars
 }
 
 // Complement returns a copy of this expression with the negation flag flipped.
@@ -235,13 +269,46 @@ func (expr *Expr) IsEquality() bool {
 	return terms[0].Equal(VarTerm("="))
 }
 
-var builtinNames = map[string]string{
-	"=":  "eq",
-	"<":  "lt",
-	">":  "gt",
-	"<=": "lte",
-	">=": "gte",
-	"!=": "ne",
+// OutputVars returns the set of variables that would be bound by
+// evaluating this expression in isolation.
+func (expr *Expr) OutputVars() VarSet {
+
+	result := VarSet{}
+	if expr.Negated {
+		return result
+	}
+
+	vis := &varVisitor{
+		skipRefHead:    true,
+		skipObjectKeys: true,
+		vars:           VarSet{},
+	}
+
+	switch ts := expr.Terms.(type) {
+	case *Term:
+		if r, ok := ts.Value.(Ref); ok {
+			Walk(vis, r)
+		}
+	case []*Term:
+		b := BuiltinMap[ts[0].Value.(Var)]
+		for i, t := range ts[1:] {
+			switch v := t.Value.(type) {
+			case Object, Array:
+				if b.UnifiesRecursively(i) {
+					Walk(vis, v)
+				}
+			case Var:
+				if b.Unifies(i) {
+					result.Add(v)
+				}
+			case Ref:
+				Walk(vis, v)
+			}
+		}
+	}
+
+	result.Update(vis.vars)
+	return result
 }
 
 func (expr *Expr) String() string {
@@ -255,12 +322,14 @@ func (expr *Expr) String() string {
 		for _, v := range t[1:] {
 			args = append(args, v.String())
 		}
-		name, ok := builtinNames[string(t[0].Value.(Var))]
-		if !ok {
-			name = t[0].String()
+		var name string
+		if b, ok := BuiltinMap[t[0].Value.(Var)]; ok {
+			name = b.GetPrintableName()
+		} else {
+			name = t[0].Value.(Var).String()
 		}
-		builtinStr := fmt.Sprintf("%s(%s)", name, strings.Join(args, ", "))
-		buf = append(buf, builtinStr)
+		s := fmt.Sprintf("%s(%s)", name, strings.Join(args, ", "))
+		buf = append(buf, s)
 	case *Term:
 		buf = append(buf, t.String())
 	}
@@ -312,8 +381,44 @@ func (expr *Expr) UnmarshalJSON(bs []byte) error {
 	return nil
 }
 
+// Vars returns a VarSet containing all of the variables in the expression.
+func (expr *Expr) Vars() VarSet {
+	vis := &varVisitor{vars: VarSet{}}
+	Walk(vis, expr)
+	return vis.vars
+}
+
 // NewBuiltinExpr creates a new Expr object with the supplied terms.
 // The builtin operator must be the first term.
 func NewBuiltinExpr(terms ...*Term) *Expr {
 	return &Expr{Terms: terms}
+}
+
+type varVisitor struct {
+	skipRefHead    bool
+	skipObjectKeys bool
+	vars           VarSet
+}
+
+func (vis *varVisitor) Visit(v interface{}) Visitor {
+	if vis.skipObjectKeys {
+		if o, ok := v.(Object); ok {
+			for _, i := range o {
+				Walk(vis, i[1])
+			}
+			return nil
+		}
+	}
+	if vis.skipRefHead {
+		if r, ok := v.(Ref); ok {
+			for _, t := range r[1:] {
+				Walk(vis, t)
+			}
+			return nil
+		}
+	}
+	if v, ok := v.(Var); ok {
+		vis.vars.Add(v)
+	}
+	return vis
 }

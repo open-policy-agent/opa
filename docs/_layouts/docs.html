@@ -1,0 +1,23 @@
+---
+layout: default
+---
+<article class="docs">
+
+  <div class="docs-nav">
+    <ul>
+        {% assign pages = site.pages | sort:"sort_order" %}
+        {% for page in pages %}
+        {% if page.section == 'docs' %} 
+        <li>
+          <a class="page-link" href="{{ page.url | prepend: site.baseurl }}">{{page.title}}</a>
+        </li>
+        {% endif %}
+        {% endfor %}
+    </ul>
+  </div>
+  
+  <div class="docs-content">
+    {{ content }}
+  </div>
+
+</article>

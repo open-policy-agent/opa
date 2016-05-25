@@ -1,4 +1,6 @@
 language: go
+env:
+  - CROSSCOMPILE="linux/amd64 darwin/amd64"
 go:
   - 1.5
   - 1.6

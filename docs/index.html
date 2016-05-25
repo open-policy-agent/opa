@@ -1,0 +1,80 @@
+---
+layout: default
+---
+<div class="home">
+    <p>
+        The Open Policy Agent (OPA) is an open source project that helps <a class="page-link" href="/opa/docs/intro.html">policy enable</a> your
+        application. By integrating with OPA, your application's operators will be empowered to
+        manage the size, complexity, and scale of modern deployments.
+    </p>
+    <h2>Get OPA</h2>
+    Latest binary (Linux/OS X):<br><br>
+    <pre>
+curl -L https://github.com/open-policy-agent/opa/releases/download/v0.1.0/opa-$(uname -s)-$(uname -m) > opa
+chmod u+x opa
+</pre>
+    From source (requires Go):<br><br>
+    <pre>
+git clone https://github.com/open-policy-agent/opa.git $GOPATH/src/github.com/open-policy-agent/opa
+cd $GOPATH/src/github.com/open-policy-agent/opa
+make
+</pre>
+    <div class="features">
+        <h2>Features</h2>
+        <div class="features-grid">
+            <div class="row feats">
+                <div class="col feat1-1">
+                    <h3>Declarative Language</h3>
+                    <p>
+                        OPA features a purpose-built declarative language for describing the expected
+                        state of your application. Policies written in <a class="page-link" href="/opa/docs/lang.html">Rego</a> are readily understood
+                        and easy to maintain.
+                    </p>
+                </div>
+                <div class="col feat1-2">
+                    <h3>Zero Dependencies</h3>
+                    <p>
+                        There are zero deployment dependencies in OPA. Furthermore, OPA is designed
+                        around the fate-sharing philosophy for highly available systems.
+                    </p>
+                </div>
+                <div class="col feat1-3">
+                    <h3>Language Agnostic</h3>
+                    <p>
+                        OPA exposes RESTful APIs for managing policy modules and state relevant to policy
+                        enforcement. The APIs produce and consume JSON data and are accessed via HTTP.
+                    </p>
+                </div>
+                <div class="col feat2-1">
+                    <h3>Low Latency</h3>
+                    <p>
+                        OPA's policy engine is designed from scratch with latency sensitive applications in mind.
+                        OPA introduces as little latency as possible while still decoupling policy definitions
+                        from application business logic.
+                    </p>
+                </div>
+                <div class="col feat2-2">
+                    <h3>Interactive Shell</h3>
+                    <p>
+                        OPA features an interactive shell that you can use to quickly experiment with
+                        queries and data sets.
+                    </p>
+                </div>
+                <div class="col feat2-3">
+                    <h3>Embeddable</h3>
+                    <p>
+                        OPA is written in Go with the intention of being embeddable. Applications written
+                        in Go can use OPA as a library if needed.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="Usage">
+        <h2>Usage</h2>
+        <p>
+        OPA is licensed under the Apache 2.0 open source license. OPA is under
+        active development.
+        </p>
+    </div>
+</div>
