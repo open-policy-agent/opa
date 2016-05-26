@@ -78,3 +78,5 @@ CHANGELOG.md snippet and uploading the packages from the build phase.
 1. Create a new release for the version.
 	- Copy the changelog content into the message.
 	- Upload the distributions packages.
+
+1. In addition to publishing the packages, there may be documentation updates that should be released. See [SITE.md](./SITE.md) for steps to update the website.
