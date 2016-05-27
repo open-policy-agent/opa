@@ -21,11 +21,18 @@ func RegisterBuiltin(b *Builtin) {
 var DefaultBuiltins = [...]*Builtin{
 	Equality,
 	GreaterThan, GreaterThanEq, LessThan, LessThanEq, NotEqual,
+	Plus,
+	Count, Sum,
+	ToNumber,
 }
 
 // BuiltinMap provides a convenient mapping of built-in names to
 // built-in definitions.
 var BuiltinMap map[Var]*Builtin
+
+/**
+ * Unification
+ */
 
 // Equality represents the "=" operator.
 var Equality = &Builtin{
@@ -34,6 +41,10 @@ var Equality = &Builtin{
 	NumArgs:   2,
 	TargetPos: []int{0, 1},
 }
+
+/**
+ * Comparisons
+ */
 
 // GreaterThan represents the ">" comparison operator.
 var GreaterThan = &Builtin{
@@ -68,6 +79,48 @@ var NotEqual = &Builtin{
 	Name:    Var("!="),
 	Alias:   Var("neq"),
 	NumArgs: 2,
+}
+
+/**
+ * Arithmetic
+ */
+
+// Plus adds two numbers together.
+var Plus = &Builtin{
+	Name:      Var("plus"),
+	NumArgs:   3,
+	TargetPos: []int{2},
+}
+
+/**
+ * Aggregates
+ */
+
+// Count takes a collection and counts the number of elements in it.
+var Count = &Builtin{
+	Name:      Var("count"),
+	NumArgs:   2,
+	TargetPos: []int{1},
+}
+
+// Sum takes an array of numbers and sums them.
+var Sum = &Builtin{
+	Name:      Var("sum"),
+	NumArgs:   2,
+	TargetPos: []int{1},
+}
+
+/**
+ * Casting
+ */
+
+// ToNumber takes a string, bool, or number value and converts it to a number.
+// Strings are converted to numbers using strconv.Atoi.
+// Boolean false is converted to 0 and boolean true is converted to 1.
+var ToNumber = &Builtin{
+	Name:      Var("to_number"),
+	NumArgs:   2,
+	TargetPos: []int{1},
 }
 
 // Builtin represents a built-in function supported by OPA. Every

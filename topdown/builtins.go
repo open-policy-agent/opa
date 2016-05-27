@@ -31,6 +31,10 @@ var defaultBuiltinFuncs = map[ast.Var]BuiltinFunc{
 	ast.LessThan.Name:      evalIneq(compareLessThan),
 	ast.LessThanEq.Name:    evalIneq(compareLessThanEq),
 	ast.NotEqual.Name:      evalIneq(compareNotEq),
+	ast.Plus.Name:          evalPlus,
+	ast.Count.Name:         evalCount,
+	ast.Sum.Name:           evalSum,
+	ast.ToNumber.Name:      evalToNumber,
 }
 
 func init() {

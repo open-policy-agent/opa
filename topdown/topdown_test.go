@@ -554,7 +554,7 @@ func TestTopDownNegation(t *testing.T) {
 	}
 }
 
-func TestTopDownAggregates(t *testing.T) {
+func TestTopDownComprehensions(t *testing.T) {
 
 	tests := []struct {
 		note     string
@@ -565,10 +565,61 @@ func TestTopDownAggregates(t *testing.T) {
 		{"nested", []string{"p[i] :- ys = [y | y = x[_], x = [z | z = a[_]]], ys[i] > 1"}, "[1,2,3]"},
 		{"embedded array", []string{"p[i] :- xs = [[x | x = a[_]]], xs[0][i] > 1"}, "[1,2,3]"},
 		{"embedded object", []string{`p[i] :- xs = {"a": [x | x = a[_]]}, xs["a"][i] > 1`}, "[1,2,3]"},
-		{"recursive", []string{"p :- y = 1, x = y, x = [y | y = 1]"}, ""},
-		// TODO(tsandall): semantics?
-		{"recursive", []string{"p :- x = y, x = [y | y = 1]"}, "true"},
-		{"recursive", []string{"p :- x = [x | x = 1]"}, "true"},
+		{"closure", []string{"p[x] :- y = 1, x = [y | y = 1]"}, "[[1]]"},
+	}
+
+	data := loadSmallTestData()
+
+	for i, tc := range tests {
+		runTopDownTestCase(t, data, i, tc.note, tc.rules, tc.expected)
+	}
+}
+
+func TestTopDownAggregates(t *testing.T) {
+
+	tests := []struct {
+		note     string
+		rules    []string
+		expected interface{}
+	}{
+		{"count", []string{"p[x] :- count(a, x)"}, "[4]"},
+		{"count virtual", []string{"p[x] :- count([y | q[y]], x)", "q[x] :- x = a[_]"}, "[4]"},
+		{"count keys", []string{"p[x] :- count(b, x)"}, "[2]"},
+		{"count keys virtual", []string{"p[x] :- count([k | q[k] = _], x)", "q[k] = v :- b[k] = v"}, "[2]"},
+		{"sum", []string{"p[x] :- sum([1,2,3,4], x)"}, "[10]"},
+		{"sum virtual", []string{"p[x] :- sum([y | q[y]], x)", "q[x] :- a[_] = x"}, "[10]"},
+	}
+
+	data := loadSmallTestData()
+
+	for i, tc := range tests {
+		runTopDownTestCase(t, data, i, tc.note, tc.rules, tc.expected)
+	}
+}
+
+func TestTopDownArithmetic(t *testing.T) {
+	tests := []struct {
+		note     string
+		rules    []string
+		expected interface{}
+	}{
+		{"plus", []string{"p[y] :- a[i] = x, plus(i, x, y)"}, "[1,3,5,7]"},
+	}
+
+	data := loadSmallTestData()
+
+	for i, tc := range tests {
+		runTopDownTestCase(t, data, i, tc.note, tc.rules, tc.expected)
+	}
+}
+
+func TestTopDownCasts(t *testing.T) {
+	tests := []struct {
+		note     string
+		rules    []string
+		expected interface{}
+	}{
+		{"to_number", []string{`p[x] :- to_number("-42.0", y), to_number(false, z), x = [y, z]`}, "[[-42.0, 0]]"},
 	}
 
 	data := loadSmallTestData()
