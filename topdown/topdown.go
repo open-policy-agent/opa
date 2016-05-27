@@ -9,6 +9,7 @@ import (
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/storage"
+	"github.com/open-policy-agent/opa/util"
 	"github.com/pkg/errors"
 )
 
@@ -472,20 +473,16 @@ func evalRefRecGround(ctx *Context, path, tail ast.Ref, iter Iterator) error {
 	// If the node exists and is a rule, evaluate the rule to produce a virtual doc.
 	// Otherwise, process the rest of the reference.
 	path = append(path, tail[0])
-	node, err := lookupRule(ctx.DataStore, path)
+	rules, err := lookupRule(ctx.DataStore, path)
 	if err != nil {
 		if storage.IsNotFound(err) {
 			return nil
 		}
 		return err
 	}
-	if node != nil {
-		tail = append(path, tail[1:]...)
-		for _, r := range node {
-			if err := evalRefRule(ctx, tail, path, r, iter); err != nil {
-				return err
-			}
-		}
+	if rules != nil {
+		ref := append(path, tail[1:]...)
+		return evalRefRule(ctx, ref, path, rules, iter)
 	}
 	return evalRefRec(ctx, path, tail[1:], iter)
 }
@@ -502,47 +499,77 @@ func evalRefRecNonGround(ctx *Context, path, tail ast.Ref, iter Iterator) error 
 	return evalRefRecEnumColl(ctx, path, tail, iter)
 }
 
-func evalRefRule(ctx *Context, ref ast.Ref, path ast.Ref, rule *ast.Rule, iter Iterator) error {
+func evalRefRule(ctx *Context, ref ast.Ref, path ast.Ref, rules []*ast.Rule, iter Iterator) error {
 
-	switch rule.DocKind() {
-	case ast.PartialSetDoc:
-		return evalRefRulePartialSetDoc(ctx, ref, path, rule, iter)
-	case ast.PartialObjectDoc:
-		return evalRefRulePartialObjectDoc(ctx, ref, path, rule, iter)
+	suffix := ref[len(path):]
+
+	switch rules[0].DocKind() {
+
 	case ast.CompleteDoc:
-		return evalRefRuleCompleteDoc(ctx, ref, path, rule, iter)
-	default:
-		panic(fmt.Sprintf("illegal argument: %v", rule))
+		return evalRefRuleCompleteDoc(ctx, ref, suffix, rules, iter)
+
+	case ast.PartialObjectDoc:
+		if len(suffix) == 0 {
+			return evalRefRulePartialObjectDocFull(ctx, ref, rules, iter)
+		}
+		for _, rule := range rules {
+			err := evalRefRulePartialObjectDoc(ctx, ref, path, rule, iter)
+			if err != nil {
+				return err
+			}
+		}
+
+	case ast.PartialSetDoc:
+		if len(suffix) == 0 {
+			return fmt.Errorf("not implemented: full evaluation of virtual set documents: %v", ref)
+		}
+		for _, rule := range rules {
+			err := evalRefRulePartialSetDoc(ctx, ref, path, rule, iter)
+			if err != nil {
+				return err
+			}
+		}
 	}
 
+	return nil
 }
 
-func evalRefRuleCompleteDoc(ctx *Context, ref ast.Ref, path ast.Ref, rule *ast.Rule, iter Iterator) error {
-	suffix := ref[len(path):]
-	if len(suffix) == 0 {
-		return fmt.Errorf("not implemented: %v %v %v", ref, path, rule)
+func evalRefRuleCompleteDoc(ctx *Context, ref ast.Ref, suffix ast.Ref, rules []*ast.Rule, iter Iterator) error {
+
+	var result ast.Value
+
+	for _, rule := range rules {
+
+		bindings := storage.NewBindings()
+		child := ctx.Child(rule, bindings)
+		isTrue := false
+
+		err := Eval(child, func(child *Context) error {
+			isTrue = true
+			return nil
+		})
+
+		if err != nil {
+			return err
+		}
+
+		if isTrue && result == nil {
+			result = rule.Value.Value
+		} else if isTrue && result != nil {
+			return fmt.Errorf("multiple values for %v: incremental definitions must produce exactly one value for complete documents: check rule definitions: %v", ref, rule.Name)
+		}
+
 	}
 
-	bindings := storage.NewBindings()
-	child := ctx.Child(rule, bindings)
+	if result != nil {
+		return evalRefRuleResult(ctx, ref, suffix, result, iter)
+	}
 
-	return Eval(child, func(child *Context) error {
-		switch v := rule.Value.Value.(type) {
-		case ast.Object:
-			return evalRefRuleResult(ctx, ref, suffix, v, iter)
-		case ast.Array:
-			return evalRefRuleResult(ctx, ref, suffix, v, iter)
-		default:
-			return fmt.Errorf("illegal dereference %T: %v", rule.Value.Value, rule)
-		}
-	})
+	return nil
 }
 
 func evalRefRulePartialObjectDoc(ctx *Context, ref ast.Ref, path ast.Ref, rule *ast.Rule, iter Iterator) error {
 	suffix := ref[len(path):]
-	if len(suffix) == 0 {
-		return fmt.Errorf("not implemented: %v %v %v", ref, path, rule)
-	}
 
 	key := plugValue(suffix[0].Value, ctx)
 
@@ -587,11 +614,43 @@ func evalRefRulePartialObjectDoc(ctx *Context, ref ast.Ref, path ast.Ref, rule *
 	})
 }
 
-func evalRefRulePartialSetDoc(ctx *Context, ref ast.Ref, path ast.Ref, rule *ast.Rule, iter Iterator) error {
-	suffix := ref[len(path):]
-	if len(suffix) == 0 {
-		return fmt.Errorf("not implemented: %v %v %v", ref, path, rule)
+func evalRefRulePartialObjectDocFull(ctx *Context, ref ast.Ref, rules []*ast.Rule, iter Iterator) error {
+
+	var result ast.Object
+	keys := util.NewHashMap(func(a, b util.T) bool {
+		return a.(ast.Value).Equal(b.(ast.Value))
+	}, func(x util.T) int {
+		return x.(ast.Value).Hash()
+	})
+
+	for _, rule := range rules {
+
+		bindings := storage.NewBindings()
+		child := ctx.Child(rule, bindings)
+
+		err := Eval(child, func(child *Context) error {
+			key := child.Binding(rule.Key.Value)
+			if _, ok := keys.Get(key); ok {
+				return fmt.Errorf("multiple values for %v: incremental definitions must produce exactly one value for each key of an object document: check rule definitions: %v", ref, rule.Name)
+			}
+			keys.Put(key, ast.Null{})
+			value := child.Binding(rule.Value.Value)
+			result = append(result, ast.Item(&ast.Term{Value: key}, &ast.Term{Value: value}))
+			return nil
+		})
+
+		if err != nil {
+			return err
+		}
 	}
+
+	ctx = ctx.BindRef(ref, result)
+	return iter(ctx)
+}
+
+func evalRefRulePartialSetDoc(ctx *Context, ref ast.Ref, path ast.Ref, rule *ast.Rule, iter Iterator) error {
+
+	suffix := ref[len(path):]
 
 	if len(suffix) > 1 {
 		// TODO(tsandall): attempting to dereference set lookup
@@ -672,8 +731,8 @@ func evalRefRuleResult(ctx *Context, ref ast.Ref, suffix ast.Ref, result ast.Val
 			// the expression is undefined.
 			return nil
 		}
-		// This can't be hit because we have checks in the evalRefRule* functions that catch this.
-		panic(fmt.Sprintf("illegal value: %v %v %v", ref, suffix, result))
+		ctx = ctx.BindRef(ref, result)
+		return iter(ctx)
 
 	case ast.Object:
 		if len(suffix) > 0 {
@@ -692,8 +751,8 @@ func evalRefRuleResult(ctx *Context, ref ast.Ref, suffix ast.Ref, result ast.Val
 			// the expression is undefined.
 			return nil
 		}
-		// This can't be hit because we have checks in the evalRefRule* functions that catch this.
-		panic(fmt.Sprintf("illegal value: %v %v %v", ref, suffix, result))
+		ctx = ctx.BindRef(ref, result)
+		return iter(ctx)
 
 	default:
 		if len(suffix) > 0 {
