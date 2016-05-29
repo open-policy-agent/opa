@@ -118,7 +118,7 @@ func (rt *Runtime) startServer(params *Params) {
 }
 
 func (rt *Runtime) startRepl(params *Params) {
-	repl := repl.New(rt.DataStore, params.HistoryPath, os.Stdout, params.OutputFormat)
+	repl := repl.New(rt.DataStore, rt.PolicyStore, params.HistoryPath, os.Stdout, params.OutputFormat)
 	repl.Loop()
 }
 
