@@ -471,12 +471,12 @@ func (arr Array) queryRec(ref Ref, keys map[Var]Value, iter QueryIterator) error
 	case Number:
 		idx := int(head)
 		if len(arr) <= idx {
-			return fmt.Errorf("unexpected index in %v: out of bounds: %v", ref, idx)
+			return nil
 		}
 		tail := ref[1:]
 		return queryRec(arr[idx].Value, ref, tail, keys, iter, false)
 	default:
-		return fmt.Errorf("unexpected non-numeric index in %v: %v (%T)", ref, head, head)
+		return nil
 	}
 }
 
@@ -569,19 +569,14 @@ func (obj Object) queryRec(ref Ref, keys map[Var]Value, iter QueryIterator) erro
 		return nil
 
 	default:
-		found := false
 		tail := ref[1:]
 		for _, i := range obj {
 			if i[0].Value.Equal(head) {
 				if err := queryRec(i[1].Value, ref, tail, keys, iter, false); err != nil {
 					return err
 				}
-				found = true
 				break
 			}
-		}
-		if !found {
-			return fmt.Errorf("missing key %v: %v", head, ref)
 		}
 		return nil
 	}
@@ -601,10 +596,6 @@ func queryRec(v Value, ref Ref, tail Ref, keys map[Var]Value, iter QueryIterator
 		case Object:
 			if err := v.queryRec(tail, keys, iter); err != nil {
 				return err
-			}
-		default:
-			if !skipScalar {
-				return fmt.Errorf("unexpected non-composite at %v: %v", ref, v)
 			}
 		}
 	}

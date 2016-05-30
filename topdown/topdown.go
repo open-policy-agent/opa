@@ -720,16 +720,13 @@ func evalRefRuleResult(ctx *Context, ref ast.Ref, suffix ast.Ref, result ast.Val
 			for _, t := range suffix {
 				pluggedSuffix = append(pluggedSuffix, plugTerm(t, ctx))
 			}
-			result.Query(pluggedSuffix, func(keys map[ast.Var]ast.Value, value ast.Value) error {
+			return result.Query(pluggedSuffix, func(keys map[ast.Var]ast.Value, value ast.Value) error {
 				ctx = ctx.BindRef(ref, value)
 				for k, v := range keys {
 					ctx = ctx.BindVar(k, v)
 				}
 				return iter(ctx)
 			})
-			// Ignore the error code. If the suffix references a non-existent document,
-			// the expression is undefined.
-			return nil
 		}
 		ctx = ctx.BindRef(ref, result)
 		return iter(ctx)
@@ -740,16 +737,13 @@ func evalRefRuleResult(ctx *Context, ref ast.Ref, suffix ast.Ref, result ast.Val
 			for _, t := range suffix {
 				pluggedSuffix = append(pluggedSuffix, plugTerm(t, ctx))
 			}
-			result.Query(pluggedSuffix, func(keys map[ast.Var]ast.Value, value ast.Value) error {
+			return result.Query(pluggedSuffix, func(keys map[ast.Var]ast.Value, value ast.Value) error {
 				ctx = ctx.BindRef(ref, value)
 				for k, v := range keys {
 					ctx = ctx.BindVar(k, v)
 				}
 				return iter(ctx)
 			})
-			// Ignore the error code. If the suffix references a non-existent document,
-			// the expression is undefined.
-			return nil
 		}
 		ctx = ctx.BindRef(ref, result)
 		return iter(ctx)
