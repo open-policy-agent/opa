@@ -289,6 +289,48 @@ func ValueToInterface(v ast.Value, ctx *Context) (interface{}, error) {
 	}
 }
 
+// ValueToSlice returns the underlying Go value associated with an AST value.
+// If the value is a reference, the reference is fetched from storage.
+func ValueToSlice(v ast.Value, ctx *Context) ([]interface{}, error) {
+	x, err := ValueToInterface(v, ctx)
+	if err != nil {
+		return nil, err
+	}
+	s, ok := x.([]interface{})
+	if !ok {
+		return nil, fmt.Errorf("illegal argument: %v", x)
+	}
+	return s, nil
+}
+
+// ValueToFloat64 returns the underlying Go value associated with an AST value.
+// If the value is a reference, the reference is fetched from storage.
+func ValueToFloat64(v ast.Value, ctx *Context) (float64, error) {
+	x, err := ValueToInterface(v, ctx)
+	if err != nil {
+		return 0, err
+	}
+	f, ok := x.(float64)
+	if !ok {
+		return 0, fmt.Errorf("illegal argument: %v", v)
+	}
+	return f, nil
+}
+
+// ValueToString returns the underlying Go value associated with an AST value.
+// If the value is a reference, the reference is fetched from storage.
+func ValueToString(v ast.Value, ctx *Context) (string, error) {
+	x, err := ValueToInterface(v, ctx)
+	if err != nil {
+		return "", err
+	}
+	s, ok := x.(string)
+	if !ok {
+		return "", fmt.Errorf("illegal argument: %v", v)
+	}
+	return s, nil
+}
+
 // dereferenceVar is used to lookup the variable binding and convert the value to
 // a native Go type.
 func dereferenceVar(v ast.Var, ctx *Context) (interface{}, error) {
