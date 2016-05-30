@@ -229,18 +229,21 @@ func (c *Compiler) err(f string, a ...interface{}) {
 //
 // The reference "bar[_]" would be resolved to "data.foo.bar[_]".
 func (c *Compiler) resolveAllRefs() {
-	for _, m := range c.Modules {
-		for _, rule := range m.Rules {
+	for _, mod := range c.Modules {
+		for _, rule := range mod.Rules {
 			for _, expr := range rule.Body {
 				switch ts := expr.Terms.(type) {
 				case *Term:
-					expr.Terms = c.resolveRefs(c.Globals[m], ts)
+					expr.Terms = c.resolveRefs(c.Globals[mod], ts)
 				case []*Term:
 					for i, t := range ts {
-						ts[i] = c.resolveRefs(c.Globals[m], t)
+						ts[i] = c.resolveRefs(c.Globals[mod], t)
 					}
 				}
 			}
+		}
+		for i := range mod.Imports {
+			mod.Imports[i].Alias = Var("")
 		}
 	}
 }
