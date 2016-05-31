@@ -20,7 +20,10 @@ func TestVisitor(t *testing.T) {
 	rule := MustParseModule(`
 	package a.b
 	import x.y as z
-	t[x] = y :- p[x] = {"foo": [y,2,{"bar": 3}]}, not q[x]
+	t[x] = y :-
+		p[x] = {"foo": [y,2,{"bar": 3}]},
+		not q[x],
+		y = [ [x,z] | x = "x", z = "z" ]
 	`)
 	vis := &testVis{}
 	Walk(vis, rule)
@@ -59,9 +62,25 @@ func TestVisitor(t *testing.T) {
 						ref2
 							q
 							x
+					expr3
+						=
+						y
+						compr
+							array
+								x
+								z
+							body
+								expr4
+									=
+									x
+									"x"
+								expr5
+									=
+									z
+									"z"
 	*/
-	if len(vis.elems) != 33 {
-		t.Errorf("Expected exactly 33 elements in AST but got %d: %v", len(vis.elems), vis.elems)
+	if len(vis.elems) != 49 {
+		t.Errorf("Expected exactly 49 elements in AST but got %d: %v", len(vis.elems), vis.elems)
 	}
 
 }

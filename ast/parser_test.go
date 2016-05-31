@@ -140,6 +140,47 @@ func TestCompositesWithRefs(t *testing.T) {
 	assertParseOneTerm(t, "ref values", "[{8: a[i].b, f: c[0][\"d\"].e[j]}]", ArrayTerm(ObjectTerm(Item(NumberTerm(8), ref1), Item(VarTerm("f"), ref2))))
 }
 
+func TestArrayComprehensions(t *testing.T) {
+
+	input := `[
+		{"x": [a[i] | xs = [{"a": ["baz", j]} | q[p], p.a != "bar", j = "foo"],
+					  xs[j].a[k] = "foo"]}
+	]`
+
+	expected := ArrayTerm(
+		ObjectTerm(Item(
+			StringTerm("x"),
+			ArrayComprehensionTerm(
+				RefTerm(VarTerm("a"), VarTerm("i")),
+				Body{
+					NewBuiltinExpr(
+						VarTerm("="),
+						VarTerm("xs"),
+						ArrayComprehensionTerm(
+							ObjectTerm(Item(StringTerm("a"), ArrayTerm(StringTerm("baz"), VarTerm("j")))),
+							Body{
+								&Expr{
+									Terms: RefTerm(VarTerm("q"), VarTerm("p")),
+								},
+								NewBuiltinExpr(VarTerm("!="), RefTerm(VarTerm("p"), StringTerm("a")), StringTerm("bar")),
+								NewBuiltinExpr(VarTerm("="), VarTerm("j"), StringTerm("foo")),
+							},
+						),
+					),
+					NewBuiltinExpr(
+						VarTerm("="),
+						RefTerm(VarTerm("xs"), VarTerm("j"), StringTerm("a"), VarTerm("k")),
+						StringTerm("foo"),
+					),
+				},
+			),
+		)),
+	)
+
+	assertParseOneTerm(t, "nested", input, expected)
+
+}
+
 func TestInfixExpr(t *testing.T) {
 	assertParseOneExpr(t, "scalars 1", "true = false", NewBuiltinExpr(VarTerm("="), BooleanTerm(true), BooleanTerm(false)))
 	assertParseOneExpr(t, "scalars 2", "3.14 = null", NewBuiltinExpr(VarTerm("="), NumberTerm(3.14), NullTerm()))
@@ -295,6 +336,10 @@ func TestComments(t *testing.T) {
     :- m = [1,2,
     3],
     a = m[i]
+
+	r[x] :- x = [ a | # inside comprehension
+					  a = z[i],
+	                  b[i].a = a ]
     `
 
 	assertParseModule(t, "module comments", testModule, &Module{
@@ -307,6 +352,7 @@ func TestComments(t *testing.T) {
 		Rules: []*Rule{
 			MustParseStatement("p[x] = y :- y = \"foo\", x = \"bar\", x != y, q[x]").(*Rule),
 			MustParseStatement("q[a] :- m = [1,2,3], a = m[i]").(*Rule),
+			MustParseStatement("r[x] :- x = [a | a = z[i], b[i].a = a]").(*Rule),
 		},
 	})
 }
@@ -416,6 +462,25 @@ func TestWildcards(t *testing.T) {
 			),
 		},
 	})
+
+	assertParseOneExpr(t, "comprehension", "_ = [x | a = a[_]]", &Expr{
+		Terms: []*Term{
+			VarTerm("="),
+			VarTerm("$0"),
+			ArrayComprehensionTerm(
+				VarTerm("x"),
+				Body{
+					&Expr{
+						Terms: []*Term{
+							VarTerm("="),
+							VarTerm("a"),
+							RefTerm(VarTerm("a"), VarTerm("$1")),
+						},
+					},
+				},
+			),
+		},
+	})
 }
 
 func assertParse(t *testing.T, msg string, input string, correct func([]interface{})) {
@@ -485,7 +550,7 @@ func assertParseOneExpr(t *testing.T, msg string, input string, correct *Expr) {
 		}
 		expr := body[0]
 		if !expr.Equal(correct) {
-			t.Errorf("Error on test %s: expressions not equal: %v (parsed), %v (correct)", msg, expr, correct)
+			t.Errorf("Error on test %s: expressions not equal:\n%v (parsed)\n%v (correct)", msg, expr, correct)
 		}
 	})
 }

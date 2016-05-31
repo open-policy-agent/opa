@@ -19,6 +19,7 @@ func TestModuleJSONRoundTrip(t *testing.T) {
 	p = [1,2,{"foo":3}] :- r[x] = 1, not q[x]
 	r[y] = v :- i[1] = y, v = i[2]
 	q[x] :- a=[true,false,null,{"x":[1,2,3]}], a[i] = x
+	t = true :- xs = [{"x": a[i].a} | a[i].n = "bob", b[x]]
 	`)
 
 	bs, err := json.Marshal(mod)

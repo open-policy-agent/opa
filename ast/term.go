@@ -34,6 +34,7 @@ func NewLocation(text []byte, file string, row int, col int) *Location {
 // - Object, Array
 // - Variables
 // - References
+// - Array Comprehensions
 //
 type Value interface {
 	// Equal returns true if this value equals the other value.
@@ -70,6 +71,11 @@ func (term *Term) Equal(other *Term) bool {
 	return term.Value.Equal(other.Value)
 }
 
+// Hash returns the hash code of the Term's value.
+func (term *Term) Hash() int {
+	return term.Value.Hash()
+}
+
 // IsGround returns true if this terms' Value is ground.
 func (term *Term) IsGround() bool {
 	return term.Value.IsGround()
@@ -97,6 +103,8 @@ func (term *Term) MarshalJSON() ([]byte, error) {
 		typ = "array"
 	case Object:
 		typ = "object"
+	case *ArrayComprehension:
+		typ = "array-comprehension"
 	}
 	d := map[string]interface{}{
 		"Type":  typ,
@@ -582,6 +590,48 @@ func (obj Object) queryRec(ref Ref, keys map[Var]Value, iter QueryIterator) erro
 	}
 }
 
+// ArrayComprehension represents an array comprehension as defined in the language.
+type ArrayComprehension struct {
+	Term *Term
+	Body Body
+}
+
+// ArrayComprehensionTerm creates a new Term with an ArrayComprehension value.
+func ArrayComprehensionTerm(term *Term, body Body) *Term {
+	return &Term{
+		Value: &ArrayComprehension{
+			Term: term,
+			Body: body,
+		},
+	}
+}
+
+// Equal returns true if this array comprehension is syntactically equal to another.
+func (ac *ArrayComprehension) Equal(other Value) bool {
+	if ac == other {
+		return true
+	}
+	o, ok := other.(*ArrayComprehension)
+	if !ok {
+		return false
+	}
+	return o.Term.Equal(ac.Term) && o.Body.Equal(ac.Body)
+}
+
+// Hash returns the hash code of the Value.
+func (ac *ArrayComprehension) Hash() int {
+	return ac.Term.Hash() + ac.Body.Hash()
+}
+
+// IsGround returns true if the Term and Body are ground.
+func (ac *ArrayComprehension) IsGround() bool {
+	return ac.Term.IsGround() && ac.Body.IsGround()
+}
+
+func (ac *ArrayComprehension) String() string {
+	return "[" + ac.Term.String() + " | " + ac.Body.String() + "]"
+}
+
 func queryRec(v Value, ref Ref, tail Ref, keys map[Var]Value, iter QueryIterator, skipScalar bool) error {
 	if len(tail) == 0 {
 		if err := iter(keys, v); err != nil {
@@ -631,7 +681,7 @@ func termSliceIsGround(a []*Term) bool {
 	return true
 }
 
-// TODO(tsandall): The unmarshalling errors in these functions are not
+// NOTE(tsandall): The unmarshalling errors in these functions are not
 // helpful for callers because they do not identify the source of the
 // unmarshalling error. Because OPA doesn't accept JSON describing ASTs
 // from callers, this is acceptable (for now). If that changes in the future,
@@ -639,12 +689,64 @@ func termSliceIsGround(a []*Term) bool {
 // on the happy path and treats all errors the same. If better error
 // reporting is needed, the error paths will need to be fleshed out.
 
+func unmarshalBody(b []interface{}) (Body, error) {
+	buf := Body{}
+	for _, e := range b {
+		if m, ok := e.(map[string]interface{}); ok {
+			expr := &Expr{}
+			if err := unmarshalExpr(expr, m); err == nil {
+				buf = append(buf, expr)
+				continue
+			}
+		}
+		goto unmarshal_error
+	}
+	return buf, nil
+unmarshal_error:
+	return nil, fmt.Errorf("ast: unable to unmarshal body")
+}
+
+func unmarshalExpr(expr *Expr, v map[string]interface{}) error {
+	if x, ok := v["Negated"]; ok {
+		if b, ok := x.(bool); ok {
+			expr.Negated = b
+		} else {
+			return fmt.Errorf("ast: unable to unmarshal Negated field with type: %T (expected true or false)", v["Negated"])
+		}
+	}
+	switch ts := v["Terms"].(type) {
+	case map[string]interface{}:
+		t, err := unmarshalTerm(ts)
+		if err != nil {
+			return err
+		}
+		expr.Terms = t
+	case []interface{}:
+		terms, err := unmarshalTermSlice(ts)
+		if err != nil {
+			return err
+		}
+		expr.Terms = terms
+	default:
+		return fmt.Errorf(`ast: unable to unmarshal Terms field with type: %T (expected {"Value": ..., "Type": ...} or [{"Value": ..., "Type": ...}, ...])`, v["Terms"])
+	}
+	return nil
+}
+
+func unmarshalTerm(m map[string]interface{}) (*Term, error) {
+	v, err := unmarshalValue(m)
+	if err != nil {
+		return nil, err
+	}
+	return &Term{Value: v}, nil
+}
+
 func unmarshalTermSlice(s []interface{}) ([]*Term, error) {
 	buf := []*Term{}
 	for _, x := range s {
 		if m, ok := x.(map[string]interface{}); ok {
-			if v, err := unmarshalValue(m); err == nil {
-				buf = append(buf, &Term{Value: v})
+			if t, err := unmarshalTerm(m); err == nil {
+				buf = append(buf, t)
 				continue
 			}
 		}
@@ -703,6 +805,22 @@ func unmarshalValue(d map[string]interface{}) (Value, error) {
 				goto unmarshal_error
 			}
 			return buf, nil
+		}
+	case "array-comprehension":
+		if m, ok := v.(map[string]interface{}); ok {
+			if t, ok := m["Term"].(map[string]interface{}); ok {
+				if term, err := unmarshalTerm(t); err == nil {
+					if b, ok := m["Body"].([]interface{}); ok {
+						if body, err := unmarshalBody(b); err == nil {
+							buf := &ArrayComprehension{
+								Term: term,
+								Body: body,
+							}
+							return buf, nil
+						}
+					}
+				}
+			}
 		}
 	}
 unmarshal_error:

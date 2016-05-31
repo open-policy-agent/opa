@@ -166,6 +166,7 @@ func ParseStatements(input string) ([]interface{}, error) {
 		return nil, err
 	}
 	stmts := parsed.([]interface{})
+	postProcess(stmts)
 	return stmts, err
 }
 
@@ -264,6 +265,18 @@ func parseModule(stmts []interface{}) (*Module, error) {
 	}
 
 	return mod, nil
+}
+
+func postProcess(stmts []interface{}) {
+	mangleWildcards(stmts)
+}
+
+func mangleWildcards(stmts []interface{}) {
+
+	mangler := &wildcardMangler{}
+	for _, stmt := range stmts {
+		Walk(mangler, stmt)
+	}
 }
 
 type wildcardMangler struct {

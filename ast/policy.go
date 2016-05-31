@@ -400,32 +400,7 @@ func (expr *Expr) UnmarshalJSON(bs []byte) error {
 	if err := json.Unmarshal(bs, &v); err != nil {
 		return err
 	}
-
-	if x, ok := v["Negated"]; ok {
-		if b, ok := x.(bool); ok {
-			expr.Negated = b
-		} else {
-			return fmt.Errorf("ast: unable to unmarshal Negated field with type: %T (expected true or false)", v["Negated"])
-		}
-	}
-
-	switch ts := v["Terms"].(type) {
-	case map[string]interface{}:
-		v, err := unmarshalValue(ts)
-		if err != nil {
-			return err
-		}
-		expr.Terms = &Term{Value: v}
-	case []interface{}:
-		terms, err := unmarshalTermSlice(ts)
-		if err != nil {
-			return err
-		}
-		expr.Terms = terms
-	default:
-		return fmt.Errorf(`ast: unable to unmarshal Terms field with type: %T (expected {"Value": ..., "Type": ...} or [{"Value": ..., "Type": ...}, ...])`, v["Terms"])
-	}
-	return nil
+	return unmarshalExpr(expr, v)
 }
 
 // Vars returns a VarSet containing all of the variables in the expression.

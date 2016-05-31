@@ -141,6 +141,7 @@ func TestTermEqual(t *testing.T) {
 	assertTermEqual(t, ArrayTerm(NumberTerm(1), NumberTerm(2), NumberTerm(3)), ArrayTerm(NumberTerm(1), NumberTerm(2), NumberTerm(3)))
 	assertTermEqual(t, VarTerm("foo"), VarTerm("foo"))
 	assertTermEqual(t, RefTerm(VarTerm("foo"), VarTerm("i"), NumberTerm(2)), RefTerm(VarTerm("foo"), VarTerm("i"), NumberTerm(2)))
+	assertTermEqual(t, ArrayComprehensionTerm(VarTerm("x"), Body{&Expr{Terms: RefTerm(VarTerm("a"), VarTerm("i"))}}), ArrayComprehensionTerm(VarTerm("x"), Body{&Expr{Terms: RefTerm(VarTerm("a"), VarTerm("i"))}}))
 	assertTermNotEqual(t, NullTerm(), BooleanTerm(true))
 	assertTermNotEqual(t, BooleanTerm(true), BooleanTerm(false))
 	assertTermNotEqual(t, NumberTerm(5), NumberTerm(7))
@@ -153,6 +154,7 @@ func TestTermEqual(t *testing.T) {
 	assertTermNotEqual(t, ArrayTerm(NumberTerm(1), NumberTerm(2), NumberTerm(3)), ArrayTerm(NumberTerm(1), NumberTerm(2), NumberTerm(4)))
 	assertTermNotEqual(t, VarTerm("foo"), VarTerm("bar"))
 	assertTermNotEqual(t, RefTerm(VarTerm("foo"), VarTerm("i"), NumberTerm(2)), RefTerm(VarTerm("foo"), StringTerm("i"), NumberTerm(2)))
+	assertTermNotEqual(t, ArrayComprehensionTerm(VarTerm("x"), Body{&Expr{Terms: RefTerm(VarTerm("a"), VarTerm("j"))}}), ArrayComprehensionTerm(VarTerm("x"), Body{&Expr{Terms: RefTerm(VarTerm("a"), VarTerm("i"))}}))
 }
 
 func TestHash(t *testing.T) {
@@ -164,7 +166,8 @@ func TestHash(t *testing.T) {
 			],
 			"e": {
 				100: a[i].b
-			}
+			},
+			"k": [ "foo" | true ]
 		}
 	`
 
@@ -195,6 +198,7 @@ func TestTermString(t *testing.T) {
 	assertToString(t, ArrayTerm().Value, "[]")
 	assertToString(t, ObjectTerm().Value, "{}")
 	assertToString(t, ArrayTerm(ObjectTerm(Item(VarTerm("foo"), ArrayTerm(RefTerm(VarTerm("bar"), VarTerm("i"))))), StringTerm("foo"), BooleanTerm(true), NullTerm(), NumberTerm(42.1)).Value, "[{foo: [bar[i]]}, \"foo\", true, null, 42.1]")
+	assertToString(t, ArrayComprehensionTerm(ArrayTerm(VarTerm("x")), Body{&Expr{Terms: RefTerm(VarTerm("a"), VarTerm("i"))}}).Value, "[[x] | a[i]]")
 }
 
 func TestRefUnderlying(t *testing.T) {
