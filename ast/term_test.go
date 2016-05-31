@@ -109,38 +109,24 @@ func TestQuery(t *testing.T) {
 
 func TestTermBadJSON(t *testing.T) {
 
-	assert := func(js string, exp error) {
-		term := Term{}
-		err := json.Unmarshal([]byte(js), &term)
-		if !reflect.DeepEqual(exp, err) {
-			t.Errorf("Expected %v but got: %v", exp, err)
-		}
+	input := `{
+		"Value": [[
+			{"Value": [{"Value": "a", "Type": "var"}, {"Value": "x", "Type": "string"}], "Type": "ref"},
+			{"Value": [{"Value": "x", "Type": "var"}], "Type": "array"}
+		], [
+			{"Value": 100, "Type": "array"},
+			{"Value": "foo", "Type": "string"}
+		]],
+		"Type": "object"
+	}`
+
+	term := Term{}
+	err := json.Unmarshal([]byte(input), &term)
+	expected := fmt.Errorf("ast: unable to unmarshal term")
+	if !reflect.DeepEqual(expected, err) {
+		t.Errorf("Expected %v but got: %v", expected, err)
 	}
 
-	castTests := []struct {
-		input    string
-		val      interface{}
-		expected string
-	}{
-		{`{"Value": null, "Type": "boolean"}`, nil, "bool"},
-		{`{"Value": false, "Type": "number"}`, false, "float64"},
-		{`{"Value": 100, "Type": "string"}`, 100.0, "string"},
-		{`{"Value": "hello", "Type": "number"}`, "hello", "float64"},
-		{`{"Value": 100, "Type": "var"}`, 100.0, "ast.Var"},
-		{`{"Value": "abc", "Type": "ref"}`, "abc", "[]interface{}"},
-		{`{"Value": ["abc"], "Type": "ref"}`, "abc", "map[string]interface{}"},
-		{`{"Value": "abc", "Type": "array"}`, "abc", "[]interface{}"},
-		{`{"Value": ["abc"], "Type": "array"}`, "abc", "map[string]interface{}"},
-		{`{"Value": "abc", "Type": "object"}`, "abc", "[]interface{}"},
-		{`{"Value": ["abc"], "Type": "object"}`, "abc", "[]interface{}"},
-		{`{"Value": [["abc"]], "Type": "object"}`, []interface{}{}, "[2]interface{}"},
-		{`{"Value": [["abc", "abc"]], "Type": "object"}`, "abc", "map[string]interface{}"},
-		{`{"Value": [[{"Value": "abc", "Type": "string"}, "abc"]], "Type": "object"}`, "abc", "map[string]interface{}"},
-	}
-
-	for _, tc := range castTests {
-		assert(tc.input, unmarshalError(tc.val, tc.expected))
-	}
 }
 
 func TestTermEqual(t *testing.T) {

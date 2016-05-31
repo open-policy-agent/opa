@@ -6,6 +6,7 @@ package ast
 
 import (
 	"encoding/json"
+	"fmt"
 	"reflect"
 	"testing"
 )
@@ -187,7 +188,7 @@ func TestExprBadJSON(t *testing.T) {
 	}
 	`
 
-	exp := unmarshalError(100.0, "bool")
+	exp := fmt.Errorf("ast: unable to unmarshal Negated field with type: float64 (expected true or false)")
 	assert(js, exp)
 
 	js = `
@@ -197,7 +198,7 @@ func TestExprBadJSON(t *testing.T) {
 		]
 	}
 	`
-	exp = unmarshalError("foo", "map[string]interface{}")
+	exp = fmt.Errorf("ast: unable to unmarshal term")
 	assert(js, exp)
 
 	js = `
@@ -205,7 +206,7 @@ func TestExprBadJSON(t *testing.T) {
 		"Terms": "bad value" 
 	}
 	`
-	exp = unmarshalError("bad value", "Term or []Term")
+	exp = fmt.Errorf(`ast: unable to unmarshal Terms field with type: string (expected {"Value": ..., "Type": ...} or [{"Value": ..., "Type": ...}, ...])`)
 	assert(js, exp)
 }
 

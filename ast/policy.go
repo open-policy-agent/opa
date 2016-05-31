@@ -401,15 +401,12 @@ func (expr *Expr) UnmarshalJSON(bs []byte) error {
 		return err
 	}
 
-	n, ok := v["Negated"]
-	if !ok {
-		expr.Negated = false
-	} else {
-		b, ok := n.(bool)
-		if !ok {
-			return unmarshalError(n, "bool")
+	if x, ok := v["Negated"]; ok {
+		if b, ok := x.(bool); ok {
+			expr.Negated = b
+		} else {
+			return fmt.Errorf("ast: unable to unmarshal Negated field with type: %T (expected true or false)", v["Negated"])
 		}
-		expr.Negated = b
 	}
 
 	switch ts := v["Terms"].(type) {
@@ -420,21 +417,13 @@ func (expr *Expr) UnmarshalJSON(bs []byte) error {
 		}
 		expr.Terms = &Term{Value: v}
 	case []interface{}:
-		buf := []*Term{}
-		for _, v := range ts {
-			e, ok := v.(map[string]interface{})
-			if !ok {
-				return unmarshalError(v, "map[string]interface{}")
-			}
-			v, err := unmarshalValue(e)
-			if err != nil {
-				return err
-			}
-			buf = append(buf, &Term{Value: v})
+		terms, err := unmarshalTermSlice(ts)
+		if err != nil {
+			return err
 		}
-		expr.Terms = buf
+		expr.Terms = terms
 	default:
-		return unmarshalError(v["Terms"], "Term or []Term")
+		return fmt.Errorf(`ast: unable to unmarshal Terms field with type: %T (expected {"Value": ..., "Type": ...} or [{"Value": ..., "Type": ...}, ...])`, v["Terms"])
 	}
 	return nil
 }
