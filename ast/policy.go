@@ -219,6 +219,25 @@ func (body Body) Equal(other Body) bool {
 	return true
 }
 
+// Hash returns the hash code for the Body.
+func (body Body) Hash() int {
+	s := 0
+	for _, e := range body {
+		s += e.Hash()
+	}
+	return s
+}
+
+// IsGround returns true if all of the expressions in the Body are ground.
+func (body Body) IsGround() bool {
+	for _, e := range body {
+		if !e.IsGround() {
+			return false
+		}
+	}
+	return true
+}
+
 func (body Body) String() string {
 	var buf []string
 	for _, v := range body {
@@ -264,6 +283,23 @@ func (expr *Expr) Equal(other *Expr) bool {
 	return false
 }
 
+// Hash returns the hash code of the Expr.
+func (expr *Expr) Hash() int {
+	s := 0
+	switch ts := expr.Terms.(type) {
+	case []*Term:
+		for _, t := range ts {
+			s += t.Value.Hash()
+		}
+	case *Term:
+		s += ts.Value.Hash()
+	}
+	if expr.Negated {
+		s++
+	}
+	return s
+}
+
 // IsEquality returns true if this is an equality expression.
 func (expr *Expr) IsEquality() bool {
 	terms, ok := expr.Terms.([]*Term)
@@ -274,6 +310,21 @@ func (expr *Expr) IsEquality() bool {
 		return false
 	}
 	return terms[0].Equal(VarTerm("="))
+}
+
+// IsGround returns true if all of the expression terms are ground.
+func (expr *Expr) IsGround() bool {
+	switch ts := expr.Terms.(type) {
+	case []*Term:
+		for _, t := range ts[1:] {
+			if !t.IsGround() {
+				return false
+			}
+		}
+	case *Term:
+		return ts.IsGround()
+	}
+	return true
 }
 
 // OutputVars returns the set of variables that would be bound by
