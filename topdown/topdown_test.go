@@ -456,11 +456,27 @@ func TestTopDownVirtualDocs(t *testing.T) {
 		{"output: complete array dereference non-ground", []string{"p[r] :- q[i][j] = 2, r = [i, j]", "q = [[1,2], [3,2]] :- true"}, "[[0, 1], [1, 1]]"},
 		{"output: complete object defererence non-ground", []string{`p[r] :- q[x][y] = 2, r = [x, y]`, `q = {"a": {"x": 1}, "b": {"y": 2}, "c": {"z": 2}} :- true`}, `[["b", "y"], ["c", "z"]]`},
 
-		// undefined
-		{"undefined: dereference set", []string{"p = true :- q[x].foo = 100", "q[x] :- x = a[i]"}, ""},
+		// no dereferencing
+		{"no suffix: complete", []string{"p = true :- q", "q = true :- true"}, "true"},
+		{"no suffix: complete incr (error)", []string{"p = true :- q", "q = false :- true", "q = true :- true"}, fmt.Errorf("multiple values for data.q: incremental definitions must produce exactly one value for complete documents: check rule definitions: q")},
+		{"no suffix: complete incr", []string{"p = true :- not q", "q = true :- false", "q = false :- true"}, "true"},
+		{"no suffix: object", []string{"p[x] = y :- q = o, o[x] = y", "q[x] = y :- b[x] = y"}, `{"v1": "hello", "v2": "goodbye"}`},
+		{"no suffix: object incr", []string{"p[x] = y :- q = o, o[x] = y", "q[x] = y :- b[x] = y", "q[x1] = y1 :- b[x1] = y1"}, fmt.Errorf("multiple values for data.q: incremental definitions must produce exactly one value for each key of an object document: check rule definitions: q")},
+		{"no suffix: object incr", []string{"p[x] = y :- q = o, o[x] = y", "q[x] = y :- b[x] = y", `q[x1] = y1 :- d["e"][y1] = x1`}, `{"v1": "hello", "v2": "goodbye", "bar": 0, "baz": 1}`},
+		{"no suffix: chained", []string{
+			"p = true :- q = x, x[i] = 4",
+			"q[k] = v :- r = x, x[k] = v",
+			"r[k] = v :- s = x, x[k] = v",
+			"r[k] = v :- t = x, x[v] = k",
+			`s = {"a": 1, "b": 2, "c": 4} :- true`,
+			`t = ["d", "e", "g"] :- true`},
+			"true"},
 
-		// TODO(tsandall): cover non-dereferenced cases, e.g., "p[x] :- q = [1,2,3]" and "q = [1,2,3] :- true"
-		// once the parser supports modules this will be easier to generate test cases for...
+		// TODO(tsandall): this requires set literals; "s" must be bound to a "set" type.
+		// {"no deref: set", []string{"p[x] :- q = s, s[x]", "q[x] :- a[i] = x"}, "[1,2,3,4]"},
+
+		// undefined
+		// {"undefined: dereference set", []string{"p = true :- q[x].foo = 100", "q[x] :- x = a[i]"}, ""},
 	}
 
 	data := loadSmallTestData()
@@ -477,7 +493,6 @@ func TestTopDownVarReferences(t *testing.T) {
 		rules    []string
 		expected interface{}
 	}{
-		// TODO(tsandall) dereferenced variables must be bound beforehand (safety check)
 		{"ground", []string{"p[x] :- v = [[1,2],[2,3],[3,4]], x = v[2][1]"}, "[4]"},
 		{"non-ground", []string{"p[x] :- v = [[1,2],[2,3],[3,4]], x = v[i][j]"}, "[1,2,2,3,3,4]"},
 		{"mixed", []string{`p[x] = y :- v = [{"a": 1, "b": 2}, {"c": 3, "z": [4]}], y = v[i][x][j]`}, `{"z": 4}`},
