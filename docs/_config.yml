@@ -10,7 +10,7 @@ title: Open Policy Agent
 email:
 description: >
   OPA: An open source project to policy enable any application.
-baseurl: "/opa" # the subpath of your site, e.g. /blog
+baseurl: "" # the subpath of your site, e.g. /blog
 url: "http://openpolicyagent.org" # the base hostname & protocol for your site
 github_username:  open-policy-agent
 github_repo: opa
