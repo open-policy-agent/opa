@@ -31,7 +31,7 @@ func compareNotEq(a, b interface{}) bool {
 	return util.Compare(a, b) != 0
 }
 
-func evalIneq(cmp compareFunc) builtinFunction {
+func evalIneq(cmp compareFunc) BuiltinFunc {
 	return func(ctx *Context, expr *ast.Expr, iter Iterator) error {
 		ops := expr.Terms.([]*ast.Term)
 		a, b := ops[1].Value, ops[2].Value

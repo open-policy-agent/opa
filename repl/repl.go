@@ -21,27 +21,36 @@ import (
 
 // REPL represents an instance of the interactive shell.
 type REPL struct {
-	Output       io.Writer
-	OutputFormat string
-	Trace        bool
-	DataStore    *storage.DataStore
-	HistoryPath  string
-	InitPrompt   string
-	BufferPrompt string
-	Buffer       []string
-	nextID       int
+	output      io.Writer
+	dataStore   *storage.DataStore
+	policyStore *storage.PolicyStore
+
+	currentModuleID string
+	buffer          []string
+	initialized     bool
+	nextID          int
+
+	// TODO(tsandall): replace this state with rule definitions
+	// inside the default module.
+	outputFormat string
+	trace        bool
+	historyPath  string
+	initPrompt   string
+	bufferPrompt string
 }
 
 // New returns a new instance of the REPL.
-func New(dataStore *storage.DataStore, historyPath string, output io.Writer, outputFormat string) *REPL {
+func New(dataStore *storage.DataStore, policyStore *storage.PolicyStore, historyPath string, output io.Writer, outputFormat string) *REPL {
 	return &REPL{
-		Output:       output,
-		OutputFormat: outputFormat,
-		Trace:        false,
-		DataStore:    dataStore,
-		HistoryPath:  historyPath,
-		InitPrompt:   "> ",
-		BufferPrompt: "| ",
+		output:          output,
+		outputFormat:    outputFormat,
+		trace:           false,
+		dataStore:       dataStore,
+		policyStore:     policyStore,
+		currentModuleID: "repl",
+		historyPath:     historyPath,
+		initPrompt:      "> ",
+		bufferPrompt:    "| ",
 	}
 }
 
@@ -60,17 +69,17 @@ func (r *REPL) Loop() {
 		input, err := line.Prompt(r.getPrompt())
 
 		if err == liner.ErrPromptAborted || err == io.EOF {
-			fmt.Fprintln(r.Output, "Exiting")
+			fmt.Fprintln(r.output, "Exiting")
 			break
 		}
 
 		if err != nil {
-			fmt.Fprintln(r.Output, "error (fatal):", err)
+			fmt.Fprintln(r.output, "error (fatal):", err)
 			os.Exit(1)
 		}
 
 		if r.OneShot(input) {
-			fmt.Fprintln(r.Output, "Exiting")
+			fmt.Fprintln(r.output, "Exiting")
 			break
 		}
 
@@ -83,7 +92,11 @@ func (r *REPL) Loop() {
 // OneShot evaluates a single line and prints the result. Returns true if caller should exit.
 func (r *REPL) OneShot(line string) bool {
 
-	if len(r.Buffer) == 0 {
+	if r.init() {
+		return true
+	}
+
+	if len(r.buffer) == 0 {
 		switch strings.TrimSpace(strings.ToLower(line)) {
 		case "dump":
 			return r.cmdDump()
@@ -102,11 +115,11 @@ func (r *REPL) OneShot(line string) bool {
 		case "exit":
 			return r.cmdExit()
 		}
-		r.Buffer = append(r.Buffer, line)
+		r.buffer = append(r.buffer, line)
 		return r.evalBufferOne()
 	}
 
-	r.Buffer = append(r.Buffer, line)
+	r.buffer = append(r.buffer, line)
 	if len(line) == 0 {
 		return r.evalBufferMulti()
 	}
@@ -115,7 +128,7 @@ func (r *REPL) OneShot(line string) bool {
 }
 
 func (r *REPL) cmdDump() bool {
-	fmt.Fprintln(r.Output, r.DataStore)
+	fmt.Fprintln(r.output, r.dataStore)
 	return false
 }
 
@@ -124,7 +137,7 @@ func (r *REPL) cmdExit() bool {
 }
 
 func (r *REPL) cmdFormat(s string) bool {
-	r.OutputFormat = s
+	r.outputFormat = s
 	return false
 }
 
@@ -161,57 +174,56 @@ func (r *REPL) cmdHelp() bool {
 }
 
 func (r *REPL) cmdTrace() bool {
-	r.Trace = !r.Trace
+	r.trace = !r.trace
 	return false
 }
 
 func (r *REPL) compileBody(body ast.Body) (ast.Body, error) {
+
 	name := fmt.Sprintf("repl%d", r.nextID)
 	r.nextID++
+
 	rule := &ast.Rule{
 		Name: ast.Var(name),
 		Body: body,
 	}
-	// TODO(tsandall): refactor to use current implicit module
-	p := ast.Ref{ast.DefaultRootDocument}
-	m := &ast.Module{
-		Package: &ast.Package{
-			Path: p,
-		},
-		Rules: []*ast.Rule{rule},
-	}
+
+	modules := r.policyStore.List()
+	mod := modules[r.currentModuleID]
+	prev := mod.Rules
+	mod.Rules = append(mod.Rules, rule)
+
 	c := ast.NewCompiler()
-	c.Compile(map[string]*ast.Module{name: m})
-	if len(c.Errors) > 0 {
+	if c.Compile(modules); c.Failed() {
+		mod.Rules = prev
 		return nil, fmt.Errorf(c.FlattenErrors())
 	}
-	return c.Modules[name].Rules[0].Body, nil
+
+	return mod.Rules[len(prev)].Body, nil
 }
 
-func (r *REPL) compileRule(rule *ast.Rule) (*ast.Rule, error) {
-	// TODO(tsandall): refactor to use current implicit module
-	// TODO(tsandall): refactor to update current implicit module
-	p := ast.Ref{ast.DefaultRootDocument}
-	m := &ast.Module{
-		Package: &ast.Package{
-			Path: p,
-		},
-		Rules: []*ast.Rule{rule},
-	}
+func (r *REPL) compileRule(rule *ast.Rule) (*ast.Module, error) {
+
+	modules := r.policyStore.List()
+	mod := modules[r.currentModuleID]
+	prev := mod.Rules
+	mod.Rules = append(mod.Rules, rule)
+
 	c := ast.NewCompiler()
-	c.Compile(map[string]*ast.Module{"tmp": m})
-	if len(c.Errors) > 0 {
+	if c.Compile(modules); c.Failed() {
+		mod.Rules = prev
 		return nil, fmt.Errorf(c.FlattenErrors())
 	}
-	return c.Modules["tmp"].Rules[0], nil
+
+	return mod, nil
 }
 
 func (r *REPL) evalBufferOne() bool {
 
-	line := strings.Join(r.Buffer, "\n")
+	line := strings.Join(r.buffer, "\n")
 
 	if len(strings.TrimSpace(line)) == 0 {
-		r.Buffer = []string{}
+		r.buffer = []string{}
 		return false
 	}
 
@@ -224,7 +236,7 @@ func (r *REPL) evalBufferOne() bool {
 		return false
 	}
 
-	r.Buffer = []string{}
+	r.buffer = []string{}
 
 	for _, stmt := range stmts {
 		r.evalStatement(stmt)
@@ -235,8 +247,8 @@ func (r *REPL) evalBufferOne() bool {
 
 func (r *REPL) evalBufferMulti() bool {
 
-	line := strings.Join(r.Buffer, "\n")
-	r.Buffer = []string{}
+	line := strings.Join(r.buffer, "\n")
+	r.buffer = []string{}
 
 	if len(strings.TrimSpace(line)) == 0 {
 		return false
@@ -245,7 +257,7 @@ func (r *REPL) evalBufferMulti() bool {
 	stmts, err := ast.ParseStatements(line)
 
 	if err != nil {
-		fmt.Fprintln(r.Output, "error:", err)
+		fmt.Fprintln(r.output, "error:", err)
 		return false
 	}
 
@@ -261,25 +273,29 @@ func (r *REPL) evalStatement(stmt interface{}) bool {
 	case ast.Body:
 		s, err := r.compileBody(s)
 		if err != nil {
-			fmt.Fprintln(r.Output, "error:", err)
+			fmt.Fprintln(r.output, "error:", err)
 			return false
 		}
 		return r.evalBody(s)
 	case *ast.Rule:
-		s, err := r.compileRule(s)
+		mod, err := r.compileRule(s)
 		if err != nil {
-			fmt.Fprintln(r.Output, "error:", err)
+			fmt.Fprintln(r.output, "error:", err)
 			return false
 		}
-		return r.evalRule(s)
+		return r.evalModule(mod)
+	case *ast.Import:
+		return r.evalImport(s)
+	case *ast.Package:
+		return r.evalPackage(s)
 	}
 	return false
 }
 
 func (r *REPL) evalBody(body ast.Body) bool {
 
-	ctx := topdown.NewContext(body, r.DataStore)
-	if r.Trace {
+	ctx := topdown.NewContext(body, r.dataStore)
+	if r.trace {
 		ctx.Tracer = &topdown.StdoutTracer{}
 	}
 
@@ -324,46 +340,123 @@ func (r *REPL) evalBody(body ast.Body) bool {
 	})
 
 	if err != nil {
-		fmt.Fprintf(r.Output, "error: %v\n", err)
+		fmt.Fprintf(r.output, "error: %v\n", err)
 		return false
 	}
 
-	// Print results.
 	if isTrue {
 		if len(results) >= 1 {
 			r.printResults(body, results)
 		} else {
-			fmt.Fprintln(r.Output, "true")
+			fmt.Fprintln(r.output, "true")
 		}
 	} else {
-		fmt.Fprintln(r.Output, "false")
+		fmt.Fprintln(r.output, "false")
 	}
 
 	return false
 }
 
-func (r *REPL) evalRule(rule *ast.Rule) bool {
+func (r *REPL) evalModule(mod *ast.Module) bool {
 
-	path := []interface{}{string(rule.Name)}
-
-	if err := r.DataStore.Patch(storage.AddOp, path, []*ast.Rule{rule}); err != nil {
-		fmt.Fprintln(r.Output, "error:", err)
+	err := r.policyStore.Add(r.currentModuleID, mod, nil, false)
+	if err != nil {
+		fmt.Fprintln(r.output, "error:", err)
 		return true
 	}
 
-	fmt.Fprintln(r.Output, "defined")
+	fmt.Fprintln(r.output, "defined")
+	return false
+}
+
+func (r *REPL) evalImport(i *ast.Import) bool {
+
+	modules := r.policyStore.List()
+	mod := modules[r.currentModuleID]
+
+	for _, x := range mod.Imports {
+		if x.Equal(i) {
+			return false
+		}
+	}
+
+	prev := mod.Imports
+	mod.Imports = append(mod.Imports, i)
+
+	c := ast.NewCompiler()
+	if c.Compile(modules); c.Failed() {
+		mod.Imports = prev
+		fmt.Fprintln(r.output, "error:", c.FlattenErrors())
+		return false
+	}
+
+	err := r.policyStore.Add(r.currentModuleID, c.Modules[r.currentModuleID], nil, false)
+	if err != nil {
+		fmt.Fprint(r.output, "error:", err)
+		return true
+	}
+
+	return false
+}
+
+func (r *REPL) evalPackage(p *ast.Package) bool {
+
+	modules := r.policyStore.List()
+	moduleID := p.Path[1:].String()
+	if _, ok := modules[moduleID]; ok {
+		r.currentModuleID = moduleID
+		return false
+	}
+
+	err := r.policyStore.Add(moduleID, &ast.Module{Package: p}, nil, false)
+	if err != nil {
+		fmt.Fprint(r.output, "error:", err)
+		return true
+	}
+
+	r.currentModuleID = moduleID
+
 	return false
 }
 
 func (r *REPL) getPrompt() string {
-	if len(r.Buffer) > 0 {
-		return r.BufferPrompt
+	if len(r.buffer) > 0 {
+		return r.bufferPrompt
 	}
-	return r.InitPrompt
+	return r.initPrompt
+}
+
+func (r *REPL) init() bool {
+
+	if r.initialized {
+		return false
+	}
+
+	mod := ast.MustParseModule(fmt.Sprintf(`
+	package %s
+	`, r.currentModuleID))
+
+	modules := r.policyStore.List()
+	modules[r.currentModuleID] = mod
+
+	c := ast.NewCompiler()
+	if c.Compile(modules); c.Failed() {
+		fmt.Fprintln(r.output, "error:", c.FlattenErrors())
+		return true
+	}
+
+	if err := r.policyStore.Add(r.currentModuleID, c.Modules[r.currentModuleID], nil, false); err != nil {
+		fmt.Fprintln(r.output, "error:", err)
+		return true
+	}
+
+	r.initialized = true
+
+	return false
 }
 
 func (r *REPL) loadHistory(prompt *liner.State) {
-	if f, err := os.Open(r.HistoryPath); err == nil {
+	if f, err := os.Open(r.historyPath); err == nil {
 		prompt.ReadHistory(f)
 		f.Close()
 	}
@@ -371,7 +464,7 @@ func (r *REPL) loadHistory(prompt *liner.State) {
 
 func (r *REPL) printResults(body ast.Body, results []map[string]interface{}) {
 
-	switch r.OutputFormat {
+	switch r.outputFormat {
 	case "json":
 		r.printJSON(results)
 	default:
@@ -383,14 +476,14 @@ func (r *REPL) printResults(body ast.Body, results []map[string]interface{}) {
 func (r *REPL) printJSON(results []map[string]interface{}) {
 	buf, err := json.MarshalIndent(results, "", "  ")
 	if err != nil {
-		fmt.Fprintln(r.Output, err)
+		fmt.Fprintln(r.output, err)
 		return
 	}
-	fmt.Fprintln(r.Output, string(buf))
+	fmt.Fprintln(r.output, string(buf))
 }
 
 func (r *REPL) printPretty(body ast.Body, results []map[string]interface{}) {
-	table := tablewriter.NewWriter(r.Output)
+	table := tablewriter.NewWriter(r.output)
 	r.printPrettyHeader(table, body)
 	for _, row := range results {
 		r.printPrettyRow(table, row)
@@ -452,7 +545,7 @@ func (r *REPL) printPrettyRow(table *tablewriter.Table, row map[string]interface
 }
 
 func (r *REPL) saveHistory(prompt *liner.State) {
-	if f, err := os.Create(r.HistoryPath); err == nil {
+	if f, err := os.Create(r.historyPath); err == nil {
 		prompt.WriteHistory(f)
 		f.Close()
 	}
@@ -466,13 +559,11 @@ func buildHeader(fields map[string]struct{}, term *ast.Term) {
 		}
 	case ast.Var:
 		fields[string(v)] = struct{}{}
-
 	case ast.Object:
 		for _, i := range v {
 			buildHeader(fields, i[0])
 			buildHeader(fields, i[1])
 		}
-
 	case ast.Array:
 		for _, e := range v {
 			buildHeader(fields, e)

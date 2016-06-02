@@ -93,10 +93,6 @@ Import <- "import" ws path:(Ref / Var) alias:(ws "as" ws Var)? {
 // TODO(tsandall): update to handle underscore variables
 Rule <- name:Var key:( _ "[" _ Term _ "]" _ )? value:( _ "=" _ Term )? body:( _ ":-" _ Body) {
 
-    if key == nil && value == nil {
-        return nil, fmt.Errorf("rule head must include key and/or value: %v", name)
-    }
-
     rule := &Rule{}
     rule.Location = currentLocation(c)
     rule.Name = name.(*Term).Value.(Var)
@@ -115,6 +111,10 @@ Rule <- name:Var key:( _ "[" _ Term _ "]" _ )? value:( _ "=" _ Term )? body:( _ 
         valueSlice := value.([]interface{})
         // Rule definition above describes the "value" slice. We care about the "Term" element.
         rule.Value = valueSlice[len(valueSlice)-1].(*Term)
+    }
+
+    if key == nil && value == nil {
+        rule.Value = BooleanTerm(true)
     }
 
     // Rule definition above describes the "body" slice. We only care about the "Body" element.

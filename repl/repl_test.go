@@ -29,7 +29,7 @@ func TestDump(t *testing.T) {
 }
 
 func TestOneShotEmptyBufferOneExpr(t *testing.T) {
-	store := newTestStorage()
+	store := newTestDataStore()
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
 	repl.OneShot("data.a[i].b.c[j] = 2")
@@ -40,7 +40,7 @@ func TestOneShotEmptyBufferOneExpr(t *testing.T) {
 }
 
 func TestOneShotEmptyBufferOneRule(t *testing.T) {
-	store := newTestStorage()
+	store := newTestDataStore()
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
 	repl.OneShot("p[x] :- data.a[i] = x")
@@ -48,7 +48,7 @@ func TestOneShotEmptyBufferOneRule(t *testing.T) {
 }
 
 func TestOneShotBufferedExpr(t *testing.T) {
-	store := newTestStorage()
+	store := newTestDataStore()
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
 	repl.OneShot("data.a[i].b.c[j] = ")
@@ -60,7 +60,7 @@ func TestOneShotBufferedExpr(t *testing.T) {
 }
 
 func TestOneShotBufferedRule(t *testing.T) {
-	store := newTestStorage()
+	store := newTestDataStore()
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
 	repl.OneShot("p[x] :- ")
@@ -76,10 +76,10 @@ func TestOneShotBufferedRule(t *testing.T) {
 }
 
 func TestOneShotJSON(t *testing.T) {
-	store := newTestStorage()
+	store := newTestDataStore()
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
-	repl.OutputFormat = "json"
+	repl.outputFormat = "json"
 	repl.OneShot("data.a[i] = x")
 	var expected interface{}
 	input := `
@@ -125,6 +125,100 @@ func TestOneShotJSON(t *testing.T) {
 	}
 }
 
+func TestEvalRuleCompileError(t *testing.T) {
+	store := newTestDataStore()
+	var buffer bytes.Buffer
+	repl := newRepl(store, &buffer)
+	repl.OneShot("p[x] :- true")
+	result := buffer.String()
+	expected := "error: 1 error occurred: unsafe variable from head of p: x\n"
+	if result != expected {
+		t.Errorf("Expected error message in output but got: %v", result)
+		return
+	}
+	buffer.Reset()
+	repl.OneShot("p = true :- true")
+	result = buffer.String()
+	expected = "defined\n"
+	if result != expected {
+		t.Errorf("Expected valid rule to compile (because state should have been rolled back) but got: %v", result)
+		return
+	}
+}
+
+func TestEvalBodyCompileError(t *testing.T) {
+	store := newTestDataStore()
+	var buffer bytes.Buffer
+	repl := newRepl(store, &buffer)
+	repl.outputFormat = "json"
+	repl.OneShot("x = 1, y > x")
+	result1 := buffer.String()
+	expected1 := "error: 1 error occurred: unsafe variables in repl0: [y]\n"
+	if result1 != expected1 {
+		t.Errorf("Expected error message in output but got : %v", result1)
+		return
+	}
+	buffer.Reset()
+	repl.OneShot("x = 1, y = 2, y > x")
+	var result2 []interface{}
+	err := json.Unmarshal(buffer.Bytes(), &result2)
+	if err != nil {
+		t.Errorf("Expected valid JSON output but got: %v", buffer.String())
+		return
+	}
+	expected2 := []interface{}{
+		map[string]interface{}{
+			"x": float64(1),
+			"y": float64(2),
+		},
+	}
+	if !reflect.DeepEqual(expected2, result2) {
+		t.Errorf(`Expected [{"x": 1, "y": 2}] but got: %v"`, result2)
+		return
+	}
+}
+
+func TestEvalImport(t *testing.T) {
+	store := newTestDataStore()
+	var buffer bytes.Buffer
+	repl := newRepl(store, &buffer)
+	repl.OneShot("import data.a")
+	if len(buffer.Bytes()) != 0 {
+		t.Errorf("Expected no output but got: %v", buffer.String())
+		return
+	}
+	buffer.Reset()
+	repl.OneShot("a[0].b.c[0] = true")
+	result := buffer.String()
+	expected := "true\n"
+	if result != expected {
+		t.Errorf("Expected expression to evaluate successfully but got: %v", result)
+		return
+	}
+}
+
+func TestEvalPackage(t *testing.T) {
+	store := newTestDataStore()
+	var buffer bytes.Buffer
+	repl := newRepl(store, &buffer)
+	repl.OneShot("package foo.bar")
+	repl.OneShot("p = true :- true")
+	repl.OneShot("package baz.qux")
+	buffer.Reset()
+	repl.OneShot("p")
+	if buffer.String() != "error: 1 error occurred: unsafe variables in repl0: [p]\n" {
+		t.Errorf("Expected unsafe variable error but got: %v", buffer.String())
+		return
+	}
+	repl.OneShot("import data.foo.bar.p")
+	buffer.Reset()
+	repl.OneShot("p")
+	if buffer.String() != "true\n" {
+		t.Errorf("Expected expression to eval successfully but got: %v", buffer.String())
+		return
+	}
+}
+
 func TestBuildHeader(t *testing.T) {
 	expr := ast.MustParseStatement(`[{"a": x, "b": data.a.b[y]}] = [{"a": 1, "b": 2}]`).(ast.Body)[0]
 	terms := expr.Terms.([]*ast.Term)
@@ -144,12 +238,13 @@ func expectOutput(t *testing.T, output string, expected string) {
 	}
 }
 
-func newRepl(store *storage.DataStore, buffer *bytes.Buffer) *REPL {
-	repl := New(store, "", buffer, "")
+func newRepl(dataStore *storage.DataStore, buffer *bytes.Buffer) *REPL {
+	policyStore := storage.NewPolicyStore(dataStore, "")
+	repl := New(dataStore, policyStore, "", buffer, "")
 	return repl
 }
 
-func newTestStorage() *storage.DataStore {
+func newTestDataStore() *storage.DataStore {
 	input := `
     {
         "a": [

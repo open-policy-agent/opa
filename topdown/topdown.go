@@ -171,6 +171,15 @@ type QueryParams struct {
 	Path      []interface{}
 }
 
+// NewQueryParams returns a new QueryParams q.
+func NewQueryParams(ds *storage.DataStore, globals *storage.Bindings, path []interface{}) (q *QueryParams) {
+	return &QueryParams{
+		DataStore: ds,
+		Globals:   globals,
+		Path:      path,
+	}
+}
+
 // Query returns the document identified by the path.
 //
 // If the storage node identified by the path is a collection of rules, then the TopDown
@@ -287,6 +296,48 @@ func ValueToInterface(v ast.Value, ctx *Context) (interface{}, error) {
 		// issue with the callers logic.)
 		panic(fmt.Sprintf("illegal argument: %v", v))
 	}
+}
+
+// ValueToSlice returns the underlying Go value associated with an AST value.
+// If the value is a reference, the reference is fetched from storage.
+func ValueToSlice(v ast.Value, ctx *Context) ([]interface{}, error) {
+	x, err := ValueToInterface(v, ctx)
+	if err != nil {
+		return nil, err
+	}
+	s, ok := x.([]interface{})
+	if !ok {
+		return nil, fmt.Errorf("illegal argument: %v", x)
+	}
+	return s, nil
+}
+
+// ValueToFloat64 returns the underlying Go value associated with an AST value.
+// If the value is a reference, the reference is fetched from storage.
+func ValueToFloat64(v ast.Value, ctx *Context) (float64, error) {
+	x, err := ValueToInterface(v, ctx)
+	if err != nil {
+		return 0, err
+	}
+	f, ok := x.(float64)
+	if !ok {
+		return 0, fmt.Errorf("illegal argument: %v", v)
+	}
+	return f, nil
+}
+
+// ValueToString returns the underlying Go value associated with an AST value.
+// If the value is a reference, the reference is fetched from storage.
+func ValueToString(v ast.Value, ctx *Context) (string, error) {
+	x, err := ValueToInterface(v, ctx)
+	if err != nil {
+		return "", err
+	}
+	s, ok := x.(string)
+	if !ok {
+		return "", fmt.Errorf("illegal argument: %v", v)
+	}
+	return s, nil
 }
 
 // dereferenceVar is used to lookup the variable binding and convert the value to
@@ -720,16 +771,13 @@ func evalRefRuleResult(ctx *Context, ref ast.Ref, suffix ast.Ref, result ast.Val
 			for _, t := range suffix {
 				pluggedSuffix = append(pluggedSuffix, plugTerm(t, ctx))
 			}
-			result.Query(pluggedSuffix, func(keys map[ast.Var]ast.Value, value ast.Value) error {
+			return result.Query(pluggedSuffix, func(keys map[ast.Var]ast.Value, value ast.Value) error {
 				ctx = ctx.BindRef(ref, value)
 				for k, v := range keys {
 					ctx = ctx.BindVar(k, v)
 				}
 				return iter(ctx)
 			})
-			// Ignore the error code. If the suffix references a non-existent document,
-			// the expression is undefined.
-			return nil
 		}
 		ctx = ctx.BindRef(ref, result)
 		return iter(ctx)
@@ -740,16 +788,13 @@ func evalRefRuleResult(ctx *Context, ref ast.Ref, suffix ast.Ref, result ast.Val
 			for _, t := range suffix {
 				pluggedSuffix = append(pluggedSuffix, plugTerm(t, ctx))
 			}
-			result.Query(pluggedSuffix, func(keys map[ast.Var]ast.Value, value ast.Value) error {
+			return result.Query(pluggedSuffix, func(keys map[ast.Var]ast.Value, value ast.Value) error {
 				ctx = ctx.BindRef(ref, value)
 				for k, v := range keys {
 					ctx = ctx.BindVar(k, v)
 				}
 				return iter(ctx)
 			})
-			// Ignore the error code. If the suffix references a non-existent document,
-			// the expression is undefined.
-			return nil
 		}
 		ctx = ctx.BindRef(ref, result)
 		return iter(ctx)
