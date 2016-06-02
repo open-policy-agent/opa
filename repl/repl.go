@@ -314,7 +314,11 @@ func (r *REPL) evalBody(body ast.Body) bool {
 		var err error
 		row := map[string]interface{}{}
 		ctx.Locals.Iter(func(k, v ast.Value) bool {
-			if _, isVar := k.(ast.Var); !isVar {
+			name, ok := k.(ast.Var)
+			if !ok {
+				return false
+			}
+			if strings.HasPrefix(string(name), ast.WildcardPrefix) {
 				return false
 			}
 			r, e := topdown.ValueToInterface(v, ctx)
@@ -484,6 +488,7 @@ func (r *REPL) printJSON(results []map[string]interface{}) {
 
 func (r *REPL) printPretty(body ast.Body, results []map[string]interface{}) {
 	table := tablewriter.NewWriter(r.output)
+	table.SetAlignment(tablewriter.ALIGN_LEFT)
 	r.printPrettyHeader(table, body)
 	for _, row := range results {
 		r.printPrettyRow(table, row)
@@ -558,7 +563,10 @@ func buildHeader(fields map[string]struct{}, term *ast.Term) {
 			buildHeader(fields, t)
 		}
 	case ast.Var:
-		fields[string(v)] = struct{}{}
+		s := string(v)
+		if !strings.HasPrefix(s, ast.WildcardPrefix) {
+			fields[s] = struct{}{}
+		}
 	case ast.Object:
 		for _, i := range v {
 			buildHeader(fields, i[0])

@@ -265,3 +265,42 @@ func parseModule(stmts []interface{}) (*Module, error) {
 
 	return mod, nil
 }
+
+type wildcardMangler struct {
+	c int
+}
+
+func (vis *wildcardMangler) Visit(x interface{}) Visitor {
+	switch x := x.(type) {
+	case Object:
+		for _, i := range x {
+			vis.mangleSlice(i[:])
+		}
+	case Array:
+		vis.mangleSlice(x)
+	case Ref:
+		vis.mangleSlice(x)
+	case *Expr:
+		switch ts := x.Terms.(type) {
+		case []*Term:
+			vis.mangleSlice(ts)
+		case *Term:
+			vis.mangle(ts)
+		}
+	}
+	return vis
+}
+
+func (vis *wildcardMangler) mangle(x *Term) {
+	if x.Equal(Wildcard) {
+		name := fmt.Sprintf("%s%d", WildcardPrefix, vis.c)
+		x.Value = Var(name)
+		vis.c++
+	}
+}
+
+func (vis *wildcardMangler) mangleSlice(xs []*Term) {
+	for _, x := range xs {
+		vis.mangle(x)
+	}
+}

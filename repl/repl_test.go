@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/open-policy-agent/opa/ast"
@@ -176,6 +177,29 @@ func TestEvalBodyCompileError(t *testing.T) {
 		t.Errorf(`Expected [{"x": 1, "y": 2}] but got: %v"`, result2)
 		return
 	}
+}
+
+func TestEvalBodyContainingWildCards(t *testing.T) {
+	store := newTestDataStore()
+	var buffer bytes.Buffer
+	repl := newRepl(store, &buffer)
+	repl.OneShot("data.a[_].b.c[_] = x")
+	expected := strings.TrimSpace(`
++-------+
+|   X   |
++-------+
+| true  |
+| 2     |
+| false |
+| false |
+| true  |
+| 1     |
++-------+`)
+	result := strings.TrimSpace(buffer.String())
+	if result != expected {
+		t.Errorf("Expected only a single column of output but got:\n%v", result)
+	}
+
 }
 
 func TestEvalImport(t *testing.T) {
