@@ -117,6 +117,67 @@ func TestDataPatchArrayAccessV1(t *testing.T) {
 
 }
 
+func TestDataGetVirtualDoc(t *testing.T) {
+
+	f := newFixture(t)
+	testMod := `package testmod
+
+	p[x] :- q[x], not r[x]
+	q[x] :- data.x.y[i] = x
+	r[x] :- data.x.z[i] = x
+	`
+
+	put := newReqV1("PUT", "/policies/test", testMod)
+
+	f.server.Router.ServeHTTP(f.recorder, put)
+
+	if f.recorder.Code != 200 {
+		t.Errorf("Expected policy creation to succeed but got: %v", f.recorder)
+		return
+	}
+
+	f.reset()
+
+	patch1 := newReqV1("PATCH", "/data/x", `[{
+		"op": "add",
+		"path": "/",
+		"value": {"y": [1,2,3,4], "z": [3,4,5,6]}
+	}]`)
+
+	f.server.Router.ServeHTTP(f.recorder, patch1)
+
+	if f.recorder.Code != 204 {
+		t.Errorf("Expected data patch to succeed but got: %v", f.recorder)
+		return
+	}
+
+	f.reset()
+
+	get := newReqV1("GET", "/data/testmod/p", "")
+
+	f.server.Router.ServeHTTP(f.recorder, get)
+
+	if f.recorder.Code != 200 {
+		t.Errorf("Expected data get to succeed but got: %v", f.recorder)
+		return
+	}
+
+	var result interface{}
+	err := json.Unmarshal(f.recorder.Body.Bytes(), &result)
+	if err != nil {
+		t.Errorf("Expected JSON response from data get but got: %v", err)
+		return
+	}
+
+	expected := []interface{}{float64(1), float64(2)}
+
+	if !reflect.DeepEqual(result, expected) {
+		t.Errorf("Expected response to equal [1,2] but got: %v", result)
+		return
+	}
+
+}
+
 func TestIndexGet(t *testing.T) {
 	f := newFixture(t)
 	get, err := http.NewRequest("GET", `/?q=foo = 1`, strings.NewReader(""))

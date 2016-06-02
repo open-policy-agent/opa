@@ -197,10 +197,7 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	path := splitPath(vars["path"])
 
-	params := &topdown.QueryParams{
-		DataStore: s.Runtime.DataStore,
-		Path:      path,
-	}
+	params := topdown.NewQueryParams(s.Runtime.DataStore, storage.NewBindings(), path)
 
 	s.mtx.RLock()
 	defer s.mtx.RUnlock()

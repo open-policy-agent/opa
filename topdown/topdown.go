@@ -171,6 +171,15 @@ type QueryParams struct {
 	Path      []interface{}
 }
 
+// NewQueryParams returns a new QueryParams q.
+func NewQueryParams(ds *storage.DataStore, globals *storage.Bindings, path []interface{}) (q *QueryParams) {
+	return &QueryParams{
+		DataStore: ds,
+		Globals:   globals,
+		Path:      path,
+	}
+}
+
 // Query returns the document identified by the path.
 //
 // If the storage node identified by the path is a collection of rules, then the TopDown
