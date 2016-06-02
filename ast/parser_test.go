@@ -387,6 +387,37 @@ func TestConstantRules(t *testing.T) {
 	assertParseError(t, "unground value", ungroundValue)
 }
 
+func TestWildcards(t *testing.T) {
+
+	assertParseOneTerm(t, "ref", "a.b[_].c[_]", RefTerm(
+		VarTerm("a"),
+		StringTerm("b"),
+		VarTerm("$0"),
+		StringTerm("c"),
+		VarTerm("$1"),
+	))
+
+	assertParseOneTerm(t, "nested", `[{"a": a[_]}, _, {"b": _}]`, ArrayTerm(
+		ObjectTerm(
+			Item(StringTerm("a"), RefTerm(VarTerm("a"), VarTerm("$1"))),
+		),
+		VarTerm("$0"),
+		ObjectTerm(
+			Item(StringTerm("b"), VarTerm("$2")),
+		),
+	))
+
+	assertParseOneExpr(t, "expr", `_ = [a[_]]`, &Expr{
+		Terms: []*Term{
+			VarTerm("="),
+			VarTerm("$0"),
+			ArrayTerm(
+				RefTerm(VarTerm("a"), VarTerm("$1")),
+			),
+		},
+	})
+}
+
 func assertParse(t *testing.T, msg string, input string, correct func([]interface{})) {
 	p, err := ParseStatements(input)
 	if err != nil {

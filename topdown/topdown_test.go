@@ -648,14 +648,14 @@ func TestExample(t *testing.T) {
         import data.ports
 
         public_servers[server] :-
-            server = servers[i],
-            server.ports[j] = ports[k].id,
-            ports[k].networks[l] = networks[m].id,
-            networks[m].public = true
+            server = servers[_],
+            server.ports[_] = ports[i].id,
+            ports[i].networks[_] = networks[j].id,
+            networks[j].public = true
 
         violations[server] :-
-            server = servers[i],
-            server.protocols[j] = "http",
+            server = servers[_],
+            server.protocols[_] = "http",
             public_servers[server]
     `
 

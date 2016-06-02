@@ -130,6 +130,8 @@ Body <- head:Expr tail:( _ "," _ Expr)* {
         expr := s.([]interface{})[3].(*Expr)
         buf = append(buf, expr)
     }
+    mangler := &wildcardMangler{}
+    Walk(mangler, buf)
     return buf, nil
 }
 

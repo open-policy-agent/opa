@@ -24,6 +24,13 @@ var Keywords = [...]string{
 // ReservedVars is the set of reserved variable names.
 var ReservedVars = NewVarSet(DefaultRootDocument.Value.(Var))
 
+// Wildcard represents the wildcard variable as defined in the language.
+var Wildcard = &Term{Value: Var("_")}
+
+// WildcardPrefix is the special character that all wildcard variables are
+// prefixed with when the statement they are contained in is parsed.
+var WildcardPrefix = "$"
+
 type (
 	// Module represents a collection of policies (defined by rules)
 	// within a namespace (defined by the package) and optional
