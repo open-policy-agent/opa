@@ -7,7 +7,7 @@ package version
 // Version information that is displayed by the "version" command and used to
 // identify the version of running instances of OPA.
 var (
-	Version   = "0.1.0-dev"
+	Version   = "0.1.0"
 	Vcs       = ""
 	Timestamp = ""
 	Hostname  = ""
