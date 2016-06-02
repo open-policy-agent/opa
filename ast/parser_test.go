@@ -248,7 +248,14 @@ func TestRule(t *testing.T) {
 		},
 	})
 
-	assertParseError(t, "missing key and/or value", "p :- true")
+	assertParseRule(t, "true", "p :- true", &Rule{
+		Name:  Var("p"),
+		Value: BooleanTerm(true),
+		Body: []*Expr{
+			&Expr{Terms: BooleanTerm(true)},
+		},
+	})
+
 	assertParseError(t, "constant key", "p[100] :- true")
 	assertParseError(t, "composite key", "p[[1,2,x]] :- x = true")
 	assertParseError(t, "dangling comma", "p :- true, false,")
