@@ -1,64 +1,35 @@
 # Roadmap
 
-## Version 0.1
+## Version 0.2
 
 ### Language
 
-- Constants (i.e, numbers, strings, booleans, nulls, arrays, objects)
-- References
-- Variables
-- Rules
-    - Scalar, object, and set documents
-- Negation
-- Built-ins:
-	- Inequality, i.e., "!=", "<", ">", "<=", and ">="
-
-### Evaluation
-
-- Top-down: single-threaded
-- Indexing: values-to-bindings
-
-### Features
-
-- Modules (e.g, packages and imports)
-- API-based policy management
-
-### APIs
-
-- JSON Patch against base documents
-- Query execution
-- Batch load and dump
+- "_" wildcard support
+- Array comprehensions
+- Built-ins
+	- Casting
+	- Arithmetic
+	- String manipulation
+	- Datetime
+	- Aggregates (min/max/avg, sum, count)
 
 ### Documentation
 
-These will be initial drafts and future development will be evaluated to see if there is a documentation component.
-
-- Conceptual overview
-- Language reference
-- Installation guide
-- Development guide
-
-### Infrastructure
-
-- Binary/tarball release
-
-### Project
-
-- Static Site
+- GoDoc
+- REST API Spec
+- Integration guides for library and REST APIs
 
 ## Future
 
 ### Language
 
-- Built-ins
-	- Casting
-	- Arithmetic
-    - String manipulation
-    - Datetime
+- Nested references
+- Set literals
 
 ### Evaluation
 
-- Concurrent top-down implementation
+- Iteration over multiple virtual docs
+- Concurrent topdown
 
 ### Features
 
@@ -66,10 +37,17 @@ These will be initial drafts and future development will be evaluated to see if 
 - Transactions
 - Materialized Views
 - Triggers
-- Aggregates (min, max, average, etc.)
+- Batch load and dump
+- Query debugging
+- Type checking
+
+### Tooling
+
+- Rego formatting
+- REPL editing
 
 ### Infrastructure
 
 - Docker image
-- OS packages (.deb, .rpm)
-- Library (e.g, C-API/FFI)
+- OS packages
+- Library (i.e., C-API/FFI)
