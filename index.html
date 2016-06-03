@@ -70,15 +70,19 @@
         manage the size, complexity, and scale of modern deployments.
     </p>
     <h2>Get OPA</h2>
-    Latest binary (Linux/OS X):<br><br>
+    Latest binary (Linux/64-bit):<br><br>
     <pre>
-curl -L https://github.com/open-policy-agent/opa/releases/download/v0.1.0/opa-$(uname -s)-$(uname -m) > opa
-chmod u+x opa
+curl -L https://github.com/open-policy-agent/opa/releases/download/v0.1.0/opa_linux_amd64 > opa
+</pre>
+    Latest binary (Mac OSX/64-bit):<br><br>
+    <pre>
+curl -L https://github.com/open-policy-agent/opa/releases/download/v0.1.0/opa_darwin_amd64 > opa
 </pre>
     From source (requires Go):<br><br>
     <pre>
 git clone https://github.com/open-policy-agent/opa.git $GOPATH/src/github.com/open-policy-agent/opa
 cd $GOPATH/src/github.com/open-policy-agent/opa
+make deps
 make
 </pre>
     <div class="features">

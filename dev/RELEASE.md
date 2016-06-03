@@ -19,7 +19,7 @@ CHANGELOG.md snippet and uploading the packages from the build phase.
 1. Obtain copy of remote repository.
 
 	```
-	git clone git@github.com/open-policy-agent/opa.git
+	git clone git@github.com:open-policy-agent/opa.git
 	```
 
 1. Edit CHANGELOG.md to update the Unreleased header (e.g., s/Unreleased/0.12.8/) and add any missing items to prepare for release.
