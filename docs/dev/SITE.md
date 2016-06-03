@@ -9,6 +9,7 @@ all you should need to do is run:
 
 ```
 gem install --user-install jekyll
+gem install --user-install redcarpet
 ```
 
 To update the website perform the following steps:

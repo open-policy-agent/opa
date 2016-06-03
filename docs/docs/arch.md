@@ -99,10 +99,10 @@ Content-Type: text/plain
 package opa.examples
 
 violations[server] :-
-	server = data.servers[_]
-	server.protocols[_] = "http"
-	server.ports[_] = data.ports[i].id
-	data.ports[i].networks[_] = data.networks[j].id
+	server = data.servers[_],
+	server.protocols[_] = "http",
+	server.ports[_] = data.ports[i].id,
+	data.ports[i].networks[_] = data.networks[j].id,
 	data.networks[j].public = true
 ```
 
@@ -185,7 +185,7 @@ OPA exposes transactional APIs to operate on consistent snapshots of data stored
 
 Lastly, policy writers can use OPA's APIs to obtain detailed explanations of query processing to understand why queries are returning specific results. This is useful for debugging queries.
 
-Data Model
+<a name="data-model"></a>Data Model
 ----------
 
 OPA is designed to support document-oriented models such as JSON. Documents consist of scalars (i.e., booleans, strings, numbers, and null) and collections (i.e., objects, arrays, and sets). The document model was selected for OPA because of its prevalence in modern application stacks. For example, most applications today expose APIs which produce and consume JSON and many modern applications rely on document-oriented databases or document support in existing relational databases.
