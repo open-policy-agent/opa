@@ -247,7 +247,7 @@ func (s *Server) v1DataPatch(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		parts := splitPath(ops[i].Path[1:])
+		parts := splitPath(ops[i].Path)
 		for _, x := range parts {
 			if x == "" {
 				continue
