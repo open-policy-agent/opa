@@ -44,6 +44,10 @@
           
         
           
+          <a class="page-link" href="/docs/examples/hello-world.html">Examples</a>
+          
+        
+          
         
           
           <a class="page-link" href="/docs/intro.html">Docs</a>
@@ -99,11 +103,17 @@
         </li>
         
         
+         
+        <li>
+          <a class="page-link" href="/docs/examples/hello-world.html">Hello World</a>
+        </li>
+        
+        
     </ul>
   </div>
   
   <div class="docs-content">
-    <h2 id="architecture">Architecture</h2>
+    <h2>Architecture</h2>
 
 <p>OPA provides an open source policy engine that can be used to policy enable applications. Policy enabling applications decouples the policy that governs how applications behave from the implementation of those applications. This allows administrators to create and manage policy without requiring changes to the application. This eases some of the challenges of maintaining applications in complex modern deployment environments.</p>
 
@@ -112,56 +122,44 @@
 <p>OPA is purpose built for modern deployment environments and can be integrated with various types of applications to provide rich policy control over various functions such as:</p>
 
 <ul>
-  <li>API authorization</li>
-  <li>VM and container placement</li>
-  <li>Auto-scaling and auto-healing clusters</li>
-  <li>CI/CD pipeline gating</li>
-  <li>Network ACLs</li>
-  <li>Feature flags</li>
+<li>API authorization</li>
+<li>VM and container placement</li>
+<li>Auto-scaling and auto-healing clusters</li>
+<li>CI/CD pipeline gating</li>
+<li>Network ACLs</li>
+<li>Feature flags</li>
 </ul>
 
 <p>This document describes the main concepts in OPA. After reading this document you should have a better idea of how OPA is deployed and interacted with by applications and users.</p>
 
-<h2 id="requirements">Requirements</h2>
+<h2>Requirements</h2>
 
 <p>Before diving into the concepts behind OPA, it is useful to review the requirements placed on a policy engine to successfully policy enable applications.</p>
 
 <ol>
-  <li>
-    <p><strong>The policy definitions must be decoupled from the application’s implementation.</strong></p>
+<li><p><strong>The policy definitions must be decoupled from the application&#39;s implementation.</strong></p>
 
-    <p>Policy authors must be empowered to define and manage policy without requiring changes to the application which necessitate costly development, testing, and deployment cycles.</p>
-  </li>
-  <li>
-    <p><strong>The policy definitions must be accessible to administrators and other developers.</strong></p>
+<p>Policy authors must be empowered to define and manage policy without requiring changes to the application which necessitate costly development, testing, and deployment cycles.</p></li>
+<li><p><strong>The policy definitions must be accessible to administrators and other developers.</strong></p>
 
-    <p>Policy must be readily understood by administrators and other developers. In some cases, policy definitions also need to be understood by non-technical team members. Furthermore, administrators and other developers must be empowered to safely modify policy.</p>
-  </li>
-  <li>
-    <p><strong>The engine must be highly available.</strong></p>
+<p>Policy must be readily understood by administrators and other developers. In some cases, policy definitions also need to be understood by non-technical team members. Furthermore, administrators and other developers must be empowered to safely modify policy.</p></li>
+<li><p><strong>The engine must be highly available.</strong></p>
 
-    <p>Applications must be able to treat policy engine downtime as an extremely rare event (which likely requires manual intervention). The decision about what to do when the policy engine is unavailable is itself a policy question. It would be counter productive to the goals of policy enablement to re-implement policy decisions in the application to deal with policy engine downtime.</p>
-  </li>
-  <li>
-    <p><strong>The engine must introduce minimal latency when evaluating policy.</strong></p>
+<p>Applications must be able to treat policy engine downtime as an extremely rare event (which likely requires manual intervention). The decision about what to do when the policy engine is unavailable is itself a policy question. It would be counter productive to the goals of policy enablement to re-implement policy decisions in the application to deal with policy engine downtime.</p></li>
+<li><p><strong>The engine must introduce minimal latency when evaluating policy.</strong></p>
 
-    <p>Applications must be able to assume that the performance cost of decoupling the policy implementation from the application is negligible. If the performance cost of doing so is too high, applications will not use the engine.</p>
-  </li>
-  <li>
-    <p><strong>The engine must integrate with applications written in any programming language.</strong></p>
+<p>Applications must be able to assume that the performance cost of decoupling the policy implementation from the application is negligible. If the performance cost of doing so is too high, applications will not use the engine.</p></li>
+<li><p><strong>The engine must integrate with applications written in any programming language.</strong></p>
 
-    <p>Applications must not have to be developed using a specific programming language in order to benefit from the engine. If the cost of integrating with the engine involves developing the application in a specific programming language, far fewer applications will be able to use the engine.</p>
-  </li>
-  <li>
-    <p><strong>The engine must easily ingest the state of world that is relevant to policy.</strong></p>
+<p>Applications must not have to be developed using a specific programming language in order to benefit from the engine. If the cost of integrating with the engine involves developing the application in a specific programming language, far fewer applications will be able to use the engine.</p></li>
+<li><p><strong>The engine must easily ingest the state of world that is relevant to policy.</strong></p>
 
-    <p>Applications must be able to leverage their respective programming language ecosystems to push data into the policy engine. Furthermore, the process for reading and writing data stored in the policy engine must be as simple as possible.</p>
-  </li>
+<p>Applications must be able to leverage their respective programming language ecosystems to push data into the policy engine. Furthermore, the process for reading and writing data stored in the policy engine must be as simple as possible.</p></li>
 </ol>
 
 <p>These core requirements capture the guiding principles behind the concepts and design of OPA.</p>
 
-<h2 id="overview">Overview</h2>
+<h2>Overview</h2>
 
 <p>Conceptually, OPA is a collection of algorithms that answer questions about policy.
 <img src="https://cdn.rawgit.com/open-policy-agent/opa/9f5f1e6fa68fd0ee627122b9e5c8809519e5bba8/docs/overview.svg" /></p>
@@ -169,16 +167,16 @@
 <p>At a high level, using OPA involves:</p>
 
 <ul>
-  <li>Deploying OPA on servers alongside applications.</li>
-  <li>Writing policies a declarative language (“Rego”) and loading them into OPA.</li>
-  <li>Pushing application state that is relevant to policy into OPA.</li>
-  <li>Executing queries via OPA’s APIs to answer questions about operations governed by policy.</li>
-  <li>Reacting to notifications delivered by OPA when policy is violated.</li>
+<li>Deploying OPA on servers alongside applications.</li>
+<li>Writing policies a declarative language (&quot;Rego&quot;) and loading them into OPA.</li>
+<li>Pushing application state that is relevant to policy into OPA.</li>
+<li>Executing queries via OPA&#39;s APIs to answer questions about operations governed by policy.</li>
+<li>Reacting to notifications delivered by OPA when policy is violated.</li>
 </ul>
 
-<h2 id="deployment">Deployment</h2>
+<h2>Deployment</h2>
 
-<p>In order to support arbitrary languages, frameworks and runtimes, OPA is deployed as a host-local daemon (“opad”) alongside applications. OPA can be deployed directly on hosts as an operating system daemon or in a container.</p>
+<p>In order to support arbitrary languages, frameworks and runtimes, OPA is deployed as a host-local daemon (&quot;opad&quot;) alongside applications. OPA can be deployed directly on hosts as an operating system daemon or in a container.</p>
 
 <p>Deploying OPA as a host-local daemon helps ensure low latency transactions and high availability (through fate sharing) of the policy engine. If OPA is deployed on a separate server, significant consideration must be given to ensure that hardware failures and network partitions do not result in downtime of the policy engine.</p>
 
@@ -188,81 +186,71 @@
 
 <p><img src="https://cdn.rawgit.com/open-policy-agent/opa/9f5f1e6fa68fd0ee627122b9e5c8809519e5bba8/docs/deployment.svg" /></p>
 
-<h2 id="apis">APIs</h2>
+<h2>APIs</h2>
 
 <p>OPA exposes its APIs over HTTP and uses JSON as the default interchange format. The APIs are RESTful with the exception of certain streaming operations. HTTP and JSON are used because they are well supported in most application development languages and provide a low barrier to integration.</p>
 
-<h3 id="policy-api">Policy API</h3>
+<h3>Policy API</h3>
 
-<p>OPA’s Policy API exposes CRUD operations on policies within OPA. Applications and administrators can use the Policy API to manage policies.</p>
+<p>OPA&#39;s Policy API exposes CRUD operations on policies within OPA. Applications and administrators can use the Policy API to manage policies.</p>
 
-<p>For example, the request below creates a policy named “example-policy”:</p>
-
-<div class="highlighter-rouge"><pre class="highlight"><code>PUT /v1/policies/example-policy
+<p>For example, the request below creates a policy named &quot;example-policy&quot;:</p>
+<div class="highlight"><pre><code class="language-" data-lang="">PUT /v1/policies/example-policy
 Content-Type: text/plain
 
 package opa.examples
 
 violations[server] :-
-	server = data.servers[_]
-	server.protocols[_] = "http"
-	server.ports[_] = data.ports[i].id
-	data.ports[i].networks[_] = data.networks[j].id
-	data.networks[j].public = true
-</code></pre>
-</div>
-
+    server = data.servers[_],
+    server.protocols[_] = "http",
+    server.ports[_] = data.ports[i].id,
+    data.ports[i].networks[_] = data.networks[j].id,
+    data.networks[j].public = true
+</code></pre></div>
 <p>Policy names are only used to identify policies for management purposes. Policy names are not used in policy definitions or when issuing requests against the Data API.</p>
 
-<h3 id="data-api">Data API</h3>
+<h3>Data API</h3>
 
-<p>In order to evaluate policy and compute violations, OPA needs to have access to the state of the world which is relevant to policy. OPA’s Data API deals with data from applications or the environment that is relevant to policy.</p>
+<p>In order to evaluate policy and compute violations, OPA needs to have access to the state of the world which is relevant to policy. OPA&#39;s Data API deals with data from applications or the environment that is relevant to policy.</p>
 
 <p>Applications use the Data API to push state relevant to policy into OPA. Applications are responsible for updating the relevant data stored in OPA when state changes.</p>
 
 <p>For example, an application can push a list of servers into OPA by issuing an HTTP PATCH on /v1/data/servers:</p>
-
-<div class="highlighter-rouge"><pre class="highlight"><code>PATCH /v1/data/servers HTTP/1.1
+<div class="highlight"><pre><code class="language-" data-lang="">PATCH /v1/data/servers HTTP/1.1
 Content-Type: application/json-patch+json
 
 [
-	{
-	  "op": "add",
-	  "path": "-",
-	  "value": {"id": "s1", "name": "app", "protocols": ["http", "https", "ssh"], "ports": ["p1", "p2", "p3"]}
-	},
-	{
-	  "op": "add",
-	  "path": "-",
-	  "value": {"id": "s2", "name": "db", "protocols": ["mysql"], "ports": ["p3"]}
-	},
-	{
-	  "op": "add",
-	  "path": "-",
-	  "value": {"id": "s3", "name": "cache", "protocols": ["memcache"], "ports": ["p3"]}
-	},
-	{
-	  "op": "add",
-	  "path": "-",
-	  "value": {"id": "s4", "name": "dev", "protocols": ["http", "https", "ssh"], "ports": ["p1", "p2"]}
-	}
+    {
+      "op": "add",
+      "path": "-",
+      "value": {"id": "s1", "name": "app", "protocols": ["http", "https", "ssh"], "ports": ["p1", "p2", "p3"]}
+    },
+    {
+      "op": "add",
+      "path": "-",
+      "value": {"id": "s2", "name": "db", "protocols": ["mysql"], "ports": ["p3"]}
+    },
+    {
+      "op": "add",
+      "path": "-",
+      "value": {"id": "s3", "name": "cache", "protocols": ["memcache"], "ports": ["p3"]}
+    },
+    {
+      "op": "add",
+      "path": "-",
+      "value": {"id": "s4", "name": "dev", "protocols": ["http", "https", "ssh"], "ports": ["p1", "p2"]}
+    }
 ]
-</code></pre>
-</div>
-
-<p>Conceptually, all data stored in OPA exists within a single document (“data”).</p>
+</code></pre></div>
+<p>Conceptually, all data stored in OPA exists within a single document (&quot;data&quot;).</p>
 
 <p>Applications execute queries when handling operations that are governed by policy. The query response tells the application what to do with the operation, e.g., reject the API call or place the VM on a specific host. Queries are executed via the Data API by performing a GET on the appropriate path. See the <a href="#policies">Policies</a> section for examples.</p>
 
-<p>Queries can also be performed against data pushed into OPA. For example, the request below queries for the “servers” added above.</p>
-
-<div class="highlighter-rouge"><pre class="highlight"><code>GET /v1/data/servers HTTP/1.1
-</code></pre>
-</div>
-
+<p>Queries can also be performed against data pushed into OPA. For example, the request below queries for the &quot;servers&quot; added above.</p>
+<div class="highlight"><pre><code class="language-" data-lang="">GET /v1/data/servers HTTP/1.1
+</code></pre></div>
 <p>The response:</p>
-
-<div class="highlighter-rouge"><pre class="highlight"><code>HTTP/1.1 200 OK
+<div class="highlight"><pre><code class="language-" data-lang="">HTTP/1.1 200 OK
 Content-Type: application/json
 
 [
@@ -271,37 +259,35 @@ Content-Type: application/json
   {"id": "s3", "name": "cache", "protocols": ["memcache"], "ports": ["p3"]},
   {"id": "s4", "name": "dev", "protocols": ["http"], "ports": ["p1", "p2"]}
 ]
-</code></pre>
-</div>
-
-<h3 id="triggers">Triggers</h3>
+</code></pre></div>
+<h3>Triggers</h3>
 
 <p>Applications can register for asynchronous notifications when policy is violated. This allows applications to take corrective action when the system exits the expected state.</p>
 
-<p>For example, to receive notifications when services should be migrated to a new host, the application responsible for service deployment would create a rule which asserts that running services must be placed on a host which is not in the “terminated” state. If a host was shutdown unexpectedly, the system would notify OPA and the host state (stored in OPA) would be updated. OPA will detect that a rule has been violated and deliver a notification to the service deployment application (which can handle the event by redeploying the service on a running host.)</p>
+<p>For example, to receive notifications when services should be migrated to a new host, the application responsible for service deployment would create a rule which asserts that running services must be placed on a host which is not in the &quot;terminated&quot; state. If a host was shutdown unexpectedly, the system would notify OPA and the host state (stored in OPA) would be updated. OPA will detect that a rule has been violated and deliver a notification to the service deployment application (which can handle the event by redeploying the service on a running host.)</p>
 
-<h3 id="transactions">Transactions</h3>
+<h3>Transactions</h3>
 
 <p>OPA exposes transactional APIs to operate on consistent snapshots of data stored in OPA. For example, when deploying a new VM, the application would open a transaction and perform the following steps:</p>
 
 <ol>
-  <li>Query OPA for a list of hosts where the VM can be deployed.</li>
-  <li>Choose a host from the list and deploy the VM.</li>
-  <li>Push new data to OPA to reflect that the VM has been deployed.</li>
-  <li>Close the transaction.</li>
+<li>Query OPA for a list of hosts where the VM can be deployed.</li>
+<li>Choose a host from the list and deploy the VM.</li>
+<li>Push new data to OPA to reflect that the VM has been deployed.</li>
+<li>Close the transaction.</li>
 </ol>
 
-<p>Lastly, policy writers can use OPA’s APIs to obtain detailed explanations of query processing to understand why queries are returning specific results. This is useful for debugging queries.</p>
+<p>Lastly, policy writers can use OPA&#39;s APIs to obtain detailed explanations of query processing to understand why queries are returning specific results. This is useful for debugging queries.</p>
 
-<h2 id="data-model">Data Model</h2>
+<h2><a name="data-model"></a>Data Model</h2>
 
 <p>OPA is designed to support document-oriented models such as JSON. Documents consist of scalars (i.e., booleans, strings, numbers, and null) and collections (i.e., objects, arrays, and sets). The document model was selected for OPA because of its prevalence in modern application stacks. For example, most applications today expose APIs which produce and consume JSON and many modern applications rely on document-oriented databases or document support in existing relational databases.</p>
 
 <p>Conceptually, there are two kinds of documents in OPA:</p>
 
 <ul>
-  <li><strong>Base documents</strong> representing application state relevant to policy.</li>
-  <li><strong>Virtual documents</strong> representing higher level information defined by policies.</li>
+<li><strong>Base documents</strong> representing application state relevant to policy.</li>
+<li><strong>Virtual documents</strong> representing higher level information defined by policies.</li>
 </ul>
 
 <p><strong>Base documents</strong> represent the raw information relevant to policy that is pushed by applications integrated with OPA. Base documents are stored in-memory and can be written to disk for resilience.</p>
@@ -310,29 +296,25 @@ Content-Type: application/json
 
 <p><img src="https://cdn.rawgit.com/open-policy-agent/opa/9f5f1e6fa68fd0ee627122b9e5c8809519e5bba8/docs/data-model-dependencies.svg" /></p>
 
-<p>When defining policies, rules are written which contain expressions that reference documents. The language that rules are written in (“Rego”) lets you reference base documents and virtual documents in exactly the same way.</p>
+<p>When defining policies, rules are written which contain expressions that reference documents. The language that rules are written in (&quot;Rego&quot;) lets you reference base documents and virtual documents in exactly the same way.</p>
 
 <p><img src="https://cdn.rawgit.com/open-policy-agent/opa/86672fab147c476cb8e8b0950b6c4fd48b5b2014/docs/data-model-logical.svg" /></p>
 
-<h2 id="a-namepoliciesa-policies"><a name="policies"></a> Policies</h2>
+<h2><a name="policies"></a> Policies</h2>
 
-<p>Policies are defined in OPA’s native query language: Rego.</p>
+<p>Policies are defined in OPA&#39;s native query language: Rego.</p>
 
 <p>Rego is a declarative language based on <a href="https://en.wikipedia.org/wiki/Datalog">Datalog</a>. Rego allows policy writers to define modules which contain rules. Rules contain expressions which assert facts about the expected state of documents stored in OPA. The documents referenced in rules may be base documents pushed by applications integrated with OPA or virtual documents defined by other rules.</p>
 
 <p>To support document-oriented models such as JSON, Rego has rich support for referencing nested documents (i.e., documents inside arrays or objects). The syntax for referencing nested documents is based on dictionary and array access in languages like Python as well as JSON Path.</p>
 
-<p>Let’s look at an example.</p>
+<p>Let&#39;s look at an example.</p>
 
 <p>Assume we have the following data stored in OPA:</p>
-
-<div class="highlighter-rouge"><pre class="highlight"><code>GET /v1/data HTTP/1.1
-</code></pre>
-</div>
-
+<div class="highlight"><pre><code class="language-" data-lang="">GET /v1/data HTTP/1.1
+</code></pre></div>
 <p>The response:</p>
-
-<div class="highlighter-rouge"><pre class="highlight"><code>HTTP/1.1 200 OK
+<div class="highlight"><pre><code class="language-" data-lang="">HTTP/1.1 200 OK
 Content-Type: application/json
 
 {
@@ -353,63 +335,45 @@ Content-Type: application/json
     {"id": "p3", "networks": ["n2"]}
   ]
 }
-</code></pre>
-</div>
-
+</code></pre></div>
 <p>We can write a rule which enumerates servers that expose HTTP (but not HTTPS) and are connected to public networks. These represent violations of policy.</p>
-
-<pre><code class="language-rego">package opa.example                            # this policy belongs the opa.example package
+<div class="highlight"><pre><code class="language-rego" data-lang="rego">package opa.example                            # this policy belongs the opa.example package
 
 import data.servers                             # import the data.servers document to refer to it as "servers" instead of "data.servers"
 import data.networks                            # same but for data.networks
 import data.ports                               # same but for data.ports
 
 violations[server] :-                           # a server exists in the violations set if:
-	server = servers[_],                        # the server exists in the servers collection
-	server.protocols[_] = "http",               # and the server has http in its protocols collection
-	public_servers[server]                      # and the server exists in the public_servers set
+    server = servers[_],                        # the server exists in the servers collection
+    server.protocols[_] = "http",               # and the server has http in its protocols collection
+    public_servers[server]                      # and the server exists in the public_servers set
 
 public_servers[server] :-                       # a server exists in the public_servers set if:
-	server = servers[_],                        # the server exists in the servers collection
-	server.ports[_] = ports[i].id,              # and the server is connected to a port in the ports collection
-	ports[i].networks[_] = networks[j].id,      # and the port is connected to a network in the networks collection
-	networks[j].public = true                   # and the network is public
-</code></pre>
-
+    server = servers[_],                        # the server exists in the servers collection
+    server.ports[_] = ports[i].id,              # and the server is connected to a port in the ports collection
+    ports[i].networks[_] = networks[j].id,      # and the port is connected to a network in the networks collection
+    networks[j].public = true                   # and the network is public
+</code></pre></div>
 <p>The key aspects of Rego are illustrated by this example:</p>
 
 <ul>
-  <li>
-    <p>Rules define the content of virtual documents. In this case, we create two virtual documents: <code class="highlighter-rouge">violations</code> and <code class="highlighter-rouge">public_servers</code>.</p>
-  </li>
-  <li>
-    <p>Rules consist of assertions against data stored in OPA. In this case the assertions are expressions which test for equality and membership of <code class="highlighter-rouge">servers</code>, <code class="highlighter-rouge">networks</code>, and <code class="highlighter-rouge">ports</code> documents.</p>
-  </li>
-  <li>
-    <p>Expressions can referenced nested documents, e.g., <code class="highlighter-rouge">ports[i].networks[_]</code> references the network IDs stored in an array on each port document.</p>
-  </li>
-  <li>
-    <p>Expressions can reference elements in a collection using the <code class="highlighter-rouge">[_]</code> and <code class="highlighter-rouge">[&lt;variable&gt;]</code> syntax. When this is done, OPA knows to iterate over elements of the collection when processing queries.</p>
-  </li>
+<li><p>Rules define the content of virtual documents. In this case, we create two virtual documents: <code>violations</code> and <code>public_servers</code>.</p></li>
+<li><p>Rules consist of assertions against data stored in OPA. In this case the assertions are expressions which test for equality and membership of <code>servers</code>, <code>networks</code>, and <code>ports</code> documents.</p></li>
+<li><p>Expressions can referenced nested documents, e.g., <code>ports[i].networks[_]</code> references the network IDs stored in an array on each port document.</p></li>
+<li><p>Expressions can reference elements in a collection using the <code>[_]</code> and <code>[&lt;variable&gt;]</code> syntax. When this is done, OPA knows to iterate over elements of the collection when processing queries.</p></li>
 </ul>
 
 <p>If we query for the document produced by this rule, we receive an array of servers that expose an HTTP server and are connected to a public network:</p>
-
-<div class="highlighter-rouge"><pre class="highlight"><code>GET /v1/data/opa/examples/violations HTTP/1.1
-</code></pre>
-</div>
-
+<div class="highlight"><pre><code class="language-" data-lang="">GET /v1/data/opa/examples/violations HTTP/1.1
+</code></pre></div>
 <p>The response:</p>
-
-<div class="highlighter-rouge"><pre class="highlight"><code>HTTP/1.1 200 OK
+<div class="highlight"><pre><code class="language-" data-lang="">HTTP/1.1 200 OK
 Content-Type: application/json
 
 [
   {"id": "s4", "name": "dev", "protocols": ["http"], "ports": ["p2"]}
 ]
-</code></pre>
-</div>
-
+</code></pre></div>
   </div>
 
 </article>

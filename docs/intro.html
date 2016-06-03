@@ -44,6 +44,10 @@
           
         
           
+          <a class="page-link" href="/docs/examples/hello-world.html">Examples</a>
+          
+        
+          
         
           
           <a class="page-link" href="/docs/intro.html">Docs</a>
@@ -99,11 +103,17 @@
         </li>
         
         
+         
+        <li>
+          <a class="page-link" href="/docs/examples/hello-world.html">Hello World</a>
+        </li>
+        
+        
     </ul>
   </div>
   
   <div class="docs-content">
-    <h1 id="what-is-policy">What is Policy?</h1>
+    <h1>What is Policy?</h1>
 
 <p>Policy defines expected behavior in response to specific events within an application.</p>
 
@@ -111,38 +121,38 @@
 
 <p>The approach to policy can vary greatly within and across applications. For example, policy is often written in natural language (English), stored in documents such as wiki pages, and enforced manually by the administrators of the the application.</p>
 
-<p>When the cost of manually maintaining and enforcing policy is too high, policy is often defined in way that computers can understand: the application’s implementation is updated to include the definition of policy and the means for enforcing it. Because most applications are implemented in <strong>imperative languages</strong> (such as Java or Python) the policy definition tends to focus on <em>how</em> the policy is enforced rather than <em>what</em> the expected behavior or state should be. This makes it hard for people unfamiliar with the application’s implementation to know what the expected behavior or state should be. Furthermore, because policy is defined in the application’s implementation, it is hard to adapt the policy without rebuilding, retesting, and redeploying the application. Deploy-time configuration may address this to some extent but is often incomplete or too course-grained.</p>
+<p>When the cost of manually maintaining and enforcing policy is too high, policy is often defined in way that computers can understand: the application&#39;s implementation is updated to include the definition of policy and the means for enforcing it. Because most applications are implemented in <strong>imperative languages</strong> (such as Java or Python) the policy definition tends to focus on <em>how</em> the policy is enforced rather than <em>what</em> the expected behavior or state should be. This makes it hard for people unfamiliar with the application&#39;s implementation to know what the expected behavior or state should be. Furthermore, because policy is defined in the application&#39;s implementation, it is hard to adapt the policy without rebuilding, retesting, and redeploying the application. Deploy-time configuration may address this to some extent but is often incomplete or too course-grained.</p>
 
-<p>A better approach is to define policy in a <strong>declarative language</strong> which can be understood by a computer. By using a declarative language, the policy definition can focus on <em>what</em> the expected behavior or state should be. This approach decouples policy from the application’s implementation and lifecycle so that policy can be updated independently. When policy is defined this way, it can be readily reused in multiple systems. Finally, this approach to policy enables various features such as conflict detection, change tracking and access control independent from the application’s source, sharing and re-use of policy, visualization, etc.</p>
+<p>A better approach is to define policy in a <strong>declarative language</strong> which can be understood by a computer. By using a declarative language, the policy definition can focus on <em>what</em> the expected behavior or state should be. This approach decouples policy from the application&#39;s implementation and lifecycle so that policy can be updated independently. When policy is defined this way, it can be readily reused in multiple systems. Finally, this approach to policy enables various features such as conflict detection, change tracking and access control independent from the application&#39;s source, sharing and re-use of policy, visualization, etc.</p>
 
-<h1 id="what-is-policy-enabling">What is Policy Enabling?</h1>
+<h1>What is Policy Enabling?</h1>
 
 <p>Policy enabling an application decouples the policy implementation from the business logic so that administrators can define policy without changing the application while still keeping up with the size, complexity, and dynamic nature of modern applications.</p>
 
 <p>Policy enabling an application involves providing policy statements to an engine and then integrating the application with the engine to provide answers to questions such as:</p>
 
 <ul>
-  <li>Can a specific operation be performed?</li>
-  <li>What options are available for some operation?</li>
-  <li>What policy violations currently exist?</li>
+<li>Can a specific operation be performed?</li>
+<li>What options are available for some operation?</li>
+<li>What policy violations currently exist?</li>
 </ul>
 
 <p>To answer questions like these, policies must be written in a declarative language and then compiled and executed by a policy engine that knows about the state of the world (which is relevant to policy).</p>
 
-<h1 id="what-does-opa-provide">What does OPA provide?</h1>
+<h1>What does OPA provide?</h1>
 
 <p>OPA provides an open source policy engine that simplifies the task of policy enabling applications.</p>
 
 <p>OPA exposes several APIs to simplify integration:</p>
 
 <ul>
-  <li>Query APIs with rich support for accessing stored data.</li>
-  <li>Simple CRUD APIs to manage policies and data.</li>
-  <li>Transactional APIs to operate on consistent snapshots of data.</li>
-  <li>Asynchronous APIs to register for notification when policy is violated.</li>
+<li>Query APIs with rich support for accessing stored data.</li>
+<li>Simple CRUD APIs to manage policies and data.</li>
+<li>Transactional APIs to operate on consistent snapshots of data.</li>
+<li>Asynchronous APIs to register for notification when policy is violated.</li>
 </ul>
 
-<p>OPA’s policy engine supports a purpose built declarative language for policy. Developers do not have to design a policy language, build a compiler or interpreter, or implement other language analysis tools to policy enable their applications.</p>
+<p>OPA&#39;s policy engine supports a purpose built declarative language for policy. Developers do not have to design a policy language, build a compiler or interpreter, or implement other language analysis tools to policy enable their applications.</p>
 
   </div>
 

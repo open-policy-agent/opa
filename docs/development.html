@@ -44,6 +44,10 @@
           
         
           
+          <a class="page-link" href="/docs/examples/hello-world.html">Examples</a>
+          
+        
+          
         
           
           <a class="page-link" href="/docs/intro.html">Docs</a>
@@ -99,11 +103,17 @@
         </li>
         
         
+         
+        <li>
+          <a class="page-link" href="/docs/examples/hello-world.html">Hello World</a>
+        </li>
+        
+        
     </ul>
   </div>
   
   <div class="docs-content">
-    <h2 id="development-environment">Development Environment</h2>
+    <h2>Development Environment</h2>
 
 <p>OPA is written in the <a href="https://golang.org">Go</a> programming language.</p>
 
@@ -113,96 +123,72 @@ Code</a> article to familiarize yourself with the standard Go development enviro
 <p>Requirements:</p>
 
 <ul>
-  <li>Git</li>
-  <li>GitHub account (if you are contributing)</li>
-  <li>Go (version 1.5.x and 1.6.x are supported)</li>
-  <li>GNU Make</li>
+<li>Git</li>
+<li>GitHub account (if you are contributing)</li>
+<li>Go (version 1.5.x and 1.6.x are supported)</li>
+<li>GNU Make</li>
 </ul>
 
-<h2 id="getting-started">Getting Started</h2>
+<h2>Getting Started</h2>
 
-<p>After cloning the repository, run <code class="highlighter-rouge">make deps</code> to install the parser generator (“pigeon”) into your workspace.</p>
+<p>After cloning the repository, run <code>make deps</code> to install the parser generator (&quot;pigeon&quot;) into your workspace.</p>
 
-<p>Next, run <code class="highlighter-rouge">make all</code> to build the project, execute all of the tests, and run
+<p>Next, run <code>make all</code> to build the project, execute all of the tests, and run
 static analysis checks against the code. If this succeeds, there should be a
-new binary in the top level directory (“opa”).</p>
+new binary in the top level directory (&quot;opa&quot;).</p>
 
-<p>Verify the build was successful by running <code class="highlighter-rouge">opa version</code>.</p>
+<p>Verify the build was successful by running <code>opa version</code>.</p>
 
-<p>You can re-build the project with <code class="highlighter-rouge">make build</code> and execute all of the tests
-with <code class="highlighter-rouge">make test</code>.</p>
+<p>You can re-build the project with <code>make build</code> and execute all of the tests
+with <code>make test</code>.</p>
 
-<p>The static analysis checks (i.e., <code class="highlighter-rouge">go fmt</code>, <code class="highlighter-rouge">golint</code>, and <code class="highlighter-rouge">go vet</code> can be run
-with <code class="highlighter-rouge">make check</code>).</p>
+<p>The static analysis checks (i.e., <code>go fmt</code>, <code>golint</code>, and <code>go vet</code> can be run
+with <code>make check</code>).</p>
 
-<h2 id="workflow">Workflow</h2>
+<h2>Workflow</h2>
 
 <ol>
-  <li>
-    <p>Go to <a href="https://github.com/open-policy-agent/opa">https://github.com/open-policy-agent/opa</a> and fork the repository
-into your account by clicking the “Fork” button.</p>
-  </li>
-  <li>
-    <p>Clone the fork to your local machine.</p>
-
-    <p><code class="highlighter-rouge">
- cd $GOPATH
- mkdir -p src/github.com/open-policy-agent
- cd src/github.com/open-policy-agent
- git clone git@github.com/&lt;GITHUB USERNAME&gt;/opa.git opa
- cd opa
- git remote add upstream https://github.com/open-policy-agent/opa.git
-</code></p>
-  </li>
-  <li>
-    <p>Create a branch for your changes.</p>
-
-    <p><code class="highlighter-rouge">
- git checkout -b somefeature
-</code></p>
-  </li>
-  <li>
-    <p>Update your local branch with upstream.</p>
-
-    <p><code class="highlighter-rouge">
- git fetch upstream
- git rebase upstream/master
-</code></p>
-  </li>
-  <li>
-    <p>Develop your changes and regularly update your local branch against upstream.</p>
-
-    <ul>
-      <li>Be sure to run <code class="highlighter-rouge">make check</code> before submitting your pull request. You
-may need to run <code class="highlighter-rouge">go fmt</code> on your code to make it comply with standard Go
-style.</li>
-    </ul>
-  </li>
-  <li>
-    <p>Commit changes and push to your fork.</p>
-
-    <p><code class="highlighter-rouge">
- git commit
- git push origin somefeature
-</code></p>
-  </li>
-  <li>
-    <p>Submit a Pull Request via https://github.com/&lt;GITHUB USERNAME&gt;/opa. You
-should be prompted to with a “Compare and Pull Request” button that
-mentions your branch.</p>
-  </li>
-  <li>
-    <p>Once your Pull Request has been reviewed and signed off please squash your
+<li><p>Go to <a href="https://github.com/open-policy-agent/opa">https://github.com/open-policy-agent/opa</a> and fork the repository
+into your account by clicking the &quot;Fork&quot; button.</p></li>
+<li><p>Clone the fork to your local machine.</p>
+<div class="highlight"><pre><code class="language-" data-lang="">cd $GOPATH
+mkdir -p src/github.com/open-policy-agent
+cd src/github.com/open-policy-agent
+git clone git@github.com/&lt;GITHUB USERNAME&gt;/opa.git opa
+cd opa
+git remote add upstream https://github.com/open-policy-agent/opa.git
+</code></pre></div></li>
+<li><p>Create a branch for your changes.</p>
+<div class="highlight"><pre><code class="language-" data-lang="">git checkout -b somefeature
+</code></pre></div></li>
+<li><p>Update your local branch with upstream.</p>
+<div class="highlight"><pre><code class="language-" data-lang="">git fetch upstream
+git rebase upstream/master
+</code></pre></div></li>
+<li><p>Develop your changes and regularly update your local branch against upstream.</p></li>
+</ol>
+<div class="highlight"><pre><code class="language-" data-lang="">- Be sure to run `make check` before submitting your pull request. You
+  may need to run `go fmt` on your code to make it comply with standard Go
+  style.
+</code></pre></div>
+<ol>
+<li><p>Commit changes and push to your fork.</p>
+<div class="highlight"><pre><code class="language-" data-lang="">git commit
+git push origin somefeature
+</code></pre></div></li>
+<li><p>Submit a Pull Request via https://github.com/&lt;GITHUB USERNAME&gt;/opa. You
+should be prompted to with a &quot;Compare and Pull Request&quot; button that
+mentions your branch.</p></li>
+<li><p>Once your Pull Request has been reviewed and signed off please squash your
 commits. If you have a specific reason to leave multiple commits in the
-Pull Request, please mention it in the discussion.</p>
-
-    <blockquote>
-      <p>If you are not familiar with squashing commits, see <a href="http://gitready.com/advanced/2009/02/10/squashing-commits-with-rebase.html">the following blog post for a good overview</a>.</p>
-    </blockquote>
-  </li>
+Pull Request, please mention it in the discussion.</p></li>
 </ol>
 
-<h2 id="dependencies">Dependencies</h2>
+<blockquote>
+<p>If you are not familiar with squashing commits, see <a href="http://gitready.com/advanced/2009/02/10/squashing-commits-with-rebase.html">the following blog post for a good overview</a>.</p>
+</blockquote>
+
+<h2>Dependencies</h2>
 
 <p><a href="https://github.com/Masterminds/glide">Glide</a> is a command line tool used for
 dependency management. You must have Glide installed in order to add new
@@ -213,29 +199,29 @@ contained in the vendor directory.</p>
 <p>If you need to add a dependency to the project:</p>
 
 <ol>
-  <li>Run <code class="highlighter-rouge">glide get &lt;package&gt; --update-vendored</code> to download the package.
-    <ul>
-      <li>This command should be used instead of <code class="highlighter-rouge">go get &lt;package&gt;</code>.</li>
-      <li>The package will be stored under the vendor directory.</li>
-      <li>The glide.yaml file will be updated.</li>
-    </ul>
-  </li>
-  <li>Manually remove the VCS directories (e.g., .git, .hg, etc.) from the new
+<li>Run <code>glide get &lt;package&gt; --update-vendored</code> to download the package.
+
+<ul>
+<li>This command should be used instead of <code>go get &lt;package&gt;</code>.</li>
+<li>The package will be stored under the vendor directory.</li>
+<li>The glide.yaml file will be updated.</li>
+</ul></li>
+<li>Manually remove the VCS directories (e.g., .git, .hg, etc.) from the new
 vendor directories.</li>
-  <li>Commit the changes in glide.yaml, glide.lock, and new vendor directories.</li>
+<li>Commit the changes in glide.yaml, glide.lock, and new vendor directories.</li>
 </ol>
 
 <p>If you need to update the dependencies:</p>
 
 <ol>
-  <li>Run <code class="highlighter-rouge">glide update --update-vendored</code>.</li>
-  <li>Commit the changes to the glide.lock file and any files under the vendor
+<li>Run <code>glide update --update-vendored</code>.</li>
+<li>Commit the changes to the glide.lock file and any files under the vendor
 directory.</li>
 </ol>
 
-<h2 id="rego">Rego</h2>
+<h2>Rego</h2>
 
-<p>If you need to modify the Rego syntax you must update ast/rego.peg. Both <code class="highlighter-rouge">make build</code> and <code class="highlighter-rouge">make test</code> will re-generate the parser but if you want to test the parser generation explicitly you can run <code class="highlighter-rouge">make generate</code>.</p>
+<p>If you need to modify the Rego syntax you must update ast/rego.peg. Both <code>make build</code> and <code>make test</code> will re-generate the parser but if you want to test the parser generation explicitly you can run <code>make generate</code>.</p>
 
   </div>
 
