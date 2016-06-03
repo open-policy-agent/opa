@@ -5,8 +5,6 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
-## 0.1.0
-
 ### Language
 
 - Basic value types: null, boolean, number, string, object, and array
@@ -42,9 +40,10 @@ project adheres to [Semantic Versioning](http://semver.org/).
 ### Infrastructure
 
 - Basic build infrastructure to produce cross-platform builds, run
-  style/lint/format checks, execute tests, static HTML site.
+  style/lint/format checks, execute tests, static HTML site
 
 ### Documentation
 
 - Architectural overview of OPA and design philosophy
 - Language reference that serves as guide for new users
+- Hello World example to give people something to try

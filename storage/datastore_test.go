@@ -111,6 +111,7 @@ func TestStoragePatch(t *testing.T) {
 		{"err: append (missing)", "add", path(`dead.beef["-"]`), "1", notFoundError(path("dead"), doesNotExistMsg), nil, nil},
 		{"err: append obj/arr", "add", path(`c[0].deadbeef["-"]`), `"x"`, notFoundError(path("c[0].deadbeef"), doesNotExistMsg), nil, nil},
 		{"err: append arr/arr (out of range)", "add", path(`h[9999]["-"]`), `"x"`, notFoundError(path("h[9999]"), outOfRangeMsg), nil, nil},
+		{"err: append append+add", "add", path(`a["-"].b["-"]`), `"x"`, notFoundError(path(`a["-"]`), arrayIndexTypeMsg("-")), nil, nil},
 		{"err: append arr/arr (non-array)", "add", path(`b.v1["-"]`), "1", notFoundError(path("b.v1"), nonArrayMsg("v1")), nil, nil},
 		{"err: remove missing", "remove", path("dead.beef[0]"), "", notFoundError(path("dead.beef[0]"), doesNotExistMsg), nil, nil},
 		{"err: remove obj (non string)", "remove", path("b[100]"), "", notFoundError(path("b[100]"), objectKeyTypeMsg(float64(100))), nil, nil},

@@ -6,6 +6,7 @@ package runtime
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -33,149 +34,72 @@ func TestMain(m *testing.M) {
 	os.Exit(rc)
 }
 
-func TestDataPatchV1(t *testing.T) {
-	f := newFixture(t)
-	patch := newReqV1("PATCH", "/data/x", `[{"op": "add", "path": "/", "value": {"a": 1, "b": 2}}]`)
-	f.server.Router.ServeHTTP(f.recorder, patch)
-
-	if f.recorder.Code != 204 {
-		t.Errorf("Expected success/no-content but got %v", f.recorder)
-		return
-	}
-
-	get := newReqV1("GET", "/data/x/a", "")
-	f.reset()
-	f.server.Router.ServeHTTP(f.recorder, get)
-
-	if f.recorder.Code != 200 {
-		t.Errorf("Expected success but got %v", f.recorder)
-		return
-	}
-
-	resp := f.loadResponse().(float64)
-	exp := float64(1)
-	if resp != exp {
-		t.Errorf("Expected %v but got: %v", exp, resp)
-	}
+type tr struct {
+	method string
+	path   string
+	body   string
+	code   int
+	resp   string
 }
 
-func TestDataPatchArrayAccessV1(t *testing.T) {
-	f := newFixture(t)
-	patch1 := newReqV1("PATCH", "/data/x", `[{"op": "add", "path": "/", "value": {
-		"y": [
-			{"z": [
-				1, 2, 3
-			]},
-			{"z": [
-				4, 5, 6
-			]}
-		]
-	}}]`)
+func TestDataV1(t *testing.T) {
 
-	f.server.Router.ServeHTTP(f.recorder, patch1)
-
-	if f.recorder.Code != 204 {
-		t.Errorf("Unexpected error: %v", f.recorder)
-		return
-	}
-
-	get1 := newReqV1("GET", "/data/x/y/1/z/2", "")
-	f.reset()
-	f.server.Router.ServeHTTP(f.recorder, get1)
-
-	resp := f.loadResponse().(float64)
-	exp1 := float64(6)
-	if exp1 != resp {
-		t.Errorf("Expected %v but got: %v", exp1, resp)
-		return
-	}
-
-	patch2 := newReqV1("PATCH", "/data/x/y/1", `[{"op": "add", "path": "/z/1", "value": 100}]`)
-	f.reset()
-	f.server.Router.ServeHTTP(f.recorder, patch2)
-
-	if f.recorder.Code != 204 {
-		t.Errorf("Unexpected error: %v", f.recorder)
-		return
-	}
-
-	get2 := newReqV1("GET", "/data/x/y/1/z", "")
-	f.reset()
-	f.server.Router.ServeHTTP(f.recorder, get2)
-
-	if f.recorder.Code != 200 {
-		t.Errorf("Unexpected error: %v", f.recorder)
-		return
-	}
-
-	resp2 := f.loadResponse().([]interface{})
-	exp2 := []interface{}{float64(4), float64(100), float64(5), float64(6)}
-	if !reflect.DeepEqual(exp2, resp2) {
-		t.Errorf("Expected %v but got: %v", exp2, resp2)
-		return
-	}
-
-}
-
-func TestDataGetVirtualDoc(t *testing.T) {
-
-	f := newFixture(t)
 	testMod := `package testmod
+                p[x] :- q[x], not r[x]
+                q[x] :- data.x.y[i] = x
+                r[x] :- data.x.z[i] = x`
 
-	p[x] :- q[x], not r[x]
-	q[x] :- data.x.y[i] = x
-	r[x] :- data.x.z[i] = x
-	`
-
-	put := newReqV1("PUT", "/policies/test", testMod)
-
-	f.server.Router.ServeHTTP(f.recorder, put)
-
-	if f.recorder.Code != 200 {
-		t.Errorf("Expected policy creation to succeed but got: %v", f.recorder)
-		return
+	tests := []struct {
+		note string
+		reqs []tr
+	}{
+		{"add root", []tr{
+			tr{"PATCH", "/data/x", `[{"op": "add", "path": "/", "value": {"a": 1}}]`, 204, ""},
+			tr{"GET", "/data/x/a", "", 200, "1"},
+		}},
+		{"append array", []tr{
+			tr{"PATCH", "/data/x", `[{"op": "add", "path": "/", "value": []}]`, 204, ""},
+			tr{"PATCH", "/data/x", `[{"op": "add", "path": "-", "value": {"a": 1}}]`, 204, ""},
+			tr{"PATCH", "/data/x", `[{"op": "add", "path": "-", "value": {"a": 2}}]`, 204, ""},
+			tr{"GET", "/data/x/0/a", "", 200, "1"},
+			tr{"GET", "/data/x/1/a", "", 200, "2"},
+		}},
+		{"append array one-shot", []tr{
+			tr{"PATCH", "/data/x", `[
+                {"op": "add", "path": "/", "value": []},
+                {"op": "add", "path": "-", "value": {"a": 1}},
+                {"op": "add", "path": "-", "value": {"a": 2}}
+            ]`, 204, ""},
+			tr{"GET", "/data/x/1/a", "", 200, "2"},
+		}},
+		{"insert array", []tr{
+			tr{"PATCH", "/data/x", `[{"op": "add", "path": "/", "value": {
+                "y": [
+                    {"z": [1,2,3]},
+                    {"z": [4,5,6]}
+                ]
+            }}]`, 204, ""},
+			tr{"GET", "/data/x/y/1/z/2", "", 200, "6"},
+			tr{"PATCH", "/data/x/y/1", `[{"op": "add", "path": "/z/1", "value": 100}]`, 204, ""},
+			tr{"GET", "/data/x/y/1/z", "", 200, "[4, 100, 5, 6]"},
+		}},
+		{"get virtual", []tr{
+			tr{"PUT", "/policies/test", testMod, 200, ""},
+			tr{"PATCH", "/data/x", `[{"op": "add", "path": "/", "value": {"y": [1,2,3,4], "z": [3,4,5,6]}}]`, 204, ""},
+			tr{"GET", "/data/testmod/p", "", 200, "[1,2]"},
+		}},
+		{"patch virtual error", []tr{
+			tr{"PUT", "/policies/test", testMod, 200, ""},
+			tr{"PATCH", "/data/testmod/p", `[{"op": "add", "path": "-", "value": 1}]`, 404, `{
+                "Code": 404,
+                "Message": "storage error (code: 1): bad path: [testmod p], path refers to non-array document with element p"
+            }`},
+		}},
 	}
 
-	f.reset()
-
-	patch1 := newReqV1("PATCH", "/data/x", `[{
-		"op": "add",
-		"path": "/",
-		"value": {"y": [1,2,3,4], "z": [3,4,5,6]}
-	}]`)
-
-	f.server.Router.ServeHTTP(f.recorder, patch1)
-
-	if f.recorder.Code != 204 {
-		t.Errorf("Expected data patch to succeed but got: %v", f.recorder)
-		return
+	for i, tc := range tests {
+		executeRequests(t, i+1, tc.note, tc.reqs)
 	}
-
-	f.reset()
-
-	get := newReqV1("GET", "/data/testmod/p", "")
-
-	f.server.Router.ServeHTTP(f.recorder, get)
-
-	if f.recorder.Code != 200 {
-		t.Errorf("Expected data get to succeed but got: %v", f.recorder)
-		return
-	}
-
-	var result interface{}
-	err := json.Unmarshal(f.recorder.Body.Bytes(), &result)
-	if err != nil {
-		t.Errorf("Expected JSON response from data get but got: %v", err)
-		return
-	}
-
-	expected := []interface{}{float64(1), float64(2)}
-
-	if !reflect.DeepEqual(result, expected) {
-		t.Errorf("Expected response to equal [1,2] but got: %v", result)
-		return
-	}
-
 }
 
 func TestIndexGet(t *testing.T) {
@@ -229,10 +153,10 @@ func TestPoliciesPutV1Empty(t *testing.T) {
 func TestPoliciesPutV1ParseError(t *testing.T) {
 	f := newFixture(t)
 	req := newReqV1("PUT", "/policies/1", `
-	package a.b.c
+    package a.b.c
 
-	p[x] %%^ ;-
-	`)
+    p[x] %%^ ;-
+    `)
 
 	f.server.Router.ServeHTTP(f.recorder, req)
 
@@ -246,10 +170,10 @@ func TestPoliciesPutV1ParseError(t *testing.T) {
 func testPoliciesPutV1CompileError(t *testing.T) {
 	f := newFixture(t)
 	req := newReqV1("PUT", "/policies/1", `
-	package a.b.c
-	p[x] :- q[x]
-	q[x] :- p[x]
-	`)
+    package a.b.c
+    p[x] :- q[x]
+    q[x] :- p[x]
+    `)
 
 	f.server.Router.ServeHTTP(f.recorder, req)
 
@@ -456,8 +380,40 @@ func (f *fixture) loadResponse() interface{} {
 	return v
 }
 
+func (f *fixture) v1(method string, path string, body string, code int, resp string) error {
+	req := newReqV1(method, path, body)
+	f.reset()
+	f.server.Router.ServeHTTP(f.recorder, req)
+	if f.recorder.Code != code {
+		return fmt.Errorf("Expected code %v from %v %v but got: %v", method, code, path, f.recorder)
+	}
+	if resp != "" {
+		var result interface{}
+		if err := json.Unmarshal([]byte(f.recorder.Body.String()), &result); err != nil {
+			return fmt.Errorf("Expected JSON response from %v %v but got: %v", method, path, f.recorder)
+		}
+		var expected interface{}
+		if err := json.Unmarshal([]byte(resp), &expected); err != nil {
+			panic(err)
+		}
+		if !reflect.DeepEqual(result, expected) {
+			return fmt.Errorf("Expected JSON response from %v %v to equal %v but got: %v", method, path, expected, result)
+		}
+	}
+	return nil
+}
+
 func (f *fixture) reset() {
 	f.recorder = httptest.NewRecorder()
+}
+
+func executeRequests(t *testing.T, tc int, note string, reqs []tr) {
+	f := newFixture(t)
+	for i, req := range reqs {
+		if err := f.v1(req.method, req.path, req.body, req.code, req.resp); err != nil {
+			t.Errorf("Unexpected response on request %d of test case %d (%v): %v", i+1, tc, note, err)
+		}
+	}
 }
 
 func newPolicy(id, s string) *policyV1 {

@@ -16,4 +16,4 @@ github_username:  open-policy-agent
 github_repo: opa
 
 # Build settings
-markdown: kramdown
+markdown: redcarpet
