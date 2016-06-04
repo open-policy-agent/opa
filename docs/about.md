@@ -10,7 +10,7 @@ About
 
 The Open Policy Agent (OPA) project is under active development.
 
-For information on contributing to OPA, see the [CONTRIBUTING.md](https://github.com/open-policy-agent/opa/master/CONTRIBUTING.md) file in the repository.
+For information on contributing to OPA, see the [CONTRIBUTING.md](https://github.com/open-policy-agent/opa/blob/master/CONTRIBUTING.md) file in the repository.
 
 Contact
 -------
