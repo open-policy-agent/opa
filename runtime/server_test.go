@@ -52,6 +52,8 @@ func TestDataV1(t *testing.T) {
 				import req1
 				import req2 as reqx
 				g :- req1.a[0] = 1, reqx.b[i] = 1
+
+				undef :- false
 				`
 	tests := []struct {
 		note string
@@ -109,6 +111,10 @@ func TestDataV1(t *testing.T) {
 				"Code": 400,
 				"Message": "evaluation error (code: 1): unbound variable req2: req2.b[i]"
 			}`},
+		}},
+		{"get undefined", []tr{
+			tr{"PUT", "/policies/test", testMod, 200, ""},
+			tr{"GET", "/data/testmod/undef", "", 404, `{"IsUndefined": true}`},
 		}},
 	}
 

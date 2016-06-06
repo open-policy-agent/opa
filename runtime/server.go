@@ -36,6 +36,11 @@ func (err *apiErrorV1) Bytes() []byte {
 	return nil
 }
 
+// undefinedV1 models the an undefined query result.
+type undefinedV1 struct {
+	IsUndefined bool
+}
+
 // patchV1 models a single patch operation against a document.
 type patchV1 struct {
 	Op    string      `json:"op"`
@@ -210,6 +215,11 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		handleErrorAuto(w, err)
+		return
+	}
+
+	if _, ok := result.(topdown.Undefined); ok {
+		handleResponseJSON(w, 404, undefinedV1{true})
 		return
 	}
 
