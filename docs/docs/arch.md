@@ -86,7 +86,7 @@ APIs
 
 OPA exposes its APIs over HTTP and uses JSON as the default interchange format. The APIs are RESTful with the exception of certain streaming operations. HTTP and JSON are used because they are well supported in most application development languages and provide a low barrier to integration.
 
-### Policy API
+### <a name="policy-api"></a>Policy API
 
 OPA's Policy API exposes CRUD operations on policies within OPA. Applications and administrators can use the Policy API to manage policies.
 
@@ -108,7 +108,7 @@ violations[server] :-
 
 Policy names are only used to identify policies for management purposes. Policy names are not used in policy definitions or when issuing requests against the Data API.
 
-### Data API
+### <a name="data-api"></a>Data API
 
 In order to evaluate policy and compute violations, OPA needs to have access to the state of the world which is relevant to policy. OPA's Data API deals with data from applications or the environment that is relevant to policy.
 

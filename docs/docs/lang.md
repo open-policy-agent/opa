@@ -470,9 +470,9 @@ The result:
 +-------+
 ```
 
-## Rules
+## <a name="rules"></a> Rules
 
-Rules define the content of [Virtual Documents](./CONTENT.md#data-model) in
+Rules define the content of [Virtual Documents](/docs/arch.html#data-model) in
 OPA. When OPA evaluates a rule, we say OPA *generates* the content of the
 document that is defined by the rule.
 
@@ -595,7 +595,7 @@ The result:
 
 ## <a name="negation"></a> Negation
 
-To generate the content of a [Virtual Document](./CONCEPTS.md#data-model), OPA attempts to bind variables in the body of the rule such that all expressions in the rule evaluate to True.
+To generate the content of a [Virtual Document](/docs/arch.html#data-model), OPA attempts to bind variables in the body of the rule such that all expressions in the rule evaluate to True.
 
 This generates the correct result when the expressions represent assertions about what states should exist in the data stored in OPA. In some cases, you want to express that certain states *should not* exist in the data stored in OPA. In these cases, negation must be used.
 
@@ -675,7 +675,7 @@ Modules contributing to the same package do not have to be located in the same
 directory.
 
 The rules defined in a module are automatically exported. I.e., they can be
-queried under OPA's [Data API](CONCEPTS.md#data-api) provided the appropriate
+queried under OPA's [Data API](/docs/arch.html#data-api) provided the appropriate
 package is given, e.g., given the following module:
 
 ```rego
@@ -699,8 +699,8 @@ exported by that document can be referenced within the current module.
 All modules contain an implicit statement which imports the "data" document.
 
 Modules use the same syntax to declare dependencies on [Base
-Documents](./CONCEPTS.md#data-model) and [Virtual
-Documents](./CONCEPTS.md#data-model).
+Documents and Virtual
+Documents](/docs/arch.html#data-model).
 
 ```rego
 package opa.examples
@@ -744,23 +744,26 @@ bound value) instead of a variable.
 
 The following inequality operators are supported:
 
-| Symbol | Example | Description |
-| --- | --- | --- |
-| `!=` | `"foo" != x.y` | Returns true if the left hand side does not equal the right hand side, false otherwise. |
-| `<` | `"foo" < x.y` | Returns true if the left hand side is less than the right hand side, false otherwise. |
-| `>` | `"foo" > x.y` | Returns true if the left hand side is greater than the right hand side, false otherwise. |
-| `>=` | `"foo" >= x.y` | Returns true if the left hand side is less than or equal to the right hand side, false otherwise. |
-| `<=` | `"foo" <= x.y` | Returns true if the left hand side is greater than or equal to the right hand side, false otherwise. |
+| Symbol | Example        | Meaning |
+| ------ | -------------- | ------- |
+| `!=`   | `"foo" != x.y` | LHS does not equal RHS. |
+| `<`    | `"foo" < x.y`  | LHS is less than RHS. |
+| `<=`   | `"foo" <= x.y` | LHS is less than or equal to RHS. |
+| `>`    | `"foo" > x.y`  | LHS is greater than RHS. |
+| `>=`   | `"foo" >= x.y` | LHS is greater than or equal to RHS. |
 
-If either operand is a variable, the variable must appear in a non-negated
-equality expression within the same rule.
+
+Unlike the equality operator, these operators do not bind variables contained
+in the expression. As a result, if either operand is a variable, the variable
+must appear in another expression in the same rule that would cause the variable
+to be bound, i.e., an equality expression or the target position of a built-in
+function.
 
 ## <a name="examples"></a> Examples
 
-The rules below define the content of two documents describing a simplistic
+The rules below define the content of documents describing a simplistic
 deployment environment. These documents are referenced in other sections
-above. If you are experimenting with OPA, you can copy-paste the content below
-into an OPA CLI session and reference it when following along above.
+above.
 
 ```rego
 sites = [

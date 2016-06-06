@@ -17,3 +17,6 @@ github_repo: opa
 
 # Build settings
 markdown: redcarpet
+redcarpet:
+  extensions:
+    - tables
