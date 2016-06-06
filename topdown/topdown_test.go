@@ -614,7 +614,7 @@ func TestTopDownGlobalVars(t *testing.T) {
 
 	assertTopDown(t, store, 1, "global vars (missing)", []string{"z", "p"}, `{
 		req1: {"foo": 4}
-	}`, fmt.Errorf("unbound variable req2: req2.bar"))
+	}`, unboundGlobalVar(ast.MustParseRef("req2.bar")))
 }
 
 func TestExample(t *testing.T) {

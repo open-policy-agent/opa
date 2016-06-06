@@ -47,8 +47,12 @@ func TestDataV1(t *testing.T) {
 	testMod := `package testmod
                 p[x] :- q[x], not r[x]
                 q[x] :- data.x.y[i] = x
-                r[x] :- data.x.z[i] = x`
+                r[x] :- data.x.z[i] = x
 
+				import req1
+				import req2 as reqx
+				g :- req1.a[0] = 1, reqx.b[i] = 1
+				`
 	tests := []struct {
 		note string
 		reqs []tr
@@ -94,6 +98,17 @@ func TestDataV1(t *testing.T) {
                 "Code": 404,
                 "Message": "storage error (code: 1): bad path: [testmod p], path refers to non-array document with element p"
             }`},
+		}},
+		{"get with global", []tr{
+			tr{"PUT", "/policies/test", testMod, 200, ""},
+			tr{"GET", "/data/testmod/g?global=req1%3A%7B%22a%22%3A%5B1%5D%7D&global=req2%3A%7B%22b%22%3A%5B0%2C1%5D%7D", "", 200, "true"},
+		}},
+		{"get with global (unbound error)", []tr{
+			tr{"PUT", "/policies/test", testMod, 200, ""},
+			tr{"GET", "/data/testmod/g?global=req1%3A%7B%22a%22%3A%5B1%5D%7D", "", 400, `{
+				"Code": 400,
+				"Message": "evaluation error (code: 1): unbound variable req2: req2.b[i]"
+			}`},
 		}},
 	}
 
