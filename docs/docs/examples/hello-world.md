@@ -2,7 +2,7 @@
 layout: docs
 header_title: Examples
 title: Hello World
-section: docs
+section: examples
 show_in_header: true
 sort_order: 1000
 ---

@@ -1,7 +1,7 @@
 ---
 layout: docs
 title: Development
-section: docs
+section: references
 sort_order: 100
 ---
 

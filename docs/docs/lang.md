@@ -1,7 +1,7 @@
 ---
 layout: docs
 title: Language
-section: docs
+section: references
 sort_order: 3
 ---
 
