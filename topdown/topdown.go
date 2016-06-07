@@ -153,6 +153,42 @@ func (ctx *Context) traceFinish() {
 	ctx.trace("   Finish %v", ctx.Locals)
 }
 
+// Error is the error type returned by the Eval and Query functions when
+// an evaluation error occurs.
+type Error struct {
+	Code    int
+	Message string
+}
+
+const (
+
+	// InternalErr represents an unknown evaluation error
+	InternalErr = iota
+
+	// UnboundGlobalErr indicates a global variable without a binding was
+	// encountered during evaluation.
+	UnboundGlobalErr = iota
+)
+
+func (e *Error) Error() string {
+	return fmt.Sprintf("evaluation error (code: %v): %v", e.Code, e.Message)
+}
+
+// IsUnboundGlobal returns true if the error e is an UnboundGlobalErr
+func IsUnboundGlobal(e error) bool {
+	if e, ok := e.(*Error); ok {
+		return e.Code == UnboundGlobalErr
+	}
+	return false
+}
+
+func unboundGlobalVar(r ast.Ref) error {
+	return &Error{
+		Code:    UnboundGlobalErr,
+		Message: fmt.Sprintf("unbound variable %v: %v", r[0], r),
+	}
+}
+
 // Iterator is the interface for processing contexts.
 type Iterator func(*Context) error
 
@@ -449,7 +485,7 @@ func evalRef(ctx *Context, ref ast.Ref, iter Iterator) error {
 	if !ref[0].Equal(ast.DefaultRootDocument) {
 		v := ctx.Binding(ref[0].Value)
 		if v == nil {
-			return fmt.Errorf("unbound variable %v: %v", ref[0], ref)
+			return unboundGlobalVar(ref)
 		}
 		return evalRefRuleResult(ctx, ref, ref[1:], v, iter)
 	}

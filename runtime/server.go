@@ -36,6 +36,11 @@ func (err *apiErrorV1) Bytes() []byte {
 	return nil
 }
 
+// undefinedV1 models the an undefined query result.
+type undefinedV1 struct {
+	IsUndefined bool
+}
+
 // patchV1 models a single patch operation against a document.
 type patchV1 struct {
 	Op    string      `json:"op"`
@@ -196,8 +201,12 @@ func (s *Server) registerHandlerV1(path string, method string, h func(http.Respo
 func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	path := splitPath(vars["path"])
-
-	params := topdown.NewQueryParams(s.Runtime.DataStore, storage.NewBindings(), path)
+	globals, err := parseGlobals(r.URL.Query()["global"])
+	if err != nil {
+		handleError(w, 400, err)
+		return
+	}
+	params := topdown.NewQueryParams(s.Runtime.DataStore, globals, path)
 
 	s.mtx.RLock()
 	defer s.mtx.RUnlock()
@@ -206,6 +215,11 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		handleErrorAuto(w, err)
+		return
+	}
+
+	if _, ok := result.(topdown.Undefined); ok {
+		handleResponseJSON(w, 404, undefinedV1{true})
 		return
 	}
 
@@ -445,6 +459,10 @@ func handleErrorAuto(w http.ResponseWriter, err error) {
 			handleError(w, 404, err)
 			return
 		}
+		if topdown.IsUnboundGlobal(curr) {
+			handleError(w, 400, err)
+			return
+		}
 		prev = curr
 		curr = errors.Cause(prev)
 	}
@@ -487,6 +505,23 @@ func handleResponseJSONPretty(w http.ResponseWriter, code int, v interface{}) {
 	headers := w.Header()
 	headers.Add("Content-Type", "application/json")
 	handleResponse(w, code, bs)
+}
+
+func parseGlobals(globals []string) (*storage.Bindings, error) {
+	r := storage.NewBindings()
+	for _, g := range globals {
+		vs := strings.SplitN(g, ":", 2)
+		k, err := ast.ParseTerm(vs[0])
+		if err != nil {
+			return nil, err
+		}
+		v, err := ast.ParseTerm(vs[1])
+		if err != nil {
+			return nil, err
+		}
+		r.Put(k.Value, v.Value)
+	}
+	return r, nil
 }
 
 func renderBanner(w http.ResponseWriter) {
