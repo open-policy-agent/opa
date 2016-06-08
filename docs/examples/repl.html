@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>REPL</title>
+  <meta name="description" content="OPA: An open source project to policy enable any application.
+">
+
+  <link rel="stylesheet" href="/css/main.css">
+  <link rel="canonical" href="http://openpolicyagent.org/docs/examples/repl.html">
+  <link rel="alternate" type="application/rss+xml" title="Open Policy Agent" href="http://openpolicyagent.org/feed.xml">
+</head>
+
+
+  <body>
+
+    <header class="site-header">
+
+  <div class="wrapper">
+
+    <a class="site-title" href="/">Open Policy Agent</a>
+
+    <nav class="site-nav">
+      <a href="#" class="menu-icon">
+        <svg viewBox="0 0 18 15">
+          <path fill="#424242" d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.031C17.335,0,18,0.665,18,1.484L18,1.484z"/>
+          <path fill="#424242" d="M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0c0-0.82,0.665-1.484,1.484-1.484 h15.031C17.335,6.031,18,6.696,18,7.516L18,7.516z"/>
+          <path fill="#424242" d="M18,13.516C18,14.335,17.335,15,16.516,15H1.484C0.665,15,0,14.335,0,13.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.031C17.335,12.031,18,12.696,18,13.516L18,13.516z"/>
+        </svg>
+      </a>
+
+      <div class="trigger">
+        
+          
+          <a class="page-link" href="/about.html">About</a>
+          
+        
+          
+        
+          
+        
+          
+          <a class="page-link" href="/docs/examples/hello-world.html">Hello World</a>
+          
+        
+          
+        
+          
+          <a class="page-link" href="/docs/intro.html">Docs</a>
+          
+        
+          
+        
+          
+        
+          
+        
+      </div>
+    </nav>
+
+  </div>
+
+</header>
+
+
+    <div class="page-content">
+      <div class="wrapper">
+        <article class="docs">
+
+  <div class="docs-nav">
+    <ul>
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        <li>
+          <a class="page-link" href="/docs/intro.html">Introduction</a>
+        </li>
+        <br>
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        <li>References</li>
+        <ul>
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        <li>
+          <a class="page-link" href="/docs/arch.html">Architecture</a>
+        </li>
+        
+        
+        
+        <li>
+          <a class="page-link" href="/docs/lang.html">Rego</a>
+        </li>
+        
+        
+        
+        <li>
+          <a class="page-link" href="/docs/development.html">Development</a>
+        </li>
+        
+        
+        
+        
+        
+        
+        </ul>
+        <li>Examples</li>
+        <ul>
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        <li>
+          <a class="page-link" href="/docs/examples/hello-world.html">Hello World</a>
+        </li>
+        
+        
+        
+        <li>
+          <a class="page-link" href="/docs/examples/repl.html">REPL</a>
+        </li>
+        
+        
+        </ul>
+    </ul>
+  </div>
+
+  <div class="docs-content">
+    <h2>REPL</h2>
+
+<p>This examples shows how to run OPA as an interactive shell or <a href="https://en.wikipedia.org/wiki/Read%E2%80%93eval%E2%80%93print_loop">REPL (read-eval-print loop)</a>.</p>
+
+<p>REPLs are great for learning new languages and running quick experiments. You can take advantage of OPA&#39;s REPL to quickly
+run ad-hoc queries or prototype policies.</p>
+
+<p>In this example, we will use the REPL to define rules to identify servers that violate a security policy: servers exposing (unencrypted) HTTP must not be connected to a public network.</p>
+
+<p>Once you finish this example, you will be familiar with:</p>
+
+<ul>
+<li>Running OPA as an interactive shell/REPL.</li>
+<li>Writing ad-hoc queries in <a href="/docs/lang.html">Rego</a>.</li>
+</ul>
+
+<h1>Prerequisites</h1>
+
+<ul>
+<li><p>This example requires that you have the latest version of OPA. You can download the latest version of OPA at <a href="/index.html">openpolicyagent.org</a></p></li>
+<li><p>This example assumes you have the OPA executable in your $PATH.</p></li>
+</ul>
+
+<h1>Steps</h1>
+
+<ol>
+<li><p>First, make sure you can run the REPL on your machine:</p>
+<div class="highlight"><pre><code class="language-" data-lang="">opa run
+</code></pre></div>
+<p>Without any data, you can experiment with simple boolean expressions to get the hang of it:</p>
+<div class="highlight"><pre><code class="language-" data-lang="">&gt; a = 1, b = 2, a != b
++---+---+
+| A | B |
++---+---+
+| 1 | 2 |
++---+---+
+&gt; a = 1, b = 2, a = b
+false
+&gt; 10 &gt; 9
+true
+&gt; a = [1,2,3,4], a[i] &gt; 2
++-----------+---+
+|     A     | I |
++-----------+---+
+| [1,2,3,4] | 2 |
+| [1,2,3,4] | 3 |
++-----------+---+
+</code></pre></div>
+<p>When you enter expressions into the REPL, you are effectively running <em>queries</em> against OPA. The REPL output shows the values of variables in the expression that make the query <strong>true</strong>. If there is not set of variables that would make the query true, the REPL prints <strong>false</strong>. If there are no variables in the query and the query evaluates successfully, then the REPL just prints <strong>true</strong>.</p></li>
+<li><p>In addition to running queries, the REPL also lets you define rules:</p>
+<div class="highlight"><pre><code class="language-" data-lang="">&gt; p[x] :- a = [1,2,3,4], a[x] = _
+defined
+&gt; p[x]
++---+
+| X |
++---+
+| 0 |
+| 1 |
+| 2 |
+| 3 |
++---+
+</code></pre></div></li>
+<li><p>The REPL can also take policies and data as input. Let&#39;s define a bit of JSON data that will be used in the example:</p>
+<div class="highlight"><pre><code class="language-" data-lang="">cat &gt;data.json &lt;&lt;EOF
+{
+    "servers": [
+        {"id": "s1", "name": "app", "protocols": ["https", "ssh"], "ports": ["p1", "p2", "p3"]},
+        {"id": "s2", "name": "db", "protocols": ["mysql"], "ports": ["p3"]},
+        {"id": "s3", "name": "cache", "protocols": ["memcache"], "ports": ["p3"]},
+        {"id": "s4", "name": "dev", "protocols": ["http"], "ports": ["p1", "p2"]}
+    ],
+    "networks": [
+        {"id": "n1", "public": false},
+        {"id": "n2", "public": false},
+        {"id": "n3", "public": true}
+    ],
+    "ports": [
+        {"id": "p1", "networks": ["n1"]},
+        {"id": "p2", "networks": ["n3"]},
+        {"id": "p3", "networks": ["n2"]}
+    ]
+}
+EOF
+</code></pre></div>
+<p>Also, let&#39;s include a rule that defines a set of servers that are attached to public networks:</p>
+<div class="highlight"><pre><code class="language-" data-lang="">cat &gt;example.rego &lt;&lt;EOF
+package opa.example
+
+import data.servers
+import data.networks
+import data.ports
+
+public_servers[s] :-
+    s = servers[_],
+    s.ports[_] = ports[i].id,
+    ports[i].networks[_] = networks[j].id,
+    networks[j].public = true
+EOF
+</code></pre></div></li>
+<li><p>Run the REPL with the two files as input:</p>
+<div class="highlight"><pre><code class="language-" data-lang="">opa run data.json example.rego
+</code></pre></div>
+<p>You can now run queries against the various documents:</p>
+<div class="highlight"><pre><code class="language-" data-lang="">&gt; data.servers[_].id = id
++------+
+|  ID  |
++------+
+| "s1" |
+| "s2" |
+| "s3" |
+| "s4" |
++------+
+&gt; data.opa.example.public_servers[x]
++-------------------------------------------------------------------------------+
+|                                       X                                       |
++-------------------------------------------------------------------------------+
+| {"id":"s1","name":"app","ports":["p1","p2","p3"],"protocols":["https","ssh"]} |
+| {"id":"s4","name":"dev","ports":["p1","p2"],"protocols":["http"]}             |
++-------------------------------------------------------------------------------+
+</code></pre></div></li>
+<li><p>The REPL also understands the <a href="/docs/lang.html#modules">Import and Package</a> directives.</p>
+<div class="highlight"><pre><code class="language-" data-lang="">&gt; import data.servers
+&gt; servers[i].ports[_] = "p2", servers[i].id = id
++---+------+
+| I |  ID  |
++---+------+
+| 3 | "s4" |
+| 0 | "s1" |
++---+------+
+&gt; package opa.example
+&gt; public_servers[x], x.protocols[_] = "http"
++-------------------------------------------------------------------+
+|                                 X                                 |
++-------------------------------------------------------------------+
+| {"id":"s4","name":"dev","ports":["p1","p2"],"protocols":["http"]} |
++-------------------------------------------------------------------+
+</code></pre></div></li>
+<li><p>Finally, we can define a rule to identify servers in violation of our security policy:</p>
+<div class="highlight"><pre><code class="language-" data-lang="">&gt; violations[s] :-
+  s = servers[_],
+  s.protocols[_] = "http",
+  public_servers[s]
+&gt; violations[server]
++-------------------------------------------------------------------+
+|                              SERVER                               |
++-------------------------------------------------------------------+
+| {"id":"s4","name":"dev","ports":["p1","p2"],"protocols":["http"]} |
++-------------------------------------------------------------------+
+</code></pre></div>
+<blockquote>
+<p>The REPL will accept multi-line input. The REPL prompt will change to indicate that it&#39;s accepting multi-line input.</p>
+</blockquote></li>
+</ol>
+
+  </div>
+
+</article>
+
+      </div>
+    </div>
+
+    <footer class="site-footer">
+
+  <div class="wrapper">
+
+    <div class="footer-col-wrapper">
+      
+      <div class="footer-col footer-col-1">
+        <ul class="social-media-list">
+          
+          <li>
+            <a href="https://github.com/open-policy-agent/opa"><span class="icon icon--github"><svg viewBox="0 0 16 16"><path fill="#828282" d="M7.999,0.431c-4.285,0-7.76,3.474-7.76,7.761 c0,3.428,2.223,6.337,5.307,7.363c0.388,0.071,0.53-0.168,0.53-0.374c0-0.184-0.007-0.672-0.01-1.32 c-2.159,0.469-2.614-1.04-2.614-1.04c-0.353-0.896-0.862-1.135-0.862-1.135c-0.705-0.481,0.053-0.472,0.053-0.472 c0.779,0.055,1.189,0.8,1.189,0.8c0.692,1.186,1.816,0.843,2.258,0.645c0.071-0.502,0.271-0.843,0.493-1.037 C4.86,11.425,3.049,10.76,3.049,7.786c0-0.847,0.302-1.54,0.799-2.082C3.768,5.507,3.501,4.718,3.924,3.65 c0,0,0.652-0.209,2.134,0.796C6.677,4.273,7.34,4.187,8,4.184c0.659,0.003,1.323,0.089,1.943,0.261 c1.482-1.004,2.132-0.796,2.132-0.796c0.423,1.068,0.157,1.857,0.077,2.054c0.497,0.542,0.798,1.235,0.798,2.082 c0,2.981-1.814,3.637-3.543,3.829c0.279,0.24,0.527,0.713,0.527,1.437c0,1.037-0.01,1.874-0.01,2.129 c0,0.208,0.14,0.449,0.534,0.373c3.081-1.028,5.302-3.935,5.302-7.362C15.76,3.906,12.285,0.431,7.999,0.431z"/></svg>
+</span><span class="username">open-policy-agent/opa</span></a>
+
+          </li>
+          
+        </ul>
+      </div>
+
+      <div class="footer-col footer-col-2">
+        <p>OPA: An open source project to policy enable any application.
+</p>
+      </div>
+      
+    </div>
+
+  </div>
+
+</footer>
+
+
+  </body>
+
+</html>

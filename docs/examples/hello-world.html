@@ -57,6 +57,8 @@
         
           
         
+          
+        
       </div>
     </nav>
 
@@ -84,6 +86,8 @@
           <a class="page-link" href="/docs/intro.html">Introduction</a>
         </li>
         <br>
+        
+        
         
         
         
@@ -126,6 +130,8 @@
         
         
         
+        
+        
         </ul>
         <li>Examples</li>
         <ul>
@@ -151,6 +157,12 @@
         </li>
         
         
+        
+        <li>
+          <a class="page-link" href="/docs/examples/repl.html">REPL</a>
+        </li>
+        
+        
         </ul>
     </ul>
   </div>
@@ -168,7 +180,6 @@ app or service. This example introduces core concepts in OPA including the langu
 <p>In this example, we will write policies to authorize access to Docker. There are many examples of policies around access control. For demonstration purposes, we want to prevent the following:</p>
 
 <ul>
-<li>Containers with certain labels being connected to certain networks.</li>
 <li>Containers with insecure configurations.</li>
 <li>Users modifying the system without sufficient read+write access.</li>
 </ul>
@@ -214,7 +225,6 @@ app or service. This example introduces core concepts in OPA including the langu
 <li><p>Download the latest version of OPA:</p>
 <div class="highlight"><pre><code class="language-" data-lang="">curl -L https://github.com/open-policy-agent/opa/releases/download/v0.1.0-rc2/opa_linux_amd64 &gt; opa
 chmod u+x opa
-./opa version
 </code></pre></div></li>
 <li><p>Run OPA in server mode with logging enabled:</p>
 <div class="highlight"><pre><code class="language-" data-lang="">./opa run -s --alsologtostderr 1 --v 2 --policy-dir policies
@@ -226,7 +236,7 @@ chmod u+x docker-authz-plugin
 </code></pre></div>
 <p>The open-policy-agent/docker-authz-plugin repository hosts a small <a href="https://docs.docker.com/engine/extend/plugins_authorization/">Docker Authorization Plugin</a>.
 Docker&#39;s authorization plugin system allows an external process to receive all requests sent to the Docker daemon. The
-authorization plugin replies to the Docker daemon indicating whether the request should be allowed or rejected.</p></li>
+authorization plugin replies, instructing the Docker daemon to allow or reject the request.</p></li>
 <li><p>Create an empty policy definition that will allow all requests:</p>
 <div class="highlight"><pre><code class="language-" data-lang="">cat &gt;example.rego &lt;&lt;EOF
 package opa.example
@@ -282,39 +292,25 @@ In this case, the document will always be undefined because the body of the rule
 
 <p>With this policy in place, users will not be able to run any Docker commands. Go ahead and try other commands such as <code>docker run</code> or <code>docker pull</code>,
 they will all be rejected. Let&#39;s change the policy so that it&#39;s a bit more useful.</p></li>
-<li><p>Update the policy to reject requests with insecure seccomp configuration or incorrect network connections.</p>
+<li><p>Update the policy to reject requests with the unconfined <a href="https://en.wikipedia.org/wiki/Seccomp">seccomp</a> profile:</p>
 <div class="highlight"><pre><code class="language-" data-lang="">cat &gt;example.rego &lt;&lt;EOF
 package opa.example
 
 import request as req
-
-allow_request = true :-
-    not invalid_network,
-    not seccomp_unconfined
-
-invalid_network :-
-    # These expressions assert that a container with a special label must be
-    # connected to a specific network.
-    labels["com.example/deployment"] = "prod",
-    req.Body.HostConfig.NetworkMode != "prod-network"
 
 seccomp_unconfined :-
     # This expression asserts that the string on the right hand side exists
     # within the array SecurityOpt referenced on the left hand side.
     req.Body.HostConfig.SecurityOpt[_] = "seccomp=unconfined"
 
-# labels defines an object document that simply contains the labels from the
-# requested container.
-labels[key] = value :- req.Body.Labels[key] = value
+allow_request = true :- not seccomp_unconfined
 EOF
 </code></pre></div>
-<p>The plugin is watching the policy definition file for changes. Each time we change the file, the plugin
-reads the file and sends it to OPA. To manually send the policy to OPA, you can use the following API:</p>
+<p>The plugin is watching the policy definition file for changes. Each time we change the file, the plugin reads the file and sends it to OPA. To manually send the policy to OPA, you can use the following API:</p>
 <div class="highlight"><pre><code class="language-" data-lang="">curl -X PUT --data-binary @example.rego \
     http://localhost:8181/v1/policies/example_policy
 </code></pre></div>
-<p>This API is idempotent so sending the policy multiple times is fine. Go ahead and try
-it yourself.</p></li>
+<p>This API is idempotent so sending the policy multiple times is fine. Go ahead and try it yourself.</p></li>
 <li><p>Test the policy is working by running a simple container:</p>
 <div class="highlight"><pre><code class="language-" data-lang="">docker run hello-world
 </code></pre></div>
@@ -335,10 +331,7 @@ it yourself.</p></li>
 </code></pre></div>
 <p>Congratulations! You have successfully prevented containers from running without seccomp!</p>
 
-<p>You can also try to run a container with the label <code>com.example/deployment=prod</code>. Unless you also connect the container to a network named <code>prod-network</code> the container will not be created.</p>
-
-<p>So far, the policies have been defined in terms of input data from the plugin. In many cases, it&#39;s necessary
-to write policies against multiple data sources.</p>
+<p>So far, the policy has been defined in terms of input data from the plugin. In many cases, it&#39;s necessary to write policies against multiple data sources.</p>
 
 <p>The rest of the example shows how you can grant fine grained access to specific clients. To do so, we will insert fake user data into OPA to simulate an authentication system.</p></li>
 <li><p>Create a Docker configuration file to include an extra HTTP header in all requests:</p>
