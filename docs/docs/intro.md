@@ -7,8 +7,8 @@ show_in_header: true
 sort_order: 1
 ---
 
-What is Policy?
-===============
+Introduction
+============
 
 Policy defines expected behavior in response to specific events within an application.
 

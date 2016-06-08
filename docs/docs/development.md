@@ -5,7 +5,7 @@ section: references
 sort_order: 100
 ---
 
-## Development Environment
+## Development
 
 OPA is written in the [Go](https://golang.org) programming language.
 
