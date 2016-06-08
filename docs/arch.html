@@ -44,7 +44,7 @@
           
         
           
-          <a class="page-link" href="/docs/examples/hello-world.html">Examples</a>
+          <a class="page-link" href="/docs/examples/hello-world.html">Hello World</a>
           
         
           
@@ -79,39 +79,82 @@
         
         
         
-         
+        
         <li>
           <a class="page-link" href="/docs/intro.html">Introduction</a>
         </li>
+        <br>
         
         
-         
+        
+        
+        
+        
+        
+        
+        
+        
+        <li>References</li>
+        <ul>
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
         <li>
           <a class="page-link" href="/docs/arch.html">Architecture</a>
         </li>
         
         
-         
+        
         <li>
-          <a class="page-link" href="/docs/lang.html">Language</a>
+          <a class="page-link" href="/docs/lang.html">Rego</a>
         </li>
         
         
-         
+        
         <li>
           <a class="page-link" href="/docs/development.html">Development</a>
         </li>
         
         
-         
+        
+        
+        </ul>
+        <li>Examples</li>
+        <ul>
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
         <li>
           <a class="page-link" href="/docs/examples/hello-world.html">Hello World</a>
         </li>
         
         
+        </ul>
     </ul>
   </div>
-  
+
   <div class="docs-content">
     <h2>Architecture</h2>
 
@@ -190,7 +233,7 @@
 
 <p>OPA exposes its APIs over HTTP and uses JSON as the default interchange format. The APIs are RESTful with the exception of certain streaming operations. HTTP and JSON are used because they are well supported in most application development languages and provide a low barrier to integration.</p>
 
-<h3>Policy API</h3>
+<h3><a name="policy-api"></a>Policy API</h3>
 
 <p>OPA&#39;s Policy API exposes CRUD operations on policies within OPA. Applications and administrators can use the Policy API to manage policies.</p>
 
@@ -209,7 +252,7 @@ violations[server] :-
 </code></pre></div>
 <p>Policy names are only used to identify policies for management purposes. Policy names are not used in policy definitions or when issuing requests against the Data API.</p>
 
-<h3>Data API</h3>
+<h3><a name="data-api"></a>Data API</h3>
 
 <p>In order to evaluate policy and compute violations, OPA needs to have access to the state of the world which is relevant to policy. OPA&#39;s Data API deals with data from applications or the environment that is relevant to policy.</p>
 

@@ -6,7 +6,7 @@
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
-  <title>Language</title>
+  <title>Rego</title>
   <meta name="description" content="OPA: An open source project to policy enable any application.
 ">
 
@@ -44,7 +44,7 @@
           
         
           
-          <a class="page-link" href="/docs/examples/hello-world.html">Examples</a>
+          <a class="page-link" href="/docs/examples/hello-world.html">Hello World</a>
           
         
           
@@ -79,41 +79,84 @@
         
         
         
-         
+        
         <li>
           <a class="page-link" href="/docs/intro.html">Introduction</a>
         </li>
+        <br>
         
         
-         
+        
+        
+        
+        
+        
+        
+        
+        
+        <li>References</li>
+        <ul>
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
         <li>
           <a class="page-link" href="/docs/arch.html">Architecture</a>
         </li>
         
         
-         
+        
         <li>
-          <a class="page-link" href="/docs/lang.html">Language</a>
+          <a class="page-link" href="/docs/lang.html">Rego</a>
         </li>
         
         
-         
+        
         <li>
           <a class="page-link" href="/docs/development.html">Development</a>
         </li>
         
         
-         
+        
+        
+        </ul>
+        <li>Examples</li>
+        <ul>
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
         <li>
           <a class="page-link" href="/docs/examples/hello-world.html">Hello World</a>
         </li>
         
         
+        </ul>
     </ul>
   </div>
-  
+
   <div class="docs-content">
-    <h1>Rego: OPA&#39;s Query Language</h1>
+    <h1>Rego</h1>
 
 <p>OPA includes a policy engine that is purpose built for reasoning about information represented in structured documents such as JSON. Data stored in in the policy engine can be queried using OPA&#39;s native query language: Rego.</p>
 
@@ -477,9 +520,9 @@ example data:</p>
 | "web" |
 +-------+
 </code></pre></div>
-<h2>Rules</h2>
+<h2><a name="rules"></a> Rules</h2>
 
-<p>Rules define the content of <a href="./CONTENT.md#data-model">Virtual Documents</a> in
+<p>Rules define the content of <a href="/docs/arch.html#data-model">Virtual Documents</a> in
 OPA. When OPA evaluates a rule, we say OPA <em>generates</em> the content of the
 document that is defined by the rule.</p>
 
@@ -583,7 +626,7 @@ instances[instance] :-
 </code></pre></div>
 <h2><a name="negation"></a> Negation</h2>
 
-<p>To generate the content of a <a href="./CONCEPTS.md#data-model">Virtual Document</a>, OPA attempts to bind variables in the body of the rule such that all expressions in the rule evaluate to True.</p>
+<p>To generate the content of a <a href="/docs/arch.html#data-model">Virtual Document</a>, OPA attempts to bind variables in the body of the rule such that all expressions in the rule evaluate to True.</p>
 
 <p>This generates the correct result when the expressions represent assertions about what states should exist in the data stored in OPA. In some cases, you want to express that certain states <em>should not</em> exist in the data stored in OPA. In these cases, negation must be used.</p>
 
@@ -655,7 +698,7 @@ projects.</p>
 directory.</p>
 
 <p>The rules defined in a module are automatically exported. I.e., they can be
-queried under OPA&#39;s <a href="CONCEPTS.md#data-api">Data API</a> provided the appropriate
+queried under OPA&#39;s <a href="/docs/arch.html#data-api">Data API</a> provided the appropriate
 package is given, e.g., given the following module:</p>
 <div class="highlight"><pre><code class="language-rego" data-lang="rego">package opa.examples
 
@@ -672,8 +715,8 @@ exported by that document can be referenced within the current module.</p>
 
 <p>All modules contain an implicit statement which imports the &quot;data&quot; document.</p>
 
-<p>Modules use the same syntax to declare dependencies on <a href="./CONCEPTS.md#data-model">Base
-Documents</a> and <a href="./CONCEPTS.md#data-model">Virtual
+<p>Modules use the same syntax to declare dependencies on <a href="/docs/arch.html#data-model">Base
+Documents and Virtual
 Documents</a>.</p>
 <div class="highlight"><pre><code class="language-rego" data-lang="rego">package opa.examples
 
@@ -712,23 +755,51 @@ bound value) instead of a variable.</p>
 
 <p>The following inequality operators are supported:</p>
 
-<p>| Symbol | Example | Description |
-| --- | --- | --- |
-| <code>!=</code> | <code>&quot;foo&quot; != x.y</code> | Returns true if the left hand side does not equal the right hand side, false otherwise. |
-| <code>&lt;</code> | <code>&quot;foo&quot; &lt; x.y</code> | Returns true if the left hand side is less than the right hand side, false otherwise. |
-| <code>&gt;</code> | <code>&quot;foo&quot; &gt; x.y</code> | Returns true if the left hand side is greater than the right hand side, false otherwise. |
-| <code>&gt;=</code> | <code>&quot;foo&quot; &gt;= x.y</code> | Returns true if the left hand side is less than or equal to the right hand side, false otherwise. |
-| <code>&lt;=</code> | <code>&quot;foo&quot; &lt;= x.y</code> | Returns true if the left hand side is greater than or equal to the right hand side, false otherwise. |</p>
+<table><thead>
+<tr>
+<th>Symbol</th>
+<th>Example</th>
+<th>Meaning</th>
+</tr>
+</thead><tbody>
+<tr>
+<td><code>!=</code></td>
+<td><code>&quot;foo&quot; != x.y</code></td>
+<td>LHS does not equal RHS.</td>
+</tr>
+<tr>
+<td><code>&lt;</code></td>
+<td><code>&quot;foo&quot; &lt; x.y</code></td>
+<td>LHS is less than RHS.</td>
+</tr>
+<tr>
+<td><code>&lt;=</code></td>
+<td><code>&quot;foo&quot; &lt;= x.y</code></td>
+<td>LHS is less than or equal to RHS.</td>
+</tr>
+<tr>
+<td><code>&gt;</code></td>
+<td><code>&quot;foo&quot; &gt; x.y</code></td>
+<td>LHS is greater than RHS.</td>
+</tr>
+<tr>
+<td><code>&gt;=</code></td>
+<td><code>&quot;foo&quot; &gt;= x.y</code></td>
+<td>LHS is greater than or equal to RHS.</td>
+</tr>
+</tbody></table>
 
-<p>If either operand is a variable, the variable must appear in a non-negated
-equality expression within the same rule.</p>
+<p>Unlike the equality operator, these operators do not bind variables contained
+in the expression. As a result, if either operand is a variable, the variable
+must appear in another expression in the same rule that would cause the variable
+to be bound, i.e., an equality expression or the target position of a built-in
+function.</p>
 
 <h2><a name="examples"></a> Examples</h2>
 
-<p>The rules below define the content of two documents describing a simplistic
+<p>The rules below define the content of documents describing a simplistic
 deployment environment. These documents are referenced in other sections
-above. If you are experimenting with OPA, you can copy-paste the content below
-into an OPA CLI session and reference it when following along above.</p>
+above.</p>
 <div class="highlight"><pre><code class="language-rego" data-lang="rego">sites = [
     {
         "region": "east",
