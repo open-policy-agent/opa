@@ -651,7 +651,7 @@ The result:
 +-----------+
 ```
 
-## Modules
+## <a name="modules"></a> Modules
 
 In Rego, policies are defined inside *modules*. Modules consist of:
 
