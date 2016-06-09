@@ -181,6 +181,42 @@ func TestHash(t *testing.T) {
 	}
 }
 
+func TestTermIsGround(t *testing.T) {
+
+	tests := []struct {
+		note     string
+		term     string
+		expected bool
+	}{
+		{"null", "null", true},
+		{"string", `"foo"`, true},
+		{"number", "42.1", true},
+		{"boolean", "false", true},
+		{"var", "x", false},
+		{"ref ground", "a.b[0]", true},
+		{"ref non-ground", "a.b[i].x", false},
+		{"array ground", "[1,2,3]", true},
+		{"array non-ground", "[1,2,x]", false},
+		{"object ground", `{"a": 1}`, true},
+		{"object non-ground key", `{"x": 1, y: 2}`, false},
+		{"object non-ground value", `{"x": 1, "y": y}`, false},
+		{"array compr ground", `["a" | true]`, true},
+		{"array compr non-ground", `[x | x = a[i]]`, false},
+	}
+
+	for i, tc := range tests {
+		term := MustParseTerm(tc.term)
+		if term.IsGround() != tc.expected {
+			expected := "ground"
+			if !tc.expected {
+				expected = "non-ground"
+			}
+			t.Errorf("Expected term %v to be %s (test case %d: %v)", term, expected, i, tc.note)
+		}
+	}
+
+}
+
 func TestTermString(t *testing.T) {
 	assertToString(t, Null{}, "null")
 	assertToString(t, Boolean(true), "true")
