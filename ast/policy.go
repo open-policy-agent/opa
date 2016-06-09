@@ -238,6 +238,16 @@ func (body Body) IsGround() bool {
 	return true
 }
 
+// OutputVars returns a VarSet containing the variables that would be bound by evaluating
+// the body.
+func (body Body) OutputVars(safe VarSet) VarSet {
+	o := safe.Copy()
+	for _, e := range body {
+		o.Update(e.OutputVars(o))
+	}
+	return o.Diff(safe)
+}
+
 func (body Body) String() string {
 	var buf []string
 	for _, v := range body {
@@ -246,10 +256,13 @@ func (body Body) String() string {
 	return strings.Join(buf, ", ")
 }
 
-// Vars returns map where keys represent all of the variables found in the
-// body. The values of the map are ignored.
-func (body Body) Vars() VarSet {
-	vis := &varVisitor{vars: VarSet{}}
+// Vars returns a VarSet containing all of the variables in the body. If skipClosures is true,
+// variables contained inside closures within the body will be ignored.
+func (body Body) Vars(skipClosures bool) VarSet {
+	vis := &varVisitor{
+		vars:         VarSet{},
+		skipClosures: skipClosures,
+	}
 	Walk(vis, body)
 	return vis.vars
 }
@@ -327,46 +340,24 @@ func (expr *Expr) IsGround() bool {
 	return true
 }
 
-// OutputVars returns the set of variables that would be bound by
-// evaluating this expression in isolation.
-func (expr *Expr) OutputVars() VarSet {
-
-	result := VarSet{}
-	if expr.Negated {
-		return result
-	}
-
-	vis := &varVisitor{
-		skipRefHead:    true,
-		skipObjectKeys: true,
-		vars:           VarSet{},
-	}
-
-	switch ts := expr.Terms.(type) {
-	case *Term:
-		if r, ok := ts.Value.(Ref); ok {
-			Walk(vis, r)
-		}
-	case []*Term:
-		b := BuiltinMap[ts[0].Value.(Var)]
-		for i, t := range ts[1:] {
-			switch v := t.Value.(type) {
-			case Object, Array:
-				if b.UnifiesRecursively(i) {
-					Walk(vis, v)
+// OutputVars returns a VarSet containing variables that would be bound by evaluating
+// this expression.
+func (expr *Expr) OutputVars(safe VarSet) VarSet {
+	if !expr.Negated {
+		switch terms := expr.Terms.(type) {
+		case *Term:
+			return expr.outputVarsRefs()
+		case []*Term:
+			name := terms[0].Value.(Var)
+			if b := BuiltinMap[name]; b != nil {
+				if b.Name.Equal(Equality.Name) {
+					return expr.outputVarsEquality(safe)
 				}
-			case Var:
-				if b.Unifies(i) {
-					result.Add(v)
-				}
-			case Ref:
-				Walk(vis, v)
+				return expr.outputVarsBuiltins(b, safe)
 			}
 		}
 	}
-
-	result.Update(vis.vars)
-	return result
+	return VarSet{}
 }
 
 func (expr *Expr) String() string {
@@ -404,10 +395,71 @@ func (expr *Expr) UnmarshalJSON(bs []byte) error {
 }
 
 // Vars returns a VarSet containing all of the variables in the expression.
-func (expr *Expr) Vars() VarSet {
-	vis := &varVisitor{vars: VarSet{}}
+// If skipClosures is true then variables contained inside closures within this
+// expression will not be included in the VarSet.
+func (expr *Expr) Vars(skipClosures bool) VarSet {
+	vis := &varVisitor{
+		skipClosures: skipClosures,
+		vars:         VarSet{},
+	}
 	Walk(vis, expr)
 	return vis.vars
+}
+
+func (expr *Expr) outputVarsBuiltins(b *Builtin, safe VarSet) VarSet {
+
+	o := expr.outputVarsRefs()
+	terms := expr.Terms.([]*Term)
+
+	// Check that all input terms are ground or safe.
+	for i, t := range terms[1:] {
+		if b.IsTargetPos(i) {
+			continue
+		}
+		if t.Value.IsGround() {
+			continue
+		}
+		vis := &varVisitor{
+			skipClosures:     true,
+			skipObjectKeys:   true,
+			skipRefHead:      true,
+			skipBuiltinNames: true,
+			vars:             VarSet{},
+		}
+		Walk(vis, t)
+		unsafe := vis.vars.Diff(o).Diff(safe)
+		if len(unsafe) > 0 {
+			return VarSet{}
+		}
+	}
+
+	// Add vars in target positions to result.
+	for i, t := range terms[1:] {
+		if v, ok := t.Value.(Var); ok {
+			if b.IsTargetPos(i) {
+				o.Add(v)
+			}
+		}
+	}
+
+	return o
+}
+
+func (expr *Expr) outputVarsEquality(safe VarSet) VarSet {
+	ts := expr.Terms.([]*Term)
+	o := expr.outputVarsRefs()
+	o.Update(safe)
+	o.Update(Unify(o, ts[1], ts[2]))
+	return o.Diff(safe)
+}
+
+func (expr *Expr) outputVarsRefs() VarSet {
+	o := VarSet{}
+	WalkRefs(expr, func(r Ref) bool {
+		o.Update(r.OutputVars())
+		return false
+	})
+	return o
 }
 
 // NewBuiltinExpr creates a new Expr object with the supplied terms.
@@ -417,9 +469,11 @@ func NewBuiltinExpr(terms ...*Term) *Expr {
 }
 
 type varVisitor struct {
-	skipRefHead    bool
-	skipObjectKeys bool
-	vars           VarSet
+	skipRefHead      bool
+	skipObjectKeys   bool
+	skipClosures     bool
+	skipBuiltinNames bool
+	vars             VarSet
 }
 
 func (vis *varVisitor) Visit(v interface{}) Visitor {
@@ -437,6 +491,22 @@ func (vis *varVisitor) Visit(v interface{}) Visitor {
 				Walk(vis, t)
 			}
 			return nil
+		}
+	}
+	if vis.skipClosures {
+		switch v.(type) {
+		case *ArrayComprehension:
+			return nil
+		}
+	}
+	if vis.skipBuiltinNames {
+		if v, ok := v.(*Expr); ok {
+			if ts, ok := v.Terms.([]*Term); ok {
+				for _, t := range ts[1:] {
+					Walk(vis, t)
+				}
+				return nil
+			}
 		}
 	}
 	if v, ok := v.(Var); ok {

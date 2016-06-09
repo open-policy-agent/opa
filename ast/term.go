@@ -132,6 +132,13 @@ func (term *Term) UnmarshalJSON(bs []byte) error {
 	return nil
 }
 
+// Vars returns a VarSet with variables contained in this term.
+func (term *Term) Vars() VarSet {
+	vis := &varVisitor{vars: VarSet{}}
+	Walk(vis, term)
+	return vis.vars
+}
+
 // Null represents the null value defined by JSON.
 type Null struct{}
 
@@ -413,6 +420,17 @@ func (ref Ref) Underlying() ([]interface{}, error) {
 	}
 
 	return r, nil
+}
+
+// OutputVars returns a VarSet containing variables that would be bound by evaluating
+//  this expression in isolation.
+func (ref Ref) OutputVars() VarSet {
+	vis := &varVisitor{
+		vars:        VarSet{},
+		skipRefHead: true,
+	}
+	Walk(vis, ref)
+	return vis.vars
 }
 
 // QueryIterator defines the interface for querying AST documents with references.

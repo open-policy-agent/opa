@@ -140,12 +140,39 @@ func TestBodyIsGround(t *testing.T) {
 }
 
 func TestExprOutputVars(t *testing.T) {
-	body := MustParseBody(`{"a": [{x: y}, b[z]]} = c[i], [{"a": d[j][k]}] != xs`)
-	one := body[0]
-	vars := one.OutputVars()
-	expected := NewVarSet(Var("y"), Var("z"), Var("i"))
-	if !reflect.DeepEqual(expected, vars) {
-		t.Errorf("Expected output vars %v from %v but got: %v", expected, one, vars)
+
+	tests := []struct {
+		note     string
+		expr     string
+		safe     string
+		expected string
+	}{
+		{"ref 1", "a[i].b[j]", "[a]", "[i, j]"},
+		{"ref 2", "[1,2,a[i]]", "[a]", "[i]"},
+		{"simple unify", `{"a": [{x: y}, b[z]]} = c[i]`, "[b, c]", "[y, z, i]"},
+		{"built-in", "count([], x)", "[]", "[x]"},
+	}
+
+	for i, tc := range tests {
+
+		expr := MustParseBody(tc.expr)[0]
+		safe := VarSet{}
+		for _, x := range MustParseTerm(tc.safe).Value.(Array) {
+			safe.Add(x.Value.(Var))
+		}
+
+		result := expr.OutputVars(safe)
+
+		expected := VarSet{}
+		for _, x := range MustParseTerm(tc.expected).Value.(Array) {
+			expected.Add(x.Value.(Var))
+		}
+
+		missing := expected.Diff(result)
+		extra := result.Diff(expected)
+		if len(missing) != 0 || len(extra) != 0 {
+			t.Errorf("%s (%d): Missing output vars: %v, extra output vars: %v", tc.note, i, missing, extra)
+		}
 	}
 }
 

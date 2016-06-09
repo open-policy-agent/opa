@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"reflect"
 	"sort"
+	"strings"
 	"testing"
 )
 
@@ -178,31 +179,111 @@ func TestCompilerCheckSafetyHead(t *testing.T) {
 }
 
 func TestCompilerCheckSafetyBodyReordering(t *testing.T) {
-	c := NewCompiler()
-	c.Modules = getCompilerTestModules()
-	c.Modules["newMod"] = MustParseModule(`
-	package a.b
-	needsReorder = true :- a[i] = x, a = [1,2,3,4]
-	needsReorderNegated = true :- a = [true, false], b = [true, false], not a[i], b[i]
-	`)
-	compileStages(c, "", "checkSafetyBody")
+	tests := []struct {
+		note     string
+		body     string
+		expected interface{}
+	}{
+		// trivial cases
+		{"noop", "x = 1, x != 0", "x = 1, x != 0"},
+		{"var/ref", "a[i] = x, a = [1,2,3,4]", "a = [1,2,3,4], a[i] = x"},
+		{"negation",
+			"a = [true, false], b = [true, false], not a[i], b[i]",
+			"a = [true, false], b = [true, false], b[i], not a[i]"},
+		{"built-in", "x != 0, count([1,2,3], x)", "count([1,2,3], x), x != 0"},
+		{"var/var 1", "x = y, z = 1, y = z", "z = 1, y = z, x = y"},
+		{"var/var 2", "x = y, 1 = z, z = y", "1 = z, z = y, x = y"},
+		{"var/var 3", "x != 0, y = x, y = 1", "y = 1, y = x, x != 0"},
 
-	assertNotFailed(t, c)
-
-	expected1 := MustParseBody(`a = [1,2,3,4], a[i] = x`)
-
-	reordered1 := c.Modules["newMod"].Rules[0].Body
-
-	if !expected1.Equal(reordered1) {
-		t.Errorf("Expected body to be re-ordered and equal to %v but got: %v", expected1, reordered1)
+		// comprehensions
+		{"array compr/var", "x != 0, [y | y = 1] = x", "[y | y = 1] = x, x != 0"},
+		{"array compr/array", "[1] != [x], [y | y = 1] = [x]", "[y | y = 1] = [x], [1] != [x]"},
 	}
 
-	expected2 := MustParseBody(`a = [true, false], b = [true, false], b[i], not a[i]`)
+	for i, tc := range tests {
+		c := NewCompiler()
+		c.Modules = map[string]*Module{
+			"mod": MustParseModule(
+				fmt.Sprintf(`package test
+						 p :- %s`, tc.body)),
+		}
 
-	reordered2 := c.Modules["newMod"].Rules[1].Body
+		compileStages(c, "", "checkSafetyBody")
+		switch exp := tc.expected.(type) {
+		case string:
+			if c.Failed() {
+				t.Errorf("%v (#%d): Unexpected compilation error: %v", tc.note, i, c.FlattenErrors())
+				return
+			}
+			e := MustParseBody(exp)
+			if !e.Equal(c.Modules["mod"].Rules[0].Body) {
+				t.Errorf("%v (#%d): Expected body to be ordered and equal to %v but got: %v", tc.note, i, e, c.Modules["mod"].Rules[0].Body)
+			}
+		case error:
+			if len(c.Errors) > 0 {
+				if !reflect.DeepEqual(c.Errors[0], exp) {
+					t.Errorf("%v (#%d): Expected compiler error %v but got: %v", tc.note, i, exp, c.Errors[0])
+				}
+			} else {
+				t.Errorf("%v (#%d): Expected compiler error but got: %v", tc.note, i, c.Modules["mod"].Rules[0])
+			}
+		}
+	}
+}
 
-	if !expected2.Equal(reordered2) {
-		t.Errorf("Expected body to be re-ordered and equal to %v but got: %v", expected2, reordered2)
+func TestCompilerCheckSafetyBodyReorderingClosures(t *testing.T) {
+	c := NewCompiler()
+	c.Modules = map[string]*Module{
+		"mod": MustParseModule(
+			`
+			package compr
+
+			import data.b
+			import data.c
+
+			p :- v     = [null | true],                               # leave untouched
+				 xs    = [x | a[i] = x, a = [y | y != 1, y = c[j]]],  # close over 'i' and 'j', 2-level reorder
+				 xs[j] > 0,
+				 b[i]  = j
+
+			# test that reordering is not performed when closing over different globals, e.g.,
+			# built-ins, data, imports.
+			q :- _ = [x | x = b[i]],
+				 _ = b[j],
+
+				 _ = [x | x = true, x != false],
+				 true != false,
+
+				 _ = [x | data.foo[_] = x],
+				 data.foo[_] = _
+			`),
+	}
+
+	compileStages(c, "", "checkSafetyBody")
+	assertNotFailed(t, c)
+
+	result1 := c.Modules["mod"].Rules[0].Body
+	expected1 := MustParseBody(`
+		v     = [null | true],
+		b[i]  = j,
+		xs    = [x | a = [y | y = c[j], y != 1], a[i] = x],
+		xs[j] > 0
+	`)
+	if !result1.Equal(expected1) {
+		t.Errorf("Expected reordered body to be equal to:\n%v\nBut got:\n%v", expected1, result1)
+	}
+
+	result2 := c.Modules["mod"].Rules[1].Body
+	expected2 := MustParseBody(`
+		_ = [x | x = b[i]],
+		_ = b[j],
+		_ = [x | x = true, x != false],
+		true != false,
+		_ = [x | data.foo[_] = x],
+		data.foo[_] = _
+	`)
+	if !result2.Equal(expected2) {
+		t.Errorf("Expected pre-ordered body to equal:\n%v\nBut got:\n%v", expected2, result2)
 	}
 }
 
@@ -240,13 +321,27 @@ func TestCompilerCheckSafetyBodyErrors(t *testing.T) {
 	unboundNegated3[x] = true :- a = [1,2,3,4], b = [1,2,3,4], not a[i] = x, not b[j] = x
 
 	# i and j would be unbound even though they are in embedded references
-	unboundNegated4 =  true :- a = [{"foo": ["bar", "baz"]}], not a[0].foo = [a[0].foo[i], a[0].foo[j]]
+	unboundNegated4 = true :- a = [{"foo": ["bar", "baz"]}], not a[0].foo = [a[0].foo[i], a[0].foo[j]]
+
+	# x would be unbound as input to count
+	unsafeBuiltin :- count([1,2,x], x)
 
 	# i and x would be bound in the last expression so the third expression is safe
 	negatedSafe = true :- a = [1,2,3,4], b = [1,2,3,4], not a[i] = x, b[i] = x
 
 	# x would be unbound because it does not appear in the target position of any expression
 	unboundNoTarget = true :- x > 0, x <= 3, x != 2
+
+	unboundArrayComprBody1 :- _ = [x | x = data.a[_], y > 1]
+	unboundArrayComprBody2 :- _ = [x | x = a[_], a = [y | y = data.a[_], z > 1]]
+	unboundArrayComprBody3 :- _ = [v | v = [x | x = data.a[_]], x > 1]
+	unboundArrayComprTerm1 :- _ = [u | true]
+	unboundArrayComprTerm2 :- _ = [v | v = [w | w != 0]]
+	unboundArrayComprTerm3 :- _ = [x[i] | x = []]
+	unboundArrayComprMixed1 :- _ = [x | y = [a | a = z[i]]]
+
+	unsafeClosure1 :- x = [x | x = 1]
+	unsafeClosure2 :- x = y, x = [y | y = 1]
 
 	negatedImport1 = true :- not foo
 	negatedImport2 = true :- not bar
@@ -262,11 +357,29 @@ func TestCompilerCheckSafetyBodyErrors(t *testing.T) {
 		fmt.Errorf("unsafe variables in unboundNegated2: [i x]"),
 		fmt.Errorf("unsafe variables in unboundNegated3: [i j x]"),
 		fmt.Errorf("unsafe variables in unboundNegated4: [i j]"),
+		fmt.Errorf("unsafe variables in unsafeBuiltin: [x]"),
 		fmt.Errorf("unsafe variables in unboundNoTarget: [x]"),
+		fmt.Errorf("unsafe variables in unboundArrayComprBody1: [y]"),
+		fmt.Errorf("unsafe variables in unboundArrayComprBody2: [z]"),
+		fmt.Errorf("unsafe variables in unboundArrayComprBody3: [x]"),
+		fmt.Errorf("unsafe variables in unboundArrayComprTerm1: [u]"),
+		fmt.Errorf("unsafe variables in unboundArrayComprTerm2: [w]"),
+		fmt.Errorf("unsafe variables in unboundArrayComprTerm3: [i]"),
+		fmt.Errorf("unsafe variables in unboundArrayComprMixed1: [x z]"),
+		fmt.Errorf("unsafe variables in unsafeClosure1: [x]"),
+		fmt.Errorf("unsafe variables in unsafeClosure2: [y]"),
 	}
 
 	if !reflect.DeepEqual(expected, c.Errors) {
-		t.Errorf("Expected %v but got:%v", expected, c.Errors)
+		e := []string{}
+		for _, x := range expected {
+			e = append(e, x.Error())
+		}
+		r := []string{}
+		for _, x := range c.Errors {
+			r = append(r, x.Error())
+		}
+		t.Errorf("Expected:\n%v\nBut got:\n%v", strings.Join(e, "\n"), strings.Join(r, "\n"))
 	}
 
 }

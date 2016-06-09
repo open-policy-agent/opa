@@ -29,10 +29,10 @@ var BuiltinMap map[Var]*Builtin
 
 // Equality represents the "=" operator.
 var Equality = &Builtin{
-	Name:         Var("="),
-	Alias:        Var("eq"),
-	NumArgs:      2,
-	RecTargetPos: []int{0, 1},
+	Name:      Var("="),
+	Alias:     Var("eq"),
+	NumArgs:   2,
+	TargetPos: []int{0, 1},
 }
 
 // GreaterThan represents the ">" comparison operator.
@@ -73,11 +73,10 @@ var NotEqual = &Builtin{
 // Builtin represents a built-in function supported by OPA. Every
 // built-in function is uniquely identified by a name.
 type Builtin struct {
-	Name         Var
-	Alias        Var
-	NumArgs      int
-	TargetPos    []int
-	RecTargetPos []int
+	Name      Var
+	Alias     Var
+	NumArgs   int
+	TargetPos []int
 }
 
 // GetPrintableName returns a printable name for the builtin.
@@ -91,22 +90,10 @@ func (b *Builtin) GetPrintableName() string {
 	return b.Name.String()
 }
 
-// Unifies returns true if a term in the given position will unify
-// non-recursively or recursively.
-func (b *Builtin) Unifies(i int) bool {
+// IsTargetPos returns true if a variable in the i-th position will be
+// bound when the expression is evaluated.
+func (b *Builtin) IsTargetPos(i int) bool {
 	for _, x := range b.TargetPos {
-		if x == i {
-			return true
-		}
-	}
-	return b.UnifiesRecursively(i)
-}
-
-// UnifiesRecursively returns true if a term in the given position will
-// unify recursively, i.e., variables embedded inside a collection type
-// will unify.
-func (b *Builtin) UnifiesRecursively(i int) bool {
-	for _, x := range b.RecTargetPos {
 		if x == i {
 			return true
 		}

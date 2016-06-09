@@ -204,7 +204,7 @@ func (c *Compiler) checkSafetyHead() {
 	for _, m := range c.Modules {
 		for _, r := range m.Rules {
 			headVars := r.HeadVars()
-			bodyVars := r.Body.Vars()
+			bodyVars := r.Body.Vars(true)
 			for headVar := range headVars {
 				if _, ok := bodyVars[headVar]; !ok {
 					c.err("unsafe variable from head of %v: %v", r.Name, headVar)
@@ -533,6 +533,19 @@ func (vs unsafeVars) Add(e *Expr, v Var) {
 	}
 }
 
+func (vs unsafeVars) Set(e *Expr, s VarSet) {
+	vs[e] = s
+}
+
+func (vs unsafeVars) Update(o unsafeVars) {
+	for k, v := range o {
+		if _, ok := vs[k]; !ok {
+			vs[k] = VarSet{}
+		}
+		vs[k].Update(v)
+	}
+}
+
 func (vs unsafeVars) Vars() VarSet {
 	r := VarSet{}
 	for _, s := range vs {
@@ -604,50 +617,149 @@ func findRulesRec(node *ModuleTreeNode, ref Ref) []*Rule {
 // contains a mapping of expressions to unsafe variables in those expressions.
 func reorderBodyForSafety(globals VarSet, body Body) (Body, unsafeVars) {
 
+	body, unsafe := reorderBodyForClosures(globals, body)
+	if len(unsafe) != 0 {
+		return nil, unsafe
+	}
+
 	reordered := Body{}
-	unsafe := unsafeVars{}
+	safe := VarSet{}
 
 	for _, e := range body {
-		for v := range e.Vars() {
-			if !globals.Contains(v) {
+		for v := range e.Vars(true) {
+			if globals.Contains(v) {
+				safe.Add(v)
+			} else {
 				unsafe.Add(e, v)
 			}
 		}
 	}
 
-	safe := VarSet{}
+	for {
+		n := len(reordered)
 
-	for _, e := range body {
+		for _, e := range body {
+			if reordered.Contains(e) {
+				continue
+			}
 
-		safe.Update(e.OutputVars())
+			safe.Update(e.OutputVars(safe))
 
-		for v := range unsafe[e] {
-			if safe.Contains(v) {
-				delete(unsafe[e], v)
+			for v := range unsafe[e] {
+				if safe.Contains(v) {
+					delete(unsafe[e], v)
+				}
+			}
+
+			if len(unsafe[e]) == 0 {
+				delete(unsafe, e)
+				reordered = append(reordered, e)
 			}
 		}
 
-		if len(unsafe[e]) == 0 {
-			reordered = append(reordered, e)
-			delete(unsafe, e)
+		if len(reordered) == n {
+			break
+		}
+	}
 
-			// Check if other expressions in the body are considered safe
-			// now. If they are considered safe now, they can be added
-			// to the end of the re-ordered body.
-			for _, e := range body {
-				if reordered.Contains(e) {
-					continue
-				}
-				for v := range unsafe[e] {
-					if safe.Contains(v) {
-						delete(unsafe[e], v)
-					}
-				}
-				if len(unsafe[e]) == 0 {
-					reordered = append(reordered, e)
-					delete(unsafe, e)
-				}
+	// Recursively visit closures and perform the safety checks on them.
+	// Update the globals at each expression to include the variables that could
+	// be closed over.
+	g := globals.Copy()
+	for i, e := range reordered {
+		if i > 0 {
+			g.Update(reordered[i-1].Vars(true))
+		}
+		vis := &bodySafetyVisitor{
+			current: e,
+			globals: g,
+			unsafe:  unsafe,
+		}
+		Walk(vis, e)
+	}
+
+	return reordered, unsafe
+}
+
+type bodySafetyVisitor struct {
+	current *Expr
+	globals VarSet
+	unsafe  unsafeVars
+}
+
+func (vis *bodySafetyVisitor) Visit(x interface{}) Visitor {
+	switch x := x.(type) {
+	case *Expr:
+		cpy := *vis
+		cpy.current = x
+		return &cpy
+	case *ArrayComprehension:
+		vis.checkArrayComprehensionSafety(x)
+		return nil
+	}
+	return vis
+}
+
+func (vis *bodySafetyVisitor) checkArrayComprehensionSafety(ac *ArrayComprehension) {
+	// Check term for safety. This is analagous to the rule head safety check.
+	tv := ac.Term.Vars()
+	bv := ac.Body.Vars(true)
+	bv.Update(vis.globals)
+	uv := tv.Diff(bv)
+	for v := range uv {
+		vis.unsafe.Add(vis.current, v)
+	}
+
+	// Check body for safety, reordering as necessary.
+	r, u := reorderBodyForSafety(vis.globals, ac.Body)
+	if len(u) == 0 {
+		ac.Body = r
+	} else {
+		vis.unsafe.Update(u)
+	}
+}
+
+// reorderBodyForClosures returns a copy of the body ordered such that
+// expressions (such as array comprehensions) that close over variables are ordered
+// after other expressions that contain the same variable in an output position.
+func reorderBodyForClosures(globals VarSet, body Body) (Body, unsafeVars) {
+
+	reordered := Body{}
+	unsafe := unsafeVars{}
+
+	for {
+		n := len(reordered)
+
+		for _, e := range body {
+			if reordered.Contains(e) {
+				continue
 			}
+
+			// Collect vars that are contained in closures within this
+			// expression.
+			vs := VarSet{}
+			WalkClosures(e, func(x interface{}) bool {
+				vis := &varVisitor{vars: vs}
+				Walk(vis, x)
+				return true
+			})
+
+			// Compute vars that are closed over from the body but not yet
+			// contained in the output position of an expression in the reordered
+			// body. These vars are considered unsafe.
+			cv := vs.Intersect(body.Vars(true)).Diff(globals)
+			uv := cv.Diff(reordered.OutputVars(globals))
+
+			if len(uv) == 0 {
+				reordered = append(reordered, e)
+				delete(unsafe, e)
+			} else {
+				unsafe.Set(e, uv)
+			}
+		}
+
+		if len(reordered) == n {
+			break
 		}
 	}
 

@@ -10,26 +10,11 @@ import (
 )
 
 func TestUnifies(t *testing.T) {
-	b := &Builtin{Name: Var("dummy"), NumArgs: 4, RecTargetPos: []int{2, 3}, TargetPos: []int{1}}
-	expected := []int{1, 2, 3}
+	b := &Builtin{Name: Var("dummy"), NumArgs: 4, TargetPos: []int{1, 3}}
+	expected := []int{1, 3}
 	result := []int{}
 	for i := 0; i < 4; i++ {
-		if b.Unifies(i) {
-			result = append(result, i)
-		}
-	}
-	if !reflect.DeepEqual(expected, result) {
-		t.Errorf("Expected %v but got: %v", expected, result)
-	}
-}
-
-func TestUnifiesRecursively(t *testing.T) {
-
-	b := &Builtin{Name: Var("dummy"), NumArgs: 4, RecTargetPos: []int{2, 3}, TargetPos: []int{1}}
-	expected := []int{2, 3}
-	result := []int{}
-	for i := 0; i < 4; i++ {
-		if b.UnifiesRecursively(i) {
+		if b.IsTargetPos(i) {
 			result = append(result, i)
 		}
 	}

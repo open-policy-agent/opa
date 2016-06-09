@@ -78,15 +78,6 @@ func (ctx *Context) BindVar(variable ast.Var, value ast.Value) *Context {
 	if variable.Equal(value) {
 		return ctx
 	}
-	occurs := walkValue(value, func(other ast.Value) bool {
-		if variable.Equal(other) {
-			return true
-		}
-		return false
-	})
-	if occurs {
-		return nil
-	}
 
 	cpy := *ctx
 	cpy.Locals = storage.NewBindings()
@@ -389,23 +380,6 @@ func dereferenceVar(v ast.Var, ctx *Context) (interface{}, error) {
 func evalContext(ctx *Context, iter Iterator) error {
 
 	if ctx.Index >= len(ctx.Query) {
-
-		// Check if the bindings contain values that are non-ground. E.g.,
-		// suppose the query's final expression is "x = y" and "x" and "y"
-		// do not appear elsewhere in the query. In this case, "x" and "y"
-		// will be bound to each other; they will not be ground and so
-		// the proof should not be considered successful.
-		isNonGround := ctx.Locals.Iter(func(k, v ast.Value) bool {
-			if !v.IsGround() {
-				return true
-			}
-			return false
-		})
-
-		if isNonGround {
-			return nil
-		}
-
 		ctx.traceFinish()
 		return iter(ctx)
 	}
