@@ -50,11 +50,11 @@ func (ctx *Context) Binding(k ast.Value) ast.Value {
 	return nil
 }
 
-// BindRef returns a new Context with bindings that map the reference to the value.
-func (ctx *Context) BindRef(ref ast.Ref, value ast.Value) *Context {
+// BindValue returns a new Context with bindings that map the key to the value.
+func (ctx *Context) BindValue(key ast.Value, value ast.Value) *Context {
 	cpy := *ctx
 	cpy.Locals = ctx.Locals.Copy()
-	cpy.Locals.Put(ref, value)
+	cpy.Locals.Put(key, value)
 	return &cpy
 }
 
@@ -97,10 +97,10 @@ func (ctx *Context) BindVar(variable ast.Var, value ast.Value) *Context {
 	return &cpy
 }
 
-// Child returns a new context to evaluate a rule that was referenced by this context.
-func (ctx *Context) Child(rule *ast.Rule, locals *storage.Bindings) *Context {
+// Child returns a new context to evaluate a query that was referenced by this context.
+func (ctx *Context) Child(query ast.Body, locals *storage.Bindings) *Context {
 	cpy := *ctx
-	cpy.Query = rule.Body
+	cpy.Query = query
 	cpy.Locals = locals
 	cpy.Previous = ctx
 	cpy.Index = 0
@@ -602,7 +602,7 @@ func evalRefRuleCompleteDoc(ctx *Context, ref ast.Ref, suffix ast.Ref, rules []*
 	for _, rule := range rules {
 
 		bindings := storage.NewBindings()
-		child := ctx.Child(rule, bindings)
+		child := ctx.Child(rule.Body, bindings)
 		isTrue := false
 
 		err := Eval(child, func(child *Context) error {
@@ -647,7 +647,7 @@ func evalRefRulePartialObjectDoc(ctx *Context, ref ast.Ref, path ast.Ref, rule *
 	// NOTE: if at some point multiple variables are supported here, it may be
 	// cleaner to generalize this (instead of having two separate branches).
 	if !key.IsGround() {
-		child := ctx.Child(rule, storage.NewBindings())
+		child := ctx.Child(rule.Body, storage.NewBindings())
 		return Eval(child, func(child *Context) error {
 			key := child.Binding(rule.Key.Value)
 			if key == nil {
@@ -664,7 +664,7 @@ func evalRefRulePartialObjectDoc(ctx *Context, ref ast.Ref, path ast.Ref, rule *
 
 	bindings := storage.NewBindings()
 	bindings.Put(rule.Key.Value, key)
-	child := ctx.Child(rule, bindings)
+	child := ctx.Child(rule.Body, bindings)
 
 	return Eval(child, func(child *Context) error {
 		value := child.Binding(rule.Value.Value)
@@ -687,7 +687,7 @@ func evalRefRulePartialObjectDocFull(ctx *Context, ref ast.Ref, rules []*ast.Rul
 	for _, rule := range rules {
 
 		bindings := storage.NewBindings()
-		child := ctx.Child(rule, bindings)
+		child := ctx.Child(rule.Body, bindings)
 
 		err := Eval(child, func(child *Context) error {
 			key := child.Binding(rule.Key.Value)
@@ -705,7 +705,7 @@ func evalRefRulePartialObjectDocFull(ctx *Context, ref ast.Ref, rules []*ast.Rul
 		}
 	}
 
-	ctx = ctx.BindRef(ref, result)
+	ctx = ctx.BindValue(ref, result)
 	return iter(ctx)
 }
 
@@ -725,7 +725,7 @@ func evalRefRulePartialSetDoc(ctx *Context, ref ast.Ref, path ast.Ref, rule *ast
 	key := plugValue(suffix[0].Value, ctx)
 
 	if !key.IsGround() {
-		child := ctx.Child(rule, storage.NewBindings())
+		child := ctx.Child(rule.Body, storage.NewBindings())
 		return Eval(child, func(child *Context) error {
 			value := child.Binding(rule.Key.Value)
 			if value == nil {
@@ -737,18 +737,18 @@ func evalRefRulePartialSetDoc(ctx *Context, ref ast.Ref, path ast.Ref, rule *ast
 			// "p = true :- q[x]", we say that "p" should be defined if "q"
 			// is defined for some value "x".
 			ctx = ctx.BindVar(key.(ast.Var), value)
-			ctx = ctx.BindRef(ref[:len(path)+1], ast.Boolean(true))
+			ctx = ctx.BindValue(ref[:len(path)+1], ast.Boolean(true))
 			return iter(ctx)
 		})
 	}
 
 	bindings := storage.NewBindings()
 	bindings.Put(rule.Key.Value, key)
-	child := ctx.Child(rule, bindings)
+	child := ctx.Child(rule.Body, bindings)
 
 	return Eval(child, func(child *Context) error {
 		// See comment above for explanation of why the reference is bound to true.
-		ctx = ctx.BindRef(ref[:len(path)+1], ast.Boolean(true))
+		ctx = ctx.BindValue(ref[:len(path)+1], ast.Boolean(true))
 		return iter(ctx)
 	})
 
@@ -771,7 +771,7 @@ func evalRefRuleResult(ctx *Context, ref ast.Ref, suffix ast.Ref, result ast.Val
 		binding = append(binding, result...)
 		binding = append(binding, suffix...)
 		return evalRefRec(ctx, result, suffix, func(ctx *Context) error {
-			ctx = ctx.BindRef(ref, plugValue(binding, ctx))
+			ctx = ctx.BindValue(ref, plugValue(binding, ctx))
 			return iter(ctx)
 		})
 
@@ -782,14 +782,14 @@ func evalRefRuleResult(ctx *Context, ref ast.Ref, suffix ast.Ref, result ast.Val
 				pluggedSuffix = append(pluggedSuffix, plugTerm(t, ctx))
 			}
 			return result.Query(pluggedSuffix, func(keys map[ast.Var]ast.Value, value ast.Value) error {
-				ctx = ctx.BindRef(ref, value)
+				ctx = ctx.BindValue(ref, value)
 				for k, v := range keys {
 					ctx = ctx.BindVar(k, v)
 				}
 				return iter(ctx)
 			})
 		}
-		ctx = ctx.BindRef(ref, result)
+		ctx = ctx.BindValue(ref, result)
 		return iter(ctx)
 
 	case ast.Object:
@@ -799,14 +799,14 @@ func evalRefRuleResult(ctx *Context, ref ast.Ref, suffix ast.Ref, result ast.Val
 				pluggedSuffix = append(pluggedSuffix, plugTerm(t, ctx))
 			}
 			return result.Query(pluggedSuffix, func(keys map[ast.Var]ast.Value, value ast.Value) error {
-				ctx = ctx.BindRef(ref, value)
+				ctx = ctx.BindValue(ref, value)
 				for k, v := range keys {
 					ctx = ctx.BindVar(k, v)
 				}
 				return iter(ctx)
 			})
 		}
-		ctx = ctx.BindRef(ref, result)
+		ctx = ctx.BindValue(ref, result)
 		return iter(ctx)
 
 	default:
@@ -814,18 +814,12 @@ func evalRefRuleResult(ctx *Context, ref ast.Ref, suffix ast.Ref, result ast.Val
 			// This is not defined because it attempts to dereference a scalar.
 			return nil
 		}
-		ctx = ctx.BindRef(ref, result)
+		ctx = ctx.BindValue(ref, result)
 		return iter(ctx)
 	}
 }
 
-// evalTerms is used to get bindings for variables in individual terms.
-//
-// Before an expression is evaluated, this function is called to find bindings
-// for variables used in references inside the expression. Finding bindings for
-// variables used in references involves iterating collections in storage or
-// evaluating rules identified by the references. In either case, this function
-// will invoke the iterator with each set of bindings that should be evaluated.
+// TODO(tsandall):
 func evalTerms(ctx *Context, iter Iterator) error {
 
 	expr := ctx.Current()
@@ -874,6 +868,25 @@ func evalTerms(ctx *Context, iter Iterator) error {
 	}
 
 	return evalTermsRec(ctx, iter, ts)
+}
+
+func evalTermsComprehension(ctx *Context, comp ast.Value, iter Iterator) error {
+	switch comp := comp.(type) {
+	case *ast.ArrayComprehension:
+		r := ast.Array{}
+		c := ctx.Child(comp.Body, ctx.Locals)
+		err := Eval(c, func(c *Context) error {
+			r = append(r, plugTerm(comp.Term, c))
+			return nil
+		})
+		if err != nil {
+			return err
+		}
+		ctx = ctx.BindValue(comp, r)
+		return iter(ctx)
+	default:
+		panic(fmt.Sprintf("illegal argument: %v %v", ctx, comp))
+	}
 }
 
 func evalTermsIndexed(ctx *Context, iter Iterator, indexed ast.Ref, nonIndexed *ast.Term) error {
@@ -927,6 +940,10 @@ func evalTermsRec(ctx *Context, iter Iterator, ts []*ast.Term) error {
 		return evalTermsRecObject(ctx, head, 0, func(ctx *Context) error {
 			return evalTermsRec(ctx, iter, tail)
 		})
+	case *ast.ArrayComprehension:
+		return evalTermsComprehension(ctx, head, func(ctx *Context) error {
+			return evalTermsRec(ctx, iter, tail)
+		})
 	default:
 		return evalTermsRec(ctx, iter, tail)
 	}
@@ -947,6 +964,10 @@ func evalTermsRecArray(ctx *Context, arr ast.Array, idx int, iter Iterator) erro
 		})
 	case ast.Object:
 		return evalTermsRecObject(ctx, v, 0, func(ctx *Context) error {
+			return evalTermsRecArray(ctx, arr, idx+1, iter)
+		})
+	case *ast.ArrayComprehension:
+		return evalTermsComprehension(ctx, v, func(ctx *Context) error {
 			return evalTermsRecArray(ctx, arr, idx+1, iter)
 		})
 	default:
@@ -974,6 +995,10 @@ func evalTermsRecObject(ctx *Context, obj ast.Object, idx int, iter Iterator) er
 				return evalTermsRecObject(ctx, v, 0, func(ctx *Context) error {
 					return evalTermsRecObject(ctx, obj, idx+1, iter)
 				})
+			case *ast.ArrayComprehension:
+				return evalTermsComprehension(ctx, v, func(ctx *Context) error {
+					return evalTermsRecObject(ctx, obj, idx+1, iter)
+				})
 			default:
 				return evalTermsRecObject(ctx, obj, idx+1, iter)
 			}
@@ -990,6 +1015,10 @@ func evalTermsRecObject(ctx *Context, obj ast.Object, idx int, iter Iterator) er
 			})
 		case ast.Object:
 			return evalTermsRecObject(ctx, v, 0, func(ctx *Context) error {
+				return evalTermsRecObject(ctx, obj, idx+1, iter)
+			})
+		case *ast.ArrayComprehension:
+			return evalTermsComprehension(ctx, v, func(ctx *Context) error {
 				return evalTermsRecObject(ctx, obj, idx+1, iter)
 			})
 		default:
@@ -1139,6 +1168,11 @@ func plugTerm(term *ast.Term, ctx *Context) *ast.Term {
 		plugged.Value = plugValue(v, ctx)
 		return &plugged
 
+	case *ast.ArrayComprehension:
+		plugged := *term
+		plugged.Value = plugValue(v, ctx)
+		return &plugged
+
 	default:
 		if !term.IsGround() {
 			panic("unreachable")
@@ -1151,15 +1185,22 @@ func plugValue(v ast.Value, ctx *Context) ast.Value {
 
 	switch v := v.(type) {
 	case ast.Var:
-		binding := ctx.Binding(v)
-		if binding == nil {
+		b := ctx.Binding(v)
+		if b == nil {
 			return v
 		}
-		return binding.(ast.Value)
+		return b
+
+	case *ast.ArrayComprehension:
+		b := ctx.Binding(v)
+		if b == nil {
+			return v
+		}
+		return b
 
 	case ast.Ref:
-		if binding := ctx.Binding(v); binding != nil {
-			return binding.(ast.Value)
+		if b := ctx.Binding(v); b != nil {
+			return b
 		}
 		if v.IsGround() {
 			return v
@@ -1189,7 +1230,7 @@ func plugValue(v ast.Value, ctx *Context) ast.Value {
 
 	default:
 		if !v.IsGround() {
-			panic("unreachable")
+			panic(fmt.Sprintf("illegal value: %v %v", ctx, v))
 		}
 		return v
 	}

@@ -554,6 +554,30 @@ func TestTopDownNegation(t *testing.T) {
 	}
 }
 
+func TestTopDownAggregates(t *testing.T) {
+
+	tests := []struct {
+		note     string
+		rules    []string
+		expected interface{}
+	}{
+		{"simple", []string{"p[i] :- xs = [x | x = a[_]], xs[i] > 1"}, "[1,2,3]"},
+		{"nested", []string{"p[i] :- ys = [y | y = x[_], x = [z | z = a[_]]], ys[i] > 1"}, "[1,2,3]"},
+		{"embedded array", []string{"p[i] :- xs = [[x | x = a[_]]], xs[0][i] > 1"}, "[1,2,3]"},
+		{"embedded object", []string{`p[i] :- xs = {"a": [x | x = a[_]]}, xs["a"][i] > 1`}, "[1,2,3]"},
+		{"recursive", []string{"p :- y = 1, x = y, x = [y | y = 1]"}, ""},
+		// TODO(tsandall): semantics?
+		{"recursive", []string{"p :- x = y, x = [y | y = 1]"}, "true"},
+		{"recursive", []string{"p :- x = [x | x = 1]"}, "true"},
+	}
+
+	data := loadSmallTestData()
+
+	for i, tc := range tests {
+		runTopDownTestCase(t, data, i, tc.note, tc.rules, tc.expected)
+	}
+}
+
 func TestTopDownEmbeddedVirtualDoc(t *testing.T) {
 
 	mods := compileModules([]string{
