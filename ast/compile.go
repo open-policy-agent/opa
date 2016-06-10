@@ -231,16 +231,7 @@ func (c *Compiler) err(f string, a ...interface{}) {
 func (c *Compiler) resolveAllRefs() {
 	for _, mod := range c.Modules {
 		for _, rule := range mod.Rules {
-			for _, expr := range rule.Body {
-				switch ts := expr.Terms.(type) {
-				case *Term:
-					expr.Terms = c.resolveRefs(c.Globals[mod], ts)
-				case []*Term:
-					for i, t := range ts {
-						ts[i] = c.resolveRefs(c.Globals[mod], t)
-					}
-				}
-			}
+			rule.Body = c.resolveRefsInBody(c.Globals[mod], rule.Body)
 		}
 		for i := range mod.Imports {
 			mod.Imports[i].Alias = Var("")
@@ -287,7 +278,30 @@ func (c *Compiler) resolveRef(globals map[Var]Value, ref Ref) Ref {
 	return fqn
 }
 
-func (c *Compiler) resolveRefs(globals map[Var]Value, term *Term) *Term {
+func (c *Compiler) resolveRefsInBody(globals map[Var]Value, body Body) Body {
+	r := Body{}
+	for _, expr := range body {
+		r = append(r, c.resolveRefsInExpr(globals, expr))
+	}
+	return r
+}
+
+func (c *Compiler) resolveRefsInExpr(globals map[Var]Value, expr *Expr) *Expr {
+	cpy := *expr
+	switch ts := expr.Terms.(type) {
+	case *Term:
+		cpy.Terms = c.resolveRefsInTerm(globals, ts)
+	case []*Term:
+		buf := []*Term{}
+		for _, t := range ts {
+			buf = append(buf, c.resolveRefsInTerm(globals, t))
+		}
+		cpy.Terms = buf
+	}
+	return &cpy
+}
+
+func (c *Compiler) resolveRefsInTerm(globals map[Var]Value, term *Term) *Term {
 	switch v := term.Value.(type) {
 	case Var:
 		if r, ok := globals[v]; ok {
@@ -304,8 +318,8 @@ func (c *Compiler) resolveRefs(globals map[Var]Value, term *Term) *Term {
 	case Object:
 		o := Object{}
 		for _, i := range v {
-			k := c.resolveRefs(globals, i[0])
-			v := c.resolveRefs(globals, i[1])
+			k := c.resolveRefsInTerm(globals, i[0])
+			v := c.resolveRefsInTerm(globals, i[1])
 			o = append(o, Item(k, v))
 		}
 		cpy := *term
@@ -314,11 +328,18 @@ func (c *Compiler) resolveRefs(globals map[Var]Value, term *Term) *Term {
 	case Array:
 		a := Array{}
 		for _, e := range v {
-			x := c.resolveRefs(globals, e)
+			x := c.resolveRefsInTerm(globals, e)
 			a = append(a, x)
 		}
 		cpy := *term
 		cpy.Value = a
+		return &cpy
+	case *ArrayComprehension:
+		ac := &ArrayComprehension{}
+		ac.Term = c.resolveRefsInTerm(globals, v.Term)
+		ac.Body = c.resolveRefsInBody(globals, v.Body)
+		cpy := *term
+		cpy.Value = ac
 		return &cpy
 	default:
 		return term

@@ -17,7 +17,7 @@ func TestModuleTree(t *testing.T) {
 	mods := getCompilerTestModules()
 	tree := NewModuleTree(mods)
 
-	if tree.Size() != 4 {
+	if tree.Size() != 5 {
 		t.Errorf("Expected size of 4 in module tree but got: %v", tree.Size())
 	}
 
@@ -118,47 +118,6 @@ func TestCompilerSetGlobals(t *testing.T) {
 		q: data.a.b.c.q,
 		z: data.a.b.c.z,
 		bar: data.bar}`)
-}
-
-func TestCompilerResolveAllRefs(t *testing.T) {
-	c := NewCompiler()
-	c.Modules = getCompilerTestModules()
-	compileStages(c, "", "resolveAllRefs")
-
-	assertNotFailed(t, c)
-
-	mod1 := c.Modules["mod1"]
-	p := mod1.Rules[0]
-	expr1 := p.Body[0]
-	term := expr1.Terms.(*Term)
-	e := MustParseTerm("data.a.b.c.q[x]")
-	if !term.Equal(e) {
-		t.Errorf("Wrong term (global in same module): expected %v but got: %v", e, term)
-	}
-
-	expr2 := p.Body[1]
-	term = expr2.Terms.(*Term)
-	e = MustParseTerm("data.a.b.c.r[x]")
-	if !term.Equal(e) {
-		t.Errorf("Wrong term (global in same package/diff module): expected %v but got: %v", e, term)
-	}
-
-	mod2 := c.Modules["mod2"]
-	r := mod2.Rules[0]
-	expr3 := r.Body[1]
-	term = expr3.Terms.([]*Term)[1]
-	e = MustParseTerm("data.x.y.p")
-	if !term.Equal(e) {
-		t.Errorf("Wrong term (var import): expected %v but got: %v", e, term)
-	}
-
-	mod3 := c.Modules["mod3"]
-	expr4 := mod3.Rules[0].Body[0]
-	term = expr4.Terms.([]*Term)[2]
-	e = MustParseTerm("{x.secret: [x.keyid]}")
-	if !term.Equal(e) {
-		t.Errorf("Wrong term (nested refs): expected %v but got: %v", e, term)
-	}
 }
 
 func TestCompilerCheckSafetyHead(t *testing.T) {
@@ -384,6 +343,68 @@ func TestCompilerCheckSafetyBodyErrors(t *testing.T) {
 
 }
 
+func TestCompilerResolveAllRefs(t *testing.T) {
+	c := NewCompiler()
+	c.Modules = getCompilerTestModules()
+	compileStages(c, "", "resolveAllRefs")
+
+	assertNotFailed(t, c)
+
+	mod1 := c.Modules["mod1"]
+	p := mod1.Rules[0]
+	expr1 := p.Body[0]
+	term := expr1.Terms.(*Term)
+	e := MustParseTerm("data.a.b.c.q[x]")
+	if !term.Equal(e) {
+		t.Errorf("Wrong term (global in same module): expected %v but got: %v", e, term)
+	}
+
+	expr2 := p.Body[1]
+	term = expr2.Terms.(*Term)
+	e = MustParseTerm("data.a.b.c.r[x]")
+	if !term.Equal(e) {
+		t.Errorf("Wrong term (global in same package/diff module): expected %v but got: %v", e, term)
+	}
+
+	mod2 := c.Modules["mod2"]
+	r := mod2.Rules[0]
+	expr3 := r.Body[1]
+	term = expr3.Terms.([]*Term)[1]
+	e = MustParseTerm("data.x.y.p")
+	if !term.Equal(e) {
+		t.Errorf("Wrong term (var import): expected %v but got: %v", e, term)
+	}
+
+	mod3 := c.Modules["mod3"]
+	expr4 := mod3.Rules[0].Body[0]
+	term = expr4.Terms.([]*Term)[2]
+	e = MustParseTerm("{x.secret: [x.keyid]}")
+	if !term.Equal(e) {
+		t.Errorf("Wrong term (nested refs): expected %v but got: %v", e, term)
+	}
+
+	// Array comprehensions.
+	mod5 := c.Modules["mod5"]
+
+	ac := func(r *Rule) *ArrayComprehension {
+		return r.Body[0].Terms.(*Term).Value.(*ArrayComprehension)
+	}
+
+	acTerm1 := ac(mod5.Rules[0])
+	assertTermEqual(t, acTerm1.Term, MustParseTerm("x.a"))
+	acTerm2 := ac(mod5.Rules[1])
+	assertTermEqual(t, acTerm2.Term, MustParseTerm("a.b.c.q.a"))
+	acTerm3 := ac(mod5.Rules[2])
+	assertTermEqual(t, acTerm3.Body[0].Terms.([]*Term)[1], MustParseTerm("x.a"))
+	acTerm4 := ac(mod5.Rules[3])
+	assertTermEqual(t, acTerm4.Body[0].Terms.([]*Term)[1], MustParseTerm("a.b.c.q[i]"))
+	acTerm5 := ac(mod5.Rules[4])
+	assertTermEqual(t, acTerm5.Body[0].Terms.([]*Term)[2].Value.(*ArrayComprehension).Term, MustParseTerm("x.a"))
+	acTerm6 := ac(mod5.Rules[5])
+	assertTermEqual(t, acTerm6.Body[0].Terms.([]*Term)[2].Value.(*ArrayComprehension).Body[0].Terms.([]*Term)[1], MustParseTerm("a.b.c.q[i]"))
+
+}
+
 func TestCompilerSetRuleGraph(t *testing.T) {
 	c := NewCompiler()
 	c.Modules = getCompilerTestModules()
@@ -438,6 +459,11 @@ func TestCompilerCheckRecursion(t *testing.T) {
 						import data.rec3.p
 						q[x] = y :- p[x] = y
 						`),
+		"newMod6": MustParseModule(`
+						package rec5
+						acp[x] :- acq[x]
+						acq[x] :- a = [x | acp[x]], a[i] = x
+						`),
 	}
 
 	compileStages(c, "", "checkRecursion")
@@ -451,6 +477,8 @@ func TestCompilerCheckRecursion(t *testing.T) {
 		fmt.Errorf("recursion found in e: e, a, b, c, e"),
 		fmt.Errorf("recursion found in p: p, q, p"),
 		fmt.Errorf("recursion found in q: q, p, q"),
+		fmt.Errorf("recursion found in acq: acq, acp, acq"),
+		fmt.Errorf("recursion found in acp: acp, acq, acp"),
 	}
 
 	if len(c.Errors) != len(expected) {
@@ -630,5 +658,19 @@ func getCompilerTestModules() map[string]*Module {
 	package a.b.empty
 	`)
 
-	return map[string]*Module{"mod2": mod2, "mod3": mod3, "mod1": mod1, "mod4": mod4}
+	mod5 := MustParseModule(`
+	package a.b.compr
+
+	import x as y
+	import a.b.c.q
+
+	p :- [y.a | true]
+	r :- [q.a | true]
+	s :- [true | y.a = 0]
+	t :- [true | q[i] = 1]
+	u :- [true | _ = [y.a | true]]
+	v :- [true | _ = [ true | q[i] = 1]]
+	`)
+
+	return map[string]*Module{"mod2": mod2, "mod3": mod3, "mod1": mod1, "mod4": mod4, "mod5": mod5}
 }
