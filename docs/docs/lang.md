@@ -470,6 +470,71 @@ The result:
 +-------+
 ```
 
+## <a name="comprehensions"></a> Comprehensions
+
+Comprehensions provide a concise way of building [Composite Values](#composite-values) from sub-queries.
+
+Like [Rules](#rules), comprehensions consist of a head and a body. The body of a comprehension can be understood in exactly the same way as the body of a rule, that is, one or more expressions that must all be true in order for the overall body to be true. When the body evaluates to true, the head of the comprehension is evaluated to produce an element in the result.
+
+The body of a comprehension is able to refer to variables defined in the outer body. For example:
+
+```
+> region = "west", names = [name | sites[i].region = region, sites[i].name = name]
++-----------------+--------+
+|      NAMES      | REGION |
++-----------------+--------+
+| ["smoke","dev"] | "west" |
++-----------------+--------+
+```
+
+In the above query, the second expression contains an [Array Comprehension](#array-comprehension) that refers to the "region" variable. The region variable will be bound in the outer body.
+
+> When a comprehension refers to a variable in an outer body, OPA will reorder expressions in the outer body so that variables referred to in the comprehension are bound by the time the comprehension is evaluated.
+
+Comprehensions are similar to the same constructs found in other languages like Python. For example, we could write the above comprehension in Python as follows:
+
+```python
+# Python equivalent of Rego comprehension shown above.
+names = [site.name for site in sites if site.region = "west"]
+```
+
+Comprehensions are often used to group elements by some key. A common use case for comprehensions is to assist in computing aggregate values (e.g., the number of containers running on a host).
+
+### <a name="array-comprehension"></a> Array Comprehensions
+
+Array Comprehensions build array values out of sub-queries. Array Comprehensions have the form:
+
+```
+[ <term> | <body> ]
+```
+
+For example, the following rule defines an object where the keys are application names and the values are hostnames of servers where the application is deployed. The hostnames of servers are represented as an array.
+
+```rego
+app_to_hostnames[app_name] = hostnames :-
+    apps[_] = app,
+    app_name = app.name,
+    hostnames = [hostname | name = app.servers[_],
+                            sites[_].servers[_] = s,
+                            s.name = name,
+                            hostname = s.hostname]
+```
+
+The result:
+
+```
+> app_to_hostnames[app] = hostnames
++-----------+-----------------------------------------------------+
+|    APP    |                      HOSTNAMES                      |
++-----------+-----------------------------------------------------+
+| "web"     | ["hydrogen","helium","berylium","boron","nitrogen"] |
+| "mysql"   | ["lithium","carbon"]                                |
+| "mongodb" | ["oxygen"]                                          |
++-----------+-----------------------------------------------------+
+```
+
+In the future, Rego will support Set and Object comprehensions.
+
 ## <a name="rules"></a> Rules
 
 Rules define the content of [Virtual Documents](/docs/arch.html#data-model) in
@@ -864,7 +929,8 @@ literal        = expr | "not" expr
 expr           = term | expr-builtin | expr-infix
 expr-builtin   = var "(" [ term { , term } ] ")"
 expr-infix     = term bool-operator term
-term           = ref | var | scalar | array | object
+term           = ref | var | scalar | array | object | array-compr
+array-compr    = "[" term "|" rule-body "]"
 bool-operator  = "=" | "!=" | "<" | ">" | ">=" | "<="
 ref            = var { ref-arg }
 ref-arg        = ref-arg-dot | ref-arg-brack
