@@ -604,6 +604,10 @@ func TestTopDownArithmetic(t *testing.T) {
 		expected interface{}
 	}{
 		{"plus", []string{"p[y] :- a[i] = x, plus(i, x, y)"}, "[1,3,5,7]"},
+		{"minus", []string{"p[y] :- a[i] = x, minus(i, x, y)"}, "[-1,-1,-1,-1]"},
+		{"multiply", []string{"p[y] :- a[i] = x, mul(i, x, y)"}, "[0,2,6,12]"},
+		{"divide+round", []string{"p[z] :- a[i] = x, div(i, x, y), round(y, z)"}, "[0,1,1,1]"},
+		{"divide+error", []string{"p[y] :- a[i] = x, div(x, i, y)"}, fmt.Errorf("divide: by zero")},
 	}
 
 	data := loadSmallTestData()
