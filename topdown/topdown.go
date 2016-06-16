@@ -439,15 +439,13 @@ func evalExpr(ctx *Context, iter Iterator) error {
 			return iter(ctx)
 		})
 	case *ast.Term:
-		switch tv := tt.Value.(type) {
-		case ast.Boolean:
-			if tv.Equal(ast.Boolean(true)) {
+		v := tt.Value
+		if !v.Equal(ast.Boolean(false)) {
+			if v.IsGround() {
 				return iter(ctx)
 			}
-			return nil
-		default:
-			return fmt.Errorf("illegal implicit cast: %v", tv)
 		}
+		return nil
 	default:
 		panic(fmt.Sprintf("illegal argument: %v", tt))
 	}

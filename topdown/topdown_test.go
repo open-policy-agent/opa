@@ -285,6 +285,38 @@ func TestTopDownPartialObjectDoc(t *testing.T) {
 	}
 }
 
+func TestTopDownEvalTermExpr(t *testing.T) {
+
+	tests := []struct {
+		note     string
+		rule     string
+		expected string
+	}{
+		{"true", "p :- true", "true"},
+		{"false", "p :- false", ""},
+		{"number non-zero", "p :- -3.14", "true"},
+		{"number zero", "p :- null", "true"},
+		{"null", "p :- null", "true"},
+		{"string non-empty", `p :- "abc"`, "true"},
+		{"string empty", `p :- ""`, "true"},
+		{"array non-empty", "p :- [1,2,3]", "true"},
+		{"array empty", "p :- []", "true"},
+		{"object non-empty", `p :- {"a": 1}`, "true"},
+		{"object empty", `p :- {}`, "true"},
+		{"ref", "p :- a[i]", "true"},
+		{"ref undefined", "p :- data.deadbeef[i]", ""},
+		{"array comprehension", "p :- [x | x = 1]", "true"},
+		{"array comprehension empty", "p :- [x | x = 1, x = 2]", "true"},
+		{"arbitrary position", "p :- a[i] = x, x, i", "true"},
+	}
+
+	data := loadSmallTestData()
+
+	for i, tc := range tests {
+		runTopDownTestCase(t, data, i, tc.note, []string{tc.rule}, tc.expected)
+	}
+}
+
 func TestTopDownEqExpr(t *testing.T) {
 
 	tests := []struct {
