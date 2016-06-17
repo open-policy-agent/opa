@@ -332,7 +332,7 @@ EOF
 <p>So far, the policy has been defined in terms of input data from the plugin. In many cases, it&#39;s necessary to write policies against multiple data sources.</p>
 
 <p>The rest of the example shows how you can grant fine grained access to specific clients. To do so, we will insert fake user data into OPA to simulate an authentication system.</p></li>
-<li><p>Create a Docker configuration file to include an extra HTTP header in all requests:</p>
+<li><p>Create a configuration file to include an HTTP header in all of the requests sent to the Docker daemon. This header will identify the user:</p>
 <div class="highlight"><pre><code class="language-" data-lang="">mkdir -p ~/.docker
 
 # Backup your existing Docker configuration, just in case. You can replace the configuration
@@ -347,10 +347,8 @@ cat &gt;~/.docker/config.json &lt;&lt;EOF
 }
 EOF
 </code></pre></div>
-<p>Currently, Docker does not provide a way to authenticate clients. In Docker 1.12, clients can be authenticated using TLS
-and there are plans to include other means of authentication. For the purpose of this example, we assume that an authentication
-system is place.</p></li>
-<li><p>Insert user data into OPA:</p>
+<p>Currently, Docker does not provide a way to authenticate clients. In Docker 1.12, clients can be authenticated using TLS and there are plans to include other means of authentication. For the purpose of this example, we assume that an authentication system is place.</p></li>
+<li><p>Add user data directly into OPA:</p>
 <div class="highlight"><pre><code class="language-" data-lang="">cat &gt;users.json &lt;&lt;EOF
 [
     {
@@ -372,7 +370,9 @@ curl -X PATCH -d @users.json \
     http://localhost:8181/v1/data/users \
     -H "Content-Type: application/json"
 </code></pre></div>
-<p>To see that the user data has been added, we can query the Data API:</p>
+<p>This data represents information about users that could either come from an external system or be included in policy definitions.</p>
+
+<p>To see that the user data has been added, we can query the Data API. This shows the properties associated with the user &quot;alice&quot;:</p>
 <div class="highlight"><pre><code class="language-" data-lang="">curl http://localhost:8181/v1/data/users/alice
 </code></pre></div></li>
 <li><p>Update the policy definition to include basic user access controls:</p>
@@ -387,9 +387,8 @@ allow_request = true :- valid_user_role
 # valid_user_role defines a document that is the boolean value true if this is
 # a write request and the user is allowed to perform writes.
 valid_user_role :-
-    req.Headers["Authz-User"] = user_id,
-    users[user_id] = user,
-    req.Method != "GET",
+    user_id = req.Headers["Authz-User"],
+    user = users[user_id],
     user.readOnly = false
 
 # valid_user_role is defined again here to handle read requests. When a rule
@@ -397,17 +396,16 @@ valid_user_role :-
 # only one instance evaluates successfully in a given query. If multiple
 # instances evaluated successfully, it indicates a conflict.
 valid_user_role :-
-    req.Headers["Authz-User"] = user_id,
+    user_id = req.Headers["Authz-User"],
+    user = users[user_id],
     req.Method = "GET",
-    users[user_id] = user
+    user.readOnly = true
 EOF
 </code></pre></div>
-<p>In the new policy, the valid_user_role rules reference the &quot;users&quot; document created
-in the previous step.</p></li>
-<li><p>Attempt to run a container:</p>
+<p>In the new policy, the valid_user_role rules reference the &quot;users&quot; document created in the previous step.</p></li>
+<li><p>Attempt to run a container. Because the configured user is &quot;bob&quot;, the request is rejected:</p>
 <div class="highlight"><pre><code class="language-" data-lang="">docker run hello-world
-</code></pre></div>
-<p>Because the configured user is &quot;bob&quot;, the request is rejected.</p></li>
+</code></pre></div></li>
 <li><p>Change the user to &quot;alice&quot; and re-run the container:</p>
 <div class="highlight"><pre><code class="language-" data-lang="">cat &gt; ~/.docker/config.json &lt;&lt;EOF
 {
