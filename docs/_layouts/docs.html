@@ -7,15 +7,38 @@ layout: default
     <ul>
         {% assign pages = site.pages | sort:"sort_order" %}
         {% for page in pages %}
-        {% if page.section == 'docs' %} 
+        {% if page.section == 'docs' %}
+        <li>
+          <a class="page-link" href="{{ page.url | prepend: site.baseurl }}">{{page.title}}</a>
+        </li>
+        <br>
+        {% endif %}
+        {% endfor %}
+        <li>References</li>
+        <ul>
+        {% assign pages = site.pages | sort:"sort_order" %}
+        {% for page in pages %}
+        {% if page.section == 'references' %}
         <li>
           <a class="page-link" href="{{ page.url | prepend: site.baseurl }}">{{page.title}}</a>
         </li>
         {% endif %}
         {% endfor %}
+        </ul>
+        <li>Examples</li>
+        <ul>
+        {% assign pages = site.pages | sort:"sort_order" %}
+        {% for page in pages %}
+        {% if page.section == 'examples' %}
+        <li>
+          <a class="page-link" href="{{ page.url | prepend: site.baseurl }}">{{page.title}}</a>
+        </li>
+        {% endif %}
+        {% endfor %}
+        </ul>
     </ul>
   </div>
-  
+
   <div class="docs-content">
     {{ content }}
   </div>

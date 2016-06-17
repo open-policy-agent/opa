@@ -1,7 +1,7 @@
 ---
 layout: docs
 title: Architecture
-section: docs
+section: references
 sort_order: 2
 ---
 
