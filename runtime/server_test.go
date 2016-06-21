@@ -16,6 +16,7 @@ import (
 	"testing"
 
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/storage"
 )
 
 var policyDir string
@@ -51,7 +52,9 @@ func TestDataV1(t *testing.T) {
 
 				import req1
 				import req2 as reqx
+				import req3.attr1
 				g :- req1.a[0] = 1, reqx.b[i] = 1
+				h :- attr1[i] > 1
 
 				undef :- false
 				`
@@ -111,6 +114,10 @@ func TestDataV1(t *testing.T) {
 				"Code": 400,
 				"Message": "evaluation error (code: 1): unbound variable req2: req2.b[i]"
 			}`},
+		}},
+		{"get with global (namespaced)", []tr{
+			tr{"PUT", "/policies/test", testMod, 200, ""},
+			tr{"GET", "/data/testmod/h?global=req3.attr1%3A%5B4%2C3%2C2%2C1%5D", "", 200, `true`},
 		}},
 		{"get undefined", []tr{
 			tr{"PUT", "/policies/test", testMod, 200, ""},
@@ -351,6 +358,52 @@ func TestQueryV1(t *testing.T) {
 
 	if !reflect.DeepEqual(result, expected) {
 		t.Errorf("Expected %v but got: %v", expected, result)
+	}
+}
+
+func TestGlobalParsing(t *testing.T) {
+
+	tests := []struct {
+		note     string
+		globals  []string
+		expected interface{}
+	}{
+		{"var", []string{`hello:"world"`}, `{hello: "world"}`},
+		{"multiple vars", []string{`a:"a"`, `b:"b"`}, `{a: "a", b: "b"}`},
+		{"multiple overlapping vars", []string{`a.b.c:"c"`, `a.b.d:"d"`, `x.y:[]`}, `{a: {"b": {"c": "c", "d": "d"}}, x: {"y": []}}`},
+		{"conflicting vars", []string{`a.b:"c"`, `a.b.d:"d"`}, globalConflictErr(ast.MustParseRef("a.b.d"))},
+		{"conflicting vars-2", []string{`a.b:{"c":[]}`, `a.b.c:["d"]`}, globalConflictErr(ast.MustParseRef("a.b.c"))},
+		{"conflicting vars-3", []string{"a:100", `a.b:"c"`}, globalConflictErr(ast.MustParseRef("a.b"))},
+		{"conflicting vars-4", []string{`a.b:"c"`, `a:100`}, globalConflictErr(ast.MustParseTerm("a").Value)},
+		{"bad path", []string{`"hello":1`}, fmt.Errorf(`invalid global: "hello": path must be a variable or a reference`)},
+	}
+
+	for i, tc := range tests {
+
+		bindings, err := parseGlobals(tc.globals)
+
+		switch e := tc.expected.(type) {
+		case error:
+			if err == nil {
+				t.Errorf("%v (#%d): Expected error %v but got: %v", tc.note, i+1, e, bindings)
+				continue
+			}
+			if !reflect.DeepEqual(e, err) {
+				t.Errorf("%v (#%d): Expected error %v but got: %v", tc.note, i+1, e, err)
+			}
+		case string:
+			if err != nil {
+				t.Errorf("%v (#%d): Unexpected error: %v", tc.note, i+1, err)
+				continue
+			}
+			exp := storage.NewBindings()
+			for _, i := range ast.MustParseTerm(e).Value.(ast.Object) {
+				exp.Put(i[0].Value, i[1].Value)
+			}
+			if !exp.Equal(bindings) {
+				t.Errorf("%v (#%d): Expected bindings to equal %v but got: %v", tc.note, i+1, exp, bindings)
+			}
+		}
 	}
 }
 

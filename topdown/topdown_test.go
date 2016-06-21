@@ -703,9 +703,13 @@ func TestTopDownGlobalVars(t *testing.T) {
 		 import data.a
 		 import req1
 		 import req2 as req2as
+		 import req3.a.b
+		 import req4.a.b as req4as
 		 p = true :- a[i] = x, req1.foo = x, req2as.bar = x, q[x]
 		 q[x] :- req1.foo = x, req2as.bar = x, r[x]
-		 r[x] :- {"foo": req2as.bar, "bar": [x]} = {"foo": x, "bar": [req1.foo]}`})
+		 r[x] :- {"foo": req2as.bar, "bar": [x]} = {"foo": x, "bar": [req1.foo]}
+		 s :- b.x[0] = 1
+		 t :- req4as.x[0] = 1`})
 
 	data := loadSmallTestData()
 	store := storage.NewDataStoreFromJSONObject(data)
@@ -726,6 +730,26 @@ func TestTopDownGlobalVars(t *testing.T) {
 	assertTopDown(t, store, 1, "global vars (missing)", []string{"z", "p"}, `{
 		req1: {"foo": 4}
 	}`, unboundGlobalVarErr(ast.MustParseRef("req2.bar")))
+
+	assertTopDown(t, store, 2, "global vars (namespaced)", []string{"z", "s"}, `{
+		req3: {
+			"a": {
+				"b": {
+					"x": [1,2,3,4]
+				}
+			}
+		}
+	}`, "true")
+
+	assertTopDown(t, store, 2, "global vars (namespaced w/ alias)", []string{"z", "t"}, `{
+		req4: {
+			"a": {
+				"b": {
+					"x": [1,2,3,4]
+				}
+			}
+		}
+	}`, "true")
 }
 
 func TestExample(t *testing.T) {

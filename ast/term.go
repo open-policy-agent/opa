@@ -566,6 +566,68 @@ func ObjectTerm(o ...[2]*Term) *Term {
 	return &Term{Value: Object(o)}
 }
 
+// Diff returns a new Object that contains only the key/value pairs that exist in obj.
+func (obj Object) Diff(other Object) Object {
+	r := Object{}
+	for _, i := range obj {
+		found := false
+		for _, j := range other {
+			if j[0].Equal(i[0]) {
+				found = true
+				break
+			}
+		}
+		if !found {
+			r = append(r, i)
+		}
+	}
+	return r
+}
+
+// Intersect returns a slice of term triplets that represent the intersection of keys
+// between obj and other. For each intersecting key, the values from obj and other are included
+// as the last two terms in the triplet (respectively).
+func (obj Object) Intersect(other Object) [][3]*Term {
+	r := [][3]*Term{}
+	for _, i := range obj {
+		for _, j := range other {
+			if i[0].Equal(j[0]) {
+				r = append(r, [...]*Term{&Term{Value: i[0].Value}, i[1], j[1]})
+			}
+		}
+	}
+	return r
+}
+
+// Merge returns a new Object containing the non-overlapping keys of obj and other. If there are
+// overlapping keys between obj and other, the values of associated with the keys are merged. Only
+// objects can be merged with other objects. If the values cannot be merged, the second turn value
+// will be false.
+func (obj Object) Merge(other Object) (Object, bool) {
+	r := Object{}
+	r = append(r, obj.Diff(other)...)
+	r = append(r, other.Diff(obj)...)
+	for _, vs := range obj.Intersect(other) {
+		var merged Value
+		switch v1 := vs[1].Value.(type) {
+		case Object:
+			switch v2 := vs[2].Value.(type) {
+			case Object:
+				m, ok := v1.Merge(v2)
+				if !ok {
+					return nil, false
+				}
+				merged = m
+			}
+		}
+		if merged == nil {
+			return nil, false
+		}
+		r = append(r, [2]*Term{vs[0], &Term{Value: merged}})
+	}
+	return r, true
+}
+
 // Query invokes the iterator for each referenced value inside the object.
 func (obj Object) Query(ref Ref, iter QueryIterator) error {
 	return obj.queryRec(ref, make(map[Var]Value), iter)
