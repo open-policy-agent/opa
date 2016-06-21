@@ -484,10 +484,10 @@ func TestTopDownVirtualDocs(t *testing.T) {
 
 		// no dereferencing
 		{"no suffix: complete", []string{"p = true :- q", "q = true :- true"}, "true"},
-		{"no suffix: complete incr (error)", []string{"p = true :- q", "q = false :- true", "q = true :- true"}, fmt.Errorf("multiple values for data.q: incremental definitions must produce exactly one value for complete documents: check rule definitions: q")},
+		{"no suffix: complete incr (error)", []string{"p = true :- q", "q = false :- true", "q = true :- true"}, fmt.Errorf("evaluation error (code: 2): multiple values for data.q: rules must produce exactly one value for complete documents: check rule definition(s): q")},
 		{"no suffix: complete incr", []string{"p = true :- not q", "q = true :- false", "q = false :- true"}, "true"},
 		{"no suffix: object", []string{"p[x] = y :- q = o, o[x] = y", "q[x] = y :- b[x] = y"}, `{"v1": "hello", "v2": "goodbye"}`},
-		{"no suffix: object incr", []string{"p[x] = y :- q = o, o[x] = y", "q[x] = y :- b[x] = y", "q[x1] = y1 :- b[x1] = y1"}, fmt.Errorf("multiple values for data.q: incremental definitions must produce exactly one value for each key of an object document: check rule definitions: q")},
+		{"no suffix: object incr", []string{"p[x] = y :- q = o, o[x] = y", "q[x] = y :- b[x] = y", "q[x1] = y1 :- b[x1] = y1"}, fmt.Errorf("evaluation error (code: 2): multiple values for data.q: rules must produce exactly one value for object document keys: check rule definition(s): q")},
 		{"no suffix: object incr", []string{"p[x] = y :- q = o, o[x] = y", "q[x] = y :- b[x] = y", `q[x1] = y1 :- d["e"][y1] = x1`}, `{"v1": "hello", "v2": "goodbye", "bar": 0, "baz": 1}`},
 		{"no suffix: chained", []string{
 			"p = true :- q = x, x[i] = 4",
@@ -548,6 +548,12 @@ func TestTopDownDisjunction(t *testing.T) {
 		{"incr: query object", []string{"p[k] = v :- b[v] = k", "p[k] = v :- a[i] = v, g[k][j] = v"}, `{"b": 2, "c": 4, "hello": "v1", "goodbye": "v2", "a": 1}`},
 		{"incr: eval set", []string{"p[x] :- q[x]", "q[x] :- a[i] = x", "q[y] :- b[j] = y"}, `[1,2,3,4,"hello","goodbye"]`},
 		{"incr: eval object", []string{"p[k] = v :- q[k] = v", "q[k] = v :- b[v] = k", "q[k] = v :- a[i] = v, g[k][j] = v"}, `{"b": 2, "c": 4, "hello": "v1", "goodbye": "v2", "a": 1}`},
+		{"complete: undefined", []string{"p :- false", "p :- false"}, ""},
+		{"complete: error", []string{"p :- true", "p = false :- true"}, fmt.Errorf("evaluation error (code: 2): multiple values for [p]: rules must produce exactly one value for complete documents: check rule definition(s): p")},
+		{"complete: valid", []string{"p :- true", "p = true :- true"}, "true"},
+		{"complete: valid-2", []string{"p :- true", "p = false :- false"}, "true"},
+		{"complete: reference error", []string{"p :- q", "q :- true", "q = false :- true"}, fmt.Errorf("evaluation error (code: 2): multiple values for data.q: rules must produce exactly one value for complete documents: check rule definition(s): q")},
+		{"complete: reference valid", []string{"p :- q", "q :- true", "q = true :- true"}, "true"},
 	}
 
 	data := loadSmallTestData()
@@ -719,7 +725,7 @@ func TestTopDownGlobalVars(t *testing.T) {
 
 	assertTopDown(t, store, 1, "global vars (missing)", []string{"z", "p"}, `{
 		req1: {"foo": 4}
-	}`, unboundGlobalVar(ast.MustParseRef("req2.bar")))
+	}`, unboundGlobalVarErr(ast.MustParseRef("req2.bar")))
 }
 
 func TestExample(t *testing.T) {
