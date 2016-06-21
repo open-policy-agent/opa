@@ -159,6 +159,12 @@ const (
 	// UnboundGlobalErr indicates a global variable without a binding was
 	// encountered during evaluation.
 	UnboundGlobalErr = iota
+
+	// ConflictErr indicates multiple (conflicting) values were produced
+	// while generating a virtual document. E.g., given two rules that share
+	// the same name: p = false :- true, p = true :- true, a query "p" would
+	// evaluate p to "true" and "false".
+	ConflictErr = iota
 )
 
 func (e *Error) Error() string {
@@ -173,10 +179,17 @@ func IsUnboundGlobal(e error) bool {
 	return false
 }
 
-func unboundGlobalVar(r ast.Ref) error {
+func unboundGlobalVarErr(r ast.Ref) error {
 	return &Error{
 		Code:    UnboundGlobalErr,
 		Message: fmt.Sprintf("unbound variable %v: %v", r[0], r),
+	}
+}
+
+func conflictErr(query interface{}, kind string, rule *ast.Rule) error {
+	return &Error{
+		Code:    ConflictErr,
+		Message: fmt.Sprintf("multiple values for %v: rules must produce exactly one value for %v: check rule definition(s): %v", query, kind, rule.Name),
 	}
 }
 
@@ -457,7 +470,7 @@ func evalRef(ctx *Context, ref ast.Ref, iter Iterator) error {
 	if !ref[0].Equal(ast.DefaultRootDocument) {
 		v := ctx.Binding(ref[0].Value)
 		if v == nil {
-			return unboundGlobalVar(ref)
+			return unboundGlobalVarErr(ref)
 		}
 		return evalRefRuleResult(ctx, ref, ref[1:], v, iter)
 	}
@@ -615,7 +628,7 @@ func evalRefRuleCompleteDoc(ctx *Context, ref ast.Ref, suffix ast.Ref, rules []*
 		if isTrue && result == nil {
 			result = rule.Value.Value
 		} else if isTrue && result != nil {
-			return fmt.Errorf("multiple values for %v: incremental definitions must produce exactly one value for complete documents: check rule definitions: %v", ref, rule.Name)
+			return conflictErr(ref, "complete documents", rule)
 		}
 
 	}
@@ -690,7 +703,7 @@ func evalRefRulePartialObjectDocFull(ctx *Context, ref ast.Ref, rules []*ast.Rul
 		err := Eval(child, func(child *Context) error {
 			key := child.Binding(rule.Key.Value)
 			if _, ok := keys.Get(key); ok {
-				return fmt.Errorf("multiple values for %v: incremental definitions must produce exactly one value for each key of an object document: check rule definitions: %v", ref, rule.Name)
+				return conflictErr(ref, "object document keys", rule)
 			}
 			keys.Put(key, ast.Null{})
 			value := child.Binding(rule.Value.Value)
@@ -1236,33 +1249,42 @@ func plugValue(v ast.Value, ctx *Context) ast.Value {
 
 func topDownQueryCompleteDoc(params *QueryParams, rules []*ast.Rule) (interface{}, error) {
 
-	if len(rules) > 1 {
-		return nil, fmt.Errorf("multiple conflicting rules: %v", rules[0].Name)
+	var result ast.Value
+	var resultContext *Context
+
+	for _, rule := range rules {
+		ctx := &Context{
+			Query:     rule.Body,
+			Globals:   params.Globals,
+			Locals:    storage.NewBindings(),
+			DataStore: params.DataStore,
+			Tracer:    params.Tracer,
+		}
+
+		isTrue := false
+
+		err := Eval(ctx, func(ctx *Context) error {
+			isTrue = true
+			return nil
+		})
+
+		if err != nil {
+			return nil, err
+		}
+
+		if isTrue && result == nil {
+			result = rule.Value.Value
+			resultContext = ctx
+		} else if isTrue && result != nil {
+			return nil, conflictErr(params.Path, "complete documents", rule)
+		}
 	}
 
-	rule := rules[0]
-
-	ctx := &Context{
-		Query:     rule.Body,
-		Globals:   params.Globals,
-		Locals:    storage.NewBindings(),
-		DataStore: params.DataStore,
-		Tracer:    params.Tracer,
-	}
-
-	isTrue := false
-	err := Eval(ctx, func(ctx *Context) error {
-		isTrue = true
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
-	if !isTrue {
+	if result == nil {
 		return Undefined{}, nil
 	}
 
-	return ValueToInterface(rule.Value.Value, ctx)
+	return ValueToInterface(result, resultContext)
 }
 
 func topDownQueryPartialObjectDoc(params *QueryParams, rules []*ast.Rule) (interface{}, error) {
