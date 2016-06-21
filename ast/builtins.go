@@ -21,19 +21,30 @@ func RegisterBuiltin(b *Builtin) {
 var DefaultBuiltins = [...]*Builtin{
 	Equality,
 	GreaterThan, GreaterThanEq, LessThan, LessThanEq, NotEqual,
+	Plus, Minus, Multiply, Divide, Round,
+	Count, Sum,
+	ToNumber,
 }
 
 // BuiltinMap provides a convenient mapping of built-in names to
 // built-in definitions.
 var BuiltinMap map[Var]*Builtin
 
+/**
+ * Unification
+ */
+
 // Equality represents the "=" operator.
 var Equality = &Builtin{
-	Name:         Var("="),
-	Alias:        Var("eq"),
-	NumArgs:      2,
-	RecTargetPos: []int{0, 1},
+	Name:      Var("="),
+	Alias:     Var("eq"),
+	NumArgs:   2,
+	TargetPos: []int{0, 1},
 }
+
+/**
+ * Comparisons
+ */
 
 // GreaterThan represents the ">" comparison operator.
 var GreaterThan = &Builtin{
@@ -70,14 +81,83 @@ var NotEqual = &Builtin{
 	NumArgs: 2,
 }
 
+/**
+ * Arithmetic
+ */
+
+// Plus adds two numbers together.
+var Plus = &Builtin{
+	Name:      Var("plus"),
+	NumArgs:   3,
+	TargetPos: []int{2},
+}
+
+// Minus subtracts the second number from the first number.
+var Minus = &Builtin{
+	Name:      Var("minus"),
+	NumArgs:   3,
+	TargetPos: []int{2},
+}
+
+// Multiply multiplies two numbers together.
+var Multiply = &Builtin{
+	Name:      Var("mul"),
+	NumArgs:   3,
+	TargetPos: []int{2},
+}
+
+// Divide divides the first number by the second number.
+var Divide = &Builtin{
+	Name:      Var("div"),
+	NumArgs:   3,
+	TargetPos: []int{2},
+}
+
+// Round rounds the number up to the nearest integer.
+var Round = &Builtin{
+	Name:      Var("round"),
+	NumArgs:   2,
+	TargetPos: []int{1},
+}
+
+/**
+ * Aggregates
+ */
+
+// Count takes a collection and counts the number of elements in it.
+var Count = &Builtin{
+	Name:      Var("count"),
+	NumArgs:   2,
+	TargetPos: []int{1},
+}
+
+// Sum takes an array of numbers and sums them.
+var Sum = &Builtin{
+	Name:      Var("sum"),
+	NumArgs:   2,
+	TargetPos: []int{1},
+}
+
+/**
+ * Casting
+ */
+
+// ToNumber takes a string, bool, or number value and converts it to a number.
+// Strings are converted to numbers using strconv.Atoi.
+// Boolean false is converted to 0 and boolean true is converted to 1.
+var ToNumber = &Builtin{
+	Name:      Var("to_number"),
+	NumArgs:   2,
+	TargetPos: []int{1},
+}
+
 // Builtin represents a built-in function supported by OPA. Every
 // built-in function is uniquely identified by a name.
 type Builtin struct {
-	Name         Var
-	Alias        Var
-	NumArgs      int
-	TargetPos    []int
-	RecTargetPos []int
+	Name      Var
+	Alias     Var
+	NumArgs   int
+	TargetPos []int
 }
 
 // GetPrintableName returns a printable name for the builtin.
@@ -91,22 +171,10 @@ func (b *Builtin) GetPrintableName() string {
 	return b.Name.String()
 }
 
-// Unifies returns true if a term in the given position will unify
-// non-recursively or recursively.
-func (b *Builtin) Unifies(i int) bool {
+// IsTargetPos returns true if a variable in the i-th position will be
+// bound when the expression is evaluated.
+func (b *Builtin) IsTargetPos(i int) bool {
 	for _, x := range b.TargetPos {
-		if x == i {
-			return true
-		}
-	}
-	return b.UnifiesRecursively(i)
-}
-
-// UnifiesRecursively returns true if a term in the given position will
-// unify recursively, i.e., variables embedded inside a collection type
-// will unify.
-func (b *Builtin) UnifiesRecursively(i int) bool {
-	for _, x := range b.RecTargetPos {
 		if x == i {
 			return true
 		}

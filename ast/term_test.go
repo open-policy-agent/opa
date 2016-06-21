@@ -109,38 +109,24 @@ func TestQuery(t *testing.T) {
 
 func TestTermBadJSON(t *testing.T) {
 
-	assert := func(js string, exp error) {
-		term := Term{}
-		err := json.Unmarshal([]byte(js), &term)
-		if !reflect.DeepEqual(exp, err) {
-			t.Errorf("Expected %v but got: %v", exp, err)
-		}
+	input := `{
+		"Value": [[
+			{"Value": [{"Value": "a", "Type": "var"}, {"Value": "x", "Type": "string"}], "Type": "ref"},
+			{"Value": [{"Value": "x", "Type": "var"}], "Type": "array"}
+		], [
+			{"Value": 100, "Type": "array"},
+			{"Value": "foo", "Type": "string"}
+		]],
+		"Type": "object"
+	}`
+
+	term := Term{}
+	err := json.Unmarshal([]byte(input), &term)
+	expected := fmt.Errorf("ast: unable to unmarshal term")
+	if !reflect.DeepEqual(expected, err) {
+		t.Errorf("Expected %v but got: %v", expected, err)
 	}
 
-	castTests := []struct {
-		input    string
-		val      interface{}
-		expected string
-	}{
-		{`{"Value": null, "Type": "boolean"}`, nil, "bool"},
-		{`{"Value": false, "Type": "number"}`, false, "float64"},
-		{`{"Value": 100, "Type": "string"}`, 100.0, "string"},
-		{`{"Value": "hello", "Type": "number"}`, "hello", "float64"},
-		{`{"Value": 100, "Type": "var"}`, 100.0, "ast.Var"},
-		{`{"Value": "abc", "Type": "ref"}`, "abc", "[]interface{}"},
-		{`{"Value": ["abc"], "Type": "ref"}`, "abc", "map[string]interface{}"},
-		{`{"Value": "abc", "Type": "array"}`, "abc", "[]interface{}"},
-		{`{"Value": ["abc"], "Type": "array"}`, "abc", "map[string]interface{}"},
-		{`{"Value": "abc", "Type": "object"}`, "abc", "[]interface{}"},
-		{`{"Value": ["abc"], "Type": "object"}`, "abc", "[]interface{}"},
-		{`{"Value": [["abc"]], "Type": "object"}`, []interface{}{}, "[2]interface{}"},
-		{`{"Value": [["abc", "abc"]], "Type": "object"}`, "abc", "map[string]interface{}"},
-		{`{"Value": [[{"Value": "abc", "Type": "string"}, "abc"]], "Type": "object"}`, "abc", "map[string]interface{}"},
-	}
-
-	for _, tc := range castTests {
-		assert(tc.input, unmarshalError(tc.val, tc.expected))
-	}
 }
 
 func TestTermEqual(t *testing.T) {
@@ -155,6 +141,7 @@ func TestTermEqual(t *testing.T) {
 	assertTermEqual(t, ArrayTerm(NumberTerm(1), NumberTerm(2), NumberTerm(3)), ArrayTerm(NumberTerm(1), NumberTerm(2), NumberTerm(3)))
 	assertTermEqual(t, VarTerm("foo"), VarTerm("foo"))
 	assertTermEqual(t, RefTerm(VarTerm("foo"), VarTerm("i"), NumberTerm(2)), RefTerm(VarTerm("foo"), VarTerm("i"), NumberTerm(2)))
+	assertTermEqual(t, ArrayComprehensionTerm(VarTerm("x"), Body{&Expr{Terms: RefTerm(VarTerm("a"), VarTerm("i"))}}), ArrayComprehensionTerm(VarTerm("x"), Body{&Expr{Terms: RefTerm(VarTerm("a"), VarTerm("i"))}}))
 	assertTermNotEqual(t, NullTerm(), BooleanTerm(true))
 	assertTermNotEqual(t, BooleanTerm(true), BooleanTerm(false))
 	assertTermNotEqual(t, NumberTerm(5), NumberTerm(7))
@@ -167,6 +154,7 @@ func TestTermEqual(t *testing.T) {
 	assertTermNotEqual(t, ArrayTerm(NumberTerm(1), NumberTerm(2), NumberTerm(3)), ArrayTerm(NumberTerm(1), NumberTerm(2), NumberTerm(4)))
 	assertTermNotEqual(t, VarTerm("foo"), VarTerm("bar"))
 	assertTermNotEqual(t, RefTerm(VarTerm("foo"), VarTerm("i"), NumberTerm(2)), RefTerm(VarTerm("foo"), StringTerm("i"), NumberTerm(2)))
+	assertTermNotEqual(t, ArrayComprehensionTerm(VarTerm("x"), Body{&Expr{Terms: RefTerm(VarTerm("a"), VarTerm("j"))}}), ArrayComprehensionTerm(VarTerm("x"), Body{&Expr{Terms: RefTerm(VarTerm("a"), VarTerm("i"))}}))
 }
 
 func TestHash(t *testing.T) {
@@ -178,7 +166,8 @@ func TestHash(t *testing.T) {
 			],
 			"e": {
 				100: a[i].b
-			}
+			},
+			"k": [ "foo" | true ]
 		}
 	`
 
@@ -190,6 +179,42 @@ func TestHash(t *testing.T) {
 	if obj1.Hash() != obj2.Hash() {
 		t.Errorf("Expected hash codes to be equal")
 	}
+}
+
+func TestTermIsGround(t *testing.T) {
+
+	tests := []struct {
+		note     string
+		term     string
+		expected bool
+	}{
+		{"null", "null", true},
+		{"string", `"foo"`, true},
+		{"number", "42.1", true},
+		{"boolean", "false", true},
+		{"var", "x", false},
+		{"ref ground", "a.b[0]", true},
+		{"ref non-ground", "a.b[i].x", false},
+		{"array ground", "[1,2,3]", true},
+		{"array non-ground", "[1,2,x]", false},
+		{"object ground", `{"a": 1}`, true},
+		{"object non-ground key", `{"x": 1, y: 2}`, false},
+		{"object non-ground value", `{"x": 1, "y": y}`, false},
+		{"array compr ground", `["a" | true]`, true},
+		{"array compr non-ground", `[x | x = a[i]]`, false},
+	}
+
+	for i, tc := range tests {
+		term := MustParseTerm(tc.term)
+		if term.IsGround() != tc.expected {
+			expected := "ground"
+			if !tc.expected {
+				expected = "non-ground"
+			}
+			t.Errorf("Expected term %v to be %s (test case %d: %v)", term, expected, i, tc.note)
+		}
+	}
+
 }
 
 func TestTermString(t *testing.T) {
@@ -209,6 +234,7 @@ func TestTermString(t *testing.T) {
 	assertToString(t, ArrayTerm().Value, "[]")
 	assertToString(t, ObjectTerm().Value, "{}")
 	assertToString(t, ArrayTerm(ObjectTerm(Item(VarTerm("foo"), ArrayTerm(RefTerm(VarTerm("bar"), VarTerm("i"))))), StringTerm("foo"), BooleanTerm(true), NullTerm(), NumberTerm(42.1)).Value, "[{foo: [bar[i]]}, \"foo\", true, null, 42.1]")
+	assertToString(t, ArrayComprehensionTerm(ArrayTerm(VarTerm("x")), Body{&Expr{Terms: RefTerm(VarTerm("a"), VarTerm("i"))}}).Value, "[[x] | a[i]]")
 }
 
 func TestRefUnderlying(t *testing.T) {

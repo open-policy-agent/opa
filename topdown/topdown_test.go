@@ -234,7 +234,6 @@ func TestTopDownCompleteDoc(t *testing.T) {
 		{`object/nested composites: {"a": [1], "b": [2], "c": [3]}`,
 			`p = {"a": [1], "b": [2], "c": [3]} :- true`,
 			`{"a": [1], "b": [2], "c": [3]}`},
-		{"var/var", "p = true :- x = y", ""},
 	}
 
 	data := loadSmallTestData()
@@ -258,7 +257,6 @@ func TestTopDownPartialSetDoc(t *testing.T) {
 		{"nested composites", "p[x] :- f[i] = x", `[{"xs": [1.0], "ys": [2.0]}, {"xs": [2.0], "ys": [3.0]}]`},
 		{"deep ref/heterogeneous", "p[x] :- c[i][j][k] = x", `[null, 3.14159, true, false, true, false, "foo"]`},
 		{"composite var value", "p[x] :- x = [i, a[i]]", "[[0,1],[1,2],[2,3],[3,4]]"},
-		{"var/var", "p[x] :- x = y", "[]"},
 	}
 
 	data := loadSmallTestData()
@@ -278,8 +276,38 @@ func TestTopDownPartialObjectDoc(t *testing.T) {
 		{"composites", "p[k] = v :- d[k] = v", `{"e": ["bar", "baz"]}`},
 		{"non-string key", "p[k] = v :- a[k] = v", fmt.Errorf("illegal object key type float64: 0")},
 		{"body/join var", "p[k] = v :- a[i] = v, g[k][i] = v", `{"a": 1, "b": 2, "c": 4}`},
-		{"var/var key", "p[k] = v :- v = 1, k = x", "{}"},
-		{"var/var val", `p[k] = v :- k = "x", v = x`, "{}"},
+	}
+
+	data := loadSmallTestData()
+
+	for i, tc := range tests {
+		runTopDownTestCase(t, data, i, tc.note, []string{tc.rule}, tc.expected)
+	}
+}
+
+func TestTopDownEvalTermExpr(t *testing.T) {
+
+	tests := []struct {
+		note     string
+		rule     string
+		expected string
+	}{
+		{"true", "p :- true", "true"},
+		{"false", "p :- false", ""},
+		{"number non-zero", "p :- -3.14", "true"},
+		{"number zero", "p :- null", "true"},
+		{"null", "p :- null", "true"},
+		{"string non-empty", `p :- "abc"`, "true"},
+		{"string empty", `p :- ""`, "true"},
+		{"array non-empty", "p :- [1,2,3]", "true"},
+		{"array empty", "p :- []", "true"},
+		{"object non-empty", `p :- {"a": 1}`, "true"},
+		{"object empty", `p :- {}`, "true"},
+		{"ref", "p :- a[i]", "true"},
+		{"ref undefined", "p :- data.deadbeef[i]", ""},
+		{"array comprehension", "p :- [x | x = 1]", "true"},
+		{"array comprehension empty", "p :- [x | x = 1, x = 2]", "true"},
+		{"arbitrary position", "p :- a[i] = x, x, i", "true"},
 	}
 
 	data := loadSmallTestData()
@@ -310,8 +338,6 @@ func TestTopDownEqExpr(t *testing.T) {
 		{"undefined: array deep var 2", "p = true :- [[1,x],[3,4]] = [[1,2],[x,4]]", ""},
 		{"undefined: array uneven", `p = true :- [true, false, "foo", "deadbeef"] = c[i][j]`, ""},
 		{"undefined: object uneven", `p = true :- {"a": 1, "b": 2} = {"a": 1}`, ""},
-		{"undefined: occurs 1", "p = true :- [y,x] = [[x],y]", ""},
-		{"undefined: occurs 2", "p = true :- [y,x] = [{\"a\": x}, y]", ""},
 
 		// ground terms
 		{"ground: bool", `p = true :- true = true`, "true"},
@@ -551,6 +577,85 @@ func TestTopDownNegation(t *testing.T) {
 
 		// TODO(tsandall): 'not g[j][k] ...' is not valid.
 		// {"neg: multiple exprs", []string{"p[x] :- a[x] = i, not g[j][k] = x, f[v][y][z] = x"}, "[3]"},
+	}
+
+	data := loadSmallTestData()
+
+	for i, tc := range tests {
+		runTopDownTestCase(t, data, i, tc.note, tc.rules, tc.expected)
+	}
+}
+
+func TestTopDownComprehensions(t *testing.T) {
+
+	tests := []struct {
+		note     string
+		rules    []string
+		expected interface{}
+	}{
+		{"simple", []string{"p[i] :- xs = [x | x = a[_]], xs[i] > 1"}, "[1,2,3]"},
+		{"nested", []string{"p[i] :- ys = [y | y = x[_], x = [z | z = a[_]]], ys[i] > 1"}, "[1,2,3]"},
+		{"embedded array", []string{"p[i] :- xs = [[x | x = a[_]]], xs[0][i] > 1"}, "[1,2,3]"},
+		{"embedded object", []string{`p[i] :- xs = {"a": [x | x = a[_]]}, xs["a"][i] > 1`}, "[1,2,3]"},
+		{"closure", []string{"p[x] :- y = 1, x = [y | y = 1]"}, "[[1]]"},
+	}
+
+	data := loadSmallTestData()
+
+	for i, tc := range tests {
+		runTopDownTestCase(t, data, i, tc.note, tc.rules, tc.expected)
+	}
+}
+
+func TestTopDownAggregates(t *testing.T) {
+
+	tests := []struct {
+		note     string
+		rules    []string
+		expected interface{}
+	}{
+		{"count", []string{"p[x] :- count(a, x)"}, "[4]"},
+		{"count virtual", []string{"p[x] :- count([y | q[y]], x)", "q[x] :- x = a[_]"}, "[4]"},
+		{"count keys", []string{"p[x] :- count(b, x)"}, "[2]"},
+		{"count keys virtual", []string{"p[x] :- count([k | q[k] = _], x)", "q[k] = v :- b[k] = v"}, "[2]"},
+		{"sum", []string{"p[x] :- sum([1,2,3,4], x)"}, "[10]"},
+		{"sum virtual", []string{"p[x] :- sum([y | q[y]], x)", "q[x] :- a[_] = x"}, "[10]"},
+	}
+
+	data := loadSmallTestData()
+
+	for i, tc := range tests {
+		runTopDownTestCase(t, data, i, tc.note, tc.rules, tc.expected)
+	}
+}
+
+func TestTopDownArithmetic(t *testing.T) {
+	tests := []struct {
+		note     string
+		rules    []string
+		expected interface{}
+	}{
+		{"plus", []string{"p[y] :- a[i] = x, plus(i, x, y)"}, "[1,3,5,7]"},
+		{"minus", []string{"p[y] :- a[i] = x, minus(i, x, y)"}, "[-1,-1,-1,-1]"},
+		{"multiply", []string{"p[y] :- a[i] = x, mul(i, x, y)"}, "[0,2,6,12]"},
+		{"divide+round", []string{"p[z] :- a[i] = x, div(i, x, y), round(y, z)"}, "[0,1,1,1]"},
+		{"divide+error", []string{"p[y] :- a[i] = x, div(x, i, y)"}, fmt.Errorf("divide: by zero")},
+	}
+
+	data := loadSmallTestData()
+
+	for i, tc := range tests {
+		runTopDownTestCase(t, data, i, tc.note, tc.rules, tc.expected)
+	}
+}
+
+func TestTopDownCasts(t *testing.T) {
+	tests := []struct {
+		note     string
+		rules    []string
+		expected interface{}
+	}{
+		{"to_number", []string{`p[x] :- to_number("-42.0", y), to_number(false, z), x = [y, z]`}, "[[-42.0, 0]]"},
 	}
 
 	data := loadSmallTestData()

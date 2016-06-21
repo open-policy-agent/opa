@@ -41,6 +41,28 @@ func (s VarSet) Copy() VarSet {
 	return cpy
 }
 
+// Diff returns a VarSet containing variables in s that are not in vs.
+func (s VarSet) Diff(vs VarSet) VarSet {
+	r := VarSet{}
+	for v := range s {
+		if !vs.Contains(v) {
+			r.Add(v)
+		}
+	}
+	return r
+}
+
+// Intersect returns a VarSet containing variables in s that are in vs.
+func (s VarSet) Intersect(vs VarSet) VarSet {
+	r := VarSet{}
+	for v := range s {
+		if vs.Contains(v) {
+			r.Add(v)
+		}
+	}
+	return r
+}
+
 // Update merges the other VarSet into this VarSet.
 func (s VarSet) Update(vs VarSet) {
 	for v := range vs {

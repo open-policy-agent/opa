@@ -72,5 +72,48 @@ func Walk(v Visitor, x interface{}) {
 		for _, t := range x {
 			Walk(w, t.Value)
 		}
+	case *ArrayComprehension:
+		Walk(w, x.Term)
+		Walk(w, x.Body)
 	}
+}
+
+// WalkClosures calls the function f on all closures under x. If the function f
+// returns true, AST nodes under the last node will not be visited.
+func WalkClosures(x interface{}, f func(interface{}) bool) {
+	vis := &GenericVisitor{func(x interface{}) bool {
+		switch x.(type) {
+		case *ArrayComprehension:
+			return f(x)
+		}
+		return false
+	}}
+	Walk(vis, x)
+}
+
+// WalkRefs calls the function f on all references under x. If the function f
+// returns true, AST nodes under the last node will not be visited.
+func WalkRefs(x interface{}, f func(Ref) bool) {
+	vis := &GenericVisitor{func(x interface{}) bool {
+		if r, ok := x.(Ref); ok {
+			return f(r)
+		}
+		return false
+	}}
+	Walk(vis, x)
+}
+
+// GenericVisitor implements the Visitor interface to provide
+// a utility to walk over AST nodes using a closure. If the closure
+// returns true, the visitor will not walk over AST nodes under x.
+type GenericVisitor struct {
+	f func(x interface{}) bool
+}
+
+// Visit calls the function f on the GenericVisitor.
+func (vis *GenericVisitor) Visit(x interface{}) Visitor {
+	if vis.f(x) {
+		return nil
+	}
+	return vis
 }

@@ -90,7 +90,6 @@ Import <- "import" ws path:(Ref / Var) alias:(ws "as" ws Var)? {
     return imp, nil
 }
 
-// TODO(tsandall): update to handle underscore variables
 Rule <- name:Var key:( _ "[" _ Term _ "]" _ )? value:( _ "=" _ Term )? body:( _ ":-" _ Body) {
 
     rule := &Rule{}
@@ -130,8 +129,6 @@ Body <- head:Expr tail:( _ "," _ Expr)* {
         expr := s.([]interface{})[3].(*Expr)
         buf = append(buf, expr)
     }
-    mangler := &wildcardMangler{}
-    Walk(mangler, buf)
     return buf, nil
 }
 
@@ -169,8 +166,16 @@ PrefixExpr <- op:Var "(" _ head:Term? tail:( _ "," _ Term )* _  ")" {
     return buf, nil
 }
 
-Term <- val:( Composite / Scalar / Ref / Var ) {
+Term <- val:( Comprehension / Composite / Scalar / Ref / Var ) {
     return val, nil
+}
+
+Comprehension <- ArrayComprehension
+
+ArrayComprehension <- "[" _ term:Term _ "|" _ body:Body _ "]" {
+    ac := ArrayComprehensionTerm(term.(*Term), body.(Body))
+    ac.Location = currentLocation(c)
+    return ac, nil
 }
 
 Composite <- Object / Array

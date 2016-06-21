@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"reflect"
 	"sort"
+	"strings"
 	"testing"
 )
 
@@ -16,7 +17,7 @@ func TestModuleTree(t *testing.T) {
 	mods := getCompilerTestModules()
 	tree := NewModuleTree(mods)
 
-	if tree.Size() != 4 {
+	if tree.Size() != 5 {
 		t.Errorf("Expected size of 4 in module tree but got: %v", tree.Size())
 	}
 
@@ -119,6 +120,229 @@ func TestCompilerSetGlobals(t *testing.T) {
 		bar: data.bar}`)
 }
 
+func TestCompilerCheckSafetyHead(t *testing.T) {
+	c := NewCompiler()
+	c.Modules = getCompilerTestModules()
+	c.Modules["newMod"] = MustParseModule(`
+	package a.b
+	unboundKey[x] = y :- q[y] = {"foo": [1,2,[{"bar": y}]]}
+	unboundVal[y] = x :- q[y] = {"foo": [1,2,[{"bar": y}]]}
+	unboundCompositeVal[y] = [{"foo": x, "bar": y}] :- q[y] = {"foo": [1,2,[{"bar": y}]]}
+	`)
+	compileStages(c, "", "checkSafetyHead")
+
+	if len(c.Errors) != 3 {
+		t.Errorf("Expected exactly 3 errors but got: %v", c.Errors)
+		return
+	}
+}
+
+func TestCompilerCheckSafetyBodyReordering(t *testing.T) {
+	tests := []struct {
+		note     string
+		body     string
+		expected interface{}
+	}{
+		// trivial cases
+		{"noop", "x = 1, x != 0", "x = 1, x != 0"},
+		{"var/ref", "a[i] = x, a = [1,2,3,4]", "a = [1,2,3,4], a[i] = x"},
+		{"negation",
+			"a = [true, false], b = [true, false], not a[i], b[i]",
+			"a = [true, false], b = [true, false], b[i], not a[i]"},
+		{"built-in", "x != 0, count([1,2,3], x)", "count([1,2,3], x), x != 0"},
+		{"var/var 1", "x = y, z = 1, y = z", "z = 1, y = z, x = y"},
+		{"var/var 2", "x = y, 1 = z, z = y", "1 = z, z = y, x = y"},
+		{"var/var 3", "x != 0, y = x, y = 1", "y = 1, y = x, x != 0"},
+
+		// comprehensions
+		{"array compr/var", "x != 0, [y | y = 1] = x", "[y | y = 1] = x, x != 0"},
+		{"array compr/array", "[1] != [x], [y | y = 1] = [x]", "[y | y = 1] = [x], [1] != [x]"},
+	}
+
+	for i, tc := range tests {
+		c := NewCompiler()
+		c.Modules = map[string]*Module{
+			"mod": MustParseModule(
+				fmt.Sprintf(`package test
+						 p :- %s`, tc.body)),
+		}
+
+		compileStages(c, "", "checkSafetyBody")
+		switch exp := tc.expected.(type) {
+		case string:
+			if c.Failed() {
+				t.Errorf("%v (#%d): Unexpected compilation error: %v", tc.note, i, c.FlattenErrors())
+				return
+			}
+			e := MustParseBody(exp)
+			if !e.Equal(c.Modules["mod"].Rules[0].Body) {
+				t.Errorf("%v (#%d): Expected body to be ordered and equal to %v but got: %v", tc.note, i, e, c.Modules["mod"].Rules[0].Body)
+			}
+		case error:
+			if len(c.Errors) > 0 {
+				if !reflect.DeepEqual(c.Errors[0], exp) {
+					t.Errorf("%v (#%d): Expected compiler error %v but got: %v", tc.note, i, exp, c.Errors[0])
+				}
+			} else {
+				t.Errorf("%v (#%d): Expected compiler error but got: %v", tc.note, i, c.Modules["mod"].Rules[0])
+			}
+		}
+	}
+}
+
+func TestCompilerCheckSafetyBodyReorderingClosures(t *testing.T) {
+	c := NewCompiler()
+	c.Modules = map[string]*Module{
+		"mod": MustParseModule(
+			`
+			package compr
+
+			import data.b
+			import data.c
+
+			p :- v     = [null | true],                               # leave untouched
+				 xs    = [x | a[i] = x, a = [y | y != 1, y = c[j]]],  # close over 'i' and 'j', 2-level reorder
+				 xs[j] > 0,
+				 b[i]  = j
+
+			# test that reordering is not performed when closing over different globals, e.g.,
+			# built-ins, data, imports.
+			q :- _ = [x | x = b[i]],
+				 _ = b[j],
+
+				 _ = [x | x = true, x != false],
+				 true != false,
+
+				 _ = [x | data.foo[_] = x],
+				 data.foo[_] = _
+			`),
+	}
+
+	compileStages(c, "", "checkSafetyBody")
+	assertNotFailed(t, c)
+
+	result1 := c.Modules["mod"].Rules[0].Body
+	expected1 := MustParseBody(`
+		v     = [null | true],
+		b[i]  = j,
+		xs    = [x | a = [y | y = c[j], y != 1], a[i] = x],
+		xs[j] > 0
+	`)
+	if !result1.Equal(expected1) {
+		t.Errorf("Expected reordered body to be equal to:\n%v\nBut got:\n%v", expected1, result1)
+	}
+
+	result2 := c.Modules["mod"].Rules[1].Body
+	expected2 := MustParseBody(`
+		_ = [x | x = b[i]],
+		_ = b[j],
+		_ = [x | x = true, x != false],
+		true != false,
+		_ = [x | data.foo[_] = x],
+		data.foo[_] = _
+	`)
+	if !result2.Equal(expected2) {
+		t.Errorf("Expected pre-ordered body to equal:\n%v\nBut got:\n%v", expected2, result2)
+	}
+}
+
+func TestCompilerCheckSafetyBodyErrors(t *testing.T) {
+	c := NewCompiler()
+
+	c.Modules = getCompilerTestModules()
+	c.Modules = map[string]*Module{
+		"newMod": MustParseModule(`
+	package a.b
+
+	import a.b.c as foo
+	import x as bar
+	import data.m.n as baz
+
+	# deadbeef is not a built-interface{}
+	badBuiltin = true :- deadbeef(1,2,3)
+
+	# a would be unbound
+	unboundRef1 = true :- a.b.c = "foo"
+
+	# a would be unbound
+	unboundRef2 = true :- {"foo": [{"bar": a.b.c}]} = {"foo": [{"bar": "baz"}]}
+
+	# i will be bound even though it's in a non-output position
+	inputPosRef = true :- a = [1,2,3,4], a[i] != 100
+
+	# i and x would be unbound
+	unboundNegated1 = true :- a = [1,2,3,4], not a[i] = x
+
+	# i and x would be unbound even though x appears in head
+	unboundNegated2[x] :- a = [1,2,3,4], not a[i] = x
+
+	# x, i, and j would be unbound even though they appear in other expressions
+	unboundNegated3[x] = true :- a = [1,2,3,4], b = [1,2,3,4], not a[i] = x, not b[j] = x
+
+	# i and j would be unbound even though they are in embedded references
+	unboundNegated4 = true :- a = [{"foo": ["bar", "baz"]}], not a[0].foo = [a[0].foo[i], a[0].foo[j]]
+
+	# x would be unbound as input to count
+	unsafeBuiltin :- count([1,2,x], x)
+
+	# i and x would be bound in the last expression so the third expression is safe
+	negatedSafe = true :- a = [1,2,3,4], b = [1,2,3,4], not a[i] = x, b[i] = x
+
+	# x would be unbound because it does not appear in the target position of any expression
+	unboundNoTarget = true :- x > 0, x <= 3, x != 2
+
+	unboundArrayComprBody1 :- _ = [x | x = data.a[_], y > 1]
+	unboundArrayComprBody2 :- _ = [x | x = a[_], a = [y | y = data.a[_], z > 1]]
+	unboundArrayComprBody3 :- _ = [v | v = [x | x = data.a[_]], x > 1]
+	unboundArrayComprTerm1 :- _ = [u | true]
+	unboundArrayComprTerm2 :- _ = [v | v = [w | w != 0]]
+	unboundArrayComprTerm3 :- _ = [x[i] | x = []]
+	unboundArrayComprMixed1 :- _ = [x | y = [a | a = z[i]]]
+
+	unsafeClosure1 :- x = [x | x = 1]
+	unsafeClosure2 :- x = y, x = [y | y = 1]
+
+	negatedImport1 = true :- not foo
+	negatedImport2 = true :- not bar
+	negatedImport3 = true :- not baz
+	`)}
+	compileStages(c, "", "checkSafetyBody")
+
+	expected := []error{
+		fmt.Errorf("unsafe variables in badBuiltin: [deadbeef]"),
+		fmt.Errorf("unsafe variables in unboundRef1: [a]"),
+		fmt.Errorf("unsafe variables in unboundRef2: [a]"),
+		fmt.Errorf("unsafe variables in unboundNegated1: [i x]"),
+		fmt.Errorf("unsafe variables in unboundNegated2: [i x]"),
+		fmt.Errorf("unsafe variables in unboundNegated3: [i j x]"),
+		fmt.Errorf("unsafe variables in unboundNegated4: [i j]"),
+		fmt.Errorf("unsafe variables in unsafeBuiltin: [x]"),
+		fmt.Errorf("unsafe variables in unboundNoTarget: [x]"),
+		fmt.Errorf("unsafe variables in unboundArrayComprBody1: [y]"),
+		fmt.Errorf("unsafe variables in unboundArrayComprBody2: [z]"),
+		fmt.Errorf("unsafe variables in unboundArrayComprBody3: [x]"),
+		fmt.Errorf("unsafe variables in unboundArrayComprTerm1: [u]"),
+		fmt.Errorf("unsafe variables in unboundArrayComprTerm2: [w]"),
+		fmt.Errorf("unsafe variables in unboundArrayComprTerm3: [i]"),
+		fmt.Errorf("unsafe variables in unboundArrayComprMixed1: [x z]"),
+		fmt.Errorf("unsafe variables in unsafeClosure1: [x]"),
+		fmt.Errorf("unsafe variables in unsafeClosure2: [y]"),
+	}
+
+	if !reflect.DeepEqual(expected, c.Errors) {
+		e := []string{}
+		for _, x := range expected {
+			e = append(e, x.Error())
+		}
+		r := []string{}
+		for _, x := range c.Errors {
+			r = append(r, x.Error())
+		}
+		t.Errorf("Expected:\n%v\nBut got:\n%v", strings.Join(e, "\n"), strings.Join(r, "\n"))
+	}
+
+}
+
 func TestCompilerResolveAllRefs(t *testing.T) {
 	c := NewCompiler()
 	c.Modules = getCompilerTestModules()
@@ -158,116 +382,26 @@ func TestCompilerResolveAllRefs(t *testing.T) {
 	if !term.Equal(e) {
 		t.Errorf("Wrong term (nested refs): expected %v but got: %v", e, term)
 	}
-}
 
-func TestCompilerCheckSafetyHead(t *testing.T) {
-	c := NewCompiler()
-	c.Modules = getCompilerTestModules()
-	c.Modules["newMod"] = MustParseModule(`
-	package a.b
-	unboundKey[x] = y :- q[y] = {"foo": [1,2,[{"bar": y}]]}
-	unboundVal[y] = x :- q[y] = {"foo": [1,2,[{"bar": y}]]}
-	unboundCompositeVal[y] = [{"foo": x, "bar": y}] :- q[y] = {"foo": [1,2,[{"bar": y}]]}
-	`)
-	compileStages(c, "", "checkSafetyHead")
+	// Array comprehensions.
+	mod5 := c.Modules["mod5"]
 
-	if len(c.Errors) != 3 {
-		t.Errorf("Expected exactly 3 errors but got: %v", c.Errors)
-		return
-	}
-}
-
-func TestCompilerCheckSafetyBodyReordering(t *testing.T) {
-	c := NewCompiler()
-	c.Modules = getCompilerTestModules()
-	c.Modules["newMod"] = MustParseModule(`
-	package a.b
-	needsReorder = true :- a[i] = x, a = [1,2,3,4]
-	needsReorderNegated = true :- a = [true, false], b = [true, false], not a[i], b[i]
-	`)
-	compileStages(c, "", "checkSafetyBody")
-
-	assertNotFailed(t, c)
-
-	expected1 := MustParseBody(`a = [1,2,3,4], a[i] = x`)
-
-	reordered1 := c.Modules["newMod"].Rules[0].Body
-
-	if !expected1.Equal(reordered1) {
-		t.Errorf("Expected body to be re-ordered and equal to %v but got: %v", expected1, reordered1)
+	ac := func(r *Rule) *ArrayComprehension {
+		return r.Body[0].Terms.(*Term).Value.(*ArrayComprehension)
 	}
 
-	expected2 := MustParseBody(`a = [true, false], b = [true, false], b[i], not a[i]`)
-
-	reordered2 := c.Modules["newMod"].Rules[1].Body
-
-	if !expected2.Equal(reordered2) {
-		t.Errorf("Expected body to be re-ordered and equal to %v but got: %v", expected2, reordered2)
-	}
-}
-
-func TestCompilerCheckSafetyBodyErrors(t *testing.T) {
-	c := NewCompiler()
-
-	c.Modules = getCompilerTestModules()
-	c.Modules = map[string]*Module{
-		"newMod": MustParseModule(`
-	package a.b
-
-	import a.b.c as foo
-	import x as bar
-	import data.m.n as baz
-
-	# deadbeef is not a built-interface{}
-	badBuiltin = true :- deadbeef(1,2,3)
-
-	# a would be unbound
-	unboundRef1 = true :- a.b.c = "foo"
-
-	# a would be unbound
-	unboundRef2 = true :- {"foo": [{"bar": a.b.c}]} = {"foo": [{"bar": "baz"}]}
-
-	# i will be bound even though it's in a non-output position
-	inputPosRef = true :- a = [1,2,3,4], a[i] != 100
-
-	# i and x would be unbound
-	unboundNegated1 = true :- a = [1,2,3,4], not a[i] = x
-
-	# i and x would be unbound even though x appears in head
-	unboundNegated2[x] :- a = [1,2,3,4], not a[i] = x
-
-	# x, i, and j would be unbound even though they appear in other expressions
-	unboundNegated3[x] = true :- a = [1,2,3,4], b = [1,2,3,4], not a[i] = x, not b[j] = x
-
-	# i and j would be unbound even though they are in embedded references
-	unboundNegated4 =  true :- a = [{"foo": ["bar", "baz"]}], not a[0].foo = [a[0].foo[i], a[0].foo[j]]
-
-	# i and x would be bound in the last expression so the third expression is safe
-	negatedSafe = true :- a = [1,2,3,4], b = [1,2,3,4], not a[i] = x, b[i] = x
-
-	# x would be unbound because it does not appear in the target position of any expression
-	unboundNoTarget = true :- x > 0, x <= 3, x != 2
-
-	negatedImport1 = true :- not foo
-	negatedImport2 = true :- not bar
-	negatedImport3 = true :- not baz
-	`)}
-	compileStages(c, "", "checkSafetyBody")
-
-	expected := []error{
-		fmt.Errorf("unsafe variables in badBuiltin: [deadbeef]"),
-		fmt.Errorf("unsafe variables in unboundRef1: [a]"),
-		fmt.Errorf("unsafe variables in unboundRef2: [a]"),
-		fmt.Errorf("unsafe variables in unboundNegated1: [i x]"),
-		fmt.Errorf("unsafe variables in unboundNegated2: [i x]"),
-		fmt.Errorf("unsafe variables in unboundNegated3: [i j x]"),
-		fmt.Errorf("unsafe variables in unboundNegated4: [i j]"),
-		fmt.Errorf("unsafe variables in unboundNoTarget: [x]"),
-	}
-
-	if !reflect.DeepEqual(expected, c.Errors) {
-		t.Errorf("Expected %v but got:%v", expected, c.Errors)
-	}
+	acTerm1 := ac(mod5.Rules[0])
+	assertTermEqual(t, acTerm1.Term, MustParseTerm("x.a"))
+	acTerm2 := ac(mod5.Rules[1])
+	assertTermEqual(t, acTerm2.Term, MustParseTerm("a.b.c.q.a"))
+	acTerm3 := ac(mod5.Rules[2])
+	assertTermEqual(t, acTerm3.Body[0].Terms.([]*Term)[1], MustParseTerm("x.a"))
+	acTerm4 := ac(mod5.Rules[3])
+	assertTermEqual(t, acTerm4.Body[0].Terms.([]*Term)[1], MustParseTerm("a.b.c.q[i]"))
+	acTerm5 := ac(mod5.Rules[4])
+	assertTermEqual(t, acTerm5.Body[0].Terms.([]*Term)[2].Value.(*ArrayComprehension).Term, MustParseTerm("x.a"))
+	acTerm6 := ac(mod5.Rules[5])
+	assertTermEqual(t, acTerm6.Body[0].Terms.([]*Term)[2].Value.(*ArrayComprehension).Body[0].Terms.([]*Term)[1], MustParseTerm("a.b.c.q[i]"))
 
 }
 
@@ -325,6 +459,11 @@ func TestCompilerCheckRecursion(t *testing.T) {
 						import data.rec3.p
 						q[x] = y :- p[x] = y
 						`),
+		"newMod6": MustParseModule(`
+						package rec5
+						acp[x] :- acq[x]
+						acq[x] :- a = [x | acp[x]], a[i] = x
+						`),
 	}
 
 	compileStages(c, "", "checkRecursion")
@@ -338,6 +477,8 @@ func TestCompilerCheckRecursion(t *testing.T) {
 		fmt.Errorf("recursion found in e: e, a, b, c, e"),
 		fmt.Errorf("recursion found in p: p, q, p"),
 		fmt.Errorf("recursion found in q: q, p, q"),
+		fmt.Errorf("recursion found in acq: acq, acp, acq"),
+		fmt.Errorf("recursion found in acp: acp, acq, acp"),
 	}
 
 	if len(c.Errors) != len(expected) {
@@ -517,5 +658,19 @@ func getCompilerTestModules() map[string]*Module {
 	package a.b.empty
 	`)
 
-	return map[string]*Module{"mod2": mod2, "mod3": mod3, "mod1": mod1, "mod4": mod4}
+	mod5 := MustParseModule(`
+	package a.b.compr
+
+	import x as y
+	import a.b.c.q
+
+	p :- [y.a | true]
+	r :- [q.a | true]
+	s :- [true | y.a = 0]
+	t :- [true | q[i] = 1]
+	u :- [true | _ = [y.a | true]]
+	v :- [true | _ = [ true | q[i] = 1]]
+	`)
+
+	return map[string]*Module{"mod2": mod2, "mod3": mod3, "mod1": mod1, "mod4": mod4, "mod5": mod5}
 }

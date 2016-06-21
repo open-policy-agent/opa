@@ -6,6 +6,7 @@ package ast
 
 import (
 	"encoding/json"
+	"fmt"
 	"reflect"
 	"testing"
 )
@@ -18,6 +19,7 @@ func TestModuleJSONRoundTrip(t *testing.T) {
 	p = [1,2,{"foo":3}] :- r[x] = 1, not q[x]
 	r[y] = v :- i[1] = y, v = i[2]
 	q[x] :- a=[true,false,null,{"x":[1,2,3]}], a[i] = x
+	t = true :- xs = [{"x": a[i].a} | a[i].n = "bob", b[x]]
 	`)
 
 	bs, err := json.Marshal(mod)
@@ -131,13 +133,46 @@ func TestExprEquals(t *testing.T) {
 	assertExprNotEqual(t, expr20, expr23)
 }
 
+func TestBodyIsGround(t *testing.T) {
+	if MustParseBody(`a.b[0] = 1, a = [1,2,x]`).IsGround() {
+		t.Errorf("Expected body to be non-ground")
+	}
+}
+
 func TestExprOutputVars(t *testing.T) {
-	body := MustParseBody(`{"a": [{x: y}, b[z]]} = c[i], [{"a": d[j][k]}] != xs`)
-	one := body[0]
-	vars := one.OutputVars()
-	expected := NewVarSet(Var("y"), Var("z"), Var("i"))
-	if !reflect.DeepEqual(expected, vars) {
-		t.Errorf("Expected output vars %v from %v but got: %v", expected, one, vars)
+
+	tests := []struct {
+		note     string
+		expr     string
+		safe     string
+		expected string
+	}{
+		{"ref 1", "a[i].b[j]", "[a]", "[i, j]"},
+		{"ref 2", "[1,2,a[i]]", "[a]", "[i]"},
+		{"simple unify", `{"a": [{x: y}, b[z]]} = c[i]`, "[b, c]", "[y, z, i]"},
+		{"built-in", "count([], x)", "[]", "[x]"},
+	}
+
+	for i, tc := range tests {
+
+		expr := MustParseBody(tc.expr)[0]
+		safe := VarSet{}
+		for _, x := range MustParseTerm(tc.safe).Value.(Array) {
+			safe.Add(x.Value.(Var))
+		}
+
+		result := expr.OutputVars(safe)
+
+		expected := VarSet{}
+		for _, x := range MustParseTerm(tc.expected).Value.(Array) {
+			expected.Add(x.Value.(Var))
+		}
+
+		missing := expected.Diff(result)
+		extra := result.Diff(expected)
+		if len(missing) != 0 || len(extra) != 0 {
+			t.Errorf("%s (%d): Missing output vars: %v, extra output vars: %v", tc.note, i, missing, extra)
+		}
 	}
 }
 
@@ -187,7 +222,7 @@ func TestExprBadJSON(t *testing.T) {
 	}
 	`
 
-	exp := unmarshalError(100.0, "bool")
+	exp := fmt.Errorf("ast: unable to unmarshal Negated field with type: float64 (expected true or false)")
 	assert(js, exp)
 
 	js = `
@@ -197,7 +232,7 @@ func TestExprBadJSON(t *testing.T) {
 		]
 	}
 	`
-	exp = unmarshalError("foo", "map[string]interface{}")
+	exp = fmt.Errorf("ast: unable to unmarshal term")
 	assert(js, exp)
 
 	js = `
@@ -205,7 +240,7 @@ func TestExprBadJSON(t *testing.T) {
 		"Terms": "bad value" 
 	}
 	`
-	exp = unmarshalError("bad value", "Term or []Term")
+	exp = fmt.Errorf(`ast: unable to unmarshal Terms field with type: string (expected {"Value": ..., "Type": ...} or [{"Value": ..., "Type": ...}, ...])`)
 	assert(js, exp)
 }
 
