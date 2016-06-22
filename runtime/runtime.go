@@ -110,11 +110,14 @@ func (rt *Runtime) Start(params *Params) {
 }
 
 func (rt *Runtime) startServer(params *Params) {
-	glog.Warning("First line of log stream.")
+	glog.Infof("First line of log stream.")
 	glog.V(2).Infof("Server listening address: %v.", params.Addr)
 	persist := len(params.PolicyDir) > 0
 	server := NewServer(rt, params.Addr, persist)
-	server.Loop()
+	if err := server.Loop(); err != nil {
+		glog.Errorf("Server exiting: %v", err)
+		os.Exit(1)
+	}
 }
 
 func (rt *Runtime) startRepl(params *Params) {
