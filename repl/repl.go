@@ -285,6 +285,14 @@ func (r *REPL) evalStatement(stmt interface{}) bool {
 			fmt.Fprintln(r.output, "error:", err)
 			return false
 		}
+		if s := ast.ParseConstantRule(s); s != nil {
+			mod, err := r.compileRule(s)
+			if err != nil {
+				fmt.Fprintln(r.output, "error:", err)
+				return false
+			}
+			return r.evalModule(mod)
+		}
 		return r.evalBody(s)
 	case *ast.Rule:
 		mod, err := r.compileRule(s)
