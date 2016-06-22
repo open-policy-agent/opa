@@ -34,43 +34,63 @@ Steps
 
         opa run
 
-    Without any data, you can experiment with simple boolean expressions to get the hang of it:
+    Without any data, you can experiment with simple expressions to get the hang of it:
 
-        > a = 1, b = 2, a != b
-        +---+---+
-        | A | B |
-        +---+---+
-        | 1 | 2 |
-        +---+---+
-        > a = 1, b = 2, a = b
-        false
-        > 10 > 9
+        > true
         true
-        > a = [1,2,3,4], a[i] > 2
-        +-----------+---+
-        |     A     | I |
-        +-----------+---+
-        | [1,2,3,4] | 2 |
-        | [1,2,3,4] | 3 |
-        +-----------+---+
+        > 3.14
+        3.14
+        > ["hello", "world"]
+        [
+          "hello",
+          "world"
+        ]
 
-    When you enter expressions into the REPL, you are effectively running *queries* against OPA. The REPL output shows the values of variables in the expression that make the query **true**. If there is not set of variables that would make the query true, the REPL prints **false**. If there are no variables in the query and the query evaluates successfully, then the REPL just prints **true**.
+    You can also test simple boolean expressions:
 
-1. In addition to running queries, the REPL also lets you define rules:
+        > true = false
+        false
+        > 3.14 > 3
+        true
+        > "hello" != "goodbye"
+        true
 
-        > p[x] :- a = [1,2,3,4], a[x] = _
-        defined
-        > p[x]
+    Most REPLs let you define variables that you can reference later on. OPA allows you to do something similiar. For example, we can define a "pi" constant as follows:
+
+        > pi = 3.14
+
+    Once "pi" is defined, you query for the value and write expressions in terms of it:
+
+        > pi
+        3.14
+        > pi > 3
+        true
+
+    One thing to watch out for in the REPL is that = is used both for assigning variables values and for testing the value of variables. For example p = q sometimes assigns p the value of q and sometimes checks if the values of p and q are the same. The REPL decides between assignment and test based on whether p already has a value or not. If p has a value, p = q is a test (returning true or false), and if p has no value p = q is an assignment. To unset a value for a variable, use the 'unset' command. (This ambiguity is only really an issue in the REPL--when writing policy the duality of = is actually beneficial.)
+
+        > pi = 3
+        false
+        > unset pi
+        > pi = 3
+        > pi
+        3
+
+    In addition to running queries, the REPL also lets you define rules:
+
+        > p[x] :- a = [1,2,3,4], a[x]
+        > p[x], x > 1
         +---+
-        | X |
+        | x |
         +---+
-        | 0 |
-        | 1 |
         | 2 |
         | 3 |
         +---+
 
-1. Quit out of the REPL by pressing Control-C or typing "exit":
+    The rule above defines a set of values that are the indices of elements in the array "a".
+
+    When you enter expressions into the REPL, you are effectively running *queries* against OPA. The REPL output shows the values of variables in the expression that make the query **true**. If there is no set of variables that would make the query true, the REPL prints **false**. If there are no variables in the query and the query evaluates successfully, then the REPL just prints **true**.
+
+    Quit out of the REPL by pressing Control-C or typing "exit":
 
         > exit
         Exiting
@@ -120,18 +140,18 @@ Steps
 
     You can now run queries against the various documents:
 
-        > data.servers[_].id = id
-        +------+
-        |  ID  |
-        +------+
-        | "s1" |
-        | "s2" |
-        | "s3" |
-        | "s4" |
-        +------+
+        > data.servers[_].id
+        +--------------------+
+        | data.servers[_].id |
+        +--------------------+
+        | "s1"               |
+        | "s2"               |
+        | "s3"               |
+        | "s4"               |
+        +--------------------+
         > data.opa.example.public_servers[x]
         +-------------------------------------------------------------------------------+
-        |                                       X                                       |
+        |                                       x                                       |
         +-------------------------------------------------------------------------------+
         | {"id":"s1","name":"app","ports":["p1","p2","p3"],"protocols":["https","ssh"]} |
         | {"id":"s4","name":"dev","ports":["p1","p2"],"protocols":["http"]}             |
@@ -142,28 +162,29 @@ Steps
         > import data.servers
         > servers[i].ports[_] = "p2", servers[i].id = id
         +---+------+
-        | I |  ID  |
+        | i |  id  |
         +---+------+
-        | 3 | "s4" |
         | 0 | "s1" |
+        | 3 | "s4" |
         +---+------+
         > package opa.example
         > public_servers[x], x.protocols[_] = "http"
         +-------------------------------------------------------------------+
-        |                                 X                                 |
+        |                                 x                                 |
         +-------------------------------------------------------------------+
         | {"id":"s4","name":"dev","ports":["p1","p2"],"protocols":["http"]} |
         +-------------------------------------------------------------------+
 
 1. Finally, we can define a rule to identify servers in violation of our security policy:
 
+        > import data.servers
         > violations[s] :-
           s = servers[_],
           s.protocols[_] = "http",
           public_servers[s]
         > violations[server]
         +-------------------------------------------------------------------+
-        |                              SERVER                               |
+        |                              server                               |
         +-------------------------------------------------------------------+
         | {"id":"s4","name":"dev","ports":["p1","p2"],"protocols":["http"]} |
         +-------------------------------------------------------------------+
