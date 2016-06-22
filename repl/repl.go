@@ -16,6 +16,8 @@ import (
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/topdown"
+	"github.com/open-policy-agent/opa/version"
+
 	"github.com/peterh/liner"
 )
 
@@ -63,6 +65,11 @@ func (r *REPL) Loop() {
 	line.SetCtrlCAborts(true)
 	line.SetMultiLineMode(true)
 	r.loadHistory(line)
+
+	fmt.Fprintf(r.output, "OPA %v (commit %v, built at %v)\n", version.Version, version.Vcs, version.Timestamp)
+	fmt.Fprintf(r.output, "\n")
+	fmt.Fprintf(r.output, "Run 'help' to see a list of commands.\n")
+	fmt.Fprintf(r.output, "\n")
 
 	for true {
 
@@ -148,6 +155,8 @@ func (r *REPL) cmdHelp() bool {
 		note string
 	}{
 		{"<stmt>", "evaluate the statement"},
+		{"package <term>", "change currently active package"},
+		{"import <term>", "add import to currently active module"},
 		{"json", "set output format to JSON"},
 		{"pretty", "set output format to pretty"},
 		{"dump", "dump the raw storage content"},
