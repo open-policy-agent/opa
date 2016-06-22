@@ -507,9 +507,13 @@ func handleResponseJSONPretty(w http.ResponseWriter, code int, v interface{}) {
 	handleResponse(w, code, bs)
 }
 
-func parseGlobals(globals []string) (*storage.Bindings, error) {
-	r := storage.NewBindings()
-	for _, g := range globals {
+func globalConflictErr(k ast.Value) error {
+	return fmt.Errorf("conflicting global: %v: check global arguments", k)
+}
+
+func parseGlobals(g []string) (*storage.Bindings, error) {
+	globals := storage.NewBindings()
+	for _, g := range g {
 		vs := strings.SplitN(g, ":", 2)
 		k, err := ast.ParseTerm(vs[0])
 		if err != nil {
@@ -519,9 +523,44 @@ func parseGlobals(globals []string) (*storage.Bindings, error) {
 		if err != nil {
 			return nil, err
 		}
-		r.Put(k.Value, v.Value)
+		switch k := k.Value.(type) {
+		case ast.Ref:
+			obj := makeTree(k[1:], v)
+			switch b := globals.Get(k[0].Value).(type) {
+			case nil:
+				globals.Put(k[0].Value, obj)
+			case ast.Object:
+				m, ok := b.Merge(obj)
+				if !ok {
+					return nil, globalConflictErr(k)
+				}
+				globals.Put(k[0].Value, m)
+			default:
+				return nil, globalConflictErr(k)
+			}
+		case ast.Var:
+			if globals.Get(k) != nil {
+				return nil, globalConflictErr(k)
+			}
+			globals.Put(k, v.Value)
+		default:
+			return nil, fmt.Errorf("invalid global: %v: path must be a variable or a reference", k)
+		}
 	}
-	return r, nil
+	return globals, nil
+}
+
+// makeTree returns an object that represents a document where the value v is the
+// leaf and elements in k represent intermediate objects.
+func makeTree(k ast.Ref, v *ast.Term) ast.Object {
+	var obj ast.Object
+	for i := len(k) - 1; i >= 1; i-- {
+		obj = ast.Object{ast.Item(k[i], v)}
+		v = &ast.Term{Value: obj}
+		obj = ast.Object{}
+	}
+	obj = ast.Object{ast.Item(k[0], v)}
+	return obj
 }
 
 func renderBanner(w http.ResponseWriter) {

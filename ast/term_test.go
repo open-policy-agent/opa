@@ -12,6 +12,35 @@ import (
 	"testing"
 )
 
+func TestObjectSetOperations(t *testing.T) {
+
+	a := MustParseTerm(`{"a": "b", "c": "d"}`).Value.(Object)
+	b := MustParseTerm(`{"c": "q", "d": "e"}`).Value.(Object)
+
+	r1 := a.Diff(b)
+	if !r1.Equal(MustParseTerm(`{"a": "b"}`).Value) {
+		t.Errorf(`Expected a.Diff(b) to equal {"a": "b"} but got: %v`, r1)
+	}
+
+	r2 := a.Intersect(b)
+	if len(r2) != 1 || !termSliceEqual(r2[0][:], MustParseTerm(`["c", "d", "q"]`).Value.(Array)) {
+		t.Errorf(`Expected a.Intersect(b) to equal [["a", "d", "q"]] but got: %v`, r2)
+	}
+
+	if r3, ok := a.Merge(b); ok {
+		t.Errorf("Expected a.Merge(b) to fail but got: %v", r3)
+	}
+
+	c := MustParseTerm(`{"a": {"b": [1], "c": {"d": 2}}}`).Value.(Object)
+	d := MustParseTerm(`{"a": {"x": [3], "c": {"y": 4}}}`).Value.(Object)
+	r3, ok := c.Merge(d)
+	expected := MustParseTerm(`{"a": {"b": [1], "x": [3], "c": {"d": 2, "y": 4}}}`).Value.(Object)
+
+	if !ok || !r3.Equal(expected) {
+		t.Errorf("Expected c.Merge(d) to equal %v but got: %v", expected, r3)
+	}
+}
+
 func TestQuery(t *testing.T) {
 
 	stmt := MustParseStatement(`
