@@ -89,7 +89,7 @@ func (ctx *Context) BindVar(variable ast.Var, value ast.Value) *Context {
 		// it should be overwritten with the new value, so ignore the old
 		// value here.
 		if cpy.Locals.Get(k) == nil {
-			cpy.Locals.Put(k, plugValue(v, &cpy))
+			cpy.Locals.Put(k, PlugValue(v, &cpy))
 		}
 		return false
 	})
@@ -201,6 +201,115 @@ type Iterator func(*Context) error
 // inside the body.
 func Eval(ctx *Context, iter Iterator) error {
 	return evalContext(ctx, iter)
+}
+
+// PlugExpr returns a copy of expr with bound terms substituted for values in ctx.
+func PlugExpr(expr *ast.Expr, ctx *Context) *ast.Expr {
+	plugged := *expr
+	switch ts := plugged.Terms.(type) {
+	case []*ast.Term:
+		var buf []*ast.Term
+		buf = append(buf, ts[0])
+		for _, term := range ts[1:] {
+			buf = append(buf, PlugTerm(term, ctx))
+		}
+		plugged.Terms = buf
+	case *ast.Term:
+		plugged.Terms = PlugTerm(ts, ctx)
+	default:
+		panic(fmt.Sprintf("illegal argument: %v", ts))
+	}
+	return &plugged
+}
+
+// PlugTerm returns a copy of term with bound terms substituted for values in ctx.
+func PlugTerm(term *ast.Term, ctx *Context) *ast.Term {
+	switch v := term.Value.(type) {
+	case ast.Var:
+		return &ast.Term{Value: PlugValue(v, ctx)}
+
+	case ast.Ref:
+		plugged := *term
+		plugged.Value = PlugValue(v, ctx)
+		return &plugged
+
+	case ast.Array:
+		plugged := *term
+		plugged.Value = PlugValue(v, ctx)
+		return &plugged
+
+	case ast.Object:
+		plugged := *term
+		plugged.Value = PlugValue(v, ctx)
+		return &plugged
+
+	case *ast.ArrayComprehension:
+		plugged := *term
+		plugged.Value = PlugValue(v, ctx)
+		return &plugged
+
+	default:
+		if !term.IsGround() {
+			panic("unreachable")
+		}
+		return term
+	}
+}
+
+// PlugValue returns a copy of v with bound terms substituted for values in ctx.
+func PlugValue(v ast.Value, ctx *Context) ast.Value {
+
+	switch v := v.(type) {
+	case ast.Var:
+		b := ctx.Binding(v)
+		if b == nil {
+			return v
+		}
+		return b
+
+	case *ast.ArrayComprehension:
+		b := ctx.Binding(v)
+		if b == nil {
+			return v
+		}
+		return b
+
+	case ast.Ref:
+		if b := ctx.Binding(v); b != nil {
+			return b
+		}
+		if v.IsGround() {
+			return v
+		}
+		var buf ast.Ref
+		buf = append(buf, v[0])
+		for _, p := range v[1:] {
+			buf = append(buf, PlugTerm(p, ctx))
+		}
+		return buf
+
+	case ast.Array:
+		var buf ast.Array
+		for _, e := range v {
+			buf = append(buf, PlugTerm(e, ctx))
+		}
+		return buf
+
+	case ast.Object:
+		var buf ast.Object
+		for _, e := range v {
+			k := PlugTerm(e[0], ctx)
+			v := PlugTerm(e[1], ctx)
+			buf = append(buf, [...]*ast.Term{k, v})
+		}
+		return buf
+
+	default:
+		if !v.IsGround() {
+			panic(fmt.Sprintf("illegal value: %v %v", ctx, v))
+		}
+		return v
+	}
 }
 
 // QueryParams defines input parameters for the query interface.
@@ -437,7 +546,7 @@ func evalContextNegated(ctx *Context, iter Iterator) error {
 }
 
 func evalExpr(ctx *Context, iter Iterator) error {
-	expr := plugExpr(ctx.Current(), ctx)
+	expr := PlugExpr(ctx.Current(), ctx)
 	ctx.traceTry(expr)
 	switch tt := expr.Terms.(type) {
 	case []*ast.Term:
@@ -563,7 +672,7 @@ func evalRefRecNonGround(ctx *Context, path, tail ast.Ref, iter Iterator) error 
 	// Check if the variable has a binding.
 	// If there is a binding, process the rest of the reference normally.
 	// If there is no binding, enumerate the collection referred to by the path.
-	plugged := plugTerm(tail[0], ctx)
+	plugged := PlugTerm(tail[0], ctx)
 	if plugged.IsGround() {
 		path = append(path, plugged)
 		return evalRefRec(ctx, path, tail[1:], iter)
@@ -643,7 +752,7 @@ func evalRefRuleCompleteDoc(ctx *Context, ref ast.Ref, suffix ast.Ref, rules []*
 func evalRefRulePartialObjectDoc(ctx *Context, ref ast.Ref, path ast.Ref, rule *ast.Rule, iter Iterator) error {
 	suffix := ref[len(path):]
 
-	key := plugValue(suffix[0].Value, ctx)
+	key := PlugValue(suffix[0].Value, ctx)
 
 	// There are two cases being handled below. The first case is for when
 	// the object key is ground in the original expression or there is a
@@ -733,7 +842,7 @@ func evalRefRulePartialSetDoc(ctx *Context, ref ast.Ref, path ast.Ref, rule *ast
 	// See comment in evalRefRulePartialObjectDoc about the two branches below.
 	// The behaviour is similar for sets.
 
-	key := plugValue(suffix[0].Value, ctx)
+	key := PlugValue(suffix[0].Value, ctx)
 
 	if !key.IsGround() {
 		child := ctx.Child(rule.Body, storage.NewBindings())
@@ -782,7 +891,7 @@ func evalRefRuleResult(ctx *Context, ref ast.Ref, suffix ast.Ref, result ast.Val
 		binding = append(binding, result...)
 		binding = append(binding, suffix...)
 		return evalRefRec(ctx, result, suffix, func(ctx *Context) error {
-			ctx = ctx.BindValue(ref, plugValue(binding, ctx))
+			ctx = ctx.BindValue(ref, PlugValue(binding, ctx))
 			return iter(ctx)
 		})
 
@@ -790,7 +899,7 @@ func evalRefRuleResult(ctx *Context, ref ast.Ref, suffix ast.Ref, result ast.Val
 		if len(suffix) > 0 {
 			var pluggedSuffix ast.Ref
 			for _, t := range suffix {
-				pluggedSuffix = append(pluggedSuffix, plugTerm(t, ctx))
+				pluggedSuffix = append(pluggedSuffix, PlugTerm(t, ctx))
 			}
 			return result.Query(pluggedSuffix, func(keys map[ast.Var]ast.Value, value ast.Value) error {
 				ctx = ctx.BindValue(ref, value)
@@ -807,7 +916,7 @@ func evalRefRuleResult(ctx *Context, ref ast.Ref, suffix ast.Ref, result ast.Val
 		if len(suffix) > 0 {
 			var pluggedSuffix ast.Ref
 			for _, t := range suffix {
-				pluggedSuffix = append(pluggedSuffix, plugTerm(t, ctx))
+				pluggedSuffix = append(pluggedSuffix, PlugTerm(t, ctx))
 			}
 			return result.Query(pluggedSuffix, func(keys map[ast.Var]ast.Value, value ast.Value) error {
 				ctx = ctx.BindValue(ref, value)
@@ -838,7 +947,7 @@ func evalTerms(ctx *Context, iter Iterator) error {
 	// Check if indexing is available for this expression. Need to
 	// perform check on the plugged version of the expression, otherwise
 	// the index will return false positives.
-	plugged := plugExpr(expr, ctx)
+	plugged := PlugExpr(expr, ctx)
 
 	if indexAvailable(ctx, plugged) {
 
@@ -887,7 +996,7 @@ func evalTermsComprehension(ctx *Context, comp ast.Value, iter Iterator) error {
 		r := ast.Array{}
 		c := ctx.Child(comp.Body, ctx.Locals)
 		err := Eval(c, func(c *Context) error {
-			r = append(r, plugTerm(comp.Term, c))
+			r = append(r, PlugTerm(comp.Term, c))
 			return nil
 		})
 		if err != nil {
@@ -905,7 +1014,7 @@ func evalTermsIndexed(ctx *Context, iter Iterator, indexed ast.Ref, nonIndexed *
 	iterateIndex := func(ctx *Context) error {
 
 		// Evaluate the non-indexed term.
-		plugged := plugTerm(nonIndexed, ctx)
+		plugged := PlugTerm(nonIndexed, ctx)
 		nonIndexedValue, err := ValueToInterface(plugged.Value, ctx)
 		if err != nil {
 			return err
@@ -1138,112 +1247,6 @@ func lookupRule(ds *storage.DataStore, ref ast.Ref) ([]*ast.Rule, error) {
 		return r, nil
 	default:
 		return nil, nil
-	}
-}
-
-func plugExpr(expr *ast.Expr, ctx *Context) *ast.Expr {
-	plugged := *expr
-	switch ts := plugged.Terms.(type) {
-	case []*ast.Term:
-		var buf []*ast.Term
-		buf = append(buf, ts[0])
-		for _, term := range ts[1:] {
-			buf = append(buf, plugTerm(term, ctx))
-		}
-		plugged.Terms = buf
-	case *ast.Term:
-		plugged.Terms = plugTerm(ts, ctx)
-	default:
-		panic(fmt.Sprintf("illegal argument: %v", ts))
-	}
-	return &plugged
-}
-
-func plugTerm(term *ast.Term, ctx *Context) *ast.Term {
-	switch v := term.Value.(type) {
-	case ast.Var:
-		return &ast.Term{Value: plugValue(v, ctx)}
-
-	case ast.Ref:
-		plugged := *term
-		plugged.Value = plugValue(v, ctx)
-		return &plugged
-
-	case ast.Array:
-		plugged := *term
-		plugged.Value = plugValue(v, ctx)
-		return &plugged
-
-	case ast.Object:
-		plugged := *term
-		plugged.Value = plugValue(v, ctx)
-		return &plugged
-
-	case *ast.ArrayComprehension:
-		plugged := *term
-		plugged.Value = plugValue(v, ctx)
-		return &plugged
-
-	default:
-		if !term.IsGround() {
-			panic("unreachable")
-		}
-		return term
-	}
-}
-
-func plugValue(v ast.Value, ctx *Context) ast.Value {
-
-	switch v := v.(type) {
-	case ast.Var:
-		b := ctx.Binding(v)
-		if b == nil {
-			return v
-		}
-		return b
-
-	case *ast.ArrayComprehension:
-		b := ctx.Binding(v)
-		if b == nil {
-			return v
-		}
-		return b
-
-	case ast.Ref:
-		if b := ctx.Binding(v); b != nil {
-			return b
-		}
-		if v.IsGround() {
-			return v
-		}
-		var buf ast.Ref
-		buf = append(buf, v[0])
-		for _, p := range v[1:] {
-			buf = append(buf, plugTerm(p, ctx))
-		}
-		return buf
-
-	case ast.Array:
-		var buf ast.Array
-		for _, e := range v {
-			buf = append(buf, plugTerm(e, ctx))
-		}
-		return buf
-
-	case ast.Object:
-		var buf ast.Object
-		for _, e := range v {
-			k := plugTerm(e[0], ctx)
-			v := plugTerm(e[1], ctx)
-			buf = append(buf, [...]*ast.Term{k, v})
-		}
-		return buf
-
-	default:
-		if !v.IsGround() {
-			panic(fmt.Sprintf("illegal value: %v %v", ctx, v))
-		}
-		return v
 	}
 }
 

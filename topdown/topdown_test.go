@@ -200,14 +200,14 @@ func TestPlugValue(t *testing.T) {
 
 	expected := ast.MustParseTerm(`[{"hello": "world"}]`).Value
 
-	r1 := plugValue(a, ctx1)
+	r1 := PlugValue(a, ctx1)
 
 	if !expected.Equal(r1) {
 		t.Errorf("Expected %v but got %v", expected, r1)
 		return
 	}
 
-	r2 := plugValue(a, ctx2)
+	r2 := PlugValue(a, ctx2)
 
 	if !expected.Equal(r2) {
 		t.Errorf("Expected %v but got %v", expected, r2)

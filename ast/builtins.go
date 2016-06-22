@@ -160,6 +160,17 @@ type Builtin struct {
 	TargetPos []int
 }
 
+// Expr creates a new expression for the built-in with the given terms.
+func (b *Builtin) Expr(terms ...*Term) *Expr {
+	ts := []*Term{VarTerm(string(b.Name))}
+	for _, t := range terms {
+		ts = append(ts, t)
+	}
+	return &Expr{
+		Terms: ts,
+	}
+}
+
 // GetPrintableName returns a printable name for the builtin.
 // Some built-ins have names that are used for infix operators
 // but when printing we want to use something a bit more readable,

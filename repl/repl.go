@@ -291,7 +291,7 @@ func (r *REPL) evalStatement(stmt interface{}) bool {
 				fmt.Fprintln(r.output, "error:", err)
 				return false
 			}
-			return r.evalModule(mod)
+			return r.evalModule(mod, s)
 		}
 		return r.evalBody(s)
 	case *ast.Rule:
@@ -300,7 +300,7 @@ func (r *REPL) evalStatement(stmt interface{}) bool {
 			fmt.Fprintln(r.output, "error:", err)
 			return false
 		}
-		return r.evalModule(mod)
+		return r.evalModule(mod, s)
 	case *ast.Import:
 		return r.evalImport(s)
 	case *ast.Package:
@@ -310,6 +310,19 @@ func (r *REPL) evalStatement(stmt interface{}) bool {
 }
 
 func (r *REPL) evalBody(body ast.Body) bool {
+
+	// Special case for positive, single term inputs.
+	if len(body) == 1 {
+		expr := body[0]
+		if !expr.Negated {
+			if _, ok := expr.Terms.(*ast.Term); ok {
+				if singleValue(body) {
+					return r.evalTermSingleValue(body)
+				}
+				return r.evalTermMultiValue(body)
+			}
+		}
+	}
 
 	ctx := topdown.NewContext(body, r.dataStore)
 	if r.trace {
@@ -367,7 +380,7 @@ func (r *REPL) evalBody(body ast.Body) bool {
 
 	if isTrue {
 		if len(results) >= 1 {
-			r.printResults(body, results)
+			r.printResults(getHeaderForBody(body), results)
 		} else {
 			fmt.Fprintln(r.output, "true")
 		}
@@ -378,7 +391,7 @@ func (r *REPL) evalBody(body ast.Body) bool {
 	return false
 }
 
-func (r *REPL) evalModule(mod *ast.Module) bool {
+func (r *REPL) evalModule(mod *ast.Module, stmt *ast.Rule) bool {
 
 	err := r.policyStore.Add(r.currentModuleID, mod, nil, false)
 	if err != nil {
@@ -386,7 +399,6 @@ func (r *REPL) evalModule(mod *ast.Module) bool {
 		return true
 	}
 
-	fmt.Fprintln(r.output, "defined")
 	return false
 }
 
@@ -440,6 +452,127 @@ func (r *REPL) evalPackage(p *ast.Package) bool {
 	return false
 }
 
+// evalTermSingleValue evaluates and prints terms in cases where the term evaluates to a
+// single value, e.g., "1", true, [1,2,"foo"], [x | x = a[i], a = [1,2,3]], etc. Ground terms
+// and comprehensions always evaluate to a single value. To handle references, this function
+// still executes the query, except it does so by rewriting the body to assign the term
+// to a variable. This allows the REPL to obtain the result even if the term is false.
+func (r *REPL) evalTermSingleValue(body ast.Body) bool {
+
+	term := body[0].Terms.(*ast.Term)
+	outputVar := ast.VarTerm("$")
+	body = ast.Body{ast.Equality.Expr(term, outputVar)}
+
+	ctx := topdown.NewContext(body, r.dataStore)
+	if r.trace {
+		ctx.Tracer = &topdown.StdoutTracer{}
+	}
+
+	var result interface{}
+	isTrue := false
+
+	err := topdown.Eval(ctx, func(ctx *topdown.Context) error {
+		p := ctx.Locals.Get(outputVar.Value)
+		v, err := topdown.ValueToInterface(p, ctx)
+		if err != nil {
+			return err
+		}
+		result = v
+		isTrue = true
+		return nil
+	})
+
+	if err != nil {
+		fmt.Fprintln(r.output, "error:", err)
+	} else if isTrue {
+		r.printJSON(result)
+	} else {
+		r.printUndefined()
+	}
+
+	return false
+}
+
+// evalTermMultiValue evaluates and prints terms in cases where the term may evaluate to multiple
+// ground values, e.g., a[i], [servers[x]], etc.
+func (r *REPL) evalTermMultiValue(body ast.Body) bool {
+
+	ctx := topdown.NewContext(body, r.dataStore)
+	if r.trace {
+		ctx.Tracer = &topdown.StdoutTracer{}
+	}
+
+	term := body[0].Terms.(*ast.Term)
+
+	vars := map[string]struct{}{}
+	results := []map[string]interface{}{}
+	resultKey := string(term.Location.Text)
+
+	// Do not include the value of the input term if the input term was a set reference. E.g.,
+	// for "p[x]", the value users are interested in is "x" not p[x] which is always defined
+	// as true.
+	includeValue := !r.isSetReference(term)
+
+	err := topdown.Eval(ctx, func(ctx *topdown.Context) error {
+
+		result := map[string]interface{}{}
+
+		var err error
+
+		ctx.Locals.Iter(func(k, v ast.Value) bool {
+			if k, ok := k.(ast.Var); ok {
+				name := string(k)
+				if strings.HasPrefix(name, ast.WildcardPrefix) {
+					return false
+				}
+				x, e := topdown.ValueToInterface(v, ctx)
+				if e != nil {
+					err = e
+					return true
+				}
+				result[name] = x
+				vars[name] = struct{}{}
+			}
+			return false
+		})
+
+		if err != nil {
+			return err
+		}
+
+		if includeValue {
+			p := topdown.PlugTerm(term, ctx)
+			v, err := topdown.ValueToInterface(p.Value, ctx)
+			if err != nil {
+				return err
+			}
+			result[resultKey] = v
+		}
+
+		results = append(results, result)
+
+		return nil
+	})
+
+	if err != nil {
+		fmt.Fprintln(r.output, "error:", err)
+	} else if len(results) > 0 {
+		keys := []string{}
+		for v := range vars {
+			keys = append(keys, v)
+		}
+		sort.Strings(keys)
+		if includeValue {
+			keys = append(keys, resultKey)
+		}
+		r.printResults(keys, results)
+	} else {
+		r.printUndefined()
+	}
+
+	return false
+}
+
 func (r *REPL) getPrompt() string {
 	if len(r.buffer) > 0 {
 		return r.bufferPrompt
@@ -476,6 +609,26 @@ func (r *REPL) init() bool {
 	return false
 }
 
+// isSetReference returns true if term is a reference that refers to a set document.
+func (r *REPL) isSetReference(term *ast.Term) bool {
+	ref, ok := term.Value.(ast.Ref)
+	if !ok {
+		return false
+	}
+	p := ast.Ref{}
+	for _, x := range ref {
+		p = append(p, x)
+		if node, err := r.dataStore.GetRef(p); err == nil {
+			if rs, ok := node.([]*ast.Rule); ok {
+				if rs[0].DocKind() == ast.PartialSetDoc {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
 func (r *REPL) loadHistory(prompt *liner.State) {
 	if f, err := os.Open(r.historyPath); err == nil {
 		prompt.ReadHistory(f)
@@ -483,19 +636,17 @@ func (r *REPL) loadHistory(prompt *liner.State) {
 	}
 }
 
-func (r *REPL) printResults(body ast.Body, results []map[string]interface{}) {
-
+func (r *REPL) printResults(keys []string, results []map[string]interface{}) {
 	switch r.outputFormat {
 	case "json":
 		r.printJSON(results)
 	default:
-		r.printPretty(body, results)
+		r.printPretty(keys, results)
 	}
-
 }
 
-func (r *REPL) printJSON(results []map[string]interface{}) {
-	buf, err := json.MarshalIndent(results, "", "  ")
+func (r *REPL) printJSON(x interface{}) {
+	buf, err := json.MarshalIndent(x, "", "  ")
 	if err != nil {
 		fmt.Fprintln(r.output, err)
 		return
@@ -503,54 +654,18 @@ func (r *REPL) printJSON(results []map[string]interface{}) {
 	fmt.Fprintln(r.output, string(buf))
 }
 
-func (r *REPL) printPretty(body ast.Body, results []map[string]interface{}) {
+func (r *REPL) printPretty(keys []string, results []map[string]interface{}) {
 	table := tablewriter.NewWriter(r.output)
 	table.SetAlignment(tablewriter.ALIGN_LEFT)
-	r.printPrettyHeader(table, body)
+	table.SetAutoFormatHeaders(false)
+	table.SetHeader(keys)
 	for _, row := range results {
-		r.printPrettyRow(table, row)
+		r.printPrettyRow(table, keys, row)
 	}
 	table.Render()
 }
 
-func (r *REPL) printPrettyHeader(table *tablewriter.Table, body ast.Body) {
-
-	// Build set of fields for the output. The fields are the variables from inside the body.
-	// If the variable appears multiple times, we only want a single field so store them in a
-	// map/set.
-	fields := map[string]struct{}{}
-
-	// TODO(tsandall): perhaps we could refactor this to use a "walk" function on the body.
-	for _, expr := range body {
-		switch ts := expr.Terms.(type) {
-		case []*ast.Term:
-			for _, t := range ts[1:] {
-				buildHeader(fields, t)
-			}
-		case *ast.Term:
-			buildHeader(fields, ts)
-		}
-	}
-
-	// Sort/display fields by name.
-	keys := []string{}
-	for k := range fields {
-		keys = append(keys, k)
-	}
-
-	sort.Strings(keys)
-	table.SetHeader(keys)
-}
-
-func (r *REPL) printPrettyRow(table *tablewriter.Table, row map[string]interface{}) {
-
-	// Arrange fields in same order as header.
-	keys := []string{}
-	for k := range row {
-		keys = append(keys, k)
-	}
-
-	sort.Strings(keys)
+func (r *REPL) printPrettyRow(table *tablewriter.Table, keys []string, row map[string]interface{}) {
 
 	buf := []string{}
 	for _, k := range keys {
@@ -564,6 +679,10 @@ func (r *REPL) printPrettyRow(table *tablewriter.Table, row map[string]interface
 
 	// Add fields to table in sorted order.
 	table.Append(buf)
+}
+
+func (r *REPL) printUndefined() {
+	fmt.Fprintln(r.output, "undefined")
 }
 
 func (r *REPL) saveHistory(prompt *liner.State) {
@@ -593,5 +712,50 @@ func buildHeader(fields map[string]struct{}, term *ast.Term) {
 		for _, e := range v {
 			buildHeader(fields, e)
 		}
+	}
+}
+
+func getHeaderForBody(body ast.Body) []string {
+	// Build set of fields for the output. The fields are the variables from inside the body.
+	// If the variable appears multiple times, we only want a single field so store them in a
+	// map/set.
+	fields := map[string]struct{}{}
+
+	// TODO(tsandall): perhaps we could refactor this to use a "walk" function on the body.
+	for _, expr := range body {
+		switch ts := expr.Terms.(type) {
+		case []*ast.Term:
+			for _, t := range ts[1:] {
+				buildHeader(fields, t)
+			}
+		case *ast.Term:
+			buildHeader(fields, ts)
+		}
+	}
+
+	// Sort/display fields by name.
+	keys := []string{}
+	for k := range fields {
+		keys = append(keys, k)
+	}
+
+	sort.Strings(keys)
+	return keys
+}
+
+// singleValue returns true if body can be evaluated to a single term.
+func singleValue(body ast.Body) bool {
+	if len(body) != 1 {
+		return false
+	}
+	term, ok := body[0].Terms.(*ast.Term)
+	if !ok {
+		return false
+	}
+	switch term.Value.(type) {
+	case *ast.ArrayComprehension:
+		return true
+	default:
+		return term.IsGround()
 	}
 }

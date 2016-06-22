@@ -34,7 +34,7 @@ func TestOneShotEmptyBufferOneExpr(t *testing.T) {
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
 	repl.OneShot("data.a[i].b.c[j] = 2")
-	expectOutput(t, buffer.String(), "+---+---+\n| I | J |\n+---+---+\n| 0 | 1 |\n+---+---+\n")
+	expectOutput(t, buffer.String(), "+---+---+\n| i | j |\n+---+---+\n| 0 | 1 |\n+---+---+\n")
 	buffer.Reset()
 	repl.OneShot("data.a[i].b.c[j] = \"deadbeef\"")
 	expectOutput(t, buffer.String(), "false\n")
@@ -45,7 +45,7 @@ func TestOneShotEmptyBufferOneRule(t *testing.T) {
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
 	repl.OneShot("p[x] :- data.a[i] = x")
-	expectOutput(t, buffer.String(), "defined\n")
+	expectOutput(t, buffer.String(), "")
 }
 
 func TestOneShotBufferedExpr(t *testing.T) {
@@ -57,7 +57,7 @@ func TestOneShotBufferedExpr(t *testing.T) {
 	repl.OneShot("2")
 	expectOutput(t, buffer.String(), "")
 	repl.OneShot("")
-	expectOutput(t, buffer.String(), "+---+---+\n| I | J |\n+---+---+\n| 0 | 1 |\n+---+---+\n")
+	expectOutput(t, buffer.String(), "+---+---+\n| i | j |\n+---+---+\n| 0 | 1 |\n+---+---+\n")
 }
 
 func TestOneShotBufferedRule(t *testing.T) {
@@ -73,7 +73,7 @@ func TestOneShotBufferedRule(t *testing.T) {
 	repl.OneShot("x")
 	expectOutput(t, buffer.String(), "")
 	repl.OneShot("")
-	expectOutput(t, buffer.String(), "defined\n")
+	expectOutput(t, buffer.String(), "")
 }
 
 func TestOneShotJSON(t *testing.T) {
@@ -126,6 +126,148 @@ func TestOneShotJSON(t *testing.T) {
 	}
 }
 
+func TestEvalFalse(t *testing.T) {
+	store := newTestDataStore()
+	var buffer bytes.Buffer
+	repl := newRepl(store, &buffer)
+	repl.OneShot("false")
+	result := buffer.String()
+	if result != "false\n" {
+		t.Errorf("Expected result to be false but got: %v", result)
+	}
+}
+
+func TestEvalConstantRule(t *testing.T) {
+	store := newTestDataStore()
+	var buffer bytes.Buffer
+	repl := newRepl(store, &buffer)
+	repl.OneShot("pi = 3.14")
+	result := buffer.String()
+	if result != "" {
+		t.Errorf("Expected rule to be defined but got: %v", result)
+		return
+	}
+	buffer.Reset()
+	repl.OneShot("pi")
+	result = buffer.String()
+	expected := "3.14\n"
+	if result != expected {
+		t.Errorf("Expected pi to evaluate to 3.14 but got: %v", result)
+		return
+	}
+	buffer.Reset()
+	repl.OneShot("pi.deadbeef")
+	result = buffer.String()
+	if result != "undefined\n" {
+		t.Errorf("Expected pi.deadbeef to be undefined but got: %v", result)
+		return
+	}
+	buffer.Reset()
+	repl.OneShot("pi > 3")
+	result = buffer.String()
+	if result != "true\n" {
+		t.Errorf("Expected pi > 3 to be true but got: %v", result)
+		return
+	}
+}
+
+func TestEvalSingleTermMultiValue(t *testing.T) {
+	store := newTestDataStore()
+	var buffer bytes.Buffer
+	repl := newRepl(store, &buffer)
+	repl.outputFormat = "json"
+
+	input := `
+	[
+		{
+			"data.a[i].b.c[_]": true,
+			"i": 0
+		},
+		{
+			"data.a[i].b.c[_]": 2,
+			"i": 0
+		},
+		{
+			"data.a[i].b.c[_]": false,
+			"i": 0
+		},
+		{
+			"data.a[i].b.c[_]": false,
+			"i": 1
+		},
+		{
+			"data.a[i].b.c[_]": true,
+			"i": 1
+		},
+		{
+			"data.a[i].b.c[_]": 1,
+			"i": 1
+		}
+	]`
+
+	var expected interface{}
+	if err := json.Unmarshal([]byte(input), &expected); err != nil {
+		panic(err)
+	}
+
+	repl.OneShot("data.a[i].b.c[_]")
+	var result interface{}
+	if err := json.Unmarshal(buffer.Bytes(), &result); err != nil {
+		t.Errorf("Expected valid JSON document: %v: %v", err, buffer.String())
+		return
+	}
+
+	if !reflect.DeepEqual(expected, result) {
+		t.Errorf("Expected %v but got: %v", expected, result)
+		return
+	}
+
+	buffer.Reset()
+
+	repl.OneShot("data.deadbeef[x]")
+	s := buffer.String()
+	if s != "undefined\n" {
+		t.Errorf("Expected undefined from reference but got: %v", s)
+		return
+	}
+
+	buffer.Reset()
+
+	repl.OneShot("p[x] :- a = [1,2,3,4], a[_] = x")
+	buffer.Reset()
+	repl.OneShot("p[x]")
+
+	input = `
+	[
+		{
+			"x": 1
+		},
+		{
+			"x": 2
+		},
+		{
+			"x": 3
+		},
+		{
+			"x": 4
+		}
+	]
+	`
+
+	if err := json.Unmarshal([]byte(input), &expected); err != nil {
+		panic(err)
+	}
+
+	if err := json.Unmarshal(buffer.Bytes(), &result); err != nil {
+		t.Errorf("Expected valid JSON document: %v: %v", err, buffer.String())
+		return
+	}
+
+	if !reflect.DeepEqual(expected, result) {
+		t.Errorf("Exepcted %v but got: %v", expected, result)
+	}
+}
+
 func TestEvalRuleCompileError(t *testing.T) {
 	store := newTestDataStore()
 	var buffer bytes.Buffer
@@ -140,8 +282,7 @@ func TestEvalRuleCompileError(t *testing.T) {
 	buffer.Reset()
 	repl.OneShot("p = true :- true")
 	result = buffer.String()
-	expected = "defined\n"
-	if result != expected {
+	if result != "" {
 		t.Errorf("Expected valid rule to compile (because state should have been rolled back) but got: %v", result)
 		return
 	}
@@ -186,7 +327,7 @@ func TestEvalBodyContainingWildCards(t *testing.T) {
 	repl.OneShot("data.a[_].b.c[_] = x")
 	expected := strings.TrimSpace(`
 +-------+
-|   X   |
+|   x   |
 +-------+
 | true  |
 | 2     |
