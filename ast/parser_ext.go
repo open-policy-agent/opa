@@ -12,6 +12,8 @@ package ast
 
 import (
 	"fmt"
+	"io/ioutil"
+	"os"
 
 	"github.com/pkg/errors"
 )
@@ -130,11 +132,19 @@ func ParseModule(input string) (*Module, error) {
 
 // ParseModuleFile returns a parsed Module object.
 func ParseModuleFile(filename string) (*Module, error) {
-	parsed, err := ParseFile(filename)
+	f, err := os.Open(filename)
 	if err != nil {
 		return nil, err
 	}
-	stmts := parsed.([]interface{})
+	defer f.Close()
+	bs, err := ioutil.ReadAll(f)
+	if err != nil {
+		return nil, err
+	}
+	stmts, err := ParseStatements(string(bs))
+	if err != nil {
+		return nil, err
+	}
 	return parseModule(stmts)
 }
 
