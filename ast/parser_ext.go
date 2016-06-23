@@ -12,6 +12,8 @@ package ast
 
 import (
 	"fmt"
+	"io/ioutil"
+	"os"
 
 	"github.com/pkg/errors"
 )
@@ -86,6 +88,37 @@ func MustParseTerm(input string) *Term {
 	return parsed
 }
 
+// ParseConstantRule attempts to return a rule from a body.
+// Equality expressions of the form <var> = <ground term> can be
+// converted into rules of the form <var> = <ground term> :- true.
+// This is a concise way of defining constants inside modules.
+func ParseConstantRule(body Body) *Rule {
+	if len(body) != 1 {
+		return nil
+	}
+	expr := body[0]
+	if !expr.IsEquality() {
+		return nil
+	}
+	terms := expr.Terms.([]*Term)
+	a, b := terms[1], terms[2]
+	if !b.IsGround() {
+		return nil
+	}
+	name, ok := a.Value.(Var)
+	if !ok {
+		return nil
+	}
+	return &Rule{
+		Location: expr.Location,
+		Name:     name,
+		Value:    b,
+		Body: []*Expr{
+			&Expr{Terms: BooleanTerm(true)},
+		},
+	}
+}
+
 // ParseModule returns a parsed Module object.
 // For details on Module objects and their fields, see policy.go.
 // Empty input will return nil, nil.
@@ -99,11 +132,19 @@ func ParseModule(input string) (*Module, error) {
 
 // ParseModuleFile returns a parsed Module object.
 func ParseModuleFile(filename string) (*Module, error) {
-	parsed, err := ParseFile(filename)
+	f, err := os.Open(filename)
 	if err != nil {
 		return nil, err
 	}
-	stmts := parsed.([]interface{})
+	defer f.Close()
+	bs, err := ioutil.ReadAll(f)
+	if err != nil {
+		return nil, err
+	}
+	stmts, err := ParseStatements(string(bs))
+	if err != nil {
+		return nil, err
+	}
 	return parseModule(stmts)
 }
 
@@ -198,42 +239,6 @@ func ParseRef(input string) (Ref, error) {
 	return ref, nil
 }
 
-// parseConstantRule attempts to return a rule from a Body.
-// Equality expressions of the form <var> = <ground term> can be
-// converted into rules of the form <var> = <ground term> :- true.
-// This is a concise way of defining constants inside modules.
-// This function handles the conversion.
-func parseConstantRule(stmt Body) (*Rule, error) {
-	if len(stmt) > 1 {
-		return nil, fmt.Errorf("expression must be contained inside rule: %v", stmt)
-	} else if len(stmt) == 1 {
-		stmt := stmt[0]
-		if !stmt.IsEquality() {
-			return nil, fmt.Errorf("non-equality expression must be contained inside rule: %v", stmt)
-		}
-		terms := stmt.Terms.([]*Term)
-		if !terms[2].IsGround() {
-			return nil, fmt.Errorf("constant rule value must be ground: %v", stmt)
-		}
-		switch name := terms[1].Value.(type) {
-		case Var:
-			rule := &Rule{
-				Location: stmt.Location,
-				Name:     name,
-				Value:    terms[2],
-				Body: []*Expr{
-					&Expr{Terms: BooleanTerm(true)},
-				},
-			}
-			return rule, nil
-		default:
-			return nil, fmt.Errorf("rule name must be a variable: %v", stmt)
-		}
-	} else {
-		panic("unreachable")
-	}
-}
-
 func parseModule(stmts []interface{}) (*Module, error) {
 
 	if len(stmts) == 0 {
@@ -256,9 +261,9 @@ func parseModule(stmts []interface{}) (*Module, error) {
 		case *Rule:
 			mod.Rules = append(mod.Rules, stmt)
 		case Body:
-			rule, err := parseConstantRule(stmt)
-			if err != nil {
-				return nil, err
+			rule := ParseConstantRule(stmt)
+			if rule == nil {
+				return nil, fmt.Errorf("body must be contained inside rule: %v", stmt)
 			}
 			mod.Rules = append(mod.Rules, rule)
 		}
