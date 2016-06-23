@@ -104,23 +104,23 @@ func (r *REPL) OneShot(line string) bool {
 	}
 
 	if len(r.buffer) == 0 {
-		switch strings.TrimSpace(strings.ToLower(line)) {
-		case "dump":
-			return r.cmdDump()
-		case "json":
-			return r.cmdFormat("json")
-		case "pretty":
-			return r.cmdFormat("pretty")
-		case "trace":
-			return r.cmdTrace()
-		case "?":
-			fallthrough
-		case "help":
-			return r.cmdHelp()
-		case "quit":
-			fallthrough
-		case "exit":
-			return r.cmdExit()
+		if cmd := newCommand(line); cmd != nil {
+			switch cmd.op {
+			case "dump":
+				return r.cmdDump()
+			case "json":
+				return r.cmdFormat("json")
+			case "unset":
+				return r.cmdUnset(cmd.args)
+			case "pretty":
+				return r.cmdFormat("pretty")
+			case "trace":
+				return r.cmdTrace()
+			case "help":
+				return r.cmdHelp()
+			case "exit":
+				return r.cmdExit()
+			}
 		}
 		r.buffer = append(r.buffer, line)
 		return r.evalBufferOne()
@@ -150,33 +150,22 @@ func (r *REPL) cmdFormat(s string) bool {
 
 func (r *REPL) cmdHelp() bool {
 
-	commands := []struct {
-		name string
-		note string
-	}{
-		{"<stmt>", "evaluate the statement"},
-		{"package <term>", "change currently active package"},
-		{"import <term>", "add import to currently active module"},
-		{"json", "set output format to JSON"},
-		{"pretty", "set output format to pretty"},
-		{"dump", "dump the raw storage content"},
-		{"trace", "toggle stdout tracing"},
-		{"help", "print this message (or ?)"},
-		{"exit", "exit back to shell (or ctrl+c, ctrl+d, quit)"},
-		{"ctrl+l", "clear the screen"},
-	}
+	all := extra[:]
+	all = append(all, builtin[:]...)
 
 	maxLength := 0
-	for _, command := range commands {
-		length := len(command.name)
+
+	for _, c := range all {
+		length := len(c.syntax())
 		if length > maxLength {
 			maxLength = length
 		}
 	}
 
-	for _, command := range commands {
-		f := fmt.Sprintf("%%%dv : %%v\n", maxLength)
-		fmt.Printf(f, command.name, command.note)
+	f := fmt.Sprintf("%%%dv : %%v\n", maxLength)
+
+	for _, c := range all {
+		fmt.Printf(f, c.syntax(), c.help)
 	}
 
 	return false
@@ -184,6 +173,59 @@ func (r *REPL) cmdHelp() bool {
 
 func (r *REPL) cmdTrace() bool {
 	r.trace = !r.trace
+	return false
+}
+
+func (r *REPL) cmdUnset(args []string) bool {
+
+	if len(args) != 1 {
+		fmt.Fprintln(r.output, "error: unset <var>: expects exactly one argument")
+		return false
+	}
+
+	term, err := ast.ParseTerm(args[0])
+	if err != nil {
+		fmt.Fprintln(r.output, "error: argument must identify a rule")
+		return false
+	}
+
+	v, ok := term.Value.(ast.Var)
+	if !ok {
+		fmt.Fprintln(r.output, "error: argument must identify a rule")
+		return false
+	}
+
+	modules := r.policyStore.List()
+	mod := modules[r.currentModuleID]
+	rules := []*ast.Rule{}
+
+	for _, r := range mod.Rules {
+		if !r.Name.Equal(v) {
+			rules = append(rules, r)
+		}
+	}
+
+	if len(rules) == len(mod.Rules) {
+		fmt.Fprintln(r.output, "warning: no matching rules in current module")
+		return false
+	}
+
+	cpy := *mod
+	cpy.Rules = rules
+	modules[r.currentModuleID] = &cpy
+
+	c := ast.NewCompiler()
+	if c.Compile(modules); c.Failed() {
+		fmt.Fprintln(r.output, "error:", c.FlattenErrors())
+		return false
+	}
+
+	err = r.policyStore.Add(r.currentModuleID, c.Modules[r.currentModuleID], nil, false)
+	if err != nil {
+		fmt.Fprintln(r.output, "error:", err)
+		return true
+	}
+
 	return false
 }
 
@@ -690,6 +732,57 @@ func (r *REPL) saveHistory(prompt *liner.State) {
 		prompt.WriteHistory(f)
 		f.Close()
 	}
+}
+
+type commandDesc struct {
+	name string
+	args []string
+	help string
+}
+
+func (c commandDesc) syntax() string {
+	if len(c.args) > 0 {
+		return fmt.Sprintf("%v %v", c.name, strings.Join(c.args, " "))
+	}
+	return c.name
+}
+
+var extra = [...]commandDesc{
+	{"<stmt>", []string{}, "evaluate the statement"},
+	{"package", []string{"<term>"}, "change currently active package"},
+	{"import", []string{"<term>"}, "add import to currently active module"},
+}
+
+var builtin = [...]commandDesc{
+	{"unset", []string{"<var>"}, "undefine rules in currently active module"},
+	{"json", []string{}, "set output format to JSON"},
+	{"pretty", []string{}, "set output format to pretty"},
+	{"dump", []string{}, "dump the raw storage content"},
+	{"trace", []string{}, "toggle stdout tracing"},
+	{"help", []string{}, "print this message"},
+	{"exit", []string{}, "exit back to shell (or ctrl+c, ctrl+d)"},
+	{"ctrl+l", []string{}, "clear the screen"},
+}
+
+type command struct {
+	op   string
+	args []string
+}
+
+func newCommand(line string) *command {
+	p := strings.Fields(strings.TrimSpace(strings.ToLower(line)))
+	if len(p) == 0 {
+		return nil
+	}
+	for _, c := range builtin {
+		if c.name == p[0] {
+			return &command{
+				op:   c.name,
+				args: p[1:],
+			}
+		}
+	}
+	return nil
 }
 
 func buildHeader(fields map[string]struct{}, term *ast.Term) {

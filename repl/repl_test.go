@@ -25,8 +25,78 @@ func TestDump(t *testing.T) {
 	store := storage.NewDataStoreFromJSONObject(data)
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
-	repl.cmdDump()
+	repl.OneShot("dump")
 	expectOutput(t, buffer.String(), "map[a:[1 2 3 4]]\n")
+}
+
+func TestUnset(t *testing.T) {
+	store := storage.NewDataStore()
+	var buffer bytes.Buffer
+	repl := newRepl(store, &buffer)
+
+	repl.OneShot("magic = 23")
+	repl.OneShot("p = 3.14")
+	repl.OneShot("unset p")
+	repl.OneShot("p")
+	result := buffer.String()
+	if result != "error: 1 error occurred: unsafe variables in repl2: [p]\n" {
+		t.Errorf("Expected p to be unsafe but got: %v", result)
+		return
+	}
+
+	buffer.Reset()
+	repl.OneShot("p = 3.14")
+	repl.OneShot("p = 3 :- false")
+	repl.OneShot("unset p")
+	repl.OneShot("p")
+	result = buffer.String()
+	if result != "error: 1 error occurred: unsafe variables in repl4: [p]\n" {
+		t.Errorf("Expected p to be unsafe but got: %v", result)
+		return
+	}
+
+	buffer.Reset()
+	repl.OneShot("unset ")
+	result = buffer.String()
+	if result != "error: unset <var>: expects exactly one argument\n" {
+		t.Errorf("Expected unset error for bad syntax but got: %v", result)
+	}
+
+	buffer.Reset()
+	repl.OneShot("unset 1=1")
+	result = buffer.String()
+	if result != "error: argument must identify a rule\n" {
+		t.Errorf("Expected unset error for bad syntax but got: %v", result)
+	}
+
+	buffer.Reset()
+	repl.OneShot(`unset "p"`)
+	result = buffer.String()
+	if result != "error: argument must identify a rule\n" {
+		t.Errorf("Expected unset error for bad syntax but got: %v", result)
+	}
+
+	buffer.Reset()
+	repl.OneShot(`unset q`)
+	result = buffer.String()
+	if result != "warning: no matching rules in current module\n" {
+		t.Errorf("Expected unset error for missing rule but got: %v", result)
+	}
+
+	buffer.Reset()
+	repl.OneShot(`magic`)
+	result = buffer.String()
+	if result != "23\n" {
+		t.Errorf("Expected magic to be defined but got: %v", result)
+	}
+
+	buffer.Reset()
+	repl.OneShot(`package data.other`)
+	repl.OneShot(`unset magic`)
+	result = buffer.String()
+	if result != "warning: no matching rules in current module\n" {
+		t.Errorf("Expected unset error for bad syntax but got: %v", result)
+	}
 }
 
 func TestOneShotEmptyBufferOneExpr(t *testing.T) {
