@@ -7,12 +7,11 @@ package ast
 import (
 	"encoding/json"
 	"fmt"
+	"hash/fnv"
 	"regexp"
 	"strconv"
 	"strings"
 )
-
-import "hash/fnv"
 
 // Location records a position in source code
 type Location struct {
@@ -48,6 +47,46 @@ type Value interface {
 
 	// Returns hash code of the value.
 	Hash() int
+}
+
+// InterfaceToValue converts a native Go value x to a Value.
+func InterfaceToValue(x interface{}) (Value, error) {
+	switch x := x.(type) {
+	case nil:
+		return Null{}, nil
+	case bool:
+		return Boolean(x), nil
+	case float64:
+		return Number(x), nil
+	case string:
+		return String(x), nil
+	case []interface{}:
+		r := Array{}
+		for _, e := range x {
+			e, err := InterfaceToValue(e)
+			if err != nil {
+				return nil, err
+			}
+			r = append(r, &Term{Value: e})
+		}
+		return r, nil
+	case map[string]interface{}:
+		r := Object{}
+		for k, v := range x {
+			k, err := InterfaceToValue(k)
+			if err != nil {
+				return nil, err
+			}
+			v, err := InterfaceToValue(v)
+			if err != nil {
+				return nil, err
+			}
+			r = append(r, Item(&Term{Value: k}, &Term{Value: v}))
+		}
+		return r, nil
+	default:
+		return nil, fmt.Errorf("illegal value: %v", x)
+	}
 }
 
 // Term is an argument to a function.
@@ -341,6 +380,16 @@ func (ref Ref) IsGround() bool {
 		return true
 	}
 	return termSliceIsGround(ref[1:])
+}
+
+// IsNested returns true if this ref contains other Refs.
+func (ref Ref) IsNested() bool {
+	for _, x := range ref {
+		if _, ok := x.Value.(Ref); ok {
+			return true
+		}
+	}
+	return false
 }
 
 var varRegexp = regexp.MustCompile("^[[:alpha:]_][[:alpha:][:digit:]_]*$")

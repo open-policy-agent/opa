@@ -72,12 +72,19 @@ func TestRefTerms(t *testing.T) {
 	assertParseOneTerm(t, "constants 2", "foo.bar[0].baz", RefTerm(VarTerm("foo"), StringTerm("bar"), NumberTerm(0), StringTerm("baz")))
 	assertParseOneTerm(t, "variables", "foo.bar[0].baz[i]", RefTerm(VarTerm("foo"), StringTerm("bar"), NumberTerm(0), StringTerm("baz"), VarTerm("i")))
 	assertParseOneTerm(t, "spaces", "foo[\"white space\"].bar", RefTerm(VarTerm("foo"), StringTerm("white space"), StringTerm("bar")))
+	assertParseOneTerm(t, "nested", "foo[baz[1][borge[i]]].bar", RefTerm(
+		VarTerm("foo"),
+		RefTerm(
+			VarTerm("baz"), NumberTerm(float64(1)), RefTerm(
+				VarTerm("borge"), VarTerm("i"),
+			),
+		),
+		StringTerm("bar"),
+	))
 	assertParseError(t, "missing component 1", "foo.")
 	assertParseError(t, "missing component 2", "foo[].bar")
 	assertParseError(t, "composite operand 1", "foo[[1,2,3]].bar")
 	assertParseError(t, "composite operand 2", "foo[{1: 2}].bar")
-	// TODO(tsandall): this may be allowed some day
-	assertParseError(t, "nested refs", "foo[baz.qux].bar")
 }
 
 func TestObjectWithScalars(t *testing.T) {

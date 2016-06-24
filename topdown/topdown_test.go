@@ -23,32 +23,32 @@ func TestEvalRef(t *testing.T) {
 		expected interface{}
 	}{
 		{"data.c[i][j]", `[
-            {"i": 0, "j": "x"},
-            {"i": 0, "j": "y"},
-            {"i": 0, "j": "z"}
-         ]`},
+		    {"i": 0, "j": "x"},
+		    {"i": 0, "j": "y"},
+		    {"i": 0, "j": "z"}
+		 ]`},
 		{"data.c[i][j][k]", `[
-            {"i": 0, "j": "x", "k": 0},
-            {"i": 0, "j": "x", "k": 1},
-            {"i": 0, "j": "x", "k": 2},
-            {"i": 0, "j": "y", "k": 0},
-            {"i": 0, "j": "y", "k": 1},
-            {"i": 0, "j": "z", "k": "p"},
-            {"i": 0, "j": "z", "k": "q"}
-        ]`},
+		    {"i": 0, "j": "x", "k": 0},
+		    {"i": 0, "j": "x", "k": 1},
+		    {"i": 0, "j": "x", "k": 2},
+		    {"i": 0, "j": "y", "k": 0},
+		    {"i": 0, "j": "y", "k": 1},
+		    {"i": 0, "j": "z", "k": "p"},
+		    {"i": 0, "j": "z", "k": "q"}
+		]`},
 		{"data.d[x][y]", `[
-            {"x": "e", "y": 0},
-            {"x": "e", "y": 1}
-        ]`},
+		    {"x": "e", "y": 0},
+		    {"x": "e", "y": 1}
+		]`},
 		{`data.c[i]["x"][k]`, `[
-            {"i": 0, "k": 0},
-            {"i": 0, "k": 1},
-            {"i": 0, "k": 2}
-        ]`},
+		    {"i": 0, "k": 0},
+		    {"i": 0, "k": 1},
+		    {"i": 0, "k": 2}
+		]`},
 		{"data.c[i][j][i]", `[
-            {"i": 0, "j": "x"},
-            {"i": 0, "j": "y"}
-        ]`},
+		    {"i": 0, "j": "x"},
+		    {"i": 0, "j": "y"}
+		]`},
 		{`data.c[i]["deadbeef"][k]`, nil},
 		{`data.c[999]`, nil},
 	}
@@ -66,7 +66,7 @@ func TestEvalRef(t *testing.T) {
 		switch e := tc.expected.(type) {
 		case nil:
 			var tmp *Context
-			err := evalRef(ctx, ast.MustParseRef(tc.ref), func(ctx *Context) error {
+			err := evalRef(ctx, ast.MustParseRef(tc.ref), ast.Ref{}, func(ctx *Context) error {
 				tmp = ctx
 				return nil
 			})
@@ -79,7 +79,7 @@ func TestEvalRef(t *testing.T) {
 			}
 		case string:
 			expected := loadExpectedBindings(e)
-			err := evalRef(ctx, ast.MustParseRef(tc.ref), func(ctx *Context) error {
+			err := evalRef(ctx, ast.MustParseRef(tc.ref), ast.Ref{}, func(ctx *Context) error {
 				if len(expected) > 0 {
 					for j, exp := range expected {
 						if exp.Equal(ctx.Locals) {
@@ -135,6 +135,11 @@ func TestEvalTerms(t *testing.T) {
             {"x": "e", "y": 1}
         ]`},
 		{"data.d[x][y] = data.z[i]", `[]`},
+		{"data.a[data.a[i]] = 3", `[
+			{"i": 0, "data.a[i]": 1},
+			{"i": 1, "data.a[i]": 2},
+			{"i": 2, "data.a[i]": 3}
+		]`},
 	}
 
 	data := loadSmallTestData()
@@ -211,6 +216,20 @@ func TestPlugValue(t *testing.T) {
 
 	if !expected.Equal(r2) {
 		t.Errorf("Expected %v but got %v", expected, r2)
+	}
+
+	n := ast.MustParseTerm("a.b[x.y[i]]").Value
+
+	ctx3 := &Context{Locals: storage.NewBindings(), Globals: storage.NewBindings()}
+	ctx3 = ctx3.BindVar(ast.Var("i"), ast.Number(1))
+	ctx3 = ctx3.BindValue(ast.MustParseTerm("x.y[i]").Value, ast.Number(1))
+
+	expected = ast.MustParseTerm("a.b[1]").Value
+
+	r3 := PlugValue(n, ctx3)
+
+	if !expected.Equal(r3) {
+		t.Errorf("Expected %v but got: %v", expected, r3)
 	}
 }
 
@@ -503,6 +522,60 @@ func TestTopDownVirtualDocs(t *testing.T) {
 
 		// undefined
 		// {"undefined: dereference set", []string{"p = true :- q[x].foo = 100", "q[x] :- x = a[i]"}, ""},
+	}
+
+	data := loadSmallTestData()
+
+	for i, tc := range tests {
+		runTopDownTestCase(t, data, i, tc.note, tc.rules, tc.expected)
+	}
+}
+
+func TestTopDownNestedReferences(t *testing.T) {
+	tests := []struct {
+		note     string
+		rules    []string
+		expected interface{}
+	}{
+		// nested base document references
+		{"ground ref", []string{"p :- a[h[0][0]] = 2"}, "true"},
+		{"non-ground ref", []string{"p[x] :- x = a[h[i][j]]"}, "[2,3,4,3,4]"},
+		{"two deep", []string{"p[x] :- x = a[a[a[i]]]"}, "[3,4]"},
+		{"two deep", []string{"p[x] :- x = a[h[i][a[j]]]"}, "[3,4,4]"},
+		{"two deep repeated var", []string{"p[x] :- x = a[h[i][a[i]]]"}, "[3]"},
+		{"no suffix", []string{"p :- 4 = a[three]"}, "true"},
+		{"var ref", []string{"p[y] :- x = [1,2,3], y = a[x[_]]"}, "[2,3,4]"},
+		{"undefined", []string{"p :- a[three.deadbeef] = x"}, ""},
+
+		// nested virtual document references
+		{"vdoc ref: complete", []string{"p[x] :- x = a[q[_]]", "q = [2,3] :- true"}, "[3,4]"},
+		{"vdoc ref: complete: ground", []string{"p[x] :- x = a[q[1]]", "q = [2,3] :- true"}, "[4]"},
+		{"vdoc ref: complete: no suffix", []string{"p :- 2 = a[q]", "q = 1 :- true"}, "true"},
+		{"vdoc ref: partial object", []string{
+			"p[x] :- x = a[q[_]]",
+			`q[k] = v :- o = {"a": 2, "b": 3, "c": 100}, o[k] = v`},
+			"[3,4]"},
+		{"vdoc ref: partial object: ground", []string{
+			`p[x] :- x = a[q["b"]]`,
+			`q[k] = v :- o = {"a": 2, "b": 3, "c": 100}, o[k] = v`},
+			"[4]"},
+
+		// mixed cases
+		{"vdoc ref: complete: nested bdoc ref", []string{
+			"p[x] :- x = a[q[b[_]]]",
+			`q = {"hello": 1, "goodbye": 3, "deadbeef": 1000} :- true`}, "[2,4]"},
+		{"vdoc ref: partial object: nested bdoc ref", []string{
+			"p[x] :- x = a[q[b[_]]]",
+			// bind to value
+			`q[k] = v :- o = {"hello": 1, "goodbye": 3, "deadbeef": 1000}, o[k] = v`}, "[2,4]"},
+		{"vdoc ref: partial object: nested bdoc ref-2", []string{
+			"p[x] :- x = a[q[d.e[_]]]",
+			// bind to reference
+			`q[k] = v :- strings[k] = v`}, "[3,4]"},
+		{"vdoc ref: multiple", []string{
+			"p[x] :- x = q[a[_]].v[r[a[_]]]",
+			`q = [{"v": {}}, {"v": [0,0,1,2]}, {"v": [0,0,3,4]}, {"v": [0,0]}, {}] :- true`,
+			"r = [1,2,3,4] :- true"}, "[1,2,3,4]"},
 	}
 
 	data := loadSmallTestData()
@@ -885,9 +958,9 @@ func loadExpectedBindings(input string) []*storage.Bindings {
 		for k, v := range bindings {
 			switch v := v.(type) {
 			case string:
-				buf.Put(ast.Var(k), ast.String(v))
+				buf.Put(ast.MustParseTerm(k).Value, ast.String(v))
 			case float64:
-				buf.Put(ast.Var(k), ast.Number(v))
+				buf.Put(ast.MustParseTerm(k).Value, ast.Number(v))
 			default:
 				panic("unreachable")
 			}
@@ -968,6 +1041,12 @@ func loadSmallTestData() map[string]interface{} {
                 "d": null
             }
         ],
+		"strings": {
+			"foo": 1,
+			"bar": 2,
+			"baz": 3
+		},
+		"three": 3,
         "m": []
     }`), &data)
 	if err != nil {

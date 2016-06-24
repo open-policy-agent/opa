@@ -252,7 +252,7 @@ RefDot <- "." val:Var {
     return str, nil
 }
 
-RefBracket <- "[" val:(Scalar / Var) "]" {
+RefBracket <- "[" val:(Ref / Scalar / Var) "]" {
     return val, nil
 }
 
