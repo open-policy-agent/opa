@@ -386,6 +386,24 @@ func TestExample(t *testing.T) {
 	})
 }
 
+func TestLocation(t *testing.T) {
+	mod, err := ParseModule("test", testModule)
+	if err != nil {
+		t.Errorf("Unexpected error while parsing test module: %v", err)
+		return
+	}
+	expr := mod.Rules[0].Body[0]
+	if expr.Location.Col != 5 {
+		t.Errorf("Expected column of %v to be 5 but got: %v", expr, expr.Location.Col)
+	}
+	if expr.Location.Row != 9 {
+		t.Errorf("Expected row of %v to be 9 but got: %v", expr, expr.Location.Row)
+	}
+	if expr.Location.File != "test" {
+		t.Errorf("Expected file of %v to be test but got: %v", expr, expr.Location.File)
+	}
+}
+
 func TestConstantRules(t *testing.T) {
 	testModule := `
     package a.b.c

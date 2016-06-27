@@ -215,7 +215,7 @@ func ParseStatements(filename, input string) ([]interface{}, error) {
 		return nil, err
 	}
 	stmts := parsed.([]interface{})
-	postProcess(stmts)
+	postProcess(filename, stmts)
 	return stmts, err
 }
 
@@ -252,7 +252,8 @@ func parseModule(stmts []interface{}) (*Module, error) {
 	return mod, nil
 }
 
-func postProcess(stmts []interface{}) {
+func postProcess(filename string, stmts []interface{}) {
+	setFilename(filename, stmts)
 	mangleWildcards(stmts)
 }
 
@@ -300,5 +301,26 @@ func (vis *wildcardMangler) mangle(x *Term) {
 func (vis *wildcardMangler) mangleSlice(xs []*Term) {
 	for _, x := range xs {
 		vis.mangle(x)
+	}
+}
+
+func setFilename(filename string, stmts []interface{}) {
+	for _, stmt := range stmts {
+		vis := &GenericVisitor{func(x interface{}) bool {
+			switch x := x.(type) {
+			case *Package:
+				x.Location.File = filename
+			case *Import:
+				x.Location.File = filename
+			case *Rule:
+				x.Location.File = filename
+			case *Expr:
+				x.Location.File = filename
+			case *Term:
+				x.Location.File = filename
+			}
+			return false
+		}}
+		Walk(vis, stmt)
 	}
 }
