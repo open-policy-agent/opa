@@ -157,6 +157,39 @@ Steps
         | {"id":"s4","name":"dev","ports":["p1","p2"],"protocols":["http"]}             |
         +-------------------------------------------------------------------------------+
 
+    One powerful thing about Rego and the REPL is that you can run queries using the same syntax that you would use to lookup values.
+
+    For example if `i` has value 0 then `data.servers[i]` returns the first value in the `data.servers` array:
+
+        > i = 0
+        > data.servers[i]
+        {
+        "id": "s1",
+        "name": "app",
+        "ports": [
+            "p1",
+            "p2",
+            "p3"
+        ],
+        "protocols": [
+            "https",
+            "ssh"
+        ]
+        }
+
+    That same expression `data.servers[i]` when `i` has no value defines a query that returns all the values of `i` and `data.servers[i]`:
+
+        > unset i
+        > data.servers[i]
+        +---+-------------------------------------------------------------------------------+
+        | i |                                data.servers[i]                                |
+        +---+-------------------------------------------------------------------------------+
+        | 0 | {"id":"s1","name":"app","ports":["p1","p2","p3"],"protocols":["https","ssh"]} |
+        | 1 | {"id":"s2","name":"db","ports":["p3"],"protocols":["mysql"]}                  |
+        | 2 | {"id":"s3","name":"cache","ports":["p3"],"protocols":["memcache"]}            |
+        | 3 | {"id":"s4","name":"dev","ports":["p1","p2"],"protocols":["http"]}             |
+        +---+-------------------------------------------------------------------------------+
+
 1. The REPL also understands the [Import and Package](/docs/lang.html#modules) directives.
 
         > import data.servers
