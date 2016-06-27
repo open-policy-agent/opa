@@ -181,7 +181,7 @@ func parseInputs(paths []string) (*parsedInput, error) {
 			return nil, err
 		}
 
-		m, astErr := ast.ParseModuleFile(file)
+		m, astErr := ast.ParseModule(file, string(bs))
 
 		if astErr == nil {
 			parsedModules[file] = &parsedModule{

@@ -12,8 +12,6 @@ package ast
 
 import (
 	"fmt"
-	"io/ioutil"
-	"os"
 
 	"github.com/pkg/errors"
 )
@@ -31,7 +29,7 @@ func MustParseBody(input string) Body {
 // MustParseModule returns a parsed module.
 // If an error occurs during parsing, panic.
 func MustParseModule(input string) *Module {
-	parsed, err := ParseModule(input)
+	parsed, err := ParseModule("", input)
 	if err != nil {
 		panic(err)
 	}
@@ -41,7 +39,7 @@ func MustParseModule(input string) *Module {
 // MustParseStatements returns a slice of parsed statements.
 // If an error occurs during parsing, panic.
 func MustParseStatements(input string) []interface{} {
-	parsed, err := ParseStatements(input)
+	parsed, err := ParseStatements("", input)
 	if err != nil {
 		panic(err)
 	}
@@ -122,26 +120,8 @@ func ParseConstantRule(body Body) *Rule {
 // ParseModule returns a parsed Module object.
 // For details on Module objects and their fields, see policy.go.
 // Empty input will return nil, nil.
-func ParseModule(input string) (*Module, error) {
-	stmts, err := ParseStatements(input)
-	if err != nil {
-		return nil, err
-	}
-	return parseModule(stmts)
-}
-
-// ParseModuleFile returns a parsed Module object.
-func ParseModuleFile(filename string) (*Module, error) {
-	f, err := os.Open(filename)
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-	bs, err := ioutil.ReadAll(f)
-	if err != nil {
-		return nil, err
-	}
-	stmts, err := ParseStatements(string(bs))
+func ParseModule(filename, input string) (*Module, error) {
+	stmts, err := ParseStatements(filename, input)
 	if err != nil {
 		return nil, err
 	}
@@ -151,7 +131,7 @@ func ParseModuleFile(filename string) (*Module, error) {
 // ParseBody returns exactly one body.
 // If multiple bodies are parsed, an error is returned.
 func ParseBody(input string) (Body, error) {
-	stmts, err := ParseStatements(input)
+	stmts, err := ParseStatements("", input)
 	if err != nil {
 		return nil, err
 	}
@@ -182,10 +162,23 @@ func ParseTerm(input string) (*Term, error) {
 	return term, nil
 }
 
+// ParseRef returns exactly one reference.
+func ParseRef(input string) (Ref, error) {
+	term, err := ParseTerm(input)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to parse ref")
+	}
+	ref, ok := term.Value.(Ref)
+	if !ok {
+		return nil, fmt.Errorf("expected ref but got %v", term)
+	}
+	return ref, nil
+}
+
 // ParseRule returns exactly one rule.
 // If multiple rules are parsed, an error is returned.
 func ParseRule(input string) (*Rule, error) {
-	stmts, err := ParseStatements(input)
+	stmts, err := ParseStatements("", input)
 	if err != nil {
 		return nil, err
 	}
@@ -199,24 +192,12 @@ func ParseRule(input string) (*Rule, error) {
 	return rule, nil
 }
 
-// ParseStatements returns a slice of parsed statements.
-// This is the default return value from the parser.
-func ParseStatements(input string) ([]interface{}, error) {
-	parsed, err := Parse("", []byte(input))
-	if err != nil {
-		return nil, err
-	}
-	stmts := parsed.([]interface{})
-	postProcess(stmts)
-	return stmts, err
-}
-
 // ParseStatement returns exactly one statement.
 // A statement might be a term, expression, rule, etc. Regardless,
 // this function expects *exactly* one statement. If multiple
 // statements are parsed, an error is returned.
 func ParseStatement(input string) (interface{}, error) {
-	stmts, err := ParseStatements(input)
+	stmts, err := ParseStatements("", input)
 	if err != nil {
 		return nil, err
 	}
@@ -226,17 +207,16 @@ func ParseStatement(input string) (interface{}, error) {
 	return stmts[0], nil
 }
 
-// ParseRef returns exactly one reference.
-func ParseRef(input string) (Ref, error) {
-	term, err := ParseTerm(input)
+// ParseStatements returns a slice of parsed statements.
+// This is the default return value from the parser.
+func ParseStatements(filename, input string) ([]interface{}, error) {
+	parsed, err := Parse(filename, []byte(input))
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to parse ref")
+		return nil, err
 	}
-	ref, ok := term.Value.(Ref)
-	if !ok {
-		return nil, fmt.Errorf("expected ref but got %v", term)
-	}
-	return ref, nil
+	stmts := parsed.([]interface{})
+	postProcess(stmts)
+	return stmts, err
 }
 
 func parseModule(stmts []interface{}) (*Module, error) {

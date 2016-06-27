@@ -75,10 +75,7 @@ func TestCompilerEmpty(t *testing.T) {
 
 func TestCompilerExample(t *testing.T) {
 	c := NewCompiler()
-	m, err := ParseModule(testModule)
-	if err != nil {
-		panic(err)
-	}
+	m := MustParseModule(testModule)
 	c.Compile(map[string]*Module{"testMod": m})
 	assertNotFailed(t, c)
 }

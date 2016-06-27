@@ -310,7 +310,7 @@ func TestRule(t *testing.T) {
 }
 
 func TestEmptyModule(t *testing.T) {
-	r, err := ParseModule("    ")
+	r, err := ParseModule("", "    ")
 	if err != nil {
 		t.Errorf("Expected nil for empty module: %s", err)
 		return
@@ -491,7 +491,7 @@ func TestWildcards(t *testing.T) {
 }
 
 func assertParse(t *testing.T, msg string, input string, correct func([]interface{})) {
-	p, err := ParseStatements(input)
+	p, err := ParseStatements("", input)
 	if err != nil {
 		t.Errorf("Error on test %s: parse error on %s: %s", msg, input, err)
 		return
@@ -519,7 +519,7 @@ func assertParseImport(t *testing.T, msg string, input string, correct *Import) 
 
 func assertParseModule(t *testing.T, msg string, input string, correct *Module) {
 
-	m, err := ParseModule(input)
+	m, err := ParseModule("", input)
 	if err != nil {
 		t.Errorf("Error on test %s: parse error on %s: %s", msg, input, err)
 		return
