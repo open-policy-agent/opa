@@ -256,6 +256,7 @@ func TestImport(t *testing.T) {
 	ref2 := RefTerm(VarTerm("foo"), StringTerm("bar"), StringTerm("white space"))
 	assertParseImport(t, "white space", "import foo.bar[\"white space\"]", &Import{Path: ref2})
 	assertParseError(t, "non-ground ref", "import foo[x]")
+	assertParseError(t, "non-string", "import foo[0]")
 }
 
 func TestRule(t *testing.T) {

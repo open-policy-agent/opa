@@ -393,22 +393,14 @@ func (c *Compiler) setGlobals() {
 					globals[i.Alias] = p
 				case Var:
 					globals[i.Alias] = p
-				default:
-					c.err("unexpected %T: %v", p, i)
 				}
 			} else {
 				switch p := i.Path.Value.(type) {
 				case Ref:
-					switch v := p[len(p)-1].Value.(type) {
-					case String:
-						globals[Var(v)] = p
-					default:
-						c.err("unexpected %T: %v", v, i)
-					}
+					v := p[len(p)-1].Value.(String)
+					globals[Var(v)] = p
 				case Var:
 					globals[p] = p
-				default:
-					c.err("unexpected %T: %v", i.Path, i.Path)
 				}
 			}
 		}
