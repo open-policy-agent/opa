@@ -227,7 +227,8 @@ func parseModule(stmts []interface{}) (*Module, error) {
 
 	_package, ok := stmts[0].(*Package)
 	if !ok {
-		return nil, fmt.Errorf("first statement must be package")
+		loc := stmts[0].(Statement).Loc()
+		return nil, loc.Errorf("expected package directive (%s must come after package directive)", stmts[0])
 	}
 
 	mod := &Module{
@@ -243,7 +244,7 @@ func parseModule(stmts []interface{}) (*Module, error) {
 		case Body:
 			rule := ParseConstantRule(stmt)
 			if rule == nil {
-				return nil, fmt.Errorf("body must be contained inside rule: %v", stmt)
+				return nil, stmt[0].Location.Errorf("expected rule (%s must be declared inside a rule)", stmt[0].Location.Text)
 			}
 			mod.Rules = append(mod.Rules, rule)
 		}

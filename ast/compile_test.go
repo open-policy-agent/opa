@@ -309,40 +309,76 @@ func TestCompilerCheckSafetyBodyErrors(t *testing.T) {
 	`)}
 	compileStages(c, "", "checkSafetyBody")
 
-	expected := []error{
-		fmt.Errorf("unsafe variables in badBuiltin: [deadbeef]"),
-		fmt.Errorf("unsafe variables in unboundRef1: [a]"),
-		fmt.Errorf("unsafe variables in unboundRef2: [a]"),
-		fmt.Errorf("unsafe variables in unboundNegated1: [i x]"),
-		fmt.Errorf("unsafe variables in unboundNegated2: [i x]"),
-		fmt.Errorf("unsafe variables in unboundNegated3: [i j x]"),
-		fmt.Errorf("unsafe variables in unboundNegated4: [i j]"),
-		fmt.Errorf("unsafe variables in unsafeBuiltin: [x]"),
-		fmt.Errorf("unsafe variables in unboundNoTarget: [x]"),
-		fmt.Errorf("unsafe variables in unboundArrayComprBody1: [y]"),
-		fmt.Errorf("unsafe variables in unboundArrayComprBody2: [z]"),
-		fmt.Errorf("unsafe variables in unboundArrayComprBody3: [x]"),
-		fmt.Errorf("unsafe variables in unboundArrayComprTerm1: [u]"),
-		fmt.Errorf("unsafe variables in unboundArrayComprTerm2: [w]"),
-		fmt.Errorf("unsafe variables in unboundArrayComprTerm3: [i]"),
-		fmt.Errorf("unsafe variables in unboundArrayComprMixed1: [x z]"),
-		fmt.Errorf("unsafe variables in unsafeClosure1: [x]"),
-		fmt.Errorf("unsafe variables in unsafeClosure2: [y]"),
-		fmt.Errorf("unsafe variables in unsafeNestedHead: [dead]"),
+	makeErrMsg := func(rule string, varName string) string {
+		return fmt.Sprintf("%v: %v is unsafe (variable %v must appear in the output position of at least one non-negated expression)", rule, varName, varName)
 	}
 
-	if !reflect.DeepEqual(expected, c.Errors) {
-		e := []string{}
-		for _, x := range expected {
-			e = append(e, x.Error())
-		}
-		r := []string{}
-		for _, x := range c.Errors {
-			r = append(r, x.Error())
-		}
-		t.Errorf("Expected:\n%v\nBut got:\n%v", strings.Join(e, "\n"), strings.Join(r, "\n"))
+	expected := []string{
+		makeErrMsg("badBuiltin", "deadbeef"),
+		makeErrMsg("unboundRef1", "a"),
+		makeErrMsg("unboundRef2", "a"),
+		makeErrMsg("unboundNegated1", "i"),
+		makeErrMsg("unboundNegated1", "x"),
+		makeErrMsg("unboundNegated2", "i"),
+		makeErrMsg("unboundNegated2", "x"),
+		makeErrMsg("unboundNegated3", "i"),
+		makeErrMsg("unboundNegated3", "j"),
+		makeErrMsg("unboundNegated3", "x"),
+		makeErrMsg("unboundNegated4", "i"),
+		makeErrMsg("unboundNegated4", "j"),
+		makeErrMsg("unsafeBuiltin", "x"),
+		makeErrMsg("unboundNoTarget", "x"),
+		makeErrMsg("unboundArrayComprBody1", "y"),
+		makeErrMsg("unboundArrayComprBody2", "z"),
+		makeErrMsg("unboundArrayComprBody3", "x"),
+		makeErrMsg("unboundArrayComprTerm1", "u"),
+		makeErrMsg("unboundArrayComprTerm2", "w"),
+		makeErrMsg("unboundArrayComprTerm3", "i"),
+		makeErrMsg("unboundArrayComprMixed1", "x"),
+		makeErrMsg("unboundArrayComprMixed1", "z"),
+		makeErrMsg("unsafeClosure1", "x"),
+		makeErrMsg("unsafeClosure2", "y"),
+		makeErrMsg("unsafeNestedHead", "dead"),
 	}
 
+	result := compilerErrsToStringSlice(c.Errors)
+	sort.Strings(expected)
+
+	if len(result) != len(expected) {
+		t.Fatalf("Expected %d:\n%v\nBut got %d:\n%v", len(expected), strings.Join(expected, "\n"), len(result), strings.Join(result, "\n"))
+	}
+
+	for i := range result {
+		if expected[i] != result[i] {
+			t.Errorf("Expected %v but got: %v", expected[i], result[i])
+		}
+	}
+
+}
+
+func TestCompilerBuiltinArgs(t *testing.T) {
+	c := NewCompiler()
+	c.Modules = map[string]*Module{
+		"mod": MustParseModule(`
+			package badbuiltin
+			p :- count(1)
+			q :- count([1,2,3], x, 1)
+			`),
+	}
+	compileStages(c, "", "checkBuiltinArgs")
+	result := compilerErrsToStringSlice(c.Errors)
+	expected := []string{
+		"p: wrong number of arguments (expression count(1) must specify 2 arguments to built-in function count)",
+		"q: wrong number of arguments (expression count([1,2,3], x, 1) must specify 2 arguments to built-in function count)",
+	}
+	if len(result) != len(expected) {
+		t.Fatalf("Expected %d:\n%v\nBut got %d:\n%v", len(expected), strings.Join(expected, "\n"), len(result), strings.Join(result, "\n"))
+	}
+	for i := range result {
+		if expected[i] != result[i] {
+			t.Errorf("Expected %v but got: %v", expected[i], result[i])
+		}
+	}
 }
 
 func TestCompilerResolveAllRefs(t *testing.T) {
@@ -487,42 +523,36 @@ func TestCompilerCheckRecursion(t *testing.T) {
 
 	compileStages(c, "", "checkRecursion")
 
-	expected := []error{
-		fmt.Errorf("recursion found in s: s, t, s"),
-		fmt.Errorf("recursion found in t: t, s, t"),
-		fmt.Errorf("recursion found in a: a, b, c, e, a"),
-		fmt.Errorf("recursion found in b: b, c, e, a, b"),
-		fmt.Errorf("recursion found in c: c, e, a, b, c"),
-		fmt.Errorf("recursion found in e: e, a, b, c, e"),
-		fmt.Errorf("recursion found in p: p, q, p"),
-		fmt.Errorf("recursion found in q: q, p, q"),
-		fmt.Errorf("recursion found in acq: acq, acp, acq"),
-		fmt.Errorf("recursion found in acp: acp, acq, acp"),
-		fmt.Errorf("recursion found in np: np, nq, np"),
-		fmt.Errorf("recursion found in nq: nq, np, nq"),
+	makeErrMsg := func(rule string, loop ...string) string {
+		return fmt.Sprintf("%v: recursive reference: %s (recursion is not allowed)", rule, strings.Join(loop, " -> "))
 	}
 
-	if len(c.Errors) != len(expected) {
-		t.Errorf("Expected exactly %v errors but got %v: %v", len(expected), len(c.Errors), c.Errors)
-		return
+	expected := []string{
+		makeErrMsg("s", "s", "t", "s"),
+		makeErrMsg("t", "t", "s", "t"),
+		makeErrMsg("a", "a", "b", "c", "e", "a"),
+		makeErrMsg("b", "b", "c", "e", "a", "b"),
+		makeErrMsg("c", "c", "e", "a", "b", "c"),
+		makeErrMsg("e", "e", "a", "b", "c", "e"),
+		makeErrMsg("p", "p", "q", "p"),
+		makeErrMsg("q", "q", "p", "q"),
+		makeErrMsg("acq", "acq", "acp", "acq"),
+		makeErrMsg("acp", "acp", "acq", "acp"),
+		makeErrMsg("np", "np", "nq", "np"),
+		makeErrMsg("nq", "nq", "np", "nq"),
 	}
 
-	for _, x := range c.Errors {
-		found := false
-		for i, y := range expected {
-			if reflect.DeepEqual(x, y) {
-				found = true
-				expected = append(expected[:i], expected[i+1:]...)
-				break
-			}
+	result := compilerErrsToStringSlice(c.Errors)
+	sort.Strings(expected)
+
+	if len(result) != len(expected) {
+		t.Fatalf("Expected %d:\n%v\nBut got %d:\n%v", len(expected), strings.Join(expected, "\n"), len(result), strings.Join(result, "\n"))
+	}
+
+	for i := range result {
+		if result[i] != expected[i] {
+			t.Errorf("Expected %v but got: %v", expected[i], result[i])
 		}
-		if !found {
-			t.Errorf("Unexpected error in recursion check: %v", x)
-		}
-	}
-
-	if len(expected) > 0 {
-		t.Errorf("Missing errors in recursion check: %v", expected)
 	}
 }
 
@@ -714,4 +744,14 @@ func getCompilerTestModules() map[string]*Module {
 		"mod5": mod5,
 		"mod6": mod6,
 	}
+}
+
+func compilerErrsToStringSlice(errors []error) []string {
+	result := []string{}
+	for _, e := range errors {
+		msg := strings.SplitN(e.Error(), ":", 3)[2]
+		result = append(result, strings.TrimSpace(msg))
+	}
+	sort.Strings(result)
+	return result
 }

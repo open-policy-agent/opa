@@ -235,8 +235,9 @@ func (r *REPL) compileBody(body ast.Body) (ast.Body, error) {
 	r.nextID++
 
 	rule := &ast.Rule{
-		Name: ast.Var(name),
-		Body: body,
+		Location: body[0].Location,
+		Name:     ast.Var(name),
+		Body:     body,
 	}
 
 	modules := r.policyStore.List()

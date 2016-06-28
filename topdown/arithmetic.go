@@ -9,7 +9,6 @@ import (
 	"math"
 
 	"github.com/open-policy-agent/opa/ast"
-	"github.com/pkg/errors"
 )
 
 type arithArity1 func(a float64) (ast.Number, error)
@@ -48,7 +47,7 @@ func evalArithArity1(f arithArity1) BuiltinFunc {
 		ops := expr.Terms.([]*ast.Term)
 		a, err := ValueToFloat64(ops[1].Value, ctx)
 		if err != nil {
-			return errors.Wrapf(err, "arithmetic")
+			return expr.Location.Wrapf(err, "expected number (operand %s is not a number)", ops[0].Location.Text)
 		}
 
 		r, err := f(a)
@@ -77,12 +76,12 @@ func evalArithArity2(f arithArity2) BuiltinFunc {
 
 		a, err := ValueToFloat64(ops[1].Value, ctx)
 		if err != nil {
-			return errors.Wrapf(err, "arithemtic")
+			return expr.Location.Wrapf(err, "expected number (first operand %s is not a number)", ops[0].Location.Text)
 		}
 
 		b, err := ValueToFloat64(ops[2].Value, ctx)
 		if err != nil {
-			return errors.Wrapf(err, "arithemtic")
+			return expr.Location.Wrapf(err, "expected number (second operand %s is not a number)", ops[2].Location.Text)
 		}
 
 		c, err := f(a, b)
