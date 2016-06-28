@@ -12,6 +12,38 @@ import (
 	"testing"
 )
 
+func TestInterfaceToValue(t *testing.T) {
+	input := `
+	{
+		"x": [
+			1,
+			true,
+			false,
+			null,
+			"hello",
+			["goodbye", 1],
+			{"y": 3.1}
+		]
+	}
+	`
+	var x interface{}
+	if err := json.Unmarshal([]byte(input), &x); err != nil {
+		panic(err)
+	}
+
+	expected := MustParseTerm(input).Value
+
+	v, err := InterfaceToValue(x)
+	if err != nil {
+		t.Errorf("Unexpected error converting interface{} to ast.Value: %v", err)
+		return
+	}
+
+	if !v.Equal(expected) {
+		t.Errorf("Expected ast.Value to equal:\n%v\nBut got:\n%v", expected, v)
+	}
+}
+
 func TestObjectSetOperations(t *testing.T) {
 
 	a := MustParseTerm(`{"a": "b", "c": "d"}`).Value.(Object)

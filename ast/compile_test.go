@@ -16,9 +16,10 @@ func TestModuleTree(t *testing.T) {
 
 	mods := getCompilerTestModules()
 	tree := NewModuleTree(mods)
+	expectedSize := 6
 
-	if tree.Size() != 5 {
-		t.Errorf("Expected size of 4 in module tree but got: %v", tree.Size())
+	if tree.Size() != expectedSize {
+		t.Errorf("Expected size of %v in module tree but got: %v", expectedSize, tree.Size())
 	}
 
 	if r1 := findRules(tree, MustParseRef("data.a.b.c")); len(r1) != 0 {
@@ -146,6 +147,7 @@ func TestCompilerCheckSafetyBodyReordering(t *testing.T) {
 		// trivial cases
 		{"noop", "x = 1, x != 0", "x = 1, x != 0"},
 		{"var/ref", "a[i] = x, a = [1,2,3,4]", "a = [1,2,3,4], a[i] = x"},
+		{"var/ref (nested)", "a = [1,2,3,4], a[b[i]] = x, b = [0,0,0,0]", "a = [1,2,3,4], b = [0,0,0,0], a[b[i]] = x"},
 		{"negation",
 			"a = [true, false], b = [true, false], not a[i], b[i]",
 			"a = [true, false], b = [true, false], b[i], not a[i]"},
@@ -302,6 +304,8 @@ func TestCompilerCheckSafetyBodyErrors(t *testing.T) {
 	unsafeClosure1 :- x = [x | x = 1]
 	unsafeClosure2 :- x = y, x = [y | y = 1]
 
+	unsafeNestedHead :- count(baz[i].attr[bar[dead.beef]], n)
+
 	negatedImport1 = true :- not foo
 	negatedImport2 = true :- not bar
 	negatedImport3 = true :- not baz
@@ -327,6 +331,7 @@ func TestCompilerCheckSafetyBodyErrors(t *testing.T) {
 		fmt.Errorf("unsafe variables in unboundArrayComprMixed1: [x z]"),
 		fmt.Errorf("unsafe variables in unsafeClosure1: [x]"),
 		fmt.Errorf("unsafe variables in unsafeClosure2: [y]"),
+		fmt.Errorf("unsafe variables in unsafeNestedHead: [dead]"),
 	}
 
 	if !reflect.DeepEqual(expected, c.Errors) {
@@ -350,6 +355,7 @@ func TestCompilerResolveAllRefs(t *testing.T) {
 
 	assertNotFailed(t, c)
 
+	// Basic test cases.
 	mod1 := c.Modules["mod1"]
 	p := mod1.Rules[0]
 	expr1 := p.Body[0]
@@ -402,6 +408,17 @@ func TestCompilerResolveAllRefs(t *testing.T) {
 	assertTermEqual(t, acTerm5.Body[0].Terms.([]*Term)[2].Value.(*ArrayComprehension).Term, MustParseTerm("x.a"))
 	acTerm6 := ac(mod5.Rules[5])
 	assertTermEqual(t, acTerm6.Body[0].Terms.([]*Term)[2].Value.(*ArrayComprehension).Body[0].Terms.([]*Term)[1], MustParseTerm("a.b.c.q[i]"))
+
+	// Nested references.
+	mod6 := c.Modules["mod6"]
+	nested1 := mod6.Rules[0].Body[0].Terms.(*Term)
+	assertTermEqual(t, nested1, MustParseTerm("data.x[x[i].a[data.z.b[j]]]"))
+
+	nested2 := mod6.Rules[1].Body[1].Terms.(*Term)
+	assertTermEqual(t, nested2, MustParseTerm("v[x[i]]"))
+
+	nested3 := mod6.Rules[3].Body[0].Terms.(*Term)
+	assertTermEqual(t, nested3, MustParseTerm("data.x[data.a.b.nested.r]"))
 
 }
 
@@ -464,6 +481,11 @@ func TestCompilerCheckRecursion(t *testing.T) {
 						acp[x] :- acq[x]
 						acq[x] :- a = [x | acp[x]], a[i] = x
 						`),
+		"newMod7": MustParseModule(`
+						package rec6
+						np[x] = y :- data.a[data.b.c[nq[x]]] = y
+						nq[x] = y :- data.d[data.e[x].f[np[y]]]
+						`),
 	}
 
 	compileStages(c, "", "checkRecursion")
@@ -479,10 +501,12 @@ func TestCompilerCheckRecursion(t *testing.T) {
 		fmt.Errorf("recursion found in q: q, p, q"),
 		fmt.Errorf("recursion found in acq: acq, acp, acq"),
 		fmt.Errorf("recursion found in acp: acp, acq, acp"),
+		fmt.Errorf("recursion found in np: np, nq, np"),
+		fmt.Errorf("recursion found in nq: nq, np, nq"),
 	}
 
 	if len(c.Errors) != len(expected) {
-		t.Errorf("Expected exactly %v errors but got: %v", len(expected), c.Errors)
+		t.Errorf("Expected exactly %v errors but got %v: %v", len(expected), len(c.Errors), c.Errors)
 		return
 	}
 
@@ -672,5 +696,25 @@ func getCompilerTestModules() map[string]*Module {
 	v :- [true | _ = [ true | q[i] = 1]]
 	`)
 
-	return map[string]*Module{"mod2": mod2, "mod3": mod3, "mod1": mod1, "mod4": mod4, "mod5": mod5}
+	mod6 := MustParseModule(`
+	package a.b.nested
+
+	import data.x
+	import x as y
+	import data.z
+
+	p :- x[y[i].a[z.b[j]]]
+	q :- x = v, v[y[i]]
+	r = 1 :- true
+	s :- x[r]
+	`)
+
+	return map[string]*Module{
+		"mod1": mod1,
+		"mod2": mod2,
+		"mod3": mod3,
+		"mod4": mod4,
+		"mod5": mod5,
+		"mod6": mod6,
+	}
 }

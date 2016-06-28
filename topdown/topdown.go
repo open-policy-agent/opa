@@ -278,9 +278,6 @@ func PlugValue(v ast.Value, ctx *Context) ast.Value {
 		if b := ctx.Binding(v); b != nil {
 			return b
 		}
-		if v.IsGround() {
-			return v
-		}
 		var buf ast.Ref
 		buf = append(buf, v[0])
 		for _, p := range v[1:] {
@@ -564,6 +561,7 @@ func evalExpr(ctx *Context, iter Iterator) error {
 		v := tt.Value
 		if !v.Equal(ast.Boolean(false)) {
 			if v.IsGround() {
+				ctx.traceSuccess(expr)
 				return iter(ctx)
 			}
 		}
@@ -573,34 +571,96 @@ func evalExpr(ctx *Context, iter Iterator) error {
 	}
 }
 
-func evalRef(ctx *Context, ref ast.Ref, iter Iterator) error {
-	// If this reference refers to a local variable, evaluate against the binding.
-	// Otherwise, evaluate against the database.
-	if !ref[0].Equal(ast.DefaultRootDocument) {
-		v := ctx.Binding(ref[0].Value)
-		if v == nil {
-			return unboundGlobalVarErr(ref)
+// evalRef evaluates the ast.Ref ref and calls the Iterator iter once for each
+// instance of ref that would be defined. If an error occurs during the evaluation
+// process, the return value is non-nil. Also, if iter returns an error, the return
+// value is non-nil.
+func evalRef(ctx *Context, ref, path ast.Ref, iter Iterator) error {
+
+	if len(ref) == 0 {
+		// If this reference refers to a local variable, evaluate against the binding.
+		// Otherwise, evaluate against the database.
+		if !path[0].Equal(ast.DefaultRootDocument) {
+			v := ctx.Binding(path[0].Value)
+			if v == nil {
+				return unboundGlobalVarErr(path)
+			}
+			return evalRefRuleResult(ctx, path, path[1:], v, iter)
 		}
-		return evalRefRuleResult(ctx, ref, ref[1:], v, iter)
+		return evalRefRec(ctx, ast.Ref{path[0]}, path[1:], iter)
 	}
 
-	return evalRefRec(ctx, ast.Ref{ref[0]}, ref[1:], iter)
+	head, tail := ref[0], ref[1:]
+	n, ok := head.Value.(ast.Ref)
+	if !ok {
+		path = append(path, head)
+		return evalRef(ctx, tail, path, iter)
+	}
+
+	return evalRef(ctx, n, ast.Ref{}, func(ctx *Context) error {
+		if b := ctx.Binding(n); b == nil {
+			p := PlugValue(n, ctx).(ast.Ref)
+			v, err := lookupValue(ctx.DataStore, p)
+			if err != nil {
+				return err
+			}
+			ctx = ctx.BindValue(n, v)
+		}
+		tmp := append(path, head)
+		return evalRef(ctx, tail, tmp, iter)
+	})
 }
 
 func evalRefRec(ctx *Context, path, tail ast.Ref, iter Iterator) error {
-
 	if len(tail) == 0 {
 		return evalRefRecFinish(ctx, path, iter)
 	}
-
 	if tail[0].IsGround() {
 		return evalRefRecGround(ctx, path, tail, iter)
 	}
-
 	return evalRefRecNonGround(ctx, path, tail, iter)
 }
 
-func evalRefRecEnumColl(ctx *Context, path, tail ast.Ref, iter Iterator) error {
+func evalRefRecFinish(ctx *Context, path ast.Ref, iter Iterator) error {
+	ok, err := lookupExists(ctx.DataStore, path)
+	if err == nil && ok {
+		return iter(ctx)
+	}
+	return err
+}
+
+func evalRefRecGround(ctx *Context, path, tail ast.Ref, iter Iterator) error {
+	// Check if the node exists. If the node does not exist, stop.
+	// If the node exists and is a rule, evaluate the rule to produce a virtual doc.
+	// Otherwise, process the rest of the reference.
+	path = append(path, PlugTerm(tail[0], ctx))
+	rules, err := lookupRule(ctx.DataStore, path)
+	if err != nil {
+		if storage.IsNotFound(err) {
+			return nil
+		}
+		return err
+	}
+	if rules != nil {
+		ref := append(path, tail[1:]...)
+		return evalRefRule(ctx, ref, path, rules, iter)
+	}
+	return evalRefRec(ctx, path, tail[1:], iter)
+}
+
+func evalRefRecNonGround(ctx *Context, path, tail ast.Ref, iter Iterator) error {
+	// Check if the variable has a binding.
+	// If there is a binding, process the rest of the reference normally.
+	// If there is no binding, enumerate the collection referred to by the path.
+	plugged := PlugTerm(tail[0], ctx)
+	if plugged.IsGround() {
+		path = append(path, plugged)
+		return evalRefRec(ctx, path, tail[1:], iter)
+	}
+	return evalRefRecWalkColl(ctx, path, tail, iter)
+}
+
+func evalRefRecWalkColl(ctx *Context, path, tail ast.Ref, iter Iterator) error {
 
 	node, err := ctx.DataStore.GetRef(path)
 	if err != nil {
@@ -639,45 +699,6 @@ func evalRefRecEnumColl(ctx *Context, path, tail ast.Ref, iter Iterator) error {
 	default:
 		return fmt.Errorf("non-collection document: %v", path)
 	}
-}
-
-func evalRefRecFinish(ctx *Context, path ast.Ref, iter Iterator) error {
-	ok, err := lookupExists(ctx.DataStore, path)
-	if err == nil && ok {
-		return iter(ctx)
-	}
-	return err
-}
-
-func evalRefRecGround(ctx *Context, path, tail ast.Ref, iter Iterator) error {
-	// Check if the node exists. If the node does not exist, stop.
-	// If the node exists and is a rule, evaluate the rule to produce a virtual doc.
-	// Otherwise, process the rest of the reference.
-	path = append(path, tail[0])
-	rules, err := lookupRule(ctx.DataStore, path)
-	if err != nil {
-		if storage.IsNotFound(err) {
-			return nil
-		}
-		return err
-	}
-	if rules != nil {
-		ref := append(path, tail[1:]...)
-		return evalRefRule(ctx, ref, path, rules, iter)
-	}
-	return evalRefRec(ctx, path, tail[1:], iter)
-}
-
-func evalRefRecNonGround(ctx *Context, path, tail ast.Ref, iter Iterator) error {
-	// Check if the variable has a binding.
-	// If there is a binding, process the rest of the reference normally.
-	// If there is no binding, enumerate the collection referred to by the path.
-	plugged := PlugTerm(tail[0], ctx)
-	if plugged.IsGround() {
-		path = append(path, plugged)
-		return evalRefRec(ctx, path, tail[1:], iter)
-	}
-	return evalRefRecEnumColl(ctx, path, tail, iter)
 }
 
 func evalRefRule(ctx *Context, ref ast.Ref, path ast.Ref, rules []*ast.Rule, iter Iterator) error {
@@ -1049,7 +1070,7 @@ func evalTermsRec(ctx *Context, iter Iterator, ts []*ast.Term) error {
 
 	switch head := head.Value.(type) {
 	case ast.Ref:
-		return evalRef(ctx, head, func(ctx *Context) error {
+		return evalRef(ctx, head, ast.Ref{}, func(ctx *Context) error {
 			return evalTermsRec(ctx, iter, tail)
 		})
 	case ast.Array:
@@ -1075,7 +1096,7 @@ func evalTermsRecArray(ctx *Context, arr ast.Array, idx int, iter Iterator) erro
 	}
 	switch v := arr[idx].Value.(type) {
 	case ast.Ref:
-		return evalRef(ctx, v, func(ctx *Context) error {
+		return evalRef(ctx, v, ast.Ref{}, func(ctx *Context) error {
 			return evalTermsRecArray(ctx, arr, idx+1, iter)
 		})
 	case ast.Array:
@@ -1101,10 +1122,10 @@ func evalTermsRecObject(ctx *Context, obj ast.Object, idx int, iter Iterator) er
 	}
 	switch k := obj[idx][0].Value.(type) {
 	case ast.Ref:
-		return evalRef(ctx, k, func(ctx *Context) error {
+		return evalRef(ctx, k, ast.Ref{}, func(ctx *Context) error {
 			switch v := obj[idx][1].Value.(type) {
 			case ast.Ref:
-				return evalRef(ctx, v, func(ctx *Context) error {
+				return evalRef(ctx, v, ast.Ref{}, func(ctx *Context) error {
 					return evalTermsRecObject(ctx, obj, idx+1, iter)
 				})
 			case ast.Array:
@@ -1126,7 +1147,7 @@ func evalTermsRecObject(ctx *Context, obj ast.Object, idx int, iter Iterator) er
 	default:
 		switch v := obj[idx][1].Value.(type) {
 		case ast.Ref:
-			return evalRef(ctx, v, func(ctx *Context) error {
+			return evalRef(ctx, v, ast.Ref{}, func(ctx *Context) error {
 				return evalTermsRecObject(ctx, obj, idx+1, iter)
 			})
 		case ast.Array:
@@ -1166,14 +1187,14 @@ func indexAvailable(ctx *Context, expr *ast.Expr) bool {
 	a := ts[1].Value
 	b := ts[2].Value
 
-	_, isRefA := a.(ast.Ref)
-	_, isRefB := b.(ast.Ref)
+	aRef, isRefA := a.(ast.Ref)
+	bRef, isRefB := b.(ast.Ref)
 
-	if isRefA && !a.IsGround() {
+	if isRefA && !a.IsGround() && !aRef.IsNested() {
 		return b.IsGround() || isRefB
 	}
 
-	if isRefB && !b.IsGround() {
+	if isRefB && !b.IsGround() && !bRef.IsNested() {
 		return a.IsGround() || isRefA
 	}
 
@@ -1185,7 +1206,7 @@ func indexAvailable(ctx *Context, expr *ast.Expr) bool {
 // built on the fly.
 func indexBuildLazy(ctx *Context, ref ast.Ref) (bool, error) {
 
-	if ref.IsGround() {
+	if ref.IsGround() || ref.IsNested() {
 		return false, nil
 	}
 
@@ -1248,6 +1269,14 @@ func lookupRule(ds *storage.DataStore, ref ast.Ref) ([]*ast.Rule, error) {
 	default:
 		return nil, nil
 	}
+}
+
+func lookupValue(ds *storage.DataStore, ref ast.Ref) (ast.Value, error) {
+	r, err := ds.GetRef(ref)
+	if err != nil {
+		return nil, err
+	}
+	return ast.InterfaceToValue(r)
 }
 
 func topDownQueryCompleteDoc(params *QueryParams, rules []*ast.Rule) (interface{}, error) {
@@ -1353,38 +1382,4 @@ func topDownQueryPartialSetDoc(params *QueryParams, rules []*ast.Rule) (interfac
 		}
 	}
 	return result, nil
-}
-
-// walkValue invokes the iterator for each AST value contained inside the supplied AST value.
-// If walkValue is called with a scalar, the iterator is invoked exactly once.
-// If walkValue is called with a reference, the iterator is invoked for each element in the reference.
-func walkValue(value ast.Value, iter func(ast.Value) bool) bool {
-	switch value := value.(type) {
-	case ast.Ref:
-		for _, x := range value {
-			if walkValue(x.Value, iter) {
-				return true
-			}
-		}
-		return false
-	case ast.Array:
-		for _, x := range value {
-			if walkValue(x.Value, iter) {
-				return true
-			}
-		}
-		return false
-	case ast.Object:
-		for _, i := range value {
-			if walkValue(i[0].Value, iter) {
-				return true
-			}
-			if walkValue(i[1].Value, iter) {
-				return true
-			}
-		}
-		return false
-	default:
-		return iter(value)
-	}
 }

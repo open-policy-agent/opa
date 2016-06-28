@@ -241,41 +241,32 @@ func (c *Compiler) resolveAllRefs() {
 
 func (c *Compiler) resolveRef(globals map[Var]Value, ref Ref) Ref {
 
-	global := globals[ref[0].Value.(Var)]
-	if global == nil {
-		return ref
-	}
-	fqn := Ref{}
-	switch global := global.(type) {
-	case Ref:
-		fqn = append(fqn, global...)
-		for _, p := range ref[1:] {
-			switch v := p.Value.(type) {
-			case Var:
-				global := globals[v]
-				if global != nil {
-					_, isRef := global.(Ref)
-					if isRef {
-						c.err("nested references in %v: %v => %v", ref, v, global)
-						return ref
+	r := Ref{}
+	for i, x := range ref {
+		switch v := x.Value.(type) {
+		case Var:
+			if g, ok := globals[v]; ok {
+				switch g := g.(type) {
+				case Ref:
+					if i == 0 {
+						r = append(r, g...)
+					} else {
+						r = append(r, &Term{Location: x.Location, Value: g[:]})
 					}
-					fqn = append(fqn, &Term{Location: p.Location, Value: global})
-				} else {
-					fqn = append(fqn, p)
+				case Var:
+					r = append(r, &Term{Value: g})
 				}
-			default:
-				fqn = append(fqn, p)
+			} else {
+				r = append(r, x)
 			}
+		case Ref:
+			r = append(r, c.resolveRefsInTerm(globals, x))
+		default:
+			r = append(r, x)
 		}
-	case Var:
-		fqn = append(fqn, &Term{Value: global})
-		fqn = append(fqn, ref[1:]...)
-	default:
-		c.err("unexpected %T: %v", global, global)
-		return ref
 	}
 
-	return fqn
+	return r
 }
 
 func (c *Compiler) resolveRefsInBody(globals map[Var]Value, body Body) Body {
@@ -515,7 +506,7 @@ func (vis *ruleGraphBuilder) Visit(v interface{}) Visitor {
 	for _, v := range findRules(vis.moduleTree, ref) {
 		vis.edges[v] = struct{}{}
 	}
-	return nil
+	return vis
 }
 
 type ruleGraphTraveral struct {
