@@ -54,7 +54,7 @@ Steps
 
 1. Download the latest version of OPA:
 
-        curl -L https://github.com/open-policy-agent/opa/releases/download/v0.1.0-rc2/opa_linux_amd64 > opa
+        curl -L https://github.com/open-policy-agent/opa/releases/download/v0.1.0-rc3/opa_linux_amd64 > opa
         chmod u+x opa
 
 1. Run OPA in server mode with logging enabled:
