@@ -12,7 +12,17 @@ import (
 	"github.com/pkg/errors"
 )
 
-type arithmeticFunc func(a, b float64) (ast.Number, error)
+type arithArity1 func(a float64) (ast.Number, error)
+
+func arithAbs(a float64) (ast.Number, error) {
+	return ast.Number(math.Abs(a)), nil
+}
+
+func arithRound(a float64) (ast.Number, error) {
+	return ast.Number(math.Floor(a + 0.5)), nil
+}
+
+type arithArity2 func(a, b float64) (ast.Number, error)
 
 func arithPlus(a, b float64) (ast.Number, error) {
 	return ast.Number(a + b), nil
@@ -33,31 +43,35 @@ func arithDivide(a, b float64) (ast.Number, error) {
 	return ast.Number(a / b), nil
 }
 
-func arithRound(a float64) (ast.Number, error) {
-	return ast.Number(math.Floor(a + 0.5)), nil
-}
-
-func evalRound(ctx *Context, expr *ast.Expr, iter Iterator) error {
-	ops := expr.Terms.([]*ast.Term)
-	a, err := ValueToFloat64(ops[1].Value, ctx)
-	if err != nil {
-		return errors.Wrapf(err, "round")
-	}
-	r := ast.Number(math.Floor(a + 0.5))
-	b := ops[2].Value
-	switch b := b.(type) {
-	case ast.Var:
-		ctx = ctx.BindVar(b, r)
-		return iter(ctx)
-	default:
-		if b.Equal(r) {
-			return iter(ctx)
+func evalArithArity1(f arithArity1) BuiltinFunc {
+	return func(ctx *Context, expr *ast.Expr, iter Iterator) error {
+		ops := expr.Terms.([]*ast.Term)
+		a, err := ValueToFloat64(ops[1].Value, ctx)
+		if err != nil {
+			return errors.Wrapf(err, "arithmetic")
 		}
-		return nil
+
+		r, err := f(a)
+		if err != nil {
+			return err
+		}
+
+		b := ops[2].Value
+
+		switch b := b.(type) {
+		case ast.Var:
+			ctx = ctx.BindVar(b, r)
+			return iter(ctx)
+		default:
+			if b.Equal(r) {
+				return iter(ctx)
+			}
+			return nil
+		}
 	}
 }
 
-func evalArithmetic(f arithmeticFunc) BuiltinFunc {
+func evalArithArity2(f arithArity2) BuiltinFunc {
 	return func(ctx *Context, expr *ast.Expr, iter Iterator) error {
 		ops := expr.Terms.([]*ast.Term)
 

@@ -21,7 +21,7 @@ func RegisterBuiltin(b *Builtin) {
 var DefaultBuiltins = [...]*Builtin{
 	Equality,
 	GreaterThan, GreaterThanEq, LessThan, LessThanEq, NotEqual,
-	Plus, Minus, Multiply, Divide, Round,
+	Plus, Minus, Multiply, Divide, Round, Abs,
 	Count, Sum,
 	ToNumber,
 }
@@ -116,6 +116,13 @@ var Divide = &Builtin{
 // Round rounds the number up to the nearest integer.
 var Round = &Builtin{
 	Name:      Var("round"),
+	NumArgs:   2,
+	TargetPos: []int{1},
+}
+
+// Abs returns the number without its sign.
+var Abs = &Builtin{
+	Name:      Var("abs"),
 	NumArgs:   2,
 	TargetPos: []int{1},
 }

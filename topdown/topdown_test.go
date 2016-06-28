@@ -719,6 +719,7 @@ func TestTopDownArithmetic(t *testing.T) {
 		{"multiply", []string{"p[y] :- a[i] = x, mul(i, x, y)"}, "[0,2,6,12]"},
 		{"divide+round", []string{"p[z] :- a[i] = x, div(i, x, y), round(y, z)"}, "[0,1,1,1]"},
 		{"divide+error", []string{"p[y] :- a[i] = x, div(x, i, y)"}, fmt.Errorf("divide: by zero")},
+		{"abs", []string{"p :- abs(-10, x), x = 10"}, "true"},
 	}
 
 	data := loadSmallTestData()
