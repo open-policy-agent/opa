@@ -195,40 +195,57 @@ run ad-hoc queries or prototype policies.</p>
 <li><p>First, make sure you can run the REPL on your machine:</p>
 <div class="highlight"><pre><code class="language-" data-lang="">opa run
 </code></pre></div>
-<p>Without any data, you can experiment with simple boolean expressions to get the hang of it:</p>
-<div class="highlight"><pre><code class="language-" data-lang="">&gt; a = 1, b = 2, a != b
-+---+---+
-| A | B |
-+---+---+
-| 1 | 2 |
-+---+---+
-&gt; a = 1, b = 2, a = b
-false
-&gt; 10 &gt; 9
+<p>Without any data, you can experiment with simple expressions to get the hang of it:</p>
+<div class="highlight"><pre><code class="language-" data-lang="">&gt; true
 true
-&gt; a = [1,2,3,4], a[i] &gt; 2
-+-----------+---+
-|     A     | I |
-+-----------+---+
-| [1,2,3,4] | 2 |
-| [1,2,3,4] | 3 |
-+-----------+---+
+&gt; 3.14
+3.14
+&gt; ["hello", "world"]
+[
+  "hello",
+  "world"
+]
 </code></pre></div>
-<p>When you enter expressions into the REPL, you are effectively running <em>queries</em> against OPA. The REPL output shows the values of variables in the expression that make the query <strong>true</strong>. If there is not set of variables that would make the query true, the REPL prints <strong>false</strong>. If there are no variables in the query and the query evaluates successfully, then the REPL just prints <strong>true</strong>.</p></li>
-<li><p>In addition to running queries, the REPL also lets you define rules:</p>
-<div class="highlight"><pre><code class="language-" data-lang="">&gt; p[x] :- a = [1,2,3,4], a[x] = _
-defined
-&gt; p[x]
+<p>You can also test simple boolean expressions:</p>
+<div class="highlight"><pre><code class="language-" data-lang="">&gt; true = false
+false
+&gt; 3.14 &gt; 3
+true
+&gt; "hello" != "goodbye"
+true
+</code></pre></div>
+<p>Most REPLs let you define variables that you can reference later on. OPA allows you to do something similiar. For example, we can define a &quot;pi&quot; constant as follows:</p>
+<div class="highlight"><pre><code class="language-" data-lang="">&gt; pi = 3.14
+</code></pre></div>
+<p>Once &quot;pi&quot; is defined, you query for the value and write expressions in terms of it:</p>
+<div class="highlight"><pre><code class="language-" data-lang="">&gt; pi
+3.14
+&gt; pi &gt; 3
+true
+</code></pre></div>
+<p>One thing to watch out for in the REPL is that = is used both for assigning variables values and for testing the value of variables. For example p = q sometimes assigns p the value of q and sometimes checks if the values of p and q are the same. The REPL decides between assignment and test based on whether p already has a value or not. If p has a value, p = q is a test (returning true or false), and if p has no value p = q is an assignment. To unset a value for a variable, use the &#39;unset&#39; command. (This ambiguity is only really an issue in the REPL--when writing policy the duality of = is actually beneficial.)</p>
+<div class="highlight"><pre><code class="language-" data-lang="">&gt; pi = 3
+false
+&gt; unset pi
+&gt; pi = 3
+&gt; pi
+3
+</code></pre></div>
+<p>In addition to running queries, the REPL also lets you define rules:</p>
+<div class="highlight"><pre><code class="language-" data-lang="">&gt; p[x] :- a = [1,2,3,4], a[x]
+&gt; p[x], x &gt; 1
 +---+
-| X |
+| x |
 +---+
-| 0 |
-| 1 |
 | 2 |
 | 3 |
 +---+
-</code></pre></div></li>
-<li><p>Quit out of the REPL by pressing Control-C or typing &quot;exit&quot;:</p>
+</code></pre></div>
+<p>The rule above defines a set of values that are the indices of elements in the array &quot;a&quot;.</p>
+
+<p>When you enter expressions into the REPL, you are effectively running <em>queries</em> against OPA. The REPL output shows the values of variables in the expression that make the query <strong>true</strong>. If there is no set of variables that would make the query true, the REPL prints <strong>false</strong>. If there are no variables in the query and the query evaluates successfully, then the REPL just prints <strong>true</strong>.</p>
+
+<p>Quit out of the REPL by pressing Control-C or typing &quot;exit&quot;:</p>
 <div class="highlight"><pre><code class="language-" data-lang="">&gt; exit
 Exiting
 </code></pre></div></li>
@@ -273,18 +290,18 @@ EOF
 <div class="highlight"><pre><code class="language-" data-lang="">opa run data.json example.rego
 </code></pre></div>
 <p>You can now run queries against the various documents:</p>
-<div class="highlight"><pre><code class="language-" data-lang="">&gt; data.servers[_].id = id
-+------+
-|  ID  |
-+------+
-| "s1" |
-| "s2" |
-| "s3" |
-| "s4" |
-+------+
+<div class="highlight"><pre><code class="language-" data-lang="">&gt; data.servers[_].id
++--------------------+
+| data.servers[_].id |
++--------------------+
+| "s1"               |
+| "s2"               |
+| "s3"               |
+| "s4"               |
++--------------------+
 &gt; data.opa.example.public_servers[x]
 +-------------------------------------------------------------------------------+
-|                                       X                                       |
+|                                       x                                       |
 +-------------------------------------------------------------------------------+
 | {"id":"s1","name":"app","ports":["p1","p2","p3"],"protocols":["https","ssh"]} |
 | {"id":"s4","name":"dev","ports":["p1","p2"],"protocols":["http"]}             |
@@ -294,27 +311,28 @@ EOF
 <div class="highlight"><pre><code class="language-" data-lang="">&gt; import data.servers
 &gt; servers[i].ports[_] = "p2", servers[i].id = id
 +---+------+
-| I |  ID  |
+| i |  id  |
 +---+------+
-| 3 | "s4" |
 | 0 | "s1" |
+| 3 | "s4" |
 +---+------+
 &gt; package opa.example
 &gt; public_servers[x], x.protocols[_] = "http"
 +-------------------------------------------------------------------+
-|                                 X                                 |
+|                                 x                                 |
 +-------------------------------------------------------------------+
 | {"id":"s4","name":"dev","ports":["p1","p2"],"protocols":["http"]} |
 +-------------------------------------------------------------------+
 </code></pre></div></li>
 <li><p>Finally, we can define a rule to identify servers in violation of our security policy:</p>
-<div class="highlight"><pre><code class="language-" data-lang="">&gt; violations[s] :-
+<div class="highlight"><pre><code class="language-" data-lang="">&gt; import data.servers
+&gt; violations[s] :-
   s = servers[_],
   s.protocols[_] = "http",
   public_servers[s]
 &gt; violations[server]
 +-------------------------------------------------------------------+
-|                              SERVER                               |
+|                              server                               |
 +-------------------------------------------------------------------+
 | {"id":"s4","name":"dev","ports":["p1","p2"],"protocols":["http"]} |
 +-------------------------------------------------------------------+
