@@ -22,7 +22,7 @@ var DefaultBuiltins = [...]*Builtin{
 	Equality,
 	GreaterThan, GreaterThanEq, LessThan, LessThanEq, NotEqual,
 	Plus, Minus, Multiply, Divide, Round, Abs,
-	Count, Sum,
+	Count, Sum, Max,
 	ToNumber,
 }
 
@@ -141,6 +141,13 @@ var Count = &Builtin{
 // Sum takes an array of numbers and sums them.
 var Sum = &Builtin{
 	Name:      Var("sum"),
+	NumArgs:   2,
+	TargetPos: []int{1},
+}
+
+// Max returns the maximum value in a collection.
+var Max = &Builtin{
+	Name:      Var("max"),
 	NumArgs:   2,
 	TargetPos: []int{1},
 }

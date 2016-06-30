@@ -773,7 +773,7 @@ bound value) instead of a variable.
 
 The following inequality operators are supported:
 
-| Symbol | Example        | Meaning |
+| Symbol | Example        | Description |
 | ------ | -------------- | ------- |
 | `!=`   | `"foo" != x.y` | LHS does not equal RHS. |
 | `<`    | `"foo" < x.y`  | LHS is less than RHS. |
@@ -787,6 +787,43 @@ in the expression. As a result, if either operand is a variable, the variable
 must appear in another expression in the same rule that would cause the variable
 to be bound, i.e., an equality expression or the target position of a built-in
 function.
+
+### <a name="built-ins"></a> Built-in Functions
+
+In some cases, rules must perform simple arithmetic, aggregation, etc. In these cases, Rego provides a number of Built-in Functions (or "built-ins") for performing these tasks.
+
+Built-ins can be easily recognized by their syntax. All built-ins have the following form:
+
+```
+<name>(<arg-1>, <arg-2>, ..., <arg-n>)
+```
+
+Built-ins usually take one or more input values and produce at least one output value. Unless stated otherwise, all built-ins accept values or variables as output arguments.
+
+#### Arithmetic
+
+| Name | Example | Result | Description |
+| ---- | ---- | ---- | ---- |
+| `plus`| `plus(1, 2, x)` | `3` | Add two numbers. |
+| `minus`| `minus(10, 5, x)` | `5` | Subtract two numbers. |
+| `mul` | `mul(8, 3, x)` | `24` | Multiply two numbers. |
+| `div` | `div(25, 5, x)` | `5` | Divide two numbers. Division by zero is treated as a runtime error and will cause the query to fail. |
+| `round` | `round(3.5, x)` | `4` | Rounds the number to the nearest integer value. |
+| `abs` | `abs(-1, x)` | `1` | Returns the number without its sign. |
+
+#### Aggregation
+
+| Name | Example | Result | Description |
+| ---- | ---- | ---- | ---- |
+| `count` | `count([1,2,3], x)` | `3` | Count the number of elements in the array or object or the number of characters in a string. |
+| `sum` | `sum([1,2,3], x)` | `6` | Sum the numbers in an array. |
+| `max` | `max([1,2,3], x)` | `3` | Calculate the maximum value in an array. |
+
+#### Casting
+
+| Name | Example | Result | Description |
+| ---- | ---- | ---- | ---- |
+| `to_number` | `to_number("3.14", x)` | `3.14` | Convert a scalar value to a number. |
 
 ## <a name="examples"></a> Examples
 

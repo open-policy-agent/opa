@@ -37,8 +37,9 @@ var defaultBuiltinFuncs = map[ast.Var]BuiltinFunc{
 	ast.Divide.Name:        evalArithArity2(arithDivide),
 	ast.Round.Name:         evalArithArity1(arithRound),
 	ast.Abs.Name:           evalArithArity1(arithAbs),
-	ast.Count.Name:         evalCount,
-	ast.Sum.Name:           evalSum,
+	ast.Count.Name:         evalReduce(reduceCount),
+	ast.Sum.Name:           evalReduce(reduceSum),
+	ast.Max.Name:           evalReduce(reduceMax),
 	ast.ToNumber.Name:      evalToNumber,
 }
 
