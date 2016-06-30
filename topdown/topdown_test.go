@@ -699,6 +699,8 @@ func TestTopDownAggregates(t *testing.T) {
 		{"count keys virtual", []string{"p[x] :- count([k | q[k] = _], x)", "q[k] = v :- b[k] = v"}, "[2]"},
 		{"sum", []string{"p[x] :- sum([1,2,3,4], x)"}, "[10]"},
 		{"sum virtual", []string{"p[x] :- sum([y | q[y]], x)", "q[x] :- a[_] = x"}, "[10]"},
+		{"max", []string{"p[x] :- max([1,2,3,4], x)"}, "[4]"},
+		{"max virtual", []string{"p[x] :- max([y | q[y]], x)", "q[x] :- a[_] = x"}, "[4]"},
 	}
 
 	data := loadSmallTestData()

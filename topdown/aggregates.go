@@ -8,61 +8,86 @@ import (
 	"fmt"
 
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/util"
 	"github.com/pkg/errors"
 )
 
-func evalCount(ctx *Context, expr *ast.Expr, iter Iterator) error {
-	ops := expr.Terms.([]*ast.Term)
-	src, dst := ops[1].Value, ops[2].Value
-	s, err := ValueToInterface(src, ctx)
-	if err != nil {
-		return errors.Wrapf(err, "count")
-	}
+type reduceFunc func(x interface{}) (ast.Value, error)
 
-	var count ast.Number
+type empty struct{}
 
-	switch s := s.(type) {
-	case []interface{}:
-		count = ast.Number(len(s))
-	case map[string]interface{}:
-		count = ast.Number(len(s))
-	default:
-		return fmt.Errorf("count: source must be a collection: %v", src)
-	}
+func (e empty) Error() string {
+	return "empty"
+}
 
-	switch dst := dst.(type) {
-	case ast.Var:
-		ctx = ctx.BindVar(dst, count)
-		return iter(ctx)
-	default:
-		if dst.Equal(count) {
-			return iter(ctx)
+func evalReduce(f reduceFunc) BuiltinFunc {
+	return func(ctx *Context, expr *ast.Expr, iter Iterator) error {
+		ops := expr.Terms.([]*ast.Term)
+		src, dst := ops[1].Value, ops[2].Value
+		x, err := ValueToInterface(src, ctx)
+		if err != nil {
+			return errors.Wrapf(err, "aggregate")
 		}
-		return nil
+
+		y, err := f(x)
+		if err != nil {
+			switch err.(type) {
+			case empty:
+				return nil
+			}
+			return err
+		}
+
+		switch dst := dst.(type) {
+		case ast.Var:
+			ctx = ctx.BindVar(dst, y)
+			return iter(ctx)
+		default:
+			if dst.Equal(y) {
+				return iter(ctx)
+			}
+			return nil
+		}
 	}
 }
 
-func evalSum(ctx *Context, expr *ast.Expr, iter Iterator) error {
-	ops := expr.Terms.([]*ast.Term)
-	src, dst := ops[1].Value, ops[2].Value
-	s, err := ValueToSlice(src, ctx)
-	if err != nil {
-		return errors.Wrapf(err, "sum")
-	}
-
-	sum := ast.Number(0)
-	for _, x := range s {
-		sum += ast.Number(x.(float64))
-	}
-
-	switch dst := dst.(type) {
-	case ast.Var:
-		ctx = ctx.BindVar(dst, sum)
-		return iter(ctx)
-	default:
-		if dst.Equal(sum) {
-			return iter(ctx)
+func reduceSum(x interface{}) (ast.Value, error) {
+	if s, ok := x.([]interface{}); ok {
+		sum := ast.Number(0)
+		for _, x := range s {
+			sum += ast.Number(x.(float64))
 		}
-		return nil
+		return sum, nil
 	}
+	return nil, fmt.Errorf("sum: source must be array")
+}
+
+func reduceCount(x interface{}) (ast.Value, error) {
+	switch x := x.(type) {
+	case []interface{}:
+		return ast.Number(len(x)), nil
+	case map[string]interface{}:
+		return ast.Number(len(x)), nil
+	case string:
+		return ast.Number(len(x)), nil
+	default:
+		return nil, fmt.Errorf("count: source must be array, object, or string")
+	}
+}
+
+func reduceMax(x interface{}) (ast.Value, error) {
+	switch x := x.(type) {
+	case []interface{}:
+		if len(x) == 0 {
+			return nil, empty{}
+		}
+		var max interface{}
+		for i := range x {
+			if util.Compare(max, x[i]) <= 0 {
+				max = x[i]
+			}
+		}
+		return ast.InterfaceToValue(max)
+	}
+	return nil, fmt.Errorf("max: source must be array")
 }
