@@ -11,6 +11,26 @@ import (
 	"testing"
 )
 
+func TestHashMapPutDelete(t *testing.T) {
+	m := stringHashMap()
+	m.Put("a", "b")
+	m.Put("b", "c")
+	m.Delete("b")
+	r, _ := m.Get("a")
+	if r != "b" {
+		t.Fatal("Expected a to be intact")
+	}
+	r, ok := m.Get("b")
+	if ok {
+		t.Fatalf("Expected b to be removed: %v", r)
+	}
+	m.Delete("b")
+	r, _ = m.Get("a")
+	if r != "b" {
+		t.Fatal("Expected a to be intact")
+	}
+}
+
 func TestHashMapOverwrite(t *testing.T) {
 	m := stringHashMap()
 	key := "hello"

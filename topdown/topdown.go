@@ -14,11 +14,6 @@ import (
 )
 
 // Context contains the state of the evaluation process.
-//
-// TODO(tsandall): profile perf/memory usage with current approach;
-// the current approach copies the Context structure for each
-// step and binding. This avoids the need to undo steps and bindings
-// each time the proof fails but this may be too expensive.
 type Context struct {
 	Query     ast.Body
 	Globals   *storage.Bindings
@@ -50,12 +45,30 @@ func (ctx *Context) Binding(k ast.Value) ast.Value {
 	return nil
 }
 
-// BindValue returns a new Context with bindings that map the key to the value.
-func (ctx *Context) BindValue(key ast.Value, value ast.Value) *Context {
-	cpy := *ctx
-	cpy.Locals = ctx.Locals.Copy()
-	cpy.Locals.Put(key, value)
-	return &cpy
+// Undo represents a binding that can be undone.
+type Undo struct {
+	Key   ast.Value
+	Value ast.Value
+	Prev  *Undo
+}
+
+// Bind updates the context to include a binding from the key to the value. The return
+// value is used to return the context to the state before the binding was added.
+func (ctx *Context) Bind(key ast.Value, value ast.Value, prev *Undo) *Undo {
+	o := ctx.Locals.Get(key)
+	ctx.Locals.Put(key, value)
+	return &Undo{key, o, prev}
+}
+
+// Unbind updates the context by removing the binding represented by the undo.
+func (ctx *Context) Unbind(undo *Undo) {
+	for u := undo; u != nil; u = u.Prev {
+		if u.Value != nil {
+			ctx.Locals.Put(u.Key, u.Value)
+		} else {
+			ctx.Locals.Delete(u.Key)
+		}
+	}
 }
 
 // Child returns a new context to evaluate a query that was referenced by this context.
@@ -90,11 +103,11 @@ func (ctx *Context) trace(f string, a ...interface{}) {
 }
 
 func (ctx *Context) traceEval() {
-	ctx.trace("Eval %v", ctx.Current(), ctx.Locals)
+	ctx.trace("Eval %v", ctx.Current())
 }
 
 func (ctx *Context) traceTry(expr *ast.Expr) {
-	ctx.trace(" Try %v", expr, ctx.Locals)
+	ctx.trace(" Try %v", expr)
 }
 
 func (ctx *Context) traceSuccess(expr *ast.Expr) {
@@ -156,6 +169,29 @@ func conflictErr(query interface{}, kind string, rule *ast.Rule) error {
 
 // Iterator is the interface for processing contexts.
 type Iterator func(*Context) error
+
+// Continue binds the key to the value in the current context and invokes the iterator.
+// This is a helper function for simple cases where a single value (e.g., a variable) needs
+// to be bound to a value in order for the evaluation the proceed.
+func Continue(ctx *Context, key, value ast.Value, iter Iterator) error {
+	undo := ctx.Bind(key, value, nil)
+	err := iter(ctx)
+	ctx.Unbind(undo)
+	return err
+}
+
+// ContinueN binds N keys to N values. The key/value pairs are passed in as alternating pairs, e.g.,
+// key-1, value-1, key-2, value-2, ..., key-N, value-N.
+func ContinueN(ctx *Context, iter Iterator, x ...ast.Value) error {
+	var prev *Undo
+	for i := 0; i < len(x)/2; i++ {
+		offset := i * 2
+		prev = ctx.Bind(x[offset], x[offset+1], prev)
+	}
+	err := iter(ctx)
+	ctx.Unbind(prev)
+	return err
+}
 
 // Eval runs the evaluation algorithm on the contxet and calls the iterator
 // foreach context that contains bindings that satisfy all of the expressions
@@ -549,16 +585,21 @@ func evalRef(ctx *Context, ref, path ast.Ref, iter Iterator) error {
 	}
 
 	return evalRef(ctx, n, ast.Ref{}, func(ctx *Context) error {
+		var undo *Undo
 		if b := ctx.Binding(n); b == nil {
 			p := PlugValue(n, ctx).(ast.Ref)
 			v, err := lookupValue(ctx.DataStore, p)
 			if err != nil {
 				return err
 			}
-			ctx = ctx.BindValue(n, v)
+			undo = ctx.Bind(n, v, nil)
 		}
 		tmp := append(path, head)
-		return evalRef(ctx, tail, tmp, iter)
+		err := evalRef(ctx, tail, tmp, iter)
+		if undo != nil {
+			ctx.Unbind(undo)
+		}
+		return err
 	})
 }
 
@@ -627,9 +668,10 @@ func evalRefRecWalkColl(ctx *Context, path, tail ast.Ref, iter Iterator) error {
 	switch node := node.(type) {
 	case map[string]interface{}:
 		for key := range node {
-			cpy := ctx.BindValue(head, ast.String(key))
+			undo := ctx.Bind(head, ast.String(key), nil)
 			path = append(path, ast.StringTerm(key))
-			err := evalRefRec(cpy, path, tail, iter)
+			err := evalRefRec(ctx, path, tail, iter)
+			ctx.Unbind(undo)
 			if err != nil {
 				return err
 			}
@@ -638,9 +680,10 @@ func evalRefRecWalkColl(ctx *Context, path, tail ast.Ref, iter Iterator) error {
 		return nil
 	case []interface{}:
 		for i := range node {
-			cpy := ctx.BindValue(head, ast.Number(i))
+			undo := ctx.Bind(head, ast.Number(i), nil)
 			path = append(path, ast.NumberTerm(float64(i)))
-			err := evalRefRec(cpy, path, tail, iter)
+			err := evalRefRec(ctx, path, tail, iter)
+			ctx.Unbind(undo)
 			if err != nil {
 				return err
 			}
@@ -753,8 +796,10 @@ func evalRefRulePartialObjectDoc(ctx *Context, ref ast.Ref, path ast.Ref, rule *
 			}
 			value = PlugValue(value, child)
 
-			ctx = ctx.BindValue(suffix[0].Value.(ast.Var), key)
-			return evalRefRuleResult(ctx, ref, ref[len(path)+1:], value, iter)
+			undo := ctx.Bind(suffix[0].Value.(ast.Var), key, nil)
+			err := evalRefRuleResult(ctx, ref, ref[len(path)+1:], value, iter)
+			ctx.Unbind(undo)
+			return err
 		})
 	}
 
@@ -802,8 +847,7 @@ func evalRefRulePartialObjectDocFull(ctx *Context, ref ast.Ref, rules []*ast.Rul
 		}
 	}
 
-	ctx = ctx.BindValue(ref, result)
-	return iter(ctx)
+	return Continue(ctx, ref, result, iter)
 }
 
 func evalRefRulePartialSetDoc(ctx *Context, ref ast.Ref, path ast.Ref, rule *ast.Rule, iter Iterator) error {
@@ -833,9 +877,7 @@ func evalRefRulePartialSetDoc(ctx *Context, ref ast.Ref, path ast.Ref, rule *ast
 			// so that expression will be defined. E.g., given a simple rule:
 			// "p = true :- q[x]", we say that "p" should be defined if "q"
 			// is defined for some value "x".
-			ctx = ctx.BindValue(key.(ast.Var), value)
-			ctx = ctx.BindValue(ref[:len(path)+1], ast.Boolean(true))
-			return iter(ctx)
+			return ContinueN(ctx, iter, key, value, ref[:len(path)+1], ast.Boolean(true))
 		})
 	}
 
@@ -845,8 +887,7 @@ func evalRefRulePartialSetDoc(ctx *Context, ref ast.Ref, path ast.Ref, rule *ast
 
 	return Eval(child, func(child *Context) error {
 		// See comment above for explanation of why the reference is bound to true.
-		ctx = ctx.BindValue(ref[:len(path)+1], ast.Boolean(true))
-		return iter(ctx)
+		return Continue(ctx, ref[:len(path)+1], ast.Boolean(true), iter)
 	})
 
 }
@@ -864,12 +905,17 @@ func evalRefRuleResult(ctx *Context, ref ast.Ref, suffix ast.Ref, result ast.Val
 		// needing to be processed. This is done by substituting the prefix of the original reference
 		// with the binding. In this case, the prefix is "q[k]" and the binding value would be
 		// "a[<some key>]".
-		var binding ast.Ref
-		binding = append(binding, result...)
-		binding = append(binding, suffix...)
+		offset := len(result)
+		binding := make(ast.Ref, offset+len(suffix))
+		for i := range result {
+			binding[i] = result[i]
+		}
+		for i := range suffix {
+			binding[i+offset] = suffix[i]
+		}
 		return evalRefRec(ctx, result, suffix, func(ctx *Context) error {
-			ctx = ctx.BindValue(ref, PlugValue(binding, ctx))
-			return iter(ctx)
+			v := PlugValue(binding, ctx)
+			return Continue(ctx, ref, v, iter)
 		})
 
 	case ast.Array:
@@ -879,15 +925,16 @@ func evalRefRuleResult(ctx *Context, ref ast.Ref, suffix ast.Ref, result ast.Val
 				pluggedSuffix = append(pluggedSuffix, PlugTerm(t, ctx))
 			}
 			return result.Query(pluggedSuffix, func(keys map[ast.Var]ast.Value, value ast.Value) error {
-				ctx = ctx.BindValue(ref, value)
+				prev := ctx.Bind(ref, value, nil)
 				for k, v := range keys {
-					ctx = ctx.BindValue(k, v)
+					prev = ctx.Bind(k, v, prev)
 				}
-				return iter(ctx)
+				err := iter(ctx)
+				ctx.Unbind(prev)
+				return err
 			})
 		}
-		ctx = ctx.BindValue(ref, result)
-		return iter(ctx)
+		return Continue(ctx, ref, result, iter)
 
 	case ast.Object:
 		if len(suffix) > 0 {
@@ -896,23 +943,23 @@ func evalRefRuleResult(ctx *Context, ref ast.Ref, suffix ast.Ref, result ast.Val
 				pluggedSuffix = append(pluggedSuffix, PlugTerm(t, ctx))
 			}
 			return result.Query(pluggedSuffix, func(keys map[ast.Var]ast.Value, value ast.Value) error {
-				ctx = ctx.BindValue(ref, value)
+				prev := ctx.Bind(ref, value, nil)
 				for k, v := range keys {
-					ctx = ctx.BindValue(k, v)
+					prev = ctx.Bind(k, v, prev)
 				}
-				return iter(ctx)
+				err := iter(ctx)
+				ctx.Unbind(prev)
+				return err
 			})
 		}
-		ctx = ctx.BindValue(ref, result)
-		return iter(ctx)
+		return Continue(ctx, ref, result, iter)
 
 	default:
 		if len(suffix) > 0 {
 			// This is not defined because it attempts to dereference a scalar.
 			return nil
 		}
-		ctx = ctx.BindValue(ref, result)
-		return iter(ctx)
+		return Continue(ctx, ref, result, iter)
 	}
 }
 
@@ -979,8 +1026,7 @@ func evalTermsComprehension(ctx *Context, comp ast.Value, iter Iterator) error {
 		if err != nil {
 			return err
 		}
-		ctx = ctx.BindValue(comp, r)
-		return iter(ctx)
+		return Continue(ctx, comp, r, iter)
 	default:
 		panic(fmt.Sprintf("illegal argument: %v %v", ctx, comp))
 	}
@@ -1006,8 +1052,14 @@ func evalTermsIndexed(ctx *Context, iter Iterator, indexed ast.Ref, nonIndexed *
 		// Iterate the bindings for the indexed term that when applied to the reference
 		// would locate the non-indexed value obtained above.
 		return index.Iter(nonIndexedValue, func(bindings *storage.Bindings) error {
-			ctx.Locals = ctx.Locals.Update(bindings)
-			return iter(ctx)
+			var prev *Undo
+			bindings.Iter(func(k, v ast.Value) bool {
+				prev = ctx.Bind(k, v, prev)
+				return false
+			})
+			err := iter(ctx)
+			ctx.Unbind(prev)
+			return err
 		})
 
 	}

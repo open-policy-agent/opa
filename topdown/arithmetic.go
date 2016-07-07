@@ -59,8 +59,7 @@ func evalArithArity1(f arithArity1) BuiltinFunc {
 
 		switch b := b.(type) {
 		case ast.Var:
-			ctx = ctx.BindValue(b, r)
-			return iter(ctx)
+			return Continue(ctx, b, r, iter)
 		default:
 			if b.Equal(r) {
 				return iter(ctx)
@@ -93,8 +92,7 @@ func evalArithArity2(f arithArity2) BuiltinFunc {
 
 		switch cv := cv.(type) {
 		case ast.Var:
-			ctx = ctx.BindValue(cv, c)
-			return iter(ctx)
+			return Continue(ctx, cv, c, iter)
 		default:
 			if cv.Equal(c) {
 				return iter(ctx)

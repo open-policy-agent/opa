@@ -17,7 +17,9 @@ func evalEq(ctx *Context, expr *ast.Expr, iter Iterator) error {
 	a := operands[1].Value
 	b := operands[2].Value
 
-	return evalEqUnify(ctx, a, b, iter)
+	undo, err := evalEqUnify(ctx, a, b, nil, iter)
+	ctx.Unbind(undo)
+	return err
 }
 
 func evalEqGround(ctx *Context, a ast.Value, b ast.Value, iter Iterator) error {
@@ -51,7 +53,7 @@ func evalEqGround(ctx *Context, a ast.Value, b ast.Value, iter Iterator) error {
 //
 // In cases involving references, OPA assumes that the references are ground at this stage.
 // As a result, references are just special cases of the normal scalar/composite unification.
-func evalEqUnify(ctx *Context, a ast.Value, b ast.Value, iter Iterator) error {
+func evalEqUnify(ctx *Context, a ast.Value, b ast.Value, prev *Undo, iter Iterator) (*Undo, error) {
 
 	// Plug bindings into both terms because this will be called recursively and there may be
 	// new bindings that have been made as part of unification.
@@ -60,53 +62,53 @@ func evalEqUnify(ctx *Context, a ast.Value, b ast.Value, iter Iterator) error {
 
 	switch a := a.(type) {
 	case ast.Var:
-		return evalEqUnifyVar(ctx, a, b, iter)
+		return evalEqUnifyVar(ctx, a, b, prev, iter)
 	case ast.Object:
-		return evalEqUnifyObject(ctx, a, b, iter)
+		return evalEqUnifyObject(ctx, a, b, prev, iter)
 	case ast.Array:
-		return evalEqUnifyArray(ctx, a, b, iter)
+		return evalEqUnifyArray(ctx, a, b, prev, iter)
 	default:
 		switch b := b.(type) {
 		case ast.Var:
-			return evalEqUnifyVar(ctx, b, a, iter)
+			return evalEqUnifyVar(ctx, b, a, prev, iter)
 		case ast.Array:
-			return evalEqUnifyArray(ctx, b, a, iter)
+			return evalEqUnifyArray(ctx, b, a, prev, iter)
 		case ast.Object:
-			return evalEqUnifyObject(ctx, b, a, iter)
+			return evalEqUnifyObject(ctx, b, a, prev, iter)
 		default:
-			return evalEqGround(ctx, a, b, iter)
+			return prev, evalEqGround(ctx, a, b, iter)
 		}
 	}
 
 }
 
-func evalEqUnifyArray(ctx *Context, a ast.Array, b ast.Value, iter Iterator) error {
+func evalEqUnifyArray(ctx *Context, a ast.Array, b ast.Value, prev *Undo, iter Iterator) (*Undo, error) {
 	switch b := b.(type) {
 	case ast.Var:
-		return evalEqUnifyVar(ctx, b, a, iter)
+		return evalEqUnifyVar(ctx, b, a, prev, iter)
 	case ast.Ref:
-		return evalEqUnifyArrayRef(ctx, a, b, iter)
+		return evalEqUnifyArrayRef(ctx, a, b, prev, iter)
 	case ast.Array:
-		return evalEqUnifyArrays(ctx, a, b, iter)
+		return evalEqUnifyArrays(ctx, a, b, prev, iter)
 	default:
-		return nil
+		return prev, nil
 	}
 }
 
-func evalEqUnifyArrayRef(ctx *Context, a ast.Array, b ast.Ref, iter Iterator) error {
+func evalEqUnifyArrayRef(ctx *Context, a ast.Array, b ast.Ref, prev *Undo, iter Iterator) (*Undo, error) {
 
 	r, err := ctx.DataStore.GetRef(b)
 	if err != nil {
-		return err
+		return prev, err
 	}
 
 	slice, ok := r.([]interface{})
 	if !ok {
-		return nil
+		return prev, nil
 	}
 
 	if len(a) != len(slice) {
-		return nil
+		return prev, nil
 	}
 
 	for i := range a {
@@ -114,128 +116,131 @@ func evalEqUnifyArrayRef(ctx *Context, a ast.Array, b ast.Ref, iter Iterator) er
 		child := make(ast.Ref, len(b), len(b)+1)
 		copy(child, b)
 		child = append(child, ast.NumberTerm(float64(i)))
-		err := evalEqUnify(ctx, a[i].Value, child, func(ctx *Context) error {
+		p, err := evalEqUnify(ctx, a[i].Value, child, prev, func(ctx *Context) error {
 			tmp = ctx
 			return nil
 		})
+		prev = p
 		if err != nil {
-			return err
+			return nil, err
 		}
 		if tmp == nil {
-			return nil
+			return nil, nil
 		}
 		ctx = tmp
 	}
-	return iter(ctx)
+	return prev, iter(ctx)
 }
 
-func evalEqUnifyArrays(ctx *Context, a ast.Array, b ast.Array, iter Iterator) error {
+func evalEqUnifyArrays(ctx *Context, a ast.Array, b ast.Array, prev *Undo, iter Iterator) (*Undo, error) {
 	aLen := len(a)
 	bLen := len(b)
 	if aLen != bLen {
-		return nil
+		return nil, nil
 	}
 	for i := 0; i < aLen; i++ {
 		ai := a[i].Value
 		bi := b[i].Value
 		var tmp *Context
-		err := evalEqUnify(ctx, ai, bi, func(ctx *Context) error {
+		p, err := evalEqUnify(ctx, ai, bi, prev, func(ctx *Context) error {
 			tmp = ctx
 			return nil
 		})
+		prev = p
 		if err != nil {
-			return err
+			return nil, err
 		}
 		if tmp == nil {
-			return nil
+			return nil, nil
 		}
 		ctx = tmp
 	}
-	return iter(ctx)
+	return prev, iter(ctx)
 }
 
 // evalEqUnifyObject attempts to unify the object "a" with some other value "b".
 // TODO(tsandal): unification of object keys (or unordered sets in general) is not
 // supported because it would be too expensive. We may revisit this in the future.
-func evalEqUnifyObject(ctx *Context, a ast.Object, b ast.Value, iter Iterator) error {
+func evalEqUnifyObject(ctx *Context, a ast.Object, b ast.Value, prev *Undo, iter Iterator) (*Undo, error) {
 	switch b := b.(type) {
 	case ast.Var:
-		return evalEqUnifyVar(ctx, b, a, iter)
+		return evalEqUnifyVar(ctx, b, a, prev, iter)
 	case ast.Ref:
-		return evalEqUnifyObjectRef(ctx, a, b, iter)
+		return evalEqUnifyObjectRef(ctx, a, b, prev, iter)
 	case ast.Object:
-		return evalEqUnifyObjects(ctx, a, b, iter)
+		return evalEqUnifyObjects(ctx, a, b, prev, iter)
 	default:
-		return nil
+		return nil, nil
 	}
 }
 
-func evalEqUnifyObjectRef(ctx *Context, a ast.Object, b ast.Ref, iter Iterator) error {
+func evalEqUnifyObjectRef(ctx *Context, a ast.Object, b ast.Ref, prev *Undo, iter Iterator) (*Undo, error) {
 
 	r, err := ctx.DataStore.GetRef(b)
 
 	if err != nil {
-		return err
+		return prev, err
 	}
 
 	for i := range a {
 		if !a[i][0].IsGround() {
-			return fmt.Errorf("illegal variable object key: %v", a[i][0])
+			return prev, fmt.Errorf("illegal variable object key: %v", a[i][0])
 		}
 	}
 
 	obj, ok := r.(map[string]interface{})
 	if !ok {
-		return nil
+		return prev, nil
 	}
 
 	if len(obj) != len(a) {
-		return nil
+		return prev, nil
 	}
 
 	for i := range a {
 		// TODO(tsandall): support non-string keys in storage.
 		k, ok := a[i][0].Value.(ast.String)
 		if !ok {
-			return fmt.Errorf("illegal object key type %T: %v", a[i][0], a[i][0])
+			return prev, fmt.Errorf("illegal object key type %T: %v", a[i][0], a[i][0])
 		}
 
 		_, ok = obj[string(k)]
 		if !ok {
-			return nil
+			return nil, nil
 		}
 
 		child := make(ast.Ref, len(b), len(b)+1)
 		copy(child, b)
 		child = append(child, a[i][0])
 		var tmp *Context
-		err := evalEqUnify(ctx, a[i][1].Value, child, func(ctx *Context) error {
+		p, err := evalEqUnify(ctx, a[i][1].Value, child, prev, func(ctx *Context) error {
 			tmp = ctx
 			return nil
 		})
+		prev = p
 		if err != nil {
-			return err
+			return nil, err
 		}
 		if tmp == nil {
-			return nil
+			return nil, nil
 		}
 		ctx = tmp
 	}
-	return iter(ctx)
+	return prev, iter(ctx)
 }
 
-func evalEqUnifyObjects(ctx *Context, a ast.Object, b ast.Object, iter Iterator) error {
+func evalEqUnifyObjects(ctx *Context, a ast.Object, b ast.Object, prev *Undo, iter Iterator) (*Undo, error) {
 
 	if len(a) != len(b) {
-		return nil
+		return nil, nil
 	}
 
 	for i := range a {
 		if !a[i][0].IsGround() {
-			return fmt.Errorf("illegal variable object key: %v", a[i][0])
+			return prev, fmt.Errorf("illegal variable object key: %v", a[i][0])
 		}
 		if !b[i][0].IsGround() {
-			return fmt.Errorf("illegal variable object key: %v", b[i][0])
+			return prev, fmt.Errorf("illegal variable object key: %v", b[i][0])
 		}
 	}
 
@@ -243,12 +248,13 @@ func evalEqUnifyObjects(ctx *Context, a ast.Object, b ast.Object, iter Iterator)
 		var tmp *Context
 		for j := range b {
 			if b[j][0].Equal(a[i][0]) {
-				err := evalEqUnify(ctx, a[i][1].Value, b[j][1].Value, func(ctx *Context) error {
+				p, err := evalEqUnify(ctx, a[i][1].Value, b[j][1].Value, prev, func(ctx *Context) error {
 					tmp = ctx
 					return nil
 				})
+				prev = p
 				if err != nil {
-					return err
+					return nil, err
 				}
 				if tmp == nil {
 					break
@@ -256,18 +262,16 @@ func evalEqUnifyObjects(ctx *Context, a ast.Object, b ast.Object, iter Iterator)
 			}
 		}
 		if tmp == nil {
-			return nil
+			return nil, nil
 		}
 		ctx = tmp
 	}
 
-	return iter(ctx)
+	return prev, iter(ctx)
 }
 
-func evalEqUnifyVar(ctx *Context, a ast.Var, b ast.Value, iter Iterator) error {
-	ctx = ctx.BindValue(a, b)
-	if ctx == nil {
-		return nil
-	}
-	return iter(ctx)
+func evalEqUnifyVar(ctx *Context, a ast.Var, b ast.Value, prev *Undo, iter Iterator) (*Undo, error) {
+	undo := ctx.Bind(a, b, prev)
+	err := iter(ctx)
+	return undo, err
 }

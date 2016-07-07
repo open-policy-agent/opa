@@ -40,8 +40,7 @@ func evalReduce(f reduceFunc) BuiltinFunc {
 
 		switch dst := dst.(type) {
 		case ast.Var:
-			ctx = ctx.BindValue(dst, y)
-			return iter(ctx)
+			return Continue(ctx, dst, y, iter)
 		default:
 			if dst.Equal(y) {
 				return iter(ctx)

@@ -192,16 +192,16 @@ func TestPlugValue(t *testing.T) {
 	world := ast.String("world")
 
 	ctx1 := &Context{Locals: storage.NewBindings(), Globals: storage.NewBindings()}
-	ctx1 = ctx1.BindValue(a, b)
-	ctx1 = ctx1.BindValue(b, cs)
-	ctx1 = ctx1.BindValue(c, ks)
-	ctx1 = ctx1.BindValue(k, hello)
+	ctx1.Bind(a, b, nil)
+	ctx1.Bind(b, cs, nil)
+	ctx1.Bind(c, ks, nil)
+	ctx1.Bind(k, hello, nil)
 
 	ctx2 := &Context{Locals: storage.NewBindings(), Globals: storage.NewBindings()}
-	ctx2 = ctx2.BindValue(a, b)
-	ctx2 = ctx2.BindValue(b, cs)
-	ctx2 = ctx2.BindValue(c, vs)
-	ctx2 = ctx2.BindValue(v, world)
+	ctx2.Bind(a, b, nil)
+	ctx2.Bind(b, cs, nil)
+	ctx2.Bind(c, vs, nil)
+	ctx2.Bind(v, world, nil)
 
 	expected := ast.MustParseTerm(`[{"hello": "world"}]`).Value
 
@@ -221,8 +221,8 @@ func TestPlugValue(t *testing.T) {
 	n := ast.MustParseTerm("a.b[x.y[i]]").Value
 
 	ctx3 := &Context{Locals: storage.NewBindings(), Globals: storage.NewBindings()}
-	ctx3 = ctx3.BindValue(ast.Var("i"), ast.Number(1))
-	ctx3 = ctx3.BindValue(ast.MustParseTerm("x.y[i]").Value, ast.Number(1))
+	ctx3.Bind(ast.Var("i"), ast.Number(1), nil)
+	ctx3.Bind(ast.MustParseTerm("x.y[i]").Value, ast.Number(1), nil)
 
 	expected = ast.MustParseTerm("a.b[1]").Value
 
@@ -909,10 +909,10 @@ func TestExample(t *testing.T) {
     `)
 
 	assertTopDown(t, store, 0, "violations", []string{"opa", "example", "violations"}, "{}", `
-        [
-            {"id": "s4", "name": "dev", "protocols": ["http"], "ports": ["p1", "p2"]}
-        ]
-    `)
+	    [
+	        {"id": "s4", "name": "dev", "protocols": ["http"], "ports": ["p1", "p2"]}
+	    ]
+	`)
 }
 
 func compileModules(input []string) map[string]*ast.Module {

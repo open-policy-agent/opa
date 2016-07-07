@@ -65,6 +65,11 @@ func (b *Bindings) Put(k, v ast.Value) {
 	b.hashMap.Put(k, v)
 }
 
+// Delete removes a key/value pair.
+func (b *Bindings) Delete(k ast.Value) {
+	b.hashMap.Delete(k)
+}
+
 // Update returns new bindings that are the union of these bindings and the other bindings.
 func (b *Bindings) Update(other *Bindings) *Bindings {
 	new := b.hashMap.Update(other.hashMap)
