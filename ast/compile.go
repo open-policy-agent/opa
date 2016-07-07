@@ -105,6 +105,7 @@ func NewCompiler() *Compiler {
 		stage{c.setModuleTree, "setModuleTree"},
 		stage{c.checkSafetyHead, "checkSafetyHead"},
 		stage{c.checkSafetyBody, "checkSafetyBody"},
+		stage{c.checkBuiltinArgs, "checkBuiltinArgs"},
 		stage{c.resolveAllRefs, "resolveAllRefs"},
 		stage{c.setRuleGraph, "setRuleGraph"},
 		stage{c.checkRecursion, "checkRecursion"},
@@ -160,6 +161,26 @@ func (c *Compiler) FlattenErrors() string {
 	return fmt.Sprintf("%d errors occurred:\n%s", len(c.Errors), strings.Join(b, "\n"))
 }
 
+// checkBuiltinArgs ensures that all built-ins are called with the correct number
+// of arguments.
+//
+// TODO(tsandall): in the future this should be replaced with schema checking.
+func (c *Compiler) checkBuiltinArgs() {
+	for _, m := range c.Modules {
+		for _, r := range m.Rules {
+			for _, expr := range r.Body {
+				if ts, ok := expr.Terms.([]*Term); ok {
+					if bi, ok := BuiltinMap[ts[0].Value.(Var)]; ok {
+						if bi.NumArgs != len(ts[1:]) {
+							c.err(expr.Location.Errorf("%v: wrong number of arguments (expression %s must specify %d arguments to built-in function %v)", r.Name, expr.Location.Text, bi.NumArgs, ts[0]))
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
 // checkRecursion ensures that there are no recursive rule definitions, i.e., there are
 // no cycles in the RuleGraph.
 func (c *Compiler) checkRecursion() {
@@ -173,7 +194,7 @@ func (c *Compiler) checkRecursion() {
 			for _, x := range p {
 				n = append(n, string(x.(*Rule).Name))
 			}
-			c.err("recursion found in %v: %v", r.Name, strings.Join(n, ", "))
+			c.err(r.Location.Errorf("%v: recursive reference: %v (recursion is not allowed)", r.Name, strings.Join(n, " -> ")))
 		}
 	}
 }
@@ -190,7 +211,9 @@ func (c *Compiler) checkSafetyBody() {
 		for _, r := range m.Rules {
 			reordered, unsafe := reorderBodyForSafety(globals, r.Body)
 			if len(unsafe) != 0 {
-				c.err("unsafe variables in %v: %v", r.Name, unsafe.Vars())
+				for v := range unsafe.Vars() {
+					c.err(r.Location.Errorf("%v: %v is unsafe (variable %v must appear in the output position of at least one non-negated expression)", r.Name, v, v))
+				}
 			} else {
 				r.Body = reordered
 			}
@@ -203,19 +226,15 @@ func (c *Compiler) checkSafetyBody() {
 func (c *Compiler) checkSafetyHead() {
 	for _, m := range c.Modules {
 		for _, r := range m.Rules {
-			headVars := r.HeadVars()
-			bodyVars := r.Body.Vars(true)
-			for headVar := range headVars {
-				if _, ok := bodyVars[headVar]; !ok {
-					c.err("unsafe variable from head of %v: %v", r.Name, headVar)
-				}
+			unsafe := r.HeadVars().Diff(r.Body.Vars(true))
+			for v := range unsafe {
+				c.err(r.Location.Errorf("%v: %v is unsafe (variable %v must appear in at least one expression within the body of %v)", r.Name, v, v, r.Name))
 			}
 		}
 	}
 }
 
-func (c *Compiler) err(f string, a ...interface{}) {
-	err := fmt.Errorf(f, a...)
+func (c *Compiler) err(err error) {
 	c.Errors = append(c.Errors, err)
 }
 
@@ -393,22 +412,14 @@ func (c *Compiler) setGlobals() {
 					globals[i.Alias] = p
 				case Var:
 					globals[i.Alias] = p
-				default:
-					c.err("unexpected %T: %v", p, i)
 				}
 			} else {
 				switch p := i.Path.Value.(type) {
 				case Ref:
-					switch v := p[len(p)-1].Value.(type) {
-					case String:
-						globals[Var(v)] = p
-					default:
-						c.err("unexpected %T: %v", v, i)
-					}
+					v := p[len(p)-1].Value.(String)
+					globals[Var(v)] = p
 				case Var:
 					globals[p] = p
-				default:
-					c.err("unexpected %T: %v", i.Path, i.Path)
 				}
 			}
 		}

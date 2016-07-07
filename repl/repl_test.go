@@ -39,7 +39,7 @@ func TestUnset(t *testing.T) {
 	repl.OneShot("unset p")
 	repl.OneShot("p")
 	result := buffer.String()
-	if result != "error: 1 error occurred: unsafe variables in repl2: [p]\n" {
+	if result != "error: 1 error occurred: 1:1: repl2: p is unsafe (variable p must appear in the output position of at least one non-negated expression)\n" {
 		t.Errorf("Expected p to be unsafe but got: %v", result)
 		return
 	}
@@ -50,7 +50,7 @@ func TestUnset(t *testing.T) {
 	repl.OneShot("unset p")
 	repl.OneShot("p")
 	result = buffer.String()
-	if result != "error: 1 error occurred: unsafe variables in repl4: [p]\n" {
+	if result != "error: 1 error occurred: 1:1: repl4: p is unsafe (variable p must appear in the output position of at least one non-negated expression)\n" {
 		t.Errorf("Expected p to be unsafe but got: %v", result)
 		return
 	}
@@ -344,7 +344,7 @@ func TestEvalRuleCompileError(t *testing.T) {
 	repl := newRepl(store, &buffer)
 	repl.OneShot("p[x] :- true")
 	result := buffer.String()
-	expected := "error: 1 error occurred: unsafe variable from head of p: x\n"
+	expected := "error: 1 error occurred: 1:1: p: x is unsafe (variable x must appear in at least one expression within the body of p)\n"
 	if result != expected {
 		t.Errorf("Expected error message in output but got: %v", result)
 		return
@@ -354,7 +354,6 @@ func TestEvalRuleCompileError(t *testing.T) {
 	result = buffer.String()
 	if result != "" {
 		t.Errorf("Expected valid rule to compile (because state should have been rolled back) but got: %v", result)
-		return
 	}
 }
 
@@ -365,9 +364,9 @@ func TestEvalBodyCompileError(t *testing.T) {
 	repl.outputFormat = "json"
 	repl.OneShot("x = 1, y > x")
 	result1 := buffer.String()
-	expected1 := "error: 1 error occurred: unsafe variables in repl0: [y]\n"
+	expected1 := "error: 1 error occurred: 1:1: repl0: y is unsafe (variable y must appear in the output position of at least one non-negated expression)\n"
 	if result1 != expected1 {
-		t.Errorf("Expected error message in output but got : %v", result1)
+		t.Errorf("Expected error message in output but got`: %v", result1)
 		return
 	}
 	buffer.Reset()
@@ -441,7 +440,7 @@ func TestEvalPackage(t *testing.T) {
 	repl.OneShot("package baz.qux")
 	buffer.Reset()
 	repl.OneShot("p")
-	if buffer.String() != "error: 1 error occurred: unsafe variables in repl0: [p]\n" {
+	if buffer.String() != "error: 1 error occurred: 1:1: repl0: p is unsafe (variable p must appear in the output position of at least one non-negated expression)\n" {
 		t.Errorf("Expected unsafe variable error but got: %v", buffer.String())
 		return
 	}

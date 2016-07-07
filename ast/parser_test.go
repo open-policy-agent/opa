@@ -256,6 +256,7 @@ func TestImport(t *testing.T) {
 	ref2 := RefTerm(VarTerm("foo"), StringTerm("bar"), StringTerm("white space"))
 	assertParseImport(t, "white space", "import foo.bar[\"white space\"]", &Import{Path: ref2})
 	assertParseError(t, "non-ground ref", "import foo[x]")
+	assertParseError(t, "non-string", "import foo[0]")
 }
 
 func TestRule(t *testing.T) {
@@ -310,7 +311,7 @@ func TestRule(t *testing.T) {
 }
 
 func TestEmptyModule(t *testing.T) {
-	r, err := ParseModule("    ")
+	r, err := ParseModule("", "    ")
 	if err != nil {
 		t.Errorf("Expected nil for empty module: %s", err)
 		return
@@ -384,6 +385,24 @@ func TestExample(t *testing.T) {
                          networks[m].public = true`).(*Rule),
 		},
 	})
+}
+
+func TestLocation(t *testing.T) {
+	mod, err := ParseModule("test", testModule)
+	if err != nil {
+		t.Errorf("Unexpected error while parsing test module: %v", err)
+		return
+	}
+	expr := mod.Rules[0].Body[0]
+	if expr.Location.Col != 5 {
+		t.Errorf("Expected column of %v to be 5 but got: %v", expr, expr.Location.Col)
+	}
+	if expr.Location.Row != 9 {
+		t.Errorf("Expected row of %v to be 9 but got: %v", expr, expr.Location.Row)
+	}
+	if expr.Location.File != "test" {
+		t.Errorf("Expected file of %v to be test but got: %v", expr, expr.Location.File)
+	}
 }
 
 func TestConstantRules(t *testing.T) {
@@ -491,7 +510,7 @@ func TestWildcards(t *testing.T) {
 }
 
 func assertParse(t *testing.T, msg string, input string, correct func([]interface{})) {
-	p, err := ParseStatements(input)
+	p, err := ParseStatements("", input)
 	if err != nil {
 		t.Errorf("Error on test %s: parse error on %s: %s", msg, input, err)
 		return
@@ -519,7 +538,7 @@ func assertParseImport(t *testing.T, msg string, input string, correct *Import) 
 
 func assertParseModule(t *testing.T, msg string, input string, correct *Module) {
 
-	m, err := ParseModule(input)
+	m, err := ParseModule("", input)
 	if err != nil {
 		t.Errorf("Error on test %s: parse error on %s: %s", msg, input, err)
 		return

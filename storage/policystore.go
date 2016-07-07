@@ -31,7 +31,7 @@ func LoadPolicies(bufs map[string][]byte) (map[string]*ast.Module, error) {
 	parsed := map[string]*ast.Module{}
 
 	for id, bs := range bufs {
-		mod, err := ast.ParseModule(string(bs))
+		mod, err := ast.ParseModule(id, string(bs))
 		if err != nil {
 			return nil, err
 		}

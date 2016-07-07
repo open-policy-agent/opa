@@ -32,6 +32,7 @@ var Wildcard = &Term{Value: Var("_")}
 var WildcardPrefix = "$"
 
 type (
+
 	// Module represents a collection of policies (defined by rules)
 	// within a namespace (defined by the package) and optional
 	// dependencies on external documents (defined by imports).
@@ -39,6 +40,11 @@ type (
 		Package *Package
 		Imports []*Import
 		Rules   []*Rule
+	}
+
+	// Statement represents a single statement within a module.
+	Statement interface {
+		Loc() *Location
 	}
 
 	// Package represents the namespace of the documents produced
@@ -108,6 +114,11 @@ func (pkg *Package) Equal(other *Package) bool {
 	return pkg.Path.Equal(other.Path)
 }
 
+// Loc returns the location of the Package in the definition.
+func (pkg *Package) Loc() *Location {
+	return pkg.Location
+}
+
 func (pkg *Package) String() string {
 	return fmt.Sprintf("package %v", pkg.Path)
 }
@@ -115,6 +126,11 @@ func (pkg *Package) String() string {
 // Equal returns true if this Import has the same path and alias as the other Import.
 func (imp *Import) Equal(other *Import) bool {
 	return imp.Alias.Equal(other.Alias) && imp.Path.Equal(other.Path)
+}
+
+// Loc returns the location of the Import in the definition.
+func (imp *Import) Loc() *Location {
+	return imp.Location
 }
 
 func (imp *Import) String() string {
@@ -177,6 +193,11 @@ func (rule *Rule) HeadVars() VarSet {
 	return vis.vars
 }
 
+// Loc returns the location of the Rule in the definition.
+func (rule *Rule) Loc() *Location {
+	return rule.Location
+}
+
 func (rule *Rule) String() string {
 	var buf []string
 	if rule.Key != nil {
@@ -236,6 +257,11 @@ func (body Body) IsGround() bool {
 		}
 	}
 	return true
+}
+
+// Loc returns the location of the Body in the definition.
+func (body Body) Loc() *Location {
+	return body[0].Location
 }
 
 // OutputVars returns a VarSet containing the variables that would be bound by evaluating

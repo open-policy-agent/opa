@@ -11,6 +11,8 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/pkg/errors"
 )
 
 // Location records a position in source code
@@ -24,6 +26,27 @@ type Location struct {
 // NewLocation returns a new Location object.
 func NewLocation(text []byte, file string, row int, col int) *Location {
 	return &Location{Text: text, File: file, Row: row, Col: col}
+}
+
+// Errorf returns a new error value with a message formatted to include the location
+// info (e.g., line, column, filename, etc.)
+func (loc *Location) Errorf(f string, a ...interface{}) error {
+	return fmt.Errorf(loc.format(f), a...)
+}
+
+// Wrapf returns a new error value that wraps an existing error with a message formatted
+// to include the location info (e.g., line, column, filename, etc.)
+func (loc *Location) Wrapf(err error, f string, a ...interface{}) error {
+	return errors.Wrapf(err, loc.format(f), a...)
+}
+
+func (loc *Location) format(f string) string {
+	if len(loc.File) > 0 {
+		f = fmt.Sprintf("%v:%v: %v", loc.File, loc.Row, f)
+	} else {
+		f = fmt.Sprintf("%v:%v: %v", loc.Row, loc.Col, f)
+	}
+	return f
 }
 
 // Value declares the common interface for all Term values. Every kind of Term value

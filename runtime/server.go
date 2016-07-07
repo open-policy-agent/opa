@@ -377,7 +377,7 @@ func (s *Server) v1PoliciesPut(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	mod, err := ast.ParseModule(string(buf))
+	mod, err := ast.ParseModule(id, string(buf))
 	if err != nil {
 		handleError(w, 400, err)
 		return
