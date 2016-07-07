@@ -604,51 +604,47 @@ func evalRef(ctx *Context, ref, path ast.Ref, iter Iterator) error {
 }
 
 func evalRefRec(ctx *Context, path, tail ast.Ref, iter Iterator) error {
+
 	if len(tail) == 0 {
-		return evalRefRecFinish(ctx, path, iter)
-	}
-	if tail[0].IsGround() {
-		return evalRefRecGround(ctx, path, tail, iter)
-	}
-	return evalRefRecNonGround(ctx, path, tail, iter)
-}
-
-func evalRefRecFinish(ctx *Context, path ast.Ref, iter Iterator) error {
-	ok, err := lookupExists(ctx.DataStore, path)
-	if err == nil && ok {
-		return iter(ctx)
-	}
-	return err
-}
-
-func evalRefRecGround(ctx *Context, path, tail ast.Ref, iter Iterator) error {
-	// Check if the node exists. If the node does not exist, stop.
-	// If the node exists and is a rule, evaluate the rule to produce a virtual doc.
-	// Otherwise, process the rest of the reference.
-	path = append(path, PlugTerm(tail[0], ctx))
-	rules, err := lookupRule(ctx.DataStore, path)
-	if err != nil {
-		if storage.IsNotFound(err) {
-			return nil
+		ok, err := lookupExists(ctx.DataStore, path)
+		if err == nil && ok {
+			return iter(ctx)
 		}
 		return err
 	}
-	if rules != nil {
-		ref := append(path, tail[1:]...)
-		return evalRefRule(ctx, ref, path, rules, iter)
-	}
-	return evalRefRec(ctx, path, tail[1:], iter)
-}
 
-func evalRefRecNonGround(ctx *Context, path, tail ast.Ref, iter Iterator) error {
+	if tail[0].IsGround() {
+		// Check if the node exists. If the node does not exist, stop.
+		// If the node exists and is a rule, evaluate the rule to produce a virtual doc.
+		// Otherwise, process the rest of the reference.
+		path = append(path, PlugTerm(tail[0], ctx))
+		rules, err := lookupRule(ctx.DataStore, path)
+
+		if err != nil {
+			if storage.IsNotFound(err) {
+				return nil
+			}
+			return err
+		}
+
+		if rules != nil {
+			ref := append(path, tail[1:]...)
+			return evalRefRule(ctx, ref, path, rules, iter)
+		}
+
+		return evalRefRec(ctx, path, tail[1:], iter)
+	}
+
 	// Check if the variable has a binding.
 	// If there is a binding, process the rest of the reference normally.
 	// If there is no binding, enumerate the collection referred to by the path.
 	plugged := PlugTerm(tail[0], ctx)
+
 	if plugged.IsGround() {
 		path = append(path, plugged)
 		return evalRefRec(ctx, path, tail[1:], iter)
 	}
+
 	return evalRefRecWalkColl(ctx, path, tail, iter)
 }
 
@@ -963,40 +959,42 @@ func evalRefRuleResult(ctx *Context, ref ast.Ref, suffix ast.Ref, result ast.Val
 	}
 }
 
-// TODO(tsandall):
 func evalTerms(ctx *Context, iter Iterator) error {
 
 	expr := ctx.Current()
 
-	// Check if indexing is available for this expression. Need to
-	// perform check on the plugged version of the expression, otherwise
-	// the index will return false positives.
-	plugged := PlugExpr(expr, ctx)
+	// Attempt to evaluate the terms using indexing. Indexing can be used
+	// if this is an equality expression where one side is a non-ground,
+	// non-nested reference to a base document and the other side is a
+	// reference or some ground term. If indexing is available for the terms,
+	// the index is built lazily.
+	if expr.IsEquality() {
 
-	if indexAvailable(ctx, plugged) {
+		// The terms must be plugged otherwise the index may yield bindings
+		// that would result in false positives.
+		ts := expr.Terms.([]*ast.Term)
+		t1 := PlugTerm(ts[1], ctx)
+		t2 := PlugTerm(ts[2], ctx)
+		r1, ok1 := t1.Value.(ast.Ref)
+		r2, ok2 := t2.Value.(ast.Ref)
 
-		ts := plugged.Terms.([]*ast.Term)
-		ref, isRef := ts[1].Value.(ast.Ref)
-
-		if isRef {
-			ok, err := indexBuildLazy(ctx, ref)
+		if ok1 && !r1.IsGround() && !r1.IsNested() && (ok2 || t2.IsGround()) {
+			ok, err := indexBuildLazy(ctx, r1)
 			if err != nil {
-				return errors.Wrapf(err, "index build failed on %v", ref)
+				return errors.Wrapf(err, "index build failed on %v", r1)
 			}
 			if ok {
-				return evalTermsIndexed(ctx, iter, ref, ts[2])
+				return evalTermsIndexed(ctx, iter, r1, t2)
 			}
 		}
 
-		ref, isRef = ts[2].Value.(ast.Ref)
-
-		if isRef {
-			ok, err := indexBuildLazy(ctx, ref)
+		if ok2 && !r2.IsGround() && !r2.IsNested() && (ok1 || t1.IsGround()) {
+			ok, err := indexBuildLazy(ctx, r2)
 			if err != nil {
-				return errors.Wrapf(err, "index build failed on %v", ref)
+				return errors.Wrapf(err, "index build failed on %v", r2)
 			}
 			if ok {
-				return evalTermsIndexed(ctx, iter, ref, ts[1])
+				return evalTermsIndexed(ctx, iter, r2, t1)
 			}
 		}
 	}
@@ -1174,39 +1172,6 @@ func evalTermsRecObject(ctx *Context, obj ast.Object, idx int, iter Iterator) er
 			return evalTermsRecObject(ctx, obj, idx+1, iter)
 		}
 	}
-}
-
-// indexAvailable returns true if the index can/should be used when evaluating this expression.
-// Indexing is used on equality expressions where both sides are non-ground refs (to base docs) or one
-// side is a non-ground ref (to a base doc) and the other side is any ground term. In the future, indexing
-// may be used on references embedded inside array/object values.
-func indexAvailable(ctx *Context, expr *ast.Expr) bool {
-
-	ts, ok := expr.Terms.([]*ast.Term)
-	if !ok {
-		return false
-	}
-
-	// Indexing can only be used when evaluating equality expressions.
-	if !ts[0].Value.Equal(ast.Equality.Name) {
-		return false
-	}
-
-	a := ts[1].Value
-	b := ts[2].Value
-
-	aRef, isRefA := a.(ast.Ref)
-	bRef, isRefB := b.(ast.Ref)
-
-	if isRefA && !a.IsGround() && !aRef.IsNested() {
-		return b.IsGround() || isRefB
-	}
-
-	if isRefB && !b.IsGround() && !bRef.IsNested() {
-		return a.IsGround() || isRefA
-	}
-
-	return false
 }
 
 // indexBuildLazy returns true if there is an index built for this term. If there is no index
