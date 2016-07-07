@@ -58,45 +58,6 @@ func (ctx *Context) BindValue(key ast.Value, value ast.Value) *Context {
 	return &cpy
 }
 
-// BindVar returns a new Context with bindings that map the variable to the value.
-//
-// If the caller attempts to bind a variable to itself (e.g., "x = x"), no mapping is added. This
-// is effectively a no-op.
-//
-// If the call would introduce a recursive binding, nil is returned. This represents an undefined
-// context that cannot be evaluated. E.g., "x = [x]".
-//
-// Binding a variable to some value also updates existing bindings to that variable.
-//
-// TODO(tsandall): potential optimization:
-//
-// The current implementation eagerly flattens the bindings by updating existing
-// bindings each time a new binding is added. E.g., if Bind(y, [1,2,x]) and Bind(x, 3) are called
-// (one after the other), the binding for "y" will be updated. It may be possible to defer this
-// to a later stage, e.g., when plugging the values.
-func (ctx *Context) BindVar(variable ast.Var, value ast.Value) *Context {
-	if variable.Equal(value) {
-		return ctx
-	}
-
-	cpy := *ctx
-	cpy.Locals = storage.NewBindings()
-	cpy.Locals.Put(variable, value)
-
-	ctx.Locals.Iter(func(k, v ast.Value) bool {
-		// Copy all bindings except the one for this variable.
-		// If this context already contains a binding for this variable,
-		// it should be overwritten with the new value, so ignore the old
-		// value here.
-		if cpy.Locals.Get(k) == nil {
-			cpy.Locals.Put(k, PlugValue(v, &cpy))
-		}
-		return false
-	})
-
-	return &cpy
-}
-
 // Child returns a new context to evaluate a query that was referenced by this context.
 func (ctx *Context) Child(query ast.Body, locals *storage.Bindings) *Context {
 	cpy := *ctx
@@ -129,11 +90,11 @@ func (ctx *Context) trace(f string, a ...interface{}) {
 }
 
 func (ctx *Context) traceEval() {
-	ctx.trace("Eval %v", ctx.Current())
+	ctx.trace("Eval %v", ctx.Current(), ctx.Locals)
 }
 
 func (ctx *Context) traceTry(expr *ast.Expr) {
-	ctx.trace(" Try %v", expr)
+	ctx.trace(" Try %v", expr, ctx.Locals)
 }
 
 func (ctx *Context) traceSuccess(expr *ast.Expr) {
@@ -261,11 +222,10 @@ func PlugValue(v ast.Value, ctx *Context) ast.Value {
 
 	switch v := v.(type) {
 	case ast.Var:
-		b := ctx.Binding(v)
-		if b == nil {
-			return v
+		if b := ctx.Binding(v); b != nil {
+			return PlugValue(b, ctx)
 		}
-		return b
+		return v
 
 	case *ast.ArrayComprehension:
 		b := ctx.Binding(v)
@@ -422,7 +382,7 @@ func ValueToInterface(v ast.Value, ctx *Context) (interface{}, error) {
 			}
 			asStr, stringKey := k.(string)
 			if !stringKey {
-				return nil, fmt.Errorf("illegal object key type %T: %v", k, k)
+				return nil, fmt.Errorf("illegal object key: %v", k)
 			}
 			v, err := ValueToInterface(x[1].Value, ctx)
 			if err != nil {
@@ -437,10 +397,11 @@ func ValueToInterface(v ast.Value, ctx *Context) (interface{}, error) {
 		return ctx.DataStore.GetRef(v)
 
 	default:
-		// If none of the above cases are hit, something is very wrong, e.g., the caller
-		// is attempting to convert a variable to a native Go value (which represents an
-		// issue with the callers logic.)
-		panic(fmt.Sprintf("illegal argument: %v", v))
+		v = PlugValue(v, ctx)
+		if !v.IsGround() {
+			return nil, fmt.Errorf("unbound value: %v", v)
+		}
+		return ValueToInterface(v, ctx)
 	}
 }
 
@@ -484,16 +445,6 @@ func ValueToString(v ast.Value, ctx *Context) (string, error) {
 		return "", fmt.Errorf("illegal argument: %v", v)
 	}
 	return s, nil
-}
-
-// dereferenceVar is used to lookup the variable binding and convert the value to
-// a native Go type.
-func dereferenceVar(v ast.Var, ctx *Context) (interface{}, error) {
-	binding := ctx.Binding(v)
-	if binding == nil {
-		return nil, fmt.Errorf("unbound variable: %v", v)
-	}
-	return ValueToInterface(binding.(ast.Value), ctx)
 }
 
 func evalContext(ctx *Context, iter Iterator) error {
@@ -676,7 +627,7 @@ func evalRefRecWalkColl(ctx *Context, path, tail ast.Ref, iter Iterator) error {
 	switch node := node.(type) {
 	case map[string]interface{}:
 		for key := range node {
-			cpy := ctx.BindVar(head, ast.String(key))
+			cpy := ctx.BindValue(head, ast.String(key))
 			path = append(path, ast.StringTerm(key))
 			err := evalRefRec(cpy, path, tail, iter)
 			if err != nil {
@@ -687,7 +638,7 @@ func evalRefRecWalkColl(ctx *Context, path, tail ast.Ref, iter Iterator) error {
 		return nil
 	case []interface{}:
 		for i := range node {
-			cpy := ctx.BindVar(head, ast.Number(i))
+			cpy := ctx.BindValue(head, ast.Number(i))
 			path = append(path, ast.NumberTerm(float64(i)))
 			err := evalRefRec(cpy, path, tail, iter)
 			if err != nil {
@@ -794,11 +745,15 @@ func evalRefRulePartialObjectDoc(ctx *Context, ref ast.Ref, path ast.Ref, rule *
 			if key == nil {
 				return fmt.Errorf("unbound variable: %v", rule.Key)
 			}
+			key = PlugValue(key, child)
+
 			value := child.Binding(rule.Value.Value)
 			if value == nil {
 				return fmt.Errorf("unbound variable: %v", rule.Value)
 			}
-			ctx = ctx.BindVar(suffix[0].Value.(ast.Var), key)
+			value = PlugValue(value, child)
+
+			ctx = ctx.BindValue(suffix[0].Value.(ast.Var), key)
 			return evalRefRuleResult(ctx, ref, ref[len(path)+1:], value, iter)
 		})
 	}
@@ -812,6 +767,7 @@ func evalRefRulePartialObjectDoc(ctx *Context, ref ast.Ref, path ast.Ref, rule *
 		if value == nil {
 			return fmt.Errorf("unbound variable: %v", rule.Value)
 		}
+		value = PlugValue(value, child)
 		return evalRefRuleResult(ctx, ref, ref[len(path)+1:], value.(ast.Value), iter)
 	})
 }
@@ -831,12 +787,12 @@ func evalRefRulePartialObjectDocFull(ctx *Context, ref ast.Ref, rules []*ast.Rul
 		child := ctx.Child(rule.Body, bindings)
 
 		err := Eval(child, func(child *Context) error {
-			key := child.Binding(rule.Key.Value)
+			key := PlugValue(child.Binding(rule.Key.Value), child)
 			if _, ok := keys.Get(key); ok {
 				return conflictErr(ref, "object document keys", rule)
 			}
 			keys.Put(key, ast.Null{})
-			value := child.Binding(rule.Value.Value)
+			value := PlugValue(child.Binding(rule.Value.Value), child)
 			result = append(result, ast.Item(&ast.Term{Value: key}, &ast.Term{Value: value}))
 			return nil
 		})
@@ -868,7 +824,7 @@ func evalRefRulePartialSetDoc(ctx *Context, ref ast.Ref, path ast.Ref, rule *ast
 	if !key.IsGround() {
 		child := ctx.Child(rule.Body, storage.NewBindings())
 		return Eval(child, func(child *Context) error {
-			value := child.Binding(rule.Key.Value)
+			value := PlugValue(child.Binding(rule.Key.Value), child)
 			if value == nil {
 				return fmt.Errorf("unbound variable: %v", rule.Key)
 			}
@@ -877,7 +833,7 @@ func evalRefRulePartialSetDoc(ctx *Context, ref ast.Ref, path ast.Ref, rule *ast
 			// so that expression will be defined. E.g., given a simple rule:
 			// "p = true :- q[x]", we say that "p" should be defined if "q"
 			// is defined for some value "x".
-			ctx = ctx.BindVar(key.(ast.Var), value)
+			ctx = ctx.BindValue(key.(ast.Var), value)
 			ctx = ctx.BindValue(ref[:len(path)+1], ast.Boolean(true))
 			return iter(ctx)
 		})
@@ -925,7 +881,7 @@ func evalRefRuleResult(ctx *Context, ref ast.Ref, suffix ast.Ref, result ast.Val
 			return result.Query(pluggedSuffix, func(keys map[ast.Var]ast.Value, value ast.Value) error {
 				ctx = ctx.BindValue(ref, value)
 				for k, v := range keys {
-					ctx = ctx.BindVar(k, v)
+					ctx = ctx.BindValue(k, v)
 				}
 				return iter(ctx)
 			})
@@ -942,7 +898,7 @@ func evalRefRuleResult(ctx *Context, ref ast.Ref, suffix ast.Ref, result ast.Val
 			return result.Query(pluggedSuffix, func(keys map[ast.Var]ast.Value, value ast.Value) error {
 				ctx = ctx.BindValue(ref, value)
 				for k, v := range keys {
-					ctx = ctx.BindVar(k, v)
+					ctx = ctx.BindValue(k, v)
 				}
 				return iter(ctx)
 			})
@@ -1334,7 +1290,7 @@ func topDownQueryPartialObjectDoc(params *QueryParams, rules []*ast.Rule) (inter
 		key := rule.Key.Value.(ast.Var)
 		value := rule.Value.Value.(ast.Var)
 		err := Eval(ctx, func(ctx *Context) error {
-			key, err := dereferenceVar(key, ctx)
+			key, err := ValueToInterface(key, ctx)
 			if err != nil {
 				return err
 			}
@@ -1342,7 +1298,7 @@ func topDownQueryPartialObjectDoc(params *QueryParams, rules []*ast.Rule) (inter
 			if !ok {
 				return fmt.Errorf("illegal object key type %T: %v", key, key)
 			}
-			value, err := dereferenceVar(value, ctx)
+			value, err := ValueToInterface(value, ctx)
 			if err != nil {
 				return err
 			}
@@ -1369,7 +1325,7 @@ func topDownQueryPartialSetDoc(params *QueryParams, rules []*ast.Rule) (interfac
 		}
 		key := rule.Key.Value.(ast.Var)
 		err := Eval(ctx, func(ctx *Context) error {
-			value, err := dereferenceVar(key, ctx)
+			value, err := ValueToInterface(key, ctx)
 			if err != nil {
 				return err
 			}

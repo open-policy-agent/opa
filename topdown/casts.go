@@ -44,7 +44,7 @@ func evalToNumber(ctx *Context, expr *ast.Expr, iter Iterator) error {
 
 	switch b := b.(type) {
 	case ast.Var:
-		ctx = ctx.BindVar(b, n)
+		ctx = ctx.BindValue(b, n)
 		return iter(ctx)
 	default:
 		if n.Equal(b) {

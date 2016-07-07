@@ -265,7 +265,7 @@ func evalEqUnifyObjects(ctx *Context, a ast.Object, b ast.Object, iter Iterator)
 }
 
 func evalEqUnifyVar(ctx *Context, a ast.Var, b ast.Value, iter Iterator) error {
-	ctx = ctx.BindVar(a, b)
+	ctx = ctx.BindValue(a, b)
 	if ctx == nil {
 		return nil
 	}
