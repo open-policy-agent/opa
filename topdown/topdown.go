@@ -274,26 +274,26 @@ func PlugValue(v ast.Value, ctx *Context) ast.Value {
 		if b := ctx.Binding(v); b != nil {
 			return b
 		}
-		var buf ast.Ref
-		buf = append(buf, v[0])
-		for _, p := range v[1:] {
-			buf = append(buf, PlugTerm(p, ctx))
+		buf := make(ast.Ref, len(v))
+		buf[0] = v[0]
+		for i, p := range v[1:] {
+			buf[i+1] = PlugTerm(p, ctx)
 		}
 		return buf
 
 	case ast.Array:
-		var buf ast.Array
-		for _, e := range v {
-			buf = append(buf, PlugTerm(e, ctx))
+		buf := make(ast.Array, len(v))
+		for i, e := range v {
+			buf[i] = PlugTerm(e, ctx)
 		}
 		return buf
 
 	case ast.Object:
-		var buf ast.Object
-		for _, e := range v {
+		buf := make(ast.Object, len(v))
+		for i, e := range v {
 			k := PlugTerm(e[0], ctx)
 			v := PlugTerm(e[1], ctx)
-			buf = append(buf, [...]*ast.Term{k, v})
+			buf[i] = [...]*ast.Term{k, v}
 		}
 		return buf
 
