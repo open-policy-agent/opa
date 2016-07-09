@@ -61,6 +61,9 @@ $(COVER_PACKAGES):
 	$(GO) test -covermode=count -coverprofile=coverage/$(shell dirname $@)/coverage.out $@
 	$(GO) tool cover -html=coverage/$(shell dirname $@)/coverage.out || true
 
+perf: generate
+	$(GO) test -v -bench=. ./test/perf/.../
+
 cover: $(COVER_PACKAGES)
 
 check: check-fmt check-vet check-lint

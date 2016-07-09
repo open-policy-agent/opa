@@ -1,0 +1,5569 @@
+{
+  "services": {
+    "2dd1b25c-4525-11e6-bd6d-0800275521ee": {
+      "status": {
+        "loadBalancer": {}
+      },
+      "spec": {
+        "clusterIP": "10.0.0.1",
+        "type": "ClusterIP",
+        "ports": [
+          {
+            "targetPort": 443,
+            "protocol": "TCP",
+            "name": "https",
+            "port": 443
+          }
+        ],
+        "sessionAffinity": "ClientIP"
+      },
+      "metadata": {
+        "name": "kubernetes",
+        "labels": {
+          "component": "apiserver",
+          "provider": "kubernetes"
+        },
+        "namespace": "default",
+        "resourceVersion": "8",
+        "creationTimestamp": "2016-07-08T16:01:06Z",
+        "selfLink": "/api/v1/namespaces/default/services/kubernetes",
+        "uid": "2dd1b25c-4525-11e6-bd6d-0800275521ee"
+      }
+    }
+  },
+  "nodes": {
+    "83c691de-4525-11e6-bd6d-0800275521ee": {
+      "status": {
+        "capacity": {
+          "alpha.kubernetes.io/nvidia-gpu": "0",
+          "pods": "200",
+          "cpu": "1",
+          "memory": "3840Mi"
+        },
+        "addresses": [
+          {
+            "type": "LegacyHostIP",
+            "address": "172.17.0.7"
+          },
+          {
+            "type": "InternalIP",
+            "address": "172.17.0.7"
+          }
+        ],
+        "nodeInfo": {
+          "kernelVersion": "",
+          "kubeletVersion": "v1.3.0-alpha.4.132+1cce15659750d9-dirty",
+          "containerRuntimeVersion": "docker://1.8.1",
+          "machineID": "",
+          "kubeProxyVersion": "v1.3.0-alpha.4.132+1cce15659750d9-dirty",
+          "bootID": "",
+          "osImage": "",
+          "architecture": "amd64",
+          "systemUUID": "",
+          "operatingSystem": "linux"
+        },
+        "allocatable": {
+          "alpha.kubernetes.io/nvidia-gpu": "0",
+          "pods": "200",
+          "cpu": 1000,
+          "memory": 4026531840
+        },
+        "daemonEndpoints": {
+          "kubeletEndpoint": {
+            "Port": 10250
+          }
+        },
+        "conditions": [
+          {
+            "status": "False",
+            "lastTransitionTime": "2016-07-09T18:26:49Z",
+            "lastHeartbeatTime": "2016-07-09T20:38:18Z",
+            "reason": "KubeletHasSufficientDisk",
+            "message": "kubelet has sufficient disk space available",
+            "type": "OutOfDisk"
+          },
+          {
+            "status": "False",
+            "lastTransitionTime": "2016-07-08T16:03:30Z",
+            "lastHeartbeatTime": "2016-07-09T20:38:18Z",
+            "reason": "KubeletHasSufficientMemory",
+            "message": "kubelet has sufficient memory available",
+            "type": "MemoryPressure"
+          },
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-09T19:56:04Z",
+            "lastHeartbeatTime": "2016-07-09T20:38:18Z",
+            "reason": "KubeletReady",
+            "message": "kubelet is posting ready status",
+            "type": "Ready"
+          }
+        ]
+      },
+      "kind": "Node",
+      "spec": {
+        "externalID": "172.17.0.7"
+      },
+      "apiVersion": "v1",
+      "metadata": {
+        "uid": "83c691de-4525-11e6-bd6d-0800275521ee",
+        "labels": {
+          "kubernetes.io/hostname": "172.17.0.7",
+          "beta.kubernetes.io/os": "linux",
+          "beta.kubernetes.io/arch": "amd64"
+        },
+        "resourceVersion": "96994",
+        "creationTimestamp": "2016-07-08T16:03:30Z",
+        "selfLink": "/api/v1/nodes/172.17.0.7",
+        "name": "172.17.0.7"
+      }
+    },
+    "7f2f6c13-4525-11e6-bd6d-0800275521ee": {
+      "status": {
+        "capacity": {
+          "alpha.kubernetes.io/nvidia-gpu": "0",
+          "pods": "200",
+          "cpu": "1",
+          "memory": "3840Mi"
+        },
+        "addresses": [
+          {
+            "type": "LegacyHostIP",
+            "address": "172.17.0.4"
+          },
+          {
+            "type": "InternalIP",
+            "address": "172.17.0.4"
+          }
+        ],
+        "nodeInfo": {
+          "kernelVersion": "",
+          "kubeletVersion": "v1.3.0-alpha.4.132+1cce15659750d9-dirty",
+          "containerRuntimeVersion": "docker://1.8.1",
+          "machineID": "",
+          "kubeProxyVersion": "v1.3.0-alpha.4.132+1cce15659750d9-dirty",
+          "bootID": "",
+          "osImage": "",
+          "architecture": "amd64",
+          "systemUUID": "",
+          "operatingSystem": "linux"
+        },
+        "allocatable": {
+          "alpha.kubernetes.io/nvidia-gpu": "0",
+          "pods": "200",
+          "cpu": 1000,
+          "memory": 4026531840
+        },
+        "daemonEndpoints": {
+          "kubeletEndpoint": {
+            "Port": 10250
+          }
+        },
+        "conditions": [
+          {
+            "status": "False",
+            "lastTransitionTime": "2016-07-09T18:26:48Z",
+            "lastHeartbeatTime": "2016-07-09T20:38:16Z",
+            "reason": "KubeletHasSufficientDisk",
+            "message": "kubelet has sufficient disk space available",
+            "type": "OutOfDisk"
+          },
+          {
+            "status": "False",
+            "lastTransitionTime": "2016-07-08T16:03:23Z",
+            "lastHeartbeatTime": "2016-07-09T20:38:16Z",
+            "reason": "KubeletHasSufficientMemory",
+            "message": "kubelet has sufficient memory available",
+            "type": "MemoryPressure"
+          },
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-09T18:26:48Z",
+            "lastHeartbeatTime": "2016-07-09T20:38:16Z",
+            "reason": "KubeletReady",
+            "message": "kubelet is posting ready status",
+            "type": "Ready"
+          }
+        ]
+      },
+      "kind": "Node",
+      "spec": {
+        "externalID": "172.17.0.4"
+      },
+      "apiVersion": "v1",
+      "metadata": {
+        "uid": "7f2f6c13-4525-11e6-bd6d-0800275521ee",
+        "labels": {
+          "kubernetes.io/hostname": "172.17.0.4",
+          "beta.kubernetes.io/os": "linux",
+          "beta.kubernetes.io/arch": "amd64"
+        },
+        "resourceVersion": "96991",
+        "creationTimestamp": "2016-07-08T16:03:23Z",
+        "selfLink": "/api/v1/nodes/172.17.0.4",
+        "name": "172.17.0.4"
+      }
+    },
+    "82b4246b-4525-11e6-bd6d-0800275521ee": {
+      "status": {
+        "capacity": {
+          "alpha.kubernetes.io/nvidia-gpu": "0",
+          "pods": "200",
+          "cpu": "1",
+          "memory": "3840Mi"
+        },
+        "addresses": [
+          {
+            "type": "LegacyHostIP",
+            "address": "172.17.0.5"
+          },
+          {
+            "type": "InternalIP",
+            "address": "172.17.0.5"
+          }
+        ],
+        "nodeInfo": {
+          "kernelVersion": "",
+          "kubeletVersion": "v1.3.0-alpha.4.132+1cce15659750d9-dirty",
+          "containerRuntimeVersion": "docker://1.8.1",
+          "machineID": "",
+          "kubeProxyVersion": "v1.3.0-alpha.4.132+1cce15659750d9-dirty",
+          "bootID": "",
+          "osImage": "",
+          "architecture": "amd64",
+          "systemUUID": "",
+          "operatingSystem": "linux"
+        },
+        "allocatable": {
+          "alpha.kubernetes.io/nvidia-gpu": "0",
+          "pods": "200",
+          "cpu": 1000,
+          "memory": 4026531840
+        },
+        "daemonEndpoints": {
+          "kubeletEndpoint": {
+            "Port": 10250
+          }
+        },
+        "conditions": [
+          {
+            "status": "False",
+            "lastTransitionTime": "2016-07-08T19:09:41Z",
+            "lastHeartbeatTime": "2016-07-09T20:38:22Z",
+            "reason": "KubeletHasSufficientDisk",
+            "message": "kubelet has sufficient disk space available",
+            "type": "OutOfDisk"
+          },
+          {
+            "status": "False",
+            "lastTransitionTime": "2016-07-08T16:03:29Z",
+            "lastHeartbeatTime": "2016-07-09T20:38:22Z",
+            "reason": "KubeletHasSufficientMemory",
+            "message": "kubelet has sufficient memory available",
+            "type": "MemoryPressure"
+          },
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-08T19:09:41Z",
+            "lastHeartbeatTime": "2016-07-09T20:38:22Z",
+            "reason": "KubeletReady",
+            "message": "kubelet is posting ready status",
+            "type": "Ready"
+          }
+        ]
+      },
+      "kind": "Node",
+      "spec": {
+        "externalID": "172.17.0.5"
+      },
+      "apiVersion": "v1",
+      "metadata": {
+        "uid": "82b4246b-4525-11e6-bd6d-0800275521ee",
+        "labels": {
+          "kubernetes.io/hostname": "172.17.0.5",
+          "beta.kubernetes.io/os": "linux",
+          "beta.kubernetes.io/arch": "amd64"
+        },
+        "resourceVersion": "96999",
+        "creationTimestamp": "2016-07-08T16:03:29Z",
+        "selfLink": "/api/v1/nodes/172.17.0.5",
+        "name": "172.17.0.5"
+      }
+    },
+    "7f030ed0-4525-11e6-bd6d-0800275521ee": {
+      "status": {
+        "capacity": {
+          "alpha.kubernetes.io/nvidia-gpu": "0",
+          "pods": "200",
+          "cpu": "1",
+          "memory": "3840Mi"
+        },
+        "addresses": [
+          {
+            "type": "LegacyHostIP",
+            "address": "172.17.0.3"
+          },
+          {
+            "type": "InternalIP",
+            "address": "172.17.0.3"
+          }
+        ],
+        "nodeInfo": {
+          "kernelVersion": "",
+          "kubeletVersion": "v1.3.0-alpha.4.132+1cce15659750d9-dirty",
+          "containerRuntimeVersion": "docker://1.8.1",
+          "machineID": "",
+          "kubeProxyVersion": "v1.3.0-alpha.4.132+1cce15659750d9-dirty",
+          "bootID": "",
+          "osImage": "",
+          "architecture": "amd64",
+          "systemUUID": "",
+          "operatingSystem": "linux"
+        },
+        "allocatable": {
+          "alpha.kubernetes.io/nvidia-gpu": "0",
+          "pods": "200",
+          "cpu": 1000,
+          "memory": 4026531840
+        },
+        "daemonEndpoints": {
+          "kubeletEndpoint": {
+            "Port": 10250
+          }
+        },
+        "conditions": [
+          {
+            "status": "False",
+            "lastTransitionTime": "2016-07-09T19:55:58Z",
+            "lastHeartbeatTime": "2016-07-09T20:38:22Z",
+            "reason": "KubeletHasSufficientDisk",
+            "message": "kubelet has sufficient disk space available",
+            "type": "OutOfDisk"
+          },
+          {
+            "status": "False",
+            "lastTransitionTime": "2016-07-08T16:03:22Z",
+            "lastHeartbeatTime": "2016-07-09T20:38:22Z",
+            "reason": "KubeletHasSufficientMemory",
+            "message": "kubelet has sufficient memory available",
+            "type": "MemoryPressure"
+          },
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-09T19:55:58Z",
+            "lastHeartbeatTime": "2016-07-09T20:38:22Z",
+            "reason": "KubeletReady",
+            "message": "kubelet is posting ready status",
+            "type": "Ready"
+          }
+        ]
+      },
+      "kind": "Node",
+      "spec": {
+        "externalID": "172.17.0.3"
+      },
+      "apiVersion": "v1",
+      "metadata": {
+        "uid": "7f030ed0-4525-11e6-bd6d-0800275521ee",
+        "labels": {
+          "kubernetes.io/hostname": "172.17.0.3",
+          "beta.kubernetes.io/os": "linux",
+          "beta.kubernetes.io/arch": "amd64"
+        },
+        "resourceVersion": "96996",
+        "creationTimestamp": "2016-07-08T16:03:22Z",
+        "selfLink": "/api/v1/nodes/172.17.0.3",
+        "name": "172.17.0.3"
+      }
+    },
+    "8820a49a-4525-11e6-bd6d-0800275521ee": {
+      "status": {
+        "capacity": {
+          "alpha.kubernetes.io/nvidia-gpu": "0",
+          "pods": "200",
+          "cpu": "1",
+          "memory": "3840Mi"
+        },
+        "addresses": [
+          {
+            "type": "LegacyHostIP",
+            "address": "172.17.0.8"
+          },
+          {
+            "type": "InternalIP",
+            "address": "172.17.0.8"
+          }
+        ],
+        "nodeInfo": {
+          "kernelVersion": "",
+          "kubeletVersion": "v1.3.0-alpha.4.132+1cce15659750d9-dirty",
+          "containerRuntimeVersion": "docker://1.8.1",
+          "machineID": "",
+          "kubeProxyVersion": "v1.3.0-alpha.4.132+1cce15659750d9-dirty",
+          "bootID": "",
+          "osImage": "",
+          "architecture": "amd64",
+          "systemUUID": "",
+          "operatingSystem": "linux"
+        },
+        "allocatable": {
+          "alpha.kubernetes.io/nvidia-gpu": "0",
+          "pods": "200",
+          "cpu": 1000,
+          "memory": 4026531840
+        },
+        "daemonEndpoints": {
+          "kubeletEndpoint": {
+            "Port": 10250
+          }
+        },
+        "conditions": [
+          {
+            "status": "False",
+            "lastTransitionTime": "2016-07-09T02:16:41Z",
+            "lastHeartbeatTime": "2016-07-09T20:38:16Z",
+            "reason": "KubeletHasSufficientDisk",
+            "message": "kubelet has sufficient disk space available",
+            "type": "OutOfDisk"
+          },
+          {
+            "status": "False",
+            "lastTransitionTime": "2016-07-08T16:03:38Z",
+            "lastHeartbeatTime": "2016-07-09T20:38:16Z",
+            "reason": "KubeletHasSufficientMemory",
+            "message": "kubelet has sufficient memory available",
+            "type": "MemoryPressure"
+          },
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-09T02:16:41Z",
+            "lastHeartbeatTime": "2016-07-09T20:38:16Z",
+            "reason": "KubeletReady",
+            "message": "kubelet is posting ready status",
+            "type": "Ready"
+          }
+        ]
+      },
+      "kind": "Node",
+      "spec": {
+        "externalID": "172.17.0.8"
+      },
+      "apiVersion": "v1",
+      "metadata": {
+        "uid": "8820a49a-4525-11e6-bd6d-0800275521ee",
+        "labels": {
+          "kubernetes.io/hostname": "172.17.0.8",
+          "beta.kubernetes.io/os": "linux",
+          "beta.kubernetes.io/arch": "amd64"
+        },
+        "resourceVersion": "96993",
+        "creationTimestamp": "2016-07-08T16:03:38Z",
+        "selfLink": "/api/v1/nodes/172.17.0.8",
+        "name": "172.17.0.8"
+      }
+    },
+    "81b4ef97-4525-11e6-bd6d-0800275521ee": {
+      "status": {
+        "capacity": {
+          "alpha.kubernetes.io/nvidia-gpu": "0",
+          "pods": "200",
+          "cpu": "1",
+          "memory": "3840Mi"
+        },
+        "addresses": [
+          {
+            "type": "LegacyHostIP",
+            "address": "172.17.0.2"
+          },
+          {
+            "type": "InternalIP",
+            "address": "172.17.0.2"
+          }
+        ],
+        "nodeInfo": {
+          "kernelVersion": "",
+          "kubeletVersion": "v1.3.0-alpha.4.132+1cce15659750d9-dirty",
+          "containerRuntimeVersion": "docker://1.8.1",
+          "machineID": "",
+          "kubeProxyVersion": "v1.3.0-alpha.4.132+1cce15659750d9-dirty",
+          "bootID": "",
+          "osImage": "",
+          "architecture": "amd64",
+          "systemUUID": "",
+          "operatingSystem": "linux"
+        },
+        "allocatable": {
+          "alpha.kubernetes.io/nvidia-gpu": "0",
+          "pods": "200",
+          "cpu": 1000,
+          "memory": 4026531840
+        },
+        "daemonEndpoints": {
+          "kubeletEndpoint": {
+            "Port": 10250
+          }
+        },
+        "conditions": [
+          {
+            "status": "False",
+            "lastTransitionTime": "2016-07-09T18:26:47Z",
+            "lastHeartbeatTime": "2016-07-09T20:38:26Z",
+            "reason": "KubeletHasSufficientDisk",
+            "message": "kubelet has sufficient disk space available",
+            "type": "OutOfDisk"
+          },
+          {
+            "status": "False",
+            "lastTransitionTime": "2016-07-08T16:03:27Z",
+            "lastHeartbeatTime": "2016-07-09T20:38:26Z",
+            "reason": "KubeletHasSufficientMemory",
+            "message": "kubelet has sufficient memory available",
+            "type": "MemoryPressure"
+          },
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-09T18:26:47Z",
+            "lastHeartbeatTime": "2016-07-09T20:38:26Z",
+            "reason": "KubeletReady",
+            "message": "kubelet is posting ready status",
+            "type": "Ready"
+          }
+        ]
+      },
+      "kind": "Node",
+      "spec": {
+        "externalID": "172.17.0.2"
+      },
+      "apiVersion": "v1",
+      "metadata": {
+        "uid": "81b4ef97-4525-11e6-bd6d-0800275521ee",
+        "labels": {
+          "kubernetes.io/hostname": "172.17.0.2",
+          "beta.kubernetes.io/os": "linux",
+          "beta.kubernetes.io/arch": "amd64"
+        },
+        "resourceVersion": "97001",
+        "creationTimestamp": "2016-07-08T16:03:27Z",
+        "selfLink": "/api/v1/nodes/172.17.0.2",
+        "name": "172.17.0.2"
+      }
+    },
+    "86c0ba55-4525-11e6-bd6d-0800275521ee": {
+      "status": {
+        "capacity": {
+          "alpha.kubernetes.io/nvidia-gpu": "0",
+          "pods": "200",
+          "cpu": "1",
+          "memory": "3840Mi"
+        },
+        "addresses": [
+          {
+            "type": "LegacyHostIP",
+            "address": "172.17.0.9"
+          },
+          {
+            "type": "InternalIP",
+            "address": "172.17.0.9"
+          }
+        ],
+        "nodeInfo": {
+          "kernelVersion": "",
+          "kubeletVersion": "v1.3.0-alpha.4.132+1cce15659750d9-dirty",
+          "containerRuntimeVersion": "docker://1.8.1",
+          "machineID": "",
+          "kubeProxyVersion": "v1.3.0-alpha.4.132+1cce15659750d9-dirty",
+          "bootID": "",
+          "osImage": "",
+          "architecture": "amd64",
+          "systemUUID": "",
+          "operatingSystem": "linux"
+        },
+        "allocatable": {
+          "alpha.kubernetes.io/nvidia-gpu": "0",
+          "pods": "200",
+          "cpu": 1000,
+          "memory": 4026531840
+        },
+        "daemonEndpoints": {
+          "kubeletEndpoint": {
+            "Port": 10250
+          }
+        },
+        "conditions": [
+          {
+            "status": "False",
+            "lastTransitionTime": "2016-07-08T16:03:35Z",
+            "lastHeartbeatTime": "2016-07-09T20:38:16Z",
+            "reason": "KubeletHasSufficientDisk",
+            "message": "kubelet has sufficient disk space available",
+            "type": "OutOfDisk"
+          },
+          {
+            "status": "False",
+            "lastTransitionTime": "2016-07-08T16:03:35Z",
+            "lastHeartbeatTime": "2016-07-09T20:38:16Z",
+            "reason": "KubeletHasSufficientMemory",
+            "message": "kubelet has sufficient memory available",
+            "type": "MemoryPressure"
+          },
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-09T19:56:03Z",
+            "lastHeartbeatTime": "2016-07-09T20:38:16Z",
+            "reason": "KubeletReady",
+            "message": "kubelet is posting ready status",
+            "type": "Ready"
+          }
+        ]
+      },
+      "kind": "Node",
+      "spec": {
+        "externalID": "172.17.0.9"
+      },
+      "apiVersion": "v1",
+      "metadata": {
+        "uid": "86c0ba55-4525-11e6-bd6d-0800275521ee",
+        "labels": {
+          "kubernetes.io/hostname": "172.17.0.9",
+          "beta.kubernetes.io/os": "linux",
+          "beta.kubernetes.io/arch": "amd64"
+        },
+        "resourceVersion": "96992",
+        "creationTimestamp": "2016-07-08T16:03:35Z",
+        "selfLink": "/api/v1/nodes/172.17.0.9",
+        "name": "172.17.0.9"
+      }
+    },
+    "803b2e59-4525-11e6-bd6d-0800275521ee": {
+      "status": {
+        "capacity": {
+          "alpha.kubernetes.io/nvidia-gpu": "0",
+          "pods": "200",
+          "cpu": "1",
+          "memory": "3840Mi"
+        },
+        "addresses": [
+          {
+            "type": "LegacyHostIP",
+            "address": "172.17.0.6"
+          },
+          {
+            "type": "InternalIP",
+            "address": "172.17.0.6"
+          }
+        ],
+        "nodeInfo": {
+          "kernelVersion": "",
+          "kubeletVersion": "v1.3.0-alpha.4.132+1cce15659750d9-dirty",
+          "containerRuntimeVersion": "docker://1.8.1",
+          "machineID": "",
+          "kubeProxyVersion": "v1.3.0-alpha.4.132+1cce15659750d9-dirty",
+          "bootID": "",
+          "osImage": "",
+          "architecture": "amd64",
+          "systemUUID": "",
+          "operatingSystem": "linux"
+        },
+        "allocatable": {
+          "alpha.kubernetes.io/nvidia-gpu": "0",
+          "pods": "200",
+          "cpu": 1000,
+          "memory": 4026531840
+        },
+        "daemonEndpoints": {
+          "kubeletEndpoint": {
+            "Port": 10250
+          }
+        },
+        "conditions": [
+          {
+            "status": "False",
+            "lastTransitionTime": "2016-07-09T19:55:58Z",
+            "lastHeartbeatTime": "2016-07-09T20:38:22Z",
+            "reason": "KubeletHasSufficientDisk",
+            "message": "kubelet has sufficient disk space available",
+            "type": "OutOfDisk"
+          },
+          {
+            "status": "False",
+            "lastTransitionTime": "2016-07-08T16:03:24Z",
+            "lastHeartbeatTime": "2016-07-09T20:38:22Z",
+            "reason": "KubeletHasSufficientMemory",
+            "message": "kubelet has sufficient memory available",
+            "type": "MemoryPressure"
+          },
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-09T19:55:58Z",
+            "lastHeartbeatTime": "2016-07-09T20:38:22Z",
+            "reason": "KubeletReady",
+            "message": "kubelet is posting ready status",
+            "type": "Ready"
+          }
+        ]
+      },
+      "kind": "Node",
+      "spec": {
+        "externalID": "172.17.0.6"
+      },
+      "apiVersion": "v1",
+      "metadata": {
+        "uid": "803b2e59-4525-11e6-bd6d-0800275521ee",
+        "labels": {
+          "kubernetes.io/hostname": "172.17.0.6",
+          "beta.kubernetes.io/os": "linux",
+          "beta.kubernetes.io/arch": "amd64"
+        },
+        "resourceVersion": "96998",
+        "creationTimestamp": "2016-07-08T16:03:24Z",
+        "selfLink": "/api/v1/nodes/172.17.0.6",
+        "name": "172.17.0.6"
+      }
+    },
+    "8b371c02-4525-11e6-bd6d-0800275521ee": {
+      "status": {
+        "capacity": {
+          "alpha.kubernetes.io/nvidia-gpu": "0",
+          "pods": "200",
+          "cpu": "1",
+          "memory": "3840Mi"
+        },
+        "addresses": [
+          {
+            "type": "LegacyHostIP",
+            "address": "172.17.0.11"
+          },
+          {
+            "type": "InternalIP",
+            "address": "172.17.0.11"
+          }
+        ],
+        "nodeInfo": {
+          "kernelVersion": "",
+          "kubeletVersion": "v1.3.0-alpha.4.132+1cce15659750d9-dirty",
+          "containerRuntimeVersion": "docker://1.8.1",
+          "machineID": "",
+          "kubeProxyVersion": "v1.3.0-alpha.4.132+1cce15659750d9-dirty",
+          "bootID": "",
+          "osImage": "",
+          "architecture": "amd64",
+          "systemUUID": "",
+          "operatingSystem": "linux"
+        },
+        "allocatable": {
+          "alpha.kubernetes.io/nvidia-gpu": "0",
+          "pods": "200",
+          "cpu": 1000,
+          "memory": 4026531840
+        },
+        "daemonEndpoints": {
+          "kubeletEndpoint": {
+            "Port": 10250
+          }
+        },
+        "conditions": [
+          {
+            "status": "False",
+            "lastTransitionTime": "2016-07-09T18:26:46Z",
+            "lastHeartbeatTime": "2016-07-09T20:38:25Z",
+            "reason": "KubeletHasSufficientDisk",
+            "message": "kubelet has sufficient disk space available",
+            "type": "OutOfDisk"
+          },
+          {
+            "status": "False",
+            "lastTransitionTime": "2016-07-08T16:03:43Z",
+            "lastHeartbeatTime": "2016-07-09T20:38:25Z",
+            "reason": "KubeletHasSufficientMemory",
+            "message": "kubelet has sufficient memory available",
+            "type": "MemoryPressure"
+          },
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-09T18:26:46Z",
+            "lastHeartbeatTime": "2016-07-09T20:38:25Z",
+            "reason": "KubeletReady",
+            "message": "kubelet is posting ready status",
+            "type": "Ready"
+          }
+        ]
+      },
+      "kind": "Node",
+      "spec": {
+        "externalID": "172.17.0.11"
+      },
+      "apiVersion": "v1",
+      "metadata": {
+        "uid": "8b371c02-4525-11e6-bd6d-0800275521ee",
+        "labels": {
+          "kubernetes.io/hostname": "172.17.0.11",
+          "beta.kubernetes.io/os": "linux",
+          "beta.kubernetes.io/arch": "amd64"
+        },
+        "resourceVersion": "97000",
+        "creationTimestamp": "2016-07-08T16:03:43Z",
+        "selfLink": "/api/v1/nodes/172.17.0.11",
+        "name": "172.17.0.11"
+      }
+    },
+    "32f000e0-4525-11e6-bd6d-0800275521ee": {
+      "status": {
+        "capacity": {
+          "alpha.kubernetes.io/nvidia-gpu": "0",
+          "pods": "110",
+          "cpu": "4",
+          "memory": "8175184Ki"
+        },
+        "addresses": [
+          {
+            "type": "LegacyHostIP",
+            "address": "127.0.0.1"
+          },
+          {
+            "type": "InternalIP",
+            "address": "127.0.0.1"
+          }
+        ],
+        "nodeInfo": {
+          "kernelVersion": "4.4.0-28-generic",
+          "kubeletVersion": "v1.3.0-dirty",
+          "containerRuntimeVersion": "docker://1.11.1",
+          "machineID": "ef75482e68faffa3dd7fad1c573e455d",
+          "kubeProxyVersion": "v1.3.0-dirty",
+          "bootID": "8db61eba-b5c8-49a2-915e-348ad6f536db",
+          "osImage": "Ubuntu 16.04 LTS",
+          "architecture": "amd64",
+          "systemUUID": "EF392D34-4374-43FA-B4BC-F795BCF0FD21",
+          "operatingSystem": "linux"
+        },
+        "allocatable": {
+          "alpha.kubernetes.io/nvidia-gpu": "0",
+          "pods": "110",
+          "cpu": 4000,
+          "memory": 8371388416
+        },
+        "daemonEndpoints": {
+          "kubeletEndpoint": {
+            "Port": 10250
+          }
+        },
+        "images": [
+          {
+            "sizeBytes": 2324692000,
+            "names": [
+              "docker-dev:master"
+            ]
+          },
+          {
+            "sizeBytes": 225400965,
+            "names": [
+              "kubemark:latest"
+            ]
+          },
+          {
+            "sizeBytes": 225396837,
+            "names": [
+              "<none>:<none>",
+              "<none>@<none>"
+            ]
+          },
+          {
+            "sizeBytes": 182790156,
+            "names": [
+              "<none>:<none>",
+              "<none>@<none>"
+            ]
+          },
+          {
+            "sizeBytes": 182786784,
+            "names": [
+              "nginx:latest"
+            ]
+          },
+          {
+            "sizeBytes": 182773270,
+            "names": [
+              "<none>:<none>",
+              "<none>@<none>"
+            ]
+          },
+          {
+            "sizeBytes": 125093399,
+            "names": [
+              "debian:jessie"
+            ]
+          },
+          {
+            "sizeBytes": 746888,
+            "names": [
+              "gcr.io/google_containers/pause-amd64:3.0"
+            ]
+          },
+          {
+            "sizeBytes": 967,
+            "names": [
+              "hello-world:latest"
+            ]
+          }
+        ],
+        "conditions": [
+          {
+            "status": "False",
+            "lastTransitionTime": "2016-07-09T18:26:46Z",
+            "lastHeartbeatTime": "2016-07-09T20:38:20Z",
+            "reason": "KubeletHasSufficientDisk",
+            "message": "kubelet has sufficient disk space available",
+            "type": "OutOfDisk"
+          },
+          {
+            "status": "False",
+            "lastTransitionTime": "2016-07-08T16:01:15Z",
+            "lastHeartbeatTime": "2016-07-09T20:38:20Z",
+            "reason": "KubeletHasSufficientMemory",
+            "message": "kubelet has sufficient memory available",
+            "type": "MemoryPressure"
+          },
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-09T18:26:46Z",
+            "lastHeartbeatTime": "2016-07-09T20:38:20Z",
+            "reason": "KubeletReady",
+            "message": "kubelet is posting ready status",
+            "type": "Ready"
+          }
+        ]
+      },
+      "kind": "Node",
+      "spec": {
+        "externalID": "127.0.0.1"
+      },
+      "apiVersion": "v1",
+      "metadata": {
+        "name": "127.0.0.1",
+        "labels": {
+          "kubernetes.io/hostname": "127.0.0.1",
+          "beta.kubernetes.io/os": "linux",
+          "beta.kubernetes.io/arch": "amd64"
+        },
+        "resourceVersion": "96995",
+        "creationTimestamp": "2016-07-08T16:01:15Z",
+        "annotations": {
+          "volumes.kubernetes.io/controller-managed-attach-detach": "true"
+        },
+        "selfLink": "/api/v1/nodes/127.0.0.1",
+        "uid": "32f000e0-4525-11e6-bd6d-0800275521ee"
+      }
+    },
+    "8775893b-4525-11e6-bd6d-0800275521ee": {
+      "status": {
+        "capacity": {
+          "alpha.kubernetes.io/nvidia-gpu": "0",
+          "pods": "200",
+          "cpu": "1",
+          "memory": "3840Mi"
+        },
+        "addresses": [
+          {
+            "type": "LegacyHostIP",
+            "address": "172.17.0.10"
+          },
+          {
+            "type": "InternalIP",
+            "address": "172.17.0.10"
+          }
+        ],
+        "nodeInfo": {
+          "kernelVersion": "",
+          "kubeletVersion": "v1.3.0-alpha.4.132+1cce15659750d9-dirty",
+          "containerRuntimeVersion": "docker://1.8.1",
+          "machineID": "",
+          "kubeProxyVersion": "v1.3.0-alpha.4.132+1cce15659750d9-dirty",
+          "bootID": "",
+          "osImage": "",
+          "architecture": "amd64",
+          "systemUUID": "",
+          "operatingSystem": "linux"
+        },
+        "allocatable": {
+          "alpha.kubernetes.io/nvidia-gpu": "0",
+          "pods": "200",
+          "cpu": 1000,
+          "memory": 4026531840
+        },
+        "daemonEndpoints": {
+          "kubeletEndpoint": {
+            "Port": 10250
+          }
+        },
+        "conditions": [
+          {
+            "status": "False",
+            "lastTransitionTime": "2016-07-09T19:55:58Z",
+            "lastHeartbeatTime": "2016-07-09T20:38:22Z",
+            "reason": "KubeletHasSufficientDisk",
+            "message": "kubelet has sufficient disk space available",
+            "type": "OutOfDisk"
+          },
+          {
+            "status": "False",
+            "lastTransitionTime": "2016-07-08T16:03:37Z",
+            "lastHeartbeatTime": "2016-07-09T20:38:22Z",
+            "reason": "KubeletHasSufficientMemory",
+            "message": "kubelet has sufficient memory available",
+            "type": "MemoryPressure"
+          },
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-09T19:55:58Z",
+            "lastHeartbeatTime": "2016-07-09T20:38:22Z",
+            "reason": "KubeletReady",
+            "message": "kubelet is posting ready status",
+            "type": "Ready"
+          }
+        ]
+      },
+      "kind": "Node",
+      "spec": {
+        "externalID": "172.17.0.10"
+      },
+      "apiVersion": "v1",
+      "metadata": {
+        "uid": "8775893b-4525-11e6-bd6d-0800275521ee",
+        "labels": {
+          "kubernetes.io/hostname": "172.17.0.10",
+          "beta.kubernetes.io/os": "linux",
+          "beta.kubernetes.io/arch": "amd64"
+        },
+        "resourceVersion": "96997",
+        "creationTimestamp": "2016-07-08T16:03:37Z",
+        "selfLink": "/api/v1/nodes/172.17.0.10",
+        "name": "172.17.0.10"
+      }
+    }
+  },
+  "replicationcontrollers": {
+    "7d7a87c8-4525-11e6-bd6d-0800275521ee": {
+      "status": {
+        "observedGeneration": 1,
+        "fullyLabeledReplicas": 10,
+        "replicas": 10
+      },
+      "spec": {
+        "selector": {
+          "name": "hollow-node"
+        },
+        "template": {
+          "spec": {
+            "dnsPolicy": "ClusterFirst",
+            "securityContext": {},
+            "terminationGracePeriodSeconds": 30,
+            "restartPolicy": "Always",
+            "volumes": [
+              {
+                "secret": {
+                  "secretName": "kubeconfig"
+                },
+                "name": "kubeconfig-volume"
+              }
+            ],
+            "containers": [
+              {
+                "terminationMessagePath": "/dev/termination-log",
+                "name": "hollow-kubelet",
+                "image": "kubemark:latest",
+                "args": [
+                  "--v=3",
+                  "--morph=kubelet",
+                  "--max-pods=200",
+                  "$(CONTENT_TYPE)"
+                ],
+                "volumeMounts": [
+                  {
+                    "mountPath": "/kubeconfig",
+                    "name": "kubeconfig-volume"
+                  }
+                ],
+                "command": [
+                  "./kubemark.sh"
+                ],
+                "env": [
+                  {
+                    "valueFrom": {
+                      "configMapKeyRef": {
+                        "name": "node-configmap",
+                        "key": "content.type"
+                      }
+                    },
+                    "name": "CONTENT_TYPE"
+                  }
+                ],
+                "imagePullPolicy": "Never",
+                "ports": [
+                  {
+                    "protocol": "TCP",
+                    "containerPort": 4194
+                  },
+                  {
+                    "protocol": "TCP",
+                    "containerPort": 10250
+                  },
+                  {
+                    "protocol": "TCP",
+                    "containerPort": 10255
+                  }
+                ],
+                "resources": {
+                  "requests": {
+                    "cpu": "50m",
+                    "memory": "100M"
+                  }
+                }
+              },
+              {
+                "terminationMessagePath": "/dev/termination-log",
+                "name": "hollow-proxy",
+                "image": "kubemark:latest",
+                "args": [
+                  "--v=3",
+                  "--morph=proxy",
+                  "$(CONTENT_TYPE)"
+                ],
+                "volumeMounts": [
+                  {
+                    "mountPath": "/kubeconfig",
+                    "name": "kubeconfig-volume"
+                  }
+                ],
+                "command": [
+                  "./kubemark.sh"
+                ],
+                "env": [
+                  {
+                    "valueFrom": {
+                      "configMapKeyRef": {
+                        "name": "node-configmap",
+                        "key": "content.type"
+                      }
+                    },
+                    "name": "CONTENT_TYPE"
+                  }
+                ],
+                "imagePullPolicy": "Never",
+                "resources": {
+                  "requests": {
+                    "cpu": "20m",
+                    "memory": "100M"
+                  }
+                }
+              }
+            ]
+          },
+          "metadata": {
+            "labels": {
+              "name": "hollow-node"
+            },
+            "creationTimestamp": null,
+            "annotations": {
+              "scheduler.alpha.kubernetes.io/name": "experimental"
+            }
+          }
+        },
+        "replicas": 10
+      },
+      "metadata": {
+        "name": "hollow-node",
+        "generation": 1,
+        "labels": {
+          "name": "hollow-node"
+        },
+        "namespace": "kubemark",
+        "resourceVersion": "1570",
+        "creationTimestamp": "2016-07-08T16:03:20Z",
+        "selfLink": "/api/v1/namespaces/kubemark/replicationcontrollers/hollow-node",
+        "uid": "7d7a87c8-4525-11e6-bd6d-0800275521ee"
+      }
+    },
+    "e4b655d5-4614-11e6-bd6d-0800275521ee": {
+      "status": {
+        "observedGeneration": 1,
+        "fullyLabeledReplicas": 30,
+        "replicas": 30
+      },
+      "kind": "ReplicationController",
+      "spec": {
+        "selector": {
+          "app": "nginx30"
+        },
+        "template": {
+          "spec": {
+            "terminationGracePeriodSeconds": 30,
+            "dnsPolicy": "ClusterFirst",
+            "securityContext": {},
+            "restartPolicy": "Always",
+            "containers": [
+              {
+                "terminationMessagePath": "/dev/termination-log",
+                "name": "nginx",
+                "image": "nginx",
+                "imagePullPolicy": "Always",
+                "ports": [
+                  {
+                    "protocol": "TCP",
+                    "containerPort": 80
+                  }
+                ],
+                "resources": {}
+              }
+            ]
+          },
+          "metadata": {
+            "labels": {
+              "app": "nginx30"
+            },
+            "creationTimestamp": null,
+            "annotations": {
+              "scheduler.alpha.kubernetes.io/name": "experimental"
+            },
+            "name": "nginx30"
+          }
+        },
+        "replicas": 30
+      },
+      "apiVersion": "v1",
+      "metadata": {
+        "name": "nginx30",
+        "generation": 1,
+        "labels": {
+          "app": "nginx30"
+        },
+        "namespace": "kubemark",
+        "resourceVersion": "96796",
+        "creationTimestamp": "2016-07-09T20:37:03Z",
+        "selfLink": "/api/v1/namespaces/kubemark/replicationcontrollers/nginx30",
+        "uid": "e4b655d5-4614-11e6-bd6d-0800275521ee"
+      }
+    }
+  },
+  "pods": {
+    "e4b7c678-4614-11e6-bd6d-0800275521ee": {
+      "status": {
+        "containerStatuses": [
+          {
+            "restartCount": 0,
+            "name": "nginx",
+            "image": "nginx",
+            "imageID": "docker://",
+            "state": {
+              "running": {
+                "startedAt": "2016-07-09T20:37:20Z"
+              }
+            },
+            "ready": true,
+            "lastState": {},
+            "containerID": "docker:///k8s_nginx.156efd59_nginx30-owxdt_kubemark_e4b7c678-4614-11e6-bd6d-0800275521ee_a63732e5"
+          }
+        ],
+        "podIP": "2.3.4.5",
+        "startTime": "2016-07-09T20:37:19Z",
+        "hostIP": "172.17.0.11",
+        "phase": "Running",
+        "conditions": [
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-09T20:37:19Z",
+            "lastProbeTime": null,
+            "type": "Initialized"
+          },
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-09T20:37:20Z",
+            "lastProbeTime": null,
+            "type": "Ready"
+          },
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-09T20:37:19Z",
+            "lastProbeTime": null,
+            "type": "PodScheduled"
+          }
+        ]
+      },
+      "kind": "Pod",
+      "spec": {
+        "dnsPolicy": "ClusterFirst",
+        "securityContext": {},
+        "nodeName": "172.17.0.11",
+        "terminationGracePeriodSeconds": 30,
+        "restartPolicy": "Always",
+        "containers": [
+          {
+            "terminationMessagePath": "/dev/termination-log",
+            "name": "nginx",
+            "image": "nginx",
+            "imagePullPolicy": "Always",
+            "ports": [
+              {
+                "protocol": "TCP",
+                "containerPort": 80
+              }
+            ],
+            "resources": {}
+          }
+        ]
+      },
+      "apiVersion": "v1",
+      "metadata": {
+        "name": "nginx30-owxdt",
+        "labels": {
+          "app": "nginx30"
+        },
+        "namespace": "kubemark",
+        "resourceVersion": "96884",
+        "generateName": "nginx30-",
+        "creationTimestamp": "2016-07-09T20:37:03Z",
+        "annotations": {
+          "scheduler.alpha.kubernetes.io/name": "experimental",
+          "kubernetes.io/created-by": "{\"kind\":\"SerializedReference\",\"apiVersion\":\"v1\",\"reference\":{\"kind\":\"ReplicationController\",\"namespace\":\"kubemark\",\"name\":\"nginx30\",\"uid\":\"e4b655d5-4614-11e6-bd6d-0800275521ee\",\"apiVersion\":\"v1\",\"resourceVersion\":\"96758\"}}\n"
+        },
+        "selfLink": "/api/v1/namespaces/kubemark/pods/nginx30-owxdt",
+        "uid": "e4b7c678-4614-11e6-bd6d-0800275521ee"
+      }
+    },
+    "7d7d6747-4525-11e6-bd6d-0800275521ee": {
+      "status": {
+        "containerStatuses": [
+          {
+            "restartCount": 0,
+            "name": "hollow-kubelet",
+            "image": "kubemark:latest",
+            "imageID": "docker://sha256:9007bd447e31f12dd1d7fee7f9a1a6698405194711855d98ad6a0322363d6fde",
+            "state": {
+              "running": {
+                "startedAt": "2016-07-08T16:03:24Z"
+              }
+            },
+            "ready": true,
+            "lastState": {},
+            "containerID": "docker://0e36e464ce22bc451edc56c032fce9010fefece9c84da2176cd1b4a2e5708762"
+          },
+          {
+            "restartCount": 0,
+            "name": "hollow-proxy",
+            "image": "kubemark:latest",
+            "imageID": "docker://sha256:9007bd447e31f12dd1d7fee7f9a1a6698405194711855d98ad6a0322363d6fde",
+            "state": {
+              "running": {
+                "startedAt": "2016-07-08T16:03:25Z"
+              }
+            },
+            "ready": true,
+            "lastState": {},
+            "containerID": "docker://980dd1eeb9bfbf08d1297e3cc4cfc3372f10a837763b193b4dd8a39b26c10c05"
+          }
+        ],
+        "podIP": "172.17.0.6",
+        "startTime": "2016-07-08T16:03:20Z",
+        "hostIP": "127.0.0.1",
+        "phase": "Running",
+        "conditions": [
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-08T16:03:20Z",
+            "lastProbeTime": null,
+            "type": "Initialized"
+          },
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-08T16:03:26Z",
+            "lastProbeTime": null,
+            "type": "Ready"
+          },
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-08T16:03:20Z",
+            "lastProbeTime": null,
+            "type": "PodScheduled"
+          }
+        ]
+      },
+      "spec": {
+        "dnsPolicy": "ClusterFirst",
+        "securityContext": {},
+        "nodeName": "127.0.0.1",
+        "terminationGracePeriodSeconds": 30,
+        "restartPolicy": "Always",
+        "volumes": [
+          {
+            "secret": {
+              "secretName": "kubeconfig"
+            },
+            "name": "kubeconfig-volume"
+          }
+        ],
+        "containers": [
+          {
+            "terminationMessagePath": "/dev/termination-log",
+            "name": "hollow-kubelet",
+            "image": "kubemark:latest",
+            "args": [
+              "--v=3",
+              "--morph=kubelet",
+              "--max-pods=200",
+              "$(CONTENT_TYPE)"
+            ],
+            "volumeMounts": [
+              {
+                "mountPath": "/kubeconfig",
+                "name": "kubeconfig-volume"
+              }
+            ],
+            "command": [
+              "./kubemark.sh"
+            ],
+            "env": [
+              {
+                "valueFrom": {
+                  "configMapKeyRef": {
+                    "name": "node-configmap",
+                    "key": "content.type"
+                  }
+                },
+                "name": "CONTENT_TYPE"
+              }
+            ],
+            "imagePullPolicy": "Never",
+            "ports": [
+              {
+                "protocol": "TCP",
+                "containerPort": 4194
+              },
+              {
+                "protocol": "TCP",
+                "containerPort": 10250
+              },
+              {
+                "protocol": "TCP",
+                "containerPort": 10255
+              }
+            ],
+            "resources": {
+              "requests": {
+                "cpu": 50000,
+                "memory": 100000000
+              }
+            }
+          },
+          {
+            "terminationMessagePath": "/dev/termination-log",
+            "name": "hollow-proxy",
+            "image": "kubemark:latest",
+            "args": [
+              "--v=3",
+              "--morph=proxy",
+              "$(CONTENT_TYPE)"
+            ],
+            "volumeMounts": [
+              {
+                "mountPath": "/kubeconfig",
+                "name": "kubeconfig-volume"
+              }
+            ],
+            "command": [
+              "./kubemark.sh"
+            ],
+            "env": [
+              {
+                "valueFrom": {
+                  "configMapKeyRef": {
+                    "name": "node-configmap",
+                    "key": "content.type"
+                  }
+                },
+                "name": "CONTENT_TYPE"
+              }
+            ],
+            "imagePullPolicy": "Never",
+            "resources": {
+              "requests": {
+                "cpu": 20000,
+                "memory": 100000000
+              }
+            }
+          }
+        ]
+      },
+      "metadata": {
+        "name": "hollow-node-99ky5",
+        "labels": {
+          "name": "hollow-node"
+        },
+        "namespace": "kubemark",
+        "resourceVersion": "89410",
+        "generateName": "hollow-node-",
+        "creationTimestamp": "2016-07-08T16:03:20Z",
+        "annotations": {
+          "scheduler.alpha.kubernetes.io/name": "experimental",
+          "kubernetes.io/created-by": "{\"kind\":\"SerializedReference\",\"apiVersion\":\"v1\",\"reference\":{\"kind\":\"ReplicationController\",\"namespace\":\"kubemark\",\"name\":\"hollow-node\",\"uid\":\"7d7a87c8-4525-11e6-bd6d-0800275521ee\",\"apiVersion\":\"v1\",\"resourceVersion\":\"1550\"}}\n"
+        },
+        "selfLink": "/api/v1/namespaces/kubemark/pods/hollow-node-99ky5",
+        "uid": "7d7d6747-4525-11e6-bd6d-0800275521ee"
+      }
+    },
+    "e4b7cd1a-4614-11e6-bd6d-0800275521ee": {
+      "status": {
+        "containerStatuses": [
+          {
+            "restartCount": 0,
+            "name": "nginx",
+            "image": "nginx",
+            "imageID": "docker://",
+            "state": {
+              "running": {
+                "startedAt": "2016-07-09T20:37:16Z"
+              }
+            },
+            "ready": true,
+            "lastState": {},
+            "containerID": "docker:///k8s_nginx.156efd59_nginx30-g9vdb_kubemark_e4b7cd1a-4614-11e6-bd6d-0800275521ee_b0bc6f88"
+          }
+        ],
+        "podIP": "2.3.4.5",
+        "startTime": "2016-07-09T20:37:15Z",
+        "hostIP": "172.17.0.7",
+        "phase": "Running",
+        "conditions": [
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-09T20:37:15Z",
+            "lastProbeTime": null,
+            "type": "Initialized"
+          },
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-09T20:37:17Z",
+            "lastProbeTime": null,
+            "type": "Ready"
+          },
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-09T20:37:15Z",
+            "lastProbeTime": null,
+            "type": "PodScheduled"
+          }
+        ]
+      },
+      "kind": "Pod",
+      "spec": {
+        "dnsPolicy": "ClusterFirst",
+        "securityContext": {},
+        "nodeName": "172.17.0.7",
+        "terminationGracePeriodSeconds": 30,
+        "restartPolicy": "Always",
+        "containers": [
+          {
+            "terminationMessagePath": "/dev/termination-log",
+            "name": "nginx",
+            "image": "nginx",
+            "imagePullPolicy": "Always",
+            "ports": [
+              {
+                "protocol": "TCP",
+                "containerPort": 80
+              }
+            ],
+            "resources": {}
+          }
+        ]
+      },
+      "apiVersion": "v1",
+      "metadata": {
+        "name": "nginx30-g9vdb",
+        "labels": {
+          "app": "nginx30"
+        },
+        "namespace": "kubemark",
+        "resourceVersion": "96876",
+        "generateName": "nginx30-",
+        "creationTimestamp": "2016-07-09T20:37:03Z",
+        "annotations": {
+          "scheduler.alpha.kubernetes.io/name": "experimental",
+          "kubernetes.io/created-by": "{\"kind\":\"SerializedReference\",\"apiVersion\":\"v1\",\"reference\":{\"kind\":\"ReplicationController\",\"namespace\":\"kubemark\",\"name\":\"nginx30\",\"uid\":\"e4b655d5-4614-11e6-bd6d-0800275521ee\",\"apiVersion\":\"v1\",\"resourceVersion\":\"96758\"}}\n"
+        },
+        "selfLink": "/api/v1/namespaces/kubemark/pods/nginx30-g9vdb",
+        "uid": "e4b7cd1a-4614-11e6-bd6d-0800275521ee"
+      }
+    },
+    "e4b80135-4614-11e6-bd6d-0800275521ee": {
+      "status": {
+        "containerStatuses": [
+          {
+            "restartCount": 0,
+            "name": "nginx",
+            "image": "nginx",
+            "imageID": "docker://",
+            "state": {
+              "running": {
+                "startedAt": "2016-07-09T20:37:58Z"
+              }
+            },
+            "ready": true,
+            "lastState": {},
+            "containerID": "docker:///k8s_nginx.156efd59_nginx30-qnmfs_kubemark_e4b80135-4614-11e6-bd6d-0800275521ee_39b808e1"
+          }
+        ],
+        "podIP": "2.3.4.5",
+        "startTime": "2016-07-09T20:37:57Z",
+        "hostIP": "172.17.0.9",
+        "phase": "Running",
+        "conditions": [
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-09T20:37:57Z",
+            "lastProbeTime": null,
+            "type": "Initialized"
+          },
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-09T20:37:59Z",
+            "lastProbeTime": null,
+            "type": "Ready"
+          },
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-09T20:37:57Z",
+            "lastProbeTime": null,
+            "type": "PodScheduled"
+          }
+        ]
+      },
+      "kind": "Pod",
+      "spec": {
+        "dnsPolicy": "ClusterFirst",
+        "securityContext": {},
+        "nodeName": "172.17.0.9",
+        "terminationGracePeriodSeconds": 30,
+        "restartPolicy": "Always",
+        "containers": [
+          {
+            "terminationMessagePath": "/dev/termination-log",
+            "name": "nginx",
+            "image": "nginx",
+            "imagePullPolicy": "Always",
+            "ports": [
+              {
+                "protocol": "TCP",
+                "containerPort": 80
+              }
+            ],
+            "resources": {}
+          }
+        ]
+      },
+      "apiVersion": "v1",
+      "metadata": {
+        "name": "nginx30-qnmfs",
+        "labels": {
+          "app": "nginx30"
+        },
+        "namespace": "kubemark",
+        "resourceVersion": "96963",
+        "generateName": "nginx30-",
+        "creationTimestamp": "2016-07-09T20:37:03Z",
+        "annotations": {
+          "scheduler.alpha.kubernetes.io/name": "experimental",
+          "kubernetes.io/created-by": "{\"kind\":\"SerializedReference\",\"apiVersion\":\"v1\",\"reference\":{\"kind\":\"ReplicationController\",\"namespace\":\"kubemark\",\"name\":\"nginx30\",\"uid\":\"e4b655d5-4614-11e6-bd6d-0800275521ee\",\"apiVersion\":\"v1\",\"resourceVersion\":\"96758\"}}\n"
+        },
+        "selfLink": "/api/v1/namespaces/kubemark/pods/nginx30-qnmfs",
+        "uid": "e4b80135-4614-11e6-bd6d-0800275521ee"
+      }
+    },
+    "7d7db2f3-4525-11e6-bd6d-0800275521ee": {
+      "status": {
+        "containerStatuses": [
+          {
+            "restartCount": 0,
+            "name": "hollow-kubelet",
+            "image": "kubemark:latest",
+            "imageID": "docker://sha256:9007bd447e31f12dd1d7fee7f9a1a6698405194711855d98ad6a0322363d6fde",
+            "state": {
+              "running": {
+                "startedAt": "2016-07-08T16:03:31Z"
+              }
+            },
+            "ready": true,
+            "lastState": {},
+            "containerID": "docker://ff44aa21b1e9875bfc8eb4797954b010639a77101585c65d5225bae0b40b6456"
+          },
+          {
+            "restartCount": 0,
+            "name": "hollow-proxy",
+            "image": "kubemark:latest",
+            "imageID": "docker://sha256:9007bd447e31f12dd1d7fee7f9a1a6698405194711855d98ad6a0322363d6fde",
+            "state": {
+              "running": {
+                "startedAt": "2016-07-08T16:03:32Z"
+              }
+            },
+            "ready": true,
+            "lastState": {},
+            "containerID": "docker://d5893fa4e75e8622ebe7f779f45c7206499eae9694c7d446a7c24bb59c57d351"
+          }
+        ],
+        "podIP": "172.17.0.10",
+        "startTime": "2016-07-08T16:03:20Z",
+        "hostIP": "127.0.0.1",
+        "phase": "Running",
+        "conditions": [
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-08T16:03:20Z",
+            "lastProbeTime": null,
+            "type": "Initialized"
+          },
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-08T16:03:32Z",
+            "lastProbeTime": null,
+            "type": "Ready"
+          },
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-08T16:03:20Z",
+            "lastProbeTime": null,
+            "type": "PodScheduled"
+          }
+        ]
+      },
+      "spec": {
+        "dnsPolicy": "ClusterFirst",
+        "securityContext": {},
+        "nodeName": "127.0.0.1",
+        "terminationGracePeriodSeconds": 30,
+        "restartPolicy": "Always",
+        "volumes": [
+          {
+            "secret": {
+              "secretName": "kubeconfig"
+            },
+            "name": "kubeconfig-volume"
+          }
+        ],
+        "containers": [
+          {
+            "terminationMessagePath": "/dev/termination-log",
+            "name": "hollow-kubelet",
+            "image": "kubemark:latest",
+            "args": [
+              "--v=3",
+              "--morph=kubelet",
+              "--max-pods=200",
+              "$(CONTENT_TYPE)"
+            ],
+            "volumeMounts": [
+              {
+                "mountPath": "/kubeconfig",
+                "name": "kubeconfig-volume"
+              }
+            ],
+            "command": [
+              "./kubemark.sh"
+            ],
+            "env": [
+              {
+                "valueFrom": {
+                  "configMapKeyRef": {
+                    "name": "node-configmap",
+                    "key": "content.type"
+                  }
+                },
+                "name": "CONTENT_TYPE"
+              }
+            ],
+            "imagePullPolicy": "Never",
+            "ports": [
+              {
+                "protocol": "TCP",
+                "containerPort": 4194
+              },
+              {
+                "protocol": "TCP",
+                "containerPort": 10250
+              },
+              {
+                "protocol": "TCP",
+                "containerPort": 10255
+              }
+            ],
+            "resources": {
+              "requests": {
+                "cpu": 50000,
+                "memory": 100000000
+              }
+            }
+          },
+          {
+            "terminationMessagePath": "/dev/termination-log",
+            "name": "hollow-proxy",
+            "image": "kubemark:latest",
+            "args": [
+              "--v=3",
+              "--morph=proxy",
+              "$(CONTENT_TYPE)"
+            ],
+            "volumeMounts": [
+              {
+                "mountPath": "/kubeconfig",
+                "name": "kubeconfig-volume"
+              }
+            ],
+            "command": [
+              "./kubemark.sh"
+            ],
+            "env": [
+              {
+                "valueFrom": {
+                  "configMapKeyRef": {
+                    "name": "node-configmap",
+                    "key": "content.type"
+                  }
+                },
+                "name": "CONTENT_TYPE"
+              }
+            ],
+            "imagePullPolicy": "Never",
+            "resources": {
+              "requests": {
+                "cpu": 20000,
+                "memory": 100000000
+              }
+            }
+          }
+        ]
+      },
+      "metadata": {
+        "name": "hollow-node-dq9yz",
+        "labels": {
+          "name": "hollow-node"
+        },
+        "namespace": "kubemark",
+        "resourceVersion": "89423",
+        "generateName": "hollow-node-",
+        "creationTimestamp": "2016-07-08T16:03:20Z",
+        "annotations": {
+          "scheduler.alpha.kubernetes.io/name": "experimental",
+          "kubernetes.io/created-by": "{\"kind\":\"SerializedReference\",\"apiVersion\":\"v1\",\"reference\":{\"kind\":\"ReplicationController\",\"namespace\":\"kubemark\",\"name\":\"hollow-node\",\"uid\":\"7d7a87c8-4525-11e6-bd6d-0800275521ee\",\"apiVersion\":\"v1\",\"resourceVersion\":\"1550\"}}\n"
+        },
+        "selfLink": "/api/v1/namespaces/kubemark/pods/hollow-node-dq9yz",
+        "uid": "7d7db2f3-4525-11e6-bd6d-0800275521ee"
+      }
+    },
+    "e4b7d8fa-4614-11e6-bd6d-0800275521ee": {
+      "status": {
+        "containerStatuses": [
+          {
+            "restartCount": 0,
+            "name": "nginx",
+            "image": "nginx",
+            "imageID": "docker://",
+            "state": {
+              "running": {
+                "startedAt": "2016-07-09T20:37:42Z"
+              }
+            },
+            "ready": true,
+            "lastState": {},
+            "containerID": "docker:///k8s_nginx.156efd59_nginx30-fbws2_kubemark_e4b7d8fa-4614-11e6-bd6d-0800275521ee_246df0a1"
+          }
+        ],
+        "podIP": "2.3.4.5",
+        "startTime": "2016-07-09T20:37:41Z",
+        "hostIP": "172.17.0.3",
+        "phase": "Running",
+        "conditions": [
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-09T20:37:41Z",
+            "lastProbeTime": null,
+            "type": "Initialized"
+          },
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-09T20:37:42Z",
+            "lastProbeTime": null,
+            "type": "Ready"
+          },
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-09T20:37:41Z",
+            "lastProbeTime": null,
+            "type": "PodScheduled"
+          }
+        ]
+      },
+      "kind": "Pod",
+      "spec": {
+        "dnsPolicy": "ClusterFirst",
+        "securityContext": {},
+        "nodeName": "172.17.0.3",
+        "terminationGracePeriodSeconds": 30,
+        "restartPolicy": "Always",
+        "containers": [
+          {
+            "terminationMessagePath": "/dev/termination-log",
+            "name": "nginx",
+            "image": "nginx",
+            "imagePullPolicy": "Always",
+            "ports": [
+              {
+                "protocol": "TCP",
+                "containerPort": 80
+              }
+            ],
+            "resources": {}
+          }
+        ]
+      },
+      "apiVersion": "v1",
+      "metadata": {
+        "name": "nginx30-fbws2",
+        "labels": {
+          "app": "nginx30"
+        },
+        "namespace": "kubemark",
+        "resourceVersion": "96934",
+        "generateName": "nginx30-",
+        "creationTimestamp": "2016-07-09T20:37:03Z",
+        "annotations": {
+          "scheduler.alpha.kubernetes.io/name": "experimental",
+          "kubernetes.io/created-by": "{\"kind\":\"SerializedReference\",\"apiVersion\":\"v1\",\"reference\":{\"kind\":\"ReplicationController\",\"namespace\":\"kubemark\",\"name\":\"nginx30\",\"uid\":\"e4b655d5-4614-11e6-bd6d-0800275521ee\",\"apiVersion\":\"v1\",\"resourceVersion\":\"96758\"}}\n"
+        },
+        "selfLink": "/api/v1/namespaces/kubemark/pods/nginx30-fbws2",
+        "uid": "e4b7d8fa-4614-11e6-bd6d-0800275521ee"
+      }
+    },
+    "e4b7a023-4614-11e6-bd6d-0800275521ee": {
+      "status": {
+        "containerStatuses": [
+          {
+            "restartCount": 0,
+            "name": "nginx",
+            "image": "nginx",
+            "imageID": "docker://",
+            "state": {
+              "running": {
+                "startedAt": "2016-07-09T20:37:06Z"
+              }
+            },
+            "ready": true,
+            "lastState": {},
+            "containerID": "docker:///k8s_nginx.156efd59_nginx30-4lucv_kubemark_e4b7a023-4614-11e6-bd6d-0800275521ee_181bfb31"
+          }
+        ],
+        "podIP": "2.3.4.5",
+        "startTime": "2016-07-09T20:37:06Z",
+        "hostIP": "172.17.0.3",
+        "phase": "Running",
+        "conditions": [
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-09T20:37:06Z",
+            "lastProbeTime": null,
+            "type": "Initialized"
+          },
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-09T20:37:06Z",
+            "lastProbeTime": null,
+            "type": "Ready"
+          },
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-09T20:37:06Z",
+            "lastProbeTime": null,
+            "type": "PodScheduled"
+          }
+        ]
+      },
+      "kind": "Pod",
+      "spec": {
+        "dnsPolicy": "ClusterFirst",
+        "securityContext": {},
+        "nodeName": "172.17.0.3",
+        "terminationGracePeriodSeconds": 30,
+        "restartPolicy": "Always",
+        "containers": [
+          {
+            "terminationMessagePath": "/dev/termination-log",
+            "name": "nginx",
+            "image": "nginx",
+            "imagePullPolicy": "Always",
+            "ports": [
+              {
+                "protocol": "TCP",
+                "containerPort": 80
+              }
+            ],
+            "resources": {}
+          }
+        ]
+      },
+      "apiVersion": "v1",
+      "metadata": {
+        "name": "nginx30-4lucv",
+        "labels": {
+          "app": "nginx30"
+        },
+        "namespace": "kubemark",
+        "resourceVersion": "96841",
+        "generateName": "nginx30-",
+        "creationTimestamp": "2016-07-09T20:37:03Z",
+        "annotations": {
+          "scheduler.alpha.kubernetes.io/name": "experimental",
+          "kubernetes.io/created-by": "{\"kind\":\"SerializedReference\",\"apiVersion\":\"v1\",\"reference\":{\"kind\":\"ReplicationController\",\"namespace\":\"kubemark\",\"name\":\"nginx30\",\"uid\":\"e4b655d5-4614-11e6-bd6d-0800275521ee\",\"apiVersion\":\"v1\",\"resourceVersion\":\"96758\"}}\n"
+        },
+        "selfLink": "/api/v1/namespaces/kubemark/pods/nginx30-4lucv",
+        "uid": "e4b7a023-4614-11e6-bd6d-0800275521ee"
+      }
+    },
+    "e4b7663d-4614-11e6-bd6d-0800275521ee": {
+      "status": {
+        "containerStatuses": [
+          {
+            "restartCount": 0,
+            "name": "nginx",
+            "image": "nginx",
+            "imageID": "docker://",
+            "state": {
+              "running": {
+                "startedAt": "2016-07-09T20:37:04Z"
+              }
+            },
+            "ready": true,
+            "lastState": {},
+            "containerID": "docker:///k8s_nginx.156efd59_nginx30-9mty4_kubemark_e4b7663d-4614-11e6-bd6d-0800275521ee_f4713bbd"
+          }
+        ],
+        "podIP": "2.3.4.5",
+        "startTime": "2016-07-09T20:37:03Z",
+        "hostIP": "172.17.0.9",
+        "phase": "Running",
+        "conditions": [
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-09T20:37:03Z",
+            "lastProbeTime": null,
+            "type": "Initialized"
+          },
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-09T20:37:04Z",
+            "lastProbeTime": null,
+            "type": "Ready"
+          },
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-09T20:37:03Z",
+            "lastProbeTime": null,
+            "type": "PodScheduled"
+          }
+        ]
+      },
+      "kind": "Pod",
+      "spec": {
+        "dnsPolicy": "ClusterFirst",
+        "securityContext": {},
+        "nodeName": "172.17.0.9",
+        "terminationGracePeriodSeconds": 30,
+        "restartPolicy": "Always",
+        "containers": [
+          {
+            "terminationMessagePath": "/dev/termination-log",
+            "name": "nginx",
+            "image": "nginx",
+            "imagePullPolicy": "Always",
+            "ports": [
+              {
+                "protocol": "TCP",
+                "containerPort": 80
+              }
+            ],
+            "resources": {}
+          }
+        ]
+      },
+      "apiVersion": "v1",
+      "metadata": {
+        "name": "nginx30-9mty4",
+        "labels": {
+          "app": "nginx30"
+        },
+        "namespace": "kubemark",
+        "resourceVersion": "96815",
+        "generateName": "nginx30-",
+        "creationTimestamp": "2016-07-09T20:37:03Z",
+        "annotations": {
+          "scheduler.alpha.kubernetes.io/name": "experimental",
+          "kubernetes.io/created-by": "{\"kind\":\"SerializedReference\",\"apiVersion\":\"v1\",\"reference\":{\"kind\":\"ReplicationController\",\"namespace\":\"kubemark\",\"name\":\"nginx30\",\"uid\":\"e4b655d5-4614-11e6-bd6d-0800275521ee\",\"apiVersion\":\"v1\",\"resourceVersion\":\"96758\"}}\n"
+        },
+        "selfLink": "/api/v1/namespaces/kubemark/pods/nginx30-9mty4",
+        "uid": "e4b7663d-4614-11e6-bd6d-0800275521ee"
+      }
+    },
+    "e4b7bef9-4614-11e6-bd6d-0800275521ee": {
+      "status": {
+        "containerStatuses": [
+          {
+            "restartCount": 0,
+            "name": "nginx",
+            "image": "nginx",
+            "imageID": "docker://",
+            "state": {
+              "running": {
+                "startedAt": "2016-07-09T20:37:22Z"
+              }
+            },
+            "ready": true,
+            "lastState": {},
+            "containerID": "docker:///k8s_nginx.156efd59_nginx30-0jw5b_kubemark_e4b7bef9-4614-11e6-bd6d-0800275521ee_74e724db"
+          }
+        ],
+        "podIP": "2.3.4.5",
+        "startTime": "2016-07-09T20:37:21Z",
+        "hostIP": "172.17.0.3",
+        "phase": "Running",
+        "conditions": [
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-09T20:37:21Z",
+            "lastProbeTime": null,
+            "type": "Initialized"
+          },
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-09T20:37:22Z",
+            "lastProbeTime": null,
+            "type": "Ready"
+          },
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-09T20:37:21Z",
+            "lastProbeTime": null,
+            "type": "PodScheduled"
+          }
+        ]
+      },
+      "kind": "Pod",
+      "spec": {
+        "dnsPolicy": "ClusterFirst",
+        "securityContext": {},
+        "nodeName": "172.17.0.3",
+        "terminationGracePeriodSeconds": 30,
+        "restartPolicy": "Always",
+        "containers": [
+          {
+            "terminationMessagePath": "/dev/termination-log",
+            "name": "nginx",
+            "image": "nginx",
+            "imagePullPolicy": "Always",
+            "ports": [
+              {
+                "protocol": "TCP",
+                "containerPort": 80
+              }
+            ],
+            "resources": {}
+          }
+        ]
+      },
+      "apiVersion": "v1",
+      "metadata": {
+        "name": "nginx30-0jw5b",
+        "labels": {
+          "app": "nginx30"
+        },
+        "namespace": "kubemark",
+        "resourceVersion": "96891",
+        "generateName": "nginx30-",
+        "creationTimestamp": "2016-07-09T20:37:03Z",
+        "annotations": {
+          "scheduler.alpha.kubernetes.io/name": "experimental",
+          "kubernetes.io/created-by": "{\"kind\":\"SerializedReference\",\"apiVersion\":\"v1\",\"reference\":{\"kind\":\"ReplicationController\",\"namespace\":\"kubemark\",\"name\":\"nginx30\",\"uid\":\"e4b655d5-4614-11e6-bd6d-0800275521ee\",\"apiVersion\":\"v1\",\"resourceVersion\":\"96758\"}}\n"
+        },
+        "selfLink": "/api/v1/namespaces/kubemark/pods/nginx30-0jw5b",
+        "uid": "e4b7bef9-4614-11e6-bd6d-0800275521ee"
+      }
+    },
+    "7d7de016-4525-11e6-bd6d-0800275521ee": {
+      "status": {
+        "containerStatuses": [
+          {
+            "restartCount": 0,
+            "name": "hollow-kubelet",
+            "image": "kubemark:latest",
+            "imageID": "docker://sha256:9007bd447e31f12dd1d7fee7f9a1a6698405194711855d98ad6a0322363d6fde",
+            "state": {
+              "running": {
+                "startedAt": "2016-07-08T16:03:30Z"
+              }
+            },
+            "ready": true,
+            "lastState": {},
+            "containerID": "docker://e27b9f9d2d47bb7dfbf52b219479ac2678458ce7c6d9924841a79a08aef22c6d"
+          },
+          {
+            "restartCount": 0,
+            "name": "hollow-proxy",
+            "image": "kubemark:latest",
+            "imageID": "docker://sha256:9007bd447e31f12dd1d7fee7f9a1a6698405194711855d98ad6a0322363d6fde",
+            "state": {
+              "running": {
+                "startedAt": "2016-07-08T16:03:31Z"
+              }
+            },
+            "ready": true,
+            "lastState": {},
+            "containerID": "docker://ac378db11d19a672941c7049e52ba81d4b1b980e0c0afb0a5c55eb88aa59351e"
+          }
+        ],
+        "podIP": "172.17.0.9",
+        "startTime": "2016-07-08T16:03:20Z",
+        "hostIP": "127.0.0.1",
+        "phase": "Running",
+        "conditions": [
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-08T16:03:20Z",
+            "lastProbeTime": null,
+            "type": "Initialized"
+          },
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-08T16:03:31Z",
+            "lastProbeTime": null,
+            "type": "Ready"
+          },
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-08T16:03:20Z",
+            "lastProbeTime": null,
+            "type": "PodScheduled"
+          }
+        ]
+      },
+      "spec": {
+        "dnsPolicy": "ClusterFirst",
+        "securityContext": {},
+        "nodeName": "127.0.0.1",
+        "terminationGracePeriodSeconds": 30,
+        "restartPolicy": "Always",
+        "volumes": [
+          {
+            "secret": {
+              "secretName": "kubeconfig"
+            },
+            "name": "kubeconfig-volume"
+          }
+        ],
+        "containers": [
+          {
+            "terminationMessagePath": "/dev/termination-log",
+            "name": "hollow-kubelet",
+            "image": "kubemark:latest",
+            "args": [
+              "--v=3",
+              "--morph=kubelet",
+              "--max-pods=200",
+              "$(CONTENT_TYPE)"
+            ],
+            "volumeMounts": [
+              {
+                "mountPath": "/kubeconfig",
+                "name": "kubeconfig-volume"
+              }
+            ],
+            "command": [
+              "./kubemark.sh"
+            ],
+            "env": [
+              {
+                "valueFrom": {
+                  "configMapKeyRef": {
+                    "name": "node-configmap",
+                    "key": "content.type"
+                  }
+                },
+                "name": "CONTENT_TYPE"
+              }
+            ],
+            "imagePullPolicy": "Never",
+            "ports": [
+              {
+                "protocol": "TCP",
+                "containerPort": 4194
+              },
+              {
+                "protocol": "TCP",
+                "containerPort": 10250
+              },
+              {
+                "protocol": "TCP",
+                "containerPort": 10255
+              }
+            ],
+            "resources": {
+              "requests": {
+                "cpu": 50000,
+                "memory": 100000000
+              }
+            }
+          },
+          {
+            "terminationMessagePath": "/dev/termination-log",
+            "name": "hollow-proxy",
+            "image": "kubemark:latest",
+            "args": [
+              "--v=3",
+              "--morph=proxy",
+              "$(CONTENT_TYPE)"
+            ],
+            "volumeMounts": [
+              {
+                "mountPath": "/kubeconfig",
+                "name": "kubeconfig-volume"
+              }
+            ],
+            "command": [
+              "./kubemark.sh"
+            ],
+            "env": [
+              {
+                "valueFrom": {
+                  "configMapKeyRef": {
+                    "name": "node-configmap",
+                    "key": "content.type"
+                  }
+                },
+                "name": "CONTENT_TYPE"
+              }
+            ],
+            "imagePullPolicy": "Never",
+            "resources": {
+              "requests": {
+                "cpu": 20000,
+                "memory": 100000000
+              }
+            }
+          }
+        ]
+      },
+      "metadata": {
+        "name": "hollow-node-jd2ep",
+        "labels": {
+          "name": "hollow-node"
+        },
+        "namespace": "kubemark",
+        "resourceVersion": "89414",
+        "generateName": "hollow-node-",
+        "creationTimestamp": "2016-07-08T16:03:20Z",
+        "annotations": {
+          "scheduler.alpha.kubernetes.io/name": "experimental",
+          "kubernetes.io/created-by": "{\"kind\":\"SerializedReference\",\"apiVersion\":\"v1\",\"reference\":{\"kind\":\"ReplicationController\",\"namespace\":\"kubemark\",\"name\":\"hollow-node\",\"uid\":\"7d7a87c8-4525-11e6-bd6d-0800275521ee\",\"apiVersion\":\"v1\",\"resourceVersion\":\"1550\"}}\n"
+        },
+        "selfLink": "/api/v1/namespaces/kubemark/pods/hollow-node-jd2ep",
+        "uid": "7d7de016-4525-11e6-bd6d-0800275521ee"
+      }
+    },
+    "e4b7e64e-4614-11e6-bd6d-0800275521ee": {
+      "status": {
+        "containerStatuses": [
+          {
+            "restartCount": 0,
+            "name": "nginx",
+            "image": "nginx",
+            "imageID": "docker://",
+            "state": {
+              "running": {
+                "startedAt": "2016-07-09T20:37:32Z"
+              }
+            },
+            "ready": true,
+            "lastState": {},
+            "containerID": "docker:///k8s_nginx.156efd59_nginx30-xjqzw_kubemark_e4b7e64e-4614-11e6-bd6d-0800275521ee_c6cb3837"
+          }
+        ],
+        "podIP": "2.3.4.5",
+        "startTime": "2016-07-09T20:37:32Z",
+        "hostIP": "172.17.0.9",
+        "phase": "Running",
+        "conditions": [
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-09T20:37:32Z",
+            "lastProbeTime": null,
+            "type": "Initialized"
+          },
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-09T20:37:33Z",
+            "lastProbeTime": null,
+            "type": "Ready"
+          },
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-09T20:37:32Z",
+            "lastProbeTime": null,
+            "type": "PodScheduled"
+          }
+        ]
+      },
+      "kind": "Pod",
+      "spec": {
+        "dnsPolicy": "ClusterFirst",
+        "securityContext": {},
+        "nodeName": "172.17.0.9",
+        "terminationGracePeriodSeconds": 30,
+        "restartPolicy": "Always",
+        "containers": [
+          {
+            "terminationMessagePath": "/dev/termination-log",
+            "name": "nginx",
+            "image": "nginx",
+            "imagePullPolicy": "Always",
+            "ports": [
+              {
+                "protocol": "TCP",
+                "containerPort": 80
+              }
+            ],
+            "resources": {}
+          }
+        ]
+      },
+      "apiVersion": "v1",
+      "metadata": {
+        "name": "nginx30-xjqzw",
+        "labels": {
+          "app": "nginx30"
+        },
+        "namespace": "kubemark",
+        "resourceVersion": "96914",
+        "generateName": "nginx30-",
+        "creationTimestamp": "2016-07-09T20:37:03Z",
+        "annotations": {
+          "scheduler.alpha.kubernetes.io/name": "experimental",
+          "kubernetes.io/created-by": "{\"kind\":\"SerializedReference\",\"apiVersion\":\"v1\",\"reference\":{\"kind\":\"ReplicationController\",\"namespace\":\"kubemark\",\"name\":\"nginx30\",\"uid\":\"e4b655d5-4614-11e6-bd6d-0800275521ee\",\"apiVersion\":\"v1\",\"resourceVersion\":\"96758\"}}\n"
+        },
+        "selfLink": "/api/v1/namespaces/kubemark/pods/nginx30-xjqzw",
+        "uid": "e4b7e64e-4614-11e6-bd6d-0800275521ee"
+      }
+    },
+    "7d7c7610-4525-11e6-bd6d-0800275521ee": {
+      "status": {
+        "containerStatuses": [
+          {
+            "restartCount": 0,
+            "name": "hollow-kubelet",
+            "image": "kubemark:latest",
+            "imageID": "docker://sha256:9007bd447e31f12dd1d7fee7f9a1a6698405194711855d98ad6a0322363d6fde",
+            "state": {
+              "running": {
+                "startedAt": "2016-07-08T16:03:22Z"
+              }
+            },
+            "ready": true,
+            "lastState": {},
+            "containerID": "docker://7b3d4f21634f2930efded516a28a5c69aa544a6df7a46c379dda4e26e7a0ba25"
+          },
+          {
+            "restartCount": 0,
+            "name": "hollow-proxy",
+            "image": "kubemark:latest",
+            "imageID": "docker://sha256:9007bd447e31f12dd1d7fee7f9a1a6698405194711855d98ad6a0322363d6fde",
+            "state": {
+              "running": {
+                "startedAt": "2016-07-08T16:03:23Z"
+              }
+            },
+            "ready": true,
+            "lastState": {},
+            "containerID": "docker://46f00eda62ac092be5bc9e696da069106ba9eb14270d83548647010eda50d672"
+          }
+        ],
+        "podIP": "172.17.0.3",
+        "startTime": "2016-07-08T16:03:20Z",
+        "hostIP": "127.0.0.1",
+        "phase": "Running",
+        "conditions": [
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-08T16:03:20Z",
+            "lastProbeTime": null,
+            "type": "Initialized"
+          },
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-08T16:03:24Z",
+            "lastProbeTime": null,
+            "type": "Ready"
+          },
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-08T16:03:20Z",
+            "lastProbeTime": null,
+            "type": "PodScheduled"
+          }
+        ]
+      },
+      "spec": {
+        "dnsPolicy": "ClusterFirst",
+        "securityContext": {},
+        "nodeName": "127.0.0.1",
+        "terminationGracePeriodSeconds": 30,
+        "restartPolicy": "Always",
+        "volumes": [
+          {
+            "secret": {
+              "secretName": "kubeconfig"
+            },
+            "name": "kubeconfig-volume"
+          }
+        ],
+        "containers": [
+          {
+            "terminationMessagePath": "/dev/termination-log",
+            "name": "hollow-kubelet",
+            "image": "kubemark:latest",
+            "args": [
+              "--v=3",
+              "--morph=kubelet",
+              "--max-pods=200",
+              "$(CONTENT_TYPE)"
+            ],
+            "volumeMounts": [
+              {
+                "mountPath": "/kubeconfig",
+                "name": "kubeconfig-volume"
+              }
+            ],
+            "command": [
+              "./kubemark.sh"
+            ],
+            "env": [
+              {
+                "valueFrom": {
+                  "configMapKeyRef": {
+                    "name": "node-configmap",
+                    "key": "content.type"
+                  }
+                },
+                "name": "CONTENT_TYPE"
+              }
+            ],
+            "imagePullPolicy": "Never",
+            "ports": [
+              {
+                "protocol": "TCP",
+                "containerPort": 4194
+              },
+              {
+                "protocol": "TCP",
+                "containerPort": 10250
+              },
+              {
+                "protocol": "TCP",
+                "containerPort": 10255
+              }
+            ],
+            "resources": {
+              "requests": {
+                "cpu": 50000,
+                "memory": 100000000
+              }
+            }
+          },
+          {
+            "terminationMessagePath": "/dev/termination-log",
+            "name": "hollow-proxy",
+            "image": "kubemark:latest",
+            "args": [
+              "--v=3",
+              "--morph=proxy",
+              "$(CONTENT_TYPE)"
+            ],
+            "volumeMounts": [
+              {
+                "mountPath": "/kubeconfig",
+                "name": "kubeconfig-volume"
+              }
+            ],
+            "command": [
+              "./kubemark.sh"
+            ],
+            "env": [
+              {
+                "valueFrom": {
+                  "configMapKeyRef": {
+                    "name": "node-configmap",
+                    "key": "content.type"
+                  }
+                },
+                "name": "CONTENT_TYPE"
+              }
+            ],
+            "imagePullPolicy": "Never",
+            "resources": {
+              "requests": {
+                "cpu": 20000,
+                "memory": 100000000
+              }
+            }
+          }
+        ]
+      },
+      "metadata": {
+        "name": "hollow-node-jwron",
+        "labels": {
+          "name": "hollow-node"
+        },
+        "namespace": "kubemark",
+        "resourceVersion": "89417",
+        "generateName": "hollow-node-",
+        "creationTimestamp": "2016-07-08T16:03:20Z",
+        "annotations": {
+          "scheduler.alpha.kubernetes.io/name": "experimental",
+          "kubernetes.io/created-by": "{\"kind\":\"SerializedReference\",\"apiVersion\":\"v1\",\"reference\":{\"kind\":\"ReplicationController\",\"namespace\":\"kubemark\",\"name\":\"hollow-node\",\"uid\":\"7d7a87c8-4525-11e6-bd6d-0800275521ee\",\"apiVersion\":\"v1\",\"resourceVersion\":\"1550\"}}\n"
+        },
+        "selfLink": "/api/v1/namespaces/kubemark/pods/hollow-node-jwron",
+        "uid": "7d7c7610-4525-11e6-bd6d-0800275521ee"
+      }
+    },
+    "7d81e9c2-4525-11e6-bd6d-0800275521ee": {
+      "status": {
+        "containerStatuses": [
+          {
+            "restartCount": 0,
+            "name": "hollow-kubelet",
+            "image": "kubemark:latest",
+            "imageID": "docker://sha256:9007bd447e31f12dd1d7fee7f9a1a6698405194711855d98ad6a0322363d6fde",
+            "state": {
+              "running": {
+                "startedAt": "2016-07-08T16:03:25Z"
+              }
+            },
+            "ready": true,
+            "lastState": {},
+            "containerID": "docker://3380558ee577276833fab5422c758c221f397d0cc8ed021d01ee11f45eda611e"
+          },
+          {
+            "restartCount": 0,
+            "name": "hollow-proxy",
+            "image": "kubemark:latest",
+            "imageID": "docker://sha256:9007bd447e31f12dd1d7fee7f9a1a6698405194711855d98ad6a0322363d6fde",
+            "state": {
+              "running": {
+                "startedAt": "2016-07-08T16:03:26Z"
+              }
+            },
+            "ready": true,
+            "lastState": {},
+            "containerID": "docker://d37f448a173fd24a818b314ad8a11b1a936c8b2a4b033c483d0de8271b425b4e"
+          }
+        ],
+        "podIP": "172.17.0.7",
+        "startTime": "2016-07-08T16:03:20Z",
+        "hostIP": "127.0.0.1",
+        "phase": "Running",
+        "conditions": [
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-08T16:03:20Z",
+            "lastProbeTime": null,
+            "type": "Initialized"
+          },
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-08T16:03:26Z",
+            "lastProbeTime": null,
+            "type": "Ready"
+          },
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-08T16:03:20Z",
+            "lastProbeTime": null,
+            "type": "PodScheduled"
+          }
+        ]
+      },
+      "spec": {
+        "dnsPolicy": "ClusterFirst",
+        "securityContext": {},
+        "nodeName": "127.0.0.1",
+        "terminationGracePeriodSeconds": 30,
+        "restartPolicy": "Always",
+        "volumes": [
+          {
+            "secret": {
+              "secretName": "kubeconfig"
+            },
+            "name": "kubeconfig-volume"
+          }
+        ],
+        "containers": [
+          {
+            "terminationMessagePath": "/dev/termination-log",
+            "name": "hollow-kubelet",
+            "image": "kubemark:latest",
+            "args": [
+              "--v=3",
+              "--morph=kubelet",
+              "--max-pods=200",
+              "$(CONTENT_TYPE)"
+            ],
+            "volumeMounts": [
+              {
+                "mountPath": "/kubeconfig",
+                "name": "kubeconfig-volume"
+              }
+            ],
+            "command": [
+              "./kubemark.sh"
+            ],
+            "env": [
+              {
+                "valueFrom": {
+                  "configMapKeyRef": {
+                    "name": "node-configmap",
+                    "key": "content.type"
+                  }
+                },
+                "name": "CONTENT_TYPE"
+              }
+            ],
+            "imagePullPolicy": "Never",
+            "ports": [
+              {
+                "protocol": "TCP",
+                "containerPort": 4194
+              },
+              {
+                "protocol": "TCP",
+                "containerPort": 10250
+              },
+              {
+                "protocol": "TCP",
+                "containerPort": 10255
+              }
+            ],
+            "resources": {
+              "requests": {
+                "cpu": 50000,
+                "memory": 100000000
+              }
+            }
+          },
+          {
+            "terminationMessagePath": "/dev/termination-log",
+            "name": "hollow-proxy",
+            "image": "kubemark:latest",
+            "args": [
+              "--v=3",
+              "--morph=proxy",
+              "$(CONTENT_TYPE)"
+            ],
+            "volumeMounts": [
+              {
+                "mountPath": "/kubeconfig",
+                "name": "kubeconfig-volume"
+              }
+            ],
+            "command": [
+              "./kubemark.sh"
+            ],
+            "env": [
+              {
+                "valueFrom": {
+                  "configMapKeyRef": {
+                    "name": "node-configmap",
+                    "key": "content.type"
+                  }
+                },
+                "name": "CONTENT_TYPE"
+              }
+            ],
+            "imagePullPolicy": "Never",
+            "resources": {
+              "requests": {
+                "cpu": 20000,
+                "memory": 100000000
+              }
+            }
+          }
+        ]
+      },
+      "metadata": {
+        "name": "hollow-node-dyty5",
+        "labels": {
+          "name": "hollow-node"
+        },
+        "namespace": "kubemark",
+        "resourceVersion": "89407",
+        "generateName": "hollow-node-",
+        "creationTimestamp": "2016-07-08T16:03:20Z",
+        "annotations": {
+          "scheduler.alpha.kubernetes.io/name": "experimental",
+          "kubernetes.io/created-by": "{\"kind\":\"SerializedReference\",\"apiVersion\":\"v1\",\"reference\":{\"kind\":\"ReplicationController\",\"namespace\":\"kubemark\",\"name\":\"hollow-node\",\"uid\":\"7d7a87c8-4525-11e6-bd6d-0800275521ee\",\"apiVersion\":\"v1\",\"resourceVersion\":\"1550\"}}\n"
+        },
+        "selfLink": "/api/v1/namespaces/kubemark/pods/hollow-node-dyty5",
+        "uid": "7d81e9c2-4525-11e6-bd6d-0800275521ee"
+      }
+    },
+    "e4b79c04-4614-11e6-bd6d-0800275521ee": {
+      "status": {
+        "containerStatuses": [
+          {
+            "restartCount": 0,
+            "name": "nginx",
+            "image": "nginx",
+            "imageID": "docker://",
+            "state": {
+              "running": {
+                "startedAt": "2016-07-09T20:37:07Z"
+              }
+            },
+            "ready": true,
+            "lastState": {},
+            "containerID": "docker:///k8s_nginx.156efd59_nginx30-efrhb_kubemark_e4b79c04-4614-11e6-bd6d-0800275521ee_82475418"
+          }
+        ],
+        "podIP": "2.3.4.5",
+        "startTime": "2016-07-09T20:37:06Z",
+        "hostIP": "172.17.0.7",
+        "phase": "Running",
+        "conditions": [
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-09T20:37:06Z",
+            "lastProbeTime": null,
+            "type": "Initialized"
+          },
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-09T20:37:08Z",
+            "lastProbeTime": null,
+            "type": "Ready"
+          },
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-09T20:37:06Z",
+            "lastProbeTime": null,
+            "type": "PodScheduled"
+          }
+        ]
+      },
+      "kind": "Pod",
+      "spec": {
+        "dnsPolicy": "ClusterFirst",
+        "securityContext": {},
+        "nodeName": "172.17.0.7",
+        "terminationGracePeriodSeconds": 30,
+        "restartPolicy": "Always",
+        "containers": [
+          {
+            "terminationMessagePath": "/dev/termination-log",
+            "name": "nginx",
+            "image": "nginx",
+            "imagePullPolicy": "Always",
+            "ports": [
+              {
+                "protocol": "TCP",
+                "containerPort": 80
+              }
+            ],
+            "resources": {}
+          }
+        ]
+      },
+      "apiVersion": "v1",
+      "metadata": {
+        "name": "nginx30-efrhb",
+        "labels": {
+          "app": "nginx30"
+        },
+        "namespace": "kubemark",
+        "resourceVersion": "96846",
+        "generateName": "nginx30-",
+        "creationTimestamp": "2016-07-09T20:37:03Z",
+        "annotations": {
+          "scheduler.alpha.kubernetes.io/name": "experimental",
+          "kubernetes.io/created-by": "{\"kind\":\"SerializedReference\",\"apiVersion\":\"v1\",\"reference\":{\"kind\":\"ReplicationController\",\"namespace\":\"kubemark\",\"name\":\"nginx30\",\"uid\":\"e4b655d5-4614-11e6-bd6d-0800275521ee\",\"apiVersion\":\"v1\",\"resourceVersion\":\"96758\"}}\n"
+        },
+        "selfLink": "/api/v1/namespaces/kubemark/pods/nginx30-efrhb",
+        "uid": "e4b79c04-4614-11e6-bd6d-0800275521ee"
+      }
+    },
+    "e4b7cb9d-4614-11e6-bd6d-0800275521ee": {
+      "status": {
+        "containerStatuses": [
+          {
+            "restartCount": 0,
+            "name": "nginx",
+            "image": "nginx",
+            "imageID": "docker://",
+            "state": {
+              "running": {
+                "startedAt": "2016-07-09T20:37:18Z"
+              }
+            },
+            "ready": true,
+            "lastState": {},
+            "containerID": "docker:///k8s_nginx.156efd59_nginx30-mbly5_kubemark_e4b7cb9d-4614-11e6-bd6d-0800275521ee_983962ee"
+          }
+        ],
+        "podIP": "2.3.4.5",
+        "startTime": "2016-07-09T20:37:17Z",
+        "hostIP": "172.17.0.10",
+        "phase": "Running",
+        "conditions": [
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-09T20:37:17Z",
+            "lastProbeTime": null,
+            "type": "Initialized"
+          },
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-09T20:37:18Z",
+            "lastProbeTime": null,
+            "type": "Ready"
+          },
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-09T20:37:17Z",
+            "lastProbeTime": null,
+            "type": "PodScheduled"
+          }
+        ]
+      },
+      "kind": "Pod",
+      "spec": {
+        "dnsPolicy": "ClusterFirst",
+        "securityContext": {},
+        "nodeName": "172.17.0.10",
+        "terminationGracePeriodSeconds": 30,
+        "restartPolicy": "Always",
+        "containers": [
+          {
+            "terminationMessagePath": "/dev/termination-log",
+            "name": "nginx",
+            "image": "nginx",
+            "imagePullPolicy": "Always",
+            "ports": [
+              {
+                "protocol": "TCP",
+                "containerPort": 80
+              }
+            ],
+            "resources": {}
+          }
+        ]
+      },
+      "apiVersion": "v1",
+      "metadata": {
+        "name": "nginx30-mbly5",
+        "labels": {
+          "app": "nginx30"
+        },
+        "namespace": "kubemark",
+        "resourceVersion": "96880",
+        "generateName": "nginx30-",
+        "creationTimestamp": "2016-07-09T20:37:03Z",
+        "annotations": {
+          "scheduler.alpha.kubernetes.io/name": "experimental",
+          "kubernetes.io/created-by": "{\"kind\":\"SerializedReference\",\"apiVersion\":\"v1\",\"reference\":{\"kind\":\"ReplicationController\",\"namespace\":\"kubemark\",\"name\":\"nginx30\",\"uid\":\"e4b655d5-4614-11e6-bd6d-0800275521ee\",\"apiVersion\":\"v1\",\"resourceVersion\":\"96758\"}}\n"
+        },
+        "selfLink": "/api/v1/namespaces/kubemark/pods/nginx30-mbly5",
+        "uid": "e4b7cb9d-4614-11e6-bd6d-0800275521ee"
+      }
+    },
+    "e4b78c34-4614-11e6-bd6d-0800275521ee": {
+      "status": {
+        "containerStatuses": [
+          {
+            "restartCount": 0,
+            "name": "nginx",
+            "image": "nginx",
+            "imageID": "docker://",
+            "state": {
+              "running": {
+                "startedAt": "2016-07-09T20:37:09Z"
+              }
+            },
+            "ready": true,
+            "lastState": {},
+            "containerID": "docker:///k8s_nginx.156efd59_nginx30-hq2fk_kubemark_e4b78c34-4614-11e6-bd6d-0800275521ee_882eb29e"
+          }
+        ],
+        "podIP": "2.3.4.5",
+        "startTime": "2016-07-09T20:37:08Z",
+        "hostIP": "172.17.0.5",
+        "phase": "Running",
+        "conditions": [
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-09T20:37:08Z",
+            "lastProbeTime": null,
+            "type": "Initialized"
+          },
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-09T20:37:09Z",
+            "lastProbeTime": null,
+            "type": "Ready"
+          },
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-09T20:37:08Z",
+            "lastProbeTime": null,
+            "type": "PodScheduled"
+          }
+        ]
+      },
+      "kind": "Pod",
+      "spec": {
+        "dnsPolicy": "ClusterFirst",
+        "securityContext": {},
+        "nodeName": "172.17.0.5",
+        "terminationGracePeriodSeconds": 30,
+        "restartPolicy": "Always",
+        "containers": [
+          {
+            "terminationMessagePath": "/dev/termination-log",
+            "name": "nginx",
+            "image": "nginx",
+            "imagePullPolicy": "Always",
+            "ports": [
+              {
+                "protocol": "TCP",
+                "containerPort": 80
+              }
+            ],
+            "resources": {}
+          }
+        ]
+      },
+      "apiVersion": "v1",
+      "metadata": {
+        "name": "nginx30-hq2fk",
+        "labels": {
+          "app": "nginx30"
+        },
+        "namespace": "kubemark",
+        "resourceVersion": "96851",
+        "generateName": "nginx30-",
+        "creationTimestamp": "2016-07-09T20:37:03Z",
+        "annotations": {
+          "scheduler.alpha.kubernetes.io/name": "experimental",
+          "kubernetes.io/created-by": "{\"kind\":\"SerializedReference\",\"apiVersion\":\"v1\",\"reference\":{\"kind\":\"ReplicationController\",\"namespace\":\"kubemark\",\"name\":\"nginx30\",\"uid\":\"e4b655d5-4614-11e6-bd6d-0800275521ee\",\"apiVersion\":\"v1\",\"resourceVersion\":\"96758\"}}\n"
+        },
+        "selfLink": "/api/v1/namespaces/kubemark/pods/nginx30-hq2fk",
+        "uid": "e4b78c34-4614-11e6-bd6d-0800275521ee"
+      }
+    },
+    "7d7e079a-4525-11e6-bd6d-0800275521ee": {
+      "status": {
+        "containerStatuses": [
+          {
+            "restartCount": 0,
+            "name": "hollow-kubelet",
+            "image": "kubemark:latest",
+            "imageID": "docker://sha256:9007bd447e31f12dd1d7fee7f9a1a6698405194711855d98ad6a0322363d6fde",
+            "state": {
+              "running": {
+                "startedAt": "2016-07-08T16:03:32Z"
+              }
+            },
+            "ready": true,
+            "lastState": {},
+            "containerID": "docker://e322ed8a6a7b2c300ac6fd28e062be3a2ceffd5c5bf7ce04e6aef91d1b49217c"
+          },
+          {
+            "restartCount": 0,
+            "name": "hollow-proxy",
+            "image": "kubemark:latest",
+            "imageID": "docker://sha256:9007bd447e31f12dd1d7fee7f9a1a6698405194711855d98ad6a0322363d6fde",
+            "state": {
+              "running": {
+                "startedAt": "2016-07-08T16:03:33Z"
+              }
+            },
+            "ready": true,
+            "lastState": {},
+            "containerID": "docker://c6369e4048d62c17a9f048b320507069b6bde2728f876c38e9fa756bce3dff5e"
+          }
+        ],
+        "podIP": "172.17.0.11",
+        "startTime": "2016-07-08T16:03:20Z",
+        "hostIP": "127.0.0.1",
+        "phase": "Running",
+        "conditions": [
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-08T16:03:20Z",
+            "lastProbeTime": null,
+            "type": "Initialized"
+          },
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-08T16:03:34Z",
+            "lastProbeTime": null,
+            "type": "Ready"
+          },
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-08T16:03:20Z",
+            "lastProbeTime": null,
+            "type": "PodScheduled"
+          }
+        ]
+      },
+      "spec": {
+        "dnsPolicy": "ClusterFirst",
+        "securityContext": {},
+        "nodeName": "127.0.0.1",
+        "terminationGracePeriodSeconds": 30,
+        "restartPolicy": "Always",
+        "volumes": [
+          {
+            "secret": {
+              "secretName": "kubeconfig"
+            },
+            "name": "kubeconfig-volume"
+          }
+        ],
+        "containers": [
+          {
+            "terminationMessagePath": "/dev/termination-log",
+            "name": "hollow-kubelet",
+            "image": "kubemark:latest",
+            "args": [
+              "--v=3",
+              "--morph=kubelet",
+              "--max-pods=200",
+              "$(CONTENT_TYPE)"
+            ],
+            "volumeMounts": [
+              {
+                "mountPath": "/kubeconfig",
+                "name": "kubeconfig-volume"
+              }
+            ],
+            "command": [
+              "./kubemark.sh"
+            ],
+            "env": [
+              {
+                "valueFrom": {
+                  "configMapKeyRef": {
+                    "name": "node-configmap",
+                    "key": "content.type"
+                  }
+                },
+                "name": "CONTENT_TYPE"
+              }
+            ],
+            "imagePullPolicy": "Never",
+            "ports": [
+              {
+                "protocol": "TCP",
+                "containerPort": 4194
+              },
+              {
+                "protocol": "TCP",
+                "containerPort": 10250
+              },
+              {
+                "protocol": "TCP",
+                "containerPort": 10255
+              }
+            ],
+            "resources": {
+              "requests": {
+                "cpu": 50000,
+                "memory": 100000000
+              }
+            }
+          },
+          {
+            "terminationMessagePath": "/dev/termination-log",
+            "name": "hollow-proxy",
+            "image": "kubemark:latest",
+            "args": [
+              "--v=3",
+              "--morph=proxy",
+              "$(CONTENT_TYPE)"
+            ],
+            "volumeMounts": [
+              {
+                "mountPath": "/kubeconfig",
+                "name": "kubeconfig-volume"
+              }
+            ],
+            "command": [
+              "./kubemark.sh"
+            ],
+            "env": [
+              {
+                "valueFrom": {
+                  "configMapKeyRef": {
+                    "name": "node-configmap",
+                    "key": "content.type"
+                  }
+                },
+                "name": "CONTENT_TYPE"
+              }
+            ],
+            "imagePullPolicy": "Never",
+            "resources": {
+              "requests": {
+                "cpu": 20000,
+                "memory": 100000000
+              }
+            }
+          }
+        ]
+      },
+      "metadata": {
+        "name": "hollow-node-j38ls",
+        "labels": {
+          "name": "hollow-node"
+        },
+        "namespace": "kubemark",
+        "resourceVersion": "89409",
+        "generateName": "hollow-node-",
+        "creationTimestamp": "2016-07-08T16:03:20Z",
+        "annotations": {
+          "scheduler.alpha.kubernetes.io/name": "experimental",
+          "kubernetes.io/created-by": "{\"kind\":\"SerializedReference\",\"apiVersion\":\"v1\",\"reference\":{\"kind\":\"ReplicationController\",\"namespace\":\"kubemark\",\"name\":\"hollow-node\",\"uid\":\"7d7a87c8-4525-11e6-bd6d-0800275521ee\",\"apiVersion\":\"v1\",\"resourceVersion\":\"1550\"}}\n"
+        },
+        "selfLink": "/api/v1/namespaces/kubemark/pods/hollow-node-j38ls",
+        "uid": "7d7e079a-4525-11e6-bd6d-0800275521ee"
+      }
+    },
+    "e4b7f58e-4614-11e6-bd6d-0800275521ee": {
+      "status": {
+        "containerStatuses": [
+          {
+            "restartCount": 0,
+            "name": "nginx",
+            "image": "nginx",
+            "imageID": "docker://",
+            "state": {
+              "running": {
+                "startedAt": "2016-07-09T20:37:45Z"
+              }
+            },
+            "ready": true,
+            "lastState": {},
+            "containerID": "docker:///k8s_nginx.156efd59_nginx30-89882_kubemark_e4b7f58e-4614-11e6-bd6d-0800275521ee_37fa7f4f"
+          }
+        ],
+        "podIP": "2.3.4.5",
+        "startTime": "2016-07-09T20:37:45Z",
+        "hostIP": "172.17.0.10",
+        "phase": "Running",
+        "conditions": [
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-09T20:37:45Z",
+            "lastProbeTime": null,
+            "type": "Initialized"
+          },
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-09T20:37:46Z",
+            "lastProbeTime": null,
+            "type": "Ready"
+          },
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-09T20:37:45Z",
+            "lastProbeTime": null,
+            "type": "PodScheduled"
+          }
+        ]
+      },
+      "kind": "Pod",
+      "spec": {
+        "dnsPolicy": "ClusterFirst",
+        "securityContext": {},
+        "nodeName": "172.17.0.10",
+        "terminationGracePeriodSeconds": 30,
+        "restartPolicy": "Always",
+        "containers": [
+          {
+            "terminationMessagePath": "/dev/termination-log",
+            "name": "nginx",
+            "image": "nginx",
+            "imagePullPolicy": "Always",
+            "ports": [
+              {
+                "protocol": "TCP",
+                "containerPort": 80
+              }
+            ],
+            "resources": {}
+          }
+        ]
+      },
+      "apiVersion": "v1",
+      "metadata": {
+        "name": "nginx30-89882",
+        "labels": {
+          "app": "nginx30"
+        },
+        "namespace": "kubemark",
+        "resourceVersion": "96939",
+        "generateName": "nginx30-",
+        "creationTimestamp": "2016-07-09T20:37:03Z",
+        "annotations": {
+          "scheduler.alpha.kubernetes.io/name": "experimental",
+          "kubernetes.io/created-by": "{\"kind\":\"SerializedReference\",\"apiVersion\":\"v1\",\"reference\":{\"kind\":\"ReplicationController\",\"namespace\":\"kubemark\",\"name\":\"nginx30\",\"uid\":\"e4b655d5-4614-11e6-bd6d-0800275521ee\",\"apiVersion\":\"v1\",\"resourceVersion\":\"96758\"}}\n"
+        },
+        "selfLink": "/api/v1/namespaces/kubemark/pods/nginx30-89882",
+        "uid": "e4b7f58e-4614-11e6-bd6d-0800275521ee"
+      }
+    },
+    "e4b7fd46-4614-11e6-bd6d-0800275521ee": {
+      "status": {
+        "containerStatuses": [
+          {
+            "restartCount": 0,
+            "name": "nginx",
+            "image": "nginx",
+            "imageID": "docker://",
+            "state": {
+              "running": {
+                "startedAt": "2016-07-09T20:38:02Z"
+              }
+            },
+            "ready": true,
+            "lastState": {},
+            "containerID": "docker:///k8s_nginx.156efd59_nginx30-d30n9_kubemark_e4b7fd46-4614-11e6-bd6d-0800275521ee_9a003524"
+          }
+        ],
+        "podIP": "2.3.4.5",
+        "startTime": "2016-07-09T20:38:02Z",
+        "hostIP": "172.17.0.4",
+        "phase": "Running",
+        "conditions": [
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-09T20:38:02Z",
+            "lastProbeTime": null,
+            "type": "Initialized"
+          },
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-09T20:38:03Z",
+            "lastProbeTime": null,
+            "type": "Ready"
+          },
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-09T20:38:02Z",
+            "lastProbeTime": null,
+            "type": "PodScheduled"
+          }
+        ]
+      },
+      "kind": "Pod",
+      "spec": {
+        "dnsPolicy": "ClusterFirst",
+        "securityContext": {},
+        "nodeName": "172.17.0.4",
+        "terminationGracePeriodSeconds": 30,
+        "restartPolicy": "Always",
+        "containers": [
+          {
+            "terminationMessagePath": "/dev/termination-log",
+            "name": "nginx",
+            "image": "nginx",
+            "imagePullPolicy": "Always",
+            "ports": [
+              {
+                "protocol": "TCP",
+                "containerPort": 80
+              }
+            ],
+            "resources": {}
+          }
+        ]
+      },
+      "apiVersion": "v1",
+      "metadata": {
+        "name": "nginx30-d30n9",
+        "labels": {
+          "app": "nginx30"
+        },
+        "namespace": "kubemark",
+        "resourceVersion": "96971",
+        "generateName": "nginx30-",
+        "creationTimestamp": "2016-07-09T20:37:03Z",
+        "annotations": {
+          "scheduler.alpha.kubernetes.io/name": "experimental",
+          "kubernetes.io/created-by": "{\"kind\":\"SerializedReference\",\"apiVersion\":\"v1\",\"reference\":{\"kind\":\"ReplicationController\",\"namespace\":\"kubemark\",\"name\":\"nginx30\",\"uid\":\"e4b655d5-4614-11e6-bd6d-0800275521ee\",\"apiVersion\":\"v1\",\"resourceVersion\":\"96758\"}}\n"
+        },
+        "selfLink": "/api/v1/namespaces/kubemark/pods/nginx30-d30n9",
+        "uid": "e4b7fd46-4614-11e6-bd6d-0800275521ee"
+      }
+    },
+    "e4b7bde9-4614-11e6-bd6d-0800275521ee": {
+      "status": {
+        "containerStatuses": [
+          {
+            "restartCount": 0,
+            "name": "nginx",
+            "image": "nginx",
+            "imageID": "docker://",
+            "state": {
+              "running": {
+                "startedAt": "2016-07-09T20:37:24Z"
+              }
+            },
+            "ready": true,
+            "lastState": {},
+            "containerID": "docker:///k8s_nginx.156efd59_nginx30-h90c2_kubemark_e4b7bde9-4614-11e6-bd6d-0800275521ee_3117ff02"
+          }
+        ],
+        "podIP": "2.3.4.5",
+        "startTime": "2016-07-09T20:37:24Z",
+        "hostIP": "172.17.0.5",
+        "phase": "Running",
+        "conditions": [
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-09T20:37:24Z",
+            "lastProbeTime": null,
+            "type": "Initialized"
+          },
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-09T20:37:24Z",
+            "lastProbeTime": null,
+            "type": "Ready"
+          },
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-09T20:37:24Z",
+            "lastProbeTime": null,
+            "type": "PodScheduled"
+          }
+        ]
+      },
+      "kind": "Pod",
+      "spec": {
+        "dnsPolicy": "ClusterFirst",
+        "securityContext": {},
+        "nodeName": "172.17.0.5",
+        "terminationGracePeriodSeconds": 30,
+        "restartPolicy": "Always",
+        "containers": [
+          {
+            "terminationMessagePath": "/dev/termination-log",
+            "name": "nginx",
+            "image": "nginx",
+            "imagePullPolicy": "Always",
+            "ports": [
+              {
+                "protocol": "TCP",
+                "containerPort": 80
+              }
+            ],
+            "resources": {}
+          }
+        ]
+      },
+      "apiVersion": "v1",
+      "metadata": {
+        "name": "nginx30-h90c2",
+        "labels": {
+          "app": "nginx30"
+        },
+        "namespace": "kubemark",
+        "resourceVersion": "96894",
+        "generateName": "nginx30-",
+        "creationTimestamp": "2016-07-09T20:37:03Z",
+        "annotations": {
+          "scheduler.alpha.kubernetes.io/name": "experimental",
+          "kubernetes.io/created-by": "{\"kind\":\"SerializedReference\",\"apiVersion\":\"v1\",\"reference\":{\"kind\":\"ReplicationController\",\"namespace\":\"kubemark\",\"name\":\"nginx30\",\"uid\":\"e4b655d5-4614-11e6-bd6d-0800275521ee\",\"apiVersion\":\"v1\",\"resourceVersion\":\"96758\"}}\n"
+        },
+        "selfLink": "/api/v1/namespaces/kubemark/pods/nginx30-h90c2",
+        "uid": "e4b7bde9-4614-11e6-bd6d-0800275521ee"
+      }
+    },
+    "e4b786dc-4614-11e6-bd6d-0800275521ee": {
+      "status": {
+        "containerStatuses": [
+          {
+            "restartCount": 0,
+            "name": "nginx",
+            "image": "nginx",
+            "imageID": "docker://",
+            "state": {
+              "running": {
+                "startedAt": "2016-07-09T20:37:10Z"
+              }
+            },
+            "ready": true,
+            "lastState": {},
+            "containerID": "docker:///k8s_nginx.156efd59_nginx30-8otcx_kubemark_e4b786dc-4614-11e6-bd6d-0800275521ee_16f28cbf"
+          }
+        ],
+        "podIP": "2.3.4.5",
+        "startTime": "2016-07-09T20:37:10Z",
+        "hostIP": "172.17.0.4",
+        "phase": "Running",
+        "conditions": [
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-09T20:37:10Z",
+            "lastProbeTime": null,
+            "type": "Initialized"
+          },
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-09T20:37:11Z",
+            "lastProbeTime": null,
+            "type": "Ready"
+          },
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-09T20:37:10Z",
+            "lastProbeTime": null,
+            "type": "PodScheduled"
+          }
+        ]
+      },
+      "kind": "Pod",
+      "spec": {
+        "dnsPolicy": "ClusterFirst",
+        "securityContext": {},
+        "nodeName": "172.17.0.4",
+        "terminationGracePeriodSeconds": 30,
+        "restartPolicy": "Always",
+        "containers": [
+          {
+            "terminationMessagePath": "/dev/termination-log",
+            "name": "nginx",
+            "image": "nginx",
+            "imagePullPolicy": "Always",
+            "ports": [
+              {
+                "protocol": "TCP",
+                "containerPort": 80
+              }
+            ],
+            "resources": {}
+          }
+        ]
+      },
+      "apiVersion": "v1",
+      "metadata": {
+        "name": "nginx30-8otcx",
+        "labels": {
+          "app": "nginx30"
+        },
+        "namespace": "kubemark",
+        "resourceVersion": "96855",
+        "generateName": "nginx30-",
+        "creationTimestamp": "2016-07-09T20:37:03Z",
+        "annotations": {
+          "scheduler.alpha.kubernetes.io/name": "experimental",
+          "kubernetes.io/created-by": "{\"kind\":\"SerializedReference\",\"apiVersion\":\"v1\",\"reference\":{\"kind\":\"ReplicationController\",\"namespace\":\"kubemark\",\"name\":\"nginx30\",\"uid\":\"e4b655d5-4614-11e6-bd6d-0800275521ee\",\"apiVersion\":\"v1\",\"resourceVersion\":\"96758\"}}\n"
+        },
+        "selfLink": "/api/v1/namespaces/kubemark/pods/nginx30-8otcx",
+        "uid": "e4b786dc-4614-11e6-bd6d-0800275521ee"
+      }
+    },
+    "e4b80e37-4614-11e6-bd6d-0800275521ee": {
+      "status": {
+        "containerStatuses": [
+          {
+            "restartCount": 0,
+            "name": "nginx",
+            "image": "nginx",
+            "imageID": "docker://",
+            "state": {
+              "running": {
+                "startedAt": "2016-07-09T20:38:12Z"
+              }
+            },
+            "ready": true,
+            "lastState": {},
+            "containerID": "docker:///k8s_nginx.156efd59_nginx30-iuo9m_kubemark_e4b80e37-4614-11e6-bd6d-0800275521ee_e05f6f01"
+          }
+        ],
+        "podIP": "2.3.4.5",
+        "startTime": "2016-07-09T20:38:12Z",
+        "hostIP": "172.17.0.8",
+        "phase": "Running",
+        "conditions": [
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-09T20:38:12Z",
+            "lastProbeTime": null,
+            "type": "Initialized"
+          },
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-09T20:38:14Z",
+            "lastProbeTime": null,
+            "type": "Ready"
+          },
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-09T20:38:12Z",
+            "lastProbeTime": null,
+            "type": "PodScheduled"
+          }
+        ]
+      },
+      "kind": "Pod",
+      "spec": {
+        "dnsPolicy": "ClusterFirst",
+        "securityContext": {},
+        "nodeName": "172.17.0.8",
+        "terminationGracePeriodSeconds": 30,
+        "restartPolicy": "Always",
+        "containers": [
+          {
+            "terminationMessagePath": "/dev/termination-log",
+            "name": "nginx",
+            "image": "nginx",
+            "imagePullPolicy": "Always",
+            "ports": [
+              {
+                "protocol": "TCP",
+                "containerPort": 80
+              }
+            ],
+            "resources": {}
+          }
+        ]
+      },
+      "apiVersion": "v1",
+      "metadata": {
+        "name": "nginx30-iuo9m",
+        "labels": {
+          "app": "nginx30"
+        },
+        "namespace": "kubemark",
+        "resourceVersion": "96988",
+        "generateName": "nginx30-",
+        "creationTimestamp": "2016-07-09T20:37:03Z",
+        "annotations": {
+          "scheduler.alpha.kubernetes.io/name": "experimental",
+          "kubernetes.io/created-by": "{\"kind\":\"SerializedReference\",\"apiVersion\":\"v1\",\"reference\":{\"kind\":\"ReplicationController\",\"namespace\":\"kubemark\",\"name\":\"nginx30\",\"uid\":\"e4b655d5-4614-11e6-bd6d-0800275521ee\",\"apiVersion\":\"v1\",\"resourceVersion\":\"96758\"}}\n"
+        },
+        "selfLink": "/api/v1/namespaces/kubemark/pods/nginx30-iuo9m",
+        "uid": "e4b80e37-4614-11e6-bd6d-0800275521ee"
+      }
+    },
+    "e4b7acdc-4614-11e6-bd6d-0800275521ee": {
+      "status": {
+        "containerStatuses": [
+          {
+            "restartCount": 0,
+            "name": "nginx",
+            "image": "nginx",
+            "imageID": "docker://",
+            "state": {
+              "running": {
+                "startedAt": "2016-07-09T20:37:05Z"
+              }
+            },
+            "ready": true,
+            "lastState": {},
+            "containerID": "docker:///k8s_nginx.156efd59_nginx30-nm3wu_kubemark_e4b7acdc-4614-11e6-bd6d-0800275521ee_b63ce19a"
+          }
+        ],
+        "podIP": "2.3.4.5",
+        "startTime": "2016-07-09T20:37:04Z",
+        "hostIP": "172.17.0.10",
+        "phase": "Running",
+        "conditions": [
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-09T20:37:04Z",
+            "lastProbeTime": null,
+            "type": "Initialized"
+          },
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-09T20:37:06Z",
+            "lastProbeTime": null,
+            "type": "Ready"
+          },
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-09T20:37:04Z",
+            "lastProbeTime": null,
+            "type": "PodScheduled"
+          }
+        ]
+      },
+      "kind": "Pod",
+      "spec": {
+        "dnsPolicy": "ClusterFirst",
+        "securityContext": {},
+        "nodeName": "172.17.0.10",
+        "terminationGracePeriodSeconds": 30,
+        "restartPolicy": "Always",
+        "containers": [
+          {
+            "terminationMessagePath": "/dev/termination-log",
+            "name": "nginx",
+            "image": "nginx",
+            "imagePullPolicy": "Always",
+            "ports": [
+              {
+                "protocol": "TCP",
+                "containerPort": 80
+              }
+            ],
+            "resources": {}
+          }
+        ]
+      },
+      "apiVersion": "v1",
+      "metadata": {
+        "name": "nginx30-nm3wu",
+        "labels": {
+          "app": "nginx30"
+        },
+        "namespace": "kubemark",
+        "resourceVersion": "96837",
+        "generateName": "nginx30-",
+        "creationTimestamp": "2016-07-09T20:37:03Z",
+        "annotations": {
+          "scheduler.alpha.kubernetes.io/name": "experimental",
+          "kubernetes.io/created-by": "{\"kind\":\"SerializedReference\",\"apiVersion\":\"v1\",\"reference\":{\"kind\":\"ReplicationController\",\"namespace\":\"kubemark\",\"name\":\"nginx30\",\"uid\":\"e4b655d5-4614-11e6-bd6d-0800275521ee\",\"apiVersion\":\"v1\",\"resourceVersion\":\"96758\"}}\n"
+        },
+        "selfLink": "/api/v1/namespaces/kubemark/pods/nginx30-nm3wu",
+        "uid": "e4b7acdc-4614-11e6-bd6d-0800275521ee"
+      }
+    },
+    "7d7dc45c-4525-11e6-bd6d-0800275521ee": {
+      "status": {
+        "containerStatuses": [
+          {
+            "restartCount": 0,
+            "name": "hollow-kubelet",
+            "image": "kubemark:latest",
+            "imageID": "docker://sha256:9007bd447e31f12dd1d7fee7f9a1a6698405194711855d98ad6a0322363d6fde",
+            "state": {
+              "running": {
+                "startedAt": "2016-07-08T16:03:22Z"
+              }
+            },
+            "ready": true,
+            "lastState": {},
+            "containerID": "docker://1a947c5b75c63679ff5f6e7c4c026a1f11972ae7d8bd64b8723e9b4a7d0e4a50"
+          },
+          {
+            "restartCount": 0,
+            "name": "hollow-proxy",
+            "image": "kubemark:latest",
+            "imageID": "docker://sha256:9007bd447e31f12dd1d7fee7f9a1a6698405194711855d98ad6a0322363d6fde",
+            "state": {
+              "running": {
+                "startedAt": "2016-07-08T16:03:23Z"
+              }
+            },
+            "ready": true,
+            "lastState": {},
+            "containerID": "docker://ed205b71bf7b0a041cb286b8e430c81ae36bd8ac2e3dc95eee26abce06ea8e75"
+          }
+        ],
+        "podIP": "172.17.0.4",
+        "startTime": "2016-07-08T16:03:20Z",
+        "hostIP": "127.0.0.1",
+        "phase": "Running",
+        "conditions": [
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-08T16:03:20Z",
+            "lastProbeTime": null,
+            "type": "Initialized"
+          },
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-08T16:03:24Z",
+            "lastProbeTime": null,
+            "type": "Ready"
+          },
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-08T16:03:20Z",
+            "lastProbeTime": null,
+            "type": "PodScheduled"
+          }
+        ]
+      },
+      "spec": {
+        "dnsPolicy": "ClusterFirst",
+        "securityContext": {},
+        "nodeName": "127.0.0.1",
+        "terminationGracePeriodSeconds": 30,
+        "restartPolicy": "Always",
+        "volumes": [
+          {
+            "secret": {
+              "secretName": "kubeconfig"
+            },
+            "name": "kubeconfig-volume"
+          }
+        ],
+        "containers": [
+          {
+            "terminationMessagePath": "/dev/termination-log",
+            "name": "hollow-kubelet",
+            "image": "kubemark:latest",
+            "args": [
+              "--v=3",
+              "--morph=kubelet",
+              "--max-pods=200",
+              "$(CONTENT_TYPE)"
+            ],
+            "volumeMounts": [
+              {
+                "mountPath": "/kubeconfig",
+                "name": "kubeconfig-volume"
+              }
+            ],
+            "command": [
+              "./kubemark.sh"
+            ],
+            "env": [
+              {
+                "valueFrom": {
+                  "configMapKeyRef": {
+                    "name": "node-configmap",
+                    "key": "content.type"
+                  }
+                },
+                "name": "CONTENT_TYPE"
+              }
+            ],
+            "imagePullPolicy": "Never",
+            "ports": [
+              {
+                "protocol": "TCP",
+                "containerPort": 4194
+              },
+              {
+                "protocol": "TCP",
+                "containerPort": 10250
+              },
+              {
+                "protocol": "TCP",
+                "containerPort": 10255
+              }
+            ],
+            "resources": {
+              "requests": {
+                "cpu": 50000,
+                "memory": 100000000
+              }
+            }
+          },
+          {
+            "terminationMessagePath": "/dev/termination-log",
+            "name": "hollow-proxy",
+            "image": "kubemark:latest",
+            "args": [
+              "--v=3",
+              "--morph=proxy",
+              "$(CONTENT_TYPE)"
+            ],
+            "volumeMounts": [
+              {
+                "mountPath": "/kubeconfig",
+                "name": "kubeconfig-volume"
+              }
+            ],
+            "command": [
+              "./kubemark.sh"
+            ],
+            "env": [
+              {
+                "valueFrom": {
+                  "configMapKeyRef": {
+                    "name": "node-configmap",
+                    "key": "content.type"
+                  }
+                },
+                "name": "CONTENT_TYPE"
+              }
+            ],
+            "imagePullPolicy": "Never",
+            "resources": {
+              "requests": {
+                "cpu": 20000,
+                "memory": 100000000
+              }
+            }
+          }
+        ]
+      },
+      "metadata": {
+        "name": "hollow-node-afakc",
+        "labels": {
+          "name": "hollow-node"
+        },
+        "namespace": "kubemark",
+        "resourceVersion": "89426",
+        "generateName": "hollow-node-",
+        "creationTimestamp": "2016-07-08T16:03:20Z",
+        "annotations": {
+          "scheduler.alpha.kubernetes.io/name": "experimental",
+          "kubernetes.io/created-by": "{\"kind\":\"SerializedReference\",\"apiVersion\":\"v1\",\"reference\":{\"kind\":\"ReplicationController\",\"namespace\":\"kubemark\",\"name\":\"hollow-node\",\"uid\":\"7d7a87c8-4525-11e6-bd6d-0800275521ee\",\"apiVersion\":\"v1\",\"resourceVersion\":\"1550\"}}\n"
+        },
+        "selfLink": "/api/v1/namespaces/kubemark/pods/hollow-node-afakc",
+        "uid": "7d7dc45c-4525-11e6-bd6d-0800275521ee"
+      }
+    },
+    "e4b7f3d3-4614-11e6-bd6d-0800275521ee": {
+      "status": {
+        "containerStatuses": [
+          {
+            "restartCount": 0,
+            "name": "nginx",
+            "image": "nginx",
+            "imageID": "docker://",
+            "state": {
+              "running": {
+                "startedAt": "2016-07-09T20:37:49Z"
+              }
+            },
+            "ready": true,
+            "lastState": {},
+            "containerID": "docker:///k8s_nginx.156efd59_nginx30-y3mcf_kubemark_e4b7f3d3-4614-11e6-bd6d-0800275521ee_97c34433"
+          }
+        ],
+        "podIP": "2.3.4.5",
+        "startTime": "2016-07-09T20:37:49Z",
+        "hostIP": "172.17.0.7",
+        "phase": "Running",
+        "conditions": [
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-09T20:37:49Z",
+            "lastProbeTime": null,
+            "type": "Initialized"
+          },
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-09T20:37:50Z",
+            "lastProbeTime": null,
+            "type": "Ready"
+          },
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-09T20:37:49Z",
+            "lastProbeTime": null,
+            "type": "PodScheduled"
+          }
+        ]
+      },
+      "kind": "Pod",
+      "spec": {
+        "dnsPolicy": "ClusterFirst",
+        "securityContext": {},
+        "nodeName": "172.17.0.7",
+        "terminationGracePeriodSeconds": 30,
+        "restartPolicy": "Always",
+        "containers": [
+          {
+            "terminationMessagePath": "/dev/termination-log",
+            "name": "nginx",
+            "image": "nginx",
+            "imagePullPolicy": "Always",
+            "ports": [
+              {
+                "protocol": "TCP",
+                "containerPort": 80
+              }
+            ],
+            "resources": {}
+          }
+        ]
+      },
+      "apiVersion": "v1",
+      "metadata": {
+        "name": "nginx30-y3mcf",
+        "labels": {
+          "app": "nginx30"
+        },
+        "namespace": "kubemark",
+        "resourceVersion": "96947",
+        "generateName": "nginx30-",
+        "creationTimestamp": "2016-07-09T20:37:03Z",
+        "annotations": {
+          "scheduler.alpha.kubernetes.io/name": "experimental",
+          "kubernetes.io/created-by": "{\"kind\":\"SerializedReference\",\"apiVersion\":\"v1\",\"reference\":{\"kind\":\"ReplicationController\",\"namespace\":\"kubemark\",\"name\":\"nginx30\",\"uid\":\"e4b655d5-4614-11e6-bd6d-0800275521ee\",\"apiVersion\":\"v1\",\"resourceVersion\":\"96758\"}}\n"
+        },
+        "selfLink": "/api/v1/namespaces/kubemark/pods/nginx30-y3mcf",
+        "uid": "e4b7f3d3-4614-11e6-bd6d-0800275521ee"
+      }
+    },
+    "7d7d26ae-4525-11e6-bd6d-0800275521ee": {
+      "status": {
+        "containerStatuses": [
+          {
+            "restartCount": 0,
+            "name": "hollow-kubelet",
+            "image": "kubemark:latest",
+            "imageID": "docker://sha256:9007bd447e31f12dd1d7fee7f9a1a6698405194711855d98ad6a0322363d6fde",
+            "state": {
+              "running": {
+                "startedAt": "2016-07-08T16:03:21Z"
+              }
+            },
+            "ready": true,
+            "lastState": {},
+            "containerID": "docker://b190df8ebc1c43204ba4e0a6d16d690916f6ca31e75823111de54906db95c816"
+          },
+          {
+            "restartCount": 0,
+            "name": "hollow-proxy",
+            "image": "kubemark:latest",
+            "imageID": "docker://sha256:9007bd447e31f12dd1d7fee7f9a1a6698405194711855d98ad6a0322363d6fde",
+            "state": {
+              "running": {
+                "startedAt": "2016-07-08T16:03:22Z"
+              }
+            },
+            "ready": true,
+            "lastState": {},
+            "containerID": "docker://35d8a87752707e335a7f081d20db044067e3750f1f27afefef90ee8107d7159c"
+          }
+        ],
+        "podIP": "172.17.0.2",
+        "startTime": "2016-07-08T16:03:20Z",
+        "hostIP": "127.0.0.1",
+        "phase": "Running",
+        "conditions": [
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-08T16:03:20Z",
+            "lastProbeTime": null,
+            "type": "Initialized"
+          },
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-08T16:03:23Z",
+            "lastProbeTime": null,
+            "type": "Ready"
+          },
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-08T16:03:20Z",
+            "lastProbeTime": null,
+            "type": "PodScheduled"
+          }
+        ]
+      },
+      "spec": {
+        "dnsPolicy": "ClusterFirst",
+        "securityContext": {},
+        "nodeName": "127.0.0.1",
+        "terminationGracePeriodSeconds": 30,
+        "restartPolicy": "Always",
+        "volumes": [
+          {
+            "secret": {
+              "secretName": "kubeconfig"
+            },
+            "name": "kubeconfig-volume"
+          }
+        ],
+        "containers": [
+          {
+            "terminationMessagePath": "/dev/termination-log",
+            "name": "hollow-kubelet",
+            "image": "kubemark:latest",
+            "args": [
+              "--v=3",
+              "--morph=kubelet",
+              "--max-pods=200",
+              "$(CONTENT_TYPE)"
+            ],
+            "volumeMounts": [
+              {
+                "mountPath": "/kubeconfig",
+                "name": "kubeconfig-volume"
+              }
+            ],
+            "command": [
+              "./kubemark.sh"
+            ],
+            "env": [
+              {
+                "valueFrom": {
+                  "configMapKeyRef": {
+                    "name": "node-configmap",
+                    "key": "content.type"
+                  }
+                },
+                "name": "CONTENT_TYPE"
+              }
+            ],
+            "imagePullPolicy": "Never",
+            "ports": [
+              {
+                "protocol": "TCP",
+                "containerPort": 4194
+              },
+              {
+                "protocol": "TCP",
+                "containerPort": 10250
+              },
+              {
+                "protocol": "TCP",
+                "containerPort": 10255
+              }
+            ],
+            "resources": {
+              "requests": {
+                "cpu": 50000,
+                "memory": 100000000
+              }
+            }
+          },
+          {
+            "terminationMessagePath": "/dev/termination-log",
+            "name": "hollow-proxy",
+            "image": "kubemark:latest",
+            "args": [
+              "--v=3",
+              "--morph=proxy",
+              "$(CONTENT_TYPE)"
+            ],
+            "volumeMounts": [
+              {
+                "mountPath": "/kubeconfig",
+                "name": "kubeconfig-volume"
+              }
+            ],
+            "command": [
+              "./kubemark.sh"
+            ],
+            "env": [
+              {
+                "valueFrom": {
+                  "configMapKeyRef": {
+                    "name": "node-configmap",
+                    "key": "content.type"
+                  }
+                },
+                "name": "CONTENT_TYPE"
+              }
+            ],
+            "imagePullPolicy": "Never",
+            "resources": {
+              "requests": {
+                "cpu": 20000,
+                "memory": 100000000
+              }
+            }
+          }
+        ]
+      },
+      "metadata": {
+        "name": "hollow-node-ud6c0",
+        "labels": {
+          "name": "hollow-node"
+        },
+        "namespace": "kubemark",
+        "resourceVersion": "89420",
+        "generateName": "hollow-node-",
+        "creationTimestamp": "2016-07-08T16:03:20Z",
+        "annotations": {
+          "scheduler.alpha.kubernetes.io/name": "experimental",
+          "kubernetes.io/created-by": "{\"kind\":\"SerializedReference\",\"apiVersion\":\"v1\",\"reference\":{\"kind\":\"ReplicationController\",\"namespace\":\"kubemark\",\"name\":\"hollow-node\",\"uid\":\"7d7a87c8-4525-11e6-bd6d-0800275521ee\",\"apiVersion\":\"v1\",\"resourceVersion\":\"1550\"}}\n"
+        },
+        "selfLink": "/api/v1/namespaces/kubemark/pods/hollow-node-ud6c0",
+        "uid": "7d7d26ae-4525-11e6-bd6d-0800275521ee"
+      }
+    },
+    "e4b7a467-4614-11e6-bd6d-0800275521ee": {
+      "status": {
+        "containerStatuses": [
+          {
+            "restartCount": 0,
+            "name": "nginx",
+            "image": "nginx",
+            "imageID": "docker://",
+            "state": {
+              "running": {
+                "startedAt": "2016-07-09T20:37:05Z"
+              }
+            },
+            "ready": true,
+            "lastState": {},
+            "containerID": "docker:///k8s_nginx.156efd59_nginx30-udrhb_kubemark_e4b7a467-4614-11e6-bd6d-0800275521ee_d799fe86"
+          }
+        ],
+        "podIP": "2.3.4.5",
+        "startTime": "2016-07-09T20:37:05Z",
+        "hostIP": "172.17.0.6",
+        "phase": "Running",
+        "conditions": [
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-09T20:37:05Z",
+            "lastProbeTime": null,
+            "type": "Initialized"
+          },
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-09T20:37:05Z",
+            "lastProbeTime": null,
+            "type": "Ready"
+          },
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-09T20:37:05Z",
+            "lastProbeTime": null,
+            "type": "PodScheduled"
+          }
+        ]
+      },
+      "kind": "Pod",
+      "spec": {
+        "dnsPolicy": "ClusterFirst",
+        "securityContext": {},
+        "nodeName": "172.17.0.6",
+        "terminationGracePeriodSeconds": 30,
+        "restartPolicy": "Always",
+        "containers": [
+          {
+            "terminationMessagePath": "/dev/termination-log",
+            "name": "nginx",
+            "image": "nginx",
+            "imagePullPolicy": "Always",
+            "ports": [
+              {
+                "protocol": "TCP",
+                "containerPort": 80
+              }
+            ],
+            "resources": {}
+          }
+        ]
+      },
+      "apiVersion": "v1",
+      "metadata": {
+        "name": "nginx30-udrhb",
+        "labels": {
+          "app": "nginx30"
+        },
+        "namespace": "kubemark",
+        "resourceVersion": "96833",
+        "generateName": "nginx30-",
+        "creationTimestamp": "2016-07-09T20:37:03Z",
+        "annotations": {
+          "scheduler.alpha.kubernetes.io/name": "experimental",
+          "kubernetes.io/created-by": "{\"kind\":\"SerializedReference\",\"apiVersion\":\"v1\",\"reference\":{\"kind\":\"ReplicationController\",\"namespace\":\"kubemark\",\"name\":\"nginx30\",\"uid\":\"e4b655d5-4614-11e6-bd6d-0800275521ee\",\"apiVersion\":\"v1\",\"resourceVersion\":\"96758\"}}\n"
+        },
+        "selfLink": "/api/v1/namespaces/kubemark/pods/nginx30-udrhb",
+        "uid": "e4b7a467-4614-11e6-bd6d-0800275521ee"
+      }
+    },
+    "e4b7fc44-4614-11e6-bd6d-0800275521ee": {
+      "status": {
+        "containerStatuses": [
+          {
+            "restartCount": 0,
+            "name": "nginx",
+            "image": "nginx",
+            "imageID": "docker://",
+            "state": {
+              "running": {
+                "startedAt": "2016-07-09T20:38:07Z"
+              }
+            },
+            "ready": true,
+            "lastState": {},
+            "containerID": "docker:///k8s_nginx.156efd59_nginx30-dy04r_kubemark_e4b7fc44-4614-11e6-bd6d-0800275521ee_74e724db"
+          }
+        ],
+        "podIP": "2.3.4.5",
+        "startTime": "2016-07-09T20:38:07Z",
+        "hostIP": "172.17.0.6",
+        "phase": "Running",
+        "conditions": [
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-09T20:38:07Z",
+            "lastProbeTime": null,
+            "type": "Initialized"
+          },
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-09T20:38:08Z",
+            "lastProbeTime": null,
+            "type": "Ready"
+          },
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-09T20:38:07Z",
+            "lastProbeTime": null,
+            "type": "PodScheduled"
+          }
+        ]
+      },
+      "kind": "Pod",
+      "spec": {
+        "dnsPolicy": "ClusterFirst",
+        "securityContext": {},
+        "nodeName": "172.17.0.6",
+        "terminationGracePeriodSeconds": 30,
+        "restartPolicy": "Always",
+        "containers": [
+          {
+            "terminationMessagePath": "/dev/termination-log",
+            "name": "nginx",
+            "image": "nginx",
+            "imagePullPolicy": "Always",
+            "ports": [
+              {
+                "protocol": "TCP",
+                "containerPort": 80
+              }
+            ],
+            "resources": {}
+          }
+        ]
+      },
+      "apiVersion": "v1",
+      "metadata": {
+        "name": "nginx30-dy04r",
+        "labels": {
+          "app": "nginx30"
+        },
+        "namespace": "kubemark",
+        "resourceVersion": "96979",
+        "generateName": "nginx30-",
+        "creationTimestamp": "2016-07-09T20:37:03Z",
+        "annotations": {
+          "scheduler.alpha.kubernetes.io/name": "experimental",
+          "kubernetes.io/created-by": "{\"kind\":\"SerializedReference\",\"apiVersion\":\"v1\",\"reference\":{\"kind\":\"ReplicationController\",\"namespace\":\"kubemark\",\"name\":\"nginx30\",\"uid\":\"e4b655d5-4614-11e6-bd6d-0800275521ee\",\"apiVersion\":\"v1\",\"resourceVersion\":\"96758\"}}\n"
+        },
+        "selfLink": "/api/v1/namespaces/kubemark/pods/nginx30-dy04r",
+        "uid": "e4b7fc44-4614-11e6-bd6d-0800275521ee"
+      }
+    },
+    "7d7d38f7-4525-11e6-bd6d-0800275521ee": {
+      "status": {
+        "containerStatuses": [
+          {
+            "restartCount": 0,
+            "name": "hollow-kubelet",
+            "image": "kubemark:latest",
+            "imageID": "docker://sha256:9007bd447e31f12dd1d7fee7f9a1a6698405194711855d98ad6a0322363d6fde",
+            "state": {
+              "running": {
+                "startedAt": "2016-07-08T16:03:27Z"
+              }
+            },
+            "ready": true,
+            "lastState": {},
+            "containerID": "docker://d0cbfc07df19dc5d830ad81d07bbdb4d4b63571c50f11f5654fae6af9de90d10"
+          },
+          {
+            "restartCount": 0,
+            "name": "hollow-proxy",
+            "image": "kubemark:latest",
+            "imageID": "docker://sha256:9007bd447e31f12dd1d7fee7f9a1a6698405194711855d98ad6a0322363d6fde",
+            "state": {
+              "running": {
+                "startedAt": "2016-07-08T16:03:28Z"
+              }
+            },
+            "ready": true,
+            "lastState": {},
+            "containerID": "docker://c426b24710496c266ec27bc4a71a98230e79dad66a06be6e2622dd83fe16094b"
+          }
+        ],
+        "podIP": "172.17.0.8",
+        "startTime": "2016-07-08T16:03:20Z",
+        "hostIP": "127.0.0.1",
+        "phase": "Running",
+        "conditions": [
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-08T16:03:20Z",
+            "lastProbeTime": null,
+            "type": "Initialized"
+          },
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-08T16:03:29Z",
+            "lastProbeTime": null,
+            "type": "Ready"
+          },
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-08T16:03:20Z",
+            "lastProbeTime": null,
+            "type": "PodScheduled"
+          }
+        ]
+      },
+      "spec": {
+        "dnsPolicy": "ClusterFirst",
+        "securityContext": {},
+        "nodeName": "127.0.0.1",
+        "terminationGracePeriodSeconds": 30,
+        "restartPolicy": "Always",
+        "volumes": [
+          {
+            "secret": {
+              "secretName": "kubeconfig"
+            },
+            "name": "kubeconfig-volume"
+          }
+        ],
+        "containers": [
+          {
+            "terminationMessagePath": "/dev/termination-log",
+            "name": "hollow-kubelet",
+            "image": "kubemark:latest",
+            "args": [
+              "--v=3",
+              "--morph=kubelet",
+              "--max-pods=200",
+              "$(CONTENT_TYPE)"
+            ],
+            "volumeMounts": [
+              {
+                "mountPath": "/kubeconfig",
+                "name": "kubeconfig-volume"
+              }
+            ],
+            "command": [
+              "./kubemark.sh"
+            ],
+            "env": [
+              {
+                "valueFrom": {
+                  "configMapKeyRef": {
+                    "name": "node-configmap",
+                    "key": "content.type"
+                  }
+                },
+                "name": "CONTENT_TYPE"
+              }
+            ],
+            "imagePullPolicy": "Never",
+            "ports": [
+              {
+                "protocol": "TCP",
+                "containerPort": 4194
+              },
+              {
+                "protocol": "TCP",
+                "containerPort": 10250
+              },
+              {
+                "protocol": "TCP",
+                "containerPort": 10255
+              }
+            ],
+            "resources": {
+              "requests": {
+                "cpu": 50000,
+                "memory": 100000000
+              }
+            }
+          },
+          {
+            "terminationMessagePath": "/dev/termination-log",
+            "name": "hollow-proxy",
+            "image": "kubemark:latest",
+            "args": [
+              "--v=3",
+              "--morph=proxy",
+              "$(CONTENT_TYPE)"
+            ],
+            "volumeMounts": [
+              {
+                "mountPath": "/kubeconfig",
+                "name": "kubeconfig-volume"
+              }
+            ],
+            "command": [
+              "./kubemark.sh"
+            ],
+            "env": [
+              {
+                "valueFrom": {
+                  "configMapKeyRef": {
+                    "name": "node-configmap",
+                    "key": "content.type"
+                  }
+                },
+                "name": "CONTENT_TYPE"
+              }
+            ],
+            "imagePullPolicy": "Never",
+            "resources": {
+              "requests": {
+                "cpu": 20000,
+                "memory": 100000000
+              }
+            }
+          }
+        ]
+      },
+      "metadata": {
+        "name": "hollow-node-462dy",
+        "labels": {
+          "name": "hollow-node"
+        },
+        "namespace": "kubemark",
+        "resourceVersion": "89408",
+        "generateName": "hollow-node-",
+        "creationTimestamp": "2016-07-08T16:03:20Z",
+        "annotations": {
+          "scheduler.alpha.kubernetes.io/name": "experimental",
+          "kubernetes.io/created-by": "{\"kind\":\"SerializedReference\",\"apiVersion\":\"v1\",\"reference\":{\"kind\":\"ReplicationController\",\"namespace\":\"kubemark\",\"name\":\"hollow-node\",\"uid\":\"7d7a87c8-4525-11e6-bd6d-0800275521ee\",\"apiVersion\":\"v1\",\"resourceVersion\":\"1550\"}}\n"
+        },
+        "selfLink": "/api/v1/namespaces/kubemark/pods/hollow-node-462dy",
+        "uid": "7d7d38f7-4525-11e6-bd6d-0800275521ee"
+      }
+    },
+    "e4b77e1e-4614-11e6-bd6d-0800275521ee": {
+      "status": {
+        "containerStatuses": [
+          {
+            "restartCount": 0,
+            "name": "nginx",
+            "image": "nginx",
+            "imageID": "docker://",
+            "state": {
+              "running": {
+                "startedAt": "2016-07-09T20:37:11Z"
+              }
+            },
+            "ready": true,
+            "lastState": {},
+            "containerID": "docker:///k8s_nginx.156efd59_nginx30-kqytj_kubemark_e4b77e1e-4614-11e6-bd6d-0800275521ee_488d9800"
+          }
+        ],
+        "podIP": "2.3.4.5",
+        "startTime": "2016-07-09T20:37:11Z",
+        "hostIP": "172.17.0.2",
+        "phase": "Running",
+        "conditions": [
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-09T20:37:11Z",
+            "lastProbeTime": null,
+            "type": "Initialized"
+          },
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-09T20:37:12Z",
+            "lastProbeTime": null,
+            "type": "Ready"
+          },
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-09T20:37:11Z",
+            "lastProbeTime": null,
+            "type": "PodScheduled"
+          }
+        ]
+      },
+      "kind": "Pod",
+      "spec": {
+        "dnsPolicy": "ClusterFirst",
+        "securityContext": {},
+        "nodeName": "172.17.0.2",
+        "terminationGracePeriodSeconds": 30,
+        "restartPolicy": "Always",
+        "containers": [
+          {
+            "terminationMessagePath": "/dev/termination-log",
+            "name": "nginx",
+            "image": "nginx",
+            "imagePullPolicy": "Always",
+            "ports": [
+              {
+                "protocol": "TCP",
+                "containerPort": 80
+              }
+            ],
+            "resources": {}
+          }
+        ]
+      },
+      "apiVersion": "v1",
+      "metadata": {
+        "name": "nginx30-kqytj",
+        "labels": {
+          "app": "nginx30"
+        },
+        "namespace": "kubemark",
+        "resourceVersion": "96863",
+        "generateName": "nginx30-",
+        "creationTimestamp": "2016-07-09T20:37:03Z",
+        "annotations": {
+          "scheduler.alpha.kubernetes.io/name": "experimental",
+          "kubernetes.io/created-by": "{\"kind\":\"SerializedReference\",\"apiVersion\":\"v1\",\"reference\":{\"kind\":\"ReplicationController\",\"namespace\":\"kubemark\",\"name\":\"nginx30\",\"uid\":\"e4b655d5-4614-11e6-bd6d-0800275521ee\",\"apiVersion\":\"v1\",\"resourceVersion\":\"96758\"}}\n"
+        },
+        "selfLink": "/api/v1/namespaces/kubemark/pods/nginx30-kqytj",
+        "uid": "e4b77e1e-4614-11e6-bd6d-0800275521ee"
+      }
+    },
+    "e4b76ced-4614-11e6-bd6d-0800275521ee": {
+      "status": {
+        "containerStatuses": [
+          {
+            "restartCount": 0,
+            "name": "nginx",
+            "image": "nginx",
+            "imageID": "docker://",
+            "state": {
+              "running": {
+                "startedAt": "2016-07-09T20:37:13Z"
+              }
+            },
+            "ready": true,
+            "lastState": {},
+            "containerID": "docker:///k8s_nginx.156efd59_nginx30-lxk17_kubemark_e4b76ced-4614-11e6-bd6d-0800275521ee_ba218475"
+          }
+        ],
+        "podIP": "2.3.4.5",
+        "startTime": "2016-07-09T20:37:12Z",
+        "hostIP": "172.17.0.8",
+        "phase": "Running",
+        "conditions": [
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-09T20:37:12Z",
+            "lastProbeTime": null,
+            "type": "Initialized"
+          },
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-09T20:37:13Z",
+            "lastProbeTime": null,
+            "type": "Ready"
+          },
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-09T20:37:12Z",
+            "lastProbeTime": null,
+            "type": "PodScheduled"
+          }
+        ]
+      },
+      "kind": "Pod",
+      "spec": {
+        "dnsPolicy": "ClusterFirst",
+        "securityContext": {},
+        "nodeName": "172.17.0.8",
+        "terminationGracePeriodSeconds": 30,
+        "restartPolicy": "Always",
+        "containers": [
+          {
+            "terminationMessagePath": "/dev/termination-log",
+            "name": "nginx",
+            "image": "nginx",
+            "imagePullPolicy": "Always",
+            "ports": [
+              {
+                "protocol": "TCP",
+                "containerPort": 80
+              }
+            ],
+            "resources": {}
+          }
+        ]
+      },
+      "apiVersion": "v1",
+      "metadata": {
+        "name": "nginx30-lxk17",
+        "labels": {
+          "app": "nginx30"
+        },
+        "namespace": "kubemark",
+        "resourceVersion": "96865",
+        "generateName": "nginx30-",
+        "creationTimestamp": "2016-07-09T20:37:03Z",
+        "annotations": {
+          "scheduler.alpha.kubernetes.io/name": "experimental",
+          "kubernetes.io/created-by": "{\"kind\":\"SerializedReference\",\"apiVersion\":\"v1\",\"reference\":{\"kind\":\"ReplicationController\",\"namespace\":\"kubemark\",\"name\":\"nginx30\",\"uid\":\"e4b655d5-4614-11e6-bd6d-0800275521ee\",\"apiVersion\":\"v1\",\"resourceVersion\":\"96758\"}}\n"
+        },
+        "selfLink": "/api/v1/namespaces/kubemark/pods/nginx30-lxk17",
+        "uid": "e4b76ced-4614-11e6-bd6d-0800275521ee"
+      }
+    },
+    "e4b7af1f-4614-11e6-bd6d-0800275521ee": {
+      "status": {
+        "containerStatuses": [
+          {
+            "restartCount": 0,
+            "name": "nginx",
+            "image": "nginx",
+            "imageID": "docker://",
+            "state": {
+              "running": {
+                "startedAt": "2016-07-09T20:37:04Z"
+              }
+            },
+            "ready": true,
+            "lastState": {},
+            "containerID": "docker:///k8s_nginx.156efd59_nginx30-omuyl_kubemark_e4b7af1f-4614-11e6-bd6d-0800275521ee_74e724db"
+          }
+        ],
+        "podIP": "2.3.4.5",
+        "startTime": "2016-07-09T20:37:04Z",
+        "hostIP": "172.17.0.8",
+        "phase": "Running",
+        "conditions": [
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-09T20:37:04Z",
+            "lastProbeTime": null,
+            "type": "Initialized"
+          },
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-09T20:37:05Z",
+            "lastProbeTime": null,
+            "type": "Ready"
+          },
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-09T20:37:04Z",
+            "lastProbeTime": null,
+            "type": "PodScheduled"
+          }
+        ]
+      },
+      "kind": "Pod",
+      "spec": {
+        "dnsPolicy": "ClusterFirst",
+        "securityContext": {},
+        "nodeName": "172.17.0.8",
+        "terminationGracePeriodSeconds": 30,
+        "restartPolicy": "Always",
+        "containers": [
+          {
+            "terminationMessagePath": "/dev/termination-log",
+            "name": "nginx",
+            "image": "nginx",
+            "imagePullPolicy": "Always",
+            "ports": [
+              {
+                "protocol": "TCP",
+                "containerPort": 80
+              }
+            ],
+            "resources": {}
+          }
+        ]
+      },
+      "apiVersion": "v1",
+      "metadata": {
+        "name": "nginx30-omuyl",
+        "labels": {
+          "app": "nginx30"
+        },
+        "namespace": "kubemark",
+        "resourceVersion": "96832",
+        "generateName": "nginx30-",
+        "creationTimestamp": "2016-07-09T20:37:03Z",
+        "annotations": {
+          "scheduler.alpha.kubernetes.io/name": "experimental",
+          "kubernetes.io/created-by": "{\"kind\":\"SerializedReference\",\"apiVersion\":\"v1\",\"reference\":{\"kind\":\"ReplicationController\",\"namespace\":\"kubemark\",\"name\":\"nginx30\",\"uid\":\"e4b655d5-4614-11e6-bd6d-0800275521ee\",\"apiVersion\":\"v1\",\"resourceVersion\":\"96758\"}}\n"
+        },
+        "selfLink": "/api/v1/namespaces/kubemark/pods/nginx30-omuyl",
+        "uid": "e4b7af1f-4614-11e6-bd6d-0800275521ee"
+      }
+    },
+    "7d7d55af-4525-11e6-bd6d-0800275521ee": {
+      "status": {
+        "containerStatuses": [
+          {
+            "restartCount": 0,
+            "name": "hollow-kubelet",
+            "image": "kubemark:latest",
+            "imageID": "docker://sha256:9007bd447e31f12dd1d7fee7f9a1a6698405194711855d98ad6a0322363d6fde",
+            "state": {
+              "running": {
+                "startedAt": "2016-07-08T16:03:23Z"
+              }
+            },
+            "ready": true,
+            "lastState": {},
+            "containerID": "docker://ac8c9d7668b2f274f798e95d77a9e52ed32d75b9070acb47b6b3fd0a270f093d"
+          },
+          {
+            "restartCount": 0,
+            "name": "hollow-proxy",
+            "image": "kubemark:latest",
+            "imageID": "docker://sha256:9007bd447e31f12dd1d7fee7f9a1a6698405194711855d98ad6a0322363d6fde",
+            "state": {
+              "running": {
+                "startedAt": "2016-07-08T16:03:24Z"
+              }
+            },
+            "ready": true,
+            "lastState": {},
+            "containerID": "docker://3ab45c772bafa0575871c04f26ccf05733e7debd7fbddb63657bdf4e58bd5510"
+          }
+        ],
+        "podIP": "172.17.0.5",
+        "startTime": "2016-07-08T16:03:20Z",
+        "hostIP": "127.0.0.1",
+        "phase": "Running",
+        "conditions": [
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-08T16:03:20Z",
+            "lastProbeTime": null,
+            "type": "Initialized"
+          },
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-08T16:03:25Z",
+            "lastProbeTime": null,
+            "type": "Ready"
+          },
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-08T16:03:20Z",
+            "lastProbeTime": null,
+            "type": "PodScheduled"
+          }
+        ]
+      },
+      "spec": {
+        "dnsPolicy": "ClusterFirst",
+        "securityContext": {},
+        "nodeName": "127.0.0.1",
+        "terminationGracePeriodSeconds": 30,
+        "restartPolicy": "Always",
+        "volumes": [
+          {
+            "secret": {
+              "secretName": "kubeconfig"
+            },
+            "name": "kubeconfig-volume"
+          }
+        ],
+        "containers": [
+          {
+            "terminationMessagePath": "/dev/termination-log",
+            "name": "hollow-kubelet",
+            "image": "kubemark:latest",
+            "args": [
+              "--v=3",
+              "--morph=kubelet",
+              "--max-pods=200",
+              "$(CONTENT_TYPE)"
+            ],
+            "volumeMounts": [
+              {
+                "mountPath": "/kubeconfig",
+                "name": "kubeconfig-volume"
+              }
+            ],
+            "command": [
+              "./kubemark.sh"
+            ],
+            "env": [
+              {
+                "valueFrom": {
+                  "configMapKeyRef": {
+                    "name": "node-configmap",
+                    "key": "content.type"
+                  }
+                },
+                "name": "CONTENT_TYPE"
+              }
+            ],
+            "imagePullPolicy": "Never",
+            "ports": [
+              {
+                "protocol": "TCP",
+                "containerPort": 4194
+              },
+              {
+                "protocol": "TCP",
+                "containerPort": 10250
+              },
+              {
+                "protocol": "TCP",
+                "containerPort": 10255
+              }
+            ],
+            "resources": {
+              "requests": {
+                "cpu": 50000,
+                "memory": 100000000
+              }
+            }
+          },
+          {
+            "terminationMessagePath": "/dev/termination-log",
+            "name": "hollow-proxy",
+            "image": "kubemark:latest",
+            "args": [
+              "--v=3",
+              "--morph=proxy",
+              "$(CONTENT_TYPE)"
+            ],
+            "volumeMounts": [
+              {
+                "mountPath": "/kubeconfig",
+                "name": "kubeconfig-volume"
+              }
+            ],
+            "command": [
+              "./kubemark.sh"
+            ],
+            "env": [
+              {
+                "valueFrom": {
+                  "configMapKeyRef": {
+                    "name": "node-configmap",
+                    "key": "content.type"
+                  }
+                },
+                "name": "CONTENT_TYPE"
+              }
+            ],
+            "imagePullPolicy": "Never",
+            "resources": {
+              "requests": {
+                "cpu": 20000,
+                "memory": 100000000
+              }
+            }
+          }
+        ]
+      },
+      "metadata": {
+        "name": "hollow-node-sble6",
+        "labels": {
+          "name": "hollow-node"
+        },
+        "namespace": "kubemark",
+        "resourceVersion": "89411",
+        "generateName": "hollow-node-",
+        "creationTimestamp": "2016-07-08T16:03:20Z",
+        "annotations": {
+          "scheduler.alpha.kubernetes.io/name": "experimental",
+          "kubernetes.io/created-by": "{\"kind\":\"SerializedReference\",\"apiVersion\":\"v1\",\"reference\":{\"kind\":\"ReplicationController\",\"namespace\":\"kubemark\",\"name\":\"hollow-node\",\"uid\":\"7d7a87c8-4525-11e6-bd6d-0800275521ee\",\"apiVersion\":\"v1\",\"resourceVersion\":\"1550\"}}\n"
+        },
+        "selfLink": "/api/v1/namespaces/kubemark/pods/hollow-node-sble6",
+        "uid": "7d7d55af-4525-11e6-bd6d-0800275521ee"
+      }
+    },
+    "e4b7eec1-4614-11e6-bd6d-0800275521ee": {
+      "status": {
+        "containerStatuses": [
+          {
+            "restartCount": 0,
+            "name": "nginx",
+            "image": "nginx",
+            "imageID": "docker://",
+            "state": {
+              "running": {
+                "startedAt": "2016-07-09T20:37:53Z"
+              }
+            },
+            "ready": true,
+            "lastState": {},
+            "containerID": "docker:///k8s_nginx.156efd59_nginx30-ug5x6_kubemark_e4b7eec1-4614-11e6-bd6d-0800275521ee_f2ce59f2"
+          }
+        ],
+        "podIP": "2.3.4.5",
+        "startTime": "2016-07-09T20:37:53Z",
+        "hostIP": "172.17.0.11",
+        "phase": "Running",
+        "conditions": [
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-09T20:37:53Z",
+            "lastProbeTime": null,
+            "type": "Initialized"
+          },
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-09T20:37:55Z",
+            "lastProbeTime": null,
+            "type": "Ready"
+          },
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-09T20:37:53Z",
+            "lastProbeTime": null,
+            "type": "PodScheduled"
+          }
+        ]
+      },
+      "kind": "Pod",
+      "spec": {
+        "dnsPolicy": "ClusterFirst",
+        "securityContext": {},
+        "nodeName": "172.17.0.11",
+        "terminationGracePeriodSeconds": 30,
+        "restartPolicy": "Always",
+        "containers": [
+          {
+            "terminationMessagePath": "/dev/termination-log",
+            "name": "nginx",
+            "image": "nginx",
+            "imagePullPolicy": "Always",
+            "ports": [
+              {
+                "protocol": "TCP",
+                "containerPort": 80
+              }
+            ],
+            "resources": {}
+          }
+        ]
+      },
+      "apiVersion": "v1",
+      "metadata": {
+        "name": "nginx30-ug5x6",
+        "labels": {
+          "app": "nginx30"
+        },
+        "namespace": "kubemark",
+        "resourceVersion": "96955",
+        "generateName": "nginx30-",
+        "creationTimestamp": "2016-07-09T20:37:03Z",
+        "annotations": {
+          "scheduler.alpha.kubernetes.io/name": "experimental",
+          "kubernetes.io/created-by": "{\"kind\":\"SerializedReference\",\"apiVersion\":\"v1\",\"reference\":{\"kind\":\"ReplicationController\",\"namespace\":\"kubemark\",\"name\":\"nginx30\",\"uid\":\"e4b655d5-4614-11e6-bd6d-0800275521ee\",\"apiVersion\":\"v1\",\"resourceVersion\":\"96758\"}}\n"
+        },
+        "selfLink": "/api/v1/namespaces/kubemark/pods/nginx30-ug5x6",
+        "uid": "e4b7eec1-4614-11e6-bd6d-0800275521ee"
+      }
+    },
+    "e4b793f5-4614-11e6-bd6d-0800275521ee": {
+      "status": {
+        "containerStatuses": [
+          {
+            "restartCount": 0,
+            "name": "nginx",
+            "image": "nginx",
+            "imageID": "docker://",
+            "state": {
+              "running": {
+                "startedAt": "2016-07-09T20:37:08Z"
+              }
+            },
+            "ready": true,
+            "lastState": {},
+            "containerID": "docker:///k8s_nginx.156efd59_nginx30-x6vkd_kubemark_e4b793f5-4614-11e6-bd6d-0800275521ee_c856f226"
+          }
+        ],
+        "podIP": "2.3.4.5",
+        "startTime": "2016-07-09T20:37:07Z",
+        "hostIP": "172.17.0.11",
+        "phase": "Running",
+        "conditions": [
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-09T20:37:07Z",
+            "lastProbeTime": null,
+            "type": "Initialized"
+          },
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-09T20:37:08Z",
+            "lastProbeTime": null,
+            "type": "Ready"
+          },
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-09T20:37:07Z",
+            "lastProbeTime": null,
+            "type": "PodScheduled"
+          }
+        ]
+      },
+      "kind": "Pod",
+      "spec": {
+        "dnsPolicy": "ClusterFirst",
+        "securityContext": {},
+        "nodeName": "172.17.0.11",
+        "terminationGracePeriodSeconds": 30,
+        "restartPolicy": "Always",
+        "containers": [
+          {
+            "terminationMessagePath": "/dev/termination-log",
+            "name": "nginx",
+            "image": "nginx",
+            "imagePullPolicy": "Always",
+            "ports": [
+              {
+                "protocol": "TCP",
+                "containerPort": 80
+              }
+            ],
+            "resources": {}
+          }
+        ]
+      },
+      "apiVersion": "v1",
+      "metadata": {
+        "name": "nginx30-x6vkd",
+        "labels": {
+          "app": "nginx30"
+        },
+        "namespace": "kubemark",
+        "resourceVersion": "96848",
+        "generateName": "nginx30-",
+        "creationTimestamp": "2016-07-09T20:37:03Z",
+        "annotations": {
+          "scheduler.alpha.kubernetes.io/name": "experimental",
+          "kubernetes.io/created-by": "{\"kind\":\"SerializedReference\",\"apiVersion\":\"v1\",\"reference\":{\"kind\":\"ReplicationController\",\"namespace\":\"kubemark\",\"name\":\"nginx30\",\"uid\":\"e4b655d5-4614-11e6-bd6d-0800275521ee\",\"apiVersion\":\"v1\",\"resourceVersion\":\"96758\"}}\n"
+        },
+        "selfLink": "/api/v1/namespaces/kubemark/pods/nginx30-x6vkd",
+        "uid": "e4b793f5-4614-11e6-bd6d-0800275521ee"
+      }
+    },
+    "e4b7e81d-4614-11e6-bd6d-0800275521ee": {
+      "status": {
+        "containerStatuses": [
+          {
+            "restartCount": 0,
+            "name": "nginx",
+            "image": "nginx",
+            "imageID": "docker://",
+            "state": {
+              "running": {
+                "startedAt": "2016-07-09T20:37:29Z"
+              }
+            },
+            "ready": true,
+            "lastState": {},
+            "containerID": "docker:///k8s_nginx.156efd59_nginx30-d9v2y_kubemark_e4b7e81d-4614-11e6-bd6d-0800275521ee_0018b1d5"
+          }
+        ],
+        "podIP": "2.3.4.5",
+        "startTime": "2016-07-09T20:37:29Z",
+        "hostIP": "172.17.0.4",
+        "phase": "Running",
+        "conditions": [
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-09T20:37:29Z",
+            "lastProbeTime": null,
+            "type": "Initialized"
+          },
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-09T20:37:30Z",
+            "lastProbeTime": null,
+            "type": "Ready"
+          },
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-09T20:37:29Z",
+            "lastProbeTime": null,
+            "type": "PodScheduled"
+          }
+        ]
+      },
+      "kind": "Pod",
+      "spec": {
+        "dnsPolicy": "ClusterFirst",
+        "securityContext": {},
+        "nodeName": "172.17.0.4",
+        "terminationGracePeriodSeconds": 30,
+        "restartPolicy": "Always",
+        "containers": [
+          {
+            "terminationMessagePath": "/dev/termination-log",
+            "name": "nginx",
+            "image": "nginx",
+            "imagePullPolicy": "Always",
+            "ports": [
+              {
+                "protocol": "TCP",
+                "containerPort": 80
+              }
+            ],
+            "resources": {}
+          }
+        ]
+      },
+      "apiVersion": "v1",
+      "metadata": {
+        "name": "nginx30-d9v2y",
+        "labels": {
+          "app": "nginx30"
+        },
+        "namespace": "kubemark",
+        "resourceVersion": "96907",
+        "generateName": "nginx30-",
+        "creationTimestamp": "2016-07-09T20:37:03Z",
+        "annotations": {
+          "scheduler.alpha.kubernetes.io/name": "experimental",
+          "kubernetes.io/created-by": "{\"kind\":\"SerializedReference\",\"apiVersion\":\"v1\",\"reference\":{\"kind\":\"ReplicationController\",\"namespace\":\"kubemark\",\"name\":\"nginx30\",\"uid\":\"e4b655d5-4614-11e6-bd6d-0800275521ee\",\"apiVersion\":\"v1\",\"resourceVersion\":\"96758\"}}\n"
+        },
+        "selfLink": "/api/v1/namespaces/kubemark/pods/nginx30-d9v2y",
+        "uid": "e4b7e81d-4614-11e6-bd6d-0800275521ee"
+      }
+    },
+    "e4b7d41b-4614-11e6-bd6d-0800275521ee": {
+      "status": {
+        "containerStatuses": [
+          {
+            "restartCount": 0,
+            "name": "nginx",
+            "image": "nginx",
+            "imageID": "docker://",
+            "state": {
+              "running": {
+                "startedAt": "2016-07-09T20:37:14Z"
+              }
+            },
+            "ready": true,
+            "lastState": {},
+            "containerID": "docker:///k8s_nginx.156efd59_nginx30-m0i9u_kubemark_e4b7d41b-4614-11e6-bd6d-0800275521ee_2b76e2d7"
+          }
+        ],
+        "podIP": "2.3.4.5",
+        "startTime": "2016-07-09T20:37:14Z",
+        "hostIP": "172.17.0.2",
+        "phase": "Running",
+        "conditions": [
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-09T20:37:14Z",
+            "lastProbeTime": null,
+            "type": "Initialized"
+          },
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-09T20:37:15Z",
+            "lastProbeTime": null,
+            "type": "Ready"
+          },
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-09T20:37:14Z",
+            "lastProbeTime": null,
+            "type": "PodScheduled"
+          }
+        ]
+      },
+      "kind": "Pod",
+      "spec": {
+        "dnsPolicy": "ClusterFirst",
+        "securityContext": {},
+        "nodeName": "172.17.0.2",
+        "terminationGracePeriodSeconds": 30,
+        "restartPolicy": "Always",
+        "containers": [
+          {
+            "terminationMessagePath": "/dev/termination-log",
+            "name": "nginx",
+            "image": "nginx",
+            "imagePullPolicy": "Always",
+            "ports": [
+              {
+                "protocol": "TCP",
+                "containerPort": 80
+              }
+            ],
+            "resources": {}
+          }
+        ]
+      },
+      "apiVersion": "v1",
+      "metadata": {
+        "name": "nginx30-m0i9u",
+        "labels": {
+          "app": "nginx30"
+        },
+        "namespace": "kubemark",
+        "resourceVersion": "96871",
+        "generateName": "nginx30-",
+        "creationTimestamp": "2016-07-09T20:37:03Z",
+        "annotations": {
+          "scheduler.alpha.kubernetes.io/name": "experimental",
+          "kubernetes.io/created-by": "{\"kind\":\"SerializedReference\",\"apiVersion\":\"v1\",\"reference\":{\"kind\":\"ReplicationController\",\"namespace\":\"kubemark\",\"name\":\"nginx30\",\"uid\":\"e4b655d5-4614-11e6-bd6d-0800275521ee\",\"apiVersion\":\"v1\",\"resourceVersion\":\"96758\"}}\n"
+        },
+        "selfLink": "/api/v1/namespaces/kubemark/pods/nginx30-m0i9u",
+        "uid": "e4b7d41b-4614-11e6-bd6d-0800275521ee"
+      }
+    },
+    "e4b7b5e4-4614-11e6-bd6d-0800275521ee": {
+      "status": {
+        "containerStatuses": [
+          {
+            "restartCount": 0,
+            "name": "nginx",
+            "image": "nginx",
+            "imageID": "docker://",
+            "state": {
+              "running": {
+                "startedAt": "2016-07-09T20:37:27Z"
+              }
+            },
+            "ready": true,
+            "lastState": {},
+            "containerID": "docker:///k8s_nginx.156efd59_nginx30-j2xk8_kubemark_e4b7b5e4-4614-11e6-bd6d-0800275521ee_37fa7f4f"
+          }
+        ],
+        "podIP": "2.3.4.5",
+        "startTime": "2016-07-09T20:37:26Z",
+        "hostIP": "172.17.0.6",
+        "phase": "Running",
+        "conditions": [
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-09T20:37:26Z",
+            "lastProbeTime": null,
+            "type": "Initialized"
+          },
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-09T20:37:27Z",
+            "lastProbeTime": null,
+            "type": "Ready"
+          },
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-09T20:37:26Z",
+            "lastProbeTime": null,
+            "type": "PodScheduled"
+          }
+        ]
+      },
+      "kind": "Pod",
+      "spec": {
+        "dnsPolicy": "ClusterFirst",
+        "securityContext": {},
+        "nodeName": "172.17.0.6",
+        "terminationGracePeriodSeconds": 30,
+        "restartPolicy": "Always",
+        "containers": [
+          {
+            "terminationMessagePath": "/dev/termination-log",
+            "name": "nginx",
+            "image": "nginx",
+            "imagePullPolicy": "Always",
+            "ports": [
+              {
+                "protocol": "TCP",
+                "containerPort": 80
+              }
+            ],
+            "resources": {}
+          }
+        ]
+      },
+      "apiVersion": "v1",
+      "metadata": {
+        "name": "nginx30-j2xk8",
+        "labels": {
+          "app": "nginx30"
+        },
+        "namespace": "kubemark",
+        "resourceVersion": "96902",
+        "generateName": "nginx30-",
+        "creationTimestamp": "2016-07-09T20:37:03Z",
+        "annotations": {
+          "scheduler.alpha.kubernetes.io/name": "experimental",
+          "kubernetes.io/created-by": "{\"kind\":\"SerializedReference\",\"apiVersion\":\"v1\",\"reference\":{\"kind\":\"ReplicationController\",\"namespace\":\"kubemark\",\"name\":\"nginx30\",\"uid\":\"e4b655d5-4614-11e6-bd6d-0800275521ee\",\"apiVersion\":\"v1\",\"resourceVersion\":\"96758\"}}\n"
+        },
+        "selfLink": "/api/v1/namespaces/kubemark/pods/nginx30-j2xk8",
+        "uid": "e4b7b5e4-4614-11e6-bd6d-0800275521ee"
+      }
+    },
+    "e4b7e192-4614-11e6-bd6d-0800275521ee": {
+      "status": {
+        "containerStatuses": [
+          {
+            "restartCount": 0,
+            "name": "nginx",
+            "image": "nginx",
+            "imageID": "docker://",
+            "state": {
+              "running": {
+                "startedAt": "2016-07-09T20:37:35Z"
+              }
+            },
+            "ready": true,
+            "lastState": {},
+            "containerID": "docker:///k8s_nginx.156efd59_nginx30-txekj_kubemark_e4b7e192-4614-11e6-bd6d-0800275521ee_fe318b9d"
+          }
+        ],
+        "podIP": "2.3.4.5",
+        "startTime": "2016-07-09T20:37:35Z",
+        "hostIP": "172.17.0.5",
+        "phase": "Running",
+        "conditions": [
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-09T20:37:35Z",
+            "lastProbeTime": null,
+            "type": "Initialized"
+          },
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-09T20:37:35Z",
+            "lastProbeTime": null,
+            "type": "Ready"
+          },
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-09T20:37:35Z",
+            "lastProbeTime": null,
+            "type": "PodScheduled"
+          }
+        ]
+      },
+      "kind": "Pod",
+      "spec": {
+        "dnsPolicy": "ClusterFirst",
+        "securityContext": {},
+        "nodeName": "172.17.0.5",
+        "terminationGracePeriodSeconds": 30,
+        "restartPolicy": "Always",
+        "containers": [
+          {
+            "terminationMessagePath": "/dev/termination-log",
+            "name": "nginx",
+            "image": "nginx",
+            "imagePullPolicy": "Always",
+            "ports": [
+              {
+                "protocol": "TCP",
+                "containerPort": 80
+              }
+            ],
+            "resources": {}
+          }
+        ]
+      },
+      "apiVersion": "v1",
+      "metadata": {
+        "name": "nginx30-txekj",
+        "labels": {
+          "app": "nginx30"
+        },
+        "namespace": "kubemark",
+        "resourceVersion": "96918",
+        "generateName": "nginx30-",
+        "creationTimestamp": "2016-07-09T20:37:03Z",
+        "annotations": {
+          "scheduler.alpha.kubernetes.io/name": "experimental",
+          "kubernetes.io/created-by": "{\"kind\":\"SerializedReference\",\"apiVersion\":\"v1\",\"reference\":{\"kind\":\"ReplicationController\",\"namespace\":\"kubemark\",\"name\":\"nginx30\",\"uid\":\"e4b655d5-4614-11e6-bd6d-0800275521ee\",\"apiVersion\":\"v1\",\"resourceVersion\":\"96758\"}}\n"
+        },
+        "selfLink": "/api/v1/namespaces/kubemark/pods/nginx30-txekj",
+        "uid": "e4b7e192-4614-11e6-bd6d-0800275521ee"
+      }
+    },
+    "e4b7da93-4614-11e6-bd6d-0800275521ee": {
+      "status": {
+        "containerStatuses": [
+          {
+            "restartCount": 0,
+            "name": "nginx",
+            "image": "nginx",
+            "imageID": "docker://",
+            "state": {
+              "running": {
+                "startedAt": "2016-07-09T20:37:38Z"
+              }
+            },
+            "ready": true,
+            "lastState": {},
+            "containerID": "docker:///k8s_nginx.156efd59_nginx30-a8s7n_kubemark_e4b7da93-4614-11e6-bd6d-0800275521ee_39a4c410"
+          }
+        ],
+        "podIP": "2.3.4.5",
+        "startTime": "2016-07-09T20:37:38Z",
+        "hostIP": "172.17.0.2",
+        "phase": "Running",
+        "conditions": [
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-09T20:37:38Z",
+            "lastProbeTime": null,
+            "type": "Initialized"
+          },
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-09T20:37:40Z",
+            "lastProbeTime": null,
+            "type": "Ready"
+          },
+          {
+            "status": "True",
+            "lastTransitionTime": "2016-07-09T20:37:38Z",
+            "lastProbeTime": null,
+            "type": "PodScheduled"
+          }
+        ]
+      },
+      "kind": "Pod",
+      "spec": {
+        "dnsPolicy": "ClusterFirst",
+        "securityContext": {},
+        "nodeName": "172.17.0.2",
+        "terminationGracePeriodSeconds": 30,
+        "restartPolicy": "Always",
+        "containers": [
+          {
+            "terminationMessagePath": "/dev/termination-log",
+            "name": "nginx",
+            "image": "nginx",
+            "imagePullPolicy": "Always",
+            "ports": [
+              {
+                "protocol": "TCP",
+                "containerPort": 80
+              }
+            ],
+            "resources": {}
+          }
+        ]
+      },
+      "apiVersion": "v1",
+      "metadata": {
+        "name": "nginx30-a8s7n",
+        "labels": {
+          "app": "nginx30"
+        },
+        "namespace": "kubemark",
+        "resourceVersion": "96926",
+        "generateName": "nginx30-",
+        "creationTimestamp": "2016-07-09T20:37:03Z",
+        "annotations": {
+          "scheduler.alpha.kubernetes.io/name": "experimental",
+          "kubernetes.io/created-by": "{\"kind\":\"SerializedReference\",\"apiVersion\":\"v1\",\"reference\":{\"kind\":\"ReplicationController\",\"namespace\":\"kubemark\",\"name\":\"nginx30\",\"uid\":\"e4b655d5-4614-11e6-bd6d-0800275521ee\",\"apiVersion\":\"v1\",\"resourceVersion\":\"96758\"}}\n"
+        },
+        "selfLink": "/api/v1/namespaces/kubemark/pods/nginx30-a8s7n",
+        "uid": "e4b7da93-4614-11e6-bd6d-0800275521ee"
+      }
+    }
+  }
+}
