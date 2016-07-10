@@ -1,9 +1,6 @@
 package main
 
-import (
-	"reflect"
-	"testing"
-)
+import "testing"
 
 func TestRunIssue1(t *testing.T) {
 	got, err := Parse("", []byte("foo"))
@@ -17,22 +14,14 @@ func TestRunIssue1(t *testing.T) {
 	}
 }
 
+// Since go1.7: The Method and NumMethod methods of Type and Value no longer return or count unexported methods.
 func TestIssue1(t *testing.T) {
-	methods := map[string][]string{
-		"onTableRef1": {"database", "table"},
-		"onID1":       {},
-	}
-
-	typ := reflect.TypeOf(&current{})
-	for nm, args := range methods {
-		meth, ok := typ.MethodByName(nm)
-		if !ok {
-			t.Errorf("want *current to have method %s", nm)
-			continue
-		}
-		if n := meth.Func.Type().NumIn(); n != len(args)+1 {
-			t.Errorf("%q: want %d arguments, got %d", nm, len(args)+1, n)
-			continue
-		}
+	var cur interface{} = &current{}
+	_, ok := cur.(interface {
+		onTableRef1(interface{}, interface{}) (interface{}, error)
+		onID1() (interface{}, error)
+	})
+	if !ok {
+		t.Errorf("want *current to have expected methods")
 	}
 }

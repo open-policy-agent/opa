@@ -1,31 +1,21 @@
 package predicates
 
-import (
-	"reflect"
-	"testing"
-)
+import "testing"
 
+// Go1.7: The Method and NumMethod methods of Type and Value no longer return or count unexported methods.
+// So cannot use reflect.TypeOf and MethodByName to test the implemented methods.
 func TestPredicatesArgs(t *testing.T) {
-	methods := map[string][]string{
-		"onA5":  {"a"},
-		"onA9":  {"b"},
-		"onA13": {"d"},
-		"onB9":  {"innermost"},
-		"onB10": {"inner"},
-		"onB11": {"out"},
-		"onC1":  {"rest"},
-	}
-
-	typ := reflect.TypeOf(&current{})
-	for nm, args := range methods {
-		meth, ok := typ.MethodByName(nm)
-		if !ok {
-			t.Errorf("want *current to have method %s", nm)
-			continue
-		}
-		if n := meth.Func.Type().NumIn(); n != len(args)+1 {
-			t.Errorf("%q: want %d arguments, got %d", nm, len(args)+1, n)
-			continue
-		}
+	var cur interface{} = &current{}
+	_, ok := cur.(interface {
+		onA5(interface{}) (bool, error)
+		onA9(interface{}) (bool, error)
+		onA13(interface{}) (bool, error)
+		onB9(interface{}) (bool, error)
+		onB10(interface{}) (bool, error)
+		onB11(interface{}) (bool, error)
+		onC1(interface{}) (interface{}, error)
+	})
+	if !ok {
+		t.Errorf("want *current to have the expected methods")
 	}
 }

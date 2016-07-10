@@ -1,6 +1,7 @@
 package cobra
 
 import (
+	"os"
 	"reflect"
 	"testing"
 )
@@ -111,4 +112,65 @@ func TestStripFlags(t *testing.T) {
 			t.Errorf("expected: %v, got: %v", test.output, output)
 		}
 	}
+}
+
+func Test_DisableFlagParsing(t *testing.T) {
+	as := []string{"-v", "-race", "-file", "foo.go"}
+	targs := []string{}
+	cmdPrint := &Command{
+		DisableFlagParsing: true,
+		Run: func(cmd *Command, args []string) {
+			targs = args
+		},
+	}
+	osargs := []string{"cmd"}
+	os.Args = append(osargs, as...)
+	err := cmdPrint.Execute()
+	if err != nil {
+		t.Error(err)
+	}
+	if !reflect.DeepEqual(as, targs) {
+		t.Errorf("expected: %v, got: %v", as, targs)
+	}
+}
+
+func TestCommandsAreSorted(t *testing.T) {
+	EnableCommandSorting = true
+
+	originalNames := []string{"middle", "zlast", "afirst"}
+	expectedNames := []string{"afirst", "middle", "zlast"}
+
+	var tmpCommand = &Command{Use: "tmp"}
+
+	for _, name := range(originalNames) {
+		tmpCommand.AddCommand(&Command{Use: name})
+	}
+
+	for i, c := range(tmpCommand.Commands()) {
+		if expectedNames[i] != c.Name() {
+			t.Errorf("expected: %s, got: %s", expectedNames[i], c.Name())
+		}
+	}
+
+	EnableCommandSorting = true
+}
+
+func TestEnableCommandSortingIsDisabled(t *testing.T) {
+	EnableCommandSorting = false
+
+	originalNames := []string{"middle", "zlast", "afirst"}
+
+	var tmpCommand = &Command{Use: "tmp"}
+
+	for _, name := range(originalNames) {
+		tmpCommand.AddCommand(&Command{Use: name})
+	}
+
+	for i, c := range(tmpCommand.Commands()) {
+		if originalNames[i] != c.Name() {
+			t.Errorf("expected: %s, got: %s", originalNames[i], c.Name())
+		}
+	}
+
+	EnableCommandSorting = true
 }
