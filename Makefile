@@ -64,6 +64,9 @@ $(COVER_PACKAGES):
 perf: generate
 	$(GO) test -v -bench=. ./test/perf/.../
 
+perf-regression:
+	./build/run-perf-regression.sh
+
 cover: $(COVER_PACKAGES)
 
 check: check-fmt check-vet check-lint
