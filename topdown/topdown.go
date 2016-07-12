@@ -890,73 +890,105 @@ func evalRefRulePartialSetDoc(ctx *Context, ref ast.Ref, path ast.Ref, rule *ast
 
 func evalRefRuleResult(ctx *Context, ref ast.Ref, suffix ast.Ref, result ast.Value, iter Iterator) error {
 
-	switch result := result.(type) {
-	case ast.Ref:
-		// Below we concatenate the result of evaluating a rule with the rest of the reference
-		// to be evaluated.
-		//
-		// E.g., given two rules: q[k] = v :- a[k] = v and p = true :- q[k].a[i] = 100
-		// when evaluating the expression in "p", this function will be called with a binding for
-		// "q[k]" and "k". This leaves the remaining part of the reference (i.e., ["a"][i])
-		// needing to be processed. This is done by substituting the prefix of the original reference
-		// with the binding. In this case, the prefix is "q[k]" and the binding value would be
-		// "a[<some key>]".
-		offset := len(result)
-		binding := make(ast.Ref, offset+len(suffix))
-		for i := range result {
-			binding[i] = result[i]
-		}
-		for i := range suffix {
-			binding[i+offset] = suffix[i]
-		}
-		return evalRefRec(ctx, result, suffix, func(ctx *Context) error {
-			v := PlugValue(binding, ctx)
-			return Continue(ctx, ref, v, iter)
-		})
+	s := make(ast.Ref, len(suffix))
+	for i := range suffix {
+		s[i] = PlugTerm(suffix[i], ctx)
+	}
 
+	return evalRefRuleResultRec(ctx, result, s, ast.Ref{}, func(ctx *Context, v ast.Value) error {
+		return Continue(ctx, ref, v, iter)
+	})
+}
+
+func evalRefRuleResultRec(ctx *Context, v ast.Value, ref, path ast.Ref, iter func(*Context, ast.Value) error) error {
+	if len(ref) == 0 {
+		return iter(ctx, v)
+	}
+	switch v := v.(type) {
 	case ast.Array:
-		if len(suffix) > 0 {
-			var pluggedSuffix ast.Ref
-			for _, t := range suffix {
-				pluggedSuffix = append(pluggedSuffix, PlugTerm(t, ctx))
-			}
-			return result.Query(pluggedSuffix, func(keys map[ast.Var]ast.Value, value ast.Value) error {
-				prev := ctx.Bind(ref, value, nil)
-				for k, v := range keys {
-					prev = ctx.Bind(k, v, prev)
-				}
-				err := iter(ctx)
-				ctx.Unbind(prev)
-				return err
-			})
-		}
-		return Continue(ctx, ref, result, iter)
-
+		return evalRefRuleResultRecArray(ctx, v, ref, path, iter)
 	case ast.Object:
-		if len(suffix) > 0 {
-			var pluggedSuffix ast.Ref
-			for _, t := range suffix {
-				pluggedSuffix = append(pluggedSuffix, PlugTerm(t, ctx))
-			}
-			return result.Query(pluggedSuffix, func(keys map[ast.Var]ast.Value, value ast.Value) error {
-				prev := ctx.Bind(ref, value, nil)
-				for k, v := range keys {
-					prev = ctx.Bind(k, v, prev)
-				}
-				err := iter(ctx)
-				ctx.Unbind(prev)
-				return err
-			})
-		}
-		return Continue(ctx, ref, result, iter)
+		return evalRefRuleResultRecObject(ctx, v, ref, path, iter)
+	case ast.Ref:
+		return evalRefRuleResultRecRef(ctx, v, ref, path, iter)
+	}
+	return nil
+}
 
-	default:
-		if len(suffix) > 0 {
-			// This is not defined because it attempts to dereference a scalar.
+func evalRefRuleResultRecArray(ctx *Context, arr ast.Array, ref, path ast.Ref, iter func(*Context, ast.Value) error) error {
+	head, tail := ref[0], ref[1:]
+	switch n := head.Value.(type) {
+	case ast.Number:
+		idx := int(n)
+		if ast.Number(idx) != n {
 			return nil
 		}
-		return Continue(ctx, ref, result, iter)
+		if idx >= len(arr) {
+			return nil
+		}
+		el := arr[idx]
+		path = append(path, head)
+		return evalRefRuleResultRec(ctx, el.Value, tail, path, iter)
+	case ast.Var:
+		for i := range arr {
+			idx := ast.Number(i)
+			undo := ctx.Bind(n, idx, nil)
+			path = append(path, &ast.Term{Value: idx})
+			if err := evalRefRuleResultRec(ctx, arr[i].Value, tail, path, iter); err != nil {
+				return err
+			}
+			ctx.Unbind(undo)
+			path = path[:len(path)-1]
+		}
 	}
+	return nil
+}
+
+func evalRefRuleResultRecObject(ctx *Context, obj ast.Object, ref, path ast.Ref, iter func(*Context, ast.Value) error) error {
+	head, tail := ref[0], ref[1:]
+	switch k := head.Value.(type) {
+	case ast.String:
+		match := -1
+		for idx, i := range obj {
+			x := i[0].Value
+			if r, ok := i[0].Value.(ast.Ref); ok {
+				var err error
+				if x, err = lookupValue(ctx.DataStore, r); err != nil {
+					if storage.IsNotFound(err) {
+						return nil
+					}
+					return err
+				}
+			}
+			if x.Equal(k) {
+				match = idx
+				break
+			}
+		}
+		if match == -1 {
+			return nil
+		}
+		path = append(path, head)
+		return evalRefRuleResultRec(ctx, obj[match][1].Value, tail, path, iter)
+	case ast.Var:
+		for _, i := range obj {
+			undo := ctx.Bind(k, i[0].Value, nil)
+			path = append(path, i[0])
+			if err := evalRefRuleResultRec(ctx, i[1].Value, tail, path, iter); err != nil {
+				return err
+			}
+			ctx.Unbind(undo)
+			path = path[:len(path)-1]
+		}
+	}
+	return nil
+}
+
+func evalRefRuleResultRecRef(ctx *Context, v, ref, path ast.Ref, iter func(*Context, ast.Value) error) error {
+	b := append(v, ref...)
+	return evalRefRec(ctx, v, ref, func(ctx *Context) error {
+		return iter(ctx, PlugValue(b, ctx))
+	})
 }
 
 func evalTerms(ctx *Context, iter Iterator) error {
