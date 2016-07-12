@@ -118,23 +118,23 @@ func (ds *DataStore) GetRef(ref ast.Ref) (interface{}, error) {
 	if !ref[0].Equal(ast.DefaultRootDocument) {
 		return nil, fmt.Errorf("illegal root %v: %v", ref[0], ref)
 	}
-	path := []interface{}{}
-	for _, x := range ref[1:] {
+	path := make([]interface{}, len(ref)-1)
+	for i, x := range ref[1:] {
 		switch v := x.Value.(type) {
 		case ast.Ref:
 			n, err := ds.GetRef(v)
 			if err != nil {
 				return nil, err
 			}
-			path = append(path, n)
+			path[i] = n
 		case ast.String:
-			path = append(path, string(v))
+			path[i] = string(v)
 		case ast.Number:
-			path = append(path, float64(v))
+			path[i] = float64(v)
 		case ast.Boolean:
-			path = append(path, bool(v))
+			path[i] = bool(v)
 		case ast.Null:
-			path = append(path, nil)
+			path[i] = nil
 		default:
 			return nil, fmt.Errorf("illegal reference element: %v", x)
 		}

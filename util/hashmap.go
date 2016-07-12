@@ -70,6 +70,24 @@ func (h *HashMap) Get(k T) (T, bool) {
 	return nil, false
 }
 
+// Delete removes the the key k.
+func (h *HashMap) Delete(k T) {
+	hash := h.hash(k)
+	var prev *hashEntry
+	for entry := h.table[hash]; entry != nil; entry = entry.next {
+		if h.eq(entry.k, k) {
+			if prev != nil {
+				prev.next = entry.next
+			} else {
+				h.table[hash] = entry.next
+			}
+			h.size--
+			return
+		}
+		prev = entry
+	}
+}
+
 // Hash returns the hash code for this hash map.
 func (h *HashMap) Hash() int {
 	var hash int

@@ -12,3 +12,4 @@ import:
 - package: github.com/gorilla/context
 - package: github.com/golang/glog
 - package: github.com/olekukonko/tablewriter
+- package: github.com/dchest/siphash

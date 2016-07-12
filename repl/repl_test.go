@@ -7,6 +7,10 @@ package repl
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
+	"io/ioutil"
+	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
@@ -26,7 +30,46 @@ func TestDump(t *testing.T) {
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
 	repl.OneShot("dump")
-	expectOutput(t, buffer.String(), "map[a:[1 2 3 4]]\n")
+	expectOutput(t, buffer.String(), "{\"a\":[1,2,3,4]}\n")
+}
+
+func TestDumpPath(t *testing.T) {
+	input := `{"a": [1,2,3,4]}`
+	var data map[string]interface{}
+	err := json.Unmarshal([]byte(input), &data)
+	if err != nil {
+		panic(err)
+	}
+	store := storage.NewDataStoreFromJSONObject(data)
+	var buffer bytes.Buffer
+	repl := newRepl(store, &buffer)
+
+	dir, err := ioutil.TempDir("", "dump-path-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defer os.RemoveAll(dir)
+	file := filepath.Join(dir, "tmpfile")
+	repl.OneShot(fmt.Sprintf("dump %s", file))
+
+	if buffer.String() != "" {
+		t.Errorf("Expected no output but got: %v", buffer.String())
+	}
+
+	bs, err := ioutil.ReadFile(file)
+	if err != nil {
+		t.Fatalf("Expected file read to succeed but got: %v", err)
+	}
+
+	var result map[string]interface{}
+	if err := json.Unmarshal(bs, &result); err != nil {
+		t.Fatalf("Expected json unmarhsal to suceed but got: %v", err)
+	}
+
+	if !reflect.DeepEqual(data, result) {
+		t.Fatalf("Expected dumped json to equal %v but got: %v", data, result)
+	}
 }
 
 func TestUnset(t *testing.T) {

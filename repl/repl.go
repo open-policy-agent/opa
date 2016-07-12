@@ -107,7 +107,7 @@ func (r *REPL) OneShot(line string) bool {
 		if cmd := newCommand(line); cmd != nil {
 			switch cmd.op {
 			case "dump":
-				return r.cmdDump()
+				return r.cmdDump(cmd.args)
 			case "json":
 				return r.cmdFormat("json")
 			case "unset":
@@ -134,8 +134,30 @@ func (r *REPL) OneShot(line string) bool {
 	return false
 }
 
-func (r *REPL) cmdDump() bool {
-	fmt.Fprintln(r.output, r.dataStore)
+func (r *REPL) cmdDump(args []string) bool {
+	if len(args) == 0 {
+		return r.cmdDumpOutput()
+	}
+	return r.cmdDumpPath(args[0])
+}
+
+func (r *REPL) cmdDumpOutput() bool {
+	if err := storage.Dump(r.dataStore, r.output); err != nil {
+		fmt.Fprintln(r.output, "error:", err)
+	}
+	return false
+}
+
+func (r *REPL) cmdDumpPath(filename string) bool {
+	f, err := os.Create(filename)
+	if err != nil {
+		fmt.Fprintln(r.output, "error:", err)
+		return false
+	}
+	defer f.Close()
+	if err := storage.Dump(r.dataStore, f); err != nil {
+		fmt.Fprintln(r.output, "error:", err)
+	}
 	return false
 }
 
@@ -758,7 +780,7 @@ var builtin = [...]commandDesc{
 	{"unset", []string{"<var>"}, "undefine rules in currently active module"},
 	{"json", []string{}, "set output format to JSON"},
 	{"pretty", []string{}, "set output format to pretty"},
-	{"dump", []string{}, "dump the raw storage content"},
+	{"dump", []string{"[path]"}, "dump the raw storage content"},
 	{"trace", []string{}, "toggle stdout tracing"},
 	{"help", []string{}, "print this message"},
 	{"exit", []string{}, "exit back to shell (or ctrl+c, ctrl+d)"},

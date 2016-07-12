@@ -14,11 +14,6 @@ import (
 )
 
 // Context contains the state of the evaluation process.
-//
-// TODO(tsandall): profile perf/memory usage with current approach;
-// the current approach copies the Context structure for each
-// step and binding. This avoids the need to undo steps and bindings
-// each time the proof fails but this may be too expensive.
 type Context struct {
 	Query     ast.Body
 	Globals   *storage.Bindings
@@ -50,51 +45,30 @@ func (ctx *Context) Binding(k ast.Value) ast.Value {
 	return nil
 }
 
-// BindValue returns a new Context with bindings that map the key to the value.
-func (ctx *Context) BindValue(key ast.Value, value ast.Value) *Context {
-	cpy := *ctx
-	cpy.Locals = ctx.Locals.Copy()
-	cpy.Locals.Put(key, value)
-	return &cpy
+// Undo represents a binding that can be undone.
+type Undo struct {
+	Key   ast.Value
+	Value ast.Value
+	Prev  *Undo
 }
 
-// BindVar returns a new Context with bindings that map the variable to the value.
-//
-// If the caller attempts to bind a variable to itself (e.g., "x = x"), no mapping is added. This
-// is effectively a no-op.
-//
-// If the call would introduce a recursive binding, nil is returned. This represents an undefined
-// context that cannot be evaluated. E.g., "x = [x]".
-//
-// Binding a variable to some value also updates existing bindings to that variable.
-//
-// TODO(tsandall): potential optimization:
-//
-// The current implementation eagerly flattens the bindings by updating existing
-// bindings each time a new binding is added. E.g., if Bind(y, [1,2,x]) and Bind(x, 3) are called
-// (one after the other), the binding for "y" will be updated. It may be possible to defer this
-// to a later stage, e.g., when plugging the values.
-func (ctx *Context) BindVar(variable ast.Var, value ast.Value) *Context {
-	if variable.Equal(value) {
-		return ctx
-	}
+// Bind updates the context to include a binding from the key to the value. The return
+// value is used to return the context to the state before the binding was added.
+func (ctx *Context) Bind(key ast.Value, value ast.Value, prev *Undo) *Undo {
+	o := ctx.Locals.Get(key)
+	ctx.Locals.Put(key, value)
+	return &Undo{key, o, prev}
+}
 
-	cpy := *ctx
-	cpy.Locals = storage.NewBindings()
-	cpy.Locals.Put(variable, value)
-
-	ctx.Locals.Iter(func(k, v ast.Value) bool {
-		// Copy all bindings except the one for this variable.
-		// If this context already contains a binding for this variable,
-		// it should be overwritten with the new value, so ignore the old
-		// value here.
-		if cpy.Locals.Get(k) == nil {
-			cpy.Locals.Put(k, PlugValue(v, &cpy))
+// Unbind updates the context by removing the binding represented by the undo.
+func (ctx *Context) Unbind(undo *Undo) {
+	for u := undo; u != nil; u = u.Prev {
+		if u.Value != nil {
+			ctx.Locals.Put(u.Key, u.Value)
+		} else {
+			ctx.Locals.Delete(u.Key)
 		}
-		return false
-	})
-
-	return &cpy
+	}
 }
 
 // Child returns a new context to evaluate a query that was referenced by this context.
@@ -196,6 +170,29 @@ func conflictErr(query interface{}, kind string, rule *ast.Rule) error {
 // Iterator is the interface for processing contexts.
 type Iterator func(*Context) error
 
+// Continue binds the key to the value in the current context and invokes the iterator.
+// This is a helper function for simple cases where a single value (e.g., a variable) needs
+// to be bound to a value in order for the evaluation the proceed.
+func Continue(ctx *Context, key, value ast.Value, iter Iterator) error {
+	undo := ctx.Bind(key, value, nil)
+	err := iter(ctx)
+	ctx.Unbind(undo)
+	return err
+}
+
+// ContinueN binds N keys to N values. The key/value pairs are passed in as alternating pairs, e.g.,
+// key-1, value-1, key-2, value-2, ..., key-N, value-N.
+func ContinueN(ctx *Context, iter Iterator, x ...ast.Value) error {
+	var prev *Undo
+	for i := 0; i < len(x)/2; i++ {
+		offset := i * 2
+		prev = ctx.Bind(x[offset], x[offset+1], prev)
+	}
+	err := iter(ctx)
+	ctx.Unbind(prev)
+	return err
+}
+
 // Eval runs the evaluation algorithm on the contxet and calls the iterator
 // foreach context that contains bindings that satisfy all of the expressions
 // inside the body.
@@ -261,11 +258,10 @@ func PlugValue(v ast.Value, ctx *Context) ast.Value {
 
 	switch v := v.(type) {
 	case ast.Var:
-		b := ctx.Binding(v)
-		if b == nil {
-			return v
+		if b := ctx.Binding(v); b != nil {
+			return PlugValue(b, ctx)
 		}
-		return b
+		return v
 
 	case *ast.ArrayComprehension:
 		b := ctx.Binding(v)
@@ -278,26 +274,26 @@ func PlugValue(v ast.Value, ctx *Context) ast.Value {
 		if b := ctx.Binding(v); b != nil {
 			return b
 		}
-		var buf ast.Ref
-		buf = append(buf, v[0])
-		for _, p := range v[1:] {
-			buf = append(buf, PlugTerm(p, ctx))
+		buf := make(ast.Ref, len(v))
+		buf[0] = v[0]
+		for i, p := range v[1:] {
+			buf[i+1] = PlugTerm(p, ctx)
 		}
 		return buf
 
 	case ast.Array:
-		var buf ast.Array
-		for _, e := range v {
-			buf = append(buf, PlugTerm(e, ctx))
+		buf := make(ast.Array, len(v))
+		for i, e := range v {
+			buf[i] = PlugTerm(e, ctx)
 		}
 		return buf
 
 	case ast.Object:
-		var buf ast.Object
-		for _, e := range v {
+		buf := make(ast.Object, len(v))
+		for i, e := range v {
 			k := PlugTerm(e[0], ctx)
 			v := PlugTerm(e[1], ctx)
-			buf = append(buf, [...]*ast.Term{k, v})
+			buf[i] = [...]*ast.Term{k, v}
 		}
 		return buf
 
@@ -422,7 +418,7 @@ func ValueToInterface(v ast.Value, ctx *Context) (interface{}, error) {
 			}
 			asStr, stringKey := k.(string)
 			if !stringKey {
-				return nil, fmt.Errorf("illegal object key type %T: %v", k, k)
+				return nil, fmt.Errorf("illegal object key: %v", k)
 			}
 			v, err := ValueToInterface(x[1].Value, ctx)
 			if err != nil {
@@ -437,10 +433,11 @@ func ValueToInterface(v ast.Value, ctx *Context) (interface{}, error) {
 		return ctx.DataStore.GetRef(v)
 
 	default:
-		// If none of the above cases are hit, something is very wrong, e.g., the caller
-		// is attempting to convert a variable to a native Go value (which represents an
-		// issue with the callers logic.)
-		panic(fmt.Sprintf("illegal argument: %v", v))
+		v = PlugValue(v, ctx)
+		if !v.IsGround() {
+			return nil, fmt.Errorf("unbound value: %v", v)
+		}
+		return ValueToInterface(v, ctx)
 	}
 }
 
@@ -484,16 +481,6 @@ func ValueToString(v ast.Value, ctx *Context) (string, error) {
 		return "", fmt.Errorf("illegal argument: %v", v)
 	}
 	return s, nil
-}
-
-// dereferenceVar is used to lookup the variable binding and convert the value to
-// a native Go type.
-func dereferenceVar(v ast.Var, ctx *Context) (interface{}, error) {
-	binding := ctx.Binding(v)
-	if binding == nil {
-		return nil, fmt.Errorf("unbound variable: %v", v)
-	}
-	return ValueToInterface(binding.(ast.Value), ctx)
 }
 
 func evalContext(ctx *Context, iter Iterator) error {
@@ -598,65 +585,66 @@ func evalRef(ctx *Context, ref, path ast.Ref, iter Iterator) error {
 	}
 
 	return evalRef(ctx, n, ast.Ref{}, func(ctx *Context) error {
+		var undo *Undo
 		if b := ctx.Binding(n); b == nil {
 			p := PlugValue(n, ctx).(ast.Ref)
 			v, err := lookupValue(ctx.DataStore, p)
 			if err != nil {
 				return err
 			}
-			ctx = ctx.BindValue(n, v)
+			undo = ctx.Bind(n, v, nil)
 		}
 		tmp := append(path, head)
-		return evalRef(ctx, tail, tmp, iter)
+		err := evalRef(ctx, tail, tmp, iter)
+		if undo != nil {
+			ctx.Unbind(undo)
+		}
+		return err
 	})
 }
 
 func evalRefRec(ctx *Context, path, tail ast.Ref, iter Iterator) error {
+
 	if len(tail) == 0 {
-		return evalRefRecFinish(ctx, path, iter)
-	}
-	if tail[0].IsGround() {
-		return evalRefRecGround(ctx, path, tail, iter)
-	}
-	return evalRefRecNonGround(ctx, path, tail, iter)
-}
-
-func evalRefRecFinish(ctx *Context, path ast.Ref, iter Iterator) error {
-	ok, err := lookupExists(ctx.DataStore, path)
-	if err == nil && ok {
-		return iter(ctx)
-	}
-	return err
-}
-
-func evalRefRecGround(ctx *Context, path, tail ast.Ref, iter Iterator) error {
-	// Check if the node exists. If the node does not exist, stop.
-	// If the node exists and is a rule, evaluate the rule to produce a virtual doc.
-	// Otherwise, process the rest of the reference.
-	path = append(path, PlugTerm(tail[0], ctx))
-	rules, err := lookupRule(ctx.DataStore, path)
-	if err != nil {
-		if storage.IsNotFound(err) {
-			return nil
+		ok, err := lookupExists(ctx.DataStore, path)
+		if err == nil && ok {
+			return iter(ctx)
 		}
 		return err
 	}
-	if rules != nil {
-		ref := append(path, tail[1:]...)
-		return evalRefRule(ctx, ref, path, rules, iter)
-	}
-	return evalRefRec(ctx, path, tail[1:], iter)
-}
 
-func evalRefRecNonGround(ctx *Context, path, tail ast.Ref, iter Iterator) error {
+	if tail[0].IsGround() {
+		// Check if the node exists. If the node does not exist, stop.
+		// If the node exists and is a rule, evaluate the rule to produce a virtual doc.
+		// Otherwise, process the rest of the reference.
+		path = append(path, PlugTerm(tail[0], ctx))
+		rules, err := lookupRule(ctx.DataStore, path)
+
+		if err != nil {
+			if storage.IsNotFound(err) {
+				return nil
+			}
+			return err
+		}
+
+		if rules != nil {
+			ref := append(path, tail[1:]...)
+			return evalRefRule(ctx, ref, path, rules, iter)
+		}
+
+		return evalRefRec(ctx, path, tail[1:], iter)
+	}
+
 	// Check if the variable has a binding.
 	// If there is a binding, process the rest of the reference normally.
 	// If there is no binding, enumerate the collection referred to by the path.
 	plugged := PlugTerm(tail[0], ctx)
+
 	if plugged.IsGround() {
 		path = append(path, plugged)
 		return evalRefRec(ctx, path, tail[1:], iter)
 	}
+
 	return evalRefRecWalkColl(ctx, path, tail, iter)
 }
 
@@ -676,9 +664,10 @@ func evalRefRecWalkColl(ctx *Context, path, tail ast.Ref, iter Iterator) error {
 	switch node := node.(type) {
 	case map[string]interface{}:
 		for key := range node {
-			cpy := ctx.BindVar(head, ast.String(key))
+			undo := ctx.Bind(head, ast.String(key), nil)
 			path = append(path, ast.StringTerm(key))
-			err := evalRefRec(cpy, path, tail, iter)
+			err := evalRefRec(ctx, path, tail, iter)
+			ctx.Unbind(undo)
 			if err != nil {
 				return err
 			}
@@ -687,9 +676,10 @@ func evalRefRecWalkColl(ctx *Context, path, tail ast.Ref, iter Iterator) error {
 		return nil
 	case []interface{}:
 		for i := range node {
-			cpy := ctx.BindVar(head, ast.Number(i))
+			undo := ctx.Bind(head, ast.Number(i), nil)
 			path = append(path, ast.NumberTerm(float64(i)))
-			err := evalRefRec(cpy, path, tail, iter)
+			err := evalRefRec(ctx, path, tail, iter)
+			ctx.Unbind(undo)
 			if err != nil {
 				return err
 			}
@@ -794,12 +784,18 @@ func evalRefRulePartialObjectDoc(ctx *Context, ref ast.Ref, path ast.Ref, rule *
 			if key == nil {
 				return fmt.Errorf("unbound variable: %v", rule.Key)
 			}
+			key = PlugValue(key, child)
+
 			value := child.Binding(rule.Value.Value)
 			if value == nil {
 				return fmt.Errorf("unbound variable: %v", rule.Value)
 			}
-			ctx = ctx.BindVar(suffix[0].Value.(ast.Var), key)
-			return evalRefRuleResult(ctx, ref, ref[len(path)+1:], value, iter)
+			value = PlugValue(value, child)
+
+			undo := ctx.Bind(suffix[0].Value.(ast.Var), key, nil)
+			err := evalRefRuleResult(ctx, ref, ref[len(path)+1:], value, iter)
+			ctx.Unbind(undo)
+			return err
 		})
 	}
 
@@ -812,6 +808,7 @@ func evalRefRulePartialObjectDoc(ctx *Context, ref ast.Ref, path ast.Ref, rule *
 		if value == nil {
 			return fmt.Errorf("unbound variable: %v", rule.Value)
 		}
+		value = PlugValue(value, child)
 		return evalRefRuleResult(ctx, ref, ref[len(path)+1:], value.(ast.Value), iter)
 	})
 }
@@ -831,12 +828,12 @@ func evalRefRulePartialObjectDocFull(ctx *Context, ref ast.Ref, rules []*ast.Rul
 		child := ctx.Child(rule.Body, bindings)
 
 		err := Eval(child, func(child *Context) error {
-			key := child.Binding(rule.Key.Value)
+			key := PlugValue(child.Binding(rule.Key.Value), child)
 			if _, ok := keys.Get(key); ok {
 				return conflictErr(ref, "object document keys", rule)
 			}
 			keys.Put(key, ast.Null{})
-			value := child.Binding(rule.Value.Value)
+			value := PlugValue(child.Binding(rule.Value.Value), child)
 			result = append(result, ast.Item(&ast.Term{Value: key}, &ast.Term{Value: value}))
 			return nil
 		})
@@ -846,8 +843,7 @@ func evalRefRulePartialObjectDocFull(ctx *Context, ref ast.Ref, rules []*ast.Rul
 		}
 	}
 
-	ctx = ctx.BindValue(ref, result)
-	return iter(ctx)
+	return Continue(ctx, ref, result, iter)
 }
 
 func evalRefRulePartialSetDoc(ctx *Context, ref ast.Ref, path ast.Ref, rule *ast.Rule, iter Iterator) error {
@@ -868,7 +864,7 @@ func evalRefRulePartialSetDoc(ctx *Context, ref ast.Ref, path ast.Ref, rule *ast
 	if !key.IsGround() {
 		child := ctx.Child(rule.Body, storage.NewBindings())
 		return Eval(child, func(child *Context) error {
-			value := child.Binding(rule.Key.Value)
+			value := PlugValue(child.Binding(rule.Key.Value), child)
 			if value == nil {
 				return fmt.Errorf("unbound variable: %v", rule.Key)
 			}
@@ -877,9 +873,7 @@ func evalRefRulePartialSetDoc(ctx *Context, ref ast.Ref, path ast.Ref, rule *ast
 			// so that expression will be defined. E.g., given a simple rule:
 			// "p = true :- q[x]", we say that "p" should be defined if "q"
 			// is defined for some value "x".
-			ctx = ctx.BindVar(key.(ast.Var), value)
-			ctx = ctx.BindValue(ref[:len(path)+1], ast.Boolean(true))
-			return iter(ctx)
+			return ContinueN(ctx, iter, key, value, ref[:len(path)+1], ast.Boolean(true))
 		})
 	}
 
@@ -889,8 +883,7 @@ func evalRefRulePartialSetDoc(ctx *Context, ref ast.Ref, path ast.Ref, rule *ast
 
 	return Eval(child, func(child *Context) error {
 		// See comment above for explanation of why the reference is bound to true.
-		ctx = ctx.BindValue(ref[:len(path)+1], ast.Boolean(true))
-		return iter(ctx)
+		return Continue(ctx, ref[:len(path)+1], ast.Boolean(true), iter)
 	})
 
 }
@@ -908,12 +901,17 @@ func evalRefRuleResult(ctx *Context, ref ast.Ref, suffix ast.Ref, result ast.Val
 		// needing to be processed. This is done by substituting the prefix of the original reference
 		// with the binding. In this case, the prefix is "q[k]" and the binding value would be
 		// "a[<some key>]".
-		var binding ast.Ref
-		binding = append(binding, result...)
-		binding = append(binding, suffix...)
+		offset := len(result)
+		binding := make(ast.Ref, offset+len(suffix))
+		for i := range result {
+			binding[i] = result[i]
+		}
+		for i := range suffix {
+			binding[i+offset] = suffix[i]
+		}
 		return evalRefRec(ctx, result, suffix, func(ctx *Context) error {
-			ctx = ctx.BindValue(ref, PlugValue(binding, ctx))
-			return iter(ctx)
+			v := PlugValue(binding, ctx)
+			return Continue(ctx, ref, v, iter)
 		})
 
 	case ast.Array:
@@ -923,15 +921,16 @@ func evalRefRuleResult(ctx *Context, ref ast.Ref, suffix ast.Ref, result ast.Val
 				pluggedSuffix = append(pluggedSuffix, PlugTerm(t, ctx))
 			}
 			return result.Query(pluggedSuffix, func(keys map[ast.Var]ast.Value, value ast.Value) error {
-				ctx = ctx.BindValue(ref, value)
+				prev := ctx.Bind(ref, value, nil)
 				for k, v := range keys {
-					ctx = ctx.BindVar(k, v)
+					prev = ctx.Bind(k, v, prev)
 				}
-				return iter(ctx)
+				err := iter(ctx)
+				ctx.Unbind(prev)
+				return err
 			})
 		}
-		ctx = ctx.BindValue(ref, result)
-		return iter(ctx)
+		return Continue(ctx, ref, result, iter)
 
 	case ast.Object:
 		if len(suffix) > 0 {
@@ -940,60 +939,62 @@ func evalRefRuleResult(ctx *Context, ref ast.Ref, suffix ast.Ref, result ast.Val
 				pluggedSuffix = append(pluggedSuffix, PlugTerm(t, ctx))
 			}
 			return result.Query(pluggedSuffix, func(keys map[ast.Var]ast.Value, value ast.Value) error {
-				ctx = ctx.BindValue(ref, value)
+				prev := ctx.Bind(ref, value, nil)
 				for k, v := range keys {
-					ctx = ctx.BindVar(k, v)
+					prev = ctx.Bind(k, v, prev)
 				}
-				return iter(ctx)
+				err := iter(ctx)
+				ctx.Unbind(prev)
+				return err
 			})
 		}
-		ctx = ctx.BindValue(ref, result)
-		return iter(ctx)
+		return Continue(ctx, ref, result, iter)
 
 	default:
 		if len(suffix) > 0 {
 			// This is not defined because it attempts to dereference a scalar.
 			return nil
 		}
-		ctx = ctx.BindValue(ref, result)
-		return iter(ctx)
+		return Continue(ctx, ref, result, iter)
 	}
 }
 
-// TODO(tsandall):
 func evalTerms(ctx *Context, iter Iterator) error {
 
 	expr := ctx.Current()
 
-	// Check if indexing is available for this expression. Need to
-	// perform check on the plugged version of the expression, otherwise
-	// the index will return false positives.
-	plugged := PlugExpr(expr, ctx)
+	// Attempt to evaluate the terms using indexing. Indexing can be used
+	// if this is an equality expression where one side is a non-ground,
+	// non-nested reference to a base document and the other side is a
+	// reference or some ground term. If indexing is available for the terms,
+	// the index is built lazily.
+	if expr.IsEquality() {
 
-	if indexAvailable(ctx, plugged) {
+		// The terms must be plugged otherwise the index may yield bindings
+		// that would result in false positives.
+		ts := expr.Terms.([]*ast.Term)
+		t1 := PlugTerm(ts[1], ctx)
+		t2 := PlugTerm(ts[2], ctx)
+		r1, ok1 := t1.Value.(ast.Ref)
+		r2, ok2 := t2.Value.(ast.Ref)
 
-		ts := plugged.Terms.([]*ast.Term)
-		ref, isRef := ts[1].Value.(ast.Ref)
-
-		if isRef {
-			ok, err := indexBuildLazy(ctx, ref)
+		if ok1 && !r1.IsGround() && !r1.IsNested() && (ok2 || t2.IsGround()) {
+			ok, err := indexBuildLazy(ctx, r1)
 			if err != nil {
-				return errors.Wrapf(err, "index build failed on %v", ref)
+				return errors.Wrapf(err, "index build failed on %v", r1)
 			}
 			if ok {
-				return evalTermsIndexed(ctx, iter, ref, ts[2])
+				return evalTermsIndexed(ctx, iter, r1, t2)
 			}
 		}
 
-		ref, isRef = ts[2].Value.(ast.Ref)
-
-		if isRef {
-			ok, err := indexBuildLazy(ctx, ref)
+		if ok2 && !r2.IsGround() && !r2.IsNested() && (ok1 || t1.IsGround()) {
+			ok, err := indexBuildLazy(ctx, r2)
 			if err != nil {
-				return errors.Wrapf(err, "index build failed on %v", ref)
+				return errors.Wrapf(err, "index build failed on %v", r2)
 			}
 			if ok {
-				return evalTermsIndexed(ctx, iter, ref, ts[1])
+				return evalTermsIndexed(ctx, iter, r2, t1)
 			}
 		}
 	}
@@ -1023,8 +1024,7 @@ func evalTermsComprehension(ctx *Context, comp ast.Value, iter Iterator) error {
 		if err != nil {
 			return err
 		}
-		ctx = ctx.BindValue(comp, r)
-		return iter(ctx)
+		return Continue(ctx, comp, r, iter)
 	default:
 		panic(fmt.Sprintf("illegal argument: %v %v", ctx, comp))
 	}
@@ -1050,8 +1050,14 @@ func evalTermsIndexed(ctx *Context, iter Iterator, indexed ast.Ref, nonIndexed *
 		// Iterate the bindings for the indexed term that when applied to the reference
 		// would locate the non-indexed value obtained above.
 		return index.Iter(nonIndexedValue, func(bindings *storage.Bindings) error {
-			ctx.Locals = ctx.Locals.Update(bindings)
-			return iter(ctx)
+			var prev *Undo
+			bindings.Iter(func(k, v ast.Value) bool {
+				prev = ctx.Bind(k, v, prev)
+				return false
+			})
+			err := iter(ctx)
+			ctx.Unbind(prev)
+			return err
 		})
 
 	}
@@ -1166,39 +1172,6 @@ func evalTermsRecObject(ctx *Context, obj ast.Object, idx int, iter Iterator) er
 			return evalTermsRecObject(ctx, obj, idx+1, iter)
 		}
 	}
-}
-
-// indexAvailable returns true if the index can/should be used when evaluating this expression.
-// Indexing is used on equality expressions where both sides are non-ground refs (to base docs) or one
-// side is a non-ground ref (to a base doc) and the other side is any ground term. In the future, indexing
-// may be used on references embedded inside array/object values.
-func indexAvailable(ctx *Context, expr *ast.Expr) bool {
-
-	ts, ok := expr.Terms.([]*ast.Term)
-	if !ok {
-		return false
-	}
-
-	// Indexing can only be used when evaluating equality expressions.
-	if !ts[0].Value.Equal(ast.Equality.Name) {
-		return false
-	}
-
-	a := ts[1].Value
-	b := ts[2].Value
-
-	aRef, isRefA := a.(ast.Ref)
-	bRef, isRefB := b.(ast.Ref)
-
-	if isRefA && !a.IsGround() && !aRef.IsNested() {
-		return b.IsGround() || isRefB
-	}
-
-	if isRefB && !b.IsGround() && !bRef.IsNested() {
-		return a.IsGround() || isRefA
-	}
-
-	return false
 }
 
 // indexBuildLazy returns true if there is an index built for this term. If there is no index
@@ -1334,7 +1307,7 @@ func topDownQueryPartialObjectDoc(params *QueryParams, rules []*ast.Rule) (inter
 		key := rule.Key.Value.(ast.Var)
 		value := rule.Value.Value.(ast.Var)
 		err := Eval(ctx, func(ctx *Context) error {
-			key, err := dereferenceVar(key, ctx)
+			key, err := ValueToInterface(key, ctx)
 			if err != nil {
 				return err
 			}
@@ -1342,7 +1315,7 @@ func topDownQueryPartialObjectDoc(params *QueryParams, rules []*ast.Rule) (inter
 			if !ok {
 				return fmt.Errorf("illegal object key type %T: %v", key, key)
 			}
-			value, err := dereferenceVar(value, ctx)
+			value, err := ValueToInterface(value, ctx)
 			if err != nil {
 				return err
 			}
@@ -1369,7 +1342,7 @@ func topDownQueryPartialSetDoc(params *QueryParams, rules []*ast.Rule) (interfac
 		}
 		key := rule.Key.Value.(ast.Var)
 		err := Eval(ctx, func(ctx *Context) error {
-			value, err := dereferenceVar(key, ctx)
+			value, err := ValueToInterface(key, ctx)
 			if err != nil {
 				return err
 			}

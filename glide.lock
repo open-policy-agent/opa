@@ -1,32 +1,34 @@
-hash: 0a02b01206ff3a59dcdf432903f0c3e1abc7692a6a6ba59caba19005bf8c46dc
-updated: 2016-05-19T09:13:26.432649187-07:00
+hash: f2674369ef7d03abb3c149bdc86507802e930f3448c72a2d7edf79b1feac7e0b
+updated: 2016-07-10T12:33:51.307369663-07:00
 imports:
+- name: github.com/dchest/siphash
+  version: 6d8617816bb5d8268011ffbfb8720f17ce9af63c
 - name: github.com/golang/glog
   version: 23def4e6c14b4da8ac2ed8007337bc5eb5007998
 - name: github.com/golang/lint
   version: c7bacac2b21ca01afa1dee0acf64df3ce047c28f
 - name: github.com/gorilla/context
-  version: a8d44e7d8e4d532b6a27a02dd82abb31cc1b01bd
+  version: aed02d124ae4a0e94fea4541c8effd05bf0c8296
 - name: github.com/gorilla/mux
-  version: 9c19ed558d5df4da88e2ade9c8940d742aef0e7e
+  version: 9fa818a44c2bf1396a17f9d5a3c0f6dd39d2ff8e
 - name: github.com/inconshreveable/mousetrap
   version: 76626ae9c91c4f2a10f34cad8ce83ea42c93bb75
 - name: github.com/mattn/go-runewidth
   version: d6bea18f789704b5f83375793155289da36a3c7f
 - name: github.com/olekukonko/tablewriter
-  version: 279fecc91ba77130f753d073259d7f9e246acdda
+  version: daf2955e742cf123959884fdff4685aa79b63135
 - name: github.com/peterh/liner
-  version: 0e4af131b90a9786839c8b1b01717be263e8555a
+  version: 8975875355a81d612fafb9f5a6037bdcc2d9b073
 - name: github.com/pkg/errors
-  version: d814416a46cbb066b728cfff58d30a986bc9ddbe
+  version: a2d6902c6d2a2f194eb3fb474981ab7867c81505
 - name: github.com/PuerkitoBio/pigeon
-  version: a5221784523de14130c00a8c389148a1b2ad260c
+  version: f890dd2f774b324894bfd1dd61c2d227179bcc2d
 - name: github.com/spf13/cobra
-  version: f368244301305f414206f889b1735a54cfc8bde8
+  version: a272c3cbd5ff80a5bf5c5603df50183f9f3f7324
 - name: github.com/spf13/pflag
-  version: cb88ea77998c3f024757528e3305022ab50b43be
+  version: 367864438f1b1a3c7db4da06a2f55b144e6784e0
 - name: golang.org/x/tools
-  version: 9ae4729fba20b3533d829a9c6ba8195b068f2abc
+  version: 35c6e68a1a5ffc3e3afef71586710e9b0515582d
   subpackages:
   - cmd/goimports
-devImports: []
+testImports: []

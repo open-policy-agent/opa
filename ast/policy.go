@@ -348,7 +348,7 @@ func (expr *Expr) IsEquality() bool {
 	if len(terms) != 3 {
 		return false
 	}
-	return terms[0].Equal(VarTerm("="))
+	return terms[0].Value.Equal(Equality.Name)
 }
 
 // IsGround returns true if all of the expression terms are ground.

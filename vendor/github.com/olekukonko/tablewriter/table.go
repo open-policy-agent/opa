@@ -34,9 +34,16 @@ const (
 )
 
 var (
-	decimal = regexp.MustCompile(`^\d*\.?\d*$`)
-	percent = regexp.MustCompile(`^\d*\.?\d*$%$`)
+	decimal = regexp.MustCompile(`^-*\d*\.?\d*$`)
+	percent = regexp.MustCompile(`^-*\d*\.?\d*$%$`)
 )
+
+type Border struct {
+	Left   bool
+	Right  bool
+	Top    bool
+	Bottom bool
+}
 
 type Table struct {
 	out      io.Writer
@@ -59,7 +66,7 @@ type Table struct {
 	align    int
 	rowLine  bool
 	hdrLine  bool
-	border   bool
+	borders  Border
 	colSize  int
 }
 
@@ -87,20 +94,20 @@ func NewWriter(writer io.Writer) *Table {
 		align:    ALIGN_DEFAULT,
 		rowLine:  false,
 		hdrLine:  true,
-		border:   true,
+		borders:  Border{Left: true, Right: true, Bottom: true, Top: true},
 		colSize:  -1}
 	return t
 }
 
 // Render table output
 func (t Table) Render() {
-	if t.border {
+	if t.borders.Top {
 		t.printLine(true)
 	}
 	t.printHeading()
 	t.printRows()
 
-	if !t.rowLine && t.border {
+	if !t.rowLine && t.borders.Bottom {
 		t.printLine(true)
 	}
 	t.printFooter()
@@ -185,7 +192,11 @@ func (t *Table) SetRowLine(line bool) {
 // Set Table Border
 // This would enable / disable line around the table
 func (t *Table) SetBorder(border bool) {
-	t.border = border
+	t.SetBorders(Border{border, border, border, border})
+}
+
+func (t *Table) SetBorders(border Border) {
+	t.borders = border
 }
 
 // Append row to table
@@ -256,7 +267,7 @@ func (t Table) printHeading() {
 
 	// Check if border is set
 	// Replace with space if not set
-	fmt.Fprint(t.out, ConditionString(t.border, t.pColumn, SPACE))
+	fmt.Fprint(t.out, ConditionString(t.borders.Left, t.pColumn, SPACE))
 
 	// Identify last column
 	end := len(t.cs) - 1
@@ -271,7 +282,7 @@ func (t Table) printHeading() {
 		if t.autoFmt {
 			h = Title(h)
 		}
-		pad := ConditionString((i == end && !t.border), SPACE, t.pColumn)
+		pad := ConditionString((i == end && !t.borders.Left), SPACE, t.pColumn)
 		fmt.Fprintf(t.out, " %s %s",
 			padFunc(h, SPACE, v),
 			pad)
@@ -291,12 +302,12 @@ func (t Table) printFooter() {
 	}
 
 	// Only print line if border is not set
-	if !t.border {
+	if !t.borders.Bottom {
 		t.printLine(true)
 	}
 	// Check if border is set
 	// Replace with space if not set
-	fmt.Fprint(t.out, ConditionString(t.border, t.pColumn, SPACE))
+	fmt.Fprint(t.out, ConditionString(t.borders.Bottom, t.pColumn, SPACE))
 
 	// Identify last column
 	end := len(t.cs) - 1
@@ -311,7 +322,7 @@ func (t Table) printFooter() {
 		if t.autoFmt {
 			f = Title(f)
 		}
-		pad := ConditionString((i == end && !t.border), SPACE, t.pColumn)
+		pad := ConditionString((i == end && !t.borders.Top), SPACE, t.pColumn)
 
 		if len(t.footers[i]) == 0 {
 			pad = SPACE
@@ -337,7 +348,7 @@ func (t Table) printFooter() {
 		}
 
 		// Set center to be space if length is 0
-		if length == 0 && !t.border {
+		if length == 0 && !t.borders.Right {
 			center = SPACE
 		}
 
@@ -351,7 +362,7 @@ func (t Table) printFooter() {
 			pad = SPACE
 		}
 		// Ignore left space of it has printed before
-		if hasPrinted || t.border {
+		if hasPrinted || t.borders.Left {
 			pad = t.pRow
 			center = t.pCenter
 		}
@@ -416,7 +427,7 @@ func (t Table) printRow(columns [][]string, colKey int) {
 		for y := 0; y < total; y++ {
 
 			// Check if border is set
-			fmt.Fprint(t.out, ConditionString((!t.border && y == 0), SPACE, t.pColumn))
+			fmt.Fprint(t.out, ConditionString((!t.borders.Left && y == 0), SPACE, t.pColumn))
 
 			fmt.Fprintf(t.out, SPACE)
 			str := columns[y][x]
@@ -449,7 +460,7 @@ func (t Table) printRow(columns [][]string, colKey int) {
 		}
 		// Check if border is set
 		// Replace with space if not set
-		fmt.Fprint(t.out, ConditionString(t.border, t.pColumn, SPACE))
+		fmt.Fprint(t.out, ConditionString(t.borders.Left, t.pColumn, SPACE))
 		fmt.Fprintln(t.out)
 	}
 

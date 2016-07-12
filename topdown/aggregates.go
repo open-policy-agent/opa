@@ -40,8 +40,7 @@ func evalReduce(f reduceFunc) BuiltinFunc {
 
 		switch dst := dst.(type) {
 		case ast.Var:
-			ctx = ctx.BindVar(dst, y)
-			return iter(ctx)
+			return Continue(ctx, dst, y, iter)
 		default:
 			if dst.Equal(y) {
 				return iter(ctx)
@@ -55,7 +54,11 @@ func reduceSum(x interface{}) (ast.Value, error) {
 	if s, ok := x.([]interface{}); ok {
 		sum := ast.Number(0)
 		for _, x := range s {
-			sum += ast.Number(x.(float64))
+			f, ok := x.(float64)
+			if !ok {
+				return nil, fmt.Errorf("sum: input array contains non-number value")
+			}
+			sum += ast.Number(f)
 		}
 		return sum, nil
 	}

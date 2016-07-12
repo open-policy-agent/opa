@@ -5,3 +5,4 @@ go:
   - 1.5
   - 1.6
 install: make deps
+after_success: make perf-regression

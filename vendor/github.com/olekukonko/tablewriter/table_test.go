@@ -87,7 +87,7 @@ func TestCSVSeparator(t *testing.T) {
 	table.Render()
 }
 
-func TestBorder(t *testing.T) {
+func TestNoBorder(t *testing.T) {
 	data := [][]string{
 		[]string{"1/1/2014", "Domain name", "2233", "$10.98"},
 		[]string{"1/1/2014", "January Hosting", "2233", "$54.95"},
@@ -112,6 +112,68 @@ func TestBorder(t *testing.T) {
 +----------+--------------------------+-------+---------+
                                         TOTAL | $146 93  
                                       +-------+---------+
+`
+	got := buf.String()
+	if got != want {
+		t.Errorf("border table rendering failed\ngot:\n%s\nwant:\n%s\n", got, want)
+	}
+}
+
+func TestWithBorder(t *testing.T) {
+	data := [][]string{
+		[]string{"1/1/2014", "Domain name", "2233", "$10.98"},
+		[]string{"1/1/2014", "January Hosting", "2233", "$54.95"},
+		[]string{"1/4/2014", "February Hosting", "2233", "$51.00"},
+		[]string{"1/4/2014", "February Extra Bandwidth", "2233", "$30.00"},
+	}
+
+	var buf bytes.Buffer
+	table := NewWriter(&buf)
+	table.SetHeader([]string{"Date", "Description", "CV2", "Amount"})
+	table.SetFooter([]string{"", "", "Total", "$146.93"}) // Add Footer
+	table.AppendBulk(data)                                // Add Bulk Data
+	table.Render()
+
+	want := `+----------+--------------------------+-------+---------+
+|   DATE   |       DESCRIPTION        |  CV2  | AMOUNT  |
++----------+--------------------------+-------+---------+
+| 1/1/2014 | Domain name              |  2233 | $10.98  |
+| 1/1/2014 | January Hosting          |  2233 | $54.95  |
+| 1/4/2014 | February Hosting         |  2233 | $51.00  |
+| 1/4/2014 | February Extra Bandwidth |  2233 | $30.00  |
++----------+--------------------------+-------+---------+
+|                                       TOTAL | $146 93 |
++----------+--------------------------+-------+---------+
+`
+	got := buf.String()
+	if got != want {
+		t.Errorf("border table rendering failed\ngot:\n%s\nwant:\n%s\n", got, want)
+	}
+}
+
+func TestPrintingInMarkdown(t *testing.T) {
+	fmt.Println("TESTING")
+	data := [][]string{
+		[]string{"1/1/2014", "Domain name", "2233", "$10.98"},
+		[]string{"1/1/2014", "January Hosting", "2233", "$54.95"},
+		[]string{"1/4/2014", "February Hosting", "2233", "$51.00"},
+		[]string{"1/4/2014", "February Extra Bandwidth", "2233", "$30.00"},
+	}
+
+	var buf bytes.Buffer
+	table := NewWriter(&buf)
+	table.SetHeader([]string{"Date", "Description", "CV2", "Amount"})
+	table.AppendBulk(data) // Add Bulk Data
+	table.SetBorders(Border{Left: true, Top: false, Right: true, Bottom: false})
+	table.SetCenterSeparator("|")
+	table.Render()
+
+	want := `|   DATE   |       DESCRIPTION        | CV2  | AMOUNT |
+|----------|--------------------------|------|--------|
+| 1/1/2014 | Domain name              | 2233 | $10.98 |
+| 1/1/2014 | January Hosting          | 2233 | $54.95 |
+| 1/4/2014 | February Hosting         | 2233 | $51.00 |
+| 1/4/2014 | February Extra Bandwidth | 2233 | $30.00 |
 `
 	got := buf.String()
 	if got != want {

@@ -120,20 +120,20 @@ func TestEvalTerms(t *testing.T) {
             {"i": 0, "j": "z", "k": "q"}
         ]`},
 		{"data.a[i] = data.h[j][k]", `[
-            {"i": 0, "j": 0, "k": 0},
-            {"i": 1, "j": 0, "k": 1},
-            {"i": 1, "j": 1, "k": 0},
-            {"i": 2, "j": 0, "k": 2},
-            {"i": 2, "j": 1, "k": 1},
-            {"i": 3, "j": 1, "k": 2}
-        ]`},
+		    {"i": 0, "j": 0, "k": 0},
+		    {"i": 1, "j": 0, "k": 1},
+		    {"i": 1, "j": 1, "k": 0},
+		    {"i": 2, "j": 0, "k": 2},
+		    {"i": 2, "j": 1, "k": 1},
+		    {"i": 3, "j": 1, "k": 2}
+		]`},
 		{`data.d[x][y] = "baz"`, `[
-            {"x": "e", "y": 1}
-        ]`},
+		    {"x": "e", "y": 1}
+		]`},
 		{"data.d[x][y] = data.d[x][y]", `[
-            {"x": "e", "y": 0},
-            {"x": "e", "y": 1}
-        ]`},
+		    {"x": "e", "y": 0},
+		    {"x": "e", "y": 1}
+		]`},
 		{"data.d[x][y] = data.z[i]", `[]`},
 		{"data.a[data.a[i]] = 3", `[
 			{"i": 0, "data.a[i]": 1},
@@ -191,17 +191,17 @@ func TestPlugValue(t *testing.T) {
 	hello := ast.String("hello")
 	world := ast.String("world")
 
-	ctx1 := &Context{Locals: storage.NewBindings()}
-	ctx1 = ctx1.BindVar(a, b)
-	ctx1 = ctx1.BindVar(b, cs)
-	ctx1 = ctx1.BindVar(c, ks)
-	ctx1 = ctx1.BindVar(k, hello)
+	ctx1 := &Context{Locals: storage.NewBindings(), Globals: storage.NewBindings()}
+	ctx1.Bind(a, b, nil)
+	ctx1.Bind(b, cs, nil)
+	ctx1.Bind(c, ks, nil)
+	ctx1.Bind(k, hello, nil)
 
-	ctx2 := &Context{Locals: storage.NewBindings()}
-	ctx2 = ctx2.BindVar(a, b)
-	ctx2 = ctx2.BindVar(b, cs)
-	ctx2 = ctx2.BindVar(c, vs)
-	ctx2 = ctx2.BindVar(v, world)
+	ctx2 := &Context{Locals: storage.NewBindings(), Globals: storage.NewBindings()}
+	ctx2.Bind(a, b, nil)
+	ctx2.Bind(b, cs, nil)
+	ctx2.Bind(c, vs, nil)
+	ctx2.Bind(v, world, nil)
 
 	expected := ast.MustParseTerm(`[{"hello": "world"}]`).Value
 
@@ -221,8 +221,8 @@ func TestPlugValue(t *testing.T) {
 	n := ast.MustParseTerm("a.b[x.y[i]]").Value
 
 	ctx3 := &Context{Locals: storage.NewBindings(), Globals: storage.NewBindings()}
-	ctx3 = ctx3.BindVar(ast.Var("i"), ast.Number(1))
-	ctx3 = ctx3.BindValue(ast.MustParseTerm("x.y[i]").Value, ast.Number(1))
+	ctx3.Bind(ast.Var("i"), ast.Number(1), nil)
+	ctx3.Bind(ast.MustParseTerm("x.y[i]").Value, ast.Number(1), nil)
 
 	expected = ast.MustParseTerm("a.b[1]").Value
 
@@ -470,11 +470,20 @@ func TestTopDownVirtualDocs(t *testing.T) {
 		// output from partial set and object docs
 		{"output: set", []string{"p[x] :- q[x]", "q[y] :- a[i] = y"}, "[1,2,3,4]"},
 		{"output: set embedded", []string{`p[i] :- {i: [true]} = {i: [q[i]]}`, `q[x] :- d.e[i] = x`}, `["bar", "baz"]`},
+		{"output: set var binding", []string{"p[x] :- q[x]", "q[y] :- y = [i, j], i = 1, j = 2"}, `[[1,2]]`},
 		{"output: object key", []string{"p[x] :- q[x] = 4", "q[i] = x :- a[i] = x"}, "[3]"},
 		{"output: object value", []string{"p[x] = y :- q[x] = y", "q[k] = v :- b[k] = v"}, `{"v1": "hello", "v2": "goodbye"}`},
 		{"output: object embedded", []string{"p[k] = v :- {k: [q[k]]} = {k: [v]}", `q[x] = y :- b[x] = y`}, `{"v1": "hello", "v2": "goodbye"}`},
 		{"output: object dereference ground", []string{`p[i] :- q[i]["x"][1] = false`, `q[i] = x :- x = c[i]`}, "[0]"},
 		{"output: object defererence non-ground", []string{`p[r] :- q[x][y][z] = false, r = [x, y, z]`, `q[i] = x :- x = c[i]`}, `[[0, "x", 1], [0, "z", "q"]]`},
+		{"output: object var binding", []string{
+			"p[z] :- q[x] = y, z = [x, y]",
+			`q[k] = v :- v = [x, y], x = "a", y = "b", k = "foo"`},
+			`[["foo", ["a", "b"]]]`},
+		{"output: object key var binding", []string{
+			"p[z] :- q[x] = y, z = [x, y]",
+			`q[k] = v :- k = y, y = x, x = "a", v = "foo"`},
+			`[["a", "foo"]]`},
 
 		// input+output from partial set/object docs
 		{"i/o: objects", []string{
@@ -516,6 +525,10 @@ func TestTopDownVirtualDocs(t *testing.T) {
 			`s = {"a": 1, "b": 2, "c": 4} :- true`,
 			`t = ["d", "e", "g"] :- true`},
 			"true"},
+		{"no suffix: object var binding", []string{
+			"p[x] :- q = x",
+			`q[k] = v :- v = [i, j], k = i, i = "a", j = 1`},
+			`[{"a": ["a", 1]}]`},
 
 		// TODO(tsandall): this requires set literals; "s" must be bound to a "set" type.
 		// {"no deref: set", []string{"p[x] :- q = s, s[x]", "q[x] :- a[i] = x"}, "[1,2,3,4]"},
@@ -652,7 +665,7 @@ func TestTopDownNegation(t *testing.T) {
 		// {"neg: object values contains", []string{`p = true :- not b[_] = "deadbeef"`}, "true"},
 		// {"neg: object values diff", []string{`p = true :- not b[_] = "goodbye"`}, ""},
 		{"neg: set contains", []string{`p = true :- not q["v0"]`, `q[x] :- b[x] = v`}, "true"},
-		// {"neg: set diff", []string{`p = true :- not q["v2"]`, `q[x] :- b[x] = v`}, ""},
+		{"neg: set contains undefined", []string{`p = true :- not q["v2"]`, `q[x] :- b[x] = v`}, ""},
 
 		// TODO(tsandall): 'not g[j][k] ...' is not valid.
 		// {"neg: multiple exprs", []string{"p[x] :- a[x] = i, not g[j][k] = x, f[v][y][z] = x"}, "[3]"},
@@ -896,10 +909,10 @@ func TestExample(t *testing.T) {
     `)
 
 	assertTopDown(t, store, 0, "violations", []string{"opa", "example", "violations"}, "{}", `
-        [
-            {"id": "s4", "name": "dev", "protocols": ["http"], "ports": ["p1", "p2"]}
-        ]
-    `)
+	    [
+	        {"id": "s4", "name": "dev", "protocols": ["http"], "ports": ["p1", "p2"]}
+	    ]
+	`)
 }
 
 func compileModules(input []string) map[string]*ast.Module {

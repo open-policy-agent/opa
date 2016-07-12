@@ -7,10 +7,14 @@ package ast
 import (
 	"encoding/json"
 	"fmt"
-	"hash/fnv"
+	"math/rand"
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
+	"unsafe"
+
+	"github.com/dchest/siphash"
 
 	"github.com/pkg/errors"
 )
@@ -329,9 +333,8 @@ func (str String) String() string {
 
 // Hash returns the hash code for the Value.
 func (str String) Hash() int {
-	h := fnv.New64a()
-	h.Write([]byte(str))
-	return int(h.Sum64())
+	h := siphash.Hash(hashSeed0, hashSeed1, *(*[]byte)(unsafe.Pointer(&str)))
+	return int(h)
 }
 
 // Var represents a variable as defined by the language.
@@ -355,9 +358,8 @@ func (variable Var) Equal(other Value) bool {
 
 // Hash returns the hash code for the Value.
 func (variable Var) Hash() int {
-	h := fnv.New64a()
-	h.Write([]byte(variable))
-	return int(h.Sum64())
+	h := siphash.Hash(hashSeed0, hashSeed1, *(*[]byte)(unsafe.Pointer(&variable)))
+	return int(h)
 }
 
 // IsGround always returns false.
@@ -977,4 +979,17 @@ func unmarshalValue(d map[string]interface{}) (Value, error) {
 	}
 unmarshal_error:
 	return nil, fmt.Errorf("ast: unable to unmarshal term")
+}
+
+var hashSeed0 uint64
+var hashSeed1 uint64
+
+func initHashSeed() {
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+	hashSeed0 = (uint64(r.Uint32()) << 32) | uint64(r.Uint32())
+	hashSeed1 = (uint64(r.Uint32()) << 32) | uint64(r.Uint32())
+}
+
+func init() {
+	initHashSeed()
 }
