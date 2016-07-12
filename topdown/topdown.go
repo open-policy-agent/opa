@@ -39,8 +39,10 @@ func (ctx *Context) Binding(k ast.Value) ast.Value {
 	if v := ctx.Locals.Get(k); v != nil {
 		return v
 	}
-	if v := ctx.Globals.Get(k); v != nil {
-		return v
+	if ctx.Globals != nil {
+		if v := ctx.Globals.Get(k); v != nil {
+			return v
+		}
 	}
 	return nil
 }
@@ -320,6 +322,18 @@ func NewQueryParams(ds *storage.DataStore, globals *storage.Bindings, path []int
 		Globals:   globals,
 		Path:      path,
 	}
+}
+
+// NewContext returns a new Context that can be used to do evaluation.
+func (q *QueryParams) NewContext(body ast.Body) *Context {
+	ctx := &Context{
+		Query:     body,
+		Globals:   q.Globals,
+		Locals:    storage.NewBindings(),
+		DataStore: q.DataStore,
+		Tracer:    q.Tracer,
+	}
+	return ctx
 }
 
 // Query returns the document identified by the path.
@@ -1299,14 +1313,7 @@ func queryCompleteDoc(params *QueryParams, rules []*ast.Rule) (interface{}, erro
 	var resultContext *Context
 
 	for _, rule := range rules {
-		ctx := &Context{
-			Query:     rule.Body,
-			Globals:   params.Globals,
-			Locals:    storage.NewBindings(),
-			DataStore: params.DataStore,
-			Tracer:    params.Tracer,
-		}
-
+		ctx := params.NewContext(rule.Body)
 		isTrue := false
 
 		err := Eval(ctx, func(ctx *Context) error {
@@ -1339,13 +1346,7 @@ func queryPartialObjectDoc(params *QueryParams, rules []*ast.Rule) (interface{},
 	keys := map[string]struct{}{}
 
 	for _, rule := range rules {
-		ctx := &Context{
-			Query:     rule.Body,
-			Globals:   params.Globals,
-			Locals:    storage.NewBindings(),
-			DataStore: params.DataStore,
-			Tracer:    params.Tracer,
-		}
+		ctx := params.NewContext(rule.Body)
 		err := Eval(ctx, func(ctx *Context) error {
 			k, err := ValueToInterface(rule.Key.Value, ctx)
 			if err != nil {
@@ -1377,13 +1378,7 @@ func queryPartialObjectDoc(params *QueryParams, rules []*ast.Rule) (interface{},
 func queryPartialSetDoc(params *QueryParams, rules []*ast.Rule) (interface{}, error) {
 	result := []interface{}{}
 	for _, rule := range rules {
-		ctx := &Context{
-			Query:     rule.Body,
-			Globals:   params.Globals,
-			Locals:    storage.NewBindings(),
-			DataStore: params.DataStore,
-			Tracer:    params.Tracer,
-		}
+		ctx := params.NewContext(rule.Body)
 		err := Eval(ctx, func(ctx *Context) error {
 			r, err := ValueToInterface(rule.Key.Value, ctx)
 			if err != nil {

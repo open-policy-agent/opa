@@ -55,11 +55,7 @@ func TestEvalRef(t *testing.T) {
 
 	data := loadSmallTestData()
 
-	ctx := &Context{
-		DataStore: storage.NewDataStoreFromJSONObject(data),
-		Globals:   storage.NewBindings(),
-		Locals:    storage.NewBindings(),
-	}
+	ctx := NewContext(nil, storage.NewDataStoreFromJSONObject(data))
 
 	for i, tc := range tests {
 
@@ -146,12 +142,7 @@ func TestEvalTerms(t *testing.T) {
 
 	for i, tc := range tests {
 
-		ctx := &Context{
-			Query:     ast.MustParseBody(tc.body),
-			DataStore: storage.NewDataStoreFromJSONObject(data),
-			Globals:   storage.NewBindings(),
-			Locals:    storage.NewBindings(),
-		}
+		ctx := NewContext(ast.MustParseBody(tc.body), storage.NewDataStoreFromJSONObject(data))
 
 		expected := loadExpectedBindings(tc.expected)
 
@@ -191,13 +182,13 @@ func TestPlugValue(t *testing.T) {
 	hello := ast.String("hello")
 	world := ast.String("world")
 
-	ctx1 := &Context{Locals: storage.NewBindings(), Globals: storage.NewBindings()}
+	ctx1 := NewContext(nil, nil)
 	ctx1.Bind(a, b, nil)
 	ctx1.Bind(b, cs, nil)
 	ctx1.Bind(c, ks, nil)
 	ctx1.Bind(k, hello, nil)
 
-	ctx2 := &Context{Locals: storage.NewBindings(), Globals: storage.NewBindings()}
+	ctx2 := NewContext(nil, nil)
 	ctx2.Bind(a, b, nil)
 	ctx2.Bind(b, cs, nil)
 	ctx2.Bind(c, vs, nil)
@@ -220,7 +211,7 @@ func TestPlugValue(t *testing.T) {
 
 	n := ast.MustParseTerm("a.b[x.y[i]]").Value
 
-	ctx3 := &Context{Locals: storage.NewBindings(), Globals: storage.NewBindings()}
+	ctx3 := NewContext(nil, nil)
 	ctx3.Bind(ast.Var("i"), ast.Number(1), nil)
 	ctx3.Bind(ast.MustParseTerm("x.y[i]").Value, ast.Number(1), nil)
 
