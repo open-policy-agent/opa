@@ -1,23 +1,5 @@
-# Roadmap
+# RoadmaP
 
-## Version 0.2
-
-### Language
-
-- "_" wildcard support
-- Array comprehensions
-- Built-ins
-	- Casting
-	- Arithmetic
-	- String manipulation
-	- Datetime
-	- Aggregates (min/max/avg, sum, count)
-
-### Documentation
-
-- GoDoc
-- REST API Spec
-- Integration guides for library and REST APIs
 
 ## Future
 
@@ -25,6 +7,10 @@
 
 - Nested references
 - Set literals
+- Built-ins
+	- String manipulation
+	- Datetime
+	- Aggregates (min and avg)
 
 ### Evaluation
 
@@ -51,3 +37,10 @@
 - Docker image
 - OS packages
 - Library (i.e., C-API/FFI)
+
+
+### Documentation
+
+- GoDoc
+- REST API Spec
+- Integration guides for library and REST APIs
