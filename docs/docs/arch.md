@@ -199,7 +199,7 @@ Conceptually, there are two kinds of documents in OPA:
 
 **Virtual documents** are defined by rules inside policies. OPA computes the contents of virtual documents when callers execute queries against rules or when dependant documents are modified. Virtual documents are defined in terms of base documents and other virtual documents. Policy authors can use virtual documents to define abstractions which are useful for expressing high level policy and insulating policy from schema changes in low level data.
 
-<img src="https://cdn.rawgit.com/open-policy-agent/opa/364bc39f3b2ade09eb093c00ee91bc216f2a6342/docs/data-model-dependencies.svg" />
+<img src="https://cdn.rawgit.com/open-policy-agent/opa/364bc39f3b2ade09eb093c00ee91bc216f2a6342/docs/docs/data-model-dependencies.svg" />
 
 When defining policies, rules are written which contain expressions that reference documents. The language that rules are written in ("Rego") lets you reference base documents and virtual documents in exactly the same way.
 
