@@ -17,7 +17,7 @@ REPLs are great for learning new languages and running quick experiments. You ca
 
 {% contentfor body %}
 
-## OPA’s REPL
+## Goals
 
 In this example, we will learn how to run OPA as an interactive shell or [REPL (read-eval-print loop)](https://en.wikipedia.org/wiki/Read–eval–print_loop). We will use the REPL to define rules to identify servers that violate the following security policy: “Servers that open an unencrypted HTTP port must not be connected to a public network.”
 

@@ -43,7 +43,7 @@ code.highlighter-rouge {
 div.highlighter-rouge {
   background-color: #f6f4f2;
   border: solid 1px #ebe6e2;
-  font-family: "Menlo", "DejaVu Mono", "Liberation Mono", "Courier New";
+  font-family: "Menlo", "DejaVu Mono", "Liberation Mono", "Courier New", monospace;
   font-size: 16px;
   line-height: 24px;
   margin: 24px auto;
@@ -495,6 +495,28 @@ strong {
 
   & + .opa-footer {
     margin: 80px 0 0;
+  }
+}
+
+.opa-community--contact-coming-soon {
+  position: relative;
+
+  & > img {
+    opacity: 0.20;
+  }
+
+  &:before {
+    color: rgba(0, 0, 0, 0.40);
+    content: "COMING SOON!";
+    font-family: "Menlo", "DejaVu Mono", "Liberation Mono", "Courier New", monospace;
+    font-size: 30px;
+    left: 50%;
+    position: absolute;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.13);
+    top: 37.5%;
+    transform: translate(-50%, -50%) rotate(-30deg);
+    white-space: nowrap;
+    z-index: 1;
   }
 }
 

@@ -111,7 +111,7 @@ Anyone can use OPA’s interactive shell to quickly experiment with queries and 
 ### Embeddable
 {: .opa-homepage--section--feature--title}
 
-Anyone can use OPA’s interactive shell to quickly experiment with queries and data sets.
+Services written with Go can use OPA as a library and do not need to run a separate daemon.
 {: .opa-homepage--section--feature--text}
 
 {% endcontentfor %}

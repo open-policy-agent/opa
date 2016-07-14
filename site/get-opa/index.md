@@ -15,7 +15,7 @@ OPA is available as binary releases for 64-bit Linux and Mac OS X or as Golang s
 
   * [64-bit Linux](https://github.com/open-policy-agent/opa/releases/download/v0.1.0-rc3/opa_linux_amd64){: .opa-header--download-list--link}
   * [64-bit Mac OS X](https://github.com/open-policy-agent/opa/releases/download/v0.1.0-rc3/opa_darwin_amd64){: .opa-header--download-list--link}
-  * [Go Source](https://github.com/open-policy-agent/opa/releases/download/v0.1.0-rc3/opa0.1rc3.src.tar.gz){: .opa-header--download-list--link}
+  * [Go Source](https://github.com/open-policy-agent/opa/archive/v0.1.0-rc3.tar.gz){: .opa-header--download-list--link}
   {: .opa-header--download-list}
 
 {% endcontentfor %}

@@ -47,7 +47,7 @@ So-called base documents contain static, structured data stored in memory and op
 Base documents are published and updated using OPA’s Data API. For example, the following request publishes a list of servers to OPA:
 
 ```http
-PATCH /v1/data/servers HTTP/1.1
+PATCH https://example.com/v1/data/servers HTTP/1.1
 Content-Type: application/json-patch+json
 ```
 
