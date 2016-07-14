@@ -1,0 +1,139 @@
+<!DOCTYPE html> <html> <head> <meta charset="utf-8"> <meta http-equiv="x-ua-compatible" content="ie=edge"> <title>Working with the OPA REPL | OPA</title> <meta name="description" content="OPA: An open source project to policy enable any application."> <link type="text/css" rel="stylesheet" href="/assets/style.css"> </head> <body> <nav> <ul class="opa-nav-main--list"> <li class="opa-nav-main--home-item"> <a class="opa-nav-main--link" href="/">Open Policy Agent</a> </li> <li class="opa-nav-main--item"> <a class="opa-nav-main--link" href="/get-opa/">Get OPA</a> </li> <li class="opa-nav-main--item"> <a class="opa-nav-main--link" href="/documentation/what-is-policy-enablement/">Documentation</a> </li> <li class="opa-nav-main--item--selected"> Examples </li> <li class="opa-nav-main--item"> <a class="opa-nav-main--link" href="/community/">Community</a> </li> </ul> </nav> <header class="opa-header"> <p class="opa-header--fork-me"><a href="https://github.com/open-policy-agent/opa"><img src="/assets/github-corner-right.svg" alt="Fork me on GitHub" width="80" height="80"></a></p> <div class="opa-content"> <div class="opa-header--abstract"> <nav class="opa-header--abstract--nav"> <ul class="opa-header--abstract--nav-list"> <li class="opa-header--abstract--nav-item--selected"> Working with the OPA REPL </li> <li class="opa-header--abstract--nav-item"> <a class="opa-header--abstract--nav-link" href="/examples/docker-authorization/">Docker Authorization</a> </li> </ul> </nav> <h1>Working with the OPA REPL</h1> <p>REPLs are great for learning new languages and running quick experiments. You can take advantage of OPA’s REPL to quickly run ad-hoc queries or prototype policies.</p> </div> </div> </header> <div class="opa-content"> <h2>Goals</h2> <p>In this example, we will learn how to run OPA as an interactive shell or <a href="https://en.wikipedia.org/wiki/Read–eval–print_loop">REPL (read-eval-print loop)</a>. We will use the REPL to define rules to identify servers that violate the following security policy: “Servers that open an unencrypted HTTP port must not be connected to a public network.”</p> <p>Once you finish this example, you will be familiar with:</p> <ul> <li>Running OPA as an interactive shell/REPL.</li> <li>Writing ad-hoc queries in <a href="/docs/lang.html">Rego</a>.</li> </ul> <h2>Prerequisites</h2> <ul> <li>This example requires that you have the latest version of OPA. You can download the latest version of OPA at <a href="/get-opa/">openpolicyagent.org</a>.</li> <li>This example assumes you have the OPA executable in your <code class="highlighter-rouge">$PATH</code>.</li> </ul> <h2>Steps</h2> <h3>1. Make sure you can run the REPL on your machine.</h3> <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>opa run
+</code></pre> </div> <p>Without any data, you can experiment with simple expressions to get the hang of it:</p> <div class="language-ruby highlighter-rouge"><pre class="highlight"><code><span class="o">&gt;</span> <span class="kp">true</span>
+<span class="kp">true</span>
+<span class="o">&gt;</span> <span class="mi">3</span><span class="o">.</span><span class="mi">14</span>
+<span class="mi">3</span><span class="o">.</span><span class="mi">14</span>
+<span class="o">&gt;</span> <span class="p">[</span><span class="s2">"hello"</span><span class="p">,</span> <span class="s2">"world"</span><span class="p">]</span>
+<span class="p">[</span>
+  <span class="s2">"hello"</span><span class="p">,</span>
+  <span class="s2">"world"</span>
+<span class="p">]</span>
+</code></pre> </div> <p>You can also test simple boolean expressions:</p> <div class="language-ruby highlighter-rouge"><pre class="highlight"><code><span class="o">&gt;</span> <span class="kp">true</span> <span class="o">=</span> <span class="kp">false</span>
+<span class="kp">false</span>
+<span class="o">&gt;</span> <span class="mi">3</span><span class="o">.</span><span class="mi">14</span> <span class="o">&gt;</span> <span class="mi">3</span>
+<span class="kp">true</span>
+<span class="o">&gt;</span> <span class="s2">"hello"</span> <span class="o">!=</span> <span class="s2">"goodbye"</span>
+<span class="kp">true</span>
+</code></pre> </div> <p>Most REPLs let you define variables that you can reference later on. OPA allows you to do something similar. For example, we can define a <code class="highlighter-rouge">pi</code> constant as follows:</p> <div class="language-ruby highlighter-rouge"><pre class="highlight"><code><span class="o">&gt;</span> <span class="n">pi</span> <span class="o">=</span> <span class="mi">3</span><span class="o">.</span><span class="mi">14</span>
+</code></pre> </div> <p>Once “pi” is defined, you query for the value and write expressions in terms of it:</p> <div class="language-ruby highlighter-rouge"><pre class="highlight"><code><span class="o">&gt;</span> <span class="n">pi</span>
+<span class="mi">3</span><span class="o">.</span><span class="mi">14</span>
+<span class="o">&gt;</span> <span class="n">pi</span> <span class="o">&gt;</span> <span class="mi">3</span>
+<span class="kp">true</span>
+</code></pre> </div> <p>One thing to watch out for in the REPL is that <code class="highlighter-rouge">=</code> is used both for assigning variables values and for testing the value of variables. For example <code class="highlighter-rouge">p = q</code> sometimes assigns <code class="highlighter-rouge">p</code> the value of <code class="highlighter-rouge">q</code> and sometimes checks if the values of <code class="highlighter-rouge">p</code> and <code class="highlighter-rouge">q</code> are the same. The REPL decides between assignment and test based on whether <code class="highlighter-rouge">p</code> already has a value or not. If <code class="highlighter-rouge">p</code> has a value, <code class="highlighter-rouge">p = q</code> is a test (returning <code class="highlighter-rouge">true</code> or <code class="highlighter-rouge">false</code>), and if <code class="highlighter-rouge">p</code> has no value <code class="highlighter-rouge">p = q</code> is an assignment. To unset a value for a variable, use the <code class="highlighter-rouge">unset</code> command. (This ambiguity is only really an issue in the REPL. When writing policy, the duality of <code class="highlighter-rouge">=</code> is actually beneficial.)</p> <div class="language-ruby highlighter-rouge"><pre class="highlight"><code><span class="o">&gt;</span> <span class="n">pi</span> <span class="o">=</span> <span class="mi">3</span>
+<span class="kp">false</span>
+<span class="o">&gt;</span> <span class="n">unset</span> <span class="n">pi</span>
+<span class="o">&gt;</span> <span class="n">pi</span> <span class="o">=</span> <span class="mi">3</span>
+<span class="o">&gt;</span> <span class="n">pi</span>
+<span class="mi">3</span>
+</code></pre> </div> <p>In addition to running queries, the REPL also lets you define rules:</p> <div class="language-ruby highlighter-rouge"><pre class="highlight"><code><span class="o">&gt;</span> <span class="nb">p</span><span class="p">[</span><span class="n">x</span><span class="p">]</span> <span class="p">:</span><span class="o">-</span> <span class="n">a</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">2</span><span class="p">,</span><span class="mi">3</span><span class="p">,</span><span class="mi">4</span><span class="p">],</span> <span class="n">a</span><span class="p">[</span><span class="n">x</span><span class="p">]</span>
+<span class="o">&gt;</span> <span class="nb">p</span><span class="p">[</span><span class="n">x</span><span class="p">],</span> <span class="n">x</span> <span class="o">&gt;</span> <span class="mi">1</span>
+<span class="o">+---+</span>
+<span class="o">|</span> <span class="n">x</span> <span class="o">|</span>
+<span class="o">+---+</span>
+<span class="o">|</span> <span class="mi">2</span> <span class="o">|</span>
+<span class="o">|</span> <span class="mi">3</span> <span class="o">|</span>
+<span class="o">+---+</span>
+</code></pre> </div> <p>The rule above defines a set of values that are the indices of elements in the array <code class="highlighter-rouge">a</code>.</p> <p>When you enter expressions into the OPA REPL, you are effectively running <em>queries</em>. The REPL output shows the values of variables in the expression that make the query <code class="highlighter-rouge">true</code>. If there is no set of variables that would make the query <code class="highlighter-rouge">true</code>, the REPL prints <code class="highlighter-rouge">false</code>. If there are no variables in the query and the query evaluates successfully, then the REPL just prints <code class="highlighter-rouge">true</code>.</p> <p>Quit out of the REPL by pressing Control-C or typing <code class="highlighter-rouge">exit</code>:</p> <div class="language-ruby highlighter-rouge"><pre class="highlight"><code><span class="o">&gt;</span> <span class="nb">exit</span>
+<span class="no">Exiting</span>
+</code></pre> </div> <h3>2. Create a data file and a policy module.</h3> <p>Let’s define a bit of JSON data that will be used in the example:</p> <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>cat &gt;data.json <span class="sh">&lt;&lt;EOF
+{
+    "servers": [
+        {"id": "s1", "name": "app", "protocols": ["https", "ssh"], "ports": ["p1", "p2", "p3"]},
+        {"id": "s2", "name": "db", "protocols": ["mysql"], "ports": ["p3"]},
+        {"id": "s3", "name": "cache", "protocols": ["memcache"], "ports": ["p3"]},
+        {"id": "s4", "name": "dev", "protocols": ["http"], "ports": ["p1", "p2"]}
+    ],
+    "networks": [
+        {"id": "n1", "public": false},
+        {"id": "n2", "public": false},
+        {"id": "n3", "public": true}
+    ],
+    "ports": [
+        {"id": "p1", "networks": ["n1"]},
+        {"id": "p2", "networks": ["n3"]},
+        {"id": "p3", "networks": ["n2"]}
+    ]
+}
+EOF
+</span></code></pre> </div> <p>Also, let’s include a rule that defines a set of servers that are attached to public networks:</p> <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>cat &gt;example.rego <span class="sh">&lt;&lt;EOF
+package opa.example
+
+import data.servers
+import data.networks
+import data.ports
+
+public_servers[s] :-
+    s = servers[_],
+    s.ports[_] = ports[i].id,
+    ports[i].networks[_] = networks[j].id,
+    networks[j].public = true
+EOF
+</span></code></pre> </div> <h3>3. Run the REPL with the data file and policy module as input.</h3> <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>opa run data.json example.rego
+</code></pre> </div> <p>You can now run queries against the various documents:</p> <div class="language-ruby highlighter-rouge"><pre class="highlight"><code><span class="o">&gt;</span> <span class="n">data</span><span class="p">.</span><span class="nf">servers</span><span class="p">[</span><span class="n">_</span><span class="p">].</span><span class="nf">id</span>
+<span class="o">+--------------------+</span>
+<span class="o">|</span> <span class="n">data</span><span class="p">.</span><span class="nf">servers</span><span class="p">[</span><span class="n">_</span><span class="p">].</span><span class="nf">id</span> <span class="o">|</span>
+<span class="o">+--------------------+</span>
+<span class="o">|</span> <span class="s2">"s1"</span>               <span class="o">|</span>
+<span class="o">|</span> <span class="s2">"s2"</span>               <span class="o">|</span>
+<span class="o">|</span> <span class="s2">"s3"</span>               <span class="o">|</span>
+<span class="o">|</span> <span class="s2">"s4"</span>               <span class="o">|</span>
+<span class="o">+--------------------+</span>
+<span class="o">&gt;</span> <span class="n">data</span><span class="p">.</span><span class="nf">opa</span><span class="p">.</span><span class="nf">example</span><span class="p">.</span><span class="nf">public_servers</span><span class="p">[</span><span class="n">x</span><span class="p">]</span>
+<span class="o">+-------------------------------------------------------------------------------+</span>
+<span class="o">|</span>                                       <span class="n">x</span>                                       <span class="o">|</span>
+<span class="o">+-------------------------------------------------------------------------------+</span>
+<span class="o">|</span> <span class="p">{</span><span class="s2">"id"</span><span class="ss">:"s1"</span><span class="p">,</span><span class="s2">"name"</span><span class="ss">:"app"</span><span class="p">,</span><span class="s2">"ports"</span><span class="p">:[</span><span class="s2">"p1"</span><span class="p">,</span><span class="s2">"p2"</span><span class="p">,</span><span class="s2">"p3"</span><span class="p">],</span><span class="s2">"protocols"</span><span class="p">:[</span><span class="s2">"https"</span><span class="p">,</span><span class="s2">"ssh"</span><span class="p">]}</span> <span class="o">|</span>
+<span class="o">|</span> <span class="p">{</span><span class="s2">"id"</span><span class="ss">:"s4"</span><span class="p">,</span><span class="s2">"name"</span><span class="ss">:"dev"</span><span class="p">,</span><span class="s2">"ports"</span><span class="p">:[</span><span class="s2">"p1"</span><span class="p">,</span><span class="s2">"p2"</span><span class="p">],</span><span class="s2">"protocols"</span><span class="p">:[</span><span class="s2">"http"</span><span class="p">]}</span>             <span class="o">|</span>
+<span class="o">+-------------------------------------------------------------------------------+</span>
+</code></pre> </div> <p>One powerful thing about Rego and the REPL is that you can run queries using the same syntax that you would use to lookup values.</p> <p>For example if <code class="highlighter-rouge">i</code> has value <code class="highlighter-rouge">0</code> then <code class="highlighter-rouge">data.servers[i]</code> returns the first value in the <code class="highlighter-rouge">data.servers</code> array:</p> <div class="language-ruby highlighter-rouge"><pre class="highlight"><code><span class="o">&gt;</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="o">&gt;</span> <span class="n">data</span><span class="p">.</span><span class="nf">servers</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+<span class="p">{</span>
+  <span class="s2">"id"</span><span class="p">:</span> <span class="s2">"s1"</span><span class="p">,</span>
+  <span class="s2">"name"</span><span class="p">:</span> <span class="s2">"app"</span><span class="p">,</span>
+  <span class="s2">"ports"</span><span class="p">:</span> <span class="p">[</span>
+      <span class="s2">"p1"</span><span class="p">,</span>
+      <span class="s2">"p2"</span><span class="p">,</span>
+      <span class="s2">"p3"</span>
+  <span class="p">],</span>
+  <span class="s2">"protocols"</span><span class="p">:</span> <span class="p">[</span>
+      <span class="s2">"https"</span><span class="p">,</span>
+      <span class="s2">"ssh"</span>
+  <span class="p">]</span>
+<span class="p">}</span>
+</code></pre> </div> <p>That same expression <code class="highlighter-rouge">data.servers[i]</code> when <code class="highlighter-rouge">i</code> has no value defines a query that returns all the values of <code class="highlighter-rouge">i</code> and <code class="highlighter-rouge">data.servers[i]</code>:</p> <div class="language-ruby highlighter-rouge"><pre class="highlight"><code><span class="o">&gt;</span> <span class="n">unset</span> <span class="n">i</span>
+<span class="o">&gt;</span> <span class="n">data</span><span class="p">.</span><span class="nf">servers</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+<span class="o">+---+-------------------------------------------------------------------------------+</span>
+<span class="o">|</span> <span class="n">i</span> <span class="o">|</span>                                <span class="n">data</span><span class="p">.</span><span class="nf">servers</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>                                <span class="o">|</span>
+<span class="o">+---+-------------------------------------------------------------------------------+</span>
+<span class="o">|</span> <span class="mi">0</span> <span class="o">|</span> <span class="p">{</span><span class="s2">"id"</span><span class="ss">:"s1"</span><span class="p">,</span><span class="s2">"name"</span><span class="ss">:"app"</span><span class="p">,</span><span class="s2">"ports"</span><span class="p">:[</span><span class="s2">"p1"</span><span class="p">,</span><span class="s2">"p2"</span><span class="p">,</span><span class="s2">"p3"</span><span class="p">],</span><span class="s2">"protocols"</span><span class="p">:[</span><span class="s2">"https"</span><span class="p">,</span><span class="s2">"ssh"</span><span class="p">]}</span> <span class="o">|</span>
+<span class="o">|</span> <span class="mi">1</span> <span class="o">|</span> <span class="p">{</span><span class="s2">"id"</span><span class="ss">:"s2"</span><span class="p">,</span><span class="s2">"name"</span><span class="ss">:"db"</span><span class="p">,</span><span class="s2">"ports"</span><span class="p">:[</span><span class="s2">"p3"</span><span class="p">],</span><span class="s2">"protocols"</span><span class="p">:[</span><span class="s2">"mysql"</span><span class="p">]}</span>                  <span class="o">|</span>
+<span class="o">|</span> <span class="mi">2</span> <span class="o">|</span> <span class="p">{</span><span class="s2">"id"</span><span class="ss">:"s3"</span><span class="p">,</span><span class="s2">"name"</span><span class="ss">:"cache"</span><span class="p">,</span><span class="s2">"ports"</span><span class="p">:[</span><span class="s2">"p3"</span><span class="p">],</span><span class="s2">"protocols"</span><span class="p">:[</span><span class="s2">"memcache"</span><span class="p">]}</span>            <span class="o">|</span>
+<span class="o">|</span> <span class="mi">3</span> <span class="o">|</span> <span class="p">{</span><span class="s2">"id"</span><span class="ss">:"s4"</span><span class="p">,</span><span class="s2">"name"</span><span class="ss">:"dev"</span><span class="p">,</span><span class="s2">"ports"</span><span class="p">:[</span><span class="s2">"p1"</span><span class="p">,</span><span class="s2">"p2"</span><span class="p">],</span><span class="s2">"protocols"</span><span class="p">:[</span><span class="s2">"http"</span><span class="p">]}</span>             <span class="o">|</span>
+<span class="o">+---+-------------------------------------------------------------------------------+</span>
+</code></pre> </div> <h3>4. Import and export documents.</h3> <p>The REPL also understands the <a href="/documentation/how-do-i-write-policies/#modules">Import and Package</a> directives.</p> <div class="language-ruby highlighter-rouge"><pre class="highlight"><code><span class="o">&gt;</span> <span class="n">import</span> <span class="n">data</span><span class="p">.</span><span class="nf">servers</span>
+<span class="o">&gt;</span> <span class="n">servers</span><span class="p">[</span><span class="n">i</span><span class="p">].</span><span class="nf">ports</span><span class="p">[</span><span class="n">_</span><span class="p">]</span> <span class="o">=</span> <span class="s2">"p2"</span><span class="p">,</span> <span class="n">servers</span><span class="p">[</span><span class="n">i</span><span class="p">].</span><span class="nf">id</span> <span class="o">=</span> <span class="nb">id</span>
+<span class="o">+---+------+</span>
+<span class="o">|</span> <span class="n">i</span> <span class="o">|</span>  <span class="nb">id</span>  <span class="o">|</span>
+<span class="o">+---+------+</span>
+<span class="o">|</span> <span class="mi">0</span> <span class="o">|</span> <span class="s2">"s1"</span> <span class="o">|</span>
+<span class="o">|</span> <span class="mi">3</span> <span class="o">|</span> <span class="s2">"s4"</span> <span class="o">|</span>
+<span class="o">+---+------+</span>
+</code></pre> </div> <div class="language-ruby highlighter-rouge"><pre class="highlight"><code><span class="o">&gt;</span> <span class="n">package</span> <span class="n">opa</span><span class="p">.</span><span class="nf">example</span>
+<span class="o">&gt;</span> <span class="n">public_servers</span><span class="p">[</span><span class="n">x</span><span class="p">],</span> <span class="n">x</span><span class="p">.</span><span class="nf">protocols</span><span class="p">[</span><span class="n">_</span><span class="p">]</span> <span class="o">=</span> <span class="s2">"http"</span>
+<span class="o">+-------------------------------------------------------------------+</span>
+<span class="o">|</span>                                 <span class="n">x</span>                                 <span class="o">|</span>
+<span class="o">+-------------------------------------------------------------------+</span>
+<span class="o">|</span> <span class="p">{</span><span class="s2">"id"</span><span class="ss">:"s4"</span><span class="p">,</span><span class="s2">"name"</span><span class="ss">:"dev"</span><span class="p">,</span><span class="s2">"ports"</span><span class="p">:[</span><span class="s2">"p1"</span><span class="p">,</span><span class="s2">"p2"</span><span class="p">],</span><span class="s2">"protocols"</span><span class="p">:[</span><span class="s2">"http"</span><span class="p">]}</span> <span class="o">|</span>
+<span class="o">+-------------------------------------------------------------------+</span>
+</code></pre> </div> <h3>5. Define a rule to identify servers in violation of our security policy.</h3> <div class="language-ruby highlighter-rouge"><pre class="highlight"><code><span class="o">&gt;</span> <span class="n">import</span> <span class="n">data</span><span class="p">.</span><span class="nf">servers</span>
+<span class="o">&gt;</span> <span class="n">violations</span><span class="p">[</span><span class="n">s</span><span class="p">]</span> <span class="p">:</span><span class="o">-</span>
+  <span class="n">s</span> <span class="o">=</span> <span class="n">servers</span><span class="p">[</span><span class="n">_</span><span class="p">],</span>
+  <span class="n">s</span><span class="p">.</span><span class="nf">protocols</span><span class="p">[</span><span class="n">_</span><span class="p">]</span> <span class="o">=</span> <span class="s2">"http"</span><span class="p">,</span>
+  <span class="n">public_servers</span><span class="p">[</span><span class="n">s</span><span class="p">]</span>
+<span class="o">&gt;</span> <span class="n">violations</span><span class="p">[</span><span class="n">server</span><span class="p">]</span>
+<span class="o">+-------------------------------------------------------------------+</span>
+<span class="o">|</span>                              <span class="n">server</span>                               <span class="o">|</span>
+<span class="o">+-------------------------------------------------------------------+</span>
+<span class="o">|</span> <span class="p">{</span><span class="s2">"id"</span><span class="ss">:"s4"</span><span class="p">,</span><span class="s2">"name"</span><span class="ss">:"dev"</span><span class="p">,</span><span class="s2">"ports"</span><span class="p">:[</span><span class="s2">"p1"</span><span class="p">,</span><span class="s2">"p2"</span><span class="p">],</span><span class="s2">"protocols"</span><span class="p">:[</span><span class="s2">"http"</span><span class="p">]}</span> <span class="o">|</span>
+<span class="o">+-------------------------------------------------------------------+</span>
+</code></pre> </div> <blockquote class="opa-tip"> <p>The REPL accepts multi-line input and will change appearance when it detects multi-line input.</p> </blockquote> </div> <footer class="opa-footer"> <p class="opa-footer--text"> <a class="opa-footer--github--link" href="https://github.com/open-policy-agent/opa"><img src="/assets/icon-github.svg" class="opa-footer--github--icon" width="16" height="16" alt="icon-github.svg">open-policy-agent/opa</a> <a href="https://travis-ci.org/open-policy-agent/opa"><img class="opa-footer--github--ci" width="90" height="20" src="https://travis-ci.org/open-policy-agent/opa.svg?branch=master" alt="Build Status"></a> </p> <p class="opa-footer--text"> Join the discussion on <a class="opa-footer--link" href="https://openpolicyagent.slack.com">Slack</a> or <a class="opa-footer--link" href="https://groups.google.com/forum/?hl=en#!forum/open-policy-agent">Google Groups</a>. Report a bug or request a feature using <a class="opa-footer--link" href="https://github.com/open-policy-agent/opa/issues">GitHub Issues</a>. </p> <p class="opa-footer--text"> © 2016 Open Policy Agent contributors. Licensed under the <a class="opa-footer--link" href="http://www.apache.org/licenses/LICENSE-2.0">Apache License, Version 2.0</a>. For information about contributing, see <a class="opa-footer--link" href="https://github.com/open-policy-agent/opa/blob/master/CONTRIBUTING.md">CONTRIBUTING.md</a>. </p> </footer> </body> </html>
