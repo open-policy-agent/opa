@@ -66,7 +66,7 @@ $ mkdir -p policies
 ### 2. Download the latest version of OPA.
 
 ```shell
-$ curl -L https://github.com/open-policy-agent/opa/releases/download/v0.1.0-rc3/opa_linux_amd64 > opa
+$ curl -L https://github.com/open-policy-agent/opa/releases/download/v0.1.0/opa_linux_amd64 > opa
 $ chmod u+x opa
 ```
 
@@ -74,7 +74,7 @@ $ chmod u+x opa
 ### 3. Run OPA in server mode with logging enabled.
 
 ```shell
-$ opa run -s --alsologtostderr 1 --v 2 --policy-dir policies
+$ ./opa run -s --alsologtostderr 1 --v 2 --policy-dir policies
 ```
 
 OPA will run until it receives a signal to stop. Open another terminal to continue with the rest of the example.
@@ -82,7 +82,7 @@ OPA will run until it receives a signal to stop. Open another terminal to contin
 ### 4. Download the [open-policy-agent/docker-authz-plugin](https://github.com/open-policy-agent/docker-authz-plugin) executable.
 
 ```shell
-$ curl -L https://github.com/open-policy-agent/docker-authz-plugin/releases/download/v0.1.0-rc1/docker-authz-plugin_linux_amd64 > docker-authz-plugin
+$ curl -L https://github.com/open-policy-agent/docker-authz-plugin/releases/download/v0.1.0/docker-authz-plugin_linux_amd64 > docker-authz-plugin
 $ chmod u+x docker-authz-plugin
 ```
 
