@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+  {% include head.html %}
+  <body>
+    {% include nav-main.html %}
+
+    <header class="opa-header">
+      <p class="opa-header--fork-me"><a href="https://github.com/open-policy-agent/opa">{% img '{{assets["github-corner-right.svg"].logical_path}}' alt:'Fork me on GitHub' %}</a></p>
+
+      <div class="opa-content">
+        <div class="opa-header--abstract">
+          {% include nav-documentation.html %}
+
+          {% contentblock header %}
+        </div>
+      </div>
+    </header>
+
+    <div class="opa-content">
+      {% contentblock body %}
+    </div>
+
+    {% include footer.html %}
+  </body>
+</html>
