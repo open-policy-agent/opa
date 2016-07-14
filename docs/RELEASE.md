@@ -56,7 +56,7 @@ CHANGELOG.md snippet and uploading the packages from the build phase.
 1. Obtain copy of remote repository.
 
 	```
-	git clone git@github.com/open-policy-agent/opa.git
+	git clone git@github.com:open-policy-agent/opa.git
 	```
 
 1. Checkout release tag.
