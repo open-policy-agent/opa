@@ -4,7 +4,6 @@
 
 # build artifacts
 coverage
-ast/parser.go
 opa
 opa_linux_amd64
 opa_darwin_amd64
