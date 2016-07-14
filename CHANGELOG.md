@@ -3,15 +3,17 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## 0.1.0
 
 ### Language
 
 - Basic value types: null, boolean, number, string, object, and array
 - Reference and variables types
+- Array comprehensions
+- Built-in functions for basic arithmetic and aggregation
 - Incremental and complete rule definitions
-- Negation of expressions
-- Packages and imports
+- Negation and disjunction
+- Module system
 
 ### Compiler
 
@@ -30,12 +32,11 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Tooling
 
-- Interactive shell that can be run to experiment with ad-hoc queries
+- REPL that can be run to experiment with ad-hoc queries
 
 ### APIs
 
-- Server mode supports HTTP APIs that allow callers to push in data and
-  execute policy queries.
+- Server mode supports HTTP APIs to manage policies, push and query documents, and execute ad-hoc queries.
 
 ### Infrastructure
 
@@ -44,6 +45,7 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Documentation
 
-- Architectural overview of OPA and design philosophy
+- Introductions to policy, policy-enabling, and how OPA works
 - Language reference that serves as guide for new users
-- Hello World example to give people something to try
+- Tutorial that introduces users to the REPL
+- Tutorial that introduces users to policy-enabling with a Docker Authorization plugin
