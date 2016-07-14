@@ -38,14 +38,11 @@ $ chmod u+x opa
 $ ./opa version
 ```
 
-## Go Source
+## Go Source (Latest)
 
 ```shell
-$ git clone https://github.com/open-policy-agent/opa.git $GOPATH/src/github.com/open-policy-agent/opa
-$ cd $GOPATH/src/github.com/open-policy-agent/opa
-$ make deps
-$ make
-$ ./opa version
+$ go get github.com/open-policy-agent/opa
+$ $GOPATH/bin/opa
 ```
 
 {% endcontentfor %}
