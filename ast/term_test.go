@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
-	"sort"
 	"testing"
 )
 
@@ -70,101 +69,6 @@ func TestObjectSetOperations(t *testing.T) {
 
 	if !ok || !r3.Equal(expected) {
 		t.Errorf("Expected c.Merge(d) to equal %v but got: %v", expected, r3)
-	}
-}
-
-func TestQuery(t *testing.T) {
-
-	stmt := MustParseStatement(`
-		{
-			"a": [
-				[true, {"b": [4]}, {"c": "d"}]
-			],
-			"e": {
-				100: "true"
-			}
-		}
-	`)
-
-	obj := stmt.(Body)[0].Terms.(*Term).Value.(Object)
-
-	var tests = []struct {
-		note     string
-		ref      interface{}
-		expected interface{}
-	}{
-		{"object base", `a[0][1]`, []string{`[{"b": [4]}]`, "[{}]"}},
-		{"array base", `a[0][1]["b"]`, []string{"[[4]]", "[{}]"}},
-		{"array non-base", `a[0][1]["b"][0]`, []string{"[4]", "[{}]"}},
-		{"object non-base", `a[0][2]["c"]`, []string{`["d"]`, "[{}]"}},
-		{"object nested", `e[100]`, []string{`["true"]`, "[{}]"}},
-		{"vars", `a[i][j][k]`, []string{`[[4], "d"]`, `[{i:0, j:1, k:"b"}, {i:0, j:2, k:"c"}]`}},
-		{"vars/mixed", `a[0][j][k]`, []string{`[[4], "d"]`, `[{j:1, k:"b"}, {j:2, k:"c"}]`}},
-		{"array bad index type", `a["0"]`, nil},
-		{"array bad index value", "a[1]", nil},
-		{"array bad element type", "a[0][0][1]", nil},
-		{"object bad key", `e["hello"]`, nil},
-		{"object bad value type", "e[100][1]", nil},
-	}
-
-	for i, tc := range tests {
-
-		var ref Ref
-		switch r := tc.ref.(type) {
-		case Ref:
-			ref = r
-		case string:
-			ref = MustParseStatement(r).(Body)[0].Terms.(*Term).Value.(Ref)
-			head := String(ref[0].Value.(Var))
-			ref[0] = &Term{Value: head}
-		}
-
-		var collectedKeys Array
-		var collectedValues Array
-		collect := func(keys map[Var]Value, v Value) error {
-			collectedValues = append(collectedValues, &Term{Value: v})
-			var obj Object
-			var tmp []string
-			for k := range keys {
-				tmp = append(tmp, string(k))
-			}
-			sort.Strings(tmp)
-			for _, k := range tmp {
-				obj = append(obj, [2]*Term{&Term{Value: Var(k)}, &Term{Value: keys[Var(k)]}})
-			}
-			collectedKeys = append(collectedKeys, &Term{Value: obj})
-			return nil
-		}
-
-		err := obj.Query(ref, collect)
-
-		switch e := tc.expected.(type) {
-
-		case []string:
-			if err != nil {
-				t.Errorf("Test case %d (%v): unexpected error: %v", i+1, tc.note, err)
-				continue
-			}
-
-			expectedValues := MustParseStatement(e[0]).(Body)[0].Terms.(*Term).Value
-
-			if !collectedValues.Equal(expectedValues) {
-				t.Errorf("Test case %d (%v): expected %v but got: %v", i+1, tc.note, expectedValues, collectedValues)
-				continue
-			}
-
-			expectedKeys := MustParseStatement(e[1]).(Body)[0].Terms.(*Term).Value
-
-			if !collectedKeys.Equal(expectedKeys) {
-				t.Errorf("Test case %d (%v): expected keys %v but got: %v", i+1, tc.note, expectedKeys, collectedKeys)
-			}
-		case error:
-			if !reflect.DeepEqual(e, err) {
-				t.Errorf("Test case %d (%v): expected error %v but got: %v", i+1, tc.note, e, err)
-				continue
-			}
-		}
-
 	}
 }
 

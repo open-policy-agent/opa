@@ -541,43 +541,12 @@ func (arr Array) IsGround() bool {
 	return termSliceIsGround(arr)
 }
 
-// Query invokes the iterator for each referenced value inside the array.
-func (arr Array) Query(ref Ref, iter QueryIterator) error {
-	return arr.queryRec(ref, make(map[Var]Value), iter)
-}
-
 func (arr Array) String() string {
 	var buf []string
 	for _, e := range arr {
 		buf = append(buf, e.String())
 	}
 	return "[" + strings.Join(buf, ", ") + "]"
-}
-
-func (arr Array) queryRec(ref Ref, keys map[Var]Value, iter QueryIterator) error {
-	if len(ref) == 0 {
-		return iter(keys, arr)
-	}
-	switch head := ref[0].Value.(type) {
-	case Var:
-		tail := ref[1:]
-		for i, v := range arr {
-			keys[head] = Number(i)
-			if err := queryRec(v.Value, ref, tail, keys, iter, true); err != nil {
-				return err
-			}
-		}
-		return nil
-	case Number:
-		idx := int(head)
-		if len(arr) <= idx {
-			return nil
-		}
-		tail := ref[1:]
-		return queryRec(arr[idx].Value, ref, tail, keys, iter, false)
-	default:
-		return nil
-	}
 }
 
 // Object represents an object as defined by the language. Objects are similar to
@@ -702,46 +671,12 @@ func (obj Object) Merge(other Object) (Object, bool) {
 	return r, true
 }
 
-// Query invokes the iterator for each referenced value inside the object.
-func (obj Object) Query(ref Ref, iter QueryIterator) error {
-	return obj.queryRec(ref, make(map[Var]Value), iter)
-}
-
 func (obj Object) String() string {
 	var buf []string
 	for _, p := range obj {
 		buf = append(buf, fmt.Sprintf("%s: %s", p[0], p[1]))
 	}
 	return "{" + strings.Join(buf, ", ") + "}"
-}
-
-func (obj Object) queryRec(ref Ref, keys map[Var]Value, iter QueryIterator) error {
-	if len(ref) == 0 {
-		return iter(keys, obj)
-	}
-	switch head := ref[0].Value.(type) {
-	case Var:
-		tail := ref[1:]
-		for _, i := range obj {
-			keys[head] = i[0].Value
-			if err := queryRec(i[1].Value, ref, tail, keys, iter, true); err != nil {
-				return err
-			}
-		}
-		return nil
-
-	default:
-		tail := ref[1:]
-		for _, i := range obj {
-			if i[0].Value.Equal(head) {
-				if err := queryRec(i[1].Value, ref, tail, keys, iter, false); err != nil {
-					return err
-				}
-				break
-			}
-		}
-		return nil
-	}
 }
 
 // ArrayComprehension represents an array comprehension as defined in the language.
@@ -784,26 +719,6 @@ func (ac *ArrayComprehension) IsGround() bool {
 
 func (ac *ArrayComprehension) String() string {
 	return "[" + ac.Term.String() + " | " + ac.Body.String() + "]"
-}
-
-func queryRec(v Value, ref Ref, tail Ref, keys map[Var]Value, iter QueryIterator, skipScalar bool) error {
-	if len(tail) == 0 {
-		if err := iter(keys, v); err != nil {
-			return err
-		}
-	} else {
-		switch v := v.(type) {
-		case Array:
-			if err := v.queryRec(tail, keys, iter); err != nil {
-				return err
-			}
-		case Object:
-			if err := v.queryRec(tail, keys, iter); err != nil {
-				return err
-			}
-		}
-	}
-	return nil
 }
 
 func termSliceEqual(a, b []*Term) bool {

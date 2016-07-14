@@ -475,7 +475,22 @@ func TestTopDownVirtualDocs(t *testing.T) {
 		{"output: object value", []string{"p[x] = y :- q[x] = y", "q[k] = v :- b[k] = v"}, `{"v1": "hello", "v2": "goodbye"}`},
 		{"output: object embedded", []string{"p[k] = v :- {k: [q[k]]} = {k: [v]}", `q[x] = y :- b[x] = y`}, `{"v1": "hello", "v2": "goodbye"}`},
 		{"output: object dereference ground", []string{`p[i] :- q[i]["x"][1] = false`, `q[i] = x :- x = c[i]`}, "[0]"},
-		{"output: object defererence non-ground", []string{`p[r] :- q[x][y][z] = false, r = [x, y, z]`, `q[i] = x :- x = c[i]`}, `[[0, "x", 1], [0, "z", "q"]]`},
+		{"output: object defererence non-ground", []string{
+			`p[r] :- q[x][y][z] = false, r = [x, y, z]`,
+			`q[i] = x :- x = c[i]`},
+			`[[0, "x", 1], [0, "z", "q"]]`},
+		{"output: object dereference array of refs", []string{
+			"p[x] :- q[_][0].c[_] = x",
+			"q[k] = v :- d.e[_] = k, v = [ r | r = l[_] ]",
+		}, "[1,1,2,2,3,3,4,4]"},
+		{"output: object dereference array of refs within object", []string{
+			"p[x] :- q[_].x[0].c[_] = x",
+			`q[k] = v :- d.e[_] = k, v = {"x": [r | r = l[_]]}`,
+		}, "[1,1,2,2,3,3,4,4]"},
+		{"output: object dereference object with key refs", []string{
+			"p :- q.bar[1].alice[0] = 1",
+			"q[k] = v :- d.e[_] = k, v = [x | x = {l[_].a: [1]}]",
+		}, "true"},
 		{"output: object var binding", []string{
 			"p[z] :- q[x] = y, z = [x, y]",
 			`q[k] = v :- v = [x, y], x = "a", y = "b", k = "foo"`},
@@ -516,7 +531,11 @@ func TestTopDownVirtualDocs(t *testing.T) {
 		{"no suffix: complete incr", []string{"p = true :- not q", "q = true :- false", "q = false :- true"}, "true"},
 		{"no suffix: object", []string{"p[x] = y :- q = o, o[x] = y", "q[x] = y :- b[x] = y"}, `{"v1": "hello", "v2": "goodbye"}`},
 		{"no suffix: object incr", []string{"p[x] = y :- q = o, o[x] = y", "q[x] = y :- b[x] = y", "q[x1] = y1 :- b[x1] = y1"}, fmt.Errorf("evaluation error (code: 2): multiple values for data.q: rules must produce exactly one value for object document keys: check rule definition(s): q")},
-		{"no suffix: object incr", []string{"p[x] = y :- q = o, o[x] = y", "q[x] = y :- b[x] = y", `q[x1] = y1 :- d["e"][y1] = x1`}, `{"v1": "hello", "v2": "goodbye", "bar": 0, "baz": 1}`},
+		{"no suffix: object incr", []string{
+			"p[x] = y :- q = o, o[x] = y",
+			"q[x] = y :- b[x] = y",
+			`q[x1] = y1 :- d["e"][y1] = x1`},
+			`{"v1": "hello", "v2": "goodbye", "bar": 0, "baz": 1}`},
 		{"no suffix: chained", []string{
 			"p = true :- q = x, x[i] = 4",
 			"q[k] = v :- r = x, x[k] = v",
@@ -690,6 +709,10 @@ func TestTopDownComprehensions(t *testing.T) {
 		{"embedded array", []string{"p[i] :- xs = [[x | x = a[_]]], xs[0][i] > 1"}, "[1,2,3]"},
 		{"embedded object", []string{`p[i] :- xs = {"a": [x | x = a[_]]}, xs["a"][i] > 1`}, "[1,2,3]"},
 		{"closure", []string{"p[x] :- y = 1, x = [y | y = 1]"}, "[[1]]"},
+		{"dereference embedded", []string{
+			"p[x] :- q.a[2][i] = x",
+			`q[k] = v :- k = "a", v = [y | i[_] = _, i = y, i = [ z | z = a[_]] ]`,
+		}, "[1,2,3,4]"},
 	}
 
 	data := loadSmallTestData()
