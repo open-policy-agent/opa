@@ -126,13 +126,34 @@ func TestCompilerCheckSafetyHead(t *testing.T) {
 	unboundKey[x] = y :- q[y] = {"foo": [1,2,[{"bar": y}]]}
 	unboundVal[y] = x :- q[y] = {"foo": [1,2,[{"bar": y}]]}
 	unboundCompositeVal[y] = [{"foo": x, "bar": y}] :- q[y] = {"foo": [1,2,[{"bar": y}]]}
+	unboundCompositeKey[[{"x": x}]] :- q[y]
 	`)
 	compileStages(c, "", "checkSafetyHead")
 
-	if len(c.Errors) != 3 {
-		t.Errorf("Expected exactly 3 errors but got: %v", c.Errors)
-		return
+	makeErrMsg := func(rule, v string) string {
+		return fmt.Sprintf("%s: %s is unsafe (variable %s must appear in at least one expression within the body of %s)", rule, v, v, rule)
 	}
+
+	expected := []string{
+		makeErrMsg("unboundCompositeKey", "x"),
+		makeErrMsg("unboundCompositeVal", "x"),
+		makeErrMsg("unboundKey", "x"),
+		makeErrMsg("unboundVal", "x"),
+	}
+
+	result := compilerErrsToStringSlice(c.Errors)
+	sort.Strings(expected)
+
+	if len(result) != len(expected) {
+		t.Fatalf("Expected %d:\n%v\nBut got %d:\n%v", len(expected), strings.Join(expected, "\n"), len(result), strings.Join(result, "\n"))
+	}
+
+	for i := range result {
+		if expected[i] != result[i] {
+			t.Errorf("Expected %v but got: %v", expected[i], result[i])
+		}
+	}
+
 }
 
 func TestCompilerCheckSafetyBodyReordering(t *testing.T) {
