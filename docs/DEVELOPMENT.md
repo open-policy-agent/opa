@@ -114,3 +114,5 @@ If you need to update the dependencies:
 ## Rego
 
 If you need to modify the Rego syntax you must update ast/rego.peg. Both `make build` and `make test` will re-generate the parser but if you want to test the parser generation explicitly you can run `make generate`.
+
+If you are modifying the Rego syntax you must commit the parser source file (ast/parser.go) that `make generate` produces when you are done. The generated code is kept in the repository so that commands such as `go get` work.
