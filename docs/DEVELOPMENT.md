@@ -29,8 +29,8 @@ new binary in the top level directory ("opa").
 
 Verify the build was successful by running `opa version`.
 
-You can re-build the project with `make build` and execute all of the tests
-with `make test`.
+You can re-build the project with `make build`, execute all of the tests
+with `make test`, and execute all of the performance benchmarks with `make perf`.
 
 The static analysis checks (i.e., `go fmt`, `golint`, and `go vet` can be run
 with `make check`).
