@@ -765,33 +765,28 @@ func evalRefRulePartialObjectDoc(ctx *Context, ref ast.Ref, path ast.Ref, rule *
 
 	key := PlugValue(suffix[0].Value, ctx)
 
-	// There are two cases being handled below. The first case is for when
-	// the object key is ground in the original expression or there is a
-	// binding available for the variable in the original expression.
+	// There are two cases being handled below. The first deals with non-ground
+	// keys. If the key is not ground, we evaluate the child query and copy the
+	// key binding from the child context into this context. The second deals
+	// with ground keys. In that case, we initialize the child context with a key
+	// binding and evaluate the child query. This reduces the amount of processing
+	// the child query has to do.
 	//
-	// In the first case, the rule is evaluated and the value of the key variable
-	// in the child context is copied into the current context.
-	//
-	// In the second case, the rule is evaluated with the value of the key variable
-	// from this context.
-	//
-	// NOTE: if at some point multiple variables are supported here, it may be
-	// cleaner to generalize this (instead of having two separate branches).
+	// In the first case, we do not unify the keys because the unification does not
+	// namespace variables within their context. As a result, we could end up with
+	// a recursive binding if we unified "key" with "rule.Key.Value". If unification
+	// is improved to handle namespacing, this can be revisited.
 	if !key.IsGround() {
 		child := ctx.Child(rule.Body, storage.NewBindings())
 		return Eval(child, func(child *Context) error {
-			key := child.Binding(rule.Key.Value)
-			if key == nil {
-				return fmt.Errorf("unbound variable: %v", rule.Key)
+			key := PlugValue(rule.Key.Value, child)
+			if !key.IsGround() {
+				return fmt.Errorf("unbound variable: %v", key)
 			}
-			key = PlugValue(key, child)
-
-			value := child.Binding(rule.Value.Value)
-			if value == nil {
-				return fmt.Errorf("unbound variable: %v", rule.Value)
+			value := PlugValue(rule.Value.Value, child)
+			if !value.IsGround() {
+				return fmt.Errorf("unbound variable: %v", value)
 			}
-			value = PlugValue(value, child)
-
 			undo := ctx.Bind(suffix[0].Value.(ast.Var), key, nil)
 			err := evalRefRuleResult(ctx, ref, ref[len(path)+1:], value, iter)
 			ctx.Unbind(undo)
@@ -799,23 +794,29 @@ func evalRefRulePartialObjectDoc(ctx *Context, ref ast.Ref, path ast.Ref, rule *
 		})
 	}
 
-	bindings := storage.NewBindings()
-	bindings.Put(rule.Key.Value, key)
-	child := ctx.Child(rule.Body, bindings)
-
-	return Eval(child, func(child *Context) error {
-		value := child.Binding(rule.Value.Value)
-		if value == nil {
-			return fmt.Errorf("unbound variable: %v", rule.Value)
-		}
-		value = PlugValue(value, child)
-		return evalRefRuleResult(ctx, ref, ref[len(path)+1:], value.(ast.Value), iter)
+	child := ctx.Child(rule.Body, storage.NewBindings())
+	_, err := evalEqUnify(child, key, rule.Key.Value, nil, func(child *Context) error {
+		return Eval(child, func(child *Context) error {
+			value := PlugValue(rule.Value.Value, child)
+			if !value.IsGround() {
+				return fmt.Errorf("unbound variable: %v", value)
+			}
+			return evalRefRuleResult(ctx, ref, ref[len(path)+1:], value.(ast.Value), iter)
+		})
 	})
+
+	return err
+
 }
 
 func evalRefRulePartialObjectDocFull(ctx *Context, ref ast.Ref, rules []*ast.Rule, iter Iterator) error {
 
 	var result ast.Object
+
+	// keys is a set of key bindings that we obtain while
+	// evaluating the child query. If we obtain multiple
+	// values for a single key, it represents a conflictErr
+	// and we raise an error.
 	keys := util.NewHashMap(func(a, b util.T) bool {
 		return a.(ast.Value).Equal(b.(ast.Value))
 	}, func(x util.T) int {
@@ -828,12 +829,18 @@ func evalRefRulePartialObjectDocFull(ctx *Context, ref ast.Ref, rules []*ast.Rul
 		child := ctx.Child(rule.Body, bindings)
 
 		err := Eval(child, func(child *Context) error {
-			key := PlugValue(child.Binding(rule.Key.Value), child)
+			key := PlugValue(rule.Key.Value, child)
+			if !key.IsGround() {
+				return fmt.Errorf("unbound variable: %v", key)
+			}
 			if _, ok := keys.Get(key); ok {
 				return conflictErr(ref, "object document keys", rule)
 			}
 			keys.Put(key, ast.Null{})
-			value := PlugValue(child.Binding(rule.Value.Value), child)
+			value := PlugValue(rule.Value.Value, child)
+			if !value.IsGround() {
+				return fmt.Errorf("unbound variable: %v", value)
+			}
 			result = append(result, ast.Item(&ast.Term{Value: key}, &ast.Term{Value: value}))
 			return nil
 		})
@@ -849,43 +856,45 @@ func evalRefRulePartialObjectDocFull(ctx *Context, ref ast.Ref, rules []*ast.Rul
 func evalRefRulePartialSetDoc(ctx *Context, ref ast.Ref, path ast.Ref, rule *ast.Rule, iter Iterator) error {
 
 	suffix := ref[len(path):]
-
-	if len(suffix) > 1 {
-		// TODO(tsandall): attempting to dereference set lookup
-		// results in undefined value, catch this using static analysis
-		return nil
-	}
-
-	// See comment in evalRefRulePartialObjectDoc about the two branches below.
-	// The behaviour is similar for sets.
-
 	key := PlugValue(suffix[0].Value, ctx)
 
+	// See comment in evalRefRulePartialObjectDoc about the two branches below.
 	if !key.IsGround() {
 		child := ctx.Child(rule.Body, storage.NewBindings())
+
+		// TODO(tsandall): Currently this evaluates the child query without any
+		// bindings from the current context. In cases where the key is partially
+		// ground this may be quite inefficient. An optimization would be to unify
+		// variables in the child query with ground values in the current context/query.
+		// To do this, the unification may need to be improved to namespace variables
+		// across contexts (otherwise we could end up with recursive bindings).
 		return Eval(child, func(child *Context) error {
-			value := PlugValue(child.Binding(rule.Key.Value), child)
-			if value == nil {
-				return fmt.Errorf("unbound variable: %v", rule.Key)
+			value := PlugValue(rule.Key.Value, child)
+			if !value.IsGround() {
+				return fmt.Errorf("unbound variable: %v", rule.Value)
 			}
-			// Take the output of the child context and bind (1) the value to
-			// the variable from this context and (2) the reference to true
-			// so that expression will be defined. E.g., given a simple rule:
-			// "p = true :- q[x]", we say that "p" should be defined if "q"
-			// is defined for some value "x".
-			return ContinueN(ctx, iter, key, value, ref[:len(path)+1], ast.Boolean(true))
+
+			undo, err := evalEqUnify(ctx, key, value, nil, func(child *Context) error {
+				return Continue(ctx, ref[:len(path)+1], ast.Boolean(true), iter)
+			})
+
+			if err != nil {
+				return err
+			}
+			ctx.Unbind(undo)
+			return nil
 		})
 	}
 
-	bindings := storage.NewBindings()
-	bindings.Put(rule.Key.Value, key)
-	child := ctx.Child(rule.Body, bindings)
+	child := ctx.Child(rule.Body, storage.NewBindings())
 
-	return Eval(child, func(child *Context) error {
-		// See comment above for explanation of why the reference is bound to true.
-		return Continue(ctx, ref[:len(path)+1], ast.Boolean(true), iter)
+	_, err := evalEqUnify(child, key, rule.Key.Value, nil, func(child *Context) error {
+		return Eval(child, func(child *Context) error {
+			return Continue(ctx, ref[:len(path)+1], ast.Boolean(true), iter)
+		})
 	})
 
+	return err
 }
 
 func evalRefRuleResult(ctx *Context, ref ast.Ref, suffix ast.Ref, result ast.Value, iter Iterator) error {
@@ -1328,6 +1337,7 @@ func topDownQueryPartialObjectDoc(params *QueryParams, rules []*ast.Rule) (inter
 
 	result := map[string]interface{}{}
 
+	// TODO(tsandall): fix to handle conflicting keys
 	for _, rule := range rules {
 		ctx := &Context{
 			Query:     rule.Body,
@@ -1336,18 +1346,16 @@ func topDownQueryPartialObjectDoc(params *QueryParams, rules []*ast.Rule) (inter
 			DataStore: params.DataStore,
 			Tracer:    params.Tracer,
 		}
-		key := rule.Key.Value.(ast.Var)
-		value := rule.Value.Value.(ast.Var)
 		err := Eval(ctx, func(ctx *Context) error {
-			key, err := ValueToInterface(key, ctx)
+			key, err := ValueToInterface(rule.Key.Value, ctx)
 			if err != nil {
 				return err
 			}
 			asStr, ok := key.(string)
 			if !ok {
-				return fmt.Errorf("illegal object key type %T: %v", key, key)
+				return fmt.Errorf("illegal object key: %v", key)
 			}
-			value, err := ValueToInterface(value, ctx)
+			value, err := ValueToInterface(rule.Value.Value, ctx)
 			if err != nil {
 				return err
 			}
@@ -1372,13 +1380,12 @@ func topDownQueryPartialSetDoc(params *QueryParams, rules []*ast.Rule) (interfac
 			DataStore: params.DataStore,
 			Tracer:    params.Tracer,
 		}
-		key := rule.Key.Value.(ast.Var)
 		err := Eval(ctx, func(ctx *Context) error {
-			value, err := ValueToInterface(key, ctx)
+			r, err := ValueToInterface(rule.Key.Value, ctx)
 			if err != nil {
 				return err
 			}
-			result = append(result, value)
+			result = append(result, r)
 			return nil
 		})
 

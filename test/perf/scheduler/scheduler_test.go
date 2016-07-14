@@ -471,15 +471,14 @@ rcs_for_pod[pod_id] = rc_ids :-
                       x = [pod_id, rc_id],
                       selector_matches[x]]
 
-selector_matches[x] :-
+selector_matches[[pod_id, rc_id]] :-
     pods[pod_id], rcs[rc_id],
     x = [pod_id, rc_id],
     not selector_not_matches[x]
 
-selector_not_matches[x] :-
+selector_not_matches[[pod_id, rc_id]] :-
     pods[pod_id] = pod,
     rcs[rc_id] = rc,
-    x = [pod_id, rc_id],
     rc.spec.selector[k] = v,
     not pod.metadata.labels[k] = v
 

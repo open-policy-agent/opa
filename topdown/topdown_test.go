@@ -276,6 +276,7 @@ func TestTopDownPartialSetDoc(t *testing.T) {
 		{"nested composites", "p[x] :- f[i] = x", `[{"xs": [1.0], "ys": [2.0]}, {"xs": [2.0], "ys": [3.0]}]`},
 		{"deep ref/heterogeneous", "p[x] :- c[i][j][k] = x", `[null, 3.14159, true, false, true, false, "foo"]`},
 		{"composite var value", "p[x] :- x = [i, a[i]]", "[[0,1],[1,2],[2,3],[3,4]]"},
+		{"composite key", `p[[x,{"y": y}]] :- x = 1, y = 2`, `[[1,{"y": 2}]]`},
 	}
 
 	data := loadSmallTestData()
@@ -293,8 +294,13 @@ func TestTopDownPartialObjectDoc(t *testing.T) {
 	}{
 		{"identity", "p[k] = v :- b[k] = v", `{"v1": "hello", "v2": "goodbye"}`},
 		{"composites", "p[k] = v :- d[k] = v", `{"e": ["bar", "baz"]}`},
-		{"non-string key", "p[k] = v :- a[k] = v", fmt.Errorf("illegal object key type float64: 0")},
+		{"non-var/string key", "p[k] = v :- a[k] = v", fmt.Errorf("illegal object key: 0")},
 		{"body/join var", "p[k] = v :- a[i] = v, g[k][i] = v", `{"a": 1, "b": 2, "c": 4}`},
+		{"composite value", `p[k] = [v1,{"v2":v2}] :- g[k] = x, x[v1] = v2, v2 != 0`, `{
+			"a": [0, {"v2": 1}],
+			"b": [1, {"v2": 2}],
+			"c": [3, {"v2": 4}]
+		}`},
 	}
 
 	data := loadSmallTestData()
@@ -451,6 +457,22 @@ func TestTopDownVirtualDocs(t *testing.T) {
 		{"input: set embedded", []string{`p[x] :- x = {"b": [q[2]]}`, `q[x] :- a[i] = x`}, `[{"b": [true]}]`},
 		{"input: set undefined", []string{"p = true :- q[1000]", "q[x] :- a[x] = y"}, ""},
 		{"input: set ground var", []string{"p[x] :- x = 1, q[x]", "q[y] :- a = [1,2,3,4], a[y] = i"}, "[1]"},
+		{"input: set ground composite (1)", []string{
+			"p :- z = [[1,2], 2], q[z]",
+			"q[[x,y]] :- x = [1,y], y = 2",
+		}, "true"},
+		{"input: set ground composite (2)", []string{
+			"p :- y = 2, z = [[1,y], y], q[z]",
+			"q[[x,y]] :- x = [1,y], y = 2",
+		}, "true"},
+		{"input: set ground composite (3)", []string{
+			"p :- y = 2, x = [1,y], z = [x,y], q[z]",
+			"q[[x,y]] :- x = [1,y], y = 2",
+		}, "true"},
+		{"input: set partially ground composite", []string{
+			"p[u] :- y = 2, x = [1, u], z = [x,y], q[z]", // "u" is not ground here
+			"q[[x,y]] :- x = [1,y], y = 2",
+		}, "[2]"},
 		{"input: object 1", []string{"p = true :- q[1] = 2", "q[i] = x :- a[i] = x"}, "true"},
 		{"input: object 2", []string{"p = true :- q[1] = 0", "q[x] = i :- a[i] = x"}, "true"},
 		{"input: object embedded 1", []string{"p[x] :- x = [1, q[3], q[2]]", "q[i] = x :- a[i] = x"}, "[[1,4,3]]"},
@@ -548,6 +570,10 @@ func TestTopDownVirtualDocs(t *testing.T) {
 			"p[x] :- q = x",
 			`q[k] = v :- v = [i, j], k = i, i = "a", j = 1`},
 			`[{"a": ["a", 1]}]`},
+		{"no suffix: object composite value", []string{
+			`p[x] :- q = x`,
+			`q[k] = {"v": v} :- v = [i,j], k = i, i = "a", j = 1`},
+			`[{"a": {"v": ["a", 1]}}]`},
 
 		// TODO(tsandall): this requires set literals; "s" must be bound to a "set" type.
 		// {"no deref: set", []string{"p[x] :- q = s, s[x]", "q[x] :- a[i] = x"}, "[1,2,3,4]"},
@@ -650,9 +676,33 @@ func TestTopDownDisjunction(t *testing.T) {
 		expected interface{}
 	}{
 		{"incr: query set", []string{"p[x] :- a[i] = x", "p[y] :- b[j] = y"}, `[1,2,3,4,"hello","goodbye"]`},
-		{"incr: query object", []string{"p[k] = v :- b[v] = k", "p[k] = v :- a[i] = v, g[k][j] = v"}, `{"b": 2, "c": 4, "hello": "v1", "goodbye": "v2", "a": 1}`},
-		{"incr: eval set", []string{"p[x] :- q[x]", "q[x] :- a[i] = x", "q[y] :- b[j] = y"}, `[1,2,3,4,"hello","goodbye"]`},
-		{"incr: eval object", []string{"p[k] = v :- q[k] = v", "q[k] = v :- b[v] = k", "q[k] = v :- a[i] = v, g[k][j] = v"}, `{"b": 2, "c": 4, "hello": "v1", "goodbye": "v2", "a": 1}`},
+		{"incr: query set constants", []string{
+			"p[100] :- true",
+			"p[x] :- a[x]"},
+			"[0,1,2,3,100]"},
+		{"incr: query object", []string{
+			"p[k] = v :- b[v] = k",
+			"p[k] = v :- a[i] = v, g[k][j] = v"},
+			`{"b": 2, "c": 4, "hello": "v1", "goodbye": "v2", "a": 1}`},
+		{"incr: query object constant key", []string{
+			`p["a"] = 1 :- true`,
+			`p["b"] = 2 :- true`},
+			`{"a": 1, "b": 2}`},
+		{"incr: eval set", []string{
+			"p[x] :- q[x]",
+			"q[x] :- a[i] = x",
+			"q[y] :- b[j] = y"},
+			`[1,2,3,4,"hello","goodbye"]`},
+		{"incr: eval object", []string{
+			"p[k] = v :- q[k] = v",
+			"q[k] = v :- b[v] = k",
+			"q[k] = v :- a[i] = v, g[k][j] = v"},
+			`{"b": 2, "c": 4, "hello": "v1", "goodbye": "v2", "a": 1}`},
+		{"incr: eval object constant key", []string{
+			"p[k] = v :- q[k] = v",
+			`q["a"] = 1 :- true`,
+			`q["b"] = 2 :- true`},
+			`{"a": 1, "b": 2}`},
 		{"complete: undefined", []string{"p :- false", "p :- false"}, ""},
 		{"complete: error", []string{"p :- true", "p = false :- true"}, fmt.Errorf("evaluation error (code: 2): multiple values for [p]: rules must produce exactly one value for complete documents: check rule definition(s): p")},
 		{"complete: valid", []string{"p :- true", "p = true :- true"}, "true"},
