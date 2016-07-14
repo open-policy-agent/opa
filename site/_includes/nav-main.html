@@ -1,0 +1,40 @@
+{% assign page_top = false %}
+{% assign page_get = false %}
+{% assign page_doc = false %}
+{% assign page_xmp = false %}
+{% assign page_com = false %}
+
+{% for page in site.pages %}
+  {% case page.nav_id %}
+    {% when 'MAIN_HOME' %}
+      {% assign page_top = page %}
+    {% when 'MAIN_GET_OPA' %}
+      {% assign page_get = page %}
+    {% when 'MAIN_DOCUMENTATION' %}
+      {% assign page_doc = page %}
+    {% when 'MAIN_EXAMPLES' %}
+      {% assign page_xmp = page %}
+    {% when 'MAIN_COMMUNITY' %}
+      {% assign page_com = page %}
+  {% endcase %}
+{% endfor %}
+
+<nav>
+  <ul class="opa-nav-main--list">
+    <li class="opa-nav-main--home-item{% if page.nav_id == page_top.nav_id %}--selected{% endif %}">
+      {% if page.nav_id != page_top.nav_id %}<a class="opa-nav-main--link" href="{{page_top.url}}">Open Policy Agent</a>{% else %}Open Policy Agent{% endif %}
+    </li>
+    <li class="opa-nav-main--item{% if page.nav_id == page_get.nav_id %}--selected{% endif %}">
+      {% if page.nav_id != page_get.nav_id %}<a class="opa-nav-main--link" href="{{page_get.url}}">Get OPA</a>{% else %}Get OPA{% endif %}
+    </li>
+    <li class="opa-nav-main--item{% if page.nav_id == page_doc.nav_id %}--selected{% endif %}">
+      {% if page.nav_id != page_doc.nav_id %}<a class="opa-nav-main--link" href="{{page_doc.url}}">Documentation</a>{% else %}Documentation{% endif %}
+    </li>
+    <li class="opa-nav-main--item{% if page.nav_id == page_xmp.nav_id %}--selected{% endif %}">
+      {% if page.nav_id != page_xmp.nav_id %}<a class="opa-nav-main--link" href="{{page_xmp.url}}">Examples</a>{% else %}Examples{% endif %}
+    </li>
+    <li class="opa-nav-main--item{% if page.nav_id == page_com.nav_id %}--selected{% endif %}">
+      {% if page.nav_id != page_com.nav_id %}<a class="opa-nav-main--link" href="{{page_com.url}}">Community</a>{% else %}Community{% endif %}
+    </li>
+  </ul>
+</nav>

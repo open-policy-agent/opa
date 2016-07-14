@@ -1,0 +1,9 @@
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="x-ua-compatible" content="ie=edge">
+
+  <title>{% if page.title %}{{ page.title | escape }} | OPA{% else %}{{ site.title | escape }}{% endif %}</title>
+  <meta name="description" content="{{ site.description | strip }}">
+
+  {% stylesheet style.scss %}
+</head>

@@ -1,0 +1,28 @@
+{% assign doc_what = false %}
+{% assign doc_work = false %}
+{% assign doc_rego = false %}
+
+{% for page in site.pages %}
+  {% case page.doc_id %}
+    {% when 'WHAT_IS_POLICY_ENABLEMENT' %}
+      {% assign doc_what = page %}
+    {% when 'HOW_DOES_OPA_WORK' %}
+      {% assign doc_work = page %}
+    {% when 'HOW_DO_I_WRITE_POLICIES' %}
+      {% assign doc_rego = page %}
+  {% endcase %}
+{% endfor %}
+
+<nav class="opa-header--abstract--nav">
+  <ul class="opa-header--abstract--nav-list">
+    <li class="opa-header--abstract--nav-item{% if page.doc_id == doc_what.doc_id %}--selected{% endif %}">
+      {% if page.doc_id != doc_what.doc_id %}<a class="opa-header--abstract--nav-link" href="{{doc_what.url}}">{{ doc_what.title }}</a>{% else %}{{ doc_what.title }}{% endif %}
+    </li>
+    <li class="opa-header--abstract--nav-item{% if page.doc_id == doc_work.doc_id %}--selected{% endif %}">
+      {% if page.doc_id != doc_work.doc_id %}<a class="opa-header--abstract--nav-link" href="{{doc_work.url}}">{{ doc_work.title }}</a>{% else %}{{ doc_work.title }}{% endif %}
+    </li>
+    <li class="opa-header--abstract--nav-item{% if page.doc_id == doc_rego.doc_id %}--selected{% endif %}">
+      {% if page.doc_id != doc_rego.doc_id %}<a class="opa-header--abstract--nav-link" href="{{doc_rego.url}}">{{ doc_rego.title }}</a>{% else %}{{ doc_rego.title }}{% endif %}
+    </li>
+  </ul>
+</nav>
