@@ -1,0 +1,105 @@
+<!DOCTYPE html> <html> <head> <meta charset="utf-8"> <meta http-equiv="x-ua-compatible" content="ie=edge"> <title>Docker Authorization | OPA</title> <meta name="description" content="OPA: An open source project to policy enable any application."> <link type="text/css" rel="stylesheet" href="/assets/style.css"> </head> <body> <nav> <ul class="opa-nav-main--list"> <li class="opa-nav-main--home-item"> <a class="opa-nav-main--link" href="/">Open Policy Agent</a> </li> <li class="opa-nav-main--item"> <a class="opa-nav-main--link" href="/get-opa/">Get OPA</a> </li> <li class="opa-nav-main--item"> <a class="opa-nav-main--link" href="/documentation/what-is-policy-enablement/">Documentation</a> </li> <li class="opa-nav-main--item--selected"> Examples </li> <li class="opa-nav-main--item"> <a class="opa-nav-main--link" href="/community/">Community</a> </li> </ul> </nav> <header class="opa-header"> <p class="opa-header--fork-me"><a href="https://github.com/open-policy-agent/opa"><img src="/assets/github-corner-right.svg" alt="Fork me on GitHub" width="80" height="80"></a></p> <div class="opa-content"> <div class="opa-header--abstract"> <nav class="opa-header--abstract--nav"> <ul class="opa-header--abstract--nav-list"> <li class="opa-header--abstract--nav-item"> <a class="opa-header--abstract--nav-link" href="/examples/working-with-the-opa-repl/">Working with the OPA REPL</a> </li> <li class="opa-header--abstract--nav-item--selected"> Docker Authorization </li> </ul> </nav> <h1>Docker Authorization</h1> <p>Docker’s out-of-the-box authorization model is all or nothing. But many users require finer-grained access control and Docker’s plugin infrastructure allows us to do so.</p> <p>This is an excellent opportunity to see how to policy enable an existing service.</p> </div> </div> </header> <div class="opa-content"> <h2>Goals</h2> <p>This example helps you get started with OPA and introduces you to core concepts in OPA, including Rego the language used to define policies.</p> <blockquote class="opa-tip"> <p>Policy enabling an application decouples the policy implementation from the business logic so that administrators can define policy without changing the application while still keeping up with the size, complexity, and dynamic nature of modern applications.</p> </blockquote> <p>Although there are a multitude of desirable access control policies, for demonstration purposes, we want to prevent the following:</p> <ul> <li>Containers with insecure configurations.</li> <li>Users modifying the system without sufficient read+write access.</li> </ul> <p>This example illustrates two key concepts:</p> <ol> <li>OPA policy definition is decoupled from the implementation of the service (in this case Docker). The administrator is empowered to define and manage policies without requiring changes to any of the apps.</li> <li>Both the data relevant to policy and the policy definitions themselves can change rapidly.</li> </ol> <p>Once you finish this example, you will be familiar with:</p> <ul> <li>Running OPA as a server/daemon.</li> <li>Loading policy definitions and data via the REST APIs.</li> <li>Querying data via the REST APIs.</li> <li>The basics of <a href="/documentation/how-do-i-write-policies/">Rego</a>, OPA’s purpose-built policy language.</li> </ul> <h2>Prerequisites</h2> <p>This example requires:</p> <ul> <li>Docker Engine 1.11 or newer</li> <li><code class="highlighter-rouge">root</code> or <code class="highlighter-rouge">sudo</code> access</li> </ul> <p>The example has been tested on the following platforms:</p> <ul> <li>Ubuntu 16.04 (64-bit)</li> </ul> <p>If you are using a different distro, OS, or architecture, the steps will be the same. However, there may be slight differences in the commands you need to run.</p> <h2>Steps</h2> <h3>1. Create a directory for OPA policy defintions.</h3> <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>mkdir -p policies
+</code></pre> </div> <h3>2. Download the latest version of OPA.</h3> <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>curl -L https://github.com/open-policy-agent/opa/releases/download/v0.1.0-rc3/opa_linux_amd64 &gt; opa
+<span class="gp">$ </span>chmod u+x opa
+</code></pre> </div> <h3>3. Run OPA in server mode with logging enabled.</h3> <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>opa run -s --alsologtostderr 1 --v 2 --policy-dir policies
+</code></pre> </div> <p>OPA will run until it receives a signal to stop. Open another terminal to continue with the rest of the example.</p> <h3>4. Download the <a href="https://github.com/open-policy-agent/docker-authz-plugin">open-policy-agent/docker-authz-plugin</a> executable.</h3> <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>curl -L https://github.com/open-policy-agent/docker-authz-plugin/releases/download/v0.1.0-rc1/docker-authz-plugin_linux_amd64 &gt; docker-authz-plugin
+<span class="gp">$ </span>chmod u+x docker-authz-plugin
+</code></pre> </div> <p>The open-policy-agent/docker-authz-plugin repository hosts a small <a href="https://docs.docker.com/engine/extend/plugins_authorization/">Docker Authorization Plugin</a>. Docker’s authorization plugin system allows an external process to receive all requests sent to the Docker daemon. The authorization plugin replies, instructing the Docker daemon to allow or reject the request.</p> <h3>5. Create an empty policy definition that will allow all requests.</h3> <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>cat &gt;example.rego <span class="sh">&lt;&lt;EOF
+package opa.example
+allow_request = true :- true
+EOF
+</span></code></pre> </div> <p>This policy definition is about simple as it can be. It includes a single rule named <code class="highlighter-rouge">allow_request</code> that is defined to always be <code class="highlighter-rouge">true</code>. Once all of the components are running, we will come back and extend this policy.</p> <h3>6. Run the docker-authz-plugin and then open another terminal.</h3> <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>sudo ./docker-authz-plugin
+</code></pre> </div> <blockquote class="opa-tip"> <p>This step requires sudo access because the Docker plugin framework will attempt to update the Docker daemon configuration. If you run without sudo you may encounter a permission error.</p> </blockquote> <h3><a name="reconfigure-docker"></a> 7. Reconfigure Docker.</h3> <p>Docker must include the following command-line argument:</p> <div class="language-shell highlighter-rouge"><pre class="highlight"><code>--authorization-plugin<span class="o">=</span>docker-authz-plugin
+</code></pre> </div> <p>On Ubuntu 16.04 with systemd, this can be done as follows (requires root):</p> <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>sudo mkdir -p /etc/systemd/system/docker.service.d
+<span class="gp">$ </span>sudo tee -a /etc/systemd/system/docker.service.d/override.conf &gt; /dev/null <span class="sh">&lt;&lt;EOF
+[Service]
+ExecStart=/usr/bin/docker daemon -H fd:// --authorization-plugin=docker-authz-plugin
+EOF
+</span><span class="gp">$ </span>sudo systemctl daemon-reload
+<span class="gp">$ </span>sudo service docker restart
+</code></pre> </div> <p>If you are using a different Linux distribution or you are not running systemd, the process will be slightly different.</p> <h3>8. Run a simple Docker command to make sure everything is still working.</h3> <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>docker ps
+</code></pre> </div> <p>If everything is setup correctly, the command should exit successfully. You can expect to see log messages from OPA and the plugin.</p> <h3>9. Test that the policy definition is working.</h3> <p>Let’s modify our policy to <strong>deny</strong> all requests:</p> <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>cat &gt;example.rego <span class="sh">&lt;&lt;EOF
+package opa.example
+allow_request = true :- false
+EOF
+</span></code></pre> </div> <p>In OPA, rules defines the content of documents (for example, objects, arrays, strings, booleans, and so on).</p> <p>In steps above, we created a rule named <code class="highlighter-rouge">allow_request</code> that defines a document that is the boolean value <code class="highlighter-rouge">true</code>. When all of the expressions on the body of the rule evaluate to <code class="highlighter-rouge">true</code>, we say the document is defined. If any of the expressions evaluate to <code class="highlighter-rouge">false</code>, we say the document is <em>undefined</em>. In this case, the document will always be undefined because the body of the rule is <code class="highlighter-rouge">false</code>.</p> <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>docker ps
+</code></pre> </div> <p>The output should be:</p> <div class="highlighter-rouge"><pre class="highlight"><code>Error response from daemon: authorization denied by plugin docker-authz-plugin: request rejected by administrative policy
+</code></pre> </div> <p>To learn more about how rules define the content of documents, see: <a href="/documentation/how-does-opa-work/">How Does OPA Work?</a></p> <p>With this policy in place, users will not be able to run any Docker commands. Go ahead and try other commands such as <code class="highlighter-rouge">docker run</code> or <code class="highlighter-rouge">docker pull</code>. They will all be rejected.</p> <p>Now let’s change the policy so that it’s a bit more useful.</p> <h3>10. Update the policy to reject requests with the unconfined <a href="https://en.wikipedia.org/wiki/Seccomp">seccomp</a> profile:</h3> <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>cat &gt;example.rego <span class="sh">&lt;&lt;EOF
+package opa.example
+
+import request as req
+
+seccomp_unconfined :-
+    # This expression asserts that the string on the right-hand side is equal
+    # to an element in the array SecurityOpt referenced on the left-hand side.
+    req.Body.HostConfig.SecurityOpt[_] = "seccomp:unconfined"
+
+allow_request = true :- not seccomp_unconfined
+EOF
+</span></code></pre> </div> <p>The docker-authz-plugin is watching the policy definition file for changes. Each time we change the file, the plugin reads the file and sends it to OPA. To manually send the policy to OPA, you can use the following API:</p> <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>curl -X PUT --data-binary @example.rego http://localhost:8181/v1/policies/example_policy
+</code></pre> </div> <p>This API is idempotent so sending the policy multiple times is fine. Go ahead and try it yourself.</p> <h3>11. Test the policy is working by running a simple container:</h3> <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>docker run hello-world
+</code></pre> </div> <p>Now try running the same container but disable seccomp (which should be prevented by the policy):</p> <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>docker run --security-opt seccomp:unconfined hello-world
+</code></pre> </div> <p>When Docker processes the run command, it contacts the plugin to see if the request should be allowed. The plugin takes the request and executes a query against OPA using the request as input data to the query. The same API call that the plugin makes can be executed using curl:</p> <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>curl -v -G http://localhost:8181/v1/data/opa/example/allow_request --data-urlencode <span class="s1">'global=request:{"Body":{"HostConfig":{"SecurityOpt":["seccomp:unconfined"]}}}'</span>
+</code></pre> </div> <p>Because the document generated by the <code class="highlighter-rouge">allow_request</code> rule is undefined in this case, OPA responds with a 404.</p> <p>You can re-run the same query with the default seccomp profile and see that it succeeds:</p> <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>curl -G http://localhost:8181/v1/data/opa/example/allow_request --data-urlencode <span class="s1">'global=request:{"Body":{"HostConfig":{"SecurityOpt":["seccomp:default"]}}}'</span>
+</code></pre> </div> <p>Congratulations! You have successfully prevented containers from running without seccomp!</p> <p>So far, the policy has been defined in terms of input data from the plugin. In many cases, it’s necessary to write policies against multiple data sources.</p> <p>The rest of the example shows how you can grant fine grained access to specific clients. To do so, we will insert fake user data into OPA to simulate an authentication system.</p> <h3><a name="identify-user"></a> 12. Identify the user in Docker requests.</h3> <blockquote class="opa-tip"> <p>Back up your existing Docker configuration, just in case. You can replace your original configuration after you are done with the example.</p> </blockquote> <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>mkdir -p ~/.docker
+<span class="gp">$ </span>cp ~/.docker/config.json ~/.docker/config.json~
+</code></pre> </div> <p>To identify the user, include an HTTP header in all of the requests sent to the Docker daemon:</p> <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>cat &gt;~/.docker/config.json <span class="sh">&lt;&lt;EOF
+{
+    "HttpHeaders": {
+        "Authz-User": "bob"
+    }
+}
+EOF
+</span></code></pre> </div> <p>Docker does not currently provide a way to authenticate clients. But in Docker 1.12, clients can be authenticated using TLS and there are plans to include other means of authentication. For the purpose of this example, we assume that an authentication system is place.</p> <h3>13. Add user data directly to OPA.</h3> <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>cat &gt;users.json <span class="sh">&lt;&lt;EOF
+[
+    {
+        "op": "add",
+        "path": "/",
+        "value": {
+            "alice": {
+                "readOnly": false
+            },
+            "bob": {
+                "readOnly": true
+            }
+        }
+    }
+]
+EOF
+</span><span class="gp">$ </span>curl -X PATCH -d @users.json http://localhost:8181/v1/data/users -H <span class="s2">"Content-Type: application/json"</span>
+</code></pre> </div> <p>This data represents information about users that could either come from an external system or be included in policy definitions.</p> <p>To see that the user data has been added, we can query the Data API. This shows the properties associated with the user “alice”:</p> <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>curl http://localhost:8181/v1/data/users/alice
+</code></pre> </div> <h3>14. Update the policy to include basic user access controls.</h3> <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>cat &gt;example.rego <span class="sh">&lt;&lt;EOF
+package opa.example
+
+import request as req
+import data.users
+
+allow_request = true :- valid_user_role
+
+# valid_user_role defines a document that is the boolean value true if this is
+# a write request and the user is allowed to perform writes.
+valid_user_role :-
+    user_id = req.Headers["Authz-User"],
+    user = users[user_id],
+    user.readOnly = false
+
+# valid_user_role is defined again here to handle read requests. When a rule
+# like this is defined multiple times, the rule definition must ensure that
+# only one instance evaluates successfully in a given query. If multiple
+# instances evaluated successfully, it indicates a conflict.
+valid_user_role :-
+    user_id = req.Headers["Authz-User"],
+    user = users[user_id],
+    req.Method = "GET",
+    user.readOnly = true
+EOF
+</span></code></pre> </div> <p>In the new policy, the valid_user_role rules reference the “users” document created in the previous step.</p> <h3>15. Attempt to run a container.</h3> <p>Because the configured user is <code class="highlighter-rouge">"bob"</code>, the request is rejected:</p> <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>docker run hello-world
+</code></pre> </div> <h3>16. Change the user to “alice” and re-run the container.</h3> <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>cat &gt; ~/.docker/config.json <span class="sh">&lt;&lt;EOF
+{
+    "HttpHeaders": {
+        "Authz-User": "alice"
+    }
+}
+EOF
+</span></code></pre> </div> <p>Because the configured user is <code class="highlighter-rouge">"alice"</code>, the request will succeed:</p> <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>docker run hello-world
+</code></pre> </div> <h3>17. Restore your original configuration.</h3> <p>See: “<a href="#reconfigure-docker">Reconfigure Docker.</a>” and “<a href="#identify-user">Identify the user in Docker requests.</a>”.</p> <p>That’s it!</p> </div> <footer class="opa-footer"> <p class="opa-footer--text"> <a class="opa-footer--github--link" href="https://github.com/open-policy-agent/opa"><img src="/assets/icon-github.svg" class="opa-footer--github--icon" width="16" height="16" alt="icon-github.svg">open-policy-agent/opa</a> <a href="https://travis-ci.org/open-policy-agent/opa"><img class="opa-footer--github--ci" width="90" height="20" src="https://travis-ci.org/open-policy-agent/opa.svg?branch=master" alt="Build Status"></a> </p> <p class="opa-footer--text"> Join the discussion on <a class="opa-footer--link" href="https://openpolicyagent.slack.com">Slack</a> or <a class="opa-footer--link" href="https://groups.google.com/forum/?hl=en#!forum/open-policy-agent">Google Groups</a>. Report a bug or request a feature using <a class="opa-footer--link" href="https://github.com/open-policy-agent/opa/issues">GitHub Issues</a>. </p> <p class="opa-footer--text"> © 2016 Open Policy Agent contributors. Licensed under the <a class="opa-footer--link" href="http://www.apache.org/licenses/LICENSE-2.0">Apache License, Version 2.0</a>. For information about contributing, see <a class="opa-footer--link" href="https://github.com/open-policy-agent/opa/blob/master/CONTRIBUTING.md">CONTRIBUTING.md</a>. </p> </footer> </body> </html>
