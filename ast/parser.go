@@ -2373,7 +2373,7 @@ func (p *parser) addErrAt(err error, pos position) {
 			buf.WriteString("rule " + rule.name)
 		}
 	}
-	pe := &parserError{Inner: err, prefix: buf.String()}
+	pe := &parserError{Inner: err, pos: pos, prefix: buf.String()}
 	p.errs.add(pe)
 }
 
