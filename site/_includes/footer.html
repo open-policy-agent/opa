@@ -1,25 +1,14 @@
-<footer class="site-footer">
+<footer class="opa-footer">
+  <p class="opa-footer--text">
+    <a class="opa-footer--github--link" href="https://github.com/open-policy-agent/opa">{% img '{{assets["icon-github.svg"].logical_path}}' class:'opa-footer--github--icon' %}open-policy-agent/opa</a>
+    <a href="https://travis-ci.org/open-policy-agent/opa"><img class="opa-footer--github--ci" width="90" height="20" src="https://travis-ci.org/open-policy-agent/opa.svg?branch=master" alt="Build Status"></a>
+  </p>
 
-  <div class="wrapper">
+  <p class="opa-footer--text">
+    Join the discussion on <a class="opa-footer--link" href="https://openpolicyagent.slack.com">Slack</a> or <a class="opa-footer--link" href="https://groups.google.com/forum/?hl=en#!forum/open-policy-agent">Google Groups</a>. Report a bug or request a feature using <a class="opa-footer--link" href="https://github.com/open-policy-agent/opa/issues">GitHub Issues</a>.
+  </p>
 
-    <div class="footer-col-wrapper">
-      
-      <div class="footer-col footer-col-1">
-        <ul class="social-media-list">
-          {% if site.github_username %}
-          <li>
-            {% include icon-github.html username=site.github_username repo=site.github_repo %}
-          </li>
-          {% endif %}
-        </ul>
-      </div>
-
-      <div class="footer-col footer-col-2">
-        <p>{{ site.description }}</p>
-      </div>
-      
-    </div>
-
-  </div>
-
+  <p class="opa-footer--text">
+    © 2016 Open Policy Agent contributors. Licensed under the <a class="opa-footer--link" href="http://www.apache.org/licenses/LICENSE-2.0">Apache License, Version 2.0</a>. For information about contributing, see <a class="opa-footer--link" href="https://github.com/open-policy-agent/opa/blob/master/CONTRIBUTING.md">CONTRIBUTING.md</a>.
+  </p>
 </footer>
