@@ -9,7 +9,8 @@ PACKAGES := \
 	github.com/open-policy-agent/opa/runtime/.../ \
 	github.com/open-policy-agent/opa/storage/.../ \
 	github.com/open-policy-agent/opa/topdown/.../ \
-	github.com/open-policy-agent/opa/util/.../
+	github.com/open-policy-agent/opa/util/.../ \
+	github.com/open-policy-agent/opa/test/.../
 
 GO := go
 GOX := gox
@@ -62,7 +63,7 @@ $(COVER_PACKAGES):
 	$(GO) tool cover -html=coverage/$(shell dirname $@)/coverage.out || true
 
 perf: generate
-	$(GO) test -v -bench=. ./test/perf/.../
+	$(GO) test -v -run=donotruntests -bench=. $(PACKAGES) | grep "^Benchmark"
 
 perf-regression:
 	./build/run-perf-regression.sh
