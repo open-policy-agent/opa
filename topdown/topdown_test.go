@@ -228,7 +228,7 @@ func TestTopDownCompleteDoc(t *testing.T) {
 	tests := []struct {
 		note     string
 		rule     string
-		expected string
+		expected interface{}
 	}{
 		{"undefined", "p = null :- false", ""}, // "" will be converted to Undefined
 		{"null", "p = null :- true", "null"},
@@ -244,6 +244,9 @@ func TestTopDownCompleteDoc(t *testing.T) {
 		{`object/nested composites: {"a": [1], "b": [2], "c": [3]}`,
 			`p = {"a": [1], "b": [2], "c": [3]} :- true`,
 			`{"a": [1], "b": [2], "c": [3]}`},
+		{"vars", `p = {"a": [x,y]} :- x = 1, y = 2`, `{"a": [1,2]}`},
+		{"vars conflict", `p = {"a": [x,y]} :- xs = [1,2], ys = [1,2], x = xs[_], y = ys[_]`,
+			fmt.Errorf("evaluation error (code: 2): multiple values for [p]: rules must produce exactly one value for complete documents: check rule definition(s): p")},
 	}
 
 	data := loadSmallTestData()
@@ -535,13 +538,24 @@ func TestTopDownVirtualDocs(t *testing.T) {
 		{"input: complete object dereference ground", []string{`p = true :- q["b"][1] = 4`, `q = {"a": [1, 2], "b": [3, 4]} :- true`}, "true"},
 		{"input: complete array ground index", []string{"p[x] :- z = [1, 2], z[i] = y, q[y] = x", "q = [1,2,3,4] :- true"}, "[2,3]"},
 		{"input: complete object ground key", []string{`p[x] :- z = ["b", "c"], z[i] = y, q[y] = x`, `q = {"a":1,"b":2,"c":3,"d":4} :- true`}, "[2,3]"},
+		{"input: complete vars", []string{
+			`p :- q[1][1] = 2`,
+			`q = [{"x": x, "y": y}, z] :- x = 1, y = 2, z = [1,2,3]`,
+		}, `true`},
 		{"output: complete array", []string{"p[x] :- q[i] = e, x = [i,e]", "q = [1,2,3,4] :- true"}, "[[0,1],[1,2],[2,3],[3,4]]"},
 		{"output: complete object", []string{"p[x] :- q[i] = e, x = [i,e]", `q = {"a": 1, "b": 2} :- true`}, `[["a", 1], ["b", 2]]`},
 		{"output: complete array dereference non-ground", []string{"p[r] :- q[i][j] = 2, r = [i, j]", "q = [[1,2], [3,2]] :- true"}, "[[0, 1], [1, 1]]"},
 		{"output: complete object defererence non-ground", []string{`p[r] :- q[x][y] = 2, r = [x, y]`, `q = {"a": {"x": 1}, "b": {"y": 2}, "c": {"z": 2}} :- true`}, `[["b", "y"], ["c", "z"]]`},
+		{"output: complete vars", []string{
+			`p[x] :- q[_][_] = x`,
+			`q = [{"x": x, "y": y}, z] :- x = 1, y = 2, z = [1,2,3]`,
+		}, `[1,1,2,2,3]`},
 
 		// no dereferencing
 		{"no suffix: complete", []string{"p = true :- q", "q = true :- true"}, "true"},
+		{"no suffix: complete vars", []string{
+			"p :- q", "q = x :- x = true",
+		}, "true"},
 		{"no suffix: complete incr (error)", []string{"p = true :- q", "q = false :- true", "q = true :- true"}, fmt.Errorf("evaluation error (code: 2): multiple values for data.q: rules must produce exactly one value for complete documents: check rule definition(s): q")},
 		{"no suffix: complete incr", []string{"p = true :- not q", "q = true :- false", "q = false :- true"}, "true"},
 		{"no suffix: object", []string{"p[x] = y :- q = o, o[x] = y", "q[x] = y :- b[x] = y"}, `{"v1": "hello", "v2": "goodbye"}`},

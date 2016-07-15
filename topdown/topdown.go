@@ -745,26 +745,23 @@ func evalRefRuleCompleteDoc(ctx *Context, ref ast.Ref, suffix ast.Ref, rules []*
 	var result ast.Value
 
 	for _, rule := range rules {
-
 		bindings := storage.NewBindings()
 		child := ctx.Child(rule.Body, bindings)
-		isTrue := false
 
 		err := Eval(child, func(child *Context) error {
-			isTrue = true
+			if result == nil {
+				result = PlugValue(rule.Value.Value, child)
+			} else {
+				r := PlugValue(rule.Value.Value, child)
+				if !result.Equal(r) {
+					return conflictErr(ref, "complete documents", rule)
+				}
+			}
 			return nil
 		})
-
 		if err != nil {
 			return err
 		}
-
-		if isTrue && result == nil {
-			result = rule.Value.Value
-		} else if isTrue && result != nil {
-			return conflictErr(ref, "complete documents", rule)
-		}
-
 	}
 
 	if result != nil {
@@ -1314,22 +1311,21 @@ func queryCompleteDoc(params *QueryParams, rules []*ast.Rule) (interface{}, erro
 
 	for _, rule := range rules {
 		ctx := params.NewContext(rule.Body)
-		isTrue := false
 
 		err := Eval(ctx, func(ctx *Context) error {
-			isTrue = true
+			if result == nil {
+				result = PlugValue(rule.Value.Value, ctx)
+			} else {
+				r := PlugValue(rule.Value.Value, ctx)
+				if !result.Equal(r) {
+					return conflictErr(params.Path, "complete documents", rule)
+				}
+			}
 			return nil
 		})
 
 		if err != nil {
 			return nil, err
-		}
-
-		if isTrue && result == nil {
-			result = rule.Value.Value
-			resultContext = ctx
-		} else if isTrue && result != nil {
-			return nil, conflictErr(params.Path, "complete documents", rule)
 		}
 	}
 
