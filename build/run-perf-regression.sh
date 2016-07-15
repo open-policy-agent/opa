@@ -2,8 +2,10 @@
 
 set -e
 
+DEFAULT_N=10
+
 # This is the number of commits to run the benchmark on.
-N=10
+N=${1:-$DEFAULT_N}
 
 # This is the commit that performance benchmarks were first added.
 # This script runs the performance benchmarks on the last N commits
