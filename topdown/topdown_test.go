@@ -921,6 +921,32 @@ func TestTopDownGlobalVars(t *testing.T) {
 	}`, "true")
 }
 
+func TestTopDownCaching(t *testing.T) {
+	mods := compileModules([]string{`
+	package topdown.caching
+
+	p[x] :- q[x], q[y]
+
+	q[x] :- data.d.e[_] = k, r[k] = x  # exercise caching with ref key:
+	                                   # k will be bound to ref data.d.e[0], data.d.e.[1], etc.
+
+	r[k] = v :- data.strings[k] = v
+	`})
+
+	data := loadSmallTestData()
+	store := storage.NewDataStoreFromJSONObject(data)
+	policyStore := storage.NewPolicyStore(store, "")
+
+	for id, mod := range mods {
+		err := policyStore.Add(id, mod, []byte(""), false)
+		if err != nil {
+			panic(err)
+		}
+	}
+
+	assertTopDown(t, store, 0, "reference lookup", []string{"topdown", "caching", "p"}, `{}`, "[2,2,3,3]")
+}
+
 func TestExample(t *testing.T) {
 
 	bd := `

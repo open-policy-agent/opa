@@ -22,6 +22,7 @@ type Context struct {
 	Previous  *Context
 	DataStore *storage.DataStore
 	Tracer    Tracer
+	cache     *contextcache
 }
 
 // NewContext creates a new Context with no bindings.
@@ -31,6 +32,7 @@ func NewContext(query ast.Body, ds *storage.DataStore) *Context {
 		Globals:   storage.NewBindings(),
 		Locals:    storage.NewBindings(),
 		DataStore: ds,
+		cache:     newContextCache(),
 	}
 }
 
@@ -118,6 +120,22 @@ func (ctx *Context) traceSuccess(expr *ast.Expr) {
 
 func (ctx *Context) traceFinish() {
 	ctx.trace("   Finish %v", ctx.Locals)
+}
+
+// contextcache stores the result of rule evaluation for a query. The contextcache
+// is inherited by child contexts. The cache is consulted when virtual document
+// references are evaluated. If a miss occurs, the virtual document is generated
+// and the cache is updated.
+type contextcache struct {
+	partialobjs map[*ast.Rule]map[ast.Value]ast.Value
+	complete    map[*ast.Rule]ast.Value
+}
+
+func newContextCache() *contextcache {
+	return &contextcache{
+		partialobjs: map[*ast.Rule]map[ast.Value]ast.Value{},
+		complete:    map[*ast.Rule]ast.Value{},
+	}
 }
 
 // Error is the error type returned by the Eval and Query functions when
@@ -332,6 +350,7 @@ func (q *QueryParams) NewContext(body ast.Body) *Context {
 		Locals:    storage.NewBindings(),
 		DataStore: q.DataStore,
 		Tracer:    q.Tracer,
+		cache:     newContextCache(),
 	}
 	return ctx
 }
@@ -744,7 +763,15 @@ func evalRefRuleCompleteDoc(ctx *Context, ref ast.Ref, suffix ast.Ref, rules []*
 
 	var result ast.Value
 
+	// Check if we have cached the result of evaluating this rule set already.
 	for _, rule := range rules {
+		if doc, ok := ctx.cache.complete[rule]; ok {
+			return evalRefRuleResult(ctx, ref, suffix, doc, iter)
+		}
+	}
+
+	for _, rule := range rules {
+
 		bindings := storage.NewBindings()
 		child := ctx.Child(rule.Body, bindings)
 
@@ -759,12 +786,17 @@ func evalRefRuleCompleteDoc(ctx *Context, ref ast.Ref, suffix ast.Ref, rules []*
 			}
 			return nil
 		})
+
 		if err != nil {
 			return err
 		}
 	}
 
 	if result != nil {
+		// Add the result to the cache. All of the rules have either produced the same value
+		// or only one of them has produced a value. As such, we can cache the result on any
+		// of them.
+		ctx.cache.complete[rules[0]] = result
 		return evalRefRuleResult(ctx, ref, suffix, result, iter)
 	}
 
@@ -805,6 +837,26 @@ func evalRefRulePartialObjectDoc(ctx *Context, ref ast.Ref, path ast.Ref, rule *
 		})
 	}
 
+	// Check if the rule has already been evaluated with this key. If it has,
+	// proceed with the cached value. Otherwise, evaluate the rule and update
+	// the cache.
+	if docs, ok := ctx.cache.partialobjs[rule]; ok {
+		k := key
+		if r, ok := key.(ast.Ref); ok {
+			var err error
+			k, err = lookupValue(ctx.DataStore, r)
+			if err != nil {
+				if storage.IsNotFound(err) {
+					return nil
+				}
+				return err
+			}
+		}
+		if doc, ok := docs[k]; ok {
+			return evalRefRuleResult(ctx, ref, ref[len(path)+1:], doc, iter)
+		}
+	}
+
 	child := ctx.Child(rule.Body, storage.NewBindings())
 	_, err := evalEqUnify(child, key, rule.Key.Value, nil, func(child *Context) error {
 		return Eval(child, func(child *Context) error {
@@ -812,6 +864,23 @@ func evalRefRulePartialObjectDoc(ctx *Context, ref ast.Ref, path ast.Ref, rule *
 			if !value.IsGround() {
 				return fmt.Errorf("unbound variable: %v", value)
 			}
+			cache, ok := ctx.cache.partialobjs[rule]
+			if !ok {
+				cache = map[ast.Value]ast.Value{}
+				ctx.cache.partialobjs[rule] = cache
+			}
+			k := key
+			if r, ok := key.(ast.Ref); ok {
+				var err error
+				k, err = lookupValue(ctx.DataStore, r)
+				if err != nil {
+					if storage.IsNotFound(err) {
+						return nil
+					}
+					return err
+				}
+			}
+			cache[k] = value
 			return evalRefRuleResult(ctx, ref, ref[len(path)+1:], value.(ast.Value), iter)
 		})
 	})

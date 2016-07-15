@@ -449,11 +449,14 @@ mem_fraction[node_id] = f :-
     div(mem, mem_capacity, f)
 
 selector_spreading[node_id] = weight :-
-    max([c | rc_match_count[_] = c], max_c),
-    max([1, max_c], max_count),
+    max_rc_match_count = max_count,
     minus(max_count, rc_match_count[node_id], delta),
     div(delta, max_count, ratio),
     mul(ratio, 10, weight)
+
+max_rc_match_count = max_count :-
+    max([c | rc_match_count[_] = c], max_c),
+    max([1, max_c], max_count)
 
 rc_match_count[node_id] = cnt :-
     nodes[node_id],
