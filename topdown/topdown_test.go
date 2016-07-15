@@ -301,6 +301,8 @@ func TestTopDownPartialObjectDoc(t *testing.T) {
 			"b": [1, {"v2": 2}],
 			"c": [3, {"v2": 4}]
 		}`},
+		{"error: conflicting keys", `p[k] = true :- ks=["a", "b", "c", "a"], ks[_] = k`,
+			fmt.Errorf("evaluation error (code: 2): multiple values for [p]: rules must produce exactly one value for object document keys: check rule definition(s): p")},
 	}
 
 	data := loadSmallTestData()

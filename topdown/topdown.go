@@ -1336,8 +1336,8 @@ func queryCompleteDoc(params *QueryParams, rules []*ast.Rule) (interface{}, erro
 func queryPartialObjectDoc(params *QueryParams, rules []*ast.Rule) (interface{}, error) {
 
 	result := map[string]interface{}{}
+	keys := map[string]struct{}{}
 
-	// TODO(tsandall): fix to handle conflicting keys
 	for _, rule := range rules {
 		ctx := &Context{
 			Query:     rule.Body,
@@ -1347,19 +1347,23 @@ func queryPartialObjectDoc(params *QueryParams, rules []*ast.Rule) (interface{},
 			Tracer:    params.Tracer,
 		}
 		err := Eval(ctx, func(ctx *Context) error {
-			key, err := ValueToInterface(rule.Key.Value, ctx)
+			k, err := ValueToInterface(rule.Key.Value, ctx)
 			if err != nil {
 				return err
 			}
-			asStr, ok := key.(string)
+			key, ok := k.(string)
 			if !ok {
-				return fmt.Errorf("illegal object key: %v", key)
+				return fmt.Errorf("illegal object key: %v", k)
+			}
+			if _, ok := keys[key]; ok {
+				return conflictErr(params.Path, "object document keys", rule)
 			}
 			value, err := ValueToInterface(rule.Value.Value, ctx)
 			if err != nil {
 				return err
 			}
-			result[asStr] = value
+			keys[key] = struct{}{}
+			result[key] = value
 			return nil
 		})
 		if err != nil {
