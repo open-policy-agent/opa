@@ -358,11 +358,11 @@ func Query(params *QueryParams) (interface{}, error) {
 		// type. This is checked at compile time.
 		switch node[0].DocKind() {
 		case ast.CompleteDoc:
-			return topDownQueryCompleteDoc(params, node)
+			return queryCompleteDoc(params, node)
 		case ast.PartialObjectDoc:
-			return topDownQueryPartialObjectDoc(params, node)
+			return queryPartialObjectDoc(params, node)
 		case ast.PartialSetDoc:
-			return topDownQueryPartialSetDoc(params, node)
+			return queryPartialSetDoc(params, node)
 		default:
 			return nil, fmt.Errorf("illegal document type %T: %v", node[0].DocKind(), ref)
 		}
@@ -1293,7 +1293,7 @@ func lookupValue(ds *storage.DataStore, ref ast.Ref) (ast.Value, error) {
 	return ast.InterfaceToValue(r)
 }
 
-func topDownQueryCompleteDoc(params *QueryParams, rules []*ast.Rule) (interface{}, error) {
+func queryCompleteDoc(params *QueryParams, rules []*ast.Rule) (interface{}, error) {
 
 	var result ast.Value
 	var resultContext *Context
@@ -1333,7 +1333,7 @@ func topDownQueryCompleteDoc(params *QueryParams, rules []*ast.Rule) (interface{
 	return ValueToInterface(result, resultContext)
 }
 
-func topDownQueryPartialObjectDoc(params *QueryParams, rules []*ast.Rule) (interface{}, error) {
+func queryPartialObjectDoc(params *QueryParams, rules []*ast.Rule) (interface{}, error) {
 
 	result := map[string]interface{}{}
 
@@ -1370,7 +1370,7 @@ func topDownQueryPartialObjectDoc(params *QueryParams, rules []*ast.Rule) (inter
 	return result, nil
 }
 
-func topDownQueryPartialSetDoc(params *QueryParams, rules []*ast.Rule) (interface{}, error) {
+func queryPartialSetDoc(params *QueryParams, rules []*ast.Rule) (interface{}, error) {
 	result := []interface{}{}
 	for _, rule := range rules {
 		ctx := &Context{
