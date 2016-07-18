@@ -840,6 +840,25 @@ func TestTopDownCasts(t *testing.T) {
 	}
 }
 
+func TestTopDownRegex(t *testing.T) {
+	tests := []struct {
+		note     string
+		rules    []string
+		expected interface{}
+	}{
+		{"re_match", []string{`p :- re_match("^[a-z]+\\[[0-9]+\\]$", "foo[1]")`}, "true"},
+		{"re_match: undefined", []string{`p :- re_match("^[a-z]+\\[[0-9]+\\]$", "foo[\"bar\"]")`}, ""},
+		{"re_match: bad pattern err", []string{`p :- re_match("][", "foo[\"bar\"]")`}, fmt.Errorf("re_match: error parsing regexp: missing closing ]: `[`")},
+		{"re_match: ref", []string{`p[x] :- re_match("^b.*$", d.e[x])`}, "[0,1]"},
+	}
+
+	data := loadSmallTestData()
+
+	for i, tc := range tests {
+		runTopDownTestCase(t, data, i, tc.note, tc.rules, tc.expected)
+	}
+}
+
 func TestTopDownEmbeddedVirtualDoc(t *testing.T) {
 
 	mods := compileModules([]string{

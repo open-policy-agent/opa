@@ -41,6 +41,7 @@ var defaultBuiltinFuncs = map[ast.Var]BuiltinFunc{
 	ast.Sum.Name:           evalReduce(reduceSum),
 	ast.Max.Name:           evalReduce(reduceMax),
 	ast.ToNumber.Name:      evalToNumber,
+	ast.RegexMatch.Name:    evalRegexMatch,
 }
 
 func init() {

@@ -24,6 +24,7 @@ var DefaultBuiltins = [...]*Builtin{
 	Plus, Minus, Multiply, Divide, Round, Abs,
 	Count, Sum, Max,
 	ToNumber,
+	RegexMatch,
 }
 
 // BuiltinMap provides a convenient mapping of built-in names to
@@ -163,6 +164,17 @@ var ToNumber = &Builtin{
 	Name:      Var("to_number"),
 	NumArgs:   2,
 	TargetPos: []int{1},
+}
+
+/**
+ * Regular Expressions
+ */
+
+// RegexMatch takes two strings and evaluates to true if the string in the second
+// position matches the pattern in the first position.
+var RegexMatch = &Builtin{
+	Name:    Var("re_match"),
+	NumArgs: 2,
 }
 
 // Builtin represents a built-in function supported by OPA. Every
