@@ -12,18 +12,17 @@ PACKAGES := \
 	github.com/open-policy-agent/opa/util/.../
 
 GO := go
-GOX := gox
 
 BUILD_COMMIT := $(shell ./build/get-build-commit.sh)
 BUILD_TIMESTAMP := $(shell ./build/get-build-timestamp.sh)
 BUILD_HOSTNAME := $(shell ./build/get-build-hostname.sh)
 
-LDFLAGS := -ldflags "-X github.com/open-policy-agent/opa/version.Vcs=$(BUILD_COMMIT) \
+LDFLAGS := "-X github.com/open-policy-agent/opa/version.Vcs=$(BUILD_COMMIT) \
 	-X github.com/open-policy-agent/opa/version.Timestamp=$(BUILD_TIMESTAMP) \
 	-X github.com/open-policy-agent/opa/version.Hostname=$(BUILD_HOSTNAME)"
 
-# Set CROSSCOMPILE to space separated list of <platform>/<arch> pairs
-# and "gox" will be used to build the binaries instead of "go".
+# Set CROSSCOMPILE to space separated list of <platform>/<arch> pairs to
+# have the build produce binaries for each platform/arch.
 CROSSCOMPILE ?=
 
 GO15VENDOREXPERIMENT := 1
@@ -37,20 +36,19 @@ deps:
 	$(GO) install ./vendor/github.com/PuerkitoBio/pigeon
 	$(GO) install ./vendor/golang.org/x/tools/cmd/goimports
 	$(GO) install ./vendor/github.com/golang/lint/golint
-	$(GO) get github.com/mitchellh/gox
 
 generate:
 	$(GO) generate
 
 build: generate
 ifeq ($(CROSSCOMPILE),)
-	$(GO) build -o opa $(LDFLAGS)
+	$(GO) build -o opa -ldflags $(LDFLAGS)
 else
-	$(GOX) -osarch="$(CROSSCOMPILE)" $(LDFLAGS)
+	@./build/cross-compile.sh --prefix opa --ldflags $(LDFLAGS) --platforms "$(CROSSCOMPILE)"
 endif
 
 install: generate
-	$(GO) install $(LDFLAGS)
+	$(GO) install -ldflags $(LDFLAGS)
 
 test: generate
 	$(GO) test -v $(PACKAGES)
