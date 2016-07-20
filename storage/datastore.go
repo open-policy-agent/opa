@@ -171,10 +171,16 @@ func (ds *DataStore) MakePath(path []interface{}) error {
 	return nil
 }
 
-// MustGet returns the value in Storage reference by path.
-// If the lookup fails, the function will panic.
+// MustGet calls Get on ds but panics if an error occurs.
 func (ds *DataStore) MustGet(path []interface{}) interface{} {
 	return mustGet(ds.data, path)
+}
+
+// MustPatch calls Patch on ds but panics if an error occurs.
+func (ds *DataStore) MustPatch(op PatchOp, path []interface{}, value interface{}) {
+	if err := ds.Patch(op, path, value); err != nil {
+		panic(err)
+	}
 }
 
 // PatchOp is the enumeration of supposed modifications.

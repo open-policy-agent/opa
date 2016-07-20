@@ -22,6 +22,7 @@ type Context struct {
 	Previous  *Context
 	DataStore *storage.DataStore
 	Tracer    Tracer
+	cache     *contextcache
 }
 
 // NewContext creates a new Context with no bindings.
@@ -31,6 +32,7 @@ func NewContext(query ast.Body, ds *storage.DataStore) *Context {
 		Globals:   storage.NewBindings(),
 		Locals:    storage.NewBindings(),
 		DataStore: ds,
+		cache:     newContextCache(),
 	}
 }
 
@@ -39,8 +41,10 @@ func (ctx *Context) Binding(k ast.Value) ast.Value {
 	if v := ctx.Locals.Get(k); v != nil {
 		return v
 	}
-	if v := ctx.Globals.Get(k); v != nil {
-		return v
+	if ctx.Globals != nil {
+		if v := ctx.Globals.Get(k); v != nil {
+			return v
+		}
 	}
 	return nil
 }
@@ -116,6 +120,22 @@ func (ctx *Context) traceSuccess(expr *ast.Expr) {
 
 func (ctx *Context) traceFinish() {
 	ctx.trace("   Finish %v", ctx.Locals)
+}
+
+// contextcache stores the result of rule evaluation for a query. The contextcache
+// is inherited by child contexts. The cache is consulted when virtual document
+// references are evaluated. If a miss occurs, the virtual document is generated
+// and the cache is updated.
+type contextcache struct {
+	partialobjs map[*ast.Rule]map[ast.Value]ast.Value
+	complete    map[*ast.Rule]ast.Value
+}
+
+func newContextCache() *contextcache {
+	return &contextcache{
+		partialobjs: map[*ast.Rule]map[ast.Value]ast.Value{},
+		complete:    map[*ast.Rule]ast.Value{},
+	}
 }
 
 // Error is the error type returned by the Eval and Query functions when
@@ -322,6 +342,19 @@ func NewQueryParams(ds *storage.DataStore, globals *storage.Bindings, path []int
 	}
 }
 
+// NewContext returns a new Context that can be used to do evaluation.
+func (q *QueryParams) NewContext(body ast.Body) *Context {
+	ctx := &Context{
+		Query:     body,
+		Globals:   q.Globals,
+		Locals:    storage.NewBindings(),
+		DataStore: q.DataStore,
+		Tracer:    q.Tracer,
+		cache:     newContextCache(),
+	}
+	return ctx
+}
+
 // Query returns the document identified by the path.
 //
 // If the storage node identified by the path is a collection of rules, then the TopDown
@@ -358,11 +391,11 @@ func Query(params *QueryParams) (interface{}, error) {
 		// type. This is checked at compile time.
 		switch node[0].DocKind() {
 		case ast.CompleteDoc:
-			return topDownQueryCompleteDoc(params, node)
+			return queryCompleteDoc(params, node)
 		case ast.PartialObjectDoc:
-			return topDownQueryPartialObjectDoc(params, node)
+			return queryPartialObjectDoc(params, node)
 		case ast.PartialSetDoc:
-			return topDownQueryPartialSetDoc(params, node)
+			return queryPartialSetDoc(params, node)
 		default:
 			return nil, fmt.Errorf("illegal document type %T: %v", node[0].DocKind(), ref)
 		}
@@ -730,30 +763,40 @@ func evalRefRuleCompleteDoc(ctx *Context, ref ast.Ref, suffix ast.Ref, rules []*
 
 	var result ast.Value
 
+	// Check if we have cached the result of evaluating this rule set already.
+	for _, rule := range rules {
+		if doc, ok := ctx.cache.complete[rule]; ok {
+			return evalRefRuleResult(ctx, ref, suffix, doc, iter)
+		}
+	}
+
 	for _, rule := range rules {
 
 		bindings := storage.NewBindings()
 		child := ctx.Child(rule.Body, bindings)
-		isTrue := false
 
 		err := Eval(child, func(child *Context) error {
-			isTrue = true
+			if result == nil {
+				result = PlugValue(rule.Value.Value, child)
+			} else {
+				r := PlugValue(rule.Value.Value, child)
+				if !result.Equal(r) {
+					return conflictErr(ref, "complete documents", rule)
+				}
+			}
 			return nil
 		})
 
 		if err != nil {
 			return err
 		}
-
-		if isTrue && result == nil {
-			result = rule.Value.Value
-		} else if isTrue && result != nil {
-			return conflictErr(ref, "complete documents", rule)
-		}
-
 	}
 
 	if result != nil {
+		// Add the result to the cache. All of the rules have either produced the same value
+		// or only one of them has produced a value. As such, we can cache the result on any
+		// of them.
+		ctx.cache.complete[rules[0]] = result
 		return evalRefRuleResult(ctx, ref, suffix, result, iter)
 	}
 
@@ -765,33 +808,28 @@ func evalRefRulePartialObjectDoc(ctx *Context, ref ast.Ref, path ast.Ref, rule *
 
 	key := PlugValue(suffix[0].Value, ctx)
 
-	// There are two cases being handled below. The first case is for when
-	// the object key is ground in the original expression or there is a
-	// binding available for the variable in the original expression.
+	// There are two cases being handled below. The first deals with non-ground
+	// keys. If the key is not ground, we evaluate the child query and copy the
+	// key binding from the child context into this context. The second deals
+	// with ground keys. In that case, we initialize the child context with a key
+	// binding and evaluate the child query. This reduces the amount of processing
+	// the child query has to do.
 	//
-	// In the first case, the rule is evaluated and the value of the key variable
-	// in the child context is copied into the current context.
-	//
-	// In the second case, the rule is evaluated with the value of the key variable
-	// from this context.
-	//
-	// NOTE: if at some point multiple variables are supported here, it may be
-	// cleaner to generalize this (instead of having two separate branches).
+	// In the first case, we do not unify the keys because the unification does not
+	// namespace variables within their context. As a result, we could end up with
+	// a recursive binding if we unified "key" with "rule.Key.Value". If unification
+	// is improved to handle namespacing, this can be revisited.
 	if !key.IsGround() {
 		child := ctx.Child(rule.Body, storage.NewBindings())
 		return Eval(child, func(child *Context) error {
-			key := child.Binding(rule.Key.Value)
-			if key == nil {
-				return fmt.Errorf("unbound variable: %v", rule.Key)
+			key := PlugValue(rule.Key.Value, child)
+			if !key.IsGround() {
+				return fmt.Errorf("unbound variable: %v", key)
 			}
-			key = PlugValue(key, child)
-
-			value := child.Binding(rule.Value.Value)
-			if value == nil {
-				return fmt.Errorf("unbound variable: %v", rule.Value)
+			value := PlugValue(rule.Value.Value, child)
+			if !value.IsGround() {
+				return fmt.Errorf("unbound variable: %v", value)
 			}
-			value = PlugValue(value, child)
-
 			undo := ctx.Bind(suffix[0].Value.(ast.Var), key, nil)
 			err := evalRefRuleResult(ctx, ref, ref[len(path)+1:], value, iter)
 			ctx.Unbind(undo)
@@ -799,23 +837,66 @@ func evalRefRulePartialObjectDoc(ctx *Context, ref ast.Ref, path ast.Ref, rule *
 		})
 	}
 
-	bindings := storage.NewBindings()
-	bindings.Put(rule.Key.Value, key)
-	child := ctx.Child(rule.Body, bindings)
-
-	return Eval(child, func(child *Context) error {
-		value := child.Binding(rule.Value.Value)
-		if value == nil {
-			return fmt.Errorf("unbound variable: %v", rule.Value)
+	// Check if the rule has already been evaluated with this key. If it has,
+	// proceed with the cached value. Otherwise, evaluate the rule and update
+	// the cache.
+	if docs, ok := ctx.cache.partialobjs[rule]; ok {
+		k := key
+		if r, ok := key.(ast.Ref); ok {
+			var err error
+			k, err = lookupValue(ctx.DataStore, r)
+			if err != nil {
+				if storage.IsNotFound(err) {
+					return nil
+				}
+				return err
+			}
 		}
-		value = PlugValue(value, child)
-		return evalRefRuleResult(ctx, ref, ref[len(path)+1:], value.(ast.Value), iter)
+		if doc, ok := docs[k]; ok {
+			return evalRefRuleResult(ctx, ref, ref[len(path)+1:], doc, iter)
+		}
+	}
+
+	child := ctx.Child(rule.Body, storage.NewBindings())
+	_, err := evalEqUnify(child, key, rule.Key.Value, nil, func(child *Context) error {
+		return Eval(child, func(child *Context) error {
+			value := PlugValue(rule.Value.Value, child)
+			if !value.IsGround() {
+				return fmt.Errorf("unbound variable: %v", value)
+			}
+			cache, ok := ctx.cache.partialobjs[rule]
+			if !ok {
+				cache = map[ast.Value]ast.Value{}
+				ctx.cache.partialobjs[rule] = cache
+			}
+			k := key
+			if r, ok := key.(ast.Ref); ok {
+				var err error
+				k, err = lookupValue(ctx.DataStore, r)
+				if err != nil {
+					if storage.IsNotFound(err) {
+						return nil
+					}
+					return err
+				}
+			}
+			cache[k] = value
+			return evalRefRuleResult(ctx, ref, ref[len(path)+1:], value.(ast.Value), iter)
+		})
 	})
+
+	return err
+
 }
 
 func evalRefRulePartialObjectDocFull(ctx *Context, ref ast.Ref, rules []*ast.Rule, iter Iterator) error {
 
 	var result ast.Object
+
+	// keys is a set of key bindings that we obtain while
+	// evaluating the child query. If we obtain multiple
+	// values for a single key, it represents a conflictErr
+	// and we raise an error.
 	keys := util.NewHashMap(func(a, b util.T) bool {
 		return a.(ast.Value).Equal(b.(ast.Value))
 	}, func(x util.T) int {
@@ -828,12 +909,18 @@ func evalRefRulePartialObjectDocFull(ctx *Context, ref ast.Ref, rules []*ast.Rul
 		child := ctx.Child(rule.Body, bindings)
 
 		err := Eval(child, func(child *Context) error {
-			key := PlugValue(child.Binding(rule.Key.Value), child)
+			key := PlugValue(rule.Key.Value, child)
+			if !key.IsGround() {
+				return fmt.Errorf("unbound variable: %v", key)
+			}
 			if _, ok := keys.Get(key); ok {
 				return conflictErr(ref, "object document keys", rule)
 			}
 			keys.Put(key, ast.Null{})
-			value := PlugValue(child.Binding(rule.Value.Value), child)
+			value := PlugValue(rule.Value.Value, child)
+			if !value.IsGround() {
+				return fmt.Errorf("unbound variable: %v", value)
+			}
 			result = append(result, ast.Item(&ast.Term{Value: key}, &ast.Term{Value: value}))
 			return nil
 		})
@@ -849,114 +936,148 @@ func evalRefRulePartialObjectDocFull(ctx *Context, ref ast.Ref, rules []*ast.Rul
 func evalRefRulePartialSetDoc(ctx *Context, ref ast.Ref, path ast.Ref, rule *ast.Rule, iter Iterator) error {
 
 	suffix := ref[len(path):]
-
-	if len(suffix) > 1 {
-		// TODO(tsandall): attempting to dereference set lookup
-		// results in undefined value, catch this using static analysis
-		return nil
-	}
-
-	// See comment in evalRefRulePartialObjectDoc about the two branches below.
-	// The behaviour is similar for sets.
-
 	key := PlugValue(suffix[0].Value, ctx)
 
+	// See comment in evalRefRulePartialObjectDoc about the two branches below.
 	if !key.IsGround() {
 		child := ctx.Child(rule.Body, storage.NewBindings())
+
+		// TODO(tsandall): Currently this evaluates the child query without any
+		// bindings from the current context. In cases where the key is partially
+		// ground this may be quite inefficient. An optimization would be to unify
+		// variables in the child query with ground values in the current context/query.
+		// To do this, the unification may need to be improved to namespace variables
+		// across contexts (otherwise we could end up with recursive bindings).
 		return Eval(child, func(child *Context) error {
-			value := PlugValue(child.Binding(rule.Key.Value), child)
-			if value == nil {
-				return fmt.Errorf("unbound variable: %v", rule.Key)
+			value := PlugValue(rule.Key.Value, child)
+			if !value.IsGround() {
+				return fmt.Errorf("unbound variable: %v", rule.Value)
 			}
-			// Take the output of the child context and bind (1) the value to
-			// the variable from this context and (2) the reference to true
-			// so that expression will be defined. E.g., given a simple rule:
-			// "p = true :- q[x]", we say that "p" should be defined if "q"
-			// is defined for some value "x".
-			return ContinueN(ctx, iter, key, value, ref[:len(path)+1], ast.Boolean(true))
+
+			undo, err := evalEqUnify(ctx, key, value, nil, func(child *Context) error {
+				return Continue(ctx, ref[:len(path)+1], ast.Boolean(true), iter)
+			})
+
+			if err != nil {
+				return err
+			}
+			ctx.Unbind(undo)
+			return nil
 		})
 	}
 
-	bindings := storage.NewBindings()
-	bindings.Put(rule.Key.Value, key)
-	child := ctx.Child(rule.Body, bindings)
+	child := ctx.Child(rule.Body, storage.NewBindings())
 
-	return Eval(child, func(child *Context) error {
-		// See comment above for explanation of why the reference is bound to true.
-		return Continue(ctx, ref[:len(path)+1], ast.Boolean(true), iter)
+	_, err := evalEqUnify(child, key, rule.Key.Value, nil, func(child *Context) error {
+		return Eval(child, func(child *Context) error {
+			return Continue(ctx, ref[:len(path)+1], ast.Boolean(true), iter)
+		})
 	})
 
+	return err
 }
 
 func evalRefRuleResult(ctx *Context, ref ast.Ref, suffix ast.Ref, result ast.Value, iter Iterator) error {
 
-	switch result := result.(type) {
-	case ast.Ref:
-		// Below we concatenate the result of evaluating a rule with the rest of the reference
-		// to be evaluated.
-		//
-		// E.g., given two rules: q[k] = v :- a[k] = v and p = true :- q[k].a[i] = 100
-		// when evaluating the expression in "p", this function will be called with a binding for
-		// "q[k]" and "k". This leaves the remaining part of the reference (i.e., ["a"][i])
-		// needing to be processed. This is done by substituting the prefix of the original reference
-		// with the binding. In this case, the prefix is "q[k]" and the binding value would be
-		// "a[<some key>]".
-		offset := len(result)
-		binding := make(ast.Ref, offset+len(suffix))
-		for i := range result {
-			binding[i] = result[i]
-		}
-		for i := range suffix {
-			binding[i+offset] = suffix[i]
-		}
-		return evalRefRec(ctx, result, suffix, func(ctx *Context) error {
-			v := PlugValue(binding, ctx)
-			return Continue(ctx, ref, v, iter)
-		})
+	s := make(ast.Ref, len(suffix))
+	for i := range suffix {
+		s[i] = PlugTerm(suffix[i], ctx)
+	}
 
+	return evalRefRuleResultRec(ctx, result, s, ast.Ref{}, func(ctx *Context, v ast.Value) error {
+		return Continue(ctx, ref, v, iter)
+	})
+}
+
+func evalRefRuleResultRec(ctx *Context, v ast.Value, ref, path ast.Ref, iter func(*Context, ast.Value) error) error {
+	if len(ref) == 0 {
+		return iter(ctx, v)
+	}
+	switch v := v.(type) {
 	case ast.Array:
-		if len(suffix) > 0 {
-			var pluggedSuffix ast.Ref
-			for _, t := range suffix {
-				pluggedSuffix = append(pluggedSuffix, PlugTerm(t, ctx))
-			}
-			return result.Query(pluggedSuffix, func(keys map[ast.Var]ast.Value, value ast.Value) error {
-				prev := ctx.Bind(ref, value, nil)
-				for k, v := range keys {
-					prev = ctx.Bind(k, v, prev)
-				}
-				err := iter(ctx)
-				ctx.Unbind(prev)
-				return err
-			})
-		}
-		return Continue(ctx, ref, result, iter)
-
+		return evalRefRuleResultRecArray(ctx, v, ref, path, iter)
 	case ast.Object:
-		if len(suffix) > 0 {
-			var pluggedSuffix ast.Ref
-			for _, t := range suffix {
-				pluggedSuffix = append(pluggedSuffix, PlugTerm(t, ctx))
-			}
-			return result.Query(pluggedSuffix, func(keys map[ast.Var]ast.Value, value ast.Value) error {
-				prev := ctx.Bind(ref, value, nil)
-				for k, v := range keys {
-					prev = ctx.Bind(k, v, prev)
-				}
-				err := iter(ctx)
-				ctx.Unbind(prev)
-				return err
-			})
-		}
-		return Continue(ctx, ref, result, iter)
+		return evalRefRuleResultRecObject(ctx, v, ref, path, iter)
+	case ast.Ref:
+		return evalRefRuleResultRecRef(ctx, v, ref, path, iter)
+	}
+	return nil
+}
 
-	default:
-		if len(suffix) > 0 {
-			// This is not defined because it attempts to dereference a scalar.
+func evalRefRuleResultRecArray(ctx *Context, arr ast.Array, ref, path ast.Ref, iter func(*Context, ast.Value) error) error {
+	head, tail := ref[0], ref[1:]
+	switch n := head.Value.(type) {
+	case ast.Number:
+		idx := int(n)
+		if ast.Number(idx) != n {
 			return nil
 		}
-		return Continue(ctx, ref, result, iter)
+		if idx >= len(arr) {
+			return nil
+		}
+		el := arr[idx]
+		path = append(path, head)
+		return evalRefRuleResultRec(ctx, el.Value, tail, path, iter)
+	case ast.Var:
+		for i := range arr {
+			idx := ast.Number(i)
+			undo := ctx.Bind(n, idx, nil)
+			path = append(path, &ast.Term{Value: idx})
+			if err := evalRefRuleResultRec(ctx, arr[i].Value, tail, path, iter); err != nil {
+				return err
+			}
+			ctx.Unbind(undo)
+			path = path[:len(path)-1]
+		}
 	}
+	return nil
+}
+
+func evalRefRuleResultRecObject(ctx *Context, obj ast.Object, ref, path ast.Ref, iter func(*Context, ast.Value) error) error {
+	head, tail := ref[0], ref[1:]
+	switch k := head.Value.(type) {
+	case ast.String:
+		match := -1
+		for idx, i := range obj {
+			x := i[0].Value
+			if r, ok := i[0].Value.(ast.Ref); ok {
+				var err error
+				if x, err = lookupValue(ctx.DataStore, r); err != nil {
+					if storage.IsNotFound(err) {
+						return nil
+					}
+					return err
+				}
+			}
+			if x.Equal(k) {
+				match = idx
+				break
+			}
+		}
+		if match == -1 {
+			return nil
+		}
+		path = append(path, head)
+		return evalRefRuleResultRec(ctx, obj[match][1].Value, tail, path, iter)
+	case ast.Var:
+		for _, i := range obj {
+			undo := ctx.Bind(k, i[0].Value, nil)
+			path = append(path, i[0])
+			if err := evalRefRuleResultRec(ctx, i[1].Value, tail, path, iter); err != nil {
+				return err
+			}
+			ctx.Unbind(undo)
+			path = path[:len(path)-1]
+		}
+	}
+	return nil
+}
+
+func evalRefRuleResultRecRef(ctx *Context, v, ref, path ast.Ref, iter func(*Context, ast.Value) error) error {
+	b := append(v, ref...)
+	return evalRefRec(ctx, v, ref, func(ctx *Context) error {
+		return iter(ctx, PlugValue(b, ctx))
+	})
 }
 
 func evalTerms(ctx *Context, iter Iterator) error {
@@ -1252,36 +1373,28 @@ func lookupValue(ds *storage.DataStore, ref ast.Ref) (ast.Value, error) {
 	return ast.InterfaceToValue(r)
 }
 
-func topDownQueryCompleteDoc(params *QueryParams, rules []*ast.Rule) (interface{}, error) {
+func queryCompleteDoc(params *QueryParams, rules []*ast.Rule) (interface{}, error) {
 
 	var result ast.Value
 	var resultContext *Context
 
 	for _, rule := range rules {
-		ctx := &Context{
-			Query:     rule.Body,
-			Globals:   params.Globals,
-			Locals:    storage.NewBindings(),
-			DataStore: params.DataStore,
-			Tracer:    params.Tracer,
-		}
-
-		isTrue := false
+		ctx := params.NewContext(rule.Body)
 
 		err := Eval(ctx, func(ctx *Context) error {
-			isTrue = true
+			if result == nil {
+				result = PlugValue(rule.Value.Value, ctx)
+			} else {
+				r := PlugValue(rule.Value.Value, ctx)
+				if !result.Equal(r) {
+					return conflictErr(params.Path, "complete documents", rule)
+				}
+			}
 			return nil
 		})
 
 		if err != nil {
 			return nil, err
-		}
-
-		if isTrue && result == nil {
-			result = rule.Value.Value
-			resultContext = ctx
-		} else if isTrue && result != nil {
-			return nil, conflictErr(params.Path, "complete documents", rule)
 		}
 	}
 
@@ -1292,34 +1405,31 @@ func topDownQueryCompleteDoc(params *QueryParams, rules []*ast.Rule) (interface{
 	return ValueToInterface(result, resultContext)
 }
 
-func topDownQueryPartialObjectDoc(params *QueryParams, rules []*ast.Rule) (interface{}, error) {
+func queryPartialObjectDoc(params *QueryParams, rules []*ast.Rule) (interface{}, error) {
 
 	result := map[string]interface{}{}
+	keys := map[string]struct{}{}
 
 	for _, rule := range rules {
-		ctx := &Context{
-			Query:     rule.Body,
-			Globals:   params.Globals,
-			Locals:    storage.NewBindings(),
-			DataStore: params.DataStore,
-			Tracer:    params.Tracer,
-		}
-		key := rule.Key.Value.(ast.Var)
-		value := rule.Value.Value.(ast.Var)
+		ctx := params.NewContext(rule.Body)
 		err := Eval(ctx, func(ctx *Context) error {
-			key, err := ValueToInterface(key, ctx)
+			k, err := ValueToInterface(rule.Key.Value, ctx)
 			if err != nil {
 				return err
 			}
-			asStr, ok := key.(string)
+			key, ok := k.(string)
 			if !ok {
-				return fmt.Errorf("illegal object key type %T: %v", key, key)
+				return fmt.Errorf("illegal object key: %v", k)
 			}
-			value, err := ValueToInterface(value, ctx)
+			if _, ok := keys[key]; ok {
+				return conflictErr(params.Path, "object document keys", rule)
+			}
+			value, err := ValueToInterface(rule.Value.Value, ctx)
 			if err != nil {
 				return err
 			}
-			result[asStr] = value
+			keys[key] = struct{}{}
+			result[key] = value
 			return nil
 		})
 		if err != nil {
@@ -1330,23 +1440,16 @@ func topDownQueryPartialObjectDoc(params *QueryParams, rules []*ast.Rule) (inter
 	return result, nil
 }
 
-func topDownQueryPartialSetDoc(params *QueryParams, rules []*ast.Rule) (interface{}, error) {
+func queryPartialSetDoc(params *QueryParams, rules []*ast.Rule) (interface{}, error) {
 	result := []interface{}{}
 	for _, rule := range rules {
-		ctx := &Context{
-			Query:     rule.Body,
-			Globals:   params.Globals,
-			Locals:    storage.NewBindings(),
-			DataStore: params.DataStore,
-			Tracer:    params.Tracer,
-		}
-		key := rule.Key.Value.(ast.Var)
+		ctx := params.NewContext(rule.Body)
 		err := Eval(ctx, func(ctx *Context) error {
-			value, err := ValueToInterface(key, ctx)
+			r, err := ValueToInterface(rule.Key.Value, ctx)
 			if err != nil {
 				return err
 			}
-			result = append(result, value)
+			result = append(result, r)
 			return nil
 		})
 

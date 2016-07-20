@@ -55,11 +55,7 @@ func TestEvalRef(t *testing.T) {
 
 	data := loadSmallTestData()
 
-	ctx := &Context{
-		DataStore: storage.NewDataStoreFromJSONObject(data),
-		Globals:   storage.NewBindings(),
-		Locals:    storage.NewBindings(),
-	}
+	ctx := NewContext(nil, storage.NewDataStoreFromJSONObject(data))
 
 	for i, tc := range tests {
 
@@ -146,12 +142,7 @@ func TestEvalTerms(t *testing.T) {
 
 	for i, tc := range tests {
 
-		ctx := &Context{
-			Query:     ast.MustParseBody(tc.body),
-			DataStore: storage.NewDataStoreFromJSONObject(data),
-			Globals:   storage.NewBindings(),
-			Locals:    storage.NewBindings(),
-		}
+		ctx := NewContext(ast.MustParseBody(tc.body), storage.NewDataStoreFromJSONObject(data))
 
 		expected := loadExpectedBindings(tc.expected)
 
@@ -191,13 +182,13 @@ func TestPlugValue(t *testing.T) {
 	hello := ast.String("hello")
 	world := ast.String("world")
 
-	ctx1 := &Context{Locals: storage.NewBindings(), Globals: storage.NewBindings()}
+	ctx1 := NewContext(nil, nil)
 	ctx1.Bind(a, b, nil)
 	ctx1.Bind(b, cs, nil)
 	ctx1.Bind(c, ks, nil)
 	ctx1.Bind(k, hello, nil)
 
-	ctx2 := &Context{Locals: storage.NewBindings(), Globals: storage.NewBindings()}
+	ctx2 := NewContext(nil, nil)
 	ctx2.Bind(a, b, nil)
 	ctx2.Bind(b, cs, nil)
 	ctx2.Bind(c, vs, nil)
@@ -220,7 +211,7 @@ func TestPlugValue(t *testing.T) {
 
 	n := ast.MustParseTerm("a.b[x.y[i]]").Value
 
-	ctx3 := &Context{Locals: storage.NewBindings(), Globals: storage.NewBindings()}
+	ctx3 := NewContext(nil, nil)
 	ctx3.Bind(ast.Var("i"), ast.Number(1), nil)
 	ctx3.Bind(ast.MustParseTerm("x.y[i]").Value, ast.Number(1), nil)
 
@@ -237,7 +228,7 @@ func TestTopDownCompleteDoc(t *testing.T) {
 	tests := []struct {
 		note     string
 		rule     string
-		expected string
+		expected interface{}
 	}{
 		{"undefined", "p = null :- false", ""}, // "" will be converted to Undefined
 		{"null", "p = null :- true", "null"},
@@ -253,6 +244,9 @@ func TestTopDownCompleteDoc(t *testing.T) {
 		{`object/nested composites: {"a": [1], "b": [2], "c": [3]}`,
 			`p = {"a": [1], "b": [2], "c": [3]} :- true`,
 			`{"a": [1], "b": [2], "c": [3]}`},
+		{"vars", `p = {"a": [x,y]} :- x = 1, y = 2`, `{"a": [1,2]}`},
+		{"vars conflict", `p = {"a": [x,y]} :- xs = [1,2], ys = [1,2], x = xs[_], y = ys[_]`,
+			fmt.Errorf("evaluation error (code: 2): multiple values for [p]: rules must produce exactly one value for complete documents: check rule definition(s): p")},
 	}
 
 	data := loadSmallTestData()
@@ -276,6 +270,7 @@ func TestTopDownPartialSetDoc(t *testing.T) {
 		{"nested composites", "p[x] :- f[i] = x", `[{"xs": [1.0], "ys": [2.0]}, {"xs": [2.0], "ys": [3.0]}]`},
 		{"deep ref/heterogeneous", "p[x] :- c[i][j][k] = x", `[null, 3.14159, true, false, true, false, "foo"]`},
 		{"composite var value", "p[x] :- x = [i, a[i]]", "[[0,1],[1,2],[2,3],[3,4]]"},
+		{"composite key", `p[[x,{"y": y}]] :- x = 1, y = 2`, `[[1,{"y": 2}]]`},
 	}
 
 	data := loadSmallTestData()
@@ -293,8 +288,15 @@ func TestTopDownPartialObjectDoc(t *testing.T) {
 	}{
 		{"identity", "p[k] = v :- b[k] = v", `{"v1": "hello", "v2": "goodbye"}`},
 		{"composites", "p[k] = v :- d[k] = v", `{"e": ["bar", "baz"]}`},
-		{"non-string key", "p[k] = v :- a[k] = v", fmt.Errorf("illegal object key type float64: 0")},
+		{"non-var/string key", "p[k] = v :- a[k] = v", fmt.Errorf("illegal object key: 0")},
 		{"body/join var", "p[k] = v :- a[i] = v, g[k][i] = v", `{"a": 1, "b": 2, "c": 4}`},
+		{"composite value", `p[k] = [v1,{"v2":v2}] :- g[k] = x, x[v1] = v2, v2 != 0`, `{
+			"a": [0, {"v2": 1}],
+			"b": [1, {"v2": 2}],
+			"c": [3, {"v2": 4}]
+		}`},
+		{"error: conflicting keys", `p[k] = true :- ks=["a", "b", "c", "a"], ks[_] = k`,
+			fmt.Errorf("evaluation error (code: 2): multiple values for [p]: rules must produce exactly one value for object document keys: check rule definition(s): p")},
 	}
 
 	data := loadSmallTestData()
@@ -451,6 +453,22 @@ func TestTopDownVirtualDocs(t *testing.T) {
 		{"input: set embedded", []string{`p[x] :- x = {"b": [q[2]]}`, `q[x] :- a[i] = x`}, `[{"b": [true]}]`},
 		{"input: set undefined", []string{"p = true :- q[1000]", "q[x] :- a[x] = y"}, ""},
 		{"input: set ground var", []string{"p[x] :- x = 1, q[x]", "q[y] :- a = [1,2,3,4], a[y] = i"}, "[1]"},
+		{"input: set ground composite (1)", []string{
+			"p :- z = [[1,2], 2], q[z]",
+			"q[[x,y]] :- x = [1,y], y = 2",
+		}, "true"},
+		{"input: set ground composite (2)", []string{
+			"p :- y = 2, z = [[1,y], y], q[z]",
+			"q[[x,y]] :- x = [1,y], y = 2",
+		}, "true"},
+		{"input: set ground composite (3)", []string{
+			"p :- y = 2, x = [1,y], z = [x,y], q[z]",
+			"q[[x,y]] :- x = [1,y], y = 2",
+		}, "true"},
+		{"input: set partially ground composite", []string{
+			"p[u] :- y = 2, x = [1, u], z = [x,y], q[z]", // "u" is not ground here
+			"q[[x,y]] :- x = [1,y], y = 2",
+		}, "[2]"},
 		{"input: object 1", []string{"p = true :- q[1] = 2", "q[i] = x :- a[i] = x"}, "true"},
 		{"input: object 2", []string{"p = true :- q[1] = 0", "q[x] = i :- a[i] = x"}, "true"},
 		{"input: object embedded 1", []string{"p[x] :- x = [1, q[3], q[2]]", "q[i] = x :- a[i] = x"}, "[[1,4,3]]"},
@@ -475,7 +493,22 @@ func TestTopDownVirtualDocs(t *testing.T) {
 		{"output: object value", []string{"p[x] = y :- q[x] = y", "q[k] = v :- b[k] = v"}, `{"v1": "hello", "v2": "goodbye"}`},
 		{"output: object embedded", []string{"p[k] = v :- {k: [q[k]]} = {k: [v]}", `q[x] = y :- b[x] = y`}, `{"v1": "hello", "v2": "goodbye"}`},
 		{"output: object dereference ground", []string{`p[i] :- q[i]["x"][1] = false`, `q[i] = x :- x = c[i]`}, "[0]"},
-		{"output: object defererence non-ground", []string{`p[r] :- q[x][y][z] = false, r = [x, y, z]`, `q[i] = x :- x = c[i]`}, `[[0, "x", 1], [0, "z", "q"]]`},
+		{"output: object defererence non-ground", []string{
+			`p[r] :- q[x][y][z] = false, r = [x, y, z]`,
+			`q[i] = x :- x = c[i]`},
+			`[[0, "x", 1], [0, "z", "q"]]`},
+		{"output: object dereference array of refs", []string{
+			"p[x] :- q[_][0].c[_] = x",
+			"q[k] = v :- d.e[_] = k, v = [ r | r = l[_] ]",
+		}, "[1,1,2,2,3,3,4,4]"},
+		{"output: object dereference array of refs within object", []string{
+			"p[x] :- q[_].x[0].c[_] = x",
+			`q[k] = v :- d.e[_] = k, v = {"x": [r | r = l[_]]}`,
+		}, "[1,1,2,2,3,3,4,4]"},
+		{"output: object dereference object with key refs", []string{
+			"p :- q.bar[1].alice[0] = 1",
+			"q[k] = v :- d.e[_] = k, v = [x | x = {l[_].a: [1]}]",
+		}, "true"},
 		{"output: object var binding", []string{
 			"p[z] :- q[x] = y, z = [x, y]",
 			`q[k] = v :- v = [x, y], x = "a", y = "b", k = "foo"`},
@@ -505,18 +538,33 @@ func TestTopDownVirtualDocs(t *testing.T) {
 		{"input: complete object dereference ground", []string{`p = true :- q["b"][1] = 4`, `q = {"a": [1, 2], "b": [3, 4]} :- true`}, "true"},
 		{"input: complete array ground index", []string{"p[x] :- z = [1, 2], z[i] = y, q[y] = x", "q = [1,2,3,4] :- true"}, "[2,3]"},
 		{"input: complete object ground key", []string{`p[x] :- z = ["b", "c"], z[i] = y, q[y] = x`, `q = {"a":1,"b":2,"c":3,"d":4} :- true`}, "[2,3]"},
+		{"input: complete vars", []string{
+			`p :- q[1][1] = 2`,
+			`q = [{"x": x, "y": y}, z] :- x = 1, y = 2, z = [1,2,3]`,
+		}, `true`},
 		{"output: complete array", []string{"p[x] :- q[i] = e, x = [i,e]", "q = [1,2,3,4] :- true"}, "[[0,1],[1,2],[2,3],[3,4]]"},
 		{"output: complete object", []string{"p[x] :- q[i] = e, x = [i,e]", `q = {"a": 1, "b": 2} :- true`}, `[["a", 1], ["b", 2]]`},
 		{"output: complete array dereference non-ground", []string{"p[r] :- q[i][j] = 2, r = [i, j]", "q = [[1,2], [3,2]] :- true"}, "[[0, 1], [1, 1]]"},
 		{"output: complete object defererence non-ground", []string{`p[r] :- q[x][y] = 2, r = [x, y]`, `q = {"a": {"x": 1}, "b": {"y": 2}, "c": {"z": 2}} :- true`}, `[["b", "y"], ["c", "z"]]`},
+		{"output: complete vars", []string{
+			`p[x] :- q[_][_] = x`,
+			`q = [{"x": x, "y": y}, z] :- x = 1, y = 2, z = [1,2,3]`,
+		}, `[1,1,2,2,3]`},
 
 		// no dereferencing
 		{"no suffix: complete", []string{"p = true :- q", "q = true :- true"}, "true"},
+		{"no suffix: complete vars", []string{
+			"p :- q", "q = x :- x = true",
+		}, "true"},
 		{"no suffix: complete incr (error)", []string{"p = true :- q", "q = false :- true", "q = true :- true"}, fmt.Errorf("evaluation error (code: 2): multiple values for data.q: rules must produce exactly one value for complete documents: check rule definition(s): q")},
 		{"no suffix: complete incr", []string{"p = true :- not q", "q = true :- false", "q = false :- true"}, "true"},
 		{"no suffix: object", []string{"p[x] = y :- q = o, o[x] = y", "q[x] = y :- b[x] = y"}, `{"v1": "hello", "v2": "goodbye"}`},
 		{"no suffix: object incr", []string{"p[x] = y :- q = o, o[x] = y", "q[x] = y :- b[x] = y", "q[x1] = y1 :- b[x1] = y1"}, fmt.Errorf("evaluation error (code: 2): multiple values for data.q: rules must produce exactly one value for object document keys: check rule definition(s): q")},
-		{"no suffix: object incr", []string{"p[x] = y :- q = o, o[x] = y", "q[x] = y :- b[x] = y", `q[x1] = y1 :- d["e"][y1] = x1`}, `{"v1": "hello", "v2": "goodbye", "bar": 0, "baz": 1}`},
+		{"no suffix: object incr", []string{
+			"p[x] = y :- q = o, o[x] = y",
+			"q[x] = y :- b[x] = y",
+			`q[x1] = y1 :- d["e"][y1] = x1`},
+			`{"v1": "hello", "v2": "goodbye", "bar": 0, "baz": 1}`},
 		{"no suffix: chained", []string{
 			"p = true :- q = x, x[i] = 4",
 			"q[k] = v :- r = x, x[k] = v",
@@ -529,6 +577,10 @@ func TestTopDownVirtualDocs(t *testing.T) {
 			"p[x] :- q = x",
 			`q[k] = v :- v = [i, j], k = i, i = "a", j = 1`},
 			`[{"a": ["a", 1]}]`},
+		{"no suffix: object composite value", []string{
+			`p[x] :- q = x`,
+			`q[k] = {"v": v} :- v = [i,j], k = i, i = "a", j = 1`},
+			`[{"a": {"v": ["a", 1]}}]`},
 
 		// TODO(tsandall): this requires set literals; "s" must be bound to a "set" type.
 		// {"no deref: set", []string{"p[x] :- q = s, s[x]", "q[x] :- a[i] = x"}, "[1,2,3,4]"},
@@ -631,9 +683,33 @@ func TestTopDownDisjunction(t *testing.T) {
 		expected interface{}
 	}{
 		{"incr: query set", []string{"p[x] :- a[i] = x", "p[y] :- b[j] = y"}, `[1,2,3,4,"hello","goodbye"]`},
-		{"incr: query object", []string{"p[k] = v :- b[v] = k", "p[k] = v :- a[i] = v, g[k][j] = v"}, `{"b": 2, "c": 4, "hello": "v1", "goodbye": "v2", "a": 1}`},
-		{"incr: eval set", []string{"p[x] :- q[x]", "q[x] :- a[i] = x", "q[y] :- b[j] = y"}, `[1,2,3,4,"hello","goodbye"]`},
-		{"incr: eval object", []string{"p[k] = v :- q[k] = v", "q[k] = v :- b[v] = k", "q[k] = v :- a[i] = v, g[k][j] = v"}, `{"b": 2, "c": 4, "hello": "v1", "goodbye": "v2", "a": 1}`},
+		{"incr: query set constants", []string{
+			"p[100] :- true",
+			"p[x] :- a[x]"},
+			"[0,1,2,3,100]"},
+		{"incr: query object", []string{
+			"p[k] = v :- b[v] = k",
+			"p[k] = v :- a[i] = v, g[k][j] = v"},
+			`{"b": 2, "c": 4, "hello": "v1", "goodbye": "v2", "a": 1}`},
+		{"incr: query object constant key", []string{
+			`p["a"] = 1 :- true`,
+			`p["b"] = 2 :- true`},
+			`{"a": 1, "b": 2}`},
+		{"incr: eval set", []string{
+			"p[x] :- q[x]",
+			"q[x] :- a[i] = x",
+			"q[y] :- b[j] = y"},
+			`[1,2,3,4,"hello","goodbye"]`},
+		{"incr: eval object", []string{
+			"p[k] = v :- q[k] = v",
+			"q[k] = v :- b[v] = k",
+			"q[k] = v :- a[i] = v, g[k][j] = v"},
+			`{"b": 2, "c": 4, "hello": "v1", "goodbye": "v2", "a": 1}`},
+		{"incr: eval object constant key", []string{
+			"p[k] = v :- q[k] = v",
+			`q["a"] = 1 :- true`,
+			`q["b"] = 2 :- true`},
+			`{"a": 1, "b": 2}`},
 		{"complete: undefined", []string{"p :- false", "p :- false"}, ""},
 		{"complete: error", []string{"p :- true", "p = false :- true"}, fmt.Errorf("evaluation error (code: 2): multiple values for [p]: rules must produce exactly one value for complete documents: check rule definition(s): p")},
 		{"complete: valid", []string{"p :- true", "p = true :- true"}, "true"},
@@ -690,6 +766,10 @@ func TestTopDownComprehensions(t *testing.T) {
 		{"embedded array", []string{"p[i] :- xs = [[x | x = a[_]]], xs[0][i] > 1"}, "[1,2,3]"},
 		{"embedded object", []string{`p[i] :- xs = {"a": [x | x = a[_]]}, xs["a"][i] > 1`}, "[1,2,3]"},
 		{"closure", []string{"p[x] :- y = 1, x = [y | y = 1]"}, "[[1]]"},
+		{"dereference embedded", []string{
+			"p[x] :- q.a[2][i] = x",
+			`q[k] = v :- k = "a", v = [y | i[_] = _, i = y, i = [ z | z = a[_]] ]`,
+		}, "[1,2,3,4]"},
 	}
 
 	data := loadSmallTestData()
@@ -839,6 +919,32 @@ func TestTopDownGlobalVars(t *testing.T) {
 			}
 		}
 	}`, "true")
+}
+
+func TestTopDownCaching(t *testing.T) {
+	mods := compileModules([]string{`
+	package topdown.caching
+
+	p[x] :- q[x], q[y]
+
+	q[x] :- data.d.e[_] = k, r[k] = x  # exercise caching with ref key:
+	                                   # k will be bound to ref data.d.e[0], data.d.e.[1], etc.
+
+	r[k] = v :- data.strings[k] = v
+	`})
+
+	data := loadSmallTestData()
+	store := storage.NewDataStoreFromJSONObject(data)
+	policyStore := storage.NewPolicyStore(store, "")
+
+	for id, mod := range mods {
+		err := policyStore.Add(id, mod, []byte(""), false)
+		if err != nil {
+			panic(err)
+		}
+	}
+
+	assertTopDown(t, store, 0, "reference lookup", []string{"topdown", "caching", "p"}, `{}`, "[2,2,3,3]")
 }
 
 func TestExample(t *testing.T) {

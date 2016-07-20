@@ -5,6 +5,7 @@
 package scheduler
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -15,21 +16,24 @@ import (
 	"github.com/open-policy-agent/opa/topdown"
 )
 
-func BenchmarkScheduler10Nodes(b *testing.B) {
-	params := setupSchedulerBenchmark(b, "data_10nodes_30pods.json")
-	for i := 0; i < b.N; i++ {
-		r, err := topdown.Query(params)
-		if err != nil {
-			b.Fatal("unexpected error:", err)
-		}
-		w := r.(map[string]interface{})
-		if len(w) != 10 {
-			b.Fatal("unexpected query result:", r)
+func TestScheduler(t *testing.T) {
+	params := setup(t, "data_10nodes_30pods.json")
+	r, err := topdown.Query(params)
+	if err != nil {
+		t.Fatal("unexpected error:", err)
+	}
+	ws := r.(map[string]interface{})
+	if len(ws) != 10 {
+		t.Fatal("unexpected query result:", r)
+	}
+	for n, w := range ws {
+		if fmt.Sprintf("%.3f", w) != "5.014" {
+			t.Fatalf("unexpected weight for: %v: %v\n\nDumping all weights:\n\n%v\n", n, w, r)
 		}
 	}
 }
 
-func setupSchedulerBenchmark(b *testing.B, filename string) *topdown.QueryParams {
+func setup(t *testing.T, filename string) *topdown.QueryParams {
 
 	// policy compilation
 	c := ast.NewCompiler()
@@ -38,71 +42,67 @@ func setupSchedulerBenchmark(b *testing.B, filename string) *topdown.QueryParams
 	}
 
 	if c.Compile(modules); c.Failed() {
-		b.Fatal("unexpected error:", c.FlattenErrors())
+		t.Fatal("unexpected error:", c.FlattenErrors())
 	}
 
 	// storage setup
-	ds := loadDataStore(b, filename)
-	loadPolicyStore(b, ds, c.Modules)
+	ds := loadDataStore(filename)
+	loadPolicyStore(ds, c.Modules)
 
 	// parameter setup
 	globals := storage.NewBindings()
 	req := ast.MustParseTerm(requestedPod).Value
 	globals.Put(ast.Var("requested_pod"), req)
-	path := []interface{}{"opa", "test", "perf", "scheduler", "fit"}
+	path := []interface{}{"opa", "test", "scheduler", "fit"}
 	params := topdown.NewQueryParams(ds, globals, path)
-
-	b.ResetTimer()
 
 	return params
 }
 
-func loadDataStore(b *testing.B, filename string) *storage.DataStore {
-	filename = getFilename(b, filename)
+func loadDataStore(filename string) *storage.DataStore {
+	filename = getFilename(filename)
 
 	f, err := os.Open(filename)
 	if err != nil {
-		b.Fatal("unable to open file:", err)
+		panic(err)
 	}
 
 	defer f.Close()
 	ds, err := storage.Load(f)
-
 	if err != nil {
-		b.Fatal("unable to load data store:", err)
+		panic(err)
 	}
 
 	return ds
 }
 
-func loadPolicyStore(b *testing.B, ds *storage.DataStore, modules map[string]*ast.Module) *storage.PolicyStore {
+func loadPolicyStore(ds *storage.DataStore, modules map[string]*ast.Module) *storage.PolicyStore {
 	ps := storage.NewPolicyStore(ds, "")
 	for id, mod := range modules {
 		if err := ps.Add(id, mod, nil, false); err != nil {
-			b.Fatal("unexpected error:", err)
+			panic(err)
 		}
 	}
 	return ps
 }
 
-func getFilename(b *testing.B, filename string) string {
-	gopath := getGOPATH(b)
+func getFilename(filename string) string {
+	gopath := getGOPATH()
 	return filepath.Join(gopath, path, filename)
 }
 
-func getGOPATH(b *testing.B) string {
+func getGOPATH() string {
 	for _, s := range os.Environ() {
 		vs := strings.SplitN(s, "=", 2)
 		if vs[0] == "GOPATH" {
 			return vs[1]
 		}
 	}
-	b.Fatalf("unable to get $GOPATH")
-	return ""
+	panic("cannot find GOPATH in environment")
 }
 
 const (
-	path = "src/github.com/open-policy-agent/opa/test/perf/scheduler"
+	path = "src/github.com/open-policy-agent/opa/test/scheduler"
 
 	requestedPod = `{
  "status": {
@@ -150,7 +150,7 @@ const (
 }`
 
 	policy = `
-package opa.test.perf.scheduler
+package opa.test.scheduler
 
 import data.nodes
 import data.pods
@@ -421,22 +421,35 @@ mem_weight[node_id] = weight :-
     div(mem_scaled, mem_capacity, weight)
 
 balanced_allocation[node_id] = weight :-
+    mem_fraction[node_id] = mem_f,
     cpu_fraction[node_id] = cpu_f,
+    mem_f < 1,
+    cpu_f < 1,
+    minus(cpu_f, mem_f, usage),
+    abs(usage, usage_pos),
+    mul(usage_pos, 10, usage_scaled),
+    minus(10, usage_scaled, weight)
+
+balanced_allocation[node_id] = weight :-
+    mem_fraction[node_id] = mem_f,
+    cpu_fraction[node_id] = cpu_f,
+    mem_f >= 1,
     cpu_f >= 1,
     weight = 0
 
 balanced_allocation[node_id] = weight :-
     mem_fraction[node_id] = mem_f,
-    mem_f >= 1,
+    cpu_fraction[node_id] = cpu_f,
+    mem_f < 1,
+    cpu_f >= 1,
     weight = 0
 
 balanced_allocation[node_id] = weight :-
     mem_fraction[node_id] = mem_f,
     cpu_fraction[node_id] = cpu_f,
-    minus(cpu_f, mem_f, usage),
-    abs(usage, usage_pos),
-    mul(usage_pos, 10, usage_scaled),
-    minus(10, usage_scaled, weight)
+    mem_f >= 1,
+    cpu_f < 1,
+    weight = 0
 
 cpu_fraction[node_id] = f :-
     cpu_nonzero_total[node_id] = cpu,
@@ -449,11 +462,14 @@ mem_fraction[node_id] = f :-
     div(mem, mem_capacity, f)
 
 selector_spreading[node_id] = weight :-
-    max([c | rc_match_count[_] = c], max_c),
-    max([1, max_c], max_count),
+    max_rc_match_count = max_count,
     minus(max_count, rc_match_count[node_id], delta),
     div(delta, max_count, ratio),
     mul(ratio, 10, weight)
+
+max_rc_match_count = max_count :-
+    max([c | rc_match_count[_] = c], max_c),
+    max([1, max_c], max_count)
 
 rc_match_count[node_id] = cnt :-
     nodes[node_id],
@@ -471,15 +487,14 @@ rcs_for_pod[pod_id] = rc_ids :-
                       x = [pod_id, rc_id],
                       selector_matches[x]]
 
-selector_matches[x] :-
+selector_matches[[pod_id, rc_id]] :-
     pods[pod_id], rcs[rc_id],
     x = [pod_id, rc_id],
     not selector_not_matches[x]
 
-selector_not_matches[x] :-
+selector_not_matches[[pod_id, rc_id]] :-
     pods[pod_id] = pod,
     rcs[rc_id] = rc,
-    x = [pod_id, rc_id],
     rc.spec.selector[k] = v,
     not pod.metadata.labels[k] = v
 

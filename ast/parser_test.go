@@ -6,6 +6,7 @@ package ast
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 )
 
@@ -305,8 +306,28 @@ func TestRule(t *testing.T) {
 		},
 	})
 
-	assertParseError(t, "constant key", "p[100] :- true")
-	assertParseError(t, "composite key", "p[[1,2,x]] :- x = true")
+	assertParseRule(t, "composites in head", `p[[{"x": [a,b]}]] :- a = 1, b = 2`, &Rule{
+		Name: Var("p"),
+		Key: ArrayTerm(
+			ObjectTerm(
+				Item(StringTerm("x"), ArrayTerm(VarTerm("a"), VarTerm("b"))),
+			),
+		),
+		Body: []*Expr{
+			Equality.Expr(VarTerm("a"), NumberTerm(float64(1))),
+			Equality.Expr(VarTerm("b"), NumberTerm(float64(2))),
+		},
+	})
+
+	assertParseErrorEquals(t, "object composite key", "p[[x,y]] = z :- true", "head of object rule must have string or var key ([x, y] is not allowed)")
+	assertParseErrorEquals(t, "ref in key", "p[[a[i]]] :- true", "head cannot contain references (a[i] appears in key)")
+	assertParseErrorEquals(t, "closure in key", "p[[1 | true]] :- true", "head cannot contain closures ([1 | true] appears in key)")
+	assertParseErrorEquals(t, "ref in value", "p = [a[i]] :- true", "head cannot contain references (a[i] appears in value)")
+	assertParseErrorEquals(t, "closure in value", "p = [[1 | true]] :- true", "head cannot contain closures ([1 | true] appears in value)")
+
+	// TODO(tsandall): improve error checking here. This is a common mistake
+	// and the current error message is not very good. Need to investigate if the
+	// parser can be improved.
 	assertParseError(t, "dangling comma", "p :- true, false,")
 }
 
@@ -524,6 +545,22 @@ func assertParseError(t *testing.T, msg string, input string) {
 	if err == nil {
 		t.Errorf("Error on test %s: expected parse error: %v (parsed)", msg, p)
 		return
+	}
+}
+
+func assertParseErrorEquals(t *testing.T, msg string, input string, expected string) {
+	p, err := ParseStatement(input)
+	if err == nil {
+		t.Errorf("Error on test %s: expected parse error: %v (parsed)", msg, p)
+		return
+	}
+	result := err.Error()
+	// line:col (#): <parser-rule>: <message>
+	parts := strings.SplitN(result, ":", 4)
+	result = strings.TrimSpace(parts[len(parts)-1])
+
+	if result != expected {
+		t.Errorf("Error on test %s: expected parse error to equal %v but got: %v", msg, expected, result)
 	}
 }
 
