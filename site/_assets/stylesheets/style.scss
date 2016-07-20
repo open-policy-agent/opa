@@ -78,6 +78,14 @@ h3 {
   margin: 20px 0 12px;
 }
 
+h4 {
+  color: rgba(0, 0, 0, 0.87);
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: bold;
+  margin: 10px 0 6px;
+}
+
 ol,
 ul {
   margin: 12px auto;
@@ -107,7 +115,7 @@ p {
 }
 
 strong {
-  font-style: bold;
+  font-weight: bold;
 }
 
 .opa-nav-main {
