@@ -874,7 +874,7 @@ Built-ins usually take one or more input values and produce at least one output 
 ```
 
 ```ruby
-# max(array, x)
+# max(array, output)
 #
 # Calculates the maximum value in an array.
 
@@ -889,7 +889,7 @@ Built-ins usually take one or more input values and produce at least one output 
 ### Casting
 
 ```ruby
-# to_number(scalar, ouput)
+# to_number(scalar, output)
 #
 # Converts a scalar value to a number.
 
@@ -899,6 +899,47 @@ Built-ins usually take one or more input values and produce at least one output 
 +------+
 | 3.14 |
 +------+
+```
+
+### Regular Expressions
+
+```ruby
+# re_match(pattern, value)
+#
+# Evaluates to true if value matches regular expression defined by pattern string.
+
+> pattern = "^us-west-1.*$"
+> re_match(pattern, "us-west-1.production")
+true
+> re_match(pattern, "us-east-2.dev")
+false
+```
+
+### Strings
+
+```ruby
+# format_int(number, base, output)
+#
+# Returns the string representation of the number in the given base after converting it to an integer value.
+
+> format_int(15.5, 16, x)
++-----+
+|  x  |
++-----+
+| "f" |
++-----+
+```
+
+```ruby
+# concat(join, array, output)
+#
+# Returns the string produced by concatenating the elements in array with the join string.
+> concat("/", ["", "foo", "bar", "baz"], x)
++----------------+
+|       x        |
++----------------+
+| "/foo/bar/baz" |
++----------------+
 ```
 
 ## <a name="examples"></a> Examples
