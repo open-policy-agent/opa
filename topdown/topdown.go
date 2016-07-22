@@ -516,6 +516,23 @@ func ValueToString(v ast.Value, ctx *Context) (string, error) {
 	return s, nil
 }
 
+// ValueToStrings returns a slice of strings associated with an AST value.
+func ValueToStrings(v ast.Value, ctx *Context) ([]string, error) {
+	sl, err := ValueToSlice(v, ctx)
+	if err != nil {
+		return nil, err
+	}
+	r := make([]string, len(sl))
+	for i, x := range sl {
+		var ok bool
+		r[i], ok = x.(string)
+		if !ok {
+			return nil, fmt.Errorf("illegal argument: %v", x)
+		}
+	}
+	return r, nil
+}
+
 func evalContext(ctx *Context, iter Iterator) error {
 
 	if ctx.Index >= len(ctx.Query) {

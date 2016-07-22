@@ -24,6 +24,8 @@ var DefaultBuiltins = [...]*Builtin{
 	Plus, Minus, Multiply, Divide, Round, Abs,
 	Count, Sum, Max,
 	ToNumber,
+	RegexMatch,
+	Concat, FormatInt,
 }
 
 // BuiltinMap provides a convenient mapping of built-in names to
@@ -163,6 +165,35 @@ var ToNumber = &Builtin{
 	Name:      Var("to_number"),
 	NumArgs:   2,
 	TargetPos: []int{1},
+}
+
+/**
+ * Regular Expressions
+ */
+
+// RegexMatch takes two strings and evaluates to true if the string in the second
+// position matches the pattern in the first position.
+var RegexMatch = &Builtin{
+	Name:    Var("re_match"),
+	NumArgs: 2,
+}
+
+/**
+ * Strings
+ */
+
+// Concat joins an array of strings to with an input string.
+var Concat = &Builtin{
+	Name:      Var("concat"),
+	NumArgs:   3,
+	TargetPos: []int{2},
+}
+
+// FormatInt returns the string representation of the number in the given base after converting it to an integer value.
+var FormatInt = &Builtin{
+	Name:      Var("format_int"),
+	NumArgs:   3,
+	TargetPos: []int{2},
 }
 
 // Builtin represents a built-in function supported by OPA. Every
