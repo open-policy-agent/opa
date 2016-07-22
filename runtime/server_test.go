@@ -148,6 +148,25 @@ func TestIndexGet(t *testing.T) {
 	}
 }
 
+func TestIndexGetCompileError(t *testing.T) {
+	f := newFixture(t)
+	// "foo" is not bound
+	get, err := http.NewRequest("GET", `/?q=foo`, strings.NewReader(""))
+	if err != nil {
+		panic(err)
+	}
+	f.server.Router.ServeHTTP(f.recorder, get)
+	if f.recorder.Code != 200 {
+		t.Errorf("Expected success but got: %v", f.recorder)
+		return
+	}
+	page := f.recorder.Body.String()
+	if !strings.Contains(page, "foo is unsafe") {
+		t.Errorf("Expected page to contain 'foo is unsafe' but got: %v", page)
+		return
+	}
+}
+
 func TestPoliciesPutV1(t *testing.T) {
 	f := newFixture(t)
 	req := newReqV1("PUT", "/policies/1", testMod)
