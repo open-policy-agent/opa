@@ -8,7 +8,7 @@
 # Site settings
 title: Open Policy Agent
 email:
-description: "OPA: An open source project to policy enable any application."
+description: "OPA: An open source project to policy-enable your service."
 baseurl: "" # the subpath of your site, e.g. /blog
 url: "http://openpolicyagent.org" # the base hostname & protocol for your site
 github_username:  open-policy-agent

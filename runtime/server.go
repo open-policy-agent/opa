@@ -551,7 +551,7 @@ func renderBanner(w http.ResponseWriter) {
    \ \_______\   \ \__\      \ \__\ \__\
     \|_______|    \|__|       \|__|\|__|
 	</pre>`)
-	fmt.Fprintln(w, "Open Policy Agent - An open source project to policy enable any application.<br>")
+	fmt.Fprintln(w, "Open Policy Agent - An open source project to policy-enable your service.<br>")
 	fmt.Fprintln(w, "<br>")
 }
 
