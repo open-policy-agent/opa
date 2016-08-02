@@ -2,6 +2,7 @@
 // Use of this source code is governed by an Apache2
 // license that can be found in the LICENSE file.
 
+// Package version contains version information that is set at build time.
 package version
 
 // Version information that is displayed by the "version" command and used to
