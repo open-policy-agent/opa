@@ -91,6 +91,42 @@ type stage struct {
 	name string
 }
 
+// CompileQuery is a helper function to compile a query represented as a string.
+func CompileQuery(q string) (Body, error) {
+
+	parsed, err := ParseBody(q)
+	if err != nil {
+		return nil, err
+	}
+
+	key := string(Wildcard.Value.(Var))
+
+	mod := &Module{
+		Package: &Package{
+			Path:     Ref{DefaultRootDocument},
+			Location: parsed.Loc(),
+		},
+		Rules: []*Rule{
+			&Rule{
+				Name:     Var(key),
+				Body:     parsed,
+				Location: parsed.Loc(),
+			},
+		},
+	}
+	mods := map[string]*Module{
+		key: mod,
+	}
+
+	c := NewCompiler()
+
+	if c.Compile(mods); c.Failed() {
+		return nil, c.Errors[0]
+	}
+
+	return c.Modules[key].Rules[0].Body, nil
+}
+
 // NewCompiler returns a new empty compiler.
 func NewCompiler() *Compiler {
 

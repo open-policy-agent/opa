@@ -110,34 +110,12 @@ func (s *Server) Loop() error {
 
 func (s *Server) execQuery(qStr string) (resultSetV1, error) {
 
-	query, err := ast.ParseBody(qStr)
-
+	query, err := ast.CompileQuery(qStr)
 	if err != nil {
 		return nil, err
 	}
 
-	path := ast.Ref{ast.DefaultRootDocument}
-
-	rule := &ast.Rule{
-		Body: query,
-	}
-
-	mod := &ast.Module{
-		Package: &ast.Package{
-			Path: path,
-		},
-		Rules: []*ast.Rule{rule},
-	}
-
-	c := ast.NewCompiler()
-
-	if c.Compile(map[string]*ast.Module{"": mod}); c.Failed() {
-		return nil, c.Errors[0]
-	}
-
-	compiled := c.Modules[""].Rules[0].Body
-
-	ctx := topdown.NewContext(compiled, s.Runtime.DataStore)
+	ctx := topdown.NewContext(query, s.Runtime.DataStore)
 
 	results := resultSetV1{}
 
