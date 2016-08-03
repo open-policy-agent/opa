@@ -196,12 +196,14 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	pretty := getPretty(r.URL.Query()["pretty"])
+
 	if _, ok := result.(topdown.Undefined); ok {
-		handleResponseJSON(w, 404, undefinedV1{true})
+		handleResponseJSON(w, 404, undefinedV1{true}, pretty)
 		return
 	}
 
-	handleResponseJSON(w, 200, result)
+	handleResponseJSON(w, 200, result, pretty)
 }
 
 func (s *Server) v1DataPatch(w http.ResponseWriter, r *http.Request) {
@@ -306,7 +308,7 @@ func (s *Server) v1PoliciesGet(w http.ResponseWriter, r *http.Request) {
 		Module: mod,
 	}
 
-	handleResponseJSONPretty(w, 200, policy)
+	handleResponseJSON(w, 200, policy, true)
 }
 
 func (s *Server) v1PoliciesRawGet(w http.ResponseWriter, r *http.Request) {
@@ -341,7 +343,7 @@ func (s *Server) v1PoliciesList(w http.ResponseWriter, r *http.Request) {
 		policies = append(policies, policy)
 	}
 
-	handleResponseJSONPretty(w, 200, policies)
+	handleResponseJSON(w, 200, policies, true)
 }
 
 func (s *Server) v1PoliciesPut(w http.ResponseWriter, r *http.Request) {
@@ -390,7 +392,7 @@ func (s *Server) v1PoliciesPut(w http.ResponseWriter, r *http.Request) {
 		Module: mod,
 	}
 
-	handleResponseJSONPretty(w, 200, policy)
+	handleResponseJSON(w, 200, policy, true)
 }
 
 func (s *Server) v1QueryGet(w http.ResponseWriter, r *http.Request) {
@@ -409,7 +411,9 @@ func (s *Server) v1QueryGet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	handleResponseJSON(w, 200, results)
+	pretty := getPretty(r.URL.Query()["pretty"])
+
+	handleResponseJSON(w, 200, results, pretty)
 }
 
 func splitPath(s string) []interface{} {
@@ -463,19 +467,17 @@ func handleResponse(w http.ResponseWriter, code int, bs []byte) {
 	w.Write(bs)
 }
 
-func handleResponseJSON(w http.ResponseWriter, code int, v interface{}) {
-	bs, err := json.Marshal(v)
-	if err != nil {
-		handleErrorAuto(w, err)
-		return
-	}
-	headers := w.Header()
-	headers.Add("Content-Type", "application/json")
-	handleResponse(w, code, bs)
-}
+func handleResponseJSON(w http.ResponseWriter, code int, v interface{}, pretty bool) {
 
-func handleResponseJSONPretty(w http.ResponseWriter, code int, v interface{}) {
-	bs, err := json.MarshalIndent(v, "", "  ")
+	var bs []byte
+	var err error
+
+	if pretty {
+		bs, err = json.MarshalIndent(v, "", "  ")
+	} else {
+		bs, err = json.Marshal(v)
+	}
+
 	if err != nil {
 		handleErrorAuto(w, err)
 		return
@@ -487,6 +489,15 @@ func handleResponseJSONPretty(w http.ResponseWriter, code int, v interface{}) {
 
 func globalConflictErr(k ast.Value) error {
 	return fmt.Errorf("conflicting global: %v: check global arguments", k)
+}
+
+func getPretty(p []string) bool {
+	for _, x := range p {
+		if strings.ToLower(x) == "true" {
+			return true
+		}
+	}
+	return false
 }
 
 func parseGlobals(g []string) (*storage.Bindings, error) {

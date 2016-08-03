@@ -130,6 +130,30 @@ func TestDataV1(t *testing.T) {
 	}
 }
 
+func TestV1Pretty(t *testing.T) {
+
+	f := newFixture(t)
+	f.v1("PATCH", "/data/x", `[{"op": "add", "path":"/", "value": [1,2,3,4]}]`, 204, "")
+
+	req := newReqV1("GET", "/data/x?pretty=true", "")
+	f.reset()
+	f.server.Router.ServeHTTP(f.recorder, req)
+
+	lines := strings.Split(f.recorder.Body.String(), "\n")
+	if len(lines) != 6 {
+		t.Errorf("Expected 5 lines in output but got %d:\n%v", len(lines), lines)
+	}
+
+	req = newReqV1("GET", "/query?q=data.x[i]&pretty=true", "")
+	f.reset()
+	f.server.Router.ServeHTTP(f.recorder, req)
+
+	lines = strings.Split(f.recorder.Body.String(), "\n")
+	if len(lines) != 14 {
+		t.Errorf("Expected 14 lines of output but got %d:\n%v", len(lines), lines)
+	}
+}
+
 func TestIndexGet(t *testing.T) {
 	f := newFixture(t)
 	get, err := http.NewRequest("GET", `/?q=foo = 1`, strings.NewReader(""))
