@@ -1058,6 +1058,7 @@ array          = "[" term { "," term } "]"
 object         = "{" object-item { "," object-item } "}"
 object-item    = ( scalar | ref | var ) ":" term
 ```
+{: .opa-collapse--ignore}
 
 The grammar defined above makes use of the following syntax. See [the Wikipedia page on EBNF](https://en.wikipedia.org/wiki/Extended_Backus–Naur_Form) for more details:
 
@@ -1074,5 +1075,6 @@ NULL   JSON null
 ALPHA  ASCII characters A-Z and a-z
 DIGIT  ASCII characters 0-9
 ```
+{: .opa-collapse--ignore}
 
 {% endcontentfor %}
