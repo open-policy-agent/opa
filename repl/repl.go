@@ -2,6 +2,9 @@
 // Use of this source code is governed by an Apache2
 // license that can be found in the LICENSE file.
 
+// Package repl implements a Read-Eval-Print-Loop (REPL) for interacting with the policy engine.
+//
+// The REPL is typically used from the command line, however, it can also be used as a library.
 package repl
 
 import (

@@ -91,6 +91,28 @@ type stage struct {
 	name string
 }
 
+// CompileModule is a helper function to compile a module represented as a string.
+func CompileModule(m string) (*Module, error) {
+
+	mod, err := ParseModule("", m)
+	if err != nil {
+		return nil, err
+	}
+
+	c := NewCompiler()
+
+	key := WildcardPrefix
+	mods := map[string]*Module{
+		key: mod,
+	}
+
+	if c.Compile(mods); c.Failed() {
+		return nil, c.Errors[0]
+	}
+
+	return c.Modules[key], nil
+}
+
 // CompileQuery is a helper function to compile a query represented as a string.
 func CompileQuery(q string) (Body, error) {
 
