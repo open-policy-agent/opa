@@ -49,6 +49,7 @@ div.highlighter-rouge {
   margin: 24px auto;
   max-width: 720px;
   padding: 24px;
+  position: relative;
 
   & > .highlight {
     overflow-x: auto;
@@ -582,4 +583,65 @@ strong {
 
 .opa-keep-it-together {
   white-space: nowrap;
+}
+
+.opa-collapse {
+  height: auto;
+
+  & > .opa-collapse--target {
+    cursor: pointer;
+    font-size: 12px;
+    padding: 2px 8px;
+    position: absolute;
+    right: 0;
+    top: 0;
+
+    &:hover {
+      &:before {
+        color: rgba(0, 0, 0, 1.00);
+      }
+
+      &:after {
+        color: rgba(0, 0, 0, 0.87);
+      }
+    }
+
+    &:before {
+      color: rgba(0, 0, 0, 0.80);
+      content: "show less";
+    }
+
+    &:after {
+      color: rgba(0, 0, 0, 0.67);
+      content: "▲";
+      display: inline;
+      margin: 0 0 0 8px;
+    }
+  }
+
+  &--collapsed {
+    height: 320px;
+    overflow: auto;
+
+    &:after {
+      background-image: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAAgCAYAAADT5RIaAAAABGdBTUEAALGPC/xhBQAAAGBJREFUGFc1irkNwzAQBHfHFLgE3H9VrMSpQsF3CiyH82jvfaj78+Y8E8a4AtcIF98ABJtJVS2Gj4ld+WGVg+yJ3cH2E+wO8mtidVArtBUkhe7/rFbw4xYyE0kTdS1k5wbQbSZ9Np8UEAAAAABJRU5ErkJggg==);
+      background-repeat: repeat-x;
+      bottom: 24px;
+      content: "";
+      height: 32px;
+      left: 0;
+      position: absolute;
+      right: 0;
+    };
+
+    & > .opa-collapse--target {
+      &:before {
+        content: "show more";
+      }
+
+      &:after {
+        content: "▼";
+      }
+    }
+  }
 }

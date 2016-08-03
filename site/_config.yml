@@ -23,6 +23,7 @@ gems:
 assets:
   compress:
     css: true
+    js: true
   assets:
     - "*.png"
     - "*.svg"
