@@ -1,0 +1,10 @@
+[
+    {"op": "add",
+     "path": "-",
+     "value": {
+         "id": "s5",
+         "name": "job",
+         "protocols": ["amqp"],
+         "ports": ["p3"]
+     }}
+]
