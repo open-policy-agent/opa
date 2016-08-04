@@ -18,7 +18,7 @@ This document is the authoritative specification of the OPA REST API (v1). These
 
 ## Policy API
 
-The Policy API exposes CRUD endpoints for managing policy modules. Policy modules can be added, removed, or updated at any time.
+The Policy API exposes CRUD endpoints for managing policy modules. Policy modules can be added, removed, and modified at any time.
 
 The identifiers given to policy modules are only used for management purposes. They are not used outside of the Policy API.
 
@@ -699,6 +699,49 @@ Content-Type: application/json
 - **404** - not found
 - **500** - server error
 
+### Get a Raw Policy
+
+```
+GET /v1/policies/<id>/raw
+```
+
+Get a raw policy module.
+
+Returns the raw policy module content that was sent by the client when the policy was created or last updated.
+
+#### Example Request
+
+```http
+GET /v1/policies/example1/raw HTTP/1.1
+```
+
+#### Example Response
+
+```http
+HTTP/1.1 200 OK
+Content-Type: text/plain; charset=utf-8
+```
+
+```ruby
+package opa.examples
+
+import data.servers
+import data.networks
+import data.ports
+
+public_servers[server] :-
+	server = servers[_],
+	server.ports[_] = ports[k].id,
+	ports[k].networks[_] = networks[m].id,
+	networks[m].public = true
+```
+
+#### Status Codes
+
+- **200** - no error
+- **404** - not found
+- **500** - server error
+
 ### Create or Update a Policy
 
 ```
@@ -988,7 +1031,7 @@ Content-Type: application/json
 - **400** - bad request
 - **500** - server error
 
-Before accepting the request, the server will parse, compile, and install the policy module. If any of these operations fail, all changes will be rolled back and the server will return 400. The error message that accompanies the response should indicate why the request failed.
+Before accepting the request, the server will parse, compile, and install the policy module. If the policy module is invalid, one of these steps will fail and the server will respond with 400. The error message in the response will be set to indicate the source of the error.
 
 ### Delete a Policy
 
@@ -1017,7 +1060,7 @@ HTTP/1.1 204 No Content
 - **404** - not found
 - **500** - server error
 
-If other policy modules in the same package depend on rules in the module to be deleted, the server will return 400.
+If other policy modules in the same package depend on rules in the policy module to be deleted, the server will return 400.
 
 ## Data API
 
@@ -1031,7 +1074,7 @@ GET /v1/data/{path:.+}
 
 Get a document.
 
-The path separator is used to access an object value by key or an array element by index. If the path accesses an array, OPA attempts to treat the path element as an integer.
+The path separator is used to access values inside object and array documents. If the path indexes into an array, the server will attempt to convert the array index to an integer. If the path element cannot be converted to an integer, the server will respond with 404.
 
 #### Example Request
 
@@ -1077,7 +1120,7 @@ Content-Type: application/json
 
 #### Query Parameters
 
-- **global** - Provide an input document to the query. Format is `<path>:<value>` where `<path>` is the import path of the input document and `<value>` is the JSON serialized input document. The parameter may be specified multiple times but each instance should contain a unique `<path>`.
+- **global** - Provide an input document to the query. Format is `<path>:<value>` where `<path>` is the import path of the input document and `<value>` is the JSON serialized input document. The parameter may be specified multiple times but each instance should specify a unique `<path>`.
 - **pretty** - Return data with indented, human-readable formatting.
 
 #### Status Codes
@@ -1131,9 +1174,9 @@ Content-Type: application/json-patch+json
 
 Update a document.
 
-The path separator is used to access an object value by key or an array element by index. If the path accesses an array, OPA attempts to treat the path element as an integer.
+The path separator is used to access values inside object and array documents. If the path indexes into an array, the server will attempt to convert the array index to an integer. If the path element cannot be converted to an integer, the server will respond with 404.
 
-OPA accepts updates encoded as JSON Patch operations. The message body of the request should contain a JSON encoded array containing one or more JSON Patch operations. Each operation specifies the operation type, path, and an optional value. For more information on JSON Patch, see [RFC 6902](https://tools.ietf.org/html/rfc6902).
+The server accepts updates encoded as JSON Patch operations. The message body of the request should contain a JSON encoded array containing one or more JSON Patch operations. Each operation specifies the operation type, path, and an optional value. For more information on JSON Patch, see [RFC 6902](https://tools.ietf.org/html/rfc6902).
 
 #### Example Request
 
@@ -1177,7 +1220,7 @@ The effective path of the JSON Patch operation is obtained by joining the path p
 GET /v1/query
 ```
 
-Execute an ad-hoc query and returns bindings for variables found in the query.
+Execute an ad-hoc query and return bindings for variables found in the query.
 
 #### Example Request
 
