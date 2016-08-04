@@ -1,1 +1,0 @@
-The JSON and Rego files in this directory are used by gen-examples.sh to generate the example output for the REST API reference. The output of gen-examples.sh can be copied into the index.md file manually for now.

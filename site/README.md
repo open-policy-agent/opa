@@ -45,3 +45,9 @@ To update the website perform the following steps:
     ```
     git push origin gh-pages
     ```
+
+## REST API Examples
+
+The REST API specification contains examples that are generated manually by running
+`./_scripts/rest-examples/gen-examples.sh`. This script will launch OPA and
+execute a series of API calls to produce output can be copied into the specification.
