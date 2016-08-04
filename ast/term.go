@@ -347,28 +347,33 @@ func VarTerm(v string) *Term {
 
 // Equal returns true if the other Value is a Variable and has the same value
 // (name).
-func (variable Var) Equal(other Value) bool {
+func (v Var) Equal(other Value) bool {
 	switch other := other.(type) {
 	case Var:
-		return variable == other
+		return v == other
 	default:
 		return false
 	}
 }
 
 // Hash returns the hash code for the Value.
-func (variable Var) Hash() int {
-	h := siphash.Hash(hashSeed0, hashSeed1, *(*[]byte)(unsafe.Pointer(&variable)))
+func (v Var) Hash() int {
+	h := siphash.Hash(hashSeed0, hashSeed1, *(*[]byte)(unsafe.Pointer(&v)))
 	return int(h)
 }
 
 // IsGround always returns false.
-func (variable Var) IsGround() bool {
+func (v Var) IsGround() bool {
 	return false
 }
 
-func (variable Var) String() string {
-	return string(variable)
+// IsWildcard returns true if this is a wildcard variable.
+func (v Var) IsWildcard() bool {
+	return strings.HasPrefix(string(v), WildcardPrefix)
+}
+
+func (v Var) String() string {
+	return string(v)
 }
 
 // Ref represents a reference as defined by the language.

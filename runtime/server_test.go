@@ -123,6 +123,10 @@ func TestDataV1(t *testing.T) {
 			tr{"PUT", "/policies/test", testMod, 200, ""},
 			tr{"GET", "/data/testmod/undef", "", 404, `{"IsUndefined": true}`},
 		}},
+		{"query wildcards omitted", []tr{
+			tr{"PATCH", "/data/x", `[{"op": "add", "path": "/", "value": [1,2,3,4]}]`, 204, ""},
+			tr{"GET", "/query?q=data.x[_]%20=%20x", "", 200, `[{"x": 1}, {"x": 2}, {"x": 3}, {"x": 4}]`},
+		}},
 	}
 
 	for i, tc := range tests {

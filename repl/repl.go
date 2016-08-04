@@ -412,11 +412,11 @@ func (r *REPL) evalBody(body ast.Body) bool {
 		var err error
 		row := map[string]interface{}{}
 		ctx.Locals.Iter(func(k, v ast.Value) bool {
-			name, ok := k.(ast.Var)
+			kv, ok := k.(ast.Var)
 			if !ok {
 				return false
 			}
-			if strings.HasPrefix(string(name), ast.WildcardPrefix) {
+			if kv.IsWildcard() {
 				return false
 			}
 			r, e := topdown.ValueToInterface(v, ctx)
@@ -589,8 +589,7 @@ func (r *REPL) evalTermMultiValue(body ast.Body) bool {
 
 		ctx.Locals.Iter(func(k, v ast.Value) bool {
 			if k, ok := k.(ast.Var); ok {
-				name := string(k)
-				if strings.HasPrefix(name, ast.WildcardPrefix) {
+				if k.IsWildcard() {
 					return false
 				}
 				x, e := topdown.ValueToInterface(v, ctx)
@@ -598,8 +597,9 @@ func (r *REPL) evalTermMultiValue(body ast.Body) bool {
 					err = e
 					return true
 				}
-				result[name] = x
-				vars[name] = struct{}{}
+				s := string(k)
+				result[s] = x
+				vars[s] = struct{}{}
 			}
 			return false
 		})
@@ -818,8 +818,8 @@ func buildHeader(fields map[string]struct{}, term *ast.Term) {
 			buildHeader(fields, t)
 		}
 	case ast.Var:
-		s := string(v)
-		if !strings.HasPrefix(s, ast.WildcardPrefix) {
+		if !v.IsWildcard() {
+			s := string(v)
 			fields[s] = struct{}{}
 		}
 	case ast.Object:
