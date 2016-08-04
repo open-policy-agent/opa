@@ -130,6 +130,9 @@ func (s *Server) execQuery(qStr string) (resultSetV1, error) {
 			if !ok {
 				return false
 			}
+			if kv.IsWildcard() {
+				return false
+			}
 			vv, e := topdown.ValueToInterface(v, ctx)
 			if err != nil {
 				err = e
