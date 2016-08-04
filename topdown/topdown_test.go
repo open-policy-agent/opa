@@ -326,6 +326,7 @@ func TestTopDownEvalTermExpr(t *testing.T) {
 		{"object empty", `p :- {}`, "true"},
 		{"ref", "p :- a[i]", "true"},
 		{"ref undefined", "p :- data.deadbeef[i]", ""},
+		{"ref false", "p :- data.c[0].x[1]", ""},
 		{"array comprehension", "p :- [x | x = 1]", "true"},
 		{"array comprehension empty", "p :- [x | x = 1, x = 2]", "true"},
 		{"arbitrary position", "p :- a[i] = x, x, i", "true"},

@@ -528,7 +528,7 @@ func (r *REPL) evalPackage(p *ast.Package) bool {
 func (r *REPL) evalTermSingleValue(body ast.Body) bool {
 
 	term := body[0].Terms.(*ast.Term)
-	outputVar := ast.VarTerm("$")
+	outputVar := ast.Wildcard
 	body = ast.Body{ast.Equality.Expr(term, outputVar)}
 
 	ctx := topdown.NewContext(body, r.dataStore)
@@ -565,12 +565,16 @@ func (r *REPL) evalTermSingleValue(body ast.Body) bool {
 // ground values, e.g., a[i], [servers[x]], etc.
 func (r *REPL) evalTermMultiValue(body ast.Body) bool {
 
+	// Mangle the expression in the same way we do for evalTermSingleValue. When handling the
+	// evaluation result below, we will ignore this variable.
+	term := body[0].Terms.(*ast.Term)
+	outputVar := ast.Wildcard
+	body = ast.Body{ast.Equality.Expr(term, outputVar)}
+
 	ctx := topdown.NewContext(body, r.dataStore)
 	if r.trace {
 		ctx.Tracer = &topdown.StdoutTracer{}
 	}
-
-	term := body[0].Terms.(*ast.Term)
 
 	vars := map[string]struct{}{}
 	results := []map[string]interface{}{}
@@ -589,7 +593,7 @@ func (r *REPL) evalTermMultiValue(body ast.Body) bool {
 
 		ctx.Locals.Iter(func(k, v ast.Value) bool {
 			if k, ok := k.(ast.Var); ok {
-				if k.IsWildcard() {
+				if k.IsWildcard() || k.Equal(outputVar.Value) {
 					return false
 				}
 				x, e := topdown.ValueToInterface(v, ctx)

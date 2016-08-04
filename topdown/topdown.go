@@ -596,6 +596,13 @@ func evalExpr(ctx *Context, iter Iterator) error {
 		})
 	case *ast.Term:
 		v := tt.Value
+		if r, ok := v.(ast.Ref); ok {
+			var err error
+			v, err = lookupValue(ctx.DataStore, r)
+			if err != nil {
+				return err
+			}
+		}
 		if !v.Equal(ast.Boolean(false)) {
 			if v.IsGround() {
 				ctx.traceSuccess(expr)
