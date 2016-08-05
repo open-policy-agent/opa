@@ -42,13 +42,7 @@ func evalToNumber(ctx *Context, expr *ast.Expr, iter Iterator) error {
 		return fmt.Errorf("to_number: source must be a string, boolean, or number: %T", a)
 	}
 
-	switch b := b.(type) {
-	case ast.Var:
-		return Continue(ctx, b, n, iter)
-	default:
-		if n.Equal(b) {
-			return iter(ctx)
-		}
-		return nil
-	}
+	undo, err := evalEqUnify(ctx, n, b, nil, iter)
+	ctx.Unbind(undo)
+	return err
 }

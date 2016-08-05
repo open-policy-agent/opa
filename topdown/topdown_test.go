@@ -795,6 +795,8 @@ func TestTopDownAggregates(t *testing.T) {
 		{"sum virtual", []string{"p[x] :- sum([y | q[y]], x)", "q[x] :- a[_] = x"}, "[10]"},
 		{"max", []string{"p[x] :- max([1,2,3,4], x)"}, "[4]"},
 		{"max virtual", []string{"p[x] :- max([y | q[y]], x)", "q[x] :- a[_] = x"}, "[4]"},
+		{"reduce ref dest", []string{"p :- max([1,2,3,4], a[3])"}, "true"},
+		{"reduce ref dest (2)", []string{"p :- not max([1,2,3,4,5], a[3])"}, "true"},
 	}
 
 	data := loadSmallTestData()
@@ -816,6 +818,10 @@ func TestTopDownArithmetic(t *testing.T) {
 		{"divide+round", []string{"p[z] :- a[i] = x, div(i, x, y), round(y, z)"}, "[0,1,1,1]"},
 		{"divide+error", []string{"p[y] :- a[i] = x, div(x, i, y)"}, fmt.Errorf("divide: by zero")},
 		{"abs", []string{"p :- abs(-10, x), x = 10"}, "true"},
+		{"arity 1 ref dest", []string{"p :- abs(-4, a[3])"}, "true"},
+		{"arity 1 ref dest (2)", []string{"p :- not abs(-5, a[3])"}, "true"},
+		{"arity 2 ref dest", []string{"p :- plus(1, 2, a[2])"}, "true"},
+		{"arity 2 ref dest (2)", []string{"p :- not plus(2, 3, a[2])"}, "true"},
 	}
 
 	data := loadSmallTestData()
@@ -832,6 +838,8 @@ func TestTopDownCasts(t *testing.T) {
 		expected interface{}
 	}{
 		{"to_number", []string{`p[x] :- to_number("-42.0", y), to_number(false, z), x = [y, z]`}, "[[-42.0, 0]]"},
+		{"to_number ref dest", []string{`p :- to_number("3", a[2])`}, "true"},
+		{"to_number ref dest", []string{`p :- not to_number("-1", a[2])`}, "true"},
 	}
 
 	data := loadSmallTestData()
@@ -869,9 +877,13 @@ func TestTopDownStrings(t *testing.T) {
 		{"format_int", []string{"p = x :- format_int(15.5, 16, x)"}, `"f"`},
 		{"format_int: undefined", []string{`p :- format_int(15.5, 16, "10000")`}, ""},
 		{"format_int: err", []string{"p :- format_int(null, 16, x)"}, fmt.Errorf("format_int: input must be a number: illegal argument: null")},
+		{"format_int: ref dest", []string{"p :- format_int(3.1, 10, numbers[2])"}, "true"},
+		{"format_int: ref dest (2)", []string{"p :- not format_int(4.1, 10, numbers[2])"}, "true"},
 		{"concat", []string{`p = x :- concat("/", ["", "foo", "bar", "0", "baz"], x)`}, `"/foo/bar/0/baz"`},
 		{"concat: undefined", []string{`p :- concat("/", ["a", "b"], "deadbeef")`}, ""},
 		{"concat: non-string err", []string{`p = x :- concat("/", ["", "foo", "bar", 0, "baz"], x)`}, fmt.Errorf("concat: input value must be array of strings: illegal argument: 0")},
+		{"concat: ref dest", []string{`p :- concat("", ["f", "o", "o"], c[0].x[2])`}, "true"},
+		{"concat: ref dest (2)", []string{`p :- not concat("", ["b", "a", "r"], c[0].x[2])`}, "true"},
 	}
 
 	data := loadSmallTestData()
@@ -1210,7 +1222,13 @@ func loadSmallTestData() map[string]interface{} {
 			"baz": 3
 		},
 		"three": 3,
-        "m": []
+        "m": [],
+		"numbers": [
+			"1",
+			"2",
+			"3",
+			"4"
+		]
     }`), &data)
 	if err != nil {
 		panic(err)

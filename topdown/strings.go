@@ -30,19 +30,9 @@ func evalFormatInt(ctx *Context, expr *ast.Expr, iter Iterator) error {
 	b := int(base)
 	s := ast.String(strconv.FormatInt(i, b))
 
-	// TODO(tsandall): revisit handling of output arguments. If a reference is given in an output
-	// position, the built-in should evaluate the referenced value. Several of the built-ins call
-	// the ast.Equal function on the output argument (which is not correct for references.)
-	switch r := ops[3].Value.(type) {
-	case ast.Var:
-		return Continue(ctx, r, s, iter)
-	case ast.String:
-		if r.Equal(s) {
-			return iter(ctx)
-		}
-	}
-
-	return nil
+	undo, err := evalEqUnify(ctx, s, ops[3].Value, nil, iter)
+	ctx.Unbind(undo)
+	return err
 }
 
 func evalConcat(ctx *Context, expr *ast.Expr, iter Iterator) error {
@@ -60,13 +50,7 @@ func evalConcat(ctx *Context, expr *ast.Expr, iter Iterator) error {
 
 	s := ast.String(strings.Join(sl, join))
 
-	switch r := ops[3].Value.(type) {
-	case ast.Var:
-		return Continue(ctx, r, s, iter)
-	case ast.String:
-		if r.Equal(s) {
-			return iter(ctx)
-		}
-	}
-	return nil
+	undo, err := evalEqUnify(ctx, s, ops[3].Value, nil, iter)
+	ctx.Unbind(undo)
+	return err
 }
