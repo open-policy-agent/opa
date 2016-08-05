@@ -57,15 +57,9 @@ func evalArithArity1(f arithArity1) BuiltinFunc {
 
 		b := ops[2].Value
 
-		switch b := b.(type) {
-		case ast.Var:
-			return Continue(ctx, b, r, iter)
-		default:
-			if b.Equal(r) {
-				return iter(ctx)
-			}
-			return nil
-		}
+		undo, err := evalEqUnify(ctx, r, b, nil, iter)
+		ctx.Unbind(undo)
+		return err
 	}
 }
 
@@ -90,14 +84,8 @@ func evalArithArity2(f arithArity2) BuiltinFunc {
 
 		cv := ops[3].Value
 
-		switch cv := cv.(type) {
-		case ast.Var:
-			return Continue(ctx, cv, c, iter)
-		default:
-			if cv.Equal(c) {
-				return iter(ctx)
-			}
-			return nil
-		}
+		undo, err := evalEqUnify(ctx, c, cv, nil, iter)
+		ctx.Unbind(undo)
+		return err
 	}
 }

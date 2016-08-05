@@ -38,15 +38,9 @@ func evalReduce(f reduceFunc) BuiltinFunc {
 			return err
 		}
 
-		switch dst := dst.(type) {
-		case ast.Var:
-			return Continue(ctx, dst, y, iter)
-		default:
-			if dst.Equal(y) {
-				return iter(ctx)
-			}
-			return nil
-		}
+		undo, err := evalEqUnify(ctx, y, dst, nil, iter)
+		ctx.Unbind(undo)
+		return err
 	}
 }
 
