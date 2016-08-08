@@ -52,8 +52,22 @@ type Runtime struct {
 	PolicyStore *storage.PolicyStore
 }
 
-// Init initializes the OPA instance.
-func (rt *Runtime) Init(params *Params) error {
+// Start is the entry point of an OPA instance.
+func (rt *Runtime) Start(params *Params) {
+
+	if err := rt.init(params); err != nil {
+		fmt.Println("error initializing runtime:", err)
+		os.Exit(1)
+	}
+
+	if !params.Server {
+		rt.startRepl(params)
+	} else {
+		rt.startServer(params)
+	}
+}
+
+func (rt *Runtime) init(params *Params) error {
 
 	if len(params.PolicyDir) > 0 {
 		if err := os.MkdirAll(params.PolicyDir, 0755); err != nil {
@@ -92,21 +106,6 @@ func (rt *Runtime) Init(params *Params) error {
 	rt.DataStore = ds
 
 	return nil
-}
-
-// Start is the entry point of an OPA instance.
-func (rt *Runtime) Start(params *Params) {
-
-	if err := rt.Init(params); err != nil {
-		fmt.Println("error initializing runtime:", err)
-		os.Exit(1)
-	}
-
-	if !params.Server {
-		rt.startRepl(params)
-	} else {
-		rt.startServer(params)
-	}
 }
 
 func (rt *Runtime) startServer(params *Params) {

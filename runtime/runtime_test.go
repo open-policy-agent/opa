@@ -66,7 +66,7 @@ func TestInit(t *testing.T) {
 
 	rt := Runtime{}
 
-	err = rt.Init(&Params{
+	err = rt.init(&Params{
 		Paths:     []string{tmp1.Name(), tmp2.Name()},
 		PolicyDir: tmp3,
 	})

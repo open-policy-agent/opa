@@ -471,12 +471,23 @@ type fixture struct {
 }
 
 func newFixture(t *testing.T) *fixture {
-	runtime := &Runtime{}
-	runtime.Init(&Params{Server: true, PolicyDir: policyDir})
-	server := NewServer(runtime, ":8182", false)
+
+	ds := storage.NewDataStore()
+
+	ps := storage.NewPolicyStore(ds, policyDir)
+	if err := ps.Open(storage.LoadPolicies); err != nil {
+		t.Fatalf("Error opening storage: %v", err)
+	}
+
+	rt := &Runtime{
+		DataStore:   ds,
+		PolicyStore: ps,
+	}
+
+	server := NewServer(rt, ":8182", false)
 	recorder := httptest.NewRecorder()
 	return &fixture{
-		runtime:  runtime,
+		runtime:  rt,
 		server:   server,
 		recorder: recorder,
 		t:        t,
