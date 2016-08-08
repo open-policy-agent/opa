@@ -2,7 +2,7 @@
 // Use of this source code is governed by an Apache2
 // license that can be found in the LICENSE file.
 
-package runtime
+package server
 
 import (
 	"encoding/json"
@@ -141,7 +141,7 @@ func TestV1Pretty(t *testing.T) {
 
 	req := newReqV1("GET", "/data/x?pretty=true", "")
 	f.reset()
-	f.server.Router.ServeHTTP(f.recorder, req)
+	f.server.Handler.ServeHTTP(f.recorder, req)
 
 	lines := strings.Split(f.recorder.Body.String(), "\n")
 	if len(lines) != 6 {
@@ -150,7 +150,7 @@ func TestV1Pretty(t *testing.T) {
 
 	req = newReqV1("GET", "/query?q=data.x[i]&pretty=true", "")
 	f.reset()
-	f.server.Router.ServeHTTP(f.recorder, req)
+	f.server.Handler.ServeHTTP(f.recorder, req)
 
 	lines = strings.Split(f.recorder.Body.String(), "\n")
 	if len(lines) != 14 {
@@ -164,7 +164,7 @@ func TestIndexGet(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	f.server.Router.ServeHTTP(f.recorder, get)
+	f.server.Handler.ServeHTTP(f.recorder, get)
 	if f.recorder.Code != 200 {
 		t.Errorf("Expected success but got: %v", f.recorder)
 		return
@@ -183,7 +183,7 @@ func TestIndexGetCompileError(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	f.server.Router.ServeHTTP(f.recorder, get)
+	f.server.Handler.ServeHTTP(f.recorder, get)
 	if f.recorder.Code != 200 {
 		t.Errorf("Expected success but got: %v", f.recorder)
 		return
@@ -199,7 +199,7 @@ func TestPoliciesPutV1(t *testing.T) {
 	f := newFixture(t)
 	req := newReqV1("PUT", "/policies/1", testMod)
 
-	f.server.Router.ServeHTTP(f.recorder, req)
+	f.server.Handler.ServeHTTP(f.recorder, req)
 
 	if f.recorder.Code != 200 {
 		t.Errorf("Expected success but got %v", f.recorder)
@@ -217,7 +217,7 @@ func TestPoliciesPutV1Empty(t *testing.T) {
 	f := newFixture(t)
 	req := newReqV1("PUT", "/policies/1", "")
 
-	f.server.Router.ServeHTTP(f.recorder, req)
+	f.server.Handler.ServeHTTP(f.recorder, req)
 
 	if f.recorder.Code != 400 {
 		t.Errorf("Expected bad request but got %v", f.recorder)
@@ -233,7 +233,7 @@ func TestPoliciesPutV1ParseError(t *testing.T) {
     p[x] %%^ ;-
     `)
 
-	f.server.Router.ServeHTTP(f.recorder, req)
+	f.server.Handler.ServeHTTP(f.recorder, req)
 
 	if f.recorder.Code != 400 {
 		t.Errorf("Expected bad request but got %v", f.recorder)
@@ -250,7 +250,7 @@ func testPoliciesPutV1CompileError(t *testing.T) {
     q[x] :- p[x]
     `)
 
-	f.server.Router.ServeHTTP(f.recorder, req)
+	f.server.Handler.ServeHTTP(f.recorder, req)
 
 	if f.recorder.Code != 400 {
 		t.Errorf("Expected bad request but got %v", f.recorder)
@@ -261,7 +261,7 @@ func testPoliciesPutV1CompileError(t *testing.T) {
 func TestPoliciesListV1(t *testing.T) {
 	f := newFixture(t)
 	put := newReqV1("PUT", "/policies/1", testMod)
-	f.server.Router.ServeHTTP(f.recorder, put)
+	f.server.Handler.ServeHTTP(f.recorder, put)
 	if f.recorder.Code != 200 {
 		t.Errorf("Expected success but got %v", f.recorder)
 		return
@@ -269,7 +269,7 @@ func TestPoliciesListV1(t *testing.T) {
 	f.reset()
 	list := newReqV1("GET", "/policies", "")
 
-	f.server.Router.ServeHTTP(f.recorder, list)
+	f.server.Handler.ServeHTTP(f.recorder, list)
 
 	if f.recorder.Code != 200 {
 		t.Errorf("Expected success but got %v", f.recorder)
@@ -300,7 +300,7 @@ func TestPoliciesListV1(t *testing.T) {
 func TestPoliciesGetV1(t *testing.T) {
 	f := newFixture(t)
 	put := newReqV1("PUT", "/policies/1", testMod)
-	f.server.Router.ServeHTTP(f.recorder, put)
+	f.server.Handler.ServeHTTP(f.recorder, put)
 
 	if f.recorder.Code != 200 {
 		t.Errorf("Expected success but got %v", f.recorder)
@@ -310,7 +310,7 @@ func TestPoliciesGetV1(t *testing.T) {
 	f.reset()
 	get := newReqV1("GET", "/policies/1", "")
 
-	f.server.Router.ServeHTTP(f.recorder, get)
+	f.server.Handler.ServeHTTP(f.recorder, get)
 
 	if f.recorder.Code != 200 {
 		t.Errorf("Expected success but got %v", f.recorder)
@@ -327,7 +327,7 @@ func TestPoliciesGetV1(t *testing.T) {
 func TestPoliciesGetRawV1(t *testing.T) {
 	f := newFixture(t)
 	put := newReqV1("PUT", "/policies/1", testMod)
-	f.server.Router.ServeHTTP(f.recorder, put)
+	f.server.Handler.ServeHTTP(f.recorder, put)
 
 	if f.recorder.Code != 200 {
 		t.Errorf("Expected success but got %v", f.recorder)
@@ -337,7 +337,7 @@ func TestPoliciesGetRawV1(t *testing.T) {
 	f.reset()
 	get := newReqV1("GET", "/policies/1/raw", "")
 
-	f.server.Router.ServeHTTP(f.recorder, get)
+	f.server.Handler.ServeHTTP(f.recorder, get)
 
 	if f.recorder.Code != 200 {
 		t.Errorf("Expected success but got %v", f.recorder)
@@ -354,7 +354,7 @@ func TestPoliciesGetRawV1(t *testing.T) {
 func TestPoliciesDeleteV1(t *testing.T) {
 	f := newFixture(t)
 	put := newReqV1("PUT", "/policies/1", testMod)
-	f.server.Router.ServeHTTP(f.recorder, put)
+	f.server.Handler.ServeHTTP(f.recorder, put)
 
 	if f.recorder.Code != 200 {
 		t.Errorf("Expected success but got %v", f.recorder)
@@ -364,7 +364,7 @@ func TestPoliciesDeleteV1(t *testing.T) {
 	f.reset()
 	del := newReqV1("DELETE", "/policies/1", "")
 
-	f.server.Router.ServeHTTP(f.recorder, del)
+	f.server.Handler.ServeHTTP(f.recorder, del)
 
 	if f.recorder.Code != 204 {
 		t.Errorf("Expected success but got %v", f.recorder)
@@ -373,7 +373,7 @@ func TestPoliciesDeleteV1(t *testing.T) {
 
 	f.reset()
 	get := newReqV1("GET", "/policies/1", "")
-	f.server.Router.ServeHTTP(f.recorder, get)
+	f.server.Handler.ServeHTTP(f.recorder, get)
 	if f.recorder.Code != 404 {
 		t.Errorf("Expected not found but got %v", f.recorder)
 		return
@@ -383,7 +383,7 @@ func TestPoliciesDeleteV1(t *testing.T) {
 func TestQueryV1(t *testing.T) {
 	f := newFixture(t)
 	get := newReqV1("GET", `/query?q=a=[1,2,3],a[i]=x`, "")
-	f.server.Router.ServeHTTP(f.recorder, get)
+	f.server.Handler.ServeHTTP(f.recorder, get)
 
 	if f.recorder.Code != 200 {
 		t.Errorf("Expected success but got %v", f.recorder)
@@ -464,19 +464,24 @@ const (
 )
 
 type fixture struct {
-	runtime  *Runtime
 	server   *Server
 	recorder *httptest.ResponseRecorder
 	t        *testing.T
 }
 
 func newFixture(t *testing.T) *fixture {
-	runtime := &Runtime{}
-	runtime.Init(&Params{Server: true, PolicyDir: policyDir})
-	server := NewServer(runtime, ":8182", false)
+
+	ds := storage.NewDataStore()
+
+	ps := storage.NewPolicyStore(ds, policyDir)
+	if err := ps.Open(storage.LoadPolicies); err != nil {
+		t.Fatalf("Error opening storage: %v", err)
+	}
+
+	server := New(ds, ps, ":8182", false)
 	recorder := httptest.NewRecorder()
+
 	return &fixture{
-		runtime:  runtime,
 		server:   server,
 		recorder: recorder,
 		t:        t,
@@ -504,7 +509,7 @@ func (f *fixture) loadResponse() interface{} {
 func (f *fixture) v1(method string, path string, body string, code int, resp string) error {
 	req := newReqV1(method, path, body)
 	f.reset()
-	f.server.Router.ServeHTTP(f.recorder, req)
+	f.server.Handler.ServeHTTP(f.recorder, req)
 	if f.recorder.Code != code {
 		return fmt.Errorf("Expected code %v from %v %v but got: %v", method, code, path, f.recorder)
 	}

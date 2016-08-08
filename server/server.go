@@ -2,7 +2,7 @@
 // Use of this source code is governed by an Apache2
 // license that can be found in the LICENSE file.
 
-package runtime
+package server
 
 import (
 	"encoding/json"
@@ -61,51 +61,48 @@ func (p *policyV1) Equal(other *policyV1) bool {
 // resultSetV1 models the result of an ad-hoc query.
 type resultSetV1 []map[string]interface{}
 
-// Server contains runtime state specific to the server-mode persona, e.g.,
-// HTTP router.
-//
-// Notes:
-//
-// - In the future, the HTTP routing could be factored into a separate module
-// relying on the server (which would remain RPC-based). For now, it's simpler
-// to keep the HTTP routing and backend implementation in one place.
+// Server represents an instance of OPA running in server mode.
 type Server struct {
-	Addr    string
-	Persist bool
-	Runtime *Runtime
-	Router  *mux.Router
+	Handler http.Handler
 
-	mtx sync.RWMutex
+	addr    string
+	persist bool
+	ds      *storage.DataStore
+	ps      *storage.PolicyStore
+	mtx     sync.RWMutex
 }
 
-// NewServer returns a new Server.
-func NewServer(rt *Runtime, addr string, persist bool) *Server {
+// New returns a new Server.
+func New(ds *storage.DataStore, ps *storage.PolicyStore, addr string, persist bool) *Server {
 
 	s := &Server{
-		Addr:    addr,
-		Persist: persist,
-		Runtime: rt,
-		Router:  mux.NewRouter(),
+		addr:    addr,
+		persist: persist,
+		ds:      ds,
+		ps:      ps,
 	}
 
-	s.registerHandlerV1("/data/{path:.+}", "GET", s.v1DataGet)
-	s.registerHandlerV1("/data/{path:.+}", "PATCH", s.v1DataPatch)
-	s.registerHandlerV1("/policies", "GET", s.v1PoliciesList)
-	s.registerHandlerV1("/policies/{id}", "DELETE", s.v1PoliciesDelete)
-	s.registerHandlerV1("/policies/{id}", "GET", s.v1PoliciesGet)
-	s.registerHandlerV1("/policies/{id}/raw", "GET", s.v1PoliciesRawGet)
-	s.registerHandlerV1("/policies/{id}", "PUT", s.v1PoliciesPut)
-	s.registerHandlerV1("/query", "GET", s.v1QueryGet)
+	router := mux.NewRouter()
 
-	s.Router.HandleFunc("/", s.indexGet).Methods("GET")
+	s.registerHandlerV1(router, "/data/{path:.+}", "GET", s.v1DataGet)
+	s.registerHandlerV1(router, "/data/{path:.+}", "PATCH", s.v1DataPatch)
+	s.registerHandlerV1(router, "/policies", "GET", s.v1PoliciesList)
+	s.registerHandlerV1(router, "/policies/{id}", "DELETE", s.v1PoliciesDelete)
+	s.registerHandlerV1(router, "/policies/{id}", "GET", s.v1PoliciesGet)
+	s.registerHandlerV1(router, "/policies/{id}/raw", "GET", s.v1PoliciesRawGet)
+	s.registerHandlerV1(router, "/policies/{id}", "PUT", s.v1PoliciesPut)
+	s.registerHandlerV1(router, "/query", "GET", s.v1QueryGet)
+
+	router.HandleFunc("/", s.indexGet).Methods("GET")
+
+	s.Handler = router
 
 	return s
 }
 
 // Loop starts the server. This function does not return.
 func (s *Server) Loop() error {
-	wrapped := NewLoggingHandler(s.Router)
-	return http.ListenAndServe(s.Addr, wrapped)
+	return http.ListenAndServe(s.addr, s.Handler)
 }
 
 func (s *Server) execQuery(qStr string) (resultSetV1, error) {
@@ -115,7 +112,7 @@ func (s *Server) execQuery(qStr string) (resultSetV1, error) {
 		return nil, err
 	}
 
-	ctx := topdown.NewContext(query, s.Runtime.DataStore)
+	ctx := topdown.NewContext(query, s.ds)
 
 	results := resultSetV1{}
 
@@ -175,8 +172,8 @@ func (s *Server) indexGet(w http.ResponseWriter, r *http.Request) {
 	renderFooter(w)
 }
 
-func (s *Server) registerHandlerV1(path string, method string, h func(http.ResponseWriter, *http.Request)) {
-	s.Router.HandleFunc("/v1"+path, h).Methods(method)
+func (s *Server) registerHandlerV1(router *mux.Router, path string, method string, h func(http.ResponseWriter, *http.Request)) {
+	router.HandleFunc("/v1"+path, h).Methods(method)
 }
 
 func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
@@ -187,7 +184,7 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 		handleError(w, 400, err)
 		return
 	}
-	params := topdown.NewQueryParams(s.Runtime.DataStore, globals, path)
+	params := topdown.NewQueryParams(s.ds, globals, path)
 
 	s.mtx.RLock()
 	defer s.mtx.RUnlock()
@@ -252,7 +249,7 @@ func (s *Server) v1DataPatch(w http.ResponseWriter, r *http.Request) {
 			path = append(path, x)
 		}
 
-		if err := s.Runtime.DataStore.Patch(op, path, ops[i].Value); err != nil {
+		if err := s.ds.Patch(op, path, ops[i].Value); err != nil {
 			handleErrorAuto(w, err)
 			return
 		}
@@ -267,7 +264,7 @@ func (s *Server) v1PoliciesDelete(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
 
-	_, err := s.Runtime.PolicyStore.Get(id)
+	_, err := s.ps.Get(id)
 	if err != nil {
 		handleErrorAuto(w, err)
 		return
@@ -276,7 +273,7 @@ func (s *Server) v1PoliciesDelete(w http.ResponseWriter, r *http.Request) {
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
 
-	mods := s.Runtime.PolicyStore.List()
+	mods := s.ps.List()
 	delete(mods, id)
 
 	c := ast.NewCompiler()
@@ -285,7 +282,7 @@ func (s *Server) v1PoliciesDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := s.Runtime.PolicyStore.Remove(id); err != nil {
+	if err := s.ps.Remove(id); err != nil {
 		handleErrorAuto(w, err)
 		return
 	}
@@ -300,7 +297,7 @@ func (s *Server) v1PoliciesGet(w http.ResponseWriter, r *http.Request) {
 	s.mtx.RLock()
 	defer s.mtx.RUnlock()
 
-	mod, err := s.Runtime.PolicyStore.Get(id)
+	mod, err := s.ps.Get(id)
 	if err != nil {
 		handleErrorAuto(w, err)
 		return
@@ -321,7 +318,7 @@ func (s *Server) v1PoliciesRawGet(w http.ResponseWriter, r *http.Request) {
 	s.mtx.RLock()
 	defer s.mtx.RUnlock()
 
-	bs, err := s.Runtime.PolicyStore.GetRaw(id)
+	bs, err := s.ps.GetRaw(id)
 
 	if err != nil {
 		handleErrorAuto(w, err)
@@ -338,7 +335,7 @@ func (s *Server) v1PoliciesList(w http.ResponseWriter, r *http.Request) {
 	s.mtx.RLock()
 	defer s.mtx.RUnlock()
 
-	for id, mod := range s.Runtime.PolicyStore.List() {
+	for id, mod := range s.ps.List() {
 		policy := &policyV1{
 			ID:     id,
 			Module: mod,
@@ -373,7 +370,7 @@ func (s *Server) v1PoliciesPut(w http.ResponseWriter, r *http.Request) {
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
 
-	mods := s.Runtime.PolicyStore.List()
+	mods := s.ps.List()
 	mods[id] = mod
 
 	c := ast.NewCompiler()
@@ -385,7 +382,7 @@ func (s *Server) v1PoliciesPut(w http.ResponseWriter, r *http.Request) {
 
 	mod = c.Modules[id]
 
-	if err := s.Runtime.PolicyStore.Add(id, mod, buf, s.Persist); err != nil {
+	if err := s.ps.Add(id, mod, buf, s.persist); err != nil {
 		handleErrorAuto(w, err)
 		return
 	}
