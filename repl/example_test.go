@@ -25,7 +25,7 @@ func ExampleREPL_OneShot() {
 	var buf bytes.Buffer
 
 	// Create a new REPL.
-	repl := repl.New(ds, ps, "", &buf, "json")
+	repl := repl.New(ds, ps, "", &buf, "json", "")
 
 	// Define a rule inside the REPL.
 	repl.OneShot("p :- a = [1, 2, 3, 4], a[_] > 3")

@@ -19,7 +19,6 @@ import (
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/topdown"
-	"github.com/open-policy-agent/opa/version"
 
 	"github.com/peterh/liner"
 )
@@ -42,10 +41,11 @@ type REPL struct {
 	historyPath  string
 	initPrompt   string
 	bufferPrompt string
+	banner       string
 }
 
 // New returns a new instance of the REPL.
-func New(dataStore *storage.DataStore, policyStore *storage.PolicyStore, historyPath string, output io.Writer, outputFormat string) *REPL {
+func New(dataStore *storage.DataStore, policyStore *storage.PolicyStore, historyPath string, output io.Writer, outputFormat string, banner string) *REPL {
 	return &REPL{
 		output:          output,
 		outputFormat:    outputFormat,
@@ -56,6 +56,7 @@ func New(dataStore *storage.DataStore, policyStore *storage.PolicyStore, history
 		historyPath:     historyPath,
 		initPrompt:      "> ",
 		bufferPrompt:    "| ",
+		banner:          banner,
 	}
 }
 
@@ -69,10 +70,9 @@ func (r *REPL) Loop() {
 	line.SetMultiLineMode(true)
 	r.loadHistory(line)
 
-	fmt.Fprintf(r.output, "OPA %v (commit %v, built at %v)\n", version.Version, version.Vcs, version.Timestamp)
-	fmt.Fprintf(r.output, "\n")
-	fmt.Fprintf(r.output, "Run 'help' to see a list of commands.\n")
-	fmt.Fprintf(r.output, "\n")
+	if len(r.banner) > 0 {
+		fmt.Fprintln(r.output, r.banner)
+	}
 
 	for true {
 
