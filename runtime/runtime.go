@@ -5,6 +5,7 @@
 package runtime
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -16,6 +17,7 @@ import (
 	"github.com/open-policy-agent/opa/repl"
 	"github.com/open-policy-agent/opa/server"
 	"github.com/open-policy-agent/opa/storage"
+	"github.com/open-policy-agent/opa/version"
 	"github.com/pkg/errors"
 )
 
@@ -127,8 +129,17 @@ func (rt *Runtime) startServer(params *Params) {
 }
 
 func (rt *Runtime) startRepl(params *Params) {
-	repl := repl.New(rt.DataStore, rt.PolicyStore, params.HistoryPath, os.Stdout, params.OutputFormat)
+	banner := rt.getBanner()
+	repl := repl.New(rt.DataStore, rt.PolicyStore, params.HistoryPath, os.Stdout, params.OutputFormat, banner)
 	repl.Loop()
+}
+
+func (rt *Runtime) getBanner() string {
+	var buf bytes.Buffer
+	fmt.Fprintf(&buf, "OPA %v (commit %v, built at %v)\n", version.Version, version.Vcs, version.Timestamp)
+	fmt.Fprintf(&buf, "\n")
+	fmt.Fprintf(&buf, "Run 'help' to see a list of commands.\n")
+	return buf.String()
 }
 
 func compileAndStoreInputs(parsed map[string]*parsedModule, policyStore *storage.PolicyStore) error {
