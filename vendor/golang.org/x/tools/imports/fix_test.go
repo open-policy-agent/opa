@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"sync"
 	"testing"
 )
@@ -826,8 +827,9 @@ func TestFixImports(t *testing.T) {
 // Test support for packages in GOPATH that are actually symlinks.
 // Also test that a symlink loop does not block the process.
 func TestImportSymlinks(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("Skipping test on Windows as there are no symlinks.")
+	switch runtime.GOOS {
+	case "windows", "plan9":
+		t.Skipf("skipping test on %q as there are no symlinks", runtime.GOOS)
 	}
 
 	newGoPath, err := ioutil.TempDir("", "symlinktest")
@@ -857,22 +859,17 @@ func TestImportSymlinks(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	pkgIndexOnce = &sync.Once{}
-	oldGOPATH := build.Default.GOPATH
-	build.Default.GOPATH = newGoPath
-	defer func() {
-		build.Default.GOPATH = oldGOPATH
-		visitedSymlinks.m = nil
-	}()
+	withEmptyGoPath(func() {
+		build.Default.GOPATH = newGoPath
 
-	input := `package p
+		input := `package p
 
 var (
 	_ = fmt.Print
 	_ = mypkg.Foo
 )
 `
-	output := `package p
+		output := `package p
 
 import (
 	"fmt"
@@ -884,13 +881,14 @@ var (
 	_ = mypkg.Foo
 )
 `
-	buf, err := Process(newGoPath+"/src/myotherpkg/toformat.go", []byte(input), &Options{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got := string(buf); got != output {
-		t.Fatalf("results differ\nGOT:\n%s\nWANT:\n%s\n", got, output)
-	}
+		buf, err := Process(newGoPath+"/src/myotherpkg/toformat.go", []byte(input), &Options{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := string(buf); got != output {
+			t.Fatalf("results differ\nGOT:\n%s\nWANT:\n%s\n", got, output)
+		}
+	})
 }
 
 // Test for correctly identifying the name of a vendored package when it
@@ -902,30 +900,12 @@ func TestFixImportsVendorPackage(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(runtime.GOROOT(), "src/vendor")); err != nil {
 		t.Skip(err)
 	}
-
-	newGoPath, err := ioutil.TempDir("", "vendortest")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(newGoPath)
-
-	vendoredPath := newGoPath + "/src/mypkg.com/outpkg/vendor/mypkg.com/mypkg.v1"
-	if err := os.MkdirAll(vendoredPath, 0755); err != nil {
-		t.Fatal(err)
-	}
-
-	pkgIndexOnce = &sync.Once{}
-	oldGOPATH := build.Default.GOPATH
-	build.Default.GOPATH = newGoPath
-	defer func() {
-		build.Default.GOPATH = oldGOPATH
-	}()
-
-	if err := ioutil.WriteFile(vendoredPath+"/f.go", []byte("package mypkg\nvar Foo = 123\n"), 0666); err != nil {
-		t.Fatal(err)
-	}
-
-	input := `package p
+	testConfig{
+		gopathFiles: map[string]string{
+			"mypkg.com/outpkg/vendor/mypkg.com/mypkg.v1/f.go": "package mypkg\nvar Foo = 123\n",
+		},
+	}.test(t, func(t *goimportTest) {
+		input := `package p
 
 import (
 	"fmt"
@@ -938,13 +918,14 @@ var (
 	_ = mypkg.Foo
 )
 `
-	buf, err := Process(newGoPath+"/src/mypkg.com/outpkg/toformat.go", []byte(input), &Options{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got := string(buf); got != input {
-		t.Fatalf("results differ\nGOT:\n%s\nWANT:\n%s\n", got, input)
-	}
+		buf, err := Process(filepath.Join(t.gopath, "src/mypkg.com/outpkg/toformat.go"), []byte(input), &Options{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := string(buf); got != input {
+			t.Fatalf("results differ\nGOT:\n%s\nWANT:\n%s\n", got, input)
+		}
+	})
 }
 
 func TestFindImportGoPath(t *testing.T) {
@@ -954,154 +935,198 @@ func TestFindImportGoPath(t *testing.T) {
 	}
 	defer os.RemoveAll(goroot)
 
-	pkgIndexOnce = &sync.Once{}
-
 	origStdlib := stdlib
 	defer func() {
 		stdlib = origStdlib
 	}()
 	stdlib = nil
 
-	// Test against imaginary bits/bytes package in std lib
-	bytesDir := filepath.Join(goroot, "src", "pkg", "bits", "bytes")
-	for _, tag := range build.Default.ReleaseTags {
-		// Go 1.4 rearranged the GOROOT tree to remove the "pkg" path component.
-		if tag == "go1.4" {
-			bytesDir = filepath.Join(goroot, "src", "bits", "bytes")
+	withEmptyGoPath(func() {
+		// Test against imaginary bits/bytes package in std lib
+		bytesDir := filepath.Join(goroot, "src", "pkg", "bits", "bytes")
+		for _, tag := range build.Default.ReleaseTags {
+			// Go 1.4 rearranged the GOROOT tree to remove the "pkg" path component.
+			if tag == "go1.4" {
+				bytesDir = filepath.Join(goroot, "src", "bits", "bytes")
+			}
 		}
-	}
-	if err := os.MkdirAll(bytesDir, 0755); err != nil {
-		t.Fatal(err)
-	}
-	bytesSrcPath := filepath.Join(bytesDir, "bytes.go")
-	bytesPkgPath := "bits/bytes"
-	bytesSrc := []byte(`package bytes
+		if err := os.MkdirAll(bytesDir, 0755); err != nil {
+			t.Fatal(err)
+		}
+		bytesSrcPath := filepath.Join(bytesDir, "bytes.go")
+		bytesPkgPath := "bits/bytes"
+		bytesSrc := []byte(`package bytes
 
 type Buffer2 struct {}
 `)
-	if err := ioutil.WriteFile(bytesSrcPath, bytesSrc, 0775); err != nil {
-		t.Fatal(err)
-	}
-	oldGOROOT := build.Default.GOROOT
+		if err := ioutil.WriteFile(bytesSrcPath, bytesSrc, 0775); err != nil {
+			t.Fatal(err)
+		}
+		build.Default.GOROOT = goroot
+
+		got, rename, err := findImportGoPath("bytes", map[string]bool{"Buffer2": true}, "x.go")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got != bytesPkgPath || rename {
+			t.Errorf(`findImportGoPath("bytes", Buffer2 ...)=%q, %t, want "%s", false`, got, rename, bytesPkgPath)
+		}
+
+		got, rename, err = findImportGoPath("bytes", map[string]bool{"Missing": true}, "x.go")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got != "" || rename {
+			t.Errorf(`findImportGoPath("bytes", Missing ...)=%q, %t, want "", false`, got, rename)
+		}
+	})
+}
+
+func init() {
+	inTests = true
+}
+
+func withEmptyGoPath(fn func()) {
+	testMu.Lock()
+
+	dirScanMu.Lock()
+	populateIgnoreOnce = sync.Once{}
+	scanGoRootOnce = sync.Once{}
+	scanGoPathOnce = sync.Once{}
+	dirScan = nil
+	ignoredDirs = nil
+	scanGoRootDone = make(chan struct{})
+	dirScanMu.Unlock()
+
 	oldGOPATH := build.Default.GOPATH
-	build.Default.GOROOT = goroot
+	oldGOROOT := build.Default.GOROOT
 	build.Default.GOPATH = ""
+	visitedSymlinks.m = nil
+	testHookScanDir = func(string) {}
+	testMu.Unlock()
+
 	defer func() {
-		build.Default.GOROOT = oldGOROOT
+		testMu.Lock()
+		testHookScanDir = func(string) {}
 		build.Default.GOPATH = oldGOPATH
+		build.Default.GOROOT = oldGOROOT
+		testMu.Unlock()
 	}()
 
-	got, rename, err := findImportGoPath("bytes", map[string]bool{"Buffer2": true}, "x.go")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got != bytesPkgPath || rename {
-		t.Errorf(`findImportGoPath("bytes", Buffer2 ...)=%q, %t, want "%s", false`, got, rename, bytesPkgPath)
-	}
-
-	got, rename, err = findImportGoPath("bytes", map[string]bool{"Missing": true}, "x.go")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got != "" || rename {
-		t.Errorf(`findImportGoPath("bytes", Missing ...)=%q, %t, want "", false`, got, rename)
-	}
+	fn()
 }
 
 func TestFindImportInternal(t *testing.T) {
-	pkgIndexOnce = &sync.Once{}
-	oldGOPATH := build.Default.GOPATH
-	build.Default.GOPATH = ""
-	defer func() {
-		build.Default.GOPATH = oldGOPATH
-	}()
+	withEmptyGoPath(func() {
+		// Check for src/internal/race, not just src/internal,
+		// so that we can run this test also against go1.5
+		// (which doesn't contain that file).
+		_, err := os.Stat(filepath.Join(runtime.GOROOT(), "src/internal/race"))
+		if err != nil {
+			t.Skip(err)
+		}
 
-	// Check for src/internal/race, not just src/internal,
-	// so that we can run this test also against go1.5
-	// (which doesn't contain that file).
-	_, err := os.Stat(filepath.Join(runtime.GOROOT(), "src/internal/race"))
-	if err != nil {
-		t.Skip(err)
-	}
+		got, rename, err := findImportGoPath("race", map[string]bool{"Acquire": true}, filepath.Join(runtime.GOROOT(), "src/math/x.go"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got != "internal/race" || rename {
+			t.Errorf(`findImportGoPath("race", Acquire ...) = %q, %t; want "internal/race", false`, got, rename)
+		}
 
-	got, rename, err := findImportGoPath("race", map[string]bool{"Acquire": true}, filepath.Join(runtime.GOROOT(), "src/math/x.go"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got != "internal/race" || rename {
-		t.Errorf(`findImportGoPath("race", Acquire ...)=%q, %t, want "internal/race", false`, got, rename)
-	}
+		// should not be able to use internal from outside that tree
+		got, rename, err = findImportGoPath("race", map[string]bool{"Acquire": true}, filepath.Join(runtime.GOROOT(), "x.go"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got != "" || rename {
+			t.Errorf(`findImportGoPath("race", Acquire ...)=%q, %t, want "", false`, got, rename)
+		}
+	})
+}
 
-	// should not be able to use internal from outside that tree
-	got, rename, err = findImportGoPath("race", map[string]bool{"Acquire": true}, filepath.Join(runtime.GOROOT(), "x.go"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got != "" || rename {
-		t.Errorf(`findImportGoPath("race", Acquire ...)=%q, %t, want "", false`, got, rename)
-	}
+// rand.Read should prefer crypto/rand.Read, not math/rand.Read.
+func TestFindImportRandRead(t *testing.T) {
+	withEmptyGoPath(func() {
+		file := filepath.Join(runtime.GOROOT(), "src/foo/x.go") // dummy
+		tests := []struct {
+			syms []string
+			want string
+		}{
+			{
+				syms: []string{"Read"},
+				want: "crypto/rand",
+			},
+			{
+				syms: []string{"Read", "NewZipf"},
+				want: "math/rand",
+			},
+			{
+				syms: []string{"NewZipf"},
+				want: "math/rand",
+			},
+			{
+				syms: []string{"Read", "Prime"},
+				want: "crypto/rand",
+			},
+		}
+		for _, tt := range tests {
+			m := map[string]bool{}
+			for _, sym := range tt.syms {
+				m[sym] = true
+			}
+			got, _, err := findImportGoPath("rand", m, file)
+			if err != nil {
+				t.Errorf("for %q: %v", tt.syms, err)
+				continue
+			}
+			if got != tt.want {
+				t.Errorf("for %q, findImportGoPath = %q; want %q", tt.syms, got, tt.want)
+			}
+		}
+	})
 }
 
 func TestFindImportVendor(t *testing.T) {
-	pkgIndexOnce = &sync.Once{}
-	oldGOPATH := build.Default.GOPATH
-	build.Default.GOPATH = ""
-	defer func() {
-		build.Default.GOPATH = oldGOPATH
-	}()
-
-	_, err := os.Stat(filepath.Join(runtime.GOROOT(), "src/vendor"))
-	if err != nil {
-		t.Skip(err)
-	}
-
-	got, rename, err := findImportGoPath("hpack", map[string]bool{"HuffmanDecode": true}, filepath.Join(runtime.GOROOT(), "src/math/x.go"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	want := "golang.org/x/net/http2/hpack"
-	// Pre-1.7, we temporarily had this package under "internal" - adjust want accordingly.
-	_, err = os.Stat(filepath.Join(runtime.GOROOT(), "src/vendor", want))
-	if err != nil {
-		want = filepath.Join("internal", want)
-	}
-	if got != want || rename {
-		t.Errorf(`findImportGoPath("hpack", HuffmanDecode ...)=%q, %t, want %q, false`, got, rename, want)
-	}
-
-	// should not be able to use vendor from outside that tree
-	got, rename, err = findImportGoPath("hpack", map[string]bool{"HuffmanDecode": true}, filepath.Join(runtime.GOROOT(), "x.go"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got != "" || rename {
-		t.Errorf(`findImportGoPath("hpack", HuffmanDecode ...)=%q, %t, want "", false`, got, rename)
-	}
+	testConfig{
+		gorootFiles: map[string]string{
+			"vendor/golang.org/x/net/http2/hpack/huffman.go": "package hpack\nfunc HuffmanDecode() { }\n",
+		},
+	}.test(t, func(t *goimportTest) {
+		got, rename, err := findImportGoPath("hpack", map[string]bool{"HuffmanDecode": true}, filepath.Join(t.goroot, "src/math/x.go"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		want := "golang.org/x/net/http2/hpack"
+		if got != want || rename {
+			t.Errorf(`findImportGoPath("hpack", HuffmanDecode ...) = %q, %t; want %q, false`, got, rename, want)
+		}
+	})
 }
 
 func TestProcessVendor(t *testing.T) {
-	pkgIndexOnce = &sync.Once{}
-	oldGOPATH := build.Default.GOPATH
-	build.Default.GOPATH = ""
-	defer func() {
-		build.Default.GOPATH = oldGOPATH
-	}()
+	withEmptyGoPath(func() {
+		_, err := os.Stat(filepath.Join(runtime.GOROOT(), "src/vendor"))
+		if err != nil {
+			t.Skip(err)
+		}
 
-	_, err := os.Stat(filepath.Join(runtime.GOROOT(), "src/vendor"))
-	if err != nil {
-		t.Skip(err)
-	}
+		target := filepath.Join(runtime.GOROOT(), "src/math/x.go")
+		out, err := Process(target, []byte("package http\nimport \"bytes\"\nfunc f() { strings.NewReader(); hpack.HuffmanDecode() }\n"), nil)
 
-	target := filepath.Join(runtime.GOROOT(), "src/math/x.go")
-	out, err := Process(target, []byte("package http\nimport \"bytes\"\nfunc f() { strings.NewReader(); hpack.HuffmanDecode() }\n"), nil)
+		if err != nil {
+			t.Fatal(err)
+		}
 
-	if err != nil {
-		t.Fatal(err)
-	}
-	want := "golang.org/x/net/http2/hpack"
-	if !bytes.Contains(out, []byte(want)) {
-		t.Fatalf("Process(%q) did not add expected hpack import:\n%s", target, out)
-	}
+		want := "golang_org/x/net/http2/hpack"
+		if _, err := os.Stat(filepath.Join(runtime.GOROOT(), "src/vendor", want)); os.IsNotExist(err) {
+			want = "golang.org/x/net/http2/hpack"
+		}
+
+		if !bytes.Contains(out, []byte(want)) {
+			t.Fatalf("Process(%q) did not add expected hpack import %q; got:\n%s", target, want, out)
+		}
+	})
 }
 
 func TestFindImportStdlib(t *testing.T) {
@@ -1127,10 +1152,424 @@ func TestFindImportStdlib(t *testing.T) {
 	}
 }
 
+type testConfig struct {
+	// goroot and gopath optionally specifies the path on disk
+	// to use for the GOROOT and GOPATH. If empty, a temp directory
+	// is made if needed.
+	goroot, gopath string
+
+	// gorootFiles optionally specifies the complete contents of GOROOT to use,
+	// If nil, the normal current $GOROOT is used.
+	gorootFiles map[string]string // paths relative to $GOROOT/src to contents
+
+	// gopathFiles is like gorootFiles, but for $GOPATH.
+	// If nil, there is no GOPATH, though.
+	gopathFiles map[string]string // paths relative to $GOPATH/src to contents
+}
+
+func mustTempDir(t *testing.T, prefix string) string {
+	dir, err := ioutil.TempDir("", prefix)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return dir
+}
+
+func mapToDir(destDir string, files map[string]string) error {
+	for path, contents := range files {
+		file := filepath.Join(destDir, "src", path)
+		if err := os.MkdirAll(filepath.Dir(file), 0755); err != nil {
+			return err
+		}
+		var err error
+		if strings.HasPrefix(contents, "LINK:") {
+			err = os.Symlink(strings.TrimPrefix(contents, "LINK:"), file)
+		} else {
+			err = ioutil.WriteFile(file, []byte(contents), 0644)
+		}
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (c testConfig) test(t *testing.T, fn func(*goimportTest)) {
+	goroot := c.goroot
+	gopath := c.gopath
+
+	if c.gorootFiles != nil && goroot == "" {
+		goroot = mustTempDir(t, "goroot-")
+		defer os.RemoveAll(goroot)
+	}
+	if err := mapToDir(goroot, c.gorootFiles); err != nil {
+		t.Fatal(err)
+	}
+
+	if c.gopathFiles != nil && gopath == "" {
+		gopath = mustTempDir(t, "gopath-")
+		defer os.RemoveAll(gopath)
+	}
+	if err := mapToDir(gopath, c.gopathFiles); err != nil {
+		t.Fatal(err)
+	}
+
+	withEmptyGoPath(func() {
+		if goroot != "" {
+			build.Default.GOROOT = goroot
+		}
+		build.Default.GOPATH = gopath
+
+		it := &goimportTest{
+			T:      t,
+			goroot: build.Default.GOROOT,
+			gopath: gopath,
+			ctx:    &build.Default,
+		}
+		fn(it)
+	})
+}
+
+type goimportTest struct {
+	*testing.T
+	ctx    *build.Context
+	goroot string
+	gopath string
+}
+
+// Tests that added imports are renamed when the import path's base doesn't
+// match its package name. For example, we want to generate:
+//
+//     import cloudbilling "google.golang.org/api/cloudbilling/v1"
+func TestRenameWhenPackageNameMismatch(t *testing.T) {
+	testConfig{
+		gopathFiles: map[string]string{
+			"foo/bar/v1/x.go": "package bar \n const X = 1",
+		},
+	}.test(t, func(t *goimportTest) {
+		buf, err := Process(t.gopath+"/src/test/t.go", []byte("package main \n const Y = bar.X"), &Options{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		const want = `package main
+
+import bar "foo/bar/v1"
+
+const Y = bar.X
+`
+		if string(buf) != want {
+			t.Errorf("Got:\n%s\nWant:\n%s", buf, want)
+		}
+	})
+}
+
+// Tests that the LocalPrefix option causes imports
+// to be added into a later group (num=3).
+func TestLocalPrefix(t *testing.T) {
+	defer func(s string) { LocalPrefix = s }(LocalPrefix)
+	LocalPrefix = "foo/"
+
+	testConfig{
+		gopathFiles: map[string]string{
+			"foo/bar/bar.go": "package bar \n const X = 1",
+		},
+	}.test(t, func(t *goimportTest) {
+		buf, err := Process(t.gopath+"/src/test/t.go", []byte("package main \n const Y = bar.X \n const _ = runtime.GOOS"), &Options{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		const want = `package main
+
+import (
+	"runtime"
+
+	"foo/bar"
+)
+
+const Y = bar.X
+const _ = runtime.GOOS
+`
+		if string(buf) != want {
+			t.Errorf("Got:\n%s\nWant:\n%s", buf, want)
+		}
+	})
+}
+
+// Tests that running goimport on files in GOROOT (for people hacking
+// on Go itself) don't cause the GOPATH to be scanned (which might be
+// much bigger).
+func TestOptimizationWhenInGoroot(t *testing.T) {
+	testConfig{
+		gopathFiles: map[string]string{
+			"foo/foo.go": "package foo\nconst X = 1\n",
+		},
+	}.test(t, func(t *goimportTest) {
+		testHookScanDir = func(dir string) {
+			if dir != filepath.Join(build.Default.GOROOT, "src") {
+				t.Errorf("unexpected dir scan of %s", dir)
+			}
+		}
+		const in = "package foo\n\nconst Y = bar.X\n"
+		buf, err := Process(t.goroot+"/src/foo/foo.go", []byte(in), nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if string(buf) != in {
+			t.Errorf("got:\n%q\nwant unchanged:\n%q\n", in, buf)
+		}
+	})
+}
+
+// Tests that "package documentation" files are ignored.
+func TestIgnoreDocumentationPackage(t *testing.T) {
+	testConfig{
+		gopathFiles: map[string]string{
+			"foo/foo.go": "package foo\nconst X = 1\n",
+			"foo/doc.go": "package documentation \n // just to confuse things\n",
+		},
+	}.test(t, func(t *goimportTest) {
+		const in = "package x\n\nconst Y = foo.X\n"
+		const want = "package x\n\nimport \"foo\"\n\nconst Y = foo.X\n"
+		buf, err := Process(t.gopath+"/src/x/x.go", []byte(in), nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if string(buf) != want {
+			t.Errorf("wrong output.\ngot:\n%q\nwant:\n%q\n", in, want)
+		}
+	})
+}
+
+// Tests importPathToNameGoPathParse and in particular that it stops
+// after finding the first non-documentation package name, not
+// reporting an error on inconsistent package names (since it should
+// never make it that far).
+func TestImportPathToNameGoPathParse(t *testing.T) {
+	testConfig{
+		gopathFiles: map[string]string{
+			"example.net/pkg/doc.go": "package documentation\n", // ignored
+			"example.net/pkg/gen.go": "package main\n",          // also ignored
+			"example.net/pkg/pkg.go": "package the_pkg_name_to_find\n  and this syntax error is ignored because of parser.PackageClauseOnly",
+			"example.net/pkg/z.go":   "package inconsistent\n", // inconsistent but ignored
+		},
+	}.test(t, func(t *goimportTest) {
+		got, err := importPathToNameGoPathParse("example.net/pkg", filepath.Join(t.gopath, "src", "other.net"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		const want = "the_pkg_name_to_find"
+		if got != want {
+			t.Errorf("importPathToNameGoPathParse(..) = %q; want %q", got, want)
+		}
+	})
+}
+
+func TestIgnoreConfiguration(t *testing.T) {
+	testConfig{
+		gopathFiles: map[string]string{
+			".goimportsignore":                                     "# comment line\n\n example.net", // tests comment, blank line, whitespace trimming
+			"example.net/pkg/pkg.go":                               "package pkg\nconst X = 1",
+			"otherwise-longer-so-worse.example.net/foo/pkg/pkg.go": "package pkg\nconst X = 1",
+		},
+	}.test(t, func(t *goimportTest) {
+		const in = "package x\n\nconst _ = pkg.X\n"
+		const want = "package x\n\nimport \"otherwise-longer-so-worse.example.net/foo/pkg\"\n\nconst _ = pkg.X\n"
+		buf, err := Process(t.gopath+"/src/x/x.go", []byte(in), nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if string(buf) != want {
+			t.Errorf("wrong output.\ngot:\n%q\nwant:\n%q\n", buf, want)
+		}
+	})
+}
+
+// Skip "node_modules" directory.
+func TestSkipNodeModules(t *testing.T) {
+	testConfig{
+		gopathFiles: map[string]string{
+			"example.net/node_modules/pkg/a.go":         "package pkg\nconst X = 1",
+			"otherwise-longer.net/not_modules/pkg/a.go": "package pkg\nconst X = 1",
+		},
+	}.test(t, func(t *goimportTest) {
+		const in = "package x\n\nconst _ = pkg.X\n"
+		const want = "package x\n\nimport \"otherwise-longer.net/not_modules/pkg\"\n\nconst _ = pkg.X\n"
+		buf, err := Process(t.gopath+"/src/x/x.go", []byte(in), nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if string(buf) != want {
+			t.Errorf("wrong output.\ngot:\n%q\nwant:\n%q\n", buf, want)
+		}
+	})
+}
+
+// golang.org/issue/16458 -- if GOROOT is a prefix of GOPATH, GOPATH is ignored.
+func TestGoRootPrefixOfGoPath(t *testing.T) {
+	dir := mustTempDir(t, "importstest")
+	defer os.RemoveAll(dir)
+	testConfig{
+		goroot: filepath.Join(dir, "go"),
+		gopath: filepath.Join(dir, "gopath"),
+		gopathFiles: map[string]string{
+			"example.com/foo/pkg.go": "package foo\nconst X = 1",
+		},
+	}.test(t, func(t *goimportTest) {
+		const in = "package x\n\nconst _ = foo.X\n"
+		const want = "package x\n\nimport \"example.com/foo\"\n\nconst _ = foo.X\n"
+		buf, err := Process(t.gopath+"/src/x/x.go", []byte(in), nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if string(buf) != want {
+			t.Errorf("wrong output.\ngot:\n%q\nwant:\n%q\n", buf, want)
+		}
+	})
+
+}
+
 func strSet(ss []string) map[string]bool {
 	m := make(map[string]bool)
 	for _, s := range ss {
 		m[s] = true
 	}
 	return m
+}
+
+func TestPkgIsCandidate(t *testing.T) {
+	tests := [...]struct {
+		filename string
+		pkgIdent string
+		pkg      *pkg
+		want     bool
+	}{
+		// normal match
+		0: {
+			filename: "/gopath/src/my/pkg/pkg.go",
+			pkgIdent: "client",
+			pkg: &pkg{
+				dir:             "/gopath/src/client",
+				importPath:      "client",
+				importPathShort: "client",
+			},
+			want: true,
+		},
+		// not a match
+		1: {
+			filename: "/gopath/src/my/pkg/pkg.go",
+			pkgIdent: "zzz",
+			pkg: &pkg{
+				dir:             "/gopath/src/client",
+				importPath:      "client",
+				importPathShort: "client",
+			},
+			want: false,
+		},
+		// would be a match, but "client" appears too deep.
+		2: {
+			filename: "/gopath/src/my/pkg/pkg.go",
+			pkgIdent: "client",
+			pkg: &pkg{
+				dir:             "/gopath/src/client/foo/foo/foo",
+				importPath:      "client/foo/foo",
+				importPathShort: "client/foo/foo",
+			},
+			want: false,
+		},
+		// not an exact match, but substring is good enough.
+		3: {
+			filename: "/gopath/src/my/pkg/pkg.go",
+			pkgIdent: "client",
+			pkg: &pkg{
+				dir:             "/gopath/src/foo/go-client",
+				importPath:      "foo/go-client",
+				importPathShort: "foo/go-client",
+			},
+			want: true,
+		},
+		// "internal" package, and not visible
+		4: {
+			filename: "/gopath/src/my/pkg/pkg.go",
+			pkgIdent: "client",
+			pkg: &pkg{
+				dir:             "/gopath/src/foo/internal/client",
+				importPath:      "foo/internal/client",
+				importPathShort: "foo/internal/client",
+			},
+			want: false,
+		},
+		// "internal" package but visible
+		5: {
+			filename: "/gopath/src/foo/bar.go",
+			pkgIdent: "client",
+			pkg: &pkg{
+				dir:             "/gopath/src/foo/internal/client",
+				importPath:      "foo/internal/client",
+				importPathShort: "foo/internal/client",
+			},
+			want: true,
+		},
+		// "vendor" package not visible
+		6: {
+			filename: "/gopath/src/foo/bar.go",
+			pkgIdent: "client",
+			pkg: &pkg{
+				dir:             "/gopath/src/other/vendor/client",
+				importPath:      "other/vendor/client",
+				importPathShort: "client",
+			},
+			want: false,
+		},
+		// "vendor" package, visible
+		7: {
+			filename: "/gopath/src/foo/bar.go",
+			pkgIdent: "client",
+			pkg: &pkg{
+				dir:             "/gopath/src/foo/vendor/client",
+				importPath:      "other/foo/client",
+				importPathShort: "client",
+			},
+			want: true,
+		},
+		// Ignore hyphens.
+		8: {
+			filename: "/gopath/src/foo/bar.go",
+			pkgIdent: "socketio",
+			pkg: &pkg{
+				dir:             "/gopath/src/foo/socket-io",
+				importPath:      "foo/socket-io",
+				importPathShort: "foo/socket-io",
+			},
+			want: true,
+		},
+		// Ignore case.
+		9: {
+			filename: "/gopath/src/foo/bar.go",
+			pkgIdent: "fooprod",
+			pkg: &pkg{
+				dir:             "/gopath/src/foo/FooPROD",
+				importPath:      "foo/FooPROD",
+				importPathShort: "foo/FooPROD",
+			},
+			want: true,
+		},
+		// Ignoring both hyphens and case together.
+		10: {
+			filename: "/gopath/src/foo/bar.go",
+			pkgIdent: "fooprod",
+			pkg: &pkg{
+				dir:             "/gopath/src/foo/Foo-PROD",
+				importPath:      "foo/Foo-PROD",
+				importPathShort: "foo/Foo-PROD",
+			},
+			want: true,
+		},
+	}
+	for i, tt := range tests {
+		got := pkgIsCandidate(tt.filename, tt.pkgIdent, tt.pkg)
+		if got != tt.want {
+			t.Errorf("test %d. pkgIsCandidate(%q, %q, %+v) = %v; want %v",
+				i, tt.filename, tt.pkgIdent, *tt.pkg, got, tt.want)
+		}
+	}
 }
