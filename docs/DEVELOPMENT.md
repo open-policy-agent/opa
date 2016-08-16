@@ -16,7 +16,7 @@ Requirements:
 
 - Git
 - GitHub account (if you are contributing)
-- Go (version 1.5.x and 1.6.x are supported)
+- Go (version 1.6.x and 1.7.x are supported)
 - GNU Make
 
 ## Getting Started
