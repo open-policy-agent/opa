@@ -28,7 +28,7 @@ imports:
 - name: github.com/spf13/pflag
   version: 367864438f1b1a3c7db4da06a2f55b144e6784e0
 - name: golang.org/x/tools
-  version: 35c6e68a1a5ffc3e3afef71586710e9b0515582d
+  version: 26c35b4dcf6dfcb924e26828ed9f4d028c5ce05a
   subpackages:
   - cmd/goimports
 testImports: []
