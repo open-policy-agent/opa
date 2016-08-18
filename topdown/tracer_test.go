@@ -33,6 +33,9 @@ func TestTracer(t *testing.T) {
 
 	ds := storage.NewDataStoreFromJSONObject(data)
 	ps := storage.NewPolicyStore(ds, "")
+	store := storage.New(storage.Config{
+		Builtin: ds,
+	})
 
 	for id, mod := range mods {
 		err := ps.Add(id, mod, []byte(""), false)
@@ -44,10 +47,10 @@ func TestTracer(t *testing.T) {
 	tracer := &mockTracer{[]string{}}
 
 	params := &QueryParams{
-		DataStore: ds,
-		Globals:   storage.NewBindings(),
-		Tracer:    tracer,
-		Path:      []interface{}{"p"}}
+		Store:   store,
+		Globals: storage.NewBindings(),
+		Tracer:  tracer,
+		Path:    []interface{}{"p"}}
 
 	result, err := Query(params)
 	if err != nil {

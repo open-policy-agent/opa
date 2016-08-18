@@ -50,7 +50,8 @@ func TestIndicesAdd(t *testing.T) {
 
 	ref := ast.MustParseRef("data.d[x][y]")
 
-	indices.Build(store, ref)
+	// TODO(tsandall):
+	indices.Build(store, invalidTXN, ref)
 	index := indices.Get(ref)
 
 	// new value to add
@@ -84,7 +85,8 @@ func runIndexBuildTestCase(t *testing.T, i int, note string, refStr string, expe
 		return
 	}
 
-	err := indices.Build(store, ref)
+	// TODO(tsandall):
+	err := indices.Build(store, invalidTXN, ref)
 	if err != nil {
 		t.Errorf("Test case %d (%v): Did not expect error from build: %v", i, note, err)
 		return
@@ -123,4 +125,28 @@ func assertBindingsEqual(t *testing.T, note string, index *Index, value interfac
 		t.Errorf("%v: Missing expected bindings: %v", note, expected)
 		return
 	}
+}
+
+func loadExpectedBindings(input string) []*Bindings {
+	var data []map[string]interface{}
+	if err := json.Unmarshal([]byte(input), &data); err != nil {
+		panic(err)
+	}
+	var expected []*Bindings
+	for _, bindings := range data {
+		buf := NewBindings()
+		for k, v := range bindings {
+			switch v := v.(type) {
+			case string:
+				buf.Put(ast.Var(k), ast.String(v))
+			case float64:
+				buf.Put(ast.Var(k), ast.Number(v))
+			default:
+				panic("unreachable")
+			}
+		}
+		expected = append(expected, buf)
+	}
+
+	return expected
 }

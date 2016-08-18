@@ -404,6 +404,19 @@ func (ref Ref) Hash() int {
 	return termSliceHash(ref)
 }
 
+// HasPrefix returns true if the other ref is a prefix of this ref.
+func (ref Ref) HasPrefix(other Ref) bool {
+	if len(other) > len(ref) {
+		return false
+	}
+	for i := range other {
+		if !ref[i].Equal(other[i]) {
+			return false
+		}
+	}
+	return true
+}
+
 // IsGround returns true if all of the parts of the Ref are ground.
 func (ref Ref) IsGround() bool {
 	if len(ref) == 0 {

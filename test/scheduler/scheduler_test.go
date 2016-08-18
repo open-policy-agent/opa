@@ -48,13 +48,16 @@ func setup(t *testing.T, filename string) *topdown.QueryParams {
 	// storage setup
 	ds := loadDataStore(filename)
 	loadPolicyStore(ds, c.Modules)
+	store := storage.New(storage.Config{
+		Builtin: ds,
+	})
 
 	// parameter setup
 	globals := storage.NewBindings()
 	req := ast.MustParseTerm(requestedPod).Value
 	globals.Put(ast.Var("requested_pod"), req)
 	path := []interface{}{"opa", "test", "scheduler", "fit"}
-	params := topdown.NewQueryParams(ds, globals, path)
+	params := topdown.NewQueryParams(store, globals, path)
 
 	return params
 }

@@ -97,7 +97,8 @@ func evalEqUnifyArray(ctx *Context, a ast.Array, b ast.Value, prev *Undo, iter I
 
 func evalEqUnifyArrayRef(ctx *Context, a ast.Array, b ast.Ref, prev *Undo, iter Iterator) (*Undo, error) {
 
-	r, err := ctx.DataStore.GetRef(b)
+	// TODO(tsandall): should not be accessing txn here?
+	r, err := ctx.Store.Read(ctx.txn, b)
 	if err != nil {
 		return prev, err
 	}
@@ -176,7 +177,8 @@ func evalEqUnifyObject(ctx *Context, a ast.Object, b ast.Value, prev *Undo, iter
 
 func evalEqUnifyObjectRef(ctx *Context, a ast.Object, b ast.Ref, prev *Undo, iter Iterator) (*Undo, error) {
 
-	r, err := ctx.DataStore.GetRef(b)
+	// TODO(tsandall): should not be accessing txn here?
+	r, err := ctx.Store.Read(ctx.txn, b)
 
 	if err != nil {
 		return prev, err

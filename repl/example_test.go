@@ -17,6 +17,10 @@ func ExampleREPL_OneShot() {
 	// Setup dummy storage for the policy engine.
 	ds := storage.NewDataStore()
 	ps := storage.NewPolicyStore(ds, "")
+	store := storage.New(storage.Config{
+		Builtin: ds,
+	})
+
 	if err := ps.Open(storage.LoadPolicies); err != nil {
 		fmt.Println("Open error:", err)
 	}
@@ -25,7 +29,7 @@ func ExampleREPL_OneShot() {
 	var buf bytes.Buffer
 
 	// Create a new REPL.
-	repl := repl.New(ds, ps, "", &buf, "json", "")
+	repl := repl.New(store, ds, ps, "", &buf, "json", "")
 
 	// Define a rule inside the REPL.
 	repl.OneShot("p :- a = [1, 2, 3, 4], a[_] > 3")

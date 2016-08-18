@@ -516,8 +516,11 @@ func expectOutput(t *testing.T, output string, expected string) {
 }
 
 func newRepl(dataStore *storage.DataStore, buffer *bytes.Buffer) *REPL {
+	store := storage.New(storage.Config{
+		Builtin: dataStore,
+	})
 	policyStore := storage.NewPolicyStore(dataStore, "")
-	repl := New(dataStore, policyStore, "", buffer, "", "")
+	repl := New(store, dataStore, policyStore, "", buffer, "", "")
 	return repl
 }
 

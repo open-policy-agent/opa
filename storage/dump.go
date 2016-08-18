@@ -24,3 +24,13 @@ func Load(r io.Reader) (*DataStore, error) {
 	}
 	return NewDataStoreFromJSONObject(data), nil
 }
+
+// LoadOrDie reads the content of a serialized DataStore from the io.Reader r.
+// If the load fails for any reason, this function will panic.
+func LoadOrDie(r io.Reader) *DataStore {
+	ds, err := Load(r)
+	if err != nil {
+		panic(err)
+	}
+	return ds
+}

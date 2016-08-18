@@ -6,6 +6,7 @@ package topdown_test
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/storage"
@@ -20,15 +21,32 @@ func ExampleEval() {
 		fmt.Println("Compile error:", err)
 	}
 
-	ds := storage.NewDataStoreFromJSONObject(map[string]interface{}{
-		"a": []interface{}{float64(1), float64(2), float64(3), float64(4)},
+	ds, err := storage.Load(strings.NewReader(`
+		{
+			"a": [1,2,3,4]
+		}
+	`))
+
+	if err != nil {
+		fmt.Println("Load error:", err)
+	}
+
+	store := storage.New(storage.Config{
+		Builtin: ds,
 	})
+
+	txn, err := store.NewTransaction(nil)
+	if err != nil {
+		fmt.Println("Transaction error:", err)
+	}
+
+	defer store.Close(txn)
 
 	// Prepare the evaluation parameters. Evaluation executes against the policy engine's
 	// storage. In this case, we seed the storage with a single array of number. Other parameters
 	// such as globals, tracing configuration, etc. can be set on the context. See the Context
 	// documentation for more details.
-	ctx := topdown.NewContext(query, ds)
+	ctx := topdown.NewContext(query, store, txn)
 
 	result := []interface{}{}
 
@@ -77,6 +95,10 @@ func ExampleQuery() {
 	// Initialize the policy engine's storage.
 	ds := storage.NewDataStore()
 	ps := storage.NewPolicyStore(ds, "")
+	store := storage.New(storage.Config{
+		Builtin: ds,
+	})
+
 	if err := ps.Add("my_module", mod, nil, false); err != nil {
 		fmt.Println("Add error:", err)
 	}
@@ -85,7 +107,7 @@ func ExampleQuery() {
 	// accept additional documents (which are referred to as "globals"). In this case we have no
 	// additional documents.
 	globals := storage.NewBindings()
-	params := topdown.NewQueryParams(ds, globals, []interface{}{"opa", "example", "p"})
+	params := topdown.NewQueryParams(store, globals, []interface{}{"opa", "example", "p"})
 
 	// Execute the query against "p".
 	v1, err1 := topdown.Query(params)

@@ -15,24 +15,27 @@ import (
 
 // Context contains the state of the evaluation process.
 type Context struct {
-	Query     ast.Body
-	Globals   *storage.Bindings
-	Locals    *storage.Bindings
-	Index     int
-	Previous  *Context
-	DataStore *storage.DataStore
-	Tracer    Tracer
-	cache     *contextcache
+	Query    ast.Body
+	Globals  *storage.Bindings
+	Locals   *storage.Bindings
+	Index    int
+	Previous *Context
+	Store    *storage.Storage
+	Tracer   Tracer
+
+	txn   storage.Transaction
+	cache *contextcache
 }
 
 // NewContext creates a new Context with no bindings.
-func NewContext(query ast.Body, ds *storage.DataStore) *Context {
+func NewContext(query ast.Body, store *storage.Storage, txn storage.Transaction) *Context {
 	return &Context{
-		Query:     query,
-		Globals:   storage.NewBindings(),
-		Locals:    storage.NewBindings(),
-		DataStore: ds,
-		cache:     newContextCache(),
+		Query:   query,
+		Globals: storage.NewBindings(),
+		Locals:  storage.NewBindings(),
+		Store:   store,
+		txn:     txn,
+		cache:   newContextCache(),
 	}
 }
 
@@ -213,8 +216,8 @@ func ContinueN(ctx *Context, iter Iterator, x ...ast.Value) error {
 	return err
 }
 
-// Eval runs the evaluation algorithm on the contxet and calls the iterator
-// foreach context that contains bindings that satisfy all of the expressions
+// Eval runs the evaluation algorithm on the context and calls the iterator
+// for each context that contains bindings that satisfy all of the expressions
 // inside the body.
 func Eval(ctx *Context, iter Iterator) error {
 	return evalContext(ctx, iter)
@@ -327,30 +330,31 @@ func PlugValue(v ast.Value, ctx *Context) ast.Value {
 
 // QueryParams defines input parameters for the query interface.
 type QueryParams struct {
-	DataStore *storage.DataStore
-	Globals   *storage.Bindings
-	Tracer    Tracer
-	Path      []interface{}
+	Store   *storage.Storage
+	Globals *storage.Bindings
+	Tracer  Tracer
+	Path    []interface{}
 }
 
 // NewQueryParams returns a new QueryParams q.
-func NewQueryParams(ds *storage.DataStore, globals *storage.Bindings, path []interface{}) (q *QueryParams) {
+func NewQueryParams(store *storage.Storage, globals *storage.Bindings, path []interface{}) (q *QueryParams) {
 	return &QueryParams{
-		DataStore: ds,
-		Globals:   globals,
-		Path:      path,
+		Store:   store,
+		Globals: globals,
+		Path:    path,
 	}
 }
 
 // NewContext returns a new Context that can be used to do evaluation.
-func (q *QueryParams) NewContext(body ast.Body) *Context {
+func (q *QueryParams) NewContext(body ast.Body, txn storage.Transaction) *Context {
 	ctx := &Context{
-		Query:     body,
-		Globals:   q.Globals,
-		Locals:    storage.NewBindings(),
-		DataStore: q.DataStore,
-		Tracer:    q.Tracer,
-		cache:     newContextCache(),
+		Query:   body,
+		Globals: q.Globals,
+		Locals:  storage.NewBindings(),
+		Store:   q.Store,
+		Tracer:  q.Tracer,
+		txn:     txn,
+		cache:   newContextCache(),
 	}
 	return ctx
 }
@@ -377,7 +381,14 @@ func Query(params *QueryParams) (interface{}, error) {
 		}
 	}
 
-	node, err := params.DataStore.GetRef(ref)
+	txn, err := params.Store.NewTransaction([]ast.Ref{})
+	if err != nil {
+		return nil, err
+	}
+
+	defer params.Store.Close(txn)
+
+	node, err := params.Store.Read(txn, ref)
 	if err != nil {
 		return nil, err
 	}
@@ -391,11 +402,11 @@ func Query(params *QueryParams) (interface{}, error) {
 		// type. This is checked at compile time.
 		switch node[0].DocKind() {
 		case ast.CompleteDoc:
-			return queryCompleteDoc(params, node)
+			return queryCompleteDoc(params, txn, node)
 		case ast.PartialObjectDoc:
-			return queryPartialObjectDoc(params, node)
+			return queryPartialObjectDoc(params, txn, node)
 		case ast.PartialSetDoc:
-			return queryPartialSetDoc(params, node)
+			return queryPartialSetDoc(params, txn, node)
 		default:
 			return nil, fmt.Errorf("illegal document type %T: %v", node[0].DocKind(), ref)
 		}
@@ -463,7 +474,7 @@ func ValueToInterface(v ast.Value, ctx *Context) (interface{}, error) {
 
 	// References convert to native values via lookup.
 	case ast.Ref:
-		return ctx.DataStore.GetRef(v)
+		return ctx.Store.Read(ctx.txn, v)
 
 	default:
 		v = PlugValue(v, ctx)
@@ -598,7 +609,7 @@ func evalExpr(ctx *Context, iter Iterator) error {
 		v := tt.Value
 		if r, ok := v.(ast.Ref); ok {
 			var err error
-			v, err = lookupValue(ctx.DataStore, r)
+			v, err = lookupValue(ctx, r)
 			if err != nil {
 				return err
 			}
@@ -645,7 +656,7 @@ func evalRef(ctx *Context, ref, path ast.Ref, iter Iterator) error {
 		var undo *Undo
 		if b := ctx.Binding(n); b == nil {
 			p := PlugValue(n, ctx).(ast.Ref)
-			v, err := lookupValue(ctx.DataStore, p)
+			v, err := lookupValue(ctx, p)
 			if err != nil {
 				return err
 			}
@@ -663,7 +674,7 @@ func evalRef(ctx *Context, ref, path ast.Ref, iter Iterator) error {
 func evalRefRec(ctx *Context, path, tail ast.Ref, iter Iterator) error {
 
 	if len(tail) == 0 {
-		ok, err := lookupExists(ctx.DataStore, path)
+		ok, err := lookupExists(ctx, path)
 		if err == nil && ok {
 			return iter(ctx)
 		}
@@ -675,7 +686,7 @@ func evalRefRec(ctx *Context, path, tail ast.Ref, iter Iterator) error {
 		// If the node exists and is a rule, evaluate the rule to produce a virtual doc.
 		// Otherwise, process the rest of the reference.
 		path = append(path, PlugTerm(tail[0], ctx))
-		rules, err := lookupRule(ctx.DataStore, path)
+		rules, err := lookupRule(ctx, path)
 
 		if err != nil {
 			if storage.IsNotFound(err) {
@@ -707,7 +718,7 @@ func evalRefRec(ctx *Context, path, tail ast.Ref, iter Iterator) error {
 
 func evalRefRecWalkColl(ctx *Context, path, tail ast.Ref, iter Iterator) error {
 
-	node, err := ctx.DataStore.GetRef(path)
+	node, err := ctx.Store.Read(ctx.txn, path)
 	if err != nil {
 		if storage.IsNotFound(err) {
 			return nil
@@ -868,7 +879,7 @@ func evalRefRulePartialObjectDoc(ctx *Context, ref ast.Ref, path ast.Ref, rule *
 		k := key
 		if r, ok := key.(ast.Ref); ok {
 			var err error
-			k, err = lookupValue(ctx.DataStore, r)
+			k, err = lookupValue(ctx, r)
 			if err != nil {
 				if storage.IsNotFound(err) {
 					return nil
@@ -896,7 +907,7 @@ func evalRefRulePartialObjectDoc(ctx *Context, ref ast.Ref, path ast.Ref, rule *
 			k := key
 			if r, ok := key.(ast.Ref); ok {
 				var err error
-				k, err = lookupValue(ctx.DataStore, r)
+				k, err = lookupValue(ctx, r)
 				if err != nil {
 					if storage.IsNotFound(err) {
 						return nil
@@ -1066,7 +1077,7 @@ func evalRefRuleResultRecObject(ctx *Context, obj ast.Object, ref, path ast.Ref,
 			x := i[0].Value
 			if r, ok := i[0].Value.(ast.Ref); ok {
 				var err error
-				if x, err = lookupValue(ctx.DataStore, r); err != nil {
+				if x, err = lookupValue(ctx, r); err != nil {
 					if storage.IsNotFound(err) {
 						return nil
 					}
@@ -1186,15 +1197,9 @@ func evalTermsIndexed(ctx *Context, iter Iterator, indexed ast.Ref, nonIndexed *
 			return err
 		}
 
-		// Get the index for the indexed term. If the term is indexed, this should not fail.
-		index := ctx.DataStore.Indices.Get(indexed)
-		if index == nil {
-			return fmt.Errorf("missing index: %v", indexed)
-		}
-
 		// Iterate the bindings for the indexed term that when applied to the reference
 		// would locate the non-indexed value obtained above.
-		return index.Iter(nonIndexedValue, func(bindings *storage.Bindings) error {
+		return ctx.Store.Index(ctx.txn, indexed, nonIndexedValue, func(bindings *storage.Bindings) error {
 			var prev *Undo
 			bindings.Iter(func(k, v ast.Value) bool {
 				prev = ctx.Bind(k, v, prev)
@@ -1329,7 +1334,7 @@ func indexBuildLazy(ctx *Context, ref ast.Ref) (bool, error) {
 	}
 
 	// Check if index was already built.
-	if ctx.DataStore.Indices.Get(ref) != nil {
+	if ctx.Store.IndexExists(ref) {
 		return true, nil
 	}
 
@@ -1340,7 +1345,7 @@ func indexBuildLazy(ctx *Context, ref ast.Ref) (bool, error) {
 
 	// Ignore refs against virtual docs.
 	tmp := ast.Ref{ref[0], ref[1]}
-	r, err := lookupRule(ctx.DataStore, tmp)
+	r, err := lookupRule(ctx, tmp)
 	if err != nil || r != nil {
 		return false, err
 	}
@@ -1352,21 +1357,27 @@ func indexBuildLazy(ctx *Context, ref ast.Ref) (bool, error) {
 		}
 
 		tmp = append(tmp, p)
-		r, err := lookupRule(ctx.DataStore, tmp)
+		r, err := lookupRule(ctx, tmp)
 		if err != nil || r != nil {
 			return false, err
 		}
 	}
 
-	if err := ctx.DataStore.Indices.Build(ctx.DataStore, ref); err != nil {
+	if err := ctx.Store.BuildIndex(ctx.txn, ref); err != nil {
+		switch err := err.(type) {
+		case *storage.Error:
+			if err.Code == storage.IndexingNotSupportedErr {
+				return false, nil
+			}
+		}
 		return false, err
 	}
 
 	return true, nil
 }
 
-func lookupExists(ds *storage.DataStore, ref ast.Ref) (bool, error) {
-	_, err := ds.GetRef(ref)
+func lookupExists(ctx *Context, ref ast.Ref) (bool, error) {
+	_, err := ctx.Store.Read(ctx.txn, ref)
 	if err != nil {
 		if storage.IsNotFound(err) {
 			return false, nil
@@ -1376,8 +1387,8 @@ func lookupExists(ds *storage.DataStore, ref ast.Ref) (bool, error) {
 	return true, nil
 }
 
-func lookupRule(ds *storage.DataStore, ref ast.Ref) ([]*ast.Rule, error) {
-	r, err := ds.GetRef(ref)
+func lookupRule(ctx *Context, ref ast.Ref) ([]*ast.Rule, error) {
+	r, err := ctx.Store.Read(ctx.txn, ref)
 	if err != nil {
 		return nil, err
 	}
@@ -1389,21 +1400,21 @@ func lookupRule(ds *storage.DataStore, ref ast.Ref) ([]*ast.Rule, error) {
 	}
 }
 
-func lookupValue(ds *storage.DataStore, ref ast.Ref) (ast.Value, error) {
-	r, err := ds.GetRef(ref)
+func lookupValue(ctx *Context, ref ast.Ref) (ast.Value, error) {
+	r, err := ctx.Store.Read(ctx.txn, ref)
 	if err != nil {
 		return nil, err
 	}
 	return ast.InterfaceToValue(r)
 }
 
-func queryCompleteDoc(params *QueryParams, rules []*ast.Rule) (interface{}, error) {
+func queryCompleteDoc(params *QueryParams, txn storage.Transaction, rules []*ast.Rule) (interface{}, error) {
 
 	var result ast.Value
 	var resultContext *Context
 
 	for _, rule := range rules {
-		ctx := params.NewContext(rule.Body)
+		ctx := params.NewContext(rule.Body, txn)
 
 		err := Eval(ctx, func(ctx *Context) error {
 			if result == nil {
@@ -1429,13 +1440,13 @@ func queryCompleteDoc(params *QueryParams, rules []*ast.Rule) (interface{}, erro
 	return ValueToInterface(result, resultContext)
 }
 
-func queryPartialObjectDoc(params *QueryParams, rules []*ast.Rule) (interface{}, error) {
+func queryPartialObjectDoc(params *QueryParams, txn storage.Transaction, rules []*ast.Rule) (interface{}, error) {
 
 	result := map[string]interface{}{}
 	keys := map[string]struct{}{}
 
 	for _, rule := range rules {
-		ctx := params.NewContext(rule.Body)
+		ctx := params.NewContext(rule.Body, txn)
 		err := Eval(ctx, func(ctx *Context) error {
 			k, err := ValueToInterface(rule.Key.Value, ctx)
 			if err != nil {
@@ -1464,10 +1475,10 @@ func queryPartialObjectDoc(params *QueryParams, rules []*ast.Rule) (interface{},
 	return result, nil
 }
 
-func queryPartialSetDoc(params *QueryParams, rules []*ast.Rule) (interface{}, error) {
+func queryPartialSetDoc(params *QueryParams, txn storage.Transaction, rules []*ast.Rule) (interface{}, error) {
 	result := []interface{}{}
 	for _, rule := range rules {
-		ctx := params.NewContext(rule.Body)
+		ctx := params.NewContext(rule.Body, txn)
 		err := Eval(ctx, func(ctx *Context) error {
 			r, err := ValueToInterface(rule.Key.Value, ctx)
 			if err != nil {

@@ -118,7 +118,11 @@ func (rt *Runtime) startServer(params *Params) {
 
 	persist := len(params.PolicyDir) > 0
 
-	s := server.New(rt.DataStore, rt.PolicyStore, params.Addr, persist)
+	store := storage.New(storage.Config{
+		Builtin: rt.DataStore,
+	})
+
+	s := server.New(store, rt.DataStore, rt.PolicyStore, params.Addr, persist)
 
 	s.Handler = NewLoggingHandler(s.Handler)
 
@@ -130,7 +134,10 @@ func (rt *Runtime) startServer(params *Params) {
 
 func (rt *Runtime) startRepl(params *Params) {
 	banner := rt.getBanner()
-	repl := repl.New(rt.DataStore, rt.PolicyStore, params.HistoryPath, os.Stdout, params.OutputFormat, banner)
+	store := storage.New(storage.Config{
+		Builtin: rt.DataStore,
+	})
+	repl := repl.New(store, rt.DataStore, rt.PolicyStore, params.HistoryPath, os.Stdout, params.OutputFormat, banner)
 	repl.Loop()
 }
 

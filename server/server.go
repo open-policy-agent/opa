@@ -69,17 +69,20 @@ type Server struct {
 	persist bool
 	ds      *storage.DataStore
 	ps      *storage.PolicyStore
+	store   *storage.Storage
 	mtx     sync.RWMutex
 }
 
 // New returns a new Server.
-func New(ds *storage.DataStore, ps *storage.PolicyStore, addr string, persist bool) *Server {
+// TODO(tsandall): refactor so that ds and ps are not needed here.
+func New(store *storage.Storage, ds *storage.DataStore, ps *storage.PolicyStore, addr string, persist bool) *Server {
 
 	s := &Server{
 		addr:    addr,
 		persist: persist,
 		ds:      ds,
 		ps:      ps,
+		store:   store,
 	}
 
 	router := mux.NewRouter()
@@ -112,7 +115,13 @@ func (s *Server) execQuery(qStr string) (resultSetV1, error) {
 		return nil, err
 	}
 
-	ctx := topdown.NewContext(query, s.ds)
+	txn, err := s.store.NewTransaction(nil)
+	if err != nil {
+		return nil, err
+	}
+	defer s.store.Close(txn)
+
+	ctx := topdown.NewContext(query, s.store, txn)
 
 	results := resultSetV1{}
 
@@ -184,7 +193,7 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 		handleError(w, 400, err)
 		return
 	}
-	params := topdown.NewQueryParams(s.ds, globals, path)
+	params := topdown.NewQueryParams(s.store, globals, path)
 
 	s.mtx.RLock()
 	defer s.mtx.RUnlock()
