@@ -35,7 +35,7 @@ func ExampleEval() {
 		Builtin: ds,
 	})
 
-	txn, err := store.NewTransaction(nil)
+	txn, err := store.NewTransaction()
 	if err != nil {
 		fmt.Println("Transaction error:", err)
 	}

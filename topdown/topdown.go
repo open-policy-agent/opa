@@ -381,7 +381,7 @@ func Query(params *QueryParams) (interface{}, error) {
 		}
 	}
 
-	txn, err := params.Store.NewTransaction([]ast.Ref{})
+	txn, err := params.Store.NewTransaction()
 	if err != nil {
 		return nil, err
 	}

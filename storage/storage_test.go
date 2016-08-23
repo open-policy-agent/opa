@@ -38,7 +38,7 @@ func TestStorageReadPlugin(t *testing.T) {
 		t.Fatalf("Unexpected mount error: %v", err)
 	}
 
-	txn, err := store.NewTransaction(nil)
+	txn, err := store.NewTransaction()
 	if err != nil {
 		panic(err)
 	}

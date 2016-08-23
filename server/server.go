@@ -115,7 +115,7 @@ func (s *Server) execQuery(qStr string) (resultSetV1, error) {
 		return nil, err
 	}
 
-	txn, err := s.store.NewTransaction(nil)
+	txn, err := s.store.NewTransaction()
 	if err != nil {
 		return nil, err
 	}

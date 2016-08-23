@@ -140,7 +140,7 @@ func (s *Storage) Read(txn Transaction, path ast.Ref) (interface{}, error) {
 // NewTransaction returns a new transcation that can be used to perform reads
 // against a consistent snapshot of the storage layer. The caller can provide a
 // slice of references that may be read during the transaction.
-func (s *Storage) NewTransaction(refs []ast.Ref) (Transaction, error) {
+func (s *Storage) NewTransaction(refs ...ast.Ref) (Transaction, error) {
 	// TODO(tsandall):
 	return invalidTXN, nil
 }
@@ -197,7 +197,7 @@ func (s *Storage) Index(txn Transaction, ref ast.Ref, value interface{}, iter fu
 // fails for any reason, this function will panic. This function should only be
 // used for tests.
 func ReadOrDie(store *Storage, path ast.Ref) interface{} {
-	txn, err := store.NewTransaction(nil)
+	txn, err := store.NewTransaction()
 	if err != nil {
 		panic(err)
 	}
@@ -211,8 +211,8 @@ func ReadOrDie(store *Storage, path ast.Ref) interface{} {
 // NewTransactionOrDie is a helper function to create a new transaction. If the
 // storage layer cannot create a new transaction, this function will panic. This
 // function should only be used for tests.
-func NewTransactionOrDie(store *Storage, refs []ast.Ref) Transaction {
-	txn, err := store.NewTransaction(refs)
+func NewTransactionOrDie(store *Storage, refs ...ast.Ref) Transaction {
+	txn, err := store.NewTransaction(refs...)
 	if err != nil {
 		panic(err)
 	}

@@ -111,7 +111,7 @@ func (r *REPL) OneShot(line string) bool {
 	}
 
 	var err error
-	r.txn, err = r.store.NewTransaction(nil)
+	r.txn, err = r.store.NewTransaction()
 	if err != nil {
 		fmt.Fprintln(r.output, "error:", err)
 		return false
