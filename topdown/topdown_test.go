@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"reflect"
 	"sort"
+	"strings"
 	"testing"
 
 	"github.com/open-policy-agent/opa/ast"
@@ -55,7 +56,15 @@ func TestEvalRef(t *testing.T) {
 
 	data := loadSmallTestData()
 
-	ctx := NewContext(nil, storage.NewDataStoreFromJSONObject(data))
+	ds := storage.NewDataStoreFromJSONObject(data)
+	store := storage.New(storage.Config{
+		Builtin: ds,
+	})
+
+	txn := storage.NewTransactionOrDie(store, nil)
+	defer store.Close(txn)
+
+	ctx := NewContext(nil, store, txn)
 
 	for i, tc := range tests {
 
@@ -140,9 +149,17 @@ func TestEvalTerms(t *testing.T) {
 
 	data := loadSmallTestData()
 
+	ds := storage.NewDataStoreFromJSONObject(data)
+	store := storage.New(storage.Config{
+		Builtin: ds,
+	})
+
+	txn := storage.NewTransactionOrDie(store, nil)
+	defer store.Close(txn)
+
 	for i, tc := range tests {
 
-		ctx := NewContext(ast.MustParseBody(tc.body), storage.NewDataStoreFromJSONObject(data))
+		ctx := NewContext(ast.MustParseBody(tc.body), store, txn)
 
 		expected := loadExpectedBindings(tc.expected)
 
@@ -182,13 +199,13 @@ func TestPlugValue(t *testing.T) {
 	hello := ast.String("hello")
 	world := ast.String("world")
 
-	ctx1 := NewContext(nil, nil)
+	ctx1 := NewContext(nil, nil, nil)
 	ctx1.Bind(a, b, nil)
 	ctx1.Bind(b, cs, nil)
 	ctx1.Bind(c, ks, nil)
 	ctx1.Bind(k, hello, nil)
 
-	ctx2 := NewContext(nil, nil)
+	ctx2 := NewContext(nil, nil, nil)
 	ctx2.Bind(a, b, nil)
 	ctx2.Bind(b, cs, nil)
 	ctx2.Bind(c, vs, nil)
@@ -211,7 +228,7 @@ func TestPlugValue(t *testing.T) {
 
 	n := ast.MustParseTerm("a.b[x.y[i]]").Value
 
-	ctx3 := NewContext(nil, nil)
+	ctx3 := NewContext(nil, nil, nil)
 	ctx3.Bind(ast.Var("i"), ast.Number(1), nil)
 	ctx3.Bind(ast.MustParseTerm("x.y[i]").Value, ast.Number(1), nil)
 
@@ -906,11 +923,14 @@ func TestTopDownEmbeddedVirtualDoc(t *testing.T) {
 
 	data := loadSmallTestData()
 
-	store := storage.NewDataStoreFromJSONObject(data)
-	policyStore := storage.NewPolicyStore(store, "")
+	ds := storage.NewDataStoreFromJSONObject(data)
+	ps := storage.NewPolicyStore(ds, "")
+	store := storage.New(storage.Config{
+		Builtin: ds,
+	})
 
 	for id, mod := range mods {
-		err := policyStore.Add(id, mod, []byte(""), false)
+		err := ps.Add(id, mod, []byte(""), false)
 		if err != nil {
 			panic(err)
 		}
@@ -934,11 +954,14 @@ func TestTopDownGlobalVars(t *testing.T) {
 		 t :- req4as.x[0] = 1`})
 
 	data := loadSmallTestData()
-	store := storage.NewDataStoreFromJSONObject(data)
-	policyStore := storage.NewPolicyStore(store, "")
+	ds := storage.NewDataStoreFromJSONObject(data)
+	ps := storage.NewPolicyStore(ds, "")
+	store := storage.New(storage.Config{
+		Builtin: ds,
+	})
 
 	for id, mod := range mods {
-		err := policyStore.Add(id, mod, []byte(""), false)
+		err := ps.Add(id, mod, []byte(""), false)
 		if err != nil {
 			panic(err)
 		}
@@ -987,17 +1010,61 @@ func TestTopDownCaching(t *testing.T) {
 	`})
 
 	data := loadSmallTestData()
-	store := storage.NewDataStoreFromJSONObject(data)
-	policyStore := storage.NewPolicyStore(store, "")
+	ds := storage.NewDataStoreFromJSONObject(data)
+	ps := storage.NewPolicyStore(ds, "")
+	store := storage.New(storage.Config{
+		Builtin: ds,
+	})
 
 	for id, mod := range mods {
-		err := policyStore.Add(id, mod, []byte(""), false)
+		err := ps.Add(id, mod, []byte(""), false)
 		if err != nil {
 			panic(err)
 		}
 	}
 
 	assertTopDown(t, store, 0, "reference lookup", []string{"topdown", "caching", "p"}, `{}`, "[2,2,3,3]")
+}
+
+func TestTopDownStoragePlugin(t *testing.T) {
+
+	mods := compileModules([]string{`
+	package topdown.plugins
+
+	p[x] :- q[x], not r[x]
+	q[x] :- data.a[_] = x
+	r[x] :- data.plugin.b[_] = x
+	`})
+
+	data := loadSmallTestData()
+	ds := storage.NewDataStoreFromJSONObject(data)
+	ps := storage.NewPolicyStore(ds, "")
+
+	store := storage.New(storage.Config{
+		Builtin: ds,
+	})
+
+	for id, mod := range mods {
+		err := ps.Add(id, mod, []byte(""), false)
+		if err != nil {
+			panic(err)
+		}
+	}
+
+	plugin := storage.LoadOrDie(strings.NewReader(`{
+		"b": [
+			1,3,5,6
+		]
+	}`))
+
+	mountPath := ast.MustParseRef("data.plugin")
+	plugin.SetMountPath(mountPath)
+
+	if err := store.Mount(plugin, mountPath); err != nil {
+		t.Fatalf("Unexpected mount error: %v", err)
+	}
+
+	assertTopDown(t, store, 0, "rule with plugin", []string{"topdown", "plugins", "p"}, `{}`, "[2,4]")
 }
 
 func TestExample(t *testing.T) {
@@ -1050,11 +1117,14 @@ func TestExample(t *testing.T) {
 
 	mods := compileModules([]string{vd})
 
-	store := storage.NewDataStoreFromJSONObject(doc)
-	policyStore := storage.NewPolicyStore(store, "")
+	ds := storage.NewDataStoreFromJSONObject(doc)
+	ps := storage.NewPolicyStore(ds, "")
+	store := storage.New(storage.Config{
+		Builtin: ds,
+	})
 
 	for id, mod := range mods {
-		err := policyStore.Add(id, mod, []byte(""), false)
+		err := ps.Add(id, mod, []byte(""), false)
 		if err != nil {
 			panic(err)
 		}
@@ -1244,11 +1314,14 @@ func runTopDownTestCase(t *testing.T, data map[string]interface{}, i int, note s
 
 	mods := compileRules(imports, rules)
 
-	store := storage.NewDataStoreFromJSONObject(data)
-	policyStore := storage.NewPolicyStore(store, "")
+	ds := storage.NewDataStoreFromJSONObject(data)
+	ps := storage.NewPolicyStore(ds, "")
+	store := storage.New(storage.Config{
+		Builtin: ds,
+	})
 
 	for id, mod := range mods {
-		err := policyStore.Add(id, mod, []byte(""), false)
+		err := ps.Add(id, mod, []byte(""), false)
 		if err != nil {
 			panic(err)
 		}
@@ -1257,7 +1330,7 @@ func runTopDownTestCase(t *testing.T, data map[string]interface{}, i int, note s
 	assertTopDown(t, store, i, note, []string{"p"}, "{}", expected)
 }
 
-func assertTopDown(t *testing.T, store *storage.DataStore, i int, note string, path []string, globals string, expected interface{}) {
+func assertTopDown(t *testing.T, store *storage.Storage, i int, note string, path []string, globals string, expected interface{}) {
 
 	g := storage.NewBindings()
 	for _, i := range ast.MustParseTerm(globals).Value.(ast.Object) {
@@ -1272,7 +1345,7 @@ func assertTopDown(t *testing.T, store *storage.DataStore, i int, note string, p
 	switch e := expected.(type) {
 
 	case error:
-		result, err := Query(&QueryParams{DataStore: store, Path: p, Globals: g})
+		result, err := Query(&QueryParams{Store: store, Path: p, Globals: g})
 		if err == nil {
 			t.Errorf("Test case %d (%v): expected error but got: %v", i+1, note, result)
 			return
@@ -1283,16 +1356,13 @@ func assertTopDown(t *testing.T, store *storage.DataStore, i int, note string, p
 
 	case string:
 		expected := loadExpectedSortedResult(e)
-		result, err := Query(&QueryParams{DataStore: store, Path: p, Globals: g})
+		result, err := Query(&QueryParams{Store: store, Path: p, Globals: g})
 		if err != nil {
 			t.Errorf("Test case %d (%v): unexpected error: %v", i+1, note, err)
 			return
 		}
-		p := []interface{}{}
-		for _, x := range path {
-			p = append(p, x)
-		}
-		switch store.MustGet(p).([]*ast.Rule)[0].DocKind() {
+		p := ast.MustParseRef(fmt.Sprintf("data.%v", strings.Join(path, ".")))
+		switch storage.ReadOrDie(store, p).([]*ast.Rule)[0].DocKind() {
 		case ast.PartialSetDoc:
 			sort.Sort(resultSet(result.([]interface{})))
 		}

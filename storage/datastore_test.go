@@ -190,80 +190,6 @@ func TestStoragePatch(t *testing.T) {
 
 }
 
-func TestStorageIndexingBasicUpdate(t *testing.T) {
-	refA := ast.MustParseRef("data.a[i]")
-	refB := ast.MustParseRef("data.b[x]")
-	ds := newStorageWithIndices(refA, refB)
-
-	mustPatch(ds, AddOp, path(`a["-"]`), float64(100))
-
-	index := ds.Indices.Get(refA)
-	if index != nil {
-		t.Errorf("Expected index to be removed after patch: %v", index)
-	}
-
-	index = ds.Indices.Get(refB)
-	if index == nil {
-		t.Errorf("Expected index to be intact after patch: %v", refB)
-	}
-}
-
-func TestStorageIndexingAddDeepPath(t *testing.T) {
-	ref := ast.MustParseRef("data.l[x]")
-	refD := ast.MustParseRef("data.l[x].d")
-	ds := newStorageWithIndices(ref, refD)
-
-	mustPatch(ds, AddOp, path(`l[0].c["-"]`), float64(5))
-
-	index := ds.Indices.Get(ref)
-	if index != nil {
-		t.Errorf("Expected index to be removed after patch: %v", index)
-	}
-
-	index = ds.Indices.Get(refD)
-	if index == nil {
-		t.Errorf("Expected index to be intact after patch: %v", refD)
-	}
-}
-
-func TestStorageIndexingAddDeepRef(t *testing.T) {
-	ref := ast.MustParseRef("data.l[x].a")
-	ds := newStorageWithIndices(ref)
-	var data interface{}
-	json.Unmarshal([]byte(`{"a": "eve", "b": 100, "c": [999,999,999]}`), &data)
-
-	mustPatch(ds, AddOp, path(`l["-"]`), data)
-
-	index := ds.Indices.Get(ref)
-	if index != nil {
-		t.Errorf("Expected index to be removed after patch: %v", index)
-	}
-}
-
-func loadExpectedBindings(input string) []*Bindings {
-	var data []map[string]interface{}
-	if err := json.Unmarshal([]byte(input), &data); err != nil {
-		panic(err)
-	}
-	var expected []*Bindings
-	for _, bindings := range data {
-		buf := NewBindings()
-		for k, v := range bindings {
-			switch v := v.(type) {
-			case string:
-				buf.Put(ast.Var(k), ast.String(v))
-			case float64:
-				buf.Put(ast.Var(k), ast.Number(v))
-			default:
-				panic("unreachable")
-			}
-		}
-		expected = append(expected, buf)
-	}
-
-	return expected
-}
-
 func loadExpectedResult(input string) interface{} {
 	if len(input) == 0 {
 		return nil
@@ -328,29 +254,6 @@ func loadSmallTestData() map[string]interface{} {
 		panic(err)
 	}
 	return data
-}
-
-func mustBuild(store *DataStore, ref ast.Ref) {
-	err := store.Indices.Build(store, ref)
-	if err != nil {
-		panic(err)
-	}
-}
-
-func mustPatch(store *DataStore, op PatchOp, path []interface{}, value interface{}) {
-	err := store.Patch(op, path, value)
-	if err != nil {
-		panic(err)
-	}
-}
-
-func newStorageWithIndices(r ...ast.Ref) *DataStore {
-	data := loadSmallTestData()
-	store := NewDataStoreFromJSONObject(data)
-	for _, x := range r {
-		mustBuild(store, x)
-	}
-	return store
 }
 
 func path(input interface{}) []interface{} {

@@ -15,17 +15,17 @@ import (
 
 // Indices contains a mapping of non-ground references to values to sets of bindings.
 //
-// +------+------------------------------------+
-// | ref1 | val1 | bindings-1, bindings-2, ... |
-// |      +------+-----------------------------+
-// |      | val2 | bindings-m, bindings-m, ... |
-// |      +------+-----------------------------+
-// |      | .... | ...                         |
-// +------+------+-----------------------------+
-// | ref2 | .... | ...                         |
-// +------+------+-----------------------------+
-// | ...     								   |
-// +-------------------------------------------+
+//  +------+------------------------------------+
+//  | ref1 | val1 | bindings-1, bindings-2, ... |
+//  |      +------+-----------------------------+
+//  |      | val2 | bindings-m, bindings-m, ... |
+//  |      +------+-----------------------------+
+//  |      | .... | ...                         |
+//  +------+------+-----------------------------+
+//  | ref2 | .... | ...                         |
+//  +------+------+-----------------------------+
+//  | ...                                       |
+//  +-------------------------------------------+
 //
 // The "value" is the data value stored at the location referred to by the ground
 // reference obtained by plugging bindings into the non-ground reference that is the
@@ -50,9 +50,10 @@ func NewIndices() *Indices {
 
 // Build initializes the references' index by walking the store for the reference and
 // creating the index that maps values to bindings.
-func (ind *Indices) Build(store *DataStore, ref ast.Ref) error {
+func (ind *Indices) Build(store Store, txn Transaction, ref ast.Ref) error {
 	index := NewIndex()
-	err := iterStorage(store, ref, ast.EmptyRef(), NewBindings(), func(bindings *Bindings, val interface{}) {
+	ind.registerTriggers(store)
+	err := iterStorage(store, txn, ref, ast.EmptyRef(), NewBindings(), func(bindings *Bindings, val interface{}) {
 		index.Add(val, bindings)
 	})
 	if err != nil {
@@ -117,6 +118,11 @@ func (ind *Indices) String() string {
 	return "{" + strings.Join(buf, ", ") + "}"
 }
 
+func (ind *Indices) dropAll(Transaction, PatchOp, []interface{}, interface{}) error {
+	ind.table = map[int]*indicesNode{}
+	return nil
+}
+
 func (ind *Indices) getNode(ref ast.Ref) *indicesNode {
 	hashCode := ref.Hash()
 	for entry := ind.table[hashCode]; entry != nil; entry = entry.next {
@@ -125,6 +131,16 @@ func (ind *Indices) getNode(ref ast.Ref) *indicesNode {
 		}
 	}
 	return nil
+}
+
+const (
+	triggerID = "org.openpolicyagent/index-maintenance"
+)
+
+func (ind *Indices) registerTriggers(store Store) error {
+	return store.Register(triggerID, TriggerConfig{
+		Before: ind.dropAll,
+	})
 }
 
 // Index contains a mapping of values to bindings.
@@ -289,10 +305,10 @@ func hash(v interface{}) int {
 	panic(fmt.Sprintf("illegal argument: %v (%T)", v, v))
 }
 
-func iterStorage(store *DataStore, ref ast.Ref, path ast.Ref, bindings *Bindings, iter func(*Bindings, interface{})) error {
+func iterStorage(store Store, txn Transaction, ref ast.Ref, path ast.Ref, bindings *Bindings, iter func(*Bindings, interface{})) error {
 
 	if len(ref) == 0 {
-		node, err := store.GetRef(path)
+		node, err := store.Read(txn, path)
 		if err != nil {
 			if IsNotFound(err) {
 				return nil
@@ -311,10 +327,10 @@ func iterStorage(store *DataStore, ref ast.Ref, path ast.Ref, bindings *Bindings
 
 	if !isVar || len(path) == 0 {
 		path = append(path, head)
-		return iterStorage(store, tail, path, bindings, iter)
+		return iterStorage(store, txn, tail, path, bindings, iter)
 	}
 
-	node, err := store.GetRef(path)
+	node, err := store.Read(txn, path)
 	if err != nil {
 		if IsNotFound(err) {
 			return nil
@@ -328,7 +344,7 @@ func iterStorage(store *DataStore, ref ast.Ref, path ast.Ref, bindings *Bindings
 			path = append(path, ast.StringTerm(key))
 			cpy := bindings.Copy()
 			cpy.Put(headVar, ast.String(key))
-			err := iterStorage(store, tail, path, cpy, iter)
+			err := iterStorage(store, txn, tail, path, cpy, iter)
 			if err != nil {
 				return err
 			}
@@ -339,7 +355,7 @@ func iterStorage(store *DataStore, ref ast.Ref, path ast.Ref, bindings *Bindings
 			path = append(path, ast.NumberTerm(float64(i)))
 			cpy := bindings.Copy()
 			cpy.Put(headVar, ast.Number(float64(i)))
-			err := iterStorage(store, tail, path, cpy, iter)
+			err := iterStorage(store, txn, tail, path, cpy, iter)
 			if err != nil {
 				return err
 			}

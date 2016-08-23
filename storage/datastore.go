@@ -21,6 +21,22 @@ const (
 	// NotFoundErr indicates the path used in the storage operation does not
 	// locate a document.
 	NotFoundErr = iota
+
+	// MountConflictErr indicates a mount attempt was made on a path that is
+	// already used for a mount.
+	MountConflictErr = iota
+
+	// IndexNotFoundErr indicates the caller attempted to use indexing on a
+	// reference that has not been indexed.
+	IndexNotFoundErr = iota
+
+	// IndexingNotSupportedErr indicates the caller attempted to index a
+	// reference provided by a store that does not support indexing.
+	IndexingNotSupportedErr = iota
+
+	// TriggersNotSupportedErr indicates the caller attempted to register a
+	// trigger against a store that does not support them.
+	TriggersNotSupportedErr = iota
 )
 
 // Error is the error type returned by Storage functions.
@@ -63,6 +79,34 @@ func nonArrayMsg(v interface{}) string {
 	return fmt.Sprintf("path refers to non-array document with element %v", v)
 }
 
+func indexNotFoundError() *Error {
+	return &Error{
+		Code:    IndexNotFoundErr,
+		Message: "index not found",
+	}
+}
+
+func indexingNotSupportedError() *Error {
+	return &Error{
+		Code:    IndexingNotSupportedErr,
+		Message: "indexing not supported",
+	}
+}
+
+func internalError(f string, a ...interface{}) *Error {
+	return &Error{
+		Code:    InternalErr,
+		Message: fmt.Sprintf(f, a...),
+	}
+}
+
+func mountConflictError() *Error {
+	return &Error{
+		Code:    MountConflictErr,
+		Message: "mount conflict",
+	}
+}
+
 func notFoundError(path []interface{}, f string, a ...interface{}) *Error {
 	msg := fmt.Sprintf("bad path: %v", path)
 	if len(f) > 0 {
@@ -79,17 +123,34 @@ func notFoundErrorf(f string, a ...interface{}) *Error {
 	}
 }
 
+func notFoundRefError(ref ast.Ref, f string, a ...interface{}) *Error {
+	msg := fmt.Sprintf("bad path: %v", ref)
+	if len(f) > 0 {
+		msg += ", " + fmt.Sprintf(f, a...)
+	}
+	return notFoundErrorf(msg)
+}
+
+func triggersNotSupportedError() *Error {
+	return &Error{
+		Code:    TriggersNotSupportedErr,
+		Message: "triggers not supported",
+	}
+}
+
 // DataStore is the backend containing rule references and data.
 type DataStore struct {
-	Indices *Indices
-	data    map[string]interface{}
+	mountPath ast.Ref
+	data      map[string]interface{}
+	triggers  map[string]TriggerConfig
 }
 
 // NewDataStore returns an empty DataStore.
 func NewDataStore() *DataStore {
 	return &DataStore{
-		Indices: NewIndices(),
-		data:    map[string]interface{}{},
+		data:      map[string]interface{}{},
+		triggers:  map[string]TriggerConfig{},
+		mountPath: ast.Ref{ast.DefaultRootDocument},
 	}
 }
 
@@ -105,6 +166,44 @@ func NewDataStoreFromJSONObject(data map[string]interface{}) *DataStore {
 	return ds
 }
 
+// SetMountPath updates the data store's mount path. This is the path the data
+// store expects all references to be prefixed with.
+func (ds *DataStore) SetMountPath(ref ast.Ref) {
+	ds.mountPath = ref
+}
+
+// ID returns a unique identifier for the in-memory store.
+func (ds *DataStore) ID() string {
+	return "org.openpolicyagent/in-memory"
+}
+
+// Begin is called when a new transaction is started.
+func (ds *DataStore) Begin(txn Transaction, refs []ast.Ref) error {
+	// TODO(tsandall):
+	return nil
+}
+
+// Finished is called when a transaction is done.
+func (ds *DataStore) Finished(txn Transaction) {
+
+}
+
+// Register adds a trigger.
+func (ds *DataStore) Register(id string, config TriggerConfig) error {
+	ds.triggers[id] = config
+	return nil
+}
+
+// Unregister removes a trigger.
+func (ds *DataStore) Unregister(id string) {
+	delete(ds.triggers, id)
+}
+
+// Read fetches a value from the in-memory store.
+func (ds *DataStore) Read(txn Transaction, path ast.Ref) (interface{}, error) {
+	return ds.GetRef(path)
+}
+
 // Get returns the value in Storage referenced by path.
 // If the lookup fails, an error is returned with a message indicating
 // why the failure occurred.
@@ -115,11 +214,11 @@ func (ds *DataStore) Get(path []interface{}) (interface{}, error) {
 // GetRef returns the value in Storage referred to by the reference.
 // This is a convienence function.
 func (ds *DataStore) GetRef(ref ast.Ref) (interface{}, error) {
-	if !ref[0].Equal(ast.DefaultRootDocument) {
-		return nil, fmt.Errorf("illegal root %v: %v", ref[0], ref)
-	}
-	path := make([]interface{}, len(ref)-1)
-	for i, x := range ref[1:] {
+
+	ref = ref[len(ds.mountPath):]
+	path := make([]interface{}, len(ref))
+
+	for i, x := range ref {
 		switch v := x.Value.(type) {
 		case ast.Ref:
 			n, err := ds.GetRef(v)
@@ -205,94 +304,44 @@ func (ds *DataStore) Patch(op PatchOp, path []interface{}, value interface{}) er
 		return notFoundError(path, stringHeadMsg)
 	}
 
-	// Drop the indices that are affected by this patch. This is inefficient for mixed read-write
-	// access patterns, but it's easy and simple for now. Once we have more information about
-	// the use cases, we can optimize this.
-	r := []ast.Ref{}
-
-	err := ds.Indices.Iter(func(ref ast.Ref, index *Index) error {
-		if !commonPrefix(ref[1:], path) {
-			return nil
+	for _, t := range ds.triggers {
+		if t.Before != nil {
+			// TODO(tsandall): use correct transaction.
+			if err := t.Before(invalidTXN, op, path, value); err != nil {
+				return err
+			}
 		}
-		r = append(r, ref)
-		return nil
-	})
+	}
+
+	// Perform in-place update on data.
+	var err error
+	switch op {
+	case AddOp:
+		err = add(ds.data, path, value)
+	case RemoveOp:
+		err = remove(ds.data, path)
+	case ReplaceOp:
+		err = replace(ds.data, path, value)
+	}
 
 	if err != nil {
 		return err
 	}
 
-	for _, ref := range r {
-		ds.Indices.Drop(ref)
+	for _, t := range ds.triggers {
+		if t.After != nil {
+			// TODO(tsandall): use correct transaction.
+			if err := t.After(invalidTXN, op, path, value); err != nil {
+				return err
+			}
+		}
 	}
 
-	// Perform in-place update on data.
-	switch op {
-	case AddOp:
-		return add(ds.data, path, value)
-	case RemoveOp:
-		return remove(ds.data, path)
-	case ReplaceOp:
-		return replace(ds.data, path, value)
-	}
-
-	// Unreachable.
 	return nil
 }
 
 func (ds *DataStore) String() string {
 	return fmt.Sprintf("%v", ds.data)
-}
-
-// commonPrefix returns true the reference is a prefix of the path or vice versa.
-// The shorter value is the prefix of the other if all of the ground elements
-// are equal to the elements at the same indices in the other.
-func commonPrefix(ref ast.Ref, path []interface{}) bool {
-
-	min := len(ref)
-	if len(path) < min {
-		min = len(path)
-	}
-
-	cmp := func(a ast.Value, b interface{}) bool {
-		switch a := a.(type) {
-		case ast.Null:
-			if b == nil {
-				return true
-			}
-		case ast.Boolean:
-			if b, ok := b.(bool); ok {
-				return b == bool(a)
-			}
-		case ast.Number:
-			if b, ok := b.(float64); ok {
-				return b == float64(a)
-			}
-		case ast.String:
-			if b, ok := b.(string); ok {
-				return b == string(a)
-			}
-		}
-		return false
-	}
-
-	v := ast.String(ref[0].Value.(ast.String))
-
-	if !cmp(v, path[0]) {
-		return false
-	}
-
-	for i := 1; i < min; i++ {
-		if !ref[i].IsGround() {
-			continue
-		}
-		if cmp(ref[i].Value, path[i]) {
-			continue
-		}
-		return false
-	}
-
-	return true
 }
 
 func add(data map[string]interface{}, path []interface{}, value interface{}) error {
@@ -419,7 +468,7 @@ func addRoot(data map[string]interface{}, key string, value interface{}) error {
 
 func get(data map[string]interface{}, path []interface{}) (interface{}, error) {
 	if len(path) == 0 {
-		return nil, notFoundError(path, nonEmptyMsg)
+		return data, nil
 	}
 
 	head, ok := path[0].(string)

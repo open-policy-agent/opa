@@ -215,6 +215,25 @@ func TestRefUnderlying(t *testing.T) {
 
 }
 
+func TestRefHasPrefix(t *testing.T) {
+
+	a := MustParseRef("foo.bar.baz")
+	b := MustParseRef("foo.bar")
+	c := MustParseRef("foo.bar[0][x]")
+
+	if !a.HasPrefix(b) {
+		t.Error("Expected a.HasPrefix(b)")
+	}
+
+	if b.HasPrefix(a) {
+		t.Error("Expected !b.HasPrefix(a)")
+	}
+
+	if !c.HasPrefix(b) {
+		t.Error("Expected c.HasPrefix(b)")
+	}
+}
+
 func assertTermEqual(t *testing.T, x *Term, y *Term) {
 	if !x.Equal(y) {
 		t.Errorf("Failure on equality: \n%s and \n%s\n", x, y)

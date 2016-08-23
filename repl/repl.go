@@ -26,6 +26,7 @@ import (
 // REPL represents an instance of the interactive shell.
 type REPL struct {
 	output      io.Writer
+	store       *storage.Storage
 	dataStore   *storage.DataStore
 	policyStore *storage.PolicyStore
 
@@ -33,6 +34,7 @@ type REPL struct {
 	buffer          []string
 	initialized     bool
 	nextID          int
+	txn             storage.Transaction
 
 	// TODO(tsandall): replace this state with rule definitions
 	// inside the default module.
@@ -45,11 +47,13 @@ type REPL struct {
 }
 
 // New returns a new instance of the REPL.
-func New(dataStore *storage.DataStore, policyStore *storage.PolicyStore, historyPath string, output io.Writer, outputFormat string, banner string) *REPL {
+// TODO(tsandall): refactor so that DataStore and PolicyStore are not needed here.
+func New(store *storage.Storage, dataStore *storage.DataStore, policyStore *storage.PolicyStore, historyPath string, output io.Writer, outputFormat string, banner string) *REPL {
 	return &REPL{
 		output:          output,
 		outputFormat:    outputFormat,
 		trace:           false,
+		store:           store,
 		dataStore:       dataStore,
 		policyStore:     policyStore,
 		currentModuleID: "repl",
@@ -104,6 +108,13 @@ func (r *REPL) OneShot(line string) bool {
 
 	if r.init() {
 		return true
+	}
+
+	var err error
+	r.txn, err = r.store.NewTransaction(nil)
+	if err != nil {
+		fmt.Fprintln(r.output, "error:", err)
+		return false
 	}
 
 	if len(r.buffer) == 0 {
@@ -392,7 +403,7 @@ func (r *REPL) evalBody(body ast.Body) bool {
 		}
 	}
 
-	ctx := topdown.NewContext(body, r.dataStore)
+	ctx := topdown.NewContext(body, r.store, r.txn)
 	if r.trace {
 		ctx.Tracer = &topdown.StdoutTracer{}
 	}
@@ -531,7 +542,7 @@ func (r *REPL) evalTermSingleValue(body ast.Body) bool {
 	outputVar := ast.Wildcard
 	body = ast.Body{ast.Equality.Expr(term, outputVar)}
 
-	ctx := topdown.NewContext(body, r.dataStore)
+	ctx := topdown.NewContext(body, r.store, r.txn)
 	if r.trace {
 		ctx.Tracer = &topdown.StdoutTracer{}
 	}
@@ -571,7 +582,7 @@ func (r *REPL) evalTermMultiValue(body ast.Body) bool {
 	outputVar := ast.Wildcard
 	body = ast.Body{ast.Equality.Expr(term, outputVar)}
 
-	ctx := topdown.NewContext(body, r.dataStore)
+	ctx := topdown.NewContext(body, r.store, r.txn)
 	if r.trace {
 		ctx.Tracer = &topdown.StdoutTracer{}
 	}
@@ -690,7 +701,7 @@ func (r *REPL) isSetReference(term *ast.Term) bool {
 	p := ast.Ref{}
 	for _, x := range ref {
 		p = append(p, x)
-		if node, err := r.dataStore.GetRef(p); err == nil {
+		if node, err := r.store.Read(r.txn, p); err == nil {
 			if rs, ok := node.([]*ast.Rule); ok {
 				if rs[0].DocKind() == ast.PartialSetDoc {
 					return true
