@@ -37,6 +37,10 @@ const (
 	// TriggersNotSupportedErr indicates the caller attempted to register a
 	// trigger against a store that does not support them.
 	TriggersNotSupportedErr = iota
+
+	// WritesNotSupportedErr indicate the caller attempted to perform a write
+	// against a store that does not support them.
+	WritesNotSupportedErr = iota
 )
 
 // Error is the error type returned by the storage layer.
@@ -135,5 +139,12 @@ func triggersNotSupportedError() *Error {
 	return &Error{
 		Code:    TriggersNotSupportedErr,
 		Message: "triggers not supported",
+	}
+}
+
+func writesNotSupportedError() *Error {
+	return &Error{
+		Code:    WritesNotSupportedErr,
+		Message: "writes not supported",
 	}
 }

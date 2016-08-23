@@ -137,6 +137,11 @@ func (s *Storage) Read(txn Transaction, path ast.Ref) (interface{}, error) {
 	return doc, nil
 }
 
+// Write updates a value in storage.
+func (s *Storage) Write(txn Transaction, op PatchOp, ref ast.Ref, value interface{}) error {
+	return s.builtin.Write(txn, op, ref, value)
+}
+
 // NewTransaction returns a new transcation that can be used to perform reads
 // against a consistent snapshot of the storage layer. The caller can provide a
 // slice of references that may be read during the transaction.
@@ -145,7 +150,7 @@ func (s *Storage) NewTransaction(refs ...ast.Ref) (Transaction, error) {
 	return invalidTXN, nil
 }
 
-// Close finishes a transaction.
+// Close completes a transaction.
 func (s *Storage) Close(txn Transaction) {
 	// TODO(tsandall):
 }

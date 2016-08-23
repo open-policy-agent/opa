@@ -55,9 +55,9 @@ func (ds *DataStore) Begin(txn Transaction, refs []ast.Ref) error {
 	return nil
 }
 
-// Finished is called when a transaction is done.
-func (ds *DataStore) Finished(txn Transaction) {
-
+// Close is called when a transaction is finished.
+func (ds *DataStore) Close(txn Transaction) {
+	// TODO(tsandall):
 }
 
 // Register adds a trigger.
@@ -74,6 +74,17 @@ func (ds *DataStore) Unregister(id string) {
 // Read fetches a value from the in-memory store.
 func (ds *DataStore) Read(txn Transaction, path ast.Ref) (interface{}, error) {
 	return ds.GetRef(path)
+}
+
+// Write modifies a document referred to by path.
+func (ds *DataStore) Write(txn Transaction, op PatchOp, path ast.Ref, value interface{}) error {
+	p, err := path.Underlying()
+	if err != nil {
+		return err
+	}
+	// TODO(tsandall): Patch() assumes that paths in writes are relative to
+	// "data" so drop the head here.
+	return ds.Patch(op, p[1:], value)
 }
 
 // Get returns the value in Storage referenced by path.
@@ -153,16 +164,6 @@ func (ds *DataStore) MustPatch(op PatchOp, path []interface{}, value interface{}
 		panic(err)
 	}
 }
-
-// PatchOp is the enumeration of supposed modifications.
-type PatchOp int
-
-// Patch supports add, remove, and replace operations.
-const (
-	AddOp     PatchOp = iota
-	RemoveOp          = iota
-	ReplaceOp         = iota
-)
 
 // Patch modifies the store by performing the associated add/remove/replace operation on the given path.
 func (ds *DataStore) Patch(op PatchOp, path []interface{}, value interface{}) error {

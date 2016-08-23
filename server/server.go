@@ -119,6 +119,7 @@ func (s *Server) execQuery(qStr string) (resultSetV1, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	defer s.store.Close(txn)
 
 	ctx := topdown.NewContext(query, s.store, txn)
