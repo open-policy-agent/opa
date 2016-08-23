@@ -54,12 +54,7 @@ func TestEvalRef(t *testing.T) {
 		{`data.c[999]`, nil},
 	}
 
-	data := loadSmallTestData()
-
-	ds := storage.NewDataStoreFromJSONObject(data)
-	store := storage.New(storage.Config{
-		Builtin: ds,
-	})
+	store := storage.New(storage.InMemoryWithJSONConfig(loadSmallTestData()))
 
 	txn := storage.NewTransactionOrDie(store, nil)
 	defer store.Close(txn)
@@ -147,12 +142,7 @@ func TestEvalTerms(t *testing.T) {
 		]`},
 	}
 
-	data := loadSmallTestData()
-
-	ds := storage.NewDataStoreFromJSONObject(data)
-	store := storage.New(storage.Config{
-		Builtin: ds,
-	})
+	store := storage.New(storage.InMemoryWithJSONConfig(loadSmallTestData()))
 
 	txn := storage.NewTransactionOrDie(store, nil)
 	defer store.Close(txn)
@@ -921,17 +911,10 @@ func TestTopDownEmbeddedVirtualDoc(t *testing.T) {
          p[x] :- a[i] = x, q[x]
          q[x] :- g[j][k] = x`})
 
-	data := loadSmallTestData()
-
-	ds := storage.NewDataStoreFromJSONObject(data)
-	ps := storage.NewPolicyStore(ds, "")
-	store := storage.New(storage.Config{
-		Builtin: ds,
-	})
+	store := storage.New(storage.InMemoryWithJSONConfig(loadSmallTestData()))
 
 	for id, mod := range mods {
-		err := ps.Add(id, mod, []byte(""), false)
-		if err != nil {
+		if err := storage.InsertPolicy(store, id, mod, nil, false); err != nil {
 			panic(err)
 		}
 	}
@@ -953,16 +936,10 @@ func TestTopDownGlobalVars(t *testing.T) {
 		 s :- b.x[0] = 1
 		 t :- req4as.x[0] = 1`})
 
-	data := loadSmallTestData()
-	ds := storage.NewDataStoreFromJSONObject(data)
-	ps := storage.NewPolicyStore(ds, "")
-	store := storage.New(storage.Config{
-		Builtin: ds,
-	})
+	store := storage.New(storage.InMemoryWithJSONConfig(loadSmallTestData()))
 
 	for id, mod := range mods {
-		err := ps.Add(id, mod, []byte(""), false)
-		if err != nil {
+		if err := storage.InsertPolicy(store, id, mod, nil, false); err != nil {
 			panic(err)
 		}
 	}
@@ -1009,16 +986,10 @@ func TestTopDownCaching(t *testing.T) {
 	r[k] = v :- data.strings[k] = v
 	`})
 
-	data := loadSmallTestData()
-	ds := storage.NewDataStoreFromJSONObject(data)
-	ps := storage.NewPolicyStore(ds, "")
-	store := storage.New(storage.Config{
-		Builtin: ds,
-	})
+	store := storage.New(storage.InMemoryWithJSONConfig(loadSmallTestData()))
 
 	for id, mod := range mods {
-		err := ps.Add(id, mod, []byte(""), false)
-		if err != nil {
+		if err := storage.InsertPolicy(store, id, mod, nil, false); err != nil {
 			panic(err)
 		}
 	}
@@ -1036,26 +1007,15 @@ func TestTopDownStoragePlugin(t *testing.T) {
 	r[x] :- data.plugin.b[_] = x
 	`})
 
-	data := loadSmallTestData()
-	ds := storage.NewDataStoreFromJSONObject(data)
-	ps := storage.NewPolicyStore(ds, "")
-
-	store := storage.New(storage.Config{
-		Builtin: ds,
-	})
+	store := storage.New(storage.InMemoryWithJSONConfig(loadSmallTestData()))
 
 	for id, mod := range mods {
-		err := ps.Add(id, mod, []byte(""), false)
-		if err != nil {
+		if err := storage.InsertPolicy(store, id, mod, nil, false); err != nil {
 			panic(err)
 		}
 	}
 
-	plugin := storage.LoadOrDie(strings.NewReader(`{
-		"b": [
-			1,3,5,6
-		]
-	}`))
+	plugin := storage.NewDataStoreFromReader(strings.NewReader(`{"b": [1,3,5,6]}`))
 
 	mountPath := ast.MustParseRef("data.plugin")
 	plugin.SetMountPath(mountPath)
@@ -1117,15 +1077,10 @@ func TestExample(t *testing.T) {
 
 	mods := compileModules([]string{vd})
 
-	ds := storage.NewDataStoreFromJSONObject(doc)
-	ps := storage.NewPolicyStore(ds, "")
-	store := storage.New(storage.Config{
-		Builtin: ds,
-	})
+	store := storage.New(storage.InMemoryWithJSONConfig(doc))
 
 	for id, mod := range mods {
-		err := ps.Add(id, mod, []byte(""), false)
-		if err != nil {
+		if err := storage.InsertPolicy(store, id, mod, nil, false); err != nil {
 			panic(err)
 		}
 	}
@@ -1314,15 +1269,10 @@ func runTopDownTestCase(t *testing.T, data map[string]interface{}, i int, note s
 
 	mods := compileRules(imports, rules)
 
-	ds := storage.NewDataStoreFromJSONObject(data)
-	ps := storage.NewPolicyStore(ds, "")
-	store := storage.New(storage.Config{
-		Builtin: ds,
-	})
+	store := storage.New(storage.InMemoryWithJSONConfig(data))
 
 	for id, mod := range mods {
-		err := ps.Add(id, mod, []byte(""), false)
-		if err != nil {
+		if err := storage.InsertPolicy(store, id, mod, nil, false); err != nil {
 			panic(err)
 		}
 	}

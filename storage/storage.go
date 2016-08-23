@@ -8,14 +8,39 @@ import "github.com/open-policy-agent/opa/ast"
 
 // Config represents the configuration for the policy engine's storage layer.
 type Config struct {
-	Builtin Store
+	Builtin   Store
+	PolicyDir string
+}
+
+// InMemoryConfig returns a new Config for an in-memory storage layer.
+func InMemoryConfig() Config {
+	return Config{
+		Builtin:   NewDataStore(),
+		PolicyDir: "",
+	}
+}
+
+// InMemoryWithJSONConfig returns a new Config for an in-memory storage layer
+// using existing JSON data. This is primarily for test purposes.
+func InMemoryWithJSONConfig(data map[string]interface{}) Config {
+	return Config{
+		Builtin:   NewDataStoreFromJSONObject(data),
+		PolicyDir: "",
+	}
+}
+
+// WithPolicyDir returns a new Config with the policy directory configured.
+func (c Config) WithPolicyDir(dir string) Config {
+	c.PolicyDir = dir
+	return c
 }
 
 // Storage represents the policy engine's storage layer.
 type Storage struct {
-	builtin Store
-	indices *Indices
-	mounts  []*mount
+	builtin     Store
+	indices     *indices
+	mounts      []*mount
+	policyStore *policyStore
 }
 
 type mount struct {
@@ -27,9 +52,51 @@ type mount struct {
 // New returns a new instance of the policy engine's storage layer.
 func New(config Config) *Storage {
 	return &Storage{
-		builtin: config.Builtin,
-		indices: NewIndices(),
+		builtin:     config.Builtin,
+		indices:     newIndices(),
+		policyStore: newPolicyStore(config.Builtin, config.PolicyDir),
 	}
+}
+
+// Open initializes the storage layer. Open should normally be called
+// immediately after instantiating a new instance of the storage layer. If the
+// storage layer is configured to use in-memory storage and is not persisting
+// policy modules to disk, the call to Open() may be omitted.
+func (s *Storage) Open() error {
+	return s.policyStore.Open(loadPolicies)
+}
+
+// ListPolicies returns a map of policy modules that have been loaded into the
+// storage layer.
+func (s *Storage) ListPolicies(txn Transaction) map[string]*ast.Module {
+	return s.policyStore.List()
+}
+
+// GetPolicy returns the policy module with the given id. The return value
+// includes the raw []byte representation of the policy if it was provided when
+// inserting the policy module.
+func (s *Storage) GetPolicy(txn Transaction, id string) (*ast.Module, []byte, error) {
+	mod, err := s.policyStore.Get(id)
+	if err != nil {
+		return nil, nil, err
+	}
+	bs, err := s.policyStore.GetRaw(id)
+	if err != nil {
+		return nil, nil, err
+	}
+	return mod, bs, nil
+}
+
+// InsertPolicy upserts a policy module into the storage layer. If the policy
+// module already exists, it is replaced. If the persist flag is true, the
+// storage layer will attempt to write the raw policy module content to disk.
+func (s *Storage) InsertPolicy(txn Transaction, id string, module *ast.Module, raw []byte, persist bool) error {
+	return s.policyStore.Add(id, module, raw, persist)
+}
+
+// DeletePolicy removes a policy from the storage layer.
+func (s *Storage) DeletePolicy(txn Transaction, id string) error {
+	return s.policyStore.Remove(id)
 }
 
 // Mount adds a store into the storage layer at the given path. If the path
@@ -198,6 +265,36 @@ func (s *Storage) Index(txn Transaction, ref ast.Ref, value interface{}, iter fu
 	return idx.Iter(value, iter)
 }
 
+// InsertPolicy upserts a policy module into storage inside a new transaction.
+func InsertPolicy(store *Storage, id string, mod *ast.Module, raw []byte, persist bool) error {
+	txn, err := store.NewTransaction()
+	if err != nil {
+		return err
+	}
+	defer store.Close(txn)
+	return store.InsertPolicy(txn, id, mod, raw, persist)
+}
+
+// DeletePolicy removes a policy module from storage inside a new transaction.
+func DeletePolicy(store *Storage, id string) error {
+	txn, err := store.NewTransaction()
+	if err != nil {
+		return err
+	}
+	defer store.Close(txn)
+	return store.DeletePolicy(txn, id)
+}
+
+// GetPolicy returns a policy module from storage inside a new transaction.
+func GetPolicy(store *Storage, id string) (*ast.Module, []byte, error) {
+	txn, err := store.NewTransaction()
+	if err != nil {
+		return nil, nil, err
+	}
+	defer store.Close(txn)
+	return store.GetPolicy(txn, id)
+}
+
 // ReadOrDie is a helper function to read the path from storage. If the read
 // fails for any reason, this function will panic. This function should only be
 // used for tests.
@@ -206,6 +303,7 @@ func ReadOrDie(store *Storage, path ast.Ref) interface{} {
 	if err != nil {
 		panic(err)
 	}
+	defer store.Close(txn)
 	node, err := store.Read(txn, path)
 	if err != nil {
 		panic(err)

@@ -5,7 +5,9 @@
 package storage
 
 import (
+	"encoding/json"
 	"fmt"
+	"io"
 
 	"github.com/open-policy-agent/opa/ast"
 )
@@ -26,16 +28,27 @@ func NewDataStore() *DataStore {
 	}
 }
 
-// NewDataStoreFromJSONObject returns a new DataStore containing
-// the supplied documents. This is mostly for test purposes.
+// NewDataStoreFromJSONObject returns a new DataStore containing the supplied
+// documents. This is mostly for test purposes.
 func NewDataStoreFromJSONObject(data map[string]interface{}) *DataStore {
 	ds := NewDataStore()
 	for k, v := range data {
-		if err := ds.Patch(AddOp, []interface{}{k}, v); err != nil {
+		if err := ds.patch(AddOp, []interface{}{k}, v); err != nil {
 			panic(err)
 		}
 	}
 	return ds
+}
+
+// NewDataStoreFromReader returns a new DataStore from a reader that produces a
+// JSON serialized object. This function is for test purposes.
+func NewDataStoreFromReader(r io.Reader) *DataStore {
+	d := json.NewDecoder(r)
+	var data map[string]interface{}
+	if err := d.Decode(&data); err != nil {
+		panic(err)
+	}
+	return NewDataStoreFromJSONObject(data)
 }
 
 // SetMountPath updates the data store's mount path. This is the path the data
@@ -73,7 +86,7 @@ func (ds *DataStore) Unregister(id string) {
 
 // Read fetches a value from the in-memory store.
 func (ds *DataStore) Read(txn Transaction, path ast.Ref) (interface{}, error) {
-	return ds.GetRef(path)
+	return ds.getRef(path)
 }
 
 // Write modifies a document referred to by path.
@@ -84,19 +97,18 @@ func (ds *DataStore) Write(txn Transaction, op PatchOp, path ast.Ref, value inte
 	}
 	// TODO(tsandall): Patch() assumes that paths in writes are relative to
 	// "data" so drop the head here.
-	return ds.Patch(op, p[1:], value)
+	return ds.patch(op, p[1:], value)
 }
 
-// Get returns the value in Storage referenced by path.
-// If the lookup fails, an error is returned with a message indicating
-// why the failure occurred.
-func (ds *DataStore) Get(path []interface{}) (interface{}, error) {
+func (ds *DataStore) String() string {
+	return fmt.Sprintf("%v", ds.data)
+}
+
+func (ds *DataStore) get(path []interface{}) (interface{}, error) {
 	return get(ds.data, path)
 }
 
-// GetRef returns the value in Storage referred to by the reference.
-// This is a convienence function.
-func (ds *DataStore) GetRef(ref ast.Ref) (interface{}, error) {
+func (ds *DataStore) getRef(ref ast.Ref) (interface{}, error) {
 
 	ref = ref[len(ds.mountPath):]
 	path := make([]interface{}, len(ref))
@@ -104,7 +116,7 @@ func (ds *DataStore) GetRef(ref ast.Ref) (interface{}, error) {
 	for i, x := range ref {
 		switch v := x.Value.(type) {
 		case ast.Ref:
-			n, err := ds.GetRef(v)
+			n, err := ds.getRef(v)
 			if err != nil {
 				return nil, err
 			}
@@ -121,52 +133,16 @@ func (ds *DataStore) GetRef(ref ast.Ref) (interface{}, error) {
 			return nil, fmt.Errorf("illegal reference element: %v", x)
 		}
 	}
-	return ds.Get(path)
+	return ds.get(path)
 }
 
-// MakePath ensures the specified path exists by creating elements as necessary.
-func (ds *DataStore) MakePath(path []interface{}) error {
-	var tmp []interface{}
-	for _, p := range path {
-		tmp = append(tmp, p)
-		node, err := ds.Get(tmp)
-		if err != nil {
-			switch err := err.(type) {
-			case *Error:
-				if err.Code == NotFoundErr {
-					err := ds.Patch(AddOp, tmp, map[string]interface{}{})
-					if err != nil {
-						return err
-					}
-					continue
-				}
-			}
-			return err
-		}
-		switch node.(type) {
-		case map[string]interface{}:
-		case []interface{}:
-		default:
-			return fmt.Errorf("non-collection document: %v", path)
-		}
-	}
-	return nil
-}
-
-// MustGet calls Get on ds but panics if an error occurs.
-func (ds *DataStore) MustGet(path []interface{}) interface{} {
-	return mustGet(ds.data, path)
-}
-
-// MustPatch calls Patch on ds but panics if an error occurs.
-func (ds *DataStore) MustPatch(op PatchOp, path []interface{}, value interface{}) {
-	if err := ds.Patch(op, path, value); err != nil {
+func (ds *DataStore) mustPatch(op PatchOp, path []interface{}, value interface{}) {
+	if err := ds.patch(op, path, value); err != nil {
 		panic(err)
 	}
 }
 
-// Patch modifies the store by performing the associated add/remove/replace operation on the given path.
-func (ds *DataStore) Patch(op PatchOp, path []interface{}, value interface{}) error {
+func (ds *DataStore) patch(op PatchOp, path []interface{}, value interface{}) error {
 
 	if len(path) == 0 {
 		return notFoundError(path, nonEmptyMsg)
@@ -211,10 +187,6 @@ func (ds *DataStore) Patch(op PatchOp, path []interface{}, value interface{}) er
 	}
 
 	return nil
-}
-
-func (ds *DataStore) String() string {
-	return fmt.Sprintf("%v", ds.data)
 }
 
 func add(data map[string]interface{}, path []interface{}, value interface{}) error {

@@ -14,7 +14,7 @@ import (
 
 func TestStorageReadPlugin(t *testing.T) {
 
-	mem1 := LoadOrDie(strings.NewReader(`
+	mem1 := NewDataStoreFromReader(strings.NewReader(`
     {
         "foo": {
             "bar": {
@@ -23,7 +23,7 @@ func TestStorageReadPlugin(t *testing.T) {
         }
     }`))
 
-	mem2 := LoadOrDie(strings.NewReader(`
+	mem2 := NewDataStoreFromReader(strings.NewReader(`
 	{
 		"corge": [5,6,7,8]
 	}
@@ -74,7 +74,7 @@ func TestStorageIndexingBasicUpdate(t *testing.T) {
 	refA := ast.MustParseRef("data.a[i]")
 	refB := ast.MustParseRef("data.b[x]")
 	store, ds := newStorageWithIndices(refA, refB)
-	ds.MustPatch(AddOp, path(`a["-"]`), float64(100))
+	ds.mustPatch(AddOp, path(`a["-"]`), float64(100))
 
 	if store.IndexExists(refA) {
 		t.Errorf("Expected index to be removed after patch")

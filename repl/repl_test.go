@@ -26,7 +26,7 @@ func TestDump(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	store := storage.NewDataStoreFromJSONObject(data)
+	store := storage.New(storage.InMemoryWithJSONConfig(data))
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
 	repl.OneShot("dump")
@@ -40,7 +40,7 @@ func TestDumpPath(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	store := storage.NewDataStoreFromJSONObject(data)
+	store := storage.New(storage.InMemoryWithJSONConfig(data))
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
 
@@ -73,7 +73,7 @@ func TestDumpPath(t *testing.T) {
 }
 
 func TestUnset(t *testing.T) {
-	store := storage.NewDataStore()
+	store := storage.New(storage.InMemoryConfig())
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
 
@@ -143,7 +143,7 @@ func TestUnset(t *testing.T) {
 }
 
 func TestOneShotEmptyBufferOneExpr(t *testing.T) {
-	store := newTestDataStore()
+	store := newTestStore()
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
 	repl.OneShot("data.a[i].b.c[j] = 2")
@@ -154,7 +154,7 @@ func TestOneShotEmptyBufferOneExpr(t *testing.T) {
 }
 
 func TestOneShotEmptyBufferOneRule(t *testing.T) {
-	store := newTestDataStore()
+	store := newTestStore()
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
 	repl.OneShot("p[x] :- data.a[i] = x")
@@ -162,7 +162,7 @@ func TestOneShotEmptyBufferOneRule(t *testing.T) {
 }
 
 func TestOneShotBufferedExpr(t *testing.T) {
-	store := newTestDataStore()
+	store := newTestStore()
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
 	repl.OneShot("data.a[i].b.c[j] = ")
@@ -174,7 +174,7 @@ func TestOneShotBufferedExpr(t *testing.T) {
 }
 
 func TestOneShotBufferedRule(t *testing.T) {
-	store := newTestDataStore()
+	store := newTestStore()
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
 	repl.OneShot("p[x] :- ")
@@ -190,7 +190,7 @@ func TestOneShotBufferedRule(t *testing.T) {
 }
 
 func TestOneShotJSON(t *testing.T) {
-	store := newTestDataStore()
+	store := newTestStore()
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
 	repl.outputFormat = "json"
@@ -240,7 +240,7 @@ func TestOneShotJSON(t *testing.T) {
 }
 
 func TestEvalFalse(t *testing.T) {
-	store := newTestDataStore()
+	store := newTestStore()
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
 	repl.OneShot("false")
@@ -251,7 +251,7 @@ func TestEvalFalse(t *testing.T) {
 }
 
 func TestEvalConstantRule(t *testing.T) {
-	store := newTestDataStore()
+	store := newTestStore()
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
 	repl.OneShot("pi = 3.14")
@@ -285,7 +285,7 @@ func TestEvalConstantRule(t *testing.T) {
 }
 
 func TestEvalSingleTermMultiValue(t *testing.T) {
-	store := newTestDataStore()
+	store := newTestStore()
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
 	repl.outputFormat = "json"
@@ -382,7 +382,7 @@ func TestEvalSingleTermMultiValue(t *testing.T) {
 }
 
 func TestEvalRuleCompileError(t *testing.T) {
-	store := newTestDataStore()
+	store := newTestStore()
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
 	repl.OneShot("p[x] :- true")
@@ -401,7 +401,7 @@ func TestEvalRuleCompileError(t *testing.T) {
 }
 
 func TestEvalBodyCompileError(t *testing.T) {
-	store := newTestDataStore()
+	store := newTestStore()
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
 	repl.outputFormat = "json"
@@ -433,7 +433,7 @@ func TestEvalBodyCompileError(t *testing.T) {
 }
 
 func TestEvalBodyContainingWildCards(t *testing.T) {
-	store := newTestDataStore()
+	store := newTestStore()
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
 	repl.OneShot("data.a[_].b.c[_] = x")
@@ -456,7 +456,7 @@ func TestEvalBodyContainingWildCards(t *testing.T) {
 }
 
 func TestEvalImport(t *testing.T) {
-	store := newTestDataStore()
+	store := newTestStore()
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
 	repl.OneShot("import data.a")
@@ -475,7 +475,7 @@ func TestEvalImport(t *testing.T) {
 }
 
 func TestEvalPackage(t *testing.T) {
-	store := newTestDataStore()
+	store := newTestStore()
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
 	repl.OneShot("package foo.bar")
@@ -515,16 +515,12 @@ func expectOutput(t *testing.T, output string, expected string) {
 	}
 }
 
-func newRepl(dataStore *storage.DataStore, buffer *bytes.Buffer) *REPL {
-	store := storage.New(storage.Config{
-		Builtin: dataStore,
-	})
-	policyStore := storage.NewPolicyStore(dataStore, "")
-	repl := New(store, dataStore, policyStore, "", buffer, "", "")
+func newRepl(store *storage.Storage, buffer *bytes.Buffer) *REPL {
+	repl := New(store, "", buffer, "", "")
 	return repl
 }
 
-func newTestDataStore() *storage.DataStore {
+func newTestStore() *storage.Storage {
 	input := `
     {
         "a": [
@@ -546,5 +542,5 @@ func newTestDataStore() *storage.DataStore {
 	if err != nil {
 		panic(err)
 	}
-	return storage.NewDataStoreFromJSONObject(data)
+	return storage.New(storage.InMemoryWithJSONConfig(data))
 }

@@ -13,7 +13,7 @@ import (
 	"github.com/open-policy-agent/opa/util"
 )
 
-// Indices contains a mapping of non-ground references to values to sets of bindings.
+// indices contains a mapping of non-ground references to values to sets of bindings.
 //
 //  +------+------------------------------------+
 //  | ref1 | val1 | bindings-1, bindings-2, ... |
@@ -31,27 +31,27 @@ import (
 // reference obtained by plugging bindings into the non-ground reference that is the
 // index key.
 //
-type Indices struct {
+type indices struct {
 	table map[int]*indicesNode
 }
 
 type indicesNode struct {
 	key  ast.Ref
-	val  *Index
+	val  *bindingIndex
 	next *indicesNode
 }
 
 // NewIndices returns an empty indices.
-func NewIndices() *Indices {
-	return &Indices{
+func newIndices() *indices {
+	return &indices{
 		table: map[int]*indicesNode{},
 	}
 }
 
 // Build initializes the references' index by walking the store for the reference and
 // creating the index that maps values to bindings.
-func (ind *Indices) Build(store Store, txn Transaction, ref ast.Ref) error {
-	index := NewIndex()
+func (ind *indices) Build(store Store, txn Transaction, ref ast.Ref) error {
+	index := newBindingIndex()
 	ind.registerTriggers(store)
 	err := iterStorage(store, txn, ref, ast.EmptyRef(), NewBindings(), func(bindings *Bindings, val interface{}) {
 		index.Add(val, bindings)
@@ -71,7 +71,7 @@ func (ind *Indices) Build(store Store, txn Transaction, ref ast.Ref) error {
 }
 
 // Drop removes the index for the reference.
-func (ind *Indices) Drop(ref ast.Ref) {
+func (ind *indices) Drop(ref ast.Ref) {
 	hashCode := ref.Hash()
 	var prev *indicesNode
 	for entry := ind.table[hashCode]; entry != nil; entry = entry.next {
@@ -87,7 +87,7 @@ func (ind *Indices) Drop(ref ast.Ref) {
 }
 
 // Get returns the reference's index.
-func (ind *Indices) Get(ref ast.Ref) *Index {
+func (ind *indices) Get(ref ast.Ref) *bindingIndex {
 	node := ind.getNode(ref)
 	if node != nil {
 		return node.val
@@ -96,7 +96,7 @@ func (ind *Indices) Get(ref ast.Ref) *Index {
 }
 
 // Iter calls the iter function for each of the indices.
-func (ind *Indices) Iter(iter func(ast.Ref, *Index) error) error {
+func (ind *indices) Iter(iter func(ast.Ref, *bindingIndex) error) error {
 	for _, head := range ind.table {
 		for entry := head; entry != nil; entry = entry.next {
 			if err := iter(entry.key, entry.val); err != nil {
@@ -107,7 +107,7 @@ func (ind *Indices) Iter(iter func(ast.Ref, *Index) error) error {
 	return nil
 }
 
-func (ind *Indices) String() string {
+func (ind *indices) String() string {
 	buf := []string{}
 	for _, head := range ind.table {
 		for entry := head; entry != nil; entry = entry.next {
@@ -118,12 +118,12 @@ func (ind *Indices) String() string {
 	return "{" + strings.Join(buf, ", ") + "}"
 }
 
-func (ind *Indices) dropAll(Transaction, PatchOp, []interface{}, interface{}) error {
+func (ind *indices) dropAll(Transaction, PatchOp, []interface{}, interface{}) error {
 	ind.table = map[int]*indicesNode{}
 	return nil
 }
 
-func (ind *Indices) getNode(ref ast.Ref) *indicesNode {
+func (ind *indices) getNode(ref ast.Ref) *indicesNode {
 	hashCode := ref.Hash()
 	for entry := ind.table[hashCode]; entry != nil; entry = entry.next {
 		if entry.key.Equal(ref) {
@@ -137,15 +137,14 @@ const (
 	triggerID = "org.openpolicyagent/index-maintenance"
 )
 
-func (ind *Indices) registerTriggers(store Store) error {
+func (ind *indices) registerTriggers(store Store) error {
 	return store.Register(triggerID, TriggerConfig{
 		Before: ind.dropAll,
 	})
 }
 
-// Index contains a mapping of values to bindings.
-//
-type Index struct {
+// bindingIndex contains a mapping of values to bindings.
+type bindingIndex struct {
 	table map[int]*indexNode
 }
 
@@ -155,16 +154,16 @@ type indexNode struct {
 	next *indexNode
 }
 
-// NewIndex returns a new empty index.
-func NewIndex() *Index {
-	return &Index{
+// newBindingIndex returns a new empty index.
+func newBindingIndex() *bindingIndex {
+	return &bindingIndex{
 		table: map[int]*indexNode{},
 	}
 }
 
 // Add updates the index to include new bindings for the value.
 // If the bindings already exist for the value, no change is made.
-func (ind *Index) Add(val interface{}, bindings *Bindings) {
+func (ind *bindingIndex) Add(val interface{}, bindings *Bindings) {
 
 	node := ind.getNode(val)
 	if node != nil {
@@ -186,7 +185,7 @@ func (ind *Index) Add(val interface{}, bindings *Bindings) {
 }
 
 // Iter calls the iter function for each set of bindings for the value.
-func (ind *Index) Iter(val interface{}, iter func(*Bindings) error) error {
+func (ind *bindingIndex) Iter(val interface{}, iter func(*Bindings) error) error {
 	node := ind.getNode(val)
 	if node == nil {
 		return nil
@@ -194,7 +193,7 @@ func (ind *Index) Iter(val interface{}, iter func(*Bindings) error) error {
 	return node.val.Iter(iter)
 }
 
-func (ind *Index) getNode(val interface{}) *indexNode {
+func (ind *bindingIndex) getNode(val interface{}) *indexNode {
 	hashCode := hash(val)
 	head := ind.table[hashCode]
 	for entry := head; entry != nil; entry = entry.next {
@@ -205,7 +204,7 @@ func (ind *Index) getNode(val interface{}) *indexNode {
 	return nil
 }
 
-func (ind *Index) String() string {
+func (ind *bindingIndex) String() string {
 
 	buf := []string{}
 

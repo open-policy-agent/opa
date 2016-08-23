@@ -51,8 +51,7 @@ type Params struct {
 
 // Runtime represents a single OPA instance.
 type Runtime struct {
-	DataStore   *storage.DataStore
-	PolicyStore *storage.PolicyStore
+	Store *storage.Storage
 }
 
 // Start is the entry point of an OPA instance.
@@ -84,29 +83,31 @@ func (rt *Runtime) init(params *Params) error {
 	}
 
 	// Open data store and load base documents.
-	ds := storage.NewDataStore()
+	store := storage.New(storage.InMemoryConfig().WithPolicyDir(params.PolicyDir))
+
+	if err := store.Open(); err != nil {
+		return err
+	}
+
+	txn, err := store.NewTransaction()
+	if err != nil {
+		return err
+	}
+
+	defer store.Close(txn)
 
 	for _, doc := range parsed.docs {
-		for k, v := range doc {
-			if err := ds.Patch(storage.AddOp, []interface{}{k}, v); err != nil {
-				return errors.Wrap(err, "unable to open data store")
-			}
+		if err := store.Write(txn, storage.AddOp, doc.ref, doc.value); err != nil {
+			return errors.Wrap(err, "unable to open data store")
 		}
 	}
 
-	// Open policy store and load existing policies.
-	ps := storage.NewPolicyStore(ds, params.PolicyDir)
-	if err := ps.Open(storage.LoadPolicies); err != nil {
-		return errors.Wrap(err, "unable to open policy store")
-	}
-
 	// Load policies provided via input.
-	if err := compileAndStoreInputs(parsed.modules, ps); err != nil {
+	if err := compileAndStoreInputs(parsed.modules, store, txn); err != nil {
 		return errors.Wrapf(err, "compile error")
 	}
 
-	rt.PolicyStore = ps
-	rt.DataStore = ds
+	rt.Store = store
 
 	return nil
 }
@@ -117,13 +118,7 @@ func (rt *Runtime) startServer(params *Params) {
 	glog.V(2).Infof("Server listening address: %v.", params.Addr)
 
 	persist := len(params.PolicyDir) > 0
-
-	store := storage.New(storage.Config{
-		Builtin: rt.DataStore,
-	})
-
-	s := server.New(store, rt.DataStore, rt.PolicyStore, params.Addr, persist)
-
+	s := server.New(rt.Store, params.Addr, persist)
 	s.Handler = NewLoggingHandler(s.Handler)
 
 	if err := s.Loop(); err != nil {
@@ -134,10 +129,7 @@ func (rt *Runtime) startServer(params *Params) {
 
 func (rt *Runtime) startRepl(params *Params) {
 	banner := rt.getBanner()
-	store := storage.New(storage.Config{
-		Builtin: rt.DataStore,
-	})
-	repl := repl.New(store, rt.DataStore, rt.PolicyStore, params.HistoryPath, os.Stdout, params.OutputFormat, banner)
+	repl := repl.New(rt.Store, params.HistoryPath, os.Stdout, params.OutputFormat, banner)
 	repl.Loop()
 }
 
@@ -149,9 +141,9 @@ func (rt *Runtime) getBanner() string {
 	return buf.String()
 }
 
-func compileAndStoreInputs(parsed map[string]*parsedModule, policyStore *storage.PolicyStore) error {
+func compileAndStoreInputs(parsed map[string]*parsedModule, store *storage.Storage, txn storage.Transaction) error {
 
-	mods := policyStore.List()
+	mods := store.ListPolicies(txn)
 	for _, p := range parsed {
 		mods[p.id] = p.mod
 	}
@@ -164,7 +156,7 @@ func compileAndStoreInputs(parsed map[string]*parsedModule, policyStore *storage
 
 	for id := range parsed {
 		mod := c.Modules[id]
-		if err := policyStore.Add(id, mod, parsed[id].raw, false); err != nil {
+		if err := store.InsertPolicy(txn, id, mod, parsed[id].raw, false); err != nil {
 			return err
 		}
 	}
@@ -178,14 +170,19 @@ type parsedModule struct {
 	raw []byte
 }
 
+type parsedDoc struct {
+	ref   ast.Ref
+	value interface{}
+}
+
 type parsedInput struct {
-	docs    []map[string]interface{}
+	docs    []parsedDoc
 	modules map[string]*parsedModule
 }
 
 func parseInputs(paths []string) (*parsedInput, error) {
 
-	parsedDocs := []map[string]interface{}{}
+	parsedDocs := []parsedDoc{}
 	parsedModules := map[string]*parsedModule{}
 
 	for _, file := range paths {
@@ -219,7 +216,12 @@ func parseInputs(paths []string) (*parsedInput, error) {
 		d, jsonErr := parseJSONObjectFile(file)
 
 		if jsonErr == nil {
-			parsedDocs = append(parsedDocs, d)
+			for k, v := range d {
+				parsedDocs = append(parsedDocs, parsedDoc{
+					ref:   ast.Ref{ast.DefaultRootDocument, ast.StringTerm(k)},
+					value: v,
+				})
+			}
 			continue
 		}
 

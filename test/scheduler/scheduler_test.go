@@ -46,11 +46,10 @@ func setup(t *testing.T, filename string) *topdown.QueryParams {
 	}
 
 	// storage setup
-	ds := loadDataStore(filename)
-	loadPolicyStore(ds, c.Modules)
 	store := storage.New(storage.Config{
-		Builtin: ds,
+		Builtin: loadDataStore(filename),
 	})
+	insertPolicies(store, c.Modules)
 
 	// parameter setup
 	globals := storage.NewBindings()
@@ -63,30 +62,20 @@ func setup(t *testing.T, filename string) *topdown.QueryParams {
 }
 
 func loadDataStore(filename string) *storage.DataStore {
-	filename = getFilename(filename)
-
-	f, err := os.Open(filename)
+	f, err := os.Open(getFilename(filename))
 	if err != nil {
 		panic(err)
 	}
-
 	defer f.Close()
-	ds, err := storage.Load(f)
-	if err != nil {
-		panic(err)
-	}
-
-	return ds
+	return storage.NewDataStoreFromReader(f)
 }
 
-func loadPolicyStore(ds *storage.DataStore, modules map[string]*ast.Module) *storage.PolicyStore {
-	ps := storage.NewPolicyStore(ds, "")
+func insertPolicies(store *storage.Storage, modules map[string]*ast.Module) {
 	for id, mod := range modules {
-		if err := ps.Add(id, mod, nil, false); err != nil {
+		if err := storage.InsertPolicy(store, id, mod, nil, false); err != nil {
 			panic(err)
 		}
 	}
-	return ps
 }
 
 func getFilename(filename string) string {

@@ -30,9 +30,9 @@ func TestPolicyStoreDefaultOpen(t *testing.T) {
 	}
 
 	dataStore := NewDataStore()
-	policyStore := NewPolicyStore(dataStore, dir)
+	policyStore := newPolicyStore(dataStore, dir)
 
-	err = policyStore.Open(LoadPolicies)
+	err = policyStore.Open(loadPolicies)
 	if err != nil {
 		t.Errorf("Unexpected error on Open(): %v", err)
 		return
@@ -129,7 +129,7 @@ func TestPolicyStoreAddIdempotent(t *testing.T) {
 		return
 	}
 
-	node, err := f.dataStore.Get(path("a.b.p"))
+	node, err := f.dataStore.get(path("a.b.p"))
 	if err != nil {
 		t.Errorf("Unexpected error on Get(): %v", err)
 		return
@@ -218,7 +218,7 @@ func TestPolicyStoreUpdate(t *testing.T) {
 		return
 	}
 
-	node, err := f.dataStore.Get(path("a.b.p"))
+	node, err := f.dataStore.get(path("a.b.p"))
 	if err != nil {
 		t.Errorf("Unexpected error on Get(): %v", err)
 		return
@@ -235,7 +235,7 @@ func TestPolicyStoreUpdate(t *testing.T) {
 		return
 	}
 
-	node, err = f.dataStore.Get(path("a.b.q"))
+	node, err = f.dataStore.get(path("a.b.q"))
 	if !IsNotFound(err) {
 		t.Errorf("Expected storage not found error but got: %v (err: %v)", node, err)
 		return
@@ -258,7 +258,7 @@ const (
 )
 
 type fixture struct {
-	policyStore *PolicyStore
+	policyStore *policyStore
 	dataStore   *DataStore
 }
 
@@ -270,7 +270,7 @@ func newFixture() *fixture {
 	}
 
 	dataStore := NewDataStore()
-	policyStore := NewPolicyStore(dataStore, dir)
+	policyStore := newPolicyStore(dataStore, dir)
 	err = policyStore.Open(func(map[string][]byte) (map[string]*ast.Module, error) {
 		return nil, nil
 	})
