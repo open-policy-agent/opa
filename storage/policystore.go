@@ -15,6 +15,8 @@ import (
 	"github.com/pkg/errors"
 )
 
+// TODO(tsandall): update policy store to use correct transaction ids
+
 // policyStore provides a storage abstraction for policy definitions and modules.
 type policyStore struct {
 	store     Store
@@ -70,7 +72,7 @@ func (p *policyStore) List() map[string]*ast.Module {
 // The callback function "f" will be invoked with the buffers representing the
 // persisted policies. The callback should return the compiled version of the
 // policies so that they can be installed into the data store.
-func (p *policyStore) Open(f func(map[string][]byte) (map[string]*ast.Module, error)) error {
+func (p *policyStore) Open(txn Transaction, f func(map[string][]byte) (map[string]*ast.Module, error)) error {
 
 	if len(p.policyDir) == 0 {
 		return nil

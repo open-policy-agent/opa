@@ -13,6 +13,10 @@ import (
 	"github.com/open-policy-agent/opa/ast"
 )
 
+// TODO(tsandall): refactor these tests cases to belong to Storage as the
+// policyStore is now an implementation detail of the storage layer and these
+// are essentially integration tests.
+
 func TestPolicyStoreDefaultOpen(t *testing.T) {
 
 	dir, err := ioutil.TempDir("", "policyDir")
@@ -32,7 +36,7 @@ func TestPolicyStoreDefaultOpen(t *testing.T) {
 	dataStore := NewDataStore()
 	policyStore := newPolicyStore(dataStore, dir)
 
-	err = policyStore.Open(loadPolicies)
+	err = policyStore.Open(invalidTXN, loadPolicies)
 	if err != nil {
 		t.Errorf("Unexpected error on Open(): %v", err)
 		return
@@ -245,14 +249,14 @@ func TestPolicyStoreUpdate(t *testing.T) {
 const (
 	testMod1 = `
     package a.b
-    
+
     p = true :- true
     q = true :- true
     `
 
 	testMod2 = `
     package a.b
-    
+
     p = true :- false
     `
 )
@@ -271,7 +275,7 @@ func newFixture() *fixture {
 
 	dataStore := NewDataStore()
 	policyStore := newPolicyStore(dataStore, dir)
-	err = policyStore.Open(func(map[string][]byte) (map[string]*ast.Module, error) {
+	err = policyStore.Open(invalidTXN, func(map[string][]byte) (map[string]*ast.Module, error) {
 		return nil, nil
 	})
 	if err != nil {

@@ -417,6 +417,21 @@ func (ref Ref) HasPrefix(other Ref) bool {
 	return true
 }
 
+// GroundPrefix returns the ground portion of the ref starting from the head. By
+// definition, the head of the reference is always ground.
+func (ref Ref) GroundPrefix() Ref {
+	prefix := make(Ref, 0, len(ref))
+
+	for i, x := range ref {
+		if i > 0 && !x.IsGround() {
+			break
+		}
+		prefix = append(prefix, x)
+	}
+
+	return prefix
+}
+
 // IsGround returns true if all of the parts of the Ref are ground.
 func (ref Ref) IsGround() bool {
 	if len(ref) == 0 {

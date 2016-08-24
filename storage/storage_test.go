@@ -81,6 +81,115 @@ func TestStorageIndexingBasicUpdate(t *testing.T) {
 	}
 }
 
+func TestStorageTransactionManagement(t *testing.T) {
+
+	store := New(Config{
+		Builtin: NewDataStoreFromReader(strings.NewReader(`
+			{
+				"foo": {
+					"bar": {
+						"baz": [1,2,3,4]
+					}
+				}
+			}`)),
+	})
+
+	mock := mockStore{}
+
+	if err := store.Mount(mock, ast.MustParseRef("data.foo.bar.qux")); err != nil {
+		t.Fatalf("Unexpected mount error: %v", err)
+	}
+
+	txn, err := store.NewTransaction(ast.MustParseRef("data.foo.bar.qux.corge[x]"))
+
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	if !reflect.DeepEqual(store.active, map[string]struct{}{mock.ID(): struct{}{}}) {
+		t.Fatalf("Expected active to contain exactly one element but got: %v", store.active)
+	}
+
+	store.Close(txn)
+
+	if len(store.active) != 0 {
+		t.Fatalf("Expected active to be reset but got: %v", store.active)
+	}
+
+}
+
+type mockStore struct {
+	WritesNotSupported
+	TriggersNotSupported
+	id string
+}
+
+func (mockStore) ID() string {
+	return "mock-store"
+}
+
+func (mockStore) Read(txn Transaction, ref ast.Ref) (interface{}, error) {
+	return nil, nil
+}
+
+func (mockStore) Begin(txn Transaction, refs []ast.Ref) error {
+	return nil
+}
+
+func (mockStore) Close(txn Transaction) {
+
+}
+
+func TestGroupStoresByRef(t *testing.T) {
+
+	mounts := map[string]ast.Ref{
+		"mount-1": ast.MustParseRef("data.foo.bar.qux"),
+		"mount-2": ast.MustParseRef("data.foo.baz"),
+		"mount-3": ast.MustParseRef("data.corge"),
+	}
+
+	result := groupRefsByStore("built-in", mounts, []ast.Ref{
+		ast.MustParseRef("data[x]"),
+		ast.MustParseRef("data.foo.bar.qux.grault"),
+		ast.MustParseRef("data.foo[x][y][z]"),
+	})
+
+	expected := map[string][]ast.Ref{
+		"built-in": []ast.Ref{
+			ast.MustParseRef("data[x]"),
+			ast.MustParseRef("data.foo[x][y][z]"),
+		},
+		"mount-1": []ast.Ref{
+			ast.MustParseRef("data.foo.bar.qux"),
+			ast.MustParseRef("data.foo.bar.qux.grault"),
+			ast.MustParseRef("data.foo.bar.qux[z]"),
+		},
+		"mount-2": []ast.Ref{
+			ast.MustParseRef("data.foo.baz"),
+			ast.MustParseRef("data.foo.baz[y][z]"),
+		},
+		"mount-3": []ast.Ref{
+			ast.MustParseRef("data.corge"),
+		},
+	}
+
+	if len(result) != len(expected) {
+		t.Fatalf("Expected %v but got: %v", expected, result)
+	}
+
+	for id := range result {
+		if len(result[id]) != len(expected[id]) {
+			t.Fatalf("Expected %v but got: %v", expected[id], result[id])
+		}
+		for i := range result[id] {
+			if !result[id][i].Equal(expected[id][i]) {
+				t.Fatalf("Expected %v but got: %v", expected[id], result[id])
+			}
+		}
+	}
+
+}
+
 func mustBuild(store *Storage, ref ast.Ref) {
 	err := store.BuildIndex(invalidTXN, ref)
 	if err != nil {

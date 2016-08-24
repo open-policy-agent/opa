@@ -12,7 +12,6 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -68,7 +67,6 @@ type Server struct {
 	addr    string
 	persist bool
 	store   *storage.Storage
-	mtx     sync.RWMutex
 }
 
 // New returns a new Server.
@@ -120,9 +118,6 @@ func (s *Server) execQuery(qStr string) (resultSetV1, error) {
 	ctx := topdown.NewContext(query, s.store, txn)
 
 	results := resultSetV1{}
-
-	s.mtx.RLock()
-	defer s.mtx.RUnlock()
 
 	err = topdown.Eval(ctx, func(ctx *topdown.Context) error {
 		result := map[string]interface{}{}
@@ -191,9 +186,6 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 	}
 	params := topdown.NewQueryParams(s.store, globals, path)
 
-	s.mtx.RLock()
-	defer s.mtx.RUnlock()
-
 	result, err := topdown.Query(params)
 
 	if err != nil {
@@ -230,9 +222,6 @@ func (s *Server) v1DataPatch(w http.ResponseWriter, r *http.Request) {
 	}
 
 	defer s.store.Close(txn)
-
-	s.mtx.Lock()
-	defer s.mtx.Unlock()
 
 	for i := range ops {
 
@@ -281,9 +270,6 @@ func (s *Server) v1PoliciesDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	s.mtx.Lock()
-	defer s.mtx.Unlock()
-
 	mods := s.store.ListPolicies(txn)
 	delete(mods, id)
 
@@ -314,9 +300,6 @@ func (s *Server) v1PoliciesGet(w http.ResponseWriter, r *http.Request) {
 
 	defer s.store.Close(txn)
 
-	s.mtx.RLock()
-	defer s.mtx.RUnlock()
-
 	mod, _, err := s.store.GetPolicy(txn, id)
 	if err != nil {
 		handleErrorAuto(w, err)
@@ -343,9 +326,6 @@ func (s *Server) v1PoliciesRawGet(w http.ResponseWriter, r *http.Request) {
 
 	defer s.store.Close(txn)
 
-	s.mtx.RLock()
-	defer s.mtx.RUnlock()
-
 	_, bs, err := s.store.GetPolicy(txn, id)
 
 	if err != nil {
@@ -366,9 +346,6 @@ func (s *Server) v1PoliciesList(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer s.store.Close(txn)
-
-	s.mtx.RLock()
-	defer s.mtx.RUnlock()
 
 	for id, mod := range s.store.ListPolicies(txn) {
 		policy := &policyV1{
@@ -410,9 +387,6 @@ func (s *Server) v1PoliciesPut(w http.ResponseWriter, r *http.Request) {
 	}
 
 	defer s.store.Close(txn)
-
-	s.mtx.Lock()
-	defer s.mtx.Unlock()
 
 	mods := s.store.ListPolicies(txn)
 	mods[id] = mod
