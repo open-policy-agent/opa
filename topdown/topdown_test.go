@@ -15,6 +15,7 @@ import (
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/util"
+	testutil "github.com/open-policy-agent/opa/util/test"
 )
 
 func TestEvalRef(t *testing.T) {
@@ -61,46 +62,48 @@ func TestEvalRef(t *testing.T) {
 
 	ctx := NewContext(nil, store, txn)
 
-	for i, tc := range tests {
+	for _, tc := range tests {
 
-		switch e := tc.expected.(type) {
-		case nil:
-			var tmp *Context
-			err := evalRef(ctx, ast.MustParseRef(tc.ref), ast.Ref{}, func(ctx *Context) error {
-				tmp = ctx
-				return nil
-			})
-			if err != nil {
-				t.Errorf("Test case (%d): unexpected error: %v", i+1, err)
-				continue
-			}
-			if tmp != nil {
-				t.Errorf("Test case (%d): expected no bindings (nil) but got: %v", i+1, tmp)
-			}
-		case string:
-			expected := loadExpectedBindings(e)
-			err := evalRef(ctx, ast.MustParseRef(tc.ref), ast.Ref{}, func(ctx *Context) error {
-				if len(expected) > 0 {
-					for j, exp := range expected {
-						if exp.Equal(ctx.Locals) {
-							tmp := expected[:j]
-							expected = append(tmp, expected[j+1:]...)
-							return nil
+		testutil.Subtest(t, tc.ref, func(t *testing.T) {
+
+			switch e := tc.expected.(type) {
+			case nil:
+				var tmp *Context
+				err := evalRef(ctx, ast.MustParseRef(tc.ref), ast.Ref{}, func(ctx *Context) error {
+					tmp = ctx
+					return nil
+				})
+				if err != nil {
+					t.Errorf("Unexpected error: %v", err)
+					return
+				}
+				if tmp != nil {
+					t.Errorf("Expected no bindings (nil) but got: %v", tmp)
+				}
+			case string:
+				expected := loadExpectedBindings(e)
+				err := evalRef(ctx, ast.MustParseRef(tc.ref), ast.Ref{}, func(ctx *Context) error {
+					if len(expected) > 0 {
+						for j, exp := range expected {
+							if exp.Equal(ctx.Locals) {
+								tmp := expected[:j]
+								expected = append(tmp, expected[j+1:]...)
+								return nil
+							}
 						}
 					}
+					// If there was not a matching expected binding, treat this case as a failure.
+					return fmt.Errorf("unexpected bindings: %v", ctx.Locals)
+				})
+				if err != nil {
+					t.Errorf("Expected success but got error: %v", err)
+					return
 				}
-				// If there was not a matching expected binding, treat this case as a failure.
-				return fmt.Errorf("unexpected bindings: %v", ctx.Locals)
-			})
-			if err != nil {
-				t.Errorf("Test case %d: expected success but got error: %v", i+1, err)
-				continue
+				if len(expected) > 0 {
+					t.Errorf("Missing expected bindings: %v", expected)
+				}
 			}
-			if len(expected) > 0 {
-				t.Errorf("Test case %d: missing expected bindings: %v", i+1, expected)
-			}
-		}
-
+		})
 	}
 }
 
@@ -147,32 +150,38 @@ func TestEvalTerms(t *testing.T) {
 	txn := storage.NewTransactionOrDie(store, nil)
 	defer store.Close(txn)
 
-	for i, tc := range tests {
+	for _, tc := range tests {
 
-		ctx := NewContext(ast.MustParseBody(tc.body), store, txn)
+		testutil.Subtest(t, tc.body, func(t *testing.T) {
 
-		expected := loadExpectedBindings(tc.expected)
+			ctx := NewContext(ast.MustParseBody(tc.body), store, txn)
 
-		err := evalTerms(ctx, func(ctx *Context) error {
-			if len(expected) > 0 {
-				for j, exp := range expected {
-					if exp.Equal(ctx.Locals) {
-						tmp := expected[:j]
-						expected = append(tmp, expected[j+1:]...)
-						return nil
+			expected := loadExpectedBindings(tc.expected)
+
+			err := evalTerms(ctx, func(ctx *Context) error {
+				if len(expected) > 0 {
+					for j, exp := range expected {
+						if exp.Equal(ctx.Locals) {
+							tmp := expected[:j]
+							expected = append(tmp, expected[j+1:]...)
+							return nil
+						}
 					}
 				}
+				// If there was not a matching expected binding, treat this case as a failure.
+				return fmt.Errorf("unexpected bindings: %v", ctx.Locals)
+			})
+
+			if err != nil {
+				t.Errorf("Expected success but got error: %v", err)
+				return
 			}
-			// If there was not a matching expected binding, treat this case as a failure.
-			return fmt.Errorf("unexpected bindings: %v", ctx.Locals)
+
+			if len(expected) > 0 {
+				t.Errorf("Missing expected bindings: %v", expected)
+			}
+
 		})
-		if err != nil {
-			t.Errorf("Test case %d: expected success but got error: %v", i+1, err)
-			continue
-		}
-		if len(expected) > 0 {
-			t.Errorf("Test case %d: missing expected bindings: %v", i+1, expected)
-		}
 	}
 }
 
@@ -258,8 +267,8 @@ func TestTopDownCompleteDoc(t *testing.T) {
 
 	data := loadSmallTestData()
 
-	for i, tc := range tests {
-		runTopDownTestCase(t, data, i, tc.note, []string{tc.rule}, tc.expected)
+	for _, tc := range tests {
+		runTopDownTestCase(t, data, tc.note, []string{tc.rule}, tc.expected)
 	}
 }
 
@@ -282,8 +291,8 @@ func TestTopDownPartialSetDoc(t *testing.T) {
 
 	data := loadSmallTestData()
 
-	for i, tc := range tests {
-		runTopDownTestCase(t, data, i, tc.note, []string{tc.rule}, tc.expected)
+	for _, tc := range tests {
+		runTopDownTestCase(t, data, tc.note, []string{tc.rule}, tc.expected)
 	}
 }
 
@@ -308,8 +317,8 @@ func TestTopDownPartialObjectDoc(t *testing.T) {
 
 	data := loadSmallTestData()
 
-	for i, tc := range tests {
-		runTopDownTestCase(t, data, i, tc.note, []string{tc.rule}, tc.expected)
+	for _, tc := range tests {
+		runTopDownTestCase(t, data, tc.note, []string{tc.rule}, tc.expected)
 	}
 }
 
@@ -341,8 +350,8 @@ func TestTopDownEvalTermExpr(t *testing.T) {
 
 	data := loadSmallTestData()
 
-	for i, tc := range tests {
-		runTopDownTestCase(t, data, i, tc.note, []string{tc.rule}, tc.expected)
+	for _, tc := range tests {
+		runTopDownTestCase(t, data, tc.note, []string{tc.rule}, tc.expected)
 	}
 }
 
@@ -417,8 +426,8 @@ func TestTopDownEqExpr(t *testing.T) {
 
 	data := loadSmallTestData()
 
-	for i, tc := range tests {
-		runTopDownTestCase(t, data, i, tc.note, []string{tc.rule}, tc.expected)
+	for _, tc := range tests {
+		runTopDownTestCase(t, data, tc.note, []string{tc.rule}, tc.expected)
 	}
 }
 
@@ -443,8 +452,8 @@ func TestTopDownIneqExpr(t *testing.T) {
 
 	data := loadSmallTestData()
 
-	for i, tc := range tests {
-		runTopDownTestCase(t, data, i, tc.note, []string{tc.rule}, tc.expected)
+	for _, tc := range tests {
+		runTopDownTestCase(t, data, tc.note, []string{tc.rule}, tc.expected)
 	}
 }
 
@@ -599,8 +608,8 @@ func TestTopDownVirtualDocs(t *testing.T) {
 
 	data := loadSmallTestData()
 
-	for i, tc := range tests {
-		runTopDownTestCase(t, data, i, tc.note, tc.rules, tc.expected)
+	for _, tc := range tests {
+		runTopDownTestCase(t, data, tc.note, tc.rules, tc.expected)
 	}
 }
 
@@ -653,8 +662,8 @@ func TestTopDownNestedReferences(t *testing.T) {
 
 	data := loadSmallTestData()
 
-	for i, tc := range tests {
-		runTopDownTestCase(t, data, i, tc.note, tc.rules, tc.expected)
+	for _, tc := range tests {
+		runTopDownTestCase(t, data, tc.note, tc.rules, tc.expected)
 	}
 }
 
@@ -678,8 +687,8 @@ func TestTopDownVarReferences(t *testing.T) {
 
 	data := loadSmallTestData()
 
-	for i, tc := range tests {
-		runTopDownTestCase(t, data, i, tc.note, tc.rules, tc.expected)
+	for _, tc := range tests {
+		runTopDownTestCase(t, data, tc.note, tc.rules, tc.expected)
 	}
 }
 
@@ -728,8 +737,8 @@ func TestTopDownDisjunction(t *testing.T) {
 
 	data := loadSmallTestData()
 
-	for i, tc := range tests {
-		runTopDownTestCase(t, data, i, tc.note, tc.rules, tc.expected)
+	for _, tc := range tests {
+		runTopDownTestCase(t, data, tc.note, tc.rules, tc.expected)
 	}
 }
 
@@ -757,8 +766,8 @@ func TestTopDownNegation(t *testing.T) {
 
 	data := loadSmallTestData()
 
-	for i, tc := range tests {
-		runTopDownTestCase(t, data, i, tc.note, tc.rules, tc.expected)
+	for _, tc := range tests {
+		runTopDownTestCase(t, data, tc.note, tc.rules, tc.expected)
 	}
 }
 
@@ -782,8 +791,8 @@ func TestTopDownComprehensions(t *testing.T) {
 
 	data := loadSmallTestData()
 
-	for i, tc := range tests {
-		runTopDownTestCase(t, data, i, tc.note, tc.rules, tc.expected)
+	for _, tc := range tests {
+		runTopDownTestCase(t, data, tc.note, tc.rules, tc.expected)
 	}
 }
 
@@ -808,8 +817,8 @@ func TestTopDownAggregates(t *testing.T) {
 
 	data := loadSmallTestData()
 
-	for i, tc := range tests {
-		runTopDownTestCase(t, data, i, tc.note, tc.rules, tc.expected)
+	for _, tc := range tests {
+		runTopDownTestCase(t, data, tc.note, tc.rules, tc.expected)
 	}
 }
 
@@ -833,8 +842,8 @@ func TestTopDownArithmetic(t *testing.T) {
 
 	data := loadSmallTestData()
 
-	for i, tc := range tests {
-		runTopDownTestCase(t, data, i, tc.note, tc.rules, tc.expected)
+	for _, tc := range tests {
+		runTopDownTestCase(t, data, tc.note, tc.rules, tc.expected)
 	}
 }
 
@@ -851,8 +860,8 @@ func TestTopDownCasts(t *testing.T) {
 
 	data := loadSmallTestData()
 
-	for i, tc := range tests {
-		runTopDownTestCase(t, data, i, tc.note, tc.rules, tc.expected)
+	for _, tc := range tests {
+		runTopDownTestCase(t, data, tc.note, tc.rules, tc.expected)
 	}
 }
 
@@ -870,8 +879,8 @@ func TestTopDownRegex(t *testing.T) {
 
 	data := loadSmallTestData()
 
-	for i, tc := range tests {
-		runTopDownTestCase(t, data, i, tc.note, tc.rules, tc.expected)
+	for _, tc := range tests {
+		runTopDownTestCase(t, data, tc.note, tc.rules, tc.expected)
 	}
 }
 
@@ -895,8 +904,8 @@ func TestTopDownStrings(t *testing.T) {
 
 	data := loadSmallTestData()
 
-	for i, tc := range tests {
-		runTopDownTestCase(t, data, i, tc.note, tc.rules, tc.expected)
+	for _, tc := range tests {
+		runTopDownTestCase(t, data, tc.note, tc.rules, tc.expected)
 	}
 }
 
@@ -919,7 +928,7 @@ func TestTopDownEmbeddedVirtualDoc(t *testing.T) {
 		}
 	}
 
-	assertTopDown(t, store, 0, "deep embedded vdoc", []string{"b", "c", "d", "p"}, "{}", "[1, 2, 4]")
+	assertTopDown(t, store, "deep embedded vdoc", []string{"b", "c", "d", "p"}, "{}", "[1, 2, 4]")
 }
 
 func TestTopDownGlobalVars(t *testing.T) {
@@ -944,16 +953,16 @@ func TestTopDownGlobalVars(t *testing.T) {
 		}
 	}
 
-	assertTopDown(t, store, 0, "global vars", []string{"z", "p"}, `{
+	assertTopDown(t, store, "global vars", []string{"z", "p"}, `{
 		req1: {"foo": 4},
 		req2: {"bar": 4}
 	}`, "true")
 
-	assertTopDown(t, store, 1, "global vars (missing)", []string{"z", "p"}, `{
+	assertTopDown(t, store, "global vars (missing)", []string{"z", "p"}, `{
 		req1: {"foo": 4}
 	}`, unboundGlobalVarErr(ast.MustParseRef("req2.bar")))
 
-	assertTopDown(t, store, 2, "global vars (namespaced)", []string{"z", "s"}, `{
+	assertTopDown(t, store, "global vars (namespaced)", []string{"z", "s"}, `{
 		req3: {
 			"a": {
 				"b": {
@@ -963,7 +972,7 @@ func TestTopDownGlobalVars(t *testing.T) {
 		}
 	}`, "true")
 
-	assertTopDown(t, store, 2, "global vars (namespaced w/ alias)", []string{"z", "t"}, `{
+	assertTopDown(t, store, "global vars (namespaced w/ alias)", []string{"z", "t"}, `{
 		req4: {
 			"a": {
 				"b": {
@@ -994,7 +1003,7 @@ func TestTopDownCaching(t *testing.T) {
 		}
 	}
 
-	assertTopDown(t, store, 0, "reference lookup", []string{"topdown", "caching", "p"}, `{}`, "[2,2,3,3]")
+	assertTopDown(t, store, "reference lookup", []string{"topdown", "caching", "p"}, `{}`, "[2,2,3,3]")
 }
 
 func TestTopDownStoragePlugin(t *testing.T) {
@@ -1024,7 +1033,7 @@ func TestTopDownStoragePlugin(t *testing.T) {
 		t.Fatalf("Unexpected mount error: %v", err)
 	}
 
-	assertTopDown(t, store, 0, "rule with plugin", []string{"topdown", "plugins", "p"}, `{}`, "[2,4]")
+	assertTopDown(t, store, "rule with plugin", []string{"topdown", "plugins", "p"}, `{}`, "[2,4]")
 }
 
 func TestExample(t *testing.T) {
@@ -1085,14 +1094,14 @@ func TestExample(t *testing.T) {
 		}
 	}
 
-	assertTopDown(t, store, 0, "public servers", []string{"opa", "example", "public_servers"}, "{}", `
+	assertTopDown(t, store, "public servers", []string{"opa", "example", "public_servers"}, "{}", `
         [
             {"id": "s1", "name": "app", "protocols": ["https", "ssh"], "ports": ["p1", "p2", "p3"]},
             {"id": "s4", "name": "dev", "protocols": ["http"], "ports": ["p1", "p2"]}
         ]
     `)
 
-	assertTopDown(t, store, 0, "violations", []string{"opa", "example", "violations"}, "{}", `
+	assertTopDown(t, store, "violations", []string{"opa", "example", "violations"}, "{}", `
 	    [
 	        {"id": "s4", "name": "dev", "protocols": ["http"], "ports": ["p1", "p2"]}
 	    ]
@@ -1261,7 +1270,7 @@ func loadSmallTestData() map[string]interface{} {
 	return data
 }
 
-func runTopDownTestCase(t *testing.T, data map[string]interface{}, i int, note string, rules []string, expected interface{}) {
+func runTopDownTestCase(t *testing.T, data map[string]interface{}, note string, rules []string, expected interface{}) {
 	imports := []string{}
 	for k := range data {
 		imports = append(imports, "data."+k)
@@ -1277,10 +1286,10 @@ func runTopDownTestCase(t *testing.T, data map[string]interface{}, i int, note s
 		}
 	}
 
-	assertTopDown(t, store, i, note, []string{"p"}, "{}", expected)
+	assertTopDown(t, store, note, []string{"p"}, "{}", expected)
 }
 
-func assertTopDown(t *testing.T, store *storage.Storage, i int, note string, path []string, globals string, expected interface{}) {
+func assertTopDown(t *testing.T, store *storage.Storage, note string, path []string, globals string, expected interface{}) {
 
 	g := storage.NewBindings()
 	for _, i := range ast.MustParseTerm(globals).Value.(ast.Object) {
@@ -1292,34 +1301,34 @@ func assertTopDown(t *testing.T, store *storage.Storage, i int, note string, pat
 		p = append(p, x)
 	}
 
-	switch e := expected.(type) {
-
-	case error:
-		result, err := Query(&QueryParams{Store: store, Path: p, Globals: g})
-		if err == nil {
-			t.Errorf("Test case %d (%v): expected error but got: %v", i+1, note, result)
-			return
+	testutil.Subtest(t, note, func(t *testing.T) {
+		switch e := expected.(type) {
+		case error:
+			result, err := Query(&QueryParams{Store: store, Path: p, Globals: g})
+			if err == nil {
+				t.Errorf("Expected error but got: %v", result)
+				return
+			}
+			if err.Error() != e.Error() {
+				t.Errorf("Expected error %v but got: %v", e, err)
+			}
+		case string:
+			expected := loadExpectedSortedResult(e)
+			result, err := Query(&QueryParams{Store: store, Path: p, Globals: g})
+			if err != nil {
+				t.Errorf("Unexpected error: %v", err)
+				return
+			}
+			p := ast.MustParseRef(fmt.Sprintf("data.%v", strings.Join(path, ".")))
+			switch storage.ReadOrDie(store, p).([]*ast.Rule)[0].DocKind() {
+			case ast.PartialSetDoc:
+				sort.Sort(resultSet(result.([]interface{})))
+			}
+			if !reflect.DeepEqual(result, expected) {
+				t.Errorf("Expected %v but got: %v", expected, result)
+			}
 		}
-		if err.Error() != e.Error() {
-			t.Errorf("Test case %d (%v): expected error %v but got: %v", i+1, note, e, err)
-		}
-
-	case string:
-		expected := loadExpectedSortedResult(e)
-		result, err := Query(&QueryParams{Store: store, Path: p, Globals: g})
-		if err != nil {
-			t.Errorf("Test case %d (%v): unexpected error: %v", i+1, note, err)
-			return
-		}
-		p := ast.MustParseRef(fmt.Sprintf("data.%v", strings.Join(path, ".")))
-		switch storage.ReadOrDie(store, p).([]*ast.Rule)[0].DocKind() {
-		case ast.PartialSetDoc:
-			sort.Sort(resultSet(result.([]interface{})))
-		}
-		if !reflect.DeepEqual(result, expected) {
-			t.Errorf("Test case %d (%v): expected %v but got: %v", i+1, note, expected, result)
-		}
-	}
+	})
 }
 
 type resultSet []interface{}
