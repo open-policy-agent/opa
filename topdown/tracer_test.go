@@ -24,14 +24,14 @@ func (t *mockTracer) Trace(ctx *Context, f string, a ...interface{}) {
 
 func TestTracer(t *testing.T) {
 
-	mods := compileRules([]string{"data.a"}, []string{
+	compiler := compileRules([]string{"data.a"}, []string{
 		"p[x] :- q[x] = y",
 		"q[i] = j :- a[i] = j",
 	})
 
 	store := storage.New(storage.InMemoryWithJSONConfig(loadSmallTestData()))
 
-	for id, mod := range mods {
+	for id, mod := range compiler.Modules {
 		if err := storage.InsertPolicy(store, id, mod, nil, false); err != nil {
 			panic(err)
 		}
@@ -40,10 +40,11 @@ func TestTracer(t *testing.T) {
 	tracer := &mockTracer{[]string{}}
 
 	params := &QueryParams{
-		Store:   store,
-		Globals: storage.NewBindings(),
-		Tracer:  tracer,
-		Path:    []interface{}{"p"}}
+		Compiler: compiler,
+		Store:    store,
+		Globals:  storage.NewBindings(),
+		Tracer:   tracer,
+		Path:     []interface{}{"p"}}
 
 	result, err := Query(params)
 	if err != nil {

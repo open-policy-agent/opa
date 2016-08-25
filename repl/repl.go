@@ -25,8 +25,9 @@ import (
 
 // REPL represents an instance of the interactive shell.
 type REPL struct {
-	output io.Writer
-	store  *storage.Storage
+	output   io.Writer
+	compiler *ast.Compiler
+	store    *storage.Storage
 
 	currentModuleID string
 	buffer          []string
@@ -51,6 +52,7 @@ func New(store *storage.Storage, historyPath string, output io.Writer, outputFor
 		output:          output,
 		outputFormat:    outputFormat,
 		trace:           false,
+		compiler:        nil,
 		store:           store,
 		currentModuleID: "repl",
 		historyPath:     historyPath,
@@ -250,13 +252,13 @@ func (r *REPL) cmdUnset(args []string) bool {
 	cpy.Rules = rules
 	modules[r.currentModuleID] = &cpy
 
-	c := ast.NewCompiler()
-	if c.Compile(modules); c.Failed() {
-		fmt.Fprintln(r.output, "error:", c.FlattenErrors())
+	r.compiler = ast.NewCompiler()
+	if r.compiler.Compile(modules); r.compiler.Failed() {
+		fmt.Fprintln(r.output, "error:", r.compiler.FlattenErrors())
 		return false
 	}
 
-	err = r.store.InsertPolicy(r.txn, r.currentModuleID, c.Modules[r.currentModuleID], nil, false)
+	err = r.store.InsertPolicy(r.txn, r.currentModuleID, r.compiler.Modules[r.currentModuleID], nil, false)
 	if err != nil {
 		fmt.Fprintln(r.output, "error:", err)
 		return true
@@ -282,10 +284,10 @@ func (r *REPL) compileBody(body ast.Body) (ast.Body, error) {
 	prev := mod.Rules
 	mod.Rules = append(mod.Rules, rule)
 
-	c := ast.NewCompiler()
-	if c.Compile(modules); c.Failed() {
+	r.compiler = ast.NewCompiler()
+	if r.compiler.Compile(modules); r.compiler.Failed() {
 		mod.Rules = prev
-		return nil, fmt.Errorf(c.FlattenErrors())
+		return nil, fmt.Errorf(r.compiler.FlattenErrors())
 	}
 
 	return mod.Rules[len(prev)].Body, nil
@@ -298,10 +300,10 @@ func (r *REPL) compileRule(rule *ast.Rule) (*ast.Module, error) {
 	prev := mod.Rules
 	mod.Rules = append(mod.Rules, rule)
 
-	c := ast.NewCompiler()
-	if c.Compile(modules); c.Failed() {
+	r.compiler = ast.NewCompiler()
+	if r.compiler.Compile(modules); r.compiler.Failed() {
 		mod.Rules = prev
-		return nil, fmt.Errorf(c.FlattenErrors())
+		return nil, fmt.Errorf(r.compiler.FlattenErrors())
 	}
 
 	return mod, nil
@@ -404,7 +406,7 @@ func (r *REPL) evalBody(body ast.Body) bool {
 		}
 	}
 
-	ctx := topdown.NewContext(body, r.store, r.txn)
+	ctx := topdown.NewContext(body, r.compiler, r.store, r.txn)
 	if r.trace {
 		ctx.Tracer = &topdown.StdoutTracer{}
 	}
@@ -496,14 +498,17 @@ func (r *REPL) evalImport(i *ast.Import) bool {
 	prev := mod.Imports
 	mod.Imports = append(mod.Imports, i)
 
-	c := ast.NewCompiler()
-	if c.Compile(modules); c.Failed() {
+	r.compiler = ast.NewCompiler()
+
+	if r.compiler.Compile(modules); r.compiler.Failed() {
 		mod.Imports = prev
-		fmt.Fprintln(r.output, "error:", c.FlattenErrors())
+		fmt.Fprintln(r.output, "error:", r.compiler.FlattenErrors())
 		return false
 	}
 
-	err := r.store.InsertPolicy(r.txn, r.currentModuleID, c.Modules[r.currentModuleID], nil, false)
+	mod = r.compiler.Modules[r.currentModuleID]
+
+	err := r.store.InsertPolicy(r.txn, r.currentModuleID, mod, nil, false)
 	if err != nil {
 		fmt.Fprint(r.output, "error:", err)
 		return true
@@ -543,7 +548,7 @@ func (r *REPL) evalTermSingleValue(body ast.Body) bool {
 	outputVar := ast.Wildcard
 	body = ast.Body{ast.Equality.Expr(term, outputVar)}
 
-	ctx := topdown.NewContext(body, r.store, r.txn)
+	ctx := topdown.NewContext(body, r.compiler, r.store, r.txn)
 	if r.trace {
 		ctx.Tracer = &topdown.StdoutTracer{}
 	}
@@ -583,7 +588,7 @@ func (r *REPL) evalTermMultiValue(body ast.Body) bool {
 	outputVar := ast.Wildcard
 	body = ast.Body{ast.Equality.Expr(term, outputVar)}
 
-	ctx := topdown.NewContext(body, r.store, r.txn)
+	ctx := topdown.NewContext(body, r.compiler, r.store, r.txn)
 	if r.trace {
 		ctx.Tracer = &topdown.StdoutTracer{}
 	}
@@ -677,13 +682,15 @@ func (r *REPL) init() bool {
 	modules := r.store.ListPolicies(r.txn)
 	modules[r.currentModuleID] = mod
 
-	c := ast.NewCompiler()
-	if c.Compile(modules); c.Failed() {
-		fmt.Fprintln(r.output, "error:", c.FlattenErrors())
+	r.compiler = ast.NewCompiler()
+	if r.compiler.Compile(modules); r.compiler.Failed() {
+		fmt.Fprintln(r.output, "error:", r.compiler.FlattenErrors())
 		return true
 	}
 
-	if err := r.store.InsertPolicy(r.txn, r.currentModuleID, c.Modules[r.currentModuleID], nil, false); err != nil {
+	mod = r.compiler.Modules[r.currentModuleID]
+
+	if err := r.store.InsertPolicy(r.txn, r.currentModuleID, mod, nil, false); err != nil {
 		fmt.Fprintln(r.output, "error:", err)
 		return true
 	}

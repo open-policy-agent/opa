@@ -55,12 +55,16 @@ func TestEvalRef(t *testing.T) {
 		{`data.c[999]`, nil},
 	}
 
+	compiler := ast.NewCompiler()
+	// TODO(tsandall): this is horrible! fix other occurrences as well.
+	compiler.Compile(nil)
+
 	store := storage.New(storage.InMemoryWithJSONConfig(loadSmallTestData()))
 
 	txn := storage.NewTransactionOrDie(store, nil)
 	defer store.Close(txn)
 
-	ctx := NewContext(nil, store, txn)
+	ctx := NewContext(nil, compiler, store, txn)
 
 	for _, tc := range tests {
 
@@ -145,6 +149,9 @@ func TestEvalTerms(t *testing.T) {
 		]`},
 	}
 
+	compiler := ast.NewCompiler()
+	compiler.Compile(nil)
+
 	store := storage.New(storage.InMemoryWithJSONConfig(loadSmallTestData()))
 
 	txn := storage.NewTransactionOrDie(store, nil)
@@ -154,7 +161,7 @@ func TestEvalTerms(t *testing.T) {
 
 		testutil.Subtest(t, tc.body, func(t *testing.T) {
 
-			ctx := NewContext(ast.MustParseBody(tc.body), store, txn)
+			ctx := NewContext(ast.MustParseBody(tc.body), compiler, store, txn)
 
 			expected := loadExpectedBindings(tc.expected)
 
@@ -198,13 +205,13 @@ func TestPlugValue(t *testing.T) {
 	hello := ast.String("hello")
 	world := ast.String("world")
 
-	ctx1 := NewContext(nil, nil, nil)
+	ctx1 := NewContext(nil, nil, nil, nil)
 	ctx1.Bind(a, b, nil)
 	ctx1.Bind(b, cs, nil)
 	ctx1.Bind(c, ks, nil)
 	ctx1.Bind(k, hello, nil)
 
-	ctx2 := NewContext(nil, nil, nil)
+	ctx2 := NewContext(nil, nil, nil, nil)
 	ctx2.Bind(a, b, nil)
 	ctx2.Bind(b, cs, nil)
 	ctx2.Bind(c, vs, nil)
@@ -227,7 +234,7 @@ func TestPlugValue(t *testing.T) {
 
 	n := ast.MustParseTerm("a.b[x.y[i]]").Value
 
-	ctx3 := NewContext(nil, nil, nil)
+	ctx3 := NewContext(nil, nil, nil, nil)
 	ctx3.Bind(ast.Var("i"), ast.Number(1), nil)
 	ctx3.Bind(ast.MustParseTerm("x.y[i]").Value, ast.Number(1), nil)
 
@@ -911,7 +918,7 @@ func TestTopDownStrings(t *testing.T) {
 
 func TestTopDownEmbeddedVirtualDoc(t *testing.T) {
 
-	mods := compileModules([]string{
+	compiler := compileModules([]string{
 		`package b.c.d
 
          import data.a
@@ -922,17 +929,17 @@ func TestTopDownEmbeddedVirtualDoc(t *testing.T) {
 
 	store := storage.New(storage.InMemoryWithJSONConfig(loadSmallTestData()))
 
-	for id, mod := range mods {
+	for id, mod := range compiler.Modules {
 		if err := storage.InsertPolicy(store, id, mod, nil, false); err != nil {
 			panic(err)
 		}
 	}
 
-	assertTopDown(t, store, "deep embedded vdoc", []string{"b", "c", "d", "p"}, "{}", "[1, 2, 4]")
+	assertTopDown(t, compiler, store, "deep embedded vdoc", []string{"b", "c", "d", "p"}, "{}", "[1, 2, 4]")
 }
 
 func TestTopDownGlobalVars(t *testing.T) {
-	mods := compileModules([]string{
+	compiler := compileModules([]string{
 		`package z
 		 import data.a
 		 import req1
@@ -947,22 +954,22 @@ func TestTopDownGlobalVars(t *testing.T) {
 
 	store := storage.New(storage.InMemoryWithJSONConfig(loadSmallTestData()))
 
-	for id, mod := range mods {
+	for id, mod := range compiler.Modules {
 		if err := storage.InsertPolicy(store, id, mod, nil, false); err != nil {
 			panic(err)
 		}
 	}
 
-	assertTopDown(t, store, "global vars", []string{"z", "p"}, `{
+	assertTopDown(t, compiler, store, "global vars", []string{"z", "p"}, `{
 		req1: {"foo": 4},
 		req2: {"bar": 4}
 	}`, "true")
 
-	assertTopDown(t, store, "global vars (missing)", []string{"z", "p"}, `{
+	assertTopDown(t, compiler, store, "global vars (missing)", []string{"z", "p"}, `{
 		req1: {"foo": 4}
 	}`, unboundGlobalVarErr(ast.MustParseRef("req2.bar")))
 
-	assertTopDown(t, store, "global vars (namespaced)", []string{"z", "s"}, `{
+	assertTopDown(t, compiler, store, "global vars (namespaced)", []string{"z", "s"}, `{
 		req3: {
 			"a": {
 				"b": {
@@ -972,7 +979,7 @@ func TestTopDownGlobalVars(t *testing.T) {
 		}
 	}`, "true")
 
-	assertTopDown(t, store, "global vars (namespaced w/ alias)", []string{"z", "t"}, `{
+	assertTopDown(t, compiler, store, "global vars (namespaced w/ alias)", []string{"z", "t"}, `{
 		req4: {
 			"a": {
 				"b": {
@@ -984,7 +991,7 @@ func TestTopDownGlobalVars(t *testing.T) {
 }
 
 func TestTopDownCaching(t *testing.T) {
-	mods := compileModules([]string{`
+	compiler := compileModules([]string{`
 	package topdown.caching
 
 	p[x] :- q[x], q[y]
@@ -997,18 +1004,18 @@ func TestTopDownCaching(t *testing.T) {
 
 	store := storage.New(storage.InMemoryWithJSONConfig(loadSmallTestData()))
 
-	for id, mod := range mods {
+	for id, mod := range compiler.Modules {
 		if err := storage.InsertPolicy(store, id, mod, nil, false); err != nil {
 			panic(err)
 		}
 	}
 
-	assertTopDown(t, store, "reference lookup", []string{"topdown", "caching", "p"}, `{}`, "[2,2,3,3]")
+	assertTopDown(t, compiler, store, "reference lookup", []string{"topdown", "caching", "p"}, `{}`, "[2,2,3,3]")
 }
 
 func TestTopDownStoragePlugin(t *testing.T) {
 
-	mods := compileModules([]string{`
+	compiler := compileModules([]string{`
 	package topdown.plugins
 
 	p[x] :- q[x], not r[x]
@@ -1018,7 +1025,7 @@ func TestTopDownStoragePlugin(t *testing.T) {
 
 	store := storage.New(storage.InMemoryWithJSONConfig(loadSmallTestData()))
 
-	for id, mod := range mods {
+	for id, mod := range compiler.Modules {
 		if err := storage.InsertPolicy(store, id, mod, nil, false); err != nil {
 			panic(err)
 		}
@@ -1033,7 +1040,7 @@ func TestTopDownStoragePlugin(t *testing.T) {
 		t.Fatalf("Unexpected mount error: %v", err)
 	}
 
-	assertTopDown(t, store, "rule with plugin", []string{"topdown", "plugins", "p"}, `{}`, "[2,4]")
+	assertTopDown(t, compiler, store, "rule with plugin", []string{"topdown", "plugins", "p"}, `{}`, "[2,4]")
 }
 
 func TestExample(t *testing.T) {
@@ -1084,31 +1091,31 @@ func TestExample(t *testing.T) {
 		panic(err)
 	}
 
-	mods := compileModules([]string{vd})
+	compiler := compileModules([]string{vd})
 
 	store := storage.New(storage.InMemoryWithJSONConfig(doc))
 
-	for id, mod := range mods {
+	for id, mod := range compiler.Modules {
 		if err := storage.InsertPolicy(store, id, mod, nil, false); err != nil {
 			panic(err)
 		}
 	}
 
-	assertTopDown(t, store, "public servers", []string{"opa", "example", "public_servers"}, "{}", `
+	assertTopDown(t, compiler, store, "public servers", []string{"opa", "example", "public_servers"}, "{}", `
         [
             {"id": "s1", "name": "app", "protocols": ["https", "ssh"], "ports": ["p1", "p2", "p3"]},
             {"id": "s4", "name": "dev", "protocols": ["http"], "ports": ["p1", "p2"]}
         ]
     `)
 
-	assertTopDown(t, store, "violations", []string{"opa", "example", "violations"}, "{}", `
+	assertTopDown(t, compiler, store, "violations", []string{"opa", "example", "violations"}, "{}", `
 	    [
 	        {"id": "s4", "name": "dev", "protocols": ["http"], "ports": ["p1", "p2"]}
 	    ]
 	`)
 }
 
-func compileModules(input []string) map[string]*ast.Module {
+func compileModules(input []string) *ast.Compiler {
 
 	mods := map[string]*ast.Module{}
 
@@ -1122,10 +1129,10 @@ func compileModules(input []string) map[string]*ast.Module {
 		panic(c.FlattenErrors())
 	}
 
-	return c.Modules
+	return c
 }
 
-func compileRules(imports []string, input []string) map[string]*ast.Module {
+func compileRules(imports []string, input []string) *ast.Compiler {
 
 	rules := []*ast.Rule{}
 	for _, i := range input {
@@ -1153,7 +1160,7 @@ func compileRules(imports []string, input []string) map[string]*ast.Module {
 		panic(c.FlattenErrors())
 	}
 
-	return c.Modules
+	return c
 }
 
 func loadExpectedBindings(input string) []*storage.Bindings {
@@ -1276,20 +1283,20 @@ func runTopDownTestCase(t *testing.T, data map[string]interface{}, note string, 
 		imports = append(imports, "data."+k)
 	}
 
-	mods := compileRules(imports, rules)
+	compiler := compileRules(imports, rules)
 
 	store := storage.New(storage.InMemoryWithJSONConfig(data))
 
-	for id, mod := range mods {
+	for id, mod := range compiler.Modules {
 		if err := storage.InsertPolicy(store, id, mod, nil, false); err != nil {
 			panic(err)
 		}
 	}
 
-	assertTopDown(t, store, note, []string{"p"}, "{}", expected)
+	assertTopDown(t, compiler, store, note, []string{"p"}, "{}", expected)
 }
 
-func assertTopDown(t *testing.T, store *storage.Storage, note string, path []string, globals string, expected interface{}) {
+func assertTopDown(t *testing.T, compiler *ast.Compiler, store *storage.Storage, note string, path []string, globals string, expected interface{}) {
 
 	g := storage.NewBindings()
 	for _, i := range ast.MustParseTerm(globals).Value.(ast.Object) {
@@ -1304,7 +1311,7 @@ func assertTopDown(t *testing.T, store *storage.Storage, note string, path []str
 	testutil.Subtest(t, note, func(t *testing.T) {
 		switch e := expected.(type) {
 		case error:
-			result, err := Query(&QueryParams{Store: store, Path: p, Globals: g})
+			result, err := Query(&QueryParams{Compiler: compiler, Store: store, Path: p, Globals: g})
 			if err == nil {
 				t.Errorf("Expected error but got: %v", result)
 				return
@@ -1314,7 +1321,7 @@ func assertTopDown(t *testing.T, store *storage.Storage, note string, path []str
 			}
 		case string:
 			expected := loadExpectedSortedResult(e)
-			result, err := Query(&QueryParams{Store: store, Path: p, Globals: g})
+			result, err := Query(&QueryParams{Compiler: compiler, Store: store, Path: p, Globals: g})
 			if err != nil {
 				t.Errorf("Unexpected error: %v", err)
 				return

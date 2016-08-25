@@ -56,7 +56,7 @@ func setup(t *testing.T, filename string) *topdown.QueryParams {
 	req := ast.MustParseTerm(requestedPod).Value
 	globals.Put(ast.Var("requested_pod"), req)
 	path := []interface{}{"opa", "test", "scheduler", "fit"}
-	params := topdown.NewQueryParams(store, globals, path)
+	params := topdown.NewQueryParams(c, store, globals, path)
 
 	return params
 }

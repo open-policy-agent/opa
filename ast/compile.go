@@ -112,11 +112,11 @@ type stage struct {
 }
 
 // CompileModule is a helper function to compile a module represented as a string.
-func CompileModule(m string) (*Module, error) {
+func CompileModule(m string) (*Compiler, *Module, error) {
 
 	mod, err := ParseModule("", m)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	c := NewCompiler()
@@ -127,18 +127,18 @@ func CompileModule(m string) (*Module, error) {
 	}
 
 	if c.Compile(mods); c.Failed() {
-		return nil, c.Errors[0]
+		return nil, nil, c.Errors[0]
 	}
 
-	return c.Modules[key], nil
+	return c, c.Modules[key], nil
 }
 
 // CompileQuery is a helper function to compile a query represented as a string.
-func CompileQuery(q string) (Body, error) {
+func CompileQuery(q string) (*Compiler, Body, error) {
 
 	parsed, err := ParseBody(q)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	key := string(Wildcard.Value.(Var))
@@ -163,16 +163,17 @@ func CompileQuery(q string) (Body, error) {
 	c := NewCompiler()
 
 	if c.Compile(mods); c.Failed() {
-		return nil, c.Errors[0]
+		return nil, nil, c.Errors[0]
 	}
 
-	return c.Modules[key].Rules[0].Body, nil
+	return c, c.Modules[key].Rules[0].Body, nil
 }
 
 // NewCompiler returns a new empty compiler.
 func NewCompiler() *Compiler {
 
 	c := &Compiler{
+		Modules:   map[string]*Module{},
 		Globals:   map[*Module]map[Var]Value{},
 		RuleGraph: map[*Rule]map[*Rule]struct{}{},
 		RuleTree:  NewRuleTree(nil),
@@ -194,26 +195,43 @@ func NewCompiler() *Compiler {
 	return c
 }
 
-// Compile runs the compilation process on the input modules.
-// The output of the compilation process can be obtained from
-// the Errors or Modules attributes of the Compiler.
-func (c *Compiler) Compile(mods map[string]*Module) {
-
-	// TODO(tsandall): need to revisit the error messages. E.g.,
-	// errors local to a rule should include rule name, package path,
-	// and potentially a snippet of text identifying the source of the
-	// the problem. In some cases a useful tip could be provided, e.g.,
-	// "Did you mean to assign 'u' to something?"
-	//
+// Compile runs the compilation process on the input modules. The compiled
+// version of the modules and associated data structures are stored on the
+// compiler. If the compilation process fails for any reason, the compiler will
+// contain a slice of errors.
+func (c *Compiler) Compile(modules map[string]*Module) {
 	// TODO(tsandall): should the modules be deep copied?
+	c.Modules = modules
+	c.compile()
+}
 
-	c.Modules = mods
+// CompileOne runs the compilation process on an input query.
+func (c *Compiler) CompileOne(query Body) (Body, error) {
 
-	for _, s := range c.stages {
-		if s.f(); c.Failed() {
-			return
-		}
+	key := string(Wildcard.Value.(Var))
+
+	mod := &Module{
+		Package: &Package{
+			Path:     Ref{DefaultRootDocument},
+			Location: query.Loc(),
+		},
+		Rules: []*Rule{
+			&Rule{
+				Name:     Var(key),
+				Body:     query,
+				Location: query.Loc(),
+			},
+		},
 	}
+
+	c.Modules[key] = mod
+	c.compile()
+
+	if c.Failed() {
+		return nil, c.Errors[0]
+	}
+
+	return c.Modules[key].Rules[0].Body, nil
 }
 
 // Failed returns true if a compilation error has been encountered.
@@ -369,6 +387,14 @@ func (c *Compiler) checkSafetyHead() {
 			for v := range unsafe {
 				c.err(r.Location.Errorf("%v: %v is unsafe (variable %v must appear in at least one expression within the body of %v)", r.Name, v, v, r.Name))
 			}
+		}
+	}
+}
+
+func (c *Compiler) compile() {
+	for _, s := range c.stages {
+		if s.f(); c.Failed() {
+			return
 		}
 	}
 }

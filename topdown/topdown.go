@@ -16,6 +16,7 @@ import (
 // Context contains the state of the evaluation process.
 type Context struct {
 	Query    ast.Body
+	Compiler *ast.Compiler
 	Globals  *storage.Bindings
 	Locals   *storage.Bindings
 	Index    int
@@ -28,14 +29,15 @@ type Context struct {
 }
 
 // NewContext creates a new Context with no bindings.
-func NewContext(query ast.Body, store *storage.Storage, txn storage.Transaction) *Context {
+func NewContext(query ast.Body, compiler *ast.Compiler, store *storage.Storage, txn storage.Transaction) *Context {
 	return &Context{
-		Query:   query,
-		Globals: storage.NewBindings(),
-		Locals:  storage.NewBindings(),
-		Store:   store,
-		txn:     txn,
-		cache:   newContextCache(),
+		Query:    query,
+		Compiler: compiler,
+		Globals:  storage.NewBindings(),
+		Locals:   storage.NewBindings(),
+		Store:    store,
+		txn:      txn,
+		cache:    newContextCache(),
 	}
 }
 
@@ -330,31 +332,34 @@ func PlugValue(v ast.Value, ctx *Context) ast.Value {
 
 // QueryParams defines input parameters for the query interface.
 type QueryParams struct {
-	Store   *storage.Storage
-	Globals *storage.Bindings
-	Tracer  Tracer
-	Path    []interface{}
+	Compiler *ast.Compiler
+	Store    *storage.Storage
+	Globals  *storage.Bindings
+	Tracer   Tracer
+	Path     []interface{}
 }
 
-// NewQueryParams returns a new QueryParams q.
-func NewQueryParams(store *storage.Storage, globals *storage.Bindings, path []interface{}) (q *QueryParams) {
+// NewQueryParams returns a new QueryParams.
+func NewQueryParams(compiler *ast.Compiler, store *storage.Storage, globals *storage.Bindings, path []interface{}) *QueryParams {
 	return &QueryParams{
-		Store:   store,
-		Globals: globals,
-		Path:    path,
+		Compiler: compiler,
+		Store:    store,
+		Globals:  globals,
+		Path:     path,
 	}
 }
 
 // NewContext returns a new Context that can be used to do evaluation.
 func (q *QueryParams) NewContext(body ast.Body, txn storage.Transaction) *Context {
 	ctx := &Context{
-		Query:   body,
-		Globals: q.Globals,
-		Locals:  storage.NewBindings(),
-		Store:   q.Store,
-		Tracer:  q.Tracer,
-		txn:     txn,
-		cache:   newContextCache(),
+		Query:    body,
+		Compiler: q.Compiler,
+		Globals:  q.Globals,
+		Locals:   storage.NewBindings(),
+		Store:    q.Store,
+		Tracer:   q.Tracer,
+		txn:      txn,
+		cache:    newContextCache(),
 	}
 	return ctx
 }

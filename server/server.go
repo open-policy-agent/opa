@@ -66,16 +66,19 @@ type Server struct {
 
 	addr    string
 	persist bool
-	store   *storage.Storage
+
+	compiler *ast.Compiler
+	store    *storage.Storage
 }
 
 // New returns a new Server.
 func New(store *storage.Storage, addr string, persist bool) *Server {
 
 	s := &Server{
-		addr:    addr,
-		persist: persist,
-		store:   store,
+		addr:     addr,
+		persist:  persist,
+		compiler: ast.NewCompiler(),
+		store:    store,
 	}
 
 	router := mux.NewRouter()
@@ -101,9 +104,19 @@ func (s *Server) Loop() error {
 	return http.ListenAndServe(s.addr, s.Handler)
 }
 
+func (s *Server) compileQuery(qStr string) (ast.Body, error) {
+
+	body, err := ast.ParseBody(qStr)
+	if err != nil {
+		return nil, errors.Wrapf(err, "parse error")
+	}
+
+	return s.compiler.CompileOne(body)
+}
+
 func (s *Server) execQuery(qStr string) (resultSetV1, error) {
 
-	query, err := ast.CompileQuery(qStr)
+	query, err := s.compileQuery(qStr)
 	if err != nil {
 		return nil, err
 	}
@@ -115,7 +128,7 @@ func (s *Server) execQuery(qStr string) (resultSetV1, error) {
 
 	defer s.store.Close(txn)
 
-	ctx := topdown.NewContext(query, s.store, txn)
+	ctx := topdown.NewContext(query, s.compiler, s.store, txn)
 
 	results := resultSetV1{}
 
@@ -184,7 +197,7 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 		handleError(w, 400, err)
 		return
 	}
-	params := topdown.NewQueryParams(s.store, globals, path)
+	params := topdown.NewQueryParams(s.compiler, s.store, globals, path)
 
 	result, err := topdown.Query(params)
 
@@ -285,6 +298,8 @@ func (s *Server) v1PoliciesDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	s.compiler = c
+
 	handleResponse(w, 204, nil)
 }
 
@@ -370,10 +385,12 @@ func (s *Server) v1PoliciesPut(w http.ResponseWriter, r *http.Request) {
 	}
 
 	mod, err := ast.ParseModule(id, string(buf))
+
 	if err != nil {
 		handleError(w, 400, err)
 		return
 	}
+
 	if mod == nil {
 		handleErrorf(w, 400, "refusing to add empty module")
 		return
@@ -404,6 +421,8 @@ func (s *Server) v1PoliciesPut(w http.ResponseWriter, r *http.Request) {
 		handleErrorAuto(w, err)
 		return
 	}
+
+	s.compiler = c
 
 	policy := &policyV1{
 		ID:     id,

@@ -16,7 +16,7 @@ import (
 func ExampleEval() {
 
 	// Define a dummy query and some data that the query will execute against.
-	query, err := ast.CompileQuery("data.a[_] = x, x >= 2")
+	compiler, query, err := ast.CompileQuery("data.a[_] = x, x >= 2")
 	if err != nil {
 		// Handle error.
 	}
@@ -43,7 +43,7 @@ func ExampleEval() {
 	// storage. In this case, we seed the storage with a single array of number. Other parameters
 	// such as globals, tracing configuration, etc. can be set on the context. See the Context
 	// documentation for more details.
-	ctx := topdown.NewContext(query, store, txn)
+	ctx := topdown.NewContext(query, compiler, store, txn)
 
 	result := []interface{}{}
 
@@ -75,7 +75,7 @@ func ExampleEval() {
 func ExampleQuery() {
 
 	// Define a dummy module with rules that produce documents that we will query below.
-	mod, err := ast.CompileModule(`
+	compiler, module, err := ast.CompileModule(`
 
 	    package opa.example
 
@@ -92,7 +92,7 @@ func ExampleQuery() {
 	// Instantiate the policy engine's storage layer.
 	store := storage.New(storage.InMemoryConfig())
 
-	if err := storage.InsertPolicy(store, "my_module", mod, nil, false); err != nil {
+	if err := storage.InsertPolicy(store, "my_module_id", module, nil, false); err != nil {
 		// Handle error.
 	}
 
@@ -100,7 +100,7 @@ func ExampleQuery() {
 	// accept additional documents (which are referred to as "globals"). In this case we have no
 	// additional documents.
 	globals := storage.NewBindings()
-	params := topdown.NewQueryParams(store, globals, []interface{}{"opa", "example", "p"})
+	params := topdown.NewQueryParams(compiler, store, globals, []interface{}{"opa", "example", "p"})
 
 	// Execute the query against "p".
 	v1, err1 := topdown.Query(params)
