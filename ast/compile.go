@@ -78,6 +78,26 @@ type Compiler struct {
 	//
 	ModuleTree *ModuleTreeNode
 
+	// RuleTree organizes rules into a tree where each node is keyed by an
+	// element in the rule's path. The rule path is the concatenation of the
+	// containing package and the stringified rule name. E.g., given the following module:
+	//
+	//  package ex
+	//  p[1] :- true
+	//  p[2] :- true
+	//  q :- true
+	//
+	//  root
+	//    |
+	//    +--- data (no rules)
+	//           |
+	//           +--- ex (no rules)
+	//                |
+	//                +--- p (2 rules)
+	//                |
+	//                +--- q (1 rule)
+	RuleTree *RuleTreeNode
+
 	// RuleGraph represents the rule dependencies.
 	// An edge (u, v) is added to the graph if rule "u" depends on rule "v".
 	// A rule depends on another rule if it refers to it.
@@ -155,12 +175,14 @@ func NewCompiler() *Compiler {
 	c := &Compiler{
 		Globals:   map[*Module]map[Var]Value{},
 		RuleGraph: map[*Rule]map[*Rule]struct{}{},
+		RuleTree:  NewRuleTree(nil),
 	}
 
 	c.stages = []stage{
 		stage{c.setExports, "setExports"},
 		stage{c.setGlobals, "setGlobals"},
 		stage{c.setModuleTree, "setModuleTree"},
+		stage{c.setRuleTree, "setRuleTree"},
 		stage{c.checkSafetyHead, "checkSafetyHead"},
 		stage{c.checkSafetyBody, "checkSafetyBody"},
 		stage{c.checkBuiltinArgs, "checkBuiltinArgs"},
@@ -217,6 +239,65 @@ func (c *Compiler) FlattenErrors() string {
 	}
 
 	return fmt.Sprintf("%d errors occurred:\n%s", len(c.Errors), strings.Join(b, "\n"))
+}
+
+// GetRulesExact returns a slice of rules referred to by the reference.
+//
+// E.g., given the following module:
+//
+//	package a.b.c
+//
+//	p[k] = v :- ...    # rule1
+//  p[k1] = v1 :- ...  # rule2
+//
+// The following calls yield the rules on the right.
+//
+//  GetRulesExact("data.a.b.c.p")   => [rule1, rule2]
+//  GetRulesExact("data.a.b.c.p.x") => nil
+//  GetRulesExact("data.a.b.c")     => nil
+func (c *Compiler) GetRulesExact(ref Ref) (rules []*Rule) {
+	node := c.RuleTree
+
+	for _, x := range ref {
+		node = node.Children[x.Value]
+		if node == nil {
+			return nil
+		}
+	}
+
+	return node.Rules
+}
+
+// GetRulesForVirtualDocument returns a slice of rules that produce the virtual
+// document referred to by the reference.
+//
+// E.g., given the following module:
+//
+//	package a.b.c
+//
+//	p[k] = v :- ...    # rule1
+//  p[k1] = v1 :- ...  # rule2
+//
+// The following calls yield the rules on the right.
+//
+//  GetRulesForVirtualDocument("data.a.b.c.p")   => [rule1, rule2]
+//  GetRulesForVirtualDocument("data.a.b.c.p.x") => [rule1, rule2]
+//  GetRulesForVirtualDocument("data.a.b.c")     => nil
+func (c *Compiler) GetRulesForVirtualDocument(ref Ref) (rules []*Rule) {
+
+	node := c.RuleTree
+
+	for _, x := range ref {
+		node = node.Children[x.Value]
+		if node == nil {
+			return nil
+		}
+		if len(node.Rules) > 0 {
+			return node.Rules
+		}
+	}
+
+	return node.Rules
 }
 
 // checkBuiltinArgs ensures that all built-ins are called with the correct number
@@ -490,6 +571,10 @@ func (c *Compiler) setModuleTree() {
 	c.ModuleTree = NewModuleTree(c.Modules)
 }
 
+func (c *Compiler) setRuleTree() {
+	c.RuleTree = NewRuleTree(c.Modules)
+}
+
 func (c *Compiler) setRuleGraph() {
 	for _, m := range c.Modules {
 		for _, r := range m.Rules {
@@ -517,34 +602,27 @@ func (c *Compiler) setRuleGraph() {
 // ModuleTreeNode represents a node in the module tree. The module
 // tree is keyed by the package path.
 type ModuleTreeNode struct {
-	Key      string
+	Key      Value
 	Modules  []*Module
-	Children map[string]*ModuleTreeNode
+	Children map[Value]*ModuleTreeNode
 }
 
 // NewModuleTree returns a new ModuleTreeNode that represents the root
 // of the module tree populated with the given modules.
 func NewModuleTree(mods map[string]*Module) *ModuleTreeNode {
 	root := &ModuleTreeNode{
-		Children: map[string]*ModuleTreeNode{},
+		Children: map[Value]*ModuleTreeNode{},
 	}
 	for _, m := range mods {
 		node := root
 		for _, x := range m.Package.Path {
-			var s string
-			switch v := x.Value.(type) {
-			case Var:
-				s = string(v)
-			case String:
-				s = string(v)
-			}
-			c, ok := node.Children[s]
+			c, ok := node.Children[x.Value]
 			if !ok {
 				c = &ModuleTreeNode{
-					Key:      s,
-					Children: map[string]*ModuleTreeNode{},
+					Key:      x.Value,
+					Children: map[Value]*ModuleTreeNode{},
 				}
-				node.Children[s] = c
+				node.Children[x.Value] = c
 			}
 			node = c
 		}
@@ -556,6 +634,50 @@ func NewModuleTree(mods map[string]*Module) *ModuleTreeNode {
 // Size returns the number of modules in the tree.
 func (n *ModuleTreeNode) Size() int {
 	s := len(n.Modules)
+	for _, c := range n.Children {
+		s += c.Size()
+	}
+	return s
+}
+
+// RuleTreeNode represents a node in the rule tree. The rule tree is keyed by
+// rule path.
+type RuleTreeNode struct {
+	Key      Value
+	Rules    []*Rule
+	Children map[Value]*RuleTreeNode
+}
+
+// NewRuleTree returns a new RuleTreeNode that represents the root
+// of the rule tree populated with the given rules.
+func NewRuleTree(mods map[string]*Module) *RuleTreeNode {
+	root := &RuleTreeNode{
+		Children: map[Value]*RuleTreeNode{},
+	}
+	for _, mod := range mods {
+		for _, rule := range mod.Rules {
+			node := root
+			path := rule.Path(mod.Package.Path)
+			for _, x := range path {
+				c := node.Children[x.Value]
+				if c == nil {
+					c = &RuleTreeNode{
+						Key:      x.Value,
+						Children: map[Value]*RuleTreeNode{},
+					}
+					node.Children[x.Value] = c
+				}
+				node = c
+			}
+			node.Rules = append(node.Rules, rule)
+		}
+	}
+	return root
+}
+
+// Size returns the number of rules in the tree.
+func (n *RuleTreeNode) Size() int {
+	s := len(n.Rules)
 	for _, c := range n.Children {
 		s += c.Size()
 	}
@@ -645,8 +767,7 @@ func (vs unsafeVars) Vars() VarSet {
 // variables, such as: "a.b.c[x]", the result will contain
 // rule "p" and rule "q".
 func findRules(node *ModuleTreeNode, ref Ref) []*Rule {
-	k := string(ref[0].Value.(Var))
-	if node, ok := node.Children[k]; ok {
+	if node, ok := node.Children[ref[0].Value]; ok {
 		return findRulesRec(node, ref[1:])
 	}
 	return nil
@@ -668,14 +789,13 @@ func findRulesRec(node *ModuleTreeNode, ref Ref) []*Rule {
 		}
 		return result
 	case String:
-		k := string(v)
-		if node, ok := node.Children[k]; ok {
+		if node, ok := node.Children[v]; ok {
 			return findRulesRec(node, ref[1:])
 		}
 		result := []*Rule{}
 		for _, m := range node.Modules {
 			for _, r := range m.Rules {
-				if string(r.Name) == k {
+				if String(r.Name).Equal(v) {
 					result = append(result, r)
 				}
 			}
