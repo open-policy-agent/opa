@@ -273,6 +273,7 @@ func (r *REPL) compileBody(body ast.Body) (ast.Body, error) {
 	rule := &ast.Rule{
 		Location: body[0].Location,
 		Name:     ast.Var(name),
+		Value:    ast.BooleanTerm(true),
 		Body:     body,
 	}
 
