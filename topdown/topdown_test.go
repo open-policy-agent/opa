@@ -266,7 +266,7 @@ func TestTopDownCompleteDoc(t *testing.T) {
 			`{"a": [1], "b": [2], "c": [3]}`},
 		{"vars", `p = {"a": [x,y]} :- x = 1, y = 2`, `{"a": [1,2]}`},
 		{"vars conflict", `p = {"a": [x,y]} :- xs = [1,2], ys = [1,2], x = xs[_], y = ys[_]`,
-			fmt.Errorf("evaluation error (code: 2): multiple values for [p]: rules must produce exactly one value for complete documents: check rule definition(s): p")},
+			fmt.Errorf("evaluation error (code: 2): multiple values for data.p: rules must produce exactly one value for complete documents: check rule definition(s): p")},
 	}
 
 	data := loadSmallTestData()
@@ -316,7 +316,7 @@ func TestTopDownPartialObjectDoc(t *testing.T) {
 			"c": [3, {"v2": 4}]
 		}`},
 		{"error: conflicting keys", `p[k] = true :- ks=["a", "b", "c", "a"], ks[_] = k`,
-			fmt.Errorf("evaluation error (code: 2): multiple values for [p]: rules must produce exactly one value for object document keys: check rule definition(s): p")},
+			fmt.Errorf("evaluation error (code: 2): multiple values for data.p: rules must produce exactly one value for object document keys: check rule definition(s): p")},
 	}
 
 	data := loadSmallTestData()
@@ -498,6 +498,7 @@ func TestTopDownVirtualDocs(t *testing.T) {
 		{"input: object undefined key 1", []string{`p = true :- q[9999] = 2`, `q[i] = x :- a[i] = x`}, ""},
 		{"input: object undefined key 2", []string{`p = true :- q["foo"] = 2`, `q[i] = x :- a[i] = x`}, ""},
 		{"input: object dereference ground", []string{`p = true :- q[0]["x"][1] = false`, `q[i] = x :- x = c[i]`}, "true"},
+		{"input: object dereference ground 2", []string{`p[v] :- x = "a", q[x][y] = v`, `q[k] = v :- k = "a", v = data.a`}, "[1,2,3,4]"},
 		{"input: object defererence non-ground", []string{`p = true :- q[0][x][y] = false`, `q[i] = x :- x = c[i]`}, "true"},
 		{"input: object ground var key", []string{`p[y] :- x = "b", q[x] = y`, `q[k] = v :- x = {"a": 1, "b": 2}, x[k] = v`}, "[2]"},
 		{"input: variable binding substitution", []string{
@@ -617,6 +618,120 @@ func TestTopDownVirtualDocs(t *testing.T) {
 	}
 }
 
+func TestTopDownBaseAndVirtualDocs(t *testing.T) {
+
+	// Define base docs that will overlap with virtual docs.
+	var data map[string]interface{}
+
+	input := `
+	{
+		"topdown": {
+			"a": {
+				"b": {
+					"c": {
+						"x": [100,200],
+						"y": false,
+						"z": {
+							"a": "b"
+						}
+					}
+				}
+			},
+			"g": {
+				"h": {
+					"k": [1,2,3]
+				}
+			}
+		}
+	}
+	`
+	if err := json.Unmarshal([]byte(input), &data); err != nil {
+		panic(err)
+	}
+
+	compiler := compileModules([]string{
+		// Define virtual docs that will overlap with base docs.
+		`
+			package topdown.a.b.c
+
+			p = [1,2]
+			q = [3,4]
+			r["a"] = 1 :- true
+			r["b"] = 2 :- true
+		`,
+		`
+			package topdown.a.b.c.s
+			w = {"f": 10.0, "g": 9.9}
+		`,
+		`
+			package topdown.no.base.doc
+			p :- true
+		`,
+		`
+			package topdown.a.b.c.undefined     # should not be included in result
+			p :- false
+		`,
+		`
+			package topdown.g.h                 # should not be included in result
+			undefined :- false
+		`,
+		`
+			package topdown.unbound.global
+			import req
+			p :- req.foo
+		`,
+		// Define virtual docs that we can query to obtain merged result.
+		`
+			package topdown
+			p[[x1,x2,x3,x4]] :- data.topdown.a.b[x1][x2][x3] = x4
+			q[[x1,x2,x3]] :- data.topdown.a.b[x1][x2][0] = x3
+			r[[x1,x2]] :- data.topdown.a.b[x1] = x2
+			s = x :- data.topdown.no = x
+			t :- data.topdown.a.b.c.undefined
+		 	u :- data.topdown.unbound
+			v = x :- data.topdown.g = x
+		`,
+	})
+
+	store := storage.New(storage.InMemoryWithJSONConfig(data))
+
+	assertTopDown(t, compiler, store, "base/virtual", []string{"topdown", "p"}, "{}", `[
+		["c", "p", 0, 1],
+		["c", "p", 1, 2],
+		["c", "q", 0, 3],
+		["c", "q", 1, 4],
+		["c", "r", "a", 1],
+		["c", "r", "b", 2],
+		["c", "x", 0, 100],
+		["c", "x", 1, 200],
+		["c", "z", "a", "b"],
+		["c", "s", "w", {"f":10.0, "g": 9.9}]
+	]`)
+
+	assertTopDown(t, compiler, store, "base/virtual: ground key", []string{"topdown", "q"}, "{}", `[
+		["c", "p", 1],
+		["c", "q", 3],
+		["c", "x", 100]
+	]`)
+
+	assertTopDown(t, compiler, store, "base/virtual: prefix", []string{"topdown", "r"}, "{}", `[
+		["c", {
+			"p": [1,2],
+			"q": [3,4],
+			"r": {"a": 1, "b": 2},
+			"s": {"w": {"f": 10.0, "g": 9.9}},
+			"x": [100,200],
+			"y": false,
+			"z": {"a": "b"}}]
+	]`)
+
+	assertTopDown(t, compiler, store, "base/virtual: no base", []string{"topdown", "s"}, "{}", `{"base": {"doc": {"p": true}}}`)
+
+	assertTopDown(t, compiler, store, "base/virtual: undefined", []string{"topdown", "t"}, "{}", "")
+	assertTopDown(t, compiler, store, "base/virtual: undefined-2", []string{"topdown", "v"}, "{}", `{"h": {"k": [1,2,3]}}`)
+	assertTopDown(t, compiler, store, "base/virtual: unbound global", []string{"topdown", "u"}, "{}", unboundGlobalVarErr(ast.MustParseRef("req.foo")))
+}
+
 func TestTopDownNestedReferences(t *testing.T) {
 	tests := []struct {
 		note     string
@@ -732,7 +847,7 @@ func TestTopDownDisjunction(t *testing.T) {
 			`q["b"] = 2 :- true`},
 			`{"a": 1, "b": 2}`},
 		{"complete: undefined", []string{"p :- false", "p :- false"}, ""},
-		{"complete: error", []string{"p :- true", "p = false :- true"}, fmt.Errorf("evaluation error (code: 2): multiple values for [p]: rules must produce exactly one value for complete documents: check rule definition(s): p")},
+		{"complete: error", []string{"p :- true", "p = false :- true"}, fmt.Errorf("evaluation error (code: 2): multiple values for data.p: rules must produce exactly one value for complete documents: check rule definition(s): p")},
 		{"complete: valid", []string{"p :- true", "p = true :- true"}, "true"},
 		{"complete: valid-2", []string{"p :- true", "p = false :- false"}, "true"},
 		{"complete: reference error", []string{"p :- q", "q :- true", "q = false :- true"}, fmt.Errorf("evaluation error (code: 2): multiple values for data.q: rules must produce exactly one value for complete documents: check rule definition(s): q")},
@@ -1289,11 +1404,11 @@ func assertTopDown(t *testing.T, compiler *ast.Compiler, store *storage.Storage,
 
 			p := ast.MustParseRef(fmt.Sprintf("data.%v", strings.Join(path, ".")))
 
-			rs := compiler.GetRulesExact(p)
-			switch rs[0].DocKind() {
-			case ast.PartialSetDoc:
+			// Sort set results so that comparisons are not dependant on order.
+			if rs := compiler.GetRulesExact(p); rs[0].DocKind() == ast.PartialSetDoc {
 				sort.Sort(resultSet(result.([]interface{})))
 			}
+
 			if !reflect.DeepEqual(result, expected) {
 				t.Errorf("Expected %v but got: %v", expected, result)
 			}
