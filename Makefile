@@ -53,7 +53,7 @@ install: generate
 	$(GO) install -ldflags $(LDFLAGS)
 
 test: generate
-	$(GO) test -v $(PACKAGES)
+	$(GO) test $(PACKAGES)
 
 COVER_PACKAGES=$(PACKAGES)
 $(COVER_PACKAGES):
