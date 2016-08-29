@@ -19,7 +19,6 @@ import (
 
 // policyStore provides a storage abstraction for policy definitions and modules.
 type policyStore struct {
-	store     Store
 	policyDir string
 	raw       map[string][]byte
 	modules   map[string]*ast.Module
@@ -50,7 +49,6 @@ func loadPolicies(bufs map[string][]byte) (map[string]*ast.Module, error) {
 // NewPolicyStore returns an empty PolicyStore.
 func newPolicyStore(store Store, policyDir string) *policyStore {
 	return &policyStore{
-		store:     store,
 		policyDir: policyDir,
 		raw:       map[string][]byte{},
 		modules:   map[string]*ast.Module{},
@@ -120,18 +118,6 @@ func (p *policyStore) Add(id string, mod *ast.Module, raw []byte, persist bool) 
 		return fmt.Errorf("cannot persist without --policy-dir set")
 	}
 
-	old := p.modules[id]
-
-	if old != nil {
-		if err := p.uninstallModule(invalidTXN, old); err != nil {
-			return errors.Wrapf(err, "failed to uninstall old version of module: %v", id)
-		}
-	}
-
-	if err := p.installModule(invalidTXN, mod); err != nil {
-		return errors.Wrapf(err, "failed to install module but old version of module was uninstalled: %v", id)
-	}
-
 	p.raw[id] = raw
 	p.modules[id] = mod
 
@@ -147,15 +133,6 @@ func (p *policyStore) Add(id string, mod *ast.Module, raw []byte, persist bool) 
 
 // Remove removes the policy module for id.
 func (p *policyStore) Remove(id string) error {
-
-	mod, err := p.Get(id)
-	if err != nil {
-		return err
-	}
-
-	if err := p.uninstallModule(invalidTXN, mod); err != nil {
-		return errors.Wrapf(err, "failed to uninstall module: %v", id)
-	}
 
 	filename := p.getFilename(id)
 
@@ -197,149 +174,4 @@ func (p *policyStore) getFilename(id string) string {
 
 func (p *policyStore) getID(f string) string {
 	return filepath.Base(f)
-}
-
-func (p *policyStore) installModule(txn Transaction, mod *ast.Module) error {
-
-	installed := map[*ast.Rule]ast.Ref{}
-
-	for _, r := range mod.Rules {
-		fqn := append(ast.Ref{}, mod.Package.Path...)
-		fqn = append(fqn, &ast.Term{Value: ast.String(r.Name)})
-		if err := p.installRule(txn, fqn, r); err != nil {
-			for r, fqn := range installed {
-				if err := p.uninstallRule(txn, fqn, r); err != nil {
-					return err
-				}
-			}
-			return err
-		}
-		installed[r] = fqn
-	}
-
-	return nil
-}
-
-func (p *policyStore) installRule(txn Transaction, fqn ast.Ref, rule *ast.Rule) error {
-
-	err := makePath(p.store, txn, fqn[:len(fqn)-1])
-	if err != nil {
-		return errors.Wrapf(err, "unable to make path for rule set")
-	}
-
-	node, err := p.store.Read(txn, fqn)
-	if err != nil {
-		switch err := err.(type) {
-		case *Error:
-			if err.Code == NotFoundErr {
-				rules := []*ast.Rule{rule}
-				if err := p.store.Write(txn, AddOp, fqn, rules); err != nil {
-					return errors.Wrapf(err, "unable to add new rule set")
-				}
-				return nil
-			}
-		}
-		return err
-	}
-
-	rs, ok := node.([]*ast.Rule)
-	if !ok {
-		return fmt.Errorf("unable to add rule to base document")
-	}
-
-	for i := range rs {
-		if rs[i].Equal(rule) {
-			return nil
-		}
-	}
-
-	rs = append(rs, rule)
-
-	if err := p.store.Write(txn, ReplaceOp, fqn, rs); err != nil {
-		return errors.Wrapf(err, "unable to add rule to existing rule set")
-	}
-
-	return nil
-}
-
-func (p *policyStore) uninstallModule(txn Transaction, mod *ast.Module) error {
-	uninstalled := map[*ast.Rule]ast.Ref{}
-	for _, r := range mod.Rules {
-		fqn := append(ast.Ref{}, mod.Package.Path...)
-		fqn = append(fqn, &ast.Term{Value: ast.String(r.Name)})
-		if err := p.uninstallRule(txn, fqn, r); err != nil {
-			for r, fqn := range uninstalled {
-				if err := p.installRule(txn, fqn, r); err != nil {
-					return err
-				}
-			}
-			return err
-		}
-		uninstalled[r] = fqn
-	}
-	return nil
-}
-
-// uninstallRule removes the rule located at the path. If the path is not found
-// or the rule does not exist in the ruleset, this function returns nil (no error).
-func (p *policyStore) uninstallRule(txn Transaction, fqn ast.Ref, rule *ast.Rule) error {
-
-	node, err := p.store.Read(txn, fqn)
-
-	if IsNotFound(err) {
-		return nil
-	}
-
-	rs, ok := node.([]*ast.Rule)
-	if !ok {
-		return fmt.Errorf("unable to remove rule: path refers to base document")
-	}
-
-	found := false
-
-	for i := range rs {
-		if rs[i].Equal(rule) {
-			rs = append(rs[:i], rs[i+1:]...)
-			found = true
-			break
-		}
-	}
-
-	if !found {
-		return nil
-	}
-
-	if len(rs) == 0 {
-		return p.store.Write(txn, RemoveOp, fqn, nil)
-	}
-
-	return p.store.Write(txn, ReplaceOp, fqn, rs)
-}
-
-func makePath(store Store, txn Transaction, path ast.Ref) error {
-	var tmp ast.Ref
-	for _, p := range path {
-		tmp = append(tmp, p)
-		node, err := store.Read(txn, tmp)
-		if err != nil {
-			switch err := err.(type) {
-			case *Error:
-				if err.Code == NotFoundErr {
-					err := store.Write(txn, AddOp, tmp, map[string]interface{}{})
-					if err != nil {
-						return err
-					}
-					continue
-				}
-			}
-			return err
-		}
-		switch node.(type) {
-		case map[string]interface{}:
-		case []interface{}:
-		default:
-			return fmt.Errorf("non-collection document: %v", path)
-		}
-	}
-	return nil
 }

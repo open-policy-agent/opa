@@ -31,12 +31,6 @@ func TestTracer(t *testing.T) {
 
 	store := storage.New(storage.InMemoryWithJSONConfig(loadSmallTestData()))
 
-	for id, mod := range compiler.Modules {
-		if err := storage.InsertPolicy(store, id, mod, nil, false); err != nil {
-			panic(err)
-		}
-	}
-
 	tracer := &mockTracer{[]string{}}
 
 	params := &QueryParams{

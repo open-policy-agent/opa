@@ -365,9 +365,6 @@ func (q *QueryParams) NewContext(body ast.Body, txn storage.Transaction) *Contex
 }
 
 // Query returns the document identified by the path.
-//
-// If the storage node identified by the path is a collection of rules, then the TopDown
-// algorithm is run to generate the virtual document defined by the rules.
 func Query(params *QueryParams) (interface{}, error) {
 
 	ref := ast.Ref{ast.DefaultRootDocument}
@@ -393,18 +390,15 @@ func Query(params *QueryParams) (interface{}, error) {
 
 	defer params.Store.Close(txn)
 
-	node, err := params.Store.Read(txn, ref)
-	if err != nil {
-		return nil, err
-	}
-
-	switch node := node.(type) {
-	case []*ast.Rule:
+	// TODO(tsandall): once set literals are supported this code path can be
+	// replaced with a call to Eval that assigns the path to a variable.
+	if node := params.Compiler.GetRulesExact(ref); node != nil {
 		if len(node) == 0 {
 			return Undefined{}, nil
 		}
 		// This assumes that all the rules identified by the path are of the same
-		// type. This is checked at compile time.
+		// type.
+		// TODO(tsandall): enforce at compile time.
 		switch node[0].DocKind() {
 		case ast.CompleteDoc:
 			return queryCompleteDoc(params, txn, node)
@@ -415,9 +409,30 @@ func Query(params *QueryParams) (interface{}, error) {
 		default:
 			return nil, fmt.Errorf("illegal document type %T: %v", node[0].DocKind(), ref)
 		}
-	default:
-		return node, nil
 	}
+
+	query := ast.Body{
+		&ast.Expr{
+			Terms: &ast.Term{
+				Value: ref,
+			},
+		},
+	}
+
+	ctx := params.NewContext(query, txn)
+	var result interface{}
+
+	err = Eval(ctx, func(ctx *Context) error {
+		if ctx.Binding(ref) == nil {
+			result, err = ctx.Store.Read(txn, ref)
+			return err
+		}
+		val := PlugValue(ref, ctx)
+		result, err = ValueToInterface(val, ctx)
+		return err
+	})
+
+	return result, err
 }
 
 // Undefined represents the absence of bindings that satisfy a completely defined rule.
@@ -691,14 +706,7 @@ func evalRefRec(ctx *Context, path, tail ast.Ref, iter Iterator) error {
 		// If the node exists and is a rule, evaluate the rule to produce a virtual doc.
 		// Otherwise, process the rest of the reference.
 		path = append(path, PlugTerm(tail[0], ctx))
-		rules, err := lookupRule(ctx, path)
-
-		if err != nil {
-			if storage.IsNotFound(err) {
-				return nil
-			}
-			return err
-		}
+		rules := ctx.Compiler.GetRulesExact(path)
 
 		if rules != nil {
 			ref := append(path, tail[1:]...)
@@ -1350,9 +1358,9 @@ func indexBuildLazy(ctx *Context, ref ast.Ref) (bool, error) {
 
 	// Ignore refs against virtual docs.
 	tmp := ast.Ref{ref[0], ref[1]}
-	r, err := lookupRule(ctx, tmp)
-	if err != nil || r != nil {
-		return false, err
+	r := ctx.Compiler.GetRulesExact(tmp)
+	if r != nil {
+		return false, nil
 	}
 
 	for _, p := range ref[2:] {
@@ -1362,9 +1370,9 @@ func indexBuildLazy(ctx *Context, ref ast.Ref) (bool, error) {
 		}
 
 		tmp = append(tmp, p)
-		r, err := lookupRule(ctx, tmp)
-		if err != nil || r != nil {
-			return false, err
+		r := ctx.Compiler.GetRulesExact(tmp)
+		if r != nil {
+			return false, nil
 		}
 	}
 
@@ -1390,19 +1398,6 @@ func lookupExists(ctx *Context, ref ast.Ref) (bool, error) {
 		return false, err
 	}
 	return true, nil
-}
-
-func lookupRule(ctx *Context, ref ast.Ref) ([]*ast.Rule, error) {
-	r, err := ctx.Store.Read(ctx.txn, ref)
-	if err != nil {
-		return nil, err
-	}
-	switch r := r.(type) {
-	case ([]*ast.Rule):
-		return r, nil
-	default:
-		return nil, nil
-	}
 }
 
 func lookupValue(ctx *Context, ref ast.Ref) (ast.Value, error) {

@@ -84,25 +84,4 @@ func TestInit(t *testing.T) {
 		return
 	}
 
-	node, err = rt.Store.Read(txn, ast.MustParseRef("data.a.b.c.p"))
-	rules, ok := node.([]*ast.Rule)
-	if !ok {
-		t.Errorf("Expected rules but got: %v", node)
-		return
-	}
-	if !rules[0].Name.Equal(ast.Var("p")) {
-		t.Errorf("Expected rule p but got: %v", rules[0])
-		return
-	}
-
-	node, err = rt.Store.Read(txn, ast.MustParseRef("data.a.b.c.q"))
-	rules, ok = node.([]*ast.Rule)
-	if !ok {
-		t.Errorf("Expected rules but got: %v", node)
-		return
-	}
-	if !rules[0].Name.Equal(ast.Var("q")) {
-		t.Errorf("Expected rule q but got: %v", rules[0])
-		return
-	}
 }

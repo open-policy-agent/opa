@@ -17,6 +17,7 @@ import (
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/storage"
+	"github.com/open-policy-agent/opa/util/test"
 )
 
 var policyDir string
@@ -101,7 +102,7 @@ func TestDataV1(t *testing.T) {
 			tr{"PUT", "/policies/test", testMod, 200, ""},
 			tr{"PATCH", "/data/testmod/p", `[{"op": "add", "path": "-", "value": 1}]`, 404, `{
                 "Code": 404,
-                "Message": "storage error (code: 1): bad path: [testmod p], path refers to non-array document with element p"
+                "Message": "write conflict: data.testmod.p"
             }`},
 		}},
 		{"get with global", []tr{
@@ -129,8 +130,10 @@ func TestDataV1(t *testing.T) {
 		}},
 	}
 
-	for i, tc := range tests {
-		executeRequests(t, i+1, tc.note, tc.reqs)
+	for _, tc := range tests {
+		test.Subtest(t, tc.note, func(t *testing.T) {
+			executeRequests(t, tc.reqs)
+		})
 	}
 }
 
@@ -472,7 +475,6 @@ type fixture struct {
 func newFixture(t *testing.T) *fixture {
 
 	store := storage.New(storage.InMemoryConfig().WithPolicyDir(policyDir))
-
 	server := New(store, ":8182", false)
 	recorder := httptest.NewRecorder()
 
@@ -528,11 +530,11 @@ func (f *fixture) reset() {
 	f.recorder = httptest.NewRecorder()
 }
 
-func executeRequests(t *testing.T, tc int, note string, reqs []tr) {
+func executeRequests(t *testing.T, reqs []tr) {
 	f := newFixture(t)
 	for i, req := range reqs {
 		if err := f.v1(req.method, req.path, req.body, req.code, req.resp); err != nil {
-			t.Errorf("Unexpected response on request %d of test case %d (%v): %v", i+1, tc, note, err)
+			t.Errorf("Unexpected response on request %d: %v", i+1, err)
 		}
 	}
 }

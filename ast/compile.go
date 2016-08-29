@@ -173,10 +173,12 @@ func CompileQuery(q string) (*Compiler, Body, error) {
 func NewCompiler() *Compiler {
 
 	c := &Compiler{
-		Modules:   map[string]*Module{},
-		Globals:   map[*Module]map[Var]Value{},
-		RuleGraph: map[*Rule]map[*Rule]struct{}{},
-		RuleTree:  NewRuleTree(nil),
+		Modules:    map[string]*Module{},
+		Exports:    newExports(),
+		Globals:    map[*Module]map[Var]Value{},
+		RuleGraph:  map[*Rule]map[*Rule]struct{}{},
+		ModuleTree: NewModuleTree(nil),
+		RuleTree:   NewRuleTree(nil),
 	}
 
 	c.stages = []stage{
@@ -525,13 +527,7 @@ func (c *Compiler) resolveRefsInTerm(globals map[Var]Value, term *Term) *Term {
 // See Compiler for a description of Exports.
 func (c *Compiler) setExports() {
 
-	c.Exports = util.NewHashMap(func(a, b util.T) bool {
-		r1 := a.(Ref)
-		r2 := a.(Ref)
-		return r1.Equal(r2)
-	}, func(v util.T) int {
-		return v.(Ref).Hash()
-	})
+	c.Exports = newExports()
 
 	for _, mod := range c.Modules {
 		for _, rule := range mod.Rules {
@@ -545,6 +541,17 @@ func (c *Compiler) setExports() {
 		}
 	}
 
+}
+
+func newExports() *util.HashMap {
+	// TODO(tsandall): replace with ValueMap
+	return util.NewHashMap(func(a, b util.T) bool {
+		r1 := a.(Ref)
+		r2 := a.(Ref)
+		return r1.Equal(r2)
+	}, func(v util.T) int {
+		return v.(Ref).Hash()
+	})
 }
 
 // setGlobals populates the Globals on the compiler.

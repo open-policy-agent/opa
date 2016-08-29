@@ -62,7 +62,6 @@ func setupBenchmark(nodes int, pods int) *topdown.QueryParams {
 
 	// storage setup
 	store := storage.New(storage.InMemoryConfig())
-	insertPolicies(store, c.Modules)
 
 	// parameter setup
 	globals := storage.NewBindings()

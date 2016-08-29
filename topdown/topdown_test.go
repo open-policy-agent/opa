@@ -56,8 +56,6 @@ func TestEvalRef(t *testing.T) {
 	}
 
 	compiler := ast.NewCompiler()
-	// TODO(tsandall): this is horrible! fix other occurrences as well.
-	compiler.Compile(nil)
 
 	store := storage.New(storage.InMemoryWithJSONConfig(loadSmallTestData()))
 
@@ -150,7 +148,6 @@ func TestEvalTerms(t *testing.T) {
 	}
 
 	compiler := ast.NewCompiler()
-	compiler.Compile(nil)
 
 	store := storage.New(storage.InMemoryWithJSONConfig(loadSmallTestData()))
 
@@ -929,12 +926,6 @@ func TestTopDownEmbeddedVirtualDoc(t *testing.T) {
 
 	store := storage.New(storage.InMemoryWithJSONConfig(loadSmallTestData()))
 
-	for id, mod := range compiler.Modules {
-		if err := storage.InsertPolicy(store, id, mod, nil, false); err != nil {
-			panic(err)
-		}
-	}
-
 	assertTopDown(t, compiler, store, "deep embedded vdoc", []string{"b", "c", "d", "p"}, "{}", "[1, 2, 4]")
 }
 
@@ -953,12 +944,6 @@ func TestTopDownGlobalVars(t *testing.T) {
 		 t :- req4as.x[0] = 1`})
 
 	store := storage.New(storage.InMemoryWithJSONConfig(loadSmallTestData()))
-
-	for id, mod := range compiler.Modules {
-		if err := storage.InsertPolicy(store, id, mod, nil, false); err != nil {
-			panic(err)
-		}
-	}
 
 	assertTopDown(t, compiler, store, "global vars", []string{"z", "p"}, `{
 		req1: {"foo": 4},
@@ -1004,12 +989,6 @@ func TestTopDownCaching(t *testing.T) {
 
 	store := storage.New(storage.InMemoryWithJSONConfig(loadSmallTestData()))
 
-	for id, mod := range compiler.Modules {
-		if err := storage.InsertPolicy(store, id, mod, nil, false); err != nil {
-			panic(err)
-		}
-	}
-
 	assertTopDown(t, compiler, store, "reference lookup", []string{"topdown", "caching", "p"}, `{}`, "[2,2,3,3]")
 }
 
@@ -1025,14 +1004,7 @@ func TestTopDownStoragePlugin(t *testing.T) {
 
 	store := storage.New(storage.InMemoryWithJSONConfig(loadSmallTestData()))
 
-	for id, mod := range compiler.Modules {
-		if err := storage.InsertPolicy(store, id, mod, nil, false); err != nil {
-			panic(err)
-		}
-	}
-
 	plugin := storage.NewDataStoreFromReader(strings.NewReader(`{"b": [1,3,5,6]}`))
-
 	mountPath := ast.MustParseRef("data.plugin")
 	plugin.SetMountPath(mountPath)
 
@@ -1094,12 +1066,6 @@ func TestExample(t *testing.T) {
 	compiler := compileModules([]string{vd})
 
 	store := storage.New(storage.InMemoryWithJSONConfig(doc))
-
-	for id, mod := range compiler.Modules {
-		if err := storage.InsertPolicy(store, id, mod, nil, false); err != nil {
-			panic(err)
-		}
-	}
 
 	assertTopDown(t, compiler, store, "public servers", []string{"opa", "example", "public_servers"}, "{}", `
         [
@@ -1287,12 +1253,6 @@ func runTopDownTestCase(t *testing.T, data map[string]interface{}, note string, 
 
 	store := storage.New(storage.InMemoryWithJSONConfig(data))
 
-	for id, mod := range compiler.Modules {
-		if err := storage.InsertPolicy(store, id, mod, nil, false); err != nil {
-			panic(err)
-		}
-	}
-
 	assertTopDown(t, compiler, store, note, []string{"p"}, "{}", expected)
 }
 
@@ -1326,8 +1286,11 @@ func assertTopDown(t *testing.T, compiler *ast.Compiler, store *storage.Storage,
 				t.Errorf("Unexpected error: %v", err)
 				return
 			}
+
 			p := ast.MustParseRef(fmt.Sprintf("data.%v", strings.Join(path, ".")))
-			switch storage.ReadOrDie(store, p).([]*ast.Rule)[0].DocKind() {
+
+			rs := compiler.GetRulesExact(p)
+			switch rs[0].DocKind() {
 			case ast.PartialSetDoc:
 				sort.Sort(resultSet(result.([]interface{})))
 			}

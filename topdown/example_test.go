@@ -75,7 +75,7 @@ func ExampleEval() {
 func ExampleQuery() {
 
 	// Define a dummy module with rules that produce documents that we will query below.
-	compiler, module, err := ast.CompileModule(`
+	compiler, _, err := ast.CompileModule(`
 
 	    package opa.example
 
@@ -91,10 +91,6 @@ func ExampleQuery() {
 
 	// Instantiate the policy engine's storage layer.
 	store := storage.New(storage.InMemoryConfig())
-
-	if err := storage.InsertPolicy(store, "my_module_id", module, nil, false); err != nil {
-		// Handle error.
-	}
 
 	// Prepare the query parameters. Queries execute against the policy engine's storage and can
 	// accept additional documents (which are referred to as "globals"). In this case we have no
