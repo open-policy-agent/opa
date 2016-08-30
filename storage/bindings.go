@@ -13,6 +13,8 @@ import (
 // The key/value pairs are AST values contained in expressions.
 // Insertion of a key/value pair represents unification of the
 // two values.
+//
+// TODO(tsandall): rename to ValueMap and move into ast package.
 type Bindings struct {
 	hashMap *util.HashMap
 }

@@ -47,7 +47,7 @@ func TestStorageGet(t *testing.T) {
 		if err != nil {
 			panic(err)
 		}
-		result, err := ds.Get(path)
+		result, err := ds.get(path)
 		switch e := tc.expected.(type) {
 		case error:
 			if err == nil {
@@ -139,7 +139,7 @@ func TestStoragePatch(t *testing.T) {
 			panic(fmt.Sprintf("illegal value: %v", tc.op))
 		}
 
-		err := ds.Patch(op, path(tc.path), value)
+		err := ds.patch(op, path(tc.path), value)
 
 		if tc.expected == nil {
 			if err != nil {
@@ -162,7 +162,7 @@ func TestStoragePatch(t *testing.T) {
 		}
 
 		// Perform get and verify result
-		result, err := ds.Get(path(tc.getPath))
+		result, err := ds.get(path(tc.getPath))
 		switch expected := tc.getExpected.(type) {
 		case error:
 			if err == nil {

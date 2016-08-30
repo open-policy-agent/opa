@@ -12,7 +12,6 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -67,21 +66,15 @@ type Server struct {
 
 	addr    string
 	persist bool
-	ds      *storage.DataStore
-	ps      *storage.PolicyStore
 	store   *storage.Storage
-	mtx     sync.RWMutex
 }
 
 // New returns a new Server.
-// TODO(tsandall): refactor so that ds and ps are not needed here.
-func New(store *storage.Storage, ds *storage.DataStore, ps *storage.PolicyStore, addr string, persist bool) *Server {
+func New(store *storage.Storage, addr string, persist bool) *Server {
 
 	s := &Server{
 		addr:    addr,
 		persist: persist,
-		ds:      ds,
-		ps:      ps,
 		store:   store,
 	}
 
@@ -115,18 +108,16 @@ func (s *Server) execQuery(qStr string) (resultSetV1, error) {
 		return nil, err
 	}
 
-	txn, err := s.store.NewTransaction(nil)
+	txn, err := s.store.NewTransaction()
 	if err != nil {
 		return nil, err
 	}
+
 	defer s.store.Close(txn)
 
 	ctx := topdown.NewContext(query, s.store, txn)
 
 	results := resultSetV1{}
-
-	s.mtx.RLock()
-	defer s.mtx.RUnlock()
 
 	err = topdown.Eval(ctx, func(ctx *topdown.Context) error {
 		result := map[string]interface{}{}
@@ -187,16 +178,13 @@ func (s *Server) registerHandlerV1(router *mux.Router, path string, method strin
 
 func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	path := splitPath(vars["path"])
+	path := stringPathToInterface(vars["path"])
 	globals, err := parseGlobals(r.URL.Query()["global"])
 	if err != nil {
 		handleError(w, 400, err)
 		return
 	}
 	params := topdown.NewQueryParams(s.store, globals, path)
-
-	s.mtx.RLock()
-	defer s.mtx.RUnlock()
 
 	result, err := topdown.Query(params)
 
@@ -217,7 +205,9 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) v1DataPatch(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	root := splitPath(vars["path"])
+
+	root := ast.Ref{ast.DefaultRootDocument}
+	root = append(root, stringPathToRef(vars["path"])...)
 
 	ops := []patchV1{}
 	if err := json.NewDecoder(r.Body).Decode(&ops); err != nil {
@@ -225,13 +215,13 @@ func (s *Server) v1DataPatch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	path := []interface{}{}
-	for _, x := range root {
-		path = append(path, x)
+	txn, err := s.store.NewTransaction()
+	if err != nil {
+		handleErrorAuto(w, err)
+		return
 	}
 
-	s.mtx.Lock()
-	defer s.mtx.Unlock()
+	defer s.store.Close(txn)
 
 	for i := range ops {
 
@@ -250,20 +240,13 @@ func (s *Server) v1DataPatch(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		parts := splitPath(ops[i].Path)
-		for _, x := range parts {
-			if x == "" {
-				continue
-			}
-			path = append(path, x)
-		}
+		path := root
+		path = append(path, stringPathToRef(ops[i].Path)...)
 
-		if err := s.ds.Patch(op, path, ops[i].Value); err != nil {
+		if err := s.store.Write(txn, op, path, ops[i].Value); err != nil {
 			handleErrorAuto(w, err)
 			return
 		}
-
-		path = path[:len(root)]
 	}
 
 	handleResponse(w, 204, nil)
@@ -273,25 +256,31 @@ func (s *Server) v1PoliciesDelete(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
 
-	_, err := s.ps.Get(id)
+	txn, err := s.store.NewTransaction()
 	if err != nil {
 		handleErrorAuto(w, err)
 		return
 	}
 
-	s.mtx.Lock()
-	defer s.mtx.Unlock()
+	defer s.store.Close(txn)
 
-	mods := s.ps.List()
+	_, _, err = s.store.GetPolicy(txn, id)
+	if err != nil {
+		handleErrorAuto(w, err)
+		return
+	}
+
+	mods := s.store.ListPolicies(txn)
 	delete(mods, id)
 
 	c := ast.NewCompiler()
+
 	if c.Compile(mods); c.Failed() {
 		handleErrorf(w, 400, c.FlattenErrors())
 		return
 	}
 
-	if err := s.ps.Remove(id); err != nil {
+	if err := s.store.DeletePolicy(txn, id); err != nil {
 		handleErrorAuto(w, err)
 		return
 	}
@@ -303,10 +292,15 @@ func (s *Server) v1PoliciesGet(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
 
-	s.mtx.RLock()
-	defer s.mtx.RUnlock()
+	txn, err := s.store.NewTransaction()
+	if err != nil {
+		handleErrorAuto(w, err)
+		return
+	}
 
-	mod, err := s.ps.Get(id)
+	defer s.store.Close(txn)
+
+	mod, _, err := s.store.GetPolicy(txn, id)
 	if err != nil {
 		handleErrorAuto(w, err)
 		return
@@ -324,10 +318,15 @@ func (s *Server) v1PoliciesRawGet(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
 
-	s.mtx.RLock()
-	defer s.mtx.RUnlock()
+	txn, err := s.store.NewTransaction()
+	if err != nil {
+		handleErrorAuto(w, err)
+		return
+	}
 
-	bs, err := s.ps.GetRaw(id)
+	defer s.store.Close(txn)
+
+	_, bs, err := s.store.GetPolicy(txn, id)
 
 	if err != nil {
 		handleErrorAuto(w, err)
@@ -341,10 +340,14 @@ func (s *Server) v1PoliciesList(w http.ResponseWriter, r *http.Request) {
 
 	policies := []*policyV1{}
 
-	s.mtx.RLock()
-	defer s.mtx.RUnlock()
+	txn, err := s.store.NewTransaction()
+	if err != nil {
+		handleErrorAuto(w, err)
+		return
+	}
+	defer s.store.Close(txn)
 
-	for id, mod := range s.ps.List() {
+	for id, mod := range s.store.ListPolicies(txn) {
 		policy := &policyV1{
 			ID:     id,
 			Module: mod,
@@ -376,10 +379,16 @@ func (s *Server) v1PoliciesPut(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	s.mtx.Lock()
-	defer s.mtx.Unlock()
+	txn, err := s.store.NewTransaction()
 
-	mods := s.ps.List()
+	if err != nil {
+		handleErrorAuto(w, err)
+		return
+	}
+
+	defer s.store.Close(txn)
+
+	mods := s.store.ListPolicies(txn)
 	mods[id] = mod
 
 	c := ast.NewCompiler()
@@ -391,7 +400,7 @@ func (s *Server) v1PoliciesPut(w http.ResponseWriter, r *http.Request) {
 
 	mod = c.Modules[id]
 
-	if err := s.ps.Add(id, mod, buf, s.persist); err != nil {
+	if err := s.store.InsertPolicy(txn, id, mod, buf, s.persist); err != nil {
 		handleErrorAuto(w, err)
 		return
 	}
@@ -425,7 +434,24 @@ func (s *Server) v1QueryGet(w http.ResponseWriter, r *http.Request) {
 	handleResponseJSON(w, 200, results, pretty)
 }
 
-func splitPath(s string) []interface{} {
+func stringPathToRef(s string) ast.Ref {
+	p := strings.Split(s, "/")
+	r := ast.Ref{}
+	for _, x := range p {
+		if x == "" {
+			continue
+		}
+		i, err := strconv.Atoi(x)
+		if err != nil {
+			r = append(r, ast.StringTerm(x))
+		} else {
+			r = append(r, ast.NumberTerm(float64(i)))
+		}
+	}
+	return r
+}
+
+func stringPathToInterface(s string) []interface{} {
 	p := strings.Split(s, "/")
 	r := []interface{}{}
 	for _, x := range p {

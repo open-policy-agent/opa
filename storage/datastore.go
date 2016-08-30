@@ -5,138 +5,12 @@
 package storage
 
 import (
+	"encoding/json"
 	"fmt"
+	"io"
 
 	"github.com/open-policy-agent/opa/ast"
 )
-
-// ErrCode represents the collection of error types that can be
-// returned by Storage.
-type ErrCode int
-
-const (
-	// InternalErr indicates an unknown, internal error has occurred.
-	InternalErr ErrCode = iota
-
-	// NotFoundErr indicates the path used in the storage operation does not
-	// locate a document.
-	NotFoundErr = iota
-
-	// MountConflictErr indicates a mount attempt was made on a path that is
-	// already used for a mount.
-	MountConflictErr = iota
-
-	// IndexNotFoundErr indicates the caller attempted to use indexing on a
-	// reference that has not been indexed.
-	IndexNotFoundErr = iota
-
-	// IndexingNotSupportedErr indicates the caller attempted to index a
-	// reference provided by a store that does not support indexing.
-	IndexingNotSupportedErr = iota
-
-	// TriggersNotSupportedErr indicates the caller attempted to register a
-	// trigger against a store that does not support them.
-	TriggersNotSupportedErr = iota
-)
-
-// Error is the error type returned by Storage functions.
-type Error struct {
-	Code    ErrCode
-	Message string
-}
-
-func (err *Error) Error() string {
-	return fmt.Sprintf("storage error (code: %d): %v", err.Code, err.Message)
-}
-
-// IsNotFound returns true if this error is a NotFoundErr
-func IsNotFound(err error) bool {
-	switch err := err.(type) {
-	case *Error:
-		return err.Code == NotFoundErr
-	}
-	return false
-}
-
-var doesNotExistMsg = "document does not exist"
-var outOfRangeMsg = "array index out of range"
-var nonEmptyMsg = "path must be non-empty"
-var stringHeadMsg = "path must begin with string"
-
-func arrayIndexTypeMsg(v interface{}) string {
-	return fmt.Sprintf("array index must be integer, not %T", v)
-}
-
-func objectKeyTypeMsg(v interface{}) string {
-	return fmt.Sprintf("object key must be string, not %v (%T)", v, v)
-}
-
-func nonCollectionMsg(v interface{}) string {
-	return fmt.Sprintf("path refers to non-collection document with element %v", v)
-}
-
-func nonArrayMsg(v interface{}) string {
-	return fmt.Sprintf("path refers to non-array document with element %v", v)
-}
-
-func indexNotFoundError() *Error {
-	return &Error{
-		Code:    IndexNotFoundErr,
-		Message: "index not found",
-	}
-}
-
-func indexingNotSupportedError() *Error {
-	return &Error{
-		Code:    IndexingNotSupportedErr,
-		Message: "indexing not supported",
-	}
-}
-
-func internalError(f string, a ...interface{}) *Error {
-	return &Error{
-		Code:    InternalErr,
-		Message: fmt.Sprintf(f, a...),
-	}
-}
-
-func mountConflictError() *Error {
-	return &Error{
-		Code:    MountConflictErr,
-		Message: "mount conflict",
-	}
-}
-
-func notFoundError(path []interface{}, f string, a ...interface{}) *Error {
-	msg := fmt.Sprintf("bad path: %v", path)
-	if len(f) > 0 {
-		msg += ", " + fmt.Sprintf(f, a...)
-	}
-	return notFoundErrorf(msg)
-}
-
-func notFoundErrorf(f string, a ...interface{}) *Error {
-	msg := fmt.Sprintf(f, a...)
-	return &Error{
-		Code:    NotFoundErr,
-		Message: msg,
-	}
-}
-
-func notFoundRefError(ref ast.Ref, f string, a ...interface{}) *Error {
-	msg := fmt.Sprintf("bad path: %v", ref)
-	if len(f) > 0 {
-		msg += ", " + fmt.Sprintf(f, a...)
-	}
-	return notFoundErrorf(msg)
-}
-
-func triggersNotSupportedError() *Error {
-	return &Error{
-		Code:    TriggersNotSupportedErr,
-		Message: "triggers not supported",
-	}
-}
 
 // DataStore is the backend containing rule references and data.
 type DataStore struct {
@@ -154,16 +28,27 @@ func NewDataStore() *DataStore {
 	}
 }
 
-// NewDataStoreFromJSONObject returns a new DataStore containing
-// the supplied documents. This is mostly for test purposes.
+// NewDataStoreFromJSONObject returns a new DataStore containing the supplied
+// documents. This is mostly for test purposes.
 func NewDataStoreFromJSONObject(data map[string]interface{}) *DataStore {
 	ds := NewDataStore()
 	for k, v := range data {
-		if err := ds.Patch(AddOp, []interface{}{k}, v); err != nil {
+		if err := ds.patch(AddOp, []interface{}{k}, v); err != nil {
 			panic(err)
 		}
 	}
 	return ds
+}
+
+// NewDataStoreFromReader returns a new DataStore from a reader that produces a
+// JSON serialized object. This function is for test purposes.
+func NewDataStoreFromReader(r io.Reader) *DataStore {
+	d := json.NewDecoder(r)
+	var data map[string]interface{}
+	if err := d.Decode(&data); err != nil {
+		panic(err)
+	}
+	return NewDataStoreFromJSONObject(data)
 }
 
 // SetMountPath updates the data store's mount path. This is the path the data
@@ -183,9 +68,9 @@ func (ds *DataStore) Begin(txn Transaction, refs []ast.Ref) error {
 	return nil
 }
 
-// Finished is called when a transaction is done.
-func (ds *DataStore) Finished(txn Transaction) {
-
+// Close is called when a transaction is finished.
+func (ds *DataStore) Close(txn Transaction) {
+	// TODO(tsandall):
 }
 
 // Register adds a trigger.
@@ -201,19 +86,29 @@ func (ds *DataStore) Unregister(id string) {
 
 // Read fetches a value from the in-memory store.
 func (ds *DataStore) Read(txn Transaction, path ast.Ref) (interface{}, error) {
-	return ds.GetRef(path)
+	return ds.getRef(path)
 }
 
-// Get returns the value in Storage referenced by path.
-// If the lookup fails, an error is returned with a message indicating
-// why the failure occurred.
-func (ds *DataStore) Get(path []interface{}) (interface{}, error) {
+// Write modifies a document referred to by path.
+func (ds *DataStore) Write(txn Transaction, op PatchOp, path ast.Ref, value interface{}) error {
+	p, err := path.Underlying()
+	if err != nil {
+		return err
+	}
+	// TODO(tsandall): Patch() assumes that paths in writes are relative to
+	// "data" so drop the head here.
+	return ds.patch(op, p[1:], value)
+}
+
+func (ds *DataStore) String() string {
+	return fmt.Sprintf("%v", ds.data)
+}
+
+func (ds *DataStore) get(path []interface{}) (interface{}, error) {
 	return get(ds.data, path)
 }
 
-// GetRef returns the value in Storage referred to by the reference.
-// This is a convienence function.
-func (ds *DataStore) GetRef(ref ast.Ref) (interface{}, error) {
+func (ds *DataStore) getRef(ref ast.Ref) (interface{}, error) {
 
 	ref = ref[len(ds.mountPath):]
 	path := make([]interface{}, len(ref))
@@ -221,7 +116,7 @@ func (ds *DataStore) GetRef(ref ast.Ref) (interface{}, error) {
 	for i, x := range ref {
 		switch v := x.Value.(type) {
 		case ast.Ref:
-			n, err := ds.GetRef(v)
+			n, err := ds.getRef(v)
 			if err != nil {
 				return nil, err
 			}
@@ -238,62 +133,16 @@ func (ds *DataStore) GetRef(ref ast.Ref) (interface{}, error) {
 			return nil, fmt.Errorf("illegal reference element: %v", x)
 		}
 	}
-	return ds.Get(path)
+	return ds.get(path)
 }
 
-// MakePath ensures the specified path exists by creating elements as necessary.
-func (ds *DataStore) MakePath(path []interface{}) error {
-	var tmp []interface{}
-	for _, p := range path {
-		tmp = append(tmp, p)
-		node, err := ds.Get(tmp)
-		if err != nil {
-			switch err := err.(type) {
-			case *Error:
-				if err.Code == NotFoundErr {
-					err := ds.Patch(AddOp, tmp, map[string]interface{}{})
-					if err != nil {
-						return err
-					}
-					continue
-				}
-			}
-			return err
-		}
-		switch node.(type) {
-		case map[string]interface{}:
-		case []interface{}:
-		default:
-			return fmt.Errorf("non-collection document: %v", path)
-		}
-	}
-	return nil
-}
-
-// MustGet calls Get on ds but panics if an error occurs.
-func (ds *DataStore) MustGet(path []interface{}) interface{} {
-	return mustGet(ds.data, path)
-}
-
-// MustPatch calls Patch on ds but panics if an error occurs.
-func (ds *DataStore) MustPatch(op PatchOp, path []interface{}, value interface{}) {
-	if err := ds.Patch(op, path, value); err != nil {
+func (ds *DataStore) mustPatch(op PatchOp, path []interface{}, value interface{}) {
+	if err := ds.patch(op, path, value); err != nil {
 		panic(err)
 	}
 }
 
-// PatchOp is the enumeration of supposed modifications.
-type PatchOp int
-
-// Patch supports add, remove, and replace operations.
-const (
-	AddOp     PatchOp = iota
-	RemoveOp          = iota
-	ReplaceOp         = iota
-)
-
-// Patch modifies the store by performing the associated add/remove/replace operation on the given path.
-func (ds *DataStore) Patch(op PatchOp, path []interface{}, value interface{}) error {
+func (ds *DataStore) patch(op PatchOp, path []interface{}, value interface{}) error {
 
 	if len(path) == 0 {
 		return notFoundError(path, nonEmptyMsg)
@@ -338,10 +187,6 @@ func (ds *DataStore) Patch(op PatchOp, path []interface{}, value interface{}) er
 	}
 
 	return nil
-}
-
-func (ds *DataStore) String() string {
-	return fmt.Sprintf("%v", ds.data)
 }
 
 func add(data map[string]interface{}, path []interface{}, value interface{}) error {

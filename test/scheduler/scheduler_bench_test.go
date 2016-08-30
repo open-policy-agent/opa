@@ -61,11 +61,8 @@ func setupBenchmark(nodes int, pods int) *topdown.QueryParams {
 	}
 
 	// storage setup
-	ds := storage.NewDataStore()
-	loadPolicyStore(ds, c.Modules)
-	store := storage.New(storage.Config{
-		Builtin: ds,
-	})
+	store := storage.New(storage.InMemoryConfig())
+	insertPolicies(store, c.Modules)
 
 	// parameter setup
 	globals := storage.NewBindings()
@@ -75,9 +72,11 @@ func setupBenchmark(nodes int, pods int) *topdown.QueryParams {
 	params := topdown.NewQueryParams(store, globals, path)
 
 	// data setup
-	setupNodes(ds, nodes)
-	setupRCs(ds, 1)
-	setupPods(ds, pods, nodes)
+	txn := storage.NewTransactionOrDie(store)
+	defer store.Close(txn)
+	setupNodes(store, txn, nodes)
+	setupRCs(store, txn, 1)
+	setupPods(store, txn, pods, nodes)
 
 	return params
 }
@@ -95,49 +94,66 @@ type rcTemplateInput struct {
 	Name string
 }
 
-func setupNodes(ds *storage.DataStore, n int) {
+func setupNodes(store *storage.Storage, txn storage.Transaction, n int) {
 	tmpl, err := template.New("node").Parse(nodeTemplate)
 	if err != nil {
 		panic(err)
 	}
-	ds.MustPatch(storage.AddOp, []interface{}{"nodes"}, map[string]interface{}{})
+	if err := store.Write(txn, storage.AddOp, ast.MustParseRef("data.nodes"), map[string]interface{}{}); err != nil {
+		panic(err)
+	}
 	for i := 0; i < n; i++ {
 		input := nodeTemplateInput{
-			Name: fmt.Sprintf("node-%v", i),
+			Name: fmt.Sprintf("node%v", i),
 		}
 		v := runTemplate(tmpl, input)
-		ds.MustPatch(storage.AddOp, []interface{}{"nodes", input.Name}, v)
+		ref := ast.MustParseRef(fmt.Sprintf("data.nodes.%v", input.Name))
+		if err := store.Write(txn, storage.AddOp, ref, v); err != nil {
+			panic(err)
+		}
 	}
 }
 
-func setupRCs(ds *storage.DataStore, n int) {
+func setupRCs(store *storage.Storage, txn storage.Transaction, n int) {
 	tmpl, err := template.New("rc").Parse(nodeTemplate)
 	if err != nil {
 		panic(err)
 	}
-	ds.MustPatch(storage.AddOp, []interface{}{"replicationcontrollers"}, map[string]interface{}{})
+	ref := ast.MustParseRef("data.replicationcontrollers")
+	if err := store.Write(txn, storage.AddOp, ref, map[string]interface{}{}); err != nil {
+		panic(err)
+	}
 	for i := 0; i < n; i++ {
 		input := nodeTemplateInput{
-			Name: fmt.Sprintf("rc-%v", i),
+			Name: fmt.Sprintf("rc%v", i),
 		}
 		v := runTemplate(tmpl, input)
-		ds.MustPatch(storage.AddOp, []interface{}{"replicationcontrollers", input.Name}, v)
+		ref = ast.MustParseRef(fmt.Sprintf("data.replicationcontrollers.%v", input.Name))
+		if err := store.Write(txn, storage.AddOp, ref, v); err != nil {
+			panic(err)
+		}
 	}
 }
 
-func setupPods(ds *storage.DataStore, n int, numNodes int) {
+func setupPods(store *storage.Storage, txn storage.Transaction, n int, numNodes int) {
 	tmpl, err := template.New("pod").Parse(podTemplate)
 	if err != nil {
 		panic(err)
 	}
-	ds.MustPatch(storage.AddOp, []interface{}{"pods"}, map[string]interface{}{})
+	ref := ast.MustParseRef("data.pods")
+	if err := store.Write(txn, storage.AddOp, ref, map[string]interface{}{}); err != nil {
+		panic(err)
+	}
 	for i := 0; i < n; i++ {
 		input := podTemplateInput{
-			Name:     fmt.Sprintf("pod-%v", i),
-			NodeName: fmt.Sprintf("node-%v", i%numNodes),
+			Name:     fmt.Sprintf("pod%v", i),
+			NodeName: fmt.Sprintf("node%v", i%numNodes),
 		}
 		v := runTemplate(tmpl, input)
-		ds.MustPatch(storage.AddOp, []interface{}{"pods", input.Name}, v)
+		ref = ast.MustParseRef(fmt.Sprintf("data.pods.%v", input.Name))
+		if err := store.Write(txn, storage.AddOp, ref, v); err != nil {
+			panic(err)
+		}
 	}
 }
 

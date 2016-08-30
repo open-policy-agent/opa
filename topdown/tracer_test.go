@@ -24,22 +24,15 @@ func (t *mockTracer) Trace(ctx *Context, f string, a ...interface{}) {
 
 func TestTracer(t *testing.T) {
 
-	data := loadSmallTestData()
-
 	mods := compileRules([]string{"data.a"}, []string{
 		"p[x] :- q[x] = y",
 		"q[i] = j :- a[i] = j",
 	})
 
-	ds := storage.NewDataStoreFromJSONObject(data)
-	ps := storage.NewPolicyStore(ds, "")
-	store := storage.New(storage.Config{
-		Builtin: ds,
-	})
+	store := storage.New(storage.InMemoryWithJSONConfig(loadSmallTestData()))
 
 	for id, mod := range mods {
-		err := ps.Add(id, mod, []byte(""), false)
-		if err != nil {
+		if err := storage.InsertPolicy(store, id, mod, nil, false); err != nil {
 			panic(err)
 		}
 	}

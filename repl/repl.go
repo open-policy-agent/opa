@@ -25,10 +25,8 @@ import (
 
 // REPL represents an instance of the interactive shell.
 type REPL struct {
-	output      io.Writer
-	store       *storage.Storage
-	dataStore   *storage.DataStore
-	policyStore *storage.PolicyStore
+	output io.Writer
+	store  *storage.Storage
 
 	currentModuleID string
 	buffer          []string
@@ -48,14 +46,12 @@ type REPL struct {
 
 // New returns a new instance of the REPL.
 // TODO(tsandall): refactor so that DataStore and PolicyStore are not needed here.
-func New(store *storage.Storage, dataStore *storage.DataStore, policyStore *storage.PolicyStore, historyPath string, output io.Writer, outputFormat string, banner string) *REPL {
+func New(store *storage.Storage, historyPath string, output io.Writer, outputFormat string, banner string) *REPL {
 	return &REPL{
 		output:          output,
 		outputFormat:    outputFormat,
 		trace:           false,
 		store:           store,
-		dataStore:       dataStore,
-		policyStore:     policyStore,
 		currentModuleID: "repl",
 		historyPath:     historyPath,
 		initPrompt:      "> ",
@@ -111,11 +107,15 @@ func (r *REPL) OneShot(line string) bool {
 	}
 
 	var err error
-	r.txn, err = r.store.NewTransaction(nil)
+
+	r.txn, err = r.store.NewTransaction()
+
 	if err != nil {
 		fmt.Fprintln(r.output, "error:", err)
 		return false
 	}
+
+	defer r.store.Close(r.txn)
 
 	if len(r.buffer) == 0 {
 		if cmd := newCommand(line); cmd != nil {
@@ -156,7 +156,7 @@ func (r *REPL) cmdDump(args []string) bool {
 }
 
 func (r *REPL) cmdDumpOutput() bool {
-	if err := storage.Dump(r.dataStore, r.output); err != nil {
+	if err := dumpStorage(r.store, r.txn, r.output); err != nil {
 		fmt.Fprintln(r.output, "error:", err)
 	}
 	return false
@@ -169,7 +169,7 @@ func (r *REPL) cmdDumpPath(filename string) bool {
 		return false
 	}
 	defer f.Close()
-	if err := storage.Dump(r.dataStore, f); err != nil {
+	if err := dumpStorage(r.store, r.txn, f); err != nil {
 		fmt.Fprintln(r.output, "error:", err)
 	}
 	return false
@@ -231,7 +231,7 @@ func (r *REPL) cmdUnset(args []string) bool {
 		return false
 	}
 
-	modules := r.policyStore.List()
+	modules := r.store.ListPolicies(r.txn)
 	mod := modules[r.currentModuleID]
 	rules := []*ast.Rule{}
 
@@ -256,7 +256,7 @@ func (r *REPL) cmdUnset(args []string) bool {
 		return false
 	}
 
-	err = r.policyStore.Add(r.currentModuleID, c.Modules[r.currentModuleID], nil, false)
+	err = r.store.InsertPolicy(r.txn, r.currentModuleID, c.Modules[r.currentModuleID], nil, false)
 	if err != nil {
 		fmt.Fprintln(r.output, "error:", err)
 		return true
@@ -276,7 +276,7 @@ func (r *REPL) compileBody(body ast.Body) (ast.Body, error) {
 		Body:     body,
 	}
 
-	modules := r.policyStore.List()
+	modules := r.store.ListPolicies(r.txn)
 	mod := modules[r.currentModuleID]
 	prev := mod.Rules
 	mod.Rules = append(mod.Rules, rule)
@@ -292,7 +292,7 @@ func (r *REPL) compileBody(body ast.Body) (ast.Body, error) {
 
 func (r *REPL) compileRule(rule *ast.Rule) (*ast.Module, error) {
 
-	modules := r.policyStore.List()
+	modules := r.store.ListPolicies(r.txn)
 	mod := modules[r.currentModuleID]
 	prev := mod.Rules
 	mod.Rules = append(mod.Rules, rule)
@@ -472,7 +472,7 @@ func (r *REPL) evalBody(body ast.Body) bool {
 
 func (r *REPL) evalModule(mod *ast.Module, stmt *ast.Rule) bool {
 
-	err := r.policyStore.Add(r.currentModuleID, mod, nil, false)
+	err := r.store.InsertPolicy(r.txn, r.currentModuleID, mod, nil, false)
 	if err != nil {
 		fmt.Fprintln(r.output, "error:", err)
 		return true
@@ -483,7 +483,7 @@ func (r *REPL) evalModule(mod *ast.Module, stmt *ast.Rule) bool {
 
 func (r *REPL) evalImport(i *ast.Import) bool {
 
-	modules := r.policyStore.List()
+	modules := r.store.ListPolicies(r.txn)
 	mod := modules[r.currentModuleID]
 
 	for _, x := range mod.Imports {
@@ -502,7 +502,7 @@ func (r *REPL) evalImport(i *ast.Import) bool {
 		return false
 	}
 
-	err := r.policyStore.Add(r.currentModuleID, c.Modules[r.currentModuleID], nil, false)
+	err := r.store.InsertPolicy(r.txn, r.currentModuleID, c.Modules[r.currentModuleID], nil, false)
 	if err != nil {
 		fmt.Fprint(r.output, "error:", err)
 		return true
@@ -513,14 +513,14 @@ func (r *REPL) evalImport(i *ast.Import) bool {
 
 func (r *REPL) evalPackage(p *ast.Package) bool {
 
-	modules := r.policyStore.List()
+	modules := r.store.ListPolicies(r.txn)
 	moduleID := p.Path[1:].String()
 	if _, ok := modules[moduleID]; ok {
 		r.currentModuleID = moduleID
 		return false
 	}
 
-	err := r.policyStore.Add(moduleID, &ast.Module{Package: p}, nil, false)
+	err := r.store.InsertPolicy(r.txn, moduleID, &ast.Module{Package: p}, nil, false)
 	if err != nil {
 		fmt.Fprint(r.output, "error:", err)
 		return true
@@ -673,7 +673,7 @@ func (r *REPL) init() bool {
 	package %s
 	`, r.currentModuleID))
 
-	modules := r.policyStore.List()
+	modules := r.store.ListPolicies(r.txn)
 	modules[r.currentModuleID] = mod
 
 	c := ast.NewCompiler()
@@ -682,7 +682,7 @@ func (r *REPL) init() bool {
 		return true
 	}
 
-	if err := r.policyStore.Add(r.currentModuleID, c.Modules[r.currentModuleID], nil, false); err != nil {
+	if err := r.store.InsertPolicy(r.txn, r.currentModuleID, c.Modules[r.currentModuleID], nil, false); err != nil {
 		fmt.Fprintln(r.output, "error:", err)
 		return true
 	}
@@ -892,4 +892,13 @@ func singleValue(body ast.Body) bool {
 	default:
 		return term.IsGround()
 	}
+}
+
+func dumpStorage(store *storage.Storage, txn storage.Transaction, w io.Writer) error {
+	data, err := store.Read(txn, ast.Ref{ast.DefaultRootDocument})
+	if err != nil {
+		return err
+	}
+	e := json.NewEncoder(w)
+	return e.Encode(data)
 }

@@ -5,8 +5,8 @@
 package topdown_test
 
 import (
+	"encoding/json"
 	"fmt"
-	"strings"
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/storage"
@@ -18,26 +18,23 @@ func ExampleEval() {
 	// Define a dummy query and some data that the query will execute against.
 	query, err := ast.CompileQuery("data.a[_] = x, x >= 2")
 	if err != nil {
-		fmt.Println("Compile error:", err)
+		// Handle error.
 	}
 
-	ds, err := storage.Load(strings.NewReader(`
-		{
-			"a": [1,2,3,4]
-		}
-	`))
+	var data map[string]interface{}
 
-	if err != nil {
-		fmt.Println("Load error:", err)
+	if err := json.Unmarshal([]byte(`{"a": [1,2,3,4]}`), &data); err != nil {
+		// Handle error.
 	}
 
-	store := storage.New(storage.Config{
-		Builtin: ds,
-	})
+	// Instantiate the policy engine's storage layer.
+	store := storage.New(storage.InMemoryWithJSONConfig(data))
 
-	txn, err := store.NewTransaction(nil)
+	// Create a new transaction. Transactions allow the policy engine to
+	// evaluate the query over a consistent snapshot fo the storage layer.
+	txn, err := store.NewTransaction()
 	if err != nil {
-		fmt.Println("Transaction error:", err)
+		// Handle error.
 	}
 
 	defer store.Close(txn)
@@ -89,18 +86,14 @@ func ExampleQuery() {
 	`)
 
 	if err != nil {
-		fmt.Println("Compile error:", err)
+		// Handle error.
 	}
 
-	// Initialize the policy engine's storage.
-	ds := storage.NewDataStore()
-	ps := storage.NewPolicyStore(ds, "")
-	store := storage.New(storage.Config{
-		Builtin: ds,
-	})
+	// Instantiate the policy engine's storage layer.
+	store := storage.New(storage.InMemoryConfig())
 
-	if err := ps.Add("my_module", mod, nil, false); err != nil {
-		fmt.Println("Add error:", err)
+	if err := storage.InsertPolicy(store, "my_module", mod, nil, false); err != nil {
+		// Handle error.
 	}
 
 	// Prepare the query parameters. Queries execute against the policy engine's storage and can

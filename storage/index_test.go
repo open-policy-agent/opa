@@ -44,7 +44,7 @@ func TestIndicesBuild(t *testing.T) {
 
 func TestIndicesAdd(t *testing.T) {
 
-	indices := NewIndices()
+	indices := newIndices()
 	data := loadSmallTestData()
 	store := NewDataStoreFromJSONObject(data)
 
@@ -75,7 +75,7 @@ func TestIndicesAdd(t *testing.T) {
 
 func runIndexBuildTestCase(t *testing.T, i int, note string, refStr string, expectedStr string, value interface{}) {
 
-	indices := NewIndices()
+	indices := newIndices()
 	data := loadSmallTestData()
 	store := NewDataStoreFromJSONObject(data)
 	ref := ast.MustParseRef(refStr)
@@ -101,7 +101,7 @@ func runIndexBuildTestCase(t *testing.T, i int, note string, refStr string, expe
 	assertBindingsEqual(t, fmt.Sprintf("Test case %d (%v)", i, note), index, value, expectedStr)
 }
 
-func assertBindingsEqual(t *testing.T, note string, index *Index, value interface{}, expectedStr string) {
+func assertBindingsEqual(t *testing.T, note string, index *bindingIndex, value interface{}, expectedStr string) {
 
 	expected := loadExpectedBindings(expectedStr)
 
