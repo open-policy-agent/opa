@@ -22,6 +22,10 @@ const (
 	// locate a document.
 	NotFoundErr = iota
 
+	// InvalidPatchErr indicates an invalid patch/write was issued. The patch
+	// was rejected.
+	InvalidPatchErr = iota
+
 	// MountConflictErr indicates a mount attempt was made on a path that is
 	// already used for a mount.
 	MountConflictErr = iota
@@ -62,9 +66,19 @@ func IsNotFound(err error) bool {
 	return false
 }
 
+// IsInvalidPatch returns true if this error is a InvalidPatchErr.
+func IsInvalidPatch(err error) bool {
+	switch err := err.(type) {
+	case *Error:
+		return err.Code == InvalidPatchErr
+	}
+	return false
+}
+
+var rootMustBeObjectMsg = "root must be object"
+var rootCannotBeRemovedMsg = "root cannot be removed"
 var doesNotExistMsg = "document does not exist"
 var outOfRangeMsg = "array index out of range"
-var nonEmptyMsg = "path must be non-empty"
 var stringHeadMsg = "path must begin with string"
 
 func arrayIndexTypeMsg(v interface{}) string {
@@ -101,6 +115,17 @@ func internalError(f string, a ...interface{}) *Error {
 	return &Error{
 		Code:    InternalErr,
 		Message: fmt.Sprintf(f, a...),
+	}
+}
+
+func invalidPatchErr(f string, a ...interface{}) *Error {
+	msg := fmt.Sprintf("bad patch")
+	if len(f) > 0 {
+		msg += ": " + fmt.Sprintf(f, a...)
+	}
+	return &Error{
+		Code:    InvalidPatchErr,
+		Message: msg,
 	}
 }
 

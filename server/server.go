@@ -104,7 +104,9 @@ func New(store *storage.Storage, addr string, persist bool) *Server {
 	router := mux.NewRouter()
 
 	s.registerHandlerV1(router, "/data/{path:.+}", "GET", s.v1DataGet)
+	s.registerHandlerV1(router, "/data", "GET", s.v1DataGet)
 	s.registerHandlerV1(router, "/data/{path:.+}", "PATCH", s.v1DataPatch)
+	s.registerHandlerV1(router, "/data", "PATCH", s.v1DataPatch)
 	s.registerHandlerV1(router, "/policies", "GET", s.v1PoliciesList)
 	s.registerHandlerV1(router, "/policies/{id}", "DELETE", s.v1PoliciesDelete)
 	s.registerHandlerV1(router, "/policies/{id}", "GET", s.v1PoliciesGet)
@@ -521,9 +523,11 @@ func (s *Server) setCompiler(compiler *ast.Compiler) {
 	s.compiler = compiler
 }
 
-func stringPathToRef(s string) ast.Ref {
+func stringPathToRef(s string) (r ast.Ref) {
+	if len(s) == 0 {
+		return r
+	}
 	p := strings.Split(s, "/")
-	r := ast.Ref{}
 	for _, x := range p {
 		if x == "" {
 			continue
@@ -538,9 +542,11 @@ func stringPathToRef(s string) ast.Ref {
 	return r
 }
 
-func stringPathToInterface(s string) []interface{} {
+func stringPathToInterface(s string) (r []interface{}) {
+	if len(s) == 0 {
+		return r
+	}
 	p := strings.Split(s, "/")
-	r := []interface{}{}
 	for _, x := range p {
 		i, err := strconv.Atoi(x)
 		if err != nil {
@@ -569,6 +575,10 @@ func handleErrorAuto(w http.ResponseWriter, err error) {
 		}
 		if IsWriteConflict(curr) {
 			handleError(w, 404, err)
+			return
+		}
+		if storage.IsInvalidPatch(curr) {
+			handleError(w, 400, err)
 			return
 		}
 		prev = curr

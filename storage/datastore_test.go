@@ -78,28 +78,31 @@ func TestStoragePatch(t *testing.T) {
 		getPath     interface{}
 		getExpected interface{}
 	}{
-		{"add root", "add", path("newroot"), `{"a": [[1]]}`, nil, path("newroot"), `{"a": [[1]]}`},
-		{"add root/arr", "add", path("a[1]"), `"x"`, nil, path("a"), `[1,"x",2,3,4]`},
+		{"add root", "add", path([]interface{}{}), `{"a": [1]}`, nil, path([]interface{}{}), `{"a": [1]}`},
+		{"add", "add", path("newroot"), `{"a": [[1]]}`, nil, path("newroot"), `{"a": [[1]]}`},
+		{"add arr", "add", path("a[1]"), `"x"`, nil, path("a"), `[1,"x",2,3,4]`},
 		{"add arr/arr", "add", path("h[1][2]"), `"x"`, nil, path("h"), `[[1,2,3], [2,3,"x",4]]`},
 		{"add obj/arr", "add", path("d.e[1]"), `"x"`, nil, path("d"), `{"e": ["bar", "x", "baz"]}`},
 		{"add obj", "add", path("b.vNew"), `"x"`, nil, path("b"), `{"v1": "hello", "v2": "goodbye", "vNew": "x"}`},
 		{"add obj (existing)", "add", path("b.v2"), `"x"`, nil, path("b"), `{"v1": "hello", "v2": "x"}`},
 
-		{"append root/arr", "add", path(`a["-"]`), `"x"`, nil, path("a"), `[1,2,3,4,"x"]`},
+		{"append arr", "add", path(`a["-"]`), `"x"`, nil, path("a"), `[1,2,3,4,"x"]`},
 		{"append obj/arr", "add", path(`c[0].x["-"]`), `"x"`, nil, path("c[0].x"), `[true,false,"foo","x"]`},
 		{"append arr/arr", "add", path(`h[0]["-"]`), `"x"`, nil, path(`h[0][3]`), `"x"`},
 
-		{"remove root", "remove", path("a"), "", nil, path("a"), notFoundError(path("a"), doesNotExistMsg)},
-		{"remove root/arr", "remove", path("a[1]"), "", nil, path("a"), "[1,3,4]"},
+		{"remove", "remove", path("a"), "", nil, path("a"), notFoundError(path("a"), doesNotExistMsg)},
+		{"remove arr", "remove", path("a[1]"), "", nil, path("a"), "[1,3,4]"},
 		{"remove obj/arr", "remove", path("c[0].x[1]"), "", nil, path("c[0].x"), `[true,"foo"]`},
 		{"remove arr/arr", "remove", path("h[0][1]"), "", nil, path("h[0]"), "[1,3]"},
 		{"remove obj", "remove", path("b.v2"), "", nil, path("b"), `{"v1": "hello"}`},
 
-		{"replace root", "replace", path("a"), "1", nil, path("a"), "1"},
+		{"replace root", "replace", path([]interface{}{}), `{"a": [1]}`, nil, path([]interface{}{}), `{"a": [1]}`},
+		{"replace", "replace", path("a"), "1", nil, path("a"), "1"},
 		{"replace obj", "replace", path("b.v1"), "1", nil, path("b"), `{"v1": 1, "v2": "goodbye"}`},
 		{"replace array", "replace", path("a[1]"), "999", nil, path("a"), "[1,999,3,4]"},
 
-		{"err: empty path", "add", []interface{}{}, "", notFoundError([]interface{}{}, nonEmptyMsg), nil, nil},
+		{"err: bad root type", "add", []interface{}{}, "[1,2,3]", invalidPatchErr(rootMustBeObjectMsg), nil, nil},
+		{"err: remove root", "remove", []interface{}{}, "", invalidPatchErr(rootCannotBeRemovedMsg), nil, nil},
 		{"err: non-string head", "add", []interface{}{float64(1)}, "", notFoundError([]interface{}{float64(1)}, stringHeadMsg), nil, nil},
 		{"err: add arr (non-integer)", "add", path("a.foo"), "1", notFoundError(path("a.foo"), arrayIndexTypeMsg("xxx")), nil, nil},
 		{"err: add arr (non-integer)", "add", path("a[3.14]"), "1", notFoundError(path("a[3.14]"), arrayIndexTypeMsg(3.14)), nil, nil},
