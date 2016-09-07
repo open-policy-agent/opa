@@ -237,7 +237,7 @@ func TestExprBadJSON(t *testing.T) {
 
 	js = `
 	{
-		"Terms": "bad value" 
+		"Terms": "bad value"
 	}
 	`
 	exp = fmt.Errorf(`ast: unable to unmarshal Terms field with type: string (expected {"Value": ..., "Type": ...} or [{"Value": ..., "Type": ...}, ...])`)
@@ -286,11 +286,7 @@ func TestRuleString(t *testing.T) {
 	rule1 := &Rule{
 		Name: Var("p"),
 		Body: []*Expr{
-			&Expr{
-				Terms: []*Term{
-					VarTerm("="), StringTerm("foo"), StringTerm("bar"),
-				},
-			},
+			Equality.Expr(StringTerm("foo"), StringTerm("bar")),
 		},
 	}
 
@@ -299,20 +295,12 @@ func TestRuleString(t *testing.T) {
 		Key:   VarTerm("x"),
 		Value: VarTerm("y"),
 		Body: []*Expr{
-			&Expr{
-				Terms: []*Term{
-					VarTerm("="), StringTerm("foo"), VarTerm("x"),
-				},
-			},
+			Equality.Expr(StringTerm("foo"), VarTerm("x")),
 			&Expr{
 				Negated: true,
 				Terms:   RefTerm(VarTerm("a"), StringTerm("b"), VarTerm("x")),
 			},
-			&Expr{
-				Terms: []*Term{
-					VarTerm("="), StringTerm("b"), VarTerm("y"),
-				},
-			},
+			Equality.Expr(StringTerm("b"), VarTerm("y")),
 		},
 	}
 

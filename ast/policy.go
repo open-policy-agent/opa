@@ -402,12 +402,7 @@ func (expr *Expr) String() string {
 		for _, v := range t[1:] {
 			args = append(args, v.String())
 		}
-		var name string
-		if b, ok := BuiltinMap[t[0].Value.(Var)]; ok {
-			name = b.GetPrintableName()
-		} else {
-			name = t[0].Value.(Var).String()
-		}
+		name := t[0].Value.(Var).String()
 		s := fmt.Sprintf("%s(%s)", name, strings.Join(args, ", "))
 		buf = append(buf, s)
 	case *Term:
