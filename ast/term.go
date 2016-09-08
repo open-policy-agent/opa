@@ -373,6 +373,13 @@ func (v Var) IsWildcard() bool {
 }
 
 func (v Var) String() string {
+	// Special case for wildcard so that string representation is parseable. The
+	// parser mangles wildcard variables to make their names unique and uses an
+	// illegal variable name character (WildcardPrefix) to avoid conflicts. When
+	// we serialize the variable here, we need to make sure it's parseable.
+	if v.IsWildcard() {
+		return Wildcard.String()
+	}
 	return string(v)
 }
 

@@ -109,6 +109,20 @@ func (mod *Module) Equal(other *Module) bool {
 	return true
 }
 
+func (mod *Module) String() string {
+	buf := []string{}
+	buf = append(buf, mod.Package.String())
+	buf = append(buf, "")
+	for _, imp := range mod.Imports {
+		buf = append(buf, imp.String())
+	}
+	buf = append(buf, "")
+	for _, rule := range mod.Rules {
+		buf = append(buf, rule.String())
+	}
+	return strings.Join(buf, "\n")
+}
+
 // Equal returns true if this Package has the same path as the other Package.
 func (pkg *Package) Equal(other *Package) bool {
 	return pkg.Path.Equal(other.Path)
@@ -120,7 +134,11 @@ func (pkg *Package) Loc() *Location {
 }
 
 func (pkg *Package) String() string {
-	return fmt.Sprintf("package %v", pkg.Path)
+	// Omit head as all packages have the DefaultRootDocument prepended at parse time.
+	path := make(Ref, len(pkg.Path)-1)
+	path[0] = VarTerm(string(pkg.Path[1].Value.(String)))
+	copy(path[1:], pkg.Path[2:])
+	return fmt.Sprintf("package %v", path)
 }
 
 // Equal returns true if this Import has the same path and alias as the other Import.
