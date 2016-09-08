@@ -37,7 +37,8 @@ func (err *apiErrorV1) Bytes() []byte {
 }
 
 // WriteConflictError represents an error condition raised if the caller
-// attempts to modify a virtual document.
+// attempts to modify a virtual document or create a document at a path that
+// conflicts with an existing document.
 type WriteConflictError struct {
 	path ast.Ref
 }
@@ -103,6 +104,8 @@ func New(store *storage.Storage, addr string, persist bool) *Server {
 
 	router := mux.NewRouter()
 
+	s.registerHandlerV1(router, "/data/{path:.+}", "PUT", s.v1DataPut)
+	s.registerHandlerV1(router, "/data", "PUT", s.v1DataPut)
 	s.registerHandlerV1(router, "/data/{path:.+}", "GET", s.v1DataGet)
 	s.registerHandlerV1(router, "/data", "GET", s.v1DataGet)
 	s.registerHandlerV1(router, "/data/{path:.+}", "PATCH", s.v1DataPatch)
@@ -310,17 +313,50 @@ func (s *Server) v1DataPatch(w http.ResponseWriter, r *http.Request) {
 	handleResponse(w, 204, nil)
 }
 
-func (s *Server) writeConflict(op storage.PatchOp, path ast.Ref) error {
+func (s *Server) v1DataPut(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
 
-	if op == storage.AddOp && path[len(path)-1].Value.Equal(ast.String("-")) {
-		path = path[:len(path)-1]
+	var value interface{}
+	if err := json.NewDecoder(r.Body).Decode(&value); err != nil {
+		handleError(w, 400, err)
+		return
 	}
 
-	if rs := s.getCompiler().GetRulesForVirtualDocument(path); rs != nil {
-		return WriteConflictError{path}
+	txn, err := s.store.NewTransaction()
+	if err != nil {
+		handleErrorAuto(w, err)
+		return
 	}
 
-	return nil
+	defer s.store.Close(txn)
+
+	// The path route variable contains the path portion *after* /v1/data so we
+	// prepend the global root document here.
+	path := ast.Ref{ast.DefaultRootDocument}
+	path = append(path, stringPathToRef(vars["path"])...)
+
+	_, err = s.store.Read(txn, path)
+
+	if err != nil {
+		if !storage.IsNotFound(err) {
+			handleErrorAuto(w, err)
+			return
+		}
+		if err := s.makeDir(txn, path[:len(path)-1]); err != nil {
+			handleErrorAuto(w, err)
+			return
+		}
+	} else if r.Header.Get("If-None-Match") == "*" {
+		handleResponse(w, 304, nil)
+		return
+	}
+
+	if err := s.store.Write(txn, storage.AddOp, path, value); err != nil {
+		handleErrorAuto(w, err)
+		return
+	}
+
+	handleResponse(w, 204, nil)
 }
 
 func (s *Server) v1PoliciesDelete(w http.ResponseWriter, r *http.Request) {
@@ -521,6 +557,45 @@ func (s *Server) setCompiler(compiler *ast.Compiler) {
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
 	s.compiler = compiler
+}
+
+func (s *Server) makeDir(txn storage.Transaction, path ast.Ref) error {
+
+	node, err := s.store.Read(txn, path)
+	if err == nil {
+		if _, ok := node.(map[string]interface{}); ok {
+			return nil
+		}
+		return WriteConflictError{path}
+	}
+
+	if !storage.IsNotFound(err) {
+		return err
+	}
+
+	if err := s.makeDir(txn, path[:len(path)-1]); err != nil {
+		return err
+	}
+
+	if err := s.writeConflict(storage.AddOp, path); err != nil {
+		return err
+	}
+
+	return s.store.Write(txn, storage.AddOp, path, map[string]interface{}{})
+}
+
+// TODO(tsandall): this ought to be enforced by the storage layer.
+func (s *Server) writeConflict(op storage.PatchOp, path ast.Ref) error {
+
+	if op == storage.AddOp && path[len(path)-1].Value.Equal(ast.String("-")) {
+		path = path[:len(path)-1]
+	}
+
+	if rs := s.getCompiler().GetRulesForVirtualDocument(path); rs != nil {
+		return WriteConflictError{path}
+	}
+
+	return nil
 }
 
 func stringPathToRef(s string) (r ast.Ref) {

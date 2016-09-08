@@ -117,6 +117,38 @@ func TestDataV1(t *testing.T) {
 				}
 			]`, 400, ""},
 		}},
+		{"put root", []tr{
+			tr{"PUT", "/data", `{"foo": [1,2,3]}`, 204, ""},
+			tr{"GET", "/data", "", 200, `{"foo": [1,2,3]}`},
+		}},
+		{"put deep makedir", []tr{
+			tr{"PUT", "/data/a/b/c/d", `1`, 204, ""},
+			tr{"GET", "/data/a/b/c", "", 200, `{"d": 1}`},
+		}},
+		{"put deep makedir partial", []tr{
+			tr{"PUT", "/data/a/b", `{}`, 204, ""},
+			tr{"PUT", "/data/a/b/c/d", `0`, 204, ""},
+			tr{"GET", "/data/a/b/c", "", 200, `{"d": 0}`},
+		}},
+		{"put exists overwrite", []tr{
+			tr{"PUT", "/data/a/b/c", `"hello"`, 204, ""},
+			tr{"PUT", "/data/a/b", `"goodbye"`, 204, ""},
+			tr{"GET", "/data/a", "", 200, `{"b": "goodbye"}`},
+		}},
+		{"put base write conflict", []tr{
+			tr{"PUT", "/data/a/b", `[1,2,3,4]`, 204, ""},
+			tr{"PUT", "/data/a/b/c/d", "0", 404, `{
+				"Code": 404,
+				"Message": "write conflict: data.a.b"
+			}`},
+		}},
+		{"put virtual write conflict", []tr{
+			tr{"PUT", "/policies/test", testMod2, 200, ""},
+			tr{"PUT", "/data/testmod/q/x", "0", 404, `{
+				"Code": 404,
+				"Message": "write conflict: data.testmod.q"
+			}`},
+		}},
 		{"get virtual", []tr{
 			tr{"PUT", "/policies/test", testMod1, 200, ""},
 			tr{"PATCH", "/data/x", `[{"op": "add", "path": "/", "value": {"y": [1,2,3,4], "z": [3,4,5,6]}}]`, 204, ""},
@@ -163,6 +195,18 @@ func TestDataV1(t *testing.T) {
 		test.Subtest(t, tc.note, func(t *testing.T) {
 			executeRequests(t, tc.reqs)
 		})
+	}
+}
+
+func TestDataPutV1IfNoneMatch(t *testing.T) {
+	f := newFixture(t)
+	if err := f.v1("PUT", "/data/a/b/c", "0", 204, ""); err != nil {
+		t.Fatalf("Unexpected error from PUT /data/a/b/c: %v", err)
+	}
+	req := newReqV1("PUT", "/data/a/b/c", "1")
+	req.Header.Set("If-None-Match", "*")
+	if err := f.executeRequest(req, 304, ""); err != nil {
+		t.Fatalf("Unexpected error from PUT with If-None-Match=*: %v", err)
 	}
 }
 
@@ -534,22 +578,26 @@ func (f *fixture) loadResponse() interface{} {
 
 func (f *fixture) v1(method string, path string, body string, code int, resp string) error {
 	req := newReqV1(method, path, body)
+	return f.executeRequest(req, code, resp)
+}
+
+func (f *fixture) executeRequest(req *http.Request, code int, resp string) error {
 	f.reset()
 	f.server.Handler.ServeHTTP(f.recorder, req)
 	if f.recorder.Code != code {
-		return fmt.Errorf("Expected code %v from %v %v but got: %v", method, code, path, f.recorder)
+		return fmt.Errorf("Expected code %v from %v %v but got: %v", req.Method, code, req.URL, f.recorder)
 	}
 	if resp != "" {
 		var result interface{}
 		if err := json.Unmarshal([]byte(f.recorder.Body.String()), &result); err != nil {
-			return fmt.Errorf("Expected JSON response from %v %v but got: %v", method, path, f.recorder)
+			return fmt.Errorf("Expected JSON response from %v %v but got: %v", req.Method, req.URL, f.recorder)
 		}
 		var expected interface{}
 		if err := json.Unmarshal([]byte(resp), &expected); err != nil {
 			panic(err)
 		}
 		if !reflect.DeepEqual(result, expected) {
-			return fmt.Errorf("Expected JSON response from %v %v to equal %v but got: %v", method, path, expected, result)
+			return fmt.Errorf("Expected JSON response from %v %v to equal %v but got: %v", req.Method, req.URL, expected, result)
 		}
 	}
 	return nil
