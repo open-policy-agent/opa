@@ -234,6 +234,14 @@ func TestRefHasPrefix(t *testing.T) {
 	}
 }
 
+func TestRefAppend(t *testing.T) {
+	a := MustParseRef("foo.bar.baz")
+	b := a.Append(VarTerm("x"))
+	if !b.Equal(MustParseRef("foo.bar.baz[x]")) {
+		t.Error("Expected foo.bar.baz[x]")
+	}
+}
+
 func assertTermEqual(t *testing.T, x *Term, y *Term) {
 	if !x.Equal(y) {
 		t.Errorf("Failure on equality: \n%s and \n%s\n", x, y)

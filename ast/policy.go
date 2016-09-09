@@ -198,6 +198,11 @@ func (rule *Rule) Loc() *Location {
 	return rule.Location
 }
 
+// Path returns a reference that identifies the rule under ns.
+func (rule *Rule) Path(ns Ref) Ref {
+	return ns.Append(StringTerm(string(rule.Name)))
+}
+
 func (rule *Rule) String() string {
 	var buf []string
 	if rule.Key != nil {

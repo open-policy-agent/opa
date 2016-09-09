@@ -389,6 +389,15 @@ func RefTerm(r ...*Term) *Term {
 	return &Term{Value: Ref(r)}
 }
 
+// Append returns a copy of ref with the term appended to the end.
+func (ref Ref) Append(term *Term) Ref {
+	n := len(ref)
+	dst := make(Ref, n+1)
+	copy(dst, ref)
+	dst[n] = term
+	return dst
+}
+
 // Equal returns true if the other Value is a Ref and the elements of the
 // other Ref are equal to the this Ref.
 func (ref Ref) Equal(other Value) bool {

@@ -17,6 +17,7 @@ import (
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/storage"
+	"github.com/open-policy-agent/opa/util/test"
 )
 
 var policyDir string
@@ -45,7 +46,7 @@ type tr struct {
 
 func TestDataV1(t *testing.T) {
 
-	testMod := `package testmod
+	testMod1 := `package testmod
                 p[x] :- q[x], not r[x]
                 q[x] :- data.x.y[i] = x
                 r[x] :- data.x.z[i] = x
@@ -58,6 +59,13 @@ func TestDataV1(t *testing.T) {
 
 				undef :- false
 				`
+
+	testMod2 := `package testmod
+
+	p = [1,2,3,4]
+	q = {"a": 1, "b": 2}
+	`
+
 	tests := []struct {
 		note string
 		reqs []tr
@@ -92,36 +100,58 @@ func TestDataV1(t *testing.T) {
 			tr{"PATCH", "/data/x/y/1", `[{"op": "add", "path": "/z/1", "value": 100}]`, 204, ""},
 			tr{"GET", "/data/x/y/1/z", "", 200, "[4, 100, 5, 6]"},
 		}},
+		{"patch root", []tr{
+			tr{"PATCH", "/data", `[
+				{"op": "add",
+				 "path": "/",
+				 "value": {"a": 1, "b": 2}
+				}
+			]`, 204, ""},
+			tr{"GET", "/data", "", 200, `{"a": 1, "b": 2}`},
+		}},
+		{"patch invalid", []tr{
+			tr{"PATCH", "/data", `[
+				{
+					"op": "remove",
+					"path": "/"
+				}
+			]`, 400, ""},
+		}},
 		{"get virtual", []tr{
-			tr{"PUT", "/policies/test", testMod, 200, ""},
+			tr{"PUT", "/policies/test", testMod1, 200, ""},
 			tr{"PATCH", "/data/x", `[{"op": "add", "path": "/", "value": {"y": [1,2,3,4], "z": [3,4,5,6]}}]`, 204, ""},
 			tr{"GET", "/data/testmod/p", "", 200, "[1,2]"},
 		}},
 		{"patch virtual error", []tr{
-			tr{"PUT", "/policies/test", testMod, 200, ""},
+			tr{"PUT", "/policies/test", testMod1, 200, ""},
 			tr{"PATCH", "/data/testmod/p", `[{"op": "add", "path": "-", "value": 1}]`, 404, `{
                 "Code": 404,
-                "Message": "storage error (code: 1): bad path: [testmod p], path refers to non-array document with element p"
+                "Message": "write conflict: data.testmod.p"
             }`},
 		}},
 		{"get with global", []tr{
-			tr{"PUT", "/policies/test", testMod, 200, ""},
+			tr{"PUT", "/policies/test", testMod1, 200, ""},
 			tr{"GET", "/data/testmod/g?global=req1%3A%7B%22a%22%3A%5B1%5D%7D&global=req2%3A%7B%22b%22%3A%5B0%2C1%5D%7D", "", 200, "true"},
 		}},
 		{"get with global (unbound error)", []tr{
-			tr{"PUT", "/policies/test", testMod, 200, ""},
+			tr{"PUT", "/policies/test", testMod1, 200, ""},
 			tr{"GET", "/data/testmod/g?global=req1%3A%7B%22a%22%3A%5B1%5D%7D", "", 400, `{
 				"Code": 400,
 				"Message": "evaluation error (code: 1): unbound variable req2: req2.b[i]"
 			}`},
 		}},
 		{"get with global (namespaced)", []tr{
-			tr{"PUT", "/policies/test", testMod, 200, ""},
+			tr{"PUT", "/policies/test", testMod1, 200, ""},
 			tr{"GET", "/data/testmod/h?global=req3.attr1%3A%5B4%2C3%2C2%2C1%5D", "", 200, `true`},
 		}},
 		{"get undefined", []tr{
-			tr{"PUT", "/policies/test", testMod, 200, ""},
+			tr{"PUT", "/policies/test", testMod1, 200, ""},
 			tr{"GET", "/data/testmod/undef", "", 404, `{"IsUndefined": true}`},
+		}},
+		{"get root", []tr{
+			tr{"PUT", "/policies/test", testMod2, 200, ""},
+			tr{"PATCH", "/data/x", `[{"op": "add", "path": "/", "value": [1,2,3,4]}]`, 204, ""},
+			tr{"GET", "/data", "", 200, `{"testmod": {"p": [1,2,3,4], "q": {"a":1, "b": 2}}, "x": [1,2,3,4]}`},
 		}},
 		{"query wildcards omitted", []tr{
 			tr{"PATCH", "/data/x", `[{"op": "add", "path": "/", "value": [1,2,3,4]}]`, 204, ""},
@@ -129,8 +159,10 @@ func TestDataV1(t *testing.T) {
 		}},
 	}
 
-	for i, tc := range tests {
-		executeRequests(t, i+1, tc.note, tc.reqs)
+	for _, tc := range tests {
+		test.Subtest(t, tc.note, func(t *testing.T) {
+			executeRequests(t, tc.reqs)
+		})
 	}
 }
 
@@ -472,7 +504,6 @@ type fixture struct {
 func newFixture(t *testing.T) *fixture {
 
 	store := storage.New(storage.InMemoryConfig().WithPolicyDir(policyDir))
-
 	server := New(store, ":8182", false)
 	recorder := httptest.NewRecorder()
 
@@ -528,11 +559,11 @@ func (f *fixture) reset() {
 	f.recorder = httptest.NewRecorder()
 }
 
-func executeRequests(t *testing.T, tc int, note string, reqs []tr) {
+func executeRequests(t *testing.T, reqs []tr) {
 	f := newFixture(t)
 	for i, req := range reqs {
 		if err := f.v1(req.method, req.path, req.body, req.code, req.resp); err != nil {
-			t.Errorf("Unexpected response on request %d of test case %d (%v): %v", i+1, tc, note, err)
+			t.Errorf("Unexpected response on request %d: %v", i+1, err)
 		}
 	}
 }

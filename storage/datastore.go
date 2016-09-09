@@ -145,7 +145,14 @@ func (ds *DataStore) mustPatch(op PatchOp, path []interface{}, value interface{}
 func (ds *DataStore) patch(op PatchOp, path []interface{}, value interface{}) error {
 
 	if len(path) == 0 {
-		return notFoundError(path, nonEmptyMsg)
+		if op == AddOp || op == ReplaceOp {
+			if obj, ok := value.(map[string]interface{}); ok {
+				ds.data = obj
+				return nil
+			}
+			return invalidPatchErr(rootMustBeObjectMsg)
+		}
+		return invalidPatchErr(rootCannotBeRemovedMsg)
 	}
 
 	_, isString := path[0].(string)

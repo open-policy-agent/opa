@@ -133,22 +133,6 @@ func TestPolicyStoreAddIdempotent(t *testing.T) {
 		return
 	}
 
-	node, err := f.dataStore.get(path("a.b.p"))
-	if err != nil {
-		t.Errorf("Unexpected error on Get(): %v", err)
-		return
-	}
-
-	rules := node.([]*ast.Rule)
-	if len(rules) != 1 {
-		t.Errorf("Expected ruleset to exactly one rule: %v", rules)
-		return
-	}
-
-	if !rules[0].Equal(mod1.Rules[0]) {
-		t.Errorf("Expected rule to be %v but got: %v", mod1, rules[0])
-		return
-	}
 }
 
 func TestPolicyStoreRemove(t *testing.T) {
@@ -222,28 +206,6 @@ func TestPolicyStoreUpdate(t *testing.T) {
 		return
 	}
 
-	node, err := f.dataStore.get(path("a.b.p"))
-	if err != nil {
-		t.Errorf("Unexpected error on Get(): %v", err)
-		return
-	}
-
-	rules := node.([]*ast.Rule)
-	if len(rules) != 1 {
-		t.Errorf("Expected exactly one rule but got: %v", rules)
-		return
-	}
-
-	if !rules[0].Equal(mod2.Rules[0]) {
-		t.Errorf("Expected rule to equal %v but got: %v", mod2.Rules[0], rules[0])
-		return
-	}
-
-	node, err = f.dataStore.get(path("a.b.q"))
-	if !IsNotFound(err) {
-		t.Errorf("Expected storage not found error but got: %v (err: %v)", node, err)
-		return
-	}
 }
 
 const (

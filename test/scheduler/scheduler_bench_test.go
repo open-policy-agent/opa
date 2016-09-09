@@ -62,14 +62,13 @@ func setupBenchmark(nodes int, pods int) *topdown.QueryParams {
 
 	// storage setup
 	store := storage.New(storage.InMemoryConfig())
-	insertPolicies(store, c.Modules)
 
 	// parameter setup
 	globals := storage.NewBindings()
 	req := ast.MustParseTerm(requestedPod).Value
 	globals.Put(ast.Var("requested_pod"), req)
 	path := []interface{}{"opa", "test", "scheduler", "fit"}
-	params := topdown.NewQueryParams(store, globals, path)
+	params := topdown.NewQueryParams(c, store, globals, path)
 
 	// data setup
 	txn := storage.NewTransactionOrDie(store)

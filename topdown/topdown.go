@@ -16,6 +16,7 @@ import (
 // Context contains the state of the evaluation process.
 type Context struct {
 	Query    ast.Body
+	Compiler *ast.Compiler
 	Globals  *storage.Bindings
 	Locals   *storage.Bindings
 	Index    int
@@ -23,19 +24,24 @@ type Context struct {
 	Store    *storage.Storage
 	Tracer   Tracer
 
-	txn   storage.Transaction
+	// TODO(tsandall): make the transaction public and lazily create one in
+	// Eval(). This way callers do not have to provide the transaction unless
+	// they want to run evaluation multiple times against the same snapshot.
+	txn storage.Transaction
+
 	cache *contextcache
 }
 
 // NewContext creates a new Context with no bindings.
-func NewContext(query ast.Body, store *storage.Storage, txn storage.Transaction) *Context {
+func NewContext(query ast.Body, compiler *ast.Compiler, store *storage.Storage, txn storage.Transaction) *Context {
 	return &Context{
-		Query:   query,
-		Globals: storage.NewBindings(),
-		Locals:  storage.NewBindings(),
-		Store:   store,
-		txn:     txn,
-		cache:   newContextCache(),
+		Query:    query,
+		Compiler: compiler,
+		Globals:  storage.NewBindings(),
+		Locals:   storage.NewBindings(),
+		Store:    store,
+		txn:      txn,
+		cache:    newContextCache(),
 	}
 }
 
@@ -330,39 +336,39 @@ func PlugValue(v ast.Value, ctx *Context) ast.Value {
 
 // QueryParams defines input parameters for the query interface.
 type QueryParams struct {
-	Store   *storage.Storage
-	Globals *storage.Bindings
-	Tracer  Tracer
-	Path    []interface{}
+	Compiler *ast.Compiler
+	Store    *storage.Storage
+	Globals  *storage.Bindings
+	Tracer   Tracer
+	Path     []interface{}
 }
 
-// NewQueryParams returns a new QueryParams q.
-func NewQueryParams(store *storage.Storage, globals *storage.Bindings, path []interface{}) (q *QueryParams) {
+// NewQueryParams returns a new QueryParams.
+func NewQueryParams(compiler *ast.Compiler, store *storage.Storage, globals *storage.Bindings, path []interface{}) *QueryParams {
 	return &QueryParams{
-		Store:   store,
-		Globals: globals,
-		Path:    path,
+		Compiler: compiler,
+		Store:    store,
+		Globals:  globals,
+		Path:     path,
 	}
 }
 
 // NewContext returns a new Context that can be used to do evaluation.
 func (q *QueryParams) NewContext(body ast.Body, txn storage.Transaction) *Context {
 	ctx := &Context{
-		Query:   body,
-		Globals: q.Globals,
-		Locals:  storage.NewBindings(),
-		Store:   q.Store,
-		Tracer:  q.Tracer,
-		txn:     txn,
-		cache:   newContextCache(),
+		Query:    body,
+		Compiler: q.Compiler,
+		Globals:  q.Globals,
+		Locals:   storage.NewBindings(),
+		Store:    q.Store,
+		Tracer:   q.Tracer,
+		txn:      txn,
+		cache:    newContextCache(),
 	}
 	return ctx
 }
 
 // Query returns the document identified by the path.
-//
-// If the storage node identified by the path is a collection of rules, then the TopDown
-// algorithm is run to generate the virtual document defined by the rules.
 func Query(params *QueryParams) (interface{}, error) {
 
 	ref := ast.Ref{ast.DefaultRootDocument}
@@ -388,31 +394,31 @@ func Query(params *QueryParams) (interface{}, error) {
 
 	defer params.Store.Close(txn)
 
-	node, err := params.Store.Read(txn, ref)
+	// TODO(tsandall): set literals: once they are supported, this special case can
+	// be removed.
+	if rs := params.Compiler.GetRulesExact(ref); rs != nil {
+		switch rs[0].DocKind() {
+		case ast.PartialSetDoc:
+			return queryPartialSetDoc(params, txn, rs)
+		}
+	}
+
+	// Construct and execute a query to obtain the value for the reference.
+	query := ast.Body{ast.Equality.Expr(ast.RefTerm(ref...), ast.Wildcard)}
+	ctx := params.NewContext(query, txn)
+	var result interface{} = Undefined{}
+
+	err = Eval(ctx, func(ctx *Context) error {
+		val := PlugValue(ast.Wildcard.Value, ctx)
+		result, err = ValueToInterface(val, ctx)
+		return err
+	})
+
 	if err != nil {
 		return nil, err
 	}
 
-	switch node := node.(type) {
-	case []*ast.Rule:
-		if len(node) == 0 {
-			return Undefined{}, nil
-		}
-		// This assumes that all the rules identified by the path are of the same
-		// type. This is checked at compile time.
-		switch node[0].DocKind() {
-		case ast.CompleteDoc:
-			return queryCompleteDoc(params, txn, node)
-		case ast.PartialObjectDoc:
-			return queryPartialObjectDoc(params, txn, node)
-		case ast.PartialSetDoc:
-			return queryPartialSetDoc(params, txn, node)
-		default:
-			return nil, fmt.Errorf("illegal document type %T: %v", node[0].DocKind(), ref)
-		}
-	default:
-		return node, nil
-	}
+	return result, nil
 }
 
 // Undefined represents the absence of bindings that satisfy a completely defined rule.
@@ -626,10 +632,10 @@ func evalExpr(ctx *Context, iter Iterator) error {
 	}
 }
 
-// evalRef evaluates the ast.Ref ref and calls the Iterator iter once for each
-// instance of ref that would be defined. If an error occurs during the evaluation
-// process, the return value is non-nil. Also, if iter returns an error, the return
-// value is non-nil.
+// evalRef evaluates the reference and invokes the iterator for each instance of
+// the reference that is defined. The iterator is invoked with bindings for (1)
+// all variables found in the reference and (2) the reference itself if that
+// reference refers to a virtual document (ditto for nested references).
 func evalRef(ctx *Context, ref, path ast.Ref, iter Iterator) error {
 
 	if len(ref) == 0 {
@@ -642,7 +648,7 @@ func evalRef(ctx *Context, ref, path ast.Ref, iter Iterator) error {
 			}
 			return evalRefRuleResult(ctx, path, path[1:], v, iter)
 		}
-		return evalRefRec(ctx, ast.Ref{path[0]}, path[1:], iter)
+		return evalRefRec(ctx, path, iter)
 	}
 
 	head, tail := ref[0], ref[1:]
@@ -653,110 +659,279 @@ func evalRef(ctx *Context, ref, path ast.Ref, iter Iterator) error {
 	}
 
 	return evalRef(ctx, n, ast.Ref{}, func(ctx *Context) error {
+
 		var undo *Undo
+
+		// Add a binding for the nested reference 'n' if one does not exist. If
+		// 'n' referred to a virtual document the binding would already exist.
+		// We bind nested references so that when the overall expression is
+		// evaluated, it will not contain any nested references.
 		if b := ctx.Binding(n); b == nil {
-			p := PlugValue(n, ctx).(ast.Ref)
-			v, err := lookupValue(ctx, p)
-			if err != nil {
-				return err
+			var err error
+			var v ast.Value
+			switch p := PlugValue(n, ctx).(type) {
+			case ast.Ref:
+				v, err = lookupValue(ctx, p)
+				if err != nil {
+					return err
+				}
+			default:
+				v = p
 			}
 			undo = ctx.Bind(n, v, nil)
 		}
+
 		tmp := append(path, head)
 		err := evalRef(ctx, tail, tmp, iter)
+
 		if undo != nil {
 			ctx.Unbind(undo)
 		}
+
 		return err
 	})
 }
 
-func evalRefRec(ctx *Context, path, tail ast.Ref, iter Iterator) error {
+func evalRefRec(ctx *Context, ref ast.Ref, iter Iterator) error {
 
-	if len(tail) == 0 {
-		ok, err := lookupExists(ctx, path)
-		if err == nil && ok {
-			return iter(ctx)
+	// Obtain ground prefix of the reference.
+	var plugged ast.Ref
+	var prefix ast.Ref
+	switch v := PlugValue(ref, ctx).(type) {
+	case ast.Ref:
+		plugged = v
+		prefix = plugged.GroundPrefix()
+	default:
+		// Fast-path? TODO test case.
+		return iter(ctx)
+	}
+
+	// Check if the prefix refers to a virtual document.
+	var rules []*ast.Rule
+	path := prefix
+	for len(path) > 0 {
+		if rules = ctx.Compiler.GetRulesExact(path); rules != nil {
+			return evalRefRule(ctx, ref, path, rules, iter)
 		}
+		path = path[:len(path)-1]
+	}
+
+	if len(prefix) == len(ref) {
+		return evalRefRecGround(ctx, ref, prefix, iter)
+	}
+
+	return evalRefRecNonGround(ctx, ref, prefix, iter)
+}
+
+// evalRefRecGround evaluates the ground reference prefix. The reference is
+// processed to decide whether evaluation should continue. If the reference
+// refers to one or more virtual documents, then all of the referenced documents
+// (i.e., base and virtual documents) are merged and the ref is bound to the
+// result before continuing.
+func evalRefRecGround(ctx *Context, ref, prefix ast.Ref, iter Iterator) error {
+
+	doc, readErr := ctx.Store.Read(ctx.txn, prefix)
+	if readErr != nil {
+		if !storage.IsNotFound(readErr) {
+			return readErr
+		}
+	}
+
+	node := ctx.Compiler.RuleTree
+	for _, x := range prefix {
+		node = node.Children[x.Value]
+		if node == nil {
+			break
+		}
+	}
+
+	// If the reference does not refer to any virtual docs, evaluation continues
+	// or stops depending on whether the reference is defined for some base doc.
+	// The same logic is applied below after attempting to produce virtual
+	// documents referred to by the reference.
+	if node == nil || node.Size() == 0 {
+		if storage.IsNotFound(readErr) {
+			return nil
+		}
+		return iter(ctx)
+	}
+
+	vdoc, err := evalRefRecTree(ctx, prefix, node)
+	if err != nil {
 		return err
 	}
 
-	if tail[0].IsGround() {
-		// Check if the node exists. If the node does not exist, stop.
-		// If the node exists and is a rule, evaluate the rule to produce a virtual doc.
-		// Otherwise, process the rest of the reference.
-		path = append(path, PlugTerm(tail[0], ctx))
-		rules, err := lookupRule(ctx, path)
+	if vdoc == nil {
+		if storage.IsNotFound(readErr) {
+			return nil
+		}
+		return iter(ctx)
+	}
 
+	// The reference is defined for one or more virtual documents. Now merge the
+	// virtual and base documents together (if they exist) and continue.
+	result := vdoc
+	if readErr == nil {
+
+		v, err := ast.InterfaceToValue(doc)
 		if err != nil {
-			if storage.IsNotFound(err) {
-				return nil
-			}
 			return err
 		}
 
-		if rules != nil {
-			ref := append(path, tail[1:]...)
-			return evalRefRule(ctx, ref, path, rules, iter)
-		}
-
-		return evalRefRec(ctx, path, tail[1:], iter)
+		// It should not be possible for the cast or merge to fail. The cast
+		// cannot fail because by definition, the document must be an object, as
+		// there are rules that have been evaluated and rules cannot be defined
+		// inside arrays. The merge cannot fail either, because that would
+		// indicate a conflict between a base document and a virtual document.
+		//
+		// TODO(tsandall): confirm that we have guards to prevent base and
+		// virtual documents from conflicting with each other.
+		result, _ = v.(ast.Object).Merge(result)
 	}
 
-	// Check if the variable has a binding.
-	// If there is a binding, process the rest of the reference normally.
-	// If there is no binding, enumerate the collection referred to by the path.
-	plugged := PlugTerm(tail[0], ctx)
-
-	if plugged.IsGround() {
-		path = append(path, plugged)
-		return evalRefRec(ctx, path, tail[1:], iter)
-	}
-
-	return evalRefRecWalkColl(ctx, path, tail, iter)
+	return Continue(ctx, ref, result, iter)
 }
 
-func evalRefRecWalkColl(ctx *Context, path, tail ast.Ref, iter Iterator) error {
+// evalRefRecTree evaluates the rules found in the leaves of the tree. For each
+// non-leaf node in the tree, the results are merged together to form an object.
+// The final result is the object representing the virtual document rooted at
+// node.
+func evalRefRecTree(ctx *Context, path ast.Ref, node *ast.RuleTreeNode) (ast.Object, error) {
+	var v ast.Object
 
-	node, err := ctx.Store.Read(ctx.txn, path)
+	for _, c := range node.Children {
+		path = append(path, &ast.Term{Value: c.Key})
+		if len(c.Rules) > 0 {
+			var result ast.Value
+			err := evalRefRule(ctx, path, path, c.Rules, func(ctx *Context) error {
+				result = ctx.Binding(path)
+				return nil
+			})
+			if err != nil {
+				// TODO(tsandall): consider treating unbound globals as undefined.
+				return nil, err
+			}
+			if result == nil {
+				continue
+			}
+			key := path[len(path)-1]
+			val := &ast.Term{Value: result}
+			obj := ast.Object{ast.Item(key, val)}
+			if v == nil {
+				v = ast.Object{}
+			}
+			v, _ = v.Merge(obj)
+		} else {
+			result, err := evalRefRecTree(ctx, path, c)
+			if err != nil {
+				return nil, err
+			}
+			if result == nil {
+				continue
+			}
+			key := &ast.Term{Value: c.Key}
+			val := &ast.Term{Value: result}
+			obj := ast.Object{ast.Item(key, val)}
+			if v == nil {
+				v = ast.Object{}
+			}
+			v, _ = v.Merge(obj)
+		}
+		path = path[:len(path)-1]
+	}
+
+	return v, nil
+}
+
+// evalRefRecNonGround processes the non-ground reference ref. The reference
+// is processed by enumerating values that may be used as keys for the next
+// (variable) term in the reference and then recursing on the reference.
+func evalRefRecNonGround(ctx *Context, ref, prefix ast.Ref, iter Iterator) error {
+
+	// Keep track of keys visited. The reference may refer to both virtual and
+	// base documents or virtual documents produced by disjunctive rules. In
+	// either case, we only want to visit each unique key once.
+	visited := map[ast.Value]struct{}{}
+
+	variable := ref[len(prefix)].Value
+
+	doc, err := ctx.Store.Read(ctx.txn, prefix)
 	if err != nil {
-		if storage.IsNotFound(err) {
+		if !storage.IsNotFound(err) {
+			return err
+		}
+	}
+
+	if err == nil {
+		switch doc := doc.(type) {
+		case map[string]interface{}:
+			for k := range doc {
+				key := ast.String(k)
+				if _, ok := visited[key]; ok {
+					continue
+				}
+				undo := ctx.Bind(variable, key, nil)
+				err := evalRefRec(ctx, ref, iter)
+				ctx.Unbind(undo)
+				if err != nil {
+					return err
+				}
+				visited[key] = struct{}{}
+			}
+		case []interface{}:
+			for idx := range doc {
+				undo := ctx.Bind(variable, ast.Number(idx), nil)
+				err := evalRefRec(ctx, ref, iter)
+				ctx.Unbind(undo)
+				if err != nil {
+					return err
+				}
+			}
+			return nil
+		default:
 			return nil
 		}
-		return err
 	}
 
-	head := tail[0].Value.(ast.Var)
-	tail = tail[1:]
+	node := ctx.Compiler.ModuleTree
+	for _, x := range prefix {
+		node = node.Children[x.Value]
+		if node == nil {
+			return nil
+		}
+	}
 
-	switch node := node.(type) {
-	case map[string]interface{}:
-		for key := range node {
-			undo := ctx.Bind(head, ast.String(key), nil)
-			path = append(path, ast.StringTerm(key))
-			err := evalRefRec(ctx, path, tail, iter)
+	for _, mod := range node.Modules {
+		for _, rule := range mod.Rules {
+			key := ast.String(rule.Name)
+			if _, ok := visited[key]; ok {
+				continue
+			}
+			undo := ctx.Bind(variable, key, nil)
+			err := evalRefRec(ctx, ref, iter)
 			ctx.Unbind(undo)
 			if err != nil {
 				return err
 			}
-			path = path[:len(path)-1]
+			visited[key] = struct{}{}
 		}
-		return nil
-	case []interface{}:
-		for i := range node {
-			undo := ctx.Bind(head, ast.Number(i), nil)
-			path = append(path, ast.NumberTerm(float64(i)))
-			err := evalRefRec(ctx, path, tail, iter)
-			ctx.Unbind(undo)
-			if err != nil {
-				return err
-			}
-			path = path[:len(path)-1]
-		}
-		return nil
-	default:
-		return fmt.Errorf("non-collection document: %v", path)
 	}
+
+	for child := range node.Children {
+		key := child.(ast.String)
+		if _, ok := visited[key]; ok {
+			continue
+		}
+		undo := ctx.Bind(variable, key, nil)
+		err := evalRefRec(ctx, ref, iter)
+		ctx.Unbind(undo)
+		if err != nil {
+			return err
+		}
+		visited[key] = struct{}{}
+	}
+
+	return nil
 }
 
 func evalRefRule(ctx *Context, ref ast.Ref, path ast.Ref, rules []*ast.Rule, iter Iterator) error {
@@ -1110,7 +1285,7 @@ func evalRefRuleResultRecObject(ctx *Context, obj ast.Object, ref, path ast.Ref,
 
 func evalRefRuleResultRecRef(ctx *Context, v, ref, path ast.Ref, iter func(*Context, ast.Value) error) error {
 	b := append(v, ref...)
-	return evalRefRec(ctx, v, ref, func(ctx *Context) error {
+	return evalRefRec(ctx, b, func(ctx *Context) error {
 		return iter(ctx, PlugValue(b, ctx))
 	})
 }
@@ -1345,9 +1520,9 @@ func indexBuildLazy(ctx *Context, ref ast.Ref) (bool, error) {
 
 	// Ignore refs against virtual docs.
 	tmp := ast.Ref{ref[0], ref[1]}
-	r, err := lookupRule(ctx, tmp)
-	if err != nil || r != nil {
-		return false, err
+	r := ctx.Compiler.GetRulesExact(tmp)
+	if r != nil {
+		return false, nil
 	}
 
 	for _, p := range ref[2:] {
@@ -1357,9 +1532,9 @@ func indexBuildLazy(ctx *Context, ref ast.Ref) (bool, error) {
 		}
 
 		tmp = append(tmp, p)
-		r, err := lookupRule(ctx, tmp)
-		if err != nil || r != nil {
-			return false, err
+		r := ctx.Compiler.GetRulesExact(tmp)
+		if r != nil {
+			return false, nil
 		}
 	}
 
@@ -1387,92 +1562,12 @@ func lookupExists(ctx *Context, ref ast.Ref) (bool, error) {
 	return true, nil
 }
 
-func lookupRule(ctx *Context, ref ast.Ref) ([]*ast.Rule, error) {
-	r, err := ctx.Store.Read(ctx.txn, ref)
-	if err != nil {
-		return nil, err
-	}
-	switch r := r.(type) {
-	case ([]*ast.Rule):
-		return r, nil
-	default:
-		return nil, nil
-	}
-}
-
 func lookupValue(ctx *Context, ref ast.Ref) (ast.Value, error) {
 	r, err := ctx.Store.Read(ctx.txn, ref)
 	if err != nil {
 		return nil, err
 	}
 	return ast.InterfaceToValue(r)
-}
-
-func queryCompleteDoc(params *QueryParams, txn storage.Transaction, rules []*ast.Rule) (interface{}, error) {
-
-	var result ast.Value
-	var resultContext *Context
-
-	for _, rule := range rules {
-		ctx := params.NewContext(rule.Body, txn)
-
-		err := Eval(ctx, func(ctx *Context) error {
-			if result == nil {
-				result = PlugValue(rule.Value.Value, ctx)
-			} else {
-				r := PlugValue(rule.Value.Value, ctx)
-				if !result.Equal(r) {
-					return conflictErr(params.Path, "complete documents", rule)
-				}
-			}
-			return nil
-		})
-
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	if result == nil {
-		return Undefined{}, nil
-	}
-
-	return ValueToInterface(result, resultContext)
-}
-
-func queryPartialObjectDoc(params *QueryParams, txn storage.Transaction, rules []*ast.Rule) (interface{}, error) {
-
-	result := map[string]interface{}{}
-	keys := map[string]struct{}{}
-
-	for _, rule := range rules {
-		ctx := params.NewContext(rule.Body, txn)
-		err := Eval(ctx, func(ctx *Context) error {
-			k, err := ValueToInterface(rule.Key.Value, ctx)
-			if err != nil {
-				return err
-			}
-			key, ok := k.(string)
-			if !ok {
-				return fmt.Errorf("illegal object key: %v", k)
-			}
-			if _, ok := keys[key]; ok {
-				return conflictErr(params.Path, "object document keys", rule)
-			}
-			value, err := ValueToInterface(rule.Value.Value, ctx)
-			if err != nil {
-				return err
-			}
-			keys[key] = struct{}{}
-			result[key] = value
-			return nil
-		})
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return result, nil
 }
 
 func queryPartialSetDoc(params *QueryParams, txn storage.Transaction, rules []*ast.Rule) (interface{}, error) {

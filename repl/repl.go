@@ -25,8 +25,9 @@ import (
 
 // REPL represents an instance of the interactive shell.
 type REPL struct {
-	output io.Writer
-	store  *storage.Storage
+	output   io.Writer
+	compiler *ast.Compiler
+	store    *storage.Storage
 
 	currentModuleID string
 	buffer          []string
@@ -51,6 +52,7 @@ func New(store *storage.Storage, historyPath string, output io.Writer, outputFor
 		output:          output,
 		outputFormat:    outputFormat,
 		trace:           false,
+		compiler:        nil,
 		store:           store,
 		currentModuleID: "repl",
 		historyPath:     historyPath,
@@ -231,7 +233,7 @@ func (r *REPL) cmdUnset(args []string) bool {
 		return false
 	}
 
-	modules := r.store.ListPolicies(r.txn)
+	modules := r.compiler.Modules
 	mod := modules[r.currentModuleID]
 	rules := []*ast.Rule{}
 
@@ -250,16 +252,10 @@ func (r *REPL) cmdUnset(args []string) bool {
 	cpy.Rules = rules
 	modules[r.currentModuleID] = &cpy
 
-	c := ast.NewCompiler()
-	if c.Compile(modules); c.Failed() {
-		fmt.Fprintln(r.output, "error:", c.FlattenErrors())
+	r.compiler = ast.NewCompiler()
+	if r.compiler.Compile(modules); r.compiler.Failed() {
+		fmt.Fprintln(r.output, "error:", r.compiler.FlattenErrors())
 		return false
-	}
-
-	err = r.store.InsertPolicy(r.txn, r.currentModuleID, c.Modules[r.currentModuleID], nil, false)
-	if err != nil {
-		fmt.Fprintln(r.output, "error:", err)
-		return true
 	}
 
 	return false
@@ -273,18 +269,20 @@ func (r *REPL) compileBody(body ast.Body) (ast.Body, error) {
 	rule := &ast.Rule{
 		Location: body[0].Location,
 		Name:     ast.Var(name),
+		Value:    ast.BooleanTerm(true),
 		Body:     body,
 	}
 
-	modules := r.store.ListPolicies(r.txn)
+	modules := r.compiler.Modules
 	mod := modules[r.currentModuleID]
 	prev := mod.Rules
 	mod.Rules = append(mod.Rules, rule)
 
-	c := ast.NewCompiler()
-	if c.Compile(modules); c.Failed() {
+	r.compiler = ast.NewCompiler()
+
+	if r.compiler.Compile(modules); r.compiler.Failed() {
 		mod.Rules = prev
-		return nil, fmt.Errorf(c.FlattenErrors())
+		return nil, fmt.Errorf(r.compiler.FlattenErrors())
 	}
 
 	return mod.Rules[len(prev)].Body, nil
@@ -292,15 +290,15 @@ func (r *REPL) compileBody(body ast.Body) (ast.Body, error) {
 
 func (r *REPL) compileRule(rule *ast.Rule) (*ast.Module, error) {
 
-	modules := r.store.ListPolicies(r.txn)
+	modules := r.compiler.Modules
 	mod := modules[r.currentModuleID]
 	prev := mod.Rules
 	mod.Rules = append(mod.Rules, rule)
 
-	c := ast.NewCompiler()
-	if c.Compile(modules); c.Failed() {
+	r.compiler = ast.NewCompiler()
+	if r.compiler.Compile(modules); r.compiler.Failed() {
 		mod.Rules = prev
-		return nil, fmt.Errorf(c.FlattenErrors())
+		return nil, fmt.Errorf(r.compiler.FlattenErrors())
 	}
 
 	return mod, nil
@@ -365,21 +363,18 @@ func (r *REPL) evalStatement(stmt interface{}) bool {
 			return false
 		}
 		if s := ast.ParseConstantRule(s); s != nil {
-			mod, err := r.compileRule(s)
+			_, err := r.compileRule(s)
 			if err != nil {
 				fmt.Fprintln(r.output, "error:", err)
-				return false
 			}
-			return r.evalModule(mod, s)
+			return false
 		}
 		return r.evalBody(s)
 	case *ast.Rule:
-		mod, err := r.compileRule(s)
+		_, err := r.compileRule(s)
 		if err != nil {
 			fmt.Fprintln(r.output, "error:", err)
-			return false
 		}
-		return r.evalModule(mod, s)
 	case *ast.Import:
 		return r.evalImport(s)
 	case *ast.Package:
@@ -403,7 +398,7 @@ func (r *REPL) evalBody(body ast.Body) bool {
 		}
 	}
 
-	ctx := topdown.NewContext(body, r.store, r.txn)
+	ctx := topdown.NewContext(body, r.compiler, r.store, r.txn)
 	if r.trace {
 		ctx.Tracer = &topdown.StdoutTracer{}
 	}
@@ -470,20 +465,9 @@ func (r *REPL) evalBody(body ast.Body) bool {
 	return false
 }
 
-func (r *REPL) evalModule(mod *ast.Module, stmt *ast.Rule) bool {
-
-	err := r.store.InsertPolicy(r.txn, r.currentModuleID, mod, nil, false)
-	if err != nil {
-		fmt.Fprintln(r.output, "error:", err)
-		return true
-	}
-
-	return false
-}
-
 func (r *REPL) evalImport(i *ast.Import) bool {
 
-	modules := r.store.ListPolicies(r.txn)
+	modules := r.compiler.Modules
 	mod := modules[r.currentModuleID]
 
 	for _, x := range mod.Imports {
@@ -495,17 +479,12 @@ func (r *REPL) evalImport(i *ast.Import) bool {
 	prev := mod.Imports
 	mod.Imports = append(mod.Imports, i)
 
-	c := ast.NewCompiler()
-	if c.Compile(modules); c.Failed() {
-		mod.Imports = prev
-		fmt.Fprintln(r.output, "error:", c.FlattenErrors())
-		return false
-	}
+	r.compiler = ast.NewCompiler()
 
-	err := r.store.InsertPolicy(r.txn, r.currentModuleID, c.Modules[r.currentModuleID], nil, false)
-	if err != nil {
-		fmt.Fprint(r.output, "error:", err)
-		return true
+	if r.compiler.Compile(modules); r.compiler.Failed() {
+		mod.Imports = prev
+		fmt.Fprintln(r.output, "error:", r.compiler.FlattenErrors())
+		return false
 	}
 
 	return false
@@ -513,17 +492,16 @@ func (r *REPL) evalImport(i *ast.Import) bool {
 
 func (r *REPL) evalPackage(p *ast.Package) bool {
 
-	modules := r.store.ListPolicies(r.txn)
+	modules := r.compiler.Modules
 	moduleID := p.Path[1:].String()
+
 	if _, ok := modules[moduleID]; ok {
 		r.currentModuleID = moduleID
 		return false
 	}
 
-	err := r.store.InsertPolicy(r.txn, moduleID, &ast.Module{Package: p}, nil, false)
-	if err != nil {
-		fmt.Fprint(r.output, "error:", err)
-		return true
+	modules[moduleID] = &ast.Module{
+		Package: p,
 	}
 
 	r.currentModuleID = moduleID
@@ -542,7 +520,7 @@ func (r *REPL) evalTermSingleValue(body ast.Body) bool {
 	outputVar := ast.Wildcard
 	body = ast.Body{ast.Equality.Expr(term, outputVar)}
 
-	ctx := topdown.NewContext(body, r.store, r.txn)
+	ctx := topdown.NewContext(body, r.compiler, r.store, r.txn)
 	if r.trace {
 		ctx.Tracer = &topdown.StdoutTracer{}
 	}
@@ -582,7 +560,7 @@ func (r *REPL) evalTermMultiValue(body ast.Body) bool {
 	outputVar := ast.Wildcard
 	body = ast.Body{ast.Equality.Expr(term, outputVar)}
 
-	ctx := topdown.NewContext(body, r.store, r.txn)
+	ctx := topdown.NewContext(body, r.compiler, r.store, r.txn)
 	if r.trace {
 		ctx.Tracer = &topdown.StdoutTracer{}
 	}
@@ -676,14 +654,9 @@ func (r *REPL) init() bool {
 	modules := r.store.ListPolicies(r.txn)
 	modules[r.currentModuleID] = mod
 
-	c := ast.NewCompiler()
-	if c.Compile(modules); c.Failed() {
-		fmt.Fprintln(r.output, "error:", c.FlattenErrors())
-		return true
-	}
-
-	if err := r.store.InsertPolicy(r.txn, r.currentModuleID, c.Modules[r.currentModuleID], nil, false); err != nil {
-		fmt.Fprintln(r.output, "error:", err)
+	r.compiler = ast.NewCompiler()
+	if r.compiler.Compile(modules); r.compiler.Failed() {
+		fmt.Fprintln(r.output, "error:", r.compiler.FlattenErrors())
 		return true
 	}
 
@@ -698,18 +671,11 @@ func (r *REPL) isSetReference(term *ast.Term) bool {
 	if !ok {
 		return false
 	}
-	p := ast.Ref{}
-	for _, x := range ref {
-		p = append(p, x)
-		if node, err := r.store.Read(r.txn, p); err == nil {
-			if rs, ok := node.([]*ast.Rule); ok {
-				if rs[0].DocKind() == ast.PartialSetDoc {
-					return true
-				}
-			}
-		}
+	rs := r.compiler.GetRulesExact(ref.GroundPrefix())
+	if rs == nil {
+		return false
 	}
-	return false
+	return rs[0].DocKind() == ast.PartialSetDoc
 }
 
 func (r *REPL) loadHistory(prompt *liner.State) {

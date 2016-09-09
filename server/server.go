@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -33,6 +34,22 @@ func (err *apiErrorV1) Bytes() []byte {
 		return bs
 	}
 	return nil
+}
+
+// WriteConflictError represents an error condition raised if the caller
+// attempts to modify a virtual document.
+type WriteConflictError struct {
+	path ast.Ref
+}
+
+func (err WriteConflictError) Error() string {
+	return fmt.Sprintf("write conflict: %v", err.path)
+}
+
+// IsWriteConflict returns true if the error indicates write conflict.
+func IsWriteConflict(err error) bool {
+	_, ok := err.(WriteConflictError)
+	return ok
 }
 
 // undefinedV1 models the an undefined query result.
@@ -66,22 +83,30 @@ type Server struct {
 
 	addr    string
 	persist bool
-	store   *storage.Storage
+
+	// access to the compiler is guarded by mtx
+	mtx      sync.RWMutex
+	compiler *ast.Compiler
+
+	store *storage.Storage
 }
 
 // New returns a new Server.
 func New(store *storage.Storage, addr string, persist bool) *Server {
 
 	s := &Server{
-		addr:    addr,
-		persist: persist,
-		store:   store,
+		addr:     addr,
+		persist:  persist,
+		compiler: ast.NewCompiler(),
+		store:    store,
 	}
 
 	router := mux.NewRouter()
 
 	s.registerHandlerV1(router, "/data/{path:.+}", "GET", s.v1DataGet)
+	s.registerHandlerV1(router, "/data", "GET", s.v1DataGet)
 	s.registerHandlerV1(router, "/data/{path:.+}", "PATCH", s.v1DataPatch)
+	s.registerHandlerV1(router, "/data", "PATCH", s.v1DataPatch)
 	s.registerHandlerV1(router, "/policies", "GET", s.v1PoliciesList)
 	s.registerHandlerV1(router, "/policies/{id}", "DELETE", s.v1PoliciesDelete)
 	s.registerHandlerV1(router, "/policies/{id}", "GET", s.v1PoliciesGet)
@@ -98,12 +123,40 @@ func New(store *storage.Storage, addr string, persist bool) *Server {
 
 // Loop starts the server. This function does not return.
 func (s *Server) Loop() error {
+
+	txn, err := s.store.NewTransaction()
+	if err != nil {
+		return err
+	}
+
+	mods := s.store.ListPolicies(txn)
+	s.store.Close(txn)
+
+	c := ast.NewCompiler()
+	if c.Compile(mods); c.Failed() {
+		return c.Errors[0]
+	}
+
+	s.setCompiler(c)
+
 	return http.ListenAndServe(s.addr, s.Handler)
+}
+
+func (s *Server) compileQuery(compiler *ast.Compiler, qStr string) (ast.Body, error) {
+
+	body, err := ast.ParseBody(qStr)
+	if err != nil {
+		return nil, errors.Wrapf(err, "parse error")
+	}
+
+	return compiler.CompileOne(body)
 }
 
 func (s *Server) execQuery(qStr string) (resultSetV1, error) {
 
-	query, err := ast.CompileQuery(qStr)
+	compiler := s.getCompiler()
+
+	query, err := s.compileQuery(compiler, qStr)
 	if err != nil {
 		return nil, err
 	}
@@ -115,7 +168,7 @@ func (s *Server) execQuery(qStr string) (resultSetV1, error) {
 
 	defer s.store.Close(txn)
 
-	ctx := topdown.NewContext(query, s.store, txn)
+	ctx := topdown.NewContext(query, compiler, s.store, txn)
 
 	results := resultSetV1{}
 
@@ -184,7 +237,7 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 		handleError(w, 400, err)
 		return
 	}
-	params := topdown.NewQueryParams(s.store, globals, path)
+	params := topdown.NewQueryParams(s.getCompiler(), s.store, globals, path)
 
 	result, err := topdown.Query(params)
 
@@ -243,6 +296,11 @@ func (s *Server) v1DataPatch(w http.ResponseWriter, r *http.Request) {
 		path := root
 		path = append(path, stringPathToRef(ops[i].Path)...)
 
+		if err := s.writeConflict(op, path); err != nil {
+			handleErrorAuto(w, err)
+			return
+		}
+
 		if err := s.store.Write(txn, op, path, ops[i].Value); err != nil {
 			handleErrorAuto(w, err)
 			return
@@ -250,6 +308,19 @@ func (s *Server) v1DataPatch(w http.ResponseWriter, r *http.Request) {
 	}
 
 	handleResponse(w, 204, nil)
+}
+
+func (s *Server) writeConflict(op storage.PatchOp, path ast.Ref) error {
+
+	if op == storage.AddOp && path[len(path)-1].Value.Equal(ast.String("-")) {
+		path = path[:len(path)-1]
+	}
+
+	if rs := s.getCompiler().GetRulesForVirtualDocument(path); rs != nil {
+		return WriteConflictError{path}
+	}
+
+	return nil
 }
 
 func (s *Server) v1PoliciesDelete(w http.ResponseWriter, r *http.Request) {
@@ -284,6 +355,8 @@ func (s *Server) v1PoliciesDelete(w http.ResponseWriter, r *http.Request) {
 		handleErrorAuto(w, err)
 		return
 	}
+
+	s.setCompiler(c)
 
 	handleResponse(w, 204, nil)
 }
@@ -370,10 +443,12 @@ func (s *Server) v1PoliciesPut(w http.ResponseWriter, r *http.Request) {
 	}
 
 	mod, err := ast.ParseModule(id, string(buf))
+
 	if err != nil {
 		handleError(w, 400, err)
 		return
 	}
+
 	if mod == nil {
 		handleErrorf(w, 400, "refusing to add empty module")
 		return
@@ -405,6 +480,8 @@ func (s *Server) v1PoliciesPut(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	s.setCompiler(c)
+
 	policy := &policyV1{
 		ID:     id,
 		Module: mod,
@@ -434,9 +511,23 @@ func (s *Server) v1QueryGet(w http.ResponseWriter, r *http.Request) {
 	handleResponseJSON(w, 200, results, pretty)
 }
 
-func stringPathToRef(s string) ast.Ref {
+func (s *Server) getCompiler() *ast.Compiler {
+	s.mtx.RLock()
+	defer s.mtx.RUnlock()
+	return s.compiler
+}
+
+func (s *Server) setCompiler(compiler *ast.Compiler) {
+	s.mtx.Lock()
+	defer s.mtx.Unlock()
+	s.compiler = compiler
+}
+
+func stringPathToRef(s string) (r ast.Ref) {
+	if len(s) == 0 {
+		return r
+	}
 	p := strings.Split(s, "/")
-	r := ast.Ref{}
 	for _, x := range p {
 		if x == "" {
 			continue
@@ -451,9 +542,11 @@ func stringPathToRef(s string) ast.Ref {
 	return r
 }
 
-func stringPathToInterface(s string) []interface{} {
+func stringPathToInterface(s string) (r []interface{}) {
+	if len(s) == 0 {
+		return r
+	}
 	p := strings.Split(s, "/")
-	r := []interface{}{}
 	for _, x := range p {
 		i, err := strconv.Atoi(x)
 		if err != nil {
@@ -477,6 +570,14 @@ func handleErrorAuto(w http.ResponseWriter, err error) {
 			return
 		}
 		if topdown.IsUnboundGlobal(curr) {
+			handleError(w, 400, err)
+			return
+		}
+		if IsWriteConflict(curr) {
+			handleError(w, 404, err)
+			return
+		}
+		if storage.IsInvalidPatch(curr) {
 			handleError(w, 400, err)
 			return
 		}

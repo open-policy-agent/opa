@@ -78,6 +78,26 @@ type Compiler struct {
 	//
 	ModuleTree *ModuleTreeNode
 
+	// RuleTree organizes rules into a tree where each node is keyed by an
+	// element in the rule's path. The rule path is the concatenation of the
+	// containing package and the stringified rule name. E.g., given the following module:
+	//
+	//  package ex
+	//  p[1] :- true
+	//  p[2] :- true
+	//  q :- true
+	//
+	//  root
+	//    |
+	//    +--- data (no rules)
+	//           |
+	//           +--- ex (no rules)
+	//                |
+	//                +--- p (2 rules)
+	//                |
+	//                +--- q (1 rule)
+	RuleTree *RuleTreeNode
+
 	// RuleGraph represents the rule dependencies.
 	// An edge (u, v) is added to the graph if rule "u" depends on rule "v".
 	// A rule depends on another rule if it refers to it.
@@ -92,11 +112,11 @@ type stage struct {
 }
 
 // CompileModule is a helper function to compile a module represented as a string.
-func CompileModule(m string) (*Module, error) {
+func CompileModule(m string) (*Compiler, *Module, error) {
 
 	mod, err := ParseModule("", m)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	c := NewCompiler()
@@ -107,18 +127,18 @@ func CompileModule(m string) (*Module, error) {
 	}
 
 	if c.Compile(mods); c.Failed() {
-		return nil, c.Errors[0]
+		return nil, nil, c.Errors[0]
 	}
 
-	return c.Modules[key], nil
+	return c, c.Modules[key], nil
 }
 
 // CompileQuery is a helper function to compile a query represented as a string.
-func CompileQuery(q string) (Body, error) {
+func CompileQuery(q string) (*Compiler, Body, error) {
 
 	parsed, err := ParseBody(q)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	key := string(Wildcard.Value.(Var))
@@ -143,24 +163,29 @@ func CompileQuery(q string) (Body, error) {
 	c := NewCompiler()
 
 	if c.Compile(mods); c.Failed() {
-		return nil, c.Errors[0]
+		return nil, nil, c.Errors[0]
 	}
 
-	return c.Modules[key].Rules[0].Body, nil
+	return c, c.Modules[key].Rules[0].Body, nil
 }
 
 // NewCompiler returns a new empty compiler.
 func NewCompiler() *Compiler {
 
 	c := &Compiler{
-		Globals:   map[*Module]map[Var]Value{},
-		RuleGraph: map[*Rule]map[*Rule]struct{}{},
+		Modules:    map[string]*Module{},
+		Exports:    newExports(),
+		Globals:    map[*Module]map[Var]Value{},
+		RuleGraph:  map[*Rule]map[*Rule]struct{}{},
+		ModuleTree: NewModuleTree(nil),
+		RuleTree:   NewRuleTree(nil),
 	}
 
 	c.stages = []stage{
 		stage{c.setExports, "setExports"},
 		stage{c.setGlobals, "setGlobals"},
 		stage{c.setModuleTree, "setModuleTree"},
+		stage{c.setRuleTree, "setRuleTree"},
 		stage{c.checkSafetyHead, "checkSafetyHead"},
 		stage{c.checkSafetyBody, "checkSafetyBody"},
 		stage{c.checkBuiltinArgs, "checkBuiltinArgs"},
@@ -172,26 +197,43 @@ func NewCompiler() *Compiler {
 	return c
 }
 
-// Compile runs the compilation process on the input modules.
-// The output of the compilation process can be obtained from
-// the Errors or Modules attributes of the Compiler.
-func (c *Compiler) Compile(mods map[string]*Module) {
-
-	// TODO(tsandall): need to revisit the error messages. E.g.,
-	// errors local to a rule should include rule name, package path,
-	// and potentially a snippet of text identifying the source of the
-	// the problem. In some cases a useful tip could be provided, e.g.,
-	// "Did you mean to assign 'u' to something?"
-	//
+// Compile runs the compilation process on the input modules. The compiled
+// version of the modules and associated data structures are stored on the
+// compiler. If the compilation process fails for any reason, the compiler will
+// contain a slice of errors.
+func (c *Compiler) Compile(modules map[string]*Module) {
 	// TODO(tsandall): should the modules be deep copied?
+	c.Modules = modules
+	c.compile()
+}
 
-	c.Modules = mods
+// CompileOne runs the compilation process on an input query.
+func (c *Compiler) CompileOne(query Body) (Body, error) {
 
-	for _, s := range c.stages {
-		if s.f(); c.Failed() {
-			return
-		}
+	key := string(Wildcard.Value.(Var))
+
+	mod := &Module{
+		Package: &Package{
+			Path:     Ref{DefaultRootDocument},
+			Location: query.Loc(),
+		},
+		Rules: []*Rule{
+			&Rule{
+				Name:     Var(key),
+				Body:     query,
+				Location: query.Loc(),
+			},
+		},
 	}
+
+	c.Modules[key] = mod
+	c.compile()
+
+	if c.Failed() {
+		return nil, c.Errors[0]
+	}
+
+	return c.Modules[key].Rules[0].Body, nil
 }
 
 // Failed returns true if a compilation error has been encountered.
@@ -217,6 +259,65 @@ func (c *Compiler) FlattenErrors() string {
 	}
 
 	return fmt.Sprintf("%d errors occurred:\n%s", len(c.Errors), strings.Join(b, "\n"))
+}
+
+// GetRulesExact returns a slice of rules referred to by the reference.
+//
+// E.g., given the following module:
+//
+//	package a.b.c
+//
+//	p[k] = v :- ...    # rule1
+//  p[k1] = v1 :- ...  # rule2
+//
+// The following calls yield the rules on the right.
+//
+//  GetRulesExact("data.a.b.c.p")   => [rule1, rule2]
+//  GetRulesExact("data.a.b.c.p.x") => nil
+//  GetRulesExact("data.a.b.c")     => nil
+func (c *Compiler) GetRulesExact(ref Ref) (rules []*Rule) {
+	node := c.RuleTree
+
+	for _, x := range ref {
+		node = node.Children[x.Value]
+		if node == nil {
+			return nil
+		}
+	}
+
+	return node.Rules
+}
+
+// GetRulesForVirtualDocument returns a slice of rules that produce the virtual
+// document referred to by the reference.
+//
+// E.g., given the following module:
+//
+//	package a.b.c
+//
+//	p[k] = v :- ...    # rule1
+//  p[k1] = v1 :- ...  # rule2
+//
+// The following calls yield the rules on the right.
+//
+//  GetRulesForVirtualDocument("data.a.b.c.p")   => [rule1, rule2]
+//  GetRulesForVirtualDocument("data.a.b.c.p.x") => [rule1, rule2]
+//  GetRulesForVirtualDocument("data.a.b.c")     => nil
+func (c *Compiler) GetRulesForVirtualDocument(ref Ref) (rules []*Rule) {
+
+	node := c.RuleTree
+
+	for _, x := range ref {
+		node = node.Children[x.Value]
+		if node == nil {
+			return nil
+		}
+		if len(node.Rules) > 0 {
+			return node.Rules
+		}
+	}
+
+	return node.Rules
 }
 
 // checkBuiltinArgs ensures that all built-ins are called with the correct number
@@ -288,6 +389,14 @@ func (c *Compiler) checkSafetyHead() {
 			for v := range unsafe {
 				c.err(r.Location.Errorf("%v: %v is unsafe (variable %v must appear in at least one expression within the body of %v)", r.Name, v, v, r.Name))
 			}
+		}
+	}
+}
+
+func (c *Compiler) compile() {
+	for _, s := range c.stages {
+		if s.f(); c.Failed() {
+			return
 		}
 	}
 }
@@ -418,13 +527,7 @@ func (c *Compiler) resolveRefsInTerm(globals map[Var]Value, term *Term) *Term {
 // See Compiler for a description of Exports.
 func (c *Compiler) setExports() {
 
-	c.Exports = util.NewHashMap(func(a, b util.T) bool {
-		r1 := a.(Ref)
-		r2 := a.(Ref)
-		return r1.Equal(r2)
-	}, func(v util.T) int {
-		return v.(Ref).Hash()
-	})
+	c.Exports = newExports()
 
 	for _, mod := range c.Modules {
 		for _, rule := range mod.Rules {
@@ -438,6 +541,17 @@ func (c *Compiler) setExports() {
 		}
 	}
 
+}
+
+func newExports() *util.HashMap {
+	// TODO(tsandall): replace with ValueMap
+	return util.NewHashMap(func(a, b util.T) bool {
+		r1 := a.(Ref)
+		r2 := a.(Ref)
+		return r1.Equal(r2)
+	}, func(v util.T) int {
+		return v.(Ref).Hash()
+	})
 }
 
 // setGlobals populates the Globals on the compiler.
@@ -490,6 +604,10 @@ func (c *Compiler) setModuleTree() {
 	c.ModuleTree = NewModuleTree(c.Modules)
 }
 
+func (c *Compiler) setRuleTree() {
+	c.RuleTree = NewRuleTree(c.Modules)
+}
+
 func (c *Compiler) setRuleGraph() {
 	for _, m := range c.Modules {
 		for _, r := range m.Rules {
@@ -517,34 +635,27 @@ func (c *Compiler) setRuleGraph() {
 // ModuleTreeNode represents a node in the module tree. The module
 // tree is keyed by the package path.
 type ModuleTreeNode struct {
-	Key      string
+	Key      Value
 	Modules  []*Module
-	Children map[string]*ModuleTreeNode
+	Children map[Value]*ModuleTreeNode
 }
 
 // NewModuleTree returns a new ModuleTreeNode that represents the root
 // of the module tree populated with the given modules.
 func NewModuleTree(mods map[string]*Module) *ModuleTreeNode {
 	root := &ModuleTreeNode{
-		Children: map[string]*ModuleTreeNode{},
+		Children: map[Value]*ModuleTreeNode{},
 	}
 	for _, m := range mods {
 		node := root
 		for _, x := range m.Package.Path {
-			var s string
-			switch v := x.Value.(type) {
-			case Var:
-				s = string(v)
-			case String:
-				s = string(v)
-			}
-			c, ok := node.Children[s]
+			c, ok := node.Children[x.Value]
 			if !ok {
 				c = &ModuleTreeNode{
-					Key:      s,
-					Children: map[string]*ModuleTreeNode{},
+					Key:      x.Value,
+					Children: map[Value]*ModuleTreeNode{},
 				}
-				node.Children[s] = c
+				node.Children[x.Value] = c
 			}
 			node = c
 		}
@@ -556,6 +667,50 @@ func NewModuleTree(mods map[string]*Module) *ModuleTreeNode {
 // Size returns the number of modules in the tree.
 func (n *ModuleTreeNode) Size() int {
 	s := len(n.Modules)
+	for _, c := range n.Children {
+		s += c.Size()
+	}
+	return s
+}
+
+// RuleTreeNode represents a node in the rule tree. The rule tree is keyed by
+// rule path.
+type RuleTreeNode struct {
+	Key      Value
+	Rules    []*Rule
+	Children map[Value]*RuleTreeNode
+}
+
+// NewRuleTree returns a new RuleTreeNode that represents the root
+// of the rule tree populated with the given rules.
+func NewRuleTree(mods map[string]*Module) *RuleTreeNode {
+	root := &RuleTreeNode{
+		Children: map[Value]*RuleTreeNode{},
+	}
+	for _, mod := range mods {
+		for _, rule := range mod.Rules {
+			node := root
+			path := rule.Path(mod.Package.Path)
+			for _, x := range path {
+				c := node.Children[x.Value]
+				if c == nil {
+					c = &RuleTreeNode{
+						Key:      x.Value,
+						Children: map[Value]*RuleTreeNode{},
+					}
+					node.Children[x.Value] = c
+				}
+				node = c
+			}
+			node.Rules = append(node.Rules, rule)
+		}
+	}
+	return root
+}
+
+// Size returns the number of rules in the tree.
+func (n *RuleTreeNode) Size() int {
+	s := len(n.Rules)
 	for _, c := range n.Children {
 		s += c.Size()
 	}
@@ -645,8 +800,7 @@ func (vs unsafeVars) Vars() VarSet {
 // variables, such as: "a.b.c[x]", the result will contain
 // rule "p" and rule "q".
 func findRules(node *ModuleTreeNode, ref Ref) []*Rule {
-	k := string(ref[0].Value.(Var))
-	if node, ok := node.Children[k]; ok {
+	if node, ok := node.Children[ref[0].Value]; ok {
 		return findRulesRec(node, ref[1:])
 	}
 	return nil
@@ -668,14 +822,13 @@ func findRulesRec(node *ModuleTreeNode, ref Ref) []*Rule {
 		}
 		return result
 	case String:
-		k := string(v)
-		if node, ok := node.Children[k]; ok {
+		if node, ok := node.Children[v]; ok {
 			return findRulesRec(node, ref[1:])
 		}
 		result := []*Rule{}
 		for _, m := range node.Modules {
 			for _, r := range m.Rules {
-				if string(r.Name) == k {
+				if String(r.Name).Equal(v) {
 					result = append(result, r)
 				}
 			}

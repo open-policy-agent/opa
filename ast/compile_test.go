@@ -10,6 +10,8 @@ import (
 	"sort"
 	"strings"
 	"testing"
+
+	"github.com/open-policy-agent/opa/util/test"
 )
 
 func TestModuleTree(t *testing.T) {
@@ -19,31 +21,27 @@ func TestModuleTree(t *testing.T) {
 	expectedSize := 6
 
 	if tree.Size() != expectedSize {
-		t.Errorf("Expected size of %v in module tree but got: %v", expectedSize, tree.Size())
+		t.Fatalf("Expected size of %v in module tree but got: %v", expectedSize, tree.Size())
 	}
 
 	if r1 := findRules(tree, MustParseRef("data.a.b.c")); len(r1) != 0 {
-		t.Errorf("Expected empty result from findRules(data.a.b.c) but got: %v", r1)
-		return
+		t.Fatalf("Expected empty result from findRules(data.a.b.c) but got: %v", r1)
 	}
 
 	if r2 := findRules(tree, MustParseRef("a[x]")); len(r2) != 0 {
-		t.Errorf("Expected empty result from findRules(a[x]) but got: %v", r2)
-		return
+		t.Fatalf("Expected empty result from findRules(a[x]) but got: %v", r2)
 	}
 
 	r3 := findRules(tree, MustParseRef("data.a.b.c.p"))
 	expected3 := []*Rule{mods["mod1"].Rules[0]}
 
 	if !reflect.DeepEqual(r3, expected3) {
-		t.Errorf("Expected %v from findRules(data.a.b.c.p) but got: %v", expected3, r3)
-		return
+		t.Fatalf("Expected %v from findRules(data.a.b.c.p) but got: %v", expected3, r3)
 	}
 
 	r4 := findRules(tree, MustParseRef("data.a.b.c.p[x]"))
 	if !reflect.DeepEqual(r4, expected3) {
-		t.Errorf("Expected %v from findRules(data.a.b.c.p[x]) but got: %v", expected3, r4)
-		return
+		t.Fatalf("Expected %v from findRules(data.a.b.c.p[x]) but got: %v", expected3, r4)
 	}
 
 	r5 := []string{}
@@ -62,9 +60,25 @@ func TestModuleTree(t *testing.T) {
 	sort.Strings(expected5)
 
 	if !reflect.DeepEqual(r5, expected5) {
-		t.Errorf("Expected %v from findRules(data.a.b.c.p[x]) but got: %v", expected5, r5)
-		return
+		t.Fatalf("Expected %v from findRules(data.a.b.c.p[x]) but got: %v", expected5, r5)
 	}
+}
+
+func TestRuleTree(t *testing.T) {
+
+	mods := getCompilerTestModules()
+	mods["mod-incr"] = MustParseModule(`
+	package a.b.c
+	s[1] :- true
+	s[2] :- true
+	`)
+	tree := NewRuleTree(mods)
+	expectedNumRules := 18
+
+	if tree.Size() != expectedNumRules {
+		t.Errorf("Expected %v but got %v rules", expectedNumRules, tree.Size())
+	}
+
 }
 
 func TestCompilerEmpty(t *testing.T) {
@@ -574,6 +588,126 @@ func TestCompilerCheckRecursion(t *testing.T) {
 		if result[i] != expected[i] {
 			t.Errorf("Expected %v but got: %v", expected[i], result[i])
 		}
+	}
+}
+
+func TestCompilerGetRulesExact(t *testing.T) {
+	mods := getCompilerTestModules()
+
+	// Add incrementally defined rules.
+	mods["mod-incr"] = MustParseModule(`
+	package a.b.c
+	p[1] :- true
+	p[2] :- true
+	`)
+
+	c := NewCompiler()
+	c.Compile(mods)
+	assertNotFailed(t, c)
+
+	tests := []struct {
+		note     string
+		ref      interface{}
+		expected []*Rule
+	}{
+		{"exact", "data.a.b.c.p", []*Rule{
+			c.Modules["mod-incr"].Rules[0],
+			c.Modules["mod-incr"].Rules[1],
+			c.Modules["mod1"].Rules[0],
+		}},
+		{"too short", "data.a", []*Rule{}},
+		{"too long/not found", "data.a.b.c.p.q", []*Rule{}},
+		{"outside data", "req.a.b.c.p", []*Rule{}},
+	}
+
+	for _, tc := range tests {
+		test.Subtest(t, tc.note, func(t *testing.T) {
+			var ref Ref
+			switch r := tc.ref.(type) {
+			case string:
+				ref = MustParseRef(r)
+			case Ref:
+				ref = r
+			}
+			rules := c.GetRulesExact(ref)
+			if len(rules) != len(tc.expected) {
+				t.Fatalf("Expected exactly %v rules but got: %v", len(tc.expected), rules)
+			}
+			for i := range rules {
+				found := false
+				for j := range tc.expected {
+					if rules[i].Equal(tc.expected[j]) {
+						found = true
+						break
+					}
+				}
+				if !found {
+					t.Fatalf("Expected exactly %v but got: %v", tc.expected, rules)
+				}
+			}
+		})
+	}
+}
+
+func TestCompilerGetRulesForVirtualDocument(t *testing.T) {
+	mods := getCompilerTestModules()
+
+	// Add incrementally defined rules.
+	mods["mod-incr"] = MustParseModule(`
+	package a.b.c
+	p[1] :- true
+	p[2] :- true
+	`)
+
+	c := NewCompiler()
+	c.Compile(mods)
+	assertNotFailed(t, c)
+
+	tests := []struct {
+		note     string
+		ref      interface{}
+		expected []*Rule
+	}{
+		{"exact", "data.a.b.c.p", []*Rule{
+			c.Modules["mod-incr"].Rules[0],
+			c.Modules["mod-incr"].Rules[1],
+			c.Modules["mod1"].Rules[0],
+		}},
+		{"deep", "data.a.b.c.p.q", []*Rule{
+			c.Modules["mod-incr"].Rules[0],
+			c.Modules["mod-incr"].Rules[1],
+			c.Modules["mod1"].Rules[0],
+		}},
+		{"too short", "data.a", []*Rule{}},
+		{"non-existent", "data.a.deadbeef", []*Rule{}},
+	}
+
+	for _, tc := range tests {
+		test.Subtest(t, tc.note, func(t *testing.T) {
+			var ref Ref
+			switch r := tc.ref.(type) {
+			case string:
+				ref = MustParseRef(r)
+			case Ref:
+				ref = r
+			}
+			rules := c.GetRulesForVirtualDocument(ref)
+			if len(rules) != len(tc.expected) {
+				t.Fatalf("Expected exactly %v rules but got: %v", len(tc.expected), rules)
+			}
+			for i := range rules {
+				found := false
+				for j := range tc.expected {
+					if rules[i].Equal(tc.expected[j]) {
+						found = true
+						break
+					}
+				}
+				if !found {
+					t.Fatalf("Expected exactly %v but got: %v", tc.expected, rules)
+				}
+			}
+		})
 	}
 }
 

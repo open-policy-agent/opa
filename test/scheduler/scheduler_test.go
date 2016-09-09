@@ -49,14 +49,13 @@ func setup(t *testing.T, filename string) *topdown.QueryParams {
 	store := storage.New(storage.Config{
 		Builtin: loadDataStore(filename),
 	})
-	insertPolicies(store, c.Modules)
 
 	// parameter setup
 	globals := storage.NewBindings()
 	req := ast.MustParseTerm(requestedPod).Value
 	globals.Put(ast.Var("requested_pod"), req)
 	path := []interface{}{"opa", "test", "scheduler", "fit"}
-	params := topdown.NewQueryParams(store, globals, path)
+	params := topdown.NewQueryParams(c, store, globals, path)
 
 	return params
 }
@@ -68,14 +67,6 @@ func loadDataStore(filename string) *storage.DataStore {
 	}
 	defer f.Close()
 	return storage.NewDataStoreFromReader(f)
-}
-
-func insertPolicies(store *storage.Storage, modules map[string]*ast.Module) {
-	for id, mod := range modules {
-		if err := storage.InsertPolicy(store, id, mod, nil, false); err != nil {
-			panic(err)
-		}
-	}
 }
 
 func getFilename(filename string) string {
