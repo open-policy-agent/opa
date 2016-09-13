@@ -336,25 +336,27 @@ func PlugValue(v ast.Value, ctx *Context) ast.Value {
 
 // QueryParams defines input parameters for the query interface.
 type QueryParams struct {
-	Compiler *ast.Compiler
-	Store    *storage.Storage
-	Globals  *storage.Bindings
-	Tracer   Tracer
-	Path     []interface{}
+	Compiler    *ast.Compiler
+	Store       *storage.Storage
+	Transaction storage.Transaction
+	Globals     *storage.Bindings
+	Tracer      Tracer
+	Path        []interface{}
 }
 
 // NewQueryParams returns a new QueryParams.
-func NewQueryParams(compiler *ast.Compiler, store *storage.Storage, globals *storage.Bindings, path []interface{}) *QueryParams {
+func NewQueryParams(compiler *ast.Compiler, store *storage.Storage, txn storage.Transaction, globals *storage.Bindings, path []interface{}) *QueryParams {
 	return &QueryParams{
-		Compiler: compiler,
-		Store:    store,
-		Globals:  globals,
-		Path:     path,
+		Compiler:    compiler,
+		Store:       store,
+		Transaction: txn,
+		Globals:     globals,
+		Path:        path,
 	}
 }
 
 // NewContext returns a new Context that can be used to do evaluation.
-func (q *QueryParams) NewContext(body ast.Body, txn storage.Transaction) *Context {
+func (q *QueryParams) NewContext(body ast.Body) *Context {
 	ctx := &Context{
 		Query:    body,
 		Compiler: q.Compiler,
@@ -362,7 +364,7 @@ func (q *QueryParams) NewContext(body ast.Body, txn storage.Transaction) *Contex
 		Locals:   storage.NewBindings(),
 		Store:    q.Store,
 		Tracer:   q.Tracer,
-		txn:      txn,
+		txn:      q.Transaction,
 		cache:    newContextCache(),
 	}
 	return ctx
@@ -387,26 +389,20 @@ func Query(params *QueryParams) (interface{}, error) {
 		}
 	}
 
-	txn, err := params.Store.NewTransaction()
-	if err != nil {
-		return nil, err
-	}
-
-	defer params.Store.Close(txn)
-
 	// TODO(tsandall): set literals: once they are supported, this special case can
 	// be removed.
 	if rs := params.Compiler.GetRulesExact(ref); rs != nil {
 		switch rs[0].DocKind() {
 		case ast.PartialSetDoc:
-			return queryPartialSetDoc(params, txn, rs)
+			return queryPartialSetDoc(params, rs)
 		}
 	}
 
 	// Construct and execute a query to obtain the value for the reference.
 	query := ast.Body{ast.Equality.Expr(ast.RefTerm(ref...), ast.Wildcard)}
-	ctx := params.NewContext(query, txn)
+	ctx := params.NewContext(query)
 	var result interface{} = Undefined{}
+	var err error
 
 	err = Eval(ctx, func(ctx *Context) error {
 		val := PlugValue(ast.Wildcard.Value, ctx)
@@ -1570,10 +1566,10 @@ func lookupValue(ctx *Context, ref ast.Ref) (ast.Value, error) {
 	return ast.InterfaceToValue(r)
 }
 
-func queryPartialSetDoc(params *QueryParams, txn storage.Transaction, rules []*ast.Rule) (interface{}, error) {
+func queryPartialSetDoc(params *QueryParams, rules []*ast.Rule) (interface{}, error) {
 	result := []interface{}{}
 	for _, rule := range rules {
-		ctx := params.NewContext(rule.Body, txn)
+		ctx := params.NewContext(rule.Body)
 		err := Eval(ctx, func(ctx *Context) error {
 			r, err := ValueToInterface(rule.Key.Value, ctx)
 			if err != nil {

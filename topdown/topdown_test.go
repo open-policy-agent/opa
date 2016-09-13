@@ -1383,10 +1383,13 @@ func assertTopDown(t *testing.T, compiler *ast.Compiler, store *storage.Storage,
 		p = append(p, x)
 	}
 
+	txn := storage.NewTransactionOrDie(store)
+	defer store.Close(txn)
+
 	testutil.Subtest(t, note, func(t *testing.T) {
 		switch e := expected.(type) {
 		case error:
-			result, err := Query(&QueryParams{Compiler: compiler, Store: store, Path: p, Globals: g})
+			result, err := Query(&QueryParams{Compiler: compiler, Store: store, Transaction: txn, Path: p, Globals: g})
 			if err == nil {
 				t.Errorf("Expected error but got: %v", result)
 				return
@@ -1396,7 +1399,7 @@ func assertTopDown(t *testing.T, compiler *ast.Compiler, store *storage.Storage,
 			}
 		case string:
 			expected := loadExpectedSortedResult(e)
-			result, err := Query(&QueryParams{Compiler: compiler, Store: store, Path: p, Globals: g})
+			result, err := Query(&QueryParams{Compiler: compiler, Store: store, Transaction: txn, Path: p, Globals: g})
 			if err != nil {
 				t.Errorf("Unexpected error: %v", err)
 				return

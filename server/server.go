@@ -237,7 +237,16 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 		handleError(w, 400, err)
 		return
 	}
-	params := topdown.NewQueryParams(s.getCompiler(), s.store, globals, path)
+
+	txn, err := s.store.NewTransaction()
+	if err != nil {
+		handleErrorAuto(w, err)
+		return
+	}
+
+	defer s.store.Close(txn)
+
+	params := topdown.NewQueryParams(s.getCompiler(), s.store, txn, globals, path)
 
 	result, err := topdown.Query(params)
 
