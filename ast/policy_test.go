@@ -52,7 +52,7 @@ func TestPackageEquals(t *testing.T) {
 func TestPackageString(t *testing.T) {
 	pkg1 := &Package{Path: RefTerm(VarTerm("foo"), StringTerm("bar"), StringTerm("baz")).Value.(Ref)}
 	result1 := pkg1.String()
-	expected1 := "package foo.bar.baz"
+	expected1 := "package bar.baz"
 	if result1 != expected1 {
 		t.Errorf("Expected %v but got %v", expected1, result1)
 	}
@@ -237,7 +237,7 @@ func TestExprBadJSON(t *testing.T) {
 
 	js = `
 	{
-		"Terms": "bad value" 
+		"Terms": "bad value"
 	}
 	`
 	exp = fmt.Errorf(`ast: unable to unmarshal Terms field with type: string (expected {"Value": ..., "Type": ...} or [{"Value": ..., "Type": ...}, ...])`)
@@ -286,11 +286,7 @@ func TestRuleString(t *testing.T) {
 	rule1 := &Rule{
 		Name: Var("p"),
 		Body: []*Expr{
-			&Expr{
-				Terms: []*Term{
-					VarTerm("="), StringTerm("foo"), StringTerm("bar"),
-				},
-			},
+			Equality.Expr(StringTerm("foo"), StringTerm("bar")),
 		},
 	}
 
@@ -299,25 +295,42 @@ func TestRuleString(t *testing.T) {
 		Key:   VarTerm("x"),
 		Value: VarTerm("y"),
 		Body: []*Expr{
-			&Expr{
-				Terms: []*Term{
-					VarTerm("="), StringTerm("foo"), VarTerm("x"),
-				},
-			},
+			Equality.Expr(StringTerm("foo"), VarTerm("x")),
 			&Expr{
 				Negated: true,
 				Terms:   RefTerm(VarTerm("a"), StringTerm("b"), VarTerm("x")),
 			},
-			&Expr{
-				Terms: []*Term{
-					VarTerm("="), StringTerm("b"), VarTerm("y"),
-				},
-			},
+			Equality.Expr(StringTerm("b"), VarTerm("y")),
 		},
 	}
 
 	assertRuleString(t, rule1, "p :- eq(\"foo\", \"bar\")")
 	assertRuleString(t, rule2, "p[x] = y :- eq(\"foo\", x), not a.b[x], eq(\"b\", y)")
+}
+
+func TestModuleString(t *testing.T) {
+
+	input := `
+	package a.b.c
+
+	import data.foo.bar
+	import xyz
+
+	p :- not bar
+	q :- xyz.abc = 2
+	wildcard :- bar[_] = 1
+	`
+
+	mod := MustParseModule(input)
+
+	roundtrip, err := ParseModule("", mod.String())
+	if err != nil {
+		t.Fatalf("Unexpected error while parsing roundtripped module: %v", err)
+	}
+
+	if !roundtrip.Equal(mod) {
+		t.Fatalf("Expected roundtripped to equal original but:\n\nExpected:\n\n%v\n\nDoes not equal result:\n\n%v", mod, roundtrip)
+	}
 }
 
 func assertExprEqual(t *testing.T, a, b *Expr) {

@@ -191,7 +191,13 @@ InfixExpr <- left:Term _ op:InfixOp _ right:Term {
 }
 
 InfixOp <- val:("=" / "!=" / "<=" / ">=" / "<" / ">") {
-    operator := VarTerm(string(c.text))
+    op := string(c.text)
+    for _, b := range Builtins {
+        if string(b.Infix) == op {
+            op = string(b.Name)
+        }
+    }
+    operator := VarTerm(op)
     operator.Location = currentLocation(c)
 	return operator, nil
 }

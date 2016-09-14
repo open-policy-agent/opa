@@ -161,8 +161,7 @@ func TestArrayComprehensions(t *testing.T) {
 			ArrayComprehensionTerm(
 				RefTerm(VarTerm("a"), VarTerm("i")),
 				Body{
-					NewBuiltinExpr(
-						VarTerm("="),
+					Equality.Expr(
 						VarTerm("xs"),
 						ArrayComprehensionTerm(
 							ObjectTerm(Item(StringTerm("a"), ArrayTerm(StringTerm("baz"), VarTerm("j")))),
@@ -170,13 +169,12 @@ func TestArrayComprehensions(t *testing.T) {
 								&Expr{
 									Terms: RefTerm(VarTerm("q"), VarTerm("p")),
 								},
-								NewBuiltinExpr(VarTerm("!="), RefTerm(VarTerm("p"), StringTerm("a")), StringTerm("bar")),
-								NewBuiltinExpr(VarTerm("="), VarTerm("j"), StringTerm("foo")),
+								NotEqual.Expr(RefTerm(VarTerm("p"), StringTerm("a")), StringTerm("bar")),
+								Equality.Expr(VarTerm("j"), StringTerm("foo")),
 							},
 						),
 					),
-					NewBuiltinExpr(
-						VarTerm("="),
+					Equality.Expr(
 						RefTerm(VarTerm("xs"), VarTerm("j"), StringTerm("a"), VarTerm("k")),
 						StringTerm("foo"),
 					),
@@ -190,29 +188,29 @@ func TestArrayComprehensions(t *testing.T) {
 }
 
 func TestInfixExpr(t *testing.T) {
-	assertParseOneExpr(t, "scalars 1", "true = false", NewBuiltinExpr(VarTerm("="), BooleanTerm(true), BooleanTerm(false)))
-	assertParseOneExpr(t, "scalars 2", "3.14 = null", NewBuiltinExpr(VarTerm("="), NumberTerm(3.14), NullTerm()))
-	assertParseOneExpr(t, "scalars 3", "42 = \"hello world\"", NewBuiltinExpr(VarTerm("="), NumberTerm(42), StringTerm("hello world")))
-	assertParseOneExpr(t, "vars 1", "hello = world", NewBuiltinExpr(VarTerm("="), VarTerm("hello"), VarTerm("world")))
-	assertParseOneExpr(t, "vars 2", "42 = hello", NewBuiltinExpr(VarTerm("="), NumberTerm(42), VarTerm("hello")))
+	assertParseOneExpr(t, "scalars 1", "true = false", Equality.Expr(BooleanTerm(true), BooleanTerm(false)))
+	assertParseOneExpr(t, "scalars 2", "3.14 = null", Equality.Expr(NumberTerm(3.14), NullTerm()))
+	assertParseOneExpr(t, "scalars 3", "42 = \"hello world\"", Equality.Expr(NumberTerm(42), StringTerm("hello world")))
+	assertParseOneExpr(t, "vars 1", "hello = world", Equality.Expr(VarTerm("hello"), VarTerm("world")))
+	assertParseOneExpr(t, "vars 2", "42 = hello", Equality.Expr(NumberTerm(42), VarTerm("hello")))
 
 	ref1 := RefTerm(VarTerm("foo"), NumberTerm(0), StringTerm("bar"), VarTerm("x"))
 	ref2 := RefTerm(VarTerm("baz"), BooleanTerm(false), StringTerm("qux"), StringTerm("hello"))
-	assertParseOneExpr(t, "refs 1", "foo[0].bar[x] = baz[false].qux[\"hello\"]", NewBuiltinExpr(VarTerm("="), ref1, ref2))
+	assertParseOneExpr(t, "refs 1", "foo[0].bar[x] = baz[false].qux[\"hello\"]", Equality.Expr(ref1, ref2))
 
 	left1 := ObjectTerm(Item(VarTerm("a"), ArrayTerm(ref1)))
 	right1 := ArrayTerm(ObjectTerm(Item(NumberTerm(42), BooleanTerm(true))))
-	assertParseOneExpr(t, "composites", "{a: [foo[0].bar[x]]} = [{42: true}]", NewBuiltinExpr(VarTerm("="), left1, right1))
+	assertParseOneExpr(t, "composites", "{a: [foo[0].bar[x]]} = [{42: true}]", Equality.Expr(left1, right1))
 
-	assertParseOneExpr(t, "ne", "100 != 200", NewBuiltinExpr(VarTerm("!="), NumberTerm(100), NumberTerm(200)))
-	assertParseOneExpr(t, "gt", "17.4 > \"hello\"", NewBuiltinExpr(VarTerm(">"), NumberTerm(17.4), StringTerm("hello")))
-	assertParseOneExpr(t, "lt", "17.4 < \"hello\"", NewBuiltinExpr(VarTerm("<"), NumberTerm(17.4), StringTerm("hello")))
-	assertParseOneExpr(t, "gte", "17.4 >= \"hello\"", NewBuiltinExpr(VarTerm(">="), NumberTerm(17.4), StringTerm("hello")))
-	assertParseOneExpr(t, "lte", "17.4 <= \"hello\"", NewBuiltinExpr(VarTerm("<="), NumberTerm(17.4), StringTerm("hello")))
+	assertParseOneExpr(t, "ne", "100 != 200", NotEqual.Expr(NumberTerm(100), NumberTerm(200)))
+	assertParseOneExpr(t, "gt", "17.4 > \"hello\"", GreaterThan.Expr(NumberTerm(17.4), StringTerm("hello")))
+	assertParseOneExpr(t, "lt", "17.4 < \"hello\"", LessThan.Expr(NumberTerm(17.4), StringTerm("hello")))
+	assertParseOneExpr(t, "gte", "17.4 >= \"hello\"", GreaterThanEq.Expr(NumberTerm(17.4), StringTerm("hello")))
+	assertParseOneExpr(t, "lte", "17.4 <= \"hello\"", LessThanEq.Expr(NumberTerm(17.4), StringTerm("hello")))
 
 	left2 := ArrayTerm(ObjectTerm(Item(NumberTerm(14.2), BooleanTerm(true)), Item(StringTerm("a"), NullTerm())))
 	right2 := ObjectTerm(Item(VarTerm("foo"), ObjectTerm(Item(RefTerm(VarTerm("a"), StringTerm("b"), NumberTerm(0)), ArrayTerm(NumberTerm(10))))))
-	assertParseOneExpr(t, "composites", "[{14.2: true, \"a\": null}] != {foo: {a.b[0]: [10]}}", NewBuiltinExpr(VarTerm("!="), left2, right2))
+	assertParseOneExpr(t, "composites", "[{14.2: true, \"a\": null}] != {foo: {a.b[0]: [10]}}", NotEqual.Expr(left2, right2))
 }
 
 func TestMiscBuiltinExpr(t *testing.T) {
@@ -229,11 +227,11 @@ func TestNegatedExpr(t *testing.T) {
 	assertParseOneTermNegated(t, "scalars 4", "not null", NullTerm())
 	assertParseOneTermNegated(t, "var", "not x", VarTerm("x"))
 	assertParseOneTermNegated(t, "ref", "not x[y].z", RefTerm(VarTerm("x"), VarTerm("y"), StringTerm("z")))
-	assertParseOneExprNegated(t, "vars", "not x = y", NewBuiltinExpr(VarTerm("="), VarTerm("x"), VarTerm("y")))
+	assertParseOneExprNegated(t, "vars", "not x = y", Equality.Expr(VarTerm("x"), VarTerm("y")))
 
 	ref1 := RefTerm(VarTerm("x"), VarTerm("y"), StringTerm("z"), VarTerm("a"))
 
-	assertParseOneExprNegated(t, "membership", "not x[y].z[a] = \"b\"", NewBuiltinExpr(VarTerm("="), ref1, StringTerm("b")))
+	assertParseOneExprNegated(t, "membership", "not x[y].z[a] = \"b\"", Equality.Expr(ref1, StringTerm("b")))
 	assertParseOneExprNegated(t, "misc. builtin", "not sorted(x[y].z[a])", NewBuiltinExpr(VarTerm("sorted"), ref1))
 }
 
@@ -274,7 +272,7 @@ func TestRule(t *testing.T) {
 		Name: Var("p"),
 		Key:  VarTerm("x"),
 		Body: []*Expr{
-			NewBuiltinExpr(VarTerm("="), VarTerm("x"), NumberTerm(42)),
+			Equality.Expr(VarTerm("x"), NumberTerm(42)),
 		},
 	})
 
@@ -283,8 +281,8 @@ func TestRule(t *testing.T) {
 		Key:   VarTerm("x"),
 		Value: VarTerm("y"),
 		Body: []*Expr{
-			NewBuiltinExpr(VarTerm("="), VarTerm("x"), NumberTerm(42)),
-			NewBuiltinExpr(VarTerm("="), VarTerm("y"), StringTerm("hello")),
+			Equality.Expr(VarTerm("x"), NumberTerm(42)),
+			Equality.Expr(VarTerm("y"), StringTerm("hello")),
 		},
 	})
 
@@ -500,34 +498,23 @@ func TestWildcards(t *testing.T) {
 		),
 	))
 
-	assertParseOneExpr(t, "expr", `_ = [a[_]]`, &Expr{
-		Terms: []*Term{
-			VarTerm("="),
-			VarTerm("$0"),
-			ArrayTerm(
-				RefTerm(VarTerm("a"), VarTerm("$1")),
-			),
-		},
-	})
+	assertParseOneExpr(t, "expr", `eq(_, [a[_]])`, Equality.Expr(
+		VarTerm("$0"),
+		ArrayTerm(
+			RefTerm(VarTerm("a"), VarTerm("$1")),
+		)))
 
-	assertParseOneExpr(t, "comprehension", "_ = [x | a = a[_]]", &Expr{
-		Terms: []*Term{
-			VarTerm("="),
-			VarTerm("$0"),
-			ArrayComprehensionTerm(
-				VarTerm("x"),
-				Body{
-					&Expr{
-						Terms: []*Term{
-							VarTerm("="),
-							VarTerm("a"),
-							RefTerm(VarTerm("a"), VarTerm("$1")),
-						},
-					},
-				},
-			),
-		},
-	})
+	assertParseOneExpr(t, "comprehension", "eq(_, [x | a = a[_]])", Equality.Expr(
+		VarTerm("$0"),
+		ArrayComprehensionTerm(
+			VarTerm("x"),
+			Body{
+				Equality.Expr(
+					VarTerm("a"),
+					RefTerm(VarTerm("a"), VarTerm("$1")),
+				),
+			},
+		)))
 }
 
 func assertParse(t *testing.T, msg string, input string, correct func([]interface{})) {

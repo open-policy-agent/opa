@@ -38,8 +38,8 @@ var BuiltinMap map[Var]*Builtin
 
 // Equality represents the "=" operator.
 var Equality = &Builtin{
-	Name:      Var("="),
-	Alias:     Var("eq"),
+	Name:      Var("eq"),
+	Infix:     Var("="),
 	NumArgs:   2,
 	TargetPos: []int{0, 1},
 }
@@ -50,36 +50,36 @@ var Equality = &Builtin{
 
 // GreaterThan represents the ">" comparison operator.
 var GreaterThan = &Builtin{
-	Name:    Var(">"),
-	Alias:   Var("gt"),
+	Name:    Var("gt"),
+	Infix:   Var(">"),
 	NumArgs: 2,
 }
 
 // GreaterThanEq represents the ">=" comparison operator.
 var GreaterThanEq = &Builtin{
-	Name:    Var(">="),
-	Alias:   Var("gte"),
+	Name:    Var("gte"),
+	Infix:   Var(">="),
 	NumArgs: 2,
 }
 
 // LessThan represents the "<" comparison operator.
 var LessThan = &Builtin{
-	Name:    Var("<"),
-	Alias:   Var("lt"),
+	Name:    Var("lt"),
+	Infix:   Var("<"),
 	NumArgs: 2,
 }
 
 // LessThanEq represents the "<=" comparison operator.
 var LessThanEq = &Builtin{
-	Name:    Var("<="),
-	Alias:   Var("lte"),
+	Name:    Var("lte"),
+	Infix:   Var("<="),
 	NumArgs: 2,
 }
 
 // NotEqual represents the "!=" comparison operator.
 var NotEqual = &Builtin{
-	Name:    Var("!="),
-	Alias:   Var("neq"),
+	Name:    Var("neq"),
+	Infix:   Var("!="),
 	NumArgs: 2,
 }
 
@@ -200,7 +200,7 @@ var FormatInt = &Builtin{
 // built-in function is uniquely identified by a name.
 type Builtin struct {
 	Name      Var
-	Alias     Var
+	Infix     Var
 	NumArgs   int
 	TargetPos []int
 }
@@ -214,17 +214,6 @@ func (b *Builtin) Expr(terms ...*Term) *Expr {
 	return &Expr{
 		Terms: ts,
 	}
-}
-
-// GetPrintableName returns a printable name for the builtin.
-// Some built-ins have names that are used for infix operators
-// but when printing we want to use something a bit more readable,
-// e.g., "gte(a,b)" instead of ">=(a,b)".
-func (b *Builtin) GetPrintableName() string {
-	if len(b.Alias) > 0 {
-		return b.Alias.String()
-	}
-	return b.Name.String()
 }
 
 // IsTargetPos returns true if a variable in the i-th position will be
