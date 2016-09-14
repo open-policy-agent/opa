@@ -1146,13 +1146,13 @@ import example.flag
 allow_request :- flag = true
 ```
 
-#### Example Request with Global Parameter
+#### Example Request With Global Parameter
 
 ```http
 GET /v1/data/opa/examples/allow_request?global=example.flag:false HTTP/1.1
 ```
 
-#### Example Response for Undefined Virtual Document
+#### Example Response For Undefined Virtual Document
 
 ```http
 HTTP/1.1 404 Not Found
@@ -1164,6 +1164,51 @@ Content-Type: application/json
   "IsUndefined": true
 }
 ```
+
+### Create or Overwrite a Document
+
+```
+PUT /v1/data/{path:.+}
+Content-Type: application/json
+```
+
+Create or overwrite a document.
+
+If the path does not refer to an existing document, the server will attempt to create all of the necessary containing documents. This behavior is similar in principle to the Unix command `mkdir -p`.
+
+The server will respect the `If-None-Match` header if it is set to `*`. In this case, the server will not ovewrite an existing document located at the path.
+
+#### Example Request To Initialize Document With If-None-Match
+
+```http
+PUT /v1/data/us-west/servers HTTP/1.1
+Content-Type: application/json
+If-None-Match: *
+```
+
+```json
+{}
+```
+
+#### Example Response If Document Already Exists
+
+```http
+HTTP/1.1 Not Modified 304
+```
+
+#### Example Response If Document Does Not Exist
+
+```http
+HTTP/1.1 No Content 204
+```
+
+#### Status Codes
+
+- **204** - no content (success)
+- **304** - not modified
+- **404** - write conflict
+
+If the path refers to a virtual document or a conflicting base document the server will respond with 404. A base document conflict will occur if the parent portion of the path refers to a non-object document.
 
 ### Patch a Document
 
@@ -1206,7 +1251,7 @@ HTTP/1.1 204 No Content
 
 #### Status Codes
 
-- **200** - no content
+- **204** - no content (success)
 - **404** - not found
 - **500** - server error
 
