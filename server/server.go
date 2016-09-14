@@ -124,6 +124,18 @@ func New(store *storage.Storage, addr string, persist bool) *Server {
 	return s
 }
 
+// Compiler returns the server's compiler.
+//
+// The server's compiler contains the compiled versions of all modules added to
+// the server as well as data structures for performing query analysis. This is
+// intended to allow services to embed the OPA server while still relying on the
+// topdown package for query evaluation.
+func (s *Server) Compiler() *ast.Compiler {
+	s.mtx.RLock()
+	defer s.mtx.RUnlock()
+	return s.compiler
+}
+
 // Loop starts the server. This function does not return.
 func (s *Server) Loop() error {
 
@@ -157,7 +169,7 @@ func (s *Server) compileQuery(compiler *ast.Compiler, qStr string) (ast.Body, er
 
 func (s *Server) execQuery(qStr string) (resultSetV1, error) {
 
-	compiler := s.getCompiler()
+	compiler := s.Compiler()
 
 	query, err := s.compileQuery(compiler, qStr)
 	if err != nil {
@@ -249,7 +261,7 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 
 	defer s.store.Close(txn)
 
-	params := topdown.NewQueryParams(s.getCompiler(), s.store, txn, globals, path)
+	params := topdown.NewQueryParams(s.Compiler(), s.store, txn, globals, path)
 
 	result, err := topdown.Query(params)
 
@@ -556,12 +568,6 @@ func (s *Server) v1QueryGet(w http.ResponseWriter, r *http.Request) {
 	handleResponseJSON(w, 200, results, pretty)
 }
 
-func (s *Server) getCompiler() *ast.Compiler {
-	s.mtx.RLock()
-	defer s.mtx.RUnlock()
-	return s.compiler
-}
-
 func (s *Server) setCompiler(compiler *ast.Compiler) {
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
@@ -600,7 +606,7 @@ func (s *Server) writeConflict(op storage.PatchOp, path ast.Ref) error {
 		path = path[:len(path)-1]
 	}
 
-	if rs := s.getCompiler().GetRulesForVirtualDocument(path); rs != nil {
+	if rs := s.Compiler().GetRulesForVirtualDocument(path); rs != nil {
 		return WriteConflictError{path}
 	}
 
