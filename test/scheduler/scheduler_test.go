@@ -18,7 +18,10 @@ import (
 
 func TestScheduler(t *testing.T) {
 	params := setup(t, "data_10nodes_30pods.json")
+	defer params.Store.Close(params.Transaction)
+
 	r, err := topdown.Query(params)
+
 	if err != nil {
 		t.Fatal("unexpected error:", err)
 	}
@@ -55,7 +58,8 @@ func setup(t *testing.T, filename string) *topdown.QueryParams {
 	req := ast.MustParseTerm(requestedPod).Value
 	globals.Put(ast.Var("requested_pod"), req)
 	path := []interface{}{"opa", "test", "scheduler", "fit"}
-	params := topdown.NewQueryParams(c, store, globals, path)
+	txn := storage.NewTransactionOrDie(store)
+	params := topdown.NewQueryParams(c, store, txn, globals, path)
 
 	return params
 }

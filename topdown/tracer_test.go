@@ -30,15 +30,13 @@ func TestTracer(t *testing.T) {
 	})
 
 	store := storage.New(storage.InMemoryWithJSONConfig(loadSmallTestData()))
+	txn := storage.NewTransactionOrDie(store)
+	defer store.Close(txn)
 
 	tracer := &mockTracer{[]string{}}
 
-	params := &QueryParams{
-		Compiler: compiler,
-		Store:    store,
-		Globals:  storage.NewBindings(),
-		Tracer:   tracer,
-		Path:     []interface{}{"p"}}
+	params := NewQueryParams(compiler, store, txn, storage.NewBindings(), []interface{}{"p"})
+	params.Tracer = tracer
 
 	result, err := Query(params)
 	if err != nil {

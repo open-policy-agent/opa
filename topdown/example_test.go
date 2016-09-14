@@ -92,11 +92,20 @@ func ExampleQuery() {
 	// Instantiate the policy engine's storage layer.
 	store := storage.New(storage.InMemoryConfig())
 
+	// Create a new transaction. Transactions allow the policy engine to
+	// evaluate the query over a consistent snapshot fo the storage layer.
+	txn, err := store.NewTransaction()
+	if err != nil {
+		// Handle error.
+	}
+
+	defer store.Close(txn)
+
 	// Prepare the query parameters. Queries execute against the policy engine's storage and can
 	// accept additional documents (which are referred to as "globals"). In this case we have no
 	// additional documents.
 	globals := storage.NewBindings()
-	params := topdown.NewQueryParams(compiler, store, globals, []interface{}{"opa", "example", "p"})
+	params := topdown.NewQueryParams(compiler, store, txn, globals, []interface{}{"opa", "example", "p"})
 
 	// Execute the query against "p".
 	v1, err1 := topdown.Query(params)

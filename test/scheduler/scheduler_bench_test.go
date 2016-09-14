@@ -30,6 +30,7 @@ func BenchmarkScheduler1000x3000(b *testing.B) {
 
 func runSchedulerBenchmark(b *testing.B, nodes int, pods int) {
 	params := setupBenchmark(nodes, pods)
+	defer params.Store.Close(params.Transaction)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		r, err := topdown.Query(params)
@@ -68,11 +69,10 @@ func setupBenchmark(nodes int, pods int) *topdown.QueryParams {
 	req := ast.MustParseTerm(requestedPod).Value
 	globals.Put(ast.Var("requested_pod"), req)
 	path := []interface{}{"opa", "test", "scheduler", "fit"}
-	params := topdown.NewQueryParams(c, store, globals, path)
+	txn := storage.NewTransactionOrDie(store)
+	params := topdown.NewQueryParams(c, store, txn, globals, path)
 
 	// data setup
-	txn := storage.NewTransactionOrDie(store)
-	defer store.Close(txn)
 	setupNodes(store, txn, nodes)
 	setupRCs(store, txn, 1)
 	setupPods(store, txn, pods, nodes)
