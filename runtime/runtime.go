@@ -118,12 +118,17 @@ func (rt *Runtime) startServer(params *Params) {
 	glog.V(2).Infof("Server listening address: %v.", params.Addr)
 
 	persist := len(params.PolicyDir) > 0
-	s := server.New(rt.Store, params.Addr, persist)
+
+	s, err := server.New(rt.Store, params.Addr, persist)
+
+	if err != nil {
+		glog.Fatalf("Error creating server: %v", err)
+	}
+
 	s.Handler = NewLoggingHandler(s.Handler)
 
 	if err := s.Loop(); err != nil {
-		glog.Errorf("Server exiting: %v", err)
-		os.Exit(1)
+		glog.Fatalf("Server exiting: %v", err)
 	}
 }
 

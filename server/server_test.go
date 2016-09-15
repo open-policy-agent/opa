@@ -548,7 +548,10 @@ type fixture struct {
 func newFixture(t *testing.T) *fixture {
 
 	store := storage.New(storage.InMemoryConfig().WithPolicyDir(policyDir))
-	server := New(store, ":8182", false)
+	server, err := New(store, ":8182", false)
+	if err != nil {
+		panic(err)
+	}
 	recorder := httptest.NewRecorder()
 
 	return &fixture{
