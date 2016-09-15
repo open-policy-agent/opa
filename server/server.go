@@ -93,17 +93,16 @@ type Server struct {
 }
 
 // New returns a new Server.
-func New(store *storage.Storage, addr string, persist bool) *Server {
+func New(store *storage.Storage, addr string, persist bool) (*Server, error) {
 
 	s := &Server{
-		addr:     addr,
-		persist:  persist,
-		compiler: ast.NewCompiler(),
-		store:    store,
+		addr:    addr,
+		persist: persist,
+		store:   store,
 	}
 
+	// Initialize HTTP handlers.
 	router := mux.NewRouter()
-
 	s.registerHandlerV1(router, "/data/{path:.+}", "PUT", s.v1DataPut)
 	s.registerHandlerV1(router, "/data", "PUT", s.v1DataPut)
 	s.registerHandlerV1(router, "/data/{path:.+}", "GET", s.v1DataGet)
@@ -116,12 +115,27 @@ func New(store *storage.Storage, addr string, persist bool) *Server {
 	s.registerHandlerV1(router, "/policies/{id}/raw", "GET", s.v1PoliciesRawGet)
 	s.registerHandlerV1(router, "/policies/{id}", "PUT", s.v1PoliciesPut)
 	s.registerHandlerV1(router, "/query", "GET", s.v1QueryGet)
-
 	router.HandleFunc("/", s.indexGet).Methods("GET")
-
 	s.Handler = router
 
-	return s
+	// Initialize compiler with policies found in storage.
+	txn, err := s.store.NewTransaction()
+	if err != nil {
+		return nil, err
+	}
+
+	defer s.store.Close(txn)
+
+	modules := s.store.ListPolicies(txn)
+	compiler := ast.NewCompiler()
+
+	if compiler.Compile(modules); compiler.Failed() {
+		return nil, compiler.Errors[0]
+	}
+
+	s.setCompiler(compiler)
+
+	return s, nil
 }
 
 // Compiler returns the server's compiler.
@@ -138,22 +152,6 @@ func (s *Server) Compiler() *ast.Compiler {
 
 // Loop starts the server. This function does not return.
 func (s *Server) Loop() error {
-
-	txn, err := s.store.NewTransaction()
-	if err != nil {
-		return err
-	}
-
-	mods := s.store.ListPolicies(txn)
-	s.store.Close(txn)
-
-	c := ast.NewCompiler()
-	if c.Compile(mods); c.Failed() {
-		return c.Errors[0]
-	}
-
-	s.setCompiler(c)
-
 	return http.ListenAndServe(s.addr, s.Handler)
 }
 
