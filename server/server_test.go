@@ -178,7 +178,8 @@ func TestDataV1(t *testing.T) {
 		}},
 		{"get undefined", []tr{
 			tr{"PUT", "/policies/test", testMod1, 200, ""},
-			tr{"GET", "/data/testmod/undef", "", 404, `{"IsUndefined": true}`},
+			tr{"GET", "/data/testmod/undef", "", 404, ""},
+			tr{"GET", "/data/does/not/exist", "", 404, ""},
 		}},
 		{"get root", []tr{
 			tr{"PUT", "/policies/test", testMod2, 200, ""},
