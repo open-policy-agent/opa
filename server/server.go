@@ -155,37 +155,13 @@ func (s *Server) Loop() error {
 	return http.ListenAndServe(s.addr, s.Handler)
 }
 
-func (s *Server) compileQuery(compiler *ast.Compiler, qStr string) (ast.Body, error) {
+func (s *Server) execQuery(txn storage.Transaction, query ast.Body) (resultSetV1, error) {
 
-	body, err := ast.ParseBody(qStr)
-	if err != nil {
-		return nil, errors.Wrapf(err, "parse error")
-	}
-
-	return compiler.CompileOne(body)
-}
-
-func (s *Server) execQuery(qStr string) (resultSetV1, error) {
-
-	compiler := s.Compiler()
-
-	query, err := s.compileQuery(compiler, qStr)
-	if err != nil {
-		return nil, err
-	}
-
-	txn, err := s.store.NewTransaction()
-	if err != nil {
-		return nil, err
-	}
-
-	defer s.store.Close(txn)
-
-	ctx := topdown.NewContext(query, compiler, s.store, txn)
+	ctx := topdown.NewContext(query, s.Compiler(), s.store, txn)
 
 	results := resultSetV1{}
 
-	err = topdown.Eval(ctx, func(ctx *topdown.Context) error {
+	err := topdown.Eval(ctx, func(ctx *topdown.Context) error {
 		result := map[string]interface{}{}
 		var err error
 		ctx.Locals.Iter(func(k, v ast.Value) bool {
@@ -230,7 +206,19 @@ func (s *Server) indexGet(w http.ResponseWriter, r *http.Request) {
 	if len(qStrs) > 0 {
 		qStr := qStrs[len(qStrs)-1]
 		t0 := time.Now()
-		results, err := s.execQuery(qStr)
+
+		var results resultSetV1
+		txn, err := s.store.NewTransaction()
+
+		if err == nil {
+			var query ast.Body
+			_, query, err = ast.CompileQuery(qStr)
+			if err == nil {
+				results, err = s.execQuery(txn, query)
+			}
+			s.store.Close(txn)
+		}
+
 		dt := time.Since(t0)
 		renderQueryResult(w, results, err, dt)
 	}
@@ -554,7 +542,22 @@ func (s *Server) v1QueryGet(w http.ResponseWriter, r *http.Request) {
 	}
 
 	qStr := qStrs[len(qStrs)-1]
-	results, err := s.execQuery(qStr)
+
+	txn, err := s.store.NewTransaction()
+	if err != nil {
+		handleErrorAuto(w, err)
+		return
+	}
+
+	defer s.store.Close(txn)
+
+	_, query, err := ast.CompileQuery(qStr)
+	if err != nil {
+		handleError(w, 400, err)
+		return
+	}
+
+	results, err := s.execQuery(txn, query)
 
 	if err != nil {
 		handleErrorAuto(w, err)

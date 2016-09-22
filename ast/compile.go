@@ -207,35 +207,6 @@ func (c *Compiler) Compile(modules map[string]*Module) {
 	c.compile()
 }
 
-// CompileOne runs the compilation process on an input query.
-func (c *Compiler) CompileOne(query Body) (Body, error) {
-
-	key := string(Wildcard.Value.(Var))
-
-	mod := &Module{
-		Package: &Package{
-			Path:     Ref{DefaultRootDocument},
-			Location: query.Loc(),
-		},
-		Rules: []*Rule{
-			&Rule{
-				Name:     Var(key),
-				Body:     query,
-				Location: query.Loc(),
-			},
-		},
-	}
-
-	c.Modules[key] = mod
-	c.compile()
-
-	if c.Failed() {
-		return nil, c.Errors[0]
-	}
-
-	return c.Modules[key].Rules[0].Body, nil
-}
-
 // Failed returns true if a compilation error has been encountered.
 func (c *Compiler) Failed() bool {
 	return len(c.Errors) > 0
