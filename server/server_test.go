@@ -189,6 +189,11 @@ func TestDataV1(t *testing.T) {
 			tr{"PATCH", "/data/x", `[{"op": "add", "path": "/", "value": [1,2,3,4]}]`, 204, ""},
 			tr{"GET", "/query?q=data.x[_]%20=%20x", "", 200, `[{"x": 1}, {"x": 2}, {"x": 3}, {"x": 4}]`},
 		}},
+		{"query compiler error", []tr{
+			tr{"GET", "/query?q=x", "", 400, ""},
+			// Subsequent query should not fail.
+			tr{"GET", "/query?q=x=1", "", 200, `[{"x": 1}]`},
+		}},
 	}
 
 	for _, tc := range tests {
