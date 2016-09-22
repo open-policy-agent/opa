@@ -6,6 +6,7 @@ package runtime
 
 import (
 	"net/http"
+	"net/url"
 	"time"
 
 	"github.com/golang/glog"
@@ -35,10 +36,15 @@ func (h *LoggingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		glog.Infof("%v %v %v %v %v %vms",
 			r.RemoteAddr,
 			r.Method,
-			r.RequestURI,
+			dropGlobals(r.URL),
 			statusCode,
 			recorder.bytesWritten,
 			float64(dt.Nanoseconds())/1e6)
+		if glog.V(3) {
+			for _, g := range getGlobals(r.URL) {
+				glog.Infoln(g)
+			}
+		}
 	}
 }
 
@@ -66,4 +72,27 @@ func (r *recorder) Write(bs []byte) (int, error) {
 func (r *recorder) WriteHeader(s int) {
 	r.statusCode = s
 	r.inner.WriteHeader(s)
+}
+
+func dropGlobals(u *url.URL) string {
+	cpy := url.Values{}
+	for k, v := range u.Query() {
+		if k != "global" {
+			cpy[k] = v
+		}
+	}
+	if len(cpy) == 0 {
+		return u.Path
+	}
+	return u.Path + "?" + cpy.Encode()
+}
+
+func getGlobals(u *url.URL) (r []string) {
+	for _, g := range u.Query()["global"] {
+		s, err := url.QueryUnescape(g)
+		if err == nil {
+			r = append(r, s)
+		}
+	}
+	return r
 }
