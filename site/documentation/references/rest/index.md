@@ -1126,15 +1126,16 @@ Content-Type: application/json
 #### Status Codes
 
 - **200** - no error
+- **400** - bad request
 - **404** - not found
 - **500** - server error
 
+The server returns 400 if a global variable required for the query was not supplied.
+
 The server returns 404 in two cases:
 
-1. The path refers to a non-existent document.
-2. The path refers to a Virtual Document that is undefined at the time of the query.
-
-In the second case, the response body will contain an object indicating the document is undefined.
+- The path refers to a non-existent base document.
+- The path refers to a Virtual Document that is undefined in the context of the query.
 
 #### Example Module
 
@@ -1152,17 +1153,10 @@ allow_request :- flag = true
 GET /v1/data/opa/examples/allow_request?global=example.flag:false HTTP/1.1
 ```
 
-#### Example Response For Undefined Virtual Document
+#### Example Response For Non-Existent Or Undefined Document
 
 ```http
 HTTP/1.1 404 Not Found
-Content-Type: application/json
-```
-
-```json
-{
-  "IsUndefined": true
-}
 ```
 
 ### Create or Overwrite a Document
@@ -1193,13 +1187,13 @@ If-None-Match: *
 #### Example Response If Document Already Exists
 
 ```http
-HTTP/1.1 Not Modified 304
+HTTP/1.1 304 Not Modified
 ```
 
 #### Example Response If Document Does Not Exist
 
 ```http
-HTTP/1.1 No Content 204
+HTTP/1.1 204 No Content
 ```
 
 #### Status Codes

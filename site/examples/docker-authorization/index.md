@@ -82,7 +82,7 @@ OPA will run until it receives a signal to stop. Open another terminal to contin
 ### 4. Download the [open-policy-agent/docker-authz-plugin](https://github.com/open-policy-agent/docker-authz-plugin) executable.
 
 ```shell
-$ curl -L https://github.com/open-policy-agent/docker-authz-plugin/releases/download/v0.1.0/docker-authz-plugin_linux_amd64 > docker-authz-plugin
+$ curl -L https://github.com/open-policy-agent/docker-authz-plugin/releases/download/v0.1.1/docker-authz-plugin_linux_amd64 > docker-authz-plugin
 $ chmod u+x docker-authz-plugin
 ```
 
