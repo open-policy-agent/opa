@@ -292,9 +292,6 @@ func TestCompilerCheckSafetyBodyErrors(t *testing.T) {
 	import x as bar
 	import data.m.n as baz
 
-	# deadbeef is not a built-interface{}
-	badBuiltin = true :- deadbeef(1,2,3)
-
 	# a would be unbound
 	unboundRef1 = true :- a.b.c = "foo"
 
@@ -349,7 +346,6 @@ func TestCompilerCheckSafetyBodyErrors(t *testing.T) {
 	}
 
 	expected := []string{
-		makeErrMsg("badBuiltin", "deadbeef"),
 		makeErrMsg("unboundRef1", "a"),
 		makeErrMsg("unboundRef2", "a"),
 		makeErrMsg("unboundNegated1", "i"),
@@ -391,20 +387,22 @@ func TestCompilerCheckSafetyBodyErrors(t *testing.T) {
 
 }
 
-func TestCompilerBuiltinArgs(t *testing.T) {
+func TestCompilerBuiltins(t *testing.T) {
 	c := NewCompiler()
 	c.Modules = map[string]*Module{
 		"mod": MustParseModule(`
 			package badbuiltin
 			p :- count(1)
 			q :- count([1,2,3], x, 1)
+			r :- [ x | deadbeef(1,2,x) ]
 			`),
 	}
-	compileStages(c, "", "checkBuiltinArgs")
+	compileStages(c, "", "checkBuiltins")
 	result := compilerErrsToStringSlice(c.Errors)
 	expected := []string{
 		"p: wrong number of arguments (expression count(1) must specify 2 arguments to built-in function count)",
 		"q: wrong number of arguments (expression count([1,2,3], x, 1) must specify 2 arguments to built-in function count)",
+		"r: unknown built-in function deadbeef",
 	}
 	if len(result) != len(expected) {
 		t.Fatalf("Expected %d:\n%v\nBut got %d:\n%v", len(expected), strings.Join(expected, "\n"), len(result), strings.Join(result, "\n"))

@@ -186,9 +186,9 @@ func NewCompiler() *Compiler {
 		stage{c.setGlobals, "setGlobals"},
 		stage{c.setModuleTree, "setModuleTree"},
 		stage{c.setRuleTree, "setRuleTree"},
+		stage{c.checkBuiltins, "checkBuiltins"},
 		stage{c.checkSafetyHead, "checkSafetyHead"},
 		stage{c.checkSafetyBody, "checkSafetyBody"},
-		stage{c.checkBuiltinArgs, "checkBuiltinArgs"},
 		stage{c.resolveAllRefs, "resolveAllRefs"},
 		stage{c.setRuleGraph, "setRuleGraph"},
 		stage{c.checkRecursion, "checkRecursion"},
@@ -291,22 +291,29 @@ func (c *Compiler) GetRulesForVirtualDocument(ref Ref) (rules []*Rule) {
 	return node.Rules
 }
 
-// checkBuiltinArgs ensures that all built-ins are called with the correct number
-// of arguments.
+// checkBuiltins ensures that built-in functions are specified correctly.
 //
 // TODO(tsandall): in the future this should be replaced with schema checking.
-func (c *Compiler) checkBuiltinArgs() {
+func (c *Compiler) checkBuiltins() {
 	for _, m := range c.Modules {
 		for _, r := range m.Rules {
-			for _, expr := range r.Body {
-				if ts, ok := expr.Terms.([]*Term); ok {
-					if bi, ok := BuiltinMap[ts[0].Value.(Var)]; ok {
-						if bi.NumArgs != len(ts[1:]) {
-							c.err(expr.Location.Errorf("%v: wrong number of arguments (expression %s must specify %d arguments to built-in function %v)", r.Name, expr.Location.Text, bi.NumArgs, ts[0]))
+			vis := &GenericVisitor{
+				func(x interface{}) bool {
+					if expr, ok := x.(*Expr); ok {
+						if ts, ok := expr.Terms.([]*Term); ok {
+							if bi, ok := BuiltinMap[ts[0].Value.(Var)]; ok {
+								if bi.NumArgs != len(ts[1:]) {
+									c.err(expr.Location.Errorf("%v: wrong number of arguments (expression %s must specify %d arguments to built-in function %v)", r.Name, expr.Location.Text, bi.NumArgs, ts[0]))
+								}
+							} else {
+								c.err(expr.Location.Errorf("%v: unknown built-in function %v", r.Name, ts[0]))
+							}
 						}
 					}
-				}
+					return false
+				},
 			}
+			Walk(vis, r.Body)
 		}
 	}
 }
