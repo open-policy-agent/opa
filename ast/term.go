@@ -35,22 +35,23 @@ func NewLocation(text []byte, file string, row int, col int) *Location {
 // Errorf returns a new error value with a message formatted to include the location
 // info (e.g., line, column, filename, etc.)
 func (loc *Location) Errorf(f string, a ...interface{}) error {
-	return fmt.Errorf(loc.format(f), a...)
+	return errors.New(loc.Format(f, a...))
 }
 
 // Wrapf returns a new error value that wraps an existing error with a message formatted
 // to include the location info (e.g., line, column, filename, etc.)
 func (loc *Location) Wrapf(err error, f string, a ...interface{}) error {
-	return errors.Wrapf(err, loc.format(f), a...)
+	return errors.Wrap(err, loc.Format(f, a...))
 }
 
-func (loc *Location) format(f string) string {
+// Format returns a formatted string prefixed with the location information.
+func (loc *Location) Format(f string, a ...interface{}) string {
 	if len(loc.File) > 0 {
 		f = fmt.Sprintf("%v:%v: %v", loc.File, loc.Row, f)
 	} else {
 		f = fmt.Sprintf("%v:%v: %v", loc.Row, loc.Col, f)
 	}
-	return f
+	return fmt.Sprintf(f, a...)
 }
 
 // Value declares the common interface for all Term values. Every kind of Term value
@@ -203,6 +204,21 @@ func (term *Term) Vars() VarSet {
 	vis := &varVisitor{vars: VarSet{}}
 	Walk(vis, term)
 	return vis.vars
+}
+
+// IsScalar returns true if the AST value is a scalar.
+func IsScalar(v Value) bool {
+	switch v.(type) {
+	case String:
+		return true
+	case Number:
+		return true
+	case Boolean:
+		return true
+	case Null:
+		return true
+	}
+	return false
 }
 
 // Null represents the null value defined by JSON.
