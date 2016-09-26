@@ -45,7 +45,7 @@ func setup(t *testing.T, filename string) *topdown.QueryParams {
 	}
 
 	if c.Compile(modules); c.Failed() {
-		t.Fatal("unexpected error:", c.FlattenErrors())
+		t.Fatal("unexpected error:", c.Errors)
 	}
 
 	// storage setup

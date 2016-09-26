@@ -14,7 +14,7 @@ func ExampleCompiler_Compile() {
 
 	// Define an input module that will be compiled.
 	exampleModule := `
-	
+
 		package opa.example
 
 		import data.foo
@@ -23,7 +23,7 @@ func ExampleCompiler_Compile() {
 		p[x] :- foo[x], not bar[x], x < min_x
 
 		min_x = 100
-		
+
 	`
 
 	// Parse the input module to obtain the AST representation.
@@ -40,7 +40,7 @@ func ExampleCompiler_Compile() {
 	}
 
 	if c.Compile(mods); c.Failed() {
-		fmt.Println("Compile error:", c.FlattenErrors())
+		fmt.Println("Compile error:", c.Errors)
 	}
 
 	fmt.Println("Expr 1:", mod.Rules[0].Body[0])

@@ -629,7 +629,7 @@ func newPolicy(id, s string) *policyV1 {
 	compiler := ast.NewCompiler()
 	parsed := ast.MustParseModule(s)
 	if compiler.Compile(map[string]*ast.Module{"": parsed}); compiler.Failed() {
-		panic(compiler.FlattenErrors())
+		panic(compiler.Errors)
 	}
 	mod := compiler.Modules[""]
 	return &policyV1{ID: id, Module: mod}

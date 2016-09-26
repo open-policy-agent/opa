@@ -40,7 +40,7 @@ func loadPolicies(bufs map[string][]byte) (map[string]*ast.Module, error) {
 
 	c := ast.NewCompiler()
 	if c.Compile(parsed); c.Failed() {
-		return nil, c.Errors[0]
+		return nil, c.Errors
 	}
 
 	return c.Modules, nil

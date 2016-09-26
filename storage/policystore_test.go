@@ -45,7 +45,7 @@ func TestPolicyStoreDefaultOpen(t *testing.T) {
 	c := ast.NewCompiler()
 	mod := ast.MustParseModule(testMod1)
 	if c.Compile(map[string]*ast.Module{"testMod1": mod}); c.Failed() {
-		panic(c.FlattenErrors())
+		panic(c.Errors)
 	}
 
 	stored, err := policyStore.Get("testMod1")
@@ -264,7 +264,7 @@ func (f *fixture) compile1(m string) *ast.Module {
 
 	c := ast.NewCompiler()
 	if c.Compile(mods); c.Failed() {
-		panic(c.FlattenErrors())
+		panic(c.Errors)
 	}
 
 	return c.Modules[""]

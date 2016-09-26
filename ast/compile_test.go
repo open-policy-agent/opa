@@ -174,7 +174,7 @@ func TestCompilerCheckSafetyBodyReordering(t *testing.T) {
 	tests := []struct {
 		note     string
 		body     string
-		expected interface{}
+		expected string
 	}{
 		// trivial cases
 		{"noop", "x = 1, x != 0", "x = 1, x != 0"},
@@ -202,24 +202,14 @@ func TestCompilerCheckSafetyBodyReordering(t *testing.T) {
 		}
 
 		compileStages(c, "", "checkSafetyBody")
-		switch exp := tc.expected.(type) {
-		case string:
-			if c.Failed() {
-				t.Errorf("%v (#%d): Unexpected compilation error: %v", tc.note, i, c.FlattenErrors())
-				return
-			}
-			e := MustParseBody(exp)
-			if !e.Equal(c.Modules["mod"].Rules[0].Body) {
-				t.Errorf("%v (#%d): Expected body to be ordered and equal to %v but got: %v", tc.note, i, e, c.Modules["mod"].Rules[0].Body)
-			}
-		case error:
-			if len(c.Errors) > 0 {
-				if !reflect.DeepEqual(c.Errors[0], exp) {
-					t.Errorf("%v (#%d): Expected compiler error %v but got: %v", tc.note, i, exp, c.Errors[0])
-				}
-			} else {
-				t.Errorf("%v (#%d): Expected compiler error but got: %v", tc.note, i, c.Modules["mod"].Rules[0])
-			}
+
+		if c.Failed() {
+			t.Errorf("%v (#%d): Unexpected compilation error: %v", tc.note, i, c.Errors)
+			return
+		}
+		e := MustParseBody(tc.expected)
+		if !e.Equal(c.Modules["mod"].Rules[0].Body) {
+			t.Errorf("%v (#%d): Expected body to be ordered and equal to %v but got: %v", tc.note, i, e, c.Modules["mod"].Rules[0].Body)
 		}
 	}
 }
@@ -805,7 +795,7 @@ func assertGlobals(t *testing.T, c *Compiler, mod *Module, expected string) {
 
 func assertNotFailed(t *testing.T, c *Compiler) {
 	if c.Failed() {
-		t.Errorf("Unexpected compilation error: %v", c.FlattenErrors())
+		t.Errorf("Unexpected compilation error: %v", c.Errors)
 	}
 }
 
