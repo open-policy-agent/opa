@@ -1214,7 +1214,7 @@ func compileModules(input []string) *ast.Compiler {
 
 	c := ast.NewCompiler()
 	if c.Compile(mods); c.Failed() {
-		panic(c.FlattenErrors())
+		panic(c.Errors)
 	}
 
 	return c
@@ -1245,7 +1245,7 @@ func compileRules(imports []string, input []string) *ast.Compiler {
 
 	c := ast.NewCompiler()
 	if c.Compile(map[string]*ast.Module{"testMod": m}); c.Failed() {
-		panic(c.FlattenErrors())
+		panic(c.Errors)
 	}
 
 	return c

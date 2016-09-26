@@ -155,8 +155,7 @@ func compileAndStoreInputs(parsed map[string]*parsedModule, store *storage.Stora
 
 	c := ast.NewCompiler()
 	if c.Compile(mods); c.Failed() {
-		// TODO(tsandall): add another call on compiler to flatten into error type
-		return c.Errors[0]
+		return c.Errors
 	}
 
 	for id := range parsed {

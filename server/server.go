@@ -125,7 +125,7 @@ func New(store *storage.Storage, addr string, persist bool) (*Server, error) {
 	compiler := ast.NewCompiler()
 
 	if compiler.Compile(modules); compiler.Failed() {
-		return nil, compiler.Errors[0]
+		return nil, compiler.Errors
 	}
 
 	s.setCompiler(compiler)
@@ -385,7 +385,7 @@ func (s *Server) v1PoliciesDelete(w http.ResponseWriter, r *http.Request) {
 	c := ast.NewCompiler()
 
 	if c.Compile(mods); c.Failed() {
-		handleErrorf(w, 400, c.FlattenErrors())
+		handleError(w, 400, c.Errors)
 		return
 	}
 
@@ -507,7 +507,7 @@ func (s *Server) v1PoliciesPut(w http.ResponseWriter, r *http.Request) {
 	c := ast.NewCompiler()
 
 	if c.Compile(mods); c.Failed() {
-		handleErrorf(w, 400, c.FlattenErrors())
+		handleError(w, 400, c.Errors)
 		return
 	}
 

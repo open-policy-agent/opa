@@ -58,7 +58,7 @@ func setupBenchmark(nodes int, pods int) *topdown.QueryParams {
 	}
 
 	if c.Compile(modules); c.Failed() {
-		panic(c.FlattenErrors())
+		panic(c.Errors)
 	}
 
 	// storage setup

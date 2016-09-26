@@ -5,7 +5,6 @@
 package ast
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/open-policy-agent/opa/util"
@@ -17,7 +16,7 @@ type Compiler struct {
 	// Errors contains errors that occurred during the compilation process.
 	// If there are one or more errors, the compilation process is considered
 	// "failed".
-	Errors []error
+	Errors Errors
 
 	// Modules contains the compiled modules. The compiled modules are the
 	// output of the compilation process. If the compilation process failed,
@@ -127,7 +126,7 @@ func CompileModule(m string) (*Compiler, *Module, error) {
 	}
 
 	if c.Compile(mods); c.Failed() {
-		return nil, nil, c.Errors[0]
+		return nil, nil, c.Errors
 	}
 
 	return c, c.Modules[key], nil
@@ -163,7 +162,7 @@ func CompileQuery(q string) (*Compiler, Body, error) {
 	c := NewCompiler()
 
 	if c.Compile(mods); c.Failed() {
-		return nil, nil, c.Errors[0]
+		return nil, nil, c.Errors
 	}
 
 	return c, c.Modules[key].Rules[0].Body, nil
@@ -210,26 +209,6 @@ func (c *Compiler) Compile(modules map[string]*Module) {
 // Failed returns true if a compilation error has been encountered.
 func (c *Compiler) Failed() bool {
 	return len(c.Errors) > 0
-}
-
-// FlattenErrors returns a single message that contains a flattened version of the compiler error messages.
-// This must only be called when the compilation process has failed.
-func (c *Compiler) FlattenErrors() string {
-
-	if len(c.Errors) == 0 {
-		panic(fmt.Sprintf("illegal call: %v", c))
-	}
-
-	if len(c.Errors) == 1 {
-		return fmt.Sprintf("1 error occurred: %v", c.Errors[0].Error())
-	}
-
-	b := []string{}
-	for _, err := range c.Errors {
-		b = append(b, err.Error())
-	}
-
-	return fmt.Sprintf("%d errors occurred:\n%s", len(c.Errors), strings.Join(b, "\n"))
 }
 
 // GetRulesExact returns a slice of rules referred to by the reference.

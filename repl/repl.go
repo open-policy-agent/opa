@@ -254,7 +254,7 @@ func (r *REPL) cmdUnset(args []string) bool {
 
 	r.compiler = ast.NewCompiler()
 	if r.compiler.Compile(modules); r.compiler.Failed() {
-		fmt.Fprintln(r.output, "error:", r.compiler.FlattenErrors())
+		fmt.Fprintln(r.output, "error:", r.compiler.Errors)
 		return false
 	}
 
@@ -282,7 +282,7 @@ func (r *REPL) compileBody(body ast.Body) (ast.Body, error) {
 
 	if r.compiler.Compile(modules); r.compiler.Failed() {
 		mod.Rules = prev
-		return nil, fmt.Errorf(r.compiler.FlattenErrors())
+		return nil, r.compiler.Errors
 	}
 
 	return mod.Rules[len(prev)].Body, nil
@@ -298,7 +298,7 @@ func (r *REPL) compileRule(rule *ast.Rule) (*ast.Module, error) {
 	r.compiler = ast.NewCompiler()
 	if r.compiler.Compile(modules); r.compiler.Failed() {
 		mod.Rules = prev
-		return nil, fmt.Errorf(r.compiler.FlattenErrors())
+		return nil, r.compiler.Errors
 	}
 
 	return mod, nil
@@ -483,7 +483,7 @@ func (r *REPL) evalImport(i *ast.Import) bool {
 
 	if r.compiler.Compile(modules); r.compiler.Failed() {
 		mod.Imports = prev
-		fmt.Fprintln(r.output, "error:", r.compiler.FlattenErrors())
+		fmt.Fprintln(r.output, r.compiler.Errors)
 		return false
 	}
 
@@ -656,7 +656,7 @@ func (r *REPL) init() bool {
 
 	r.compiler = ast.NewCompiler()
 	if r.compiler.Compile(modules); r.compiler.Failed() {
-		fmt.Fprintln(r.output, "error:", r.compiler.FlattenErrors())
+		fmt.Fprintln(r.output, "error:", r.compiler.Errors)
 		return true
 	}
 
