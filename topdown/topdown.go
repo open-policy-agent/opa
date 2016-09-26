@@ -156,7 +156,7 @@ type Error struct {
 
 const (
 
-	// InternalErr represents an unknown evaluation error
+	// InternalErr represents an unknown evaluation error.
 	InternalErr = iota
 
 	// UnboundGlobalErr indicates a global variable without a binding was
@@ -168,6 +168,10 @@ const (
 	// the same name: p = false :- true, p = true :- true, a query "p" would
 	// evaluate p to "true" and "false".
 	ConflictErr = iota
+
+	// TypeErr indicates evaluation stopped because an expression was applied to
+	// a value of an inappropriate type.
+	TypeErr = iota
 )
 
 func (e *Error) Error() string {
@@ -193,6 +197,15 @@ func conflictErr(query interface{}, kind string, rule *ast.Rule) error {
 	return &Error{
 		Code:    ConflictErr,
 		Message: fmt.Sprintf("multiple values for %v: rules must produce exactly one value for %v: check rule definition(s): %v", query, kind, rule.Name),
+	}
+}
+
+// typeErrObjectKey returns a TypeErr with a message indicating the rule
+// produced a key that of an inappropriate type.
+func typeErrObjectKey(rule *ast.Rule, v ast.Value) error {
+	return &Error{
+		Code:    TypeErr,
+		Message: rule.Location.Format("%v produced illegal object key type %T", rule.Name, v),
 	}
 }
 
@@ -464,7 +477,7 @@ func ValueToInterface(v ast.Value, ctx *Context) (interface{}, error) {
 			}
 			asStr, stringKey := k.(string)
 			if !stringKey {
-				return nil, fmt.Errorf("illegal object key: %v", k)
+				return nil, fmt.Errorf("object key type %T", k)
 			}
 			v, err := ValueToInterface(x[1].Value, ctx)
 			if err != nil {
@@ -1028,14 +1041,29 @@ func evalRefRulePartialObjectDoc(ctx *Context, ref ast.Ref, path ast.Ref, rule *
 	if !key.IsGround() {
 		child := ctx.Child(rule.Body, storage.NewBindings())
 		return Eval(child, func(child *Context) error {
+
 			key := PlugValue(rule.Key.Value, child)
-			if !key.IsGround() {
-				return fmt.Errorf("unbound variable: %v", key)
+
+			if r, ok := key.(ast.Ref); ok {
+				var err error
+				key, err = lookupValue(ctx, r)
+				if err != nil {
+					if storage.IsNotFound(err) {
+						return nil
+					}
+					return err
+				}
 			}
+
+			if !ast.IsScalar(key) {
+				return typeErrObjectKey(rule, key)
+			}
+
 			value := PlugValue(rule.Value.Value, child)
 			if !value.IsGround() {
 				return fmt.Errorf("unbound variable: %v", value)
 			}
+
 			undo := ctx.Bind(suffix[0].Value.(ast.Var), key, nil)
 			err := evalRefRuleResult(ctx, ref, ref[len(path)+1:], value, iter)
 			ctx.Unbind(undo)
@@ -1047,10 +1075,9 @@ func evalRefRulePartialObjectDoc(ctx *Context, ref ast.Ref, path ast.Ref, rule *
 	// proceed with the cached value. Otherwise, evaluate the rule and update
 	// the cache.
 	if docs, ok := ctx.cache.partialobjs[rule]; ok {
-		k := key
 		if r, ok := key.(ast.Ref); ok {
 			var err error
-			k, err = lookupValue(ctx, r)
+			key, err = lookupValue(ctx, r)
 			if err != nil {
 				if storage.IsNotFound(err) {
 					return nil
@@ -1058,7 +1085,10 @@ func evalRefRulePartialObjectDoc(ctx *Context, ref ast.Ref, path ast.Ref, rule *
 				return err
 			}
 		}
-		if doc, ok := docs[k]; ok {
+		if !ast.IsScalar(key) {
+			return typeErrObjectKey(rule, key)
+		}
+		if doc, ok := docs[key]; ok {
 			return evalRefRuleResult(ctx, ref, ref[len(path)+1:], doc, iter)
 		}
 	}
@@ -1075,10 +1105,9 @@ func evalRefRulePartialObjectDoc(ctx *Context, ref ast.Ref, path ast.Ref, rule *
 				cache = map[ast.Value]ast.Value{}
 				ctx.cache.partialobjs[rule] = cache
 			}
-			k := key
 			if r, ok := key.(ast.Ref); ok {
 				var err error
-				k, err = lookupValue(ctx, r)
+				key, err = lookupValue(ctx, r)
 				if err != nil {
 					if storage.IsNotFound(err) {
 						return nil
@@ -1086,7 +1115,10 @@ func evalRefRulePartialObjectDoc(ctx *Context, ref ast.Ref, path ast.Ref, rule *
 					return err
 				}
 			}
-			cache[k] = value
+			if !ast.IsScalar(key) {
+				return typeErrObjectKey(rule, key)
+			}
+			cache[key] = value
 			return evalRefRuleResult(ctx, ref, ref[len(path)+1:], value.(ast.Value), iter)
 		})
 	})
@@ -1116,8 +1148,18 @@ func evalRefRulePartialObjectDocFull(ctx *Context, ref ast.Ref, rules []*ast.Rul
 
 		err := Eval(child, func(child *Context) error {
 			key := PlugValue(rule.Key.Value, child)
-			if !key.IsGround() {
-				return fmt.Errorf("unbound variable: %v", key)
+			if r, ok := key.(ast.Ref); ok {
+				var err error
+				key, err = lookupValue(ctx, r)
+				if err != nil {
+					if storage.IsNotFound(err) {
+						return nil
+					}
+					return err
+				}
+			}
+			if !ast.IsScalar(key) {
+				return typeErrObjectKey(rule, key)
 			}
 			if _, ok := keys.Get(key); ok {
 				return conflictErr(ref, "object document keys", rule)

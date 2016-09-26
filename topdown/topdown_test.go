@@ -308,7 +308,7 @@ func TestTopDownPartialObjectDoc(t *testing.T) {
 	}{
 		{"identity", "p[k] = v :- b[k] = v", `{"v1": "hello", "v2": "goodbye"}`},
 		{"composites", "p[k] = v :- d[k] = v", `{"e": ["bar", "baz"]}`},
-		{"non-var/string key", "p[k] = v :- a[k] = v", fmt.Errorf("illegal object key: 0")},
+		{"non-var/string key", "p[k] = v :- a[k] = v", fmt.Errorf("object key type float64")},
 		{"body/join var", "p[k] = v :- a[i] = v, g[k][i] = v", `{"a": 1, "b": 2, "c": 4}`},
 		{"composite value", `p[k] = [v1,{"v2":v2}] :- g[k] = x, x[v1] = v2, v2 != 0`, `{
 			"a": [0, {"v2": 1}],
@@ -1100,11 +1100,18 @@ func TestTopDownCaching(t *testing.T) {
 	                                   # k will be bound to ref data.d.e[0], data.d.e.[1], etc.
 
 	r[k] = v :- data.strings[k] = v
+
+	err_top :- data.l[_] = x, err_obj[x] = _
+	err_obj[k] = true :- k = data.l[_]  # data.l[_] refers to ast.Object
 	`})
 
 	store := storage.New(storage.InMemoryWithJSONConfig(loadSmallTestData()))
 
 	assertTopDown(t, compiler, store, "reference lookup", []string{"topdown", "caching", "p"}, `{}`, "[2,2,3,3]")
+
+	illegalObjectKeyMsg := fmt.Errorf("evaluation error (code: 3): 12:2: err_obj produced illegal object key type ast.Object")
+	assertTopDown(t, compiler, store, "unhandled error", []string{"topdown", "caching", "err_top"}, "{}", illegalObjectKeyMsg)
+	assertTopDown(t, compiler, store, "unhandled error", []string{"topdown", "caching", "err_obj"}, "{}", illegalObjectKeyMsg)
 }
 
 func TestTopDownStoragePlugin(t *testing.T) {

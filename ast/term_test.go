@@ -182,6 +182,28 @@ func TestTermIsGround(t *testing.T) {
 
 }
 
+func TestIsScalar(t *testing.T) {
+
+	tests := []struct {
+		term     string
+		expected bool
+	}{
+		{"null", true},
+		{`"string"`, true},
+		{"3.14", true},
+		{"false", true},
+		{"[1,2,3]", false},
+		{`{"a": 1}`, false},
+		{`[x | x = 0]`, false},
+	}
+	for _, tc := range tests {
+		term := MustParseTerm(tc.term)
+		if IsScalar(term.Value) != tc.expected {
+			t.Errorf("Expected IsScalar(%v) = %v", term, tc.expected)
+		}
+	}
+}
+
 func TestTermString(t *testing.T) {
 	assertToString(t, Null{}, "null")
 	assertToString(t, Boolean(true), "true")
