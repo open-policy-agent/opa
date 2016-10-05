@@ -103,6 +103,18 @@ func WalkRefs(x interface{}, f func(Ref) bool) {
 	Walk(vis, x)
 }
 
+// WalkBodies calls the function f on all bodies under x. If the function f
+// returns true, AST nodes under the last node will not be visited.
+func WalkBodies(x interface{}, f func(Body) bool) {
+	vis := &GenericVisitor{func(x interface{}) bool {
+		if b, ok := x.(Body); ok {
+			return f(b)
+		}
+		return false
+	}}
+	Walk(vis, x)
+}
+
 // GenericVisitor implements the Visitor interface to provide
 // a utility to walk over AST nodes using a closure. If the closure
 // returns true, the visitor will not walk over AST nodes under x.

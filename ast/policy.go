@@ -78,7 +78,8 @@ type (
 	// Expr represents a single expression contained inside the body of a rule.
 	Expr struct {
 		Location *Location `json:"-"`
-		Negated  bool      `json:",omitempty"`
+		Index    int
+		Negated  bool `json:",omitempty"`
 		Terms    interface{}
 	}
 )
@@ -239,6 +240,15 @@ func (rule *Rule) String() string {
 	return strings.Join(buf, " ")
 }
 
+// NewBody returns a new Body containing the given expressions. The indices of
+// the immediate expressions will be reset.
+func NewBody(exprs ...*Expr) Body {
+	for i, expr := range exprs {
+		expr.Index = i
+	}
+	return Body(exprs)
+}
+
 // Contains returns true if this body contains the given expression.
 func (body Body) Contains(x *Expr) bool {
 	for _, e := range body {
@@ -323,11 +333,15 @@ func (expr *Expr) Complement() *Expr {
 	return &cpy
 }
 
-// Equal returns true if this Expr equals the other Expr.
-// Two expressions are considered equal if both expressions are negated (or not),
-// are built-ins (or not), and have the same ordered terms.
+// Equal returns true if this Expr equals the other Expr.  Two expressions are
+// considered equal if both expressions are negated (or not), exist at the same
+// position in the containing query, are built-ins (or not), and have the same
+// ordered terms.
 func (expr *Expr) Equal(other *Expr) bool {
 	if expr.Negated != other.Negated {
+		return false
+	}
+	if expr.Index != other.Index {
 		return false
 	}
 	switch t := expr.Terms.(type) {
@@ -347,7 +361,7 @@ func (expr *Expr) Equal(other *Expr) bool {
 
 // Hash returns the hash code of the Expr.
 func (expr *Expr) Hash() int {
-	s := 0
+	s := expr.Index
 	switch ts := expr.Terms.(type) {
 	case []*Term:
 		for _, t := range ts {

@@ -412,7 +412,7 @@ func Query(params *QueryParams) (interface{}, error) {
 	}
 
 	// Construct and execute a query to obtain the value for the reference.
-	query := ast.Body{ast.Equality.Expr(ast.RefTerm(ref...), ast.Wildcard)}
+	query := ast.NewBody(ast.Equality.Expr(ast.RefTerm(ref...), ast.Wildcard))
 	ctx := params.NewContext(query)
 	var result interface{} = Undefined{}
 	var err error
@@ -583,7 +583,7 @@ func evalContext(ctx *Context, iter Iterator) error {
 func evalContextNegated(ctx *Context, iter Iterator) error {
 
 	negation := *ctx
-	negation.Query = ast.Body([]*ast.Expr{ctx.Current().Complement()})
+	negation.Query = ast.NewBody(ctx.Current().Complement())
 	negation.Index = 0
 	negation.Previous = ctx
 

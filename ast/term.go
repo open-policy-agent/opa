@@ -848,6 +848,9 @@ func unmarshalExpr(expr *Expr, v map[string]interface{}) error {
 			return fmt.Errorf("ast: unable to unmarshal Negated field with type: %T (expected true or false)", v["Negated"])
 		}
 	}
+	if err := unmarshalExprIndex(expr, v); err != nil {
+		return err
+	}
 	switch ts := v["Terms"].(type) {
 	case map[string]interface{}:
 		t, err := unmarshalTerm(ts)
@@ -865,6 +868,19 @@ func unmarshalExpr(expr *Expr, v map[string]interface{}) error {
 		return fmt.Errorf(`ast: unable to unmarshal Terms field with type: %T (expected {"Value": ..., "Type": ...} or [{"Value": ..., "Type": ...}, ...])`, v["Terms"])
 	}
 	return nil
+}
+
+func unmarshalExprIndex(expr *Expr, v map[string]interface{}) error {
+	if x, ok := v["Index"]; ok {
+		if f, ok := x.(float64); ok {
+			i := int(f)
+			if float64(i) == f {
+				expr.Index = i
+				return nil
+			}
+		}
+	}
+	return fmt.Errorf("ast: unable to unmarshal Index field with type: %T (expected integer)", v["Index"])
 }
 
 func unmarshalTerm(m map[string]interface{}) (*Term, error) {

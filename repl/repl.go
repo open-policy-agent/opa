@@ -518,7 +518,7 @@ func (r *REPL) evalTermSingleValue(body ast.Body) bool {
 
 	term := body[0].Terms.(*ast.Term)
 	outputVar := ast.Wildcard
-	body = ast.Body{ast.Equality.Expr(term, outputVar)}
+	body = ast.NewBody(ast.Equality.Expr(term, outputVar))
 
 	ctx := topdown.NewContext(body, r.compiler, r.store, r.txn)
 	if r.trace {
@@ -558,7 +558,7 @@ func (r *REPL) evalTermMultiValue(body ast.Body) bool {
 	// evaluation result below, we will ignore this variable.
 	term := body[0].Terms.(*ast.Term)
 	outputVar := ast.Wildcard
-	body = ast.Body{ast.Equality.Expr(term, outputVar)}
+	body = ast.NewBody(ast.Equality.Expr(term, outputVar))
 
 	ctx := topdown.NewContext(body, r.compiler, r.store, r.txn)
 	if r.trace {
