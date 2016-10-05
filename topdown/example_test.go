@@ -104,7 +104,7 @@ func ExampleQuery() {
 	// Prepare the query parameters. Queries execute against the policy engine's storage and can
 	// accept additional documents (which are referred to as "globals"). In this case we have no
 	// additional documents.
-	globals := storage.NewBindings()
+	globals := ast.NewValueMap()
 	params := topdown.NewQueryParams(compiler, store, txn, globals, []interface{}{"opa", "example", "p"})
 
 	// Execute the query against "p".

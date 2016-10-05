@@ -17,8 +17,8 @@ import (
 type Context struct {
 	Query    ast.Body
 	Compiler *ast.Compiler
-	Globals  *storage.Bindings
-	Locals   *storage.Bindings
+	Globals  *ast.ValueMap
+	Locals   *ast.ValueMap
 	Index    int
 	Previous *Context
 	Store    *storage.Storage
@@ -37,8 +37,8 @@ func NewContext(query ast.Body, compiler *ast.Compiler, store *storage.Storage, 
 	return &Context{
 		Query:    query,
 		Compiler: compiler,
-		Globals:  storage.NewBindings(),
-		Locals:   storage.NewBindings(),
+		Globals:  ast.NewValueMap(),
+		Locals:   ast.NewValueMap(),
 		Store:    store,
 		txn:      txn,
 		cache:    newContextCache(),
@@ -85,7 +85,7 @@ func (ctx *Context) Unbind(undo *Undo) {
 }
 
 // Child returns a new context to evaluate a query that was referenced by this context.
-func (ctx *Context) Child(query ast.Body, locals *storage.Bindings) *Context {
+func (ctx *Context) Child(query ast.Body, locals *ast.ValueMap) *Context {
 	cpy := *ctx
 	cpy.Query = query
 	cpy.Locals = locals
@@ -352,13 +352,13 @@ type QueryParams struct {
 	Compiler    *ast.Compiler
 	Store       *storage.Storage
 	Transaction storage.Transaction
-	Globals     *storage.Bindings
+	Globals     *ast.ValueMap
 	Tracer      Tracer
 	Path        []interface{}
 }
 
 // NewQueryParams returns a new QueryParams.
-func NewQueryParams(compiler *ast.Compiler, store *storage.Storage, txn storage.Transaction, globals *storage.Bindings, path []interface{}) *QueryParams {
+func NewQueryParams(compiler *ast.Compiler, store *storage.Storage, txn storage.Transaction, globals *ast.ValueMap, path []interface{}) *QueryParams {
 	return &QueryParams{
 		Compiler:    compiler,
 		Store:       store,
@@ -374,7 +374,7 @@ func (q *QueryParams) NewContext(body ast.Body) *Context {
 		Query:    body,
 		Compiler: q.Compiler,
 		Globals:  q.Globals,
-		Locals:   storage.NewBindings(),
+		Locals:   ast.NewValueMap(),
 		Store:    q.Store,
 		Tracer:   q.Tracer,
 		txn:      q.Transaction,
@@ -991,7 +991,7 @@ func evalRefRuleCompleteDoc(ctx *Context, ref ast.Ref, suffix ast.Ref, rules []*
 
 	for _, rule := range rules {
 
-		bindings := storage.NewBindings()
+		bindings := ast.NewValueMap()
 		child := ctx.Child(rule.Body, bindings)
 
 		err := Eval(child, func(child *Context) error {
@@ -1039,7 +1039,7 @@ func evalRefRulePartialObjectDoc(ctx *Context, ref ast.Ref, path ast.Ref, rule *
 	// a recursive binding if we unified "key" with "rule.Key.Value". If unification
 	// is improved to handle namespacing, this can be revisited.
 	if !key.IsGround() {
-		child := ctx.Child(rule.Body, storage.NewBindings())
+		child := ctx.Child(rule.Body, ast.NewValueMap())
 		return Eval(child, func(child *Context) error {
 
 			key := PlugValue(rule.Key.Value, child)
@@ -1093,7 +1093,7 @@ func evalRefRulePartialObjectDoc(ctx *Context, ref ast.Ref, path ast.Ref, rule *
 		}
 	}
 
-	child := ctx.Child(rule.Body, storage.NewBindings())
+	child := ctx.Child(rule.Body, ast.NewValueMap())
 	_, err := evalEqUnify(child, key, rule.Key.Value, nil, func(child *Context) error {
 		return Eval(child, func(child *Context) error {
 			value := PlugValue(rule.Value.Value, child)
@@ -1143,7 +1143,7 @@ func evalRefRulePartialObjectDocFull(ctx *Context, ref ast.Ref, rules []*ast.Rul
 
 	for _, rule := range rules {
 
-		bindings := storage.NewBindings()
+		bindings := ast.NewValueMap()
 		child := ctx.Child(rule.Body, bindings)
 
 		err := Eval(child, func(child *Context) error {
@@ -1188,7 +1188,7 @@ func evalRefRulePartialSetDoc(ctx *Context, ref ast.Ref, path ast.Ref, rule *ast
 
 	// See comment in evalRefRulePartialObjectDoc about the two branches below.
 	if !key.IsGround() {
-		child := ctx.Child(rule.Body, storage.NewBindings())
+		child := ctx.Child(rule.Body, ast.NewValueMap())
 
 		// TODO(tsandall): Currently this evaluates the child query without any
 		// bindings from the current context. In cases where the key is partially
@@ -1214,7 +1214,7 @@ func evalRefRulePartialSetDoc(ctx *Context, ref ast.Ref, path ast.Ref, rule *ast
 		})
 	}
 
-	child := ctx.Child(rule.Body, storage.NewBindings())
+	child := ctx.Child(rule.Body, ast.NewValueMap())
 
 	_, err := evalEqUnify(child, key, rule.Key.Value, nil, func(child *Context) error {
 		return Eval(child, func(child *Context) error {
@@ -1412,7 +1412,7 @@ func evalTermsIndexed(ctx *Context, iter Iterator, indexed ast.Ref, nonIndexed *
 
 		// Iterate the bindings for the indexed term that when applied to the reference
 		// would locate the non-indexed value obtained above.
-		return ctx.Store.Index(ctx.txn, indexed, nonIndexedValue, func(bindings *storage.Bindings) error {
+		return ctx.Store.Index(ctx.txn, indexed, nonIndexedValue, func(bindings *ast.ValueMap) error {
 			var prev *Undo
 			bindings.Iter(func(k, v ast.Value) bool {
 				prev = ctx.Bind(k, v, prev)
