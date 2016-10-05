@@ -53,7 +53,7 @@ func newIndices() *indices {
 func (ind *indices) Build(store Store, txn Transaction, ref ast.Ref) error {
 	index := newBindingIndex()
 	ind.registerTriggers(store)
-	err := iterStorage(store, txn, ref, ast.EmptyRef(), NewBindings(), func(bindings *Bindings, val interface{}) {
+	err := iterStorage(store, txn, ref, ast.EmptyRef(), ast.NewValueMap(), func(bindings *ast.ValueMap, val interface{}) {
 		index.Add(val, bindings)
 	})
 	if err != nil {
@@ -163,7 +163,7 @@ func newBindingIndex() *bindingIndex {
 
 // Add updates the index to include new bindings for the value.
 // If the bindings already exist for the value, no change is made.
-func (ind *bindingIndex) Add(val interface{}, bindings *Bindings) {
+func (ind *bindingIndex) Add(val interface{}, bindings *ast.ValueMap) {
 
 	node := ind.getNode(val)
 	if node != nil {
@@ -185,7 +185,7 @@ func (ind *bindingIndex) Add(val interface{}, bindings *Bindings) {
 }
 
 // Iter calls the iter function for each set of bindings for the value.
-func (ind *bindingIndex) Iter(val interface{}, iter func(*Bindings) error) error {
+func (ind *bindingIndex) Iter(val interface{}, iter func(*ast.ValueMap) error) error {
 	node := ind.getNode(val)
 	if node == nil {
 		return nil
@@ -219,7 +219,7 @@ func (ind *bindingIndex) String() string {
 }
 
 type bindingSetNode struct {
-	val  *Bindings
+	val  *ast.ValueMap
 	next *bindingSetNode
 }
 
@@ -233,7 +233,7 @@ func newBindingSet() *bindingSet {
 	}
 }
 
-func (set *bindingSet) Add(val *Bindings) {
+func (set *bindingSet) Add(val *ast.ValueMap) {
 	node := set.getNode(val)
 	if node != nil {
 		return
@@ -243,7 +243,7 @@ func (set *bindingSet) Add(val *Bindings) {
 	set.table[hashCode] = &bindingSetNode{val, head}
 }
 
-func (set *bindingSet) Iter(iter func(*Bindings) error) error {
+func (set *bindingSet) Iter(iter func(*ast.ValueMap) error) error {
 	for _, head := range set.table {
 		for entry := head; entry != nil; entry = entry.next {
 			if err := iter(entry.val); err != nil {
@@ -256,14 +256,14 @@ func (set *bindingSet) Iter(iter func(*Bindings) error) error {
 
 func (set *bindingSet) String() string {
 	buf := []string{}
-	set.Iter(func(bindings *Bindings) error {
+	set.Iter(func(bindings *ast.ValueMap) error {
 		buf = append(buf, bindings.String())
 		return nil
 	})
 	return "{" + strings.Join(buf, ", ") + "}"
 }
 
-func (set *bindingSet) getNode(val *Bindings) *bindingSetNode {
+func (set *bindingSet) getNode(val *ast.ValueMap) *bindingSetNode {
 	hashCode := val.Hash()
 	for entry := set.table[hashCode]; entry != nil; entry = entry.next {
 		if entry.val.Equal(val) {
@@ -304,7 +304,7 @@ func hash(v interface{}) int {
 	panic(fmt.Sprintf("illegal argument: %v (%T)", v, v))
 }
 
-func iterStorage(store Store, txn Transaction, ref ast.Ref, path ast.Ref, bindings *Bindings, iter func(*Bindings, interface{})) error {
+func iterStorage(store Store, txn Transaction, ref ast.Ref, path ast.Ref, bindings *ast.ValueMap, iter func(*ast.ValueMap, interface{})) error {
 
 	if len(ref) == 0 {
 		node, err := store.Read(txn, path)

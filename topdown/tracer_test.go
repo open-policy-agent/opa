@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/util"
 )
@@ -35,7 +36,7 @@ func TestTracer(t *testing.T) {
 
 	tracer := &mockTracer{[]string{}}
 
-	params := NewQueryParams(compiler, store, txn, storage.NewBindings(), []interface{}{"p"})
+	params := NewQueryParams(compiler, store, txn, ast.NewValueMap(), []interface{}{"p"})
 	params.Tracer = tracer
 
 	result, err := Query(params)

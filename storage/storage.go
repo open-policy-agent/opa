@@ -303,7 +303,7 @@ func (s *Storage) IndexExists(ref ast.Ref) bool {
 // Index invokes the iterator with bindings for each variable in the reference
 // that if plugged into the reference, would locate a document with a matching
 // value.
-func (s *Storage) Index(txn Transaction, ref ast.Ref, value interface{}, iter func(*Bindings) error) error {
+func (s *Storage) Index(txn Transaction, ref ast.Ref, value interface{}, iter func(*ast.ValueMap) error) error {
 
 	idx := s.indices.Get(ref)
 	if idx == nil {

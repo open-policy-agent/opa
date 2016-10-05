@@ -1251,14 +1251,14 @@ func compileRules(imports []string, input []string) *ast.Compiler {
 	return c
 }
 
-func loadExpectedBindings(input string) []*storage.Bindings {
+func loadExpectedBindings(input string) []*ast.ValueMap {
 	var data []map[string]interface{}
 	if err := json.Unmarshal([]byte(input), &data); err != nil {
 		panic(err)
 	}
-	var expected []*storage.Bindings
+	var expected []*ast.ValueMap
 	for _, bindings := range data {
-		buf := storage.NewBindings()
+		buf := ast.NewValueMap()
 		for k, v := range bindings {
 			switch v := v.(type) {
 			case string:
@@ -1380,7 +1380,7 @@ func runTopDownTestCase(t *testing.T, data map[string]interface{}, note string, 
 
 func assertTopDown(t *testing.T, compiler *ast.Compiler, store *storage.Storage, note string, path []string, globals string, expected interface{}) {
 
-	g := storage.NewBindings()
+	g := ast.NewValueMap()
 	for _, i := range ast.MustParseTerm(globals).Value.(ast.Object) {
 		g.Put(i[0].Value, i[1].Value)
 	}

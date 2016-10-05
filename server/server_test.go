@@ -525,7 +525,7 @@ func TestGlobalParsing(t *testing.T) {
 				t.Errorf("%v (#%d): Unexpected error: %v", tc.note, i+1, err)
 				continue
 			}
-			exp := storage.NewBindings()
+			exp := ast.NewValueMap()
 			for _, i := range ast.MustParseTerm(e).Value.(ast.Object) {
 				exp.Put(i[0].Value, i[1].Value)
 			}

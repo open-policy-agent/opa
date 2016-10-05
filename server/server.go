@@ -722,8 +722,8 @@ func getPretty(p []string) bool {
 	return false
 }
 
-func parseGlobals(g []string) (*storage.Bindings, error) {
-	globals := storage.NewBindings()
+func parseGlobals(g []string) (*ast.ValueMap, error) {
+	globals := ast.NewValueMap()
 	for _, g := range g {
 		vs := strings.SplitN(g, ":", 2)
 		k, err := ast.ParseTerm(vs[0])

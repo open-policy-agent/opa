@@ -105,7 +105,7 @@ func assertBindingsEqual(t *testing.T, note string, index *bindingIndex, value i
 
 	expected := loadExpectedBindings(expectedStr)
 
-	err := index.Iter(value, func(bindings *Bindings) error {
+	err := index.Iter(value, func(bindings *ast.ValueMap) error {
 		for j := range expected {
 			if expected[j].Equal(bindings) {
 				tmp := expected[:j]
@@ -127,14 +127,14 @@ func assertBindingsEqual(t *testing.T, note string, index *bindingIndex, value i
 	}
 }
 
-func loadExpectedBindings(input string) []*Bindings {
+func loadExpectedBindings(input string) []*ast.ValueMap {
 	var data []map[string]interface{}
 	if err := json.Unmarshal([]byte(input), &data); err != nil {
 		panic(err)
 	}
-	var expected []*Bindings
+	var expected []*ast.ValueMap
 	for _, bindings := range data {
-		buf := NewBindings()
+		buf := ast.NewValueMap()
 		for k, v := range bindings {
 			switch v := v.(type) {
 			case string:

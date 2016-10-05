@@ -65,7 +65,7 @@ func setupBenchmark(nodes int, pods int) *topdown.QueryParams {
 	store := storage.New(storage.InMemoryConfig())
 
 	// parameter setup
-	globals := storage.NewBindings()
+	globals := ast.NewValueMap()
 	req := ast.MustParseTerm(requestedPod).Value
 	globals.Put(ast.Var("requested_pod"), req)
 	path := []interface{}{"opa", "test", "scheduler", "fit"}
