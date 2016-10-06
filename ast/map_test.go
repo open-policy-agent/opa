@@ -13,22 +13,12 @@ import (
 func TestValueMapOverwrite(t *testing.T) {
 
 	a := NewValueMap()
-	b := NewValueMap()
 	a.Put(String("x"), String("foo"))
 	a.Put(String("x"), String("bar"))
 	if a.Get(String("x")) != String("bar") {
 		t.Fatalf("Expected a['x'] = 'bar' but got: %v", a.Get(String("x")))
 	}
 
-	a.Put(String("z"), String("corge"))
-	b.Put(String("y"), String("baz"))
-	b.Put(String("x"), String("qux"))
-
-	c := a.Update(b)
-
-	if c.Get(String("x")) != String("qux") {
-		t.Fatalf("Expected c['x'] = 'qux' but got: %v", c.Get(String("x")))
-	}
 }
 
 func TestValueMapIter(t *testing.T) {
@@ -95,4 +85,45 @@ func TestValueMapString(t *testing.T) {
 	if result != o1 && result != o2 {
 		t.Fatalf("Expected string to equal either %v or %v but got: %v", o1, o2, result)
 	}
+}
+
+func TestValueMapNil(t *testing.T) {
+	var a *ValueMap
+	if a.Copy() != nil {
+		t.Fatalf("Expected nil map copy to be nil")
+	}
+	a.Delete(String("foo"))
+	var b *ValueMap
+	if !a.Equal(b) {
+		t.Fatalf("Expected nil maps to be equal")
+	}
+	b = NewValueMap()
+	if !a.Equal(b) {
+		t.Fatalf("Expected nil map to equal non-nil, empty map")
+	}
+	b.Put(String("foo"), String("bar"))
+	if a.Equal(b) {
+		t.Fatalf("Expected nil map to not equal non-empty map")
+	}
+	if b.Equal(a) {
+		t.Fatalf("Expected non-nil map to not equal nil map")
+	}
+	if a.Hash() != 0 {
+		t.Fatalf("Expected nil map to hash to zero")
+	}
+	if a.Iter(func(Value, Value) bool { return true }) {
+		t.Fatalf("Expected nil map iteration to return false")
+	}
+	if a.Len() != 0 {
+		t.Fatalf("Expected nil map length to be zero")
+	}
+	if a.String() != "{}" {
+		t.Fatalf("Expected nil map string to be {}")
+	}
+	defer func() {
+		if r := recover(); r == nil {
+			t.Fatalf("Expected put to panic")
+		}
+	}()
+	a.Put(String("foo"), String("bar"))
 }

@@ -24,6 +24,9 @@ func NewValueMap() *ValueMap {
 
 // Copy returns a shallow copy of the ValueMap.
 func (vs *ValueMap) Copy() *ValueMap {
+	if vs == nil {
+		return nil
+	}
 	cpy := NewValueMap()
 	cpy.hashMap = vs.hashMap.Copy()
 	return cpy
@@ -31,25 +34,47 @@ func (vs *ValueMap) Copy() *ValueMap {
 
 // Equal returns true if this ValueMap equals the other.
 func (vs *ValueMap) Equal(other *ValueMap) bool {
+	if vs == nil {
+		return other == nil || other.Len() == 0
+	}
+	if other == nil {
+		return vs == nil || vs.Len() == 0
+	}
 	return vs.hashMap.Equal(other.hashMap)
+}
+
+// Len returns the number of elements in the map.
+func (vs *ValueMap) Len() int {
+	if vs == nil {
+		return 0
+	}
+	return vs.hashMap.Len()
 }
 
 // Get returns the value in the map for k.
 func (vs *ValueMap) Get(k Value) Value {
-	if v, ok := vs.hashMap.Get(k); ok {
-		return v.(Value)
+	if vs != nil {
+		if v, ok := vs.hashMap.Get(k); ok {
+			return v.(Value)
+		}
 	}
 	return nil
 }
 
 // Hash returns a hash code for this ValueMap.
 func (vs *ValueMap) Hash() int {
+	if vs == nil {
+		return 0
+	}
 	return vs.hashMap.Hash()
 }
 
 // Iter calls the iter function for each key/value pair in the map. If the iter
 // function returns true, iteration stops.
 func (vs *ValueMap) Iter(iter func(Value, Value) bool) bool {
+	if vs == nil {
+		return false
+	}
 	return vs.hashMap.Iter(func(kt, vt util.T) bool {
 		k := kt.(Value)
 		v := vt.(Value)
@@ -59,22 +84,24 @@ func (vs *ValueMap) Iter(iter func(Value, Value) bool) bool {
 
 // Put inserts a key k into the map with value v.
 func (vs *ValueMap) Put(k, v Value) {
+	if vs == nil {
+		panic("put on nil value map")
+	}
 	vs.hashMap.Put(k, v)
 }
 
 // Delete removes a key k from the map.
 func (vs *ValueMap) Delete(k Value) {
+	if vs == nil {
+		return
+	}
 	vs.hashMap.Delete(k)
 }
 
-// Update returns a new ValueMap that contains the union of this ValueMap and
-// the other. Overlapping keys are replaced with values from the other.
-func (vs *ValueMap) Update(other *ValueMap) *ValueMap {
-	new := vs.hashMap.Update(other.hashMap)
-	return &ValueMap{new}
-}
-
 func (vs *ValueMap) String() string {
+	if vs == nil {
+		return "{}"
+	}
 	return vs.hashMap.String()
 }
 
