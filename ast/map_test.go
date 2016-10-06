@@ -89,9 +89,11 @@ func TestValueMapString(t *testing.T) {
 	a := NewValueMap()
 	a.Put(MustParseRef("a.b.c[x]"), String("foo"))
 	a.Put(Var("x"), Number(1))
-	expected := `{a.b.c[x]: "foo", x: 1}`
 	result := a.String()
-	if expected != result {
-		t.Fatalf("Expected %v but got: %v", expected, result)
+	term := MustParseTerm(result)
+	obj := term.Value.(Object)
+	expected := `{a.b.c[x]: "foo", x: 1}`
+	if !obj.Equal(MustParseTerm(expected).Value) {
+		t.Fatalf("Expected string to equal %v but got: %v", expected, result)
 	}
 }
