@@ -106,31 +106,6 @@ func (ctx *Context) Step() *Context {
 	return &cpy
 }
 
-func (ctx *Context) trace(f string, a ...interface{}) {
-	if ctx.Tracer == nil {
-		return
-	}
-	if ctx.Tracer.Enabled() {
-		ctx.Tracer.Trace(ctx, f, a...)
-	}
-}
-
-func (ctx *Context) traceEval() {
-	ctx.trace("Eval %v", ctx.Current())
-}
-
-func (ctx *Context) traceTry(expr *ast.Expr) {
-	ctx.trace(" Try %v", expr)
-}
-
-func (ctx *Context) traceSuccess(expr *ast.Expr) {
-	ctx.trace("  Success %v", expr)
-}
-
-func (ctx *Context) traceFinish() {
-	ctx.trace("   Finish %v", ctx.Locals)
-}
-
 // contextcache stores the result of rule evaluation for a query. The contextcache
 // is inherited by child contexts. The cache is consulted when virtual document
 // references are evaluated. If a miss occurs, the virtual document is generated
@@ -562,11 +537,8 @@ func ValueToStrings(v ast.Value, ctx *Context) ([]string, error) {
 func evalContext(ctx *Context, iter Iterator) error {
 
 	if ctx.Index >= len(ctx.Query) {
-		ctx.traceFinish()
 		return iter(ctx)
 	}
-
-	ctx.traceEval()
 
 	if ctx.Current().Negated {
 		return evalContextNegated(ctx, iter)
@@ -607,7 +579,6 @@ func evalContextNegated(ctx *Context, iter Iterator) error {
 
 func evalExpr(ctx *Context, iter Iterator) error {
 	expr := PlugExpr(ctx.Current(), ctx)
-	ctx.traceTry(expr)
 	switch tt := expr.Terms.(type) {
 	case []*ast.Term:
 		builtin := builtinFunctions[tt[0].Value.(ast.Var)]
@@ -616,10 +587,7 @@ func evalExpr(ctx *Context, iter Iterator) error {
 			// this should never happen.
 			panic(fmt.Sprintf("illegal built-in: %v", tt[0]))
 		}
-		return builtin(ctx, expr, func(ctx *Context) error {
-			ctx.traceSuccess(expr)
-			return iter(ctx)
-		})
+		return builtin(ctx, expr, iter)
 	case *ast.Term:
 		v := tt.Value
 		if r, ok := v.(ast.Ref); ok {
@@ -631,7 +599,6 @@ func evalExpr(ctx *Context, iter Iterator) error {
 		}
 		if !v.Equal(ast.Boolean(false)) {
 			if v.IsGround() {
-				ctx.traceSuccess(expr)
 				return iter(ctx)
 			}
 		}
