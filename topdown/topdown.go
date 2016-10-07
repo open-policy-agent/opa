@@ -6,6 +6,7 @@ package topdown
 
 import (
 	"fmt"
+	"sync"
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/storage"
@@ -27,9 +28,32 @@ type Context struct {
 	// TODO(tsandall): make the transaction public and lazily create one in
 	// Eval(). This way callers do not have to provide the transaction unless
 	// they want to run evaluation multiple times against the same snapshot.
-	txn storage.Transaction
-
+	txn   storage.Transaction
 	cache *contextcache
+	qid   uint64
+}
+
+type queryIDFactory struct {
+	next uint64
+	mtx  sync.Mutex
+}
+
+func (f *queryIDFactory) Next() uint64 {
+	f.mtx.Lock()
+	defer f.mtx.Unlock()
+	next := f.next
+	f.next++
+	return next
+}
+
+func (f *queryIDFactory) Reset() {
+	f.mtx.Lock()
+	defer f.mtx.Unlock()
+	f.next = uint64(1)
+}
+
+var qidFactory = &queryIDFactory{
+	next: uint64(1),
 }
 
 // NewContext creates a new Context with no bindings.
@@ -37,11 +61,11 @@ func NewContext(query ast.Body, compiler *ast.Compiler, store *storage.Storage, 
 	return &Context{
 		Query:    query,
 		Compiler: compiler,
-		Globals:  ast.NewValueMap(),
 		Locals:   ast.NewValueMap(),
 		Store:    store,
 		txn:      txn,
 		cache:    newContextCache(),
+		qid:      qidFactory.Next(),
 	}
 }
 
@@ -50,10 +74,8 @@ func (ctx *Context) Binding(k ast.Value) ast.Value {
 	if v := ctx.Locals.Get(k); v != nil {
 		return v
 	}
-	if ctx.Globals != nil {
-		if v := ctx.Globals.Get(k); v != nil {
-			return v
-		}
+	if v := ctx.Globals.Get(k); v != nil {
+		return v
 	}
 	return nil
 }
@@ -91,6 +113,7 @@ func (ctx *Context) Child(query ast.Body, locals *ast.ValueMap) *Context {
 	cpy.Locals = locals
 	cpy.Previous = ctx
 	cpy.Index = 0
+	cpy.qid = qidFactory.Next()
 	return &cpy
 }
 
@@ -104,6 +127,57 @@ func (ctx *Context) Step() *Context {
 	cpy := *ctx
 	cpy.Index++
 	return &cpy
+}
+
+func (ctx *Context) traceEnter(node interface{}) {
+	if ctx.tracingEnabled() {
+		evt := ctx.makeEvent(EnterOp, node)
+		ctx.Tracer.Trace(ctx, evt)
+	}
+}
+
+func (ctx *Context) traceExit(node interface{}) {
+	if ctx.tracingEnabled() {
+		evt := ctx.makeEvent(ExitOp, node)
+		ctx.Tracer.Trace(ctx, evt)
+	}
+}
+
+func (ctx *Context) traceEval(node interface{}) {
+	if ctx.tracingEnabled() {
+		evt := ctx.makeEvent(EvalOp, node)
+		ctx.Tracer.Trace(ctx, evt)
+	}
+}
+
+func (ctx *Context) traceRedo(node interface{}) {
+	if ctx.tracingEnabled() {
+		evt := ctx.makeEvent(RedoOp, node)
+		ctx.Tracer.Trace(ctx, evt)
+	}
+}
+
+func (ctx *Context) traceFail(node interface{}) {
+	if ctx.tracingEnabled() {
+		evt := ctx.makeEvent(FailOp, node)
+		ctx.Tracer.Trace(ctx, evt)
+	}
+}
+
+func (ctx *Context) tracingEnabled() bool {
+	return ctx.Tracer != nil && ctx.Tracer.Enabled()
+}
+
+func (ctx *Context) makeEvent(op Op, node interface{}) Event {
+	evt := Event{
+		Op:      op,
+		Node:    node,
+		QueryID: ctx.qid,
+	}
+	if ctx.Previous != nil {
+		evt.ParentID = ctx.Previous.qid
+	}
+	return evt
 }
 
 // contextcache stores the result of rule evaluation for a query. The contextcache
@@ -345,16 +419,9 @@ func NewQueryParams(compiler *ast.Compiler, store *storage.Storage, txn storage.
 
 // NewContext returns a new Context that can be used to do evaluation.
 func (q *QueryParams) NewContext(body ast.Body) *Context {
-	ctx := &Context{
-		Query:    body,
-		Compiler: q.Compiler,
-		Globals:  q.Globals,
-		Locals:   ast.NewValueMap(),
-		Store:    q.Store,
-		Tracer:   q.Tracer,
-		txn:      q.Transaction,
-		cache:    newContextCache(),
-	}
+	ctx := NewContext(body, q.Compiler, q.Store, q.Transaction)
+	ctx.Globals = q.Globals
+	ctx.Tracer = q.Tracer
 	return ctx
 }
 
@@ -554,14 +621,12 @@ func evalContext(ctx *Context, iter Iterator) error {
 
 func evalContextNegated(ctx *Context, iter Iterator) error {
 
-	negation := *ctx
-	negation.Query = ast.NewBody(ctx.Current().Complement())
-	negation.Index = 0
-	negation.Previous = ctx
+	negation := ast.NewBody(ctx.Current().Complement())
+	child := ctx.Child(negation, ctx.Locals)
 
 	isTrue := false
 
-	err := evalContext(&negation, func(*Context) error {
+	err := evalContext(child, func(*Context) error {
 		isTrue = true
 		return nil
 	})

@@ -14,6 +14,7 @@ import (
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/storage"
+	"github.com/open-policy-agent/opa/topdown/trace"
 	"github.com/open-policy-agent/opa/util"
 	testutil "github.com/open-policy-agent/opa/util/test"
 )
@@ -1440,4 +1441,14 @@ func (rs resultSet) Swap(i, j int) {
 
 func (rs resultSet) Len() int {
 	return len(rs)
+}
+
+type BufferingTracer []trace.Event
+
+func (b *BufferingTracer) Enabled() bool {
+	return true
+}
+
+func (b *BufferingTracer) Trace(event trace.Event) {
+	*b = append(*b, event)
 }
