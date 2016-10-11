@@ -4,7 +4,13 @@
 
 package topdown
 
-import "github.com/open-policy-agent/opa/ast"
+import (
+	"fmt"
+	"io"
+	"strings"
+
+	"github.com/open-policy-agent/opa/ast"
+)
 
 // Op defines the types of tracing events.
 type Op string
@@ -81,15 +87,83 @@ func equalNodes(a, b Event) bool {
 	return false
 }
 
-// StdoutTracer ...
-type StdoutTracer struct{}
+// LineTracer implements the Tracer interface by writing events to an output
+// stream.
+type LineTracer struct {
+	output io.Writer
+	depths map[uint64]int
+}
 
-// Enabled ...
-func (t *StdoutTracer) Enabled() bool {
+// NewLineTracer returns a new LineTracer.
+func NewLineTracer(output io.Writer) *LineTracer {
+	return &LineTracer{
+		output: output,
+		depths: map[uint64]int{},
+	}
+}
+
+// Enabled always returns true.
+func (t *LineTracer) Enabled() bool {
 	return true
 }
 
-// Trace ...
-func (t *StdoutTracer) Trace(ctx *Context, evt Event) {
+// Trace formats the event as a string and writes it to the output stream.
+// Expression and rule AST nodes will be plugged with bindings from the context.
+func (t *LineTracer) Trace(ctx *Context, evt Event) {
+	msg := t.formatEvent(ctx, evt)
+	fmt.Fprintln(t.output, msg)
+}
 
+func (t *LineTracer) formatEvent(ctx *Context, evt Event) string {
+	padding := t.getPadding(evt)
+	node := t.getNode(ctx, evt)
+	return fmt.Sprintf("%v%v %v", padding, evt.Op, node)
+}
+
+func (t *LineTracer) getNode(ctx *Context, evt Event) interface{} {
+	switch evt.Op {
+	case RedoOp:
+		switch node := evt.Node.(type) {
+		case *ast.Rule:
+			return node.Head()
+		}
+	default:
+		switch node := evt.Node.(type) {
+		case *ast.Rule:
+			return PlugHead(node.Head(), ctx)
+		case *ast.Expr:
+			return PlugExpr(node, ctx)
+		}
+	}
+	return evt.Node
+}
+
+func (t *LineTracer) getPadding(evt Event) string {
+	d := t.depths[evt.QueryID]
+	if d == 0 {
+		d = t.depths[evt.ParentID]
+		d++
+		if t.depths == nil {
+			t.depths = map[uint64]int{}
+		}
+		t.depths[evt.QueryID] = d
+	}
+	var spaces int
+	switch evt.Op {
+	case EnterOp:
+		spaces = d
+	case RedoOp:
+		if _, ok := evt.Node.(*ast.Expr); !ok {
+			spaces = d
+			break
+		}
+		fallthrough
+	default:
+		spaces = d + 1
+	}
+	padding := ""
+	if spaces > 1 {
+		padding += strings.Repeat("| ", spaces-1)
+	}
+	return padding
 }
