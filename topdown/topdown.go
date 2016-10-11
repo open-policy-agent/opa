@@ -299,6 +299,19 @@ func Eval(ctx *Context, iter Iterator) error {
 	})
 }
 
+// PlugHead returns a copy of head with bound terms substituted for values in
+// ctx.
+func PlugHead(head *ast.Head, ctx *Context) *ast.Head {
+	plugged := *head
+	if plugged.Key != nil {
+		plugged.Key = PlugTerm(plugged.Key, ctx)
+	}
+	if plugged.Value != nil {
+		plugged.Value = PlugTerm(plugged.Value, ctx)
+	}
+	return &plugged
+}
+
 // PlugExpr returns a copy of expr with bound terms substituted for values in ctx.
 func PlugExpr(expr *ast.Expr, ctx *Context) *ast.Expr {
 	plugged := *expr
