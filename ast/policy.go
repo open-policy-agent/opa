@@ -72,6 +72,14 @@ type (
 		Body     Body
 	}
 
+	// Head represents the head of a rule.
+	// TODO(tsandall): refactor Rule to contain a Head.
+	Head struct {
+		Name  Var
+		Key   *Term
+		Value *Term
+	}
+
 	// Body represents one or more expressios contained inside a rule.
 	Body []*Expr
 
@@ -212,6 +220,15 @@ func (rule *Rule) HeadVars() VarSet {
 	return vis.vars
 }
 
+// Head returns the rule's head.
+func (rule *Rule) Head() *Head {
+	return &Head{
+		Name:  rule.Name,
+		Key:   rule.Key,
+		Value: rule.Value,
+	}
+}
+
 // Loc returns the location of the Rule in the definition.
 func (rule *Rule) Loc() *Location {
 	return rule.Location
@@ -223,19 +240,24 @@ func (rule *Rule) Path(ns Ref) Ref {
 }
 
 func (rule *Rule) String() string {
-	var buf []string
-	if rule.Key != nil {
-		buf = append(buf, rule.Name.String()+"["+rule.Key.String()+"]")
-	} else {
-		buf = append(buf, rule.Name.String())
-	}
-	if rule.Value != nil {
-		buf = append(buf, "=")
-		buf = append(buf, rule.Value.String())
-	}
+	buf := []string{rule.Head().String()}
 	if len(rule.Body) >= 0 {
 		buf = append(buf, ":-")
 		buf = append(buf, rule.Body.String())
+	}
+	return strings.Join(buf, " ")
+}
+
+func (head *Head) String() string {
+	var buf []string
+	if head.Key != nil {
+		buf = append(buf, head.Name.String()+"["+head.Key.String()+"]")
+	} else {
+		buf = append(buf, head.Name.String())
+	}
+	if head.Value != nil {
+		buf = append(buf, "=")
+		buf = append(buf, head.Value.String())
 	}
 	return strings.Join(buf, " ")
 }
