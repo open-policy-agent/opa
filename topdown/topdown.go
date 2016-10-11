@@ -288,7 +288,15 @@ func ContinueN(ctx *Context, iter Iterator, x ...ast.Value) error {
 // for each context that contains bindings that satisfy all of the expressions
 // inside the body.
 func Eval(ctx *Context, iter Iterator) error {
-	return evalContext(ctx, iter)
+	ctx.traceEnter(ctx.Query)
+	return evalContext(ctx, func(ctx *Context) error {
+		ctx.traceExit(ctx.Query)
+		if err := iter(ctx); err != nil {
+			return err
+		}
+		ctx.traceRedo(ctx.Query)
+		return nil
+	})
 }
 
 // PlugExpr returns a copy of expr with bound terms substituted for values in ctx.
@@ -611,12 +619,48 @@ func evalContext(ctx *Context, iter Iterator) error {
 		return evalContextNegated(ctx, iter)
 	}
 
-	return evalTerms(ctx, func(ctx *Context) error {
-		return evalExpr(ctx, func(ctx *Context) error {
+	ctx.traceEval(ctx.Current())
+
+	// isRedo indicates if the expression's terms are defined at least once. If
+	// any of the terms are undefined, then the closure below will not run (but
+	// a Fail event still needs to be emitted).
+	isRedo := false
+
+	err := evalTerms(ctx, func(ctx *Context) error {
+		isRedo = true
+
+		// isTrue indicates if the expression is true and is used to determine
+		// if a Fail event should be emitted below.
+		isTrue := false
+
+		err := evalExpr(ctx, func(ctx *Context) error {
+			isTrue = true
 			ctx = ctx.Step()
 			return evalContext(ctx, iter)
 		})
+
+		if err != nil {
+			return err
+		}
+
+		if !isTrue {
+			ctx.traceFail(ctx.Current())
+		}
+
+		ctx.traceRedo(ctx.Current())
+
+		return nil
 	})
+
+	if err != nil {
+		return err
+	}
+
+	if !isRedo {
+		ctx.traceFail(ctx.Current())
+	}
+
+	return nil
 }
 
 func evalContextNegated(ctx *Context, iter Iterator) error {
@@ -624,9 +668,11 @@ func evalContextNegated(ctx *Context, iter Iterator) error {
 	negation := ast.NewBody(ctx.Current().Complement())
 	child := ctx.Child(negation, ctx.Locals)
 
+	ctx.traceEval(ctx.Current())
+
 	isTrue := false
 
-	err := evalContext(child, func(*Context) error {
+	err := Eval(child, func(*Context) error {
 		isTrue = true
 		return nil
 	})
@@ -638,6 +684,8 @@ func evalContextNegated(ctx *Context, iter Iterator) error {
 	if !isTrue {
 		return evalContext(ctx.Step(), iter)
 	}
+
+	ctx.traceFail(ctx.Current())
 
 	return nil
 }
@@ -988,8 +1036,8 @@ func evalRefRule(ctx *Context, ref ast.Ref, path ast.Ref, rules []*ast.Rule, ite
 		if len(suffix) == 0 {
 			return evalRefRulePartialObjectDocFull(ctx, ref, rules, iter)
 		}
-		for _, rule := range rules {
-			err := evalRefRulePartialObjectDoc(ctx, ref, path, rule, iter)
+		for i, rule := range rules {
+			err := evalRefRulePartialObjectDoc(ctx, ref, path, rule, i > 0, iter)
 			if err != nil {
 				return err
 			}
@@ -999,8 +1047,8 @@ func evalRefRule(ctx *Context, ref ast.Ref, path ast.Ref, rules []*ast.Rule, ite
 		if len(suffix) == 0 {
 			return fmt.Errorf("not implemented: full evaluation of virtual set documents: %v", ref)
 		}
-		for _, rule := range rules {
-			err := evalRefRulePartialSetDoc(ctx, ref, path, rule, iter)
+		for i, rule := range rules {
+			err := evalRefRulePartialSetDoc(ctx, ref, path, rule, i > 0, iter)
 			if err != nil {
 				return err
 			}
@@ -1021,12 +1069,17 @@ func evalRefRuleCompleteDoc(ctx *Context, ref ast.Ref, suffix ast.Ref, rules []*
 		}
 	}
 
-	for _, rule := range rules {
+	for i, rule := range rules {
 
 		bindings := ast.NewValueMap()
 		child := ctx.Child(rule.Body, bindings)
+		if i == 0 {
+			child.traceEnter(rule)
+		} else {
+			child.traceRedo(rule)
+		}
 
-		err := Eval(child, func(child *Context) error {
+		err := evalContext(child, func(child *Context) error {
 			if result == nil {
 				result = PlugValue(rule.Value.Value, child)
 			} else {
@@ -1035,6 +1088,8 @@ func evalRefRuleCompleteDoc(ctx *Context, ref ast.Ref, suffix ast.Ref, rules []*
 					return conflictErr(ref, "complete documents", rule)
 				}
 			}
+			child.traceExit(rule)
+			child.traceRedo(rule)
 			return nil
 		})
 
@@ -1054,7 +1109,7 @@ func evalRefRuleCompleteDoc(ctx *Context, ref ast.Ref, suffix ast.Ref, rules []*
 	return nil
 }
 
-func evalRefRulePartialObjectDoc(ctx *Context, ref ast.Ref, path ast.Ref, rule *ast.Rule, iter Iterator) error {
+func evalRefRulePartialObjectDoc(ctx *Context, ref ast.Ref, path ast.Ref, rule *ast.Rule, redo bool, iter Iterator) error {
 	suffix := ref[len(path):]
 
 	key := PlugValue(suffix[0].Value, ctx)
@@ -1072,7 +1127,12 @@ func evalRefRulePartialObjectDoc(ctx *Context, ref ast.Ref, path ast.Ref, rule *
 	// is improved to handle namespacing, this can be revisited.
 	if !key.IsGround() {
 		child := ctx.Child(rule.Body, ast.NewValueMap())
-		return Eval(child, func(child *Context) error {
+		if redo {
+			child.traceRedo(rule)
+		} else {
+			child.traceEnter(rule)
+		}
+		return evalContext(child, func(child *Context) error {
 
 			key := PlugValue(rule.Key.Value, child)
 
@@ -1096,9 +1156,12 @@ func evalRefRulePartialObjectDoc(ctx *Context, ref ast.Ref, path ast.Ref, rule *
 				return fmt.Errorf("unbound variable: %v", value)
 			}
 
+			child.traceExit(rule)
+
 			undo := ctx.Bind(suffix[0].Value.(ast.Var), key, nil)
 			err := evalRefRuleResult(ctx, ref, ref[len(path)+1:], value, iter)
 			ctx.Unbind(undo)
+			child.traceRedo(rule)
 			return err
 		})
 	}
@@ -1126,17 +1189,28 @@ func evalRefRulePartialObjectDoc(ctx *Context, ref ast.Ref, path ast.Ref, rule *
 	}
 
 	child := ctx.Child(rule.Body, ast.NewValueMap())
+
 	_, err := evalEqUnify(child, key, rule.Key.Value, nil, func(child *Context) error {
-		return Eval(child, func(child *Context) error {
+
+		if redo {
+			child.traceRedo(rule)
+		} else {
+			child.traceEnter(rule)
+		}
+
+		return evalContext(child, func(child *Context) error {
+
 			value := PlugValue(rule.Value.Value, child)
 			if !value.IsGround() {
 				return fmt.Errorf("unbound variable: %v", value)
 			}
+
 			cache, ok := ctx.cache.partialobjs[rule]
 			if !ok {
 				cache = map[ast.Value]ast.Value{}
 				ctx.cache.partialobjs[rule] = cache
 			}
+
 			if r, ok := key.(ast.Ref); ok {
 				var err error
 				key, err = lookupValue(ctx, r)
@@ -1147,11 +1221,22 @@ func evalRefRulePartialObjectDoc(ctx *Context, ref ast.Ref, path ast.Ref, rule *
 					return err
 				}
 			}
+
 			if !ast.IsScalar(key) {
 				return typeErrObjectKey(rule, key)
 			}
+
 			cache[key] = value
-			return evalRefRuleResult(ctx, ref, ref[len(path)+1:], value.(ast.Value), iter)
+
+			child.traceExit(rule)
+
+			err := evalRefRuleResult(ctx, ref, ref[len(path)+1:], value.(ast.Value), iter)
+			if err != nil {
+				return err
+			}
+
+			child.traceRedo(rule)
+			return nil
 		})
 	})
 
@@ -1173,12 +1258,17 @@ func evalRefRulePartialObjectDocFull(ctx *Context, ref ast.Ref, rules []*ast.Rul
 		return x.(ast.Value).Hash()
 	})
 
-	for _, rule := range rules {
+	for i, rule := range rules {
 
 		bindings := ast.NewValueMap()
 		child := ctx.Child(rule.Body, bindings)
+		if i == 0 {
+			child.traceEnter(rule)
+		} else {
+			child.traceRedo(rule)
+		}
 
-		err := Eval(child, func(child *Context) error {
+		err := evalContext(child, func(child *Context) error {
 			key := PlugValue(rule.Key.Value, child)
 			if r, ok := key.(ast.Ref); ok {
 				var err error
@@ -1202,6 +1292,8 @@ func evalRefRulePartialObjectDocFull(ctx *Context, ref ast.Ref, rules []*ast.Rul
 				return fmt.Errorf("unbound variable: %v", value)
 			}
 			result = append(result, ast.Item(&ast.Term{Value: key}, &ast.Term{Value: value}))
+			child.traceExit(rule)
+			child.traceRedo(rule)
 			return nil
 		})
 
@@ -1213,7 +1305,7 @@ func evalRefRulePartialObjectDocFull(ctx *Context, ref ast.Ref, rules []*ast.Rul
 	return Continue(ctx, ref, result, iter)
 }
 
-func evalRefRulePartialSetDoc(ctx *Context, ref ast.Ref, path ast.Ref, rule *ast.Rule, iter Iterator) error {
+func evalRefRulePartialSetDoc(ctx *Context, ref ast.Ref, path ast.Ref, rule *ast.Rule, redo bool, iter Iterator) error {
 
 	suffix := ref[len(path):]
 	key := PlugValue(suffix[0].Value, ctx)
@@ -1222,18 +1314,24 @@ func evalRefRulePartialSetDoc(ctx *Context, ref ast.Ref, path ast.Ref, rule *ast
 	if !key.IsGround() {
 		child := ctx.Child(rule.Body, ast.NewValueMap())
 
+		if redo {
+			child.traceRedo(rule)
+		} else {
+			child.traceEnter(rule)
+		}
+
 		// TODO(tsandall): Currently this evaluates the child query without any
 		// bindings from the current context. In cases where the key is partially
 		// ground this may be quite inefficient. An optimization would be to unify
 		// variables in the child query with ground values in the current context/query.
 		// To do this, the unification may need to be improved to namespace variables
 		// across contexts (otherwise we could end up with recursive bindings).
-		return Eval(child, func(child *Context) error {
+		return evalContext(child, func(child *Context) error {
 			value := PlugValue(rule.Key.Value, child)
 			if !value.IsGround() {
 				return fmt.Errorf("unbound variable: %v", rule.Value)
 			}
-
+			child.traceExit(rule)
 			undo, err := evalEqUnify(ctx, key, value, nil, func(child *Context) error {
 				return Continue(ctx, ref[:len(path)+1], ast.Boolean(true), iter)
 			})
@@ -1242,6 +1340,7 @@ func evalRefRulePartialSetDoc(ctx *Context, ref ast.Ref, path ast.Ref, rule *ast
 				return err
 			}
 			ctx.Unbind(undo)
+			child.traceRedo(rule)
 			return nil
 		})
 	}
@@ -1249,8 +1348,19 @@ func evalRefRulePartialSetDoc(ctx *Context, ref ast.Ref, path ast.Ref, rule *ast
 	child := ctx.Child(rule.Body, ast.NewValueMap())
 
 	_, err := evalEqUnify(child, key, rule.Key.Value, nil, func(child *Context) error {
-		return Eval(child, func(child *Context) error {
-			return Continue(ctx, ref[:len(path)+1], ast.Boolean(true), iter)
+		if redo {
+			child.traceRedo(rule)
+		} else {
+			child.traceEnter(rule)
+		}
+		return evalContext(child, func(child *Context) error {
+			child.traceExit(rule)
+			err := Continue(ctx, ref[:len(path)+1], ast.Boolean(true), iter)
+			if err != nil {
+				return err
+			}
+			child.traceRedo(rule)
+			return nil
 		})
 	})
 

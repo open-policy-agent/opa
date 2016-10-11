@@ -51,6 +51,10 @@ func (evt Event) Equal(other Event) bool {
 	return true
 }
 
+func (evt Event) String() string {
+	return fmt.Sprintf("%v %v (qid=%v, pqid=%v)", evt.Op, evt.Node, evt.QueryID, evt.ParentID)
+}
+
 // Tracer defines the interface for tracing in the top-down evaluation engine.
 type Tracer interface {
 	Enabled() bool
