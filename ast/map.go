@@ -4,9 +4,7 @@
 
 package ast
 
-import (
-	"github.com/open-policy-agent/opa/util"
-)
+import "github.com/open-policy-agent/opa/util"
 
 // ValueMap represents a key/value map between AST term values. Any type of term
 // can be used as a key in the map.

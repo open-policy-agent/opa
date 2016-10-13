@@ -21,18 +21,18 @@ func TestEventEqual(t *testing.T) {
 	b.Put(ast.String("foo"), ast.Number(2))
 
 	tests := []struct {
-		a     Event
-		b     Event
+		a     *Event
+		b     *Event
 		equal bool
 	}{
-		{Event{}, Event{}, true},
-		{Event{Op: EvalOp}, Event{Op: EnterOp}, false},
-		{Event{QueryID: 1}, Event{QueryID: 2}, false},
-		{Event{ParentID: 1}, Event{ParentID: 2}, false},
-		{Event{Node: ast.MustParseBody("true")}, Event{Node: ast.MustParseBody("false")}, false},
-		{Event{Node: ast.MustParseBody("true")[0]}, Event{Node: ast.MustParseBody("false")[0]}, false},
-		{Event{Node: ast.MustParseRule("p :- true")}, Event{Node: ast.MustParseRule("p :- false")}, false},
-		{Event{Node: "foo"}, Event{Node: "foo"}, false}, // test some unsupported node type
+		{&Event{}, &Event{}, true},
+		{&Event{Op: EvalOp}, &Event{Op: EnterOp}, false},
+		{&Event{QueryID: 1}, &Event{QueryID: 2}, false},
+		{&Event{ParentID: 1}, &Event{ParentID: 2}, false},
+		{&Event{Node: ast.MustParseBody("true")}, &Event{Node: ast.MustParseBody("false")}, false},
+		{&Event{Node: ast.MustParseBody("true")[0]}, &Event{Node: ast.MustParseBody("false")[0]}, false},
+		{&Event{Node: ast.MustParseRule("p :- true")}, &Event{Node: ast.MustParseRule("p :- false")}, false},
+		{&Event{Node: "foo"}, &Event{Node: "foo"}, false}, // test some unsupported node type
 	}
 
 	for _, tc := range tests {
@@ -80,7 +80,6 @@ func TestLineTracer(t *testing.T) {
 | | Eval plus(data.a[0], 1, n)
 | | Exit p = true
 | Redo p = true
-| | Redo plus(x, 1, n)
 | | Redo data.test.q[x]
 | | Redo q[x]
 | | | Redo eq(x, data.a[_])
@@ -88,7 +87,6 @@ func TestLineTracer(t *testing.T) {
 | | Eval plus(data.a[1], 1, n)
 | | Exit p = true
 | Redo p = true
-| | Redo plus(x, 1, n)
 | | Redo data.test.q[x]
 | | Redo q[x]
 | | | Redo eq(x, data.a[_])
@@ -96,21 +94,13 @@ func TestLineTracer(t *testing.T) {
 | | Eval plus(data.a[2], 1, n)
 | | Exit p = true
 | Redo p = true
-| | Redo plus(x, 1, n)
 | | Redo data.test.q[x]
 | | Redo q[x]
 | | | Redo eq(x, data.a[_])
 | | | Exit q[data.a[3]]
 | | Eval plus(data.a[3], 1, n)
 | | Exit p = true
-| Redo p = true
-| | Redo plus(x, 1, n)
-| | Redo data.test.q[x]
-| | Redo q[x]
-| | | Redo eq(x, data.a[_])
 | Exit eq(data.test.p, _)
-Redo eq(data.test.p, _)
-| Redo eq(data.test.p, _)
 `
 
 	a := strings.Split(expected, "\n")

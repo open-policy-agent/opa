@@ -40,8 +40,26 @@ type Event struct {
 	ParentID uint64      // Identifies the parent query this event belongs to.
 }
 
+// HasRule returns true if the Event contains an ast.Rule.
+func (evt *Event) HasRule() bool {
+	_, ok := evt.Node.(*ast.Rule)
+	return ok
+}
+
+// HasBody returns true if the Event contains an ast.Body.
+func (evt *Event) HasBody() bool {
+	_, ok := evt.Node.(ast.Body)
+	return ok
+}
+
+// HasExpr returns true if the Event contains an ast.Expr.
+func (evt *Event) HasExpr() bool {
+	_, ok := evt.Node.(*ast.Expr)
+	return ok
+}
+
 // Equal returns true if this event is equal to the other event.
-func (evt Event) Equal(other Event) bool {
+func (evt *Event) Equal(other *Event) bool {
 	if evt.Op != other.Op {
 		return false
 	}
@@ -57,34 +75,14 @@ func (evt Event) Equal(other Event) bool {
 	return true
 }
 
-func (evt Event) String() string {
+func (evt *Event) String() string {
 	return fmt.Sprintf("%v %v (qid=%v, pqid=%v)", evt.Op, evt.Node, evt.QueryID, evt.ParentID)
 }
 
 // Tracer defines the interface for tracing in the top-down evaluation engine.
 type Tracer interface {
 	Enabled() bool
-	Trace(ctx *Context, evt Event)
-}
-
-func equalNodes(a, b Event) bool {
-	switch a := a.Node.(type) {
-	case ast.Body:
-		if b, ok := b.Node.(ast.Body); ok {
-			return a.Equal(b)
-		}
-	case *ast.Rule:
-		if b, ok := b.Node.(*ast.Rule); ok {
-			return a.Equal(b)
-		}
-	case *ast.Expr:
-		if b, ok := b.Node.(*ast.Expr); ok {
-			return a.Equal(b)
-		}
-	case nil:
-		return b.Node == nil
-	}
-	return false
+	Trace(ctx *Context, evt *Event)
 }
 
 // LineTracer implements the Tracer interface by writing events to an output
@@ -109,18 +107,18 @@ func (t *LineTracer) Enabled() bool {
 
 // Trace formats the event as a string and writes it to the output stream.
 // Expression and rule AST nodes will be plugged with bindings from the context.
-func (t *LineTracer) Trace(ctx *Context, evt Event) {
+func (t *LineTracer) Trace(ctx *Context, evt *Event) {
 	msg := t.formatEvent(ctx, evt)
 	fmt.Fprintln(t.output, msg)
 }
 
-func (t *LineTracer) formatEvent(ctx *Context, evt Event) string {
+func (t *LineTracer) formatEvent(ctx *Context, evt *Event) string {
 	padding := t.getPadding(evt)
 	node := t.getNode(ctx, evt)
 	return fmt.Sprintf("%v%v %v", padding, evt.Op, node)
 }
 
-func (t *LineTracer) getNode(ctx *Context, evt Event) interface{} {
+func (t *LineTracer) getNode(ctx *Context, evt *Event) interface{} {
 	switch evt.Op {
 	case RedoOp:
 		switch node := evt.Node.(type) {
@@ -138,7 +136,7 @@ func (t *LineTracer) getNode(ctx *Context, evt Event) interface{} {
 	return evt.Node
 }
 
-func (t *LineTracer) getPadding(evt Event) string {
+func (t *LineTracer) getPadding(evt *Event) string {
 	d := t.depths[evt.QueryID]
 	if d == 0 {
 		d = t.depths[evt.ParentID]
@@ -166,4 +164,24 @@ func (t *LineTracer) getPadding(evt Event) string {
 		padding += strings.Repeat("| ", spaces-1)
 	}
 	return padding
+}
+
+func equalNodes(a, b *Event) bool {
+	switch a := a.Node.(type) {
+	case ast.Body:
+		if b, ok := b.Node.(ast.Body); ok {
+			return a.Equal(b)
+		}
+	case *ast.Rule:
+		if b, ok := b.Node.(*ast.Rule); ok {
+			return a.Equal(b)
+		}
+	case *ast.Expr:
+		if b, ok := b.Node.(*ast.Expr); ok {
+			return a.Equal(b)
+		}
+	case nil:
+		return b.Node == nil
+	}
+	return false
 }

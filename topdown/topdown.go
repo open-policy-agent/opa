@@ -31,6 +31,7 @@ type Context struct {
 	txn   storage.Transaction
 	cache *contextcache
 	qid   uint64
+	redos *redoStack
 }
 
 type queryIDFactory struct {
@@ -56,6 +57,15 @@ var qidFactory = &queryIDFactory{
 	next: uint64(1),
 }
 
+type redoStack struct {
+	events []*redoStackElement
+}
+
+type redoStackElement struct {
+	ctx *Context
+	evt *Event
+}
+
 // NewContext creates a new Context with no bindings.
 func NewContext(query ast.Body, compiler *ast.Compiler, store *storage.Storage, txn storage.Transaction) *Context {
 	return &Context{
@@ -66,6 +76,7 @@ func NewContext(query ast.Body, compiler *ast.Compiler, store *storage.Storage, 
 		txn:      txn,
 		cache:    newContextCache(),
 		qid:      qidFactory.Next(),
+		redos:    &redoStack{},
 	}
 }
 
@@ -132,6 +143,7 @@ func (ctx *Context) Step() *Context {
 func (ctx *Context) traceEnter(node interface{}) {
 	if ctx.tracingEnabled() {
 		evt := ctx.makeEvent(EnterOp, node)
+		ctx.flushRedos(evt)
 		ctx.Tracer.Trace(ctx, evt)
 	}
 }
@@ -139,6 +151,7 @@ func (ctx *Context) traceEnter(node interface{}) {
 func (ctx *Context) traceExit(node interface{}) {
 	if ctx.tracingEnabled() {
 		evt := ctx.makeEvent(ExitOp, node)
+		ctx.flushRedos(evt)
 		ctx.Tracer.Trace(ctx, evt)
 	}
 }
@@ -146,6 +159,7 @@ func (ctx *Context) traceExit(node interface{}) {
 func (ctx *Context) traceEval(node interface{}) {
 	if ctx.tracingEnabled() {
 		evt := ctx.makeEvent(EvalOp, node)
+		ctx.flushRedos(evt)
 		ctx.Tracer.Trace(ctx, evt)
 	}
 }
@@ -153,13 +167,14 @@ func (ctx *Context) traceEval(node interface{}) {
 func (ctx *Context) traceRedo(node interface{}) {
 	if ctx.tracingEnabled() {
 		evt := ctx.makeEvent(RedoOp, node)
-		ctx.Tracer.Trace(ctx, evt)
+		ctx.saveRedo(evt)
 	}
 }
 
 func (ctx *Context) traceFail(node interface{}) {
 	if ctx.tracingEnabled() {
 		evt := ctx.makeEvent(FailOp, node)
+		ctx.flushRedos(evt)
 		ctx.Tracer.Trace(ctx, evt)
 	}
 }
@@ -168,7 +183,59 @@ func (ctx *Context) tracingEnabled() bool {
 	return ctx.Tracer != nil && ctx.Tracer.Enabled()
 }
 
-func (ctx *Context) makeEvent(op Op, node interface{}) Event {
+func (ctx *Context) saveRedo(evt *Event) {
+
+	buf := &redoStackElement{
+		ctx: ctx,
+		evt: evt,
+	}
+
+	// Search stack for redo that this (redo) event should follow.
+	for len(ctx.redos.events) > 0 {
+		idx := len(ctx.redos.events) - 1
+		top := ctx.redos.events[idx]
+
+		// Expression redo should follow rule/body redo from the same query.
+		if evt.HasExpr() {
+			if top.evt.QueryID == evt.QueryID && (top.evt.HasBody() || top.evt.HasRule()) {
+				break
+			}
+		}
+
+		// Rule/body redo should follow expression redo from the parent query.
+		if evt.HasRule() || evt.HasBody() {
+			if top.evt.QueryID == evt.ParentID && top.evt.HasExpr() {
+				break
+			}
+		}
+
+		// Top of stack can be discarded. This indicates the search terminated
+		// without producing any more events.
+		ctx.redos.events = ctx.redos.events[:idx]
+	}
+
+	ctx.redos.events = append(ctx.redos.events, buf)
+}
+
+func (ctx *Context) flushRedos(evt *Event) {
+
+	idx := len(ctx.redos.events) - 1
+
+	if idx != -1 {
+		top := ctx.redos.events[idx]
+
+		if top.evt.QueryID == evt.QueryID {
+			for _, buf := range ctx.redos.events {
+				ctx.Tracer.Trace(buf.ctx, buf.evt)
+			}
+		}
+
+		ctx.redos.events = nil
+	}
+
+}
+
+func (ctx *Context) makeEvent(op Op, node interface{}) *Event {
 	evt := Event{
 		Op:      op,
 		Node:    node,
@@ -177,7 +244,7 @@ func (ctx *Context) makeEvent(op Op, node interface{}) Event {
 	if ctx.Previous != nil {
 		evt.ParentID = ctx.Previous.qid
 	}
-	return evt
+	return &evt
 }
 
 // contextcache stores the result of rule evaluation for a query. The contextcache
