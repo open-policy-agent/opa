@@ -1663,9 +1663,9 @@ func (b *BufferingTracer) Trace(ctx *Context, evt *Event) {
 }
 
 func (b *BufferingTracer) String() string {
-	buf := make([]string, len(*b))
-	for i, x := range *b {
-		buf[i] = fmt.Sprint(i, x.event)
+	buf := make(Trace, len(*b))
+	for i := range *b {
+		buf[i] = (*b)[i].event
 	}
-	return strings.Join(buf, "\n")
+	return fmt.Sprint(buf)
 }

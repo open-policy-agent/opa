@@ -12,6 +12,19 @@ import (
 	"github.com/open-policy-agent/opa/ast"
 )
 
+// Trace represents a sequence of events emitted during query evaluation.
+type Trace []*Event
+
+func (e Trace) String() string {
+	depths := depths{}
+	buf := make([]string, len(e))
+	for i, evt := range e {
+		depth := depths.GetOrSet(evt.QueryID, evt.ParentID)
+		buf[i] = evt.format(depth)
+	}
+	return strings.Join(buf, "\n")
+}
+
 // Op defines the types of tracing events.
 type Op string
 
@@ -75,6 +88,32 @@ func (evt *Event) Equal(other *Event) bool {
 	return true
 }
 
+func (evt *Event) format(depth int) string {
+	padding := evt.getPadding(depth)
+	return fmt.Sprintf("%v%v %v", padding, evt.Op, evt.Node)
+}
+
+func (evt *Event) getPadding(depth int) string {
+	spaces := evt.getSpaces(depth)
+	padding := ""
+	if spaces > 1 {
+		padding += strings.Repeat("| ", spaces-1)
+	}
+	return padding
+}
+
+func (evt *Event) getSpaces(depth int) int {
+	switch evt.Op {
+	case EnterOp:
+		return depth
+	case RedoOp:
+		if _, ok := evt.Node.(*ast.Expr); !ok {
+			return depth
+		}
+	}
+	return depth + 1
+}
+
 func (evt *Event) String() string {
 	return fmt.Sprintf("%v %v (qid=%v, pqid=%v)", evt.Op, evt.Node, evt.QueryID, evt.ParentID)
 }
@@ -89,14 +128,14 @@ type Tracer interface {
 // stream.
 type LineTracer struct {
 	output io.Writer
-	depths map[uint64]int
+	depths depths
 }
 
 // NewLineTracer returns a new LineTracer.
 func NewLineTracer(output io.Writer) *LineTracer {
 	return &LineTracer{
 		output: output,
-		depths: map[uint64]int{},
+		depths: depths{},
 	}
 }
 
@@ -105,20 +144,15 @@ func (t *LineTracer) Enabled() bool {
 	return true
 }
 
-// Trace formats the event as a string and writes it to the output stream.
-// Expression and rule AST nodes will be plugged with bindings from the context.
+// Trace emits evt to the output stream. The event will be formatted based on
+// query depth and bindings in ctx.
 func (t *LineTracer) Trace(ctx *Context, evt *Event) {
-	msg := t.formatEvent(ctx, evt)
-	fmt.Fprintln(t.output, msg)
+	evt.Node = t.mangleNode(ctx, evt)
+	depth := t.depths.GetOrSet(evt.QueryID, evt.ParentID)
+	fmt.Fprintln(t.output, evt.format(depth))
 }
 
-func (t *LineTracer) formatEvent(ctx *Context, evt *Event) string {
-	padding := t.getPadding(evt)
-	node := t.getNode(ctx, evt)
-	return fmt.Sprintf("%v%v %v", padding, evt.Op, node)
-}
-
-func (t *LineTracer) getNode(ctx *Context, evt *Event) interface{} {
+func (t *LineTracer) mangleNode(ctx *Context, evt *Event) interface{} {
 	switch evt.Op {
 	case RedoOp:
 		switch node := evt.Node.(type) {
@@ -136,34 +170,19 @@ func (t *LineTracer) getNode(ctx *Context, evt *Event) interface{} {
 	return evt.Node
 }
 
-func (t *LineTracer) getPadding(evt *Event) string {
-	d := t.depths[evt.QueryID]
-	if d == 0 {
-		d = t.depths[evt.ParentID]
-		d++
-		if t.depths == nil {
-			t.depths = map[uint64]int{}
-		}
-		t.depths[evt.QueryID] = d
+// depths is a helper for computing the depth of an event. Events within the
+// same query all have the same depth. The depth of query is
+// depth(parent(query))+1.
+type depths map[uint64]int
+
+func (ds depths) GetOrSet(qid uint64, pqid uint64) int {
+	depth := ds[qid]
+	if depth == 0 {
+		depth = ds[pqid]
+		depth++
+		ds[qid] = depth
 	}
-	var spaces int
-	switch evt.Op {
-	case EnterOp:
-		spaces = d
-	case RedoOp:
-		if _, ok := evt.Node.(*ast.Expr); !ok {
-			spaces = d
-			break
-		}
-		fallthrough
-	default:
-		spaces = d + 1
-	}
-	padding := ""
-	if spaces > 1 {
-		padding += strings.Repeat("| ", spaces-1)
-	}
-	return padding
+	return depth
 }
 
 func equalNodes(a, b *Event) bool {
