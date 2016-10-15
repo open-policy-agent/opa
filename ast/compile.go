@@ -331,6 +331,9 @@ func (c *Compiler) checkSafetyBody() {
 					c.err(r.Location.Errorf("%v: %v is unsafe (variable %v must appear in the output position of at least one non-negated expression)", r.Name, v, v))
 				}
 			} else {
+				// Need to reset expression indices as re-ordering may have
+				// changed them.
+				setExprIndices(reordered)
 				r.Body = reordered
 			}
 		}

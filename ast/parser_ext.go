@@ -111,9 +111,9 @@ func ParseConstantRule(body Body) *Rule {
 		Location: expr.Location,
 		Name:     name,
 		Value:    b,
-		Body: []*Expr{
+		Body: NewBody(
 			&Expr{Terms: BooleanTerm(true)},
-		},
+		),
 	}
 }
 
@@ -256,6 +256,22 @@ func parseModule(stmts []interface{}) (*Module, error) {
 func postProcess(filename string, stmts []interface{}) {
 	setFilename(filename, stmts)
 	mangleWildcards(stmts)
+	mangleExprIndices(stmts)
+}
+
+func mangleExprIndices(stmts []interface{}) {
+	for _, stmt := range stmts {
+		setExprIndices(stmt)
+	}
+}
+
+func setExprIndices(x interface{}) {
+	WalkBodies(x, func(b Body) bool {
+		for i, expr := range b {
+			expr.Index = i
+		}
+		return false
+	})
 }
 
 func mangleWildcards(stmts []interface{}) {

@@ -400,7 +400,7 @@ func (r *REPL) evalBody(body ast.Body) bool {
 
 	ctx := topdown.NewContext(body, r.compiler, r.store, r.txn)
 	if r.trace {
-		ctx.Tracer = &topdown.StdoutTracer{}
+		ctx.Tracer = topdown.NewLineTracer(os.Stdout)
 	}
 
 	// Flag indicates whether the query was defined for some context.
@@ -518,11 +518,11 @@ func (r *REPL) evalTermSingleValue(body ast.Body) bool {
 
 	term := body[0].Terms.(*ast.Term)
 	outputVar := ast.Wildcard
-	body = ast.Body{ast.Equality.Expr(term, outputVar)}
+	body = ast.NewBody(ast.Equality.Expr(term, outputVar))
 
 	ctx := topdown.NewContext(body, r.compiler, r.store, r.txn)
 	if r.trace {
-		ctx.Tracer = &topdown.StdoutTracer{}
+		ctx.Tracer = topdown.NewLineTracer(os.Stdout)
 	}
 
 	var result interface{}
@@ -558,11 +558,11 @@ func (r *REPL) evalTermMultiValue(body ast.Body) bool {
 	// evaluation result below, we will ignore this variable.
 	term := body[0].Terms.(*ast.Term)
 	outputVar := ast.Wildcard
-	body = ast.Body{ast.Equality.Expr(term, outputVar)}
+	body = ast.NewBody(ast.Equality.Expr(term, outputVar))
 
 	ctx := topdown.NewContext(body, r.compiler, r.store, r.txn)
 	if r.trace {
-		ctx.Tracer = &topdown.StdoutTracer{}
+		ctx.Tracer = topdown.NewLineTracer(os.Stdout)
 	}
 
 	vars := map[string]struct{}{}

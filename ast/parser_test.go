@@ -160,25 +160,25 @@ func TestArrayComprehensions(t *testing.T) {
 			StringTerm("x"),
 			ArrayComprehensionTerm(
 				RefTerm(VarTerm("a"), VarTerm("i")),
-				Body{
+				NewBody(
 					Equality.Expr(
 						VarTerm("xs"),
 						ArrayComprehensionTerm(
 							ObjectTerm(Item(StringTerm("a"), ArrayTerm(StringTerm("baz"), VarTerm("j")))),
-							Body{
+							NewBody(
 								&Expr{
 									Terms: RefTerm(VarTerm("q"), VarTerm("p")),
 								},
 								NotEqual.Expr(RefTerm(VarTerm("p"), StringTerm("a")), StringTerm("bar")),
 								Equality.Expr(VarTerm("j"), StringTerm("foo")),
-							},
+							),
 						),
 					),
 					Equality.Expr(
 						RefTerm(VarTerm("xs"), VarTerm("j"), StringTerm("a"), VarTerm("k")),
 						StringTerm("foo"),
 					),
-				},
+				),
 			),
 		)),
 	)
@@ -263,27 +263,27 @@ func TestRule(t *testing.T) {
 	assertParseRule(t, "identity", "p = true :- true", &Rule{
 		Name:  Var("p"),
 		Value: BooleanTerm(true),
-		Body: []*Expr{
+		Body: NewBody(
 			&Expr{Terms: BooleanTerm(true)},
-		},
+		),
 	})
 
 	assertParseRule(t, "set", "p[x] :- x = 42", &Rule{
 		Name: Var("p"),
 		Key:  VarTerm("x"),
-		Body: []*Expr{
+		Body: NewBody(
 			Equality.Expr(VarTerm("x"), NumberTerm(42)),
-		},
+		),
 	})
 
 	assertParseRule(t, "object", "p[x] = y :- x = 42, y = \"hello\"", &Rule{
 		Name:  Var("p"),
 		Key:   VarTerm("x"),
 		Value: VarTerm("y"),
-		Body: []*Expr{
+		Body: NewBody(
 			Equality.Expr(VarTerm("x"), NumberTerm(42)),
 			Equality.Expr(VarTerm("y"), StringTerm("hello")),
-		},
+		),
 	})
 
 	assertParseRule(t, "constant composite", "p = [{\"foo\": [1,2,3,4]}] :- true", &Rule{
@@ -291,17 +291,17 @@ func TestRule(t *testing.T) {
 		Value: ArrayTerm(
 			ObjectTerm(Item(StringTerm("foo"), ArrayTerm(NumberTerm(1), NumberTerm(2), NumberTerm(3), NumberTerm(4)))),
 		),
-		Body: []*Expr{
+		Body: NewBody(
 			&Expr{Terms: BooleanTerm(true)},
-		},
+		),
 	})
 
 	assertParseRule(t, "true", "p :- true", &Rule{
 		Name:  Var("p"),
 		Value: BooleanTerm(true),
-		Body: []*Expr{
+		Body: NewBody(
 			&Expr{Terms: BooleanTerm(true)},
-		},
+		),
 	})
 
 	assertParseRule(t, "composites in head", `p[[{"x": [a,b]}]] :- a = 1, b = 2`, &Rule{
@@ -311,10 +311,10 @@ func TestRule(t *testing.T) {
 				Item(StringTerm("x"), ArrayTerm(VarTerm("a"), VarTerm("b"))),
 			),
 		),
-		Body: []*Expr{
+		Body: NewBody(
 			Equality.Expr(VarTerm("a"), NumberTerm(float64(1))),
 			Equality.Expr(VarTerm("b"), NumberTerm(float64(2))),
-		},
+		),
 	})
 
 	assertParseErrorEquals(t, "object composite key", "p[[x,y]] = z :- true", "head of object rule must have string or var key ([x, y] is not allowed)")
@@ -508,12 +508,12 @@ func TestWildcards(t *testing.T) {
 		VarTerm("$0"),
 		ArrayComprehensionTerm(
 			VarTerm("x"),
-			Body{
+			NewBody(
 				Equality.Expr(
 					VarTerm("a"),
 					RefTerm(VarTerm("a"), VarTerm("$1")),
 				),
-			},
+			),
 		)))
 }
 

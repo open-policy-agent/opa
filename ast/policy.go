@@ -72,13 +72,22 @@ type (
 		Body     Body
 	}
 
+	// Head represents the head of a rule.
+	// TODO(tsandall): refactor Rule to contain a Head.
+	Head struct {
+		Name  Var
+		Key   *Term
+		Value *Term
+	}
+
 	// Body represents one or more expressios contained inside a rule.
 	Body []*Expr
 
 	// Expr represents a single expression contained inside the body of a rule.
 	Expr struct {
 		Location *Location `json:"-"`
-		Negated  bool      `json:",omitempty"`
+		Index    int
+		Negated  bool `json:",omitempty"`
 		Terms    interface{}
 	}
 )
@@ -211,6 +220,15 @@ func (rule *Rule) HeadVars() VarSet {
 	return vis.vars
 }
 
+// Head returns the rule's head.
+func (rule *Rule) Head() *Head {
+	return &Head{
+		Name:  rule.Name,
+		Key:   rule.Key,
+		Value: rule.Value,
+	}
+}
+
 // Loc returns the location of the Rule in the definition.
 func (rule *Rule) Loc() *Location {
 	return rule.Location
@@ -222,21 +240,35 @@ func (rule *Rule) Path(ns Ref) Ref {
 }
 
 func (rule *Rule) String() string {
-	var buf []string
-	if rule.Key != nil {
-		buf = append(buf, rule.Name.String()+"["+rule.Key.String()+"]")
-	} else {
-		buf = append(buf, rule.Name.String())
-	}
-	if rule.Value != nil {
-		buf = append(buf, "=")
-		buf = append(buf, rule.Value.String())
-	}
+	buf := []string{rule.Head().String()}
 	if len(rule.Body) >= 0 {
 		buf = append(buf, ":-")
 		buf = append(buf, rule.Body.String())
 	}
 	return strings.Join(buf, " ")
+}
+
+func (head *Head) String() string {
+	var buf []string
+	if head.Key != nil {
+		buf = append(buf, head.Name.String()+"["+head.Key.String()+"]")
+	} else {
+		buf = append(buf, head.Name.String())
+	}
+	if head.Value != nil {
+		buf = append(buf, "=")
+		buf = append(buf, head.Value.String())
+	}
+	return strings.Join(buf, " ")
+}
+
+// NewBody returns a new Body containing the given expressions. The indices of
+// the immediate expressions will be reset.
+func NewBody(exprs ...*Expr) Body {
+	for i, expr := range exprs {
+		expr.Index = i
+	}
+	return Body(exprs)
 }
 
 // Contains returns true if this body contains the given expression.
@@ -323,11 +355,15 @@ func (expr *Expr) Complement() *Expr {
 	return &cpy
 }
 
-// Equal returns true if this Expr equals the other Expr.
-// Two expressions are considered equal if both expressions are negated (or not),
-// are built-ins (or not), and have the same ordered terms.
+// Equal returns true if this Expr equals the other Expr.  Two expressions are
+// considered equal if both expressions are negated (or not), exist at the same
+// position in the containing query, are built-ins (or not), and have the same
+// ordered terms.
 func (expr *Expr) Equal(other *Expr) bool {
 	if expr.Negated != other.Negated {
+		return false
+	}
+	if expr.Index != other.Index {
 		return false
 	}
 	switch t := expr.Terms.(type) {
@@ -347,7 +383,7 @@ func (expr *Expr) Equal(other *Expr) bool {
 
 // Hash returns the hash code of the Expr.
 func (expr *Expr) Hash() int {
-	s := 0
+	s := expr.Index
 	switch ts := expr.Terms.(type) {
 	case []*Term:
 		for _, t := range ts {

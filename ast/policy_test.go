@@ -218,7 +218,8 @@ func TestExprBadJSON(t *testing.T) {
 		"Terms": {
 			"Value": "foo",
 			"Type": "string"
-		}
+		},
+		"Index": 0
 	}
 	`
 
@@ -229,7 +230,8 @@ func TestExprBadJSON(t *testing.T) {
 	{
 		"Terms": [
 			"foo"
-		]
+		],
+		"Index": 0
 	}
 	`
 	exp = fmt.Errorf("ast: unable to unmarshal term")
@@ -237,10 +239,18 @@ func TestExprBadJSON(t *testing.T) {
 
 	js = `
 	{
-		"Terms": "bad value"
+		"Terms": "bad value",
+		"Index": 0
 	}
 	`
 	exp = fmt.Errorf(`ast: unable to unmarshal Terms field with type: string (expected {"Value": ..., "Type": ...} or [{"Value": ..., "Type": ...}, ...])`)
+	assert(js, exp)
+
+	js = `
+	{
+		"Terms": {"Value": "foo", "Type": "string"}
+	}`
+	exp = fmt.Errorf("ast: unable to unmarshal Index field with type: <nil> (expected integer)")
 	assert(js, exp)
 }
 
@@ -264,13 +274,13 @@ func TestRuleBodyEquals(t *testing.T) {
 	true2 := &Expr{Terms: []*Term{BooleanTerm(true)}}
 	false1 := &Expr{Terms: []*Term{BooleanTerm(false)}}
 
-	ruleTrue1 := &Rule{Body: []*Expr{true1}}
-	ruleTrue12 := &Rule{Body: []*Expr{true1, true2}}
-	ruleTrue2 := &Rule{Body: []*Expr{true2}}
-	ruleTrue12_2 := &Rule{Body: []*Expr{true1, true2}}
-	ruleFalse1 := &Rule{Body: []*Expr{false1}}
-	ruleTrueFalse := &Rule{Body: []*Expr{true1, false1}}
-	ruleFalseTrue := &Rule{Body: []*Expr{false1, true1}}
+	ruleTrue1 := &Rule{Body: NewBody(true1)}
+	ruleTrue12 := &Rule{Body: NewBody(true1, true2)}
+	ruleTrue2 := &Rule{Body: NewBody(true2)}
+	ruleTrue12_2 := &Rule{Body: NewBody(true1, true2)}
+	ruleFalse1 := &Rule{Body: NewBody(false1)}
+	ruleTrueFalse := &Rule{Body: NewBody(true1, false1)}
+	ruleFalseTrue := &Rule{Body: NewBody(false1, true1)}
 
 	// Same expressions
 	assertRulesEqual(t, ruleTrue1, ruleTrue2)
@@ -285,23 +295,23 @@ func TestRuleString(t *testing.T) {
 
 	rule1 := &Rule{
 		Name: Var("p"),
-		Body: []*Expr{
+		Body: NewBody(
 			Equality.Expr(StringTerm("foo"), StringTerm("bar")),
-		},
+		),
 	}
 
 	rule2 := &Rule{
 		Name:  Var("p"),
 		Key:   VarTerm("x"),
 		Value: VarTerm("y"),
-		Body: []*Expr{
+		Body: NewBody(
 			Equality.Expr(StringTerm("foo"), VarTerm("x")),
 			&Expr{
 				Negated: true,
 				Terms:   RefTerm(VarTerm("a"), StringTerm("b"), VarTerm("x")),
 			},
 			Equality.Expr(StringTerm("b"), VarTerm("y")),
-		},
+		),
 	}
 
 	assertRuleString(t, rule1, "p :- eq(\"foo\", \"bar\")")
