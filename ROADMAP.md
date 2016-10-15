@@ -4,16 +4,17 @@
 
 ### Language
 
-- Nested references
 - Set literals
+- References in head
 - Built-ins
 	- String manipulation
 	- Datetime
-	- Aggregates (min and avg)
+	- Aggregates
+		- Min
+		- Mean
 
 ### Evaluation
 
-- Iteration over multiple virtual docs
 - Concurrent topdown
 
 ### Features
@@ -37,9 +38,6 @@
 - OS packages
 - Library (i.e., C-API/FFI)
 
-
 ### Documentation
 
-- GoDoc
-- REST API Spec
 - Integration guides for library and REST APIs
