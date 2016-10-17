@@ -24,7 +24,7 @@ CHANGELOG.md snippet and uploading the packages from the build phase.
 
 1. Edit CHANGELOG.md to update the Unreleased header (e.g., s/Unreleased/0.12.8/) and add any missing items to prepare for release.
 
-1. Edit version/version.go to set Version variable to prepare for release (e.g., s/Version = “0.12.8-dev”/Version = "0.12.8”/).
+1. Edit Makefile to set VERSION variable to prepare for release (e.g., s/VERSION := “0.12.8-dev”/VERSION := "0.12.8”/).
 
 1. Commit the changes and push to remote repository.
 
@@ -42,7 +42,7 @@ CHANGELOG.md snippet and uploading the packages from the build phase.
 
 1. Edit CHANGELOG.md to add back the Unreleased header to prepare for development.
 
-1. Edit version/version.go to set Version variable to prepare for development (e.g., s/Version = “0.12.8”/Version = “0.12.9-dev”/).
+1. Edit Makefile to set VERSION variable to prepare for development (e.g., s/VERSION := “0.12.8”/VERSION = “0.12.9-dev”/).
 
 1. Commit the changes and push to remote repository.
 
