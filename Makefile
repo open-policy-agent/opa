@@ -2,6 +2,8 @@
 # Use of this source code is governed by an Apache2
 # license that can be found in the LICENSE file.
 
+VERSION := "0.1.1-dev"
+
 PACKAGES := \
 	github.com/open-policy-agent/opa/ast/.../ \
 	github.com/open-policy-agent/opa/cmd/.../ \
@@ -19,7 +21,8 @@ BUILD_COMMIT := $(shell ./build/get-build-commit.sh)
 BUILD_TIMESTAMP := $(shell ./build/get-build-timestamp.sh)
 BUILD_HOSTNAME := $(shell ./build/get-build-hostname.sh)
 
-LDFLAGS := "-X github.com/open-policy-agent/opa/version.Vcs=$(BUILD_COMMIT) \
+LDFLAGS := "-X github.com/open-policy-agent/opa/version.Version=$(VERSION) \
+	-X github.com/open-policy-agent/opa/version.Vcs=$(BUILD_COMMIT) \
 	-X github.com/open-policy-agent/opa/version.Timestamp=$(BUILD_TIMESTAMP) \
 	-X github.com/open-policy-agent/opa/version.Hostname=$(BUILD_HOSTNAME)"
 
@@ -30,7 +33,7 @@ CROSSCOMPILE ?=
 GO15VENDOREXPERIMENT := 1
 export GO15VENDOREXPERIMENT
 
-.PHONY: all deps generate build test cover check check-fmt check-vet check-lint fmt clean
+.PHONY: all deps generate build install test perf perf-regression cover check check-fmt check-vet check-lint fmt clean
 
 all: build test check
 
