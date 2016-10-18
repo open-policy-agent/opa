@@ -4,9 +4,8 @@
 
 # build artifacts
 coverage
-opa
-opa_linux_amd64
-opa_darwin_amd64
+opa_*
+.Dockerfile_*
 
 # runtime artifacts
 policies

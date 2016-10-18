@@ -65,11 +65,18 @@ CHANGELOG.md snippet and uploading the packages from the build phase.
 	git checkout v<semver>
 	```
 
-1. Run command to build packages. This will produce a bunch of binaries (e.g., amd64/linux, i386/linux, amd64/darwin, etc.) that can be published (“distributions”).
+1. Build binaries for target platforms.
 
 	```
-	make build CROSSCOMPILE="linux/amd64 darwin/amd64"
+	make build GOOS=linux GOARCH=amd64
+	make build GOOS=darwin GOARCH=amd64
 	```
+
+1. Build Docker image.
+
+    ```
+    make image
+    ```
 
 ## Publishing
 
@@ -77,6 +84,12 @@ CHANGELOG.md snippet and uploading the packages from the build phase.
 
 1. Create a new release for the version.
 	- Copy the changelog content into the message.
-	- Upload the distributions packages.
+	- Upload the binaries.
 
-1. In addition to publishing the packages, there may be documentation updates that should be released. See [site/README.md](../site/README.md) for steps to update the website.
+1. Push the Docker image.
+
+    ```
+    make push
+    ```
+
+1. There may be documentation updates that should be released. See [site/README.md](../site/README.md) for steps to update the website.

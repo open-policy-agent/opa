@@ -2,7 +2,7 @@
 # Use of this source code is governed by an Apache2
 # license that can be found in the LICENSE file.
 
-VERSION := "0.1.1-dev"
+VERSION := 0.1.1-dev
 
 PACKAGES := \
 	github.com/open-policy-agent/opa/ast/.../ \
@@ -16,6 +16,13 @@ PACKAGES := \
 	github.com/open-policy-agent/opa/test/.../
 
 GO := go
+GOARCH := $(shell go env GOARCH)
+GOOS := $(shell go env GOOS)
+
+BIN := opa_$(GOOS)_$(GOARCH)
+
+REPOSITORY := openpolicyagent
+IMAGE := $(REPOSITORY)/opa
 
 BUILD_COMMIT := $(shell ./build/get-build-commit.sh)
 BUILD_TIMESTAMP := $(shell ./build/get-build-timestamp.sh)
@@ -25,10 +32,6 @@ LDFLAGS := "-X github.com/open-policy-agent/opa/version.Version=$(VERSION) \
 	-X github.com/open-policy-agent/opa/version.Vcs=$(BUILD_COMMIT) \
 	-X github.com/open-policy-agent/opa/version.Timestamp=$(BUILD_TIMESTAMP) \
 	-X github.com/open-policy-agent/opa/version.Hostname=$(BUILD_HOSTNAME)"
-
-# Set CROSSCOMPILE to space separated list of <platform>/<arch> pairs to
-# have the build produce binaries for each platform/arch.
-CROSSCOMPILE ?=
 
 GO15VENDOREXPERIMENT := 1
 export GO15VENDOREXPERIMENT
@@ -46,11 +49,15 @@ generate:
 	$(GO) generate
 
 build: generate
-ifeq ($(CROSSCOMPILE),)
-	$(GO) build -o opa -ldflags $(LDFLAGS)
-else
-	@./build/cross-compile.sh --prefix opa --ldflags $(LDFLAGS) --platforms "$(CROSSCOMPILE)"
-endif
+	$(GO) build -o $(BIN) -ldflags $(LDFLAGS)
+
+image:
+	@$(MAKE) build GOOS=linux
+	sed -e 's/GOARCH/$(GOARCH)/g' Dockerfile.in > .Dockerfile_$(GOARCH)
+	docker build -t $(IMAGE):$(VERSION)	-f .Dockerfile_$(GOARCH) .
+
+push:
+	docker push $(IMAGE):$(VERSION)
 
 install: generate
 	$(GO) install -ldflags $(LDFLAGS)
@@ -87,6 +94,5 @@ fmt:
 	$(GO) fmt $(PACKAGES)
 
 clean:
-	rm -f ./opa
-	rm -f ./opa_linux_amd64
-	rm -f ./opa_darwin_amd64
+	rm -f opa_*_*
+	rm -f .Dockerfile_*
