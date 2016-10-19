@@ -12,7 +12,6 @@ function opa::check_lint() {
     exec 5>&1
     exit_code=0
     for pkg in $(opa::go_packages); do
-        echo $pkg
         __output=$(golint $pkg | tee >(cat - >&5))
         if [ ! -z "$__output" ]; then
             exit_code=1

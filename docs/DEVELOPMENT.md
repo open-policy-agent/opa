@@ -19,21 +19,24 @@ Requirements:
 - Go (version 1.6.x and 1.7.x are supported)
 - GNU Make
 
-## Getting Started
+## <a name="Getting-Started"></a> Getting Started
 
-After cloning the repository, run `make deps` to install the parser generator ("pigeon") into your workspace.
+After cloning the repository, just run `make`. This will:
 
-Next, run `make all` to build the project, execute all of the tests, and run
-static analysis checks against the code. If this succeeds, there should be a
-new binary in the top level directory ("opa").
+- Install required dependencies, e.g., the parser-generator ("pigeon").
+- Build the OPA binary.
+- Run all of the tests.
+- Run all of the static analysis checks.
 
-Verify the build was successful by running `opa version`.
+If the build was successful, a binary will be produced in the top directory (`opa_<OS>_<ARCH>`).
+
+Verify the build was successful with `./opa_<OS>_<ARCH> run`.
 
 You can re-build the project with `make build`, execute all of the tests
 with `make test`, and execute all of the performance benchmarks with `make perf`.
 
-The static analysis checks (i.e., `go fmt`, `golint`, and `go vet` can be run
-with `make check`).
+The static analysis checks (e.g., `go fmt`, `golint`, `go vet`) can be run
+with `make check`.
 
 ## Workflow
 
