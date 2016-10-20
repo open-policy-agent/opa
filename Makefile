@@ -38,12 +38,10 @@ export GO15VENDOREXPERIMENT
 
 .PHONY: all deps generate build install test perf perf-regression cover check check-fmt check-vet check-lint fmt clean
 
-all: build test check
+all: deps build test check
 
 deps:
-	$(GO) install ./vendor/github.com/PuerkitoBio/pigeon
-	$(GO) install ./vendor/golang.org/x/tools/cmd/goimports
-	$(GO) install ./vendor/github.com/golang/lint/golint
+	@./build/install-deps.sh
 
 generate:
 	$(GO) generate
