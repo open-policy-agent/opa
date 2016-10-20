@@ -699,6 +699,73 @@ func TestCompilerGetRulesForVirtualDocument(t *testing.T) {
 	}
 }
 
+func TestCompilerGetRulesWithPrefix(t *testing.T) {
+	mods := getCompilerTestModules()
+
+	// Add incrementally defined rules.
+	mods["mod-incr"] = MustParseModule(`
+	package a.b.c
+	p[1] :- true
+	p[2] :- true
+	q = true
+	`)
+
+	c := NewCompiler()
+	c.Compile(mods)
+	assertNotFailed(t, c)
+
+	tests := []struct {
+		note     string
+		ref      interface{}
+		expected []*Rule
+	}{
+		{"exact", "data.a.b.c.p", []*Rule{
+			c.Modules["mod-incr"].Rules[0],
+			c.Modules["mod-incr"].Rules[1],
+			c.Modules["mod1"].Rules[0],
+		}},
+		{"too deep", "data.a.b.c.p.q", []*Rule{}},
+		{"prefix", "data.a.b.c", []*Rule{
+			c.Modules["mod1"].Rules[0],
+			c.Modules["mod1"].Rules[1],
+			c.Modules["mod1"].Rules[2],
+			c.Modules["mod2"].Rules[0],
+			c.Modules["mod-incr"].Rules[0],
+			c.Modules["mod-incr"].Rules[1],
+			c.Modules["mod-incr"].Rules[2],
+		}},
+		{"non-existent", "data.a.deadbeef", []*Rule{}},
+	}
+
+	for _, tc := range tests {
+		test.Subtest(t, tc.note, func(t *testing.T) {
+			var ref Ref
+			switch r := tc.ref.(type) {
+			case string:
+				ref = MustParseRef(r)
+			case Ref:
+				ref = r
+			}
+			rules := c.GetRulesWithPrefix(ref)
+			if len(rules) != len(tc.expected) {
+				t.Fatalf("Expected exactly %v rules but got: %v", len(tc.expected), rules)
+			}
+			for i := range rules {
+				found := false
+				for j := range tc.expected {
+					if rules[i].Equal(tc.expected[j]) {
+						found = true
+						break
+					}
+				}
+				if !found {
+					t.Fatalf("Expected exactly %v but got: %v", tc.expected, rules)
+				}
+			}
+		})
+	}
+}
+
 func TestRecompile(t *testing.T) {
 	c := NewCompiler()
 

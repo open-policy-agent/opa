@@ -270,6 +270,46 @@ func (c *Compiler) GetRulesForVirtualDocument(ref Ref) (rules []*Rule) {
 	return node.Rules
 }
 
+// GetRulesWithPrefix returns a slice of rules that share the prefix ref.
+//
+// E.g., given the following module:
+//
+//  package a.b.c
+//
+//  p[x] = y :- ...  # rule1
+//  p[k] = v :- ...  # rule2
+//  q :- ...         # rule3
+//
+// The following calls yield the rules on the right.
+//
+//  GetRulesWithPrefix("data.a.b.c.p")   => [rule1, rule2]
+//  GetRulesWithPrefix("data.a.b.c.p.a") => nil
+//  GetRulesWithPrefix("data.a.b.c")     => [rule1, rule2, rule3]
+func (c *Compiler) GetRulesWithPrefix(ref Ref) (rules []*Rule) {
+
+	node := c.RuleTree
+
+	for _, x := range ref {
+		node = node.Children[x.Value]
+		if node == nil {
+			return nil
+		}
+	}
+
+	var acc func(node *RuleTreeNode)
+
+	acc = func(node *RuleTreeNode) {
+		rules = append(rules, node.Rules...)
+		for _, child := range node.Children {
+			acc(child)
+		}
+	}
+
+	acc(node)
+
+	return rules
+}
+
 // checkBuiltins ensures that built-in functions are specified correctly.
 //
 // TODO(tsandall): in the future this should be replaced with schema checking.
