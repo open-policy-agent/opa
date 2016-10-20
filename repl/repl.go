@@ -602,7 +602,7 @@ func (r *REPL) evalTermMultiValue(body ast.Body) bool {
 		}
 
 		if includeValue {
-			p := topdown.PlugTerm(term, ctx)
+			p := topdown.PlugTerm(term, ctx.Binding)
 			v, err := topdown.ValueToInterface(p.Value, ctx)
 			if err != nil {
 				return err

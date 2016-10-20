@@ -162,9 +162,9 @@ func (t *LineTracer) mangleNode(ctx *Context, evt *Event) interface{} {
 	default:
 		switch node := evt.Node.(type) {
 		case *ast.Rule:
-			return PlugHead(node.Head(), ctx)
+			return PlugHead(node.Head(), ctx.Binding)
 		case *ast.Expr:
-			return PlugExpr(node, ctx)
+			return PlugExpr(node, ctx.Binding)
 		}
 	}
 	return evt.Node

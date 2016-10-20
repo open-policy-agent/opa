@@ -216,14 +216,14 @@ func TestPlugValue(t *testing.T) {
 
 	expected := ast.MustParseTerm(`[{"hello": "world"}]`).Value
 
-	r1 := PlugValue(a, ctx1)
+	r1 := PlugValue(a, ctx1.Binding)
 
 	if !expected.Equal(r1) {
 		t.Errorf("Expected %v but got %v", expected, r1)
 		return
 	}
 
-	r2 := PlugValue(a, ctx2)
+	r2 := PlugValue(a, ctx2.Binding)
 
 	if !expected.Equal(r2) {
 		t.Errorf("Expected %v but got %v", expected, r2)
@@ -237,7 +237,7 @@ func TestPlugValue(t *testing.T) {
 
 	expected = ast.MustParseTerm("a.b[1]").Value
 
-	r3 := PlugValue(n, ctx3)
+	r3 := PlugValue(n, ctx3.Binding)
 
 	if !expected.Equal(r3) {
 		t.Errorf("Expected %v but got: %v", expected, r3)
