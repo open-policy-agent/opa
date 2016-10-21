@@ -1548,7 +1548,7 @@ func runTopDownTracingTestCase(t *testing.T, module string, n int, cases map[int
 	txn := storage.NewTransactionOrDie(store)
 
 	params := NewQueryParams(compiler, store, txn, nil, []interface{}{"test", "p"})
-	buf := &BufferTracer{}
+	buf := NewBufferTracer()
 	params.Tracer = buf
 
 	qidFactory.Reset()

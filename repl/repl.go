@@ -399,8 +399,12 @@ func (r *REPL) evalBody(body ast.Body) bool {
 	}
 
 	ctx := topdown.NewContext(body, r.compiler, r.store, r.txn)
+
+	var buf *topdown.BufferTracer
+
 	if r.trace {
-		ctx.Tracer = topdown.NewLineTracer(os.Stdout)
+		buf = topdown.NewBufferTracer()
+		ctx.Tracer = buf
 	}
 
 	// Flag indicates whether the query was defined for some context.
@@ -446,6 +450,11 @@ func (r *REPL) evalBody(body ast.Body) bool {
 
 		return nil
 	})
+
+	if buf != nil {
+		mangleTrace(*buf)
+		topdown.PrettyTrace(os.Stdout, *buf)
+	}
 
 	if err != nil {
 		fmt.Fprintf(r.output, "error: %v\n", err)
@@ -521,8 +530,12 @@ func (r *REPL) evalTermSingleValue(body ast.Body) bool {
 	body = ast.NewBody(ast.Equality.Expr(term, outputVar))
 
 	ctx := topdown.NewContext(body, r.compiler, r.store, r.txn)
+
+	var buf *topdown.BufferTracer
+
 	if r.trace {
-		ctx.Tracer = topdown.NewLineTracer(os.Stdout)
+		buf = topdown.NewBufferTracer()
+		ctx.Tracer = buf
 	}
 
 	var result interface{}
@@ -538,6 +551,11 @@ func (r *REPL) evalTermSingleValue(body ast.Body) bool {
 		isTrue = true
 		return nil
 	})
+
+	if buf != nil {
+		mangleTrace(*buf)
+		topdown.PrettyTrace(os.Stdout, *buf)
+	}
 
 	if err != nil {
 		fmt.Fprintln(r.output, "error:", err)
@@ -561,8 +579,12 @@ func (r *REPL) evalTermMultiValue(body ast.Body) bool {
 	body = ast.NewBody(ast.Equality.Expr(term, outputVar))
 
 	ctx := topdown.NewContext(body, r.compiler, r.store, r.txn)
+
+	var buf *topdown.BufferTracer
+
 	if r.trace {
-		ctx.Tracer = topdown.NewLineTracer(os.Stdout)
+		buf = topdown.NewBufferTracer()
+		ctx.Tracer = buf
 	}
 
 	vars := map[string]struct{}{}
@@ -614,6 +636,11 @@ func (r *REPL) evalTermMultiValue(body ast.Body) bool {
 
 		return nil
 	})
+
+	if buf != nil {
+		mangleTrace(*buf)
+		topdown.PrettyTrace(os.Stdout, *buf)
+	}
 
 	if err != nil {
 		fmt.Fprintln(r.output, "error:", err)
@@ -867,4 +894,19 @@ func dumpStorage(store *storage.Storage, txn storage.Transaction, w io.Writer) e
 	}
 	e := json.NewEncoder(w)
 	return e.Encode(data)
+}
+
+func mangleTrace(trace []*topdown.Event) {
+	for _, event := range trace {
+		mangleEvent(event)
+	}
+}
+
+func mangleEvent(event *topdown.Event) {
+	switch node := event.Node.(type) {
+	case *ast.Rule:
+		event.Node = topdown.PlugHead(node.Head(), event.Locals.Get)
+	case *ast.Expr:
+		event.Node = topdown.PlugExpr(node, event.Locals.Get)
+	}
 }
