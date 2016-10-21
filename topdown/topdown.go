@@ -34,6 +34,11 @@ type Context struct {
 	redos *redoStack
 }
 
+// ResetQueryIDs resets the query ID generator. This is only for test purposes.
+func ResetQueryIDs() {
+	qidFactory.Reset()
+}
+
 type queryIDFactory struct {
 	next uint64
 	mtx  sync.Mutex
