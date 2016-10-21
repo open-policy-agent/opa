@@ -825,7 +825,7 @@ var builtin = [...]commandDesc{
 	{"json", []string{}, "set output format to JSON"},
 	{"pretty", []string{}, "set output format to pretty"},
 	{"dump", []string{"[path]"}, "dump the raw storage content"},
-	{"trace", []string{}, "toggle raw trace"},
+	{"trace", []string{}, "toggle full trace"},
 	{"truth", []string{}, "toggle truth explanation"},
 	{"help", []string{}, "print this message"},
 	{"exit", []string{}, "exit back to shell (or ctrl+c, ctrl+d)"},
