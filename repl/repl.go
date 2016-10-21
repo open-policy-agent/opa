@@ -452,8 +452,8 @@ func (r *REPL) evalBody(body ast.Body) bool {
 	})
 
 	if buf != nil {
-		mangleTrace(*buf)
-		topdown.PrettyTrace(os.Stdout, *buf)
+		mangleTrace(r.store, r.txn, *buf)
+		topdown.PrettyTrace(r.output, *buf)
 	}
 
 	if err != nil {
@@ -553,8 +553,8 @@ func (r *REPL) evalTermSingleValue(body ast.Body) bool {
 	})
 
 	if buf != nil {
-		mangleTrace(*buf)
-		topdown.PrettyTrace(os.Stdout, *buf)
+		mangleTrace(r.store, r.txn, *buf)
+		topdown.PrettyTrace(r.output, *buf)
 	}
 
 	if err != nil {
@@ -638,8 +638,8 @@ func (r *REPL) evalTermMultiValue(body ast.Body) bool {
 	})
 
 	if buf != nil {
-		mangleTrace(*buf)
-		topdown.PrettyTrace(os.Stdout, *buf)
+		mangleTrace(r.store, r.txn, *buf)
+		topdown.PrettyTrace(r.output, *buf)
 	}
 
 	if err != nil {
@@ -896,17 +896,42 @@ func dumpStorage(store *storage.Storage, txn storage.Transaction, w io.Writer) e
 	return e.Encode(data)
 }
 
-func mangleTrace(trace []*topdown.Event) {
+func mangleTrace(store *storage.Storage, txn storage.Transaction, trace []*topdown.Event) error {
 	for _, event := range trace {
-		mangleEvent(event)
+		if err := mangleEvent(store, txn, event); err != nil {
+			return err
+		}
 	}
+	return nil
 }
 
-func mangleEvent(event *topdown.Event) {
+func mangleEvent(store *storage.Storage, txn storage.Transaction, event *topdown.Event) error {
+
+	// Replace bindings with ref values with the values from storage.
+	cpy := event.Locals.Copy()
+	var err error
+	event.Locals.Iter(func(k, v ast.Value) bool {
+		if r, ok := v.(ast.Ref); ok {
+			var doc interface{}
+			doc, err = store.Read(txn, r)
+			if err != nil {
+				return true
+			}
+			v, err = ast.InterfaceToValue(doc)
+			if err != nil {
+				return true
+			}
+			cpy.Put(k, v)
+		}
+		return false
+	})
+	event.Locals = cpy
+
 	switch node := event.Node.(type) {
 	case *ast.Rule:
 		event.Node = topdown.PlugHead(node.Head(), event.Locals.Get)
 	case *ast.Expr:
 		event.Node = topdown.PlugExpr(node, event.Locals.Get)
 	}
+	return nil
 }
