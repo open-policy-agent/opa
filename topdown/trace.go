@@ -47,10 +47,11 @@ const (
 
 // Event contains state associated with a tracing event.
 type Event struct {
-	Op       Op          // Identifies type of event.
-	Node     interface{} // Contains AST node relevant to the event.
-	QueryID  uint64      // Identifies the query this event belongs to.
-	ParentID uint64      // Identifies the parent query this event belongs to.
+	Op       Op            // Identifies type of event.
+	Node     interface{}   // Contains AST node relevant to the event.
+	QueryID  uint64        // Identifies the query this event belongs to.
+	ParentID uint64        // Identifies the parent query this event belongs to.
+	Locals   *ast.ValueMap // Contains local variable bindings from the query context.
 }
 
 // HasRule returns true if the Event contains an ast.Rule.
@@ -85,7 +86,7 @@ func (evt *Event) Equal(other *Event) bool {
 	if !equalNodes(evt, other) {
 		return false
 	}
-	return true
+	return evt.Locals.Equal(other.Locals)
 }
 
 func (evt *Event) format(depth int) string {
@@ -115,13 +116,26 @@ func (evt *Event) getSpaces(depth int) int {
 }
 
 func (evt *Event) String() string {
-	return fmt.Sprintf("%v %v (qid=%v, pqid=%v)", evt.Op, evt.Node, evt.QueryID, evt.ParentID)
+	return fmt.Sprintf("%v %v %v (qid=%v, pqid=%v)", evt.Op, evt.Node, evt.Locals, evt.QueryID, evt.ParentID)
 }
 
 // Tracer defines the interface for tracing in the top-down evaluation engine.
 type Tracer interface {
 	Enabled() bool
 	Trace(ctx *Context, evt *Event)
+}
+
+// BufferTracer implements the Tracer interface by simply buffering all events received.
+type BufferTracer []*Event
+
+// Enabled always returns true.
+func (b *BufferTracer) Enabled() bool {
+	return true
+}
+
+// Trace adds the event to the buffer.
+func (b *BufferTracer) Trace(ctx *Context, evt *Event) {
+	*b = append(*b, evt)
 }
 
 // LineTracer implements the Tracer interface by writing events to an output

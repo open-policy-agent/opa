@@ -240,6 +240,7 @@ func (ctx *Context) makeEvent(op Op, node interface{}) *Event {
 		Op:      op,
 		Node:    node,
 		QueryID: ctx.qid,
+		Locals:  ctx.Locals.Copy(),
 	}
 	if ctx.Previous != nil {
 		evt.ParentID = ctx.Previous.qid
