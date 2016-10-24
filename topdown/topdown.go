@@ -34,6 +34,11 @@ type Context struct {
 	redos *redoStack
 }
 
+// ResetQueryIDs resets the query ID generator. This is only for test purposes.
+func ResetQueryIDs() {
+	qidFactory.Reset()
+}
+
 type queryIDFactory struct {
 	next uint64
 	mtx  sync.Mutex
@@ -240,6 +245,7 @@ func (ctx *Context) makeEvent(op Op, node interface{}) *Event {
 		Op:      op,
 		Node:    node,
 		QueryID: ctx.qid,
+		Locals:  ctx.Locals.Copy(),
 	}
 	if ctx.Previous != nil {
 		evt.ParentID = ctx.Previous.qid
@@ -366,62 +372,65 @@ func Eval(ctx *Context, iter Iterator) error {
 	})
 }
 
-// PlugHead returns a copy of head with bound terms substituted for values in
-// ctx.
-func PlugHead(head *ast.Head, ctx *Context) *ast.Head {
+// Binding defines the interface used to apply term bindings to terms,
+// expressions, etc.
+type Binding func(ast.Value) ast.Value
+
+// PlugHead returns a copy of head with bound terms substituted for the binding.
+func PlugHead(head *ast.Head, binding Binding) *ast.Head {
 	plugged := *head
 	if plugged.Key != nil {
-		plugged.Key = PlugTerm(plugged.Key, ctx)
+		plugged.Key = PlugTerm(plugged.Key, binding)
 	}
 	if plugged.Value != nil {
-		plugged.Value = PlugTerm(plugged.Value, ctx)
+		plugged.Value = PlugTerm(plugged.Value, binding)
 	}
 	return &plugged
 }
 
-// PlugExpr returns a copy of expr with bound terms substituted for values in ctx.
-func PlugExpr(expr *ast.Expr, ctx *Context) *ast.Expr {
+// PlugExpr returns a copy of expr with bound terms substituted for the binding.
+func PlugExpr(expr *ast.Expr, binding Binding) *ast.Expr {
 	plugged := *expr
 	switch ts := plugged.Terms.(type) {
 	case []*ast.Term:
 		var buf []*ast.Term
 		buf = append(buf, ts[0])
 		for _, term := range ts[1:] {
-			buf = append(buf, PlugTerm(term, ctx))
+			buf = append(buf, PlugTerm(term, binding))
 		}
 		plugged.Terms = buf
 	case *ast.Term:
-		plugged.Terms = PlugTerm(ts, ctx)
+		plugged.Terms = PlugTerm(ts, binding)
 	default:
 		panic(fmt.Sprintf("illegal argument: %v", ts))
 	}
 	return &plugged
 }
 
-// PlugTerm returns a copy of term with bound terms substituted for values in ctx.
-func PlugTerm(term *ast.Term, ctx *Context) *ast.Term {
+// PlugTerm returns a copy of term with bound terms substituted for the binding.
+func PlugTerm(term *ast.Term, binding Binding) *ast.Term {
 	switch v := term.Value.(type) {
 	case ast.Var:
-		return &ast.Term{Value: PlugValue(v, ctx)}
+		return &ast.Term{Value: PlugValue(v, binding)}
 
 	case ast.Ref:
 		plugged := *term
-		plugged.Value = PlugValue(v, ctx)
+		plugged.Value = PlugValue(v, binding)
 		return &plugged
 
 	case ast.Array:
 		plugged := *term
-		plugged.Value = PlugValue(v, ctx)
+		plugged.Value = PlugValue(v, binding)
 		return &plugged
 
 	case ast.Object:
 		plugged := *term
-		plugged.Value = PlugValue(v, ctx)
+		plugged.Value = PlugValue(v, binding)
 		return &plugged
 
 	case *ast.ArrayComprehension:
 		plugged := *term
-		plugged.Value = PlugValue(v, ctx)
+		plugged.Value = PlugValue(v, binding)
 		return &plugged
 
 	default:
@@ -432,53 +441,53 @@ func PlugTerm(term *ast.Term, ctx *Context) *ast.Term {
 	}
 }
 
-// PlugValue returns a copy of v with bound terms substituted for values in ctx.
-func PlugValue(v ast.Value, ctx *Context) ast.Value {
+// PlugValue returns a copy of v with bound terms substituted for the binding.
+func PlugValue(v ast.Value, binding func(ast.Value) ast.Value) ast.Value {
 
 	switch v := v.(type) {
 	case ast.Var:
-		if b := ctx.Binding(v); b != nil {
-			return PlugValue(b, ctx)
+		if b := binding(v); b != nil {
+			return PlugValue(b, binding)
 		}
 		return v
 
 	case *ast.ArrayComprehension:
-		b := ctx.Binding(v)
+		b := binding(v)
 		if b == nil {
 			return v
 		}
 		return b
 
 	case ast.Ref:
-		if b := ctx.Binding(v); b != nil {
+		if b := binding(v); b != nil {
 			return b
 		}
 		buf := make(ast.Ref, len(v))
 		buf[0] = v[0]
 		for i, p := range v[1:] {
-			buf[i+1] = PlugTerm(p, ctx)
+			buf[i+1] = PlugTerm(p, binding)
 		}
 		return buf
 
 	case ast.Array:
 		buf := make(ast.Array, len(v))
 		for i, e := range v {
-			buf[i] = PlugTerm(e, ctx)
+			buf[i] = PlugTerm(e, binding)
 		}
 		return buf
 
 	case ast.Object:
 		buf := make(ast.Object, len(v))
 		for i, e := range v {
-			k := PlugTerm(e[0], ctx)
-			v := PlugTerm(e[1], ctx)
+			k := PlugTerm(e[0], binding)
+			v := PlugTerm(e[1], binding)
 			buf[i] = [...]*ast.Term{k, v}
 		}
 		return buf
 
 	default:
 		if !v.IsGround() {
-			panic(fmt.Sprintf("illegal value: %v %v", ctx, v))
+			panic(fmt.Sprintf("illegal value: %v", v))
 		}
 		return v
 	}
@@ -548,7 +557,7 @@ func Query(params *QueryParams) (interface{}, error) {
 	var err error
 
 	err = Eval(ctx, func(ctx *Context) error {
-		val := PlugValue(ast.Wildcard.Value, ctx)
+		val := PlugValue(ast.Wildcard.Value, ctx.Binding)
 		result, err = ValueToInterface(val, ctx)
 		return err
 	})
@@ -622,7 +631,7 @@ func ValueToInterface(v ast.Value, ctx *Context) (interface{}, error) {
 		return ctx.Store.Read(ctx.txn, v)
 
 	default:
-		v = PlugValue(v, ctx)
+		v = PlugValue(v, ctx.Binding)
 		if !v.IsGround() {
 			return nil, fmt.Errorf("unbound value: %v", v)
 		}
@@ -771,7 +780,7 @@ func evalContextNegated(ctx *Context, iter Iterator) error {
 }
 
 func evalExpr(ctx *Context, iter Iterator) error {
-	expr := PlugExpr(ctx.Current(), ctx)
+	expr := PlugExpr(ctx.Current(), ctx.Binding)
 	switch tt := expr.Terms.(type) {
 	case []*ast.Term:
 		builtin := builtinFunctions[tt[0].Value.(ast.Var)]
@@ -838,7 +847,7 @@ func evalRef(ctx *Context, ref, path ast.Ref, iter Iterator) error {
 		if b := ctx.Binding(n); b == nil {
 			var err error
 			var v ast.Value
-			switch p := PlugValue(n, ctx).(type) {
+			switch p := PlugValue(n, ctx.Binding).(type) {
 			case ast.Ref:
 				v, err = lookupValue(ctx, p)
 				if err != nil {
@@ -866,7 +875,7 @@ func evalRefRec(ctx *Context, ref ast.Ref, iter Iterator) error {
 	// Obtain ground prefix of the reference.
 	var plugged ast.Ref
 	var prefix ast.Ref
-	switch v := PlugValue(ref, ctx).(type) {
+	switch v := PlugValue(ref, ctx.Binding).(type) {
 	case ast.Ref:
 		plugged = v
 		prefix = plugged.GroundPrefix()
@@ -1161,9 +1170,9 @@ func evalRefRuleCompleteDoc(ctx *Context, ref ast.Ref, suffix ast.Ref, rules []*
 
 		err := evalContext(child, func(child *Context) error {
 			if result == nil {
-				result = PlugValue(rule.Value.Value, child)
+				result = PlugValue(rule.Value.Value, child.Binding)
 			} else {
-				r := PlugValue(rule.Value.Value, child)
+				r := PlugValue(rule.Value.Value, child.Binding)
 				if !result.Equal(r) {
 					return conflictErr(ref, "complete documents", rule)
 				}
@@ -1192,7 +1201,7 @@ func evalRefRuleCompleteDoc(ctx *Context, ref ast.Ref, suffix ast.Ref, rules []*
 func evalRefRulePartialObjectDoc(ctx *Context, ref ast.Ref, path ast.Ref, rule *ast.Rule, redo bool, iter Iterator) error {
 	suffix := ref[len(path):]
 
-	key := PlugValue(suffix[0].Value, ctx)
+	key := PlugValue(suffix[0].Value, ctx.Binding)
 
 	// There are two cases being handled below. The first deals with non-ground
 	// keys. If the key is not ground, we evaluate the child query and copy the
@@ -1214,7 +1223,7 @@ func evalRefRulePartialObjectDoc(ctx *Context, ref ast.Ref, path ast.Ref, rule *
 		}
 		return evalContext(child, func(child *Context) error {
 
-			key := PlugValue(rule.Key.Value, child)
+			key := PlugValue(rule.Key.Value, child.Binding)
 
 			if r, ok := key.(ast.Ref); ok {
 				var err error
@@ -1231,7 +1240,7 @@ func evalRefRulePartialObjectDoc(ctx *Context, ref ast.Ref, path ast.Ref, rule *
 				return typeErrObjectKey(rule, key)
 			}
 
-			value := PlugValue(rule.Value.Value, child)
+			value := PlugValue(rule.Value.Value, child.Binding)
 			if !value.IsGround() {
 				return fmt.Errorf("unbound variable: %v", value)
 			}
@@ -1280,7 +1289,7 @@ func evalRefRulePartialObjectDoc(ctx *Context, ref ast.Ref, path ast.Ref, rule *
 
 		return evalContext(child, func(child *Context) error {
 
-			value := PlugValue(rule.Value.Value, child)
+			value := PlugValue(rule.Value.Value, child.Binding)
 			if !value.IsGround() {
 				return fmt.Errorf("unbound variable: %v", value)
 			}
@@ -1349,7 +1358,7 @@ func evalRefRulePartialObjectDocFull(ctx *Context, ref ast.Ref, rules []*ast.Rul
 		}
 
 		err := evalContext(child, func(child *Context) error {
-			key := PlugValue(rule.Key.Value, child)
+			key := PlugValue(rule.Key.Value, child.Binding)
 			if r, ok := key.(ast.Ref); ok {
 				var err error
 				key, err = lookupValue(ctx, r)
@@ -1367,7 +1376,7 @@ func evalRefRulePartialObjectDocFull(ctx *Context, ref ast.Ref, rules []*ast.Rul
 				return conflictErr(ref, "object document keys", rule)
 			}
 			keys.Put(key, ast.Null{})
-			value := PlugValue(rule.Value.Value, child)
+			value := PlugValue(rule.Value.Value, child.Binding)
 			if !value.IsGround() {
 				return fmt.Errorf("unbound variable: %v", value)
 			}
@@ -1388,7 +1397,7 @@ func evalRefRulePartialObjectDocFull(ctx *Context, ref ast.Ref, rules []*ast.Rul
 func evalRefRulePartialSetDoc(ctx *Context, ref ast.Ref, path ast.Ref, rule *ast.Rule, redo bool, iter Iterator) error {
 
 	suffix := ref[len(path):]
-	key := PlugValue(suffix[0].Value, ctx)
+	key := PlugValue(suffix[0].Value, ctx.Binding)
 
 	// See comment in evalRefRulePartialObjectDoc about the two branches below.
 	if !key.IsGround() {
@@ -1407,7 +1416,7 @@ func evalRefRulePartialSetDoc(ctx *Context, ref ast.Ref, path ast.Ref, rule *ast
 		// To do this, the unification may need to be improved to namespace variables
 		// across contexts (otherwise we could end up with recursive bindings).
 		return evalContext(child, func(child *Context) error {
-			value := PlugValue(rule.Key.Value, child)
+			value := PlugValue(rule.Key.Value, child.Binding)
 			if !value.IsGround() {
 				return fmt.Errorf("unbound variable: %v", rule.Value)
 			}
@@ -1451,7 +1460,7 @@ func evalRefRuleResult(ctx *Context, ref ast.Ref, suffix ast.Ref, result ast.Val
 
 	s := make(ast.Ref, len(suffix))
 	for i := range suffix {
-		s[i] = PlugTerm(suffix[i], ctx)
+		s[i] = PlugTerm(suffix[i], ctx.Binding)
 	}
 
 	return evalRefRuleResultRec(ctx, result, s, ast.Ref{}, func(ctx *Context, v ast.Value) error {
@@ -1546,7 +1555,7 @@ func evalRefRuleResultRecObject(ctx *Context, obj ast.Object, ref, path ast.Ref,
 func evalRefRuleResultRecRef(ctx *Context, v, ref, path ast.Ref, iter func(*Context, ast.Value) error) error {
 	b := append(v, ref...)
 	return evalRefRec(ctx, b, func(ctx *Context) error {
-		return iter(ctx, PlugValue(b, ctx))
+		return iter(ctx, PlugValue(b, ctx.Binding))
 	})
 }
 
@@ -1564,8 +1573,8 @@ func evalTerms(ctx *Context, iter Iterator) error {
 		// The terms must be plugged otherwise the index may yield bindings
 		// that would result in false positives.
 		ts := expr.Terms.([]*ast.Term)
-		t1 := PlugTerm(ts[1], ctx)
-		t2 := PlugTerm(ts[2], ctx)
+		t1 := PlugTerm(ts[1], ctx.Binding)
+		t2 := PlugTerm(ts[2], ctx.Binding)
 		r1, ok1 := t1.Value.(ast.Ref)
 		r2, ok2 := t2.Value.(ast.Ref)
 
@@ -1609,7 +1618,7 @@ func evalTermsComprehension(ctx *Context, comp ast.Value, iter Iterator) error {
 		r := ast.Array{}
 		c := ctx.Child(comp.Body, ctx.Locals)
 		err := Eval(c, func(c *Context) error {
-			r = append(r, PlugTerm(comp.Term, c))
+			r = append(r, PlugTerm(comp.Term, c.Binding))
 			return nil
 		})
 		if err != nil {
@@ -1626,7 +1635,7 @@ func evalTermsIndexed(ctx *Context, iter Iterator, indexed ast.Ref, nonIndexed *
 	iterateIndex := func(ctx *Context) error {
 
 		// Evaluate the non-indexed term.
-		plugged := PlugTerm(nonIndexed, ctx)
+		plugged := PlugTerm(nonIndexed, ctx.Binding)
 		nonIndexedValue, err := ValueToInterface(plugged.Value, ctx)
 		if err != nil {
 			return err

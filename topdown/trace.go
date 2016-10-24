@@ -12,19 +12,6 @@ import (
 	"github.com/open-policy-agent/opa/ast"
 )
 
-// Trace represents a sequence of events emitted during query evaluation.
-type Trace []*Event
-
-func (e Trace) String() string {
-	depths := depths{}
-	buf := make([]string, len(e))
-	for i, evt := range e {
-		depth := depths.GetOrSet(evt.QueryID, evt.ParentID)
-		buf[i] = evt.format(depth)
-	}
-	return strings.Join(buf, "\n")
-}
-
 // Op defines the types of tracing events.
 type Op string
 
@@ -47,10 +34,11 @@ const (
 
 // Event contains state associated with a tracing event.
 type Event struct {
-	Op       Op          // Identifies type of event.
-	Node     interface{} // Contains AST node relevant to the event.
-	QueryID  uint64      // Identifies the query this event belongs to.
-	ParentID uint64      // Identifies the parent query this event belongs to.
+	Op       Op            // Identifies type of event.
+	Node     interface{}   // Contains AST node relevant to the event.
+	QueryID  uint64        // Identifies the query this event belongs to.
+	ParentID uint64        // Identifies the parent query this event belongs to.
+	Locals   *ast.ValueMap // Contains local variable bindings from the query context.
 }
 
 // HasRule returns true if the Event contains an ast.Rule.
@@ -82,40 +70,34 @@ func (evt *Event) Equal(other *Event) bool {
 	if evt.ParentID != other.ParentID {
 		return false
 	}
-	if !equalNodes(evt, other) {
+	if !evt.equalNodes(other) {
 		return false
 	}
-	return true
-}
-
-func (evt *Event) format(depth int) string {
-	padding := evt.getPadding(depth)
-	return fmt.Sprintf("%v%v %v", padding, evt.Op, evt.Node)
-}
-
-func (evt *Event) getPadding(depth int) string {
-	spaces := evt.getSpaces(depth)
-	padding := ""
-	if spaces > 1 {
-		padding += strings.Repeat("| ", spaces-1)
-	}
-	return padding
-}
-
-func (evt *Event) getSpaces(depth int) int {
-	switch evt.Op {
-	case EnterOp:
-		return depth
-	case RedoOp:
-		if _, ok := evt.Node.(*ast.Expr); !ok {
-			return depth
-		}
-	}
-	return depth + 1
+	return evt.Locals.Equal(other.Locals)
 }
 
 func (evt *Event) String() string {
-	return fmt.Sprintf("%v %v (qid=%v, pqid=%v)", evt.Op, evt.Node, evt.QueryID, evt.ParentID)
+	return fmt.Sprintf("%v %v %v (qid=%v, pqid=%v)", evt.Op, evt.Node, evt.Locals, evt.QueryID, evt.ParentID)
+}
+
+func (evt *Event) equalNodes(other *Event) bool {
+	switch a := evt.Node.(type) {
+	case ast.Body:
+		if b, ok := other.Node.(ast.Body); ok {
+			return a.Equal(b)
+		}
+	case *ast.Rule:
+		if b, ok := other.Node.(*ast.Rule); ok {
+			return a.Equal(b)
+		}
+	case *ast.Expr:
+		if b, ok := other.Node.(*ast.Expr); ok {
+			return a.Equal(b)
+		}
+	case nil:
+		return other.Node == nil
+	}
+	return false
 }
 
 // Tracer defines the interface for tracing in the top-down evaluation engine.
@@ -124,50 +106,58 @@ type Tracer interface {
 	Trace(ctx *Context, evt *Event)
 }
 
-// LineTracer implements the Tracer interface by writing events to an output
-// stream.
-type LineTracer struct {
-	output io.Writer
-	depths depths
-}
+// BufferTracer implements the Tracer interface by simply buffering all events
+// received.
+type BufferTracer []*Event
 
-// NewLineTracer returns a new LineTracer.
-func NewLineTracer(output io.Writer) *LineTracer {
-	return &LineTracer{
-		output: output,
-		depths: depths{},
-	}
+// NewBufferTracer returns a new BufferTracer.
+func NewBufferTracer() *BufferTracer {
+	return &BufferTracer{}
 }
 
 // Enabled always returns true.
-func (t *LineTracer) Enabled() bool {
+func (b *BufferTracer) Enabled() bool {
 	return true
 }
 
-// Trace emits evt to the output stream. The event will be formatted based on
-// query depth and bindings in ctx.
-func (t *LineTracer) Trace(ctx *Context, evt *Event) {
-	evt.Node = t.mangleNode(ctx, evt)
-	depth := t.depths.GetOrSet(evt.QueryID, evt.ParentID)
-	fmt.Fprintln(t.output, evt.format(depth))
+// Trace adds the event to the buffer.
+func (b *BufferTracer) Trace(ctx *Context, evt *Event) {
+	*b = append(*b, evt)
 }
 
-func (t *LineTracer) mangleNode(ctx *Context, evt *Event) interface{} {
-	switch evt.Op {
+// PrettyTrace pretty prints the trace to the writer.
+func PrettyTrace(w io.Writer, trace []*Event) {
+	depths := depths{}
+	for _, event := range trace {
+		depth := depths.GetOrSet(event.QueryID, event.ParentID)
+		fmt.Fprintln(w, formatEvent(event, depth))
+	}
+}
+
+func formatEvent(event *Event, depth int) string {
+	padding := formatEventPadding(event, depth)
+	return fmt.Sprintf("%v%v %v", padding, event.Op, event.Node)
+}
+
+func formatEventPadding(event *Event, depth int) string {
+	spaces := formatEventSpaces(event, depth)
+	padding := ""
+	if spaces > 1 {
+		padding += strings.Repeat("| ", spaces-1)
+	}
+	return padding
+}
+
+func formatEventSpaces(event *Event, depth int) int {
+	switch event.Op {
+	case EnterOp:
+		return depth
 	case RedoOp:
-		switch node := evt.Node.(type) {
-		case *ast.Rule:
-			return node.Head()
-		}
-	default:
-		switch node := evt.Node.(type) {
-		case *ast.Rule:
-			return PlugHead(node.Head(), ctx)
-		case *ast.Expr:
-			return PlugExpr(node, ctx)
+		if _, ok := event.Node.(*ast.Expr); !ok {
+			return depth
 		}
 	}
-	return evt.Node
+	return depth + 1
 }
 
 // depths is a helper for computing the depth of an event. Events within the
@@ -183,24 +173,4 @@ func (ds depths) GetOrSet(qid uint64, pqid uint64) int {
 		ds[qid] = depth
 	}
 	return depth
-}
-
-func equalNodes(a, b *Event) bool {
-	switch a := a.Node.(type) {
-	case ast.Body:
-		if b, ok := b.Node.(ast.Body); ok {
-			return a.Equal(b)
-		}
-	case *ast.Rule:
-		if b, ok := b.Node.(*ast.Rule); ok {
-			return a.Equal(b)
-		}
-	case *ast.Expr:
-		if b, ok := b.Node.(*ast.Expr); ok {
-			return a.Equal(b)
-		}
-	case nil:
-		return b.Node == nil
-	}
-	return false
 }

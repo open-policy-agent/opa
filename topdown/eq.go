@@ -57,8 +57,8 @@ func evalEqUnify(ctx *Context, a ast.Value, b ast.Value, prev *Undo, iter Iterat
 
 	// Plug bindings into both terms because this will be called recursively and there may be
 	// new bindings that have been made as part of unification.
-	a = PlugValue(a, ctx)
-	b = PlugValue(b, ctx)
+	a = PlugValue(a, ctx.Binding)
+	b = PlugValue(b, ctx.Binding)
 
 	switch a := a.(type) {
 	case ast.Var:

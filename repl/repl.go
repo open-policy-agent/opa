@@ -19,6 +19,7 @@ import (
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/topdown"
+	"github.com/open-policy-agent/opa/topdown/explain"
 
 	"github.com/peterh/liner"
 )
@@ -38,12 +39,20 @@ type REPL struct {
 	// TODO(tsandall): replace this state with rule definitions
 	// inside the default module.
 	outputFormat string
-	trace        bool
+	explain      explainMode
 	historyPath  string
 	initPrompt   string
 	bufferPrompt string
 	banner       string
 }
+
+type explainMode int
+
+const (
+	explainOff   explainMode = iota
+	explainTrace explainMode = iota
+	explainTruth explainMode = iota
+)
 
 // New returns a new instance of the REPL.
 // TODO(tsandall): refactor so that DataStore and PolicyStore are not needed here.
@@ -51,7 +60,7 @@ func New(store *storage.Storage, historyPath string, output io.Writer, outputFor
 	return &REPL{
 		output:          output,
 		outputFormat:    outputFormat,
-		trace:           false,
+		explain:         explainOff,
 		compiler:        nil,
 		store:           store,
 		currentModuleID: "repl",
@@ -132,6 +141,8 @@ func (r *REPL) OneShot(line string) bool {
 				return r.cmdFormat("pretty")
 			case "trace":
 				return r.cmdTrace()
+			case "truth":
+				return r.cmdTruth()
 			case "help":
 				return r.cmdHelp()
 			case "exit":
@@ -210,7 +221,20 @@ func (r *REPL) cmdHelp() bool {
 }
 
 func (r *REPL) cmdTrace() bool {
-	r.trace = !r.trace
+	if r.explain == explainTrace {
+		r.explain = explainOff
+	} else {
+		r.explain = explainTrace
+	}
+	return false
+}
+
+func (r *REPL) cmdTruth() bool {
+	if r.explain == explainTruth {
+		r.explain = explainOff
+	} else {
+		r.explain = explainTruth
+	}
 	return false
 }
 
@@ -399,8 +423,12 @@ func (r *REPL) evalBody(body ast.Body) bool {
 	}
 
 	ctx := topdown.NewContext(body, r.compiler, r.store, r.txn)
-	if r.trace {
-		ctx.Tracer = topdown.NewLineTracer(os.Stdout)
+
+	var buf *topdown.BufferTracer
+
+	if r.explain != explainOff {
+		buf = topdown.NewBufferTracer()
+		ctx.Tracer = buf
 	}
 
 	// Flag indicates whether the query was defined for some context.
@@ -446,6 +474,10 @@ func (r *REPL) evalBody(body ast.Body) bool {
 
 		return nil
 	})
+
+	if buf != nil {
+		r.printTrace(*buf)
+	}
 
 	if err != nil {
 		fmt.Fprintf(r.output, "error: %v\n", err)
@@ -521,8 +553,12 @@ func (r *REPL) evalTermSingleValue(body ast.Body) bool {
 	body = ast.NewBody(ast.Equality.Expr(term, outputVar))
 
 	ctx := topdown.NewContext(body, r.compiler, r.store, r.txn)
-	if r.trace {
-		ctx.Tracer = topdown.NewLineTracer(os.Stdout)
+
+	var buf *topdown.BufferTracer
+
+	if r.explain != explainOff {
+		buf = topdown.NewBufferTracer()
+		ctx.Tracer = buf
 	}
 
 	var result interface{}
@@ -538,6 +574,10 @@ func (r *REPL) evalTermSingleValue(body ast.Body) bool {
 		isTrue = true
 		return nil
 	})
+
+	if buf != nil {
+		r.printTrace(*buf)
+	}
 
 	if err != nil {
 		fmt.Fprintln(r.output, "error:", err)
@@ -561,8 +601,12 @@ func (r *REPL) evalTermMultiValue(body ast.Body) bool {
 	body = ast.NewBody(ast.Equality.Expr(term, outputVar))
 
 	ctx := topdown.NewContext(body, r.compiler, r.store, r.txn)
-	if r.trace {
-		ctx.Tracer = topdown.NewLineTracer(os.Stdout)
+
+	var buf *topdown.BufferTracer
+
+	if r.explain != explainOff {
+		buf = topdown.NewBufferTracer()
+		ctx.Tracer = buf
 	}
 
 	vars := map[string]struct{}{}
@@ -602,7 +646,7 @@ func (r *REPL) evalTermMultiValue(body ast.Body) bool {
 		}
 
 		if includeValue {
-			p := topdown.PlugTerm(term, ctx)
+			p := topdown.PlugTerm(term, ctx.Binding)
 			v, err := topdown.ValueToInterface(p.Value, ctx)
 			if err != nil {
 				return err
@@ -614,6 +658,10 @@ func (r *REPL) evalTermMultiValue(body ast.Body) bool {
 
 		return nil
 	})
+
+	if buf != nil {
+		r.printTrace(*buf)
+	}
 
 	if err != nil {
 		fmt.Fprintln(r.output, "error:", err)
@@ -730,6 +778,18 @@ func (r *REPL) printPrettyRow(table *tablewriter.Table, keys []string, row map[s
 	table.Append(buf)
 }
 
+func (r *REPL) printTrace(trace []*topdown.Event) {
+	if r.explain == explainTruth {
+		answer, err := explain.Truth(r.compiler, trace)
+		if err != nil {
+			fmt.Fprintf(r.output, "error: %v\n", err)
+		}
+		trace = answer
+	}
+	mangleTrace(r.store, r.txn, trace)
+	topdown.PrettyTrace(r.output, trace)
+}
+
 func (r *REPL) printUndefined() {
 	fmt.Fprintln(r.output, "undefined")
 }
@@ -765,7 +825,8 @@ var builtin = [...]commandDesc{
 	{"json", []string{}, "set output format to JSON"},
 	{"pretty", []string{}, "set output format to pretty"},
 	{"dump", []string{"[path]"}, "dump the raw storage content"},
-	{"trace", []string{}, "toggle stdout tracing"},
+	{"trace", []string{}, "toggle full trace"},
+	{"truth", []string{}, "toggle truth explanation"},
 	{"help", []string{}, "print this message"},
 	{"exit", []string{}, "exit back to shell (or ctrl+c, ctrl+d)"},
 	{"ctrl+l", []string{}, "clear the screen"},
@@ -867,4 +928,44 @@ func dumpStorage(store *storage.Storage, txn storage.Transaction, w io.Writer) e
 	}
 	e := json.NewEncoder(w)
 	return e.Encode(data)
+}
+
+func mangleTrace(store *storage.Storage, txn storage.Transaction, trace []*topdown.Event) error {
+	for _, event := range trace {
+		if err := mangleEvent(store, txn, event); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func mangleEvent(store *storage.Storage, txn storage.Transaction, event *topdown.Event) error {
+
+	// Replace bindings with ref values with the values from storage.
+	cpy := event.Locals.Copy()
+	var err error
+	event.Locals.Iter(func(k, v ast.Value) bool {
+		if r, ok := v.(ast.Ref); ok {
+			var doc interface{}
+			doc, err = store.Read(txn, r)
+			if err != nil {
+				return true
+			}
+			v, err = ast.InterfaceToValue(doc)
+			if err != nil {
+				return true
+			}
+			cpy.Put(k, v)
+		}
+		return false
+	})
+	event.Locals = cpy
+
+	switch node := event.Node.(type) {
+	case *ast.Rule:
+		event.Node = topdown.PlugHead(node.Head(), event.Locals.Get)
+	case *ast.Expr:
+		event.Node = topdown.PlugExpr(node, event.Locals.Get)
+	}
+	return nil
 }

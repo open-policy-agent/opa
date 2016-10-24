@@ -19,6 +19,7 @@ import (
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/topdown"
+	"github.com/open-policy-agent/opa/topdown/explain"
 	"github.com/open-policy-agent/opa/version"
 	"github.com/pkg/errors"
 )
@@ -72,6 +73,136 @@ func (p *policyV1) Equal(other *policyV1) bool {
 
 // resultSetV1 models the result of an ad-hoc query.
 type resultSetV1 []map[string]interface{}
+
+// explainModeV1 defines supported values for the "explain" query parameter.
+type explainModeV1 string
+
+const (
+	explainOffV1   explainModeV1 = "off"
+	explainFullV1  explainModeV1 = "full"
+	explainTruthV1 explainModeV1 = "truth"
+)
+
+// traceV1 models the trace result returned for queries that include the
+// "explain" parameter. The trace is modelled as series of trace events that
+// identify the expression, local term bindings, query hierarchy, etc.
+type traceV1 []traceEventV1
+
+func newTraceV1(trace []*topdown.Event) (result traceV1) {
+	result = make(traceV1, len(trace))
+	for i := range trace {
+		var typ nodeTypeV1
+		switch trace[i].Node.(type) {
+		case *ast.Rule:
+			typ = nodeTypeRuleV1
+		case *ast.Expr:
+			typ = nodeTypeExprV1
+		case ast.Body:
+			typ = nodeTypeBodyV1
+		}
+		result[i] = traceEventV1{
+			Op:       string(trace[i].Op),
+			QueryID:  trace[i].QueryID,
+			ParentID: trace[i].ParentID,
+			Type:     typ,
+			Node:     trace[i].Node,
+			Locals:   newBindingsV1(trace[i].Locals),
+		}
+	}
+	return result
+}
+
+// nodeTypeV1 defines supported types for the trace event nodes.
+type nodeTypeV1 string
+
+const (
+	nodeTypeRuleV1 nodeTypeV1 = "rule"
+	nodeTypeBodyV1 nodeTypeV1 = "body"
+	nodeTypeExprV1 nodeTypeV1 = "expr"
+)
+
+// traceEventV1 represents a step in the query evaluation process.
+type traceEventV1 struct {
+	Op       string
+	QueryID  uint64
+	ParentID uint64
+	Type     nodeTypeV1
+	Node     interface{}
+	Locals   bindingsV1
+}
+
+func (te *traceEventV1) UnmarshalJSON(bs []byte) error {
+
+	keys := map[string]json.RawMessage{}
+
+	if err := json.Unmarshal(bs, &keys); err != nil {
+		return err
+	}
+
+	if err := json.Unmarshal(keys["Type"], &te.Type); err != nil {
+		return err
+	}
+
+	if err := json.Unmarshal(keys["Op"], &te.Op); err != nil {
+		return err
+	}
+
+	if err := json.Unmarshal(keys["QueryID"], &te.QueryID); err != nil {
+		return err
+	}
+
+	if err := json.Unmarshal(keys["ParentID"], &te.ParentID); err != nil {
+		return err
+	}
+
+	switch te.Type {
+	case nodeTypeBodyV1:
+		var body ast.Body
+		if err := json.Unmarshal(keys["Node"], &body); err != nil {
+			return err
+		}
+		te.Node = body
+	case nodeTypeExprV1:
+		var expr ast.Expr
+		if err := json.Unmarshal(keys["Node"], &expr); err != nil {
+			return err
+		}
+		te.Node = &expr
+	case nodeTypeRuleV1:
+		var rule ast.Rule
+		if err := json.Unmarshal(keys["Node"], &rule); err != nil {
+			return err
+		}
+		te.Node = &rule
+	}
+
+	if err := json.Unmarshal(keys["Locals"], &te.Locals); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// bindingsV1 represents a set of term bindings.
+type bindingsV1 []*bindingV1
+
+// bindingV1 represents a single term binding.
+type bindingV1 struct {
+	Key   *ast.Term
+	Value *ast.Term
+}
+
+func newBindingsV1(locals *ast.ValueMap) (result []*bindingV1) {
+	result = make([]*bindingV1, 0, locals.Len())
+	locals.Iter(func(key, value ast.Value) bool {
+		result = append(result, &bindingV1{
+			Key:   &ast.Term{Value: key},
+			Value: &ast.Term{Value: value},
+		})
+		return false
+	})
+	return result
+}
 
 // Server represents an instance of OPA running in server mode.
 type Server struct {
@@ -150,11 +281,18 @@ func (s *Server) Loop() error {
 	return http.ListenAndServe(s.addr, s.Handler)
 }
 
-func (s *Server) execQuery(txn storage.Transaction, query ast.Body) (resultSetV1, error) {
+func (s *Server) execQuery(compiler *ast.Compiler, txn storage.Transaction, query ast.Body, explainMode explainModeV1) (interface{}, error) {
 
 	ctx := topdown.NewContext(query, s.Compiler(), s.store, txn)
 
-	results := resultSetV1{}
+	var buf *topdown.BufferTracer
+
+	if explainMode != explainOffV1 {
+		buf = topdown.NewBufferTracer()
+		ctx.Tracer = buf
+	}
+
+	resultSet := resultSetV1{}
 
 	err := topdown.Eval(ctx, func(ctx *topdown.Context) error {
 		result := map[string]interface{}{}
@@ -179,12 +317,27 @@ func (s *Server) execQuery(txn storage.Transaction, query ast.Body) (resultSetV1
 			return err
 		}
 		if len(result) > 0 {
-			results = append(results, result)
+			resultSet = append(resultSet, result)
 		}
 		return nil
 	})
 
-	return results, err
+	if err != nil {
+		return nil, err
+	}
+
+	switch explainMode {
+	case explainFullV1:
+		return newTraceV1(*buf), nil
+	case explainTruthV1:
+		answer, err := explain.Truth(compiler, *buf)
+		if err != nil {
+			return nil, err
+		}
+		return newTraceV1(answer), nil
+	default:
+		return resultSet, nil
+	}
 }
 
 func (s *Server) indexGet(w http.ResponseWriter, r *http.Request) {
@@ -195,21 +348,22 @@ func (s *Server) indexGet(w http.ResponseWriter, r *http.Request) {
 
 	values := r.URL.Query()
 	qStrs := values["q"]
+	explainMode := getExplain(r.URL.Query()["explain"])
 
-	renderQueryForm(w, qStrs)
+	renderQueryForm(w, qStrs, explainMode)
 
 	if len(qStrs) > 0 {
 		qStr := qStrs[len(qStrs)-1]
 		t0 := time.Now()
 
-		var results resultSetV1
+		var results interface{}
 		txn, err := s.store.NewTransaction()
 
 		if err == nil {
 			var query ast.Body
 			_, query, err = ast.CompileQuery(qStr)
 			if err == nil {
-				results, err = s.execQuery(txn, query)
+				results, err = s.execQuery(s.Compiler(), txn, query, explainMode)
 			}
 			s.store.Close(txn)
 		}
@@ -226,14 +380,19 @@ func (s *Server) registerHandlerV1(router *mux.Router, path string, method strin
 }
 
 func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
+
+	// Gather request parameters.
 	vars := mux.Vars(r)
 	path := stringPathToInterface(vars["path"])
+	pretty := getPretty(r.URL.Query()["pretty"])
+	explainMode := getExplain(r.URL.Query()["explain"])
 	globals, err := parseGlobals(r.URL.Query()["global"])
 	if err != nil {
 		handleError(w, 400, err)
 		return
 	}
 
+	// Prepare for query.
 	txn, err := s.store.NewTransaction()
 	if err != nil {
 		handleErrorAuto(w, err)
@@ -242,23 +401,46 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 
 	defer s.store.Close(txn)
 
-	params := topdown.NewQueryParams(s.Compiler(), s.store, txn, globals, path)
+	compiler := s.Compiler()
+	params := topdown.NewQueryParams(compiler, s.store, txn, globals, path)
 
+	var buf *topdown.BufferTracer
+	if explainMode != explainOffV1 {
+		buf = topdown.NewBufferTracer()
+		params.Tracer = buf
+	}
+
+	// Execute query.
 	result, err := topdown.Query(params)
 
+	// Handle results.
 	if err != nil {
 		handleErrorAuto(w, err)
 		return
 	}
 
-	pretty := getPretty(r.URL.Query()["pretty"])
-
 	if _, ok := result.(topdown.Undefined); ok {
-		handleResponse(w, 404, nil)
+		if explainMode == explainFullV1 {
+			handleResponseJSON(w, 404, newTraceV1(*buf), pretty)
+		} else {
+			handleResponse(w, 404, nil)
+		}
 		return
 	}
 
-	handleResponseJSON(w, 200, result, pretty)
+	switch explainMode {
+	case explainOffV1:
+		handleResponseJSON(w, 200, result, pretty)
+	case explainFullV1:
+		handleResponseJSON(w, 200, newTraceV1(*buf), pretty)
+	case explainTruthV1:
+		answer, err := explain.Truth(compiler, *buf)
+		if err != nil {
+			handleErrorAuto(w, err)
+			return
+		}
+		handleResponseJSON(w, 200, newTraceV1(answer), pretty)
+	}
 }
 
 func (s *Server) v1DataPatch(w http.ResponseWriter, r *http.Request) {
@@ -530,6 +712,8 @@ func (s *Server) v1PoliciesPut(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) v1QueryGet(w http.ResponseWriter, r *http.Request) {
 	values := r.URL.Query()
+	pretty := getPretty(r.URL.Query()["pretty"])
+	explainMode := getExplain(r.URL.Query()["explain"])
 	qStrs := values["q"]
 	if len(qStrs) == 0 {
 		handleErrorf(w, 400, "missing query parameter 'q'")
@@ -552,14 +736,12 @@ func (s *Server) v1QueryGet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	results, err := s.execQuery(txn, query)
+	results, err := s.execQuery(s.Compiler(), txn, query, explainMode)
 
 	if err != nil {
 		handleErrorAuto(w, err)
 		return
 	}
-
-	pretty := getPretty(r.URL.Query()["pretty"])
 
 	handleResponseJSON(w, 200, results, pretty)
 }
@@ -722,6 +904,18 @@ func getPretty(p []string) bool {
 	return false
 }
 
+func getExplain(p []string) explainModeV1 {
+	for _, x := range p {
+		switch x {
+		case string(explainFullV1):
+			return explainFullV1
+		case string(explainTruthV1):
+			return explainTruthV1
+		}
+	}
+	return explainOffV1
+}
+
 func parseGlobals(g []string) (*ast.ValueMap, error) {
 	globals := ast.NewValueMap()
 	for _, g := range g {
@@ -798,7 +992,7 @@ func renderHeader(w http.ResponseWriter) {
 	fmt.Fprintln(w, "<body>")
 }
 
-func renderQueryForm(w http.ResponseWriter, qStrs []string) {
+func renderQueryForm(w http.ResponseWriter, qStrs []string, explain explainModeV1) {
 
 	input := ""
 
@@ -806,15 +1000,28 @@ func renderQueryForm(w http.ResponseWriter, qStrs []string) {
 		input = qStrs[len(qStrs)-1]
 	}
 
+	explainRadioCheck := []string{"", "", ""}
+	switch explain {
+	case explainOffV1:
+		explainRadioCheck[0] = "checked"
+	case explainFullV1:
+		explainRadioCheck[1] = "checked"
+	case explainTruthV1:
+		explainRadioCheck[2] = "checked"
+	}
+
 	fmt.Fprintf(w, `
 	<form>
   	Query:<br>
 	<textarea rows="10" cols="50" name="q">%s</textarea><br>
-	<input type="submit" value="Submit">
-	</form>`, input)
+	<input type="submit" value="Submit"> Explain:
+	<input type="radio" name="explain" value="off" %v>Off
+	<input type="radio" name="explain" value="full" %v>Full
+	<input type="radio" name="explain" value="truth" %v>Truth
+	</form>`, input, explainRadioCheck[0], explainRadioCheck[1], explainRadioCheck[2])
 }
 
-func renderQueryResult(w io.Writer, results resultSetV1, err error, d time.Duration) {
+func renderQueryResult(w io.Writer, results interface{}, err error, d time.Duration) {
 
 	buf, err2 := json.MarshalIndent(results, "", "  ")
 

@@ -26,6 +26,16 @@ func MustParseBody(input string) Body {
 	return parsed
 }
 
+// MustParseExpr returns a parsed expression.
+// If an error occurs during parsing, panic.
+func MustParseExpr(input string) *Expr {
+	parsed, err := ParseExpr(input)
+	if err != nil {
+		panic(err)
+	}
+	return parsed
+}
+
 // MustParseModule returns a parsed module.
 // If an error occurs during parsing, panic.
 func MustParseModule(input string) *Module {
@@ -143,6 +153,19 @@ func ParseBody(input string) (Body, error) {
 		return nil, fmt.Errorf("expected body but got %T", stmts[0])
 	}
 	return body, nil
+}
+
+// ParseExpr returns exactly one expression.
+// If multiple expressions are parsed, an error is returned.
+func ParseExpr(input string) (*Expr, error) {
+	body, err := ParseBody(input)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to parse expression")
+	}
+	if len(body) != 1 {
+		return nil, fmt.Errorf("expected exactly one expression but got: %v", body)
+	}
+	return body[0], nil
 }
 
 // ParseTerm returns exactly one term.

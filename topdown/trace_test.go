@@ -49,7 +49,7 @@ func TestEventEqual(t *testing.T) {
 
 }
 
-func TestLineTracer(t *testing.T) {
+func TestPrettyTrace(t *testing.T) {
 	module := `
 	package test
 	p :- q[x], plus(x, 1, n)
@@ -62,8 +62,8 @@ func TestLineTracer(t *testing.T) {
 	txn := storage.NewTransactionOrDie(store)
 
 	params := NewQueryParams(compiler, store, txn, nil, []interface{}{"test", "p"})
-	var buf bytes.Buffer
-	params.Tracer = NewLineTracer(&buf)
+	tracer := NewBufferTracer()
+	params.Tracer = tracer
 
 	_, err := Query(params)
 	if err != nil {
@@ -72,38 +72,40 @@ func TestLineTracer(t *testing.T) {
 
 	expected := `Enter eq(data.test.p, _)
 | Eval eq(data.test.p, _)
-| Enter p = true
+| Enter p = true :- data.test.q[x], plus(x, 1, n)
 | | Eval data.test.q[x]
-| | Enter q[x]
+| | Enter q[x] :- eq(x, data.a[_])
 | | | Eval eq(x, data.a[_])
-| | | Exit q[data.a[0]]
-| | Eval plus(data.a[0], 1, n)
-| | Exit p = true
-| Redo p = true
+| | | Exit q[x] :- eq(x, data.a[_])
+| | Eval plus(x, 1, n)
+| | Exit p = true :- data.test.q[x], plus(x, 1, n)
+| Redo p = true :- data.test.q[x], plus(x, 1, n)
 | | Redo data.test.q[x]
-| | Redo q[x]
+| | Redo q[x] :- eq(x, data.a[_])
 | | | Redo eq(x, data.a[_])
-| | | Exit q[data.a[1]]
-| | Eval plus(data.a[1], 1, n)
-| | Exit p = true
-| Redo p = true
+| | | Exit q[x] :- eq(x, data.a[_])
+| | Eval plus(x, 1, n)
+| | Exit p = true :- data.test.q[x], plus(x, 1, n)
+| Redo p = true :- data.test.q[x], plus(x, 1, n)
 | | Redo data.test.q[x]
-| | Redo q[x]
+| | Redo q[x] :- eq(x, data.a[_])
 | | | Redo eq(x, data.a[_])
-| | | Exit q[data.a[2]]
-| | Eval plus(data.a[2], 1, n)
-| | Exit p = true
-| Redo p = true
+| | | Exit q[x] :- eq(x, data.a[_])
+| | Eval plus(x, 1, n)
+| | Exit p = true :- data.test.q[x], plus(x, 1, n)
+| Redo p = true :- data.test.q[x], plus(x, 1, n)
 | | Redo data.test.q[x]
-| | Redo q[x]
+| | Redo q[x] :- eq(x, data.a[_])
 | | | Redo eq(x, data.a[_])
-| | | Exit q[data.a[3]]
-| | Eval plus(data.a[3], 1, n)
-| | Exit p = true
+| | | Exit q[x] :- eq(x, data.a[_])
+| | Eval plus(x, 1, n)
+| | Exit p = true :- data.test.q[x], plus(x, 1, n)
 | Exit eq(data.test.p, _)
 `
 
 	a := strings.Split(expected, "\n")
+	var buf bytes.Buffer
+	PrettyTrace(&buf, *tracer)
 	b := strings.Split(buf.String(), "\n")
 
 	min := len(a)
@@ -113,7 +115,7 @@ func TestLineTracer(t *testing.T) {
 
 	for i := 0; i < min; i++ {
 		if a[i] != b[i] {
-			t.Fatalf("Line %v in trace is incorrect. Expected %v but got: %v", i+1, a[i], b[i])
+			t.Errorf("Line %v in trace is incorrect. Expected %v but got: %v", i+1, a[i], b[i])
 		}
 	}
 

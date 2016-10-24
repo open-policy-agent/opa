@@ -1062,7 +1062,7 @@ HTTP/1.1 204 No Content
 
 If other policy modules in the same package depend on rules in the policy module to be deleted, the server will return 400.
 
-## Data API
+## <a name="data-api"> Data API
 
 The Data API exposes endpoints for reading and writing documents in OPA. For an introduction to the different types of documents in OPA see [How Does OPA Work?](../../how-does-opa-work/).
 
@@ -1121,7 +1121,8 @@ Content-Type: application/json
 #### Query Parameters
 
 - **global** - Provide an input document to the query. Format is `<path>:<value>` where `<path>` is the import path of the input document and `<value>` is the JSON serialized input document. The parameter may be specified multiple times but each instance should specify a unique `<path>`.
-- **pretty** - Return data with indented, human-readable formatting.
+- **pretty** - If parameter is `true`, response will formatted for humans.
+- **explain** - Return query explanation instead of normal result. Values: **full**, **truth**. See [Explanations](#explanations) for how to interpret results.
 
 #### Status Codes
 
@@ -1251,7 +1252,7 @@ HTTP/1.1 204 No Content
 
 The effective path of the JSON Patch operation is obtained by joining the path portion of the URL with the path value from the operation(s) contained in the message body. In all cases, the parent of the effective path MUST refer to an existing document, otherwise the server returns 404. In the case of **remove** and **replace** operations, the effective path MUST refer to an existing document, otherwise the server returns 404.
 
-## Query API
+## <a name="query-api"></a> Query API
 
 ### Execute a Query
 
@@ -1290,7 +1291,8 @@ Content-Type: application/json
 #### Query Parameters
 
 - **q** - The ad-hoc query to execute. OPA will parse, compile, and execute the query represented by the parameter value. The value MUST be URL encoded.
-- **pretty** - Return data with indented, human-readable formatting.
+- **pretty** - If parameter is `true`, response will formatted for humans.
+- **explain** - Return query explanation instead of normal result. Values: **full**, **truth**. See [Explanations](#explanations) for how to interpret results.
 
 #### Status Codes
 
@@ -1308,5 +1310,110 @@ All of the API endpoints use standard HTTP error codes to indicate success or fa
   "Message": "storage error (code: 1): module not found: test"
 }
 ```
+
+## <a name="explanations"></a> Explanations
+
+OPA supports query explanations that describe (in detail) the steps taken to
+produce query results.
+
+Explanations can be requested for:
+
+- [Data API](#data-api) GET queries
+- [Query API](#query-api) queries
+
+When explanations are requested, the response does NOT contain the query result;
+instead it contains a data structure that explains query processing.
+
+Explanations are requested by setting the `explain` query parameter to one of
+the following values:
+
+- **full** - returns a full query trace containing every step in the query evaluation process.
+- **truth** - returns a partial query trace containing one path that leads to the overall query being successful.
+
+### Trace Events
+
+When the `explain` query parameter is set to **full** or **truth** , the
+response contains an array of Trace Event objects.
+
+Trace Event objects contain the following fields:
+
+- **Op** - identifies the kind of Trace Event. Values: **"Enter"**, **"Exit"**, **"Eval"**, **"Fail"**, **"Redo"**.
+- **QueryID** - uniquely identifies the query that the Trace Event was emitted for.
+- **ParentID** - identifies the parent query.
+- **Type** - indicates the type of the **Node** field. Values: **"expr"**, **"rule"**, **"body"**.
+- **Node** - contains the AST element associated with the evaluation step.
+- **Locals** - contains the term bindings from the query at the time when the Trace Event was emitted.
+
+#### Query IDs
+
+Queries often reference rules or contain comprehensions. In both cases, query
+evaluation involves evaluation of one or more other queries, e.g., the body of
+the rule or comprehension.
+
+Trace Events from different queries can be distinguished by the **QueryID**
+field.
+
+Trace Events from related queries can be identified by the **ParentID** field.
+
+For example, if query A references a rule R, Trace Events emitted as part of
+evaluating rule R's body will have the **ParentID** field set to query A's
+**QueryID**.
+
+#### Types of Events
+
+Each Trace Event represents a step in the query evaluation process. Trace Events
+are emitted at the following points:
+
+- **Enter** - before a body or rule is evaluated.
+- **Exit** - after a body or rule has evaluated successfully.
+- **Eval** - before an expression is evaluated.
+- **Fail** - after an expression has evaluated to false.
+- **Redo** - before evaluation restarts from a body, rule, or expression.
+
+By default, OPA searches for all sets of term bindings that make all expressions
+in the query evaluate to true. Because there may be multiple answers, the search
+can *restart* when OPA determines the query is true or false. When the search
+restarts, a **Redo** Trace Event is emitted.
+
+#### Example Trace Event
+
+```json
+{
+  "Op": "Eval",
+  "QueryID": 5,
+  "ParentID": 0,
+  "Type": "expr",
+  "Node": {
+    "Index": 1,
+    "Terms": [
+      {
+        "Type": "var",
+        "Value": "eq"
+      },
+      {
+        "Type": "var",
+        "Value": "x"
+      },
+      {
+        "Type": "var",
+        "Value": "y"
+      }
+    ]
+  },
+  "Locals": [
+    {
+      "Key": {
+        "Type": "var",
+        "Value": "x"
+      },
+      "Value": {
+        "Type": "string",
+        "Value": "hello"
+      }
+    }
+  ]
+}
+```
+
 
 {% endcontentfor %}

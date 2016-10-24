@@ -216,6 +216,88 @@ func TestDataPutV1IfNoneMatch(t *testing.T) {
 	}
 }
 
+func TestDataGetExplainFull(t *testing.T) {
+	f := newFixture(t)
+
+	f.v1("PUT", "/data/x", `{"a":1,"b":2}`, 204, "")
+
+	req := newReqV1("GET", "/data/x?explain=full", "")
+	f.reset()
+	f.server.Handler.ServeHTTP(f.recorder, req)
+
+	var result traceV1
+
+	if err := json.NewDecoder(f.recorder.Body).Decode(&result); err != nil {
+		t.Fatalf("Unexpected JSON decode error: %v", err)
+	}
+
+	if len(result) != 3 {
+		t.Fatalf("Expected exactly 3 events but got %d", len(result))
+	}
+
+	_, ok := result[2].Node.(ast.Body)
+	if !ok {
+		t.Fatalf("Expected body for node but got: %v", result[2].Node)
+	}
+
+	if len(result[2].Locals) != 1 {
+		t.Fatalf("Expected one binding but got: %v", result[2].Locals)
+	}
+
+	req = newReqV1("GET", "/data/deadbeef?explain=full", "")
+	f.reset()
+	f.server.Handler.ServeHTTP(f.recorder, req)
+
+	result = traceV1{}
+
+	if f.recorder.Code != 404 {
+		t.Fatalf("Expected status code to be 404 but got: %v", f.recorder.Code)
+	}
+
+	if err := json.NewDecoder(f.recorder.Body).Decode(&result); err != nil {
+		t.Fatalf("Unexpected JSON decode error: %v", err)
+	}
+
+	if len(result) != 3 {
+		t.Fatalf("Expected exactly 3 events but got %d", len(result))
+	}
+
+	if result[2].Op != "Fail" {
+		t.Fatalf("Expected last event to be 'Fail' but got: %v", result[2])
+	}
+
+}
+
+func TestDataGetExplainTruth(t *testing.T) {
+	f := newFixture(t)
+
+	f.v1("PUT", "/policies/test", `package test
+	p :- a = [1,2,3,4], a[_] = x, x > 1
+	`, 204, "")
+
+	req := newReqV1("GET", "/data/test/p?explain=truth", "")
+	f.reset()
+	f.server.Handler.ServeHTTP(f.recorder, req)
+
+	var result traceV1
+
+	if err := json.NewDecoder(f.recorder.Body).Decode(&result); err != nil {
+		t.Fatalf("Unexpected JSON decode error: %v", err)
+	}
+
+	if len(result) != 8 {
+		t.Fatalf("Expected exactly 9 events but got %d", len(result))
+	}
+
+	req = newReqV1("GET", "/data/deadbeef?explain=truth", "")
+	f.reset()
+	f.server.Handler.ServeHTTP(f.recorder, req)
+
+	if f.recorder.Code != 404 {
+		t.Fatalf("Expected status code to be 404 but got: %v", f.recorder)
+	}
+}
+
 func TestV1Pretty(t *testing.T) {
 
 	f := newFixture(t)
@@ -487,6 +569,44 @@ func TestQueryV1(t *testing.T) {
 
 	if !reflect.DeepEqual(result, expected) {
 		t.Errorf("Expected %v but got: %v", expected, result)
+	}
+}
+
+func TestQueryV1Explain(t *testing.T) {
+	f := newFixture(t)
+	get := newReqV1("GET", `/query?q=a=[1,2,3],a[i]=x&explain=full`, "")
+	f.server.Handler.ServeHTTP(f.recorder, get)
+
+	if f.recorder.Code != 200 {
+		t.Fatalf("Expected 200 but got: %v", f.recorder)
+	}
+
+	var result traceV1
+
+	if err := json.NewDecoder(f.recorder.Body).Decode(&result); err != nil {
+		t.Fatalf("Unexpected JSON decode error: %v", err)
+	}
+
+	if len(result) != 10 {
+		t.Fatalf("Expected exactly 10 trace events for full query but got %d", len(result))
+	}
+
+	get = newReqV1("GET", "/query?q=a=[1,2,3],a[_]=x,x>1&explain=truth", "")
+	f.reset()
+	f.server.Handler.ServeHTTP(f.recorder, get)
+
+	if f.recorder.Code != 200 {
+		t.Fatalf("Expected 200 but got: %v", f.recorder)
+	}
+
+	result = traceV1{}
+
+	if err := json.NewDecoder(f.recorder.Body).Decode(&result); err != nil {
+		t.Fatalf("Unexpected JSON decode error: %v", err)
+	}
+
+	if len(result) != 5 {
+		t.Fatalf("Expected exactly 5 trace events for truth query but got %d", len(result))
 	}
 }
 

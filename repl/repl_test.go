@@ -496,6 +496,72 @@ func TestEvalPackage(t *testing.T) {
 	}
 }
 
+func TestEvalTrace(t *testing.T) {
+	store := newTestStore()
+	var buffer bytes.Buffer
+	repl := newRepl(store, &buffer)
+	repl.OneShot("trace")
+	repl.OneShot("data.a[i].b.c[j] = x, data.a[k].b.c[x] = 1")
+	expected := strings.TrimSpace(`
+Enter eq(data.a[i].b.c[j], x), eq(data.a[k].b.c[x], 1)
+| Eval eq(data.a[i].b.c[j], x)
+| Eval eq(data.a[k].b.c[true], 1)
+| Fail eq(data.a[k].b.c[true], 1)
+| Redo eq(data.a[0].b.c[0], x)
+| Eval eq(data.a[k].b.c[2], 1)
+| Fail eq(data.a[0].b.c[2], 1)
+| Redo eq(data.a[0].b.c[2], 1)
+| Exit eq(data.a[i].b.c[j], x), eq(data.a[k].b.c[x], 1)
+Redo eq(data.a[i].b.c[j], x), eq(data.a[k].b.c[x], 1)
+| Redo eq(data.a[0].b.c[1], x)
+| Eval eq(data.a[k].b.c[false], 1)
+| Fail eq(data.a[k].b.c[false], 1)
+| Redo eq(data.a[0].b.c[2], x)
+| Eval eq(data.a[k].b.c[false], 1)
+| Fail eq(data.a[k].b.c[false], 1)
+| Redo eq(data.a[1].b.c[0], x)
+| Eval eq(data.a[k].b.c[true], 1)
+| Fail eq(data.a[k].b.c[true], 1)
+| Redo eq(data.a[1].b.c[1], x)
+| Eval eq(data.a[k].b.c[1], 1)
+| Fail eq(data.a[0].b.c[1], 1)
+| Redo eq(data.a[0].b.c[1], 1)
+| Fail eq(data.a[1].b.c[1], 1)
++---+---+---+---+
+| i | j | k | x |
++---+---+---+---+
+| 0 | 1 | 1 | 2 |
++---+---+---+---+`)
+	expected += "\n"
+
+	if expected != buffer.String() {
+		t.Fatalf("Expected output to be exactly:\n%v\n\nGot:\n\n%v\n", expected, buffer.String())
+	}
+}
+
+func TestEvalTruth(t *testing.T) {
+	store := newTestStore()
+	var buffer bytes.Buffer
+	repl := newRepl(store, &buffer)
+	repl.OneShot("truth")
+	repl.OneShot("data.a[i].b.c[j] = x, data.a[k].b.c[x] = 1")
+	expected := strings.TrimSpace(`
+Enter eq(data.a[i].b.c[j], x), eq(data.a[k].b.c[x], 1)
+| Redo eq(data.a[0].b.c[0], x)
+| Redo eq(data.a[0].b.c[2], 1)
+| Exit eq(data.a[i].b.c[j], x), eq(data.a[k].b.c[x], 1)
++---+---+---+---+
+| i | j | k | x |
++---+---+---+---+
+| 0 | 1 | 1 | 2 |
++---+---+---+---+`)
+	expected += "\n"
+
+	if expected != buffer.String() {
+		t.Fatalf("Expected output to be exactly:\n%v\n\nGot:\n\n%v\n", expected, buffer.String())
+	}
+}
+
 func TestBuildHeader(t *testing.T) {
 	expr := ast.MustParseStatement(`[{"a": x, "b": data.a.b[y]}] = [{"a": 1, "b": 2}]`).(ast.Body)[0]
 	terms := expr.Terms.([]*ast.Term)
