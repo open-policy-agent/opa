@@ -235,11 +235,37 @@ func ParseStatement(input string) (interface{}, error) {
 func ParseStatements(filename, input string) ([]interface{}, error) {
 	parsed, err := Parse(filename, []byte(input))
 	if err != nil {
-		return nil, err
+		switch err := err.(type) {
+		case errList:
+			return nil, convertErrList(filename, err)
+		default:
+			return nil, err
+		}
 	}
 	stmts := parsed.([]interface{})
 	postProcess(filename, stmts)
 	return stmts, err
+}
+
+func convertErrList(filename string, errs errList) error {
+	r := make(Errors, len(errs))
+	for i, e := range errs {
+		switch e := e.(type) {
+		case *parserError:
+			r[i] = formatParserError(filename, e)
+		default:
+			r[i] = e
+		}
+	}
+	return r
+}
+
+func formatParserError(filename string, e *parserError) error {
+	var prefix string
+	if filename != "" {
+		prefix = filename + ":"
+	}
+	return fmt.Errorf("%v%v:%v: %v", prefix, e.pos.line, e.pos.col, e.Inner)
 }
 
 func parseModule(stmts []interface{}) (*Module, error) {

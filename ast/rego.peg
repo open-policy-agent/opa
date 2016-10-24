@@ -31,8 +31,17 @@ Program <- _ vals:(head:Stmt tail:(ws Stmt)*)? _ EOF {
     return buf, nil
 }
 
-Stmt <- val:(Package / Import / Rule / Body / Comment) {
+Stmt <- val:(Package / Import / Rule / Body / Comment / ParseError) {
     return val, nil
+}
+
+// Workaround for https://github.com/PuerkitoBio/pigeon/issues/18. Without this,
+// the parser returns an error with a bogus position. The workaround is to
+// provide a rule that panics on any input. This way, if the rule is ever
+// encountered, parsing will stop. The parser will capture a more accurate
+// position this way.
+ParseError <- . {
+    panic(fmt.Sprintf("no match found, unexpected '%s'", c.text))
 }
 
 Package <- "package" ws val:(Ref / Var) {
@@ -168,7 +177,7 @@ Rule <- name:Var key:( _ "[" _ Term _ "]" _ )? value:( _ "=" _ Term )? body:( _ 
     return rule, nil
 }
 
-Body <- head:Expr tail:( _ "," _ Expr)* {
+Body <- head:Expr tail:( _ "," _ (Expr / ParseError))* {
     var buf Body
     buf = append(buf, head.(*Expr))
     for _, s := range tail.([]interface{}) {

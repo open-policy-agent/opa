@@ -517,6 +517,21 @@ func TestWildcards(t *testing.T) {
 		)))
 }
 
+func TestNoMatchError(t *testing.T) {
+	mod := `package test
+
+	p :- true,
+		 1 != 0, // <-- parse error: no match`
+
+	_, err := ParseModule("foo.rego", mod)
+
+	expected := "1 error occurred: foo.rego:4:13: no match found, unexpected '/'"
+
+	if err.Error() != expected {
+		t.Fatalf("Bad parse error, expected %v but got: %v", expected, err)
+	}
+}
+
 func assertParse(t *testing.T, msg string, input string, correct func([]interface{})) {
 	p, err := ParseStatements("", input)
 	if err != nil {
@@ -542,7 +557,7 @@ func assertParseErrorEquals(t *testing.T, msg string, input string, expected str
 		return
 	}
 	result := err.Error()
-	// line:col (#): <parser-rule>: <message>
+	// error occurred: <line>:<col>: <message>
 	parts := strings.SplitN(result, ":", 4)
 	result = strings.TrimSpace(parts[len(parts)-1])
 

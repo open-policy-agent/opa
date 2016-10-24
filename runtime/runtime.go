@@ -58,7 +58,7 @@ type Runtime struct {
 func (rt *Runtime) Start(params *Params) {
 
 	if err := rt.init(params); err != nil {
-		fmt.Println("error initializing runtime:", err)
+		fmt.Println(err)
 		os.Exit(1)
 	}
 
@@ -79,7 +79,7 @@ func (rt *Runtime) init(params *Params) error {
 
 	parsed, err := parseInputs(params.Paths)
 	if err != nil {
-		return errors.Wrapf(err, "parse error")
+		return err
 	}
 
 	// Open data store and load base documents.
