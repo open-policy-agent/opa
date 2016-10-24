@@ -74,6 +74,7 @@ In addition, API calls to delete policies will remove the definition file.
 	runCommand.Flags().StringVarP(&params.PolicyDir, "policy-dir", "p", "", "set directory to store policy definitions")
 	runCommand.Flags().StringVarP(&params.Addr, "addr", "a", defaultAddr, "set listening address of the server")
 	runCommand.Flags().StringVarP(&params.OutputFormat, "format", "f", "pretty", "set shell output format, i.e, pretty, json")
+	runCommand.Flags().BoolVarP(&params.Watch, "watch", "w", false, "watch command line files for changes")
 
 	wrapFlags(runCommand.Flags())
 	flag.Parse()
