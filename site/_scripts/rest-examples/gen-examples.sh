@@ -21,6 +21,7 @@ function main() {
     get_a_document
     patch_a_document
     execute_a_query
+    trace_event
 }
 
 function list_policies() {
@@ -88,6 +89,12 @@ function execute_a_query() {
     echo "### Execute a Query"
     echo ""
     curl $BASE_URL/query?pretty=true -s -v -G --data-urlencode 'q=data.servers[i].ports[_] = "p2", data.servers[i].name = name'
+    echo ""
+}
+
+function trace_event() {
+    echo "#### Trace Event Example"
+    curl "$BASE_URL/query?pretty=true&explain=full" -s -v -G --data-urlencode 'q=x = "hello", x = y' | jq '.[2]'
     echo ""
 }
 
