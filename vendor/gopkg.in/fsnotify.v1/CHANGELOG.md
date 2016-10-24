@@ -1,5 +1,25 @@
 # Changelog
 
+## v1.4.2 / 2016-10-10
+
+* Linux: use InotifyInit1 with IN_CLOEXEC to stop leaking a file descriptor to a child process when using fork/exec [#178](https://github.com/fsnotify/fsnotify/pull/178) (thanks @pattyshack)
+
+## v1.4.1 / 2016-10-04
+
+* Fix flaky inotify stress test on Linux [#177](https://github.com/fsnotify/fsnotify/pull/177) (thanks @pattyshack)
+
+## v1.4.0 / 2016-10-01
+
+* add a String() method to Event.Op [#165](https://github.com/fsnotify/fsnotify/pull/165) (thanks @oozie)
+
+## v1.3.1 / 2016-06-28
+
+* Windows: fix for double backslash when watching the root of a drive [#151](https://github.com/fsnotify/fsnotify/issues/151) (thanks @brunoqc)
+
+## v1.3.0 / 2016-04-19
+
+* Support linux/arm64 by [patching](https://go-review.googlesource.com/#/c/21971/) x/sys/unix and switching to to it from syscall (thanks @suihkulokki) [#135](https://github.com/fsnotify/fsnotify/pull/135)
+
 ## v1.2.10 / 2016-03-02
 
 * Fix golint errors in windows.go [#121](https://github.com/fsnotify/fsnotify/pull/121) (thanks @tiffanyfj)

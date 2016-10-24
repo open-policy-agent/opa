@@ -19,7 +19,6 @@ import (
 	"path/filepath"
 	"runtime"
 	"runtime/pprof"
-	"runtime/trace"
 	"strings"
 
 	"golang.org/x/tools/imports"
@@ -31,12 +30,11 @@ var (
 	write   = flag.Bool("w", false, "write result to (source) file instead of stdout")
 	doDiff  = flag.Bool("d", false, "display diffs instead of rewriting files")
 	srcdir  = flag.String("srcdir", "", "choose imports as if source code is from `dir`. When operating on a single file, dir may instead be the complete file name.")
-	verbose = flag.Bool("v", false, "verbose logging")
+	verbose bool // verbose logging
 
 	cpuProfile     = flag.String("cpuprofile", "", "CPU profile output")
 	memProfile     = flag.String("memprofile", "", "memory profile output")
 	memProfileRate = flag.Int("memrate", 0, "if > 0, sets runtime.MemProfileRate")
-	traceProfile   = flag.String("trace", "", "trace profile output")
 
 	options = &imports.Options{
 		TabWidth:  8,
@@ -195,6 +193,8 @@ func main() {
 // parseFlags parses command line flags and returns the paths to process.
 // It's a var so that custom implementations can replace it in other files.
 var parseFlags = func() []string {
+	flag.BoolVar(&verbose, "v", false, "verbose logging")
+
 	flag.Parse()
 	return flag.Args()
 }
@@ -225,12 +225,10 @@ func gofmtMain() {
 		defer flush()
 		defer pprof.StopCPUProfile()
 	}
-	if *traceProfile != "" {
-		bw, flush := bufferedFileWriter(*traceProfile)
-		trace.Start(bw)
-		defer flush()
-		defer trace.Stop()
-	}
+	// doTrace is a conditionally compiled wrapper around runtime/trace. It is
+	// used to allow goimports to compile under gccgo, which does not support
+	// runtime/trace. See https://golang.org/issue/15544.
+	defer doTrace()()
 	if *memProfileRate > 0 {
 		runtime.MemProfileRate = *memProfileRate
 		bw, flush := bufferedFileWriter(*memProfile)
@@ -243,7 +241,7 @@ func gofmtMain() {
 		}()
 	}
 
-	if *verbose {
+	if verbose {
 		log.SetFlags(log.LstdFlags | log.Lmicroseconds)
 		imports.Debug = true
 	}

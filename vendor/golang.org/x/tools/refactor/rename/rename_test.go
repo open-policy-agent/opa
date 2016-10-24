@@ -416,6 +416,45 @@ var _ I = E{}
 	}
 }
 
+func TestInvalidIdentifiers(t *testing.T) {
+	ctxt := fakeContext(map[string][]string{
+		"main": {`
+package main
+
+func f() { }
+`}})
+
+	for _, test := range []struct {
+		from, to string // values of the -offset/-from and -to flags
+		want     string // expected error message
+	}{
+		{
+			from: "main.f", to: "_",
+			want: `-to "_": not a valid identifier`,
+		},
+		{
+			from: "main.f", to: "123",
+			want: `-to "123": not a valid identifier`,
+		},
+		{
+			from: "main.f", to: "for",
+			want: `-to "for": not a valid identifier`,
+		},
+		{
+			from: "switch", to: "v",
+			want: `-from "switch": invalid expression`,
+		},
+	} {
+		err := Main(ctxt, "", test.from, test.to)
+		prefix := fmt.Sprintf("-from %q -to %q", test.from, test.to)
+		if err == nil {
+			t.Errorf("%s: expected error %q", prefix, test.want)
+		} else if err.Error() != test.want {
+			t.Errorf("%s: unexpected error\nwant: %s\n got: %s", prefix, test.want, err.Error())
+		}
+	}
+}
+
 func TestRewrites(t *testing.T) {
 	defer func(savedWriteFile func(string, []byte) error) {
 		writeFile = savedWriteFile
@@ -1019,6 +1058,29 @@ type J interface {
 }
 
 var _ = I(C(0)).(J)
+`,
+			},
+		},
+		// Progress after "soft" type errors (Go issue 14596).
+		{
+			ctxt: fakeContext(map[string][]string{
+				"main": {`package main
+
+func main() {
+	var unused, x int
+	print(x)
+}
+`,
+				},
+			}),
+			offset: "/go/src/main/0.go:#54", to: "y", // var x
+			want: map[string]string{
+				"/go/src/main/0.go": `package main
+
+func main() {
+	var unused, y int
+	print(y)
+}
 `,
 			},
 		},

@@ -7,9 +7,10 @@ package fsnotify
 import (
 	"os"
 	"path/filepath"
-	"syscall"
 	"testing"
 	"time"
+
+	"golang.org/x/sys/unix"
 )
 
 // testExchangedataForWatcher tests the watcher with the exchangedata operation on OS X.
@@ -87,7 +88,7 @@ func testExchangedataForWatcher(t *testing.T, watchDir bool) {
 		createAndSyncFile(t, intermediate)
 
 		// 1. Swap
-		if err := syscall.Exchangedata(intermediate, resolved, 0); err != nil {
+		if err := unix.Exchangedata(intermediate, resolved, 0); err != nil {
 			t.Fatalf("[%d] exchangedata failed: %s", i, err)
 		}
 

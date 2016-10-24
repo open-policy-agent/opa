@@ -1,6 +1,8 @@
 package cobra
 
 import (
+	"bytes"
+	"fmt"
 	"os"
 	"reflect"
 	"testing"
@@ -134,6 +136,21 @@ func Test_DisableFlagParsing(t *testing.T) {
 	}
 }
 
+func TestInitHelpFlagMergesFlags(t *testing.T) {
+	usage := "custom flag"
+	baseCmd := Command{Use: "testcmd"}
+	baseCmd.PersistentFlags().Bool("help", false, usage)
+	cmd := Command{Use: "do"}
+	baseCmd.AddCommand(&cmd)
+
+	cmd.initHelpFlag()
+	actual := cmd.Flags().Lookup("help").Usage
+	if actual != usage {
+		t.Fatalf("Expected the help flag from the base command with usage '%s', " +
+		         "but got the default with usage '%s'", usage, actual)
+	}
+}
+
 func TestCommandsAreSorted(t *testing.T) {
 	EnableCommandSorting = true
 
@@ -142,11 +159,11 @@ func TestCommandsAreSorted(t *testing.T) {
 
 	var tmpCommand = &Command{Use: "tmp"}
 
-	for _, name := range(originalNames) {
+	for _, name := range originalNames {
 		tmpCommand.AddCommand(&Command{Use: name})
 	}
 
-	for i, c := range(tmpCommand.Commands()) {
+	for i, c := range tmpCommand.Commands() {
 		if expectedNames[i] != c.Name() {
 			t.Errorf("expected: %s, got: %s", expectedNames[i], c.Name())
 		}
@@ -162,15 +179,39 @@ func TestEnableCommandSortingIsDisabled(t *testing.T) {
 
 	var tmpCommand = &Command{Use: "tmp"}
 
-	for _, name := range(originalNames) {
+	for _, name := range originalNames {
 		tmpCommand.AddCommand(&Command{Use: name})
 	}
 
-	for i, c := range(tmpCommand.Commands()) {
+	for i, c := range tmpCommand.Commands() {
 		if originalNames[i] != c.Name() {
 			t.Errorf("expected: %s, got: %s", originalNames[i], c.Name())
 		}
 	}
 
 	EnableCommandSorting = true
+}
+
+func TestFlagErrorFunc(t *testing.T) {
+
+	cmd := &Command{
+		Use: "print",
+		RunE: func(cmd *Command, args []string) error {
+			return nil
+		},
+	}
+	expectedFmt := "This is expected: %s"
+
+	cmd.SetFlagErrorFunc(func(c *Command, err error) error {
+		return fmt.Errorf(expectedFmt, err)
+	})
+	cmd.SetArgs([]string{"--bogus-flag"})
+	cmd.SetOutput(new(bytes.Buffer))
+
+	err := cmd.Execute()
+
+	expected := fmt.Sprintf(expectedFmt, "unknown flag: --bogus-flag")
+	if err.Error() != expected {
+		t.Errorf("expected %v, got %v", expected, err.Error())
+	}
 }

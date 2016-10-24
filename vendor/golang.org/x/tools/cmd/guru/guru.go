@@ -129,26 +129,18 @@ func setPTAScope(lconf *loader.Config, scope []string) error {
 // Create a pointer.Config whose scope is the initial packages of lprog
 // and their dependencies.
 func setupPTA(prog *ssa.Program, lprog *loader.Program, ptaLog io.Writer, reflection bool) (*pointer.Config, error) {
-	// TODO(adonovan): the body of this function is essentially
-	// duplicated in all go/pointer clients.  Refactor.
-
 	// For each initial package (specified on the command line),
 	// if it has a main function, analyze that,
 	// otherwise analyze its tests, if any.
-	var testPkgs, mains []*ssa.Package
+	var mains []*ssa.Package
 	for _, info := range lprog.InitialPackages() {
-		initialPkg := prog.Package(info.Pkg)
+		p := prog.Package(info.Pkg)
 
 		// Add package to the pointer analysis scope.
-		if initialPkg.Func("main") != nil {
-			mains = append(mains, initialPkg)
-		} else {
-			testPkgs = append(testPkgs, initialPkg)
-		}
-	}
-	if testPkgs != nil {
-		if p := prog.CreateTestMainPackage(testPkgs...); p != nil {
+		if p.Pkg.Name() == "main" && p.Func("main") != nil {
 			mains = append(mains, p)
+		} else if main := prog.CreateTestMainPackage(p); main != nil {
+			mains = append(mains, main)
 		}
 	}
 	if mains == nil {
@@ -173,32 +165,35 @@ func importQueryPackage(pos string, conf *loader.Config) (string, error) {
 
 	_, importPath, err := guessImportPath(filename, conf.Build)
 	if err != nil {
-		return "", err // can't find GOPATH dir
-	}
+		// Can't find GOPATH dir.
+		// Treat the query file as its own package.
+		importPath = "command-line-arguments"
+		conf.CreateFromFilenames(importPath, filename)
+	} else {
+		// Check that it's possible to load the queried package.
+		// (e.g. guru tests contain different 'package' decls in same dir.)
+		// Keep consistent with logic in loader/util.go!
+		cfg2 := *conf.Build
+		cfg2.CgoEnabled = false
+		bp, err := cfg2.Import(importPath, "", 0)
+		if err != nil {
+			return "", err // no files for package
+		}
 
-	// Check that it's possible to load the queried package.
-	// (e.g. guru tests contain different 'package' decls in same dir.)
-	// Keep consistent with logic in loader/util.go!
-	cfg2 := *conf.Build
-	cfg2.CgoEnabled = false
-	bp, err := cfg2.Import(importPath, "", 0)
-	if err != nil {
-		return "", err // no files for package
-	}
-
-	switch pkgContainsFile(bp, filename) {
-	case 'T':
-		conf.ImportWithTests(importPath)
-	case 'X':
-		conf.ImportWithTests(importPath)
-		importPath += "_test" // for TypeCheckFuncBodies
-	case 'G':
-		conf.Import(importPath)
-	default:
-		// This happens for ad-hoc packages like
-		// $GOROOT/src/net/http/triv.go.
-		return "", fmt.Errorf("package %q doesn't contain file %s",
-			importPath, filename)
+		switch pkgContainsFile(bp, filename) {
+		case 'T':
+			conf.ImportWithTests(importPath)
+		case 'X':
+			conf.ImportWithTests(importPath)
+			importPath += "_test" // for TypeCheckFuncBodies
+		case 'G':
+			conf.Import(importPath)
+		default:
+			// This happens for ad-hoc packages like
+			// $GOROOT/src/net/http/triv.go.
+			return "", fmt.Errorf("package %q doesn't contain file %s",
+				importPath, filename)
+		}
 	}
 
 	conf.TypeCheckFuncBodies = func(p string) bool { return p == importPath }
