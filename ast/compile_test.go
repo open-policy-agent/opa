@@ -956,7 +956,7 @@ func getCompilerTestModules() map[string]*Module {
 	}
 }
 
-func compilerErrsToStringSlice(errors []error) []string {
+func compilerErrsToStringSlice(errors []*Error) []string {
 	result := []string{}
 	for _, e := range errors {
 		msg := strings.SplitN(e.Error(), ":", 3)[2]

@@ -37,6 +37,24 @@ func (err *apiErrorV1) Bytes() []byte {
 	return nil
 }
 
+// astErrorV1 models the error response sent to the client when a parse or
+// compile error occurs.
+type astErrorV1 struct {
+	Code    int
+	Message string
+	Errors  []*ast.Error
+}
+
+func (err *astErrorV1) Bytes() []byte {
+	if bs, err := json.MarshalIndent(err, "", "  "); err == nil {
+		return bs
+	}
+	return nil
+}
+
+const compileModErrMsg = "error(s) occurred while compiling module(s), see Errors"
+const compileQueryErrMsg = "error(s) occurred while compiling query, see Errors"
+
 // WriteConflictError represents an error condition raised if the caller
 // attempts to modify a virtual document or create a document at a path that
 // conflicts with an existing document.
@@ -567,7 +585,7 @@ func (s *Server) v1PoliciesDelete(w http.ResponseWriter, r *http.Request) {
 	c := ast.NewCompiler()
 
 	if c.Compile(mods); c.Failed() {
-		handleError(w, 400, c.Errors)
+		handleErrorAST(w, 400, compileModErrMsg, c.Errors)
 		return
 	}
 
@@ -665,7 +683,12 @@ func (s *Server) v1PoliciesPut(w http.ResponseWriter, r *http.Request) {
 	mod, err := ast.ParseModule(id, string(buf))
 
 	if err != nil {
-		handleError(w, 400, err)
+		switch err := err.(type) {
+		case ast.Errors:
+			handleErrorAST(w, 400, compileModErrMsg, err)
+		default:
+			handleError(w, 400, err)
+		}
 		return
 	}
 
@@ -689,7 +712,7 @@ func (s *Server) v1PoliciesPut(w http.ResponseWriter, r *http.Request) {
 	c := ast.NewCompiler()
 
 	if c.Compile(mods); c.Failed() {
-		handleError(w, 400, c.Errors)
+		handleErrorAST(w, 400, compileModErrMsg, c.Errors)
 		return
 	}
 
@@ -732,7 +755,12 @@ func (s *Server) v1QueryGet(w http.ResponseWriter, r *http.Request) {
 
 	_, query, err := ast.CompileQuery(qStr)
 	if err != nil {
-		handleError(w, 400, err)
+		switch err := err.(type) {
+		case ast.Errors:
+			handleErrorAST(w, 400, compileQueryErrMsg, err)
+		default:
+			handleError(w, 400, err)
+		}
 		return
 	}
 
@@ -859,6 +887,18 @@ func handleErrorf(w http.ResponseWriter, code int, f string, a ...interface{}) {
 	headers := w.Header()
 	headers.Add("Content-Type", "application/json")
 	e := &apiErrorV1{Code: code, Message: fmt.Sprintf(f, a...)}
+	w.WriteHeader(code)
+	w.Write(e.Bytes())
+}
+
+func handleErrorAST(w http.ResponseWriter, code int, msg string, errs ast.Errors) {
+	headers := w.Header()
+	headers.Add("Content-Type", "application/json")
+	e := &astErrorV1{
+		Code:    code,
+		Message: msg,
+		Errors:  errs,
+	}
 	w.WriteHeader(code)
 	w.Write(e.Bytes())
 }

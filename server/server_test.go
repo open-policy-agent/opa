@@ -391,10 +391,10 @@ func TestPoliciesPutV1Empty(t *testing.T) {
 
 func TestPoliciesPutV1ParseError(t *testing.T) {
 	f := newFixture(t)
-	req := newReqV1("PUT", "/policies/1", `
+	req := newReqV1("PUT", "/policies/test", `
     package a.b.c
 
-    p[x] %%^ ;-
+    p ;- true
     `)
 
 	f.server.Handler.ServeHTTP(f.recorder, req)
@@ -403,12 +403,22 @@ func TestPoliciesPutV1ParseError(t *testing.T) {
 		t.Errorf("Expected bad request but got %v", f.recorder)
 		return
 	}
+
+	errs := astErrorV1{}
+	if err := json.NewDecoder(f.recorder.Body).Decode(&errs); err != nil {
+		t.Fatalf("Unexpected JSON decode error: %v", err)
+	}
+
+	expected := ast.NewLocation(nil, "test", 4, 8)
+
+	if !reflect.DeepEqual(errs.Errors[0].Location, expected) {
+		t.Errorf("Expected error location to be %v but got: %v", expected, errs)
+	}
 }
 
-// TODO(tsandall): revisit once safety checks are in place
-func testPoliciesPutV1CompileError(t *testing.T) {
+func TestPoliciesPutV1CompileError(t *testing.T) {
 	f := newFixture(t)
-	req := newReqV1("PUT", "/policies/1", `
+	req := newReqV1("PUT", "/policies/test", `
     package a.b.c
     p[x] :- q[x]
     q[x] :- p[x]
@@ -417,8 +427,30 @@ func testPoliciesPutV1CompileError(t *testing.T) {
 	f.server.Handler.ServeHTTP(f.recorder, req)
 
 	if f.recorder.Code != 400 {
-		t.Errorf("Expected bad request but got %v", f.recorder)
-		return
+		t.Fatalf("Expected bad request but got %v", f.recorder)
+	}
+
+	errs := astErrorV1{}
+	if err := json.NewDecoder(f.recorder.Body).Decode(&errs); err != nil {
+		t.Fatalf("Unexpected JSON decode error: %v", err)
+	}
+
+	expected := ast.NewLocation(nil, "test", 3, 5)
+
+	if len(errs.Errors) != 2 {
+		t.Fatalf("Expected exactly two errors but got %d: %v", len(errs.Errors), errs)
+	}
+
+	found := false
+
+	for _, err := range errs.Errors {
+		if reflect.DeepEqual(err.Location, expected) {
+			found = true
+		}
+	}
+
+	if !found {
+		t.Fatalf("Missing expected error %v: %v", expected, errs)
 	}
 }
 

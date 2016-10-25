@@ -21,7 +21,7 @@ import (
 
 // Location records a position in source code
 type Location struct {
-	Text []byte // The original text fragment from the source.
+	Text []byte `json:"-"` // The original text fragment from the source.
 	File string // The name of the source file (which may be empty).
 	Row  int    // The line in the source.
 	Col  int    // The column in the row.

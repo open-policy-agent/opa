@@ -322,10 +322,10 @@ func (c *Compiler) checkBuiltins() {
 						if ts, ok := expr.Terms.([]*Term); ok {
 							if bi, ok := BuiltinMap[ts[0].Value.(Var)]; ok {
 								if bi.NumArgs != len(ts[1:]) {
-									c.err(expr.Location.Errorf("%v: wrong number of arguments (expression %s must specify %d arguments to built-in function %v)", r.Name, expr.Location.Text, bi.NumArgs, ts[0]))
+									c.err(NewError(CompileErr, expr.Location, "%v: wrong number of arguments (expression %s must specify %d arguments to built-in function %v)", r.Name, expr.Location.Text, bi.NumArgs, ts[0]))
 								}
 							} else {
-								c.err(expr.Location.Errorf("%v: unknown built-in function %v", r.Name, ts[0]))
+								c.err(NewError(CompileErr, expr.Location, "%v: unknown built-in function %v", r.Name, ts[0]))
 							}
 						}
 					}
@@ -350,7 +350,7 @@ func (c *Compiler) checkRecursion() {
 			for _, x := range p {
 				n = append(n, string(x.(*Rule).Name))
 			}
-			c.err(r.Location.Errorf("%v: recursive reference: %v (recursion is not allowed)", r.Name, strings.Join(n, " -> ")))
+			c.err(NewError(RecursionErr, r.Location, "%v: recursive reference: %v (recursion is not allowed)", r.Name, strings.Join(n, " -> ")))
 		}
 	}
 }
@@ -368,7 +368,7 @@ func (c *Compiler) checkSafetyBody() {
 			reordered, unsafe := reorderBodyForSafety(globals, r.Body)
 			if len(unsafe) != 0 {
 				for v := range unsafe.Vars() {
-					c.err(r.Location.Errorf("%v: %v is unsafe (variable %v must appear in the output position of at least one non-negated expression)", r.Name, v, v))
+					c.err(NewError(UnsafeVarErr, r.Location, "%v: %v is unsafe (variable %v must appear in the output position of at least one non-negated expression)", r.Name, v, v))
 				}
 			} else {
 				// Need to reset expression indices as re-ordering may have
@@ -387,7 +387,7 @@ func (c *Compiler) checkSafetyHead() {
 		for _, r := range m.Rules {
 			unsafe := r.HeadVars().Diff(r.Body.Vars(true))
 			for v := range unsafe {
-				c.err(r.Location.Errorf("%v: %v is unsafe (variable %v must appear in at least one expression within the body of %v)", r.Name, v, v, r.Name))
+				c.err(NewError(UnsafeVarErr, r.Location, "%v: %v is unsafe (variable %v must appear in at least one expression within the body of %v)", r.Name, v, v, r.Name))
 			}
 		}
 	}
@@ -401,7 +401,7 @@ func (c *Compiler) compile() {
 	}
 }
 
-func (c *Compiler) err(err error) {
+func (c *Compiler) err(err *Error) {
 	c.Errors = append(c.Errors, err)
 }
 
@@ -935,7 +935,7 @@ func (vis *bodySafetyVisitor) Visit(x interface{}) Visitor {
 }
 
 func (vis *bodySafetyVisitor) checkArrayComprehensionSafety(ac *ArrayComprehension) {
-	// Check term for safety. This is analagous to the rule head safety check.
+	// Check term for safety. This is analogous to the rule head safety check.
 	tv := ac.Term.Vars()
 	bv := ac.Body.Vars(true)
 	bv.Update(vis.globals)

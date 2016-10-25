@@ -4,31 +4,28 @@
 
 package ast
 
-import (
-	"fmt"
-	"testing"
-)
+import "testing"
 
 func TestErrorsString(t *testing.T) {
 
 	err := Errors{
-		fmt.Errorf("test1"),
-		fmt.Errorf("test2"),
-		fmt.Errorf("test3"),
+		NewError(ParseErr, nil, "blah"),
+		NewError(ParseErr, NewLocation(nil, "", 100, 2), "bleh"),
+		NewError(ParseErr, NewLocation(nil, "foo.rego", 100, 2), "blarg"),
 	}
 
 	expected := `3 errors occurred:
-test1
-test2
-test3`
+blah
+100:2: bleh
+foo.rego:100:2: blarg`
 	result := err.Error()
 
 	if result != expected {
 		t.Errorf("Expected %v but got: %v", expected, result)
 	}
 
-	err = Errors{fmt.Errorf("testx")}
-	expected = `1 error occurred: testx`
+	err = Errors{NewError(ParseErr, nil, "blah")}
+	expected = `1 error occurred: blah`
 	result = err.Error()
 
 	if result != expected {
