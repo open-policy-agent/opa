@@ -11,7 +11,7 @@ import (
 
 // Errors represents a series of errors encountered during parsing, compiling,
 // etc.
-type Errors []error
+type Errors []*Error
 
 func (e Errors) Error() string {
 
@@ -29,4 +29,51 @@ func (e Errors) Error() string {
 	}
 
 	return fmt.Sprintf("%d errors occurred:\n%s", len(e), strings.Join(s, "\n"))
+}
+
+// ErrCode defines the types of errors returned during parsing, compiling, etc.
+type ErrCode int
+
+const (
+	// ParseErr indicates an unclassified parse error occurred.
+	ParseErr = iota
+
+	// CompileErr indicates an unclassified compile error occurred.
+	CompileErr = iota
+
+	// UnsafeVarErr indicates an unsafe variable was found during compilation.
+	UnsafeVarErr = iota
+
+	// RecursionErr indicates recursion was found during compilation.
+	RecursionErr = iota
+)
+
+// Error represents a single error caught during parsing, compiling, etc.
+type Error struct {
+	Code     int
+	Location *Location
+	Message  string
+}
+
+func (e *Error) Error() string {
+	if e.Location == nil {
+		return e.Message
+	}
+
+	prefix := ""
+
+	if len(e.Location.File) > 0 {
+		prefix += e.Location.File + ":"
+	}
+
+	return fmt.Sprintf("%v%v:%v: %v", prefix, e.Location.Row, e.Location.Col, e.Message)
+}
+
+// NewError returns a new Error object.
+func NewError(code int, loc *Location, f string, a ...interface{}) *Error {
+	return &Error{
+		Code:     code,
+		Location: loc,
+		Message:  fmt.Sprintf(f, a...),
+	}
 }

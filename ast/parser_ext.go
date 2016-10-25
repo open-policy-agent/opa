@@ -254,18 +254,15 @@ func convertErrList(filename string, errs errList) error {
 		case *parserError:
 			r[i] = formatParserError(filename, e)
 		default:
-			r[i] = e
+			r[i] = NewError(ParseErr, nil, e.Error())
 		}
 	}
 	return r
 }
 
-func formatParserError(filename string, e *parserError) error {
-	var prefix string
-	if filename != "" {
-		prefix = filename + ":"
-	}
-	return fmt.Errorf("%v%v:%v: %v", prefix, e.pos.line, e.pos.col, e.Inner)
+func formatParserError(filename string, e *parserError) *Error {
+	loc := NewLocation(nil, filename, e.pos.line, e.pos.col)
+	return NewError(ParseErr, loc, e.Inner.Error())
 }
 
 func parseModule(stmts []interface{}) (*Module, error) {
@@ -277,7 +274,7 @@ func parseModule(stmts []interface{}) (*Module, error) {
 	_package, ok := stmts[0].(*Package)
 	if !ok {
 		loc := stmts[0].(Statement).Loc()
-		return nil, loc.Errorf("expected package directive (%s must come after package directive)", stmts[0])
+		return nil, NewError(ParseErr, loc, "expected package directive (%s must come after package directive)", stmts[0])
 	}
 
 	mod := &Module{
@@ -293,7 +290,7 @@ func parseModule(stmts []interface{}) (*Module, error) {
 		case Body:
 			rule := ParseConstantRule(stmt)
 			if rule == nil {
-				return nil, stmt[0].Location.Errorf("expected rule (%s must be declared inside a rule)", stmt[0].Location.Text)
+				return nil, NewError(ParseErr, stmt[0].Location, "expected rule (%s must be declared inside a rule)", stmt[0].Location.Text)
 			}
 			mod.Rules = append(mod.Rules, rule)
 		}
