@@ -33,7 +33,7 @@ mailing list or submit an issue on GitHub.
 
 ## Code Contributions
 
-If are contributing code, please consider the following:
+If you are contributing code, please consider the following:
 
 - Most changes should be accompanied with tests.
 - Commit messages should explain *why* the changes were made and should probably look like this:
