@@ -112,16 +112,6 @@ Rule <- name:Var key:( _ "[" _ Term _ "]" _ )? value:( _ "=" _ Term )? body:( _ 
         // Rule definition above describes the "key" slice. We care about the "Term" element.
         rule.Key = keySlice[3].(*Term)
 
-        var ref Ref
-        WalkRefs(rule.Key, func(x Ref) bool {
-            ref = x
-            return true
-        })
-
-        if ref != nil {
-            return nil, fmt.Errorf("head cannot contain references (%v appears in key)", ref)
-        }
-
         var closure interface{}
         WalkClosures(rule.Key, func(x interface{}) bool {
             closure = x
@@ -137,16 +127,6 @@ Rule <- name:Var key:( _ "[" _ Term _ "]" _ )? value:( _ "=" _ Term )? body:( _ 
         valueSlice := value.([]interface{})
         // Rule definition above describes the "value" slice. We care about the "Term" element.
         rule.Value = valueSlice[len(valueSlice)-1].(*Term)
-
-        var ref Ref
-        WalkRefs(rule.Value, func(x Ref) bool {
-            ref = x
-            return true
-        })
-
-        if ref != nil {
-            return nil, fmt.Errorf("head cannot contain references (%v appears in value)", ref)
-        }
 
         var closure interface{}
         WalkClosures(rule.Value, func(x interface{}) bool {
@@ -165,9 +145,9 @@ Rule <- name:Var key:( _ "[" _ Term _ "]" _ )? value:( _ "=" _ Term )? body:( _ 
 
     if key != nil && value != nil {
         switch rule.Key.Value.(type) {
-        case Var, String: // nop
+        case Var, String, Ref: // nop
         default:
-            return nil, fmt.Errorf("head of object rule must have string or var key (%s is not allowed)", rule.Key)
+            return nil, fmt.Errorf("head of object rule must have string, var, or ref key (%s is not allowed)", rule.Key)
         }
     }
 
