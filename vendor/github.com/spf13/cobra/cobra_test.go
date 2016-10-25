@@ -646,7 +646,7 @@ func TestSubcommandArgEvaluation(t *testing.T) {
 	second := &Command{
 		Use: "second",
 		Run: func(cmd *Command, args []string) {
-			fmt.Fprintf(cmd.getOutOrStdout(), "%v", args)
+			fmt.Fprintf(cmd.OutOrStdout(), "%v", args)
 		},
 	}
 	first.AddCommand(second)
@@ -916,15 +916,14 @@ func TestRootUnknownCommand(t *testing.T) {
 
 func TestRootUnknownCommandSilenced(t *testing.T) {
 	r := noRRSetupTestSilenced("bogus")
-	s := "Run 'cobra-test --help' for usage.\n"
 
 	if r.Output != "" {
-		t.Errorf("Unexpected response.\nExpecting to be: \n\"\"\n Got:\n %q\n", s, r.Output)
+		t.Errorf("Unexpected response.\nExpecting to be: \n\"\"\n Got:\n %q\n", r.Output)
 	}
 
 	r = noRRSetupTestSilenced("--strtwo=a bogus")
 	if r.Output != "" {
-		t.Errorf("Unexpected response.\nExpecting to be:\n\"\"\nGot:\n %q\n", s, r.Output)
+		t.Errorf("Unexpected response.\nExpecting to be:\n\"\"\nGot:\n %q\n", r.Output)
 	}
 }
 

@@ -3,8 +3,13 @@
 // Package foo ...
 package foo
 
-import "fmt"
-import "net/http"
+import (
+	"fmt"
+	"io"
+	"net/http"
+	"nosuchpkg" // export data unavailable
+	"os"
+)
 
 // Q is a test type.
 type Q bool
@@ -63,15 +68,16 @@ type serverImpl struct{}
 // LHS is a different type than the RHS.
 var myStringer fmt.Stringer = q(0)
 
-// We don't figure out the true types of LHS and RHS here,
-// but io.Writer is a known weaker type for many common uses,
-// so the suggestion should be suppressed here.
+// LHS is a different type than the RHS.
 var out io.Writer = os.Stdout
 
-// This next one, however, should be type checked.
-var out2 io.Writer = newWriter() // MATCH /should.*io\.Writer/
+var out2 io.Writer = newWriter() // MATCH /should omit.*io\.Writer/
 
 func newWriter() io.Writer { return nil }
+
+// We don't figure out the true types of LHS and RHS here,
+// so we suppress the check.
+var ni nosuchpkg.Interface = nosuchpkg.NewConcrete()
 
 var y string = q(1).String() // MATCH /should.*string/
 

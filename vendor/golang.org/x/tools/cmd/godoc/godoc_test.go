@@ -140,7 +140,7 @@ func waitForServerReady(t *testing.T, addr string) {
 	waitForServer(t,
 		fmt.Sprintf("http://%v/", addr),
 		"The Go Programming Language",
-		5*time.Second)
+		15*time.Second)
 }
 
 func waitForSearchReady(t *testing.T, addr string) {
@@ -277,7 +277,7 @@ func testWeb(t *testing.T, withIndex bool) {
 		{
 			path: "/cmd/compile/internal/amd64/",
 			match: []string{
-				`href="/src/cmd/compile/internal/amd64/reg.go"`,
+				`href="/src/cmd/compile/internal/amd64/prog.go"`,
 			},
 		},
 	}

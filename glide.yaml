@@ -13,3 +13,4 @@ import:
 - package: github.com/golang/glog
 - package: github.com/olekukonko/tablewriter
 - package: github.com/dchest/siphash
+- package: gopkg.in/fsnotify.v1

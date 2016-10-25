@@ -73,6 +73,9 @@ $(TEST_DIR)/issue_1/issue_1.go: $(TEST_DIR)/issue_1/issue_1.peg $(BINDIR)/pigeon
 $(TEST_DIR)/linear/linear.go: $(TEST_DIR)/linear/linear.peg $(BINDIR)/pigeon
 	$(BINDIR)/pigeon $< | goimports > $@
 
+$(TEST_DIR)/issue_12/issue_12.go: $(TEST_DIR)/issue_12/issue_12.peg $(BINDIR)/pigeon
+	$(BINDIR)/pigeon $< | goimports > $@
+
 lint:
 	golint ./...
 	go vet ./...

@@ -36,6 +36,7 @@ func init() {
 type Code struct {
 	Text     template.HTML
 	Play     bool   // runnable code
+	Edit     bool   // editable code
 	FileName string // file name
 	Ext      string // file extension
 	Raw      []byte // content of the file
@@ -61,6 +62,9 @@ func parseCode(ctx *Context, sourceFile string, sourceLine int, cmd string) (Ele
 	// Pull off the HL, if any, from the end of the input line.
 	highlight := ""
 	if hl := highlightRE.FindStringSubmatchIndex(cmd); len(hl) == 4 {
+		if hl[2] < 0 || hl[3] < 0 {
+			return nil, fmt.Errorf("%s:%d invalid highlight syntax", sourceFile, sourceLine)
+		}
 		highlight = cmd[hl[2]:hl[3]]
 		cmd = cmd[:hl[2]-2]
 	}
@@ -88,6 +92,11 @@ func parseCode(ctx *Context, sourceFile string, sourceLine int, cmd string) (Ele
 	lo, hi, err := addrToByteRange(addr, 0, textBytes)
 	if err != nil {
 		return nil, fmt.Errorf("%s:%d: %v", sourceFile, sourceLine, err)
+	}
+	if lo > hi {
+		// The search in addrToByteRange can wrap around so we might
+		// end up with the range ending before its starting point
+		hi, lo = lo, hi
 	}
 
 	// Acme pattern matches can stop mid-line,
@@ -122,6 +131,7 @@ func parseCode(ctx *Context, sourceFile string, sourceLine int, cmd string) (Ele
 	return Code{
 		Text:     template.HTML(buf.String()),
 		Play:     play,
+		Edit:     data.Edit,
 		FileName: filepath.Base(filename),
 		Ext:      filepath.Ext(filename),
 		Raw:      rawCode(lines),

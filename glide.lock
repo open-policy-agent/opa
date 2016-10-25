@@ -1,34 +1,40 @@
-hash: f2674369ef7d03abb3c149bdc86507802e930f3448c72a2d7edf79b1feac7e0b
-updated: 2016-07-10T12:33:51.307369663-07:00
+hash: eda8e41c6d50ffe7d103d1d6537a3d6c57ce594e5e52d328c1464b4e796be0c6
+updated: 2016-10-24T15:07:45.76317832-07:00
 imports:
 - name: github.com/dchest/siphash
-  version: 6d8617816bb5d8268011ffbfb8720f17ce9af63c
+  version: 4ebf1de738443ea7f45f02dc394c4df1942a126d
 - name: github.com/golang/glog
   version: 23def4e6c14b4da8ac2ed8007337bc5eb5007998
 - name: github.com/golang/lint
-  version: c7bacac2b21ca01afa1dee0acf64df3ce047c28f
+  version: 3390df4df2787994aea98de825b964ac7944b817
 - name: github.com/gorilla/context
-  version: aed02d124ae4a0e94fea4541c8effd05bf0c8296
+  version: 215affda49addc4c8ef7e2534915df2c8c35c6cd
 - name: github.com/gorilla/mux
-  version: 9fa818a44c2bf1396a17f9d5a3c0f6dd39d2ff8e
+  version: 757bef944d0f21880861c2dd9c871ca543023cba
 - name: github.com/inconshreveable/mousetrap
   version: 76626ae9c91c4f2a10f34cad8ce83ea42c93bb75
 - name: github.com/mattn/go-runewidth
-  version: d6bea18f789704b5f83375793155289da36a3c7f
+  version: 737072b4e32b7a5018b4a7125da8d12de90e8045
 - name: github.com/olekukonko/tablewriter
-  version: daf2955e742cf123959884fdff4685aa79b63135
+  version: bdcc175572fd7abece6c831e643891b9331bc9e7
 - name: github.com/peterh/liner
   version: 8975875355a81d612fafb9f5a6037bdcc2d9b073
 - name: github.com/pkg/errors
-  version: a2d6902c6d2a2f194eb3fb474981ab7867c81505
+  version: 839d9e913e063e28dfd0e6c7b7512793e0a48be9
 - name: github.com/PuerkitoBio/pigeon
-  version: f890dd2f774b324894bfd1dd61c2d227179bcc2d
+  version: 00949f7e8bae024d00576190ea052378944083d9
 - name: github.com/spf13/cobra
-  version: a272c3cbd5ff80a5bf5c5603df50183f9f3f7324
+  version: 856b96dcb49d6427babe192998a35190a12c2230
 - name: github.com/spf13/pflag
-  version: 367864438f1b1a3c7db4da06a2f55b144e6784e0
+  version: 1560c1005499d61b80f865c04d39ca7505bf7f0b
+- name: golang.org/x/sys
+  version: 9c60d1c508f5134d1ca726b4641db998f2523357
+  subpackages:
+  - unix
 - name: golang.org/x/tools
-  version: 26c35b4dcf6dfcb924e26828ed9f4d028c5ce05a
+  version: 20055e012df642222098b26b314090eb8177055e
   subpackages:
   - cmd/goimports
+- name: gopkg.in/fsnotify.v1
+  version: 629574ca2a5df945712d3079857300b5e4da0236
 testImports: []

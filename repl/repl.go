@@ -26,13 +26,12 @@ import (
 
 // REPL represents an instance of the interactive shell.
 type REPL struct {
-	output   io.Writer
-	compiler *ast.Compiler
-	store    *storage.Storage
+	output io.Writer
+	store  *storage.Storage
 
+	modules         map[string]*ast.Module
 	currentModuleID string
 	buffer          []string
-	initialized     bool
 	nextID          int
 	txn             storage.Transaction
 
@@ -55,15 +54,17 @@ const (
 )
 
 // New returns a new instance of the REPL.
-// TODO(tsandall): refactor so that DataStore and PolicyStore are not needed here.
 func New(store *storage.Storage, historyPath string, output io.Writer, outputFormat string, banner string) *REPL {
+	currentModuleID := "repl"
 	return &REPL{
-		output:          output,
+		output: output,
+		store:  store,
+		modules: map[string]*ast.Module{
+			currentModuleID: ast.MustParseModule(fmt.Sprint("package ", currentModuleID)),
+		},
+		currentModuleID: currentModuleID,
 		outputFormat:    outputFormat,
 		explain:         explainOff,
-		compiler:        nil,
-		store:           store,
-		currentModuleID: "repl",
 		historyPath:     historyPath,
 		initPrompt:      "> ",
 		bufferPrompt:    "| ",
@@ -110,12 +111,9 @@ func (r *REPL) Loop() {
 	r.saveHistory(line)
 }
 
-// OneShot evaluates a single line and prints the result. Returns true if caller should exit.
+// OneShot evaluates a single line and prints the result. Returns true if caller
+// should exit.
 func (r *REPL) OneShot(line string) bool {
-
-	if r.init() {
-		return true
-	}
 
 	var err error
 
@@ -257,8 +255,9 @@ func (r *REPL) cmdUnset(args []string) bool {
 		return false
 	}
 
-	modules := r.compiler.Modules
-	mod := modules[r.currentModuleID]
+	policies := r.store.ListPolicies(r.txn)
+
+	mod := r.modules[r.currentModuleID]
 	rules := []*ast.Rule{}
 
 	for _, r := range mod.Rules {
@@ -272,15 +271,25 @@ func (r *REPL) cmdUnset(args []string) bool {
 		return false
 	}
 
-	cpy := *mod
+	cpy := &(*mod)
 	cpy.Rules = rules
-	modules[r.currentModuleID] = &cpy
 
-	r.compiler = ast.NewCompiler()
-	if r.compiler.Compile(modules); r.compiler.Failed() {
-		fmt.Fprintln(r.output, "error:", r.compiler.Errors)
+	policies[r.currentModuleID] = cpy
+
+	for id, mod := range r.modules {
+		if id != r.currentModuleID {
+			policies[id] = mod
+		}
+	}
+
+	compiler := ast.NewCompiler()
+
+	if compiler.Compile(policies); compiler.Failed() {
+		fmt.Fprintln(r.output, "error:", compiler.Errors)
 		return false
 	}
+
+	r.modules[r.currentModuleID] = cpy
 
 	return false
 }
@@ -297,35 +306,45 @@ func (r *REPL) compileBody(body ast.Body) (ast.Body, error) {
 		Body:     body,
 	}
 
-	modules := r.compiler.Modules
-	mod := modules[r.currentModuleID]
+	mod := r.modules[r.currentModuleID]
 	prev := mod.Rules
 	mod.Rules = append(mod.Rules, rule)
 
-	r.compiler = ast.NewCompiler()
+	policies := r.store.ListPolicies(r.txn)
 
-	if r.compiler.Compile(modules); r.compiler.Failed() {
+	for id, mod := range r.modules {
+		policies[id] = mod
+	}
+
+	compiler := ast.NewCompiler()
+
+	if compiler.Compile(policies); compiler.Failed() {
 		mod.Rules = prev
-		return nil, r.compiler.Errors
+		return nil, compiler.Errors
 	}
 
 	return mod.Rules[len(prev)].Body, nil
 }
 
-func (r *REPL) compileRule(rule *ast.Rule) (*ast.Module, error) {
+func (r *REPL) compileRule(rule *ast.Rule) error {
 
-	modules := r.compiler.Modules
-	mod := modules[r.currentModuleID]
+	mod := r.modules[r.currentModuleID]
 	prev := mod.Rules
 	mod.Rules = append(mod.Rules, rule)
 
-	r.compiler = ast.NewCompiler()
-	if r.compiler.Compile(modules); r.compiler.Failed() {
-		mod.Rules = prev
-		return nil, r.compiler.Errors
+	policies := r.store.ListPolicies(r.txn)
+	for id, mod := range r.modules {
+		policies[id] = mod
 	}
 
-	return mod, nil
+	compiler := ast.NewCompiler()
+
+	if compiler.Compile(policies); compiler.Failed() {
+		mod.Rules = prev
+		return compiler.Errors
+	}
+
+	return nil
 }
 
 func (r *REPL) evalBufferOne() bool {
@@ -378,25 +397,45 @@ func (r *REPL) evalBufferMulti() bool {
 	return false
 }
 
+func (r *REPL) loadCompiler() (*ast.Compiler, error) {
+
+	policies := r.store.ListPolicies(r.txn)
+
+	for id, mod := range r.modules {
+		policies[id] = mod
+	}
+
+	compiler := ast.NewCompiler()
+
+	if compiler.Compile(policies); compiler.Failed() {
+		return nil, compiler.Errors
+	}
+
+	return compiler, nil
+}
+
 func (r *REPL) evalStatement(stmt interface{}) bool {
 	switch s := stmt.(type) {
 	case ast.Body:
-		s, err := r.compileBody(s)
+		body, err := r.compileBody(s)
 		if err != nil {
 			fmt.Fprintln(r.output, "error:", err)
 			return false
 		}
-		if s := ast.ParseConstantRule(s); s != nil {
-			_, err := r.compileRule(s)
-			if err != nil {
+		if rule := ast.ParseConstantRule(body); rule != nil {
+			if err := r.compileRule(rule); err != nil {
 				fmt.Fprintln(r.output, "error:", err)
 			}
 			return false
 		}
-		return r.evalBody(s)
-	case *ast.Rule:
-		_, err := r.compileRule(s)
+		compiler, err := r.loadCompiler()
 		if err != nil {
+			fmt.Fprintln(r.output, "error:", err)
+			return false
+		}
+		return r.evalBody(compiler, body)
+	case *ast.Rule:
+		if err := r.compileRule(s); err != nil {
 			fmt.Fprintln(r.output, "error:", err)
 		}
 	case *ast.Import:
@@ -407,7 +446,7 @@ func (r *REPL) evalStatement(stmt interface{}) bool {
 	return false
 }
 
-func (r *REPL) evalBody(body ast.Body) bool {
+func (r *REPL) evalBody(compiler *ast.Compiler, body ast.Body) bool {
 
 	// Special case for positive, single term inputs.
 	if len(body) == 1 {
@@ -415,14 +454,14 @@ func (r *REPL) evalBody(body ast.Body) bool {
 		if !expr.Negated {
 			if _, ok := expr.Terms.(*ast.Term); ok {
 				if singleValue(body) {
-					return r.evalTermSingleValue(body)
+					return r.evalTermSingleValue(compiler, body)
 				}
-				return r.evalTermMultiValue(body)
+				return r.evalTermMultiValue(compiler, body)
 			}
 		}
 	}
 
-	ctx := topdown.NewContext(body, r.compiler, r.store, r.txn)
+	ctx := topdown.NewContext(body, compiler, r.store, r.txn)
 
 	var buf *topdown.BufferTracer
 
@@ -476,7 +515,7 @@ func (r *REPL) evalBody(body ast.Body) bool {
 	})
 
 	if buf != nil {
-		r.printTrace(*buf)
+		r.printTrace(compiler, *buf)
 	}
 
 	if err != nil {
@@ -499,40 +538,28 @@ func (r *REPL) evalBody(body ast.Body) bool {
 
 func (r *REPL) evalImport(i *ast.Import) bool {
 
-	modules := r.compiler.Modules
-	mod := modules[r.currentModuleID]
-
-	for _, x := range mod.Imports {
-		if x.Equal(i) {
+	mod := r.modules[r.currentModuleID]
+	for _, other := range mod.Imports {
+		if other.Equal(i) {
 			return false
 		}
 	}
 
-	prev := mod.Imports
 	mod.Imports = append(mod.Imports, i)
-
-	r.compiler = ast.NewCompiler()
-
-	if r.compiler.Compile(modules); r.compiler.Failed() {
-		mod.Imports = prev
-		fmt.Fprintln(r.output, r.compiler.Errors)
-		return false
-	}
 
 	return false
 }
 
 func (r *REPL) evalPackage(p *ast.Package) bool {
 
-	modules := r.compiler.Modules
 	moduleID := p.Path[1:].String()
 
-	if _, ok := modules[moduleID]; ok {
+	if _, ok := r.modules[moduleID]; ok {
 		r.currentModuleID = moduleID
 		return false
 	}
 
-	modules[moduleID] = &ast.Module{
+	r.modules[moduleID] = &ast.Module{
 		Package: p,
 	}
 
@@ -546,13 +573,13 @@ func (r *REPL) evalPackage(p *ast.Package) bool {
 // and comprehensions always evaluate to a single value. To handle references, this function
 // still executes the query, except it does so by rewriting the body to assign the term
 // to a variable. This allows the REPL to obtain the result even if the term is false.
-func (r *REPL) evalTermSingleValue(body ast.Body) bool {
+func (r *REPL) evalTermSingleValue(compiler *ast.Compiler, body ast.Body) bool {
 
 	term := body[0].Terms.(*ast.Term)
 	outputVar := ast.Wildcard
 	body = ast.NewBody(ast.Equality.Expr(term, outputVar))
 
-	ctx := topdown.NewContext(body, r.compiler, r.store, r.txn)
+	ctx := topdown.NewContext(body, compiler, r.store, r.txn)
 
 	var buf *topdown.BufferTracer
 
@@ -576,7 +603,7 @@ func (r *REPL) evalTermSingleValue(body ast.Body) bool {
 	})
 
 	if buf != nil {
-		r.printTrace(*buf)
+		r.printTrace(compiler, *buf)
 	}
 
 	if err != nil {
@@ -592,7 +619,7 @@ func (r *REPL) evalTermSingleValue(body ast.Body) bool {
 
 // evalTermMultiValue evaluates and prints terms in cases where the term may evaluate to multiple
 // ground values, e.g., a[i], [servers[x]], etc.
-func (r *REPL) evalTermMultiValue(body ast.Body) bool {
+func (r *REPL) evalTermMultiValue(compiler *ast.Compiler, body ast.Body) bool {
 
 	// Mangle the expression in the same way we do for evalTermSingleValue. When handling the
 	// evaluation result below, we will ignore this variable.
@@ -600,7 +627,7 @@ func (r *REPL) evalTermMultiValue(body ast.Body) bool {
 	outputVar := ast.Wildcard
 	body = ast.NewBody(ast.Equality.Expr(term, outputVar))
 
-	ctx := topdown.NewContext(body, r.compiler, r.store, r.txn)
+	ctx := topdown.NewContext(body, compiler, r.store, r.txn)
 
 	var buf *topdown.BufferTracer
 
@@ -616,7 +643,7 @@ func (r *REPL) evalTermMultiValue(body ast.Body) bool {
 	// Do not include the value of the input term if the input term was a set reference. E.g.,
 	// for "p[x]", the value users are interested in is "x" not p[x] which is always defined
 	// as true.
-	includeValue := !r.isSetReference(term)
+	includeValue := !r.isSetReference(compiler, term)
 
 	err := topdown.Eval(ctx, func(ctx *topdown.Context) error {
 
@@ -660,7 +687,7 @@ func (r *REPL) evalTermMultiValue(body ast.Body) bool {
 	})
 
 	if buf != nil {
-		r.printTrace(*buf)
+		r.printTrace(compiler, *buf)
 	}
 
 	if err != nil {
@@ -689,37 +716,13 @@ func (r *REPL) getPrompt() string {
 	return r.initPrompt
 }
 
-func (r *REPL) init() bool {
-
-	if r.initialized {
-		return false
-	}
-
-	mod := ast.MustParseModule(fmt.Sprintf(`
-	package %s
-	`, r.currentModuleID))
-
-	modules := r.store.ListPolicies(r.txn)
-	modules[r.currentModuleID] = mod
-
-	r.compiler = ast.NewCompiler()
-	if r.compiler.Compile(modules); r.compiler.Failed() {
-		fmt.Fprintln(r.output, "error:", r.compiler.Errors)
-		return true
-	}
-
-	r.initialized = true
-
-	return false
-}
-
 // isSetReference returns true if term is a reference that refers to a set document.
-func (r *REPL) isSetReference(term *ast.Term) bool {
+func (r *REPL) isSetReference(compiler *ast.Compiler, term *ast.Term) bool {
 	ref, ok := term.Value.(ast.Ref)
 	if !ok {
 		return false
 	}
-	rs := r.compiler.GetRulesExact(ref.GroundPrefix())
+	rs := compiler.GetRulesExact(ref.GroundPrefix())
 	if rs == nil {
 		return false
 	}
@@ -778,9 +781,9 @@ func (r *REPL) printPrettyRow(table *tablewriter.Table, keys []string, row map[s
 	table.Append(buf)
 }
 
-func (r *REPL) printTrace(trace []*topdown.Event) {
+func (r *REPL) printTrace(compiler *ast.Compiler, trace []*topdown.Event) {
 	if r.explain == explainTruth {
-		answer, err := explain.Truth(r.compiler, trace)
+		answer, err := explain.Truth(compiler, trace)
 		if err != nil {
 			fmt.Fprintf(r.output, "error: %v\n", err)
 		}

@@ -11,9 +11,6 @@ Jean-Philippe Aumasson and Daniel J. Bernstein (http://131002.net/siphash/).
 
     $ go get github.com/dchest/siphash
 
-
-Supported Go 1.1 and later.
-
 ## Usage
 
     import "github.com/dchest/siphash"

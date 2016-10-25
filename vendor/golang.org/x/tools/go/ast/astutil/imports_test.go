@@ -511,6 +511,61 @@ import "C"
 import "bufio"
 `,
 	},
+	{
+		name: `issue 17212 several single-import lines with shared prefix ending in a slash`,
+		pkg:  "net/http",
+		in: `package main
+
+import "bufio"
+import "net/url"
+`,
+		out: `package main
+
+import (
+	"bufio"
+	"net/http"
+	"net/url"
+)
+`,
+	},
+	{
+		name: `issue 17212 block imports lines with shared prefix ending in a slash`,
+		pkg:  "net/http",
+		in: `package main
+
+import (
+	"bufio"
+	"net/url"
+)
+`,
+		out: `package main
+
+import (
+	"bufio"
+	"net/http"
+	"net/url"
+)
+`,
+	},
+	{
+		name: `issue 17213 many single-import lines`,
+		pkg:  "fmt",
+		in: `package main
+
+import "bufio"
+import "bytes"
+import "errors"
+`,
+		out: `package main
+
+import (
+	"bufio"
+	"bytes"
+	"errors"
+	"fmt"
+)
+`,
+	},
 }
 
 func TestAddImport(t *testing.T) {
@@ -906,6 +961,270 @@ import y "fmt"
 import y "fmt"
 `,
 	},
+	// Issue #15432
+	{
+		name: "import.19",
+		pkg:  "fmt",
+		in: `package main
+
+import (
+	"fmt"
+
+	// Some comment.
+	"io"
+)`,
+		out: `package main
+
+// Some comment.
+import "io"
+`,
+	},
+	{
+		name: "import.20",
+		pkg:  "fmt",
+		in: `package main
+
+import (
+	"fmt"
+
+	// Some
+	// comment.
+	"io"
+)`,
+		out: `package main
+
+// Some
+// comment.
+import "io"
+`,
+	},
+	{
+		name: "import.21",
+		pkg:  "fmt",
+		in: `package main
+
+import (
+	"fmt"
+
+	/*
+		Some
+		comment.
+	*/
+	"io"
+)`,
+		out: `package main
+
+/*
+	Some
+	comment.
+*/
+import "io"
+`,
+	},
+	{
+		name: "import.22",
+		pkg:  "fmt",
+		in: `package main
+
+import (
+	/* Some */
+	// comment.
+	"io"
+	"fmt"
+)`,
+		out: `package main
+
+/* Some */
+// comment.
+import "io"
+`,
+	},
+	{
+		name: "import.23",
+		pkg:  "fmt",
+		in: `package main
+
+import (
+	// comment 1
+	"fmt"
+	// comment 2
+	"io"
+)`,
+		out: `package main
+
+// comment 2
+import "io"
+`,
+	},
+	{
+		name: "import.24",
+		pkg:  "fmt",
+		in: `package main
+
+import (
+	"fmt" // comment 1
+	"io" // comment 2
+)`,
+		out: `package main
+
+import "io" // comment 2
+`,
+	},
+	{
+		name: "import.25",
+		pkg:  "fmt",
+		in: `package main
+
+import (
+	"fmt"
+	/* comment */ "io"
+)`,
+		out: `package main
+
+import /* comment */ "io"
+`,
+	},
+	{
+		name: "import.26",
+		pkg:  "fmt",
+		in: `package main
+
+import (
+	"fmt"
+	"io" /* comment */
+)`,
+		out: `package main
+
+import "io" /* comment */
+`,
+	},
+	{
+		name: "import.27",
+		pkg:  "fmt",
+		in: `package main
+
+import (
+	"fmt" /* comment */
+	"io"
+)`,
+		out: `package main
+
+import "io"
+`,
+	},
+	{
+		name: "import.28",
+		pkg:  "fmt",
+		in: `package main
+
+import (
+	/* comment */  "fmt"
+	"io"
+)`,
+		out: `package main
+
+import "io"
+`,
+	},
+	{
+		name: "import.29",
+		pkg:  "fmt",
+		in: `package main
+
+// comment 1
+import (
+	"fmt"
+	"io" // comment 2
+)`,
+		out: `package main
+
+// comment 1
+import "io" // comment 2
+`,
+	},
+	{
+		name: "import.30",
+		pkg:  "fmt",
+		in: `package main
+
+// comment 1
+import (
+	"fmt" // comment 2
+	"io"
+)`,
+		out: `package main
+
+// comment 1
+import "io"
+`,
+	},
+	{
+		name: "import.31",
+		pkg:  "fmt",
+		in: `package main
+
+// comment 1
+import (
+	"fmt"
+	/* comment 2 */ "io"
+)`,
+		out: `package main
+
+// comment 1
+import /* comment 2 */ "io"
+`,
+	},
+	{
+		name:       "import.32",
+		pkg:        "fmt",
+		renamedPkg: "f",
+		in: `package main
+
+// comment 1
+import (
+	f "fmt"
+	/* comment 2 */ i "io"
+)`,
+		out: `package main
+
+// comment 1
+import /* comment 2 */ i "io"
+`,
+	},
+	{
+		name:       "import.33",
+		pkg:        "fmt",
+		renamedPkg: "f",
+		in: `package main
+
+// comment 1
+import (
+	/* comment 2 */ f "fmt"
+	i "io"
+)`,
+		out: `package main
+
+// comment 1
+import i "io"
+`,
+	},
+	{
+		name:       "import.34",
+		pkg:        "fmt",
+		renamedPkg: "f",
+		in: `package main
+
+// comment 1
+import (
+	f "fmt" /* comment 2 */
+	i "io"
+)`,
+		out: `package main
+
+// comment 1
+import i "io"
+`,
+	},
 }
 
 func TestDeleteImport(t *testing.T) {
@@ -1142,6 +1461,180 @@ func TestImports(t *testing.T) {
 		}
 		if !reflect.DeepEqual(got, test.want) {
 			t.Errorf("Imports(%s)=%v, want %v", test.name, got, test.want)
+		}
+	}
+}
+
+var usesImportTests = []struct {
+	name string
+	path string
+	in   string
+	want bool
+}{
+	{
+		name: "no packages",
+		path: "io",
+		in: `package foo
+`,
+		want: false,
+	},
+	{
+		name: "import.1",
+		path: "io",
+		in: `package foo
+
+import "io"
+
+var _ io.Writer
+`,
+		want: true,
+	},
+	{
+		name: "import.2",
+		path: "io",
+		in: `package foo
+
+import "io"
+`,
+		want: false,
+	},
+	{
+		name: "import.3",
+		path: "io",
+		in: `package foo
+
+import "io"
+
+var io = 42
+`,
+		want: false,
+	},
+	{
+		name: "import.4",
+		path: "io",
+		in: `package foo
+
+import i "io"
+
+var _ i.Writer
+`,
+		want: true,
+	},
+	{
+		name: "import.5",
+		path: "io",
+		in: `package foo
+
+import i "io"
+`,
+		want: false,
+	},
+	{
+		name: "import.6",
+		path: "io",
+		in: `package foo
+
+import i "io"
+
+var i = 42
+var io = 42
+`,
+		want: false,
+	},
+	{
+		name: "import.7",
+		path: "encoding/json",
+		in: `package foo
+
+import "encoding/json"
+
+var _ json.Encoder
+`,
+		want: true,
+	},
+	{
+		name: "import.8",
+		path: "encoding/json",
+		in: `package foo
+
+import "encoding/json"
+`,
+		want: false,
+	},
+	{
+		name: "import.9",
+		path: "encoding/json",
+		in: `package foo
+
+import "encoding/json"
+
+var json = 42
+`,
+		want: false,
+	},
+	{
+		name: "import.10",
+		path: "encoding/json",
+		in: `package foo
+
+import j "encoding/json"
+
+var _ j.Encoder
+`,
+		want: true,
+	},
+	{
+		name: "import.11",
+		path: "encoding/json",
+		in: `package foo
+
+import j "encoding/json"
+`,
+		want: false,
+	},
+	{
+		name: "import.12",
+		path: "encoding/json",
+		in: `package foo
+
+import j "encoding/json"
+
+var j = 42
+var json = 42
+`,
+		want: false,
+	},
+	{
+		name: "import.13",
+		path: "io",
+		in: `package foo
+
+import _ "io"
+`,
+		want: true,
+	},
+	{
+		name: "import.14",
+		path: "io",
+		in: `package foo
+
+import . "io"
+`,
+		want: true,
+	},
+}
+
+func TestUsesImport(t *testing.T) {
+	fset := token.NewFileSet()
+	for _, test := range usesImportTests {
+		f, err := parser.ParseFile(fset, "test.go", test.in, 0)
+		if err != nil {
+			t.Errorf("%s: %v", test.name, err)
+			continue
+		}
+		got := UsesImport(f, test.path)
+		if got != test.want {
+			t.Errorf("UsesImport(%s)=%v, want %v", test.name, got, test.want)
 		}
 	}
 }

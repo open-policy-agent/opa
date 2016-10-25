@@ -11,6 +11,9 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"time"
+
+	fsnotify "gopkg.in/fsnotify.v1"
 
 	"github.com/golang/glog"
 	"github.com/open-policy-agent/opa/ast"
@@ -47,6 +50,13 @@ type Params struct {
 	// Server flag controls whether the OPA instance will start a server.
 	// By default, the OPA instance acts as an interactive shell.
 	Server bool
+
+	// Watch flag controls whether OPA will watch the Paths files for changes.
+	// This flag is only supported if OPA instance is running as an interactive
+	// shell. If this flag is true, OPA will watch the Paths files for changes
+	// and reload the storage layer each time they change. This is useful for
+	// interactive development.
+	Watch bool
 }
 
 // Runtime represents a single OPA instance.
@@ -62,10 +72,10 @@ func (rt *Runtime) Start(params *Params) {
 		os.Exit(1)
 	}
 
-	if !params.Server {
-		rt.startRepl(params)
-	} else {
+	if params.Server {
 		rt.startServer(params)
+	} else {
+		rt.startRepl(params)
 	}
 }
 
@@ -133,9 +143,72 @@ func (rt *Runtime) startServer(params *Params) {
 }
 
 func (rt *Runtime) startRepl(params *Params) {
+
 	banner := rt.getBanner()
 	repl := repl.New(rt.Store, params.HistoryPath, os.Stdout, params.OutputFormat, banner)
+
+	if params.Watch {
+		watcher, err := rt.getWatcher(params.Paths)
+		if err != nil {
+			fmt.Println("error opening watch:", err)
+			os.Exit(1)
+		}
+		go rt.readWatcher(watcher, params.Paths)
+	}
+
 	repl.Loop()
+}
+
+func (rt *Runtime) getWatcher(paths []string) (*fsnotify.Watcher, error) {
+	watcher, err := fsnotify.NewWatcher()
+	if err != nil {
+		return nil, err
+	}
+	for _, path := range paths {
+		if err := watcher.Add(path); err != nil {
+			return nil, err
+		}
+	}
+	return watcher, nil
+}
+
+func (rt *Runtime) readWatcher(watcher *fsnotify.Watcher, paths []string) {
+	for {
+		select {
+		case event := <-watcher.Events:
+			if event.Op&fsnotify.Write != 0 {
+				t0 := time.Now()
+				if err := rt.processWatcherUpdate(paths); err != nil {
+					fmt.Fprintf(os.Stdout, "\n# reload error (took %v): %v", time.Since(t0), err)
+				} else {
+					fmt.Fprintf(os.Stdout, "\n# reloaded files (took %v)", time.Since(t0))
+				}
+			}
+		}
+	}
+}
+
+func (rt *Runtime) processWatcherUpdate(paths []string) error {
+
+	parsed, err := parseInputs(paths)
+	if err != nil {
+		return err
+	}
+
+	txn, err := rt.Store.NewTransaction()
+	if err != nil {
+		return err
+	}
+
+	defer rt.Store.Close(txn)
+
+	for _, doc := range parsed.docs {
+		if err := rt.Store.Write(txn, storage.AddOp, doc.ref, doc.value); err != nil {
+			return err
+		}
+	}
+
+	return compileAndStoreInputs(parsed.modules, rt.Store, txn)
 }
 
 func (rt *Runtime) getBanner() string {

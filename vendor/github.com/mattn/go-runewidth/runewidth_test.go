@@ -64,7 +64,7 @@ var isambiguouswidthtests = []struct {
 func TestIsAmbiguousWidth(t *testing.T) {
 	for _, tt := range isambiguouswidthtests {
 		if out := IsAmbiguousWidth(tt.in); out != tt.out {
-			t.Errorf("IsAmbiguousWidth(%q) = %q, want %q", tt.in, out, tt.out)
+			t.Errorf("IsAmbiguousWidth(%q) = %v, want %v", tt.in, out, tt.out)
 		}
 	}
 }
@@ -106,7 +106,6 @@ func TestTruncateSmaller(t *testing.T) {
 func TestTruncate(t *testing.T) {
 	s := "あいうえおあいうえおえおおおおおおおおおおおおおおおおおおおおおおおおおおおおおお"
 	expected := "あいうえおあいうえおえおおおおおおおおおおおおおおおおおおおおおおおおおおお..."
-
 	out := Truncate(s, 80, "...")
 	if out != expected {
 		t.Errorf("Truncate(%q) = %q, want %q", s, out, expected)
@@ -187,7 +186,7 @@ var isneutralwidthtests = []struct {
 func TestIsNeutralWidth(t *testing.T) {
 	for _, tt := range isneutralwidthtests {
 		if out := IsNeutralWidth(tt.in); out != tt.out {
-			t.Errorf("IsNeutralWidth(%q) = %q, want %q", tt.in, out, tt.out)
+			t.Errorf("IsNeutralWidth(%q) = %v, want %v", tt.in, out, tt.out)
 		}
 	}
 }

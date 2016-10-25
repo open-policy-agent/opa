@@ -220,7 +220,7 @@ afterSwitch:
 	XORQ	AX,BX
 	XORQ	DX,BX
 	XORQ	CX,BX
-	MOVQ	BX,r0+40(FP)
+	MOVQ	BX,ret+40(FP)
 
 	// Start the second finalization round
 
@@ -287,6 +287,6 @@ afterSwitch:
 	XORQ	AX,BX
 	XORQ	DX,BX
 	XORQ	CX,BX
-	MOVQ	BX,r1+48(FP)
+	MOVQ	BX,ret1+48(FP)
 
 	RET
