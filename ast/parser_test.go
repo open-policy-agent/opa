@@ -6,6 +6,7 @@ package ast
 
 import (
 	"fmt"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -529,6 +530,18 @@ func TestNoMatchError(t *testing.T) {
 
 	if err.Error() != expected {
 		t.Fatalf("Bad parse error, expected %v but got: %v", expected, err)
+	}
+
+	mod = `package test
+
+	p :- true// <-- parse error: no match`
+
+	_, err = ParseModule("foo.rego", mod)
+
+	loc := NewLocation(nil, "foo.rego", 3, 12)
+
+	if !reflect.DeepEqual(err.(Errors)[0].Location, loc) {
+		t.Fatalf("Expected %v but got: %v", loc, err)
 	}
 }
 
