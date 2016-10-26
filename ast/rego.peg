@@ -13,7 +13,7 @@ func currentLocation(c *current) *Location {
 
 }
 
-Program <- _ vals:(head:Stmt tail:(ws Stmt)*)? _ EOF {
+Program <- _ vals:(head:Stmt tail:((ws / ParseError) Stmt)*)? _ EOF {
     var buf []interface{}
 
     if vals == nil {
