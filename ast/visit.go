@@ -72,6 +72,10 @@ func Walk(v Visitor, x interface{}) {
 		for _, t := range x {
 			Walk(w, t.Value)
 		}
+	case *Set:
+		for _, t := range *x {
+			Walk(w, t.Value)
+		}
 	case *ArrayComprehension:
 		Walk(w, x.Term)
 		Walk(w, x.Body)

@@ -146,13 +146,35 @@ func TestArrayFail(t *testing.T) {
 	assertParseError(t, "missing start", "foo, bar, baz]")
 }
 
+func TestSetWithScalars(t *testing.T) {
+	assertParseOneTerm(t, "number", "{1,2,3,4.5}", SetTerm(NumberTerm(1), NumberTerm(2), NumberTerm(3), NumberTerm(4.5)))
+	assertParseOneTerm(t, "bool", "{true, false, true}", SetTerm(BooleanTerm(true), BooleanTerm(false), BooleanTerm(true)))
+	assertParseOneTerm(t, "string", "{\"foo\", \"bar\"}", SetTerm(StringTerm("foo"), StringTerm("bar")))
+	assertParseOneTerm(t, "mixed", "{null, true, 42}", SetTerm(NullTerm(), BooleanTerm(true), NumberTerm(42)))
+}
+
+func TestSetWithVars(t *testing.T) {
+	assertParseOneTerm(t, "var elements", "{foo, bar, 42}", SetTerm(VarTerm("foo"), VarTerm("bar"), NumberTerm(42)))
+	assertParseOneTerm(t, "nested var elements", "{[foo, true], {null, bar}, set()}", SetTerm(ArrayTerm(VarTerm("foo"), BooleanTerm(true)), SetTerm(NullTerm(), VarTerm("bar")), SetTerm()))
+}
+
+func TestSetFail(t *testing.T) {
+	assertParseError(t, "non-terminated 1", "set(")
+	assertParseError(t, "non-terminated 2", "{foo, bar")
+	assertParseError(t, "non-terminated 3", "{foo, bar, ")
+	assertParseError(t, "missing element", "{foo, bar, }")
+	assertParseError(t, "missing separator", "{foo bar}")
+	assertParseError(t, "missing start", "foo, bar, baz}")
+}
+
 func TestEmptyComposites(t *testing.T) {
 	assertParseOneTerm(t, "empty object", "{}", ObjectTerm())
 	assertParseOneTerm(t, "emtpy array", "[]", ArrayTerm())
+	assertParseOneTerm(t, "emtpy set", "set()", SetTerm())
 }
 
 func TestNestedComposites(t *testing.T) {
-	assertParseOneTerm(t, "nested composites", "[{foo: [\"bar\", baz]}]", ArrayTerm(ObjectTerm(Item(VarTerm("foo"), ArrayTerm(StringTerm("bar"), VarTerm("baz"))))))
+	assertParseOneTerm(t, "nested composites", "[{foo: [\"bar\", {baz}]}]", ArrayTerm(ObjectTerm(Item(VarTerm("foo"), ArrayTerm(StringTerm("bar"), SetTerm(VarTerm("baz")))))))
 }
 
 func TestCompositesWithRefs(t *testing.T) {
@@ -160,6 +182,7 @@ func TestCompositesWithRefs(t *testing.T) {
 	ref2 := RefTerm(VarTerm("c"), NumberTerm(0), StringTerm("d"), StringTerm("e"), VarTerm("j"))
 	assertParseOneTerm(t, "ref keys", "[{a[i].b: 8, c[0][\"d\"].e[j]: f}]", ArrayTerm(ObjectTerm(Item(ref1, NumberTerm(8)), Item(ref2, VarTerm("f")))))
 	assertParseOneTerm(t, "ref values", "[{8: a[i].b, f: c[0][\"d\"].e[j]}]", ArrayTerm(ObjectTerm(Item(NumberTerm(8), ref1), Item(VarTerm("f"), ref2))))
+	assertParseOneTerm(t, "ref values (sets)", `{a[i].b, {c[0]["d"].e[j]}}`, SetTerm(ref1, SetTerm(ref2)))
 }
 
 func TestArrayComprehensions(t *testing.T) {

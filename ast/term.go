@@ -170,6 +170,8 @@ func (term *Term) MarshalJSON() ([]byte, error) {
 		typ = "array"
 	case Object:
 		typ = "object"
+	case *Set:
+		typ = "set"
 	case *ArrayComprehension:
 		typ = "array-comprehension"
 	}
@@ -614,6 +616,90 @@ func (arr Array) String() string {
 	return "[" + strings.Join(buf, ", ") + "]"
 }
 
+// Set represents a set as defined by the language.
+type Set []*Term
+
+func SetTerm(t ...*Term) *Term {
+	s := &Set{}
+	for i := range t {
+		s.Add(t[i])
+	}
+	return &Term{
+		Value: s,
+	}
+}
+
+func (s *Set) IsGround() bool {
+	return termSliceIsGround(*s)
+}
+
+func (s *Set) Hash() int {
+	return termSliceHash(*s)
+}
+
+func (s *Set) String() string {
+
+	sl := *s
+
+	if len(sl) == 0 {
+		return "set()"
+	}
+
+	buf := make([]string, len(sl))
+
+	for i := range sl {
+		buf[i] = sl[i].String()
+	}
+
+	return "{" + strings.Join(buf, ", ") + "}"
+}
+
+func (s *Set) Equal(v Value) bool {
+	if other, ok := v.(*Set); ok {
+		return len(*s.Diff(other)) == 0 && len(*other.Diff(s)) == 0
+	}
+	return false
+}
+
+func (s *Set) Diff(other *Set) *Set {
+	r := &Set{}
+	for _, x := range *s {
+		if !other.Contains(x) {
+			r.Add(x)
+		}
+	}
+	return r
+}
+
+func (s *Set) Add(t *Term) {
+	if s.Contains(t) {
+		return
+	}
+	*s = append(*s, t)
+}
+
+func (s *Set) Map(f func(*Term) (*Term, error)) (*Set, error) {
+	sl := *s
+	set := &Set{}
+	for i := range sl {
+		term, err := f(sl[i])
+		if err != nil {
+			return nil, err
+		}
+		set.Add(term)
+	}
+	return set, nil
+}
+
+func (s Set) Contains(t *Term) bool {
+	for i := range s {
+		if s[i].Equal(t) {
+			return true
+		}
+	}
+	return false
+}
+
 // Object represents an object as defined by the language. Objects are similar to
 // the same types as defined by JSON with the exception that they can contain
 // Vars and References.
@@ -940,6 +1026,14 @@ func unmarshalValue(d map[string]interface{}) (Value, error) {
 	case "array":
 		if s, err := unmarshalTermSliceValue(d); err == nil {
 			return Array(s), nil
+		}
+	case "set":
+		if s, err := unmarshalTermSliceValue(d); err == nil {
+			set := &Set{}
+			for _, x := range s {
+				set.Add(x)
+			}
+			return set, nil
 		}
 	case "object":
 		if s, ok := v.([]interface{}); ok {

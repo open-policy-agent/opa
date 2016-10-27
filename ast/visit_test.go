@@ -23,7 +23,8 @@ func TestVisitor(t *testing.T) {
 	t[x] = y :-
 		p[x] = {"foo": [y,2,{"bar": 3}]},
 		not q[x],
-		y = [ [x,z] | x = "x", z = "z" ]
+		y = [ [x,z] | x = "x", z = "z" ],
+		count({1,2,3}, n)
 	`)
 	vis := &testVis{}
 	Walk(vis, rule)
@@ -78,9 +79,16 @@ func TestVisitor(t *testing.T) {
 									=
 									z
 									"z"
+					expr4
+						count
+						set
+							1
+							2
+							3
+						n
 	*/
-	if len(vis.elems) != 49 {
-		t.Errorf("Expected exactly 49 elements in AST but got %d: %v", len(vis.elems), vis.elems)
+	if len(vis.elems) != 56 {
+		t.Errorf("Expected exactly 56 elements in AST but got %d: %v", len(vis.elems), vis.elems)
 	}
 
 }
