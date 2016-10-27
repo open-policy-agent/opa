@@ -16,10 +16,8 @@ PACKAGES := \
 	github.com/open-policy-agent/opa/test/.../
 
 GO := go
-GOARCH := $(shell go env GOARCH)
-GOOS := $(shell go env GOOS)
 
-BIN := opa_$(GOOS)_$(GOARCH)
+BIN := opa
 
 REPOSITORY := openpolicyagent
 IMAGE := $(REPOSITORY)/opa
@@ -50,10 +48,8 @@ generate:
 build: generate
 	CGO_ENABLED=0 $(GO) build -o $(BIN) -ldflags $(LDFLAGS)
 
-image:
-	@$(MAKE) build GOOS=linux
-	sed -e 's/GOARCH/$(GOARCH)/g' Dockerfile.in > .Dockerfile_$(GOARCH)
-	docker build -t $(IMAGE):$(VERSION)	-f .Dockerfile_$(GOARCH) .
+image: build
+	docker build -t $(IMAGE):$(VERSION) .
 
 push:
 	docker push $(IMAGE):$(VERSION)
@@ -93,5 +89,4 @@ fmt:
 	$(GO) fmt $(PACKAGES)
 
 clean:
-	rm -f opa_*_*
-	rm -f .Dockerfile_*
+	rm -f opa
