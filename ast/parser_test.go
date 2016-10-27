@@ -64,8 +64,21 @@ func TestVarTerms(t *testing.T) {
 	assertParseOneTerm(t, "var", "foo0", VarTerm("foo0"))
 	assertParseError(t, "non-var", "foo-bar")
 	assertParseError(t, "non-var2", "foo-7")
-	for _, v := range Keywords {
-		assertParseError(t, "keyword", v)
+	keywords := [...]string{
+		"not",
+		"package",
+		"import",
+		"true",
+		"false",
+		"null",
+	}
+	for _, v := range keywords {
+		term, err := ParseTerm(v)
+		if err == nil {
+			if _, ok := term.Value.(Var); ok {
+				t.Errorf("Expected %v to return parse error or non-var term: %v", v, t)
+			}
+		}
 	}
 }
 
