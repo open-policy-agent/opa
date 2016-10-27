@@ -31,7 +31,8 @@ BUILD_HOSTNAME := $(shell ./build/get-build-hostname.sh)
 LDFLAGS := "-X github.com/open-policy-agent/opa/version.Version=$(VERSION) \
 	-X github.com/open-policy-agent/opa/version.Vcs=$(BUILD_COMMIT) \
 	-X github.com/open-policy-agent/opa/version.Timestamp=$(BUILD_TIMESTAMP) \
-	-X github.com/open-policy-agent/opa/version.Hostname=$(BUILD_HOSTNAME)"
+	-X github.com/open-policy-agent/opa/version.Hostname=$(BUILD_HOSTNAME) \
+	-s"
 
 GO15VENDOREXPERIMENT := 1
 export GO15VENDOREXPERIMENT
@@ -47,7 +48,7 @@ generate:
 	$(GO) generate
 
 build: generate
-	$(GO) build -o $(BIN) -ldflags $(LDFLAGS)
+	CGO_ENABLED=0 $(GO) build -o $(BIN) -ldflags $(LDFLAGS)
 
 image:
 	@$(MAKE) build GOOS=linux
