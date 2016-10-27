@@ -5,6 +5,7 @@
 package ast
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/open-policy-agent/opa/util"
@@ -22,43 +23,6 @@ type Compiler struct {
 	// output of the compilation process. If the compilation process failed,
 	// there is no guarantee about the state of the modules.
 	Modules map[string]*Module
-
-	// Exports contains a mapping of package paths to variables. The variables
-	// represent externally accessible symbols. For now the only type of
-	// externally visible symbol is a rule. For example:
-	//
-	// package a.b.c
-	//
-	// import data.e.f
-	//
-	// p = true :- q[x] = 1         # "p" is an export
-	// q[x] :- f.r[x], not f.m[x]   # "q" is an export
-	//
-	// In this case, the mapping would be:
-	//
-	// {
-	//   a.b.c: [p, q]
-	// }
-	Exports *util.HashMap
-
-	// Globals contains a mapping of modules to globally accessible variables
-	// within each module. Each variable is mapped to the value which represents
-	// the fully qualified name of the variable. For example:
-	//
-	// package a.b.c
-	//
-	// import data.e.f
-	// import y as z
-	//
-	// p = true :- q[x] = 1
-	// q[x] :- f.r[x], not f.m[x]
-	//
-	// In this case, the mapping would be
-	//
-	// {
-	//  <modptr>: {q: data.a.b.c.q, f: data.e.f, p: data.a.b.c.p, z: y}
-	// }
-	Globals map[*Module]map[Var]Value
 
 	// ModuleTree organizes the modules into a tree where each node is keyed
 	// by an element in the module's package path. E.g., given modules containg
@@ -173,23 +137,20 @@ func NewCompiler() *Compiler {
 
 	c := &Compiler{
 		Modules:    map[string]*Module{},
-		Exports:    newExports(),
-		Globals:    map[*Module]map[Var]Value{},
 		RuleGraph:  map[*Rule]map[*Rule]struct{}{},
 		ModuleTree: NewModuleTree(nil),
 		RuleTree:   NewRuleTree(nil),
 	}
 
 	c.stages = []stage{
-		stage{c.setExports, "setExports"},
-		stage{c.setGlobals, "setGlobals"},
+		stage{c.resolveAllRefs, "resolveAllRefs"},
 		stage{c.setModuleTree, "setModuleTree"},
 		stage{c.setRuleTree, "setRuleTree"},
+		stage{c.setRuleGraph, "setRuleGraph"},
+		stage{c.rewriteRefsInHead, "rewriteRefsInHead"},
 		stage{c.checkBuiltins, "checkBuiltins"},
 		stage{c.checkSafetyHead, "checkSafetyHead"},
 		stage{c.checkSafetyBody, "checkSafetyBody"},
-		stage{c.resolveAllRefs, "resolveAllRefs"},
-		stage{c.setRuleGraph, "setRuleGraph"},
 		stage{c.checkRecursion, "checkRecursion"},
 	}
 
@@ -360,12 +321,12 @@ func (c *Compiler) checkRecursion() {
 // to right, re-ordering as necessary.
 func (c *Compiler) checkSafetyBody() {
 	for _, m := range c.Modules {
-		globals := ReservedVars.Copy()
-		for v := range c.Globals[m] {
-			globals.Add(v)
+		safe := ReservedVars.Copy()
+		for _, imp := range m.Imports {
+			safe.Add(imp.Path.Value.(Var))
 		}
 		for _, r := range m.Rules {
-			reordered, unsafe := reorderBodyForSafety(globals, r.Body)
+			reordered, unsafe := reorderBodyForSafety(safe, r.Body)
 			if len(unsafe) != 0 {
 				for v := range unsafe.Vars() {
 					c.err(NewError(UnsafeVarErr, r.Location, "%v: %v is unsafe (variable %v must appear in the output position of at least one non-negated expression)", r.Name, v, v))
@@ -405,6 +366,80 @@ func (c *Compiler) err(err *Error) {
 	c.Errors = append(c.Errors, err)
 }
 
+func (c *Compiler) getExports() *util.HashMap {
+
+	exports := util.NewHashMap(func(a, b util.T) bool {
+		r1 := a.(Ref)
+		r2 := a.(Ref)
+		return r1.Equal(r2)
+	}, func(v util.T) int {
+		return v.(Ref).Hash()
+	})
+
+	for _, mod := range c.Modules {
+		for _, rule := range mod.Rules {
+			v, ok := exports.Get(mod.Package.Path)
+			if !ok {
+				v = []Var{}
+			}
+			vars := v.([]Var)
+			vars = append(vars, rule.Name)
+			exports.Put(mod.Package.Path, vars)
+		}
+	}
+
+	return exports
+}
+
+func (c *Compiler) getGlobals() map[*Module]map[Var]Value {
+
+	exports := c.getExports()
+	globals := map[*Module]map[Var]Value{}
+
+	for _, m := range c.Modules {
+
+		p := m.Package.Path
+		v, ok := exports.Get(p)
+		if !ok {
+			continue
+		}
+
+		exportsForPackage := v.([]Var)
+		globalsForModules := map[Var]Value{}
+
+		// Populate globals with exports within the package.
+		for _, v := range exportsForPackage {
+			global := append(Ref{}, p...)
+			global = append(global, &Term{Value: String(v)})
+			globalsForModules[v] = global
+		}
+
+		// Populate globals with imports within this module.
+		for _, i := range m.Imports {
+			if len(i.Alias) > 0 {
+				switch p := i.Path.Value.(type) {
+				case Ref:
+					globalsForModules[i.Alias] = p
+				case Var:
+					globalsForModules[i.Alias] = p
+				}
+			} else {
+				switch p := i.Path.Value.(type) {
+				case Ref:
+					v := p[len(p)-1].Value.(String)
+					globalsForModules[Var(v)] = p
+				case Var:
+					globalsForModules[p] = p
+				}
+			}
+		}
+
+		globals[m] = globalsForModules
+	}
+
+	return globals
+}
+
 // resolveAllRefs resolves references in expressions to their fully qualified values.
 //
 // For instance, given the following module:
@@ -415,12 +450,93 @@ func (c *Compiler) err(err *Error) {
 //
 // The reference "bar[_]" would be resolved to "data.foo.bar[_]".
 func (c *Compiler) resolveAllRefs() {
+
+	globals := c.getGlobals()
+
 	for _, mod := range c.Modules {
 		for _, rule := range mod.Rules {
-			rule.Body = c.resolveRefsInBody(c.Globals[mod], rule.Body)
+
+			if rule.Key != nil {
+				rule.Key = c.resolveRefsInTerm(globals[mod], rule.Key)
+			}
+
+			if rule.Value != nil {
+				rule.Value = c.resolveRefsInTerm(globals[mod], rule.Value)
+			}
+
+			rule.Body = c.resolveRefsInBody(globals[mod], rule.Body)
 		}
-		for i := range mod.Imports {
-			mod.Imports[i].Alias = Var("")
+
+		// Update the module's imports. Only imports for query inputs are
+		// required at this point.
+		imports := []*Import{}
+
+		for _, imp := range mod.Imports {
+			switch path := imp.Path.Value.(type) {
+			case Ref:
+				if !path[0].Equal(DefaultRootDocument) {
+					imp.Path = path[0]
+					imp.Alias = Var("")
+					imports = append(imports, imp)
+				}
+			case Var:
+				imp.Alias = Var("")
+				imports = append(imports, imp)
+			}
+		}
+
+		mod.Imports = imports
+	}
+}
+
+// rewriteRefsInHead will rewrite rules so that the head does not contain any
+// references. If the key or value contains one or more references, that term
+// will be moved into the body and assigned to a new variable. The new variable
+// will replace the term in the head.
+//
+// For instance, given the following rule:
+//
+// p[{"foo": data.foo[i]}] :- i < 100
+//
+// The rule would be re-written as:
+//
+// p[__local0__] :- __local0__ = {"foo": data.foo[i]}, i < 100
+func (c *Compiler) rewriteRefsInHead() {
+	for _, mod := range c.Modules {
+		generator := newLocalVarGenerator(mod)
+		for _, rule := range mod.Rules {
+			if rule.Key != nil {
+				found := false
+				WalkRefs(rule.Key, func(Ref) bool {
+					found = true
+					return true
+				})
+				if found {
+					// Replace rule key with generated var
+					key := rule.Key
+					local := generator.Generate()
+					term := &Term{Value: local}
+					rule.Key = term
+					expr := Equality.Expr(term, key)
+					rule.Body = append(rule.Body, expr)
+				}
+			}
+			if rule.Value != nil {
+				found := false
+				WalkRefs(rule.Value, func(Ref) bool {
+					found = true
+					return true
+				})
+				if found {
+					// Replace rule value with generated var
+					value := rule.Value
+					local := generator.Generate()
+					term := &Term{Value: local}
+					rule.Value = term
+					expr := Equality.Expr(term, value)
+					rule.Body = append(rule.Body, expr)
+				}
+			}
 		}
 	}
 }
@@ -520,83 +636,6 @@ func (c *Compiler) resolveRefsInTerm(globals map[Var]Value, term *Term) *Term {
 		return &cpy
 	default:
 		return term
-	}
-}
-
-// setExports populates the Exports on the compiler.
-// See Compiler for a description of Exports.
-func (c *Compiler) setExports() {
-
-	c.Exports = newExports()
-
-	for _, mod := range c.Modules {
-		for _, rule := range mod.Rules {
-			v, ok := c.Exports.Get(mod.Package.Path)
-			if !ok {
-				v = []Var{}
-			}
-			vars := v.([]Var)
-			vars = append(vars, rule.Name)
-			c.Exports.Put(mod.Package.Path, vars)
-		}
-	}
-
-}
-
-func newExports() *util.HashMap {
-	// TODO(tsandall): replace with ValueMap
-	return util.NewHashMap(func(a, b util.T) bool {
-		r1 := a.(Ref)
-		r2 := a.(Ref)
-		return r1.Equal(r2)
-	}, func(v util.T) int {
-		return v.(Ref).Hash()
-	})
-}
-
-// setGlobals populates the Globals on the compiler.
-// See Compiler for a description of Globals.
-func (c *Compiler) setGlobals() {
-
-	for _, m := range c.Modules {
-
-		p := m.Package.Path
-		v, ok := c.Exports.Get(p)
-		if !ok {
-			continue
-		}
-
-		exports := v.([]Var)
-		globals := map[Var]Value{}
-
-		// Populate globals with exports within the package.
-		for _, v := range exports {
-			global := append(Ref{}, p...)
-			global = append(global, &Term{Value: String(v)})
-			globals[v] = global
-		}
-
-		// Populate globals with imports within this module.
-		for _, i := range m.Imports {
-			if len(i.Alias) > 0 {
-				switch p := i.Path.Value.(type) {
-				case Ref:
-					globals[i.Alias] = p
-				case Var:
-					globals[i.Alias] = p
-				}
-			} else {
-				switch p := i.Path.Value.(type) {
-				case Ref:
-					v := p[len(p)-1].Value.(String)
-					globals[Var(v)] = p
-				case Var:
-					globals[p] = p
-				}
-			}
-		}
-
-		c.Globals[m] = globals
 	}
 }
 
@@ -998,4 +1037,30 @@ func reorderBodyForClosures(globals VarSet, body Body) (Body, unsafeVars) {
 	}
 
 	return reordered, unsafe
+}
+
+const localVarFmt = "__local%d__"
+
+type localVarGenerator struct {
+	exclude VarSet
+}
+
+func newLocalVarGenerator(module *Module) *localVarGenerator {
+	exclude := NewVarSet()
+	vis := &varVisitor{
+		vars: exclude,
+	}
+	Walk(vis, module)
+	return &localVarGenerator{exclude}
+}
+
+func (l *localVarGenerator) Generate() Var {
+	name := Var("")
+	x := 0
+	for len(name) == 0 || l.exclude.Contains(name) {
+		name = Var(fmt.Sprintf(localVarFmt, x))
+		x++
+	}
+	l.exclude.Add(name)
+	return name
 }
