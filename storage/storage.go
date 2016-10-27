@@ -179,7 +179,7 @@ func (s *Storage) Read(txn Transaction, path ast.Ref) (interface{}, error) {
 	}
 
 	if !path.IsGround() {
-		return nil, internalError("non-ground reference:", path)
+		return nil, internalError("non-ground reference: %v", path)
 	}
 
 	holes := []hole{}

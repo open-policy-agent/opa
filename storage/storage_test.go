@@ -12,6 +12,21 @@ import (
 	"github.com/open-policy-agent/opa/ast"
 )
 
+func TestStorageReadNonGroundRef(t *testing.T) {
+	store := New(InMemoryConfig())
+	txn := NewTransactionOrDie(store)
+	defer store.Close(txn)
+	ref := ast.MustParseRef("data.foo[i]")
+	_, e := store.Read(txn, ref)
+	err, ok := e.(*Error)
+	if !ok {
+		t.Fatalf("Expected storage error but got: %v", err)
+	}
+	if err.Code != InternalErr {
+		t.Fatalf("Expected internal error but got: %v", err)
+	}
+}
+
 func TestStorageReadPlugin(t *testing.T) {
 
 	mem1 := NewDataStoreFromReader(strings.NewReader(`
