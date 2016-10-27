@@ -16,10 +16,8 @@ PACKAGES := \
 	github.com/open-policy-agent/opa/test/.../
 
 GO := go
-GOARCH := $(shell go env GOARCH)
-GOOS := $(shell go env GOOS)
 
-BIN := opa_$(GOOS)_$(GOARCH)
+BIN := opa
 
 REPOSITORY := openpolicyagent
 IMAGE := $(REPOSITORY)/opa
@@ -31,7 +29,8 @@ BUILD_HOSTNAME := $(shell ./build/get-build-hostname.sh)
 LDFLAGS := "-X github.com/open-policy-agent/opa/version.Version=$(VERSION) \
 	-X github.com/open-policy-agent/opa/version.Vcs=$(BUILD_COMMIT) \
 	-X github.com/open-policy-agent/opa/version.Timestamp=$(BUILD_TIMESTAMP) \
-	-X github.com/open-policy-agent/opa/version.Hostname=$(BUILD_HOSTNAME)"
+	-X github.com/open-policy-agent/opa/version.Hostname=$(BUILD_HOSTNAME) \
+	-s"
 
 GO15VENDOREXPERIMENT := 1
 export GO15VENDOREXPERIMENT
@@ -47,12 +46,10 @@ generate:
 	$(GO) generate
 
 build: generate
-	$(GO) build -o $(BIN) -ldflags $(LDFLAGS)
+	CGO_ENABLED=0 $(GO) build -o $(BIN) -ldflags $(LDFLAGS)
 
-image:
-	@$(MAKE) build GOOS=linux
-	sed -e 's/GOARCH/$(GOARCH)/g' Dockerfile.in > .Dockerfile_$(GOARCH)
-	docker build -t $(IMAGE):$(VERSION)	-f .Dockerfile_$(GOARCH) .
+image: build
+	docker build -t $(IMAGE):$(VERSION) .
 
 push:
 	docker push $(IMAGE):$(VERSION)
@@ -92,5 +89,4 @@ fmt:
 	$(GO) fmt $(PACKAGES)
 
 clean:
-	rm -f opa_*_*
-	rm -f .Dockerfile_*
+	rm -f opa
