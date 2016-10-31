@@ -12,6 +12,8 @@
       {% assign doc_rego = page %}
     {% when 'REST_API_VERSION_1' %}
       {% assign doc_rest = page %}
+    {% when 'LANGUAGE_REFERENCE' %}
+      {% assign doc_refer = page %}
   {% endcase %}
 {% endfor %}
 
@@ -25,6 +27,9 @@
     </li>
     <li class="opa-header--abstract--nav-item{% if page.doc_id == doc_rego.doc_id %}--selected{% endif %}">
       {% if page.doc_id != doc_rego.doc_id %}<a class="opa-header--abstract--nav-link" href="{{doc_rego.url}}">{{ doc_rego.title }}</a>{% else %}{{ doc_rego.title }}{% endif %}
+    </li>
+    <li class="opa-header--abstract--nav-item{% if page.doc_id == doc_refer.doc_id %}--selected{% endif %}">
+      {% if page.doc_id != doc_refer.doc_id %}<a class="opa-header--abstract--nav-link" href="{{doc_refer.url}}">{{ doc_refer.title }}</a>{% else %}{{ doc_refer.title }}{% endif %}
     </li>
     <li class="opa-header--abstract--nav-item{% if page.doc_id == doc_rest.doc_id %}--selected{% endif %}">
       {% if page.doc_id != doc_rest.doc_id %}<a class="opa-header--abstract--nav-link" href="{{doc_rest.url}}">{{ doc_rest.title }}</a>{% else %}{{ doc_rest.title }}{% endif %}

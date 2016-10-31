@@ -2,9 +2,8 @@
 
 We use GitHub pages to host the website that includes all of the OPA documentation. In order to update the website, you need to have write permission on the open-policy-agent/opa repository.
 
-You also need to have [Jekyll](http://jekyllrb.com) installed to build the site. If you are not sure how to install Jekyll, see the link for details.
-
-Assuming you have Ruby installed, all you should need to do is run:
+You also need to have [Jekyll](http://jekyllrb.com) installed to build the site. The instructions below install it
+for you. Assuming you have Ruby installed, all you should need to do is run:
 
 ```
 gem install --user-install jekyll
@@ -14,7 +13,32 @@ gem install --user-install jekyll-contentblocks
 gem install --user-install jekyll-minifier
 ```
 
-To update the website perform the following steps:
+Changing the documentation on the live site requires two separate merges:
+
+1. Changes to documentation source files must be merged into the master branch.
+
+1. Website artifacts must be re-built and merged into the gh-pages branch.
+
+## Write and View Documentation Locally
+
+1. Start webserver on your local machine:
+
+    ```
+    cd opa/site
+    jekyll serve .
+    ```
+
+1. View docs in the browser.  After you make local changes, you can just refresh your browser to the latest version.
+
+    ```
+    http://localhost:4000/
+    ```
+
+Once you are happy with the changes, commit them and open a Pull Request against master.
+
+## Update Website Artifacts
+
+To update the live website, perform the following steps:
 
 1. Obtain a fresh copy of the repository
 
@@ -48,6 +72,4 @@ To update the website perform the following steps:
 
 ## REST API Examples
 
-The REST API specification contains examples that are generated manually by running
-`./_scripts/rest-examples/gen-examples.sh`. This script will launch OPA and
-execute a series of API calls to produce output can be copied into the specification.
+The REST API specification contains examples that are generated manually by running `./_scripts/rest-examples/gen-examples.sh`. This script will launch OPA and execute a series of API calls to produce output can be copied into the specification.

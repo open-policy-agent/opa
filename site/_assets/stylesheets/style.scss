@@ -315,8 +315,9 @@ strong {
 
   &--nav {
     bottom: 0;
+    float: left;
     left: -10px;
-    position: absolute;
+    position: relative;
     top: 0;
     width: 224px;
 
@@ -653,5 +654,20 @@ strong {
         content: "▼";
       }
     }
+  }
+}
+
+table {
+  border-collapse: collapse;
+
+  & td, & th {
+    border: solid 1px #ddd;
+
+    padding: 0.5em;
+    text-align: left;
+  }
+
+  & th {
+    font-weight: bold;
   }
 }
