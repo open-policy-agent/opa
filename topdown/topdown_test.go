@@ -473,6 +473,7 @@ func TestTopDownVirtualDocs(t *testing.T) {
 		{"input: set 2", []string{"p[x] :- q[1] = x", "q[x] :- a[i] = x"}, "[true]"},
 		{"input: set embedded", []string{`p[x] :- x = {"b": [q[2]]}`, `q[x] :- a[i] = x`}, `[{"b": [true]}]`},
 		{"input: set undefined", []string{"p = true :- q[1000]", "q[x] :- a[x] = y"}, ""},
+		{"input: set dereference error", []string{"p :- x = [1], q[x][0]", "q[[x]] :- a[_] = x"}, fmt.Errorf("evaluation error (code: 3): 1:15: q is a set but data.q[x][0] attempts to dereference lookup result")},
 		{"input: set ground var", []string{"p[x] :- x = 1, q[x]", "q[y] :- a = [1,2,3,4], a[y] = i"}, "[1]"},
 		{"input: set ground composite (1)", []string{
 			"p :- z = [[1,2], 2], q[z]",
@@ -511,6 +512,7 @@ func TestTopDownVirtualDocs(t *testing.T) {
 		{"output: set", []string{"p[x] :- q[x]", "q[y] :- a[i] = y"}, "[1,2,3,4]"},
 		{"output: set embedded", []string{`p[i] :- {i: [true]} = {i: [q[i]]}`, `q[x] :- d.e[i] = x`}, `["bar", "baz"]`},
 		{"output: set var binding", []string{"p[x] :- q[x]", "q[y] :- y = [i, j], i = 1, j = 2"}, `[[1,2]]`},
+		{"output: set dereference error", []string{"p :- q[x][0]", "q[[x]] :- a[_] = x"}, fmt.Errorf("evaluation error (code: 3): 1:6: q is a set but data.q[x][0] attempts to dereference lookup result")},
 		{"output: object key", []string{"p[x] :- q[x] = 4", "q[i] = x :- a[i] = x"}, "[3]"},
 		{"output: object value", []string{"p[x] = y :- q[x] = y", "q[k] = v :- b[k] = v"}, `{"v1": "hello", "v2": "goodbye"}`},
 		{"output: object embedded", []string{"p[k] = v :- {k: [q[k]]} = {k: [v]}", `q[x] = y :- b[x] = y`}, `{"v1": "hello", "v2": "goodbye"}`},
