@@ -331,6 +331,13 @@ func typeErrObjectKey(rule *ast.Rule, v ast.Value) error {
 	}
 }
 
+func typeErrSetLookupDereference(rule *ast.Rule, ref ast.Ref, loc *ast.Location) error {
+	return &Error{
+		Code:    TypeErr,
+		Message: loc.Format("%v is a set but %v attempts to dereference lookup result", rule.Name, ref),
+	}
+}
+
 // Iterator is the interface for processing contexts.
 type Iterator func(*Context) error
 
@@ -1135,6 +1142,9 @@ func evalRefRule(ctx *Context, ref ast.Ref, path ast.Ref, rules []*ast.Rule, ite
 	case ast.PartialSetDoc:
 		if len(suffix) == 0 {
 			return fmt.Errorf("not implemented: full evaluation of virtual set documents: %v", ref)
+		}
+		if len(suffix) != 1 {
+			return typeErrSetLookupDereference(rules[0], ref, ctx.Current().Location)
 		}
 		for i, rule := range rules {
 			err := evalRefRulePartialSetDoc(ctx, ref, path, rule, i > 0, iter)
