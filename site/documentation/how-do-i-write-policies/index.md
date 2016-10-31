@@ -176,7 +176,13 @@ undefined
 true
 ```
 
-If you made it this far, congratulations. This section introduced the main aspects of Rego. The rest of this document describes the individual aspects of Rego in detail and is useful as a reference when reading and writing policy. Rego’s syntax is defined at the end of this document in the [Rego Grammar](#grammar) section.
+If you made it this far, congratulations!
+
+This section introduced the main aspects of Rego. The rest of this document
+walks through each part of the language in more detail.
+
+For a concise reference, see the [Language
+Reference](/documentation/references/language) document.
 
 ## <a name="scalar-values"></a> Scalar Values
 
@@ -537,7 +543,7 @@ First, the rule defines a set document where the contents are defined by the var
 <name> <key>? <value>? <body>?
 ```
 
-For a more formal definition of the rule syntax, see the [Rego Grammar](#grammar) section at the end of this document.
+For a more formal definition of the rule syntax, see the [Language Reference](/documentation/references/language#grammar) document.
 
 > Set documents are collections of values without keys. OPA represents set documents as arrays when serializing to JSON or other formats which do not support a set data type. The important distinction between sets and arrays or objects is that sets are unkeyed while arrays and objects are keyed, i.e., you cannot refer to the index of an element within a set.
 {: .opa-tip}
@@ -754,88 +760,57 @@ Unlike the equality operator, these operators do not bind variables contained in
 
 ## <a name="built-ins"></a> Built-in Functions
 
-In some cases, rules must perform simple arithmetic, aggregation, and so son. Rego provides a number of built-in functions (or “built-ins”) for performing these tasks.
+In some cases, rules must perform simple arithmetic, aggregation, and so on.
+Rego provides a number of built-in functions (or “built-ins”) for performing
+these tasks.
 
-Built-ins can be easily recognized by their syntax. All built-ins have the following form:
+Built-ins can be easily recognized by their syntax. All built-ins have the
+following form:
 
 ```
 <name>(<arg-1>, <arg-2>, ..., <arg-n>)
 ```
 
-Built-ins usually take one or more input values and produce at least one output value. Unless stated otherwise, all built-ins accept values or variables as output arguments.
+Built-ins usually take one or more input values and produce at least one output
+value. Unless stated otherwise, all built-ins accept values or variables as
+output arguments.
+
+See the [Language Reference](/documentation/references/language) document for
+details on each built-in function.
 
 ### Arithmetic
 
 ```ruby
-# plus(a, b, output)
-#
-# Adds two numbers.
-
 > plus(1, 2, x)
 +---+
 | x |
 +---+
 | 3 |
 +---+
-```
-
-```ruby
-# minus(a, b, output)
-#
-# Subtracts two numbers.
-
 > minus(13, 5, x)
 +---+
 | x |
 +---+
 | 8 |
 +---+
-```
-
-```ruby
-# mul(a, b, output)
-#
-# Multiplies two numbers.
-
 > mul(2, 4, x)
 +---+
 | x |
 +---+
 | 8 |
 +---+
-```
-
-```ruby
-# div(a, b, output)
-#
-# Divides two numbers.
-
 > div(16, 4, x)
 +---+
 | x |
 +---+
 | 4 |
 +---+
-```
-
-```ruby
-# round(number, output)
-#
-# Rounds the number to its nearest integer value.
-
 > round(3.5, x)
 +---+
 | x |
 +---+
 | 4 |
 +---+
-```
-
-```ruby
-# abs(number, output)
-#
-# Calculates the absolute value of a number.
-
 > abs(-1, x)
 +---+
 | x |
@@ -847,37 +822,18 @@ Built-ins usually take one or more input values and produce at least one output 
 ### Aggregation
 
 ```ruby
-# count(scalar, output)
-#
-# Counts the number of elements in the array or object or the number of
-# characters in a string.
-
 > count([1,2,3], x)
 +---+
 | x |
 +---+
 | 3 |
 +---+
-```
-
-```ruby
-# sum(array, output)
-#
-# Sums the numbers in an array.
-
 > sum([1,2,3], x)
 +---+
 | x |
 +---+
 | 6 |
 +---+
-```
-
-```ruby
-# max(array, output)
-#
-# Calculates the maximum value in an array.
-
 > max([1,2,3], x)
 +---+
 | x |
@@ -889,10 +845,6 @@ Built-ins usually take one or more input values and produce at least one output 
 ### Casting
 
 ```ruby
-# to_number(scalar, output)
-#
-# Converts a scalar value to a number.
-
 > to_number("3.14", x)
 +------+
 |  x   |
@@ -904,10 +856,6 @@ Built-ins usually take one or more input values and produce at least one output 
 ### Regular Expressions
 
 ```ruby
-# re_match(pattern, value)
-#
-# Evaluates to true if value matches regular expression defined by pattern string.
-
 > pattern = "^us-west-1.*$"
 > re_match(pattern, "us-west-1.production")
 true
@@ -918,22 +866,12 @@ false
 ### Strings
 
 ```ruby
-# format_int(number, base, output)
-#
-# Returns the string representation of the number in the given base after converting it to an integer value.
-
 > format_int(15.5, 16, x)
 +-----+
 |  x  |
 +-----+
 | "f" |
 +-----+
-```
-
-```ruby
-# concat(join, array, output)
-#
-# Returns the string produced by concatenating the elements in array with the join string.
 > concat("/", ["", "foo", "bar", "baz"], x)
 +----------------+
 |       x        |
@@ -1028,53 +966,5 @@ containers = [
     }
 ]
 ```
-
-## <a name="grammar"></a> Rego Grammar
-
-Rego’s syntax is defined by the following grammar:
-
-```
-module         = package { import } policy
-package        = "package" ref
-import         = "import" package [ "as" var ]
-policy         = { rule }
-rule           = rule-head [ ":-" rule-body ]
-rule-head      = var [ "[" var "]" ] [ = term ]
-rule-body      = [ literal { "," literal } ]
-literal        = expr | "not" expr
-expr           = term | expr-builtin | expr-infix
-expr-builtin   = var "(" [ term { , term } ] ")"
-expr-infix     = term bool-operator term
-term           = ref | var | scalar | array | object | array-compr
-array-compr    = "[" term "|" rule-body "]"
-bool-operator  = "=" | "!=" | "<" | ">" | ">=" | "<="
-ref            = var { ref-arg }
-ref-arg        = ref-arg-dot | ref-arg-brack
-ref-arg-brack  = "[" ( scalar | var | "_" ) "]"
-ref-arg-dot    = "." var
-var            = ALPHA { ALPHA | DIGIT | "_" }
-scalar         = STRING | NUMBER | TRUE | FALSE | NULL
-array          = "[" term { "," term } "]"
-object         = "{" object-item { "," object-item } "}"
-object-item    = ( scalar | ref | var ) ":" term
-```
-{: .opa-collapse--ignore}
-
-The grammar defined above makes use of the following syntax. See [the Wikipedia page on EBNF](https://en.wikipedia.org/wiki/Extended_Backus–Naur_Form) for more details:
-
-```
-[]     optional (zero or one instances)
-{}     repetition (zero or more instances)
-|      alteration (one of the instances)
-()     grouping (order of expansion)
-STRING JSON string
-NUMBER JSON number
-TRUE   JSON true
-FALSE  JSON false
-NULL   JSON null
-ALPHA  ASCII characters A-Z and a-z
-DIGIT  ASCII characters 0-9
-```
-{: .opa-collapse--ignore}
 
 {% endcontentfor %}
