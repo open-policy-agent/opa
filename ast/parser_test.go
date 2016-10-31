@@ -64,8 +64,21 @@ func TestVarTerms(t *testing.T) {
 	assertParseOneTerm(t, "var", "foo0", VarTerm("foo0"))
 	assertParseError(t, "non-var", "foo-bar")
 	assertParseError(t, "non-var2", "foo-7")
-	for _, v := range Keywords {
-		assertParseError(t, "keyword", v)
+	keywords := [...]string{
+		"not",
+		"package",
+		"import",
+		"true",
+		"false",
+		"null",
+	}
+	for _, v := range keywords {
+		term, err := ParseTerm(v)
+		if err == nil {
+			if _, ok := term.Value.(Var); ok {
+				t.Errorf("Expected %v to return parse error or non-var term: %v", v, t)
+			}
+		}
 	}
 }
 
@@ -318,10 +331,35 @@ func TestRule(t *testing.T) {
 		),
 	})
 
-	assertParseErrorEquals(t, "object composite key", "p[[x,y]] = z :- true", "head of object rule must have string or var key ([x, y] is not allowed)")
-	assertParseErrorEquals(t, "ref in key", "p[[a[i]]] :- true", "head cannot contain references (a[i] appears in key)")
+	assertParseRule(t, "refs in head", "p = data.foo[x] :- x = 1", &Rule{
+		Name: Var("p"),
+		Value: &Term{
+			Value: MustParseRef("data.foo[x]"),
+		},
+		Body: MustParseBody("x = 1"),
+	})
+
+	assertParseRule(t, "refs in head", "p[data.foo[x]] :- true", &Rule{
+		Name: Var("p"),
+		Key: &Term{
+			Value: MustParseRef("data.foo[x]"),
+		},
+		Body: MustParseBody("true"),
+	})
+
+	assertParseRule(t, "refs in head", "p[data.foo[x]] = data.bar[y] :- true", &Rule{
+		Name: Var("p"),
+		Key: &Term{
+			Value: MustParseRef("data.foo[x]"),
+		},
+		Value: &Term{
+			Value: MustParseRef("data.bar[y]"),
+		},
+		Body: MustParseBody("true"),
+	})
+
+	assertParseErrorEquals(t, "object composite key", "p[[x,y]] = z :- true", "head of object rule must have string, var, or ref key ([x, y] is not allowed)")
 	assertParseErrorEquals(t, "closure in key", "p[[1 | true]] :- true", "head cannot contain closures ([1 | true] appears in key)")
-	assertParseErrorEquals(t, "ref in value", "p = [a[i]] :- true", "head cannot contain references (a[i] appears in value)")
 	assertParseErrorEquals(t, "closure in value", "p = [[1 | true]] :- true", "head cannot contain closures ([1 | true] appears in value)")
 
 	// TODO(tsandall): improve error checking here. This is a common mistake

@@ -15,12 +15,6 @@ import (
 // prefixed with the DefaultRootDocument value.
 var DefaultRootDocument = VarTerm("data")
 
-// Keywords is an array of reserved keywords in the language.
-// These are reserved names that cannot be used for variables.
-var Keywords = [...]string{
-	"package", "import", "not",
-}
-
 // ReservedVars is the set of reserved variable names.
 var ReservedVars = NewVarSet(DefaultRootDocument.Value.(Var))
 

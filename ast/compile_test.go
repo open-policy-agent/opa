@@ -94,44 +94,6 @@ func TestCompilerExample(t *testing.T) {
 	assertNotFailed(t, c)
 }
 
-func TestCompilerSetExports(t *testing.T) {
-	c := NewCompiler()
-	c.Modules = getCompilerTestModules()
-	compileStages(c, "", "setExports")
-
-	assertNotFailed(t, c)
-	assertExports(t, c, "data.a.b.d", []string{"t", "x"})
-	assertExports(t, c, "data.a.b.c", []string{"p", "q", "r", "z"})
-	assertExports(t, c, "data.a.b.empty", nil)
-}
-
-func TestCompilerSetGlobals(t *testing.T) {
-	c := NewCompiler()
-	c.Modules = getCompilerTestModules()
-	compileStages(c, "", "setGlobals")
-
-	assertNotFailed(t, c)
-	assertGlobals(t, c, c.Modules["mod4"], "{}")
-	assertGlobals(t, c, c.Modules["mod1"], `{
-		r: data.a.b.c.r,
-		p: data.a.b.c.p,
-		q: data.a.b.c.q,
-		z: data.a.b.c.z,
-		foo: data.x.y.z,
-		k: data.g.h.k}`)
-	assertGlobals(t, c, c.Modules["mod3"], `{
-		t: data.a.b.d.t,
-		x: data.a.b.d.x,
-		y: x,
-		req: req}`)
-	assertGlobals(t, c, c.Modules["mod2"], `{
-		r: data.a.b.c.r,
-		p: data.x.y.p,
-		q: data.a.b.c.q,
-		z: data.a.b.c.z,
-		bar: data.bar}`)
-}
-
 func TestCompilerCheckSafetyHead(t *testing.T) {
 	c := NewCompiler()
 	c.Modules = getCompilerTestModules()
@@ -247,10 +209,10 @@ func TestCompilerCheckSafetyBodyReorderingClosures(t *testing.T) {
 
 	result1 := c.Modules["mod"].Rules[0].Body
 	expected1 := MustParseBody(`
-		v     = [null | true],
-		b[i]  = j,
-		xs    = [x | a = [y | y = c[j], y != 1], a[i] = x],
-		xs[j] > 0
+		v          = [null | true],
+		data.b[i]  = j,
+		xs         = [x | a = [y | y = data.c[j], y != 1], a[i] = x],
+		xs[j]      > 0
 	`)
 	if !result1.Equal(expected1) {
 		t.Errorf("Expected reordered body to be equal to:\n%v\nBut got:\n%v", expected1, result1)
@@ -258,8 +220,8 @@ func TestCompilerCheckSafetyBodyReorderingClosures(t *testing.T) {
 
 	result2 := c.Modules["mod"].Rules[1].Body
 	expected2 := MustParseBody(`
-		_ = [x | x = b[i]],
-		_ = b[j],
+		_ = [x | x = data.b[i]],
+		_ = data.b[j],
 		_ = [x | x = true, x != false],
 		true != false,
 		_ = [x | data.foo[_] = x],
@@ -278,8 +240,8 @@ func TestCompilerCheckSafetyBodyErrors(t *testing.T) {
 		"newMod": MustParseModule(`
 	package a.b
 
-	import a.b.c as foo
-	import x as bar
+	import aref.b.c as foo
+	import avar as bar
 	import data.m.n as baz
 
 	# a would be unbound
@@ -328,6 +290,8 @@ func TestCompilerCheckSafetyBodyErrors(t *testing.T) {
 	negatedImport1 = true :- not foo
 	negatedImport2 = true :- not bar
 	negatedImport3 = true :- not baz
+
+	rewriteUnsafe[{"foo": dead[i]}] :- true  # dead is not imported
 	`)}
 	compileStages(c, "", "checkSafetyBody")
 
@@ -360,6 +324,7 @@ func TestCompilerCheckSafetyBodyErrors(t *testing.T) {
 		makeErrMsg("unsafeClosure1", "x"),
 		makeErrMsg("unsafeClosure2", "y"),
 		makeErrMsg("unsafeNestedHead", "dead"),
+		makeErrMsg("rewriteUnsafe", "dead"),
 	}
 
 	result := compilerErrsToStringSlice(c.Errors)
@@ -407,8 +372,13 @@ func TestCompilerBuiltins(t *testing.T) {
 func TestCompilerResolveAllRefs(t *testing.T) {
 	c := NewCompiler()
 	c.Modules = getCompilerTestModules()
+	c.Modules["head"] = MustParseModule(`package head
+	import x.y.foo
+	import data.doc1 as bar
+	import qux as baz
+	p[foo[bar[i]]] = {"baz": baz} :- true
+	`)
 	compileStages(c, "", "resolveAllRefs")
-
 	assertNotFailed(t, c)
 
 	// Basic test cases.
@@ -476,6 +446,36 @@ func TestCompilerResolveAllRefs(t *testing.T) {
 	nested3 := mod6.Rules[3].Body[0].Terms.(*Term)
 	assertTermEqual(t, nested3, MustParseTerm("data.x[data.a.b.nested.r]"))
 
+	// Refs in head.
+	mod7 := c.Modules["head"]
+	assertTermEqual(t, mod7.Rules[0].Key, MustParseTerm("x.y.foo[data.doc1[i]]"))
+	assertTermEqual(t, mod7.Rules[0].Value, MustParseTerm(`{"baz": qux}`))
+}
+
+func TestCompilerRewriteRefsInHead(t *testing.T) {
+	c := NewCompiler()
+	c.Modules["head"] = MustParseModule(`package head
+	import x.y.foo
+	import data.doc1 as bar
+	import qux as baz
+	import data.doc2 as corge
+	p[foo[bar[i]]] = {"baz": baz, "corge": corge} :- true
+	`)
+
+	compileStages(c, "", "rewriteRefsInHead")
+	assertNotFailed(t, c)
+
+	rule := c.Modules["head"].Rules[0]
+
+	assertTermEqual(t, rule.Key, MustParseTerm("__local0__"))
+	assertTermEqual(t, rule.Value, MustParseTerm("__local1__"))
+
+	if len(rule.Body) != 3 {
+		t.Fatalf("Expected rule body to contain 3 expressions but got: %v", rule)
+	}
+
+	assertExprEqual(t, rule.Body[1], MustParseExpr("__local0__ = x.y.foo[data.doc1[i]]"))
+	assertExprEqual(t, rule.Body[2], MustParseExpr(`__local1__ = {"baz": qux, "corge": data.doc2}`))
 }
 
 func TestCompilerSetRuleGraph(t *testing.T) {
@@ -778,84 +778,6 @@ func TestRecompile(t *testing.T) {
 	assertNotFailed(t, c)
 	c.Compile(c.Modules)
 	assertNotFailed(t, c)
-}
-
-func assertExports(t *testing.T, c *Compiler, path string, expected []string) {
-
-	p := MustParseRef(path)
-	v, ok := c.Exports.Get(p)
-
-	if len(expected) == 0 {
-		if ok {
-			t.Errorf("Unexpected exports for %v: %v", p, v)
-		}
-		return
-	}
-
-	if !ok {
-		t.Errorf("Missing exports for: %v", p)
-		return
-	}
-
-	// Must copy the vars into a string slice because Go will not
-	// allow type conversion.
-	r := v.([]Var)
-	s := []string{}
-	for _, x := range r {
-		s = append(s, string(x))
-	}
-
-	sort.Strings(s)
-	sort.Strings(expected)
-
-	if !reflect.DeepEqual(expected, s) {
-		t.Errorf("Wrong exports: expected %v but got: %v", expected, s)
-	}
-}
-
-func assertGlobals(t *testing.T, c *Compiler, mod *Module, expected string) {
-
-	o := MustParseTerm(expected).Value.(Object)
-
-	e := map[Var]Value{}
-	for _, i := range o {
-		k := i[0].Value.(Var)
-		v := i[1].Value
-		e[k] = v
-	}
-
-	if len(e) == 0 {
-		if c.Globals[mod] != nil {
-			t.Errorf("Unexpected globals: %v", c.Globals[mod])
-		}
-		return
-	}
-
-	r := c.Globals[mod]
-
-	// Diff the maps...
-	if len(r) != len(e) {
-		t.Errorf("Wrong globals: expected %d but got %v", len(e), len(r))
-		return
-	}
-
-	for ek, ev := range e {
-		rv := r[ek]
-		if rv == nil {
-			t.Errorf("Wrong globals: missing %v:%v", ek, ev)
-			continue
-		}
-		if !r[ek].Equal(ev) {
-			t.Errorf("Wrong globals: expected %v:%v but got %v:%v", ek, ev, ek, r[ek])
-		}
-	}
-
-	for rk, rv := range r {
-		ev := e[rk]
-		if ev == nil {
-			t.Errorf("Wrong globals: unexpected %v:%v", rk, rv)
-		}
-	}
 }
 
 func assertNotFailed(t *testing.T, c *Compiler) {
