@@ -98,24 +98,23 @@ dependencies or update existing dependencies. If you are not changing
 dependencies you do not have to install Glide, all of the dependencies are
 contained in the vendor directory.
 
-If you need to add a dependency to the project:
+Update `glide.yaml` if you are adding a new dependency and then run:
 
-1. Run `glide get <package> --update-vendored` to download the package.
-    - This command should be used instead of `go get <package>`.
-	- The package will be stored under the vendor directory.
-	- The glide.yaml file will be updated.
-1. Manually remove the VCS directories (e.g., .git, .hg, etc.) from the new
-   vendor directories.
-1. Commit the changes in glide.yaml, glide.lock, and new vendor directories.
+```
+glide update --strip-vendor
+```
 
-If you need to update the dependencies:
+This assumes you have Glide v0.12 or newer installed.
 
-1. Run `glide update --update-vendored`.
-1. Commit the changes to the glide.lock file and any files under the vendor
-   directory.
+After updating dependencies, be sure to check if the parser-generator ("pigeon")
+was updated. If it was, re-generate the parser and commit the changes.
 
 ## Rego
 
-If you need to modify the Rego syntax you must update ast/rego.peg. Both `make build` and `make test` will re-generate the parser but if you want to test the parser generation explicitly you can run `make generate`.
+If you need to modify the Rego syntax you must update ast/rego.peg. Both `make
+build` and `make test` will re-generate the parser but if you want to test the
+parser generation explicitly you can run `make generate`.
 
-If you are modifying the Rego syntax you must commit the parser source file (ast/parser.go) that `make generate` produces when you are done. The generated code is kept in the repository so that commands such as `go get` work.
+If you are modifying the Rego syntax you must commit the parser source file
+(ast/parser.go) that `make generate` produces when you are done. The generated
+code is kept in the repository so that commands such as `go get` work.
