@@ -8,7 +8,6 @@ import (
 	"fmt"
 
 	"github.com/open-policy-agent/opa/ast"
-	"github.com/open-policy-agent/opa/util"
 )
 
 func evalEq(ctx *Context, expr *ast.Expr, iter Iterator) error {
@@ -23,17 +22,27 @@ func evalEq(ctx *Context, expr *ast.Expr, iter Iterator) error {
 }
 
 func evalEqGround(ctx *Context, a ast.Value, b ast.Value, iter Iterator) error {
-	av, err := ValueToInterface(a, ctx)
+
+	ai, err := ast.TransformRefs(a, func(x ast.Ref) (ast.Value, error) {
+		return lookupValue(ctx, x)
+	})
+
 	if err != nil {
 		return err
 	}
-	bv, err := ValueToInterface(b, ctx)
-	if err != nil {
-		return err
-	}
-	if util.Compare(av, bv) == 0 {
+
+	a = ai.(ast.Value)
+
+	bi, err := ast.TransformRefs(b, func(x ast.Ref) (ast.Value, error) {
+		return lookupValue(ctx, x)
+	})
+
+	b = bi.(ast.Value)
+
+	if cmp := ast.Compare(a, b); cmp == 0 {
 		return iter(ctx)
 	}
+
 	return nil
 }
 

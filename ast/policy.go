@@ -8,6 +8,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+
+	"github.com/open-policy-agent/opa/util"
 )
 
 // DefaultRootDocument is the default root document.
@@ -86,30 +88,21 @@ type (
 	}
 )
 
-// Equal returns true if this Module equals the other Module.
-// Two modules are equal if they contain the same package,
-// ordered imports, and ordered rules.
+// Compare returns an integer indicating whether mod is less than, equal to,
+// or greater than other.
+func (mod *Module) Compare(other *Module) int {
+	if cmp := mod.Package.Compare(other.Package); cmp != 0 {
+		return cmp
+	}
+	if cmp := importsCompare(mod.Imports, other.Imports); cmp != 0 {
+		return cmp
+	}
+	return rulesCompare(mod.Rules, other.Rules)
+}
+
+// Equal returns true if mod equals other.
 func (mod *Module) Equal(other *Module) bool {
-	if !mod.Package.Equal(other.Package) {
-		return false
-	}
-	if len(mod.Imports) != len(other.Imports) {
-		return false
-	}
-	for i := range mod.Imports {
-		if !mod.Imports[i].Equal(other.Imports[i]) {
-			return false
-		}
-	}
-	if len(mod.Rules) != len(other.Rules) {
-		return false
-	}
-	for i := range mod.Rules {
-		if !mod.Rules[i].Equal(other.Rules[i]) {
-			return false
-		}
-	}
-	return true
+	return mod.Compare(other) == 0
 }
 
 func (mod *Module) String() string {
@@ -126,9 +119,15 @@ func (mod *Module) String() string {
 	return strings.Join(buf, "\n")
 }
 
-// Equal returns true if this Package has the same path as the other Package.
+// Compare returns an integer indicating whether pkg is less than, equal to,
+// or greater than other.
+func (pkg *Package) Compare(other *Package) int {
+	return Compare(pkg.Path, other.Path)
+}
+
+// Equal returns true if pkg is equal to other.
 func (pkg *Package) Equal(other *Package) bool {
-	return pkg.Path.Equal(other.Path)
+	return pkg.Compare(other) == 0
 }
 
 // Loc returns the location of the Package in the definition.
@@ -144,9 +143,18 @@ func (pkg *Package) String() string {
 	return fmt.Sprintf("package %v", path)
 }
 
-// Equal returns true if this Import has the same path and alias as the other Import.
+// Compare returns an integer indicating whether imp is less than, equal to,
+// or greater than other.
+func (imp *Import) Compare(other *Import) int {
+	if cmp := Compare(imp.Path, other.Path); cmp != 0 {
+		return cmp
+	}
+	return Compare(imp.Alias, other.Alias)
+}
+
+// Equal returns true if imp is equal to other.
 func (imp *Import) Equal(other *Import) bool {
-	return imp.Alias.Equal(other.Alias) && imp.Path.Equal(other.Path)
+	return imp.Compare(other) == 0
 }
 
 // Loc returns the location of the Import in the definition.
@@ -162,18 +170,24 @@ func (imp *Import) String() string {
 	return strings.Join(buf, " ")
 }
 
-// Equal returns true if this Rule has the same name, arguments, and body as the other Rule.
+// Compare returns an integer indicating whether rule is less than, equal to,
+// or greater than other.
+func (rule *Rule) Compare(other *Rule) int {
+	if cmp := Compare(rule.Name, other.Name); cmp != 0 {
+		return cmp
+	}
+	if cmp := Compare(rule.Key, other.Key); cmp != 0 {
+		return cmp
+	}
+	if cmp := Compare(rule.Value, other.Value); cmp != 0 {
+		return cmp
+	}
+	return rule.Body.Compare(other.Body)
+}
+
+// Equal returns true if rule is equal to other.
 func (rule *Rule) Equal(other *Rule) bool {
-	if !rule.Name.Equal(other.Name) {
-		return false
-	}
-	if !rule.Key.Equal(other.Key) {
-		return false
-	}
-	if !rule.Value.Equal(other.Value) {
-		return false
-	}
-	return rule.Body.Equal(other.Body)
+	return rule.Compare(other) == 0
 }
 
 // DocKind represents the collection of document types that can be produced by rules.
@@ -265,6 +279,29 @@ func NewBody(exprs ...*Expr) Body {
 	return Body(exprs)
 }
 
+// Compare returns an integer indicating whether body is less than, equal to,
+// or greater than other.
+//
+// If body is a subset of other, it is considered less than (and vice versa).
+func (body Body) Compare(other Body) int {
+	minLen := len(body)
+	if len(other) < minLen {
+		minLen = len(other)
+	}
+	for i := 0; i < minLen; i++ {
+		if cmp := body[i].Compare(other[i]); cmp != 0 {
+			return cmp
+		}
+	}
+	if len(body) < len(other) {
+		return -1
+	}
+	if len(other) < len(body) {
+		return 1
+	}
+	return 0
+}
+
 // Contains returns true if this body contains the given expression.
 func (body Body) Contains(x *Expr) bool {
 	for _, e := range body {
@@ -276,17 +313,8 @@ func (body Body) Contains(x *Expr) bool {
 }
 
 // Equal returns true if this Body is equal to the other Body.
-// Two bodies are equal if consist of equal, ordered expressions.
 func (body Body) Equal(other Body) bool {
-	if len(body) != len(other) {
-		return false
-	}
-	for i := range body {
-		if !body[i].Equal(other[i]) {
-			return false
-		}
-	}
-	return true
+	return body.Compare(other) == 0
 }
 
 // Hash returns the hash code for the Body.
@@ -349,30 +377,43 @@ func (expr *Expr) Complement() *Expr {
 	return &cpy
 }
 
-// Equal returns true if this Expr equals the other Expr.  Two expressions are
-// considered equal if both expressions are negated (or not), exist at the same
-// position in the containing query, are built-ins (or not), and have the same
-// ordered terms.
+// Equal returns true if this Expr equals the other Expr.
 func (expr *Expr) Equal(other *Expr) bool {
-	if expr.Negated != other.Negated {
-		return false
+	return expr.Compare(other) == 0
+}
+
+// Compare returns an integer indicating whether expr is less than, equal to,
+// or greater than other.
+//
+// Expressions are compared as follows:
+//
+// 1. Negated expressions are always greater than than non-negated expressions.
+// 2. Preceding expression (by Index) is always less than the other expression.
+// 3. Single term expressions are always less than built-in expressions.
+//
+// Otherwise, the expression terms are compared normally.
+func (expr *Expr) Compare(other *Expr) int {
+	if cmp := util.Compare(expr.Negated, other.Negated); cmp != 0 {
+		return cmp
 	}
-	if expr.Index != other.Index {
-		return false
+	if cmp := util.Compare(float64(expr.Index), float64(other.Index)); cmp != 0 {
+		return cmp
 	}
 	switch t := expr.Terms.(type) {
 	case *Term:
-		switch u := other.Terms.(type) {
-		case *Term:
-			return t.Equal(u)
+		u, ok := other.Terms.(*Term)
+		if !ok {
+			return -1
 		}
+		return Compare(t.Value, u.Value)
 	case []*Term:
-		switch u := other.Terms.(type) {
-		case []*Term:
-			return termSliceEqual(t, u)
+		u, ok := other.Terms.([]*Term)
+		if !ok {
+			return 1
 		}
+		return termSliceCompare(t, u)
 	}
-	return false
+	panic(fmt.Sprintf("illegal value: %T", expr.Terms))
 }
 
 // Hash returns the hash code of the Expr.
