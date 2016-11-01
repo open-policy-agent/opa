@@ -435,6 +435,11 @@ func PlugTerm(term *ast.Term, binding Binding) *ast.Term {
 		plugged.Value = PlugValue(v, binding)
 		return &plugged
 
+	case *ast.Set:
+		plugged := *term
+		plugged.Value = PlugValue(v, binding)
+		return &plugged
+
 	case *ast.ArrayComprehension:
 		plugged := *term
 		plugged.Value = PlugValue(v, binding)
@@ -489,6 +494,13 @@ func PlugValue(v ast.Value, binding func(ast.Value) ast.Value) ast.Value {
 			k := PlugTerm(e[0], binding)
 			v := PlugTerm(e[1], binding)
 			buf[i] = [...]*ast.Term{k, v}
+		}
+		return buf
+
+	case *ast.Set:
+		buf := &ast.Set{}
+		for _, e := range *v {
+			buf.Add(PlugTerm(e, binding))
 		}
 		return buf
 
@@ -548,15 +560,6 @@ func Query(params *QueryParams) (interface{}, error) {
 		}
 	}
 
-	// TODO(tsandall): set literals: once they are supported, this special case can
-	// be removed.
-	if rs := params.Compiler.GetRulesExact(ref); rs != nil {
-		switch rs[0].DocKind() {
-		case ast.PartialSetDoc:
-			return queryPartialSetDoc(params, rs)
-		}
-	}
-
 	// Construct and execute a query to obtain the value for the reference.
 	query := ast.NewBody(ast.Equality.Expr(ast.RefTerm(ref...), ast.Wildcard))
 	ctx := params.NewContext(query)
@@ -584,6 +587,18 @@ func (undefined Undefined) String() string {
 	return "<undefined>"
 }
 
+// ResolveRefs returns an AST value obtained by replacing references in v with
+// values from storage.
+func ResolveRefs(v ast.Value, ctx *Context) (ast.Value, error) {
+	result, err := ast.TransformRefs(v, func(r ast.Ref) (ast.Value, error) {
+		return lookupValue(ctx, r)
+	})
+	if err != nil {
+		return nil, err
+	}
+	return result.(ast.Value), nil
+}
+
 // ValueToInterface returns the underlying Go value associated with an AST value.
 // If the value is a reference, the reference is fetched from storage. Composite
 // AST values such as objects and arrays are converted recursively.
@@ -591,7 +606,6 @@ func ValueToInterface(v ast.Value, ctx *Context) (interface{}, error) {
 
 	switch v := v.(type) {
 
-	// Scalars easily convert to native values.
 	case ast.Null:
 		return nil, nil
 	case ast.Boolean:
@@ -601,7 +615,6 @@ func ValueToInterface(v ast.Value, ctx *Context) (interface{}, error) {
 	case ast.String:
 		return string(v), nil
 
-	// Recursively convert array into []interface{}...
 	case ast.Array:
 		buf := []interface{}{}
 		for _, x := range v {
@@ -613,7 +626,6 @@ func ValueToInterface(v ast.Value, ctx *Context) (interface{}, error) {
 		}
 		return buf, nil
 
-	// Recursively convert object into map[string]interface{}...
 	case ast.Object:
 		buf := map[string]interface{}{}
 		for _, x := range v {
@@ -630,6 +642,17 @@ func ValueToInterface(v ast.Value, ctx *Context) (interface{}, error) {
 				return nil, err
 			}
 			buf[asStr] = v
+		}
+		return buf, nil
+
+	case *ast.Set:
+		buf := []interface{}{}
+		for _, x := range *v {
+			x1, err := ValueToInterface(x.Value, ctx)
+			if err != nil {
+				return nil, err
+			}
+			buf = append(buf, x1)
 		}
 		return buf, nil
 
@@ -1141,7 +1164,7 @@ func evalRefRule(ctx *Context, ref ast.Ref, path ast.Ref, rules []*ast.Rule, ite
 
 	case ast.PartialSetDoc:
 		if len(suffix) == 0 {
-			return fmt.Errorf("not implemented: full evaluation of virtual set documents: %v", ref)
+			return evalRefRulePartialSetDocFull(ctx, ref, rules, iter)
 		}
 		if len(suffix) != 1 {
 			return typeErrSetLookupDereference(rules[0], ref, ctx.Current().Location)
@@ -1466,11 +1489,47 @@ func evalRefRulePartialSetDoc(ctx *Context, ref ast.Ref, path ast.Ref, rule *ast
 	return err
 }
 
+func evalRefRulePartialSetDocFull(ctx *Context, ref ast.Ref, rules []*ast.Rule, iter Iterator) error {
+
+	result := &ast.Set{}
+
+	for i, rule := range rules {
+
+		bindings := ast.NewValueMap()
+		child := ctx.Child(rule.Body, bindings)
+
+		if i == 0 {
+			child.traceEnter(rule)
+		} else {
+			child.traceRedo(rule)
+		}
+
+		err := evalContext(child, func(child *Context) error {
+			value := PlugValue(rule.Key.Value, child.Binding)
+			result.Add(&ast.Term{Value: value})
+			child.traceExit(rule)
+			child.traceRedo(rule)
+			return nil
+		})
+
+		if err != nil {
+			return err
+		}
+	}
+
+	return Continue(ctx, ref, result, iter)
+}
+
 func evalRefRuleResult(ctx *Context, ref ast.Ref, suffix ast.Ref, result ast.Value, iter Iterator) error {
 
 	s := make(ast.Ref, len(suffix))
+
 	for i := range suffix {
 		s[i] = PlugTerm(suffix[i], ctx.Binding)
+	}
+
+	if set, ok := result.(*ast.Set); ok {
+		return evalRefRuleResultSet(ctx, set, ref, s, iter)
 	}
 
 	return evalRefRuleResultRec(ctx, result, s, ast.Ref{}, func(ctx *Context, v ast.Value) error {
@@ -1482,6 +1541,7 @@ func evalRefRuleResultRec(ctx *Context, v ast.Value, ref, path ast.Ref, iter fun
 	if len(ref) == 0 {
 		return iter(ctx, v)
 	}
+
 	switch v := v.(type) {
 	case ast.Array:
 		return evalRefRuleResultRecArray(ctx, v, ref, path, iter)
@@ -1490,6 +1550,7 @@ func evalRefRuleResultRec(ctx *Context, v ast.Value, ref, path ast.Ref, iter fun
 	case ast.Ref:
 		return evalRefRuleResultRecRef(ctx, v, ref, path, iter)
 	}
+
 	return nil
 }
 
@@ -1567,6 +1628,29 @@ func evalRefRuleResultRecRef(ctx *Context, v, ref, path ast.Ref, iter func(*Cont
 	return evalRefRec(ctx, b, func(ctx *Context) error {
 		return iter(ctx, PlugValue(b, ctx.Binding))
 	})
+}
+
+func evalRefRuleResultSet(ctx *Context, set *ast.Set, ref, suffix ast.Ref, iter Iterator) error {
+	if len(suffix) == 0 {
+		return Continue(ctx, ref, set, iter)
+	}
+	if len(suffix) > 1 {
+		return nil
+	}
+	switch k := suffix[0].Value.(type) {
+	case ast.Var:
+		for _, e := range *set {
+			if err := ContinueN(ctx, iter, ref, ast.Boolean(true), k, e.Value); err != nil {
+				return err
+			}
+		}
+		return nil
+	default:
+		if set.Contains(&ast.Term{Value: k}) {
+			return Continue(ctx, ref, ast.Boolean(true), iter)
+		}
+		return nil
+	}
 }
 
 func evalTerms(ctx *Context, iter Iterator) error {
@@ -1678,23 +1762,21 @@ func evalTermsRec(ctx *Context, iter Iterator, ts []*ast.Term) error {
 	head := ts[0]
 	tail := ts[1:]
 
+	rec := func(ctx *Context) error {
+		return evalTermsRec(ctx, iter, tail)
+	}
+
 	switch head := head.Value.(type) {
 	case ast.Ref:
-		return evalRef(ctx, head, ast.Ref{}, func(ctx *Context) error {
-			return evalTermsRec(ctx, iter, tail)
-		})
+		return evalRef(ctx, head, ast.Ref{}, rec)
 	case ast.Array:
-		return evalTermsRecArray(ctx, head, 0, func(ctx *Context) error {
-			return evalTermsRec(ctx, iter, tail)
-		})
+		return evalTermsRecArray(ctx, head, 0, rec)
 	case ast.Object:
-		return evalTermsRecObject(ctx, head, 0, func(ctx *Context) error {
-			return evalTermsRec(ctx, iter, tail)
-		})
+		return evalTermsRecObject(ctx, head, 0, rec)
+	case *ast.Set:
+		return evalTermsRecSet(ctx, head, 0, rec)
 	case *ast.ArrayComprehension:
-		return evalTermsComprehension(ctx, head, func(ctx *Context) error {
-			return evalTermsRec(ctx, iter, tail)
-		})
+		return evalTermsComprehension(ctx, head, rec)
 	default:
 		return evalTermsRec(ctx, iter, tail)
 	}
@@ -1704,23 +1786,22 @@ func evalTermsRecArray(ctx *Context, arr ast.Array, idx int, iter Iterator) erro
 	if idx >= len(arr) {
 		return iter(ctx)
 	}
+
+	rec := func(ctx *Context) error {
+		return evalTermsRecArray(ctx, arr, idx+1, iter)
+	}
+
 	switch v := arr[idx].Value.(type) {
 	case ast.Ref:
-		return evalRef(ctx, v, ast.Ref{}, func(ctx *Context) error {
-			return evalTermsRecArray(ctx, arr, idx+1, iter)
-		})
+		return evalRef(ctx, v, ast.Ref{}, rec)
 	case ast.Array:
-		return evalTermsRecArray(ctx, v, 0, func(ctx *Context) error {
-			return evalTermsRecArray(ctx, arr, idx+1, iter)
-		})
+		return evalTermsRecArray(ctx, v, 0, rec)
 	case ast.Object:
-		return evalTermsRecObject(ctx, v, 0, func(ctx *Context) error {
-			return evalTermsRecArray(ctx, arr, idx+1, iter)
-		})
+		return evalTermsRecObject(ctx, v, 0, rec)
+	case *ast.Set:
+		return evalTermsRecSet(ctx, v, 0, rec)
 	case *ast.ArrayComprehension:
-		return evalTermsComprehension(ctx, v, func(ctx *Context) error {
-			return evalTermsRecArray(ctx, arr, idx+1, iter)
-		})
+		return evalTermsComprehension(ctx, v, rec)
 	default:
 		return evalTermsRecArray(ctx, arr, idx+1, iter)
 	}
@@ -1730,26 +1811,25 @@ func evalTermsRecObject(ctx *Context, obj ast.Object, idx int, iter Iterator) er
 	if idx >= len(obj) {
 		return iter(ctx)
 	}
+
+	rec := func(ctx *Context) error {
+		return evalTermsRecObject(ctx, obj, idx+1, iter)
+	}
+
 	switch k := obj[idx][0].Value.(type) {
 	case ast.Ref:
 		return evalRef(ctx, k, ast.Ref{}, func(ctx *Context) error {
 			switch v := obj[idx][1].Value.(type) {
 			case ast.Ref:
-				return evalRef(ctx, v, ast.Ref{}, func(ctx *Context) error {
-					return evalTermsRecObject(ctx, obj, idx+1, iter)
-				})
+				return evalRef(ctx, v, ast.Ref{}, rec)
 			case ast.Array:
-				return evalTermsRecArray(ctx, v, 0, func(ctx *Context) error {
-					return evalTermsRecObject(ctx, obj, idx+1, iter)
-				})
+				return evalTermsRecArray(ctx, v, 0, rec)
 			case ast.Object:
-				return evalTermsRecObject(ctx, v, 0, func(ctx *Context) error {
-					return evalTermsRecObject(ctx, obj, idx+1, iter)
-				})
+				return evalTermsRecObject(ctx, v, 0, rec)
+			case *ast.Set:
+				return evalTermsRecSet(ctx, v, 0, rec)
 			case *ast.ArrayComprehension:
-				return evalTermsComprehension(ctx, v, func(ctx *Context) error {
-					return evalTermsRecObject(ctx, obj, idx+1, iter)
-				})
+				return evalTermsComprehension(ctx, v, rec)
 			default:
 				return evalTermsRecObject(ctx, obj, idx+1, iter)
 			}
@@ -1757,24 +1837,41 @@ func evalTermsRecObject(ctx *Context, obj ast.Object, idx int, iter Iterator) er
 	default:
 		switch v := obj[idx][1].Value.(type) {
 		case ast.Ref:
-			return evalRef(ctx, v, ast.Ref{}, func(ctx *Context) error {
-				return evalTermsRecObject(ctx, obj, idx+1, iter)
-			})
+			return evalRef(ctx, v, ast.Ref{}, rec)
 		case ast.Array:
-			return evalTermsRecArray(ctx, v, 0, func(ctx *Context) error {
-				return evalTermsRecObject(ctx, obj, idx+1, iter)
-			})
+			return evalTermsRecArray(ctx, v, 0, rec)
 		case ast.Object:
-			return evalTermsRecObject(ctx, v, 0, func(ctx *Context) error {
-				return evalTermsRecObject(ctx, obj, idx+1, iter)
-			})
+			return evalTermsRecObject(ctx, v, 0, rec)
+		case *ast.Set:
+			return evalTermsRecSet(ctx, v, 0, rec)
 		case *ast.ArrayComprehension:
-			return evalTermsComprehension(ctx, v, func(ctx *Context) error {
-				return evalTermsRecObject(ctx, obj, idx+1, iter)
-			})
+			return evalTermsComprehension(ctx, v, rec)
 		default:
 			return evalTermsRecObject(ctx, obj, idx+1, iter)
 		}
+	}
+}
+
+func evalTermsRecSet(ctx *Context, set *ast.Set, idx int, iter Iterator) error {
+	if idx >= len(*set) {
+		return iter(ctx)
+	}
+
+	rec := func(ctx *Context) error {
+		return evalTermsRecSet(ctx, set, idx+1, iter)
+	}
+
+	switch v := (*set)[idx].Value.(type) {
+	case ast.Ref:
+		return evalRef(ctx, v, ast.Ref{}, rec)
+	case ast.Array:
+		return evalTermsRecArray(ctx, v, 0, rec)
+	case ast.Object:
+		return evalTermsRecObject(ctx, v, 0, rec)
+	case *ast.ArrayComprehension:
+		return evalTermsComprehension(ctx, v, rec)
+	default:
+		return evalTermsRecSet(ctx, set, idx+1, iter)
 	}
 }
 
@@ -1847,24 +1944,4 @@ func lookupValue(ctx *Context, ref ast.Ref) (ast.Value, error) {
 		return nil, err
 	}
 	return ast.InterfaceToValue(r)
-}
-
-func queryPartialSetDoc(params *QueryParams, rules []*ast.Rule) (interface{}, error) {
-	result := []interface{}{}
-	for _, rule := range rules {
-		ctx := params.NewContext(rule.Body)
-		err := Eval(ctx, func(ctx *Context) error {
-			r, err := ValueToInterface(rule.Key.Value, ctx)
-			if err != nil {
-				return err
-			}
-			result = append(result, r)
-			return nil
-		})
-
-		if err != nil {
-			return nil, err
-		}
-	}
-	return result, nil
 }

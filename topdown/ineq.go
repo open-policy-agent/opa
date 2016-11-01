@@ -4,46 +4,42 @@
 
 package topdown
 
-import (
-	"github.com/open-policy-agent/opa/ast"
-	"github.com/open-policy-agent/opa/util"
-)
+import "github.com/open-policy-agent/opa/ast"
 
-type compareFunc func(a, b interface{}) bool
+type compareFunc func(a, b ast.Value) bool
 
-func compareGreaterThan(a, b interface{}) bool {
-	return util.Compare(a, b) > 0
+func compareGreaterThan(a, b ast.Value) bool {
+	return ast.Compare(a, b) > 0
 }
 
-func compareGreaterThanEq(a, b interface{}) bool {
-	return util.Compare(a, b) >= 0
+func compareGreaterThanEq(a, b ast.Value) bool {
+	return ast.Compare(a, b) >= 0
 }
 
-func compareLessThan(a, b interface{}) bool {
-	return util.Compare(a, b) < 0
+func compareLessThan(a, b ast.Value) bool {
+	return ast.Compare(a, b) < 0
 }
 
-func compareLessThanEq(a, b interface{}) bool {
-	return util.Compare(a, b) <= 0
+func compareLessThanEq(a, b ast.Value) bool {
+	return ast.Compare(a, b) <= 0
 }
 
-func compareNotEq(a, b interface{}) bool {
-	return util.Compare(a, b) != 0
+func compareNotEq(a, b ast.Value) bool {
+	return ast.Compare(a, b) != 0
 }
 
 func evalIneq(cmp compareFunc) BuiltinFunc {
 	return func(ctx *Context, expr *ast.Expr, iter Iterator) error {
 		ops := expr.Terms.([]*ast.Term)
-		a, b := ops[1].Value, ops[2].Value
-		av, err := ValueToInterface(a, ctx)
+		a, err := ResolveRefs(ops[1].Value, ctx)
 		if err != nil {
 			return err
 		}
-		bv, err := ValueToInterface(b, ctx)
+		b, err := ResolveRefs(ops[2].Value, ctx)
 		if err != nil {
 			return err
 		}
-		if cmp(av, bv) {
+		if cmp(a, b) {
 			return iter(ctx)
 		}
 		return nil
