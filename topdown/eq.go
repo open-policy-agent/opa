@@ -8,7 +8,6 @@ import (
 	"fmt"
 
 	"github.com/open-policy-agent/opa/ast"
-	"github.com/open-policy-agent/opa/util"
 )
 
 func evalEq(ctx *Context, expr *ast.Expr, iter Iterator) error {
@@ -23,15 +22,15 @@ func evalEq(ctx *Context, expr *ast.Expr, iter Iterator) error {
 }
 
 func evalEqGround(ctx *Context, a ast.Value, b ast.Value, iter Iterator) error {
-	av, err := ValueToInterface(a, ctx)
+	a, err := ResolveRefs(a, ctx)
 	if err != nil {
 		return err
 	}
-	bv, err := ValueToInterface(b, ctx)
+	b, err = ResolveRefs(b, ctx)
 	if err != nil {
 		return err
 	}
-	if util.Compare(av, bv) == 0 {
+	if ast.Compare(a, b) == 0 {
 		return iter(ctx)
 	}
 	return nil
@@ -67,6 +66,8 @@ func evalEqUnify(ctx *Context, a ast.Value, b ast.Value, prev *Undo, iter Iterat
 		return evalEqUnifyObject(ctx, a, b, prev, iter)
 	case ast.Array:
 		return evalEqUnifyArray(ctx, a, b, prev, iter)
+	case *ast.Set:
+		return evalEqUnifySet(ctx, a, b, prev, iter)
 	default:
 		switch b := b.(type) {
 		case ast.Var:
@@ -75,6 +76,8 @@ func evalEqUnify(ctx *Context, a ast.Value, b ast.Value, prev *Undo, iter Iterat
 			return evalEqUnifyArray(ctx, b, a, prev, iter)
 		case ast.Object:
 			return evalEqUnifyObject(ctx, b, a, prev, iter)
+		case *ast.Set:
+			return evalEqUnifySet(ctx, b, a, prev, iter)
 		default:
 			return prev, evalEqGround(ctx, a, b, iter)
 		}
@@ -270,6 +273,40 @@ func evalEqUnifyObjects(ctx *Context, a ast.Object, b ast.Object, prev *Undo, it
 	}
 
 	return prev, iter(ctx)
+}
+
+func evalEqUnifySet(ctx *Context, a *ast.Set, b ast.Value, prev *Undo, iter Iterator) (*Undo, error) {
+	switch b := b.(type) {
+	case *ast.Set:
+		return evalEqSets(ctx, a, b, prev, iter)
+	case ast.Var:
+		return evalEqUnifyVar(ctx, b, a, prev, iter)
+	default:
+		return prev, nil
+	}
+}
+
+func evalEqSets(ctx *Context, a *ast.Set, b *ast.Set, prev *Undo, iter Iterator) (*Undo, error) {
+
+	x, err := ResolveRefs(a, ctx)
+	if err != nil {
+		return prev, err
+	}
+
+	a = x.(*ast.Set)
+
+	y, err := ResolveRefs(b, ctx)
+	if err != nil {
+		return prev, err
+	}
+
+	b = y.(*ast.Set)
+
+	if a.Equal(b) {
+		return prev, iter(ctx)
+	}
+
+	return prev, nil
 }
 
 func evalEqUnifyVar(ctx *Context, a ast.Var, b ast.Value, prev *Undo, iter Iterator) (*Undo, error) {

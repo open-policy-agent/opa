@@ -340,6 +340,8 @@ func (vis *wildcardMangler) Visit(x interface{}) Visitor {
 		}
 	case Array:
 		vis.mangleSlice(x)
+	case *Set:
+		vis.mangleSlice(*x)
 	case Ref:
 		vis.mangleSlice(x)
 	case *Expr:

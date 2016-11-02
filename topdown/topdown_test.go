@@ -264,6 +264,7 @@ func TestTopDownCompleteDoc(t *testing.T) {
 		{`object/nested composites: {"a": [1], "b": [2], "c": [3]}`,
 			`p = {"a": [1], "b": [2], "c": [3]} :- true`,
 			`{"a": [1], "b": [2], "c": [3]}`},
+		{"set/nested: {{1,2},{2,3}}", "p = {{1,2},{2,3}} :- true", "[[1,2], [2,3]]"},
 		{"vars", `p = {"a": [x,y]} :- x = 1, y = 2`, `{"a": [1,2]}`},
 		{"vars conflict", `p = {"a": [x,y]} :- xs = [1,2], ys = [1,2], x = xs[_], y = ys[_]`,
 			fmt.Errorf("evaluation error (code: 2): multiple values for data.p: rules must produce exactly one value for complete documents: check rule definition(s): p")},
@@ -344,6 +345,8 @@ func TestTopDownEvalTermExpr(t *testing.T) {
 		{"array empty", "p :- []", "true"},
 		{"object non-empty", `p :- {"a": 1}`, "true"},
 		{"object empty", `p :- {}`, "true"},
+		{"set non-empty", `p :- {1,2,3}`, "true"},
+		{"set empty", "p :- set()", "true"},
 		{"ref", "p :- a[i]", "true"},
 		{"ref undefined", "p :- data.deadbeef[i]", ""},
 		{"ref false", "p :- data.c[0].x[1]", ""},
@@ -380,6 +383,7 @@ func TestTopDownEqExpr(t *testing.T) {
 		{"undefined: array deep var 2", "p = true :- [[1,x],[3,4]] = [[1,2],[x,4]]", ""},
 		{"undefined: array uneven", `p = true :- [true, false, "foo", "deadbeef"] = c[i][j]`, ""},
 		{"undefined: object uneven", `p = true :- {"a": 1, "b": 2} = {"a": 1}`, ""},
+		{"undefined: set", "p :- {1,2,3} = {1,2,4}", ""},
 
 		// ground terms
 		{"ground: bool", `p = true :- true = true`, "true"},
@@ -387,6 +391,7 @@ func TestTopDownEqExpr(t *testing.T) {
 		{"ground: number", `p = true :- 17 = 17`, "true"},
 		{"ground: null", `p = true :- null = null`, "true"},
 		{"ground: array", `p = true :- [1,2,3] = [1,2,3]`, "true"},
+		{"ground: set", "p = true :- {1,2,3} = {3,2,1}", "true"},
 		{"ground: object", `p = true :- {"b": false, "a": [1,2,3]} = {"a": [1,2,3], "b": false}`, "true"},
 		{"ground: ref 1", `p = true :- a[2] = 3`, "true"},
 		{"ground: ref 2", `p = true :- b["v2"] = "goodbye"`, "true"},
@@ -524,11 +529,11 @@ func TestTopDownVirtualDocs(t *testing.T) {
 		{"output: object dereference array of refs", []string{
 			"p[x] :- q[_][0].c[_] = x",
 			"q[k] = v :- d.e[_] = k, v = [ r | r = l[_] ]",
-		}, "[1,1,2,2,3,3,4,4]"},
+		}, "[1,2,3,4]"},
 		{"output: object dereference array of refs within object", []string{
 			"p[x] :- q[_].x[0].c[_] = x",
 			`q[k] = v :- d.e[_] = k, v = {"x": [r | r = l[_]]}`,
-		}, "[1,1,2,2,3,3,4,4]"},
+		}, "[1,2,3,4]"},
 		{"output: object dereference object with key refs", []string{
 			"p :- q.bar[1].alice[0] = 1",
 			"q[k] = v :- d.e[_] = k, v = [x | x = {l[_].a: [1]}]",
@@ -558,6 +563,7 @@ func TestTopDownVirtualDocs(t *testing.T) {
 		// input/output to/from complete docs
 		{"input: complete array", []string{"p = true :- q[1] = 2", "q = [1,2,3,4] :- true"}, "true"},
 		{"input: complete object", []string{`p = true :- q["b"] = 2`, `q = {"a": 1, "b": 2} :- true`}, "true"},
+		{"input: complete set", []string{"p :- q[3]", "q = {1,2,3,4} :- true"}, "true"},
 		{"input: complete array dereference ground", []string{"p = true :- q[1][1] = 3", "q = [[0,1], [2,3]] :- true"}, "true"},
 		{"input: complete object dereference ground", []string{`p = true :- q["b"][1] = 4`, `q = {"a": [1, 2], "b": [3, 4]} :- true`}, "true"},
 		{"input: complete array ground index", []string{"p[x] :- z = [1, 2], z[i] = y, q[y] = x", "q = [1,2,3,4] :- true"}, "[2,3]"},
@@ -568,12 +574,13 @@ func TestTopDownVirtualDocs(t *testing.T) {
 		}, `true`},
 		{"output: complete array", []string{"p[x] :- q[i] = e, x = [i,e]", "q = [1,2,3,4] :- true"}, "[[0,1],[1,2],[2,3],[3,4]]"},
 		{"output: complete object", []string{"p[x] :- q[i] = e, x = [i,e]", `q = {"a": 1, "b": 2} :- true`}, `[["a", 1], ["b", 2]]`},
+		{"output: complete set", []string{"p[x] :- q[x]", "q = {1,2,3,4} :- true"}, "[1,2,3,4]"},
 		{"output: complete array dereference non-ground", []string{"p[r] :- q[i][j] = 2, r = [i, j]", "q = [[1,2], [3,2]] :- true"}, "[[0, 1], [1, 1]]"},
 		{"output: complete object defererence non-ground", []string{`p[r] :- q[x][y] = 2, r = [x, y]`, `q = {"a": {"x": 1}, "b": {"y": 2}, "c": {"z": 2}} :- true`}, `[["b", "y"], ["c", "z"]]`},
 		{"output: complete vars", []string{
 			`p[x] :- q[_][_] = x`,
 			`q = [{"x": x, "y": y}, z] :- x = 1, y = 2, z = [1,2,3]`,
-		}, `[1,1,2,2,3]`},
+		}, `[1,2,3]`},
 
 		// no dereferencing
 		{"no suffix: complete", []string{"p = true :- q", "q = true :- true"}, "true"},
@@ -605,12 +612,7 @@ func TestTopDownVirtualDocs(t *testing.T) {
 			`p[x] :- q = x`,
 			`q[k] = {"v": v} :- v = [i,j], k = i, i = "a", j = 1`},
 			`[{"a": {"v": ["a", 1]}}]`},
-
-		// TODO(tsandall): this requires set literals; "s" must be bound to a "set" type.
-		// {"no deref: set", []string{"p[x] :- q = s, s[x]", "q[x] :- a[i] = x"}, "[1,2,3,4]"},
-
-		// undefined
-		// {"undefined: dereference set", []string{"p = true :- q[x].foo = 100", "q[x] :- x = a[i]"}, ""},
+		{"no suffix: set", []string{"p[x] :- q = s, s[x]", "q[x] :- a[i] = x"}, "[1,2,3,4]"},
 	}
 
 	data := loadSmallTestData()
@@ -643,6 +645,9 @@ func TestTopDownBaseAndVirtualDocs(t *testing.T) {
 				"h": {
 					"k": [1,2,3]
 				}
+			},
+			"set": {
+				"u": [1,2,3,4]
 			}
 		}
 	}
@@ -664,6 +669,11 @@ func TestTopDownBaseAndVirtualDocs(t *testing.T) {
 		`
 			package topdown.a.b.c.s
 			w = {"f": 10.0, "g": 9.9}
+		`,
+		`
+			package topdown.set
+
+			v[data.topdown.set.u[_]] :- true
 		`,
 		`
 			package topdown.no.base.doc
@@ -692,6 +702,7 @@ func TestTopDownBaseAndVirtualDocs(t *testing.T) {
 			t :- data.topdown.a.b.c.undefined
 		 	u :- data.topdown.unbound
 			v = x :- data.topdown.g = x
+			w = data.topdown.set
 		`,
 	})
 
@@ -727,6 +738,11 @@ func TestTopDownBaseAndVirtualDocs(t *testing.T) {
 			"z": {"a": "b"}}]
 	]`)
 
+	assertTopDown(t, compiler, store, "base/virtual: set", []string{"topdown", "w"}, "{}", `{
+		"v": [1,2,3,4],
+		"u": [1,2,3,4]
+	}`)
+
 	assertTopDown(t, compiler, store, "base/virtual: no base", []string{"topdown", "s"}, "{}", `{"base": {"doc": {"p": true}}}`)
 
 	assertTopDown(t, compiler, store, "base/virtual: undefined", []string{"topdown", "t"}, "{}", "")
@@ -742,9 +758,9 @@ func TestTopDownNestedReferences(t *testing.T) {
 	}{
 		// nested base document references
 		{"ground ref", []string{"p :- a[h[0][0]] = 2"}, "true"},
-		{"non-ground ref", []string{"p[x] :- x = a[h[i][j]]"}, "[2,3,4,3,4]"},
+		{"non-ground ref", []string{"p[x] :- x = a[h[i][j]]"}, "[2,3,4]"},
 		{"two deep", []string{"p[x] :- x = a[a[a[i]]]"}, "[3,4]"},
-		{"two deep", []string{"p[x] :- x = a[h[i][a[j]]]"}, "[3,4,4]"},
+		{"two deep", []string{"p[x] :- x = a[h[i][a[j]]]"}, "[3,4]"},
 		{"two deep repeated var", []string{"p[x] :- x = a[h[i][a[i]]]"}, "[3]"},
 		{"no suffix", []string{"p :- 4 = a[three]"}, "true"},
 		{"var ref", []string{"p[y] :- x = [1,2,3], y = a[x[_]]"}, "[2,3,4]"},
@@ -796,13 +812,14 @@ func TestTopDownVarReferences(t *testing.T) {
 		expected interface{}
 	}{
 		{"ground", []string{"p[x] :- v = [[1,2],[2,3],[3,4]], x = v[2][1]"}, "[4]"},
-		{"non-ground", []string{"p[x] :- v = [[1,2],[2,3],[3,4]], x = v[i][j]"}, "[1,2,2,3,3,4]"},
+		{"non-ground", []string{"p[x] :- v = [[1,2],[2,3],[3,4]], x = v[i][j]"}, "[1,2,3,4]"},
 		{"mixed", []string{`p[x] = y :- v = [{"a": 1, "b": 2}, {"c": 3, "z": [4]}], y = v[i][x][j]`}, `{"z": 4}`},
 		{"ref binding", []string{"p[x] :- v = c[i][j], x = v[k], x = true"}, "[true, true]"},
 		{"embedded", []string{`p[x] :- v = [1,2,3], x = [{"a": v[i]}]`}, `[[{"a": 1}], [{"a": 2}], [{"a": 3}]]`},
 		{"embedded ref binding", []string{"p[x] :- v = c[i][j], w = [v[0], v[1]], x = w[y]"}, "[null, false, true, 3.14159]"},
 		{"array: ground var", []string{"p[x] :- i = [1,2,3,4], j = [1,2,999], j[k] = y, i[y] = x"}, "[2,3]"},
 		{"object: ground var", []string{`p[x] :- i = {"a": 1, "b": 2, "c": 3}, j = ["a", "c", "deadbeef"], j[k] = y, i[y] = x`}, "[1, 3]"},
+		{"set: ground var", []string{"p[x] :- i = {1,2,3,4}, j = {1,2,99}, j[x], i[x]"}, "[1,2]"},
 		{"avoids indexer", []string{"p = true :- somevar = [1,2,3], somevar[i] = 2"}, "true"},
 	}
 
@@ -833,10 +850,15 @@ func TestTopDownDisjunction(t *testing.T) {
 			`p["a"] = 1 :- true`,
 			`p["b"] = 2 :- true`},
 			`{"a": 1, "b": 2}`},
-		{"incr: eval set", []string{
+		{"incr: iter set", []string{
 			"p[x] :- q[x]",
 			"q[x] :- a[i] = x",
 			"q[y] :- b[j] = y"},
+			`[1,2,3,4,"hello","goodbye"]`},
+		{"incr: eval set", []string{
+			"p[x] :- q = s, s[x]", // make p a set so that test assertion orders result
+			"q[x] :- a[_] = x",
+			"q[y] :- b[_] = y"},
 			`[1,2,3,4,"hello","goodbye"]`},
 		{"incr: eval object", []string{
 			"p[k] = v :- q[k] = v",
@@ -871,18 +893,8 @@ func TestTopDownNegation(t *testing.T) {
 	}{
 		{"neg: constants", []string{"p = true :- not true = false"}, "true"},
 		{"neg: constants", []string{"p = true :- not true = true"}, ""},
-
-		// TODO(tsandall): re-enable these once we have support for mangling "_"
-
-		// {"neg: array contains", []string{"p = true :- not a[_] = 9999"}, "true"},
-		// {"neg: array diff", []string{"p = true :- not a[_] = 4"}, ""},
-		// {"neg: object values contains", []string{`p = true :- not b[_] = "deadbeef"`}, "true"},
-		// {"neg: object values diff", []string{`p = true :- not b[_] = "goodbye"`}, ""},
 		{"neg: set contains", []string{`p = true :- not q["v0"]`, `q[x] :- b[x] = v`}, "true"},
 		{"neg: set contains undefined", []string{`p = true :- not q["v2"]`, `q[x] :- b[x] = v`}, ""},
-
-		// TODO(tsandall): 'not g[j][k] ...' is not valid.
-		// {"neg: multiple exprs", []string{"p[x] :- a[x] = i, not g[j][k] = x, f[v][y][z] = x"}, "[3]"},
 	}
 
 	data := loadSmallTestData()
@@ -903,6 +915,7 @@ func TestTopDownComprehensions(t *testing.T) {
 		{"nested", []string{"p[i] :- ys = [y | y = x[_], x = [z | z = a[_]]], ys[i] > 1"}, "[1,2,3]"},
 		{"embedded array", []string{"p[i] :- xs = [[x | x = a[_]]], xs[0][i] > 1"}, "[1,2,3]"},
 		{"embedded object", []string{`p[i] :- xs = {"a": [x | x = a[_]]}, xs["a"][i] > 1`}, "[1,2,3]"},
+		{"embedded set", []string{"p = xs :- xs = {[x | x = a[_]]}"}, "[[1,2,3,4]]"},
 		{"closure", []string{"p[x] :- y = 1, x = [y | y = 1]"}, "[[1]]"},
 		{"dereference embedded", []string{
 			"p[x] :- q.a[2][i] = x",
@@ -928,10 +941,15 @@ func TestTopDownAggregates(t *testing.T) {
 		{"count virtual", []string{"p[x] :- count([y | q[y]], x)", "q[x] :- x = a[_]"}, "[4]"},
 		{"count keys", []string{"p[x] :- count(b, x)"}, "[2]"},
 		{"count keys virtual", []string{"p[x] :- count([k | q[k] = _], x)", "q[k] = v :- b[k] = v"}, "[2]"},
+		{"count set", []string{"p = x :- count(q, x)", "q[x] :- x = a[_]"}, "4"},
 		{"sum", []string{"p[x] :- sum([1,2,3,4], x)"}, "[10]"},
+		{"sum set", []string{"p = x :- sum({1,2,3,4}, x)"}, "10"},
 		{"sum virtual", []string{"p[x] :- sum([y | q[y]], x)", "q[x] :- a[_] = x"}, "[10]"},
+		{"sum virtual set", []string{"p = x :- sum(q, x)", "q[x] :- a[_] = x"}, "10"},
 		{"max", []string{"p[x] :- max([1,2,3,4], x)"}, "[4]"},
+		{"max set", []string{"p = x :- max({1,2,3,4}, x)"}, "4"},
 		{"max virtual", []string{"p[x] :- max([y | q[y]], x)", "q[x] :- a[_] = x"}, "[4]"},
+		{"max virtual set", []string{"p = x :- max(q, x)", "q[x] :- a[_] = x"}, "4"},
 		{"reduce ref dest", []string{"p :- max([1,2,3,4], a[3])"}, "true"},
 		{"reduce ref dest (2)", []string{"p :- not max([1,2,3,4,5], a[3])"}, "true"},
 	}
@@ -950,9 +968,9 @@ func TestTopDownArithmetic(t *testing.T) {
 		expected interface{}
 	}{
 		{"plus", []string{"p[y] :- a[i] = x, plus(i, x, y)"}, "[1,3,5,7]"},
-		{"minus", []string{"p[y] :- a[i] = x, minus(i, x, y)"}, "[-1,-1,-1,-1]"},
+		{"minus", []string{"p[y] :- a[i] = x, minus(i, x, y)"}, "[-1]"},
 		{"multiply", []string{"p[y] :- a[i] = x, mul(i, x, y)"}, "[0,2,6,12]"},
-		{"divide+round", []string{"p[z] :- a[i] = x, div(i, x, y), round(y, z)"}, "[0,1,1,1]"},
+		{"divide+round", []string{"p[z] :- a[i] = x, div(i, x, y), round(y, z)"}, "[0,1]"},
 		{"divide+error", []string{"p[y] :- a[i] = x, div(x, i, y)"}, fmt.Errorf("divide: by zero")},
 		{"abs", []string{"p :- abs(-10, x), x = 10"}, "true"},
 		{"arity 1 ref dest", []string{"p :- abs(-4, a[3])"}, "true"},
@@ -1017,6 +1035,7 @@ func TestTopDownStrings(t *testing.T) {
 		{"format_int: ref dest", []string{"p :- format_int(3.1, 10, numbers[2])"}, "true"},
 		{"format_int: ref dest (2)", []string{"p :- not format_int(4.1, 10, numbers[2])"}, "true"},
 		{"concat", []string{`p = x :- concat("/", ["", "foo", "bar", "0", "baz"], x)`}, `"/foo/bar/0/baz"`},
+		{"concat: set", []string{`p = x :- concat(",", {"1", "2", "3"}, x)`}, `"1,2,3"`},
 		{"concat: undefined", []string{`p :- concat("/", ["a", "b"], "deadbeef")`}, ""},
 		{"concat: non-string err", []string{`p = x :- concat("/", ["", "foo", "bar", 0, "baz"], x)`}, fmt.Errorf("concat: input value must be array of strings: illegal argument: 0")},
 		{"concat: ref dest", []string{`p :- concat("", ["f", "o", "o"], c[0].x[2])`}, "true"},
@@ -1109,7 +1128,7 @@ func TestTopDownCaching(t *testing.T) {
 
 	store := storage.New(storage.InMemoryWithJSONConfig(loadSmallTestData()))
 
-	assertTopDown(t, compiler, store, "reference lookup", []string{"topdown", "caching", "p"}, `{}`, "[2,2,3,3]")
+	assertTopDown(t, compiler, store, "reference lookup", []string{"topdown", "caching", "p"}, `{}`, "[2,3]")
 
 	illegalObjectKeyMsg := fmt.Errorf("evaluation error (code: 3): 12:2: err_obj produced illegal object key type ast.Object")
 	assertTopDown(t, compiler, store, "unhandled error", []string{"topdown", "caching", "err_top"}, "{}", illegalObjectKeyMsg)
@@ -1202,6 +1221,18 @@ func TestExample(t *testing.T) {
 	    [
 	        {"id": "s4", "name": "dev", "protocols": ["http"], "ports": ["p1", "p2"]}
 	    ]
+	`)
+
+	assertTopDown(t, compiler, store, "both", []string{"opa", "example"}, "{}", `
+		{
+			"public_servers": [
+				{"id": "s1", "name": "app", "protocols": ["https", "ssh"], "ports": ["p1", "p2", "p3"]},
+				{"id": "s4", "name": "dev", "protocols": ["http"], "ports": ["p1", "p2"]}
+			],
+			"violations": [
+				{"id": "s4", "name": "dev", "protocols": ["http"], "ports": ["p1", "p2"]}
+			]
+		}
 	`)
 }
 
@@ -1620,7 +1651,7 @@ func assertTopDown(t *testing.T, compiler *ast.Compiler, store *storage.Storage,
 			p := ast.MustParseRef(fmt.Sprintf("data.%v", strings.Join(path, ".")))
 
 			// Sort set results so that comparisons are not dependant on order.
-			if rs := compiler.GetRulesExact(p); rs[0].DocKind() == ast.PartialSetDoc {
+			if rs := compiler.GetRulesExact(p); len(rs) > 0 && rs[0].DocKind() == ast.PartialSetDoc {
 				sort.Sort(resultSet(result.([]interface{})))
 			}
 

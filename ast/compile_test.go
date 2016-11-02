@@ -410,7 +410,7 @@ func TestCompilerResolveAllRefs(t *testing.T) {
 	mod3 := c.Modules["mod3"]
 	expr4 := mod3.Rules[0].Body[0]
 	term = expr4.Terms.([]*Term)[2]
-	e = MustParseTerm("{x.secret: [x.keyid]}")
+	e = MustParseTerm("{x.secret: [{x.keyid}]}")
 	if !term.Equal(e) {
 		t.Errorf("Wrong term (nested refs): expected %v but got: %v", e, term)
 	}
@@ -833,7 +833,7 @@ func getCompilerTestModules() map[string]*Module {
 	package a.b.d
 	import req
 	import x as y
-	t = true :- req = {y.secret: [y.keyid]}
+	t = true :- req = {y.secret: [{y.keyid}]}
 	x = false :- true
 	`)
 

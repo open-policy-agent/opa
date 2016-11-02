@@ -241,6 +241,57 @@ Composite values can also be defined in terms of [Variables](#variables) or [Ref
 
 By defining composite values in terms of variables and references, rules can define abstractions over raw data and other rules.
 
+### Sets
+
+In addition to arrays and objects, Rego supports set values. Sets are unordered
+collections of unique values. Just like other composite values, sets can be
+defined in terms of scalars, variables, references, and other composite values.
+For example:
+
+```ruby
+> s = {cube.width, cube.height, cube.depth}, count(s, n)
++---+---------+
+| n |    s    |
++---+---------+
+| 3 | [5,4,3] |
++---+---------+
+```
+
+> Set documents are collections of values without keys. OPA represents set
+documents as arrays when serializing to JSON or other formats that do not
+support a set data type. The important distinction between sets and arrays or
+objects is that sets are unkeyed while arrays and objects are keyed, i.e., you
+cannot refer to the index of an element within a set.
+{: .opa-tip}
+
+When comparing sets, the order of elements does not matter:
+
+```
+> {1,2,3} = {3,1,2}
+true
+```
+
+Because sets are unordered, variables inside sets must be unified with a ground
+value outside of the set. If the variable is not unified with a ground value
+outside the set, OPA will complain:
+
+```ruby
+> {1,2,3} = {3,x,2}
+error: 1 error occurred: 1:1: repl0: x is unsafe (variable x must appear in the output position of at least one non-negated expression)
+```
+
+Because sets share curly-brace syntax with objects, and an empty object is
+defined with `{}`, an empty set has to be constructed with a different syntax:
+
+```ruby
+> count(set(), n)
++---+
+| n |
++---+
+| 0 |
++---+
+```
+
 ## <a name="variables"></a> Variables
 
 Variables are another kind of term in Rego. They appear in both the head and body of rules.
@@ -544,9 +595,6 @@ First, the rule defines a set document where the contents are defined by the var
 ```
 
 For a more formal definition of the rule syntax, see the [Language Reference](/documentation/references/language#grammar) document.
-
-> Set documents are collections of values without keys. OPA represents set documents as arrays when serializing to JSON or other formats which do not support a set data type. The important distinction between sets and arrays or objects is that sets are unkeyed while arrays and objects are keyed, i.e., you cannot refer to the index of an element within a set.
-{: .opa-tip}
 
 Second, the `sites[_].servers[_].hostname` fragment selects the `hostname` attribute from all of the objects in the `servers` collection. From reading the fragment in isolation we cannot tell whether the fragment refers to arrays or objects. We only know that it refers to a collections of values.
 

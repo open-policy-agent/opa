@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -132,7 +133,8 @@ func TestHash(t *testing.T) {
 			"e": {
 				100: a[i].b
 			},
-			"k": [ "foo" | true ]
+			"k": [ "foo" | true ],
+			"s": {1,2,{3,4}}
 		}
 	`
 
@@ -141,6 +143,7 @@ func TestHash(t *testing.T) {
 
 	obj1 := stmt1.(Body)[0].Terms.(*Term).Value.(Object)
 	obj2 := stmt2.(Body)[0].Terms.(*Term).Value.(Object)
+
 	if obj1.Hash() != obj2.Hash() {
 		t.Errorf("Expected hash codes to be equal")
 	}
@@ -162,6 +165,8 @@ func TestTermIsGround(t *testing.T) {
 		{"ref non-ground", "a.b[i].x", false},
 		{"array ground", "[1,2,3]", true},
 		{"array non-ground", "[1,2,x]", false},
+		{"set ground", "{1,2,3}", true},
+		{"Set non-ground", "{1,2,x}", false},
 		{"object ground", `{"a": 1}`, true},
 		{"object non-ground key", `{"x": 1, y: 2}`, false},
 		{"object non-ground value", `{"x": 1, "y": y}`, false},
@@ -193,6 +198,7 @@ func TestIsScalar(t *testing.T) {
 		{"3.14", true},
 		{"false", true},
 		{"[1,2,3]", false},
+		{"{1,2,3}", false},
 		{`{"a": 1}`, false},
 		{`[x | x = 0]`, false},
 	}
@@ -220,7 +226,8 @@ func TestTermString(t *testing.T) {
 	assertToString(t, RefTerm(VarTerm("foo"), BooleanTerm(false), NullTerm(), StringTerm("bar")).Value, "foo[false][null].bar")
 	assertToString(t, ArrayTerm().Value, "[]")
 	assertToString(t, ObjectTerm().Value, "{}")
-	assertToString(t, ArrayTerm(ObjectTerm(Item(VarTerm("foo"), ArrayTerm(RefTerm(VarTerm("bar"), VarTerm("i"))))), StringTerm("foo"), BooleanTerm(true), NullTerm(), NumberTerm(42.1)).Value, "[{foo: [bar[i]]}, \"foo\", true, null, 42.1]")
+	assertToString(t, SetTerm().Value, "set()")
+	assertToString(t, ArrayTerm(ObjectTerm(Item(VarTerm("foo"), ArrayTerm(RefTerm(VarTerm("bar"), VarTerm("i"))))), StringTerm("foo"), SetTerm(BooleanTerm(true), NullTerm()), NumberTerm(42.1)).Value, "[{foo: [bar[i]]}, \"foo\", {true, null}, 42.1]")
 	assertToString(t, ArrayComprehensionTerm(ArrayTerm(VarTerm("x")), NewBody(&Expr{Terms: RefTerm(VarTerm("a"), VarTerm("i"))})).Value, "[[x] | a[i]]")
 }
 
@@ -262,6 +269,66 @@ func TestRefAppend(t *testing.T) {
 	if !b.Equal(MustParseRef("foo.bar.baz[x]")) {
 		t.Error("Expected foo.bar.baz[x]")
 	}
+}
+
+func TestSetEqual(t *testing.T) {
+	tests := []struct {
+		a        string
+		b        string
+		expected bool
+	}{
+		{"set()", "set()", true},
+		{"{1,{2,3},4}", "{1,{2,3},4}", true},
+		{"{1,{2,3},4}", "{4,{3,2},1}", true},
+		{"{1,2,{3,4}}", "{1,2,{3,4},1,2,{3,4}}", true},
+		{"{1,2,3,4}", "{1,2,3}", false},
+		{"{1,2,3}", "{1,2,3,4}", false},
+	}
+	for _, tc := range tests {
+		a := MustParseTerm(tc.a)
+		b := MustParseTerm(tc.b)
+		if a.Equal(b) != tc.expected {
+			var msg string
+			if tc.expected {
+				msg = fmt.Sprintf("Expected %v to equal %v", a, b)
+			} else {
+				msg = fmt.Sprintf("Expected %v to NOT equal %v", a, b)
+			}
+			t.Errorf(msg)
+		}
+	}
+}
+
+func TestSetMap(t *testing.T) {
+
+	set := MustParseTerm(`{"foo", "bar", "baz", "qux"}`).Value.(*Set)
+
+	result, err := set.Map(func(term *Term) (*Term, error) {
+		s := string(term.Value.(String))
+		if strings.Contains(s, "a") {
+			return &Term{Value: String(strings.ToUpper(s))}, nil
+		}
+		return term, nil
+	})
+
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	expected := MustParseTerm(`{"foo", "BAR", "BAZ", "qux"}`).Value
+
+	if !result.Equal(expected) {
+		t.Fatalf("Expected map result to be %v but got: %v", expected, result)
+	}
+
+	result, err = set.Map(func(*Term) (*Term, error) {
+		return nil, fmt.Errorf("oops")
+	})
+
+	if !reflect.DeepEqual(err, fmt.Errorf("oops")) {
+		t.Fatalf("Expected oops to be returned but got: %v, %v", result, err)
+	}
+
 }
 
 func assertTermEqual(t *testing.T, x *Term, y *Term) {

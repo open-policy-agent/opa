@@ -62,7 +62,6 @@ func (loc *Location) Format(f string, a ...interface{}) string {
 // - Variables
 // - References
 // - Array Comprehensions
-//
 type Value interface {
 	// Equal returns true if this value equals the other value.
 	Equal(other Value) bool
@@ -170,6 +169,8 @@ func (term *Term) MarshalJSON() ([]byte, error) {
 		typ = "array"
 	case Object:
 		typ = "object"
+	case *Set:
+		typ = "set"
 	case *ArrayComprehension:
 		typ = "array-comprehension"
 	}
@@ -421,14 +422,9 @@ func (ref Ref) Append(term *Term) Ref {
 	return dst
 }
 
-// Equal returns true if the other Value is a Ref and the elements of the
-// other Ref are equal to the this Ref.
+// Equal returns true if ref is equal to other.
 func (ref Ref) Equal(other Value) bool {
-	switch other := other.(type) {
-	case Ref:
-		return termSliceEqual(ref, other)
-	}
-	return false
+	return Compare(ref, other) == 0
 }
 
 // Hash returns the hash code for the Value.
@@ -585,15 +581,9 @@ func ArrayTerm(a ...*Term) *Term {
 	return &Term{Value: Array(a)}
 }
 
-// Equal returns true if the other Value is an Array and the elements of the
-// other Array are equal to the elements of this Array. The elements are
-// ordered.
+// Equal returns true if arr is equal to other.
 func (arr Array) Equal(other Value) bool {
-	switch other := other.(type) {
-	case Array:
-		return termSliceEqual(arr, other)
-	}
-	return false
+	return Compare(arr, other) == 0
 }
 
 // Hash returns the hash code for the Value.
@@ -614,6 +604,95 @@ func (arr Array) String() string {
 	return "[" + strings.Join(buf, ", ") + "]"
 }
 
+// Set represents a set as defined by the language.
+type Set []*Term
+
+// SetTerm returns a new Term representing a set containing terms t.
+func SetTerm(t ...*Term) *Term {
+	s := &Set{}
+	for i := range t {
+		s.Add(t[i])
+	}
+	return &Term{
+		Value: s,
+	}
+}
+
+// IsGround returns true if all terms in s are ground.
+func (s *Set) IsGround() bool {
+	return termSliceIsGround(*s)
+}
+
+// Hash returns a hash code for s.
+func (s *Set) Hash() int {
+	return termSliceHash(*s)
+}
+
+func (s *Set) String() string {
+
+	sl := *s
+
+	if len(sl) == 0 {
+		return "set()"
+	}
+
+	buf := make([]string, len(sl))
+
+	for i := range sl {
+		buf[i] = sl[i].String()
+	}
+
+	return "{" + strings.Join(buf, ", ") + "}"
+}
+
+// Equal returns true if s is equal to v.
+func (s *Set) Equal(v Value) bool {
+	return Compare(s, v) == 0
+}
+
+// Diff returns elements in s that are not in other.
+func (s *Set) Diff(other *Set) *Set {
+	r := &Set{}
+	for _, x := range *s {
+		if !other.Contains(x) {
+			r.Add(x)
+		}
+	}
+	return r
+}
+
+// Add updates s to include t.
+func (s *Set) Add(t *Term) {
+	if s.Contains(t) {
+		return
+	}
+	*s = append(*s, t)
+}
+
+// Map returns a new Set obtained by applying f to each value in s.
+func (s *Set) Map(f func(*Term) (*Term, error)) (*Set, error) {
+	sl := *s
+	set := &Set{}
+	for i := range sl {
+		term, err := f(sl[i])
+		if err != nil {
+			return nil, err
+		}
+		set.Add(term)
+	}
+	return set, nil
+}
+
+// Contains returns true if t is in s.
+func (s Set) Contains(t *Term) bool {
+	for i := range s {
+		if s[i].Equal(t) {
+			return true
+		}
+	}
+	return false
+}
+
 // Object represents an object as defined by the language. Objects are similar to
 // the same types as defined by JSON with the exception that they can contain
 // Vars and References.
@@ -625,25 +704,19 @@ func Item(key, value *Term) [2]*Term {
 	return [2]*Term{key, value}
 }
 
-// Equal returns true if the other Value is an Object and the key/value pairs
-// of the Other object are equal to the key/value pairs of this Object. The
-// key/value pairs are ordered.
+// Equal returns true if obj is equal to other.
 func (obj Object) Equal(other Value) bool {
-	switch other := other.(type) {
-	case Object:
-		if len(obj) == len(other) {
-			for i := range obj {
-				if !obj[i][0].Equal(other[i][0]) {
-					return false
-				}
-				if !obj[i][1].Equal(other[i][1]) {
-					return false
-				}
-			}
-			return true
+	return Compare(obj, other) == 0
+}
+
+// Get returns the value of k in obj if k exists, otherwise nil.
+func (obj Object) Get(k *Term) *Term {
+	for _, pair := range obj {
+		if pair[0].Equal(k) {
+			return pair[1]
 		}
 	}
-	return false
+	return nil
 }
 
 // Hash returns the hash code for the Value.
@@ -707,6 +780,15 @@ func (obj Object) Intersect(other Object) [][3]*Term {
 	return r
 }
 
+// Keys returns the keys of obj.
+func (obj Object) Keys() []*Term {
+	keys := make([]*Term, len(obj))
+	for i, pair := range obj {
+		keys[i] = pair[0]
+	}
+	return keys
+}
+
 // Merge returns a new Object containing the non-overlapping keys of obj and other. If there are
 // overlapping keys between obj and other, the values of associated with the keys are merged. Only
 // objects can be merged with other objects. If the values cannot be merged, the second turn value
@@ -760,16 +842,9 @@ func ArrayComprehensionTerm(term *Term, body Body) *Term {
 	}
 }
 
-// Equal returns true if this array comprehension is syntactically equal to another.
+// Equal returns true if ac is equal to other.
 func (ac *ArrayComprehension) Equal(other Value) bool {
-	if ac == other {
-		return true
-	}
-	o, ok := other.(*ArrayComprehension)
-	if !ok {
-		return false
-	}
-	return o.Term.Equal(ac.Term) && o.Body.Equal(ac.Body)
+	return Compare(ac, other) == 0
 }
 
 // Hash returns the hash code of the Value.
@@ -940,6 +1015,14 @@ func unmarshalValue(d map[string]interface{}) (Value, error) {
 	case "array":
 		if s, err := unmarshalTermSliceValue(d); err == nil {
 			return Array(s), nil
+		}
+	case "set":
+		if s, err := unmarshalTermSliceValue(d); err == nil {
+			set := &Set{}
+			for _, x := range s {
+				set.Add(x)
+			}
+			return set, nil
 		}
 	case "object":
 		if s, ok := v.([]interface{}); ok {

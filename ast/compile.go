@@ -627,6 +627,15 @@ func (c *Compiler) resolveRefsInTerm(globals map[Var]Value, term *Term) *Term {
 		cpy := *term
 		cpy.Value = a
 		return &cpy
+	case *Set:
+		s := &Set{}
+		for _, e := range *v {
+			x := c.resolveRefsInTerm(globals, e)
+			s.Add(x)
+		}
+		cpy := *term
+		cpy.Value = s
+		return &cpy
 	case *ArrayComprehension:
 		ac := &ArrayComprehension{}
 		ac.Term = c.resolveRefsInTerm(globals, v.Term)

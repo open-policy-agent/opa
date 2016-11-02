@@ -191,7 +191,9 @@ InfixOp <- val:("=" / "!=" / "<=" / ">=" / "<" / ">") {
 	return operator, nil
 }
 
-PrefixExpr <- op:Var "(" _ head:Term? tail:( _ "," _ Term )* _  ")" {
+PrefixExpr <- SetEmpty / Builtin
+
+Builtin <- op:Var "(" _ head:Term? tail:( _ "," _ Term )* _  ")" {
     buf := []*Term{op.(*Term)}
     if head == nil {
         return buf, nil
@@ -219,7 +221,7 @@ ArrayComprehension <- "[" _ term:Term _ "|" _ body:Body _ "]" {
     return ac, nil
 }
 
-Composite <- Object / Array
+Composite <- Object / Array / Set
 
 Scalar <- Number / String / Bool / Null
 
@@ -271,6 +273,31 @@ Array <- '[' _  head:Term? tail:(_ ',' _ Term)* _ ']' {
    }
 
    return arr, nil
+}
+
+Set <- SetEmpty / SetNonEmpty
+
+SetEmpty <- "set(" _ ")" {
+    set := SetTerm()
+    set.Location = currentLocation(c)
+    return set, nil
+}
+
+SetNonEmpty <- '{' _ head:Term tail:(_ ',' _ Term)* _ '}' {
+    set := SetTerm()
+    set.Location = currentLocation(c)
+
+    val := set.Value.(*Set)
+    val.Add(head.(*Term))
+
+    tailSlice := tail.([]interface{})
+    for _, v := range tailSlice {
+        s := v.([]interface{})
+        // SetNonEmpty definition above describes the "tail" structure. We only care about the "Term" elements.
+        val.Add(s[len(s) - 1].(*Term))
+    }
+
+    return set, nil
 }
 
 Ref <- head:Var tail:( RefDot / RefBracket )+ {
