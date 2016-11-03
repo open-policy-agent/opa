@@ -583,6 +583,12 @@ func NewBuiltinExpr(terms ...*Term) *Expr {
 	return &Expr{Terms: terms}
 }
 
+type ruleSlice []*Rule
+
+func (s ruleSlice) Less(i, j int) bool { return Compare(s[i], s[j]) < 0 }
+func (s ruleSlice) Swap(i, j int)      { x := s[i]; s[i] = s[j]; s[j] = x }
+func (s ruleSlice) Len() int           { return len(s) }
+
 type varVisitor struct {
 	skipRefHead      bool
 	skipObjectKeys   bool

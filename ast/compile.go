@@ -659,23 +659,16 @@ func (c *Compiler) setRuleTree() {
 func (c *Compiler) setRuleGraph() {
 	for _, m := range c.Modules {
 		for _, r := range m.Rules {
-			// Walk over all of the references in the rule body and
-			// lookup the rules they may refer to. These rules are
-			// the dependencies of the current rule. Add these dependencies
-			// to the graph.
 			edges, ok := c.RuleGraph[r]
-
 			if !ok {
 				edges = map[*Rule]struct{}{}
 				c.RuleGraph[r] = edges
 			}
-
 			vis := &ruleGraphBuilder{
 				moduleTree: c.ModuleTree,
 				edges:      edges,
 			}
-
-			Walk(vis, r.Body)
+			Walk(vis, r)
 		}
 	}
 }
@@ -838,53 +831,73 @@ func (vs unsafeVars) Vars() VarSet {
 	return r
 }
 
-// findRules returns a slice of rules that are referred to
-// by the reference "ref". For example, suppose a package
-// "a.b.c" contains rules "p" and "q". If this function
-// is called with a ref "a.b.c.p" (or a.b.c.p[x] or ...) the
-// result would contain a single value: rule p. If this function
-// is called with "a.b.c", the result would be empty. Lastly,
-// if this function is called with a reference containing
-// variables, such as: "a.b.c[x]", the result will contain
-// rule "p" and rule "q".
+// findRules returns a slice of rules referred to by ref.
+//
+// For example, given package a.b.c containing rules p and q:
+//
+// findRules(a.b.c.p)		=> [p]
+// findRules(a.b.c.r)		=> []
+// findRules(a.b.c.p[x])	=> [p]
+// findRules(a.b.c)			=> [p q]
+// findRules(a.b)			=> [p q] # assumes no other rules under a.b
 func findRules(node *ModuleTreeNode, ref Ref) []*Rule {
+
+	// Syntactically, reference heads are variables, however, we don't want to
+	// treat them the same way as variables in the remainder of the reference
+	// here.
 	if node, ok := node.Children[ref[0].Value]; ok {
 		return findRulesRec(node, ref[1:])
 	}
+
 	return nil
 }
 
-func findRulesRec(node *ModuleTreeNode, ref Ref) []*Rule {
+func findRulesRec(node *ModuleTreeNode, ref Ref) (rs []*Rule) {
+
 	if len(ref) == 0 {
-		return nil
+		// Any rules that define documents embedded inside the document referred
+		// to by this reference must be included. Accumulate all embedded rules
+		// by recursively walking the module tree.
+		var acc func(node *ModuleTreeNode)
+
+		acc = func(node *ModuleTreeNode) {
+			for _, mod := range node.Modules {
+				rs = append(rs, mod.Rules...)
+			}
+			for _, child := range node.Children {
+				acc(child)
+			}
+		}
+
+		acc(node)
+
+		return rs
 	}
-	switch v := ref[0].Value.(type) {
-	case Var:
-		result := []*Rule{}
-		tail := ref[1:]
-		for _, n := range node.Children {
-			result = append(result, findRulesRec(n, tail)...)
-		}
-		for _, m := range node.Modules {
-			result = append(result, m.Rules...)
-		}
-		return result
+
+	head, tail := ref[0], ref[1:]
+
+	switch head := head.Value.(type) {
 	case String:
-		if node, ok := node.Children[v]; ok {
-			return findRulesRec(node, ref[1:])
+		if node, ok := node.Children[head]; ok {
+			return findRulesRec(node, tail)
 		}
-		result := []*Rule{}
 		for _, m := range node.Modules {
 			for _, r := range m.Rules {
-				if String(r.Name).Equal(v) {
-					result = append(result, r)
+				if String(r.Name).Equal(head) {
+					rs = append(rs, r)
 				}
 			}
 		}
-		return result
-	default:
-		return nil
+	case Var:
+		for _, n := range node.Children {
+			rs = append(rs, findRulesRec(n, tail)...)
+		}
+		for _, m := range node.Modules {
+			rs = append(rs, m.Rules...)
+		}
 	}
+
+	return rs
 }
 
 // reorderBodyForSafety returns a copy of the body ordered such that
