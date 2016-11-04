@@ -304,7 +304,7 @@ func parseInputs(paths []string) (*parsedInput, error) {
 
 		switch filepath.Ext(file) {
 		case ".json":
-			return nil, jsonErr
+			return nil, errors.Wrapf(jsonErr, file)
 		case ".rego":
 			return nil, astErr
 		default:
