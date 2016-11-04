@@ -86,6 +86,8 @@ func (r *REPL) Loop() {
 		fmt.Fprintln(r.output, r.banner)
 	}
 
+	line.SetCompleter(r.complete)
+
 	for true {
 
 		input, err := line.Prompt(r.getPrompt())
@@ -157,6 +159,43 @@ func (r *REPL) OneShot(line string) bool {
 	}
 
 	return false
+}
+
+func (r *REPL) complete(line string) (c []string) {
+
+	txn, err := r.store.NewTransaction()
+
+	if err != nil {
+		fmt.Fprintln(r.output, "error:", err)
+		return c
+	}
+
+	defer r.store.Close(txn)
+
+	mods := r.store.ListPolicies(txn)
+
+	for _, mod := range mods {
+		for _, rule := range mod.Rules {
+			path := mod.Package.Path.String() + "." + rule.Name.String()
+			if strings.HasPrefix(path, line) {
+				c = append(c, path)
+			}
+		}
+	}
+
+	for _, mod := range r.modules {
+		for _, rule := range mod.Rules {
+			if r.isGeneratedRuleName(rule.Name) {
+				continue
+			}
+			path := mod.Package.Path.String() + "." + rule.Name.String()
+			if strings.HasPrefix(path, line) {
+				c = append(c, path)
+			}
+		}
+	}
+
+	return c
 }
 
 func (r *REPL) cmdDump(args []string) bool {
@@ -295,13 +334,11 @@ func (r *REPL) cmdUnset(args []string) bool {
 }
 
 func (r *REPL) compileBody(body ast.Body) (ast.Body, error) {
-
-	name := fmt.Sprintf("repl%d", r.nextID)
-	r.nextID++
+	name := r.generateRuleName()
 
 	rule := &ast.Rule{
 		Location: body[0].Location,
-		Name:     ast.Var(name),
+		Name:     name,
 		Value:    ast.BooleanTerm(true),
 		Body:     body,
 	}
@@ -802,6 +839,16 @@ func (r *REPL) saveHistory(prompt *liner.State) {
 		prompt.WriteHistory(f)
 		f.Close()
 	}
+}
+
+func (r *REPL) generateRuleName() ast.Var {
+	name := fmt.Sprintf("repl%d", r.nextID)
+	r.nextID++
+	return ast.Var(name)
+}
+
+func (r *REPL) isGeneratedRuleName(name ast.Var) bool {
+	return strings.HasPrefix(string(name), "repl")
 }
 
 type commandDesc struct {

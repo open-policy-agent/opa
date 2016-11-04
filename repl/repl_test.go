@@ -12,12 +12,79 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"sort"
 	"strings"
 	"testing"
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/storage"
 )
+
+func TestComplete(t *testing.T) {
+	store := newTestStore()
+	_, mod1, err := ast.CompileModule(`package a.b.c
+	p = 1
+	q = 2`)
+	if err != nil {
+		panic(err)
+	}
+
+	_, mod2, err := ast.CompileModule(`package a.b.d
+	r = 3`)
+	if err != nil {
+		panic(err)
+	}
+
+	if err := storage.InsertPolicy(store, "mod1", mod1, nil, false); err != nil {
+		panic(err)
+	}
+
+	if err := storage.InsertPolicy(store, "mod2", mod2, nil, false); err != nil {
+		panic(err)
+	}
+
+	var buf bytes.Buffer
+	repl := newRepl(store, &buf)
+	repl.OneShot("s = 4")
+	buf.Reset()
+
+	result := repl.complete("")
+	expected := []string{
+		"data.a.b.c.p",
+		"data.a.b.c.q",
+		"data.a.b.d.r",
+		"data.repl.s",
+	}
+
+	sort.Strings(result)
+	sort.Strings(expected)
+
+	if !reflect.DeepEqual(result, expected) {
+		t.Fatalf("Expected %v but got: %v", expected, result)
+	}
+
+	result = repl.complete("data.a.b")
+	expected = []string{
+		"data.a.b.c.p",
+		"data.a.b.c.q",
+		"data.a.b.d.r",
+	}
+
+	sort.Strings(result)
+	sort.Strings(expected)
+
+	if !reflect.DeepEqual(result, expected) {
+		t.Fatalf("Expected %v but got: %v", expected, result)
+	}
+
+	result = repl.complete("data.a.b.c.p[x]")
+	expected = nil
+
+	if !reflect.DeepEqual(result, expected) {
+		t.Fatalf("Expected %v but got: %v", expected, result)
+	}
+
+}
 
 func TestDump(t *testing.T) {
 	input := `{"a": [1,2,3,4]}`
