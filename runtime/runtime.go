@@ -106,10 +106,9 @@ func (rt *Runtime) init(params *Params) error {
 
 	defer store.Close(txn)
 
-	for _, doc := range parsed.docs {
-		if err := store.Write(txn, storage.AddOp, doc.ref, doc.value); err != nil {
-			return errors.Wrap(err, "unable to open data store")
-		}
+	ref := ast.Ref{ast.DefaultRootDocument}
+	if err := store.Write(txn, storage.AddOp, ref, parsed.baseDocs); err != nil {
+		return errors.Wrapf(err, "storage error")
 	}
 
 	// Load policies provided via input.
@@ -202,10 +201,9 @@ func (rt *Runtime) processWatcherUpdate(paths []string) error {
 
 	defer rt.Store.Close(txn)
 
-	for _, doc := range parsed.docs {
-		if err := rt.Store.Write(txn, storage.AddOp, doc.ref, doc.value); err != nil {
-			return err
-		}
+	ref := ast.Ref{ast.DefaultRootDocument}
+	if err := rt.Store.Write(txn, storage.AddOp, ref, parsed.baseDocs); err != nil {
+		return err
 	}
 
 	return compileAndStoreInputs(parsed.modules, rt.Store, txn)
@@ -247,19 +245,14 @@ type parsedModule struct {
 	raw []byte
 }
 
-type parsedDoc struct {
-	ref   ast.Ref
-	value interface{}
-}
-
 type parsedInput struct {
-	docs    []parsedDoc
-	modules map[string]*parsedModule
+	baseDocs map[string]interface{}
+	modules  map[string]*parsedModule
 }
 
 func parseInputs(paths []string) (*parsedInput, error) {
 
-	parsedDocs := []parsedDoc{}
+	baseDocs := map[string]interface{}{}
 	parsedModules := map[string]*parsedModule{}
 
 	for _, file := range paths {
@@ -290,21 +283,19 @@ func parseInputs(paths []string) (*parsedInput, error) {
 			continue
 		}
 
-		d, jsonErr := parseJSONObjectFile(file)
+		parsed, jsonErr := parseJSONObjectFile(file)
 
 		if jsonErr == nil {
-			for k, v := range d {
-				parsedDocs = append(parsedDocs, parsedDoc{
-					ref:   ast.Ref{ast.DefaultRootDocument, ast.StringTerm(k)},
-					value: v,
-				})
+			baseDocs, err = mergeDocs(baseDocs, parsed)
+			if err != nil {
+				return nil, errors.Wrapf(err, file)
 			}
 			continue
 		}
 
 		switch filepath.Ext(file) {
 		case ".json":
-			return nil, jsonErr
+			return nil, errors.Wrapf(jsonErr, file)
 		case ".rego":
 			return nil, astErr
 		default:
@@ -313,8 +304,8 @@ func parseInputs(paths []string) (*parsedInput, error) {
 	}
 
 	r := &parsedInput{
-		docs:    parsedDocs,
-		modules: parsedModules,
+		baseDocs: baseDocs,
+		modules:  parsedModules,
 	}
 
 	return r, nil
