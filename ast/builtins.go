@@ -199,10 +199,10 @@ var FormatInt = &Builtin{
 // Builtin represents a built-in function supported by OPA. Every
 // built-in function is uniquely identified by a name.
 type Builtin struct {
-	Name      Var
-	Infix     Var
-	NumArgs   int
-	TargetPos []int
+	Name      Var   // Unique name of built-in function, e.g., <Name>(term,term,...,term)
+	Infix     Var   // Unique name of infix operator. Default should be unset.
+	NumArgs   int   // Total number of args required by built-in.
+	TargetPos []int // Argument positions that bind outputs. Indexing is zero-based.
 }
 
 // Expr creates a new expression for the built-in with the given terms.
