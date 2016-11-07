@@ -24,12 +24,22 @@ func TestModuleTree(t *testing.T) {
 		t.Fatalf("Expected size of %v in module tree but got: %v", expectedSize, tree.Size())
 	}
 
-	if r1 := findRules(tree, MustParseRef("data.a.b.c")); len(r1) != 0 {
-		t.Fatalf("Expected empty result from findRules(data.a.b.c) but got: %v", r1)
+	r1 := findRules(tree, MustParseRef("data.a.b.c"))
+	expected1 := []*Rule{}
+	expected1 = append(expected1, mods["mod1"].Rules...)
+	expected1 = append(expected1, mods["mod2"].Rules...)
+	sort.Sort(ruleSlice(r1))
+	sort.Sort(ruleSlice(expected1))
+
+	if !reflect.DeepEqual(r1, expected1) {
+		t.Fatalf("Expected %v result from findRules(data.a.b.c) but got: %v", expected1, r1)
 	}
 
-	if r2 := findRules(tree, MustParseRef("a[x]")); len(r2) != 0 {
-		t.Fatalf("Expected empty result from findRules(a[x]) but got: %v", r2)
+	r2 := findRules(tree, MustParseRef("a[x]"))
+	var expected2 []*Rule
+
+	if !reflect.DeepEqual(r2, expected2) {
+		t.Fatalf("Expected %v result from findRules(a[x]) but got: %v", expected2, r2)
 	}
 
 	r3 := findRules(tree, MustParseRef("data.a.b.c.p"))
@@ -60,8 +70,35 @@ func TestModuleTree(t *testing.T) {
 	sort.Strings(expected5)
 
 	if !reflect.DeepEqual(r5, expected5) {
-		t.Fatalf("Expected %v from findRules(data.a.b.c.p[x]) but got: %v", expected5, r5)
+		t.Fatalf("Expected %v from findRules(data.a.b[i][j][k]) but got: %v", expected5, r5)
 	}
+
+	// This ref refers to all rules (same as above but without vars)
+	r6 := []string{}
+	for _, r := range findRules(tree, MustParseRef("data.a.b")) {
+		r6 = append(r6, string(r.Name))
+	}
+	sort.Strings(r6)
+
+	expected6 := expected5
+
+	if !reflect.DeepEqual(r6, expected6) {
+		t.Fatalf("Expected %v from findRules(data.a.b) but got: %v", expected6, r6)
+	}
+
+	// This ref refers to all rules (same as above but with var in last position)
+	r7 := []string{}
+	for _, r := range findRules(tree, MustParseRef("data.a.b[x]")) {
+		r7 = append(r7, string(r.Name))
+	}
+	sort.Strings(r7)
+
+	expected7 := expected6
+
+	if !reflect.DeepEqual(r7, expected7) {
+		t.Fatalf("Expected %v from findRules(data.a.b[x]) but got: %v", expected7, r7)
+	}
+
 }
 
 func TestRuleTree(t *testing.T) {
@@ -542,6 +579,10 @@ func TestCompilerCheckRecursion(t *testing.T) {
 						np[x] = y :- data.a[data.b.c[nq[x]]] = y
 						nq[x] = y :- data.d[data.e[x].f[np[y]]]
 						`),
+		"newMod8": MustParseModule(`
+						package rec7
+						prefix :- data.rec7
+						`),
 	}
 
 	compileStages(c, "", "checkRecursion")
@@ -563,6 +604,7 @@ func TestCompilerCheckRecursion(t *testing.T) {
 		makeErrMsg("acp", "acp", "acq", "acp"),
 		makeErrMsg("np", "np", "nq", "np"),
 		makeErrMsg("nq", "nq", "np", "nq"),
+		makeErrMsg("prefix", "prefix", "prefix"),
 	}
 
 	result := compilerErrsToStringSlice(c.Errors)
