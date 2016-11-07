@@ -3,7 +3,39 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## 0.2.0
+
+### Language
+
+- Set literals
+- Composite and reference values in Rule head
+- Complete Rule definitions containing variables
+- Builtins for regular expressions, string concatenation, casting to numbers
+
+### Compiler
+
+- Improved error reporting in parser and compiler
+
+### Evaluation
+
+- Iteration over base and virtual documents (in the same reference)
+- Query tracing and explanation support
+
+### Storage
+
+- Pluggable data storage support
+
+### Documentation
+
+- GoDoc strings with examples
+- REST API specification
+- Concise language reference
+
+### Performance
+
+- Per-query cache of virtual documents in topdown
+
+And many other small improvements and fixes.
 
 ## 0.1.0
 
