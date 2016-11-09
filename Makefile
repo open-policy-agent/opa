@@ -51,11 +51,20 @@ build: generate
 
 image:
 	@$(MAKE) build GOOS=linux
+	@$(MAKE) image-quick
+
+image-quick:
 	sed -e 's/GOARCH/$(GOARCH)/g' Dockerfile.in > .Dockerfile_$(GOARCH)
 	docker build -t $(IMAGE):$(VERSION)	-f .Dockerfile_$(GOARCH) .
 
 push:
 	docker push $(IMAGE):$(VERSION)
+
+tag-latest:
+	docker tag $(IMAGE):$(VERSION) $(IMAGE):latest
+
+push-latest:
+	docker push $(IMAGE):latest
 
 install: generate
 	$(GO) install -ldflags $(LDFLAGS)
