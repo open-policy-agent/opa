@@ -1,12 +1,14 @@
-# OPA: Open Policy Agent
+# Open Policy Agent
 
 The Open Policy Agent (OPA) is an open source project that helps policy-enable your service. By integrating with OPA, your service's operators will be empowered to manage the size, complexity, and dynamic nature of modern deployments.
 
-To learn more, visit [openpolicyagent.org](http://www.openpolicyagent.org).
+## Want to learn about OPA?
 
-## Want to use OPA?
+ See [openpolicyagent.org](http://www.openpolicyagent.org) to get started.
 
-See [Get OPA](http://www.openpolicyagent.org/get-opa/) for download links.
+## Want to get OPA?
+
+See [Get OPA](http://www.openpolicyagent.org/get-opa/) for releases.
 
 ## Want to build OPA?
 

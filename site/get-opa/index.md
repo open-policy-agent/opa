@@ -10,7 +10,7 @@ title: Get Open Policy Agent
 # Get Open Policy Agent
 {: .opa-header--minor-title}
 
-OPA is available as binary releases for 64-bit Linux and Mac OS X or as Golang source code.
+The binary releases for 64-bit Linux and Mac are available for download here. For other releases of OPA see the [GitHub Releases](https://github.com/open-policy-agent/opa/releases) page.
 {: .opa-header--text}
 
   * [64-bit Linux](https://github.com/open-policy-agent/opa/releases/download/v0.2.0/opa_linux_amd64){: .opa-header--download-list--link}
@@ -38,11 +38,9 @@ $ chmod u+x opa
 $ ./opa version
 ```
 
-## Go Source (Latest)
-
+## Docker Image (64-bit Linux)
 ```shell
-$ go get github.com/open-policy-agent/opa
-$ $GOPATH/bin/opa
+$ docker run openpolicyagent/opa:0.2.0 version
 ```
 
 {% endcontentfor %}
