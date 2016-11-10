@@ -29,7 +29,7 @@ CHANGELOG.md snippet and uploading the packages from the build phase.
 1. Update documentation that refers to the latest release by semantic version. For example:
 
 	```
-	find site/ -name "*.md" -exec sed -i "" 's/v0.12.7/v0.12.8/g' {} \;
+	find site/ -name "*.md" -exec sed -i "" 's/0.12.7/0.12.8/g' {} \;
 	```
 
 1. Commit the changes and push to remote repository.
