@@ -6,7 +6,7 @@ FROM scratch
 
 MAINTAINER Torin Sandall <torinsandall@gmail.com>
 
-ADD /opa_linux_GOARCH /opa
+ADD opa_linux_GOARCH /opa
 
 ENTRYPOINT ["/opa"]
 
