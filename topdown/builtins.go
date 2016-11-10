@@ -44,6 +44,13 @@ var defaultBuiltinFuncs = map[ast.Var]BuiltinFunc{
 	ast.RegexMatch.Name:    evalRegexMatch,
 	ast.FormatInt.Name:     evalFormatInt,
 	ast.Concat.Name:        evalConcat,
+	ast.IndexOf.Name:       evalIndexOf,
+	ast.Substring.Name:     evalSubstring,
+	ast.Contains.Name:      evalContains,
+	ast.StartsWith.Name:    evalStartsWith,
+	ast.EndsWith.Name:      evalEndsWith,
+	ast.Upper.Name:         evalUpper,
+	ast.Lower.Name:         evalLower,
 }
 
 func init() {

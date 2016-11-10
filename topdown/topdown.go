@@ -6,6 +6,7 @@ package topdown
 
 import (
 	"fmt"
+	"math"
 	"sync"
 
 	"github.com/open-policy-agent/opa/ast"
@@ -695,6 +696,19 @@ func ValueToFloat64(v ast.Value, ctx *Context) (float64, error) {
 		return 0, fmt.Errorf("illegal argument: %v", v)
 	}
 	return f, nil
+}
+
+// ValueToInt returns the underlying Go value associated with an AST value.
+// If the value is a reference, the reference is fetched from storage.
+func ValueToInt(v ast.Value, ctx *Context) (int64, error) {
+	x, err := ValueToFloat64(v, ctx)
+	if err != nil {
+		return 0, err
+	}
+	if x != math.Floor(x) {
+		return 0, fmt.Errorf("illegal argument: %v", v)
+	}
+	return int64(x), nil
 }
 
 // ValueToString returns the underlying Go value associated with an AST value.

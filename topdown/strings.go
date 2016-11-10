@@ -54,3 +54,140 @@ func evalConcat(ctx *Context, expr *ast.Expr, iter Iterator) error {
 	ctx.Unbind(undo)
 	return err
 }
+
+func evalIndexOf(ctx *Context, expr *ast.Expr, iter Iterator) error {
+	ops := expr.Terms.([]*ast.Term)
+
+	base, err := ValueToString(ops[1].Value, ctx)
+	if err != nil {
+		return errors.Wrapf(err, "%v: base value must be a string", ast.IndexOf.Name)
+	}
+
+	search, err := ValueToString(ops[2].Value, ctx)
+	if err != nil {
+		return errors.Wrapf(err, "%v: search value must be a string", ast.IndexOf.Name)
+	}
+
+	index := ast.Number(strings.Index(base, search))
+
+	undo, err := evalEqUnify(ctx, index, ops[3].Value, nil, iter)
+	ctx.Unbind(undo)
+	return err
+}
+
+func evalSubstring(ctx *Context, expr *ast.Expr, iter Iterator) error {
+	ops := expr.Terms.([]*ast.Term)
+
+	base, err := ValueToString(ops[1].Value, ctx)
+	if err != nil {
+		return errors.Wrapf(err, "%v: base value must be a string", ast.Substring.Name)
+	}
+
+	startIndex, err := ValueToInt(ops[2].Value, ctx)
+	if err != nil {
+		return errors.Wrapf(err, "%v: start index must be a number", ast.Substring.Name)
+	}
+
+	l, err := ValueToInt(ops[3].Value, ctx)
+	if err != nil {
+		return errors.Wrapf(err, "%v: length must be a number", ast.Substring.Name)
+	}
+
+	var s ast.String
+	if l < 0 {
+		s = ast.String(base[startIndex:])
+	} else {
+		s = ast.String(base[startIndex : startIndex+l])
+	}
+
+	undo, err := evalEqUnify(ctx, s, ops[4].Value, nil, iter)
+	ctx.Unbind(undo)
+	return err
+}
+
+func evalContains(ctx *Context, expr *ast.Expr, iter Iterator) error {
+	ops := expr.Terms.([]*ast.Term)
+
+	base, err := ValueToString(ops[1].Value, ctx)
+	if err != nil {
+		return errors.Wrapf(err, "%v: base value must be a string", ast.Contains.Name)
+	}
+
+	search, err := ValueToString(ops[2].Value, ctx)
+	if err != nil {
+		return errors.Wrapf(err, "%v: search must be a string", ast.Contains.Name)
+	}
+
+	if strings.Contains(base, search) {
+		return iter(ctx)
+	}
+	return nil
+}
+
+func evalStartsWith(ctx *Context, expr *ast.Expr, iter Iterator) error {
+	ops := expr.Terms.([]*ast.Term)
+
+	base, err := ValueToString(ops[1].Value, ctx)
+	if err != nil {
+		return errors.Wrapf(err, "%v: base value must be a string", ast.StartsWith.Name)
+	}
+
+	search, err := ValueToString(ops[2].Value, ctx)
+	if err != nil {
+		return errors.Wrapf(err, "%v: search must be a string", ast.StartsWith.Name)
+	}
+
+	if strings.HasPrefix(base, search) {
+		return iter(ctx)
+	}
+	return nil
+}
+
+func evalEndsWith(ctx *Context, expr *ast.Expr, iter Iterator) error {
+	ops := expr.Terms.([]*ast.Term)
+
+	base, err := ValueToString(ops[1].Value, ctx)
+	if err != nil {
+		return errors.Wrapf(err, "%v: base value must be a string", ast.EndsWith.Name)
+	}
+
+	search, err := ValueToString(ops[2].Value, ctx)
+	if err != nil {
+		return errors.Wrapf(err, "%v: search must be a string", ast.EndsWith.Name)
+	}
+
+	if strings.HasSuffix(base, search) {
+		return iter(ctx)
+	}
+	return nil
+}
+
+func evalLower(ctx *Context, expr *ast.Expr, iter Iterator) error {
+	ops := expr.Terms.([]*ast.Term)
+
+	orig, err := ValueToString(ops[1].Value, ctx)
+	if err != nil {
+		return errors.Wrapf(err, "%v: original value must be a string", ast.Lower.Name)
+	}
+
+	s := ast.String(strings.ToLower(orig))
+
+	undo, err := evalEqUnify(ctx, s, ops[2].Value, nil, iter)
+	ctx.Unbind(undo)
+	return err
+}
+
+func evalUpper(ctx *Context, expr *ast.Expr, iter Iterator) error {
+	ops := expr.Terms.([]*ast.Term)
+
+	orig, err := ValueToString(ops[1].Value, ctx)
+	if err != nil {
+		return errors.Wrapf(err, "%v: original value must be a string", ast.Upper.Name)
+	}
+
+	s := ast.String(strings.ToUpper(orig))
+
+	undo, err := evalEqUnify(ctx, s, ops[2].Value, nil, iter)
+	ctx.Unbind(undo)
+	return err
+}

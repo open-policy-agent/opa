@@ -914,18 +914,49 @@ false
 ### Strings
 
 ```ruby
-> format_int(15.5, 16, x)
-+-----+
-|  x  |
-+-----+
-| "f" |
-+-----+
 > concat("/", ["", "foo", "bar", "baz"], x)
 +----------------+
 |       x        |
 +----------------+
 | "/foo/bar/baz" |
 +----------------+
+> contains("abcdef", "cde")
+true
+> endswith("abcdef", "def")
+true
+> format_int(15.5, 16, x)
++-----+
+|  x  |
++-----+
+| "f" |
++-----+
+> indexof("abcdefg", "cde", x)
++---+
+| x |
++---+
+| 2 |
++---+
+> lower("AbCdEf", x)
++----------+
+|    x     |
++----------+
+| "abcdef" |
++----------+
+> startswith("abcdef", "abcd")
+true
+> substring("abcdef", 2, 3, x)
++-------+
+|   x   |
++-------+
+| "cde" |
++-------+
+> upper("AbCdEf", x)
++----------+
+|    x     |
++----------+
+| "ABCDEF" |
++----------+
+
 ```
 
 ## <a name="examples"></a> Examples
