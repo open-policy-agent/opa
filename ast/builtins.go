@@ -25,7 +25,7 @@ var DefaultBuiltins = [...]*Builtin{
 	Count, Sum, Max,
 	ToNumber,
 	RegexMatch,
-	Concat, FormatInt,
+	Concat, FormatInt, IndexOf, Substring, Lower, Upper, Contains, StartsWith, EndsWith,
 }
 
 // BuiltinMap provides a convenient mapping of built-in names to
@@ -194,6 +194,53 @@ var FormatInt = &Builtin{
 	Name:      Var("format_int"),
 	NumArgs:   3,
 	TargetPos: []int{2},
+}
+
+// IndexOf returns the index of a substring contained inside a string
+var IndexOf = &Builtin{
+	Name:      Var("indexof"),
+	NumArgs:   3,
+	TargetPos: []int{2},
+}
+
+// Substring returns the portion of a string for a given start index and a length.
+//   If the length is less than zero, then substring returns the remainder of the string.
+var Substring = &Builtin{
+	Name:      Var("substring"),
+	NumArgs:   4,
+	TargetPos: []int{3},
+}
+
+// Contains returns true if the search string is included in the base string
+var Contains = &Builtin{
+	Name:    Var("contains"),
+	NumArgs: 2,
+}
+
+// StartsWith returns true if the search string begins with the base string
+var StartsWith = &Builtin{
+	Name:    Var("startswith"),
+	NumArgs: 2,
+}
+
+// EndsWith returns true if the search string begins with the base string
+var EndsWith = &Builtin{
+	Name:    Var("endswith"),
+	NumArgs: 2,
+}
+
+// Lower returns the input string but with all characters in lower-case
+var Lower = &Builtin{
+	Name:      Var("lower"),
+	NumArgs:   2,
+	TargetPos: []int{1},
+}
+
+// Upper returns the input string but with all characters in upper-case
+var Upper = &Builtin{
+	Name:      Var("upper"),
+	NumArgs:   2,
+	TargetPos: []int{1},
 }
 
 // Builtin represents a built-in function supported by OPA. Every
