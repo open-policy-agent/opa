@@ -18,9 +18,9 @@ services:
 
 after_success:
 - source ./build/travis-utils.sh
-- if [[ is_travis_push_env -eq 1 ]]; then docker login -e $DOCKER_EMAIL -u $DOCKER_USER -p $DOCKER_PASS; fi
-- if [[ is_travis_push_env -eq 1 ]]; then make image-quick; fi
-- if [[ is_travis_push_env -eq 1 ]]; then make push; fi
-- if [[ is_travis_push_env -eq 1 ]]; then make tag-latest; fi
-- if [[ is_travis_push_env -eq 1 ]]; then make push-latest; fi
-- if [[ is_travis_push_env -eq 1 ]]; then make perf-regression; fi
+- if is_travis_push_env; then docker login -e $DOCKER_EMAIL -u $DOCKER_USER -p $DOCKER_PASS; fi
+- if is_travis_push_env; then make image-quick; fi
+- if is_travis_push_env; then make push; fi
+- if is_travis_push_env; then make tag-latest; fi
+- if is_travis_push_env; then make push-latest; fi
+- if is_travis_push_env; then make perf-regression; fi
