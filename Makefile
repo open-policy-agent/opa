@@ -18,6 +18,7 @@ PACKAGES := \
 GO := go
 GOARCH := $(shell go env GOARCH)
 GOOS := $(shell go env GOOS)
+DISABLE_CGO := CGO_ENABLED=0
 
 BIN := opa_$(GOOS)_$(GOARCH)
 
@@ -47,7 +48,7 @@ generate:
 	$(GO) generate
 
 build: generate
-	$(GO) build -o $(BIN) -ldflags $(LDFLAGS)
+	$(DISABLE_CGO) $(GO) build -o $(BIN) -ldflags $(LDFLAGS)
 
 image:
 	@$(MAKE) build GOOS=linux
@@ -67,19 +68,19 @@ push-latest:
 	docker push $(IMAGE):latest
 
 install: generate
-	$(GO) install -ldflags $(LDFLAGS)
+	$(DISABLE_CGO) $(GO) install -ldflags $(LDFLAGS)
 
 test: generate
-	$(GO) test $(PACKAGES)
+	$(DISABLE_CGO) $(GO) test $(PACKAGES)
 
 COVER_PACKAGES=$(PACKAGES)
 $(COVER_PACKAGES):
 	@mkdir -p coverage/$(shell dirname $@)
-	$(GO) test -covermode=count -coverprofile=coverage/$(shell dirname $@)/coverage.out $@
+	$(DISABLE_CGO) $(GO) test -covermode=count -coverprofile=coverage/$(shell dirname $@)/coverage.out $@
 	$(GO) tool cover -html=coverage/$(shell dirname $@)/coverage.out || true
 
 perf: generate
-	$(GO) test -v -run=donotruntests -bench=. $(PACKAGES) | grep "^Benchmark"
+	$(DISABLE_CGO) $(GO) test -v -run=donotruntests -bench=. $(PACKAGES) | grep "^Benchmark"
 
 perf-regression:
 	./build/run-perf-regression.sh
