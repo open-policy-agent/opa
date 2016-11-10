@@ -2,11 +2,9 @@ sudo: required
 
 language: go
 
-# When updating Go versions, be sure to update the env.global for
-# LATEST_GO_VERSION.
 go:
 - 1.6
-- 1.7
+- 1.7   # make sure to bump LATEST_GO_VERSION (below) when updating
 
 env:
   global:
@@ -19,10 +17,10 @@ services:
 - docker
 
 after_success:
-- make perf-regression
 - source ./build/travis-utils.sh
 - if [[ is_travis_push_env -eq 1 ]]; then docker login -e $DOCKER_EMAIL -u $DOCKER_USER -p $DOCKER_PASS; fi
 - if [[ is_travis_push_env -eq 1 ]]; then make image-quick; fi
 - if [[ is_travis_push_env -eq 1 ]]; then make push; fi
 - if [[ is_travis_push_env -eq 1 ]]; then make tag-latest; fi
 - if [[ is_travis_push_env -eq 1 ]]; then make push-latest; fi
+- if [[ is_travis_push_env -eq 1 ]]; then make perf-regression; fi
