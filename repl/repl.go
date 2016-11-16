@@ -451,6 +451,46 @@ func (r *REPL) loadCompiler() (*ast.Compiler, error) {
 	return compiler, nil
 }
 
+// loadGlobals returns the globals mapping currently defined in the REPL. The
+// REPL loads globals from the data.repl.globals document.
+func (r *REPL) loadGlobals(compiler *ast.Compiler) (*ast.ValueMap, error) {
+
+	params := topdown.NewQueryParams(compiler, r.store, r.txn, nil, []interface{}{"repl", "globals"})
+
+	result, err := topdown.Query(params)
+	if err != nil {
+		return nil, err
+	}
+
+	if _, ok := result.(topdown.Undefined); ok {
+		return nil, nil
+	}
+
+	pairs := [][2]*ast.Term{}
+
+	obj, ok := result.(map[string]interface{})
+	if !ok {
+		return nil, fmt.Errorf("globals is %T but expected object", result)
+	}
+
+	for k, v := range obj {
+
+		gk, err := ast.ParseTerm(k)
+		if err != nil {
+			return nil, err
+		}
+
+		gv, err := ast.InterfaceToValue(v)
+		if err != nil {
+			return nil, err
+		}
+
+		pairs = append(pairs, [...]*ast.Term{gk, &ast.Term{Value: gv}})
+	}
+
+	return topdown.MakeGlobals(pairs)
+}
+
 func (r *REPL) evalStatement(stmt interface{}) bool {
 	switch s := stmt.(type) {
 	case ast.Body:
@@ -470,7 +510,12 @@ func (r *REPL) evalStatement(stmt interface{}) bool {
 			fmt.Fprintln(r.output, "error:", err)
 			return false
 		}
-		return r.evalBody(compiler, body)
+		globals, err := r.loadGlobals(compiler)
+		if err != nil {
+			fmt.Fprintln(r.output, "error:", err)
+			return false
+		}
+		return r.evalBody(compiler, globals, body)
 	case *ast.Rule:
 		if err := r.compileRule(s); err != nil {
 			fmt.Fprintln(r.output, "error:", err)
@@ -483,7 +528,7 @@ func (r *REPL) evalStatement(stmt interface{}) bool {
 	return false
 }
 
-func (r *REPL) evalBody(compiler *ast.Compiler, body ast.Body) bool {
+func (r *REPL) evalBody(compiler *ast.Compiler, globals *ast.ValueMap, body ast.Body) bool {
 
 	// Special case for positive, single term inputs.
 	if len(body) == 1 {
@@ -491,14 +536,15 @@ func (r *REPL) evalBody(compiler *ast.Compiler, body ast.Body) bool {
 		if !expr.Negated {
 			if _, ok := expr.Terms.(*ast.Term); ok {
 				if singleValue(body) {
-					return r.evalTermSingleValue(compiler, body)
+					return r.evalTermSingleValue(compiler, globals, body)
 				}
-				return r.evalTermMultiValue(compiler, body)
+				return r.evalTermMultiValue(compiler, globals, body)
 			}
 		}
 	}
 
 	ctx := topdown.NewContext(body, compiler, r.store, r.txn)
+	ctx.Globals = globals
 
 	var buf *topdown.BufferTracer
 
@@ -610,13 +656,14 @@ func (r *REPL) evalPackage(p *ast.Package) bool {
 // and comprehensions always evaluate to a single value. To handle references, this function
 // still executes the query, except it does so by rewriting the body to assign the term
 // to a variable. This allows the REPL to obtain the result even if the term is false.
-func (r *REPL) evalTermSingleValue(compiler *ast.Compiler, body ast.Body) bool {
+func (r *REPL) evalTermSingleValue(compiler *ast.Compiler, globals *ast.ValueMap, body ast.Body) bool {
 
 	term := body[0].Terms.(*ast.Term)
 	outputVar := ast.Wildcard
 	body = ast.NewBody(ast.Equality.Expr(term, outputVar))
 
 	ctx := topdown.NewContext(body, compiler, r.store, r.txn)
+	ctx.Globals = globals
 
 	var buf *topdown.BufferTracer
 
@@ -656,7 +703,7 @@ func (r *REPL) evalTermSingleValue(compiler *ast.Compiler, body ast.Body) bool {
 
 // evalTermMultiValue evaluates and prints terms in cases where the term may evaluate to multiple
 // ground values, e.g., a[i], [servers[x]], etc.
-func (r *REPL) evalTermMultiValue(compiler *ast.Compiler, body ast.Body) bool {
+func (r *REPL) evalTermMultiValue(compiler *ast.Compiler, globals *ast.ValueMap, body ast.Body) bool {
 
 	// Mangle the expression in the same way we do for evalTermSingleValue. When handling the
 	// evaluation result below, we will ignore this variable.
@@ -665,6 +712,7 @@ func (r *REPL) evalTermMultiValue(compiler *ast.Compiler, body ast.Body) bool {
 	body = ast.NewBody(ast.Equality.Expr(term, outputVar))
 
 	ctx := topdown.NewContext(body, compiler, r.store, r.txn)
+	ctx.Globals = globals
 
 	var buf *topdown.BufferTracer
 
