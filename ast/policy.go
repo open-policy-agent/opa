@@ -370,6 +370,15 @@ func (body Body) Vars(skipClosures bool) VarSet {
 	return vis.vars
 }
 
+// NewExpr returns a new Expr object.
+func NewExpr(terms interface{}) *Expr {
+	return &Expr{
+		Negated: false,
+		Terms:   terms,
+		Index:   0,
+	}
+}
+
 // Complement returns a copy of this expression with the negation flag flipped.
 func (expr *Expr) Complement() *Expr {
 	cpy := *expr
