@@ -931,10 +931,6 @@ func handleResponseJSON(w http.ResponseWriter, code int, v interface{}, pretty b
 	handleResponse(w, code, bs)
 }
 
-func globalConflictErr(k ast.Value) error {
-	return fmt.Errorf("conflicting global: %v: check global arguments", k)
-}
-
 func getPretty(p []string) bool {
 	for _, x := range p {
 		if strings.ToLower(x) == "true" {
@@ -956,10 +952,12 @@ func getExplain(p []string) explainModeV1 {
 	return explainOffV1
 }
 
-func parseGlobals(g []string) (*ast.ValueMap, error) {
-	globals := ast.NewValueMap()
-	for _, g := range g {
-		vs := strings.SplitN(g, ":", 2)
+func parseGlobals(s []string) (*ast.ValueMap, error) {
+
+	pairs := make([][2]*ast.Term, len(s))
+
+	for i := range s {
+		vs := strings.SplitN(s[i], ":", 2)
 		k, err := ast.ParseTerm(vs[0])
 		if err != nil {
 			return nil, err
@@ -968,44 +966,10 @@ func parseGlobals(g []string) (*ast.ValueMap, error) {
 		if err != nil {
 			return nil, err
 		}
-		switch k := k.Value.(type) {
-		case ast.Ref:
-			obj := makeTree(k[1:], v)
-			switch b := globals.Get(k[0].Value).(type) {
-			case nil:
-				globals.Put(k[0].Value, obj)
-			case ast.Object:
-				m, ok := b.Merge(obj)
-				if !ok {
-					return nil, globalConflictErr(k)
-				}
-				globals.Put(k[0].Value, m)
-			default:
-				return nil, globalConflictErr(k)
-			}
-		case ast.Var:
-			if globals.Get(k) != nil {
-				return nil, globalConflictErr(k)
-			}
-			globals.Put(k, v.Value)
-		default:
-			return nil, fmt.Errorf("invalid global: %v: path must be a variable or a reference", k)
-		}
+		pairs[i] = [...]*ast.Term{k, v}
 	}
-	return globals, nil
-}
 
-// makeTree returns an object that represents a document where the value v is the
-// leaf and elements in k represent intermediate objects.
-func makeTree(k ast.Ref, v *ast.Term) ast.Object {
-	var obj ast.Object
-	for i := len(k) - 1; i >= 1; i-- {
-		obj = ast.Object{ast.Item(k[i], v)}
-		v = &ast.Term{Value: obj}
-		obj = ast.Object{}
-	}
-	obj = ast.Object{ast.Item(k[0], v)}
-	return obj
+	return topdown.MakeGlobals(pairs)
 }
 
 func renderBanner(w http.ResponseWriter) {
