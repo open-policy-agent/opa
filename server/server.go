@@ -89,8 +89,32 @@ func (p *policyV1) Equal(other *policyV1) bool {
 	return p.ID == other.ID && p.Module.Equal(other.Module)
 }
 
-// resultSetV1 models the result of an ad-hoc query.
-type resultSetV1 []map[string]interface{}
+// adhocQueryResultSet models the result of a Query API query.
+type adhocQueryResultSetV1 []map[string]interface{}
+
+// queryResultSetV1 models the result of a Data API query when the query would
+// return multiple values for the document.
+type queryResultSetV1 []*queryResultV1
+
+func newQueryResultSetV1(qrs topdown.QueryResultSet) queryResultSetV1 {
+	result := make(queryResultSetV1, len(qrs))
+	for i := range qrs {
+		result[i] = &queryResultV1{qrs[i].Result, qrs[i].Globals}
+	}
+	return result
+}
+
+// queryResultV1 models a single result of a Data API query that would return
+// multiple values for the document. The globals can be used to differentiate
+// between results.
+type queryResultV1 struct {
+	result  interface{}
+	globals map[string]interface{}
+}
+
+func (qr *queryResultV1) MarshalJSON() ([]byte, error) {
+	return json.Marshal([]interface{}{qr.result, qr.globals})
+}
 
 // explainModeV1 defines supported values for the "explain" query parameter.
 type explainModeV1 string
@@ -310,7 +334,7 @@ func (s *Server) execQuery(compiler *ast.Compiler, txn storage.Transaction, quer
 		ctx.Tracer = buf
 	}
 
-	resultSet := resultSetV1{}
+	resultSet := adhocQueryResultSetV1{}
 
 	err := topdown.Eval(ctx, func(ctx *topdown.Context) error {
 		result := map[string]interface{}{}
@@ -404,9 +428,15 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 	path := stringPathToDataRef(vars["path"])
 	pretty := getPretty(r.URL.Query()["pretty"])
 	explainMode := getExplain(r.URL.Query()["explain"])
-	globals, err := parseGlobals(r.URL.Query()["global"])
+	globals, nonGround, err := parseGlobals(r.URL.Query()["global"])
+
 	if err != nil {
 		handleError(w, 400, err)
+		return
+	}
+
+	if nonGround && explainMode != explainOffV1 {
+		handleError(w, 400, fmt.Errorf("explanations with non-ground global values not supported"))
 		return
 	}
 
@@ -446,7 +476,11 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// TODO(tsandall): update to handle non-ground global case
+	if nonGround {
+		handleResponseJSON(w, 200, newQueryResultSetV1(qrs), pretty)
+		return
+	}
+
 	result := qrs[0].Result
 
 	switch explainMode {
@@ -943,24 +977,39 @@ func getExplain(p []string) explainModeV1 {
 	return explainOffV1
 }
 
-func parseGlobals(s []string) (*ast.ValueMap, error) {
+func parseGlobals(s []string) (*ast.ValueMap, bool, error) {
 
 	pairs := make([][2]*ast.Term, len(s))
+	nonGround := false
 
 	for i := range s {
 		vs := strings.SplitN(s[i], ":", 2)
 		k, err := ast.ParseTerm(vs[0])
 		if err != nil {
-			return nil, err
+			return nil, false, err
 		}
 		v, err := ast.ParseTerm(vs[1])
 		if err != nil {
-			return nil, err
+			return nil, false, err
 		}
 		pairs[i] = [...]*ast.Term{k, v}
+		if !nonGround {
+			ast.WalkVars(v, func(x ast.Var) bool {
+				if x.Equal(ast.DefaultRootDocument.Value) {
+					return false
+				}
+				nonGround = true
+				return true
+			})
+		}
 	}
 
-	return topdown.MakeGlobals(pairs)
+	globals, err := topdown.MakeGlobals(pairs)
+	if err != nil {
+		return nil, false, err
+	}
+
+	return globals, nonGround, nil
 }
 
 func renderBanner(w http.ResponseWriter) {

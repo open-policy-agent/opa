@@ -57,6 +57,9 @@ func TestDataV1(t *testing.T) {
 				g :- req1.a[0] = 1, reqx.b[i] = 1
 				h :- attr1[i] > 1
 
+				gt1 :- req1 > 1
+				arr = [1,2,3,4]
+
 				undef :- false
 				`
 
@@ -175,6 +178,10 @@ func TestDataV1(t *testing.T) {
 		{"get with global (namespaced)", []tr{
 			tr{"PUT", "/policies/test", testMod1, 200, ""},
 			tr{"GET", "/data/testmod/h?global=req3.attr1%3A%5B4%2C3%2C2%2C1%5D", "", 200, `true`},
+		}},
+		{"get with global (non-ground ref)", []tr{
+			tr{"PUT", "/policies/test", testMod1, 200, ""},
+			tr{"GET", "/data/testmod/gt1?global=req1:data.testmod.arr[i]", "", 200, `[[true, {"i": 1}], [true, {"i": 2}], [true, {"i": 3}]]`},
 		}},
 		{"get undefined", []tr{
 			tr{"PUT", "/policies/test", testMod1, 200, ""},
@@ -586,13 +593,13 @@ func TestQueryV1(t *testing.T) {
 		return
 	}
 
-	var expected resultSetV1
+	var expected adhocQueryResultSetV1
 	err := json.Unmarshal([]byte(`[{"a":[1,2,3],"i":0,"x":1},{"a":[1,2,3],"i":1,"x":2},{"a":[1,2,3],"i":2,"x":3}]`), &expected)
 	if err != nil {
 		panic(err)
 	}
 
-	var result resultSetV1
+	var result adhocQueryResultSetV1
 	err = json.Unmarshal(f.recorder.Body.Bytes(), &result)
 	if err != nil {
 		t.Errorf("Unexpected error while unmarshalling result: %v", err)
