@@ -462,13 +462,13 @@ func (r *REPL) loadGlobals(compiler *ast.Compiler) (*ast.ValueMap, error) {
 		return nil, err
 	}
 
-	if _, ok := result.(topdown.Undefined); ok {
+	if result.Undefined() {
 		return nil, nil
 	}
 
 	pairs := [][2]*ast.Term{}
 
-	obj, ok := result.(map[string]interface{})
+	obj, ok := result[0].Result.(map[string]interface{})
 	if !ok {
 		return nil, fmt.Errorf("globals is %T but expected object", result)
 	}

@@ -1101,7 +1101,12 @@ func TestTopDownGlobalVars(t *testing.T) {
 		 q[x] :- req1.foo = x, req2as.bar = x, r[x]
 		 r[x] :- {"foo": req2as.bar, "bar": [x]} = {"foo": x, "bar": [req1.foo]}
 		 s :- b.x[0] = 1
-		 t :- req4as.x[0] = 1`})
+		 t :- req4as.x[0] = 1
+		 u[x] :- b[_] = x, x > 1
+		 w = [[1,2], [3,4]]
+		 gt1 :- req1 > 1
+		 keys[x] = y :- data.numbers[_] = x, to_number(x, y)
+		 `})
 
 	store := storage.New(storage.InMemoryWithJSONConfig(loadSmallTestData()))
 
@@ -1133,6 +1138,46 @@ func TestTopDownGlobalVars(t *testing.T) {
 			}
 		}
 	}`, "true")
+
+	assertTopDown(t, compiler, store, "global vars (embedded ref to base doc)", []string{"z", "s"}, `{
+		req3: {
+			"a": {
+				"b": {
+					"x": data.a
+				}
+			}
+		}
+	}`, "true")
+
+	assertTopDown(t, compiler, store, "global vars (embedded non-ground ref to base doc)", []string{"z", "u"}, `{
+		req3: {
+			"a": {
+				"b": data.l[x].c
+			}
+		}
+	}`, [][2]string{
+		{"[2,3,4]", `{"x": 0}`},
+		{"[2,3,4,5]", `{"x": 1}`},
+	})
+
+	assertTopDown(t, compiler, store, "global vars (embedded non-ground ref to virtual doc)", []string{"z", "u"}, `{
+		req3: {
+			"a": {
+				"b": data.z.w[x]
+			}
+		}
+	}`, [][2]string{
+		{"[2]", `{"x": 0}`},
+		{"[3,4]", `{"x": 1}`},
+	})
+
+	assertTopDown(t, compiler, store, "global vars (non-ground ref to virtual doc-2)", []string{"z", "gt1"}, `{
+		req1: data.z.keys[x]
+	}`, [][2]string{
+		{"true", `{"x": "2"}`},
+		{"true", `{"x": "3"}`},
+		{"true", `{"x": "4"}`},
+	})
 }
 
 func TestTopDownCaching(t *testing.T) {
@@ -1494,10 +1539,7 @@ func loadExpectedBindings(input string) []*ast.ValueMap {
 	return expected
 }
 
-func loadExpectedResult(input string) interface{} {
-	if len(input) == 0 {
-		return Undefined{}
-	}
+func parseJSON(input string) interface{} {
 	var data interface{}
 	if err := json.Unmarshal([]byte(input), &data); err != nil {
 		panic(err)
@@ -1505,8 +1547,15 @@ func loadExpectedResult(input string) interface{} {
 	return data
 }
 
-func loadExpectedSortedResult(input string) interface{} {
-	data := loadExpectedResult(input)
+func parseQueryResultSetJSON(input [][2]string) (result QueryResultSet) {
+	for i := range input {
+		result.Add(&QueryResult{parseJSON(input[i][0]), parseJSON(input[i][1]).(map[string]interface{})})
+	}
+	return result
+}
+
+func parseSortedJSON(input string) interface{} {
+	data := parseJSON(input)
 	switch data := data.(type) {
 	case []interface{}:
 		sort.Sort(resultSet(data))
@@ -1667,23 +1716,43 @@ func assertTopDown(t *testing.T, compiler *ast.Compiler, store *storage.Storage,
 			if err.Error() != e.Error() {
 				t.Errorf("Expected error %v but got: %v", e, err)
 			}
-		case string:
-			expected := loadExpectedSortedResult(e)
-			result, err := Query(params)
+
+		case [][2]string:
+			qrs, err := Query(params)
 			if err != nil {
-				t.Errorf("Unexpected error: %v", err)
+				t.Fatalf("Unexpected error: %v", err)
+			}
+
+			expected := parseQueryResultSetJSON(e)
+
+			if !reflect.DeepEqual(expected, qrs) {
+				t.Fatalf("Expected %v but got: %v", expected, qrs)
+			}
+
+		case string:
+			qrs, err := Query(params)
+
+			if err != nil {
+				t.Fatalf("Unexpected error: %v", err)
+			}
+
+			if len(e) == 0 {
+				if !qrs.Undefined() {
+					t.Fatalf("Expected undefined result but got: %v", qrs)
+				}
 				return
 			}
 
-			p := ast.MustParseRef(fmt.Sprintf("data.%v", strings.Join(path, ".")))
+			expected := parseSortedJSON(e)
 
 			// Sort set results so that comparisons are not dependant on order.
+			p := ast.MustParseRef(fmt.Sprintf("data.%v", strings.Join(path, ".")))
 			if rs := compiler.GetRulesExact(p); len(rs) > 0 && rs[0].DocKind() == ast.PartialSetDoc {
-				sort.Sort(resultSet(result.([]interface{})))
+				sort.Sort(resultSet(qrs[0].Result.([]interface{})))
 			}
 
-			if !reflect.DeepEqual(result, expected) {
-				t.Errorf("Expected %v but got: %v", expected, result)
+			if !reflect.DeepEqual(qrs[0].Result, expected) {
+				t.Errorf("Expected %v but got: %v", expected, qrs[0].Result)
 			}
 		}
 	})

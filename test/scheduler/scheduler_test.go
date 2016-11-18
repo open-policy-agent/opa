@@ -20,18 +20,18 @@ func TestScheduler(t *testing.T) {
 	params := setup(t, "data_10nodes_30pods.json")
 	defer params.Store.Close(params.Transaction)
 
-	r, err := topdown.Query(params)
+	qrs, err := topdown.Query(params)
 
 	if err != nil {
 		t.Fatal("unexpected error:", err)
 	}
-	ws := r.(map[string]interface{})
+	ws := qrs[0].Result.(map[string]interface{})
 	if len(ws) != 10 {
-		t.Fatal("unexpected query result:", r)
+		t.Fatal("unexpected query result:", qrs)
 	}
 	for n, w := range ws {
 		if fmt.Sprintf("%.3f", w) != "5.014" {
-			t.Fatalf("unexpected weight for: %v: %v\n\nDumping all weights:\n\n%v\n", n, w, r)
+			t.Fatalf("unexpected weight for: %v: %v\n\nDumping all weights:\n\n%v\n", n, w, qrs)
 		}
 	}
 }

@@ -429,7 +429,7 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Execute query.
-	result, err := topdown.Query(params)
+	qrs, err := topdown.Query(params)
 
 	// Handle results.
 	if err != nil {
@@ -437,7 +437,7 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if _, ok := result.(topdown.Undefined); ok {
+	if qrs.Undefined() {
 		if explainMode == explainFullV1 {
 			handleResponseJSON(w, 404, newTraceV1(*buf), pretty)
 		} else {
@@ -445,6 +445,9 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
+
+	// TODO(tsandall): update to handle non-ground global case
+	result := qrs[0].Result
 
 	switch explainMode {
 	case explainOffV1:

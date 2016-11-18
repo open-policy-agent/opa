@@ -111,7 +111,7 @@ func ExampleQuery() {
 	v1, err1 := topdown.Query(params)
 
 	// Inspect the result.
-	fmt.Println("v1:", v1)
+	fmt.Println("v1:", v1[0].Result)
 	fmt.Println("err1:", err1)
 
 	// Output:

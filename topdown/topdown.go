@@ -547,13 +547,49 @@ func (q *QueryParams) NewContext(body ast.Body) *Context {
 	return ctx
 }
 
-// Query returns the document identified by the path.
-func Query(params *QueryParams) (interface{}, error) {
+// QueryResult represents a single query result.
+type QueryResult struct {
+	Result  interface{}            // Result contains the document referred to by the params Path.
+	Globals map[string]interface{} // Globals contains bindings for variables in the params Globals.
+}
 
-	// Construct and execute a query to obtain the value for the reference.
+func (qr *QueryResult) String() string {
+	return fmt.Sprintf("[%v %v]", qr.Result, qr.Globals)
+}
+
+// QueryResultSet represents a collection of query results.
+type QueryResultSet []*QueryResult
+
+// Undefined returns true if the query did not find any results.
+func (qrs QueryResultSet) Undefined() bool {
+	return len(qrs) == 0
+}
+
+// Add inserts a result into the query result set.
+func (qrs *QueryResultSet) Add(qr *QueryResult) {
+	*qrs = append(*qrs, qr)
+}
+
+// Query returns the value of document referred to by the params Path field. If
+// the params Globals field contains values that are non-ground (i.e., they
+// contain variables), then the result may contain multiple entries.
+func Query(params *QueryParams) (QueryResultSet, error) {
+
+	if params.Globals.Len() == 0 {
+		return queryOne(params)
+	}
+
+	return queryN(params)
+}
+
+// queryOne returns a QueryResultSet containing the value of the document
+// referred to by the params Path field. If the document is not defined, nil is
+// returned.
+func queryOne(params *QueryParams) (QueryResultSet, error) {
+
 	query := ast.NewBody(ast.Equality.Expr(ast.RefTerm(params.Path...), ast.Wildcard))
 	ctx := params.NewContext(query)
-	var result interface{} = Undefined{}
+	var result interface{} = struct{}{}
 	var err error
 
 	err = Eval(ctx, func(ctx *Context) error {
@@ -566,21 +602,93 @@ func Query(params *QueryParams) (interface{}, error) {
 		return nil, err
 	}
 
-	return result, nil
+	if _, ok := result.(struct{}); ok {
+		return nil, nil
+	}
+
+	return QueryResultSet{&QueryResult{result, nil}}, nil
 }
 
-// Undefined represents the absence of bindings that satisfy a completely defined rule.
-// See the documentation for Query for more details.
-type Undefined struct{}
+// queryN returns a QueryResultSet containing the values of the document
+// referred to by the params Path field. There may be zero or more values
+// depending on the values of the params Globals field.
+//
+// For example, if the globals refer to one or more undefined documents, the set
+// will be empty. On the other hand, if the globals contain non-ground
+// references where there are multiple valid sets of bindings, the result set
+// may contain multiple values.
+func queryN(params *QueryParams) (QueryResultSet, error) {
 
-func (undefined Undefined) String() string {
-	return "<undefined>"
+	qrs := QueryResultSet{}
+	vars := ast.NewVarSet()
+	resolver := resolver{params.Store, params.Transaction}
+
+	params.Globals.Iter(func(_, v ast.Value) bool {
+		ast.WalkRefs(v, func(r ast.Ref) bool {
+			vars.Update(r.OutputVars())
+			return false
+		})
+		return false
+	})
+
+	err := evalGlobals(params, func(globals *ast.ValueMap, root *Context) error {
+		params.Globals = globals
+		result, err := queryOne(params)
+		if err != nil || result.Undefined() {
+			return err
+		}
+
+		bindings := map[string]interface{}{}
+		for v := range vars {
+			binding, err := ValueToInterface(PlugValue(v, root.Binding), resolver)
+			if err != nil {
+				return err
+			}
+			bindings[v.String()] = binding
+		}
+
+		qrs.Add(&QueryResult{result[0].Result, bindings})
+		return nil
+	})
+
+	return qrs, err
+}
+
+// evalGlobals constructs query to find bindings for all variables in the params
+// Globals field.
+func evalGlobals(params *QueryParams, iter func(*ast.ValueMap, *Context) error) error {
+	exprs := []*ast.Expr{}
+	params.Globals.Iter(func(k, v ast.Value) bool {
+		exprs = append(exprs, ast.Equality.Expr(ast.NewTerm(k), ast.NewTerm(v)))
+		return false
+	})
+
+	query := ast.NewBody(exprs...)
+	ctx := params.NewContext(query)
+
+	return Eval(ctx, func(ctx *Context) error {
+		globals := ast.NewValueMap()
+		params.Globals.Iter(func(k, _ ast.Value) bool {
+			globals.Put(k, PlugValue(k, ctx.Binding))
+			return false
+		})
+		return iter(globals, ctx)
+	})
 }
 
 // Resolver defines the interface for resolving references to base documents to
 // native Go values. The native Go value types map to JSON types.
 type Resolver interface {
 	Resolve(ref ast.Ref) (value interface{}, err error)
+}
+
+type resolver struct {
+	store *storage.Storage
+	txn   storage.Transaction
+}
+
+func (r resolver) Resolve(ref ast.Ref) (interface{}, error) {
+	return r.store.Read(r.txn, ref)
 }
 
 // ResolveRefs returns the AST value obtained by resolving references to base
