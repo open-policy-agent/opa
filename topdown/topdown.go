@@ -139,6 +139,11 @@ func (ctx *Context) Current() *ast.Expr {
 	return ctx.Query[ctx.Index]
 }
 
+// Resolve returns the native Go value referred to by the ref.
+func (ctx *Context) Resolve(ref ast.Ref) (interface{}, error) {
+	return ctx.Store.Read(ctx.txn, ref)
+}
+
 // Step returns a new context to evaluate the next expression.
 func (ctx *Context) Step() *Context {
 	cpy := *ctx
@@ -572,8 +577,14 @@ func (undefined Undefined) String() string {
 	return "<undefined>"
 }
 
-// ResolveRefs returns an AST value obtained by replacing references in v with
-// values from storage.
+// Resolver defines the interface for resolving references to base documents to
+// native Go values. The native Go value types map to JSON types.
+type Resolver interface {
+	Resolve(ref ast.Ref) (value interface{}, err error)
+}
+
+// ResolveRefs returns the AST value obtained by resolving references to base
+// doccuments.
 func ResolveRefs(v ast.Value, ctx *Context) (ast.Value, error) {
 	result, err := ast.TransformRefs(v, func(r ast.Ref) (ast.Value, error) {
 		return lookupValue(ctx, r)
@@ -587,10 +598,8 @@ func ResolveRefs(v ast.Value, ctx *Context) (ast.Value, error) {
 // ValueToInterface returns the underlying Go value associated with an AST value.
 // If the value is a reference, the reference is fetched from storage. Composite
 // AST values such as objects and arrays are converted recursively.
-func ValueToInterface(v ast.Value, ctx *Context) (interface{}, error) {
-
+func ValueToInterface(v ast.Value, resolver Resolver) (interface{}, error) {
 	switch v := v.(type) {
-
 	case ast.Null:
 		return nil, nil
 	case ast.Boolean:
@@ -599,22 +608,20 @@ func ValueToInterface(v ast.Value, ctx *Context) (interface{}, error) {
 		return float64(v), nil
 	case ast.String:
 		return string(v), nil
-
 	case ast.Array:
 		buf := []interface{}{}
 		for _, x := range v {
-			x1, err := ValueToInterface(x.Value, ctx)
+			x1, err := ValueToInterface(x.Value, resolver)
 			if err != nil {
 				return nil, err
 			}
 			buf = append(buf, x1)
 		}
 		return buf, nil
-
 	case ast.Object:
 		buf := map[string]interface{}{}
 		for _, x := range v {
-			k, err := ValueToInterface(x[0].Value, ctx)
+			k, err := ValueToInterface(x[0].Value, resolver)
 			if err != nil {
 				return nil, err
 			}
@@ -622,42 +629,34 @@ func ValueToInterface(v ast.Value, ctx *Context) (interface{}, error) {
 			if !stringKey {
 				return nil, fmt.Errorf("object key type %T", k)
 			}
-			v, err := ValueToInterface(x[1].Value, ctx)
+			v, err := ValueToInterface(x[1].Value, resolver)
 			if err != nil {
 				return nil, err
 			}
 			buf[asStr] = v
 		}
 		return buf, nil
-
 	case *ast.Set:
 		buf := []interface{}{}
 		for _, x := range *v {
-			x1, err := ValueToInterface(x.Value, ctx)
+			x1, err := ValueToInterface(x.Value, resolver)
 			if err != nil {
 				return nil, err
 			}
 			buf = append(buf, x1)
 		}
 		return buf, nil
-
-	// References convert to native values via lookup.
 	case ast.Ref:
-		return ctx.Store.Read(ctx.txn, v)
-
+		return resolver.Resolve(v)
 	default:
-		v = PlugValue(v, ctx.Binding)
-		if !v.IsGround() {
-			return nil, fmt.Errorf("unbound value: %v", v)
-		}
-		return ValueToInterface(v, ctx)
+		return nil, fmt.Errorf("unbound value: %v", v)
 	}
 }
 
 // ValueToSlice returns the underlying Go value associated with an AST value.
 // If the value is a reference, the reference is fetched from storage.
-func ValueToSlice(v ast.Value, ctx *Context) ([]interface{}, error) {
-	x, err := ValueToInterface(v, ctx)
+func ValueToSlice(v ast.Value, resolver Resolver) ([]interface{}, error) {
+	x, err := ValueToInterface(v, resolver)
 	if err != nil {
 		return nil, err
 	}
@@ -670,8 +669,8 @@ func ValueToSlice(v ast.Value, ctx *Context) ([]interface{}, error) {
 
 // ValueToFloat64 returns the underlying Go value associated with an AST value.
 // If the value is a reference, the reference is fetched from storage.
-func ValueToFloat64(v ast.Value, ctx *Context) (float64, error) {
-	x, err := ValueToInterface(v, ctx)
+func ValueToFloat64(v ast.Value, resolver Resolver) (float64, error) {
+	x, err := ValueToInterface(v, resolver)
 	if err != nil {
 		return 0, err
 	}
@@ -684,8 +683,8 @@ func ValueToFloat64(v ast.Value, ctx *Context) (float64, error) {
 
 // ValueToInt returns the underlying Go value associated with an AST value.
 // If the value is a reference, the reference is fetched from storage.
-func ValueToInt(v ast.Value, ctx *Context) (int64, error) {
-	x, err := ValueToFloat64(v, ctx)
+func ValueToInt(v ast.Value, resolver Resolver) (int64, error) {
+	x, err := ValueToFloat64(v, resolver)
 	if err != nil {
 		return 0, err
 	}
@@ -697,8 +696,8 @@ func ValueToInt(v ast.Value, ctx *Context) (int64, error) {
 
 // ValueToString returns the underlying Go value associated with an AST value.
 // If the value is a reference, the reference is fetched from storage.
-func ValueToString(v ast.Value, ctx *Context) (string, error) {
-	x, err := ValueToInterface(v, ctx)
+func ValueToString(v ast.Value, resolver Resolver) (string, error) {
+	x, err := ValueToInterface(v, resolver)
 	if err != nil {
 		return "", err
 	}
@@ -710,8 +709,8 @@ func ValueToString(v ast.Value, ctx *Context) (string, error) {
 }
 
 // ValueToStrings returns a slice of strings associated with an AST value.
-func ValueToStrings(v ast.Value, ctx *Context) ([]string, error) {
-	sl, err := ValueToSlice(v, ctx)
+func ValueToStrings(v ast.Value, resolver Resolver) ([]string, error) {
+	sl, err := ValueToSlice(v, resolver)
 	if err != nil {
 		return nil, err
 	}
