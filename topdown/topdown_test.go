@@ -1604,7 +1604,7 @@ func runTopDownTracingTestCase(t *testing.T, module string, n int, cases map[int
 	store := storage.New(storage.InMemoryWithJSONConfig(data))
 	txn := storage.NewTransactionOrDie(store)
 
-	params := NewQueryParams(compiler, store, txn, nil, []interface{}{"test", "p"})
+	params := NewQueryParams(compiler, store, txn, nil, ast.MustParseRef("data.test.p"))
 	buf := NewBufferTracer()
 	params.Tracer = buf
 
@@ -1653,10 +1653,13 @@ func assertTopDown(t *testing.T, compiler *ast.Compiler, store *storage.Storage,
 	txn := storage.NewTransactionOrDie(store)
 	defer store.Close(txn)
 
+	ref := ast.MustParseRef("data." + strings.Join(path, "."))
+	params := NewQueryParams(compiler, store, txn, g, ref)
+
 	testutil.Subtest(t, note, func(t *testing.T) {
 		switch e := expected.(type) {
 		case error:
-			result, err := Query(&QueryParams{Compiler: compiler, Store: store, Transaction: txn, Path: p, Globals: g})
+			result, err := Query(params)
 			if err == nil {
 				t.Errorf("Expected error but got: %v", result)
 				return
@@ -1666,7 +1669,7 @@ func assertTopDown(t *testing.T, compiler *ast.Compiler, store *storage.Storage,
 			}
 		case string:
 			expected := loadExpectedSortedResult(e)
-			result, err := Query(&QueryParams{Compiler: compiler, Store: store, Transaction: txn, Path: p, Globals: g})
+			result, err := Query(params)
 			if err != nil {
 				t.Errorf("Unexpected error: %v", err)
 				return

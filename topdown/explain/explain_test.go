@@ -200,7 +200,7 @@ func executeQuery(data string, compiler *ast.Compiler, tracer topdown.Tracer) {
 	txn := storage.NewTransactionOrDie(store)
 	defer store.Close(txn)
 
-	params := topdown.NewQueryParams(compiler, store, txn, nil, []interface{}{"test", "p"})
+	params := topdown.NewQueryParams(compiler, store, txn, nil, ast.MustParseRef("data.test.p"))
 	params.Tracer = tracer
 
 	_, err := topdown.Query(params)

@@ -401,7 +401,7 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 
 	// Gather request parameters.
 	vars := mux.Vars(r)
-	path := stringPathToInterface(vars["path"])
+	path := stringPathToDataRef(vars["path"])
 	pretty := getPretty(r.URL.Query()["pretty"])
 	explainMode := getExplain(r.URL.Query()["explain"])
 	globals, err := parseGlobals(r.URL.Query()["global"])
@@ -463,9 +463,7 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) v1DataPatch(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-
-	root := ast.Ref{ast.DefaultRootDocument}
-	root = append(root, stringPathToRef(vars["path"])...)
+	root := stringPathToDataRef(vars["path"])
 
 	ops := []patchV1{}
 	if err := json.NewDecoder(r.Body).Decode(&ops); err != nil {
@@ -819,6 +817,12 @@ func (s *Server) writeConflict(op storage.PatchOp, path ast.Ref) error {
 	return nil
 }
 
+func stringPathToDataRef(s string) (r ast.Ref) {
+	result := ast.Ref{ast.DefaultRootDocument}
+	result = append(result, stringPathToRef(s)...)
+	return result
+}
+
 func stringPathToRef(s string) (r ast.Ref) {
 	if len(s) == 0 {
 		return r
@@ -833,22 +837,6 @@ func stringPathToRef(s string) (r ast.Ref) {
 			r = append(r, ast.StringTerm(x))
 		} else {
 			r = append(r, ast.NumberTerm(float64(i)))
-		}
-	}
-	return r
-}
-
-func stringPathToInterface(s string) (r []interface{}) {
-	if len(s) == 0 {
-		return r
-	}
-	p := strings.Split(s, "/")
-	for _, x := range p {
-		i, err := strconv.Atoi(x)
-		if err != nil {
-			r = append(r, x)
-		} else {
-			r = append(r, float64(i))
 		}
 	}
 	return r

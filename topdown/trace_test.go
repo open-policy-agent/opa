@@ -61,7 +61,7 @@ func TestPrettyTrace(t *testing.T) {
 	store := storage.New(storage.InMemoryWithJSONConfig(data))
 	txn := storage.NewTransactionOrDie(store)
 
-	params := NewQueryParams(compiler, store, txn, nil, []interface{}{"test", "p"})
+	params := NewQueryParams(compiler, store, txn, nil, ast.MustParseRef("data.test.p"))
 	tracer := NewBufferTracer()
 	params.Tracer = tracer
 

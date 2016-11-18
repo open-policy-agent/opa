@@ -520,11 +520,11 @@ type QueryParams struct {
 	Transaction storage.Transaction
 	Globals     *ast.ValueMap
 	Tracer      Tracer
-	Path        []interface{}
+	Path        ast.Ref
 }
 
 // NewQueryParams returns a new QueryParams.
-func NewQueryParams(compiler *ast.Compiler, store *storage.Storage, txn storage.Transaction, globals *ast.ValueMap, path []interface{}) *QueryParams {
+func NewQueryParams(compiler *ast.Compiler, store *storage.Storage, txn storage.Transaction, globals *ast.ValueMap, path ast.Ref) *QueryParams {
 	return &QueryParams{
 		Compiler:    compiler,
 		Store:       store,
@@ -545,24 +545,8 @@ func (q *QueryParams) NewContext(body ast.Body) *Context {
 // Query returns the document identified by the path.
 func Query(params *QueryParams) (interface{}, error) {
 
-	ref := ast.Ref{ast.DefaultRootDocument}
-	for _, v := range params.Path {
-		switch v := v.(type) {
-		case float64:
-			ref = append(ref, ast.NumberTerm(v))
-		case string:
-			ref = append(ref, ast.StringTerm(v))
-		case bool:
-			ref = append(ref, ast.BooleanTerm(v))
-		case nil:
-			ref = append(ref, ast.NullTerm())
-		default:
-			return nil, fmt.Errorf("bad path element: %v (%T)", v, v)
-		}
-	}
-
 	// Construct and execute a query to obtain the value for the reference.
-	query := ast.NewBody(ast.Equality.Expr(ast.RefTerm(ref...), ast.Wildcard))
+	query := ast.NewBody(ast.Equality.Expr(ast.RefTerm(params.Path...), ast.Wildcard))
 	ctx := params.NewContext(query)
 	var result interface{} = Undefined{}
 	var err error

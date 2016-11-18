@@ -455,7 +455,7 @@ func (r *REPL) loadCompiler() (*ast.Compiler, error) {
 // REPL loads globals from the data.repl.globals document.
 func (r *REPL) loadGlobals(compiler *ast.Compiler) (*ast.ValueMap, error) {
 
-	params := topdown.NewQueryParams(compiler, r.store, r.txn, nil, []interface{}{"repl", "globals"})
+	params := topdown.NewQueryParams(compiler, r.store, r.txn, nil, ast.MustParseRef("data.repl.globals"))
 
 	result, err := topdown.Query(params)
 	if err != nil {
