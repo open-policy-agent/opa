@@ -183,6 +183,12 @@ func TestDataV1(t *testing.T) {
 			tr{"PUT", "/policies/test", testMod1, 200, ""},
 			tr{"GET", "/data/testmod/gt1?global=req1:data.testmod.arr[i]", "", 200, `[[true, {"i": 1}], [true, {"i": 2}], [true, {"i": 3}]]`},
 		}},
+		{"get with global (bad format)", []tr{
+			tr{"GET", "/data/deadbeef?global=[1,2,3]", "", 400, `{
+				"Code": 400,
+				"Message": "global format: <path>:<value> where <path> is either var or ref"
+			}`},
+		}},
 		{"get undefined", []tr{
 			tr{"PUT", "/policies/test", testMod1, 200, ""},
 			tr{"GET", "/data/testmod/undef", "", 404, ""},

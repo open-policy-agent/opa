@@ -984,6 +984,9 @@ func parseGlobals(s []string) (*ast.ValueMap, bool, error) {
 
 	for i := range s {
 		vs := strings.SplitN(s[i], ":", 2)
+		if len(vs) != 2 {
+			return nil, false, fmt.Errorf("global format: <path>:<value> where <path> is either var or ref")
+		}
 		k, err := ast.ParseTerm(vs[0])
 		if err != nil {
 			return nil, false, err
