@@ -65,6 +65,8 @@ function delete_a_policy() {
 function get_a_document() {
     # Create policy module for this example.
     curl $BASE_URL/policies/example3 -X PUT -s -v --data-binary @example3.rego >/dev/null 2>&1
+    curl $BASE_URL/policies/example4 -X PUT -s -v --data-binary @example4.rego >/dev/null 2>&1
+    curl $BASE_URL/data/containers -X PUT -s -v --data-binary @containers.json >/dev/null 2>&1
     echo ""
 
     echo "### Get a Document"
@@ -72,6 +74,8 @@ function get_a_document() {
     curl $BASE_URL/data/opa/examples/public_servers?pretty=true -s -v
     echo ""
     curl $BASE_URL/data/opa/examples/allow_request?pretty=true -s -v -G --data-urlencode 'global=example.flag:false'
+    echo ""
+    curl $BASE_URL/data/opa/examples/allow_container?pretty=true -s -v -G --data-urlencode 'global=container:data.containers[container_index]'
     echo ""
 
     # Delete policy module created above.

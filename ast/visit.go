@@ -107,6 +107,18 @@ func WalkRefs(x interface{}, f func(Ref) bool) {
 	Walk(vis, x)
 }
 
+// WalkVars calls the function f on all vars under x. If the function f
+// returns true, AST nodes under the last node will not be visited.
+func WalkVars(x interface{}, f func(Var) bool) {
+	vis := &GenericVisitor{func(x interface{}) bool {
+		if v, ok := x.(Var); ok {
+			return f(v)
+		}
+		return false
+	}}
+	Walk(vis, x)
+}
+
 // WalkBodies calls the function f on all bodies under x. If the function f
 // returns true, AST nodes under the last node will not be visited.
 func WalkBodies(x interface{}, f func(Body) bool) {

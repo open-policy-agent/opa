@@ -92,3 +92,16 @@ func TestVisitor(t *testing.T) {
 	}
 
 }
+
+func TestWalkVars(t *testing.T) {
+	x := MustParseBody("x = 1, data.abc[2] = y, y[z] = [q | q = 1]")
+	found := NewVarSet()
+	WalkVars(x, func(v Var) bool {
+		found.Add(v)
+		return false
+	})
+	expected := NewVarSet(Var("x"), Var("data"), Var("y"), Var("z"), Var("q"), Var("eq"))
+	if !expected.Equal(found) {
+		t.Fatalf("Expected %v but got: %v", expected, found)
+	}
+}

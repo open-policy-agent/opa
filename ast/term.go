@@ -122,6 +122,13 @@ type Term struct {
 	Location *Location `json:"-"` // the location of the Term in the source
 }
 
+// NewTerm returns a new Term object.
+func NewTerm(v Value) *Term {
+	return &Term{
+		Value: v,
+	}
+}
+
 // Equal returns true if this term equals the other term. Equality is
 // defined for each kind of term.
 func (term *Term) Equal(other *Term) bool {

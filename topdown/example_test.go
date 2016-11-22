@@ -105,13 +105,13 @@ func ExampleQuery() {
 	// accept additional documents (which are referred to as "globals"). In this case we have no
 	// additional documents.
 	globals := ast.NewValueMap()
-	params := topdown.NewQueryParams(compiler, store, txn, globals, []interface{}{"opa", "example", "p"})
+	params := topdown.NewQueryParams(compiler, store, txn, globals, ast.MustParseRef("data.opa.example.p"))
 
 	// Execute the query against "p".
 	v1, err1 := topdown.Query(params)
 
 	// Inspect the result.
-	fmt.Println("v1:", v1)
+	fmt.Println("v1:", v1[0].Result)
 	fmt.Println("err1:", err1)
 
 	// Output:

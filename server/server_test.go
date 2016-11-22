@@ -57,6 +57,9 @@ func TestDataV1(t *testing.T) {
 				g :- req1.a[0] = 1, reqx.b[i] = 1
 				h :- attr1[i] > 1
 
+				gt1 :- req1 > 1
+				arr = [1,2,3,4]
+
 				undef :- false
 				`
 
@@ -175,6 +178,16 @@ func TestDataV1(t *testing.T) {
 		{"get with global (namespaced)", []tr{
 			tr{"PUT", "/policies/test", testMod1, 200, ""},
 			tr{"GET", "/data/testmod/h?global=req3.attr1%3A%5B4%2C3%2C2%2C1%5D", "", 200, `true`},
+		}},
+		{"get with global (non-ground ref)", []tr{
+			tr{"PUT", "/policies/test", testMod1, 200, ""},
+			tr{"GET", "/data/testmod/gt1?global=req1:data.testmod.arr[i]", "", 200, `[[true, {"i": 1}], [true, {"i": 2}], [true, {"i": 3}]]`},
+		}},
+		{"get with global (bad format)", []tr{
+			tr{"GET", "/data/deadbeef?global=[1,2,3]", "", 400, `{
+				"Code": 400,
+				"Message": "global format: <path>:<value> where <path> is either var or ref"
+			}`},
 		}},
 		{"get undefined", []tr{
 			tr{"PUT", "/policies/test", testMod1, 200, ""},
@@ -586,13 +599,13 @@ func TestQueryV1(t *testing.T) {
 		return
 	}
 
-	var expected resultSetV1
+	var expected adhocQueryResultSetV1
 	err := json.Unmarshal([]byte(`[{"a":[1,2,3],"i":0,"x":1},{"a":[1,2,3],"i":1,"x":2},{"a":[1,2,3],"i":2,"x":3}]`), &expected)
 	if err != nil {
 		panic(err)
 	}
 
-	var result resultSetV1
+	var result adhocQueryResultSetV1
 	err = json.Unmarshal(f.recorder.Body.Bytes(), &result)
 	if err != nil {
 		t.Errorf("Unexpected error while unmarshalling result: %v", err)
@@ -639,52 +652,6 @@ func TestQueryV1Explain(t *testing.T) {
 
 	if len(result) != 5 {
 		t.Fatalf("Expected exactly 5 trace events for truth query but got %d", len(result))
-	}
-}
-
-func TestGlobalParsing(t *testing.T) {
-
-	tests := []struct {
-		note     string
-		globals  []string
-		expected interface{}
-	}{
-		{"var", []string{`hello:"world"`}, `{hello: "world"}`},
-		{"multiple vars", []string{`a:"a"`, `b:"b"`}, `{a: "a", b: "b"}`},
-		{"multiple overlapping vars", []string{`a.b.c:"c"`, `a.b.d:"d"`, `x.y:[]`}, `{a: {"b": {"c": "c", "d": "d"}}, x: {"y": []}}`},
-		{"conflicting vars", []string{`a.b:"c"`, `a.b.d:"d"`}, globalConflictErr(ast.MustParseRef("a.b.d"))},
-		{"conflicting vars-2", []string{`a.b:{"c":[]}`, `a.b.c:["d"]`}, globalConflictErr(ast.MustParseRef("a.b.c"))},
-		{"conflicting vars-3", []string{"a:100", `a.b:"c"`}, globalConflictErr(ast.MustParseRef("a.b"))},
-		{"conflicting vars-4", []string{`a.b:"c"`, `a:100`}, globalConflictErr(ast.MustParseTerm("a").Value)},
-		{"bad path", []string{`"hello":1`}, fmt.Errorf(`invalid global: "hello": path must be a variable or a reference`)},
-	}
-
-	for i, tc := range tests {
-
-		bindings, err := parseGlobals(tc.globals)
-
-		switch e := tc.expected.(type) {
-		case error:
-			if err == nil {
-				t.Errorf("%v (#%d): Expected error %v but got: %v", tc.note, i+1, e, bindings)
-				continue
-			}
-			if !reflect.DeepEqual(e, err) {
-				t.Errorf("%v (#%d): Expected error %v but got: %v", tc.note, i+1, e, err)
-			}
-		case string:
-			if err != nil {
-				t.Errorf("%v (#%d): Unexpected error: %v", tc.note, i+1, err)
-				continue
-			}
-			exp := ast.NewValueMap()
-			for _, i := range ast.MustParseTerm(e).Value.(ast.Object) {
-				exp.Put(i[0].Value, i[1].Value)
-			}
-			if !exp.Equal(bindings) {
-				t.Errorf("%v (#%d): Expected bindings to equal %v but got: %v", tc.note, i+1, exp, bindings)
-			}
-		}
 	}
 }
 

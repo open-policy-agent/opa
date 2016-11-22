@@ -33,17 +33,17 @@ func runSchedulerBenchmark(b *testing.B, nodes int, pods int) {
 	defer params.Store.Close(params.Transaction)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		r, err := topdown.Query(params)
+		qrs, err := topdown.Query(params)
 		if err != nil {
 			b.Fatal("unexpected error:", err)
 		}
-		ws := r.(map[string]interface{})
+		ws := qrs[0].Result.(map[string]interface{})
 		if len(ws) != nodes {
-			b.Fatal("unexpected query result:", r)
+			b.Fatal("unexpected query result:", qrs)
 		}
 		for n, w := range ws {
 			if fmt.Sprintf("%.3f", w) != "5.014" {
-				b.Fatalf("unexpected weight for: %v: %v\n\nDumping all weights:\n\n%v\n", n, w, r)
+				b.Fatalf("unexpected weight for: %v: %v\n\nDumping all weights:\n\n%v\n", n, w, qrs)
 			}
 		}
 	}
@@ -68,7 +68,7 @@ func setupBenchmark(nodes int, pods int) *topdown.QueryParams {
 	globals := ast.NewValueMap()
 	req := ast.MustParseTerm(requestedPod).Value
 	globals.Put(ast.Var("requested_pod"), req)
-	path := []interface{}{"opa", "test", "scheduler", "fit"}
+	path := ast.MustParseRef("data.opa.test.scheduler.fit")
 	txn := storage.NewTransactionOrDie(store)
 	params := topdown.NewQueryParams(c, store, txn, globals, path)
 

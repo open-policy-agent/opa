@@ -139,6 +139,11 @@ func (ctx *Context) Current() *ast.Expr {
 	return ctx.Query[ctx.Index]
 }
 
+// Resolve returns the native Go value referred to by the ref.
+func (ctx *Context) Resolve(ref ast.Ref) (interface{}, error) {
+	return ctx.Store.Read(ctx.txn, ref)
+}
+
 // Step returns a new context to evaluate the next expression.
 func (ctx *Context) Step() *Context {
 	cpy := *ctx
@@ -520,11 +525,11 @@ type QueryParams struct {
 	Transaction storage.Transaction
 	Globals     *ast.ValueMap
 	Tracer      Tracer
-	Path        []interface{}
+	Path        ast.Ref
 }
 
 // NewQueryParams returns a new QueryParams.
-func NewQueryParams(compiler *ast.Compiler, store *storage.Storage, txn storage.Transaction, globals *ast.ValueMap, path []interface{}) *QueryParams {
+func NewQueryParams(compiler *ast.Compiler, store *storage.Storage, txn storage.Transaction, globals *ast.ValueMap, path ast.Ref) *QueryParams {
 	return &QueryParams{
 		Compiler:    compiler,
 		Store:       store,
@@ -542,29 +547,49 @@ func (q *QueryParams) NewContext(body ast.Body) *Context {
 	return ctx
 }
 
-// Query returns the document identified by the path.
-func Query(params *QueryParams) (interface{}, error) {
+// QueryResult represents a single query result.
+type QueryResult struct {
+	Result  interface{}            // Result contains the document referred to by the params Path.
+	Globals map[string]interface{} // Globals contains bindings for variables in the params Globals.
+}
 
-	ref := ast.Ref{ast.DefaultRootDocument}
-	for _, v := range params.Path {
-		switch v := v.(type) {
-		case float64:
-			ref = append(ref, ast.NumberTerm(v))
-		case string:
-			ref = append(ref, ast.StringTerm(v))
-		case bool:
-			ref = append(ref, ast.BooleanTerm(v))
-		case nil:
-			ref = append(ref, ast.NullTerm())
-		default:
-			return nil, fmt.Errorf("bad path element: %v (%T)", v, v)
-		}
+func (qr *QueryResult) String() string {
+	return fmt.Sprintf("[%v %v]", qr.Result, qr.Globals)
+}
+
+// QueryResultSet represents a collection of query results.
+type QueryResultSet []*QueryResult
+
+// Undefined returns true if the query did not find any results.
+func (qrs QueryResultSet) Undefined() bool {
+	return len(qrs) == 0
+}
+
+// Add inserts a result into the query result set.
+func (qrs *QueryResultSet) Add(qr *QueryResult) {
+	*qrs = append(*qrs, qr)
+}
+
+// Query returns the value of document referred to by the params Path field. If
+// the params Globals field contains values that are non-ground (i.e., they
+// contain variables), then the result may contain multiple entries.
+func Query(params *QueryParams) (QueryResultSet, error) {
+
+	if params.Globals.Len() == 0 {
+		return queryOne(params)
 	}
 
-	// Construct and execute a query to obtain the value for the reference.
-	query := ast.NewBody(ast.Equality.Expr(ast.RefTerm(ref...), ast.Wildcard))
+	return queryN(params)
+}
+
+// queryOne returns a QueryResultSet containing the value of the document
+// referred to by the params Path field. If the document is not defined, nil is
+// returned.
+func queryOne(params *QueryParams) (QueryResultSet, error) {
+
+	query := ast.NewBody(ast.Equality.Expr(ast.RefTerm(params.Path...), ast.Wildcard))
 	ctx := params.NewContext(query)
-	var result interface{} = Undefined{}
+	var result interface{} = struct{}{}
 	var err error
 
 	err = Eval(ctx, func(ctx *Context) error {
@@ -577,19 +602,97 @@ func Query(params *QueryParams) (interface{}, error) {
 		return nil, err
 	}
 
-	return result, nil
+	if _, ok := result.(struct{}); ok {
+		return nil, nil
+	}
+
+	return QueryResultSet{&QueryResult{result, nil}}, nil
 }
 
-// Undefined represents the absence of bindings that satisfy a completely defined rule.
-// See the documentation for Query for more details.
-type Undefined struct{}
+// queryN returns a QueryResultSet containing the values of the document
+// referred to by the params Path field. There may be zero or more values
+// depending on the values of the params Globals field.
+//
+// For example, if the globals refer to one or more undefined documents, the set
+// will be empty. On the other hand, if the globals contain non-ground
+// references where there are multiple valid sets of bindings, the result set
+// may contain multiple values.
+func queryN(params *QueryParams) (QueryResultSet, error) {
 
-func (undefined Undefined) String() string {
-	return "<undefined>"
+	qrs := QueryResultSet{}
+	vars := ast.NewVarSet()
+	resolver := resolver{params.Store, params.Transaction}
+
+	params.Globals.Iter(func(_, v ast.Value) bool {
+		ast.WalkRefs(v, func(r ast.Ref) bool {
+			vars.Update(r.OutputVars())
+			return false
+		})
+		return false
+	})
+
+	err := evalGlobals(params, func(globals *ast.ValueMap, root *Context) error {
+		params.Globals = globals
+		result, err := queryOne(params)
+		if err != nil || result.Undefined() {
+			return err
+		}
+
+		bindings := map[string]interface{}{}
+		for v := range vars {
+			binding, err := ValueToInterface(PlugValue(v, root.Binding), resolver)
+			if err != nil {
+				return err
+			}
+			bindings[v.String()] = binding
+		}
+
+		qrs.Add(&QueryResult{result[0].Result, bindings})
+		return nil
+	})
+
+	return qrs, err
 }
 
-// ResolveRefs returns an AST value obtained by replacing references in v with
-// values from storage.
+// evalGlobals constructs query to find bindings for all variables in the params
+// Globals field.
+func evalGlobals(params *QueryParams, iter func(*ast.ValueMap, *Context) error) error {
+	exprs := []*ast.Expr{}
+	params.Globals.Iter(func(k, v ast.Value) bool {
+		exprs = append(exprs, ast.Equality.Expr(ast.NewTerm(k), ast.NewTerm(v)))
+		return false
+	})
+
+	query := ast.NewBody(exprs...)
+	ctx := params.NewContext(query)
+
+	return Eval(ctx, func(ctx *Context) error {
+		globals := ast.NewValueMap()
+		params.Globals.Iter(func(k, _ ast.Value) bool {
+			globals.Put(k, PlugValue(k, ctx.Binding))
+			return false
+		})
+		return iter(globals, ctx)
+	})
+}
+
+// Resolver defines the interface for resolving references to base documents to
+// native Go values. The native Go value types map to JSON types.
+type Resolver interface {
+	Resolve(ref ast.Ref) (value interface{}, err error)
+}
+
+type resolver struct {
+	store *storage.Storage
+	txn   storage.Transaction
+}
+
+func (r resolver) Resolve(ref ast.Ref) (interface{}, error) {
+	return r.store.Read(r.txn, ref)
+}
+
+// ResolveRefs returns the AST value obtained by resolving references to base
+// doccuments.
 func ResolveRefs(v ast.Value, ctx *Context) (ast.Value, error) {
 	result, err := ast.TransformRefs(v, func(r ast.Ref) (ast.Value, error) {
 		return lookupValue(ctx, r)
@@ -603,10 +706,8 @@ func ResolveRefs(v ast.Value, ctx *Context) (ast.Value, error) {
 // ValueToInterface returns the underlying Go value associated with an AST value.
 // If the value is a reference, the reference is fetched from storage. Composite
 // AST values such as objects and arrays are converted recursively.
-func ValueToInterface(v ast.Value, ctx *Context) (interface{}, error) {
-
+func ValueToInterface(v ast.Value, resolver Resolver) (interface{}, error) {
 	switch v := v.(type) {
-
 	case ast.Null:
 		return nil, nil
 	case ast.Boolean:
@@ -615,22 +716,20 @@ func ValueToInterface(v ast.Value, ctx *Context) (interface{}, error) {
 		return float64(v), nil
 	case ast.String:
 		return string(v), nil
-
 	case ast.Array:
 		buf := []interface{}{}
 		for _, x := range v {
-			x1, err := ValueToInterface(x.Value, ctx)
+			x1, err := ValueToInterface(x.Value, resolver)
 			if err != nil {
 				return nil, err
 			}
 			buf = append(buf, x1)
 		}
 		return buf, nil
-
 	case ast.Object:
 		buf := map[string]interface{}{}
 		for _, x := range v {
-			k, err := ValueToInterface(x[0].Value, ctx)
+			k, err := ValueToInterface(x[0].Value, resolver)
 			if err != nil {
 				return nil, err
 			}
@@ -638,42 +737,34 @@ func ValueToInterface(v ast.Value, ctx *Context) (interface{}, error) {
 			if !stringKey {
 				return nil, fmt.Errorf("object key type %T", k)
 			}
-			v, err := ValueToInterface(x[1].Value, ctx)
+			v, err := ValueToInterface(x[1].Value, resolver)
 			if err != nil {
 				return nil, err
 			}
 			buf[asStr] = v
 		}
 		return buf, nil
-
 	case *ast.Set:
 		buf := []interface{}{}
 		for _, x := range *v {
-			x1, err := ValueToInterface(x.Value, ctx)
+			x1, err := ValueToInterface(x.Value, resolver)
 			if err != nil {
 				return nil, err
 			}
 			buf = append(buf, x1)
 		}
 		return buf, nil
-
-	// References convert to native values via lookup.
 	case ast.Ref:
-		return ctx.Store.Read(ctx.txn, v)
-
+		return resolver.Resolve(v)
 	default:
-		v = PlugValue(v, ctx.Binding)
-		if !v.IsGround() {
-			return nil, fmt.Errorf("unbound value: %v", v)
-		}
-		return ValueToInterface(v, ctx)
+		return nil, fmt.Errorf("unbound value: %v", v)
 	}
 }
 
 // ValueToSlice returns the underlying Go value associated with an AST value.
 // If the value is a reference, the reference is fetched from storage.
-func ValueToSlice(v ast.Value, ctx *Context) ([]interface{}, error) {
-	x, err := ValueToInterface(v, ctx)
+func ValueToSlice(v ast.Value, resolver Resolver) ([]interface{}, error) {
+	x, err := ValueToInterface(v, resolver)
 	if err != nil {
 		return nil, err
 	}
@@ -686,8 +777,8 @@ func ValueToSlice(v ast.Value, ctx *Context) ([]interface{}, error) {
 
 // ValueToFloat64 returns the underlying Go value associated with an AST value.
 // If the value is a reference, the reference is fetched from storage.
-func ValueToFloat64(v ast.Value, ctx *Context) (float64, error) {
-	x, err := ValueToInterface(v, ctx)
+func ValueToFloat64(v ast.Value, resolver Resolver) (float64, error) {
+	x, err := ValueToInterface(v, resolver)
 	if err != nil {
 		return 0, err
 	}
@@ -700,8 +791,8 @@ func ValueToFloat64(v ast.Value, ctx *Context) (float64, error) {
 
 // ValueToInt returns the underlying Go value associated with an AST value.
 // If the value is a reference, the reference is fetched from storage.
-func ValueToInt(v ast.Value, ctx *Context) (int64, error) {
-	x, err := ValueToFloat64(v, ctx)
+func ValueToInt(v ast.Value, resolver Resolver) (int64, error) {
+	x, err := ValueToFloat64(v, resolver)
 	if err != nil {
 		return 0, err
 	}
@@ -713,8 +804,8 @@ func ValueToInt(v ast.Value, ctx *Context) (int64, error) {
 
 // ValueToString returns the underlying Go value associated with an AST value.
 // If the value is a reference, the reference is fetched from storage.
-func ValueToString(v ast.Value, ctx *Context) (string, error) {
-	x, err := ValueToInterface(v, ctx)
+func ValueToString(v ast.Value, resolver Resolver) (string, error) {
+	x, err := ValueToInterface(v, resolver)
 	if err != nil {
 		return "", err
 	}
@@ -726,8 +817,8 @@ func ValueToString(v ast.Value, ctx *Context) (string, error) {
 }
 
 // ValueToStrings returns a slice of strings associated with an AST value.
-func ValueToStrings(v ast.Value, ctx *Context) ([]string, error) {
-	sl, err := ValueToSlice(v, ctx)
+func ValueToStrings(v ast.Value, resolver Resolver) ([]string, error) {
+	sl, err := ValueToSlice(v, resolver)
 	if err != nil {
 		return nil, err
 	}

@@ -1120,7 +1120,7 @@ Content-Type: application/json
 
 #### Query Parameters
 
-- **global** - Provide an input document to the query. Format is `<path>:<value>` where `<path>` is the import path of the input document and `<value>` is the JSON serialized input document. The parameter may be specified multiple times but each instance should specify a unique `<path>`.
+- **global** - Provide an input document to the query. Format is `<path>:<value>` where `<path>` is the import path of the input document. The parameter may be specified multiple times but each instance should specify a unique `<path>`. The `<value>` may be a reference to a document in OPA. If `<value>` contains variables the response will contain a set of results instead of a single document.
 - **pretty** - If parameter is `true`, response will formatted for humans.
 - **explain** - Return query explanation instead of normal result. Values: **full**, **truth**. See [Explanations](#explanations) for how to interpret results.
 
@@ -1138,16 +1138,6 @@ The server returns 404 in two cases:
 - The path refers to a non-existent base document.
 - The path refers to a Virtual Document that is undefined in the context of the query.
 
-#### Example Module
-
-```ruby
-package opa.examples
-
-import example.flag
-
-allow_request :- flag = true
-```
-
 #### Example Request With Global Parameter
 
 ```http
@@ -1158,6 +1148,414 @@ GET /v1/data/opa/examples/allow_request?global=example.flag:false HTTP/1.1
 
 ```http
 HTTP/1.1 404 Not Found
+```
+
+The example above assumes the following policy:
+
+
+```ruby
+package opa.examples
+
+import example.flag
+
+allow_request :- flag = true
+```
+
+#### Example Request For Result Set
+
+```http
+GET /v1/data/opa/examples/allow_container?global=data.containers[container_index] HTTP/1.1
+```
+
+#### Example Response For Result Set
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+[
+  [
+    true,
+    {
+      "container_index": 0
+    }
+  ]
+]
+```
+
+Result sets have the following schema:
+
+```json
+{
+  "type": "array",
+  "title": "Result Set",
+  "description": "Set of results returned for a Data API query.",
+  "items": {
+    "type": "array",
+    "minItems": 2,
+    "maxItems": 2,
+    "items": [
+      {
+        "title": "Value",
+        "description": "The value of the document referred to by the Data API path."
+      },
+      {
+        "type": "object",
+        "title": "Bindings",
+        "description": "The bindings of variables found in the Data API query input documents."
+      }
+    ]
+  }
+}
+```
+
+The example above assumes the following data and policy:
+
+
+```json
+{
+  "containers": [
+    {
+        "Id": "a4288db7773ebb4f1b4d502712b87b241e3c28184cda6a1ad58f91ac6d89f052",
+        "Created": "2016-11-21T03:13:14.288557666Z",
+        "Path": "sh",
+        "Args": [],
+        "State": {
+            "Status": "running",
+            "Running": true,
+            "Paused": false,
+            "Restarting": false,
+            "OOMKilled": false,
+            "Dead": false,
+            "Pid": 12127,
+            "ExitCode": 0,
+            "Error": "",
+            "StartedAt": "2016-11-21T03:13:14.915355869Z",
+            "FinishedAt": "0001-01-01T00:00:00Z"
+        },
+        "Image": "sha256:baa5d63471ead618ff91ddfacf1e2c81bf0612bfeb1daf00eb0843a41fbfade3",
+        "ResolvConfPath": "/var/lib/docker/containers/a4288db7773ebb4f1b4d502712b87b241e3c28184cda6a1ad58f91ac6d89f052/resolv.conf",
+        "HostnamePath": "/var/lib/docker/containers/a4288db7773ebb4f1b4d502712b87b241e3c28184cda6a1ad58f91ac6d89f052/hostname",
+        "HostsPath": "/var/lib/docker/containers/a4288db7773ebb4f1b4d502712b87b241e3c28184cda6a1ad58f91ac6d89f052/hosts",
+        "LogPath": "/var/lib/docker/containers/a4288db7773ebb4f1b4d502712b87b241e3c28184cda6a1ad58f91ac6d89f052/a4288db7773ebb4f1b4d502712b87b241e3c28184cda6a1ad58f91ac6d89f052-json.log",
+        "Name": "/suspicious_brahmagupta",
+        "RestartCount": 0,
+        "Driver": "aufs",
+        "MountLabel": "",
+        "ProcessLabel": "",
+        "AppArmorProfile": "",
+        "ExecIDs": null,
+        "HostConfig": {
+            "Binds": null,
+            "ContainerIDFile": "",
+            "LogConfig": {
+                "Type": "json-file",
+                "Config": {}
+            },
+            "NetworkMode": "default",
+            "PortBindings": {},
+            "RestartPolicy": {
+                "Name": "no",
+                "MaximumRetryCount": 0
+            },
+            "AutoRemove": false,
+            "VolumeDriver": "",
+            "VolumesFrom": null,
+            "CapAdd": null,
+            "CapDrop": null,
+            "Dns": [],
+            "DnsOptions": [],
+            "DnsSearch": [],
+            "ExtraHosts": null,
+            "GroupAdd": null,
+            "IpcMode": "",
+            "Cgroup": "",
+            "Links": null,
+            "OomScoreAdj": 0,
+            "PidMode": "",
+            "Privileged": false,
+            "PublishAllPorts": false,
+            "ReadonlyRootfs": false,
+            "SecurityOpt": null,
+            "UTSMode": "",
+            "UsernsMode": "",
+            "ShmSize": 67108864,
+            "Runtime": "runc",
+            "ConsoleSize": [
+                0,
+                0
+            ],
+            "Isolation": "",
+            "CpuShares": 0,
+            "Memory": 0,
+            "CgroupParent": "",
+            "BlkioWeight": 0,
+            "BlkioWeightDevice": null,
+            "BlkioDeviceReadBps": null,
+            "BlkioDeviceWriteBps": null,
+            "BlkioDeviceReadIOps": null,
+            "BlkioDeviceWriteIOps": null,
+            "CpuPeriod": 0,
+            "CpuQuota": 0,
+            "CpusetCpus": "",
+            "CpusetMems": "",
+            "Devices": [],
+            "DiskQuota": 0,
+            "KernelMemory": 0,
+            "MemoryReservation": 0,
+            "MemorySwap": 0,
+            "MemorySwappiness": -1,
+            "OomKillDisable": false,
+            "PidsLimit": 0,
+            "Ulimits": null,
+            "CpuCount": 0,
+            "CpuPercent": 0,
+            "IOMaximumIOps": 0,
+            "IOMaximumBandwidth": 0
+        },
+        "GraphDriver": {
+            "Name": "aufs",
+            "Data": null
+        },
+        "Mounts": [],
+        "Config": {
+            "Hostname": "a4288db7773e",
+            "Domainname": "",
+            "User": "",
+            "AttachStdin": true,
+            "AttachStdout": true,
+            "AttachStderr": true,
+            "Tty": true,
+            "OpenStdin": true,
+            "StdinOnce": true,
+            "Env": [
+                "no_proxy=*.local, 169.254/16",
+                "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+            ],
+            "Cmd": [
+                "sh"
+            ],
+            "Image": "alpine:latest",
+            "Volumes": null,
+            "WorkingDir": "",
+            "Entrypoint": null,
+            "OnBuild": null,
+            "Labels": {}
+        },
+        "NetworkSettings": {
+            "Bridge": "",
+            "SandboxID": "2dadac1a8b18b7ae5658c4215637d998572c95bc0673bac2aceefbdd830d8860",
+            "HairpinMode": false,
+            "LinkLocalIPv6Address": "",
+            "LinkLocalIPv6PrefixLen": 0,
+            "Ports": {},
+            "SandboxKey": "/var/run/docker/netns/2dadac1a8b18",
+            "SecondaryIPAddresses": null,
+            "SecondaryIPv6Addresses": null,
+            "EndpointID": "fb1af875e2f0e7643224b6505a2c713748175689b8e8edb7cc1496efa8cdcafd",
+            "Gateway": "172.17.0.1",
+            "GlobalIPv6Address": "",
+            "GlobalIPv6PrefixLen": 0,
+            "IPAddress": "172.17.0.3",
+            "IPPrefixLen": 16,
+            "IPv6Gateway": "",
+            "MacAddress": "02:42:ac:11:00:03",
+            "Networks": {
+                "bridge": {
+                    "IPAMConfig": null,
+                    "Links": null,
+                    "Aliases": null,
+                    "NetworkID": "ad1022afa0af59671f2b701ff8cbd4607de24740b59484acd4a740fac4ad26f9",
+                    "EndpointID": "fb1af875e2f0e7643224b6505a2c713748175689b8e8edb7cc1496efa8cdcafd",
+                    "Gateway": "172.17.0.1",
+                    "IPAddress": "172.17.0.3",
+                    "IPPrefixLen": 16,
+                    "IPv6Gateway": "",
+                    "GlobalIPv6Address": "",
+                    "GlobalIPv6PrefixLen": 0,
+                    "MacAddress": "02:42:ac:11:00:03"
+                }
+            }
+        }
+    },
+    {
+        "Id": "6887a5168d0e2324b8c9544c4b30321bce4952f12698491f268c17bbe77e5218",
+        "Created": "2016-11-21T03:13:05.080079329Z",
+        "Path": "sh",
+        "Args": [],
+        "State": {
+            "Status": "running",
+            "Running": true,
+            "Paused": false,
+            "Restarting": false,
+            "OOMKilled": false,
+            "Dead": false,
+            "Pid": 12079,
+            "ExitCode": 0,
+            "Error": "",
+            "StartedAt": "2016-11-21T03:13:05.718411107Z",
+            "FinishedAt": "0001-01-01T00:00:00Z"
+        },
+        "Image": "sha256:baa5d63471ead618ff91ddfacf1e2c81bf0612bfeb1daf00eb0843a41fbfade3",
+        "ResolvConfPath": "/var/lib/docker/containers/6887a5168d0e2324b8c9544c4b30321bce4952f12698491f268c17bbe77e5218/resolv.conf",
+        "HostnamePath": "/var/lib/docker/containers/6887a5168d0e2324b8c9544c4b30321bce4952f12698491f268c17bbe77e5218/hostname",
+        "HostsPath": "/var/lib/docker/containers/6887a5168d0e2324b8c9544c4b30321bce4952f12698491f268c17bbe77e5218/hosts",
+        "LogPath": "/var/lib/docker/containers/6887a5168d0e2324b8c9544c4b30321bce4952f12698491f268c17bbe77e5218/6887a5168d0e2324b8c9544c4b30321bce4952f12698491f268c17bbe77e5218-json.log",
+        "Name": "/fervent_almeida",
+        "RestartCount": 0,
+        "Driver": "aufs",
+        "MountLabel": "",
+        "ProcessLabel": "",
+        "AppArmorProfile": "",
+        "ExecIDs": null,
+        "HostConfig": {
+            "Binds": null,
+            "ContainerIDFile": "",
+            "LogConfig": {
+                "Type": "json-file",
+                "Config": {}
+            },
+            "NetworkMode": "default",
+            "PortBindings": {},
+            "RestartPolicy": {
+                "Name": "no",
+                "MaximumRetryCount": 0
+            },
+            "AutoRemove": false,
+            "VolumeDriver": "",
+            "VolumesFrom": null,
+            "CapAdd": null,
+            "CapDrop": null,
+            "Dns": [],
+            "DnsOptions": [],
+            "DnsSearch": [],
+            "ExtraHosts": null,
+            "GroupAdd": null,
+            "IpcMode": "",
+            "Cgroup": "",
+            "Links": null,
+            "OomScoreAdj": 0,
+            "PidMode": "",
+            "Privileged": false,
+            "PublishAllPorts": false,
+            "ReadonlyRootfs": false,
+            "SecurityOpt": [
+                "seccomp:unconfined"
+            ],
+            "UTSMode": "",
+            "UsernsMode": "",
+            "ShmSize": 67108864,
+            "Runtime": "runc",
+            "ConsoleSize": [
+                0,
+                0
+            ],
+            "Isolation": "",
+            "CpuShares": 0,
+            "Memory": 0,
+            "CgroupParent": "",
+            "BlkioWeight": 0,
+            "BlkioWeightDevice": null,
+            "BlkioDeviceReadBps": null,
+            "BlkioDeviceWriteBps": null,
+            "BlkioDeviceReadIOps": null,
+            "BlkioDeviceWriteIOps": null,
+            "CpuPeriod": 0,
+            "CpuQuota": 0,
+            "CpusetCpus": "",
+            "CpusetMems": "",
+            "Devices": [],
+            "DiskQuota": 0,
+            "KernelMemory": 0,
+            "MemoryReservation": 0,
+            "MemorySwap": 0,
+            "MemorySwappiness": -1,
+            "OomKillDisable": false,
+            "PidsLimit": 0,
+            "Ulimits": null,
+            "CpuCount": 0,
+            "CpuPercent": 0,
+            "IOMaximumIOps": 0,
+            "IOMaximumBandwidth": 0
+        },
+        "GraphDriver": {
+            "Name": "aufs",
+            "Data": null
+        },
+        "Mounts": [],
+        "Config": {
+            "Hostname": "6887a5168d0e",
+            "Domainname": "",
+            "User": "",
+            "AttachStdin": true,
+            "AttachStdout": true,
+            "AttachStderr": true,
+            "Tty": true,
+            "OpenStdin": true,
+            "StdinOnce": true,
+            "Env": [
+                "no_proxy=*.local, 169.254/16",
+                "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+            ],
+            "Cmd": [
+                "sh"
+            ],
+            "Image": "alpine:latest",
+            "Volumes": null,
+            "WorkingDir": "",
+            "Entrypoint": null,
+            "OnBuild": null,
+            "Labels": {}
+        },
+        "NetworkSettings": {
+            "Bridge": "",
+            "SandboxID": "580a6d3f8bebfb1647c8b34f7766dee1b86443752ef3e255d37517dfb35076ed",
+            "HairpinMode": false,
+            "LinkLocalIPv6Address": "",
+            "LinkLocalIPv6PrefixLen": 0,
+            "Ports": {},
+            "SandboxKey": "/var/run/docker/netns/580a6d3f8beb",
+            "SecondaryIPAddresses": null,
+            "SecondaryIPv6Addresses": null,
+            "EndpointID": "a4340ac5857a79310cc7eaa344d4ff6771fdf6372f72447b91928c038d9ada7d",
+            "Gateway": "172.17.0.1",
+            "GlobalIPv6Address": "",
+            "GlobalIPv6PrefixLen": 0,
+            "IPAddress": "172.17.0.2",
+            "IPPrefixLen": 16,
+            "IPv6Gateway": "",
+            "MacAddress": "02:42:ac:11:00:02",
+            "Networks": {
+                "bridge": {
+                    "IPAMConfig": null,
+                    "Links": null,
+                    "Aliases": null,
+                    "NetworkID": "ad1022afa0af59671f2b701ff8cbd4607de24740b59484acd4a740fac4ad26f9",
+                    "EndpointID": "a4340ac5857a79310cc7eaa344d4ff6771fdf6372f72447b91928c038d9ada7d",
+                    "Gateway": "172.17.0.1",
+                    "IPAddress": "172.17.0.2",
+                    "IPPrefixLen": 16,
+                    "IPv6Gateway": "",
+                    "GlobalIPv6Address": "",
+                    "GlobalIPv6PrefixLen": 0,
+                    "MacAddress": "02:42:ac:11:00:02"
+                }
+            }
+        }
+    }]
+}
+```
+
+```ruby
+package opa.examples
+
+import container
+
+allow_container :-
+  not seccomp_unconfined
+
+seccomp_unconfined :-
+  container.HostConfig.SecurityOpt[_] = "seccomp:unconfined"
 ```
 
 ### Create or Overwrite a Document

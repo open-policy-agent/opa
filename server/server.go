@@ -89,8 +89,32 @@ func (p *policyV1) Equal(other *policyV1) bool {
 	return p.ID == other.ID && p.Module.Equal(other.Module)
 }
 
-// resultSetV1 models the result of an ad-hoc query.
-type resultSetV1 []map[string]interface{}
+// adhocQueryResultSet models the result of a Query API query.
+type adhocQueryResultSetV1 []map[string]interface{}
+
+// queryResultSetV1 models the result of a Data API query when the query would
+// return multiple values for the document.
+type queryResultSetV1 []*queryResultV1
+
+func newQueryResultSetV1(qrs topdown.QueryResultSet) queryResultSetV1 {
+	result := make(queryResultSetV1, len(qrs))
+	for i := range qrs {
+		result[i] = &queryResultV1{qrs[i].Result, qrs[i].Globals}
+	}
+	return result
+}
+
+// queryResultV1 models a single result of a Data API query that would return
+// multiple values for the document. The globals can be used to differentiate
+// between results.
+type queryResultV1 struct {
+	result  interface{}
+	globals map[string]interface{}
+}
+
+func (qr *queryResultV1) MarshalJSON() ([]byte, error) {
+	return json.Marshal([]interface{}{qr.result, qr.globals})
+}
 
 // explainModeV1 defines supported values for the "explain" query parameter.
 type explainModeV1 string
@@ -310,7 +334,7 @@ func (s *Server) execQuery(compiler *ast.Compiler, txn storage.Transaction, quer
 		ctx.Tracer = buf
 	}
 
-	resultSet := resultSetV1{}
+	resultSet := adhocQueryResultSetV1{}
 
 	err := topdown.Eval(ctx, func(ctx *topdown.Context) error {
 		result := map[string]interface{}{}
@@ -401,12 +425,18 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 
 	// Gather request parameters.
 	vars := mux.Vars(r)
-	path := stringPathToInterface(vars["path"])
+	path := stringPathToDataRef(vars["path"])
 	pretty := getPretty(r.URL.Query()["pretty"])
 	explainMode := getExplain(r.URL.Query()["explain"])
-	globals, err := parseGlobals(r.URL.Query()["global"])
+	globals, nonGround, err := parseGlobals(r.URL.Query()["global"])
+
 	if err != nil {
 		handleError(w, 400, err)
+		return
+	}
+
+	if nonGround && explainMode != explainOffV1 {
+		handleError(w, 400, fmt.Errorf("explanations with non-ground global values not supported"))
 		return
 	}
 
@@ -429,7 +459,7 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Execute query.
-	result, err := topdown.Query(params)
+	qrs, err := topdown.Query(params)
 
 	// Handle results.
 	if err != nil {
@@ -437,7 +467,7 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if _, ok := result.(topdown.Undefined); ok {
+	if qrs.Undefined() {
 		if explainMode == explainFullV1 {
 			handleResponseJSON(w, 404, newTraceV1(*buf), pretty)
 		} else {
@@ -445,6 +475,13 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
+
+	if nonGround {
+		handleResponseJSON(w, 200, newQueryResultSetV1(qrs), pretty)
+		return
+	}
+
+	result := qrs[0].Result
 
 	switch explainMode {
 	case explainOffV1:
@@ -463,9 +500,7 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) v1DataPatch(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-
-	root := ast.Ref{ast.DefaultRootDocument}
-	root = append(root, stringPathToRef(vars["path"])...)
+	root := stringPathToDataRef(vars["path"])
 
 	ops := []patchV1{}
 	if err := json.NewDecoder(r.Body).Decode(&ops); err != nil {
@@ -819,6 +854,12 @@ func (s *Server) writeConflict(op storage.PatchOp, path ast.Ref) error {
 	return nil
 }
 
+func stringPathToDataRef(s string) (r ast.Ref) {
+	result := ast.Ref{ast.DefaultRootDocument}
+	result = append(result, stringPathToRef(s)...)
+	return result
+}
+
 func stringPathToRef(s string) (r ast.Ref) {
 	if len(s) == 0 {
 		return r
@@ -833,22 +874,6 @@ func stringPathToRef(s string) (r ast.Ref) {
 			r = append(r, ast.StringTerm(x))
 		} else {
 			r = append(r, ast.NumberTerm(float64(i)))
-		}
-	}
-	return r
-}
-
-func stringPathToInterface(s string) (r []interface{}) {
-	if len(s) == 0 {
-		return r
-	}
-	p := strings.Split(s, "/")
-	for _, x := range p {
-		i, err := strconv.Atoi(x)
-		if err != nil {
-			r = append(r, x)
-		} else {
-			r = append(r, float64(i))
 		}
 	}
 	return r
@@ -931,10 +956,6 @@ func handleResponseJSON(w http.ResponseWriter, code int, v interface{}, pretty b
 	handleResponse(w, code, bs)
 }
 
-func globalConflictErr(k ast.Value) error {
-	return fmt.Errorf("conflicting global: %v: check global arguments", k)
-}
-
 func getPretty(p []string) bool {
 	for _, x := range p {
 		if strings.ToLower(x) == "true" {
@@ -956,56 +977,42 @@ func getExplain(p []string) explainModeV1 {
 	return explainOffV1
 }
 
-func parseGlobals(g []string) (*ast.ValueMap, error) {
-	globals := ast.NewValueMap()
-	for _, g := range g {
-		vs := strings.SplitN(g, ":", 2)
+func parseGlobals(s []string) (*ast.ValueMap, bool, error) {
+
+	pairs := make([][2]*ast.Term, len(s))
+	nonGround := false
+
+	for i := range s {
+		vs := strings.SplitN(s[i], ":", 2)
+		if len(vs) != 2 {
+			return nil, false, fmt.Errorf("global format: <path>:<value> where <path> is either var or ref")
+		}
 		k, err := ast.ParseTerm(vs[0])
 		if err != nil {
-			return nil, err
+			return nil, false, err
 		}
 		v, err := ast.ParseTerm(vs[1])
 		if err != nil {
-			return nil, err
+			return nil, false, err
 		}
-		switch k := k.Value.(type) {
-		case ast.Ref:
-			obj := makeTree(k[1:], v)
-			switch b := globals.Get(k[0].Value).(type) {
-			case nil:
-				globals.Put(k[0].Value, obj)
-			case ast.Object:
-				m, ok := b.Merge(obj)
-				if !ok {
-					return nil, globalConflictErr(k)
+		pairs[i] = [...]*ast.Term{k, v}
+		if !nonGround {
+			ast.WalkVars(v, func(x ast.Var) bool {
+				if x.Equal(ast.DefaultRootDocument.Value) {
+					return false
 				}
-				globals.Put(k[0].Value, m)
-			default:
-				return nil, globalConflictErr(k)
-			}
-		case ast.Var:
-			if globals.Get(k) != nil {
-				return nil, globalConflictErr(k)
-			}
-			globals.Put(k, v.Value)
-		default:
-			return nil, fmt.Errorf("invalid global: %v: path must be a variable or a reference", k)
+				nonGround = true
+				return true
+			})
 		}
 	}
-	return globals, nil
-}
 
-// makeTree returns an object that represents a document where the value v is the
-// leaf and elements in k represent intermediate objects.
-func makeTree(k ast.Ref, v *ast.Term) ast.Object {
-	var obj ast.Object
-	for i := len(k) - 1; i >= 1; i-- {
-		obj = ast.Object{ast.Item(k[i], v)}
-		v = &ast.Term{Value: obj}
-		obj = ast.Object{}
+	globals, err := topdown.MakeGlobals(pairs)
+	if err != nil {
+		return nil, false, err
 	}
-	obj = ast.Object{ast.Item(k[0], v)}
-	return obj
+
+	return globals, nonGround, nil
 }
 
 func renderBanner(w http.ResponseWriter) {

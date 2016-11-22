@@ -52,6 +52,14 @@ func (s VarSet) Diff(vs VarSet) VarSet {
 	return r
 }
 
+// Equal returns true if s contains exactly the same elements as vs.
+func (s VarSet) Equal(vs VarSet) bool {
+	if len(s.Diff(vs)) > 0 {
+		return false
+	}
+	return len(vs.Diff(s)) == 0
+}
+
 // Intersect returns a VarSet containing variables in s that are in vs.
 func (s VarSet) Intersect(vs VarSet) VarSet {
 	r := VarSet{}

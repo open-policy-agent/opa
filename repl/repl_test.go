@@ -522,6 +522,27 @@ func TestEvalBodyContainingWildCards(t *testing.T) {
 
 }
 
+func TestEvalBodyGlobals(t *testing.T) {
+	store := newTestStore()
+	var buffer bytes.Buffer
+	repl := newRepl(store, &buffer)
+
+	repl.OneShot("package repl")
+	repl.OneShot(`globals["foo.bar"] = "hello" :- true`)
+	repl.OneShot(`globals["baz"] = data.a[0].b.c[2] :- true`)
+	repl.OneShot("package test")
+	repl.OneShot("import foo.bar")
+	repl.OneShot("import baz")
+	repl.OneShot(`p :- bar = "hello", baz = false`)
+
+	repl.OneShot("p")
+
+	result := buffer.String()
+	if result != "true\n" {
+		t.Fatalf("expected true but got: %v", result)
+	}
+}
+
 func TestEvalImport(t *testing.T) {
 	store := newTestStore()
 	var buffer bytes.Buffer
