@@ -66,7 +66,7 @@ func New(config Config) *Storage {
 	return &Storage{
 		builtin:     config.Builtin,
 		indices:     newIndices(),
-		policyStore: newPolicyStore(config.Builtin, config.PolicyDir),
+		policyStore: newPolicyStore(config.PolicyDir),
 		active:      map[string]struct{}{},
 	}
 }

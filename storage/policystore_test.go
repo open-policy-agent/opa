@@ -33,8 +33,7 @@ func TestPolicyStoreDefaultOpen(t *testing.T) {
 		panic(err)
 	}
 
-	dataStore := NewDataStore()
-	policyStore := newPolicyStore(dataStore, dir)
+	policyStore := newPolicyStore(dir)
 
 	err = policyStore.Open(invalidTXN, loadPolicies)
 	if err != nil {
@@ -54,9 +53,8 @@ func TestPolicyStoreDefaultOpen(t *testing.T) {
 		return
 	}
 
-	if !c.Modules["testMod1"].Equal(stored) {
-		t.Errorf("Expected %v from policy store but got: %v", c.Modules["testMod1"], stored)
-		return
+	if !mod.Equal(stored) {
+		t.Fatalf("Expected %v from policy store but got: %v", mod, stored)
 	}
 }
 
@@ -212,7 +210,7 @@ const (
 	testMod1 = `
     package a.b
 
-    p = true :- true
+    p = true :- q
     q = true :- true
     `
 
@@ -225,7 +223,6 @@ const (
 
 type fixture struct {
 	policyStore *policyStore
-	dataStore   *DataStore
 }
 
 func newFixture() *fixture {
@@ -235,8 +232,7 @@ func newFixture() *fixture {
 		panic(err)
 	}
 
-	dataStore := NewDataStore()
-	policyStore := newPolicyStore(dataStore, dir)
+	policyStore := newPolicyStore(dir)
 	err = policyStore.Open(invalidTXN, func(map[string][]byte) (map[string]*ast.Module, error) {
 		return nil, nil
 	})
@@ -246,7 +242,6 @@ func newFixture() *fixture {
 
 	f := &fixture{
 		policyStore: policyStore,
-		dataStore:   dataStore,
 	}
 
 	return f

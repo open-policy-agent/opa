@@ -220,6 +220,7 @@ func (rt *Runtime) getBanner() string {
 func compileAndStoreInputs(parsed map[string]*parsedModule, store *storage.Storage, txn storage.Transaction) error {
 
 	mods := store.ListPolicies(txn)
+
 	for _, p := range parsed {
 		mods[p.id] = p.mod
 	}
@@ -230,8 +231,7 @@ func compileAndStoreInputs(parsed map[string]*parsedModule, store *storage.Stora
 	}
 
 	for id := range parsed {
-		mod := c.Modules[id]
-		if err := store.InsertPolicy(txn, id, mod, parsed[id].raw, false); err != nil {
+		if err := store.InsertPolicy(txn, id, parsed[id].mod, parsed[id].raw, false); err != nil {
 			return err
 		}
 	}

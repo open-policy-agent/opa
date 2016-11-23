@@ -43,9 +43,9 @@ func ExampleCompiler_Compile() {
 		fmt.Println("Compile error:", c.Errors)
 	}
 
-	fmt.Println("Expr 1:", mod.Rules[0].Body[0])
-	fmt.Println("Expr 2:", mod.Rules[0].Body[1])
-	fmt.Println("Expr 3:", mod.Rules[0].Body[2])
+	fmt.Println("Expr 1:", c.Modules["my_module"].Rules[0].Body[0])
+	fmt.Println("Expr 2:", c.Modules["my_module"].Rules[0].Body[1])
+	fmt.Println("Expr 3:", c.Modules["my_module"].Rules[0].Body[2])
 
 	// Output:
 	//

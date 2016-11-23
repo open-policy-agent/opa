@@ -162,8 +162,10 @@ func NewCompiler() *Compiler {
 // compiler. If the compilation process fails for any reason, the compiler will
 // contain a slice of errors.
 func (c *Compiler) Compile(modules map[string]*Module) {
-	// TODO(tsandall): should the modules be deep copied?
-	c.Modules = modules
+	c.Modules = make(map[string]*Module, len(modules))
+	for k, v := range modules {
+		c.Modules[k] = v.Copy()
+	}
 	c.compile()
 }
 

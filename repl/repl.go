@@ -294,8 +294,6 @@ func (r *REPL) cmdUnset(args []string) bool {
 		return false
 	}
 
-	policies := r.store.ListPolicies(r.txn)
-
 	mod := r.modules[r.currentModuleID]
 	rules := []*ast.Rule{}
 
@@ -310,9 +308,10 @@ func (r *REPL) cmdUnset(args []string) bool {
 		return false
 	}
 
-	cpy := &(*mod)
+	cpy := mod.Copy()
 	cpy.Rules = rules
 
+	policies := r.store.ListPolicies(r.txn)
 	policies[r.currentModuleID] = cpy
 
 	for id, mod := range r.modules {
@@ -360,7 +359,10 @@ func (r *REPL) compileBody(body ast.Body) (ast.Body, error) {
 		return nil, compiler.Errors
 	}
 
-	return mod.Rules[len(prev)].Body, nil
+	compiledMod := compiler.Modules[r.currentModuleID]
+	compiledBody := compiledMod.Rules[len(prev)].Body
+
+	return compiledBody, nil
 }
 
 func (r *REPL) compileRule(rule *ast.Rule) error {
@@ -437,7 +439,6 @@ func (r *REPL) evalBufferMulti() bool {
 func (r *REPL) loadCompiler() (*ast.Compiler, error) {
 
 	policies := r.store.ListPolicies(r.txn)
-
 	for id, mod := range r.modules {
 		policies[id] = mod
 	}
