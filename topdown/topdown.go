@@ -1633,16 +1633,13 @@ func evalRefRuleResult(ctx *Context, ref ast.Ref, suffix ast.Ref, result ast.Val
 		s[i] = PlugTerm(suffix[i], ctx.Binding)
 	}
 
-	if set, ok := result.(*ast.Set); ok {
-		return evalRefRuleResultSet(ctx, set, ref, s, iter)
-	}
-
 	return evalRefRuleResultRec(ctx, result, s, ast.Ref{}, func(ctx *Context, v ast.Value) error {
 		return Continue(ctx, ref, v, iter)
 	})
 }
 
 func evalRefRuleResultRec(ctx *Context, v ast.Value, ref, path ast.Ref, iter func(*Context, ast.Value) error) error {
+
 	if len(ref) == 0 {
 		return iter(ctx, v)
 	}
@@ -1650,6 +1647,8 @@ func evalRefRuleResultRec(ctx *Context, v ast.Value, ref, path ast.Ref, iter fun
 	switch v := v.(type) {
 	case ast.Array:
 		return evalRefRuleResultRecArray(ctx, v, ref, path, iter)
+	case *ast.Set:
+		return evalRefRuleResultRecSet(ctx, v, ref, path, iter)
 	case ast.Object:
 		return evalRefRuleResultRecObject(ctx, v, ref, path, iter)
 	case ast.Ref:
@@ -1729,30 +1728,47 @@ func evalRefRuleResultRecObject(ctx *Context, obj ast.Object, ref, path ast.Ref,
 }
 
 func evalRefRuleResultRecRef(ctx *Context, v, ref, path ast.Ref, iter func(*Context, ast.Value) error) error {
+
 	b := append(v, ref...)
+
 	return evalRefRec(ctx, b, func(ctx *Context) error {
 		return iter(ctx, PlugValue(b, ctx.Binding))
 	})
 }
 
-func evalRefRuleResultSet(ctx *Context, set *ast.Set, ref, suffix ast.Ref, iter Iterator) error {
-	if len(suffix) == 0 {
-		return Continue(ctx, ref, set, iter)
-	}
-	if len(suffix) > 1 {
+func evalRefRuleResultRecSet(ctx *Context, set *ast.Set, ref, suffix ast.Ref, iter func(*Context, ast.Value) error) error {
+	head, tail := ref[0], ref[1:]
+	if len(tail) > 0 {
 		return nil
 	}
-	switch k := suffix[0].Value.(type) {
+	switch k := head.Value.(type) {
 	case ast.Var:
 		for _, e := range *set {
-			if err := ContinueN(ctx, iter, ref, ast.Boolean(true), k, e.Value); err != nil {
+			undo := ctx.Bind(k, e.Value, nil)
+			err := iter(ctx, ast.Boolean(true))
+			if err != nil {
 				return err
 			}
+			ctx.Unbind(undo)
 		}
 		return nil
 	default:
-		if set.Contains(&ast.Term{Value: k}) {
-			return Continue(ctx, ref, ast.Boolean(true), iter)
+		// Set lookup requires that nested references be resolved to their
+		// values. In some cases this will be expensive, so it may have to be
+		// revisited.
+		resolved, err := ResolveRefs(set, ctx)
+		if err != nil {
+			return err
+		}
+
+		rset := resolved.(*ast.Set)
+		rval, err := ResolveRefs(k, ctx)
+		if err != nil {
+			return err
+		}
+
+		if rset.Contains(ast.NewTerm(rval)) {
+			return iter(ctx, ast.Boolean(true))
 		}
 		return nil
 	}
