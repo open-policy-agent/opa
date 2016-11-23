@@ -3,7 +3,14 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## 0.2.1
+
+### Improvements
+
+- Added support for non-ground global values
+- Added several new string manipulation built-ins
+- Added TextMate grammar file
+- Setup Docker image build and push to Docker Hub as part of CI
 
 ## 0.2.0
 
