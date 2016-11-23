@@ -431,6 +431,9 @@ func TestTopDownEqExpr(t *testing.T) {
 		{"pattern: object = var", `p[x] :- {"a": 1, "b": y} = x, y = 2`, `[{"a": 1, "b": 2}]`},
 		{"pattern: object/array nested", `p[ys] :- f[i] = {"xs": [2.0], "ys": ys}`, `[[3.0]]`},
 		{"pattern: object/array nested 2", `p[v] :- f[i] = {"xs": [x], "ys": [y]}, v = [x, y]`, `[[1.0, 2.0], [2.0, 3.0]]`},
+
+		// indexing
+		{"indexing: intersection", "p :- a[i] = g[i][j]", ""},
 	}
 
 	data := loadSmallTestData()
