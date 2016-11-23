@@ -820,6 +820,9 @@ func TestTopDownVarReferences(t *testing.T) {
 		{"array: ground var", []string{"p[x] :- i = [1,2,3,4], j = [1,2,999], j[k] = y, i[y] = x"}, "[2,3]"},
 		{"object: ground var", []string{`p[x] :- i = {"a": 1, "b": 2, "c": 3}, j = ["a", "c", "deadbeef"], j[k] = y, i[y] = x`}, "[1, 3]"},
 		{"set: ground var", []string{"p[x] :- i = {1,2,3,4}, j = {1,2,99}, j[x], i[x]"}, "[1,2]"},
+		{"set: lookup: base docs", []string{`p :- v = {[1,999],[3,4]}, pair = [a[2], 4], v[pair]`}, "true"},
+		{"set: lookup: embedded", []string{"p :- x = [{}, {[1,2], [3,4]}], y = [3,4], x[i][y]"}, "true"},
+		{"set: lookup: dereference: undefined", []string{"p :- x = [{}, {[1,2], [3,4]}], y = [3,4], x[i][y][z]"}, ""},
 		{"avoids indexer", []string{"p = true :- somevar = [1,2,3], somevar[i] = 2"}, "true"},
 	}
 
@@ -1741,6 +1744,10 @@ func assertTopDown(t *testing.T, compiler *ast.Compiler, store *storage.Storage,
 					t.Fatalf("Expected undefined result but got: %v", qrs)
 				}
 				return
+			}
+
+			if qrs.Undefined() {
+				t.Fatalf("Expected %v but got undefined", e)
 			}
 
 			expected := parseSortedJSON(e)
