@@ -5,14 +5,17 @@
 The release process consists of three phases: versioning, building, and
 publishing.
 
-Versioning involves maintaining the CHANGELOG.md and version.go files inside
-the repository and tagging the repository to identify specific releases.
+Versioning involves maintaining the following files:
 
-Building involves obtaining a copy of the repository, checking out the release
-tag, and building the packages.
+- **CHANGELOG.md** - this file contains a list of all the important changes in each release.
+- **Makefile** - the Makefile contains a VERSION variable that defines the version of the project.
+- **site/*** - there are a few files in the documentation that contain hardcoded versions.
 
-Publishing involves creating a new *Release* on GitHub with the relevant
-CHANGELOG.md snippet and uploading the packages from the build phase.
+The steps below explain how to update these files. In addition, the repository should be tagged with the semantic version identifying the release.
+
+Building involves obtaining a copy of the repository, checking out the release tag, and building the binaries.
+
+Publishing involves creating a new *Release* on GitHub with the relevant CHANGELOG.md snippet and uploading the binaries from the build phase.
 
 ## Versioning
 
@@ -78,12 +81,6 @@ CHANGELOG.md snippet and uploading the packages from the build phase.
 	make build GOOS=darwin GOARCH=amd64
 	```
 
-1. Build Docker image.
-
-    ```
-    make image
-    ```
-
 ## Publishing
 
 1. Open browser and go to https://github.com/open-policy-agent/opa/releases
@@ -92,10 +89,8 @@ CHANGELOG.md snippet and uploading the packages from the build phase.
 	- Copy the changelog content into the message.
 	- Upload the binaries.
 
-1. Push the Docker image.
-
-    ```
-    make push
-    ```
-
 1. There may be documentation updates that should be released. See [site/README.md](../site/README.md) for steps to update the website.
+
+## Notes
+
+- The openpolicyagent/opa Docker image is automatically built and published to Docker Hub as part of the Travis-CI pipeline. There are no manual steps involved here.
