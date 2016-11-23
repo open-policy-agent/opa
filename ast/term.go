@@ -129,6 +129,33 @@ func NewTerm(v Value) *Term {
 	}
 }
 
+// Copy returns a deep copy of term.
+func (term *Term) Copy() *Term {
+
+	if term == nil {
+		return nil
+	}
+
+	cpy := *term
+
+	switch v := term.Value.(type) {
+	case Null, Boolean, Number, String, Var:
+		cpy.Value = v
+	case Ref:
+		cpy.Value = v.Copy()
+	case Array:
+		cpy.Value = v.Copy()
+	case *Set:
+		cpy.Value = v.Copy()
+	case Object:
+		cpy.Value = v.Copy()
+	case *ArrayComprehension:
+		cpy.Value = v.Copy()
+	}
+
+	return &cpy
+}
+
 // Equal returns true if this term equals the other term. Equality is
 // defined for each kind of term.
 func (term *Term) Equal(other *Term) bool {
@@ -429,6 +456,11 @@ func (ref Ref) Append(term *Term) Ref {
 	return dst
 }
 
+// Copy returns a deep copy of ref.
+func (ref Ref) Copy() Ref {
+	return termSliceCopy(ref)
+}
+
 // Equal returns true if ref is equal to other.
 func (ref Ref) Equal(other Value) bool {
 	return Compare(ref, other) == 0
@@ -588,6 +620,11 @@ func ArrayTerm(a ...*Term) *Term {
 	return &Term{Value: Array(a)}
 }
 
+// Copy returns a deep copy of arr.
+func (arr Array) Copy() Array {
+	return termSliceCopy(arr)
+}
+
 // Equal returns true if arr is equal to other.
 func (arr Array) Equal(other Value) bool {
 	return Compare(arr, other) == 0
@@ -623,6 +660,12 @@ func SetTerm(t ...*Term) *Term {
 	return &Term{
 		Value: s,
 	}
+}
+
+// Copy returns a deep copy of s.
+func (s *Set) Copy() *Set {
+	cpy := Set(termSliceCopy(*s))
+	return &cpy
 }
 
 // IsGround returns true if all terms in s are ground.
@@ -754,6 +797,15 @@ func ObjectTerm(o ...[2]*Term) *Term {
 	return &Term{Value: Object(o)}
 }
 
+// Copy returns a deep copy of obj.
+func (obj Object) Copy() Object {
+	cpy := make(Object, len(obj))
+	for i := range obj {
+		cpy[i] = Item(obj[i][0].Copy(), obj[i][1].Copy())
+	}
+	return cpy
+}
+
 // Diff returns a new Object that contains only the key/value pairs that exist in obj.
 func (obj Object) Diff(other Object) Object {
 	r := Object{}
@@ -849,6 +901,14 @@ func ArrayComprehensionTerm(term *Term, body Body) *Term {
 	}
 }
 
+// Copy returns a deep copy of ac.
+func (ac *ArrayComprehension) Copy() *ArrayComprehension {
+	cpy := *ac
+	cpy.Body = ac.Body.Copy()
+	cpy.Term = ac.Term.Copy()
+	return &cpy
+}
+
 // Equal returns true if ac is equal to other.
 func (ac *ArrayComprehension) Equal(other Value) bool {
 	return Compare(ac, other) == 0
@@ -866,6 +926,14 @@ func (ac *ArrayComprehension) IsGround() bool {
 
 func (ac *ArrayComprehension) String() string {
 	return "[" + ac.Term.String() + " | " + ac.Body.String() + "]"
+}
+
+func termSliceCopy(a []*Term) []*Term {
+	cpy := make([]*Term, len(a))
+	for i := range a {
+		cpy[i] = a[i].Copy()
+	}
+	return cpy
 }
 
 func termSliceEqual(a, b []*Term) bool {

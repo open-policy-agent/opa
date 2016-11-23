@@ -646,15 +646,17 @@ func (s *Server) v1PoliciesGet(w http.ResponseWriter, r *http.Request) {
 
 	defer s.store.Close(txn)
 
-	mod, _, err := s.store.GetPolicy(txn, id)
+	_, _, err = s.store.GetPolicy(txn, id)
 	if err != nil {
 		handleErrorAuto(w, err)
 		return
 	}
 
+	c := s.Compiler()
+
 	policy := &policyV1{
 		ID:     id,
-		Module: mod,
+		Module: c.Modules[id],
 	}
 
 	handleResponseJSON(w, 200, policy, true)
@@ -686,14 +688,9 @@ func (s *Server) v1PoliciesList(w http.ResponseWriter, r *http.Request) {
 
 	policies := []*policyV1{}
 
-	txn, err := s.store.NewTransaction()
-	if err != nil {
-		handleErrorAuto(w, err)
-		return
-	}
-	defer s.store.Close(txn)
+	c := s.Compiler()
 
-	for id, mod := range s.store.ListPolicies(txn) {
+	for id, mod := range c.Modules {
 		policy := &policyV1{
 			ID:     id,
 			Module: mod,
@@ -715,7 +712,7 @@ func (s *Server) v1PoliciesPut(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	mod, err := ast.ParseModule(id, string(buf))
+	parsedMod, err := ast.ParseModule(id, string(buf))
 
 	if err != nil {
 		switch err := err.(type) {
@@ -727,7 +724,7 @@ func (s *Server) v1PoliciesPut(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if mod == nil {
+	if parsedMod == nil {
 		handleErrorf(w, 400, "refusing to add empty module")
 		return
 	}
@@ -742,7 +739,7 @@ func (s *Server) v1PoliciesPut(w http.ResponseWriter, r *http.Request) {
 	defer s.store.Close(txn)
 
 	mods := s.store.ListPolicies(txn)
-	mods[id] = mod
+	mods[id] = parsedMod
 
 	c := ast.NewCompiler()
 
@@ -751,9 +748,7 @@ func (s *Server) v1PoliciesPut(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	mod = c.Modules[id]
-
-	if err := s.store.InsertPolicy(txn, id, mod, buf, s.persist); err != nil {
+	if err := s.store.InsertPolicy(txn, id, parsedMod, buf, s.persist); err != nil {
 		handleErrorAuto(w, err)
 		return
 	}
@@ -762,7 +757,7 @@ func (s *Server) v1PoliciesPut(w http.ResponseWriter, r *http.Request) {
 
 	policy := &policyV1{
 		ID:     id,
-		Module: mod,
+		Module: c.Modules[id],
 	}
 
 	handleResponseJSON(w, 200, policy, true)

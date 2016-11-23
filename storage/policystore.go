@@ -43,11 +43,11 @@ func loadPolicies(bufs map[string][]byte) (map[string]*ast.Module, error) {
 		return nil, c.Errors
 	}
 
-	return c.Modules, nil
+	return parsed, nil
 }
 
 // NewPolicyStore returns an empty PolicyStore.
-func newPolicyStore(store Store, policyDir string) *policyStore {
+func newPolicyStore(policyDir string) *policyStore {
 	return &policyStore{
 		policyDir: policyDir,
 		raw:       map[string][]byte{},
@@ -69,7 +69,7 @@ func (p *policyStore) List() map[string]*ast.Module {
 // This should be called on startup to load policies from persistent storage.
 // The callback function "f" will be invoked with the buffers representing the
 // persisted policies. The callback should return the compiled version of the
-// policies so that they can be installed into the data store.
+// policies so that they can be installed into the  store.
 func (p *policyStore) Open(txn Transaction, f func(map[string][]byte) (map[string]*ast.Module, error)) error {
 
 	if len(p.policyDir) == 0 {

@@ -186,6 +186,6 @@ func ExampleStorage_Open() {
 	fmt.Println("Expr:", mod.Rules[0].Body[0])
 
 	// Output:
-	// Expr: neq(data.opa.example.q.r, 0)
+	// Expr: neq(q.r, 0)
 
 }

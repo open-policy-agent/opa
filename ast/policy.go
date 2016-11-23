@@ -100,6 +100,21 @@ func (mod *Module) Compare(other *Module) int {
 	return rulesCompare(mod.Rules, other.Rules)
 }
 
+// Copy returns a deep copy of mod.
+func (mod *Module) Copy() *Module {
+	cpy := *mod
+	cpy.Rules = make([]*Rule, len(mod.Rules))
+	for i := range mod.Rules {
+		cpy.Rules[i] = mod.Rules[i].Copy()
+	}
+	cpy.Imports = make([]*Import, len(mod.Imports))
+	for i := range mod.Imports {
+		cpy.Imports[i] = mod.Imports[i].Copy()
+	}
+	cpy.Package = mod.Package.Copy()
+	return &cpy
+}
+
 // Equal returns true if mod equals other.
 func (mod *Module) Equal(other *Module) bool {
 	return mod.Compare(other) == 0
@@ -123,6 +138,13 @@ func (mod *Module) String() string {
 // or greater than other.
 func (pkg *Package) Compare(other *Package) int {
 	return Compare(pkg.Path, other.Path)
+}
+
+// Copy returns a deep copy of pkg.
+func (pkg *Package) Copy() *Package {
+	cpy := *pkg
+	cpy.Path = pkg.Path.Copy()
+	return &cpy
 }
 
 // Equal returns true if pkg is equal to other.
@@ -150,6 +172,13 @@ func (imp *Import) Compare(other *Import) int {
 		return cmp
 	}
 	return Compare(imp.Alias, other.Alias)
+}
+
+// Copy returns a deep copy of imp.
+func (imp *Import) Copy() *Import {
+	cpy := *imp
+	cpy.Path = imp.Path.Copy()
+	return &cpy
 }
 
 // Equal returns true if imp is equal to other.
@@ -183,6 +212,15 @@ func (rule *Rule) Compare(other *Rule) int {
 		return cmp
 	}
 	return rule.Body.Compare(other.Body)
+}
+
+// Copy returns a deep copy of rule.
+func (rule *Rule) Copy() *Rule {
+	cpy := *rule
+	cpy.Key = rule.Key.Copy()
+	cpy.Value = rule.Value.Copy()
+	cpy.Body = rule.Body.Copy()
+	return &cpy
 }
 
 // Equal returns true if rule is equal to other.
@@ -300,6 +338,15 @@ func (body Body) Compare(other Body) int {
 		return 1
 	}
 	return 0
+}
+
+// Copy returns a deep copy of body.
+func (body Body) Copy() Body {
+	cpy := make(Body, len(body))
+	for i := range body {
+		cpy[i] = body[i].Copy()
+	}
+	return cpy
 }
 
 // Contains returns true if this body contains the given expression.
@@ -423,6 +470,22 @@ func (expr *Expr) Compare(other *Expr) int {
 		return termSliceCompare(t, u)
 	}
 	panic(fmt.Sprintf("illegal value: %T", expr.Terms))
+}
+
+// Copy returns a deep copy of expr.
+func (expr *Expr) Copy() *Expr {
+	cpy := *expr
+	switch ts := expr.Terms.(type) {
+	case []*Term:
+		cpyTs := make([]*Term, len(ts))
+		for i := range ts {
+			cpyTs[i] = ts[i].Copy()
+		}
+		cpy.Terms = cpyTs
+	case *Term:
+		cpy.Terms = ts.Copy()
+	}
+	return &cpy
 }
 
 // Hash returns the hash code of the Expr.

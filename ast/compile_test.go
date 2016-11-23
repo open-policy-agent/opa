@@ -808,20 +808,6 @@ func TestCompilerGetRulesWithPrefix(t *testing.T) {
 	}
 }
 
-func TestRecompile(t *testing.T) {
-	c := NewCompiler()
-
-	mod := MustParseModule(`
-	package abc
-	import xyz as foo
-	p = true :- foo.bar = true`)
-
-	c.Compile(map[string]*Module{"": mod})
-	assertNotFailed(t, c)
-	c.Compile(c.Modules)
-	assertNotFailed(t, c)
-}
-
 func assertNotFailed(t *testing.T, c *Compiler) {
 	if c.Failed() {
 		t.Errorf("Unexpected compilation error: %v", c.Errors)

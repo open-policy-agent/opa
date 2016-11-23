@@ -560,6 +560,16 @@ func TestEvalImport(t *testing.T) {
 		t.Errorf("Expected expression to evaluate successfully but got: %v", result)
 		return
 	}
+
+	// https://github.com/open-policy-agent/opa/issues/158 - re-run query to
+	// make sure import is not lost
+	buffer.Reset()
+	repl.OneShot("a[0].b.c[0] = true")
+	result = buffer.String()
+	expected = "true\n"
+	if result != expected {
+		t.Fatalf("Expected expression to evaluate successfully but got: %v", result)
+	}
 }
 
 func TestEvalPackage(t *testing.T) {

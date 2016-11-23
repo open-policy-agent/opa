@@ -21,6 +21,7 @@ func TestInit(t *testing.T) {
 		panic(err)
 	}
 	defer os.Remove(tmp1.Name())
+
 	doc1 := `{"foo": "bar", "x": {"y": {"z": [1]}}}`
 	if _, err := tmp1.Write([]byte(doc1)); err != nil {
 		panic(err)
@@ -82,6 +83,13 @@ func TestInit(t *testing.T) {
 	if util.Compare(node, "bar") != 0 || err != nil {
 		t.Errorf("Expected %v but got %v (err: %v)", "bar", node, err)
 		return
+	}
+
+	modules := rt.Store.ListPolicies(txn)
+	expected := ast.MustParseModule(mod1)
+
+	if !expected.Equal(modules[tmp2.Name()]) {
+		t.Fatalf("Expected %v but got: %v", expected, modules[tmp2.Name()])
 	}
 
 }
