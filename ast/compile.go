@@ -69,67 +69,58 @@ type Compiler struct {
 	stages []stage
 }
 
+// QueryContext contains contextual information for running an ad-hoc query.
+//
+// Ad-hoc queries can be run in the context of a package and imports may be
+// included to provide concise access to data.
+type QueryContext struct {
+	Package *Package
+	Imports []*Import
+}
+
+// NewQueryContext returns a new QueryContext object.
+func NewQueryContext(pkg *Package, imports []*Import) *QueryContext {
+	return &QueryContext{
+		Package: pkg,
+		Imports: imports,
+	}
+}
+
+// NewQueryContextForModule returns a new QueryContext object based on the
+// provided module.
+func NewQueryContextForModule(mod *Module) *QueryContext {
+	return NewQueryContext(mod.Package, mod.Imports)
+}
+
+// Copy returns a deep copy of qc.
+func (qc *QueryContext) Copy() *QueryContext {
+	if qc == nil {
+		return nil
+	}
+	cpy := *qc
+	cpy.Package = qc.Package.Copy()
+	cpy.Imports = make([]*Import, len(qc.Imports))
+	for i := range qc.Imports {
+		cpy.Imports[i] = qc.Imports[i].Copy()
+	}
+	return &cpy
+}
+
+// QueryCompiler defines the interface for compiling ad-hoc queries.
+type QueryCompiler interface {
+
+	// Compile should be called to compile ad-hoc queries. The return value is
+	// the compiled version of the query.
+	Compile(q Body) (Body, error)
+
+	// WithContext sets the QueryContext on the QueryCompiler. Subsequent calls
+	// to Compile will take the QUeryContext into account.
+	WithContext(qctx *QueryContext) QueryCompiler
+}
+
 type stage struct {
 	f    func()
 	name string
-}
-
-// CompileModule is a helper function to compile a module represented as a string.
-func CompileModule(m string) (*Compiler, *Module, error) {
-
-	mod, err := ParseModule("", m)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	c := NewCompiler()
-
-	key := WildcardPrefix
-	mods := map[string]*Module{
-		key: mod,
-	}
-
-	if c.Compile(mods); c.Failed() {
-		return nil, nil, c.Errors
-	}
-
-	return c, c.Modules[key], nil
-}
-
-// CompileQuery is a helper function to compile a query represented as a string.
-func CompileQuery(q string) (*Compiler, Body, error) {
-
-	parsed, err := ParseBody(q)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	key := string(Wildcard.Value.(Var))
-
-	mod := &Module{
-		Package: &Package{
-			Path:     Ref{DefaultRootDocument},
-			Location: parsed.Loc(),
-		},
-		Rules: []*Rule{
-			&Rule{
-				Name:     Var(key),
-				Body:     parsed,
-				Location: parsed.Loc(),
-			},
-		},
-	}
-	mods := map[string]*Module{
-		key: mod,
-	}
-
-	c := NewCompiler()
-
-	if c.Compile(mods); c.Failed() {
-		return nil, nil, c.Errors
-	}
-
-	return c, c.Modules[key].Rules[0].Body, nil
 }
 
 // NewCompiler returns a new empty compiler.
@@ -149,12 +140,17 @@ func NewCompiler() *Compiler {
 		stage{c.setRuleGraph, "setRuleGraph"},
 		stage{c.rewriteRefsInHead, "rewriteRefsInHead"},
 		stage{c.checkBuiltins, "checkBuiltins"},
-		stage{c.checkSafetyHead, "checkSafetyHead"},
-		stage{c.checkSafetyBody, "checkSafetyBody"},
+		stage{c.checkSafetyRuleHeads, "checkSafetyRuleHeads"},
+		stage{c.checkSafetyRuleBodies, "checkSafetyRuleBodies"},
 		stage{c.checkRecursion, "checkRecursion"},
 	}
 
 	return c
+}
+
+// QueryCompiler returns a new QueryCompiler object.
+func (c *Compiler) QueryCompiler() QueryCompiler {
+	return newQueryCompiler(c)
 }
 
 // Compile runs the compilation process on the input modules. The compiled
@@ -274,28 +270,11 @@ func (c *Compiler) GetRulesWithPrefix(ref Ref) (rules []*Rule) {
 }
 
 // checkBuiltins ensures that built-in functions are specified correctly.
-//
-// TODO(tsandall): in the future this should be replaced with schema checking.
 func (c *Compiler) checkBuiltins() {
-	for _, m := range c.Modules {
-		for _, r := range m.Rules {
-			vis := &GenericVisitor{
-				func(x interface{}) bool {
-					if expr, ok := x.(*Expr); ok {
-						if ts, ok := expr.Terms.([]*Term); ok {
-							if bi, ok := BuiltinMap[ts[0].Value.(Var)]; ok {
-								if bi.NumArgs != len(ts[1:]) {
-									c.err(NewError(CompileErr, expr.Location, "%v: wrong number of arguments (expression %s must specify %d arguments to built-in function %v)", r.Name, expr.Location.Text, bi.NumArgs, ts[0]))
-								}
-							} else {
-								c.err(NewError(CompileErr, expr.Location, "%v: unknown built-in function %v", r.Name, ts[0]))
-							}
-						}
-					}
-					return false
-				},
-			}
-			Walk(vis, r.Body)
+	for _, mod := range c.Modules {
+		bc := newBuiltinChecker()
+		for _, err := range bc.Check(mod) {
+			c.err(err)
 		}
 	}
 }
@@ -318,14 +297,14 @@ func (c *Compiler) checkRecursion() {
 	}
 }
 
-// checkSafetyBody ensures that variables appearing in negated expressions or non-target
+// checkSafetyRuleBodies ensures that variables appearing in negated expressions or non-target
 // positions of built-in expressions will be bound when evaluating the rule from left
 // to right, re-ordering as necessary.
-func (c *Compiler) checkSafetyBody() {
+func (c *Compiler) checkSafetyRuleBodies() {
 	for _, m := range c.Modules {
 		safe := ReservedVars.Copy()
-		for _, imp := range m.Imports {
-			safe.Add(imp.Path.Value.(Var))
+		for i := range m.Imports {
+			safe.Add(m.Imports[i].Path.Value.(Var))
 		}
 		for _, r := range m.Rules {
 			reordered, unsafe := reorderBodyForSafety(safe, r.Body)
@@ -334,18 +313,15 @@ func (c *Compiler) checkSafetyBody() {
 					c.err(NewError(UnsafeVarErr, r.Location, "%v: %v is unsafe (variable %v must appear in the output position of at least one non-negated expression)", r.Name, v, v))
 				}
 			} else {
-				// Need to reset expression indices as re-ordering may have
-				// changed them.
-				setExprIndices(reordered)
 				r.Body = reordered
 			}
 		}
 	}
 }
 
-// checkSafetyHeads ensures that variables appearing in the head of a
+// checkSafetyRuleHeads ensures that variables appearing in the head of a
 // rule also appear in the body.
-func (c *Compiler) checkSafetyHead() {
+func (c *Compiler) checkSafetyRuleHeads() {
 	for _, m := range c.Modules {
 		for _, r := range m.Rules {
 			unsafe := r.HeadVars().Diff(r.Body.Vars(true))
@@ -393,55 +369,6 @@ func (c *Compiler) getExports() *util.HashMap {
 	return exports
 }
 
-func (c *Compiler) getGlobals() map[*Module]map[Var]Value {
-
-	exports := c.getExports()
-	globals := map[*Module]map[Var]Value{}
-
-	for _, m := range c.Modules {
-
-		p := m.Package.Path
-		v, ok := exports.Get(p)
-		if !ok {
-			continue
-		}
-
-		exportsForPackage := v.([]Var)
-		globalsForModules := map[Var]Value{}
-
-		// Populate globals with exports within the package.
-		for _, v := range exportsForPackage {
-			global := append(Ref{}, p...)
-			global = append(global, &Term{Value: String(v)})
-			globalsForModules[v] = global
-		}
-
-		// Populate globals with imports within this module.
-		for _, i := range m.Imports {
-			if len(i.Alias) > 0 {
-				switch p := i.Path.Value.(type) {
-				case Ref:
-					globalsForModules[i.Alias] = p
-				case Var:
-					globalsForModules[i.Alias] = p
-				}
-			} else {
-				switch p := i.Path.Value.(type) {
-				case Ref:
-					v := p[len(p)-1].Value.(String)
-					globalsForModules[Var(v)] = p
-				case Var:
-					globalsForModules[p] = p
-				}
-			}
-		}
-
-		globals[m] = globalsForModules
-	}
-
-	return globals
-}
-
 // resolveAllRefs resolves references in expressions to their fully qualified values.
 //
 // For instance, given the following module:
@@ -453,41 +380,28 @@ func (c *Compiler) getGlobals() map[*Module]map[Var]Value {
 // The reference "bar[_]" would be resolved to "data.foo.bar[_]".
 func (c *Compiler) resolveAllRefs() {
 
-	globals := c.getGlobals()
+	exports := c.getExports()
 
 	for _, mod := range c.Modules {
+
+		var exportsForPackage []Var
+		if x, ok := exports.Get(mod.Package.Path); ok {
+			exportsForPackage = x.([]Var)
+		}
+
+		globals := getGlobals(mod.Package, exportsForPackage, mod.Imports)
+
 		for _, rule := range mod.Rules {
-
 			if rule.Key != nil {
-				rule.Key = c.resolveRefsInTerm(globals[mod], rule.Key)
+				rule.Key = resolveRefsInTerm(globals, rule.Key)
 			}
-
 			if rule.Value != nil {
-				rule.Value = c.resolveRefsInTerm(globals[mod], rule.Value)
+				rule.Value = resolveRefsInTerm(globals, rule.Value)
 			}
-
-			rule.Body = c.resolveRefsInBody(globals[mod], rule.Body)
+			rule.Body = resolveRefsInBody(globals, rule.Body)
 		}
 
-		// Update the module's imports. Only imports for query inputs are
-		// required at this point.
-		imports := []*Import{}
-
-		for _, imp := range mod.Imports {
-			switch path := imp.Path.Value.(type) {
-			case Ref:
-				if !path[0].Equal(DefaultRootDocument) {
-					imp.Path = path[0]
-					imp.Alias = Var("")
-					imports = append(imports, imp)
-				}
-			case Var:
-				imp.Alias = Var("")
-				imports = append(imports, imp)
-			}
-		}
-
-		mod.Imports = imports
+		mod.Imports = rewriteImports(mod.Imports)
 	}
 }
 
@@ -543,113 +457,6 @@ func (c *Compiler) rewriteRefsInHead() {
 	}
 }
 
-func (c *Compiler) resolveRef(globals map[Var]Value, ref Ref) Ref {
-
-	r := Ref{}
-	for i, x := range ref {
-		switch v := x.Value.(type) {
-		case Var:
-			if g, ok := globals[v]; ok {
-				switch g := g.(type) {
-				case Ref:
-					if i == 0 {
-						r = append(r, g...)
-					} else {
-						r = append(r, &Term{Location: x.Location, Value: g[:]})
-					}
-				case Var:
-					r = append(r, &Term{Value: g})
-				}
-			} else {
-				r = append(r, x)
-			}
-		case Ref:
-			r = append(r, c.resolveRefsInTerm(globals, x))
-		default:
-			r = append(r, x)
-		}
-	}
-
-	return r
-}
-
-func (c *Compiler) resolveRefsInBody(globals map[Var]Value, body Body) Body {
-	r := Body{}
-	for _, expr := range body {
-		r = append(r, c.resolveRefsInExpr(globals, expr))
-	}
-	return r
-}
-
-func (c *Compiler) resolveRefsInExpr(globals map[Var]Value, expr *Expr) *Expr {
-	cpy := *expr
-	switch ts := expr.Terms.(type) {
-	case *Term:
-		cpy.Terms = c.resolveRefsInTerm(globals, ts)
-	case []*Term:
-		buf := []*Term{}
-		for _, t := range ts {
-			buf = append(buf, c.resolveRefsInTerm(globals, t))
-		}
-		cpy.Terms = buf
-	}
-	return &cpy
-}
-
-func (c *Compiler) resolveRefsInTerm(globals map[Var]Value, term *Term) *Term {
-	switch v := term.Value.(type) {
-	case Var:
-		if r, ok := globals[v]; ok {
-			cpy := *term
-			cpy.Value = r
-			return &cpy
-		}
-		return term
-	case Ref:
-		fqn := c.resolveRef(globals, v)
-		cpy := *term
-		cpy.Value = fqn
-		return &cpy
-	case Object:
-		o := Object{}
-		for _, i := range v {
-			k := c.resolveRefsInTerm(globals, i[0])
-			v := c.resolveRefsInTerm(globals, i[1])
-			o = append(o, Item(k, v))
-		}
-		cpy := *term
-		cpy.Value = o
-		return &cpy
-	case Array:
-		a := Array{}
-		for _, e := range v {
-			x := c.resolveRefsInTerm(globals, e)
-			a = append(a, x)
-		}
-		cpy := *term
-		cpy.Value = a
-		return &cpy
-	case *Set:
-		s := &Set{}
-		for _, e := range *v {
-			x := c.resolveRefsInTerm(globals, e)
-			s.Add(x)
-		}
-		cpy := *term
-		cpy.Value = s
-		return &cpy
-	case *ArrayComprehension:
-		ac := &ArrayComprehension{}
-		ac.Term = c.resolveRefsInTerm(globals, v.Term)
-		ac.Body = c.resolveRefsInBody(globals, v.Body)
-		cpy := *term
-		cpy.Value = ac
-		return &cpy
-	default:
-		return term
-	}
-}
-
 func (c *Compiler) setModuleTree() {
 	c.ModuleTree = NewModuleTree(c.Modules)
 }
@@ -673,6 +480,90 @@ func (c *Compiler) setRuleGraph() {
 			Walk(vis, r)
 		}
 	}
+}
+
+type queryCompiler struct {
+	compiler *Compiler
+	qctx     *QueryContext
+}
+
+func newQueryCompiler(compiler *Compiler) QueryCompiler {
+	qc := &queryCompiler{
+		compiler: compiler,
+		qctx:     nil,
+	}
+	return qc
+}
+
+func (qc *queryCompiler) WithContext(qctx *QueryContext) QueryCompiler {
+	qc.qctx = qctx
+	return qc
+}
+
+func (qc *queryCompiler) Compile(query Body) (Body, error) {
+
+	stages := []func(*QueryContext, Body) (Body, error){
+		qc.resolveRefs,
+		qc.checkSafety,
+		qc.checkBuiltins,
+	}
+
+	qctx := qc.qctx.Copy()
+
+	for _, s := range stages {
+		var err error
+		if query, err = s(qctx, query); err != nil {
+			return nil, err
+		}
+	}
+
+	return query, nil
+}
+
+func (qc *queryCompiler) resolveRefs(qctx *QueryContext, body Body) (Body, error) {
+
+	var globals map[Var]Value
+
+	if qctx != nil {
+		var exports []Var
+		if exist, ok := qc.compiler.getExports().Get(qctx.Package.Path); ok {
+			exports = exist.([]Var)
+		}
+		globals = getGlobals(qctx.Package, exports, qc.qctx.Imports)
+		qctx.Imports = rewriteImports(qctx.Imports)
+	}
+
+	return resolveRefsInBody(globals, body), nil
+}
+
+func (qc *queryCompiler) checkSafety(qctx *QueryContext, body Body) (Body, error) {
+
+	safe := ReservedVars.Copy()
+	if qctx != nil {
+		for i := range qctx.Imports {
+			safe.Add(qctx.Imports[i].Path.Value.(Var))
+		}
+	}
+
+	reordered, unsafe := reorderBodyForSafety(safe, body)
+
+	if len(unsafe) != 0 {
+		var err Errors
+		for v := range unsafe.Vars() {
+			err = append(err, NewError(UnsafeVarErr, body.Loc(), "%v is unsafe (variable %v must appear in the output position of at least one non-negated expression)", v, v))
+		}
+		return nil, err
+	}
+
+	return reordered, nil
+}
+
+func (qc *queryCompiler) checkBuiltins(qctx *QueryContext, body Body) (Body, error) {
+	bc := newBuiltinChecker()
+	if errs := bc.Check(body); len(errs) != 0 {
+		return nil, errs
+	}
+	return body, nil
 }
 
 // ModuleTreeNode represents a node in the module tree. The module
@@ -758,6 +649,53 @@ func (n *RuleTreeNode) Size() int {
 		s += c.Size()
 	}
 	return s
+}
+
+// builtinChecker verifies that built-in functions are called correctly.
+type builtinChecker struct {
+	errors *Errors
+	prefix string
+}
+
+func newBuiltinChecker() *builtinChecker {
+	return &builtinChecker{
+		errors: &Errors{},
+	}
+}
+
+// Check returns built-in function call errors underneath the AST node x.
+func (bc *builtinChecker) Check(x interface{}) Errors {
+	Walk(bc, x)
+	return *(bc.errors)
+}
+
+func (bc *builtinChecker) Visit(x interface{}) Visitor {
+	switch x := x.(type) {
+	case *Rule:
+		cpy := *bc
+		cpy.prefix = string(x.Name)
+		return &cpy
+	case *Expr:
+		if ts, ok := x.Terms.([]*Term); ok {
+			if bi, ok := BuiltinMap[ts[0].Value.(Var)]; ok {
+				if bi.NumArgs != len(ts[1:]) {
+					msg := "wrong number of arguments (expression %s must specify %d arguments to built-in function %v)"
+					bc.err(CompileErr, x.Location, msg, x.Location.Text, bi.NumArgs, ts[0])
+				}
+			} else {
+				msg := "unknown built-in function %v"
+				bc.err(CompileErr, x.Location, msg, ts[0])
+			}
+		}
+	}
+	return bc
+}
+
+func (bc *builtinChecker) err(code ErrCode, loc *Location, f string, a ...interface{}) {
+	if bc.prefix != "" {
+		f = bc.prefix + ": " + f
+	}
+	*(bc.errors) = append(*(bc.errors), NewError(code, loc, f, a...))
 }
 
 type ruleGraphBuilder struct {
@@ -975,6 +913,10 @@ func reorderBodyForSafety(globals VarSet, body Body) (Body, unsafeVars) {
 		Walk(vis, e)
 	}
 
+	// Need to reset expression indices as re-ordering may have
+	// changed them.
+	setExprIndices(reordered)
+
 	return reordered, unsafe
 }
 
@@ -1087,4 +1029,167 @@ func (l *localVarGenerator) Generate() Var {
 	}
 	l.exclude.Add(name)
 	return name
+}
+
+func getGlobals(pkg *Package, exports []Var, imports []*Import) map[Var]Value {
+
+	globals := map[Var]Value{}
+
+	// Populate globals with exports within the package.
+	for _, v := range exports {
+		global := append(Ref{}, pkg.Path...)
+		global = append(global, &Term{Value: String(v)})
+		globals[v] = global
+	}
+
+	// Populate globals with imports.
+	for _, i := range imports {
+		if len(i.Alias) > 0 {
+			switch p := i.Path.Value.(type) {
+			case Ref:
+				globals[i.Alias] = p
+			case Var:
+				globals[i.Alias] = p
+			}
+		} else {
+			switch p := i.Path.Value.(type) {
+			case Ref:
+				v := p[len(p)-1].Value.(String)
+				globals[Var(v)] = p
+			case Var:
+				globals[p] = p
+			}
+		}
+	}
+
+	return globals
+}
+
+func resolveRef(globals map[Var]Value, ref Ref) Ref {
+
+	r := Ref{}
+	for i, x := range ref {
+		switch v := x.Value.(type) {
+		case Var:
+			if g, ok := globals[v]; ok {
+				switch g := g.(type) {
+				case Ref:
+					if i == 0 {
+						r = append(r, g...)
+					} else {
+						r = append(r, &Term{Location: x.Location, Value: g[:]})
+					}
+				case Var:
+					r = append(r, &Term{Value: g})
+				}
+			} else {
+				r = append(r, x)
+			}
+		case Ref:
+			r = append(r, resolveRefsInTerm(globals, x))
+		default:
+			r = append(r, x)
+		}
+	}
+
+	return r
+}
+
+func resolveRefsInBody(globals map[Var]Value, body Body) Body {
+	r := Body{}
+	for _, expr := range body {
+		r = append(r, resolveRefsInExpr(globals, expr))
+	}
+	return r
+}
+
+func resolveRefsInExpr(globals map[Var]Value, expr *Expr) *Expr {
+	cpy := *expr
+	switch ts := expr.Terms.(type) {
+	case *Term:
+		cpy.Terms = resolveRefsInTerm(globals, ts)
+	case []*Term:
+		buf := []*Term{}
+		for _, t := range ts {
+			buf = append(buf, resolveRefsInTerm(globals, t))
+		}
+		cpy.Terms = buf
+	}
+	return &cpy
+}
+
+func resolveRefsInTerm(globals map[Var]Value, term *Term) *Term {
+	switch v := term.Value.(type) {
+	case Var:
+		if r, ok := globals[v]; ok {
+			cpy := *term
+			cpy.Value = r
+			return &cpy
+		}
+		return term
+	case Ref:
+		fqn := resolveRef(globals, v)
+		cpy := *term
+		cpy.Value = fqn
+		return &cpy
+	case Object:
+		o := Object{}
+		for _, i := range v {
+			k := resolveRefsInTerm(globals, i[0])
+			v := resolveRefsInTerm(globals, i[1])
+			o = append(o, Item(k, v))
+		}
+		cpy := *term
+		cpy.Value = o
+		return &cpy
+	case Array:
+		a := Array{}
+		for _, e := range v {
+			x := resolveRefsInTerm(globals, e)
+			a = append(a, x)
+		}
+		cpy := *term
+		cpy.Value = a
+		return &cpy
+	case *Set:
+		s := &Set{}
+		for _, e := range *v {
+			x := resolveRefsInTerm(globals, e)
+			s.Add(x)
+		}
+		cpy := *term
+		cpy.Value = s
+		return &cpy
+	case *ArrayComprehension:
+		ac := &ArrayComprehension{}
+		ac.Term = resolveRefsInTerm(globals, v.Term)
+		ac.Body = resolveRefsInBody(globals, v.Body)
+		cpy := *term
+		cpy.Value = ac
+		return &cpy
+	default:
+		return term
+	}
+}
+
+// rewriteImports returns an updated slice of imports that replace the imports
+// in a module or query context. Imports against the default root document are
+// removed, aliases are unset, and the remaining imports are shortened to the
+// head variable. The result is a set of imports that effectively ground
+// variables appearing in rules and queries (which refer to query inputs).
+func rewriteImports(imports []*Import) (result []*Import) {
+	for _, imp := range imports {
+		switch path := imp.Path.Value.(type) {
+		case Ref:
+			if !path[0].Equal(DefaultRootDocument) {
+				imp.Path = path[0]
+				imp.Alias = Var("")
+				result = append(result, imp)
+			}
+		case Var:
+			imp.Alias = Var("")
+			result = append(result, imp)
+		}
+	}
+	return result
 }

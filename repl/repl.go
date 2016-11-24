@@ -333,18 +333,6 @@ func (r *REPL) cmdUnset(args []string) bool {
 }
 
 func (r *REPL) compileBody(body ast.Body) (ast.Body, error) {
-	name := r.generateRuleName()
-
-	rule := &ast.Rule{
-		Location: body[0].Location,
-		Name:     name,
-		Value:    ast.BooleanTerm(true),
-		Body:     body,
-	}
-
-	mod := r.modules[r.currentModuleID]
-	prev := mod.Rules
-	mod.Rules = append(mod.Rules, rule)
 
 	policies := r.store.ListPolicies(r.txn)
 
@@ -355,14 +343,13 @@ func (r *REPL) compileBody(body ast.Body) (ast.Body, error) {
 	compiler := ast.NewCompiler()
 
 	if compiler.Compile(policies); compiler.Failed() {
-		mod.Rules = prev
 		return nil, compiler.Errors
 	}
 
-	compiledMod := compiler.Modules[r.currentModuleID]
-	compiledBody := compiledMod.Rules[len(prev)].Body
-
-	return compiledBody, nil
+	qctx := ast.NewQueryContextForModule(r.modules[r.currentModuleID])
+	return compiler.QueryCompiler().
+		WithContext(qctx).
+		Compile(body)
 }
 
 func (r *REPL) compileRule(rule *ast.Rule) error {

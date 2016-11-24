@@ -22,18 +22,13 @@ import (
 
 func TestComplete(t *testing.T) {
 	store := newTestStore()
-	_, mod1, err := ast.CompileModule(`package a.b.c
+
+	mod1 := ast.MustParseModule(`package a.b.c
 	p = 1
 	q = 2`)
-	if err != nil {
-		panic(err)
-	}
 
-	_, mod2, err := ast.CompileModule(`package a.b.d
+	mod2 := ast.MustParseModule(`package a.b.d
 	r = 3`)
-	if err != nil {
-		panic(err)
-	}
 
 	if err := storage.InsertPolicy(store, "mod1", mod1, nil, false); err != nil {
 		panic(err)
@@ -149,7 +144,7 @@ func TestUnset(t *testing.T) {
 	repl.OneShot("unset p")
 	repl.OneShot("p")
 	result := buffer.String()
-	if result != "error: 1 error occurred: 1:1: repl2: p is unsafe (variable p must appear in the output position of at least one non-negated expression)\n" {
+	if result != "error: 1 error occurred: 1:1: p is unsafe (variable p must appear in the output position of at least one non-negated expression)\n" {
 		t.Errorf("Expected p to be unsafe but got: %v", result)
 		return
 	}
@@ -160,7 +155,7 @@ func TestUnset(t *testing.T) {
 	repl.OneShot("unset p")
 	repl.OneShot("p")
 	result = buffer.String()
-	if result != "error: 1 error occurred: 1:1: repl4: p is unsafe (variable p must appear in the output position of at least one non-negated expression)\n" {
+	if result != "error: 1 error occurred: 1:1: p is unsafe (variable p must appear in the output position of at least one non-negated expression)\n" {
 		t.Errorf("Expected p to be unsafe but got: %v", result)
 		return
 	}
@@ -303,6 +298,52 @@ func TestOneShotJSON(t *testing.T) {
 	}
 	if !reflect.DeepEqual(expected, result) {
 		t.Errorf("Expected %v but got: %v", expected, result)
+	}
+}
+
+func TestEvalData(t *testing.T) {
+	store := newTestStore()
+	var buffer bytes.Buffer
+	repl := newRepl(store, &buffer)
+	testmod := ast.MustParseModule(`package ex
+	p = [1,2,3]`)
+	if err := storage.InsertPolicy(store, "test", testmod, nil, false); err != nil {
+		panic(err)
+	}
+	repl.OneShot("data")
+	expected := parseJSON(`
+	{
+		"a": [
+			{
+			"b": {
+				"c": [
+				true,
+				2,
+				false
+				]
+			}
+			},
+			{
+			"b": {
+				"c": [
+				false,
+				true,
+				1
+				]
+			}
+			}
+		],
+		"ex": {
+			"p": [
+			1,
+			2,
+			3
+			]
+		}
+	}`)
+	result := parseJSON(buffer.String())
+	if !reflect.DeepEqual(result, expected) {
+		t.Fatalf("Expected:\n%v\n\nGot:\n%v", expected, result)
 	}
 }
 
@@ -502,7 +543,7 @@ func TestEvalRuleCompileError(t *testing.T) {
 	repl.OneShot("p = true :- true")
 	result = buffer.String()
 	if result != "" {
-		t.Errorf("Expected valid rule to compile (because state should have been rolled back) but got: %v", result)
+		t.Errorf("Expected valid rule to compile (because state should be unaffected) but got: %v", result)
 	}
 }
 
@@ -513,7 +554,7 @@ func TestEvalBodyCompileError(t *testing.T) {
 	repl.outputFormat = "json"
 	repl.OneShot("x = 1, y > x")
 	result1 := buffer.String()
-	expected1 := "error: 1 error occurred: 1:1: repl0: y is unsafe (variable y must appear in the output position of at least one non-negated expression)\n"
+	expected1 := "error: 1 error occurred: 1:1: y is unsafe (variable y must appear in the output position of at least one non-negated expression)\n"
 	if result1 != expected1 {
 		t.Errorf("Expected error message in output but got`: %v", result1)
 		return
@@ -620,7 +661,7 @@ func TestEvalPackage(t *testing.T) {
 	repl.OneShot("package baz.qux")
 	buffer.Reset()
 	repl.OneShot("p")
-	if buffer.String() != "error: 1 error occurred: 1:1: repl0: p is unsafe (variable p must appear in the output position of at least one non-negated expression)\n" {
+	if buffer.String() != "error: 1 error occurred: 1:1: p is unsafe (variable p must appear in the output position of at least one non-negated expression)\n" {
 		t.Errorf("Expected unsafe variable error but got: %v", buffer.String())
 		return
 	}

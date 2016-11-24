@@ -36,10 +36,30 @@ func MustParseExpr(input string) *Expr {
 	return parsed
 }
 
+// MustParseImports returns a slice of imports.
+// If an error occurs during parsing, panic.
+func MustParseImports(input string) []*Import {
+	parsed, err := ParseImports(input)
+	if err != nil {
+		panic(err)
+	}
+	return parsed
+}
+
 // MustParseModule returns a parsed module.
 // If an error occurs during parsing, panic.
 func MustParseModule(input string) *Module {
 	parsed, err := ParseModule("", input)
+	if err != nil {
+		panic(err)
+	}
+	return parsed
+}
+
+// MustParsePackage returns a Package.
+// If an error occurs during parsing, panic.
+func MustParsePackage(input string) *Package {
+	parsed, err := ParsePackage(input)
 	if err != nil {
 		panic(err)
 	}
@@ -127,6 +147,23 @@ func ParseConstantRule(body Body) *Rule {
 	}
 }
 
+// ParseImports returns a slice of Import objects.
+func ParseImports(input string) ([]*Import, error) {
+	stmts, err := ParseStatements("", input)
+	if err != nil {
+		return nil, err
+	}
+	result := []*Import{}
+	for _, stmt := range stmts {
+		if imp, ok := stmt.(*Import); ok {
+			result = append(result, imp)
+		} else {
+			return nil, fmt.Errorf("expected import but got %T", stmt)
+		}
+	}
+	return result, nil
+}
+
 // ParseModule returns a parsed Module object.
 // For details on Module objects and their fields, see policy.go.
 // Empty input will return nil, nil.
@@ -166,6 +203,20 @@ func ParseExpr(input string) (*Expr, error) {
 		return nil, fmt.Errorf("expected exactly one expression but got: %v", body)
 	}
 	return body[0], nil
+}
+
+// ParsePackage returns exactly one Package.
+// If multiple statements are parsed, an error is returned.
+func ParsePackage(input string) (*Package, error) {
+	stmt, err := ParseStatement(input)
+	if err != nil {
+		return nil, err
+	}
+	pkg, ok := stmt.(*Package)
+	if !ok {
+		return nil, fmt.Errorf("expected package but got %T", stmt)
+	}
+	return pkg, nil
 }
 
 // ParseTerm returns exactly one term.
@@ -299,10 +350,26 @@ func parseModule(stmts []interface{}) (*Module, error) {
 	return mod, nil
 }
 
-func postProcess(filename string, stmts []interface{}) {
+func postProcess(filename string, stmts []interface{}) error {
 	setFilename(filename, stmts)
+	if err := mangleDataVars(stmts); err != nil {
+		return err
+	}
 	mangleWildcards(stmts)
 	mangleExprIndices(stmts)
+	return nil
+}
+
+func mangleDataVars(stmts []interface{}) error {
+	for i := range stmts {
+		dvt := &dataVarTransformer{}
+		stmt, err := Transform(dvt, stmts[i])
+		if err != nil {
+			return err
+		}
+		stmts[i] = stmt
+	}
+	return nil
 }
 
 func mangleExprIndices(stmts []interface{}) {
@@ -388,4 +455,27 @@ func setFilename(filename string, stmts []interface{}) {
 		}}
 		Walk(vis, stmt)
 	}
+}
+
+type dataVarTransformer struct {
+	// skip set to true to avoid recursively processing the result of
+	// transforming a data var into a ref.
+	skip bool
+}
+
+func (dvt *dataVarTransformer) Transform(x interface{}) (interface{}, error) {
+	if dvt.skip {
+		dvt.skip = false
+		return x, nil
+	}
+	switch x := x.(type) {
+	case Ref:
+		dvt.skip = true
+	case Var:
+		if x.Equal(DefaultRootDocument.Value) {
+			dvt.skip = true
+			return DefaultRootRef, nil
+		}
+	}
+	return x, nil
 }

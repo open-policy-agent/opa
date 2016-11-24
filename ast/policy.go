@@ -13,9 +13,15 @@ import (
 )
 
 // DefaultRootDocument is the default root document.
-// All package directives inside source files are implicitly
-// prefixed with the DefaultRootDocument value.
+//
+// All package directives inside source files are implicitly prefixed with the
+// DefaultRootDocument value.
 var DefaultRootDocument = VarTerm("data")
+
+// DefaultRootRef is a reference to the root of the default document.
+//
+// All refs to data in the policy engine's storage layer are prefixed with this ref.
+var DefaultRootRef = Ref{DefaultRootDocument}
 
 // ReservedVars is the set of reserved variable names.
 var ReservedVars = NewVarSet(DefaultRootDocument.Value.(Var))

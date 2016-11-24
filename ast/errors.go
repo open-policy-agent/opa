@@ -50,7 +50,7 @@ const (
 
 // Error represents a single error caught during parsing, compiling, etc.
 type Error struct {
-	Code     int
+	Code     ErrCode
 	Location *Location
 	Message  string
 }
@@ -70,7 +70,7 @@ func (e *Error) Error() string {
 }
 
 // NewError returns a new Error object.
-func NewError(code int, loc *Location, f string, a ...interface{}) *Error {
+func NewError(code ErrCode, loc *Location, f string, a ...interface{}) *Error {
 	return &Error{
 		Code:     code,
 		Location: loc,

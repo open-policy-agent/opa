@@ -15,8 +15,10 @@ import (
 
 func ExampleEval() {
 
+	compiler := ast.NewCompiler()
+
 	// Define a dummy query and some data that the query will execute against.
-	compiler, query, err := ast.CompileQuery("data.a[_] = x, x >= 2")
+	query, err := compiler.QueryCompiler().Compile(ast.MustParseBody("data.a[_] = x, x >= 2"))
 	if err != nil {
 		// Handle error.
 	}
@@ -74,8 +76,10 @@ func ExampleEval() {
 
 func ExampleQuery() {
 
+	compiler := ast.NewCompiler()
+
 	// Define a dummy module with rules that produce documents that we will query below.
-	compiler, _, err := ast.CompileModule(`
+	module, err := ast.ParseModule("my_module.rego", `
 
 	    package opa.example
 
@@ -84,6 +88,14 @@ func ExampleQuery() {
 	    r[z] :- b = [2,4], z = b[_]
 
 	`)
+
+	mods := map[string]*ast.Module{
+		"my_module": module,
+	}
+
+	if compiler.Compile(mods); compiler.Failed() {
+		fmt.Println(compiler.Errors)
+	}
 
 	if err != nil {
 		// Handle error.
