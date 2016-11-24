@@ -448,6 +448,53 @@ func TestEvalSingleTermMultiValue(t *testing.T) {
 	}
 }
 
+func TestEvalSingleTermMultiValueSetRef(t *testing.T) {
+	store := newTestStore()
+	var buffer bytes.Buffer
+	repl := newRepl(store, &buffer)
+	repl.outputFormat = "json"
+	repl.OneShot("p[1] :- true")
+	repl.OneShot("p[2] :- true")
+	repl.OneShot("q = {3,4} :- true")
+	repl.OneShot("r = [x, y] :- x = {5,6}, y = [7,8]")
+
+	repl.OneShot("p[x]")
+	expected := parseJSON(`[{"x": 1}, {"x": 2}]`)
+	result := parseJSON(buffer.String())
+	if !reflect.DeepEqual(result, expected) {
+		t.Fatalf("Expected %v but got: %v", expected, result)
+	}
+
+	buffer.Reset()
+	repl.OneShot("q[x]")
+	expected = parseJSON(`[{"x": 3}, {"x": 4}]`)
+	result = parseJSON(buffer.String())
+	if !reflect.DeepEqual(result, expected) {
+		t.Fatalf("Expected %v but got: %v", expected, result)
+	}
+
+	// Example below shows behavior for ref that iterates an embedded set. The
+	// tricky part here is that r[_] may refer to multiple collection types. If
+	// we eventually have a way of distinguishing between the bindings added for
+	// refs to sets, then those bindings could be filtered out. For now this is
+	// acceptable, as it should be an edge case.
+	buffer.Reset()
+	repl.OneShot("r[_][x]")
+	expected = parseJSON(`[{"x": 5, "r[_][x]": true}, {"x": 6, "r[_][x]": true}, {"x": 0, "r[_][x]": 7}, {"x": 1, "r[_][x]": 8}]`)
+	result = parseJSON(buffer.String())
+	if !reflect.DeepEqual(result, expected) {
+		t.Fatalf("Expected %v but got: %v", expected, result)
+	}
+}
+
+func parseJSON(s string) interface{} {
+	var v interface{}
+	if err := json.Unmarshal([]byte(s), &v); err != nil {
+		panic(err)
+	}
+	return v
+}
+
 func TestEvalRuleCompileError(t *testing.T) {
 	store := newTestStore()
 	var buffer bytes.Buffer

@@ -812,7 +812,14 @@ func (r *REPL) isSetReference(compiler *ast.Compiler, term *ast.Term) bool {
 	if rs == nil {
 		return false
 	}
-	return rs[0].DocKind() == ast.PartialSetDoc
+	if rs[0].DocKind() == ast.PartialSetDoc {
+		return true
+	}
+	if rs[0].Value == nil {
+		return false
+	}
+	_, ok = rs[0].Value.Value.(*ast.Set)
+	return ok
 }
 
 func (r *REPL) loadHistory(prompt *liner.State) {
