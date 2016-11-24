@@ -393,55 +393,6 @@ func (c *Compiler) getExports() *util.HashMap {
 	return exports
 }
 
-func (c *Compiler) getGlobals() map[*Module]map[Var]Value {
-
-	exports := c.getExports()
-	globals := map[*Module]map[Var]Value{}
-
-	for _, m := range c.Modules {
-
-		p := m.Package.Path
-		v, ok := exports.Get(p)
-		if !ok {
-			continue
-		}
-
-		exportsForPackage := v.([]Var)
-		globalsForModules := map[Var]Value{}
-
-		// Populate globals with exports within the package.
-		for _, v := range exportsForPackage {
-			global := append(Ref{}, p...)
-			global = append(global, &Term{Value: String(v)})
-			globalsForModules[v] = global
-		}
-
-		// Populate globals with imports within this module.
-		for _, i := range m.Imports {
-			if len(i.Alias) > 0 {
-				switch p := i.Path.Value.(type) {
-				case Ref:
-					globalsForModules[i.Alias] = p
-				case Var:
-					globalsForModules[i.Alias] = p
-				}
-			} else {
-				switch p := i.Path.Value.(type) {
-				case Ref:
-					v := p[len(p)-1].Value.(String)
-					globalsForModules[Var(v)] = p
-				case Var:
-					globalsForModules[p] = p
-				}
-			}
-		}
-
-		globals[m] = globalsForModules
-	}
-
-	return globals
-}
-
 // resolveAllRefs resolves references in expressions to their fully qualified values.
 //
 // For instance, given the following module:
@@ -453,20 +404,28 @@ func (c *Compiler) getGlobals() map[*Module]map[Var]Value {
 // The reference "bar[_]" would be resolved to "data.foo.bar[_]".
 func (c *Compiler) resolveAllRefs() {
 
-	globals := c.getGlobals()
+	exports := c.getExports()
 
 	for _, mod := range c.Modules {
+
+		var exportsForPackage []Var
+		if x, ok := exports.Get(mod.Package.Path); ok {
+			exportsForPackage = x.([]Var)
+		}
+
+		globals := getGlobals(mod.Package, exportsForPackage, mod.Imports)
+
 		for _, rule := range mod.Rules {
 
 			if rule.Key != nil {
-				rule.Key = resolveRefsInTerm(globals[mod], rule.Key)
+				rule.Key = resolveRefsInTerm(globals, rule.Key)
 			}
 
 			if rule.Value != nil {
-				rule.Value = resolveRefsInTerm(globals[mod], rule.Value)
+				rule.Value = resolveRefsInTerm(globals, rule.Value)
 			}
 
-			rule.Body = resolveRefsInBody(globals[mod], rule.Body)
+			rule.Body = resolveRefsInBody(globals, rule.Body)
 		}
 
 		// Update the module's imports. Only imports for query inputs are
@@ -980,6 +939,40 @@ func (l *localVarGenerator) Generate() Var {
 	}
 	l.exclude.Add(name)
 	return name
+}
+
+func getGlobals(pkg *Package, exports []Var, imports []*Import) map[Var]Value {
+
+	globals := map[Var]Value{}
+
+	// Populate globals with exports within the package.
+	for _, v := range exports {
+		global := append(Ref{}, pkg.Path...)
+		global = append(global, &Term{Value: String(v)})
+		globals[v] = global
+	}
+
+	// Populate globals with imports.
+	for _, i := range imports {
+		if len(i.Alias) > 0 {
+			switch p := i.Path.Value.(type) {
+			case Ref:
+				globals[i.Alias] = p
+			case Var:
+				globals[i.Alias] = p
+			}
+		} else {
+			switch p := i.Path.Value.(type) {
+			case Ref:
+				v := p[len(p)-1].Value.(String)
+				globals[Var(v)] = p
+			case Var:
+				globals[p] = p
+			}
+		}
+	}
+
+	return globals
 }
 
 func resolveRef(globals map[Var]Value, ref Ref) Ref {
