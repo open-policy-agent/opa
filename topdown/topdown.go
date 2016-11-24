@@ -1790,10 +1790,10 @@ func evalTerms(ctx *Context, iter Iterator) error {
 		ts := expr.Terms.([]*ast.Term)
 		t1 := PlugTerm(ts[1], ctx.Binding)
 		t2 := PlugTerm(ts[2], ctx.Binding)
-		r1, ok1 := t1.Value.(ast.Ref)
-		r2, ok2 := t2.Value.(ast.Ref)
+		r1, _ := t1.Value.(ast.Ref)
+		r2, _ := t2.Value.(ast.Ref)
 
-		if ok1 && !r1.IsGround() && !r1.IsNested() && (ok2 || t2.IsGround()) {
+		if indexingAllowed(r1, t2) {
 			ok, err := indexBuildLazy(ctx, r1)
 			if err != nil {
 				return errors.Wrapf(err, "index build failed on %v", r1)
@@ -1803,7 +1803,7 @@ func evalTerms(ctx *Context, iter Iterator) error {
 			}
 		}
 
-		if ok2 && !r2.IsGround() && !r2.IsNested() && (ok1 || t1.IsGround()) {
+		if indexingAllowed(r2, t1) {
 			ok, err := indexBuildLazy(ctx, r2)
 			if err != nil {
 				return errors.Wrapf(err, "index build failed on %v", r2)
@@ -1850,21 +1850,33 @@ func evalTermsIndexed(ctx *Context, iter Iterator, indexed ast.Ref, nonIndexed *
 	iterateIndex := func(ctx *Context) error {
 
 		// Evaluate the non-indexed term.
-		plugged := PlugTerm(nonIndexed, ctx.Binding)
-		nonIndexedValue, err := ValueToInterface(plugged.Value, ctx)
+		value, err := ValueToInterface(PlugValue(nonIndexed.Value, ctx.Binding), ctx)
 		if err != nil {
 			return err
 		}
 
 		// Iterate the bindings for the indexed term that when applied to the reference
 		// would locate the non-indexed value obtained above.
-		return ctx.Store.Index(ctx.txn, indexed, nonIndexedValue, func(bindings *ast.ValueMap) error {
+		return ctx.Store.Index(ctx.txn, indexed, value, func(bindings *ast.ValueMap) error {
 			var prev *Undo
-			bindings.Iter(func(k, v ast.Value) bool {
+
+			// We will skip these bindings if the non-indexed term contains a
+			// different binding for the same variable. This can arise if output
+			// variables in references on either side intersect (e.g., a[i] = g[i][j]).
+			skip := bindings.Iter(func(k, v ast.Value) bool {
+				if o := ctx.Binding(k); o != nil && !o.Equal(v) {
+					return true
+				}
 				prev = ctx.Bind(k, v, prev)
 				return false
 			})
-			err := iter(ctx)
+
+			var err error
+
+			if !skip {
+				err = iter(ctx)
+			}
+
 			ctx.Unbind(prev)
 			return err
 		})
@@ -2001,10 +2013,6 @@ func evalTermsRecSet(ctx *Context, set *ast.Set, idx int, iter Iterator) error {
 // built on the fly.
 func indexBuildLazy(ctx *Context, ref ast.Ref) (bool, error) {
 
-	if ref.IsGround() || ref.IsNested() {
-		return false, nil
-	}
-
 	// Check if index was already built.
 	if ctx.Store.IndexExists(ref) {
 		return true, nil
@@ -2046,6 +2054,28 @@ func indexBuildLazy(ctx *Context, ref ast.Ref) (bool, error) {
 	}
 
 	return true, nil
+}
+
+// indexingAllowed returns true if indexing can be used for the expression
+// eq(ref, term).
+func indexingAllowed(ref ast.Ref, term *ast.Term) bool {
+
+	// Will not build indices for non-refs or refs that are ground as this would
+	// be pointless. Also, storage does not support nested refs, so exclude
+	// those.
+	if ref == nil || ref.IsGround() || ref.IsNested() {
+		return false
+	}
+
+	// Cannot perform index lookup for non-ground terms (except for refs which
+	// will be evaluated in isolation).
+	// TODO(tsandall): should be able to support non-ground terms that only
+	// contain refs with output vars.
+	if _, ok := term.Value.(ast.Ref); !ok && !term.IsGround() {
+		return false
+	}
+
+	return true
 }
 
 func lookupExists(ctx *Context, ref ast.Ref) (bool, error) {
