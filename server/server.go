@@ -403,9 +403,13 @@ func (s *Server) indexGet(w http.ResponseWriter, r *http.Request) {
 
 		if err == nil {
 			var query ast.Body
-			_, query, err = ast.CompileQuery(qStr)
+			query, err = ast.ParseBody(qStr)
 			if err == nil {
-				results, err = s.execQuery(s.Compiler(), txn, query, explainMode)
+				compiler := s.Compiler()
+				query, err = compiler.QueryCompiler().Compile(query)
+				if err == nil {
+					results, err = s.execQuery(compiler, txn, query, explainMode)
+				}
 			}
 			s.store.Close(txn)
 		}
@@ -783,25 +787,36 @@ func (s *Server) v1QueryGet(w http.ResponseWriter, r *http.Request) {
 
 	defer s.store.Close(txn)
 
-	_, query, err := ast.CompileQuery(qStr)
+	compiler := s.Compiler()
+
+	query, err := ast.ParseBody(qStr)
 	if err != nil {
-		switch err := err.(type) {
-		case ast.Errors:
-			handleErrorAST(w, 400, compileQueryErrMsg, err)
-		default:
-			handleError(w, 400, err)
-		}
+		handleCompileError(w, err)
 		return
 	}
 
-	results, err := s.execQuery(s.Compiler(), txn, query, explainMode)
+	compiled, err := compiler.QueryCompiler().Compile(query)
+	if err != nil {
+		handleCompileError(w, err)
+		return
+	}
 
+	results, err := s.execQuery(compiler, txn, compiled, explainMode)
 	if err != nil {
 		handleErrorAuto(w, err)
 		return
 	}
 
 	handleResponseJSON(w, 200, results, pretty)
+}
+
+func handleCompileError(w http.ResponseWriter, err error) {
+	switch err := err.(type) {
+	case ast.Errors:
+		handleErrorAST(w, 400, compileQueryErrMsg, err)
+	default:
+		handleError(w, 400, err)
+	}
 }
 
 func (s *Server) setCompiler(compiler *ast.Compiler) {

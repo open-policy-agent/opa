@@ -210,9 +210,12 @@ func executeQuery(data string, compiler *ast.Compiler, tracer topdown.Tracer) {
 }
 
 func explainQuery(data string, module string) ([]*topdown.Event, []*topdown.Event, error) {
-	compiler, _, err := ast.CompileModule(module)
-	if err != nil {
-		panic(err)
+
+	compiler := ast.NewCompiler()
+	mods := map[string]*ast.Module{"": ast.MustParseModule(module)}
+
+	if compiler.Compile(mods); compiler.Failed() {
+		panic(compiler.Errors)
 	}
 
 	buf := topdown.NewBufferTracer()

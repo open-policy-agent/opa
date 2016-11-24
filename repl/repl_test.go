@@ -22,18 +22,13 @@ import (
 
 func TestComplete(t *testing.T) {
 	store := newTestStore()
-	_, mod1, err := ast.CompileModule(`package a.b.c
+
+	mod1 := ast.MustParseModule(`package a.b.c
 	p = 1
 	q = 2`)
-	if err != nil {
-		panic(err)
-	}
 
-	_, mod2, err := ast.CompileModule(`package a.b.d
+	mod2 := ast.MustParseModule(`package a.b.d
 	r = 3`)
-	if err != nil {
-		panic(err)
-	}
 
 	if err := storage.InsertPolicy(store, "mod1", mod1, nil, false); err != nil {
 		panic(err)
