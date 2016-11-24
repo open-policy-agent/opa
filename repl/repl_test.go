@@ -487,14 +487,6 @@ func TestEvalSingleTermMultiValueSetRef(t *testing.T) {
 	}
 }
 
-func parseJSON(s string) interface{} {
-	var v interface{}
-	if err := json.Unmarshal([]byte(s), &v); err != nil {
-		panic(err)
-	}
-	return v
-}
-
 func TestEvalRuleCompileError(t *testing.T) {
 	store := newTestStore()
 	var buffer bytes.Buffer
@@ -754,4 +746,12 @@ func newTestStore() *storage.Storage {
 		panic(err)
 	}
 	return storage.New(storage.InMemoryWithJSONConfig(data))
+}
+
+func parseJSON(s string) interface{} {
+	var v interface{}
+	if err := json.Unmarshal([]byte(s), &v); err != nil {
+		panic(err)
+	}
+	return v
 }
