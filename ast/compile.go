@@ -459,14 +459,14 @@ func (c *Compiler) resolveAllRefs() {
 		for _, rule := range mod.Rules {
 
 			if rule.Key != nil {
-				rule.Key = c.resolveRefsInTerm(globals[mod], rule.Key)
+				rule.Key = resolveRefsInTerm(globals[mod], rule.Key)
 			}
 
 			if rule.Value != nil {
-				rule.Value = c.resolveRefsInTerm(globals[mod], rule.Value)
+				rule.Value = resolveRefsInTerm(globals[mod], rule.Value)
 			}
 
-			rule.Body = c.resolveRefsInBody(globals[mod], rule.Body)
+			rule.Body = resolveRefsInBody(globals[mod], rule.Body)
 		}
 
 		// Update the module's imports. Only imports for query inputs are
@@ -540,113 +540,6 @@ func (c *Compiler) rewriteRefsInHead() {
 				}
 			}
 		}
-	}
-}
-
-func (c *Compiler) resolveRef(globals map[Var]Value, ref Ref) Ref {
-
-	r := Ref{}
-	for i, x := range ref {
-		switch v := x.Value.(type) {
-		case Var:
-			if g, ok := globals[v]; ok {
-				switch g := g.(type) {
-				case Ref:
-					if i == 0 {
-						r = append(r, g...)
-					} else {
-						r = append(r, &Term{Location: x.Location, Value: g[:]})
-					}
-				case Var:
-					r = append(r, &Term{Value: g})
-				}
-			} else {
-				r = append(r, x)
-			}
-		case Ref:
-			r = append(r, c.resolveRefsInTerm(globals, x))
-		default:
-			r = append(r, x)
-		}
-	}
-
-	return r
-}
-
-func (c *Compiler) resolveRefsInBody(globals map[Var]Value, body Body) Body {
-	r := Body{}
-	for _, expr := range body {
-		r = append(r, c.resolveRefsInExpr(globals, expr))
-	}
-	return r
-}
-
-func (c *Compiler) resolveRefsInExpr(globals map[Var]Value, expr *Expr) *Expr {
-	cpy := *expr
-	switch ts := expr.Terms.(type) {
-	case *Term:
-		cpy.Terms = c.resolveRefsInTerm(globals, ts)
-	case []*Term:
-		buf := []*Term{}
-		for _, t := range ts {
-			buf = append(buf, c.resolveRefsInTerm(globals, t))
-		}
-		cpy.Terms = buf
-	}
-	return &cpy
-}
-
-func (c *Compiler) resolveRefsInTerm(globals map[Var]Value, term *Term) *Term {
-	switch v := term.Value.(type) {
-	case Var:
-		if r, ok := globals[v]; ok {
-			cpy := *term
-			cpy.Value = r
-			return &cpy
-		}
-		return term
-	case Ref:
-		fqn := c.resolveRef(globals, v)
-		cpy := *term
-		cpy.Value = fqn
-		return &cpy
-	case Object:
-		o := Object{}
-		for _, i := range v {
-			k := c.resolveRefsInTerm(globals, i[0])
-			v := c.resolveRefsInTerm(globals, i[1])
-			o = append(o, Item(k, v))
-		}
-		cpy := *term
-		cpy.Value = o
-		return &cpy
-	case Array:
-		a := Array{}
-		for _, e := range v {
-			x := c.resolveRefsInTerm(globals, e)
-			a = append(a, x)
-		}
-		cpy := *term
-		cpy.Value = a
-		return &cpy
-	case *Set:
-		s := &Set{}
-		for _, e := range *v {
-			x := c.resolveRefsInTerm(globals, e)
-			s.Add(x)
-		}
-		cpy := *term
-		cpy.Value = s
-		return &cpy
-	case *ArrayComprehension:
-		ac := &ArrayComprehension{}
-		ac.Term = c.resolveRefsInTerm(globals, v.Term)
-		ac.Body = c.resolveRefsInBody(globals, v.Body)
-		cpy := *term
-		cpy.Value = ac
-		return &cpy
-	default:
-		return term
 	}
 }
 
@@ -1087,4 +980,111 @@ func (l *localVarGenerator) Generate() Var {
 	}
 	l.exclude.Add(name)
 	return name
+}
+
+func resolveRef(globals map[Var]Value, ref Ref) Ref {
+
+	r := Ref{}
+	for i, x := range ref {
+		switch v := x.Value.(type) {
+		case Var:
+			if g, ok := globals[v]; ok {
+				switch g := g.(type) {
+				case Ref:
+					if i == 0 {
+						r = append(r, g...)
+					} else {
+						r = append(r, &Term{Location: x.Location, Value: g[:]})
+					}
+				case Var:
+					r = append(r, &Term{Value: g})
+				}
+			} else {
+				r = append(r, x)
+			}
+		case Ref:
+			r = append(r, resolveRefsInTerm(globals, x))
+		default:
+			r = append(r, x)
+		}
+	}
+
+	return r
+}
+
+func resolveRefsInBody(globals map[Var]Value, body Body) Body {
+	r := Body{}
+	for _, expr := range body {
+		r = append(r, resolveRefsInExpr(globals, expr))
+	}
+	return r
+}
+
+func resolveRefsInExpr(globals map[Var]Value, expr *Expr) *Expr {
+	cpy := *expr
+	switch ts := expr.Terms.(type) {
+	case *Term:
+		cpy.Terms = resolveRefsInTerm(globals, ts)
+	case []*Term:
+		buf := []*Term{}
+		for _, t := range ts {
+			buf = append(buf, resolveRefsInTerm(globals, t))
+		}
+		cpy.Terms = buf
+	}
+	return &cpy
+}
+
+func resolveRefsInTerm(globals map[Var]Value, term *Term) *Term {
+	switch v := term.Value.(type) {
+	case Var:
+		if r, ok := globals[v]; ok {
+			cpy := *term
+			cpy.Value = r
+			return &cpy
+		}
+		return term
+	case Ref:
+		fqn := resolveRef(globals, v)
+		cpy := *term
+		cpy.Value = fqn
+		return &cpy
+	case Object:
+		o := Object{}
+		for _, i := range v {
+			k := resolveRefsInTerm(globals, i[0])
+			v := resolveRefsInTerm(globals, i[1])
+			o = append(o, Item(k, v))
+		}
+		cpy := *term
+		cpy.Value = o
+		return &cpy
+	case Array:
+		a := Array{}
+		for _, e := range v {
+			x := resolveRefsInTerm(globals, e)
+			a = append(a, x)
+		}
+		cpy := *term
+		cpy.Value = a
+		return &cpy
+	case *Set:
+		s := &Set{}
+		for _, e := range *v {
+			x := resolveRefsInTerm(globals, e)
+			s.Add(x)
+		}
+		cpy := *term
+		cpy.Value = s
+		return &cpy
+	case *ArrayComprehension:
+		ac := &ArrayComprehension{}
+		ac.Term = resolveRefsInTerm(globals, v.Term)
+		ac.Body = resolveRefsInBody(globals, v.Body)
+		cpy := *term
+		cpy.Value = ac
+		return &cpy
+	default:
+		return term
+	}
 }
