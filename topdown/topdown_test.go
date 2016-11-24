@@ -316,8 +316,7 @@ func TestTopDownPartialObjectDoc(t *testing.T) {
 			"b": [1, {"v2": 2}],
 			"c": [3, {"v2": 4}]
 		}`},
-		{"error: conflicting keys", `p[k] = true :- ks=["a", "b", "c", "a"], ks[_] = k`,
-			fmt.Errorf("evaluation error (code: 2): multiple values for data.p: rules must produce exactly one value for object document keys: check rule definition(s): p")},
+		{"same key/value pair", `p[k] = 1 :- ks=["a", "b", "c", "a"], ks[_] = k`, `{"a":1,"b":1,"c":1}`},
 	}
 
 	data := loadSmallTestData()
@@ -593,7 +592,6 @@ func TestTopDownVirtualDocs(t *testing.T) {
 		{"no suffix: complete incr (error)", []string{"p = true :- q", "q = false :- true", "q = true :- true"}, fmt.Errorf("evaluation error (code: 2): multiple values for data.q: rules must produce exactly one value for complete documents: check rule definition(s): q")},
 		{"no suffix: complete incr", []string{"p = true :- not q", "q = true :- false", "q = false :- true"}, "true"},
 		{"no suffix: object", []string{"p[x] = y :- q = o, o[x] = y", "q[x] = y :- b[x] = y"}, `{"v1": "hello", "v2": "goodbye"}`},
-		{"no suffix: object incr", []string{"p[x] = y :- q = o, o[x] = y", "q[x] = y :- b[x] = y", "q[x1] = y1 :- b[x1] = y1"}, fmt.Errorf("evaluation error (code: 2): multiple values for data.q: rules must produce exactly one value for object document keys: check rule definition(s): q")},
 		{"no suffix: object incr", []string{
 			"p[x] = y :- q = o, o[x] = y",
 			"q[x] = y :- b[x] = y",
@@ -615,6 +613,9 @@ func TestTopDownVirtualDocs(t *testing.T) {
 			`p[x] :- q = x`,
 			`q[k] = {"v": v} :- v = [i,j], k = i, i = "a", j = 1`},
 			`[{"a": {"v": ["a", 1]}}]`},
+		{"no suffix: object conflict (error)", []string{
+			`p[x] = y :- xs = ["a","b","c","a"], x = xs[i], y = a[i]`},
+			fmt.Errorf("evaluation error (code: 2): multiple values for data.p: rules must produce exactly one value for object document keys: check rule definition(s): p")},
 		{"no suffix: set", []string{"p[x] :- q = s, s[x]", "q[x] :- a[i] = x"}, "[1,2,3,4]"},
 	}
 

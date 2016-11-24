@@ -11,7 +11,6 @@ import (
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/storage"
-	"github.com/open-policy-agent/opa/util"
 	"github.com/pkg/errors"
 )
 
@@ -1474,16 +1473,7 @@ func evalRefRulePartialObjectDoc(ctx *Context, ref ast.Ref, path ast.Ref, rule *
 func evalRefRulePartialObjectDocFull(ctx *Context, ref ast.Ref, rules []*ast.Rule, iter Iterator) error {
 
 	var result ast.Object
-
-	// keys is a set of key bindings that we obtain while
-	// evaluating the child query. If we obtain multiple
-	// values for a single key, it represents a conflictErr
-	// and we raise an error.
-	keys := util.NewHashMap(func(a, b util.T) bool {
-		return a.(ast.Value).Equal(b.(ast.Value))
-	}, func(x util.T) int {
-		return x.(ast.Value).Hash()
-	})
+	keys := ast.NewValueMap()
 
 	for i, rule := range rules {
 
@@ -1496,7 +1486,9 @@ func evalRefRulePartialObjectDocFull(ctx *Context, ref ast.Ref, rules []*ast.Rul
 		}
 
 		err := evalContext(child, func(child *Context) error {
+
 			key := PlugValue(rule.Key.Value, child.Binding)
+
 			if r, ok := key.(ast.Ref); ok {
 				var err error
 				key, err = lookupValue(ctx, r)
@@ -1507,17 +1499,23 @@ func evalRefRulePartialObjectDocFull(ctx *Context, ref ast.Ref, rules []*ast.Rul
 					return err
 				}
 			}
+
 			if !ast.IsScalar(key) {
 				return typeErrObjectKey(rule, key)
 			}
-			if _, ok := keys.Get(key); ok {
-				return conflictErr(ref, "object document keys", rule)
-			}
-			keys.Put(key, ast.Null{})
+
 			value := PlugValue(rule.Value.Value, child.Binding)
+
 			if !value.IsGround() {
 				return fmt.Errorf("unbound variable: %v", value)
 			}
+
+			if exist := keys.Get(key); exist != nil && !exist.Equal(value) {
+				return conflictErr(ref, "object document keys", rule)
+			}
+
+			keys.Put(key, value)
+
 			result = append(result, ast.Item(&ast.Term{Value: key}, &ast.Term{Value: value}))
 			child.traceExit(rule)
 			child.traceRedo(rule)
