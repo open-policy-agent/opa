@@ -379,7 +379,7 @@ func TestCompilerCheckSafetyBodyErrors(t *testing.T) {
 
 }
 
-func TestCompilerBuiltins(t *testing.T) {
+func TestCompilerCheckBuiltins(t *testing.T) {
 	c := NewCompiler()
 	c.Modules = map[string]*Module{
 		"mod": MustParseModule(`
@@ -390,20 +390,35 @@ func TestCompilerBuiltins(t *testing.T) {
 			`),
 	}
 	compileStages(c, "", "checkBuiltins")
-	result := compilerErrsToStringSlice(c.Errors)
+
 	expected := []string{
 		"p: wrong number of arguments (expression count(1) must specify 2 arguments to built-in function count)",
 		"q: wrong number of arguments (expression count([1,2,3], x, 1) must specify 2 arguments to built-in function count)",
 		"r: unknown built-in function deadbeef",
 	}
-	if len(result) != len(expected) {
-		t.Fatalf("Expected %d:\n%v\nBut got %d:\n%v", len(expected), strings.Join(expected, "\n"), len(result), strings.Join(result, "\n"))
+
+	assertCompilerErrorStrings(t, c, expected)
+}
+
+func TestCompilerCheckRuleConflicts(t *testing.T) {
+	c := NewCompiler()
+	c.Modules = map[string]*Module{
+		"mod": MustParseModule(`
+		package badrules
+		p[x] :- x=1
+		p[x] = y :- x = y, x = 1
+		q[1] :- true
+		q = {1,2,3} :- true
+		`),
 	}
-	for i := range result {
-		if expected[i] != result[i] {
-			t.Errorf("Expected %v but got: %v", expected[i], result[i])
-		}
+	compileStages(c, "", "checkRuleConflicts")
+
+	expected := []string{
+		"p: conflicting rule types (all definitions of p must have the same type)",
+		"q: conflicting rule types (all definitions of q must have the same type)",
 	}
+
+	assertCompilerErrorStrings(t, c, expected)
 }
 
 func TestCompilerResolveAllRefs(t *testing.T) {
@@ -754,7 +769,7 @@ func TestCompilerGetRulesWithPrefix(t *testing.T) {
 	package a.b.c
 	p[1] :- true
 	p[2] :- true
-	q = true
+	q[3] :- true
 	`)
 
 	c := NewCompiler()
@@ -831,6 +846,18 @@ func TestQueryCompiler(t *testing.T) {
 
 	for _, tc := range tests {
 		runQueryCompilerTest(t, tc.note, tc.q, tc.pkg, tc.imports, tc.expected)
+	}
+}
+
+func assertCompilerErrorStrings(t *testing.T, compiler *Compiler, expected []string) {
+	result := compilerErrsToStringSlice(compiler.Errors)
+	if len(result) != len(expected) {
+		t.Fatalf("Expected %d:\n%v\nBut got %d:\n%v", len(expected), strings.Join(expected, "\n"), len(result), strings.Join(result, "\n"))
+	}
+	for i := range result {
+		if expected[i] != result[i] {
+			t.Errorf("Expected %v but got: %v", expected[i], result[i])
+		}
 	}
 }
 
