@@ -69,6 +69,49 @@ type Compiler struct {
 	stages []stage
 }
 
+// QueryContext contains contextual information for running an ad-hoc query.
+//
+// Ad-hoc queries can be run in the context of a package and imports may be
+// included to provide concise access to data.
+type QueryContext struct {
+	Package *Package
+	Imports []*Import
+}
+
+// Copy returns a deep copy of qc.
+func (qc *QueryContext) Copy() *QueryContext {
+	if qc == nil {
+		return nil
+	}
+	cpy := *qc
+	cpy.Package = qc.Package.Copy()
+	cpy.Imports = make([]*Import, len(qc.Imports))
+	for i := range qc.Imports {
+		cpy.Imports[i] = qc.Imports[i].Copy()
+	}
+	return &cpy
+}
+
+// NewQueryContext returns a new QueryContext object.
+func NewQueryContext(pkg *Package, imports []*Import) *QueryContext {
+	return &QueryContext{
+		Package: pkg,
+		Imports: imports,
+	}
+}
+
+// QueryCompiler defines the interface for compiling ad-hoc queries.
+type QueryCompiler interface {
+
+	// Compile should be called to compile ad-hoc queries. The return value is
+	// the compiled version of the query.
+	Compile(q Body) (Body, error)
+
+	// WithContext sets the QueryContext on the QueryCompiler. Subsequent calls
+	// to Compile will take the QUeryContext into account.
+	WithContext(qctx *QueryContext) QueryCompiler
+}
+
 type stage struct {
 	f    func()
 	name string
@@ -149,12 +192,17 @@ func NewCompiler() *Compiler {
 		stage{c.setRuleGraph, "setRuleGraph"},
 		stage{c.rewriteRefsInHead, "rewriteRefsInHead"},
 		stage{c.checkBuiltins, "checkBuiltins"},
-		stage{c.checkSafetyHead, "checkSafetyHead"},
-		stage{c.checkSafetyBody, "checkSafetyBody"},
+		stage{c.checkSafetyRuleHeads, "checkSafetyRuleHeads"},
+		stage{c.checkSafetyRuleBodies, "checkSafetyRuleBodies"},
 		stage{c.checkRecursion, "checkRecursion"},
 	}
 
 	return c
+}
+
+// QueryCompiler returns a new QueryCompiler object.
+func (c *Compiler) QueryCompiler() QueryCompiler {
+	return newQueryCompiler(c)
 }
 
 // Compile runs the compilation process on the input modules. The compiled
@@ -301,14 +349,14 @@ func (c *Compiler) checkRecursion() {
 	}
 }
 
-// checkSafetyBody ensures that variables appearing in negated expressions or non-target
+// checkSafetyRuleBodies ensures that variables appearing in negated expressions or non-target
 // positions of built-in expressions will be bound when evaluating the rule from left
 // to right, re-ordering as necessary.
-func (c *Compiler) checkSafetyBody() {
+func (c *Compiler) checkSafetyRuleBodies() {
 	for _, m := range c.Modules {
 		safe := ReservedVars.Copy()
-		for _, imp := range m.Imports {
-			safe.Add(imp.Path.Value.(Var))
+		for i := range m.Imports {
+			safe.Add(m.Imports[i].Path.Value.(Var))
 		}
 		for _, r := range m.Rules {
 			reordered, unsafe := reorderBodyForSafety(safe, r.Body)
@@ -317,18 +365,15 @@ func (c *Compiler) checkSafetyBody() {
 					c.err(NewError(UnsafeVarErr, r.Location, "%v: %v is unsafe (variable %v must appear in the output position of at least one non-negated expression)", r.Name, v, v))
 				}
 			} else {
-				// Need to reset expression indices as re-ordering may have
-				// changed them.
-				setExprIndices(reordered)
 				r.Body = reordered
 			}
 		}
 	}
 }
 
-// checkSafetyHeads ensures that variables appearing in the head of a
+// checkSafetyRuleHeads ensures that variables appearing in the head of a
 // rule also appear in the body.
-func (c *Compiler) checkSafetyHead() {
+func (c *Compiler) checkSafetyRuleHeads() {
 	for _, m := range c.Modules {
 		for _, r := range m.Rules {
 			unsafe := r.HeadVars().Diff(r.Body.Vars(true))
@@ -399,37 +444,16 @@ func (c *Compiler) resolveAllRefs() {
 		globals := getGlobals(mod.Package, exportsForPackage, mod.Imports)
 
 		for _, rule := range mod.Rules {
-
 			if rule.Key != nil {
 				rule.Key = resolveRefsInTerm(globals, rule.Key)
 			}
-
 			if rule.Value != nil {
 				rule.Value = resolveRefsInTerm(globals, rule.Value)
 			}
-
 			rule.Body = resolveRefsInBody(globals, rule.Body)
 		}
 
-		// Update the module's imports. Only imports for query inputs are
-		// required at this point.
-		imports := []*Import{}
-
-		for _, imp := range mod.Imports {
-			switch path := imp.Path.Value.(type) {
-			case Ref:
-				if !path[0].Equal(DefaultRootDocument) {
-					imp.Path = path[0]
-					imp.Alias = Var("")
-					imports = append(imports, imp)
-				}
-			case Var:
-				imp.Alias = Var("")
-				imports = append(imports, imp)
-			}
-		}
-
-		mod.Imports = imports
+		mod.Imports = rewriteImports(mod.Imports)
 	}
 }
 
@@ -508,6 +532,90 @@ func (c *Compiler) setRuleGraph() {
 			Walk(vis, r)
 		}
 	}
+}
+
+type queryCompiler struct {
+	compiler *Compiler
+	qctx     *QueryContext
+}
+
+func newQueryCompiler(compiler *Compiler) QueryCompiler {
+	qc := &queryCompiler{
+		compiler: compiler,
+		qctx:     nil,
+	}
+	return qc
+}
+
+func (qc *queryCompiler) WithContext(qctx *QueryContext) QueryCompiler {
+	qc.qctx = qctx
+	return qc
+}
+
+func (qc *queryCompiler) Compile(query Body) (Body, error) {
+
+	stages := []func(*QueryContext, Body) (Body, error){
+		qc.resolveRefs,
+		qc.checkSafety,
+		qc.checkBuiltins,
+	}
+
+	qctx := qc.qctx.Copy()
+
+	for _, s := range stages {
+		var err error
+		if query, err = s(qctx, query); err != nil {
+			return nil, err
+		}
+	}
+
+	return query, nil
+}
+
+func (qc *queryCompiler) resolveRefs(qctx *QueryContext, body Body) (Body, error) {
+
+	var globals map[Var]Value
+
+	if qctx != nil {
+		var exports []Var
+		if exist, ok := qc.compiler.getExports().Get(qctx.Package.Path); ok {
+			exports = exist.([]Var)
+		}
+		globals = getGlobals(qctx.Package, exports, qc.qctx.Imports)
+		qctx.Imports = rewriteImports(qctx.Imports)
+	}
+
+	return resolveRefsInBody(globals, body), nil
+}
+
+func (qc *queryCompiler) checkSafety(qctx *QueryContext, body Body) (Body, error) {
+
+	safe := ReservedVars.Copy()
+	if qctx != nil {
+		for i := range qctx.Imports {
+			safe.Add(qctx.Imports[i].Path.Value.(Var))
+		}
+	}
+
+	reordered, unsafe := reorderBodyForSafety(safe, body)
+
+	if len(unsafe) != 0 {
+		var err Errors
+		for v := range unsafe.Vars() {
+			err = append(err, NewError(UnsafeVarErr, body.Loc(), "%v is unsafe (variable %v must appear in the output position of at least one non-negated expression)", v, v))
+		}
+		return nil, err
+	}
+
+	return reordered, nil
+}
+
+func (qc *queryCompiler) checkBuiltins(qctx *QueryContext, body Body) (Body, error) {
+	bc := newBuiltinChecker()
+	if errs := bc.Check(body); len(errs) != 0 {
+		return nil, errs
+	}
+	return body, nil
 }
 
 // ModuleTreeNode represents a node in the module tree. The module
@@ -857,6 +965,10 @@ func reorderBodyForSafety(globals VarSet, body Body) (Body, unsafeVars) {
 		Walk(vis, e)
 	}
 
+	// Need to reset expression indices as re-ordering may have
+	// changed them.
+	setExprIndices(reordered)
+
 	return reordered, unsafe
 }
 
@@ -1110,4 +1222,26 @@ func resolveRefsInTerm(globals map[Var]Value, term *Term) *Term {
 	default:
 		return term
 	}
+}
+
+// rewriteImports returns an updated slice of imports that replace the imports
+// in a module or query context. Imports against the default root document are
+// removed, aliases are unset, and the remaining imports are shortened to the
+// head variable. The result is a set of imports that effectively ground
+// variables appearing in rules and queries (which refer to query inputs).
+func rewriteImports(imports []*Import) (result []*Import) {
+	for _, imp := range imports {
+		switch path := imp.Path.Value.(type) {
+		case Ref:
+			if !path[0].Equal(DefaultRootDocument) {
+				imp.Path = path[0]
+				imp.Alias = Var("")
+				result = append(result, imp)
+			}
+		case Var:
+			imp.Alias = Var("")
+			result = append(result, imp)
+		}
+	}
+	return result
 }

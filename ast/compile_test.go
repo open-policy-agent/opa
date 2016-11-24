@@ -813,6 +813,27 @@ func TestCompilerGetRulesWithPrefix(t *testing.T) {
 	}
 }
 
+func TestQueryCompiler(t *testing.T) {
+	tests := []struct {
+		note     string
+		q        string
+		pkg      string
+		imports  []string
+		expected interface{}
+	}{
+		{"exports resolved", "z", "package a.b.c", nil, "data.a.b.c.z"},
+		{"imports resolved", "z", "package a.b.c.d", []string{"import data.a.b.c.z"}, "data.a.b.c.z"},
+		{"unsafe vars", "z", "", nil, fmt.Errorf("1 error occurred: 1:1: z is unsafe (variable z must appear in the output position of at least one non-negated expression)")},
+		{"safe vars", "data, abc", "package ex", []string{"import xyz as abc"}, "data, xyz"},
+		{"reorder", "x != 1, x = 0", "", nil, "x = 0, x != 1"},
+		{"bad builtin", "deadbeef(1,2,3)", "", nil, fmt.Errorf("1 error occurred: 1:1: deadbeef is unsafe (variable deadbeef must appear in the output position of at least one non-negated expression)")},
+	}
+
+	for _, tc := range tests {
+		runQueryCompilerTest(t, tc.note, tc.q, tc.pkg, tc.imports, tc.expected)
+	}
+}
+
 func assertNotFailed(t *testing.T, c *Compiler) {
 	if c.Failed() {
 		t.Errorf("Unexpected compilation error: %v", c.Errors)
@@ -919,4 +940,44 @@ func compilerErrsToStringSlice(errors []*Error) []string {
 	}
 	sort.Strings(result)
 	return result
+}
+
+func runQueryCompilerTest(t *testing.T, note, q, pkg string, imports []string, expected interface{}) {
+	test.Subtest(t, note, func(t *testing.T) {
+		c := NewCompiler()
+		c.Compile(getCompilerTestModules())
+		assertNotFailed(t, c)
+		qc := c.QueryCompiler()
+		query := MustParseBody(q)
+		var qctx *QueryContext
+		if pkg != "" {
+			pkg := MustParsePackage(pkg)
+			qctx = NewQueryContext(pkg, nil)
+			if len(imports) > 0 {
+				qctx.Imports = MustParseImports(strings.Join(imports, "\n"))
+			}
+		}
+		if qctx != nil {
+			qc.WithContext(qctx)
+		}
+		switch expected := expected.(type) {
+		case string:
+			expectedQuery := MustParseBody(expected)
+			result, err := qc.Compile(query)
+			if err != nil {
+				t.Fatalf("Unexpected error from %v: %v", query, err)
+			}
+			if !expectedQuery.Equal(result) {
+				t.Fatalf("Expected:\n%v\n\nGot:\n%v", expectedQuery, result)
+			}
+		case error:
+			result, err := qc.Compile(query)
+			if err == nil {
+				t.Fatalf("Expected error from %v but got: %v", query, result)
+			}
+			if err.Error() != expected.Error() {
+				t.Fatalf("Expected error %v but got: %v", expected, err)
+			}
+		}
+	})
 }
