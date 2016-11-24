@@ -274,28 +274,11 @@ func (c *Compiler) GetRulesWithPrefix(ref Ref) (rules []*Rule) {
 }
 
 // checkBuiltins ensures that built-in functions are specified correctly.
-//
-// TODO(tsandall): in the future this should be replaced with schema checking.
 func (c *Compiler) checkBuiltins() {
-	for _, m := range c.Modules {
-		for _, r := range m.Rules {
-			vis := &GenericVisitor{
-				func(x interface{}) bool {
-					if expr, ok := x.(*Expr); ok {
-						if ts, ok := expr.Terms.([]*Term); ok {
-							if bi, ok := BuiltinMap[ts[0].Value.(Var)]; ok {
-								if bi.NumArgs != len(ts[1:]) {
-									c.err(NewError(CompileErr, expr.Location, "%v: wrong number of arguments (expression %s must specify %d arguments to built-in function %v)", r.Name, expr.Location.Text, bi.NumArgs, ts[0]))
-								}
-							} else {
-								c.err(NewError(CompileErr, expr.Location, "%v: unknown built-in function %v", r.Name, ts[0]))
-							}
-						}
-					}
-					return false
-				},
-			}
-			Walk(vis, r.Body)
+	for _, mod := range c.Modules {
+		bc := newBuiltinChecker()
+		for _, err := range bc.Check(mod) {
+			c.err(err)
 		}
 	}
 }
@@ -610,6 +593,53 @@ func (n *RuleTreeNode) Size() int {
 		s += c.Size()
 	}
 	return s
+}
+
+// builtinChecker verifies that built-in functions are called correctly.
+type builtinChecker struct {
+	errors *Errors
+	prefix string
+}
+
+func newBuiltinChecker() *builtinChecker {
+	return &builtinChecker{
+		errors: &Errors{},
+	}
+}
+
+// Check returns built-in function call errors underneath the AST node x.
+func (bc *builtinChecker) Check(x interface{}) Errors {
+	Walk(bc, x)
+	return *(bc.errors)
+}
+
+func (bc *builtinChecker) Visit(x interface{}) Visitor {
+	switch x := x.(type) {
+	case *Rule:
+		cpy := *bc
+		cpy.prefix = string(x.Name)
+		return &cpy
+	case *Expr:
+		if ts, ok := x.Terms.([]*Term); ok {
+			if bi, ok := BuiltinMap[ts[0].Value.(Var)]; ok {
+				if bi.NumArgs != len(ts[1:]) {
+					msg := "wrong number of arguments (expression %s must specify %d arguments to built-in function %v)"
+					bc.err(CompileErr, x.Location, msg, x.Location.Text, bi.NumArgs, ts[0])
+				}
+			} else {
+				msg := "unknown built-in function %v"
+				bc.err(CompileErr, x.Location, msg, ts[0])
+			}
+		}
+	}
+	return bc
+}
+
+func (bc *builtinChecker) err(code ErrCode, loc *Location, f string, a ...interface{}) {
+	if bc.prefix != "" {
+		f = bc.prefix + ": " + f
+	}
+	*(bc.errors) = append(*(bc.errors), NewError(code, loc, f, a...))
 }
 
 type ruleGraphBuilder struct {
