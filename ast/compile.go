@@ -78,6 +78,20 @@ type QueryContext struct {
 	Imports []*Import
 }
 
+// NewQueryContext returns a new QueryContext object.
+func NewQueryContext(pkg *Package, imports []*Import) *QueryContext {
+	return &QueryContext{
+		Package: pkg,
+		Imports: imports,
+	}
+}
+
+// NewQueryContextForModule returns a new QueryContext object based on the
+// provided module.
+func NewQueryContextForModule(mod *Module) *QueryContext {
+	return NewQueryContext(mod.Package, mod.Imports)
+}
+
 // Copy returns a deep copy of qc.
 func (qc *QueryContext) Copy() *QueryContext {
 	if qc == nil {
@@ -90,14 +104,6 @@ func (qc *QueryContext) Copy() *QueryContext {
 		cpy.Imports[i] = qc.Imports[i].Copy()
 	}
 	return &cpy
-}
-
-// NewQueryContext returns a new QueryContext object.
-func NewQueryContext(pkg *Package, imports []*Import) *QueryContext {
-	return &QueryContext{
-		Package: pkg,
-		Imports: imports,
-	}
 }
 
 // QueryCompiler defines the interface for compiling ad-hoc queries.
