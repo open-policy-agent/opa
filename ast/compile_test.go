@@ -583,6 +583,10 @@ func TestCompilerCheckRecursion(t *testing.T) {
 						package rec7
 						prefix :- data.rec7
 						`),
+		"newMod9": MustParseModule(`
+						package rec8
+						dataref :- data
+						`),
 	}
 
 	compileStages(c, "", "checkRecursion")
@@ -605,6 +609,7 @@ func TestCompilerCheckRecursion(t *testing.T) {
 		makeErrMsg("np", "np", "nq", "np"),
 		makeErrMsg("nq", "nq", "np", "nq"),
 		makeErrMsg("prefix", "prefix", "prefix"),
+		makeErrMsg("dataref", "dataref", "dataref"),
 	}
 
 	result := compilerErrsToStringSlice(c.Errors)

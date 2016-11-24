@@ -299,10 +299,26 @@ func parseModule(stmts []interface{}) (*Module, error) {
 	return mod, nil
 }
 
-func postProcess(filename string, stmts []interface{}) {
+func postProcess(filename string, stmts []interface{}) error {
 	setFilename(filename, stmts)
+	if err := mangleDataVars(stmts); err != nil {
+		return err
+	}
 	mangleWildcards(stmts)
 	mangleExprIndices(stmts)
+	return nil
+}
+
+func mangleDataVars(stmts []interface{}) error {
+	for i := range stmts {
+		dvt := &dataVarTransformer{}
+		stmt, err := Transform(dvt, stmts[i])
+		if err != nil {
+			return err
+		}
+		stmts[i] = stmt
+	}
+	return nil
 }
 
 func mangleExprIndices(stmts []interface{}) {
@@ -388,4 +404,27 @@ func setFilename(filename string, stmts []interface{}) {
 		}}
 		Walk(vis, stmt)
 	}
+}
+
+type dataVarTransformer struct {
+	// skip set to true to avoid recursively processing the result of
+	// transforming a data var into a ref.
+	skip bool
+}
+
+func (dvt *dataVarTransformer) Transform(x interface{}) (interface{}, error) {
+	if dvt.skip {
+		dvt.skip = false
+		return x, nil
+	}
+	switch x := x.(type) {
+	case Ref:
+		dvt.skip = true
+	case Var:
+		if x.Equal(DefaultRootDocument.Value) {
+			dvt.skip = true
+			return DefaultRootRef, nil
+		}
+	}
+	return x, nil
 }
