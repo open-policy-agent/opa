@@ -8,8 +8,10 @@
 package repl
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"html/template"
 	"io"
 	"os"
 	"sort"
@@ -20,6 +22,7 @@ import (
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/topdown"
 	"github.com/open-policy-agent/opa/topdown/explain"
+	"github.com/open-policy-agent/opa/version"
 
 	"github.com/peterh/liner"
 )
@@ -53,19 +56,17 @@ const (
 	explainTruth explainMode = iota
 )
 
-const (
-	defaultREPLModuleID = "repl"
-)
-
 // New returns a new instance of the REPL.
 func New(store *storage.Storage, historyPath string, output io.Writer, outputFormat string, banner string) *REPL {
-	mod := defaultModule()
-	moduleID := mod.Package.Path.String()
+
+	module := defaultModule()
+	moduleID := module.Package.Path.String()
+
 	return &REPL{
 		output: output,
 		store:  store,
 		modules: map[string]*ast.Module{
-			moduleID: mod,
+			moduleID: module,
 		},
 		currentModuleID: moduleID,
 		outputFormat:    outputFormat,
@@ -77,8 +78,49 @@ func New(store *storage.Storage, historyPath string, output io.Writer, outputFor
 	}
 }
 
+const (
+	defaultREPLModuleID = "repl"
+)
+
 func defaultModule() *ast.Module {
-	return ast.MustParseModule(fmt.Sprint("package ", defaultREPLModuleID))
+
+	module := `
+	package {{.ModuleID}}
+
+	version = {
+		"Version": "{{.Version}}",
+		"BuildCommit": "{{.BuildCommit}}",
+		"BuildTimestamp": "{{.BuildTimestamp}}",
+		"BuildHostname": "{{.BuildHostname}}"
+	}
+	`
+
+	tmpl, err := template.New("").Parse(module)
+	if err != nil {
+		panic(err)
+	}
+
+	var buf bytes.Buffer
+
+	err = tmpl.Execute(&buf, struct {
+		ModuleID       string
+		Version        string
+		BuildCommit    string
+		BuildTimestamp string
+		BuildHostname  string
+	}{
+		ModuleID:       defaultREPLModuleID,
+		Version:        version.Version,
+		BuildCommit:    version.Vcs,
+		BuildTimestamp: version.Timestamp,
+		BuildHostname:  version.Hostname,
+	})
+
+	if err != nil {
+		panic(err)
+	}
+
+	return ast.MustParseModule(buf.String())
 }
 
 // Loop will run until the user enters "exit", Ctrl+C, Ctrl+D, or an unexpected error occurs.
@@ -246,25 +288,9 @@ func (r *REPL) cmdFormat(s string) bool {
 }
 
 func (r *REPL) cmdHelp() bool {
-
-	all := extra[:]
-	all = append(all, builtin[:]...)
-
-	maxLength := 0
-
-	for _, c := range all {
-		length := len(c.syntax())
-		if length > maxLength {
-			maxLength = length
-		}
-	}
-
-	f := fmt.Sprintf("%%%dv : %%v\n", maxLength)
-
-	for _, c := range all {
-		fmt.Printf(f, c.syntax(), c.help)
-	}
-
+	fmt.Fprintln(r.output, "")
+	printHelpExamples(r.output, r.initPrompt)
+	printHelpCommands(r.output)
 	return false
 }
 
@@ -924,6 +950,17 @@ func (c commandDesc) syntax() string {
 	return c.name
 }
 
+type exampleDesc struct {
+	example string
+	comment string
+}
+
+var examples = [...]exampleDesc{
+	{"data", "show all documents"},
+	{"data[x] = _", "show all top level keys"},
+	{"data.repl.version", "drill into specific document"},
+}
+
 var extra = [...]commandDesc{
 	{"<stmt>", []string{}, "evaluate the statement"},
 	{"package", []string{"<term>"}, "change active package"},
@@ -1079,4 +1116,53 @@ func mangleEvent(store *storage.Storage, txn storage.Transaction, event *topdown
 		event.Node = topdown.PlugExpr(node, event.Locals.Get)
 	}
 	return nil
+}
+
+func printHelpExamples(output io.Writer, promptSymbol string) {
+
+	fmt.Fprintln(output, "Examples")
+	fmt.Fprintln(output, "========")
+	fmt.Fprintln(output, "")
+
+	maxLength := 0
+	for _, ex := range examples {
+		if len(ex.example) > maxLength {
+			maxLength = len(ex.example)
+		}
+	}
+
+	f := fmt.Sprintf("%v%%-%dv # %%v\n", promptSymbol, maxLength+1)
+
+	for _, ex := range examples {
+		fmt.Fprintf(output, f, ex.example, ex.comment)
+	}
+
+	fmt.Fprintln(output, "")
+}
+
+func printHelpCommands(output io.Writer) {
+
+	fmt.Fprintln(output, "Commands")
+	fmt.Fprintln(output, "========")
+	fmt.Fprintln(output, "")
+
+	all := extra[:]
+	all = append(all, builtin[:]...)
+
+	maxLength := 0
+
+	for _, c := range all {
+		length := len(c.syntax())
+		if length > maxLength {
+			maxLength = length
+		}
+	}
+
+	f := fmt.Sprintf("%%%dv : %%v\n", maxLength)
+
+	for _, c := range all {
+		fmt.Fprintf(output, f, c.syntax(), c.help)
+	}
+
+	fmt.Fprintln(output, "")
 }

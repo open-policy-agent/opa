@@ -49,6 +49,7 @@ func TestComplete(t *testing.T) {
 		"data.a.b.c.q",
 		"data.a.b.d.r",
 		"data.repl.s",
+		"data.repl.version",
 	}
 
 	sort.Strings(result)
@@ -139,14 +140,15 @@ func TestShow(t *testing.T) {
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
 
+	repl.OneShot("package repl_test")
 	repl.OneShot("show")
-	assertREPLText(t, buffer, "package repl\n")
+	assertREPLText(t, buffer, "package repl_test\n")
 	buffer.Reset()
 
 	repl.OneShot("import xyz")
 	repl.OneShot("show")
 
-	expected := `package repl
+	expected := `package repl_test
 
 import xyz` + "\n"
 	assertREPLText(t, buffer, expected)
@@ -155,7 +157,7 @@ import xyz` + "\n"
 	repl.OneShot("import data.foo as bar")
 	repl.OneShot("show")
 
-	expected = `package repl
+	expected = `package repl_test
 
 import xyz
 import data.foo as bar` + "\n"
@@ -166,7 +168,7 @@ import data.foo as bar` + "\n"
 	repl.OneShot("p[2] :- true")
 	repl.OneShot("show")
 
-	expected = `package repl
+	expected = `package repl_test
 
 import xyz
 import data.foo as bar
@@ -182,7 +184,7 @@ p[2] :- true` + "\n"
 	assertREPLText(t, buffer, "package abc\n")
 	buffer.Reset()
 
-	repl.OneShot("package repl")
+	repl.OneShot("package repl_test")
 	repl.OneShot("show")
 
 	assertREPLText(t, buffer, expected)
@@ -397,6 +399,11 @@ func TestEvalData(t *testing.T) {
 		}
 	}`)
 	result := parseJSON(buffer.String())
+
+	// Strip REPL documents out as these change depending on build settings.
+	data := result.(map[string]interface{})
+	delete(data, "repl")
+
 	if !reflect.DeepEqual(result, expected) {
 		t.Fatalf("Expected:\n%v\n\nGot:\n%v", expected, result)
 	}
