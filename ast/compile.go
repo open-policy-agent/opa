@@ -139,6 +139,7 @@ func NewCompiler() *Compiler {
 		stage{c.setRuleTree, "setRuleTree"},
 		stage{c.setRuleGraph, "setRuleGraph"},
 		stage{c.rewriteRefsInHead, "rewriteRefsInHead"},
+		stage{c.checkRuleConflicts, "checkRuleConflicts"},
 		stage{c.checkBuiltins, "checkBuiltins"},
 		stage{c.checkSafetyRuleHeads, "checkSafetyRuleHeads"},
 		stage{c.checkSafetyRuleBodies, "checkSafetyRuleBodies"},
@@ -295,6 +296,27 @@ func (c *Compiler) checkRecursion() {
 			c.err(NewError(RecursionErr, r.Location, "%v: recursive reference: %v (recursion is not allowed)", r.Name, strings.Join(n, " -> ")))
 		}
 	}
+}
+
+// checkRuleConflicts ensures that rules definitions are not in conflict.
+func (c *Compiler) checkRuleConflicts() {
+	c.RuleTree.DepthFirst(func(node *RuleTreeNode) bool {
+		if len(node.Rules) == 0 {
+			return false
+		}
+
+		kinds := map[DocKind]struct{}{}
+		for _, rule := range node.Rules {
+			kinds[rule.DocKind()] = struct{}{}
+		}
+
+		if len(kinds) > 1 {
+			name := Var(node.Key.(String))
+			c.err(NewError(CompileErr, node.Rules[0].Loc(), "%v: conflicting rule types (all definitions of %v must have the same type)", name, name))
+		}
+
+		return false
+	})
 }
 
 // checkSafetyRuleBodies ensures that variables appearing in negated expressions or non-target
@@ -649,6 +671,16 @@ func (n *RuleTreeNode) Size() int {
 		s += c.Size()
 	}
 	return s
+}
+
+// DepthFirst performs a depth-first traversal of the rule tree rooted at n. If
+// f returns true, traversal will not continue to the children of n.
+func (n *RuleTreeNode) DepthFirst(f func(node *RuleTreeNode) bool) {
+	if !f(n) {
+		for _, node := range n.Children {
+			node.DepthFirst(f)
+		}
+	}
 }
 
 // builtinChecker verifies that built-in functions are called correctly.

@@ -2,6 +2,8 @@
 // Use of this source code is governed by an Apache2
 // license that can be found in the LICENSE file.
 
+// Package explain contains utilities for post-processing traces emitted by
+// the evaluation engine.
 package explain
 
 import (
