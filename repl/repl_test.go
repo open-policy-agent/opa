@@ -134,6 +134,61 @@ func TestDumpPath(t *testing.T) {
 	}
 }
 
+func TestShow(t *testing.T) {
+	store := storage.New(storage.InMemoryConfig())
+	var buffer bytes.Buffer
+	repl := newRepl(store, &buffer)
+
+	repl.OneShot("show")
+	assertREPLText(t, buffer, "package repl\n")
+	buffer.Reset()
+
+	repl.OneShot("import xyz")
+	repl.OneShot("show")
+
+	expected := `package repl
+
+import xyz` + "\n"
+	assertREPLText(t, buffer, expected)
+	buffer.Reset()
+
+	repl.OneShot("import data.foo as bar")
+	repl.OneShot("show")
+
+	expected = `package repl
+
+import xyz
+import data.foo as bar` + "\n"
+	assertREPLText(t, buffer, expected)
+	buffer.Reset()
+
+	repl.OneShot("p[1] :- true")
+	repl.OneShot("p[2] :- true")
+	repl.OneShot("show")
+
+	expected = `package repl
+
+import xyz
+import data.foo as bar
+
+p[1] :- true
+p[2] :- true` + "\n"
+	assertREPLText(t, buffer, expected)
+	buffer.Reset()
+
+	repl.OneShot("package abc")
+	repl.OneShot("show")
+
+	assertREPLText(t, buffer, "package abc\n")
+	buffer.Reset()
+
+	repl.OneShot("package repl")
+	repl.OneShot("show")
+
+	assertREPLText(t, buffer, expected)
+	buffer.Reset()
+}
+
 func TestUnset(t *testing.T) {
 	store := storage.New(storage.InMemoryConfig())
 	var buffer bytes.Buffer
@@ -750,6 +805,13 @@ func TestBuildHeader(t *testing.T) {
 	}
 	if !reflect.DeepEqual(result, expected) {
 		t.Errorf("Build header expected %v but got %v", expected, result)
+	}
+}
+
+func assertREPLText(t *testing.T, buf bytes.Buffer, expected string) {
+	result := buf.String()
+	if result != expected {
+		t.Fatalf("Expected:\n%v\n\nGot:\n%v", expected, result)
 	}
 }
 

@@ -53,16 +53,21 @@ const (
 	explainTruth explainMode = iota
 )
 
+const (
+	defaultREPLModuleID = "repl"
+)
+
 // New returns a new instance of the REPL.
 func New(store *storage.Storage, historyPath string, output io.Writer, outputFormat string, banner string) *REPL {
-	currentModuleID := "repl"
+	mod := defaultModule()
+	moduleID := mod.Package.Path.String()
 	return &REPL{
 		output: output,
 		store:  store,
 		modules: map[string]*ast.Module{
-			currentModuleID: ast.MustParseModule(fmt.Sprint("package ", currentModuleID)),
+			moduleID: mod,
 		},
-		currentModuleID: currentModuleID,
+		currentModuleID: moduleID,
 		outputFormat:    outputFormat,
 		explain:         explainOff,
 		historyPath:     historyPath,
@@ -70,6 +75,10 @@ func New(store *storage.Storage, historyPath string, output io.Writer, outputFor
 		bufferPrompt:    "| ",
 		banner:          banner,
 	}
+}
+
+func defaultModule() *ast.Module {
+	return ast.MustParseModule(fmt.Sprint("package ", defaultREPLModuleID))
 }
 
 // Loop will run until the user enters "exit", Ctrl+C, Ctrl+D, or an unexpected error occurs.
@@ -135,6 +144,8 @@ func (r *REPL) OneShot(line string) bool {
 				return r.cmdDump(cmd.args)
 			case "json":
 				return r.cmdFormat("json")
+			case "show":
+				return r.cmdShow()
 			case "unset":
 				return r.cmdUnset(cmd.args)
 			case "pretty":
@@ -254,6 +265,12 @@ func (r *REPL) cmdHelp() bool {
 		fmt.Printf(f, c.syntax(), c.help)
 	}
 
+	return false
+}
+
+func (r *REPL) cmdShow() bool {
+	module := r.modules[r.currentModuleID]
+	fmt.Fprintln(r.output, module)
 	return false
 }
 
@@ -623,7 +640,7 @@ func (r *REPL) evalImport(i *ast.Import) bool {
 
 func (r *REPL) evalPackage(p *ast.Package) bool {
 
-	moduleID := p.Path[1:].String()
+	moduleID := p.Path.String()
 
 	if _, ok := r.modules[moduleID]; ok {
 		r.currentModuleID = moduleID
@@ -909,17 +926,18 @@ func (c commandDesc) syntax() string {
 
 var extra = [...]commandDesc{
 	{"<stmt>", []string{}, "evaluate the statement"},
-	{"package", []string{"<term>"}, "change currently active package"},
-	{"import", []string{"<term>"}, "add import to currently active module"},
+	{"package", []string{"<term>"}, "change active package"},
+	{"import", []string{"<term>"}, "add import to active module"},
 }
 
 var builtin = [...]commandDesc{
+	{"show", []string{}, "show active module definition"},
 	{"unset", []string{"<var>"}, "undefine rules in currently active module"},
 	{"json", []string{}, "set output format to JSON"},
 	{"pretty", []string{}, "set output format to pretty"},
-	{"dump", []string{"[path]"}, "dump the raw storage content"},
 	{"trace", []string{}, "toggle full trace"},
 	{"truth", []string{}, "toggle truth explanation"},
+	{"dump", []string{"[path]"}, "dump raw data in storage"},
 	{"help", []string{}, "print this message"},
 	{"exit", []string{}, "exit back to shell (or ctrl+c, ctrl+d)"},
 	{"ctrl+l", []string{}, "clear the screen"},
