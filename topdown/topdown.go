@@ -696,7 +696,7 @@ func (r resolver) Resolve(ref ast.Ref) (interface{}, error) {
 }
 
 // ResolveRefs returns the AST value obtained by resolving references to base
-// doccuments.
+// documents.
 func ResolveRefs(v ast.Value, ctx *Context) (ast.Value, error) {
 	result, err := ast.TransformRefs(v, func(r ast.Ref) (ast.Value, error) {
 		return lookupValue(ctx, r)

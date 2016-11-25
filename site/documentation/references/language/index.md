@@ -52,11 +52,11 @@ complex types.
 | ``sum(array_or_set, output)`` | 1 | ``output`` is the sum of the numbers in ``array_or_set`` |
 | ``max(array_or_set, output)`` | 1 | ``output`` is the maximum value in ``array_or_set`` |
 
-### Types
+### Sets
 
 | Built-in | Inputs | Description |
-| ------- |--------|-------------|
-| ``to_number(x, output)`` | 1 | ``output`` is ``x`` converted to a number |
+| -------- | ------ | ----------- |
+| <span class="opa-keep-it-together">``set_diff(s1, s2, output)``</span> | 2 | ``output`` is the difference between ``s1`` and ``s2``, i.e., the elements in ``s1`` that are not in ``s2`` |
 
 ### Strings
 
@@ -72,6 +72,12 @@ complex types.
 | ``startswith(string, search)`` | 2 | true if ``string`` begins with ``search`` |
 | ``substring(string, start, length, output)`` | 2 | ``output`` is the portion of ``string`` from index ``start`` and having a length of ``length``.  If ``length`` is less than zero, ``length`` is the remainder of the ``string``. |
 | ``upper(string, output)`` | 1 | ``output`` is ``string`` after converting to upper case |
+
+### Types
+
+| Built-in | Inputs | Description |
+| ------- |--------|-------------|
+| ``to_number(x, output)`` | 1 | ``output`` is ``x`` converted to a number |
 
 ## <a name="grammar"></a> Grammar
 
