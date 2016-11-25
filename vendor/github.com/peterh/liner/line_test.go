@@ -71,6 +71,15 @@ dingle`
 		t.Fatal("Round-trip failure")
 	}
 
+	// clear the history and re-write
+	s.ClearHistory()
+	num, err = s.WriteHistory(&out)
+	if err != nil {
+		t.Fatal("Unexpected error writing history", err)
+	}
+	if num != 0 {
+		t.Fatal("Wrong number of history entries written, expected none")
+	}
 	// Test reading with a trailing newline present
 	var s2 State
 	num, err = s2.ReadHistory(&out)

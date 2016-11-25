@@ -14,3 +14,4 @@ import:
 - package: github.com/olekukonko/tablewriter
 - package: github.com/dchest/siphash
 - package: gopkg.in/fsnotify.v1
+- package: github.com/ghodss/yaml

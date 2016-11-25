@@ -27,10 +27,11 @@ func f() {
 // Check for the error strings themselves.
 
 func g(x int) error {
-	if x < 1 {
-		return fmt.Errorf("This %d is too low", x) // MATCH /error strings.*not be capitalized/
-	} else if x == 0 {
-		return fmt.Errorf("XML time") // ok
-	}
-	return errors.New(`too much stuff.`) // MATCH /error strings.*not end with punctuation/
+	var err error
+	err = fmt.Errorf("This %d is too low", x)     // MATCH /error strings.*be capitalized/
+	err = fmt.Errorf("XML time")                  // ok
+	err = fmt.Errorf("newlines are fun\n")        // MATCH /error strings.*end with punctuation/
+	err = fmt.Errorf("Newlines are really fun\n") // MATCH /error strings.+not be capitalized/
+	err = errors.New(`too much stuff.`)           // MATCH /error strings.*end with punctuation/
+	return err
 }
