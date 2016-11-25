@@ -1312,6 +1312,30 @@ func TestExample(t *testing.T) {
 	`)
 }
 
+func TestTopDownUnsupportedBuiltin(t *testing.T) {
+
+	ast.RegisterBuiltin(&ast.Builtin{
+		Name: ast.Var("unsupported_builtin"),
+	})
+
+	body := ast.MustParseBody(`unsupported_builtin()`)
+	compiler := ast.NewCompiler()
+	store := storage.New(storage.InMemoryConfig())
+	txn := storage.NewTransactionOrDie(store)
+	ctx := NewContext(body, compiler, store, txn)
+
+	err := Eval(ctx, func(*Context) error {
+		return nil
+	})
+
+	expected := typeErrUnsupportedBuiltin(body[0])
+
+	if !reflect.DeepEqual(err, expected) {
+		t.Fatalf("Expected %v but got: %v", expected, err)
+	}
+
+}
+
 func TestTopDownTracingEval(t *testing.T) {
 	module := `
 	package test
