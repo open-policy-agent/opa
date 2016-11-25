@@ -28,7 +28,7 @@ var defaultAddr = ":8181"
 
 func init() {
 
-	params := &runtime.Params{}
+	params := runtime.NewParams()
 
 	runCommand := &cobra.Command{
 		Use:   "run",
@@ -39,13 +39,13 @@ To run the interactive shell:
 
 	$ opa run
 
-To run the server without saving policies:
+To run the server:
 
 	$ opa run -s
 
-To run the server and persist policies to a local directory:
+To evaluate a query from the command line:
 
-	$ opa run -s -p ./policies/
+	$ opa run -e 'data.repl.version[key] = value'
 
 The 'run' command starts an instance of the OPA runtime. The OPA
 runtime can be started as an interactive shell or a server.
@@ -70,6 +70,7 @@ In addition, API calls to delete policies will remove the definition file.
 	}
 
 	runCommand.Flags().BoolVarP(&params.Server, "server", "s", false, "start the runtime in server mode")
+	runCommand.Flags().StringVarP(&params.Eval, "eval", "e", "", "evaluate, print, exit")
 	runCommand.Flags().StringVarP(&params.HistoryPath, "history", "H", historyPath(), "set path of history file")
 	runCommand.Flags().StringVarP(&params.PolicyDir, "policy-dir", "p", "", "set directory to store policy definitions")
 	runCommand.Flags().StringVarP(&params.Addr, "addr", "a", defaultAddr, "set listening address of the server")

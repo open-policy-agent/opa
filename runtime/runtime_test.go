@@ -5,15 +5,33 @@
 package runtime
 
 import (
+	"bytes"
+	"encoding/json"
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"reflect"
 	"testing"
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/util"
 )
+
+func TestEval(t *testing.T) {
+	params := NewParams()
+	var buffer bytes.Buffer
+	params.Output = &buffer
+	params.OutputFormat = "json"
+	params.Eval = `a = b, a = 1, c = 2, c > b`
+	rt := &Runtime{}
+	rt.Start(params)
+	expected := parseJSON(`[{"a": 1, "b": 1, "c": 2}]`)
+	result := parseJSON(buffer.String())
+	if !reflect.DeepEqual(expected, result) {
+		t.Fatalf("Expected %v but got: %v", expected, result)
+	}
+}
 
 func TestInit(t *testing.T) {
 	tmp1, err := ioutil.TempFile("", "docFile")
@@ -92,4 +110,12 @@ func TestInit(t *testing.T) {
 		t.Fatalf("Expected %v but got: %v", expected, modules[tmp2.Name()])
 	}
 
+}
+
+func parseJSON(s string) interface{} {
+	var x interface{}
+	if err := json.Unmarshal([]byte(s), &x); err != nil {
+		panic(err)
+	}
+	return x
 }
