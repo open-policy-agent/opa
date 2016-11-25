@@ -19,12 +19,28 @@ func RegisterBuiltin(b *Builtin) {
 // by default. When adding a new built-in function to OPA, update this
 // list.
 var DefaultBuiltins = [...]*Builtin{
+	// =
 	Equality,
+
+	// Comparisons
 	GreaterThan, GreaterThanEq, LessThan, LessThanEq, NotEqual,
+
+	// Arithmetic
 	Plus, Minus, Multiply, Divide, Round, Abs,
+
+	// Aggregates
 	Count, Sum, Max,
+
+	// Casting
 	ToNumber,
+
+	// Regular Expressions
 	RegexMatch,
+
+	// Sets
+	SetDiff,
+
+	// Strings
 	Concat, FormatInt, IndexOf, Substring, Lower, Upper, Contains, StartsWith, EndsWith,
 }
 
@@ -176,6 +192,18 @@ var ToNumber = &Builtin{
 var RegexMatch = &Builtin{
 	Name:    Var("re_match"),
 	NumArgs: 2,
+}
+
+/**
+ * Sets
+ */
+
+// SetDiff returns the difference between two sets. The difference is all of the
+// elements in the first set that are not in the second set.
+var SetDiff = &Builtin{
+	Name:      Var("set_diff"),
+	NumArgs:   3,
+	TargetPos: []int{2},
 }
 
 /**

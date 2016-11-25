@@ -1030,6 +1030,27 @@ func TestTopDownRegex(t *testing.T) {
 	}
 }
 
+func TestTopDownSets(t *testing.T) {
+	tests := []struct {
+		note     string
+		rules    []string
+		expected interface{}
+	}{
+		{"set_diff", []string{"p = x :- s1 = {1,2,3,4}, s2 = {1,3}, set_diff(s1, s2, x)"}, `[2,4]`},
+		{"set_diff: refs", []string{"p = x :- s1 = {a[2], a[1], a[0]}, s2 = {a[0], 2}, set_diff(s1, s2, x)"}, "[3]"},
+		{"set_diff: bad input", []string{"p = x :- s1 = [1,2,3], s2 = {1,2}, set_diff(s1, s2, x)"}, fmt.Errorf("evaluation error (code: 3): set_diff: first input argument must be set not ast.Array")},
+		{"set_diff: bad input", []string{"p = x :- s1 = {1,2,3}, s2 = [1,2], set_diff(s1, s2, x)"}, fmt.Errorf("evaluation error (code: 3): set_diff: second input argument must be set not ast.Array")},
+		{"set_diff: ground output", []string{"p :- set_diff({1,2,3}, {2,3}, {1})"}, "true"},
+		{"set_diff: virt docs", []string{"p = x :- set_diff(s1, s2, x)", "s1[1] :- true", "s1[2] :- true", `s1["c"] :- true`, `s2 = {"c", 1} :- true`}, "[2]"},
+	}
+
+	data := loadSmallTestData()
+
+	for _, tc := range tests {
+		runTopDownTestCase(t, data, tc.note, tc.rules, tc.expected)
+	}
+}
+
 func TestTopDownStrings(t *testing.T) {
 	tests := []struct {
 		note     string
@@ -1310,6 +1331,30 @@ func TestExample(t *testing.T) {
 			]
 		}
 	`)
+}
+
+func TestTopDownUnsupportedBuiltin(t *testing.T) {
+
+	ast.RegisterBuiltin(&ast.Builtin{
+		Name: ast.Var("unsupported_builtin"),
+	})
+
+	body := ast.MustParseBody(`unsupported_builtin()`)
+	compiler := ast.NewCompiler()
+	store := storage.New(storage.InMemoryConfig())
+	txn := storage.NewTransactionOrDie(store)
+	ctx := NewContext(body, compiler, store, txn)
+
+	err := Eval(ctx, func(*Context) error {
+		return nil
+	})
+
+	expected := typeErrUnsupportedBuiltin(body[0])
+
+	if !reflect.DeepEqual(err, expected) {
+		t.Fatalf("Expected %v but got: %v", expected, err)
+	}
+
 }
 
 func TestTopDownTracingEval(t *testing.T) {

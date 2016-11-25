@@ -327,8 +327,13 @@ func conflictErr(query interface{}, kind string, rule *ast.Rule) error {
 	}
 }
 
-// typeErrObjectKey returns a TypeErr with a message indicating the rule
-// produced a key that of an inappropriate type.
+func typeErrUnsupportedBuiltin(expr *ast.Expr) error {
+	return &Error{
+		Code:    TypeErr,
+		Message: expr.Location.Format("%v built-in is not supported", expr.Terms.([]*ast.Term)[0]),
+	}
+}
+
 func typeErrObjectKey(rule *ast.Rule, v ast.Value) error {
 	return &Error{
 		Code:    TypeErr,
@@ -691,7 +696,7 @@ func (r resolver) Resolve(ref ast.Ref) (interface{}, error) {
 }
 
 // ResolveRefs returns the AST value obtained by resolving references to base
-// doccuments.
+// documents.
 func ResolveRefs(v ast.Value, ctx *Context) (ast.Value, error) {
 	result, err := ast.TransformRefs(v, func(r ast.Ref) (ast.Value, error) {
 		return lookupValue(ctx, r)
@@ -917,11 +922,9 @@ func evalExpr(ctx *Context, iter Iterator) error {
 	expr := PlugExpr(ctx.Current(), ctx.Binding)
 	switch tt := expr.Terms.(type) {
 	case []*ast.Term:
-		builtin := builtinFunctions[tt[0].Value.(ast.Var)]
-		if builtin == nil {
-			// Operator validation is done at compile-time so we panic here because
-			// this should never happen.
-			panic(fmt.Sprintf("illegal built-in: %v", tt[0]))
+		builtin, ok := builtinFunctions[tt[0].Value.(ast.Var)]
+		if !ok {
+			return typeErrUnsupportedBuiltin(expr)
 		}
 		return builtin(ctx, expr, iter)
 	case *ast.Term:
