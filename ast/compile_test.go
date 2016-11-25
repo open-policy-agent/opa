@@ -404,17 +404,25 @@ func TestCompilerCheckRuleConflicts(t *testing.T) {
 	c := NewCompiler()
 	c.Modules = map[string]*Module{
 		"mod": MustParseModule(`
-		package badrules
-		p[x] :- x=1
-		p[x] = y :- x = y, x = 1
-		q[1] :- true
-		q = {1,2,3} :- true
+			package badrules
+			p[x] :- x = 1
+			p[x] = y :- x = y, x = "a"
+			q[1] :- true
+			q = {1,2,3} :- true
+			r[x] = y :- x = y, x = "a"
+			r[x] = y :- x = y, x = "a"
+		`),
+		"mod2": MustParseModule(`
+			package badrules.r
+			q[1] :- true
 		`),
 	}
 	compileStages(c, "", "checkRuleConflicts")
 
 	expected := []string{
 		"p: conflicting rule types (all definitions of p must have the same type)",
+		"package badrules.r: package declaration conflicts with rule defined at <input>:7:4",
+		"package badrules.r: package declaration conflicts with rule defined at <input>:8:4",
 		"q: conflicting rule types (all definitions of q must have the same type)",
 	}
 

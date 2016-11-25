@@ -54,6 +54,13 @@ func (loc *Location) Format(f string, a ...interface{}) string {
 	return fmt.Sprintf(f, a...)
 }
 
+func (loc *Location) String() string {
+	if len(loc.File) > 0 {
+		return fmt.Sprintf("%v:%v", loc.File, loc.Row)
+	}
+	return fmt.Sprintf("<input>:%v:%v", loc.Row, loc.Col)
+}
+
 // Value declares the common interface for all Term values. Every kind of Term value
 // in the language is represented as a type that implements this interface:
 //

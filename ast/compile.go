@@ -317,6 +317,20 @@ func (c *Compiler) checkRuleConflicts() {
 
 		return false
 	})
+
+	c.ModuleTree.DepthFirst(func(node *ModuleTreeNode) bool {
+		for _, mod := range node.Modules {
+			for _, rule := range mod.Rules {
+				if childNode, ok := node.Children[String(rule.Name)]; ok {
+					for _, childMod := range childNode.Modules {
+						msg := fmt.Sprintf("%v: package declaration conflicts with rule defined at %v", childMod.Package, rule.Loc())
+						c.err(NewError(CompileErr, mod.Package.Loc(), msg))
+					}
+				}
+			}
+		}
+		return false
+	})
 }
 
 // checkSafetyRuleBodies ensures that variables appearing in negated expressions or non-target
@@ -627,6 +641,16 @@ func (n *ModuleTreeNode) Size() int {
 		s += c.Size()
 	}
 	return s
+}
+
+// DepthFirst performs a depth-first traversal of the module tree rooted at n.
+// If f returns true, traversal will not continue to the children of n.
+func (n *ModuleTreeNode) DepthFirst(f func(node *ModuleTreeNode) bool) {
+	if !f(n) {
+		for _, node := range n.Children {
+			node.DepthFirst(f)
+		}
+	}
 }
 
 // RuleTreeNode represents a node in the rule tree. The rule tree is keyed by
