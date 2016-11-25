@@ -6,12 +6,9 @@ package runtime
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
-	"path/filepath"
 	"time"
 
 	fsnotify "gopkg.in/fsnotify.v1"
@@ -103,7 +100,7 @@ func (rt *Runtime) init(params *Params) error {
 		}
 	}
 
-	parsed, err := parseInputs(params.Paths)
+	loaded, err := loadAllPaths(params.Paths)
 	if err != nil {
 		return err
 	}
@@ -123,12 +120,12 @@ func (rt *Runtime) init(params *Params) error {
 	defer store.Close(txn)
 
 	ref := ast.Ref{ast.DefaultRootDocument}
-	if err := store.Write(txn, storage.AddOp, ref, parsed.baseDocs); err != nil {
+	if err := store.Write(txn, storage.AddOp, ref, loaded.Documents); err != nil {
 		return errors.Wrapf(err, "storage error")
 	}
 
 	// Load policies provided via input.
-	if err := compileAndStoreInputs(parsed.modules, store, txn); err != nil {
+	if err := compileAndStoreInputs(loaded.Modules, store, txn); err != nil {
 		return errors.Wrapf(err, "compile error")
 	}
 
@@ -215,7 +212,7 @@ func (rt *Runtime) readWatcher(watcher *fsnotify.Watcher, paths []string) {
 
 func (rt *Runtime) processWatcherUpdate(paths []string) error {
 
-	parsed, err := parseInputs(paths)
+	loaded, err := loadAllPaths(paths)
 	if err != nil {
 		return err
 	}
@@ -228,11 +225,11 @@ func (rt *Runtime) processWatcherUpdate(paths []string) error {
 	defer rt.Store.Close(txn)
 
 	ref := ast.Ref{ast.DefaultRootDocument}
-	if err := rt.Store.Write(txn, storage.AddOp, ref, parsed.baseDocs); err != nil {
+	if err := rt.Store.Write(txn, storage.AddOp, ref, loaded.Documents); err != nil {
 		return err
 	}
 
-	return compileAndStoreInputs(parsed.modules, rt.Store, txn)
+	return compileAndStoreInputs(loaded.Modules, rt.Store, txn)
 }
 
 func (rt *Runtime) getBanner() string {
@@ -243,110 +240,24 @@ func (rt *Runtime) getBanner() string {
 	return buf.String()
 }
 
-func compileAndStoreInputs(parsed map[string]*parsedModule, store *storage.Storage, txn storage.Transaction) error {
+func compileAndStoreInputs(modules map[string]*loadedModule, store *storage.Storage, txn storage.Transaction) error {
 
-	mods := store.ListPolicies(txn)
+	policies := store.ListPolicies(txn)
 
-	for _, p := range parsed {
-		mods[p.id] = p.mod
+	for id, mod := range modules {
+		policies[id] = mod.Parsed
 	}
 
 	c := ast.NewCompiler()
-	if c.Compile(mods); c.Failed() {
+	if c.Compile(policies); c.Failed() {
 		return c.Errors
 	}
 
-	for id := range parsed {
-		if err := store.InsertPolicy(txn, id, parsed[id].mod, parsed[id].raw, false); err != nil {
+	for id := range modules {
+		if err := store.InsertPolicy(txn, id, modules[id].Parsed, modules[id].Raw, false); err != nil {
 			return err
 		}
 	}
 
 	return nil
-}
-
-type parsedModule struct {
-	id  string
-	mod *ast.Module
-	raw []byte
-}
-
-type parsedInput struct {
-	baseDocs map[string]interface{}
-	modules  map[string]*parsedModule
-}
-
-func parseInputs(paths []string) (*parsedInput, error) {
-
-	baseDocs := map[string]interface{}{}
-	parsedModules := map[string]*parsedModule{}
-
-	for _, file := range paths {
-
-		info, err := os.Stat(file)
-		if err != nil {
-			return nil, err
-		}
-
-		if info.IsDir() {
-			continue
-		}
-
-		bs, err := ioutil.ReadFile(file)
-
-		if err != nil {
-			return nil, err
-		}
-
-		m, astErr := ast.ParseModule(file, string(bs))
-
-		if astErr == nil {
-			parsedModules[file] = &parsedModule{
-				id:  file,
-				mod: m,
-				raw: bs,
-			}
-			continue
-		}
-
-		parsed, jsonErr := parseJSONObjectFile(file)
-
-		if jsonErr == nil {
-			baseDocs, err = mergeDocs(baseDocs, parsed)
-			if err != nil {
-				return nil, errors.Wrapf(err, file)
-			}
-			continue
-		}
-
-		switch filepath.Ext(file) {
-		case ".json":
-			return nil, errors.Wrapf(jsonErr, file)
-		case ".rego":
-			return nil, astErr
-		default:
-			return nil, fmt.Errorf("unrecognizable file: %v", file)
-		}
-	}
-
-	r := &parsedInput{
-		baseDocs: baseDocs,
-		modules:  parsedModules,
-	}
-
-	return r, nil
-}
-
-func parseJSONObjectFile(file string) (map[string]interface{}, error) {
-	f, err := os.Open(file)
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-	reader := json.NewDecoder(f)
-	var data map[string]interface{}
-	if err := reader.Decode(&data); err != nil {
-		return nil, err
-	}
-	return data, nil
 }
