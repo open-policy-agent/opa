@@ -49,6 +49,7 @@ func TestComplete(t *testing.T) {
 		"data.a.b.c.q",
 		"data.a.b.d.r",
 		"data.repl.s",
+		"data.repl.version",
 	}
 
 	sort.Strings(result)
@@ -132,6 +133,62 @@ func TestDumpPath(t *testing.T) {
 	if !reflect.DeepEqual(data, result) {
 		t.Fatalf("Expected dumped json to equal %v but got: %v", data, result)
 	}
+}
+
+func TestShow(t *testing.T) {
+	store := storage.New(storage.InMemoryConfig())
+	var buffer bytes.Buffer
+	repl := newRepl(store, &buffer)
+
+	repl.OneShot("package repl_test")
+	repl.OneShot("show")
+	assertREPLText(t, buffer, "package repl_test\n")
+	buffer.Reset()
+
+	repl.OneShot("import xyz")
+	repl.OneShot("show")
+
+	expected := `package repl_test
+
+import xyz` + "\n"
+	assertREPLText(t, buffer, expected)
+	buffer.Reset()
+
+	repl.OneShot("import data.foo as bar")
+	repl.OneShot("show")
+
+	expected = `package repl_test
+
+import xyz
+import data.foo as bar` + "\n"
+	assertREPLText(t, buffer, expected)
+	buffer.Reset()
+
+	repl.OneShot("p[1] :- true")
+	repl.OneShot("p[2] :- true")
+	repl.OneShot("show")
+
+	expected = `package repl_test
+
+import xyz
+import data.foo as bar
+
+p[1] :- true
+p[2] :- true` + "\n"
+	assertREPLText(t, buffer, expected)
+	buffer.Reset()
+
+	repl.OneShot("package abc")
+	repl.OneShot("show")
+
+	assertREPLText(t, buffer, "package abc\n")
+	buffer.Reset()
+
+	repl.OneShot("package repl_test")
+	repl.OneShot("show")
+
+	assertREPLText(t, buffer, expected)
+	buffer.Reset()
 }
 
 func TestUnset(t *testing.T) {
@@ -342,6 +399,11 @@ func TestEvalData(t *testing.T) {
 		}
 	}`)
 	result := parseJSON(buffer.String())
+
+	// Strip REPL documents out as these change depending on build settings.
+	data := result.(map[string]interface{})
+	delete(data, "repl")
+
 	if !reflect.DeepEqual(result, expected) {
 		t.Fatalf("Expected:\n%v\n\nGot:\n%v", expected, result)
 	}
@@ -750,6 +812,13 @@ func TestBuildHeader(t *testing.T) {
 	}
 	if !reflect.DeepEqual(result, expected) {
 		t.Errorf("Build header expected %v but got %v", expected, result)
+	}
+}
+
+func assertREPLText(t *testing.T, buf bytes.Buffer, expected string) {
+	result := buf.String()
+	if result != expected {
+		t.Fatalf("Expected:\n%v\n\nGot:\n%v", expected, result)
 	}
 }
 

@@ -129,13 +129,17 @@ func (mod *Module) Equal(other *Module) bool {
 func (mod *Module) String() string {
 	buf := []string{}
 	buf = append(buf, mod.Package.String())
-	buf = append(buf, "")
-	for _, imp := range mod.Imports {
-		buf = append(buf, imp.String())
+	if len(mod.Imports) > 0 {
+		buf = append(buf, "")
+		for _, imp := range mod.Imports {
+			buf = append(buf, imp.String())
+		}
 	}
-	buf = append(buf, "")
-	for _, rule := range mod.Rules {
-		buf = append(buf, rule.String())
+	if len(mod.Rules) > 0 {
+		buf = append(buf, "")
+		for _, rule := range mod.Rules {
+			buf = append(buf, rule.String())
+		}
 	}
 	return strings.Join(buf, "\n")
 }
