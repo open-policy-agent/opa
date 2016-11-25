@@ -13,6 +13,8 @@ import (
 
 	fsnotify "gopkg.in/fsnotify.v1"
 
+	"path/filepath"
+
 	"github.com/golang/glog"
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/repl"
@@ -39,8 +41,9 @@ type Params struct {
 	// Default: "pretty".
 	OutputFormat string
 
-	// Paths contains filenames of base documents and policy modules to
-	// load on startup.
+	// Paths contains filenames of base documents and policy modules to load on
+	// startup. Data files may be prefixed with "<dotted-path>:" to indicate
+	// where the contained document should be loaded.
 	Paths []string
 
 	// PolicyDir is the filename of the directory to persist policy
@@ -181,24 +184,37 @@ func (rt *Runtime) startRepl(params *Params) {
 
 }
 
-func (rt *Runtime) getWatcher(paths []string) (*fsnotify.Watcher, error) {
+func (rt *Runtime) getWatcher(rootPaths []string) (*fsnotify.Watcher, error) {
+
+	watchPaths := []string{}
+	for _, path := range rootPaths {
+		result, err := listPaths(path, true)
+		if err != nil {
+			return nil, err
+		}
+		watchPaths = append(watchPaths, result...)
+	}
+
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
 		return nil, err
 	}
-	for _, path := range paths {
+
+	for _, path := range watchPaths {
 		if err := watcher.Add(path); err != nil {
 			return nil, err
 		}
 	}
+
 	return watcher, nil
 }
 
 func (rt *Runtime) readWatcher(watcher *fsnotify.Watcher, paths []string) {
 	for {
 		select {
-		case event := <-watcher.Events:
-			if event.Op&fsnotify.Write != 0 {
+		case evt := <-watcher.Events:
+			mask := (fsnotify.Create | fsnotify.Remove | fsnotify.Rename | fsnotify.Write)
+			if (evt.Op & mask) != 0 {
 				t0 := time.Now()
 				if err := rt.processWatcherUpdate(paths); err != nil {
 					fmt.Fprintf(os.Stdout, "\n# reload error (took %v): %v", time.Since(t0), err)
@@ -249,6 +265,7 @@ func compileAndStoreInputs(modules map[string]*loadedModule, store *storage.Stor
 	}
 
 	c := ast.NewCompiler()
+
 	if c.Compile(policies); c.Failed() {
 		return c.Errors
 	}
@@ -260,4 +277,28 @@ func compileAndStoreInputs(modules map[string]*loadedModule, store *storage.Stor
 	}
 
 	return nil
+}
+
+func mustListPaths(path string, recurse bool) (paths []string) {
+	paths, err := listPaths(path, recurse)
+	if err != nil {
+		panic(err)
+	}
+	return paths
+}
+
+// listPaths returns a sorted list of files contained at path. If recurse is
+// true and path is a directory, then listPaths will walk the directory
+// structure recursively and list files at each level.
+func listPaths(path string, recurse bool) (paths []string, err error) {
+	err = filepath.Walk(path, func(f string, info os.FileInfo, err error) error {
+		if !recurse {
+			if path != f && path != filepath.Dir(f) {
+				return filepath.SkipDir
+			}
+		}
+		paths = append(paths, f)
+		return nil
+	})
+	return paths, err
 }

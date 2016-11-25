@@ -47,20 +47,45 @@ To evaluate a query from the command line:
 
 	$ opa run -e 'data.repl.version[key] = value'
 
-The 'run' command starts an instance of the OPA runtime. The OPA
-runtime can be started as an interactive shell or a server.
+The 'run' command starts an instance of the OPA runtime. The OPA runtime can be
+started as an interactive shell or a server.
 
-When the runtime is started as a shell, users can define rules and
-evaluate expressions interactively. When the runtime is started as
-a server, users can access OPA's APIs via HTTP.
+When the runtime is started as a shell, users can define rules and evaluate
+expressions interactively. When the runtime is started as a server, OPA exposes
+an HTTP API for managing policies, reading and writing data, and executing
+queries.
 
-The runtime can be initialized with one or more files that represent
-base documents (e.g., example.json) or policies (e.g., example.rego).
+The runtime can be initialized with one or more files that contain policies or
+data. OPA supports both JSON and YAML data. If a directory is given, OPA will
+recursively load the files contained in the directory. When loading from
+directories, only files with known extensions are considered. The current set of
+file extensions that OPA will consider are:
 
-If the --policy-dir option is specified any files inside the directory
-will be considered policy definitions and will be loaded on startup. API
-calls to create new policies save the definition file to this direcory.
-In addition, API calls to delete policies will remove the definition file.
+	.json          # JSON data
+	.yaml or .yml  # YAML data
+	.rego          # Rego file
+
+Data file and directory paths can be prefixed with the desired destination in
+the global document with the following syntax:
+
+	<dotted-path>:<file-path>
+
+For example:
+
+	$ echo "[1,2,3]" > example.json
+	$ opa run -e 'data.foo' foo.bar:./example.json
+	{
+	  "bar": [
+	    1,
+	    2,
+	    3
+	  ]
+	}
+
+If the --policy-dir option is specified any files inside the directory will be
+considered policy definitions and will be loaded on startup. API calls to create
+new policies save the definition file to this direcory. In addition, API calls
+to delete policies will remove the definition file.
 `,
 		Run: func(cmd *cobra.Command, args []string) {
 			params.Paths = args

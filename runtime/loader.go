@@ -11,6 +11,8 @@ import (
 	"os"
 	"path/filepath"
 
+	"strings"
+
 	"github.com/ghodss/yaml"
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/pkg/errors"
@@ -19,6 +21,7 @@ import (
 type loaded struct {
 	Documents map[string]interface{}
 	Modules   map[string]*loadedModule
+	path      []string
 }
 
 type loadedModule struct {
@@ -33,34 +36,116 @@ func newLoaded() *loaded {
 	}
 }
 
+func (l *loaded) WithParent(p string) *loaded {
+	path := append(l.path, p)
+	return &loaded{
+		Documents: l.Documents,
+		Modules:   l.Modules,
+		path:      path,
+	}
+}
+
+type unsupportedDocumentType string
+
+func (u unsupportedDocumentType) Error() string {
+	return "unsupported document type: " + string(u)
+}
+
+type unrecognizedFile string
+
+func (u unrecognizedFile) Error() string {
+	return "unrecognized file: " + string(u)
+}
+
+func (l *loaded) Merge(path string, result interface{}) error {
+	switch result := result.(type) {
+	case *loadedModule:
+		l.Modules[path] = result
+	default:
+		obj, err := makeDir(l.path, result)
+		if err != nil {
+			return err
+		}
+		merged, err := mergeDocs(l.Documents, obj)
+		if err != nil {
+			return err
+		}
+		for k := range merged {
+			l.Documents[k] = merged[k]
+		}
+	}
+	return nil
+}
+
 func loadAllPaths(paths []string) (*loaded, error) {
 
-	loaded := newLoaded()
+	root := newLoaded()
 
 	for _, path := range paths {
 
-		result, err := loadFile(path)
+		loaded := root
+		prefix, path := splitPathPrefix(path)
+		if len(prefix) > 0 {
+			for _, part := range prefix {
+				loaded = loaded.WithParent(part)
+			}
+		}
+
+		info, err := os.Stat(path)
 		if err != nil {
 			return nil, err
 		}
 
-		switch result := result.(type) {
-		case *loadedModule:
-			loaded.Modules[path] = result
-		case map[string]interface{}:
-			loaded.Documents, err = mergeDocs(loaded.Documents, result)
+		if info.IsDir() {
+			if err := loadDirRecursive(path, loaded.WithParent(info.Name())); err != nil {
+				return nil, err
+			}
+		} else {
+			result, err := loadFile(path)
 			if err != nil {
 				return nil, err
 			}
-		default:
-			return nil, fmt.Errorf("unsupported document type %T", result)
+			if err := loaded.Merge(path, result); err != nil {
+				return nil, err
+			}
 		}
 	}
 
-	return loaded, nil
+	return root, nil
 }
 
-func loadFile(path string) (interface{}, error) {
+func loadDirRecursive(dirPath string, loaded *loaded) error {
+	files, err := ioutil.ReadDir(dirPath)
+	if err != nil {
+		return err
+	}
+	for _, file := range files {
+		filePath := filepath.Join(dirPath, file.Name())
+		info, err := os.Stat(filePath)
+		if err != nil {
+			return err
+		}
+		if info.IsDir() {
+			if err := loadDirRecursive(filePath, loaded.WithParent(info.Name())); err != nil {
+				return err
+			}
+		} else {
+			result, err := loadFileForKnownTypes(filePath)
+			if err != nil {
+				if _, ok := err.(unrecognizedFile); !ok {
+					return err
+				}
+			} else {
+				if err := loaded.Merge(filePath, result); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
+}
+
+func loadFileForKnownTypes(path string) (interface{}, error) {
 	switch filepath.Ext(path) {
 	case ".json":
 		return jsonLoad(path)
@@ -68,12 +153,11 @@ func loadFile(path string) (interface{}, error) {
 		return regoLoad(path)
 	case ".yaml", ".yml":
 		return yamlLoad(path)
-	default:
-		return guessLoad(path)
 	}
+	return nil, unrecognizedFile(path)
 }
 
-func guessLoad(path string) (interface{}, error) {
+func loadFileForAnyType(path string) (interface{}, error) {
 	module, err := regoLoad(path)
 	if err == nil {
 		return module, nil
@@ -86,7 +170,15 @@ func guessLoad(path string) (interface{}, error) {
 	if err == nil {
 		return doc, nil
 	}
-	return nil, fmt.Errorf("unrecognized file: %v", path)
+	return nil, unrecognizedFile(path)
+}
+
+func loadFile(path string) (interface{}, error) {
+	result, err := loadFileForKnownTypes(path)
+	if err == nil {
+		return result, nil
+	}
+	return loadFileForAnyType(path)
 }
 
 func jsonLoad(path string) (interface{}, error) {
@@ -123,7 +215,26 @@ func yamlLoad(path string) (interface{}, error) {
 	}
 	var x interface{}
 	if err := yaml.Unmarshal(bs, &x); err != nil {
-		return nil, err
+		return nil, errors.Wrapf(err, path)
 	}
 	return x, nil
+}
+
+func makeDir(path []string, x interface{}) (map[string]interface{}, error) {
+	if len(path) == 0 {
+		obj, ok := x.(map[string]interface{})
+		if !ok {
+			return nil, unsupportedDocumentType(fmt.Sprintf("%T", x))
+		}
+		return obj, nil
+	}
+	return makeDir(path[:len(path)-1], map[string]interface{}{path[len(path)-1]: x})
+}
+
+func splitPathPrefix(path string) ([]string, string) {
+	parts := strings.SplitN(path, ":", 2)
+	if len(parts) == 2 && len(parts[0]) > 0 {
+		return strings.Split(parts[0], "."), parts[1]
+	}
+	return nil, path
 }

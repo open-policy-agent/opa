@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"sort"
 	"testing"
 
 	"github.com/ghodss/yaml"
@@ -104,6 +105,78 @@ func TestLoadGuessYAML(t *testing.T) {
 	})
 }
 
+func TestLoadDirRecursive(t *testing.T) {
+	files := map[string]string{
+		"/a/data1.json": `[1,2,3]`,
+		"/a/e.rego":     `package q`,
+		"/b/data2.yaml": `{"aaa": {"bbb": 1}}`,
+		"/b/data3.yaml": `{"aaa": {"ccc": 2}}`,
+		"/b/d/x.json":   "null",
+		"/b/d/e.rego":   `package p`,
+		"/b/d/ignore":   `deadbeef`,
+		"/foo":          `{"zzz": "b"}`,
+	}
+
+	withTempFS(files, func(rootDir string) {
+		loaded, err := loadAllPaths(mustListPaths(rootDir, false)[1:])
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
+		expectedDocuments := parseJSON(`
+		{
+			"zzz": "b",
+			"a": [1,2,3],
+			"b": {
+				"aaa": {
+					"bbb": 1,
+					"ccc": 2
+				},
+				"d": null
+			}
+		}
+		`)
+		if !reflect.DeepEqual(loaded.Documents, expectedDocuments) {
+			t.Fatalf("Expected:\n%v\n\nGot:\n%v", expectedDocuments, loaded.Documents)
+		}
+		mod1 := ast.MustParseModule(files["/a/e.rego"])
+		mod2 := ast.MustParseModule(files["/b/d/e.rego"])
+		expectedMod1 := loaded.Modules[filepath.Join(rootDir, "/a/e.rego")].Parsed
+		expectedMod2 := loaded.Modules[filepath.Join(rootDir, "/b/d/e.rego")].Parsed
+		if !mod1.Equal(expectedMod1) {
+			t.Fatalf("Expected:\n%v\n\nGot:\n%v", expectedMod1, mod1)
+		}
+		if !mod2.Equal(expectedMod2) {
+			t.Fatalf("Expected:\n%v\n\nGot:\n%v", expectedMod2, mod2)
+		}
+	})
+}
+
+func TestLoadRooted(t *testing.T) {
+	files := map[string]string{
+		"/foo.json":     "[1,2,3]",
+		"/bar.json":     "abc", // YAML
+		"/baz/qux.json": "null",
+	}
+
+	withTempFS(files, func(rootDir string) {
+		paths := mustListPaths(rootDir, false)[1:]
+		sort.Strings(paths)
+		paths[0] = "one.two:" + paths[0]
+		paths[1] = "three:" + paths[1]
+		paths[2] = "four:" + paths[2]
+		loaded, err := loadAllPaths(paths)
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
+		expected := parseJSON(`
+		{"four": [1,2,3], "one": {"two": "abc"}, "three": {"baz": null}}
+		`)
+		if !reflect.DeepEqual(loaded.Documents, expected) {
+			t.Fatalf("Expected %v but got: %v", expected, loaded.Documents)
+		}
+	})
+}
+
 func withTempFS(files map[string]string, f func(string)) {
 	rootDir, cleanup, err := makeTempFS(files)
 	if err != nil {
@@ -118,7 +191,7 @@ func withTempFS(files map[string]string, f func(string)) {
 // creation succeeds, the caller should invoke cleanup when they are done.
 func makeTempFS(files map[string]string) (rootDir string, cleanup func(), err error) {
 
-	rootDir, err = ioutil.TempDir("", "")
+	rootDir, err = ioutil.TempDir("", "loader_test")
 
 	if err != nil {
 		return "", nil, err
@@ -140,7 +213,7 @@ func makeTempFS(files map[string]string) (rootDir string, cleanup func(), err er
 	for path, content := range files {
 		dirname, filename := filepath.Split(path)
 		dirPath := filepath.Join(rootDir, dirname)
-		if err := os.MkdirAll(dirPath, 777); err != nil {
+		if err := os.MkdirAll(dirPath, 0777); err != nil {
 			return "", nil, err
 		}
 
