@@ -27,30 +27,30 @@ complex types.
 
 | Built-in | Inputs | Description |
 | ------- |--------|-------------|
-| ``x != y``   |  2     | ``x`` is not equal to ``y`` |
-| ``x < y``   |  2     | ``x`` is less than ``y`` |
-| ``x <= y``   |  2     | ``x`` is less than or equal to ``y`` |
-| ``x > y``   |  2     | ``x`` is greater than ``y`` |
-| ``x >= y``   |  2     | ``x`` is greater than or equal to ``y`` |
+| <span class="opa-keep-it-together">``x != y``</span>   |  2     | ``x`` is not equal to ``y`` |
+| <span class="opa-keep-it-together">``x < y``</span>   |  2     | ``x`` is less than ``y`` |
+| <span class="opa-keep-it-together">``x <= y``</span>   |  2     | ``x`` is less than or equal to ``y`` |
+| <span class="opa-keep-it-together">``x > y``</span>   |  2     | ``x`` is greater than ``y`` |
+| <span class="opa-keep-it-together">``x >= y``</span>   |  2     | ``x`` is greater than or equal to ``y`` |
 
 ### Numbers
 
 | Built-in | Inputs | Description |
 | ------- |--------|-------------|
-| ``plus(x, y, output)``   |  2     | ``x`` + ``y`` = ``output`` |
-| ``minus(x, y, output)``  |  2     | ``x`` - ``y`` = ``output`` |
-| ``mul(x, y, output)``   |  2     | ``x`` * ``y`` = ``output`` |
-| ``div(x, y, output)``   |  2     | ``x`` / ``y`` = ``output`` |
-| ``round(x, output)``    |  1     | ``output`` is ``x`` rounded to the nearest integer |
-| ``abs(x, output)``    |  1     | ``output`` is the absolute value of ``x`` |
+| <span class="opa-keep-it-together">``plus(x, y, output)``</span>   |  2     | ``x`` + ``y`` = ``output`` |
+| <span class="opa-keep-it-together">``minus(x, y, output)``</span>  |  2     | ``x`` - ``y`` = ``output`` |
+| <span class="opa-keep-it-together">``mul(x, y, output)``</span>   |  2     | ``x`` * ``y`` = ``output`` |
+| <span class="opa-keep-it-together">``div(x, y, output)``</span>   |  2     | ``x`` / ``y`` = ``output`` |
+| <span class="opa-keep-it-together">``round(x, output)``</span>    |  1     | ``output`` is ``x`` rounded to the nearest integer |
+| <span class="opa-keep-it-together">``abs(x, output)``</span>    |  1     | ``output`` is the absolute value of ``x`` |
 
 ### Aggregates
 
 | Built-in | Inputs | Description |
 | ------- |--------|-------------|
-| ``count(collection, output)`` | 1 | ``output`` is the length of the object, array, or set ``collection`` |
-| ``sum(array_or_set, output)`` | 1 | ``output`` is the sum of the numbers in ``array_or_set`` |
-| ``max(array_or_set, output)`` | 1 | ``output`` is the maximum value in ``array_or_set`` |
+| <span class="opa-keep-it-together">``count(collection, output)``</span> | 1 | ``output`` is the length of the object, array, or set ``collection`` |
+| <span class="opa-keep-it-together">``sum(array_or_set, output)``</span> | 1 | ``output`` is the sum of the numbers in ``array_or_set`` |
+| <span class="opa-keep-it-together">``max(array_or_set, output)``</span> | 1 | ``output`` is the maximum value in ``array_or_set`` |
 
 ### Sets
 
@@ -62,22 +62,22 @@ complex types.
 
 | Built-in | Inputs | Description |
 | ------- |--------|-------------|
-| ``concat(join, array_or_set, output)`` | 2 | ``output`` is the result of concatenating the elements of ``array_or_set`` with the  string ``join`` |
-| ``contains(string, search)`` | 2 | true if ``string`` contains ``search`` |
-| ``endswith(string, search)`` | 2 | true if ``string`` ends with ``search`` |
+| <span class="opa-keep-it-together">``concat(join, array_or_set, output)``</span> | 2 | ``output`` is the result of concatenating the elements of ``array_or_set`` with the  string ``join`` |
+| <span class="opa-keep-it-together">``contains(string, search)``</span> | 2 | true if ``string`` contains ``search`` |
+| <span class="opa-keep-it-together">``endswith(string, search)``</span> | 2 | true if ``string`` ends with ``search`` |
 | <span class="opa-keep-it-together">``format_int(number, base, output)``</span> | 2 | ``output`` is string representation of ``number`` in the given ``base`` |
-| ``indexof(string, search, output)`` | 2 | ``output`` is the index inside ``string`` where ``search`` first occurs, or -1 if ``search`` does not exist |
-| ``lower(string, output)`` | 1 | ``output`` is ``string`` after converting to lower case |
-| ``re_match(pattern, value)`` | 2 | true if the value matches the pattern |
-| ``startswith(string, search)`` | 2 | true if ``string`` begins with ``search`` |
-| ``substring(string, start, length, output)`` | 2 | ``output`` is the portion of ``string`` from index ``start`` and having a length of ``length``.  If ``length`` is less than zero, ``length`` is the remainder of the ``string``. |
-| ``upper(string, output)`` | 1 | ``output`` is ``string`` after converting to upper case |
+| <span class="opa-keep-it-together">``indexof(string, search, output)``</span> | 2 | ``output`` is the index inside ``string`` where ``search`` first occurs, or -1 if ``search`` does not exist |
+| <span class="opa-keep-it-together">``lower(string, output)``</span> | 1 | ``output`` is ``string`` after converting to lower case |
+| <span class="opa-keep-it-together">``re_match(pattern, value)``</span> | 2 | true if the value matches the pattern |
+| <span class="opa-keep-it-together">``startswith(string, search)``</span> | 2 | true if ``string`` begins with ``search`` |
+| <span class="opa-keep-it-together">``substring(string, start, length, output)``</span> | 2 | ``output`` is the portion of ``string`` from index ``start`` and having a length of ``length``.  If ``length`` is less than zero, ``length`` is the remainder of the ``string``. |
+| <span class="opa-keep-it-together">``upper(string, output)``</span> | 1 | ``output`` is ``string`` after converting to upper case |
 
 ### Types
 
 | Built-in | Inputs | Description |
 | ------- |--------|-------------|
-| ``to_number(x, output)`` | 1 | ``output`` is ``x`` converted to a number |
+| <span class="opa-keep-it-together">``to_number(x, output)``</span> | 1 | ``output`` is ``x`` converted to a number |
 
 ## <a name="grammar"></a> Grammar
 
