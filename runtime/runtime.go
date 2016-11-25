@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -29,6 +30,9 @@ type Params struct {
 
 	// Addr is the listening address that the OPA server will bind to.
 	Addr string
+
+	// Eval is a string to evaluate in the REPL.
+	Eval string
 
 	// HistoryPath is the filename to store the interactive shell user
 	// input history.
@@ -57,6 +61,17 @@ type Params struct {
 	// and reload the storage layer each time they change. This is useful for
 	// interactive development.
 	Watch bool
+
+	// Output is the output stream used when run as an interactive shell. This
+	// is mostly for test purposes.
+	Output io.Writer
+}
+
+// NewParams returns a new Params object.
+func NewParams() *Params {
+	return &Params{
+		Output: os.Stdout,
+	}
 }
 
 // Runtime represents a single OPA instance.
@@ -77,6 +92,7 @@ func (rt *Runtime) Start(params *Params) {
 	} else {
 		rt.startRepl(params)
 	}
+
 }
 
 func (rt *Runtime) init(params *Params) error {
@@ -144,18 +160,28 @@ func (rt *Runtime) startServer(params *Params) {
 func (rt *Runtime) startRepl(params *Params) {
 
 	banner := rt.getBanner()
-	repl := repl.New(rt.Store, params.HistoryPath, os.Stdout, params.OutputFormat, banner)
+	repl := repl.New(rt.Store, params.HistoryPath, params.Output, params.OutputFormat, banner)
 
 	if params.Watch {
 		watcher, err := rt.getWatcher(params.Paths)
 		if err != nil {
-			fmt.Println("error opening watch:", err)
+			fmt.Fprintln(params.Output, "error opening watch:", err)
 			os.Exit(1)
 		}
 		go rt.readWatcher(watcher, params.Paths)
 	}
 
-	repl.Loop()
+	if params.Eval == "" {
+		repl.Loop()
+	} else {
+		repl.DisableUndefinedOutput(true)
+		repl.DisableMultiLineBuffering(true)
+		if err := repl.OneShot(params.Eval); err != nil {
+			fmt.Fprintln(params.Output, "error:", err)
+			os.Exit(1)
+		}
+	}
+
 }
 
 func (rt *Runtime) getWatcher(paths []string) (*fsnotify.Watcher, error) {

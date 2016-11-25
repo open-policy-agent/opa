@@ -199,65 +199,51 @@ func TestUnset(t *testing.T) {
 	repl.OneShot("magic = 23")
 	repl.OneShot("p = 3.14")
 	repl.OneShot("unset p")
-	repl.OneShot("p")
-	result := buffer.String()
-	if result != "error: 1 error occurred: 1:1: p is unsafe (variable p must appear in the output position of at least one non-negated expression)\n" {
-		t.Errorf("Expected p to be unsafe but got: %v", result)
-		return
+
+	err := repl.OneShot("p")
+	if _, ok := err.(ast.Errors); !ok {
+		t.Fatalf("Expected AST error but got: %v", err)
 	}
 
 	buffer.Reset()
 	repl.OneShot("p = 3.14")
 	repl.OneShot("p = 3 :- false")
 	repl.OneShot("unset p")
-	repl.OneShot("p")
-	result = buffer.String()
-	if result != "error: 1 error occurred: 1:1: p is unsafe (variable p must appear in the output position of at least one non-negated expression)\n" {
-		t.Errorf("Expected p to be unsafe but got: %v", result)
-		return
+
+	err = repl.OneShot("p")
+	if _, ok := err.(ast.Errors); !ok {
+		t.Fatalf("Expected AST error but got err: %v, output: %v", err, buffer.String())
 	}
 
-	buffer.Reset()
-	repl.OneShot("unset ")
-	result = buffer.String()
-	if result != "error: unset <var>: expects exactly one argument\n" {
-		t.Errorf("Expected unset error for bad syntax but got: %v", result)
+	if err := repl.OneShot("unset "); err == nil {
+		t.Fatalf("Expected unset error for bad syntax but got: %v", buffer.String())
 	}
 
-	buffer.Reset()
-	repl.OneShot("unset 1=1")
-	result = buffer.String()
-	if result != "error: argument must identify a rule\n" {
-		t.Errorf("Expected unset error for bad syntax but got: %v", result)
+	if err := repl.OneShot("unset 1=1"); err == nil {
+		t.Fatalf("Expected unset error for bad syntax but got: %v", buffer.String())
 	}
 
-	buffer.Reset()
-	repl.OneShot(`unset "p"`)
-	result = buffer.String()
-	if result != "error: argument must identify a rule\n" {
-		t.Errorf("Expected unset error for bad syntax but got: %v", result)
+	if err := repl.OneShot(`unset "p"`); err == nil {
+		t.Fatalf("Expected unset error for bad syntax but got: %v", buffer.String())
 	}
 
 	buffer.Reset()
 	repl.OneShot(`unset q`)
-	result = buffer.String()
-	if result != "warning: no matching rules in current module\n" {
-		t.Errorf("Expected unset error for missing rule but got: %v", result)
+	if buffer.String() != "warning: no matching rules in current module\n" {
+		t.Fatalf("Expected unset error for missing rule but got: %v", buffer.String())
 	}
 
 	buffer.Reset()
 	repl.OneShot(`magic`)
-	result = buffer.String()
-	if result != "23\n" {
-		t.Errorf("Expected magic to be defined but got: %v", result)
+	if buffer.String() != "23\n" {
+		t.Fatalf("Expected magic to be defined but got: %v", buffer.String())
 	}
 
 	buffer.Reset()
 	repl.OneShot(`package data.other`)
 	repl.OneShot(`unset magic`)
-	result = buffer.String()
-	if result != "warning: no matching rules in current module\n" {
-		t.Errorf("Expected unset error for bad syntax but got: %v", result)
+	if buffer.String() != "warning: no matching rules in current module\n" {
+		t.Fatalf("Expected unset error for bad syntax but got: %v", buffer.String())
 	}
 }
 
@@ -614,17 +600,14 @@ func TestEvalBodyCompileError(t *testing.T) {
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
 	repl.outputFormat = "json"
-	repl.OneShot("x = 1, y > x")
-	result1 := buffer.String()
-	expected1 := "error: 1 error occurred: 1:1: y is unsafe (variable y must appear in the output position of at least one non-negated expression)\n"
-	if result1 != expected1 {
-		t.Errorf("Expected error message in output but got`: %v", result1)
-		return
+	err := repl.OneShot("x = 1, y > x")
+	if _, ok := err.(ast.Errors); !ok {
+		t.Fatalf("Expected error message in output but got`: %v", buffer.String())
 	}
 	buffer.Reset()
 	repl.OneShot("x = 1, y = 2, y > x")
 	var result2 []interface{}
-	err := json.Unmarshal(buffer.Bytes(), &result2)
+	err = json.Unmarshal(buffer.Bytes(), &result2)
 	if err != nil {
 		t.Errorf("Expected valid JSON output but got: %v", buffer.String())
 		return
@@ -722,10 +705,9 @@ func TestEvalPackage(t *testing.T) {
 	repl.OneShot("p = true :- true")
 	repl.OneShot("package baz.qux")
 	buffer.Reset()
-	repl.OneShot("p")
-	if buffer.String() != "error: 1 error occurred: 1:1: p is unsafe (variable p must appear in the output position of at least one non-negated expression)\n" {
-		t.Errorf("Expected unsafe variable error but got: %v", buffer.String())
-		return
+	err := repl.OneShot("p")
+	if err.Error() != "1 error occurred: 1:1: p is unsafe (variable p must appear in the output position of at least one non-negated expression)" {
+		t.Fatalf("Expected unsafe variable error but got: %v", err)
 	}
 	repl.OneShot("import data.foo.bar.p")
 	buffer.Reset()

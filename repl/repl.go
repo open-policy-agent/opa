@@ -46,6 +46,9 @@ type REPL struct {
 	initPrompt   string
 	bufferPrompt string
 	banner       string
+
+	bufferDisabled    bool
+	undefinedDisabled bool
 }
 
 type explainMode int
@@ -153,9 +156,13 @@ func (r *REPL) Loop() {
 			os.Exit(1)
 		}
 
-		if r.OneShot(input) {
-			fmt.Fprintln(r.output, "Exiting")
-			break
+		if err := r.OneShot(input); err != nil {
+			switch err := err.(type) {
+			case stop:
+				break
+			default:
+				fmt.Fprintln(r.output, "error:", err)
+			}
 		}
 
 		line.AppendHistory(input)
@@ -164,17 +171,14 @@ func (r *REPL) Loop() {
 	r.saveHistory(line)
 }
 
-// OneShot evaluates a single line and prints the result. Returns true if caller
-// should exit.
-func (r *REPL) OneShot(line string) bool {
+// OneShot evaluates the line and prints the result. If an error occurs it is
+// returned for the caller to display.
+func (r *REPL) OneShot(line string) error {
 
 	var err error
-
 	r.txn, err = r.store.NewTransaction()
-
 	if err != nil {
-		fmt.Fprintln(r.output, "error:", err)
-		return false
+		return err
 	}
 
 	defer r.store.Close(r.txn)
@@ -211,7 +215,21 @@ func (r *REPL) OneShot(line string) bool {
 		return r.evalBufferMulti()
 	}
 
-	return false
+	return nil
+}
+
+// DisableMultiLineBuffering causes the REPL to not buffer lines when a parse
+// error occurs. Instead, the error will be returned to the caller.
+func (r *REPL) DisableMultiLineBuffering(yes bool) *REPL {
+	r.bufferDisabled = yes
+	return r
+}
+
+// DisableUndefinedOutput causes the REPL to not print any output when the query
+// is undefined.
+func (r *REPL) DisableUndefinedOutput(yes bool) *REPL {
+	r.undefinedDisabled = yes
+	return r
 }
 
 func (r *REPL) complete(line string) (c []string) {
@@ -251,90 +269,80 @@ func (r *REPL) complete(line string) (c []string) {
 	return c
 }
 
-func (r *REPL) cmdDump(args []string) bool {
+func (r *REPL) cmdDump(args []string) error {
 	if len(args) == 0 {
 		return r.cmdDumpOutput()
 	}
 	return r.cmdDumpPath(args[0])
 }
 
-func (r *REPL) cmdDumpOutput() bool {
-	if err := dumpStorage(r.store, r.txn, r.output); err != nil {
-		fmt.Fprintln(r.output, "error:", err)
-	}
-	return false
+func (r *REPL) cmdDumpOutput() error {
+	return dumpStorage(r.store, r.txn, r.output)
 }
 
-func (r *REPL) cmdDumpPath(filename string) bool {
+func (r *REPL) cmdDumpPath(filename string) error {
 	f, err := os.Create(filename)
 	if err != nil {
-		fmt.Fprintln(r.output, "error:", err)
-		return false
+		return err
 	}
 	defer f.Close()
-	if err := dumpStorage(r.store, r.txn, f); err != nil {
-		fmt.Fprintln(r.output, "error:", err)
-	}
-	return false
+	return dumpStorage(r.store, r.txn, f)
 }
 
-func (r *REPL) cmdExit() bool {
-	return true
+func (r *REPL) cmdExit() error {
+	return stop{}
 }
 
-func (r *REPL) cmdFormat(s string) bool {
+func (r *REPL) cmdFormat(s string) error {
 	r.outputFormat = s
-	return false
+	return nil
 }
 
-func (r *REPL) cmdHelp() bool {
+func (r *REPL) cmdHelp() error {
 	fmt.Fprintln(r.output, "")
 	printHelpExamples(r.output, r.initPrompt)
 	printHelpCommands(r.output)
-	return false
+	return nil
 }
 
-func (r *REPL) cmdShow() bool {
+func (r *REPL) cmdShow() error {
 	module := r.modules[r.currentModuleID]
 	fmt.Fprintln(r.output, module)
-	return false
+	return nil
 }
 
-func (r *REPL) cmdTrace() bool {
+func (r *REPL) cmdTrace() error {
 	if r.explain == explainTrace {
 		r.explain = explainOff
 	} else {
 		r.explain = explainTrace
 	}
-	return false
+	return nil
 }
 
-func (r *REPL) cmdTruth() bool {
+func (r *REPL) cmdTruth() error {
 	if r.explain == explainTruth {
 		r.explain = explainOff
 	} else {
 		r.explain = explainTruth
 	}
-	return false
+	return nil
 }
 
-func (r *REPL) cmdUnset(args []string) bool {
+func (r *REPL) cmdUnset(args []string) error {
 
 	if len(args) != 1 {
-		fmt.Fprintln(r.output, "error: unset <var>: expects exactly one argument")
-		return false
+		return newBadArgsErr("unset <var>: expects exactly one argument")
 	}
 
 	term, err := ast.ParseTerm(args[0])
 	if err != nil {
-		fmt.Fprintln(r.output, "error: argument must identify a rule")
-		return false
+		return newBadArgsErr("argument must identify a rule")
 	}
 
 	v, ok := term.Value.(ast.Var)
 	if !ok {
-		fmt.Fprintln(r.output, "error: argument must identify a rule")
-		return false
+		return newBadArgsErr("argument must identify a rule")
 	}
 
 	mod := r.modules[r.currentModuleID]
@@ -348,7 +356,7 @@ func (r *REPL) cmdUnset(args []string) bool {
 
 	if len(rules) == len(mod.Rules) {
 		fmt.Fprintln(r.output, "warning: no matching rules in current module")
-		return false
+		return nil
 	}
 
 	cpy := mod.Copy()
@@ -366,13 +374,12 @@ func (r *REPL) cmdUnset(args []string) bool {
 	compiler := ast.NewCompiler()
 
 	if compiler.Compile(policies); compiler.Failed() {
-		fmt.Fprintln(r.output, "error:", compiler.Errors)
-		return false
+		return compiler.Errors
 	}
 
 	r.modules[r.currentModuleID] = cpy
 
-	return false
+	return nil
 }
 
 func (r *REPL) compileBody(body ast.Body) (ast.Body, error) {
@@ -416,54 +423,59 @@ func (r *REPL) compileRule(rule *ast.Rule) error {
 	return nil
 }
 
-func (r *REPL) evalBufferOne() bool {
+func (r *REPL) evalBufferOne() error {
 
 	line := strings.Join(r.buffer, "\n")
 
 	if len(strings.TrimSpace(line)) == 0 {
 		r.buffer = []string{}
-		return false
+		return nil
 	}
 
 	// The user may enter lines with comments on the end or
 	// multiple lines with comments interspersed. In these cases
 	// the parser will return multiple statements.
 	stmts, err := ast.ParseStatements("", line)
-
 	if err != nil {
-		return false
+		if r.bufferDisabled {
+			return err
+		}
+		return nil
 	}
 
 	r.buffer = []string{}
 
 	for _, stmt := range stmts {
-		r.evalStatement(stmt)
+		if err := r.evalStatement(stmt); err != nil {
+			return err
+		}
 	}
 
-	return false
+	return nil
 }
 
-func (r *REPL) evalBufferMulti() bool {
+func (r *REPL) evalBufferMulti() error {
 
 	line := strings.Join(r.buffer, "\n")
 	r.buffer = []string{}
 
 	if len(strings.TrimSpace(line)) == 0 {
-		return false
+		return nil
 	}
 
 	stmts, err := ast.ParseStatements("", line)
 
 	if err != nil {
-		fmt.Fprintln(r.output, "error:", err)
-		return false
+		return err
 	}
 
 	for _, stmt := range stmts {
-		r.evalStatement(stmt)
+		if err := r.evalStatement(stmt); err != nil {
+			return err
+		}
 	}
 
-	return false
+	return nil
 }
 
 func (r *REPL) loadCompiler() (*ast.Compiler, error) {
@@ -522,29 +534,26 @@ func (r *REPL) loadGlobals(compiler *ast.Compiler) (*ast.ValueMap, error) {
 	return topdown.MakeGlobals(pairs)
 }
 
-func (r *REPL) evalStatement(stmt interface{}) bool {
+func (r *REPL) evalStatement(stmt interface{}) error {
 	switch s := stmt.(type) {
 	case ast.Body:
 		body, err := r.compileBody(s)
 		if err != nil {
-			fmt.Fprintln(r.output, "error:", err)
-			return false
+			return err
 		}
 		if rule := ast.ParseConstantRule(body); rule != nil {
 			if err := r.compileRule(rule); err != nil {
-				fmt.Fprintln(r.output, "error:", err)
+				return err
 			}
-			return false
+			return nil
 		}
 		compiler, err := r.loadCompiler()
 		if err != nil {
-			fmt.Fprintln(r.output, "error:", err)
-			return false
+			return err
 		}
 		globals, err := r.loadGlobals(compiler)
 		if err != nil {
-			fmt.Fprintln(r.output, "error:", err)
-			return false
+			return err
 		}
 		return r.evalBody(compiler, globals, body)
 	case *ast.Rule:
@@ -556,10 +565,10 @@ func (r *REPL) evalStatement(stmt interface{}) bool {
 	case *ast.Package:
 		return r.evalPackage(s)
 	}
-	return false
+	return nil
 }
 
-func (r *REPL) evalBody(compiler *ast.Compiler, globals *ast.ValueMap, body ast.Body) bool {
+func (r *REPL) evalBody(compiler *ast.Compiler, globals *ast.ValueMap, body ast.Body) error {
 
 	// Special case for positive, single term inputs.
 	if len(body) == 1 {
@@ -633,8 +642,7 @@ func (r *REPL) evalBody(compiler *ast.Compiler, globals *ast.ValueMap, body ast.
 	}
 
 	if err != nil {
-		fmt.Fprintf(r.output, "error: %v\n", err)
-		return false
+		return err
 	}
 
 	if isTrue {
@@ -647,30 +655,31 @@ func (r *REPL) evalBody(compiler *ast.Compiler, globals *ast.ValueMap, body ast.
 		fmt.Fprintln(r.output, "false")
 	}
 
-	return false
+	return nil
 }
 
-func (r *REPL) evalImport(i *ast.Import) bool {
+func (r *REPL) evalImport(i *ast.Import) error {
 
 	mod := r.modules[r.currentModuleID]
+
 	for _, other := range mod.Imports {
 		if other.Equal(i) {
-			return false
+			return nil
 		}
 	}
 
 	mod.Imports = append(mod.Imports, i)
 
-	return false
+	return nil
 }
 
-func (r *REPL) evalPackage(p *ast.Package) bool {
+func (r *REPL) evalPackage(p *ast.Package) error {
 
 	moduleID := p.Path.String()
 
 	if _, ok := r.modules[moduleID]; ok {
 		r.currentModuleID = moduleID
-		return false
+		return nil
 	}
 
 	r.modules[moduleID] = &ast.Module{
@@ -679,7 +688,7 @@ func (r *REPL) evalPackage(p *ast.Package) bool {
 
 	r.currentModuleID = moduleID
 
-	return false
+	return nil
 }
 
 // evalTermSingleValue evaluates and prints terms in cases where the term evaluates to a
@@ -687,7 +696,7 @@ func (r *REPL) evalPackage(p *ast.Package) bool {
 // and comprehensions always evaluate to a single value. To handle references, this function
 // still executes the query, except it does so by rewriting the body to assign the term
 // to a variable. This allows the REPL to obtain the result even if the term is false.
-func (r *REPL) evalTermSingleValue(compiler *ast.Compiler, globals *ast.ValueMap, body ast.Body) bool {
+func (r *REPL) evalTermSingleValue(compiler *ast.Compiler, globals *ast.ValueMap, body ast.Body) error {
 
 	term := body[0].Terms.(*ast.Term)
 	outputVar := ast.Wildcard
@@ -722,19 +731,21 @@ func (r *REPL) evalTermSingleValue(compiler *ast.Compiler, globals *ast.ValueMap
 	}
 
 	if err != nil {
-		fmt.Fprintln(r.output, "error:", err)
-	} else if isTrue {
+		return err
+	}
+
+	if isTrue {
 		r.printJSON(result)
-	} else {
+	} else if !r.undefinedDisabled {
 		r.printUndefined()
 	}
 
-	return false
+	return nil
 }
 
 // evalTermMultiValue evaluates and prints terms in cases where the term may evaluate to multiple
 // ground values, e.g., a[i], [servers[x]], etc.
-func (r *REPL) evalTermMultiValue(compiler *ast.Compiler, globals *ast.ValueMap, body ast.Body) bool {
+func (r *REPL) evalTermMultiValue(compiler *ast.Compiler, globals *ast.ValueMap, body ast.Body) error {
 
 	// Mangle the expression in the same way we do for evalTermSingleValue. When handling the
 	// evaluation result below, we will ignore this variable.
@@ -807,8 +818,10 @@ func (r *REPL) evalTermMultiValue(compiler *ast.Compiler, globals *ast.ValueMap,
 	}
 
 	if err != nil {
-		fmt.Fprintln(r.output, "error:", err)
-	} else if len(results) > 0 {
+		return err
+	}
+
+	if len(results) > 0 {
 		keys := []string{}
 		for v := range vars {
 			keys = append(keys, v)
@@ -818,11 +831,11 @@ func (r *REPL) evalTermMultiValue(compiler *ast.Compiler, globals *ast.ValueMap,
 			keys = append(keys, resultKey)
 		}
 		r.printResults(keys, results)
-	} else {
+	} else if !r.undefinedDisabled {
 		r.printUndefined()
 	}
 
-	return false
+	return nil
 }
 
 func (r *REPL) getPrompt() string {
