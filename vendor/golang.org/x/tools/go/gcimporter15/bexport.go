@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build go1.6
-
 // Binary package export.
 // This file was derived from $GOROOT/src/cmd/compile/internal/gc/bexport.go;
 // see that file for specification of the format.
@@ -41,7 +39,11 @@ const debugFormat = false // default: false
 const trace = false // default: false
 
 // Current export format version. Increase with each format change.
-const exportVersion = 1
+// 3: added aliasTag and export of aliases
+// 2: removed unused bool in ODCL export (compiler only)
+// 1: header format change (more regular), export package for _ struct fields
+// 0: Go1.7 encoding
+const exportVersion = 3
 
 // trackAllTypes enables cycle tracking for all types, not just named
 // types. The existing compiler invariants assume that unnamed types
@@ -63,6 +65,9 @@ type exporter struct {
 	pkgIndex map[*types.Package]int
 	typIndex map[types.Type]int
 
+	// track objects that we've reexported already
+	reexported map[types.Object]bool
+
 	// position encoding
 	posInfoFormat bool
 	prevFile      string
@@ -81,6 +86,7 @@ func BExportData(fset *token.FileSet, pkg *types.Package) []byte {
 		strIndex:      map[string]int{"": 0}, // empty string is mapped to 0
 		pkgIndex:      make(map[*types.Package]int),
 		typIndex:      make(map[types.Type]int),
+		reexported:    make(map[types.Object]bool),
 		posInfoFormat: true, // TODO(gri) might become a flag, eventually
 	}
 
@@ -199,6 +205,21 @@ func (p *exporter) obj(obj types.Object) {
 		p.paramList(sig.Params(), sig.Variadic())
 		p.paramList(sig.Results(), false)
 
+	// Alias-related code. Keep for now.
+	// case *types_Alias:
+	// 	// make sure the original is exported before the alias
+	// 	// (if the alias declaration was invalid, orig will be nil)
+	// 	orig := original(obj)
+	// 	if orig != nil && !p.reexported[orig] {
+	// 		p.obj(orig)
+	// 		p.reexported[orig] = true
+	// 	}
+
+	// 	p.tag(aliasTag)
+	// 	p.pos(obj)
+	// 	p.string(obj.Name())
+	// 	p.qualifiedName(orig)
+
 	default:
 		log.Fatalf("gcimporter: unexpected object %v (%T)", obj, obj)
 	}
@@ -258,6 +279,10 @@ func commonPrefixLen(a, b string) int {
 }
 
 func (p *exporter) qualifiedName(obj types.Object) {
+	if obj == nil {
+		p.string("")
+		return
+	}
 	p.string(obj.Name())
 	p.pkg(obj.Pkg(), false)
 }

@@ -1,14 +1,16 @@
-hash: eda8e41c6d50ffe7d103d1d6537a3d6c57ce594e5e52d328c1464b4e796be0c6
-updated: 2016-10-24T15:07:45.76317832-07:00
+hash: b512c8b8352e69417daf93c6391f9588e2e53ce05a229f5386cd49cc581be845
+updated: 2016-11-25T12:52:18.701493632-08:00
 imports:
 - name: github.com/dchest/siphash
   version: 4ebf1de738443ea7f45f02dc394c4df1942a126d
+- name: github.com/ghodss/yaml
+  version: a54de18a07046d8c4b26e9327698a2ebb9285b36
 - name: github.com/golang/glog
   version: 23def4e6c14b4da8ac2ed8007337bc5eb5007998
 - name: github.com/golang/lint
-  version: 3390df4df2787994aea98de825b964ac7944b817
+  version: 206c0f020eba0f7fbcfbc467a5eb808037df2ed6
 - name: github.com/gorilla/context
-  version: 215affda49addc4c8ef7e2534915df2c8c35c6cd
+  version: 08b5f424b9271eedf6f9f0ce86cb9396ed337a42
 - name: github.com/gorilla/mux
   version: 757bef944d0f21880861c2dd9c871ca543023cba
 - name: github.com/inconshreveable/mousetrap
@@ -18,23 +20,25 @@ imports:
 - name: github.com/olekukonko/tablewriter
   version: bdcc175572fd7abece6c831e643891b9331bc9e7
 - name: github.com/peterh/liner
-  version: 8975875355a81d612fafb9f5a6037bdcc2d9b073
+  version: 3c5f577f62ec95a012ea48a58dd4de3c48222a35
 - name: github.com/pkg/errors
-  version: 839d9e913e063e28dfd0e6c7b7512793e0a48be9
+  version: 248dadf4e9068a0b3e79f02ed0a610d935de5302
 - name: github.com/PuerkitoBio/pigeon
   version: 00949f7e8bae024d00576190ea052378944083d9
 - name: github.com/spf13/cobra
-  version: 856b96dcb49d6427babe192998a35190a12c2230
+  version: 9495bc009a56819bdb0ddbc1a373e29c140bc674
 - name: github.com/spf13/pflag
-  version: 1560c1005499d61b80f865c04d39ca7505bf7f0b
+  version: 5ccb023bc27df288a957c5e994cd44fd19619465
 - name: golang.org/x/sys
-  version: 9c60d1c508f5134d1ca726b4641db998f2523357
+  version: b699b7032584f0953262cb2788a0ca19bb494703
   subpackages:
   - unix
 - name: golang.org/x/tools
-  version: 20055e012df642222098b26b314090eb8177055e
+  version: 167995c67fa45f3a7fc8dab62bb872212e397c11
   subpackages:
   - cmd/goimports
 - name: gopkg.in/fsnotify.v1
   version: 629574ca2a5df945712d3079857300b5e4da0236
+- name: gopkg.in/yaml.v2
+  version: a5b47d31c556af34a302ce5d659e6fea44d90de0
 testImports: []

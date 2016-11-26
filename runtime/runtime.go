@@ -6,15 +6,14 @@ package runtime
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
-	"path/filepath"
 	"time"
 
 	fsnotify "gopkg.in/fsnotify.v1"
+
+	"path/filepath"
 
 	"github.com/golang/glog"
 	"github.com/open-policy-agent/opa/ast"
@@ -42,8 +41,9 @@ type Params struct {
 	// Default: "pretty".
 	OutputFormat string
 
-	// Paths contains filenames of base documents and policy modules to
-	// load on startup.
+	// Paths contains filenames of base documents and policy modules to load on
+	// startup. Data files may be prefixed with "<dotted-path>:" to indicate
+	// where the contained document should be loaded.
 	Paths []string
 
 	// PolicyDir is the filename of the directory to persist policy
@@ -103,7 +103,7 @@ func (rt *Runtime) init(params *Params) error {
 		}
 	}
 
-	parsed, err := parseInputs(params.Paths)
+	loaded, err := loadAllPaths(params.Paths)
 	if err != nil {
 		return err
 	}
@@ -123,12 +123,12 @@ func (rt *Runtime) init(params *Params) error {
 	defer store.Close(txn)
 
 	ref := ast.Ref{ast.DefaultRootDocument}
-	if err := store.Write(txn, storage.AddOp, ref, parsed.baseDocs); err != nil {
+	if err := store.Write(txn, storage.AddOp, ref, loaded.Documents); err != nil {
 		return errors.Wrapf(err, "storage error")
 	}
 
 	// Load policies provided via input.
-	if err := compileAndStoreInputs(parsed.modules, store, txn); err != nil {
+	if err := compileAndStoreInputs(loaded.Modules, store, txn); err != nil {
 		return errors.Wrapf(err, "compile error")
 	}
 
@@ -184,24 +184,37 @@ func (rt *Runtime) startRepl(params *Params) {
 
 }
 
-func (rt *Runtime) getWatcher(paths []string) (*fsnotify.Watcher, error) {
+func (rt *Runtime) getWatcher(rootPaths []string) (*fsnotify.Watcher, error) {
+
+	watchPaths := []string{}
+	for _, path := range rootPaths {
+		result, err := listPaths(path, true)
+		if err != nil {
+			return nil, err
+		}
+		watchPaths = append(watchPaths, result...)
+	}
+
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
 		return nil, err
 	}
-	for _, path := range paths {
+
+	for _, path := range watchPaths {
 		if err := watcher.Add(path); err != nil {
 			return nil, err
 		}
 	}
+
 	return watcher, nil
 }
 
 func (rt *Runtime) readWatcher(watcher *fsnotify.Watcher, paths []string) {
 	for {
 		select {
-		case event := <-watcher.Events:
-			if event.Op&fsnotify.Write != 0 {
+		case evt := <-watcher.Events:
+			mask := (fsnotify.Create | fsnotify.Remove | fsnotify.Rename | fsnotify.Write)
+			if (evt.Op & mask) != 0 {
 				t0 := time.Now()
 				if err := rt.processWatcherUpdate(paths); err != nil {
 					fmt.Fprintf(os.Stdout, "\n# reload error (took %v): %v", time.Since(t0), err)
@@ -215,7 +228,7 @@ func (rt *Runtime) readWatcher(watcher *fsnotify.Watcher, paths []string) {
 
 func (rt *Runtime) processWatcherUpdate(paths []string) error {
 
-	parsed, err := parseInputs(paths)
+	loaded, err := loadAllPaths(paths)
 	if err != nil {
 		return err
 	}
@@ -228,11 +241,11 @@ func (rt *Runtime) processWatcherUpdate(paths []string) error {
 	defer rt.Store.Close(txn)
 
 	ref := ast.Ref{ast.DefaultRootDocument}
-	if err := rt.Store.Write(txn, storage.AddOp, ref, parsed.baseDocs); err != nil {
+	if err := rt.Store.Write(txn, storage.AddOp, ref, loaded.Documents); err != nil {
 		return err
 	}
 
-	return compileAndStoreInputs(parsed.modules, rt.Store, txn)
+	return compileAndStoreInputs(loaded.Modules, rt.Store, txn)
 }
 
 func (rt *Runtime) getBanner() string {
@@ -243,21 +256,22 @@ func (rt *Runtime) getBanner() string {
 	return buf.String()
 }
 
-func compileAndStoreInputs(parsed map[string]*parsedModule, store *storage.Storage, txn storage.Transaction) error {
+func compileAndStoreInputs(modules map[string]*loadedModule, store *storage.Storage, txn storage.Transaction) error {
 
-	mods := store.ListPolicies(txn)
+	policies := store.ListPolicies(txn)
 
-	for _, p := range parsed {
-		mods[p.id] = p.mod
+	for id, mod := range modules {
+		policies[id] = mod.Parsed
 	}
 
 	c := ast.NewCompiler()
-	if c.Compile(mods); c.Failed() {
+
+	if c.Compile(policies); c.Failed() {
 		return c.Errors
 	}
 
-	for id := range parsed {
-		if err := store.InsertPolicy(txn, id, parsed[id].mod, parsed[id].raw, false); err != nil {
+	for id := range modules {
+		if err := store.InsertPolicy(txn, id, modules[id].Parsed, modules[id].Raw, false); err != nil {
 			return err
 		}
 	}
@@ -265,88 +279,26 @@ func compileAndStoreInputs(parsed map[string]*parsedModule, store *storage.Stora
 	return nil
 }
 
-type parsedModule struct {
-	id  string
-	mod *ast.Module
-	raw []byte
-}
-
-type parsedInput struct {
-	baseDocs map[string]interface{}
-	modules  map[string]*parsedModule
-}
-
-func parseInputs(paths []string) (*parsedInput, error) {
-
-	baseDocs := map[string]interface{}{}
-	parsedModules := map[string]*parsedModule{}
-
-	for _, file := range paths {
-
-		info, err := os.Stat(file)
-		if err != nil {
-			return nil, err
-		}
-
-		if info.IsDir() {
-			continue
-		}
-
-		bs, err := ioutil.ReadFile(file)
-
-		if err != nil {
-			return nil, err
-		}
-
-		m, astErr := ast.ParseModule(file, string(bs))
-
-		if astErr == nil {
-			parsedModules[file] = &parsedModule{
-				id:  file,
-				mod: m,
-				raw: bs,
-			}
-			continue
-		}
-
-		parsed, jsonErr := parseJSONObjectFile(file)
-
-		if jsonErr == nil {
-			baseDocs, err = mergeDocs(baseDocs, parsed)
-			if err != nil {
-				return nil, errors.Wrapf(err, file)
-			}
-			continue
-		}
-
-		switch filepath.Ext(file) {
-		case ".json":
-			return nil, errors.Wrapf(jsonErr, file)
-		case ".rego":
-			return nil, astErr
-		default:
-			return nil, fmt.Errorf("unrecognizable file: %v", file)
-		}
-	}
-
-	r := &parsedInput{
-		baseDocs: baseDocs,
-		modules:  parsedModules,
-	}
-
-	return r, nil
-}
-
-func parseJSONObjectFile(file string) (map[string]interface{}, error) {
-	f, err := os.Open(file)
+func mustListPaths(path string, recurse bool) (paths []string) {
+	paths, err := listPaths(path, recurse)
 	if err != nil {
-		return nil, err
+		panic(err)
 	}
-	defer f.Close()
-	reader := json.NewDecoder(f)
-	var data map[string]interface{}
-	if err := reader.Decode(&data); err != nil {
-		return nil, err
-	}
-	return data, nil
+	return paths
+}
+
+// listPaths returns a sorted list of files contained at path. If recurse is
+// true and path is a directory, then listPaths will walk the directory
+// structure recursively and list files at each level.
+func listPaths(path string, recurse bool) (paths []string, err error) {
+	err = filepath.Walk(path, func(f string, info os.FileInfo, err error) error {
+		if !recurse {
+			if path != f && path != filepath.Dir(f) {
+				return filepath.SkipDir
+			}
+		}
+		paths = append(paths, f)
+		return nil
+	})
+	return paths, err
 }
