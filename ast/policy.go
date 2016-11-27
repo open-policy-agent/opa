@@ -201,6 +201,25 @@ func (imp *Import) Loc() *Location {
 	return imp.Location
 }
 
+// Name returns the variable that is used to refer to the imported virtual
+// document. This is the alias if defined otherwise the last element in the
+// path.
+func (imp *Import) Name() Var {
+	if len(imp.Alias) != 0 {
+		return imp.Alias
+	}
+	switch v := imp.Path.Value.(type) {
+	case Var:
+		return v
+	case Ref:
+		if len(v) == 1 {
+			return v[0].Value.(Var)
+		}
+		return Var(v[len(v)-1].Value.(String))
+	}
+	panic("illegal import")
+}
+
 func (imp *Import) String() string {
 	buf := []string{"import", imp.Path.String()}
 	if len(imp.Alias) > 0 {

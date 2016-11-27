@@ -81,6 +81,30 @@ func TestImportEquals(t *testing.T) {
 	}
 }
 
+func TestImportName(t *testing.T) {
+	imp1 := &Import{Path: VarTerm("foo"), Alias: Var("bar")}
+	imp2 := &Import{Path: VarTerm("foo")}
+	imp3 := &Import{Path: RefTerm(VarTerm("bar"), StringTerm("baz"), StringTerm("qux")), Alias: Var("corge")}
+	imp4 := &Import{Path: RefTerm(VarTerm("bar"), StringTerm("baz"), StringTerm("qux"))}
+	imp5 := &Import{Path: DefaultRootDocument}
+	expected := []Var{
+		"bar",
+		"foo",
+		"corge",
+		"qux",
+		"data",
+	}
+	tests := []*Import{
+		imp1, imp2, imp3, imp4, imp5,
+	}
+	for i := range tests {
+		result := tests[i].Name()
+		if !result.Equal(expected[i]) {
+			t.Errorf("Expected %v but got: %v", expected[i], result)
+		}
+	}
+}
+
 func TestImportString(t *testing.T) {
 	imp1 := &Import{Path: VarTerm("foo"), Alias: Var("bar")}
 	imp2 := &Import{Path: VarTerm("foo")}

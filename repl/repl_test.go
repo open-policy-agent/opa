@@ -80,6 +80,17 @@ func TestComplete(t *testing.T) {
 		t.Fatalf("Expected %v but got: %v", expected, result)
 	}
 
+	repl.OneShot("import data.a.b.c.p as xyz")
+	repl.OneShot("import data.a.b.d")
+
+	result = repl.complete("x")
+	expected = []string{
+		"xyz",
+	}
+
+	if !reflect.DeepEqual(result, expected) {
+		t.Fatalf("Expected %v but got: %v", expected, result)
+	}
 }
 
 func TestDump(t *testing.T) {
