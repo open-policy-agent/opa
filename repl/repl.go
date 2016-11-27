@@ -35,7 +35,6 @@ type REPL struct {
 	modules         map[string]*ast.Module
 	currentModuleID string
 	buffer          []string
-	nextID          int
 	txn             storage.Transaction
 
 	// TODO(tsandall): replace this state with rule definitions
@@ -243,23 +242,32 @@ func (r *REPL) complete(line string) (c []string) {
 
 	defer r.store.Close(txn)
 
-	mods := r.store.ListPolicies(txn)
-
-	for _, mod := range mods {
-		for _, rule := range mod.Rules {
-			path := mod.Package.Path.String() + "." + rule.Name.String()
+	// add imports
+	for _, mod := range r.modules {
+		for _, imp := range mod.Imports {
+			path := imp.Name().String()
 			if strings.HasPrefix(path, line) {
 				c = append(c, path)
 			}
 		}
 	}
 
+	// add virtual docs defined in repl
 	for _, mod := range r.modules {
 		for _, rule := range mod.Rules {
-			if r.isGeneratedRuleName(rule.Name) {
-				continue
+			path := rule.Path(mod.Package.Path).String()
+			if strings.HasPrefix(path, line) {
+				c = append(c, path)
 			}
-			path := mod.Package.Path.String() + "." + rule.Name.String()
+		}
+	}
+
+	mods := r.store.ListPolicies(txn)
+
+	// add virtual docs defined by policies
+	for _, mod := range mods {
+		for _, rule := range mod.Rules {
+			path := rule.Path(mod.Package.Path).String()
 			if strings.HasPrefix(path, line) {
 				c = append(c, path)
 			}
@@ -938,16 +946,6 @@ func (r *REPL) saveHistory(prompt *liner.State) {
 		prompt.WriteHistory(f)
 		f.Close()
 	}
-}
-
-func (r *REPL) generateRuleName() ast.Var {
-	name := fmt.Sprintf("repl%d", r.nextID)
-	r.nextID++
-	return ast.Var(name)
-}
-
-func (r *REPL) isGeneratedRuleName(name ast.Var) bool {
-	return strings.HasPrefix(string(name), "repl")
 }
 
 type commandDesc struct {
