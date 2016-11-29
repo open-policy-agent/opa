@@ -17,7 +17,7 @@ func TestErrorsString(t *testing.T) {
 	expected := `3 errors occurred:
 blah
 100:2: bleh
-foo.rego:100:2: blarg`
+foo.rego:100: blarg`
 	result := err.Error()
 
 	if result != expected {

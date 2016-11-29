@@ -63,10 +63,12 @@ func (e *Error) Error() string {
 	prefix := ""
 
 	if len(e.Location.File) > 0 {
-		prefix += e.Location.File + ":"
+		prefix += e.Location.File + ":" + fmt.Sprint(e.Location.Row)
+	} else {
+		prefix += fmt.Sprint(e.Location.Row) + ":" + fmt.Sprint(e.Location.Col)
 	}
 
-	return fmt.Sprintf("%v%v:%v: %v", prefix, e.Location.Row, e.Location.Col, e.Message)
+	return fmt.Sprintf("%v: %v", prefix, e.Message)
 }
 
 // NewError returns a new Error object.

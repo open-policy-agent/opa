@@ -587,7 +587,7 @@ func TestNoMatchError(t *testing.T) {
 
 	_, err := ParseModule("foo.rego", mod)
 
-	expected := "1 error occurred: foo.rego:4:13: no match found, unexpected '/'"
+	expected := "1 error occurred: foo.rego:4: no match found, unexpected '/'"
 
 	if err.Error() != expected {
 		t.Fatalf("Bad parse error, expected %v but got: %v", expected, err)
