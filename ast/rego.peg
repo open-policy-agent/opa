@@ -324,7 +324,16 @@ RefBracket <- "[" val:(Ref / Scalar / Var) "]" {
     return val, nil
 }
 
-Var <- !Reserved AsciiLetter (AsciiLetter / DecimalDigit)* {
+Var <- val:VarChecked {
+    return val.([]interface{})[0], nil
+}
+
+// VarChecked prevents keywords from being used as variable names.
+VarChecked <- val:VarUnchecked !{
+    return IsKeyword(string(val.(*Term).Value.(Var))), nil
+}
+
+VarUnchecked <- AsciiLetter (AsciiLetter / DecimalDigit)* {
     str := string(c.text)
     variable := VarTerm(str)
     variable.Location = currentLocation(c)
@@ -364,8 +373,6 @@ Null <- "null" {
     null.Location = currentLocation(c)
     return null, nil
 }
-
-Reserved <- ("not" / "package" / "import" / "null" / "true" / "false")
 
 Integer <- '0' / NonZeroDecimalDigit DecimalDigit*
 

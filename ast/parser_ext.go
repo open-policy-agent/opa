@@ -352,11 +352,14 @@ func parseModule(stmts []interface{}) (*Module, error) {
 
 func postProcess(filename string, stmts []interface{}) error {
 	setFilename(filename, stmts)
+
 	if err := mangleDataVars(stmts); err != nil {
 		return err
 	}
+
 	mangleWildcards(stmts)
 	mangleExprIndices(stmts)
+
 	return nil
 }
 

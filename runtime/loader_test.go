@@ -154,7 +154,7 @@ func TestLoadDirRecursive(t *testing.T) {
 func TestLoadRooted(t *testing.T) {
 	files := map[string]string{
 		"/foo.json":     "[1,2,3]",
-		"/bar.json":     "abc", // YAML
+		"/bar.yaml":     "abc",
 		"/baz/qux.json": "null",
 	}
 
