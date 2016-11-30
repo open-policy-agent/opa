@@ -79,6 +79,19 @@ complex types.
 | ------- |--------|-------------|
 | <span class="opa-keep-it-together">``to_number(x, output)``</span> | 1 | ``output`` is ``x`` converted to a number |
 
+## <a name="reserved"></a> Reserved Names
+
+In addition to built-in function names, the following words are reserved and cannot be used as variable names, rule names, or dot-access style reference arguments:
+
+```
+false
+import
+package
+not
+null
+true
+```
+
 ## <a name="grammar"></a> Grammar
 
 Rego’s syntax is defined by the following grammar:

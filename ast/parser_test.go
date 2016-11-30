@@ -62,24 +62,14 @@ func TestVarTerms(t *testing.T) {
 	assertParseOneTerm(t, "var", "foo", VarTerm("foo"))
 	assertParseOneTerm(t, "var", "foo_bar", VarTerm("foo_bar"))
 	assertParseOneTerm(t, "var", "foo0", VarTerm("foo0"))
+	assertParseOneTerm(t, "import prefix", "imports", VarTerm("imports"))
+	assertParseOneTerm(t, "not prefix", "not_foo", VarTerm("not_foo"))
+	assertParseOneTerm(t, "package prefix", "packages", VarTerm("packages"))
 	assertParseError(t, "non-var", "foo-bar")
 	assertParseError(t, "non-var2", "foo-7")
-	keywords := [...]string{
-		"not",
-		"package",
-		"import",
-		"true",
-		"false",
-		"null",
-	}
-	for _, v := range keywords {
-		term, err := ParseTerm(v)
-		if err == nil {
-			if _, ok := term.Value.(Var); ok {
-				t.Errorf("Expected %v to return parse error or non-var term: %v", v, t)
-			}
-		}
-	}
+	assertParseError(t, "not keyword", "not")
+	assertParseError(t, "package keyword", "package")
+	assertParseError(t, "import keyword", "import")
 }
 
 func TestRefTerms(t *testing.T) {
@@ -587,7 +577,7 @@ func TestNoMatchError(t *testing.T) {
 
 	_, err := ParseModule("foo.rego", mod)
 
-	expected := "1 error occurred: foo.rego:4:13: no match found, unexpected '/'"
+	expected := "1 error occurred: foo.rego:4: no match found, unexpected '/'"
 
 	if err.Error() != expected {
 		t.Fatalf("Bad parse error, expected %v but got: %v", expected, err)

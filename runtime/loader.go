@@ -57,6 +57,11 @@ func (u unrecognizedFile) Error() string {
 	return "unrecognized file: " + string(u)
 }
 
+func isUnrecognizedFile(err error) bool {
+	_, ok := err.(unrecognizedFile)
+	return ok
+}
+
 func (l *loaded) Merge(path string, result interface{}) error {
 	switch result := result.(type) {
 	case *loadedModule:
@@ -175,10 +180,13 @@ func loadFileForAnyType(path string) (interface{}, error) {
 
 func loadFile(path string) (interface{}, error) {
 	result, err := loadFileForKnownTypes(path)
-	if err == nil {
-		return result, nil
+	if err != nil {
+		if isUnrecognizedFile(err) {
+			return loadFileForAnyType(path)
+		}
+		return nil, err
 	}
-	return loadFileForAnyType(path)
+	return result, nil
 }
 
 func jsonLoad(path string) (interface{}, error) {

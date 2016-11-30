@@ -29,6 +29,26 @@ var ReservedVars = NewVarSet(DefaultRootDocument.Value.(Var))
 // Wildcard represents the wildcard variable as defined in the language.
 var Wildcard = &Term{Value: Var("_")}
 
+// Keywords contains strings that map to language keywords.
+var Keywords = [...]string{
+	"not",
+	"package",
+	"import",
+	"null",
+	"true",
+	"false",
+}
+
+// IsKeyword returns true if s is a language keyword.
+func IsKeyword(s string) bool {
+	for _, x := range Keywords {
+		if x == s {
+			return true
+		}
+	}
+	return false
+}
+
 // WildcardPrefix is the special character that all wildcard variables are
 // prefixed with when the statement they are contained in is parsed.
 var WildcardPrefix = "$"
