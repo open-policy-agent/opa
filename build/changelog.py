@@ -36,11 +36,11 @@ def get_subject(commit_message):
     return commit_message.splitlines()[0]
 
 
-def get_changelog_message(commit_message):
+def get_changelog_message(commit_message, repo_url):
     issue_id = fixes_issue_id(commit_message)
     if issue_id:
         subject = get_subject(commit_message)
-        return "Fixes", "{subject} (#{issue_id})".format(subject=subject, issue_id=issue_id)
+        return "Fixes", "{subject} ([#{issue_id}]({repo_url}/issues/{issue_id}))".format(subject=subject, issue_id=issue_id, repo_url=repo_url)
     return None, get_subject(commit_message)
 
 
@@ -51,6 +51,8 @@ def get_latest_tag():
 
 def parse_args():
     parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--repo_url", default="https://github.com/open-policy-agent/opa")
     parser.add_argument("from_version", nargs="?",
                         default=get_latest_tag(), help="start of changes")
     parser.add_argument("to_commit", nargs="?",
@@ -65,20 +67,20 @@ def main():
 
     for commit_id in get_commit_ids(args.from_version, args.to_commit):
         commit_message = get_commit_message(commit_id)
-        group, line = get_changelog_message(commit_message)
+        group, line = get_changelog_message(commit_message, args.repo_url)
         changelog.setdefault(group, []).append(line)
 
     if "Fixes" in changelog:
         print "### Fixes"
         print ""
-        for line in changelog["Fixes"]:
+        for line in sorted(changelog["Fixes"]):
             print "- {}".format(line)
         print ""
 
     if None in changelog:
         print "### Miscellaneous"
         print ""
-        for line in changelog[None]:
+        for line in sorted(changelog[None]):
             print "- {}".format(line)
 
 
