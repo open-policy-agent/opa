@@ -348,7 +348,7 @@ func (s *Server) execQuery(compiler *ast.Compiler, txn storage.Transaction, quer
 				return false
 			}
 			vv, e := topdown.ValueToInterface(v, ctx)
-			if err != nil {
+			if e != nil {
 				err = e
 				return true
 			}

@@ -655,6 +655,64 @@ func TestQueryV1Explain(t *testing.T) {
 	}
 }
 
+type queryBindingErrStore struct {
+	storage.TriggersNotSupported
+	storage.WritesNotSupported
+	count int
+}
+
+func (queryBindingErrStore) ID() string {
+	return "mock"
+}
+
+func (s *queryBindingErrStore) Read(txn storage.Transaction, ref ast.Ref) (interface{}, error) {
+	// At this time, the store will receive two reads:
+	// - The first during evaluation
+	// - The second when the server tries to accumulate the bindings
+	s.count++
+	if s.count == 2 {
+		return nil, fmt.Errorf("unknown error")
+	}
+	return "", nil
+}
+
+func (queryBindingErrStore) Begin(txn storage.Transaction, refs []ast.Ref) error {
+	return nil
+}
+
+func (queryBindingErrStore) Close(txn storage.Transaction) {
+
+}
+
+func TestQueryBindingIterationError(t *testing.T) {
+
+	store := storage.New(storage.InMemoryConfig())
+	mock := &queryBindingErrStore{}
+
+	if err := store.Mount(mock, ast.MustParseRef("data.foo.bar")); err != nil {
+		panic(err)
+	}
+
+	server, err := New(store, ":8182", false)
+	if err != nil {
+		panic(err)
+	}
+	recorder := httptest.NewRecorder()
+
+	f := &fixture{
+		server:   server,
+		recorder: recorder,
+		t:        t,
+	}
+
+	get := newReqV1("GET", `/query?q=a=data.foo.bar`, "")
+	f.server.Handler.ServeHTTP(f.recorder, get)
+
+	if f.recorder.Code != 500 {
+		t.Fatalf("Expected 500 error due to unknown storage error but got: %v", f.recorder)
+	}
+}
+
 const (
 	testMod = `
     package a.b.c
