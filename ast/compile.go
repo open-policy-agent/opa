@@ -66,7 +66,8 @@ type Compiler struct {
 	// A rule depends on another rule if it refers to it.
 	RuleGraph map[*Rule]map[*Rule]struct{}
 
-	stages []stage
+	moduleLoader ModuleLoader
+	stages       []stage
 }
 
 // QueryContext contains contextual information for running an ad-hoc query.
@@ -270,6 +271,23 @@ func (c *Compiler) GetRulesWithPrefix(ref Ref) (rules []*Rule) {
 	return rules
 }
 
+// ModuleLoader defines the interface that callers can implement to enable lazy
+// loading of modules during compilation.
+type ModuleLoader func(resolved map[string]*Module) (parsed map[string]*Module, err error)
+
+// WithModuleLoader sets f as the ModuleLoader on the compiler.
+//
+// The compiler will invoke the ModuleLoader after resolving all references in
+// the current set of input modules. The ModuleLoader can return a new
+// collection of parsed modules that are to be included in the compilation
+// process. This process will repeat until the ModuleLoader returns an empty
+// collection or an error. If an error is returned, compilation will stop
+// immediately.
+func (c *Compiler) WithModuleLoader(f ModuleLoader) *Compiler {
+	c.moduleLoader = f
+	return c
+}
+
 // checkBuiltins ensures that built-in functions are specified correctly.
 func (c *Compiler) checkBuiltins() {
 	for _, mod := range c.Modules {
@@ -438,6 +456,25 @@ func (c *Compiler) resolveAllRefs() {
 		}
 
 		mod.Imports = rewriteImports(mod.Imports)
+	}
+
+	if c.moduleLoader != nil {
+
+		parsed, err := c.moduleLoader(c.Modules)
+		if err != nil {
+			c.err(NewError(CompileErr, nil, err.Error()))
+			return
+		}
+
+		if len(parsed) == 0 {
+			return
+		}
+
+		for id, module := range parsed {
+			c.Modules[id] = module
+		}
+
+		c.resolveAllRefs()
 	}
 }
 

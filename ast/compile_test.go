@@ -836,6 +836,119 @@ func TestCompilerGetRulesWithPrefix(t *testing.T) {
 	}
 }
 
+func TestCompilerLazyLoadingError(t *testing.T) {
+
+	testLoader := func(map[string]*Module) (map[string]*Module, error) {
+		return nil, fmt.Errorf("something went horribly wrong")
+	}
+
+	compiler := NewCompiler().WithModuleLoader(testLoader)
+
+	compiler.Compile(nil)
+
+	expected := Errors{
+		NewError(CompileErr, nil, "something went horribly wrong"),
+	}
+
+	if !reflect.DeepEqual(expected, compiler.Errors) {
+		t.Fatalf("Expected error %v but got: %v", expected, compiler.Errors)
+	}
+}
+
+func TestCompilerLazyLoading(t *testing.T) {
+
+	mod1 := MustParseModule(`
+			package a.b.c
+			import data.x.z1 as z2
+			p :- q, r
+			q :- z2`)
+
+	mod2 := MustParseModule(`
+			package a.b.c
+			r = true`)
+
+	mod3 := MustParseModule(`package x
+			import data.foo.bar
+			import input
+			z1 :- [ localvar | count(bar.baz.qux, localvar) ]`)
+
+	mod4 := MustParseModule(`
+			package foo.bar.baz
+			qux = grault :- true`)
+
+	mod5 := MustParseModule(`
+			package foo.bar.baz
+			import data.d.e.f
+			deadbeef = f :- true
+			grault = deadbeef :- true`)
+
+	// testLoader will return 4 rounds of parsed modules.
+	rounds := []map[string]*Module{
+		{"mod1": mod1, "mod2": mod2},
+		{"mod3": mod3},
+		{"mod4": mod4},
+		{"mod5": mod5},
+	}
+
+	// For each round, run checks.
+	tests := []func(map[string]*Module){
+		func(map[string]*Module) {
+			// first round, no modules because compiler is invoked with empty
+			// collection.
+		},
+		func(partial map[string]*Module) {
+			p := MustParseRule(`p :- data.a.b.c.q, data.a.b.c.r`)
+			if !partial["mod1"].Rules[0].Equal(p) {
+				t.Errorf("Expected %v but got %v", p, partial["mod1"].Rules[0])
+			}
+			q := MustParseRule(`q :- data.x.z1`)
+			if !partial["mod1"].Rules[1].Equal(q) {
+				t.Errorf("Expected %v but got %v", q, partial["mod1"].Rules[0])
+			}
+		},
+		func(partial map[string]*Module) {
+			z1 := MustParseRule(`z1 :- [ localvar | count(data.foo.bar.baz.qux, localvar) ]`)
+			if !partial["mod3"].Rules[0].Equal(z1) {
+				t.Errorf("Expected %v but got %v", z1, partial["mod3"].Rules[0])
+			}
+		},
+		func(partial map[string]*Module) {
+			qux := MustParseRule(`qux = grault :- true`)
+			if !partial["mod4"].Rules[0].Equal(qux) {
+				t.Errorf("Expected %v but got %v", qux, partial["mod4"].Rules[0])
+			}
+		},
+		func(partial map[string]*Module) {
+			grault := MustParseRule("qux = data.foo.bar.baz.grault :- true") // rewrite has not happened yet
+			f := MustParseRule("deadbeef = data.d.e.f :- true")
+			if !partial["mod4"].Rules[0].Equal(grault) {
+				t.Errorf("Expected %v but got %v", grault, partial["mod4"].Rules[0])
+			}
+			if !partial["mod5"].Rules[0].Equal(f) {
+				t.Errorf("Expected %v but got %v", f, partial["mod5"].Rules[0])
+			}
+		},
+	}
+
+	round := 0
+
+	testLoader := func(modules map[string]*Module) (map[string]*Module, error) {
+		tests[round](modules)
+		if round >= len(rounds) {
+			return nil, nil
+		}
+		result := rounds[round]
+		round++
+		return result, nil
+	}
+
+	compiler := NewCompiler().WithModuleLoader(testLoader)
+
+	if compiler.Compile(nil); compiler.Failed() {
+		t.Fatalf("Got unexpected error from compiler: %v", compiler.Errors)
+	}
+}
+
 func TestQueryCompiler(t *testing.T) {
 	tests := []struct {
 		note     string
