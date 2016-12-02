@@ -122,8 +122,7 @@ func (rt *Runtime) init(params *Params) error {
 
 	defer store.Close(txn)
 
-	ref := ast.Ref{ast.DefaultRootDocument}
-	if err := store.Write(txn, storage.AddOp, ref, loaded.Documents); err != nil {
+	if err := store.Write(txn, storage.AddOp, storage.Path{}, loaded.Documents); err != nil {
 		return errors.Wrapf(err, "storage error")
 	}
 
@@ -240,8 +239,7 @@ func (rt *Runtime) processWatcherUpdate(paths []string) error {
 
 	defer rt.Store.Close(txn)
 
-	ref := ast.Ref{ast.DefaultRootDocument}
-	if err := rt.Store.Write(txn, storage.AddOp, ref, loaded.Documents); err != nil {
+	if err := rt.Store.Write(txn, storage.AddOp, storage.Path{}, loaded.Documents); err != nil {
 		return err
 	}
 

@@ -6,7 +6,7 @@ package storage
 
 // TriggerCallback defines the interface that callers can implement to handle
 // changes in the stores.
-type TriggerCallback func(txn Transaction, op PatchOp, path []interface{}, value interface{}) error
+type TriggerCallback func(txn Transaction, op PatchOp, path Path, value interface{}) error
 
 // TriggerConfig contains the trigger registration configuration.
 type TriggerConfig struct {

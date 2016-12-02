@@ -59,7 +59,7 @@ func TestEvalRef(t *testing.T) {
 
 	store := storage.New(storage.InMemoryWithJSONConfig(loadSmallTestData()))
 
-	txn := storage.NewTransactionOrDie(store, nil)
+	txn := storage.NewTransactionOrDie(store)
 	defer store.Close(txn)
 
 	ctx := NewContext(nil, compiler, store, txn)
@@ -151,7 +151,7 @@ func TestEvalTerms(t *testing.T) {
 
 	store := storage.New(storage.InMemoryWithJSONConfig(loadSmallTestData()))
 
-	txn := storage.NewTransactionOrDie(store, nil)
+	txn := storage.NewTransactionOrDie(store)
 	defer store.Close(txn)
 
 	for _, tc := range tests {
@@ -1245,8 +1245,7 @@ func TestTopDownStoragePlugin(t *testing.T) {
 	store := storage.New(storage.InMemoryWithJSONConfig(loadSmallTestData()))
 
 	plugin := storage.NewDataStoreFromReader(strings.NewReader(`{"b": [1,3,5,6]}`))
-	mountPath := ast.MustParseRef("data.plugin")
-	plugin.SetMountPath(mountPath)
+	mountPath, _ := storage.ParsePath("/plugin")
 
 	if err := store.Mount(plugin, mountPath); err != nil {
 		t.Fatalf("Unexpected mount error: %v", err)

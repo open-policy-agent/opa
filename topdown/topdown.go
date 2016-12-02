@@ -25,9 +25,6 @@ type Context struct {
 	Store    *storage.Storage
 	Tracer   Tracer
 
-	// TODO(tsandall): make the transaction public and lazily create one in
-	// Eval(). This way callers do not have to provide the transaction unless
-	// they want to run evaluation multiple times against the same snapshot.
 	txn   storage.Transaction
 	cache *contextcache
 	qid   uint64
@@ -140,7 +137,30 @@ func (ctx *Context) Current() *ast.Expr {
 
 // Resolve returns the native Go value referred to by the ref.
 func (ctx *Context) Resolve(ref ast.Ref) (interface{}, error) {
-	return ctx.Store.Read(ctx.txn, ref)
+
+	if ref.IsNested() {
+		cpy := make(ast.Ref, len(ref))
+		for i := range ref {
+			switch v := ref[i].Value.(type) {
+			case ast.Ref:
+				r, err := lookupValue(ctx, v)
+				if err != nil {
+					return nil, err
+				}
+				cpy[i] = ast.NewTerm(r)
+			default:
+				cpy[i] = ref[i]
+			}
+		}
+		ref = cpy
+	}
+
+	path, err := storage.NewPathForRef(ref)
+	if err != nil {
+		return nil, err
+	}
+
+	return ctx.Store.Read(ctx.txn, path)
 }
 
 // Step returns a new context to evaluate the next expression.
@@ -692,7 +712,11 @@ type resolver struct {
 }
 
 func (r resolver) Resolve(ref ast.Ref) (interface{}, error) {
-	return r.store.Read(r.txn, ref)
+	path, err := storage.NewPathForRef(ref)
+	if err != nil {
+		return nil, err
+	}
+	return r.store.Read(r.txn, path)
 }
 
 // ResolveRefs returns the AST value obtained by resolving references to base
@@ -1010,12 +1034,11 @@ func evalRef(ctx *Context, ref, path ast.Ref, iter Iterator) error {
 func evalRefRec(ctx *Context, ref ast.Ref, iter Iterator) error {
 
 	// Obtain ground prefix of the reference.
-	var plugged ast.Ref
 	var prefix ast.Ref
+
 	switch v := PlugValue(ref, ctx.Binding).(type) {
 	case ast.Ref:
-		plugged = v
-		prefix = plugged.GroundPrefix()
+		prefix = v.GroundPrefix()
 	default:
 		// Fast-path? TODO test case.
 		return iter(ctx)
@@ -1045,7 +1068,7 @@ func evalRefRec(ctx *Context, ref ast.Ref, iter Iterator) error {
 // result before continuing.
 func evalRefRecGround(ctx *Context, ref, prefix ast.Ref, iter Iterator) error {
 
-	doc, readErr := ctx.Store.Read(ctx.txn, prefix)
+	doc, readErr := ctx.Resolve(prefix)
 	if readErr != nil {
 		if !storage.IsNotFound(readErr) {
 			return readErr
@@ -1170,7 +1193,7 @@ func evalRefRecNonGround(ctx *Context, ref, prefix ast.Ref, iter Iterator) error
 
 	variable := ref[len(prefix)].Value
 
-	doc, err := ctx.Store.Read(ctx.txn, prefix)
+	doc, err := ctx.Resolve(prefix)
 	if err != nil {
 		if !storage.IsNotFound(err) {
 			return err
@@ -2079,19 +2102,8 @@ func indexingAllowed(ref ast.Ref, term *ast.Term) bool {
 	return true
 }
 
-func lookupExists(ctx *Context, ref ast.Ref) (bool, error) {
-	_, err := ctx.Store.Read(ctx.txn, ref)
-	if err != nil {
-		if storage.IsNotFound(err) {
-			return false, nil
-		}
-		return false, err
-	}
-	return true, nil
-}
-
 func lookupValue(ctx *Context, ref ast.Ref) (ast.Value, error) {
-	r, err := ctx.Store.Read(ctx.txn, ref)
+	r, err := ctx.Resolve(ref)
 	if err != nil {
 		return nil, err
 	}

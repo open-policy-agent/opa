@@ -12,21 +12,6 @@ import (
 	"github.com/open-policy-agent/opa/ast"
 )
 
-func TestStorageReadNonGroundRef(t *testing.T) {
-	store := New(InMemoryConfig())
-	txn := NewTransactionOrDie(store)
-	defer store.Close(txn)
-	ref := ast.MustParseRef("data.foo[i]")
-	_, e := store.Read(txn, ref)
-	err, ok := e.(*Error)
-	if !ok {
-		t.Fatalf("Expected storage error but got: %v", err)
-	}
-	if err.Code != InternalErr {
-		t.Fatalf("Expected internal error but got: %v", err)
-	}
-}
-
 func TestStorageReadPlugin(t *testing.T) {
 
 	mem1 := NewDataStoreFromReader(strings.NewReader(`
@@ -44,8 +29,7 @@ func TestStorageReadPlugin(t *testing.T) {
 	}
 	`))
 
-	mountPath := ast.MustParseRef("data.foo.bar.qux")
-	mem2.SetMountPath(mountPath)
+	mountPath := MustParsePath("/foo/bar/qux")
 	store := New(Config{
 		Builtin: mem1,
 	})
@@ -63,21 +47,19 @@ func TestStorageReadPlugin(t *testing.T) {
 		path     string
 		expected string
 	}{
-		{"plugin", "data.foo.bar.qux.corge[1]", "6"},
-		{"multiple", "data.foo.bar", `{"baz": [1,2,3,4], "qux": {"corge": [5,6,7,8]}}`},
+		{"plugin", "/foo/bar/qux/corge/1", "6"},
+		{"multiple", "/foo/bar", `{"baz": [1,2,3,4], "qux": {"corge": [5,6,7,8]}}`},
 	}
 
 	for i, tc := range tests {
 
-		result, err := store.Read(txn, ast.MustParseRef(tc.path))
+		expected := loadExpectedResult(tc.expected)
+		result, err := store.Read(txn, MustParsePath(tc.path))
+
 		if err != nil {
 			t.Errorf("Test #%d (%v): Unexpected read error: %v", i+1, tc.note, err)
-		}
-
-		expected := loadExpectedResult(tc.expected)
-
-		if !reflect.DeepEqual(result, expected) {
-			t.Fatalf("Test #%d (%v): Expected %v from built-in store but got: %v", i+1, tc.note, expected, result)
+		} else if !reflect.DeepEqual(result, expected) {
+			t.Errorf("Test #%d (%v): Expected %v from built-in store but got: %v", i+1, tc.note, expected, result)
 		}
 
 	}
@@ -89,7 +71,7 @@ func TestStorageIndexingBasicUpdate(t *testing.T) {
 	refA := ast.MustParseRef("data.a[i]")
 	refB := ast.MustParseRef("data.b[x]")
 	store, ds := newStorageWithIndices(refA, refB)
-	ds.mustPatch(AddOp, path(`a["-"]`), float64(100))
+	ds.Write(nil, AddOp, MustParsePath("/a/-"), float64(100))
 
 	if store.IndexExists(refA) {
 		t.Errorf("Expected index to be removed after patch")
@@ -111,12 +93,14 @@ func TestStorageTransactionManagement(t *testing.T) {
 
 	mock := mockStore{}
 
-	if err := store.Mount(mock, ast.MustParseRef("data.foo.bar.qux")); err != nil {
+	mountPath := MustParsePath("/foo/bar/qux")
+	if err := store.Mount(mock, mountPath); err != nil {
 		t.Fatalf("Unexpected mount error: %v", err)
 	}
 
-	txn, err := store.NewTransaction(ast.MustParseRef("data.foo.bar.qux.corge[x]"))
-
+	params := NewTransactionParams().
+		WithPaths([]Path{Path{"foo", "bar", "qux", "corge"}})
+	txn, err := store.NewTransactionWithParams(params)
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
@@ -143,11 +127,11 @@ func (mockStore) ID() string {
 	return "mock-store"
 }
 
-func (mockStore) Read(txn Transaction, ref ast.Ref) (interface{}, error) {
+func (mockStore) Read(txn Transaction, path Path) (interface{}, error) {
 	return nil, nil
 }
 
-func (mockStore) Begin(txn Transaction, refs []ast.Ref) error {
+func (mockStore) Begin(txn Transaction, params TransactionParams) error {
 	return nil
 }
 
@@ -155,52 +139,71 @@ func (mockStore) Close(txn Transaction) {
 
 }
 
-func TestGroupStoresByRef(t *testing.T) {
+func TestGroupPathsByStore(t *testing.T) {
 
-	mounts := map[string]ast.Ref{
-		"mount-1": ast.MustParseRef("data.foo.bar.qux"),
-		"mount-2": ast.MustParseRef("data.foo.baz"),
-		"mount-3": ast.MustParseRef("data.corge"),
+	root := MustParsePath("/")
+	foo := MustParsePath("/foo")
+	fooBarQux := MustParsePath("/foo/bar/qux")
+	fooBarQuxGrault := MustParsePath("/foo/bar/qux/grault")
+	fooBaz := MustParsePath("/foo/baz")
+	corge := MustParsePath("/corge")
+	grault := MustParsePath("/grault")
+
+	mounts := map[string]Path{
+		"mount-1": fooBarQux,
+		"mount-2": fooBaz,
+		"mount-3": corge,
 	}
 
-	result := groupRefsByStore("built-in", mounts, []ast.Ref{
-		ast.MustParseRef("data[x]"),
-		ast.MustParseRef("data.foo.bar.qux.grault"),
-		ast.MustParseRef("data.foo[x][y][z]"),
-	})
-
-	expected := map[string][]ast.Ref{
-		"built-in": []ast.Ref{
-			ast.MustParseRef("data[x]"),
-			ast.MustParseRef("data.foo[x][y][z]"),
+	result := groupPathsByStore("built-in", mounts, []Path{root})
+	expected := map[string][]Path{
+		"built-in": {
+			root,
 		},
-		"mount-1": []ast.Ref{
-			ast.MustParseRef("data.foo.bar.qux"),
-			ast.MustParseRef("data.foo.bar.qux.grault"),
-			ast.MustParseRef("data.foo.bar.qux[z]"),
+		"mount-1": {
+			root,
 		},
-		"mount-2": []ast.Ref{
-			ast.MustParseRef("data.foo.baz"),
-			ast.MustParseRef("data.foo.baz[y][z]"),
+		"mount-2": {
+			root,
 		},
-		"mount-3": []ast.Ref{
-			ast.MustParseRef("data.corge"),
+		"mount-3": {
+			root,
 		},
 	}
 
-	if len(result) != len(expected) {
-		t.Fatalf("Expected %v but got: %v", expected, result)
+	if !reflect.DeepEqual(expected, result) {
+		t.Errorf("Expected:\n%v\n\nGot:\n%v", expected, result)
 	}
 
-	for id := range result {
-		if len(result[id]) != len(expected[id]) {
-			t.Fatalf("Expected %v but got: %v", expected[id], result[id])
-		}
-		for i := range result[id] {
-			if !result[id][i].Equal(expected[id][i]) {
-				t.Fatalf("Expected %v but got: %v", expected[id], result[id])
-			}
-		}
+	result = groupPathsByStore("built-in", mounts, []Path{foo})
+	expected = map[string][]Path{
+		"built-in": {
+			foo,
+		},
+		"mount-1": {
+			root,
+		},
+		"mount-2": {
+			root,
+		},
+	}
+
+	if !reflect.DeepEqual(expected, result) {
+		t.Errorf("Expected:\n%v\n\nGot:\n%v", expected, result)
+	}
+
+	result = groupPathsByStore("built-in", mounts, []Path{fooBarQuxGrault, corge})
+	expected = map[string][]Path{
+		"mount-1": {
+			grault,
+		},
+		"mount-3": {
+			root,
+		},
+	}
+
+	if !reflect.DeepEqual(expected, result) {
+		t.Errorf("Expected:\n%v\n\nGot:\n%v", expected, result)
 	}
 
 }

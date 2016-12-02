@@ -59,7 +59,7 @@ const compileQueryErrMsg = "error(s) occurred while compiling query, see Errors"
 // attempts to modify a virtual document or create a document at a path that
 // conflicts with an existing document.
 type WriteConflictError struct {
-	path ast.Ref
+	path storage.Path
 }
 
 func (err WriteConflictError) Error() string {
@@ -70,6 +70,26 @@ func (err WriteConflictError) Error() string {
 func IsWriteConflict(err error) bool {
 	_, ok := err.(WriteConflictError)
 	return ok
+}
+
+type badRequestError string
+
+// isBadRequest reqturns true if the error indicates a badly formatted request.
+func isBadRequest(err error) bool {
+	_, ok := err.(badRequestError)
+	return ok
+}
+
+func (err badRequestError) Error() string {
+	return string(err)
+}
+
+func badPatchOperationError(op string) badRequestError {
+	return badRequestError(fmt.Sprintf("bad patch operation: %v", op))
+}
+
+func badPatchPathError(path string) badRequestError {
+	return badRequestError(fmt.Sprintf("bad patch path: %v", path))
 }
 
 // patchV1 models a single patch operation against a document.
@@ -244,6 +264,12 @@ func newBindingsV1(locals *ast.ValueMap) (result []*bindingV1) {
 		return false
 	})
 	return result
+}
+
+type patchImpl struct {
+	path  storage.Path
+	op    storage.PatchOp
+	value interface{}
 }
 
 // Server represents an instance of OPA running in server mode.
@@ -504,7 +530,6 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) v1DataPatch(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	root := stringPathToDataRef(vars["path"])
 
 	ops := []patchV1{}
 	if err := json.NewDecoder(r.Body).Decode(&ops); err != nil {
@@ -520,32 +545,14 @@ func (s *Server) v1DataPatch(w http.ResponseWriter, r *http.Request) {
 
 	defer s.store.Close(txn)
 
-	for i := range ops {
+	patches, err := s.prepareV1PatchSlice(vars["path"], ops)
+	if err != nil {
+		handleErrorAuto(w, err)
+		return
+	}
 
-		var op storage.PatchOp
-
-		// TODO this could be refactored for failure handling
-		switch ops[i].Op {
-		case "add":
-			op = storage.AddOp
-		case "remove":
-			op = storage.RemoveOp
-		case "replace":
-			op = storage.ReplaceOp
-		default:
-			handleErrorf(w, 400, "bad patch operation: %v", ops[i].Op)
-			return
-		}
-
-		path := root
-		path = append(path, stringPathToRef(ops[i].Path)...)
-
-		if err := s.writeConflict(op, path); err != nil {
-			handleErrorAuto(w, err)
-			return
-		}
-
-		if err := s.store.Write(txn, op, path, ops[i].Value); err != nil {
+	for _, patch := range patches {
+		if err := s.store.Write(txn, patch.op, patch.path, patch.value); err != nil {
 			handleErrorAuto(w, err)
 			return
 		}
@@ -571,10 +578,11 @@ func (s *Server) v1DataPut(w http.ResponseWriter, r *http.Request) {
 
 	defer s.store.Close(txn)
 
-	// The path route variable contains the path portion *after* /v1/data so we
-	// prepend the global root document here.
-	path := ast.Ref{ast.DefaultRootDocument}
-	path = append(path, stringPathToRef(vars["path"])...)
+	path, ok := storage.ParsePath("/" + strings.Trim(vars["path"], "/"))
+	if !ok {
+		handleErrorf(w, 400, "bad path format %v", vars["path"])
+		return
+	}
 
 	_, err = s.store.Read(txn, path)
 
@@ -825,7 +833,7 @@ func (s *Server) setCompiler(compiler *ast.Compiler) {
 	s.compiler = compiler
 }
 
-func (s *Server) makeDir(txn storage.Transaction, path ast.Ref) error {
+func (s *Server) makeDir(txn storage.Transaction, path storage.Path) error {
 
 	node, err := s.store.Read(txn, path)
 	if err == nil {
@@ -850,14 +858,61 @@ func (s *Server) makeDir(txn storage.Transaction, path ast.Ref) error {
 	return s.store.Write(txn, storage.AddOp, path, map[string]interface{}{})
 }
 
-// TODO(tsandall): this ought to be enforced by the storage layer.
-func (s *Server) writeConflict(op storage.PatchOp, path ast.Ref) error {
+func (s *Server) prepareV1PatchSlice(root string, ops []patchV1) (result []patchImpl, err error) {
 
-	if op == storage.AddOp && path[len(path)-1].Value.Equal(ast.String("-")) {
+	root = "/" + strings.Trim(root, "/")
+
+	for _, op := range ops {
+		impl := patchImpl{
+			value: op.Value,
+		}
+
+		// Map patch operation.
+		switch op.Op {
+		case "add":
+			impl.op = storage.AddOp
+		case "remove":
+			impl.op = storage.RemoveOp
+		case "replace":
+			impl.op = storage.ReplaceOp
+		default:
+			return nil, badPatchOperationError(op.Op)
+		}
+
+		// Construct patch path.
+		path := strings.Trim(op.Path, "/")
+		if len(path) > 0 {
+			path = root + "/" + path
+		} else {
+			path = root
+		}
+
+		var ok bool
+		impl.path, ok = storage.ParsePath(path)
+		if !ok {
+			return nil, badPatchPathError(op.Path)
+		}
+
+		if err := s.writeConflict(impl.op, impl.path); err != nil {
+			return nil, err
+		}
+
+		result = append(result, impl)
+	}
+
+	return result, nil
+}
+
+// TODO(tsandall): this ought to be enforced by the storage layer.
+func (s *Server) writeConflict(op storage.PatchOp, path storage.Path) error {
+
+	if op == storage.AddOp && len(path) > 0 && path[len(path)-1] == "-" {
 		path = path[:len(path)-1]
 	}
 
-	if rs := s.Compiler().GetRulesForVirtualDocument(path); rs != nil {
+	ref := path.Ref(ast.DefaultRootDocument)
+
+	if rs := s.Compiler().GetRulesForVirtualDocument(ref); rs != nil {
 		return WriteConflictError{path}
 	}
 
@@ -906,6 +961,10 @@ func handleErrorAuto(w http.ResponseWriter, err error) {
 		}
 		if IsWriteConflict(curr) {
 			handleError(w, 404, err)
+			return
+		}
+		if isBadRequest(curr) {
+			handleError(w, http.StatusBadRequest, err)
 			return
 		}
 		if storage.IsInvalidPatch(curr) {

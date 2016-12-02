@@ -23,7 +23,6 @@ import (
 	"github.com/open-policy-agent/opa/topdown"
 	"github.com/open-policy-agent/opa/topdown/explain"
 	"github.com/open-policy-agent/opa/version"
-
 	"github.com/peterh/liner"
 )
 
@@ -1081,7 +1080,7 @@ func singleValue(body ast.Body) bool {
 }
 
 func dumpStorage(store *storage.Storage, txn storage.Transaction, w io.Writer) error {
-	data, err := store.Read(txn, ast.Ref{ast.DefaultRootDocument})
+	data, err := store.Read(txn, storage.Path{})
 	if err != nil {
 		return err
 	}
@@ -1105,8 +1104,13 @@ func mangleEvent(store *storage.Storage, txn storage.Transaction, event *topdown
 	var err error
 	event.Locals.Iter(func(k, v ast.Value) bool {
 		if r, ok := v.(ast.Ref); ok {
+			var path storage.Path
+			path, err = storage.NewPathForRef(r)
+			if err != nil {
+				return true
+			}
 			var doc interface{}
-			doc, err = store.Read(txn, r)
+			doc, err = store.Read(txn, path)
 			if err != nil {
 				return true
 			}
