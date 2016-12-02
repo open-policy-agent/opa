@@ -1,0 +1,26 @@
+{
+    "name": "rego",
+    "displayName": "rego",
+    "description": "Syntax highlighter for Rego, the open-policy-agent (OPA) policy language",
+    "version": "1.0.0",
+    "publisher": "Styra",
+    "engines": {
+        "vscode": "^1.5.0"
+    },
+    "categories": [
+        "Languages"
+    ],
+    "contributes": {
+        "languages": [{
+            "id": "rego",
+            "aliases": ["Rego", "rego"],
+            "extensions": [".rego"],
+            "configuration": "./language-configuration.json"
+        }],
+        "grammars": [{
+            "language": "rego",
+            "scopeName": "source.rego",
+            "path": "./syntaxes/rego.tmLanguage"
+        }]
+    }
+}
