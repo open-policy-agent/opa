@@ -30,7 +30,7 @@ func TestScheduler(t *testing.T) {
 		t.Fatal("unexpected query result:", qrs)
 	}
 	for n, w := range ws {
-		if fmt.Sprintf("%.3f", w) != "5.014" {
+		if fmt.Sprint(w) != "5.01388889" {
 			t.Fatalf("unexpected weight for: %v: %v\n\nDumping all weights:\n\n%v\n", n, w, qrs)
 		}
 	}

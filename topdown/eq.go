@@ -118,7 +118,7 @@ func evalEqUnifyArrayRef(ctx *Context, a ast.Array, b ast.Ref, prev *Undo, iter 
 		var tmp *Context
 		child := make(ast.Ref, len(b), len(b)+1)
 		copy(child, b)
-		child = append(child, ast.NumberTerm(float64(i)))
+		child = append(child, ast.IntNumberTerm(i))
 		p, err := evalEqUnify(ctx, a[i].Value, child, prev, func(ctx *Context) error {
 			tmp = ctx
 			return nil

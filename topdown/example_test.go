@@ -5,6 +5,7 @@
 package topdown_test
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 
@@ -25,7 +26,13 @@ func ExampleEval() {
 
 	var data map[string]interface{}
 
-	if err := json.Unmarshal([]byte(`{"a": [1,2,3,4]}`), &data); err != nil {
+	// OPA uses Go's standard JSON library but assumes that numbers have been
+	// decoded as json.Number instead of float64. You MUST decode with UseNumber
+	// enabled.
+	decoder := json.NewDecoder(bytes.NewBufferString(`{"a": [1,2,3,4]}`))
+	decoder.UseNumber()
+
+	if err := decoder.Decode(&data); err != nil {
 		// Handle error.
 	}
 

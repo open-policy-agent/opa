@@ -5,7 +5,6 @@
 package ast
 
 import (
-	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -492,17 +491,23 @@ func (expr *Expr) Equal(other *Expr) bool {
 //
 // Expressions are compared as follows:
 //
-// 1. Negated expressions are always greater than than non-negated expressions.
-// 2. Preceding expression (by Index) is always less than the other expression.
+// 1. Preceding expression (by Index) is always less than the other expression.
+// 2. Non-negated expressions are always less than than negated expressions.
 // 3. Single term expressions are always less than built-in expressions.
 //
 // Otherwise, the expression terms are compared normally.
 func (expr *Expr) Compare(other *Expr) int {
-	if cmp := util.Compare(expr.Negated, other.Negated); cmp != 0 {
-		return cmp
+	switch {
+	case expr.Index < other.Index:
+		return -1
+	case expr.Index > other.Index:
+		return 1
 	}
-	if cmp := util.Compare(float64(expr.Index), float64(other.Index)); cmp != 0 {
-		return cmp
+	switch {
+	case expr.Negated && !other.Negated:
+		return 1
+	case !expr.Negated && other.Negated:
+		return -1
 	}
 	switch t := expr.Terms.(type) {
 	case *Term:
@@ -624,7 +629,7 @@ func (expr *Expr) String() string {
 // UnmarshalJSON parses the byte array and stores the result in expr.
 func (expr *Expr) UnmarshalJSON(bs []byte) error {
 	v := map[string]interface{}{}
-	if err := json.Unmarshal(bs, &v); err != nil {
+	if err := util.UnmarshalJSON(bs, &v); err != nil {
 		return err
 	}
 	return unmarshalExpr(expr, v)

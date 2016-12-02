@@ -15,6 +15,7 @@ import (
 	"unsafe"
 
 	"github.com/dchest/siphash"
+	"github.com/open-policy-agent/opa/util"
 
 	"github.com/pkg/errors"
 )
@@ -90,7 +91,7 @@ func InterfaceToValue(x interface{}) (Value, error) {
 		return Null{}, nil
 	case bool:
 		return Boolean(x), nil
-	case float64:
+	case json.Number:
 		return Number(x), nil
 	case string:
 		return String(x), nil
@@ -189,8 +190,8 @@ func (term *Term) IsGround() bool {
 }
 
 // MarshalJSON returns the JSON encoding of the term.
-// Specialized marshalling logic is required to include a type hint
-// for Value.
+//
+// Specialized marshalling logic is required to include a type hint for Value.
 func (term *Term) MarshalJSON() ([]byte, error) {
 	var typ string
 	switch term.Value.(type) {
@@ -230,7 +231,7 @@ func (term *Term) String() string {
 // Specialized unmarshalling is required to handle Value.
 func (term *Term) UnmarshalJSON(bs []byte) error {
 	v := map[string]interface{}{}
-	if err := json.Unmarshal(bs, &v); err != nil {
+	if err := util.UnmarshalJSON(bs, &v); err != nil {
 		return err
 	}
 	val, err := unmarshalValue(v)
@@ -331,11 +332,23 @@ func (bol Boolean) String() string {
 }
 
 // Number represents a numeric value as defined by JSON.
-type Number float64
+type Number json.Number
 
 // NumberTerm creates a new Term with a Number value.
-func NumberTerm(n float64) *Term {
+func NumberTerm(n json.Number) *Term {
 	return &Term{Value: Number(n)}
+}
+
+// IntNumberTerm creates a new Term with an integer Number value.
+func IntNumberTerm(i int) *Term {
+	num := Number(json.Number(fmt.Sprintf("%d", i)))
+	return &Term{Value: num}
+}
+
+// FloatNumberTerm creates a new Term with a floating point Number value.
+func FloatNumberTerm(f float64) *Term {
+	s := strconv.FormatFloat(f, 'g', -1, 64)
+	return &Term{Value: Number(s)}
 }
 
 // Equal returns true if the other Value is a Number and is equal.
@@ -350,7 +363,20 @@ func (num Number) Equal(other Value) bool {
 
 // Hash returns the hash code for the Value.
 func (num Number) Hash() int {
-	return int(num)
+	f, err := json.Number(num).Float64()
+	if err != nil {
+		panic("illegal value")
+	}
+	return int(f)
+}
+
+// Int returns the int representation of num if possible.
+func (num Number) Int() (int, bool) {
+	i, err := json.Number(num).Int64()
+	if err != nil {
+		return 0, false
+	}
+	return int(i), true
 }
 
 // IsGround always returns true.
@@ -358,8 +384,13 @@ func (num Number) IsGround() bool {
 	return true
 }
 
+// MarshalJSON returns JSON encoded bytes representing n.
+func (num Number) MarshalJSON() ([]byte, error) {
+	return json.Marshal(json.Number(num))
+}
+
 func (num Number) String() string {
-	return strconv.FormatFloat(float64(num), 'G', -1, 64)
+	return string(num)
 }
 
 // String represents a string value as defined by JSON.
@@ -979,10 +1010,10 @@ func unmarshalExpr(expr *Expr, v map[string]interface{}) error {
 
 func unmarshalExprIndex(expr *Expr, v map[string]interface{}) error {
 	if x, ok := v["Index"]; ok {
-		if f, ok := x.(float64); ok {
-			i := int(f)
-			if float64(i) == f {
-				expr.Index = i
+		if n, ok := x.(json.Number); ok {
+			i, err := n.Int64()
+			if err == nil {
+				expr.Index = int(i)
 				return nil
 			}
 		}
@@ -1029,7 +1060,7 @@ func unmarshalValue(d map[string]interface{}) (Value, error) {
 			return Boolean(b), nil
 		}
 	case "number":
-		if n, ok := v.(float64); ok {
+		if n, ok := v.(json.Number); ok {
 			return Number(n), nil
 		}
 	case "string":

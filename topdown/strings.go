@@ -5,7 +5,7 @@
 package topdown
 
 import (
-	"strconv"
+	"fmt"
 	"strings"
 
 	"github.com/open-policy-agent/opa/ast"
@@ -15,20 +15,33 @@ import (
 func evalFormatInt(ctx *Context, expr *ast.Expr, iter Iterator) error {
 	ops := expr.Terms.([]*ast.Term)
 
-	input, err := ValueToFloat64(ops[1].Value, ctx)
+	input, err := ValueToJSONNumber(ops[1].Value, ctx)
 	if err != nil {
 		return errors.Wrapf(err, "%v: input must be a number", ast.FormatInt.Name)
 	}
 
-	i := int64(input)
+	i, _ := jsonNumberToFloat(input).Int(nil)
 
-	base, err := ValueToFloat64(ops[2].Value, ctx)
+	base, err := ValueToInt(ops[2].Value, ctx)
 	if err != nil {
-		return errors.Wrapf(err, "%v: base must be a number", ast.FormatInt.Name)
+		return errors.Wrapf(err, "%v: base must be an integer", ast.FormatInt.Name)
 	}
 
-	b := int(base)
-	s := ast.String(strconv.FormatInt(i, b))
+	var format string
+	switch base {
+	case 2:
+		format = "%b"
+	case 8:
+		format = "%o"
+	case 10:
+		format = "%d"
+	case 16:
+		format = "%x"
+	default:
+		return errors.Wrapf(err, "%v: base must be one of 2, 8, 10, 16", ast.FormatInt.Name)
+	}
+
+	s := ast.String(fmt.Sprintf(format, i))
 
 	undo, err := evalEqUnify(ctx, s, ops[3].Value, nil, iter)
 	ctx.Unbind(undo)
@@ -68,9 +81,9 @@ func evalIndexOf(ctx *Context, expr *ast.Expr, iter Iterator) error {
 		return errors.Wrapf(err, "%v: search value must be a string", ast.IndexOf.Name)
 	}
 
-	index := ast.Number(strings.Index(base, search))
+	index := ast.IntNumberTerm(strings.Index(base, search))
 
-	undo, err := evalEqUnify(ctx, index, ops[3].Value, nil, iter)
+	undo, err := evalEqUnify(ctx, index.Value, ops[3].Value, nil, iter)
 	ctx.Unbind(undo)
 	return err
 }

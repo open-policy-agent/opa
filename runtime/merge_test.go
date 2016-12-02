@@ -4,10 +4,13 @@
 
 package runtime
 
-import "testing"
-import "encoding/json"
-import "reflect"
-import "fmt"
+import (
+	"fmt"
+	"reflect"
+	"testing"
+
+	"github.com/open-policy-agent/opa/util"
+)
 
 func TestMergeDocs(t *testing.T) {
 
@@ -18,18 +21,18 @@ func TestMergeDocs(t *testing.T) {
 	}{
 		{`{"x": 1, "y": 2}`, `{"z": 3}`, `{"x": 1, "y": 2, "z": 3}`},
 		{`{"x": {"y": 2}}`, `{"z": 3, "x": {"q": 4}}`, `{"x": {"y": 2, "q": 4}, "z": 3}`},
-		{`{"x": 1}`, `{"x": 1}`, fmt.Errorf("x: merge error: float64 cannot merge into float64")},
+		{`{"x": 1}`, `{"x": 1}`, fmt.Errorf("x: merge error: json.Number cannot merge into json.Number")},
 		{`{"x": {"y": [{"z": 2}]}}`, `{"x": {"y": [{"z": 3}]}}`, fmt.Errorf("x: y: merge error: []interface {} cannot merge into []interface {}")},
 	}
 
 	for _, tc := range tests {
 		a := map[string]interface{}{}
-		if err := json.Unmarshal([]byte(tc.a), &a); err != nil {
+		if err := util.UnmarshalJSON([]byte(tc.a), &a); err != nil {
 			panic(err)
 		}
 
 		b := map[string]interface{}{}
-		if err := json.Unmarshal([]byte(tc.b), &b); err != nil {
+		if err := util.UnmarshalJSON([]byte(tc.b), &b); err != nil {
 			panic(err)
 		}
 
@@ -42,7 +45,7 @@ func TestMergeDocs(t *testing.T) {
 
 		case string:
 			expected := map[string]interface{}{}
-			if err := json.Unmarshal([]byte(c), &expected); err != nil {
+			if err := util.UnmarshalJSON([]byte(c), &expected); err != nil {
 				panic(err)
 			}
 

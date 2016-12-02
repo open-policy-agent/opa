@@ -5,9 +5,10 @@
 package storage
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
+
+	"github.com/open-policy-agent/opa/util"
 
 	"strconv"
 )
@@ -41,7 +42,7 @@ func NewDataStoreFromJSONObject(data map[string]interface{}) *DataStore {
 // NewDataStoreFromReader returns a new DataStore from a reader that produces a
 // JSON serialized object. This function is for test purposes.
 func NewDataStoreFromReader(r io.Reader) *DataStore {
-	d := json.NewDecoder(r)
+	d := util.NewJSONDecoder(r)
 	var data map[string]interface{}
 	if err := d.Decode(&data); err != nil {
 		panic(err)

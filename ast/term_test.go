@@ -5,11 +5,12 @@
 package ast
 
 import (
-	"encoding/json"
 	"fmt"
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/open-policy-agent/opa/util"
 )
 
 func TestInterfaceToValue(t *testing.T) {
@@ -27,7 +28,7 @@ func TestInterfaceToValue(t *testing.T) {
 	}
 	`
 	var x interface{}
-	if err := json.Unmarshal([]byte(input), &x); err != nil {
+	if err := util.UnmarshalJSON([]byte(input), &x); err != nil {
 		panic(err)
 	}
 
@@ -87,7 +88,7 @@ func TestTermBadJSON(t *testing.T) {
 	}`
 
 	term := Term{}
-	err := json.Unmarshal([]byte(input), &term)
+	err := util.UnmarshalJSON([]byte(input), &term)
 	expected := fmt.Errorf("ast: unable to unmarshal term")
 	if !reflect.DeepEqual(expected, err) {
 		t.Errorf("Expected %v but got: %v", expected, err)
@@ -98,28 +99,28 @@ func TestTermBadJSON(t *testing.T) {
 func TestTermEqual(t *testing.T) {
 	assertTermEqual(t, NullTerm(), NullTerm())
 	assertTermEqual(t, BooleanTerm(true), BooleanTerm(true))
-	assertTermEqual(t, NumberTerm(5), NumberTerm(5))
+	assertTermEqual(t, IntNumberTerm(5), IntNumberTerm(5))
 	assertTermEqual(t, StringTerm("a string"), StringTerm("a string"))
 	assertTermEqual(t, ObjectTerm(), ObjectTerm())
 	assertTermEqual(t, ArrayTerm(), ArrayTerm())
-	assertTermEqual(t, ObjectTerm(Item(NumberTerm(1), NumberTerm(2))), ObjectTerm(Item(NumberTerm(1), NumberTerm(2))))
-	assertTermEqual(t, ObjectTerm(Item(NumberTerm(1), NumberTerm(2)), Item(NumberTerm(3), NumberTerm(4))), ObjectTerm(Item(NumberTerm(1), NumberTerm(2)), Item(NumberTerm(3), NumberTerm(4))))
-	assertTermEqual(t, ArrayTerm(NumberTerm(1), NumberTerm(2), NumberTerm(3)), ArrayTerm(NumberTerm(1), NumberTerm(2), NumberTerm(3)))
+	assertTermEqual(t, ObjectTerm(Item(IntNumberTerm(1), IntNumberTerm(2))), ObjectTerm(Item(IntNumberTerm(1), IntNumberTerm(2))))
+	assertTermEqual(t, ObjectTerm(Item(IntNumberTerm(1), IntNumberTerm(2)), Item(IntNumberTerm(3), IntNumberTerm(4))), ObjectTerm(Item(IntNumberTerm(1), IntNumberTerm(2)), Item(IntNumberTerm(3), IntNumberTerm(4))))
+	assertTermEqual(t, ArrayTerm(IntNumberTerm(1), IntNumberTerm(2), IntNumberTerm(3)), ArrayTerm(IntNumberTerm(1), IntNumberTerm(2), IntNumberTerm(3)))
 	assertTermEqual(t, VarTerm("foo"), VarTerm("foo"))
-	assertTermEqual(t, RefTerm(VarTerm("foo"), VarTerm("i"), NumberTerm(2)), RefTerm(VarTerm("foo"), VarTerm("i"), NumberTerm(2)))
+	assertTermEqual(t, RefTerm(VarTerm("foo"), VarTerm("i"), IntNumberTerm(2)), RefTerm(VarTerm("foo"), VarTerm("i"), IntNumberTerm(2)))
 	assertTermEqual(t, ArrayComprehensionTerm(VarTerm("x"), NewBody(&Expr{Terms: RefTerm(VarTerm("a"), VarTerm("i"))})), ArrayComprehensionTerm(VarTerm("x"), NewBody(&Expr{Terms: RefTerm(VarTerm("a"), VarTerm("i"))})))
 	assertTermNotEqual(t, NullTerm(), BooleanTerm(true))
 	assertTermNotEqual(t, BooleanTerm(true), BooleanTerm(false))
-	assertTermNotEqual(t, NumberTerm(5), NumberTerm(7))
+	assertTermNotEqual(t, IntNumberTerm(5), IntNumberTerm(7))
 	assertTermNotEqual(t, StringTerm("a string"), StringTerm("abc"))
-	assertTermNotEqual(t, ObjectTerm(Item(NumberTerm(3), NumberTerm(2))), ObjectTerm(Item(NumberTerm(1), NumberTerm(2))))
-	assertTermNotEqual(t, ObjectTerm(Item(NumberTerm(1), NumberTerm(2)), Item(NumberTerm(3), NumberTerm(7))), ObjectTerm(Item(NumberTerm(1), NumberTerm(2)), Item(NumberTerm(3), NumberTerm(4))))
-	assertTermNotEqual(t, NumberTerm(5), StringTerm("a string"))
-	assertTermNotEqual(t, NumberTerm(1), BooleanTerm(true))
-	assertTermNotEqual(t, ObjectTerm(Item(NumberTerm(1), NumberTerm(2)), Item(NumberTerm(3), NumberTerm(7))), ArrayTerm(NumberTerm(1), NumberTerm(2), NumberTerm(7)))
-	assertTermNotEqual(t, ArrayTerm(NumberTerm(1), NumberTerm(2), NumberTerm(3)), ArrayTerm(NumberTerm(1), NumberTerm(2), NumberTerm(4)))
+	assertTermNotEqual(t, ObjectTerm(Item(IntNumberTerm(3), IntNumberTerm(2))), ObjectTerm(Item(IntNumberTerm(1), IntNumberTerm(2))))
+	assertTermNotEqual(t, ObjectTerm(Item(IntNumberTerm(1), IntNumberTerm(2)), Item(IntNumberTerm(3), IntNumberTerm(7))), ObjectTerm(Item(IntNumberTerm(1), IntNumberTerm(2)), Item(IntNumberTerm(3), IntNumberTerm(4))))
+	assertTermNotEqual(t, IntNumberTerm(5), StringTerm("a string"))
+	assertTermNotEqual(t, IntNumberTerm(1), BooleanTerm(true))
+	assertTermNotEqual(t, ObjectTerm(Item(IntNumberTerm(1), IntNumberTerm(2)), Item(IntNumberTerm(3), IntNumberTerm(7))), ArrayTerm(IntNumberTerm(1), IntNumberTerm(2), IntNumberTerm(7)))
+	assertTermNotEqual(t, ArrayTerm(IntNumberTerm(1), IntNumberTerm(2), IntNumberTerm(3)), ArrayTerm(IntNumberTerm(1), IntNumberTerm(2), IntNumberTerm(4)))
 	assertTermNotEqual(t, VarTerm("foo"), VarTerm("bar"))
-	assertTermNotEqual(t, RefTerm(VarTerm("foo"), VarTerm("i"), NumberTerm(2)), RefTerm(VarTerm("foo"), StringTerm("i"), NumberTerm(2)))
+	assertTermNotEqual(t, RefTerm(VarTerm("foo"), VarTerm("i"), IntNumberTerm(2)), RefTerm(VarTerm("foo"), StringTerm("i"), IntNumberTerm(2)))
 	assertTermNotEqual(t, ArrayComprehensionTerm(VarTerm("x"), NewBody(&Expr{Terms: RefTerm(VarTerm("a"), VarTerm("j"))})), ArrayComprehensionTerm(VarTerm("x"), NewBody(&Expr{Terms: RefTerm(VarTerm("a"), VarTerm("i"))})))
 }
 
@@ -214,20 +215,20 @@ func TestTermString(t *testing.T) {
 	assertToString(t, Null{}, "null")
 	assertToString(t, Boolean(true), "true")
 	assertToString(t, Boolean(false), "false")
-	assertToString(t, Number(4), "4")
-	assertToString(t, Number(42.1), "42.1")
-	assertToString(t, Number(6e7), "6E+07")
+	assertToString(t, Number("4"), "4")
+	assertToString(t, Number("42.1"), "42.1")
+	assertToString(t, Number("6e7"), "6e7")
 	assertToString(t, String("foo"), "\"foo\"")
 	assertToString(t, String("\"foo\""), "\"\\\"foo\\\"\"")
 	assertToString(t, String("foo bar"), "\"foo bar\"")
 	assertToString(t, Var("foo"), "foo")
 	assertToString(t, RefTerm(VarTerm("foo"), StringTerm("bar")).Value, "foo.bar")
-	assertToString(t, RefTerm(VarTerm("foo"), StringTerm("bar"), VarTerm("i"), NumberTerm(0), StringTerm("baz")).Value, "foo.bar[i][0].baz")
+	assertToString(t, RefTerm(VarTerm("foo"), StringTerm("bar"), VarTerm("i"), IntNumberTerm(0), StringTerm("baz")).Value, "foo.bar[i][0].baz")
 	assertToString(t, RefTerm(VarTerm("foo"), BooleanTerm(false), NullTerm(), StringTerm("bar")).Value, "foo[false][null].bar")
 	assertToString(t, ArrayTerm().Value, "[]")
 	assertToString(t, ObjectTerm().Value, "{}")
 	assertToString(t, SetTerm().Value, "set()")
-	assertToString(t, ArrayTerm(ObjectTerm(Item(VarTerm("foo"), ArrayTerm(RefTerm(VarTerm("bar"), VarTerm("i"))))), StringTerm("foo"), SetTerm(BooleanTerm(true), NullTerm()), NumberTerm(42.1)).Value, "[{foo: [bar[i]]}, \"foo\", {true, null}, 42.1]")
+	assertToString(t, ArrayTerm(ObjectTerm(Item(VarTerm("foo"), ArrayTerm(RefTerm(VarTerm("bar"), VarTerm("i"))))), StringTerm("foo"), SetTerm(BooleanTerm(true), NullTerm()), FloatNumberTerm(42.1)).Value, "[{foo: [bar[i]]}, \"foo\", {true, null}, 42.1]")
 	assertToString(t, ArrayComprehensionTerm(ArrayTerm(VarTerm("x")), NewBody(&Expr{Terms: RefTerm(VarTerm("a"), VarTerm("i"))})).Value, "[[x] | a[i]]")
 }
 

@@ -4,10 +4,13 @@
 
 package util
 
-import "testing"
-import "math"
+import (
+	"encoding/json"
+	"testing"
+)
 
 func TestCompare(t *testing.T) {
+
 	tests := []struct {
 		a        interface{}
 		b        interface{}
@@ -20,12 +23,12 @@ func TestCompare(t *testing.T) {
 		{false, true, -1},
 		{true, true, 0},
 		{true, false, 1},
-		{true, float64(0), -1},
-		{float64(0), float64(0), 0},
-		{float64(0), float64(-1), 1},
-		{float64(-1), float64(0), -1},
-		{math.MaxFloat64, math.SmallestNonzeroFloat64, 1},
-		{float64(-1), "", -1},
+		{true, json.Number("0"), -1},
+		{json.Number("0"), json.Number("0"), 0},
+		{json.Number("0"), json.Number("-1"), 1},
+		{json.Number("-1"), json.Number("0"), -1},
+		{json.Number("1.797693134862315708145274237317043567981e+308"), json.Number("4.940656458412465441765687928682213723651e-324"), 1},
+		{json.Number("-1"), "", -1},
 		{"", "", 0},
 		{"hello", "", 1},
 		{"hello world", "hello worldz", -1},

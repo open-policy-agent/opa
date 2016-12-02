@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"reflect"
 	"testing"
+
+	"github.com/open-policy-agent/opa/util"
 )
 
 func TestDataStoreGet(t *testing.T) {
@@ -19,13 +21,13 @@ func TestDataStoreGet(t *testing.T) {
 		path     string
 		expected interface{}
 	}{
-		{"/a/0", float64(1)},
-		{"/a/3", float64(4)},
+		{"/a/0", json.Number("1")},
+		{"/a/3", json.Number("4")},
 		{"/b/v1", "hello"},
 		{"/b/v2", "goodbye"},
 		{"/c/0/x/1", false},
 		{"/c/0/y/0", nil},
-		{"/c/0/y/1", 3.14159},
+		{"/c/0/y/1", json.Number("3.14159")},
 		{"/d/e/1", "baz"},
 		{"/d/e", []interface{}{"bar", "baz"}},
 		{"/c/0/z", map[string]interface{}{"p": true, "q": false}},
@@ -189,7 +191,7 @@ func loadExpectedResult(input string) interface{} {
 		return nil
 	}
 	var data interface{}
-	if err := json.Unmarshal([]byte(input), &data); err != nil {
+	if err := util.UnmarshalJSON([]byte(input), &data); err != nil {
 		panic(err)
 	}
 	return data
@@ -207,7 +209,7 @@ func loadExpectedSortedResult(input string) interface{} {
 
 func loadSmallTestData() map[string]interface{} {
 	var data map[string]interface{}
-	err := json.Unmarshal([]byte(`{
+	err := util.UnmarshalJSON([]byte(`{
         "a": [1,2,3,4],
         "b": {
             "v1": "hello",

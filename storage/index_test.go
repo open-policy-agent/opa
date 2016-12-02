@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/util"
 )
 
 func TestIndicesBuild(t *testing.T) {
@@ -20,10 +21,10 @@ func TestIndicesBuild(t *testing.T) {
 		value    interface{}
 		expected string
 	}{
-		{"single var", "data.a[i]", float64(2), `[{"i": 1}]`},
+		{"single var", "data.a[i]", json.Number("2"), `[{"i": 1}]`},
 		{"two var", "data.d[x][y]", "baz", `[{"x": "e", "y": 1}]`},
 		{"partial ground", `data.c[i]["y"][j]`, nil, `[{"i": 0, "j": 0}]`},
-		{"multiple bindings", "data.g[x][y]", float64(0), `[
+		{"multiple bindings", "data.g[x][y]", json.Number("0"), `[
 			{"x": "a", "y": 1},
 			{"x": "a", "y": 2},
 			{"x": "a", "y": 3},
@@ -56,7 +57,7 @@ func TestIndicesAdd(t *testing.T) {
 
 	// new value to add
 	var val1 interface{}
-	err := json.Unmarshal([]byte(`{"x":[1,true]}`), &val1)
+	err := util.UnmarshalJSON([]byte(`{"x":[1,true]}`), &val1)
 	if err != nil {
 		panic(err)
 	}
@@ -129,7 +130,7 @@ func assertBindingsEqual(t *testing.T, note string, index *bindingIndex, value i
 
 func loadExpectedBindings(input string) []*ast.ValueMap {
 	var data []map[string]interface{}
-	if err := json.Unmarshal([]byte(input), &data); err != nil {
+	if err := util.UnmarshalJSON([]byte(input), &data); err != nil {
 		panic(err)
 	}
 	var expected []*ast.ValueMap
@@ -139,7 +140,7 @@ func loadExpectedBindings(input string) []*ast.ValueMap {
 			switch v := v.(type) {
 			case string:
 				buf.Put(ast.Var(k), ast.String(v))
-			case float64:
+			case json.Number:
 				buf.Put(ast.Var(k), ast.Number(v))
 			default:
 				panic("unreachable")
@@ -147,6 +148,5 @@ func loadExpectedBindings(input string) []*ast.ValueMap {
 		}
 		expected = append(expected, buf)
 	}
-
 	return expected
 }

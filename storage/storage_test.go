@@ -71,7 +71,7 @@ func TestStorageIndexingBasicUpdate(t *testing.T) {
 	refA := ast.MustParseRef("data.a[i]")
 	refB := ast.MustParseRef("data.b[x]")
 	store, ds := newStorageWithIndices(refA, refB)
-	ds.Write(nil, AddOp, MustParsePath("/a/-"), float64(100))
+	ds.Write(nil, AddOp, MustParsePath("/a/-"), nil)
 
 	if store.IndexExists(refA) {
 		t.Errorf("Expected index to be removed after patch")

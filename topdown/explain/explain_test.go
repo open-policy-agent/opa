@@ -5,12 +5,12 @@
 package explain
 
 import (
-	"encoding/json"
 	"testing"
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/topdown"
+	"github.com/open-policy-agent/opa/util"
 )
 
 func TestTruth(t *testing.T) {
@@ -190,7 +190,7 @@ func executeQuery(data string, compiler *ast.Compiler, tracer topdown.Tracer) {
 	d := map[string]interface{}{}
 
 	if len(data) > 0 {
-		if err := json.Unmarshal([]byte(data), &d); err != nil {
+		if err := util.UnmarshalJSON([]byte(data), &d); err != nil {
 			panic(err)
 		}
 	}

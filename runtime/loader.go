@@ -5,16 +5,16 @@
 package runtime
 
 import (
-	"encoding/json"
+	"bytes"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
-
 	"strings"
 
 	"github.com/ghodss/yaml"
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/util"
 	"github.com/pkg/errors"
 )
 
@@ -195,7 +195,7 @@ func jsonLoad(path string) (interface{}, error) {
 		return nil, errors.Wrapf(err, path)
 	}
 	defer f.Close()
-	decoder := json.NewDecoder(f)
+	decoder := util.NewJSONDecoder(f)
 	var x interface{}
 	return x, decoder.Decode(&x)
 }
@@ -222,7 +222,7 @@ func yamlLoad(path string) (interface{}, error) {
 		return nil, err
 	}
 	var x interface{}
-	if err := yaml.Unmarshal(bs, &x); err != nil {
+	if err := unmarshalYAML(bs, &x); err != nil {
 		return nil, errors.Wrapf(err, path)
 	}
 	return x, nil
@@ -245,4 +245,16 @@ func splitPathPrefix(path string) ([]string, string) {
 		return strings.Split(parts[0], "."), parts[1]
 	}
 	return nil, path
+}
+
+// unmarshalYAML re-implements yaml.Unmarshal so that the JSON decoder can have
+// UseNumber set.
+func unmarshalYAML(y []byte, o interface{}) error {
+	bs, err := yaml.YAMLToJSON(y)
+	if err != nil {
+		return fmt.Errorf("error converting YAML to JSON: %v", err)
+	}
+	buf := bytes.NewBuffer(bs)
+	decoder := util.NewJSONDecoder(buf)
+	return decoder.Decode(o)
 }

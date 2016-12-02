@@ -18,6 +18,7 @@ import (
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/storage"
+	"github.com/open-policy-agent/opa/util"
 )
 
 func TestComplete(t *testing.T) {
@@ -96,7 +97,7 @@ func TestComplete(t *testing.T) {
 func TestDump(t *testing.T) {
 	input := `{"a": [1,2,3,4]}`
 	var data map[string]interface{}
-	err := json.Unmarshal([]byte(input), &data)
+	err := util.UnmarshalJSON([]byte(input), &data)
 	if err != nil {
 		panic(err)
 	}
@@ -110,7 +111,7 @@ func TestDump(t *testing.T) {
 func TestDumpPath(t *testing.T) {
 	input := `{"a": [1,2,3,4]}`
 	var data map[string]interface{}
-	err := json.Unmarshal([]byte(input), &data)
+	err := util.UnmarshalJSON([]byte(input), &data)
 	if err != nil {
 		panic(err)
 	}
@@ -137,7 +138,7 @@ func TestDumpPath(t *testing.T) {
 	}
 
 	var result map[string]interface{}
-	if err := json.Unmarshal(bs, &result); err != nil {
+	if err := util.UnmarshalJSON(bs, &result); err != nil {
 		t.Fatalf("Expected json unmarhsal to suceed but got: %v", err)
 	}
 
@@ -340,13 +341,13 @@ func TestOneShotJSON(t *testing.T) {
 		}
 	]
 	`
-	if err := json.Unmarshal([]byte(input), &expected); err != nil {
+	if err := util.UnmarshalJSON([]byte(input), &expected); err != nil {
 		panic(err)
 	}
 
 	var result interface{}
 
-	if err := json.Unmarshal(buffer.Bytes(), &result); err != nil {
+	if err := util.UnmarshalJSON(buffer.Bytes(), &result); err != nil {
 		t.Errorf("Unexpected output format: %v", err)
 		return
 	}
@@ -486,13 +487,13 @@ func TestEvalSingleTermMultiValue(t *testing.T) {
 	]`
 
 	var expected interface{}
-	if err := json.Unmarshal([]byte(input), &expected); err != nil {
+	if err := util.UnmarshalJSON([]byte(input), &expected); err != nil {
 		panic(err)
 	}
 
 	repl.OneShot("data.a[i].b.c[_]")
 	var result interface{}
-	if err := json.Unmarshal(buffer.Bytes(), &result); err != nil {
+	if err := util.UnmarshalJSON(buffer.Bytes(), &result); err != nil {
 		t.Errorf("Expected valid JSON document: %v: %v", err, buffer.String())
 		return
 	}
@@ -534,11 +535,11 @@ func TestEvalSingleTermMultiValue(t *testing.T) {
 	]
 	`
 
-	if err := json.Unmarshal([]byte(input), &expected); err != nil {
+	if err := util.UnmarshalJSON([]byte(input), &expected); err != nil {
 		panic(err)
 	}
 
-	if err := json.Unmarshal(buffer.Bytes(), &result); err != nil {
+	if err := util.UnmarshalJSON(buffer.Bytes(), &result); err != nil {
 		t.Errorf("Expected valid JSON document: %v: %v", err, buffer.String())
 		return
 	}
@@ -618,15 +619,15 @@ func TestEvalBodyCompileError(t *testing.T) {
 	buffer.Reset()
 	repl.OneShot("x = 1, y = 2, y > x")
 	var result2 []interface{}
-	err = json.Unmarshal(buffer.Bytes(), &result2)
+	err = util.UnmarshalJSON(buffer.Bytes(), &result2)
 	if err != nil {
 		t.Errorf("Expected valid JSON output but got: %v", buffer.String())
 		return
 	}
 	expected2 := []interface{}{
 		map[string]interface{}{
-			"x": float64(1),
-			"y": float64(2),
+			"x": json.Number("1"),
+			"y": json.Number("2"),
 		},
 	}
 	if !reflect.DeepEqual(expected2, result2) {
@@ -844,7 +845,7 @@ func newTestStore() *storage.Storage {
     }
     `
 	var data map[string]interface{}
-	err := json.Unmarshal([]byte(input), &data)
+	err := util.UnmarshalJSON([]byte(input), &data)
 	if err != nil {
 		panic(err)
 	}
@@ -853,7 +854,7 @@ func newTestStore() *storage.Storage {
 
 func parseJSON(s string) interface{} {
 	var v interface{}
-	if err := json.Unmarshal([]byte(s), &v); err != nil {
+	if err := util.UnmarshalJSON([]byte(s), &v); err != nil {
 		panic(err)
 	}
 	return v
