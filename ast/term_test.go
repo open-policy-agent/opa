@@ -231,19 +231,6 @@ func TestTermString(t *testing.T) {
 	assertToString(t, ArrayComprehensionTerm(ArrayTerm(VarTerm("x")), NewBody(&Expr{Terms: RefTerm(VarTerm("a"), VarTerm("i"))})).Value, "[[x] | a[i]]")
 }
 
-func TestRefUnderlying(t *testing.T) {
-
-	assertUnderlying(t, RefTerm().Value.(Ref), []interface{}{})
-	assertUnderlying(t, RefTerm(VarTerm("a")).Value.(Ref), []interface{}{"a"})
-	assertUnderlying(t, RefTerm(StringTerm("a")).Value.(Ref), []interface{}{"a"})
-	assertUnderlying(t, RefTerm(NullTerm()).Value.(Ref), []interface{}{nil})
-	assertUnderlying(t, RefTerm(BooleanTerm(false)).Value.(Ref), []interface{}{false})
-	assertUnderlying(t, RefTerm(NumberTerm(3)).Value.(Ref), []interface{}{float64(3)})
-	assertUnderlying(t, RefTerm(VarTerm("a"), StringTerm("b"), NumberTerm(4)).Value.(Ref), []interface{}{"a", "b", float64(4)})
-	assertUnderlyingError(t, RefTerm(VarTerm("a"), VarTerm("i")).Value.(Ref), fmt.Errorf("cannot get underlying value for non-ground ref: a[i]"))
-
-}
-
 func TestRefHasPrefix(t *testing.T) {
 
 	a := MustParseRef("foo.bar.baz")
@@ -347,27 +334,5 @@ func assertToString(t *testing.T, val Value, expected string) {
 	result := val.String()
 	if result != expected {
 		t.Errorf("Expected %v but got %v", expected, result)
-	}
-}
-
-func assertUnderlying(t *testing.T, ref Ref, expected []interface{}) {
-	u, err := ref.Underlying()
-	if err != nil {
-		t.Errorf("Unexpected error: %v", err)
-		return
-	}
-	if !reflect.DeepEqual(u, expected) {
-		t.Errorf("Expected %v but got %v", expected, u)
-	}
-}
-
-func assertUnderlyingError(t *testing.T, ref Ref, expected error) {
-	u, err := ref.Underlying()
-	if err == nil {
-		t.Errorf("Expected error but got %v", u)
-		return
-	}
-	if !reflect.DeepEqual(err, expected) {
-		t.Errorf("Expected %v but got %v", expected, err)
 	}
 }
