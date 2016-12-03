@@ -97,7 +97,7 @@ func TestInit(t *testing.T) {
 
 	txn := storage.NewTransactionOrDie(rt.Store)
 
-	node, err := rt.Store.Read(txn, ast.MustParseRef("data.foo"))
+	node, err := rt.Store.Read(txn, storage.MustParsePath("/foo"))
 	if util.Compare(node, "bar") != 0 || err != nil {
 		t.Errorf("Expected %v but got %v (err: %v)", "bar", node, err)
 		return

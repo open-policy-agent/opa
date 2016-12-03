@@ -56,8 +56,7 @@ type Storage struct {
 }
 
 type mount struct {
-	path    ast.Ref
-	strpath []string
+	path    Path
 	backend Store
 }
 
@@ -122,7 +121,7 @@ func (s *Storage) DeletePolicy(txn Transaction, id string) error {
 
 // Mount adds a store into the storage layer at the given path. If the path
 // conflicts with an existing mount, an error is returned.
-func (s *Storage) Mount(backend Store, path ast.Ref) error {
+func (s *Storage) Mount(backend Store, path Path) error {
 
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
@@ -132,29 +131,19 @@ func (s *Storage) Mount(backend Store, path ast.Ref) error {
 			return mountConflictError()
 		}
 	}
-	spath := make([]string, len(path))
-	for i, x := range path {
-		switch v := x.Value.(type) {
-		case ast.String:
-			spath[i] = string(v)
-		case ast.Var:
-			spath[i] = string(v)
-		default:
-			return internalError("bad mount path: %v", path)
-		}
-	}
+
 	m := &mount{
 		path:    path,
-		strpath: spath,
 		backend: backend,
 	}
+
 	s.mounts = append(s.mounts, m)
 	return nil
 }
 
 // Unmount removes a store from the storage layer. If the path does not locate
 // an existing mount, an error is returned.
-func (s *Storage) Unmount(path ast.Ref) error {
+func (s *Storage) Unmount(path Path) error {
 
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
@@ -165,21 +154,17 @@ func (s *Storage) Unmount(path ast.Ref) error {
 			return nil
 		}
 	}
-	return notFoundRefError(path, "unmount")
+	return notFoundError(path, "unmount")
 }
 
 // Read fetches the value in storage referred to by path. The path may refer to
 // multiple stores in which case the storage layer will fetch the values from
 // each store and then stitch together the result.
-func (s *Storage) Read(txn Transaction, path ast.Ref) (interface{}, error) {
+func (s *Storage) Read(txn Transaction, path Path) (interface{}, error) {
 
 	type hole struct {
 		path []string
 		doc  interface{}
-	}
-
-	if !path.IsGround() {
-		return nil, internalError("non-ground reference: %v", path)
 	}
 
 	holes := []hole{}
@@ -191,7 +176,7 @@ func (s *Storage) Read(txn Transaction, path ast.Ref) (interface{}, error) {
 			if err := s.lazyActivate(mount.backend, txn, nil); err != nil {
 				return nil, err
 			}
-			return mount.backend.Read(txn, path)
+			return mount.backend.Read(txn, path[len(mount.path):])
 		}
 
 		// Check if read is over this mount (and possibly others)
@@ -199,11 +184,11 @@ func (s *Storage) Read(txn Transaction, path ast.Ref) (interface{}, error) {
 			if err := s.lazyActivate(mount.backend, txn, nil); err != nil {
 				return nil, err
 			}
-			node, err := mount.backend.Read(txn, mount.path)
+			node, err := mount.backend.Read(txn, Path{})
 			if err != nil {
 				return nil, err
 			}
-			prefix := mount.strpath[len(path):]
+			prefix := mount.path[len(path):]
 			holes = append(holes, hole{prefix, node})
 		}
 	}
@@ -241,23 +226,28 @@ func (s *Storage) Read(txn Transaction, path ast.Ref) (interface{}, error) {
 }
 
 // Write updates a value in storage.
-func (s *Storage) Write(txn Transaction, op PatchOp, ref ast.Ref, value interface{}) error {
+func (s *Storage) Write(txn Transaction, op PatchOp, path Path, value interface{}) error {
+
 	if err := s.lazyActivate(s.builtin, txn, nil); err != nil {
 		return err
 	}
-	return s.builtin.Write(txn, op, ref, value)
+
+	return s.builtin.Write(txn, op, path, value)
 }
 
-// NewTransaction returns a new transcation that can be used to perform reads
-// and writes against a consistent snapshot of the storage layer. The caller can
-// provide a slice of references that may be read during the transaction.
-func (s *Storage) NewTransaction(refs ...ast.Ref) (Transaction, error) {
+// NewTransaction returns a new Transaction with default parameters.
+func (s *Storage) NewTransaction() (Transaction, error) {
+	return s.NewTransactionWithParams(TransactionParams{})
+}
+
+// NewTransactionWithParams returns a new Transaction.
+func (s *Storage) NewTransactionWithParams(params TransactionParams) (Transaction, error) {
 
 	s.mtx.Lock()
 	s.txn++
 	txn := s.txn
 
-	if err := s.notifyStoresBegin(txn, refs); err != nil {
+	if err := s.notifyStoresBegin(txn, params.Paths); err != nil {
 		return nil, err
 	}
 
@@ -274,20 +264,17 @@ func (s *Storage) Close(txn Transaction) {
 // reference over the snapshot identified by the transaction.
 func (s *Storage) BuildIndex(txn Transaction, ref ast.Ref) error {
 
+	path, err := NewPathForRef(ref.GroundPrefix())
+	if err != nil {
+		return indexingNotSupportedError()
+	}
+
 	// TODO(tsandall): for now we prevent indexing against stores other than the
 	// built-in. This will be revisited in the future. To determine the
 	// reference touches an external store, we collect the ground portion of
 	// the reference and see if it matches any mounts.
-	ground := ast.Ref{ref[0]}
-
-	for _, x := range ref[1:] {
-		if x.IsGround() {
-			ground = append(ground, x)
-		}
-	}
-
 	for _, mount := range s.mounts {
-		if ground.HasPrefix(mount.path) {
+		if path.HasPrefix(mount.path) || mount.path.HasPrefix(path) {
 			return indexingNotSupportedError()
 		}
 	}
@@ -325,14 +312,15 @@ func (s *Storage) getStoreByID(id string) Store {
 	return nil
 }
 
-func (s *Storage) lazyActivate(store Store, txn Transaction, refs []ast.Ref) error {
+func (s *Storage) lazyActivate(store Store, txn Transaction, paths []Path) error {
 
 	id := store.ID()
 	if _, ok := s.active[id]; ok {
 		return nil
 	}
 
-	if err := store.Begin(txn, refs); err != nil {
+	params := TransactionParams{}
+	if err := store.Begin(txn, params); err != nil {
 		return err
 	}
 
@@ -340,7 +328,7 @@ func (s *Storage) lazyActivate(store Store, txn Transaction, refs []ast.Ref) err
 	return nil
 }
 
-func (s *Storage) notifyStoresBegin(txn Transaction, refs []ast.Ref) error {
+func (s *Storage) notifyStoresBegin(txn Transaction, paths []Path) error {
 
 	builtinID := s.builtin.ID()
 
@@ -349,15 +337,18 @@ func (s *Storage) notifyStoresBegin(txn Transaction, refs []ast.Ref) error {
 	// closed, the set is consulted to determine which stores to notify.
 	s.active = map[string]struct{}{}
 
-	mounts := map[string]ast.Ref{}
+	mounts := map[string]Path{}
 	for _, mount := range s.mounts {
 		mounts[mount.backend.ID()] = mount.path
 	}
 
-	grouped := groupRefsByStore(builtinID, mounts, refs)
+	grouped := groupPathsByStore(builtinID, mounts, paths)
 
-	for id, refs := range grouped {
-		if err := s.getStoreByID(id).Begin(txn, refs); err != nil {
+	for id, groupedPaths := range grouped {
+		params := TransactionParams{
+			Paths: groupedPaths,
+		}
+		if err := s.getStoreByID(id).Begin(txn, params); err != nil {
 			return err
 		}
 		s.active[id] = struct{}{}
@@ -403,73 +394,37 @@ func GetPolicy(store *Storage, id string) (*ast.Module, []byte, error) {
 	return store.GetPolicy(txn, id)
 }
 
-// ReadOrDie is a helper function to read the path from storage. If the read
-// fails for any reason, this function will panic. This function should only be
-// used for tests.
-func ReadOrDie(store *Storage, path ast.Ref) interface{} {
-	txn, err := store.NewTransaction()
-	if err != nil {
-		panic(err)
-	}
-	defer store.Close(txn)
-	node, err := store.Read(txn, path)
-	if err != nil {
-		panic(err)
-	}
-	return node
-}
-
 // NewTransactionOrDie is a helper function to create a new transaction. If the
 // storage layer cannot create a new transaction, this function will panic. This
 // function should only be used for tests.
-func NewTransactionOrDie(store *Storage, refs ...ast.Ref) Transaction {
-	txn, err := store.NewTransaction(refs...)
+func NewTransactionOrDie(store *Storage) Transaction {
+	txn, err := store.NewTransaction()
 	if err != nil {
 		panic(err)
 	}
 	return txn
 }
 
-func groupRefsByStore(builtinID string, mounts map[string]ast.Ref, refs []ast.Ref) map[string][]ast.Ref {
+func groupPathsByStore(builtinID string, mounts map[string]Path, paths []Path) map[string][]Path {
 
-	r := map[string][]ast.Ref{}
+	r := map[string][]Path{}
 
-	for _, ref := range refs {
-		prefix := ref.GroundPrefix()
+	for _, path := range paths {
 		sole := false
-
-		// TODO(tsandall): if number of mounts is large this will be costly;
-		// consider replacing with a trie.
-		for id, path := range mounts {
-
-			if prefix.HasPrefix(path) {
-				// This store is solely responsible for the ref.
-				r[id] = append(r[id], ref)
+		for id, mountPath := range mounts {
+			if path.HasPrefix(mountPath) {
+				r[id] = append(r[id], path[len(mountPath):])
 				sole = true
 				break
 			}
-
-			if path.HasPrefix(prefix) {
-				// This store is partially responsible for the ref. If the ref
-				// is shorter than the mount path, then the entire content of
-				// the mounted store may be read. Otherwise, replace prefix of
-				// ref with mount path as the references passed to the store are
-				// always prefixed with the mount path of the store.
-				if len(ref) <= len(path) {
-					r[id] = append(r[id], path)
-				} else {
-					tmp := make(ast.Ref, len(ref))
-					copy(tmp, path)
-					copy(tmp[len(path):], ref[len(path):])
-					r[id] = append(r[id], tmp)
-				}
+			if mountPath.HasPrefix(path) {
+				r[id] = append(r[id], Path{})
 			}
 		}
-
 		if !sole {
 			// Read may span multiple stores, so by definition, built-in store
 			// will be read.
-			r[builtinID] = append(r[builtinID], ref)
+			r[builtinID] = append(r[builtinID], path)
 		}
 	}
 

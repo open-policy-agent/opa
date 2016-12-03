@@ -9,22 +9,20 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/open-policy-agent/opa/ast"
+	"strconv"
 )
 
-// DataStore is the backend containing rule references and data.
+// DataStore is a simple in-memory data store that implements the storage.Store interface.
 type DataStore struct {
-	mountPath ast.Ref
-	data      map[string]interface{}
-	triggers  map[string]TriggerConfig
+	data     map[string]interface{}
+	triggers map[string]TriggerConfig
 }
 
 // NewDataStore returns an empty DataStore.
 func NewDataStore() *DataStore {
 	return &DataStore{
-		data:      map[string]interface{}{},
-		triggers:  map[string]TriggerConfig{},
-		mountPath: ast.Ref{ast.DefaultRootDocument},
+		data:     map[string]interface{}{},
+		triggers: map[string]TriggerConfig{},
 	}
 }
 
@@ -33,7 +31,7 @@ func NewDataStore() *DataStore {
 func NewDataStoreFromJSONObject(data map[string]interface{}) *DataStore {
 	ds := NewDataStore()
 	for k, v := range data {
-		if err := ds.patch(AddOp, []interface{}{k}, v); err != nil {
+		if err := ds.patch(AddOp, Path{k}, v); err != nil {
 			panic(err)
 		}
 	}
@@ -51,19 +49,13 @@ func NewDataStoreFromReader(r io.Reader) *DataStore {
 	return NewDataStoreFromJSONObject(data)
 }
 
-// SetMountPath updates the data store's mount path. This is the path the data
-// store expects all references to be prefixed with.
-func (ds *DataStore) SetMountPath(ref ast.Ref) {
-	ds.mountPath = ref
-}
-
 // ID returns a unique identifier for the in-memory store.
 func (ds *DataStore) ID() string {
 	return "org.openpolicyagent/in-memory"
 }
 
 // Begin is called when a new transaction is started.
-func (ds *DataStore) Begin(txn Transaction, refs []ast.Ref) error {
+func (ds *DataStore) Begin(txn Transaction, params TransactionParams) error {
 	// TODO(tsandall):
 	return nil
 }
@@ -85,64 +77,20 @@ func (ds *DataStore) Unregister(id string) {
 }
 
 // Read fetches a value from the in-memory store.
-func (ds *DataStore) Read(txn Transaction, path ast.Ref) (interface{}, error) {
-	return ds.getRef(path)
+func (ds *DataStore) Read(txn Transaction, path Path) (interface{}, error) {
+	return get(ds.data, path)
 }
 
 // Write modifies a document referred to by path.
-func (ds *DataStore) Write(txn Transaction, op PatchOp, path ast.Ref, value interface{}) error {
-	p, err := path.Underlying()
-	if err != nil {
-		return err
-	}
-	// TODO(tsandall): Patch() assumes that paths in writes are relative to
-	// "data" so drop the head here.
-	return ds.patch(op, p[1:], value)
+func (ds *DataStore) Write(txn Transaction, op PatchOp, path Path, value interface{}) error {
+	return ds.patch(op, path, value)
 }
 
 func (ds *DataStore) String() string {
 	return fmt.Sprintf("%v", ds.data)
 }
 
-func (ds *DataStore) get(path []interface{}) (interface{}, error) {
-	return get(ds.data, path)
-}
-
-func (ds *DataStore) getRef(ref ast.Ref) (interface{}, error) {
-
-	ref = ref[len(ds.mountPath):]
-	path := make([]interface{}, len(ref))
-
-	for i, x := range ref {
-		switch v := x.Value.(type) {
-		case ast.Ref:
-			n, err := ds.getRef(v)
-			if err != nil {
-				return nil, err
-			}
-			path[i] = n
-		case ast.String:
-			path[i] = string(v)
-		case ast.Number:
-			path[i] = float64(v)
-		case ast.Boolean:
-			path[i] = bool(v)
-		case ast.Null:
-			path[i] = nil
-		default:
-			return nil, fmt.Errorf("illegal reference element: %v", x)
-		}
-	}
-	return ds.get(path)
-}
-
-func (ds *DataStore) mustPatch(op PatchOp, path []interface{}, value interface{}) {
-	if err := ds.patch(op, path, value); err != nil {
-		panic(err)
-	}
-}
-
-func (ds *DataStore) patch(op PatchOp, path []interface{}, value interface{}) error {
+func (ds *DataStore) patch(op PatchOp, path Path, value interface{}) error {
 
 	if len(path) == 0 {
 		if op == AddOp || op == ReplaceOp {
@@ -155,15 +103,11 @@ func (ds *DataStore) patch(op PatchOp, path []interface{}, value interface{}) er
 		return invalidPatchErr(rootCannotBeRemovedMsg)
 	}
 
-	_, isString := path[0].(string)
-	if !isString {
-		return notFoundError(path, stringHeadMsg)
-	}
-
 	for _, t := range ds.triggers {
 		if t.Before != nil {
 			// TODO(tsandall): use correct transaction.
-			if err := t.Before(invalidTXN, op, path, value); err != nil {
+			// TODO(tsandall): fix path
+			if err := t.Before(invalidTXN, op, nil, value); err != nil {
 				return err
 			}
 		}
@@ -187,7 +131,8 @@ func (ds *DataStore) patch(op PatchOp, path []interface{}, value interface{}) er
 	for _, t := range ds.triggers {
 		if t.After != nil {
 			// TODO(tsandall): use correct transaction.
-			if err := t.After(invalidTXN, op, path, value); err != nil {
+			// TODO(tsandall): fix path
+			if err := t.After(invalidTXN, op, nil, value); err != nil {
 				return err
 			}
 		}
@@ -196,19 +141,16 @@ func (ds *DataStore) patch(op PatchOp, path []interface{}, value interface{}) er
 	return nil
 }
 
-func add(data map[string]interface{}, path []interface{}, value interface{}) error {
+func add(data map[string]interface{}, path Path, value interface{}) error {
 
 	// Special case for adding a new root.
 	if len(path) == 1 {
-		return addRoot(data, path[0].(string), value)
+		return addRoot(data, path[0], value)
 	}
 
 	// Special case for appending to an array.
-	switch v := path[len(path)-1].(type) {
-	case string:
-		if v == "-" {
-			return addAppend(data, path[:len(path)-1], value)
-		}
+	if path[len(path)-1] == "-" {
+		return addAppend(data, path[:len(path)-1], value)
 	}
 
 	node, err := get(data, path[:len(path)-1])
@@ -222,12 +164,12 @@ func add(data map[string]interface{}, path []interface{}, value interface{}) err
 	case []interface{}:
 		return addInsertArray(data, path, node, value)
 	default:
-		return notFoundError(path, nonCollectionMsg(path[len(path)-2]))
+		return notFoundError(path, doesNotExistMsg)
 	}
 
 }
 
-func addAppend(data map[string]interface{}, path []interface{}, value interface{}) error {
+func addAppend(data map[string]interface{}, path Path, value interface{}) error {
 
 	var parent interface{} = data
 
@@ -244,29 +186,31 @@ func addAppend(data map[string]interface{}, path []interface{}, value interface{
 		return err
 	}
 
-	a, ok := n.([]interface{})
+	node, ok := n.([]interface{})
 	if !ok {
-		return notFoundError(path, nonArrayMsg(path[len(path)-1]))
+		return notFoundError(path, doesNotExistMsg)
 	}
 
-	a = append(a, value)
+	node = append(node, value)
 	e := path[len(path)-1]
 
 	switch parent := parent.(type) {
 	case []interface{}:
-		i := int(e.(float64))
-		parent[i] = a
+		i, err := strconv.ParseInt(e, 10, 64)
+		if err != nil {
+			return notFoundError(path, "array index must be integer")
+		}
+		parent[i] = node
 	case map[string]interface{}:
-		k := e.(string)
-		parent[k] = a
+		parent[e] = node
 	default:
-		panic(fmt.Sprintf("illegal value: %v %v", parent, path)) // "node" exists, therefore this is not reachable.
+		panic("illegal value") // node exists, therefore parent must be collection.
 	}
 
 	return nil
 }
 
-func addInsertArray(data map[string]interface{}, path []interface{}, node []interface{}, value interface{}) error {
+func addInsertArray(data map[string]interface{}, path Path, node []interface{}, value interface{}) error {
 
 	i, err := checkArrayIndex(path, node, path[len(path)-1])
 	if err != nil {
@@ -286,29 +230,22 @@ func addInsertArray(data map[string]interface{}, path []interface{}, node []inte
 
 	switch parent := parent.(type) {
 	case map[string]interface{}:
-		k := e.(string)
-		parent[k] = node
+		parent[e] = node
 	case []interface{}:
-		i = int(e.(float64))
+		i, err := strconv.ParseInt(e, 10, 64)
+		if err != nil {
+			return notFoundError(path, "array index must be integer")
+		}
 		parent[i] = node
 	default:
-		panic(fmt.Sprintf("illegal value: %v %v", parent, path)) // "node" exists, therefore this is not reachable.
+		panic("illegal value") // node exists, therefore parent must be collection.
 	}
 
 	return nil
 }
 
-func addInsertObject(data map[string]interface{}, path []interface{}, node map[string]interface{}, value interface{}) error {
-
-	var k string
-
-	switch last := path[len(path)-1].(type) {
-	case string:
-		k = last
-	default:
-		return notFoundError(path, objectKeyTypeMsg(last))
-	}
-
+func addInsertObject(data map[string]interface{}, path Path, node map[string]interface{}, value interface{}) error {
+	k := path[len(path)-1]
 	node[k] = value
 	return nil
 }
@@ -318,16 +255,12 @@ func addRoot(data map[string]interface{}, key string, value interface{}) error {
 	return nil
 }
 
-func get(data map[string]interface{}, path []interface{}) (interface{}, error) {
+func get(data map[string]interface{}, path Path) (interface{}, error) {
 	if len(path) == 0 {
 		return data, nil
 	}
 
-	head, ok := path[0].(string)
-	if !ok {
-		return nil, notFoundError(path, stringHeadMsg)
-	}
-
+	head := path[0]
 	node, ok := data[head]
 	if !ok {
 		return nil, notFoundError(path, doesNotExistMsg)
@@ -352,14 +285,14 @@ func get(data map[string]interface{}, path []interface{}) (interface{}, error) {
 			node = n[idx]
 
 		default:
-			return nil, notFoundError(path, nonCollectionMsg(v))
+			return nil, notFoundError(path, doesNotExistMsg)
 		}
 	}
 
 	return node, nil
 }
 
-func mustGet(data map[string]interface{}, path []interface{}) interface{} {
+func mustGet(data map[string]interface{}, path Path) interface{} {
 	r, err := get(data, path)
 	if err != nil {
 		panic(err)
@@ -367,7 +300,7 @@ func mustGet(data map[string]interface{}, path []interface{}) interface{} {
 	return r
 }
 
-func remove(data map[string]interface{}, path []interface{}) error {
+func remove(data map[string]interface{}, path Path) error {
 
 	if _, err := get(data, path); err != nil {
 		return err
@@ -375,7 +308,7 @@ func remove(data map[string]interface{}, path []interface{}) error {
 
 	// Special case for removing a root.
 	if len(path) == 1 {
-		return removeRoot(data, path[0].(string))
+		return removeRoot(data, path[0])
 	}
 
 	node := mustGet(data, path[:len(path)-1])
@@ -386,11 +319,11 @@ func remove(data map[string]interface{}, path []interface{}) error {
 	case map[string]interface{}:
 		return removeObject(data, path, node)
 	default:
-		return notFoundError(path, nonCollectionMsg(path[len(path)-2]))
+		return notFoundError(path, doesNotExistMsg)
 	}
 }
 
-func removeArray(data map[string]interface{}, path []interface{}, node []interface{}) error {
+func removeArray(data map[string]interface{}, path Path, node []interface{}) error {
 
 	i, err := checkArrayIndex(path, node, path[len(path)-1])
 	if err != nil {
@@ -408,10 +341,12 @@ func removeArray(data map[string]interface{}, path []interface{}, node []interfa
 
 	switch parent := parent.(type) {
 	case map[string]interface{}:
-		k := e.(string)
-		parent[k] = node
+		parent[e] = node
 	case []interface{}:
-		i = int(e.(float64))
+		i, err := strconv.ParseInt(e, 10, 64)
+		if err != nil {
+			return notFoundError(path, "array index must be integer")
+		}
 		parent[i] = node
 	default:
 		panic(fmt.Sprintf("illegal value: %v %v", parent, path)) // "node" exists, therefore this is not reachable.
@@ -420,7 +355,7 @@ func removeArray(data map[string]interface{}, path []interface{}, node []interfa
 	return nil
 }
 
-func removeObject(data map[string]interface{}, path []interface{}, node map[string]interface{}) error {
+func removeObject(data map[string]interface{}, path Path, node map[string]interface{}) error {
 	k, err := checkObjectKey(path, node, path[len(path)-1])
 	if err != nil {
 		return err
@@ -435,7 +370,7 @@ func removeRoot(data map[string]interface{}, root string) error {
 	return nil
 }
 
-func replace(data map[string]interface{}, path []interface{}, value interface{}) error {
+func replace(data map[string]interface{}, path Path, value interface{}) error {
 
 	if _, err := get(data, path); err != nil {
 		return err
@@ -453,12 +388,12 @@ func replace(data map[string]interface{}, path []interface{}, value interface{})
 	case []interface{}:
 		return replaceArray(data, path, node, value)
 	default:
-		return notFoundError(path, nonCollectionMsg(path[len(path)-2]))
+		return notFoundError(path, doesNotExistMsg)
 	}
 
 }
 
-func replaceObject(data map[string]interface{}, path []interface{}, node map[string]interface{}, value interface{}) error {
+func replaceObject(data map[string]interface{}, path Path, node map[string]interface{}, value interface{}) error {
 	k, err := checkObjectKey(path, node, path[len(path)-1])
 	if err != nil {
 		return err
@@ -468,13 +403,13 @@ func replaceObject(data map[string]interface{}, path []interface{}, node map[str
 	return nil
 }
 
-func replaceRoot(data map[string]interface{}, path []interface{}, value interface{}) error {
-	root := path[0].(string)
+func replaceRoot(data map[string]interface{}, path Path, value interface{}) error {
+	root := path[0]
 	data[root] = value
 	return nil
 }
 
-func replaceArray(data map[string]interface{}, path []interface{}, node []interface{}, value interface{}) error {
+func replaceArray(data map[string]interface{}, path Path, node []interface{}, value interface{}) error {
 	i, err := checkArrayIndex(path, node, path[len(path)-1])
 	if err != nil {
 		return err
@@ -484,27 +419,19 @@ func replaceArray(data map[string]interface{}, path []interface{}, node []interf
 	return nil
 }
 
-func checkObjectKey(path []interface{}, node map[string]interface{}, v interface{}) (string, error) {
-	k, ok := v.(string)
-	if !ok {
-		return "", notFoundError(path, objectKeyTypeMsg(v))
-	}
-	_, ok = node[string(k)]
-	if !ok {
+func checkObjectKey(path Path, node map[string]interface{}, v string) (string, error) {
+	if _, ok := node[v]; !ok {
 		return "", notFoundError(path, doesNotExistMsg)
 	}
-	return string(k), nil
+	return v, nil
 }
 
-func checkArrayIndex(path []interface{}, node []interface{}, v interface{}) (int, error) {
-	f, isFloat := v.(float64)
-	if !isFloat {
-		return 0, notFoundError(path, arrayIndexTypeMsg(v))
+func checkArrayIndex(path Path, node []interface{}, v string) (int, error) {
+	i64, err := strconv.ParseInt(v, 10, 64)
+	if err != nil {
+		return 0, notFoundError(path, "array index must be integer")
 	}
-	i := int(f)
-	if float64(i) != f {
-		return 0, notFoundError(path, arrayIndexTypeMsg(v))
-	}
+	i := int(i64)
 	if i >= len(node) {
 		return 0, notFoundError(path, outOfRangeMsg)
 	} else if i < 0 {

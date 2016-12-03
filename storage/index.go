@@ -118,7 +118,7 @@ func (ind *indices) String() string {
 	return "{" + strings.Join(buf, ", ") + "}"
 }
 
-func (ind *indices) dropAll(Transaction, PatchOp, []interface{}, interface{}) error {
+func (ind *indices) dropAll(Transaction, PatchOp, Path, interface{}) error {
 	ind.table = map[int]*indicesNode{}
 	return nil
 }
@@ -304,9 +304,13 @@ func hash(v interface{}) int {
 	panic(fmt.Sprintf("illegal argument: %v (%T)", v, v))
 }
 
-func iterStorage(store Store, txn Transaction, ref ast.Ref, path ast.Ref, bindings *ast.ValueMap, iter func(*ast.ValueMap, interface{})) error {
+func iterStorage(store Store, txn Transaction, nonGround, ground ast.Ref, bindings *ast.ValueMap, iter func(*ast.ValueMap, interface{})) error {
 
-	if len(ref) == 0 {
+	if len(nonGround) == 0 {
+		path, err := NewPathForRef(ground)
+		if err != nil {
+			return err
+		}
 		node, err := store.Read(txn, path)
 		if err != nil {
 			if IsNotFound(err) {
@@ -314,19 +318,23 @@ func iterStorage(store Store, txn Transaction, ref ast.Ref, path ast.Ref, bindin
 			}
 			return err
 		}
-
 		iter(bindings, node)
 		return nil
 	}
 
-	head := ref[0]
-	tail := ref[1:]
+	head := nonGround[0]
+	tail := nonGround[1:]
 
 	headVar, isVar := head.Value.(ast.Var)
 
-	if !isVar || len(path) == 0 {
-		path = append(path, head)
-		return iterStorage(store, txn, tail, path, bindings, iter)
+	if !isVar || len(ground) == 0 {
+		ground = append(ground, head)
+		return iterStorage(store, txn, tail, ground, bindings, iter)
+	}
+
+	path, err := NewPathForRef(ground)
+	if err != nil {
+		return err
 	}
 
 	node, err := store.Read(txn, path)
@@ -340,25 +348,25 @@ func iterStorage(store Store, txn Transaction, ref ast.Ref, path ast.Ref, bindin
 	switch node := node.(type) {
 	case map[string]interface{}:
 		for key := range node {
-			path = append(path, ast.StringTerm(key))
+			ground = append(ground, ast.StringTerm(key))
 			cpy := bindings.Copy()
 			cpy.Put(headVar, ast.String(key))
-			err := iterStorage(store, txn, tail, path, cpy, iter)
+			err := iterStorage(store, txn, tail, ground, cpy, iter)
 			if err != nil {
 				return err
 			}
-			path = path[:len(path)-1]
+			ground = ground[:len(ground)-1]
 		}
 	case []interface{}:
 		for i := range node {
-			path = append(path, ast.NumberTerm(float64(i)))
+			ground = append(ground, ast.NumberTerm(float64(i)))
 			cpy := bindings.Copy()
 			cpy.Put(headVar, ast.Number(float64(i)))
-			err := iterStorage(store, txn, tail, path, cpy, iter)
+			err := iterStorage(store, txn, tail, ground, cpy, iter)
 			if err != nil {
 				return err
 			}
-			path = path[:len(path)-1]
+			ground = ground[:len(ground)-1]
 		}
 	}
 

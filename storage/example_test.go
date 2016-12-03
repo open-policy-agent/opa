@@ -11,7 +11,6 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/storage"
 )
 
@@ -50,8 +49,8 @@ func ExampleStorage_Read() {
 	defer store.Close(txn)
 
 	// Read values out of storage.
-	v1, err1 := store.Read(txn, ast.MustParseRef("data.users[1].likes[1]"))
-	v2, err2 := store.Read(txn, ast.MustParseRef("data.users[0].age"))
+	v1, err1 := store.Read(txn, storage.MustParsePath("/users/1/likes/1"))
+	v2, err2 := store.Read(txn, storage.MustParsePath("/users/0/age"))
 
 	// Inspect the return values.
 	fmt.Println("v1:", v1)
@@ -64,7 +63,7 @@ func ExampleStorage_Read() {
 	// v1: wine
 	// err1: <nil>
 	// v2: <nil>
-	// err2: storage error (code: 1): bad path: [users 0 age], document does not exist
+	// err2: storage error (code: 1): bad path: /users/0/age, document does not exist
 	// err2 is not found: true
 }
 
@@ -115,9 +114,9 @@ func ExampleStorage_Write() {
 	defer store.Close(txn)
 
 	// Write values into storage and read result.
-	err0 := store.Write(txn, storage.AddOp, ast.MustParseRef("data.users[0].location"), patch)
-	v1, err1 := store.Read(txn, ast.MustParseRef("data.users[0].location.latitude"))
-	err2 := store.Write(txn, storage.ReplaceOp, ast.MustParseRef("data.users[1].color"), "red")
+	err0 := store.Write(txn, storage.AddOp, storage.MustParsePath("/users/0/location"), patch)
+	v1, err1 := store.Read(txn, storage.MustParsePath("/users/0/location/latitude"))
+	err2 := store.Write(txn, storage.ReplaceOp, storage.MustParsePath("/users/1/color"), "red")
 
 	// Inspect the return values.
 	fmt.Println("err0:", err0)
@@ -131,7 +130,7 @@ func ExampleStorage_Write() {
 	// err0: <nil>
 	// v1: -62.338889
 	// err1: <nil>
-	// err2: storage error (code: 1): bad path: [users 1 color], document does not exist
+	// err2: storage error (code: 1): bad path: /users/1/color, document does not exist
 
 }
 

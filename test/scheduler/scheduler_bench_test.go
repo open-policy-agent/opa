@@ -98,7 +98,7 @@ func setupNodes(store *storage.Storage, txn storage.Transaction, n int) {
 	if err != nil {
 		panic(err)
 	}
-	if err := store.Write(txn, storage.AddOp, ast.MustParseRef("data.nodes"), map[string]interface{}{}); err != nil {
+	if err := store.Write(txn, storage.AddOp, storage.MustParsePath("/nodes"), map[string]interface{}{}); err != nil {
 		panic(err)
 	}
 	for i := 0; i < n; i++ {
@@ -106,8 +106,8 @@ func setupNodes(store *storage.Storage, txn storage.Transaction, n int) {
 			Name: fmt.Sprintf("node%v", i),
 		}
 		v := runTemplate(tmpl, input)
-		ref := ast.MustParseRef(fmt.Sprintf("data.nodes.%v", input.Name))
-		if err := store.Write(txn, storage.AddOp, ref, v); err != nil {
+		path := storage.MustParsePath(fmt.Sprintf("/nodes/%v", input.Name))
+		if err := store.Write(txn, storage.AddOp, path, v); err != nil {
 			panic(err)
 		}
 	}
@@ -118,8 +118,8 @@ func setupRCs(store *storage.Storage, txn storage.Transaction, n int) {
 	if err != nil {
 		panic(err)
 	}
-	ref := ast.MustParseRef("data.replicationcontrollers")
-	if err := store.Write(txn, storage.AddOp, ref, map[string]interface{}{}); err != nil {
+	path := storage.MustParsePath("/replicationcontrollers")
+	if err := store.Write(txn, storage.AddOp, path, map[string]interface{}{}); err != nil {
 		panic(err)
 	}
 	for i := 0; i < n; i++ {
@@ -127,8 +127,8 @@ func setupRCs(store *storage.Storage, txn storage.Transaction, n int) {
 			Name: fmt.Sprintf("rc%v", i),
 		}
 		v := runTemplate(tmpl, input)
-		ref = ast.MustParseRef(fmt.Sprintf("data.replicationcontrollers.%v", input.Name))
-		if err := store.Write(txn, storage.AddOp, ref, v); err != nil {
+		path = storage.MustParsePath(fmt.Sprintf("/replicationcontrollers/%v", input.Name))
+		if err := store.Write(txn, storage.AddOp, path, v); err != nil {
 			panic(err)
 		}
 	}
@@ -139,8 +139,8 @@ func setupPods(store *storage.Storage, txn storage.Transaction, n int, numNodes 
 	if err != nil {
 		panic(err)
 	}
-	ref := ast.MustParseRef("data.pods")
-	if err := store.Write(txn, storage.AddOp, ref, map[string]interface{}{}); err != nil {
+	path := storage.MustParsePath("/pods")
+	if err := store.Write(txn, storage.AddOp, path, map[string]interface{}{}); err != nil {
 		panic(err)
 	}
 	for i := 0; i < n; i++ {
@@ -149,8 +149,8 @@ func setupPods(store *storage.Storage, txn storage.Transaction, n int, numNodes 
 			NodeName: fmt.Sprintf("node%v", i%numNodes),
 		}
 		v := runTemplate(tmpl, input)
-		ref = ast.MustParseRef(fmt.Sprintf("data.pods.%v", input.Name))
-		if err := store.Write(txn, storage.AddOp, ref, v); err != nil {
+		path = storage.MustParsePath(fmt.Sprintf("/pods/%v", input.Name))
+		if err := store.Write(txn, storage.AddOp, path, v); err != nil {
 			panic(err)
 		}
 	}

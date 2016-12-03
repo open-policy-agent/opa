@@ -75,27 +75,11 @@ func IsInvalidPatch(err error) bool {
 	return false
 }
 
+var doesNotExistMsg = "document does not exist"
 var rootMustBeObjectMsg = "root must be object"
 var rootCannotBeRemovedMsg = "root cannot be removed"
-var doesNotExistMsg = "document does not exist"
 var outOfRangeMsg = "array index out of range"
-var stringHeadMsg = "path must begin with string"
-
-func arrayIndexTypeMsg(v interface{}) string {
-	return fmt.Sprintf("array index must be integer, not %T", v)
-}
-
-func objectKeyTypeMsg(v interface{}) string {
-	return fmt.Sprintf("object key must be string, not %v (%T)", v, v)
-}
-
-func nonCollectionMsg(v interface{}) string {
-	return fmt.Sprintf("path refers to non-collection document with element %v", v)
-}
-
-func nonArrayMsg(v interface{}) string {
-	return fmt.Sprintf("path refers to non-array document with element %v", v)
-}
+var arrayIndexTypeMsg = "array index must be integer"
 
 func indexNotFoundError() *Error {
 	return &Error{
@@ -136,8 +120,16 @@ func mountConflictError() *Error {
 	}
 }
 
-func notFoundError(path []interface{}, f string, a ...interface{}) *Error {
+func notFoundError(path Path, f string, a ...interface{}) *Error {
 	msg := fmt.Sprintf("bad path: %v", path)
+	if len(f) > 0 {
+		msg += ", " + fmt.Sprintf(f, a...)
+	}
+	return notFoundErrorf(msg)
+}
+
+func notFoundRefError(ref ast.Ref, f string, a ...interface{}) *Error {
+	msg := fmt.Sprintf("bad path: %v", ref)
 	if len(f) > 0 {
 		msg += ", " + fmt.Sprintf(f, a...)
 	}
@@ -150,14 +142,6 @@ func notFoundErrorf(f string, a ...interface{}) *Error {
 		Code:    NotFoundErr,
 		Message: msg,
 	}
-}
-
-func notFoundRefError(ref ast.Ref, f string, a ...interface{}) *Error {
-	msg := fmt.Sprintf("bad path: %v", ref)
-	if len(f) > 0 {
-		msg += ", " + fmt.Sprintf(f, a...)
-	}
-	return notFoundErrorf(msg)
 }
 
 func triggersNotSupportedError() *Error {

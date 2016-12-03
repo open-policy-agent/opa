@@ -142,14 +142,14 @@ func TestDataV1(t *testing.T) {
 			tr{"PUT", "/data/a/b", `[1,2,3,4]`, 204, ""},
 			tr{"PUT", "/data/a/b/c/d", "0", 404, `{
 				"Code": 404,
-				"Message": "write conflict: data.a.b"
+				"Message": "write conflict: /a/b"
 			}`},
 		}},
 		{"put virtual write conflict", []tr{
 			tr{"PUT", "/policies/test", testMod2, 200, ""},
 			tr{"PUT", "/data/testmod/q/x", "0", 404, `{
 				"Code": 404,
-				"Message": "write conflict: data.testmod.q"
+				"Message": "write conflict: /testmod/q"
 			}`},
 		}},
 		{"get virtual", []tr{
@@ -161,7 +161,7 @@ func TestDataV1(t *testing.T) {
 			tr{"PUT", "/policies/test", testMod1, 200, ""},
 			tr{"PATCH", "/data/testmod/p", `[{"op": "add", "path": "-", "value": 1}]`, 404, `{
                 "Code": 404,
-                "Message": "write conflict: data.testmod.p"
+                "Message": "write conflict: /testmod/p"
             }`},
 		}},
 		{"get with global", []tr{
@@ -665,7 +665,7 @@ func (queryBindingErrStore) ID() string {
 	return "mock"
 }
 
-func (s *queryBindingErrStore) Read(txn storage.Transaction, ref ast.Ref) (interface{}, error) {
+func (s *queryBindingErrStore) Read(txn storage.Transaction, path storage.Path) (interface{}, error) {
 	// At this time, the store will receive two reads:
 	// - The first during evaluation
 	// - The second when the server tries to accumulate the bindings
@@ -676,7 +676,7 @@ func (s *queryBindingErrStore) Read(txn storage.Transaction, ref ast.Ref) (inter
 	return "", nil
 }
 
-func (queryBindingErrStore) Begin(txn storage.Transaction, refs []ast.Ref) error {
+func (queryBindingErrStore) Begin(txn storage.Transaction, params storage.TransactionParams) error {
 	return nil
 }
 
@@ -689,7 +689,7 @@ func TestQueryBindingIterationError(t *testing.T) {
 	store := storage.New(storage.InMemoryConfig())
 	mock := &queryBindingErrStore{}
 
-	if err := store.Mount(mock, ast.MustParseRef("data.foo.bar")); err != nil {
+	if err := store.Mount(mock, storage.MustParsePath("/foo/bar")); err != nil {
 		panic(err)
 	}
 

@@ -553,56 +553,6 @@ func (ref Ref) String() string {
 	return strings.Join(buf, "")
 }
 
-// Underlying returns a slice of underlying Go values.
-// If the slice is not ground, an error is returned.
-func (ref Ref) Underlying() ([]interface{}, error) {
-
-	if !ref.IsGround() {
-		return nil, fmt.Errorf("cannot get underlying value for non-ground ref: %v", ref)
-	}
-
-	r := []interface{}{}
-	if len(ref) == 0 {
-		return r, nil
-	}
-
-	// The reference head is typically a variable, however,
-	// in some cases, we use the slice operator to process the reference
-	// in which ase the slice result is still a reference but the head
-	// may be a string, number, etc.
-	switch head := ref[0].Value.(type) {
-	case Var:
-		r = append(r, string(head))
-	case String:
-		r = append(r, string(head))
-	case Number:
-		r = append(r, float64(head))
-	case Boolean:
-		r = append(r, bool(head))
-	case Null:
-		r = append(r, nil)
-	default:
-		panic(fmt.Sprintf("illegal value: %v %v", head, ref))
-	}
-
-	for _, v := range ref[1:] {
-		switch v := v.Value.(type) {
-		case String:
-			r = append(r, string(v))
-		case Number:
-			r = append(r, float64(v))
-		case Boolean:
-			r = append(r, bool(v))
-		case Null:
-			r = append(r, nil)
-		default:
-			panic(fmt.Sprintf("illegal value: %v %v", v, ref))
-		}
-	}
-
-	return r, nil
-}
-
 // OutputVars returns a VarSet containing variables that would be bound by evaluating
 //  this expression in isolation.
 func (ref Ref) OutputVars() VarSet {
