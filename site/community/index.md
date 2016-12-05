@@ -20,7 +20,7 @@ Open Policy Agent (OPA) is an open source policy engine. Contributions are alway
 
 {% contentfor body %}
 
-  * {: .opa-community--contact-coming-soon} {% img '{{assets["community-slack.svg"].logical_path}}' alt:'Slack: community chat' %}
+  * [{% img '{{assets["community-slack.svg"].logical_path}}' alt:'Slack: community chat' %}](http://slack.openpolicyagent.org)
   * [{% img '{{assets["community-google-groups.svg"].logical_path}}' alt:'Google Groups: mailing list' %}](https://groups.google.com/forum/?hl=en#!forum/open-policy-agent)
   * [{% img '{{assets["community-github-issues.svg"].logical_path}}' alt:'GitHub Issues: bugs + features' %}](https://github.com/open-policy-agent/opa/issues)
   {: .opa-community--contact-list}
