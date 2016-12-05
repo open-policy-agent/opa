@@ -343,8 +343,8 @@ VarUnchecked <- AsciiLetter (AsciiLetter / DecimalDigit)* {
 Number <- '-'? Integer ( '.' DecimalDigit+ )? Exponent? {
     // JSON numbers have the same syntax as Go's, and are parseable using
     // strconv.
-    v, err := strconv.ParseFloat(string(c.text), 64)
-    num := NumberTerm(v)
+    _, err := strconv.ParseFloat(string(c.text), 64)
+    num := NumberTerm(json.Number(c.text))
     num.Location = currentLocation(c)
     return num, err
 }

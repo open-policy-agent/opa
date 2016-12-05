@@ -5,8 +5,8 @@
 package topdown
 
 import (
+	"encoding/json"
 	"fmt"
-	"math"
 	"sync"
 
 	"github.com/open-policy-agent/opa/ast"
@@ -741,7 +741,7 @@ func ValueToInterface(v ast.Value, resolver Resolver) (interface{}, error) {
 	case ast.Boolean:
 		return bool(v), nil
 	case ast.Number:
-		return float64(v), nil
+		return json.Number(v), nil
 	case ast.String:
 		return string(v), nil
 	case ast.Array:
@@ -803,31 +803,38 @@ func ValueToSlice(v ast.Value, resolver Resolver) ([]interface{}, error) {
 	return s, nil
 }
 
+// ValueToJSONNumber returns the underlying Go value associated with the AST
+// value. If the value is a reference, the reference is fetched from storage.
+func ValueToJSONNumber(v ast.Value, resolver Resolver) (json.Number, error) {
+	x, err := ValueToInterface(v, resolver)
+	if err != nil {
+		return "", err
+	}
+	n, ok := x.(json.Number)
+	if !ok {
+		return "", fmt.Errorf("illegal argument: %v", v)
+	}
+	return n, nil
+}
+
 // ValueToFloat64 returns the underlying Go value associated with an AST value.
 // If the value is a reference, the reference is fetched from storage.
 func ValueToFloat64(v ast.Value, resolver Resolver) (float64, error) {
-	x, err := ValueToInterface(v, resolver)
+	x, err := ValueToJSONNumber(v, resolver)
 	if err != nil {
 		return 0, err
 	}
-	f, ok := x.(float64)
-	if !ok {
-		return 0, fmt.Errorf("illegal argument: %v", v)
-	}
-	return f, nil
+	return x.Float64()
 }
 
 // ValueToInt returns the underlying Go value associated with an AST value.
 // If the value is a reference, the reference is fetched from storage.
 func ValueToInt(v ast.Value, resolver Resolver) (int64, error) {
-	x, err := ValueToFloat64(v, resolver)
+	x, err := ValueToJSONNumber(v, resolver)
 	if err != nil {
 		return 0, err
 	}
-	if x != math.Floor(x) {
-		return 0, fmt.Errorf("illegal argument: %v", v)
-	}
-	return int64(x), nil
+	return x.Int64()
 }
 
 // ValueToString returns the underlying Go value associated with an AST value.
@@ -1218,7 +1225,7 @@ func evalRefRecNonGround(ctx *Context, ref, prefix ast.Ref, iter Iterator) error
 			}
 		case []interface{}:
 			for idx := range doc {
-				undo := ctx.Bind(variable, ast.Number(idx), nil)
+				undo := ctx.Bind(variable, ast.IntNumberTerm(idx).Value, nil)
 				err := evalRefRec(ctx, ref, iter)
 				ctx.Unbind(undo)
 				if err != nil {
@@ -1686,8 +1693,8 @@ func evalRefRuleResultRecArray(ctx *Context, arr ast.Array, ref, path ast.Ref, i
 	head, tail := ref[0], ref[1:]
 	switch n := head.Value.(type) {
 	case ast.Number:
-		idx := int(n)
-		if ast.Number(idx) != n {
+		idx, ok := n.Int()
+		if !ok || idx < 0 {
 			return nil
 		}
 		if idx >= len(arr) {
@@ -1698,9 +1705,9 @@ func evalRefRuleResultRecArray(ctx *Context, arr ast.Array, ref, path ast.Ref, i
 		return evalRefRuleResultRec(ctx, el.Value, tail, path, iter)
 	case ast.Var:
 		for i := range arr {
-			idx := ast.Number(i)
-			undo := ctx.Bind(n, idx, nil)
-			path = append(path, &ast.Term{Value: idx})
+			idx := ast.IntNumberTerm(i)
+			undo := ctx.Bind(n, idx.Value, nil)
+			path = append(path, idx)
 			if err := evalRefRuleResultRec(ctx, arr[i].Value, tail, path, iter); err != nil {
 				return err
 			}

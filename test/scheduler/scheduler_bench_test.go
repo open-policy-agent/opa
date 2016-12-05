@@ -6,7 +6,6 @@ package scheduler
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"testing"
 	"text/template"
@@ -14,6 +13,7 @@ import (
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/topdown"
+	"github.com/open-policy-agent/opa/util"
 )
 
 func BenchmarkScheduler10x30(b *testing.B) {
@@ -42,7 +42,7 @@ func runSchedulerBenchmark(b *testing.B, nodes int, pods int) {
 			b.Fatal("unexpected query result:", qrs)
 		}
 		for n, w := range ws {
-			if fmt.Sprintf("%.3f", w) != "5.014" {
+			if fmt.Sprint(w) != "5.01388889" {
 				b.Fatalf("unexpected weight for: %v: %v\n\nDumping all weights:\n\n%v\n", n, w, qrs)
 			}
 		}
@@ -162,7 +162,7 @@ func runTemplate(tmpl *template.Template, input interface{}) interface{} {
 		panic(err)
 	}
 	var v interface{}
-	if err := json.Unmarshal(buf.Bytes(), &v); err != nil {
+	if err := util.UnmarshalJSON(buf.Bytes(), &v); err != nil {
 		panic(err)
 	}
 	return v

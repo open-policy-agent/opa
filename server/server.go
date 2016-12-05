@@ -20,6 +20,7 @@ import (
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/topdown"
 	"github.com/open-policy-agent/opa/topdown/explain"
+	"github.com/open-policy-agent/opa/util"
 	"github.com/open-policy-agent/opa/version"
 	"github.com/pkg/errors"
 )
@@ -197,48 +198,48 @@ func (te *traceEventV1) UnmarshalJSON(bs []byte) error {
 
 	keys := map[string]json.RawMessage{}
 
-	if err := json.Unmarshal(bs, &keys); err != nil {
+	if err := util.UnmarshalJSON(bs, &keys); err != nil {
 		return err
 	}
 
-	if err := json.Unmarshal(keys["Type"], &te.Type); err != nil {
+	if err := util.UnmarshalJSON(keys["Type"], &te.Type); err != nil {
 		return err
 	}
 
-	if err := json.Unmarshal(keys["Op"], &te.Op); err != nil {
+	if err := util.UnmarshalJSON(keys["Op"], &te.Op); err != nil {
 		return err
 	}
 
-	if err := json.Unmarshal(keys["QueryID"], &te.QueryID); err != nil {
+	if err := util.UnmarshalJSON(keys["QueryID"], &te.QueryID); err != nil {
 		return err
 	}
 
-	if err := json.Unmarshal(keys["ParentID"], &te.ParentID); err != nil {
+	if err := util.UnmarshalJSON(keys["ParentID"], &te.ParentID); err != nil {
 		return err
 	}
 
 	switch te.Type {
 	case nodeTypeBodyV1:
 		var body ast.Body
-		if err := json.Unmarshal(keys["Node"], &body); err != nil {
+		if err := util.UnmarshalJSON(keys["Node"], &body); err != nil {
 			return err
 		}
 		te.Node = body
 	case nodeTypeExprV1:
 		var expr ast.Expr
-		if err := json.Unmarshal(keys["Node"], &expr); err != nil {
+		if err := util.UnmarshalJSON(keys["Node"], &expr); err != nil {
 			return err
 		}
 		te.Node = &expr
 	case nodeTypeRuleV1:
 		var rule ast.Rule
-		if err := json.Unmarshal(keys["Node"], &rule); err != nil {
+		if err := util.UnmarshalJSON(keys["Node"], &rule); err != nil {
 			return err
 		}
 		te.Node = &rule
 	}
 
-	if err := json.Unmarshal(keys["Locals"], &te.Locals); err != nil {
+	if err := util.UnmarshalJSON(keys["Locals"], &te.Locals); err != nil {
 		return err
 	}
 
@@ -532,7 +533,7 @@ func (s *Server) v1DataPatch(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 
 	ops := []patchV1{}
-	if err := json.NewDecoder(r.Body).Decode(&ops); err != nil {
+	if err := util.NewJSONDecoder(r.Body).Decode(&ops); err != nil {
 		handleError(w, 400, err)
 		return
 	}
@@ -565,7 +566,7 @@ func (s *Server) v1DataPut(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 
 	var value interface{}
-	if err := json.NewDecoder(r.Body).Decode(&value); err != nil {
+	if err := util.NewJSONDecoder(r.Body).Decode(&value); err != nil {
 		handleError(w, 400, err)
 		return
 	}
@@ -938,7 +939,7 @@ func stringPathToRef(s string) (r ast.Ref) {
 		if err != nil {
 			r = append(r, ast.StringTerm(x))
 		} else {
-			r = append(r, ast.NumberTerm(float64(i)))
+			r = append(r, ast.IntNumberTerm(i))
 		}
 	}
 	return r

@@ -9,14 +9,17 @@ import (
 	"fmt"
 	"reflect"
 	"testing"
+
+	"github.com/open-policy-agent/opa/util"
 )
 
 func TestModuleJSONRoundTrip(t *testing.T) {
+
 	mod := MustParseModule(`
 	package a.b.c
 	import data.x.y as z
 	import data.u.i
-	p = [1,2,{"foo":3}] :- r[x] = 1, not q[x]
+	p = [1,2,{"foo":3.14}] :- r[x] = 1, not q[x]
 	r[y] = v :- i[1] = y, v = i[2]
 	q[x] :- a=[true,false,null,{"x":[1,2,3]}], a[i] = x
 	t = true :- xs = [{"x": a[i].a} | a[i].n = "bob", b[x]]
@@ -26,18 +29,18 @@ func TestModuleJSONRoundTrip(t *testing.T) {
 
 	bs, err := json.Marshal(mod)
 	if err != nil {
-		panic(err)
+		t.Fatalf("Unexpected error: %v", err)
 	}
 
 	roundtrip := &Module{}
 
-	err = json.Unmarshal(bs, roundtrip)
+	err = util.UnmarshalJSON(bs, roundtrip)
 	if err != nil {
-		panic(err)
+		t.Fatalf("Unexpected error: %v", err)
 	}
 
 	if !roundtrip.Equal(mod) {
-		t.Errorf("Expected roundtripped module to be equal to original:\nExpected:\n\n%v\n\nGot:\n\n%v\n", mod, roundtrip)
+		t.Fatalf("Expected roundtripped module to be equal to original:\nExpected:\n\n%v\n\nGot:\n\n%v\n", mod, roundtrip)
 	}
 }
 
@@ -128,8 +131,8 @@ func TestExprEquals(t *testing.T) {
 	// Vars, refs, and composites
 	ref1 := RefTerm(VarTerm("foo"), StringTerm("bar"), VarTerm("i"))
 	ref2 := RefTerm(VarTerm("foo"), StringTerm("bar"), VarTerm("i"))
-	obj1 := ObjectTerm(Item(ref1, ArrayTerm(NumberTerm(1), NullTerm())))
-	obj2 := ObjectTerm(Item(ref2, ArrayTerm(NumberTerm(1), NullTerm())))
+	obj1 := ObjectTerm(Item(ref1, ArrayTerm(IntNumberTerm(1), NullTerm())))
+	obj2 := ObjectTerm(Item(ref2, ArrayTerm(IntNumberTerm(1), NullTerm())))
 	obj3 := ObjectTerm(Item(ref2, ArrayTerm(StringTerm("1"), NullTerm())))
 	expr10 := &Expr{Terms: obj1}
 	expr11 := &Expr{Terms: obj2}
@@ -211,13 +214,13 @@ func TextExprString(t *testing.T) {
 		Terms:   RefTerm(VarTerm("q"), StringTerm("r"), VarTerm("x")),
 	}
 	expr3 := &Expr{
-		Terms: []*Term{VarTerm("="), StringTerm("a"), NumberTerm(17.1)},
+		Terms: []*Term{VarTerm("="), StringTerm("a"), FloatNumberTerm(17.1)},
 	}
 	expr4 := &Expr{
 		Terms: []*Term{
 			VarTerm("!="),
 			ObjectTerm(Item(VarTerm("foo"), ArrayTerm(
-				NumberTerm(1), RefTerm(VarTerm("a"), StringTerm("b")),
+				IntNumberTerm(1), RefTerm(VarTerm("a"), StringTerm("b")),
 			))),
 			BooleanTerm(false),
 		},
@@ -232,9 +235,9 @@ func TestExprBadJSON(t *testing.T) {
 
 	assert := func(js string, exp error) {
 		expr := Expr{}
-		err := json.Unmarshal([]byte(js), &expr)
+		err := util.UnmarshalJSON([]byte(js), &expr)
 		if !reflect.DeepEqual(exp, err) {
-			t.Errorf("Expected %v but got: %v", exp, err)
+			t.Errorf("For %v Expected %v but got: %v", js, exp, err)
 		}
 	}
 
@@ -249,7 +252,7 @@ func TestExprBadJSON(t *testing.T) {
 	}
 	`
 
-	exp := fmt.Errorf("ast: unable to unmarshal Negated field with type: float64 (expected true or false)")
+	exp := fmt.Errorf("ast: unable to unmarshal Negated field with type: json.Number (expected true or false)")
 	assert(js, exp)
 
 	js = `

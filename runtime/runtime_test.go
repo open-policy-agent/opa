@@ -6,7 +6,6 @@ package runtime
 
 import (
 	"bytes"
-	"encoding/json"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -114,7 +113,7 @@ func TestInit(t *testing.T) {
 
 func parseJSON(s string) interface{} {
 	var x interface{}
-	if err := json.Unmarshal([]byte(s), &x); err != nil {
+	if err := util.UnmarshalJSON([]byte(s), &x); err != nil {
 		panic(err)
 	}
 	return x

@@ -5,7 +5,9 @@
 package topdown
 
 import (
+	"encoding/json"
 	"fmt"
+	"math/big"
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/util"
@@ -46,15 +48,15 @@ func evalReduce(f reduceFunc) BuiltinFunc {
 
 func reduceSum(x interface{}) (ast.Value, error) {
 	if s, ok := x.([]interface{}); ok {
-		sum := ast.Number(0)
+		sum := big.NewFloat(0)
 		for _, x := range s {
-			f, ok := x.(float64)
+			n, ok := x.(json.Number)
 			if !ok {
-				return nil, fmt.Errorf("sum: input array contains non-number value")
+				return nil, fmt.Errorf("sum: input elements must be numbers")
 			}
-			sum += ast.Number(f)
+			sum = new(big.Float).Add(sum, jsonNumberToFloat(n))
 		}
-		return sum, nil
+		return floatToASTNumber(sum), nil
 	}
 	return nil, fmt.Errorf("sum: source must be array")
 }
@@ -62,11 +64,11 @@ func reduceSum(x interface{}) (ast.Value, error) {
 func reduceCount(x interface{}) (ast.Value, error) {
 	switch x := x.(type) {
 	case []interface{}:
-		return ast.Number(len(x)), nil
+		return ast.IntNumberTerm(len(x)).Value, nil
 	case map[string]interface{}:
-		return ast.Number(len(x)), nil
+		return ast.IntNumberTerm(len(x)).Value, nil
 	case string:
-		return ast.Number(len(x)), nil
+		return ast.IntNumberTerm(len(x)).Value, nil
 	default:
 		return nil, fmt.Errorf("count: source must be array, object, or string")
 	}

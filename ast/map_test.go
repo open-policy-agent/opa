@@ -78,7 +78,7 @@ func TestValueMapGetMissing(t *testing.T) {
 func TestValueMapString(t *testing.T) {
 	a := NewValueMap()
 	a.Put(MustParseRef("a.b.c[x]"), String("foo"))
-	a.Put(Var("x"), Number(1))
+	a.Put(Var("x"), Number("1"))
 	result := a.String()
 	o1 := `{a.b.c[x]: "foo", x: 1}`
 	o2 := `{x: 1, a.b.c[x]: "foo"}`

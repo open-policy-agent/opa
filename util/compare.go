@@ -5,7 +5,9 @@
 package util
 
 import (
+	"encoding/json"
 	"fmt"
+	"math/big"
 	"sort"
 )
 
@@ -38,15 +40,10 @@ func Compare(a, b interface{}) int {
 			}
 			return 1
 		}
-	case float64:
+	case json.Number:
 		switch b := b.(type) {
-		case float64:
-			if a == b {
-				return 0
-			} else if a < b {
-				return -1
-			}
-			return 1
+		case json.Number:
+			return compareJSONNumber(a, b)
 		}
 	case string:
 		switch b := b.(type) {
@@ -133,13 +130,25 @@ const (
 	objectSort = iota
 )
 
+func compareJSONNumber(a, b json.Number) int {
+	bigA, ok := new(big.Float).SetString(string(a))
+	if !ok {
+		panic("illegal value")
+	}
+	bigB, ok := new(big.Float).SetString(string(b))
+	if !ok {
+		panic("illegal value")
+	}
+	return bigA.Cmp(bigB)
+}
+
 func sortOrder(v interface{}) int {
 	switch v.(type) {
 	case nil:
 		return nilSort
 	case bool:
 		return boolSort
-	case float64:
+	case json.Number:
 		return numberSort
 	case string:
 		return stringSort

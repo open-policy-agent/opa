@@ -104,7 +104,7 @@ func (p Path) Ref(head *ast.Term) (ref ast.Ref) {
 	for i := range p {
 		idx, err := strconv.ParseInt(p[i], 10, 64)
 		if err == nil {
-			ref[i+1] = ast.NumberTerm(float64(idx))
+			ref[i+1] = ast.IntNumberTerm(int(idx))
 		} else {
 			ref[i+1] = ast.StringTerm(p[i])
 		}

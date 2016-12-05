@@ -5,6 +5,7 @@
 package storage_test
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -34,7 +35,14 @@ func ExampleStorage_Read() {
     `
 
 	var data map[string]interface{}
-	if err := json.Unmarshal([]byte(exampleInput), &data); err != nil {
+
+	// OPA uses Go's standard JSON library but assumes that numbers have been
+	// decoded as json.Number instead of float64. You MUST decode with UseNumber
+	// enabled.
+	decoder := json.NewDecoder(bytes.NewBufferString(exampleInput))
+	decoder.UseNumber()
+
+	if err := decoder.Decode(&data); err != nil {
 		// Handle error.
 	}
 
@@ -87,7 +95,14 @@ func ExampleStorage_Write() {
     `
 
 	var data map[string]interface{}
-	if err := json.Unmarshal([]byte(exampleInput), &data); err != nil {
+
+	// OPA uses Go's standard JSON library but assumes that numbers have been
+	// decoded as json.Number instead of float64. You MUST decode with UseNumber
+	// enabled.
+	decoder := json.NewDecoder(bytes.NewBufferString(exampleInput))
+	decoder.UseNumber()
+
+	if err := decoder.Decode(&data); err != nil {
 		// Handle error.
 	}
 
@@ -102,7 +117,11 @@ func ExampleStorage_Write() {
 
 	var patch interface{}
 
-	if err := json.Unmarshal([]byte(examplePatch), &patch); err != nil {
+	// See comment above regarding decoder usage.
+	decoder = json.NewDecoder(bytes.NewBufferString(examplePatch))
+	decoder.UseNumber()
+
+	if err := decoder.Decode(&patch); err != nil {
 		// Handle error.
 	}
 

@@ -38,11 +38,11 @@ func TestScalarTerms(t *testing.T) {
 	assertParseOneTerm(t, "null", "null", NullTerm())
 	assertParseOneTerm(t, "true", "true", BooleanTerm(true))
 	assertParseOneTerm(t, "false", "false", BooleanTerm(false))
-	assertParseOneTerm(t, "integer", "53", NumberTerm(53))
-	assertParseOneTerm(t, "integer2", "-53", NumberTerm(-53))
-	assertParseOneTerm(t, "float", "16.7", NumberTerm(16.7))
-	assertParseOneTerm(t, "float2", "-16.7", NumberTerm(-16.7))
-	assertParseOneTerm(t, "exponent", "6e7", NumberTerm(6e7))
+	assertParseOneTerm(t, "integer", "53", IntNumberTerm(53))
+	assertParseOneTerm(t, "integer2", "-53", IntNumberTerm(-53))
+	assertParseOneTerm(t, "float", "16.7", FloatNumberTerm(16.7))
+	assertParseOneTerm(t, "float2", "-16.7", FloatNumberTerm(-16.7))
+	assertParseOneTerm(t, "exponent", "6e7", FloatNumberTerm(6e7))
 	assertParseOneTerm(t, "string", "\"a string\"", StringTerm("a string"))
 	assertParseOneTerm(t, "string", "\"a string u6abc7def8abc0def with unicode\"", StringTerm("a string u6abc7def8abc0def with unicode"))
 	assertParseError(t, "hex", "6abc")
@@ -74,13 +74,13 @@ func TestVarTerms(t *testing.T) {
 
 func TestRefTerms(t *testing.T) {
 	assertParseOneTerm(t, "constants", "foo.bar.baz", RefTerm(VarTerm("foo"), StringTerm("bar"), StringTerm("baz")))
-	assertParseOneTerm(t, "constants 2", "foo.bar[0].baz", RefTerm(VarTerm("foo"), StringTerm("bar"), NumberTerm(0), StringTerm("baz")))
-	assertParseOneTerm(t, "variables", "foo.bar[0].baz[i]", RefTerm(VarTerm("foo"), StringTerm("bar"), NumberTerm(0), StringTerm("baz"), VarTerm("i")))
+	assertParseOneTerm(t, "constants 2", "foo.bar[0].baz", RefTerm(VarTerm("foo"), StringTerm("bar"), IntNumberTerm(0), StringTerm("baz")))
+	assertParseOneTerm(t, "variables", "foo.bar[0].baz[i]", RefTerm(VarTerm("foo"), StringTerm("bar"), IntNumberTerm(0), StringTerm("baz"), VarTerm("i")))
 	assertParseOneTerm(t, "spaces", "foo[\"white space\"].bar", RefTerm(VarTerm("foo"), StringTerm("white space"), StringTerm("bar")))
 	assertParseOneTerm(t, "nested", "foo[baz[1][borge[i]]].bar", RefTerm(
 		VarTerm("foo"),
 		RefTerm(
-			VarTerm("baz"), NumberTerm(float64(1)), RefTerm(
+			VarTerm("baz"), IntNumberTerm(1), RefTerm(
 				VarTerm("borge"), VarTerm("i"),
 			),
 		),
@@ -93,17 +93,17 @@ func TestRefTerms(t *testing.T) {
 }
 
 func TestObjectWithScalars(t *testing.T) {
-	assertParseOneTerm(t, "number", "{\"abc\": 7, \"def\": 8}", ObjectTerm(Item(StringTerm("abc"), NumberTerm(7)), Item(StringTerm("def"), NumberTerm(8))))
+	assertParseOneTerm(t, "number", "{\"abc\": 7, \"def\": 8}", ObjectTerm(Item(StringTerm("abc"), IntNumberTerm(7)), Item(StringTerm("def"), IntNumberTerm(8))))
 	assertParseOneTerm(t, "bool", "{\"abc\": false, \"def\": true}", ObjectTerm(Item(StringTerm("abc"), BooleanTerm(false)), Item(StringTerm("def"), BooleanTerm(true))))
 	assertParseOneTerm(t, "string", "{\"abc\": \"foo\", \"def\": \"bar\"}", ObjectTerm(Item(StringTerm("abc"), StringTerm("foo")), Item(StringTerm("def"), StringTerm("bar"))))
-	assertParseOneTerm(t, "mixed", "{\"abc\": 7, \"def\": null}", ObjectTerm(Item(StringTerm("abc"), NumberTerm(7)), Item(StringTerm("def"), NullTerm())))
-	assertParseOneTerm(t, "number key", "{8: 7, \"def\": null}", ObjectTerm(Item(NumberTerm(8), NumberTerm(7)), Item(StringTerm("def"), NullTerm())))
-	assertParseOneTerm(t, "number key 2", "{8.5: 7, \"def\": null}", ObjectTerm(Item(NumberTerm(8.5), NumberTerm(7)), Item(StringTerm("def"), NullTerm())))
+	assertParseOneTerm(t, "mixed", "{\"abc\": 7, \"def\": null}", ObjectTerm(Item(StringTerm("abc"), IntNumberTerm(7)), Item(StringTerm("def"), NullTerm())))
+	assertParseOneTerm(t, "number key", "{8: 7, \"def\": null}", ObjectTerm(Item(IntNumberTerm(8), IntNumberTerm(7)), Item(StringTerm("def"), NullTerm())))
+	assertParseOneTerm(t, "number key 2", "{8.5: 7, \"def\": null}", ObjectTerm(Item(FloatNumberTerm(8.5), IntNumberTerm(7)), Item(StringTerm("def"), NullTerm())))
 	assertParseOneTerm(t, "bool key", "{true: false}", ObjectTerm(Item(BooleanTerm(true), BooleanTerm(false))))
 }
 
 func TestObjectWithVars(t *testing.T) {
-	assertParseOneTerm(t, "var keys", "{foo: \"bar\", bar: 64}", ObjectTerm(Item(VarTerm("foo"), StringTerm("bar")), Item(VarTerm("bar"), NumberTerm(64))))
+	assertParseOneTerm(t, "var keys", "{foo: \"bar\", bar: 64}", ObjectTerm(Item(VarTerm("foo"), StringTerm("bar")), Item(VarTerm("bar"), IntNumberTerm(64))))
 	assertParseOneTerm(t, "nested var keys", "{baz: {foo: \"bar\", bar: qux}}", ObjectTerm(Item(VarTerm("baz"), ObjectTerm(Item(VarTerm("foo"), StringTerm("bar")), Item(VarTerm("bar"), VarTerm("qux"))))))
 }
 
@@ -117,15 +117,15 @@ func TestObjectFail(t *testing.T) {
 }
 
 func TestArrayWithScalars(t *testing.T) {
-	assertParseOneTerm(t, "number", "[1,2,3,4.5]", ArrayTerm(NumberTerm(1), NumberTerm(2), NumberTerm(3), NumberTerm(4.5)))
+	assertParseOneTerm(t, "number", "[1,2,3,4.5]", ArrayTerm(IntNumberTerm(1), IntNumberTerm(2), IntNumberTerm(3), FloatNumberTerm(4.5)))
 	assertParseOneTerm(t, "bool", "[true, false, true]", ArrayTerm(BooleanTerm(true), BooleanTerm(false), BooleanTerm(true)))
 	assertParseOneTerm(t, "string", "[\"foo\", \"bar\"]", ArrayTerm(StringTerm("foo"), StringTerm("bar")))
-	assertParseOneTerm(t, "mixed", "[null, true, 42]", ArrayTerm(NullTerm(), BooleanTerm(true), NumberTerm(42)))
+	assertParseOneTerm(t, "mixed", "[null, true, 42]", ArrayTerm(NullTerm(), BooleanTerm(true), IntNumberTerm(42)))
 }
 
 func TestArrayWithVars(t *testing.T) {
-	assertParseOneTerm(t, "var elements", "[foo, bar, 42]", ArrayTerm(VarTerm("foo"), VarTerm("bar"), NumberTerm(42)))
-	assertParseOneTerm(t, "nested var elements", "[[foo, true], [null, bar], 42]", ArrayTerm(ArrayTerm(VarTerm("foo"), BooleanTerm(true)), ArrayTerm(NullTerm(), VarTerm("bar")), NumberTerm(42)))
+	assertParseOneTerm(t, "var elements", "[foo, bar, 42]", ArrayTerm(VarTerm("foo"), VarTerm("bar"), IntNumberTerm(42)))
+	assertParseOneTerm(t, "nested var elements", "[[foo, true], [null, bar], 42]", ArrayTerm(ArrayTerm(VarTerm("foo"), BooleanTerm(true)), ArrayTerm(NullTerm(), VarTerm("bar")), IntNumberTerm(42)))
 }
 
 func TestArrayFail(t *testing.T) {
@@ -137,14 +137,14 @@ func TestArrayFail(t *testing.T) {
 }
 
 func TestSetWithScalars(t *testing.T) {
-	assertParseOneTerm(t, "number", "{1,2,3,4.5}", SetTerm(NumberTerm(1), NumberTerm(2), NumberTerm(3), NumberTerm(4.5)))
+	assertParseOneTerm(t, "number", "{1,2,3,4.5}", SetTerm(IntNumberTerm(1), IntNumberTerm(2), IntNumberTerm(3), FloatNumberTerm(4.5)))
 	assertParseOneTerm(t, "bool", "{true, false, true}", SetTerm(BooleanTerm(true), BooleanTerm(false), BooleanTerm(true)))
 	assertParseOneTerm(t, "string", "{\"foo\", \"bar\"}", SetTerm(StringTerm("foo"), StringTerm("bar")))
-	assertParseOneTerm(t, "mixed", "{null, true, 42}", SetTerm(NullTerm(), BooleanTerm(true), NumberTerm(42)))
+	assertParseOneTerm(t, "mixed", "{null, true, 42}", SetTerm(NullTerm(), BooleanTerm(true), IntNumberTerm(42)))
 }
 
 func TestSetWithVars(t *testing.T) {
-	assertParseOneTerm(t, "var elements", "{foo, bar, 42}", SetTerm(VarTerm("foo"), VarTerm("bar"), NumberTerm(42)))
+	assertParseOneTerm(t, "var elements", "{foo, bar, 42}", SetTerm(VarTerm("foo"), VarTerm("bar"), IntNumberTerm(42)))
 	assertParseOneTerm(t, "nested var elements", "{[foo, true], {null, bar}, set()}", SetTerm(ArrayTerm(VarTerm("foo"), BooleanTerm(true)), SetTerm(NullTerm(), VarTerm("bar")), SetTerm()))
 }
 
@@ -169,9 +169,9 @@ func TestNestedComposites(t *testing.T) {
 
 func TestCompositesWithRefs(t *testing.T) {
 	ref1 := RefTerm(VarTerm("a"), VarTerm("i"), StringTerm("b"))
-	ref2 := RefTerm(VarTerm("c"), NumberTerm(0), StringTerm("d"), StringTerm("e"), VarTerm("j"))
-	assertParseOneTerm(t, "ref keys", "[{a[i].b: 8, c[0][\"d\"].e[j]: f}]", ArrayTerm(ObjectTerm(Item(ref1, NumberTerm(8)), Item(ref2, VarTerm("f")))))
-	assertParseOneTerm(t, "ref values", "[{8: a[i].b, f: c[0][\"d\"].e[j]}]", ArrayTerm(ObjectTerm(Item(NumberTerm(8), ref1), Item(VarTerm("f"), ref2))))
+	ref2 := RefTerm(VarTerm("c"), IntNumberTerm(0), StringTerm("d"), StringTerm("e"), VarTerm("j"))
+	assertParseOneTerm(t, "ref keys", "[{a[i].b: 8, c[0][\"d\"].e[j]: f}]", ArrayTerm(ObjectTerm(Item(ref1, IntNumberTerm(8)), Item(ref2, VarTerm("f")))))
+	assertParseOneTerm(t, "ref values", "[{8: a[i].b, f: c[0][\"d\"].e[j]}]", ArrayTerm(ObjectTerm(Item(IntNumberTerm(8), ref1), Item(VarTerm("f"), ref2))))
 	assertParseOneTerm(t, "ref values (sets)", `{a[i].b, {c[0]["d"].e[j]}}`, SetTerm(ref1, SetTerm(ref2)))
 }
 
@@ -216,27 +216,27 @@ func TestArrayComprehensions(t *testing.T) {
 
 func TestInfixExpr(t *testing.T) {
 	assertParseOneExpr(t, "scalars 1", "true = false", Equality.Expr(BooleanTerm(true), BooleanTerm(false)))
-	assertParseOneExpr(t, "scalars 2", "3.14 = null", Equality.Expr(NumberTerm(3.14), NullTerm()))
-	assertParseOneExpr(t, "scalars 3", "42 = \"hello world\"", Equality.Expr(NumberTerm(42), StringTerm("hello world")))
+	assertParseOneExpr(t, "scalars 2", "3.14 = null", Equality.Expr(FloatNumberTerm(3.14), NullTerm()))
+	assertParseOneExpr(t, "scalars 3", "42 = \"hello world\"", Equality.Expr(IntNumberTerm(42), StringTerm("hello world")))
 	assertParseOneExpr(t, "vars 1", "hello = world", Equality.Expr(VarTerm("hello"), VarTerm("world")))
-	assertParseOneExpr(t, "vars 2", "42 = hello", Equality.Expr(NumberTerm(42), VarTerm("hello")))
+	assertParseOneExpr(t, "vars 2", "42 = hello", Equality.Expr(IntNumberTerm(42), VarTerm("hello")))
 
-	ref1 := RefTerm(VarTerm("foo"), NumberTerm(0), StringTerm("bar"), VarTerm("x"))
+	ref1 := RefTerm(VarTerm("foo"), IntNumberTerm(0), StringTerm("bar"), VarTerm("x"))
 	ref2 := RefTerm(VarTerm("baz"), BooleanTerm(false), StringTerm("qux"), StringTerm("hello"))
 	assertParseOneExpr(t, "refs 1", "foo[0].bar[x] = baz[false].qux[\"hello\"]", Equality.Expr(ref1, ref2))
 
 	left1 := ObjectTerm(Item(VarTerm("a"), ArrayTerm(ref1)))
-	right1 := ArrayTerm(ObjectTerm(Item(NumberTerm(42), BooleanTerm(true))))
+	right1 := ArrayTerm(ObjectTerm(Item(IntNumberTerm(42), BooleanTerm(true))))
 	assertParseOneExpr(t, "composites", "{a: [foo[0].bar[x]]} = [{42: true}]", Equality.Expr(left1, right1))
 
-	assertParseOneExpr(t, "ne", "100 != 200", NotEqual.Expr(NumberTerm(100), NumberTerm(200)))
-	assertParseOneExpr(t, "gt", "17.4 > \"hello\"", GreaterThan.Expr(NumberTerm(17.4), StringTerm("hello")))
-	assertParseOneExpr(t, "lt", "17.4 < \"hello\"", LessThan.Expr(NumberTerm(17.4), StringTerm("hello")))
-	assertParseOneExpr(t, "gte", "17.4 >= \"hello\"", GreaterThanEq.Expr(NumberTerm(17.4), StringTerm("hello")))
-	assertParseOneExpr(t, "lte", "17.4 <= \"hello\"", LessThanEq.Expr(NumberTerm(17.4), StringTerm("hello")))
+	assertParseOneExpr(t, "ne", "100 != 200", NotEqual.Expr(IntNumberTerm(100), IntNumberTerm(200)))
+	assertParseOneExpr(t, "gt", "17.4 > \"hello\"", GreaterThan.Expr(FloatNumberTerm(17.4), StringTerm("hello")))
+	assertParseOneExpr(t, "lt", "17.4 < \"hello\"", LessThan.Expr(FloatNumberTerm(17.4), StringTerm("hello")))
+	assertParseOneExpr(t, "gte", "17.4 >= \"hello\"", GreaterThanEq.Expr(FloatNumberTerm(17.4), StringTerm("hello")))
+	assertParseOneExpr(t, "lte", "17.4 <= \"hello\"", LessThanEq.Expr(FloatNumberTerm(17.4), StringTerm("hello")))
 
-	left2 := ArrayTerm(ObjectTerm(Item(NumberTerm(14.2), BooleanTerm(true)), Item(StringTerm("a"), NullTerm())))
-	right2 := ObjectTerm(Item(VarTerm("foo"), ObjectTerm(Item(RefTerm(VarTerm("a"), StringTerm("b"), NumberTerm(0)), ArrayTerm(NumberTerm(10))))))
+	left2 := ArrayTerm(ObjectTerm(Item(FloatNumberTerm(14.2), BooleanTerm(true)), Item(StringTerm("a"), NullTerm())))
+	right2 := ObjectTerm(Item(VarTerm("foo"), ObjectTerm(Item(RefTerm(VarTerm("a"), StringTerm("b"), IntNumberTerm(0)), ArrayTerm(IntNumberTerm(10))))))
 	assertParseOneExpr(t, "composites", "[{14.2: true, \"a\": null}] != {foo: {a.b[0]: [10]}}", NotEqual.Expr(left2, right2))
 }
 
@@ -244,13 +244,13 @@ func TestMiscBuiltinExpr(t *testing.T) {
 	xyz := VarTerm("xyz")
 	assertParseOneExpr(t, "empty", "xyz()", NewBuiltinExpr(xyz))
 	assertParseOneExpr(t, "single", "xyz(abc)", NewBuiltinExpr(xyz, VarTerm("abc")))
-	assertParseOneExpr(t, "multiple", "xyz(abc, {\"one\": [1,2,3]})", NewBuiltinExpr(xyz, VarTerm("abc"), ObjectTerm(Item(StringTerm("one"), ArrayTerm(NumberTerm(1), NumberTerm(2), NumberTerm(3))))))
+	assertParseOneExpr(t, "multiple", "xyz(abc, {\"one\": [1,2,3]})", NewBuiltinExpr(xyz, VarTerm("abc"), ObjectTerm(Item(StringTerm("one"), ArrayTerm(IntNumberTerm(1), IntNumberTerm(2), IntNumberTerm(3))))))
 }
 
 func TestNegatedExpr(t *testing.T) {
 	assertParseOneTermNegated(t, "scalars 1", "not true", BooleanTerm(true))
 	assertParseOneTermNegated(t, "scalars 2", "not \"hello\"", StringTerm("hello"))
-	assertParseOneTermNegated(t, "scalars 3", "not 100", NumberTerm(100))
+	assertParseOneTermNegated(t, "scalars 3", "not 100", IntNumberTerm(100))
 	assertParseOneTermNegated(t, "scalars 4", "not null", NullTerm())
 	assertParseOneTermNegated(t, "var", "not x", VarTerm("x"))
 	assertParseOneTermNegated(t, "ref", "not x[y].z", RefTerm(VarTerm("x"), VarTerm("y"), StringTerm("z")))
@@ -299,7 +299,7 @@ func TestRule(t *testing.T) {
 		Name: Var("p"),
 		Key:  VarTerm("x"),
 		Body: NewBody(
-			Equality.Expr(VarTerm("x"), NumberTerm(42)),
+			Equality.Expr(VarTerm("x"), IntNumberTerm(42)),
 		),
 	})
 
@@ -308,7 +308,7 @@ func TestRule(t *testing.T) {
 		Key:   VarTerm("x"),
 		Value: VarTerm("y"),
 		Body: NewBody(
-			Equality.Expr(VarTerm("x"), NumberTerm(42)),
+			Equality.Expr(VarTerm("x"), IntNumberTerm(42)),
 			Equality.Expr(VarTerm("y"), StringTerm("hello")),
 		),
 	})
@@ -316,7 +316,7 @@ func TestRule(t *testing.T) {
 	assertParseRule(t, "constant composite", "p = [{\"foo\": [1,2,3,4]}] :- true", &Rule{
 		Name: Var("p"),
 		Value: ArrayTerm(
-			ObjectTerm(Item(StringTerm("foo"), ArrayTerm(NumberTerm(1), NumberTerm(2), NumberTerm(3), NumberTerm(4)))),
+			ObjectTerm(Item(StringTerm("foo"), ArrayTerm(IntNumberTerm(1), IntNumberTerm(2), IntNumberTerm(3), IntNumberTerm(4)))),
 		),
 		Body: NewBody(
 			&Expr{Terms: BooleanTerm(true)},
@@ -339,8 +339,8 @@ func TestRule(t *testing.T) {
 			),
 		),
 		Body: NewBody(
-			Equality.Expr(VarTerm("a"), NumberTerm(float64(1))),
-			Equality.Expr(VarTerm("b"), NumberTerm(float64(2))),
+			Equality.Expr(VarTerm("a"), IntNumberTerm(1)),
+			Equality.Expr(VarTerm("b"), IntNumberTerm(2)),
 		),
 	})
 

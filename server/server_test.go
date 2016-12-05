@@ -5,7 +5,6 @@
 package server
 
 import (
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -17,6 +16,7 @@ import (
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/storage"
+	"github.com/open-policy-agent/opa/util"
 	"github.com/open-policy-agent/opa/util/test"
 )
 
@@ -240,7 +240,7 @@ func TestDataGetExplainFull(t *testing.T) {
 
 	var result traceV1
 
-	if err := json.NewDecoder(f.recorder.Body).Decode(&result); err != nil {
+	if err := util.NewJSONDecoder(f.recorder.Body).Decode(&result); err != nil {
 		t.Fatalf("Unexpected JSON decode error: %v", err)
 	}
 
@@ -267,7 +267,7 @@ func TestDataGetExplainFull(t *testing.T) {
 		t.Fatalf("Expected status code to be 404 but got: %v", f.recorder.Code)
 	}
 
-	if err := json.NewDecoder(f.recorder.Body).Decode(&result); err != nil {
+	if err := util.NewJSONDecoder(f.recorder.Body).Decode(&result); err != nil {
 		t.Fatalf("Unexpected JSON decode error: %v", err)
 	}
 
@@ -294,7 +294,7 @@ func TestDataGetExplainTruth(t *testing.T) {
 
 	var result traceV1
 
-	if err := json.NewDecoder(f.recorder.Body).Decode(&result); err != nil {
+	if err := util.NewJSONDecoder(f.recorder.Body).Decode(&result); err != nil {
 		t.Fatalf("Unexpected JSON decode error: %v", err)
 	}
 
@@ -418,7 +418,7 @@ func TestPoliciesPutV1ParseError(t *testing.T) {
 	}
 
 	errs := astErrorV1{}
-	if err := json.NewDecoder(f.recorder.Body).Decode(&errs); err != nil {
+	if err := util.NewJSONDecoder(f.recorder.Body).Decode(&errs); err != nil {
 		t.Fatalf("Unexpected JSON decode error: %v", err)
 	}
 
@@ -444,7 +444,7 @@ func TestPoliciesPutV1CompileError(t *testing.T) {
 	}
 
 	errs := astErrorV1{}
-	if err := json.NewDecoder(f.recorder.Body).Decode(&errs); err != nil {
+	if err := util.NewJSONDecoder(f.recorder.Body).Decode(&errs); err != nil {
 		t.Fatalf("Unexpected JSON decode error: %v", err)
 	}
 
@@ -486,7 +486,7 @@ func TestPoliciesListV1(t *testing.T) {
 	}
 
 	var policies []*policyV1
-	err := json.NewDecoder(f.recorder.Body).Decode(&policies)
+	err := util.NewJSONDecoder(f.recorder.Body).Decode(&policies)
 	if err != nil {
 		t.Errorf("Expected policy list but got error: %v", err)
 		return
@@ -600,13 +600,13 @@ func TestQueryV1(t *testing.T) {
 	}
 
 	var expected adhocQueryResultSetV1
-	err := json.Unmarshal([]byte(`[{"a":[1,2,3],"i":0,"x":1},{"a":[1,2,3],"i":1,"x":2},{"a":[1,2,3],"i":2,"x":3}]`), &expected)
+	err := util.UnmarshalJSON([]byte(`[{"a":[1,2,3],"i":0,"x":1},{"a":[1,2,3],"i":1,"x":2},{"a":[1,2,3],"i":2,"x":3}]`), &expected)
 	if err != nil {
 		panic(err)
 	}
 
 	var result adhocQueryResultSetV1
-	err = json.Unmarshal(f.recorder.Body.Bytes(), &result)
+	err = util.UnmarshalJSON(f.recorder.Body.Bytes(), &result)
 	if err != nil {
 		t.Errorf("Unexpected error while unmarshalling result: %v", err)
 		return
@@ -628,7 +628,7 @@ func TestQueryV1Explain(t *testing.T) {
 
 	var result traceV1
 
-	if err := json.NewDecoder(f.recorder.Body).Decode(&result); err != nil {
+	if err := util.NewJSONDecoder(f.recorder.Body).Decode(&result); err != nil {
 		t.Fatalf("Unexpected JSON decode error: %v", err)
 	}
 
@@ -646,7 +646,7 @@ func TestQueryV1Explain(t *testing.T) {
 
 	result = traceV1{}
 
-	if err := json.NewDecoder(f.recorder.Body).Decode(&result); err != nil {
+	if err := util.NewJSONDecoder(f.recorder.Body).Decode(&result); err != nil {
 		t.Fatalf("Unexpected JSON decode error: %v", err)
 	}
 
@@ -746,7 +746,7 @@ func newFixture(t *testing.T) *fixture {
 
 func (f *fixture) loadPolicy() *policyV1 {
 	policy := &policyV1{}
-	err := json.NewDecoder(f.recorder.Body).Decode(policy)
+	err := util.NewJSONDecoder(f.recorder.Body).Decode(policy)
 	if err != nil {
 		panic(err)
 	}
@@ -755,7 +755,7 @@ func (f *fixture) loadPolicy() *policyV1 {
 
 func (f *fixture) loadResponse() interface{} {
 	var v interface{}
-	err := json.NewDecoder(f.recorder.Body).Decode(&v)
+	err := util.NewJSONDecoder(f.recorder.Body).Decode(&v)
 	if err != nil {
 		panic(err)
 	}
@@ -775,11 +775,11 @@ func (f *fixture) executeRequest(req *http.Request, code int, resp string) error
 	}
 	if resp != "" {
 		var result interface{}
-		if err := json.Unmarshal([]byte(f.recorder.Body.String()), &result); err != nil {
+		if err := util.UnmarshalJSON([]byte(f.recorder.Body.String()), &result); err != nil {
 			return fmt.Errorf("Expected JSON response from %v %v but got: %v", req.Method, req.URL, f.recorder)
 		}
 		var expected interface{}
-		if err := json.Unmarshal([]byte(resp), &expected); err != nil {
+		if err := util.UnmarshalJSON([]byte(resp), &expected); err != nil {
 			panic(err)
 		}
 		if !reflect.DeepEqual(result, expected) {

@@ -16,9 +16,9 @@ import (
 func TestEventEqual(t *testing.T) {
 
 	a := ast.NewValueMap()
-	a.Put(ast.String("foo"), ast.Number(1))
+	a.Put(ast.String("foo"), ast.Number("1"))
 	b := ast.NewValueMap()
-	b.Put(ast.String("foo"), ast.Number(2))
+	b.Put(ast.String("foo"), ast.Number("2"))
 
 	tests := []struct {
 		a     *Event

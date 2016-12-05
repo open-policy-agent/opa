@@ -5,6 +5,7 @@
 package topdown
 
 import (
+	"encoding/json"
 	"fmt"
 	"strconv"
 
@@ -39,18 +40,18 @@ func evalToNumber(ctx *Context, expr *ast.Expr, iter Iterator) error {
 
 	switch x := x.(type) {
 	case string:
-		f, err := strconv.ParseFloat(string(x), 64)
+		_, err := strconv.ParseFloat(string(x), 64)
 		if err != nil {
 			return errors.Wrapf(err, "to_number")
 		}
-		n = ast.Number(f)
-	case float64:
+		n = ast.Number(json.Number(x))
+	case json.Number:
 		n = ast.Number(x)
 	case bool:
 		if x {
-			n = ast.Number(1)
+			n = ast.Number("1")
 		} else {
-			n = ast.Number(0)
+			n = ast.Number("0")
 		}
 	default:
 		return fmt.Errorf("to_number: source must be a string, boolean, or number: %T", a)

@@ -232,8 +232,8 @@ func TestPlugValue(t *testing.T) {
 	n := ast.MustParseTerm("a.b[x.y[i]]").Value
 
 	ctx3 := NewContext(nil, nil, nil, nil)
-	ctx3.Bind(ast.Var("i"), ast.Number(1), nil)
-	ctx3.Bind(ast.MustParseTerm("x.y[i]").Value, ast.Number(1), nil)
+	ctx3.Bind(ast.Var("i"), ast.IntNumberTerm(1).Value, nil)
+	ctx3.Bind(ast.MustParseTerm("x.y[i]").Value, ast.IntNumberTerm(1).Value, nil)
 
 	expected = ast.MustParseTerm("a.b[1]").Value
 
@@ -309,7 +309,10 @@ func TestTopDownPartialObjectDoc(t *testing.T) {
 	}{
 		{"identity", "p[k] = v :- b[k] = v", `{"v1": "hello", "v2": "goodbye"}`},
 		{"composites", "p[k] = v :- d[k] = v", `{"e": ["bar", "baz"]}`},
-		{"non-var/string key", "p[k] = v :- a[k] = v", fmt.Errorf("object key type float64")},
+		// TODO(tsandall): this error should be handled earlier during
+		// evaluation but that will require updating a bunch of tests that are
+		// currently producing non-string keys.
+		{"non-var/string key", "p[k] = v :- a[k] = v", fmt.Errorf("object key type json.Number")},
 		{"body/join var", "p[k] = v :- a[i] = v, g[k][i] = v", `{"a": 1, "b": 2, "c": 4}`},
 		{"composite value", `p[k] = [v1,{"v2":v2}] :- g[k] = x, x[v1] = v2, v2 != 0`, `{
 			"a": [0, {"v2": 1}],
@@ -656,7 +659,7 @@ func TestTopDownBaseAndVirtualDocs(t *testing.T) {
 		}
 	}
 	`
-	if err := json.Unmarshal([]byte(input), &data); err != nil {
+	if err := util.UnmarshalJSON([]byte(input), &data); err != nil {
 		panic(err)
 	}
 
@@ -977,7 +980,7 @@ func TestTopDownArithmetic(t *testing.T) {
 		{"plus", []string{"p[y] :- a[i] = x, plus(i, x, y)"}, "[1,3,5,7]"},
 		{"minus", []string{"p[y] :- a[i] = x, minus(i, x, y)"}, "[-1]"},
 		{"multiply", []string{"p[y] :- a[i] = x, mul(i, x, y)"}, "[0,2,6,12]"},
-		{"divide+round", []string{"p[z] :- a[i] = x, div(i, x, y), round(y, z)"}, "[0,1]"},
+		{"divide+round", []string{"p[z] :- a[i] = x, div(i, x, y), round(y, z)"}, "[0, 1]"},
 		{"divide+error", []string{"p[y] :- a[i] = x, div(x, i, y)"}, fmt.Errorf("divide: by zero")},
 		{"abs", []string{"p :- abs(-10, x), x = 10"}, "true"},
 		{"arity 1 ref dest", []string{"p :- abs(-4, a[3])"}, "true"},
@@ -1298,7 +1301,7 @@ func TestExample(t *testing.T) {
 
 	var doc map[string]interface{}
 
-	if err := json.Unmarshal([]byte(bd), &doc); err != nil {
+	if err := util.UnmarshalJSON([]byte(bd), &doc); err != nil {
 		panic(err)
 	}
 
@@ -1568,7 +1571,7 @@ func parseBindings(s string) *ast.ValueMap {
 // TODO(tsandall): replace loadExpectedBindings with parseBindings
 func loadExpectedBindings(input string) []*ast.ValueMap {
 	var data []map[string]interface{}
-	if err := json.Unmarshal([]byte(input), &data); err != nil {
+	if err := util.UnmarshalJSON([]byte(input), &data); err != nil {
 		panic(err)
 	}
 	var expected []*ast.ValueMap
@@ -1578,7 +1581,7 @@ func loadExpectedBindings(input string) []*ast.ValueMap {
 			switch v := v.(type) {
 			case string:
 				buf.Put(ast.MustParseTerm(k).Value, ast.String(v))
-			case float64:
+			case json.Number:
 				buf.Put(ast.MustParseTerm(k).Value, ast.Number(v))
 			default:
 				panic("unreachable")
@@ -1592,7 +1595,7 @@ func loadExpectedBindings(input string) []*ast.ValueMap {
 
 func parseJSON(input string) interface{} {
 	var data interface{}
-	if err := json.Unmarshal([]byte(input), &data); err != nil {
+	if err := util.UnmarshalJSON([]byte(input), &data); err != nil {
 		panic(err)
 	}
 	return data
@@ -1624,7 +1627,7 @@ func parseSortedJSON(input string) interface{} {
 //
 func loadSmallTestData() map[string]interface{} {
 	var data map[string]interface{}
-	err := json.Unmarshal([]byte(`{
+	err := util.UnmarshalJSON([]byte(`{
         "a": [1,2,3,4],
         "b": {
             "v1": "hello",

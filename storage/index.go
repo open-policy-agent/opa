@@ -5,6 +5,7 @@
 package storage
 
 import (
+	"encoding/json"
 	"fmt"
 	"hash/fnv"
 	"strings"
@@ -298,8 +299,10 @@ func hash(v interface{}) int {
 		return 0
 	case nil:
 		return 0
-	case float64:
-		return int(v)
+	case json.Number:
+		h := fnv.New64a()
+		h.Write([]byte(v))
+		return int(h.Sum64())
 	}
 	panic(fmt.Sprintf("illegal argument: %v (%T)", v, v))
 }
@@ -359,9 +362,10 @@ func iterStorage(store Store, txn Transaction, nonGround, ground ast.Ref, bindin
 		}
 	case []interface{}:
 		for i := range node {
-			ground = append(ground, ast.NumberTerm(float64(i)))
+			idx := ast.IntNumberTerm(i)
+			ground = append(ground, idx)
 			cpy := bindings.Copy()
-			cpy.Put(headVar, ast.Number(float64(i)))
+			cpy.Put(headVar, idx.Value)
 			err := iterStorage(store, txn, tail, ground, cpy, iter)
 			if err != nil {
 				return err
