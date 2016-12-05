@@ -23,10 +23,10 @@ func (e empty) Error() string {
 }
 
 func evalReduce(f reduceFunc) BuiltinFunc {
-	return func(ctx *Context, expr *ast.Expr, iter Iterator) error {
+	return func(t *Topdown, expr *ast.Expr, iter Iterator) error {
 		ops := expr.Terms.([]*ast.Term)
 		src, dst := ops[1].Value, ops[2].Value
-		x, err := ValueToInterface(src, ctx)
+		x, err := ValueToInterface(src, t)
 		if err != nil {
 			return errors.Wrapf(err, "aggregate")
 		}
@@ -40,8 +40,8 @@ func evalReduce(f reduceFunc) BuiltinFunc {
 			return err
 		}
 
-		undo, err := evalEqUnify(ctx, y, dst, nil, iter)
-		ctx.Unbind(undo)
+		undo, err := evalEqUnify(t, y, dst, nil, iter)
+		t.Unbind(undo)
 		return err
 	}
 }

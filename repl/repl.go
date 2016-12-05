@@ -590,14 +590,14 @@ func (r *REPL) evalBody(compiler *ast.Compiler, globals *ast.ValueMap, body ast.
 		}
 	}
 
-	ctx := topdown.NewContext(body, compiler, r.store, r.txn)
-	ctx.Globals = globals
+	t := topdown.New(body, compiler, r.store, r.txn)
+	t.Globals = globals
 
 	var buf *topdown.BufferTracer
 
 	if r.explain != explainOff {
 		buf = topdown.NewBufferTracer()
-		ctx.Tracer = buf
+		t.Tracer = buf
 	}
 
 	// Flag indicates whether the query was defined for some context.
@@ -611,10 +611,10 @@ func (r *REPL) evalBody(compiler *ast.Compiler, globals *ast.ValueMap, body ast.
 	var results []map[string]interface{}
 
 	// Execute query and accumulate results.
-	err := topdown.Eval(ctx, func(ctx *topdown.Context) error {
+	err := topdown.Eval(t, func(t *topdown.Topdown) error {
 		var err error
 		row := map[string]interface{}{}
-		ctx.Locals.Iter(func(k, v ast.Value) bool {
+		t.Locals.Iter(func(k, v ast.Value) bool {
 			kv, ok := k.(ast.Var)
 			if !ok {
 				return false
@@ -622,7 +622,7 @@ func (r *REPL) evalBody(compiler *ast.Compiler, globals *ast.ValueMap, body ast.
 			if kv.IsWildcard() {
 				return false
 			}
-			r, e := topdown.ValueToInterface(v, ctx)
+			r, e := topdown.ValueToInterface(v, t)
 			if e != nil {
 				err = e
 				return true
@@ -709,22 +709,22 @@ func (r *REPL) evalTermSingleValue(compiler *ast.Compiler, globals *ast.ValueMap
 	outputVar := ast.Wildcard
 	body = ast.NewBody(ast.Equality.Expr(term, outputVar))
 
-	ctx := topdown.NewContext(body, compiler, r.store, r.txn)
-	ctx.Globals = globals
+	t := topdown.New(body, compiler, r.store, r.txn)
+	t.Globals = globals
 
 	var buf *topdown.BufferTracer
 
 	if r.explain != explainOff {
 		buf = topdown.NewBufferTracer()
-		ctx.Tracer = buf
+		t.Tracer = buf
 	}
 
 	var result interface{}
 	isTrue := false
 
-	err := topdown.Eval(ctx, func(ctx *topdown.Context) error {
-		p := ctx.Locals.Get(outputVar.Value)
-		v, err := topdown.ValueToInterface(p, ctx)
+	err := topdown.Eval(t, func(t *topdown.Topdown) error {
+		p := t.Locals.Get(outputVar.Value)
+		v, err := topdown.ValueToInterface(p, t)
 		if err != nil {
 			return err
 		}
@@ -760,14 +760,14 @@ func (r *REPL) evalTermMultiValue(compiler *ast.Compiler, globals *ast.ValueMap,
 	outputVar := ast.Wildcard
 	body = ast.NewBody(ast.Equality.Expr(term, outputVar))
 
-	ctx := topdown.NewContext(body, compiler, r.store, r.txn)
-	ctx.Globals = globals
+	t := topdown.New(body, compiler, r.store, r.txn)
+	t.Globals = globals
 
 	var buf *topdown.BufferTracer
 
 	if r.explain != explainOff {
 		buf = topdown.NewBufferTracer()
-		ctx.Tracer = buf
+		t.Tracer = buf
 	}
 
 	vars := map[string]struct{}{}
@@ -779,18 +779,18 @@ func (r *REPL) evalTermMultiValue(compiler *ast.Compiler, globals *ast.ValueMap,
 	// as true.
 	includeValue := !r.isSetReference(compiler, term)
 
-	err := topdown.Eval(ctx, func(ctx *topdown.Context) error {
+	err := topdown.Eval(t, func(t *topdown.Topdown) error {
 
 		result := map[string]interface{}{}
 
 		var err error
 
-		ctx.Locals.Iter(func(k, v ast.Value) bool {
+		t.Locals.Iter(func(k, v ast.Value) bool {
 			if k, ok := k.(ast.Var); ok {
 				if k.IsWildcard() || k.Equal(outputVar.Value) {
 					return false
 				}
-				x, e := topdown.ValueToInterface(v, ctx)
+				x, e := topdown.ValueToInterface(v, t)
 				if e != nil {
 					err = e
 					return true
@@ -807,8 +807,8 @@ func (r *REPL) evalTermMultiValue(compiler *ast.Compiler, globals *ast.ValueMap,
 		}
 
 		if includeValue {
-			p := topdown.PlugTerm(term, ctx.Binding)
-			v, err := topdown.ValueToInterface(p.Value, ctx)
+			p := topdown.PlugTerm(term, t.Binding)
+			v, err := topdown.ValueToInterface(p.Value, t)
 			if err != nil {
 				return err
 			}

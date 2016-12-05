@@ -17,7 +17,7 @@ import (
 // values to numbers. For details on the signature, see builtins.go. This
 // function will only be called by evaluation enigne when the expression refers
 // to the "to_number" built-in.
-func evalToNumber(ctx *Context, expr *ast.Expr, iter Iterator) error {
+func evalToNumber(t *Topdown, expr *ast.Expr, iter Iterator) error {
 
 	// Step 1. unpack the expression to get access to the operands. The Terms
 	// contains the parsed expression: ["to_number", <value>, <output>]
@@ -30,7 +30,7 @@ func evalToNumber(ctx *Context, expr *ast.Expr, iter Iterator) error {
 	// your built-in function is specific to certain types (e.g., strings) see
 	// the other variants of the ValueToInterface function at
 	// https://godoc.org/github.com/open-policy-agent/opa/topdown.
-	x, err := ValueToInterface(a, ctx)
+	x, err := ValueToInterface(a, t)
 	if err != nil {
 		return errors.Wrapf(err, "to_number")
 	}
@@ -69,14 +69,14 @@ func evalToNumber(ctx *Context, expr *ast.Expr, iter Iterator) error {
 	//	success := <logic>
 	//
 	//  if success {
-	// 	  return iter(ctx)
+	// 	  return iter(t)
 	//  }
 	//
 	//  return nil
-	undo, err := evalEqUnify(ctx, n, b, nil, iter)
+	undo, err := evalEqUnify(t, n, b, nil, iter)
 
 	// Step 5. at this point, evaluation is backtracking so the bindings must be undone.
-	ctx.Unbind(undo)
+	t.Unbind(undo)
 
 	// Step 6. finished, return error (which may be nil).
 	return err

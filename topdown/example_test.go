@@ -48,22 +48,22 @@ func ExampleEval() {
 
 	defer store.Close(txn)
 
-	// Prepare the evaluation parameters. Evaluation executes against the policy engine's
-	// storage. In this case, we seed the storage with a single array of number. Other parameters
-	// such as globals, tracing configuration, etc. can be set on the context. See the Context
-	// documentation for more details.
-	ctx := topdown.NewContext(query, compiler, store, txn)
+	// Prepare the evaluation parameters. Evaluation executes against the policy
+	// engine's storage. In this case, we seed the storage with a single array
+	// of number. Other parameters such as globals, tracing configuration, etc.
+	// can be set on the Topdown object.
+	t := topdown.New(query, compiler, store, txn)
 
 	result := []interface{}{}
 
 	// Execute the query and provide a callbakc function to accumulate the results.
-	err = topdown.Eval(ctx, func(ctx *topdown.Context) error {
+	err = topdown.Eval(t, func(t *topdown.Topdown) error {
 
 		// Each variable in the query will have an associated "binding" in the context.
-		x := ctx.Binding(ast.Var("x"))
+		x := t.Binding(ast.Var("x"))
 
 		// The bindings are ast.Value types so we will convert to a native Go value here.
-		v, err := topdown.ValueToInterface(x, ctx)
+		v, err := topdown.ValueToInterface(x, t)
 		if err != nil {
 			return err
 		}

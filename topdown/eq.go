@@ -10,28 +10,28 @@ import (
 	"github.com/open-policy-agent/opa/ast"
 )
 
-func evalEq(ctx *Context, expr *ast.Expr, iter Iterator) error {
+func evalEq(t *Topdown, expr *ast.Expr, iter Iterator) error {
 
 	operands := expr.Terms.([]*ast.Term)
 	a := operands[1].Value
 	b := operands[2].Value
 
-	undo, err := evalEqUnify(ctx, a, b, nil, iter)
-	ctx.Unbind(undo)
+	undo, err := evalEqUnify(t, a, b, nil, iter)
+	t.Unbind(undo)
 	return err
 }
 
-func evalEqGround(ctx *Context, a ast.Value, b ast.Value, iter Iterator) error {
-	a, err := ResolveRefs(a, ctx)
+func evalEqGround(t *Topdown, a ast.Value, b ast.Value, iter Iterator) error {
+	a, err := ResolveRefs(a, t)
 	if err != nil {
 		return err
 	}
-	b, err = ResolveRefs(b, ctx)
+	b, err = ResolveRefs(b, t)
 	if err != nil {
 		return err
 	}
 	if ast.Compare(a, b) == 0 {
-		return iter(ctx)
+		return iter(t)
 	}
 	return nil
 }
@@ -52,55 +52,55 @@ func evalEqGround(ctx *Context, a ast.Value, b ast.Value, iter Iterator) error {
 //
 // In cases involving references, OPA assumes that the references are ground at this stage.
 // As a result, references are just special cases of the normal scalar/composite unification.
-func evalEqUnify(ctx *Context, a ast.Value, b ast.Value, prev *Undo, iter Iterator) (*Undo, error) {
+func evalEqUnify(t *Topdown, a ast.Value, b ast.Value, prev *Undo, iter Iterator) (*Undo, error) {
 
 	// Plug bindings into both terms because this will be called recursively and there may be
 	// new bindings that have been made as part of unification.
-	a = PlugValue(a, ctx.Binding)
-	b = PlugValue(b, ctx.Binding)
+	a = PlugValue(a, t.Binding)
+	b = PlugValue(b, t.Binding)
 
 	switch a := a.(type) {
 	case ast.Var:
-		return evalEqUnifyVar(ctx, a, b, prev, iter)
+		return evalEqUnifyVar(t, a, b, prev, iter)
 	case ast.Object:
-		return evalEqUnifyObject(ctx, a, b, prev, iter)
+		return evalEqUnifyObject(t, a, b, prev, iter)
 	case ast.Array:
-		return evalEqUnifyArray(ctx, a, b, prev, iter)
+		return evalEqUnifyArray(t, a, b, prev, iter)
 	case *ast.Set:
-		return evalEqUnifySet(ctx, a, b, prev, iter)
+		return evalEqUnifySet(t, a, b, prev, iter)
 	default:
 		switch b := b.(type) {
 		case ast.Var:
-			return evalEqUnifyVar(ctx, b, a, prev, iter)
+			return evalEqUnifyVar(t, b, a, prev, iter)
 		case ast.Array:
-			return evalEqUnifyArray(ctx, b, a, prev, iter)
+			return evalEqUnifyArray(t, b, a, prev, iter)
 		case ast.Object:
-			return evalEqUnifyObject(ctx, b, a, prev, iter)
+			return evalEqUnifyObject(t, b, a, prev, iter)
 		case *ast.Set:
-			return evalEqUnifySet(ctx, b, a, prev, iter)
+			return evalEqUnifySet(t, b, a, prev, iter)
 		default:
-			return prev, evalEqGround(ctx, a, b, iter)
+			return prev, evalEqGround(t, a, b, iter)
 		}
 	}
 
 }
 
-func evalEqUnifyArray(ctx *Context, a ast.Array, b ast.Value, prev *Undo, iter Iterator) (*Undo, error) {
+func evalEqUnifyArray(t *Topdown, a ast.Array, b ast.Value, prev *Undo, iter Iterator) (*Undo, error) {
 	switch b := b.(type) {
 	case ast.Var:
-		return evalEqUnifyVar(ctx, b, a, prev, iter)
+		return evalEqUnifyVar(t, b, a, prev, iter)
 	case ast.Ref:
-		return evalEqUnifyArrayRef(ctx, a, b, prev, iter)
+		return evalEqUnifyArrayRef(t, a, b, prev, iter)
 	case ast.Array:
-		return evalEqUnifyArrays(ctx, a, b, prev, iter)
+		return evalEqUnifyArrays(t, a, b, prev, iter)
 	default:
 		return prev, nil
 	}
 }
 
-func evalEqUnifyArrayRef(ctx *Context, a ast.Array, b ast.Ref, prev *Undo, iter Iterator) (*Undo, error) {
+func evalEqUnifyArrayRef(t *Topdown, a ast.Array, b ast.Ref, prev *Undo, iter Iterator) (*Undo, error) {
 
-	r, err := ctx.Resolve(b)
+	r, err := t.Resolve(b)
 	if err != nil {
 		return prev, err
 	}
@@ -115,12 +115,12 @@ func evalEqUnifyArrayRef(ctx *Context, a ast.Array, b ast.Ref, prev *Undo, iter 
 	}
 
 	for i := range a {
-		var tmp *Context
+		var tmp *Topdown
 		child := make(ast.Ref, len(b), len(b)+1)
 		copy(child, b)
 		child = append(child, ast.IntNumberTerm(i))
-		p, err := evalEqUnify(ctx, a[i].Value, child, prev, func(ctx *Context) error {
-			tmp = ctx
+		p, err := evalEqUnify(t, a[i].Value, child, prev, func(t *Topdown) error {
+			tmp = t
 			return nil
 		})
 		prev = p
@@ -130,12 +130,12 @@ func evalEqUnifyArrayRef(ctx *Context, a ast.Array, b ast.Ref, prev *Undo, iter 
 		if tmp == nil {
 			return nil, nil
 		}
-		ctx = tmp
+		t = tmp
 	}
-	return prev, iter(ctx)
+	return prev, iter(t)
 }
 
-func evalEqUnifyArrays(ctx *Context, a ast.Array, b ast.Array, prev *Undo, iter Iterator) (*Undo, error) {
+func evalEqUnifyArrays(t *Topdown, a ast.Array, b ast.Array, prev *Undo, iter Iterator) (*Undo, error) {
 	aLen := len(a)
 	bLen := len(b)
 	if aLen != bLen {
@@ -144,9 +144,9 @@ func evalEqUnifyArrays(ctx *Context, a ast.Array, b ast.Array, prev *Undo, iter 
 	for i := 0; i < aLen; i++ {
 		ai := a[i].Value
 		bi := b[i].Value
-		var tmp *Context
-		p, err := evalEqUnify(ctx, ai, bi, prev, func(ctx *Context) error {
-			tmp = ctx
+		var tmp *Topdown
+		p, err := evalEqUnify(t, ai, bi, prev, func(t *Topdown) error {
+			tmp = t
 			return nil
 		})
 		prev = p
@@ -156,30 +156,30 @@ func evalEqUnifyArrays(ctx *Context, a ast.Array, b ast.Array, prev *Undo, iter 
 		if tmp == nil {
 			return nil, nil
 		}
-		ctx = tmp
+		t = tmp
 	}
-	return prev, iter(ctx)
+	return prev, iter(t)
 }
 
 // evalEqUnifyObject attempts to unify the object "a" with some other value "b".
 // TODO(tsandal): unification of object keys (or unordered sets in general) is not
 // supported because it would be too expensive. We may revisit this in the future.
-func evalEqUnifyObject(ctx *Context, a ast.Object, b ast.Value, prev *Undo, iter Iterator) (*Undo, error) {
+func evalEqUnifyObject(t *Topdown, a ast.Object, b ast.Value, prev *Undo, iter Iterator) (*Undo, error) {
 	switch b := b.(type) {
 	case ast.Var:
-		return evalEqUnifyVar(ctx, b, a, prev, iter)
+		return evalEqUnifyVar(t, b, a, prev, iter)
 	case ast.Ref:
-		return evalEqUnifyObjectRef(ctx, a, b, prev, iter)
+		return evalEqUnifyObjectRef(t, a, b, prev, iter)
 	case ast.Object:
-		return evalEqUnifyObjects(ctx, a, b, prev, iter)
+		return evalEqUnifyObjects(t, a, b, prev, iter)
 	default:
 		return nil, nil
 	}
 }
 
-func evalEqUnifyObjectRef(ctx *Context, a ast.Object, b ast.Ref, prev *Undo, iter Iterator) (*Undo, error) {
+func evalEqUnifyObjectRef(t *Topdown, a ast.Object, b ast.Ref, prev *Undo, iter Iterator) (*Undo, error) {
 
-	r, err := ctx.Resolve(b)
+	r, err := t.Resolve(b)
 
 	if err != nil {
 		return prev, err
@@ -215,9 +215,9 @@ func evalEqUnifyObjectRef(ctx *Context, a ast.Object, b ast.Ref, prev *Undo, ite
 		child := make(ast.Ref, len(b), len(b)+1)
 		copy(child, b)
 		child = append(child, a[i][0])
-		var tmp *Context
-		p, err := evalEqUnify(ctx, a[i][1].Value, child, prev, func(ctx *Context) error {
-			tmp = ctx
+		var tmp *Topdown
+		p, err := evalEqUnify(t, a[i][1].Value, child, prev, func(t *Topdown) error {
+			tmp = t
 			return nil
 		})
 		prev = p
@@ -227,12 +227,12 @@ func evalEqUnifyObjectRef(ctx *Context, a ast.Object, b ast.Ref, prev *Undo, ite
 		if tmp == nil {
 			return nil, nil
 		}
-		ctx = tmp
+		t = tmp
 	}
-	return prev, iter(ctx)
+	return prev, iter(t)
 }
 
-func evalEqUnifyObjects(ctx *Context, a ast.Object, b ast.Object, prev *Undo, iter Iterator) (*Undo, error) {
+func evalEqUnifyObjects(t *Topdown, a ast.Object, b ast.Object, prev *Undo, iter Iterator) (*Undo, error) {
 
 	if len(a) != len(b) {
 		return nil, nil
@@ -248,11 +248,11 @@ func evalEqUnifyObjects(ctx *Context, a ast.Object, b ast.Object, prev *Undo, it
 	}
 
 	for i := range a {
-		var tmp *Context
+		var tmp *Topdown
 		for j := range b {
 			if b[j][0].Equal(a[i][0]) {
-				p, err := evalEqUnify(ctx, a[i][1].Value, b[j][1].Value, prev, func(ctx *Context) error {
-					tmp = ctx
+				p, err := evalEqUnify(t, a[i][1].Value, b[j][1].Value, prev, func(t *Topdown) error {
+					tmp = t
 					return nil
 				})
 				prev = p
@@ -267,33 +267,33 @@ func evalEqUnifyObjects(ctx *Context, a ast.Object, b ast.Object, prev *Undo, it
 		if tmp == nil {
 			return nil, nil
 		}
-		ctx = tmp
+		t = tmp
 	}
 
-	return prev, iter(ctx)
+	return prev, iter(t)
 }
 
-func evalEqUnifySet(ctx *Context, a *ast.Set, b ast.Value, prev *Undo, iter Iterator) (*Undo, error) {
+func evalEqUnifySet(t *Topdown, a *ast.Set, b ast.Value, prev *Undo, iter Iterator) (*Undo, error) {
 	switch b := b.(type) {
 	case *ast.Set:
-		return evalEqSets(ctx, a, b, prev, iter)
+		return evalEqSets(t, a, b, prev, iter)
 	case ast.Var:
-		return evalEqUnifyVar(ctx, b, a, prev, iter)
+		return evalEqUnifyVar(t, b, a, prev, iter)
 	default:
 		return prev, nil
 	}
 }
 
-func evalEqSets(ctx *Context, a *ast.Set, b *ast.Set, prev *Undo, iter Iterator) (*Undo, error) {
+func evalEqSets(t *Topdown, a *ast.Set, b *ast.Set, prev *Undo, iter Iterator) (*Undo, error) {
 
-	x, err := ResolveRefs(a, ctx)
+	x, err := ResolveRefs(a, t)
 	if err != nil {
 		return prev, err
 	}
 
 	a = x.(*ast.Set)
 
-	y, err := ResolveRefs(b, ctx)
+	y, err := ResolveRefs(b, t)
 	if err != nil {
 		return prev, err
 	}
@@ -301,14 +301,14 @@ func evalEqSets(ctx *Context, a *ast.Set, b *ast.Set, prev *Undo, iter Iterator)
 	b = y.(*ast.Set)
 
 	if a.Equal(b) {
-		return prev, iter(ctx)
+		return prev, iter(t)
 	}
 
 	return prev, nil
 }
 
-func evalEqUnifyVar(ctx *Context, a ast.Var, b ast.Value, prev *Undo, iter Iterator) (*Undo, error) {
-	undo := ctx.Bind(a, b, prev)
-	err := iter(ctx)
+func evalEqUnifyVar(t *Topdown, a ast.Var, b ast.Value, prev *Undo, iter Iterator) (*Undo, error) {
+	undo := t.Bind(a, b, prev)
+	err := iter(t)
 	return undo, err
 }

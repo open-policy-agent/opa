@@ -62,7 +62,7 @@ func TestEvalRef(t *testing.T) {
 	txn := storage.NewTransactionOrDie(store)
 	defer store.Close(txn)
 
-	ctx := NewContext(nil, compiler, store, txn)
+	top := New(nil, compiler, store, txn)
 
 	for _, tc := range tests {
 
@@ -70,9 +70,9 @@ func TestEvalRef(t *testing.T) {
 
 			switch e := tc.expected.(type) {
 			case nil:
-				var tmp *Context
-				err := evalRef(ctx, ast.MustParseRef(tc.ref), ast.Ref{}, func(ctx *Context) error {
-					tmp = ctx
+				var tmp *Topdown
+				err := evalRef(top, ast.MustParseRef(tc.ref), ast.Ref{}, func(t *Topdown) error {
+					tmp = t
 					return nil
 				})
 				if err != nil {
@@ -84,10 +84,10 @@ func TestEvalRef(t *testing.T) {
 				}
 			case string:
 				expected := loadExpectedBindings(e)
-				err := evalRef(ctx, ast.MustParseRef(tc.ref), ast.Ref{}, func(ctx *Context) error {
+				err := evalRef(top, ast.MustParseRef(tc.ref), ast.Ref{}, func(t *Topdown) error {
 					if len(expected) > 0 {
 						for j, exp := range expected {
-							if exp.Equal(ctx.Locals) {
+							if exp.Equal(t.Locals) {
 								tmp := expected[:j]
 								expected = append(tmp, expected[j+1:]...)
 								return nil
@@ -95,7 +95,7 @@ func TestEvalRef(t *testing.T) {
 						}
 					}
 					// If there was not a matching expected binding, treat this case as a failure.
-					return fmt.Errorf("unexpected bindings: %v", ctx.Locals)
+					return fmt.Errorf("unexpected bindings: %v", t.Locals)
 				})
 				if err != nil {
 					t.Errorf("Expected success but got error: %v", err)
@@ -158,14 +158,14 @@ func TestEvalTerms(t *testing.T) {
 
 		testutil.Subtest(t, tc.body, func(t *testing.T) {
 
-			ctx := NewContext(ast.MustParseBody(tc.body), compiler, store, txn)
+			top := New(ast.MustParseBody(tc.body), compiler, store, txn)
 
 			expected := loadExpectedBindings(tc.expected)
 
-			err := evalTerms(ctx, func(ctx *Context) error {
+			err := evalTerms(top, func(t *Topdown) error {
 				if len(expected) > 0 {
 					for j, exp := range expected {
-						if exp.Equal(ctx.Locals) {
+						if exp.Equal(t.Locals) {
 							tmp := expected[:j]
 							expected = append(tmp, expected[j+1:]...)
 							return nil
@@ -173,7 +173,7 @@ func TestEvalTerms(t *testing.T) {
 					}
 				}
 				// If there was not a matching expected binding, treat this case as a failure.
-				return fmt.Errorf("unexpected bindings: %v", ctx.Locals)
+				return fmt.Errorf("unexpected bindings: %v", t.Locals)
 			})
 
 			if err != nil {
@@ -202,28 +202,28 @@ func TestPlugValue(t *testing.T) {
 	hello := ast.String("hello")
 	world := ast.String("world")
 
-	ctx1 := NewContext(nil, nil, nil, nil)
-	ctx1.Bind(a, b, nil)
-	ctx1.Bind(b, cs, nil)
-	ctx1.Bind(c, ks, nil)
-	ctx1.Bind(k, hello, nil)
+	t1 := New(nil, nil, nil, nil)
+	t1.Bind(a, b, nil)
+	t1.Bind(b, cs, nil)
+	t1.Bind(c, ks, nil)
+	t1.Bind(k, hello, nil)
 
-	ctx2 := NewContext(nil, nil, nil, nil)
-	ctx2.Bind(a, b, nil)
-	ctx2.Bind(b, cs, nil)
-	ctx2.Bind(c, vs, nil)
-	ctx2.Bind(v, world, nil)
+	t2 := New(nil, nil, nil, nil)
+	t2.Bind(a, b, nil)
+	t2.Bind(b, cs, nil)
+	t2.Bind(c, vs, nil)
+	t2.Bind(v, world, nil)
 
 	expected := ast.MustParseTerm(`[{"hello": "world"}]`).Value
 
-	r1 := PlugValue(a, ctx1.Binding)
+	r1 := PlugValue(a, t1.Binding)
 
 	if !expected.Equal(r1) {
 		t.Errorf("Expected %v but got %v", expected, r1)
 		return
 	}
 
-	r2 := PlugValue(a, ctx2.Binding)
+	r2 := PlugValue(a, t2.Binding)
 
 	if !expected.Equal(r2) {
 		t.Errorf("Expected %v but got %v", expected, r2)
@@ -231,13 +231,13 @@ func TestPlugValue(t *testing.T) {
 
 	n := ast.MustParseTerm("a.b[x.y[i]]").Value
 
-	ctx3 := NewContext(nil, nil, nil, nil)
-	ctx3.Bind(ast.Var("i"), ast.IntNumberTerm(1).Value, nil)
-	ctx3.Bind(ast.MustParseTerm("x.y[i]").Value, ast.IntNumberTerm(1).Value, nil)
+	t3 := New(nil, nil, nil, nil)
+	t3.Bind(ast.Var("i"), ast.IntNumberTerm(1).Value, nil)
+	t3.Bind(ast.MustParseTerm("x.y[i]").Value, ast.IntNumberTerm(1).Value, nil)
 
 	expected = ast.MustParseTerm("a.b[1]").Value
 
-	r3 := PlugValue(n, ctx3.Binding)
+	r3 := PlugValue(n, t3.Binding)
 
 	if !expected.Equal(r3) {
 		t.Errorf("Expected %v but got: %v", expected, r3)
@@ -1345,9 +1345,9 @@ func TestTopDownUnsupportedBuiltin(t *testing.T) {
 	compiler := ast.NewCompiler()
 	store := storage.New(storage.InMemoryConfig())
 	txn := storage.NewTransactionOrDie(store)
-	ctx := NewContext(body, compiler, store, txn)
+	top := New(body, compiler, store, txn)
 
-	err := Eval(ctx, func(*Context) error {
+	err := Eval(top, func(*Topdown) error {
 		return nil
 	})
 

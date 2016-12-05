@@ -352,21 +352,21 @@ func (s *Server) Loop() error {
 
 func (s *Server) execQuery(compiler *ast.Compiler, txn storage.Transaction, query ast.Body, explainMode explainModeV1) (interface{}, error) {
 
-	ctx := topdown.NewContext(query, s.Compiler(), s.store, txn)
+	t := topdown.New(query, s.Compiler(), s.store, txn)
 
 	var buf *topdown.BufferTracer
 
 	if explainMode != explainOffV1 {
 		buf = topdown.NewBufferTracer()
-		ctx.Tracer = buf
+		t.Tracer = buf
 	}
 
 	resultSet := adhocQueryResultSetV1{}
 
-	err := topdown.Eval(ctx, func(ctx *topdown.Context) error {
+	err := topdown.Eval(t, func(t *topdown.Topdown) error {
 		result := map[string]interface{}{}
 		var err error
-		ctx.Locals.Iter(func(k, v ast.Value) bool {
+		t.Locals.Iter(func(k, v ast.Value) bool {
 			kv, ok := k.(ast.Var)
 			if !ok {
 				return false
@@ -374,7 +374,7 @@ func (s *Server) execQuery(compiler *ast.Compiler, txn storage.Transaction, quer
 			if kv.IsWildcard() {
 				return false
 			}
-			vv, e := topdown.ValueToInterface(v, ctx)
+			vv, e := topdown.ValueToInterface(v, t)
 			if e != nil {
 				err = e
 				return true

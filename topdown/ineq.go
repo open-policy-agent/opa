@@ -29,18 +29,18 @@ func compareNotEq(a, b ast.Value) bool {
 }
 
 func evalIneq(cmp compareFunc) BuiltinFunc {
-	return func(ctx *Context, expr *ast.Expr, iter Iterator) error {
+	return func(t *Topdown, expr *ast.Expr, iter Iterator) error {
 		ops := expr.Terms.([]*ast.Term)
-		a, err := ResolveRefs(ops[1].Value, ctx)
+		a, err := ResolveRefs(ops[1].Value, t)
 		if err != nil {
 			return err
 		}
-		b, err := ResolveRefs(ops[2].Value, ctx)
+		b, err := ResolveRefs(ops[2].Value, t)
 		if err != nil {
 			return err
 		}
 		if cmp(a, b) {
-			return iter(ctx)
+			return iter(t)
 		}
 		return nil
 	}
