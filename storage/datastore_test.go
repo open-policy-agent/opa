@@ -5,6 +5,7 @@
 package storage
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"reflect"
@@ -42,7 +43,7 @@ func TestDataStoreGet(t *testing.T) {
 	ds := NewDataStoreFromJSONObject(data)
 
 	for idx, tc := range tests {
-		result, err := ds.Read(nil, MustParsePath(tc.path))
+		result, err := ds.Read(context.Background(), nil, MustParsePath(tc.path))
 		switch e := tc.expected.(type) {
 		case error:
 			if err == nil {
@@ -135,7 +136,7 @@ func TestDataStorePatch(t *testing.T) {
 			panic(fmt.Sprintf("illegal value: %v", tc.op))
 		}
 
-		err := ds.patch(op, MustParsePath(tc.path), value)
+		err := ds.patch(context.Background(), op, MustParsePath(tc.path), value)
 
 		if tc.expected == nil {
 			if err != nil {
@@ -158,7 +159,7 @@ func TestDataStorePatch(t *testing.T) {
 		}
 
 		// Perform get and verify result
-		result, err := ds.Read(nil, MustParsePath(tc.getPath))
+		result, err := ds.Read(context.Background(), nil, MustParsePath(tc.getPath))
 		switch expected := tc.getExpected.(type) {
 		case error:
 			if err == nil {

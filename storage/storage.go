@@ -5,6 +5,7 @@
 package storage
 
 import (
+	"context"
 	"sync"
 
 	"github.com/open-policy-agent/opa/ast"
@@ -74,14 +75,14 @@ func New(config Config) *Storage {
 // immediately after instantiating a new instance of the storage layer. If the
 // storage layer is configured to use in-memory storage and is not persisting
 // policy modules to disk, the call to Open() may be omitted.
-func (s *Storage) Open() error {
+func (s *Storage) Open(ctx context.Context) error {
 
-	txn, err := s.NewTransaction()
+	txn, err := s.NewTransaction(ctx)
 	if err != nil {
 		return err
 	}
 
-	defer s.Close(txn)
+	defer s.Close(ctx, txn)
 
 	return s.policyStore.Open(txn, loadPolicies)
 }
@@ -160,7 +161,7 @@ func (s *Storage) Unmount(path Path) error {
 // Read fetches the value in storage referred to by path. The path may refer to
 // multiple stores in which case the storage layer will fetch the values from
 // each store and then stitch together the result.
-func (s *Storage) Read(txn Transaction, path Path) (interface{}, error) {
+func (s *Storage) Read(ctx context.Context, txn Transaction, path Path) (interface{}, error) {
 
 	type hole struct {
 		path []string
@@ -173,18 +174,18 @@ func (s *Storage) Read(txn Transaction, path Path) (interface{}, error) {
 
 		// Check if read is against this mount (alone)
 		if path.HasPrefix(mount.path) {
-			if err := s.lazyActivate(mount.backend, txn, nil); err != nil {
+			if err := s.lazyActivate(ctx, mount.backend, txn, nil); err != nil {
 				return nil, err
 			}
-			return mount.backend.Read(txn, path[len(mount.path):])
+			return mount.backend.Read(ctx, txn, path[len(mount.path):])
 		}
 
 		// Check if read is over this mount (and possibly others)
 		if mount.path.HasPrefix(path) {
-			if err := s.lazyActivate(mount.backend, txn, nil); err != nil {
+			if err := s.lazyActivate(ctx, mount.backend, txn, nil); err != nil {
 				return nil, err
 			}
-			node, err := mount.backend.Read(txn, Path{})
+			node, err := mount.backend.Read(ctx, txn, Path{})
 			if err != nil {
 				return nil, err
 			}
@@ -193,11 +194,11 @@ func (s *Storage) Read(txn Transaction, path Path) (interface{}, error) {
 		}
 	}
 
-	if err := s.lazyActivate(s.builtin, txn, nil); err != nil {
+	if err := s.lazyActivate(ctx, s.builtin, txn, nil); err != nil {
 		return nil, err
 	}
 
-	doc, err := s.builtin.Read(txn, path)
+	doc, err := s.builtin.Read(ctx, txn, path)
 	if err != nil {
 		return nil, err
 	}
@@ -226,28 +227,28 @@ func (s *Storage) Read(txn Transaction, path Path) (interface{}, error) {
 }
 
 // Write updates a value in storage.
-func (s *Storage) Write(txn Transaction, op PatchOp, path Path, value interface{}) error {
+func (s *Storage) Write(ctx context.Context, txn Transaction, op PatchOp, path Path, value interface{}) error {
 
-	if err := s.lazyActivate(s.builtin, txn, nil); err != nil {
+	if err := s.lazyActivate(ctx, s.builtin, txn, nil); err != nil {
 		return err
 	}
 
-	return s.builtin.Write(txn, op, path, value)
+	return s.builtin.Write(ctx, txn, op, path, value)
 }
 
 // NewTransaction returns a new Transaction with default parameters.
-func (s *Storage) NewTransaction() (Transaction, error) {
-	return s.NewTransactionWithParams(TransactionParams{})
+func (s *Storage) NewTransaction(ctx context.Context) (Transaction, error) {
+	return s.NewTransactionWithParams(ctx, TransactionParams{})
 }
 
 // NewTransactionWithParams returns a new Transaction.
-func (s *Storage) NewTransactionWithParams(params TransactionParams) (Transaction, error) {
+func (s *Storage) NewTransactionWithParams(ctx context.Context, params TransactionParams) (Transaction, error) {
 
 	s.mtx.Lock()
 	s.txn++
 	txn := s.txn
 
-	if err := s.notifyStoresBegin(txn, params.Paths); err != nil {
+	if err := s.notifyStoresBegin(ctx, txn, params.Paths); err != nil {
 		return nil, err
 	}
 
@@ -255,14 +256,14 @@ func (s *Storage) NewTransactionWithParams(params TransactionParams) (Transactio
 }
 
 // Close completes a transaction.
-func (s *Storage) Close(txn Transaction) {
-	s.notifyStoresClose(txn)
+func (s *Storage) Close(ctx context.Context, txn Transaction) {
+	s.notifyStoresClose(ctx, txn)
 	s.mtx.Unlock()
 }
 
 // BuildIndex causes the storage layer to create an index for the given
 // reference over the snapshot identified by the transaction.
-func (s *Storage) BuildIndex(txn Transaction, ref ast.Ref) error {
+func (s *Storage) BuildIndex(ctx context.Context, txn Transaction, ref ast.Ref) error {
 
 	path, err := NewPathForRef(ref.GroundPrefix())
 	if err != nil {
@@ -279,7 +280,7 @@ func (s *Storage) BuildIndex(txn Transaction, ref ast.Ref) error {
 		}
 	}
 
-	return s.indices.Build(s.builtin, txn, ref)
+	return s.indices.Build(ctx, s.builtin, txn, ref)
 }
 
 // IndexExists returns true if an index has been built for reference.
@@ -312,7 +313,7 @@ func (s *Storage) getStoreByID(id string) Store {
 	return nil
 }
 
-func (s *Storage) lazyActivate(store Store, txn Transaction, paths []Path) error {
+func (s *Storage) lazyActivate(ctx context.Context, store Store, txn Transaction, paths []Path) error {
 
 	id := store.ID()
 	if _, ok := s.active[id]; ok {
@@ -320,7 +321,7 @@ func (s *Storage) lazyActivate(store Store, txn Transaction, paths []Path) error
 	}
 
 	params := TransactionParams{}
-	if err := store.Begin(txn, params); err != nil {
+	if err := store.Begin(ctx, txn, params); err != nil {
 		return err
 	}
 
@@ -328,7 +329,7 @@ func (s *Storage) lazyActivate(store Store, txn Transaction, paths []Path) error
 	return nil
 }
 
-func (s *Storage) notifyStoresBegin(txn Transaction, paths []Path) error {
+func (s *Storage) notifyStoresBegin(ctx context.Context, txn Transaction, paths []Path) error {
 
 	builtinID := s.builtin.ID()
 
@@ -348,7 +349,7 @@ func (s *Storage) notifyStoresBegin(txn Transaction, paths []Path) error {
 		params := TransactionParams{
 			Paths: groupedPaths,
 		}
-		if err := s.getStoreByID(id).Begin(txn, params); err != nil {
+		if err := s.getStoreByID(id).Begin(ctx, txn, params); err != nil {
 			return err
 		}
 		s.active[id] = struct{}{}
@@ -357,48 +358,48 @@ func (s *Storage) notifyStoresBegin(txn Transaction, paths []Path) error {
 	return nil
 }
 
-func (s *Storage) notifyStoresClose(txn Transaction) {
+func (s *Storage) notifyStoresClose(ctx context.Context, txn Transaction) {
 	for id := range s.active {
-		s.getStoreByID(id).Close(txn)
+		s.getStoreByID(id).Close(ctx, txn)
 	}
 	s.active = nil
 }
 
 // InsertPolicy upserts a policy module into storage inside a new transaction.
-func InsertPolicy(store *Storage, id string, mod *ast.Module, raw []byte, persist bool) error {
-	txn, err := store.NewTransaction()
+func InsertPolicy(ctx context.Context, store *Storage, id string, mod *ast.Module, raw []byte, persist bool) error {
+	txn, err := store.NewTransaction(ctx)
 	if err != nil {
 		return err
 	}
-	defer store.Close(txn)
+	defer store.Close(ctx, txn)
 	return store.InsertPolicy(txn, id, mod, raw, persist)
 }
 
 // DeletePolicy removes a policy module from storage inside a new transaction.
-func DeletePolicy(store *Storage, id string) error {
-	txn, err := store.NewTransaction()
+func DeletePolicy(ctx context.Context, store *Storage, id string) error {
+	txn, err := store.NewTransaction(ctx)
 	if err != nil {
 		return err
 	}
-	defer store.Close(txn)
+	defer store.Close(ctx, txn)
 	return store.DeletePolicy(txn, id)
 }
 
 // GetPolicy returns a policy module from storage inside a new transaction.
-func GetPolicy(store *Storage, id string) (*ast.Module, []byte, error) {
-	txn, err := store.NewTransaction()
+func GetPolicy(ctx context.Context, store *Storage, id string) (*ast.Module, []byte, error) {
+	txn, err := store.NewTransaction(ctx)
 	if err != nil {
 		return nil, nil, err
 	}
-	defer store.Close(txn)
+	defer store.Close(ctx, txn)
 	return store.GetPolicy(txn, id)
 }
 
 // NewTransactionOrDie is a helper function to create a new transaction. If the
 // storage layer cannot create a new transaction, this function will panic. This
 // function should only be used for tests.
-func NewTransactionOrDie(store *Storage) Transaction {
-	txn, err := store.NewTransaction()
+func NewTransactionOrDie(ctx context.Context, store *Storage) Transaction {
+	txn, err := store.NewTransaction(ctx)
 	if err != nil {
 		panic(err)
 	}

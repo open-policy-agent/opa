@@ -9,10 +9,14 @@ import (
 	"strings"
 	"testing"
 
+	"context"
+
 	"github.com/open-policy-agent/opa/ast"
 )
 
 func TestStorageReadPlugin(t *testing.T) {
+
+	ctx := context.Background()
 
 	mem1 := NewDataStoreFromReader(strings.NewReader(`
     {
@@ -37,7 +41,7 @@ func TestStorageReadPlugin(t *testing.T) {
 		t.Fatalf("Unexpected mount error: %v", err)
 	}
 
-	txn, err := store.NewTransaction()
+	txn, err := store.NewTransaction(ctx)
 	if err != nil {
 		panic(err)
 	}
@@ -54,7 +58,7 @@ func TestStorageReadPlugin(t *testing.T) {
 	for i, tc := range tests {
 
 		expected := loadExpectedResult(tc.expected)
-		result, err := store.Read(txn, MustParsePath(tc.path))
+		result, err := store.Read(ctx, txn, MustParsePath(tc.path))
 
 		if err != nil {
 			t.Errorf("Test #%d (%v): Unexpected read error: %v", i+1, tc.note, err)
@@ -71,7 +75,7 @@ func TestStorageIndexingBasicUpdate(t *testing.T) {
 	refA := ast.MustParseRef("data.a[i]")
 	refB := ast.MustParseRef("data.b[x]")
 	store, ds := newStorageWithIndices(refA, refB)
-	ds.Write(nil, AddOp, MustParsePath("/a/-"), nil)
+	ds.Write(context.Background(), nil, AddOp, MustParsePath("/a/-"), nil)
 
 	if store.IndexExists(refA) {
 		t.Errorf("Expected index to be removed after patch")
@@ -92,6 +96,7 @@ func TestStorageTransactionManagement(t *testing.T) {
 	})
 
 	mock := mockStore{}
+	ctx := context.Background()
 
 	mountPath := MustParsePath("/foo/bar/qux")
 	if err := store.Mount(mock, mountPath); err != nil {
@@ -100,7 +105,7 @@ func TestStorageTransactionManagement(t *testing.T) {
 
 	params := NewTransactionParams().
 		WithPaths([]Path{Path{"foo", "bar", "qux", "corge"}})
-	txn, err := store.NewTransactionWithParams(params)
+	txn, err := store.NewTransactionWithParams(ctx, params)
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
@@ -109,7 +114,7 @@ func TestStorageTransactionManagement(t *testing.T) {
 		t.Fatalf("Expected active to contain exactly one element but got: %v", store.active)
 	}
 
-	store.Close(txn)
+	store.Close(ctx, txn)
 
 	if len(store.active) != 0 {
 		t.Fatalf("Expected active to be reset but got: %v", store.active)
@@ -127,15 +132,15 @@ func (mockStore) ID() string {
 	return "mock-store"
 }
 
-func (mockStore) Read(txn Transaction, path Path) (interface{}, error) {
+func (mockStore) Read(ctx context.Context, txn Transaction, path Path) (interface{}, error) {
 	return nil, nil
 }
 
-func (mockStore) Begin(txn Transaction, params TransactionParams) error {
+func (mockStore) Begin(ctx context.Context, txn Transaction, params TransactionParams) error {
 	return nil
 }
 
-func (mockStore) Close(txn Transaction) {
+func (mockStore) Close(ctx context.Context, txn Transaction) {
 
 }
 
@@ -209,7 +214,7 @@ func TestGroupPathsByStore(t *testing.T) {
 }
 
 func mustBuild(store *Storage, ref ast.Ref) {
-	err := store.BuildIndex(invalidTXN, ref)
+	err := store.BuildIndex(context.Background(), invalidTXN, ref)
 	if err != nil {
 		panic(err)
 	}

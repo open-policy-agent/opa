@@ -6,6 +6,7 @@ package runtime
 
 import (
 	"bytes"
+	"context"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -33,6 +34,8 @@ func TestEval(t *testing.T) {
 }
 
 func TestInit(t *testing.T) {
+	ctx := context.Background()
+
 	tmp1, err := ioutil.TempFile("", "docFile")
 	if err != nil {
 		panic(err)
@@ -84,7 +87,7 @@ func TestInit(t *testing.T) {
 
 	rt := Runtime{}
 
-	err = rt.init(&Params{
+	err = rt.init(ctx, &Params{
 		Paths:     []string{tmp1.Name(), tmp2.Name()},
 		PolicyDir: tmp3,
 	})
@@ -94,9 +97,9 @@ func TestInit(t *testing.T) {
 		return
 	}
 
-	txn := storage.NewTransactionOrDie(rt.Store)
+	txn := storage.NewTransactionOrDie(ctx, rt.Store)
 
-	node, err := rt.Store.Read(txn, storage.MustParsePath("/foo"))
+	node, err := rt.Store.Read(ctx, txn, storage.MustParsePath("/foo"))
 	if util.Compare(node, "bar") != 0 || err != nil {
 		t.Errorf("Expected %v but got %v (err: %v)", "bar", node, err)
 		return

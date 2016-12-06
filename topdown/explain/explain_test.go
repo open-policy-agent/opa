@@ -7,6 +7,8 @@ package explain
 import (
 	"testing"
 
+	"context"
+
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/topdown"
@@ -195,12 +197,11 @@ func executeQuery(data string, compiler *ast.Compiler, tracer topdown.Tracer) {
 		}
 	}
 
+	ctx := context.Background()
 	store := storage.New(storage.InMemoryWithJSONConfig(d))
-
-	txn := storage.NewTransactionOrDie(store)
-	defer store.Close(txn)
-
-	params := topdown.NewQueryParams(compiler, store, txn, nil, ast.MustParseRef("data.test.p"))
+	txn := storage.NewTransactionOrDie(ctx, store)
+	defer store.Close(ctx, txn)
+	params := topdown.NewQueryParams(ctx, compiler, store, txn, nil, ast.MustParseRef("data.test.p"))
 	params.Tracer = tracer
 
 	_, err := topdown.Query(params)

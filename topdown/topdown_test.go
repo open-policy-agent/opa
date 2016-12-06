@@ -5,6 +5,7 @@
 package topdown
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"reflect"
@@ -55,14 +56,13 @@ func TestEvalRef(t *testing.T) {
 		{`data.c[999]`, nil},
 	}
 
+	ctx := context.Background()
 	compiler := ast.NewCompiler()
-
 	store := storage.New(storage.InMemoryWithJSONConfig(loadSmallTestData()))
+	txn := storage.NewTransactionOrDie(ctx, store)
+	defer store.Close(ctx, txn)
 
-	txn := storage.NewTransactionOrDie(store)
-	defer store.Close(txn)
-
-	top := New(nil, compiler, store, txn)
+	top := New(ctx, nil, compiler, store, txn)
 
 	for _, tc := range tests {
 
@@ -147,18 +147,18 @@ func TestEvalTerms(t *testing.T) {
 		]`},
 	}
 
+	ctx := context.Background()
 	compiler := ast.NewCompiler()
-
 	store := storage.New(storage.InMemoryWithJSONConfig(loadSmallTestData()))
 
-	txn := storage.NewTransactionOrDie(store)
-	defer store.Close(txn)
+	txn := storage.NewTransactionOrDie(ctx, store)
+	defer store.Close(ctx, txn)
 
 	for _, tc := range tests {
 
 		testutil.Subtest(t, tc.body, func(t *testing.T) {
 
-			top := New(ast.MustParseBody(tc.body), compiler, store, txn)
+			top := New(ctx, ast.MustParseBody(tc.body), compiler, store, txn)
 
 			expected := loadExpectedBindings(tc.expected)
 
@@ -202,13 +202,13 @@ func TestPlugValue(t *testing.T) {
 	hello := ast.String("hello")
 	world := ast.String("world")
 
-	t1 := New(nil, nil, nil, nil)
+	t1 := New(nil, nil, nil, nil, nil)
 	t1.Bind(a, b, nil)
 	t1.Bind(b, cs, nil)
 	t1.Bind(c, ks, nil)
 	t1.Bind(k, hello, nil)
 
-	t2 := New(nil, nil, nil, nil)
+	t2 := New(nil, nil, nil, nil, nil)
 	t2.Bind(a, b, nil)
 	t2.Bind(b, cs, nil)
 	t2.Bind(c, vs, nil)
@@ -231,7 +231,7 @@ func TestPlugValue(t *testing.T) {
 
 	n := ast.MustParseTerm("a.b[x.y[i]]").Value
 
-	t3 := New(nil, nil, nil, nil)
+	t3 := New(nil, nil, nil, nil, nil)
 	t3.Bind(ast.Var("i"), ast.IntNumberTerm(1).Value, nil)
 	t3.Bind(ast.MustParseTerm("x.y[i]").Value, ast.IntNumberTerm(1).Value, nil)
 
@@ -1342,10 +1342,11 @@ func TestTopDownUnsupportedBuiltin(t *testing.T) {
 	})
 
 	body := ast.MustParseBody(`unsupported_builtin()`)
+	ctx := context.Background()
 	compiler := ast.NewCompiler()
 	store := storage.New(storage.InMemoryConfig())
-	txn := storage.NewTransactionOrDie(store)
-	top := New(body, compiler, store, txn)
+	txn := storage.NewTransactionOrDie(ctx, store)
+	top := New(ctx, body, compiler, store, txn)
 
 	err := Eval(top, func(*Topdown) error {
 		return nil
@@ -1357,6 +1358,65 @@ func TestTopDownUnsupportedBuiltin(t *testing.T) {
 		t.Fatalf("Expected %v but got: %v", expected, err)
 	}
 
+}
+
+type contextPropagationMock struct{}
+
+// contextPropagationStore will accumulate values from the contexts provided to
+// read calls so that the test can verify that contexts are being propagated as
+// expected.
+type contextPropagationStore struct {
+	storage.WritesNotSupported
+	storage.TriggersNotSupported
+	calls []interface{}
+}
+
+func (m *contextPropagationStore) ID() string {
+	return "mock"
+}
+
+func (m *contextPropagationStore) Begin(context.Context, storage.Transaction, storage.TransactionParams) error {
+	return nil
+}
+
+func (m *contextPropagationStore) Close(context.Context, storage.Transaction) {
+}
+
+func (m *contextPropagationStore) Read(ctx context.Context, txn storage.Transaction, path storage.Path) (interface{}, error) {
+	val := ctx.Value(contextPropagationMock{})
+	m.calls = append(m.calls, val)
+	return nil, nil
+}
+
+func TestTopDownContextPropagation(t *testing.T) {
+
+	ctx := context.WithValue(context.Background(), contextPropagationMock{}, "bar")
+
+	compiler := ast.NewCompiler()
+	compiler.Compile(map[string]*ast.Module{
+		"mod1": ast.MustParseModule(`
+			package ex
+			p[x] :- data.a[i] = x
+		`),
+	})
+
+	mockStore := &contextPropagationStore{}
+	store := storage.New(storage.Config{
+		Builtin: mockStore,
+	})
+	txn := storage.NewTransactionOrDie(ctx, store)
+	params := NewQueryParams(ctx, compiler, store, txn, nil, ast.MustParseRef("data.ex.p"))
+
+	_, err := Query(params)
+	if err != nil {
+		t.Fatalf("Unexpected query error: %v", err)
+	}
+
+	expectedCalls := []interface{}{"bar"}
+
+	if !reflect.DeepEqual(expectedCalls, mockStore.calls) {
+		t.Fatalf("Expected %v but got: %v", expectedCalls, mockStore.calls)
+	}
 }
 
 func TestTopDownTracingEval(t *testing.T) {
@@ -1702,12 +1762,12 @@ func runTopDownTestCase(t *testing.T, data map[string]interface{}, note string, 
 
 func runTopDownTracingTestCase(t *testing.T, module string, n int, cases map[int]*Event) {
 
+	ctx := context.Background()
 	compiler := compileModules([]string{module})
 	data := loadSmallTestData()
 	store := storage.New(storage.InMemoryWithJSONConfig(data))
-	txn := storage.NewTransactionOrDie(store)
-
-	params := NewQueryParams(compiler, store, txn, nil, ast.MustParseRef("data.test.p"))
+	txn := storage.NewTransactionOrDie(ctx, store)
+	params := NewQueryParams(ctx, compiler, store, txn, nil, ast.MustParseRef("data.test.p"))
 	buf := NewBufferTracer()
 	params.Tracer = buf
 
@@ -1753,11 +1813,13 @@ func assertTopDown(t *testing.T, compiler *ast.Compiler, store *storage.Storage,
 		p = append(p, x)
 	}
 
-	txn := storage.NewTransactionOrDie(store)
-	defer store.Close(txn)
+	ctx := context.Background()
+
+	txn := storage.NewTransactionOrDie(ctx, store)
+	defer store.Close(ctx, txn)
 
 	ref := ast.MustParseRef("data." + strings.Join(path, "."))
-	params := NewQueryParams(compiler, store, txn, g, ref)
+	params := NewQueryParams(ctx, compiler, store, txn, g, ref)
 
 	testutil.Subtest(t, note, func(t *testing.T) {
 		switch e := expected.(type) {

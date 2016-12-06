@@ -11,6 +11,8 @@ import (
 	"strings"
 	"testing"
 
+	"context"
+
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/topdown"
@@ -18,7 +20,7 @@ import (
 
 func TestScheduler(t *testing.T) {
 	params := setup(t, "data_10nodes_30pods.json")
-	defer params.Store.Close(params.Transaction)
+	defer params.Store.Close(params.Context, params.Transaction)
 
 	qrs, err := topdown.Query(params)
 
@@ -54,12 +56,13 @@ func setup(t *testing.T, filename string) *topdown.QueryParams {
 	})
 
 	// parameter setup
+	ctx := context.Background()
 	globals := ast.NewValueMap()
 	req := ast.MustParseTerm(requestedPod).Value
 	globals.Put(ast.Var("requested_pod"), req)
 	path := ast.MustParseRef("data.opa.test.scheduler.fit")
-	txn := storage.NewTransactionOrDie(store)
-	params := topdown.NewQueryParams(c, store, txn, globals, path)
+	txn := storage.NewTransactionOrDie(ctx, store)
+	params := topdown.NewQueryParams(ctx, c, store, txn, globals, path)
 
 	return params
 }

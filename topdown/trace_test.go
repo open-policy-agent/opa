@@ -9,6 +9,8 @@ import (
 	"strings"
 	"testing"
 
+	"context"
+
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/storage"
 )
@@ -56,12 +58,14 @@ func TestPrettyTrace(t *testing.T) {
 	q[x] :- x = data.a[_]
 	`
 
+	ctx := context.Background()
 	compiler := compileModules([]string{module})
 	data := loadSmallTestData()
 	store := storage.New(storage.InMemoryWithJSONConfig(data))
-	txn := storage.NewTransactionOrDie(store)
+	txn := storage.NewTransactionOrDie(ctx, store)
+	defer store.Close(ctx, txn)
 
-	params := NewQueryParams(compiler, store, txn, nil, ast.MustParseRef("data.test.p"))
+	params := NewQueryParams(ctx, compiler, store, txn, nil, ast.MustParseRef("data.test.p"))
 	tracer := NewBufferTracer()
 	params.Tracer = tracer
 

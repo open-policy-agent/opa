@@ -5,6 +5,7 @@
 package storage
 
 import (
+	"context"
 	"fmt"
 	"io"
 
@@ -32,7 +33,7 @@ func NewDataStore() *DataStore {
 func NewDataStoreFromJSONObject(data map[string]interface{}) *DataStore {
 	ds := NewDataStore()
 	for k, v := range data {
-		if err := ds.patch(AddOp, Path{k}, v); err != nil {
+		if err := ds.patch(context.Background(), AddOp, Path{k}, v); err != nil {
 			panic(err)
 		}
 	}
@@ -56,13 +57,13 @@ func (ds *DataStore) ID() string {
 }
 
 // Begin is called when a new transaction is started.
-func (ds *DataStore) Begin(txn Transaction, params TransactionParams) error {
+func (ds *DataStore) Begin(ctx context.Context, txn Transaction, params TransactionParams) error {
 	// TODO(tsandall):
 	return nil
 }
 
 // Close is called when a transaction is finished.
-func (ds *DataStore) Close(txn Transaction) {
+func (ds *DataStore) Close(ctx context.Context, txn Transaction) {
 	// TODO(tsandall):
 }
 
@@ -78,20 +79,20 @@ func (ds *DataStore) Unregister(id string) {
 }
 
 // Read fetches a value from the in-memory store.
-func (ds *DataStore) Read(txn Transaction, path Path) (interface{}, error) {
+func (ds *DataStore) Read(ctx context.Context, txn Transaction, path Path) (interface{}, error) {
 	return get(ds.data, path)
 }
 
 // Write modifies a document referred to by path.
-func (ds *DataStore) Write(txn Transaction, op PatchOp, path Path, value interface{}) error {
-	return ds.patch(op, path, value)
+func (ds *DataStore) Write(ctx context.Context, txn Transaction, op PatchOp, path Path, value interface{}) error {
+	return ds.patch(ctx, op, path, value)
 }
 
 func (ds *DataStore) String() string {
 	return fmt.Sprintf("%v", ds.data)
 }
 
-func (ds *DataStore) patch(op PatchOp, path Path, value interface{}) error {
+func (ds *DataStore) patch(ctx context.Context, op PatchOp, path Path, value interface{}) error {
 
 	if len(path) == 0 {
 		if op == AddOp || op == ReplaceOp {
@@ -108,7 +109,7 @@ func (ds *DataStore) patch(op PatchOp, path Path, value interface{}) error {
 		if t.Before != nil {
 			// TODO(tsandall): use correct transaction.
 			// TODO(tsandall): fix path
-			if err := t.Before(invalidTXN, op, nil, value); err != nil {
+			if err := t.Before(ctx, invalidTXN, op, nil, value); err != nil {
 				return err
 			}
 		}
@@ -133,7 +134,7 @@ func (ds *DataStore) patch(op PatchOp, path Path, value interface{}) error {
 		if t.After != nil {
 			// TODO(tsandall): use correct transaction.
 			// TODO(tsandall): fix path
-			if err := t.After(invalidTXN, op, nil, value); err != nil {
+			if err := t.After(ctx, invalidTXN, op, nil, value); err != nil {
 				return err
 			}
 		}

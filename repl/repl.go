@@ -9,6 +9,7 @@ package repl
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"html/template"
@@ -125,7 +126,7 @@ func defaultModule() *ast.Module {
 }
 
 // Loop will run until the user enters "exit", Ctrl+C, Ctrl+D, or an unexpected error occurs.
-func (r *REPL) Loop() {
+func (r *REPL) Loop(ctx context.Context) {
 
 	// Initialize the liner library.
 	line := liner.NewLiner()
@@ -154,7 +155,7 @@ func (r *REPL) Loop() {
 			os.Exit(1)
 		}
 
-		if err := r.OneShot(input); err != nil {
+		if err := r.OneShot(ctx, input); err != nil {
 			switch err := err.(type) {
 			case stop:
 				break
@@ -171,21 +172,21 @@ func (r *REPL) Loop() {
 
 // OneShot evaluates the line and prints the result. If an error occurs it is
 // returned for the caller to display.
-func (r *REPL) OneShot(line string) error {
+func (r *REPL) OneShot(ctx context.Context, line string) error {
 
 	var err error
-	r.txn, err = r.store.NewTransaction()
+	r.txn, err = r.store.NewTransaction(ctx)
 	if err != nil {
 		return err
 	}
 
-	defer r.store.Close(r.txn)
+	defer r.store.Close(ctx, r.txn)
 
 	if len(r.buffer) == 0 {
 		if cmd := newCommand(line); cmd != nil {
 			switch cmd.op {
 			case "dump":
-				return r.cmdDump(cmd.args)
+				return r.cmdDump(ctx, cmd.args)
 			case "json":
 				return r.cmdFormat("json")
 			case "show":
@@ -205,12 +206,12 @@ func (r *REPL) OneShot(line string) error {
 			}
 		}
 		r.buffer = append(r.buffer, line)
-		return r.evalBufferOne()
+		return r.evalBufferOne(ctx)
 	}
 
 	r.buffer = append(r.buffer, line)
 	if len(line) == 0 {
-		return r.evalBufferMulti()
+		return r.evalBufferMulti(ctx)
 	}
 
 	return nil
@@ -232,14 +233,15 @@ func (r *REPL) DisableUndefinedOutput(yes bool) *REPL {
 
 func (r *REPL) complete(line string) (c []string) {
 
-	txn, err := r.store.NewTransaction()
+	ctx := context.Background()
+	txn, err := r.store.NewTransaction(ctx)
 
 	if err != nil {
 		fmt.Fprintln(r.output, "error:", err)
 		return c
 	}
 
-	defer r.store.Close(txn)
+	defer r.store.Close(ctx, txn)
 
 	// add imports
 	for _, mod := range r.modules {
@@ -276,24 +278,24 @@ func (r *REPL) complete(line string) (c []string) {
 	return c
 }
 
-func (r *REPL) cmdDump(args []string) error {
+func (r *REPL) cmdDump(ctx context.Context, args []string) error {
 	if len(args) == 0 {
-		return r.cmdDumpOutput()
+		return r.cmdDumpOutput(ctx)
 	}
-	return r.cmdDumpPath(args[0])
+	return r.cmdDumpPath(ctx, args[0])
 }
 
-func (r *REPL) cmdDumpOutput() error {
-	return dumpStorage(r.store, r.txn, r.output)
+func (r *REPL) cmdDumpOutput(ctx context.Context) error {
+	return dumpStorage(ctx, r.store, r.txn, r.output)
 }
 
-func (r *REPL) cmdDumpPath(filename string) error {
+func (r *REPL) cmdDumpPath(ctx context.Context, filename string) error {
 	f, err := os.Create(filename)
 	if err != nil {
 		return err
 	}
 	defer f.Close()
-	return dumpStorage(r.store, r.txn, f)
+	return dumpStorage(ctx, r.store, r.txn, f)
 }
 
 func (r *REPL) cmdExit() error {
@@ -430,7 +432,7 @@ func (r *REPL) compileRule(rule *ast.Rule) error {
 	return nil
 }
 
-func (r *REPL) evalBufferOne() error {
+func (r *REPL) evalBufferOne(ctx context.Context) error {
 
 	line := strings.Join(r.buffer, "\n")
 
@@ -453,7 +455,7 @@ func (r *REPL) evalBufferOne() error {
 	r.buffer = []string{}
 
 	for _, stmt := range stmts {
-		if err := r.evalStatement(stmt); err != nil {
+		if err := r.evalStatement(ctx, stmt); err != nil {
 			return err
 		}
 	}
@@ -461,7 +463,7 @@ func (r *REPL) evalBufferOne() error {
 	return nil
 }
 
-func (r *REPL) evalBufferMulti() error {
+func (r *REPL) evalBufferMulti(ctx context.Context) error {
 
 	line := strings.Join(r.buffer, "\n")
 	r.buffer = []string{}
@@ -477,7 +479,7 @@ func (r *REPL) evalBufferMulti() error {
 	}
 
 	for _, stmt := range stmts {
-		if err := r.evalStatement(stmt); err != nil {
+		if err := r.evalStatement(ctx, stmt); err != nil {
 			return err
 		}
 	}
@@ -503,9 +505,9 @@ func (r *REPL) loadCompiler() (*ast.Compiler, error) {
 
 // loadGlobals returns the globals mapping currently defined in the REPL. The
 // REPL loads globals from the data.repl.globals document.
-func (r *REPL) loadGlobals(compiler *ast.Compiler) (*ast.ValueMap, error) {
+func (r *REPL) loadGlobals(ctx context.Context, compiler *ast.Compiler) (*ast.ValueMap, error) {
 
-	params := topdown.NewQueryParams(compiler, r.store, r.txn, nil, ast.MustParseRef("data.repl.globals"))
+	params := topdown.NewQueryParams(ctx, compiler, r.store, r.txn, nil, ast.MustParseRef("data.repl.globals"))
 
 	result, err := topdown.Query(params)
 	if err != nil {
@@ -541,7 +543,7 @@ func (r *REPL) loadGlobals(compiler *ast.Compiler) (*ast.ValueMap, error) {
 	return topdown.MakeGlobals(pairs)
 }
 
-func (r *REPL) evalStatement(stmt interface{}) error {
+func (r *REPL) evalStatement(ctx context.Context, stmt interface{}) error {
 	switch s := stmt.(type) {
 	case ast.Body:
 		body, err := r.compileBody(s)
@@ -558,11 +560,11 @@ func (r *REPL) evalStatement(stmt interface{}) error {
 		if err != nil {
 			return err
 		}
-		globals, err := r.loadGlobals(compiler)
+		globals, err := r.loadGlobals(ctx, compiler)
 		if err != nil {
 			return err
 		}
-		return r.evalBody(compiler, globals, body)
+		return r.evalBody(ctx, compiler, globals, body)
 	case *ast.Rule:
 		if err := r.compileRule(s); err != nil {
 			fmt.Fprintln(r.output, "error:", err)
@@ -575,7 +577,7 @@ func (r *REPL) evalStatement(stmt interface{}) error {
 	return nil
 }
 
-func (r *REPL) evalBody(compiler *ast.Compiler, globals *ast.ValueMap, body ast.Body) error {
+func (r *REPL) evalBody(ctx context.Context, compiler *ast.Compiler, globals *ast.ValueMap, body ast.Body) error {
 
 	// Special case for positive, single term inputs.
 	if len(body) == 1 {
@@ -583,14 +585,14 @@ func (r *REPL) evalBody(compiler *ast.Compiler, globals *ast.ValueMap, body ast.
 		if !expr.Negated {
 			if _, ok := expr.Terms.(*ast.Term); ok {
 				if singleValue(body) {
-					return r.evalTermSingleValue(compiler, globals, body)
+					return r.evalTermSingleValue(ctx, compiler, globals, body)
 				}
-				return r.evalTermMultiValue(compiler, globals, body)
+				return r.evalTermMultiValue(ctx, compiler, globals, body)
 			}
 		}
 	}
 
-	t := topdown.New(body, compiler, r.store, r.txn)
+	t := topdown.New(ctx, body, compiler, r.store, r.txn)
 	t.Globals = globals
 
 	var buf *topdown.BufferTracer
@@ -645,7 +647,7 @@ func (r *REPL) evalBody(compiler *ast.Compiler, globals *ast.ValueMap, body ast.
 	})
 
 	if buf != nil {
-		r.printTrace(compiler, *buf)
+		r.printTrace(ctx, compiler, *buf)
 	}
 
 	if err != nil {
@@ -703,13 +705,13 @@ func (r *REPL) evalPackage(p *ast.Package) error {
 // and comprehensions always evaluate to a single value. To handle references, this function
 // still executes the query, except it does so by rewriting the body to assign the term
 // to a variable. This allows the REPL to obtain the result even if the term is false.
-func (r *REPL) evalTermSingleValue(compiler *ast.Compiler, globals *ast.ValueMap, body ast.Body) error {
+func (r *REPL) evalTermSingleValue(ctx context.Context, compiler *ast.Compiler, globals *ast.ValueMap, body ast.Body) error {
 
 	term := body[0].Terms.(*ast.Term)
 	outputVar := ast.Wildcard
 	body = ast.NewBody(ast.Equality.Expr(term, outputVar))
 
-	t := topdown.New(body, compiler, r.store, r.txn)
+	t := topdown.New(ctx, body, compiler, r.store, r.txn)
 	t.Globals = globals
 
 	var buf *topdown.BufferTracer
@@ -734,7 +736,7 @@ func (r *REPL) evalTermSingleValue(compiler *ast.Compiler, globals *ast.ValueMap
 	})
 
 	if buf != nil {
-		r.printTrace(compiler, *buf)
+		r.printTrace(ctx, compiler, *buf)
 	}
 
 	if err != nil {
@@ -752,7 +754,7 @@ func (r *REPL) evalTermSingleValue(compiler *ast.Compiler, globals *ast.ValueMap
 
 // evalTermMultiValue evaluates and prints terms in cases where the term may evaluate to multiple
 // ground values, e.g., a[i], [servers[x]], etc.
-func (r *REPL) evalTermMultiValue(compiler *ast.Compiler, globals *ast.ValueMap, body ast.Body) error {
+func (r *REPL) evalTermMultiValue(ctx context.Context, compiler *ast.Compiler, globals *ast.ValueMap, body ast.Body) error {
 
 	// Mangle the expression in the same way we do for evalTermSingleValue. When handling the
 	// evaluation result below, we will ignore this variable.
@@ -760,7 +762,7 @@ func (r *REPL) evalTermMultiValue(compiler *ast.Compiler, globals *ast.ValueMap,
 	outputVar := ast.Wildcard
 	body = ast.NewBody(ast.Equality.Expr(term, outputVar))
 
-	t := topdown.New(body, compiler, r.store, r.txn)
+	t := topdown.New(ctx, body, compiler, r.store, r.txn)
 	t.Globals = globals
 
 	var buf *topdown.BufferTracer
@@ -821,7 +823,7 @@ func (r *REPL) evalTermMultiValue(compiler *ast.Compiler, globals *ast.ValueMap,
 	})
 
 	if buf != nil {
-		r.printTrace(compiler, *buf)
+		r.printTrace(ctx, compiler, *buf)
 	}
 
 	if err != nil {
@@ -924,7 +926,7 @@ func (r *REPL) printPrettyRow(table *tablewriter.Table, keys []string, row map[s
 	table.Append(buf)
 }
 
-func (r *REPL) printTrace(compiler *ast.Compiler, trace []*topdown.Event) {
+func (r *REPL) printTrace(ctx context.Context, compiler *ast.Compiler, trace []*topdown.Event) {
 	if r.explain == explainTruth {
 		answer, err := explain.Truth(compiler, trace)
 		if err != nil {
@@ -932,7 +934,7 @@ func (r *REPL) printTrace(compiler *ast.Compiler, trace []*topdown.Event) {
 		}
 		trace = answer
 	}
-	mangleTrace(r.store, r.txn, trace)
+	mangleTrace(ctx, r.store, r.txn, trace)
 	topdown.PrettyTrace(r.output, trace)
 }
 
@@ -1079,8 +1081,8 @@ func singleValue(body ast.Body) bool {
 	}
 }
 
-func dumpStorage(store *storage.Storage, txn storage.Transaction, w io.Writer) error {
-	data, err := store.Read(txn, storage.Path{})
+func dumpStorage(ctx context.Context, store *storage.Storage, txn storage.Transaction, w io.Writer) error {
+	data, err := store.Read(ctx, txn, storage.Path{})
 	if err != nil {
 		return err
 	}
@@ -1088,16 +1090,16 @@ func dumpStorage(store *storage.Storage, txn storage.Transaction, w io.Writer) e
 	return e.Encode(data)
 }
 
-func mangleTrace(store *storage.Storage, txn storage.Transaction, trace []*topdown.Event) error {
+func mangleTrace(ctx context.Context, store *storage.Storage, txn storage.Transaction, trace []*topdown.Event) error {
 	for _, event := range trace {
-		if err := mangleEvent(store, txn, event); err != nil {
+		if err := mangleEvent(ctx, store, txn, event); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func mangleEvent(store *storage.Storage, txn storage.Transaction, event *topdown.Event) error {
+func mangleEvent(ctx context.Context, store *storage.Storage, txn storage.Transaction, event *topdown.Event) error {
 
 	// Replace bindings with ref values with the values from storage.
 	cpy := event.Locals.Copy()
@@ -1110,7 +1112,7 @@ func mangleEvent(store *storage.Storage, txn storage.Transaction, event *topdown
 				return true
 			}
 			var doc interface{}
-			doc, err = store.Read(txn, path)
+			doc, err = store.Read(ctx, txn, path)
 			if err != nil {
 				return true
 			}

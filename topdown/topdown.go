@@ -5,6 +5,7 @@
 package topdown
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"sync"
@@ -25,6 +26,7 @@ type Topdown struct {
 	Previous *Topdown
 	Store    *storage.Storage
 	Tracer   Tracer
+	Context  context.Context
 
 	txn   storage.Transaction
 	cache *contextcache
@@ -70,8 +72,9 @@ type redoStackElement struct {
 }
 
 // New returns a new Topdown object without any bindings.
-func New(query ast.Body, compiler *ast.Compiler, store *storage.Storage, txn storage.Transaction) *Topdown {
+func New(ctx context.Context, query ast.Body, compiler *ast.Compiler, store *storage.Storage, txn storage.Transaction) *Topdown {
 	return &Topdown{
+		Context:  ctx,
 		Query:    query,
 		Compiler: compiler,
 		Locals:   ast.NewValueMap(),
@@ -162,7 +165,7 @@ func (t *Topdown) Resolve(ref ast.Ref) (interface{}, error) {
 		return nil, err
 	}
 
-	return t.Store.Read(t.txn, path)
+	return t.Store.Read(t.Context, t.txn, path)
 }
 
 // Step returns a new Topdown object to evaluate the next expression.
@@ -545,6 +548,7 @@ func PlugValue(v ast.Value, binding func(ast.Value) ast.Value) ast.Value {
 
 // QueryParams defines input parameters for the query interface.
 type QueryParams struct {
+	Context     context.Context
 	Compiler    *ast.Compiler
 	Store       *storage.Storage
 	Transaction storage.Transaction
@@ -554,8 +558,9 @@ type QueryParams struct {
 }
 
 // NewQueryParams returns a new QueryParams.
-func NewQueryParams(compiler *ast.Compiler, store *storage.Storage, txn storage.Transaction, globals *ast.ValueMap, path ast.Ref) *QueryParams {
+func NewQueryParams(ctx context.Context, compiler *ast.Compiler, store *storage.Storage, txn storage.Transaction, globals *ast.ValueMap, path ast.Ref) *QueryParams {
 	return &QueryParams{
+		Context:     ctx,
 		Compiler:    compiler,
 		Store:       store,
 		Transaction: txn,
@@ -566,7 +571,7 @@ func NewQueryParams(compiler *ast.Compiler, store *storage.Storage, txn storage.
 
 // NewTopdown returns a new Topdown object that can be used to do evaluation.
 func (q *QueryParams) NewTopdown(body ast.Body) *Topdown {
-	t := New(body, q.Compiler, q.Store, q.Transaction)
+	t := New(q.Context, body, q.Compiler, q.Store, q.Transaction)
 	t.Globals = q.Globals
 	t.Tracer = q.Tracer
 	return t
@@ -646,7 +651,7 @@ func queryN(params *QueryParams) (QueryResultSet, error) {
 
 	qrs := QueryResultSet{}
 	vars := ast.NewVarSet()
-	resolver := resolver{params.Store, params.Transaction}
+	resolver := resolver{params.Context, params.Store, params.Transaction}
 
 	params.Globals.Iter(func(_, v ast.Value) bool {
 		ast.WalkRefs(v, func(r ast.Ref) bool {
@@ -708,8 +713,9 @@ type Resolver interface {
 }
 
 type resolver struct {
-	store *storage.Storage
-	txn   storage.Transaction
+	context context.Context
+	store   *storage.Storage
+	txn     storage.Transaction
 }
 
 func (r resolver) Resolve(ref ast.Ref) (interface{}, error) {
@@ -717,7 +723,7 @@ func (r resolver) Resolve(ref ast.Ref) (interface{}, error) {
 	if err != nil {
 		return nil, err
 	}
-	return r.store.Read(r.txn, path)
+	return r.store.Read(r.context, r.txn, path)
 }
 
 // ResolveRefs returns the AST value obtained by resolving references to base
@@ -2076,7 +2082,7 @@ func indexBuildLazy(t *Topdown, ref ast.Ref) (bool, error) {
 		}
 	}
 
-	if err := t.Store.BuildIndex(t.txn, ref); err != nil {
+	if err := t.Store.BuildIndex(t.Context, t.txn, ref); err != nil {
 		switch err := err.(type) {
 		case *storage.Error:
 			if err.Code == storage.IndexingNotSupportedErr {

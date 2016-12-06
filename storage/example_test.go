@@ -6,6 +6,7 @@ package storage_test
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -16,6 +17,9 @@ import (
 )
 
 func ExampleStorage_Read() {
+	// Initialize context for the example. Normally the caller would obtain the
+	// context from an input parameter or instantiate their own.
+	ctx := context.Background()
 
 	// Define some dummy data to initialize the built-in store with.
 	exampleInput := `
@@ -49,16 +53,16 @@ func ExampleStorage_Read() {
 	// Instantiate the storage layer.
 	store := storage.New(storage.InMemoryWithJSONConfig(data))
 
-	txn, err := store.NewTransaction()
+	txn, err := store.NewTransaction(ctx)
 	if err != nil {
 		// Handle error.
 	}
 
-	defer store.Close(txn)
+	defer store.Close(ctx, txn)
 
 	// Read values out of storage.
-	v1, err1 := store.Read(txn, storage.MustParsePath("/users/1/likes/1"))
-	v2, err2 := store.Read(txn, storage.MustParsePath("/users/0/age"))
+	v1, err1 := store.Read(ctx, txn, storage.MustParsePath("/users/1/likes/1"))
+	v2, err2 := store.Read(ctx, txn, storage.MustParsePath("/users/0/age"))
 
 	// Inspect the return values.
 	fmt.Println("v1:", v1)
@@ -76,6 +80,9 @@ func ExampleStorage_Read() {
 }
 
 func ExampleStorage_Write() {
+	// Initialize context for the example. Normally the caller would obtain the
+	// context from an input parameter or instantiate their own.
+	ctx := context.Background()
 
 	// Define some dummy data to initialize the DataStore with.
 	exampleInput := `
@@ -125,17 +132,17 @@ func ExampleStorage_Write() {
 		// Handle error.
 	}
 
-	txn, err := store.NewTransaction()
+	txn, err := store.NewTransaction(ctx)
 	if err != nil {
 		// Handle error.
 	}
 
-	defer store.Close(txn)
+	defer store.Close(ctx, txn)
 
 	// Write values into storage and read result.
-	err0 := store.Write(txn, storage.AddOp, storage.MustParsePath("/users/0/location"), patch)
-	v1, err1 := store.Read(txn, storage.MustParsePath("/users/0/location/latitude"))
-	err2 := store.Write(txn, storage.ReplaceOp, storage.MustParsePath("/users/1/color"), "red")
+	err0 := store.Write(ctx, txn, storage.AddOp, storage.MustParsePath("/users/0/location"), patch)
+	v1, err1 := store.Read(ctx, txn, storage.MustParsePath("/users/0/location/latitude"))
+	err2 := store.Write(ctx, txn, storage.ReplaceOp, storage.MustParsePath("/users/1/color"), "red")
 
 	// Inspect the return values.
 	fmt.Println("err0:", err0)
@@ -154,6 +161,9 @@ func ExampleStorage_Write() {
 }
 
 func ExampleStorage_Open() {
+	// Initialize context for the example. Normally the caller would obtain the
+	// context from an input parameter or instantiate their own.
+	ctx := context.Background()
 
 	// Define two example modules and write them to disk in a temporary directory.
 	ex1 := `
@@ -190,12 +200,12 @@ func ExampleStorage_Open() {
 	// Instantiate storage layer and configure with a directory to persist policy modules.
 	store := storage.New(storage.InMemoryConfig().WithPolicyDir(path))
 
-	if err = store.Open(); err != nil {
+	if err = store.Open(ctx); err != nil {
 		// Handle error.
 	}
 
 	// Inspect one of the loaded policies.
-	mod, _, err := storage.GetPolicy(store, "ex1.rego")
+	mod, _, err := storage.GetPolicy(ctx, store, "ex1.rego")
 
 	if err != nil {
 		// Handle error.

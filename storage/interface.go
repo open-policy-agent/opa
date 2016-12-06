@@ -4,6 +4,8 @@
 
 package storage
 
+import "context"
+
 // Store defines the interface for the storage layer's backend. Users can
 // implement their own stores and mount them into the storage layer to provide
 // the policy engine access to external data sources.
@@ -18,17 +20,17 @@ type Store interface {
 	// Begin is called to indicate that a new transaction has started. The store
 	// can use the call to initialize any resources that may be required for the
 	// transaction.
-	Begin(txn Transaction, params TransactionParams) error
+	Begin(ctx context.Context, txn Transaction, params TransactionParams) error
 
 	// Read is called to fetch a document referred to by path.
-	Read(txn Transaction, path Path) (interface{}, error)
+	Read(ctx context.Context, txn Transaction, path Path) (interface{}, error)
 
 	// Write is called to modify a document referred to by path.
-	Write(txn Transaction, op PatchOp, path Path, value interface{}) error
+	Write(ctx context.Context, txn Transaction, op PatchOp, path Path, value interface{}) error
 
 	// Close indicates a transaction has finished. The store can use the call to
 	// release any resources temporarily allocated for the transaction.
-	Close(txn Transaction)
+	Close(ctx context.Context, txn Transaction)
 }
 
 // TransactionParams describes a new transaction.
@@ -65,6 +67,6 @@ const (
 // interface which may be used if the backend does not support writes.
 type WritesNotSupported struct{}
 
-func (WritesNotSupported) Write(txn Transaction, op PatchOp, path Path, value interface{}) error {
+func (WritesNotSupported) Write(ctx context.Context, txn Transaction, op PatchOp, path Path, value interface{}) error {
 	return writesNotSupportedError()
 }

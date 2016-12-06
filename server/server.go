@@ -5,6 +5,7 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -288,7 +289,7 @@ type Server struct {
 }
 
 // New returns a new Server.
-func New(store *storage.Storage, addr string, persist bool) (*Server, error) {
+func New(ctx context.Context, store *storage.Storage, addr string, persist bool) (*Server, error) {
 
 	s := &Server{
 		addr:    addr,
@@ -314,12 +315,12 @@ func New(store *storage.Storage, addr string, persist bool) (*Server, error) {
 	s.Handler = router
 
 	// Initialize compiler with policies found in storage.
-	txn, err := s.store.NewTransaction()
+	txn, err := s.store.NewTransaction(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	defer s.store.Close(txn)
+	defer s.store.Close(ctx, txn)
 
 	modules := s.store.ListPolicies(txn)
 	compiler := ast.NewCompiler()
@@ -350,9 +351,9 @@ func (s *Server) Loop() error {
 	return http.ListenAndServe(s.addr, s.Handler)
 }
 
-func (s *Server) execQuery(compiler *ast.Compiler, txn storage.Transaction, query ast.Body, explainMode explainModeV1) (interface{}, error) {
+func (s *Server) execQuery(ctx context.Context, compiler *ast.Compiler, txn storage.Transaction, query ast.Body, explainMode explainModeV1) (interface{}, error) {
 
-	t := topdown.New(query, s.Compiler(), s.store, txn)
+	t := topdown.New(ctx, query, s.Compiler(), s.store, txn)
 
 	var buf *topdown.BufferTracer
 
@@ -418,6 +419,7 @@ func (s *Server) indexGet(w http.ResponseWriter, r *http.Request) {
 	values := r.URL.Query()
 	qStrs := values["q"]
 	explainMode := getExplain(r.URL.Query()["explain"])
+	ctx := r.Context()
 
 	renderQueryForm(w, qStrs, explainMode)
 
@@ -426,7 +428,7 @@ func (s *Server) indexGet(w http.ResponseWriter, r *http.Request) {
 		t0 := time.Now()
 
 		var results interface{}
-		txn, err := s.store.NewTransaction()
+		txn, err := s.store.NewTransaction(ctx)
 
 		if err == nil {
 			var query ast.Body
@@ -435,10 +437,10 @@ func (s *Server) indexGet(w http.ResponseWriter, r *http.Request) {
 				compiler := s.Compiler()
 				query, err = compiler.QueryCompiler().Compile(query)
 				if err == nil {
-					results, err = s.execQuery(compiler, txn, query, explainMode)
+					results, err = s.execQuery(ctx, compiler, txn, query, explainMode)
 				}
 			}
-			s.store.Close(txn)
+			s.store.Close(ctx, txn)
 		}
 
 		dt := time.Since(t0)
@@ -455,6 +457,7 @@ func (s *Server) registerHandlerV1(router *mux.Router, path string, method strin
 func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 
 	// Gather request parameters.
+	ctx := r.Context()
 	vars := mux.Vars(r)
 	path := stringPathToDataRef(vars["path"])
 	pretty := getPretty(r.URL.Query()["pretty"])
@@ -472,16 +475,16 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Prepare for query.
-	txn, err := s.store.NewTransaction()
+	txn, err := s.store.NewTransaction(ctx)
 	if err != nil {
 		handleErrorAuto(w, err)
 		return
 	}
 
-	defer s.store.Close(txn)
+	defer s.store.Close(ctx, txn)
 
 	compiler := s.Compiler()
-	params := topdown.NewQueryParams(compiler, s.store, txn, globals, path)
+	params := topdown.NewQueryParams(ctx, compiler, s.store, txn, globals, path)
 
 	var buf *topdown.BufferTracer
 	if explainMode != explainOffV1 {
@@ -530,6 +533,7 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) v1DataPatch(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
 	vars := mux.Vars(r)
 
 	ops := []patchV1{}
@@ -538,13 +542,13 @@ func (s *Server) v1DataPatch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	txn, err := s.store.NewTransaction()
+	txn, err := s.store.NewTransaction(ctx)
 	if err != nil {
 		handleErrorAuto(w, err)
 		return
 	}
 
-	defer s.store.Close(txn)
+	defer s.store.Close(ctx, txn)
 
 	patches, err := s.prepareV1PatchSlice(vars["path"], ops)
 	if err != nil {
@@ -553,7 +557,7 @@ func (s *Server) v1DataPatch(w http.ResponseWriter, r *http.Request) {
 	}
 
 	for _, patch := range patches {
-		if err := s.store.Write(txn, patch.op, patch.path, patch.value); err != nil {
+		if err := s.store.Write(ctx, txn, patch.op, patch.path, patch.value); err != nil {
 			handleErrorAuto(w, err)
 			return
 		}
@@ -563,6 +567,7 @@ func (s *Server) v1DataPatch(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) v1DataPut(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
 	vars := mux.Vars(r)
 
 	var value interface{}
@@ -571,13 +576,13 @@ func (s *Server) v1DataPut(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	txn, err := s.store.NewTransaction()
+	txn, err := s.store.NewTransaction(ctx)
 	if err != nil {
 		handleErrorAuto(w, err)
 		return
 	}
 
-	defer s.store.Close(txn)
+	defer s.store.Close(ctx, txn)
 
 	path, ok := storage.ParsePath("/" + strings.Trim(vars["path"], "/"))
 	if !ok {
@@ -585,14 +590,14 @@ func (s *Server) v1DataPut(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err = s.store.Read(txn, path)
+	_, err = s.store.Read(ctx, txn, path)
 
 	if err != nil {
 		if !storage.IsNotFound(err) {
 			handleErrorAuto(w, err)
 			return
 		}
-		if err := s.makeDir(txn, path[:len(path)-1]); err != nil {
+		if err := s.makeDir(ctx, txn, path[:len(path)-1]); err != nil {
 			handleErrorAuto(w, err)
 			return
 		}
@@ -601,7 +606,7 @@ func (s *Server) v1DataPut(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := s.store.Write(txn, storage.AddOp, path, value); err != nil {
+	if err := s.store.Write(ctx, txn, storage.AddOp, path, value); err != nil {
 		handleErrorAuto(w, err)
 		return
 	}
@@ -610,16 +615,17 @@ func (s *Server) v1DataPut(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) v1PoliciesDelete(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
 	vars := mux.Vars(r)
 	id := vars["id"]
 
-	txn, err := s.store.NewTransaction()
+	txn, err := s.store.NewTransaction(ctx)
 	if err != nil {
 		handleErrorAuto(w, err)
 		return
 	}
 
-	defer s.store.Close(txn)
+	defer s.store.Close(ctx, txn)
 
 	_, _, err = s.store.GetPolicy(txn, id)
 	if err != nil {
@@ -648,16 +654,17 @@ func (s *Server) v1PoliciesDelete(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) v1PoliciesGet(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
 	vars := mux.Vars(r)
 	id := vars["id"]
 
-	txn, err := s.store.NewTransaction()
+	txn, err := s.store.NewTransaction(ctx)
 	if err != nil {
 		handleErrorAuto(w, err)
 		return
 	}
 
-	defer s.store.Close(txn)
+	defer s.store.Close(ctx, txn)
 
 	_, _, err = s.store.GetPolicy(txn, id)
 	if err != nil {
@@ -676,16 +683,17 @@ func (s *Server) v1PoliciesGet(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) v1PoliciesRawGet(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
 	vars := mux.Vars(r)
 	id := vars["id"]
 
-	txn, err := s.store.NewTransaction()
+	txn, err := s.store.NewTransaction(ctx)
 	if err != nil {
 		handleErrorAuto(w, err)
 		return
 	}
 
-	defer s.store.Close(txn)
+	defer s.store.Close(ctx, txn)
 
 	_, bs, err := s.store.GetPolicy(txn, id)
 
@@ -715,7 +723,7 @@ func (s *Server) v1PoliciesList(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) v1PoliciesPut(w http.ResponseWriter, r *http.Request) {
-
+	ctx := r.Context()
 	vars := mux.Vars(r)
 	id := vars["id"]
 
@@ -742,14 +750,14 @@ func (s *Server) v1PoliciesPut(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	txn, err := s.store.NewTransaction()
+	txn, err := s.store.NewTransaction(ctx)
 
 	if err != nil {
 		handleErrorAuto(w, err)
 		return
 	}
 
-	defer s.store.Close(txn)
+	defer s.store.Close(ctx, txn)
 
 	mods := s.store.ListPolicies(txn)
 	mods[id] = parsedMod
@@ -777,6 +785,7 @@ func (s *Server) v1PoliciesPut(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) v1QueryGet(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
 	values := r.URL.Query()
 	pretty := getPretty(r.URL.Query()["pretty"])
 	explainMode := getExplain(r.URL.Query()["explain"])
@@ -788,13 +797,13 @@ func (s *Server) v1QueryGet(w http.ResponseWriter, r *http.Request) {
 
 	qStr := qStrs[len(qStrs)-1]
 
-	txn, err := s.store.NewTransaction()
+	txn, err := s.store.NewTransaction(ctx)
 	if err != nil {
 		handleErrorAuto(w, err)
 		return
 	}
 
-	defer s.store.Close(txn)
+	defer s.store.Close(ctx, txn)
 
 	compiler := s.Compiler()
 
@@ -810,7 +819,7 @@ func (s *Server) v1QueryGet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	results, err := s.execQuery(compiler, txn, compiled, explainMode)
+	results, err := s.execQuery(ctx, compiler, txn, compiled, explainMode)
 	if err != nil {
 		handleErrorAuto(w, err)
 		return
@@ -834,9 +843,9 @@ func (s *Server) setCompiler(compiler *ast.Compiler) {
 	s.compiler = compiler
 }
 
-func (s *Server) makeDir(txn storage.Transaction, path storage.Path) error {
+func (s *Server) makeDir(ctx context.Context, txn storage.Transaction, path storage.Path) error {
 
-	node, err := s.store.Read(txn, path)
+	node, err := s.store.Read(ctx, txn, path)
 	if err == nil {
 		if _, ok := node.(map[string]interface{}); ok {
 			return nil
@@ -848,7 +857,7 @@ func (s *Server) makeDir(txn storage.Transaction, path storage.Path) error {
 		return err
 	}
 
-	if err := s.makeDir(txn, path[:len(path)-1]); err != nil {
+	if err := s.makeDir(ctx, txn, path[:len(path)-1]); err != nil {
 		return err
 	}
 
@@ -856,7 +865,7 @@ func (s *Server) makeDir(txn storage.Transaction, path storage.Path) error {
 		return err
 	}
 
-	return s.store.Write(txn, storage.AddOp, path, map[string]interface{}{})
+	return s.store.Write(ctx, txn, storage.AddOp, path, map[string]interface{}{})
 }
 
 func (s *Server) prepareV1PatchSlice(root string, ops []patchV1) (result []patchImpl, err error) {
