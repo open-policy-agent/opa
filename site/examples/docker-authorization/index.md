@@ -79,14 +79,14 @@ $ ./opa run -s --alsologtostderr 1 --v 2 --policy-dir policies
 
 OPA will run until it receives a signal to stop. Open another terminal to continue with the rest of the example.
 
-### 4. Download the [open-policy-agent/docker-authz-plugin](https://github.com/open-policy-agent/docker-authz-plugin) executable.
+### 4. Download the [open-policy-agent/opa-docker-authz](https://github.com/open-policy-agent/opa-docker-authz) executable.
 
 ```shell
-$ curl -L https://github.com/open-policy-agent/docker-authz-plugin/releases/download/v0.1.1/docker-authz-plugin_linux_amd64 > docker-authz-plugin
-$ chmod u+x docker-authz-plugin
+$ curl -L https://github.com/open-policy-agent/opa-docker-authz/releases/download/v0.1.2/opa-docker-authz_linux_amd64 > opa-docker-authz
+$ chmod u+x opa-docker-authz
 ```
 
-The open-policy-agent/docker-authz-plugin repository hosts a small [Docker Authorization Plugin](https://docs.docker.com/engine/extend/plugins_authorization/). Docker's authorization plugin system allows an external process to receive all requests sent to the Docker daemon. The authorization plugin replies, instructing the Docker daemon to allow or reject the request.
+The open-policy-agent/opa-docker-authz repository hosts a small [Docker Authorization Plugin](https://docs.docker.com/engine/extend/plugins_authorization/). Docker's authorization plugin system allows an external process to receive all requests sent to the Docker daemon. The authorization plugin replies, instructing the Docker daemon to allow or reject the request.
 
 ### 5. Create an empty policy definition that will allow all requests.
 
@@ -99,10 +99,10 @@ EOF
 
 This policy definition is about simple as it can be. It includes a single rule named `allow_request` that is defined to always be `true`. Once all of the components are running, we will come back and extend this policy.
 
-### 6. Run the docker-authz-plugin and then open another terminal.
+### 6. Run the opa-docker-authz plugin and then open another terminal.
 
 ```shell
-$ sudo ./docker-authz-plugin
+$ sudo ./opa-docker-authz -policy-file=example.rego
 ```
 
 > This step requires sudo access because the Docker plugin framework will attempt to update the Docker daemon configuration. If you run without sudo you may encounter a permission error.
@@ -113,7 +113,7 @@ $ sudo ./docker-authz-plugin
 Docker must include the following command-line argument:
 
 ```shell
---authorization-plugin=docker-authz-plugin
+--authorization-plugin=opa-docker-authz
 ```
 
 On Ubuntu 16.04 with systemd, this can be done as follows (requires root):
@@ -122,7 +122,8 @@ On Ubuntu 16.04 with systemd, this can be done as follows (requires root):
 $ sudo mkdir -p /etc/systemd/system/docker.service.d
 $ sudo tee -a /etc/systemd/system/docker.service.d/override.conf > /dev/null <<EOF
 [Service]
-ExecStart=/usr/bin/docker daemon -H fd:// --authorization-plugin=docker-authz-plugin
+ExecStart=
+ExecStart=/usr/bin/docker daemon -H fd:// --authorization-plugin=opa-docker-authz
 EOF
 $ sudo systemctl daemon-reload
 $ sudo service docker restart
@@ -160,7 +161,7 @@ $ docker ps
 The output should be:
 
 ```
-Error response from daemon: authorization denied by plugin docker-authz-plugin: request rejected by administrative policy
+Error response from daemon: authorization denied by plugin opa-docker-authz: request rejected by administrative policy
 ```
 
 To learn more about how rules define the content of documents, see: [How Does OPA Work?](/documentation/how-does-opa-work/)
@@ -186,7 +187,7 @@ allow_request = true :- not seccomp_unconfined
 EOF
 ```
 
-The docker-authz-plugin is watching the policy definition file for changes. Each time we change the file, the plugin reads the file and sends it to OPA. To manually send the policy to OPA, you can use the following API:
+The opa-docker-authz plugin is watching the policy definition file for changes. Each time we change the file, the plugin reads the file and sends it to OPA. To manually send the policy to OPA, you can use the following API:
 
 ```shell
 $ curl -X PUT --data-binary @example.rego http://localhost:8181/v1/policies/example_policy
