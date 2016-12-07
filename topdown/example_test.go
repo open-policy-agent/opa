@@ -6,6 +6,7 @@ package topdown_test
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 
@@ -15,6 +16,9 @@ import (
 )
 
 func ExampleEval() {
+	// Initialize context for the example. Normally the caller would obtain the
+	// context from an input parameter or instantiate their own.
+	ctx := context.Background()
 
 	compiler := ast.NewCompiler()
 
@@ -41,29 +45,29 @@ func ExampleEval() {
 
 	// Create a new transaction. Transactions allow the policy engine to
 	// evaluate the query over a consistent snapshot fo the storage layer.
-	txn, err := store.NewTransaction()
+	txn, err := store.NewTransaction(ctx)
 	if err != nil {
 		// Handle error.
 	}
 
-	defer store.Close(txn)
+	defer store.Close(ctx, txn)
 
-	// Prepare the evaluation parameters. Evaluation executes against the policy engine's
-	// storage. In this case, we seed the storage with a single array of number. Other parameters
-	// such as globals, tracing configuration, etc. can be set on the context. See the Context
-	// documentation for more details.
-	ctx := topdown.NewContext(query, compiler, store, txn)
+	// Prepare the evaluation parameters. Evaluation executes against the policy
+	// engine's storage. In this case, we seed the storage with a single array
+	// of number. Other parameters such as globals, tracing configuration, etc.
+	// can be set on the Topdown object.
+	t := topdown.New(ctx, query, compiler, store, txn)
 
 	result := []interface{}{}
 
 	// Execute the query and provide a callbakc function to accumulate the results.
-	err = topdown.Eval(ctx, func(ctx *topdown.Context) error {
+	err = topdown.Eval(t, func(t *topdown.Topdown) error {
 
 		// Each variable in the query will have an associated "binding" in the context.
-		x := ctx.Binding(ast.Var("x"))
+		x := t.Binding(ast.Var("x"))
 
 		// The bindings are ast.Value types so we will convert to a native Go value here.
-		v, err := topdown.ValueToInterface(x, ctx)
+		v, err := topdown.ValueToInterface(x, t)
 		if err != nil {
 			return err
 		}
@@ -82,6 +86,9 @@ func ExampleEval() {
 }
 
 func ExampleQuery() {
+	// Initialize context for the example. Normally the caller would obtain the
+	// context from an input parameter or instantiate their own.
+	ctx := context.Background()
 
 	compiler := ast.NewCompiler()
 
@@ -113,18 +120,18 @@ func ExampleQuery() {
 
 	// Create a new transaction. Transactions allow the policy engine to
 	// evaluate the query over a consistent snapshot fo the storage layer.
-	txn, err := store.NewTransaction()
+	txn, err := store.NewTransaction(ctx)
 	if err != nil {
 		// Handle error.
 	}
 
-	defer store.Close(txn)
+	defer store.Close(ctx, txn)
 
 	// Prepare the query parameters. Queries execute against the policy engine's storage and can
 	// accept additional documents (which are referred to as "globals"). In this case we have no
 	// additional documents.
 	globals := ast.NewValueMap()
-	params := topdown.NewQueryParams(compiler, store, txn, globals, ast.MustParseRef("data.opa.example.p"))
+	params := topdown.NewQueryParams(ctx, compiler, store, txn, globals, ast.MustParseRef("data.opa.example.p"))
 
 	// Execute the query against "p".
 	v1, err1 := topdown.Query(params)

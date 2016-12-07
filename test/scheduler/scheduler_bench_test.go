@@ -10,6 +10,8 @@ import (
 	"testing"
 	"text/template"
 
+	"context"
+
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/topdown"
@@ -30,7 +32,7 @@ func BenchmarkScheduler1000x3000(b *testing.B) {
 
 func runSchedulerBenchmark(b *testing.B, nodes int, pods int) {
 	params := setupBenchmark(nodes, pods)
-	defer params.Store.Close(params.Transaction)
+	defer params.Store.Close(params.Context, params.Transaction)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		qrs, err := topdown.Query(params)
@@ -65,17 +67,18 @@ func setupBenchmark(nodes int, pods int) *topdown.QueryParams {
 	store := storage.New(storage.InMemoryConfig())
 
 	// parameter setup
+	ctx := context.Background()
 	globals := ast.NewValueMap()
 	req := ast.MustParseTerm(requestedPod).Value
 	globals.Put(ast.Var("requested_pod"), req)
 	path := ast.MustParseRef("data.opa.test.scheduler.fit")
-	txn := storage.NewTransactionOrDie(store)
-	params := topdown.NewQueryParams(c, store, txn, globals, path)
+	txn := storage.NewTransactionOrDie(ctx, store)
+	params := topdown.NewQueryParams(ctx, c, store, txn, globals, path)
 
 	// data setup
-	setupNodes(store, txn, nodes)
-	setupRCs(store, txn, 1)
-	setupPods(store, txn, pods, nodes)
+	setupNodes(ctx, store, txn, nodes)
+	setupRCs(ctx, store, txn, 1)
+	setupPods(ctx, store, txn, pods, nodes)
 
 	return params
 }
@@ -93,12 +96,12 @@ type rcTemplateInput struct {
 	Name string
 }
 
-func setupNodes(store *storage.Storage, txn storage.Transaction, n int) {
+func setupNodes(ctx context.Context, store *storage.Storage, txn storage.Transaction, n int) {
 	tmpl, err := template.New("node").Parse(nodeTemplate)
 	if err != nil {
 		panic(err)
 	}
-	if err := store.Write(txn, storage.AddOp, storage.MustParsePath("/nodes"), map[string]interface{}{}); err != nil {
+	if err := store.Write(ctx, txn, storage.AddOp, storage.MustParsePath("/nodes"), map[string]interface{}{}); err != nil {
 		panic(err)
 	}
 	for i := 0; i < n; i++ {
@@ -107,19 +110,19 @@ func setupNodes(store *storage.Storage, txn storage.Transaction, n int) {
 		}
 		v := runTemplate(tmpl, input)
 		path := storage.MustParsePath(fmt.Sprintf("/nodes/%v", input.Name))
-		if err := store.Write(txn, storage.AddOp, path, v); err != nil {
+		if err := store.Write(ctx, txn, storage.AddOp, path, v); err != nil {
 			panic(err)
 		}
 	}
 }
 
-func setupRCs(store *storage.Storage, txn storage.Transaction, n int) {
+func setupRCs(ctx context.Context, store *storage.Storage, txn storage.Transaction, n int) {
 	tmpl, err := template.New("rc").Parse(nodeTemplate)
 	if err != nil {
 		panic(err)
 	}
 	path := storage.MustParsePath("/replicationcontrollers")
-	if err := store.Write(txn, storage.AddOp, path, map[string]interface{}{}); err != nil {
+	if err := store.Write(ctx, txn, storage.AddOp, path, map[string]interface{}{}); err != nil {
 		panic(err)
 	}
 	for i := 0; i < n; i++ {
@@ -128,19 +131,19 @@ func setupRCs(store *storage.Storage, txn storage.Transaction, n int) {
 		}
 		v := runTemplate(tmpl, input)
 		path = storage.MustParsePath(fmt.Sprintf("/replicationcontrollers/%v", input.Name))
-		if err := store.Write(txn, storage.AddOp, path, v); err != nil {
+		if err := store.Write(ctx, txn, storage.AddOp, path, v); err != nil {
 			panic(err)
 		}
 	}
 }
 
-func setupPods(store *storage.Storage, txn storage.Transaction, n int, numNodes int) {
+func setupPods(ctx context.Context, store *storage.Storage, txn storage.Transaction, n int, numNodes int) {
 	tmpl, err := template.New("pod").Parse(podTemplate)
 	if err != nil {
 		panic(err)
 	}
 	path := storage.MustParsePath("/pods")
-	if err := store.Write(txn, storage.AddOp, path, map[string]interface{}{}); err != nil {
+	if err := store.Write(ctx, txn, storage.AddOp, path, map[string]interface{}{}); err != nil {
 		panic(err)
 	}
 	for i := 0; i < n; i++ {
@@ -150,7 +153,7 @@ func setupPods(store *storage.Storage, txn storage.Transaction, n int, numNodes 
 		}
 		v := runTemplate(tmpl, input)
 		path = storage.MustParsePath(fmt.Sprintf("/pods/%v", input.Name))
-		if err := store.Write(txn, storage.AddOp, path, v); err != nil {
+		if err := store.Write(ctx, txn, storage.AddOp, path, v); err != nil {
 			panic(err)
 		}
 	}

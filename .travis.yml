@@ -3,7 +3,6 @@ sudo: required
 language: go
 
 go:
-- 1.6
 - 1.7   # make sure to bump LATEST_GO_VERSION (below) when updating
 
 env:

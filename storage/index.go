@@ -5,6 +5,7 @@
 package storage
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"hash/fnv"
@@ -51,10 +52,10 @@ func newIndices() *indices {
 
 // Build initializes the references' index by walking the store for the reference and
 // creating the index that maps values to bindings.
-func (ind *indices) Build(store Store, txn Transaction, ref ast.Ref) error {
+func (ind *indices) Build(ctx context.Context, store Store, txn Transaction, ref ast.Ref) error {
 	index := newBindingIndex()
 	ind.registerTriggers(store)
-	err := iterStorage(store, txn, ref, ast.EmptyRef(), ast.NewValueMap(), func(bindings *ast.ValueMap, val interface{}) {
+	err := iterStorage(ctx, store, txn, ref, ast.EmptyRef(), ast.NewValueMap(), func(bindings *ast.ValueMap, val interface{}) {
 		index.Add(val, bindings)
 	})
 	if err != nil {
@@ -119,7 +120,7 @@ func (ind *indices) String() string {
 	return "{" + strings.Join(buf, ", ") + "}"
 }
 
-func (ind *indices) dropAll(Transaction, PatchOp, Path, interface{}) error {
+func (ind *indices) dropAll(context.Context, Transaction, PatchOp, Path, interface{}) error {
 	ind.table = map[int]*indicesNode{}
 	return nil
 }
@@ -307,14 +308,14 @@ func hash(v interface{}) int {
 	panic(fmt.Sprintf("illegal argument: %v (%T)", v, v))
 }
 
-func iterStorage(store Store, txn Transaction, nonGround, ground ast.Ref, bindings *ast.ValueMap, iter func(*ast.ValueMap, interface{})) error {
+func iterStorage(ctx context.Context, store Store, txn Transaction, nonGround, ground ast.Ref, bindings *ast.ValueMap, iter func(*ast.ValueMap, interface{})) error {
 
 	if len(nonGround) == 0 {
 		path, err := NewPathForRef(ground)
 		if err != nil {
 			return err
 		}
-		node, err := store.Read(txn, path)
+		node, err := store.Read(ctx, txn, path)
 		if err != nil {
 			if IsNotFound(err) {
 				return nil
@@ -332,7 +333,7 @@ func iterStorage(store Store, txn Transaction, nonGround, ground ast.Ref, bindin
 
 	if !isVar || len(ground) == 0 {
 		ground = append(ground, head)
-		return iterStorage(store, txn, tail, ground, bindings, iter)
+		return iterStorage(ctx, store, txn, tail, ground, bindings, iter)
 	}
 
 	path, err := NewPathForRef(ground)
@@ -340,7 +341,7 @@ func iterStorage(store Store, txn Transaction, nonGround, ground ast.Ref, bindin
 		return err
 	}
 
-	node, err := store.Read(txn, path)
+	node, err := store.Read(ctx, txn, path)
 	if err != nil {
 		if IsNotFound(err) {
 			return nil
@@ -354,7 +355,7 @@ func iterStorage(store Store, txn Transaction, nonGround, ground ast.Ref, bindin
 			ground = append(ground, ast.StringTerm(key))
 			cpy := bindings.Copy()
 			cpy.Put(headVar, ast.String(key))
-			err := iterStorage(store, txn, tail, ground, cpy, iter)
+			err := iterStorage(ctx, store, txn, tail, ground, cpy, iter)
 			if err != nil {
 				return err
 			}
@@ -366,7 +367,7 @@ func iterStorage(store Store, txn Transaction, nonGround, ground ast.Ref, bindin
 			ground = append(ground, idx)
 			cpy := bindings.Copy()
 			cpy.Put(headVar, idx.Value)
-			err := iterStorage(store, txn, tail, ground, cpy, iter)
+			err := iterStorage(ctx, store, txn, tail, ground, cpy, iter)
 			if err != nil {
 				return err
 			}

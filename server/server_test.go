@@ -5,6 +5,7 @@
 package server
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -665,7 +666,7 @@ func (queryBindingErrStore) ID() string {
 	return "mock"
 }
 
-func (s *queryBindingErrStore) Read(txn storage.Transaction, path storage.Path) (interface{}, error) {
+func (s *queryBindingErrStore) Read(ctx context.Context, txn storage.Transaction, path storage.Path) (interface{}, error) {
 	// At this time, the store will receive two reads:
 	// - The first during evaluation
 	// - The second when the server tries to accumulate the bindings
@@ -676,16 +677,17 @@ func (s *queryBindingErrStore) Read(txn storage.Transaction, path storage.Path) 
 	return "", nil
 }
 
-func (queryBindingErrStore) Begin(txn storage.Transaction, params storage.TransactionParams) error {
+func (queryBindingErrStore) Begin(ctx context.Context, txn storage.Transaction, params storage.TransactionParams) error {
 	return nil
 }
 
-func (queryBindingErrStore) Close(txn storage.Transaction) {
+func (queryBindingErrStore) Close(ctx context.Context, txn storage.Transaction) {
 
 }
 
 func TestQueryBindingIterationError(t *testing.T) {
 
+	ctx := context.Background()
 	store := storage.New(storage.InMemoryConfig())
 	mock := &queryBindingErrStore{}
 
@@ -693,7 +695,7 @@ func TestQueryBindingIterationError(t *testing.T) {
 		panic(err)
 	}
 
-	server, err := New(store, ":8182", false)
+	server, err := New(ctx, store, ":8182", false)
 	if err != nil {
 		panic(err)
 	}
@@ -729,9 +731,9 @@ type fixture struct {
 }
 
 func newFixture(t *testing.T) *fixture {
-
+	ctx := context.Background()
 	store := storage.New(storage.InMemoryConfig().WithPolicyDir(policyDir))
-	server, err := New(store, ":8182", false)
+	server, err := New(ctx, store, ":8182", false)
 	if err != nil {
 		panic(err)
 	}

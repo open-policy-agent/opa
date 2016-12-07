@@ -15,13 +15,13 @@ import (
 var regexpCacheLock = sync.Mutex{}
 var regexpCache map[string]*regexp.Regexp
 
-func evalRegexMatch(ctx *Context, expr *ast.Expr, iter Iterator) error {
+func evalRegexMatch(t *Topdown, expr *ast.Expr, iter Iterator) error {
 	ops := expr.Terms.([]*ast.Term)
-	pat, err := ValueToString(ops[1].Value, ctx)
+	pat, err := ValueToString(ops[1].Value, t)
 	if err != nil {
 		return errors.Wrapf(err, "re_match: pattern value must be a string")
 	}
-	input, err := ValueToString(ops[2].Value, ctx)
+	input, err := ValueToString(ops[2].Value, t)
 	if err != nil {
 		return errors.Wrapf(err, "re_match: input value must be a string")
 	}
@@ -30,7 +30,7 @@ func evalRegexMatch(ctx *Context, expr *ast.Expr, iter Iterator) error {
 		return err
 	}
 	if re.Match([]byte(input)) {
-		return iter(ctx)
+		return iter(t)
 	}
 	return nil
 }

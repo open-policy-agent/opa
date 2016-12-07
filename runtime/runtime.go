@@ -6,6 +6,7 @@ package runtime
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -82,20 +83,22 @@ type Runtime struct {
 // Start is the entry point of an OPA instance.
 func (rt *Runtime) Start(params *Params) {
 
-	if err := rt.init(params); err != nil {
+	ctx := context.Background()
+
+	if err := rt.init(ctx, params); err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}
 
 	if params.Server {
-		rt.startServer(params)
+		rt.startServer(ctx, params)
 	} else {
-		rt.startRepl(params)
+		rt.startRepl(ctx, params)
 	}
 
 }
 
-func (rt *Runtime) init(params *Params) error {
+func (rt *Runtime) init(ctx context.Context, params *Params) error {
 
 	if len(params.PolicyDir) > 0 {
 		if err := os.MkdirAll(params.PolicyDir, 0755); err != nil {
@@ -111,18 +114,18 @@ func (rt *Runtime) init(params *Params) error {
 	// Open data store and load base documents.
 	store := storage.New(storage.InMemoryConfig().WithPolicyDir(params.PolicyDir))
 
-	if err := store.Open(); err != nil {
+	if err := store.Open(ctx); err != nil {
 		return err
 	}
 
-	txn, err := store.NewTransaction()
+	txn, err := store.NewTransaction(ctx)
 	if err != nil {
 		return err
 	}
 
-	defer store.Close(txn)
+	defer store.Close(ctx, txn)
 
-	if err := store.Write(txn, storage.AddOp, storage.Path{}, loaded.Documents); err != nil {
+	if err := store.Write(ctx, txn, storage.AddOp, storage.Path{}, loaded.Documents); err != nil {
 		return errors.Wrapf(err, "storage error")
 	}
 
@@ -136,14 +139,14 @@ func (rt *Runtime) init(params *Params) error {
 	return nil
 }
 
-func (rt *Runtime) startServer(params *Params) {
+func (rt *Runtime) startServer(ctx context.Context, params *Params) {
 
 	glog.Infof("First line of log stream.")
 	glog.V(2).Infof("Server listening address: %v.", params.Addr)
 
 	persist := len(params.PolicyDir) > 0
 
-	s, err := server.New(rt.Store, params.Addr, persist)
+	s, err := server.New(ctx, rt.Store, params.Addr, persist)
 
 	if err != nil {
 		glog.Fatalf("Error creating server: %v", err)
@@ -156,7 +159,7 @@ func (rt *Runtime) startServer(params *Params) {
 	}
 }
 
-func (rt *Runtime) startRepl(params *Params) {
+func (rt *Runtime) startRepl(ctx context.Context, params *Params) {
 
 	banner := rt.getBanner()
 	repl := repl.New(rt.Store, params.HistoryPath, params.Output, params.OutputFormat, banner)
@@ -167,15 +170,15 @@ func (rt *Runtime) startRepl(params *Params) {
 			fmt.Fprintln(params.Output, "error opening watch:", err)
 			os.Exit(1)
 		}
-		go rt.readWatcher(watcher, params.Paths)
+		go rt.readWatcher(ctx, watcher, params.Paths)
 	}
 
 	if params.Eval == "" {
-		repl.Loop()
+		repl.Loop(ctx)
 	} else {
 		repl.DisableUndefinedOutput(true)
 		repl.DisableMultiLineBuffering(true)
-		if err := repl.OneShot(params.Eval); err != nil {
+		if err := repl.OneShot(ctx, params.Eval); err != nil {
 			fmt.Fprintln(params.Output, "error:", err)
 			os.Exit(1)
 		}
@@ -208,14 +211,14 @@ func (rt *Runtime) getWatcher(rootPaths []string) (*fsnotify.Watcher, error) {
 	return watcher, nil
 }
 
-func (rt *Runtime) readWatcher(watcher *fsnotify.Watcher, paths []string) {
+func (rt *Runtime) readWatcher(ctx context.Context, watcher *fsnotify.Watcher, paths []string) {
 	for {
 		select {
 		case evt := <-watcher.Events:
 			mask := (fsnotify.Create | fsnotify.Remove | fsnotify.Rename | fsnotify.Write)
 			if (evt.Op & mask) != 0 {
 				t0 := time.Now()
-				if err := rt.processWatcherUpdate(paths); err != nil {
+				if err := rt.processWatcherUpdate(ctx, paths); err != nil {
 					fmt.Fprintf(os.Stdout, "\n# reload error (took %v): %v", time.Since(t0), err)
 				} else {
 					fmt.Fprintf(os.Stdout, "\n# reloaded files (took %v)", time.Since(t0))
@@ -225,21 +228,21 @@ func (rt *Runtime) readWatcher(watcher *fsnotify.Watcher, paths []string) {
 	}
 }
 
-func (rt *Runtime) processWatcherUpdate(paths []string) error {
+func (rt *Runtime) processWatcherUpdate(ctx context.Context, paths []string) error {
 
 	loaded, err := loadAllPaths(paths)
 	if err != nil {
 		return err
 	}
 
-	txn, err := rt.Store.NewTransaction()
+	txn, err := rt.Store.NewTransaction(ctx)
 	if err != nil {
 		return err
 	}
 
-	defer rt.Store.Close(txn)
+	defer rt.Store.Close(ctx, txn)
 
-	if err := rt.Store.Write(txn, storage.AddOp, storage.Path{}, loaded.Documents); err != nil {
+	if err := rt.Store.Write(ctx, txn, storage.AddOp, storage.Path{}, loaded.Documents); err != nil {
 		return err
 	}
 

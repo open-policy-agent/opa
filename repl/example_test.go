@@ -6,6 +6,7 @@ package repl_test
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 
 	"github.com/open-policy-agent/opa/repl"
@@ -13,6 +14,9 @@ import (
 )
 
 func ExampleREPL_OneShot() {
+	// Initialize context for the example. Normally the caller would obtain the
+	// context from an input parameter or instantiate their own.
+	ctx := context.Background()
 
 	// Instantiate the policy engine's storage layer.
 	store := storage.New(storage.InMemoryConfig())
@@ -24,10 +28,10 @@ func ExampleREPL_OneShot() {
 	repl := repl.New(store, "", &buf, "json", "")
 
 	// Define a rule inside the REPL.
-	repl.OneShot("p :- a = [1, 2, 3, 4], a[_] > 3")
+	repl.OneShot(ctx, "p :- a = [1, 2, 3, 4], a[_] > 3")
 
 	// Query the rule defined above.
-	repl.OneShot("p")
+	repl.OneShot(ctx, "p")
 
 	// Inspect the output. Defining rules does not produce output so we only expect
 	// output from the second line of input.

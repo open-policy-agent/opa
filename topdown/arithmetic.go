@@ -69,10 +69,10 @@ func arithDivide(a, b *big.Float) (*big.Float, error) {
 }
 
 func evalArithArity1(f arithArity1) BuiltinFunc {
-	return func(ctx *Context, expr *ast.Expr, iter Iterator) error {
+	return func(t *Topdown, expr *ast.Expr, iter Iterator) error {
 		ops := expr.Terms.([]*ast.Term)
 
-		a, err := ValueToJSONNumber(ops[1].Value, ctx)
+		a, err := ValueToJSONNumber(ops[1].Value, t)
 		if err != nil {
 			return expr.Location.Wrapf(err, "expected number (operand %s is not a number)", ops[0].Location.Text)
 		}
@@ -83,22 +83,22 @@ func evalArithArity1(f arithArity1) BuiltinFunc {
 		}
 
 		b := ops[2].Value
-		undo, err := evalEqUnify(ctx, floatToASTNumber(x), b, nil, iter)
-		ctx.Unbind(undo)
+		undo, err := evalEqUnify(t, floatToASTNumber(x), b, nil, iter)
+		t.Unbind(undo)
 		return err
 	}
 }
 
 func evalArithArity2(f arithArity2) BuiltinFunc {
-	return func(ctx *Context, expr *ast.Expr, iter Iterator) error {
+	return func(t *Topdown, expr *ast.Expr, iter Iterator) error {
 		ops := expr.Terms.([]*ast.Term)
 
-		a, err := ValueToJSONNumber(ops[1].Value, ctx)
+		a, err := ValueToJSONNumber(ops[1].Value, t)
 		if err != nil {
 			return expr.Location.Wrapf(err, "expected number (first operand %s is not a number)", ops[0].Location.Text)
 		}
 
-		b, err := ValueToJSONNumber(ops[2].Value, ctx)
+		b, err := ValueToJSONNumber(ops[2].Value, t)
 		if err != nil {
 			return expr.Location.Wrapf(err, "expected number (second operand %s is not a number)", ops[2].Location.Text)
 		}
@@ -110,8 +110,8 @@ func evalArithArity2(f arithArity2) BuiltinFunc {
 
 		cv := ops[3].Value
 
-		undo, err := evalEqUnify(ctx, floatToASTNumber(c), cv, nil, iter)
-		ctx.Unbind(undo)
+		undo, err := evalEqUnify(t, floatToASTNumber(c), cv, nil, iter)
+		t.Unbind(undo)
 		return err
 	}
 }

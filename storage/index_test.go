@@ -5,6 +5,7 @@
 package storage
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"testing"
@@ -52,7 +53,7 @@ func TestIndicesAdd(t *testing.T) {
 	ref := ast.MustParseRef("data.d[x][y]")
 
 	// TODO(tsandall):
-	indices.Build(store, invalidTXN, ref)
+	indices.Build(context.Background(), store, invalidTXN, ref)
 	index := indices.Get(ref)
 
 	// new value to add
@@ -87,7 +88,7 @@ func runIndexBuildTestCase(t *testing.T, i int, note string, refStr string, expe
 	}
 
 	// TODO(tsandall):
-	err := indices.Build(store, invalidTXN, ref)
+	err := indices.Build(context.Background(), store, invalidTXN, ref)
 	if err != nil {
 		t.Errorf("Test case %d (%v): Did not expect error from build: %v", i, note, err)
 		return

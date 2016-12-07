@@ -11,9 +11,9 @@ import (
 	"github.com/pkg/errors"
 )
 
-func evalSetDiff(ctx *Context, expr *ast.Expr, iter Iterator) (err error) {
+func evalSetDiff(t *Topdown, expr *ast.Expr, iter Iterator) (err error) {
 	ops := expr.Terms.([]*ast.Term)
-	op1, err := ResolveRefs(ops[1].Value, ctx)
+	op1, err := ResolveRefs(ops[1].Value, t)
 	if err != nil {
 		return errors.Wrapf(err, "set_diff")
 	}
@@ -26,7 +26,7 @@ func evalSetDiff(ctx *Context, expr *ast.Expr, iter Iterator) (err error) {
 		}
 	}
 
-	op2, err := ResolveRefs(ops[2].Value, ctx)
+	op2, err := ResolveRefs(ops[2].Value, t)
 	if err != nil {
 		return errors.Wrapf(err, "set_diff")
 	}
@@ -40,7 +40,7 @@ func evalSetDiff(ctx *Context, expr *ast.Expr, iter Iterator) (err error) {
 	}
 
 	s3 := s1.Diff(s2)
-	undo, err := evalEqUnify(ctx, s3, ops[3].Value, nil, iter)
-	ctx.Unbind(undo)
+	undo, err := evalEqUnify(t, s3, ops[3].Value, nil, iter)
+	t.Unbind(undo)
 	return err
 }
