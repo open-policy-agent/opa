@@ -92,6 +92,7 @@ package
 not
 null
 true
+with
 ```
 
 ## <a name="grammar"></a> Grammar
@@ -106,7 +107,8 @@ policy         = { rule }
 rule           = rule-head [ ":-" rule-body ]
 rule-head      = var [ "[" term "]" ] [ = term ]
 rule-body      = [ literal { "," literal } ]
-literal        = expr | "not" expr
+literal        = ( expr | "not" expr ) { with-modifier }
+with-modifier  = "with" term "as" term
 expr           = term | expr-built-in | expr-infix
 expr-built-in  = var "(" [ term { , term } ] ")"
 expr-infix     = term bool-operator term

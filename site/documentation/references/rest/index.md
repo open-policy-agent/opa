@@ -1397,7 +1397,10 @@ seccomp_unconfined :-
 - **404** - not found
 - **500** - server error
 
-The server returns 400 if an input document required for the query was not supplied.
+The server returns 400 if either:
+
+1. The query requires an input document and the client did not supply one.
+2. The query already defines an input document and the client did supply one.
 
 The server returns 404 in two cases:
 
@@ -1498,7 +1501,10 @@ HTTP/1.1 404 Not Found
 - **404** - not found
 - **500** - server error
 
-The server returns 400 if an input document required for the query was not supplied.
+The server returns 400 if either:
+
+1. The query requires an input document and the client did not supply one.
+2. The query already defines an input document and the client did supply one.
 
 The server returns 404 in two cases:
 
