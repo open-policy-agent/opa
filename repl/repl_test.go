@@ -9,6 +9,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -148,6 +149,27 @@ func TestDumpPath(t *testing.T) {
 
 	if !reflect.DeepEqual(data, result) {
 		t.Fatalf("Expected dumped json to equal %v but got: %v", data, result)
+	}
+}
+
+func TestHelp(t *testing.T) {
+	topics["deadbeef"] = topicDesc{
+		fn: func(w io.Writer) error {
+			fmt.Fprintln(w, "blah blah blah")
+			return nil
+		},
+	}
+
+	ctx := context.Background()
+	store := storage.New(storage.InMemoryConfig())
+	var buffer bytes.Buffer
+	repl := newRepl(store, &buffer)
+	repl.OneShot(ctx, "help deadbeef")
+
+	expected := "blah blah blah\n"
+
+	if buffer.String() != expected {
+		t.Fatalf("Unexpected output from help topic: %v", buffer.String())
 	}
 }
 

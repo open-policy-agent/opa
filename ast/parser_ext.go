@@ -116,31 +116,31 @@ func MustParseTerm(input string) *Term {
 	return parsed
 }
 
-// ParseConstantRule attempts to return a rule from a body.
-// Equality expressions of the form <var> = <ground term> can be
-// converted into rules of the form <var> = <ground term> :- true.
-// This is a concise way of defining constants inside modules.
-func ParseConstantRule(body Body) *Rule {
+// ParseRuleFromBody attempts to return a rule from a body. Equality expressions
+// of the form <var> = <term> can be converted into rules of the form <var> =
+// <term> :- true.  This is a concise way of defining constants inside modules.
+func ParseRuleFromBody(body Body) *Rule {
+
 	if len(body) != 1 {
 		return nil
 	}
+
 	expr := body[0]
 	if !expr.IsEquality() {
 		return nil
 	}
+
 	terms := expr.Terms.([]*Term)
-	a, b := terms[1], terms[2]
-	if !b.IsGround() {
-		return nil
-	}
-	name, ok := a.Value.(Var)
+	name, ok := terms[1].Value.(Var)
+
 	if !ok {
 		return nil
 	}
+
 	return &Rule{
 		Location: expr.Location,
 		Name:     name,
-		Value:    b,
+		Value:    terms[2],
 		Body: NewBody(
 			&Expr{Terms: BooleanTerm(true)},
 		),
@@ -339,7 +339,7 @@ func parseModule(stmts []interface{}) (*Module, error) {
 		case *Rule:
 			mod.Rules = append(mod.Rules, stmt)
 		case Body:
-			rule := ParseConstantRule(stmt)
+			rule := ParseRuleFromBody(stmt)
 			if rule == nil {
 				return nil, NewError(ParseErr, stmt[0].Location, "expected rule (%s must be declared inside a rule)", stmt[0].Location.Text)
 			}

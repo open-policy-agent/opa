@@ -58,6 +58,8 @@ const (
 	explainTruth explainMode = iota
 )
 
+const exitPromptMessage = "Do you want to exit ([y]/n)? "
+
 // New returns a new instance of the REPL.
 func New(store *storage.Storage, historyPath string, output io.Writer, outputFormat string, banner string) *REPL {
 
@@ -141,15 +143,22 @@ func (r *REPL) Loop(ctx context.Context) {
 
 	line.SetCompleter(r.complete)
 
+loop:
 	for true {
 
 		input, err := line.Prompt(r.getPrompt())
 
-		if err == liner.ErrPromptAborted || err == io.EOF {
-			fmt.Fprintln(r.output, "Exiting")
-			break
+		// prompt on ctrl+d
+		if err == io.EOF {
+			goto exitPrompt
 		}
 
+		// reset on ctrl+c
+		if err == liner.ErrPromptAborted {
+			continue
+		}
+
+		// exit on unknown error
 		if err != nil {
 			fmt.Fprintln(r.output, "error (fatal):", err)
 			os.Exit(1)
@@ -158,7 +167,7 @@ func (r *REPL) Loop(ctx context.Context) {
 		if err := r.OneShot(ctx, input); err != nil {
 			switch err := err.(type) {
 			case stop:
-				break
+				goto exit
 			default:
 				fmt.Fprintln(r.output, "error:", err)
 			}
@@ -167,6 +176,37 @@ func (r *REPL) Loop(ctx context.Context) {
 		line.AppendHistory(input)
 	}
 
+exitPrompt:
+	fmt.Fprintln(r.output)
+
+	for true {
+		input, err := line.Prompt(exitPromptMessage)
+
+		// exit on ctrl+d
+		if err == io.EOF {
+			break
+		}
+
+		// reset on ctrl+c
+		if err == liner.ErrPromptAborted {
+			goto loop
+		}
+
+		// exit on unknown error
+		if err != nil {
+			fmt.Fprintln(r.output, "error (fatal):", err)
+			os.Exit(1)
+		}
+
+		switch strings.ToLower(input) {
+		case "", "y", "yes":
+			goto exit
+		case "n", "no":
+			goto loop
+		}
+	}
+
+exit:
 	r.saveHistory(line)
 }
 
@@ -200,7 +240,7 @@ func (r *REPL) OneShot(ctx context.Context, line string) error {
 			case "truth":
 				return r.cmdTruth()
 			case "help":
-				return r.cmdHelp()
+				return r.cmdHelp(cmd.args)
 			case "exit":
 				return r.cmdExit()
 			}
@@ -307,10 +347,15 @@ func (r *REPL) cmdFormat(s string) error {
 	return nil
 }
 
-func (r *REPL) cmdHelp() error {
-	fmt.Fprintln(r.output, "")
-	printHelpExamples(r.output, r.initPrompt)
-	printHelpCommands(r.output)
+func (r *REPL) cmdHelp(args []string) error {
+	if len(args) == 0 {
+		printHelp(r.output, r.initPrompt)
+	} else {
+		if desc, ok := topics[args[0]]; ok {
+			return desc.fn(r.output)
+		}
+		return fmt.Errorf("unknown topic '%v'", args[0])
+	}
 	return nil
 }
 
@@ -550,7 +595,7 @@ func (r *REPL) evalStatement(ctx context.Context, stmt interface{}) error {
 		if err != nil {
 			return err
 		}
-		if rule := ast.ParseConstantRule(body); rule != nil {
+		if rule := ast.ParseRuleFromBody(body); rule != nil {
 			if err := r.compileRule(rule); err != nil {
 				return err
 			}
@@ -987,9 +1032,18 @@ var builtin = [...]commandDesc{
 	{"trace", []string{}, "toggle full trace"},
 	{"truth", []string{}, "toggle truth explanation"},
 	{"dump", []string{"[path]"}, "dump raw data in storage"},
-	{"help", []string{}, "print this message"},
-	{"exit", []string{}, "exit back to shell (or ctrl+c, ctrl+d)"},
+	{"help", []string{"[topic]"}, "print this message"},
+	{"exit", []string{}, "exit out of shell (or ctrl+d)"},
 	{"ctrl+l", []string{}, "clear the screen"},
+}
+
+type topicDesc struct {
+	fn      func(io.Writer) error
+	comment string
+}
+
+var topics = map[string]topicDesc{
+	"globals": {printHelpGlobals, "how to set global values"},
 }
 
 type command struct {
@@ -1135,8 +1189,14 @@ func mangleEvent(ctx context.Context, store *storage.Storage, txn storage.Transa
 	return nil
 }
 
+func printHelp(output io.Writer, initPrompt string) {
+	printHelpExamples(output, initPrompt)
+	printHelpCommands(output)
+}
+
 func printHelpExamples(output io.Writer, promptSymbol string) {
 
+	fmt.Fprintln(output, "")
 	fmt.Fprintln(output, "Examples")
 	fmt.Fprintln(output, "========")
 	fmt.Fprintln(output, "")
@@ -1159,17 +1219,23 @@ func printHelpExamples(output io.Writer, promptSymbol string) {
 
 func printHelpCommands(output io.Writer) {
 
-	fmt.Fprintln(output, "Commands")
-	fmt.Fprintln(output, "========")
-	fmt.Fprintln(output, "")
-
 	all := extra[:]
 	all = append(all, builtin[:]...)
 
+	// Compute max length of all command and topic names.
+	names := []string{}
+
+	for _, x := range all {
+		names = append(names, x.syntax())
+	}
+	for x := range topics {
+		names = append(names, "help "+x)
+	}
+
 	maxLength := 0
 
-	for _, c := range all {
-		length := len(c.syntax())
+	for _, name := range names {
+		length := len(name)
 		if length > maxLength {
 			maxLength = length
 		}
@@ -1177,9 +1243,64 @@ func printHelpCommands(output io.Writer) {
 
 	f := fmt.Sprintf("%%%dv : %%v\n", maxLength)
 
+	// Print out command help.
+	fmt.Fprintln(output, "Commands")
+	fmt.Fprintln(output, "========")
+	fmt.Fprintln(output, "")
+
 	for _, c := range all {
 		fmt.Fprintf(output, f, c.syntax(), c.help)
 	}
 
 	fmt.Fprintln(output, "")
+
+	// Print out topic help.
+	fmt.Fprintln(output, "Additional Topics")
+	fmt.Fprintln(output, "=================")
+	fmt.Fprintln(output, "")
+
+	for key, desc := range topics {
+		fmt.Fprintf(output, f, "help "+key, desc.comment)
+	}
+
+	fmt.Fprintln(output, "")
+}
+
+func printHelpGlobals(output io.Writer) error {
+	fmt.Fprintln(output, "")
+	fmt.Fprintln(output, "Globals")
+	fmt.Fprintln(output, "=======")
+	fmt.Fprintln(output, "")
+
+	txt := strings.TrimSpace(`
+Rego allows queries to reference documents outside of the storage layer. These
+documents must be provided as inputs to the query engine. In OPA, these inputs
+are referred to as "globals".
+
+In the interactive shell, users can set globals to use during query evaluation
+by defining documents under the repl.globals package.
+
+For example:
+
+	# Change to the repl.globals package.
+	> package repl.globals
+
+	# Define a new global called "request_object".
+	> request_object = {"method": "POST", "path": "/some/path"}
+
+	# Switch back to another package to test access to globals.
+	> package opa.example
+
+	# Import "request_object" defined above.
+	> import request_object
+
+	# Define rule that refers to global.
+	> is_post :- request_object.method = "POST"
+
+	# Test evaluation.
+	> is_post
+	true`) + "\n"
+
+	fmt.Fprintln(output, txt)
+	return nil
 }

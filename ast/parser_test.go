@@ -476,27 +476,28 @@ func TestLocation(t *testing.T) {
 	}
 }
 
-func TestConstantRules(t *testing.T) {
+func TestRuleFromBody(t *testing.T) {
 	testModule := `
     package a.b.c
 
     pi = 3.14159
-
     # intersperse a regular rule
     p[x] :- x = 1
-
     greeting = "hello"
-
     cores = [{0: 1}, {1: 2}]
+	wrapper = cores[0][1]
+	pi = [3, 1, 4, x, y, z]
     `
 
-	assertParseModule(t, "constant rules", testModule, &Module{
+	assertParseModule(t, "rules from bodies", testModule, &Module{
 		Package: MustParseStatement("package a.b.c").(*Package),
 		Rules: []*Rule{
 			MustParseStatement("pi = 3.14159 :- true").(*Rule),
 			MustParseStatement("p[x] :- x = 1").(*Rule),
 			MustParseStatement("greeting = \"hello\" :- true").(*Rule),
 			MustParseStatement("cores = [{0: 1}, {1: 2}] :- true").(*Rule),
+			MustParseStatement("wrapper = cores[0][1] :- true").(*Rule),
+			MustParseStatement("pi = [3, 1, 4, x, y, z] :- true").(*Rule),
 		},
 	})
 
@@ -518,16 +519,9 @@ func TestConstantRules(t *testing.T) {
     "pi" = 3
     `
 
-	ungroundValue := `
-    package a.b.c
-
-    pi = [3, 1, 4, x, y, z]
-    `
-
-	assertParseError(t, "multiple expressions", multipleExprs)
-	assertParseError(t, "non-equality", nonEquality)
-	assertParseError(t, "non-var name", nonVarName)
-	assertParseError(t, "unground value", ungroundValue)
+	assertParseModuleError(t, "multiple expressions", multipleExprs)
+	assertParseModuleError(t, "non-equality", nonEquality)
+	assertParseModuleError(t, "non-var name", nonVarName)
 }
 
 func TestWildcards(t *testing.T) {
@@ -651,6 +645,13 @@ func assertParseModule(t *testing.T, msg string, input string, correct *Module) 
 		t.Errorf("Error on test %s: modules not equal: %v (parsed), %v (correct)", msg, m, correct)
 	}
 
+}
+
+func assertParseModuleError(t *testing.T, msg, input string) {
+	m, err := ParseModule("", input)
+	if err == nil {
+		t.Errorf("Error on test %v: expected parse error: %v (parsed)", msg, m)
+	}
 }
 
 func assertParsePackage(t *testing.T, msg string, input string, correct *Package) {
