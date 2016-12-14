@@ -799,6 +799,37 @@ http_servers[server] :-
     server.protocols[_] = "http"
 ```
 
+## <a name="with"></a> With Keyword
+
+The `with` keyword allows queries to programmatically specify values nested
+under [The input Document](../how-does-opa-work#the-input-document).
+
+For example, given the simple authorization policy in the [Imports](#imports)
+section, we can write a query that checks whether a particular request would be
+allowed:
+
+```ruby
+> import data.opa.examples.allow
+> allow with input as {"user": "alice", "method": "POST"}
+true
+> allow with input as {"user": "bob", "method": "GET"}
+true
+> not allow with input as {"user": "bob", "method": "DELETE"}
+true
+```
+
+The `with` keyword acts as a modifier on expressions. A single expression is
+allowed to have zero or more `with` modifiers. The `with` keyword has the
+following syntax:
+
+```
+<expr> with <target-1> as <value-1> [with <target-2> as <value-2> [...]]
+```
+
+The `<target>`s must be references to values in the input document (or the input
+document itself). The `<value>`s may be Scalar Values, Variables, or Composite
+Values that do not contain References or Comprehensions.
+
 ## <a name="operators"></a> Operators
 
 ### <a name="equality"></a> Equality
