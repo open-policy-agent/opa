@@ -239,3 +239,11 @@ func parseYAML(s string) interface{} {
 	}
 	return x
 }
+
+func mustListPaths(path string, recurse bool) (paths []string) {
+	paths, err := listPaths(path, recurse)
+	if err != nil {
+		panic(err)
+	}
+	return paths
+}

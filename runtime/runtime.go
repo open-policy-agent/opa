@@ -165,11 +165,13 @@ func (rt *Runtime) startRepl(ctx context.Context, params *Params) {
 	repl := repl.New(rt.Store, params.HistoryPath, params.Output, params.OutputFormat, banner)
 
 	if params.Watch {
-		watcher, err := rt.getWatcher(params.Paths)
+
+		watcher, err := getWatcher(params.Paths)
 		if err != nil {
 			fmt.Fprintln(params.Output, "error opening watch:", err)
 			os.Exit(1)
 		}
+
 		go rt.readWatcher(ctx, watcher, params.Paths)
 	}
 
@@ -178,37 +180,13 @@ func (rt *Runtime) startRepl(ctx context.Context, params *Params) {
 	} else {
 		repl.DisableUndefinedOutput(true)
 		repl.DisableMultiLineBuffering(true)
+
 		if err := repl.OneShot(ctx, params.Eval); err != nil {
 			fmt.Fprintln(params.Output, "error:", err)
 			os.Exit(1)
 		}
 	}
 
-}
-
-func (rt *Runtime) getWatcher(rootPaths []string) (*fsnotify.Watcher, error) {
-
-	watchPaths := []string{}
-	for _, path := range rootPaths {
-		result, err := listPaths(path, true)
-		if err != nil {
-			return nil, err
-		}
-		watchPaths = append(watchPaths, result...)
-	}
-
-	watcher, err := fsnotify.NewWatcher()
-	if err != nil {
-		return nil, err
-	}
-
-	for _, path := range watchPaths {
-		if err := watcher.Add(path); err != nil {
-			return nil, err
-		}
-	}
-
-	return watcher, nil
 }
 
 func (rt *Runtime) readWatcher(ctx context.Context, watcher *fsnotify.Watcher, paths []string) {
@@ -280,12 +258,42 @@ func compileAndStoreInputs(modules map[string]*loadedModule, store *storage.Stor
 	return nil
 }
 
-func mustListPaths(path string, recurse bool) (paths []string) {
-	paths, err := listPaths(path, recurse)
+func getWatcher(rootPaths []string) (*fsnotify.Watcher, error) {
+
+	watchPaths, err := getWatchPaths(rootPaths)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
-	return paths
+
+	watcher, err := fsnotify.NewWatcher()
+	if err != nil {
+		return nil, err
+	}
+
+	for _, path := range watchPaths {
+		if err := watcher.Add(path); err != nil {
+			return nil, err
+		}
+	}
+
+	return watcher, nil
+}
+
+func getWatchPaths(rootPaths []string) ([]string, error) {
+	paths := []string{}
+
+	for _, path := range rootPaths {
+
+		_, path = splitPathPrefix(path)
+		result, err := listPaths(path, true)
+		if err != nil {
+			return nil, err
+		}
+
+		paths = append(paths, result...)
+	}
+
+	return paths, nil
 }
 
 // listPaths returns a sorted list of files contained at path. If recurse is
