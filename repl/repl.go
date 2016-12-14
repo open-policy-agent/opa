@@ -58,6 +58,8 @@ const (
 	explainTruth explainMode = iota
 )
 
+const exitPromptMessage = "Do you want to exit ([y]/n)? "
+
 // New returns a new instance of the REPL.
 func New(store *storage.Storage, historyPath string, output io.Writer, outputFormat string, banner string) *REPL {
 
@@ -141,15 +143,22 @@ func (r *REPL) Loop(ctx context.Context) {
 
 	line.SetCompleter(r.complete)
 
+loop:
 	for true {
 
 		input, err := line.Prompt(r.getPrompt())
 
-		if err == liner.ErrPromptAborted || err == io.EOF {
-			fmt.Fprintln(r.output, "Exiting")
-			break
+		// prompt on ctrl+d
+		if err == io.EOF {
+			goto exitPrompt
 		}
 
+		// reset on ctrl+c
+		if err == liner.ErrPromptAborted {
+			continue
+		}
+
+		// exit on unknown error
 		if err != nil {
 			fmt.Fprintln(r.output, "error (fatal):", err)
 			os.Exit(1)
@@ -158,7 +167,7 @@ func (r *REPL) Loop(ctx context.Context) {
 		if err := r.OneShot(ctx, input); err != nil {
 			switch err := err.(type) {
 			case stop:
-				break
+				goto exit
 			default:
 				fmt.Fprintln(r.output, "error:", err)
 			}
@@ -167,6 +176,37 @@ func (r *REPL) Loop(ctx context.Context) {
 		line.AppendHistory(input)
 	}
 
+exitPrompt:
+	fmt.Fprintln(r.output)
+
+	for true {
+		input, err := line.Prompt(exitPromptMessage)
+
+		// exit on ctrl+d
+		if err == io.EOF {
+			break
+		}
+
+		// reset on ctrl+c
+		if err == liner.ErrPromptAborted {
+			goto loop
+		}
+
+		// exit on unknown error
+		if err != nil {
+			fmt.Fprintln(r.output, "error (fatal):", err)
+			os.Exit(1)
+		}
+
+		switch strings.ToLower(input) {
+		case "", "y", "yes":
+			goto exit
+		case "n", "no":
+			goto loop
+		}
+	}
+
+exit:
 	r.saveHistory(line)
 }
 
@@ -993,7 +1033,7 @@ var builtin = [...]commandDesc{
 	{"truth", []string{}, "toggle truth explanation"},
 	{"dump", []string{"[path]"}, "dump raw data in storage"},
 	{"help", []string{"[topic]"}, "print this message"},
-	{"exit", []string{}, "exit back to shell (or ctrl+c, ctrl+d)"},
+	{"exit", []string{}, "exit out of shell (or ctrl+d)"},
 	{"ctrl+l", []string{}, "clear the screen"},
 }
 
