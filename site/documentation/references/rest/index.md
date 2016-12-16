@@ -1120,7 +1120,7 @@ Content-Type: application/json
 
 #### Query Parameters
 
-- **global** - Provide an input document to the query. Format is `<path>:<value>` where `<path>` is the import path of the input document. The parameter may be specified multiple times but each instance should specify a unique `<path>`. The `<value>` may be a reference to a document in OPA. If `<value>` contains variables the response will contain a set of results instead of a single document.
+- **request** - Provide a request document. Format is `<path>:<value>` where `<path>` is the import path of the request document. The parameter may be specified multiple times but each instance should specify a unique `<path>`. The `<path>` may be empty (in which case, the entire request will be set to the `<value>`). The `<value>` may be a reference to a document in OPA. If `<value>` contains variables the response will contain a set of results instead of a single document.
 - **pretty** - If parameter is `true`, response will formatted for humans.
 - **explain** - Return query explanation instead of normal result. Values: **full**, **truth**. See [Explanations](#explanations) for how to interpret results.
 
@@ -1131,17 +1131,17 @@ Content-Type: application/json
 - **404** - not found
 - **500** - server error
 
-The server returns 400 if a global variable required for the query was not supplied.
+The server returns 400 if a request document required for the query was not supplied.
 
 The server returns 404 in two cases:
 
 - The path refers to a non-existent base document.
 - The path refers to a Virtual Document that is undefined in the context of the query.
 
-#### Example Request With Global Parameter
+#### Example Request With Request Parameter
 
 ```http
-GET /v1/data/opa/examples/allow_request?global=example.flag:false HTTP/1.1
+GET /v1/data/opa/examples/allow_request?request=example.flag:false HTTP/1.1
 ```
 
 #### Example Response For Non-Existent Or Undefined Document
@@ -1156,7 +1156,7 @@ The example above assumes the following policy:
 ```ruby
 package opa.examples
 
-import example.flag
+import request.example.flag
 
 allow_request :- flag = true
 ```
@@ -1164,7 +1164,7 @@ allow_request :- flag = true
 #### Example Request For Result Set
 
 ```http
-GET /v1/data/opa/examples/allow_container?global=data.containers[container_index] HTTP/1.1
+GET /v1/data/opa/examples/allow_container?request=container:data.containers[container_index] HTTP/1.1
 ```
 
 #### Example Response For Result Set
@@ -1549,7 +1549,7 @@ The example above assumes the following data and policy:
 ```ruby
 package opa.examples
 
-import container
+import request.container
 
 allow_container :-
   not seccomp_unconfined

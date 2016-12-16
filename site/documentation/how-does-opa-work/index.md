@@ -26,6 +26,8 @@ OPA’s RESTful APIs use JSON over HTTP so you and your users can integrate OPA 
 
 When your service is integrated with OPA, your users will be able author and deploy custom policies that control the behavior of your service’s policy-enabled features. Furthermore, users can publish data to OPA that is not available to your service about their own deployment context.
 
+{% img '{{assets["request-response.svg"].logical_path}}' width:'320' class:'block-center' %}
+
 In the future, both your service and its users will be able to register for, and react to, notifications triggered when OPA detects a policy-relevant change.
 
 ## Deployment
@@ -40,7 +42,7 @@ The primary unit of data in OPA is a document, which is similar to a JSON value.
 
 {% img '{{assets["data-model-dependencies.svg"].logical_path}}' width:'720' %}
 
-### Base Documents
+### <a name="base-documents"></a> Base Documents
 
 So-called base documents contain static, structured data stored in memory and optionally saved to disk for resiliency. Your service will publish and update base documents in order to describe its current state, and your users can do the same to include relevant data about the state of their own deployment context.
 
@@ -151,13 +153,13 @@ public_servers[server] :-
 
 A policy file must contain a single package declaration, which defines the path to the policy module and its rules (for example, data.opa.examples.violations – see The data Document for more information about accessing nested documents). The policy name itself (in this case, “exempli-gratia”) is only used to identify policies for file management purposes; it is not used otherwise.
 
-### Rules and Virtual Documents
+### <a name="virtual-documents"></a> Rules and Virtual Documents
 
 In contrast to base documents, virtual documents embody the results of evaluating the rules included in policy modules. Virtual documents are computed when users publish new policy modules, update existing modules, run queries, and when any relevant base document is published or updated. Rules allow policy authors to write questions with yes-no answers (that is, predicates) and to generate structured values from raw data found in base documents as well as from intermediate data found in other virtual documents.
 
 ### The data Document
 
-OPA nests all documents within a built-in root document named data. All documents, whether pushed by your service or computed by OPA as needed, are contained within the data document.
+All documents pushed into OPA or computed by rules are nested under a built-in root document named data.
 
 {% img '{{assets["data-model-logical.svg"].logical_path}}' width:'720' %}
 
@@ -192,6 +194,45 @@ GET https://example.com/v1/data/servers HTTP/1.1
 
 ```http
 GET https://example.com/v1/data/opa/examples/violations HTTP/1.1
+```
+
+### The request Document
+
+In some cases, to evaluate a policy, the query must specify additional documents
+as arguments.
+
+Query arguments are nested under a built-in root document named request (similar to data).
+
+```json
+{
+  "request": {
+      "method": "GET",
+      "path": "/servers/s2",
+      "user": "alice"
+  }
+}
+```
+
+Query arguments can be accessed hierarchically starting from the root request
+node:
+
+```ruby
+allow :- request.user = "alice"
+```
+
+Just like state stored in OPA, documents supplied with the query can be aliased:
+
+```ruby
+package opa.examples
+
+import request.method
+import request.user
+
+# allow "bob" to perform read-only operations
+allow :- user = "bob", method = "GET"
+
+# allow "alice" to perform any operation
+allow :- user = "alice"
 ```
 
 ### Putting It All Together
@@ -504,9 +545,5 @@ OPA APIs support transactional operations. Either all of the operations within a
   * Close the transaction.
 
 If any of steps 2–4 fail, so will the transaction.
-
-### Debugging
-
-To understand why queries return specific results, policy authors can obtain detailed explanations from OPA about its query processing.
 
 {% endcontentfor %}
