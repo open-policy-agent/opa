@@ -121,21 +121,21 @@ type queryResultSetV1 []*queryResultV1
 func newQueryResultSetV1(qrs topdown.QueryResultSet) queryResultSetV1 {
 	result := make(queryResultSetV1, len(qrs))
 	for i := range qrs {
-		result[i] = &queryResultV1{qrs[i].Result, qrs[i].Globals}
+		result[i] = &queryResultV1{qrs[i].Result, qrs[i].Bindings}
 	}
 	return result
 }
 
 // queryResultV1 models a single result of a Data API query that would return
-// multiple values for the document. The globals can be used to differentiate
+// multiple values for the document. The bindings can be used to differentiate
 // between results.
 type queryResultV1 struct {
-	result  interface{}
-	globals map[string]interface{}
+	result   interface{}
+	bindings map[string]interface{}
 }
 
 func (qr *queryResultV1) MarshalJSON() ([]byte, error) {
-	return json.Marshal([]interface{}{qr.result, qr.globals})
+	return json.Marshal([]interface{}{qr.result, qr.bindings})
 }
 
 // explainModeV1 defines supported values for the "explain" query parameter.
@@ -462,7 +462,7 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 	path := stringPathToDataRef(vars["path"])
 	pretty := getPretty(r.URL.Query()["pretty"])
 	explainMode := getExplain(r.URL.Query()["explain"])
-	globals, nonGround, err := parseGlobals(r.URL.Query()["global"])
+	request, nonGround, err := parseRequest(r.URL.Query()["request"])
 
 	if err != nil {
 		handleError(w, 400, err)
@@ -470,7 +470,7 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if nonGround && explainMode != explainOffV1 {
-		handleError(w, 400, fmt.Errorf("explanations with non-ground global values not supported"))
+		handleError(w, 400, fmt.Errorf("explanations with non-ground request values not supported"))
 		return
 	}
 
@@ -484,7 +484,7 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 	defer s.store.Close(ctx, txn)
 
 	compiler := s.Compiler()
-	params := topdown.NewQueryParams(ctx, compiler, s.store, txn, globals, path)
+	params := topdown.NewQueryParams(ctx, compiler, s.store, txn, request, path)
 
 	var buf *topdown.BufferTracer
 	if explainMode != explainOffV1 {
@@ -965,10 +965,6 @@ func handleErrorAuto(w http.ResponseWriter, err error) {
 			handleError(w, 404, err)
 			return
 		}
-		if topdown.IsUnboundGlobal(curr) {
-			handleError(w, 400, err)
-			return
-		}
 		if IsWriteConflict(curr) {
 			handleError(w, 404, err)
 			return
@@ -1056,7 +1052,7 @@ func getExplain(p []string) explainModeV1 {
 	return explainOffV1
 }
 
-func parseGlobals(s []string) (*ast.ValueMap, bool, error) {
+func parseRequest(s []string) (ast.Value, bool, error) {
 
 	pairs := make([][2]*ast.Term, len(s))
 	nonGround := false
@@ -1064,11 +1060,17 @@ func parseGlobals(s []string) (*ast.ValueMap, bool, error) {
 	for i := range s {
 		vs := strings.SplitN(s[i], ":", 2)
 		if len(vs) != 2 {
-			return nil, false, fmt.Errorf("global format: <path>:<value> where <path> is either var or ref")
+			return nil, false, fmt.Errorf("request format: <path>:<value> where <path> is either var or ref")
 		}
-		k, err := ast.ParseTerm(vs[0])
-		if err != nil {
-			return nil, false, err
+		var k *ast.Term
+		if vs[0] == "" {
+			k = ast.NewTerm(ast.EmptyRef())
+		} else {
+			var err error
+			k, err = ast.ParseTerm(ast.RequestRootDocument.String() + "." + vs[0])
+			if err != nil {
+				return nil, false, err
+			}
 		}
 		v, err := ast.ParseTerm(vs[1])
 		if err != nil {
@@ -1086,12 +1088,12 @@ func parseGlobals(s []string) (*ast.ValueMap, bool, error) {
 		}
 	}
 
-	globals, err := topdown.MakeGlobals(pairs)
+	request, err := topdown.MakeRequest(pairs)
 	if err != nil {
 		return nil, false, err
 	}
 
-	return globals, nonGround, nil
+	return request, nonGround, nil
 }
 
 func renderBanner(w http.ResponseWriter) {

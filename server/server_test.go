@@ -52,9 +52,9 @@ func TestDataV1(t *testing.T) {
                 q[x] :- data.x.y[i] = x
                 r[x] :- data.x.z[i] = x
 
-				import req1
-				import req2 as reqx
-				import req3.attr1
+				import request.req1
+				import request.req2 as reqx
+				import request.req3.attr1
 				g :- req1.a[0] = 1, reqx.b[i] = 1
 				h :- attr1[i] > 1
 
@@ -165,29 +165,30 @@ func TestDataV1(t *testing.T) {
                 "Message": "write conflict: /testmod/p"
             }`},
 		}},
-		{"get with global", []tr{
+		{"get with request", []tr{
 			tr{"PUT", "/policies/test", testMod1, 200, ""},
-			tr{"GET", "/data/testmod/g?global=req1%3A%7B%22a%22%3A%5B1%5D%7D&global=req2%3A%7B%22b%22%3A%5B0%2C1%5D%7D", "", 200, "true"},
+			tr{"GET", "/data/testmod/g?request=req1%3A%7B%22a%22%3A%5B1%5D%7D&request=req2%3A%7B%22b%22%3A%5B0%2C1%5D%7D", "", 200, "true"},
 		}},
-		{"get with global (unbound error)", []tr{
+		{"get with request (missing request value)", []tr{
 			tr{"PUT", "/policies/test", testMod1, 200, ""},
-			tr{"GET", "/data/testmod/g?global=req1%3A%7B%22a%22%3A%5B1%5D%7D", "", 400, `{
+			tr{"GET", "/data/testmod/g?request=req1%3A%7B%22a%22%3A%5B1%5D%7D", "", 404, ""},
+		}},
+		{"get with request (namespaced)", []tr{
+			tr{"PUT", "/policies/test", testMod1, 200, ""},
+			tr{"GET", "/data/testmod/h?request=req3.attr1%3A%5B4%2C3%2C2%2C1%5D", "", 200, `true`},
+		}},
+		{"get with request (non-ground ref)", []tr{
+			tr{"PUT", "/policies/test", testMod1, 200, ""},
+			tr{"GET", "/data/testmod/gt1?request=req1:data.testmod.arr[i]", "", 200, `[[true, {"i": 1}], [true, {"i": 2}], [true, {"i": 3}]]`},
+		}},
+		{"get with request (root)", []tr{
+			tr{"PUT", "/policies/test", testMod1, 200, ""},
+			tr{"GET", `/data/testmod/gt1?request=:{"req1": 2}`, "", 200, `true`},
+		}},
+		{"get with request (bad format)", []tr{
+			tr{"GET", "/data/deadbeef?request=[1,2,3]", "", 400, `{
 				"Code": 400,
-				"Message": "evaluation error (code: 1): unbound variable req2: req2.b[i]"
-			}`},
-		}},
-		{"get with global (namespaced)", []tr{
-			tr{"PUT", "/policies/test", testMod1, 200, ""},
-			tr{"GET", "/data/testmod/h?global=req3.attr1%3A%5B4%2C3%2C2%2C1%5D", "", 200, `true`},
-		}},
-		{"get with global (non-ground ref)", []tr{
-			tr{"PUT", "/policies/test", testMod1, 200, ""},
-			tr{"GET", "/data/testmod/gt1?global=req1:data.testmod.arr[i]", "", 200, `[[true, {"i": 1}], [true, {"i": 2}], [true, {"i": 3}]]`},
-		}},
-		{"get with global (bad format)", []tr{
-			tr{"GET", "/data/deadbeef?global=[1,2,3]", "", 400, `{
-				"Code": 400,
-				"Message": "global format: <path>:<value> where <path> is either var or ref"
+				"Message": "request format: <path>:<value> where <path> is either var or ref"
 			}`},
 		}},
 		{"get undefined", []tr{
