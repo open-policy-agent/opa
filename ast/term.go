@@ -384,7 +384,7 @@ func (num Number) IsGround() bool {
 	return true
 }
 
-// MarshalJSON returns JSON encoded bytes representing n.
+// MarshalJSON returns JSON encoded bytes representing num.
 func (num Number) MarshalJSON() ([]byte, error) {
 	return json.Marshal(json.Number(num))
 }
@@ -642,6 +642,14 @@ func (arr Array) IsGround() bool {
 	return termSliceIsGround(arr)
 }
 
+// MarshalJSON returns JSON encoded bytes representing arr.
+func (arr Array) MarshalJSON() ([]byte, error) {
+	if len(arr) == 0 {
+		return json.Marshal([]interface{}{})
+	}
+	return json.Marshal([]*Term(arr))
+}
+
 func (arr Array) String() string {
 	var buf []string
 	for _, e := range arr {
@@ -848,6 +856,15 @@ func (obj Object) Keys() []*Term {
 		keys[i] = pair[0]
 	}
 	return keys
+}
+
+// MarshalJSON returns JSON encoded bytes representing obj.
+func (obj Object) MarshalJSON() ([]byte, error) {
+	if len(obj) == 0 {
+		return json.Marshal([]interface{}{})
+	}
+	sl := [][2]*Term(obj)
+	return json.Marshal(sl)
 }
 
 // Merge returns a new Object containing the non-overlapping keys of obj and other. If there are
