@@ -494,6 +494,23 @@ func (ref Ref) Append(term *Term) Ref {
 	return dst
 }
 
+// Extend returns a copy of ref with the terms from other appended. The head of
+// other will be converted to a string.
+func (ref Ref) Extend(other Ref) Ref {
+	dst := make(Ref, len(ref)+len(other))
+	for i := range ref {
+		dst[i] = ref[i]
+	}
+	head := other[0].Copy()
+	head.Value = String(head.Value.(Var))
+	offset := len(ref)
+	dst[offset] = head
+	for i := range other[1:] {
+		dst[offset+i+1] = other[i+1]
+	}
+	return dst
+}
+
 // Copy returns a deep copy of ref.
 func (ref Ref) Copy() Ref {
 	return termSliceCopy(ref)
