@@ -84,13 +84,8 @@ Import <- "import" ws path:(Ref / Var) alias:(ws "as" ws Var)? {
     imp := &Import{}
     imp.Location = currentLocation(c)
     imp.Path = path.(*Term)
-    switch p := imp.Path.Value.(type) {
-    case Ref:
-        for _, x := range p[1:] {
-            if _, ok := x.Value.(String); !ok {
-                return nil, fmt.Errorf("import path cannot contain non-string values: %v", x)
-            }
-        }
+    if err := IsValidImportPath(imp.Path.Value); err != nil {
+        return nil, err
     }
     if alias == nil {
         return imp, nil

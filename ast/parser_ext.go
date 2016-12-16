@@ -357,6 +357,10 @@ func postProcess(filename string, stmts []interface{}) error {
 		return err
 	}
 
+	if err := mangleRequestVars(stmts); err != nil {
+		return err
+	}
+
 	mangleWildcards(stmts)
 	mangleExprIndices(stmts)
 
@@ -365,8 +369,20 @@ func postProcess(filename string, stmts []interface{}) error {
 
 func mangleDataVars(stmts []interface{}) error {
 	for i := range stmts {
-		dvt := &dataVarTransformer{}
-		stmt, err := Transform(dvt, stmts[i])
+		vt := newVarToRefTransformer(DefaultRootDocument.Value.(Var), DefaultRootRef)
+		stmt, err := Transform(vt, stmts[i])
+		if err != nil {
+			return err
+		}
+		stmts[i] = stmt
+	}
+	return nil
+}
+
+func mangleRequestVars(stmts []interface{}) error {
+	for i := range stmts {
+		vt := newVarToRefTransformer(RequestRootDocument.Value.(Var), RequestRootRef)
+		stmt, err := Transform(vt, stmts[i])
 		if err != nil {
 			return err
 		}
@@ -460,24 +476,39 @@ func setFilename(filename string, stmts []interface{}) {
 	}
 }
 
-type dataVarTransformer struct {
+type varToRefTransformer struct {
+	orig   Var
+	target Ref
 	// skip set to true to avoid recursively processing the result of
-	// transforming a data var into a ref.
+	// transformation.
 	skip bool
 }
 
-func (dvt *dataVarTransformer) Transform(x interface{}) (interface{}, error) {
-	if dvt.skip {
-		dvt.skip = false
+func newVarToRefTransformer(orig Var, target Ref) *varToRefTransformer {
+	return &varToRefTransformer{
+		orig:   orig,
+		target: target,
+		skip:   false,
+	}
+}
+
+func (vt *varToRefTransformer) Transform(x interface{}) (interface{}, error) {
+	if vt.skip {
+		vt.skip = false
 		return x, nil
 	}
 	switch x := x.(type) {
+	case *Rule:
+		// The next AST node will be the rule name (which should not be
+		// transformed).
+		vt.skip = true
 	case Ref:
-		dvt.skip = true
+		// The next AST node will be the ref head (which should not be transformed).
+		vt.skip = true
 	case Var:
-		if x.Equal(DefaultRootDocument.Value) {
-			dvt.skip = true
-			return DefaultRootRef, nil
+		if x.Equal(vt.orig) {
+			vt.skip = true
+			return vt.target, nil
 		}
 	}
 	return x, nil

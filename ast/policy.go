@@ -11,19 +11,29 @@ import (
 	"github.com/open-policy-agent/opa/util"
 )
 
+// TODO(tsandall): rename DefaultRootDocument/Ref accordingly
+
 // DefaultRootDocument is the default root document.
 //
 // All package directives inside source files are implicitly prefixed with the
 // DefaultRootDocument value.
 var DefaultRootDocument = VarTerm("data")
 
+// RequestRootDocument names the document containing query arguments.
+var RequestRootDocument = VarTerm("request")
+
 // DefaultRootRef is a reference to the root of the default document.
 //
 // All refs to data in the policy engine's storage layer are prefixed with this ref.
 var DefaultRootRef = Ref{DefaultRootDocument}
 
+// RequestRootRef is a reference to the root of the request document.
+//
+// All refs to query arguments are prefixed with this ref.
+var RequestRootRef = Ref{RequestRootDocument}
+
 // ReservedVars is the set of reserved variable names.
-var ReservedVars = NewVarSet(DefaultRootDocument.Value.(Var))
+var ReservedVars = NewVarSet(DefaultRootDocument.Value.(Var), RequestRootDocument.Value.(Var))
 
 // Wildcard represents the wildcard variable as defined in the language.
 var Wildcard = &Term{Value: Var("_")}
@@ -192,6 +202,29 @@ func (pkg *Package) String() string {
 	path[0] = VarTerm(string(pkg.Path[1].Value.(String)))
 	copy(path[1:], pkg.Path[2:])
 	return fmt.Sprintf("package %v", path)
+}
+
+// IsValidImportPath returns an error indicating if the import path is invalid.
+// If the import path is invalid, err is nil.
+func IsValidImportPath(v Value) (err error) {
+	switch v := v.(type) {
+	case Var:
+		if !v.Equal(DefaultRootDocument.Value) && !v.Equal(RequestRootDocument.Value) {
+			return fmt.Errorf("path %v is not valid (must begin with known root)", v)
+		}
+	case Ref:
+		if err := IsValidImportPath(v[0].Value); err != nil {
+			return fmt.Errorf("path %v is not valid (must begin with known root)", v)
+		}
+		for _, e := range v[1:] {
+			if _, ok := e.Value.(String); !ok {
+				return fmt.Errorf("path elements must be string")
+			}
+		}
+	default:
+		return fmt.Errorf("path must be ref")
+	}
+	return nil
 }
 
 // Compare returns an integer indicating whether imp is less than, equal to,

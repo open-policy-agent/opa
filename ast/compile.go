@@ -455,7 +455,8 @@ func (c *Compiler) resolveAllRefs() {
 			rule.Body = resolveRefsInBody(globals, rule.Body)
 		}
 
-		mod.Imports = rewriteImports(mod.Imports)
+		// Once imports have been resolved, they are no longer needed.
+		mod.Imports = nil
 	}
 
 	if c.moduleLoader != nil {
@@ -603,7 +604,7 @@ func (qc *queryCompiler) resolveRefs(qctx *QueryContext, body Body) (Body, error
 			exports = exist.([]Var)
 		}
 		globals = getGlobals(qctx.Package, exports, qc.qctx.Imports)
-		qctx.Imports = rewriteImports(qctx.Imports)
+		qctx.Imports = nil
 	}
 
 	return resolveRefsInBody(globals, body), nil
@@ -1263,26 +1264,4 @@ func resolveRefsInTerm(globals map[Var]Value, term *Term) *Term {
 	default:
 		return term
 	}
-}
-
-// rewriteImports returns an updated slice of imports that replace the imports
-// in a module or query context. Imports against the default root document are
-// removed, aliases are unset, and the remaining imports are shortened to the
-// head variable. The result is a set of imports that effectively ground
-// variables appearing in rules and queries (which refer to query inputs).
-func rewriteImports(imports []*Import) (result []*Import) {
-	for _, imp := range imports {
-		switch path := imp.Path.Value.(type) {
-		case Ref:
-			if !path[0].Equal(DefaultRootDocument) {
-				imp.Path = path[0]
-				imp.Alias = Var("")
-				result = append(result, imp)
-			}
-		case Var:
-			imp.Alias = Var("")
-			result = append(result, imp)
-		}
-	}
-	return result
 }

@@ -353,7 +353,7 @@ func TestModuleString(t *testing.T) {
 	package a.b.c
 
 	import data.foo.bar
-	import xyz
+	import request.xyz
 
 	p :- not bar
 	q :- xyz.abc = 2

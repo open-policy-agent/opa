@@ -19,7 +19,7 @@ func TestVisitor(t *testing.T) {
 
 	rule := MustParseModule(`
 	package a.b
-	import x.y as z
+	import request.x.y as z
 	t[x] = y :-
 		p[x] = {"foo": [y,2,{"bar": 3}]},
 		not q[x],
@@ -37,7 +37,8 @@ func TestVisitor(t *testing.T) {
 					a
 					b
 			import
-				x.y
+				request.x.y
+					request
 					x
 					y
 				z
@@ -87,8 +88,8 @@ func TestVisitor(t *testing.T) {
 							3
 						n
 	*/
-	if len(vis.elems) != 56 {
-		t.Errorf("Expected exactly 56 elements in AST but got %d: %v", len(vis.elems), vis.elems)
+	if len(vis.elems) != 57 {
+		t.Errorf("Expected exactly 57 elements in AST but got %d: %v", len(vis.elems), vis.elems)
 	}
 
 }

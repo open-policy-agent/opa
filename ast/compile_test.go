@@ -277,8 +277,8 @@ func TestCompilerCheckSafetyBodyErrors(t *testing.T) {
 		"newMod": MustParseModule(`
 	package a.b
 
-	import aref.b.c as foo
-	import avar as bar
+	import request.aref.b.c as foo
+	import request.avar as bar
 	import data.m.n as baz
 
 	# a would be unbound
@@ -433,9 +433,9 @@ func TestCompilerResolveAllRefs(t *testing.T) {
 	c := NewCompiler()
 	c.Modules = getCompilerTestModules()
 	c.Modules["head"] = MustParseModule(`package head
-	import x.y.foo
 	import data.doc1 as bar
-	import qux as baz
+	import request.x.y.foo
+	import request.qux as baz
 	p[foo[bar[i]]] = {"baz": baz} :- true
 	`)
 	compileStages(c, "", "resolveAllRefs")
@@ -470,7 +470,7 @@ func TestCompilerResolveAllRefs(t *testing.T) {
 	mod3 := c.Modules["mod3"]
 	expr4 := mod3.Rules[0].Body[0]
 	term = expr4.Terms.([]*Term)[2]
-	e = MustParseTerm("{x.secret: [{x.keyid}]}")
+	e = MustParseTerm("{request.x.secret: [{request.x.keyid}]}")
 	if !term.Equal(e) {
 		t.Errorf("Wrong term (nested refs): expected %v but got: %v", e, term)
 	}
@@ -483,42 +483,42 @@ func TestCompilerResolveAllRefs(t *testing.T) {
 	}
 
 	acTerm1 := ac(mod5.Rules[0])
-	assertTermEqual(t, acTerm1.Term, MustParseTerm("x.a"))
+	assertTermEqual(t, acTerm1.Term, MustParseTerm("request.x.a"))
 	acTerm2 := ac(mod5.Rules[1])
-	assertTermEqual(t, acTerm2.Term, MustParseTerm("a.b.c.q.a"))
+	assertTermEqual(t, acTerm2.Term, MustParseTerm("request.a.b.c.q.a"))
 	acTerm3 := ac(mod5.Rules[2])
-	assertTermEqual(t, acTerm3.Body[0].Terms.([]*Term)[1], MustParseTerm("x.a"))
+	assertTermEqual(t, acTerm3.Body[0].Terms.([]*Term)[1], MustParseTerm("request.x.a"))
 	acTerm4 := ac(mod5.Rules[3])
-	assertTermEqual(t, acTerm4.Body[0].Terms.([]*Term)[1], MustParseTerm("a.b.c.q[i]"))
+	assertTermEqual(t, acTerm4.Body[0].Terms.([]*Term)[1], MustParseTerm("request.a.b.c.q[i]"))
 	acTerm5 := ac(mod5.Rules[4])
-	assertTermEqual(t, acTerm5.Body[0].Terms.([]*Term)[2].Value.(*ArrayComprehension).Term, MustParseTerm("x.a"))
+	assertTermEqual(t, acTerm5.Body[0].Terms.([]*Term)[2].Value.(*ArrayComprehension).Term, MustParseTerm("request.x.a"))
 	acTerm6 := ac(mod5.Rules[5])
-	assertTermEqual(t, acTerm6.Body[0].Terms.([]*Term)[2].Value.(*ArrayComprehension).Body[0].Terms.([]*Term)[1], MustParseTerm("a.b.c.q[i]"))
+	assertTermEqual(t, acTerm6.Body[0].Terms.([]*Term)[2].Value.(*ArrayComprehension).Body[0].Terms.([]*Term)[1], MustParseTerm("request.a.b.c.q[i]"))
 
 	// Nested references.
 	mod6 := c.Modules["mod6"]
 	nested1 := mod6.Rules[0].Body[0].Terms.(*Term)
-	assertTermEqual(t, nested1, MustParseTerm("data.x[x[i].a[data.z.b[j]]]"))
+	assertTermEqual(t, nested1, MustParseTerm("data.x[request.x[i].a[data.z.b[j]]]"))
 
 	nested2 := mod6.Rules[1].Body[1].Terms.(*Term)
-	assertTermEqual(t, nested2, MustParseTerm("v[x[i]]"))
+	assertTermEqual(t, nested2, MustParseTerm("v[request.x[i]]"))
 
 	nested3 := mod6.Rules[3].Body[0].Terms.(*Term)
 	assertTermEqual(t, nested3, MustParseTerm("data.x[data.a.b.nested.r]"))
 
 	// Refs in head.
 	mod7 := c.Modules["head"]
-	assertTermEqual(t, mod7.Rules[0].Key, MustParseTerm("x.y.foo[data.doc1[i]]"))
-	assertTermEqual(t, mod7.Rules[0].Value, MustParseTerm(`{"baz": qux}`))
+	assertTermEqual(t, mod7.Rules[0].Key, MustParseTerm("request.x.y.foo[data.doc1[i]]"))
+	assertTermEqual(t, mod7.Rules[0].Value, MustParseTerm(`{"baz": request.qux}`))
 }
 
 func TestCompilerRewriteRefsInHead(t *testing.T) {
 	c := NewCompiler()
 	c.Modules["head"] = MustParseModule(`package head
-	import x.y.foo
 	import data.doc1 as bar
-	import qux as baz
 	import data.doc2 as corge
+	import request.x.y.foo
+	import request.qux as baz
 	p[foo[bar[i]]] = {"baz": baz, "corge": corge} :- true
 	`)
 
@@ -534,8 +534,8 @@ func TestCompilerRewriteRefsInHead(t *testing.T) {
 		t.Fatalf("Expected rule body to contain 3 expressions but got: %v", rule)
 	}
 
-	assertExprEqual(t, rule.Body[1], MustParseExpr("__local0__ = x.y.foo[data.doc1[i]]"))
-	assertExprEqual(t, rule.Body[2], MustParseExpr(`__local1__ = {"baz": qux, "corge": data.doc2}`))
+	assertExprEqual(t, rule.Body[1], MustParseExpr("__local0__ = request.x.y.foo[data.doc1[i]]"))
+	assertExprEqual(t, rule.Body[2], MustParseExpr(`__local1__ = {"baz": request.qux, "corge": data.doc2}`))
 }
 
 func TestCompilerSetRuleGraph(t *testing.T) {
@@ -869,7 +869,7 @@ func TestCompilerLazyLoading(t *testing.T) {
 
 	mod3 := MustParseModule(`package x
 			import data.foo.bar
-			import input
+			import request.input
 			z1 :- [ localvar | count(bar.baz.qux, localvar) ]`)
 
 	mod4 := MustParseModule(`
@@ -960,7 +960,7 @@ func TestQueryCompiler(t *testing.T) {
 		{"exports resolved", "z", "package a.b.c", nil, "data.a.b.c.z"},
 		{"imports resolved", "z", "package a.b.c.d", []string{"import data.a.b.c.z"}, "data.a.b.c.z"},
 		{"unsafe vars", "z", "", nil, fmt.Errorf("1 error occurred: 1:1: z is unsafe (variable z must appear in the output position of at least one non-negated expression)")},
-		{"safe vars", "data, abc", "package ex", []string{"import xyz as abc"}, "data, xyz"},
+		{"safe vars", "data, abc", "package ex", []string{"import request.xyz as abc"}, "data, request.xyz"},
 		{"reorder", "x != 1, x = 0", "", nil, "x = 0, x != 1"},
 		{"bad builtin", "deadbeef(1,2,3)", "", nil, fmt.Errorf("1 error occurred: 1:1: deadbeef is unsafe (variable deadbeef must appear in the output position of at least one non-negated expression)")},
 	}
@@ -1033,9 +1033,8 @@ func getCompilerTestModules() map[string]*Module {
 
 	mod3 := MustParseModule(`
 	package a.b.d
-	import req
-	import x as y
-	t = true :- req = {y.secret: [{y.keyid}]}
+	import request.x as y
+	t = true :- request = {y.secret: [{y.keyid}]}
 	x = false :- true
 	`)
 
@@ -1046,8 +1045,8 @@ func getCompilerTestModules() map[string]*Module {
 	mod5 := MustParseModule(`
 	package a.b.compr
 
-	import x as y
-	import a.b.c.q
+	import request.x as y
+	import request.a.b.c.q
 
 	p :- [y.a | true]
 	r :- [q.a | true]
@@ -1061,8 +1060,8 @@ func getCompilerTestModules() map[string]*Module {
 	package a.b.nested
 
 	import data.x
-	import x as y
 	import data.z
+	import request.x as y
 
 	p :- x[y[i].a[z.b[j]]]
 	q :- x = v, v[y[i]]

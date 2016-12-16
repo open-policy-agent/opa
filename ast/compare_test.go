@@ -68,9 +68,9 @@ func TestCompareModule(t *testing.T) {
 	}
 
 	a = MustParseModule(`package a.b.c
-    import x.y`)
+    import request.x.y`)
 	b = MustParseModule(`package a.b.c
-    import x.z`)
+    import request.x.z`)
 	result = Compare(a, b)
 
 	if result != -1 {

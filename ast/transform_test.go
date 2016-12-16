@@ -9,8 +9,8 @@ import "testing"
 func TestTransform(t *testing.T) {
 	module := MustParseModule(`
     package ex["this"]
-    import foo
-    import bar["this"] as qux
+    import request.foo
+    import data.bar["this"] as qux
     p :- "this" = "that"
     p = "this" :- false
     p["this"] :- false
@@ -39,8 +39,8 @@ func TestTransform(t *testing.T) {
 
 	expected := MustParseModule(`
     package ex["that"]
-    import foo
-    import bar["that"] as qux
+    import request.foo
+    import data.bar["that"] as qux
     p :- "that" = "that"
     p = "that" :- false
     p["that"] :- false
