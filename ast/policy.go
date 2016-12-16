@@ -337,7 +337,7 @@ func (rule *Rule) DocKind() DocKind {
 // HeadVars returns map where keys represent all of the variables found in the
 // head of the rule. The values of the map are ignored.
 func (rule *Rule) HeadVars() VarSet {
-	vis := &varVisitor{vars: VarSet{}}
+	vis := &VarVisitor{vars: VarSet{}}
 	if rule.Key != nil {
 		Walk(vis, rule.Key)
 	}
@@ -487,15 +487,12 @@ func (body Body) String() string {
 	return strings.Join(buf, ", ")
 }
 
-// Vars returns a VarSet containing all of the variables in the body. If skipClosures is true,
-// variables contained inside closures within the body will be ignored.
-func (body Body) Vars(skipClosures bool) VarSet {
-	vis := &varVisitor{
-		vars:         VarSet{},
-		skipClosures: skipClosures,
-	}
+// Vars returns a VarSet containing variables in body. The params can be set to
+// control which vars are included.
+func (body Body) Vars(params VarVisitorParams) VarSet {
+	vis := NewVarVisitor().WithParams(params)
 	Walk(vis, body)
-	return vis.vars
+	return vis.Vars()
 }
 
 // NewExpr returns a new Expr object.
@@ -668,16 +665,12 @@ func (expr *Expr) UnmarshalJSON(bs []byte) error {
 	return unmarshalExpr(expr, v)
 }
 
-// Vars returns a VarSet containing all of the variables in the expression.
-// If skipClosures is true then variables contained inside closures within this
-// expression will not be included in the VarSet.
-func (expr *Expr) Vars(skipClosures bool) VarSet {
-	vis := &varVisitor{
-		skipClosures: skipClosures,
-		vars:         VarSet{},
-	}
+// Vars returns a VarSet containing variables in expr. The params can be set to
+// control which vars are included.
+func (expr *Expr) Vars(params VarVisitorParams) VarSet {
+	vis := NewVarVisitor().WithParams(params)
 	Walk(vis, expr)
-	return vis.vars
+	return vis.Vars()
 }
 
 func (expr *Expr) outputVarsBuiltins(b *Builtin, safe VarSet) VarSet {
@@ -693,15 +686,14 @@ func (expr *Expr) outputVarsBuiltins(b *Builtin, safe VarSet) VarSet {
 		if t.Value.IsGround() {
 			continue
 		}
-		vis := &varVisitor{
-			skipClosures:     true,
-			skipObjectKeys:   true,
-			skipRefHead:      true,
-			skipBuiltinNames: true,
-			vars:             VarSet{},
-		}
+		vis := NewVarVisitor().WithParams(VarVisitorParams{
+			SkipClosures:     true,
+			SkipObjectKeys:   true,
+			SkipRefHead:      true,
+			SkipBuiltinNames: true,
+		})
 		Walk(vis, t)
-		unsafe := vis.vars.Diff(o).Diff(safe)
+		unsafe := vis.Vars().Diff(o).Diff(safe)
 		if len(unsafe) > 0 {
 			return VarSet{}
 		}
@@ -747,50 +739,3 @@ type ruleSlice []*Rule
 func (s ruleSlice) Less(i, j int) bool { return Compare(s[i], s[j]) < 0 }
 func (s ruleSlice) Swap(i, j int)      { x := s[i]; s[i] = s[j]; s[j] = x }
 func (s ruleSlice) Len() int           { return len(s) }
-
-type varVisitor struct {
-	skipRefHead      bool
-	skipObjectKeys   bool
-	skipClosures     bool
-	skipBuiltinNames bool
-	vars             VarSet
-}
-
-func (vis *varVisitor) Visit(v interface{}) Visitor {
-	if vis.skipObjectKeys {
-		if o, ok := v.(Object); ok {
-			for _, i := range o {
-				Walk(vis, i[1])
-			}
-			return nil
-		}
-	}
-	if vis.skipRefHead {
-		if r, ok := v.(Ref); ok {
-			for _, t := range r[1:] {
-				Walk(vis, t)
-			}
-			return nil
-		}
-	}
-	if vis.skipClosures {
-		switch v.(type) {
-		case *ArrayComprehension:
-			return nil
-		}
-	}
-	if vis.skipBuiltinNames {
-		if v, ok := v.(*Expr); ok {
-			if ts, ok := v.Terms.([]*Term); ok {
-				for _, t := range ts[1:] {
-					Walk(vis, t)
-				}
-				return nil
-			}
-		}
-	}
-	if v, ok := v.(Var); ok {
-		vis.vars.Add(v)
-	}
-	return vis
-}
