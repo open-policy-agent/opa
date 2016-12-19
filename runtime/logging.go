@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/golang/glog"
+	"github.com/open-policy-agent/opa/server"
 )
 
 // LoggingHandler returns an http.Handler that will print log messages to glog
@@ -36,12 +37,12 @@ func (h *LoggingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		glog.Infof("%v %v %v %v %v %vms",
 			r.RemoteAddr,
 			r.Method,
-			dropGlobals(r.URL),
+			dropRequestParam(r.URL),
 			statusCode,
 			recorder.bytesWritten,
 			float64(dt.Nanoseconds())/1e6)
 		if glog.V(3) {
-			for _, g := range getGlobals(r.URL) {
+			for _, g := range getRequestParam(r.URL) {
 				glog.Infoln(g)
 			}
 		}
@@ -74,10 +75,10 @@ func (r *recorder) WriteHeader(s int) {
 	r.inner.WriteHeader(s)
 }
 
-func dropGlobals(u *url.URL) string {
+func dropRequestParam(u *url.URL) string {
 	cpy := url.Values{}
 	for k, v := range u.Query() {
-		if k != "global" {
+		if k != server.ParamRequestV1 {
 			cpy[k] = v
 		}
 	}
@@ -87,8 +88,8 @@ func dropGlobals(u *url.URL) string {
 	return u.Path + "?" + cpy.Encode()
 }
 
-func getGlobals(u *url.URL) (r []string) {
-	for _, g := range u.Query()["global"] {
+func getRequestParam(u *url.URL) (r []string) {
+	for _, g := range u.Query()[server.ParamRequestV1] {
 		s, err := url.QueryUnescape(g)
 		if err == nil {
 			r = append(r, s)

@@ -11,18 +11,18 @@ import (
 	"testing"
 )
 
-func TestDropGlobals(t *testing.T) {
+func TestDropRequestParam(t *testing.T) {
 
 	// Without other params.
 	abc := `a.b.c:{"foo":[1,2,3,4]}`
 	abcEncoded := url.QueryEscape(abc)
 
-	uri, err := url.ParseRequestURI(fmt.Sprintf(`http://localhost:8181/v1/data/foo/bar?global=%v`, abcEncoded))
+	uri, err := url.ParseRequestURI(fmt.Sprintf(`http://localhost:8181/v1/data/foo/bar?request=%v`, abcEncoded))
 	if err != nil {
 		panic(err)
 	}
 
-	result := dropGlobals(uri)
+	result := dropRequestParam(uri)
 	expected := "/v1/data/foo/bar"
 
 	if result != expected {
@@ -33,12 +33,12 @@ func TestDropGlobals(t *testing.T) {
 	def := `d.e.f:{"bar":{"baz":null}}`
 	defEncoded := url.QueryEscape(def)
 
-	uri, err = url.ParseRequestURI(fmt.Sprintf(`http://localhost:8181/v1/data/foo/bar?global=%v&pretty=true&depth=1&global=%v`, abcEncoded, defEncoded))
+	uri, err = url.ParseRequestURI(fmt.Sprintf(`http://localhost:8181/v1/data/foo/bar?request=%v&pretty=true&depth=1&request=%v`, abcEncoded, defEncoded))
 	if err != nil {
 		panic(err)
 	}
 
-	result = dropGlobals(uri)
+	result = dropRequestParam(uri)
 	expected = "/v1/data/foo/bar?depth=1&pretty=true"
 
 	if result != expected {
@@ -47,19 +47,19 @@ func TestDropGlobals(t *testing.T) {
 
 }
 
-func TestGetGlobals(t *testing.T) {
+func TestGetRequestParam(t *testing.T) {
 
 	abc := `a.b.c:{"foo":[1,2,3,4]}`
 	def := `d.e.f:{"bar":{"baz":null}}`
 	abcEncoded := url.QueryEscape(abc)
 	defEncoded := url.QueryEscape(def)
 
-	uri, err := url.ParseRequestURI(fmt.Sprintf(`http://localhost:8181/v1/data/foo/bar?global=%v&pretty=true&global=%v`, abcEncoded, defEncoded))
+	uri, err := url.ParseRequestURI(fmt.Sprintf(`http://localhost:8181/v1/data/foo/bar?request=%v&pretty=true&request=%v`, abcEncoded, defEncoded))
 	if err != nil {
 		panic(err)
 	}
 
-	result := getGlobals(uri)
+	result := getRequestParam(uri)
 	expected := []string{abc, def}
 
 	if !reflect.DeepEqual(result, expected) {

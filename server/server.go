@@ -274,6 +274,12 @@ type patchImpl struct {
 	value interface{}
 }
 
+const (
+	// ParamRequestV1 defines the name of the HTTP URL parameter that specifies
+	// values for the "request" document.
+	ParamRequestV1 = "request"
+)
+
 // Server represents an instance of OPA running in server mode.
 type Server struct {
 	Handler http.Handler
@@ -462,7 +468,7 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 	path := stringPathToDataRef(vars["path"])
 	pretty := getPretty(r.URL.Query()["pretty"])
 	explainMode := getExplain(r.URL.Query()["explain"])
-	request, nonGround, err := parseRequest(r.URL.Query()["request"])
+	request, nonGround, err := parseRequest(r.URL.Query()[ParamRequestV1])
 
 	if err != nil {
 		handleError(w, 400, err)
