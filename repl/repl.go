@@ -548,13 +548,14 @@ func (r *REPL) loadCompiler() (*ast.Compiler, error) {
 	return compiler, nil
 }
 
-// loadGlobals returns the globals mapping currently defined in the REPL. The
-// REPL loads globals from the data.repl.globals document.
-func (r *REPL) loadGlobals(ctx context.Context, compiler *ast.Compiler) (*ast.ValueMap, error) {
+// loadRequest returns the request defined in the REPL. The REPL loads the
+// request from the data.repl.request document.
+func (r *REPL) loadRequest(ctx context.Context, compiler *ast.Compiler) (ast.Value, error) {
 
-	params := topdown.NewQueryParams(ctx, compiler, r.store, r.txn, nil, ast.MustParseRef("data.repl.globals"))
+	params := topdown.NewQueryParams(ctx, compiler, r.store, r.txn, nil, ast.MustParseRef("data.repl.request"))
 
 	result, err := topdown.Query(params)
+
 	if err != nil {
 		return nil, err
 	}
@@ -563,29 +564,7 @@ func (r *REPL) loadGlobals(ctx context.Context, compiler *ast.Compiler) (*ast.Va
 		return nil, nil
 	}
 
-	pairs := [][2]*ast.Term{}
-
-	obj, ok := result[0].Result.(map[string]interface{})
-	if !ok {
-		return nil, fmt.Errorf("globals is %T but expected object", result)
-	}
-
-	for k, v := range obj {
-
-		gk, err := ast.ParseTerm(k)
-		if err != nil {
-			return nil, err
-		}
-
-		gv, err := ast.InterfaceToValue(v)
-		if err != nil {
-			return nil, err
-		}
-
-		pairs = append(pairs, [...]*ast.Term{gk, &ast.Term{Value: gv}})
-	}
-
-	return topdown.MakeGlobals(pairs)
+	return ast.InterfaceToValue(result[0].Result)
 }
 
 func (r *REPL) evalStatement(ctx context.Context, stmt interface{}) error {
@@ -605,11 +584,11 @@ func (r *REPL) evalStatement(ctx context.Context, stmt interface{}) error {
 		if err != nil {
 			return err
 		}
-		globals, err := r.loadGlobals(ctx, compiler)
+		request, err := r.loadRequest(ctx, compiler)
 		if err != nil {
 			return err
 		}
-		return r.evalBody(ctx, compiler, globals, body)
+		return r.evalBody(ctx, compiler, request, body)
 	case *ast.Rule:
 		if err := r.compileRule(s); err != nil {
 			fmt.Fprintln(r.output, "error:", err)
@@ -622,7 +601,7 @@ func (r *REPL) evalStatement(ctx context.Context, stmt interface{}) error {
 	return nil
 }
 
-func (r *REPL) evalBody(ctx context.Context, compiler *ast.Compiler, globals *ast.ValueMap, body ast.Body) error {
+func (r *REPL) evalBody(ctx context.Context, compiler *ast.Compiler, request ast.Value, body ast.Body) error {
 
 	// Special case for positive, single term inputs.
 	if len(body) == 1 {
@@ -630,15 +609,15 @@ func (r *REPL) evalBody(ctx context.Context, compiler *ast.Compiler, globals *as
 		if !expr.Negated {
 			if _, ok := expr.Terms.(*ast.Term); ok {
 				if singleValue(body) {
-					return r.evalTermSingleValue(ctx, compiler, globals, body)
+					return r.evalTermSingleValue(ctx, compiler, request, body)
 				}
-				return r.evalTermMultiValue(ctx, compiler, globals, body)
+				return r.evalTermMultiValue(ctx, compiler, request, body)
 			}
 		}
 	}
 
 	t := topdown.New(ctx, body, compiler, r.store, r.txn)
-	t.Globals = globals
+	t.Request = request
 
 	var buf *topdown.BufferTracer
 
@@ -750,14 +729,14 @@ func (r *REPL) evalPackage(p *ast.Package) error {
 // and comprehensions always evaluate to a single value. To handle references, this function
 // still executes the query, except it does so by rewriting the body to assign the term
 // to a variable. This allows the REPL to obtain the result even if the term is false.
-func (r *REPL) evalTermSingleValue(ctx context.Context, compiler *ast.Compiler, globals *ast.ValueMap, body ast.Body) error {
+func (r *REPL) evalTermSingleValue(ctx context.Context, compiler *ast.Compiler, request ast.Value, body ast.Body) error {
 
 	term := body[0].Terms.(*ast.Term)
 	outputVar := ast.Wildcard
 	body = ast.NewBody(ast.Equality.Expr(term, outputVar))
 
 	t := topdown.New(ctx, body, compiler, r.store, r.txn)
-	t.Globals = globals
+	t.Request = request
 
 	var buf *topdown.BufferTracer
 
@@ -799,7 +778,7 @@ func (r *REPL) evalTermSingleValue(ctx context.Context, compiler *ast.Compiler, 
 
 // evalTermMultiValue evaluates and prints terms in cases where the term may evaluate to multiple
 // ground values, e.g., a[i], [servers[x]], etc.
-func (r *REPL) evalTermMultiValue(ctx context.Context, compiler *ast.Compiler, globals *ast.ValueMap, body ast.Body) error {
+func (r *REPL) evalTermMultiValue(ctx context.Context, compiler *ast.Compiler, request ast.Value, body ast.Body) error {
 
 	// Mangle the expression in the same way we do for evalTermSingleValue. When handling the
 	// evaluation result below, we will ignore this variable.
@@ -808,7 +787,7 @@ func (r *REPL) evalTermMultiValue(ctx context.Context, compiler *ast.Compiler, g
 	body = ast.NewBody(ast.Equality.Expr(term, outputVar))
 
 	t := topdown.New(ctx, body, compiler, r.store, r.txn)
-	t.Globals = globals
+	t.Request = request
 
 	var buf *topdown.BufferTracer
 
@@ -1043,7 +1022,7 @@ type topicDesc struct {
 }
 
 var topics = map[string]topicDesc{
-	"globals": {printHelpGlobals, "how to set global values"},
+	"request": {printHelpRequest, "how to set request values"},
 }
 
 type command struct {
@@ -1266,36 +1245,36 @@ func printHelpCommands(output io.Writer) {
 	fmt.Fprintln(output, "")
 }
 
-func printHelpGlobals(output io.Writer) error {
+func printHelpRequest(output io.Writer) error {
 	fmt.Fprintln(output, "")
-	fmt.Fprintln(output, "Globals")
+	fmt.Fprintln(output, "Request")
 	fmt.Fprintln(output, "=======")
 	fmt.Fprintln(output, "")
 
 	txt := strings.TrimSpace(`
-Rego allows queries to reference documents outside of the storage layer. These
-documents must be provided as inputs to the query engine. In OPA, these inputs
-are referred to as "globals".
+Rego allows queries to refer to documents outside of the storage layer. These
+documents must be provided as inputs to the query engine. In Rego, these values
+are nested under the root "request" document.
 
-In the interactive shell, users can set globals to use during query evaluation
-by defining documents under the repl.globals package.
+In the interactive shell, users can set the value for the "request" document by
+defining documents under the repl.request package.
 
 For example:
 
-	# Change to the repl.globals package.
-	> package repl.globals
+	# Change to the repl.request package.
+	> package repl.request
 
-	# Define a new global called "request_object".
-	> request_object = {"method": "POST", "path": "/some/path"}
+	# Define a new document called "params".
+	> params = {"method": "POST", "path": "/some/path"}
 
-	# Switch back to another package to test access to globals.
+	# Switch back to another package to test access to request.
 	> package opa.example
 
-	# Import "request_object" defined above.
-	> import request_object
+	# Import "params" defined above.
+	> import request.params
 
-	# Define rule that refers to global.
-	> is_post :- request_object.method = "POST"
+	# Define rule that refers to "params".
+	> is_post :- params.method = "POST"
 
 	# Test evaluation.
 	> is_post
