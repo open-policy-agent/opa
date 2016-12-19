@@ -16,7 +16,7 @@ func TestTransform(t *testing.T) {
     p["this"] :- false
     p[y] = {"this": ["this"]} :- false
     p :- ["this" | "this"]
-	p = n :- count({"this", "that"}, n)
+	p = n :- count({"this", "that"}, n) with input.foo.this as {"this": true}
     `)
 
 	result, err := Transform(&GenericTransformer{
@@ -46,7 +46,7 @@ func TestTransform(t *testing.T) {
     p["that"] :- false
     p[y] = {"that": ["that"]} :- false
     p :- ["that" | "that"]
-	p = n :- count({"that"}, n)
+	p = n :- count({"that"}, n) with input.foo.that as {"that": true}
     `)
 
 	if !expected.Equal(resultMod) {

@@ -85,6 +85,11 @@ func NewQueryContext() *QueryContext {
 	return &QueryContext{}
 }
 
+// InputDefined returns true if the input document is defined in qc.
+func (qc *QueryContext) InputDefined() bool {
+	return qc != nil && qc.Input != nil
+}
+
 // WithPackage sets the pkg on qc.
 func (qc *QueryContext) WithPackage(pkg *Package) *QueryContext {
 	if qc == nil {
@@ -156,16 +161,17 @@ func NewCompiler() *Compiler {
 	}
 
 	c.stages = []stage{
-		stage{c.resolveAllRefs, "resolveAllRefs"},
-		stage{c.setModuleTree, "setModuleTree"},
-		stage{c.setRuleTree, "setRuleTree"},
-		stage{c.setRuleGraph, "setRuleGraph"},
-		stage{c.rewriteRefsInHead, "rewriteRefsInHead"},
-		stage{c.checkRuleConflicts, "checkRuleConflicts"},
-		stage{c.checkBuiltins, "checkBuiltins"},
-		stage{c.checkSafetyRuleHeads, "checkSafetyRuleHeads"},
-		stage{c.checkSafetyRuleBodies, "checkSafetyRuleBodies"},
-		stage{c.checkRecursion, "checkRecursion"},
+		{c.resolveAllRefs, "resolveAllRefs"},
+		{c.setModuleTree, "setModuleTree"},
+		{c.setRuleTree, "setRuleTree"},
+		{c.setRuleGraph, "setRuleGraph"},
+		{c.rewriteRefsInHead, "rewriteRefsInHead"},
+		{c.checkWithModifiers, "checkWithModifiers"},
+		{c.checkRuleConflicts, "checkRuleConflicts"},
+		{c.checkBuiltins, "checkBuiltins"},
+		{c.checkSafetyRuleHeads, "checkSafetyRuleHeads"},
+		{c.checkSafetyRuleBodies, "checkSafetyRuleBodies"},
+		{c.checkRecursion, "checkRecursion"},
 	}
 
 	return c
@@ -444,6 +450,17 @@ func (c *Compiler) checkSafetyRuleHeads() {
 	}
 }
 
+// checkWithModifiers ensures that with modifier values do not contain
+// references or closures.
+func (c *Compiler) checkWithModifiers() {
+	for _, m := range c.Modules {
+		wc := newWithModifierChecker()
+		for _, err := range wc.Check(m) {
+			c.err(err)
+		}
+	}
+}
+
 func (c *Compiler) compile() {
 	for _, s := range c.stages {
 		if s.f(); c.Failed() {
@@ -636,6 +653,7 @@ func (qc *queryCompiler) Compile(query Body) (Body, error) {
 
 	stages := []func(*QueryContext, Body) (Body, error){
 		qc.resolveRefs,
+		qc.checkWithModifiers,
 		qc.checkSafety,
 		qc.checkBuiltins,
 		qc.checkInput,
@@ -694,41 +712,117 @@ func (qc *queryCompiler) checkBuiltins(qctx *QueryContext, body Body) (Body, err
 }
 
 func (qc *queryCompiler) checkInput(qctx *QueryContext, body Body) (Body, error) {
+	return body, qc.checkInputRec(qctx.InputDefined(), body)
+}
 
-	// If input document was specified, exit immediately. In the future, we may
-	// apply schema checks to input. For now, as long as something is provided,
-	// allow the query to run.
-	if qctx != nil && qctx.Input != nil {
-		return body, nil
-	}
+func (qc *queryCompiler) checkInputRec(definedPrev bool, body Body) error {
 
-	// Check all queries, recursively, to see if they depend on input. If this
-	// becomes a bottleneck, consider caching.
-	queries := []Body{body}
-	foundInput := false
+	// Perform DFS for conflicting or missing input document.
+	for _, expr := range body {
 
-	for len(queries) > 0 && !foundInput {
-		body := queries[0]
-		queries = queries[1:]
-		WalkRefs(body, func(r Ref) bool {
-			if r.HasPrefix(InputRootRef) {
-				foundInput = true
+		definedCurr := definesInput(expr)
+
+		if definedPrev && definedCurr {
+			return newConflictingInputErr(expr.Location)
+		} else if !definedCurr && !definedPrev && referencesInput(expr) {
+			return newMissingInputErr(expr.Location)
+		}
+
+		var err error
+
+		// Check closures contained in this expression.
+		vis := NewGenericVisitor(func(x interface{}) bool {
+			if err != nil {
 				return true
 			}
-			if !r.HasPrefix(DefaultRootRef) {
-				return false
-			}
-			for _, rule := range qc.compiler.GetRules(r) {
-				queries = append(queries, rule.Body)
+			switch x := x.(type) {
+			case *ArrayComprehension:
+				if err = qc.checkInputRec(definedPrev || definedCurr, x.Body); err != nil {
+					return true
+				}
 			}
 			return false
 		})
+
+		Walk(vis, expr)
+
+		if err != nil {
+			return err
+		}
+
+		// Check rule bodies referred to by this expression.
+		vis = NewGenericVisitor(func(x interface{}) bool {
+			if err != nil {
+				return true
+			}
+			switch x := x.(type) {
+			case Ref:
+				if x.HasPrefix(DefaultRootRef) {
+					for _, rule := range qc.compiler.GetRules(x.GroundPrefix()) {
+						if err = qc.checkInputRec(definedPrev || definedCurr, rule.Body); err != nil {
+							return true
+						}
+					}
+				}
+			}
+			return false
+		})
+
+		Walk(vis, expr)
+
+		if err != nil {
+			return err
+		}
 	}
 
-	if foundInput {
-		return nil, NewError(MissingInputErr, body.Loc(), "missing input document")
-	}
+	return nil
+}
 
+// referencesInput returns true if expr refers to the input document. This
+// function will not visit closures.
+func referencesInput(expr *Expr) bool {
+
+	found := false
+
+	vis := NewGenericVisitor(func(x interface{}) bool {
+		if found {
+			return found
+		}
+		switch x := x.(type) {
+		case *ArrayComprehension: // skip closures
+			return true
+		case Ref:
+			if x.HasPrefix(InputRootRef) {
+				found = true
+				return found
+			}
+		}
+		return false
+	})
+
+	Walk(vis, expr)
+
+	return found
+}
+
+// definesInput returns true if expr defines the input document using the with
+// modifier.
+func definesInput(expr *Expr) bool {
+	for _, w := range expr.With {
+		if ref, ok := w.Target.Value.(Ref); ok {
+			if ref.HasPrefix(InputRootRef) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func (qc *queryCompiler) checkWithModifiers(qctx *QueryContext, body Body) (Body, error) {
+	wc := newWithModifierChecker()
+	if errs := wc.Check(body); len(errs) != 0 {
+		return nil, errs
+	}
 	return body, nil
 }
 
@@ -839,28 +933,24 @@ func (n *RuleTreeNode) DepthFirst(f func(node *RuleTreeNode) bool) {
 
 // builtinChecker verifies that built-in functions are called correctly.
 type builtinChecker struct {
-	errors *Errors
+	errors Errors
 	prefix string
 }
 
 func newBuiltinChecker() *builtinChecker {
-	return &builtinChecker{
-		errors: &Errors{},
-	}
+	return &builtinChecker{}
 }
 
 // Check returns built-in function call errors underneath the AST node x.
 func (bc *builtinChecker) Check(x interface{}) Errors {
 	Walk(bc, x)
-	return *(bc.errors)
+	return bc.errors
 }
 
 func (bc *builtinChecker) Visit(x interface{}) Visitor {
 	switch x := x.(type) {
 	case *Rule:
-		cpy := *bc
-		cpy.prefix = string(x.Name)
-		return &cpy
+		bc.prefix = string(x.Name)
 	case *Expr:
 		if ts, ok := x.Terms.([]*Term); ok {
 			if bi, ok := BuiltinMap[ts[0].Value.(Var)]; ok {
@@ -881,7 +971,71 @@ func (bc *builtinChecker) err(code ErrCode, loc *Location, f string, a ...interf
 	if bc.prefix != "" {
 		f = bc.prefix + ": " + f
 	}
-	*(bc.errors) = append(*(bc.errors), NewError(code, loc, f, a...))
+	bc.errors = append(bc.errors, NewError(code, loc, f, a...))
+}
+
+type withModifierChecker struct {
+	errors Errors
+	expr   *Expr
+	prefix string
+}
+
+func newWithModifierChecker() *withModifierChecker {
+	return &withModifierChecker{}
+}
+
+func (wc *withModifierChecker) Check(x interface{}) Errors {
+	Walk(wc, x)
+	return wc.errors
+}
+
+func (wc *withModifierChecker) Visit(x interface{}) Visitor {
+	switch x := x.(type) {
+	case *Rule:
+		wc.prefix = string(x.Name)
+	case *Expr:
+		wc.expr = x
+	case *With:
+		wc.checkTarget(x)
+		wc.checkValue(x)
+		return nil
+	}
+	return wc
+}
+
+func (wc *withModifierChecker) checkTarget(w *With) {
+
+	if ref, ok := w.Target.Value.(Ref); ok {
+		if !ref.HasPrefix(InputRootRef) {
+			wc.err(CompileErr, w.Location, "with target must be %v (got %v as target)", InputRootDocument, w.Target)
+		}
+	}
+
+	// TODO(tsandall): could validate that target is in fact referred to by
+	// evaluation of the expression.
+}
+
+func (wc *withModifierChecker) checkValue(w *With) {
+	WalkClosures(w.Value, func(c interface{}) bool {
+		wc.err(CompileErr, w.Location, "with value must not contain closures (found %v in with value)", c)
+		return true
+	})
+
+	if len(wc.errors) > 0 {
+		return
+	}
+
+	WalkRefs(w.Value, func(r Ref) bool {
+		wc.err(CompileErr, w.Location, "with value must not contain references (found %v in with value)", r)
+		return true
+	})
+}
+
+func (wc *withModifierChecker) err(code ErrCode, loc *Location, f string, a ...interface{}) {
+	if wc.prefix != "" {
+		f = wc.prefix + ": " + f
+	}
+	wc.errors = append(wc.errors, NewError(code, loc, f, a...))
 }
 
 type ruleGraphBuilder struct {
@@ -1296,6 +1450,10 @@ func resolveRefsInExpr(globals map[Var]Value, expr *Expr) *Expr {
 			buf = append(buf, resolveRefsInTerm(globals, t))
 		}
 		cpy.Terms = buf
+	}
+	for _, w := range cpy.With {
+		w.Target = resolveRefsInTerm(globals, w.Target)
+		w.Value = resolveRefsInTerm(globals, w.Value)
 	}
 	return &cpy
 }

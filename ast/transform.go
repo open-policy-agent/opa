@@ -120,6 +120,23 @@ func Transform(t Transformer, x interface{}) (interface{}, error) {
 				return nil, err
 			}
 		}
+		for i, w := range y.With {
+			w, err := Transform(t, w)
+			if err != nil {
+				return nil, err
+			}
+			if y.With[i], ok = w.(*With); !ok {
+				return nil, fmt.Errorf("illegal transform: %T != %T", y.With[i], w)
+			}
+		}
+		return y, nil
+	case *With:
+		if y.Target, err = transformTerm(t, y.Target); err != nil {
+			return nil, err
+		}
+		if y.Value, err = transformTerm(t, y.Value); err != nil {
+			return nil, err
+		}
 		return y, nil
 	case Ref:
 		for i, term := range y {

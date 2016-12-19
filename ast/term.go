@@ -1044,6 +1044,19 @@ func unmarshalExpr(expr *Expr, v map[string]interface{}) error {
 	default:
 		return fmt.Errorf(`ast: unable to unmarshal terms field with type: %T (expected {"value": ..., "type": ...} or [{"value": ..., "type": ...}, ...])`, v["terms"])
 	}
+	if x, ok := v["with"]; ok {
+		if sl, ok := x.([]interface{}); ok {
+			ws := make([]*With, len(sl))
+			for i := range sl {
+				var err error
+				ws[i], err = unmarshalWith(sl[i])
+				if err != nil {
+					return err
+				}
+			}
+			expr.With = ws
+		}
+	}
 	return nil
 }
 
@@ -1089,6 +1102,26 @@ func unmarshalTermSliceValue(d map[string]interface{}) ([]*Term, error) {
 		return unmarshalTermSlice(s)
 	}
 	return nil, fmt.Errorf(`ast: unable to unmarshal term (expected {"value": [...], "type": ...} where type is one of: %v, %v, %v)`, ArrayTypeName, SetTypeName, RefTypeName)
+}
+
+func unmarshalWith(i interface{}) (*With, error) {
+	if m, ok := i.(map[string]interface{}); ok {
+		tgt, _ := m["target"].(map[string]interface{})
+		target, err := unmarshalTerm(tgt)
+		if err == nil {
+			val, _ := m["value"].(map[string]interface{})
+			value, err := unmarshalTerm(val)
+			if err == nil {
+				return &With{
+					Target: target,
+					Value:  value,
+				}, nil
+			}
+			return nil, err
+		}
+		return nil, err
+	}
+	return nil, fmt.Errorf(`ast: unable to unmarshal with modifier (expected {"target": {...}, "value": {...}})`)
 }
 
 func unmarshalValue(d map[string]interface{}) (Value, error) {

@@ -324,6 +324,44 @@ func TestNegatedExpr(t *testing.T) {
 	assertParseOneExprNegated(t, "misc. builtin", "not sorted(x[y].z[a])", NewBuiltinExpr(VarTerm("sorted"), ref1))
 }
 
+func TestExprWith(t *testing.T) {
+	assertParseOneExpr(t, "input", "data.foo with input as baz", &Expr{
+		Terms: MustParseTerm("data.foo"),
+		With: []*With{
+			{
+				Target: NewTerm(InputRootRef),
+				Value:  VarTerm("baz"),
+			},
+		},
+	})
+
+	assertParseOneExpr(t, "builtin/ref target/composites", `plus(data.foo, 1, x) with input.com.acmecorp.obj as {"count": [{1,2,3}]}`, &Expr{
+		Terms: MustParseExpr("plus(data.foo, 1, x)").Terms,
+		With: []*With{
+			{
+				Target: MustParseTerm("input.com.acmecorp.obj"),
+				Value:  MustParseTerm(`{"count": [{1,2,3}]}`),
+			},
+		},
+	})
+
+	assertParseOneExpr(t, "multiple", `data.foo with input.obj as baz with input.com.acmecorp.obj as {"count": [{1,2,3}]}`, &Expr{
+		Terms: MustParseTerm("data.foo"),
+		With: []*With{
+			{
+				Target: MustParseTerm("input.obj"),
+				Value:  VarTerm("baz"),
+			},
+			{
+				Target: MustParseTerm("input.com.acmecorp.obj"),
+				Value:  MustParseTerm(`{"count": [{1,2,3}]}`),
+			},
+		},
+	})
+
+	assertParseErrorEquals(t, "invalid import path", `data.foo with foo.bar as "x"`, "invalid path foo.bar: path must begin with input or data")
+}
+
 func TestPackage(t *testing.T) {
 	ref1 := RefTerm(DefaultRootDocument, StringTerm("foo"))
 	assertParsePackage(t, "single", "package foo", &Package{Path: ref1.Value.(Ref)})
@@ -661,10 +699,17 @@ func TestRuleFromBody(t *testing.T) {
 	input.x = true
 	`
 
+	withExpr := `
+	package a.b.c
+
+	foo = input with input as 1
+	`
+
 	assertParseModuleError(t, "multiple expressions", multipleExprs)
 	assertParseModuleError(t, "non-equality", nonEquality)
 	assertParseModuleError(t, "non-var name", nonVarName)
 	assertParseModuleError(t, "ref name", refName)
+	assertParseModuleError(t, "with expr", withExpr)
 }
 
 func TestWildcards(t *testing.T) {
@@ -810,6 +855,7 @@ func assertParseOne(t *testing.T, msg string, input string, correct func(interfa
 	p, err := ParseStatement(input)
 	if err != nil {
 		t.Errorf("Error on test %s: parse error on %s: %s", msg, input, err)
+		return
 	}
 	correct(p)
 }

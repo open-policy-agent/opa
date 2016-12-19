@@ -24,9 +24,10 @@ func TestVisitor(t *testing.T) {
 		p[x] = {"foo": [y,2,{"bar": 3}]},
 		not q[x],
 		y = [ [x,z] | x = "x", z = "z" ],
-		count({1,2,3}, n)
+		count({1,2,3}, n) with input.foo.bar as x
 	`)
 	vis := &testVis{}
+
 	Walk(vis, rule)
 
 	/*
@@ -87,9 +88,15 @@ func TestVisitor(t *testing.T) {
 							2
 							3
 						n
+						with
+							input.foo.bar
+								input
+								foo
+								bar
+							baz
 	*/
-	if len(vis.elems) != 57 {
-		t.Errorf("Expected exactly 57 elements in AST but got %d: %v", len(vis.elems), vis.elems)
+	if len(vis.elems) != 63 {
+		t.Errorf("Expected exactly 63 elements in AST but got %d: %v", len(vis.elems), vis.elems)
 	}
 
 }
@@ -104,5 +111,36 @@ func TestWalkVars(t *testing.T) {
 	expected := NewVarSet(Var("x"), Var("data"), Var("y"), Var("z"), Var("q"), Var("eq"))
 	if !expected.Equal(found) {
 		t.Fatalf("Expected %v but got: %v", expected, found)
+	}
+}
+
+func TestVarVisitor(t *testing.T) {
+
+	tests := []struct {
+		stmt     string
+		params   VarVisitorParams
+		expected string
+	}{
+		{"data.foo[x] = bar.baz[y]", VarVisitorParams{SkipRefHead: true}, "[eq, x, y]"},
+		{"{x: y}", VarVisitorParams{SkipObjectKeys: true}, "[y]"},
+		{"foo = [ x | data.a[i] = x ]", VarVisitorParams{SkipClosures: true}, "[eq, foo]"},
+		{"x=1,y=2,plus(x,y,z),count([x,y,z],z)", VarVisitorParams{SkipBuiltinOperators: true}, "[x, y, z]"},
+		{"foo with input.bar.baz as qux[corge]", VarVisitorParams{SkipWithTarget: true}, "[foo, qux, corge]"},
+	}
+
+	for _, tc := range tests {
+		stmt := MustParseStatement(tc.stmt)
+
+		vis := NewVarVisitor().WithParams(tc.params)
+		Walk(vis, stmt)
+
+		expected := NewVarSet()
+		for _, x := range MustParseTerm(tc.expected).Value.(Array) {
+			expected.Add(x.Value.(Var))
+		}
+
+		if !vis.Vars().Equal(expected) {
+			t.Errorf("For %v w/ %v expected %v but got: %v", stmt, tc.params, expected, vis.Vars())
+		}
 	}
 }

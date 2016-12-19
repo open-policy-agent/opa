@@ -177,7 +177,6 @@ func TestCompilerCheckSafetyBodyReordering(t *testing.T) {
 		body     string
 		expected string
 	}{
-		// trivial cases
 		{"noop", "x = 1, x != 0", "x = 1, x != 0"},
 		{"var/ref", "a[i] = x, a = [1,2,3,4]", "a = [1,2,3,4], a[i] = x"},
 		{"var/ref (nested)", "a = [1,2,3,4], a[b[i]] = x, b = [0,0,0,0]", "a = [1,2,3,4], b = [0,0,0,0], a[b[i]] = x"},
@@ -188,19 +187,19 @@ func TestCompilerCheckSafetyBodyReordering(t *testing.T) {
 		{"var/var 1", "x = y, z = 1, y = z", "z = 1, y = z, x = y"},
 		{"var/var 2", "x = y, 1 = z, z = y", "1 = z, z = y, x = y"},
 		{"var/var 3", "x != 0, y = x, y = 1", "y = 1, y = x, x != 0"},
-
-		// comprehensions
 		{"array compr/var", "x != 0, [y | y = 1] = x", "[y | y = 1] = x, x != 0"},
 		{"array compr/array", "[1] != [x], [y | y = 1] = [x]", "[y | y = 1] = [x], [1] != [x]"},
+		{"with", "data.a.b.d.t with input as x, x = 1", "x = 1, data.a.b.d.t with input as x"},
+		{"with-2", "data.a.b.d.t with input.x as x, x = 1", "x = 1, data.a.b.d.t with input.x as x"},
+		{"with-nop", "data.somedoc[x] with input as true", "data.somedoc[x] with input as true"},
 	}
 
 	for i, tc := range tests {
 		c := NewCompiler()
-		c.Modules = map[string]*Module{
-			"mod": MustParseModule(
-				fmt.Sprintf(`package test
-						 p :- %s`, tc.body)),
-		}
+		c.Modules = getCompilerTestModules()
+		c.Modules["reordering"] = MustParseModule(fmt.Sprintf(
+			`package test
+			 p :- %s`, tc.body))
 
 		compileStages(c, "", "checkSafetyBody")
 
@@ -208,9 +207,12 @@ func TestCompilerCheckSafetyBodyReordering(t *testing.T) {
 			t.Errorf("%v (#%d): Unexpected compilation error: %v", tc.note, i, c.Errors)
 			return
 		}
-		e := MustParseBody(tc.expected)
-		if !e.Equal(c.Modules["mod"].Rules[0].Body) {
-			t.Errorf("%v (#%d): Expected body to be ordered and equal to %v but got: %v", tc.note, i, e, c.Modules["mod"].Rules[0].Body)
+
+		expected := MustParseBody(tc.expected)
+		result := c.Modules["reordering"].Rules[0].Body
+
+		if !expected.Equal(result) {
+			t.Errorf("%v (#%d): Expected body to be ordered and equal to %v but got: %v", tc.note, i, expected, result)
 		}
 	}
 }
@@ -228,6 +230,7 @@ func TestCompilerCheckSafetyBodyReorderingClosures(t *testing.T) {
 			p :- v     = [null | true],                               # leave untouched
 				 xs    = [x | a[i] = x, a = [y | y != 1, y = c[j]]],  # close over 'i' and 'j', 2-level reorder
 				 xs[j] > 0,
+				 z = [true | data.a.b.d.t with input as i2, i2 = i],    # close over 'i'
 				 b[i]  = j
 
 			# test that reordering is not performed when closing over different globals, e.g.,
@@ -251,6 +254,7 @@ func TestCompilerCheckSafetyBodyReorderingClosures(t *testing.T) {
 		v          = [null | true],
 		data.b[i]  = j,
 		xs         = [x | a = [y | y = data.c[j], y != 1], a[i] = x],
+		z          = [true | i2 = i, data.a.b.d.t with input as i2],
 		xs[j]      > 0
 	`)
 	if !result1.Equal(expected1) {
@@ -333,6 +337,9 @@ func TestCompilerCheckSafetyBodyErrors(t *testing.T) {
 	negatedImport3 = true :- not baz
 
 	rewriteUnsafe[{"foo": dead[i]}] :- true  # dead is not imported
+
+	unsafeWithValue1 :- data.a.b.d.t with input as x
+	unsafeWithValue2 :- x = data.a.b.d.t with input as x
 	`)}
 	compileStages(c, "", "checkSafetyBody")
 
@@ -368,6 +375,8 @@ func TestCompilerCheckSafetyBodyErrors(t *testing.T) {
 		makeErrMsg("unsafeClosure2", "y"),
 		makeErrMsg("unsafeNestedHead", "dead"),
 		makeErrMsg("rewriteUnsafe", "dead"),
+		makeErrMsg("unsafeWithValue1", "x"),
+		makeErrMsg("unsafeWithValue2", "x"),
 	}
 
 	result := compilerErrsToStringSlice(c.Errors)
@@ -382,6 +391,33 @@ func TestCompilerCheckSafetyBodyErrors(t *testing.T) {
 			t.Errorf("Expected %v but got: %v", expected[i], result[i])
 		}
 	}
+
+}
+
+func TestCompilerCheckWithModifiers(t *testing.T) {
+
+	c := NewCompiler()
+	c.Modules = getCompilerTestModules()
+	c.Modules["with-modifiers"] = MustParseModule(`
+	package badwith
+
+	import data.a.b.d.t as req_dep
+
+	p = true
+	ref_in_value :- req_dep with input as p
+	closure_in_value :- req_dep with input as [null | null]
+	data_target :- req_dep with data.p as "foo"
+	`)
+
+	compileStages(c, "", "checkWithModifiers")
+
+	expected := []string{
+		"closure_in_value: with value must not contain closures (found [null | null] in with value)",
+		"data_target: with target must be input (got data.p as target)",
+		"ref_in_value: with value must not contain references (found data.badwith.p in with value)",
+	}
+
+	assertCompilerErrorStrings(t, c, expected)
 
 }
 
@@ -1042,9 +1078,14 @@ func TestQueryCompiler(t *testing.T) {
 		{"exports resolved", "z", "package a.b.c", nil, "", "data.a.b.c.z"},
 		{"imports resolved", "z", "package a.b.c.d", []string{"import data.a.b.c.z"}, "", "data.a.b.c.z"},
 		{"unsafe vars", "z", "", nil, "", fmt.Errorf("1 error occurred: 1:1: z is unsafe (variable z must appear in the output position of at least one non-negated expression)")},
-		{"safe vars", "data, abc", "package ex", []string{"import input.xyz as abc"}, "null", "data, input.xyz"},
+		{"safe vars", "data, abc", "package ex", []string{"import input.xyz as abc"}, `{}`, "data, input.xyz"},
 		{"reorder", "x != 1, x = 0", "", nil, "", "x = 0, x != 1"},
 		{"bad builtin", "deadbeef(1,2,3)", "", nil, "", fmt.Errorf("1 error occurred: 1:1: unknown built-in function deadbeef")},
+		{"bad with target", "x = 1 with data.p as null", "", nil, "", fmt.Errorf("1 error occurred: 1:7: with target must be input (got data.p as target)")},
+		// wrapping refs in extra terms to cover error handling
+		{"missing input", "[[ true | [data.a.b.d.t, true]], true]", "", nil, "", fmt.Errorf("4:14: missing input document")},
+		{"conflicting input", "[ true | data.a.b.d.t with input as 1 ]", "", nil, "2", fmt.Errorf("1:10: conflicting input document")},
+		{"conflicting input-2", "sum([1 | data.a.b.d.t with input as 2], x) with input as 3", "", nil, "", fmt.Errorf("1:10: conflicting input document")},
 	}
 
 	for _, tc := range tests {

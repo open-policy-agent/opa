@@ -43,6 +43,8 @@ var Keywords = [...]string{
 	"not",
 	"package",
 	"import",
+	"as",
+	"with",
 	"null",
 	"true",
 	"false",
@@ -128,6 +130,14 @@ type (
 		Index    int         `json:"index"`
 		Negated  bool        `json:"negated,omitempty"`
 		Terms    interface{} `json:"terms"`
+		With     []*With     `json:"with,omitempty"`
+	}
+
+	// With represents a modifier on an expression.
+	With struct {
+		Location *Location `json:"-"`
+		Target   *Term     `json:"target"`
+		Value    *Term     `json:"value"`
 	}
 )
 
@@ -525,6 +535,7 @@ func NewExpr(terms interface{}) *Expr {
 		Negated: false,
 		Terms:   terms,
 		Index:   0,
+		With:    nil,
 	}
 }
 
@@ -549,40 +560,51 @@ func (expr *Expr) Equal(other *Expr) bool {
 // 2. Non-negated expressions are always less than than negated expressions.
 // 3. Single term expressions are always less than built-in expressions.
 //
-// Otherwise, the expression terms are compared normally.
+// Otherwise, the expression terms are compared normally. If both expressions
+// have the same terms, the modifiers are compared.
 func (expr *Expr) Compare(other *Expr) int {
+
 	switch {
 	case expr.Index < other.Index:
 		return -1
 	case expr.Index > other.Index:
 		return 1
 	}
+
 	switch {
 	case expr.Negated && !other.Negated:
 		return 1
 	case !expr.Negated && other.Negated:
 		return -1
 	}
+
 	switch t := expr.Terms.(type) {
 	case *Term:
 		u, ok := other.Terms.(*Term)
 		if !ok {
 			return -1
 		}
-		return Compare(t.Value, u.Value)
+		if cmp := Compare(t.Value, u.Value); cmp != 0 {
+			return cmp
+		}
 	case []*Term:
 		u, ok := other.Terms.([]*Term)
 		if !ok {
 			return 1
 		}
-		return termSliceCompare(t, u)
+		if cmp := termSliceCompare(t, u); cmp != 0 {
+			return cmp
+		}
 	}
-	panic(fmt.Sprintf("illegal value: %T", expr.Terms))
+
+	return withSliceCompare(expr.With, other.With)
 }
 
 // Copy returns a deep copy of expr.
 func (expr *Expr) Copy() *Expr {
+
 	cpy := *expr
+
 	switch ts := expr.Terms.(type) {
 	case []*Term:
 		cpyTs := make([]*Term, len(ts))
@@ -593,6 +615,12 @@ func (expr *Expr) Copy() *Expr {
 	case *Term:
 		cpy.Terms = ts.Copy()
 	}
+
+	cpy.With = make([]*With, len(expr.With))
+	for i := range expr.With {
+		cpy.With[i] = expr.With[i].Copy()
+	}
+
 	return &cpy
 }
 
@@ -610,7 +638,23 @@ func (expr *Expr) Hash() int {
 	if expr.Negated {
 		s++
 	}
+	for _, w := range expr.With {
+		s += w.Hash()
+	}
 	return s
+}
+
+// IncludeWith returns a copy of expr with the with modifier appended.
+func (expr *Expr) IncludeWith(target *Term, value *Term) *Expr {
+	cpy := *expr
+	cpy.With = append(cpy.With, &With{Target: target, Value: value})
+	return &cpy
+}
+
+// NoWith returns a copy of expr where the with modifier has been removed.
+func (expr *Expr) NoWith() *Expr {
+	expr.With = nil
+	return expr
 }
 
 // IsEquality returns true if this is an equality expression.
@@ -644,6 +688,14 @@ func (expr *Expr) IsGround() bool {
 // this expression.
 func (expr *Expr) OutputVars(safe VarSet) VarSet {
 	if !expr.Negated {
+
+		// Currently the with modifier does not produce any outputs. Any
+		// variables in the value must be safe before the expression can be
+		// evaluated.
+		if !expr.withModifierSafe(safe) {
+			return VarSet{}
+		}
+
 		switch terms := expr.Terms.(type) {
 		case *Term:
 			return expr.outputVarsRefs()
@@ -676,6 +728,9 @@ func (expr *Expr) String() string {
 		buf = append(buf, s)
 	case *Term:
 		buf = append(buf, t.String())
+	}
+	for i := range expr.With {
+		buf = append(buf, expr.With[i].String())
 	}
 	return strings.Join(buf, " ")
 }
@@ -752,10 +807,58 @@ func (expr *Expr) outputVarsRefs() VarSet {
 	return o
 }
 
+func (expr *Expr) withModifierSafe(safe VarSet) bool {
+	for _, with := range expr.With {
+		unsafe := false
+		WalkVars(with, func(v Var) bool {
+			if !safe.Contains(v) {
+				unsafe = true
+				return true
+			}
+			return false
+		})
+		if unsafe {
+			return false
+		}
+	}
+	return true
+}
+
 // NewBuiltinExpr creates a new Expr object with the supplied terms.
 // The builtin operator must be the first term.
 func NewBuiltinExpr(terms ...*Term) *Expr {
 	return &Expr{Terms: terms}
+}
+
+func (w *With) String() string {
+	return "with " + w.Target.String() + " as " + w.Value.String()
+}
+
+// Equal returns true if this With is equals the other With.
+func (w *With) Equal(other *With) bool {
+	return Compare(w, other) == 0
+}
+
+// Compare returns an integer indicating whether w is less than, equal to, or
+// greater than other.
+func (w *With) Compare(other *With) int {
+	if cmp := Compare(w.Target, other.Target); cmp != 0 {
+		return cmp
+	}
+	return Compare(w.Value, other.Value)
+}
+
+// Copy returns a deep copy of w.
+func (w *With) Copy() *With {
+	cpy := *w
+	cpy.Value = w.Value.Copy()
+	cpy.Target = w.Target.Copy()
+	return &cpy
+}
+
+// Hash returns the hash code of the With.
+func (w With) Hash() int {
+	return w.Target.Hash() + w.Value.Hash()
 }
 
 type ruleSlice []*Rule

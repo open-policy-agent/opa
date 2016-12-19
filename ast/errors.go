@@ -50,6 +50,10 @@ const (
 	// MissingInputErr indicates the query depends on input but no input
 	// document was provided.
 	MissingInputErr = iota
+
+	// ConflictingInputErr indicates the query defines conflicting values for
+	// input document.
+	ConflictingInputErr = iota
 )
 
 // IsError returns true if err is an AST error with code.
@@ -90,4 +94,12 @@ func NewError(code ErrCode, loc *Location, f string, a ...interface{}) *Error {
 		Location: loc,
 		Message:  fmt.Sprintf(f, a...),
 	}
+}
+
+func newMissingInputErr(loc *Location) error {
+	return NewError(MissingInputErr, loc, "missing input document")
+}
+
+func newConflictingInputErr(loc *Location) error {
+	return NewError(ConflictingInputErr, loc, "conflicting input document")
 }
