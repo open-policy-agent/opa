@@ -66,7 +66,7 @@ file extensions that OPA will consider are:
 	.rego          # Rego file
 
 Data file and directory paths can be prefixed with the desired destination in
-the global document with the following syntax:
+the data document with the following syntax:
 
 	<dotted-path>:<file-path>
 
