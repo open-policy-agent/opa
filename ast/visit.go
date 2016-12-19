@@ -59,6 +59,12 @@ func Walk(v Visitor, x interface{}) {
 		case *Term:
 			Walk(w, ts.Value)
 		}
+		for i := range x.With {
+			Walk(w, x.With[i])
+		}
+	case *With:
+		Walk(w, x.Target)
+		Walk(w, x.Value)
 	case Ref:
 		for _, t := range x {
 			Walk(w, t.Value)
@@ -119,6 +125,18 @@ func WalkVars(x interface{}, f func(Var) bool) {
 	Walk(vis, x)
 }
 
+// WalkWiths calls the function f on all with modifiers under x. If the function f
+// returns true, AST nodes under the last node will not be visited.
+func WalkWiths(x interface{}, f func(*With) bool) {
+	vis := &GenericVisitor{func(x interface{}) bool {
+		if w, ok := x.(*With); ok {
+			return f(w)
+		}
+		return false
+	}}
+	Walk(vis, x)
+}
+
 // WalkBodies calls the function f on all bodies under x. If the function f
 // returns true, AST nodes under the last node will not be visited.
 func WalkBodies(x interface{}, f func(Body) bool) {
@@ -136,6 +154,12 @@ func WalkBodies(x interface{}, f func(Body) bool) {
 // returns true, the visitor will not walk over AST nodes under x.
 type GenericVisitor struct {
 	f func(x interface{}) bool
+}
+
+// NewGenericVisitor returns a new GenericVisitor that will invoke the function
+// f on AST nodes.
+func NewGenericVisitor(f func(x interface{}) bool) *GenericVisitor {
+	return &GenericVisitor{f}
 }
 
 // Visit calls the function f on the GenericVisitor.
@@ -160,6 +184,7 @@ type VarVisitorParams struct {
 	SkipObjectKeys       bool
 	SkipClosures         bool
 	SkipBuiltinOperators bool
+	SkipWithTarget       bool
 }
 
 // NewVarVisitor returns a new VarVisitor object.
@@ -210,8 +235,17 @@ func (vis *VarVisitor) Visit(v interface{}) Visitor {
 				for _, t := range ts[1:] {
 					Walk(vis, t)
 				}
+				for _, with := range v.With {
+					Walk(vis, with)
+				}
 				return nil
 			}
+		}
+	}
+	if vis.params.SkipWithTarget {
+		if v, ok := v.(*With); ok {
+			Walk(vis, v.Value)
+			return nil
 		}
 	}
 	if v, ok := v.(Var); ok {

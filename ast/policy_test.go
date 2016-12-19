@@ -30,6 +30,7 @@ func TestModuleJSONRoundTrip(t *testing.T) {
 	empty_obj :- {}
 	empty_arr :- []
 	empty_set :- set()
+	using_with :- plus(data.foo, 1, x) with input.foo as bar
 	`)
 
 	bs, err := json.Marshal(mod)
@@ -47,6 +48,7 @@ func TestModuleJSONRoundTrip(t *testing.T) {
 	if !roundtrip.Equal(mod) {
 		t.Fatalf("Expected roundtripped module to be equal to original:\nExpected:\n\n%v\n\nGot:\n\n%v\n", mod, roundtrip)
 	}
+
 }
 
 func TestPackageEquals(t *testing.T) {
@@ -165,6 +167,40 @@ func TestExprEquals(t *testing.T) {
 	assertExprEqual(t, expr20, expr21)
 	assertExprNotEqual(t, expr20, expr22)
 	assertExprNotEqual(t, expr20, expr23)
+
+	// Modifiers
+	expr30 := &Expr{
+		Terms: MustParseTerm("data.foo.bar"),
+		With: []*With{
+			&With{
+				Target: MustParseTerm("input"),
+				Value:  MustParseTerm("bar"),
+			},
+		},
+	}
+
+	expr31 := &Expr{
+		Terms: MustParseTerm("data.foo.bar"),
+		With: []*With{
+			&With{
+				Target: MustParseTerm("input"),
+				Value:  MustParseTerm("bar"),
+			},
+		},
+	}
+
+	expr32 := &Expr{
+		Terms: MustParseTerm("data.foo.bar"),
+		With: []*With{
+			&With{
+				Target: MustParseTerm("input.foo"),
+				Value:  MustParseTerm("baz"),
+			},
+		},
+	}
+
+	assertExprEqual(t, expr30, expr31)
+	assertExprNotEqual(t, expr30, expr32)
 }
 
 func TestBodyIsGround(t *testing.T) {
@@ -185,12 +221,15 @@ func TestExprOutputVars(t *testing.T) {
 		{"ref 2", "[1,2,a[i]]", "[a]", "[i]"},
 		{"simple unify", `{"a": [{x: y}, b[z]]} = c[i]`, "[b, c]", "[y, z, i]"},
 		{"built-in", "count([], x)", "[]", "[x]"},
+		{"with", "data.foo[x] with input as bar", "[bar]", "[x]"},
+		{"with unsafe", "data.foo[x] with input as x", "[]", "[]"},
 	}
 
 	for i, tc := range tests {
 
 		expr := MustParseBody(tc.expr)[0]
-		safe := VarSet{}
+		safe := ReservedVars.Copy()
+
 		for _, x := range MustParseTerm(tc.safe).Value.(Array) {
 			safe.Add(x.Value.(Var))
 		}
@@ -230,10 +269,24 @@ func TextExprString(t *testing.T) {
 			BooleanTerm(false),
 		},
 	}
+	expr5 := &Expr{
+		Terms: BooleanTerm(true),
+		With: []*With{
+			{
+				Target: VarTerm("foo"),
+				Value:  VarTerm("bar"),
+			},
+			{
+				Target: VarTerm("baz"),
+				Value:  VarTerm("qux"),
+			},
+		},
+	}
 	assertExprString(t, expr1, "q.r[x]")
 	assertExprString(t, expr2, "not q.r[x]")
 	assertExprString(t, expr3, "eq(\"a\", 17.1)")
 	assertExprString(t, expr4, "ne({foo: [1, a.b]}, false)")
+	assertExprString(t, expr5, "true with foo as bar with baz as qux")
 }
 
 func TestExprBadJSON(t *testing.T) {
@@ -374,6 +427,32 @@ func TestModuleString(t *testing.T) {
 
 	if !roundtrip.Equal(mod) {
 		t.Fatalf("Expected roundtripped to equal original but:\n\nExpected:\n\n%v\n\nDoes not equal result:\n\n%v", mod, roundtrip)
+	}
+}
+
+func TestWithString(t *testing.T) {
+
+	with1 := &With{
+		Target: VarTerm("foo"),
+		Value:  VarTerm("bar"),
+	}
+
+	result := with1.String()
+	expected := "with foo as bar"
+	if result != expected {
+		t.Fatalf("Expected %v but got %v", expected, result)
+	}
+
+	with2 := &With{
+		Target: MustParseTerm("com.example.input"),
+		Value:  MustParseTerm(`{[1,2,3], {"x": y}}`),
+	}
+
+	result = with2.String()
+	expected = `with com.example.input as {[1, 2, 3], {"x": y}}`
+
+	if result != expected {
+		t.Fatalf("Expected %v but got %v", expected, result)
 	}
 }
 

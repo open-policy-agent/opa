@@ -27,6 +27,7 @@ const (
 	SetTypeName                = "set"
 	ArrayComprehensionTypeName = "arraycomprehension"
 	ExprTypeName               = "expr"
+	WithTypeName               = "with"
 	BodyTypeName               = "body"
 	HeadTypeName               = "head"
 	RuleTypeName               = "rule"

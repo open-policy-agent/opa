@@ -38,6 +38,10 @@ func TestCompare(t *testing.T) {
 		{`a = b`, `b = a`, -1},
 		{`b = a`, `not a = b`, -1},
 		{`a = b`, `x`, 1},
+		{`a = b`, `a = b with input.foo as bar`, -1},
+		{`a = b with input.foo as bar`, `a = b`, 1},
+		{`a = b with input.foo as bar`, `a = b with input.foo.bar.baz as qux`, -1},
+		{`a = b with input.foo as bar`, `a = b with input.foo as bar with input.baz as qux`, -1},
 
 		// Body
 		{`a = b`, `a = b, b = a`, -1},

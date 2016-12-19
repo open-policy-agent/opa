@@ -130,8 +130,11 @@ func ParseRuleFromBody(body Body) (*Rule, error) {
 		return nil, fmt.Errorf("non-equality %v cannot be used for %v", ExprTypeName, HeadTypeName)
 	}
 
-	terms := expr.Terms.([]*Term)
+	if len(expr.With) > 0 {
+		return nil, fmt.Errorf("%vs using %v cannot be used for %v", ExprTypeName, WithTypeName, HeadTypeName)
+	}
 
+	terms := expr.Terms.([]*Term)
 	var name Var
 
 	switch v := terms[1].Value.(type) {

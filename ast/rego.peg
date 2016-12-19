@@ -155,7 +155,7 @@ Rule <- name:Var key:( _ "[" _ Term _ "]" _ )? value:( _ "=" _ Term )? body:( _ 
     return rule, nil
 }
 
-Body <- head:Expr tail:( _ "," _ (Expr / ParseError))* {
+Body <- head:Literal tail:( _ "," _ (Literal / ParseError))* {
     var buf Body
     buf = append(buf, head.(*Expr))
     for _, s := range tail.([]interface{}) {
@@ -165,13 +165,41 @@ Body <- head:Expr tail:( _ "," _ (Expr / ParseError))* {
     return buf, nil
 }
 
-Expr <- neg:( "not" ws )? val:(InfixExpr / PrefixExpr / Term) {
+Literal <- neg:( "not" ws )? val:Expr with:( ws With (ws With)* )? {
     expr := &Expr{}
     expr.Location = currentLocation(c)
     expr.Negated = neg != nil
     expr.Terms = val
+
+    if with != nil {
+        sl := with.([]interface{})
+        if head, ok := sl[1].(*With); ok {
+            expr.With = []*With{head}
+            if sl, ok := sl[2].([]interface{}); ok {
+                for i := range sl {
+                    if w, ok := sl[i].([]interface{})[1].(*With); ok {
+                        expr.With = append(expr.With, w)
+                    }
+                }
+            }
+        }
+    }
+
     return expr, nil
 }
+
+With <- "with" ws target:Term ws "as" ws value:Term {
+    with := &With{}
+    with.Location = currentLocation(c)
+    with.Target = target.(*Term)
+    if err := IsValidImportPath(with.Target.Value); err != nil {
+        return nil, err
+    }
+    with.Value = value.(*Term)
+    return with, nil
+}
+
+Expr <- InfixExpr / PrefixExpr / Term
 
 InfixExpr <- left:Term _ op:InfixOp _ right:Term {
     return []*Term{op.(*Term), left.(*Term), right.(*Term)}, nil

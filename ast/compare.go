@@ -155,6 +155,9 @@ func Compare(a, b interface{}) int {
 	case *Expr:
 		b := b.(*Expr)
 		return a.Compare(b)
+	case *With:
+		b := b.(*With)
+		return a.Compare(b)
 	case Body:
 		b := b.(Body)
 		return a.Compare(b)
@@ -204,6 +207,8 @@ func sortOrder(x interface{}) int {
 		return 9
 	case *Expr:
 		return 100
+	case *With:
+		return 110
 	case Body:
 		return 200
 	case *Rule:
@@ -257,6 +262,24 @@ func rulesCompare(a, b []*Rule) int {
 }
 
 func termSliceCompare(a, b []*Term) int {
+	minLen := len(a)
+	if len(b) < minLen {
+		minLen = len(b)
+	}
+	for i := 0; i < minLen; i++ {
+		if cmp := Compare(a[i], b[i]); cmp != 0 {
+			return cmp
+		}
+	}
+	if len(a) < len(b) {
+		return -1
+	} else if len(b) < len(a) {
+		return 1
+	}
+	return 0
+}
+
+func withSliceCompare(a, b []*With) int {
 	minLen := len(a)
 	if len(b) < minLen {
 		minLen = len(b)
