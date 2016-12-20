@@ -3,7 +3,48 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## 0.3.0
+
+The last major/minor release of 2016! Woohoo! This release contains a few
+non-backwards compatible changes to the APIs.
+
+### Storage API changes
+
+These changes simplify and clean up the storage.Store interface. This should
+make it easier to implement custom stores in the future.
+
+- Update storage to support context.Context ([#155](https://github.com/open-policy-agent/opa/issues/155))
+- Update underlying number representation ([#154](https://github.com/open-policy-agent/opa/issues/154))
+- Updates to use new storage.Path type ([#159](https://github.com/open-policy-agent/opa/issues/159))
+
+### The request Document
+
+These changes update the language to align query arguments with state stored in
+OPA. With these changes, OPA can readily analyze policies and determine
+references that refer to state stored in OPA versus query arguments versus local
+variables.
+
+These changes also update how query arguments are provided via the REST API.
+
+- Updates to how query arguments are handled [#197](https://github.com/open-policy-agent/opa/pull/197)
+
+### topdown API changes
+
+- topdown.Context has been renamed to topdown.Topdown to avoid confusion with Golang's context.
+
+### Fixes
+
+- Add help topics to REPL ([#172](https://github.com/open-policy-agent/opa/issues/172))
+- Fix error handling bug in Query API ([#183](https://github.com/open-policy-agent/opa/issues/183))
+- Fix handling of prefixed paths with -w flag ([#193](https://github.com/open-policy-agent/opa/issues/193))
+- Improve exit handling in REPL ([#175](https://github.com/open-policy-agent/opa/issues/175))
+- Update parser support for <var> = <term> rules ([#192](https://github.com/open-policy-agent/opa/issues/192))
+
+### Miscellaneous
+
+- Add Visual Studio and Atom plugins
+- Add lazy loading of modules during compilation
+- Fix bug in serialization of empty objects/arrays
 
 ## 0.2.2
 
