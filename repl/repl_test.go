@@ -184,12 +184,12 @@ func TestShow(t *testing.T) {
 	assertREPLText(t, buffer, "package repl_test\n")
 	buffer.Reset()
 
-	repl.OneShot(ctx, "import xyz")
+	repl.OneShot(ctx, "import request.xyz")
 	repl.OneShot(ctx, "show")
 
 	expected := `package repl_test
 
-import xyz` + "\n"
+import request.xyz` + "\n"
 	assertREPLText(t, buffer, expected)
 	buffer.Reset()
 
@@ -198,7 +198,7 @@ import xyz` + "\n"
 
 	expected = `package repl_test
 
-import xyz
+import request.xyz
 import data.foo as bar` + "\n"
 	assertREPLText(t, buffer, expected)
 	buffer.Reset()
@@ -209,7 +209,7 @@ import data.foo as bar` + "\n"
 
 	expected = `package repl_test
 
-import xyz
+import request.xyz
 import data.foo as bar
 
 p[1] :- true
@@ -700,20 +700,18 @@ func TestEvalBodyContainingWildCards(t *testing.T) {
 
 }
 
-func TestEvalBodyGlobals(t *testing.T) {
+func TestEvalBodyRequest(t *testing.T) {
 	ctx := context.Background()
 	store := newTestStore()
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
 
 	repl.OneShot(ctx, "package repl")
-	repl.OneShot(ctx, `globals["foo.bar"] = "hello" :- true`)
-	repl.OneShot(ctx, `globals["baz"] = data.a[0].b.c[2] :- true`)
+	repl.OneShot(ctx, `request["foo.bar"] = "hello" :- true`)
+	repl.OneShot(ctx, `request["baz"] = data.a[0].b.c[2] :- true`)
 	repl.OneShot(ctx, "package test")
-	repl.OneShot(ctx, "import foo.bar")
-	repl.OneShot(ctx, "import baz")
-	repl.OneShot(ctx, `p :- bar = "hello", baz = false`)
-
+	repl.OneShot(ctx, "import request.baz")
+	repl.OneShot(ctx, `p :- request["foo.bar"] = "hello", baz = false`)
 	repl.OneShot(ctx, "p")
 
 	result := buffer.String()

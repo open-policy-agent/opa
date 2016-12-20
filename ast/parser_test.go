@@ -274,15 +274,18 @@ func TestPackage(t *testing.T) {
 }
 
 func TestImport(t *testing.T) {
-	assertParseImport(t, "single", "import foo", &Import{Path: VarTerm("foo")})
-	ref := RefTerm(VarTerm("foo"), StringTerm("bar"), StringTerm("baz"))
-	assertParseImport(t, "multiple", "import foo.bar.baz", &Import{Path: ref})
-	assertParseImport(t, "single alias", "import foo as bar", &Import{Path: VarTerm("foo"), Alias: Var("bar")})
-	assertParseImport(t, "multiple alias", "import foo.bar.baz as qux", &Import{Path: ref, Alias: Var("qux")})
-	ref2 := RefTerm(VarTerm("foo"), StringTerm("bar"), StringTerm("white space"))
-	assertParseImport(t, "white space", "import foo.bar[\"white space\"]", &Import{Path: ref2})
-	assertParseError(t, "non-ground ref", "import foo[x]")
-	assertParseError(t, "non-string", "import foo[0]")
+	foo := RefTerm(VarTerm("request"), StringTerm("foo"))
+	foobarbaz := RefTerm(VarTerm("request"), StringTerm("foo"), StringTerm("bar"), StringTerm("baz"))
+	whitespace := RefTerm(VarTerm("request"), StringTerm("foo"), StringTerm("bar"), StringTerm("white space"))
+	assertParseImport(t, "single-request", "import request", &Import{Path: RefTerm(RequestRootDocument)})
+	assertParseImport(t, "single-data", "import data", &Import{Path: RefTerm(DefaultRootDocument)})
+	assertParseImport(t, "multiple", "import request.foo.bar.baz", &Import{Path: foobarbaz})
+	assertParseImport(t, "single alias", "import request.foo as bar", &Import{Path: foo, Alias: Var("bar")})
+	assertParseImport(t, "multiple alias", "import request.foo.bar.baz as qux", &Import{Path: foobarbaz, Alias: Var("qux")})
+	assertParseImport(t, "white space", "import request.foo.bar[\"white space\"]", &Import{Path: whitespace})
+	assertParseError(t, "non-ground ref", "import data.foo[x]")
+	assertParseError(t, "non-string", "import request.foo[0]")
+	assertParseErrorEquals(t, "unknown root", "import foo.bar", "path foo.bar is not valid (must begin with known root)")
 }
 
 func TestRule(t *testing.T) {
@@ -371,6 +374,18 @@ func TestRule(t *testing.T) {
 		Body: MustParseBody("true"),
 	})
 
+	assertParseRule(t, "data", "data :- true", &Rule{
+		Name:  Var("data"),
+		Value: MustParseTerm("true"),
+		Body:  MustParseBody("true"),
+	})
+
+	assertParseRule(t, "request", "request :- true", &Rule{
+		Name:  Var("request"),
+		Value: MustParseTerm("true"),
+		Body:  MustParseBody("true"),
+	})
+
 	assertParseErrorEquals(t, "object composite key", "p[[x,y]] = z :- true", "head of object rule must have string, var, or ref key ([x, y] is not allowed)")
 	assertParseErrorEquals(t, "closure in key", "p[[1 | true]] :- true", "head cannot contain closures ([1 | true] appears in key)")
 	assertParseErrorEquals(t, "closure in value", "p = [[1 | true]] :- true", "head cannot contain closures ([1 | true] appears in value)")
@@ -397,8 +412,8 @@ func TestComments(t *testing.T) {
 	testModule := `
     package a.b.c
 
-    import e.f as g  # end of line
-    import h
+    import request.e.f as g  # end of line
+    import request.h
 
     # by itself
 
@@ -408,7 +423,7 @@ func TestComments(t *testing.T) {
         x != y,
         q[x]
 
-    import xyz.abc
+    import request.xyz.abc
 
     q # interruptting
     [a] # the head of a rule
@@ -424,9 +439,9 @@ func TestComments(t *testing.T) {
 	assertParseModule(t, "module comments", testModule, &Module{
 		Package: MustParseStatement("package a.b.c").(*Package),
 		Imports: []*Import{
-			MustParseStatement("import e.f as g").(*Import),
-			MustParseStatement("import h").(*Import),
-			MustParseStatement("import xyz.abc").(*Import),
+			MustParseStatement("import request.e.f as g").(*Import),
+			MustParseStatement("import request.h").(*Import),
+			MustParseStatement("import request.xyz.abc").(*Import),
 		},
 		Rules: []*Rule{
 			MustParseStatement("p[x] = y :- y = \"foo\", x = \"bar\", x != y, q[x]").(*Rule),

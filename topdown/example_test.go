@@ -54,8 +54,8 @@ func ExampleEval() {
 
 	// Prepare the evaluation parameters. Evaluation executes against the policy
 	// engine's storage. In this case, we seed the storage with a single array
-	// of number. Other parameters such as globals, tracing configuration, etc.
-	// can be set on the Topdown object.
+	// of number. Other parameters such as the request, tracing configuration,
+	// etc. can be set on the Topdown object.
 	t := topdown.New(ctx, query, compiler, store, txn)
 
 	result := []interface{}{}
@@ -127,11 +127,10 @@ func ExampleQuery() {
 
 	defer store.Close(ctx, txn)
 
-	// Prepare the query parameters. Queries execute against the policy engine's storage and can
-	// accept additional documents (which are referred to as "globals"). In this case we have no
-	// additional documents.
-	globals := ast.NewValueMap()
-	params := topdown.NewQueryParams(ctx, compiler, store, txn, globals, ast.MustParseRef("data.opa.example.p"))
+	// Prepare query parameters. In this case, there are no additional documents
+	// required by the policy so the request is nil.
+	var request ast.Value
+	params := topdown.NewQueryParams(ctx, compiler, store, txn, request, ast.MustParseRef("data.opa.example.p"))
 
 	// Execute the query against "p".
 	v1, err1 := topdown.Query(params)

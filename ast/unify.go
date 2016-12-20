@@ -103,7 +103,7 @@ func (u *unifier) unify(a *Term, b *Term) {
 func (u *unifier) markAllSafe(x Value, y Value) {
 	vis := u.varVisitor()
 	Walk(vis, x)
-	for v := range vis.vars {
+	for v := range vis.Vars() {
 		u.markSafe(v)
 	}
 }
@@ -143,7 +143,7 @@ func (u *unifier) unifyAll(a Var, b Value) {
 	} else {
 		vis := u.varVisitor()
 		Walk(vis, b)
-		unsafe := vis.vars.Diff(u.safe).Diff(u.unified)
+		unsafe := vis.Vars().Diff(u.safe).Diff(u.unified)
 		if len(unsafe) == 0 {
 			u.markSafe(a)
 		} else {
@@ -154,12 +154,11 @@ func (u *unifier) unifyAll(a Var, b Value) {
 	}
 }
 
-func (u *unifier) varVisitor() *varVisitor {
-	return &varVisitor{
-		skipRefHead:      true,
-		skipObjectKeys:   true,
-		skipClosures:     true,
-		skipBuiltinNames: true,
-		vars:             VarSet{},
-	}
+func (u *unifier) varVisitor() *VarVisitor {
+	return NewVarVisitor().WithParams(VarVisitorParams{
+		SkipRefHead:      true,
+		SkipObjectKeys:   true,
+		SkipClosures:     true,
+		SkipBuiltinNames: true,
+	})
 }

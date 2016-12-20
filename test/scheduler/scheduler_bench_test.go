@@ -68,12 +68,10 @@ func setupBenchmark(nodes int, pods int) *topdown.QueryParams {
 
 	// parameter setup
 	ctx := context.Background()
-	globals := ast.NewValueMap()
-	req := ast.MustParseTerm(requestedPod).Value
-	globals.Put(ast.Var("requested_pod"), req)
+	request := ast.ObjectTerm(ast.Item(ast.StringTerm("pod"), ast.MustParseTerm(requestedPod)))
 	path := ast.MustParseRef("data.opa.test.scheduler.fit")
 	txn := storage.NewTransactionOrDie(ctx, store)
-	params := topdown.NewQueryParams(ctx, c, store, txn, globals, path)
+	params := topdown.NewQueryParams(ctx, c, store, txn, request.Value, path)
 
 	// data setup
 	setupNodes(ctx, store, txn, nodes)

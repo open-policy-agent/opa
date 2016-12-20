@@ -11,19 +11,29 @@ import (
 	"github.com/open-policy-agent/opa/util"
 )
 
+// TODO(tsandall): rename DefaultRootDocument/Ref accordingly
+
 // DefaultRootDocument is the default root document.
 //
 // All package directives inside source files are implicitly prefixed with the
 // DefaultRootDocument value.
 var DefaultRootDocument = VarTerm("data")
 
+// RequestRootDocument names the document containing query arguments.
+var RequestRootDocument = VarTerm("request")
+
 // DefaultRootRef is a reference to the root of the default document.
 //
 // All refs to data in the policy engine's storage layer are prefixed with this ref.
 var DefaultRootRef = Ref{DefaultRootDocument}
 
+// RequestRootRef is a reference to the root of the request document.
+//
+// All refs to query arguments are prefixed with this ref.
+var RequestRootRef = Ref{RequestRootDocument}
+
 // ReservedVars is the set of reserved variable names.
-var ReservedVars = NewVarSet(DefaultRootDocument.Value.(Var))
+var ReservedVars = NewVarSet(DefaultRootDocument.Value.(Var), RequestRootDocument.Value.(Var))
 
 // Wildcard represents the wildcard variable as defined in the language.
 var Wildcard = &Term{Value: Var("_")}
@@ -194,6 +204,29 @@ func (pkg *Package) String() string {
 	return fmt.Sprintf("package %v", path)
 }
 
+// IsValidImportPath returns an error indicating if the import path is invalid.
+// If the import path is invalid, err is nil.
+func IsValidImportPath(v Value) (err error) {
+	switch v := v.(type) {
+	case Var:
+		if !v.Equal(DefaultRootDocument.Value) && !v.Equal(RequestRootDocument.Value) {
+			return fmt.Errorf("path %v is not valid (must begin with known root)", v)
+		}
+	case Ref:
+		if err := IsValidImportPath(v[0].Value); err != nil {
+			return fmt.Errorf("path %v is not valid (must begin with known root)", v)
+		}
+		for _, e := range v[1:] {
+			if _, ok := e.Value.(String); !ok {
+				return fmt.Errorf("path elements must be string")
+			}
+		}
+	default:
+		return fmt.Errorf("path must be ref")
+	}
+	return nil
+}
+
 // Compare returns an integer indicating whether imp is less than, equal to,
 // or greater than other.
 func (imp *Import) Compare(other *Import) int {
@@ -304,7 +337,7 @@ func (rule *Rule) DocKind() DocKind {
 // HeadVars returns map where keys represent all of the variables found in the
 // head of the rule. The values of the map are ignored.
 func (rule *Rule) HeadVars() VarSet {
-	vis := &varVisitor{vars: VarSet{}}
+	vis := &VarVisitor{vars: VarSet{}}
 	if rule.Key != nil {
 		Walk(vis, rule.Key)
 	}
@@ -454,15 +487,12 @@ func (body Body) String() string {
 	return strings.Join(buf, ", ")
 }
 
-// Vars returns a VarSet containing all of the variables in the body. If skipClosures is true,
-// variables contained inside closures within the body will be ignored.
-func (body Body) Vars(skipClosures bool) VarSet {
-	vis := &varVisitor{
-		vars:         VarSet{},
-		skipClosures: skipClosures,
-	}
+// Vars returns a VarSet containing variables in body. The params can be set to
+// control which vars are included.
+func (body Body) Vars(params VarVisitorParams) VarSet {
+	vis := NewVarVisitor().WithParams(params)
 	Walk(vis, body)
-	return vis.vars
+	return vis.Vars()
 }
 
 // NewExpr returns a new Expr object.
@@ -635,16 +665,12 @@ func (expr *Expr) UnmarshalJSON(bs []byte) error {
 	return unmarshalExpr(expr, v)
 }
 
-// Vars returns a VarSet containing all of the variables in the expression.
-// If skipClosures is true then variables contained inside closures within this
-// expression will not be included in the VarSet.
-func (expr *Expr) Vars(skipClosures bool) VarSet {
-	vis := &varVisitor{
-		skipClosures: skipClosures,
-		vars:         VarSet{},
-	}
+// Vars returns a VarSet containing variables in expr. The params can be set to
+// control which vars are included.
+func (expr *Expr) Vars(params VarVisitorParams) VarSet {
+	vis := NewVarVisitor().WithParams(params)
 	Walk(vis, expr)
-	return vis.vars
+	return vis.Vars()
 }
 
 func (expr *Expr) outputVarsBuiltins(b *Builtin, safe VarSet) VarSet {
@@ -660,15 +686,14 @@ func (expr *Expr) outputVarsBuiltins(b *Builtin, safe VarSet) VarSet {
 		if t.Value.IsGround() {
 			continue
 		}
-		vis := &varVisitor{
-			skipClosures:     true,
-			skipObjectKeys:   true,
-			skipRefHead:      true,
-			skipBuiltinNames: true,
-			vars:             VarSet{},
-		}
+		vis := NewVarVisitor().WithParams(VarVisitorParams{
+			SkipClosures:     true,
+			SkipObjectKeys:   true,
+			SkipRefHead:      true,
+			SkipBuiltinNames: true,
+		})
 		Walk(vis, t)
-		unsafe := vis.vars.Diff(o).Diff(safe)
+		unsafe := vis.Vars().Diff(o).Diff(safe)
 		if len(unsafe) > 0 {
 			return VarSet{}
 		}
@@ -714,50 +739,3 @@ type ruleSlice []*Rule
 func (s ruleSlice) Less(i, j int) bool { return Compare(s[i], s[j]) < 0 }
 func (s ruleSlice) Swap(i, j int)      { x := s[i]; s[i] = s[j]; s[j] = x }
 func (s ruleSlice) Len() int           { return len(s) }
-
-type varVisitor struct {
-	skipRefHead      bool
-	skipObjectKeys   bool
-	skipClosures     bool
-	skipBuiltinNames bool
-	vars             VarSet
-}
-
-func (vis *varVisitor) Visit(v interface{}) Visitor {
-	if vis.skipObjectKeys {
-		if o, ok := v.(Object); ok {
-			for _, i := range o {
-				Walk(vis, i[1])
-			}
-			return nil
-		}
-	}
-	if vis.skipRefHead {
-		if r, ok := v.(Ref); ok {
-			for _, t := range r[1:] {
-				Walk(vis, t)
-			}
-			return nil
-		}
-	}
-	if vis.skipClosures {
-		switch v.(type) {
-		case *ArrayComprehension:
-			return nil
-		}
-	}
-	if vis.skipBuiltinNames {
-		if v, ok := v.(*Expr); ok {
-			if ts, ok := v.Terms.([]*Term); ok {
-				for _, t := range ts[1:] {
-					Walk(vis, t)
-				}
-				return nil
-			}
-		}
-	}
-	if v, ok := v.(Var); ok {
-		vis.vars.Add(v)
-	}
-	return vis
-}

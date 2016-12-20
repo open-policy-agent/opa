@@ -20,7 +20,7 @@ import (
 type Topdown struct {
 	Query    ast.Body
 	Compiler *ast.Compiler
-	Globals  *ast.ValueMap
+	Request  ast.Value
 	Locals   *ast.ValueMap
 	Index    int
 	Previous *Topdown
@@ -88,13 +88,7 @@ func New(ctx context.Context, query ast.Body, compiler *ast.Compiler, store *sto
 
 // Binding returns the value bound to the given key.
 func (t *Topdown) Binding(k ast.Value) ast.Value {
-	if v := t.Locals.Get(k); v != nil {
-		return v
-	}
-	if v := t.Globals.Get(k); v != nil {
-		return v
-	}
-	return nil
+	return t.Locals.Get(k)
 }
 
 // Undo represents a binding that can be undone.
@@ -311,10 +305,6 @@ const (
 	// InternalErr represents an unknown evaluation error.
 	InternalErr = iota
 
-	// UnboundGlobalErr indicates a global variable without a binding was
-	// encountered during evaluation.
-	UnboundGlobalErr = iota
-
 	// ConflictErr indicates multiple (conflicting) values were produced
 	// while generating a virtual document. E.g., given two rules that share
 	// the same name: p = false :- true, p = true :- true, a query "p" would
@@ -328,21 +318,6 @@ const (
 
 func (e *Error) Error() string {
 	return fmt.Sprintf("evaluation error (code: %v): %v", e.Code, e.Message)
-}
-
-// IsUnboundGlobal returns true if the error e is an UnboundGlobalErr
-func IsUnboundGlobal(e error) bool {
-	if e, ok := e.(*Error); ok {
-		return e.Code == UnboundGlobalErr
-	}
-	return false
-}
-
-func unboundGlobalVarErr(r ast.Ref) error {
-	return &Error{
-		Code:    UnboundGlobalErr,
-		Message: fmt.Sprintf("unbound variable %v: %v", r[0], r),
-	}
 }
 
 func conflictErr(query interface{}, kind string, rule *ast.Rule) error {
@@ -538,6 +513,9 @@ func PlugValue(v ast.Value, binding func(ast.Value) ast.Value) ast.Value {
 		}
 		return buf
 
+	case nil:
+		return nil
+
 	default:
 		if !v.IsGround() {
 			panic(fmt.Sprintf("illegal value: %v", v))
@@ -552,19 +530,19 @@ type QueryParams struct {
 	Compiler    *ast.Compiler
 	Store       *storage.Storage
 	Transaction storage.Transaction
-	Globals     *ast.ValueMap
+	Request     ast.Value
 	Tracer      Tracer
 	Path        ast.Ref
 }
 
 // NewQueryParams returns a new QueryParams.
-func NewQueryParams(ctx context.Context, compiler *ast.Compiler, store *storage.Storage, txn storage.Transaction, globals *ast.ValueMap, path ast.Ref) *QueryParams {
+func NewQueryParams(ctx context.Context, compiler *ast.Compiler, store *storage.Storage, txn storage.Transaction, request ast.Value, path ast.Ref) *QueryParams {
 	return &QueryParams{
 		Context:     ctx,
 		Compiler:    compiler,
 		Store:       store,
 		Transaction: txn,
-		Globals:     globals,
+		Request:     request,
 		Path:        path,
 	}
 }
@@ -572,19 +550,19 @@ func NewQueryParams(ctx context.Context, compiler *ast.Compiler, store *storage.
 // NewTopdown returns a new Topdown object that can be used to do evaluation.
 func (q *QueryParams) NewTopdown(body ast.Body) *Topdown {
 	t := New(q.Context, body, q.Compiler, q.Store, q.Transaction)
-	t.Globals = q.Globals
+	t.Request = q.Request
 	t.Tracer = q.Tracer
 	return t
 }
 
 // QueryResult represents a single query result.
 type QueryResult struct {
-	Result  interface{}            // Result contains the document referred to by the params Path.
-	Globals map[string]interface{} // Globals contains bindings for variables in the params Globals.
+	Result   interface{}            // Result contains the document referred to by the params Path.
+	Bindings map[string]interface{} // Bindings contains values for variables in the params Request.
 }
 
 func (qr *QueryResult) String() string {
-	return fmt.Sprintf("[%v %v]", qr.Result, qr.Globals)
+	return fmt.Sprintf("[%v %v]", qr.Result, qr.Bindings)
 }
 
 // QueryResultSet represents a collection of query results.
@@ -601,14 +579,9 @@ func (qrs *QueryResultSet) Add(qr *QueryResult) {
 }
 
 // Query returns the value of document referred to by the params Path field. If
-// the params Globals field contains values that are non-ground (i.e., they
+// the params' Request field contains values that are non-ground (i.e., they
 // contain variables), then the result may contain multiple entries.
 func Query(params *QueryParams) (QueryResultSet, error) {
-
-	if params.Globals.Len() == 0 {
-		return queryOne(params)
-	}
-
 	return queryN(params)
 }
 
@@ -641,10 +614,10 @@ func queryOne(params *QueryParams) (QueryResultSet, error) {
 
 // queryN returns a QueryResultSet containing the values of the document
 // referred to by the params Path field. There may be zero or more values
-// depending on the values of the params Globals field.
+// depending on the values of the params' Request field.
 //
-// For example, if the globals refer to one or more undefined documents, the set
-// will be empty. On the other hand, if the globals contain non-ground
+// For example, if the request refers to one or more undefined documents, the
+// set will be empty. On the other hand, if the request contain non-ground
 // references where there are multiple valid sets of bindings, the result set
 // may contain multiple values.
 func queryN(params *QueryParams) (QueryResultSet, error) {
@@ -653,17 +626,19 @@ func queryN(params *QueryParams) (QueryResultSet, error) {
 	vars := ast.NewVarSet()
 	resolver := resolver{params.Context, params.Store, params.Transaction}
 
-	params.Globals.Iter(func(_, v ast.Value) bool {
-		ast.WalkRefs(v, func(r ast.Ref) bool {
-			vars.Update(r.OutputVars())
-			return false
-		})
-		return false
+	vis := ast.NewVarVisitor().WithParams(ast.VarVisitorParams{
+		SkipRefHead:  true,
+		SkipClosures: true,
 	})
 
-	err := evalGlobals(params, func(globals *ast.ValueMap, root *Topdown) error {
-		params.Globals = globals
+	ast.Walk(vis, params.Request)
+	vars = vis.Vars()
+
+	err := evalRequest(params, func(root *Topdown) error {
+
+		params.Request = PlugValue(root.Request, root.Binding)
 		result, err := queryOne(params)
+
 		if err != nil || result.Undefined() {
 			return err
 		}
@@ -684,25 +659,24 @@ func queryN(params *QueryParams) (QueryResultSet, error) {
 	return qrs, err
 }
 
-// evalGlobals constructs query to find bindings for all variables in the params
-// Globals field.
-func evalGlobals(params *QueryParams, iter func(*ast.ValueMap, *Topdown) error) error {
-	exprs := []*ast.Expr{}
-	params.Globals.Iter(func(k, v ast.Value) bool {
-		exprs = append(exprs, ast.Equality.Expr(ast.NewTerm(k), ast.NewTerm(v)))
-		return false
-	})
+// evalRequest evaluates the params' request field. The iterator is called with
+// the plugged request.
+func evalRequest(params *QueryParams, iter Iterator) error {
 
-	query := ast.NewBody(exprs...)
+	if params.Request == nil || params.Request.Equal(ast.Boolean(false)) {
+		return iter(params.NewTopdown(nil))
+	}
+
+	query := ast.NewBody(ast.NewExpr(ast.NewTerm(params.Request)))
 	t := params.NewTopdown(query)
 
+	// TODO(tsandall): disable tracing for request evaluation as it would
+	// introduce an extra layer of trace events. Once the with modifier is
+	// implemented, trace output will be better defined.
+	t.Tracer = nil
+
 	return Eval(t, func(t *Topdown) error {
-		globals := ast.NewValueMap()
-		params.Globals.Iter(func(k, _ ast.Value) bool {
-			globals.Put(k, PlugValue(k, t.Binding))
-			return false
-		})
-		return iter(globals, t)
+		return iter(t)
 	})
 }
 
@@ -992,16 +966,26 @@ func evalExpr(t *Topdown, iter Iterator) error {
 func evalRef(t *Topdown, ref, path ast.Ref, iter Iterator) error {
 
 	if len(ref) == 0 {
-		// If this reference refers to a local variable, evaluate against the binding.
-		// Otherwise, evaluate against the database.
-		if !path[0].Equal(ast.DefaultRootDocument) {
-			v := t.Binding(path[0].Value)
-			if v == nil {
-				return unboundGlobalVarErr(path)
+
+		if path.HasPrefix(ast.DefaultRootRef) {
+			return evalRefRec(t, path, iter)
+		}
+
+		if path.HasPrefix(ast.RequestRootRef) {
+			// If no request was supplied, then any references to the request
+			// are undefined.
+			if t.Request == nil {
+				return nil
 			}
+			return evalRefRuleResult(t, path, path[1:], t.Request, iter)
+		}
+
+		if v := t.Binding(path[0].Value); v != nil {
 			return evalRefRuleResult(t, path, path[1:], v, iter)
 		}
-		return evalRefRec(t, path, iter)
+
+		// This should not be reachable.
+		return fmt.Errorf("unbound ref head: %v", path)
 	}
 
 	head, tail := ref[0], ref[1:]
@@ -1160,7 +1144,6 @@ func evalRefRecTree(t *Topdown, path ast.Ref, node *ast.RuleTreeNode) (ast.Objec
 				return nil
 			})
 			if err != nil {
-				// TODO(tsandall): consider treating unbound globals as undefined.
 				return nil, err
 			}
 			if result == nil {

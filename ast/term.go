@@ -244,7 +244,7 @@ func (term *Term) UnmarshalJSON(bs []byte) error {
 
 // Vars returns a VarSet with variables contained in this term.
 func (term *Term) Vars() VarSet {
-	vis := &varVisitor{vars: VarSet{}}
+	vis := &VarVisitor{vars: VarSet{}}
 	Walk(vis, term)
 	return vis.vars
 }
@@ -384,7 +384,7 @@ func (num Number) IsGround() bool {
 	return true
 }
 
-// MarshalJSON returns JSON encoded bytes representing n.
+// MarshalJSON returns JSON encoded bytes representing num.
 func (num Number) MarshalJSON() ([]byte, error) {
 	return json.Marshal(json.Number(num))
 }
@@ -494,6 +494,23 @@ func (ref Ref) Append(term *Term) Ref {
 	return dst
 }
 
+// Extend returns a copy of ref with the terms from other appended. The head of
+// other will be converted to a string.
+func (ref Ref) Extend(other Ref) Ref {
+	dst := make(Ref, len(ref)+len(other))
+	for i := range ref {
+		dst[i] = ref[i]
+	}
+	head := other[0].Copy()
+	head.Value = String(head.Value.(Var))
+	offset := len(ref)
+	dst[offset] = head
+	for i := range other[1:] {
+		dst[offset+i+1] = other[i+1]
+	}
+	return dst
+}
+
 // Copy returns a deep copy of ref.
 func (ref Ref) Copy() Ref {
 	return termSliceCopy(ref)
@@ -587,12 +604,9 @@ func (ref Ref) String() string {
 // OutputVars returns a VarSet containing variables that would be bound by evaluating
 //  this expression in isolation.
 func (ref Ref) OutputVars() VarSet {
-	vis := &varVisitor{
-		vars:        VarSet{},
-		skipRefHead: true,
-	}
+	vis := NewVarVisitor().WithParams(VarVisitorParams{SkipRefHead: true})
 	Walk(vis, ref)
-	return vis.vars
+	return vis.Vars()
 }
 
 // QueryIterator defines the interface for querying AST documents with references.
@@ -626,6 +640,14 @@ func (arr Array) Hash() int {
 // IsGround returns true if all of the Array elements are ground.
 func (arr Array) IsGround() bool {
 	return termSliceIsGround(arr)
+}
+
+// MarshalJSON returns JSON encoded bytes representing arr.
+func (arr Array) MarshalJSON() ([]byte, error) {
+	if len(arr) == 0 {
+		return json.Marshal([]interface{}{})
+	}
+	return json.Marshal([]*Term(arr))
 }
 
 func (arr Array) String() string {
@@ -834,6 +856,15 @@ func (obj Object) Keys() []*Term {
 		keys[i] = pair[0]
 	}
 	return keys
+}
+
+// MarshalJSON returns JSON encoded bytes representing obj.
+func (obj Object) MarshalJSON() ([]byte, error) {
+	if len(obj) == 0 {
+		return json.Marshal([]interface{}{})
+	}
+	sl := [][2]*Term(obj)
+	return json.Marshal(sl)
 }
 
 // Merge returns a new Object containing the non-overlapping keys of obj and other. If there are

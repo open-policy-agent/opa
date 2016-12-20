@@ -57,12 +57,10 @@ func setup(t *testing.T, filename string) *topdown.QueryParams {
 
 	// parameter setup
 	ctx := context.Background()
-	globals := ast.NewValueMap()
-	req := ast.MustParseTerm(requestedPod).Value
-	globals.Put(ast.Var("requested_pod"), req)
+	request := ast.ObjectTerm(ast.Item(ast.StringTerm("pod"), ast.MustParseTerm(requestedPod)))
 	path := ast.MustParseRef("data.opa.test.scheduler.fit")
 	txn := storage.NewTransactionOrDie(ctx, store)
-	params := topdown.NewQueryParams(ctx, c, store, txn, globals, path)
+	params := topdown.NewQueryParams(ctx, c, store, txn, request.Value, path)
 
 	return params
 }
@@ -148,7 +146,7 @@ import data.pvs
 import data.pvcs
 import data.services
 import data.replicationcontrollers as rcs
-import requested_pod as req
+import request.pod as req
 
 # Fit rule for all pods. Implements same filtering and
 # prioritisation logic that is included by default in Kubernetes.

@@ -25,6 +25,9 @@ func TestModuleJSONRoundTrip(t *testing.T) {
 	t = true :- xs = [{"x": a[i].a} | a[i].n = "bob", b[x]]
 	s = {1,2,3} :- true
 	s = set() :- false
+	empty_obj :- {}
+	empty_arr :- []
+	empty_set :- set()
 	`)
 
 	bs, err := json.Marshal(mod)
@@ -353,7 +356,7 @@ func TestModuleString(t *testing.T) {
 	package a.b.c
 
 	import data.foo.bar
-	import xyz
+	import request.xyz
 
 	p :- not bar
 	q :- xyz.abc = 2

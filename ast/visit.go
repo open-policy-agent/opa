@@ -145,3 +145,77 @@ func (vis *GenericVisitor) Visit(x interface{}) Visitor {
 	}
 	return vis
 }
+
+// VarVisitor walks AST nodes under a given node and collects all encountered
+// variables. The collected variables can be controlled by specifying
+// VarVisitorParams when creating the visitor.
+type VarVisitor struct {
+	params VarVisitorParams
+	vars   VarSet
+}
+
+// VarVisitorParams contains settings for a VarVisitor.
+type VarVisitorParams struct {
+	SkipRefHead      bool
+	SkipObjectKeys   bool
+	SkipClosures     bool
+	SkipBuiltinNames bool
+}
+
+// NewVarVisitor returns a new VarVisitor object.
+func NewVarVisitor() *VarVisitor {
+	return &VarVisitor{
+		vars: NewVarSet(),
+	}
+}
+
+// WithParams sets the parameters in params on vis.
+func (vis *VarVisitor) WithParams(params VarVisitorParams) *VarVisitor {
+	vis.params = params
+	return vis
+}
+
+// Vars returns a VarSet that contains collected vars.
+func (vis *VarVisitor) Vars() VarSet {
+	return vis.vars
+}
+
+// Visit is called to walk the AST node v.
+func (vis *VarVisitor) Visit(v interface{}) Visitor {
+	if vis.params.SkipObjectKeys {
+		if o, ok := v.(Object); ok {
+			for _, i := range o {
+				Walk(vis, i[1])
+			}
+			return nil
+		}
+	}
+	if vis.params.SkipRefHead {
+		if r, ok := v.(Ref); ok {
+			for _, t := range r[1:] {
+				Walk(vis, t)
+			}
+			return nil
+		}
+	}
+	if vis.params.SkipClosures {
+		switch v.(type) {
+		case *ArrayComprehension:
+			return nil
+		}
+	}
+	if vis.params.SkipBuiltinNames {
+		if v, ok := v.(*Expr); ok {
+			if ts, ok := v.Terms.([]*Term); ok {
+				for _, t := range ts[1:] {
+					Walk(vis, t)
+				}
+				return nil
+			}
+		}
+	}
+	if v, ok := v.(Var); ok {
+		vis.vars.Add(v)
+	}
+	return vis
+}

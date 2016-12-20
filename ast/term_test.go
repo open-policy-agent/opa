@@ -259,6 +259,22 @@ func TestRefAppend(t *testing.T) {
 	}
 }
 
+func TestRefExtend(t *testing.T) {
+	a := MustParseRef("foo.bar.baz")
+	b := MustParseRef("qux.corge")
+	c := MustParseRef("data")
+	result := a.Extend(b)
+	expected := MustParseRef("foo.bar.baz.qux.corge")
+	if !result.Equal(expected) {
+		t.Fatalf("Expected %v but got %v", expected, result)
+	}
+	result = result.Extend(c)
+	expected = MustParseRef("foo.bar.baz.qux.corge.data")
+	if !result.Equal(expected) {
+		t.Fatalf("Expected %v but got %v", expected, result)
+	}
+}
+
 func TestSetEqual(t *testing.T) {
 	tests := []struct {
 		a        string

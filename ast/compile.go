@@ -378,7 +378,7 @@ func (c *Compiler) checkSafetyRuleBodies() {
 func (c *Compiler) checkSafetyRuleHeads() {
 	for _, m := range c.Modules {
 		for _, r := range m.Rules {
-			unsafe := r.HeadVars().Diff(r.Body.Vars(true))
+			unsafe := r.HeadVars().Diff(r.Body.Vars(VarVisitorParams{SkipClosures: true}))
 			for v := range unsafe {
 				c.err(NewError(UnsafeVarErr, r.Location, "%v: %v is unsafe (variable %v must appear in at least one expression within the body of %v)", r.Name, v, v, r.Name))
 			}
@@ -455,7 +455,8 @@ func (c *Compiler) resolveAllRefs() {
 			rule.Body = resolveRefsInBody(globals, rule.Body)
 		}
 
-		mod.Imports = rewriteImports(mod.Imports)
+		// Once imports have been resolved, they are no longer needed.
+		mod.Imports = nil
 	}
 
 	if c.moduleLoader != nil {
@@ -603,7 +604,7 @@ func (qc *queryCompiler) resolveRefs(qctx *QueryContext, body Body) (Body, error
 			exports = exist.([]Var)
 		}
 		globals = getGlobals(qctx.Package, exports, qc.qctx.Imports)
-		qctx.Imports = rewriteImports(qctx.Imports)
+		qctx.Imports = nil
 	}
 
 	return resolveRefsInBody(globals, body), nil
@@ -954,7 +955,7 @@ func reorderBodyForSafety(globals VarSet, body Body) (Body, unsafeVars) {
 	safe := VarSet{}
 
 	for _, e := range body {
-		for v := range e.Vars(true) {
+		for v := range e.Vars(VarVisitorParams{SkipClosures: true}) {
 			if globals.Contains(v) {
 				safe.Add(v)
 			} else {
@@ -996,7 +997,7 @@ func reorderBodyForSafety(globals VarSet, body Body) (Body, unsafeVars) {
 	g := globals.Copy()
 	for i, e := range reordered {
 		if i > 0 {
-			g.Update(reordered[i-1].Vars(true))
+			g.Update(reordered[i-1].Vars(VarVisitorParams{SkipClosures: true}))
 		}
 		vis := &bodySafetyVisitor{
 			current: e,
@@ -1035,7 +1036,7 @@ func (vis *bodySafetyVisitor) Visit(x interface{}) Visitor {
 func (vis *bodySafetyVisitor) checkArrayComprehensionSafety(ac *ArrayComprehension) {
 	// Check term for safety. This is analogous to the rule head safety check.
 	tv := ac.Term.Vars()
-	bv := ac.Body.Vars(true)
+	bv := ac.Body.Vars(VarVisitorParams{SkipClosures: true})
 	bv.Update(vis.globals)
 	uv := tv.Diff(bv)
 	for v := range uv {
@@ -1071,7 +1072,7 @@ func reorderBodyForClosures(globals VarSet, body Body) (Body, unsafeVars) {
 			// expression.
 			vs := VarSet{}
 			WalkClosures(e, func(x interface{}) bool {
-				vis := &varVisitor{vars: vs}
+				vis := &VarVisitor{vars: vs}
 				Walk(vis, x)
 				return true
 			})
@@ -1079,7 +1080,7 @@ func reorderBodyForClosures(globals VarSet, body Body) (Body, unsafeVars) {
 			// Compute vars that are closed over from the body but not yet
 			// contained in the output position of an expression in the reordered
 			// body. These vars are considered unsafe.
-			cv := vs.Intersect(body.Vars(true)).Diff(globals)
+			cv := vs.Intersect(body.Vars(VarVisitorParams{SkipClosures: true})).Diff(globals)
 			uv := cv.Diff(reordered.OutputVars(globals))
 
 			if len(uv) == 0 {
@@ -1106,7 +1107,7 @@ type localVarGenerator struct {
 
 func newLocalVarGenerator(module *Module) *localVarGenerator {
 	exclude := NewVarSet()
-	vis := &varVisitor{
+	vis := &VarVisitor{
 		vars: exclude,
 	}
 	Walk(vis, module)
@@ -1263,26 +1264,4 @@ func resolveRefsInTerm(globals map[Var]Value, term *Term) *Term {
 	default:
 		return term
 	}
-}
-
-// rewriteImports returns an updated slice of imports that replace the imports
-// in a module or query context. Imports against the default root document are
-// removed, aliases are unset, and the remaining imports are shortened to the
-// head variable. The result is a set of imports that effectively ground
-// variables appearing in rules and queries (which refer to query inputs).
-func rewriteImports(imports []*Import) (result []*Import) {
-	for _, imp := range imports {
-		switch path := imp.Path.Value.(type) {
-		case Ref:
-			if !path[0].Equal(DefaultRootDocument) {
-				imp.Path = path[0]
-				imp.Alias = Var("")
-				result = append(result, imp)
-			}
-		case Var:
-			imp.Alias = Var("")
-			result = append(result, imp)
-		}
-	}
-	return result
 }
