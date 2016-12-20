@@ -1139,19 +1139,15 @@ func getGlobals(pkg *Package, exports []Var, imports []*Import) map[Var]Value {
 	// Populate globals with imports.
 	for _, i := range imports {
 		if len(i.Alias) > 0 {
-			switch p := i.Path.Value.(type) {
-			case Ref:
-				globals[i.Alias] = p
-			case Var:
-				globals[i.Alias] = p
-			}
+			path := i.Path.Value.(Ref)
+			globals[i.Alias] = path
 		} else {
-			switch p := i.Path.Value.(type) {
-			case Ref:
-				v := p[len(p)-1].Value.(String)
-				globals[Var(v)] = p
-			case Var:
-				globals[p] = p
+			path := i.Path.Value.(Ref)
+			if len(path) == 1 {
+				globals[path[0].Value.(Var)] = path
+			} else {
+				v := path[len(path)-1].Value.(String)
+				globals[Var(v)] = path
 			}
 		}
 	}
