@@ -301,7 +301,7 @@ valid_user_role :-
 # only one instance evaluates successfully in a given query. If multiple
 # instances evaluated successfully, it indicates a conflict.
 valid_user_role :-
-    user_id = req.Headers["Authz-User"],
+    user_id = request.Headers["Authz-User"],
     user = users[user_id],
     request.Method = "GET",
     user.readOnly = true
