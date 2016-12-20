@@ -429,6 +429,32 @@ func TestCompilerCheckRuleConflicts(t *testing.T) {
 	assertCompilerErrorStrings(t, c, expected)
 }
 
+func TestCompilerImportsResolved(t *testing.T) {
+
+	modules := map[string]*Module{
+		"mod1": MustParseModule(`
+			package ex
+
+			import data
+			import request
+			import data.foo
+			import request.bar
+			import data.abc as baz
+			import request.abc as qux
+		`),
+	}
+
+	c := NewCompiler()
+	c.Compile(modules)
+
+	assertNotFailed(t, c)
+
+	if len(c.Modules["mod1"].Imports) != 0 {
+		t.Fatalf("Expected imports to be empty after compile but got: %v", c.Modules)
+	}
+
+}
+
 func TestCompilerResolveAllRefs(t *testing.T) {
 	c := NewCompiler()
 	c.Modules = getCompilerTestModules()
