@@ -131,9 +131,19 @@ func ParseRuleFromBody(body Body) *Rule {
 	}
 
 	terms := expr.Terms.([]*Term)
-	name, ok := terms[1].Value.(Var)
 
-	if !ok {
+	var name Var
+
+	switch v := terms[1].Value.(type) {
+	case Var:
+		name = v
+	case Ref:
+		if v.Equal(RequestRootRef) || v.Equal(DefaultRootRef) {
+			name = Var(v.String())
+		} else {
+			return nil
+		}
+	default:
 		return nil
 	}
 
