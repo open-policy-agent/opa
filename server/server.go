@@ -1058,31 +1058,45 @@ func getExplain(p []string) explainModeV1 {
 	return explainOffV1
 }
 
+var errRequestPathFormat = fmt.Errorf("request parameter format is [[<path>]:]<value> where <path> is either var or ref")
+
 func parseRequest(s []string) (ast.Value, bool, error) {
 
 	pairs := make([][2]*ast.Term, len(s))
 	nonGround := false
 
 	for i := range s {
-		vs := strings.SplitN(s[i], ":", 2)
-		if len(vs) != 2 {
-			return nil, false, fmt.Errorf("request format: <path>:<value> where <path> is either var or ref")
-		}
+
 		var k *ast.Term
-		if vs[0] == "" {
+		var v *ast.Term
+		var err error
+
+		if s[i][0] == ':' {
 			k = ast.NewTerm(ast.EmptyRef())
+			v, err = ast.ParseTerm(s[i][1:])
 		} else {
-			var err error
-			k, err = ast.ParseTerm(ast.RequestRootDocument.String() + "." + vs[0])
-			if err != nil {
-				return nil, false, err
+			v, err = ast.ParseTerm(s[i])
+			if err == nil {
+				k = ast.NewTerm(ast.EmptyRef())
+			} else {
+				vs := strings.SplitN(s[i], ":", 2)
+				if len(vs) != 2 {
+					return nil, false, errRequestPathFormat
+				}
+				k, err = ast.ParseTerm(ast.RequestRootDocument.String() + "." + vs[0])
+				if err != nil {
+					return nil, false, errRequestPathFormat
+				}
+				v, err = ast.ParseTerm(vs[1])
 			}
 		}
-		v, err := ast.ParseTerm(vs[1])
+
 		if err != nil {
 			return nil, false, err
 		}
+
 		pairs[i] = [...]*ast.Term{k, v}
+
 		if !nonGround {
 			ast.WalkVars(v, func(x ast.Var) bool {
 				if x.Equal(ast.DefaultRootDocument.Value) {

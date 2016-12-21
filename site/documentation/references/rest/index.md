@@ -1120,7 +1120,7 @@ Content-Type: application/json
 
 #### Query Parameters
 
-- **request** - Provide a request document. Format is `<path>:<value>` where `<path>` is the import path of the request document. The parameter may be specified multiple times but each instance should specify a unique `<path>`. The `<path>` may be empty (in which case, the entire request will be set to the `<value>`). The `<value>` may be a reference to a document in OPA. If `<value>` contains variables the response will contain a set of results instead of a single document.
+- **request** - Provide a request document. Format is `[[<path>]:]<value>` where `<path>` is the import path of the request document. The parameter may be specified multiple times but each instance should specify a unique `<path>`. The `<path>` may be empty (in which case, the entire request will be set to the `<value>`). The `<value>` may be a reference to a document in OPA. If `<value>` contains variables the response will contain a set of results instead of a single document.
 - **pretty** - If parameter is `true`, response will formatted for humans.
 - **explain** - Return query explanation instead of normal result. Values: **full**, **truth**. See [Explanations](#explanations) for how to interpret results.
 
