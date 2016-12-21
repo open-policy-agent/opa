@@ -183,12 +183,26 @@ func TestDataV1(t *testing.T) {
 		}},
 		{"get with request (root)", []tr{
 			tr{"PUT", "/policies/test", testMod1, 200, ""},
-			tr{"GET", `/data/testmod/gt1?request=:{"req1": 2}`, "", 200, `true`},
+			tr{"GET", `/data/testmod/gt1?request=:{"req1":2}`, "", 200, `true`},
+		}},
+		{"get with request (root-2)", []tr{
+			tr{"PUT", "/policies/test", testMod1, 200, ""},
+			tr{"GET", `/data/testmod/gt1?request={"req1":2}`, "", 200, `true`},
+		}},
+		{"get with request (root+non-ground)", []tr{
+			tr{"PUT", "/policies/test", testMod1, 200, ""},
+			tr{"GET", `/data/testmod/gt1?request={"req1":data.testmod.arr[i]}`, "", 200, `[[true, {"i": 1}], [true, {"i": 2}], [true, {"i": 3}]]`},
 		}},
 		{"get with request (bad format)", []tr{
-			tr{"GET", "/data/deadbeef?request=[1,2,3]", "", 400, `{
+			tr{"GET", `/data/deadbeef?request="foo`, "", 400, `{
 				"Code": 400,
-				"Message": "request format: <path>:<value> where <path> is either var or ref"
+				"Message": "request parameter format is [[<path>]:]<value> where <path> is either var or ref"
+			}`},
+		}},
+		{"get with request (path error)", []tr{
+			tr{"GET", `/data/deadbeef?request="foo:1`, "", 400, `{
+				"Code": 400,
+				"Message": "request parameter format is [[<path>]:]<value> where <path> is either var or ref"
 			}`},
 		}},
 		{"get undefined", []tr{

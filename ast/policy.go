@@ -210,19 +210,19 @@ func IsValidImportPath(v Value) (err error) {
 	switch v := v.(type) {
 	case Var:
 		if !v.Equal(DefaultRootDocument.Value) && !v.Equal(RequestRootDocument.Value) {
-			return fmt.Errorf("path %v is not valid (must begin with known root)", v)
+			return fmt.Errorf("invalid path %v: path must begin with request or data", v)
 		}
 	case Ref:
 		if err := IsValidImportPath(v[0].Value); err != nil {
-			return fmt.Errorf("path %v is not valid (must begin with known root)", v)
+			return fmt.Errorf("invalid path %v: path must begin with request or data", v)
 		}
 		for _, e := range v[1:] {
 			if _, ok := e.Value.(String); !ok {
-				return fmt.Errorf("path elements must be string")
+				return fmt.Errorf("invalid path %v: path elements must be %vs", v, StringTypeName)
 			}
 		}
 	default:
-		return fmt.Errorf("path must be ref")
+		return fmt.Errorf("invalid path %v: path must be %v or %v", v, RefTypeName, VarTypeName)
 	}
 	return nil
 }

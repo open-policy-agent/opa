@@ -27,6 +27,9 @@ func TestMakeRequest(t *testing.T) {
 			[][2]string{{"foo.bar", "data.com.example.widgets[i]"}},
 			`{"foo": {"bar": data.com.example.widgets[i]}}`},
 		{"non-object", [][2]string{{"", "[1,2,3]"}}, "[1,2,3]"},
+		{"non-object conflict",
+			[][2]string{{"", "[1,2,3]"}, {"a.b", "true"}},
+			fmt.Errorf("conflicting request values: check request parameters")},
 		{"conflicting vars",
 			[][2]string{{`a.b`, `"c"`}, {`a.b.d`, `"d"`}},
 			fmt.Errorf("conflicting request value request.a.b.d: check request parameters")},
@@ -41,7 +44,7 @@ func TestMakeRequest(t *testing.T) {
 			fmt.Errorf("conflicting request value request.a: check request parameters")},
 		{"bad path",
 			[][2]string{{`a[1]`, `1`}},
-			fmt.Errorf("invalid request path: path elements must be string"),
+			fmt.Errorf("invalid request path: invalid path request.a[1]: path elements must be strings"),
 		},
 	}
 

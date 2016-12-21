@@ -24,6 +24,10 @@ func MakeRequest(pairs [][2]*ast.Term) (ast.Value, error) {
 
 	for _, pair := range pairs {
 
+		if r, ok := pair[0].Value.(ast.Ref); ok && len(r) == 0 {
+			return nil, fmt.Errorf("conflicting request values: check request parameters")
+		}
+
 		if err := ast.IsValidImportPath(pair[0].Value); err != nil {
 			return nil, errors.Wrapf(err, "invalid request path")
 		}

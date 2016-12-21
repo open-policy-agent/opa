@@ -283,9 +283,29 @@ func TestImport(t *testing.T) {
 	assertParseImport(t, "single alias", "import request.foo as bar", &Import{Path: foo, Alias: Var("bar")})
 	assertParseImport(t, "multiple alias", "import request.foo.bar.baz as qux", &Import{Path: foobarbaz, Alias: Var("qux")})
 	assertParseImport(t, "white space", "import request.foo.bar[\"white space\"]", &Import{Path: whitespace})
-	assertParseError(t, "non-ground ref", "import data.foo[x]")
-	assertParseError(t, "non-string", "import request.foo[0]")
-	assertParseErrorEquals(t, "unknown root", "import foo.bar", "path foo.bar is not valid (must begin with known root)")
+	assertParseErrorEquals(t, "non-ground ref", "import data.foo[x]", "invalid path data.foo[x]: path elements must be strings")
+	assertParseErrorEquals(t, "non-string", "import request.foo[0]", "invalid path request.foo[0]: path elements must be strings")
+	assertParseErrorEquals(t, "unknown root", "import foo.bar", "invalid path foo.bar: path must begin with request or data")
+}
+
+func TestIsValidImportPath(t *testing.T) {
+	tests := []struct {
+		path     string
+		expected error
+	}{
+		{"[1,2,3]", fmt.Errorf("invalid path [1, 2, 3]: path must be ref or var")},
+	}
+
+	for _, tc := range tests {
+		path := MustParseTerm(tc.path).Value
+		result := IsValidImportPath(path)
+		if tc.expected == nil && result != nil {
+			t.Errorf("Unexpected error for %v: %v", path, result)
+		} else if !reflect.DeepEqual(tc.expected, result) {
+			t.Errorf("For %v expected %v but got: %v", path, tc.expected, result)
+		}
+	}
+
 }
 
 func TestRule(t *testing.T) {
