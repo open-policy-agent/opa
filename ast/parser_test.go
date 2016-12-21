@@ -516,6 +516,21 @@ func TestRuleFromBody(t *testing.T) {
 		},
 	})
 
+	mockModule := `
+	package ex
+
+	request = {"foo": 1}
+	data = {"bar": 2}
+	`
+
+	assertParseModule(t, "rule name: request/data", mockModule, &Module{
+		Package: MustParsePackage("package ex"),
+		Rules: []*Rule{
+			MustParseRule(`request = {"foo": 1} :- true`),
+			MustParseRule(`data = {"bar": 2} :- true`),
+		},
+	})
+
 	multipleExprs := `
     package a.b.c
 
@@ -534,9 +549,16 @@ func TestRuleFromBody(t *testing.T) {
     "pi" = 3
     `
 
+	refName := `
+	package a.b.c
+
+	request.x = true
+	`
+
 	assertParseModuleError(t, "multiple expressions", multipleExprs)
 	assertParseModuleError(t, "non-equality", nonEquality)
 	assertParseModuleError(t, "non-var name", nonVarName)
+	assertParseModuleError(t, "ref name", refName)
 }
 
 func TestWildcards(t *testing.T) {
