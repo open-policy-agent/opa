@@ -140,6 +140,7 @@ func TestCompilerCheckSafetyHead(t *testing.T) {
 	unboundVal[y] = x :- q[y] = {"foo": [1,2,[{"bar": y}]]}
 	unboundCompositeVal[y] = [{"foo": x, "bar": y}] :- q[y] = {"foo": [1,2,[{"bar": y}]]}
 	unboundCompositeKey[[{"x": x}]] :- q[y]
+	unboundBuiltinOperator = eq :- x = 1
 	`)
 	compileStages(c, "", "checkSafetyHead")
 
@@ -152,6 +153,7 @@ func TestCompilerCheckSafetyHead(t *testing.T) {
 		makeErrMsg("unboundCompositeVal", "x"),
 		makeErrMsg("unboundKey", "x"),
 		makeErrMsg("unboundVal", "x"),
+		makeErrMsg("unboundBuiltinOperator", "eq"),
 	}
 
 	result := compilerErrsToStringSlice(c.Errors)
@@ -304,6 +306,7 @@ func TestCompilerCheckSafetyBodyErrors(t *testing.T) {
 
 	# x would be unbound as input to count
 	unsafeBuiltin :- count([1,2,x], x)
+	unsafeBuiltinOperator :- count(eq, 1)
 
 	# i and x would be bound in the last expression so the third expression is safe
 	negatedSafe = true :- a = [1,2,3,4], b = [1,2,3,4], not a[i] = x, b[i] = x
@@ -318,6 +321,7 @@ func TestCompilerCheckSafetyBodyErrors(t *testing.T) {
 	unboundArrayComprTerm2 :- _ = [v | v = [w | w != 0]]
 	unboundArrayComprTerm3 :- _ = [x[i] | x = []]
 	unboundArrayComprMixed1 :- _ = [x | y = [a | a = z[i]]]
+	unboundBuiltinOperatorArrayCompr :- 1 = 1, [true | eq != 2]
 
 	unsafeClosure1 :- x = [x | x = 1]
 	unsafeClosure2 :- x = y, x = [y | y = 1]
@@ -349,6 +353,7 @@ func TestCompilerCheckSafetyBodyErrors(t *testing.T) {
 		makeErrMsg("unboundNegated4", "i"),
 		makeErrMsg("unboundNegated4", "j"),
 		makeErrMsg("unsafeBuiltin", "x"),
+		makeErrMsg("unsafeBuiltinOperator", "eq"),
 		makeErrMsg("unboundNoTarget", "x"),
 		makeErrMsg("unboundArrayComprBody1", "y"),
 		makeErrMsg("unboundArrayComprBody2", "z"),
@@ -358,6 +363,7 @@ func TestCompilerCheckSafetyBodyErrors(t *testing.T) {
 		makeErrMsg("unboundArrayComprTerm3", "i"),
 		makeErrMsg("unboundArrayComprMixed1", "x"),
 		makeErrMsg("unboundArrayComprMixed1", "z"),
+		makeErrMsg("unboundBuiltinOperatorArrayCompr", "eq"),
 		makeErrMsg("unsafeClosure1", "x"),
 		makeErrMsg("unsafeClosure2", "y"),
 		makeErrMsg("unsafeNestedHead", "dead"),
@@ -988,7 +994,7 @@ func TestQueryCompiler(t *testing.T) {
 		{"unsafe vars", "z", "", nil, fmt.Errorf("1 error occurred: 1:1: z is unsafe (variable z must appear in the output position of at least one non-negated expression)")},
 		{"safe vars", "data, abc", "package ex", []string{"import request.xyz as abc"}, "data, request.xyz"},
 		{"reorder", "x != 1, x = 0", "", nil, "x = 0, x != 1"},
-		{"bad builtin", "deadbeef(1,2,3)", "", nil, fmt.Errorf("1 error occurred: 1:1: deadbeef is unsafe (variable deadbeef must appear in the output position of at least one non-negated expression)")},
+		{"bad builtin", "deadbeef(1,2,3)", "", nil, fmt.Errorf("1 error occurred: 1:1: unknown built-in function deadbeef")},
 	}
 
 	for _, tc := range tests {

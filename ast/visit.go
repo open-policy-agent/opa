@@ -156,10 +156,10 @@ type VarVisitor struct {
 
 // VarVisitorParams contains settings for a VarVisitor.
 type VarVisitorParams struct {
-	SkipRefHead      bool
-	SkipObjectKeys   bool
-	SkipClosures     bool
-	SkipBuiltinNames bool
+	SkipRefHead          bool
+	SkipObjectKeys       bool
+	SkipClosures         bool
+	SkipBuiltinOperators bool
 }
 
 // NewVarVisitor returns a new VarVisitor object.
@@ -204,7 +204,7 @@ func (vis *VarVisitor) Visit(v interface{}) Visitor {
 			return nil
 		}
 	}
-	if vis.params.SkipBuiltinNames {
+	if vis.params.SkipBuiltinOperators {
 		if v, ok := v.(*Expr); ok {
 			if ts, ok := v.Terms.([]*Term); ok {
 				for _, t := range ts[1:] {
