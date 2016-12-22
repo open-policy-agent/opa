@@ -32,7 +32,7 @@ var DefaultRootRef = Ref{DefaultRootDocument}
 // All refs to query arguments are prefixed with this ref.
 var RequestRootRef = Ref{RequestRootDocument}
 
-// ReservedVars is the set of reserved variable names.
+// ReservedVars is the set of names that refer to implicitly ground vars.
 var ReservedVars = NewVarSet(DefaultRootDocument.Value.(Var), RequestRootDocument.Value.(Var))
 
 // Wildcard represents the wildcard variable as defined in the language.
@@ -687,10 +687,10 @@ func (expr *Expr) outputVarsBuiltins(b *Builtin, safe VarSet) VarSet {
 			continue
 		}
 		vis := NewVarVisitor().WithParams(VarVisitorParams{
-			SkipClosures:     true,
-			SkipObjectKeys:   true,
-			SkipRefHead:      true,
-			SkipBuiltinNames: true,
+			SkipClosures:         true,
+			SkipObjectKeys:       true,
+			SkipRefHead:          true,
+			SkipBuiltinOperators: true,
 		})
 		Walk(vis, t)
 		unsafe := vis.Vars().Diff(o).Diff(safe)

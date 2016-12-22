@@ -12,7 +12,6 @@ var Builtins []*Builtin
 func RegisterBuiltin(b *Builtin) {
 	Builtins = append(Builtins, b)
 	BuiltinMap[b.Name] = b
-	ReservedVars.Add(b.Name)
 }
 
 // DefaultBuiltins is the registry of built-in functions supported in OPA

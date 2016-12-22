@@ -81,9 +81,11 @@ complex types.
 
 ## <a name="reserved"></a> Reserved Names
 
-In addition to built-in function names, the following words are reserved and cannot be used as variable names, rule names, or dot-access style reference arguments:
+The following words are reserved and cannot be used as variable names, rule
+names, or dot-access style reference arguments:
 
 ```
+as
 false
 import
 package

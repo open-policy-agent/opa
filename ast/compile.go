@@ -357,9 +357,6 @@ func (c *Compiler) checkRuleConflicts() {
 func (c *Compiler) checkSafetyRuleBodies() {
 	for _, m := range c.Modules {
 		safe := ReservedVars.Copy()
-		for i := range m.Imports {
-			safe.Add(m.Imports[i].Path.Value.(Var))
-		}
 		for _, r := range m.Rules {
 			reordered, unsafe := reorderBodyForSafety(safe, r.Body)
 			if len(unsafe) != 0 {
@@ -373,12 +370,17 @@ func (c *Compiler) checkSafetyRuleBodies() {
 	}
 }
 
+var safetyCheckVarVisitorParams = VarVisitorParams{
+	SkipClosures:         true,
+	SkipBuiltinOperators: true,
+}
+
 // checkSafetyRuleHeads ensures that variables appearing in the head of a
 // rule also appear in the body.
 func (c *Compiler) checkSafetyRuleHeads() {
 	for _, m := range c.Modules {
 		for _, r := range m.Rules {
-			unsafe := r.HeadVars().Diff(r.Body.Vars(VarVisitorParams{SkipClosures: true}))
+			unsafe := r.HeadVars().Diff(r.Body.Vars(safetyCheckVarVisitorParams))
 			for v := range unsafe {
 				c.err(NewError(UnsafeVarErr, r.Location, "%v: %v is unsafe (variable %v must appear in at least one expression within the body of %v)", r.Name, v, v, r.Name))
 			}
@@ -613,12 +615,6 @@ func (qc *queryCompiler) resolveRefs(qctx *QueryContext, body Body) (Body, error
 func (qc *queryCompiler) checkSafety(qctx *QueryContext, body Body) (Body, error) {
 
 	safe := ReservedVars.Copy()
-	if qctx != nil {
-		for i := range qctx.Imports {
-			safe.Add(qctx.Imports[i].Path.Value.(Var))
-		}
-	}
-
 	reordered, unsafe := reorderBodyForSafety(safe, body)
 
 	if len(unsafe) != 0 {
@@ -955,7 +951,7 @@ func reorderBodyForSafety(globals VarSet, body Body) (Body, unsafeVars) {
 	safe := VarSet{}
 
 	for _, e := range body {
-		for v := range e.Vars(VarVisitorParams{SkipClosures: true}) {
+		for v := range e.Vars(safetyCheckVarVisitorParams) {
 			if globals.Contains(v) {
 				safe.Add(v)
 			} else {
@@ -997,7 +993,7 @@ func reorderBodyForSafety(globals VarSet, body Body) (Body, unsafeVars) {
 	g := globals.Copy()
 	for i, e := range reordered {
 		if i > 0 {
-			g.Update(reordered[i-1].Vars(VarVisitorParams{SkipClosures: true}))
+			g.Update(reordered[i-1].Vars(safetyCheckVarVisitorParams))
 		}
 		vis := &bodySafetyVisitor{
 			current: e,
@@ -1036,7 +1032,7 @@ func (vis *bodySafetyVisitor) Visit(x interface{}) Visitor {
 func (vis *bodySafetyVisitor) checkArrayComprehensionSafety(ac *ArrayComprehension) {
 	// Check term for safety. This is analogous to the rule head safety check.
 	tv := ac.Term.Vars()
-	bv := ac.Body.Vars(VarVisitorParams{SkipClosures: true})
+	bv := ac.Body.Vars(safetyCheckVarVisitorParams)
 	bv.Update(vis.globals)
 	uv := tv.Diff(bv)
 	for v := range uv {
@@ -1080,7 +1076,7 @@ func reorderBodyForClosures(globals VarSet, body Body) (Body, unsafeVars) {
 			// Compute vars that are closed over from the body but not yet
 			// contained in the output position of an expression in the reordered
 			// body. These vars are considered unsafe.
-			cv := vs.Intersect(body.Vars(VarVisitorParams{SkipClosures: true})).Diff(globals)
+			cv := vs.Intersect(body.Vars(safetyCheckVarVisitorParams)).Diff(globals)
 			uv := cv.Diff(reordered.OutputVars(globals))
 
 			if len(uv) == 0 {
