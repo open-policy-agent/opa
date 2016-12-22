@@ -11,29 +11,38 @@ Versioning involves maintaining the following files:
 - **Makefile** - the Makefile contains a VERSION variable that defines the version of the project.
 - **site/*** - there are a few files in the documentation that contain hardcoded versions.
 
-The steps below explain how to update these files. In addition, the repository should be tagged with the semantic version identifying the release.
+The steps below explain how to update these files. In addition, the repository
+should be tagged with the semantic version identifying the release.
 
-Building involves obtaining a copy of the repository, checking out the release tag, and building the binaries.
+Building involves obtaining a copy of the repository, checking out the release
+tag, and building the binaries.
 
-Publishing involves creating a new *Release* on GitHub with the relevant CHANGELOG.md snippet and uploading the binaries from the build phase.
+Publishing involves creating a new *Release* on GitHub with the relevant
+CHANGELOG.md snippet and uploading the binaries from the build phase.
 
 ## Versioning
 
-1. Obtain copy of remote repository.
+1. Obtain a copy of repository.
 
 	```
 	git clone git@github.com:open-policy-agent/opa.git
 	```
 
-1. Edit CHANGELOG.md to update the Unreleased header (e.g., s/Unreleased/0.12.8/) and add any missing items to prepare for release.
-
-1. Edit Makefile to set VERSION variable to prepare for release (e.g., s/VERSION := “0.12.8-dev”/VERSION := "0.12.8”/).
-
-1. Update documentation that refers to the latest release by semantic version. For example:
+1. Execute the release-patch target to generate boilerplate patch. Give the semantic version of the release:
 
 	```
-	find site/ -name "*.md" -exec sed -i "" 's/0.12.7/0.12.8/g' {} \;
+	make release-patch VERSION=0.12.8 > ~/release.patch
 	```
+
+1. Apply the release patch to the working copy:
+
+	```
+	patch -p1 < ~/release.patch
+	```
+
+	> Amend the changes as necessary, e.g., many of the Fixes and Miscellaneous
+	> changes may not be user facing (so remove them). Also, if there have been
+	> any significant API changes, call them out in their own sections.
 
 1. Commit the changes and push to remote repository.
 
@@ -68,17 +77,10 @@ Publishing involves creating a new *Release* on GitHub with the relevant CHANGEL
 	git clone git@github.com:open-policy-agent/opa.git
 	```
 
-1. Checkout release tag.
+1. Execute the release target. The results can be found under _release/VERSION:
 
 	```
-	git checkout v<semver>
-	```
-
-1. Build binaries for target platforms.
-
-	```
-	make build GOOS=linux GOARCH=amd64
-	make build GOOS=darwin GOARCH=amd64
+	make release VERSION=0.12.8
 	```
 
 ## Publishing
@@ -89,8 +91,11 @@ Publishing involves creating a new *Release* on GitHub with the relevant CHANGEL
 	- Copy the changelog content into the message.
 	- Upload the binaries.
 
-1. There may be documentation updates that should be released. See [site/README.md](../site/README.md) for steps to update the website.
+1. There may be documentation updates that should be released. See
+   [site/README.md](../site/README.md) for steps to update the website.
 
 ## Notes
 
-- The openpolicyagent/opa Docker image is automatically built and published to Docker Hub as part of the Travis-CI pipeline. There are no manual steps involved here.
+- The openpolicyagent/opa Docker image is automatically built and published to
+  Docker Hub as part of the Travis-CI pipeline. There are no manual steps
+  involved here.

@@ -20,6 +20,10 @@ GOARCH := $(shell go env GOARCH)
 GOOS := $(shell go env GOOS)
 DISABLE_CGO := CGO_ENABLED=0
 
+# RELEASE_BUILDER_GO_VERSION defines the version of Go used to build the
+# release. This should be kept in sync with the Go versions in .travis.yml.
+RELEASE_BUILDER_GO_VERSION := 1.7
+
 BIN := opa_$(GOOS)_$(GOARCH)
 
 REPOSITORY := openpolicyagent
@@ -37,7 +41,14 @@ LDFLAGS := "-X github.com/open-policy-agent/opa/version.Version=$(VERSION) \
 GO15VENDOREXPERIMENT := 1
 export GO15VENDOREXPERIMENT
 
-.PHONY: all deps generate build install test perf perf-regression cover check check-fmt check-vet check-lint fmt clean
+.PHONY: all deps generate build install test perf perf-regression cover check check-fmt check-vet check-lint fmt clean \
+	release-builder push-release-builder release release-patch
+
+######################################################
+#
+# Development targets
+#
+######################################################
 
 all: deps build test check
 
@@ -104,3 +115,26 @@ fmt:
 clean:
 	rm -f opa_*_*
 	rm -f .Dockerfile_*
+
+######################################################
+#
+# Release targets
+#
+######################################################
+
+release-builder:
+	sed -e 's/GOVERSION/$(RELEASE_BUILDER_GO_VERSION)/g' Dockerfile_release-builder.in > .Dockerfile_release-builder
+	docker build -f .Dockerfile_release-builder -t $(REPOSITORY)/release-builder .
+
+push-release-builder:
+	docker push $(REPOSITORY)/release-builder
+
+release:
+	docker run -it --rm -v $(PWD)/_release/$(VERSION):/_release/$(VERSION) \
+		-v $(PWD)/build/build-release.sh:/build-release.sh \
+		$(REPOSITORY)/release-builder:latest \
+		/build-release.sh $(VERSION) /_release/$(VERSION)
+
+release-patch:
+	@docker run -it --rm -v $(PWD)/build/gen-release-patch.sh:/gen-release-patch.sh \
+		python:2.7 /gen-release-patch.sh $(VERSION)

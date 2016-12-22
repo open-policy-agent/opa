@@ -6,11 +6,8 @@ You also need to have [Jekyll](http://jekyllrb.com) installed to build the site.
 for you. Assuming you have Ruby installed, all you should need to do is run:
 
 ```
-gem install --user-install jekyll
-gem install --user-install autoprefixer-rails
-gem install --user-install jekyll-assets
-gem install --user-install jekyll-contentblocks
-gem install --user-install jekyll-minifier
+gem install --user-install jekyll \
+    autoprefixer-rails jekyll-assets jekyll-contentblocks jekyll-minifier
 ```
 
 Changing the documentation on the live site requires two separate merges:
@@ -40,28 +37,25 @@ Once you are happy with the changes, commit them and open a Pull Request against
 
 To update the live website, perform the following steps:
 
-1. Obtain a fresh copy of the repository
+1. Obtain a fresh copy of the repository and build the site.
 
     ```
-    git clone git@github.com:open-policy-agent/opa.git opa-site
-    ```
-
-    - Note: if you are preparing documentation for a specific release, checkout the release tag in this step as well.
-
-1. Build the site content and save the output:
-
-    ```
-    cd opa-site/site
+    git clone git@github.com:open-policy-agent/opa.git
+    cd opa/site
     jekyll build .
     tar czvf ~/site.tar.gz -C _site .
     ```
+
+    > If you are updating the website as part of a release, the site content
+    > will have been built by the `make release` command so this step can be
+    > skipped.
 
 1. Checkout the gh-pages branch and overlay the new site content:
 
     ```
     git checkout gh-pages
     tar zxvf ~/site.tar.gz
-    git commit -a -m "Updating site for release 0.12.8"
+    git commit -a
     ```
 
 1. Push the gh-pages branch back to GitHub:
