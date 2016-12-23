@@ -6,6 +6,7 @@
 coverage
 opa_*
 .Dockerfile_*
+_release
 
 # runtime artifacts
 policies
