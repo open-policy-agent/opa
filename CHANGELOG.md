@@ -3,7 +3,17 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## 0.3.1
+
+### Fixes
+
+- Fixed unsafe vars with built-in operator names bug ([#206](https://github.com/open-policy-agent/opa/issues/206))
+- Fixed body to rule conversion bug ([#202](https://github.com/open-policy-agent/opa/issues/202))
+- Improved request parameter handling ([#201](https://github.com/open-policy-agent/opa/issues/201))
+
+### Miscellaneous
+
+- Improved release infrastructure
 
 ## 0.3.0
 
