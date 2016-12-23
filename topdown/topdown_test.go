@@ -6,7 +6,6 @@ package topdown
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"reflect"
 	"sort"
@@ -26,31 +25,31 @@ func TestEvalRef(t *testing.T) {
 		expected interface{}
 	}{
 		{"data.c[i][j]", `[
-		    {"i": 0, "j": "x"},
-		    {"i": 0, "j": "y"},
-		    {"i": 0, "j": "z"}
+		    {i: 0, j: "x"},
+		    {i: 0, j: "y"},
+		    {i: 0, j: "z"}
 		 ]`},
 		{"data.c[i][j][k]", `[
-		    {"i": 0, "j": "x", "k": 0},
-		    {"i": 0, "j": "x", "k": 1},
-		    {"i": 0, "j": "x", "k": 2},
-		    {"i": 0, "j": "y", "k": 0},
-		    {"i": 0, "j": "y", "k": 1},
-		    {"i": 0, "j": "z", "k": "p"},
-		    {"i": 0, "j": "z", "k": "q"}
+		    {i: 0, j: "x", k: 0},
+		    {i: 0, j: "x", k: 1},
+		    {i: 0, j: "x", k: 2},
+		    {i: 0, j: "y", k: 0},
+		    {i: 0, j: "y", k: 1},
+		    {i: 0, j: "z", k: "p"},
+		    {i: 0, j: "z", k: "q"}
 		]`},
 		{"data.d[x][y]", `[
-		    {"x": "e", "y": 0},
-		    {"x": "e", "y": 1}
+		    {x: "e", y: 0},
+		    {x: "e", y: 1}
 		]`},
 		{`data.c[i]["x"][k]`, `[
-		    {"i": 0, "k": 0},
-		    {"i": 0, "k": 1},
-		    {"i": 0, "k": 2}
+		    {i: 0, k: 0},
+		    {i: 0, k: 1},
+		    {i: 0, k: 2}
 		]`},
 		{"data.c[i][j][i]", `[
-		    {"i": 0, "j": "x"},
-		    {"i": 0, "j": "y"}
+		    {i: 0, j: "x"},
+		    {i: 0, j: "y"}
 		]`},
 		{`data.c[i]["deadbeef"][k]`, nil},
 		{`data.c[999]`, nil},
@@ -83,19 +82,17 @@ func TestEvalRef(t *testing.T) {
 					t.Errorf("Expected no bindings (nil) but got: %v", tmp)
 				}
 			case string:
-				expected := loadExpectedBindings(e)
+				expected := parseVarsSlice(e)
 				err := evalRef(top, ast.MustParseRef(tc.ref), ast.Ref{}, func(t *Topdown) error {
-					if len(expected) > 0 {
-						for j, exp := range expected {
-							if exp.Equal(t.Locals) {
-								tmp := expected[:j]
-								expected = append(tmp, expected[j+1:]...)
-								return nil
-							}
+					for j, exp := range expected {
+						if exp.Equal(t.Vars()) {
+							tmp := expected[:j]
+							expected = append(tmp, expected[j+1:]...)
+							return nil
 						}
 					}
 					// If there was not a matching expected binding, treat this case as a failure.
-					return fmt.Errorf("unexpected bindings: %v", t.Locals)
+					return fmt.Errorf("unexpected bindings: %v", t.Vars())
 				})
 				if err != nil {
 					t.Errorf("Expected success but got error: %v", err)
@@ -116,34 +113,34 @@ func TestEvalTerms(t *testing.T) {
 		expected string
 	}{
 		{"data.c[i][j][k] = x", `[
-            {"i": 0, "j": "x", "k": 0},
-            {"i": 0, "j": "x", "k": 1},
-            {"i": 0, "j": "x", "k": 2},
-            {"i": 0, "j": "y", "k": 0},
-            {"i": 0, "j": "y", "k": 1},
-            {"i": 0, "j": "z", "k": "p"},
-            {"i": 0, "j": "z", "k": "q"}
+            {i: 0, j: "x", k: 0},
+            {i: 0, j: "x", k: 1},
+            {i: 0, j: "x", k: 2},
+            {i: 0, j: "y", k: 0},
+            {i: 0, j: "y", k: 1},
+            {i: 0, j: "z", k: "p"},
+            {i: 0, j: "z", k: "q"}
         ]`},
 		{"data.a[i] = data.h[j][k]", `[
-		    {"i": 0, "j": 0, "k": 0},
-		    {"i": 1, "j": 0, "k": 1},
-		    {"i": 1, "j": 1, "k": 0},
-		    {"i": 2, "j": 0, "k": 2},
-		    {"i": 2, "j": 1, "k": 1},
-		    {"i": 3, "j": 1, "k": 2}
+		    {i: 0, j: 0, k: 0},
+		    {i: 1, j: 0, k: 1},
+		    {i: 1, j: 1, k: 0},
+		    {i: 2, j: 0, k: 2},
+		    {i: 2, j: 1, k: 1},
+		    {i: 3, j: 1, k: 2}
 		]`},
 		{`data.d[x][y] = "baz"`, `[
-		    {"x": "e", "y": 1}
+		    {x: "e", y: 1}
 		]`},
 		{"data.d[x][y] = data.d[x][y]", `[
-		    {"x": "e", "y": 0},
-		    {"x": "e", "y": 1}
+		    {x: "e", y: 0},
+		    {x: "e", y: 1}
 		]`},
 		{"data.d[x][y] = data.z[i]", `[]`},
 		{"data.a[data.a[i]] = 3", `[
-			{"i": 0, "data.a[i]": 1},
-			{"i": 1, "data.a[i]": 2},
-			{"i": 2, "data.a[i]": 3}
+			{i: 0},
+			{i: 1},
+			{i: 2}
 		]`},
 	}
 
@@ -160,12 +157,12 @@ func TestEvalTerms(t *testing.T) {
 
 			top := New(ctx, ast.MustParseBody(tc.body), compiler, store, txn)
 
-			expected := loadExpectedBindings(tc.expected)
+			expected := parseVarsSlice(tc.expected)
 
 			err := evalTerms(top, func(t *Topdown) error {
 				if len(expected) > 0 {
 					for j, exp := range expected {
-						if exp.Equal(t.Locals) {
+						if exp.Equal(t.Vars()) {
 							tmp := expected[:j]
 							expected = append(tmp, expected[j+1:]...)
 							return nil
@@ -173,7 +170,7 @@ func TestEvalTerms(t *testing.T) {
 					}
 				}
 				// If there was not a matching expected binding, treat this case as a failure.
-				return fmt.Errorf("unexpected bindings: %v", t.Locals)
+				return fmt.Errorf("unexpected bindings: %v", t.Vars())
 			})
 
 			if err != nil {
@@ -1632,29 +1629,39 @@ func parseBindings(s string) *ast.ValueMap {
 	return r
 }
 
-// TODO(tsandall): replace loadExpectedBindings with parseBindings
-func loadExpectedBindings(input string) []*ast.ValueMap {
-	var data []map[string]interface{}
-	if err := util.UnmarshalJSON([]byte(input), &data); err != nil {
-		panic(err)
+func parseVars(s string) Vars {
+	t := ast.MustParseTerm(s)
+	obj, ok := t.Value.(ast.Object)
+	if !ok {
+		return nil
 	}
-	var expected []*ast.ValueMap
-	for _, bindings := range data {
-		buf := ast.NewValueMap()
-		for k, v := range bindings {
-			switch v := v.(type) {
-			case string:
-				buf.Put(ast.MustParseTerm(k).Value, ast.String(v))
-			case json.Number:
-				buf.Put(ast.MustParseTerm(k).Value, ast.Number(v))
-			default:
-				panic("unreachable")
-			}
+	r := Vars{}
+	for _, pair := range obj {
+		k, v := pair[0].Value, pair[1].Value
+		if k, ok := k.(ast.Var); ok {
+			r[k] = v
+		} else {
+			return nil
 		}
-		expected = append(expected, buf)
 	}
+	return r
+}
 
-	return expected
+func parseVarsSlice(s string) []Vars {
+	t := ast.MustParseTerm(s)
+	arr, ok := t.Value.(ast.Array)
+	if !ok {
+		return nil
+	}
+	r := []Vars{}
+	for _, elem := range arr {
+		if vars := parseVars(elem.String()); vars != nil {
+			r = append(r, vars)
+		} else {
+			return nil
+		}
+	}
+	return r
 }
 
 func parseJSON(input string) interface{} {

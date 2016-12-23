@@ -21,17 +21,17 @@ type Topdown struct {
 	Query    ast.Body
 	Compiler *ast.Compiler
 	Input    ast.Value
-	Locals   *ast.ValueMap
 	Index    int
 	Previous *Topdown
 	Store    *storage.Storage
 	Tracer   Tracer
 	Context  context.Context
 
-	txn   storage.Transaction
-	cache *contextcache
-	qid   uint64
-	redos *redoStack
+	txn    storage.Transaction
+	locals *ast.ValueMap
+	cache  *contextcache
+	qid    uint64
+	redos  *redoStack
 }
 
 // ResetQueryIDs resets the query ID generator. This is only for test purposes.
@@ -77,7 +77,7 @@ func New(ctx context.Context, query ast.Body, compiler *ast.Compiler, store *sto
 		Context:  ctx,
 		Query:    query,
 		Compiler: compiler,
-		Locals:   ast.NewValueMap(),
+		locals:   ast.NewValueMap(),
 		Store:    store,
 		txn:      txn,
 		cache:    newContextCache(),
@@ -86,9 +86,40 @@ func New(ctx context.Context, query ast.Body, compiler *ast.Compiler, store *sto
 	}
 }
 
+// Vars represents a set of var bindings.
+type Vars map[ast.Var]ast.Value
+
+// Diff returns the var bindings in vs that are not in other.
+func (vs Vars) Diff(other Vars) Vars {
+	result := Vars{}
+	for k := range vs {
+		if _, ok := other[k]; !ok {
+			result[k] = vs[k]
+		}
+	}
+	return result
+}
+
+// Equal returns true if vs is equal to other.
+func (vs Vars) Equal(other Vars) bool {
+	return len(vs.Diff(other)) == 0 && len(other.Diff(vs)) == 0
+}
+
+// Vars returns bindings for the vars in the current query
+func (t *Topdown) Vars() map[ast.Var]ast.Value {
+	result := map[ast.Var]ast.Value{}
+	t.locals.Iter(func(k, v ast.Value) bool {
+		if k, ok := k.(ast.Var); ok {
+			result[k] = v
+		}
+		return false
+	})
+	return result
+}
+
 // Binding returns the value bound to the given key.
 func (t *Topdown) Binding(k ast.Value) ast.Value {
-	return t.Locals.Get(k)
+	return t.locals.Get(k)
 }
 
 // Undo represents a binding that can be undone.
@@ -101,8 +132,8 @@ type Undo struct {
 // Bind updates t to include a binding from the key to the value. The return
 // value is used to return t to the state before the binding was added.
 func (t *Topdown) Bind(key ast.Value, value ast.Value, prev *Undo) *Undo {
-	o := t.Locals.Get(key)
-	t.Locals.Put(key, value)
+	o := t.locals.Get(key)
+	t.locals.Put(key, value)
 	return &Undo{key, o, prev}
 }
 
@@ -110,9 +141,9 @@ func (t *Topdown) Bind(key ast.Value, value ast.Value, prev *Undo) *Undo {
 func (t *Topdown) Unbind(undo *Undo) {
 	for u := undo; u != nil; u = u.Prev {
 		if u.Value != nil {
-			t.Locals.Put(u.Key, u.Value)
+			t.locals.Put(u.Key, u.Value)
 		} else {
-			t.Locals.Delete(u.Key)
+			t.locals.Delete(u.Key)
 		}
 	}
 }
@@ -122,9 +153,9 @@ func (t *Topdown) Unbind(undo *Undo) {
 func (t *Topdown) Child(query ast.Body, locals *ast.ValueMap) *Topdown {
 	cpy := *t
 	cpy.Query = query
-	cpy.Locals = locals
 	cpy.Previous = t
 	cpy.Index = 0
+	cpy.locals = locals
 	cpy.qid = qidFactory.Next()
 	return &cpy
 }
@@ -269,7 +300,7 @@ func (t *Topdown) makeEvent(op Op, node interface{}) *Event {
 		Op:      op,
 		Node:    node,
 		QueryID: t.qid,
-		Locals:  t.Locals.Copy(),
+		Locals:  t.locals.Copy(),
 	}
 	if t.Previous != nil {
 		evt.ParentID = t.Previous.qid
@@ -277,10 +308,11 @@ func (t *Topdown) makeEvent(op Op, node interface{}) *Event {
 	return &evt
 }
 
-// contextcache stores the result of rule evaluation for a query. The contextcache
-// is inherited by child contexts. The cache is consulted when virtual document
-// references are evaluated. If a miss occurs, the virtual document is generated
-// and the cache is updated.
+// contextcache stores the result of rule evaluation for a query. The
+// contextcache is inherited by child contexts. The contextcache
+// is consulted when virtual document references are evaluated. If a miss
+// occurs, the virtual document is generated and the contextcache is
+// updated.
 type contextcache struct {
 	partialobjs map[*ast.Rule]map[ast.Value]ast.Value
 	complete    map[*ast.Rule]ast.Value
@@ -906,7 +938,7 @@ func eval(t *Topdown, iter Iterator) error {
 func evalNegated(t *Topdown, iter Iterator) error {
 
 	negation := ast.NewBody(t.Current().Complement())
-	child := t.Child(negation, t.Locals)
+	child := t.Child(negation, t.locals)
 
 	t.traceEval(t.Current())
 
@@ -1853,7 +1885,7 @@ func evalTermsComprehension(t *Topdown, comp ast.Value, iter Iterator) error {
 	switch comp := comp.(type) {
 	case *ast.ArrayComprehension:
 		r := ast.Array{}
-		c := t.Child(comp.Body, t.Locals)
+		c := t.Child(comp.Body, t.locals)
 		err := Eval(c, func(c *Topdown) error {
 			r = append(r, PlugTerm(comp.Term, c.Binding))
 			return nil
