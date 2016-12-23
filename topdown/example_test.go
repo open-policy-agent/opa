@@ -63,8 +63,11 @@ func ExampleEval() {
 	// Execute the query and provide a callbakc function to accumulate the results.
 	err = topdown.Eval(t, func(t *topdown.Topdown) error {
 
-		// Each variable in the query will have an associated "binding" in the context.
+		// Each variable in the query will have an associated "binding".
 		x := t.Binding(ast.Var("x"))
+
+		// Alternatively, you can get a mapping of all bound variables.
+		x = t.Vars()[ast.Var("x")]
 
 		// The bindings are ast.Value types so we will convert to a native Go value here.
 		v, err := topdown.ValueToInterface(x, t)

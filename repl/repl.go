@@ -638,27 +638,17 @@ func (r *REPL) evalBody(ctx context.Context, compiler *ast.Compiler, input ast.V
 
 	// Execute query and accumulate results.
 	err := topdown.Eval(t, func(t *topdown.Topdown) error {
-		var err error
-		row := map[string]interface{}{}
-		t.Locals.Iter(func(k, v ast.Value) bool {
-			kv, ok := k.(ast.Var)
-			if !ok {
-				return false
-			}
-			if kv.IsWildcard() {
-				return false
-			}
-			r, e := topdown.ValueToInterface(v, t)
-			if e != nil {
-				err = e
-				return true
-			}
-			row[k.String()] = r
-			return false
-		})
 
-		if err != nil {
-			return err
+		row := map[string]interface{}{}
+
+		for k, v := range t.Vars() {
+			if !k.IsWildcard() {
+				x, err := topdown.ValueToInterface(v, t)
+				if err != nil {
+					return err
+				}
+				row[k.String()] = x
+			}
 		}
 
 		isTrue = true
@@ -749,7 +739,7 @@ func (r *REPL) evalTermSingleValue(ctx context.Context, compiler *ast.Compiler, 
 	isTrue := false
 
 	err := topdown.Eval(t, func(t *topdown.Topdown) error {
-		p := t.Locals.Get(outputVar.Value)
+		p := t.Binding(outputVar.Value)
 		v, err := topdown.ValueToInterface(p, t)
 		if err != nil {
 			return err
@@ -809,27 +799,15 @@ func (r *REPL) evalTermMultiValue(ctx context.Context, compiler *ast.Compiler, i
 
 		result := map[string]interface{}{}
 
-		var err error
-
-		t.Locals.Iter(func(k, v ast.Value) bool {
-			if k, ok := k.(ast.Var); ok {
-				if k.IsWildcard() || k.Equal(outputVar.Value) {
-					return false
+		for k, v := range t.Vars() {
+			if !k.IsWildcard() && !k.Equal(outputVar.Value) {
+				x, err := topdown.ValueToInterface(v, t)
+				if err != nil {
+					return err
 				}
-				x, e := topdown.ValueToInterface(v, t)
-				if e != nil {
-					err = e
-					return true
-				}
-				s := string(k)
-				result[s] = x
-				vars[s] = struct{}{}
+				result[k.String()] = x
+				vars[k.String()] = struct{}{}
 			}
-			return false
-		})
-
-		if err != nil {
-			return err
 		}
 
 		if includeValue {

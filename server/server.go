@@ -120,25 +120,14 @@ func (s *Server) execQuery(ctx context.Context, compiler *ast.Compiler, txn stor
 
 	err := topdown.Eval(t, func(t *topdown.Topdown) error {
 		result := map[string]interface{}{}
-		var err error
-		t.Locals.Iter(func(k, v ast.Value) bool {
-			kv, ok := k.(ast.Var)
-			if !ok {
-				return false
+		for k, v := range t.Vars() {
+			if !k.IsWildcard() {
+				x, err := topdown.ValueToInterface(v, t)
+				if err != nil {
+					return err
+				}
+				result[k.String()] = x
 			}
-			if kv.IsWildcard() {
-				return false
-			}
-			vv, e := topdown.ValueToInterface(v, t)
-			if e != nil {
-				err = e
-				return true
-			}
-			result[string(kv)] = vv
-			return false
-		})
-		if err != nil {
-			return err
 		}
 		if len(result) > 0 {
 			qrs = append(qrs, result)
