@@ -707,6 +707,18 @@ func (s *Set) Add(t *Term) {
 	*s = append(*s, t)
 }
 
+// Iter calls f on each element in s. If f returns true, iteration stops and the
+// return value is true.
+func (s *Set) Iter(f func(*Term) bool) (stop bool) {
+	sl := *s
+	for i := range sl {
+		if f(sl[i]) {
+			return true
+		}
+	}
+	return false
+}
+
 // Map returns a new Set obtained by applying f to each value in s.
 func (s *Set) Map(f func(*Term) (*Term, error)) (*Set, error) {
 	sl := *s
@@ -719,6 +731,21 @@ func (s *Set) Map(f func(*Term) (*Term, error)) (*Set, error) {
 		set.Add(term)
 	}
 	return set, nil
+}
+
+// Reduce returns a Term produced by applying f to each value in s. The first
+// argument to f is the reduced value (starting with i) and the second argument
+// to f is the element in s.
+func (s *Set) Reduce(i *Term, f func(*Term, *Term) (*Term, error)) (*Term, error) {
+	sl := *s
+	for _, elem := range sl {
+		var err error
+		i, err = f(i, elem)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return i, nil
 }
 
 // Contains returns true if t is in s.

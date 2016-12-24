@@ -312,3 +312,7 @@ func evalEqUnifyVar(t *Topdown, a ast.Var, b ast.Value, prev *Undo, iter Iterato
 	err := iter(t)
 	return undo, err
 }
+
+func init() {
+	RegisterBuiltinFunc(ast.Equality.Name, evalEq)
+}

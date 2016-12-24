@@ -4,43 +4,24 @@
 
 package topdown
 
-import (
-	"fmt"
+import "github.com/open-policy-agent/opa/ast"
+import "github.com/open-policy-agent/opa/topdown/builtins"
 
-	"github.com/open-policy-agent/opa/ast"
-	"github.com/pkg/errors"
-)
+func builtinSetDiff(a, b ast.Value) (ast.Value, error) {
 
-func evalSetDiff(t *Topdown, expr *ast.Expr, iter Iterator) (err error) {
-	ops := expr.Terms.([]*ast.Term)
-	op1, err := ResolveRefs(ops[1].Value, t)
+	s1, err := builtins.SetOperand(a, 1)
 	if err != nil {
-		return errors.Wrapf(err, "set_diff")
+		return nil, err
 	}
 
-	s1, ok := op1.(*ast.Set)
-	if !ok {
-		return &Error{
-			Code:    TypeErr,
-			Message: fmt.Sprintf("set_diff: first input argument must be set not %T", ops[1].Value),
-		}
-	}
-
-	op2, err := ResolveRefs(ops[2].Value, t)
+	s2, err := builtins.SetOperand(b, 2)
 	if err != nil {
-		return errors.Wrapf(err, "set_diff")
+		return nil, err
 	}
 
-	s2, ok := op2.(*ast.Set)
-	if !ok {
-		return &Error{
-			Code:    TypeErr,
-			Message: fmt.Sprintf("set_diff: second input argument must be set not %T", ops[2].Value),
-		}
-	}
+	return s1.Diff(s2), nil
+}
 
-	s3 := s1.Diff(s2)
-	undo, err := evalEqUnify(t, s3, ops[3].Value, nil, iter)
-	t.Unbind(undo)
-	return err
+func init() {
+	RegisterFunctionalBuiltin2(ast.SetDiff.Name, builtinSetDiff)
 }

@@ -4,59 +4,199 @@
 
 package topdown
 
-import "github.com/open-policy-agent/opa/ast"
+import (
+	"fmt"
 
-// BuiltinFunc defines the interface that the evaluation engine uses to
-// invoke built-in functions. Users can implement their own built-in functions
-// and register them with the evaluation engine.
-//
-// Callers are given the current evaluation Context t with the expression
-// expr to be evaluated. Callers can assume that the expression has been plugged
-// with bindings from the current context. If the built-in function determines
-// that the expression has evaluated successfully it should bind any output variables
-// and invoke the iterator with the context produced by binding the output variables.
-type BuiltinFunc func(t *Topdown, expr *ast.Expr, iter Iterator) (err error)
+	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/topdown/builtins"
+	"github.com/pkg/errors"
+)
+
+type (
+	// FunctionalBuiltin1 defines an interface for simple functional built-ins.
+	//
+	// Implement this interface if your built-in function takes one input and
+	// produces one output.
+	//
+	// If an error occurs, the functional built-in should return a descriptive
+	// message. The message should not be prefixed with the built-in name as the
+	// framework takes care of this.
+	FunctionalBuiltin1 func(op1 ast.Value) (output ast.Value, err error)
+
+	// FunctionalBuiltin2 defines an interface for simple functional built-ins.
+	//
+	// Implement this interface if your built-in function takes two inputs and
+	// produces one output.
+	//
+	// If an error occurs, the functional built-in should return a descriptive
+	// message. The message should not be prefixed with the built-in name as the
+	// framework takes care of this.
+	FunctionalBuiltin2 func(op1, op2 ast.Value) (output ast.Value, err error)
+
+	// FunctionalBuiltin3 defines an interface for simple functional built-ins.
+	//
+	// Implement this interface if your built-in function takes three inputs and
+	// produces one output.
+	//
+	// If an error occurs, the functional built-in should return a descriptive
+	// message. The message should not be prefixed with the built-in name as the
+	// framework takes care of this.
+	FunctionalBuiltin3 func(op1, op2, op3 ast.Value) (output ast.Value, err error)
+
+	// FunctionalBuiltinVoid2 defines an interface for simple functional built-ins.
+	//
+	// Implement this interface if your built-in function takes two inputs and
+	// produces no outputs.
+	//
+	// If an error occurs, the functional built-in should return a descriptive
+	// message. The message should not be prefixed with the built-in name as the
+	// framework takes care of this.
+	FunctionalBuiltinVoid2 func(op1, op2 ast.Value) (err error)
+
+	// BuiltinFunc defines the interface that the evaluation engine uses to
+	// invoke built-in functions (built-ins). In most cases, custom built-ins
+	// can be implemented using the FunctionalBuiltin interfaces (which provide
+	// less control but are much simpler).
+	//
+	// Users can implement their own built-ins and register them with OPA.
+	//
+	// Built-ins are given the current evaluation context t with the expression expr
+	// to be evaluated. Built-ins can assume that the expression has been plugged
+	// with bindings from the current context however references to base documents
+	// will not have been resolved. If the built-in determines that the expression
+	// has evaluated successfully it should bind any output variables and invoke the
+	// iterator with the context produced by binding the output variables. Built-ins
+	// must be sure to unbind the outputs after the iterator returns.
+	BuiltinFunc func(t *Topdown, expr *ast.Expr, iter Iterator) (err error)
+)
 
 // RegisterBuiltinFunc adds a new built-in function to the evaluation engine.
 func RegisterBuiltinFunc(name ast.Var, fun BuiltinFunc) {
 	builtinFunctions[name] = fun
 }
 
-var builtinFunctions map[ast.Var]BuiltinFunc
-
-var defaultBuiltinFuncs = map[ast.Var]BuiltinFunc{
-	ast.Equality.Name:      evalEq,
-	ast.GreaterThan.Name:   evalIneq(compareGreaterThan),
-	ast.GreaterThanEq.Name: evalIneq(compareGreaterThanEq),
-	ast.LessThan.Name:      evalIneq(compareLessThan),
-	ast.LessThanEq.Name:    evalIneq(compareLessThanEq),
-	ast.NotEqual.Name:      evalIneq(compareNotEq),
-	ast.Plus.Name:          evalArithArity2(arithPlus),
-	ast.Minus.Name:         evalArithArity2(arithMinus),
-	ast.Multiply.Name:      evalArithArity2(arithMultiply),
-	ast.Divide.Name:        evalArithArity2(arithDivide),
-	ast.Round.Name:         evalArithArity1(arithRound),
-	ast.Abs.Name:           evalArithArity1(arithAbs),
-	ast.Count.Name:         evalReduce(reduceCount),
-	ast.Sum.Name:           evalReduce(reduceSum),
-	ast.Max.Name:           evalReduce(reduceMax),
-	ast.ToNumber.Name:      evalToNumber,
-	ast.RegexMatch.Name:    evalRegexMatch,
-	ast.SetDiff.Name:       evalSetDiff,
-	ast.FormatInt.Name:     evalFormatInt,
-	ast.Concat.Name:        evalConcat,
-	ast.IndexOf.Name:       evalIndexOf,
-	ast.Substring.Name:     evalSubstring,
-	ast.Contains.Name:      evalContains,
-	ast.StartsWith.Name:    evalStartsWith,
-	ast.EndsWith.Name:      evalEndsWith,
-	ast.Upper.Name:         evalUpper,
-	ast.Lower.Name:         evalLower,
+// RegisterFunctionalBuiltinVoid2 adds a new built-in function to the evaluation
+// engine.
+func RegisterFunctionalBuiltinVoid2(name ast.Var, fun FunctionalBuiltinVoid2) {
+	builtinFunctions[name] = functionalWrapperVoid2(name, fun)
 }
 
-func init() {
-	builtinFunctions = map[ast.Var]BuiltinFunc{}
-	for name, fun := range defaultBuiltinFuncs {
-		RegisterBuiltinFunc(name, fun)
+// RegisterFunctionalBuiltin1 adds a new built-in function to the evaluation
+// engine.
+func RegisterFunctionalBuiltin1(name ast.Var, fun FunctionalBuiltin1) {
+	builtinFunctions[name] = functionalWrapper1(name, fun)
+}
+
+// RegisterFunctionalBuiltin2 adds a new built-in function to the evaluation
+// engine.
+func RegisterFunctionalBuiltin2(name ast.Var, fun FunctionalBuiltin2) {
+	builtinFunctions[name] = functionalWrapper2(name, fun)
+}
+
+// RegisterFunctionalBuiltin3 adds a new built-in function to the evaluation
+// engine.
+func RegisterFunctionalBuiltin3(name ast.Var, fun FunctionalBuiltin3) {
+	builtinFunctions[name] = functionalWrapper3(name, fun)
+}
+
+// BuiltinEmpty is used to signal that the built-in function evaluated, but the
+// result is undefined so evaluation should not continue.
+type BuiltinEmpty struct{}
+
+func (BuiltinEmpty) Error() string {
+	return "<empty>"
+}
+
+var builtinFunctions = map[ast.Var]BuiltinFunc{}
+
+func functionalWrapperVoid2(name ast.Var, fn FunctionalBuiltinVoid2) BuiltinFunc {
+	return func(t *Topdown, expr *ast.Expr, iter Iterator) error {
+		operands := expr.Terms.([]*ast.Term)[1:]
+		resolved, err := resolveN(t, name, operands, 2)
+		if err != nil {
+			return err
+		}
+		err = fn(resolved[0], resolved[1])
+		if err == nil {
+			return iter(t)
+		}
+		return handleFunctionalBuiltinErr(name, expr.Location, err)
 	}
+}
+
+func functionalWrapper1(name ast.Var, fn FunctionalBuiltin1) BuiltinFunc {
+	return func(t *Topdown, expr *ast.Expr, iter Iterator) error {
+		operands := expr.Terms.([]*ast.Term)[1:]
+		resolved, err := resolveN(t, name, operands, 1)
+		if err != nil {
+			return err
+		}
+		result, err := fn(resolved[0])
+		if err != nil {
+			return handleFunctionalBuiltinErr(name, expr.Location, err)
+		}
+		return unifyAndContinue(t, iter, result, operands[1].Value)
+	}
+}
+
+func functionalWrapper2(name ast.Var, fn FunctionalBuiltin2) BuiltinFunc {
+	return func(t *Topdown, expr *ast.Expr, iter Iterator) error {
+		operands := expr.Terms.([]*ast.Term)[1:]
+		resolved, err := resolveN(t, name, operands, 2)
+		if err != nil {
+			return err
+		}
+		result, err := fn(resolved[0], resolved[1])
+		if err != nil {
+			return handleFunctionalBuiltinErr(name, expr.Location, err)
+		}
+		return unifyAndContinue(t, iter, result, operands[2].Value)
+	}
+}
+
+func functionalWrapper3(name ast.Var, fn FunctionalBuiltin3) BuiltinFunc {
+	return func(t *Topdown, expr *ast.Expr, iter Iterator) error {
+		operands := expr.Terms.([]*ast.Term)[1:]
+		resolved, err := resolveN(t, name, operands, 3)
+		if err != nil {
+			return err
+		}
+		result, err := fn(resolved[0], resolved[1], resolved[2])
+		if err != nil {
+			return handleFunctionalBuiltinErr(name, expr.Location, err)
+		}
+		return unifyAndContinue(t, iter, result, operands[3].Value)
+	}
+}
+
+func handleFunctionalBuiltinErr(name ast.Var, loc *ast.Location, err error) error {
+	switch err := err.(type) {
+	case BuiltinEmpty:
+		return nil
+	case builtins.ErrOperand:
+		return &Error{
+			Code:     TypeErr,
+			Message:  fmt.Sprintf("%v: %v", name.String(), err.Error()),
+			Location: loc,
+		}
+	}
+	return err
+}
+
+func resolveN(t *Topdown, name ast.Var, ops []*ast.Term, n int) ([]ast.Value, error) {
+	result := make([]ast.Value, n)
+	for i := 0; i < n; i++ {
+		op, err := ResolveRefs(ops[i].Value, t)
+		if err != nil {
+			return nil, errors.Wrapf(err, "resolving operand %v of %v", i+1, name)
+		}
+		result[i] = op
+	}
+	return result, nil
+}
+
+func unifyAndContinue(t *Topdown, iter Iterator, result, output ast.Value) error {
+	undo, err := evalEqUnify(t, result, output, nil, iter)
+	t.Unbind(undo)
+	return err
 }

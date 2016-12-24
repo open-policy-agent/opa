@@ -9,30 +9,30 @@ import (
 	"sync"
 
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/topdown/builtins"
 	"github.com/pkg/errors"
 )
 
 var regexpCacheLock = sync.Mutex{}
 var regexpCache map[string]*regexp.Regexp
 
-func evalRegexMatch(t *Topdown, expr *ast.Expr, iter Iterator) error {
-	ops := expr.Terms.([]*ast.Term)
-	pat, err := ValueToString(ops[1].Value, t)
-	if err != nil {
-		return errors.Wrapf(err, "re_match: pattern value must be a string")
-	}
-	input, err := ValueToString(ops[2].Value, t)
-	if err != nil {
-		return errors.Wrapf(err, "re_match: input value must be a string")
-	}
-	re, err := getRegexp(pat)
+func builtinRegexMatch(a, b ast.Value) error {
+	s1, err := builtins.StringOperand(a, 1)
 	if err != nil {
 		return err
 	}
-	if re.Match([]byte(input)) {
-		return iter(t)
+	s2, err := builtins.StringOperand(b, 2)
+	if err != nil {
+		return err
 	}
-	return nil
+	re, err := getRegexp(string(s1))
+	if err != nil {
+		return err
+	}
+	if re.Match([]byte(s2)) {
+		return nil
+	}
+	return BuiltinEmpty{}
 }
 
 func getRegexp(pat string) (*regexp.Regexp, error) {
@@ -52,4 +52,5 @@ func getRegexp(pat string) (*regexp.Regexp, error) {
 
 func init() {
 	regexpCache = map[string]*regexp.Regexp{}
+	RegisterFunctionalBuiltinVoid2(ast.RegexMatch.Name, builtinRegexMatch)
 }

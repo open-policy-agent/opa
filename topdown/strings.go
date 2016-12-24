@@ -9,198 +9,202 @@ import (
 	"strings"
 
 	"github.com/open-policy-agent/opa/ast"
-	"github.com/pkg/errors"
+	"github.com/open-policy-agent/opa/topdown/builtins"
 )
 
-func evalFormatInt(t *Topdown, expr *ast.Expr, iter Iterator) error {
-	ops := expr.Terms.([]*ast.Term)
+func builtinFormatInt(a, b ast.Value) (ast.Value, error) {
 
-	input, err := ValueToJSONNumber(ops[1].Value, t)
+	input, err := builtins.NumberOperand(a, 1)
 	if err != nil {
-		return errors.Wrapf(err, "%v: input must be a number", ast.FormatInt.Name)
+		return nil, err
 	}
 
-	i, _ := jsonNumberToFloat(input).Int(nil)
-
-	base, err := ValueToInt(ops[2].Value, t)
+	base, err := builtins.NumberOperand(b, 2)
 	if err != nil {
-		return errors.Wrapf(err, "%v: base must be an integer", ast.FormatInt.Name)
+		return nil, err
 	}
 
 	var format string
 	switch base {
-	case 2:
+	case ast.Number("2"):
 		format = "%b"
-	case 8:
+	case ast.Number("8"):
 		format = "%o"
-	case 10:
+	case ast.Number("10"):
 		format = "%d"
-	case 16:
+	case ast.Number("16"):
 		format = "%x"
 	default:
-		return errors.Wrapf(err, "%v: base must be one of 2, 8, 10, 16", ast.FormatInt.Name)
+		return nil, builtins.NewOperandEnumErr(2, "2", "8", "10", "16")
 	}
 
-	s := ast.String(fmt.Sprintf(format, i))
+	f := builtins.NumberToFloat(input)
+	i, _ := f.Int(nil)
 
-	undo, err := evalEqUnify(t, s, ops[3].Value, nil, iter)
-	t.Unbind(undo)
-	return err
+	return ast.String(fmt.Sprintf(format, i)), nil
 }
 
-func evalConcat(t *Topdown, expr *ast.Expr, iter Iterator) error {
-	ops := expr.Terms.([]*ast.Term)
+func builtinConcat(a, b ast.Value) (ast.Value, error) {
 
-	join, err := ValueToString(ops[1].Value, t)
+	join, err := builtins.StringOperand(a, 1)
 	if err != nil {
-		return errors.Wrapf(err, "%v: join value must be a string", ast.Concat.Name)
+		return nil, err
 	}
 
-	sl, err := ValueToStrings(ops[2].Value, t)
-	if err != nil {
-		return errors.Wrapf(err, "%v: input value must be array of strings", ast.Concat.Name)
+	strs := []string{}
+
+	switch b := b.(type) {
+	case ast.Array:
+		for i := range b {
+			s, ok := b[i].Value.(ast.String)
+			if !ok {
+				return nil, builtins.NewOperandElementErr(2, b, b[i].Value, ast.StringTypeName)
+			}
+			strs = append(strs, string(s))
+		}
+	case *ast.Set:
+		var err error
+		stopped := b.Iter(func(x *ast.Term) bool {
+			s, ok := x.Value.(ast.String)
+			if !ok {
+				err = builtins.NewOperandElementErr(2, b, x.Value, ast.StringTypeName)
+				return true
+			}
+			strs = append(strs, string(s))
+			return false
+		})
+		if stopped {
+			return nil, err
+		}
+	default:
+		return nil, builtins.NewOperandTypeErr(2, b, ast.SetTypeName, ast.ArrayTypeName)
 	}
 
-	s := ast.String(strings.Join(sl, join))
-
-	undo, err := evalEqUnify(t, s, ops[3].Value, nil, iter)
-	t.Unbind(undo)
-	return err
+	return ast.String(strings.Join(strs, string(join))), nil
 }
 
-func evalIndexOf(t *Topdown, expr *ast.Expr, iter Iterator) error {
-	ops := expr.Terms.([]*ast.Term)
-
-	base, err := ValueToString(ops[1].Value, t)
+func builtinIndexOf(a, b ast.Value) (ast.Value, error) {
+	base, err := builtins.StringOperand(a, 1)
 	if err != nil {
-		return errors.Wrapf(err, "%v: base value must be a string", ast.IndexOf.Name)
+		return nil, err
 	}
 
-	search, err := ValueToString(ops[2].Value, t)
+	search, err := builtins.StringOperand(b, 2)
 	if err != nil {
-		return errors.Wrapf(err, "%v: search value must be a string", ast.IndexOf.Name)
+		return nil, err
 	}
 
-	index := ast.IntNumberTerm(strings.Index(base, search))
-
-	undo, err := evalEqUnify(t, index.Value, ops[3].Value, nil, iter)
-	t.Unbind(undo)
-	return err
+	index := strings.Index(string(base), string(search))
+	return ast.IntNumberTerm(index).Value, nil
 }
 
-func evalSubstring(t *Topdown, expr *ast.Expr, iter Iterator) error {
-	ops := expr.Terms.([]*ast.Term)
+func builtinSubstring(a, b, c ast.Value) (ast.Value, error) {
 
-	base, err := ValueToString(ops[1].Value, t)
+	base, err := builtins.StringOperand(a, 1)
 	if err != nil {
-		return errors.Wrapf(err, "%v: base value must be a string", ast.Substring.Name)
+		return nil, err
 	}
 
-	startIndex, err := ValueToInt(ops[2].Value, t)
+	startIndex, err := builtins.IntOperand(b, 2)
 	if err != nil {
-		return errors.Wrapf(err, "%v: start index must be a number", ast.Substring.Name)
+		return nil, err
 	}
 
-	l, err := ValueToInt(ops[3].Value, t)
+	length, err := builtins.IntOperand(c, 3)
 	if err != nil {
-		return errors.Wrapf(err, "%v: length must be a number", ast.Substring.Name)
+		return nil, err
 	}
 
 	var s ast.String
-	if l < 0 {
+	if length < 0 {
 		s = ast.String(base[startIndex:])
 	} else {
-		s = ast.String(base[startIndex : startIndex+l])
+		s = ast.String(base[startIndex : startIndex+length])
 	}
 
-	undo, err := evalEqUnify(t, s, ops[4].Value, nil, iter)
-	t.Unbind(undo)
-	return err
+	return s, nil
 }
 
-func evalContains(t *Topdown, expr *ast.Expr, iter Iterator) error {
-	ops := expr.Terms.([]*ast.Term)
-
-	base, err := ValueToString(ops[1].Value, t)
+func builtinContains(a, b ast.Value) error {
+	s, err := builtins.StringOperand(a, 1)
 	if err != nil {
-		return errors.Wrapf(err, "%v: base value must be a string", ast.Contains.Name)
+		return err
 	}
 
-	search, err := ValueToString(ops[2].Value, t)
+	substr, err := builtins.StringOperand(b, 2)
 	if err != nil {
-		return errors.Wrapf(err, "%v: search must be a string", ast.Contains.Name)
+		return err
 	}
 
-	if strings.Contains(base, search) {
-		return iter(t)
+	if !strings.Contains(string(s), string(substr)) {
+		return BuiltinEmpty{}
 	}
+
 	return nil
 }
 
-func evalStartsWith(t *Topdown, expr *ast.Expr, iter Iterator) error {
-	ops := expr.Terms.([]*ast.Term)
-
-	base, err := ValueToString(ops[1].Value, t)
+func builtinStartsWith(a, b ast.Value) error {
+	s, err := builtins.StringOperand(a, 1)
 	if err != nil {
-		return errors.Wrapf(err, "%v: base value must be a string", ast.StartsWith.Name)
+		return err
 	}
 
-	search, err := ValueToString(ops[2].Value, t)
+	prefix, err := builtins.StringOperand(b, 2)
 	if err != nil {
-		return errors.Wrapf(err, "%v: search must be a string", ast.StartsWith.Name)
+		return err
 	}
 
-	if strings.HasPrefix(base, search) {
-		return iter(t)
+	if !strings.HasPrefix(string(s), string(prefix)) {
+		return BuiltinEmpty{}
 	}
+
 	return nil
 }
 
-func evalEndsWith(t *Topdown, expr *ast.Expr, iter Iterator) error {
-	ops := expr.Terms.([]*ast.Term)
-
-	base, err := ValueToString(ops[1].Value, t)
+func builtinEndsWith(a, b ast.Value) error {
+	s, err := builtins.StringOperand(a, 1)
 	if err != nil {
-		return errors.Wrapf(err, "%v: base value must be a string", ast.EndsWith.Name)
+		return err
 	}
 
-	search, err := ValueToString(ops[2].Value, t)
+	suffix, err := builtins.StringOperand(b, 2)
 	if err != nil {
-		return errors.Wrapf(err, "%v: search must be a string", ast.EndsWith.Name)
+		return err
 	}
 
-	if strings.HasSuffix(base, search) {
-		return iter(t)
+	if !strings.HasSuffix(string(s), string(suffix)) {
+		return BuiltinEmpty{}
 	}
+
 	return nil
 }
 
-func evalLower(t *Topdown, expr *ast.Expr, iter Iterator) error {
-	ops := expr.Terms.([]*ast.Term)
-
-	orig, err := ValueToString(ops[1].Value, t)
+func builtinLower(a ast.Value) (ast.Value, error) {
+	s, err := builtins.StringOperand(a, 1)
 	if err != nil {
-		return errors.Wrapf(err, "%v: original value must be a string", ast.Lower.Name)
+		return nil, err
 	}
 
-	s := ast.String(strings.ToLower(orig))
-
-	undo, err := evalEqUnify(t, s, ops[2].Value, nil, iter)
-	t.Unbind(undo)
-	return err
+	return ast.String(strings.ToLower(string(s))), nil
 }
 
-func evalUpper(t *Topdown, expr *ast.Expr, iter Iterator) error {
-	ops := expr.Terms.([]*ast.Term)
-
-	orig, err := ValueToString(ops[1].Value, t)
+func builtinUpper(a ast.Value) (ast.Value, error) {
+	s, err := builtins.StringOperand(a, 1)
 	if err != nil {
-		return errors.Wrapf(err, "%v: original value must be a string", ast.Upper.Name)
+		return nil, err
 	}
 
-	s := ast.String(strings.ToUpper(orig))
+	return ast.String(strings.ToUpper(string(s))), nil
+}
 
-	undo, err := evalEqUnify(t, s, ops[2].Value, nil, iter)
-	t.Unbind(undo)
-	return err
+func init() {
+	RegisterFunctionalBuiltin2(ast.FormatInt.Name, builtinFormatInt)
+	RegisterFunctionalBuiltin2(ast.Concat.Name, builtinConcat)
+	RegisterFunctionalBuiltin2(ast.IndexOf.Name, builtinIndexOf)
+	RegisterFunctionalBuiltin3(ast.Substring.Name, builtinSubstring)
+	RegisterFunctionalBuiltinVoid2(ast.Contains.Name, builtinContains)
+	RegisterFunctionalBuiltinVoid2(ast.StartsWith.Name, builtinStartsWith)
+	RegisterFunctionalBuiltinVoid2(ast.EndsWith.Name, builtinEndsWith)
+	RegisterFunctionalBuiltin1(ast.Upper.Name, builtinUpper)
+	RegisterFunctionalBuiltin1(ast.Lower.Name, builtinLower)
 }

@@ -5,88 +5,83 @@
 package topdown
 
 import (
-	"encoding/json"
-	"fmt"
 	"math/big"
 
 	"github.com/open-policy-agent/opa/ast"
-	"github.com/open-policy-agent/opa/util"
-	"github.com/pkg/errors"
+	"github.com/open-policy-agent/opa/topdown/builtins"
 )
 
-type reduceFunc func(x interface{}) (ast.Value, error)
-
-type empty struct{}
-
-func (e empty) Error() string {
-	return "empty"
-}
-
-func evalReduce(f reduceFunc) BuiltinFunc {
-	return func(t *Topdown, expr *ast.Expr, iter Iterator) error {
-		ops := expr.Terms.([]*ast.Term)
-		src, dst := ops[1].Value, ops[2].Value
-		x, err := ValueToInterface(src, t)
-		if err != nil {
-			return errors.Wrapf(err, "aggregate")
-		}
-
-		y, err := f(x)
-		if err != nil {
-			switch err.(type) {
-			case empty:
-				return nil
-			}
-			return err
-		}
-
-		undo, err := evalEqUnify(t, y, dst, nil, iter)
-		t.Unbind(undo)
-		return err
+func builtinCount(a ast.Value) (ast.Value, error) {
+	switch a := a.(type) {
+	case ast.Array:
+		return ast.IntNumberTerm(len(a)).Value, nil
+	case ast.Object:
+		return ast.IntNumberTerm(len(a)).Value, nil
+	case *ast.Set:
+		return ast.IntNumberTerm(len(*a)).Value, nil
+	case ast.String:
+		return ast.IntNumberTerm(len(a)).Value, nil
 	}
+	return nil, builtins.NewOperandTypeErr(1, a, ast.ArrayTypeName, ast.ObjectTypeName, ast.SetTypeName)
 }
 
-func reduceSum(x interface{}) (ast.Value, error) {
-	if s, ok := x.([]interface{}); ok {
+func builtinSum(a ast.Value) (ast.Value, error) {
+	switch a := a.(type) {
+	case ast.Array:
 		sum := big.NewFloat(0)
-		for _, x := range s {
-			n, ok := x.(json.Number)
+		for _, x := range a {
+			n, ok := x.Value.(ast.Number)
 			if !ok {
-				return nil, fmt.Errorf("sum: input elements must be numbers")
+				return nil, builtins.NewOperandElementErr(1, a, x.Value, ast.NumberTypeName)
 			}
-			sum = new(big.Float).Add(sum, jsonNumberToFloat(n))
+			sum = new(big.Float).Add(sum, builtins.NumberToFloat(n))
 		}
-		return floatToASTNumber(sum), nil
+		return builtins.FloatToNumber(sum), nil
+	case *ast.Set:
+		sum := big.NewFloat(0)
+		for _, x := range *a {
+			n, ok := x.Value.(ast.Number)
+			if !ok {
+				return nil, builtins.NewOperandElementErr(1, a, x.Value, ast.NumberTypeName)
+			}
+			sum = new(big.Float).Add(sum, builtins.NumberToFloat(n))
+		}
+		return builtins.FloatToNumber(sum), nil
 	}
-	return nil, fmt.Errorf("sum: source must be array")
+	return nil, builtins.NewOperandTypeErr(1, a, ast.SetTypeName, ast.ArrayTypeName)
 }
 
-func reduceCount(x interface{}) (ast.Value, error) {
-	switch x := x.(type) {
-	case []interface{}:
-		return ast.IntNumberTerm(len(x)).Value, nil
-	case map[string]interface{}:
-		return ast.IntNumberTerm(len(x)).Value, nil
-	case string:
-		return ast.IntNumberTerm(len(x)).Value, nil
-	default:
-		return nil, fmt.Errorf("count: source must be array, object, or string")
-	}
-}
-
-func reduceMax(x interface{}) (ast.Value, error) {
-	switch x := x.(type) {
-	case []interface{}:
-		if len(x) == 0 {
-			return nil, empty{}
+func builtinMax(a ast.Value) (ast.Value, error) {
+	switch a := a.(type) {
+	case ast.Array:
+		if len(a) == 0 {
+			return nil, BuiltinEmpty{}
 		}
-		var max interface{}
-		for i := range x {
-			if util.Compare(max, x[i]) <= 0 {
-				max = x[i]
+		var max ast.Value = ast.Null{}
+		for i := range a {
+			if ast.Compare(max, a[i].Value) <= 0 {
+				max = a[i].Value
 			}
 		}
-		return ast.InterfaceToValue(max)
+		return max, nil
+	case *ast.Set:
+		if len(*a) == 0 {
+			return nil, BuiltinEmpty{}
+		}
+		max, err := a.Reduce(ast.NullTerm(), func(max *ast.Term, elem *ast.Term) (*ast.Term, error) {
+			if ast.Compare(max, elem) <= 0 {
+				return elem, nil
+			}
+			return max, nil
+		})
+		return max.Value, err
 	}
-	return nil, fmt.Errorf("max: source must be array")
+
+	return nil, builtins.NewOperandTypeErr(1, a, ast.SetTypeName, ast.ArrayTypeName)
+}
+
+func init() {
+	RegisterFunctionalBuiltin1(ast.Count.Name, builtinCount)
+	RegisterFunctionalBuiltin1(ast.Sum.Name, builtinSum)
+	RegisterFunctionalBuiltin1(ast.Max.Name, builtinMax)
 }
