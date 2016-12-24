@@ -10,9 +10,12 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"strings"
+
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/topdown"
+	"github.com/open-policy-agent/opa/topdown/builtins"
 )
 
 func ExampleEval() {
@@ -146,4 +149,81 @@ func ExampleQuery() {
 	// v1: [1 3]
 	// err1: <nil>
 
+}
+
+func ExampleRegisterFunctionalBuiltin1() {
+
+	// Rego includes a number of built-in functions ("built-ins") for performing
+	// standard operations like string manipulation, regular expression
+	// matching, and computing aggregates.
+	//
+	// This test shows how to add a new built-in to Rego and OPA.
+
+	// Initialize context for the example. Normally the caller would obtain the
+	// context from an input parameter or instantiate their own.
+	ctx := context.Background()
+
+	// The ast package contains a registry that enumerates the built-ins
+	// included in Rego. When adding a new built-in, you must update the
+	// registry to include your built-in. Otherwise, the compiler will complain
+	// when it encounters your built-in.
+	builtin := &ast.Builtin{
+		Name:      ast.Var("selective_upper"),
+		NumArgs:   2,
+		TargetPos: []int{1},
+	}
+
+	ast.RegisterBuiltin(builtin)
+
+	// This is the implementation of the built-in that will be called during
+	// query evaluation.
+	builtinImpl := func(a ast.Value) (ast.Value, error) {
+
+		str, err := builtins.StringOperand(a, 1)
+
+		if err != nil {
+			return nil, err
+		}
+
+		if str.Equal(ast.String("magic")) {
+			// topdown.BuiltinEmpty indicates to the evaluation engine that the
+			// expression is false/not defined.
+			return nil, topdown.BuiltinEmpty{}
+		}
+
+		return ast.String(strings.ToUpper(string(str))), nil
+	}
+
+	// See documentation for registering functions that take different numbers
+	// of arguments.
+	topdown.RegisterFunctionalBuiltin1(builtin.Name, builtinImpl)
+
+	// At this point, the new built-in has been registered and can be used in
+	// queries. Our custom built-in converts strings to upper case but is not
+	// defined for the input "magic".
+	compiler := ast.NewCompiler()
+	query, err := compiler.QueryCompiler().Compile(ast.MustParseBody(`selective_upper("custom", x), not selective_upper("magic", "MAGIC")`))
+	if err != nil {
+		// Handle error.
+	}
+
+	// Evaluate the query.
+	t := topdown.New(ctx, query, compiler, nil, nil)
+
+	topdown.Eval(t, func(t *topdown.Topdown) error {
+		fmt.Println("x:", t.Binding(ast.Var("x")))
+		return nil
+	})
+
+	// If you are adding new built-in functions to upstream OPA, you must also
+	// update the [Language
+	// Reference](http://www.openpolicyagent.org/documentation/references/language/)
+	// and [How Do I Write
+	// Policies](http://www.openpolicyagent.org/documentation/how-do-i-write-policies/)
+	// documents. In addition, you must add tests for your new built-in. See the
+	// existing integration tests in the topdown package.
+
+	// Output:
+	//
+	// x: "CUSTOM"
 }

@@ -28,20 +28,19 @@ func compareNotEq(a, b ast.Value) bool {
 	return ast.Compare(a, b) != 0
 }
 
-func evalIneq(cmp compareFunc) BuiltinFunc {
-	return func(t *Topdown, expr *ast.Expr, iter Iterator) error {
-		ops := expr.Terms.([]*ast.Term)
-		a, err := ResolveRefs(ops[1].Value, t)
-		if err != nil {
-			return err
-		}
-		b, err := ResolveRefs(ops[2].Value, t)
-		if err != nil {
-			return err
-		}
-		if cmp(a, b) {
-			return iter(t)
+func builtinCompare(cmp compareFunc) FunctionalBuiltinVoid2 {
+	return func(a, b ast.Value) error {
+		if !cmp(a, b) {
+			return BuiltinEmpty{}
 		}
 		return nil
 	}
+}
+
+func init() {
+	RegisterFunctionalBuiltinVoid2(ast.GreaterThan.Name, builtinCompare(compareGreaterThan))
+	RegisterFunctionalBuiltinVoid2(ast.GreaterThanEq.Name, builtinCompare(compareGreaterThanEq))
+	RegisterFunctionalBuiltinVoid2(ast.LessThan.Name, builtinCompare(compareLessThan))
+	RegisterFunctionalBuiltinVoid2(ast.LessThanEq.Name, builtinCompare(compareLessThanEq))
+	RegisterFunctionalBuiltinVoid2(ast.NotEqual.Name, builtinCompare(compareNotEq))
 }

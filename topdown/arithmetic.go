@@ -5,30 +5,15 @@
 package topdown
 
 import (
-	"encoding/json"
 	"fmt"
 	"math/big"
 
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/topdown/builtins"
 )
 
-func jsonNumberToFloat(n json.Number) *big.Float {
-	r, ok := new(big.Float).SetString(string(n))
-	if !ok {
-		panic("illegal value")
-	}
-	return r
-}
-
-func floatToJSONNumber(f *big.Float) json.Number {
-	return json.Number(f.String())
-}
-
-func floatToASTNumber(f *big.Float) ast.Number {
-	return ast.Number(floatToJSONNumber(f))
-}
-
 type arithArity1 func(a *big.Float) (*big.Float, error)
+type arithArity2 func(a, b *big.Float) (*big.Float, error)
 
 func arithAbs(a *big.Float) (*big.Float, error) {
 	return a.Abs(a), nil
@@ -45,8 +30,6 @@ func arithRound(a *big.Float) (*big.Float, error) {
 	}
 	return new(big.Float).SetInt(i), nil
 }
-
-type arithArity2 func(a, b *big.Float) (*big.Float, error)
 
 func arithPlus(a, b *big.Float) (*big.Float, error) {
 	return new(big.Float).Add(a, b), nil
@@ -68,50 +51,43 @@ func arithDivide(a, b *big.Float) (*big.Float, error) {
 	return new(big.Float).Quo(a, b), nil
 }
 
-func evalArithArity1(f arithArity1) BuiltinFunc {
-	return func(t *Topdown, expr *ast.Expr, iter Iterator) error {
-		ops := expr.Terms.([]*ast.Term)
-
-		a, err := ValueToJSONNumber(ops[1].Value, t)
+func builtinArithArity1(fn arithArity1) FunctionalBuiltin1 {
+	return func(a ast.Value) (ast.Value, error) {
+		n, err := builtins.NumberOperand(a, 1)
 		if err != nil {
-			return expr.Location.Wrapf(err, "expected number (operand %s is not a number)", ops[0].Location.Text)
+			return nil, err
 		}
-
-		x, err := f(jsonNumberToFloat(a))
+		f, err := fn(builtins.NumberToFloat(n))
 		if err != nil {
-			return err
+			return nil, err
 		}
-
-		b := ops[2].Value
-		undo, err := evalEqUnify(t, floatToASTNumber(x), b, nil, iter)
-		t.Unbind(undo)
-		return err
+		return builtins.FloatToNumber(f), nil
 	}
 }
 
-func evalArithArity2(f arithArity2) BuiltinFunc {
-	return func(t *Topdown, expr *ast.Expr, iter Iterator) error {
-		ops := expr.Terms.([]*ast.Term)
-
-		a, err := ValueToJSONNumber(ops[1].Value, t)
+func builtinArithArity2(fn arithArity2) FunctionalBuiltin2 {
+	return func(a, b ast.Value) (ast.Value, error) {
+		n1, err := builtins.NumberOperand(a, 1)
 		if err != nil {
-			return expr.Location.Wrapf(err, "expected number (first operand %s is not a number)", ops[0].Location.Text)
+			return nil, err
 		}
-
-		b, err := ValueToJSONNumber(ops[2].Value, t)
+		n2, err := builtins.NumberOperand(b, 2)
 		if err != nil {
-			return expr.Location.Wrapf(err, "expected number (second operand %s is not a number)", ops[2].Location.Text)
+			return nil, err
 		}
-
-		c, err := f(jsonNumberToFloat(a), jsonNumberToFloat(b))
+		f, err := fn(builtins.NumberToFloat(n1), builtins.NumberToFloat(n2))
 		if err != nil {
-			return err
+			return nil, err
 		}
-
-		cv := ops[3].Value
-
-		undo, err := evalEqUnify(t, floatToASTNumber(c), cv, nil, iter)
-		t.Unbind(undo)
-		return err
+		return builtins.FloatToNumber(f), nil
 	}
+}
+
+func init() {
+	RegisterFunctionalBuiltin1(ast.Abs.Name, builtinArithArity1(arithAbs))
+	RegisterFunctionalBuiltin1(ast.Round.Name, builtinArithArity1(arithRound))
+	RegisterFunctionalBuiltin2(ast.Plus.Name, builtinArithArity2(arithPlus))
+	RegisterFunctionalBuiltin2(ast.Minus.Name, builtinArithArity2(arithMinus))
+	RegisterFunctionalBuiltin2(ast.Multiply.Name, builtinArithArity2(arithMultiply))
+	RegisterFunctionalBuiltin2(ast.Divide.Name, builtinArithArity2(arithDivide))
 }

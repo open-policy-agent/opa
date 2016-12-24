@@ -328,8 +328,9 @@ func newContextCache() *contextcache {
 // Error is the error type returned by the Eval and Query functions when
 // an evaluation error occurs.
 type Error struct {
-	Code    int
-	Message string
+	Code     int
+	Message  string
+	Location *ast.Location
 }
 
 const (
@@ -349,7 +350,14 @@ const (
 )
 
 func (e *Error) Error() string {
-	return fmt.Sprintf("evaluation error (code: %v): %v", e.Code, e.Message)
+
+	msg := fmt.Sprintf("evaluation error (code: %v): %v", e.Code, e.Message)
+
+	if e.Location != nil {
+		msg += fmt.Sprintf(" (%v: %v)", e.Location, string(e.Location.Text))
+	}
+
+	return msg
 }
 
 func conflictErr(query interface{}, kind string, rule *ast.Rule) error {
@@ -800,85 +808,6 @@ func ValueToInterface(v ast.Value, resolver Resolver) (interface{}, error) {
 	default:
 		return nil, fmt.Errorf("unbound value: %v", v)
 	}
-}
-
-// ValueToSlice returns the underlying Go value associated with an AST value.
-// If the value is a reference, the reference is fetched from storage.
-func ValueToSlice(v ast.Value, resolver Resolver) ([]interface{}, error) {
-	x, err := ValueToInterface(v, resolver)
-	if err != nil {
-		return nil, err
-	}
-	s, ok := x.([]interface{})
-	if !ok {
-		return nil, fmt.Errorf("illegal argument: %v", x)
-	}
-	return s, nil
-}
-
-// ValueToJSONNumber returns the underlying Go value associated with the AST
-// value. If the value is a reference, the reference is fetched from storage.
-func ValueToJSONNumber(v ast.Value, resolver Resolver) (json.Number, error) {
-	x, err := ValueToInterface(v, resolver)
-	if err != nil {
-		return "", err
-	}
-	n, ok := x.(json.Number)
-	if !ok {
-		return "", fmt.Errorf("illegal argument: %v", v)
-	}
-	return n, nil
-}
-
-// ValueToFloat64 returns the underlying Go value associated with an AST value.
-// If the value is a reference, the reference is fetched from storage.
-func ValueToFloat64(v ast.Value, resolver Resolver) (float64, error) {
-	x, err := ValueToJSONNumber(v, resolver)
-	if err != nil {
-		return 0, err
-	}
-	return x.Float64()
-}
-
-// ValueToInt returns the underlying Go value associated with an AST value.
-// If the value is a reference, the reference is fetched from storage.
-func ValueToInt(v ast.Value, resolver Resolver) (int64, error) {
-	x, err := ValueToJSONNumber(v, resolver)
-	if err != nil {
-		return 0, err
-	}
-	return x.Int64()
-}
-
-// ValueToString returns the underlying Go value associated with an AST value.
-// If the value is a reference, the reference is fetched from storage.
-func ValueToString(v ast.Value, resolver Resolver) (string, error) {
-	x, err := ValueToInterface(v, resolver)
-	if err != nil {
-		return "", err
-	}
-	s, ok := x.(string)
-	if !ok {
-		return "", fmt.Errorf("illegal argument: %v", v)
-	}
-	return s, nil
-}
-
-// ValueToStrings returns a slice of strings associated with an AST value.
-func ValueToStrings(v ast.Value, resolver Resolver) ([]string, error) {
-	sl, err := ValueToSlice(v, resolver)
-	if err != nil {
-		return nil, err
-	}
-	r := make([]string, len(sl))
-	for i, x := range sl {
-		var ok bool
-		r[i], ok = x.(string)
-		if !ok {
-			return nil, fmt.Errorf("illegal argument: %v", x)
-		}
-	}
-	return r, nil
 }
 
 func eval(t *Topdown, iter Iterator) error {

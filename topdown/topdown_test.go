@@ -998,7 +998,14 @@ func TestTopDownCasts(t *testing.T) {
 		rules    []string
 		expected interface{}
 	}{
-		{"to_number", []string{`p[x] :- to_number("-42.0", y), to_number(false, z), x = [y, z]`}, "[[-42.0, 0]]"},
+		{"to_number", []string{
+			`p = [x,y,z,i,j] :-
+				to_number("-42.0", x),
+				to_number(false, y),
+				to_number(100.1, z),
+				to_number(null, i),
+				to_number(true, j)`},
+			"[-42.0, 0, 100.1, 0, 1]"},
 		{"to_number ref dest", []string{`p :- to_number("3", a[2])`}, "true"},
 		{"to_number ref dest", []string{`p :- not to_number("-1", a[2])`}, "true"},
 	}
@@ -1037,8 +1044,8 @@ func TestTopDownSets(t *testing.T) {
 	}{
 		{"set_diff", []string{"p = x :- s1 = {1,2,3,4}, s2 = {1,3}, set_diff(s1, s2, x)"}, `[2,4]`},
 		{"set_diff: refs", []string{"p = x :- s1 = {a[2], a[1], a[0]}, s2 = {a[0], 2}, set_diff(s1, s2, x)"}, "[3]"},
-		{"set_diff: bad input", []string{"p = x :- s1 = [1,2,3], s2 = {1,2}, set_diff(s1, s2, x)"}, fmt.Errorf("evaluation error (code: 2): set_diff: first input argument must be set not ast.Array")},
-		{"set_diff: bad input", []string{"p = x :- s1 = {1,2,3}, s2 = [1,2], set_diff(s1, s2, x)"}, fmt.Errorf("evaluation error (code: 2): set_diff: second input argument must be set not ast.Array")},
+		{"set_diff: bad input", []string{"p = x :- s1 = [1,2,3], s2 = {1,2}, set_diff(s1, s2, x)"}, fmt.Errorf("operand 1 must be set but got array")},
+		{"set_diff: bad input", []string{"p = x :- s1 = {1,2,3}, s2 = [1,2], set_diff(s1, s2, x)"}, fmt.Errorf("operand 2 must be set but got array")},
 		{"set_diff: ground output", []string{"p :- set_diff({1,2,3}, {2,3}, {1})"}, "true"},
 		{"set_diff: virt docs", []string{"p = x :- set_diff(s1, s2, x)", "s1[1] :- true", "s1[2] :- true", `s1["c"] :- true`, `s2 = {"c", 1} :- true`}, "[2]"},
 	}
@@ -1058,39 +1065,40 @@ func TestTopDownStrings(t *testing.T) {
 	}{
 		{"format_int", []string{"p = x :- format_int(15.5, 16, x)"}, `"f"`},
 		{"format_int: undefined", []string{`p :- format_int(15.5, 16, "10000")`}, ""},
-		{"format_int: err", []string{"p :- format_int(null, 16, x)"}, fmt.Errorf("format_int: input must be a number: illegal argument: null")},
+		{"format_int: err", []string{"p :- format_int(null, 16, x)"}, fmt.Errorf("operand 1 must be number but got null")},
 		{"format_int: ref dest", []string{"p :- format_int(3.1, 10, numbers[2])"}, "true"},
 		{"format_int: ref dest (2)", []string{"p :- not format_int(4.1, 10, numbers[2])"}, "true"},
+		{"format_int: err: bad base", []string{"p :- format_int(4.1, 199, true)"}, fmt.Errorf("operand 2 must be one of {2, 8, 10, 16}")},
 		{"concat", []string{`p = x :- concat("/", ["", "foo", "bar", "0", "baz"], x)`}, `"/foo/bar/0/baz"`},
 		{"concat: set", []string{`p = x :- concat(",", {"1", "2", "3"}, x)`}, `"1,2,3"`},
 		{"concat: undefined", []string{`p :- concat("/", ["a", "b"], "deadbeef")`}, ""},
-		{"concat: non-string err", []string{`p = x :- concat("/", ["", "foo", "bar", 0, "baz"], x)`}, fmt.Errorf("concat: input value must be array of strings: illegal argument: 0")},
+		{"concat: non-string err", []string{`p = x :- concat("/", ["", "foo", "bar", 0, "baz"], x)`}, fmt.Errorf("operand 2 must be array of strings but got array containing number")},
 		{"concat: ref dest", []string{`p :- concat("", ["f", "o", "o"], c[0].x[2])`}, "true"},
 		{"concat: ref dest (2)", []string{`p :- not concat("", ["b", "a", "r"], c[0].x[2])`}, "true"},
 		{"indexof", []string{`p = x :- indexof("abcdefgh", "cde", x)`}, "2"},
 		{"indexof: not found", []string{`p = x :- indexof("abcdefgh", "xyz", x)`}, "-1"},
-		{"indexof: error", []string{`p = x :- indexof("abcdefgh", 1, x)`}, fmt.Errorf("indexof: search value must be a string: illegal argument: 1")},
+		{"indexof: error", []string{`p = x :- indexof("abcdefgh", 1, x)`}, fmt.Errorf("operand 2 must be string but got number")},
 		{"substring", []string{`p = x :- substring("abcdefgh", 2, 3, x)`}, `"cde"`},
 		{"substring: remainder", []string{`p = x :- substring("abcdefgh", 2, -1, x)`}, `"cdefgh"`},
-		{"substring: error 1", []string{`p = x :- substring(17, "xyz", 3, x)`}, fmt.Errorf("substring: base value must be a string: illegal argument: 17")},
-		{"substring: error 2", []string{`p = x :- substring("abcdefgh", "xyz", 3, x)`}, fmt.Errorf(`substring: start index must be a number: illegal argument: "xyz"`)},
-		{"substring: error 3", []string{`p = x :- substring("abcdefgh", 2, "xyz", x)`}, fmt.Errorf(`substring: length must be a number: illegal argument: "xyz"`)},
+		{"substring: error 1", []string{`p = x :- substring(17, "xyz", 3, x)`}, fmt.Errorf("operand 1 must be string but got number")},
+		{"substring: error 2", []string{`p = x :- substring("abcdefgh", "xyz", 3, x)`}, fmt.Errorf(`operand 2 must be number but got string`)},
+		{"substring: error 3", []string{`p = x :- substring("abcdefgh", 2, "xyz", x)`}, fmt.Errorf(`operand 3 must be number but got string`)},
 		{"contains", []string{`p :- contains("abcdefgh", "defg")`}, "true"},
 		{"contains: undefined", []string{`p :- contains("abcdefgh", "ac")`}, ""},
-		{"contains: error 1", []string{`p :- contains(17, "ac")`}, fmt.Errorf(`contains: base value must be a string: illegal argument: 17`)},
-		{"contains: error 2", []string{`p :- contains("abcdefgh", 17)`}, fmt.Errorf(`contains: search must be a string: illegal argument: 17`)},
+		{"contains: error 1", []string{`p :- contains(17, "ac")`}, fmt.Errorf(`operand 1 must be string but got number`)},
+		{"contains: error 2", []string{`p :- contains("abcdefgh", 17)`}, fmt.Errorf(`operand 2 must be string but got number`)},
 		{"startswith", []string{`p :- startswith("abcdefgh", "abcd")`}, "true"},
 		{"startswith: undefined", []string{`p :- startswith("abcdefgh", "bcd")`}, ""},
-		{"startswith: error 1", []string{`p :- startswith(17, "bcd")`}, fmt.Errorf(`startswith: base value must be a string: illegal argument: 17`)},
-		{"startswith: error 2", []string{`p :- startswith("abcdefgh", 17)`}, fmt.Errorf(`startswith: search must be a string: illegal argument: 17`)},
+		{"startswith: error 1", []string{`p :- startswith(17, "bcd")`}, fmt.Errorf(`operand 1 must be string but got number`)},
+		{"startswith: error 2", []string{`p :- startswith("abcdefgh", 17)`}, fmt.Errorf(`operand 2 must be string but got number`)},
 		{"endswith", []string{`p :- endswith("abcdefgh", "fgh")`}, "true"},
 		{"endswith: undefined", []string{`p :- endswith("abcdefgh", "fg")`}, ""},
-		{"endswith: error 1", []string{`p :- endswith(17, "bcd")`}, fmt.Errorf(`endswith: base value must be a string: illegal argument: 17`)},
-		{"endswith: error 2", []string{`p :- endswith("abcdefgh", 17)`}, fmt.Errorf(`endswith: search must be a string: illegal argument: 17`)},
+		{"endswith: error 1", []string{`p :- endswith(17, "bcd")`}, fmt.Errorf(`operand 1 must be string but got number`)},
+		{"endswith: error 2", []string{`p :- endswith("abcdefgh", 17)`}, fmt.Errorf(`perand 2 must be string but got number`)},
 		{"lower", []string{`p = x :- lower("AbCdEf", x)`}, `"abcdef"`},
-		{"lower error", []string{`p = x :- lower(true, x)`}, fmt.Errorf("lower: original value must be a string: illegal argument: true")},
+		{"lower error", []string{`p = x :- lower(true, x)`}, fmt.Errorf("operand 1 must be string but got boolean")},
 		{"upper", []string{`p = x :- upper("AbCdEf", x)`}, `"ABCDEF"`},
-		{"upper error", []string{`p = x :- upper(true, x)`}, fmt.Errorf("upper: original value must be a string: illegal argument: true")},
+		{"upper error", []string{`p = x :- upper(true, x)`}, fmt.Errorf("operand 1 must be string but got boolean")},
 	}
 
 	data := loadSmallTestData()
@@ -1841,7 +1849,8 @@ func assertTopDown(t *testing.T, compiler *ast.Compiler, store *storage.Storage,
 				t.Errorf("Expected error but got: %v", result)
 				return
 			}
-			if err.Error() != e.Error() {
+
+			if !strings.Contains(err.Error(), e.Error()) {
 				t.Errorf("Expected error %v but got: %v", e, err)
 			}
 
@@ -1875,12 +1884,16 @@ func assertTopDown(t *testing.T, compiler *ast.Compiler, store *storage.Storage,
 				t.Fatalf("Expected %v but got undefined", e)
 			}
 
-			expected := parseSortedJSON(e)
+			var expected interface{}
 
 			// Sort set results so that comparisons are not dependant on order.
 			p := ast.MustParseRef(fmt.Sprintf("data.%v", strings.Join(path, ".")))
+
 			if rs := compiler.GetRulesExact(p); len(rs) > 0 && rs[0].DocKind() == ast.PartialSetDoc {
 				sort.Sort(resultSet(qrs[0].Result.([]interface{})))
+				expected = parseSortedJSON(e)
+			} else {
+				expected = parseJSON(e)
 			}
 
 			if !reflect.DeepEqual(qrs[0].Result, expected) {
