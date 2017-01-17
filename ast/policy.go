@@ -63,6 +63,13 @@ func IsKeyword(s string) bool {
 var WildcardPrefix = "$"
 
 type (
+	// Statement represents a single statement in a policy module.
+	Statement interface {
+		Loc() *Location
+	}
+)
+
+type (
 
 	// Module represents a collection of policies (defined by rules)
 	// within a namespace (defined by the package) and optional
@@ -73,9 +80,10 @@ type (
 		Rules   []*Rule
 	}
 
-	// Statement represents a single statement within a module.
-	Statement interface {
-		Loc() *Location
+	// Comment represents
+	Comment struct {
+		Text     []byte
+		Location *Location
 	}
 
 	// Package represents the namespace of the documents produced
@@ -171,6 +179,22 @@ func (mod *Module) String() string {
 		}
 	}
 	return strings.Join(buf, "\n")
+}
+
+// NewComment returns a new Comment object.
+func NewComment(text []byte) *Comment {
+	return &Comment{
+		Text: text,
+	}
+}
+
+// Loc returns the location of the comment in the definition.
+func (c *Comment) Loc() *Location {
+	return c.Location
+}
+
+func (c *Comment) String() string {
+	return "#" + string(c.Text)
 }
 
 // Compare returns an integer indicating whether pkg is less than, equal to,
