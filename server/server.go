@@ -1071,6 +1071,10 @@ func parseRequest(s []string) (ast.Value, bool, error) {
 		var v *ast.Term
 		var err error
 
+		if len(s[i]) == 0 {
+			return nil, false, errRequestPathFormat
+		}
+
 		if s[i][0] == ':' {
 			k = ast.NewTerm(ast.EmptyRef())
 			v, err = ast.ParseTerm(s[i][1:])

@@ -65,4 +65,24 @@ func TestGetRequestParam(t *testing.T) {
 	if !reflect.DeepEqual(result, expected) {
 		t.Errorf("Expected %v but got: %v", expected, result)
 	}
+
+	uri, err = url.ParseRequestURI(fmt.Sprintf(`http://localhost:8181/v1/data/foo?request`))
+	if err != nil {
+		panic(err)
+	}
+
+	result = getRequestParam(uri)
+	if len(result) != 0 {
+		t.Errorf("Expected empty result but got: %v", result)
+	}
+
+	uri, err = url.ParseRequestURI(fmt.Sprintf(`http://localhost:8181/v1/data/foo?request=`))
+	if err != nil {
+		panic(err)
+	}
+
+	result = getRequestParam(uri)
+	if len(result) != 0 {
+		t.Errorf("Expected empty result but got: %v", result)
+	}
 }

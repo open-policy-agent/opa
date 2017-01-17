@@ -194,6 +194,14 @@ func TestDataV1(t *testing.T) {
 			tr{"GET", `/data/testmod/gt1?request={"req1":data.testmod.arr[i]}`, "", 200, `[[true, {"i": 1}], [true, {"i": 2}], [true, {"i": 3}]]`},
 		}},
 		{"get with request (bad format)", []tr{
+			tr{"GET", "/data/deadbeef?request", "", 400, `{
+				"Code": 400,
+				"Message": "request parameter format is [[<path>]:]<value> where <path> is either var or ref"
+			}`},
+			tr{"GET", "/data/deadbeef?request=", "", 400, `{
+				"Code": 400,
+				"Message": "request parameter format is [[<path>]:]<value> where <path> is either var or ref"
+			}`},
 			tr{"GET", `/data/deadbeef?request="foo`, "", 400, `{
 				"Code": 400,
 				"Message": "request parameter format is [[<path>]:]<value> where <path> is either var or ref"
