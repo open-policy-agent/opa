@@ -774,6 +774,9 @@ public_servers[server] :-
 	networks[m].public = true
 ```
 
+> cURL's `-d/--data` flag removes newline characters from input files. Use the `--data-binary` flag instead.
+{: .opa-tip}
+
 #### Example Response
 
 ```http
