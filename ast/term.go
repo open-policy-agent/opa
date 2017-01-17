@@ -355,7 +355,7 @@ func FloatNumberTerm(f float64) *Term {
 func (num Number) Equal(other Value) bool {
 	switch other := other.(type) {
 	case Number:
-		return num == other
+		return Compare(num, other) == 0
 	default:
 		return false
 	}
@@ -365,7 +365,8 @@ func (num Number) Equal(other Value) bool {
 func (num Number) Hash() int {
 	f, err := json.Number(num).Float64()
 	if err != nil {
-		panic("illegal value")
+		s := string(num)
+		return hashString(&s)
 	}
 	return int(f)
 }
@@ -422,8 +423,8 @@ func (str String) String() string {
 
 // Hash returns the hash code for the Value.
 func (str String) Hash() int {
-	h := siphash.Hash(hashSeed0, hashSeed1, *(*[]byte)(unsafe.Pointer(&str)))
-	return int(h)
+	s := string(str)
+	return hashString(&s)
 }
 
 // Var represents a variable as defined by the language.
@@ -1152,6 +1153,11 @@ func unmarshalValue(d map[string]interface{}) (Value, error) {
 	}
 unmarshal_error:
 	return nil, fmt.Errorf("ast: unable to unmarshal term")
+}
+
+func hashString(ptr *string) int {
+	h := siphash.Hash(hashSeed0, hashSeed1, *(*[]byte)(unsafe.Pointer(ptr)))
+	return int(h)
 }
 
 var hashSeed0 uint64

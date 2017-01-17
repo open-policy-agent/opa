@@ -5,6 +5,7 @@
 package ast
 
 import (
+	"encoding/json"
 	"fmt"
 	"reflect"
 	"strings"
@@ -100,6 +101,7 @@ func TestTermEqual(t *testing.T) {
 	assertTermEqual(t, NullTerm(), NullTerm())
 	assertTermEqual(t, BooleanTerm(true), BooleanTerm(true))
 	assertTermEqual(t, IntNumberTerm(5), IntNumberTerm(5))
+	assertTermEqual(t, NumberTerm(json.Number("1e6")), NumberTerm("1000000"))
 	assertTermEqual(t, StringTerm("a string"), StringTerm("a string"))
 	assertTermEqual(t, ObjectTerm(), ObjectTerm())
 	assertTermEqual(t, ArrayTerm(), ArrayTerm())
@@ -135,7 +137,8 @@ func TestHash(t *testing.T) {
 				100: a[i].b
 			},
 			"k": [ "foo" | true ],
-			"s": {1,2,{3,4}}
+			"s": {1,2,{3,4}},
+			"big": 1e1000
 		}
 	`
 
