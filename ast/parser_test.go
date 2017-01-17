@@ -5,6 +5,7 @@
 package ast
 
 import (
+	"encoding/json"
 	"fmt"
 	"reflect"
 	"strings"
@@ -34,6 +35,40 @@ public_servers[server] :-                       # a server exists in the public_
     `
 )
 
+func TestNumberTerms(t *testing.T) {
+
+	tests := []struct {
+		input    string
+		expected string
+	}{
+		{"0", "0"},
+		{"100", "100"},
+		{"-1", "-1"},
+		{"1e6", "1e6"},
+		{"1.1e6", "1.1e6"},
+		{"-1e-6", "-1e-6"},
+		{"1E6", "1E6"},
+		{"0.1", "0.1"},
+		{".1", "0.1"},
+		{".0001", "0.0001"},
+		{"-.1", "-0.1"},
+		{"-0.0001", "-0.0001"},
+		{"1e1000", "1e1000"},
+	}
+
+	for _, tc := range tests {
+		result, err := ParseTerm(tc.input)
+		if err != nil {
+			t.Errorf("Unexpected error for %v: %v", tc.input, err)
+		} else {
+			e := NumberTerm(json.Number(tc.expected))
+			if !result.Equal(e) {
+				t.Errorf("Expected %v for %v but got: %v", e, tc.input, result)
+			}
+		}
+	}
+}
+
 func TestScalarTerms(t *testing.T) {
 	assertParseOneTerm(t, "null", "null", NullTerm())
 	assertParseOneTerm(t, "true", "true", BooleanTerm(true))
@@ -55,7 +90,6 @@ func TestScalarTerms(t *testing.T) {
 	assertParseError(t, "non-number5", "6false")
 	assertParseError(t, "non-number6", "6[null, null]")
 	assertParseError(t, "non-number7", "6{\"foo\": \"bar\"}")
-	assertParseError(t, "out-of-range", "1e1000")
 }
 
 func TestVarTerms(t *testing.T) {

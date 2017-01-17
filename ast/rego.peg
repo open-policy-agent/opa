@@ -335,14 +335,30 @@ VarUnchecked <- AsciiLetter (AsciiLetter / DecimalDigit)* {
     return variable, nil
 }
 
-Number <- '-'? Integer ( '.' DecimalDigit+ )? Exponent? {
-    // JSON numbers have the same syntax as Go's, and are parseable using
-    // strconv.
-    _, err := strconv.ParseFloat(string(c.text), 64)
-    num := NumberTerm(json.Number(c.text))
+Number <- '-'? ( Float / Integer ) {
+    f, ok := new(big.Float).SetString(string(c.text))
+    if !ok {
+        // This indicates the grammar is out-of-sync with what the string
+        // representation of floating point numbers. This should not be
+        // possible.
+        panic("illegal value")
+    }
+    num := NumberTerm(json.Number(f.String()))
     num.Location = currentLocation(c)
-    return num, err
+    return num, nil
 }
+
+Float <- ExponentFloat / PointFloat
+
+ExponentFloat <- ( PointFloat / Integer ) Exponent
+
+PointFloat <- Integer? Fraction
+
+Fraction <- '.' DecimalDigit+
+
+Exponent <- 'e'i [+-]? DecimalDigit+
+
+Integer <- '0' / ( NonZeroDecimalDigit DecimalDigit* )
 
 String <- '"' ( !EscapedChar . / '\\' EscapeSequence )* '"' {
     // TODO : the forward slash (solidus) is not a valid escape in Go, it will
@@ -368,10 +384,6 @@ Null <- "null" {
     null.Location = currentLocation(c)
     return null, nil
 }
-
-Integer <- '0' / NonZeroDecimalDigit DecimalDigit*
-
-Exponent <- 'e'i [+-]? DecimalDigit+
 
 AsciiLetter <- [A-Za-z_]
 

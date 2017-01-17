@@ -255,7 +255,7 @@ func TestTopDownCompleteDoc(t *testing.T) {
 		{"bool: true", "p = true :- true", "true"},
 		{"bool: false", "p = false :- true", "false"},
 		{"number: 3", "p = 3 :- true", "3"},
-		{"number: 3.0", "p = 3.0 :- true", "3.0"},
+		{"number: 3.0", "p = 3.0 :- true", "3"},
 		{"number: 66.66667", "p = 66.66667 :- true", "66.66667"},
 		{`string: "hello"`, `p = "hello" :- true`, `"hello"`},
 		{`string: ""`, `p = "" :- true`, `""`},
@@ -725,7 +725,7 @@ func TestTopDownBaseAndVirtualDocs(t *testing.T) {
 		["c", "x", 0, 100],
 		["c", "x", 1, 200],
 		["c", "z", "a", "b"],
-		["c", "s", "w", {"f":10.0, "g": 9.9}]
+		["c", "s", "w", {"f":10, "g": 9.9}]
 	]`)
 
 	assertTopDown(t, compiler, store, "base/virtual: ground key", []string{"topdown", "q"}, "{}", `[
@@ -739,7 +739,7 @@ func TestTopDownBaseAndVirtualDocs(t *testing.T) {
 			"p": [1,2],
 			"q": [3,4],
 			"r": {"a": 1, "b": 2},
-			"s": {"w": {"f": 10.0, "g": 9.9}},
+			"s": {"w": {"f": 10, "g": 9.9}},
 			"x": [100,200],
 			"y": false,
 			"z": {"a": "b"}}]
