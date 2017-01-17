@@ -91,7 +91,7 @@ func dropRequestParam(u *url.URL) string {
 func getRequestParam(u *url.URL) (r []string) {
 	for _, g := range u.Query()[server.ParamRequestV1] {
 		s, err := url.QueryUnescape(g)
-		if err == nil {
+		if len(s) > 0 && err == nil {
 			r = append(r, s)
 		}
 	}
