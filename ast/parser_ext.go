@@ -68,7 +68,7 @@ func MustParsePackage(input string) *Package {
 
 // MustParseStatements returns a slice of parsed statements.
 // If an error occurs during parsing, panic.
-func MustParseStatements(input string) []interface{} {
+func MustParseStatements(input string) []Statement {
 	parsed, err := ParseStatements("", input)
 	if err != nil {
 		panic(err)
@@ -78,7 +78,7 @@ func MustParseStatements(input string) []interface{} {
 
 // MustParseStatement returns exactly one statement.
 // If an error occurs during parsing, panic.
-func MustParseStatement(input string) interface{} {
+func MustParseStatement(input string) Statement {
 	parsed, err := ParseStatement(input)
 	if err != nil {
 		panic(err)
@@ -280,7 +280,7 @@ func ParseRule(input string) (*Rule, error) {
 // A statement might be a term, expression, rule, etc. Regardless,
 // this function expects *exactly* one statement. If multiple
 // statements are parsed, an error is returned.
-func ParseStatement(input string) (interface{}, error) {
+func ParseStatement(input string) (Statement, error) {
 	stmts, err := ParseStatements("", input)
 	if err != nil {
 		return nil, err
@@ -293,7 +293,7 @@ func ParseStatement(input string) (interface{}, error) {
 
 // ParseStatements returns a slice of parsed statements.
 // This is the default return value from the parser.
-func ParseStatements(filename, input string) ([]interface{}, error) {
+func ParseStatements(filename, input string) ([]Statement, error) {
 	parsed, err := Parse(filename, []byte(input))
 	if err != nil {
 		switch err := err.(type) {
@@ -303,8 +303,18 @@ func ParseStatements(filename, input string) ([]interface{}, error) {
 			return nil, err
 		}
 	}
-	stmts := parsed.([]interface{})
+
+	sl := parsed.([]interface{})
+	stmts := make([]Statement, len(sl))
+
+	for i := range sl {
+		// Unchecked cast should be safe. A panic indicates grammar is
+		// out-of-sync.
+		stmts[i] = sl[i].(Statement)
+	}
+
 	postProcess(filename, stmts)
+
 	return stmts, err
 }
 
@@ -326,7 +336,7 @@ func formatParserError(filename string, e *parserError) *Error {
 	return NewError(ParseErr, loc, e.Inner.Error())
 }
 
-func parseModule(stmts []interface{}) (*Module, error) {
+func parseModule(stmts []Statement) (*Module, error) {
 
 	if len(stmts) == 0 {
 		return nil, nil
@@ -360,7 +370,7 @@ func parseModule(stmts []interface{}) (*Module, error) {
 	return mod, nil
 }
 
-func postProcess(filename string, stmts []interface{}) error {
+func postProcess(filename string, stmts []Statement) error {
 	setFilename(filename, stmts)
 
 	if err := mangleDataVars(stmts); err != nil {
@@ -377,31 +387,31 @@ func postProcess(filename string, stmts []interface{}) error {
 	return nil
 }
 
-func mangleDataVars(stmts []interface{}) error {
+func mangleDataVars(stmts []Statement) error {
 	for i := range stmts {
 		vt := newVarToRefTransformer(DefaultRootDocument.Value.(Var), DefaultRootRef)
 		stmt, err := Transform(vt, stmts[i])
 		if err != nil {
 			return err
 		}
-		stmts[i] = stmt
+		stmts[i] = stmt.(Statement)
 	}
 	return nil
 }
 
-func mangleRequestVars(stmts []interface{}) error {
+func mangleRequestVars(stmts []Statement) error {
 	for i := range stmts {
 		vt := newVarToRefTransformer(RequestRootDocument.Value.(Var), RequestRootRef)
 		stmt, err := Transform(vt, stmts[i])
 		if err != nil {
 			return err
 		}
-		stmts[i] = stmt
+		stmts[i] = stmt.(Statement)
 	}
 	return nil
 }
 
-func mangleExprIndices(stmts []interface{}) {
+func mangleExprIndices(stmts []Statement) {
 	for _, stmt := range stmts {
 		setExprIndices(stmt)
 	}
@@ -416,7 +426,7 @@ func setExprIndices(x interface{}) {
 	})
 }
 
-func mangleWildcards(stmts []interface{}) {
+func mangleWildcards(stmts []Statement) {
 
 	mangler := &wildcardMangler{}
 	for _, stmt := range stmts {
@@ -465,7 +475,7 @@ func (vis *wildcardMangler) mangleSlice(xs []*Term) {
 	}
 }
 
-func setFilename(filename string, stmts []interface{}) {
+func setFilename(filename string, stmts []Statement) {
 	for _, stmt := range stmts {
 		vis := &GenericVisitor{func(x interface{}) bool {
 			switch x := x.(type) {

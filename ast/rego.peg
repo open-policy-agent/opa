@@ -11,6 +11,14 @@ func currentLocation(c *current) *Location {
     return NewLocation(c.text, "", c.pos.line, c.pos.col)
 }
 
+func ifaceSliceToByteSlice(i interface{}) []byte {
+    var buf bytes.Buffer
+    for _, x := range i.([]interface{}) {
+        buf.Write(x.([]byte))
+    }
+    return buf.Bytes()
+}
+
 }
 
 Program <- _ vals:(head:Stmt tail:((ws / ParseError) Stmt)*)? _ EOF {
@@ -405,6 +413,10 @@ ws "whitespace" <- [ \t\r\n]+
 
 _ "whitespace" <- ( [ \t\r\n] / Comment )*
 
-Comment <- [ \t]* "#" [^\r\n]*
+Comment <- [ \t]* "#" text:[^\r\n]* {
+    comment := NewComment(ifaceSliceToByteSlice(text))
+    comment.Location = currentLocation(c)
+    return comment, nil
+}
 
 EOF <- !.
