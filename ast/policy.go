@@ -80,7 +80,7 @@ type (
 		Rules   []*Rule
 	}
 
-	// Comment represents
+	// Comment contains the raw text from the comment in the definition.
 	Comment struct {
 		Text     []byte
 		Location *Location

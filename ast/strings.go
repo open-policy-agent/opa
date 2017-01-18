@@ -26,4 +26,10 @@ const (
 	ObjectTypeName             = "object"
 	SetTypeName                = "set"
 	ArrayComprehensionTypeName = "arraycomprehension"
+	ExprTypeName               = "expr"
+	BodyTypeName               = "body"
+	HeadTypeName               = "head"
+	RuleTypeName               = "rule"
+	ImportTypeName             = "import"
+	PackageTypeName            = "package"
 )

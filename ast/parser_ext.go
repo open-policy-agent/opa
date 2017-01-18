@@ -119,15 +119,15 @@ func MustParseTerm(input string) *Term {
 // ParseRuleFromBody attempts to return a rule from a body. Equality expressions
 // of the form <var> = <term> can be converted into rules of the form <var> =
 // <term> :- true.  This is a concise way of defining constants inside modules.
-func ParseRuleFromBody(body Body) *Rule {
+func ParseRuleFromBody(body Body) (*Rule, error) {
 
 	if len(body) != 1 {
-		return nil
+		return nil, fmt.Errorf("multiple %vs cannot be used for %v", ExprTypeName, HeadTypeName)
 	}
 
 	expr := body[0]
 	if !expr.IsEquality() {
-		return nil
+		return nil, fmt.Errorf("non-equality %v cannot be used for %v", ExprTypeName, HeadTypeName)
 	}
 
 	terms := expr.Terms.([]*Term)
@@ -141,13 +141,13 @@ func ParseRuleFromBody(body Body) *Rule {
 		if v.Equal(RequestRootRef) || v.Equal(DefaultRootRef) {
 			name = Var(v.String())
 		} else {
-			return nil
+			return nil, fmt.Errorf("%v cannot be used for name of %v", RefTypeName, RuleTypeName)
 		}
 	default:
-		return nil
+		return nil, fmt.Errorf("%v cannot be used for name of %v", TypeName(v), RuleTypeName)
 	}
 
-	return &Rule{
+	rule := &Rule{
 		Location: expr.Location,
 		Name:     name,
 		Value:    terms[2],
@@ -155,6 +155,8 @@ func ParseRuleFromBody(body Body) *Rule {
 			&Expr{Terms: BooleanTerm(true)},
 		),
 	}
+
+	return rule, nil
 }
 
 // ParseImports returns a slice of Import objects.
@@ -342,10 +344,12 @@ func parseModule(stmts []Statement) (*Module, error) {
 		return nil, nil
 	}
 
+	var errs Errors
+
 	_package, ok := stmts[0].(*Package)
 	if !ok {
 		loc := stmts[0].(Statement).Loc()
-		return nil, NewError(ParseErr, loc, "expected package directive (%s must come after package directive)", stmts[0])
+		errs = append(errs, NewError(ParseErr, loc, "expected %v (found %v)", PackageTypeName, TypeName(stmts[0])))
 	}
 
 	mod := &Module{
@@ -359,15 +363,25 @@ func parseModule(stmts []Statement) (*Module, error) {
 		case *Rule:
 			mod.Rules = append(mod.Rules, stmt)
 		case Body:
-			rule := ParseRuleFromBody(stmt)
-			if rule == nil {
-				return nil, NewError(ParseErr, stmt[0].Location, "expected rule (%s must be declared inside a rule)", stmt[0].Location.Text)
+			rule, err := ParseRuleFromBody(stmt)
+			if err != nil {
+				errs = append(errs, NewError(ParseErr, stmt[0].Location, "expected %v (%v)", RuleTypeName, err))
+			} else {
+				mod.Rules = append(mod.Rules, rule)
 			}
-			mod.Rules = append(mod.Rules, rule)
+		case *Package:
+			errs = append(errs, NewError(ParseErr, stmt.Loc(), "unexpected "+PackageTypeName))
+		case *Comment: // Drop comments for now.
+		default:
+			panic("illegal value") // Indicates grammar is out-of-sync with code.
 		}
 	}
 
-	return mod, nil
+	if len(errs) == 0 {
+		return mod, nil
+	}
+
+	return nil, errs
 }
 
 func postProcess(filename string, stmts []Statement) error {
