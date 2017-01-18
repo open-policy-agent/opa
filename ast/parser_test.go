@@ -527,6 +527,32 @@ func TestExample(t *testing.T) {
 	})
 }
 
+func TestModuleParseErrors(t *testing.T) {
+	input := `
+	x = 1			# expect package
+	package a  		# unexpected package
+	1 = 2			# non-var head
+	1 != 2			# non-equality expr
+	x = y, x = 1    # multiple exprs
+	`
+
+	mod, err := ParseModule("test.rego", input)
+	if err == nil {
+		t.Fatalf("Expected error but got: %v", mod)
+	}
+
+	errs, ok := err.(Errors)
+	if !ok {
+		panic("unexpected error value")
+	}
+
+	if len(errs) != 5 {
+		t.Fatalf("Expected exactly 5 errors but got: %v", err)
+	}
+
+	fmt.Println(errs)
+}
+
 func TestLocation(t *testing.T) {
 	mod, err := ParseModule("test", testModule)
 	if err != nil {

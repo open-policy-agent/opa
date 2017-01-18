@@ -574,7 +574,7 @@ func (r *REPL) evalStatement(ctx context.Context, stmt interface{}) error {
 		if err != nil {
 			return err
 		}
-		if rule := ast.ParseRuleFromBody(body); rule != nil {
+		if rule, err := ast.ParseRuleFromBody(body); err == nil {
 			if err := r.compileRule(rule); err != nil {
 				return err
 			}
