@@ -196,16 +196,16 @@ GET https://example.com/v1/data/servers HTTP/1.1
 GET https://example.com/v1/data/opa/examples/violations HTTP/1.1
 ```
 
-### The request Document
+### The input Document
 
 In some cases, to evaluate a policy, the query must specify additional documents
 as arguments.
 
-Query arguments are nested under a built-in root document named request (similar to data).
+Query arguments are nested under a built-in root document named input (similar to data).
 
 ```json
 {
-  "request": {
+  "input": {
       "method": "GET",
       "path": "/servers/s2",
       "user": "alice"
@@ -213,11 +213,11 @@ Query arguments are nested under a built-in root document named request (similar
 }
 ```
 
-Query arguments can be accessed hierarchically starting from the root request
+Query arguments can be accessed hierarchically starting from the root input
 node:
 
 ```ruby
-allow :- request.user = "alice"
+allow :- input.user = "alice"
 ```
 
 Just like state stored in OPA, documents supplied with the query can be aliased:
@@ -225,8 +225,8 @@ Just like state stored in OPA, documents supplied with the query can be aliased:
 ```ruby
 package opa.examples
 
-import request.method
-import request.user
+import input.method
+import input.user
 
 # allow "bob" to perform read-only operations
 allow :- user = "bob", method = "GET"

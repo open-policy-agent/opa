@@ -308,18 +308,18 @@ func TestPackage(t *testing.T) {
 }
 
 func TestImport(t *testing.T) {
-	foo := RefTerm(VarTerm("request"), StringTerm("foo"))
-	foobarbaz := RefTerm(VarTerm("request"), StringTerm("foo"), StringTerm("bar"), StringTerm("baz"))
-	whitespace := RefTerm(VarTerm("request"), StringTerm("foo"), StringTerm("bar"), StringTerm("white space"))
-	assertParseImport(t, "single-request", "import request", &Import{Path: RefTerm(RequestRootDocument)})
+	foo := RefTerm(VarTerm("input"), StringTerm("foo"))
+	foobarbaz := RefTerm(VarTerm("input"), StringTerm("foo"), StringTerm("bar"), StringTerm("baz"))
+	whitespace := RefTerm(VarTerm("input"), StringTerm("foo"), StringTerm("bar"), StringTerm("white space"))
+	assertParseImport(t, "single-input", "import input", &Import{Path: RefTerm(InputRootDocument)})
 	assertParseImport(t, "single-data", "import data", &Import{Path: RefTerm(DefaultRootDocument)})
-	assertParseImport(t, "multiple", "import request.foo.bar.baz", &Import{Path: foobarbaz})
-	assertParseImport(t, "single alias", "import request.foo as bar", &Import{Path: foo, Alias: Var("bar")})
-	assertParseImport(t, "multiple alias", "import request.foo.bar.baz as qux", &Import{Path: foobarbaz, Alias: Var("qux")})
-	assertParseImport(t, "white space", "import request.foo.bar[\"white space\"]", &Import{Path: whitespace})
+	assertParseImport(t, "multiple", "import input.foo.bar.baz", &Import{Path: foobarbaz})
+	assertParseImport(t, "single alias", "import input.foo as bar", &Import{Path: foo, Alias: Var("bar")})
+	assertParseImport(t, "multiple alias", "import input.foo.bar.baz as qux", &Import{Path: foobarbaz, Alias: Var("qux")})
+	assertParseImport(t, "white space", "import input.foo.bar[\"white space\"]", &Import{Path: whitespace})
 	assertParseErrorEquals(t, "non-ground ref", "import data.foo[x]", "invalid path data.foo[x]: path elements must be strings")
-	assertParseErrorEquals(t, "non-string", "import request.foo[0]", "invalid path request.foo[0]: path elements must be strings")
-	assertParseErrorEquals(t, "unknown root", "import foo.bar", "invalid path foo.bar: path must begin with request or data")
+	assertParseErrorEquals(t, "non-string", "import input.foo[0]", "invalid path input.foo[0]: path elements must be strings")
+	assertParseErrorEquals(t, "unknown root", "import foo.bar", "invalid path foo.bar: path must begin with input or data")
 }
 
 func TestIsValidImportPath(t *testing.T) {
@@ -434,8 +434,8 @@ func TestRule(t *testing.T) {
 		Body:  MustParseBody("true"),
 	})
 
-	assertParseRule(t, "request", "request :- true", &Rule{
-		Name:  Var("request"),
+	assertParseRule(t, "input", "input :- true", &Rule{
+		Name:  Var("input"),
 		Value: MustParseTerm("true"),
 		Body:  MustParseBody("true"),
 	})
@@ -466,8 +466,8 @@ func TestComments(t *testing.T) {
 	testModule := `
     package a.b.c
 
-    import request.e.f as g  # end of line
-    import request.h
+    import input.e.f as g  # end of line
+    import input.h
 
     # by itself
 
@@ -477,7 +477,7 @@ func TestComments(t *testing.T) {
         x != y,
         q[x]
 
-    import request.xyz.abc
+    import input.xyz.abc
 
     q # interruptting
     [a] # the head of a rule
@@ -493,9 +493,9 @@ func TestComments(t *testing.T) {
 	assertParseModule(t, "module comments", testModule, &Module{
 		Package: MustParseStatement("package a.b.c").(*Package),
 		Imports: []*Import{
-			MustParseStatement("import request.e.f as g").(*Import),
-			MustParseStatement("import request.h").(*Import),
-			MustParseStatement("import request.xyz.abc").(*Import),
+			MustParseStatement("import input.e.f as g").(*Import),
+			MustParseStatement("import input.h").(*Import),
+			MustParseStatement("import input.xyz.abc").(*Import),
 		},
 		Rules: []*Rule{
 			MustParseStatement("p[x] = y :- y = \"foo\", x = \"bar\", x != y, q[x]").(*Rule),
@@ -549,8 +549,6 @@ func TestModuleParseErrors(t *testing.T) {
 	if len(errs) != 5 {
 		t.Fatalf("Expected exactly 5 errors but got: %v", err)
 	}
-
-	fmt.Println(errs)
 }
 
 func TestLocation(t *testing.T) {
@@ -599,14 +597,14 @@ func TestRuleFromBody(t *testing.T) {
 	mockModule := `
 	package ex
 
-	request = {"foo": 1}
+	input = {"foo": 1}
 	data = {"bar": 2}
 	`
 
-	assertParseModule(t, "rule name: request/data", mockModule, &Module{
+	assertParseModule(t, "rule name: input/data", mockModule, &Module{
 		Package: MustParsePackage("package ex"),
 		Rules: []*Rule{
-			MustParseRule(`request = {"foo": 1} :- true`),
+			MustParseRule(`input = {"foo": 1} :- true`),
 			MustParseRule(`data = {"bar": 2} :- true`),
 		},
 	})
@@ -632,7 +630,7 @@ func TestRuleFromBody(t *testing.T) {
 	refName := `
 	package a.b.c
 
-	request.x = true
+	input.x = true
 	`
 
 	assertParseModuleError(t, "multiple expressions", multipleExprs)

@@ -1,6 +1,6 @@
 package opa.examples
 
-import request.container
+import input.container
 
 allow_container :-
     not seccomp_unconfined

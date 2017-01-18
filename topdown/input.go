@@ -11,38 +11,38 @@ import (
 	"github.com/pkg/errors"
 )
 
-// MakeRequest returns a request value for the given key/value pairs. Assumes
+// MakeInput returns a input value for the given key/value pairs. Assumes
 // keys are valid import paths.
-func MakeRequest(pairs [][2]*ast.Term) (ast.Value, error) {
+func MakeInput(pairs [][2]*ast.Term) (ast.Value, error) {
 
 	// Fast-path for the root case.
 	if len(pairs) == 1 && len(pairs[0][0].Value.(ast.Ref)) == 0 {
 		return pairs[0][1].Value, nil
 	}
 
-	var request ast.Object
+	var input ast.Object
 
 	for _, pair := range pairs {
 
 		if r, ok := pair[0].Value.(ast.Ref); ok && len(r) == 0 {
-			return nil, fmt.Errorf("conflicting request values: check request parameters")
+			return nil, fmt.Errorf("conflicting input values: check input parameters")
 		}
 
 		if err := ast.IsValidImportPath(pair[0].Value); err != nil {
-			return nil, errors.Wrapf(err, "invalid request path")
+			return nil, errors.Wrapf(err, "invalid input path")
 		}
 
 		k := pair[0].Value.(ast.Ref)
 		obj := makeTree(k[1:], pair[1])
 		var ok bool
-		request, ok = request.Merge(obj)
+		input, ok = input.Merge(obj)
 
 		if !ok {
-			return nil, fmt.Errorf("conflicting request value %v: check request parameters", k)
+			return nil, fmt.Errorf("conflicting input value %v: check input parameters", k)
 		}
 	}
 
-	return request, nil
+	return input, nil
 }
 
 // makeTree returns an object that represents a document where the value v is the

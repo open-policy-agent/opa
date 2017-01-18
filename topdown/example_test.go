@@ -54,7 +54,7 @@ func ExampleEval() {
 
 	// Prepare the evaluation parameters. Evaluation executes against the policy
 	// engine's storage. In this case, we seed the storage with a single array
-	// of number. Other parameters such as the request, tracing configuration,
+	// of number. Other parameters such as the input, tracing configuration,
 	// etc. can be set on the Topdown object.
 	t := topdown.New(ctx, query, compiler, store, txn)
 
@@ -128,9 +128,9 @@ func ExampleQuery() {
 	defer store.Close(ctx, txn)
 
 	// Prepare query parameters. In this case, there are no additional documents
-	// required by the policy so the request is nil.
-	var request ast.Value
-	params := topdown.NewQueryParams(ctx, compiler, store, txn, request, ast.MustParseRef("data.opa.example.p"))
+	// required by the policy so the input is nil.
+	var input ast.Value
+	params := topdown.NewQueryParams(ctx, compiler, store, txn, input, ast.MustParseRef("data.opa.example.p"))
 
 	// Execute the query against "p".
 	v1, err1 := topdown.Query(params)

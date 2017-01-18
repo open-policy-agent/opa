@@ -758,7 +758,7 @@ GET https://example.com/v1/data/opa/examples/pi HTTP/1.1
 
 Import statements declare dependencies that modules have on documents defined outside the package. By importing a document, the identifiers exported by that document can be referenced within the current module.
 
-All modules contain implicit statements which import the `data` and `request` documents.
+All modules contain implicit statements which import the `data` and `input` documents.
 
 Modules use the same syntax to declare dependencies on [Base Documents](../how-does-opa-work#base-documents) and [Virtual Documents](../how-does-opa-work#virtual-documents).
 
@@ -772,13 +772,13 @@ http_servers[server] :-
     server.protocols[_] = "http"
 ```
 
-Similarly, modules can declare dependencies on query arguments by specifying an import path that starts with request.
+Similarly, modules can declare dependencies on query arguments by specifying an import path that starts with `input`.
 
 ```ruby
 package opa.examples
 
-import request.user
-import request.method
+import input.user
+import input.method
 
 # allow alice to perform any operation.
 allow :- user = "alice"

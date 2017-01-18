@@ -279,8 +279,8 @@ func TestCompilerCheckSafetyBodyErrors(t *testing.T) {
 		"newMod": MustParseModule(`
 	package a.b
 
-	import request.aref.b.c as foo
-	import request.avar as bar
+	import input.aref.b.c as foo
+	import input.avar as bar
 	import data.m.n as baz
 
 	# a would be unbound
@@ -442,11 +442,11 @@ func TestCompilerImportsResolved(t *testing.T) {
 			package ex
 
 			import data
-			import request
+			import input
 			import data.foo
-			import request.bar
+			import input.bar
 			import data.abc as baz
-			import request.abc as qux
+			import input.abc as qux
 		`),
 	}
 
@@ -466,8 +466,8 @@ func TestCompilerResolveAllRefs(t *testing.T) {
 	c.Modules = getCompilerTestModules()
 	c.Modules["head"] = MustParseModule(`package head
 	import data.doc1 as bar
-	import request.x.y.foo
-	import request.qux as baz
+	import input.x.y.foo
+	import input.qux as baz
 	p[foo[bar[i]]] = {"baz": baz} :- true
 	`)
 	compileStages(c, "", "resolveAllRefs")
@@ -502,7 +502,7 @@ func TestCompilerResolveAllRefs(t *testing.T) {
 	mod3 := c.Modules["mod3"]
 	expr4 := mod3.Rules[0].Body[0]
 	term = expr4.Terms.([]*Term)[2]
-	e = MustParseTerm("{request.x.secret: [{request.x.keyid}]}")
+	e = MustParseTerm("{input.x.secret: [{input.x.keyid}]}")
 	if !term.Equal(e) {
 		t.Errorf("Wrong term (nested refs): expected %v but got: %v", e, term)
 	}
@@ -515,33 +515,33 @@ func TestCompilerResolveAllRefs(t *testing.T) {
 	}
 
 	acTerm1 := ac(mod5.Rules[0])
-	assertTermEqual(t, acTerm1.Term, MustParseTerm("request.x.a"))
+	assertTermEqual(t, acTerm1.Term, MustParseTerm("input.x.a"))
 	acTerm2 := ac(mod5.Rules[1])
-	assertTermEqual(t, acTerm2.Term, MustParseTerm("request.a.b.c.q.a"))
+	assertTermEqual(t, acTerm2.Term, MustParseTerm("input.a.b.c.q.a"))
 	acTerm3 := ac(mod5.Rules[2])
-	assertTermEqual(t, acTerm3.Body[0].Terms.([]*Term)[1], MustParseTerm("request.x.a"))
+	assertTermEqual(t, acTerm3.Body[0].Terms.([]*Term)[1], MustParseTerm("input.x.a"))
 	acTerm4 := ac(mod5.Rules[3])
-	assertTermEqual(t, acTerm4.Body[0].Terms.([]*Term)[1], MustParseTerm("request.a.b.c.q[i]"))
+	assertTermEqual(t, acTerm4.Body[0].Terms.([]*Term)[1], MustParseTerm("input.a.b.c.q[i]"))
 	acTerm5 := ac(mod5.Rules[4])
-	assertTermEqual(t, acTerm5.Body[0].Terms.([]*Term)[2].Value.(*ArrayComprehension).Term, MustParseTerm("request.x.a"))
+	assertTermEqual(t, acTerm5.Body[0].Terms.([]*Term)[2].Value.(*ArrayComprehension).Term, MustParseTerm("input.x.a"))
 	acTerm6 := ac(mod5.Rules[5])
-	assertTermEqual(t, acTerm6.Body[0].Terms.([]*Term)[2].Value.(*ArrayComprehension).Body[0].Terms.([]*Term)[1], MustParseTerm("request.a.b.c.q[i]"))
+	assertTermEqual(t, acTerm6.Body[0].Terms.([]*Term)[2].Value.(*ArrayComprehension).Body[0].Terms.([]*Term)[1], MustParseTerm("input.a.b.c.q[i]"))
 
 	// Nested references.
 	mod6 := c.Modules["mod6"]
 	nested1 := mod6.Rules[0].Body[0].Terms.(*Term)
-	assertTermEqual(t, nested1, MustParseTerm("data.x[request.x[i].a[data.z.b[j]]]"))
+	assertTermEqual(t, nested1, MustParseTerm("data.x[input.x[i].a[data.z.b[j]]]"))
 
 	nested2 := mod6.Rules[1].Body[1].Terms.(*Term)
-	assertTermEqual(t, nested2, MustParseTerm("v[request.x[i]]"))
+	assertTermEqual(t, nested2, MustParseTerm("v[input.x[i]]"))
 
 	nested3 := mod6.Rules[3].Body[0].Terms.(*Term)
 	assertTermEqual(t, nested3, MustParseTerm("data.x[data.a.b.nested.r]"))
 
 	// Refs in head.
 	mod7 := c.Modules["head"]
-	assertTermEqual(t, mod7.Rules[0].Key, MustParseTerm("request.x.y.foo[data.doc1[i]]"))
-	assertTermEqual(t, mod7.Rules[0].Value, MustParseTerm(`{"baz": request.qux}`))
+	assertTermEqual(t, mod7.Rules[0].Key, MustParseTerm("input.x.y.foo[data.doc1[i]]"))
+	assertTermEqual(t, mod7.Rules[0].Value, MustParseTerm(`{"baz": input.qux}`))
 }
 
 func TestCompilerRewriteRefsInHead(t *testing.T) {
@@ -549,8 +549,8 @@ func TestCompilerRewriteRefsInHead(t *testing.T) {
 	c.Modules["head"] = MustParseModule(`package head
 	import data.doc1 as bar
 	import data.doc2 as corge
-	import request.x.y.foo
-	import request.qux as baz
+	import input.x.y.foo
+	import input.qux as baz
 	p[foo[bar[i]]] = {"baz": baz, "corge": corge} :- true
 	`)
 
@@ -566,8 +566,8 @@ func TestCompilerRewriteRefsInHead(t *testing.T) {
 		t.Fatalf("Expected rule body to contain 3 expressions but got: %v", rule)
 	}
 
-	assertExprEqual(t, rule.Body[1], MustParseExpr("__local0__ = request.x.y.foo[data.doc1[i]]"))
-	assertExprEqual(t, rule.Body[2], MustParseExpr(`__local1__ = {"baz": request.qux, "corge": data.doc2}`))
+	assertExprEqual(t, rule.Body[1], MustParseExpr("__local0__ = input.x.y.foo[data.doc1[i]]"))
+	assertExprEqual(t, rule.Body[2], MustParseExpr(`__local1__ = {"baz": input.qux, "corge": data.doc2}`))
 }
 
 func TestCompilerSetRuleGraph(t *testing.T) {
@@ -901,7 +901,7 @@ func TestCompilerLazyLoading(t *testing.T) {
 
 	mod3 := MustParseModule(`package x
 			import data.foo.bar
-			import request.input
+			import input.input
 			z1 :- [ localvar | count(bar.baz.qux, localvar) ]`)
 
 	mod4 := MustParseModule(`
@@ -992,7 +992,7 @@ func TestQueryCompiler(t *testing.T) {
 		{"exports resolved", "z", "package a.b.c", nil, "data.a.b.c.z"},
 		{"imports resolved", "z", "package a.b.c.d", []string{"import data.a.b.c.z"}, "data.a.b.c.z"},
 		{"unsafe vars", "z", "", nil, fmt.Errorf("1 error occurred: 1:1: z is unsafe (variable z must appear in the output position of at least one non-negated expression)")},
-		{"safe vars", "data, abc", "package ex", []string{"import request.xyz as abc"}, "data, request.xyz"},
+		{"safe vars", "data, abc", "package ex", []string{"import input.xyz as abc"}, "data, input.xyz"},
 		{"reorder", "x != 1, x = 0", "", nil, "x = 0, x != 1"},
 		{"bad builtin", "deadbeef(1,2,3)", "", nil, fmt.Errorf("1 error occurred: 1:1: unknown built-in function deadbeef")},
 	}
@@ -1065,8 +1065,8 @@ func getCompilerTestModules() map[string]*Module {
 
 	mod3 := MustParseModule(`
 	package a.b.d
-	import request.x as y
-	t = true :- request = {y.secret: [{y.keyid}]}
+	import input.x as y
+	t = true :- input = {y.secret: [{y.keyid}]}
 	x = false :- true
 	`)
 
@@ -1077,8 +1077,8 @@ func getCompilerTestModules() map[string]*Module {
 	mod5 := MustParseModule(`
 	package a.b.compr
 
-	import request.x as y
-	import request.a.b.c.q
+	import input.x as y
+	import input.a.b.c.q
 
 	p :- [y.a | true]
 	r :- [q.a | true]
@@ -1093,7 +1093,7 @@ func getCompilerTestModules() map[string]*Module {
 
 	import data.x
 	import data.z
-	import request.x as y
+	import input.x as y
 
 	p :- x[y[i].a[z.b[j]]]
 	q :- x = v, v[y[i]]

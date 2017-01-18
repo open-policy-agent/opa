@@ -73,9 +73,9 @@ function get_a_document() {
     echo ""
     curl $BASE_URL/data/opa/examples/public_servers?pretty=true -s -v
     echo ""
-    curl $BASE_URL/data/opa/examples/allow_request?pretty=true -s -v -G --data-urlencode 'request=example.flag:false'
+    curl $BASE_URL/data/opa/examples/allow_request?pretty=true -s -v -G --data-urlencode 'input=example.flag:false'
     echo ""
-    curl $BASE_URL/data/opa/examples/allow_container?pretty=true -s -v -G --data-urlencode 'request=container:data.containers[container_index]'
+    curl $BASE_URL/data/opa/examples/allow_container?pretty=true -s -v -G --data-urlencode 'input=container:data.containers[container_index]'
     echo ""
 
     # Delete policy module created above.

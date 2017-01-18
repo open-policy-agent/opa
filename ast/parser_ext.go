@@ -138,7 +138,7 @@ func ParseRuleFromBody(body Body) (*Rule, error) {
 	case Var:
 		name = v
 	case Ref:
-		if v.Equal(RequestRootRef) || v.Equal(DefaultRootRef) {
+		if v.Equal(InputRootRef) || v.Equal(DefaultRootRef) {
 			name = Var(v.String())
 		} else {
 			return nil, fmt.Errorf("%v cannot be used for name of %v", RefTypeName, RuleTypeName)
@@ -391,7 +391,7 @@ func postProcess(filename string, stmts []Statement) error {
 		return err
 	}
 
-	if err := mangleRequestVars(stmts); err != nil {
+	if err := mangleInputVars(stmts); err != nil {
 		return err
 	}
 
@@ -413,9 +413,9 @@ func mangleDataVars(stmts []Statement) error {
 	return nil
 }
 
-func mangleRequestVars(stmts []Statement) error {
+func mangleInputVars(stmts []Statement) error {
 	for i := range stmts {
-		vt := newVarToRefTransformer(RequestRootDocument.Value.(Var), RequestRootRef)
+		vt := newVarToRefTransformer(InputRootDocument.Value.(Var), InputRootRef)
 		stmt, err := Transform(vt, stmts[i])
 		if err != nil {
 			return err

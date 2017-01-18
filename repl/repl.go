@@ -548,11 +548,11 @@ func (r *REPL) loadCompiler() (*ast.Compiler, error) {
 	return compiler, nil
 }
 
-// loadRequest returns the request defined in the REPL. The REPL loads the
-// request from the data.repl.request document.
-func (r *REPL) loadRequest(ctx context.Context, compiler *ast.Compiler) (ast.Value, error) {
+// loadInput returns the input defined in the REPL. The REPL loads the
+// input from the data.repl.input document.
+func (r *REPL) loadInput(ctx context.Context, compiler *ast.Compiler) (ast.Value, error) {
 
-	params := topdown.NewQueryParams(ctx, compiler, r.store, r.txn, nil, ast.MustParseRef("data.repl.request"))
+	params := topdown.NewQueryParams(ctx, compiler, r.store, r.txn, nil, ast.MustParseRef("data.repl.input"))
 
 	result, err := topdown.Query(params)
 
@@ -584,11 +584,11 @@ func (r *REPL) evalStatement(ctx context.Context, stmt interface{}) error {
 		if err != nil {
 			return err
 		}
-		request, err := r.loadRequest(ctx, compiler)
+		input, err := r.loadInput(ctx, compiler)
 		if err != nil {
 			return err
 		}
-		return r.evalBody(ctx, compiler, request, body)
+		return r.evalBody(ctx, compiler, input, body)
 	case *ast.Rule:
 		if err := r.compileRule(s); err != nil {
 			fmt.Fprintln(r.output, "error:", err)
@@ -601,7 +601,7 @@ func (r *REPL) evalStatement(ctx context.Context, stmt interface{}) error {
 	return nil
 }
 
-func (r *REPL) evalBody(ctx context.Context, compiler *ast.Compiler, request ast.Value, body ast.Body) error {
+func (r *REPL) evalBody(ctx context.Context, compiler *ast.Compiler, input ast.Value, body ast.Body) error {
 
 	// Special case for positive, single term inputs.
 	if len(body) == 1 {
@@ -609,15 +609,15 @@ func (r *REPL) evalBody(ctx context.Context, compiler *ast.Compiler, request ast
 		if !expr.Negated {
 			if _, ok := expr.Terms.(*ast.Term); ok {
 				if singleValue(body) {
-					return r.evalTermSingleValue(ctx, compiler, request, body)
+					return r.evalTermSingleValue(ctx, compiler, input, body)
 				}
-				return r.evalTermMultiValue(ctx, compiler, request, body)
+				return r.evalTermMultiValue(ctx, compiler, input, body)
 			}
 		}
 	}
 
 	t := topdown.New(ctx, body, compiler, r.store, r.txn)
-	t.Request = request
+	t.Input = input
 
 	var buf *topdown.BufferTracer
 
@@ -729,14 +729,14 @@ func (r *REPL) evalPackage(p *ast.Package) error {
 // and comprehensions always evaluate to a single value. To handle references, this function
 // still executes the query, except it does so by rewriting the body to assign the term
 // to a variable. This allows the REPL to obtain the result even if the term is false.
-func (r *REPL) evalTermSingleValue(ctx context.Context, compiler *ast.Compiler, request ast.Value, body ast.Body) error {
+func (r *REPL) evalTermSingleValue(ctx context.Context, compiler *ast.Compiler, input ast.Value, body ast.Body) error {
 
 	term := body[0].Terms.(*ast.Term)
 	outputVar := ast.Wildcard
 	body = ast.NewBody(ast.Equality.Expr(term, outputVar))
 
 	t := topdown.New(ctx, body, compiler, r.store, r.txn)
-	t.Request = request
+	t.Input = input
 
 	var buf *topdown.BufferTracer
 
@@ -778,7 +778,7 @@ func (r *REPL) evalTermSingleValue(ctx context.Context, compiler *ast.Compiler, 
 
 // evalTermMultiValue evaluates and prints terms in cases where the term may evaluate to multiple
 // ground values, e.g., a[i], [servers[x]], etc.
-func (r *REPL) evalTermMultiValue(ctx context.Context, compiler *ast.Compiler, request ast.Value, body ast.Body) error {
+func (r *REPL) evalTermMultiValue(ctx context.Context, compiler *ast.Compiler, input ast.Value, body ast.Body) error {
 
 	// Mangle the expression in the same way we do for evalTermSingleValue. When handling the
 	// evaluation result below, we will ignore this variable.
@@ -787,7 +787,7 @@ func (r *REPL) evalTermMultiValue(ctx context.Context, compiler *ast.Compiler, r
 	body = ast.NewBody(ast.Equality.Expr(term, outputVar))
 
 	t := topdown.New(ctx, body, compiler, r.store, r.txn)
-	t.Request = request
+	t.Input = input
 
 	var buf *topdown.BufferTracer
 
@@ -1022,7 +1022,7 @@ type topicDesc struct {
 }
 
 var topics = map[string]topicDesc{
-	"request": {printHelpRequest, "how to set request values"},
+	"input": {printHelpInput, "how to set input document"},
 }
 
 type command struct {
@@ -1245,33 +1245,33 @@ func printHelpCommands(output io.Writer) {
 	fmt.Fprintln(output, "")
 }
 
-func printHelpRequest(output io.Writer) error {
+func printHelpInput(output io.Writer) error {
 	fmt.Fprintln(output, "")
-	fmt.Fprintln(output, "Request")
+	fmt.Fprintln(output, "Input")
 	fmt.Fprintln(output, "=======")
 	fmt.Fprintln(output, "")
 
 	txt := strings.TrimSpace(`
 Rego allows queries to refer to documents outside of the storage layer. These
 documents must be provided as inputs to the query engine. In Rego, these values
-are nested under the root "request" document.
+are nested under the root "input" document.
 
-In the interactive shell, users can set the value for the "request" document by
-defining documents under the repl.request package.
+In the interactive shell, users can set the value for the "input" document by
+defining documents under the repl.input package.
 
 For example:
 
-	# Change to the repl.request package.
-	> package repl.request
+	# Change to the repl.input package.
+	> package repl.input
 
 	# Define a new document called "params".
 	> params = {"method": "POST", "path": "/some/path"}
 
-	# Switch back to another package to test access to request.
+	# Switch back to another package to test access to input.
 	> package opa.example
 
 	# Import "params" defined above.
-	> import request.params
+	> import input.params
 
 	# Define rule that refers to "params".
 	> is_post :- params.method = "POST"
