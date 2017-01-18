@@ -4,10 +4,11 @@ import (
 	"encoding/csv"
 	"flag"
 	"fmt"
-	"github.com/olekukonko/tablewriter"
 	"io"
 	"os"
 	"unicode/utf8"
+
+	"github.com/olekukonko/tablewriter"
 )
 
 var (
@@ -16,7 +17,7 @@ var (
 	header    = flag.Bool("h", true, "Set header options eg. true|false ")
 	align     = flag.String("a", "none", "Set aligmement with eg. none|left|right|center")
 	pipe      = flag.Bool("p", false, "Suport for Piping from STDIN")
-	border      = flag.Bool("b", true, "Enable / disable table border")
+	border    = flag.Bool("b", true, "Enable / disable table border")
 )
 
 func main() {
@@ -37,7 +38,7 @@ func main() {
 }
 
 func hasArg(name string) bool {
-	for _ , v := range os.Args {
+	for _, v := range os.Args {
 		if name == v {
 			return true
 		}

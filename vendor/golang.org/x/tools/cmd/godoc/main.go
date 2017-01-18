@@ -89,7 +89,7 @@ var (
 	// layout control
 	tabWidth       = flag.Int("tabwidth", 4, "tab width")
 	showTimestamps = flag.Bool("timestamps", false, "show timestamps with directory listings")
-	templateDir    = flag.String("templates", "", "directory containing alternate template files")
+	templateDir    = flag.String("templates", "", "load templates/JS/CSS from disk in this directory")
 	showPlayground = flag.Bool("play", false, "enable playground in web interface")
 	showExamples   = flag.Bool("ex", false, "show examples in command line mode")
 	declLinks      = flag.Bool("links", true, "link identifiers to their declarations")
@@ -310,6 +310,14 @@ func main() {
 			go analysis.Run(pointerAnalysis, &corpus.Analysis)
 		}
 
+		if serveAutoCertHook != nil {
+			go func() {
+				if err := serveAutoCertHook(handler); err != nil {
+					log.Fatalf("ListenAndServe TLS: %v", err)
+				}
+			}()
+		}
+
 		// Start http server.
 		if err := http.ListenAndServe(*httpAddr, handler); err != nil {
 			log.Fatalf("ListenAndServe %s: %v", *httpAddr, err)
@@ -327,3 +335,7 @@ func main() {
 		log.Print(err)
 	}
 }
+
+// serveAutoCertHook if non-nil specifies a function to listen on port 443.
+// See autocert.go.
+var serveAutoCertHook func(http.Handler) error

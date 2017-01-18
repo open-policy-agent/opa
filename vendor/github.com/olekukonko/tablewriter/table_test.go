@@ -352,3 +352,94 @@ func TestSubclass(t *testing.T) {
 		t.Error(fmt.Sprintf("Unexpected output '%v' != '%v'", output, want))
 	}
 }
+
+func TestAutoMergeRows(t *testing.T) {
+	data := [][]string{
+		[]string{"A", "The Good", "500"},
+		[]string{"A", "The Very very Bad Man", "288"},
+		[]string{"B", "The Very very Bad Man", "120"},
+		[]string{"B", "The Very very Bad Man", "200"},
+	}
+	var buf bytes.Buffer
+	table := NewWriter(&buf)
+	table.SetHeader([]string{"Name", "Sign", "Rating"})
+
+	for _, v := range data {
+		table.Append(v)
+	}
+	table.SetAutoMergeCells(true)
+	table.Render()
+	want := `+------+-----------------------+--------+
+| NAME |         SIGN          | RATING |
++------+-----------------------+--------+
+| A    | The Good              |    500 |
+|      | The Very very Bad Man |    288 |
+| B    |                       |    120 |
+|      |                       |    200 |
++------+-----------------------+--------+
+`
+	got := buf.String()
+	if got != want {
+		t.Errorf("\ngot:\n%s\nwant:\n%s\n", got, want)
+	}
+
+	buf.Reset()
+	table = NewWriter(&buf)
+	table.SetHeader([]string{"Name", "Sign", "Rating"})
+
+	for _, v := range data {
+		table.Append(v)
+	}
+	table.SetAutoMergeCells(true)
+	table.SetRowLine(true)
+	table.Render()
+	want = `+------+-----------------------+--------+
+| NAME |         SIGN          | RATING |
++------+-----------------------+--------+
+| A    | The Good              |    500 |
++      +-----------------------+--------+
+|      | The Very very Bad Man |    288 |
++------+                       +--------+
+| B    |                       |    120 |
++      +                       +--------+
+|      |                       |    200 |
++------+-----------------------+--------+
+`
+	got = buf.String()
+	if got != want {
+		t.Errorf("\ngot:\n%s\nwant:\n%s\n", got, want)
+	}
+
+	buf.Reset()
+	table = NewWriter(&buf)
+	table.SetHeader([]string{"Name", "Sign", "Rating"})
+
+	dataWithlongText := [][]string{
+		[]string{"A", "The Good", "500"},
+		[]string{"A", "The Very very very very very Bad Man", "288"},
+		[]string{"B", "The Very very very very very Bad Man", "120"},
+		[]string{"C", "The Very very Bad Man", "200"},
+	}
+	table.AppendBulk(dataWithlongText)
+	table.SetAutoMergeCells(true)
+	table.SetRowLine(true)
+	table.Render()
+	want = `+------+--------------------------------+--------+
+| NAME |              SIGN              | RATING |
++------+--------------------------------+--------+
+| A    | The Good                       |    500 |
++------+--------------------------------+--------+
+| A    | The Very very very very very   |    288 |
+|      | Bad Man                        |        |
++------+                                +--------+
+| B    |                                |    120 |
+|      |                                |        |
++------+--------------------------------+--------+
+| C    | The Very very Bad Man          |    200 |
++------+--------------------------------+--------+
+`
+	got = buf.String()
+	if got != want {
+		t.Errorf("\ngot:\n%s\nwant:\n%s\n", got, want)
+	}
+}

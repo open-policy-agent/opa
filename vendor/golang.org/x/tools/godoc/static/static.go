@@ -683,6 +683,11 @@ function generateTOC() {
 
 function bindToggle(el) {
   $('.toggleButton', el).click(function() {
+    if ($(this).closest(".toggle, .toggleVisible")[0] != el) {
+      // Only trigger the closest toggle header.
+      return;
+    }
+
     if ($(el).is('.toggle')) {
       $(el).addClass('toggleVisible').removeClass('toggle');
     } else {
@@ -690,6 +695,7 @@ function bindToggle(el) {
     }
   });
 }
+
 function bindToggles(selector) {
   $(selector).each(function(i, el) {
     bindToggle(el);
@@ -809,17 +815,32 @@ function fixFocus() {
 }
 
 function toggleHash() {
-    var hash = $(window.location.hash);
-    if (hash.is('.toggle')) {
-      hash.find('.toggleButton').first().click();
+  // Open all of the toggles for a particular hash.
+  var els = $(document.getElementById(window.location.hash.substring(1)),
+      $("a[name='" + window.location.hash.substring(1) + "']"));
+  while (els.length) {
+    for (var i = 0; i < els.length; i++) {
+      var el = $(els[i]);
+      if (el.is('.toggle')) {
+        el.find('.toggleButton').first().click();
+      }
     }
+    els = el.parent();
+  }
 }
 
 function personalizeInstallInstructions() {
   var prefix = '?download=';
   var s = window.location.search;
   if (s.indexOf(prefix) != 0) {
-    // No 'download' query string; bail.
+    // No 'download' query string; detect "test" instructions from User Agent.
+    if (navigator.platform.indexOf('Win') != -1) {
+      $('.testUnix').hide();
+      $('.testWindows').show();
+    } else {
+      $('.testUnix').show();
+      $('.testWindows').hide();
+    }
     return;
   }
 
@@ -875,9 +896,36 @@ function updateVersionTags() {
   }
 }
 
+function addPermalinks() {
+  function addPermalink(source, parent) {
+    var id = source.attr("id");
+    if (id == "" || id.indexOf("tmp_") === 0) {
+      // Auto-generated permalink.
+      return;
+    }
+    if (parent.find("> .permalink").length) {
+      // Already attached.
+      return;
+    }
+    parent.append(" ").append($("<a class='permalink'>&#xb6;</a>").attr("href", "#" + id));
+  }
+
+  $("#page .container").find("h2[id], h3[id]").each(function() {
+    var el = $(this);
+    addPermalink(el, el);
+  });
+
+  $("#page .container").find("dl[id]").each(function() {
+    var el = $(this);
+    // Add the anchor to the "dt" element.
+    addPermalink(el, el.find("> dt").first());
+  });
+}
+
 $(document).ready(function() {
   bindSearchEvents();
   generateTOC();
+  addPermalinks();
   bindToggles(".toggle");
   bindToggles(".toggleVisible");
   bindToggleLinks(".exampleLink", "example_");
@@ -1599,8 +1647,8 @@ function cgAddChild(tree, ul, cgn) {
 	</script>
 
 	{{if $.IsMain}}
-		{{comment_html .Doc}}
 		{{/* command documentation */}}
+		{{comment_html .Doc}}
 	{{else}}
 		{{/* package documentation */}}
 		<div id="short-nav">
@@ -1751,8 +1799,8 @@ function cgAddChild(tree, ul, cgn) {
 			<h2 id="{{$name_html}}">func <a href="{{posLink_url $ .Decl}}">{{$name_html}}</a>
 				<a class="permalink" href="#{{$name_html}}">&#xb6;</a>
 			</h2>
-			{{comment_html .Doc}}
 			<pre>{{node_html $ .Decl true}}</pre>
+			{{comment_html .Doc}}
 			{{example_html $ .Name}}
 			{{callgraph_html $ "" .Name}}
 
@@ -1785,8 +1833,8 @@ function cgAddChild(tree, ul, cgn) {
 				<h3 id="{{$name_html}}">func <a href="{{posLink_url $ .Decl}}">{{$name_html}}</a>
 					<a class="permalink" href="#{{$name_html}}">&#xb6;</a>
 				</h3>
-				{{comment_html .Doc}}
 				<pre>{{node_html $ .Decl true}}</pre>
+				{{comment_html .Doc}}
 				{{example_html $ .Name}}
 				{{callgraph_html $ "" .Name}}
 			{{end}}
@@ -1796,8 +1844,8 @@ function cgAddChild(tree, ul, cgn) {
 				<h3 id="{{$tname_html}}.{{$name_html}}">func ({{html .Recv}}) <a href="{{posLink_url $ .Decl}}">{{$name_html}}</a>
 					<a class="permalink" href="#{{$tname_html}}.{{$name_html}}">&#xb6;</a>
 				</h3>
-				{{comment_html .Doc}}
 				<pre>{{node_html $ .Decl true}}</pre>
+				{{comment_html .Doc}}
 				{{$name := printf "%s_%s" $tname .Name}}
 				{{example_html $ $name}}
 				{{callgraph_html $ .Recv .Name}}
@@ -2832,6 +2880,13 @@ pre .selection-comment {
 }
 pre .ln {
 	color: #999;
+	background: #efefef;
+}
+.ln {
+	-webkit-user-select: none;
+	-moz-user-select: none;
+	-ms-user-select: none;
+	user-select: none;
 }
 body {
 	color: #222;
@@ -2845,11 +2900,17 @@ a:hover,
 .exampleHeading .text:hover {
 	text-decoration: underline;
 }
+.article a {
+	text-decoration: underline;
+}
+.article .title a {
+	text-decoration: none;
+}
 
 .permalink {
 	display: none;
 }
-h2:hover .permalink, h3:hover .permalink {
+:hover > .permalink {
 	display: inline;
 }
 
@@ -3248,10 +3309,10 @@ div#blog .read {
 }
 
 .toggleButton { cursor: pointer; }
-.toggle .collapsed { display: block; }
-.toggle .expanded { display: none; }
-.toggleVisible .collapsed { display: none; }
-.toggleVisible .expanded { display: block; }
+.toggle > .collapsed { display: block; }
+.toggle > .expanded { display: none; }
+.toggleVisible > .collapsed { display: none; }
+.toggleVisible > .expanded { display: block; }
 
 table.codetable { margin-left: auto; margin-right: auto; border-style: none; }
 table.codetable td { padding-right: 10px; }

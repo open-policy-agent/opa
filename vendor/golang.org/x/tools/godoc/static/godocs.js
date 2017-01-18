@@ -113,6 +113,11 @@ function generateTOC() {
 
 function bindToggle(el) {
   $('.toggleButton', el).click(function() {
+    if ($(this).closest(".toggle, .toggleVisible")[0] != el) {
+      // Only trigger the closest toggle header.
+      return;
+    }
+
     if ($(el).is('.toggle')) {
       $(el).addClass('toggleVisible').removeClass('toggle');
     } else {
@@ -120,6 +125,7 @@ function bindToggle(el) {
     }
   });
 }
+
 function bindToggles(selector) {
   $(selector).each(function(i, el) {
     bindToggle(el);
@@ -239,17 +245,32 @@ function fixFocus() {
 }
 
 function toggleHash() {
-    var hash = $(window.location.hash);
-    if (hash.is('.toggle')) {
-      hash.find('.toggleButton').first().click();
+  // Open all of the toggles for a particular hash.
+  var els = $(document.getElementById(window.location.hash.substring(1)),
+      $.find("a[name='" + window.location.hash.substring(1) + "']"));
+  while (els.length) {
+    for (var i = 0; i < els.length; i++) {
+      var el = $(els[i]);
+      if (el.is('.toggle')) {
+        el.find('.toggleButton').first().click();
+      }
     }
+    els = el.parent();
+  }
 }
 
 function personalizeInstallInstructions() {
   var prefix = '?download=';
   var s = window.location.search;
   if (s.indexOf(prefix) != 0) {
-    // No 'download' query string; bail.
+    // No 'download' query string; detect "test" instructions from User Agent.
+    if (navigator.platform.indexOf('Win') != -1) {
+      $('.testUnix').hide();
+      $('.testWindows').show();
+    } else {
+      $('.testUnix').show();
+      $('.testWindows').hide();
+    }
     return;
   }
 
@@ -305,9 +326,36 @@ function updateVersionTags() {
   }
 }
 
+function addPermalinks() {
+  function addPermalink(source, parent) {
+    var id = source.attr("id");
+    if (id == "" || id.indexOf("tmp_") === 0) {
+      // Auto-generated permalink.
+      return;
+    }
+    if (parent.find("> .permalink").length) {
+      // Already attached.
+      return;
+    }
+    parent.append(" ").append($("<a class='permalink'>&#xb6;</a>").attr("href", "#" + id));
+  }
+
+  $("#page .container").find("h2[id], h3[id]").each(function() {
+    var el = $(this);
+    addPermalink(el, el);
+  });
+
+  $("#page .container").find("dl[id]").each(function() {
+    var el = $(this);
+    // Add the anchor to the "dt" element.
+    addPermalink(el, el.find("> dt").first());
+  });
+}
+
 $(document).ready(function() {
   bindSearchEvents();
   generateTOC();
+  addPermalinks();
   bindToggles(".toggle");
   bindToggles(".toggleVisible");
   bindToggleLinks(".exampleLink", "example_");

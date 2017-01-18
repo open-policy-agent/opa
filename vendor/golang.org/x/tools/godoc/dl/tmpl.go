@@ -134,6 +134,18 @@ information about Go releases.
 {{template "releases" .}}
 {{end}}
 
+{{with .Archive}}
+<div class="toggle" id="archive">
+  <div class="collapsed">
+    <h3 class="toggleButton" title="Click to show versions">Archived versions▹</h3>
+  </div>
+  <div class="expanded">
+    <h3 class="toggleButton" title="Click to hide versions">Archived versions▾</h3>
+    {{template "releases" .}}
+  </div>
+</div>
+{{end}}
+
 
 <!-- Disabled for now; there's no admin functionality yet.
 <p>
@@ -213,8 +225,13 @@ $(document).ready(function() {
 		<h2 class="toggleButton" title="Click to hide downloads for this version">{{.Version}} ▾</h2>
 		{{if .Stable}}{{else}}
 			<p>This is an <b>unstable</b> version of Go. Use with caution.</p>
+			<p>If you already have Go installed, you can install this version by running:</p>
+<pre>
+go get golang.org/x/build/version/{{.Version}}
+</pre>
+			<p>Then, use the <code>{{.Version}}</code> command instead of the <code>go</code> command to use {{.Version}}.</p>
 		{{end}}
-		{{template "files" .Files}}
+		{{template "files" .}}
 	</div>
 </div>
 {{end}}
@@ -230,10 +247,22 @@ $(document).ready(function() {
   <th>Arch</th>
   <th>Size</th>
   {{/* Use the checksum type of the first file for the column heading. */}}
-  <th>{{(index . 0).ChecksumType}} Checksum</th>
+  <th>{{(index .Files 0).ChecksumType}} Checksum</th>
 </tr>
 </thead>
-{{range .}}
+{{if .SplitPortTable}}
+  {{range .Files}}{{if .PrimaryPort}}{{template "file" .}}{{end}}{{end}}
+
+  {{/* TODO(cbro): add a link to an explanatory doc page */}}
+  <tr class="first"><th colspan="6" class="first">Other Ports</th></tr>
+  {{range .Files}}{{if not .PrimaryPort}}{{template "file" .}}{{end}}{{end}}
+{{else}}
+  {{range .Files}}{{template "file" .}}{{end}}
+{{end}}
+</table>
+{{end}}
+
+{{define "file"}}
 <tr{{if .Highlight}} class="highlight"{{end}}>
   <td class="filename"><a class="download" href="{{.URL}}">{{.Filename}}</a></td>
   <td>{{pretty .Kind}}</td>
@@ -242,12 +271,6 @@ $(document).ready(function() {
   <td>{{.PrettySize}}</td>
   <td><tt>{{.PrettyChecksum}}</tt></td>
 </tr>
-{{else}}
-<tr>
-  <td colspan="5">No downloads available.</td>
-</tr>
-{{end}}
-</table>
 {{end}}
 
 {{define "download"}}

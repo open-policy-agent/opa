@@ -190,11 +190,137 @@ func (p *Presentation) node_htmlFunc(info *PageInfo, node interface{}, linkify b
 	var buf2 bytes.Buffer
 	if n, _ := node.(ast.Node); n != nil && linkify && p.DeclLinks {
 		LinkifyText(&buf2, buf1.Bytes(), n)
+		if st, name := isStructTypeDecl(n); st != nil {
+			addStructFieldIDAttributes(&buf2, name, st)
+		}
 	} else {
 		FormatText(&buf2, buf1.Bytes(), -1, true, "", nil)
 	}
 
 	return buf2.String()
+}
+
+// isStructTypeDecl checks whether n is a struct declaration.
+// It either returns a non-nil StructType and its name, or zero values.
+func isStructTypeDecl(n ast.Node) (st *ast.StructType, name string) {
+	gd, ok := n.(*ast.GenDecl)
+	if !ok || gd.Tok != token.TYPE {
+		return nil, ""
+	}
+	if gd.Lparen > 0 {
+		// Parenthesized type. Who does that, anyway?
+		// TODO: Reportedly gri does. Fix this to handle that too.
+		return nil, ""
+	}
+	if len(gd.Specs) != 1 {
+		return nil, ""
+	}
+	ts, ok := gd.Specs[0].(*ast.TypeSpec)
+	if !ok {
+		return nil, ""
+	}
+	st, ok = ts.Type.(*ast.StructType)
+	if !ok {
+		return nil, ""
+	}
+	return st, ts.Name.Name
+}
+
+// addStructFieldIDAttributes modifies the contents of buf such that
+// all struct fields of the named struct have <span id='name.Field'>
+// in them, so people can link to /#Struct.Field.
+func addStructFieldIDAttributes(buf *bytes.Buffer, name string, st *ast.StructType) {
+	if st.Fields == nil {
+		return
+	}
+	var scratch bytes.Buffer
+	for _, f := range st.Fields.List {
+		if len(f.Names) == 0 {
+			continue
+		}
+		fieldName := f.Names[0].Name
+		scratch.Reset()
+		var added bool
+		foreachLine(buf.Bytes(), func(line []byte) {
+			if !added && isLineForStructFieldID(line, fieldName) {
+				added = true
+				fmt.Fprintf(&scratch, `<span id="%s.%s"></span>`, name, fieldName)
+			}
+			scratch.Write(line)
+		})
+		buf.Reset()
+		buf.Write(scratch.Bytes())
+	}
+}
+
+// foreachLine calls fn for each line of in, where a line includes
+// the trailing "\n", except on the last line, if it doesn't exist.
+func foreachLine(in []byte, fn func(line []byte)) {
+	for len(in) > 0 {
+		nl := bytes.IndexByte(in, '\n')
+		if nl == -1 {
+			fn(in)
+			return
+		}
+		fn(in[:nl+1])
+		in = in[nl+1:]
+	}
+}
+
+// commentPrefix is the line prefix for comments after they've been HTMLified.
+var commentPrefix = []byte(`<span class="comment">// `)
+
+// isLineForStructFieldID reports whether line is a line we should
+// add a <span id="#StructName.FieldName"> to. Only the fieldName is provided.
+func isLineForStructFieldID(line []byte, fieldName string) bool {
+	line = bytes.TrimSpace(line)
+
+	// For fields with a doc string of the
+	// conventional form, we put the new span into
+	// the comment instead of the field.
+	// The "conventional" form is a complete sentence
+	// per https://golang.org/s/style#comment-sentences like:
+	//
+	//    // Foo is an optional Fooer to foo the foos.
+	//    Foo Fooer
+	//
+	// In this case, we want the #StructName.Foo
+	// link to make the browser go to the comment
+	// line "Foo is an optional Fooer" instead of
+	// the "Foo Fooer" line, which could otherwise
+	// obscure the docs above the browser's "fold".
+	//
+	// TODO: do this better, so it works for all
+	// comments, including unconventional ones.
+	// For comments
+	if bytes.HasPrefix(line, commentPrefix) {
+		if matchesIdentBoundary(line[len(commentPrefix):], fieldName) {
+			return true
+		}
+	}
+	return matchesIdentBoundary(line, fieldName)
+}
+
+// matchesIdentBoundary reports whether line matches /^ident\b/.
+// A boundary is considered either none, or an ASCII non-alphanum.
+func matchesIdentBoundary(line []byte, ident string) bool {
+	if len(line) < len(ident) {
+		return false
+	}
+	if string(line[:len(ident)]) != ident {
+		return false
+	}
+	rest := line[len(ident):]
+	return len(rest) == 0 || !isASCIIWordChar(rest[0])
+}
+
+// isASCIIWordChar reports whether b is an ASCII "word"
+// character. (Matching /\w/ in ASCII mode)
+func isASCIIWordChar(b byte) bool {
+	return 'a' <= b && b <= 'z' ||
+		'A' <= b && b <= 'Z' ||
+		'0' <= b && b <= '0' ||
+		b == '_'
 }
 
 func comment_htmlFunc(comment string) string {
