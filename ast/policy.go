@@ -19,21 +19,21 @@ import (
 // DefaultRootDocument value.
 var DefaultRootDocument = VarTerm("data")
 
-// RequestRootDocument names the document containing query arguments.
-var RequestRootDocument = VarTerm("request")
+// InputRootDocument names the document containing query arguments.
+var InputRootDocument = VarTerm("input")
 
 // DefaultRootRef is a reference to the root of the default document.
 //
 // All refs to data in the policy engine's storage layer are prefixed with this ref.
 var DefaultRootRef = Ref{DefaultRootDocument}
 
-// RequestRootRef is a reference to the root of the request document.
+// InputRootRef is a reference to the root of the input document.
 //
 // All refs to query arguments are prefixed with this ref.
-var RequestRootRef = Ref{RequestRootDocument}
+var InputRootRef = Ref{InputRootDocument}
 
 // ReservedVars is the set of names that refer to implicitly ground vars.
-var ReservedVars = NewVarSet(DefaultRootDocument.Value.(Var), RequestRootDocument.Value.(Var))
+var ReservedVars = NewVarSet(DefaultRootDocument.Value.(Var), InputRootDocument.Value.(Var))
 
 // Wildcard represents the wildcard variable as defined in the language.
 var Wildcard = &Term{Value: Var("_")}
@@ -233,12 +233,12 @@ func (pkg *Package) String() string {
 func IsValidImportPath(v Value) (err error) {
 	switch v := v.(type) {
 	case Var:
-		if !v.Equal(DefaultRootDocument.Value) && !v.Equal(RequestRootDocument.Value) {
-			return fmt.Errorf("invalid path %v: path must begin with request or data", v)
+		if !v.Equal(DefaultRootDocument.Value) && !v.Equal(InputRootDocument.Value) {
+			return fmt.Errorf("invalid path %v: path must begin with input or data", v)
 		}
 	case Ref:
 		if err := IsValidImportPath(v[0].Value); err != nil {
-			return fmt.Errorf("invalid path %v: path must begin with request or data", v)
+			return fmt.Errorf("invalid path %v: path must begin with input or data", v)
 		}
 		for _, e := range v[1:] {
 			if _, ok := e.Value.(String); !ok {

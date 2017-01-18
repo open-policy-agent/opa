@@ -1,5 +1,5 @@
 package opa.examples
 
-import request.example.flag
+import input.example.flag
 
 allow_request :- flag = true

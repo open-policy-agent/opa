@@ -18,7 +18,7 @@ func ExampleCompiler_Compile() {
 		package opa.example
 
 		import data.foo
-		import request.bar
+		import input.bar
 
 		p[x] :- foo[x], not bar[x], x >= min_x
 
@@ -50,7 +50,7 @@ func ExampleCompiler_Compile() {
 	// Output:
 	//
 	// Expr 1: data.foo[x]
-	// Expr 2: not request.bar[x]
+	// Expr 2: not input.bar[x]
 	// Expr 3: gte(x, data.opa.example.min_x)
 }
 
@@ -62,7 +62,7 @@ func ExampleQueryCompiler_Compile() {
 		package opa.example
 
 		import data.foo
-		import request.bar
+		import input.bar
 
 		p[x] :- foo[x], not bar[x], x >= min_x
 
@@ -98,7 +98,7 @@ func ExampleQueryCompiler_Compile() {
 				// ast.Parse<X> functions that return meaningful error messages
 				// instead.
 				ast.MustParsePackage("package opa.example"),
-				ast.MustParseImports("import request.queryinput"),
+				ast.MustParseImports("import input.queryinput"),
 			))
 
 	// Parse the input query to obtain the AST representation.
@@ -116,5 +116,5 @@ func ExampleQueryCompiler_Compile() {
 
 	// Output:
 	//
-	// Compiled: data.opa.example.p[x], lt(x, request.queryinput)
+	// Compiled: data.opa.example.p[x], lt(x, input.queryinput)
 }

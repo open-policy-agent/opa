@@ -11,11 +11,11 @@ import (
 	"github.com/open-policy-agent/opa/ast"
 )
 
-func TestMakeRequest(t *testing.T) {
+func TestMakeInput(t *testing.T) {
 
 	tests := []struct {
 		note     string
-		request  [][2]string
+		input    [][2]string
 		expected interface{}
 	}{
 		{"var", [][2]string{{`hello`, `"world"`}}, `{"hello": "world"}`},
@@ -29,46 +29,46 @@ func TestMakeRequest(t *testing.T) {
 		{"non-object", [][2]string{{"", "[1,2,3]"}}, "[1,2,3]"},
 		{"non-object conflict",
 			[][2]string{{"", "[1,2,3]"}, {"a.b", "true"}},
-			fmt.Errorf("conflicting request values: check request parameters")},
+			fmt.Errorf("conflicting input values: check input parameters")},
 		{"conflicting vars",
 			[][2]string{{`a.b`, `"c"`}, {`a.b.d`, `"d"`}},
-			fmt.Errorf("conflicting request value request.a.b.d: check request parameters")},
+			fmt.Errorf("conflicting input value input.a.b.d: check input parameters")},
 		{"conflicting vars-2",
 			[][2]string{{`a.b`, `{"c":[]}`}, {`a.b.c`, `["d"]`}},
-			fmt.Errorf("conflicting request value request.a.b.c: check request parameters")},
+			fmt.Errorf("conflicting input value input.a.b.c: check input parameters")},
 		{"conflicting vars-3",
 			[][2]string{{"a", "100"}, {`a.b`, `"c"`}},
-			fmt.Errorf("conflicting request value request.a.b: check request parameters")},
+			fmt.Errorf("conflicting input value input.a.b: check input parameters")},
 		{"conflicting vars-4",
 			[][2]string{{`a.b`, `"c"`}, {`a`, `100`}},
-			fmt.Errorf("conflicting request value request.a: check request parameters")},
+			fmt.Errorf("conflicting input value input.a: check input parameters")},
 		{"bad path",
 			[][2]string{{`a[1]`, `1`}},
-			fmt.Errorf("invalid request path: invalid path request.a[1]: path elements must be strings"),
+			fmt.Errorf("invalid input path: invalid path input.a[1]: path elements must be strings"),
 		},
 	}
 
 	for i, tc := range tests {
 
-		pairs := make([][2]*ast.Term, len(tc.request))
+		pairs := make([][2]*ast.Term, len(tc.input))
 
-		for j := range tc.request {
+		for j := range tc.input {
 			var k *ast.Term
-			if len(tc.request[j][0]) == 0 {
+			if len(tc.input[j][0]) == 0 {
 				k = ast.NewTerm(ast.EmptyRef())
 			} else {
-				k = ast.MustParseTerm("request." + tc.request[j][0])
+				k = ast.MustParseTerm("input." + tc.input[j][0])
 			}
-			v := ast.MustParseTerm(tc.request[j][1])
+			v := ast.MustParseTerm(tc.input[j][1])
 			pairs[j] = [...]*ast.Term{k, v}
 		}
 
-		request, err := MakeRequest(pairs)
+		input, err := MakeInput(pairs)
 
 		switch e := tc.expected.(type) {
 		case error:
 			if err == nil {
-				t.Errorf("%v (#%d): Expected error %v but got: %v", tc.note, i+1, e, request)
+				t.Errorf("%v (#%d): Expected error %v but got: %v", tc.note, i+1, e, input)
 				continue
 			}
 			if err.Error() != e.Error() {
@@ -80,8 +80,8 @@ func TestMakeRequest(t *testing.T) {
 				continue
 			}
 			expected := ast.MustParseTerm(e)
-			if !expected.Value.Equal(request) {
-				t.Errorf("%v (#%d): Expected request to equal %v but got: %v", tc.note, i+1, expected, request)
+			if !expected.Value.Equal(input) {
+				t.Errorf("%v (#%d): Expected input to equal %v but got: %v", tc.note, i+1, expected, input)
 			}
 		}
 	}

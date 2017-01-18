@@ -37,12 +37,12 @@ func (h *LoggingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		glog.Infof("%v %v %v %v %v %vms",
 			r.RemoteAddr,
 			r.Method,
-			dropRequestParam(r.URL),
+			dropInputParam(r.URL),
 			statusCode,
 			recorder.bytesWritten,
 			float64(dt.Nanoseconds())/1e6)
 		if glog.V(3) {
-			for _, g := range getRequestParam(r.URL) {
+			for _, g := range getInputParam(r.URL) {
 				glog.Infoln(g)
 			}
 		}
@@ -75,10 +75,10 @@ func (r *recorder) WriteHeader(s int) {
 	r.inner.WriteHeader(s)
 }
 
-func dropRequestParam(u *url.URL) string {
+func dropInputParam(u *url.URL) string {
 	cpy := url.Values{}
 	for k, v := range u.Query() {
-		if k != server.ParamRequestV1 {
+		if k != server.ParamInputV1 {
 			cpy[k] = v
 		}
 	}
@@ -88,8 +88,8 @@ func dropRequestParam(u *url.URL) string {
 	return u.Path + "?" + cpy.Encode()
 }
 
-func getRequestParam(u *url.URL) (r []string) {
-	for _, g := range u.Query()[server.ParamRequestV1] {
+func getInputParam(u *url.URL) (r []string) {
+	for _, g := range u.Query()[server.ParamInputV1] {
 		s, err := url.QueryUnescape(g)
 		if len(s) > 0 && err == nil {
 			r = append(r, s)

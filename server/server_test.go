@@ -52,9 +52,9 @@ func TestDataV1(t *testing.T) {
                 q[x] :- data.x.y[i] = x
                 r[x] :- data.x.z[i] = x
 
-				import request.req1
-				import request.req2 as reqx
-				import request.req3.attr1
+				import input.req1
+				import input.req2 as reqx
+				import input.req3.attr1
 				g :- req1.a[0] = 1, reqx.b[i] = 1
 				h :- attr1[i] > 1
 
@@ -165,52 +165,52 @@ func TestDataV1(t *testing.T) {
                 "Message": "write conflict: /testmod/p"
             }`},
 		}},
-		{"get with request", []tr{
+		{"get with input", []tr{
 			tr{"PUT", "/policies/test", testMod1, 200, ""},
-			tr{"GET", "/data/testmod/g?request=req1%3A%7B%22a%22%3A%5B1%5D%7D&request=req2%3A%7B%22b%22%3A%5B0%2C1%5D%7D", "", 200, "true"},
+			tr{"GET", "/data/testmod/g?input=req1%3A%7B%22a%22%3A%5B1%5D%7D&input=req2%3A%7B%22b%22%3A%5B0%2C1%5D%7D", "", 200, "true"},
 		}},
-		{"get with request (missing request value)", []tr{
+		{"get with input (missing input value)", []tr{
 			tr{"PUT", "/policies/test", testMod1, 200, ""},
-			tr{"GET", "/data/testmod/g?request=req1%3A%7B%22a%22%3A%5B1%5D%7D", "", 404, ""},
+			tr{"GET", "/data/testmod/g?input=req1%3A%7B%22a%22%3A%5B1%5D%7D", "", 404, ""},
 		}},
-		{"get with request (namespaced)", []tr{
+		{"get with input (namespaced)", []tr{
 			tr{"PUT", "/policies/test", testMod1, 200, ""},
-			tr{"GET", "/data/testmod/h?request=req3.attr1%3A%5B4%2C3%2C2%2C1%5D", "", 200, `true`},
+			tr{"GET", "/data/testmod/h?input=req3.attr1%3A%5B4%2C3%2C2%2C1%5D", "", 200, `true`},
 		}},
-		{"get with request (non-ground ref)", []tr{
+		{"get with input (non-ground ref)", []tr{
 			tr{"PUT", "/policies/test", testMod1, 200, ""},
-			tr{"GET", "/data/testmod/gt1?request=req1:data.testmod.arr[i]", "", 200, `[[true, {"i": 1}], [true, {"i": 2}], [true, {"i": 3}]]`},
+			tr{"GET", "/data/testmod/gt1?input=req1:data.testmod.arr[i]", "", 200, `[[true, {"i": 1}], [true, {"i": 2}], [true, {"i": 3}]]`},
 		}},
-		{"get with request (root)", []tr{
+		{"get with input (root)", []tr{
 			tr{"PUT", "/policies/test", testMod1, 200, ""},
-			tr{"GET", `/data/testmod/gt1?request=:{"req1":2}`, "", 200, `true`},
+			tr{"GET", `/data/testmod/gt1?input=:{"req1":2}`, "", 200, `true`},
 		}},
-		{"get with request (root-2)", []tr{
+		{"get with input (root-2)", []tr{
 			tr{"PUT", "/policies/test", testMod1, 200, ""},
-			tr{"GET", `/data/testmod/gt1?request={"req1":2}`, "", 200, `true`},
+			tr{"GET", `/data/testmod/gt1?input={"req1":2}`, "", 200, `true`},
 		}},
-		{"get with request (root+non-ground)", []tr{
+		{"get with input (root+non-ground)", []tr{
 			tr{"PUT", "/policies/test", testMod1, 200, ""},
-			tr{"GET", `/data/testmod/gt1?request={"req1":data.testmod.arr[i]}`, "", 200, `[[true, {"i": 1}], [true, {"i": 2}], [true, {"i": 3}]]`},
+			tr{"GET", `/data/testmod/gt1?input={"req1":data.testmod.arr[i]}`, "", 200, `[[true, {"i": 1}], [true, {"i": 2}], [true, {"i": 3}]]`},
 		}},
-		{"get with request (bad format)", []tr{
-			tr{"GET", "/data/deadbeef?request", "", 400, `{
+		{"get with input (bad format)", []tr{
+			tr{"GET", "/data/deadbeef?input", "", 400, `{
 				"Code": 400,
-				"Message": "request parameter format is [[<path>]:]<value> where <path> is either var or ref"
+				"Message": "input parameter format is [[<path>]:]<value> where <path> is either var or ref"
 			}`},
-			tr{"GET", "/data/deadbeef?request=", "", 400, `{
+			tr{"GET", "/data/deadbeef?input=", "", 400, `{
 				"Code": 400,
-				"Message": "request parameter format is [[<path>]:]<value> where <path> is either var or ref"
+				"Message": "input parameter format is [[<path>]:]<value> where <path> is either var or ref"
 			}`},
-			tr{"GET", `/data/deadbeef?request="foo`, "", 400, `{
+			tr{"GET", `/data/deadbeef?input="foo`, "", 400, `{
 				"Code": 400,
-				"Message": "request parameter format is [[<path>]:]<value> where <path> is either var or ref"
+				"Message": "input parameter format is [[<path>]:]<value> where <path> is either var or ref"
 			}`},
 		}},
-		{"get with request (path error)", []tr{
-			tr{"GET", `/data/deadbeef?request="foo:1`, "", 400, `{
+		{"get with input (path error)", []tr{
+			tr{"GET", `/data/deadbeef?input="foo:1`, "", 400, `{
 				"Code": 400,
-				"Message": "request parameter format is [[<path>]:]<value> where <path> is either var or ref"
+				"Message": "input parameter format is [[<path>]:]<value> where <path> is either var or ref"
 			}`},
 		}},
 		{"get undefined", []tr{

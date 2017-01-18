@@ -275,9 +275,9 @@ type patchImpl struct {
 }
 
 const (
-	// ParamRequestV1 defines the name of the HTTP URL parameter that specifies
-	// values for the "request" document.
-	ParamRequestV1 = "request"
+	// ParamInputV1 defines the name of the HTTP URL parameter that specifies
+	// values for the "input" document.
+	ParamInputV1 = "input"
 )
 
 // Server represents an instance of OPA running in server mode.
@@ -462,13 +462,12 @@ func (s *Server) registerHandlerV1(router *mux.Router, path string, method strin
 
 func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 
-	// Gather request parameters.
 	ctx := r.Context()
 	vars := mux.Vars(r)
 	path := stringPathToDataRef(vars["path"])
 	pretty := getPretty(r.URL.Query()["pretty"])
 	explainMode := getExplain(r.URL.Query()["explain"])
-	request, nonGround, err := parseRequest(r.URL.Query()[ParamRequestV1])
+	input, nonGround, err := parseInput(r.URL.Query()[ParamInputV1])
 
 	if err != nil {
 		handleError(w, 400, err)
@@ -476,7 +475,7 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if nonGround && explainMode != explainOffV1 {
-		handleError(w, 400, fmt.Errorf("explanations with non-ground request values not supported"))
+		handleError(w, 400, fmt.Errorf("explanations with non-ground input values not supported"))
 		return
 	}
 
@@ -490,7 +489,7 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 	defer s.store.Close(ctx, txn)
 
 	compiler := s.Compiler()
-	params := topdown.NewQueryParams(ctx, compiler, s.store, txn, request, path)
+	params := topdown.NewQueryParams(ctx, compiler, s.store, txn, input, path)
 
 	var buf *topdown.BufferTracer
 	if explainMode != explainOffV1 {
@@ -1058,9 +1057,9 @@ func getExplain(p []string) explainModeV1 {
 	return explainOffV1
 }
 
-var errRequestPathFormat = fmt.Errorf("request parameter format is [[<path>]:]<value> where <path> is either var or ref")
+var errInputPathFormat = fmt.Errorf("input parameter format is [[<path>]:]<value> where <path> is either var or ref")
 
-func parseRequest(s []string) (ast.Value, bool, error) {
+func parseInput(s []string) (ast.Value, bool, error) {
 
 	pairs := make([][2]*ast.Term, len(s))
 	nonGround := false
@@ -1072,7 +1071,7 @@ func parseRequest(s []string) (ast.Value, bool, error) {
 		var err error
 
 		if len(s[i]) == 0 {
-			return nil, false, errRequestPathFormat
+			return nil, false, errInputPathFormat
 		}
 
 		if s[i][0] == ':' {
@@ -1085,11 +1084,11 @@ func parseRequest(s []string) (ast.Value, bool, error) {
 			} else {
 				vs := strings.SplitN(s[i], ":", 2)
 				if len(vs) != 2 {
-					return nil, false, errRequestPathFormat
+					return nil, false, errInputPathFormat
 				}
-				k, err = ast.ParseTerm(ast.RequestRootDocument.String() + "." + vs[0])
+				k, err = ast.ParseTerm(ast.InputRootDocument.String() + "." + vs[0])
 				if err != nil {
-					return nil, false, errRequestPathFormat
+					return nil, false, errInputPathFormat
 				}
 				v, err = ast.ParseTerm(vs[1])
 			}
@@ -1112,12 +1111,12 @@ func parseRequest(s []string) (ast.Value, bool, error) {
 		}
 	}
 
-	request, err := topdown.MakeRequest(pairs)
+	input, err := topdown.MakeInput(pairs)
 	if err != nil {
 		return nil, false, err
 	}
 
-	return request, nonGround, nil
+	return input, nonGround, nil
 }
 
 func renderBanner(w http.ResponseWriter) {

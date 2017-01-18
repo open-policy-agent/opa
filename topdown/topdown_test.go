@@ -695,9 +695,9 @@ func TestTopDownBaseAndVirtualDocs(t *testing.T) {
 			undefined :- false
 		`,
 		`
-			package topdown.missing.request.value
+			package topdown.missing.input.value
 
-			p :- request.foo
+			p :- input.foo
 		`,
 		// Define virtual docs that we can query to obtain merged result.
 		`
@@ -707,7 +707,7 @@ func TestTopDownBaseAndVirtualDocs(t *testing.T) {
 			r[[x1,x2]] :- data.topdown.a.b[x1] = x2
 			s = x :- data.topdown.no = x
 			t :- data.topdown.a.b.c.undefined
-		 	u :- data.topdown.missing.request.value
+		 	u :- data.topdown.missing.input.value
 			v = x :- data.topdown.g = x
 			w = data.topdown.set
 		`,
@@ -753,7 +753,7 @@ func TestTopDownBaseAndVirtualDocs(t *testing.T) {
 	assertTopDown(t, compiler, store, "base/virtual: no base", []string{"topdown", "s"}, "{}", `{"base": {"doc": {"p": true}}}`)
 	assertTopDown(t, compiler, store, "base/virtual: undefined", []string{"topdown", "t"}, "{}", "")
 	assertTopDown(t, compiler, store, "base/virtual: undefined-2", []string{"topdown", "v"}, "{}", `{"h": {"k": [1,2,3]}}`)
-	assertTopDown(t, compiler, store, "base/virtual: missing request value", []string{"topdown", "u"}, "{}", "")
+	assertTopDown(t, compiler, store, "base/virtual: missing input value", []string{"topdown", "u"}, "{}", "")
 }
 
 func TestTopDownNestedReferences(t *testing.T) {
@@ -1119,14 +1119,14 @@ func TestTopDownEmbeddedVirtualDoc(t *testing.T) {
 	assertTopDown(t, compiler, store, "deep embedded vdoc", []string{"b", "c", "d", "p"}, "{}", "[1, 2, 4]")
 }
 
-func TestTopDownRequestValues(t *testing.T) {
+func TestTopDownInputValues(t *testing.T) {
 	compiler := compileModules([]string{
 		`package z
 		 import data.a
-		 import request.req1
-		 import request.req2 as req2as
-		 import request.req3.a.b
-		 import request.req4.a.b as req4as
+		 import input.req1
+		 import input.req2 as req2as
+		 import input.req3.a.b
+		 import input.req4.a.b as req4as
 		 p = true :- a[i] = x, req1.foo = x, req2as.bar = x, q[x]
 		 q[x] :- req1.foo = x, req2as.bar = x, r[x]
 		 r[x] :- {"foo": req2as.bar, "bar": [x]} = {"foo": x, "bar": [req1.foo]}
@@ -1136,7 +1136,7 @@ func TestTopDownRequestValues(t *testing.T) {
 		 w = [[1,2], [3,4]]
 		 gt1 :- req1 > 1
 		 keys[x] = y :- data.numbers[_] = x, to_number(x, y)
-		 loopback = request
+		 loopback = input
 		 `})
 
 	store := storage.New(storage.InMemoryWithJSONConfig(loadSmallTestData()))
@@ -1805,12 +1805,12 @@ func runTopDownTracingTestCase(t *testing.T, module string, n int, cases map[int
 	}
 }
 
-func assertTopDown(t *testing.T, compiler *ast.Compiler, store *storage.Storage, note string, path []string, request string, expected interface{}) {
+func assertTopDown(t *testing.T, compiler *ast.Compiler, store *storage.Storage, note string, path []string, input string, expected interface{}) {
 
 	var req ast.Value
 
-	if len(request) > 0 {
-		req = ast.MustParseTerm(request).Value
+	if len(input) > 0 {
+		req = ast.MustParseTerm(input).Value
 	}
 
 	p := []interface{}{}

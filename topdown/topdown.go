@@ -20,7 +20,7 @@ import (
 type Topdown struct {
 	Query    ast.Body
 	Compiler *ast.Compiler
-	Request  ast.Value
+	Input    ast.Value
 	Locals   *ast.ValueMap
 	Index    int
 	Previous *Topdown
@@ -530,19 +530,19 @@ type QueryParams struct {
 	Compiler    *ast.Compiler
 	Store       *storage.Storage
 	Transaction storage.Transaction
-	Request     ast.Value
+	Input       ast.Value
 	Tracer      Tracer
 	Path        ast.Ref
 }
 
 // NewQueryParams returns a new QueryParams.
-func NewQueryParams(ctx context.Context, compiler *ast.Compiler, store *storage.Storage, txn storage.Transaction, request ast.Value, path ast.Ref) *QueryParams {
+func NewQueryParams(ctx context.Context, compiler *ast.Compiler, store *storage.Storage, txn storage.Transaction, input ast.Value, path ast.Ref) *QueryParams {
 	return &QueryParams{
 		Context:     ctx,
 		Compiler:    compiler,
 		Store:       store,
 		Transaction: txn,
-		Request:     request,
+		Input:       input,
 		Path:        path,
 	}
 }
@@ -550,7 +550,7 @@ func NewQueryParams(ctx context.Context, compiler *ast.Compiler, store *storage.
 // NewTopdown returns a new Topdown object that can be used to do evaluation.
 func (q *QueryParams) NewTopdown(body ast.Body) *Topdown {
 	t := New(q.Context, body, q.Compiler, q.Store, q.Transaction)
-	t.Request = q.Request
+	t.Input = q.Input
 	t.Tracer = q.Tracer
 	return t
 }
@@ -558,7 +558,7 @@ func (q *QueryParams) NewTopdown(body ast.Body) *Topdown {
 // QueryResult represents a single query result.
 type QueryResult struct {
 	Result   interface{}            // Result contains the document referred to by the params Path.
-	Bindings map[string]interface{} // Bindings contains values for variables in the params Request.
+	Bindings map[string]interface{} // Bindings contains values for variables in the params Input.
 }
 
 func (qr *QueryResult) String() string {
@@ -579,7 +579,7 @@ func (qrs *QueryResultSet) Add(qr *QueryResult) {
 }
 
 // Query returns the value of document referred to by the params Path field. If
-// the params' Request field contains values that are non-ground (i.e., they
+// the params' Input field contains values that are non-ground (i.e., they
 // contain variables), then the result may contain multiple entries.
 func Query(params *QueryParams) (QueryResultSet, error) {
 	return queryN(params)
@@ -614,10 +614,10 @@ func queryOne(params *QueryParams) (QueryResultSet, error) {
 
 // queryN returns a QueryResultSet containing the values of the document
 // referred to by the params Path field. There may be zero or more values
-// depending on the values of the params' Request field.
+// depending on the values of the params' Input field.
 //
-// For example, if the request refers to one or more undefined documents, the
-// set will be empty. On the other hand, if the request contain non-ground
+// For example, if the input refers to one or more undefined documents, the
+// set will be empty. On the other hand, if the input contain non-ground
 // references where there are multiple valid sets of bindings, the result set
 // may contain multiple values.
 func queryN(params *QueryParams) (QueryResultSet, error) {
@@ -631,12 +631,12 @@ func queryN(params *QueryParams) (QueryResultSet, error) {
 		SkipClosures: true,
 	})
 
-	ast.Walk(vis, params.Request)
+	ast.Walk(vis, params.Input)
 	vars = vis.Vars()
 
-	err := evalRequest(params, func(root *Topdown) error {
+	err := evalInput(params, func(root *Topdown) error {
 
-		params.Request = PlugValue(root.Request, root.Binding)
+		params.Input = PlugValue(root.Input, root.Binding)
 		result, err := queryOne(params)
 
 		if err != nil || result.Undefined() {
@@ -659,18 +659,18 @@ func queryN(params *QueryParams) (QueryResultSet, error) {
 	return qrs, err
 }
 
-// evalRequest evaluates the params' request field. The iterator is called with
-// the plugged request.
-func evalRequest(params *QueryParams, iter Iterator) error {
+// evalInput evaluates the params' input field. The iterator is called with
+// the plugged input.
+func evalInput(params *QueryParams, iter Iterator) error {
 
-	if params.Request == nil || params.Request.Equal(ast.Boolean(false)) {
+	if params.Input == nil || params.Input.Equal(ast.Boolean(false)) {
 		return iter(params.NewTopdown(nil))
 	}
 
-	query := ast.NewBody(ast.NewExpr(ast.NewTerm(params.Request)))
+	query := ast.NewBody(ast.NewExpr(ast.NewTerm(params.Input)))
 	t := params.NewTopdown(query)
 
-	// TODO(tsandall): disable tracing for request evaluation as it would
+	// TODO(tsandall): disable tracing for input evaluation as it would
 	// introduce an extra layer of trace events. Once the with modifier is
 	// implemented, trace output will be better defined.
 	t.Tracer = nil
@@ -971,13 +971,13 @@ func evalRef(t *Topdown, ref, path ast.Ref, iter Iterator) error {
 			return evalRefRec(t, path, iter)
 		}
 
-		if path.HasPrefix(ast.RequestRootRef) {
-			// If no request was supplied, then any references to the request
+		if path.HasPrefix(ast.InputRootRef) {
+			// If no input was supplied, then any references to the input
 			// are undefined.
-			if t.Request == nil {
+			if t.Input == nil {
 				return nil
 			}
-			return evalRefRuleResult(t, path, path[1:], t.Request, iter)
+			return evalRefRuleResult(t, path, path[1:], t.Input, iter)
 		}
 
 		if v := t.Binding(path[0].Value); v != nil {

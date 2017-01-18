@@ -19,7 +19,7 @@ func TestVisitor(t *testing.T) {
 
 	rule := MustParseModule(`
 	package a.b
-	import request.x.y as z
+	import input.x.y as z
 	t[x] = y :-
 		p[x] = {"foo": [y,2,{"bar": 3}]},
 		not q[x],
@@ -37,8 +37,8 @@ func TestVisitor(t *testing.T) {
 					a
 					b
 			import
-				request.x.y
-					request
+				input.x.y
+					input
 					x
 					y
 				z
