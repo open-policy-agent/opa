@@ -21,6 +21,7 @@ import (
 
 type parser struct {
 	scanner  scanner.Scanner
+	version  string                    // format version
 	tok      rune                      // current token
 	lit      string                    // literal string; only valid for Ident, Int, String tokens
 	pkgpath  string                    // package path of imported package
@@ -247,9 +248,20 @@ func (p *parser) parseVar(pkg *types.Package) *types.Var {
 	return types.NewVar(token.NoPos, pkg, name, p.parseType(pkg))
 }
 
-// ConstValue     = string | "false" | "true" | ["-"] (int ["'"] | FloatOrComplex) .
+// Conversion = "convert" "(" Type "," ConstValue ")" .
+func (p *parser) parseConversion(pkg *types.Package) (val constant.Value, typ types.Type) {
+	p.expectKeyword("convert")
+	p.expect('(')
+	typ = p.parseType(pkg)
+	p.expect(',')
+	val, _ = p.parseConstValue(pkg)
+	p.expect(')')
+	return
+}
+
+// ConstValue     = string | "false" | "true" | ["-"] (int ["'"] | FloatOrComplex) | Conversion .
 // FloatOrComplex = float ["i" | ("+"|"-") float "i"] .
-func (p *parser) parseConstValue() (val constant.Value, typ types.Type) {
+func (p *parser) parseConstValue(pkg *types.Package) (val constant.Value, typ types.Type) {
 	switch p.tok {
 	case scanner.String:
 		str := p.parseString()
@@ -263,6 +275,9 @@ func (p *parser) parseConstValue() (val constant.Value, typ types.Type) {
 		case "false":
 		case "true":
 			b = true
+
+		case "convert":
+			return p.parseConversion(pkg)
 
 		default:
 			p.errorf("expected const value, got %s (%q)", scanner.TokenString(p.tok), p.lit)
@@ -350,7 +365,7 @@ func (p *parser) parseConst(pkg *types.Package) *types.Const {
 		typ = p.parseType(pkg)
 	}
 	p.expect('=')
-	val, vtyp := p.parseConstValue()
+	val, vtyp := p.parseConstValue(pkg)
 	if typ == nil {
 		typ = vtyp
 	}
@@ -698,7 +713,10 @@ func (p *parser) parseType(pkg *types.Package) (t types.Type) {
 func (p *parser) parsePackageInit() PackageInit {
 	name := p.parseUnquotedString()
 	initfunc := p.parseUnquotedString()
-	priority := int(p.parseInt())
+	priority := -1
+	if p.version == "v1" {
+		priority = int(p.parseInt())
+	}
 	return PackageInit{Name: name, InitFunc: initfunc, Priority: priority}
 }
 
@@ -725,7 +743,7 @@ func (p *parser) maybeCreatePackage() {
 	}
 }
 
-// InitDataDirective = "v1" ";" |
+// InitDataDirective = ( "v1" | "v2" ) ";" |
 //                     "priority" int ";" |
 //                     "init" { PackageInit } ";" |
 //                     "checksum" unquotedString ";" .
@@ -736,7 +754,8 @@ func (p *parser) parseInitDataDirective() {
 	}
 
 	switch p.lit {
-	case "v1":
+	case "v1", "v2":
+		p.version = p.lit
 		p.next()
 		p.expect(';')
 
@@ -749,6 +768,15 @@ func (p *parser) parseInitDataDirective() {
 		p.next()
 		for p.tok != ';' && p.tok != scanner.EOF {
 			p.initdata.Inits = append(p.initdata.Inits, p.parsePackageInit())
+		}
+		p.expect(';')
+
+	case "init_graph":
+		p.next()
+		// The graph data is thrown away for now.
+		for p.tok != ';' && p.tok != scanner.EOF {
+			p.parseInt()
+			p.parseInt()
 		}
 		p.expect(';')
 
@@ -768,8 +796,9 @@ func (p *parser) parseInitDataDirective() {
 }
 
 // Directive = InitDataDirective |
-//             "package" unquotedString ";" |
+//             "package" unquotedString [ unquotedString ] [ unquotedString ] ";" |
 //             "pkgpath" unquotedString ";" |
+//             "prefix" unquotedString ";" |
 //             "import" unquotedString unquotedString string ";" |
 //             "func" Func ";" |
 //             "type" Type ";" |
@@ -782,19 +811,28 @@ func (p *parser) parseDirective() {
 	}
 
 	switch p.lit {
-	case "v1", "priority", "init", "checksum":
+	case "v1", "v2", "priority", "init", "init_graph", "checksum":
 		p.parseInitDataDirective()
 
 	case "package":
 		p.next()
 		p.pkgname = p.parseUnquotedString()
 		p.maybeCreatePackage()
+		if p.version == "v2" && p.tok != ';' {
+			p.parseUnquotedString()
+			p.parseUnquotedString()
+		}
 		p.expect(';')
 
 	case "pkgpath":
 		p.next()
 		p.pkgpath = p.parseUnquotedString()
 		p.maybeCreatePackage()
+		p.expect(';')
+
+	case "prefix":
+		p.next()
+		p.pkgpath = p.parseUnquotedString()
 		p.expect(';')
 
 	case "import":

@@ -29,6 +29,13 @@ pre .selection-comment {
 }
 pre .ln {
 	color: #999;
+	background: #efefef;
+}
+.ln {
+	-webkit-user-select: none;
+	-moz-user-select: none;
+	-ms-user-select: none;
+	user-select: none;
 }
 body {
 	color: #222;
@@ -42,11 +49,17 @@ a:hover,
 .exampleHeading .text:hover {
 	text-decoration: underline;
 }
+.article a {
+	text-decoration: underline;
+}
+.article .title a {
+	text-decoration: none;
+}
 
 .permalink {
 	display: none;
 }
-h2:hover .permalink, h3:hover .permalink {
+:hover > .permalink {
 	display: inline;
 }
 
@@ -445,10 +458,10 @@ div#blog .read {
 }
 
 .toggleButton { cursor: pointer; }
-.toggle .collapsed { display: block; }
-.toggle .expanded { display: none; }
-.toggleVisible .collapsed { display: none; }
-.toggleVisible .expanded { display: block; }
+.toggle > .collapsed { display: block; }
+.toggle > .expanded { display: none; }
+.toggleVisible > .collapsed { display: none; }
+.toggleVisible > .expanded { display: block; }
 
 table.codetable { margin-left: auto; margin-right: auto; border-style: none; }
 table.codetable td { padding-right: 10px; }

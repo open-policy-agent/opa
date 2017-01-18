@@ -5,6 +5,9 @@
 package godoc
 
 import (
+	"go/ast"
+	"go/parser"
+	"go/token"
 	"testing"
 )
 
@@ -114,5 +117,48 @@ func TestSanitizeFunc(t *testing.T) {
 		if got := sanitizeFunc(tc.src); got != tc.want {
 			t.Errorf("sanitizeFunc(%v) = %v; want %v", tc.src, got, tc.want)
 		}
+	}
+}
+
+// Test that we add <span id="StructName.FieldName"> elements
+// to the HTML of struct fields.
+func TestStructFieldsIDAttributes(t *testing.T) {
+	p := &Presentation{
+		DeclLinks: true,
+	}
+	src := []byte(`
+package foo
+
+type T struct {
+	NoDoc string
+
+	// Doc has a comment.
+	Doc string
+
+	// Opt, if non-nil, is an option.
+	Opt *int
+}
+`)
+	fset := token.NewFileSet()
+	af, err := parser.ParseFile(fset, "foo.go", src, parser.ParseComments)
+	if err != nil {
+		t.Fatal(err)
+	}
+	genDecl := af.Decls[0].(*ast.GenDecl)
+	pi := &PageInfo{
+		FSet: fset,
+	}
+	got := p.node_htmlFunc(pi, genDecl, true)
+	want := `type T struct {
+<span id="T.NoDoc"></span>NoDoc <a href="/pkg/builtin/#string">string</a>
+
+<span id="T.Doc"></span><span class="comment">// Doc has a comment.</span>
+Doc <a href="/pkg/builtin/#string">string</a>
+
+<span id="T.Opt"></span><span class="comment">// Opt, if non-nil, is an option.</span>
+Opt *<a href="/pkg/builtin/#int">int</a>
+}`
+	if got != want {
+		t.Errorf("got: %s\n\nwant: %s\n", got, want)
 	}
 }

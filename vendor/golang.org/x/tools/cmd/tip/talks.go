@@ -21,7 +21,7 @@ func (b talksBuilder) Signature(heads map[string]string) string {
 	return heads["talks"]
 }
 
-const talksToolsRev = "1f1b3322f67af76803c942fd237291538ec68262"
+const talksToolsRev = "e04df2157ae7263e17159baabadc99fb03fc7514"
 
 func (b talksBuilder) Init(dir, hostport string, heads map[string]string) (*exec.Cmd, error) {
 	toolsDir := filepath.Join(dir, "gopath/src/golang.org/x/tools")

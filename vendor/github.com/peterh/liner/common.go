@@ -32,7 +32,6 @@ type commonState struct {
 	cursorRows        int
 	maxRows           int
 	shouldRestart     ShouldRestart
-	needRefresh       bool
 }
 
 // TabStyle is used to select how tab completions are displayed.

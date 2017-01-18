@@ -90,7 +90,6 @@ const (
 )
 
 func (s *State) refresh(prompt []rune, buf []rune, pos int) error {
-	s.needRefresh = false
 	if s.multiLineMode {
 		return s.refreshMultiLine(prompt, buf, pos)
 	}
@@ -588,9 +587,8 @@ func (s *State) PromptWithSuggestion(prompt string, text string, pos int) (strin
 	p := []rune(prompt)
 	var line = []rune(text)
 	historyEnd := ""
-	var historyPrefix []string
-	historyPos := 0
-	historyStale := true
+	prefixHistory := s.getHistoryByPrefix(string(line))
+	historyPos := len(prefixHistory)
 	historyAction := false // used to mark history related actions
 	killAction := 0        // used to mark kill related actions
 
@@ -630,21 +628,21 @@ mainLoop:
 				break mainLoop
 			case ctrlA: // Start of line
 				pos = 0
-				s.needRefresh = true
+				s.refresh(p, line, pos)
 			case ctrlE: // End of line
 				pos = len(line)
-				s.needRefresh = true
+				s.refresh(p, line, pos)
 			case ctrlB: // left
 				if pos > 0 {
 					pos -= len(getSuffixGlyphs(line[:pos], 1))
-					s.needRefresh = true
+					s.refresh(p, line, pos)
 				} else {
 					fmt.Print(beep)
 				}
 			case ctrlF: // right
 				if pos < len(line) {
 					pos += len(getPrefixGlyphs(line[pos:], 1))
-					s.needRefresh = true
+					s.refresh(p, line, pos)
 				} else {
 					fmt.Print(beep)
 				}
@@ -663,7 +661,7 @@ mainLoop:
 				} else {
 					n := len(getPrefixGlyphs(line[pos:], 1))
 					line = append(line[:pos], line[pos+n:]...)
-					s.needRefresh = true
+					s.refresh(p, line, pos)
 				}
 			case ctrlK: // delete remainder of line
 				if pos >= len(line) {
@@ -677,42 +675,32 @@ mainLoop:
 
 					killAction = 2 // Mark that there was a kill action
 					line = line[:pos]
-					s.needRefresh = true
+					s.refresh(p, line, pos)
 				}
 			case ctrlP: // up
 				historyAction = true
-				if historyStale {
-					historyPrefix = s.getHistoryByPrefix(string(line))
-					historyPos = len(historyPrefix)
-					historyStale = false
-				}
 				if historyPos > 0 {
-					if historyPos == len(historyPrefix) {
+					if historyPos == len(prefixHistory) {
 						historyEnd = string(line)
 					}
 					historyPos--
-					line = []rune(historyPrefix[historyPos])
+					line = []rune(prefixHistory[historyPos])
 					pos = len(line)
-					s.needRefresh = true
+					s.refresh(p, line, pos)
 				} else {
 					fmt.Print(beep)
 				}
 			case ctrlN: // down
 				historyAction = true
-				if historyStale {
-					historyPrefix = s.getHistoryByPrefix(string(line))
-					historyPos = len(historyPrefix)
-					historyStale = false
-				}
-				if historyPos < len(historyPrefix) {
+				if historyPos < len(prefixHistory) {
 					historyPos++
-					if historyPos == len(historyPrefix) {
+					if historyPos == len(prefixHistory) {
 						line = []rune(historyEnd)
 					} else {
-						line = []rune(historyPrefix[historyPos])
+						line = []rune(prefixHistory[historyPos])
 					}
 					pos = len(line)
-					s.needRefresh = true
+					s.refresh(p, line, pos)
 				} else {
 					fmt.Print(beep)
 				}
@@ -730,11 +718,11 @@ mainLoop:
 					copy(line[pos-len(prev):], next)
 					copy(line[pos-len(prev)+len(next):], scratch)
 					pos += len(next)
-					s.needRefresh = true
+					s.refresh(p, line, pos)
 				}
 			case ctrlL: // clear screen
 				s.eraseScreen()
-				s.needRefresh = true
+				s.refresh(p, line, pos)
 			case ctrlC: // reset
 				fmt.Println("^C")
 				if s.multiLineMode {
@@ -754,7 +742,7 @@ mainLoop:
 					n := len(getSuffixGlyphs(line[:pos], 1))
 					line = append(line[:pos-n], line[pos:]...)
 					pos -= n
-					s.needRefresh = true
+					s.refresh(p, line, pos)
 				}
 			case ctrlU: // Erase line before cursor
 				if killAction > 0 {
@@ -766,7 +754,7 @@ mainLoop:
 				killAction = 2 // Mark that there was some killing
 				line = line[pos:]
 				pos = 0
-				s.needRefresh = true
+				s.refresh(p, line, pos)
 			case ctrlW: // Erase word
 				if pos == 0 {
 					fmt.Print(beep)
@@ -803,13 +791,13 @@ mainLoop:
 				}
 				killAction = 2 // Mark that there was some killing
 
-				s.needRefresh = true
+				s.refresh(p, line, pos)
 			case ctrlY: // Paste from Yank buffer
 				line, pos, next, err = s.yank(p, line, pos)
 				goto haveNext
 			case ctrlR: // Reverse Search
 				line, pos, next, err = s.reverseISearch(line, pos)
-				s.needRefresh = true
+				s.refresh(p, line, pos)
 				goto haveNext
 			case tab: // Tab completion
 				line, pos, next, err = s.tabComplete(p, line, pos)
@@ -824,16 +812,14 @@ mainLoop:
 			case 0, 28, 29, 30, 31:
 				fmt.Print(beep)
 			default:
-				if pos == len(line) && !s.multiLineMode &&
-					len(p)+len(line) < s.columns*4 && // Avoid countGlyphs on large lines
-					countGlyphs(p)+countGlyphs(line) < s.columns-1 {
+				if pos == len(line) && !s.multiLineMode && countGlyphs(p)+countGlyphs(line) < s.columns-1 {
 					line = append(line, v)
 					fmt.Printf("%c", v)
 					pos++
 				} else {
 					line = append(line[:pos], append([]rune{v}, line[pos:]...)...)
 					pos++
-					s.needRefresh = true
+					s.refresh(p, line, pos)
 				}
 			}
 		case action:
@@ -901,34 +887,24 @@ mainLoop:
 				}
 			case up:
 				historyAction = true
-				if historyStale {
-					historyPrefix = s.getHistoryByPrefix(string(line))
-					historyPos = len(historyPrefix)
-					historyStale = false
-				}
 				if historyPos > 0 {
-					if historyPos == len(historyPrefix) {
+					if historyPos == len(prefixHistory) {
 						historyEnd = string(line)
 					}
 					historyPos--
-					line = []rune(historyPrefix[historyPos])
+					line = []rune(prefixHistory[historyPos])
 					pos = len(line)
 				} else {
 					fmt.Print(beep)
 				}
 			case down:
 				historyAction = true
-				if historyStale {
-					historyPrefix = s.getHistoryByPrefix(string(line))
-					historyPos = len(historyPrefix)
-					historyStale = false
-				}
-				if historyPos < len(historyPrefix) {
+				if historyPos < len(prefixHistory) {
 					historyPos++
-					if historyPos == len(historyPrefix) {
+					if historyPos == len(prefixHistory) {
 						line = []rune(historyEnd)
 					} else {
-						line = []rune(historyPrefix[historyPos])
+						line = []rune(prefixHistory[historyPos])
 					}
 					pos = len(line)
 				} else {
@@ -952,13 +928,11 @@ mainLoop:
 					s.cursorRows = 1
 				}
 			}
-			s.needRefresh = true
-		}
-		if s.needRefresh && !s.inputWaiting() {
 			s.refresh(p, line, pos)
 		}
 		if !historyAction {
-			historyStale = true
+			prefixHistory = s.getHistoryByPrefix(string(line))
+			historyPos = len(prefixHistory)
 		}
 		if killAction > 0 {
 			killAction--
