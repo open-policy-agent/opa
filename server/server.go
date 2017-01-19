@@ -101,14 +101,41 @@ type patchV1 struct {
 	Value interface{} `json:"value"`
 }
 
+// policyListResponseV1 models the response mesasge for the Policy API list operation.
+type policyListResponseV1 struct {
+	Result []policyV1 `json:"result"`
+}
+
+// policyGetResponseV1 models the response message for the Policy API get operation.
+type policyGetResponseV1 struct {
+	Result policyV1 `json:"result"`
+}
+
+// policyPutResponseV1 models the response message for the Policy API put operation.
+type policyPutResponseV1 struct {
+	Result policyV1 `json:"result"`
+}
+
 // policyV1 models a policy module in OPA.
 type policyV1 struct {
 	ID     string
 	Module *ast.Module
 }
 
-func (p *policyV1) Equal(other *policyV1) bool {
+func (p policyV1) Equal(other policyV1) bool {
 	return p.ID == other.ID && p.Module.Equal(other.Module)
+}
+
+// dataResponseV1 models the response message for Data API read operations.
+type dataResponseV1 struct {
+	Explanation traceV1     `json:"explanation,omitempty"`
+	Result      interface{} `json:"result,omitempty"`
+}
+
+// queryResponseV1 models the response message for Query API operations.
+type queryResponseV1 struct {
+	Explanation traceV1               `json:"explanation,omitempty"`
+	Result      adhocQueryResultSetV1 `json:"result"`
 }
 
 // adhocQueryResultSet models the result of a Query API query.
@@ -357,7 +384,7 @@ func (s *Server) Loop() error {
 	return http.ListenAndServe(s.addr, s.Handler)
 }
 
-func (s *Server) execQuery(ctx context.Context, compiler *ast.Compiler, txn storage.Transaction, query ast.Body, explainMode explainModeV1) (interface{}, error) {
+func (s *Server) execQuery(ctx context.Context, compiler *ast.Compiler, txn storage.Transaction, query ast.Body, explainMode explainModeV1) (queryResponseV1, error) {
 
 	t := topdown.New(ctx, query, s.Compiler(), s.store, txn)
 
@@ -368,7 +395,7 @@ func (s *Server) execQuery(ctx context.Context, compiler *ast.Compiler, txn stor
 		t.Tracer = buf
 	}
 
-	resultSet := adhocQueryResultSetV1{}
+	qrs := adhocQueryResultSetV1{}
 
 	err := topdown.Eval(t, func(t *topdown.Topdown) error {
 		result := map[string]interface{}{}
@@ -393,27 +420,31 @@ func (s *Server) execQuery(ctx context.Context, compiler *ast.Compiler, txn stor
 			return err
 		}
 		if len(result) > 0 {
-			resultSet = append(resultSet, result)
+			qrs = append(qrs, result)
 		}
 		return nil
 	})
 
 	if err != nil {
-		return nil, err
+		return queryResponseV1{}, err
+	}
+
+	result := queryResponseV1{
+		Result: qrs,
 	}
 
 	switch explainMode {
 	case explainFullV1:
-		return newTraceV1(*buf), nil
+		result.Explanation = newTraceV1(*buf)
 	case explainTruthV1:
 		answer, err := explain.Truth(compiler, *buf)
 		if err != nil {
-			return nil, err
+			return queryResponseV1{}, err
 		}
-		return newTraceV1(answer), nil
-	default:
-		return resultSet, nil
+		result.Explanation = newTraceV1(answer)
 	}
+
+	return result, nil
 }
 
 func (s *Server) indexGet(w http.ResponseWriter, r *http.Request) {
@@ -506,9 +537,12 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	result := dataResponseV1{}
+
 	if qrs.Undefined() {
 		if explainMode == explainFullV1 {
-			handleResponseJSON(w, 404, newTraceV1(*buf), pretty)
+			result.Explanation = newTraceV1(*buf)
+			handleResponseJSON(w, 404, result, pretty)
 		} else {
 			handleResponse(w, 404, nil)
 		}
@@ -516,25 +550,24 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if nonGround {
-		handleResponseJSON(w, 200, newQueryResultSetV1(qrs), pretty)
-		return
+		result.Result = newQueryResultSetV1(qrs)
+	} else {
+		result.Result = qrs[0].Result
 	}
 
-	result := qrs[0].Result
-
 	switch explainMode {
-	case explainOffV1:
-		handleResponseJSON(w, 200, result, pretty)
 	case explainFullV1:
-		handleResponseJSON(w, 200, newTraceV1(*buf), pretty)
+		result.Explanation = newTraceV1(*buf)
 	case explainTruthV1:
 		answer, err := explain.Truth(compiler, *buf)
 		if err != nil {
 			handleErrorAuto(w, err)
 			return
 		}
-		handleResponseJSON(w, 200, newTraceV1(answer), pretty)
+		result.Explanation = newTraceV1(answer)
 	}
+
+	handleResponseJSON(w, 200, result, pretty)
 }
 
 func (s *Server) v1DataPatch(w http.ResponseWriter, r *http.Request) {
@@ -679,12 +712,14 @@ func (s *Server) v1PoliciesGet(w http.ResponseWriter, r *http.Request) {
 
 	c := s.Compiler()
 
-	policy := &policyV1{
-		ID:     id,
-		Module: c.Modules[id],
+	response := policyGetResponseV1{
+		Result: policyV1{
+			ID:     id,
+			Module: c.Modules[id],
+		},
 	}
 
-	handleResponseJSON(w, 200, policy, true)
+	handleResponseJSON(w, 200, response, true)
 }
 
 func (s *Server) v1PoliciesRawGet(w http.ResponseWriter, r *http.Request) {
@@ -712,19 +747,23 @@ func (s *Server) v1PoliciesRawGet(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) v1PoliciesList(w http.ResponseWriter, r *http.Request) {
 
-	policies := []*policyV1{}
+	policies := []policyV1{}
 
 	c := s.Compiler()
 
 	for id, mod := range c.Modules {
-		policy := &policyV1{
+		policy := policyV1{
 			ID:     id,
 			Module: mod,
 		}
 		policies = append(policies, policy)
 	}
 
-	handleResponseJSON(w, 200, policies, true)
+	response := policyListResponseV1{
+		Result: policies,
+	}
+
+	handleResponseJSON(w, 200, response, true)
 }
 
 func (s *Server) v1PoliciesPut(w http.ResponseWriter, r *http.Request) {
@@ -781,12 +820,14 @@ func (s *Server) v1PoliciesPut(w http.ResponseWriter, r *http.Request) {
 
 	s.setCompiler(c)
 
-	policy := &policyV1{
-		ID:     id,
-		Module: c.Modules[id],
+	response := policyPutResponseV1{
+		Result: policyV1{
+			ID:     id,
+			Module: c.Modules[id],
+		},
 	}
 
-	handleResponseJSON(w, 200, policy, true)
+	handleResponseJSON(w, 200, response, true)
 }
 
 func (s *Server) v1QueryGet(w http.ResponseWriter, r *http.Request) {

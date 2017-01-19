@@ -333,56 +333,58 @@ When the data is published, we can use OPA’s API to inspect base documents lik
 GET https://example.com/v1/data/servers HTTP/1.1
 ```
 
-The response is an array of all servers:
+The response is an object that contains the array of servers:
 
 ```json
-[
-  {
-    "id": "s1",
-    "name": "app",
-    "protocols": [
-      "https",
-      "ssh"
-    ],
-    "ports": [
-      "p1",
-      "p2",
-      "p3"
-    ]
-  },
-  {
-    "id": "s2",
-    "name": "db",
-    "protocols": [
-      "mysql"
-    ],
-    "ports": [
-      "p3"
-    ]
-  },
-  {
-    "id": "s3",
-    "name": "cache",
-    "protocols": [
-      "memcache",
-      "http"
-    ],
-    "ports": [
-      "p3"
-    ]
-  },
-  {
-    "id": "s4",
-    "name": "dev",
-    "protocols": [
-      "http"
-    ],
-    "ports": [
-      "p1",
-      "p2"
-    ]
-  }
-]
+{
+  "result": [
+    {
+      "id": "s1",
+      "name": "app",
+      "protocols": [
+        "https",
+        "ssh"
+      ],
+      "ports": [
+        "p1",
+        "p2",
+        "p3"
+      ]
+    },
+    {
+      "id": "s2",
+      "name": "db",
+      "protocols": [
+        "mysql"
+      ],
+      "ports": [
+        "p3"
+      ]
+    },
+    {
+      "id": "s3",
+      "name": "cache",
+      "protocols": [
+        "memcache",
+        "http"
+      ],
+      "ports": [
+        "p3"
+      ]
+    },
+    {
+      "id": "s4",
+      "name": "dev",
+      "protocols": [
+        "http"
+      ],
+      "ports": [
+        "p1",
+        "p2"
+      ]
+    }
+  ]
+}
 ```
 
 Now let’s write a policy that enumerates servers that are connected to public networks and that are using HTTP. These servers are violating a business rule that states that all public servers must use HTTPS.
@@ -496,19 +498,21 @@ Content-Type: application/json
 ```
 
 ```json
-[
-  {
-    "id": "s4",
-    "name": "dev",
-    "protocols": [
-      "http"
-    ],
-    "ports": [
-      "p1",
-      "p2"
-    ]
-  }
-]
+{
+  "result": [
+    {
+      "id": "s4",
+      "name": "dev",
+      "protocols": [
+        "http"
+      ],
+      "ports": [
+        "p1",
+        "p2"
+      ]
+    }
+  ]
+}
 ```
 
 ## Future Features
