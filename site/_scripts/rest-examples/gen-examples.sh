@@ -19,6 +19,7 @@ function main() {
     create_or_update_a_policy
     delete_a_policy
     get_a_document
+    get_a_document_with_input
     patch_a_document
     execute_a_query
     trace_event
@@ -73,9 +74,25 @@ function get_a_document() {
     echo ""
     curl $BASE_URL/data/opa/examples/public_servers?pretty=true -s -v
     echo ""
-    curl $BASE_URL/data/opa/examples/allow_request?pretty=true -s -v -G --data-urlencode 'input=example.flag:false'
-    echo ""
     curl $BASE_URL/data/opa/examples/allow_container?pretty=true -s -v -G --data-urlencode 'input=container:data.containers[container_index]'
+    echo ""
+
+    # Delete policy modules created above.
+    curl $BASE_URL/policies/example3 -X DELETE -s >/dev/null 2>&1
+    curl $BASE_URL/policies/example4 -X DELETE -s >/dev/null 2>&1
+}
+
+function get_a_document_with_input() {
+    # Create policy module for this example.
+    curl $BASE_URL/policies/example3 -X PUT -s -v --data-binary @example3.rego >/dev/null 2>&1
+
+    echo "### Get a Document With Input"
+
+    curl $BASE_URL/data/opa/examples/allow_request?pretty=true -s -v \
+        -d '{"input": {"example": {"flag": true}}}' -H 'Content-Type: application: json' | jq
+    echo ""
+    curl $BASE_URL/data/opa/examples/allow_request?pretty=true -s -v \
+        -d '{"input": {"example": {"flag": false}}}' -H 'Content-Type: application: json' | jq
     echo ""
 
     # Delete policy module created above.

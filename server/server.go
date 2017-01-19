@@ -126,6 +126,11 @@ func (p policyV1) Equal(other policyV1) bool {
 	return p.ID == other.ID && p.Module.Equal(other.Module)
 }
 
+// dataRequestV1 models the request message for Data API POST operations.
+type dataRequestV1 struct {
+	Input *interface{} `json:"input"`
+}
+
 // dataResponseV1 models the response message for Data API read operations.
 type dataResponseV1 struct {
 	Explanation traceV1     `json:"explanation,omitempty"`
@@ -338,6 +343,8 @@ func New(ctx context.Context, store *storage.Storage, addr string, persist bool)
 	s.registerHandlerV1(router, "/data", "GET", s.v1DataGet)
 	s.registerHandlerV1(router, "/data/{path:.+}", "PATCH", s.v1DataPatch)
 	s.registerHandlerV1(router, "/data", "PATCH", s.v1DataPatch)
+	s.registerHandlerV1(router, "/data/{path:.+}", "POST", s.v1DataPost)
+	s.registerHandlerV1(router, "/data", "POST", s.v1DataPost)
 	s.registerHandlerV1(router, "/policies", "GET", s.v1PoliciesList)
 	s.registerHandlerV1(router, "/policies/{id}", "DELETE", s.v1PoliciesDelete)
 	s.registerHandlerV1(router, "/policies/{id}", "GET", s.v1PoliciesGet)
@@ -575,6 +582,7 @@ func (s *Server) v1DataPatch(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 
 	ops := []patchV1{}
+
 	if err := util.NewJSONDecoder(r.Body).Decode(&ops); err != nil {
 		handleError(w, 400, err)
 		return
@@ -602,6 +610,76 @@ func (s *Server) v1DataPatch(w http.ResponseWriter, r *http.Request) {
 	}
 
 	handleResponse(w, 204, nil)
+}
+
+func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+	vars := mux.Vars(r)
+	path := stringPathToDataRef(vars["path"])
+	pretty := getPretty(r.URL.Query()["pretty"])
+	explainMode := getExplain(r.URL.Query()["explain"])
+
+	input, err := readInput(r.Body)
+	if err != nil {
+		handleError(w, 400, err)
+		return
+	}
+
+	// Prepare for query.
+	txn, err := s.store.NewTransaction(ctx)
+	if err != nil {
+		handleErrorAuto(w, err)
+		return
+	}
+
+	defer s.store.Close(ctx, txn)
+
+	compiler := s.Compiler()
+	params := topdown.NewQueryParams(ctx, compiler, s.store, txn, input, path)
+
+	var buf *topdown.BufferTracer
+	if explainMode != explainOffV1 {
+		buf = topdown.NewBufferTracer()
+		params.Tracer = buf
+	}
+
+	// Execute query.
+	qrs, err := topdown.Query(params)
+
+	// Handle results.
+	if err != nil {
+		handleErrorAuto(w, err)
+		return
+	}
+
+	result := dataResponseV1{}
+
+	if qrs.Undefined() {
+		if explainMode == explainFullV1 {
+			result.Explanation = newTraceV1(*buf)
+			handleResponseJSON(w, 404, result, pretty)
+		} else {
+			handleResponse(w, 404, nil)
+		}
+		return
+	}
+
+	result.Result = qrs[0].Result
+
+	switch explainMode {
+	case explainFullV1:
+		result.Explanation = newTraceV1(*buf)
+	case explainTruthV1:
+		answer, err := explain.Truth(compiler, *buf)
+		if err != nil {
+			handleErrorAuto(w, err)
+			return
+		}
+		result.Explanation = newTraceV1(answer)
+	}
+
+	handleResponseJSON(w, 200, result, pretty)
 }
 
 func (s *Server) v1DataPut(w http.ResponseWriter, r *http.Request) {
@@ -1099,7 +1177,44 @@ func getExplain(p []string) explainModeV1 {
 }
 
 var errInputPathFormat = fmt.Errorf("input parameter format is [[<path>]:]<value> where <path> is either var or ref")
+var errInputDoc = fmt.Errorf(`body must include input document {"input": ...}`)
 
+// readInput reads the query input from r and returns an input value that can be
+// used for query evaluation.
+func readInput(r io.ReadCloser) (ast.Value, error) {
+
+	bs, err := ioutil.ReadAll(r)
+
+	if err != nil {
+		return nil, err
+	}
+
+	var input ast.Value
+
+	if len(bs) > 0 {
+
+		var request dataRequestV1
+
+		if err := util.UnmarshalJSON(bs, &request); err != nil {
+			return nil, errors.Wrapf(err, "body contains malformed input document")
+		}
+
+		if request.Input == nil {
+			return nil, errInputDoc
+		}
+
+		var err error
+		input, err = ast.InterfaceToValue(*request.Input)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return input, nil
+}
+
+// parseInput parses the query parameters contained in s and returns an input
+// value that can used for query evaluation.
 func parseInput(s []string) (ast.Value, bool, error) {
 
 	pairs := make([][2]*ast.Term, len(s))
