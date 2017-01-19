@@ -223,6 +223,27 @@ func TestDataV1(t *testing.T) {
 			tr{"PATCH", "/data/x", `[{"op": "add", "path": "/", "value": [1,2,3,4]}]`, 204, ""},
 			tr{"GET", "/data", "", 200, `{"result": {"testmod": {"p": [1,2,3,4], "q": {"a":1, "b": 2}}, "x": [1,2,3,4]}}`},
 		}},
+		{"post root", []tr{
+			tr{"POST", "/data", "", 200, `{"result": {}}`},
+			tr{"PUT", "/policies/test", testMod2, 200, ""},
+			tr{"POST", "/data", "", 200, `{"result": {"testmod": {"p": [1,2,3,4], "q": {"b": 2, "a": 1}}}}`},
+		}},
+		{"post input", []tr{
+			tr{"PUT", "/policies/test", testMod1, 200, ""},
+			tr{"POST", "/data/testmod/gt1", `{"input": {"req1": 2}}`, 200, `{"result": true}`},
+		}},
+		{"post missing input", []tr{
+			tr{"POST", "/data/deadbeef", `{"req1": 2}`, 400, `{
+				"Code": 400,
+				"Message": "body must include input document {\"input\": ...}"
+			}`},
+		}},
+		{"post malformed input", []tr{
+			tr{"POST", "/data/deadbeef", `{"input": @}`, 400, `{
+				"Code": 400,
+				"Message": "body contains malformed input document: invalid character '@' looking for beginning of value"
+			}`},
+		}},
 		{"query wildcards omitted", []tr{
 			tr{"PATCH", "/data/x", `[{"op": "add", "path": "/", "value": [1,2,3,4]}]`, 204, ""},
 			tr{"GET", "/query?q=data.x[_]%20=%20x", "", 200, `{"result": [{"x": 1}, {"x": 2}, {"x": 3}, {"x": 4}]}`},
@@ -323,7 +344,7 @@ func TestDataGetExplainTruth(t *testing.T) {
 	}
 
 	if len(result.Explanation) != 8 {
-		t.Fatalf("Expected exactly 9 events but got %d", len(result.Explanation))
+		t.Fatalf("Expected exactly 8 events but got %d", len(result.Explanation))
 	}
 
 	req = newReqV1("GET", "/data/deadbeef?explain=truth", "")
@@ -333,6 +354,39 @@ func TestDataGetExplainTruth(t *testing.T) {
 	if f.recorder.Code != 404 {
 		t.Fatalf("Expected status code to be 404 but got: %v", f.recorder)
 	}
+}
+
+func TestDataPostExplain(t *testing.T) {
+	f := newFixture(t)
+
+	f.v1("PUT", "/policies/test", `package test
+
+	p = [1,2,3,4]`, 200, "")
+
+	req := newReqV1("POST", "/data/test/p?explain=full", "")
+	f.reset()
+	f.server.Handler.ServeHTTP(f.recorder, req)
+
+	var result dataResponseV1
+
+	if err := util.NewJSONDecoder(f.recorder.Body).Decode(&result); err != nil {
+		t.Fatalf("Unexpected JSON decode error: %v", err)
+	}
+
+	if len(result.Explanation) != 6 {
+		t.Fatalf("Expected exactly 6 events but got %d", len(result.Explanation))
+	}
+
+	var expected interface{}
+
+	if err := util.UnmarshalJSON([]byte(`[1,2,3,4]`), &expected); err != nil {
+		panic(err)
+	}
+
+	if !reflect.DeepEqual(result.Result, expected) {
+		t.Fatalf("Expected %v but got: %v", expected, result.Result)
+	}
+
 }
 
 func TestV1Pretty(t *testing.T) {

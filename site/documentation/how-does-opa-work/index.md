@@ -196,7 +196,7 @@ GET https://example.com/v1/data/servers HTTP/1.1
 GET https://example.com/v1/data/opa/examples/violations HTTP/1.1
 ```
 
-### The input Document
+### <a name="the-input-document"></a> The input Document
 
 In some cases, to evaluate a policy, the query must specify additional documents
 as arguments.

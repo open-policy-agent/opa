@@ -990,49 +990,6 @@ Content-Type: application/json
 }
 ```
 
-#### Query Parameters
-
-- **input** - Provide an input document. Format is `[[<path>]:]<value>` where `<path>` is the import path of the input document. The parameter may be specified multiple times but each instance should specify a unique `<path>`. The `<path>` may be empty (in which case, the entire input will be set to the `<value>`). The `<value>` may be a reference to a document in OPA. If `<value>` contains variables the response will contain a set of results instead of a single document.
-- **pretty** - If parameter is `true`, response will formatted for humans.
-- **explain** - Return query explanation in addition to result. Values: **full**, **truth**.
-
-#### Status Codes
-
-- **200** - no error
-- **400** - bad request
-- **404** - not found
-- **500** - server error
-
-The server returns 400 if an input document required for the query was not supplied.
-
-The server returns 404 in two cases:
-
-- The path refers to a non-existent base document.
-- The path refers to a Virtual Document that is undefined in the context of the query.
-
-#### Example Request With Input
-
-```http
-GET /v1/data/opa/examples/allow_request?input=example.flag:false HTTP/1.1
-```
-
-#### Example Response For Non-Existent Or Undefined Document
-
-```http
-HTTP/1.1 404 Not Found
-```
-
-The example above assumes the following policy:
-
-
-```ruby
-package opa.examples
-
-import input.example.flag
-
-allow_request :- flag = true
-```
-
 #### Example Request For Result Set
 
 ```http
@@ -1084,7 +1041,6 @@ Result sets have the following schema:
 ```
 
 The example above assumes the following data and policy:
-
 
 ```json
 {
@@ -1431,6 +1387,127 @@ allow_container :-
 seccomp_unconfined :-
   container.HostConfig.SecurityOpt[_] = "seccomp:unconfined"
 ```
+
+#### Query Parameters
+
+- **input** - Provide an input document. Format is `[[<path>]:]<value>` where `<path>` is the import path of the input document. The parameter may be specified multiple times but each instance should specify a unique `<path>`. The `<path>` may be empty (in which case, the entire input will be set to the `<value>`). The `<value>` may be a reference to a document in OPA. If `<value>` contains variables the response will contain a set of results instead of a single document. In most cases, input should be provided using the POST method, see [Get a Document With Input](#get-a-document-with-input).
+- **pretty** - If parameter is `true`, response will formatted for humans.
+- **explain** - Return query explanation in addition to result. Values: **full**, **truth**.
+
+#### Status Codes
+
+- **200** - no error
+- **400** - bad request
+- **404** - not found
+- **500** - server error
+
+The server returns 400 if an input document required for the query was not supplied.
+
+The server returns 404 in two cases:
+
+- The path refers to a non-existent base document.
+- The path refers to a Virtual Document that is undefined in the context of the query.
+
+### <a name="get-a-document-with-input"></a> Get a Document With Input
+
+```
+POST /v1/data/{path:.+}
+Content-Type: application/json
+```
+
+```json
+{
+  "input": ...
+}
+```
+
+Get a document that requires input.
+
+The path separator is used to access values inside object and array documents. If the path indexes into an array, the server will attempt to convert the array index to an integer. If the path element cannot be converted to an integer, the server will respond with 404.
+
+The request body contains an object that specifies a value for [The input Document](../../how-does-opa-work#the-input-document).
+
+The examples below assume the following policy:
+
+```ruby
+package opa.examples
+
+import input.example.flag
+
+allow_request :- flag = true
+```
+
+#### Example Request
+
+```http
+POST /v1/data/opa/examples/allow_request HTTP/1.1
+Content-Type: application/json
+```
+
+```json
+{
+  "input": {
+    "example": {
+      "flag": true
+    }
+  }
+}
+```
+
+#### Example Response
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+```
+
+```json
+{
+  "result": true
+}
+```
+
+#### Example Request
+
+```http
+POST /v1/data/opa/examples/allow_request HTTP/1.1
+Content-Type: application/json
+```
+
+```json
+{
+  "input": {
+    "example": {
+      "flag": false
+    }
+  }
+}
+```
+
+#### Example Response
+
+```http
+HTTP/1.1 404 Not Found
+```
+
+#### Query Parameters
+
+- **pretty** - If parameter is `true`, response will formatted for humans.
+- **explain** - Return query explanation in addition to result. Values: **full**, **truth**.
+
+#### Status Codes
+
+- **200** - no error
+- **400** - bad request
+- **404** - not found
+- **500** - server error
+
+The server returns 400 if an input document required for the query was not supplied.
+
+The server returns 404 in two cases:
+
+- The path refers to a non-existent base document.
+- The path refers to a Virtual Document that is undefined in the context of the query.
 
 ### Create or Overwrite a Document
 
