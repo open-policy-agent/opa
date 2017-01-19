@@ -76,14 +76,14 @@ func TestDataV1(t *testing.T) {
 	}{
 		{"add root", []tr{
 			tr{"PATCH", "/data/x", `[{"op": "add", "path": "/", "value": {"a": 1}}]`, 204, ""},
-			tr{"GET", "/data/x/a", "", 200, "1"},
+			tr{"GET", "/data/x/a", "", 200, `{"result": 1}`},
 		}},
 		{"append array", []tr{
 			tr{"PATCH", "/data/x", `[{"op": "add", "path": "/", "value": []}]`, 204, ""},
 			tr{"PATCH", "/data/x", `[{"op": "add", "path": "-", "value": {"a": 1}}]`, 204, ""},
 			tr{"PATCH", "/data/x", `[{"op": "add", "path": "-", "value": {"a": 2}}]`, 204, ""},
-			tr{"GET", "/data/x/0/a", "", 200, "1"},
-			tr{"GET", "/data/x/1/a", "", 200, "2"},
+			tr{"GET", "/data/x/0/a", "", 200, `{"result": 1}`},
+			tr{"GET", "/data/x/1/a", "", 200, `{"result": 2}`},
 		}},
 		{"append array one-shot", []tr{
 			tr{"PATCH", "/data/x", `[
@@ -91,7 +91,7 @@ func TestDataV1(t *testing.T) {
                 {"op": "add", "path": "-", "value": {"a": 1}},
                 {"op": "add", "path": "-", "value": {"a": 2}}
             ]`, 204, ""},
-			tr{"GET", "/data/x/1/a", "", 200, "2"},
+			tr{"GET", "/data/x/1/a", "", 200, `{"result": 2}`},
 		}},
 		{"insert array", []tr{
 			tr{"PATCH", "/data/x", `[{"op": "add", "path": "/", "value": {
@@ -100,9 +100,9 @@ func TestDataV1(t *testing.T) {
                     {"z": [4,5,6]}
                 ]
             }}]`, 204, ""},
-			tr{"GET", "/data/x/y/1/z/2", "", 200, "6"},
+			tr{"GET", "/data/x/y/1/z/2", "", 200, `{"result": 6}`},
 			tr{"PATCH", "/data/x/y/1", `[{"op": "add", "path": "/z/1", "value": 100}]`, 204, ""},
-			tr{"GET", "/data/x/y/1/z", "", 200, "[4, 100, 5, 6]"},
+			tr{"GET", "/data/x/y/1/z", "", 200, `{"result": [4, 100, 5, 6]}`},
 		}},
 		{"patch root", []tr{
 			tr{"PATCH", "/data", `[
@@ -111,7 +111,7 @@ func TestDataV1(t *testing.T) {
 				 "value": {"a": 1, "b": 2}
 				}
 			]`, 204, ""},
-			tr{"GET", "/data", "", 200, `{"a": 1, "b": 2}`},
+			tr{"GET", "/data", "", 200, `{"result": {"a": 1, "b": 2}}`},
 		}},
 		{"patch invalid", []tr{
 			tr{"PATCH", "/data", `[
@@ -123,21 +123,21 @@ func TestDataV1(t *testing.T) {
 		}},
 		{"put root", []tr{
 			tr{"PUT", "/data", `{"foo": [1,2,3]}`, 204, ""},
-			tr{"GET", "/data", "", 200, `{"foo": [1,2,3]}`},
+			tr{"GET", "/data", "", 200, `{"result": {"foo": [1,2,3]}}`},
 		}},
 		{"put deep makedir", []tr{
 			tr{"PUT", "/data/a/b/c/d", `1`, 204, ""},
-			tr{"GET", "/data/a/b/c", "", 200, `{"d": 1}`},
+			tr{"GET", "/data/a/b/c", "", 200, `{"result": {"d": 1}}`},
 		}},
 		{"put deep makedir partial", []tr{
 			tr{"PUT", "/data/a/b", `{}`, 204, ""},
 			tr{"PUT", "/data/a/b/c/d", `0`, 204, ""},
-			tr{"GET", "/data/a/b/c", "", 200, `{"d": 0}`},
+			tr{"GET", "/data/a/b/c", "", 200, `{"result": {"d": 0}}`},
 		}},
 		{"put exists overwrite", []tr{
 			tr{"PUT", "/data/a/b/c", `"hello"`, 204, ""},
 			tr{"PUT", "/data/a/b", `"goodbye"`, 204, ""},
-			tr{"GET", "/data/a", "", 200, `{"b": "goodbye"}`},
+			tr{"GET", "/data/a", "", 200, `{"result": {"b": "goodbye"}}`},
 		}},
 		{"put base write conflict", []tr{
 			tr{"PUT", "/data/a/b", `[1,2,3,4]`, 204, ""},
@@ -156,7 +156,7 @@ func TestDataV1(t *testing.T) {
 		{"get virtual", []tr{
 			tr{"PUT", "/policies/test", testMod1, 200, ""},
 			tr{"PATCH", "/data/x", `[{"op": "add", "path": "/", "value": {"y": [1,2,3,4], "z": [3,4,5,6]}}]`, 204, ""},
-			tr{"GET", "/data/testmod/p", "", 200, "[1,2]"},
+			tr{"GET", "/data/testmod/p", "", 200, `{"result": [1,2]}`},
 		}},
 		{"patch virtual error", []tr{
 			tr{"PUT", "/policies/test", testMod1, 200, ""},
@@ -167,7 +167,7 @@ func TestDataV1(t *testing.T) {
 		}},
 		{"get with input", []tr{
 			tr{"PUT", "/policies/test", testMod1, 200, ""},
-			tr{"GET", "/data/testmod/g?input=req1%3A%7B%22a%22%3A%5B1%5D%7D&input=req2%3A%7B%22b%22%3A%5B0%2C1%5D%7D", "", 200, "true"},
+			tr{"GET", "/data/testmod/g?input=req1%3A%7B%22a%22%3A%5B1%5D%7D&input=req2%3A%7B%22b%22%3A%5B0%2C1%5D%7D", "", 200, `{"result": true}`},
 		}},
 		{"get with input (missing input value)", []tr{
 			tr{"PUT", "/policies/test", testMod1, 200, ""},
@@ -175,23 +175,23 @@ func TestDataV1(t *testing.T) {
 		}},
 		{"get with input (namespaced)", []tr{
 			tr{"PUT", "/policies/test", testMod1, 200, ""},
-			tr{"GET", "/data/testmod/h?input=req3.attr1%3A%5B4%2C3%2C2%2C1%5D", "", 200, `true`},
+			tr{"GET", "/data/testmod/h?input=req3.attr1%3A%5B4%2C3%2C2%2C1%5D", "", 200, `{"result": true}`},
 		}},
 		{"get with input (non-ground ref)", []tr{
 			tr{"PUT", "/policies/test", testMod1, 200, ""},
-			tr{"GET", "/data/testmod/gt1?input=req1:data.testmod.arr[i]", "", 200, `[[true, {"i": 1}], [true, {"i": 2}], [true, {"i": 3}]]`},
+			tr{"GET", "/data/testmod/gt1?input=req1:data.testmod.arr[i]", "", 200, `{"result": [[true, {"i": 1}], [true, {"i": 2}], [true, {"i": 3}]]}`},
 		}},
 		{"get with input (root)", []tr{
 			tr{"PUT", "/policies/test", testMod1, 200, ""},
-			tr{"GET", `/data/testmod/gt1?input=:{"req1":2}`, "", 200, `true`},
+			tr{"GET", `/data/testmod/gt1?input=:{"req1":2}`, "", 200, `{"result": true}`},
 		}},
 		{"get with input (root-2)", []tr{
 			tr{"PUT", "/policies/test", testMod1, 200, ""},
-			tr{"GET", `/data/testmod/gt1?input={"req1":2}`, "", 200, `true`},
+			tr{"GET", `/data/testmod/gt1?input={"req1":2}`, "", 200, `{"result": true}`},
 		}},
 		{"get with input (root+non-ground)", []tr{
 			tr{"PUT", "/policies/test", testMod1, 200, ""},
-			tr{"GET", `/data/testmod/gt1?input={"req1":data.testmod.arr[i]}`, "", 200, `[[true, {"i": 1}], [true, {"i": 2}], [true, {"i": 3}]]`},
+			tr{"GET", `/data/testmod/gt1?input={"req1":data.testmod.arr[i]}`, "", 200, `{"result": [[true, {"i": 1}], [true, {"i": 2}], [true, {"i": 3}]]}`},
 		}},
 		{"get with input (bad format)", []tr{
 			tr{"GET", "/data/deadbeef?input", "", 400, `{
@@ -221,16 +221,16 @@ func TestDataV1(t *testing.T) {
 		{"get root", []tr{
 			tr{"PUT", "/policies/test", testMod2, 200, ""},
 			tr{"PATCH", "/data/x", `[{"op": "add", "path": "/", "value": [1,2,3,4]}]`, 204, ""},
-			tr{"GET", "/data", "", 200, `{"testmod": {"p": [1,2,3,4], "q": {"a":1, "b": 2}}, "x": [1,2,3,4]}`},
+			tr{"GET", "/data", "", 200, `{"result": {"testmod": {"p": [1,2,3,4], "q": {"a":1, "b": 2}}, "x": [1,2,3,4]}}`},
 		}},
 		{"query wildcards omitted", []tr{
 			tr{"PATCH", "/data/x", `[{"op": "add", "path": "/", "value": [1,2,3,4]}]`, 204, ""},
-			tr{"GET", "/query?q=data.x[_]%20=%20x", "", 200, `[{"x": 1}, {"x": 2}, {"x": 3}, {"x": 4}]`},
+			tr{"GET", "/query?q=data.x[_]%20=%20x", "", 200, `{"result": [{"x": 1}, {"x": 2}, {"x": 3}, {"x": 4}]}`},
 		}},
 		{"query compiler error", []tr{
 			tr{"GET", "/query?q=x", "", 400, ""},
 			// Subsequent query should not fail.
-			tr{"GET", "/query?q=x=1", "", 200, `[{"x": 1}]`},
+			tr{"GET", "/query?q=x=1", "", 200, `{"result": [{"x": 1}]}`},
 		}},
 	}
 
@@ -262,30 +262,30 @@ func TestDataGetExplainFull(t *testing.T) {
 	f.reset()
 	f.server.Handler.ServeHTTP(f.recorder, req)
 
-	var result traceV1
+	var result dataResponseV1
 
 	if err := util.NewJSONDecoder(f.recorder.Body).Decode(&result); err != nil {
 		t.Fatalf("Unexpected JSON decode error: %v", err)
 	}
 
-	if len(result) != 3 {
-		t.Fatalf("Expected exactly 3 events but got %d", len(result))
+	if len(result.Explanation) != 3 {
+		t.Fatalf("Expected exactly 3 events but got %d", len(result.Explanation))
 	}
 
-	_, ok := result[2].Node.(ast.Body)
+	_, ok := result.Explanation[2].Node.(ast.Body)
 	if !ok {
-		t.Fatalf("Expected body for node but got: %v", result[2].Node)
+		t.Fatalf("Expected body for node but got: %v", result.Explanation[2].Node)
 	}
 
-	if len(result[2].Locals) != 1 {
-		t.Fatalf("Expected one binding but got: %v", result[2].Locals)
+	if len(result.Explanation[2].Locals) != 1 {
+		t.Fatalf("Expected one binding but got: %v", result.Explanation[2].Locals)
 	}
 
 	req = newReqV1("GET", "/data/deadbeef?explain=full", "")
 	f.reset()
 	f.server.Handler.ServeHTTP(f.recorder, req)
 
-	result = traceV1{}
+	result = dataResponseV1{}
 
 	if f.recorder.Code != 404 {
 		t.Fatalf("Expected status code to be 404 but got: %v", f.recorder.Code)
@@ -295,12 +295,12 @@ func TestDataGetExplainFull(t *testing.T) {
 		t.Fatalf("Unexpected JSON decode error: %v", err)
 	}
 
-	if len(result) != 3 {
-		t.Fatalf("Expected exactly 3 events but got %d", len(result))
+	if len(result.Explanation) != 3 {
+		t.Fatalf("Expected exactly 3 events but got %d", len(result.Explanation))
 	}
 
-	if result[2].Op != "Fail" {
-		t.Fatalf("Expected last event to be 'Fail' but got: %v", result[2])
+	if result.Explanation[2].Op != "Fail" {
+		t.Fatalf("Expected last event to be 'Fail' but got: %v", result.Explanation[2])
 	}
 
 }
@@ -316,14 +316,14 @@ func TestDataGetExplainTruth(t *testing.T) {
 	f.reset()
 	f.server.Handler.ServeHTTP(f.recorder, req)
 
-	var result traceV1
+	var result dataResponseV1
 
 	if err := util.NewJSONDecoder(f.recorder.Body).Decode(&result); err != nil {
 		t.Fatalf("Unexpected JSON decode error: %v", err)
 	}
 
-	if len(result) != 8 {
-		t.Fatalf("Expected exactly 9 events but got %d", len(result))
+	if len(result.Explanation) != 8 {
+		t.Fatalf("Expected exactly 9 events but got %d", len(result.Explanation))
 	}
 
 	req = newReqV1("GET", "/data/deadbeef?explain=truth", "")
@@ -345,8 +345,8 @@ func TestV1Pretty(t *testing.T) {
 	f.server.Handler.ServeHTTP(f.recorder, req)
 
 	lines := strings.Split(f.recorder.Body.String(), "\n")
-	if len(lines) != 6 {
-		t.Errorf("Expected 5 lines in output but got %d:\n%v", len(lines), lines)
+	if len(lines) != 8 {
+		t.Errorf("Expected 8 lines in output but got %d:\n%v", len(lines), lines)
 	}
 
 	req = newReqV1("GET", "/query?q=data.x[i]&pretty=true", "")
@@ -354,8 +354,8 @@ func TestV1Pretty(t *testing.T) {
 	f.server.Handler.ServeHTTP(f.recorder, req)
 
 	lines = strings.Split(f.recorder.Body.String(), "\n")
-	if len(lines) != 14 {
-		t.Errorf("Expected 14 lines of output but got %d:\n%v", len(lines), lines)
+	if len(lines) != 16 {
+		t.Errorf("Expected 16 lines of output but got %d:\n%v", len(lines), lines)
 	}
 }
 
@@ -403,14 +403,19 @@ func TestPoliciesPutV1(t *testing.T) {
 	f.server.Handler.ServeHTTP(f.recorder, req)
 
 	if f.recorder.Code != 200 {
-		t.Errorf("Expected success but got %v", f.recorder)
-		return
+		t.Fatalf("Expected success but got %v", f.recorder)
 	}
 
-	policy := f.loadPolicy()
+	var response policyPutResponseV1
+
+	if err := util.NewJSONDecoder(f.recorder.Body).Decode(&response); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
 	expected := newPolicy("1", testMod)
-	if !expected.Equal(policy) {
-		t.Errorf("Expected policies to be equal. Expected:\n\n%v\n\nGot:\n\n%v\n", expected, policy)
+
+	if !expected.Equal(response.Result) {
+		t.Errorf("Expected policies to be equal. Expected:\n\n%v\n\nGot:\n\n%v\n", expected, response.Result)
 	}
 }
 
@@ -421,8 +426,7 @@ func TestPoliciesPutV1Empty(t *testing.T) {
 	f.server.Handler.ServeHTTP(f.recorder, req)
 
 	if f.recorder.Code != 400 {
-		t.Errorf("Expected bad request but got %v", f.recorder)
-		return
+		t.Fatalf("Expected bad request but got %v", f.recorder)
 	}
 }
 
@@ -437,8 +441,7 @@ func TestPoliciesPutV1ParseError(t *testing.T) {
 	f.server.Handler.ServeHTTP(f.recorder, req)
 
 	if f.recorder.Code != 400 {
-		t.Errorf("Expected bad request but got %v", f.recorder)
-		return
+		t.Fatalf("Expected bad request but got %v", f.recorder)
 	}
 
 	errs := astErrorV1{}
@@ -449,7 +452,7 @@ func TestPoliciesPutV1ParseError(t *testing.T) {
 	expected := ast.NewLocation(nil, "test", 4, 8)
 
 	if !reflect.DeepEqual(errs.Errors[0].Location, expected) {
-		t.Errorf("Expected error location to be %v but got: %v", expected, errs)
+		t.Fatalf("Expected error location to be %v but got: %v", expected, errs)
 	}
 }
 
@@ -496,8 +499,7 @@ func TestPoliciesListV1(t *testing.T) {
 	put := newReqV1("PUT", "/policies/1", testMod)
 	f.server.Handler.ServeHTTP(f.recorder, put)
 	if f.recorder.Code != 200 {
-		t.Errorf("Expected success but got %v", f.recorder)
-		return
+		t.Fatalf("Expected success but got %v", f.recorder)
 	}
 	f.reset()
 	list := newReqV1("GET", "/policies", "")
@@ -505,27 +507,26 @@ func TestPoliciesListV1(t *testing.T) {
 	f.server.Handler.ServeHTTP(f.recorder, list)
 
 	if f.recorder.Code != 200 {
-		t.Errorf("Expected success but got %v", f.recorder)
-		return
+		t.Fatalf("Expected success but got %v", f.recorder)
 	}
 
-	var policies []*policyV1
-	err := util.NewJSONDecoder(f.recorder.Body).Decode(&policies)
+	// var policies []*policyV1
+	var response policyListResponseV1
+
+	err := util.NewJSONDecoder(f.recorder.Body).Decode(&response)
 	if err != nil {
-		t.Errorf("Expected policy list but got error: %v", err)
-		return
+		t.Fatalf("Expected policy list but got error: %v", err)
 	}
 
-	expected := []*policyV1{
+	expected := []policyV1{
 		newPolicy("1", testMod),
 	}
-	if len(expected) != len(policies) {
-		t.Errorf("Expected %d policies but got: %v", len(expected), policies)
-		return
+	if len(expected) != len(response.Result) {
+		t.Fatalf("Expected %d policies but got: %v", len(expected), response.Result)
 	}
 	for i := range expected {
-		if !expected[i].Equal(policies[i]) {
-			t.Errorf("Expected policies to be equal. Expected:\n\n%v\n\nGot:\n\n%v\n", expected[i], policies[i])
+		if !expected[i].Equal(response.Result[i]) {
+			t.Fatalf("Expected policies to be equal. Expected:\n\n%v\n\nGot:\n\n%v\n", expected, response.Result)
 		}
 	}
 }
@@ -536,8 +537,7 @@ func TestPoliciesGetV1(t *testing.T) {
 	f.server.Handler.ServeHTTP(f.recorder, put)
 
 	if f.recorder.Code != 200 {
-		t.Errorf("Expected success but got %v", f.recorder)
-		return
+		t.Fatalf("Expected success but got %v", f.recorder)
 	}
 
 	f.reset()
@@ -546,14 +546,18 @@ func TestPoliciesGetV1(t *testing.T) {
 	f.server.Handler.ServeHTTP(f.recorder, get)
 
 	if f.recorder.Code != 200 {
-		t.Errorf("Expected success but got %v", f.recorder)
-		return
+		t.Fatalf("Expected success but got %v", f.recorder)
 	}
 
-	policy := f.loadPolicy()
+	var response policyGetResponseV1
+	if err := util.NewJSONDecoder(f.recorder.Body).Decode(&response); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
 	expected := newPolicy("1", testMod)
-	if !expected.Equal(policy) {
-		t.Errorf("Expected policies to be equal. Expected:\n\n%v\n\nGot:\n\n%v\n", expected, policy)
+
+	if !expected.Equal(response.Result) {
+		t.Errorf("Expected policies to be equal. Expected:\n\n%v\n\nGot:\n\n%v\n", expected, response.Result)
 	}
 }
 
@@ -563,8 +567,7 @@ func TestPoliciesGetRawV1(t *testing.T) {
 	f.server.Handler.ServeHTTP(f.recorder, put)
 
 	if f.recorder.Code != 200 {
-		t.Errorf("Expected success but got %v", f.recorder)
-		return
+		t.Fatalf("Expected success but got %v", f.recorder)
 	}
 
 	f.reset()
@@ -573,13 +576,12 @@ func TestPoliciesGetRawV1(t *testing.T) {
 	f.server.Handler.ServeHTTP(f.recorder, get)
 
 	if f.recorder.Code != 200 {
-		t.Errorf("Expected success but got %v", f.recorder)
-		return
+		t.Fatalf("Expected success but got %v", f.recorder)
 	}
 
 	raw := f.recorder.Body.String()
 	if raw != testMod {
-		t.Errorf("Expected raw string to equal testMod:\n\nExpected:\n\n%v\n\nGot:\n\n%v\n", testMod, raw)
+		t.Fatalf("Expected raw string to equal testMod:\n\nExpected:\n\n%v\n\nGot:\n\n%v\n", testMod, raw)
 	}
 
 }
@@ -590,8 +592,7 @@ func TestPoliciesDeleteV1(t *testing.T) {
 	f.server.Handler.ServeHTTP(f.recorder, put)
 
 	if f.recorder.Code != 200 {
-		t.Errorf("Expected success but got %v", f.recorder)
-		return
+		t.Fatalf("Expected success but got %v", f.recorder)
 	}
 
 	f.reset()
@@ -600,16 +601,14 @@ func TestPoliciesDeleteV1(t *testing.T) {
 	f.server.Handler.ServeHTTP(f.recorder, del)
 
 	if f.recorder.Code != 204 {
-		t.Errorf("Expected success but got %v", f.recorder)
-		return
+		t.Fatalf("Expected success but got %v", f.recorder)
 	}
 
 	f.reset()
 	get := newReqV1("GET", "/policies/1", "")
 	f.server.Handler.ServeHTTP(f.recorder, get)
 	if f.recorder.Code != 404 {
-		t.Errorf("Expected not found but got %v", f.recorder)
-		return
+		t.Fatalf("Expected not found but got %v", f.recorder)
 	}
 }
 
@@ -619,25 +618,25 @@ func TestQueryV1(t *testing.T) {
 	f.server.Handler.ServeHTTP(f.recorder, get)
 
 	if f.recorder.Code != 200 {
-		t.Errorf("Expected success but got %v", f.recorder)
-		return
+		t.Fatalf("Expected success but got %v", f.recorder)
 	}
 
-	var expected adhocQueryResultSetV1
-	err := util.UnmarshalJSON([]byte(`[{"a":[1,2,3],"i":0,"x":1},{"a":[1,2,3],"i":1,"x":2},{"a":[1,2,3],"i":2,"x":3}]`), &expected)
+	var expected queryResponseV1
+	err := util.UnmarshalJSON([]byte(`{
+		"result": [{"a":[1,2,3],"i":0,"x":1},{"a":[1,2,3],"i":1,"x":2},{"a":[1,2,3],"i":2,"x":3}]
+	}`), &expected)
 	if err != nil {
 		panic(err)
 	}
 
-	var result adhocQueryResultSetV1
+	var result queryResponseV1
 	err = util.UnmarshalJSON(f.recorder.Body.Bytes(), &result)
 	if err != nil {
-		t.Errorf("Unexpected error while unmarshalling result: %v", err)
-		return
+		t.Fatalf("Unexpected error while unmarshalling result: %v", err)
 	}
 
 	if !reflect.DeepEqual(result, expected) {
-		t.Errorf("Expected %v but got: %v", expected, result)
+		t.Fatalf("Expected %v but got: %v", expected, result)
 	}
 }
 
@@ -650,14 +649,14 @@ func TestQueryV1Explain(t *testing.T) {
 		t.Fatalf("Expected 200 but got: %v", f.recorder)
 	}
 
-	var result traceV1
+	var result queryResponseV1
 
 	if err := util.NewJSONDecoder(f.recorder.Body).Decode(&result); err != nil {
 		t.Fatalf("Unexpected JSON decode error: %v", err)
 	}
 
-	if len(result) != 10 {
-		t.Fatalf("Expected exactly 10 trace events for full query but got %d", len(result))
+	if len(result.Explanation) != 10 {
+		t.Fatalf("Expected exactly 10 trace events for full query but got %d", len(result.Explanation))
 	}
 
 	get = newReqV1("GET", "/query?q=a=[1,2,3],a[_]=x,x>1&explain=truth", "")
@@ -668,14 +667,14 @@ func TestQueryV1Explain(t *testing.T) {
 		t.Fatalf("Expected 200 but got: %v", f.recorder)
 	}
 
-	result = traceV1{}
+	result = queryResponseV1{}
 
 	if err := util.NewJSONDecoder(f.recorder.Body).Decode(&result); err != nil {
 		t.Fatalf("Unexpected JSON decode error: %v", err)
 	}
 
-	if len(result) != 5 {
-		t.Fatalf("Expected exactly 5 trace events for truth query but got %d", len(result))
+	if len(result.Explanation) != 5 {
+		t.Fatalf("Expected exactly 5 trace events for truth query but got %d", len(result.Explanation))
 	}
 }
 
@@ -769,15 +768,6 @@ func newFixture(t *testing.T) *fixture {
 	}
 }
 
-func (f *fixture) loadPolicy() *policyV1 {
-	policy := &policyV1{}
-	err := util.NewJSONDecoder(f.recorder.Body).Decode(policy)
-	if err != nil {
-		panic(err)
-	}
-	return policy
-}
-
 func (f *fixture) loadResponse() interface{} {
 	var v interface{}
 	err := util.NewJSONDecoder(f.recorder.Body).Decode(&v)
@@ -827,14 +817,14 @@ func executeRequests(t *testing.T, reqs []tr) {
 	}
 }
 
-func newPolicy(id, s string) *policyV1 {
+func newPolicy(id, s string) policyV1 {
 	compiler := ast.NewCompiler()
 	parsed := ast.MustParseModule(s)
 	if compiler.Compile(map[string]*ast.Module{"": parsed}); compiler.Failed() {
 		panic(compiler.Errors)
 	}
 	mod := compiler.Modules[""]
-	return &policyV1{ID: id, Module: mod}
+	return policyV1{ID: id, Module: mod}
 }
 
 func newReqV1(method string, path string, body string) *http.Request {

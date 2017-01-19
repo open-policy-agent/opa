@@ -97,8 +97,9 @@ function execute_a_query() {
 }
 
 function trace_event() {
+
     echo "#### Trace Event Example"
-    curl "$BASE_URL/query?pretty=true&explain=full" -s -v -G --data-urlencode 'q=x = "hello", x = y' | jq '.[2]'
+    curl "$BASE_URL/query?pretty=true&explain=full" -s -v -G --data-urlencode 'q=x = "hello", x = y' | jq '.explanation[2]'
     echo ""
 }
 
