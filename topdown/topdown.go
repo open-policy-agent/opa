@@ -354,7 +354,7 @@ func (e *Error) Error() string {
 	msg := fmt.Sprintf("evaluation error (code: %v): %v", e.Code, e.Message)
 
 	if e.Location != nil {
-		msg += fmt.Sprintf(" (%v: %v)", e.Location, string(e.Location.Text))
+		msg = e.Location.String() + ": " + msg
 	}
 
 	return msg
