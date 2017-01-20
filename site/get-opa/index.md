@@ -40,7 +40,7 @@ $ ./opa version
 
 ## Docker Image (64-bit Linux)
 ```shell
-$ docker run openpolicyagent/opa:0.3.0 version
+$ docker run openpolicyagent/opa:0.3.1 version
 ```
 
 {% endcontentfor %}

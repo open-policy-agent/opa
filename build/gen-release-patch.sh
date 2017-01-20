@@ -26,7 +26,7 @@ EOF
 }
 
 update_docs() {
-    find ./site/ -name "*.md" -exec sed -i='' s/$LAST_VERSION/v$VERSION/g {} \;
+    find ./site/ -name "*.md" -exec sed -i='' s/${LAST_VERSION:1}/$VERSION/g {} \;
 }
 
 main() {
