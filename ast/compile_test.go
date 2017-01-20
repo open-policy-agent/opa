@@ -407,9 +407,9 @@ func TestCompilerCheckBuiltins(t *testing.T) {
 }
 
 func TestCompilerCheckRuleConflicts(t *testing.T) {
-	c := NewCompiler()
-	c.Modules = map[string]*Module{
-		"mod": MustParseModule(`
+
+	c := getCompilerWithParsedModules(map[string]string{
+		"mod1.rego": `
 			package badrules
 			p[x] :- x = 1
 			p[x] = y :- x = y, x = "a"
@@ -417,18 +417,19 @@ func TestCompilerCheckRuleConflicts(t *testing.T) {
 			q = {1,2,3} :- true
 			r[x] = y :- x = y, x = "a"
 			r[x] = y :- x = y, x = "a"
-		`),
-		"mod2": MustParseModule(`
+		`,
+		"mod2.rego": `
 			package badrules.r
 			q[1] :- true
-		`),
-	}
+		`,
+	})
+
 	compileStages(c, "", "checkRuleConflicts")
 
 	expected := []string{
 		"p: conflicting rule types (all definitions of p must have the same type)",
-		"package badrules.r: package declaration conflicts with rule defined at <input>:7:4",
-		"package badrules.r: package declaration conflicts with rule defined at <input>:8:4",
+		"package badrules.r: package declaration conflicts with rule defined at mod1.rego:7",
+		"package badrules.r: package declaration conflicts with rule defined at mod1.rego:8",
 		"q: conflicting rule types (all definitions of q must have the same type)",
 	}
 
@@ -1018,6 +1019,24 @@ func assertNotFailed(t *testing.T, c *Compiler) {
 	if c.Failed() {
 		t.Errorf("Unexpected compilation error: %v", c.Errors)
 	}
+}
+
+func getCompilerWithParsedModules(mods map[string]string) *Compiler {
+
+	parsed := map[string]*Module{}
+
+	for id, input := range mods {
+		mod, err := ParseModule(id, input)
+		if err != nil {
+			panic(err)
+		}
+		parsed[id] = mod
+	}
+
+	compiler := NewCompiler()
+	compiler.Modules = parsed
+
+	return compiler
 }
 
 func compileStages(c *Compiler, from string, to string) {

@@ -59,7 +59,10 @@ func (loc *Location) String() string {
 	if len(loc.File) > 0 {
 		return fmt.Sprintf("%v:%v", loc.File, loc.Row)
 	}
-	return fmt.Sprintf("<input>:%v:%v", loc.Row, loc.Col)
+	if len(loc.Text) > 0 {
+		return string(loc.Text)
+	}
+	return fmt.Sprintf("%v:%v", loc.Row, loc.Col)
 }
 
 // Value declares the common interface for all Term values. Every kind of Term value
