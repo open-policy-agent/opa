@@ -75,9 +75,9 @@ type (
 	// within a namespace (defined by the package) and optional
 	// dependencies on external documents (defined by imports).
 	Module struct {
-		Package *Package
-		Imports []*Import
-		Rules   []*Rule
+		Package *Package  `json:"package"`
+		Imports []*Import `json:"imports,omitempty"`
+		Rules   []*Rule   `json:"rules,omitempty"`
 	}
 
 	// Comment contains the raw text from the comment in the definition.
@@ -90,33 +90,33 @@ type (
 	// by rules inside the module.
 	Package struct {
 		Location *Location `json:"-"`
-		Path     Ref
+		Path     Ref       `json:"path"`
 	}
 
 	// Import represents a dependency on a document outside of the policy
 	// namespace. Imports are optional.
 	Import struct {
 		Location *Location `json:"-"`
-		Path     *Term
-		Alias    Var `json:",omitempty"`
+		Path     *Term     `json:"path"`
+		Alias    Var       `json:"alias,omitempty"`
 	}
 
 	// Rule represents a rule as defined in the language. Rules define the
 	// content of documents that represent policy decisions.
 	Rule struct {
 		Location *Location `json:"-"`
-		Name     Var
-		Key      *Term `json:",omitempty"`
-		Value    *Term `json:",omitempty"`
-		Body     Body
+		Name     Var       `json:"name"`
+		Key      *Term     `json:"key,omitempty"`
+		Value    *Term     `json:"value,omitempty"`
+		Body     Body      `json:"body"`
 	}
 
 	// Head represents the head of a rule.
 	// TODO(tsandall): refactor Rule to contain a Head.
 	Head struct {
-		Name  Var
-		Key   *Term
-		Value *Term
+		Name  Var   `json:"name"`
+		Key   *Term `json:"key,omitempty"`
+		Value *Term `json:"value,omitempty"`
 	}
 
 	// Body represents one or more expressios contained inside a rule.
@@ -124,10 +124,10 @@ type (
 
 	// Expr represents a single expression contained inside the body of a rule.
 	Expr struct {
-		Location *Location `json:"-"`
-		Index    int
-		Negated  bool `json:",omitempty"`
-		Terms    interface{}
+		Location *Location   `json:"-"`
+		Index    int         `json:"index"`
+		Negated  bool        `json:"negated,omitempty"`
+		Terms    interface{} `json:"terms"`
 	}
 )
 

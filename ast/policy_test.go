@@ -248,24 +248,24 @@ func TestExprBadJSON(t *testing.T) {
 
 	js := `
 	{
-		"Negated": 100,
-		"Terms": {
-			"Value": "foo",
-			"Type": "string"
+		"negated": 100,
+		"terms": {
+			"value": "foo",
+			"type": "string"
 		},
-		"Index": 0
+		"index": 0
 	}
 	`
 
-	exp := fmt.Errorf("ast: unable to unmarshal Negated field with type: json.Number (expected true or false)")
+	exp := fmt.Errorf("ast: unable to unmarshal negated field with type: json.Number (expected true or false)")
 	assert(js, exp)
 
 	js = `
 	{
-		"Terms": [
+		"terms": [
 			"foo"
 		],
-		"Index": 0
+		"index": 0
 	}
 	`
 	exp = fmt.Errorf("ast: unable to unmarshal term")
@@ -273,18 +273,18 @@ func TestExprBadJSON(t *testing.T) {
 
 	js = `
 	{
-		"Terms": "bad value",
-		"Index": 0
+		"terms": "bad value",
+		"index": 0
 	}
 	`
-	exp = fmt.Errorf(`ast: unable to unmarshal Terms field with type: string (expected {"Value": ..., "Type": ...} or [{"Value": ..., "Type": ...}, ...])`)
+	exp = fmt.Errorf(`ast: unable to unmarshal terms field with type: string (expected {"value": ..., "type": ...} or [{"value": ..., "type": ...}, ...])`)
 	assert(js, exp)
 
 	js = `
 	{
-		"Terms": {"Value": "foo", "Type": "string"}
+		"terms": {"value": "foo", "type": "string"}
 	}`
-	exp = fmt.Errorf("ast: unable to unmarshal Index field with type: <nil> (expected integer)")
+	exp = fmt.Errorf("ast: unable to unmarshal index field with type: <nil> (expected integer)")
 	assert(js, exp)
 }
 

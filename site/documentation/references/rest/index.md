@@ -47,196 +47,195 @@ Content-Type: application/json
 {
   "result": [
     {
-      "ID": "example1",
-      "Module": {
-        "Package": {
-          "Path": [
+      "id": "example1",
+      "module": {
+        "package": {
+          "path": [
             {
-              "Type": "var",
-              "Value": "data"
+              "type": "var",
+              "value": "data"
             },
             {
-              "Type": "string",
-              "Value": "opa"
+              "type": "string",
+              "value": "opa"
             },
             {
-              "Type": "string",
-              "Value": "examples"
+              "type": "string",
+              "value": "examples"
             }
           ]
         },
-        "Imports": null,
-        "Rules": [
+        "rules": [
           {
-            "Name": "public_servers",
-            "Key": {
-              "Type": "var",
-              "Value": "server"
+            "name": "public_servers",
+            "key": {
+              "type": "var",
+              "value": "server"
             },
-            "Body": [
+            "body": [
               {
-                "Index": 0,
-                "Terms": [
+                "index": 0,
+                "terms": [
                   {
-                    "Type": "var",
-                    "Value": "eq"
+                    "type": "var",
+                    "value": "eq"
                   },
                   {
-                    "Type": "var",
-                    "Value": "server"
+                    "type": "var",
+                    "value": "server"
                   },
                   {
-                    "Type": "ref",
-                    "Value": [
+                    "type": "ref",
+                    "value": [
                       {
-                        "Type": "var",
-                        "Value": "data"
+                        "type": "var",
+                        "value": "data"
                       },
                       {
-                        "Type": "string",
-                        "Value": "servers"
+                        "type": "string",
+                        "value": "servers"
                       },
                       {
-                        "Type": "var",
-                        "Value": "$0"
+                        "type": "var",
+                        "value": "$0"
                       }
                     ]
                   }
                 ]
               },
               {
-                "Index": 1,
-                "Terms": [
+                "index": 1,
+                "terms": [
                   {
-                    "Type": "var",
-                    "Value": "eq"
+                    "type": "var",
+                    "value": "eq"
                   },
                   {
-                    "Type": "ref",
-                    "Value": [
+                    "type": "ref",
+                    "value": [
                       {
-                        "Type": "var",
-                        "Value": "server"
+                        "type": "var",
+                        "value": "server"
                       },
                       {
-                        "Type": "string",
-                        "Value": "ports"
+                        "type": "string",
+                        "value": "ports"
                       },
                       {
-                        "Type": "var",
-                        "Value": "$1"
+                        "type": "var",
+                        "value": "$1"
                       }
                     ]
                   },
                   {
-                    "Type": "ref",
-                    "Value": [
+                    "type": "ref",
+                    "value": [
                       {
-                        "Type": "var",
-                        "Value": "data"
+                        "type": "var",
+                        "value": "data"
                       },
                       {
-                        "Type": "string",
-                        "Value": "ports"
+                        "type": "string",
+                        "value": "ports"
                       },
                       {
-                        "Type": "var",
-                        "Value": "k"
+                        "type": "var",
+                        "value": "k"
                       },
                       {
-                        "Type": "string",
-                        "Value": "id"
-                      }
-                    ]
-                  }
-                ]
-              },
-              {
-                "Index": 2,
-                "Terms": [
-                  {
-                    "Type": "var",
-                    "Value": "eq"
-                  },
-                  {
-                    "Type": "ref",
-                    "Value": [
-                      {
-                        "Type": "var",
-                        "Value": "data"
-                      },
-                      {
-                        "Type": "string",
-                        "Value": "ports"
-                      },
-                      {
-                        "Type": "var",
-                        "Value": "k"
-                      },
-                      {
-                        "Type": "string",
-                        "Value": "networks"
-                      },
-                      {
-                        "Type": "var",
-                        "Value": "$2"
-                      }
-                    ]
-                  },
-                  {
-                    "Type": "ref",
-                    "Value": [
-                      {
-                        "Type": "var",
-                        "Value": "data"
-                      },
-                      {
-                        "Type": "string",
-                        "Value": "networks"
-                      },
-                      {
-                        "Type": "var",
-                        "Value": "m"
-                      },
-                      {
-                        "Type": "string",
-                        "Value": "id"
+                        "type": "string",
+                        "value": "id"
                       }
                     ]
                   }
                 ]
               },
               {
-                "Index": 3,
-                "Terms": [
+                "index": 2,
+                "terms": [
                   {
-                    "Type": "var",
-                    "Value": "eq"
+                    "type": "var",
+                    "value": "eq"
                   },
                   {
-                    "Type": "ref",
-                    "Value": [
+                    "type": "ref",
+                    "value": [
                       {
-                        "Type": "var",
-                        "Value": "data"
+                        "type": "var",
+                        "value": "data"
                       },
                       {
-                        "Type": "string",
-                        "Value": "networks"
+                        "type": "string",
+                        "value": "ports"
                       },
                       {
-                        "Type": "var",
-                        "Value": "m"
+                        "type": "var",
+                        "value": "k"
                       },
                       {
-                        "Type": "string",
-                        "Value": "public"
+                        "type": "string",
+                        "value": "networks"
+                      },
+                      {
+                        "type": "var",
+                        "value": "$2"
                       }
                     ]
                   },
                   {
-                    "Type": "boolean",
-                    "Value": true
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "data"
+                      },
+                      {
+                        "type": "string",
+                        "value": "networks"
+                      },
+                      {
+                        "type": "var",
+                        "value": "m"
+                      },
+                      {
+                        "type": "string",
+                        "value": "id"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "index": 3,
+                "terms": [
+                  {
+                    "type": "var",
+                    "value": "eq"
+                  },
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "data"
+                      },
+                      {
+                        "type": "string",
+                        "value": "networks"
+                      },
+                      {
+                        "type": "var",
+                        "value": "m"
+                      },
+                      {
+                        "type": "string",
+                        "value": "public"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "boolean",
+                    "value": true
                   }
                 ]
               }
@@ -246,117 +245,116 @@ Content-Type: application/json
       }
     },
     {
-      "ID": "example2",
-      "Module": {
-        "Package": {
-          "Path": [
+      "id": "example2",
+      "module": {
+        "package": {
+          "path": [
             {
-              "Type": "var",
-              "Value": "data"
+              "type": "var",
+              "value": "data"
             },
             {
-              "Type": "string",
-              "Value": "opa"
+              "type": "string",
+              "value": "opa"
             },
             {
-              "Type": "string",
-              "Value": "examples"
+              "type": "string",
+              "value": "examples"
             }
           ]
         },
-        "Imports": null,
-        "Rules": [
+        "rules": [
           {
-            "Name": "violations",
-            "Key": {
-              "Type": "var",
-              "Value": "server"
+            "name": "violations",
+            "key": {
+              "type": "var",
+              "value": "server"
             },
-            "Body": [
+            "body": [
               {
-                "Index": 0,
-                "Terms": [
+                "index": 0,
+                "terms": [
                   {
-                    "Type": "var",
-                    "Value": "eq"
+                    "type": "var",
+                    "value": "eq"
                   },
                   {
-                    "Type": "var",
-                    "Value": "server"
+                    "type": "var",
+                    "value": "server"
                   },
                   {
-                    "Type": "ref",
-                    "Value": [
+                    "type": "ref",
+                    "value": [
                       {
-                        "Type": "var",
-                        "Value": "data"
+                        "type": "var",
+                        "value": "data"
                       },
                       {
-                        "Type": "string",
-                        "Value": "servers"
+                        "type": "string",
+                        "value": "servers"
                       },
                       {
-                        "Type": "var",
-                        "Value": "$0"
+                        "type": "var",
+                        "value": "$0"
                       }
                     ]
                   }
                 ]
               },
               {
-                "Index": 1,
-                "Terms": [
+                "index": 1,
+                "terms": [
                   {
-                    "Type": "var",
-                    "Value": "eq"
+                    "type": "var",
+                    "value": "eq"
                   },
                   {
-                    "Type": "ref",
-                    "Value": [
+                    "type": "ref",
+                    "value": [
                       {
-                        "Type": "var",
-                        "Value": "server"
+                        "type": "var",
+                        "value": "server"
                       },
                       {
-                        "Type": "string",
-                        "Value": "protocols"
+                        "type": "string",
+                        "value": "protocols"
                       },
                       {
-                        "Type": "var",
-                        "Value": "$1"
+                        "type": "var",
+                        "value": "$1"
                       }
                     ]
                   },
                   {
-                    "Type": "string",
-                    "Value": "http"
+                    "type": "string",
+                    "value": "http"
                   }
                 ]
               },
               {
-                "Index": 2,
-                "Terms": {
-                  "Type": "ref",
-                  "Value": [
+                "index": 2,
+                "terms": {
+                  "type": "ref",
+                  "value": [
                     {
-                      "Type": "var",
-                      "Value": "data"
+                      "type": "var",
+                      "value": "data"
                     },
                     {
-                      "Type": "string",
-                      "Value": "opa"
+                      "type": "string",
+                      "value": "opa"
                     },
                     {
-                      "Type": "string",
-                      "Value": "examples"
+                      "type": "string",
+                      "value": "examples"
                     },
                     {
-                      "Type": "string",
-                      "Value": "public_servers"
+                      "type": "string",
+                      "value": "public_servers"
                     },
                     {
-                      "Type": "var",
-                      "Value": "server"
+                      "type": "var",
+                      "value": "server"
                     }
                   ]
                 }
@@ -399,196 +397,195 @@ Content-Type: application/json
 ```json
 {
   "result": {
-    "ID": "example1",
-    "Module": {
-      "Package": {
-        "Path": [
+    "id": "example1",
+    "module": {
+      "package": {
+        "path": [
           {
-            "Type": "var",
-            "Value": "data"
+            "type": "var",
+            "value": "data"
           },
           {
-            "Type": "string",
-            "Value": "opa"
+            "type": "string",
+            "value": "opa"
           },
           {
-            "Type": "string",
-            "Value": "examples"
+            "type": "string",
+            "value": "examples"
           }
         ]
       },
-      "Imports": null,
-      "Rules": [
+      "rules": [
         {
-          "Name": "public_servers",
-          "Key": {
-            "Type": "var",
-            "Value": "server"
+          "name": "public_servers",
+          "key": {
+            "type": "var",
+            "value": "server"
           },
-          "Body": [
+          "body": [
             {
-              "Index": 0,
-              "Terms": [
+              "index": 0,
+              "terms": [
                 {
-                  "Type": "var",
-                  "Value": "eq"
+                  "type": "var",
+                  "value": "eq"
                 },
                 {
-                  "Type": "var",
-                  "Value": "server"
+                  "type": "var",
+                  "value": "server"
                 },
                 {
-                  "Type": "ref",
-                  "Value": [
+                  "type": "ref",
+                  "value": [
                     {
-                      "Type": "var",
-                      "Value": "data"
+                      "type": "var",
+                      "value": "data"
                     },
                     {
-                      "Type": "string",
-                      "Value": "servers"
+                      "type": "string",
+                      "value": "servers"
                     },
                     {
-                      "Type": "var",
-                      "Value": "$0"
+                      "type": "var",
+                      "value": "$0"
                     }
                   ]
                 }
               ]
             },
             {
-              "Index": 1,
-              "Terms": [
+              "index": 1,
+              "terms": [
                 {
-                  "Type": "var",
-                  "Value": "eq"
+                  "type": "var",
+                  "value": "eq"
                 },
                 {
-                  "Type": "ref",
-                  "Value": [
+                  "type": "ref",
+                  "value": [
                     {
-                      "Type": "var",
-                      "Value": "server"
+                      "type": "var",
+                      "value": "server"
                     },
                     {
-                      "Type": "string",
-                      "Value": "ports"
+                      "type": "string",
+                      "value": "ports"
                     },
                     {
-                      "Type": "var",
-                      "Value": "$1"
+                      "type": "var",
+                      "value": "$1"
                     }
                   ]
                 },
                 {
-                  "Type": "ref",
-                  "Value": [
+                  "type": "ref",
+                  "value": [
                     {
-                      "Type": "var",
-                      "Value": "data"
+                      "type": "var",
+                      "value": "data"
                     },
                     {
-                      "Type": "string",
-                      "Value": "ports"
+                      "type": "string",
+                      "value": "ports"
                     },
                     {
-                      "Type": "var",
-                      "Value": "k"
+                      "type": "var",
+                      "value": "k"
                     },
                     {
-                      "Type": "string",
-                      "Value": "id"
-                    }
-                  ]
-                }
-              ]
-            },
-            {
-              "Index": 2,
-              "Terms": [
-                {
-                  "Type": "var",
-                  "Value": "eq"
-                },
-                {
-                  "Type": "ref",
-                  "Value": [
-                    {
-                      "Type": "var",
-                      "Value": "data"
-                    },
-                    {
-                      "Type": "string",
-                      "Value": "ports"
-                    },
-                    {
-                      "Type": "var",
-                      "Value": "k"
-                    },
-                    {
-                      "Type": "string",
-                      "Value": "networks"
-                    },
-                    {
-                      "Type": "var",
-                      "Value": "$2"
-                    }
-                  ]
-                },
-                {
-                  "Type": "ref",
-                  "Value": [
-                    {
-                      "Type": "var",
-                      "Value": "data"
-                    },
-                    {
-                      "Type": "string",
-                      "Value": "networks"
-                    },
-                    {
-                      "Type": "var",
-                      "Value": "m"
-                    },
-                    {
-                      "Type": "string",
-                      "Value": "id"
+                      "type": "string",
+                      "value": "id"
                     }
                   ]
                 }
               ]
             },
             {
-              "Index": 3,
-              "Terms": [
+              "index": 2,
+              "terms": [
                 {
-                  "Type": "var",
-                  "Value": "eq"
+                  "type": "var",
+                  "value": "eq"
                 },
                 {
-                  "Type": "ref",
-                  "Value": [
+                  "type": "ref",
+                  "value": [
                     {
-                      "Type": "var",
-                      "Value": "data"
+                      "type": "var",
+                      "value": "data"
                     },
                     {
-                      "Type": "string",
-                      "Value": "networks"
+                      "type": "string",
+                      "value": "ports"
                     },
                     {
-                      "Type": "var",
-                      "Value": "m"
+                      "type": "var",
+                      "value": "k"
                     },
                     {
-                      "Type": "string",
-                      "Value": "public"
+                      "type": "string",
+                      "value": "networks"
+                    },
+                    {
+                      "type": "var",
+                      "value": "$2"
                     }
                   ]
                 },
                 {
-                  "Type": "boolean",
-                  "Value": true
+                  "type": "ref",
+                  "value": [
+                    {
+                      "type": "var",
+                      "value": "data"
+                    },
+                    {
+                      "type": "string",
+                      "value": "networks"
+                    },
+                    {
+                      "type": "var",
+                      "value": "m"
+                    },
+                    {
+                      "type": "string",
+                      "value": "id"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "index": 3,
+              "terms": [
+                {
+                  "type": "var",
+                  "value": "eq"
+                },
+                {
+                  "type": "ref",
+                  "value": [
+                    {
+                      "type": "var",
+                      "value": "data"
+                    },
+                    {
+                      "type": "string",
+                      "value": "networks"
+                    },
+                    {
+                      "type": "var",
+                      "value": "m"
+                    },
+                    {
+                      "type": "string",
+                      "value": "public"
+                    }
+                  ]
+                },
+                {
+                  "type": "boolean",
+                  "value": true
                 }
               ]
             }
@@ -694,196 +691,195 @@ Content-Type: application/json
 ```json
 {
   "result": {
-    "ID": "example1",
-    "Module": {
-      "Package": {
-        "Path": [
+    "id": "example1",
+    "module": {
+      "package": {
+        "path": [
           {
-            "Type": "var",
-            "Value": "data"
+            "type": "var",
+            "value": "data"
           },
           {
-            "Type": "string",
-            "Value": "opa"
+            "type": "string",
+            "value": "opa"
           },
           {
-            "Type": "string",
-            "Value": "examples"
+            "type": "string",
+            "value": "examples"
           }
         ]
       },
-      "Imports": null,
-      "Rules": [
+      "rules": [
         {
-          "Name": "public_servers",
-          "Key": {
-            "Type": "var",
-            "Value": "server"
+          "name": "public_servers",
+          "key": {
+            "type": "var",
+            "value": "server"
           },
-          "Body": [
+          "body": [
             {
-              "Index": 0,
-              "Terms": [
+              "index": 0,
+              "terms": [
                 {
-                  "Type": "var",
-                  "Value": "eq"
+                  "type": "var",
+                  "value": "eq"
                 },
                 {
-                  "Type": "var",
-                  "Value": "server"
+                  "type": "var",
+                  "value": "server"
                 },
                 {
-                  "Type": "ref",
-                  "Value": [
+                  "type": "ref",
+                  "value": [
                     {
-                      "Type": "var",
-                      "Value": "data"
+                      "type": "var",
+                      "value": "data"
                     },
                     {
-                      "Type": "string",
-                      "Value": "servers"
+                      "type": "string",
+                      "value": "servers"
                     },
                     {
-                      "Type": "var",
-                      "Value": "$0"
+                      "type": "var",
+                      "value": "$0"
                     }
                   ]
                 }
               ]
             },
             {
-              "Index": 1,
-              "Terms": [
+              "index": 1,
+              "terms": [
                 {
-                  "Type": "var",
-                  "Value": "eq"
+                  "type": "var",
+                  "value": "eq"
                 },
                 {
-                  "Type": "ref",
-                  "Value": [
+                  "type": "ref",
+                  "value": [
                     {
-                      "Type": "var",
-                      "Value": "server"
+                      "type": "var",
+                      "value": "server"
                     },
                     {
-                      "Type": "string",
-                      "Value": "ports"
+                      "type": "string",
+                      "value": "ports"
                     },
                     {
-                      "Type": "var",
-                      "Value": "$1"
+                      "type": "var",
+                      "value": "$1"
                     }
                   ]
                 },
                 {
-                  "Type": "ref",
-                  "Value": [
+                  "type": "ref",
+                  "value": [
                     {
-                      "Type": "var",
-                      "Value": "data"
+                      "type": "var",
+                      "value": "data"
                     },
                     {
-                      "Type": "string",
-                      "Value": "ports"
+                      "type": "string",
+                      "value": "ports"
                     },
                     {
-                      "Type": "var",
-                      "Value": "k"
+                      "type": "var",
+                      "value": "k"
                     },
                     {
-                      "Type": "string",
-                      "Value": "id"
-                    }
-                  ]
-                }
-              ]
-            },
-            {
-              "Index": 2,
-              "Terms": [
-                {
-                  "Type": "var",
-                  "Value": "eq"
-                },
-                {
-                  "Type": "ref",
-                  "Value": [
-                    {
-                      "Type": "var",
-                      "Value": "data"
-                    },
-                    {
-                      "Type": "string",
-                      "Value": "ports"
-                    },
-                    {
-                      "Type": "var",
-                      "Value": "k"
-                    },
-                    {
-                      "Type": "string",
-                      "Value": "networks"
-                    },
-                    {
-                      "Type": "var",
-                      "Value": "$2"
-                    }
-                  ]
-                },
-                {
-                  "Type": "ref",
-                  "Value": [
-                    {
-                      "Type": "var",
-                      "Value": "data"
-                    },
-                    {
-                      "Type": "string",
-                      "Value": "networks"
-                    },
-                    {
-                      "Type": "var",
-                      "Value": "m"
-                    },
-                    {
-                      "Type": "string",
-                      "Value": "id"
+                      "type": "string",
+                      "value": "id"
                     }
                   ]
                 }
               ]
             },
             {
-              "Index": 3,
-              "Terms": [
+              "index": 2,
+              "terms": [
                 {
-                  "Type": "var",
-                  "Value": "eq"
+                  "type": "var",
+                  "value": "eq"
                 },
                 {
-                  "Type": "ref",
-                  "Value": [
+                  "type": "ref",
+                  "value": [
                     {
-                      "Type": "var",
-                      "Value": "data"
+                      "type": "var",
+                      "value": "data"
                     },
                     {
-                      "Type": "string",
-                      "Value": "networks"
+                      "type": "string",
+                      "value": "ports"
                     },
                     {
-                      "Type": "var",
-                      "Value": "m"
+                      "type": "var",
+                      "value": "k"
                     },
                     {
-                      "Type": "string",
-                      "Value": "public"
+                      "type": "string",
+                      "value": "networks"
+                    },
+                    {
+                      "type": "var",
+                      "value": "$2"
                     }
                   ]
                 },
                 {
-                  "Type": "boolean",
-                  "Value": true
+                  "type": "ref",
+                  "value": [
+                    {
+                      "type": "var",
+                      "value": "data"
+                    },
+                    {
+                      "type": "string",
+                      "value": "networks"
+                    },
+                    {
+                      "type": "var",
+                      "value": "m"
+                    },
+                    {
+                      "type": "string",
+                      "value": "id"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "index": 3,
+              "terms": [
+                {
+                  "type": "var",
+                  "value": "eq"
+                },
+                {
+                  "type": "ref",
+                  "value": [
+                    {
+                      "type": "var",
+                      "value": "data"
+                    },
+                    {
+                      "type": "string",
+                      "value": "networks"
+                    },
+                    {
+                      "type": "var",
+                      "value": "m"
+                    },
+                    {
+                      "type": "string",
+                      "value": "public"
+                    }
+                  ]
+                },
+                {
+                  "type": "boolean",
+                  "value": true
                 }
               ]
             }
@@ -1657,8 +1653,8 @@ All of the API endpoints use standard HTTP error codes to indicate success or fa
 
 ```
 {
-  "Code": 404,
-  "Message": "storage error (code: 1): module not found: test"
+  "code": 404,
+  "message": "storage error (code: 1): module not found: missing_id"
 }
 ```
 
@@ -1685,12 +1681,12 @@ response contains an array of Trace Event objects.
 
 Trace Event objects contain the following fields:
 
-- **Op** - identifies the kind of Trace Event. Values: **"Enter"**, **"Exit"**, **"Eval"**, **"Fail"**, **"Redo"**.
-- **QueryID** - uniquely identifies the query that the Trace Event was emitted for.
-- **ParentID** - identifies the parent query.
-- **Type** - indicates the type of the **Node** field. Values: **"expr"**, **"rule"**, **"body"**.
-- **Node** - contains the AST element associated with the evaluation step.
-- **Locals** - contains the term bindings from the query at the time when the Trace Event was emitted.
+- **op** - identifies the kind of Trace Event. Values: **"Enter"**, **"Exit"**, **"Eval"**, **"Fail"**, **"Redo"**.
+- **query_id** - uniquely identifies the query that the Trace Event was emitted for.
+- **parent_id** - identifies the parent query.
+- **type** - indicates the type of the **node** field. Values: **"expr"**, **"rule"**, **"body"**.
+- **node** - contains the AST element associated with the evaluation step.
+- **locals** - contains the term bindings from the query at the time when the Trace Event was emitted.
 
 #### Query IDs
 
@@ -1698,25 +1694,25 @@ Queries often reference rules or contain comprehensions. In both cases, query
 evaluation involves evaluation of one or more other queries, e.g., the body of
 the rule or comprehension.
 
-Trace Events from different queries can be distinguished by the **QueryID**
+Trace Events from different queries can be distinguished by the **query_id**
 field.
 
-Trace Events from related queries can be identified by the **ParentID** field.
+Trace Events from related queries can be identified by the **parent_id** field.
 
 For example, if query A references a rule R, Trace Events emitted as part of
-evaluating rule R's body will have the **ParentID** field set to query A's
-**QueryID**.
+evaluating rule R's body will have the **parent_id** field set to query A's
+**query_id**.
 
 #### Types of Events
 
 Each Trace Event represents a step in the query evaluation process. Trace Events
 are emitted at the following points:
 
-- **Enter** - before a body or rule is evaluated.
-- **Exit** - after a body or rule has evaluated successfully.
-- **Eval** - before an expression is evaluated.
-- **Fail** - after an expression has evaluated to false.
-- **Redo** - before evaluation restarts from a body, rule, or expression.
+- **enter** - before a body or rule is evaluated.
+- **exit** - after a body or rule has evaluated successfully.
+- **eval** - before an expression is evaluated.
+- **fail** - after an expression has evaluated to false.
+- **redo** - before evaluation restarts from a body, rule, or expression.
 
 By default, OPA searches for all sets of term bindings that make all expressions
 in the query evaluate to true. Because there may be multiple answers, the search
@@ -1727,36 +1723,36 @@ restarts, a **Redo** Trace Event is emitted.
 
 ```json
 {
-  "Op": "Eval",
-  "QueryID": 17,
-  "ParentID": 0,
-  "Type": "expr",
-  "Node": {
-    "Index": 1,
-    "Terms": [
+  "op": "eval",
+  "query_id": 20,
+  "parent_id": 0,
+  "type": "expr",
+  "node": {
+    "index": 1,
+    "terms": [
       {
-        "Type": "var",
-        "Value": "eq"
+        "type": "var",
+        "value": "eq"
       },
       {
-        "Type": "var",
-        "Value": "x"
+        "type": "var",
+        "value": "x"
       },
       {
-        "Type": "var",
-        "Value": "y"
+        "type": "var",
+        "value": "y"
       }
     ]
   },
-  "Locals": [
+  "locals": [
     {
-      "Key": {
-        "Type": "var",
-        "Value": "x"
+      "key": {
+        "type": "var",
+        "value": "x"
       },
-      "Value": {
-        "Type": "string",
-        "Value": "hello"
+      "value": {
+        "type": "string",
+        "value": "hello"
       }
     }
   ]

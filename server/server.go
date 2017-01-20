@@ -26,292 +26,6 @@ import (
 	"github.com/pkg/errors"
 )
 
-// apiErrorV1 models an error response sent to the client.
-type apiErrorV1 struct {
-	Code    int
-	Message string
-}
-
-func (err *apiErrorV1) Bytes() []byte {
-	if bs, err := json.MarshalIndent(err, "", "  "); err == nil {
-		return bs
-	}
-	return nil
-}
-
-// astErrorV1 models the error response sent to the client when a parse or
-// compile error occurs.
-type astErrorV1 struct {
-	Code    int
-	Message string
-	Errors  []*ast.Error
-}
-
-func (err *astErrorV1) Bytes() []byte {
-	if bs, err := json.MarshalIndent(err, "", "  "); err == nil {
-		return bs
-	}
-	return nil
-}
-
-const compileModErrMsg = "error(s) occurred while compiling module(s), see Errors"
-const compileQueryErrMsg = "error(s) occurred while compiling query, see Errors"
-
-// WriteConflictError represents an error condition raised if the caller
-// attempts to modify a virtual document or create a document at a path that
-// conflicts with an existing document.
-type WriteConflictError struct {
-	path storage.Path
-}
-
-func (err WriteConflictError) Error() string {
-	return fmt.Sprintf("write conflict: %v", err.path)
-}
-
-// IsWriteConflict returns true if the error indicates write conflict.
-func IsWriteConflict(err error) bool {
-	_, ok := err.(WriteConflictError)
-	return ok
-}
-
-type badRequestError string
-
-// isBadRequest reqturns true if the error indicates a badly formatted request.
-func isBadRequest(err error) bool {
-	_, ok := err.(badRequestError)
-	return ok
-}
-
-func (err badRequestError) Error() string {
-	return string(err)
-}
-
-func badPatchOperationError(op string) badRequestError {
-	return badRequestError(fmt.Sprintf("bad patch operation: %v", op))
-}
-
-func badPatchPathError(path string) badRequestError {
-	return badRequestError(fmt.Sprintf("bad patch path: %v", path))
-}
-
-// patchV1 models a single patch operation against a document.
-type patchV1 struct {
-	Op    string      `json:"op"`
-	Path  string      `json:"path"`
-	Value interface{} `json:"value"`
-}
-
-// policyListResponseV1 models the response mesasge for the Policy API list operation.
-type policyListResponseV1 struct {
-	Result []policyV1 `json:"result"`
-}
-
-// policyGetResponseV1 models the response message for the Policy API get operation.
-type policyGetResponseV1 struct {
-	Result policyV1 `json:"result"`
-}
-
-// policyPutResponseV1 models the response message for the Policy API put operation.
-type policyPutResponseV1 struct {
-	Result policyV1 `json:"result"`
-}
-
-// policyV1 models a policy module in OPA.
-type policyV1 struct {
-	ID     string
-	Module *ast.Module
-}
-
-func (p policyV1) Equal(other policyV1) bool {
-	return p.ID == other.ID && p.Module.Equal(other.Module)
-}
-
-// dataRequestV1 models the request message for Data API POST operations.
-type dataRequestV1 struct {
-	Input *interface{} `json:"input"`
-}
-
-// dataResponseV1 models the response message for Data API read operations.
-type dataResponseV1 struct {
-	Explanation traceV1     `json:"explanation,omitempty"`
-	Result      interface{} `json:"result,omitempty"`
-}
-
-// queryResponseV1 models the response message for Query API operations.
-type queryResponseV1 struct {
-	Explanation traceV1               `json:"explanation,omitempty"`
-	Result      adhocQueryResultSetV1 `json:"result"`
-}
-
-// adhocQueryResultSet models the result of a Query API query.
-type adhocQueryResultSetV1 []map[string]interface{}
-
-// queryResultSetV1 models the result of a Data API query when the query would
-// return multiple values for the document.
-type queryResultSetV1 []*queryResultV1
-
-func newQueryResultSetV1(qrs topdown.QueryResultSet) queryResultSetV1 {
-	result := make(queryResultSetV1, len(qrs))
-	for i := range qrs {
-		result[i] = &queryResultV1{qrs[i].Result, qrs[i].Bindings}
-	}
-	return result
-}
-
-// queryResultV1 models a single result of a Data API query that would return
-// multiple values for the document. The bindings can be used to differentiate
-// between results.
-type queryResultV1 struct {
-	result   interface{}
-	bindings map[string]interface{}
-}
-
-func (qr *queryResultV1) MarshalJSON() ([]byte, error) {
-	return json.Marshal([]interface{}{qr.result, qr.bindings})
-}
-
-// explainModeV1 defines supported values for the "explain" query parameter.
-type explainModeV1 string
-
-const (
-	explainOffV1   explainModeV1 = "off"
-	explainFullV1  explainModeV1 = "full"
-	explainTruthV1 explainModeV1 = "truth"
-)
-
-// traceV1 models the trace result returned for queries that include the
-// "explain" parameter. The trace is modelled as series of trace events that
-// identify the expression, local term bindings, query hierarchy, etc.
-type traceV1 []traceEventV1
-
-func newTraceV1(trace []*topdown.Event) (result traceV1) {
-	result = make(traceV1, len(trace))
-	for i := range trace {
-		var typ nodeTypeV1
-		switch trace[i].Node.(type) {
-		case *ast.Rule:
-			typ = nodeTypeRuleV1
-		case *ast.Expr:
-			typ = nodeTypeExprV1
-		case ast.Body:
-			typ = nodeTypeBodyV1
-		}
-		result[i] = traceEventV1{
-			Op:       string(trace[i].Op),
-			QueryID:  trace[i].QueryID,
-			ParentID: trace[i].ParentID,
-			Type:     typ,
-			Node:     trace[i].Node,
-			Locals:   newBindingsV1(trace[i].Locals),
-		}
-	}
-	return result
-}
-
-// nodeTypeV1 defines supported types for the trace event nodes.
-type nodeTypeV1 string
-
-const (
-	nodeTypeRuleV1 nodeTypeV1 = "rule"
-	nodeTypeBodyV1 nodeTypeV1 = "body"
-	nodeTypeExprV1 nodeTypeV1 = "expr"
-)
-
-// traceEventV1 represents a step in the query evaluation process.
-type traceEventV1 struct {
-	Op       string
-	QueryID  uint64
-	ParentID uint64
-	Type     nodeTypeV1
-	Node     interface{}
-	Locals   bindingsV1
-}
-
-func (te *traceEventV1) UnmarshalJSON(bs []byte) error {
-
-	keys := map[string]json.RawMessage{}
-
-	if err := util.UnmarshalJSON(bs, &keys); err != nil {
-		return err
-	}
-
-	if err := util.UnmarshalJSON(keys["Type"], &te.Type); err != nil {
-		return err
-	}
-
-	if err := util.UnmarshalJSON(keys["Op"], &te.Op); err != nil {
-		return err
-	}
-
-	if err := util.UnmarshalJSON(keys["QueryID"], &te.QueryID); err != nil {
-		return err
-	}
-
-	if err := util.UnmarshalJSON(keys["ParentID"], &te.ParentID); err != nil {
-		return err
-	}
-
-	switch te.Type {
-	case nodeTypeBodyV1:
-		var body ast.Body
-		if err := util.UnmarshalJSON(keys["Node"], &body); err != nil {
-			return err
-		}
-		te.Node = body
-	case nodeTypeExprV1:
-		var expr ast.Expr
-		if err := util.UnmarshalJSON(keys["Node"], &expr); err != nil {
-			return err
-		}
-		te.Node = &expr
-	case nodeTypeRuleV1:
-		var rule ast.Rule
-		if err := util.UnmarshalJSON(keys["Node"], &rule); err != nil {
-			return err
-		}
-		te.Node = &rule
-	}
-
-	if err := util.UnmarshalJSON(keys["Locals"], &te.Locals); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// bindingsV1 represents a set of term bindings.
-type bindingsV1 []*bindingV1
-
-// bindingV1 represents a single term binding.
-type bindingV1 struct {
-	Key   *ast.Term
-	Value *ast.Term
-}
-
-func newBindingsV1(locals *ast.ValueMap) (result []*bindingV1) {
-	result = make([]*bindingV1, 0, locals.Len())
-	locals.Iter(func(key, value ast.Value) bool {
-		result = append(result, &bindingV1{
-			Key:   &ast.Term{Value: key},
-			Value: &ast.Term{Value: value},
-		})
-		return false
-	})
-	return result
-}
-
-type patchImpl struct {
-	path  storage.Path
-	op    storage.PatchOp
-	value interface{}
-}
-
-const (
-	// ParamInputV1 defines the name of the HTTP URL parameter that specifies
-	// values for the "input" document.
-	ParamInputV1 = "input"
-)
-
 // Server represents an instance of OPA running in server mode.
 type Server struct {
 	Handler http.Handler
@@ -974,7 +688,7 @@ func (s *Server) makeDir(ctx context.Context, txn storage.Transaction, path stor
 		if _, ok := node.(map[string]interface{}); ok {
 			return nil
 		}
-		return WriteConflictError{path}
+		return writeConflictErr{path}
 	}
 
 	if !storage.IsNotFound(err) {
@@ -997,6 +711,7 @@ func (s *Server) prepareV1PatchSlice(root string, ops []patchV1) (result []patch
 	root = "/" + strings.Trim(root, "/")
 
 	for _, op := range ops {
+
 		impl := patchImpl{
 			value: op.Value,
 		}
@@ -1047,7 +762,7 @@ func (s *Server) writeConflict(op storage.PatchOp, path storage.Path) error {
 	ref := path.Ref(ast.DefaultRootDocument)
 
 	if rs := s.Compiler().GetRulesForVirtualDocument(ref); rs != nil {
-		return WriteConflictError{path}
+		return writeConflictErr{path}
 	}
 
 	return nil
@@ -1089,7 +804,7 @@ func handleErrorAuto(w http.ResponseWriter, err error) {
 			handleError(w, 404, err)
 			return
 		}
-		if IsWriteConflict(curr) {
+		if isWriteConflict(curr) {
 			handleError(w, 404, err)
 			return
 		}
@@ -1348,4 +1063,46 @@ func renderVersion(w http.ResponseWriter) {
 	fmt.Fprintln(w, "Build Timestamp: "+version.Timestamp+"<br>")
 	fmt.Fprintln(w, "Build Hostname: "+version.Hostname+"<br>")
 	fmt.Fprintln(w, "<br>")
+}
+
+type patchImpl struct {
+	path  storage.Path
+	op    storage.PatchOp
+	value interface{}
+}
+
+// writeConflictErr represents an error condition raised if the caller attempts
+// to modify a virtual document or create a document at a path that conflicts
+// with an existing document.
+type writeConflictErr struct {
+	path storage.Path
+}
+
+func (err writeConflictErr) Error() string {
+	return fmt.Sprintf("write conflict: %v", err.path)
+}
+
+func isWriteConflict(err error) bool {
+	_, ok := err.(writeConflictErr)
+	return ok
+}
+
+type badRequestError string
+
+func badPatchOperationError(op string) error {
+	return badRequestError(fmt.Sprintf("bad patch operation: %v", op))
+}
+
+func badPatchPathError(path string) error {
+	return badRequestError(fmt.Sprintf("bad patch path: %v", path))
+}
+
+func (err badRequestError) Error() string {
+	return string(err)
+}
+
+// isBadRequest returns true if the error indicates a badly formatted request.
+func isBadRequest(err error) bool {
+	_, ok := err.(badRequestError)
+	return ok
 }

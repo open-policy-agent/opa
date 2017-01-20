@@ -11,7 +11,7 @@ import (
 
 // TypeName returns a human readable name for the AST element type.
 func TypeName(x interface{}) string {
-	return strings.ToLower(reflect.TypeOf(x).Name())
+	return strings.ToLower(reflect.Indirect(reflect.ValueOf(x)).Type().Name())
 }
 
 // The type names provide consistent strings for types in error messages.
