@@ -50,9 +50,9 @@ const (
 
 // Error represents a single error caught during parsing, compiling, etc.
 type Error struct {
-	Code     ErrCode
-	Location *Location
-	Message  string
+	Code     ErrCode   `json:"code"`
+	Location *Location `json:"location"`
+	Message  string    `json:"message"`
 }
 
 func (e *Error) Error() string {

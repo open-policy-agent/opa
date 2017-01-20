@@ -22,10 +22,10 @@ import (
 
 // Location records a position in source code
 type Location struct {
-	Text []byte `json:"-"` // The original text fragment from the source.
-	File string // The name of the source file (which may be empty).
-	Row  int    // The line in the source.
-	Col  int    // The column in the row.
+	Text []byte `json:"-"`    // The original text fragment from the source.
+	File string `json:"file"` // The name of the source file (which may be empty).
+	Row  int    `json:"row"`  // The line in the source.
+	Col  int    `json:"col"`  // The column in the row.
 }
 
 // NewLocation returns a new Location object.
@@ -126,8 +126,8 @@ func InterfaceToValue(x interface{}) (Value, error) {
 
 // Term is an argument to a function.
 type Term struct {
-	Value    Value     // the value of the Term as represented in Go
-	Location *Location `json:"-"` // the location of the Term in the source
+	Value    Value     `json:"value"` // the value of the Term as represented in Go
+	Location *Location `json:"-"`     // the location of the Term in the source
 }
 
 // NewTerm returns a new Term object.
@@ -193,32 +193,9 @@ func (term *Term) IsGround() bool {
 //
 // Specialized marshalling logic is required to include a type hint for Value.
 func (term *Term) MarshalJSON() ([]byte, error) {
-	var typ string
-	switch term.Value.(type) {
-	case Null:
-		typ = "null"
-	case Boolean:
-		typ = "boolean"
-	case Number:
-		typ = "number"
-	case String:
-		typ = "string"
-	case Ref:
-		typ = "ref"
-	case Var:
-		typ = "var"
-	case Array:
-		typ = "array"
-	case Object:
-		typ = "object"
-	case *Set:
-		typ = "set"
-	case *ArrayComprehension:
-		typ = "array-comprehension"
-	}
 	d := map[string]interface{}{
-		"Type":  typ,
-		"Value": term.Value,
+		"type":  TypeName(term.Value),
+		"value": term.Value,
 	}
 	return json.Marshal(d)
 }
@@ -907,8 +884,8 @@ func (obj Object) String() string {
 
 // ArrayComprehension represents an array comprehension as defined in the language.
 type ArrayComprehension struct {
-	Term *Term
-	Body Body
+	Term *Term `json:"term"`
+	Body Body  `json:"body"`
 }
 
 // ArrayComprehensionTerm creates a new Term with an ArrayComprehension value.
@@ -1011,17 +988,17 @@ unmarshal_error:
 }
 
 func unmarshalExpr(expr *Expr, v map[string]interface{}) error {
-	if x, ok := v["Negated"]; ok {
+	if x, ok := v["negated"]; ok {
 		if b, ok := x.(bool); ok {
 			expr.Negated = b
 		} else {
-			return fmt.Errorf("ast: unable to unmarshal Negated field with type: %T (expected true or false)", v["Negated"])
+			return fmt.Errorf("ast: unable to unmarshal negated field with type: %T (expected true or false)", v["negated"])
 		}
 	}
 	if err := unmarshalExprIndex(expr, v); err != nil {
 		return err
 	}
-	switch ts := v["Terms"].(type) {
+	switch ts := v["terms"].(type) {
 	case map[string]interface{}:
 		t, err := unmarshalTerm(ts)
 		if err != nil {
@@ -1035,13 +1012,13 @@ func unmarshalExpr(expr *Expr, v map[string]interface{}) error {
 		}
 		expr.Terms = terms
 	default:
-		return fmt.Errorf(`ast: unable to unmarshal Terms field with type: %T (expected {"Value": ..., "Type": ...} or [{"Value": ..., "Type": ...}, ...])`, v["Terms"])
+		return fmt.Errorf(`ast: unable to unmarshal terms field with type: %T (expected {"value": ..., "type": ...} or [{"value": ..., "type": ...}, ...])`, v["terms"])
 	}
 	return nil
 }
 
 func unmarshalExprIndex(expr *Expr, v map[string]interface{}) error {
-	if x, ok := v["Index"]; ok {
+	if x, ok := v["index"]; ok {
 		if n, ok := x.(json.Number); ok {
 			i, err := n.Int64()
 			if err == nil {
@@ -1050,7 +1027,7 @@ func unmarshalExprIndex(expr *Expr, v map[string]interface{}) error {
 			}
 		}
 	}
-	return fmt.Errorf("ast: unable to unmarshal Index field with type: %T (expected integer)", v["Index"])
+	return fmt.Errorf("ast: unable to unmarshal index field with type: %T (expected integer)", v["index"])
 }
 
 func unmarshalTerm(m map[string]interface{}) (*Term, error) {
@@ -1068,6 +1045,8 @@ func unmarshalTermSlice(s []interface{}) ([]*Term, error) {
 			if t, err := unmarshalTerm(m); err == nil {
 				buf = append(buf, t)
 				continue
+			} else {
+				return nil, err
 			}
 		}
 		return nil, fmt.Errorf("ast: unable to unmarshal term")
@@ -1076,15 +1055,15 @@ func unmarshalTermSlice(s []interface{}) ([]*Term, error) {
 }
 
 func unmarshalTermSliceValue(d map[string]interface{}) ([]*Term, error) {
-	if s, ok := d["Value"].([]interface{}); ok {
+	if s, ok := d["value"].([]interface{}); ok {
 		return unmarshalTermSlice(s)
 	}
-	return nil, fmt.Errorf(`ast: unable to unmarshal term (expected {"Value": [...], "Type": ...} where type is one of: array, reference)`)
+	return nil, fmt.Errorf(`ast: unable to unmarshal term (expected {"value": [...], "type": ...} where type is one of: %v, %v, %v)`, ArrayTypeName, SetTypeName, RefTypeName)
 }
 
 func unmarshalValue(d map[string]interface{}) (Value, error) {
-	v := d["Value"]
-	switch d["Type"] {
+	v := d["value"]
+	switch d["type"] {
 	case "null":
 		return Null{}, nil
 	case "boolean":
@@ -1134,11 +1113,11 @@ func unmarshalValue(d map[string]interface{}) (Value, error) {
 			}
 			return buf, nil
 		}
-	case "array-comprehension":
+	case "arraycomprehension":
 		if m, ok := v.(map[string]interface{}); ok {
-			if t, ok := m["Term"].(map[string]interface{}); ok {
+			if t, ok := m["term"].(map[string]interface{}); ok {
 				if term, err := unmarshalTerm(t); err == nil {
-					if b, ok := m["Body"].([]interface{}); ok {
+					if b, ok := m["body"].([]interface{}); ok {
 						if body, err := unmarshalBody(b); err == nil {
 							buf := &ArrayComprehension{
 								Term: term,

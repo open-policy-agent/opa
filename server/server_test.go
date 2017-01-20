@@ -142,15 +142,15 @@ func TestDataV1(t *testing.T) {
 		{"put base write conflict", []tr{
 			tr{"PUT", "/data/a/b", `[1,2,3,4]`, 204, ""},
 			tr{"PUT", "/data/a/b/c/d", "0", 404, `{
-				"Code": 404,
-				"Message": "write conflict: /a/b"
+				"code": 404,
+				"message": "write conflict: /a/b"
 			}`},
 		}},
 		{"put virtual write conflict", []tr{
 			tr{"PUT", "/policies/test", testMod2, 200, ""},
 			tr{"PUT", "/data/testmod/q/x", "0", 404, `{
-				"Code": 404,
-				"Message": "write conflict: /testmod/q"
+				"code": 404,
+				"message": "write conflict: /testmod/q"
 			}`},
 		}},
 		{"get virtual", []tr{
@@ -161,8 +161,8 @@ func TestDataV1(t *testing.T) {
 		{"patch virtual error", []tr{
 			tr{"PUT", "/policies/test", testMod1, 200, ""},
 			tr{"PATCH", "/data/testmod/p", `[{"op": "add", "path": "-", "value": 1}]`, 404, `{
-                "Code": 404,
-                "Message": "write conflict: /testmod/p"
+                "code": 404,
+                "message": "write conflict: /testmod/p"
             }`},
 		}},
 		{"get with input", []tr{
@@ -195,22 +195,22 @@ func TestDataV1(t *testing.T) {
 		}},
 		{"get with input (bad format)", []tr{
 			tr{"GET", "/data/deadbeef?input", "", 400, `{
-				"Code": 400,
-				"Message": "input parameter format is [[<path>]:]<value> where <path> is either var or ref"
+				"code": 400,
+				"message": "input parameter format is [[<path>]:]<value> where <path> is either var or ref"
 			}`},
 			tr{"GET", "/data/deadbeef?input=", "", 400, `{
-				"Code": 400,
-				"Message": "input parameter format is [[<path>]:]<value> where <path> is either var or ref"
+				"code": 400,
+				"message": "input parameter format is [[<path>]:]<value> where <path> is either var or ref"
 			}`},
 			tr{"GET", `/data/deadbeef?input="foo`, "", 400, `{
-				"Code": 400,
-				"Message": "input parameter format is [[<path>]:]<value> where <path> is either var or ref"
+				"code": 400,
+				"message": "input parameter format is [[<path>]:]<value> where <path> is either var or ref"
 			}`},
 		}},
 		{"get with input (path error)", []tr{
 			tr{"GET", `/data/deadbeef?input="foo:1`, "", 400, `{
-				"Code": 400,
-				"Message": "input parameter format is [[<path>]:]<value> where <path> is either var or ref"
+				"code": 400,
+				"message": "input parameter format is [[<path>]:]<value> where <path> is either var or ref"
 			}`},
 		}},
 		{"get undefined", []tr{
@@ -234,14 +234,14 @@ func TestDataV1(t *testing.T) {
 		}},
 		{"post missing input", []tr{
 			tr{"POST", "/data/deadbeef", `{"req1": 2}`, 400, `{
-				"Code": 400,
-				"Message": "body must include input document {\"input\": ...}"
+				"code": 400,
+				"message": "body must include input document {\"input\": ...}"
 			}`},
 		}},
 		{"post malformed input", []tr{
 			tr{"POST", "/data/deadbeef", `{"input": @}`, 400, `{
-				"Code": 400,
-				"Message": "body contains malformed input document: invalid character '@' looking for beginning of value"
+				"code": 400,
+				"message": "body contains malformed input document: invalid character '@' looking for beginning of value"
 			}`},
 		}},
 		{"query wildcards omitted", []tr{
@@ -320,8 +320,8 @@ func TestDataGetExplainFull(t *testing.T) {
 		t.Fatalf("Expected exactly 3 events but got %d", len(result.Explanation))
 	}
 
-	if result.Explanation[2].Op != "Fail" {
-		t.Fatalf("Expected last event to be 'Fail' but got: %v", result.Explanation[2])
+	if result.Explanation[2].Op != "fail" {
+		t.Fatalf("Expected last event to be 'fail' but got: %v", result.Explanation[2])
 	}
 
 }

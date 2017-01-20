@@ -22,6 +22,7 @@ function main() {
     get_a_document_with_input
     patch_a_document
     execute_a_query
+    error_format
     trace_event
 }
 
@@ -111,6 +112,13 @@ function execute_a_query() {
     echo ""
     curl $BASE_URL/query?pretty=true -s -v -G --data-urlencode 'q=data.servers[i].ports[_] = "p2", data.servers[i].name = name'
     echo ""
+}
+
+function error_format() {
+
+    echo "## Errors"
+    echo ""
+    curl $BASE_URL/policies/missing_id -s
 }
 
 function trace_event() {
