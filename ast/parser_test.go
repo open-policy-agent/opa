@@ -69,6 +69,34 @@ func TestNumberTerms(t *testing.T) {
 	}
 }
 
+func TestStringTerms(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected string
+	}{
+		{`""`, ""},                   // empty
+		{`" "`, " "},                 // whitespace
+		{`"\""`, `"`},                // escaped quote
+		{`"http:\/\/"`, `http://`},   // escaped solidus
+		{`"\u0001"`, "\x01"},         // control code
+		{`"foo\u005C"`, "foo\u005c"}, // unicode (upper hex)
+		{`"foo\u005c"`, "foo\u005C"}, // unicode (lower hex)
+		{`"\uD834\uDD1E"`, `𝄞`},      // g-clef
+	}
+
+	for _, tc := range tests {
+		result, err := ParseTerm(tc.input)
+		if err != nil {
+			t.Errorf("Unexpected error for %v: %v", tc.input, err)
+		} else {
+			s := StringTerm(tc.expected)
+			if !result.Equal(s) {
+				t.Errorf("Expected %v for %v but got: %v", s, tc.input, result)
+			}
+		}
+	}
+}
+
 func TestScalarTerms(t *testing.T) {
 	assertParseOneTerm(t, "null", "null", NullTerm())
 	assertParseOneTerm(t, "true", "true", BooleanTerm(true))

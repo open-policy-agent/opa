@@ -1,13 +1,8 @@
 {
 package ast
 
-//
-// BUGS: the escaped forward solidus (`\/`) is not currently handled for strings.
-//
-
 // currentLocation converts the parser context to a Location object.
 func currentLocation(c *current) *Location {
-    // TODO(tsandall): is it possible to access the filename from inside the parser?
     return NewLocation(c.text, "", c.pos.line, c.pos.col)
 }
 
@@ -368,10 +363,9 @@ Exponent <- 'e'i [+-]? DecimalDigit+
 
 Integer <- '0' / ( NonZeroDecimalDigit DecimalDigit* )
 
-String <- '"' ( !EscapedChar . / '\\' EscapeSequence )* '"' {
-    // TODO : the forward slash (solidus) is not a valid escape in Go, it will
-    // fail if there's one in the string
-    v, err := strconv.Unquote(string(c.text))
+String <- '"' Char* '"' {
+    var v string
+    err := json.Unmarshal([]byte(c.text), &v)
     str := StringTerm(v)
     str.Location = currentLocation(c)
     return str, err
@@ -395,11 +389,13 @@ Null <- "null" {
 
 AsciiLetter <- [A-Za-z_]
 
+Char <- ( !EscapedChar . ) / ( '\\' EscapeSequence )
+
 EscapedChar <- [\x00-\x1f"\\]
 
 EscapeSequence <- SingleCharEscape / UnicodeEscape
 
-SingleCharEscape <- ["\\/bfnrt]
+SingleCharEscape <- [ " \\ / b f n r t ]
 
 UnicodeEscape <- 'u' HexDigit HexDigit HexDigit HexDigit
 
@@ -407,7 +403,7 @@ DecimalDigit <- [0-9]
 
 NonZeroDecimalDigit <- [1-9]
 
-HexDigit <- [0-9a-f]
+HexDigit <- [0-9a-fA-F]
 
 ws "whitespace" <- [ \t\r\n]+
 
