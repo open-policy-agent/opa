@@ -789,20 +789,24 @@ func handleError(w http.ResponseWriter, code int, err error) {
 func handleErrorAuto(w http.ResponseWriter, err error) {
 	var prev error
 	for curr := err; curr != prev; {
-		if storage.IsNotFound(curr) {
-			handleError(w, 404, err)
-			return
-		}
-		if isWriteConflict(curr) {
-			handleError(w, 404, err)
-			return
-		}
 		if isBadRequest(curr) {
 			handleError(w, http.StatusBadRequest, err)
 			return
 		}
+		if ast.IsError(ast.MissingInputErr, curr) {
+			handleError(w, http.StatusBadRequest, errInputDoc)
+			return
+		}
 		if storage.IsInvalidPatch(curr) {
-			handleError(w, 400, err)
+			handleError(w, http.StatusBadRequest, err)
+			return
+		}
+		if isWriteConflict(curr) {
+			handleError(w, http.StatusNotFound, err)
+			return
+		}
+		if storage.IsNotFound(curr) {
+			handleError(w, http.StatusNotFound, err)
 			return
 		}
 		prev = curr
@@ -881,7 +885,7 @@ func getExplain(p []string) explainModeV1 {
 }
 
 var errInputPathFormat = fmt.Errorf("input parameter format is [[<path>]:]<value> where <path> is either var or ref")
-var errInputDoc = fmt.Errorf(`body must include input document {"input": ...}`)
+var errInputDoc = fmt.Errorf(`query requires input document (hint: POST /data[/path] {"input": value})`)
 
 // readInput reads the query input from r and returns an input value that can be
 // used for query evaluation.
@@ -1084,6 +1088,10 @@ func badPatchOperationError(op string) error {
 
 func badPatchPathError(path string) error {
 	return badRequestError(fmt.Sprintf("bad patch path: %v", path))
+}
+
+func missingInputError(path string) error {
+	return badRequestError(fmt.Sprintf("query requires input document (hint: POST /data%v {\"input\": ...})", path))
 }
 
 func (err badRequestError) Error() string {

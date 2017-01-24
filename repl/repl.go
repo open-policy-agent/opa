@@ -436,7 +436,7 @@ func (r *REPL) cmdUnset(args []string) error {
 	return nil
 }
 
-func (r *REPL) compileBody(body ast.Body) (ast.Body, error) {
+func (r *REPL) compileBody(body ast.Body, input ast.Value) (ast.Body, error) {
 
 	policies := r.store.ListPolicies(r.txn)
 
@@ -450,7 +450,11 @@ func (r *REPL) compileBody(body ast.Body) (ast.Body, error) {
 		return nil, compiler.Errors
 	}
 
-	qctx := ast.NewQueryContextForModule(r.modules[r.currentModuleID])
+	qctx := ast.NewQueryContext().
+		WithPackage(r.modules[r.currentModuleID].Package).
+		WithImports(r.modules[r.currentModuleID].Imports).
+		WithInput(input)
+
 	return compiler.QueryCompiler().
 		WithContext(qctx).
 		Compile(body)
@@ -550,10 +554,14 @@ func (r *REPL) loadCompiler() (*ast.Compiler, error) {
 
 // loadInput returns the input defined in the REPL. The REPL loads the
 // input from the data.repl.input document.
-func (r *REPL) loadInput(ctx context.Context, compiler *ast.Compiler) (ast.Value, error) {
+func (r *REPL) loadInput(ctx context.Context) (ast.Value, error) {
+
+	compiler, err := r.loadCompiler()
+	if err != nil {
+		return nil, err
+	}
 
 	params := topdown.NewQueryParams(ctx, compiler, r.store, r.txn, nil, ast.MustParseRef("data.repl.input"))
-
 	result, err := topdown.Query(params)
 
 	if err != nil {
@@ -570,7 +578,11 @@ func (r *REPL) loadInput(ctx context.Context, compiler *ast.Compiler) (ast.Value
 func (r *REPL) evalStatement(ctx context.Context, stmt interface{}) error {
 	switch s := stmt.(type) {
 	case ast.Body:
-		body, err := r.compileBody(s)
+		input, err := r.loadInput(ctx)
+		if err != nil {
+			return err
+		}
+		body, err := r.compileBody(s, input)
 		if err != nil {
 			return err
 		}
@@ -581,10 +593,6 @@ func (r *REPL) evalStatement(ctx context.Context, stmt interface{}) error {
 			return nil
 		}
 		compiler, err := r.loadCompiler()
-		if err != nil {
-			return err
-		}
-		input, err := r.loadInput(ctx, compiler)
 		if err != nil {
 			return err
 		}

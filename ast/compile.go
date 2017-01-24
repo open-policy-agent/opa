@@ -77,20 +77,39 @@ type Compiler struct {
 type QueryContext struct {
 	Package *Package
 	Imports []*Import
+	Input   Value
 }
 
 // NewQueryContext returns a new QueryContext object.
-func NewQueryContext(pkg *Package, imports []*Import) *QueryContext {
-	return &QueryContext{
-		Package: pkg,
-		Imports: imports,
-	}
+func NewQueryContext() *QueryContext {
+	return &QueryContext{}
 }
 
-// NewQueryContextForModule returns a new QueryContext object based on the
-// provided module.
-func NewQueryContextForModule(mod *Module) *QueryContext {
-	return NewQueryContext(mod.Package, mod.Imports)
+// WithPackage sets the pkg on qc.
+func (qc *QueryContext) WithPackage(pkg *Package) *QueryContext {
+	if qc == nil {
+		qc = NewQueryContext()
+	}
+	qc.Package = pkg
+	return qc
+}
+
+// WithImports sets the imports on qc.
+func (qc *QueryContext) WithImports(imports []*Import) *QueryContext {
+	if qc == nil {
+		qc = NewQueryContext()
+	}
+	qc.Imports = imports
+	return qc
+}
+
+// WithInput sets the input on qc.
+func (qc *QueryContext) WithInput(input Value) *QueryContext {
+	if qc == nil {
+		qc = NewQueryContext()
+	}
+	qc.Input = input
+	return qc
 }
 
 // Copy returns a deep copy of qc.
@@ -99,7 +118,9 @@ func (qc *QueryContext) Copy() *QueryContext {
 		return nil
 	}
 	cpy := *qc
-	cpy.Package = qc.Package.Copy()
+	if cpy.Package != nil {
+		cpy.Package = qc.Package.Copy()
+	}
 	cpy.Imports = make([]*Import, len(qc.Imports))
 	for i := range qc.Imports {
 		cpy.Imports[i] = qc.Imports[i].Copy()
@@ -115,7 +136,7 @@ type QueryCompiler interface {
 	Compile(q Body) (Body, error)
 
 	// WithContext sets the QueryContext on the QueryCompiler. Subsequent calls
-	// to Compile will take the QUeryContext into account.
+	// to Compile will take the QueryContext into account.
 	WithContext(qctx *QueryContext) QueryCompiler
 }
 
@@ -267,6 +288,41 @@ func (c *Compiler) GetRulesWithPrefix(ref Ref) (rules []*Rule) {
 	}
 
 	acc(node)
+
+	return rules
+}
+
+// GetRules returns a slice of rules that are referred to by ref.
+//
+// E.g., given the following module:
+//
+//  package a.b.c
+//
+//  p[x] = y :- q[x] = y, ... # rule1
+//  q[x] = y :- ...           # rule2
+//
+// The following calls yield the rules on the right.
+//
+//  GetRules("data.a.b.c.p")	=> [rule1]
+//  GetRules("data.a.b.c.p.x")	=> [rule1]
+//  GetRules("data.a.b.c.q")	=> [rule2]
+//  GetRules("data.a.b.c")		=> [rule1, rule2]
+//  GetRules("data.a.b.d")		=> nil
+func (c *Compiler) GetRules(ref Ref) (rules []*Rule) {
+
+	set := map[*Rule]struct{}{}
+
+	for _, rule := range c.GetRulesForVirtualDocument(ref) {
+		set[rule] = struct{}{}
+	}
+
+	for _, rule := range c.GetRulesWithPrefix(ref) {
+		set[rule] = struct{}{}
+	}
+
+	for rule := range set {
+		rules = append(rules, rule)
+	}
 
 	return rules
 }
@@ -582,6 +638,7 @@ func (qc *queryCompiler) Compile(query Body) (Body, error) {
 		qc.resolveRefs,
 		qc.checkSafety,
 		qc.checkBuiltins,
+		qc.checkInput,
 	}
 
 	qctx := qc.qctx.Copy()
@@ -600,7 +657,7 @@ func (qc *queryCompiler) resolveRefs(qctx *QueryContext, body Body) (Body, error
 
 	var globals map[Var]Value
 
-	if qctx != nil {
+	if qctx != nil && qctx.Package != nil {
 		var exports []Var
 		if exist, ok := qc.compiler.getExports().Get(qctx.Package.Path); ok {
 			exports = exist.([]Var)
@@ -612,7 +669,7 @@ func (qc *queryCompiler) resolveRefs(qctx *QueryContext, body Body) (Body, error
 	return resolveRefsInBody(globals, body), nil
 }
 
-func (qc *queryCompiler) checkSafety(qctx *QueryContext, body Body) (Body, error) {
+func (qc *queryCompiler) checkSafety(_ *QueryContext, body Body) (Body, error) {
 
 	safe := ReservedVars.Copy()
 	reordered, unsafe := reorderBodyForSafety(safe, body)
@@ -633,6 +690,45 @@ func (qc *queryCompiler) checkBuiltins(qctx *QueryContext, body Body) (Body, err
 	if errs := bc.Check(body); len(errs) != 0 {
 		return nil, errs
 	}
+	return body, nil
+}
+
+func (qc *queryCompiler) checkInput(qctx *QueryContext, body Body) (Body, error) {
+
+	// If input document was specified, exit immediately. In the future, we may
+	// apply schema checks to input. For now, as long as something is provided,
+	// allow the query to run.
+	if qctx != nil && qctx.Input != nil {
+		return body, nil
+	}
+
+	// Check all queries, recursively, to see if they depend on input. If this
+	// becomes a bottleneck, consider caching.
+	queries := []Body{body}
+	foundInput := false
+
+	for len(queries) > 0 && !foundInput {
+		body := queries[0]
+		queries = queries[1:]
+		WalkRefs(body, func(r Ref) bool {
+			if r.HasPrefix(InputRootRef) {
+				foundInput = true
+				return true
+			}
+			if !r.HasPrefix(DefaultRootRef) {
+				return false
+			}
+			for _, rule := range qc.compiler.GetRules(r) {
+				queries = append(queries, rule.Body)
+			}
+			return false
+		})
+	}
+
+	if foundInput {
+		return nil, NewError(MissingInputErr, body.Loc(), "missing input document")
+	}
+
 	return body, nil
 }
 
