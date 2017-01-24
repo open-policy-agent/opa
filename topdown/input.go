@@ -15,6 +15,11 @@ import (
 // keys are valid import paths.
 func MakeInput(pairs [][2]*ast.Term) (ast.Value, error) {
 
+	// Fast-path for empty case.
+	if len(pairs) == 0 {
+		return nil, nil
+	}
+
 	// Fast-path for the root case.
 	if len(pairs) == 1 && len(pairs[0][0].Value.(ast.Ref)) == 0 {
 		return pairs[0][1].Value, nil

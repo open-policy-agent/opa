@@ -1148,7 +1148,7 @@ func TestTopDownInputValues(t *testing.T) {
 
 	assertTopDown(t, compiler, store, "loopback", []string{"z", "loopback"}, `{"foo": 1}`, `{"foo": 1}`)
 
-	assertTopDown(t, compiler, store, "loopback undefined", []string{"z", "loopback"}, ``, ``)
+	assertTopDown(t, compiler, store, "loopback undefined", []string{"z", "loopback"}, ``, fmt.Errorf("missing input document"))
 
 	assertTopDown(t, compiler, store, "simple", []string{"z", "p"}, `{
 		"req1": {"foo": 4},

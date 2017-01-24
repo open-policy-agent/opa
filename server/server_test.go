@@ -169,9 +169,16 @@ func TestDataV1(t *testing.T) {
 			tr{"PUT", "/policies/test", testMod1, 200, ""},
 			tr{"GET", "/data/testmod/g?input=req1%3A%7B%22a%22%3A%5B1%5D%7D&input=req2%3A%7B%22b%22%3A%5B0%2C1%5D%7D", "", 200, `{"result": true}`},
 		}},
+		{"get missing input", []tr{
+			tr{"PUT", "/policies/test", testMod1, 200, ""},
+			tr{"GET", "/data/testmod/g", "", 400, `{
+				"code": 400,
+				"message": "query requires input document (hint: POST /data[/path] {\"input\": value})"
+			}`},
+		}},
 		{"get with input (missing input value)", []tr{
 			tr{"PUT", "/policies/test", testMod1, 200, ""},
-			tr{"GET", "/data/testmod/g?input=req1%3A%7B%22a%22%3A%5B1%5D%7D", "", 404, ""},
+			tr{"GET", "/data/testmod/g?input=req1%3A%7B%22a%22%3A%5B1%5D%7D", "", 404, ""}, // req2 not specified
 		}},
 		{"get with input (namespaced)", []tr{
 			tr{"PUT", "/policies/test", testMod1, 200, ""},
@@ -233,9 +240,10 @@ func TestDataV1(t *testing.T) {
 			tr{"POST", "/data/testmod/gt1", `{"input": {"req1": 2}}`, 200, `{"result": true}`},
 		}},
 		{"post missing input", []tr{
-			tr{"POST", "/data/deadbeef", `{"req1": 2}`, 400, `{
+			tr{"PUT", "/policies/test", testMod1, 200, ""},
+			tr{"POST", "/data/testmod/gt1", ``, 400, `{
 				"code": 400,
-				"message": "body must include input document {\"input\": ...}"
+				"message": "query requires input document (hint: POST /data[/path] {\"input\": value})"
 			}`},
 		}},
 		{"post malformed input", []tr{

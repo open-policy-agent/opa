@@ -588,11 +588,22 @@ func NewQueryParams(ctx context.Context, compiler *ast.Compiler, store *storage.
 }
 
 // NewTopdown returns a new Topdown object that can be used to do evaluation.
-func (q *QueryParams) NewTopdown(body ast.Body) *Topdown {
+func (q *QueryParams) NewTopdown(body ast.Body) (*Topdown, error) {
+
+	if body != nil {
+		qctx := ast.NewQueryContext().WithInput(q.Input)
+		qc := q.Compiler.QueryCompiler().WithContext(qctx)
+		var err error
+		body, err = qc.Compile(body)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	t := New(q.Context, body, q.Compiler, q.Store, q.Transaction)
 	t.Input = q.Input
 	t.Tracer = q.Tracer
-	return t
+	return t, nil
 }
 
 // QueryResult represents a single query result.
@@ -631,9 +642,12 @@ func Query(params *QueryParams) (QueryResultSet, error) {
 func queryOne(params *QueryParams) (QueryResultSet, error) {
 
 	query := ast.NewBody(ast.Equality.Expr(ast.RefTerm(params.Path...), ast.Wildcard))
-	t := params.NewTopdown(query)
+	t, err := params.NewTopdown(query)
+	if err != nil {
+		return nil, err
+	}
+
 	var result interface{} = struct{}{}
-	var err error
 
 	err = Eval(t, func(t *Topdown) error {
 		val := PlugValue(ast.Wildcard.Value, t.Binding)
@@ -704,11 +718,18 @@ func queryN(params *QueryParams) (QueryResultSet, error) {
 func evalInput(params *QueryParams, iter Iterator) error {
 
 	if params.Input == nil || params.Input.Equal(ast.Boolean(false)) {
-		return iter(params.NewTopdown(nil))
+		t, err := params.NewTopdown(nil)
+		if err != nil {
+			return err
+		}
+		return iter(t)
 	}
 
 	query := ast.NewBody(ast.NewExpr(ast.NewTerm(params.Input)))
-	t := params.NewTopdown(query)
+	t, err := params.NewTopdown(query)
+	if err != nil {
+		return err
+	}
 
 	// TODO(tsandall): disable tracing for input evaluation as it would
 	// introduce an extra layer of trace events. Once the with modifier is

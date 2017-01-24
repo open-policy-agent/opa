@@ -46,7 +46,19 @@ const (
 
 	// RecursionErr indicates recursion was found during compilation.
 	RecursionErr = iota
+
+	// MissingInputErr indicates the query depends on input but no input
+	// document was provided.
+	MissingInputErr = iota
 )
+
+// IsError returns true if err is an AST error with code.
+func IsError(code ErrCode, err error) bool {
+	if err, ok := err.(*Error); ok {
+		return err.Code == code
+	}
+	return false
+}
 
 // Error represents a single error caught during parsing, compiling, etc.
 type Error struct {

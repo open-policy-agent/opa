@@ -862,11 +862,59 @@ func TestCompilerGetRulesWithPrefix(t *testing.T) {
 					}
 				}
 				if !found {
-					t.Fatalf("Expected exactly %v but got: %v", tc.expected, rules)
+					t.Fatalf("Expected %v but got: %v", tc.expected, rules)
 				}
 			}
 		})
 	}
+}
+
+func TestCompilerGetRules(t *testing.T) {
+	compiler := getCompilerWithParsedModules(map[string]string{
+		"mod1": `
+		package a.b.c
+
+		p[x] = y :- q[x] = y # rule1
+		q["a"] = 1 :- true   # rule2
+		q["b"] = 2 :- true   # rule3
+		`,
+	})
+
+	compileStages(compiler, "", "")
+
+	rule1 := compiler.Modules["mod1"].Rules[0]
+	rule2 := compiler.Modules["mod1"].Rules[1]
+	rule3 := compiler.Modules["mod1"].Rules[2]
+
+	tests := []struct {
+		input    string
+		expected []*Rule
+	}{
+		{"data.a.b.c.p", []*Rule{rule1}},
+		{"data.a.b.c.p.x", []*Rule{rule1}},
+		{"data.a.b.c.q", []*Rule{rule2, rule3}},
+		{"data.a.b.c", []*Rule{rule1, rule2, rule3}},
+		{"data.a.b.d", nil},
+	}
+
+	for _, tc := range tests {
+		test.Subtest(t, tc.input, func(t *testing.T) {
+			result := compiler.GetRules(MustParseRef(tc.input))
+			for i := range result {
+				found := false
+				for j := range tc.expected {
+					if result[i].Equal(tc.expected[j]) {
+						found = true
+						break
+					}
+				}
+				if !found {
+					t.Fatalf("Expected %v but got: %v", tc.expected, result)
+				}
+			}
+		})
+	}
+
 }
 
 func TestCompilerLazyLoadingError(t *testing.T) {
@@ -988,18 +1036,19 @@ func TestQueryCompiler(t *testing.T) {
 		q        string
 		pkg      string
 		imports  []string
+		input    string
 		expected interface{}
 	}{
-		{"exports resolved", "z", "package a.b.c", nil, "data.a.b.c.z"},
-		{"imports resolved", "z", "package a.b.c.d", []string{"import data.a.b.c.z"}, "data.a.b.c.z"},
-		{"unsafe vars", "z", "", nil, fmt.Errorf("1 error occurred: 1:1: z is unsafe (variable z must appear in the output position of at least one non-negated expression)")},
-		{"safe vars", "data, abc", "package ex", []string{"import input.xyz as abc"}, "data, input.xyz"},
-		{"reorder", "x != 1, x = 0", "", nil, "x = 0, x != 1"},
-		{"bad builtin", "deadbeef(1,2,3)", "", nil, fmt.Errorf("1 error occurred: 1:1: unknown built-in function deadbeef")},
+		{"exports resolved", "z", "package a.b.c", nil, "", "data.a.b.c.z"},
+		{"imports resolved", "z", "package a.b.c.d", []string{"import data.a.b.c.z"}, "", "data.a.b.c.z"},
+		{"unsafe vars", "z", "", nil, "", fmt.Errorf("1 error occurred: 1:1: z is unsafe (variable z must appear in the output position of at least one non-negated expression)")},
+		{"safe vars", "data, abc", "package ex", []string{"import input.xyz as abc"}, "null", "data, input.xyz"},
+		{"reorder", "x != 1, x = 0", "", nil, "", "x = 0, x != 1"},
+		{"bad builtin", "deadbeef(1,2,3)", "", nil, "", fmt.Errorf("1 error occurred: 1:1: unknown built-in function deadbeef")},
 	}
 
 	for _, tc := range tests {
-		runQueryCompilerTest(t, tc.note, tc.q, tc.pkg, tc.imports, tc.expected)
+		runQueryCompilerTest(t, tc.note, tc.q, tc.pkg, tc.imports, tc.input, tc.expected)
 	}
 }
 
@@ -1140,7 +1189,7 @@ func compilerErrsToStringSlice(errors []*Error) []string {
 	return result
 }
 
-func runQueryCompilerTest(t *testing.T, note, q, pkg string, imports []string, expected interface{}) {
+func runQueryCompilerTest(t *testing.T, note, q, pkg string, imports []string, input string, expected interface{}) {
 	test.Subtest(t, note, func(t *testing.T) {
 		c := NewCompiler()
 		c.Compile(getCompilerTestModules())
@@ -1148,16 +1197,21 @@ func runQueryCompilerTest(t *testing.T, note, q, pkg string, imports []string, e
 		qc := c.QueryCompiler()
 		query := MustParseBody(q)
 		var qctx *QueryContext
+
 		if pkg != "" {
-			pkg := MustParsePackage(pkg)
-			qctx = NewQueryContext(pkg, nil)
-			if len(imports) > 0 {
-				qctx.Imports = MustParseImports(strings.Join(imports, "\n"))
-			}
+			qctx = qctx.WithPackage(MustParsePackage(pkg))
 		}
+		if len(imports) != 0 {
+			qctx = qctx.WithImports(MustParseImports(strings.Join(imports, "\n")))
+		}
+		if input != "" {
+			qctx = qctx.WithInput(MustParseTerm(input).Value)
+		}
+
 		if qctx != nil {
 			qc.WithContext(qctx)
 		}
+
 		switch expected := expected.(type) {
 		case string:
 			expectedQuery := MustParseBody(expected)

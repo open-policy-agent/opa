@@ -89,20 +89,22 @@ func ExampleQueryCompiler_Compile() {
 
 	// Obtain the QueryCompiler from the compiler instance. Note, we will
 	// compile this query within the context of the opa.example package and
-	// declare that a query input named "queryinput" must be supplied.
+	// declare that a query input named "queryinput" must be supplied. The
+	// QueryContext will include the input value so.
 	qc := c.QueryCompiler().
 		WithContext(
-			ast.NewQueryContext(
-				// Note, the ast.MustParse<X> functions are meant for test
-				// purposes only. They will panic if an error occurs. Prefer the
-				// ast.Parse<X> functions that return meaningful error messages
-				// instead.
-				ast.MustParsePackage("package opa.example"),
-				ast.MustParseImports("import input.queryinput"),
-			))
+			// Note, the ast.MustParse<X> functions are meant for test
+			// purposes only. They will panic if an error occurs. Prefer the
+			// ast.Parse<X> functions that return meaningful error messages
+			// instead.
+			ast.NewQueryContext().
+				WithPackage(ast.MustParsePackage("package opa.example")).
+				WithImports(ast.MustParseImports("import input.query_arg")).
+				WithInput(ast.MustParseTerm(`{"query_arg": 1000, "bar": [1,2,3]}`).Value),
+		)
 
 	// Parse the input query to obtain the AST representation.
-	query, err := ast.ParseBody("p[x], x < queryinput")
+	query, err := ast.ParseBody("p[x], x < query_arg")
 	if err != nil {
 		fmt.Println("Parse error:", err)
 	}
@@ -116,5 +118,5 @@ func ExampleQueryCompiler_Compile() {
 
 	// Output:
 	//
-	// Compiled: data.opa.example.p[x], lt(x, input.queryinput)
+	// Compiled: data.opa.example.p[x], lt(x, input.query_arg)
 }
