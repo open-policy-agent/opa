@@ -3,7 +3,52 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## 0.4.0
+
+### REST API changes
+
+This release contains a few non-backwards compatible changes to the REST API:
+
+- The `request` document has been renamed to `input`. If you were calling the
+  GET /data[/path]?request=value you should update to use [POST
+  requests](http://www.openpolicyagent.org/documentation/references/rest#get-a-document-with-input)
+  (see below).
+
+- The API responses have been updated to return results embedded inside a
+  wrapper object: `{"result": value}`. This will allow OPA to return unambiguous
+  metadata in future (e.g., pagination, analysis, etc.) If you were previously
+  consuming Data API GET responses, you should update your code to access the
+  value under the `"result"` key of the response object.
+
+- The API models have been updated to use snake_case
+  ([#222](https://github.com/open-policy-agent/opa/issues/222)). This would only
+  affect you if you were previously consuming error responses or policy ASTs.
+
+The Data API has been updated to support the [POST
+requests](http://www.openpolicyagent.org/documentation/references/rest#get-a-document-with-input).
+This is the recommended way of supplying query inputs.
+
+### Built-in Function changes
+
+The built-in framework has been extended to support simplified built-in
+implementations:
+
+- Refactor topdown built-in functions
+  ([#205](https://github.com/open-policy-agent/opa/issues/205))
+
+### Fixes
+
+- Add cURL note to REST API docs ([#211](https://github.com/open-policy-agent/opa/issues/211))
+- Fix empty request parameter parsing ([#212](https://github.com/open-policy-agent/opa/issues/212))
+- Fix handling of missing input document ([#227](https://github.com/open-policy-agent/opa/issues/227))
+- Improve floating point literal support ([#215](https://github.com/open-policy-agent/opa/issues/215))
+- Improve module parsing errors ([#213](https://github.com/open-policy-agent/opa/issues/213))
+- Fix ast.Number hash and equality
+- Fix parsing of escaped strings
+
+### Miscellaneous
+
+- Improve evaluation error messages
 
 ## 0.3.1
 
