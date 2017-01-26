@@ -582,21 +582,32 @@ func (r *REPL) evalStatement(ctx context.Context, stmt interface{}) error {
 		if err != nil {
 			return err
 		}
+
 		body, err := r.compileBody(s, input)
+
 		if err != nil {
-			return err
-		}
-		if rule, err := ast.ParseRuleFromBody(body); err == nil {
-			if err := r.compileRule(rule); err != nil {
+			rule, err2 := ast.ParseRuleFromBody(s)
+			if err2 != nil {
+				// The statement cannot be understood as a rule, so the original
+				// error returned from compiling the query should be given the
+				// caller.
 				return err
 			}
-			return nil
+			return r.compileRule(rule)
 		}
+
+		rule, err3 := ast.ParseRuleFromBody(body)
+		if err3 == nil {
+			return r.compileRule(rule)
+		}
+
 		compiler, err := r.loadCompiler()
 		if err != nil {
 			return err
 		}
+
 		return r.evalBody(ctx, compiler, input, body)
+
 	case *ast.Rule:
 		if err := r.compileRule(s); err != nil {
 			fmt.Fprintln(r.output, "error:", err)
