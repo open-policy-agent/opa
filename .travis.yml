@@ -15,6 +15,8 @@ services:
 - docker
 
 after_success:
+- go get github.com/mattn/goveralls
+- goveralls -service=travis-ci
 - source ./build/travis-utils.sh
 - if is_travis_push_env; then docker login -u $DOCKER_USER -p $DOCKER_PASSWORD; fi
 - if is_travis_push_env; then make image-quick; fi
