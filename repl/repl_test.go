@@ -720,6 +720,62 @@ func TestEvalBodyInput(t *testing.T) {
 	}
 }
 
+func TestEvalBodyInputComplete(t *testing.T) {
+	ctx := context.Background()
+	store := newTestStore()
+	var buffer bytes.Buffer
+	repl := newRepl(store, &buffer)
+
+	// Test that input can be defined completely:
+	// https://github.com/open-policy-agent/opa/issues/231
+	repl.OneShot(ctx, `package repl`)
+	repl.OneShot(ctx, `input = 1`)
+	repl.OneShot(ctx, `input`)
+
+	result := buffer.String()
+	if result != "1\n" {
+		t.Fatalf("Expected 1 but got: %v", result)
+	}
+
+	buffer.Reset()
+
+	// Test that input is as expected
+	repl.OneShot(ctx, `package ex1`)
+	repl.OneShot(ctx, `x = input`)
+	repl.OneShot(ctx, `x`)
+
+	result = buffer.String()
+	if result != "1\n" {
+		t.Fatalf("Expected 1 but got: %v", result)
+	}
+
+	buffer.Reset()
+
+	// Test that local input replaces other inputs
+	repl.OneShot(ctx, `package ex2`)
+	repl.OneShot(ctx, `input = 2`)
+	repl.OneShot(ctx, `input`)
+
+	result = buffer.String()
+
+	if result != "2\n" {
+		t.Fatalf("Expected 2 but got: %v", result)
+	}
+
+	buffer.Reset()
+
+	// Test that original input is intact
+	repl.OneShot(ctx, `package ex3`)
+	repl.OneShot(ctx, `input`)
+
+	result = buffer.String()
+
+	if result != "1\n" {
+		t.Fatalf("Expected 1 bu got: %v", result)
+	}
+
+}
+
 func TestEvalImport(t *testing.T) {
 	ctx := context.Background()
 	store := newTestStore()
