@@ -8,6 +8,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"sync"
 
 	"github.com/open-policy-agent/opa/ast"
@@ -29,6 +30,7 @@ type Topdown struct {
 
 	txn    storage.Transaction
 	locals *ast.ValueMap
+	refs   *valueMapStack
 	cache  *contextcache
 	qid    uint64
 	redos  *redoStack
@@ -77,8 +79,8 @@ func New(ctx context.Context, query ast.Body, compiler *ast.Compiler, store *sto
 		Context:  ctx,
 		Query:    query,
 		Compiler: compiler,
-		locals:   ast.NewValueMap(),
 		Store:    store,
+		refs:     newValueMapStack(),
 		txn:      txn,
 		cache:    newContextCache(),
 		qid:      qidFactory.Next(),
@@ -119,6 +121,9 @@ func (t *Topdown) Vars() map[ast.Var]ast.Value {
 
 // Binding returns the value bound to the given key.
 func (t *Topdown) Binding(k ast.Value) ast.Value {
+	if _, ok := k.(ast.Ref); ok {
+		return t.refs.Binding(k)
+	}
 	return t.locals.Get(k)
 }
 
@@ -132,32 +137,53 @@ type Undo struct {
 // Bind updates t to include a binding from the key to the value. The return
 // value is used to return t to the state before the binding was added.
 func (t *Topdown) Bind(key ast.Value, value ast.Value, prev *Undo) *Undo {
+	if _, ok := key.(ast.Ref); ok {
+		return t.refs.Bind(key, value, prev)
+	}
 	o := t.locals.Get(key)
+	if t.locals == nil {
+		t.locals = ast.NewValueMap()
+	}
 	t.locals.Put(key, value)
 	return &Undo{key, o, prev}
 }
 
 // Unbind updates t by removing the binding represented by the undo.
 func (t *Topdown) Unbind(undo *Undo) {
-	for u := undo; u != nil; u = u.Prev {
-		if u.Value != nil {
-			t.locals.Put(u.Key, u.Value)
-		} else {
-			t.locals.Delete(u.Key)
+	if undo == nil {
+		return
+	}
+	if _, ok := undo.Key.(ast.Ref); ok {
+		for u := undo; u != nil; u = u.Prev {
+			t.refs.Unbind(u)
+		}
+	} else {
+		for u := undo; u != nil; u = u.Prev {
+			if u.Value != nil {
+				t.locals.Put(u.Key, u.Value)
+			} else {
+				t.locals.Delete(u.Key)
+			}
 		}
 	}
 }
 
-// Child returns a new Topdown object to evaluate a query that was referred to
-// by the query of t.
-func (t *Topdown) Child(query ast.Body, locals *ast.ValueMap) *Topdown {
+// Closure returns a new Topdown object to evaluate query with bindings from t.
+func (t *Topdown) Closure(query ast.Body) *Topdown {
 	cpy := *t
 	cpy.Query = query
 	cpy.Previous = t
 	cpy.Index = 0
-	cpy.locals = locals
 	cpy.qid = qidFactory.Next()
 	return &cpy
+}
+
+// Child returns a new Topdown object to evaluate query without bindings from t.
+func (t *Topdown) Child(query ast.Body) *Topdown {
+	cpy := t.Closure(query)
+	cpy.locals = nil
+	cpy.refs = newValueMapStack()
+	return cpy
 }
 
 // Current returns the current expression to evaluate.
@@ -888,7 +914,7 @@ func eval(t *Topdown, iter Iterator) error {
 func evalNegated(t *Topdown, iter Iterator) error {
 
 	negation := ast.NewBody(t.Current().Complement())
-	child := t.Child(negation, t.locals)
+	child := t.Closure(negation)
 
 	t.traceEval(t.Current())
 
@@ -1302,8 +1328,8 @@ func evalRefRuleCompleteDoc(t *Topdown, ref ast.Ref, suffix ast.Ref, rules []*as
 
 	for i, rule := range rules {
 
-		bindings := ast.NewValueMap()
-		child := t.Child(rule.Body, bindings)
+		child := t.Child(rule.Body)
+
 		if i == 0 {
 			child.traceEnter(rule)
 		} else {
@@ -1357,7 +1383,7 @@ func evalRefRulePartialObjectDoc(t *Topdown, ref ast.Ref, path ast.Ref, rule *as
 	// up with a recursive binding if we unified "key" with "rule.Key.Value". If
 	// unification is improved to handle namespacing, this can be revisited.
 	if !key.IsGround() {
-		child := t.Child(rule.Body, ast.NewValueMap())
+		child := t.Child(rule.Body)
 		if redo {
 			child.traceRedo(rule)
 		} else {
@@ -1419,7 +1445,7 @@ func evalRefRulePartialObjectDoc(t *Topdown, ref ast.Ref, path ast.Ref, rule *as
 		}
 	}
 
-	child := t.Child(rule.Body, ast.NewValueMap())
+	child := t.Child(rule.Body)
 
 	_, err := evalEqUnify(child, key, rule.Key.Value, nil, func(child *Topdown) error {
 
@@ -1482,8 +1508,8 @@ func evalRefRulePartialObjectDocFull(t *Topdown, ref ast.Ref, rules []*ast.Rule,
 
 	for i, rule := range rules {
 
-		bindings := ast.NewValueMap()
-		child := t.Child(rule.Body, bindings)
+		child := t.Child(rule.Body)
+
 		if i == 0 {
 			child.traceEnter(rule)
 		} else {
@@ -1542,7 +1568,8 @@ func evalRefRulePartialSetDoc(t *Topdown, ref ast.Ref, path ast.Ref, rule *ast.R
 
 	// See comment in evalRefRulePartialObjectDoc about the two branches below.
 	if !key.IsGround() {
-		child := t.Child(rule.Body, ast.NewValueMap())
+
+		child := t.Child(rule.Body)
 
 		if redo {
 			child.traceRedo(rule)
@@ -1576,7 +1603,7 @@ func evalRefRulePartialSetDoc(t *Topdown, ref ast.Ref, path ast.Ref, rule *ast.R
 		})
 	}
 
-	child := t.Child(rule.Body, ast.NewValueMap())
+	child := t.Child(rule.Body)
 
 	_, err := evalEqUnify(child, key, rule.Key.Value, nil, func(child *Topdown) error {
 		if redo {
@@ -1604,8 +1631,7 @@ func evalRefRulePartialSetDocFull(t *Topdown, ref ast.Ref, rules []*ast.Rule, it
 
 	for i, rule := range rules {
 
-		bindings := ast.NewValueMap()
-		child := t.Child(rule.Body, bindings)
+		child := t.Child(rule.Body)
 
 		if i == 0 {
 			child.traceEnter(rule)
@@ -1834,16 +1860,20 @@ func evalTerms(t *Topdown, iter Iterator) error {
 func evalTermsComprehension(t *Topdown, comp ast.Value, iter Iterator) error {
 	switch comp := comp.(type) {
 	case *ast.ArrayComprehension:
-		r := ast.Array{}
-		c := t.Child(comp.Body, t.locals)
-		err := Eval(c, func(c *Topdown) error {
-			r = append(r, PlugTerm(comp.Term, c.Binding))
+		result := ast.Array{}
+		child := t.Closure(comp.Body)
+
+		err := Eval(child, func(child *Topdown) error {
+			result = append(result, PlugTerm(comp.Term, child.Binding))
 			return nil
 		})
+
 		if err != nil {
 			return err
 		}
-		return Continue(t, comp, r, iter)
+
+		return Continue(t, comp, result, iter)
+
 	default:
 		panic(fmt.Sprintf("illegal argument: %v %v", t, comp))
 	}
@@ -2088,4 +2118,68 @@ func lookupValue(t *Topdown, ref ast.Ref) (ast.Value, error) {
 		return nil, err
 	}
 	return ast.InterfaceToValue(r)
+}
+
+// valueMapStack is used to store a stack of bindings.
+type valueMapStack struct {
+	sl []*ast.ValueMap
+}
+
+func newValueMapStack() *valueMapStack {
+	return &valueMapStack{}
+}
+
+func (s *valueMapStack) Push(vm *ast.ValueMap) {
+	s.sl = append(s.sl, vm)
+}
+
+func (s *valueMapStack) Pop() *ast.ValueMap {
+	idx := len(s.sl) - 1
+	vm := s.sl[idx]
+	s.sl = s.sl[:idx]
+	return vm
+}
+
+func (s *valueMapStack) Peek() *ast.ValueMap {
+	idx := len(s.sl) - 1
+	if idx == -1 {
+		return nil
+	}
+	return s.sl[idx]
+}
+
+func (s *valueMapStack) Binding(k ast.Value) ast.Value {
+	for i := len(s.sl) - 1; i >= 0; i-- {
+		if v := s.sl[i].Get(k); v != nil {
+			return v
+		}
+	}
+	return nil
+}
+
+func (s *valueMapStack) Bind(k, v ast.Value, prev *Undo) *Undo {
+	if len(s.sl) == 0 {
+		s.Push(ast.NewValueMap())
+	}
+	vm := s.Peek()
+	orig := vm.Get(k)
+	vm.Put(k, v)
+	return &Undo{k, orig, prev}
+}
+
+func (s *valueMapStack) Unbind(u *Undo) {
+	vm := s.Peek()
+	if u.Value != nil {
+		vm.Put(u.Key, u.Value)
+	} else {
+		vm.Delete(u.Key)
+	}
+}
+
+func (s *valueMapStack) String() string {
+	buf := make([]string, len(s.sl))
+	for i := range s.sl {
+		buf[i] = s.sl[i].String()
+	}
+	return "[" + strings.Join(buf, ", ") + "]"
 }
