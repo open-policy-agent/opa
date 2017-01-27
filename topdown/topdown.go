@@ -226,6 +226,13 @@ func (t *Topdown) Step() *Topdown {
 	return &cpy
 }
 
+// WithInput returns a new Topdown object thath as the input document set.
+func (t *Topdown) WithInput(input ast.Value) *Topdown {
+	cpy := *t
+	cpy.Input = input
+	return &cpy
+}
+
 func (t *Topdown) traceEnter(node interface{}) {
 	if t.tracingEnabled() {
 		evt := t.makeEvent(EnterOp, node)
@@ -335,20 +342,27 @@ func (t *Topdown) makeEvent(op Op, node interface{}) *Event {
 }
 
 // contextcache stores the result of rule evaluation for a query. The
-// contextcache is inherited by child contexts. The contextcache
-// is consulted when virtual document references are evaluated. If a miss
-// occurs, the virtual document is generated and the contextcache is
-// updated.
+// contextcache is inherited by child contexts. The contextcache is consulted
+// when virtual document references are evaluated. If a miss occurs, the virtual
+// document is generated and the contextcache is updated.
 type contextcache struct {
-	partialobjs map[*ast.Rule]map[ast.Value]ast.Value
-	complete    map[*ast.Rule]ast.Value
+	partialobjs partialObjDocCache
+	complete    completeDocCache
 }
+
+type partialObjDocCache map[*ast.Rule]map[ast.Value]ast.Value
+type completeDocCache map[*ast.Rule]ast.Value
 
 func newContextCache() *contextcache {
 	return &contextcache{
-		partialobjs: map[*ast.Rule]map[ast.Value]ast.Value{},
-		complete:    map[*ast.Rule]ast.Value{},
+		partialobjs: partialObjDocCache{},
+		complete:    completeDocCache{},
 	}
+}
+
+func (c *contextcache) Invalidate() {
+	c.partialobjs = partialObjDocCache{}
+	c.complete = completeDocCache{}
 }
 
 // Error is the error type returned by the Eval and Query functions when
@@ -364,10 +378,10 @@ const (
 	// InternalErr represents an unknown evaluation error.
 	InternalErr = iota
 
-	// ConflictErr indicates multiple (conflicting) values were produced
-	// while generating a virtual document. E.g., given two rules that share
-	// the same name: p = false :- true, p = true :- true, a query "p" would
-	// evaluate p to "true" and "false".
+	// ConflictErr indicates a conflict was encountered during evaluation. For
+	// instance, a conflict occurs if a rule produces multiple, differing values
+	// for the same key in an object. Conflict errors indicate the policy does
+	// not account for the data loaded into the policy engine.
 	ConflictErr = iota
 
 	// TypeErr indicates evaluation stopped because an expression was applied to
@@ -863,8 +877,20 @@ func eval(t *Topdown, iter Iterator) error {
 		return iter(t)
 	}
 
+	if len(t.Current().With) > 0 {
+		return evalWith(t, iter)
+	}
+
+	return evalStep(t, func(t *Topdown) error {
+		t = t.Step()
+		return eval(t, iter)
+	})
+}
+
+func evalStep(t *Topdown, iter Iterator) error {
+
 	if t.Current().Negated {
-		return evalNegated(t, iter)
+		return evalNot(t, iter)
 	}
 
 	t.traceEval(t.Current())
@@ -883,8 +909,7 @@ func eval(t *Topdown, iter Iterator) error {
 
 		err := evalExpr(t, func(t *Topdown) error {
 			isTrue = true
-			t = t.Step()
-			return eval(t, iter)
+			return iter(t)
 		})
 
 		if err != nil {
@@ -911,9 +936,9 @@ func eval(t *Topdown, iter Iterator) error {
 	return nil
 }
 
-func evalNegated(t *Topdown, iter Iterator) error {
+func evalNot(t *Topdown, iter Iterator) error {
 
-	negation := ast.NewBody(t.Current().Complement())
+	negation := ast.NewBody(t.Current().Complement().NoWith())
 	child := t.Closure(negation)
 
 	t.traceEval(t.Current())
@@ -930,12 +955,48 @@ func evalNegated(t *Topdown, iter Iterator) error {
 	}
 
 	if !isTrue {
-		return eval(t.Step(), iter)
+		return iter(t)
 	}
 
 	t.traceFail(t.Current())
 
 	return nil
+}
+
+func evalWith(t *Topdown, iter Iterator) error {
+
+	curr := t.Current()
+	pairs := make([][2]*ast.Term, len(curr.With))
+
+	for i := range curr.With {
+		plugged := PlugTerm(curr.With[i].Value, t.Binding)
+		pairs[i] = [...]*ast.Term{curr.With[i].Target, plugged}
+	}
+
+	input, err := MakeInput(pairs)
+	if err != nil {
+		return &Error{
+			Code:     ConflictErr,
+			Location: curr.Location,
+			Message:  err.Error(),
+		}
+	}
+
+	cpy := t.WithInput(input)
+
+	// All ref bindings added during evaluation of this expression must be
+	// discarded before moving to the next expression. Push a new binding map
+	// onto the stack that will be popped below before continuing.
+	cpy.refs.Push(ast.NewValueMap())
+
+	return evalStep(cpy, func(next *Topdown) error {
+		next.refs.Pop()
+		// TODO(tsandall): invalidation could be smarter, e.g., only invalidate
+		// caches for rules that were evaluated during this expr.
+		next.cache.Invalidate()
+		next = next.Step()
+		return eval(next, iter)
+	})
 }
 
 func evalExpr(t *Topdown, iter Iterator) error {
