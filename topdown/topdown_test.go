@@ -1220,6 +1220,53 @@ func TestTopDownInputValues(t *testing.T) {
 	})
 }
 
+func TestTopDownWithKeyword(t *testing.T) {
+
+	compiler := compileModules([]string{
+		`
+			package ex
+
+			loopback = input
+
+			composite[x] :- input.foo[_] = x, x > 2
+
+			vars = {"foo": input.foo, "bar": input.bar}
+		`,
+		`
+			package test
+
+			import data.ex
+
+			basic :-
+				ex.loopback = true with input as true,
+				ex.loopback = false with input as false
+
+			negation :-
+				not ex.loopback with input as false,
+				ex.loopback with input as true
+
+			composite[x] :-
+				ex.composite[x] with input.foo as [1,2,3,4]
+
+			vars = x :-
+				foo = "hello",
+				bar = "world",
+				x = ex.vars with input.foo as foo with input.bar as bar
+
+			conflict :-
+				ex.loopback with input.foo as "x" with input.foo.bar as "y"
+		`,
+	})
+
+	store := storage.New(storage.InMemoryWithJSONConfig(loadSmallTestData()))
+
+	assertTopDown(t, compiler, store, "with", []string{"test", "basic"}, "", "true")
+	assertTopDown(t, compiler, store, "with not", []string{"test", "negation"}, "", "true")
+	assertTopDown(t, compiler, store, "with composite", []string{"test", "composite"}, "", "[3,4]")
+	assertTopDown(t, compiler, store, "with vars", []string{"test", "vars"}, "", `{"foo": "hello", "bar": "world"}`)
+	assertTopDown(t, compiler, store, "with conflict", []string{"test", "conflict"}, "", fmt.Errorf("conflicting input documents"))
+}
+
 func TestTopDownCaching(t *testing.T) {
 	compiler := compileModules([]string{`
 	package topdown.caching
