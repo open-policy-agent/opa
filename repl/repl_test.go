@@ -771,9 +771,32 @@ func TestEvalBodyInputComplete(t *testing.T) {
 	result = buffer.String()
 
 	if result != "1\n" {
-		t.Fatalf("Expected 1 bu got: %v", result)
+		t.Fatalf("Expected 1 but got: %v", result)
 	}
 
+}
+
+func TestEvalBodyWith(t *testing.T) {
+	ctx := context.Background()
+	store := newTestStore()
+	var buffer bytes.Buffer
+	repl := newRepl(store, &buffer)
+
+	repl.OneShot(ctx, `p :- input.foo = "bar"`)
+	err := repl.OneShot(ctx, "p")
+
+	if err == nil || !strings.Contains(err.Error(), "input document undefined") {
+		t.Fatalf("Expected input document undefined error")
+	}
+
+	repl.OneShot(ctx, `p with input.foo as "bar"`)
+
+	result := buffer.String()
+	expected := "true\n"
+
+	if result != expected {
+		t.Fatalf("Expected true but got: %v", result)
+	}
 }
 
 func TestEvalImport(t *testing.T) {
