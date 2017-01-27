@@ -939,12 +939,12 @@ func parseInput(s []string) (ast.Value, bool, error) {
 		}
 
 		if s[i][0] == ':' {
-			k = ast.NewTerm(ast.EmptyRef())
+			k = ast.NewTerm(ast.InputRootRef)
 			v, err = ast.ParseTerm(s[i][1:])
 		} else {
 			v, err = ast.ParseTerm(s[i])
 			if err == nil {
-				k = ast.NewTerm(ast.EmptyRef())
+				k = ast.NewTerm(ast.InputRootRef)
 			} else {
 				vs := strings.SplitN(s[i], ":", 2)
 				if len(vs) != 2 {

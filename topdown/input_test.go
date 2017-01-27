@@ -5,7 +5,6 @@
 package topdown
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/open-policy-agent/opa/ast"
@@ -18,33 +17,33 @@ func TestMakeInput(t *testing.T) {
 		input    [][2]string
 		expected interface{}
 	}{
-		{"var", [][2]string{{`hello`, `"world"`}}, `{"hello": "world"}`},
-		{"multiple vars", [][2]string{{`a`, `"a"`}, {`b`, `"b"`}}, `{"a": "a", "b": "b"}`},
+		{"var",
+			[][2]string{{`input.hello`, `"world"`}},
+			`{"hello": "world"}`},
+		{"multiple vars",
+			[][2]string{{`input.a`, `"a"`}, {`input.b`, `"b"`}},
+			`{"a": "a", "b": "b"}`},
 		{"multiple overlapping vars",
-			[][2]string{{`a.b.c`, `"c"`}, {`a.b.d`, `"d"`}, {`x.y`, `[]`}},
+			[][2]string{{`input.a.b.c`, `"c"`}, {`input.a.b.d`, `"d"`}, {`input.x.y`, `[]`}},
 			`{"a": {"b": {"c": "c", "d": "d"}}, "x": {"y": []}}`},
 		{"ref value",
-			[][2]string{{"foo.bar", "data.com.example.widgets[i]"}},
+			[][2]string{{"input.foo.bar", "data.com.example.widgets[i]"}},
 			`{"foo": {"bar": data.com.example.widgets[i]}}`},
-		{"non-object", [][2]string{{"", "[1,2,3]"}}, "[1,2,3]"},
-		{"non-object conflict",
-			[][2]string{{"", "[1,2,3]"}, {"a.b", "true"}},
-			fmt.Errorf("conflicting input values: check input parameters")},
-		{"conflicting vars",
-			[][2]string{{`a.b`, `"c"`}, {`a.b.d`, `"d"`}},
-			fmt.Errorf("conflicting input value input.a.b.d: check input parameters")},
-		{"conflicting vars-2",
-			[][2]string{{`a.b`, `{"c":[]}`}, {`a.b.c`, `["d"]`}},
-			fmt.Errorf("conflicting input value input.a.b.c: check input parameters")},
-		{"conflicting vars-3",
-			[][2]string{{"a", "100"}, {`a.b`, `"c"`}},
-			fmt.Errorf("conflicting input value input.a.b: check input parameters")},
-		{"conflicting vars-4",
-			[][2]string{{`a.b`, `"c"`}, {`a`, `100`}},
-			fmt.Errorf("conflicting input value input.a: check input parameters")},
-		{"bad path",
-			[][2]string{{`a[1]`, `1`}},
-			fmt.Errorf("invalid input path: invalid path input.a[1]: path elements must be strings"),
+		{"non-object",
+			[][2]string{{"input", "[1,2,3]"}},
+			"[1,2,3]"},
+		{"conflicting value",
+			[][2]string{{"input", "[1,2,3]"}, {"input.a.b", "true"}},
+			errConflictingInputDoc},
+		{"conflicting merge",
+			[][2]string{{`input.a.b`, `"c"`}, {`input.a.b.d`, `"d"`}},
+			errConflictingInputDoc},
+		{"conflicting roots",
+			[][2]string{{"input", `"a"`}, {"input", `"b"`}},
+			errConflictingInputDoc},
+		{"bad import path",
+			[][2]string{{`input.a[1]`, `1`}},
+			errBadInputPath,
 		},
 	}
 
@@ -54,11 +53,7 @@ func TestMakeInput(t *testing.T) {
 
 		for j := range tc.input {
 			var k *ast.Term
-			if len(tc.input[j][0]) == 0 {
-				k = ast.NewTerm(ast.EmptyRef())
-			} else {
-				k = ast.MustParseTerm("input." + tc.input[j][0])
-			}
+			k = ast.MustParseTerm(tc.input[j][0])
 			v := ast.MustParseTerm(tc.input[j][1])
 			pairs[j] = [...]*ast.Term{k, v}
 		}
