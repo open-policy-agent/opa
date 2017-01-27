@@ -1083,7 +1083,7 @@ func TestQueryCompiler(t *testing.T) {
 		{"bad builtin", "deadbeef(1,2,3)", "", nil, "", fmt.Errorf("1 error occurred: 1:1: unknown built-in function deadbeef")},
 		{"bad with target", "x = 1 with data.p as null", "", nil, "", fmt.Errorf("1 error occurred: 1:7: with target must be input (got data.p as target)")},
 		// wrapping refs in extra terms to cover error handling
-		{"missing input", "[[ true | [data.a.b.d.t, true]], true]", "", nil, "", fmt.Errorf("4:14: missing input document")},
+		{"undefined input", "[[ true | [data.a.b.d.t, true]], true]", "", nil, "", fmt.Errorf("4:14: input document undefined")},
 		{"conflicting input", "[ true | data.a.b.d.t with input as 1 ]", "", nil, "2", fmt.Errorf("1:10: conflicting input document")},
 		{"conflicting input-2", "sum([1 | data.a.b.d.t with input as 2], x) with input as 3", "", nil, "", fmt.Errorf("1:10: conflicting input document")},
 	}

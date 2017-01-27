@@ -725,7 +725,7 @@ func (qc *queryCompiler) checkInputRec(definedPrev bool, body Body) error {
 		if definedPrev && definedCurr {
 			return newConflictingInputErr(expr.Location)
 		} else if !definedCurr && !definedPrev && referencesInput(expr) {
-			return newMissingInputErr(expr.Location)
+			return newUndefinedInputErr(expr.Location)
 		}
 
 		var err error

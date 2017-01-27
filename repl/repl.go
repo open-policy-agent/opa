@@ -742,7 +742,11 @@ func (r *REPL) evalTermSingleValue(ctx context.Context, compiler *ast.Compiler, 
 
 	term := body[0].Terms.(*ast.Term)
 	outputVar := ast.Wildcard
-	body = ast.NewBody(ast.Equality.Expr(term, outputVar))
+	expr := ast.Equality.Expr(term, outputVar)
+	for _, with := range body[0].With {
+		expr = expr.IncludeWith(with.Target, with.Value)
+	}
+	body = ast.NewBody(expr)
 
 	t := topdown.New(ctx, body, compiler, r.store, r.txn)
 	t.Input = input
@@ -793,7 +797,11 @@ func (r *REPL) evalTermMultiValue(ctx context.Context, compiler *ast.Compiler, i
 	// evaluation result below, we will ignore this variable.
 	term := body[0].Terms.(*ast.Term)
 	outputVar := ast.Wildcard
-	body = ast.NewBody(ast.Equality.Expr(term, outputVar))
+	expr := ast.Equality.Expr(term, outputVar)
+	for _, with := range body[0].With {
+		expr = expr.IncludeWith(with.Target, with.Value)
+	}
+	body = ast.NewBody(expr)
 
 	t := topdown.New(ctx, body, compiler, r.store, r.txn)
 	t.Input = input

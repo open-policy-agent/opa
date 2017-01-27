@@ -793,7 +793,7 @@ func handleErrorAuto(w http.ResponseWriter, err error) {
 			handleError(w, http.StatusBadRequest, err)
 			return
 		}
-		if ast.IsError(ast.MissingInputErr, curr) {
+		if ast.IsError(ast.UndefinedInputErr, curr) {
 			handleError(w, http.StatusBadRequest, errInputDoc)
 			return
 		}

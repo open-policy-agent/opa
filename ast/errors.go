@@ -47,9 +47,9 @@ const (
 	// RecursionErr indicates recursion was found during compilation.
 	RecursionErr = iota
 
-	// MissingInputErr indicates the query depends on input but no input
+	// UndefinedInputErr indicates the query depends on input but no input
 	// document was provided.
-	MissingInputErr = iota
+	UndefinedInputErr = iota
 
 	// ConflictingInputErr indicates the query defines conflicting values for
 	// input document.
@@ -96,8 +96,8 @@ func NewError(code ErrCode, loc *Location, f string, a ...interface{}) *Error {
 	}
 }
 
-func newMissingInputErr(loc *Location) error {
-	return NewError(MissingInputErr, loc, "missing input document")
+func newUndefinedInputErr(loc *Location) error {
+	return NewError(UndefinedInputErr, loc, "input document undefined")
 }
 
 func newConflictingInputErr(loc *Location) error {
