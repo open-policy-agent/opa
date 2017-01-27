@@ -8,11 +8,13 @@ import (
 	"fmt"
 
 	"github.com/open-policy-agent/opa/ast"
-	"github.com/pkg/errors"
 )
 
-// MakeInput returns a input value for the given key/value pairs. Assumes
-// keys are valid import paths.
+var errConflictingInputDoc = fmt.Errorf("conflicting input documents")
+var errBadInputPath = fmt.Errorf("bad input document path")
+
+// MakeInput converts the slice of key/value pairs into a single input value.
+// The keys define an object hierarchy.
 func MakeInput(pairs [][2]*ast.Term) (ast.Value, error) {
 
 	// Fast-path for empty case.
@@ -21,37 +23,48 @@ func MakeInput(pairs [][2]*ast.Term) (ast.Value, error) {
 	}
 
 	// Fast-path for the root case.
-	if len(pairs) == 1 && len(pairs[0][0].Value.(ast.Ref)) == 0 {
+	if len(pairs) == 1 && pairs[0][0].Value.Equal(ast.InputRootRef) {
 		return pairs[0][1].Value, nil
 	}
 
-	var input ast.Object
+	var input ast.Value
 
 	for _, pair := range pairs {
 
-		if r, ok := pair[0].Value.(ast.Ref); ok && len(r) == 0 {
-			return nil, fmt.Errorf("conflicting input values: check input parameters")
-		}
-
 		if err := ast.IsValidImportPath(pair[0].Value); err != nil {
-			return nil, errors.Wrapf(err, "invalid input path")
+			return nil, errBadInputPath
 		}
 
-		k := pair[0].Value.(ast.Ref)
-		obj := makeTree(k[1:], pair[1])
-		var ok bool
-		input, ok = input.Merge(obj)
+		ref := pair[0].Value.(ast.Ref)
 
-		if !ok {
-			return nil, fmt.Errorf("conflicting input value %v: check input parameters", k)
+		if len(ref) == 1 {
+			if input != nil {
+				return nil, errConflictingInputDoc
+			}
+			input = pair[1].Value
+		} else {
+			obj := makeTree(ref[1:], pair[1])
+			if input == nil {
+				input = obj
+			} else {
+				reqObj, ok := input.(ast.Object)
+				if !ok {
+					return nil, errConflictingInputDoc
+				}
+				input, ok = reqObj.Merge(obj)
+				if !ok {
+					return nil, errConflictingInputDoc
+				}
+			}
+
 		}
 	}
 
 	return input, nil
 }
 
-// makeTree returns an object that represents a document where the value v is the
-// leaf and elements in k represent intermediate objects.
+// makeTree returns an object that represents a document where the value v is
+// the leaf and elements in k represent intermediate objects.
 func makeTree(k ast.Ref, v *ast.Term) ast.Object {
 	var obj ast.Object
 	for i := len(k) - 1; i >= 1; i-- {
