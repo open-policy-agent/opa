@@ -32,21 +32,21 @@ func TestTruth(t *testing.T) {
 		6: &topdown.Event{
 			Op:       topdown.RedoOp,
 			Node:     parseExpr("x = a[_]", 1),
-			QueryID:  4,
-			ParentID: 3,
+			QueryID:  3,
+			ParentID: 2,
 		},
 		7: &topdown.Event{
 			Op:       topdown.ExitOp,
 			Node:     q,
-			QueryID:  4,
-			ParentID: 3,
+			QueryID:  3,
+			ParentID: 2,
 			Locals:   parseBindings(`{x: 4}`),
 		},
 		9: &topdown.Event{
 			Op:       topdown.RedoOp,
 			Node:     ra,
-			QueryID:  12,
-			ParentID: 3,
+			QueryID:  11,
+			ParentID: 2,
 			Locals:   parseBindings(`{a: 4}`),
 		},
 	})
@@ -128,8 +128,8 @@ func TestExample(t *testing.T) {
 		6: &topdown.Event{
 			Op:       topdown.RedoOp,
 			Node:     parseExpr(`server.ports[port_index] = data.ports[i].id`, 1),
-			QueryID:  4,
-			ParentID: 3,
+			QueryID:  3,
+			ParentID: 2,
 			Locals:   parseBindings(`{server: data.servers[3]}`),
 		},
 	})

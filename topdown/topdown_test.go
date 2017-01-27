@@ -1482,14 +1482,14 @@ func TestTopDownTracingEval(t *testing.T) {
 	`
 	p := ast.MustParseRule(`p :- arr = [1,2,3], x = arr[_], x != 2`)
 	runTopDownTracingTestCase(t, module, 15, map[int]*Event{
-		6:  &Event{ExitOp, p, 3, 2, parseBindings("{x: 1}")},
-		7:  &Event{RedoOp, p, 3, 2, nil},
-		8:  &Event{RedoOp, parseExpr("x = arr[_]", 1), 3, 2, nil},
-		9:  &Event{EvalOp, parseExpr("x != 2", 2), 3, 2, parseBindings("{x: 2}")},
-		10: &Event{FailOp, parseExpr("x != 2", 2), 3, 2, parseBindings("{x: 2}")},
-		11: &Event{RedoOp, parseExpr("x = arr[_]", 1), 3, 2, parseBindings("{arr: [1,2,3]}")},
-		12: &Event{EvalOp, parseExpr("x != 2", 2), 3, 2, parseBindings("{x: 3}")},
-		13: &Event{ExitOp, p, 3, 2, parseBindings("{x: 3}")},
+		6:  &Event{ExitOp, p, 2, 1, parseBindings("{x: 1}")},
+		7:  &Event{RedoOp, p, 2, 1, nil},
+		8:  &Event{RedoOp, parseExpr("x = arr[_]", 1), 2, 1, nil},
+		9:  &Event{EvalOp, parseExpr("x != 2", 2), 2, 1, parseBindings("{x: 2}")},
+		10: &Event{FailOp, parseExpr("x != 2", 2), 2, 1, parseBindings("{x: 2}")},
+		11: &Event{RedoOp, parseExpr("x = arr[_]", 1), 2, 1, parseBindings("{arr: [1,2,3]}")},
+		12: &Event{EvalOp, parseExpr("x != 2", 2), 2, 1, parseBindings("{x: 3}")},
+		13: &Event{ExitOp, p, 2, 1, parseBindings("{x: 3}")},
 	})
 }
 
@@ -1499,9 +1499,9 @@ func TestTopDownTracingNegation(t *testing.T) {
 	p :- arr = [1,2,3,4], x = arr[_], not x = 2
 	`
 	runTopDownTracingTestCase(t, module, 31, map[int]*Event{
-		5:  &Event{EvalOp, parseExpr("not x = 2", 2), 3, 2, parseBindings("{x: 1}")},
-		6:  &Event{EnterOp, ast.MustParseBody("x = 2"), 4, 3, parseBindings("{x: 1}")},
-		16: &Event{FailOp, parseExpr("not x = 2", 2), 3, 2, parseBindings("{x: 2}")},
+		5:  &Event{EvalOp, parseExpr("not x = 2", 2), 2, 1, parseBindings("{x: 1}")},
+		6:  &Event{EnterOp, ast.MustParseBody("x = 2"), 3, 2, parseBindings("{x: 1}")},
+		16: &Event{FailOp, parseExpr("not x = 2", 2), 2, 1, parseBindings("{x: 2}")},
 	})
 }
 
@@ -1513,10 +1513,10 @@ func TestTopDownTracingCompleteDocs(t *testing.T) {
 	q = null :- false
 	`
 	runTopDownTracingTestCase(t, module, 12, map[int]*Event{
-		4: &Event{EnterOp, ast.MustParseRule(`q = ["a", "b", "c", "d"] :- true`), 4, 3, nil},
-		6: &Event{ExitOp, ast.MustParseRule(`q = ["a", "b", "c", "d"] :- true`), 4, 3, nil},
-		7: &Event{RedoOp, ast.MustParseRule(`q = null :- false`), 5, 3, nil},
-		9: &Event{FailOp, parseExpr("false", 0), 5, 3, nil},
+		4: &Event{EnterOp, ast.MustParseRule(`q = ["a", "b", "c", "d"] :- true`), 3, 2, nil},
+		6: &Event{ExitOp, ast.MustParseRule(`q = ["a", "b", "c", "d"] :- true`), 3, 2, nil},
+		7: &Event{RedoOp, ast.MustParseRule(`q = null :- false`), 4, 2, nil},
+		9: &Event{FailOp, parseExpr("false", 0), 4, 2, nil},
 	})
 }
 
@@ -1536,17 +1536,17 @@ func TestTopDownTracingPartialSets(t *testing.T) {
 	sy := ast.MustParseRule(`s[y] :- y = 4`)
 
 	runTopDownTracingTestCase(t, module, 60, map[int]*Event{
-		4:  &Event{EnterOp, q, 4, 3, nil},
-		7:  &Event{ExitOp, q, 4, 3, parseBindings("{y: 1}")},
-		10: &Event{EnterOp, r, 5, 3, parseBindings("{z: 1}")},
-		16: &Event{RedoOp, q, 4, 3, nil},
-		17: &Event{RedoOp, parseExpr("y = arr[i]", 1), 4, 3, nil},
-		18: &Event{ExitOp, q, 4, 3, parseBindings("{y: 2}")},
-		30: &Event{ExitOp, r, 6, 3, parseBindings("{z: 3}")},
-		32: &Event{EnterOp, sx, 7, 3, parseBindings("{x: 3}")},
-		34: &Event{ExitOp, sx, 7, 3, parseBindings("{x: 3}")},
-		38: &Event{RedoOp, sy, 8, 3, parseBindings("{y: 3}")},
-		40: &Event{FailOp, parseExpr("y = 4", 0), 8, 3, parseBindings("{y: 3}")},
+		4:  &Event{EnterOp, q, 3, 2, nil},
+		7:  &Event{ExitOp, q, 3, 2, parseBindings("{y: 1}")},
+		10: &Event{EnterOp, r, 4, 2, parseBindings("{z: 1}")},
+		16: &Event{RedoOp, q, 3, 2, nil},
+		17: &Event{RedoOp, parseExpr("y = arr[i]", 1), 3, 2, nil},
+		18: &Event{ExitOp, q, 3, 2, parseBindings("{y: 2}")},
+		30: &Event{ExitOp, r, 5, 2, parseBindings("{z: 3}")},
+		32: &Event{EnterOp, sx, 6, 2, parseBindings("{x: 3}")},
+		34: &Event{ExitOp, sx, 6, 2, parseBindings("{x: 3}")},
+		38: &Event{RedoOp, sy, 7, 2, parseBindings("{y: 3}")},
+		40: &Event{FailOp, parseExpr("y = 4", 0), 7, 2, parseBindings("{y: 3}")},
 	})
 }
 
@@ -1564,14 +1564,14 @@ func TestTopDownTracingPartialObjects(t *testing.T) {
 	rc := ast.MustParseRule(`r["c"] = 4 :- true`)
 
 	runTopDownTracingTestCase(t, module, 39, map[int]*Event{
-		4:  &Event{EnterOp, q, 4, 3, nil},
-		7:  &Event{ExitOp, q, 4, 3, parseBindings(`{k: "a", v: 1}`)},
-		10: &Event{EnterOp, ra, 5, 3, nil},
-		15: &Event{RedoOp, q, 4, 3, nil},
-		16: &Event{RedoOp, parseExpr("obj[k] = v", 1), 4, 3, nil},
-		17: &Event{ExitOp, q, 4, 3, parseBindings(`{k: "b", v: 2}`)},
-		26: &Event{RedoOp, rc, 8, 3, nil},
-		28: &Event{ExitOp, rc, 8, 3, nil},
+		4:  &Event{EnterOp, q, 3, 2, nil},
+		7:  &Event{ExitOp, q, 3, 2, parseBindings(`{k: "a", v: 1}`)},
+		10: &Event{EnterOp, ra, 4, 2, nil},
+		15: &Event{RedoOp, q, 3, 2, nil},
+		16: &Event{RedoOp, parseExpr("obj[k] = v", 1), 3, 2, nil},
+		17: &Event{ExitOp, q, 3, 2, parseBindings(`{k: "b", v: 2}`)},
+		26: &Event{RedoOp, rc, 7, 2, nil},
+		28: &Event{ExitOp, rc, 7, 2, nil},
 	})
 }
 
@@ -1587,14 +1587,14 @@ func TestTopDownTracingPartialObjectsFull(t *testing.T) {
 	qx := ast.MustParseRule(`q["x"] = 100 :- true`)
 
 	runTopDownTracingTestCase(t, module, 20, map[int]*Event{
-		4:  &Event{EnterOp, q, 4, 3, nil},
-		7:  &Event{ExitOp, q, 4, 3, parseBindings(`{k: "a"}`)},
-		8:  &Event{RedoOp, q, 4, 3, nil},
-		10: &Event{ExitOp, q, 4, 3, parseBindings(`{k: "b"}`)},
-		11: &Event{RedoOp, q, 4, 3, nil},
-		13: &Event{ExitOp, q, 4, 3, parseBindings(`{k: "c"}`)},
-		14: &Event{RedoOp, qx, 5, 3, nil},
-		16: &Event{ExitOp, qx, 5, 3, nil},
+		4:  &Event{EnterOp, q, 3, 2, nil},
+		7:  &Event{ExitOp, q, 3, 2, parseBindings(`{k: "a"}`)},
+		8:  &Event{RedoOp, q, 3, 2, nil},
+		10: &Event{ExitOp, q, 3, 2, parseBindings(`{k: "b"}`)},
+		11: &Event{RedoOp, q, 3, 2, nil},
+		13: &Event{ExitOp, q, 3, 2, parseBindings(`{k: "c"}`)},
+		14: &Event{RedoOp, qx, 4, 2, nil},
+		16: &Event{ExitOp, qx, 4, 2, nil},
 	})
 }
 
@@ -1607,12 +1607,12 @@ func TestTopDownTracingComprehensions(t *testing.T) {
 	compr := ast.MustParseBody(`x = data.a[_], x > m`)
 
 	runTopDownTracingTestCase(t, module, 23, map[int]*Event{
-		5:  &Event{EnterOp, compr, 4, 3, parseBindings(`{m: 1}`)},
-		11: &Event{ExitOp, compr, 4, 3, parseBindings(`{m: 1, x: data.a[1]}`)},
-		12: &Event{RedoOp, compr, 4, 3, parseBindings(`{m: 1}`)},
-		15: &Event{ExitOp, compr, 4, 3, parseBindings(`{m: 1, x: data.a[2]}`)},
-		16: &Event{RedoOp, compr, 4, 3, parseBindings(`{m: 1}`)},
-		19: &Event{ExitOp, compr, 4, 3, parseBindings(`{m: 1, x: data.a[3]}`)},
+		5:  &Event{EnterOp, compr, 3, 2, parseBindings(`{m: 1}`)},
+		11: &Event{ExitOp, compr, 3, 2, parseBindings(`{m: 1, x: data.a[1]}`)},
+		12: &Event{RedoOp, compr, 3, 2, parseBindings(`{m: 1}`)},
+		15: &Event{ExitOp, compr, 3, 2, parseBindings(`{m: 1, x: data.a[2]}`)},
+		16: &Event{RedoOp, compr, 3, 2, parseBindings(`{m: 1}`)},
+		19: &Event{ExitOp, compr, 3, 2, parseBindings(`{m: 1, x: data.a[3]}`)},
 	})
 }
 

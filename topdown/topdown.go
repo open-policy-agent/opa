@@ -226,10 +226,17 @@ func (t *Topdown) Step() *Topdown {
 	return &cpy
 }
 
-// WithInput returns a new Topdown object thath as the input document set.
+// WithInput returns a new Topdown object that has the input document set.
 func (t *Topdown) WithInput(input ast.Value) *Topdown {
 	cpy := *t
 	cpy.Input = input
+	return &cpy
+}
+
+// WithTracer returns a new Topdown object that has a tracer set.
+func (t *Topdown) WithTracer(tracer Tracer) *Topdown {
+	cpy := *t
+	cpy.Tracer = tracer
 	return &cpy
 }
 
@@ -627,23 +634,12 @@ func NewQueryParams(ctx context.Context, compiler *ast.Compiler, store *storage.
 	}
 }
 
-// NewTopdown returns a new Topdown object that can be used to do evaluation.
-func (q *QueryParams) NewTopdown(body ast.Body) (*Topdown, error) {
-
-	if body != nil {
-		qctx := ast.NewQueryContext().WithInput(q.Input)
-		qc := q.Compiler.QueryCompiler().WithContext(qctx)
-		var err error
-		body, err = qc.Compile(body)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	t := New(q.Context, body, q.Compiler, q.Store, q.Transaction)
-	t.Input = q.Input
-	t.Tracer = q.Tracer
-	return t, nil
+// NewTopdown returns a new Topdown object.
+//
+// This function will not propagate optional values such as the tracer, input
+// document, etc. Those must be set by the caller.
+func (q *QueryParams) NewTopdown(query ast.Body) *Topdown {
+	return New(q.Context, query, q.Compiler, q.Store, q.Transaction)
 }
 
 // QueryResult represents a single query result.
@@ -669,56 +665,66 @@ func (qrs *QueryResultSet) Add(qr *QueryResult) {
 	*qrs = append(*qrs, qr)
 }
 
-// Query returns the value of document referred to by the params Path field. If
-// the params' Input field contains values that are non-ground (i.e., they
-// contain variables), then the result may contain multiple entries.
+// Query returns the value of the document referred to by the params' path. If
+// the params' input contains non-ground terms, there may be multiple query
+// results.
 func Query(params *QueryParams) (QueryResultSet, error) {
-	return queryN(params)
-}
 
-// queryOne returns a QueryResultSet containing the value of the document
-// referred to by the params Path field. If the document is not defined, nil is
-// returned.
-func queryOne(params *QueryParams) (QueryResultSet, error) {
-
-	query := ast.NewBody(ast.Equality.Expr(ast.RefTerm(params.Path...), ast.Wildcard))
-	t, err := params.NewTopdown(query)
+	t, resultVar, requestVars, err := makeTopdown(params)
 	if err != nil {
 		return nil, err
 	}
-
-	var result interface{} = struct{}{}
-
-	err = Eval(t, func(t *Topdown) error {
-		val := PlugValue(ast.Wildcard.Value, t.Binding)
-		result, err = ValueToInterface(val, t)
-		return err
-	})
-
-	if err != nil {
-		return nil, err
-	}
-
-	if _, ok := result.(struct{}); ok {
-		return nil, nil
-	}
-
-	return QueryResultSet{&QueryResult{result, nil}}, nil
-}
-
-// queryN returns a QueryResultSet containing the values of the document
-// referred to by the params Path field. There may be zero or more values
-// depending on the values of the params' Input field.
-//
-// For example, if the input refers to one or more undefined documents, the
-// set will be empty. On the other hand, if the input contain non-ground
-// references where there are multiple valid sets of bindings, the result set
-// may contain multiple values.
-func queryN(params *QueryParams) (QueryResultSet, error) {
 
 	qrs := QueryResultSet{}
-	vars := ast.NewVarSet()
-	resolver := resolver{params.Context, params.Store, params.Transaction}
+
+	err = Eval(t, func(t *Topdown) error {
+
+		// Gather bindings for vars from the request.
+		bindings := map[string]interface{}{}
+		for v := range requestVars {
+			binding, err := ValueToInterface(PlugValue(v, t.Binding), t)
+			if err != nil {
+				return err
+			}
+			bindings[v.String()] = binding
+		}
+
+		// Gather binding for result var.
+		val, err := ValueToInterface(PlugValue(resultVar, t.Binding), t)
+		if err != nil {
+			return err
+		}
+
+		// Aggregate results.
+		qrs.Add(&QueryResult{val, bindings})
+		return nil
+	})
+
+	return qrs, err
+}
+
+func makeTopdown(params *QueryParams) (*Topdown, ast.Var, ast.VarSet, error) {
+
+	inputVar := ast.VarTerm(ast.WildcardPrefix + "0")
+	pathVar := ast.VarTerm(ast.WildcardPrefix + "1")
+
+	var query ast.Body
+
+	if params.Input == nil {
+		query = ast.NewBody(ast.Equality.Expr(ast.NewTerm(params.Path), pathVar))
+	} else {
+		// <input> = $0,
+		// <path> = $1 with input as $0
+		inputExpr := ast.Equality.Expr(ast.NewTerm(params.Input), inputVar)
+		pathExpr := ast.Equality.Expr(ast.NewTerm(params.Path), pathVar).
+			IncludeWith(ast.NewTerm(ast.InputRootRef), inputVar)
+		query = ast.NewBody(inputExpr, pathExpr)
+	}
+
+	compiled, err := params.Compiler.QueryCompiler().Compile(query)
+	if err != nil {
+		return nil, "", nil, err
+	}
 
 	vis := ast.NewVarVisitor().WithParams(ast.VarVisitorParams{
 		SkipRefHead:  true,
@@ -726,59 +732,11 @@ func queryN(params *QueryParams) (QueryResultSet, error) {
 	})
 
 	ast.Walk(vis, params.Input)
-	vars = vis.Vars()
 
-	err := evalInput(params, func(root *Topdown) error {
+	t := params.NewTopdown(compiled).
+		WithTracer(params.Tracer)
 
-		params.Input = PlugValue(root.Input, root.Binding)
-		result, err := queryOne(params)
-
-		if err != nil || result.Undefined() {
-			return err
-		}
-
-		bindings := map[string]interface{}{}
-		for v := range vars {
-			binding, err := ValueToInterface(PlugValue(v, root.Binding), resolver)
-			if err != nil {
-				return err
-			}
-			bindings[v.String()] = binding
-		}
-
-		qrs.Add(&QueryResult{result[0].Result, bindings})
-		return nil
-	})
-
-	return qrs, err
-}
-
-// evalInput evaluates the params' input field. The iterator is called with
-// the plugged input.
-func evalInput(params *QueryParams, iter Iterator) error {
-
-	if params.Input == nil || params.Input.Equal(ast.Boolean(false)) {
-		t, err := params.NewTopdown(nil)
-		if err != nil {
-			return err
-		}
-		return iter(t)
-	}
-
-	query := ast.NewBody(ast.NewExpr(ast.NewTerm(params.Input)))
-	t, err := params.NewTopdown(query)
-	if err != nil {
-		return err
-	}
-
-	// TODO(tsandall): disable tracing for input evaluation as it would
-	// introduce an extra layer of trace events. Once the with modifier is
-	// implemented, trace output will be better defined.
-	t.Tracer = nil
-
-	return Eval(t, func(t *Topdown) error {
-		return iter(t)
-	})
+	return t, pathVar.Value.(ast.Var), vis.Vars(), nil
 }
 
 // Resolver defines the interface for resolving references to base documents to
