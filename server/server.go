@@ -794,7 +794,11 @@ func handleErrorAuto(w http.ResponseWriter, err error) {
 			return
 		}
 		if ast.IsError(ast.UndefinedInputErr, curr) {
-			handleError(w, http.StatusBadRequest, errInputDoc)
+			handleError(w, http.StatusBadRequest, errMissingInputDoc)
+			return
+		}
+		if ast.IsError(ast.ConflictingInputErr, curr) {
+			handleError(w, http.StatusBadRequest, errConflictInputDoc)
 			return
 		}
 		if storage.IsInvalidPatch(curr) {
@@ -884,8 +888,9 @@ func getExplain(p []string) explainModeV1 {
 	return explainOffV1
 }
 
-var errInputPathFormat = fmt.Errorf("input parameter format is [[<path>]:]<value> where <path> is either var or ref")
-var errInputDoc = fmt.Errorf(`query requires input document (hint: POST /data[/path] {"input": value})`)
+var errInputPathFormat = fmt.Errorf(`input parameter format is [[<path>]:]<value> where <path> is either var or ref`)
+var errMissingInputDoc = fmt.Errorf(`query requires input document (hint: POST /data[/path] {"input": value})`)
+var errConflictInputDoc = fmt.Errorf(`query already defines input document`)
 
 // readInput reads the query input from r and returns an input value that can be
 // used for query evaluation.
@@ -908,7 +913,7 @@ func readInput(r io.ReadCloser) (ast.Value, error) {
 		}
 
 		if request.Input == nil {
-			return nil, errInputDoc
+			return nil, errMissingInputDoc
 		}
 
 		var err error

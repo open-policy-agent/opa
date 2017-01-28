@@ -70,6 +70,12 @@ func TestDataV1(t *testing.T) {
 	q = {"a": 1, "b": 2}
 	`
 
+	testMod3 := `package testmod
+
+	p :- loopback with input as true
+	loopback = input
+	`
+
 	tests := []struct {
 		note string
 		reqs []tr
@@ -250,6 +256,13 @@ func TestDataV1(t *testing.T) {
 			tr{"POST", "/data/deadbeef", `{"input": @}`, 400, `{
 				"code": 400,
 				"message": "body contains malformed input document: invalid character '@' looking for beginning of value"
+			}`},
+		}},
+		{"input conflict", []tr{
+			tr{"PUT", "/policies/test", testMod3, 200, ""},
+			tr{"POST", "/data/testmod/p", `{"input": false}`, 400, `{
+				"code": 400,
+				"message": "query already defines input document"
 			}`},
 		}},
 		{"query wildcards omitted", []tr{
@@ -848,7 +861,7 @@ func (f *fixture) executeRequest(req *http.Request, code int, resp string) error
 	f.reset()
 	f.server.Handler.ServeHTTP(f.recorder, req)
 	if f.recorder.Code != code {
-		return fmt.Errorf("Expected code %v from %v %v but got: %v", req.Method, code, req.URL, f.recorder)
+		return fmt.Errorf("Expected code %v from %v %v but got: %v", code, req.Method, req.URL, f.recorder)
 	}
 	if resp != "" {
 		var result interface{}
