@@ -108,7 +108,7 @@ repository:
       }
     ]
   keyword:
-    match: "\\b(?:(package|import))\\b"
+    match: "\\b(?:(package|import|with|as))\\b"
     name: "keyword.control.import.$1.rego"
   number:
     match: '''
