@@ -76,6 +76,12 @@ func TestDataV1(t *testing.T) {
 	loopback = input
 	`
 
+	testMod4 := `package testmod
+
+	p = true :- true
+	p = false :- true
+	`
+
 	tests := []struct {
 		note string
 		reqs []tr
@@ -256,6 +262,13 @@ func TestDataV1(t *testing.T) {
 			tr{"POST", "/data/deadbeef", `{"input": @}`, 400, `{
 				"code": 400,
 				"message": "body contains malformed input document: invalid character '@' looking for beginning of value"
+			}`},
+		}},
+		{"evaluation conflict", []tr{
+			tr{"PUT", "/policies/test", testMod4, 200, ""},
+			tr{"POST", "/data/testmod/p", "", 500, `{
+				"code": 500,
+				"message": "evaluation error (code: 1): multiple values for data.testmod.p: rules must produce exactly one value for complete documents: check rule definition(s): p"
 			}`},
 		}},
 		{"input conflict", []tr{
