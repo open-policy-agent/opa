@@ -562,7 +562,7 @@ The sample code in this section make use of the data defined in [Examples](#exam
 
 ### <a name="set-documents"></a> Generating Sets
 
-The following rule documents a set containing the hostnames of all servers:
+The following rule defines a set containing the hostnames of all servers:
 
 ```ruby
 hostnames[name] :- sites[_].servers[_].hostname = name
@@ -627,7 +627,10 @@ The result:
 
 ### <a name="incremental-definitions"></a> Incremental Definitions
 
-A rule may be defined multiple times with the same name. When a rule is defined this way, we refer to the rule definition as *incremental* because each definition is additive. The document content for an incrementally defined rule is the union of the document content for each of the individual rules.
+A rule may be defined multiple times with the same name. When a rule is defined
+this way, we refer to the rule definition as *incremental* because each
+definition is additive. The document produced by incrementally defined rules is
+the union of the documents produced by each individual rule.
 
 For example, we can write a rule that abstracts over our `servers` and
 `containers` data as `instances`:
@@ -663,6 +666,63 @@ The result:
 | {"address":"10.0.0.2","name":"cranky_euclid"} |
 +-----------------------------------------------+
 ```
+
+### <a name="complete-definitions"></a> Complete Definitions
+
+In addition to rules that *partially* define sets and objects, Rego also
+supports so-called *complete* definitions of any type of document. Rules provide
+a complete definition by omitting the key in the head. Complete definitions are
+commonly used for constants:
+
+```ruby
+pi = 3.14159
+```
+
+> Rego allows authors to omit the body of rules. If the body is omitted, it
+> defaults to true.
+{: .opa-tip}
+
+Documents produced by rules with complete definitions can only have one value at
+a time. If evaluation produces multiple values for the same document, an error
+will be returned.
+
+For example:
+
+```ruby
+# Define user "bob" for test input.
+user = "bob"
+
+# Define two sets of users: power users and restricted users. Accidentally
+# include "bob" in both.
+power_users = {"alice", "bob", "fred"}
+restricted_users = {"bob", "kim"}
+
+# Power users get 32GB memory.
+max_memory = 32 :- power_users[user]
+
+# Restricted users get 4GB memory.
+max_memory = 4 :- restricted_users[user]
+```
+
+Error:
+
+```
+> max_memory
+error: evaluation error (code: 1): multiple values for data.repl.max_memory: rules must produce exactly one value for complete documents: check rule definition(s): max_memory
+```
+
+OPA returns an error in this case because the rule definitions are in *conflict*. The value produced by max_memory cannot be 32 and 4 **at the same time**.
+
+The documents produced by rules with complete definitions may still be undefined:
+
+```ruby
+> unset user
+> user = "johnson"  # user is not in either of the sets defined earlier.
+> max_memory
+undefined
+```
+
+In some cases, having an undefined result for a document is not desirable. In those cases, policies can use the [Default Keyword](#default) to provide a fallback value.
 
 ## <a name="negation"></a> Negation
 
@@ -829,6 +889,40 @@ following syntax:
 The `<target>`s must be references to values in the input document (or the input
 document itself). The `<value>`s may be Scalar Values, Variables, or Composite
 Values that do not contain References or Comprehensions.
+
+## <a name="default"></a> Default Keyword
+
+The `default` keyword allows policies to define a default value for documents
+produced by rules with [Complete Definitions](#complete-definitions). The
+default value is used when all of the rules sharing the same name are undefined.
+
+For example:
+
+```ruby
+default allow = false
+
+allow = true :- input.user = "bob", input.method = "GET"
+allow = true :- input.user = "alice"
+```
+
+When the `allow` document is queried, the return value will be either `true` or `false`.
+
+```ruby
+> allow with input.user as "bob" with input.method = "POST"
+false
+```
+
+Without the default definition, the `allow` document would simply be undefined for the same input.
+
+When the `default` keyword is used, the rule syntax is restricted to:
+
+```
+default <name> = <term>
+```
+
+The term may be any scalar, composite, or comprehension value but it may not be
+a variable or reference. If the value is a composite then it may not contain
+variables or references.
 
 ## <a name="operators"></a> Operators
 
