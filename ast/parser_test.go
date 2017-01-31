@@ -411,25 +411,21 @@ func TestIsValidImportPath(t *testing.T) {
 func TestRule(t *testing.T) {
 
 	assertParseRule(t, "identity", "p = true :- true", &Rule{
-		Name:  Var("p"),
-		Value: BooleanTerm(true),
+		Head: NewHead(Var("p"), nil, BooleanTerm(true)),
 		Body: NewBody(
 			&Expr{Terms: BooleanTerm(true)},
 		),
 	})
 
 	assertParseRule(t, "set", "p[x] :- x = 42", &Rule{
-		Name: Var("p"),
-		Key:  VarTerm("x"),
+		Head: NewHead(Var("p"), VarTerm("x")),
 		Body: NewBody(
 			Equality.Expr(VarTerm("x"), IntNumberTerm(42)),
 		),
 	})
 
 	assertParseRule(t, "object", "p[x] = y :- x = 42, y = \"hello\"", &Rule{
-		Name:  Var("p"),
-		Key:   VarTerm("x"),
-		Value: VarTerm("y"),
+		Head: NewHead(Var("p"), VarTerm("x"), VarTerm("y")),
 		Body: NewBody(
 			Equality.Expr(VarTerm("x"), IntNumberTerm(42)),
 			Equality.Expr(VarTerm("y"), StringTerm("hello")),
@@ -437,30 +433,26 @@ func TestRule(t *testing.T) {
 	})
 
 	assertParseRule(t, "constant composite", "p = [{\"foo\": [1,2,3,4]}] :- true", &Rule{
-		Name: Var("p"),
-		Value: ArrayTerm(
-			ObjectTerm(Item(StringTerm("foo"), ArrayTerm(IntNumberTerm(1), IntNumberTerm(2), IntNumberTerm(3), IntNumberTerm(4)))),
-		),
+		Head: NewHead(Var("p"), nil, ArrayTerm(
+			ObjectTerm(Item(StringTerm("foo"), ArrayTerm(IntNumberTerm(1), IntNumberTerm(2), IntNumberTerm(3), IntNumberTerm(4)))))),
 		Body: NewBody(
 			&Expr{Terms: BooleanTerm(true)},
 		),
 	})
 
 	assertParseRule(t, "true", "p :- true", &Rule{
-		Name:  Var("p"),
-		Value: BooleanTerm(true),
+		Head: NewHead(Var("p"), nil, BooleanTerm(true)),
 		Body: NewBody(
 			&Expr{Terms: BooleanTerm(true)},
 		),
 	})
 
 	assertParseRule(t, "composites in head", `p[[{"x": [a,b]}]] :- a = 1, b = 2`, &Rule{
-		Name: Var("p"),
-		Key: ArrayTerm(
+		Head: NewHead(Var("p"), ArrayTerm(
 			ObjectTerm(
 				Item(StringTerm("x"), ArrayTerm(VarTerm("a"), VarTerm("b"))),
 			),
-		),
+		)),
 		Body: NewBody(
 			Equality.Expr(VarTerm("a"), IntNumberTerm(1)),
 			Equality.Expr(VarTerm("b"), IntNumberTerm(2)),
@@ -468,42 +460,36 @@ func TestRule(t *testing.T) {
 	})
 
 	assertParseRule(t, "refs in head", "p = data.foo[x] :- x = 1", &Rule{
-		Name: Var("p"),
-		Value: &Term{
+		Head: NewHead(Var("p"), nil, &Term{
 			Value: MustParseRef("data.foo[x]"),
-		},
+		}),
 		Body: MustParseBody("x = 1"),
 	})
 
 	assertParseRule(t, "refs in head", "p[data.foo[x]] :- true", &Rule{
-		Name: Var("p"),
-		Key: &Term{
+		Head: NewHead(Var("p"), &Term{
 			Value: MustParseRef("data.foo[x]"),
-		},
+		}),
 		Body: MustParseBody("true"),
 	})
 
 	assertParseRule(t, "refs in head", "p[data.foo[x]] = data.bar[y] :- true", &Rule{
-		Name: Var("p"),
-		Key: &Term{
+		Head: NewHead(Var("p"), &Term{
 			Value: MustParseRef("data.foo[x]"),
-		},
-		Value: &Term{
+		}, &Term{
 			Value: MustParseRef("data.bar[y]"),
-		},
+		}),
 		Body: MustParseBody("true"),
 	})
 
 	assertParseRule(t, "data", "data :- true", &Rule{
-		Name:  Var("data"),
-		Value: MustParseTerm("true"),
-		Body:  MustParseBody("true"),
+		Head: NewHead(Var("data"), nil, MustParseTerm("true")),
+		Body: MustParseBody("true"),
 	})
 
 	assertParseRule(t, "input", "input :- true", &Rule{
-		Name:  Var("input"),
-		Value: MustParseTerm("true"),
-		Body:  MustParseBody("true"),
+		Head: NewHead(Var("input"), nil, MustParseTerm("true")),
+		Body: MustParseBody("true"),
 	})
 
 	assertParseErrorEquals(t, "object composite key", "p[[x,y]] = z :- true", "head of object rule must have string, var, or ref key ([x, y] is not allowed)")

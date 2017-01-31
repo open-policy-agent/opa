@@ -403,7 +403,7 @@ func (r *REPL) cmdUnset(args []string) error {
 	rules := []*ast.Rule{}
 
 	for _, r := range mod.Rules {
-		if !r.Name.Equal(v) {
+		if !r.Head.Name.Equal(v) {
 			rules = append(rules, r)
 		}
 	}
@@ -893,13 +893,13 @@ func (r *REPL) isSetReference(compiler *ast.Compiler, term *ast.Term) bool {
 	if rs == nil {
 		return false
 	}
-	if rs[0].DocKind() == ast.PartialSetDoc {
+	if rs[0].Head.DocKind() == ast.PartialSetDoc {
 		return true
 	}
-	if rs[0].Value == nil {
+	if rs[0].Head.Value == nil {
 		return false
 	}
-	_, ok = rs[0].Value.Value.(*ast.Set)
+	_, ok = rs[0].Head.Value.Value.(*ast.Set)
 	return ok
 }
 
@@ -1166,7 +1166,7 @@ func mangleEvent(ctx context.Context, store *storage.Storage, txn storage.Transa
 
 	switch node := event.Node.(type) {
 	case *ast.Rule:
-		event.Node = topdown.PlugHead(node.Head(), event.Locals.Get)
+		event.Node = topdown.PlugHead(node.Head, event.Locals.Get)
 	case *ast.Expr:
 		event.Node = topdown.PlugExpr(node, event.Locals.Get)
 	}

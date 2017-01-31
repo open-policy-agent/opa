@@ -141,7 +141,7 @@ func (t *truth) checkAndSetAllPaths(event *topdown.Event) bool {
 
 	switch node := event.Node.(type) {
 	case *ast.Rule:
-		if node.DocKind() == ast.PartialObjectDoc || node.DocKind() == ast.PartialSetDoc {
+		if node.Head.DocKind() == ast.PartialObjectDoc || node.Head.DocKind() == ast.PartialSetDoc {
 			plugged := topdown.PlugExpr(prevExpr, prev.event.Locals.Get)
 			found := false
 			ast.WalkRefs(plugged, func(r ast.Ref) bool {

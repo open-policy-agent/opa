@@ -38,6 +38,9 @@ func Walk(v Visitor, x interface{}) {
 		Walk(w, x.Path.Value)
 		Walk(w, x.Alias)
 	case *Rule:
+		Walk(w, x.Head)
+		Walk(w, x.Body)
+	case *Head:
 		Walk(w, x.Name)
 		if x.Key != nil {
 			Walk(w, x.Key.Value)
@@ -45,7 +48,6 @@ func Walk(v Visitor, x interface{}) {
 		if x.Value != nil {
 			Walk(w, x.Value.Value)
 		}
-		Walk(w, x.Body)
 	case Body:
 		for _, e := range x {
 			Walk(w, e)

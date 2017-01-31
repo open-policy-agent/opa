@@ -342,17 +342,17 @@ func TestExprBadJSON(t *testing.T) {
 }
 
 func TestRuleHeadEquals(t *testing.T) {
-	assertRulesEqual(t, &Rule{}, &Rule{})
+	assertHeadsEqual(t, &Head{}, &Head{})
 
 	// Same name/key/value
-	assertRulesEqual(t, &Rule{Name: Var("p")}, &Rule{Name: Var("p")})
-	assertRulesEqual(t, &Rule{Key: VarTerm("x")}, &Rule{Key: VarTerm("x")})
-	assertRulesEqual(t, &Rule{Value: VarTerm("x")}, &Rule{Value: VarTerm("x")})
+	assertHeadsEqual(t, &Head{Name: Var("p")}, &Head{Name: Var("p")})
+	assertHeadsEqual(t, &Head{Key: VarTerm("x")}, &Head{Key: VarTerm("x")})
+	assertHeadsEqual(t, &Head{Value: VarTerm("x")}, &Head{Value: VarTerm("x")})
 
 	// Different name/key/value
-	assertRulesNotEqual(t, &Rule{Name: Var("p")}, &Rule{Name: Var("q")})
-	assertRulesNotEqual(t, &Rule{Key: VarTerm("x")}, &Rule{Key: VarTerm("y")})
-	assertRulesNotEqual(t, &Rule{Value: VarTerm("x")}, &Rule{Value: VarTerm("y")})
+	assertHeadsNotEqual(t, &Head{Name: Var("p")}, &Head{Name: Var("q")})
+	assertHeadsNotEqual(t, &Head{Key: VarTerm("x")}, &Head{Key: VarTerm("y")})
+	assertHeadsNotEqual(t, &Head{Value: VarTerm("x")}, &Head{Value: VarTerm("y")})
 }
 
 func TestRuleBodyEquals(t *testing.T) {
@@ -360,14 +360,15 @@ func TestRuleBodyEquals(t *testing.T) {
 	true1 := &Expr{Terms: []*Term{BooleanTerm(true)}}
 	true2 := &Expr{Terms: []*Term{BooleanTerm(true)}}
 	false1 := &Expr{Terms: []*Term{BooleanTerm(false)}}
+	head := NewHead(Var("p"))
 
-	ruleTrue1 := &Rule{Body: NewBody(true1)}
-	ruleTrue12 := &Rule{Body: NewBody(true1, true2)}
-	ruleTrue2 := &Rule{Body: NewBody(true2)}
-	ruleTrue12_2 := &Rule{Body: NewBody(true1, true2)}
-	ruleFalse1 := &Rule{Body: NewBody(false1)}
-	ruleTrueFalse := &Rule{Body: NewBody(true1, false1)}
-	ruleFalseTrue := &Rule{Body: NewBody(false1, true1)}
+	ruleTrue1 := &Rule{Head: head, Body: NewBody(true1)}
+	ruleTrue12 := &Rule{Head: head, Body: NewBody(true1, true2)}
+	ruleTrue2 := &Rule{Head: head, Body: NewBody(true2)}
+	ruleTrue12_2 := &Rule{Head: head, Body: NewBody(true1, true2)}
+	ruleFalse1 := &Rule{Head: head, Body: NewBody(false1)}
+	ruleTrueFalse := &Rule{Head: head, Body: NewBody(true1, false1)}
+	ruleFalseTrue := &Rule{Head: head, Body: NewBody(false1, true1)}
 
 	// Same expressions
 	assertRulesEqual(t, ruleTrue1, ruleTrue2)
@@ -381,16 +382,14 @@ func TestRuleBodyEquals(t *testing.T) {
 func TestRuleString(t *testing.T) {
 
 	rule1 := &Rule{
-		Name: Var("p"),
+		Head: NewHead(Var("p")),
 		Body: NewBody(
 			Equality.Expr(StringTerm("foo"), StringTerm("bar")),
 		),
 	}
 
 	rule2 := &Rule{
-		Name:  Var("p"),
-		Key:   VarTerm("x"),
-		Value: VarTerm("y"),
+		Head: NewHead(Var("p"), VarTerm("x"), VarTerm("y")),
 		Body: NewBody(
 			Equality.Expr(StringTerm("foo"), VarTerm("x")),
 			&Expr{
@@ -515,6 +514,18 @@ func assertRulesEqual(t *testing.T, a, b *Rule) {
 func assertRulesNotEqual(t *testing.T, a, b *Rule) {
 	if a.Equal(b) {
 		t.Errorf("Rules are equal (expected not equal): a=%v b=%v", a, b)
+	}
+}
+
+func assertHeadsEqual(t *testing.T, a, b *Head) {
+	if !a.Equal(b) {
+		t.Errorf("Heads are not equal (expected equal): a=%v b=%v", a, b)
+	}
+}
+
+func assertHeadsNotEqual(t *testing.T, a, b *Head) {
+	if a.Equal(b) {
+		t.Errorf("Heads are equal (expected not equal): a=%v b=%v", a, b)
 	}
 }
 

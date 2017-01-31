@@ -44,9 +44,10 @@ func TestVisitor(t *testing.T) {
 					y
 				z
 			rule
-				t
-				x
-				y
+				head
+					t
+					x
+					y
 				body
 					expr1
 						=
@@ -95,8 +96,8 @@ func TestVisitor(t *testing.T) {
 								bar
 							baz
 	*/
-	if len(vis.elems) != 63 {
-		t.Errorf("Expected exactly 63 elements in AST but got %d: %v", len(vis.elems), vis.elems)
+	if len(vis.elems) != 64 {
+		t.Errorf("Expected exactly 64 elements in AST but got %d: %v", len(vis.elems), vis.elems)
 	}
 
 }

@@ -410,7 +410,7 @@ func (e *Error) Error() string {
 func conflictErr(query interface{}, kind string, rule *ast.Rule) error {
 	return &Error{
 		Code:    ConflictErr,
-		Message: fmt.Sprintf("multiple values for %v: rules must produce exactly one value for %v: check rule definition(s): %v", query, kind, rule.Name),
+		Message: fmt.Sprintf("multiple values for %v: rules must produce exactly one value for %v: check rule definition(s): %v", query, kind, rule.Head.Name),
 	}
 }
 
@@ -424,14 +424,14 @@ func typeErrUnsupportedBuiltin(expr *ast.Expr) error {
 func typeErrObjectKey(rule *ast.Rule, v ast.Value) error {
 	return &Error{
 		Code:    TypeErr,
-		Message: rule.Location.Format("%v produced illegal object key type %T", rule.Name, v),
+		Message: rule.Loc().Format("%v produced illegal object key type %T", rule.Head.Name, v),
 	}
 }
 
 func typeErrSetLookupDereference(rule *ast.Rule, ref ast.Ref, loc *ast.Location) error {
 	return &Error{
 		Code:    TypeErr,
-		Message: loc.Format("%v is a set but %v attempts to dereference lookup result", rule.Name, ref),
+		Message: loc.Format("%v is a set but %v attempts to dereference lookup result", rule.Head.Name, ref),
 	}
 }
 
@@ -1265,7 +1265,7 @@ func evalRefRecNonGround(t *Topdown, ref, prefix ast.Ref, iter Iterator) error {
 
 	for _, mod := range node.Modules {
 		for _, rule := range mod.Rules {
-			key := ast.String(rule.Name)
+			key := ast.String(rule.Head.Name)
 			if _, ok := visited[key]; ok {
 				continue
 			}
@@ -1300,7 +1300,7 @@ func evalRefRule(t *Topdown, ref ast.Ref, path ast.Ref, rules []*ast.Rule, iter 
 
 	suffix := ref[len(path):]
 
-	switch rules[0].DocKind() {
+	switch rules[0].Head.DocKind() {
 
 	case ast.CompleteDoc:
 		return evalRefRuleCompleteDoc(t, ref, suffix, rules, iter)
@@ -1357,9 +1357,9 @@ func evalRefRuleCompleteDoc(t *Topdown, ref ast.Ref, suffix ast.Ref, rules []*as
 
 		err := eval(child, func(child *Topdown) error {
 			if result == nil {
-				result = PlugValue(rule.Value.Value, child.Binding)
+				result = PlugValue(rule.Head.Value.Value, child.Binding)
 			} else {
-				r := PlugValue(rule.Value.Value, child.Binding)
+				r := PlugValue(rule.Head.Value.Value, child.Binding)
 				if !result.Equal(r) {
 					return conflictErr(ref, "complete documents", rule)
 				}
@@ -1399,7 +1399,7 @@ func evalRefRulePartialObjectDoc(t *Topdown, ref ast.Ref, path ast.Ref, rule *as
 	//
 	// In the first case, we do not unify the keys because the unification does
 	// not namespace variables within their context. As a result, we could end
-	// up with a recursive binding if we unified "key" with "rule.Key.Value". If
+	// up with a recursive binding if we unified "key" with "rule.Head.Key.Value". If
 	// unification is improved to handle namespacing, this can be revisited.
 	if !key.IsGround() {
 		child := t.Child(rule.Body)
@@ -1410,7 +1410,7 @@ func evalRefRulePartialObjectDoc(t *Topdown, ref ast.Ref, path ast.Ref, rule *as
 		}
 		return eval(child, func(child *Topdown) error {
 
-			key := PlugValue(rule.Key.Value, child.Binding)
+			key := PlugValue(rule.Head.Key.Value, child.Binding)
 
 			if r, ok := key.(ast.Ref); ok {
 				var err error
@@ -1427,7 +1427,7 @@ func evalRefRulePartialObjectDoc(t *Topdown, ref ast.Ref, path ast.Ref, rule *as
 				return typeErrObjectKey(rule, key)
 			}
 
-			value := PlugValue(rule.Value.Value, child.Binding)
+			value := PlugValue(rule.Head.Value.Value, child.Binding)
 			if !value.IsGround() {
 				return fmt.Errorf("unbound variable: %v", value)
 			}
@@ -1466,7 +1466,7 @@ func evalRefRulePartialObjectDoc(t *Topdown, ref ast.Ref, path ast.Ref, rule *as
 
 	child := t.Child(rule.Body)
 
-	_, err := evalEqUnify(child, key, rule.Key.Value, nil, func(child *Topdown) error {
+	_, err := evalEqUnify(child, key, rule.Head.Key.Value, nil, func(child *Topdown) error {
 
 		if redo {
 			child.traceRedo(rule)
@@ -1476,7 +1476,7 @@ func evalRefRulePartialObjectDoc(t *Topdown, ref ast.Ref, path ast.Ref, rule *as
 
 		return eval(child, func(child *Topdown) error {
 
-			value := PlugValue(rule.Value.Value, child.Binding)
+			value := PlugValue(rule.Head.Value.Value, child.Binding)
 			if !value.IsGround() {
 				return fmt.Errorf("unbound variable: %v", value)
 			}
@@ -1537,7 +1537,7 @@ func evalRefRulePartialObjectDocFull(t *Topdown, ref ast.Ref, rules []*ast.Rule,
 
 		err := eval(child, func(child *Topdown) error {
 
-			key := PlugValue(rule.Key.Value, child.Binding)
+			key := PlugValue(rule.Head.Key.Value, child.Binding)
 
 			if r, ok := key.(ast.Ref); ok {
 				var err error
@@ -1554,7 +1554,7 @@ func evalRefRulePartialObjectDocFull(t *Topdown, ref ast.Ref, rules []*ast.Rule,
 				return typeErrObjectKey(rule, key)
 			}
 
-			value := PlugValue(rule.Value.Value, child.Binding)
+			value := PlugValue(rule.Head.Value.Value, child.Binding)
 
 			if !value.IsGround() {
 				return fmt.Errorf("unbound variable: %v", value)
@@ -1604,9 +1604,9 @@ func evalRefRulePartialSetDoc(t *Topdown, ref ast.Ref, path ast.Ref, rule *ast.R
 		// variables across contexts (otherwise we could end up with recursive
 		// bindings).
 		return eval(child, func(child *Topdown) error {
-			value := PlugValue(rule.Key.Value, child.Binding)
+			value := PlugValue(rule.Head.Key.Value, child.Binding)
 			if !value.IsGround() {
-				return fmt.Errorf("unbound variable: %v", rule.Value)
+				return fmt.Errorf("unbound variable: %v", rule.Head.Value)
 			}
 			child.traceExit(rule)
 			undo, err := evalEqUnify(t, key, value, nil, func(child *Topdown) error {
@@ -1624,7 +1624,7 @@ func evalRefRulePartialSetDoc(t *Topdown, ref ast.Ref, path ast.Ref, rule *ast.R
 
 	child := t.Child(rule.Body)
 
-	_, err := evalEqUnify(child, key, rule.Key.Value, nil, func(child *Topdown) error {
+	_, err := evalEqUnify(child, key, rule.Head.Key.Value, nil, func(child *Topdown) error {
 		if redo {
 			child.traceRedo(rule)
 		} else {
@@ -1659,7 +1659,7 @@ func evalRefRulePartialSetDocFull(t *Topdown, ref ast.Ref, rules []*ast.Rule, it
 		}
 
 		err := eval(child, func(child *Topdown) error {
-			value := PlugValue(rule.Key.Value, child.Binding)
+			value := PlugValue(rule.Head.Key.Value, child.Binding)
 			result.Add(&ast.Term{Value: value})
 			child.traceExit(rule)
 			child.traceRedo(rule)

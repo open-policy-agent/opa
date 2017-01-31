@@ -371,9 +371,9 @@ func (c *Compiler) checkRecursion() {
 		if p := util.DFS(t, r, r); len(p) > 0 {
 			n := []string{}
 			for _, x := range p {
-				n = append(n, string(x.(*Rule).Name))
+				n = append(n, string(x.(*Rule).Head.Name))
 			}
-			c.err(NewError(RecursionErr, r.Location, "%v: recursive reference: %v (recursion is not allowed)", r.Name, strings.Join(n, " -> ")))
+			c.err(NewError(RecursionErr, r.Loc(), "%v: recursive reference: %v (recursion is not allowed)", r.Head.Name, strings.Join(n, " -> ")))
 		}
 	}
 }
@@ -387,7 +387,7 @@ func (c *Compiler) checkRuleConflicts() {
 
 		kinds := map[DocKind]struct{}{}
 		for _, rule := range node.Rules {
-			kinds[rule.DocKind()] = struct{}{}
+			kinds[rule.Head.DocKind()] = struct{}{}
 		}
 
 		if len(kinds) > 1 {
@@ -401,7 +401,7 @@ func (c *Compiler) checkRuleConflicts() {
 	c.ModuleTree.DepthFirst(func(node *ModuleTreeNode) bool {
 		for _, mod := range node.Modules {
 			for _, rule := range mod.Rules {
-				if childNode, ok := node.Children[String(rule.Name)]; ok {
+				if childNode, ok := node.Children[String(rule.Head.Name)]; ok {
 					for _, childMod := range childNode.Modules {
 						msg := fmt.Sprintf("%v: package declaration conflicts with rule defined at %v", childMod.Package, rule.Loc())
 						c.err(NewError(CompileErr, mod.Package.Loc(), msg))
@@ -423,7 +423,7 @@ func (c *Compiler) checkSafetyRuleBodies() {
 			reordered, unsafe := reorderBodyForSafety(safe, r.Body)
 			if len(unsafe) != 0 {
 				for v := range unsafe.Vars() {
-					c.err(NewError(UnsafeVarErr, r.Location, "%v: %v is unsafe (variable %v must appear in the output position of at least one non-negated expression)", r.Name, v, v))
+					c.err(NewError(UnsafeVarErr, r.Loc(), "%v: %v is unsafe (variable %v must appear in the output position of at least one non-negated expression)", r.Head.Name, v, v))
 				}
 			} else {
 				r.Body = reordered
@@ -442,9 +442,9 @@ var safetyCheckVarVisitorParams = VarVisitorParams{
 func (c *Compiler) checkSafetyRuleHeads() {
 	for _, m := range c.Modules {
 		for _, r := range m.Rules {
-			unsafe := r.HeadVars().Diff(r.Body.Vars(safetyCheckVarVisitorParams))
+			unsafe := r.Head.Vars().Diff(r.Body.Vars(safetyCheckVarVisitorParams))
 			for v := range unsafe {
-				c.err(NewError(UnsafeVarErr, r.Location, "%v: %v is unsafe (variable %v must appear in at least one expression within the body of %v)", r.Name, v, v, r.Name))
+				c.err(NewError(UnsafeVarErr, r.Loc(), "%v: %v is unsafe (variable %v must appear in at least one expression within the body of %v)", r.Head.Name, v, v, r.Head.Name))
 			}
 		}
 	}
@@ -490,7 +490,7 @@ func (c *Compiler) getExports() *util.HashMap {
 				v = []Var{}
 			}
 			vars := v.([]Var)
-			vars = append(vars, rule.Name)
+			vars = append(vars, rule.Head.Name)
 			exports.Put(mod.Package.Path, vars)
 		}
 	}
@@ -521,11 +521,11 @@ func (c *Compiler) resolveAllRefs() {
 		globals := getGlobals(mod.Package, exportsForPackage, mod.Imports)
 
 		for _, rule := range mod.Rules {
-			if rule.Key != nil {
-				rule.Key = resolveRefsInTerm(globals, rule.Key)
+			if rule.Head.Key != nil {
+				rule.Head.Key = resolveRefsInTerm(globals, rule.Head.Key)
 			}
-			if rule.Value != nil {
-				rule.Value = resolveRefsInTerm(globals, rule.Value)
+			if rule.Head.Value != nil {
+				rule.Head.Value = resolveRefsInTerm(globals, rule.Head.Value)
 			}
 			rule.Body = resolveRefsInBody(globals, rule.Body)
 		}
@@ -570,34 +570,34 @@ func (c *Compiler) rewriteRefsInHead() {
 	for _, mod := range c.Modules {
 		generator := newLocalVarGenerator(mod)
 		for _, rule := range mod.Rules {
-			if rule.Key != nil {
+			if rule.Head.Key != nil {
 				found := false
-				WalkRefs(rule.Key, func(Ref) bool {
+				WalkRefs(rule.Head.Key, func(Ref) bool {
 					found = true
 					return true
 				})
 				if found {
 					// Replace rule key with generated var
-					key := rule.Key
+					key := rule.Head.Key
 					local := generator.Generate()
 					term := &Term{Value: local}
-					rule.Key = term
+					rule.Head.Key = term
 					expr := Equality.Expr(term, key)
 					rule.Body = append(rule.Body, expr)
 				}
 			}
-			if rule.Value != nil {
+			if rule.Head.Value != nil {
 				found := false
-				WalkRefs(rule.Value, func(Ref) bool {
+				WalkRefs(rule.Head.Value, func(Ref) bool {
 					found = true
 					return true
 				})
 				if found {
 					// Replace rule value with generated var
-					value := rule.Value
+					value := rule.Head.Value
 					local := generator.Generate()
 					term := &Term{Value: local}
-					rule.Value = term
+					rule.Head.Value = term
 					expr := Equality.Expr(term, value)
 					rule.Body = append(rule.Body, expr)
 				}
@@ -950,7 +950,7 @@ func (bc *builtinChecker) Check(x interface{}) Errors {
 func (bc *builtinChecker) Visit(x interface{}) Visitor {
 	switch x := x.(type) {
 	case *Rule:
-		bc.prefix = string(x.Name)
+		bc.prefix = string(x.Head.Name)
 	case *Expr:
 		if ts, ok := x.Terms.([]*Term); ok {
 			if bi, ok := BuiltinMap[ts[0].Value.(Var)]; ok {
@@ -992,7 +992,7 @@ func (wc *withModifierChecker) Check(x interface{}) Errors {
 func (wc *withModifierChecker) Visit(x interface{}) Visitor {
 	switch x := x.(type) {
 	case *Rule:
-		wc.prefix = string(x.Name)
+		wc.prefix = string(x.Head.Name)
 	case *Expr:
 		wc.expr = x
 	case *With:
@@ -1163,7 +1163,7 @@ func findRulesRec(node *ModuleTreeNode, ref Ref) (rs []*Rule) {
 		}
 		for _, m := range node.Modules {
 			for _, r := range m.Rules {
-				if String(r.Name).Equal(head) {
+				if String(r.Head.Name).Equal(head) {
 					rs = append(rs, r)
 				}
 			}

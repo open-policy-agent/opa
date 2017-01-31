@@ -161,6 +161,9 @@ func Compare(a, b interface{}) int {
 	case Body:
 		b := b.(Body)
 		return a.Compare(b)
+	case *Head:
+		b := b.(*Head)
+		return a.Compare(b)
 	case *Rule:
 		b := b.(*Rule)
 		return a.Compare(b)
