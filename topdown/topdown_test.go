@@ -1936,7 +1936,7 @@ func assertTopDown(t *testing.T, compiler *ast.Compiler, store *storage.Storage,
 			// Sort set results so that comparisons are not dependant on order.
 			p := ast.MustParseRef(fmt.Sprintf("data.%v", strings.Join(path, ".")))
 
-			if rs := compiler.GetRulesExact(p); len(rs) > 0 && rs[0].DocKind() == ast.PartialSetDoc {
+			if rs := compiler.GetRulesExact(p); len(rs) > 0 && rs[0].Head.DocKind() == ast.PartialSetDoc {
 				sort.Sort(resultSet(qrs[0].Result.([]interface{})))
 				expected = parseSortedJSON(e)
 			} else {

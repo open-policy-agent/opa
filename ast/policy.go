@@ -106,19 +106,16 @@ type (
 	// Rule represents a rule as defined in the language. Rules define the
 	// content of documents that represent policy decisions.
 	Rule struct {
+		Head *Head `json:"head"`
+		Body Body  `json:"body"`
+	}
+
+	// Head represents the head of a rule.
+	Head struct {
 		Location *Location `json:"-"`
 		Name     Var       `json:"name"`
 		Key      *Term     `json:"key,omitempty"`
 		Value    *Term     `json:"value,omitempty"`
-		Body     Body      `json:"body"`
-	}
-
-	// Head represents the head of a rule.
-	// TODO(tsandall): refactor Rule to contain a Head.
-	Head struct {
-		Name  Var   `json:"name"`
-		Key   *Term `json:"key,omitempty"`
-		Value *Term `json:"value,omitempty"`
 	}
 
 	// Body represents one or more expressios contained inside a rule.
@@ -317,13 +314,7 @@ func (imp *Import) String() string {
 // Compare returns an integer indicating whether rule is less than, equal to,
 // or greater than other.
 func (rule *Rule) Compare(other *Rule) int {
-	if cmp := Compare(rule.Name, other.Name); cmp != 0 {
-		return cmp
-	}
-	if cmp := Compare(rule.Key, other.Key); cmp != 0 {
-		return cmp
-	}
-	if cmp := Compare(rule.Value, other.Value); cmp != 0 {
+	if cmp := rule.Head.Compare(other.Head); cmp != 0 {
 		return cmp
 	}
 	return rule.Body.Compare(other.Body)
@@ -332,8 +323,7 @@ func (rule *Rule) Compare(other *Rule) int {
 // Copy returns a deep copy of rule.
 func (rule *Rule) Copy() *Rule {
 	cpy := *rule
-	cpy.Key = rule.Key.Copy()
-	cpy.Value = rule.Value.Copy()
+	cpy.Head = rule.Head.Copy()
 	cpy.Body = rule.Body.Copy()
 	return &cpy
 }
@@ -341,6 +331,42 @@ func (rule *Rule) Copy() *Rule {
 // Equal returns true if rule is equal to other.
 func (rule *Rule) Equal(other *Rule) bool {
 	return rule.Compare(other) == 0
+}
+
+// Loc returns the location of the Rule in the definition.
+func (rule *Rule) Loc() *Location {
+	return rule.Head.Location
+}
+
+// Path returns a reference that identifies the rule under ns.
+func (rule *Rule) Path(ns Ref) Ref {
+	return ns.Append(StringTerm(string(rule.Head.Name)))
+}
+
+func (rule *Rule) String() string {
+	buf := []string{rule.Head.String()}
+	if len(rule.Body) >= 0 {
+		buf = append(buf, ":-")
+		buf = append(buf, rule.Body.String())
+	}
+	return strings.Join(buf, " ")
+}
+
+// NewHead returns a new Head object. If args are provided, the first will be
+// used for the key and the second will be used for the value.
+func NewHead(name Var, args ...*Term) *Head {
+	head := &Head{
+		Name: name,
+	}
+	if len(args) == 0 {
+		return head
+	}
+	head.Key = args[0]
+	if len(args) == 1 {
+		return head
+	}
+	head.Value = args[1]
+	return head
 }
 
 // DocKind represents the collection of document types that can be produced by rules.
@@ -358,9 +384,9 @@ const (
 )
 
 // DocKind returns the type of document produced by this rule.
-func (rule *Rule) DocKind() DocKind {
-	if rule.Key != nil {
-		if rule.Value != nil {
+func (head *Head) DocKind() DocKind {
+	if head.Key != nil {
+		if head.Value != nil {
 			return PartialObjectDoc
 		}
 		return PartialSetDoc
@@ -368,45 +394,29 @@ func (rule *Rule) DocKind() DocKind {
 	return CompleteDoc
 }
 
-// HeadVars returns map where keys represent all of the variables found in the
-// head of the rule. The values of the map are ignored.
-func (rule *Rule) HeadVars() VarSet {
-	vis := &VarVisitor{vars: VarSet{}}
-	if rule.Key != nil {
-		Walk(vis, rule.Key)
+// Compare returns an integer indicating whether head is less than, equal to,
+// or greater than other.
+func (head *Head) Compare(other *Head) int {
+	if cmp := Compare(head.Name, other.Name); cmp != 0 {
+		return cmp
 	}
-	if rule.Value != nil {
-		Walk(vis, rule.Value)
+	if cmp := Compare(head.Key, other.Key); cmp != 0 {
+		return cmp
 	}
-	return vis.vars
+	return Compare(head.Value, other.Value)
 }
 
-// Head returns the rule's head.
-func (rule *Rule) Head() *Head {
-	return &Head{
-		Name:  rule.Name,
-		Key:   rule.Key,
-		Value: rule.Value,
-	}
+// Copy returns a deep copy of head.
+func (head *Head) Copy() *Head {
+	cpy := *head
+	cpy.Key = head.Key.Copy()
+	cpy.Value = head.Value.Copy()
+	return &cpy
 }
 
-// Loc returns the location of the Rule in the definition.
-func (rule *Rule) Loc() *Location {
-	return rule.Location
-}
-
-// Path returns a reference that identifies the rule under ns.
-func (rule *Rule) Path(ns Ref) Ref {
-	return ns.Append(StringTerm(string(rule.Name)))
-}
-
-func (rule *Rule) String() string {
-	buf := []string{rule.Head().String()}
-	if len(rule.Body) >= 0 {
-		buf = append(buf, ":-")
-		buf = append(buf, rule.Body.String())
-	}
-	return strings.Join(buf, " ")
+// Equal returns true if this head equals other.
+func (head *Head) Equal(other *Head) bool {
+	return head.Compare(other) == 0
 }
 
 func (head *Head) String() string {
@@ -421,6 +431,18 @@ func (head *Head) String() string {
 		buf = append(buf, head.Value.String())
 	}
 	return strings.Join(buf, " ")
+}
+
+// Vars returns a set of vars found in the head.
+func (head *Head) Vars() VarSet {
+	vis := &VarVisitor{vars: VarSet{}}
+	if head.Key != nil {
+		Walk(vis, head.Key)
+	}
+	if head.Value != nil {
+		Walk(vis, head.Value)
+	}
+	return vis.vars
 }
 
 // NewBody returns a new Body containing the given expressions. The indices of

@@ -101,17 +101,20 @@ Import <- "import" ws path:(Ref / Var) alias:(ws "as" ws Var)? {
 
 Rule <- name:Var key:( _ "[" _ Term _ "]" _ )? value:( _ "=" _ Term )? body:( _ ":-" _ Body) {
 
-    rule := &Rule{}
-    rule.Location = currentLocation(c)
-    rule.Name = name.(*Term).Value.(Var)
+    rule := &Rule{
+        Head: &Head{},
+    }
+
+    rule.Head.Location = currentLocation(c)
+    rule.Head.Name = name.(*Term).Value.(Var)
 
     if key != nil {
         keySlice := key.([]interface{})
         // Rule definition above describes the "key" slice. We care about the "Term" element.
-        rule.Key = keySlice[3].(*Term)
+        rule.Head.Key = keySlice[3].(*Term)
 
         var closure interface{}
-        WalkClosures(rule.Key, func(x interface{}) bool {
+        WalkClosures(rule.Head.Key, func(x interface{}) bool {
             closure = x
             return true
         })
@@ -124,10 +127,10 @@ Rule <- name:Var key:( _ "[" _ Term _ "]" _ )? value:( _ "=" _ Term )? body:( _ 
     if value != nil {
         valueSlice := value.([]interface{})
         // Rule definition above describes the "value" slice. We care about the "Term" element.
-        rule.Value = valueSlice[len(valueSlice)-1].(*Term)
+        rule.Head.Value = valueSlice[len(valueSlice)-1].(*Term)
 
         var closure interface{}
-        WalkClosures(rule.Value, func(x interface{}) bool {
+        WalkClosures(rule.Head.Value, func(x interface{}) bool {
             closure = x
             return true
         })
@@ -138,14 +141,14 @@ Rule <- name:Var key:( _ "[" _ Term _ "]" _ )? value:( _ "=" _ Term )? body:( _ 
     }
 
     if key == nil && value == nil {
-        rule.Value = BooleanTerm(true)
+        rule.Head.Value = BooleanTerm(true)
     }
 
     if key != nil && value != nil {
-        switch rule.Key.Value.(type) {
+        switch rule.Head.Key.Value.(type) {
         case Var, String, Ref: // nop
         default:
-            return nil, fmt.Errorf("head of object rule must have string, var, or ref key (%s is not allowed)", rule.Key)
+            return nil, fmt.Errorf("head of object rule must have string, var, or ref key (%s is not allowed)", rule.Head.Key)
         }
     }
 

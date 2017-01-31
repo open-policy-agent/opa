@@ -79,6 +79,14 @@ func Transform(t Transformer, x interface{}) (interface{}, error) {
 		}
 		return y, nil
 	case *Rule:
+		if y.Head, err = transformHead(t, y.Head); err != nil {
+			return nil, err
+		}
+		if y.Body, err = transformBody(t, y.Body); err != nil {
+			return nil, err
+		}
+		return y, nil
+	case *Head:
 		if y.Name, err = transformVar(t, y.Name); err != nil {
 			return nil, err
 		}
@@ -91,9 +99,6 @@ func Transform(t Transformer, x interface{}) (interface{}, error) {
 			if y.Value, err = transformTerm(t, y.Value); err != nil {
 				return nil, err
 			}
-		}
-		if y.Body, err = transformBody(t, y.Body); err != nil {
-			return nil, err
 		}
 		return y, nil
 	case Body:
@@ -206,6 +211,18 @@ type GenericTransformer struct {
 // Transform calls the function f on the GenericTransformer.
 func (t *GenericTransformer) Transform(x interface{}) (interface{}, error) {
 	return t.f(x)
+}
+
+func transformHead(t Transformer, head *Head) (*Head, error) {
+	y, err := Transform(t, head)
+	if err != nil {
+		return nil, err
+	}
+	h, ok := y.(*Head)
+	if !ok {
+		return nil, fmt.Errorf("illegal transform: %T != %T", head, y)
+	}
+	return h, nil
 }
 
 func transformBody(t Transformer, body Body) (Body, error) {

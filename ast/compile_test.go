@@ -56,14 +56,14 @@ func TestModuleTree(t *testing.T) {
 
 	r5 := []string{}
 	for _, r := range findRules(tree, MustParseRef("data.a.b[i][j][k]")) {
-		r5 = append(r5, string(r.Name))
+		r5 = append(r5, string(r.Head.Name))
 	}
 	sort.Strings(r5)
 
 	expected5 := []string{}
 	for _, m := range mods {
 		for _, r := range m.Rules {
-			expected5 = append(expected5, string(r.Name))
+			expected5 = append(expected5, string(r.Head.Name))
 		}
 	}
 
@@ -76,7 +76,7 @@ func TestModuleTree(t *testing.T) {
 	// This ref refers to all rules (same as above but without vars)
 	r6 := []string{}
 	for _, r := range findRules(tree, MustParseRef("data.a.b")) {
-		r6 = append(r6, string(r.Name))
+		r6 = append(r6, string(r.Head.Name))
 	}
 	sort.Strings(r6)
 
@@ -89,7 +89,7 @@ func TestModuleTree(t *testing.T) {
 	// This ref refers to all rules (same as above but with var in last position)
 	r7 := []string{}
 	for _, r := range findRules(tree, MustParseRef("data.a.b[x]")) {
-		r7 = append(r7, string(r.Name))
+		r7 = append(r7, string(r.Head.Name))
 	}
 	sort.Strings(r7)
 
@@ -577,8 +577,8 @@ func TestCompilerResolveAllRefs(t *testing.T) {
 
 	// Refs in head.
 	mod7 := c.Modules["head"]
-	assertTermEqual(t, mod7.Rules[0].Key, MustParseTerm("input.x.y.foo[data.doc1[i]]"))
-	assertTermEqual(t, mod7.Rules[0].Value, MustParseTerm(`{"baz": input.qux}`))
+	assertTermEqual(t, mod7.Rules[0].Head.Key, MustParseTerm("input.x.y.foo[data.doc1[i]]"))
+	assertTermEqual(t, mod7.Rules[0].Head.Value, MustParseTerm(`{"baz": input.qux}`))
 }
 
 func TestCompilerRewriteRefsInHead(t *testing.T) {
@@ -596,8 +596,8 @@ func TestCompilerRewriteRefsInHead(t *testing.T) {
 
 	rule := c.Modules["head"].Rules[0]
 
-	assertTermEqual(t, rule.Key, MustParseTerm("__local0__"))
-	assertTermEqual(t, rule.Value, MustParseTerm("__local1__"))
+	assertTermEqual(t, rule.Head.Key, MustParseTerm("__local0__"))
+	assertTermEqual(t, rule.Head.Value, MustParseTerm("__local1__"))
 
 	if len(rule.Body) != 3 {
 		t.Fatalf("Expected rule body to contain 3 expressions but got: %v", rule)

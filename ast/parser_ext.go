@@ -151,9 +151,11 @@ func ParseRuleFromBody(body Body) (*Rule, error) {
 	}
 
 	rule := &Rule{
-		Location: expr.Location,
-		Name:     name,
-		Value:    terms[2],
+		Head: &Head{
+			Location: expr.Location,
+			Name:     name,
+			Value:    terms[2],
+		},
 		Body: NewBody(
 			&Expr{Terms: BooleanTerm(true)},
 		),
@@ -500,7 +502,7 @@ func setFilename(filename string, stmts []Statement) {
 				x.Location.File = filename
 			case *Import:
 				x.Location.File = filename
-			case *Rule:
+			case *Head:
 				x.Location.File = filename
 			case *Expr:
 				x.Location.File = filename
@@ -535,7 +537,7 @@ func (vt *varToRefTransformer) Transform(x interface{}) (interface{}, error) {
 		return x, nil
 	}
 	switch x := x.(type) {
-	case *Rule:
+	case *Head:
 		// The next AST node will be the rule name (which should not be
 		// transformed).
 		vt.skip = true
