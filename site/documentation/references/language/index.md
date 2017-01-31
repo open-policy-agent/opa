@@ -86,6 +86,7 @@ names, or dot-access style reference arguments:
 
 ```
 as
+default
 false
 import
 package
@@ -104,7 +105,7 @@ module         = package { import } policy
 package        = "package" ref
 import         = "import" package [ "as" var ]
 policy         = { rule }
-rule           = rule-head [ ":-" rule-body ]
+rule           = [ "default" ] rule-head [ ":-" rule-body ]
 rule-head      = var [ "[" term "]" ] [ = term ]
 rule-body      = [ literal { "," literal } ]
 literal        = ( expr | "not" expr ) { with-modifier }
