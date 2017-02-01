@@ -492,9 +492,23 @@ func TestRule(t *testing.T) {
 		Body: MustParseBody("true"),
 	})
 
+	assertParseRule(t, "default", "default allow = false", &Rule{
+		Default: true,
+		Head:    NewHead(Var("allow"), nil, MustParseTerm("false")),
+		Body:    NewBody(NewExpr(BooleanTerm(true))),
+	})
+
+	assertParseRule(t, "default w/ comprehension", "default widgets = [x | x = data.fooz[_]]", &Rule{
+		Default: true,
+		Head:    NewHead(Var("widgets"), nil, MustParseTerm("[x | x = data.fooz[_]]")),
+		Body:    NewBody(NewExpr(BooleanTerm(true))),
+	})
+
 	assertParseErrorEquals(t, "object composite key", "p[[x,y]] = z :- true", "head of object rule must have string, var, or ref key ([x, y] is not allowed)")
 	assertParseErrorEquals(t, "closure in key", "p[[1 | true]] :- true", "head cannot contain closures ([1 | true] appears in key)")
 	assertParseErrorEquals(t, "closure in value", "p = [[1 | true]] :- true", "head cannot contain closures ([1 | true] appears in value)")
+	assertParseErrorEquals(t, "default ref value", "default p = [data.foo]", "default rule value cannot contain ref")
+	assertParseErrorEquals(t, "default var value", "default p = [x]", "default rule value cannot contain var")
 
 	// TODO(tsandall): improve error checking here. This is a common mistake
 	// and the current error message is not very good. Need to investigate if the
