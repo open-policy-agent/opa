@@ -268,7 +268,7 @@ func TestDataV1(t *testing.T) {
 			tr{"PUT", "/policies/test", testMod4, 200, ""},
 			tr{"POST", "/data/testmod/p", "", 500, `{
 				"code": 500,
-				"message": "evaluation error (code: 1): multiple values for data.testmod.p: rules must produce exactly one value for complete documents: check rule definition(s): p"
+				"message": "evaluation error (code: 1): completely defined rules must produce exactly one value"
 			}`},
 		}},
 		{"input conflict", []tr{

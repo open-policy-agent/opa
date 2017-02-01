@@ -372,69 +372,6 @@ func (c *contextcache) Invalidate() {
 	c.complete = completeDocCache{}
 }
 
-// Error is the error type returned by the Eval and Query functions when
-// an evaluation error occurs.
-type Error struct {
-	Code     int
-	Message  string
-	Location *ast.Location
-}
-
-const (
-
-	// InternalErr represents an unknown evaluation error.
-	InternalErr = iota
-
-	// ConflictErr indicates a conflict was encountered during evaluation. For
-	// instance, a conflict occurs if a rule produces multiple, differing values
-	// for the same key in an object. Conflict errors indicate the policy does
-	// not account for the data loaded into the policy engine.
-	ConflictErr = iota
-
-	// TypeErr indicates evaluation stopped because an expression was applied to
-	// a value of an inappropriate type.
-	TypeErr = iota
-)
-
-func (e *Error) Error() string {
-
-	msg := fmt.Sprintf("evaluation error (code: %v): %v", e.Code, e.Message)
-
-	if e.Location != nil {
-		msg = e.Location.String() + ": " + msg
-	}
-
-	return msg
-}
-
-func conflictErr(query interface{}, kind string, rule *ast.Rule) error {
-	return &Error{
-		Code:    ConflictErr,
-		Message: fmt.Sprintf("multiple values for %v: rules must produce exactly one value for %v: check rule definition(s): %v", query, kind, rule.Head.Name),
-	}
-}
-
-func typeErrUnsupportedBuiltin(expr *ast.Expr) error {
-	return &Error{
-		Code:    TypeErr,
-		Message: expr.Location.Format("%v built-in is not supported", expr.Terms.([]*ast.Term)[0]),
-	}
-}
-
-func typeErrObjectKey(rule *ast.Rule, v ast.Value) error {
-	return &Error{
-		Code:    TypeErr,
-		Message: rule.Loc().Format("%v produced illegal object key type %T", rule.Head.Name, v),
-	}
-}
-
-func typeErrSetLookupDereference(rule *ast.Rule, ref ast.Ref, loc *ast.Location) error {
-	return &Error{
-		Code:    TypeErr,
-		Message: loc.Format("%v is a set but %v attempts to dereference lookup result", rule.Head.Name, ref),
-	}
-}
-
 // Iterator is the interface for processing evaluation results.
 type Iterator func(*Topdown) error
 
@@ -963,7 +900,7 @@ func evalExpr(t *Topdown, iter Iterator) error {
 	case []*ast.Term:
 		builtin, ok := builtinFunctions[tt[0].Value.(ast.Var)]
 		if !ok {
-			return typeErrUnsupportedBuiltin(expr)
+			return unsupportedBuiltinErr(expr.Location)
 		}
 		return builtin(t, expr, iter)
 	case *ast.Term:
@@ -1321,7 +1258,7 @@ func evalRefRule(t *Topdown, ref ast.Ref, path ast.Ref, rules []*ast.Rule, iter 
 			return evalRefRulePartialSetDocFull(t, ref, rules, iter)
 		}
 		if len(suffix) != 1 {
-			return typeErrSetLookupDereference(rules[0], ref, t.Current().Location)
+			return setDereferenceTypeErr(t.Current().Location)
 		}
 		for i, rule := range rules {
 			err := evalRefRulePartialSetDoc(t, ref, path, rule, i > 0, iter)
@@ -1361,7 +1298,7 @@ func evalRefRuleCompleteDoc(t *Topdown, ref ast.Ref, suffix ast.Ref, rules []*as
 			} else {
 				r := PlugValue(rule.Head.Value.Value, child.Binding)
 				if !result.Equal(r) {
-					return conflictErr(ref, "complete documents", rule)
+					return completeDocConflictErr(t.Current().Location)
 				}
 			}
 			child.traceExit(rule)
@@ -1424,7 +1361,7 @@ func evalRefRulePartialObjectDoc(t *Topdown, ref ast.Ref, path ast.Ref, rule *as
 			}
 
 			if !ast.IsScalar(key) {
-				return typeErrObjectKey(rule, key)
+				return objectDocKeyTypeErr(t.Current().Location)
 			}
 
 			value := PlugValue(rule.Head.Value.Value, child.Binding)
@@ -1457,7 +1394,7 @@ func evalRefRulePartialObjectDoc(t *Topdown, ref ast.Ref, path ast.Ref, rule *as
 			}
 		}
 		if !ast.IsScalar(key) {
-			return typeErrObjectKey(rule, key)
+			return objectDocKeyTypeErr(t.Current().Location)
 		}
 		if doc, ok := docs[key]; ok {
 			return evalRefRuleResult(t, ref, ref[len(path)+1:], doc, iter)
@@ -1499,7 +1436,7 @@ func evalRefRulePartialObjectDoc(t *Topdown, ref ast.Ref, path ast.Ref, rule *as
 			}
 
 			if !ast.IsScalar(key) {
-				return typeErrObjectKey(rule, key)
+				return objectDocKeyTypeErr(t.Current().Location)
 			}
 
 			cache[key] = value
@@ -1551,7 +1488,7 @@ func evalRefRulePartialObjectDocFull(t *Topdown, ref ast.Ref, rules []*ast.Rule,
 			}
 
 			if !ast.IsScalar(key) {
-				return typeErrObjectKey(rule, key)
+				return objectDocKeyTypeErr(t.Current().Location)
 			}
 
 			value := PlugValue(rule.Head.Value.Value, child.Binding)
@@ -1561,7 +1498,7 @@ func evalRefRulePartialObjectDocFull(t *Topdown, ref ast.Ref, rules []*ast.Rule,
 			}
 
 			if exist := keys.Get(key); exist != nil && !exist.Equal(value) {
-				return conflictErr(ref, "object document keys", rule)
+				return objectDocKeyConflictErr(t.Current().Location)
 			}
 
 			keys.Put(key, value)
