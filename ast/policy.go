@@ -463,6 +463,13 @@ func NewBody(exprs ...*Expr) Body {
 	return Body(exprs)
 }
 
+// Append adds the expr to the body and updates the expr's index accordingly.
+func (body *Body) Append(expr *Expr) {
+	n := len(*body)
+	expr.Index = n
+	*body = append(*body, expr)
+}
+
 // Compare returns an integer indicating whether body is less than, equal to,
 // or greater than other.
 //

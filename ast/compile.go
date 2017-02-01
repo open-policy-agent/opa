@@ -564,10 +564,11 @@ func (c *Compiler) resolveAllRefs() {
 	}
 }
 
-// rewriteRefsInHead will rewrite rules so that the head does not contain any
-// references. If the key or value contains one or more references, that term
-// will be moved into the body and assigned to a new variable. The new variable
-// will replace the term in the head.
+// rewriteTermsInHead will rewrite rules so that the head does not contain any
+// terms that require evaluation (e.g., refs or comprehensions). If the key or
+// value contains or more of these terms, the key or value will be moved into
+// the body and assigned to a new variable. The new variable will replace the
+// key or value in the head.
 //
 // For instance, given the following rule:
 //
@@ -575,17 +576,25 @@ func (c *Compiler) resolveAllRefs() {
 //
 // The rule would be re-written as:
 //
-// p[__local0__] :- __local0__ = {"foo": data.foo[i]}, i < 100
+// p[__local0__] :- i < 100, __local0__ = {"foo": data.foo[i]}
 func (c *Compiler) rewriteRefsInHead() {
 	for _, mod := range c.Modules {
 		generator := newLocalVarGenerator(mod)
 		for _, rule := range mod.Rules {
 			if rule.Head.Key != nil {
 				found := false
-				WalkRefs(rule.Head.Key, func(Ref) bool {
-					found = true
-					return true
+				vis := NewGenericVisitor(func(x interface{}) bool {
+					if found {
+						return true
+					}
+					switch x.(type) {
+					case Ref, *ArrayComprehension:
+						found = true
+						return true
+					}
+					return false
 				})
+				Walk(vis, rule.Head.Key)
 				if found {
 					// Replace rule key with generated var
 					key := rule.Head.Key
@@ -593,15 +602,23 @@ func (c *Compiler) rewriteRefsInHead() {
 					term := &Term{Value: local}
 					rule.Head.Key = term
 					expr := Equality.Expr(term, key)
-					rule.Body = append(rule.Body, expr)
+					rule.Body.Append(expr)
 				}
 			}
 			if rule.Head.Value != nil {
 				found := false
-				WalkRefs(rule.Head.Value, func(Ref) bool {
-					found = true
-					return true
+				vis := NewGenericVisitor(func(x interface{}) bool {
+					if found {
+						return true
+					}
+					switch x.(type) {
+					case Ref, *ArrayComprehension:
+						found = true
+						return true
+					}
+					return false
 				})
+				Walk(vis, rule.Head.Value)
 				if found {
 					// Replace rule value with generated var
 					value := rule.Head.Value
@@ -609,7 +626,7 @@ func (c *Compiler) rewriteRefsInHead() {
 					term := &Term{Value: local}
 					rule.Head.Value = term
 					expr := Equality.Expr(term, value)
-					rule.Body = append(rule.Body, expr)
+					rule.Body.Append(expr)
 				}
 			}
 		}

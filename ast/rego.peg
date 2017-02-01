@@ -154,32 +154,12 @@ NoDefaultRule <- name:Var key:( _ "[" _ Term _ "]" _ )? value:( _ "=" _ Term )? 
         keySlice := key.([]interface{})
         // Rule definition above describes the "key" slice. We care about the "Term" element.
         rule.Head.Key = keySlice[3].(*Term)
-
-        var closure interface{}
-        WalkClosures(rule.Head.Key, func(x interface{}) bool {
-            closure = x
-            return true
-        })
-
-        if closure != nil {
-            return nil, fmt.Errorf("head cannot contain closures (%v appears in key)", closure)
-        }
     }
 
     if value != nil {
         valueSlice := value.([]interface{})
         // Rule definition above describes the "value" slice. We care about the "Term" element.
         rule.Head.Value = valueSlice[len(valueSlice)-1].(*Term)
-
-        var closure interface{}
-        WalkClosures(rule.Head.Value, func(x interface{}) bool {
-            closure = x
-            return true
-        })
-
-        if closure != nil {
-            return nil, fmt.Errorf("head cannot contain closures (%v appears in value)", closure)
-        }
     }
 
     if key == nil && value == nil {
@@ -190,7 +170,7 @@ NoDefaultRule <- name:Var key:( _ "[" _ Term _ "]" _ )? value:( _ "=" _ Term )? 
         switch rule.Head.Key.Value.(type) {
         case Var, String, Ref: // nop
         default:
-            return nil, fmt.Errorf("head of object rule must have string, var, or ref key (%s is not allowed)", rule.Head.Key)
+            return nil, fmt.Errorf("object key must be one of %v, %v, %v not %v", StringTypeName, VarTypeName, RefTypeName, TypeName(rule.Head.Key.Value))
         }
     }
 
