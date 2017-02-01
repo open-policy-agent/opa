@@ -1273,8 +1273,6 @@ func evalRefRule(t *Topdown, ref ast.Ref, path ast.Ref, rules []*ast.Rule, iter 
 
 func evalRefRuleCompleteDoc(t *Topdown, ref ast.Ref, suffix ast.Ref, rules []*ast.Rule, iter Iterator) error {
 
-	var result ast.Value
-
 	// Check if we have cached the result of evaluating this rule set already.
 	for _, rule := range rules {
 		if doc, ok := t.cache.complete[rule]; ok {
@@ -1282,30 +1280,29 @@ func evalRefRuleCompleteDoc(t *Topdown, ref ast.Ref, suffix ast.Ref, rules []*as
 		}
 	}
 
-	for i, rule := range rules {
+	var result ast.Value
+	var defaultRule *ast.Rule
+	var redo bool
 
-		child := t.Child(rule.Body)
-
-		if i == 0 {
-			child.traceEnter(rule)
-		} else {
-			child.traceRedo(rule)
+	for _, rule := range rules {
+		if rule.Default {
+			// Compiler guarantees that there is only one default rule per shared name.
+			defaultRule = rule
+			continue
 		}
+		next, err := evalRefRuleCompleteDocSingle(t, rule, redo, result)
+		if err != nil {
+			return err
+		}
+		if next != nil {
+			result = next
+		}
+		redo = true
+	}
 
-		err := eval(child, func(child *Topdown) error {
-			if result == nil {
-				result = PlugValue(rule.Head.Value.Value, child.Binding)
-			} else {
-				r := PlugValue(rule.Head.Value.Value, child.Binding)
-				if !result.Equal(r) {
-					return completeDocConflictErr(t.Current().Location)
-				}
-			}
-			child.traceExit(rule)
-			child.traceRedo(rule)
-			return nil
-		})
-
+	if result == nil && defaultRule != nil {
+		var err error
+		result, err = evalRefRuleCompleteDocSingle(t, defaultRule, redo, nil)
 		if err != nil {
 			return err
 		}
@@ -1320,6 +1317,39 @@ func evalRefRuleCompleteDoc(t *Topdown, ref ast.Ref, suffix ast.Ref, rules []*as
 	}
 
 	return nil
+}
+
+func evalRefRuleCompleteDocSingle(t *Topdown, rule *ast.Rule, redo bool, last ast.Value) (ast.Value, error) {
+
+	child := t.Child(rule.Body)
+
+	if !redo {
+		child.traceEnter(rule)
+	} else {
+		child.traceRedo(rule)
+	}
+
+	var result ast.Value
+
+	err := eval(child, func(child *Topdown) error {
+
+		result = PlugValue(rule.Head.Value.Value, child.Binding)
+
+		// If document is already defined, check for conflict.
+		if last != nil {
+			if !last.Equal(result) {
+				return completeDocConflictErr(t.Current().Location)
+			}
+		} else {
+			last = result
+		}
+
+		child.traceExit(rule)
+		child.traceRedo(rule)
+		return nil
+	})
+
+	return result, err
 }
 
 func evalRefRulePartialObjectDoc(t *Topdown, ref ast.Ref, path ast.Ref, rule *ast.Rule, redo bool, iter Iterator) error {

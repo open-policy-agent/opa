@@ -936,6 +936,25 @@ func TestTopDownComprehensions(t *testing.T) {
 	}
 }
 
+func TestTopDownDefaultKeyword(t *testing.T) {
+
+	tests := []struct {
+		note     string
+		rules    []string
+		expected interface{}
+	}{
+		{"undefined", []string{"p = 1 :- false", "default p = 0", "p = 2 :- false"}, "0"},
+		{"defined", []string{"p = 1 :- true", "default p = 0", "p = 2 :- false"}, "1"},
+		{"array comprehension", []string{"p = 1 :- false", "default p = [x | a[_] = x]"}, "[1,2,3,4]"},
+	}
+
+	data := loadSmallTestData()
+
+	for _, tc := range tests {
+		runTopDownTestCase(t, data, tc.note, tc.rules, tc.expected)
+	}
+}
+
 func TestTopDownAggregates(t *testing.T) {
 
 	tests := []struct {
