@@ -386,13 +386,23 @@ func (c *Compiler) checkRuleConflicts() {
 		}
 
 		kinds := map[DocKind]struct{}{}
+		defaultRules := 0
+
 		for _, rule := range node.Rules {
 			kinds[rule.Head.DocKind()] = struct{}{}
+			if rule.Default {
+				defaultRules++
+			}
 		}
 
+		name := Var(node.Key.(String))
+
 		if len(kinds) > 1 {
-			name := Var(node.Key.(String))
 			c.err(NewError(CompileErr, node.Rules[0].Loc(), "%v: conflicting rule types (all definitions of %v must have the same type)", name, name))
+		}
+
+		if defaultRules > 1 {
+			c.err(NewError(CompileErr, node.Rules[0].Loc(), "%s: multiple default rule definitions found", name))
 		}
 
 		return false

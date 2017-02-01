@@ -99,7 +99,49 @@ Import <- "import" ws path:(Ref / Var) alias:(ws "as" ws Var)? {
     return imp, nil
 }
 
-Rule <- name:Var key:( _ "[" _ Term _ "]" _ )? value:( _ "=" _ Term )? body:( _ ":-" _ Body) {
+Rule <- DefaultRule / NoDefaultRule
+
+DefaultRule <- "default" ws name:Var _ "=" _ value:Term {
+
+    term := value.(*Term)
+    var err error
+
+    vis := NewGenericVisitor(func(x interface{}) bool {
+        if err != nil {
+            return true
+        }
+        switch x.(type) {
+        case *ArrayComprehension: // skip closures
+            return true
+        case Ref, Var:
+            err = fmt.Errorf("default rule value cannot contain %v", TypeName(x))
+            return true
+        }
+        return false
+    })
+
+    Walk(vis, term)
+
+    if err != nil {
+        return nil, err
+    }
+
+    rule := &Rule{
+        Default: true,
+        Head: &Head{
+            Location: currentLocation(c),
+            Name: name.(*Term).Value.(Var),
+            Value: value.(*Term),
+        },
+        Body: NewBody(NewExpr(BooleanTerm(true))),
+    }
+
+    rule.Body[0].Location = currentLocation(c)
+
+    return rule, nil
+}
+
+NoDefaultRule <- name:Var key:( _ "[" _ Term _ "]" _ )? value:( _ "=" _ Term )? body:( _ ":-" _ Body) {
 
     rule := &Rule{
         Head: &Head{},

@@ -458,11 +458,19 @@ func TestCompilerCheckRuleConflicts(t *testing.T) {
 			package badrules.r
 			q[1] :- true
 		`,
+		"mod3.rego": `
+			package badrules.defkw
+
+			default foo = 1
+			default foo = 2
+			foo = 3
+		`,
 	})
 
 	compileStages(c, "", "checkRuleConflicts")
 
 	expected := []string{
+		"foo: multiple default rule definitions found",
 		"p: conflicting rule types (all definitions of p must have the same type)",
 		"package badrules.r: package declaration conflicts with rule defined at mod1.rego:7",
 		"package badrules.r: package declaration conflicts with rule defined at mod1.rego:8",

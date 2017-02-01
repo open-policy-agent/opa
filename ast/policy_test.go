@@ -31,6 +31,8 @@ func TestModuleJSONRoundTrip(t *testing.T) {
 	empty_arr :- []
 	empty_set :- set()
 	using_with :- plus(data.foo, 1, x) with input.foo as bar
+	x = 2 :- input = null
+	default allow = true
 	`)
 
 	bs, err := json.Marshal(mod)
@@ -400,8 +402,14 @@ func TestRuleString(t *testing.T) {
 		),
 	}
 
+	rule3 := &Rule{
+		Default: true,
+		Head:    NewHead("p", nil, BooleanTerm(true)),
+	}
+
 	assertRuleString(t, rule1, "p :- eq(\"foo\", \"bar\")")
 	assertRuleString(t, rule2, "p[x] = y :- eq(\"foo\", x), not a.b[x], eq(\"b\", y)")
+	assertRuleString(t, rule3, "default p = true")
 }
 
 func TestModuleString(t *testing.T) {

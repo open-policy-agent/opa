@@ -44,6 +44,7 @@ var Keywords = [...]string{
 	"package",
 	"import",
 	"as",
+	"default",
 	"with",
 	"null",
 	"true",
@@ -106,8 +107,9 @@ type (
 	// Rule represents a rule as defined in the language. Rules define the
 	// content of documents that represent policy decisions.
 	Rule struct {
-		Head *Head `json:"head"`
-		Body Body  `json:"body"`
+		Default bool  `json:"default,omitempty"`
+		Head    *Head `json:"head"`
+		Body    Body  `json:"body"`
 	}
 
 	// Head represents the head of a rule.
@@ -317,6 +319,9 @@ func (rule *Rule) Compare(other *Rule) int {
 	if cmp := rule.Head.Compare(other.Head); cmp != 0 {
 		return cmp
 	}
+	if cmp := util.Compare(rule.Default, other.Default); cmp != 0 {
+		return cmp
+	}
 	return rule.Body.Compare(other.Body)
 }
 
@@ -344,8 +349,12 @@ func (rule *Rule) Path(ns Ref) Ref {
 }
 
 func (rule *Rule) String() string {
-	buf := []string{rule.Head.String()}
-	if len(rule.Body) >= 0 {
+	buf := []string{}
+	if rule.Default {
+		buf = append(buf, "default")
+	}
+	buf = append(buf, rule.Head.String())
+	if len(rule.Body) > 0 {
 		buf = append(buf, ":-")
 		buf = append(buf, rule.Body.String())
 	}
