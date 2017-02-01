@@ -504,9 +504,7 @@ func TestRule(t *testing.T) {
 		Body:    NewBody(NewExpr(BooleanTerm(true))),
 	})
 
-	assertParseErrorEquals(t, "object composite key", "p[[x,y]] = z :- true", "head of object rule must have string, var, or ref key ([x, y] is not allowed)")
-	assertParseErrorEquals(t, "closure in key", "p[[1 | true]] :- true", "head cannot contain closures ([1 | true] appears in key)")
-	assertParseErrorEquals(t, "closure in value", "p = [[1 | true]] :- true", "head cannot contain closures ([1 | true] appears in value)")
+	assertParseErrorEquals(t, "object composite key", "p[[x,y]] = z :- true", "object key must be one of string, var, ref not array")
 	assertParseErrorEquals(t, "default ref value", "default p = [data.foo]", "default rule value cannot contain ref")
 	assertParseErrorEquals(t, "default var value", "default p = [x]", "default rule value cannot contain var")
 

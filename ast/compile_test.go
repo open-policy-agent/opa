@@ -589,7 +589,7 @@ func TestCompilerResolveAllRefs(t *testing.T) {
 	assertTermEqual(t, mod7.Rules[0].Head.Value, MustParseTerm(`{"baz": input.qux}`))
 }
 
-func TestCompilerRewriteRefsInHead(t *testing.T) {
+func TestCompilerRewriteTermsInHead(t *testing.T) {
 	c := NewCompiler()
 	c.Modules["head"] = MustParseModule(`package head
 	import data.doc1 as bar
@@ -597,22 +597,32 @@ func TestCompilerRewriteRefsInHead(t *testing.T) {
 	import input.x.y.foo
 	import input.qux as baz
 	p[foo[bar[i]]] = {"baz": baz, "corge": corge} :- true
+	q = [true | true] :- true
 	`)
 
 	compileStages(c, "", "rewriteRefsInHead")
 	assertNotFailed(t, c)
 
-	rule := c.Modules["head"].Rules[0]
+	rule1 := c.Modules["head"].Rules[0]
 
-	assertTermEqual(t, rule.Head.Key, MustParseTerm("__local0__"))
-	assertTermEqual(t, rule.Head.Value, MustParseTerm("__local1__"))
+	expected1 := MustParseRule(`
+	p[__local0__] = __local1__ :-
+		true,
+		__local0__ = input.x.y.foo[data.doc1[i]],
+		__local1__ = {"baz": input.qux, "corge": data.doc2}
+	`)
 
-	if len(rule.Body) != 3 {
-		t.Fatalf("Expected rule body to contain 3 expressions but got: %v", rule)
-	}
+	assertRulesEqual(t, rule1, expected1)
 
-	assertExprEqual(t, rule.Body[1], MustParseExpr("__local0__ = input.x.y.foo[data.doc1[i]]"))
-	assertExprEqual(t, rule.Body[2], MustParseExpr(`__local1__ = {"baz": input.qux, "corge": data.doc2}`))
+	rule2 := c.Modules["head"].Rules[1]
+
+	expected2 := MustParseRule(`
+	q = __local2__ :-
+		true,
+		__local2__ = [true | true]
+	`)
+
+	assertRulesEqual(t, rule2, expected2)
 }
 
 func TestCompilerSetRuleGraph(t *testing.T) {
