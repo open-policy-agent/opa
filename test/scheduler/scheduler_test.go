@@ -319,12 +319,12 @@ used_nonzero_mem[node_id] = used :-
                pod.spec.containers[_] = container,
                requested = container.resources.requests,
                requested.memory = m],
-    default = [m | node_pods[_] = pod,
-                   pod.spec.containers[_] = container,
-                   not container.resources.requests.memory,
-                   m = default_memory_req],
+    def = [m | node_pods[_] = pod,
+               pod.spec.containers[_] = container,
+               not container.resources.requests.memory,
+               m = default_memory_req],
     sum(mem, used_nz),
-    sum(default, used_default),
+    sum(def, used_default),
     plus(used_nz, used_default, used)
 
 used_nonzero_cpu[node_id] = used :-
@@ -333,12 +333,12 @@ used_nonzero_cpu[node_id] = used :-
                pod.spec.containers[_] = container,
                container.resources.requests = requested,
                requested.cpu = c],
-    default = [c | node_pods[_] = pod,
-                   pod.spec.containers[_] = container,
-                   not container.resources.requests.cpu,
-                   c = default_milli_cpu_req],
+    def = [c | node_pods[_] = pod,
+               pod.spec.containers[_] = container,
+               not container.resources.requests.cpu,
+               c = default_milli_cpu_req],
     sum(cpu, used_nz),
-    sum(default, used_default),
+    sum(def, used_default),
     plus(used_nz, used_default, used)
 
 pods_on_node[node_id] = pds :-
