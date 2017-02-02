@@ -181,10 +181,15 @@
 		<key>head</key>
 		<dict>
 			<key>begin</key>
-			<string>^([[:alpha:]_][[:alnum:]_]*)</string>
+			<string>^(default\s+)?([[:alpha:]_][[:alnum:]_]*)</string>
 			<key>beginCaptures</key>
 			<dict>
 				<key>1</key>
+				<dict>
+					<key>name</key>
+					<string>keyword.control.import.$1.rego</string>
+				</dict>
+				<key>2</key>
 				<dict>
 					<key>name</key>
 					<string>storage.type.function.rego</string>

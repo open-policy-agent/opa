@@ -11,7 +11,7 @@ endif
 syn case match
 
 " language keywords
-syn keyword regoKeyword package import as not with
+syn keyword regoKeyword package import as not with default
 
 " comments
 syn match regoComment "#.*$" contains=regoTodo,@Spell
@@ -29,7 +29,9 @@ syn match regoStringEscape "\\u[0-9a-fA-F]\{4}" contained
 syn match regoStringEscape "\\[nrfvb\\\"]" contained
 
 " rule head
-syn match regoRuleName "^\w\+" nextgroup=regoRuleKey,regoRuleValue skipwhite
+" TODO: how to match 'default' here but highlight as keyword (and still
+" highlight rule name as function)?
+syn match regoRuleName "^\s*\(\w\+\)" nextgroup=regoRuleKey,regoRuleValue skipwhite
 syn region regoRuleKey start="\[" end="\]" contained skipwhite
 syn match regoRuleValue "=\w\+" nextgroup=regoIfThen skipwhite
 
