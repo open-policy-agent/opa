@@ -481,7 +481,7 @@ func TestTopDownVirtualDocs(t *testing.T) {
 		{"input: set embedded", []string{`p[x] :- x = {"b": [q[2]]}`, `q[x] :- a[i] = x`}, `[{"b": [true]}]`},
 		{"input: set undefined", []string{"p = true :- q[1000]", "q[x] :- a[x] = y"}, ""},
 		{"input: set dereference error", []string{"p :- x = [1], q[x][0]", "q[[x]] :- a[_] = x"}, setDereferenceTypeErr(nil)},
-		{"input: set ground var", []string{"p[x] :- x = 1, q[x]", "q[y] :- a = [1,2,3,4], a[y] = i"}, "[1]"},
+		{"input: set ground var", []string{"p[x] :- x = 1, q[x]", "q[y] :- a[y] = i"}, "[1]"},
 		{"input: set ground composite (1)", []string{
 			"p :- z = [[1,2], 2], q[z]",
 			"q[[x,y]] :- x = [1,y], y = 2",
@@ -613,6 +613,10 @@ func TestTopDownVirtualDocs(t *testing.T) {
 			`p[x] :- q = x`,
 			`q[k] = {"v": v} :- v = [i,j], k = i, i = "a", j = 1`},
 			`[{"a": {"v": ["a", 1]}}]`},
+		// data.c[0].z.p is longer than data.q
+		{"no suffix: bound ref with long prefix (#238)", []string{
+			"p :- q, q",
+			"q = x :- x = data.c[0].z.p"}, "true"},
 		{"no suffix: object conflict (error)", []string{
 			`p[x] = y :- xs = ["a","b","c","a"], x = xs[i], y = a[i]`},
 			objectDocKeyConflictErr(nil)},
@@ -1859,7 +1863,7 @@ func runTopDownTracingTestCase(t *testing.T, module string, n int, cases map[int
 
 	_, err := Query(params)
 	if err != nil {
-		panic(err)
+		t.Fatalf("Unexpected error: %v", err)
 	}
 
 	if len(*buf) != n {
