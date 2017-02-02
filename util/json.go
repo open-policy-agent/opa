@@ -30,3 +30,27 @@ func NewJSONDecoder(r io.Reader) *json.Decoder {
 	decoder.UseNumber()
 	return decoder
 }
+
+// MustUnmarshalJSON parse the JSON encoded data and returns the result.
+//
+// If the data cannot be decoded, this function will panic. This function is for
+// test purposes.
+func MustUnmarshalJSON(bs []byte) interface{} {
+	var x interface{}
+	if err := UnmarshalJSON(bs, &x); err != nil {
+		panic(err)
+	}
+	return x
+}
+
+// MustMarshalJSON returns the JSON encoding of x
+//
+// If the data cannot be encoded, this function will panic. This function is for
+// test purposes.
+func MustMarshalJSON(x interface{}) []byte {
+	bs, err := json.Marshal(x)
+	if err != nil {
+		panic(err)
+	}
+	return bs
+}
