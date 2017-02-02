@@ -96,9 +96,11 @@ repository:
       }
     ]
   head:
-    begin: "^([[:alpha:]_][[:alnum:]_]*)"
+    begin: "^(default\s+)?([[:alpha:]_][[:alnum:]_]*)"
     beginCaptures:
       "1":
+        name: "keyword.control.import.$1.rego"
+      "2":
         name: "storage.type.function.rego"
     end: "(=|:-)"
     name: "meta.function.rego"
