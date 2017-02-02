@@ -451,7 +451,9 @@ func PlugExpr(expr *ast.Expr, binding Binding) *ast.Expr {
 func PlugTerm(term *ast.Term, binding Binding) *ast.Term {
 	switch v := term.Value.(type) {
 	case ast.Var:
-		return &ast.Term{Value: PlugValue(v, binding)}
+		plugged := *term
+		plugged.Value = PlugValue(v, binding)
+		return &plugged
 
 	case ast.Ref:
 		plugged := *term
@@ -505,12 +507,15 @@ func PlugValue(v ast.Value, binding func(ast.Value) ast.Value) ast.Value {
 
 	case ast.Ref:
 		if b := binding(v); b != nil {
-			return b
+			return PlugValue(b, binding)
 		}
 		buf := make(ast.Ref, len(v))
 		buf[0] = v[0]
 		for i, p := range v[1:] {
 			buf[i+1] = PlugTerm(p, binding)
+		}
+		if b := binding(buf); b != nil {
+			return PlugValue(b, binding)
 		}
 		return buf
 
@@ -1000,6 +1005,10 @@ func evalRefRec(t *Topdown, ref ast.Ref, iter Iterator) error {
 
 	switch v := PlugValue(ref, t.Binding).(type) {
 	case ast.Ref:
+		// https://github.com/open-policy-agent/opa/issues/238
+		// We must set ref to the plugged value here otherwise the ref
+		// evaluation doesn't have consistent values for prefix and ref.
+		ref = v
 		prefix = v.GroundPrefix()
 	default:
 		// Fast-path? TODO test case.
@@ -1650,7 +1659,10 @@ func evalRefRuleResult(t *Topdown, ref ast.Ref, suffix ast.Ref, result ast.Value
 	}
 
 	return evalRefRuleResultRec(t, result, s, ast.Ref{}, func(t *Topdown, v ast.Value) error {
-		return Continue(t, ref, v, iter)
+		// Must add binding with plugged value of ref in case ref contains
+		// suffix with one or more vars.
+		// Test case: "input: object dereference ground 2" exercises this.
+		return Continue(t, PlugValue(ref, t.Binding), v, iter)
 	})
 }
 
