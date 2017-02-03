@@ -3,7 +3,23 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## 0.4.1
+
+### Rego
+
+For more details on these changes see sections in [How Do I Write Policies](http://www.openpolicyagent.org/documentation/how-do-i-write-policies/).
+
+- Added new **default** keyword. The default keyword can be used to provide a default value for rules with complete definitions.
+- Added new **with** keyword. The with keyword can be used to programmatically set the value of the input document inside policies.
+
+### Fixes
+
+- Fix input document definition in REPL ([#231](https://github.com/open-policy-agent/opa/issues/231))
+- Fix reference evaluation bug ([#238](https://github.com/open-policy-agent/opa/issues/238))
+
+### Miscellaneous
+
+- Add basic REST API authorization benchmark
 
 ## 0.4.0
 
