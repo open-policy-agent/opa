@@ -21,84 +21,8 @@ func TestModuleTree(t *testing.T) {
 	expectedSize := 6
 
 	if tree.Size() != expectedSize {
-		t.Fatalf("Expected size of %v in module tree but got: %v", expectedSize, tree.Size())
+		t.Fatalf("Expected %v but got %v modules", expectedSize, tree.Size())
 	}
-
-	r1 := findRules(tree, MustParseRef("data.a.b.c"))
-	expected1 := []*Rule{}
-	expected1 = append(expected1, mods["mod1"].Rules...)
-	expected1 = append(expected1, mods["mod2"].Rules...)
-	sort.Sort(ruleSlice(r1))
-	sort.Sort(ruleSlice(expected1))
-
-	if !reflect.DeepEqual(r1, expected1) {
-		t.Fatalf("Expected %v result from findRules(data.a.b.c) but got: %v", expected1, r1)
-	}
-
-	r2 := findRules(tree, MustParseRef("a[x]"))
-	var expected2 []*Rule
-
-	if !reflect.DeepEqual(r2, expected2) {
-		t.Fatalf("Expected %v result from findRules(a[x]) but got: %v", expected2, r2)
-	}
-
-	r3 := findRules(tree, MustParseRef("data.a.b.c.p"))
-	expected3 := []*Rule{mods["mod1"].Rules[0]}
-
-	if !reflect.DeepEqual(r3, expected3) {
-		t.Fatalf("Expected %v from findRules(data.a.b.c.p) but got: %v", expected3, r3)
-	}
-
-	r4 := findRules(tree, MustParseRef("data.a.b.c.p[x]"))
-	if !reflect.DeepEqual(r4, expected3) {
-		t.Fatalf("Expected %v from findRules(data.a.b.c.p[x]) but got: %v", expected3, r4)
-	}
-
-	r5 := []string{}
-	for _, r := range findRules(tree, MustParseRef("data.a.b[i][j][k]")) {
-		r5 = append(r5, string(r.Head.Name))
-	}
-	sort.Strings(r5)
-
-	expected5 := []string{}
-	for _, m := range mods {
-		for _, r := range m.Rules {
-			expected5 = append(expected5, string(r.Head.Name))
-		}
-	}
-
-	sort.Strings(expected5)
-
-	if !reflect.DeepEqual(r5, expected5) {
-		t.Fatalf("Expected %v from findRules(data.a.b[i][j][k]) but got: %v", expected5, r5)
-	}
-
-	// This ref refers to all rules (same as above but without vars)
-	r6 := []string{}
-	for _, r := range findRules(tree, MustParseRef("data.a.b")) {
-		r6 = append(r6, string(r.Head.Name))
-	}
-	sort.Strings(r6)
-
-	expected6 := expected5
-
-	if !reflect.DeepEqual(r6, expected6) {
-		t.Fatalf("Expected %v from findRules(data.a.b) but got: %v", expected6, r6)
-	}
-
-	// This ref refers to all rules (same as above but with var in last position)
-	r7 := []string{}
-	for _, r := range findRules(tree, MustParseRef("data.a.b[x]")) {
-		r7 = append(r7, string(r.Head.Name))
-	}
-	sort.Strings(r7)
-
-	expected7 := expected6
-
-	if !reflect.DeepEqual(r7, expected7) {
-		t.Fatalf("Expected %v from findRules(data.a.b[x]) but got: %v", expected7, r7)
-	}
-
 }
 
 func TestRuleTree(t *testing.T) {
@@ -109,6 +33,7 @@ func TestRuleTree(t *testing.T) {
 	s[1] :- true
 	s[2] :- true
 	`)
+
 	tree := NewRuleTree(mods)
 	expectedNumRules := 18
 
