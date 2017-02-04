@@ -650,8 +650,8 @@ func (c *Compiler) setRuleGraph() {
 				c.RuleGraph[r] = edges
 			}
 			vis := &ruleGraphBuilder{
-				moduleTree: c.ModuleTree,
-				edges:      edges,
+				compiler: c,
+				edges:    edges,
 			}
 			Walk(vis, r)
 		}
@@ -1066,8 +1066,8 @@ func (wc *withModifierChecker) err(code ErrCode, loc *Location, f string, a ...i
 }
 
 type ruleGraphBuilder struct {
-	moduleTree *ModuleTreeNode
-	edges      map[*Rule]struct{}
+	compiler *Compiler
+	edges    map[*Rule]struct{}
 }
 
 func (vis *ruleGraphBuilder) Visit(v interface{}) Visitor {
@@ -1075,9 +1075,11 @@ func (vis *ruleGraphBuilder) Visit(v interface{}) Visitor {
 	if !ok {
 		return vis
 	}
-	for _, v := range findRules(vis.moduleTree, ref) {
+
+	for _, v := range vis.compiler.GetRules(ref.GroundPrefix()) {
 		vis.edges[v] = struct{}{}
 	}
+
 	return vis
 }
 
@@ -1136,75 +1138,6 @@ func (vs unsafeVars) Vars() VarSet {
 		r.Update(s)
 	}
 	return r
-}
-
-// findRules returns a slice of rules referred to by ref.
-//
-// For example, given package a.b.c containing rules p and q:
-//
-// findRules(a.b.c.p)		=> [p]
-// findRules(a.b.c.r)		=> []
-// findRules(a.b.c.p[x])	=> [p]
-// findRules(a.b.c)			=> [p q]
-// findRules(a.b)			=> [p q] # assumes no other rules under a.b
-func findRules(node *ModuleTreeNode, ref Ref) []*Rule {
-
-	// Syntactically, reference heads are variables, however, we don't want to
-	// treat them the same way as variables in the remainder of the reference
-	// here.
-	if node, ok := node.Children[ref[0].Value]; ok {
-		return findRulesRec(node, ref[1:])
-	}
-
-	return nil
-}
-
-func findRulesRec(node *ModuleTreeNode, ref Ref) (rs []*Rule) {
-
-	if len(ref) == 0 {
-		// Any rules that define documents embedded inside the document referred
-		// to by this reference must be included. Accumulate all embedded rules
-		// by recursively walking the module tree.
-		var acc func(node *ModuleTreeNode)
-
-		acc = func(node *ModuleTreeNode) {
-			for _, mod := range node.Modules {
-				rs = append(rs, mod.Rules...)
-			}
-			for _, child := range node.Children {
-				acc(child)
-			}
-		}
-
-		acc(node)
-
-		return rs
-	}
-
-	head, tail := ref[0], ref[1:]
-
-	switch head := head.Value.(type) {
-	case String:
-		if node, ok := node.Children[head]; ok {
-			return findRulesRec(node, tail)
-		}
-		for _, m := range node.Modules {
-			for _, r := range m.Rules {
-				if String(r.Head.Name).Equal(head) {
-					rs = append(rs, r)
-				}
-			}
-		}
-	case Var:
-		for _, n := range node.Children {
-			rs = append(rs, findRulesRec(n, tail)...)
-		}
-		for _, m := range node.Modules {
-			rs = append(rs, m.Rules...)
-		}
-	}
-
-	return rs
 }
 
 // reorderBodyForSafety returns a copy of the body ordered such that
