@@ -252,17 +252,16 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 	if qrs.Undefined() {
 		if explainMode == explainFullV1 {
 			result.Explanation = newTraceV1(*buf)
-			handleResponseJSON(w, 404, result, pretty)
-		} else {
-			handleResponse(w, 404, nil)
 		}
+		handleResponseJSON(w, 200, result, pretty)
 		return
 	}
 
 	if nonGround {
-		result.Result = newQueryResultSetV1(qrs)
+		var i interface{} = newQueryResultSetV1(qrs)
+		result.Result = &i
 	} else {
-		result.Result = qrs[0].Result
+		result.Result = &qrs[0].Result
 	}
 
 	switch explainMode {
@@ -361,14 +360,12 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 	if qrs.Undefined() {
 		if explainMode == explainFullV1 {
 			result.Explanation = newTraceV1(*buf)
-			handleResponseJSON(w, 404, result, pretty)
-		} else {
-			handleResponse(w, 404, nil)
 		}
+		handleResponseJSON(w, 200, result, pretty)
 		return
 	}
 
-	result.Result = qrs[0].Result
+	result.Result = &qrs[0].Result
 
 	switch explainMode {
 	case explainFullV1:
