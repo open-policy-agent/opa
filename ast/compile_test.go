@@ -28,17 +28,25 @@ func TestModuleTree(t *testing.T) {
 func TestRuleTree(t *testing.T) {
 
 	mods := getCompilerTestModules()
+
 	mods["mod-incr"] = MustParseModule(`
 	package a.b.c
 	s[1] :- true
 	s[2] :- true
 	`)
 
-	tree := NewRuleTree(mods)
+	tree := NewRuleTree(NewModuleTree(mods))
 	expectedNumRules := 18
 
 	if tree.Size() != expectedNumRules {
 		t.Errorf("Expected %v but got %v rules", expectedNumRules, tree.Size())
+	}
+
+	// Check that empty packages are represented as leaves with no rules.
+	node := tree.Children[Var("data")].Children[String("a")].Children[String("b")].Children[String("empty")]
+
+	if node == nil || len(node.Children) != 0 || len(node.Rules) != 0 {
+		t.Fatalf("Unexpected nil value or non-empty leaf of non-leaf node: %v", node)
 	}
 
 }
