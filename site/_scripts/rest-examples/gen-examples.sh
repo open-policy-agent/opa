@@ -88,9 +88,13 @@ function get_a_document_with_input() {
     curl $BASE_URL/policies/example3 -X PUT -s -v --data-binary @example3.rego >/dev/null 2>&1
 
     echo "### Get a Document With Input"
-
+    echo ""
+    echo "#### Example Request"
+    echo ""
     curl $BASE_URL/data/opa/examples/allow_request?pretty=true -s -v \
         -d '{"input": {"example": {"flag": true}}}' -H 'Content-Type: application: json' | jq
+    echo ""
+    echo "#### Example Request"
     echo ""
     curl $BASE_URL/data/opa/examples/allow_request?pretty=true -s -v \
         -d '{"input": {"example": {"flag": false}}}' -H 'Content-Type: application: json' | jq
