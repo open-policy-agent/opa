@@ -1050,19 +1050,13 @@ func evalRefRecGround(t *Topdown, ref, prefix ast.Ref, iter Iterator) error {
 	for _, x := range prefix {
 		node = node.Children[x.Value]
 		if node == nil {
-			break
+			// If node is nil, prefix refers to non-existent node. Evaluation
+			// continues iff the reference is defined for some base document.
+			if storage.IsNotFound(readErr) {
+				return nil
+			}
+			return iter(t)
 		}
-	}
-
-	// If the reference does not refer to any virtual docs, evaluation continues
-	// or stops depending on whether the reference is defined for some base doc.
-	// The same logic is applied below after attempting to produce virtual
-	// documents referred to by the reference.
-	if node == nil || node.Size() == 0 {
-		if storage.IsNotFound(readErr) {
-			return nil
-		}
-		return iter(t)
 	}
 
 	vdoc, err := evalRefRecTree(t, prefix, node)
@@ -1101,12 +1095,12 @@ func evalRefRecGround(t *Topdown, ref, prefix ast.Ref, iter Iterator) error {
 	return Continue(t, ref, result, iter)
 }
 
-// evalRefRecTree evaluates the rules found in the leaves of the tree. For each
+// evalRefRecTree evaluates the rules found in the leaves of the tree. If the  For each
 // non-leaf node in the tree, the results are merged together to form an object.
 // The final result is the object representing the virtual document rooted at
 // node.
 func evalRefRecTree(t *Topdown, path ast.Ref, node *ast.RuleTreeNode) (ast.Object, error) {
-	var v ast.Object
+	v := ast.Object{}
 
 	for _, c := range node.Children {
 		path = append(path, &ast.Term{Value: c.Key})
@@ -1125,24 +1119,15 @@ func evalRefRecTree(t *Topdown, path ast.Ref, node *ast.RuleTreeNode) (ast.Objec
 			key := path[len(path)-1]
 			val := &ast.Term{Value: result}
 			obj := ast.Object{ast.Item(key, val)}
-			if v == nil {
-				v = ast.Object{}
-			}
 			v, _ = v.Merge(obj)
 		} else {
 			result, err := evalRefRecTree(t, path, c)
 			if err != nil {
 				return nil, err
 			}
-			if result == nil {
-				continue
-			}
 			key := &ast.Term{Value: c.Key}
 			val := &ast.Term{Value: result}
 			obj := ast.Object{ast.Item(key, val)}
-			if v == nil {
-				v = ast.Object{}
-			}
 			v, _ = v.Merge(obj)
 		}
 		path = path[:len(path)-1]

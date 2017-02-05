@@ -688,17 +688,21 @@ func TestTopDownBaseAndVirtualDocs(t *testing.T) {
 			p :- true
 		`,
 		`
-			package topdown.a.b.c.undefined     # should not be included in result
+			package topdown.a.b.c.undefined1
 			p :- false
+			p :- false
+			q :- false
 		`,
 		`
-			package topdown.g.h                 # should not be included in result
-			undefined :- false
-		`,
-		`
-			package topdown.missing.input.value
-
+			package topdown.a.b.c.undefined2
 			p :- input.foo
+		`,
+		`
+			package topdown.a.b.c.empty
+		`,
+		`
+			package topdown.g.h
+			p :- false
 		`,
 		// Define virtual docs that we can query to obtain merged result.
 		`
@@ -706,10 +710,10 @@ func TestTopDownBaseAndVirtualDocs(t *testing.T) {
 			p[[x1,x2,x3,x4]] :- data.topdown.a.b[x1][x2][x3] = x4
 			q[[x1,x2,x3]] :- data.topdown.a.b[x1][x2][0] = x3
 			r[[x1,x2]] :- data.topdown.a.b[x1] = x2
-			s = x :- data.topdown.no = x
-			t :- data.topdown.a.b.c.undefined
-		 	u :- data.topdown.missing.input.value
-			v = x :- data.topdown.g = x
+			s = data.topdown.no
+			t = data.topdown.a.b.c.undefined1
+			u = data.topdown.missing.input.value
+			v = data.topdown.g
 			w = data.topdown.set
 		`,
 	})
@@ -743,7 +747,11 @@ func TestTopDownBaseAndVirtualDocs(t *testing.T) {
 			"s": {"w": {"f": 10, "g": 9.9}},
 			"x": [100,200],
 			"y": false,
-			"z": {"a": "b"}}]
+			"z": {"a": "b"},
+			"undefined1": {},
+			"undefined2": {},
+			"empty": {}
+		}]
 	]`)
 
 	assertTopDown(t, compiler, store, "base/virtual: set", []string{"topdown", "w"}, "{}", `{
@@ -752,7 +760,7 @@ func TestTopDownBaseAndVirtualDocs(t *testing.T) {
 	}`)
 
 	assertTopDown(t, compiler, store, "base/virtual: no base", []string{"topdown", "s"}, "{}", `{"base": {"doc": {"p": true}}}`)
-	assertTopDown(t, compiler, store, "base/virtual: undefined", []string{"topdown", "t"}, "{}", "")
+	assertTopDown(t, compiler, store, "base/virtual: undefined", []string{"topdown", "t"}, "{}", "{}")
 	assertTopDown(t, compiler, store, "base/virtual: undefined-2", []string{"topdown", "v"}, "{}", `{"h": {"k": [1,2,3]}}`)
 	assertTopDown(t, compiler, store, "base/virtual: missing input value", []string{"topdown", "u"}, "{}", "")
 }
