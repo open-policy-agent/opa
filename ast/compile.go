@@ -24,8 +24,8 @@ type Compiler struct {
 	// there is no guarantee about the state of the modules.
 	Modules map[string]*Module
 
-	// ModuleTree organizes the modules into a tree where each node is keyed
-	// by an element in the module's package path. E.g., given modules containg
+	// ModuleTree organizes the modules into a tree where each node is keyed by
+	// an element in the module's package path. E.g., given modules containing
 	// the following package directives: "a", "a.b", "a.c", and "a.b", the
 	// resulting module tree would be:
 	//
@@ -43,7 +43,8 @@ type Compiler struct {
 
 	// RuleTree organizes rules into a tree where each node is keyed by an
 	// element in the rule's path. The rule path is the concatenation of the
-	// containing package and the stringified rule name. E.g., given the following module:
+	// containing package and the stringified rule name. E.g., given the
+	// following module:
 	//
 	//  package ex
 	//  p[1] :- true
@@ -154,11 +155,12 @@ type stage struct {
 func NewCompiler() *Compiler {
 
 	c := &Compiler{
-		Modules:    map[string]*Module{},
-		RuleGraph:  map[*Rule]map[*Rule]struct{}{},
-		ModuleTree: NewModuleTree(nil),
-		RuleTree:   NewRuleTree(nil),
+		Modules:   map[string]*Module{},
+		RuleGraph: map[*Rule]map[*Rule]struct{}{},
 	}
+
+	c.ModuleTree = NewModuleTree(nil)
+	c.RuleTree = NewRuleTree(c.ModuleTree)
 
 	c.stages = []stage{
 		{c.resolveAllRefs, "resolveAllRefs"},
@@ -638,7 +640,7 @@ func (c *Compiler) setModuleTree() {
 }
 
 func (c *Compiler) setRuleTree() {
-	c.RuleTree = NewRuleTree(c.Modules)
+	c.RuleTree = NewRuleTree(c.ModuleTree)
 }
 
 func (c *Compiler) setRuleGraph() {
@@ -914,29 +916,39 @@ type RuleTreeNode struct {
 
 // NewRuleTree returns a new RuleTreeNode that represents the root
 // of the rule tree populated with the given rules.
-func NewRuleTree(mods map[string]*Module) *RuleTreeNode {
-	root := &RuleTreeNode{
-		Children: map[Value]*RuleTreeNode{},
-	}
-	for _, mod := range mods {
+func NewRuleTree(mtree *ModuleTreeNode) *RuleTreeNode {
+
+	ruleSets := map[String][]*Rule{}
+
+	// Build rule sets for this package.
+	for _, mod := range mtree.Modules {
 		for _, rule := range mod.Rules {
-			node := root
-			path := rule.Path(mod.Package.Path)
-			for _, x := range path {
-				c := node.Children[x.Value]
-				if c == nil {
-					c = &RuleTreeNode{
-						Key:      x.Value,
-						Children: map[Value]*RuleTreeNode{},
-					}
-					node.Children[x.Value] = c
-				}
-				node = c
-			}
-			node.Rules = append(node.Rules, rule)
+			key := String(rule.Head.Name)
+			ruleSets[key] = append(ruleSets[key], rule)
 		}
 	}
-	return root
+
+	// Each rule set becomes a leaf node.
+	children := map[Value]*RuleTreeNode{}
+
+	for key, rules := range ruleSets {
+		children[key] = &RuleTreeNode{
+			Key:      key,
+			Children: nil,
+			Rules:    rules,
+		}
+	}
+
+	// Each module in subpackage becomes child node.
+	for _, child := range mtree.Children {
+		children[child.Key] = NewRuleTree(child)
+	}
+
+	return &RuleTreeNode{
+		Key:      mtree.Key,
+		Rules:    nil,
+		Children: children,
+	}
 }
 
 // Size returns the number of rules in the tree.
