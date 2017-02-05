@@ -84,8 +84,8 @@ type dataRequestV1 struct {
 
 // dataResponseV1 models the response message for Data API read operations.
 type dataResponseV1 struct {
-	Explanation traceV1     `json:"explanation,omitempty"`
-	Result      interface{} `json:"result,omitempty"`
+	Explanation traceV1      `json:"explanation,omitempty"`
+	Result      *interface{} `json:"result,omitempty"`
 }
 
 // queryResponseV1 models the response message for Query API operations.
@@ -101,12 +101,12 @@ type adhocQueryResultSetV1 []map[string]interface{}
 // return multiple values for the document.
 type queryResultSetV1 []*queryResultV1
 
-func newQueryResultSetV1(qrs topdown.QueryResultSet) queryResultSetV1 {
+func newQueryResultSetV1(qrs topdown.QueryResultSet) *queryResultSetV1 {
 	result := make(queryResultSetV1, len(qrs))
 	for i := range qrs {
 		result[i] = &queryResultV1{qrs[i].Result, qrs[i].Bindings}
 	}
-	return result
+	return &result
 }
 
 // queryResultV1 models a single result of a Data API query that would return

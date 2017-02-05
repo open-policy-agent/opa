@@ -82,6 +82,12 @@ func TestDataV1(t *testing.T) {
 	p = false :- true
 	`
 
+	testMod5 := `package testmod.empty.mod`
+	testMod6 := `package testmod.all.undefined
+
+	p :- false
+	`
+
 	tests := []struct {
 		note string
 		reqs []tr
@@ -190,7 +196,7 @@ func TestDataV1(t *testing.T) {
 		}},
 		{"get with input (missing input value)", []tr{
 			tr{"PUT", "/policies/test", testMod1, 200, ""},
-			tr{"GET", "/data/testmod/g?input=req1%3A%7B%22a%22%3A%5B1%5D%7D", "", 404, ""}, // req2 not specified
+			tr{"GET", "/data/testmod/g?input=req1%3A%7B%22a%22%3A%5B1%5D%7D", "", 200, "{}"}, // req2 not specified
 		}},
 		{"get with input (namespaced)", []tr{
 			tr{"PUT", "/policies/test", testMod1, 200, ""},
@@ -232,10 +238,18 @@ func TestDataV1(t *testing.T) {
 				"message": "input parameter format is [[<path>]:]<value> where <path> is either var or ref"
 			}`},
 		}},
-		{"get undefined", []tr{
+		{"get empty and undefined", []tr{
 			tr{"PUT", "/policies/test", testMod1, 200, ""},
-			tr{"GET", "/data/testmod/undef", "", 404, ""},
-			tr{"GET", "/data/does/not/exist", "", 404, ""},
+			tr{"PUT", "/policies/test2", testMod5, 200, ""},
+			tr{"PUT", "/policies/test3", testMod6, 200, ""},
+			tr{"GET", "/data/testmod/undef", "", 200, "{}"},
+			tr{"GET", "/data/does/not/exist", "", 200, "{}"},
+			tr{"GET", "/data/testmod/empty/mod", "", 200, `{
+				"result": {}
+			}`},
+			tr{"GET", "/data/testmod/all/undefined", "", 200, `{
+				"result": {}
+			}`},
 		}},
 		{"get root", []tr{
 			tr{"PUT", "/policies/test", testMod2, 200, ""},
@@ -342,8 +356,8 @@ func TestDataGetExplainFull(t *testing.T) {
 
 	result = dataResponseV1{}
 
-	if f.recorder.Code != 404 {
-		t.Fatalf("Expected status code to be 404 but got: %v", f.recorder.Code)
+	if f.recorder.Code != 200 {
+		t.Fatalf("Expected status code to be 200 but got: %v", f.recorder.Code)
 	}
 
 	if err := util.NewJSONDecoder(f.recorder.Body).Decode(&result); err != nil {
@@ -385,8 +399,18 @@ func TestDataGetExplainTruth(t *testing.T) {
 	f.reset()
 	f.server.Handler.ServeHTTP(f.recorder, req)
 
-	if f.recorder.Code != 404 {
-		t.Fatalf("Expected status code to be 404 but got: %v", f.recorder)
+	if f.recorder.Code != 200 {
+		t.Fatalf("Expected status code to be 200 but got: %v", f.recorder)
+	}
+
+	var result2 dataResponseV1
+
+	if err := util.NewJSONDecoder(f.recorder.Body).Decode(&result2); err != nil {
+		t.Fatalf("Unexpected JSON decode error: %v", err)
+	}
+
+	if result2.Result != nil {
+		t.Fatalf("Expected undefined result but got: %v", result2.Result)
 	}
 }
 
@@ -417,7 +441,7 @@ func TestDataPostExplain(t *testing.T) {
 		panic(err)
 	}
 
-	if !reflect.DeepEqual(result.Result, expected) {
+	if result.Result == nil || !reflect.DeepEqual(*result.Result, expected) {
 		t.Fatalf("Expected %v but got: %v", expected, result.Result)
 	}
 
