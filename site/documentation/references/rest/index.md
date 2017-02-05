@@ -1394,18 +1394,15 @@ seccomp_unconfined :-
 
 - **200** - no error
 - **400** - bad request
-- **404** - not found
 - **500** - server error
 
 The server returns 400 if either:
 
-1. The query requires an input document and the client did not supply one.
-2. The query already defines an input document and the client did supply one.
+- The query requires the input document and the caller does not provide it.
+- The caller provides the input document but the query already defines it programmatically.
 
-The server returns 404 in two cases:
-
-- The path refers to a non-existent base document.
-- The path refers to a Virtual Document that is undefined in the context of the query.
+The server returns 200 if the path refers to an undefined document. In this
+case, the response will not contain a `result` property.
 
 ### <a name="get-a-document-with-input"></a> Get a Document With Input
 
@@ -1486,7 +1483,11 @@ Content-Type: application/json
 #### Example Response
 
 ```http
-HTTP/1.1 404 Not Found
+HTTP/1.1 200 OK
+```
+
+```json
+{}
 ```
 
 #### Query Parameters
@@ -1498,7 +1499,6 @@ HTTP/1.1 404 Not Found
 
 - **200** - no error
 - **400** - bad request
-- **404** - not found
 - **500** - server error
 
 The server returns 400 if either:
@@ -1506,10 +1506,8 @@ The server returns 400 if either:
 1. The query requires an input document and the client did not supply one.
 2. The query already defines an input document and the client did supply one.
 
-The server returns 404 in two cases:
-
-- The path refers to a non-existent base document.
-- The path refers to a Virtual Document that is undefined in the context of the query.
+The server returns 200 if the path refers to an undefined document. In this
+case, the response will not contain a `result` property.
 
 ### Create or Overwrite a Document
 
