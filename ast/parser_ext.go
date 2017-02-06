@@ -301,6 +301,7 @@ func ParseStatement(input string) (Statement, error) {
 // ParseStatements returns a slice of parsed statements.
 // This is the default return value from the parser.
 func ParseStatements(filename, input string) ([]Statement, error) {
+
 	parsed, err := Parse(filename, []byte(input))
 	if err != nil {
 		switch err := err.(type) {
@@ -312,12 +313,18 @@ func ParseStatements(filename, input string) ([]Statement, error) {
 	}
 
 	sl := parsed.([]interface{})
-	stmts := make([]Statement, len(sl))
+	stmts := make([]Statement, 0, len(sl))
 
-	for i := range sl {
-		// Unchecked cast should be safe. A panic indicates grammar is
-		// out-of-sync.
-		stmts[i] = sl[i].(Statement)
+	for _, x := range sl {
+		if rules, ok := x.([]*Rule); ok {
+			for _, rule := range rules {
+				stmts = append(stmts, rule)
+			}
+		} else {
+			// Unchecked cast should be safe. A panic indicates grammar is
+			// out-of-sync.
+			stmts = append(stmts, x.(Statement))
+		}
 	}
 
 	postProcess(filename, stmts)
