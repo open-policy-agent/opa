@@ -27,6 +27,9 @@ var DefaultBuiltins = [...]*Builtin{
 	// Arithmetic
 	Plus, Minus, Multiply, Divide, Round, Abs,
 
+	// Binary
+	And, Or,
+
 	// Aggregates
 	Count, Sum, Max,
 
@@ -105,13 +108,16 @@ var NotEqual = &Builtin{
 // Plus adds two numbers together.
 var Plus = &Builtin{
 	Name:      Var("plus"),
+	Infix:     Var("+"),
 	NumArgs:   3,
 	TargetPos: []int{2},
 }
 
-// Minus subtracts the second number from the first number.
+// Minus subtracts the second number from the first number or computes the diff
+// between two sets.
 var Minus = &Builtin{
 	Name:      Var("minus"),
+	Infix:     Var("-"),
 	NumArgs:   3,
 	TargetPos: []int{2},
 }
@@ -119,6 +125,7 @@ var Minus = &Builtin{
 // Multiply multiplies two numbers together.
 var Multiply = &Builtin{
 	Name:      Var("mul"),
+	Infix:     Var("*"),
 	NumArgs:   3,
 	TargetPos: []int{2},
 }
@@ -126,6 +133,7 @@ var Multiply = &Builtin{
 // Divide divides the first number by the second number.
 var Divide = &Builtin{
 	Name:      Var("div"),
+	Infix:     Var("/"),
 	NumArgs:   3,
 	TargetPos: []int{2},
 }
@@ -142,6 +150,27 @@ var Abs = &Builtin{
 	Name:      Var("abs"),
 	NumArgs:   2,
 	TargetPos: []int{1},
+}
+
+/**
+ * Binary
+ */
+
+// And performs a binary AND operation on numbers and an intersection operation
+// on sets.
+var And = &Builtin{
+	Name:      Var("and"),
+	Infix:     Var("&"),
+	NumArgs:   3,
+	TargetPos: []int{2},
+}
+
+// Or performs a binary OR operation on numbers and a union operation on sets.
+var Or = &Builtin{
+	Name:      Var("or"),
+	Infix:     Var("|"),
+	NumArgs:   3,
+	TargetPos: []int{2},
 }
 
 /**
@@ -191,18 +220,6 @@ var ToNumber = &Builtin{
 var RegexMatch = &Builtin{
 	Name:    Var("re_match"),
 	NumArgs: 2,
-}
-
-/**
- * Sets
- */
-
-// SetDiff returns the difference between two sets. The difference is all of the
-// elements in the first set that are not in the second set.
-var SetDiff = &Builtin{
-	Name:      Var("set_diff"),
-	NumArgs:   3,
-	TargetPos: []int{2},
 }
 
 /**
@@ -268,6 +285,17 @@ var Upper = &Builtin{
 	Name:      Var("upper"),
 	NumArgs:   2,
 	TargetPos: []int{1},
+}
+
+/**
+ * Deprecated built-ins.
+ */
+
+// SetDiff has been replaced by the minus built-in.
+var SetDiff = &Builtin{
+	Name:      Var("set_diff"),
+	NumArgs:   3,
+	TargetPos: []int{2},
 }
 
 // Builtin represents a built-in function supported by OPA. Every

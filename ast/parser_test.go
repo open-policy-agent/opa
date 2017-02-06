@@ -302,6 +302,16 @@ func TestInfixExpr(t *testing.T) {
 	assertParseOneExpr(t, "composites", "[{14.2: true, \"a\": null}] != {foo: {a.b[0]: [10]}}", NotEqual.Expr(left2, right2))
 }
 
+func TestInfixArithExpr(t *testing.T) {
+	assertParseOneExpr(t, "plus", "x = 1 + 2", Plus.Expr(IntNumberTerm(1), IntNumberTerm(2), VarTerm("x")))
+	assertParseOneExpr(t, "minus", "x = 1 - 2", Minus.Expr(IntNumberTerm(1), IntNumberTerm(2), VarTerm("x")))
+	assertParseOneExpr(t, "mul", "x = 1 * 2", Multiply.Expr(IntNumberTerm(1), IntNumberTerm(2), VarTerm("x")))
+	assertParseOneExpr(t, "div", "x = 1 / 2", Divide.Expr(IntNumberTerm(1), IntNumberTerm(2), VarTerm("x")))
+	assertParseOneExpr(t, "and", "x = {1,2,3} & {2,3,4}", And.Expr(SetTerm(IntNumberTerm(1), IntNumberTerm(2), IntNumberTerm(3)), SetTerm(IntNumberTerm(2), IntNumberTerm(3), IntNumberTerm(4)), VarTerm("x")))
+	assertParseOneExpr(t, "or", "x = {1,2,3} | {3,4,5}", Or.Expr(SetTerm(IntNumberTerm(1), IntNumberTerm(2), IntNumberTerm(3)), SetTerm(IntNumberTerm(3), IntNumberTerm(4), IntNumberTerm(5)), VarTerm("x")))
+	assertParseOneExpr(t, "plus (reverse)", "1 + 2 = x", Plus.Expr(IntNumberTerm(1), IntNumberTerm(2), VarTerm("x")))
+}
+
 func TestMiscBuiltinExpr(t *testing.T) {
 	xyz := VarTerm("xyz")
 	assertParseOneExpr(t, "empty", "xyz()", NewBuiltinExpr(xyz))
