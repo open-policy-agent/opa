@@ -7,6 +7,7 @@ package topdown
 import "github.com/open-policy-agent/opa/ast"
 import "github.com/open-policy-agent/opa/topdown/builtins"
 
+// Deprecated in v0.4.2 in favour of minus/infix "-" operation.
 func builtinSetDiff(a, b ast.Value) (ast.Value, error) {
 
 	s1, err := builtins.SetOperand(a, 1)
