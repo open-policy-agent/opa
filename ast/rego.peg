@@ -224,7 +224,27 @@ With <- "with" ws target:Term ws "as" ws value:Term {
     return with, nil
 }
 
-Expr <- InfixExpr / PrefixExpr / Term
+Expr <- (InfixArithExpr / InfixArithExprReverse) / InfixExpr / PrefixExpr / Term
+
+InfixArithExpr <- output:Term _ "=" _ left:Term _ op:ArithInfixOp _ right:Term {
+    return []*Term{op.(*Term), left.(*Term), right.(*Term), output.(*Term)}, nil
+}
+
+InfixArithExprReverse <- left:Term _ op:ArithInfixOp _ right:Term _ "=" _ output:Term {
+    return []*Term{op.(*Term), left.(*Term), right.(*Term), output.(*Term)}, nil
+}
+
+ArithInfixOp <- val:("+" / "-" / "*" / "/" / "&" / "|" / "-") {
+    op := string(c.text)
+    for _, b := range Builtins {
+        if string(b.Infix) == op {
+            op = string(b.Name)
+        }
+    }
+    operator := VarTerm(op)
+    operator.Location = currentLocation(c)
+	return operator, nil
+}
 
 InfixExpr <- left:Term _ op:InfixOp _ right:Term {
     return []*Term{op.(*Term), left.(*Term), right.(*Term)}, nil
