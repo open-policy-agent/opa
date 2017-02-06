@@ -37,10 +37,10 @@ complex types.
 
 | Built-in | Inputs | Description |
 | ------- |--------|-------------|
-| <span class="opa-keep-it-together">``plus(x, y, output)``</span>   |  2     | ``x`` + ``y`` = ``output`` |
-| <span class="opa-keep-it-together">``minus(x, y, output)``</span>  |  2     | ``x`` - ``y`` = ``output`` |
-| <span class="opa-keep-it-together">``mul(x, y, output)``</span>   |  2     | ``x`` * ``y`` = ``output`` |
-| <span class="opa-keep-it-together">``div(x, y, output)``</span>   |  2     | ``x`` / ``y`` = ``output`` |
+| <span class="opa-keep-it-together">``z = x + y``</span>   |  2     | ``z`` is the sum of ``x`` and ``y`` |
+| <span class="opa-keep-it-together">``z = x - y``</span>  |  2     | ``z`` is the difference of ``x`` and ``y`` |
+| <span class="opa-keep-it-together">``z = x * y``</span>   |  2     | ``z`` is the product of ``x`` and ``y`` |
+| <span class="opa-keep-it-together">``z = x / y``</span>   |  2     | ``z`` is the quotient of ``x`` and ``y``  |
 | <span class="opa-keep-it-together">``round(x, output)``</span>    |  1     | ``output`` is ``x`` rounded to the nearest integer |
 | <span class="opa-keep-it-together">``abs(x, output)``</span>    |  1     | ``output`` is the absolute value of ``x`` |
 
@@ -56,7 +56,9 @@ complex types.
 
 | Built-in | Inputs | Description |
 | -------- | ------ | ----------- |
-| <span class="opa-keep-it-together">``set_diff(s1, s2, output)``</span> | 2 | ``output`` is the difference between ``s1`` and ``s2``, i.e., the elements in ``s1`` that are not in ``s2`` |
+| <span class="opa-keep-it-together">``s3 = s1 & s2``</span> | 2 | ``s3`` is the intersection of ``s1`` and ``s2``. |
+| <span class="opa-keep-it-together">``s3 = s1 | s2``</span> | 2 | ``s3`` is the union of ``s1`` and ``s2``. |
+| <span class="opa-keep-it-together">``s3 = s1 - s2``</span> | 2 | ``s3`` is the difference between ``s1`` and ``s2``, i.e., the elements in ``s1`` that are not in ``s2`` |
 
 ### Strings
 
@@ -112,10 +114,13 @@ literal        = ( expr | "not" expr ) { with-modifier }
 with-modifier  = "with" term "as" term
 expr           = term | expr-built-in | expr-infix
 expr-built-in  = var "(" [ term { , term } ] ")"
-expr-infix     = term bool-operator term
+expr-infix     = [ term "=" ] term infix-operator term
 term           = ref | var | scalar | array | object | set | array-compr
 array-compr    = "[" term "|" rule-body "]"
+infix-operator = bool-operator | arith-operator | bin-operator
 bool-operator  = "=" | "!=" | "<" | ">" | ">=" | "<="
+arith-operator = "+" | "-" | "*" | "/"
+bin-operator   = "&" | "|"
 ref            = var { ref-arg }
 ref-arg        = ref-arg-dot | ref-arg-brack
 ref-arg-brack  = "[" ( scalar | var | "_" ) "]"
