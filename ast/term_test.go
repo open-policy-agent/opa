@@ -338,6 +338,42 @@ func TestSetMap(t *testing.T) {
 
 }
 
+func TestSetOperations(t *testing.T) {
+
+	tests := []struct {
+		a  string
+		b  string
+		c  string
+		op string
+	}{
+		{`{1,2,3,4}`, `{1,3,5}`, `{2,4}`, "-"},
+		{`{1,3,5}`, `{1,2,3,4}`, `{5}`, "-"},
+		{`{1,2,3,4}`, `{1,3,5}`, `{1,3}`, "&"},
+		{`{1,3,5}`, `{1,2,3,4}`, `{1,3}`, "&"},
+		{`{1,2,3,4}`, `{1,3,5}`, `{1,2,3,4,5}`, "|"},
+		{`{1,3,5}`, `{1,2,3,4}`, `{1,2,3,4,5}`, "|"},
+	}
+
+	for _, tc := range tests {
+		s1 := MustParseTerm(tc.a).Value.(*Set)
+		s2 := MustParseTerm(tc.b).Value.(*Set)
+		s3 := MustParseTerm(tc.c).Value.(*Set)
+		var result *Set
+		if tc.op == "-" {
+			result = s1.Diff(s2)
+		} else if tc.op == "&" {
+			result = s1.Intersect(s2)
+		} else if tc.op == "|" {
+			result = s1.Union(s2)
+		} else {
+			panic("bad operation")
+		}
+		if !result.Equal(s3) {
+			t.Errorf("Expected %v for %v %v %v but got: %v", s3, tc.a, tc.op, tc.b, result)
+		}
+	}
+}
+
 func assertTermEqual(t *testing.T, x *Term, y *Term) {
 	if !x.Equal(y) {
 		t.Errorf("Failure on equality: \n%s and \n%s\n", x, y)

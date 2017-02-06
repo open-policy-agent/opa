@@ -1004,11 +1004,11 @@ func TestTopDownArithmetic(t *testing.T) {
 		rules    []string
 		expected interface{}
 	}{
-		{"plus", []string{"p[y] :- a[i] = x, plus(i, x, y)"}, "[1,3,5,7]"},
-		{"minus", []string{"p[y] :- a[i] = x, minus(i, x, y)"}, "[-1]"},
-		{"multiply", []string{"p[y] :- a[i] = x, mul(i, x, y)"}, "[0,2,6,12]"},
-		{"divide+round", []string{"p[z] :- a[i] = x, div(i, x, y), round(y, z)"}, "[0, 1]"},
-		{"divide+error", []string{"p[y] :- a[i] = x, div(x, i, y)"}, fmt.Errorf("divide: by zero")},
+		{"plus", []string{"p[y] :- a[i] = x, y = i + x"}, "[1,3,5,7]"},
+		{"minus", []string{"p[y] :- a[i] = x, y = i - x"}, "[-1]"},
+		{"multiply", []string{"p[y] :- a[i] = x, y = i * x"}, "[0,2,6,12]"},
+		{"divide+round", []string{"p[z] :- a[i] = x, y = i / x, round(y, z)"}, "[0, 1]"},
+		{"divide+error", []string{"p[y] :- a[i] = x, x / i = y"}, fmt.Errorf("divide: by zero")},
 		{"abs", []string{"p :- abs(-10, x), x = 10"}, "true"},
 		{"arity 1 ref dest", []string{"p :- abs(-4, a[3])"}, "true"},
 		{"arity 1 ref dest (2)", []string{"p :- not abs(-5, a[3])"}, "true"},
@@ -1073,12 +1073,14 @@ func TestTopDownSets(t *testing.T) {
 		rules    []string
 		expected interface{}
 	}{
-		{"set_diff", []string{"p = x :- s1 = {1,2,3,4}, s2 = {1,3}, set_diff(s1, s2, x)"}, `[2,4]`},
+		{"set_diff", []string{"p = x :- s1 = {1,2,3,4}, s2 = {1,3}, s1 - s2 = x"}, `[2,4]`},
 		{"set_diff: refs", []string{"p = x :- s1 = {a[2], a[1], a[0]}, s2 = {a[0], 2}, set_diff(s1, s2, x)"}, "[3]"},
 		{"set_diff: bad input", []string{"p = x :- s1 = [1,2,3], s2 = {1,2}, set_diff(s1, s2, x)"}, fmt.Errorf("operand 1 must be set but got array")},
 		{"set_diff: bad input", []string{"p = x :- s1 = {1,2,3}, s2 = [1,2], set_diff(s1, s2, x)"}, fmt.Errorf("operand 2 must be set but got array")},
-		{"set_diff: ground output", []string{"p :- set_diff({1,2,3}, {2,3}, {1})"}, "true"},
-		{"set_diff: virt docs", []string{"p = x :- set_diff(s1, s2, x)", "s1[1] :- true", "s1[2] :- true", `s1["c"] :- true`, `s2 = {"c", 1} :- true`}, "[2]"},
+		{"set_diff: ground output", []string{"p :- {1,2,3} - {2,3} = {1}"}, "true"},
+		{"set_diff: virt docs", []string{"p = x :- s1 - s2 = x", "s1[1] :- true", "s1[2] :- true", `s1["c"] :- true`, `s2 = {"c", 1} :- true`}, "[2]"},
+		{"intersect", []string{"p = x :- x = {a[1], a[2], 3} & {a[2], 4, 3}"}, "[3]"},
+		{"union", []string{"p :- {2,3,4} = {a[1], a[2], 3} | {a[2], 4, 3}"}, "true"},
 	}
 
 	data := loadSmallTestData()

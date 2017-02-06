@@ -83,11 +83,38 @@ func builtinArithArity2(fn arithArity2) FunctionalBuiltin2 {
 	}
 }
 
+func builtinMinus(a, b ast.Value) (ast.Value, error) {
+
+	n1, ok1 := a.(ast.Number)
+	n2, ok2 := b.(ast.Number)
+
+	if ok1 && ok2 {
+		f, err := arithMinus(builtins.NumberToFloat(n1), builtins.NumberToFloat(n2))
+		if err != nil {
+			return nil, err
+		}
+		return builtins.FloatToNumber(f), nil
+	}
+
+	s1, ok3 := a.(*ast.Set)
+	s2, ok4 := b.(*ast.Set)
+
+	if ok3 && ok4 {
+		return s1.Diff(s2), nil
+	}
+
+	if !ok1 && !ok3 {
+		return nil, builtins.NewOperandTypeErr(1, a, ast.NumberTypeName, ast.SetTypeName)
+	}
+
+	return nil, builtins.NewOperandTypeErr(2, a, ast.NumberTypeName, ast.SetTypeName)
+}
+
 func init() {
 	RegisterFunctionalBuiltin1(ast.Abs.Name, builtinArithArity1(arithAbs))
 	RegisterFunctionalBuiltin1(ast.Round.Name, builtinArithArity1(arithRound))
 	RegisterFunctionalBuiltin2(ast.Plus.Name, builtinArithArity2(arithPlus))
-	RegisterFunctionalBuiltin2(ast.Minus.Name, builtinArithArity2(arithMinus))
+	RegisterFunctionalBuiltin2(ast.Minus.Name, builtinMinus)
 	RegisterFunctionalBuiltin2(ast.Multiply.Name, builtinArithArity2(arithMultiply))
 	RegisterFunctionalBuiltin2(ast.Divide.Name, builtinArithArity2(arithDivide))
 }

@@ -702,6 +702,29 @@ func (s *Set) Diff(other *Set) *Set {
 	return r
 }
 
+// Intersect returns the set containing elements in both s and other.
+func (s *Set) Intersect(other *Set) *Set {
+	r := &Set{}
+	for _, x := range *s {
+		if other.Contains(x) {
+			r.Add(x)
+		}
+	}
+	return r
+}
+
+// Union returns the set containing all elements of s and other.
+func (s *Set) Union(other *Set) *Set {
+	r := &Set{}
+	for _, x := range *s {
+		r.Add(x)
+	}
+	for _, x := range *other {
+		r.Add(x)
+	}
+	return r
+}
+
 // Add updates s to include t.
 func (s *Set) Add(t *Term) {
 	if s.Contains(t) {
