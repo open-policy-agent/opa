@@ -274,6 +274,15 @@ func TestArrayComprehensions(t *testing.T) {
 
 	assertParseOneTerm(t, "nested", input, expected)
 
+	inputNewLines := `[
+		{"x": [a[i] | xs = [{"a": ["baz", j]} | q[p]
+												p.a != "bar"
+												j = "foo"]
+					  xs[j].a[k] = "foo"]}
+	]`
+
+	assertParseOneTerm(t, "nested newlines", inputNewLines, expected)
+
 }
 
 func TestInfixExpr(t *testing.T) {
@@ -514,14 +523,75 @@ func TestRule(t *testing.T) {
 		Body:    NewBody(NewExpr(BooleanTerm(true))),
 	})
 
+	assertParseRule(t, "one line with braces", "p[x] { x = data.a[_], count(x, 3) }", &Rule{
+		Head: NewHead(Var("p"), VarTerm("x")),
+		Body: MustParseBody("x = data.a[_], count(x, 3)"),
+	})
+
+	assertParseRule(t, "multiple lines with braces", `
+		p[[x, y]] {
+
+			[ data.a[0] ] = [
+				{
+					"x": x
+				} # comment embedded
+			]
+
+			# another comment
+
+			count(x, 3)
+			sum(x, y), # comma can be included
+			y > 100
+
+		}
+	`, &Rule{
+		Head: NewHead(Var("p"), MustParseTerm("[x, y]")),
+		Body: MustParseBody(`[data.a[0]] = [{"x": x}], count(x, 3), sum(x, y), y > 100`),
+	})
+
 	assertParseErrorEquals(t, "object composite key", "p[[x,y]] = z :- true", "object key must be one of string, var, ref not array")
 	assertParseErrorEquals(t, "default ref value", "default p = [data.foo]", "default rule value cannot contain ref")
 	assertParseErrorEquals(t, "default var value", "default p = [x]", "default rule value cannot contain var")
+	assertParseErrorEquals(t, "empty rule body", "p {}", "body must be non-empty")
 
 	// TODO(tsandall): improve error checking here. This is a common mistake
 	// and the current error message is not very good. Need to investigate if the
 	// parser can be improved.
 	assertParseError(t, "dangling comma", "p :- true, false,")
+}
+
+func TestMultipleEnclosedBodies(t *testing.T) {
+
+	result, err := ParseModule("", `
+	package ex
+
+	p[x] = y {
+		x = "a"
+		y = 1
+	} {
+		x = "b"
+		y = 2
+	}
+
+	q = 1
+	`)
+
+	if err != nil {
+		t.Fatalf("Unexpected parse error: %v", err)
+	}
+
+	expected := MustParseModule(`
+	package ex
+
+	p[x] = y :- x = "a", y = 1
+	p[x] = y :- x = "b", y = 2
+	q = 1 :- true
+	`)
+
+	if !expected.Equal(result) {
+		t.Fatal("Expected modules to be equal but got:\n\n", result, "\n\nExpected:\n\n", expected)
+	}
+
 }
 
 func TestEmptyModule(t *testing.T) {

@@ -14,6 +14,16 @@ func ifaceSliceToByteSlice(i interface{}) []byte {
     return buf.Bytes()
 }
 
+func ifacesToBody(i interface{}, a ...interface{}) Body {
+    var buf Body
+    buf = append(buf, i.(*Expr))
+    for _, s := range a {
+        expr := s.([]interface{})[3].(*Expr)
+        buf = append(buf, expr)
+    }
+    return buf
+}
+
 }
 
 Program <- _ vals:(head:Stmt tail:((ws / ParseError) Stmt)*)? _ EOF {
@@ -34,7 +44,7 @@ Program <- _ vals:(head:Stmt tail:((ws / ParseError) Stmt)*)? _ EOF {
     return buf, nil
 }
 
-Stmt <- val:(Package / Import / Rule / Body / Comment / ParseError) {
+Stmt <- val:(Package / Import / Rules / Body / Comment / ParseError) {
     return val, nil
 }
 
@@ -99,9 +109,9 @@ Import <- "import" ws path:(Ref / Var) alias:(ws "as" ws Var)? {
     return imp, nil
 }
 
-Rule <- DefaultRule / NoDefaultRule
+Rules <- DefaultRules / NormalRules
 
-DefaultRule <- "default" ws name:Var _ "=" _ value:Term {
+DefaultRules <- "default" ws name:Var _ "=" _ value:Term {
 
     term := value.(*Term)
     var err error
@@ -138,56 +148,96 @@ DefaultRule <- "default" ws name:Var _ "=" _ value:Term {
 
     rule.Body[0].Location = currentLocation(c)
 
-    return rule, nil
+    return []*Rule{rule}, nil
 }
 
-NoDefaultRule <- name:Var key:( _ "[" _ Term _ "]" _ )? value:( _ "=" _ Term )? body:( _ ":-" _ Body) {
+NormalRules <- head:RuleHead _ val:(IfBody / (BraceEnclosedBody (_ BraceEnclosedBody)*)) {
 
-    rule := &Rule{
-        Head: &Head{},
+    if head == nil {
+        return nil, nil
     }
 
-    rule.Head.Location = currentLocation(c)
-    rule.Head.Name = name.(*Term).Value.(Var)
+    // Parser is expected to return []Statement. If the author has chained
+    // rule bodies together (disjunction) then multiple rules must be returned.
+    bodies := []Body{}
+    body, ok := val.(Body)
+
+    if ok {
+        bodies = append(bodies, body)
+    } else {
+        // This is just unpacking the EnclosedBody structures above.
+        sl := val.([]interface{})
+        bodies = append(bodies, sl[0].(Body))
+        for _, x := range sl[1].([]interface{}) {
+            bodies = append(bodies, x.([]interface{})[1].(Body))
+        }
+    }
+
+    rules := make([]*Rule, len(bodies))
+
+    for i := range bodies {
+        rules[i] = &Rule{
+            Head: head.(*Head).Copy(),
+            Body: bodies[i],
+        }
+    }
+
+    return rules, nil
+}
+
+RuleHead <- name:Var key:( _ "[" _ Term _ "]" _ )? value:( _ "=" _ Term )? {
+
+    head := &Head{}
+
+    head.Location = currentLocation(c)
+    head.Name = name.(*Term).Value.(Var)
 
     if key != nil {
         keySlice := key.([]interface{})
-        // Rule definition above describes the "key" slice. We care about the "Term" element.
-        rule.Head.Key = keySlice[3].(*Term)
+        // Head definition above describes the "key" slice. We care about the "Term" element.
+        head.Key = keySlice[3].(*Term)
     }
 
     if value != nil {
         valueSlice := value.([]interface{})
-        // Rule definition above describes the "value" slice. We care about the "Term" element.
-        rule.Head.Value = valueSlice[len(valueSlice)-1].(*Term)
+        // Head definition above describes the "value" slice. We care about the "Term" element.
+        head.Value = valueSlice[len(valueSlice)-1].(*Term)
     }
 
     if key == nil && value == nil {
-        rule.Head.Value = BooleanTerm(true)
+        head.Value = BooleanTerm(true)
     }
 
     if key != nil && value != nil {
-        switch rule.Head.Key.Value.(type) {
+        switch head.Key.Value.(type) {
         case Var, String, Ref: // nop
         default:
-            return nil, fmt.Errorf("object key must be one of %v, %v, %v not %v", StringTypeName, VarTypeName, RefTypeName, TypeName(rule.Head.Key.Value))
+            return nil, fmt.Errorf("object key must be one of %v, %v, %v not %v", StringTypeName, VarTypeName, RefTypeName, TypeName(head.Key.Value))
         }
     }
 
-    // Rule definition above describes the "body" slice. We only care about the "Body" element.
-    rule.Body = body.([]interface{})[3].(Body)
-
-    return rule, nil
+    return head, nil
 }
 
-Body <- head:Literal tail:( _ "," _ (Literal / ParseError))* {
-    var buf Body
-    buf = append(buf, head.(*Expr))
-    for _, s := range tail.([]interface{}) {
-        expr := s.([]interface{})[3].(*Expr)
-        buf = append(buf, expr)
+IfBody <- ":-" _ body:Body {
+    return body, nil
+}
+
+BraceEnclosedBody <- "{" _ val:EnclosedBody? _ "}" {
+    if val == nil {
+        panic("body must be non-empty")
     }
-    return buf, nil
+    return val, nil
+}
+
+// When body is enclosed, literals are separated by newline or comma.
+EnclosedBody <- head:Literal tail:( [ \t]* ( "," / [\r\n] ) _ Literal)* {
+    return ifacesToBody(head, tail.([]interface{})...), nil
+}
+
+// When body is not closed, literals are separated by comma.
+Body <- head:Literal tail:( _ "," _ (Literal / ParseError))* {
+    return ifacesToBody(head, tail.([]interface{})...), nil
 }
 
 Literal <- neg:( "not" ws )? val:Expr with:( ws With (ws With)* )? {
@@ -286,7 +336,7 @@ Term <- val:( Comprehension / Composite / Scalar / Ref / Var ) {
 
 Comprehension <- ArrayComprehension
 
-ArrayComprehension <- "[" _ term:Term _ "|" _ body:Body _ "]" {
+ArrayComprehension <- "[" _ term:Term _ "|" _ body:EnclosedBody _ "]" {
     ac := ArrayComprehensionTerm(term.(*Term), body.(Body))
     ac.Location = currentLocation(c)
     return ac, nil
