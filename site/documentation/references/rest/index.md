@@ -633,11 +633,12 @@ import data.servers
 import data.networks
 import data.ports
 
-public_servers[server] :-
-	server = servers[_],
-	server.ports[_] = ports[k].id,
-	ports[k].networks[_] = networks[m].id,
+public_servers[server] {
+	server = servers[_]
+	server.ports[_] = ports[k].id
+	ports[k].networks[_] = networks[m].id
 	networks[m].public = true
+}
 ```
 
 #### Status Codes
@@ -671,11 +672,12 @@ import data.servers
 import data.networks
 import data.ports
 
-public_servers[server] :-
-	server = servers[_],
-	server.ports[_] = ports[k].id,
-	ports[k].networks[_] = networks[m].id,
+public_servers[server] {
+	server = servers[_]
+	server.ports[_] = ports[k].id
+	ports[k].networks[_] = networks[m].id
 	networks[m].public = true
+}
 ```
 
 > cURL's `-d/--data` flag removes newline characters from input files. Use the `--data-binary` flag instead.
@@ -1377,11 +1379,11 @@ package opa.examples
 
 import input.container
 
-allow_container :-
-  not seccomp_unconfined
+allow_container { not seccomp_unconfined }
 
-seccomp_unconfined :-
+seccomp_unconfined {
   container.HostConfig.SecurityOpt[_] = "seccomp:unconfined"
+}
 ```
 
 #### Query Parameters
@@ -1430,7 +1432,7 @@ package opa.examples
 
 import input.example.flag
 
-allow_request :- flag = true
+allow_request { flag = true }
 ```
 
 #### Example Request

@@ -93,7 +93,8 @@ The open-policy-agent/opa-docker-authz repository hosts a small [Docker Authoriz
 ```shell
 $ cat >example.rego <<EOF
 package opa.example
-allow_request = true :- true
+
+allow_request = true
 EOF
 ```
 
@@ -146,7 +147,8 @@ Let’s modify our policy to **deny** all requests:
 ```shell
 $ cat >example.rego <<EOF
 package opa.example
-allow_request = true :- false
+
+allow_request = true { false }
 EOF
 ```
 
@@ -176,12 +178,15 @@ Now let's change the policy so that it's a bit more useful.
 $ cat >example.rego <<EOF
 package opa.example
 
-seccomp_unconfined :-
+seccomp_unconfined {
     # This expression asserts that the string on the right-hand side is equal
     # to an element in the array SecurityOpt referenced on the left-hand side.
     input.Body.HostConfig.SecurityOpt[_] = "seccomp:unconfined"
+}
 
-allow_request = true :- not seccomp_unconfined
+allow_request {
+    not seccomp_unconfined
+}
 EOF
 ```
 
@@ -292,24 +297,28 @@ package opa.example
 
 import data.users
 
-allow_request = true :- valid_user_role
+allow_request {
+    valid_user_role
+}
 
 # valid_user_role defines a document that is the boolean value true if this is
 # a write request and the user is allowed to perform writes.
-valid_user_role :-
-    user_id = input.Headers["Authz-User"],
-    user = users[user_id],
+valid_user_role {
+    user_id = input.Headers["Authz-User"]
+    user = users[user_id]
     user.readOnly = false
+}
 
 # valid_user_role is defined again here to handle read requests. When a rule
 # like this is defined multiple times, the rule definition must ensure that
 # only one instance evaluates successfully in a given query. If multiple
 # instances evaluated successfully, it indicates a conflict.
-valid_user_role :-
-    user_id = input.Headers["Authz-User"],
-    user = users[user_id],
-    input.Method = "GET",
+valid_user_role {
+    user_id = input.Headers["Authz-User"]
+    user = users[user_id]
+    input.Method = "GET"
     user.readOnly = true
+}
 EOF
 ```
 

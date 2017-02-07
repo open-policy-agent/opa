@@ -99,7 +99,7 @@ false
 In addition to running queries, the REPL also lets you define rules:
 
 ```ruby
-> p[x] :- a = [1,2,3,4], a[x]
+> p[x] { a = [1,2,3,4], a[x] }
 > p[x], x > 1
 +---+
 | x |
@@ -157,11 +157,12 @@ import data.servers
 import data.networks
 import data.ports
 
-public_servers[s] :-
-    s = servers[_],
-    s.ports[_] = ports[i].id,
-    ports[i].networks[_] = networks[j].id,
+public_servers[s] {
+    s = servers[_]
+    s.ports[_] = ports[i].id
+    ports[i].networks[_] = networks[j].id
     networks[j].public = true
+}
 EOF
 ```
 
@@ -258,10 +259,12 @@ The REPL also understands the [Import and Package](/documentation/how-do-i-write
 
 ```ruby
 > import data.servers
-> violations[s] :-
-  s = servers[_],
-  s.protocols[_] = "http",
+> violations[s] {
+  s = servers[_]
+  s.protocols[_] = "http"
   public_servers[s]
+}
+
 > violations[server]
 +-------------------------------------------------------------------+
 |                              server                               |

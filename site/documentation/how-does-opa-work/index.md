@@ -139,16 +139,18 @@ import data.servers
 import data.networks
 import data.ports
 
-violations[server] :-
-    server = servers[_],
-    server.protocols[_] = "http",
+violations[server] {
+    server = servers[_]
+    server.protocols[_] = "http"
     public_servers[server] = true
+}
 
-public_servers[server] :-
-    server = servers[_],
-    server.ports[_] = ports[i].id,
-    ports[i].networks[_] = networks[j].id,
+public_servers[server] {
+    server = servers[_]
+    server.ports[_] = ports[i].id
+    ports[i].networks[_] = networks[j].id
     networks[j].public = true
+}
 ```
 
 A policy file must contain a single package declaration, which defines the path to the policy module and its rules (for example, data.opa.examples.violations – see The data Document for more information about accessing nested documents). The policy name itself (in this case, “exempli-gratia”) is only used to identify policies for file management purposes; it is not used otherwise.
@@ -217,7 +219,7 @@ Query arguments can be accessed hierarchically starting from the root input
 node:
 
 ```ruby
-allow :- input.user = "alice"
+allow { input.user = "alice" }
 ```
 
 Just like state stored in OPA, documents supplied with the query can be aliased:
@@ -229,10 +231,10 @@ import input.method
 import input.user
 
 # allow "bob" to perform read-only operations
-allow :- user = "bob", method = "GET"
+allow { user = "bob", method = "GET" }
 
 # allow "alice" to perform any operation
-allow :- user = "alice"
+allow { user = "alice" }
 ```
 
 ### Putting It All Together
@@ -401,24 +403,26 @@ import data.networks
 import data.ports
 
 # A server exists in the violations set if...
-violations[server] :-
+violations[server] {
     # ...the server exists
-    server = servers[_],
+    server = servers[_]
     # ...and any of the server’s protocols is HTTP
-    server.protocols[_] = "http",
+    server.protocols[_] = "http"
     # ...and the server is public.
     public_servers[server] = true
+}
 
 # A server exists in the public_servers set if...
-public_servers[server] :-
+public_servers[server] {
     # ...the server exists
-    server = servers[_],
+    server = servers[_]
     # ...and the server is connected to a port
-    server.ports[_] = ports[i].id,
+    server.ports[_] = ports[i].id
     # ...and the port is connected to a network
-    ports[i].networks[_] = networks[j].id,
+    ports[i].networks[_] = networks[j].id
     # ...and the network is public.
     networks[j].public = true
+}
 ```
 
 Note that:
@@ -527,13 +531,14 @@ Any rule can be used as the trigger for a notification. For example, let’s ass
 
 ```ruby
 # All production containers are running if...
-containers_to_migrate[id] :-
+containers_to_migrate[id] {
     # ...the container exists
     container = containers[id],
     # ...and it is in production
     container.site.name = "prod",
     # ...and its host is running.
     container.host.state != "terminated"
+}
 ```
 
 This rule produces a list of containers that should be migrated. You can register to observe this rule, and when the underlying data changes, OPA will re-evaluate it and trigger a notification. You can handle the event by re-deploying the containers in the resulting list to a running host.
