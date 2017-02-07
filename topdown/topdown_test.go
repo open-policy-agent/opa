@@ -477,10 +477,10 @@ func TestTopDownVirtualDocs(t *testing.T) {
 	}{
 		// input to partial set and object docs
 		{"input: set 1", []string{"p = true :- q[1]", "q[x] :- a[i] = x"}, "true"},
-		{"input: set 2", []string{"p[x] :- q[1] = x", "q[x] :- a[i] = x"}, "[true]"},
-		{"input: set embedded", []string{`p[x] :- x = {"b": [q[2]]}`, `q[x] :- a[i] = x`}, `[{"b": [true]}]`},
+		{"input: set 2", []string{"p[x] :- q[1] = x", "q[x] :- a[i] = x"}, "[1]"},
+		{"input: set embedded", []string{`p[x] :- x = {"b": [q[2]]}`, `q[x] :- a[i] = x`}, `[{"b": [2]}]`},
 		{"input: set undefined", []string{"p = true :- q[1000]", "q[x] :- a[x] = y"}, ""},
-		{"input: set dereference error", []string{"p :- x = [1], q[x][0]", "q[[x]] :- a[_] = x"}, setDereferenceTypeErr(nil)},
+		{"input: set dereference", []string{"p = y :- x = [1], q[x][0] = y", "q[[x]] :- a[_] = x"}, "1"},
 		{"input: set ground var", []string{"p[x] :- x = 1, q[x]", "q[y] :- a[y] = i"}, "[1]"},
 		{"input: set ground composite (1)", []string{
 			"p :- z = [[1,2], 2], q[z]",
@@ -517,9 +517,11 @@ func TestTopDownVirtualDocs(t *testing.T) {
 
 		// output from partial set and object docs
 		{"output: set", []string{"p[x] :- q[x]", "q[y] :- a[i] = y"}, "[1,2,3,4]"},
-		{"output: set embedded", []string{`p[i] :- {i: [true]} = {i: [q[i]]}`, `q[x] :- d.e[i] = x`}, `["bar", "baz"]`},
+		{"output: set embedded", []string{`p[i] :- {i: [i]} = {i: [q[i]]}`, `q[x] :- d.e[i] = x`}, `["bar", "baz"]`},
 		{"output: set var binding", []string{"p[x] :- q[x]", "q[y] :- y = [i, j], i = 1, j = 2"}, `[[1,2]]`},
-		{"output: set dereference error", []string{"p :- q[x][0]", "q[[x]] :- a[_] = x"}, setDereferenceTypeErr(nil)},
+		{"output: set dereference", []string{"p[y] :- q[x][0] = y", "q[[x]] :- a[_] = x"}, `[1,2,3,4]`},
+		{"output: set dereference deep", []string{"p[y] :- q[i][j][k][x] = y", "q[{{[1],[2]},{[3],[4]}}] :- true"}, "[1,2,3,4]"},
+		{"output: set falsy values", []string{"p[x] :- q[x]", `q = {0, "", false, null, [], {}, set()} :- true`}, `[0, "", null, [], {}, []]`},
 		{"output: object key", []string{"p[x] :- q[x] = 4", "q[i] = x :- a[i] = x"}, "[3]"},
 		{"output: object value", []string{"p[x] = y :- q[x] = y", "q[k] = v :- b[k] = v"}, `{"v1": "hello", "v2": "goodbye"}`},
 		{"output: object embedded", []string{"p[k] = v :- {k: [q[k]]} = {k: [v]}", `q[x] = y :- b[x] = y`}, `{"v1": "hello", "v2": "goodbye"}`},
@@ -548,6 +550,10 @@ func TestTopDownVirtualDocs(t *testing.T) {
 			"p[z] :- q[x] = y, z = [x, y]",
 			`q[k] = v :- k = y, y = x, x = "a", v = "foo"`},
 			`[["a", "foo"]]`},
+		{"object: self-join", []string{
+			"p[[x, y]] :- q[x] = 1, q[y] = x",
+			"q[x] = i :- a[i] = x"},
+			"[[2,3]]"},
 
 		// input+output from partial set/object docs
 		{"i/o: objects", []string{
@@ -837,7 +843,7 @@ func TestTopDownVarReferences(t *testing.T) {
 		{"set: ground var", []string{"p[x] :- i = {1,2,3,4}, j = {1,2,99}, j[x], i[x]"}, "[1,2]"},
 		{"set: lookup: base docs", []string{`p :- v = {[1,999],[3,4]}, pair = [a[2], 4], v[pair]`}, "true"},
 		{"set: lookup: embedded", []string{"p :- x = [{}, {[1,2], [3,4]}], y = [3,4], x[i][y]"}, "true"},
-		{"set: lookup: dereference: undefined", []string{"p :- x = [{}, {[1,2], [3,4]}], y = [3,4], x[i][y][z]"}, ""},
+		{"set: lookup: dereference", []string{"p[[i,z,r]] :- x = [{}, {[1,2], [3,4]}], y = [3,4], x[i][y][z] = r"}, "[[1,0,3], [1,1,4]]"},
 		{"avoids indexer", []string{"p = true :- somevar = [1,2,3], somevar[i] = 2"}, "true"},
 	}
 

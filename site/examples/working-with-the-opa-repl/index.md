@@ -100,7 +100,7 @@ In addition to running queries, the REPL also lets you define rules:
 
 ```ruby
 > p[x] { a = [1,2,3,4], a[x] }
-> p[x], x > 1
+> p[x] > 1
 +---+
 | x |
 +---+
@@ -247,7 +247,7 @@ The REPL also understands the [Import and Package](/documentation/how-do-i-write
 
 ```ruby
 > package opa.example
-> public_servers[x], x.protocols[_] = "http"
+> public_servers[x].protocols[_] = "http"
 +-------------------------------------------------------------------+
 |                                 x                                 |
 +-------------------------------------------------------------------+

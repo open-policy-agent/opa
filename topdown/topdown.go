@@ -385,19 +385,6 @@ func Continue(t *Topdown, key, value ast.Value, iter Iterator) error {
 	return err
 }
 
-// ContinueN binds N keys to N values. The key/value pairs are passed in as
-// alternating pairs, e.g., key-1, value-1, key-2, value-2, ..., key-N, value-N.
-func ContinueN(t *Topdown, iter Iterator, x ...ast.Value) error {
-	var prev *Undo
-	for i := 0; i < len(x)/2; i++ {
-		offset := i * 2
-		prev = t.Bind(x[offset], x[offset+1], prev)
-	}
-	err := iter(t)
-	t.Unbind(prev)
-	return err
-}
-
 // Eval evaluates the query in t and calls iter once for each set of bindings
 // that satisfy all of the expressions in the query.
 func Eval(t *Topdown, iter Iterator) error {
@@ -1251,9 +1238,6 @@ func evalRefRule(t *Topdown, ref ast.Ref, path ast.Ref, rules []*ast.Rule, iter 
 		if len(suffix) == 0 {
 			return evalRefRulePartialSetDocFull(t, ref, rules, iter)
 		}
-		if len(suffix) != 1 {
-			return setDereferenceTypeErr(t.Current().Location)
-		}
 		for i, rule := range rules {
 			err := evalRefRulePartialSetDoc(t, ref, path, rule, i > 0, iter)
 			if err != nil {
@@ -1570,8 +1554,8 @@ func evalRefRulePartialSetDoc(t *Topdown, ref ast.Ref, path ast.Ref, rule *ast.R
 				return fmt.Errorf("unbound variable: %v", rule.Head.Value)
 			}
 			child.traceExit(rule)
-			undo, err := evalEqUnify(t, key, value, nil, func(child *Topdown) error {
-				return Continue(t, ref[:len(path)+1], ast.Boolean(true), iter)
+			undo, err := evalEqUnify(t, key, value, nil, func(t *Topdown) error {
+				return evalRefRuleResult(t, ref, ref[len(path)+1:], PlugValue(key, t.Binding), iter)
 			})
 
 			if err != nil {
@@ -1593,7 +1577,7 @@ func evalRefRulePartialSetDoc(t *Topdown, ref ast.Ref, path ast.Ref, rule *ast.R
 		}
 		return eval(child, func(child *Topdown) error {
 			child.traceExit(rule)
-			err := Continue(t, ref[:len(path)+1], ast.Boolean(true), iter)
+			err := evalRefRuleResult(t, ref, ref[len(path)+1:], key, iter)
 			if err != nil {
 				return err
 			}
@@ -1644,9 +1628,22 @@ func evalRefRuleResult(t *Topdown, ref ast.Ref, suffix ast.Ref, result ast.Value
 	}
 
 	return evalRefRuleResultRec(t, result, s, ast.Ref{}, func(t *Topdown, v ast.Value) error {
+
+		// Check if we already have binding for ref. This can happen when
+		// evaluating self-joins.
+		plugged := make(ast.Ref, len(ref))
+
+		for i := range plugged {
+			plugged[i] = PlugTerm(ref[i], t.Binding)
+		}
+
+		if t.Binding(plugged) != nil {
+			return iter(t)
+		}
+
 		// Must add binding with plugged value of ref in case ref contains
-		// suffix with one or more vars.
-		// Test case: "input: object dereference ground 2" exercises this.
+		// suffix with one or more vars. Test "input: object dereference
+		// ground 2" exercises this.
 		return Continue(t, PlugValue(ref, t.Binding), v, iter)
 	})
 }
@@ -1660,10 +1657,10 @@ func evalRefRuleResultRec(t *Topdown, v ast.Value, ref, path ast.Ref, iter func(
 	switch v := v.(type) {
 	case ast.Array:
 		return evalRefRuleResultRecArray(t, v, ref, path, iter)
-	case *ast.Set:
-		return evalRefRuleResultRecSet(t, v, ref, path, iter)
 	case ast.Object:
 		return evalRefRuleResultRecObject(t, v, ref, path, iter)
+	case *ast.Set:
+		return evalRefRuleResultRecSet(t, v, ref, path, iter)
 	case ast.Ref:
 		return evalRefRuleResultRecRef(t, v, ref, path, iter)
 	}
@@ -1749,19 +1746,17 @@ func evalRefRuleResultRecRef(t *Topdown, v, ref, path ast.Ref, iter func(*Topdow
 	})
 }
 
-func evalRefRuleResultRecSet(t *Topdown, set *ast.Set, ref, suffix ast.Ref, iter func(*Topdown, ast.Value) error) error {
+func evalRefRuleResultRecSet(t *Topdown, set *ast.Set, ref, path ast.Ref, iter func(*Topdown, ast.Value) error) error {
 	head, tail := ref[0], ref[1:]
-	if len(tail) > 0 {
-		return nil
-	}
 	switch k := head.Value.(type) {
 	case ast.Var:
 		for _, e := range *set {
 			undo := t.Bind(k, e.Value, nil)
-			err := iter(t, ast.Boolean(true))
-			if err != nil {
+			path = append(path, e)
+			if err := evalRefRuleResultRec(t, e.Value, tail, path, iter); err != nil {
 				return err
 			}
+			path = path[:len(path)-1]
 			t.Unbind(undo)
 		}
 		return nil
@@ -1780,10 +1775,12 @@ func evalRefRuleResultRecSet(t *Topdown, set *ast.Set, ref, suffix ast.Ref, iter
 			return err
 		}
 
-		if rset.Contains(ast.NewTerm(rval)) {
-			return iter(t, ast.Boolean(true))
+		if !rset.Contains(ast.NewTerm(rval)) {
+			return nil
 		}
-		return nil
+
+		path = append(path, head)
+		return evalRefRuleResultRec(t, rval, tail, path, iter)
 	}
 }
 
