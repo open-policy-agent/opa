@@ -619,7 +619,7 @@ func TestEvalSingleTermMultiValueSetRef(t *testing.T) {
 	// acceptable, as it should be an edge case.
 	buffer.Reset()
 	repl.OneShot(ctx, "r[_][x]")
-	expected = parseJSON(`[{"x": 5, "r[_][x]": true}, {"x": 6, "r[_][x]": true}, {"x": 0, "r[_][x]": 7}, {"x": 1, "r[_][x]": 8}]`)
+	expected = parseJSON(`[{"x": 5, "r[_][x]": 5}, {"x": 6, "r[_][x]": 6}, {"x": 0, "r[_][x]": 7}, {"x": 1, "r[_][x]": 8}]`)
 	result = parseJSON(buffer.String())
 	if !reflect.DeepEqual(result, expected) {
 		t.Fatalf("Expected %v but got: %v", expected, result)

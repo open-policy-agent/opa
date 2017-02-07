@@ -76,11 +76,3 @@ func objectDocKeyTypeErr(loc *ast.Location) error {
 		Message:  "partial rule definitions must produce string values for object keys",
 	}
 }
-
-func setDereferenceTypeErr(loc *ast.Location) error {
-	return &Error{
-		Code:     TypeErr,
-		Location: loc,
-		Message:  "set documents cannot be dereferenced",
-	}
-}
