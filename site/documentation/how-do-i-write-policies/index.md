@@ -10,7 +10,9 @@ title: How Do I Write Policies?
 
 # How Do I Write Policies?
 
-OPA is purpose built for reasoning about information represented in structured documents. The data that your service and its users publish can be inspected and transformed using OPA’s native query language Rego.
+OPA is purpose built for reasoning about information represented in structured
+documents. The data that your service and its users publish can be inspected and
+transformed using OPA’s native query language Rego.
 
 {% endcontentfor %}
 
@@ -18,17 +20,27 @@ OPA is purpose built for reasoning about information represented in structured d
 
 ## What is Rego?
 
-Rego was inspired by [Datalog](https://en.wikipedia.org/wiki/Datalog), which is a well understood, decades old query language. Rego extends Datalog to support structured document models such as JSON.
+Rego was inspired by [Datalog](https://en.wikipedia.org/wiki/Datalog), which is
+a well understood, decades old query language. Rego extends Datalog to support
+structured document models such as JSON.
 
-Rego queries are assertions on data stored in OPA. These queries can be used to define policies that enumerate instances of data that violate the expected state of the system.
+Rego queries are assertions on data stored in OPA. These queries can be used to
+define policies that enumerate instances of data that violate the expected state
+of the system.
 
 ## Why use Rego?
 
 Use Rego for defining policy that is easy to read and write.
 
-Rego focuses on providing powerful support for referencing nested documents and ensuring that queries are correct and unambiguous.
+Rego focuses on providing powerful support for referencing nested documents and
+ensuring that queries are correct and unambiguous.
 
-Rego is declarative so policy authors can focus on what queries should return rather than how queries should be executed. These queries are simpler and more concise than the equivalent in an imperative language. Like other applications which support declarative query languages, OPA is able to optimize queries to improve performance (for example, indexing, concurrent evaluation, reordering, and so on).
+Rego is declarative so policy authors can focus on what queries should return
+rather than how queries should be executed. These queries are simpler and more
+concise than the equivalent in an imperative language.
+
+Like other applications which support declarative query languages, OPA is able
+to optimize queries to improve performance.
 
 ## The Basics
 
@@ -66,7 +78,7 @@ The result:
 Many expressions are defined in terms of [Equality](#equality). These expressions can be thought of as assertions. The simplest example of a rule containing an equality expression involves two scalar values:
 
 ```ruby
-v = true :- 42 = "the meaning of life"
+v { "hello" = "world" }
 ```
 
 We can evaluate `v` to check if it is equal to true:
@@ -93,10 +105,28 @@ undefined
 We can define rules in terms of [Variables](#variables) as well:
 
 ```ruby
-t :- x = 42, y = 41, x > y
+t { x = 42, y = 41, x > y }
 ```
 
-Multiple expressions are separated by the comma (`,`) character. In order for the rule to be true, all of the expressions in the rule must true for some set of variable bindings. There may be multiple sets of variable bindings that make the rule true. The body of a rule can be understood intuitively as `<expression-1> AND <expression-2> AND ... AND <expression-N>`. The rule itself can be understood intuitively as `<rule-name>` is `true` if `<body>`.
+The formal syntax uses the comma character `,` to separate expressions. Rule
+bodies can separate expressions with newlines and omit the comma:
+
+```
+t2 {
+    x = 42
+    y = 41
+    x > 1
+}
+```
+
+When evaluating rule bodies, OPA searches for variable bindings that make all of
+the expressions true. There may be multiple sets of bindings that make the rule
+body true.
+
+The rule body can be intuitively understood as `<expression-1> AND
+<expression-2> AND ... AND <expression-N>`. The rule itself can be understood
+intuitively as `<rule-name>` is `<value>` if `<body>`. If the `<value>` is
+omitted, it defaults to `true`.
 
 When we query for the contents of `t` we see the obvious result:
 
@@ -108,7 +138,11 @@ true
 The order of expressions in a rule does not affect the document’s content:
 
 ```ruby
-s :- x > y, y = 41, x = 42
+s {
+    x > y
+    y = 41
+    x = 42
+}
 ```
 
 The query result is the same:
@@ -123,7 +157,7 @@ Rego [References](#references) help you refer to nested documents. For example:
 ```ruby
 sites = [{"name": "prod"}, {"name": "smoke1"}, {"name": "dev"}]
 
-r :- sites[i].name = "prod"
+r { sites[i].name = "prod" }
 ```
 
 The rule `r` above asserts that there exists (at least) one document within `sites` where the `name` attribute equals `"prod"`.
@@ -138,7 +172,7 @@ true
 We can generalize the example above with a rule that defines a set document instead of a boolean document:
 
 ```ruby
-q[name] :- sites[i].name = name
+q[name] { sites[i].name = name }
 ```
 
 When we query for `q` we obtain a set of names:
@@ -157,7 +191,7 @@ When we query for `q` we obtain a set of names:
 We can re-write the rule `r` from above to make use of `q`. We will call the new rule `p`:
 
 ```ruby
-p :- q["prod"]
+p { q["prod"] }
 ```
 
 The result will be the same:
@@ -301,9 +335,13 @@ Variables appearing in the head of a rule can be thought of as input and output 
 For example:
 
 ```ruby
-sites = [{"name": "prod"}, {"name": "smoke1"}, {"name": "dev"}] :- true
+sites = [
+    {"name": "prod"},
+    {"name": "smoke1"},
+    {"name": "dev"}
+]
 
-q[name] :- sites[i].name = name
+q[name] { sites[i].name = name }
 ```
 
 In this case, we evaluate `q` with a variable `x` (which is not bound to a value). As as result, the query returns all of the site names.
@@ -426,12 +464,12 @@ The underscore is special because it cannot be referred to by other parts of the
 Rules are often written in terms of multiple expressions that contain references to documents. In the following example, the rule defines a set of arrays where each array contains an application name and a hostname of a server where the application is deployed.
 
 ```ruby
-apps_and_hostnames[pair] :-
-    apps[i].name = name,
-    apps[i].servers[_] = server,
-    sites[j].servers[k].name = server,
-    sites[j].servers[k].hostname = hostname,
-    pair = [name, hostname]
+apps_and_hostnames[[name, hostname]] {
+    apps[i].name = name
+    apps[i].servers[_] = server
+    sites[j].servers[k].name = server
+    sites[j].servers[k].hostname = hostname
+}
 ```
 
 The result:
@@ -462,14 +500,14 @@ Don’t worry about understanding everything in this example right now. There ar
 Using a different key on the same array or object provides the equivalent of self-join in SQL. For example, the following rule defines a document containing apps deployed on the same site as `"mysql"`:
 
 ```ruby
-same_site[name] :-
-    apps[i].name = "mysql",
-    apps[i].servers[_] = server,
-    sites[j].servers[_].name = server,
-    sites[j].servers[_].name = other_server,
-    server != other_server,
-    apps[k].servers[_] = other_server,
-    apps[k].name = name
+same_site[apps[k].name] {
+    apps[i].name = "mysql"
+    apps[i].servers[_] = server
+    sites[j].servers[_].name = server
+    sites[j].servers[_].name = other_server
+    server != other_server
+    apps[k].servers[_] = other_server
+}
 ```
 
 The result:
@@ -528,13 +566,14 @@ Array Comprehensions build array values out of sub-queries. Array Comprehensions
 For example, the following rule defines an object where the keys are application names and the values are hostnames of servers where the application is deployed. The hostnames of servers are represented as an array.
 
 ```ruby
-app_to_hostnames[app_name] = hostnames :-
-    apps[_] = app,
-    app_name = app.name,
-    hostnames = [hostname | name = app.servers[_],
-                            sites[_].servers[_] = s,
-                            s.name = name,
+app_to_hostnames[app_name] = hostnames {
+    apps[_] = app
+    app_name = app.name
+    hostnames = [hostname | name = app.servers[_]
+                            sites[_].servers[_] = s
+                            s.name = name
                             hostname = s.hostname]
+}
 ```
 
 The result:
@@ -565,7 +604,7 @@ The sample code in this section make use of the data defined in [Examples](#exam
 The following rule defines a set containing the hostnames of all servers:
 
 ```ruby
-hostnames[name] :- sites[_].servers[_].hostname = name
+hostnames[name] { sites[_].servers[_].hostname = name }
 ```
 
 When we query for the content of `hostnames` we see the same data as we would if we queried using the `sites[_].servers[_].hostname` reference directly:
@@ -605,11 +644,12 @@ Third, the `sites[_].servers[_].hostname = name` expression binds the value of t
 Rules that define objects are very similar to rules that define sets.
 
 ```ruby
-apps_by_hostname[hostname] = app :-
-    sites[_].servers[_] = server,
-    server.hostname = hostname,
-    apps[i].servers[_] = server.name,
+apps_by_hostname[hostname] = app {
+    sites[_].servers[_] = server
+    server.hostname = hostname
+    apps[i].servers[_] = server.name
     apps[i].name = app
+}
 ```
 
 The rule above defines an object that maps hostnames to app names. The main difference between this rule and one which defines a set is the rule head: in addition to declaring a value, the rule head also declares a key for the document.
@@ -636,13 +676,28 @@ For example, we can write a rule that abstracts over our `servers` and
 `containers` data as `instances`:
 
 ```ruby
-instances[instance] :-
-    sites[_].servers[_] = server,
+instances[instance] {
+    sites[_].servers[_] = server
     instance = {"address": server.hostname, "name": server.name}
+}
 
-instances[instance] :-
+instances[instance] {
     containers[_] = container,
     instance = {"address": container.ipaddress, "name": container.name}
+}
+```
+
+If the head of the rule is same, we can chain multiple rule bodies together to
+obtain the same result:
+
+```ruby
+instances[instance] {
+    sites[_].servers[_] = server
+    instance = {"address": server.hostname, "name": server.name}
+} {
+    containers[_] = container,
+    instance = {"address": container.ipaddress, "name": container.name}
+}
 ```
 
 An incrementally defined rule can be intuitively understood as `<rule-1> OR <rule-2> OR ... OR <rule-N>`.
@@ -698,17 +753,17 @@ power_users = {"alice", "bob", "fred"}
 restricted_users = {"bob", "kim"}
 
 # Power users get 32GB memory.
-max_memory = 32 :- power_users[user]
+max_memory = 32 { power_users[user] }
 
 # Restricted users get 4GB memory.
-max_memory = 4 :- restricted_users[user]
+max_memory = 4 { restricted_users[user] }
 ```
 
 Error:
 
 ```
 > max_memory
-error: evaluation error (code: 1): multiple values for data.repl.max_memory: rules must produce exactly one value for complete documents: check rule definition(s): max_memory
+error: evaluation error (code: 1): completely defined rules must produce exactly one value
 ```
 
 OPA returns an error in this case because the rule definitions are in *conflict*. The value produced by max_memory cannot be 32 and 4 **at the same time**.
@@ -738,7 +793,10 @@ For safety, a variable appearing in a negated expression must also appear in ano
 The simplest use of negation involves only scalar values or variables and is equivalent to complementing the operator:
 
 ```ruby
-t :- 42 = x, not x = "the meaning of life"
+t {
+    greeting = "hello"
+    not greeting = "goodbye"
+}
 ```
 
 The result:
@@ -753,20 +811,23 @@ Negation is required to check whether some value *does not* exist in a collectio
 For example, we can write a rule that defines a document containing names of apps not deployed on the `"prod"` site:
 
 ```ruby
-prod_servers[name] :-
-    sites[_] = site,
-    site.name = "prod",
+prod_servers[name] {
+    sites[_] = site
+    site.name = "prod"
     site.servers[_].name = name
+}
 
-apps_in_prod[name] :-
-    apps[_] = app,
-    app.servers[_] = server,
-    app.name = name,
+apps_in_prod[name] {
+    apps[_] = app
+    app.servers[_] = server
+    app.name = name
     prod_servers[server]
+}
 
-apps_not_in_prod[name] :-
-    apps[_].name = name,
+apps_not_in_prod[name] {
+    apps[_].name = name
     not apps_in_prod[name]
+}
 ```
 
 The result:
@@ -827,9 +888,10 @@ package opa.examples
 
 import data.servers
 
-http_servers[server] :-
+http_servers[server] {
     server = servers[_]
     server.protocols[_] = "http"
+}
 ```
 
 Similarly, modules can declare dependencies on query arguments by specifying an import path that starts with `input`.
@@ -841,10 +903,13 @@ import input.user
 import input.method
 
 # allow alice to perform any operation.
-allow :- user = "alice"
+allow { user = "alice" }
 
 # allow bob to perform read-only operations.
-allow :- user = "bob", method = "GET"
+allow {
+    user = "bob"
+    method = "GET"
+}
 ```
 
 Imports can include an optional `as` keyword to handle namespacing issues:
@@ -854,9 +919,10 @@ package opa.examples
 
 import data.servers as my_servers
 
-http_servers[server] :-
+http_servers[server] {
     server = my_servers[_]
     server.protocols[_] = "http"
+}
 ```
 
 ## <a name="with"></a> With Keyword
@@ -901,14 +967,20 @@ For example:
 ```ruby
 default allow = false
 
-allow = true :- input.user = "bob", input.method = "GET"
-allow = true :- input.user = "alice"
+allow {
+    input.user = "bob"
+    input.method = "GET"
+}
+
+allow {
+    input.user = "alice"
+}
 ```
 
 When the `allow` document is queried, the return value will be either `true` or `false`.
 
 ```ruby
-> allow with input.user as "bob" with input.method = "POST"
+> allow with input.user as "bob" with input.method as "POST"
 false
 ```
 
