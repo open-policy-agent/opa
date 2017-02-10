@@ -182,16 +182,15 @@ func generateRequestPath(i int) string {
 	return fmt.Sprintf("/api/v1/resourcetype-%d/somefakeresourceid000000111111", i)
 }
 
-const policy = `
-package restauthz
+const policy = `package restauthz
 
 import data.restauthz.tokens
 
 default allow = false
 
-allow :-
-    tokens[input.token_id] = token,
-    token.authz_profiles[_] = authz,
-    re_match(authz.path, input.path),
-    authz.methods[_] = input.method
-`
+allow {
+	tokens[input.token_id] = token
+	token.authz_profiles[_] = authz
+	re_match(authz.path, input.path)
+	authz.methods[_] = input.method
+}`

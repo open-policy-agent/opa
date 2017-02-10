@@ -28,11 +28,13 @@ func TestComplete(t *testing.T) {
 	ctx := context.Background()
 
 	mod1 := ast.MustParseModule(`package a.b.c
-	p = 1
-	q = 2`)
+
+p = 1 { true }
+q = 2 { true }`)
 
 	mod2 := ast.MustParseModule(`package a.b.d
-	r = 3`)
+
+r = 3 { true }`)
 
 	if err := storage.InsertPolicy(ctx, store, "mod1", mod1, nil, false); err != nil {
 		panic(err)
@@ -179,7 +181,7 @@ func TestShow(t *testing.T) {
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
 
-	repl.OneShot(ctx, "package repl_test")
+	repl.OneShot(ctx, `package repl_test`)
 	repl.OneShot(ctx, "show")
 	assertREPLText(t, buffer, "package repl_test\n")
 	buffer.Reset()
@@ -203,8 +205,8 @@ import data.foo as bar` + "\n"
 	assertREPLText(t, buffer, expected)
 	buffer.Reset()
 
-	repl.OneShot(ctx, "p[1] :- true")
-	repl.OneShot(ctx, "p[2] :- true")
+	repl.OneShot(ctx, `p[1] { true }`)
+	repl.OneShot(ctx, `p[2] { true }`)
 	repl.OneShot(ctx, "show")
 
 	expected = `package repl_test
@@ -212,8 +214,8 @@ import data.foo as bar` + "\n"
 import input.xyz
 import data.foo as bar
 
-p[1] :- true
-p[2] :- true` + "\n"
+p[1] { true }
+p[2] { true }` + "\n"
 	assertREPLText(t, buffer, expected)
 	buffer.Reset()
 
@@ -247,7 +249,7 @@ func TestUnset(t *testing.T) {
 
 	buffer.Reset()
 	repl.OneShot(ctx, "p = 3.14")
-	repl.OneShot(ctx, "p = 3 :- false")
+	repl.OneShot(ctx, `p = 3 { false }`)
 	repl.OneShot(ctx, "unset p")
 
 	err = repl.OneShot(ctx, "p")
@@ -304,7 +306,7 @@ func TestOneShotEmptyBufferOneRule(t *testing.T) {
 	store := newTestStore()
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
-	repl.OneShot(ctx, "p[x] :- data.a[i] = x")
+	repl.OneShot(ctx, `p[x] { data.a[i] = x }`)
 	expectOutput(t, buffer.String(), "")
 }
 
@@ -326,16 +328,20 @@ func TestOneShotBufferedRule(t *testing.T) {
 	store := newTestStore()
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
-	repl.OneShot(ctx, "p[x] :- ")
+	repl.OneShot(ctx, "p[x] { ")
 	expectOutput(t, buffer.String(), "")
-	repl.OneShot(ctx, "data.a[i]")
+	repl.OneShot(ctx, "data.a[i].b.c[1]")
 	expectOutput(t, buffer.String(), "")
 	repl.OneShot(ctx, " = ")
 	expectOutput(t, buffer.String(), "")
 	repl.OneShot(ctx, "x")
 	expectOutput(t, buffer.String(), "")
+	repl.OneShot(ctx, "}")
+	expectOutput(t, buffer.String(), "")
 	repl.OneShot(ctx, "")
 	expectOutput(t, buffer.String(), "")
+	repl.OneShot(ctx, "p[2]")
+	expectOutput(t, buffer.String(), "2\n")
 }
 
 func TestOneShotJSON(t *testing.T) {
@@ -395,7 +401,8 @@ func TestEvalData(t *testing.T) {
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
 	testmod := ast.MustParseModule(`package ex
-	p = [1,2,3]`)
+
+p = [1, 2, 3] { true }`)
 	if err := storage.InsertPolicy(ctx, store, "test", testmod, nil, false); err != nil {
 		panic(err)
 	}
@@ -551,7 +558,7 @@ func TestEvalSingleTermMultiValue(t *testing.T) {
 
 	buffer.Reset()
 
-	repl.OneShot(ctx, "p[x] :- a = [1,2,3,4], a[_] = x")
+	repl.OneShot(ctx, `p[x] { a = [1, 2, 3, 4]; a[_] = x }`)
 	buffer.Reset()
 	repl.OneShot(ctx, "p[x]")
 
@@ -592,10 +599,10 @@ func TestEvalSingleTermMultiValueSetRef(t *testing.T) {
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
 	repl.outputFormat = "json"
-	repl.OneShot(ctx, "p[1] :- true")
-	repl.OneShot(ctx, "p[2] :- true")
-	repl.OneShot(ctx, "q = {3,4} :- true")
-	repl.OneShot(ctx, "r = [x, y] :- x = {5,6}, y = [7,8]")
+	repl.OneShot(ctx, `p[1] { true }`)
+	repl.OneShot(ctx, `p[2] { true }`)
+	repl.OneShot(ctx, `q = {3, 4} { true }`)
+	repl.OneShot(ctx, `r = [x, y] { x = {5, 6}; y = [7, 8] }`)
 
 	repl.OneShot(ctx, "p[x]")
 	expected := parseJSON(`[{"x": 1}, {"x": 2}]`)
@@ -631,7 +638,7 @@ func TestEvalRuleCompileError(t *testing.T) {
 	store := newTestStore()
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
-	repl.OneShot(ctx, "p[x] :- true")
+	repl.OneShot(ctx, `p[x] { true }`)
 	result := buffer.String()
 	expected := "error: 1 error occurred: 1:1: p: x is unsafe (variable x must appear in at least one expression within the body of p)\n"
 	if result != expected {
@@ -639,7 +646,7 @@ func TestEvalRuleCompileError(t *testing.T) {
 		return
 	}
 	buffer.Reset()
-	repl.OneShot(ctx, "p = true :- true")
+	repl.OneShot(ctx, `p = true { true }`)
 	result = buffer.String()
 	if result != "" {
 		t.Errorf("Expected valid rule to compile (because state should be unaffected) but got: %v", result)
@@ -652,12 +659,12 @@ func TestEvalBodyCompileError(t *testing.T) {
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
 	repl.outputFormat = "json"
-	err := repl.OneShot(ctx, "x = 1, y > x")
+	err := repl.OneShot(ctx, `x = 1; y > x`)
 	if _, ok := err.(ast.Errors); !ok {
 		t.Fatalf("Expected error message in output but got`: %v", buffer.String())
 	}
 	buffer.Reset()
-	repl.OneShot(ctx, "x = 1, y = 2, y > x")
+	repl.OneShot(ctx, `x = 1; y = 2; y > x`)
 	var result2 []interface{}
 	err = util.UnmarshalJSON(buffer.Bytes(), &result2)
 	if err != nil {
@@ -706,12 +713,12 @@ func TestEvalBodyInput(t *testing.T) {
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
 
-	repl.OneShot(ctx, "package repl")
-	repl.OneShot(ctx, `input["foo.bar"] = "hello" :- true`)
-	repl.OneShot(ctx, `input["baz"] = data.a[0].b.c[2] :- true`)
-	repl.OneShot(ctx, "package test")
+	repl.OneShot(ctx, `package repl`)
+	repl.OneShot(ctx, `input["foo.bar"] = "hello" { true }`)
+	repl.OneShot(ctx, `input["baz"] = data.a[0].b.c[2] { true }`)
+	repl.OneShot(ctx, `package test`)
 	repl.OneShot(ctx, "import input.baz")
-	repl.OneShot(ctx, `p :- input["foo.bar"] = "hello", baz = false`)
+	repl.OneShot(ctx, `p = true { input["foo.bar"] = "hello"; baz = false }`)
 	repl.OneShot(ctx, "p")
 
 	result := buffer.String()
@@ -782,7 +789,7 @@ func TestEvalBodyWith(t *testing.T) {
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
 
-	repl.OneShot(ctx, `p :- input.foo = "bar"`)
+	repl.OneShot(ctx, `p = true { input.foo = "bar" }`)
 	err := repl.OneShot(ctx, "p")
 
 	if err == nil || !strings.Contains(err.Error(), "input document undefined") {
@@ -834,9 +841,9 @@ func TestEvalPackage(t *testing.T) {
 	store := newTestStore()
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
-	repl.OneShot(ctx, "package foo.bar")
-	repl.OneShot(ctx, "p = true :- true")
-	repl.OneShot(ctx, "package baz.qux")
+	repl.OneShot(ctx, `package foo.bar`)
+	repl.OneShot(ctx, `p = true { true }`)
+	repl.OneShot(ctx, `package baz.qux`)
 	buffer.Reset()
 	err := repl.OneShot(ctx, "p")
 	if err.Error() != "1 error occurred: 1:1: p is unsafe (variable p must appear in the output position of at least one non-negated expression)" {
@@ -857,9 +864,9 @@ func TestEvalTrace(t *testing.T) {
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
 	repl.OneShot(ctx, "trace")
-	repl.OneShot(ctx, "data.a[i].b.c[j] = x, data.a[k].b.c[x] = 1")
+	repl.OneShot(ctx, `data.a[i].b.c[j] = x; data.a[k].b.c[x] = 1`)
 	expected := strings.TrimSpace(`
-Enter data.a[i].b.c[j] = x, data.a[k].b.c[x] = 1
+Enter data.a[i].b.c[j] = x; data.a[k].b.c[x] = 1
 | Eval data.a[i].b.c[j] = x
 | Eval data.a[k].b.c[true] = 1
 | Fail data.a[k].b.c[true] = 1
@@ -867,8 +874,8 @@ Enter data.a[i].b.c[j] = x, data.a[k].b.c[x] = 1
 | Eval data.a[k].b.c[2] = 1
 | Fail data.a[0].b.c[2] = 1
 | Redo data.a[0].b.c[2] = 1
-| Exit data.a[i].b.c[j] = x, data.a[k].b.c[x] = 1
-Redo data.a[i].b.c[j] = x, data.a[k].b.c[x] = 1
+| Exit data.a[i].b.c[j] = x; data.a[k].b.c[x] = 1
+Redo data.a[i].b.c[j] = x; data.a[k].b.c[x] = 1
 | Redo data.a[0].b.c[1] = x
 | Eval data.a[k].b.c[false] = 1
 | Fail data.a[k].b.c[false] = 1
@@ -901,12 +908,12 @@ func TestEvalTruth(t *testing.T) {
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
 	repl.OneShot(ctx, "truth")
-	repl.OneShot(ctx, "data.a[i].b.c[j] = x, data.a[k].b.c[x] = 1")
+	repl.OneShot(ctx, `data.a[i].b.c[j] = x; data.a[k].b.c[x] = 1`)
 	expected := strings.TrimSpace(`
-Enter data.a[i].b.c[j] = x, data.a[k].b.c[x] = 1
+Enter data.a[i].b.c[j] = x; data.a[k].b.c[x] = 1
 | Redo data.a[0].b.c[0] = x
 | Redo data.a[0].b.c[2] = 1
-| Exit data.a[i].b.c[j] = x, data.a[k].b.c[x] = 1
+| Exit data.a[i].b.c[j] = x; data.a[k].b.c[x] = 1
 +---+---+---+---+
 | i | j | k | x |
 +---+---+---+---+
@@ -935,7 +942,7 @@ func TestBuildHeader(t *testing.T) {
 func assertREPLText(t *testing.T, buf bytes.Buffer, expected string) {
 	result := buf.String()
 	if result != expected {
-		t.Fatalf("Expected:\n%v\n\nGot:\n%v", expected, result)
+		t.Fatalf("Expected:\n%v\n\nString:\n\n%v\nGot:\n%v\n\nString:\n\n%v", []byte(expected), expected, []byte(result), result)
 	}
 }
 

@@ -29,11 +29,11 @@ func TestRuleTree(t *testing.T) {
 
 	mods := getCompilerTestModules()
 
-	mods["mod-incr"] = MustParseModule(`
-	package a.b.c
-	s[1] :- true
-	s[2] :- true
-	`)
+	mods["mod-incr"] = MustParseModule(`package a.b.c
+
+s[1] { true }
+s[2] { true }`,
+	)
 
 	tree := NewRuleTree(NewModuleTree(mods))
 	expectedNumRules := 18
@@ -67,14 +67,14 @@ func TestCompilerExample(t *testing.T) {
 func TestCompilerCheckSafetyHead(t *testing.T) {
 	c := NewCompiler()
 	c.Modules = getCompilerTestModules()
-	c.Modules["newMod"] = MustParseModule(`
-	package a.b
-	unboundKey[x] = y :- q[y] = {"foo": [1,2,[{"bar": y}]]}
-	unboundVal[y] = x :- q[y] = {"foo": [1,2,[{"bar": y}]]}
-	unboundCompositeVal[y] = [{"foo": x, "bar": y}] :- q[y] = {"foo": [1,2,[{"bar": y}]]}
-	unboundCompositeKey[[{"x": x}]] :- q[y]
-	unboundBuiltinOperator = eq :- x = 1
-	`)
+	c.Modules["newMod"] = MustParseModule(`package a.b
+
+unboundKey[x] = y { q[y] = {"foo": [1, 2, [{"bar": y}]]} }
+unboundVal[y] = x { q[y] = {"foo": [1, 2, [{"bar": y}]]} }
+unboundCompositeVal[y] = [{"foo": x, "bar": y}] { q[y] = {"foo": [1, 2, [{"bar": y}]]} }
+unboundCompositeKey[[{"x": x}]] { q[y] }
+unboundBuiltinOperator = eq { x = 1 }`,
+	)
 	compileStages(c, "", "checkSafetyHead")
 
 	makeErrMsg := func(rule, v string) string {
@@ -110,20 +110,20 @@ func TestCompilerCheckSafetyBodyReordering(t *testing.T) {
 		body     string
 		expected string
 	}{
-		{"noop", "x = 1, x != 0", "x = 1, x != 0"},
-		{"var/ref", "a[i] = x, a = [1,2,3,4]", "a = [1,2,3,4], a[i] = x"},
-		{"var/ref (nested)", "a = [1,2,3,4], a[b[i]] = x, b = [0,0,0,0]", "a = [1,2,3,4], b = [0,0,0,0], a[b[i]] = x"},
+		{"noop", `x = 1; x != 0`, `x = 1; x != 0`},
+		{"var/ref", `a[i] = x; a = [1, 2, 3, 4]`, `a = [1, 2, 3, 4]; a[i] = x`},
+		{"var/ref (nested)", `a = [1, 2, 3, 4]; a[b[i]] = x; b = [0, 0, 0, 0]`, `a = [1, 2, 3, 4]; b = [0, 0, 0, 0]; a[b[i]] = x`},
 		{"negation",
-			"a = [true, false], b = [true, false], not a[i], b[i]",
-			"a = [true, false], b = [true, false], b[i], not a[i]"},
-		{"built-in", "x != 0, count([1,2,3], x)", "count([1,2,3], x), x != 0"},
-		{"var/var 1", "x = y, z = 1, y = z", "z = 1, y = z, x = y"},
-		{"var/var 2", "x = y, 1 = z, z = y", "1 = z, z = y, x = y"},
-		{"var/var 3", "x != 0, y = x, y = 1", "y = 1, y = x, x != 0"},
-		{"array compr/var", "x != 0, [y | y = 1] = x", "[y | y = 1] = x, x != 0"},
-		{"array compr/array", "[1] != [x], [y | y = 1] = [x]", "[y | y = 1] = [x], [1] != [x]"},
-		{"with", "data.a.b.d.t with input as x, x = 1", "x = 1, data.a.b.d.t with input as x"},
-		{"with-2", "data.a.b.d.t with input.x as x, x = 1", "x = 1, data.a.b.d.t with input.x as x"},
+			`a = [true, false]; b = [true, false]; not a[i]; b[i]`,
+			`a = [true, false]; b = [true, false]; b[i]; not a[i]`},
+		{"built-in", `x != 0; count([1, 2, 3], x)`, `count([1, 2, 3], x); x != 0`},
+		{"var/var 1", `x = y; z = 1; y = z`, `z = 1; y = z; x = y`},
+		{"var/var 2", `x = y; 1 = z; z = y`, `1 = z; z = y; x = y`},
+		{"var/var 3", `x != 0; y = x; y = 1`, `y = 1; y = x; x != 0`},
+		{"array compr/var", `x != 0; [y | y = 1] = x`, `[y | y = 1] = x; x != 0`},
+		{"array compr/array", `[1] != [x]; [y | y = 1] = [x]`, `[y | y = 1] = [x]; [1] != [x]`},
+		{"with", `data.a.b.d.t with input as x; x = 1`, `x = 1; data.a.b.d.t with input as x`},
+		{"with-2", `data.a.b.d.t with input.x as x; x = 1`, `x = 1; data.a.b.d.t with input.x as x`},
 		{"with-nop", "data.somedoc[x] with input as true", "data.somedoc[x] with input as true"},
 	}
 
@@ -132,7 +132,7 @@ func TestCompilerCheckSafetyBodyReordering(t *testing.T) {
 		c.Modules = getCompilerTestModules()
 		c.Modules["reordering"] = MustParseModule(fmt.Sprintf(
 			`package test
-			 p :- %s`, tc.body))
+			 p { %s }`, tc.body))
 
 		compileStages(c, "", "checkSafetyBody")
 
@@ -154,55 +154,27 @@ func TestCompilerCheckSafetyBodyReorderingClosures(t *testing.T) {
 	c := NewCompiler()
 	c.Modules = map[string]*Module{
 		"mod": MustParseModule(
-			`
-			package compr
+			`package compr
 
-			import data.b
-			import data.c
+import data.b
+import data.c
 
-			p :- v     = [null | true],                               # leave untouched
-				 xs    = [x | a[i] = x, a = [y | y != 1, y = c[j]]],  # close over 'i' and 'j', 2-level reorder
-				 xs[j] > 0,
-				 z = [true | data.a.b.d.t with input as i2, i2 = i],    # close over 'i'
-				 b[i]  = j
-
-			# test that reordering is not performed when closing over different globals, e.g.,
-			# built-ins, data, imports.
-			q :- _ = [x | x = b[i]],
-				 _ = b[j],
-
-				 _ = [x | x = true, x != false],
-				 true != false,
-
-				 _ = [x | data.foo[_] = x],
-				 data.foo[_] = _
-			`),
+p = true { v = [null | true]; xs = [x | a[i] = x; a = [y | y != 1; y = c[j]]]; xs[j] > 0; z = [true | data.a.b.d.t with input as i2; i2 = i]; b[i] = j }
+q = true { _ = [x | x = b[i]]; _ = b[j]; _ = [x | x = true; x != false]; true != false; _ = [x | data.foo[_] = x]; data.foo[_] = _ }`,
+		),
 	}
 
 	compileStages(c, "", "checkSafetyBody")
 	assertNotFailed(t, c)
 
 	result1 := c.Modules["mod"].Rules[0].Body
-	expected1 := MustParseBody(`
-		v          = [null | true],
-		data.b[i]  = j,
-		xs         = [x | a = [y | y = data.c[j], y != 1], a[i] = x],
-		z          = [true | i2 = i, data.a.b.d.t with input as i2],
-		xs[j]      > 0
-	`)
+	expected1 := MustParseBody(`v = [null | true]; data.b[i] = j; xs = [x | a = [y | y = data.c[j]; y != 1]; a[i] = x]; z = [true | i2 = i; data.a.b.d.t with input as i2]; xs[j] > 0`)
 	if !result1.Equal(expected1) {
 		t.Errorf("Expected reordered body to be equal to:\n%v\nBut got:\n%v", expected1, result1)
 	}
 
 	result2 := c.Modules["mod"].Rules[1].Body
-	expected2 := MustParseBody(`
-		_ = [x | x = data.b[i]],
-		_ = data.b[j],
-		_ = [x | x = true, x != false],
-		true != false,
-		_ = [x | data.foo[_] = x],
-		data.foo[_] = _
-	`)
+	expected2 := MustParseBody(`_ = [x | x = data.b[i]]; _ = data.b[j]; _ = [x | x = true; x != false]; true != false; _ = [x | data.foo[_] = x]; data.foo[_] = _`)
 	if !result2.Equal(expected2) {
 		t.Errorf("Expected pre-ordered body to equal:\n%v\nBut got:\n%v", expected2, result2)
 	}
@@ -213,67 +185,41 @@ func TestCompilerCheckSafetyBodyErrors(t *testing.T) {
 
 	c.Modules = getCompilerTestModules()
 	c.Modules = map[string]*Module{
-		"newMod": MustParseModule(`
-	package a.b
+		"newMod": MustParseModule(`package a.b
 
-	import input.aref.b.c as foo
-	import input.avar as bar
-	import data.m.n as baz
+import input.aref.b.c as foo
+import input.avar as bar
+import data.m.n as baz
 
-	# a would be unbound
-	unboundRef1 = true :- a.b.c = "foo"
-
-	# a would be unbound
-	unboundRef2 = true :- {"foo": [{"bar": a.b.c}]} = {"foo": [{"bar": "baz"}]}
-
-	# i will be bound even though it's in a non-output position
-	inputPosRef = true :- a = [1,2,3,4], a[i] != 100
-
-	# i and x would be unbound
-	unboundNegated1 = true :- a = [1,2,3,4], not a[i] = x
-
-	# i and x would be unbound even though x appears in head
-	unboundNegated2[x] :- a = [1,2,3,4], not a[i] = x
-
-	# x, i, and j would be unbound even though they appear in other expressions
-	unboundNegated3[x] = true :- a = [1,2,3,4], b = [1,2,3,4], not a[i] = x, not b[j] = x
-
-	# i and j would be unbound even though they are in embedded references
-	unboundNegated4 = true :- a = [{"foo": ["bar", "baz"]}], not a[0].foo = [a[0].foo[i], a[0].foo[j]]
-
-	# x would be unbound as input to count
-	unsafeBuiltin :- count([1,2,x], x)
-	unsafeBuiltinOperator :- count(eq, 1)
-
-	# i and x would be bound in the last expression so the third expression is safe
-	negatedSafe = true :- a = [1,2,3,4], b = [1,2,3,4], not a[i] = x, b[i] = x
-
-	# x would be unbound because it does not appear in the target position of any expression
-	unboundNoTarget = true :- x > 0, x <= 3, x != 2
-
-	unboundArrayComprBody1 :- _ = [x | x = data.a[_], y > 1]
-	unboundArrayComprBody2 :- _ = [x | x = a[_], a = [y | y = data.a[_], z > 1]]
-	unboundArrayComprBody3 :- _ = [v | v = [x | x = data.a[_]], x > 1]
-	unboundArrayComprTerm1 :- _ = [u | true]
-	unboundArrayComprTerm2 :- _ = [v | v = [w | w != 0]]
-	unboundArrayComprTerm3 :- _ = [x[i] | x = []]
-	unboundArrayComprMixed1 :- _ = [x | y = [a | a = z[i]]]
-	unboundBuiltinOperatorArrayCompr :- 1 = 1, [true | eq != 2]
-
-	unsafeClosure1 :- x = [x | x = 1]
-	unsafeClosure2 :- x = y, x = [y | y = 1]
-
-	unsafeNestedHead :- count(baz[i].attr[bar[dead.beef]], n)
-
-	negatedImport1 = true :- not foo
-	negatedImport2 = true :- not bar
-	negatedImport3 = true :- not baz
-
-	rewriteUnsafe[{"foo": dead[i]}] :- true  # dead is not imported
-
-	unsafeWithValue1 :- data.a.b.d.t with input as x
-	unsafeWithValue2 :- x = data.a.b.d.t with input as x
-	`)}
+unboundRef1 = true { a.b.c = "foo" }
+unboundRef2 = true { {"foo": [{"bar": a.b.c}]} = {"foo": [{"bar": "baz"}]} }
+inputPosRef = true { a = [1, 2, 3, 4]; a[i] != 100 }
+unboundNegated1 = true { a = [1, 2, 3, 4]; not a[i] = x }
+unboundNegated2[x] { a = [1, 2, 3, 4]; not a[i] = x }
+unboundNegated3[x] = true { a = [1, 2, 3, 4]; b = [1, 2, 3, 4]; not a[i] = x; not b[j] = x }
+unboundNegated4 = true { a = [{"foo": ["bar", "baz"]}]; not a[0].foo = [a[0].foo[i], a[0].foo[j]] }
+unsafeBuiltin = true { count([1, 2, x], x) }
+unsafeBuiltinOperator = true { count(eq, 1) }
+negatedSafe = true { a = [1, 2, 3, 4]; b = [1, 2, 3, 4]; not a[i] = x; b[i] = x }
+unboundNoTarget = true { x > 0; x <= 3; x != 2 }
+unboundArrayComprBody1 = true { _ = [x | x = data.a[_]; y > 1] }
+unboundArrayComprBody2 = true { _ = [x | x = a[_]; a = [y | y = data.a[_]; z > 1]] }
+unboundArrayComprBody3 = true { _ = [v | v = [x | x = data.a[_]]; x > 1] }
+unboundArrayComprTerm1 = true { _ = [u | true] }
+unboundArrayComprTerm2 = true { _ = [v | v = [w | w != 0]] }
+unboundArrayComprTerm3 = true { _ = [x[i] | x = []] }
+unboundArrayComprMixed1 = true { _ = [x | y = [a | a = z[i]]] }
+unboundBuiltinOperatorArrayCompr = true { 1 = 1; [true | eq != 2] }
+unsafeClosure1 = true { x = [x | x = 1] }
+unsafeClosure2 = true { x = y; x = [y | y = 1] }
+unsafeNestedHead = true { count(baz[i].attr[bar[dead.beef]], n) }
+negatedImport1 = true { not foo }
+negatedImport2 = true { not bar }
+negatedImport3 = true { not baz }
+rewriteUnsafe[{"foo": dead[i]}] { true }
+unsafeWithValue1 = true { data.a.b.d.t with input as x }
+unsafeWithValue2 = true { x = data.a.b.d.t with input as x }`,
+		)}
 	compileStages(c, "", "checkSafetyBody")
 
 	makeErrMsg := func(rule string, varName string) string {
@@ -331,16 +277,15 @@ func TestCompilerCheckWithModifiers(t *testing.T) {
 
 	c := NewCompiler()
 	c.Modules = getCompilerTestModules()
-	c.Modules["with-modifiers"] = MustParseModule(`
-	package badwith
+	c.Modules["with-modifiers"] = MustParseModule(`package badwith
 
-	import data.a.b.d.t as req_dep
+import data.a.b.d.t as req_dep
 
-	p = true
-	ref_in_value :- req_dep with input as p
-	closure_in_value :- req_dep with input as [null | null]
-	data_target :- req_dep with data.p as "foo"
-	`)
+p = true { true }
+ref_in_value = true { req_dep with input as p }
+closure_in_value = true { req_dep with input as [null | null] }
+data_target = true { req_dep with data.p as "foo" }`,
+	)
 
 	compileStages(c, "", "checkWithModifiers")
 
@@ -357,18 +302,18 @@ func TestCompilerCheckWithModifiers(t *testing.T) {
 func TestCompilerCheckBuiltins(t *testing.T) {
 	c := NewCompiler()
 	c.Modules = map[string]*Module{
-		"mod": MustParseModule(`
-			package badbuiltin
-			p :- count(1)
-			q :- count([1,2,3], x, 1)
-			r :- [ x | deadbeef(1,2,x) ]
-			`),
+		"mod": MustParseModule(`package badbuiltin
+
+p = true { count(1) }
+q = true { count([1, 2, 3], x, 1) }
+r = true { [x | deadbeef(1, 2, x)] }`,
+		),
 	}
 	compileStages(c, "", "checkBuiltins")
 
 	expected := []string{
 		"p: wrong number of arguments (expression count(1) must specify 2 arguments to built-in function count)",
-		"q: wrong number of arguments (expression count([1,2,3], x, 1) must specify 2 arguments to built-in function count)",
+		"q: wrong number of arguments (expression count([1, 2, 3], x, 1) must specify 2 arguments to built-in function count)",
 		"r: unknown built-in function deadbeef",
 	}
 
@@ -378,26 +323,24 @@ func TestCompilerCheckBuiltins(t *testing.T) {
 func TestCompilerCheckRuleConflicts(t *testing.T) {
 
 	c := getCompilerWithParsedModules(map[string]string{
-		"mod1.rego": `
-			package badrules
-			p[x] :- x = 1
-			p[x] = y :- x = y, x = "a"
-			q[1] :- true
-			q = {1,2,3} :- true
-			r[x] = y :- x = y, x = "a"
-			r[x] = y :- x = y, x = "a"
-		`,
-		"mod2.rego": `
-			package badrules.r
-			q[1] :- true
-		`,
-		"mod3.rego": `
-			package badrules.defkw
+		"mod1.rego": `package badrules
 
-			default foo = 1
-			default foo = 2
-			foo = 3
-		`,
+p[x] { x = 1 }
+p[x] = y { x = y; x = "a" }
+q[1] { true }
+q = {1, 2, 3} { true }
+r[x] = y { x = y; x = "a" }
+r[x] = y { x = y; x = "a" }`,
+
+		"mod2.rego": `package badrules.r
+
+q[1] { true }`,
+
+		"mod3.rego": `package badrules.defkw
+
+default foo = 1
+default foo = 2
+foo = 3 { true }`,
 	})
 
 	compileStages(c, "", "checkRuleConflicts")
@@ -416,16 +359,15 @@ func TestCompilerCheckRuleConflicts(t *testing.T) {
 func TestCompilerImportsResolved(t *testing.T) {
 
 	modules := map[string]*Module{
-		"mod1": MustParseModule(`
-			package ex
+		"mod1": MustParseModule(`package ex
 
-			import data
-			import input
-			import data.foo
-			import input.bar
-			import data.abc as baz
-			import input.abc as qux
-		`),
+import data
+import input
+import data.foo
+import input.bar
+import data.abc as baz
+import input.abc as qux`,
+		),
 	}
 
 	c := NewCompiler()
@@ -443,11 +385,12 @@ func TestCompilerResolveAllRefs(t *testing.T) {
 	c := NewCompiler()
 	c.Modules = getCompilerTestModules()
 	c.Modules["head"] = MustParseModule(`package head
-	import data.doc1 as bar
-	import input.x.y.foo
-	import input.qux as baz
-	p[foo[bar[i]]] = {"baz": baz} :- true
-	`)
+
+import data.doc1 as bar
+import input.x.y.foo
+import input.qux as baz
+
+p[foo[bar[i]]] = {"baz": baz} { true }`)
 	compileStages(c, "", "resolveAllRefs")
 	assertNotFailed(t, c)
 
@@ -525,35 +468,27 @@ func TestCompilerResolveAllRefs(t *testing.T) {
 func TestCompilerRewriteTermsInHead(t *testing.T) {
 	c := NewCompiler()
 	c.Modules["head"] = MustParseModule(`package head
-	import data.doc1 as bar
-	import data.doc2 as corge
-	import input.x.y.foo
-	import input.qux as baz
-	p[foo[bar[i]]] = {"baz": baz, "corge": corge} :- true
-	q = [true | true] :- true
-	`)
+
+import data.doc1 as bar
+import data.doc2 as corge
+import input.x.y.foo
+import input.qux as baz
+
+p[foo[bar[i]]] = {"baz": baz, "corge": corge} { true }
+q = [true | true] { true }`)
 
 	compileStages(c, "", "rewriteRefsInHead")
 	assertNotFailed(t, c)
 
 	rule1 := c.Modules["head"].Rules[0]
 
-	expected1 := MustParseRule(`
-	p[__local0__] = __local1__ :-
-		true,
-		__local0__ = input.x.y.foo[data.doc1[i]],
-		__local1__ = {"baz": input.qux, "corge": data.doc2}
-	`)
+	expected1 := MustParseRule(`p[__local0__] = __local1__ { true; __local0__ = input.x.y.foo[data.doc1[i]]; __local1__ = {"baz": input.qux, "corge": data.doc2} }`)
 
 	assertRulesEqual(t, rule1, expected1)
 
 	rule2 := c.Modules["head"].Rules[1]
 
-	expected2 := MustParseRule(`
-	q = __local2__ :-
-		true,
-		__local2__ = [true | true]
-	`)
+	expected2 := MustParseRule(`q = __local2__ { true; __local2__ = [true | true] }`)
 
 	assertRulesEqual(t, rule2, expected2)
 }
@@ -585,51 +520,51 @@ func TestCompilerSetRuleGraph(t *testing.T) {
 func TestCompilerCheckRecursion(t *testing.T) {
 	c := NewCompiler()
 	c.Modules = map[string]*Module{
-		"newMod1": MustParseModule(`
-						package rec
-						s = true :- t
-						t = true :- s
-						a = true :- b
-						b = true :- c
-						c = true :- d, e
-						d = true :- true
-						e = true :- a`),
-		"newMod2": MustParseModule(`
-						package rec
-						x = true :- s
-						`),
-		"newMod3": MustParseModule(`
-						package rec2
-						import data.rec.x
-						y = true :- x
-						`),
-		"newMod4": MustParseModule(`
-						package rec3
-						p[x] = y :- data.rec4[x][y] = z
-						`),
-		"newMod5": MustParseModule(`
-						package rec4
-						import data.rec3.p
-						q[x] = y :- p[x] = y
-						`),
-		"newMod6": MustParseModule(`
-						package rec5
-						acp[x] :- acq[x]
-						acq[x] :- a = [x | acp[x]], a[i] = x
-						`),
-		"newMod7": MustParseModule(`
-						package rec6
-						np[x] = y :- data.a[data.b.c[nq[x]]] = y
-						nq[x] = y :- data.d[data.e[x].f[np[y]]]
-						`),
-		"newMod8": MustParseModule(`
-						package rec7
-						prefix :- data.rec7
-						`),
-		"newMod9": MustParseModule(`
-						package rec8
-						dataref :- data
-						`),
+		"newMod1": MustParseModule(`package rec
+
+s = true { t }
+t = true { s }
+a = true { b }
+b = true { c }
+c = true { d; e }
+d = true { true }
+e = true { a }`),
+		"newMod2": MustParseModule(`package rec
+
+x = true { s }`,
+		),
+		"newMod3": MustParseModule(`package rec2
+
+import data.rec.x
+
+y = true { x }`),
+		"newMod4": MustParseModule(`package rec3
+
+p[x] = y { data.rec4[x][y] = z }`,
+		),
+		"newMod5": MustParseModule(`package rec4
+
+import data.rec3.p
+
+q[x] = y { p[x] = y }`),
+		"newMod6": MustParseModule(`package rec5
+
+acp[x] { acq[x] }
+acq[x] { a = [x | acp[x]]; a[i] = x }`,
+		),
+		"newMod7": MustParseModule(`package rec6
+
+np[x] = y { data.a[data.b.c[nq[x]]] = y }
+nq[x] = y { data.d[data.e[x].f[np[y]]] }`,
+		),
+		"newMod8": MustParseModule(`package rec7
+
+prefix = true { data.rec7 }`,
+		),
+		"newMod9": MustParseModule(`package rec8
+
+dataref = true { data }`,
+		),
 	}
 
 	compileStages(c, "", "checkRecursion")
@@ -673,11 +608,11 @@ func TestCompilerGetRulesExact(t *testing.T) {
 	mods := getCompilerTestModules()
 
 	// Add incrementally defined rules.
-	mods["mod-incr"] = MustParseModule(`
-	package a.b.c
-	p[1] :- true
-	p[2] :- true
-	`)
+	mods["mod-incr"] = MustParseModule(`package a.b.c
+
+p[1] { true }
+p[2] { true }`,
+	)
 
 	c := NewCompiler()
 	c.Compile(mods)
@@ -731,11 +666,11 @@ func TestCompilerGetRulesForVirtualDocument(t *testing.T) {
 	mods := getCompilerTestModules()
 
 	// Add incrementally defined rules.
-	mods["mod-incr"] = MustParseModule(`
-	package a.b.c
-	p[1] :- true
-	p[2] :- true
-	`)
+	mods["mod-incr"] = MustParseModule(`package a.b.c
+
+p[1] { true }
+p[2] { true }`,
+	)
 
 	c := NewCompiler()
 	c.Compile(mods)
@@ -793,12 +728,12 @@ func TestCompilerGetRulesWithPrefix(t *testing.T) {
 	mods := getCompilerTestModules()
 
 	// Add incrementally defined rules.
-	mods["mod-incr"] = MustParseModule(`
-	package a.b.c
-	p[1] :- true
-	p[2] :- true
-	q[3] :- true
-	`)
+	mods["mod-incr"] = MustParseModule(`package a.b.c
+
+p[1] { true }
+p[2] { true }
+q[3] { true }`,
+	)
 
 	c := NewCompiler()
 	c.Compile(mods)
@@ -858,13 +793,11 @@ func TestCompilerGetRulesWithPrefix(t *testing.T) {
 
 func TestCompilerGetRules(t *testing.T) {
 	compiler := getCompilerWithParsedModules(map[string]string{
-		"mod1": `
-		package a.b.c
+		"mod1": `package a.b.c
 
-		p[x] = y :- q[x] = y # rule1
-		q["a"] = 1 :- true   # rule2
-		q["b"] = 2 :- true   # rule3
-		`,
+p[x] = y { q[x] = y }
+q["a"] = 1 { true }
+q["b"] = 2 { true }`,
 	})
 
 	compileStages(compiler, "", "")
@@ -925,30 +858,34 @@ func TestCompilerLazyLoadingError(t *testing.T) {
 
 func TestCompilerLazyLoading(t *testing.T) {
 
-	mod1 := MustParseModule(`
-			package a.b.c
-			import data.x.z1 as z2
-			p :- q, r
-			q :- z2`)
+	mod1 := MustParseModule(`package a.b.c
 
-	mod2 := MustParseModule(`
-			package a.b.c
-			r = true`)
+import data.x.z1 as z2
+
+p = true { q; r }
+q = true { z2 }`)
+
+	mod2 := MustParseModule(`package a.b.c
+
+r = true { true }`)
 
 	mod3 := MustParseModule(`package x
-			import data.foo.bar
-			import input.input
-			z1 :- [ localvar | count(bar.baz.qux, localvar) ]`)
 
-	mod4 := MustParseModule(`
-			package foo.bar.baz
-			qux = grault :- true`)
+import data.foo.bar
+import input.input
 
-	mod5 := MustParseModule(`
-			package foo.bar.baz
-			import data.d.e.f
-			deadbeef = f :- true
-			grault = deadbeef :- true`)
+z1 = true { [localvar | count(bar.baz.qux, localvar)] }`)
+
+	mod4 := MustParseModule(`package foo.bar.baz
+
+qux = grault { true }`)
+
+	mod5 := MustParseModule(`package foo.bar.baz
+
+import data.d.e.f
+
+deadbeef = f { true }
+grault = deadbeef { true }`)
 
 	// testLoader will return 4 rounds of parsed modules.
 	rounds := []map[string]*Module{
@@ -965,30 +902,30 @@ func TestCompilerLazyLoading(t *testing.T) {
 			// collection.
 		},
 		func(partial map[string]*Module) {
-			p := MustParseRule(`p :- data.a.b.c.q, data.a.b.c.r`)
+			p := MustParseRule(`p = true { data.a.b.c.q; data.a.b.c.r }`)
 			if !partial["mod1"].Rules[0].Equal(p) {
 				t.Errorf("Expected %v but got %v", p, partial["mod1"].Rules[0])
 			}
-			q := MustParseRule(`q :- data.x.z1`)
+			q := MustParseRule(`q = true { data.x.z1 }`)
 			if !partial["mod1"].Rules[1].Equal(q) {
 				t.Errorf("Expected %v but got %v", q, partial["mod1"].Rules[0])
 			}
 		},
 		func(partial map[string]*Module) {
-			z1 := MustParseRule(`z1 :- [ localvar | count(data.foo.bar.baz.qux, localvar) ]`)
+			z1 := MustParseRule(`z1 = true { [localvar | count(data.foo.bar.baz.qux, localvar)] }`)
 			if !partial["mod3"].Rules[0].Equal(z1) {
 				t.Errorf("Expected %v but got %v", z1, partial["mod3"].Rules[0])
 			}
 		},
 		func(partial map[string]*Module) {
-			qux := MustParseRule(`qux = grault :- true`)
+			qux := MustParseRule(`qux = grault { true }`)
 			if !partial["mod4"].Rules[0].Equal(qux) {
 				t.Errorf("Expected %v but got %v", qux, partial["mod4"].Rules[0])
 			}
 		},
 		func(partial map[string]*Module) {
-			grault := MustParseRule("qux = data.foo.bar.baz.grault :- true") // rewrite has not happened yet
-			f := MustParseRule("deadbeef = data.d.e.f :- true")
+			grault := MustParseRule(`qux = data.foo.bar.baz.grault { true }`) // rewrite has not happened yet
+			f := MustParseRule(`deadbeef = data.d.e.f { true }`)
 			if !partial["mod4"].Rules[0].Equal(grault) {
 				t.Errorf("Expected %v but got %v", grault, partial["mod4"].Rules[0])
 			}
@@ -1026,17 +963,17 @@ func TestQueryCompiler(t *testing.T) {
 		input    string
 		expected interface{}
 	}{
-		{"exports resolved", "z", "package a.b.c", nil, "", "data.a.b.c.z"},
-		{"imports resolved", "z", "package a.b.c.d", []string{"import data.a.b.c.z"}, "", "data.a.b.c.z"},
+		{"exports resolved", "z", `package a.b.c`, nil, "", "data.a.b.c.z"},
+		{"imports resolved", "z", `package a.b.c.d`, []string{"import data.a.b.c.z"}, "", "data.a.b.c.z"},
 		{"unsafe vars", "z", "", nil, "", fmt.Errorf("1 error occurred: 1:1: z is unsafe (variable z must appear in the output position of at least one non-negated expression)")},
-		{"safe vars", "data, abc", "package ex", []string{"import input.xyz as abc"}, `{}`, "data, input.xyz"},
-		{"reorder", "x != 1, x = 0", "", nil, "", "x = 0, x != 1"},
+		{"safe vars", `data; abc`, `package ex`, []string{"import input.xyz as abc"}, `{}`, `data; input.xyz`},
+		{"reorder", `x != 1; x = 0`, "", nil, "", `x = 0; x != 1`},
 		{"bad builtin", "deadbeef(1,2,3)", "", nil, "", fmt.Errorf("1 error occurred: 1:1: unknown built-in function deadbeef")},
 		{"bad with target", "x = 1 with data.p as null", "", nil, "", fmt.Errorf("1 error occurred: 1:7: with target must be input (got data.p as target)")},
 		// wrapping refs in extra terms to cover error handling
-		{"undefined input", "[[ true | [data.a.b.d.t, true]], true]", "", nil, "", fmt.Errorf("4:14: input document undefined")},
-		{"conflicting input", "[ true | data.a.b.d.t with input as 1 ]", "", nil, "2", fmt.Errorf("1:10: conflicting input document")},
-		{"conflicting input-2", "sum([1 | data.a.b.d.t with input as 2], x) with input as 3", "", nil, "", fmt.Errorf("1:10: conflicting input document")},
+		{"undefined input", `[[true | [data.a.b.d.t, true]], true]`, "", nil, "", fmt.Errorf("5:12: input document undefined")},
+		{"conflicting input", `[true | data.a.b.d.t with input as 1]`, "", nil, "2", fmt.Errorf("1:9: conflicting input document")},
+		{"conflicting input-2", `sum([1 | data.a.b.d.t with input as 2], x) with input as 3`, "", nil, "", fmt.Errorf("1:10: conflicting input document")},
 	}
 
 	for _, tc := range tests {
@@ -1105,61 +1042,56 @@ func compileStages(c *Compiler, from string, to string) {
 
 func getCompilerTestModules() map[string]*Module {
 
-	mod1 := MustParseModule(`
-	package a.b.c
+	mod1 := MustParseModule(`package a.b.c
 
-	import data.x.y.z as foo
-	import data.g.h.k
+import data.x.y.z as foo
+import data.g.h.k
 
-	p[x] :- q[x], not r[x]
-	q[x] :- foo[i] = x
-	z = 400
-	`)
+p[x] { q[x]; not r[x] }
+q[x] { foo[i] = x }
+z = 400 { true }`,
+	)
 
-	mod2 := MustParseModule(`
-	package a.b.c
-	import data.bar
-	import data.x.y.p
-	r[x] :- bar[x] = 100, p = 101
-	`)
+	mod2 := MustParseModule(`package a.b.c
 
-	mod3 := MustParseModule(`
-	package a.b.d
-	import input.x as y
-	t = true :- input = {y.secret: [{y.keyid}]}
-	x = false :- true
-	`)
+import data.bar
+import data.x.y.p
 
-	mod4 := MustParseModule(`
-	package a.b.empty
-	`)
+r[x] { bar[x] = 100; p = 101 }`)
 
-	mod5 := MustParseModule(`
-	package a.b.compr
+	mod3 := MustParseModule(`package a.b.d
 
-	import input.x as y
-	import input.a.b.c.q
+import input.x as y
 
-	p :- [y.a | true]
-	r :- [q.a | true]
-	s :- [true | y.a = 0]
-	t :- [true | q[i] = 1]
-	u :- [true | _ = [y.a | true]]
-	v :- [true | _ = [ true | q[i] = 1]]
-	`)
+t = true { input = {y.secret: [{y.keyid}]} }
+x = false { true }`)
 
-	mod6 := MustParseModule(`
-	package a.b.nested
+	mod4 := MustParseModule(`package a.b.empty`)
 
-	import data.x
-	import data.z
-	import input.x as y
+	mod5 := MustParseModule(`package a.b.compr
 
-	p :- x[y[i].a[z.b[j]]]
-	q :- x = v, v[y[i]]
-	r = 1 :- true
-	s :- x[r]
-	`)
+import input.x as y
+import input.a.b.c.q
+
+p = true { [y.a | true] }
+r = true { [q.a | true] }
+s = true { [true | y.a = 0] }
+t = true { [true | q[i] = 1] }
+u = true { [true | _ = [y.a | true]] }
+v = true { [true | _ = [true | q[i] = 1]] }`,
+	)
+
+	mod6 := MustParseModule(`package a.b.nested
+
+import data.x
+import data.z
+import input.x as y
+
+p = true { x[y[i].a[z.b[j]]] }
+q = true { x = v; v[y[i]] }
+r = 1 { true }
+s = true { x[r] }`,
+	)
 
 	return map[string]*Module{
 		"mod1": mod1,

@@ -207,18 +207,14 @@ func TestPolicyStoreUpdate(t *testing.T) {
 }
 
 const (
-	testMod1 = `
-    package a.b
+	testMod1 = `package a.b
 
-    p = true :- q
-    q = true :- true
-    `
+p = true { q }
+q = true { true }`
 
-	testMod2 = `
-    package a.b
+	testMod2 = `package a.b
 
-    p = true :- false
-    `
+p = true { false }`
 )
 
 type fixture struct {

@@ -1279,7 +1279,7 @@ For example:
 	> import input.params
 
 	# Define rule that refers to "params".
-	> is_post :- params.method = "POST"
+	> is_post { params.method = "POST" }
 
 	# Test evaluation.
 	> is_post

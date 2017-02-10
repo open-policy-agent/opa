@@ -13,18 +13,13 @@ import (
 func ExampleCompiler_Compile() {
 
 	// Define an input module that will be compiled.
-	exampleModule := `
+	exampleModule := `package opa.example
 
-		package opa.example
+import data.foo
+import input.bar
 
-		import data.foo
-		import input.bar
-
-		p[x] :- foo[x], not bar[x], x >= min_x
-
-		min_x = 100
-
-	`
+p[x] { foo[x]; not bar[x]; x >= min_x }
+min_x = 100 { true }`
 
 	// Parse the input module to obtain the AST representation.
 	mod, err := ast.ParseModule("my_module", exampleModule)
@@ -57,18 +52,13 @@ func ExampleCompiler_Compile() {
 func ExampleQueryCompiler_Compile() {
 
 	// Define an input module that will be compiled.
-	exampleModule := `
+	exampleModule := `package opa.example
 
-		package opa.example
+import data.foo
+import input.bar
 
-		import data.foo
-		import input.bar
-
-		p[x] :- foo[x], not bar[x], x >= min_x
-
-		min_x = 100
-
-	`
+p[x] { foo[x]; not bar[x]; x >= min_x }
+min_x = 100 { true }`
 
 	// Parse the input module to obtain the AST representation.
 	mod, err := ast.ParseModule("my_module", exampleModule)
@@ -98,13 +88,13 @@ func ExampleQueryCompiler_Compile() {
 			// ast.Parse<X> functions that return meaningful error messages
 			// instead.
 			ast.NewQueryContext().
-				WithPackage(ast.MustParsePackage("package opa.example")).
+				WithPackage(ast.MustParsePackage(`package opa.example`)).
 				WithImports(ast.MustParseImports("import input.query_arg")).
 				WithInput(ast.MustParseTerm(`{"query_arg": 1000, "bar": [1,2,3]}`).Value),
 		)
 
 	// Parse the input query to obtain the AST representation.
-	query, err := ast.ParseBody("p[x], x < query_arg")
+	query, err := ast.ParseBody(`p[x]; x < query_arg`)
 	if err != nil {
 		fmt.Println("Parse error:", err)
 	}
@@ -118,5 +108,5 @@ func ExampleQueryCompiler_Compile() {
 
 	// Output:
 	//
-	// Compiled: data.opa.example.p[x], x < input.query_arg
+	// Compiled: data.opa.example.p[x]; x < input.query_arg
 }

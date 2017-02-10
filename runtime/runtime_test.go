@@ -24,7 +24,7 @@ func TestEval(t *testing.T) {
 	var buffer bytes.Buffer
 	params.Output = &buffer
 	params.OutputFormat = "json"
-	params.Eval = `a = b, a = 1, c = 2, c > b`
+	params.Eval = `a = b; a = 1; c = 2; c > b`
 	rt := &Runtime{}
 	rt.Start(params)
 	expected := parseJSON(`[{"a": 1, "b": 1, "c": 2}]`)
@@ -56,12 +56,12 @@ func TestInit(t *testing.T) {
 		panic(err)
 	}
 	defer os.Remove(tmp2.Name())
-	mod1 := `
-	package a.b.c
-	import data.foo
-	p = true :- foo = "bar"
-	p = true :- 1 = 2
-	`
+	mod1 := `package a.b.c
+
+import data.foo
+
+p = true { foo = "bar" }
+p = true { 1 = 2 }`
 	if _, err := tmp2.Write([]byte(mod1)); err != nil {
 		panic(err)
 	}
@@ -78,10 +78,10 @@ func TestInit(t *testing.T) {
 
 	tmp4 := filepath.Join(tmp3, "existingPolicy")
 
-	err = ioutil.WriteFile(tmp4, []byte(`
-	package a.b.c
-	q = true :- false
-	`), 0644)
+	err = ioutil.WriteFile(tmp4, []byte(`package a.b.c
+
+q = true { false }`,
+	), 0644)
 	if err != nil {
 		panic(err)
 	}

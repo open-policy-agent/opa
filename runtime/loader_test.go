@@ -42,8 +42,8 @@ func TestLoadRego(t *testing.T) {
 
 	files := map[string]string{
 		"/foo.rego": `package ex
-        p :- true`,
-	}
+
+p = true { true }`}
 
 	withTempFS(files, func(rootDir string) {
 		moduleFile := filepath.Join(rootDir, "foo.rego")

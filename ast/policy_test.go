@@ -15,25 +15,25 @@ import (
 
 func TestModuleJSONRoundTrip(t *testing.T) {
 
-	mod := MustParseModule(`
-	package a.b.c
-	import data.x.y as z
-	import data.u.i
-	p = [1,2,{"foo":3.14}] :- r[x] = 1, not q[x]
-	r[y] = v :- i[1] = y, v = i[2]
-	q[x] :- a=[true,false,null,{"x":[1,2,3]}], a[i] = x
-	t = true :- xs = [{"x": a[i].a} | a[i].n = "bob", b[x]]
-	big = 1e1000
-	odd = -.1
-	s = {1,2,3} :- true
-	s = set() :- false
-	empty_obj :- {}
-	empty_arr :- []
-	empty_set :- set()
-	using_with :- plus(data.foo, 1, x) with input.foo as bar
-	x = 2 :- input = null
-	default allow = true
-	`)
+	mod := MustParseModule(`package a.b.c
+
+import data.x.y as z
+import data.u.i
+
+p = [1, 2, {"foo": 3.14}] { r[x] = 1; not q[x] }
+r[y] = v { i[1] = y; v = i[2] }
+q[x] { a = [true, false, null, {"x": [1, 2, 3]}]; a[i] = x }
+t = true { xs = [{"x": a[i].a} | a[i].n = "bob"; b[x]] }
+big = 1e+1000 { true }
+odd = -0.1 { true }
+s = {1, 2, 3} { true }
+s = set() { false }
+empty_obj = true { {} }
+empty_arr = true { [] }
+empty_set = true { set() }
+using_with = true { x = data.foo + 1 with input.foo as bar }
+x = 2 { input = null }
+default allow = true`)
 
 	bs, err := json.Marshal(mod)
 	if err != nil {
@@ -66,7 +66,7 @@ func TestPackageEquals(t *testing.T) {
 func TestPackageString(t *testing.T) {
 	pkg1 := &Package{Path: RefTerm(VarTerm("foo"), StringTerm("bar"), StringTerm("baz")).Value.(Ref)}
 	result1 := pkg1.String()
-	expected1 := "package bar.baz"
+	expected1 := `package bar.baz`
 	if result1 != expected1 {
 		t.Errorf("Expected %v but got %v", expected1, result1)
 	}
@@ -206,7 +206,7 @@ func TestExprEquals(t *testing.T) {
 }
 
 func TestBodyIsGround(t *testing.T) {
-	if MustParseBody(`a.b[0] = 1, a = [1,2,x]`).IsGround() {
+	if MustParseBody(`a.b[0] = 1; a = [1, 2, x]`).IsGround() {
 		t.Errorf("Expected body to be non-ground")
 	}
 }
@@ -424,23 +424,21 @@ func TestRuleString(t *testing.T) {
 		Head:    NewHead("p", nil, BooleanTerm(true)),
 	}
 
-	assertRuleString(t, rule1, "p :- \"foo\" = \"bar\"")
-	assertRuleString(t, rule2, "p[x] = y :- \"foo\" = x, not a.b[x], \"b\" = y")
-	assertRuleString(t, rule3, "default p = true")
+	assertRuleString(t, rule1, `p { "foo" = "bar" }`)
+	assertRuleString(t, rule2, `p[x] = y { "foo" = x; not a.b[x]; "b" = y }`)
+	assertRuleString(t, rule3, `default p = true`)
 }
 
 func TestModuleString(t *testing.T) {
 
-	input := `
-	package a.b.c
+	input := `package a.b.c
 
-	import data.foo.bar
-	import input.xyz
+import data.foo.bar
+import input.xyz
 
-	p :- not bar
-	q :- xyz.abc = 2
-	wildcard :- bar[_] = 1
-	`
+p = true { not bar }
+q = true { xyz.abc = 2 }
+wildcard = true { bar[_] = 1 }`
 
 	mod := MustParseModule(input)
 

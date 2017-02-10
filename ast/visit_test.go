@@ -17,15 +17,12 @@ func (vis *testVis) Visit(x interface{}) Visitor {
 
 func TestVisitor(t *testing.T) {
 
-	rule := MustParseModule(`
-	package a.b
-	import input.x.y as z
-	t[x] = y :-
-		p[x] = {"foo": [y,2,{"bar": 3}]},
-		not q[x],
-		y = [ [x,z] | x = "x", z = "z" ],
-		count({1,2,3}, n) with input.foo.bar as x
-	`)
+	rule := MustParseModule(`package a.b
+
+import input.x.y as z
+
+t[x] = y { p[x] = {"foo": [y, 2, {"bar": 3}]}; not q[x]; y = [[x, z] | x = "x"; z = "z"]; count({1, 2, 3}, n) with input.foo.bar as x }`,
+	)
 	vis := &testVis{}
 
 	Walk(vis, rule)
@@ -103,7 +100,7 @@ func TestVisitor(t *testing.T) {
 }
 
 func TestWalkVars(t *testing.T) {
-	x := MustParseBody("x = 1, data.abc[2] = y, y[z] = [q | q = 1]")
+	x := MustParseBody(`x = 1; data.abc[2] = y; y[z] = [q | q = 1]`)
 	found := NewVarSet()
 	WalkVars(x, func(v Var) bool {
 		found.Add(v)
@@ -124,8 +121,8 @@ func TestVarVisitor(t *testing.T) {
 	}{
 		{"data.foo[x] = bar.baz[y]", VarVisitorParams{SkipRefHead: true}, "[eq, x, y]"},
 		{"{x: y}", VarVisitorParams{SkipObjectKeys: true}, "[y]"},
-		{"foo = [ x | data.a[i] = x ]", VarVisitorParams{SkipClosures: true}, "[eq, foo]"},
-		{"x=1,y=2,plus(x,y,z),count([x,y,z],z)", VarVisitorParams{SkipBuiltinOperators: true}, "[x, y, z]"},
+		{`foo = [x | data.a[i] = x]`, VarVisitorParams{SkipClosures: true}, "[eq, foo]"},
+		{`x = 1; y = 2; z = x + y; count([x, y, z], z)`, VarVisitorParams{SkipBuiltinOperators: true}, "[x, y, z]"},
 		{"foo with input.bar.baz as qux[corge]", VarVisitorParams{SkipWithTarget: true}, "[foo, qux, corge]"},
 	}
 

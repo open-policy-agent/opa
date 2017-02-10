@@ -32,7 +32,7 @@ func TestCompare(t *testing.T) {
 		{`{1: 2, 3: 4, 5: 6}`, `{1: 2, 3: 4}`, 1},
 
 		// Array comprehensions
-		{`[ null | true ]`, `[ false | null ]`, -1},
+		{`[null | true]`, `[false | null]`, -1},
 
 		// Expressions
 		{`a = b`, `b = a`, -1},
@@ -44,8 +44,8 @@ func TestCompare(t *testing.T) {
 		{`a = b with input.foo as bar`, `a = b with input.foo as bar with input.baz as qux`, -1},
 
 		// Body
-		{`a = b`, `a = b, b = a`, -1},
-		{`a = b, b = a`, `a = b`, 1},
+		{`a = b`, `a = b; b = a`, -1},
+		{`a = b; b = a`, `a = b`, 1},
 	}
 	for _, tc := range tests {
 		var a, b interface{}
@@ -72,9 +72,11 @@ func TestCompareModule(t *testing.T) {
 	}
 
 	a = MustParseModule(`package a.b.c
-    import input.x.y`)
+
+import input.x.y`)
 	b = MustParseModule(`package a.b.c
-    import input.x.z`)
+
+import input.x.z`)
 	result = Compare(a, b)
 
 	if result != -1 {

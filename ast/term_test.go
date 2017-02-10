@@ -128,19 +128,7 @@ func TestTermEqual(t *testing.T) {
 
 func TestHash(t *testing.T) {
 
-	doc := `
-		{
-			"a": [
-				[true, {"b": [null]}, {"c": "d"}]
-			],
-			"e": {
-				100: a[i].b
-			},
-			"k": [ "foo" | true ],
-			"s": {1,2,{3,4}},
-			"big": 1e1000
-		}
-	`
+	doc := `{"a": [[true, {"b": [null]}, {"c": "d"}]], "e": {100: a[i].b}, "k": ["foo" | true], "s": {1, 2, {3, 4}}, "big": 1e+1000}`
 
 	stmt1 := MustParseStatement(doc)
 	stmt2 := MustParseStatement(doc)
@@ -232,7 +220,7 @@ func TestTermString(t *testing.T) {
 	assertToString(t, ObjectTerm().Value, "{}")
 	assertToString(t, SetTerm().Value, "set()")
 	assertToString(t, ArrayTerm(ObjectTerm(Item(VarTerm("foo"), ArrayTerm(RefTerm(VarTerm("bar"), VarTerm("i"))))), StringTerm("foo"), SetTerm(BooleanTerm(true), NullTerm()), FloatNumberTerm(42.1)).Value, "[{foo: [bar[i]]}, \"foo\", {true, null}, 42.1]")
-	assertToString(t, ArrayComprehensionTerm(ArrayTerm(VarTerm("x")), NewBody(&Expr{Terms: RefTerm(VarTerm("a"), VarTerm("i"))})).Value, "[[x] | a[i]]")
+	assertToString(t, ArrayComprehensionTerm(ArrayTerm(VarTerm("x")), NewBody(&Expr{Terms: RefTerm(VarTerm("a"), VarTerm("i"))})).Value, `[[x] | a[i]]`)
 }
 
 func TestRefHasPrefix(t *testing.T) {
@@ -347,7 +335,7 @@ func TestSetOperations(t *testing.T) {
 		op string
 	}{
 		{`{1,2,3,4}`, `{1,3,5}`, `{2,4}`, "-"},
-		{`{1,3,5}`, `{1,2,3,4}`, `{5}`, "-"},
+		{`{1,3,5}`, `{1,2,3,4}`, `{5,}`, "-"},
 		{`{1,2,3,4}`, `{1,3,5}`, `{1,3}`, "&"},
 		{`{1,3,5}`, `{1,2,3,4}`, `{1,3}`, "&"},
 		{`{1,2,3,4}`, `{1,3,5}`, `{1,2,3,4,5}`, "|"},
