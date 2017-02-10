@@ -3,7 +3,39 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## 0.4.2
+
+### Rego
+
+This release changes the Rego syntax. The two main changes are:
+
+- Expressions are now separated by semicolons (instead of commas). When writing rules, the semicolons are optional.
+- Rules are no longer written in the form: `head :- body`. Instead they are written as `head { body }`.
+
+Also:
+
+- Set, array, and object literals now support trailing commas.
+- To declare a set literal with one element, you must include a trailing comma, e.g., `{ foo, }`.
+- Arithmetic and set operations can now be performed with infix notation, e.g., `x = 2 + 1`.
+- Sets can be referred to like objects and arrays now ([#243](https://github.com/open-policy-agent/opa/issues/243)). E.g., `p[_].foo = 1 # check if element in has attr foo equal to 1`.
+
+### Evaluation
+
+This release changes the evaluation behaviour for packages. Previously, if a package contained no rules OR all of the rules were undefined when evaluated, a query against the package path would return undefined. As of v0.4.2 the query will return an empty object.
+
+### REST API
+
+This release changes the Data API to return an HTTP 200 response if the document is undefined. The message body will contain an object without the `result` property.
+
+### Fixes
+
+- Allow sets to be treated like objects/arrays
+
+### Miscellaneous
+
+- Added high level API for Go users. See `github.com/open-policy-agent/opa/rego` package.
+- Improved expression String() function to handle infix operators better.
+- Added support for set intersection and union built-ins. See language docs.
 
 ## 0.4.1
 
