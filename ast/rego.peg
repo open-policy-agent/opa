@@ -151,7 +151,7 @@ DefaultRules <- "default" ws name:Var _ "=" _ value:Term {
     return []*Rule{rule}, nil
 }
 
-NormalRules <- head:RuleHead _ val:(IfBody / (BraceEnclosedBody (_ BraceEnclosedBody)*)) {
+NormalRules <- head:RuleHead _ val:(NonEmptyBraceEnclosedBody (_ NonEmptyBraceEnclosedBody)*) {
 
     if head == nil {
         return nil, nil
@@ -160,21 +160,14 @@ NormalRules <- head:RuleHead _ val:(IfBody / (BraceEnclosedBody (_ BraceEnclosed
     // Parser is expected to return []Statement. If the author has chained
     // rule bodies together (disjunction) then multiple rules must be returned.
     bodies := []Body{}
-    body, ok := val.(Body)
 
-    if ok {
-        bodies = append(bodies, body)
-    } else {
-        // This is just unpacking the EnclosedBody structures above.
-        sl := val.([]interface{})
-        bodies = append(bodies, sl[0].(Body))
-        for _, x := range sl[1].([]interface{}) {
-            bodies = append(bodies, x.([]interface{})[1].(Body))
-        }
+    sl := val.([]interface{})
+    bodies = append(bodies, sl[0].(Body))
+    for _, x := range sl[1].([]interface{}) {
+        bodies = append(bodies, x.([]interface{})[1].(Body))
     }
 
     rules := make([]*Rule, len(bodies))
-
     for i := range bodies {
         rules[i] = &Rule{
             Head: head.(*Head).Copy(),
@@ -219,24 +212,35 @@ RuleHead <- name:Var key:( _ "[" _ Term _ "]" _ )? value:( _ "=" _ Term )? {
     return head, nil
 }
 
-IfBody <- ":-" _ body:Body {
-    return body, nil
-}
+Body <- BraceEnclosedBody / NonWhitespaceBody
 
-BraceEnclosedBody <- "{" _ val:EnclosedBody? _ "}" {
+NonEmptyBraceEnclosedBody <- "{" _ val:WhitespaceBody? _ "}" {
     if val == nil {
         panic("body must be non-empty")
     }
     return val, nil
 }
 
-// When body is enclosed, literals are separated by newline or comma.
-EnclosedBody <- head:Literal tail:( [ \t]* ( "," / [\r\n] ) _ Literal)* {
+BraceEnclosedBody <- "{" _ val:WhitespaceBody? _ "}" {
+
+    if val == nil {
+        body := NewBody(NewExpr(ObjectTerm()))
+        body[0].Location = currentLocation(c)
+        return body, nil
+    }
+
+    return val, nil
+}
+
+// When body is enclosed, literals must be separated by newline or semicolon.
+// This is used for rules and comprehensions.
+WhitespaceBody <- head:Literal tail:( ([ \t]* / Comment) ( ";" / [\r\n] ) _ Literal)* {
     return ifacesToBody(head, tail.([]interface{})...), nil
 }
 
-// When body is not closed, literals are separated by comma.
-Body <- head:Literal tail:( _ "," _ (Literal / ParseError))* {
+// When body is not enclosed, literals must be separated by semicolon This is
+// used for parsing ad-hoc queries.
+NonWhitespaceBody <- head:Literal tail:( _ ";" _ (Literal / ParseError))* {
     return ifacesToBody(head, tail.([]interface{})...), nil
 }
 
@@ -336,7 +340,7 @@ Term <- val:( Comprehension / Composite / Scalar / Ref / Var ) {
 
 Comprehension <- ArrayComprehension
 
-ArrayComprehension <- "[" _ term:Term _ "|" _ body:EnclosedBody _ "]" {
+ArrayComprehension <- "[" _ term:Term _ "|" _ body:WhitespaceBody _ "]" {
     ac := ArrayComprehensionTerm(term.(*Term), body.(Body))
     ac.Location = currentLocation(c)
     return ac, nil
@@ -348,7 +352,7 @@ Scalar <- Number / String / Bool / Null
 
 Key <- Scalar / Ref / Var
 
-Object <- '{' _ head:(Key _ ':' _ Term)? tail:( _ ',' _ Key _ ':' _ Term )* _ '}' {
+Object <- '{' _ head:(Key _ ':' _ Term)? tail:( _ ',' _ Key _ ':' _ Term )* _ ','? _ '}' {
    obj := ObjectTerm()
    obj.Location = currentLocation(c)
 
@@ -372,7 +376,7 @@ Object <- '{' _ head:(Key _ ':' _ Term)? tail:( _ ',' _ Key _ ':' _ Term )* _ '}
    return obj, nil
 }
 
-Array <- '[' _  head:Term? tail:(_ ',' _ Term)* _ ']' {
+Array <- '[' _  head:Term? tail:(_ ',' _ Term)* _ ','? _  ']' {
 
    arr := ArrayTerm()
    arr.Location = currentLocation(c)
@@ -404,7 +408,7 @@ SetEmpty <- "set(" _ ")" {
     return set, nil
 }
 
-SetNonEmpty <- '{' _ head:Term tail:(_ ',' _ Term)* _ '}' {
+SetNonEmpty <- '{' _ head:Term tail:(_ ',' _ Term)* _ ','? _ '}' {
     set := SetTerm()
     set.Location = currentLocation(c)
 

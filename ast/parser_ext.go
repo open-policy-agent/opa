@@ -199,14 +199,20 @@ func ParseBody(input string) (Body, error) {
 	if err != nil {
 		return nil, err
 	}
-	if len(stmts) != 1 {
-		return nil, fmt.Errorf("expected exactly one statement (body)")
+
+	result := Body{}
+
+	for _, stmt := range stmts {
+		if body, ok := stmt.(Body); ok {
+			result = append(result, body...)
+		} else {
+			return nil, fmt.Errorf("expected body but got %T", stmt)
+		}
 	}
-	body, ok := stmts[0].(Body)
-	if !ok {
-		return nil, fmt.Errorf("expected body but got %T", stmts[0])
-	}
-	return body, nil
+
+	setExprIndices(result)
+
+	return result, nil
 }
 
 // ParseExpr returns exactly one expression.
