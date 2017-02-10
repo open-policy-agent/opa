@@ -355,8 +355,9 @@ func (rule *Rule) String() string {
 	}
 	buf = append(buf, rule.Head.String())
 	if !rule.Default {
-		buf = append(buf, ":-")
+		buf = append(buf, "{")
 		buf = append(buf, rule.Body.String())
+		buf = append(buf, "}")
 	}
 	return strings.Join(buf, " ")
 }
@@ -556,7 +557,7 @@ func (body Body) String() string {
 	for _, v := range body {
 		buf = append(buf, v.String())
 	}
-	return strings.Join(buf, ", ")
+	return strings.Join(buf, "; ")
 }
 
 // Vars returns a VarSet containing variables in body. The params can be set to
