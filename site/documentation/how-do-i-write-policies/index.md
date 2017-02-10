@@ -105,11 +105,11 @@ undefined
 We can define rules in terms of [Variables](#variables) as well:
 
 ```ruby
-t { x = 42, y = 41, x > y }
+t { x = 42; y = 41; x > y }
 ```
 
-The formal syntax uses the comma character `,` to separate expressions. Rule
-bodies can separate expressions with newlines and omit the comma:
+The formal syntax uses the semicolon character `;` to separate expressions. Rule
+bodies can separate expressions with newlines and omit the semicolon:
 
 ```
 t2 {
@@ -265,7 +265,7 @@ The result:
 Composite values can also be defined in terms of [Variables](#variables) or [References](#references). For example:
 
 ```ruby
-> a = 42, b = false, c = null, d = {"a": a, "x": [b, c]}
+> a = 42; b = false; c = null; d = {"a": a, "x": [b, c]}
 +----+-------+------+---------------------------+
 | A  |   B   |  C   |             D             |
 +----+-------+------+---------------------------+
@@ -283,7 +283,7 @@ defined in terms of scalars, variables, references, and other composite values.
 For example:
 
 ```ruby
-> s = {cube.width, cube.height, cube.depth}, count(s, n)
+> s = {cube.width, cube.height, cube.depth}; count(s, n)
 +---+---------+
 | n |    s    |
 +---+---------+
