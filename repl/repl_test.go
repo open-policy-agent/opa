@@ -859,30 +859,30 @@ func TestEvalTrace(t *testing.T) {
 	repl.OneShot(ctx, "trace")
 	repl.OneShot(ctx, "data.a[i].b.c[j] = x, data.a[k].b.c[x] = 1")
 	expected := strings.TrimSpace(`
-Enter eq(data.a[i].b.c[j], x), eq(data.a[k].b.c[x], 1)
-| Eval eq(data.a[i].b.c[j], x)
-| Eval eq(data.a[k].b.c[true], 1)
-| Fail eq(data.a[k].b.c[true], 1)
-| Redo eq(data.a[0].b.c[0], x)
-| Eval eq(data.a[k].b.c[2], 1)
-| Fail eq(data.a[0].b.c[2], 1)
-| Redo eq(data.a[0].b.c[2], 1)
-| Exit eq(data.a[i].b.c[j], x), eq(data.a[k].b.c[x], 1)
-Redo eq(data.a[i].b.c[j], x), eq(data.a[k].b.c[x], 1)
-| Redo eq(data.a[0].b.c[1], x)
-| Eval eq(data.a[k].b.c[false], 1)
-| Fail eq(data.a[k].b.c[false], 1)
-| Redo eq(data.a[0].b.c[2], x)
-| Eval eq(data.a[k].b.c[false], 1)
-| Fail eq(data.a[k].b.c[false], 1)
-| Redo eq(data.a[1].b.c[0], x)
-| Eval eq(data.a[k].b.c[true], 1)
-| Fail eq(data.a[k].b.c[true], 1)
-| Redo eq(data.a[1].b.c[1], x)
-| Eval eq(data.a[k].b.c[1], 1)
-| Fail eq(data.a[0].b.c[1], 1)
-| Redo eq(data.a[0].b.c[1], 1)
-| Fail eq(data.a[1].b.c[1], 1)
+Enter data.a[i].b.c[j] = x, data.a[k].b.c[x] = 1
+| Eval data.a[i].b.c[j] = x
+| Eval data.a[k].b.c[true] = 1
+| Fail data.a[k].b.c[true] = 1
+| Redo data.a[0].b.c[0] = x
+| Eval data.a[k].b.c[2] = 1
+| Fail data.a[0].b.c[2] = 1
+| Redo data.a[0].b.c[2] = 1
+| Exit data.a[i].b.c[j] = x, data.a[k].b.c[x] = 1
+Redo data.a[i].b.c[j] = x, data.a[k].b.c[x] = 1
+| Redo data.a[0].b.c[1] = x
+| Eval data.a[k].b.c[false] = 1
+| Fail data.a[k].b.c[false] = 1
+| Redo data.a[0].b.c[2] = x
+| Eval data.a[k].b.c[false] = 1
+| Fail data.a[k].b.c[false] = 1
+| Redo data.a[1].b.c[0] = x
+| Eval data.a[k].b.c[true] = 1
+| Fail data.a[k].b.c[true] = 1
+| Redo data.a[1].b.c[1] = x
+| Eval data.a[k].b.c[1] = 1
+| Fail data.a[0].b.c[1] = 1
+| Redo data.a[0].b.c[1] = 1
+| Fail data.a[1].b.c[1] = 1
 +---+---+---+---+
 | i | j | k | x |
 +---+---+---+---+
@@ -903,10 +903,10 @@ func TestEvalTruth(t *testing.T) {
 	repl.OneShot(ctx, "truth")
 	repl.OneShot(ctx, "data.a[i].b.c[j] = x, data.a[k].b.c[x] = 1")
 	expected := strings.TrimSpace(`
-Enter eq(data.a[i].b.c[j], x), eq(data.a[k].b.c[x], 1)
-| Redo eq(data.a[0].b.c[0], x)
-| Redo eq(data.a[0].b.c[2], 1)
-| Exit eq(data.a[i].b.c[j], x), eq(data.a[k].b.c[x], 1)
+Enter data.a[i].b.c[j] = x, data.a[k].b.c[x] = 1
+| Redo data.a[0].b.c[0] = x
+| Redo data.a[0].b.c[2] = 1
+| Exit data.a[i].b.c[j] = x, data.a[k].b.c[x] = 1
 +---+---+---+---+
 | i | j | k | x |
 +---+---+---+---+

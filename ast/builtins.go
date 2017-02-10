@@ -12,6 +12,9 @@ var Builtins []*Builtin
 func RegisterBuiltin(b *Builtin) {
 	Builtins = append(Builtins, b)
 	BuiltinMap[b.Name] = b
+	if len(b.Infix) > 0 {
+		BuiltinMap[b.Infix] = b
+	}
 }
 
 // DefaultBuiltins is the registry of built-in functions supported in OPA
