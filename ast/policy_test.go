@@ -251,7 +251,7 @@ func TestExprOutputVars(t *testing.T) {
 	}
 }
 
-func TextExprString(t *testing.T) {
+func TestExprString(t *testing.T) {
 	expr1 := &Expr{
 		Terms: RefTerm(VarTerm("q"), StringTerm("r"), VarTerm("x")),
 	}
@@ -284,11 +284,28 @@ func TextExprString(t *testing.T) {
 			},
 		},
 	}
+	expr6 := &Expr{
+		Terms: []*Term{
+			VarTerm("+"),
+			IntNumberTerm(1),
+			IntNumberTerm(2),
+			IntNumberTerm(3),
+		},
+	}
+	expr7 := &Expr{
+		Terms: []*Term{
+			VarTerm("count"),
+			StringTerm("foo"),
+			VarTerm("x"),
+		},
+	}
 	assertExprString(t, expr1, "q.r[x]")
 	assertExprString(t, expr2, "not q.r[x]")
-	assertExprString(t, expr3, "eq(\"a\", 17.1)")
-	assertExprString(t, expr4, "ne({foo: [1, a.b]}, false)")
+	assertExprString(t, expr3, "\"a\" = 17.1")
+	assertExprString(t, expr4, "{foo: [1, a.b]} != false")
 	assertExprString(t, expr5, "true with foo as bar with baz as qux")
+	assertExprString(t, expr6, "3 = 1 + 2")
+	assertExprString(t, expr7, "count(\"foo\", x)")
 }
 
 func TestExprBadJSON(t *testing.T) {
@@ -407,8 +424,8 @@ func TestRuleString(t *testing.T) {
 		Head:    NewHead("p", nil, BooleanTerm(true)),
 	}
 
-	assertRuleString(t, rule1, "p :- eq(\"foo\", \"bar\")")
-	assertRuleString(t, rule2, "p[x] = y :- eq(\"foo\", x), not a.b[x], eq(\"b\", y)")
+	assertRuleString(t, rule1, "p :- \"foo\" = \"bar\"")
+	assertRuleString(t, rule2, "p[x] = y :- \"foo\" = x, not a.b[x], \"b\" = y")
 	assertRuleString(t, rule3, "default p = true")
 }
 

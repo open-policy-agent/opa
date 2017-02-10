@@ -214,6 +214,6 @@ func ExampleStorage_Open() {
 	fmt.Println("Expr:", mod.Rules[0].Body[0])
 
 	// Output:
-	// Expr: neq(q.r, 0)
+	// Expr: q.r != 0
 
 }

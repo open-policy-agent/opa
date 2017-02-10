@@ -354,7 +354,7 @@ func (rule *Rule) String() string {
 		buf = append(buf, "default")
 	}
 	buf = append(buf, rule.Head.String())
-	if len(rule.Body) > 0 {
+	if !rule.Default {
 		buf = append(buf, ":-")
 		buf = append(buf, rule.Body.String())
 	}
@@ -757,19 +757,39 @@ func (expr *Expr) String() string {
 	}
 	switch t := expr.Terms.(type) {
 	case []*Term:
-		var args []string
-		for _, v := range t[1:] {
-			args = append(args, v.String())
+		name := t[0].Value.(Var)
+		bi := BuiltinMap[name]
+		var s string
+		if bi != nil && len(bi.Infix) > 0 {
+			switch bi.NumArgs {
+			case 2:
+				s = fmt.Sprintf("%v %v %v", t[1], bi.Infix, t[2])
+			case 3:
+				// Special case for "x = y <operand> z" built-ins.
+				if len(bi.TargetPos) == 1 && bi.TargetPos[0] == 2 {
+					s = fmt.Sprintf("%v = %v %v %v", t[3], t[1], bi.Infix, t[2])
+				}
+			}
 		}
-		name := t[0].Value.(Var).String()
-		s := fmt.Sprintf("%s(%s)", name, strings.Join(args, ", "))
+		if len(s) == 0 {
+			var args []string
+			for _, v := range t[1:] {
+				args = append(args, v.String())
+			}
+			name := t[0].Value.(Var).String()
+			s = fmt.Sprintf("%s(%s)", name, strings.Join(args, ", "))
+		}
+
 		buf = append(buf, s)
+
 	case *Term:
 		buf = append(buf, t.String())
 	}
+
 	for i := range expr.With {
 		buf = append(buf, expr.With[i].String())
 	}
+
 	return strings.Join(buf, " ")
 }
 

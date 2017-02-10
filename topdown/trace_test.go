@@ -74,37 +74,37 @@ func TestPrettyTrace(t *testing.T) {
 		panic(err)
 	}
 
-	expected := `Enter eq(data.test.p, _)
-| Eval eq(data.test.p, _)
-| Enter p = true :- data.test.q[x], plus(x, 1, n)
+	expected := `Enter data.test.p = _
+| Eval data.test.p = _
+| Enter p = true :- data.test.q[x], n = x + 1
 | | Eval data.test.q[x]
-| | Enter q[x] :- eq(x, data.a[_])
-| | | Eval eq(x, data.a[_])
-| | | Exit q[x] :- eq(x, data.a[_])
-| | Eval plus(x, 1, n)
-| | Exit p = true :- data.test.q[x], plus(x, 1, n)
-| Redo p = true :- data.test.q[x], plus(x, 1, n)
+| | Enter q[x] :- x = data.a[_]
+| | | Eval x = data.a[_]
+| | | Exit q[x] :- x = data.a[_]
+| | Eval n = x + 1
+| | Exit p = true :- data.test.q[x], n = x + 1
+| Redo p = true :- data.test.q[x], n = x + 1
 | | Redo data.test.q[x]
-| | Redo q[x] :- eq(x, data.a[_])
-| | | Redo eq(x, data.a[_])
-| | | Exit q[x] :- eq(x, data.a[_])
-| | Eval plus(x, 1, n)
-| | Exit p = true :- data.test.q[x], plus(x, 1, n)
-| Redo p = true :- data.test.q[x], plus(x, 1, n)
+| | Redo q[x] :- x = data.a[_]
+| | | Redo x = data.a[_]
+| | | Exit q[x] :- x = data.a[_]
+| | Eval n = x + 1
+| | Exit p = true :- data.test.q[x], n = x + 1
+| Redo p = true :- data.test.q[x], n = x + 1
 | | Redo data.test.q[x]
-| | Redo q[x] :- eq(x, data.a[_])
-| | | Redo eq(x, data.a[_])
-| | | Exit q[x] :- eq(x, data.a[_])
-| | Eval plus(x, 1, n)
-| | Exit p = true :- data.test.q[x], plus(x, 1, n)
-| Redo p = true :- data.test.q[x], plus(x, 1, n)
+| | Redo q[x] :- x = data.a[_]
+| | | Redo x = data.a[_]
+| | | Exit q[x] :- x = data.a[_]
+| | Eval n = x + 1
+| | Exit p = true :- data.test.q[x], n = x + 1
+| Redo p = true :- data.test.q[x], n = x + 1
 | | Redo data.test.q[x]
-| | Redo q[x] :- eq(x, data.a[_])
-| | | Redo eq(x, data.a[_])
-| | | Exit q[x] :- eq(x, data.a[_])
-| | Eval plus(x, 1, n)
-| | Exit p = true :- data.test.q[x], plus(x, 1, n)
-| Exit eq(data.test.p, _)
+| | Redo q[x] :- x = data.a[_]
+| | | Redo x = data.a[_]
+| | | Exit q[x] :- x = data.a[_]
+| | Eval n = x + 1
+| | Exit p = true :- data.test.q[x], n = x + 1
+| Exit data.test.p = _
 `
 
 	a := strings.Split(expected, "\n")

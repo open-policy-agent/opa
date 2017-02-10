@@ -51,7 +51,7 @@ func ExampleCompiler_Compile() {
 	//
 	// Expr 1: data.foo[x]
 	// Expr 2: not input.bar[x]
-	// Expr 3: gte(x, data.opa.example.min_x)
+	// Expr 3: x >= data.opa.example.min_x
 }
 
 func ExampleQueryCompiler_Compile() {
@@ -118,5 +118,5 @@ func ExampleQueryCompiler_Compile() {
 
 	// Output:
 	//
-	// Compiled: data.opa.example.p[x], lt(x, input.query_arg)
+	// Compiled: data.opa.example.p[x], x < input.query_arg
 }
