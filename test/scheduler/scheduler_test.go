@@ -363,7 +363,7 @@ used_nonzero_cpu[node_id] = used {
 
 pods_on_node[node_id] = pds {
     node_name = nodes[node_id].metadata.name
-    pds = [p | pods[i].spec.nodeName = node_name, p = pods[i]]
+    pds = [p | pods[i].spec.nodeName = node_name; p = pods[i]]
 }
 
 hollow_node {
@@ -509,7 +509,8 @@ rcs_for_pod[pod_id] = rc_ids {
 }
 
 selector_matches[[pod_id, rc_id]] {
-    pods[pod_id], rcs[rc_id]
+    pods[pod_id]
+    rcs[rc_id]
     x = [pod_id, rc_id]
     not selector_not_matches[x]
 }

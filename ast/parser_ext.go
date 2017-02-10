@@ -118,7 +118,7 @@ func MustParseTerm(input string) *Term {
 
 // ParseRuleFromBody attempts to return a rule from a body. Equality expressions
 // of the form <var> = <term> can be converted into rules of the form <var> =
-// <term> :- true.  This is a concise way of defining constants inside modules.
+// <term> { true }. This is a concise way of defining constants inside modules.
 func ParseRuleFromBody(body Body) (*Rule, error) {
 
 	if len(body) != 1 {

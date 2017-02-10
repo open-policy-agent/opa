@@ -17,16 +17,15 @@ import (
 
 func TestTruth(t *testing.T) {
 
-	module := `
-    package test
-	p :- q[x], r[x]
-	q[x] :- a = [1,2,3,4], x = a[_]
-	r[z] :- z = 3
-	r[a] :- a = 4
-    `
+	module := `package test
 
-	q := ast.MustParseRule(`q[x] :- a = [1,2,3,4], x = a[_]`)
-	ra := ast.MustParseRule(`r[a] :- a = 4`)
+p = true { q[x]; r[x] }
+q[x] { a = [1, 2, 3, 4]; x = a[_] }
+r[z] { z = 3 }
+r[a] { a = 4 }`
+
+	q := ast.MustParseRule(`q[x] { a = [1, 2, 3, 4]; x = a[_] }`)
+	ra := ast.MustParseRule(`r[a] { a = 4 }`)
 
 	runTruthTestCase(t, "", module, 14, map[int]*topdown.Event{
 		6: &topdown.Event{
@@ -54,33 +53,30 @@ func TestTruth(t *testing.T) {
 
 func TestTruthAllPaths(t *testing.T) {
 
-	module := `
-    package test
-	p :- q = {"a": 1, "d": 1}
-	q[k] = 1 :- a = ["a", "b", "c", "d"], a[_] = k, r[k]
-	r[x] :- x = "d"
-	r[y] :- y = "a"
-    `
+	module := `package test
+
+p = true { q = {"a": 1, "d": 1} }
+q[k] = 1 { a = ["a", "b", "c", "d"]; a[_] = k; r[k] }
+r[x] { x = "d" }
+r[y] { y = "a" }`
 
 	runTruthTestCaseIdentity(t, module)
 }
 
 func TestTruthAllPathsComprehension(t *testing.T) {
-	module := `
-    package test
-	p :- x = [y | a=[1,2,3,4], a[_] = y, y != 2], count(x, 3)
-    `
+	module := `package test
+
+p = true { x = [y | a = [1, 2, 3, 4]; a[_] = y; y != 2]; count(x, 3) }`
 
 	runTruthTestCaseIdentity(t, module)
 }
 
 func TestTruthAllPathsNegation(t *testing.T) {
 
-	module := `
-    package test
-    p :- not q
-	q :- a = [1,2,3], a[_] = 100
-    `
+	module := `package test
+
+p = true { not q }
+q = true { a = [1, 2, 3]; a[_] = 100 }`
 
 	runTruthTestCaseIdentity(t, module)
 }
@@ -108,21 +104,14 @@ func TestExample(t *testing.T) {
         }
     `
 
-	module := `
-	package test
+	module := `package test
 
-	import data.servers
-	import data.networks
-	import data.ports
+import data.servers
+import data.networks
+import data.ports
 
-	p :- public_servers[x]
-
-	public_servers[server] :-
-		server = servers[server_index],
-		server.ports[port_index] = ports[i].id,
-		ports[i].networks[network_index] = networks[j].id,
-		networks[j].public = true
-    `
+p = true { public_servers[x] }
+public_servers[server] { server = servers[server_index]; server.ports[port_index] = ports[i].id; ports[i].networks[network_index] = networks[j].id; networks[j].public = true }`
 
 	runTruthTestCase(t, data, module, 12, map[int]*topdown.Event{
 		6: &topdown.Event{

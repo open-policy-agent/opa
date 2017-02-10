@@ -33,7 +33,7 @@ func TestEventEqual(t *testing.T) {
 		{&Event{ParentID: 1}, &Event{ParentID: 2}, false},
 		{&Event{Node: ast.MustParseBody("true")}, &Event{Node: ast.MustParseBody("false")}, false},
 		{&Event{Node: ast.MustParseBody("true")[0]}, &Event{Node: ast.MustParseBody("false")[0]}, false},
-		{&Event{Node: ast.MustParseRule("p :- true")}, &Event{Node: ast.MustParseRule("p :- false")}, false},
+		{&Event{Node: ast.MustParseRule(`p = true { true }`)}, &Event{Node: ast.MustParseRule(`p = true { false }`)}, false},
 		{&Event{Node: "foo"}, &Event{Node: "foo"}, false}, // test some unsupported node type
 	}
 
@@ -52,11 +52,10 @@ func TestEventEqual(t *testing.T) {
 }
 
 func TestPrettyTrace(t *testing.T) {
-	module := `
-	package test
-	p :- q[x], plus(x, 1, n)
-	q[x] :- x = data.a[_]
-	`
+	module := `package test
+
+p = true { q[x]; n = x + 1 }
+q[x] { x = data.a[_] }`
 
 	ctx := context.Background()
 	compiler := compileModules([]string{module})
@@ -76,34 +75,34 @@ func TestPrettyTrace(t *testing.T) {
 
 	expected := `Enter data.test.p = _
 | Eval data.test.p = _
-| Enter p = true :- data.test.q[x], n = x + 1
+| Enter p = true { data.test.q[x]; n = x + 1 }
 | | Eval data.test.q[x]
-| | Enter q[x] :- x = data.a[_]
+| | Enter q[x] { x = data.a[_] }
 | | | Eval x = data.a[_]
-| | | Exit q[x] :- x = data.a[_]
+| | | Exit q[x] { x = data.a[_] }
 | | Eval n = x + 1
-| | Exit p = true :- data.test.q[x], n = x + 1
-| Redo p = true :- data.test.q[x], n = x + 1
+| | Exit p = true { data.test.q[x]; n = x + 1 }
+| Redo p = true { data.test.q[x]; n = x + 1 }
 | | Redo data.test.q[x]
-| | Redo q[x] :- x = data.a[_]
+| | Redo q[x] { x = data.a[_] }
 | | | Redo x = data.a[_]
-| | | Exit q[x] :- x = data.a[_]
+| | | Exit q[x] { x = data.a[_] }
 | | Eval n = x + 1
-| | Exit p = true :- data.test.q[x], n = x + 1
-| Redo p = true :- data.test.q[x], n = x + 1
+| | Exit p = true { data.test.q[x]; n = x + 1 }
+| Redo p = true { data.test.q[x]; n = x + 1 }
 | | Redo data.test.q[x]
-| | Redo q[x] :- x = data.a[_]
+| | Redo q[x] { x = data.a[_] }
 | | | Redo x = data.a[_]
-| | | Exit q[x] :- x = data.a[_]
+| | | Exit q[x] { x = data.a[_] }
 | | Eval n = x + 1
-| | Exit p = true :- data.test.q[x], n = x + 1
-| Redo p = true :- data.test.q[x], n = x + 1
+| | Exit p = true { data.test.q[x]; n = x + 1 }
+| Redo p = true { data.test.q[x]; n = x + 1 }
 | | Redo data.test.q[x]
-| | Redo q[x] :- x = data.a[_]
+| | Redo q[x] { x = data.a[_] }
 | | | Redo x = data.a[_]
-| | | Exit q[x] :- x = data.a[_]
+| | | Exit q[x] { x = data.a[_] }
 | | Eval n = x + 1
-| | Exit p = true :- data.test.q[x], n = x + 1
+| | Exit p = true { data.test.q[x]; n = x + 1 }
 | Exit data.test.p = _
 `
 

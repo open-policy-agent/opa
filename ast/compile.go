@@ -47,9 +47,9 @@ type Compiler struct {
 	// following module:
 	//
 	//  package ex
-	//  p[1] :- true
-	//  p[2] :- true
-	//  q :- true
+	//  p[1] { true }
+	//  p[2] { true }
+	//  q = true
 	//
 	//  root
 	//    |
@@ -207,8 +207,8 @@ func (c *Compiler) Failed() bool {
 //
 //	package a.b.c
 //
-//	p[k] = v :- ...    # rule1
-//  p[k1] = v1 :- ...  # rule2
+//	p[k] = v { ... }    # rule1
+//  p[k1] = v1 { ... }  # rule2
 //
 // The following calls yield the rules on the right.
 //
@@ -235,8 +235,8 @@ func (c *Compiler) GetRulesExact(ref Ref) (rules []*Rule) {
 //
 //	package a.b.c
 //
-//	p[k] = v :- ...    # rule1
-//  p[k1] = v1 :- ...  # rule2
+//	p[k] = v { ... }    # rule1
+//  p[k1] = v1 { ... }  # rule2
 //
 // The following calls yield the rules on the right.
 //
@@ -266,9 +266,9 @@ func (c *Compiler) GetRulesForVirtualDocument(ref Ref) (rules []*Rule) {
 //
 //  package a.b.c
 //
-//  p[x] = y :- ...  # rule1
-//  p[k] = v :- ...  # rule2
-//  q :- ...         # rule3
+//  p[x] = y { ... }  # rule1
+//  p[k] = v { ... }  # rule2
+//  q { ... }         # rule3
 //
 // The following calls yield the rules on the right.
 //
@@ -306,8 +306,8 @@ func (c *Compiler) GetRulesWithPrefix(ref Ref) (rules []*Rule) {
 //
 //  package a.b.c
 //
-//  p[x] = y :- q[x] = y, ... # rule1
-//  q[x] = y :- ...           # rule2
+//  p[x] = y { q[x] = y; ... } # rule1
+//  q[x] = y { ... }           # rule2
 //
 // The following calls yield the rules on the right.
 //
@@ -516,7 +516,7 @@ func (c *Compiler) getExports() *util.HashMap {
 //
 // package a.b
 // import data.foo.bar
-// p[x] :- bar[_] = x
+// p[x] { bar[_] = x }
 //
 // The reference "bar[_]" would be resolved to "data.foo.bar[_]".
 func (c *Compiler) resolveAllRefs() {
@@ -574,11 +574,11 @@ func (c *Compiler) resolveAllRefs() {
 //
 // For instance, given the following rule:
 //
-// p[{"foo": data.foo[i]}] :- i < 100
+// p[{"foo": data.foo[i]}] { i < 100 }
 //
 // The rule would be re-written as:
 //
-// p[__local0__] :- i < 100, __local0__ = {"foo": data.foo[i]}
+// p[__local0__] { i < 100; __local0__ = {"foo": data.foo[i]} }
 func (c *Compiler) rewriteRefsInHead() {
 	for _, mod := range c.Modules {
 		generator := newLocalVarGenerator(mod)

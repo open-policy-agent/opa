@@ -28,7 +28,7 @@ func ExampleREPL_OneShot() {
 	repl := repl.New(store, "", &buf, "json", "")
 
 	// Define a rule inside the REPL.
-	repl.OneShot(ctx, "p :- a = [1, 2, 3, 4], a[_] > 3")
+	repl.OneShot(ctx, "p { a = [1, 2, 3, 4]; a[_] > 3 }")
 
 	// Query the rule defined above.
 	repl.OneShot(ctx, "p")

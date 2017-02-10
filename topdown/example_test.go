@@ -26,7 +26,7 @@ func ExampleEval() {
 	compiler := ast.NewCompiler()
 
 	// Define a dummy query and some data that the query will execute against.
-	query, err := compiler.QueryCompiler().Compile(ast.MustParseBody("data.a[_] = x, x >= 2"))
+	query, err := compiler.QueryCompiler().Compile(ast.MustParseBody(`data.a[_] = x; x >= 2`))
 	if err != nil {
 		// Handle error.
 	}
@@ -99,15 +99,12 @@ func ExampleQuery() {
 	compiler := ast.NewCompiler()
 
 	// Define a dummy module with rules that produce documents that we will query below.
-	module, err := ast.ParseModule("my_module.rego", `
+	module, err := ast.ParseModule("my_module.rego", `package opa.example
 
-	    package opa.example
-
-	    p[x] :- q[x], not r[x]
-	    q[y] :- a = [1,2,3], y = a[_]
-	    r[z] :- b = [2,4], z = b[_]
-
-	`)
+p[x] { q[x]; not r[x] }
+q[y] { a = [1, 2, 3]; y = a[_] }
+r[z] { b = [2, 4]; z = b[_] }`,
+	)
 
 	mods := map[string]*ast.Module{
 		"my_module": module,
@@ -202,7 +199,7 @@ func ExampleRegisterFunctionalBuiltin1() {
 	// queries. Our custom built-in converts strings to upper case but is not
 	// defined for the input "magic".
 	compiler := ast.NewCompiler()
-	query, err := compiler.QueryCompiler().Compile(ast.MustParseBody(`selective_upper("custom", x), not selective_upper("magic", "MAGIC")`))
+	query, err := compiler.QueryCompiler().Compile(ast.MustParseBody(`selective_upper("custom", x); not selective_upper("magic", "MAGIC")`))
 	if err != nil {
 		// Handle error.
 	}

@@ -48,45 +48,39 @@ type tr struct {
 func TestDataV1(t *testing.T) {
 
 	testMod1 := `package testmod
-                p[x] :- q[x], not r[x]
-                q[x] :- data.x.y[i] = x
-                r[x] :- data.x.z[i] = x
 
-				import input.req1
-				import input.req2 as reqx
-				import input.req3.attr1
-				g :- req1.a[0] = 1, reqx.b[i] = 1
-				h :- attr1[i] > 1
+import input.req1
+import input.req2 as reqx
+import input.req3.attr1
 
-				gt1 :- req1 > 1
-				arr = [1,2,3,4]
-
-				undef :- false
-				`
+p[x] { q[x]; not r[x] }
+q[x] { data.x.y[i] = x }
+r[x] { data.x.z[i] = x }
+g = true { req1.a[0] = 1; reqx.b[i] = 1 }
+h = true { attr1[i] > 1 }
+gt1 = true { req1 > 1 }
+arr = [1, 2, 3, 4] { true }
+undef = true { false }`
 
 	testMod2 := `package testmod
 
-	p = [1,2,3,4]
-	q = {"a": 1, "b": 2}
-	`
+p = [1, 2, 3, 4] { true }
+q = {"a": 1, "b": 2} { true }`
 
 	testMod3 := `package testmod
 
-	p :- loopback with input as true
-	loopback = input
-	`
+p = true { loopback with input as true }
+loopback = input { true }`
 
 	testMod4 := `package testmod
 
-	p = true :- true
-	p = false :- true
-	`
+p = true { true }
+p = false { true }`
 
 	testMod5 := `package testmod.empty.mod`
 	testMod6 := `package testmod.all.undefined
 
-	p :- false
-	`
+p = true { false }`
 
 	tests := []struct {
 		note string
@@ -378,8 +372,8 @@ func TestDataGetExplainTruth(t *testing.T) {
 	f := newFixture(t)
 
 	f.v1("PUT", "/policies/test", `package test
-	p :- a = [1,2,3,4], a[_] = x, x > 1
-	`, 204, "")
+
+p = true { a = [1, 2, 3, 4]; a[_] = x; x > 1 }`, 204, "")
 
 	req := newReqV1("GET", "/data/test/p?explain=truth", "")
 	f.reset()
@@ -419,7 +413,7 @@ func TestDataPostExplain(t *testing.T) {
 
 	f.v1("PUT", "/policies/test", `package test
 
-	p = [1,2,3,4]`, 200, "")
+p = [1, 2, 3, 4] { true }`, 200, "")
 
 	req := newReqV1("POST", "/data/test/p?explain=full", "")
 	f.reset()
@@ -561,20 +555,18 @@ func TestPoliciesPutV1ParseError(t *testing.T) {
 		t.Fatalf("Unexpected JSON decode error: %v", err)
 	}
 
-	expected := ast.NewLocation(nil, "test", 4, 8)
-
-	if !reflect.DeepEqual(errs.Errors[0].Location, expected) {
-		t.Fatalf("Expected error location to be %v but got: %v", expected, errs)
+	if errs.Errors[0].Location.File != "test" || errs.Errors[0].Location.Row != 4 {
+		t.Fatalf("Bad location: %v (expecfted test:4)", errs)
 	}
 }
 
 func TestPoliciesPutV1CompileError(t *testing.T) {
 	f := newFixture(t)
-	req := newReqV1("PUT", "/policies/test", `
-    package a.b.c
-    p[x] :- q[x]
-    q[x] :- p[x]
-    `)
+	req := newReqV1("PUT", "/policies/test", `package a.b.c
+
+p[x] { q[x] }
+q[x] { p[x] }`,
+	)
 
 	f.server.Handler.ServeHTTP(f.recorder, req)
 
@@ -587,8 +579,6 @@ func TestPoliciesPutV1CompileError(t *testing.T) {
 		t.Fatalf("Unexpected JSON decode error: %v", err)
 	}
 
-	expected := ast.NewLocation(nil, "test", 3, 5)
-
 	if len(errs.Errors) != 2 {
 		t.Fatalf("Expected exactly two errors but got %d: %v", len(errs.Errors), errs)
 	}
@@ -596,13 +586,14 @@ func TestPoliciesPutV1CompileError(t *testing.T) {
 	found := false
 
 	for _, err := range errs.Errors {
-		if reflect.DeepEqual(err.Location, expected) {
+		if err.Location.File == "test" && err.Location.Row == 3 {
 			found = true
+			break
 		}
 	}
 
 	if !found {
-		t.Fatalf("Missing expected error %v: %v", expected, errs)
+		t.Fatalf("Missing expected error %v (expected test:3)", errs)
 	}
 }
 
@@ -726,7 +717,7 @@ func TestPoliciesDeleteV1(t *testing.T) {
 
 func TestQueryV1(t *testing.T) {
 	f := newFixture(t)
-	get := newReqV1("GET", `/query?q=a=[1,2,3],a[i]=x`, "")
+	get := newReqV1("GET", `/query?q=a=[1,2,3]%3Ba[i]=x`, "")
 	f.server.Handler.ServeHTTP(f.recorder, get)
 
 	if f.recorder.Code != 200 {
@@ -754,7 +745,7 @@ func TestQueryV1(t *testing.T) {
 
 func TestQueryV1Explain(t *testing.T) {
 	f := newFixture(t)
-	get := newReqV1("GET", `/query?q=a=[1,2,3],a[i]=x&explain=full`, "")
+	get := newReqV1("GET", `/query?q=a=[1,2,3]%3Ba[i]=x&explain=full`, "")
 	f.server.Handler.ServeHTTP(f.recorder, get)
 
 	if f.recorder.Code != 200 {
@@ -771,7 +762,7 @@ func TestQueryV1Explain(t *testing.T) {
 		t.Fatalf("Expected exactly 10 trace events for full query but got %d", len(result.Explanation))
 	}
 
-	get = newReqV1("GET", "/query?q=a=[1,2,3],a[_]=x,x>1&explain=truth", "")
+	get = newReqV1("GET", "/query?q=a=[1,2,3]%3Ba[_]=x%3Bx>1&explain=truth", "")
 	f.reset()
 	f.server.Handler.ServeHTTP(f.recorder, get)
 
@@ -850,12 +841,13 @@ func TestQueryBindingIterationError(t *testing.T) {
 }
 
 const (
-	testMod = `
-    package a.b.c
-    import data.x.y as z
-    import data.p
-    q[x] :- p[x], not r[x]
-    r[x] :- z[x] = 4`
+	testMod = `package a.b.c
+
+import data.x.y as z
+import data.p
+
+q[x] { p[x]; not r[x] }
+r[x] { z[x] = 4 }`
 )
 
 type fixture struct {

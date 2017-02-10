@@ -15,24 +15,24 @@ import (
 var _ = fmt.Printf
 
 const (
-	testModule = `
-package opa.examples                            # this policy belongs the opa.examples package
+	testModule = `package opa.examples
 
-import data.servers                             # import the data.servers document to refer to it as "servers" instead of "data.servers"
-import data.networks                            # same but for data.networks
-import data.ports                               # same but for data.ports
+import data.servers
+import data.networks
+import data.ports
 
-violations[server] :-                           # a server exists in the violations set if:
-    server = servers[i],                        # the server exists in the servers collection
-    server.protocols[j] = "http",               # and the server has http in its protocols collection
-    public_servers[server]                      # and the server exists in the public_servers set
+violations[server] {
+    server = servers[i]
+    server.protocols[j] = "http"
+    public_servers[server]
+}
 
-public_servers[server] :-                       # a server exists in the public_servers set if:
-    server = servers[i],                        # the server exists in the servers collection
-    server.ports[j] = ports[k].id,              # and the server is connected to a port in the ports collection
-    ports[k].networks[l] = networks[m].id,      # and the port is connected to a network in the networks collection
-    networks[m].public = true                   # and the network is public
-    `
+public_servers[server] {
+    server = servers[i]
+    server.ports[j] = ports[k].id
+    ports[k].networks[l] = networks[m].id
+    networks[m].public = true
+}`
 )
 
 func TestNumberTerms(t *testing.T) {
@@ -126,11 +126,11 @@ func TestVarTerms(t *testing.T) {
 	assertParseOneTerm(t, "var", "foo0", VarTerm("foo0"))
 	assertParseOneTerm(t, "import prefix", "imports", VarTerm("imports"))
 	assertParseOneTerm(t, "not prefix", "not_foo", VarTerm("not_foo"))
-	assertParseOneTerm(t, "package prefix", "packages", VarTerm("packages"))
+	assertParseOneTerm(t, `package prefix`, "packages", VarTerm("packages"))
 	assertParseError(t, "non-var", "foo-bar")
 	assertParseError(t, "non-var2", "foo-7")
 	assertParseError(t, "not keyword", "not")
-	assertParseError(t, "package keyword", "package")
+	assertParseError(t, `package keyword`, "package")
 	assertParseError(t, "import keyword", "import")
 }
 
@@ -167,6 +167,7 @@ func TestObjectWithScalars(t *testing.T) {
 func TestObjectWithVars(t *testing.T) {
 	assertParseOneTerm(t, "var keys", "{foo: \"bar\", bar: 64}", ObjectTerm(Item(VarTerm("foo"), StringTerm("bar")), Item(VarTerm("bar"), IntNumberTerm(64))))
 	assertParseOneTerm(t, "nested var keys", "{baz: {foo: \"bar\", bar: qux}}", ObjectTerm(Item(VarTerm("baz"), ObjectTerm(Item(VarTerm("foo"), StringTerm("bar")), Item(VarTerm("bar"), VarTerm("qux"))))))
+	assertParseOneTerm(t, "trailing comma", "{foo: \"bar\", bar: 64, }", ObjectTerm(Item(VarTerm("foo"), StringTerm("bar")), Item(VarTerm("bar"), IntNumberTerm(64))))
 }
 
 func TestObjectFail(t *testing.T) {
@@ -183,6 +184,7 @@ func TestArrayWithScalars(t *testing.T) {
 	assertParseOneTerm(t, "bool", "[true, false, true]", ArrayTerm(BooleanTerm(true), BooleanTerm(false), BooleanTerm(true)))
 	assertParseOneTerm(t, "string", "[\"foo\", \"bar\"]", ArrayTerm(StringTerm("foo"), StringTerm("bar")))
 	assertParseOneTerm(t, "mixed", "[null, true, 42]", ArrayTerm(NullTerm(), BooleanTerm(true), IntNumberTerm(42)))
+	assertParseOneTerm(t, "trailing comma", "[null, true, ]", ArrayTerm(NullTerm(), BooleanTerm(true)))
 }
 
 func TestArrayWithVars(t *testing.T) {
@@ -193,7 +195,6 @@ func TestArrayWithVars(t *testing.T) {
 func TestArrayFail(t *testing.T) {
 	assertParseError(t, "non-terminated 1", "[foo, bar")
 	assertParseError(t, "non-terminated 2", "[foo, bar, ")
-	assertParseError(t, "missing element", "[foo, bar, ]")
 	assertParseError(t, "missing separator", "[foo bar]")
 	assertParseError(t, "missing start", "foo, bar, baz]")
 }
@@ -203,6 +204,7 @@ func TestSetWithScalars(t *testing.T) {
 	assertParseOneTerm(t, "bool", "{true, false, true}", SetTerm(BooleanTerm(true), BooleanTerm(false), BooleanTerm(true)))
 	assertParseOneTerm(t, "string", "{\"foo\", \"bar\"}", SetTerm(StringTerm("foo"), StringTerm("bar")))
 	assertParseOneTerm(t, "mixed", "{null, true, 42}", SetTerm(NullTerm(), BooleanTerm(true), IntNumberTerm(42)))
+	assertParseOneTerm(t, "trailing comma", "{null, true,}", SetTerm(NullTerm(), BooleanTerm(true)))
 }
 
 func TestSetWithVars(t *testing.T) {
@@ -214,7 +216,6 @@ func TestSetFail(t *testing.T) {
 	assertParseError(t, "non-terminated 1", "set(")
 	assertParseError(t, "non-terminated 2", "{foo, bar")
 	assertParseError(t, "non-terminated 3", "{foo, bar, ")
-	assertParseError(t, "missing element", "{foo, bar, }")
 	assertParseError(t, "missing separator", "{foo bar}")
 	assertParseError(t, "missing start", "foo, bar, baz}")
 }
@@ -239,10 +240,7 @@ func TestCompositesWithRefs(t *testing.T) {
 
 func TestArrayComprehensions(t *testing.T) {
 
-	input := `[
-		{"x": [a[i] | xs = [{"a": ["baz", j]} | q[p], p.a != "bar", j = "foo"],
-					  xs[j].a[k] = "foo"]}
-	]`
+	input := `[{"x": [a[i] | xs = [{"a": ["baz", j]} | q[p]; p.a != "bar"; j = "foo"]; xs[j].a[k] = "foo"]}]`
 
 	expected := ArrayTerm(
 		ObjectTerm(Item(
@@ -273,15 +271,6 @@ func TestArrayComprehensions(t *testing.T) {
 	)
 
 	assertParseOneTerm(t, "nested", input, expected)
-
-	inputNewLines := `[
-		{"x": [a[i] | xs = [{"a": ["baz", j]} | q[p]
-												p.a != "bar"
-												j = "foo"]
-					  xs[j].a[k] = "foo"]}
-	]`
-
-	assertParseOneTerm(t, "nested newlines", inputNewLines, expected)
 
 }
 
@@ -381,13 +370,53 @@ func TestExprWith(t *testing.T) {
 	assertParseErrorEquals(t, "invalid import path", `data.foo with foo.bar as "x"`, "invalid path foo.bar: path must begin with input or data")
 }
 
+func TestMultiLineBody(t *testing.T) {
+
+	input1 := `
+	{
+		x = 1
+		y = 2
+		z = [ i | [x,y] = arr
+				   arr[_] = i]
+	}
+	`
+
+	body1, err := ParseBody(input1)
+	if err != nil {
+		t.Fatalf("Unexpected parse error on enclosed body: %v", err)
+	}
+
+	expected1 := MustParseBody(`x = 1; y = 2; z = [i | [x,y] = arr; arr[_] = i]`)
+
+	if !body1.Equal(expected1) {
+		t.Errorf("Expected enclosed body to equal %v but got: %v", expected1, body1)
+	}
+
+	// Check that parser can handle multiple expressions w/o enclsoing braces.
+	input2 := `
+		x = 1
+		y = 2
+		z = [ i | [x,y] = arr
+				   arr[_] = i]
+	`
+
+	body2, err := ParseBody(input2)
+	if err != nil {
+		t.Fatalf("Unexpected parse error on enclosed body: %v", err)
+	}
+
+	if !body2.Equal(expected1) {
+		t.Errorf("Expected unenclosed body to equal %v but got: %v", expected1, body1)
+	}
+}
+
 func TestPackage(t *testing.T) {
 	ref1 := RefTerm(DefaultRootDocument, StringTerm("foo"))
-	assertParsePackage(t, "single", "package foo", &Package{Path: ref1.Value.(Ref)})
+	assertParsePackage(t, "single", `package foo`, &Package{Path: ref1.Value.(Ref)})
 	ref2 := RefTerm(DefaultRootDocument, StringTerm("f00"), StringTerm("bar_baz"), StringTerm("qux"))
-	assertParsePackage(t, "multiple", "package f00.bar_baz.qux", &Package{Path: ref2.Value.(Ref)})
+	assertParsePackage(t, "multiple", `package f00.bar_baz.qux`, &Package{Path: ref2.Value.(Ref)})
 	ref3 := RefTerm(DefaultRootDocument, StringTerm("foo"), StringTerm("bar baz"))
-	assertParsePackage(t, "space", "package foo[\"bar baz\"]", &Package{Path: ref3.Value.(Ref)})
+	assertParsePackage(t, "space", `package foo["bar baz"]`, &Package{Path: ref3.Value.(Ref)})
 	assertParseError(t, "non-ground ref", "package foo[x]")
 	assertParseError(t, "non-string value", "package foo.bar[42].baz")
 }
@@ -429,21 +458,21 @@ func TestIsValidImportPath(t *testing.T) {
 
 func TestRule(t *testing.T) {
 
-	assertParseRule(t, "identity", "p = true :- true", &Rule{
+	assertParseRule(t, "identity", `p = true { true }`, &Rule{
 		Head: NewHead(Var("p"), nil, BooleanTerm(true)),
 		Body: NewBody(
 			&Expr{Terms: BooleanTerm(true)},
 		),
 	})
 
-	assertParseRule(t, "set", "p[x] :- x = 42", &Rule{
+	assertParseRule(t, "set", `p[x] { x = 42 }`, &Rule{
 		Head: NewHead(Var("p"), VarTerm("x")),
 		Body: NewBody(
 			Equality.Expr(VarTerm("x"), IntNumberTerm(42)),
 		),
 	})
 
-	assertParseRule(t, "object", "p[x] = y :- x = 42, y = \"hello\"", &Rule{
+	assertParseRule(t, "object", `p[x] = y { x = 42; y = "hello" }`, &Rule{
 		Head: NewHead(Var("p"), VarTerm("x"), VarTerm("y")),
 		Body: NewBody(
 			Equality.Expr(VarTerm("x"), IntNumberTerm(42)),
@@ -451,7 +480,7 @@ func TestRule(t *testing.T) {
 		),
 	})
 
-	assertParseRule(t, "constant composite", "p = [{\"foo\": [1,2,3,4]}] :- true", &Rule{
+	assertParseRule(t, "constant composite", `p = [{"foo": [1, 2, 3, 4]}] { true }`, &Rule{
 		Head: NewHead(Var("p"), nil, ArrayTerm(
 			ObjectTerm(Item(StringTerm("foo"), ArrayTerm(IntNumberTerm(1), IntNumberTerm(2), IntNumberTerm(3), IntNumberTerm(4)))))),
 		Body: NewBody(
@@ -459,14 +488,14 @@ func TestRule(t *testing.T) {
 		),
 	})
 
-	assertParseRule(t, "true", "p :- true", &Rule{
+	assertParseRule(t, "true", `p = true { true }`, &Rule{
 		Head: NewHead(Var("p"), nil, BooleanTerm(true)),
 		Body: NewBody(
 			&Expr{Terms: BooleanTerm(true)},
 		),
 	})
 
-	assertParseRule(t, "composites in head", `p[[{"x": [a,b]}]] :- a = 1, b = 2`, &Rule{
+	assertParseRule(t, "composites in head", `p[[{"x": [a, b]}]] { a = 1; b = 2 }`, &Rule{
 		Head: NewHead(Var("p"), ArrayTerm(
 			ObjectTerm(
 				Item(StringTerm("x"), ArrayTerm(VarTerm("a"), VarTerm("b"))),
@@ -478,21 +507,21 @@ func TestRule(t *testing.T) {
 		),
 	})
 
-	assertParseRule(t, "refs in head", "p = data.foo[x] :- x = 1", &Rule{
+	assertParseRule(t, "refs in head", `p = data.foo[x] { x = 1 }`, &Rule{
 		Head: NewHead(Var("p"), nil, &Term{
 			Value: MustParseRef("data.foo[x]"),
 		}),
 		Body: MustParseBody("x = 1"),
 	})
 
-	assertParseRule(t, "refs in head", "p[data.foo[x]] :- true", &Rule{
+	assertParseRule(t, "refs in head", `p[data.foo[x]] { true }`, &Rule{
 		Head: NewHead(Var("p"), &Term{
 			Value: MustParseRef("data.foo[x]"),
 		}),
 		Body: MustParseBody("true"),
 	})
 
-	assertParseRule(t, "refs in head", "p[data.foo[x]] = data.bar[y] :- true", &Rule{
+	assertParseRule(t, "refs in head", `p[data.foo[x]] = data.bar[y] { true }`, &Rule{
 		Head: NewHead(Var("p"), &Term{
 			Value: MustParseRef("data.foo[x]"),
 		}, &Term{
@@ -501,55 +530,41 @@ func TestRule(t *testing.T) {
 		Body: MustParseBody("true"),
 	})
 
-	assertParseRule(t, "data", "data :- true", &Rule{
+	assertParseRule(t, "data", `data = true { true }`, &Rule{
 		Head: NewHead(Var("data"), nil, MustParseTerm("true")),
 		Body: MustParseBody("true"),
 	})
 
-	assertParseRule(t, "input", "input :- true", &Rule{
+	assertParseRule(t, "input", `input = true { true }`, &Rule{
 		Head: NewHead(Var("input"), nil, MustParseTerm("true")),
 		Body: MustParseBody("true"),
 	})
 
-	assertParseRule(t, "default", "default allow = false", &Rule{
+	assertParseRule(t, "default", `default allow = false`, &Rule{
 		Default: true,
 		Head:    NewHead(Var("allow"), nil, MustParseTerm("false")),
 		Body:    NewBody(NewExpr(BooleanTerm(true))),
 	})
 
-	assertParseRule(t, "default w/ comprehension", "default widgets = [x | x = data.fooz[_]]", &Rule{
+	assertParseRule(t, "default w/ comprehension", `default widgets = [x | x = data.fooz[_]]`, &Rule{
 		Default: true,
-		Head:    NewHead(Var("widgets"), nil, MustParseTerm("[x | x = data.fooz[_]]")),
+		Head:    NewHead(Var("widgets"), nil, MustParseTerm(`[x | x = data.fooz[_]]`)),
 		Body:    NewBody(NewExpr(BooleanTerm(true))),
 	})
 
-	assertParseRule(t, "one line with braces", "p[x] { x = data.a[_], count(x, 3) }", &Rule{
+	assertParseRule(t, "one line with braces", `p[x] { x = data.a[_]; count(x, 3) }`, &Rule{
 		Head: NewHead(Var("p"), VarTerm("x")),
-		Body: MustParseBody("x = data.a[_], count(x, 3)"),
+		Body: MustParseBody(`x = data.a[_]; count(x, 3)`),
 	})
 
-	assertParseRule(t, "multiple lines with braces", `
-		p[[x, y]] {
+	assertParseRule(t, "multiple lines with braces", `p[[x, y]] { [data.a[0]] = [{"x": x}]; count(x, 3); sum(x, y); y > 100 }`,
 
-			[ data.a[0] ] = [
-				{
-					"x": x
-				} # comment embedded
-			]
+		&Rule{
+			Head: NewHead(Var("p"), MustParseTerm("[x, y]")),
+			Body: MustParseBody(`[data.a[0]] = [{"x": x}]; count(x, 3); sum(x, y); y > 100`),
+		})
 
-			# another comment
-
-			count(x, 3)
-			sum(x, y), # comma can be included
-			y > 100
-
-		}
-	`, &Rule{
-		Head: NewHead(Var("p"), MustParseTerm("[x, y]")),
-		Body: MustParseBody(`[data.a[0]] = [{"x": x}], count(x, 3), sum(x, y), y > 100`),
-	})
-
-	assertParseErrorEquals(t, "object composite key", "p[[x,y]] = z :- true", "object key must be one of string, var, ref not array")
+	assertParseErrorEquals(t, "object composite key", "p[[x,y]] = z { true }", "object key must be one of string, var, ref not array")
 	assertParseErrorEquals(t, "default ref value", "default p = [data.foo]", "default rule value cannot contain ref")
 	assertParseErrorEquals(t, "default var value", "default p = [x]", "default rule value cannot contain var")
 	assertParseErrorEquals(t, "empty rule body", "p {}", "body must be non-empty")
@@ -557,36 +572,34 @@ func TestRule(t *testing.T) {
 	// TODO(tsandall): improve error checking here. This is a common mistake
 	// and the current error message is not very good. Need to investigate if the
 	// parser can be improved.
-	assertParseError(t, "dangling comma", "p :- true, false,")
+	assertParseError(t, "dangling semicolon", "p { true; false; }")
 }
 
 func TestMultipleEnclosedBodies(t *testing.T) {
 
-	result, err := ParseModule("", `
-	package ex
+	result, err := ParseModule("", `package ex
 
-	p[x] = y {
-		x = "a"
-		y = 1
-	} {
-		x = "b"
-		y = 2
-	}
+p[x] = y {
+	x = "a"
+	y = 1
+} {
+	x = "b"
+	y = 2
+}
 
-	q = 1
-	`)
+q = 1`,
+	)
 
 	if err != nil {
 		t.Fatalf("Unexpected parse error: %v", err)
 	}
 
-	expected := MustParseModule(`
-	package ex
+	expected := MustParseModule(`package ex
 
-	p[x] = y :- x = "a", y = 1
-	p[x] = y :- x = "b", y = 2
-	q = 1 :- true
-	`)
+p[x] = y { x = "a"; y = 1 }
+p[x] = y { x = "b"; y = 2 }
+q = 1 { true }`,
+	)
 
 	if !expected.Equal(result) {
 		t.Fatal("Expected modules to be equal but got:\n\n", result, "\n\nExpected:\n\n", expected)
@@ -607,66 +620,64 @@ func TestEmptyModule(t *testing.T) {
 
 func TestComments(t *testing.T) {
 
-	testModule := `
-    package a.b.c
+	testModule := `package a.b.c
 
     import input.e.f as g  # end of line
     import input.h
 
     # by itself
 
-    p[x] = y :- y = "foo",
+    p[x] = y { y = "foo";
         # inside a rule
-        x = "bar",
-        x != y,
+        x = "bar";
+        x != y;
         q[x]
+	}
 
     import input.xyz.abc
 
     q # interruptting
-    [a] # the head of a rule
-    :- m = [1,2,
-    3],
+
+	[a] # the head of a rule
+
+	{ m = [1,2,
+    3, ];
     a = m[i]
 
-	r[x] :- x = [ a | # inside comprehension
-					  a = z[i],
+	}
+
+	r[x] { x = [ a | # inside comprehension
+					  a = z[i]
 	                  b[i].a = a ]
-    `
+
+					  }`
 
 	assertParseModule(t, "module comments", testModule, &Module{
-		Package: MustParseStatement("package a.b.c").(*Package),
+		Package: MustParseStatement(`package a.b.c`).(*Package),
 		Imports: []*Import{
 			MustParseStatement("import input.e.f as g").(*Import),
 			MustParseStatement("import input.h").(*Import),
 			MustParseStatement("import input.xyz.abc").(*Import),
 		},
 		Rules: []*Rule{
-			MustParseStatement("p[x] = y :- y = \"foo\", x = \"bar\", x != y, q[x]").(*Rule),
-			MustParseStatement("q[a] :- m = [1,2,3], a = m[i]").(*Rule),
-			MustParseStatement("r[x] :- x = [a | a = z[i], b[i].a = a]").(*Rule),
+			MustParseStatement(`p[x] = y { y = "foo"; x = "bar"; x != y; q[x] }`).(*Rule),
+			MustParseStatement(`q[a] { m = [1, 2, 3]; a = m[i] }`).(*Rule),
+			MustParseStatement(`r[x] { x = [a | a = z[i]; b[i].a = a] }`).(*Rule),
 		},
 	})
 }
 
 func TestExample(t *testing.T) {
 	assertParseModule(t, "example module", testModule, &Module{
-		Package: MustParseStatement("package opa.examples").(*Package),
+		Package: MustParseStatement(`package opa.examples`).(*Package),
 		Imports: []*Import{
 			MustParseStatement("import data.servers").(*Import),
 			MustParseStatement("import data.networks").(*Import),
 			MustParseStatement("import data.ports").(*Import),
 		},
 		Rules: []*Rule{
-			MustParseStatement(`violations[server] :-
-                         server = servers[i],
-                         server.protocols[j] = "http",
-                         public_servers[server]`).(*Rule),
-			MustParseStatement(`public_servers[server] :-
-                         server = servers[i],
-                         server.ports[j] = ports[k].id,
-                         ports[k].networks[l] = networks[m].id,
-                         networks[m].public = true`).(*Rule),
+			MustParseStatement(`violations[server] { server = servers[i]; server.protocols[j] = "http"; public_servers[server] }`).(*Rule),
+			MustParseStatement(`public_servers[server] { server = servers[i]; server.ports[j] = ports[k].id; ports[k].networks[l] = networks[m].id; networks[m].public = true }`).(*Rule),
 		},
 	})
 }
@@ -677,7 +688,7 @@ func TestModuleParseErrors(t *testing.T) {
 	package a  		# unexpected package
 	1 = 2			# non-var head
 	1 != 2			# non-equality expr
-	x = y, x = 1    # multiple exprs
+	x = y; x = 1    # multiple exprs
 	`
 
 	mod, err := ParseModule("test.rego", input)
@@ -705,8 +716,8 @@ func TestLocation(t *testing.T) {
 	if expr.Location.Col != 5 {
 		t.Errorf("Expected column of %v to be 5 but got: %v", expr, expr.Location.Col)
 	}
-	if expr.Location.Row != 9 {
-		t.Errorf("Expected row of %v to be 9 but got: %v", expr, expr.Location.Row)
+	if expr.Location.Row != 8 {
+		t.Errorf("Expected row of %v to be 8 but got: %v", expr, expr.Location.Row)
 	}
 	if expr.Location.File != "test" {
 		t.Errorf("Expected file of %v to be test but got: %v", expr, expr.Location.File)
@@ -714,42 +725,37 @@ func TestLocation(t *testing.T) {
 }
 
 func TestRuleFromBody(t *testing.T) {
-	testModule := `
-    package a.b.c
+	testModule := `package a.b.c
 
-    pi = 3.14159
-    # intersperse a regular rule
-    p[x] :- x = 1
-    greeting = "hello"
-    cores = [{0: 1}, {1: 2}]
-	wrapper = cores[0][1]
-	pi = [3, 1, 4, x, y, z]
-    `
+pi = 3.14159 { true }
+p[x] { x = 1 }
+greeting = "hello" { true }
+cores = [{0: 1}, {1: 2}] { true }
+wrapper = cores[0][1] { true }
+pi = [3, 1, 4, x, y, z] { true }`
 
 	assertParseModule(t, "rules from bodies", testModule, &Module{
-		Package: MustParseStatement("package a.b.c").(*Package),
+		Package: MustParseStatement(`package a.b.c`).(*Package),
 		Rules: []*Rule{
-			MustParseStatement("pi = 3.14159 :- true").(*Rule),
-			MustParseStatement("p[x] :- x = 1").(*Rule),
-			MustParseStatement("greeting = \"hello\" :- true").(*Rule),
-			MustParseStatement("cores = [{0: 1}, {1: 2}] :- true").(*Rule),
-			MustParseStatement("wrapper = cores[0][1] :- true").(*Rule),
-			MustParseStatement("pi = [3, 1, 4, x, y, z] :- true").(*Rule),
+			MustParseStatement(`pi = 3.14159 { true }`).(*Rule),
+			MustParseStatement(`p[x] { x = 1 }`).(*Rule),
+			MustParseStatement(`greeting = "hello" { true }`).(*Rule),
+			MustParseStatement(`cores = [{0: 1}, {1: 2}] { true }`).(*Rule),
+			MustParseStatement(`wrapper = cores[0][1] { true }`).(*Rule),
+			MustParseStatement(`pi = [3, 1, 4, x, y, z] { true }`).(*Rule),
 		},
 	})
 
-	mockModule := `
-	package ex
+	mockModule := `package ex
 
-	input = {"foo": 1}
-	data = {"bar": 2}
-	`
+input = {"foo": 1} { true }
+data = {"bar": 2} { true }`
 
 	assertParseModule(t, "rule name: input/data", mockModule, &Module{
-		Package: MustParsePackage("package ex"),
+		Package: MustParsePackage(`package ex`),
 		Rules: []*Rule{
-			MustParseRule(`input = {"foo": 1} :- true`),
-			MustParseRule(`data = {"bar": 2} :- true`),
+			MustParseRule(`input = {"foo": 1} { true }`),
+			MustParseRule(`data = {"bar": 2} { true }`),
 		},
 	})
 
@@ -816,7 +822,7 @@ func TestWildcards(t *testing.T) {
 			RefTerm(VarTerm("a"), VarTerm("$1")),
 		)))
 
-	assertParseOneExpr(t, "comprehension", "eq(_, [x | a = a[_]])", Equality.Expr(
+	assertParseOneExpr(t, "comprehension", `_ = [x | a = a[_]]`, Equality.Expr(
 		VarTerm("$0"),
 		ArrayComprehensionTerm(
 			VarTerm("x"),
@@ -832,12 +838,13 @@ func TestWildcards(t *testing.T) {
 func TestNoMatchError(t *testing.T) {
 	mod := `package test
 
-	p :- true,
-		 1 != 0, // <-- parse error: no match`
+	p { true;
+		 1 != 0; # <-- parse error: no match
+	}`
 
 	_, err := ParseModule("foo.rego", mod)
 
-	expected := "1 error occurred: foo.rego:4: no match found, unexpected '/'"
+	expected := "1 error occurred: foo.rego:3: no match found, unexpected '{'"
 
 	if err.Error() != expected {
 		t.Fatalf("Bad parse error, expected %v but got: %v", expected, err)
@@ -845,13 +852,13 @@ func TestNoMatchError(t *testing.T) {
 
 	mod = `package test
 
-	p :- true// <-- parse error: no match`
+	p { true // <-- parse error: no match`
 
 	_, err = ParseModule("foo.rego", mod)
 
 	loc := NewLocation(nil, "foo.rego", 3, 12)
 
-	if !reflect.DeepEqual(err.(Errors)[0].Location, loc) {
+	if err.(Errors)[0].Location.File != "foo.rego" || err.(Errors)[0].Location.Row != 3 {
 		t.Fatalf("Expected %v but got: %v", loc, err)
 	}
 }

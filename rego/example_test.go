@@ -41,7 +41,7 @@ func ExampleRego_Eval_multipleBindings() {
 	ctx := context.Background()
 
 	// Create query that produces multiple bindings for variable.
-	rego := rego.New(rego.Query(`a = ["ex", "am", "ple"], x = a[_]`))
+	rego := rego.New(rego.Query(`a = ["ex", "am", "ple"]; x = a[_]`))
 
 	// Run evaluation.
 	rs, err := rego.Eval(ctx)
@@ -70,11 +70,10 @@ func ExampleRego_Eval_singleDocument() {
 	rego := rego.New(
 		rego.Query("data.example.p"),
 		rego.Module("example.rego",
-			`
-                package example
+			`package example
 
-                p = ["hello", "world"]
-            `))
+p = ["hello", "world"] { true }`,
+		))
 
 	// Run evaluation.
 	rs, err := rego.Eval(ctx)
@@ -97,11 +96,10 @@ func ExampleRego_Eval_multipleDocuments() {
 	rego := rego.New(
 		rego.Query("data.example.p[x]"),
 		rego.Module("example.rego",
-			`
-                package example
+			`package example
 
-                p = {"hello": "alice", "goodbye": "bob"}
-            `))
+p = {"hello": "alice", "goodbye": "bob"} { true }`,
+		))
 
 	// Run evaluation.
 	rs, err := rego.Eval(ctx)
@@ -179,14 +177,11 @@ func ExampleRego_Eval_errors() {
 	r := rego.New(
 		rego.Query("data.example.p"),
 		rego.Module("example_error.rego",
-			`
-                package example
+			`package example
 
-                # variable 'x' is unsafe. This will not compile.
-                p :- not q[x]
-
-                q = {1,2,3}
-            `))
+p = true { not q[x] }
+q = {1, 2, 3} { true }`,
+		))
 
 	_, err := r.Eval(ctx)
 
@@ -207,6 +202,6 @@ func ExampleRego_Eval_errors() {
 	// Output:
 	//
 	// code: 2
-	// row: 5
+	// row: 3
 	// filename: example_error.rego
 }

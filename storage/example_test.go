@@ -170,7 +170,7 @@ func ExampleStorage_Open() {
 
         package opa.example
 
-        p :- q.r != 0
+        p { q.r != 0 }
 
     `
 
