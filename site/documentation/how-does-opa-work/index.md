@@ -231,7 +231,7 @@ import input.method
 import input.user
 
 # allow "bob" to perform read-only operations
-allow { user = "bob", method = "GET" }
+allow { user = "bob"; method = "GET" }
 
 # allow "alice" to perform any operation
 allow { user = "alice" }
@@ -533,9 +533,9 @@ Any rule can be used as the trigger for a notification. For example, let’s ass
 # All production containers are running if...
 containers_to_migrate[id] {
     # ...the container exists
-    container = containers[id],
+    container = containers[id]
     # ...and it is in production
-    container.site.name = "prod",
+    container.site.name = "prod"
     # ...and its host is running.
     container.host.state != "terminated"
 }

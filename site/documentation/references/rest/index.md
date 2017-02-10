@@ -1616,7 +1616,7 @@ Execute an ad-hoc query and return bindings for variables found in the query.
 #### Example Request
 
 ```
-GET /v1/query?q=data.servers[i].ports[_] = "p2", data.servers[i].name = name HTTP/1.1
+GET /v1/query?q=data.servers[i].ports[_] = "p2"; data.servers[i].name = name HTTP/1.1
 ```
 
 #### Example Response
