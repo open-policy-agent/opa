@@ -168,7 +168,7 @@ data := [][]string{
   []string{"1/4/2014", "February Extra Bandwidth", "4567", "$30.00"},
 }
 
-table := NewWriter(os.Stdout)
+table := tablewriter.NewWriter(os.Stdout)
 table.SetHeader([]string{"Date", "Description", "CV2", "Amount"})
 table.SetFooter([]string{"", "", "Total", "$146.93"})
 table.SetAutoMergeCells(true)

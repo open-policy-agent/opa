@@ -1,30 +1,71 @@
 package runewidth
 
 import (
+	"sort"
 	"testing"
 )
 
+var _ sort.Interface = (*table)(nil)
+
+func (t table) Len() int {
+	return len(t)
+}
+
+func (t table) Less(i, j int) bool {
+	return t[i].first < t[j].first
+}
+
+func (t *table) Swap(i, j int) {
+	(*t)[i], (*t)[j] = (*t)[j], (*t)[i]
+}
+
+var tables = []table{
+	private,
+	nonprint,
+	combining,
+	doublewidth,
+	ambiguous,
+	emoji,
+	notassigned,
+	neutral,
+}
+
+func TestSorted(t *testing.T) {
+	for _, tbl := range tables {
+		if !sort.IsSorted(&tbl) {
+			t.Errorf("not sorted")
+		}
+	}
+}
+
 var runewidthtests = []struct {
-	in  rune
-	out int
+	in    rune
+	out   int
+	eaout int
 }{
-	{'世', 2},
-	{'界', 2},
-	{'ｾ', 1},
-	{'ｶ', 1},
-	{'ｲ', 1},
-	{'☆', 2}, // double width in ambiguous
-	{'\x00', 0},
-	{'\x01', 1},
-	{'\u0300', 0},
+	{'世', 2, 2},
+	{'界', 2, 2},
+	{'ｾ', 1, 1},
+	{'ｶ', 1, 1},
+	{'ｲ', 1, 1},
+	{'☆', 1, 2}, // double width in ambiguous
+	{'\x00', 0, 0},
+	{'\x01', 0, 0},
+	{'\u0300', 0, 0},
 }
 
 func TestRuneWidth(t *testing.T) {
 	c := NewCondition()
-	c.EastAsianWidth = true
+	c.EastAsianWidth = false
 	for _, tt := range runewidthtests {
 		if out := c.RuneWidth(tt.in); out != tt.out {
-			t.Errorf("Width(%q) = %q, want %q", tt.in, out, tt.out)
+			t.Errorf("RuneWidth(%q) = %d, want %d", tt.in, out, tt.out)
+		}
+	}
+	c.EastAsianWidth = true
+	for _, tt := range runewidthtests {
+		if out := c.RuneWidth(tt.in); out != tt.eaout {
+			t.Errorf("RuneWidth(%q) = %d, want %d", tt.in, out, tt.eaout)
 		}
 	}
 }
@@ -70,19 +111,27 @@ func TestIsAmbiguousWidth(t *testing.T) {
 }
 
 var stringwidthtests = []struct {
-	in  string
-	out int
+	in    string
+	out   int
+	eaout int
 }{
-	{"■㈱の世界①", 12},
-	{"スター☆", 8},
+	{"■㈱の世界①", 10, 12},
+	{"スター☆", 7, 8},
+	{"つのだ☆HIRO", 11, 12},
 }
 
 func TestStringWidth(t *testing.T) {
 	c := NewCondition()
-	c.EastAsianWidth = true
+	c.EastAsianWidth = false
 	for _, tt := range stringwidthtests {
 		if out := c.StringWidth(tt.in); out != tt.out {
-			t.Errorf("StringWidth(%q) = %q, want %q", tt.in, out, tt.out)
+			t.Errorf("StringWidth(%q) = %d, want %d", tt.in, out, tt.out)
+		}
+	}
+	c.EastAsianWidth = true
+	for _, tt := range stringwidthtests {
+		if out := c.StringWidth(tt.in); out != tt.eaout {
+			t.Errorf("StringWidth(%q) = %d, want %d", tt.in, out, tt.eaout)
 		}
 	}
 }
@@ -90,7 +139,7 @@ func TestStringWidth(t *testing.T) {
 func TestStringWidthInvalid(t *testing.T) {
 	s := "こんにちわ\x00世界"
 	if out := StringWidth(s); out != 14 {
-		t.Errorf("StringWidth(%q) = %q, want %q", s, out, 14)
+		t.Errorf("StringWidth(%q) = %d, want %d", s, out, 14)
 	}
 }
 

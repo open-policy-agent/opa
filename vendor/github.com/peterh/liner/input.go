@@ -82,8 +82,12 @@ func (s *State) startPrompt() {
 	s.restartPrompt()
 }
 
+func (s *State) inputWaiting() bool {
+	return len(s.next) > 0
+}
+
 func (s *State) restartPrompt() {
-	next := make(chan nexter)
+	next := make(chan nexter, 200)
 	go func() {
 		for {
 			var n nexter

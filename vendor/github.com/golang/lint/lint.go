@@ -22,7 +22,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"golang.org/x/tools/go/gcimporter15"
+	"golang.org/x/tools/go/gcexportdata"
 )
 
 const styleGuideBase = "https://golang.org/wiki/CodeReviewComments"
@@ -235,30 +235,15 @@ argLoop:
 	return &p.problems[len(p.problems)-1]
 }
 
-var gcImporter = gcimporter.Import
-
-// importer implements go/types.Importer{,From}.
-type importer struct {
-	impFn    func(packages map[string]*types.Package, path, srcDir string) (*types.Package, error)
-	packages map[string]*types.Package
-}
-
-func (i importer) Import(path string) (*types.Package, error) {
-	return i.impFn(i.packages, path, "")
-}
-
-func (i importer) ImportFrom(path, srcDir string, mode types.ImportMode) (*types.Package, error) {
-	return i.impFn(i.packages, path, srcDir)
+var newImporter = func(fset *token.FileSet) types.ImporterFrom {
+	return gcexportdata.NewImporter(fset, make(map[string]*types.Package))
 }
 
 func (p *pkg) typeCheck() error {
 	config := &types.Config{
 		// By setting a no-op error reporter, the type checker does as much work as possible.
-		Error: func(error) {},
-		Importer: importer{
-			impFn:    gcImporter,
-			packages: make(map[string]*types.Package),
-		},
+		Error:    func(error) {},
+		Importer: newImporter(p.fset),
 	}
 	info := &types.Info{
 		Types:  make(map[ast.Expr]types.TypeAndValue),
@@ -454,7 +439,6 @@ func (f *file) lintBlankImports() {
 
 // lintImports examines import blocks.
 func (f *file) lintImports() {
-
 	for i, is := range f.f.Imports {
 		_ = i
 		if is.Name != nil && is.Name.Name == "." && !f.isTest() {
@@ -462,7 +446,6 @@ func (f *file) lintImports() {
 		}
 
 	}
-
 }
 
 const docCommentsLink = styleGuideBase + "#doc-comments"
@@ -1429,7 +1412,7 @@ func (f *file) checkContextKeyType(x *ast.CallExpr) {
 	}
 	key := f.pkg.typesInfo.Types[x.Args[1]]
 
-	if _, ok := key.Type.(*types.Basic); ok {
+	if ktyp, ok := key.Type.(*types.Basic); ok && ktyp.Kind() != types.Invalid {
 		f.errorf(x, 1.0, category("context"), fmt.Sprintf("should not use basic type %s as key in context.WithValue", key.Type))
 	}
 }

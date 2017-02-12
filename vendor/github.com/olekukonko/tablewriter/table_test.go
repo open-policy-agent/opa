@@ -14,6 +14,8 @@ import (
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/mattn/go-runewidth"
 )
 
 func ExampleShort() {
@@ -80,8 +82,13 @@ func TestCSVSeparator(t *testing.T) {
 		return
 	}
 	table.SetRowLine(true)
-	table.SetCenterSeparator("*")
-	table.SetColumnSeparator("‡")
+	if runewidth.IsEastAsian() {
+		table.SetCenterSeparator("＊")
+		table.SetColumnSeparator("‡")
+	} else {
+		table.SetCenterSeparator("*")
+		table.SetColumnSeparator("‡")
+	}
 	table.SetRowSeparator("-")
 	table.SetAlignment(ALIGN_LEFT)
 	table.Render()
@@ -91,14 +98,17 @@ func TestNoBorder(t *testing.T) {
 	data := [][]string{
 		[]string{"1/1/2014", "Domain name", "2233", "$10.98"},
 		[]string{"1/1/2014", "January Hosting", "2233", "$54.95"},
+		[]string{"", "    (empty)\n    (empty)", "", ""},
 		[]string{"1/4/2014", "February Hosting", "2233", "$51.00"},
 		[]string{"1/4/2014", "February Extra Bandwidth", "2233", "$30.00"},
+		[]string{"1/4/2014", "    (Discount)", "2233", "-$1.00"},
 	}
 
 	var buf bytes.Buffer
 	table := NewWriter(&buf)
+	table.SetAutoWrapText(false)
 	table.SetHeader([]string{"Date", "Description", "CV2", "Amount"})
-	table.SetFooter([]string{"", "", "Total", "$146.93"}) // Add Footer
+	table.SetFooter([]string{"", "", "Total", "$145.93"}) // Add Footer
 	table.SetBorder(false)                                // Set Border to false
 	table.AppendBulk(data)                                // Add Bulk Data
 	table.Render()
@@ -107,10 +117,13 @@ func TestNoBorder(t *testing.T) {
 +----------+--------------------------+-------+---------+
   1/1/2014 | Domain name              |  2233 | $10.98   
   1/1/2014 | January Hosting          |  2233 | $54.95   
+           |     (empty)              |       |          
+           |     (empty)              |       |          
   1/4/2014 | February Hosting         |  2233 | $51.00   
   1/4/2014 | February Extra Bandwidth |  2233 | $30.00   
+  1/4/2014 |     (Discount)           |  2233 | -$1.00   
 +----------+--------------------------+-------+---------+
-                                        TOTAL | $146 93  
+                                        TOTAL | $145 93  
                                       +-------+---------+
 `
 	got := buf.String()
@@ -123,14 +136,17 @@ func TestWithBorder(t *testing.T) {
 	data := [][]string{
 		[]string{"1/1/2014", "Domain name", "2233", "$10.98"},
 		[]string{"1/1/2014", "January Hosting", "2233", "$54.95"},
+		[]string{"", "    (empty)\n    (empty)", "", ""},
 		[]string{"1/4/2014", "February Hosting", "2233", "$51.00"},
 		[]string{"1/4/2014", "February Extra Bandwidth", "2233", "$30.00"},
+		[]string{"1/4/2014", "    (Discount)", "2233", "-$1.00"},
 	}
 
 	var buf bytes.Buffer
 	table := NewWriter(&buf)
+	table.SetAutoWrapText(false)
 	table.SetHeader([]string{"Date", "Description", "CV2", "Amount"})
-	table.SetFooter([]string{"", "", "Total", "$146.93"}) // Add Footer
+	table.SetFooter([]string{"", "", "Total", "$145.93"}) // Add Footer
 	table.AppendBulk(data)                                // Add Bulk Data
 	table.Render()
 
@@ -139,10 +155,13 @@ func TestWithBorder(t *testing.T) {
 +----------+--------------------------+-------+---------+
 | 1/1/2014 | Domain name              |  2233 | $10.98  |
 | 1/1/2014 | January Hosting          |  2233 | $54.95  |
+|          |     (empty)              |       |         |
+|          |     (empty)              |       |         |
 | 1/4/2014 | February Hosting         |  2233 | $51.00  |
 | 1/4/2014 | February Extra Bandwidth |  2233 | $30.00  |
+| 1/4/2014 |     (Discount)           |  2233 | -$1.00  |
 +----------+--------------------------+-------+---------+
-|                                       TOTAL | $146 93 |
+|                                       TOTAL | $145 93 |
 +----------+--------------------------+-------+---------+
 `
 	got := buf.String()

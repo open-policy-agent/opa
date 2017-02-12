@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build go1.5
-
 // Package ssa/interp defines an interpreter for the SSA
 // representation of Go programs.
 //
@@ -314,9 +312,7 @@ func visitInstr(fr *frame, instr ssa.Instruction) continuation {
 		fr.env[instr] = fr.get(instr.Iter).(iter).next()
 
 	case *ssa.FieldAddr:
-		x := fr.get(instr.X)
-		// FIXME wrong!  &global.f must not change if we do *global = zero!
-		fr.env[instr] = &(*x.(*value)).(structure)[instr.Field]
+		fr.env[instr] = &(*fr.get(instr.X).(*value)).(structure)[instr.Field]
 
 	case *ssa.Field:
 		fr.env[instr] = fr.get(instr.X).(structure)[instr.Field]
