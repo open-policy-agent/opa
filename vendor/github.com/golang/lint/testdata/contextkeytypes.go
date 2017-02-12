@@ -34,4 +34,5 @@ func contextKeyTypeTests() {
 	context.WithValue(c, complex128(1i), "bar") // MATCH /should not use basic type complex128 as key in context.WithValue/
 	context.WithValue(c, ctxKey{}, "bar")       // ok
 	context.WithValue(c, &ctxKey{}, "bar")      // ok
+	context.WithValue(c, invalid{}, "bar")      // ok
 }

@@ -28,9 +28,9 @@ var (
 func usage() {
 	fmt.Fprintf(os.Stderr, "Usage of %s:\n", os.Args[0])
 	fmt.Fprintf(os.Stderr, "\tgolint [flags] # runs on package in current directory\n")
-	fmt.Fprintf(os.Stderr, "\tgolint [flags] package\n")
-	fmt.Fprintf(os.Stderr, "\tgolint [flags] directory\n")
-	fmt.Fprintf(os.Stderr, "\tgolint [flags] files... # must be a single package\n")
+	fmt.Fprintf(os.Stderr, "\tgolint [flags] [packages]\n")
+	fmt.Fprintf(os.Stderr, "\tgolint [flags] [directories] # where a '/...' suffix includes all sub-directories\n")
+	fmt.Fprintf(os.Stderr, "\tgolint [flags] [files] # all must belong to a single package\n")
 	fmt.Fprintf(os.Stderr, "Flags:\n")
 	flag.PrintDefaults()
 }
@@ -39,26 +39,48 @@ func main() {
 	flag.Usage = usage
 	flag.Parse()
 
-	switch flag.NArg() {
-	case 0:
+	if flag.NArg() == 0 {
 		lintDir(".")
-	case 1:
-		arg := flag.Arg(0)
-		if strings.HasSuffix(arg, "/...") && isDir(arg[:len(arg)-4]) {
-			for _, dirname := range allPackagesInFS(arg) {
-				lintDir(dirname)
-			}
-		} else if isDir(arg) {
-			lintDir(arg)
-		} else if exists(arg) {
-			lintFiles(arg)
-		} else {
-			for _, pkgname := range importPaths([]string{arg}) {
-				lintPackage(pkgname)
+	} else {
+		// dirsRun, filesRun, and pkgsRun indicate whether golint is applied to
+		// directory, file or package targets. The distinction affects which
+		// checks are run. It is no valid to mix target types.
+		var dirsRun, filesRun, pkgsRun int
+		var args []string
+		for _, arg := range flag.Args() {
+			if strings.HasSuffix(arg, "/...") && isDir(arg[:len(arg)-len("/...")]) {
+				dirsRun = 1
+				for _, dirname := range allPackagesInFS(arg) {
+					args = append(args, dirname)
+				}
+			} else if isDir(arg) {
+				dirsRun = 1
+				args = append(args, arg)
+			} else if exists(arg) {
+				filesRun = 1
+				args = append(args, arg)
+			} else {
+				pkgsRun = 1
+				args = append(args, arg)
 			}
 		}
-	default:
-		lintFiles(flag.Args()...)
+
+		if dirsRun+filesRun+pkgsRun != 1 {
+			usage()
+			os.Exit(2)
+		}
+		switch {
+		case dirsRun == 1:
+			for _, dir := range args {
+				lintDir(dir)
+			}
+		case filesRun == 1:
+			lintFiles(args...)
+		case pkgsRun == 1:
+			for _, pkg := range importPaths(args) {
+				lintPackage(pkg)
+			}
+		}
 	}
 
 	if *setExitStatus && suggestions > 0 {

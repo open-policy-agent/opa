@@ -10,7 +10,7 @@ Golint requires Go 1.6 or later.
 
 ## Usage
 
-Invoke `golint` with one or more filenames, a directory, or a package named
+Invoke `golint` with one or more filenames, directories, or packages named
 by its import path. Golint uses the same
 [import path syntax](https://golang.org/cmd/go/#hdr-Import_path_syntax) as
 the `go` command and therefore

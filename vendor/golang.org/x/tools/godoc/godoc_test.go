@@ -123,10 +123,7 @@ func TestSanitizeFunc(t *testing.T) {
 // Test that we add <span id="StructName.FieldName"> elements
 // to the HTML of struct fields.
 func TestStructFieldsIDAttributes(t *testing.T) {
-	p := &Presentation{
-		DeclLinks: true,
-	}
-	src := []byte(`
+	got := linkifyStructFields(t, []byte(`
 package foo
 
 type T struct {
@@ -137,8 +134,32 @@ type T struct {
 
 	// Opt, if non-nil, is an option.
 	Opt *int
+
+	// Опция - другое поле.
+	Опция bool
 }
-`)
+`))
+	want := `type T struct {
+<span id="T.NoDoc"></span>NoDoc <a href="/pkg/builtin/#string">string</a>
+
+<span id="T.Doc"></span><span class="comment">// Doc has a comment.</span>
+Doc <a href="/pkg/builtin/#string">string</a>
+
+<span id="T.Opt"></span><span class="comment">// Opt, if non-nil, is an option.</span>
+Opt *<a href="/pkg/builtin/#int">int</a>
+
+<span id="T.Опция"></span><span class="comment">// Опция - другое поле.</span>
+Опция <a href="/pkg/builtin/#bool">bool</a>
+}`
+	if got != want {
+		t.Errorf("got: %s\n\nwant: %s\n", got, want)
+	}
+}
+
+func linkifyStructFields(t *testing.T, src []byte) string {
+	p := &Presentation{
+		DeclLinks: true,
+	}
 	fset := token.NewFileSet()
 	af, err := parser.ParseFile(fset, "foo.go", src, parser.ParseComments)
 	if err != nil {
@@ -148,17 +169,24 @@ type T struct {
 	pi := &PageInfo{
 		FSet: fset,
 	}
-	got := p.node_htmlFunc(pi, genDecl, true)
-	want := `type T struct {
-<span id="T.NoDoc"></span>NoDoc <a href="/pkg/builtin/#string">string</a>
+	return p.node_htmlFunc(pi, genDecl, true)
+}
 
-<span id="T.Doc"></span><span class="comment">// Doc has a comment.</span>
-Doc <a href="/pkg/builtin/#string">string</a>
-
-<span id="T.Opt"></span><span class="comment">// Opt, if non-nil, is an option.</span>
-Opt *<a href="/pkg/builtin/#int">int</a>
-}`
-	if got != want {
-		t.Errorf("got: %s\n\nwant: %s\n", got, want)
+func TestScanIdentifier(t *testing.T) {
+	tests := []struct {
+		in, want string
+	}{
+		{"foo bar", "foo"},
+		{"foo/bar", "foo"},
+		{" foo", ""},
+		{"фоо", "фоо"},
+		{"f123", "f123"},
+		{"123f", ""},
+	}
+	for _, tt := range tests {
+		got := scanIdentifier([]byte(tt.in))
+		if string(got) != tt.want {
+			t.Errorf("scanIdentifier(%q) = %q; want %q", tt.in, got, tt.want)
+		}
 	}
 }
