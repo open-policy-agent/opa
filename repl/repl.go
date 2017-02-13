@@ -390,13 +390,18 @@ func (r *REPL) cmdUnset(args []string) error {
 	}
 
 	term, err := ast.ParseTerm(args[0])
+
 	if err != nil {
 		return newBadArgsErr("argument must identify a rule")
 	}
 
 	v, ok := term.Value.(ast.Var)
+
 	if !ok {
-		return newBadArgsErr("argument must identify a rule")
+		if !ast.RootDocumentRefs.Contains(term) {
+			return newBadArgsErr("argument must identify a rule")
+		}
+		v = term.Value.(ast.Ref)[0].Value.(ast.Var)
 	}
 
 	mod := r.modules[r.currentModuleID]
