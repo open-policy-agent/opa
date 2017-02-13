@@ -234,7 +234,7 @@ BraceEnclosedBody <- "{" _ val:WhitespaceBody? _ "}" {
 
 // When body is enclosed, literals must be separated by newline or semicolon.
 // This is used for rules and comprehensions.
-WhitespaceBody <- head:Literal tail:( ([ \t]* / Comment) ( ";" / [\r\n] ) _ Literal)* {
+WhitespaceBody <- head:Literal tail:([ \t]* ((";" Comment?) / (Comment? [\r\n])) _ Literal)* {
     return ifacesToBody(head, tail.([]interface{})...), nil
 }
 
