@@ -11,8 +11,6 @@ import (
 	"github.com/open-policy-agent/opa/util"
 )
 
-// TODO(tsandall): rename DefaultRootDocument/Ref accordingly
-
 // DefaultRootDocument is the default root document.
 //
 // All package directives inside source files are implicitly prefixed with the
@@ -21,6 +19,13 @@ var DefaultRootDocument = VarTerm("data")
 
 // InputRootDocument names the document containing query arguments.
 var InputRootDocument = VarTerm("input")
+
+// RootDocumentNames contains the names of top-level documents that can be
+// referred to in modules and queries.
+var RootDocumentNames = &Set{
+	DefaultRootDocument,
+	InputRootDocument,
+}
 
 // DefaultRootRef is a reference to the root of the default document.
 //
@@ -32,11 +37,25 @@ var DefaultRootRef = Ref{DefaultRootDocument}
 // All refs to query arguments are prefixed with this ref.
 var InputRootRef = Ref{InputRootDocument}
 
+// RootDocumentRefs contains the prefixes of top-level documents that all
+// non-local references start with.
+var RootDocumentRefs = &Set{
+	NewTerm(DefaultRootRef),
+	NewTerm(InputRootRef),
+}
+
 // ReservedVars is the set of names that refer to implicitly ground vars.
-var ReservedVars = NewVarSet(DefaultRootDocument.Value.(Var), InputRootDocument.Value.(Var))
+var ReservedVars = NewVarSet(
+	DefaultRootDocument.Value.(Var),
+	InputRootDocument.Value.(Var),
+)
 
 // Wildcard represents the wildcard variable as defined in the language.
 var Wildcard = &Term{Value: Var("_")}
+
+// WildcardPrefix is the special character that all wildcard variables are
+// prefixed with when the statement they are contained in is parsed.
+var WildcardPrefix = "$"
 
 // Keywords contains strings that map to language keywords.
 var Keywords = [...]string{
@@ -60,10 +79,6 @@ func IsKeyword(s string) bool {
 	}
 	return false
 }
-
-// WildcardPrefix is the special character that all wildcard variables are
-// prefixed with when the statement they are contained in is parsed.
-var WildcardPrefix = "$"
 
 type (
 	// Statement represents a single statement in a policy module.

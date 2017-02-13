@@ -238,11 +238,14 @@ func TestUnset(t *testing.T) {
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
 
+	var err error
+
 	repl.OneShot(ctx, "magic = 23")
 	repl.OneShot(ctx, "p = 3.14")
 	repl.OneShot(ctx, "unset p")
 
-	err := repl.OneShot(ctx, "p")
+	err = repl.OneShot(ctx, "p")
+
 	if _, ok := err.(ast.Errors); !ok {
 		t.Fatalf("Expected AST error but got: %v", err)
 	}
@@ -283,9 +286,21 @@ func TestUnset(t *testing.T) {
 
 	buffer.Reset()
 	repl.OneShot(ctx, `package data.other`)
-	repl.OneShot(ctx, `unset magic`)
+	err = repl.OneShot(ctx, `unset magic`)
 	if buffer.String() != "warning: no matching rules in current module\n" {
 		t.Fatalf("Expected unset error for bad syntax but got: %v", buffer.String())
+	}
+
+	repl.OneShot(ctx, `input = {}`)
+
+	if err := repl.OneShot(ctx, `unset input`); err != nil {
+		t.Fatalf("Expected unset to succeed for input: %v", err)
+	}
+
+	err = repl.OneShot(ctx, `true = input`)
+
+	if !strings.Contains(err.Error(), "undefined") {
+		t.Fatalf("Expected undefined error but got: %v", err)
 	}
 }
 
