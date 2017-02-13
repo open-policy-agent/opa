@@ -630,7 +630,8 @@ p[2] { true }`,
 		}},
 		{"too short", "data.a", []*Rule{}},
 		{"too long/not found", "data.a.b.c.p.q", []*Rule{}},
-		{"outside data", "req.a.b.c.p", []*Rule{}},
+		{"outside data", "input.a.b.c.p", []*Rule{}},
+		{"non-string/var", "data.a.b[data.foo]", []*Rule{}},
 	}
 
 	for _, tc := range tests {
@@ -693,6 +694,7 @@ p[2] { true }`,
 		}},
 		{"too short", "data.a", []*Rule{}},
 		{"non-existent", "data.a.deadbeef", []*Rule{}},
+		{"non-string/var", "data.a.b[data.foo]", []*Rule{}},
 	}
 
 	for _, tc := range tests {
@@ -760,6 +762,7 @@ q[3] { true }`,
 			c.Modules["mod-incr"].Rules[2],
 		}},
 		{"non-existent", "data.a.deadbeef", []*Rule{}},
+		{"non-string/var", "data.a.b[data.foo]", []*Rule{}},
 	}
 
 	for _, tc := range tests {
