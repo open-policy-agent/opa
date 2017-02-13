@@ -15,23 +15,33 @@ import (
 var _ = fmt.Printf
 
 const (
-	testModule = `package opa.examples
+	testModule = `
+# This policy module belongs the opa.example package.
+package opa.examples
 
+# Refer to data.servers as servers.
 import data.servers
+# Refer to the data.networks as networks.
 import data.networks
+# Refer to the data.ports as ports.
 import data.ports
 
+# A server exists in the violations set if...
 violations[server] {
+    # ...the server exists
     server = servers[i]
+    # ...and any of the server’s protocols is HTTP
     server.protocols[j] = "http"
+    # ...and the server is public.
     public_servers[server]
 }
 
+# A server exists in the public_servers set if...
 public_servers[server] {
-    server = servers[i]
-    server.ports[j] = ports[k].id
-    ports[k].networks[l] = networks[m].id
-    networks[m].public = true
+	# Semicolons are optional. Can group expressions onto one line.
+    server = servers[i]; server.ports[j] = ports[k].id 	# ...and the server is connected to a port
+    ports[k].networks[l] = networks[m].id; 				# ...and the port is connected to a network
+    networks[m].public = true							# ...and the network is public.
 }`
 )
 
@@ -394,9 +404,9 @@ func TestMultiLineBody(t *testing.T) {
 
 	// Check that parser can handle multiple expressions w/o enclsoing braces.
 	input2 := `
-		x = 1
-		y = 2
-		z = [ i | [x,y] = arr
+		x = 1 ; # comment after semicolon
+		y = 2   # comment without semicolon
+		z = [ i | [x,y] = arr  # comment in comprehension
 				   arr[_] = i]
 	`
 
@@ -716,7 +726,7 @@ func TestLocation(t *testing.T) {
 	if expr.Location.Col != 5 {
 		t.Errorf("Expected column of %v to be 5 but got: %v", expr, expr.Location.Col)
 	}
-	if expr.Location.Row != 8 {
+	if expr.Location.Row != 15 {
 		t.Errorf("Expected row of %v to be 8 but got: %v", expr, expr.Location.Row)
 	}
 	if expr.Location.File != "test" {

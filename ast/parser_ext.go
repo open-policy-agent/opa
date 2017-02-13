@@ -203,9 +203,12 @@ func ParseBody(input string) (Body, error) {
 	result := Body{}
 
 	for _, stmt := range stmts {
-		if body, ok := stmt.(Body); ok {
-			result = append(result, body...)
-		} else {
+		switch stmt := stmt.(type) {
+		case Body:
+			result = append(result, stmt...)
+		case *Comment:
+			// skip
+		default:
 			return nil, fmt.Errorf("expected body but got %T", stmt)
 		}
 	}
