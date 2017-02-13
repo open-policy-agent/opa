@@ -219,8 +219,7 @@ func (c *Compiler) GetRulesExact(ref Ref) (rules []*Rule) {
 	node := c.RuleTree
 
 	for _, x := range ref {
-		node = node.Children[x.Value]
-		if node == nil {
+		if node = node.Child(x.Value); node == nil {
 			return nil
 		}
 	}
@@ -248,8 +247,7 @@ func (c *Compiler) GetRulesForVirtualDocument(ref Ref) (rules []*Rule) {
 	node := c.RuleTree
 
 	for _, x := range ref {
-		node = node.Children[x.Value]
-		if node == nil {
+		if node = node.Child(x.Value); node == nil {
 			return nil
 		}
 		if len(node.Rules) > 0 {
@@ -280,8 +278,7 @@ func (c *Compiler) GetRulesWithPrefix(ref Ref) (rules []*Rule) {
 	node := c.RuleTree
 
 	for _, x := range ref {
-		node = node.Children[x.Value]
-		if node == nil {
+		if node = node.Child(x.Value); node == nil {
 			return nil
 		}
 	}
@@ -958,6 +955,15 @@ func (n *RuleTreeNode) Size() int {
 		s += c.Size()
 	}
 	return s
+}
+
+// Child returns n's child with key k.
+func (n *RuleTreeNode) Child(k Value) *RuleTreeNode {
+	switch k.(type) {
+	case String, Var:
+		return n.Children[k]
+	}
+	return nil
 }
 
 // DepthFirst performs a depth-first traversal of the rule tree rooted at n. If
