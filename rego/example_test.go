@@ -41,7 +41,14 @@ func ExampleRego_Eval_multipleBindings() {
 	ctx := context.Background()
 
 	// Create query that produces multiple bindings for variable.
-	rego := rego.New(rego.Query(`a = ["ex", "am", "ple"]; x = a[_]`))
+	rego := rego.New(
+		rego.Query(`a = ["ex", "am", "ple"]; x = a[_]; not p[x]`),
+		rego.Package(`example`),
+		rego.Module("example.rego", `package example
+
+		p["am"] { true }
+		`),
+	)
 
 	// Run evaluation.
 	rs, err := rego.Eval(ctx)
@@ -55,11 +62,10 @@ func ExampleRego_Eval_multipleBindings() {
 
 	// Output:
 	//
-	// len: 3
+	// len: 2
 	// err: <nil>
 	// bindings["x"]: ex (i=0)
-	// bindings["x"]: am (i=1)
-	// bindings["x"]: ple (i=2)
+	// bindings["x"]: ple (i=1)
 }
 
 func ExampleRego_Eval_singleDocument() {
