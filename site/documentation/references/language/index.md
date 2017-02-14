@@ -109,7 +109,7 @@ import         = "import" package [ "as" var ]
 policy         = { rule }
 rule           = [ "default" ] rule-head [ "{" rule-body "}" ]
 rule-head      = var [ "[" term "]" ] [ = term ]
-rule-body      = [ literal { "," literal } ]
+rule-body      = literal { ";" | [\r\n] literal }
 literal        = ( expr | "not" expr ) { with-modifier }
 with-modifier  = "with" term "as" term
 expr           = term | expr-built-in | expr-infix
