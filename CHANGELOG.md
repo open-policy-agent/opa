@@ -3,7 +3,13 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## 0.4.3
+
+### Fixes
+
+- Fix parsing of inline comments ([#258](https://github.com/open-policy-agent/opa/issues/258))
+- Fix unset of input/data in REPL ([#259](https://github.com/open-policy-agent/opa/issues/259))
+- Handle non-string/var values in rule tree lookup ([#257](https://github.com/open-policy-agent/opa/issues/257))
 
 ## 0.4.2
 
