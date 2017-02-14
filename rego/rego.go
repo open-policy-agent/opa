@@ -178,8 +178,10 @@ func (r *Rego) Eval(ctx context.Context) (ResultSet, error) {
 	// those expressions so that we capture the value of the term in a variable
 	// that can be included in the result.
 	for i := range query {
-		if term, ok := query[i].Terms.(*ast.Term); ok {
-			query[i].Terms = ast.Equality.Expr(term, r.generateTermVar()).Terms
+		if !query[i].Negated {
+			if term, ok := query[i].Terms.(*ast.Term); ok {
+				query[i].Terms = ast.Equality.Expr(term, r.generateTermVar()).Terms
+			}
 		}
 	}
 
