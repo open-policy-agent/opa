@@ -121,12 +121,19 @@ t2 {
 
 When evaluating rule bodies, OPA searches for variable bindings that make all of
 the expressions true. There may be multiple sets of bindings that make the rule
-body true.
+body true. The rule body can be understood intuitively as:
 
-The rule body can be intuitively understood as `<expression-1> AND
-<expression-2> AND ... AND <expression-N>`. The rule itself can be understood
-intuitively as `<rule-name>` is `<value>` if `<body>`. If the `<value>` is
-omitted, it defaults to `true`.
+```
+expression-1 AND expression-2 AND ... AND expression-N
+```
+
+The rule itself can be understood intuitvely as:
+
+```
+rule-name IS value IF body
+```
+
+If the **value** is omitted, it defaults to **true**.
 
 When we query for the contents of `t` we see the obvious result:
 
