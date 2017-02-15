@@ -2,7 +2,7 @@
 # Use of this source code is governed by an Apache2
 # license that can be found in the LICENSE file.
 
-VERSION := 0.4.4
+VERSION := 0.4.5-dev
 
 PACKAGES := \
 	github.com/open-policy-agent/opa/ast/.../ \
