@@ -3,7 +3,11 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## 0.4.4
+
+### Fixes
+
+- Fix issue in high-level Go API ([#261](https://github.com/open-policy-agent/opa/issues/261))
 
 ## 0.4.3
 
