@@ -13,30 +13,36 @@ import (
 // Error is the error type returned by the Eval and Query functions when
 // an evaluation error occurs.
 type Error struct {
-	Code     int
-	Message  string
-	Location *ast.Location
+	Code     string        `json:"code"`
+	Message  string        `json:"message"`
+	Location *ast.Location `json:"location,omitempty"`
 }
 
 const (
 
 	// InternalErr represents an unknown evaluation error.
-	InternalErr = iota
+	InternalErr string = "eval_internal_error"
 
 	// ConflictErr indicates a conflict was encountered during evaluation. For
 	// instance, a conflict occurs if a rule produces multiple, differing values
 	// for the same key in an object. Conflict errors indicate the policy does
 	// not account for the data loaded into the policy engine.
-	ConflictErr = iota
+	ConflictErr string = "eval_conflict_error"
 
 	// TypeErr indicates evaluation stopped because an expression was applied to
 	// a value of an inappropriate type.
-	TypeErr = iota
+	TypeErr string = "eval_type_error"
 )
+
+// IsError returns true if the err is an Error.
+func IsError(err error) bool {
+	_, ok := err.(*Error)
+	return ok
+}
 
 func (e *Error) Error() string {
 
-	msg := fmt.Sprintf("evaluation error (code: %v): %v", e.Code, e.Message)
+	msg := fmt.Sprintf("%v: %v", e.Code, e.Message)
 
 	if e.Location != nil {
 		msg = e.Location.String() + ": " + msg

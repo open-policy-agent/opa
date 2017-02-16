@@ -155,7 +155,8 @@ func (s *Storage) Unmount(path Path) error {
 			return nil
 		}
 	}
-	return notFoundError(path, "unmount")
+
+	return notFoundError(path)
 }
 
 // Read fetches the value in storage referred to by path. The path may refer to

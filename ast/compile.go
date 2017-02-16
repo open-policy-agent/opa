@@ -372,7 +372,7 @@ func (c *Compiler) checkRecursion() {
 			for _, x := range p {
 				n = append(n, string(x.(*Rule).Head.Name))
 			}
-			c.err(NewError(RecursionErr, r.Loc(), "%v: recursive reference: %v (recursion is not allowed)", r.Head.Name, strings.Join(n, " -> ")))
+			c.err(NewError(RecursionErr, r.Loc(), "%v %v is recursive: %v", RuleTypeName, r.Head.Name, strings.Join(n, " -> ")))
 		}
 	}
 }
@@ -397,11 +397,11 @@ func (c *Compiler) checkRuleConflicts() {
 		name := Var(node.Key.(String))
 
 		if len(kinds) > 1 {
-			c.err(NewError(CompileErr, node.Rules[0].Loc(), "%v: conflicting rule types (all definitions of %v must have the same type)", name, name))
+			c.err(NewError(TypeErr, node.Rules[0].Loc(), "conflicting rules named %v found", name))
 		}
 
 		if defaultRules > 1 {
-			c.err(NewError(CompileErr, node.Rules[0].Loc(), "%s: multiple default rule definitions found", name))
+			c.err(NewError(TypeErr, node.Rules[0].Loc(), "multiple default rules named %s found", name))
 		}
 
 		return false
@@ -412,8 +412,8 @@ func (c *Compiler) checkRuleConflicts() {
 			for _, rule := range mod.Rules {
 				if childNode, ok := node.Children[String(rule.Head.Name)]; ok {
 					for _, childMod := range childNode.Modules {
-						msg := fmt.Sprintf("%v: package declaration conflicts with rule defined at %v", childMod.Package, rule.Loc())
-						c.err(NewError(CompileErr, mod.Package.Loc(), msg))
+						msg := fmt.Sprintf("%v conflicts with rule defined at %v", childMod.Package, rule.Loc())
+						c.err(NewError(TypeErr, mod.Package.Loc(), msg))
 					}
 				}
 			}
@@ -432,7 +432,7 @@ func (c *Compiler) checkSafetyRuleBodies() {
 			reordered, unsafe := reorderBodyForSafety(safe, r.Body)
 			if len(unsafe) != 0 {
 				for v := range unsafe.Vars() {
-					c.err(NewError(UnsafeVarErr, r.Loc(), "%v: %v is unsafe (variable %v must appear in the output position of at least one non-negated expression)", r.Head.Name, v, v))
+					c.err(NewError(UnsafeVarErr, r.Loc(), "%v %v is unsafe", VarTypeName, v))
 				}
 			} else {
 				r.Body = reordered
@@ -453,7 +453,7 @@ func (c *Compiler) checkSafetyRuleHeads() {
 		for _, r := range m.Rules {
 			unsafe := r.Head.Vars().Diff(r.Body.Vars(safetyCheckVarVisitorParams))
 			for v := range unsafe {
-				c.err(NewError(UnsafeVarErr, r.Loc(), "%v: %v is unsafe (variable %v must appear in at least one expression within the body of %v)", r.Head.Name, v, v, r.Head.Name))
+				c.err(NewError(UnsafeVarErr, r.Loc(), "%v %v is unsafe", VarTypeName, v))
 			}
 		}
 	}
@@ -601,6 +601,7 @@ func (c *Compiler) rewriteRefsInHead() {
 					term := &Term{Value: local}
 					rule.Head.Key = term
 					expr := Equality.Expr(term, key)
+					expr.Location = rule.Loc()
 					rule.Body.Append(expr)
 				}
 			}
@@ -625,6 +626,7 @@ func (c *Compiler) rewriteRefsInHead() {
 					term := &Term{Value: local}
 					rule.Head.Value = term
 					expr := Equality.Expr(term, value)
+					expr.Location = rule.Loc()
 					rule.Body.Append(expr)
 				}
 			}
@@ -721,7 +723,7 @@ func (qc *queryCompiler) checkSafety(_ *QueryContext, body Body) (Body, error) {
 	if len(unsafe) != 0 {
 		var err Errors
 		for v := range unsafe.Vars() {
-			err = append(err, NewError(UnsafeVarErr, body.Loc(), "%v is unsafe (variable %v must appear in the output position of at least one non-negated expression)", v, v))
+			err = append(err, NewError(UnsafeVarErr, body.Loc(), "%v %v is unsafe", VarTypeName, v))
 		}
 		return nil, err
 	}
@@ -749,9 +751,9 @@ func (qc *queryCompiler) checkInputRec(definedPrev bool, body Body) error {
 		definedCurr := definesInput(expr)
 
 		if definedPrev && definedCurr {
-			return newConflictingInputErr(expr.Location)
+			return NewError(InputErr, expr.Location, "input document conflict")
 		} else if !definedCurr && !definedPrev && referencesInput(expr) {
-			return newUndefinedInputErr(expr.Location)
+			return NewError(InputErr, expr.Location, "input document not defined")
 		}
 
 		var err error
@@ -1000,19 +1002,19 @@ func (bc *builtinChecker) Visit(x interface{}) Visitor {
 		if ts, ok := x.Terms.([]*Term); ok {
 			if bi, ok := BuiltinMap[ts[0].Value.(Var)]; ok {
 				if bi.NumArgs != len(ts[1:]) {
-					msg := "wrong number of arguments (expression %s must specify %d arguments to built-in function %v)"
-					bc.err(CompileErr, x.Location, msg, x.Location.Text, bi.NumArgs, ts[0])
+					msg := "built-in function %v takes exactly %v arguments but got %v"
+					bc.err(TypeErr, x.Location, msg, ts[0], bi.NumArgs, len(ts[1:]))
 				}
 			} else {
 				msg := "unknown built-in function %v"
-				bc.err(CompileErr, x.Location, msg, ts[0])
+				bc.err(TypeErr, x.Location, msg, ts[0])
 			}
 		}
 	}
 	return bc
 }
 
-func (bc *builtinChecker) err(code ErrCode, loc *Location, f string, a ...interface{}) {
+func (bc *builtinChecker) err(code string, loc *Location, f string, a ...interface{}) {
 	if bc.prefix != "" {
 		f = bc.prefix + ": " + f
 	}
@@ -1052,7 +1054,7 @@ func (wc *withModifierChecker) checkTarget(w *With) {
 
 	if ref, ok := w.Target.Value.(Ref); ok {
 		if !ref.HasPrefix(InputRootRef) {
-			wc.err(CompileErr, w.Location, "with target must be %v (got %v as target)", InputRootDocument, w.Target)
+			wc.err(TypeErr, w.Location, "with keyword target must be %v", InputRootDocument)
 		}
 	}
 
@@ -1062,7 +1064,7 @@ func (wc *withModifierChecker) checkTarget(w *With) {
 
 func (wc *withModifierChecker) checkValue(w *With) {
 	WalkClosures(w.Value, func(c interface{}) bool {
-		wc.err(CompileErr, w.Location, "with value must not contain closures (found %v in with value)", c)
+		wc.err(TypeErr, w.Location, "with keyword value must not contain closures")
 		return true
 	})
 
@@ -1071,12 +1073,12 @@ func (wc *withModifierChecker) checkValue(w *With) {
 	}
 
 	WalkRefs(w.Value, func(r Ref) bool {
-		wc.err(CompileErr, w.Location, "with value must not contain references (found %v in with value)", r)
+		wc.err(TypeErr, w.Location, "with keyword value must not contain %vs", RefTypeName)
 		return true
 	})
 }
 
-func (wc *withModifierChecker) err(code ErrCode, loc *Location, f string, a ...interface{}) {
+func (wc *withModifierChecker) err(code string, loc *Location, f string, a ...interface{}) {
 	if wc.prefix != "" {
 		f = wc.prefix + ": " + f
 	}

@@ -15,9 +15,9 @@ func TestErrorsString(t *testing.T) {
 	}
 
 	expected := `3 errors occurred:
-blah
-100:2: bleh
-foo.rego:100: blarg`
+rego_parse_error: blah
+100:2: rego_parse_error: bleh
+foo.rego:100: rego_parse_error: blarg`
 	result := err.Error()
 
 	if result != expected {
@@ -25,7 +25,7 @@ foo.rego:100: blarg`
 	}
 
 	err = Errors{NewError(ParseErr, nil, "blah")}
-	expected = `1 error occurred: blah`
+	expected = `1 error occurred: rego_parse_error: blah`
 	result = err.Error()
 
 	if result != expected {

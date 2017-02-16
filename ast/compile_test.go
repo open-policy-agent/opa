@@ -77,16 +77,16 @@ unboundBuiltinOperator = eq { x = 1 }`,
 	)
 	compileStages(c, "", "checkSafetyHead")
 
-	makeErrMsg := func(rule, v string) string {
-		return fmt.Sprintf("%s: %s is unsafe (variable %s must appear in at least one expression within the body of %s)", rule, v, v, rule)
+	makeErrMsg := func(v string) string {
+		return fmt.Sprintf("rego_unsafe_var_error: var %v is unsafe", v)
 	}
 
 	expected := []string{
-		makeErrMsg("unboundCompositeKey", "x"),
-		makeErrMsg("unboundCompositeVal", "x"),
-		makeErrMsg("unboundKey", "x"),
-		makeErrMsg("unboundVal", "x"),
-		makeErrMsg("unboundBuiltinOperator", "eq"),
+		makeErrMsg("x"),
+		makeErrMsg("x"),
+		makeErrMsg("x"),
+		makeErrMsg("x"),
+		makeErrMsg("eq"),
 	}
 
 	result := compilerErrsToStringSlice(c.Errors)
@@ -222,40 +222,40 @@ unsafeWithValue2 = true { x = data.a.b.d.t with input as x }`,
 		)}
 	compileStages(c, "", "checkSafetyBody")
 
-	makeErrMsg := func(rule string, varName string) string {
-		return fmt.Sprintf("%v: %v is unsafe (variable %v must appear in the output position of at least one non-negated expression)", rule, varName, varName)
+	makeErrMsg := func(varName string) string {
+		return fmt.Sprintf("rego_unsafe_var_error: var %v is unsafe", varName)
 	}
 
 	expected := []string{
-		makeErrMsg("unboundRef1", "a"),
-		makeErrMsg("unboundRef2", "a"),
-		makeErrMsg("unboundNegated1", "i"),
-		makeErrMsg("unboundNegated1", "x"),
-		makeErrMsg("unboundNegated2", "i"),
-		makeErrMsg("unboundNegated2", "x"),
-		makeErrMsg("unboundNegated3", "i"),
-		makeErrMsg("unboundNegated3", "j"),
-		makeErrMsg("unboundNegated3", "x"),
-		makeErrMsg("unboundNegated4", "i"),
-		makeErrMsg("unboundNegated4", "j"),
-		makeErrMsg("unsafeBuiltin", "x"),
-		makeErrMsg("unsafeBuiltinOperator", "eq"),
-		makeErrMsg("unboundNoTarget", "x"),
-		makeErrMsg("unboundArrayComprBody1", "y"),
-		makeErrMsg("unboundArrayComprBody2", "z"),
-		makeErrMsg("unboundArrayComprBody3", "x"),
-		makeErrMsg("unboundArrayComprTerm1", "u"),
-		makeErrMsg("unboundArrayComprTerm2", "w"),
-		makeErrMsg("unboundArrayComprTerm3", "i"),
-		makeErrMsg("unboundArrayComprMixed1", "x"),
-		makeErrMsg("unboundArrayComprMixed1", "z"),
-		makeErrMsg("unboundBuiltinOperatorArrayCompr", "eq"),
-		makeErrMsg("unsafeClosure1", "x"),
-		makeErrMsg("unsafeClosure2", "y"),
-		makeErrMsg("unsafeNestedHead", "dead"),
-		makeErrMsg("rewriteUnsafe", "dead"),
-		makeErrMsg("unsafeWithValue1", "x"),
-		makeErrMsg("unsafeWithValue2", "x"),
+		makeErrMsg("a"),
+		makeErrMsg("a"),
+		makeErrMsg("i"),
+		makeErrMsg("x"),
+		makeErrMsg("i"),
+		makeErrMsg("x"),
+		makeErrMsg("i"),
+		makeErrMsg("j"),
+		makeErrMsg("x"),
+		makeErrMsg("i"),
+		makeErrMsg("j"),
+		makeErrMsg("x"),
+		makeErrMsg("eq"),
+		makeErrMsg("x"),
+		makeErrMsg("y"),
+		makeErrMsg("z"),
+		makeErrMsg("x"),
+		makeErrMsg("u"),
+		makeErrMsg("w"),
+		makeErrMsg("i"),
+		makeErrMsg("x"),
+		makeErrMsg("z"),
+		makeErrMsg("eq"),
+		makeErrMsg("x"),
+		makeErrMsg("y"),
+		makeErrMsg("dead"),
+		makeErrMsg("dead"),
+		makeErrMsg("x"),
+		makeErrMsg("x"),
 	}
 
 	result := compilerErrsToStringSlice(c.Errors)
@@ -290,9 +290,9 @@ data_target = true { req_dep with data.p as "foo" }`,
 	compileStages(c, "", "checkWithModifiers")
 
 	expected := []string{
-		"closure_in_value: with value must not contain closures (found [null | null] in with value)",
-		"data_target: with target must be input (got data.p as target)",
-		"ref_in_value: with value must not contain references (found data.badwith.p in with value)",
+		"rego_type_error: closure_in_value: with keyword value must not contain closures",
+		"rego_type_error: data_target: with keyword target must be input",
+		"rego_type_error: ref_in_value: with keyword value must not contain refs",
 	}
 
 	assertCompilerErrorStrings(t, c, expected)
@@ -312,9 +312,9 @@ r = true { [x | deadbeef(1, 2, x)] }`,
 	compileStages(c, "", "checkBuiltins")
 
 	expected := []string{
-		"p: wrong number of arguments (expression count(1) must specify 2 arguments to built-in function count)",
-		"q: wrong number of arguments (expression count([1, 2, 3], x, 1) must specify 2 arguments to built-in function count)",
-		"r: unknown built-in function deadbeef",
+		"rego_type_error: p: built-in function count takes exactly 2 arguments but got 1",
+		"rego_type_error: q: built-in function count takes exactly 2 arguments but got 3",
+		"rego_type_error: r: unknown built-in function deadbeef",
 	}
 
 	assertCompilerErrorStrings(t, c, expected)
@@ -346,11 +346,11 @@ foo = 3 { true }`,
 	compileStages(c, "", "checkRuleConflicts")
 
 	expected := []string{
-		"foo: multiple default rule definitions found",
-		"p: conflicting rule types (all definitions of p must have the same type)",
-		"package badrules.r: package declaration conflicts with rule defined at mod1.rego:7",
-		"package badrules.r: package declaration conflicts with rule defined at mod1.rego:8",
-		"q: conflicting rule types (all definitions of q must have the same type)",
+		"rego_type_error: conflicting rules named p found",
+		"rego_type_error: conflicting rules named q found",
+		"rego_type_error: multiple default rules named foo found",
+		"rego_type_error: package badrules.r conflicts with rule defined at mod1.rego:7",
+		"rego_type_error: package badrules.r conflicts with rule defined at mod1.rego:8",
 	}
 
 	assertCompilerErrorStrings(t, c, expected)
@@ -570,7 +570,7 @@ dataref = true { data }`,
 	compileStages(c, "", "checkRecursion")
 
 	makeErrMsg := func(rule string, loop ...string) string {
-		return fmt.Sprintf("%v: recursive reference: %s (recursion is not allowed)", rule, strings.Join(loop, " -> "))
+		return fmt.Sprintf("rego_recursion_error: rule %v is recursive: %v", rule, strings.Join(loop, " -> "))
 	}
 
 	expected := []string{
@@ -968,15 +968,15 @@ func TestQueryCompiler(t *testing.T) {
 	}{
 		{"exports resolved", "z", `package a.b.c`, nil, "", "data.a.b.c.z"},
 		{"imports resolved", "z", `package a.b.c.d`, []string{"import data.a.b.c.z"}, "", "data.a.b.c.z"},
-		{"unsafe vars", "z", "", nil, "", fmt.Errorf("1 error occurred: 1:1: z is unsafe (variable z must appear in the output position of at least one non-negated expression)")},
+		{"unsafe vars", "z", "", nil, "", fmt.Errorf("1 error occurred: 1:1: rego_unsafe_var_error: var z is unsafe")},
 		{"safe vars", `data; abc`, `package ex`, []string{"import input.xyz as abc"}, `{}`, `data; input.xyz`},
 		{"reorder", `x != 1; x = 0`, "", nil, "", `x = 0; x != 1`},
-		{"bad builtin", "deadbeef(1,2,3)", "", nil, "", fmt.Errorf("1 error occurred: 1:1: unknown built-in function deadbeef")},
-		{"bad with target", "x = 1 with data.p as null", "", nil, "", fmt.Errorf("1 error occurred: 1:7: with target must be input (got data.p as target)")},
+		{"bad builtin", "deadbeef(1,2,3)", "", nil, "", fmt.Errorf("1 error occurred: 1:1: rego_type_error: unknown built-in function deadbeef")},
+		{"bad with target", "x = 1 with data.p as null", "", nil, "", fmt.Errorf("1 error occurred: 1:7: rego_type_error: with keyword target must be input")},
 		// wrapping refs in extra terms to cover error handling
-		{"undefined input", `[[true | [data.a.b.d.t, true]], true]`, "", nil, "", fmt.Errorf("5:12: input document undefined")},
-		{"conflicting input", `[true | data.a.b.d.t with input as 1]`, "", nil, "2", fmt.Errorf("1:9: conflicting input document")},
-		{"conflicting input-2", `sum([1 | data.a.b.d.t with input as 2], x) with input as 3`, "", nil, "", fmt.Errorf("1:10: conflicting input document")},
+		{"undefined input", `[[true | [data.a.b.d.t, true]], true]`, "", nil, "", fmt.Errorf("5:12: rego_input_error: input document not defined")},
+		{"conflicting input", `[true | data.a.b.d.t with input as 1]`, "", nil, "2", fmt.Errorf("1:9: rego_input_error: input document conflict")},
+		{"conflicting input-2", `sum([1 | data.a.b.d.t with input as 2], x) with input as 3`, "", nil, "", fmt.Errorf("1:10: rego_input_error: input document conflict")},
 	}
 
 	for _, tc := range tests {

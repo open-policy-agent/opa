@@ -69,22 +69,15 @@ func (loc *Location) String() string {
 // in the language is represented as a type that implements this interface:
 //
 // - Null, Boolean, Number, String
-// - Object, Array
-// - Variables
-// - References
+// - Object, Array, Set
+// - Variables, References
 // - Array Comprehensions
 type Value interface {
-	// Equal returns true if this value equals the other value.
-	Equal(other Value) bool
-
-	// IsGround returns true if this value is not a variable or contains no variables.
-	IsGround() bool
-
-	// String returns a human readable string representation of the value.
-	String() string
-
-	// Returns hash code of the value.
-	Hash() int
+	Equal(other Value) bool            // Equal returns true if this value equals the other value.
+	Find(path []string) (Value, error) // Find returns value referred or an error if path is not found.
+	Hash() int                         // Returns hash code of the value.
+	IsGround() bool                    // IsGround returns true if this value is not a variable or contains no variables.
+	String() string                    // String returns a human readable string representation of the value.
 }
 
 // InterfaceToValue converts a native Go value x to a Value.
@@ -125,6 +118,17 @@ func InterfaceToValue(x interface{}) (Value, error) {
 	default:
 		return nil, fmt.Errorf("illegal value: %v", x)
 	}
+}
+
+// MustInterfaceToValue converts a native Go value x to a Value. If the
+// conversion fails, this function will panic. This function is mostly for test
+// purposes.
+func MustInterfaceToValue(x interface{}) Value {
+	v, err := InterfaceToValue(x)
+	if err != nil {
+		panic(err)
+	}
+	return v
 }
 
 // Term is an argument to a function.
@@ -262,6 +266,14 @@ func (null Null) Equal(other Value) bool {
 	}
 }
 
+// Find returns the current value or a not found error.
+func (null Null) Find(path []string) (Value, error) {
+	if len(path) == 0 {
+		return null, nil
+	}
+	return nil, fmt.Errorf("find: not found")
+}
+
 // Hash returns the hash code for the Value.
 func (null Null) Hash() int {
 	return 0
@@ -292,6 +304,14 @@ func (bol Boolean) Equal(other Value) bool {
 	default:
 		return false
 	}
+}
+
+// Find returns the current value or a not found error.
+func (bol Boolean) Find(path []string) (Value, error) {
+	if len(path) == 0 {
+		return bol, nil
+	}
+	return nil, fmt.Errorf("find: not found")
 }
 
 // Hash returns the hash code for the Value.
@@ -339,6 +359,14 @@ func (num Number) Equal(other Value) bool {
 	default:
 		return false
 	}
+}
+
+// Find returns the current value or a not found error.
+func (num Number) Find(path []string) (Value, error) {
+	if len(path) == 0 {
+		return num, nil
+	}
+	return nil, fmt.Errorf("find: not found")
 }
 
 // Hash returns the hash code for the Value.
@@ -392,6 +420,14 @@ func (str String) Equal(other Value) bool {
 	}
 }
 
+// Find returns the current value or a not found error.
+func (str String) Find(path []string) (Value, error) {
+	if len(path) == 0 {
+		return str, nil
+	}
+	return nil, fmt.Errorf("find: not found")
+}
+
 // IsGround always returns true.
 func (str String) IsGround() bool {
 	return true
@@ -424,6 +460,14 @@ func (v Var) Equal(other Value) bool {
 	default:
 		return false
 	}
+}
+
+// Find returns the current value or a not found error.
+func (v Var) Find(path []string) (Value, error) {
+	if len(path) == 0 {
+		return v, nil
+	}
+	return nil, fmt.Errorf("find: not found")
 }
 
 // Hash returns the hash code for the Value.
@@ -500,6 +544,14 @@ func (ref Ref) Copy() Ref {
 // Equal returns true if ref is equal to other.
 func (ref Ref) Equal(other Value) bool {
 	return Compare(ref, other) == 0
+}
+
+// Find returns the current value or a not found error.
+func (ref Ref) Find(path []string) (Value, error) {
+	if len(path) == 0 {
+		return ref, nil
+	}
+	return nil, fmt.Errorf("find: not found")
 }
 
 // Hash returns the hash code for the Value.
@@ -613,6 +665,22 @@ func (arr Array) Equal(other Value) bool {
 	return Compare(arr, other) == 0
 }
 
+// Find returns the value at the index or an out-of-range error.
+func (arr Array) Find(path []string) (Value, error) {
+	if len(path) == 0 {
+		return arr, nil
+	}
+	idx, err := strconv.ParseInt(path[0], 10, 64)
+	if err != nil {
+		return nil, err
+	}
+	i := int(idx)
+	if i < 0 || i >= len(arr) {
+		return nil, fmt.Errorf("find: not found")
+	}
+	return arr[idx].Value.Find(path[1:])
+}
+
 // Hash returns the hash code for the Value.
 func (arr Array) Hash() int {
 	return termSliceHash(arr)
@@ -689,6 +757,14 @@ func (s *Set) String() string {
 // Equal returns true if s is equal to v.
 func (s *Set) Equal(v Value) bool {
 	return Compare(s, v) == 0
+}
+
+// Find returns the current value or a not found error.
+func (s *Set) Find(path []string) (Value, error) {
+	if len(path) == 0 {
+		return s, nil
+	}
+	return nil, fmt.Errorf("find: not found")
 }
 
 // Diff returns elements in s that are not in other.
@@ -798,6 +874,18 @@ func Item(key, value *Term) [2]*Term {
 // Equal returns true if obj is equal to other.
 func (obj Object) Equal(other Value) bool {
 	return Compare(obj, other) == 0
+}
+
+// Find returns the value at the key or undefined.
+func (obj Object) Find(path []string) (Value, error) {
+	if len(path) == 0 {
+		return obj, nil
+	}
+	value := obj.Get(StringTerm(path[0]))
+	if value == nil {
+		return nil, fmt.Errorf("find: not found")
+	}
+	return value.Value.Find(path[1:])
 }
 
 // Get returns the value of k in obj if k exists, otherwise nil.
@@ -962,6 +1050,14 @@ func (ac *ArrayComprehension) Copy() *ArrayComprehension {
 // Equal returns true if ac is equal to other.
 func (ac *ArrayComprehension) Equal(other Value) bool {
 	return Compare(ac, other) == 0
+}
+
+// Find returns the current value or a not found error.
+func (ac *ArrayComprehension) Find(path []string) (Value, error) {
+	if len(path) == 0 {
+		return ac, nil
+	}
+	return nil, fmt.Errorf("find: not found")
 }
 
 // Hash returns the hash code of the Value.

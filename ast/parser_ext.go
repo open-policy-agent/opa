@@ -370,7 +370,7 @@ func parseModule(stmts []Statement) (*Module, error) {
 	_package, ok := stmts[0].(*Package)
 	if !ok {
 		loc := stmts[0].(Statement).Loc()
-		errs = append(errs, NewError(ParseErr, loc, "expected %v (found %v)", PackageTypeName, TypeName(stmts[0])))
+		errs = append(errs, NewError(ParseErr, loc, "expected %v", PackageTypeName))
 	}
 
 	mod := &Module{
@@ -386,7 +386,7 @@ func parseModule(stmts []Statement) (*Module, error) {
 		case Body:
 			rule, err := ParseRuleFromBody(stmt)
 			if err != nil {
-				errs = append(errs, NewError(ParseErr, stmt[0].Location, "expected %v (%v)", RuleTypeName, err))
+				errs = append(errs, NewError(ParseErr, stmt[0].Location, err.Error()))
 			} else {
 				mod.Rules = append(mod.Rules, rule)
 			}

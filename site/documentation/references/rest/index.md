@@ -1655,12 +1655,26 @@ Content-Type: application/json
 
 ## Errors
 
-All of the API endpoints use standard HTTP error codes to indicate success or failure of an API call. If an API call fails, the response will contain a JSON encoded object that provides more detail:
+All of the API endpoints use standard HTTP status codes to indicate success or
+failure of an API call. If an API call fails, the response will contain a JSON
+encoded object that provides more detail. The `errors` and `location` fields are
+optional:
 
 ```
 {
-  "code": 404,
-  "message": "storage error (code: 1): module not found: missing_id"
+  "code": "invalid_parameter",
+  "message": "error(s) occurred while compiling module(s)",
+  "errors": [
+    {
+      "code": "rego_unsafe_var_error",
+      "message": "var x is unsafe",
+      "location": {
+        "file": "example",
+        "row": 3,
+        "col": 1
+      }
+    }
+  ]
 }
 ```
 

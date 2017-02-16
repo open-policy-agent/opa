@@ -211,12 +211,12 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 	input, nonGround, err := parseInput(r.URL.Query()[ParamInputV1])
 
 	if err != nil {
-		handleError(w, 400, err)
+		handleError(w, http.StatusBadRequest, codeInvalidParameter, err)
 		return
 	}
 
 	if nonGround && explainMode != explainOffV1 {
-		handleError(w, 400, fmt.Errorf("explanations with non-ground input values not supported"))
+		handleErrorf(w, http.StatusBadRequest, newAPIErrorV1(codeInvalidParameter, "not supported: explanations with non-ground input values"))
 		return
 	}
 
@@ -286,7 +286,7 @@ func (s *Server) v1DataPatch(w http.ResponseWriter, r *http.Request) {
 	ops := []patchV1{}
 
 	if err := util.NewJSONDecoder(r.Body).Decode(&ops); err != nil {
-		handleError(w, 400, err)
+		handleError(w, http.StatusBadRequest, codeInvalidParameter, err)
 		return
 	}
 
@@ -324,7 +324,7 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 
 	input, err := readInput(r.Body)
 	if err != nil {
-		handleError(w, 400, err)
+		handleError(w, http.StatusBadRequest, codeInvalidParameter, err)
 		return
 	}
 
@@ -388,7 +388,7 @@ func (s *Server) v1DataPut(w http.ResponseWriter, r *http.Request) {
 
 	var value interface{}
 	if err := util.NewJSONDecoder(r.Body).Decode(&value); err != nil {
-		handleError(w, 400, err)
+		handleError(w, http.StatusBadRequest, codeInvalidParameter, err)
 		return
 	}
 
@@ -402,7 +402,7 @@ func (s *Server) v1DataPut(w http.ResponseWriter, r *http.Request) {
 
 	path, ok := storage.ParsePath("/" + strings.Trim(vars["path"], "/"))
 	if !ok {
-		handleErrorf(w, 400, "bad path format %v", vars["path"])
+		handleErrorf(w, http.StatusBadRequest, newAPIErrorV1(codeInvalidParameter, "bad path: %v", vars["path"]))
 		return
 	}
 
@@ -455,7 +455,7 @@ func (s *Server) v1PoliciesDelete(w http.ResponseWriter, r *http.Request) {
 	c := ast.NewCompiler()
 
 	if c.Compile(mods); c.Failed() {
-		handleErrorAST(w, 400, compileModErrMsg, c.Errors)
+		handleErrorf(w, http.StatusBadRequest, newAPIErrorV1(codeInvalidOperation, msgCompileModuleError).WithASTErrors(c.Errors))
 		return
 	}
 
@@ -551,7 +551,7 @@ func (s *Server) v1PoliciesPut(w http.ResponseWriter, r *http.Request) {
 
 	buf, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		handleError(w, 500, err)
+		handleError(w, http.StatusBadRequest, codeInvalidParameter, err)
 		return
 	}
 
@@ -560,15 +560,15 @@ func (s *Server) v1PoliciesPut(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		switch err := err.(type) {
 		case ast.Errors:
-			handleErrorAST(w, 400, compileModErrMsg, err)
+			handleErrorf(w, http.StatusBadRequest, newAPIErrorV1(codeInvalidParameter, msgCompileModuleError).WithASTErrors(err))
 		default:
-			handleError(w, 400, err)
+			handleError(w, http.StatusBadRequest, codeInvalidParameter, err)
 		}
 		return
 	}
 
 	if parsedMod == nil {
-		handleErrorf(w, 400, "refusing to add empty module")
+		handleErrorf(w, http.StatusBadRequest, newAPIErrorV1(codeInvalidParameter, "empty module"))
 		return
 	}
 
@@ -587,7 +587,7 @@ func (s *Server) v1PoliciesPut(w http.ResponseWriter, r *http.Request) {
 	c := ast.NewCompiler()
 
 	if c.Compile(mods); c.Failed() {
-		handleErrorAST(w, 400, compileModErrMsg, c.Errors)
+		handleErrorf(w, http.StatusBadRequest, newAPIErrorV1(codeInvalidParameter, msgCompileModuleError).WithASTErrors(c.Errors))
 		return
 	}
 
@@ -615,7 +615,7 @@ func (s *Server) v1QueryGet(w http.ResponseWriter, r *http.Request) {
 	explainMode := getExplain(r.URL.Query()["explain"])
 	qStrs := values["q"]
 	if len(qStrs) == 0 {
-		handleErrorf(w, 400, "missing query parameter 'q'")
+		handleErrorf(w, http.StatusBadRequest, newAPIErrorV1(codeInvalidParameter, "missing parameter 'q'"))
 		return
 	}
 
@@ -655,9 +655,9 @@ func (s *Server) v1QueryGet(w http.ResponseWriter, r *http.Request) {
 func handleCompileError(w http.ResponseWriter, err error) {
 	switch err := err.(type) {
 	case ast.Errors:
-		handleErrorAST(w, 400, compileQueryErrMsg, err)
+		handleErrorf(w, http.StatusBadRequest, newAPIErrorV1(codeInvalidParameter, msgCompileQueryError).WithASTErrors(err))
 	default:
-		handleError(w, 400, err)
+		handleError(w, http.StatusBadRequest, codeInvalidParameter, err)
 	}
 }
 
@@ -779,61 +779,47 @@ func stringPathToRef(s string) (r ast.Ref) {
 	return r
 }
 
-func handleError(w http.ResponseWriter, code int, err error) {
-	handleErrorf(w, code, err.Error())
-}
-
 func handleErrorAuto(w http.ResponseWriter, err error) {
 	var prev error
 	for curr := err; curr != prev; {
 		if isBadRequest(curr) {
-			handleError(w, http.StatusBadRequest, err)
-			return
-		}
-		if ast.IsError(ast.UndefinedInputErr, curr) {
-			handleError(w, http.StatusBadRequest, errMissingInputDoc)
-			return
-		}
-		if ast.IsError(ast.ConflictingInputErr, curr) {
-			handleError(w, http.StatusBadRequest, errConflictInputDoc)
-			return
-		}
-		if storage.IsInvalidPatch(curr) {
-			handleError(w, http.StatusBadRequest, err)
+			handleError(w, http.StatusBadRequest, codeInvalidParameter, err)
 			return
 		}
 		if isWriteConflict(curr) {
-			handleError(w, http.StatusNotFound, err)
+			handleError(w, http.StatusNotFound, codeResourceConflict, err)
+			return
+		}
+		if topdown.IsError(curr) {
+			handleErrorf(w, http.StatusInternalServerError, newAPIErrorV1(codeInternal, msgEvaluationError).WithError(curr))
+		}
+		if ast.IsError(ast.InputErr, curr) {
+			handleErrorf(w, http.StatusBadRequest, newAPIErrorV1(codeInvalidParameter, msgInputDocError).WithError(curr))
+			return
+		}
+		if storage.IsInvalidPatch(curr) {
+			handleError(w, http.StatusBadRequest, codeInvalidParameter, err)
 			return
 		}
 		if storage.IsNotFound(curr) {
-			handleError(w, http.StatusNotFound, err)
+			handleError(w, http.StatusNotFound, codeResourceNotFound, err)
 			return
 		}
 		prev = curr
 		curr = errors.Cause(prev)
 	}
-	handleError(w, 500, err)
+	handleError(w, 500, codeInternal, err)
 }
 
-func handleErrorf(w http.ResponseWriter, code int, f string, a ...interface{}) {
-	headers := w.Header()
-	headers.Add("Content-Type", "application/json")
-	e := &apiErrorV1{Code: code, Message: fmt.Sprintf(f, a...)}
-	w.WriteHeader(code)
-	w.Write(e.Bytes())
+func handleError(w http.ResponseWriter, status int, code string, err error) {
+	handleErrorf(w, status, newAPIErrorV1(code, err.Error()))
 }
 
-func handleErrorAST(w http.ResponseWriter, code int, msg string, errs ast.Errors) {
+func handleErrorf(w http.ResponseWriter, status int, err *apiErrorV1) {
 	headers := w.Header()
 	headers.Add("Content-Type", "application/json")
-	e := &astErrorV1{
-		Code:    code,
-		Message: msg,
-		Errors:  errs,
-	}
-	w.WriteHeader(code)
-	w.Write(e.Bytes())
+	w.WriteHeader(status)
+	w.Write(err.Bytes())
 }
 
 func handleResponse(w http.ResponseWriter, code int, bs []byte) {
@@ -886,8 +872,6 @@ func getExplain(p []string) explainModeV1 {
 }
 
 var errInputPathFormat = fmt.Errorf(`input parameter format is [[<path>]:]<value> where <path> is either var or ref`)
-var errMissingInputDoc = fmt.Errorf(`query requires input document (hint: POST /data[/path] {"input": value})`)
-var errConflictInputDoc = fmt.Errorf(`query already defines input document`)
 
 // readInput reads the query input from r and returns an input value that can be
 // used for query evaluation.
@@ -910,7 +894,7 @@ func readInput(r io.ReadCloser) (ast.Value, error) {
 		}
 
 		if request.Input == nil {
-			return nil, errMissingInputDoc
+			return nil, fmt.Errorf(msgInputDocError)
 		}
 
 		var err error
@@ -1090,10 +1074,6 @@ func badPatchOperationError(op string) error {
 
 func badPatchPathError(path string) error {
 	return badRequestError(fmt.Sprintf("bad patch path: %v", path))
-}
-
-func missingInputError(path string) error {
-	return badRequestError(fmt.Sprintf("query requires input document (hint: POST /data%v {\"input\": ...})", path))
 }
 
 func (err badRequestError) Error() string {
