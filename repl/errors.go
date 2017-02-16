@@ -8,7 +8,7 @@ import "fmt"
 
 // Error is the error type returned by the REPL.
 type Error struct {
-	Code    ErrCode
+	Code    string
 	Message string
 }
 
@@ -16,13 +16,10 @@ func (err *Error) Error() string {
 	return fmt.Sprintf("code %v: %v", err.Code, err.Message)
 }
 
-// ErrCode represents the collection of errors that may be returned by the REPL.
-type ErrCode int
-
 const (
 	// BadArgsErr indicates bad arguments were provided to a built-in REPL
 	// command.
-	BadArgsErr ErrCode = iota
+	BadArgsErr string = "bad arguments"
 )
 
 func newBadArgsErr(f string, a ...interface{}) *Error {

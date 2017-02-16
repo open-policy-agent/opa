@@ -44,7 +44,7 @@ func TestNewPathForRef(t *testing.T) {
 	}{
 		{ast.Ref{}, nil, fmt.Errorf("empty reference (indicates error in caller)")},
 		{ast.MustParseRef("data.foo[x]"), nil, fmt.Errorf("unresolved reference (indicates error in caller): data.foo[x]")},
-		{ast.MustParseRef("data.foo[true]"), nil, notFoundRefError(ast.MustParseRef("data.foo[true]"), doesNotExistMsg)},
+		{ast.MustParseRef("data.foo[true]"), nil, notFoundRefError(ast.MustParseRef("data.foo[true]"))},
 		{ast.MustParseRef("data"), Path{}, nil},
 		{ast.MustParseRef("data.foo"), Path{"foo"}, nil},
 		{ast.MustParseRef("data.foo[1]"), Path{"foo", "1"}, nil},

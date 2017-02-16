@@ -48,7 +48,7 @@ func NewPathForRef(ref ast.Ref) (path Path, err error) {
 		case ast.Number:
 			path = append(path, v.String())
 		case ast.Boolean, ast.Null:
-			return nil, notFoundRefError(ref, doesNotExistMsg)
+			return nil, notFoundRefError(ref)
 		default:
 			return nil, fmt.Errorf("unresolved reference (indicates error in caller): %v", ref)
 		}

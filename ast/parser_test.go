@@ -377,7 +377,7 @@ func TestExprWith(t *testing.T) {
 		},
 	})
 
-	assertParseErrorEquals(t, "invalid import path", `data.foo with foo.bar as "x"`, "invalid path foo.bar: path must begin with input or data")
+	assertParseErrorEquals(t, "invalid import path", `data.foo with foo.bar as "x"`, "rego_parse_error: invalid path foo.bar: path must begin with input or data")
 }
 
 func TestMultiLineBody(t *testing.T) {
@@ -441,9 +441,9 @@ func TestImport(t *testing.T) {
 	assertParseImport(t, "single alias", "import input.foo as bar", &Import{Path: foo, Alias: Var("bar")})
 	assertParseImport(t, "multiple alias", "import input.foo.bar.baz as qux", &Import{Path: foobarbaz, Alias: Var("qux")})
 	assertParseImport(t, "white space", "import input.foo.bar[\"white space\"]", &Import{Path: whitespace})
-	assertParseErrorEquals(t, "non-ground ref", "import data.foo[x]", "invalid path data.foo[x]: path elements must be strings")
-	assertParseErrorEquals(t, "non-string", "import input.foo[0]", "invalid path input.foo[0]: path elements must be strings")
-	assertParseErrorEquals(t, "unknown root", "import foo.bar", "invalid path foo.bar: path must begin with input or data")
+	assertParseErrorEquals(t, "non-ground ref", "import data.foo[x]", "rego_parse_error: invalid path data.foo[x]: path elements must be strings")
+	assertParseErrorEquals(t, "non-string", "import input.foo[0]", "rego_parse_error: invalid path input.foo[0]: path elements must be strings")
+	assertParseErrorEquals(t, "unknown root", "import foo.bar", "rego_parse_error: invalid path foo.bar: path must begin with input or data")
 }
 
 func TestIsValidImportPath(t *testing.T) {
@@ -574,10 +574,10 @@ func TestRule(t *testing.T) {
 			Body: MustParseBody(`[data.a[0]] = [{"x": x}]; count(x, 3); sum(x, y); y > 100`),
 		})
 
-	assertParseErrorEquals(t, "object composite key", "p[[x,y]] = z { true }", "object key must be one of string, var, ref not array")
-	assertParseErrorEquals(t, "default ref value", "default p = [data.foo]", "default rule value cannot contain ref")
-	assertParseErrorEquals(t, "default var value", "default p = [x]", "default rule value cannot contain var")
-	assertParseErrorEquals(t, "empty rule body", "p {}", "body must be non-empty")
+	assertParseErrorEquals(t, "object composite key", "p[[x,y]] = z { true }", "rego_parse_error: object key must be one of string, var, ref not array")
+	assertParseErrorEquals(t, "default ref value", "default p = [data.foo]", "rego_parse_error: default rule value cannot contain ref")
+	assertParseErrorEquals(t, "default var value", "default p = [x]", "rego_parse_error: default rule value cannot contain var")
+	assertParseErrorEquals(t, "empty rule body", "p {}", "rego_parse_error: body must be non-empty")
 
 	// TODO(tsandall): improve error checking here. This is a common mistake
 	// and the current error message is not very good. Need to investigate if the
@@ -854,7 +854,7 @@ func TestNoMatchError(t *testing.T) {
 
 	_, err := ParseModule("foo.rego", mod)
 
-	expected := "1 error occurred: foo.rego:3: no match found, unexpected '{'"
+	expected := "1 error occurred: foo.rego:3: rego_parse_error: no match found, unexpected '{'"
 
 	if err.Error() != expected {
 		t.Fatalf("Bad parse error, expected %v but got: %v", expected, err)

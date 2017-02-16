@@ -31,33 +31,29 @@ func (e Errors) Error() string {
 	return fmt.Sprintf("%d errors occurred:\n%s", len(e), strings.Join(s, "\n"))
 }
 
-// ErrCode defines the types of errors returned during parsing, compiling, etc.
-type ErrCode int
-
 const (
 	// ParseErr indicates an unclassified parse error occurred.
-	ParseErr = iota
+	ParseErr = "rego_parse_error"
 
 	// CompileErr indicates an unclassified compile error occurred.
-	CompileErr = iota
+	CompileErr = "rego_compile_error"
+
+	// TypeErr indicates a type error was caught.
+	TypeErr = "rego_type_error"
 
 	// UnsafeVarErr indicates an unsafe variable was found during compilation.
-	UnsafeVarErr = iota
+	UnsafeVarErr = "rego_unsafe_var_error"
 
 	// RecursionErr indicates recursion was found during compilation.
-	RecursionErr = iota
+	RecursionErr = "rego_recursion_error"
 
-	// UndefinedInputErr indicates the query depends on input but no input
-	// document was provided.
-	UndefinedInputErr = iota
-
-	// ConflictingInputErr indicates the query defines conflicting values for
-	// input document.
-	ConflictingInputErr = iota
+	// InputErr indicates the query depends on input but no input or conflicting
+	// input was provided.
+	InputErr = "rego_input_error"
 )
 
 // IsError returns true if err is an AST error with code.
-func IsError(code ErrCode, err error) bool {
+func IsError(code string, err error) bool {
 	if err, ok := err.(*Error); ok {
 		return err.Code == code
 	}
@@ -66,40 +62,38 @@ func IsError(code ErrCode, err error) bool {
 
 // Error represents a single error caught during parsing, compiling, etc.
 type Error struct {
-	Code     ErrCode   `json:"code"`
-	Location *Location `json:"location"`
+	Code     string    `json:"code"`
 	Message  string    `json:"message"`
+	Location *Location `json:"location,omitempty"`
 }
 
 func (e *Error) Error() string {
-	if e.Location == nil {
-		return e.Message
+
+	var prefix string
+
+	if e.Location != nil {
+
+		if len(e.Location.File) > 0 {
+			prefix += e.Location.File + ":" + fmt.Sprint(e.Location.Row)
+		} else {
+			prefix += fmt.Sprint(e.Location.Row) + ":" + fmt.Sprint(e.Location.Col)
+		}
 	}
 
-	prefix := ""
+	msg := fmt.Sprintf("%v: %v", e.Code, e.Message)
 
-	if len(e.Location.File) > 0 {
-		prefix += e.Location.File + ":" + fmt.Sprint(e.Location.Row)
-	} else {
-		prefix += fmt.Sprint(e.Location.Row) + ":" + fmt.Sprint(e.Location.Col)
+	if len(prefix) > 0 {
+		msg = prefix + ": " + msg
 	}
 
-	return fmt.Sprintf("%v: %v", prefix, e.Message)
+	return msg
 }
 
 // NewError returns a new Error object.
-func NewError(code ErrCode, loc *Location, f string, a ...interface{}) *Error {
+func NewError(code string, loc *Location, f string, a ...interface{}) *Error {
 	return &Error{
 		Code:     code,
 		Location: loc,
 		Message:  fmt.Sprintf(f, a...),
 	}
-}
-
-func newUndefinedInputErr(loc *Location) error {
-	return NewError(UndefinedInputErr, loc, "input document undefined")
-}
-
-func newConflictingInputErr(loc *Location) error {
-	return NewError(ConflictingInputErr, loc, "conflicting input document")
 }

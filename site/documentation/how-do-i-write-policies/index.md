@@ -318,7 +318,7 @@ outside the set, OPA will complain:
 
 ```ruby
 > {1,2,3} = {3,x,2}
-error: 1 error occurred: 1:1: repl0: x is unsafe (variable x must appear in the output position of at least one non-negated expression)
+1 error occurred: 1:1: rego_unsafe_var_error: var x is unsafe
 ```
 
 Because sets share curly-brace syntax with objects, and an empty object is
@@ -770,7 +770,7 @@ Error:
 
 ```
 > max_memory
-error: evaluation error (code: 1): completely defined rules must produce exactly one value
+max_memory: eval_conflict_error: completely defined rules must produce exactly one value
 ```
 
 OPA returns an error in this case because the rule definitions are in *conflict*. The value produced by max_memory cannot be 32 and 4 **at the same time**.

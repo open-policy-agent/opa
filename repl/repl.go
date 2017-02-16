@@ -169,7 +169,7 @@ loop:
 			case stop:
 				goto exit
 			default:
-				fmt.Fprintln(r.output, "error:", err)
+				fmt.Fprintln(r.output, err)
 			}
 		}
 
@@ -610,13 +610,9 @@ func (r *REPL) evalStatement(ctx context.Context, stmt interface{}) error {
 		if err != nil {
 			return err
 		}
-
 		return r.evalBody(ctx, compiler, input, body)
-
 	case *ast.Rule:
-		if err := r.compileRule(s); err != nil {
-			fmt.Fprintln(r.output, "error:", err)
-		}
+		return r.compileRule(s)
 	case *ast.Import:
 		return r.evalImport(s)
 	case *ast.Package:
@@ -751,6 +747,7 @@ func (r *REPL) evalTermSingleValue(ctx context.Context, compiler *ast.Compiler, 
 	for _, with := range body[0].With {
 		expr = expr.IncludeWith(with.Target, with.Value)
 	}
+	expr.Location = body.Loc()
 	body = ast.NewBody(expr)
 
 	t := topdown.New(ctx, body, compiler, r.store, r.txn)
@@ -806,6 +803,7 @@ func (r *REPL) evalTermMultiValue(ctx context.Context, compiler *ast.Compiler, i
 	for _, with := range body[0].With {
 		expr = expr.IncludeWith(with.Target, with.Value)
 	}
+	expr.Location = body.Loc()
 	body = ast.NewBody(expr)
 
 	t := topdown.New(ctx, body, compiler, r.store, r.txn)

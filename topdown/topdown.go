@@ -240,6 +240,22 @@ func (t *Topdown) WithTracer(tracer Tracer) *Topdown {
 	return &cpy
 }
 
+// currentLocation returns the current expression's location or the first
+// fallback that has a location set, otherwise nil.
+func (t *Topdown) currentLocation(fallback ...ast.Statement) *ast.Location {
+	curr := t.Current().Location
+	if curr != nil {
+		return curr
+	}
+	for i := range fallback {
+		curr = fallback[i].Loc()
+		if curr != nil {
+			return curr
+		}
+	}
+	return nil
+}
+
 func (t *Topdown) traceEnter(node interface{}) {
 	if t.tracingEnabled() {
 		evt := t.makeEvent(EnterOp, node)
@@ -1316,7 +1332,7 @@ func evalRefRuleCompleteDocSingle(t *Topdown, rule *ast.Rule, redo bool, last as
 		// If document is already defined, check for conflict.
 		if last != nil {
 			if !last.Equal(result) {
-				return completeDocConflictErr(t.Current().Location)
+				return completeDocConflictErr(t.currentLocation(rule))
 			}
 		} else {
 			last = result
@@ -1369,7 +1385,7 @@ func evalRefRulePartialObjectDoc(t *Topdown, ref ast.Ref, path ast.Ref, rule *as
 			}
 
 			if !ast.IsScalar(key) {
-				return objectDocKeyTypeErr(t.Current().Location)
+				return objectDocKeyTypeErr(t.currentLocation(rule))
 			}
 
 			value := PlugValue(rule.Head.Value.Value, child.Binding)
@@ -1402,7 +1418,7 @@ func evalRefRulePartialObjectDoc(t *Topdown, ref ast.Ref, path ast.Ref, rule *as
 			}
 		}
 		if !ast.IsScalar(key) {
-			return objectDocKeyTypeErr(t.Current().Location)
+			return objectDocKeyTypeErr(t.currentLocation(rule))
 		}
 		if doc, ok := docs[key]; ok {
 			return evalRefRuleResult(t, ref, ref[len(path)+1:], doc, iter)
@@ -1444,7 +1460,7 @@ func evalRefRulePartialObjectDoc(t *Topdown, ref ast.Ref, path ast.Ref, rule *as
 			}
 
 			if !ast.IsScalar(key) {
-				return objectDocKeyTypeErr(t.Current().Location)
+				return objectDocKeyTypeErr(t.currentLocation(rule))
 			}
 
 			cache[key] = value
@@ -1496,7 +1512,7 @@ func evalRefRulePartialObjectDocFull(t *Topdown, ref ast.Ref, rules []*ast.Rule,
 			}
 
 			if !ast.IsScalar(key) {
-				return objectDocKeyTypeErr(t.Current().Location)
+				return objectDocKeyTypeErr(t.currentLocation(rule))
 			}
 
 			value := PlugValue(rule.Head.Value.Value, child.Binding)
@@ -1506,7 +1522,7 @@ func evalRefRulePartialObjectDocFull(t *Topdown, ref ast.Ref, rules []*ast.Rule,
 			}
 
 			if exist := keys.Get(key); exist != nil && !exist.Equal(value) {
-				return objectDocKeyConflictErr(t.Current().Location)
+				return objectDocKeyConflictErr(t.currentLocation(rule))
 			}
 
 			keys.Put(key, value)

@@ -126,6 +126,42 @@ func TestTermEqual(t *testing.T) {
 	assertTermNotEqual(t, ArrayComprehensionTerm(VarTerm("x"), NewBody(&Expr{Terms: RefTerm(VarTerm("a"), VarTerm("j"))})), ArrayComprehensionTerm(VarTerm("x"), NewBody(&Expr{Terms: RefTerm(VarTerm("a"), VarTerm("i"))})))
 }
 
+func TestFind(t *testing.T) {
+
+	term := MustParseTerm(`{"foo": [1,{"bar": {2,3,4}}], "baz": {"qux": ["hello", "world"]}}`)
+
+	tests := []struct {
+		path     string
+		expected interface{}
+	}{
+		{"foo/1/bar", MustParseTerm(`{2, 3, 4}`)},
+		{"foo/2", fmt.Errorf("not found")},
+		{"baz/qux/0", MustParseTerm(`"hello"`)},
+	}
+
+	for _, tc := range tests {
+		result, err := term.Value.Find(strings.Split(tc.path, "/"))
+		switch expected := tc.expected.(type) {
+		case *Term:
+			if err != nil {
+				t.Fatalf("Unexpected error occurred for %v: %v", tc.path, err)
+			}
+			if !result.Equal(expected.Value) {
+				t.Fatalf("Expected value %v for %v but got: %v", expected, tc.path, result)
+			}
+		case error:
+			if err == nil {
+				t.Fatalf("Expected error but got: %v", result)
+			}
+			if !strings.Contains(err.Error(), expected.Error()) {
+				t.Fatalf("Expected error to contain %v but got: %v", expected, err)
+			}
+		default:
+			panic("bad expected type")
+		}
+	}
+}
+
 func TestHash(t *testing.T) {
 
 	doc := `{"a": [[true, {"b": [null]}, {"c": "d"}]], "e": {100: a[i].b}, "k": ["foo" | true], "s": {1, 2, {3, 4}}, "big": 1e+1000}`

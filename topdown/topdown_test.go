@@ -1180,7 +1180,7 @@ loopback = input { true }`})
 
 	assertTopDown(t, compiler, store, "loopback", []string{"z", "loopback"}, `{"foo": 1}`, `{"foo": 1}`)
 
-	assertTopDown(t, compiler, store, "loopback undefined", []string{"z", "loopback"}, ``, fmt.Errorf("input document undefined"))
+	assertTopDown(t, compiler, store, "loopback undefined", []string{"z", "loopback"}, ``, fmt.Errorf("input document not defined"))
 
 	assertTopDown(t, compiler, store, "simple", []string{"z", "p"}, `{
 		"req1": {"foo": 4},

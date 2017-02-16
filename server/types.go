@@ -6,6 +6,7 @@ package server
 
 import (
 	"encoding/json"
+	"fmt"
 
 	"strings"
 
@@ -14,36 +15,55 @@ import (
 	"github.com/open-policy-agent/opa/util"
 )
 
+const (
+	codeInternal         = "internal_error"
+	codeEvaluation       = "evaluation_error"
+	codeInvalidParameter = "invalid_parameter"
+	codeInvalidOperation = "invalid_operation"
+	codeResourceNotFound = "resource_not_found"
+	codeResourceConflict = "resource_conflict"
+)
+
 // apiErrorV1 models an error response sent to the client.
 type apiErrorV1 struct {
-	Code    int    `json:"code"`
-	Message string `json:"message"`
+	Code    string  `json:"code"`
+	Message string  `json:"message"`
+	Errors  []error `json:"errors,omitempty"`
 }
 
-func (err *apiErrorV1) Bytes() []byte {
-	if bs, err := json.MarshalIndent(err, "", "  "); err == nil {
+func newAPIErrorV1(code, f string, a ...interface{}) *apiErrorV1 {
+	return &apiErrorV1{
+		Code:    code,
+		Message: fmt.Sprintf(f, a...),
+	}
+}
+
+func (e *apiErrorV1) WithError(err error) *apiErrorV1 {
+	e.Errors = append(e.Errors, err)
+	return e
+}
+
+func (e *apiErrorV1) WithASTErrors(errors []*ast.Error) *apiErrorV1 {
+	e.Errors = make([]error, len(errors))
+	for i := range e.Errors {
+		e.Errors[i] = errors[i]
+	}
+	return e
+}
+
+func (e *apiErrorV1) Bytes() []byte {
+	if bs, err := json.MarshalIndent(e, "", "  "); err == nil {
 		return bs
 	}
 	return nil
 }
 
-// astErrorV1 models the error response sent to the client when a parse or
-// compile error occurs.
-type astErrorV1 struct {
-	Code    int          `json:"code"`
-	Message string       `json:"message"`
-	Errors  []*ast.Error `json:"errors"`
-}
-
-func (err *astErrorV1) Bytes() []byte {
-	if bs, err := json.MarshalIndent(err, "", "  "); err == nil {
-		return bs
-	}
-	return nil
-}
-
-const compileModErrMsg = "error(s) occurred while compiling module(s)"
-const compileQueryErrMsg = "error(s) occurred while compiling query"
+const (
+	msgCompileModuleError = "error(s) occurred while compiling module(s)"
+	msgCompileQueryError  = "error(s) occurred while compiling query"
+	msgEvaluationError    = "error(s) occurred while evaluating query"
+	msgInputDocError      = "input document is missing or conflicts with query"
+)
 
 // patchV1 models a single patch operation against a document.
 type patchV1 struct {

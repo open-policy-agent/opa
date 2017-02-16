@@ -207,7 +207,7 @@ q = {1, 2, 3} { true }`,
 
 	// Output:
 	//
-	// code: 2
+	// code: rego_unsafe_var_error
 	// row: 3
 	// filename: example_error.rego
 }

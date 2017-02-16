@@ -299,7 +299,7 @@ func TestUnset(t *testing.T) {
 
 	err = repl.OneShot(ctx, `true = input`)
 
-	if !strings.Contains(err.Error(), "undefined") {
+	if !strings.Contains(err.Error(), "input document not defined") {
 		t.Fatalf("Expected undefined error but got: %v", err)
 	}
 }
@@ -653,18 +653,17 @@ func TestEvalRuleCompileError(t *testing.T) {
 	store := newTestStore()
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
-	repl.OneShot(ctx, `p[x] { true }`)
-	result := buffer.String()
-	expected := "error: 1 error occurred: 1:1: p: x is unsafe (variable x must appear in at least one expression within the body of p)\n"
-	if result != expected {
-		t.Errorf("Expected error message in output but got: %v", result)
+	err := repl.OneShot(ctx, `p[x] { true }`)
+	expected := "x is unsafe"
+	if !strings.Contains(err.Error(), expected) {
+		t.Errorf("Expected error to contain %v but got: %v (err: %v)", expected, buffer.String(), err)
 		return
 	}
 	buffer.Reset()
-	repl.OneShot(ctx, `p = true { true }`)
-	result = buffer.String()
-	if result != "" {
-		t.Errorf("Expected valid rule to compile (because state should be unaffected) but got: %v", result)
+	err = repl.OneShot(ctx, `p = true { true }`)
+	result := buffer.String()
+	if err != nil || result != "" {
+		t.Errorf("Expected valid rule to compile (because state should be unaffected) but got: %v (err: %v)", result, err)
 	}
 }
 
@@ -807,7 +806,7 @@ func TestEvalBodyWith(t *testing.T) {
 	repl.OneShot(ctx, `p = true { input.foo = "bar" }`)
 	err := repl.OneShot(ctx, "p")
 
-	if err == nil || !strings.Contains(err.Error(), "input document undefined") {
+	if err == nil || !strings.Contains(err.Error(), "input document not defined") {
 		t.Fatalf("Expected input document undefined error")
 	}
 
@@ -861,7 +860,7 @@ func TestEvalPackage(t *testing.T) {
 	repl.OneShot(ctx, `package baz.qux`)
 	buffer.Reset()
 	err := repl.OneShot(ctx, "p")
-	if err.Error() != "1 error occurred: 1:1: p is unsafe (variable p must appear in the output position of at least one non-negated expression)" {
+	if !strings.Contains(err.Error(), "p is unsafe") {
 		t.Fatalf("Expected unsafe variable error but got: %v", err)
 	}
 	repl.OneShot(ctx, "import data.foo.bar.p")

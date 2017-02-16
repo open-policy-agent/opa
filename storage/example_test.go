@@ -75,7 +75,7 @@ func ExampleStorage_Read() {
 	// v1: wine
 	// err1: <nil>
 	// v2: <nil>
-	// err2: storage error (code: 1): bad path: /users/0/age, document does not exist
+	// err2: storage_not_found_error: /users/0/age: document does not exist
 	// err2 is not found: true
 }
 
@@ -156,7 +156,7 @@ func ExampleStorage_Write() {
 	// err0: <nil>
 	// v1: -62.338889
 	// err1: <nil>
-	// err2: storage error (code: 1): bad path: /users/1/color, document does not exist
+	// err2: storage_not_found_error: /users/1/color: document does not exist
 
 }
 

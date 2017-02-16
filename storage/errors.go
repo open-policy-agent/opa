@@ -10,51 +10,50 @@ import (
 	"github.com/open-policy-agent/opa/ast"
 )
 
-// ErrCode represents the collection of errors that may be returned by the
-// storage layer.
-type ErrCode int
-
 const (
 	// InternalErr indicates an unknown, internal error has occurred.
-	InternalErr ErrCode = iota
+	InternalErr = "storage_internal_error"
 
 	// NotFoundErr indicates the path used in the storage operation does not
 	// locate a document.
-	NotFoundErr = iota
+	NotFoundErr = "storage_not_found_error"
 
 	// InvalidPatchErr indicates an invalid patch/write was issued. The patch
 	// was rejected.
-	InvalidPatchErr = iota
+	InvalidPatchErr = "storage_invalid_patch_error"
 
 	// MountConflictErr indicates a mount attempt was made on a path that is
 	// already used for a mount.
-	MountConflictErr = iota
+	MountConflictErr = "storage_mount_conflict_error"
 
 	// IndexNotFoundErr indicates the caller attempted to use indexing on a
 	// reference that has not been indexed.
-	IndexNotFoundErr = iota
+	IndexNotFoundErr = "storage_index_not_found_error"
 
 	// IndexingNotSupportedErr indicates the caller attempted to index a
 	// reference provided by a store that does not support indexing.
-	IndexingNotSupportedErr = iota
+	IndexingNotSupportedErr = "storage_indexing_not_supported_error"
 
 	// TriggersNotSupportedErr indicates the caller attempted to register a
 	// trigger against a store that does not support them.
-	TriggersNotSupportedErr = iota
+	TriggersNotSupportedErr = "storage_triggers_not_supported_error"
 
 	// WritesNotSupportedErr indicate the caller attempted to perform a write
 	// against a store that does not support them.
-	WritesNotSupportedErr = iota
+	WritesNotSupportedErr = "storage_writes_not_supported_error"
 )
 
 // Error is the error type returned by the storage layer.
 type Error struct {
-	Code    ErrCode
-	Message string
+	Code    string `json:"code"`
+	Message string `json:"message"`
 }
 
 func (err *Error) Error() string {
-	return fmt.Sprintf("storage error (code: %d): %v", err.Code, err.Message)
+	if err.Message != "" {
+		return fmt.Sprintf("%v: %v", err.Code, err.Message)
+	}
+	return string(err.Code)
 }
 
 // IsNotFound returns true if this error is a NotFoundErr.
@@ -83,15 +82,13 @@ var arrayIndexTypeMsg = "array index must be integer"
 
 func indexNotFoundError() *Error {
 	return &Error{
-		Code:    IndexNotFoundErr,
-		Message: "index not found",
+		Code: IndexNotFoundErr,
 	}
 }
 
 func indexingNotSupportedError() *Error {
 	return &Error{
-		Code:    IndexingNotSupportedErr,
-		Message: "indexing not supported",
+		Code: IndexingNotSupportedErr,
 	}
 }
 
@@ -103,37 +100,28 @@ func internalError(f string, a ...interface{}) *Error {
 }
 
 func invalidPatchErr(f string, a ...interface{}) *Error {
-	msg := fmt.Sprintf("bad patch")
-	if len(f) > 0 {
-		msg += ": " + fmt.Sprintf(f, a...)
-	}
 	return &Error{
 		Code:    InvalidPatchErr,
-		Message: msg,
+		Message: fmt.Sprintf(f, a...),
 	}
 }
 
 func mountConflictError() *Error {
 	return &Error{
-		Code:    MountConflictErr,
-		Message: "mount conflict",
+		Code: MountConflictErr,
 	}
 }
 
-func notFoundError(path Path, f string, a ...interface{}) *Error {
-	msg := fmt.Sprintf("bad path: %v", path)
-	if len(f) > 0 {
-		msg += ", " + fmt.Sprintf(f, a...)
-	}
-	return notFoundErrorf(msg)
+func notFoundError(path Path) *Error {
+	return notFoundErrorf("%v: %v", path.String(), doesNotExistMsg)
 }
 
-func notFoundRefError(ref ast.Ref, f string, a ...interface{}) *Error {
-	msg := fmt.Sprintf("bad path: %v", ref)
-	if len(f) > 0 {
-		msg += ", " + fmt.Sprintf(f, a...)
-	}
-	return notFoundErrorf(msg)
+func notFoundErrorHint(path Path, hint string) *Error {
+	return notFoundErrorf("%v: %v", path.String(), hint)
+}
+
+func notFoundRefError(ref ast.Ref) *Error {
+	return notFoundErrorf("%v: %v", ref.String(), doesNotExistMsg)
 }
 
 func notFoundErrorf(f string, a ...interface{}) *Error {
@@ -146,14 +134,12 @@ func notFoundErrorf(f string, a ...interface{}) *Error {
 
 func triggersNotSupportedError() *Error {
 	return &Error{
-		Code:    TriggersNotSupportedErr,
-		Message: "triggers not supported",
+		Code: TriggersNotSupportedErr,
 	}
 }
 
 func writesNotSupportedError() *Error {
 	return &Error{
-		Code:    WritesNotSupportedErr,
-		Message: "writes not supported",
+		Code: WritesNotSupportedErr,
 	}
 }

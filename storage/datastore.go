@@ -166,7 +166,7 @@ func add(data map[string]interface{}, path Path, value interface{}) error {
 	case []interface{}:
 		return addInsertArray(data, path, node, value)
 	default:
-		return notFoundError(path, doesNotExistMsg)
+		return notFoundError(path)
 	}
 
 }
@@ -190,7 +190,7 @@ func addAppend(data map[string]interface{}, path Path, value interface{}) error 
 
 	node, ok := n.([]interface{})
 	if !ok {
-		return notFoundError(path, doesNotExistMsg)
+		return notFoundError(path)
 	}
 
 	node = append(node, value)
@@ -200,7 +200,7 @@ func addAppend(data map[string]interface{}, path Path, value interface{}) error 
 	case []interface{}:
 		i, err := strconv.ParseInt(e, 10, 64)
 		if err != nil {
-			return notFoundError(path, "array index must be integer")
+			return notFoundErrorHint(path, arrayIndexTypeMsg)
 		}
 		parent[i] = node
 	case map[string]interface{}:
@@ -236,7 +236,7 @@ func addInsertArray(data map[string]interface{}, path Path, node []interface{}, 
 	case []interface{}:
 		i, err := strconv.ParseInt(e, 10, 64)
 		if err != nil {
-			return notFoundError(path, "array index must be integer")
+			return notFoundErrorHint(path, arrayIndexTypeMsg)
 		}
 		parent[i] = node
 	default:
@@ -265,7 +265,7 @@ func get(data map[string]interface{}, path Path) (interface{}, error) {
 	head := path[0]
 	node, ok := data[head]
 	if !ok {
-		return nil, notFoundError(path, doesNotExistMsg)
+		return nil, notFoundError(path)
 
 	}
 
@@ -287,7 +287,7 @@ func get(data map[string]interface{}, path Path) (interface{}, error) {
 			node = n[idx]
 
 		default:
-			return nil, notFoundError(path, doesNotExistMsg)
+			return nil, notFoundError(path)
 		}
 	}
 
@@ -321,7 +321,7 @@ func remove(data map[string]interface{}, path Path) error {
 	case map[string]interface{}:
 		return removeObject(data, path, node)
 	default:
-		return notFoundError(path, doesNotExistMsg)
+		return notFoundError(path)
 	}
 }
 
@@ -347,7 +347,7 @@ func removeArray(data map[string]interface{}, path Path, node []interface{}) err
 	case []interface{}:
 		i, err := strconv.ParseInt(e, 10, 64)
 		if err != nil {
-			return notFoundError(path, "array index must be integer")
+			return notFoundErrorHint(path, arrayIndexTypeMsg)
 		}
 		parent[i] = node
 	default:
@@ -390,7 +390,7 @@ func replace(data map[string]interface{}, path Path, value interface{}) error {
 	case []interface{}:
 		return replaceArray(data, path, node, value)
 	default:
-		return notFoundError(path, doesNotExistMsg)
+		return notFoundError(path)
 	}
 
 }
@@ -423,7 +423,7 @@ func replaceArray(data map[string]interface{}, path Path, node []interface{}, va
 
 func checkObjectKey(path Path, node map[string]interface{}, v string) (string, error) {
 	if _, ok := node[v]; !ok {
-		return "", notFoundError(path, doesNotExistMsg)
+		return "", notFoundError(path)
 	}
 	return v, nil
 }
@@ -431,13 +431,13 @@ func checkObjectKey(path Path, node map[string]interface{}, v string) (string, e
 func checkArrayIndex(path Path, node []interface{}, v string) (int, error) {
 	i64, err := strconv.ParseInt(v, 10, 64)
 	if err != nil {
-		return 0, notFoundError(path, "array index must be integer")
+		return 0, notFoundErrorHint(path, arrayIndexTypeMsg)
 	}
 	i := int(i64)
 	if i >= len(node) {
-		return 0, notFoundError(path, outOfRangeMsg)
+		return 0, notFoundErrorHint(path, outOfRangeMsg)
 	} else if i < 0 {
-		return 0, notFoundError(path, outOfRangeMsg)
+		return 0, notFoundErrorHint(path, outOfRangeMsg)
 	}
 	return i, nil
 }

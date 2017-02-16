@@ -6,6 +6,7 @@ package server
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -154,14 +155,14 @@ p = true { false }`
 		{"put base write conflict", []tr{
 			tr{"PUT", "/data/a/b", `[1,2,3,4]`, 204, ""},
 			tr{"PUT", "/data/a/b/c/d", "0", 404, `{
-				"code": 404,
+				"code": "resource_conflict",
 				"message": "write conflict: /a/b"
 			}`},
 		}},
 		{"put virtual write conflict", []tr{
 			tr{"PUT", "/policies/test", testMod2, 200, ""},
 			tr{"PUT", "/data/testmod/q/x", "0", 404, `{
-				"code": 404,
+				"code": "resource_conflict",
 				"message": "write conflict: /testmod/q"
 			}`},
 		}},
@@ -173,7 +174,7 @@ p = true { false }`
 		{"patch virtual error", []tr{
 			tr{"PUT", "/policies/test", testMod1, 200, ""},
 			tr{"PATCH", "/data/testmod/p", `[{"op": "add", "path": "-", "value": 1}]`, 404, `{
-                "code": 404,
+                "code": "resource_conflict",
                 "message": "write conflict: /testmod/p"
             }`},
 		}},
@@ -184,9 +185,20 @@ p = true { false }`
 		{"get missing input", []tr{
 			tr{"PUT", "/policies/test", testMod1, 200, ""},
 			tr{"GET", "/data/testmod/g", "", 400, `{
-				"code": 400,
-				"message": "query requires input document (hint: POST /data[/path] {\"input\": value})"
-			}`},
+    		  "code": "invalid_parameter",
+    		  "errors": [
+    		    {
+    		      "code": "rego_input_error",
+    		      "location": {
+    		        "col": 12,
+    		        "file": "test",
+    		        "row": 10
+    		      },
+    		      "message": "input document not defined"
+    		    }
+    		  ],
+    		  "message": "input document is missing or conflicts with query"
+    		}`},
 		}},
 		{"get with input (missing input value)", []tr{
 			tr{"PUT", "/policies/test", testMod1, 200, ""},
@@ -214,21 +226,21 @@ p = true { false }`
 		}},
 		{"get with input (bad format)", []tr{
 			tr{"GET", "/data/deadbeef?input", "", 400, `{
-				"code": 400,
+				"code": "invalid_parameter",
 				"message": "input parameter format is [[<path>]:]<value> where <path> is either var or ref"
 			}`},
 			tr{"GET", "/data/deadbeef?input=", "", 400, `{
-				"code": 400,
+				"code": "invalid_parameter",
 				"message": "input parameter format is [[<path>]:]<value> where <path> is either var or ref"
 			}`},
 			tr{"GET", `/data/deadbeef?input="foo`, "", 400, `{
-				"code": 400,
+				"code": "invalid_parameter",
 				"message": "input parameter format is [[<path>]:]<value> where <path> is either var or ref"
 			}`},
 		}},
 		{"get with input (path error)", []tr{
 			tr{"GET", `/data/deadbeef?input="foo:1`, "", 400, `{
-				"code": 400,
+				"code": "invalid_parameter",
 				"message": "input parameter format is [[<path>]:]<value> where <path> is either var or ref"
 			}`},
 		}},
@@ -262,29 +274,62 @@ p = true { false }`
 		{"post missing input", []tr{
 			tr{"PUT", "/policies/test", testMod1, 200, ""},
 			tr{"POST", "/data/testmod/gt1", ``, 400, `{
-				"code": 400,
-				"message": "query requires input document (hint: POST /data[/path] {\"input\": value})"
+				"code": "invalid_parameter",
+				"message": "input document is missing or conflicts with query",
+				"errors": [
+					{
+						"code": "rego_input_error",
+						"location": {
+							"file": "test",
+							"row": 12,
+							"col": 14
+						},
+						"message": "input document not defined"
+					}
+				]
 			}`},
 		}},
 		{"post malformed input", []tr{
 			tr{"POST", "/data/deadbeef", `{"input": @}`, 400, `{
-				"code": 400,
+				"code": "invalid_parameter",
 				"message": "body contains malformed input document: invalid character '@' looking for beginning of value"
 			}`},
 		}},
 		{"evaluation conflict", []tr{
 			tr{"PUT", "/policies/test", testMod4, 200, ""},
 			tr{"POST", "/data/testmod/p", "", 500, `{
-				"code": 500,
-				"message": "evaluation error (code: 1): completely defined rules must produce exactly one value"
-			}`},
+    		  "code": "internal_error",
+    		  "errors": [
+    		    {
+    		      "code": "eval_conflict_error",
+    		      "location": {
+    		        "col": 1,
+    		        "file": "test",
+    		        "row": 4
+    		      },
+    		      "message": "completely defined rules must produce exactly one value"
+    		    }
+    		  ],
+    		  "message": "error(s) occurred while evaluating query"
+    		}`},
 		}},
 		{"input conflict", []tr{
 			tr{"PUT", "/policies/test", testMod3, 200, ""},
 			tr{"POST", "/data/testmod/p", `{"input": false}`, 400, `{
-				"code": 400,
-				"message": "query already defines input document"
-			}`},
+    		  "code": "invalid_parameter",
+    		  "errors": [
+    		    {
+    		      "code": "rego_input_error",
+    		      "location": {
+    		        "col": 12,
+    		        "file": "test",
+    		        "row": 3
+    		      },
+    		      "message": "input document conflict"
+    		    }
+    		  ],
+    		  "message": "input document is missing or conflicts with query"
+    		}`},
 		}},
 		{"query wildcards omitted", []tr{
 			tr{"PATCH", "/data/x", `[{"op": "add", "path": "/", "value": [1,2,3,4]}]`, 204, ""},
@@ -550,13 +595,25 @@ func TestPoliciesPutV1ParseError(t *testing.T) {
 		t.Fatalf("Expected bad request but got %v", f.recorder)
 	}
 
-	errs := astErrorV1{}
-	if err := util.NewJSONDecoder(f.recorder.Body).Decode(&errs); err != nil {
+	response := map[string]interface{}{}
+
+	if err := util.NewJSONDecoder(f.recorder.Body).Decode(&response); err != nil {
 		t.Fatalf("Unexpected JSON decode error: %v", err)
 	}
 
-	if errs.Errors[0].Location.File != "test" || errs.Errors[0].Location.Row != 4 {
-		t.Fatalf("Bad location: %v (expecfted test:4)", errs)
+	if !reflect.DeepEqual(response["code"], codeInvalidParameter) {
+		t.Fatalf("Expected code %v but got: %v", codeInvalidParameter, response)
+	}
+
+	v := ast.MustInterfaceToValue(response)
+
+	name, err := v.Find([]string{"errors", "0", "location", "file"})
+	if err != nil {
+		t.Fatalf("Expecfted to find name in errors but: %v", err)
+	}
+
+	if !name.Equal(ast.String("test")) {
+		t.Fatalf("Expected name ot equal test but got: %v", name)
 	}
 }
 
@@ -574,26 +631,25 @@ q[x] { p[x] }`,
 		t.Fatalf("Expected bad request but got %v", f.recorder)
 	}
 
-	errs := astErrorV1{}
-	if err := util.NewJSONDecoder(f.recorder.Body).Decode(&errs); err != nil {
+	response := map[string]interface{}{}
+
+	if err := util.NewJSONDecoder(f.recorder.Body).Decode(&response); err != nil {
 		t.Fatalf("Unexpected JSON decode error: %v", err)
 	}
 
-	if len(errs.Errors) != 2 {
-		t.Fatalf("Expected exactly two errors but got %d: %v", len(errs.Errors), errs)
+	if !reflect.DeepEqual(response["code"], codeInvalidParameter) {
+		t.Fatalf("Expected code %v but got: %v", codeInvalidParameter, response)
 	}
 
-	found := false
+	v := ast.MustInterfaceToValue(response)
 
-	for _, err := range errs.Errors {
-		if err.Location.File == "test" && err.Location.Row == 3 {
-			found = true
-			break
-		}
+	name, err := v.Find([]string{"errors", "0", "location", "file"})
+	if err != nil {
+		t.Fatalf("Expecfted to find name in errors but: %v", err)
 	}
 
-	if !found {
-		t.Fatalf("Missing expected error %v (expected test:3)", errs)
+	if !name.Equal(ast.String("test")) {
+		t.Fatalf("Expected name ot equal test but got: %v", name)
 	}
 }
 
@@ -902,7 +958,15 @@ func (f *fixture) executeRequest(req *http.Request, code int, resp string) error
 			panic(err)
 		}
 		if !reflect.DeepEqual(result, expected) {
-			return fmt.Errorf("Expected JSON response from %v %v to equal %v but got: %v", req.Method, req.URL, expected, result)
+			a, err := json.MarshalIndent(expected, "", "  ")
+			if err != nil {
+				panic(err)
+			}
+			b, err := json.MarshalIndent(result, "", "  ")
+			if err != nil {
+				panic(err)
+			}
+			return fmt.Errorf("Expected JSON response from %v %v to equal:\n\n%s\n\nGot:\n\n%s", req.Method, req.URL, a, b)
 		}
 	}
 	return nil
