@@ -876,7 +876,7 @@ func TestQueryBindingIterationError(t *testing.T) {
 		panic(err)
 	}
 
-	server, err := New(ctx, store, ":8182", false)
+	server, err := New().WithStorage(store).WithAddress(":8182").Init(ctx)
 	if err != nil {
 		panic(err)
 	}
@@ -915,7 +915,10 @@ type fixture struct {
 func newFixture(t *testing.T) *fixture {
 	ctx := context.Background()
 	store := storage.New(storage.InMemoryConfig().WithPolicyDir(policyDir))
-	server, err := New(ctx, store, ":8182", false)
+	server, err := New().
+		WithAddress(":8182").
+		WithStorage(store).
+		Init(ctx)
 	if err != nil {
 		panic(err)
 	}
