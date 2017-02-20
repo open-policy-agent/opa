@@ -146,7 +146,11 @@ func (rt *Runtime) startServer(ctx context.Context, params *Params) {
 
 	persist := len(params.PolicyDir) > 0
 
-	s, err := server.New(ctx, rt.Store, params.Addr, persist)
+	s, err := server.New().
+		WithStorage(rt.Store).
+		WithAddress(params.Addr).
+		WithPersist(persist).
+		Init(ctx)
 
 	if err != nil {
 		glog.Fatalf("Error creating server: %v", err)

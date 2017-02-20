@@ -41,13 +41,9 @@ type Server struct {
 }
 
 // New returns a new Server.
-func New(ctx context.Context, store *storage.Storage, addr string, persist bool) (*Server, error) {
+func New() *Server {
 
-	s := &Server{
-		addr:    addr,
-		persist: persist,
-		store:   store,
-	}
+	s := &Server{}
 
 	// Initialize HTTP handlers.
 	router := mux.NewRouter()
@@ -68,17 +64,21 @@ func New(ctx context.Context, store *storage.Storage, addr string, persist bool)
 	router.HandleFunc("/", s.indexGet).Methods("GET")
 	s.Handler = router
 
-	// Initialize compiler with policies found in storage.
+	return s
+}
+
+// Init initializes the server. This function MUST be called before Loop.
+func (s *Server) Init(ctx context.Context) (*Server, error) {
+
+	// Load policies from storage and initialize server's compiler.
 	txn, err := s.store.NewTransaction(ctx)
 	if err != nil {
 		return nil, err
 	}
 
 	defer s.store.Close(ctx, txn)
-
 	modules := s.store.ListPolicies(txn)
 	compiler := ast.NewCompiler()
-
 	if compiler.Compile(modules); compiler.Failed() {
 		return nil, compiler.Errors
 	}
@@ -86,6 +86,24 @@ func New(ctx context.Context, store *storage.Storage, addr string, persist bool)
 	s.setCompiler(compiler)
 
 	return s, nil
+}
+
+// WithStorage sets the storage used by the server.
+func (s *Server) WithStorage(store *storage.Storage) *Server {
+	s.store = store
+	return s
+}
+
+// WithPersist indicates to server whether to persist policies.
+func (s *Server) WithPersist(yes bool) *Server {
+	s.persist = yes
+	return s
+}
+
+// WithAddress sets the listening address that the server will bind to.
+func (s *Server) WithAddress(addr string) *Server {
+	s.addr = addr
+	return s
 }
 
 // Compiler returns the server's compiler.
