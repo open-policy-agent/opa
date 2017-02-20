@@ -5,7 +5,9 @@
 package cmd
 
 import (
+	"crypto/tls"
 	"flag"
+	"fmt"
 	"os"
 	"path"
 	"path/filepath"
@@ -25,6 +27,10 @@ var defaultPolicyDir = "policies"
 
 // default listening address for the server
 var defaultAddr = ":8181"
+
+// Used for obtaining X.509 keypair.
+var tlsCertFile string
+var tlsPrivateKeyFile string
 
 func init() {
 
@@ -88,7 +94,16 @@ new policies save the definition file to this direcory. In addition, API calls
 to delete policies will remove the definition file.
 `,
 		Run: func(cmd *cobra.Command, args []string) {
+
+			cert, err := loadCertificate()
+			if err != nil {
+				fmt.Println("error:", err)
+				os.Exit(1)
+			}
+
 			params.Paths = args
+			params.Certificate = cert
+
 			rt := &runtime.Runtime{}
 			rt.Start(params)
 		},
@@ -101,6 +116,8 @@ to delete policies will remove the definition file.
 	runCommand.Flags().StringVarP(&params.Addr, "addr", "a", defaultAddr, "set listening address of the server")
 	runCommand.Flags().StringVarP(&params.OutputFormat, "format", "f", "pretty", "set shell output format, i.e, pretty, json")
 	runCommand.Flags().BoolVarP(&params.Watch, "watch", "w", false, "watch command line files for changes")
+	runCommand.Flags().StringVarP(&tlsCertFile, "tls-cert-file", "", "", "set path of TLS certificate file")
+	runCommand.Flags().StringVarP(&tlsPrivateKeyFile, "tls-private-key-file", "", "", "set path of TLS private key file")
 
 	wrapFlags(runCommand.Flags())
 	flag.Parse()
@@ -164,4 +181,19 @@ func wrapFlags(flags *pflag.FlagSet) {
 	flag.CommandLine.VisitAll(func(flg *flag.Flag) {
 		flags.Var(wrapFlag(flg.Value), flg.Name, flg.Usage)
 	})
+}
+
+func loadCertificate() (*tls.Certificate, error) {
+
+	if tlsCertFile != "" && tlsPrivateKeyFile != "" {
+		cert, err := tls.LoadX509KeyPair(tlsCertFile, tlsPrivateKeyFile)
+		if err != nil {
+			return nil, err
+		}
+		return &cert, nil
+	} else if tlsCertFile != "" || tlsPrivateKeyFile != "" {
+		return nil, fmt.Errorf("--tls-cert-file and --tls-private-key-file must be specified together")
+	}
+
+	return nil, nil
 }
