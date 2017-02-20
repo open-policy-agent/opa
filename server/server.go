@@ -16,6 +16,8 @@ import (
 	"sync"
 	"time"
 
+	"crypto/tls"
+
 	"github.com/gorilla/mux"
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/storage"
@@ -31,6 +33,7 @@ type Server struct {
 	Handler http.Handler
 
 	addr    string
+	cert    *tls.Certificate
 	persist bool
 
 	// access to the compiler is guarded by mtx
@@ -106,6 +109,12 @@ func (s *Server) WithAddress(addr string) *Server {
 	return s
 }
 
+// WithCertificate sets the server-side certificate that the server will use.
+func (s *Server) WithCertificate(cert *tls.Certificate) *Server {
+	s.cert = cert
+	return s
+}
+
 // Compiler returns the server's compiler.
 //
 // The server's compiler contains the compiled versions of all modules added to
@@ -120,7 +129,24 @@ func (s *Server) Compiler() *ast.Compiler {
 
 // Loop starts the server. This function does not return.
 func (s *Server) Loop() error {
-	return http.ListenAndServe(s.addr, s.Handler)
+	httpServer := http.Server{
+		Addr:    s.addr,
+		Handler: s.Handler,
+	}
+
+	if s.cert != nil {
+		httpServer.TLSConfig = &tls.Config{
+			Certificates: []tls.Certificate{*s.cert},
+		}
+	}
+
+	if httpServer.TLSConfig == nil {
+		return httpServer.ListenAndServe()
+	}
+
+	// http.Server will ignore the cert and key file params if the
+	// TLSConfig.Certificates field is set.
+	return httpServer.ListenAndServeTLS("", "")
 }
 
 func (s *Server) execQuery(ctx context.Context, compiler *ast.Compiler, txn storage.Transaction, query ast.Body, explainMode explainModeV1) (queryResponseV1, error) {

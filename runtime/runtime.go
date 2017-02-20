@@ -7,6 +7,7 @@ package runtime
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
 	"fmt"
 	"io"
 	"os"
@@ -30,6 +31,10 @@ type Params struct {
 
 	// Addr is the listening address that the OPA server will bind to.
 	Addr string
+
+	// Certificate is the certificate to use in server-mode. If the certificate
+	// is nil, the server will NOT use TLS.
+	Certificate *tls.Certificate
 
 	// Eval is a string to evaluate in the REPL.
 	Eval string
@@ -150,6 +155,7 @@ func (rt *Runtime) startServer(ctx context.Context, params *Params) {
 		WithStorage(rt.Store).
 		WithAddress(params.Addr).
 		WithPersist(persist).
+		WithCertificate(params.Certificate).
 		Init(ctx)
 
 	if err != nil {
