@@ -21,6 +21,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/server/types"
+	"github.com/open-policy-agent/opa/server/writer"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/topdown"
 	"github.com/open-policy-agent/opa/topdown/explain"
@@ -256,19 +257,19 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 	input, nonGround, err := parseInput(r.URL.Query()[types.ParamInputV1])
 
 	if err != nil {
-		handleError(w, http.StatusBadRequest, types.CodeInvalidParameter, err)
+		writer.ErrorString(w, http.StatusBadRequest, types.CodeInvalidParameter, err)
 		return
 	}
 
 	if nonGround && explainMode != types.ExplainOffV1 {
-		handleErrorf(w, http.StatusBadRequest, types.NewErrorV1(types.CodeInvalidParameter, "not supported: explanations with non-ground input values"))
+		writer.Error(w, http.StatusBadRequest, types.NewErrorV1(types.CodeInvalidParameter, "not supported: explanations with non-ground input values"))
 		return
 	}
 
 	// Prepare for query.
 	txn, err := s.store.NewTransaction(ctx)
 	if err != nil {
-		handleErrorAuto(w, err)
+		writer.ErrorAuto(w, err)
 		return
 	}
 
@@ -288,7 +289,7 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 
 	// Handle results.
 	if err != nil {
-		handleErrorAuto(w, err)
+		writer.ErrorAuto(w, err)
 		return
 	}
 
@@ -298,7 +299,7 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 		if explainMode == types.ExplainFullV1 {
 			result.Explanation = types.NewTraceV1(*buf)
 		}
-		handleResponseJSON(w, 200, result, pretty)
+		writer.JSON(w, 200, result, pretty)
 		return
 	}
 
@@ -315,13 +316,13 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 	case types.ExplainTruthV1:
 		answer, err := explain.Truth(compiler, *buf)
 		if err != nil {
-			handleErrorAuto(w, err)
+			writer.ErrorAuto(w, err)
 			return
 		}
 		result.Explanation = types.NewTraceV1(answer)
 	}
 
-	handleResponseJSON(w, 200, result, pretty)
+	writer.JSON(w, 200, result, pretty)
 }
 
 func (s *Server) v1DataPatch(w http.ResponseWriter, r *http.Request) {
@@ -331,13 +332,13 @@ func (s *Server) v1DataPatch(w http.ResponseWriter, r *http.Request) {
 	ops := []types.PatchV1{}
 
 	if err := util.NewJSONDecoder(r.Body).Decode(&ops); err != nil {
-		handleError(w, http.StatusBadRequest, types.CodeInvalidParameter, err)
+		writer.ErrorString(w, http.StatusBadRequest, types.CodeInvalidParameter, err)
 		return
 	}
 
 	txn, err := s.store.NewTransaction(ctx)
 	if err != nil {
-		handleErrorAuto(w, err)
+		writer.ErrorAuto(w, err)
 		return
 	}
 
@@ -345,18 +346,18 @@ func (s *Server) v1DataPatch(w http.ResponseWriter, r *http.Request) {
 
 	patches, err := s.prepareV1PatchSlice(vars["path"], ops)
 	if err != nil {
-		handleErrorAuto(w, err)
+		writer.ErrorAuto(w, err)
 		return
 	}
 
 	for _, patch := range patches {
 		if err := s.store.Write(ctx, txn, patch.op, patch.path, patch.value); err != nil {
-			handleErrorAuto(w, err)
+			writer.ErrorAuto(w, err)
 			return
 		}
 	}
 
-	handleResponse(w, 204, nil)
+	writer.Bytes(w, 204, nil)
 }
 
 func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
@@ -369,14 +370,14 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 
 	input, err := readInput(r.Body)
 	if err != nil {
-		handleError(w, http.StatusBadRequest, types.CodeInvalidParameter, err)
+		writer.ErrorString(w, http.StatusBadRequest, types.CodeInvalidParameter, err)
 		return
 	}
 
 	// Prepare for query.
 	txn, err := s.store.NewTransaction(ctx)
 	if err != nil {
-		handleErrorAuto(w, err)
+		writer.ErrorAuto(w, err)
 		return
 	}
 
@@ -396,7 +397,7 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 
 	// Handle results.
 	if err != nil {
-		handleErrorAuto(w, err)
+		writer.ErrorAuto(w, err)
 		return
 	}
 
@@ -406,7 +407,7 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 		if explainMode == types.ExplainFullV1 {
 			result.Explanation = types.NewTraceV1(*buf)
 		}
-		handleResponseJSON(w, 200, result, pretty)
+		writer.JSON(w, 200, result, pretty)
 		return
 	}
 
@@ -418,13 +419,13 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 	case types.ExplainTruthV1:
 		answer, err := explain.Truth(compiler, *buf)
 		if err != nil {
-			handleErrorAuto(w, err)
+			writer.ErrorAuto(w, err)
 			return
 		}
 		result.Explanation = types.NewTraceV1(answer)
 	}
 
-	handleResponseJSON(w, 200, result, pretty)
+	writer.JSON(w, 200, result, pretty)
 }
 
 func (s *Server) v1DataPut(w http.ResponseWriter, r *http.Request) {
@@ -433,13 +434,13 @@ func (s *Server) v1DataPut(w http.ResponseWriter, r *http.Request) {
 
 	var value interface{}
 	if err := util.NewJSONDecoder(r.Body).Decode(&value); err != nil {
-		handleError(w, http.StatusBadRequest, types.CodeInvalidParameter, err)
+		writer.ErrorString(w, http.StatusBadRequest, types.CodeInvalidParameter, err)
 		return
 	}
 
 	txn, err := s.store.NewTransaction(ctx)
 	if err != nil {
-		handleErrorAuto(w, err)
+		writer.ErrorAuto(w, err)
 		return
 	}
 
@@ -447,7 +448,7 @@ func (s *Server) v1DataPut(w http.ResponseWriter, r *http.Request) {
 
 	path, ok := storage.ParsePath("/" + strings.Trim(vars["path"], "/"))
 	if !ok {
-		handleErrorf(w, http.StatusBadRequest, types.NewErrorV1(types.CodeInvalidParameter, "bad path: %v", vars["path"]))
+		writer.Error(w, http.StatusBadRequest, types.NewErrorV1(types.CodeInvalidParameter, "bad path: %v", vars["path"]))
 		return
 	}
 
@@ -455,24 +456,24 @@ func (s *Server) v1DataPut(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		if !storage.IsNotFound(err) {
-			handleErrorAuto(w, err)
+			writer.ErrorAuto(w, err)
 			return
 		}
 		if err := s.makeDir(ctx, txn, path[:len(path)-1]); err != nil {
-			handleErrorAuto(w, err)
+			writer.ErrorAuto(w, err)
 			return
 		}
 	} else if r.Header.Get("If-None-Match") == "*" {
-		handleResponse(w, 304, nil)
+		writer.Bytes(w, 304, nil)
 		return
 	}
 
 	if err := s.store.Write(ctx, txn, storage.AddOp, path, value); err != nil {
-		handleErrorAuto(w, err)
+		writer.ErrorAuto(w, err)
 		return
 	}
 
-	handleResponse(w, 204, nil)
+	writer.Bytes(w, 204, nil)
 }
 
 func (s *Server) v1PoliciesDelete(w http.ResponseWriter, r *http.Request) {
@@ -482,7 +483,7 @@ func (s *Server) v1PoliciesDelete(w http.ResponseWriter, r *http.Request) {
 
 	txn, err := s.store.NewTransaction(ctx)
 	if err != nil {
-		handleErrorAuto(w, err)
+		writer.ErrorAuto(w, err)
 		return
 	}
 
@@ -490,7 +491,7 @@ func (s *Server) v1PoliciesDelete(w http.ResponseWriter, r *http.Request) {
 
 	_, _, err = s.store.GetPolicy(txn, id)
 	if err != nil {
-		handleErrorAuto(w, err)
+		writer.ErrorAuto(w, err)
 		return
 	}
 
@@ -500,18 +501,18 @@ func (s *Server) v1PoliciesDelete(w http.ResponseWriter, r *http.Request) {
 	c := ast.NewCompiler()
 
 	if c.Compile(mods); c.Failed() {
-		handleErrorf(w, http.StatusBadRequest, types.NewErrorV1(types.CodeInvalidOperation, types.MsgCompileModuleError).WithASTErrors(c.Errors))
+		writer.Error(w, http.StatusBadRequest, types.NewErrorV1(types.CodeInvalidOperation, types.MsgCompileModuleError).WithASTErrors(c.Errors))
 		return
 	}
 
 	if err := s.store.DeletePolicy(txn, id); err != nil {
-		handleErrorAuto(w, err)
+		writer.ErrorAuto(w, err)
 		return
 	}
 
 	s.setCompiler(c)
 
-	handleResponse(w, 204, nil)
+	writer.Bytes(w, 204, nil)
 }
 
 func (s *Server) v1PoliciesGet(w http.ResponseWriter, r *http.Request) {
@@ -521,7 +522,7 @@ func (s *Server) v1PoliciesGet(w http.ResponseWriter, r *http.Request) {
 
 	txn, err := s.store.NewTransaction(ctx)
 	if err != nil {
-		handleErrorAuto(w, err)
+		writer.ErrorAuto(w, err)
 		return
 	}
 
@@ -529,7 +530,7 @@ func (s *Server) v1PoliciesGet(w http.ResponseWriter, r *http.Request) {
 
 	_, _, err = s.store.GetPolicy(txn, id)
 	if err != nil {
-		handleErrorAuto(w, err)
+		writer.ErrorAuto(w, err)
 		return
 	}
 
@@ -542,7 +543,7 @@ func (s *Server) v1PoliciesGet(w http.ResponseWriter, r *http.Request) {
 		},
 	}
 
-	handleResponseJSON(w, 200, response, true)
+	writer.JSON(w, 200, response, true)
 }
 
 func (s *Server) v1PoliciesRawGet(w http.ResponseWriter, r *http.Request) {
@@ -552,7 +553,7 @@ func (s *Server) v1PoliciesRawGet(w http.ResponseWriter, r *http.Request) {
 
 	txn, err := s.store.NewTransaction(ctx)
 	if err != nil {
-		handleErrorAuto(w, err)
+		writer.ErrorAuto(w, err)
 		return
 	}
 
@@ -561,11 +562,11 @@ func (s *Server) v1PoliciesRawGet(w http.ResponseWriter, r *http.Request) {
 	_, bs, err := s.store.GetPolicy(txn, id)
 
 	if err != nil {
-		handleErrorAuto(w, err)
+		writer.ErrorAuto(w, err)
 		return
 	}
 
-	handleResponse(w, 200, bs)
+	writer.Bytes(w, 200, bs)
 }
 
 func (s *Server) v1PoliciesList(w http.ResponseWriter, r *http.Request) {
@@ -586,7 +587,7 @@ func (s *Server) v1PoliciesList(w http.ResponseWriter, r *http.Request) {
 		Result: policies,
 	}
 
-	handleResponseJSON(w, 200, response, true)
+	writer.JSON(w, 200, response, true)
 }
 
 func (s *Server) v1PoliciesPut(w http.ResponseWriter, r *http.Request) {
@@ -596,7 +597,7 @@ func (s *Server) v1PoliciesPut(w http.ResponseWriter, r *http.Request) {
 
 	buf, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		handleError(w, http.StatusBadRequest, types.CodeInvalidParameter, err)
+		writer.ErrorString(w, http.StatusBadRequest, types.CodeInvalidParameter, err)
 		return
 	}
 
@@ -605,22 +606,22 @@ func (s *Server) v1PoliciesPut(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		switch err := err.(type) {
 		case ast.Errors:
-			handleErrorf(w, http.StatusBadRequest, types.NewErrorV1(types.CodeInvalidParameter, types.MsgCompileModuleError).WithASTErrors(err))
+			writer.Error(w, http.StatusBadRequest, types.NewErrorV1(types.CodeInvalidParameter, types.MsgCompileModuleError).WithASTErrors(err))
 		default:
-			handleError(w, http.StatusBadRequest, types.CodeInvalidParameter, err)
+			writer.ErrorString(w, http.StatusBadRequest, types.CodeInvalidParameter, err)
 		}
 		return
 	}
 
 	if parsedMod == nil {
-		handleErrorf(w, http.StatusBadRequest, types.NewErrorV1(types.CodeInvalidParameter, "empty module"))
+		writer.Error(w, http.StatusBadRequest, types.NewErrorV1(types.CodeInvalidParameter, "empty module"))
 		return
 	}
 
 	txn, err := s.store.NewTransaction(ctx)
 
 	if err != nil {
-		handleErrorAuto(w, err)
+		writer.ErrorAuto(w, err)
 		return
 	}
 
@@ -632,12 +633,12 @@ func (s *Server) v1PoliciesPut(w http.ResponseWriter, r *http.Request) {
 	c := ast.NewCompiler()
 
 	if c.Compile(mods); c.Failed() {
-		handleErrorf(w, http.StatusBadRequest, types.NewErrorV1(types.CodeInvalidParameter, types.MsgCompileModuleError).WithASTErrors(c.Errors))
+		writer.Error(w, http.StatusBadRequest, types.NewErrorV1(types.CodeInvalidParameter, types.MsgCompileModuleError).WithASTErrors(c.Errors))
 		return
 	}
 
 	if err := s.store.InsertPolicy(txn, id, parsedMod, buf, s.persist); err != nil {
-		handleErrorAuto(w, err)
+		writer.ErrorAuto(w, err)
 		return
 	}
 
@@ -650,7 +651,7 @@ func (s *Server) v1PoliciesPut(w http.ResponseWriter, r *http.Request) {
 		},
 	}
 
-	handleResponseJSON(w, 200, response, true)
+	writer.JSON(w, 200, response, true)
 }
 
 func (s *Server) v1QueryGet(w http.ResponseWriter, r *http.Request) {
@@ -660,7 +661,7 @@ func (s *Server) v1QueryGet(w http.ResponseWriter, r *http.Request) {
 	explainMode := getExplain(r.URL.Query()["explain"])
 	qStrs := values["q"]
 	if len(qStrs) == 0 {
-		handleErrorf(w, http.StatusBadRequest, types.NewErrorV1(types.CodeInvalidParameter, "missing parameter 'q'"))
+		writer.Error(w, http.StatusBadRequest, types.NewErrorV1(types.CodeInvalidParameter, "missing parameter 'q'"))
 		return
 	}
 
@@ -668,7 +669,7 @@ func (s *Server) v1QueryGet(w http.ResponseWriter, r *http.Request) {
 
 	txn, err := s.store.NewTransaction(ctx)
 	if err != nil {
-		handleErrorAuto(w, err)
+		writer.ErrorAuto(w, err)
 		return
 	}
 
@@ -690,19 +691,19 @@ func (s *Server) v1QueryGet(w http.ResponseWriter, r *http.Request) {
 
 	results, err := s.execQuery(ctx, compiler, txn, compiled, explainMode)
 	if err != nil {
-		handleErrorAuto(w, err)
+		writer.ErrorAuto(w, err)
 		return
 	}
 
-	handleResponseJSON(w, 200, results, pretty)
+	writer.JSON(w, 200, results, pretty)
 }
 
 func handleCompileError(w http.ResponseWriter, err error) {
 	switch err := err.(type) {
 	case ast.Errors:
-		handleErrorf(w, http.StatusBadRequest, types.NewErrorV1(types.CodeInvalidParameter, types.MsgCompileQueryError).WithASTErrors(err))
+		writer.Error(w, http.StatusBadRequest, types.NewErrorV1(types.CodeInvalidParameter, types.MsgCompileQueryError).WithASTErrors(err))
 	default:
-		handleError(w, http.StatusBadRequest, types.CodeInvalidParameter, err)
+		writer.ErrorString(w, http.StatusBadRequest, types.CodeInvalidParameter, err)
 	}
 }
 
@@ -826,77 +827,6 @@ func stringPathToRef(s string) (r ast.Ref) {
 		}
 	}
 	return r
-}
-
-func handleErrorAuto(w http.ResponseWriter, err error) {
-	var prev error
-	for curr := err; curr != prev; {
-		if types.IsBadRequest(curr) {
-			handleError(w, http.StatusBadRequest, types.CodeInvalidParameter, err)
-			return
-		}
-		if types.IsWriteConflict(curr) {
-			handleError(w, http.StatusNotFound, types.CodeResourceConflict, err)
-			return
-		}
-		if topdown.IsError(curr) {
-			handleErrorf(w, http.StatusInternalServerError, types.NewErrorV1(types.CodeInternal, types.MsgEvaluationError).WithError(curr))
-		}
-		if ast.IsError(ast.InputErr, curr) {
-			handleErrorf(w, http.StatusBadRequest, types.NewErrorV1(types.CodeInvalidParameter, types.MsgInputDocError).WithError(curr))
-			return
-		}
-		if storage.IsInvalidPatch(curr) {
-			handleError(w, http.StatusBadRequest, types.CodeInvalidParameter, err)
-			return
-		}
-		if storage.IsNotFound(curr) {
-			handleError(w, http.StatusNotFound, types.CodeResourceNotFound, err)
-			return
-		}
-		prev = curr
-		curr = errors.Cause(prev)
-	}
-	handleError(w, http.StatusInternalServerError, types.CodeInternal, err)
-}
-
-func handleError(w http.ResponseWriter, status int, code string, err error) {
-	handleErrorf(w, status, types.NewErrorV1(code, err.Error()))
-}
-
-func handleErrorf(w http.ResponseWriter, status int, err *types.ErrorV1) {
-	headers := w.Header()
-	headers.Add("Content-Type", "application/json")
-	w.WriteHeader(status)
-	w.Write(err.Bytes())
-}
-
-func handleResponse(w http.ResponseWriter, code int, bs []byte) {
-	w.WriteHeader(code)
-	if code == 204 {
-		return
-	}
-	w.Write(bs)
-}
-
-func handleResponseJSON(w http.ResponseWriter, code int, v interface{}, pretty bool) {
-
-	var bs []byte
-	var err error
-
-	if pretty {
-		bs, err = json.MarshalIndent(v, "", "  ")
-	} else {
-		bs, err = json.Marshal(v)
-	}
-
-	if err != nil {
-		handleErrorAuto(w, err)
-		return
-	}
-	headers := w.Header()
-	headers.Add("Content-Type", "application/json")
-	handleResponse(w, code, bs)
 }
 
 func getPretty(p []string) bool {
