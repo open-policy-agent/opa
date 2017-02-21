@@ -111,7 +111,8 @@ func Imports(p []string) func(r *Rego) {
 	}
 }
 
-// Input returns an argument that sets the Rego input document.
+// Input returns an argument that sets the Rego input document. Input should be
+// a native Go value representing the input document.
 func Input(x interface{}) func(r *Rego) {
 	return func(r *Rego) {
 		r.rawInput = &x
@@ -196,6 +197,8 @@ func (r *Rego) Eval(ctx context.Context) (ResultSet, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	defer r.storage.Close(ctx, txn)
 
 	// Evaluate query
 	return r.eval(ctx, compiled, txn)
