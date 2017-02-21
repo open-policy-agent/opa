@@ -20,6 +20,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/server/types"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/topdown"
 	"github.com/open-policy-agent/opa/topdown/explain"
@@ -149,18 +150,18 @@ func (s *Server) Loop() error {
 	return httpServer.ListenAndServeTLS("", "")
 }
 
-func (s *Server) execQuery(ctx context.Context, compiler *ast.Compiler, txn storage.Transaction, query ast.Body, explainMode explainModeV1) (queryResponseV1, error) {
+func (s *Server) execQuery(ctx context.Context, compiler *ast.Compiler, txn storage.Transaction, query ast.Body, explainMode types.ExplainModeV1) (types.QueryResponseV1, error) {
 
 	t := topdown.New(ctx, query, s.Compiler(), s.store, txn)
 
 	var buf *topdown.BufferTracer
 
-	if explainMode != explainOffV1 {
+	if explainMode != types.ExplainOffV1 {
 		buf = topdown.NewBufferTracer()
 		t.Tracer = buf
 	}
 
-	qrs := adhocQueryResultSetV1{}
+	qrs := types.AdhocQueryResultSetV1{}
 
 	err := topdown.Eval(t, func(t *topdown.Topdown) error {
 		result := map[string]interface{}{}
@@ -180,22 +181,22 @@ func (s *Server) execQuery(ctx context.Context, compiler *ast.Compiler, txn stor
 	})
 
 	if err != nil {
-		return queryResponseV1{}, err
+		return types.QueryResponseV1{}, err
 	}
 
-	result := queryResponseV1{
+	result := types.QueryResponseV1{
 		Result: qrs,
 	}
 
 	switch explainMode {
-	case explainFullV1:
-		result.Explanation = newTraceV1(*buf)
-	case explainTruthV1:
+	case types.ExplainFullV1:
+		result.Explanation = types.NewTraceV1(*buf)
+	case types.ExplainTruthV1:
 		answer, err := explain.Truth(compiler, *buf)
 		if err != nil {
-			return queryResponseV1{}, err
+			return types.QueryResponseV1{}, err
 		}
-		result.Explanation = newTraceV1(answer)
+		result.Explanation = types.NewTraceV1(answer)
 	}
 
 	return result, nil
@@ -252,15 +253,15 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 	path := stringPathToDataRef(vars["path"])
 	pretty := getPretty(r.URL.Query()["pretty"])
 	explainMode := getExplain(r.URL.Query()["explain"])
-	input, nonGround, err := parseInput(r.URL.Query()[ParamInputV1])
+	input, nonGround, err := parseInput(r.URL.Query()[types.ParamInputV1])
 
 	if err != nil {
-		handleError(w, http.StatusBadRequest, codeInvalidParameter, err)
+		handleError(w, http.StatusBadRequest, types.CodeInvalidParameter, err)
 		return
 	}
 
-	if nonGround && explainMode != explainOffV1 {
-		handleErrorf(w, http.StatusBadRequest, newAPIErrorV1(codeInvalidParameter, "not supported: explanations with non-ground input values"))
+	if nonGround && explainMode != types.ExplainOffV1 {
+		handleErrorf(w, http.StatusBadRequest, types.NewErrorV1(types.CodeInvalidParameter, "not supported: explanations with non-ground input values"))
 		return
 	}
 
@@ -277,7 +278,7 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 	params := topdown.NewQueryParams(ctx, compiler, s.store, txn, input, path)
 
 	var buf *topdown.BufferTracer
-	if explainMode != explainOffV1 {
+	if explainMode != types.ExplainOffV1 {
 		buf = topdown.NewBufferTracer()
 		params.Tracer = buf
 	}
@@ -291,33 +292,33 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result := dataResponseV1{}
+	result := types.DataResponseV1{}
 
 	if qrs.Undefined() {
-		if explainMode == explainFullV1 {
-			result.Explanation = newTraceV1(*buf)
+		if explainMode == types.ExplainFullV1 {
+			result.Explanation = types.NewTraceV1(*buf)
 		}
 		handleResponseJSON(w, 200, result, pretty)
 		return
 	}
 
 	if nonGround {
-		var i interface{} = newQueryResultSetV1(qrs)
+		var i interface{} = types.NewQueryResultSetV1(qrs)
 		result.Result = &i
 	} else {
 		result.Result = &qrs[0].Result
 	}
 
 	switch explainMode {
-	case explainFullV1:
-		result.Explanation = newTraceV1(*buf)
-	case explainTruthV1:
+	case types.ExplainFullV1:
+		result.Explanation = types.NewTraceV1(*buf)
+	case types.ExplainTruthV1:
 		answer, err := explain.Truth(compiler, *buf)
 		if err != nil {
 			handleErrorAuto(w, err)
 			return
 		}
-		result.Explanation = newTraceV1(answer)
+		result.Explanation = types.NewTraceV1(answer)
 	}
 
 	handleResponseJSON(w, 200, result, pretty)
@@ -327,10 +328,10 @@ func (s *Server) v1DataPatch(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	vars := mux.Vars(r)
 
-	ops := []patchV1{}
+	ops := []types.PatchV1{}
 
 	if err := util.NewJSONDecoder(r.Body).Decode(&ops); err != nil {
-		handleError(w, http.StatusBadRequest, codeInvalidParameter, err)
+		handleError(w, http.StatusBadRequest, types.CodeInvalidParameter, err)
 		return
 	}
 
@@ -368,7 +369,7 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 
 	input, err := readInput(r.Body)
 	if err != nil {
-		handleError(w, http.StatusBadRequest, codeInvalidParameter, err)
+		handleError(w, http.StatusBadRequest, types.CodeInvalidParameter, err)
 		return
 	}
 
@@ -385,7 +386,7 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 	params := topdown.NewQueryParams(ctx, compiler, s.store, txn, input, path)
 
 	var buf *topdown.BufferTracer
-	if explainMode != explainOffV1 {
+	if explainMode != types.ExplainOffV1 {
 		buf = topdown.NewBufferTracer()
 		params.Tracer = buf
 	}
@@ -399,11 +400,11 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result := dataResponseV1{}
+	result := types.DataResponseV1{}
 
 	if qrs.Undefined() {
-		if explainMode == explainFullV1 {
-			result.Explanation = newTraceV1(*buf)
+		if explainMode == types.ExplainFullV1 {
+			result.Explanation = types.NewTraceV1(*buf)
 		}
 		handleResponseJSON(w, 200, result, pretty)
 		return
@@ -412,15 +413,15 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 	result.Result = &qrs[0].Result
 
 	switch explainMode {
-	case explainFullV1:
-		result.Explanation = newTraceV1(*buf)
-	case explainTruthV1:
+	case types.ExplainFullV1:
+		result.Explanation = types.NewTraceV1(*buf)
+	case types.ExplainTruthV1:
 		answer, err := explain.Truth(compiler, *buf)
 		if err != nil {
 			handleErrorAuto(w, err)
 			return
 		}
-		result.Explanation = newTraceV1(answer)
+		result.Explanation = types.NewTraceV1(answer)
 	}
 
 	handleResponseJSON(w, 200, result, pretty)
@@ -432,7 +433,7 @@ func (s *Server) v1DataPut(w http.ResponseWriter, r *http.Request) {
 
 	var value interface{}
 	if err := util.NewJSONDecoder(r.Body).Decode(&value); err != nil {
-		handleError(w, http.StatusBadRequest, codeInvalidParameter, err)
+		handleError(w, http.StatusBadRequest, types.CodeInvalidParameter, err)
 		return
 	}
 
@@ -446,7 +447,7 @@ func (s *Server) v1DataPut(w http.ResponseWriter, r *http.Request) {
 
 	path, ok := storage.ParsePath("/" + strings.Trim(vars["path"], "/"))
 	if !ok {
-		handleErrorf(w, http.StatusBadRequest, newAPIErrorV1(codeInvalidParameter, "bad path: %v", vars["path"]))
+		handleErrorf(w, http.StatusBadRequest, types.NewErrorV1(types.CodeInvalidParameter, "bad path: %v", vars["path"]))
 		return
 	}
 
@@ -499,7 +500,7 @@ func (s *Server) v1PoliciesDelete(w http.ResponseWriter, r *http.Request) {
 	c := ast.NewCompiler()
 
 	if c.Compile(mods); c.Failed() {
-		handleErrorf(w, http.StatusBadRequest, newAPIErrorV1(codeInvalidOperation, msgCompileModuleError).WithASTErrors(c.Errors))
+		handleErrorf(w, http.StatusBadRequest, types.NewErrorV1(types.CodeInvalidOperation, types.MsgCompileModuleError).WithASTErrors(c.Errors))
 		return
 	}
 
@@ -534,8 +535,8 @@ func (s *Server) v1PoliciesGet(w http.ResponseWriter, r *http.Request) {
 
 	c := s.Compiler()
 
-	response := policyGetResponseV1{
-		Result: policyV1{
+	response := types.PolicyGetResponseV1{
+		Result: types.PolicyV1{
 			ID:     id,
 			Module: c.Modules[id],
 		},
@@ -569,19 +570,19 @@ func (s *Server) v1PoliciesRawGet(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) v1PoliciesList(w http.ResponseWriter, r *http.Request) {
 
-	policies := []policyV1{}
+	policies := []types.PolicyV1{}
 
 	c := s.Compiler()
 
 	for id, mod := range c.Modules {
-		policy := policyV1{
+		policy := types.PolicyV1{
 			ID:     id,
 			Module: mod,
 		}
 		policies = append(policies, policy)
 	}
 
-	response := policyListResponseV1{
+	response := types.PolicyListResponseV1{
 		Result: policies,
 	}
 
@@ -595,7 +596,7 @@ func (s *Server) v1PoliciesPut(w http.ResponseWriter, r *http.Request) {
 
 	buf, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		handleError(w, http.StatusBadRequest, codeInvalidParameter, err)
+		handleError(w, http.StatusBadRequest, types.CodeInvalidParameter, err)
 		return
 	}
 
@@ -604,15 +605,15 @@ func (s *Server) v1PoliciesPut(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		switch err := err.(type) {
 		case ast.Errors:
-			handleErrorf(w, http.StatusBadRequest, newAPIErrorV1(codeInvalidParameter, msgCompileModuleError).WithASTErrors(err))
+			handleErrorf(w, http.StatusBadRequest, types.NewErrorV1(types.CodeInvalidParameter, types.MsgCompileModuleError).WithASTErrors(err))
 		default:
-			handleError(w, http.StatusBadRequest, codeInvalidParameter, err)
+			handleError(w, http.StatusBadRequest, types.CodeInvalidParameter, err)
 		}
 		return
 	}
 
 	if parsedMod == nil {
-		handleErrorf(w, http.StatusBadRequest, newAPIErrorV1(codeInvalidParameter, "empty module"))
+		handleErrorf(w, http.StatusBadRequest, types.NewErrorV1(types.CodeInvalidParameter, "empty module"))
 		return
 	}
 
@@ -631,7 +632,7 @@ func (s *Server) v1PoliciesPut(w http.ResponseWriter, r *http.Request) {
 	c := ast.NewCompiler()
 
 	if c.Compile(mods); c.Failed() {
-		handleErrorf(w, http.StatusBadRequest, newAPIErrorV1(codeInvalidParameter, msgCompileModuleError).WithASTErrors(c.Errors))
+		handleErrorf(w, http.StatusBadRequest, types.NewErrorV1(types.CodeInvalidParameter, types.MsgCompileModuleError).WithASTErrors(c.Errors))
 		return
 	}
 
@@ -642,8 +643,8 @@ func (s *Server) v1PoliciesPut(w http.ResponseWriter, r *http.Request) {
 
 	s.setCompiler(c)
 
-	response := policyPutResponseV1{
-		Result: policyV1{
+	response := types.PolicyPutResponseV1{
+		Result: types.PolicyV1{
 			ID:     id,
 			Module: c.Modules[id],
 		},
@@ -659,7 +660,7 @@ func (s *Server) v1QueryGet(w http.ResponseWriter, r *http.Request) {
 	explainMode := getExplain(r.URL.Query()["explain"])
 	qStrs := values["q"]
 	if len(qStrs) == 0 {
-		handleErrorf(w, http.StatusBadRequest, newAPIErrorV1(codeInvalidParameter, "missing parameter 'q'"))
+		handleErrorf(w, http.StatusBadRequest, types.NewErrorV1(types.CodeInvalidParameter, "missing parameter 'q'"))
 		return
 	}
 
@@ -699,9 +700,9 @@ func (s *Server) v1QueryGet(w http.ResponseWriter, r *http.Request) {
 func handleCompileError(w http.ResponseWriter, err error) {
 	switch err := err.(type) {
 	case ast.Errors:
-		handleErrorf(w, http.StatusBadRequest, newAPIErrorV1(codeInvalidParameter, msgCompileQueryError).WithASTErrors(err))
+		handleErrorf(w, http.StatusBadRequest, types.NewErrorV1(types.CodeInvalidParameter, types.MsgCompileQueryError).WithASTErrors(err))
 	default:
-		handleError(w, http.StatusBadRequest, codeInvalidParameter, err)
+		handleError(w, http.StatusBadRequest, types.CodeInvalidParameter, err)
 	}
 }
 
@@ -718,7 +719,9 @@ func (s *Server) makeDir(ctx context.Context, txn storage.Transaction, path stor
 		if _, ok := node.(map[string]interface{}); ok {
 			return nil
 		}
-		return writeConflictErr{path}
+		return types.WriteConflictErr{
+			Path: path,
+		}
 	}
 
 	if !storage.IsNotFound(err) {
@@ -736,7 +739,7 @@ func (s *Server) makeDir(ctx context.Context, txn storage.Transaction, path stor
 	return s.store.Write(ctx, txn, storage.AddOp, path, map[string]interface{}{})
 }
 
-func (s *Server) prepareV1PatchSlice(root string, ops []patchV1) (result []patchImpl, err error) {
+func (s *Server) prepareV1PatchSlice(root string, ops []types.PatchV1) (result []patchImpl, err error) {
 
 	root = "/" + strings.Trim(root, "/")
 
@@ -755,7 +758,7 @@ func (s *Server) prepareV1PatchSlice(root string, ops []patchV1) (result []patch
 		case "replace":
 			impl.op = storage.ReplaceOp
 		default:
-			return nil, badPatchOperationError(op.Op)
+			return nil, types.BadPatchOperationErr(op.Op)
 		}
 
 		// Construct patch path.
@@ -769,7 +772,7 @@ func (s *Server) prepareV1PatchSlice(root string, ops []patchV1) (result []patch
 		var ok bool
 		impl.path, ok = storage.ParsePath(path)
 		if !ok {
-			return nil, badPatchPathError(op.Path)
+			return nil, types.BadPatchPathErr(op.Path)
 		}
 
 		if err := s.writeConflict(impl.op, impl.path); err != nil {
@@ -792,7 +795,9 @@ func (s *Server) writeConflict(op storage.PatchOp, path storage.Path) error {
 	ref := path.Ref(ast.DefaultRootDocument)
 
 	if rs := s.Compiler().GetRulesForVirtualDocument(ref); rs != nil {
-		return writeConflictErr{path}
+		return types.WriteConflictErr{
+			Path: path,
+		}
 	}
 
 	return nil
@@ -826,40 +831,40 @@ func stringPathToRef(s string) (r ast.Ref) {
 func handleErrorAuto(w http.ResponseWriter, err error) {
 	var prev error
 	for curr := err; curr != prev; {
-		if isBadRequest(curr) {
-			handleError(w, http.StatusBadRequest, codeInvalidParameter, err)
+		if types.IsBadRequest(curr) {
+			handleError(w, http.StatusBadRequest, types.CodeInvalidParameter, err)
 			return
 		}
-		if isWriteConflict(curr) {
-			handleError(w, http.StatusNotFound, codeResourceConflict, err)
+		if types.IsWriteConflict(curr) {
+			handleError(w, http.StatusNotFound, types.CodeResourceConflict, err)
 			return
 		}
 		if topdown.IsError(curr) {
-			handleErrorf(w, http.StatusInternalServerError, newAPIErrorV1(codeInternal, msgEvaluationError).WithError(curr))
+			handleErrorf(w, http.StatusInternalServerError, types.NewErrorV1(types.CodeInternal, types.MsgEvaluationError).WithError(curr))
 		}
 		if ast.IsError(ast.InputErr, curr) {
-			handleErrorf(w, http.StatusBadRequest, newAPIErrorV1(codeInvalidParameter, msgInputDocError).WithError(curr))
+			handleErrorf(w, http.StatusBadRequest, types.NewErrorV1(types.CodeInvalidParameter, types.MsgInputDocError).WithError(curr))
 			return
 		}
 		if storage.IsInvalidPatch(curr) {
-			handleError(w, http.StatusBadRequest, codeInvalidParameter, err)
+			handleError(w, http.StatusBadRequest, types.CodeInvalidParameter, err)
 			return
 		}
 		if storage.IsNotFound(curr) {
-			handleError(w, http.StatusNotFound, codeResourceNotFound, err)
+			handleError(w, http.StatusNotFound, types.CodeResourceNotFound, err)
 			return
 		}
 		prev = curr
 		curr = errors.Cause(prev)
 	}
-	handleError(w, 500, codeInternal, err)
+	handleError(w, http.StatusInternalServerError, types.CodeInternal, err)
 }
 
 func handleError(w http.ResponseWriter, status int, code string, err error) {
-	handleErrorf(w, status, newAPIErrorV1(code, err.Error()))
+	handleErrorf(w, status, types.NewErrorV1(code, err.Error()))
 }
 
-func handleErrorf(w http.ResponseWriter, status int, err *apiErrorV1) {
+func handleErrorf(w http.ResponseWriter, status int, err *types.ErrorV1) {
 	headers := w.Header()
 	headers.Add("Content-Type", "application/json")
 	w.WriteHeader(status)
@@ -903,16 +908,16 @@ func getPretty(p []string) bool {
 	return false
 }
 
-func getExplain(p []string) explainModeV1 {
+func getExplain(p []string) types.ExplainModeV1 {
 	for _, x := range p {
 		switch x {
-		case string(explainFullV1):
-			return explainFullV1
-		case string(explainTruthV1):
-			return explainTruthV1
+		case string(types.ExplainFullV1):
+			return types.ExplainFullV1
+		case string(types.ExplainTruthV1):
+			return types.ExplainTruthV1
 		}
 	}
-	return explainOffV1
+	return types.ExplainOffV1
 }
 
 var errInputPathFormat = fmt.Errorf(`input parameter format is [[<path>]:]<value> where <path> is either var or ref`)
@@ -931,14 +936,14 @@ func readInput(r io.ReadCloser) (ast.Value, error) {
 
 	if len(bs) > 0 {
 
-		var request dataRequestV1
+		var request types.DataRequestV1
 
 		if err := util.UnmarshalJSON(bs, &request); err != nil {
 			return nil, errors.Wrapf(err, "body contains malformed input document")
 		}
 
 		if request.Input == nil {
-			return nil, fmt.Errorf(msgInputDocError)
+			return nil, fmt.Errorf(types.MsgInputDocError)
 		}
 
 		var err error
@@ -1037,7 +1042,7 @@ func renderHeader(w http.ResponseWriter) {
 	fmt.Fprintln(w, "<body>")
 }
 
-func renderQueryForm(w http.ResponseWriter, qStrs []string, explain explainModeV1) {
+func renderQueryForm(w http.ResponseWriter, qStrs []string, explain types.ExplainModeV1) {
 
 	input := ""
 
@@ -1047,11 +1052,11 @@ func renderQueryForm(w http.ResponseWriter, qStrs []string, explain explainModeV
 
 	explainRadioCheck := []string{"", "", ""}
 	switch explain {
-	case explainOffV1:
+	case types.ExplainOffV1:
 		explainRadioCheck[0] = "checked"
-	case explainFullV1:
+	case types.ExplainFullV1:
 		explainRadioCheck[1] = "checked"
-	case explainTruthV1:
+	case types.ExplainTruthV1:
 		explainRadioCheck[2] = "checked"
 	}
 
@@ -1092,40 +1097,4 @@ type patchImpl struct {
 	path  storage.Path
 	op    storage.PatchOp
 	value interface{}
-}
-
-// writeConflictErr represents an error condition raised if the caller attempts
-// to modify a virtual document or create a document at a path that conflicts
-// with an existing document.
-type writeConflictErr struct {
-	path storage.Path
-}
-
-func (err writeConflictErr) Error() string {
-	return fmt.Sprintf("write conflict: %v", err.path)
-}
-
-func isWriteConflict(err error) bool {
-	_, ok := err.(writeConflictErr)
-	return ok
-}
-
-type badRequestError string
-
-func badPatchOperationError(op string) error {
-	return badRequestError(fmt.Sprintf("bad patch operation: %v", op))
-}
-
-func badPatchPathError(path string) error {
-	return badRequestError(fmt.Sprintf("bad patch path: %v", path))
-}
-
-func (err badRequestError) Error() string {
-	return string(err)
-}
-
-// isBadRequest returns true if the error indicates a badly formatted request.
-func isBadRequest(err error) bool {
-	_, ok := err.(badRequestError)
-	return ok
 }

@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/golang/glog"
-	"github.com/open-policy-agent/opa/server"
+	"github.com/open-policy-agent/opa/server/types"
 )
 
 // LoggingHandler returns an http.Handler that will print log messages to glog
@@ -78,7 +78,7 @@ func (r *recorder) WriteHeader(s int) {
 func dropInputParam(u *url.URL) string {
 	cpy := url.Values{}
 	for k, v := range u.Query() {
-		if k != server.ParamInputV1 {
+		if k != types.ParamInputV1 {
 			cpy[k] = v
 		}
 	}
@@ -89,7 +89,7 @@ func dropInputParam(u *url.URL) string {
 }
 
 func getInputParam(u *url.URL) (r []string) {
-	for _, g := range u.Query()[server.ParamInputV1] {
+	for _, g := range u.Query()[types.ParamInputV1] {
 		s, err := url.QueryUnescape(g)
 		if len(s) > 0 && err == nil {
 			r = append(r, s)

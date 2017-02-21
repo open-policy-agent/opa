@@ -17,6 +17,7 @@ import (
 	"testing"
 
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/server/types"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/util"
 	"github.com/open-policy-agent/opa/util/test"
@@ -370,7 +371,7 @@ func TestDataGetExplainFull(t *testing.T) {
 	f.reset()
 	f.server.Handler.ServeHTTP(f.recorder, req)
 
-	var result dataResponseV1
+	var result types.DataResponseV1
 
 	if err := util.NewJSONDecoder(f.recorder.Body).Decode(&result); err != nil {
 		t.Fatalf("Unexpected JSON decode error: %v", err)
@@ -393,7 +394,7 @@ func TestDataGetExplainFull(t *testing.T) {
 	f.reset()
 	f.server.Handler.ServeHTTP(f.recorder, req)
 
-	result = dataResponseV1{}
+	result = types.DataResponseV1{}
 
 	if f.recorder.Code != 200 {
 		t.Fatalf("Expected status code to be 200 but got: %v", f.recorder.Code)
@@ -424,7 +425,7 @@ p = true { a = [1, 2, 3, 4]; a[_] = x; x > 1 }`, 204, "")
 	f.reset()
 	f.server.Handler.ServeHTTP(f.recorder, req)
 
-	var result dataResponseV1
+	var result types.DataResponseV1
 
 	if err := util.NewJSONDecoder(f.recorder.Body).Decode(&result); err != nil {
 		t.Fatalf("Unexpected JSON decode error: %v", err)
@@ -442,7 +443,7 @@ p = true { a = [1, 2, 3, 4]; a[_] = x; x > 1 }`, 204, "")
 		t.Fatalf("Expected status code to be 200 but got: %v", f.recorder)
 	}
 
-	var result2 dataResponseV1
+	var result2 types.DataResponseV1
 
 	if err := util.NewJSONDecoder(f.recorder.Body).Decode(&result2); err != nil {
 		t.Fatalf("Unexpected JSON decode error: %v", err)
@@ -464,7 +465,7 @@ p = [1, 2, 3, 4] { true }`, 200, "")
 	f.reset()
 	f.server.Handler.ServeHTTP(f.recorder, req)
 
-	var result dataResponseV1
+	var result types.DataResponseV1
 
 	if err := util.NewJSONDecoder(f.recorder.Body).Decode(&result); err != nil {
 		t.Fatalf("Unexpected JSON decode error: %v", err)
@@ -557,7 +558,7 @@ func TestPoliciesPutV1(t *testing.T) {
 		t.Fatalf("Expected success but got %v", f.recorder)
 	}
 
-	var response policyPutResponseV1
+	var response types.PolicyPutResponseV1
 
 	if err := util.NewJSONDecoder(f.recorder.Body).Decode(&response); err != nil {
 		t.Fatalf("Unexpected error: %v", err)
@@ -601,8 +602,8 @@ func TestPoliciesPutV1ParseError(t *testing.T) {
 		t.Fatalf("Unexpected JSON decode error: %v", err)
 	}
 
-	if !reflect.DeepEqual(response["code"], codeInvalidParameter) {
-		t.Fatalf("Expected code %v but got: %v", codeInvalidParameter, response)
+	if !reflect.DeepEqual(response["code"], types.CodeInvalidParameter) {
+		t.Fatalf("Expected code %v but got: %v", types.CodeInvalidParameter, response)
 	}
 
 	v := ast.MustInterfaceToValue(response)
@@ -637,8 +638,8 @@ q[x] { p[x] }`,
 		t.Fatalf("Unexpected JSON decode error: %v", err)
 	}
 
-	if !reflect.DeepEqual(response["code"], codeInvalidParameter) {
-		t.Fatalf("Expected code %v but got: %v", codeInvalidParameter, response)
+	if !reflect.DeepEqual(response["code"], types.CodeInvalidParameter) {
+		t.Fatalf("Expected code %v but got: %v", types.CodeInvalidParameter, response)
 	}
 
 	v := ast.MustInterfaceToValue(response)
@@ -669,15 +670,15 @@ func TestPoliciesListV1(t *testing.T) {
 		t.Fatalf("Expected success but got %v", f.recorder)
 	}
 
-	// var policies []*policyV1
-	var response policyListResponseV1
+	// var policies []*PolicyV1
+	var response types.PolicyListResponseV1
 
 	err := util.NewJSONDecoder(f.recorder.Body).Decode(&response)
 	if err != nil {
 		t.Fatalf("Expected policy list but got error: %v", err)
 	}
 
-	expected := []policyV1{
+	expected := []types.PolicyV1{
 		newPolicy("1", testMod),
 	}
 	if len(expected) != len(response.Result) {
@@ -708,7 +709,7 @@ func TestPoliciesGetV1(t *testing.T) {
 		t.Fatalf("Expected success but got %v", f.recorder)
 	}
 
-	var response policyGetResponseV1
+	var response types.PolicyGetResponseV1
 	if err := util.NewJSONDecoder(f.recorder.Body).Decode(&response); err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
@@ -780,7 +781,7 @@ func TestQueryV1(t *testing.T) {
 		t.Fatalf("Expected success but got %v", f.recorder)
 	}
 
-	var expected queryResponseV1
+	var expected types.QueryResponseV1
 	err := util.UnmarshalJSON([]byte(`{
 		"result": [{"a":[1,2,3],"i":0,"x":1},{"a":[1,2,3],"i":1,"x":2},{"a":[1,2,3],"i":2,"x":3}]
 	}`), &expected)
@@ -788,7 +789,7 @@ func TestQueryV1(t *testing.T) {
 		panic(err)
 	}
 
-	var result queryResponseV1
+	var result types.QueryResponseV1
 	err = util.UnmarshalJSON(f.recorder.Body.Bytes(), &result)
 	if err != nil {
 		t.Fatalf("Unexpected error while unmarshalling result: %v", err)
@@ -808,7 +809,7 @@ func TestQueryV1Explain(t *testing.T) {
 		t.Fatalf("Expected 200 but got: %v", f.recorder)
 	}
 
-	var result queryResponseV1
+	var result types.QueryResponseV1
 
 	if err := util.NewJSONDecoder(f.recorder.Body).Decode(&result); err != nil {
 		t.Fatalf("Unexpected JSON decode error: %v", err)
@@ -826,7 +827,7 @@ func TestQueryV1Explain(t *testing.T) {
 		t.Fatalf("Expected 200 but got: %v", f.recorder)
 	}
 
-	result = queryResponseV1{}
+	result = types.QueryResponseV1{}
 
 	if err := util.NewJSONDecoder(f.recorder.Body).Decode(&result); err != nil {
 		t.Fatalf("Unexpected JSON decode error: %v", err)
@@ -988,14 +989,14 @@ func executeRequests(t *testing.T, reqs []tr) {
 	}
 }
 
-func newPolicy(id, s string) policyV1 {
+func newPolicy(id, s string) types.PolicyV1 {
 	compiler := ast.NewCompiler()
 	parsed := ast.MustParseModule(s)
 	if compiler.Compile(map[string]*ast.Module{"": parsed}); compiler.Failed() {
 		panic(compiler.Errors)
 	}
 	mod := compiler.Modules[""]
-	return policyV1{ID: id, Module: mod}
+	return types.PolicyV1{ID: id, Module: mod}
 }
 
 func newReqV1(method string, path string, body string) *http.Request {
