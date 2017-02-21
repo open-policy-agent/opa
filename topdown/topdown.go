@@ -704,7 +704,7 @@ func (r resolver) Resolve(ref ast.Ref) (interface{}, error) {
 	return r.store.Read(r.context, r.txn, path)
 }
 
-// ResolveRefs returns the AST value obtained by resolving references to base
+// ResolveRefs returns the value obtained by resolving references to base
 // documents.
 func ResolveRefs(v ast.Value, t *Topdown) (ast.Value, error) {
 	result, err := ast.TransformRefs(v, func(r ast.Ref) (ast.Value, error) {
@@ -714,6 +714,18 @@ func ResolveRefs(v ast.Value, t *Topdown) (ast.Value, error) {
 		return nil, err
 	}
 	return result.(ast.Value), nil
+}
+
+// ResolveRefsTerm returns a copy of term obtained by resolving references to
+// base documents.
+func ResolveRefsTerm(term *ast.Term, t *Topdown) (*ast.Term, error) {
+	cpy := *term
+	var err error
+	cpy.Value, err = ResolveRefs(term.Value, t)
+	if err != nil {
+		return nil, err
+	}
+	return &cpy, nil
 }
 
 // ValueToInterface returns the underlying Go value associated with an AST value.
@@ -1686,6 +1698,14 @@ func evalRefRuleResultRec(t *Topdown, v ast.Value, ref, path ast.Ref, iter func(
 
 func evalRefRuleResultRecArray(t *Topdown, arr ast.Array, ref, path ast.Ref, iter func(*Topdown, ast.Value) error) error {
 	head, tail := ref[0], ref[1:]
+
+	if _, ok := head.Value.(ast.Ref); ok {
+		var err error
+		if head, err = ResolveRefsTerm(head, t); err != nil {
+			return err
+		}
+	}
+
 	switch n := head.Value.(type) {
 	case ast.Number:
 		idx, ok := n.Int()
@@ -1715,6 +1735,14 @@ func evalRefRuleResultRecArray(t *Topdown, arr ast.Array, ref, path ast.Ref, ite
 
 func evalRefRuleResultRecObject(t *Topdown, obj ast.Object, ref, path ast.Ref, iter func(*Topdown, ast.Value) error) error {
 	head, tail := ref[0], ref[1:]
+
+	if _, ok := head.Value.(ast.Ref); ok {
+		var err error
+		if head, err = ResolveRefsTerm(head, t); err != nil {
+			return err
+		}
+	}
+
 	switch k := head.Value.(type) {
 	case ast.String:
 		match := -1
