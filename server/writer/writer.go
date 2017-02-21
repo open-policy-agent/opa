@@ -13,40 +13,41 @@ import (
 	"github.com/open-policy-agent/opa/server/types"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/topdown"
-	"github.com/pkg/errors"
 )
 
 // ErrorAuto writes a response with status and code set automatically based on
 // the type of err.
 func ErrorAuto(w http.ResponseWriter, err error) {
-	var prev error
-	for curr := err; curr != prev; {
-		if types.IsBadRequest(curr) {
-			ErrorString(w, http.StatusBadRequest, types.CodeInvalidParameter, err)
-			return
-		}
-		if types.IsWriteConflict(curr) {
-			ErrorString(w, http.StatusNotFound, types.CodeResourceConflict, err)
-			return
-		}
-		if topdown.IsError(curr) {
-			Error(w, http.StatusInternalServerError, types.NewErrorV1(types.CodeInternal, types.MsgEvaluationError).WithError(curr))
-		}
-		if ast.IsError(ast.InputErr, curr) {
-			Error(w, http.StatusBadRequest, types.NewErrorV1(types.CodeInvalidParameter, types.MsgInputDocError).WithError(curr))
-			return
-		}
-		if storage.IsInvalidPatch(curr) {
-			ErrorString(w, http.StatusBadRequest, types.CodeInvalidParameter, err)
-			return
-		}
-		if storage.IsNotFound(curr) {
-			ErrorString(w, http.StatusNotFound, types.CodeResourceNotFound, err)
-			return
-		}
-		prev = curr
-		curr = errors.Cause(prev)
+	if types.IsBadRequest(err) {
+		ErrorString(w, http.StatusBadRequest, types.CodeInvalidParameter, err)
+		return
 	}
+
+	if types.IsWriteConflict(err) {
+		ErrorString(w, http.StatusNotFound, types.CodeResourceConflict, err)
+		return
+	}
+
+	if topdown.IsError(err) {
+		Error(w, http.StatusInternalServerError, types.NewErrorV1(types.CodeInternal, types.MsgEvaluationError).WithError(err))
+		return
+	}
+
+	if ast.IsError(ast.InputErr, err) {
+		Error(w, http.StatusBadRequest, types.NewErrorV1(types.CodeInvalidParameter, types.MsgInputDocError).WithError(err))
+		return
+	}
+
+	if storage.IsInvalidPatch(err) {
+		ErrorString(w, http.StatusBadRequest, types.CodeInvalidParameter, err)
+		return
+	}
+
+	if storage.IsNotFound(err) {
+		ErrorString(w, http.StatusNotFound, types.CodeResourceNotFound, err)
+		return
+	}
+
 	ErrorString(w, http.StatusInternalServerError, types.CodeInternal, err)
 }
 
