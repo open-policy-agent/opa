@@ -116,7 +116,7 @@ func InterfaceToValue(x interface{}) (Value, error) {
 		}
 		return r, nil
 	default:
-		return nil, fmt.Errorf("illegal value: %v", x)
+		return nil, fmt.Errorf("ast: illegal value: %T", x)
 	}
 }
 
