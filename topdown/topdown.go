@@ -216,7 +216,24 @@ func (t *Topdown) Resolve(ref ast.Ref) (interface{}, error) {
 		return nil, err
 	}
 
-	return t.Store.Read(t.Context, t.txn, path)
+	doc, err := t.Store.Read(t.Context, t.txn, path)
+	if err != nil {
+		return nil, err
+	}
+
+	// When the root document is queried we hide the SystemDocumentKey.
+	if len(path) == 0 {
+		obj := doc.(map[string]interface{})
+		tmp := map[string]interface{}{}
+		for k := range obj {
+			if k != string(ast.SystemDocumentKey) {
+				tmp[k] = obj[k]
+			}
+		}
+		doc = tmp
+	}
+
+	return doc, nil
 }
 
 // Step returns a new Topdown object to evaluate the next expression.
@@ -1118,6 +1135,9 @@ func evalRefRecTree(t *Topdown, path ast.Ref, node *ast.RuleTreeNode) (ast.Objec
 	v := ast.Object{}
 
 	for _, c := range node.Children {
+		if c.Hide {
+			continue
+		}
 		path = append(path, &ast.Term{Value: c.Key})
 		if len(c.Rules) > 0 {
 			var result ast.Value

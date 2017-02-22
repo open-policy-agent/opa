@@ -17,18 +17,50 @@ import (
 func TestModuleTree(t *testing.T) {
 
 	mods := getCompilerTestModules()
+	mods["system-mod"] = MustParseModule(`
+	package system.foo
+
+	p = 1
+	`)
+	mods["non-system-mod"] = MustParseModule(`
+	package user.system
+
+	p = 1
+	`)
 	tree := NewModuleTree(mods)
-	expectedSize := 6
+	expectedSize := 8
 
 	if tree.Size() != expectedSize {
 		t.Fatalf("Expected %v but got %v modules", expectedSize, tree.Size())
 	}
+
+	if !tree.Children[Var("data")].Children[String("system")].Hide {
+		t.Fatalf("Expected system node to be hidden")
+	}
+
+	if tree.Children[Var("data")].Children[String("system")].Children[String("foo")].Hide {
+		t.Fatalf("Expected system.foo node to be visible")
+	}
+
+	if tree.Children[Var("data")].Children[String("user")].Children[String("system")].Hide {
+		t.Fatalf("Expected user.system node to be visible")
+	}
+
 }
 
 func TestRuleTree(t *testing.T) {
 
 	mods := getCompilerTestModules()
+	mods["system-mod"] = MustParseModule(`
+	package system.foo
 
+	p = 1
+	`)
+	mods["non-system-mod"] = MustParseModule(`
+	package user.system
+
+	p = 1
+	`)
 	mods["mod-incr"] = MustParseModule(`package a.b.c
 
 s[1] { true }
@@ -36,7 +68,7 @@ s[2] { true }`,
 	)
 
 	tree := NewRuleTree(NewModuleTree(mods))
-	expectedNumRules := 18
+	expectedNumRules := 20
 
 	if tree.Size() != expectedNumRules {
 		t.Errorf("Expected %v but got %v rules", expectedNumRules, tree.Size())
@@ -49,6 +81,19 @@ s[2] { true }`,
 		t.Fatalf("Unexpected nil value or non-empty leaf of non-leaf node: %v", node)
 	}
 
+	system := tree.Child(Var("data")).Child(String("system"))
+	if !system.Hide {
+		t.Fatalf("Expected system node to be hidden")
+	}
+
+	if system.Child(String("foo")).Hide {
+		t.Fatalf("Expected system.foo node to be visible")
+	}
+
+	user := tree.Child(Var("data")).Child(String("user")).Child(String("system"))
+	if user.Hide {
+		t.Fatalf("Expected user.system node to be visible")
+	}
 }
 
 func TestCompilerEmpty(t *testing.T) {
