@@ -10,7 +10,6 @@ import (
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/topdown/builtins"
-	"github.com/pkg/errors"
 )
 
 var regexpCacheLock = sync.Mutex{}
@@ -43,7 +42,7 @@ func getRegexp(pat string) (*regexp.Regexp, error) {
 		var err error
 		re, err = regexp.Compile(string(pat))
 		if err != nil {
-			return nil, errors.Wrapf(err, "re_match")
+			return nil, err
 		}
 		regexpCache[pat] = re
 	}

@@ -141,7 +141,7 @@ func TestBasic(t *testing.T) {
 		{"root (ok)", "token0", "GET", "", http.StatusOK, "", ""},
 		{"index.html (ok)", "token0", "GET", "/index.html", http.StatusOK, "", ""},
 		{"undefined", "token0", "GET", "/undefined", http.StatusInternalServerError, types.CodeInternal, types.MsgUnauthorizedUndefinedError},
-		{"evaluation error", "token0", "GET", "/divide_by_zero", http.StatusInternalServerError, types.CodeInternal, "divide: by zero"},
+		{"evaluation error", "token0", "GET", "/divide_by_zero", http.StatusInternalServerError, types.CodeInternal, types.MsgEvaluationError},
 		{"ok", "token1", "GET", "/data/some/specific/document", http.StatusOK, "", ""},
 		{"ok (w/ query params)", "token1", "GET", "/data/some/specific/document?pretty=true", http.StatusOK, "", ""},
 		{"unauthorized method", "token1", "PUT", "/data/some/specific/document", http.StatusUnauthorized, types.CodeUnauthorized, types.MsgUnauthorizedError},
@@ -170,12 +170,23 @@ func TestBasic(t *testing.T) {
 
 			// Check code/message if response should be error.
 			if tc.expectedStatus != http.StatusOK {
-				var response types.ErrorV1
-				if err := util.NewJSONDecoder(recorder.Body).Decode(&response); err != nil {
-					t.Fatalf("Expected error response but got: %v", recorder)
+				var x interface{}
+				if err := util.NewJSONDecoder(recorder.Body).Decode(&x); err != nil {
+					t.Fatalf("Expected JSON response but got: %v", recorder)
 				}
-				if tc.expectedCode != response.Code || !strings.Contains(response.Message, tc.expectedMsg) {
-					t.Fatalf("Expected code: %v and message: %v but got: %v", tc.expectedCode, tc.expectedMsg, response)
+				response := ast.MustInterfaceToValue(x)
+				code, err := response.Find([]string{"code"})
+				if err != nil {
+					t.Fatalf("Missing code in response: %v", recorder)
+				} else if !code.Equal(ast.String(tc.expectedCode)) {
+					t.Fatalf("Expected code %v but got: %v", tc.expectedCode, recorder)
+				}
+
+				msg, err := response.Find([]string{"message"})
+				if err != nil {
+					t.Fatalf("Missing message in response: %v", recorder)
+				} else if !strings.Contains(msg.String(), tc.expectedMsg) {
+					t.Fatalf("Expected msg to contain %v but got: %v", tc.expectedMsg, response)
 				}
 			}
 		})

@@ -5,8 +5,9 @@
 package topdown
 
 import (
-	"fmt"
 	"math/big"
+
+	"fmt"
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/topdown/builtins"
@@ -46,7 +47,7 @@ func arithMultiply(a, b *big.Float) (*big.Float, error) {
 func arithDivide(a, b *big.Float) (*big.Float, error) {
 	i, acc := b.Int64()
 	if acc == big.Exact && i == 0 {
-		return nil, fmt.Errorf("divide: by zero")
+		return nil, fmt.Errorf("divide by zero")
 	}
 	return new(big.Float).Quo(a, b), nil
 }

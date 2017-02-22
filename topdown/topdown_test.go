@@ -1013,7 +1013,7 @@ func TestTopDownArithmetic(t *testing.T) {
 		{"minus", []string{`p[y] { a[i] = x; y = i - x }`}, "[-1]"},
 		{"multiply", []string{`p[y] { a[i] = x; y = i * x }`}, "[0,2,6,12]"},
 		{"divide+round", []string{`p[z] { a[i] = x; y = i / x; round(y, z) }`}, "[0, 1]"},
-		{"divide+error", []string{`p[y] { a[i] = x; y = x / i }`}, fmt.Errorf("divide: by zero")},
+		{"divide+error", []string{`p[y] { a[i] = x; y = x / i }`}, fmt.Errorf("divide by zero")},
 		{"abs", []string{`p = true { abs(-10, x); x = 10 }`}, "true"},
 		{"arity 1 ref dest", []string{`p = true { abs(-4, a[3]) }`}, "true"},
 		{"arity 1 ref dest (2)", []string{`p = true { not abs(-5, a[3]) }`}, "true"},
@@ -1040,6 +1040,7 @@ func TestTopDownCasts(t *testing.T) {
 			"[-42.0, 0, 100.1, 0, 1]"},
 		{"to_number ref dest", []string{`p = true { to_number("3", a[2]) }`}, "true"},
 		{"to_number ref dest", []string{`p = true { not to_number("-1", a[2]) }`}, "true"},
+		{"to_number: bad input", []string{`p { to_number("broken", x) }`}, fmt.Errorf("invalid syntax")},
 	}
 
 	data := loadSmallTestData()

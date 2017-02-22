@@ -179,8 +179,13 @@ func handleFunctionalBuiltinErr(name ast.Var, loc *ast.Location, err error) erro
 			Message:  fmt.Sprintf("%v: %v", name.String(), err.Error()),
 			Location: loc,
 		}
+	default:
+		return &Error{
+			Code:     InternalErr,
+			Message:  fmt.Sprintf("%v: %v", name.String(), err.Error()),
+			Location: loc,
+		}
 	}
-	return err
 }
 
 func resolveN(t *Topdown, name ast.Var, ops []*ast.Term, n int) ([]ast.Value, error) {
