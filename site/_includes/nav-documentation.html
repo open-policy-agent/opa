@@ -3,6 +3,7 @@
 {% assign doc_rego = false %}
 {% assign doc_rest = false %}
 {% assign doc_refer = false %}
+{% assign doc_security = false %}
 
 {% for page in site.pages %}
   {% case page.doc_id %}
@@ -16,6 +17,8 @@
       {% assign doc_rest = page %}
     {% when 'LANGUAGE_REFERENCE' %}
       {% assign doc_refer = page %}
+    {% when 'SECURITY' %}
+      {% assign doc_security = page %}
   {% endcase %}
 {% endfor %}
 
@@ -35,6 +38,9 @@
     </li>
     <li class="opa-header--abstract--nav-item{% if page.doc_id == doc_rest.doc_id %}--selected{% endif %}">
       {% if page.doc_id != doc_rest.doc_id %}<a class="opa-header--abstract--nav-link" href="{{doc_rest.url}}">{{ doc_rest.title }}</a>{% else %}{{ doc_rest.title }}{% endif %}
+    </li>
+    <li class="opa-header--abstract--nav-item{% if page.doc_id == doc_security.doc_id %}--selected{% endif %}">
+      {% if page.doc_id != doc_security.doc_id %}<a class="opa-header--abstract--nav-link" href="{{doc_security.url}}">{{ doc_security.title }}</a>{% else %}{{ doc_security.title }}{% endif %}
     </li>
   </ul>
 </nav>

@@ -159,7 +159,7 @@ A policy file must contain a single package declaration, which defines the path 
 
 In contrast to base documents, virtual documents embody the results of evaluating the rules included in policy modules. Virtual documents are computed when users publish new policy modules, update existing modules, run queries, and when any relevant base document is published or updated. Rules allow policy authors to write questions with yes-no answers (that is, predicates) and to generate structured values from raw data found in base documents as well as from intermediate data found in other virtual documents.
 
-### The data Document
+### <a name="the-data-document"></a> The `data` Document
 
 All documents pushed into OPA or computed by rules are nested under a built-in root document named data.
 
@@ -198,7 +198,7 @@ GET https://example.com/v1/data/servers HTTP/1.1
 GET https://example.com/v1/data/opa/examples/violations HTTP/1.1
 ```
 
-### <a name="the-input-document"></a> The input Document
+### <a name="the-input-document"></a> The `input` Document
 
 In some cases, to evaluate a policy, the query must specify additional documents
 as arguments.

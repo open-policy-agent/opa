@@ -930,7 +930,7 @@ HTTP/1.1 204 No Content
 
 If other policy modules in the same package depend on rules in the policy module to be deleted, the server will return 400.
 
-## <a name="data-api"> Data API
+## <a name="data-api"></a> Data API
 
 The Data API exposes endpoints for reading and writing documents in OPA. For an introduction to the different types of documents in OPA see [How Does OPA Work?](../../how-does-opa-work/).
 
@@ -1652,6 +1652,29 @@ Content-Type: application/json
 - **200** - no error
 - **400** - bad request
 - **500** - server error
+
+## Authentication
+
+The API is secured via [HTTPS, Authentication, and
+Authorization](/documentation/references/security).
+
+### <a name="bearer-tokens"/> Bearer Tokens
+
+When OPA is started with the ``--authentication=token`` command line flag,
+clients MUST provide a Bearer token in the HTTP Authorization header:
+
+```http
+GET /v1/data/exempli-gratia HTTP/1.1
+Authorization: Bearer my-secret-token
+```
+
+Bearer tokens must be represented with a valid HTTP header value character
+sequence.
+
+OPA will extract the Bearer token value (which is set to ``my-secret-token``
+above) and provide it to the authorization component inside OPA that will (i)
+validate the token and (ii) execute the authorization policy configured by the
+admin.
 
 ## Errors
 
