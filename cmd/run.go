@@ -15,6 +15,8 @@ import (
 	"strings"
 
 	"github.com/open-policy-agent/opa/runtime"
+	"github.com/open-policy-agent/opa/server"
+	"github.com/open-policy-agent/opa/util"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 )
@@ -28,11 +30,24 @@ var defaultPolicyDir = "policies"
 // default listening address for the server
 var defaultAddr = ":8181"
 
-// Used for obtaining X.509 keypair.
-var tlsCertFile string
-var tlsPrivateKeyFile string
-
 func init() {
+
+	var tlsCertFile string
+	var tlsPrivateKeyFile string
+
+	authentication := util.NewEnumFlag("off", []string{"token", "off"})
+
+	authenticationSchemes := map[string]server.AuthenticationScheme{
+		"token": server.AuthenticationToken,
+		"off":   server.AuthenticationOff,
+	}
+
+	authorization := util.NewEnumFlag("off", []string{"basic", "off"})
+
+	authorizationScheme := map[string]server.AuthorizationScheme{
+		"basic": server.AuthorizationBasic,
+		"off":   server.AuthorizationOff,
+	}
 
 	params := runtime.NewParams()
 
@@ -95,12 +110,14 @@ to delete policies will remove the definition file.
 `,
 		Run: func(cmd *cobra.Command, args []string) {
 
-			cert, err := loadCertificate()
+			cert, err := loadCertificate(tlsCertFile, tlsPrivateKeyFile)
 			if err != nil {
 				fmt.Println("error:", err)
 				os.Exit(1)
 			}
 
+			params.Authentication = authenticationSchemes[authentication.String()]
+			params.Authorization = authorizationScheme[authorization.String()]
 			params.Paths = args
 			params.Certificate = cert
 
@@ -118,6 +135,8 @@ to delete policies will remove the definition file.
 	runCommand.Flags().BoolVarP(&params.Watch, "watch", "w", false, "watch command line files for changes")
 	runCommand.Flags().StringVarP(&tlsCertFile, "tls-cert-file", "", "", "set path of TLS certificate file")
 	runCommand.Flags().StringVarP(&tlsPrivateKeyFile, "tls-private-key-file", "", "", "set path of TLS private key file")
+	runCommand.Flags().VarP(authentication, "authentication", "", "set authentication scheme")
+	runCommand.Flags().VarP(authorization, "authorization", "", "set authorization scheme")
 
 	wrapFlags(runCommand.Flags())
 	flag.Parse()
@@ -183,7 +202,7 @@ func wrapFlags(flags *pflag.FlagSet) {
 	})
 }
 
-func loadCertificate() (*tls.Certificate, error) {
+func loadCertificate(tlsCertFile, tlsPrivateKeyFile string) (*tls.Certificate, error) {
 
 	if tlsCertFile != "" && tlsPrivateKeyFile != "" {
 		cert, err := tls.LoadX509KeyPair(tlsCertFile, tlsPrivateKeyFile)
