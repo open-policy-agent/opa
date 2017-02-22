@@ -17,6 +17,7 @@ import (
 	"testing"
 
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/server/identifier"
 	"github.com/open-policy-agent/opa/server/types"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/util"
@@ -835,6 +836,105 @@ func TestQueryV1Explain(t *testing.T) {
 
 	if len(result.Explanation) != 5 {
 		t.Fatalf("Expected exactly 5 trace events for truth query but got %d", len(result.Explanation))
+	}
+}
+
+func TestAuthorization(t *testing.T) {
+
+	ctx := context.Background()
+	store := storage.New(storage.InMemoryConfig().WithPolicyDir(policyDir))
+	txn := storage.NewTransactionOrDie(ctx, store)
+
+	authzPolicy := `package system.authz
+
+		import input.identity
+
+		default allow = false
+
+		allow {
+			identity = "bob"
+		}
+		`
+
+	module := ast.MustParseModule(authzPolicy)
+
+	if err := store.InsertPolicy(txn, "test", module, nil, false); err != nil {
+		panic(err)
+	}
+
+	store.Close(ctx, txn)
+
+	server, err := New().
+		WithAddress(":8182").
+		WithStorage(store).
+		WithAuthorization(AuthorizationBasic).
+		Init(ctx)
+
+	if err != nil {
+		panic(err)
+	}
+
+	recorder := httptest.NewRecorder()
+
+	// Test that bob can do stuff.
+	req1, err := http.NewRequest("GET", "http://localhost:8182/v1/data/foo", nil)
+	if err != nil {
+		panic(err)
+	}
+
+	req1 = identifier.SetIdentity(req1, "bob")
+	server.Handler.ServeHTTP(recorder, req1)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("Expected success but got: %v", recorder)
+	}
+
+	recorder = httptest.NewRecorder()
+
+	// Test that alice can't do stuff.
+	req2, err := http.NewRequest("GET", "http://localhost:8182/v1/data/foo", nil)
+	if err != nil {
+		panic(err)
+	}
+
+	req2 = identifier.SetIdentity(req2, "alice")
+	server.Handler.ServeHTTP(recorder, req2)
+
+	if recorder.Code != http.StatusUnauthorized {
+		t.Fatalf("Expected unauthorized but got: %v", recorder)
+	}
+
+	// Reverse the policy.
+	update := identifier.SetIdentity(newReqV1("PUT", "/policies/test", `
+		package system.authz
+
+		import input.identity
+
+		default allow = false
+
+		allow {
+			identity = "alice"
+		}
+	`), "bob")
+
+	recorder = httptest.NewRecorder()
+	server.Handler.ServeHTTP(recorder, update)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("Expected policy update to succeed but got: %v", recorder)
+	}
+
+	// Try alice again.
+	recorder = httptest.NewRecorder()
+	server.Handler.ServeHTTP(recorder, req2)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("Expected OK but got: %v", recorder)
+	}
+
+	// Try bob again.
+	recorder = httptest.NewRecorder()
+	server.Handler.ServeHTTP(recorder, req1)
+	if recorder.Code != http.StatusUnauthorized {
+		t.Fatalf("Expected 401 but got: %v", recorder)
 	}
 }
 

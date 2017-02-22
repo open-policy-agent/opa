@@ -20,6 +20,8 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/server/authorizer"
+	"github.com/open-policy-agent/opa/server/identifier"
 	"github.com/open-policy-agent/opa/server/types"
 	"github.com/open-policy-agent/opa/server/writer"
 	"github.com/open-policy-agent/opa/storage"
@@ -30,25 +32,44 @@ import (
 	"github.com/pkg/errors"
 )
 
+// AuthenticationScheme enumerates the supported authentication schemes. The
+// authentication scheme determines how client identities are established.
+type AuthenticationScheme int
+
+// Set of supported authentication schemes.
+const (
+	AuthenticationOff   AuthenticationScheme = iota
+	AuthenticationToken                      = iota
+)
+
+// AuthorizationScheme enumerates the supported authorization schemes. The authorization
+// scheme determines how access to OPA is controlled.
+type AuthorizationScheme int
+
+// Set of supported authorization schemes.
+const (
+	AuthorizationOff   AuthorizationScheme = iota
+	AuthorizationBasic                     = iota
+)
+
 // Server represents an instance of OPA running in server mode.
 type Server struct {
 	Handler http.Handler
 
-	addr    string
-	cert    *tls.Certificate
-	persist bool
-
-	// access to the compiler is guarded by mtx
-	mtx      sync.RWMutex
-	compiler *ast.Compiler
-
-	store *storage.Storage
+	addr           string
+	authentication AuthenticationScheme
+	authorization  AuthorizationScheme
+	cert           *tls.Certificate
+	persist        bool
+	mtx            sync.RWMutex
+	compiler       *ast.Compiler
+	store          *storage.Storage
 }
 
 // New returns a new Server.
 func New() *Server {
 
-	s := &Server{}
+	s := Server{}
 
 	// Initialize HTTP handlers.
 	router := mux.NewRouter()
@@ -69,11 +90,23 @@ func New() *Server {
 	router.HandleFunc("/", s.indexGet).Methods("GET")
 	s.Handler = router
 
-	return s
+	return &s
 }
 
 // Init initializes the server. This function MUST be called before Loop.
 func (s *Server) Init(ctx context.Context) (*Server, error) {
+
+	// Add authorization handler. This must come BEFORE authentication handler
+	// so that the latter can run first.
+	switch s.authorization {
+	case AuthorizationBasic:
+		s.Handler = authorizer.NewBasic(s.Handler, s.Compiler, s.store)
+	}
+
+	switch s.authentication {
+	case AuthenticationToken:
+		s.Handler = identifier.NewTokenBased(s.Handler)
+	}
 
 	// Load policies from storage and initialize server's compiler.
 	txn, err := s.store.NewTransaction(ctx)
@@ -93,9 +126,27 @@ func (s *Server) Init(ctx context.Context) (*Server, error) {
 	return s, nil
 }
 
-// WithStorage sets the storage used by the server.
-func (s *Server) WithStorage(store *storage.Storage) *Server {
-	s.store = store
+// WithAddress sets the listening address that the server will bind to.
+func (s *Server) WithAddress(addr string) *Server {
+	s.addr = addr
+	return s
+}
+
+// WithAuthentication sets authentication scheme to use on the server.
+func (s *Server) WithAuthentication(scheme AuthenticationScheme) *Server {
+	s.authentication = scheme
+	return s
+}
+
+// WithAuthorization sets authorization scheme to use on the server.
+func (s *Server) WithAuthorization(scheme AuthorizationScheme) *Server {
+	s.authorization = scheme
+	return s
+}
+
+// WithCertificate sets the server-side certificate that the server will use.
+func (s *Server) WithCertificate(cert *tls.Certificate) *Server {
+	s.cert = cert
 	return s
 }
 
@@ -105,15 +156,9 @@ func (s *Server) WithPersist(yes bool) *Server {
 	return s
 }
 
-// WithAddress sets the listening address that the server will bind to.
-func (s *Server) WithAddress(addr string) *Server {
-	s.addr = addr
-	return s
-}
-
-// WithCertificate sets the server-side certificate that the server will use.
-func (s *Server) WithCertificate(cert *tls.Certificate) *Server {
-	s.cert = cert
+// WithStorage sets the storage used by the server.
+func (s *Server) WithStorage(store *storage.Storage) *Server {
+	s.store = store
 	return s
 }
 

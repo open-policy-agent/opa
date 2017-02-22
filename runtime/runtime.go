@@ -32,6 +32,12 @@ type Params struct {
 	// Addr is the listening address that the OPA server will bind to.
 	Addr string
 
+	// Authentication is the type of authentication scheme to use.
+	Authentication server.AuthenticationScheme
+
+	// Authorization is the type of authorization scheme to use.
+	Authorization server.AuthorizationScheme
+
 	// Certificate is the certificate to use in server-mode. If the certificate
 	// is nil, the server will NOT use TLS.
 	Certificate *tls.Certificate
@@ -156,6 +162,8 @@ func (rt *Runtime) startServer(ctx context.Context, params *Params) {
 		WithAddress(params.Addr).
 		WithPersist(persist).
 		WithCertificate(params.Certificate).
+		WithAuthentication(params.Authentication).
+		WithAuthorization(params.Authorization).
 		Init(ctx)
 
 	if err != nil {

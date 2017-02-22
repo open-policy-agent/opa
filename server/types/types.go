@@ -21,6 +21,7 @@ import (
 const (
 	CodeInternal         = "internal_error"
 	CodeEvaluation       = "evaluation_error"
+	CodeUnauthorized     = "unauthorized"
 	CodeInvalidParameter = "invalid_parameter"
 	CodeInvalidOperation = "invalid_operation"
 	CodeResourceNotFound = "resource_not_found"
@@ -67,10 +68,12 @@ func (e *ErrorV1) Bytes() []byte {
 
 // Messages included in error responses.
 const (
-	MsgCompileModuleError = "error(s) occurred while compiling module(s)"
-	MsgCompileQueryError  = "error(s) occurred while compiling query"
-	MsgEvaluationError    = "error(s) occurred while evaluating query"
-	MsgInputDocError      = "input document is missing or conflicts with query"
+	MsgCompileModuleError         = "error(s) occurred while compiling module(s)"
+	MsgCompileQueryError          = "error(s) occurred while compiling query"
+	MsgEvaluationError            = "error(s) occurred while evaluating query"
+	MsgInputDocError              = "input document is missing or conflicts with query"
+	MsgUnauthorizedUndefinedError = "authorization policy missing or undefined"
+	MsgUnauthorizedError          = "request rejected by administrative policy"
 )
 
 // PatchV1 models a single patch operation against a document.
