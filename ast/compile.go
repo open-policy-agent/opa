@@ -288,6 +288,9 @@ func (c *Compiler) GetRulesWithPrefix(ref Ref) (rules []*Rule) {
 	acc = func(node *RuleTreeNode) {
 		rules = append(rules, node.Rules...)
 		for _, child := range node.Children {
+			if child.Hide {
+				continue
+			}
 			acc(child)
 		}
 	}
@@ -860,6 +863,7 @@ type ModuleTreeNode struct {
 	Key      Value
 	Modules  []*Module
 	Children map[Value]*ModuleTreeNode
+	Hide     bool
 }
 
 // NewModuleTree returns a new ModuleTreeNode that represents the root
@@ -870,12 +874,17 @@ func NewModuleTree(mods map[string]*Module) *ModuleTreeNode {
 	}
 	for _, m := range mods {
 		node := root
-		for _, x := range m.Package.Path {
+		for i, x := range m.Package.Path {
 			c, ok := node.Children[x.Value]
 			if !ok {
+				var hide bool
+				if i == 1 && x.Value.Equal(SystemDocumentKey) {
+					hide = true
+				}
 				c = &ModuleTreeNode{
 					Key:      x.Value,
 					Children: map[Value]*ModuleTreeNode{},
+					Hide:     hide,
 				}
 				node.Children[x.Value] = c
 			}
@@ -911,6 +920,7 @@ type RuleTreeNode struct {
 	Key      Value
 	Rules    []*Rule
 	Children map[Value]*RuleTreeNode
+	Hide     bool
 }
 
 // NewRuleTree returns a new RuleTreeNode that represents the root
@@ -947,6 +957,7 @@ func NewRuleTree(mtree *ModuleTreeNode) *RuleTreeNode {
 		Key:      mtree.Key,
 		Rules:    nil,
 		Children: children,
+		Hide:     mtree.Hide,
 	}
 }
 

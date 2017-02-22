@@ -44,6 +44,10 @@ var RootDocumentRefs = &Set{
 	NewTerm(InputRootRef),
 }
 
+// SystemDocumentKey is the name of the top-level key that identifies the system
+// document.
+var SystemDocumentKey = String("system")
+
 // ReservedVars is the set of names that refer to implicitly ground vars.
 var ReservedVars = NewVarSet(
 	DefaultRootDocument.Value.(Var),

@@ -1323,6 +1323,40 @@ r[x] { data.plugin.b[_] = x }`,
 	assertTopDown(t, compiler, store, "rule with plugin", []string{"topdown", "plugins", "p"}, `{}`, "[2,4]")
 }
 
+func TestTopDownSystemDocument(t *testing.T) {
+
+	compiler := compileModules([]string{`
+		package system.somepolicy
+
+		foo = "hello"
+	`, `
+		package topdown.system
+
+		bar = "goodbye"
+	`})
+
+	store := storage.New(storage.InMemoryWithJSONConfig(map[string]interface{}{
+		"system": map[string]interface{}{
+			"somedata": []interface{}{"a", "b", "c"},
+		},
+		"com": map[string]interface{}{
+			"system": "deadbeef",
+		},
+	}))
+
+	assertTopDown(t, compiler, store, "root query", []string{}, `{}`, `{
+		"topdown": {
+			"system": {
+				"bar": "goodbye"
+			}
+		},
+		"com": {
+			"system": "deadbeef"
+		}
+	}`)
+
+}
+
 func TestExample(t *testing.T) {
 
 	bd := `
@@ -1881,7 +1915,13 @@ func assertTopDown(t *testing.T, compiler *ast.Compiler, store *storage.Storage,
 	txn := storage.NewTransactionOrDie(ctx, store)
 	defer store.Close(ctx, txn)
 
-	ref := ast.MustParseRef("data." + strings.Join(path, "."))
+	var ref ast.Ref
+	if len(path) == 0 {
+		ref = ast.DefaultRootRef
+	} else {
+		ref = ast.MustParseRef("data." + strings.Join(path, "."))
+	}
+
 	params := NewQueryParams(ctx, compiler, store, txn, req, ref)
 
 	testutil.Subtest(t, note, func(t *testing.T) {
@@ -1930,9 +1970,7 @@ func assertTopDown(t *testing.T, compiler *ast.Compiler, store *storage.Storage,
 			var expected interface{}
 
 			// Sort set results so that comparisons are not dependant on order.
-			p := ast.MustParseRef(fmt.Sprintf("data.%v", strings.Join(path, ".")))
-
-			if rs := compiler.GetRulesExact(p); len(rs) > 0 && rs[0].Head.DocKind() == ast.PartialSetDoc {
+			if rs := compiler.GetRulesExact(ref); len(rs) > 0 && rs[0].Head.DocKind() == ast.PartialSetDoc {
 				sort.Sort(resultSet(qrs[0].Result.([]interface{})))
 				expected = parseSortedJSON(e)
 			} else {
