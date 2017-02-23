@@ -21,10 +21,6 @@ GOARCH := $(shell go env GOARCH)
 GOOS := $(shell go env GOOS)
 DISABLE_CGO := CGO_ENABLED=0
 
-# RELEASE_BUILDER_GO_VERSION defines the version of Go used to build the
-# release. This should be kept in sync with the Go versions in .travis.yml.
-RELEASE_BUILDER_GO_VERSION := 1.7
-
 BIN := opa_$(GOOS)_$(GOARCH)
 
 REPOSITORY := openpolicyagent
@@ -124,7 +120,7 @@ clean:
 ######################################################
 
 release-builder:
-	sed -e 's/GOVERSION/$(RELEASE_BUILDER_GO_VERSION)/g' Dockerfile_release-builder.in > .Dockerfile_release-builder
+	sed -e s/GOVERSION/$(shell python -c 'import yaml; print yaml.load(open("./.travis.yml"))["go"][0]')/g Dockerfile_release-builder.in > .Dockerfile_release-builder
 	docker build -f .Dockerfile_release-builder -t $(REPOSITORY)/release-builder .
 
 push-release-builder:
