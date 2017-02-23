@@ -3,7 +3,25 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## 0.4.5
+
+### API security
+
+This release adds support for TLS, token-based authentication, and authorization in the OPA APIs!
+
+For details on how to secure the OPA API, go to http://openpolicyagent.org/documentation/references/security.
+
+### Fixes
+
+- Fix stray built-in error messages ([#275](https://github.com/open-policy-agent/opa/issues/275))
+- Update error codes and messages throughout ([#237](https://github.com/open-policy-agent/opa/issues/237))
+- [Fix evaluation bug with nested value refs](https://github.com/open-policy-agent/opa/pull/276/commits/e3336cce130eedda08f224ce4f28e19212447dcb)
+- [Fix rego.Eval to close transactions](https://github.com/open-policy-agent/opa/pull/276/commits/745bd235127fae6bc22ff870bf62922c9358ccc0)
+- [Fix buggy usage of errors.Cause](https://github.com/open-policy-agent/opa/pull/276/commits/bdf43b6a52de639e4f66810306311641ed7eea85)
+
+### Miscellaneous
+
+- Updated to support Go 1.8
 
 ## 0.4.4
 
