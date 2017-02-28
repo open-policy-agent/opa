@@ -7,7 +7,11 @@ package runtime
 import (
 	"net/http"
 	"net/url"
+	"strings"
+	"sync/atomic"
 	"time"
+
+	"net/http/httputil"
 
 	"github.com/golang/glog"
 	"github.com/open-policy-agent/opa/server/types"
@@ -17,16 +21,28 @@ import (
 // containing the request information as well as response status and latency.
 type LoggingHandler struct {
 	inner http.Handler
+	rid   uint64
 }
 
 // NewLoggingHandler returns a new http.Handler.
 func NewLoggingHandler(inner http.Handler) http.Handler {
-	return &LoggingHandler{inner}
+	return &LoggingHandler{inner, uint64(0)}
 }
 
 func (h *LoggingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	recorder := newRecorder(w)
 	t0 := time.Now()
+	rid := atomic.AddUint64(&h.rid, uint64(1))
+	if glog.V(3) {
+		dump, err := httputil.DumpRequest(r, true)
+		if err != nil {
+			glog.Infof("rid=%v: %v", rid, err)
+		} else {
+			for _, line := range strings.Split(string(dump), "\n") {
+				glog.Infof("rid=%v: %v", rid, line)
+			}
+		}
+	}
 	h.inner.ServeHTTP(recorder, r)
 	if glog.V(2) {
 		dt := time.Since(t0)
@@ -34,18 +50,14 @@ func (h *LoggingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if recorder.statusCode != 0 {
 			statusCode = recorder.statusCode
 		}
-		glog.Infof("%v %v %v %v %v %vms",
+		glog.Infof("rid=%v: %v %v %v %v %v %vms",
+			rid,
 			r.RemoteAddr,
 			r.Method,
 			dropInputParam(r.URL),
 			statusCode,
 			recorder.bytesWritten,
 			float64(dt.Nanoseconds())/1e6)
-		if glog.V(3) {
-			for _, g := range getInputParam(r.URL) {
-				glog.Infoln(g)
-			}
-		}
 	}
 }
 
@@ -86,14 +98,4 @@ func dropInputParam(u *url.URL) string {
 		return u.Path
 	}
 	return u.Path + "?" + cpy.Encode()
-}
-
-func getInputParam(u *url.URL) (r []string) {
-	for _, g := range u.Query()[types.ParamInputV1] {
-		s, err := url.QueryUnescape(g)
-		if len(s) > 0 && err == nil {
-			r = append(r, s)
-		}
-	}
-	return r
 }

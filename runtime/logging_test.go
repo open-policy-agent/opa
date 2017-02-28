@@ -7,7 +7,6 @@ package runtime
 import (
 	"fmt"
 	"net/url"
-	"reflect"
 	"testing"
 )
 
@@ -45,44 +44,4 @@ func TestDropInputParam(t *testing.T) {
 		t.Errorf("Expected %v but got: %v", expected, result)
 	}
 
-}
-
-func TestGetInputParam(t *testing.T) {
-
-	abc := `a.b.c:{"foo":[1,2,3,4]}`
-	def := `d.e.f:{"bar":{"baz":null}}`
-	abcEncoded := url.QueryEscape(abc)
-	defEncoded := url.QueryEscape(def)
-
-	uri, err := url.ParseRequestURI(fmt.Sprintf(`http://localhost:8181/v1/data/foo/bar?input=%v&pretty=true&input=%v`, abcEncoded, defEncoded))
-	if err != nil {
-		panic(err)
-	}
-
-	result := getInputParam(uri)
-	expected := []string{abc, def}
-
-	if !reflect.DeepEqual(result, expected) {
-		t.Errorf("Expected %v but got: %v", expected, result)
-	}
-
-	uri, err = url.ParseRequestURI(fmt.Sprintf(`http://localhost:8181/v1/data/foo?input`))
-	if err != nil {
-		panic(err)
-	}
-
-	result = getInputParam(uri)
-	if len(result) != 0 {
-		t.Errorf("Expected empty result but got: %v", result)
-	}
-
-	uri, err = url.ParseRequestURI(fmt.Sprintf(`http://localhost:8181/v1/data/foo?input=`))
-	if err != nil {
-		panic(err)
-	}
-
-	result = getInputParam(uri)
-	if len(result) != 0 {
-		t.Errorf("Expected empty result but got: %v", result)
-	}
 }
