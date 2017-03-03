@@ -105,7 +105,7 @@ func (t *truth) Answer() (result []*topdown.Event) {
 	}
 
 	traversal := newTruthTraversal(t)
-	nodes := util.DFS(traversal, t.source, sink)
+	nodes := util.DFSPath(traversal, traversal.Equals, t.source, sink)
 
 	for _, n := range nodes {
 		node := n.(*node)

@@ -367,12 +367,15 @@ func (c *Compiler) checkBuiltins() {
 // checkRecursion ensures that there are no recursive rule definitions, i.e., there are
 // no cycles in the RuleGraph.
 func (c *Compiler) checkRecursion() {
+	eq := func(a, b util.T) bool {
+		return a.(*Rule) == b.(*Rule)
+	}
 	for r := range c.RuleGraph {
 		t := &ruleGraphTraveral{
 			graph:   c.RuleGraph,
 			visited: map[*Rule]struct{}{},
 		}
-		if p := util.DFS(t, r, r); len(p) > 0 {
+		if p := util.DFSPath(t, eq, r, r); len(p) > 0 {
 			n := []string{}
 			for _, x := range p {
 				n = append(n, string(x.(*Rule).Head.Name))
@@ -1141,10 +1144,6 @@ func (g *ruleGraphTraveral) Visited(x util.T) bool {
 	_, ok := g.visited[u]
 	g.visited[u] = struct{}{}
 	return ok
-}
-
-func (g *ruleGraphTraveral) Equals(a, b util.T) bool {
-	return a.(*Rule) == b.(*Rule)
 }
 
 type unsafeVars map[*Expr]VarSet
