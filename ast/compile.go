@@ -62,10 +62,10 @@ type Compiler struct {
 	//                +--- q (1 rule)
 	RuleTree *RuleTreeNode
 
-	// RuleGraph represents the rule dependencies.
-	// An edge (u, v) is added to the graph if rule "u" depends on rule "v".
-	// A rule depends on another rule if it refers to it.
-	RuleGraph map[*Rule]map[*Rule]struct{}
+	// RuleGraph represents the dependencies between rules. An edge (u,v) is
+	// added to the graph if rule "u" depends on rule "v". A rule "u" depends on
+	// rule "v" if rule "u" refers to the virtual document defined by rule "v".
+	RuleGraph *RuleGraph
 
 	generatedVars map[*Module]VarSet
 	moduleLoader  ModuleLoader
@@ -157,7 +157,6 @@ func NewCompiler() *Compiler {
 
 	c := &Compiler{
 		Modules:       map[string]*Module{},
-		RuleGraph:     map[*Rule]map[*Rule]struct{}{},
 		generatedVars: map[*Module]VarSet{},
 	}
 
@@ -370,19 +369,20 @@ func (c *Compiler) checkRecursion() {
 	eq := func(a, b util.T) bool {
 		return a.(*Rule) == b.(*Rule)
 	}
-	for r := range c.RuleGraph {
-		t := &ruleGraphTraveral{
-			graph:   c.RuleGraph,
-			visited: map[*Rule]struct{}{},
-		}
-		if p := util.DFSPath(t, eq, r, r); len(p) > 0 {
-			n := []string{}
-			for _, x := range p {
-				n = append(n, string(x.(*Rule).Head.Name))
+
+	c.RuleTree.DepthFirst(func(node *RuleTreeNode) bool {
+		for _, rule := range node.Rules {
+			t := newRuleGraphTraversal(c.RuleGraph)
+			if p := util.DFSPath(t, eq, rule, rule); len(p) > 0 {
+				n := []string{}
+				for _, x := range p {
+					n = append(n, string(x.(*Rule).Head.Name))
+				}
+				c.err(NewError(RecursionErr, rule.Loc(), "%v %v is recursive: %v", RuleTypeName, rule.Head.Name, strings.Join(n, " -> ")))
 			}
-			c.err(NewError(RecursionErr, r.Loc(), "%v %v is recursive: %v", RuleTypeName, r.Head.Name, strings.Join(n, " -> ")))
 		}
-	}
+		return false
+	})
 }
 
 // checkRuleConflicts ensures that rules definitions are not in conflict.
@@ -656,20 +656,7 @@ func (c *Compiler) setRuleTree() {
 }
 
 func (c *Compiler) setRuleGraph() {
-	for _, m := range c.Modules {
-		for _, r := range m.Rules {
-			edges, ok := c.RuleGraph[r]
-			if !ok {
-				edges = map[*Rule]struct{}{}
-				c.RuleGraph[r] = edges
-			}
-			vis := &ruleGraphBuilder{
-				compiler: c,
-				edges:    edges,
-			}
-			Walk(vis, r)
-		}
-	}
+	c.RuleGraph = NewRuleGraph(c.Modules, c.GetRules)
 }
 
 type queryCompiler struct {
@@ -1106,40 +1093,145 @@ func (wc *withModifierChecker) err(code string, loc *Location, f string, a ...in
 	wc.errors = append(wc.errors, NewError(code, loc, f, a...))
 }
 
-type ruleGraphBuilder struct {
-	compiler *Compiler
-	edges    map[*Rule]struct{}
+// RuleGraph represents the dependencies between rules.
+type RuleGraph struct {
+	adj    map[*Rule]map[*Rule]struct{}
+	nodes  map[*Rule]struct{}
+	sorted []*Rule
 }
 
-func (vis *ruleGraphBuilder) Visit(v interface{}) Visitor {
-	ref, ok := v.(Ref)
+// NewRuleGraph returns a new RuleGraph based on modules. The list function
+// must return the rules referred to directly by the ref.
+func NewRuleGraph(modules map[string]*Module, list func(Ref) []*Rule) *RuleGraph {
+
+	ruleGraph := &RuleGraph{
+		adj:    map[*Rule]map[*Rule]struct{}{},
+		nodes:  map[*Rule]struct{}{},
+		sorted: nil,
+	}
+
+	// Walk over all rules, add them to graph, and build adjencency lists.
+	for _, module := range modules {
+		for _, ruleA := range module.Rules {
+			ruleGraph.addNode(ruleA)
+			WalkRefs(ruleA, func(ref Ref) bool {
+				for _, ruleB := range list(ref.GroundPrefix()) {
+					ruleGraph.addDependency(ruleA, ruleB)
+				}
+				return false
+			})
+		}
+	}
+
+	return ruleGraph
+}
+
+// Dependencies returns the set of rules that rule depends on.
+func (g *RuleGraph) Dependencies(rule *Rule) map[*Rule]struct{} {
+	return g.adj[rule]
+}
+
+// Sort returns a slice of rules sorted by dependencies. If a cycle is found,
+// ok is set to false.
+func (g *RuleGraph) Sort() (sorted []*Rule, ok bool) {
+
+	if g.sorted != nil {
+		return g.sorted, true
+	}
+
+	sort := &ruleGraphSort{
+		sorted: make([]*Rule, 0, len(g.nodes)),
+		deps:   g.Dependencies,
+		marked: map[*Rule]struct{}{},
+		temp:   map[*Rule]struct{}{},
+	}
+
+	for node := range g.nodes {
+		if !sort.Visit(node) {
+			return nil, false
+		}
+	}
+
+	g.sorted = sort.sorted
+	return g.sorted, true
+}
+
+func (g *RuleGraph) addDependency(u *Rule, v *Rule) {
+
+	if _, ok := g.nodes[u]; !ok {
+		g.addNode(u)
+	}
+
+	if _, ok := g.nodes[v]; !ok {
+		g.addNode(v)
+	}
+
+	edges, ok := g.adj[u]
 	if !ok {
-		return vis
+		edges = map[*Rule]struct{}{}
+		g.adj[u] = edges
 	}
 
-	for _, v := range vis.compiler.GetRules(ref.GroundPrefix()) {
-		vis.edges[v] = struct{}{}
-	}
-
-	return vis
+	edges[v] = struct{}{}
 }
 
-type ruleGraphTraveral struct {
-	graph   map[*Rule]map[*Rule]struct{}
+func (g *RuleGraph) addNode(n *Rule) {
+	g.nodes[n] = struct{}{}
+}
+
+type ruleGraphSort struct {
+	sorted []*Rule
+	deps   func(*Rule) map[*Rule]struct{}
+	marked map[*Rule]struct{}
+	temp   map[*Rule]struct{}
+}
+
+func (sort *ruleGraphSort) Marked(node *Rule) bool {
+	_, marked := sort.marked[node]
+	return marked
+}
+
+func (sort *ruleGraphSort) Visit(node *Rule) (ok bool) {
+	if _, ok := sort.temp[node]; ok {
+		return false
+	}
+	if sort.Marked(node) {
+		return true
+	}
+	sort.temp[node] = struct{}{}
+	for other := range sort.deps(node) {
+		if !sort.Visit(other) {
+			return false
+		}
+	}
+	sort.marked[node] = struct{}{}
+	delete(sort.temp, node)
+	sort.sorted = append(sort.sorted, node)
+	return true
+}
+
+type ruleGraphTraversal struct {
+	graph   *RuleGraph
 	visited map[*Rule]struct{}
 }
 
-func (g *ruleGraphTraveral) Edges(x util.T) []util.T {
+func newRuleGraphTraversal(graph *RuleGraph) *ruleGraphTraversal {
+	return &ruleGraphTraversal{
+		graph:   graph,
+		visited: map[*Rule]struct{}{},
+	}
+}
+
+func (g *ruleGraphTraversal) Edges(x util.T) []util.T {
 	u := x.(*Rule)
-	edges := g.graph[u]
 	r := []util.T{}
-	for v := range edges {
+	for v := range g.graph.Dependencies(u) {
 		r = append(r, v)
 	}
 	return r
 }
 
-func (g *ruleGraphTraveral) Visited(x util.T) bool {
+func (g *ruleGraphTraversal) Visited(x util.T) bool {
 	u := x.(*Rule)
 	_, ok := g.visited[u]
 	g.visited[u] = struct{}{}
