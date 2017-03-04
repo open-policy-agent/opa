@@ -10,13 +10,24 @@ import (
 )
 
 type testTraversal struct {
-	g       map[int]map[int]struct{}
+	g       map[int][]int
 	visited map[int]struct{}
+	ordered []int
+	stop    *int
+}
+
+func newTestTraversal(g map[int][]int) *testTraversal {
+	return &testTraversal{
+		g:       g,
+		visited: map[int]struct{}{},
+		ordered: nil,
+		stop:    nil,
+	}
 }
 
 func (t *testTraversal) Edges(x T) []T {
 	r := []T{}
-	for v := range t.g[x.(int)] {
+	for _, v := range t.g[x.(int)] {
 		r = append(r, v)
 	}
 	return r
@@ -26,46 +37,137 @@ func (t *testTraversal) Equals(a, b T) bool {
 	return a.(int) == b.(int)
 }
 
+func (t *testTraversal) Iter(x T) bool {
+	t.ordered = append(t.ordered, x.(int))
+	return t.stop != nil && *t.stop == x.(int)
+}
+
 func (t *testTraversal) Visited(x T) bool {
 	_, ok := t.visited[x.(int)]
 	t.visited[x.(int)] = struct{}{}
 	return ok
 }
 
-func TestGraphDFS(t *testing.T) {
-
-	g := map[int]map[int]struct{}{
-		1: map[int]struct{}{
-			2: struct{}{},
-		},
-		2: map[int]struct{}{
-			3: struct{}{},
-			4: struct{}{},
-		},
-		3: map[int]struct{}{
-			2: struct{}{},
-		},
-		4: map[int]struct{}{
-			1: struct{}{},
-		},
+func TestDFSStop(t *testing.T) {
+	g := map[int][]int{
+		1: {2, 3},
+		2: {4, 5},
+		3: {6, 7},
+		6: {2},
 	}
 
-	t1 := &testTraversal{g, map[int]struct{}{}}
-	p1 := DFS(t1, 1, 2)
+	t1 := newTestTraversal(g)
+	stop := 6
+	t1.stop = &stop
+
+	stopped := DFS(t1, t1.Iter, 1)
+
+	if !stopped {
+		t.Fatalf("Expected DFS to stop but got: %v", t1.ordered)
+	}
+
+	expected := []int{1, 3, 7, 6}
+
+	if !reflect.DeepEqual(expected, t1.ordered) {
+		t.Fatalf("Expected DFS ordering %v but got: %v", expected, t1.ordered)
+	}
+}
+
+func TestBFSStop(t *testing.T) {
+	g := map[int][]int{
+		1: {2, 3},
+		2: {4, 5},
+		3: {6, 7},
+		6: {2},
+	}
+
+	t1 := newTestTraversal(g)
+	stop := 4
+	t1.stop = &stop
+
+	stopped := BFS(t1, t1.Iter, 1)
+
+	if !stopped {
+		t.Fatalf("Expected DFS to stop but got: %v", t1.ordered)
+	}
+
+	expected := []int{1, 2, 3, 4}
+
+	if !reflect.DeepEqual(expected, t1.ordered) {
+		t.Fatalf("Expected DFS ordering %v but got: %v", expected, t1.ordered)
+	}
+}
+
+func TestDFS(t *testing.T) {
+	g := map[int][]int{
+		1: {2, 3},
+		2: {4, 5},
+		3: {6, 7},
+		6: {2},
+	}
+
+	t1 := newTestTraversal(g)
+
+	stopped := DFS(t1, t1.Iter, 1)
+	if stopped {
+		t.Fatalf("Did not expect traversal to stop")
+	}
+
+	expected := []int{1, 3, 7, 6, 2, 5, 4}
+
+	if !reflect.DeepEqual(expected, t1.ordered) {
+		t.Fatalf("Expected DFS ordering %v but got: %v", expected, t1.ordered)
+	}
+}
+
+func TestBFS(t *testing.T) {
+	g := map[int][]int{
+		1: {2, 3},
+		2: {4, 5},
+		3: {6, 7},
+		6: {2},
+	}
+
+	t1 := newTestTraversal(g)
+
+	stopped := BFS(t1, t1.Iter, 1)
+	if stopped {
+		t.Fatalf("Did not expect traversal to stop")
+	}
+
+	expected := []int{1, 2, 3, 4, 5, 6, 7}
+
+	if !reflect.DeepEqual(expected, t1.ordered) {
+		t.Fatalf("Expected DFS ordering %v but got: %v", expected, t1.ordered)
+	}
+
+}
+
+func TestDFSPath(t *testing.T) {
+
+	g := map[int][]int{
+		1: {2},
+		2: {3, 4},
+		3: {2},
+		4: {1},
+	}
+
+	t1 := newTestTraversal(g)
+	p1 := DFSPath(t1, t1.Equals, 1, 2)
 
 	if !reflect.DeepEqual(p1, []T{1, 2}) {
 		t.Errorf("Expected DFS(1,2) to equal {1,2} but got: %v", p1)
 	}
 
-	t2 := &testTraversal{g, map[int]struct{}{}}
-	p2 := DFS(t2, 1, 4)
+	t2 := newTestTraversal(g)
+	p2 := DFSPath(t2, t2.Equals, 1, 4)
 
 	if !reflect.DeepEqual(p2, []T{1, 2, 4}) {
 		t.Errorf("Expected DFS(1,4) to equal {1,2,4} but got: %v", p2)
 	}
 
-	t3 := &testTraversal{g, map[int]struct{}{}}
-	p3 := DFS(t3, 1, 0xdeadbeef)
+	t3 := newTestTraversal(g)
+	p3 := DFSPath(t3, t3.Equals, 1, 0xdeadbeef)
 	if len(p3) != 0 {
 		t.Errorf("Expected DFS(1,0xdeadbeef to be empty but got: %v", p3)
 	}

@@ -488,15 +488,15 @@ p[foo[bar[i]]] = {"baz": baz} { true }`)
 	acTerm1 := ac(mod5.Rules[0])
 	assertTermEqual(t, acTerm1.Term, MustParseTerm("input.x.a"))
 	acTerm2 := ac(mod5.Rules[1])
-	assertTermEqual(t, acTerm2.Term, MustParseTerm("input.a.b.c.q.a"))
+	assertTermEqual(t, acTerm2.Term, MustParseTerm("data.a.b.c.q.a"))
 	acTerm3 := ac(mod5.Rules[2])
 	assertTermEqual(t, acTerm3.Body[0].Terms.([]*Term)[1], MustParseTerm("input.x.a"))
 	acTerm4 := ac(mod5.Rules[3])
-	assertTermEqual(t, acTerm4.Body[0].Terms.([]*Term)[1], MustParseTerm("input.a.b.c.q[i]"))
+	assertTermEqual(t, acTerm4.Body[0].Terms.([]*Term)[1], MustParseTerm("data.a.b.c.q[i]"))
 	acTerm5 := ac(mod5.Rules[4])
 	assertTermEqual(t, acTerm5.Body[0].Terms.([]*Term)[2].Value.(*ArrayComprehension).Term, MustParseTerm("input.x.a"))
 	acTerm6 := ac(mod5.Rules[5])
-	assertTermEqual(t, acTerm6.Body[0].Terms.([]*Term)[2].Value.(*ArrayComprehension).Body[0].Terms.([]*Term)[1], MustParseTerm("input.a.b.c.q[i]"))
+	assertTermEqual(t, acTerm6.Body[0].Terms.([]*Term)[2].Value.(*ArrayComprehension).Body[0].Terms.([]*Term)[1], MustParseTerm("data.a.b.c.q[i]"))
 
 	// Nested references.
 	mod6 := c.Modules["mod6"]
@@ -561,8 +561,83 @@ func TestCompilerSetRuleGraph(t *testing.T) {
 		r: struct{}{},
 	}
 
-	if !reflect.DeepEqual(edges, c.RuleGraph[p]) {
-		t.Errorf("Expected dependencies for p to be q and r but got: %v", c.RuleGraph[p])
+	if !reflect.DeepEqual(edges, c.RuleGraph.Dependencies(p)) {
+		t.Fatalf("Expected dependencies for p to be q and r but got: %v", c.RuleGraph.Dependencies(p))
+	}
+
+	sorted, ok := c.RuleGraph.Sort()
+	if !ok {
+		t.Fatalf("Expected sort to succeed.")
+	}
+
+	numRules := 0
+
+	for _, module := range c.Modules {
+		Walk(NewGenericVisitor(func(x interface{}) bool {
+			if _, ok := x.(*Rule); ok {
+				numRules++
+			}
+			return false
+		}), module)
+	}
+
+	if len(sorted) != numRules {
+		t.Fatalf("Expected numRules (%v) to be same as len(sorted) (%v)", numRules, len(sorted))
+	}
+
+	// Probe rules with dependencies. Ordering is not stable for ties because
+	// nodes are stored in a map.
+	probes := [][2]*Rule{
+		{c.Modules["mod1"].Rules[1], c.Modules["mod1"].Rules[0]}, // mod1.q before mod1.p
+		{c.Modules["mod2"].Rules[0], c.Modules["mod1"].Rules[0]}, // mod2.r before mod1.p
+		{c.Modules["mod1"].Rules[1], c.Modules["mod5"].Rules[1]}, // mod1.q before mod5.r
+		{c.Modules["mod1"].Rules[1], c.Modules["mod5"].Rules[3]}, // mod1.q before mod6.t
+		{c.Modules["mod1"].Rules[1], c.Modules["mod5"].Rules[5]}, // mod1.q before mod6.v
+		{c.Modules["mod6"].Rules[2], c.Modules["mod6"].Rules[3]}, // mod6.r before mod6.s
+	}
+
+	getSortedIdx := func(r *Rule) int {
+		for i := range sorted {
+			if sorted[i] == r {
+				return i
+			}
+		}
+		return -1
+	}
+
+	for num, probe := range probes {
+		i := getSortedIdx(probe[0])
+		j := getSortedIdx(probe[1])
+		if i == -1 || j == -1 {
+			t.Fatalf("Expected to find probe %d in sorted slice but got: i=%d, j=%d", num+1, i, j)
+		}
+		if i >= j {
+			t.Errorf("Sort order of probe %d (A) %v and (B) %v and is wrong (expected A before B)", num+1, probe[0], probe[1])
+		}
+	}
+}
+
+func TestRuleGraphCycle(t *testing.T) {
+	mod1 := `package a.b.c
+
+	p { q }
+	q { r }
+	r { s }
+	s { q }`
+
+	c := NewCompiler()
+	c.Modules = map[string]*Module{
+		"mod1": MustParseModule(mod1),
+	}
+
+	compileStages(c, "", "setRuleGraph")
+	assertNotFailed(t, c)
+
+	// fmt.Println(c.Modules)
+
+	_, ok := c.RuleGraph.Sort()
+	if ok {
+		t.Fatalf("Expected to find cycle in rule graph")
 	}
 
 }
@@ -1125,7 +1200,7 @@ x = false { true }`)
 	mod5 := MustParseModule(`package a.b.compr
 
 import input.x as y
-import input.a.b.c.q
+import data.a.b.c.q
 
 p = true { [y.a | true] }
 r = true { [q.a | true] }
