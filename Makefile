@@ -38,8 +38,10 @@ LDFLAGS := "-X github.com/open-policy-agent/opa/version.Version=$(VERSION) \
 GO15VENDOREXPERIMENT := 1
 export GO15VENDOREXPERIMENT
 
-.PHONY: all deps generate build install test perf perf-regression cover check check-fmt check-vet check-lint fmt clean \
-	release-builder push-release-builder release release-patch
+.PHONY: all build check check-fmt check-lint check-vet \
+	clean cover deps fmt generate install perf perf-regression \
+	push push-latest push-release-builder release release-builder \
+	release-patch tag-latest test version
 
 ######################################################
 #
@@ -48,6 +50,9 @@ export GO15VENDOREXPERIMENT
 ######################################################
 
 all: deps build test check
+
+version:
+	@echo $(VERSION)
 
 deps:
 	@./build/install-deps.sh
