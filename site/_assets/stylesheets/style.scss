@@ -532,6 +532,28 @@ strong {
   }
 }
 
+.opa-deployments--docker-hub-list {
+
+  margin: 24px auto 0;
+  max-width: 720px;
+
+  & li {
+    border: solid 2px rgba(100,100,100,0.87);
+    border-radius: 4px;
+    display: block;
+    margin: 0 auto;
+    width: 300px;
+    height: 100px;
+  }
+
+  &--link {
+    display: block;
+    font-size: 20px;
+    text-align: center;
+    line-height: 100px;
+  }
+}
+
 .opa-footer {
   background-color: #444;
   padding: 60px 0;
