@@ -277,6 +277,14 @@ const (
 	// ParamInputV1 defines the name of the HTTP URL parameter that specifies
 	// values for the "input" document.
 	ParamInputV1 = "input"
+
+	// ParamSourceV1 defines the name of the HTTP URL parameter that indicates
+	// the client wants to receive the raw (uncompiled) version of the module.
+	ParamSourceV1 = "source"
+
+	// ParamPrettyV1 defines the name of the HTTP URL parameter that indicates
+	// the client wants to receive a pretty-printed version of the response.
+	ParamPrettyV1 = "pretty"
 )
 
 // WriteConflictErr represents an error condition raised if the caller attempts

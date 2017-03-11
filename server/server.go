@@ -18,6 +18,8 @@ import (
 
 	"crypto/tls"
 
+	"net/url"
+
 	"github.com/gorilla/mux"
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/server/authorizer"
@@ -82,10 +84,9 @@ func New() *Server {
 	s.registerHandlerV1(router, "/data/{path:.+}", "POST", s.v1DataPost)
 	s.registerHandlerV1(router, "/data", "POST", s.v1DataPost)
 	s.registerHandlerV1(router, "/policies", "GET", s.v1PoliciesList)
-	s.registerHandlerV1(router, "/policies/{id}", "DELETE", s.v1PoliciesDelete)
-	s.registerHandlerV1(router, "/policies/{id}", "GET", s.v1PoliciesGet)
-	s.registerHandlerV1(router, "/policies/{id}/raw", "GET", s.v1PoliciesRawGet)
-	s.registerHandlerV1(router, "/policies/{id}", "PUT", s.v1PoliciesPut)
+	s.registerHandlerV1(router, "/policies/{path:.+}", "DELETE", s.v1PoliciesDelete)
+	s.registerHandlerV1(router, "/policies/{path:.+}", "GET", s.v1PoliciesGet)
+	s.registerHandlerV1(router, "/policies/{path:.+}", "PUT", s.v1PoliciesPut)
 	s.registerHandlerV1(router, "/query", "GET", s.v1QueryGet)
 	router.HandleFunc("/", s.indexGet).Methods("GET")
 	s.Handler = router
@@ -297,7 +298,7 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	vars := mux.Vars(r)
 	path := stringPathToDataRef(vars["path"])
-	pretty := getPretty(r.URL.Query()["pretty"])
+	pretty := getBoolParam(r.URL, types.ParamPrettyV1, true)
 	explainMode := getExplain(r.URL.Query()["explain"])
 	input, nonGround, err := parseInput(r.URL.Query()[types.ParamInputV1])
 
@@ -410,7 +411,7 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	vars := mux.Vars(r)
 	path := stringPathToDataRef(vars["path"])
-	pretty := getPretty(r.URL.Query()["pretty"])
+	pretty := getBoolParam(r.URL, types.ParamPrettyV1, true)
 	explainMode := getExplain(r.URL.Query()["explain"])
 
 	input, err := readInput(r.Body)
@@ -524,7 +525,7 @@ func (s *Server) v1DataPut(w http.ResponseWriter, r *http.Request) {
 func (s *Server) v1PoliciesDelete(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	vars := mux.Vars(r)
-	id := vars["id"]
+	id := vars["path"]
 
 	txn, err := s.store.NewTransaction(ctx)
 	if err != nil {
@@ -563,7 +564,8 @@ func (s *Server) v1PoliciesDelete(w http.ResponseWriter, r *http.Request) {
 func (s *Server) v1PoliciesGet(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	vars := mux.Vars(r)
-	id := vars["id"]
+	path := vars["path"]
+	source := getBoolParam(r.URL, types.ParamSourceV1, true)
 
 	txn, err := s.store.NewTransaction(ctx)
 	if err != nil {
@@ -573,9 +575,14 @@ func (s *Server) v1PoliciesGet(w http.ResponseWriter, r *http.Request) {
 
 	defer s.store.Close(ctx, txn)
 
-	_, _, err = s.store.GetPolicy(txn, id)
+	_, bs, err := s.store.GetPolicy(txn, path)
 	if err != nil {
 		writer.ErrorAuto(w, err)
+		return
+	}
+
+	if source {
+		writer.Bytes(w, 200, bs)
 		return
 	}
 
@@ -583,35 +590,12 @@ func (s *Server) v1PoliciesGet(w http.ResponseWriter, r *http.Request) {
 
 	response := types.PolicyGetResponseV1{
 		Result: types.PolicyV1{
-			ID:     id,
-			Module: c.Modules[id],
+			ID:     path,
+			Module: c.Modules[path],
 		},
 	}
 
 	writer.JSON(w, 200, response, true)
-}
-
-func (s *Server) v1PoliciesRawGet(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	vars := mux.Vars(r)
-	id := vars["id"]
-
-	txn, err := s.store.NewTransaction(ctx)
-	if err != nil {
-		writer.ErrorAuto(w, err)
-		return
-	}
-
-	defer s.store.Close(ctx, txn)
-
-	_, bs, err := s.store.GetPolicy(txn, id)
-
-	if err != nil {
-		writer.ErrorAuto(w, err)
-		return
-	}
-
-	writer.Bytes(w, 200, bs)
 }
 
 func (s *Server) v1PoliciesList(w http.ResponseWriter, r *http.Request) {
@@ -638,7 +622,7 @@ func (s *Server) v1PoliciesList(w http.ResponseWriter, r *http.Request) {
 func (s *Server) v1PoliciesPut(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	vars := mux.Vars(r)
-	id := vars["id"]
+	path := vars["path"]
 
 	buf, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -646,7 +630,7 @@ func (s *Server) v1PoliciesPut(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	parsedMod, err := ast.ParseModule(id, string(buf))
+	parsedMod, err := ast.ParseModule(path, string(buf))
 
 	if err != nil {
 		switch err := err.(type) {
@@ -673,7 +657,7 @@ func (s *Server) v1PoliciesPut(w http.ResponseWriter, r *http.Request) {
 	defer s.store.Close(ctx, txn)
 
 	mods := s.store.ListPolicies(txn)
-	mods[id] = parsedMod
+	mods[path] = parsedMod
 
 	c := ast.NewCompiler()
 
@@ -682,7 +666,7 @@ func (s *Server) v1PoliciesPut(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := s.store.InsertPolicy(txn, id, parsedMod, buf, s.persist); err != nil {
+	if err := s.store.InsertPolicy(txn, path, parsedMod, buf, s.persist); err != nil {
 		writer.ErrorAuto(w, err)
 		return
 	}
@@ -691,8 +675,8 @@ func (s *Server) v1PoliciesPut(w http.ResponseWriter, r *http.Request) {
 
 	response := types.PolicyPutResponseV1{
 		Result: types.PolicyV1{
-			ID:     id,
-			Module: c.Modules[id],
+			ID:     path,
+			Module: c.Modules[path],
 		},
 	}
 
@@ -702,7 +686,7 @@ func (s *Server) v1PoliciesPut(w http.ResponseWriter, r *http.Request) {
 func (s *Server) v1QueryGet(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	values := r.URL.Query()
-	pretty := getPretty(r.URL.Query()["pretty"])
+	pretty := getBoolParam(r.URL, types.ParamPrettyV1, true)
 	explainMode := getExplain(r.URL.Query()["explain"])
 	qStrs := values["q"]
 	if len(qStrs) == 0 {
@@ -874,12 +858,25 @@ func stringPathToRef(s string) (r ast.Ref) {
 	return r
 }
 
-func getPretty(p []string) bool {
+func getBoolParam(url *url.URL, name string, ifEmpty bool) bool {
+
+	p, ok := url.Query()[name]
+	if !ok {
+		return false
+	}
+
+	// Query params w/o values are represented as slice (of len 1) with an
+	// empty string.
+	if len(p) == 1 && p[0] == "" {
+		return ifEmpty
+	}
+
 	for _, x := range p {
 		if strings.ToLower(x) == "true" {
 			return true
 		}
 	}
+
 	return false
 }
 
