@@ -17,7 +17,7 @@ import (
 
 	"path/filepath"
 
-	"github.com/golang/glog"
+	"github.com/Sirupsen/logrus"
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/repl"
 	"github.com/open-policy-agent/opa/server"
@@ -74,9 +74,18 @@ type Params struct {
 	// interactive development.
 	Watch bool
 
+	// Logging configures the logging behaviour.
+	Logging LoggingConfig
+
 	// Output is the output stream used when run as an interactive shell. This
 	// is mostly for test purposes.
 	Output io.Writer
+}
+
+// LoggingConfig stores the configuration for OPA's logging behaviour.
+type LoggingConfig struct {
+	Level  string
+	Format string
 }
 
 // NewParams returns a new Params object.
@@ -152,8 +161,11 @@ func (rt *Runtime) init(ctx context.Context, params *Params) error {
 
 func (rt *Runtime) startServer(ctx context.Context, params *Params) {
 
-	glog.Infof("First line of log stream.")
-	glog.V(2).Infof("Server listening address: %v.", params.Addr)
+	setupLogging(params.Logging)
+
+	logrus.WithFields(logrus.Fields{
+		"addr": params.Addr,
+	}).Infof("First line of log stream.")
 
 	persist := len(params.PolicyDir) > 0
 
@@ -167,13 +179,13 @@ func (rt *Runtime) startServer(ctx context.Context, params *Params) {
 		Init(ctx)
 
 	if err != nil {
-		glog.Fatalf("Error creating server: %v", err)
+		logrus.WithField("err", err).Fatalf("Unable to initialize server.")
 	}
 
 	s.Handler = NewLoggingHandler(s.Handler)
 
 	if err := s.Loop(); err != nil {
-		glog.Fatalf("Server exiting: %v", err)
+		logrus.WithField("err", err).Fatalf("Server exiting.")
 	}
 }
 
@@ -328,4 +340,27 @@ func listPaths(path string, recurse bool) (paths []string, err error) {
 		return nil
 	})
 	return paths, err
+}
+
+func setupLogging(config LoggingConfig) {
+	switch config.Format {
+	case "json":
+		logrus.SetFormatter(&logrus.JSONFormatter{})
+	default:
+		logrus.SetFormatter(&logrus.TextFormatter{
+			FullTimestamp: true,
+		})
+	}
+
+	lvl := logrus.InfoLevel
+
+	if config.Level != "" {
+		var err error
+		lvl, err = logrus.ParseLevel(config.Level)
+		if err != nil {
+			logrus.Fatalf("Unable to parse log level: %v", err)
+		}
+	}
+
+	logrus.SetLevel(lvl)
 }

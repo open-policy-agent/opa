@@ -6,19 +6,15 @@ package cmd
 
 import (
 	"crypto/tls"
-	"flag"
 	"fmt"
 	"os"
 	"path"
 	"path/filepath"
-	"reflect"
-	"strings"
 
 	"github.com/open-policy-agent/opa/runtime"
 	"github.com/open-policy-agent/opa/server"
 	"github.com/open-policy-agent/opa/util"
 	"github.com/spf13/cobra"
-	"github.com/spf13/pflag"
 )
 
 // default filename for the interactive shell's history
@@ -48,6 +44,9 @@ func init() {
 		"basic": server.AuthorizationBasic,
 		"off":   server.AuthorizationOff,
 	}
+
+	logLevel := util.NewEnumFlag("info", []string{"debug", "info", "error"})
+	logFormat := util.NewEnumFlag("text", []string{"text", "json"})
 
 	params := runtime.NewParams()
 
@@ -118,8 +117,12 @@ to delete policies will remove the definition file.
 
 			params.Authentication = authenticationSchemes[authentication.String()]
 			params.Authorization = authorizationScheme[authorization.String()]
-			params.Paths = args
 			params.Certificate = cert
+			params.Logging = runtime.LoggingConfig{
+				Level:  logLevel.String(),
+				Format: logFormat.String(),
+			}
+			params.Paths = args
 
 			rt := &runtime.Runtime{}
 			rt.Start(params)
@@ -137,8 +140,8 @@ to delete policies will remove the definition file.
 	runCommand.Flags().StringVarP(&tlsPrivateKeyFile, "tls-private-key-file", "", "", "set path of TLS private key file")
 	runCommand.Flags().VarP(authentication, "authentication", "", "set authentication scheme")
 	runCommand.Flags().VarP(authorization, "authorization", "", "set authorization scheme")
-
-	wrapFlags(runCommand.Flags())
+	runCommand.Flags().VarP(logLevel, "log-level", "l", "set log level")
+	runCommand.Flags().VarP(logFormat, "log-format", "", "set log format")
 
 	usageTemplate := `Usage:
   {{.UseLine}} [flags] [files]
@@ -166,39 +169,6 @@ func policyDir() string {
 		return defaultPolicyDir
 	}
 	return filepath.Join(cwd, defaultPolicyDir)
-}
-
-type flagWrapper struct {
-	inner flag.Value
-	typ   string
-}
-
-func (f *flagWrapper) String() string {
-	return f.inner.String()
-}
-
-func (f *flagWrapper) Set(s string) error {
-	return f.inner.Set(s)
-}
-
-func (f *flagWrapper) Type() string {
-	return f.typ
-}
-
-func wrapFlag(v flag.Value) pflag.Value {
-	if pf, ok := v.(pflag.Value); ok {
-		return pf
-	}
-	return &flagWrapper{
-		inner: v,
-		typ:   strings.TrimSuffix(reflect.TypeOf(v).Elem().Name(), "Value"),
-	}
-}
-
-func wrapFlags(flags *pflag.FlagSet) {
-	flag.CommandLine.VisitAll(func(flg *flag.Flag) {
-		flags.Var(wrapFlag(flg.Value), flg.Name, flg.Usage)
-	})
 }
 
 func loadCertificate(tlsCertFile, tlsPrivateKeyFile string) (*tls.Certificate, error) {
