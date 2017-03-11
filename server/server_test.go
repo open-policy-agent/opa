@@ -722,7 +722,7 @@ func TestPoliciesGetV1(t *testing.T) {
 	}
 }
 
-func TestPoliciesGetRawV1(t *testing.T) {
+func TestPoliciesGetSourceV1(t *testing.T) {
 	f := newFixture(t)
 	put := newReqV1("PUT", "/policies/1", testMod)
 	f.server.Handler.ServeHTTP(f.recorder, put)
@@ -732,7 +732,7 @@ func TestPoliciesGetRawV1(t *testing.T) {
 	}
 
 	f.reset()
-	get := newReqV1("GET", "/policies/1/raw", "")
+	get := newReqV1("GET", "/policies/1?source", "")
 
 	f.server.Handler.ServeHTTP(f.recorder, get)
 
@@ -770,6 +770,16 @@ func TestPoliciesDeleteV1(t *testing.T) {
 	f.server.Handler.ServeHTTP(f.recorder, get)
 	if f.recorder.Code != 404 {
 		t.Fatalf("Expected not found but got %v", f.recorder)
+	}
+}
+
+func TestPoliciesPathSlashes(t *testing.T) {
+	f := newFixture(t)
+	if err := f.v1("PUT", "/policies/a/b/c.rego", testMod, 200, ""); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if err := f.v1("GET", "/policies/a/b/c.rego", testMod, 200, ""); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
 	}
 }
 

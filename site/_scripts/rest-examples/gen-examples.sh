@@ -15,7 +15,7 @@ function main() {
     # execute each of the examples from the reference
     list_policies
     get_a_policy
-    get_a_raw_policy
+    get_a_policy_source
     create_or_update_a_policy
     delete_a_policy
     get_a_document
@@ -40,10 +40,10 @@ function get_a_policy() {
     echo ""
 }
 
-function get_a_raw_policy() {
-    echo "### Get a Raw Policy"
+function get_a_policy_source() {
+    echo "#### Example Request For Source"
     echo ""
-    curl $BASE_URL/policies/example1/raw -s -v
+    curl $BASE_URL/policies/example1?source=true -s -v
     echo ""
 }
 

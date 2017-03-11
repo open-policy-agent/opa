@@ -597,29 +597,13 @@ Content-Type: application/json
 }
 ```
 
-#### Status Codes
-
-- **200** - no error
-- **404** - not found
-- **500** - server error
-
-### Get a Raw Policy
-
-```
-GET /v1/policies/<id>/raw
-```
-
-Get a raw policy module.
-
-Returns the raw policy module content that was sent by the client when the policy was created or last updated.
-
-#### Example Request
+#### Example Request For Source
 
 ```http
-GET /v1/policies/example1/raw HTTP/1.1
+GET /v1/policies/example1?source=true HTTP/1.1
 ```
 
-#### Example Response
+#### Example Response For Source
 
 ```http
 HTTP/1.1 200 OK
@@ -640,6 +624,11 @@ public_servers[server] {
 	networks[m].public = true
 }
 ```
+
+#### Query Parameters
+
+- **source** - If `true` the response will contain the raw source instead of
+  the AST.
 
 #### Status Codes
 

@@ -64,9 +64,10 @@ curl -i localhost:8181/
 #### Logging
 
 OPA focuses on providing debugging support through well-defined APIs and
-whenever possible, OPA returns detailed, structured error messages to clients.
-By default, OPA only emits log messages in response to critical internal events.
-When OPA is healthy, the log stream is quiet.
+detailed error messages in response to client requests.
+
+Log verbosity can be increased to provide debugging information about API
+requests and responses.
 
 The `--v=N` flag controls log verbosity:
 
@@ -78,7 +79,7 @@ The `--v=N` flag controls log verbosity:
 With response logging enabled, API response metadata is logged:
 
 ```
-I0308 20:20:16.107720       1 logging.go:43] 172.17.0.1:57000 GET /v1/policies 200 18 0.821549ms
+I0311 18:54:17.110689       1 logging.go:60] rid=1: 172.17.0.1:60944 PUT /v1/policies/test 200 3683 4.601334ms
 ```
 
 These log messages include:
