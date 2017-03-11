@@ -57,7 +57,7 @@ the risks.
 #### 2. Start OPA with TLS enabled
 
 ```bash
-opa run --server --logtostderr=1 \
+opa run --server --log-level debug \
     --tls-cert-file public.crt \
     --tls-private-key-file private.key
 ```

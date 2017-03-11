@@ -544,6 +544,7 @@ func (f *file) lintNames() {
 		if id.Name == should {
 			return
 		}
+
 		if len(id.Name) > 2 && strings.Contains(id.Name[1:], "_") {
 			f.errorf(id, 0.9, link("http://golang.org/doc/effective_go.html#mixed-caps"), category("naming"), "don't use underscores in Go names; %s %s should be %s", thing, id.Name, should)
 			return
@@ -581,7 +582,12 @@ func (f *file) lintNames() {
 				thing = "method"
 			}
 
-			check(v.Name, thing)
+			// Exclude naming warnings for functions that are exported to C but
+			// not exported in the Go API.
+			// See https://github.com/golang/lint/issues/144.
+			if ast.IsExported(v.Name.Name) || !isCgoExported(v) {
+				check(v.Name, thing)
+			}
 
 			checkList(v.Type.Params, thing+" parameter")
 			checkList(v.Type.Results, thing+" result")
@@ -1506,6 +1512,20 @@ func isZero(expr ast.Expr) bool {
 func isOne(expr ast.Expr) bool {
 	lit, ok := expr.(*ast.BasicLit)
 	return ok && lit.Kind == token.INT && lit.Value == "1"
+}
+
+func isCgoExported(f *ast.FuncDecl) bool {
+	if f.Recv != nil || f.Doc == nil {
+		return false
+	}
+
+	cgoExport := regexp.MustCompile(fmt.Sprintf("(?m)^//export %s$", regexp.QuoteMeta(f.Name.Name)))
+	for _, c := range f.Doc.List {
+		if cgoExport.MatchString(c.Text) {
+			return true
+		}
+	}
+	return false
 }
 
 var basicTypeKinds = map[types.BasicKind]string{

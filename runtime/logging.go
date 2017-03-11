@@ -5,23 +5,30 @@
 package runtime
 
 import (
+	"bytes"
+	"io"
 	"net/http"
 	"net/url"
-	"strings"
 	"sync/atomic"
 	"time"
 
-	"net/http/httputil"
+	"io/ioutil"
 
-	"github.com/golang/glog"
+	"github.com/Sirupsen/logrus"
 	"github.com/open-policy-agent/opa/server/types"
 )
 
-// LoggingHandler returns an http.Handler that will print log messages to glog
+// DebugLogging returns true if log verbosity is high enough to emit debug
+// messages.
+func DebugLogging() bool {
+	return logrus.DebugLevel >= logrus.GetLevel()
+}
+
+// LoggingHandler returns an http.Handler that will print log messages
 // containing the request information as well as response status and latency.
 type LoggingHandler struct {
-	inner http.Handler
-	rid   uint64
+	inner     http.Handler
+	requestID uint64
 }
 
 // NewLoggingHandler returns a new http.Handler.
@@ -32,32 +39,56 @@ func NewLoggingHandler(inner http.Handler) http.Handler {
 func (h *LoggingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	recorder := newRecorder(w)
 	t0 := time.Now()
-	rid := atomic.AddUint64(&h.rid, uint64(1))
-	if glog.V(3) {
-		dump, err := httputil.DumpRequest(r, true)
-		if err != nil {
-			glog.Infof("rid=%v: %v", rid, err)
+	requestID := atomic.AddUint64(&h.requestID, uint64(1))
+
+	if DebugLogging() {
+
+		var bs []byte
+		var err error
+
+		if r.Body != nil {
+			bs, r.Body, err = readBody(r.Body)
+		}
+
+		if err == nil {
+			logrus.WithFields(logrus.Fields{
+				"client_addr": r.RemoteAddr,
+				"req_id":      requestID,
+				"req_method":  r.Method,
+				"req_path":    r.URL.Path,
+				"req_params":  r.URL.Query(),
+				"req_body":    string(bs),
+			}).Debug("Received request.")
 		} else {
-			for _, line := range strings.Split(string(dump), "\n") {
-				glog.Infof("rid=%v: %v", rid, line)
-			}
+			logrus.WithFields(logrus.Fields{
+				"client_addr": r.RemoteAddr,
+				"req_id":      requestID,
+				"req_method":  r.Method,
+				"req_path":    r.URL.Path,
+				"req_params":  r.URL.Query(),
+				"err":         err,
+			}).Error("Failed to read body.")
 		}
 	}
+
 	h.inner.ServeHTTP(recorder, r)
-	if glog.V(2) {
-		dt := time.Since(t0)
-		statusCode := 200
-		if recorder.statusCode != 0 {
-			statusCode = recorder.statusCode
-		}
-		glog.Infof("rid=%v: %v %v %v %v %v %vms",
-			rid,
-			r.RemoteAddr,
-			r.Method,
-			dropInputParam(r.URL),
-			statusCode,
-			recorder.bytesWritten,
-			float64(dt.Nanoseconds())/1e6)
+
+	dt := time.Since(t0)
+	statusCode := 200
+	if recorder.statusCode != 0 {
+		statusCode = recorder.statusCode
+	}
+
+	if DebugLogging() {
+		logrus.WithFields(logrus.Fields{
+			"client_addr":   r.RemoteAddr,
+			"req_id":        requestID,
+			"req_method":    r.Method,
+			"req_path":      r.URL.Path,
+			"resp_status":   statusCode,
+			"resp_bytes":    recorder.bytesWritten,
+			"resp_duration": float64(dt.Nanoseconds()) / 1e6,
+		}).Debug("Sent response.")
 	}
 }
 
@@ -98,4 +129,15 @@ func dropInputParam(u *url.URL) string {
 		return u.Path
 	}
 	return u.Path + "?" + cpy.Encode()
+}
+
+func readBody(r io.ReadCloser) ([]byte, io.ReadCloser, error) {
+	if r == http.NoBody {
+		return nil, r, nil
+	}
+	var buf bytes.Buffer
+	if _, err := buf.ReadFrom(r); err != nil {
+		return nil, r, err
+	}
+	return buf.Bytes(), ioutil.NopCloser(bytes.NewReader(buf.Bytes())), nil
 }

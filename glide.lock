@@ -1,18 +1,16 @@
-hash: 82cff5d6b4b0c1b3e59a1235b05d671343c1894f6af2acffd14d26e2cfff7a72
-updated: 2017-02-12T10:39:05.333544074-08:00
+hash: 7a48e1a97e921bf8d7fb4db459293ec096ef078def900109f0db8201bc0a8457
+updated: 2017-03-11T13:24:58.767874346-08:00
 imports:
 - name: github.com/dchest/siphash
   version: 4ebf1de738443ea7f45f02dc394c4df1942a126d
 - name: github.com/ghodss/yaml
   version: 04f313413ffd65ce25f2541bfd2b2ceec5c0908c
-- name: github.com/golang/glog
-  version: 23def4e6c14b4da8ac2ed8007337bc5eb5007998
 - name: github.com/golang/lint
-  version: 6d7efc48f3ecdd4fdd4035680f25173dbb22fdba
+  version: cb00e5669539f047b2f4c53a421a01b0c8e172c6
 - name: github.com/gorilla/context
   version: 08b5f424b9271eedf6f9f0ce86cb9396ed337a42
 - name: github.com/gorilla/mux
-  version: 392c28fe23e1c45ddba891b0320b3b5df220beea
+  version: 599cba5e7b6137d46ddf58fb1765f5d928e69604
 - name: github.com/inconshreveable/mousetrap
   version: 76626ae9c91c4f2a10f34cad8ce83ea42c93bb75
 - name: github.com/mattn/go-runewidth
@@ -22,19 +20,21 @@ imports:
 - name: github.com/peterh/liner
   version: bf27d3ba8e1d9899d45a457ffac16c953eb2d647
 - name: github.com/pkg/errors
-  version: 248dadf4e9068a0b3e79f02ed0a610d935de5302
+  version: bfd5150e4e41705ded2129ec33379de1cb90b513
 - name: github.com/PuerkitoBio/pigeon
   version: 00949f7e8bae024d00576190ea052378944083d9
+- name: github.com/Sirupsen/logrus
+  version: 0208149b40d863d2c1a2f8fe5753096a9cf2cc8b
 - name: github.com/spf13/cobra
-  version: b5d8e8f46a2f829f755b6e33b454e25c61c935e1
+  version: 16c014f1a19d865b765b420e74508f80eb831ada
 - name: github.com/spf13/pflag
   version: 9ff6c6923cfffbcd502984b8e0c80539a94968b7
 - name: golang.org/x/sys
-  version: aaabbdc969c3935a2a7f61efac801e7163c73a2a
+  version: 99f16d856c9836c42d24e7ab64ea72916925fa97
   subpackages:
   - unix
 - name: golang.org/x/tools
-  version: 13507735c40b4afd2626062b27c40578748f7f95
+  version: f60b69ed8cd7a29e91f87050ae23a29581a0f367
   subpackages:
   - cmd/goimports
 - name: gopkg.in/fsnotify.v1

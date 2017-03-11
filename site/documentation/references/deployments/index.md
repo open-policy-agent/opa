@@ -42,8 +42,8 @@ server. See `--help` for more information on other arguments. The most important
 command line arguments for OPA's server mode are:
 
 * `--addr` to set the listening address (default: `0.0.0.0:8181`).
-* `--v=N` to set the logging level.
-* `--logtostderr=1` send logs to STDERR instead of file.
+* `--log-level` (or `-l`) to set the log level (default: `"info"`).
+* `--log-format` to set the log format (default: `"text"`).
 
 By default, OPA listens for normal HTTP connections on `0.0.0.0:8181`. To make
 OPA listen for HTTPS connections, see [Security](../security/).
@@ -52,7 +52,7 @@ We can run OPA as a server using Docker:
 
 ```bash
 docker run -p 8181:8181 openpolicyagent/opa \
-    run --server --logtostderr=1 --v=2
+    run --server --log-level debug
 ```
 
 Test that OPA is available:
@@ -63,47 +63,26 @@ curl -i localhost:8181/
 
 #### Logging
 
-OPA focuses on providing debugging support through well-defined APIs and
-detailed error messages in response to client requests.
-
-Log verbosity can be increased to provide debugging information about API
-requests and responses.
-
-The `--v=N` flag controls log verbosity:
-
-* `--v=2` enables API response logging.
-* `--v=3` enables API request AND response logging.
-
-**Response Logging**
-
-With response logging enabled, API response metadata is logged:
+OPA logs to stderr. The verbosity can be increased with `--log-level
+debug` to provide details on API requests and responses:
 
 ```
-I0311 18:54:17.110689       1 logging.go:60] rid=1: 172.17.0.1:60944 PUT /v1/policies/test 200 3683 4.601334ms
+time="2017-03-12T03:03:23Z" level=info msg="First line of log stream." addr=":8181"
+time="2017-03-12T03:03:30Z" level=debug msg="Received request." client_addr="172.17.0.1:60952" req_body= req_id=1 req_method=GET req_params=map[] req_path="/v1/data"
+time="2017-03-12T03:03:30Z" level=debug msg="Sent response." client_addr="172.17.0.1:60952" req_id=1 req_method=GET req_path="/v1/data" resp_bytes=13 resp_duration=0.402793 resp_status=200
 ```
 
-These log messages include:
+> Request logs contain the entire message body. This is useful for debugging
+> purposes but can be expensive in practice.
+{: .opa-tip }
 
-* Client IP:Port
-* HTTP request method and path
-* HTTP response status and message body size
-* Total request processing time
-
-**Request Logging**
-
-With request logging enabled, the entire API request is logged:
+The default log format is text-based and intended for development. For
+production, enable JSON formatting with `--log-format json`:
 
 ```
-I0308 20:23:11.375300       1 logging.go:42] rid=1: GET /v1/policies HTTP/1.1
-I0308 20:23:11.375313       1 logging.go:42] rid=1: Host: localhost:8181
-I0308 20:23:11.375316       1 logging.go:42] rid=1: Accept: */*
-I0308 20:23:11.375319       1 logging.go:42] rid=1: User-Agent: curl/7.51.0
-I0308 20:23:11.375321       1 logging.go:42] rid=1:
-I0308 20:23:11.375324       1 logging.go:42] rid=1:
-I0308 20:23:11.375728       1 logging.go:60] rid=1: 172.17.0.1:57004 GET /v1/policies 200 18 0.453044ms
+{"client_addr":"[::1]:64427","level":"debug","msg":"Received request.","req_body":"","req_id":1,"req_method":"GET","req_params":{},"req_path":"/v1/data","time":"2017-03-11T18:22:18-08:00"}
+{"client_addr":"[::1]:64427","level":"debug","msg":"Sent response.","req_id":1,"req_method":"GET","req_path":"/v1/data","resp_bytes":13,"resp_duration":0.392554,"resp_status":200,"time":"2017-03-11T18:22:18-08:00"}
 ```
-
-> The format of these log messages may change in the future.
 
 #### Volume Mounts
 
@@ -240,8 +219,6 @@ spec:
         args:
         - "run"
         - "--server"
-        - "--v=2"
-        - "--logtostderr=1"
         - "/policies/example.rego"
         volumeMounts:
         - readOnly: true

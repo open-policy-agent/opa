@@ -74,7 +74,7 @@ $ chmod u+x opa
 ### 3. Run OPA in server mode with logging enabled.
 
 ```shell
-$ ./opa run -s --alsologtostderr 1 --v 2 --policy-dir policies
+$ ./opa run -s --log-level debug --policy-dir policies
 ```
 
 OPA will run until it receives a signal to stop. Open another terminal to continue with the rest of the example.

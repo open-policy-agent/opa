@@ -49,6 +49,11 @@ func NewProgram(fset *token.FileSet, mode BuilderMode) *Program {
 func memberFromObject(pkg *Package, obj types.Object, syntax ast.Node) {
 	name := obj.Name()
 	switch obj := obj.(type) {
+	case *types.Builtin:
+		if pkg.Pkg != types.Unsafe {
+			panic("unexpected builtin object: " + obj.String())
+		}
+
 	case *types.TypeName:
 		pkg.Members[name] = &Type{
 			object: obj,
@@ -187,7 +192,7 @@ func (prog *Program) CreatePackage(pkg *types.Package, files []*ast.File, info *
 			}
 		}
 	} else {
-		// GC-compiled binary package.
+		// GC-compiled binary package (or "unsafe")
 		// No code.
 		// No position information.
 		scope := p.Pkg.Scope()
@@ -195,9 +200,10 @@ func (prog *Program) CreatePackage(pkg *types.Package, files []*ast.File, info *
 			obj := scope.Lookup(name)
 			memberFromObject(p, obj, nil)
 			if obj, ok := obj.(*types.TypeName); ok {
-				named := obj.Type().(*types.Named)
-				for i, n := 0, named.NumMethods(); i < n; i++ {
-					memberFromObject(p, named.Method(i), nil)
+				if named, ok := obj.Type().(*types.Named); ok {
+					for i, n := 0, named.NumMethods(); i < n; i++ {
+						memberFromObject(p, named.Method(i), nil)
+					}
 				}
 			}
 		}

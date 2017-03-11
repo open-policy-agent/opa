@@ -11,8 +11,9 @@ import:
 - package: github.com/pkg/errors
 - package: github.com/gorilla/mux
 - package: github.com/gorilla/context
-- package: github.com/golang/glog
 - package: github.com/olekukonko/tablewriter
 - package: github.com/dchest/siphash
 - package: gopkg.in/fsnotify.v1
 - package: github.com/ghodss/yaml
+- package: github.com/Sirupsen/logrus
+  version: v0.11.4

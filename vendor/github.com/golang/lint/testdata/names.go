@@ -10,6 +10,8 @@ import (
 	"net/url"
 )
 
+import "C"
+
 var var_name int // MATCH /underscore.*var.*var_name/
 
 type t_wow struct { // MATCH /underscore.*type.*t_wow/
@@ -89,3 +91,26 @@ func case3_1(case3_2 int) (case3_3 string) {
 type t struct{}
 
 func (t) LastInsertId() (int64, error) { return 0, nil } // okay because it matches a known style violation
+
+//export exported_to_c
+func exported_to_c() {} // okay: https://github.com/golang/lint/issues/144
+
+//export exported_to_c_with_arg
+func exported_to_c_with_arg(but_use_go_param_names int) // MATCH /underscore.*func parameter.*but_use_go_param_names/
+
+// This is an exported C function with a leading doc comment.
+//
+//export exported_to_c_with_comment
+func exported_to_c_with_comment() {} // okay: https://github.com/golang/lint/issues/144
+
+//export maybe_exported_to_CPlusPlusWithCamelCase
+func maybe_exported_to_CPlusPlusWithCamelCase() {} // okay: https://github.com/golang/lint/issues/144
+
+// WhyAreYouUsingCapitalLetters_InACFunctionName is a Go-exported function that
+// is also exported to C as a name with underscores.
+//
+// Don't do that. If you want to use a C-style name for a C export, make it
+// lower-case and leave it out of the Go-exported API.
+//
+//export WhyAreYouUsingCapitalLetters_InACFunctionName
+func WhyAreYouUsingCapitalLetters_InACFunctionName() {} // MATCH /underscore.*func.*Why.*CFunctionName/
