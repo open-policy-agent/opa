@@ -36,11 +36,11 @@ q = 2 { true }`)
 
 r = 3 { true }`)
 
-	if err := storage.InsertPolicy(ctx, store, "mod1", mod1, nil, false); err != nil {
+	if err := storage.InsertPolicy(ctx, store, "mod1", mod1, nil); err != nil {
 		panic(err)
 	}
 
-	if err := storage.InsertPolicy(ctx, store, "mod2", mod2, nil, false); err != nil {
+	if err := storage.InsertPolicy(ctx, store, "mod2", mod2, nil); err != nil {
 		panic(err)
 	}
 
@@ -418,7 +418,7 @@ func TestEvalData(t *testing.T) {
 	testmod := ast.MustParseModule(`package ex
 
 p = [1, 2, 3] { true }`)
-	if err := storage.InsertPolicy(ctx, store, "test", testmod, nil, false); err != nil {
+	if err := storage.InsertPolicy(ctx, store, "test", testmod, nil); err != nil {
 		panic(err)
 	}
 	repl.OneShot(ctx, "data")

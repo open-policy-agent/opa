@@ -63,7 +63,6 @@ type Server struct {
 	authentication AuthenticationScheme
 	authorization  AuthorizationScheme
 	cert           *tls.Certificate
-	persist        bool
 	mtx            sync.RWMutex
 	compiler       *ast.Compiler
 	store          *storage.Storage
@@ -155,12 +154,6 @@ func (s *Server) WithAuthorization(scheme AuthorizationScheme) *Server {
 // WithCertificate sets the server-side certificate that the server will use.
 func (s *Server) WithCertificate(cert *tls.Certificate) *Server {
 	s.cert = cert
-	return s
-}
-
-// WithPersist indicates to server whether to persist policies.
-func (s *Server) WithPersist(yes bool) *Server {
-	s.persist = yes
 	return s
 }
 
@@ -684,7 +677,7 @@ func (s *Server) v1PoliciesPut(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := s.store.InsertPolicy(txn, path, parsedMod, buf, s.persist); err != nil {
+	if err := s.store.InsertPolicy(txn, path, parsedMod, buf); err != nil {
 		writer.ErrorAuto(w, err)
 		return
 	}

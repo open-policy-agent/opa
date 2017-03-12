@@ -8,10 +8,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"reflect"
 	"strings"
 	"testing"
@@ -25,20 +23,6 @@ import (
 )
 
 var policyDir string
-
-// TestMain creates a temporary direcotry for the server to
-// save policies to. The directory name is stored in policyDir
-// and is used by the newFixture function.
-func TestMain(m *testing.M) {
-	d, err := ioutil.TempDir("", "server_test")
-	if err != nil {
-		panic(err)
-	}
-	defer os.RemoveAll(d)
-	policyDir = d
-	rc := m.Run()
-	os.Exit(rc)
-}
 
 type tr struct {
 	method string
@@ -852,7 +836,7 @@ func TestQueryV1Explain(t *testing.T) {
 func TestAuthorization(t *testing.T) {
 
 	ctx := context.Background()
-	store := storage.New(storage.InMemoryConfig().WithPolicyDir(policyDir))
+	store := storage.New(storage.InMemoryConfig())
 	txn := storage.NewTransactionOrDie(ctx, store)
 
 	authzPolicy := `package system.authz
@@ -868,7 +852,7 @@ func TestAuthorization(t *testing.T) {
 
 	module := ast.MustParseModule(authzPolicy)
 
-	if err := store.InsertPolicy(txn, "test", module, nil, false); err != nil {
+	if err := store.InsertPolicy(txn, "test", module, nil); err != nil {
 		panic(err)
 	}
 
@@ -1025,7 +1009,7 @@ type fixture struct {
 
 func newFixture(t *testing.T) *fixture {
 	ctx := context.Background()
-	store := storage.New(storage.InMemoryConfig().WithPolicyDir(policyDir))
+	store := storage.New(storage.InMemoryConfig())
 	server, err := New().
 		WithAddress(":8182").
 		WithStorage(store).

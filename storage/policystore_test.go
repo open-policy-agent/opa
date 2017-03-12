@@ -5,9 +5,6 @@
 package storage
 
 import (
-	"io/ioutil"
-	"os"
-	"path/filepath"
 	"testing"
 
 	"github.com/open-policy-agent/opa/ast"
@@ -17,62 +14,20 @@ import (
 // policyStore is now an implementation detail of the storage layer and these
 // are essentially integration tests.
 
-func TestPolicyStoreDefaultOpen(t *testing.T) {
-
-	dir, err := ioutil.TempDir("", "policyDir")
-	if err != nil {
-		panic(err)
-	}
-
-	defer os.RemoveAll(dir)
-
-	filename := filepath.Join(dir, "testMod1")
-
-	err = ioutil.WriteFile(filename, []byte(testMod1), 0644)
-	if err != nil {
-		panic(err)
-	}
-
-	policyStore := newPolicyStore(dir)
-
-	err = policyStore.Open(invalidTXN, loadPolicies)
-	if err != nil {
-		t.Errorf("Unexpected error on Open(): %v", err)
-		return
-	}
-
-	c := ast.NewCompiler()
-	mod := ast.MustParseModule(testMod1)
-	if c.Compile(map[string]*ast.Module{"testMod1": mod}); c.Failed() {
-		panic(c.Errors)
-	}
-
-	stored, err := policyStore.Get("testMod1")
-	if err != nil {
-		t.Errorf("Unexpected error on Get(): %v", err)
-		return
-	}
-
-	if !mod.Equal(stored) {
-		t.Fatalf("Expected %v from policy store but got: %v", mod, stored)
-	}
-}
-
 func TestPolicyStoreAdd(t *testing.T) {
 
 	f := newFixture()
-	defer f.cleanup()
 
 	mod1 := f.compile1(testMod1)
 	mod2 := f.compile1(testMod2)
 
-	err := f.policyStore.Add("testMod1", mod1, []byte(testMod1), true)
+	err := f.policyStore.Add("testMod1", mod1, []byte(testMod1))
 	if err != nil {
 		t.Errorf("Unexpected error on Add(): %v", err)
 		return
 	}
 
-	err = f.policyStore.Add("testMod2", mod2, []byte(testMod2), true)
+	err = f.policyStore.Add("testMod2", mod2, []byte(testMod2))
 	if err != nil {
 		t.Errorf("Unexpected error on Add(): %v", err)
 		return
@@ -115,17 +70,16 @@ func TestPolicyStoreAdd(t *testing.T) {
 func TestPolicyStoreAddIdempotent(t *testing.T) {
 
 	f := newFixture()
-	defer f.cleanup()
 
 	mod1 := f.compile1(testMod1)
 
-	err := f.policyStore.Add("testMod1", mod1, []byte(testMod1), true)
+	err := f.policyStore.Add("testMod1", mod1, []byte(testMod1))
 	if err != nil {
 		t.Errorf("Unexpected error on Add(): %v", err)
 		return
 	}
 
-	err = f.policyStore.Add("testMod1", mod1, []byte(testMod1), true)
+	err = f.policyStore.Add("testMod1", mod1, []byte(testMod1))
 	if err != nil {
 		t.Errorf("Unexpected error on Add(): %v", err)
 		return
@@ -136,18 +90,17 @@ func TestPolicyStoreAddIdempotent(t *testing.T) {
 func TestPolicyStoreRemove(t *testing.T) {
 
 	f := newFixture()
-	defer f.cleanup()
 
 	mod1 := f.compile1(testMod1)
 	mod2 := f.compile1(testMod2)
 
-	err := f.policyStore.Add("testMod1", mod1, []byte(testMod1), true)
+	err := f.policyStore.Add("testMod1", mod1, []byte(testMod1))
 	if err != nil {
 		t.Errorf("Unexpected error on Add(): %v", err)
 		return
 	}
 
-	err = f.policyStore.Add("testMod2", mod2, []byte(testMod2), true)
+	err = f.policyStore.Add("testMod2", mod2, []byte(testMod2))
 	if err != nil {
 		t.Errorf("Unexpected error on Add(): %v", err)
 		return
@@ -169,36 +122,21 @@ func TestPolicyStoreRemove(t *testing.T) {
 		t.Errorf("Expected testMod2 to remain after Remove(): %v", mods)
 		return
 	}
-
-	_, err = os.Stat(f.policyStore.getFilename("testMod1"))
-	if !os.IsNotExist(err) {
-		info, err := ioutil.ReadDir(f.policyStore.policyDir)
-		if err != nil {
-			panic(err)
-		}
-		files := []string{}
-		for _, i := range info {
-			files = append(files, i.Name())
-		}
-		t.Errorf("Expected testMod1 to be removed from disk but %v contains: %v", f.policyStore.policyDir, files)
-		return
-	}
 }
 
 func TestPolicyStoreUpdate(t *testing.T) {
 	f := newFixture()
-	defer f.cleanup()
 
 	mod1 := f.compile1(testMod1)
 	mod2 := f.compile1(testMod2)
 
-	err := f.policyStore.Add("testMod1", mod1, []byte(testMod1), true)
+	err := f.policyStore.Add("testMod1", mod1, []byte(testMod1))
 	if err != nil {
 		t.Errorf("Unexpected error on Add(): %v", err)
 		return
 	}
 
-	err = f.policyStore.Add("testMod1", mod2, []byte(testMod2), true)
+	err = f.policyStore.Add("testMod1", mod2, []byte(testMod2))
 	if err != nil {
 		t.Errorf("Unexpected error on Add(): %v", err)
 		return
@@ -222,29 +160,11 @@ type fixture struct {
 }
 
 func newFixture() *fixture {
-
-	dir, err := ioutil.TempDir("", "policyDir")
-	if err != nil {
-		panic(err)
-	}
-
-	policyStore := newPolicyStore(dir)
-	err = policyStore.Open(invalidTXN, func(map[string][]byte) (map[string]*ast.Module, error) {
-		return nil, nil
-	})
-	if err != nil {
-		panic(err)
-	}
-
+	policyStore := newPolicyStore()
 	f := &fixture{
 		policyStore: policyStore,
 	}
-
 	return f
-}
-
-func (f *fixture) cleanup() {
-	os.RemoveAll(f.policyStore.policyDir)
 }
 
 func (f *fixture) compile1(m string) *ast.Module {

@@ -101,11 +101,6 @@ For example:
 	    3
 	  ]
 	}
-
-If the --policy-dir option is specified any files inside the directory will be
-considered policy definitions and will be loaded on startup. API calls to create
-new policies save the definition file to this direcory. In addition, API calls
-to delete policies will remove the definition file.
 `,
 		Run: func(cmd *cobra.Command, args []string) {
 
@@ -132,7 +127,6 @@ to delete policies will remove the definition file.
 	runCommand.Flags().BoolVarP(&params.Server, "server", "s", false, "start the runtime in server mode")
 	runCommand.Flags().StringVarP(&params.Eval, "eval", "e", "", "evaluate, print, exit")
 	runCommand.Flags().StringVarP(&params.HistoryPath, "history", "H", historyPath(), "set path of history file")
-	runCommand.Flags().StringVarP(&params.PolicyDir, "policy-dir", "p", "", "set directory to store policy definitions")
 	runCommand.Flags().StringVarP(&params.Addr, "addr", "a", defaultAddr, "set listening address of the server")
 	runCommand.Flags().StringVarP(&params.InsecureAddr, "insecure-addr", "", "", "set insecure listening address of the server")
 	runCommand.Flags().StringVarP(&params.OutputFormat, "format", "f", "pretty", "set shell output format, i.e, pretty, json")
