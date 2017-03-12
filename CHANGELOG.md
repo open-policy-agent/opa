@@ -3,7 +3,27 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## 0.4.6
+
+This release changes the `run` command options:
+
+- Removed glog in favour of Sirupsen/logrus. This means the command line arguments to control logging have changed. See `run --help` for details.
+- Removed `--policy-dir` option. For now, if policy persistence is required, users can treat policies as config files and manage them outside of OPA. Once OPA supports persistence of data (e.g., with file-based storage) then policy persistence will be added back in.
+
+### Fixes
+
+- Add support for additional HTTP listener ([#289](https://github.com/open-policy-agent/opa/issues/289))
+- Allow slash in policy id/path ([#292](https://github.com/open-policy-agent/opa/issues/292))
+- Improve request logging ([#281](https://github.com/open-policy-agent/opa/issues/281))
+
+### Miscellaneous
+
+- Add deployment documentation
+- Remove erroneous flag.Parse() call
+- Remove persist/--policy-dir option
+- Replace glog with logrus
+
+Also, updated Docker tagging so that latest points to most recent release (instead of most recent development build). The most recent development build can still be obtained with the {version}-dev tag.
 
 ## 0.4.5
 

@@ -13,9 +13,9 @@ title: Get Open Policy Agent
 The binary releases for 64-bit Linux and Mac are available for download here. For other releases of OPA see the [GitHub Releases](https://github.com/open-policy-agent/opa/releases) page.
 {: .opa-header--text}
 
-  * [64-bit Linux](https://github.com/open-policy-agent/opa/releases/download/v0.4.5/opa_linux_amd64){: .opa-header--download-list--link}
-  * [64-bit Mac OS X](https://github.com/open-policy-agent/opa/releases/download/v0.4.5/opa_darwin_amd64){: .opa-header--download-list--link}
-  * [Go Source](https://github.com/open-policy-agent/opa/archive/v0.4.5.tar.gz){: .opa-header--download-list--link}
+  * [64-bit Linux](https://github.com/open-policy-agent/opa/releases/download/v0.4.6/opa_linux_amd64){: .opa-header--download-list--link}
+  * [64-bit Mac OS X](https://github.com/open-policy-agent/opa/releases/download/v0.4.6/opa_darwin_amd64){: .opa-header--download-list--link}
+  * [Go Source](https://github.com/open-policy-agent/opa/archive/v0.4.6.tar.gz){: .opa-header--download-list--link}
   {: .opa-header--download-list}
 
 {% endcontentfor %}
@@ -25,7 +25,7 @@ The binary releases for 64-bit Linux and Mac are available for download here. Fo
 ## 64-bit Linux
 
 ```shell
-$ curl -L https://github.com/open-policy-agent/opa/releases/download/v0.4.5/opa_linux_amd64 > opa
+$ curl -L https://github.com/open-policy-agent/opa/releases/download/v0.4.6/opa_linux_amd64 > opa
 $ chmod u+x opa
 $ ./opa version
 ```
@@ -33,14 +33,14 @@ $ ./opa version
 ## 64-bit Mac OS X
 
 ```shell
-$ curl -L https://github.com/open-policy-agent/opa/releases/download/v0.4.5/opa_darwin_amd64 > opa
+$ curl -L https://github.com/open-policy-agent/opa/releases/download/v0.4.6/opa_darwin_amd64 > opa
 $ chmod u+x opa
 $ ./opa version
 ```
 
 ## Docker Image (64-bit Linux)
 ```shell
-$ docker run openpolicyagent/opa:0.4.5 version
+$ docker run openpolicyagent/opa:0.4.6 version
 ```
 
 {% endcontentfor %}
