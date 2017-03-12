@@ -65,7 +65,7 @@ func isUnrecognizedFile(err error) bool {
 func (l *loaded) Merge(path string, result interface{}) error {
 	switch result := result.(type) {
 	case *loadedModule:
-		l.Modules[path] = result
+		l.Modules[normalizeModuleID(path)] = result
 	default:
 		obj, err := makeDir(l.path, result)
 		if err != nil {
@@ -237,6 +237,10 @@ func makeDir(path []string, x interface{}) (map[string]interface{}, error) {
 		return obj, nil
 	}
 	return makeDir(path[:len(path)-1], map[string]interface{}{path[len(path)-1]: x})
+}
+
+func normalizeModuleID(x string) string {
+	return strings.Trim(x, "/")
 }
 
 func splitPathPrefix(path string) ([]string, string) {

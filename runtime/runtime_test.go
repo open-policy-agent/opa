@@ -109,7 +109,7 @@ q = true { false }`,
 	modules := rt.Store.ListPolicies(txn)
 	expected := ast.MustParseModule(mod1)
 
-	if !expected.Equal(modules[tmp2.Name()]) {
+	if !expected.Equal(modules[normalizeModuleID(tmp2.Name())]) {
 		t.Fatalf("Expected %v but got: %v", expected, modules[tmp2.Name()])
 	}
 
