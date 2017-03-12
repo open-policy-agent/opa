@@ -62,11 +62,6 @@ type Params struct {
 	// where the contained document should be loaded.
 	Paths []string
 
-	// PolicyDir is the filename of the directory to persist policy
-	// definitions in. Policy definitions stored in this directory
-	// are automatically loaded on startup.
-	PolicyDir string
-
 	// Server flag controls whether the OPA instance will start a server.
 	// By default, the OPA instance acts as an interactive shell.
 	Server bool
@@ -124,19 +119,13 @@ func (rt *Runtime) Start(params *Params) {
 
 func (rt *Runtime) init(ctx context.Context, params *Params) error {
 
-	if len(params.PolicyDir) > 0 {
-		if err := os.MkdirAll(params.PolicyDir, 0755); err != nil {
-			return errors.Wrap(err, "unable to make --policy-dir")
-		}
-	}
-
 	loaded, err := loadAllPaths(params.Paths)
 	if err != nil {
 		return err
 	}
 
 	// Open data store and load base documents.
-	store := storage.New(storage.InMemoryConfig().WithPolicyDir(params.PolicyDir))
+	store := storage.New(storage.InMemoryConfig())
 
 	if err := store.Open(ctx); err != nil {
 		return err
@@ -172,13 +161,10 @@ func (rt *Runtime) startServer(ctx context.Context, params *Params) {
 		"insecure_addr": params.InsecureAddr,
 	}).Infof("First line of log stream.")
 
-	persist := len(params.PolicyDir) > 0
-
 	s, err := server.New().
 		WithStorage(rt.Store).
 		WithAddress(params.Addr).
 		WithInsecureAddress(params.InsecureAddr).
-		WithPersist(persist).
 		WithCertificate(params.Certificate).
 		WithAuthentication(params.Authentication).
 		WithAuthorization(params.Authorization).
@@ -295,7 +281,7 @@ func compileAndStoreInputs(modules map[string]*loadedModule, store *storage.Stor
 	}
 
 	for id := range modules {
-		if err := store.InsertPolicy(txn, id, modules[id].Parsed, modules[id].Raw, false); err != nil {
+		if err := store.InsertPolicy(txn, id, modules[id].Parsed, modules[id].Raw); err != nil {
 			return err
 		}
 	}

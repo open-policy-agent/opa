@@ -9,7 +9,6 @@ import (
 	"context"
 	"io/ioutil"
 	"os"
-	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
@@ -69,28 +68,10 @@ p = true { 1 = 2 }`
 		panic(err)
 	}
 
-	tmp3, err := ioutil.TempDir("", "policyDir")
-	if err != nil {
-		panic(err)
-	}
-
-	defer os.RemoveAll(tmp3)
-
-	tmp4 := filepath.Join(tmp3, "existingPolicy")
-
-	err = ioutil.WriteFile(tmp4, []byte(`package a.b.c
-
-q = true { false }`,
-	), 0644)
-	if err != nil {
-		panic(err)
-	}
-
 	rt := Runtime{}
 
 	err = rt.init(ctx, &Params{
-		Paths:     []string{tmp1.Name(), tmp2.Name()},
-		PolicyDir: tmp3,
+		Paths: []string{tmp1.Name(), tmp2.Name()},
 	})
 
 	if err != nil {

@@ -9,9 +9,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
-	"os"
-	"path/filepath"
 
 	"github.com/open-policy-agent/opa/storage"
 )
@@ -157,63 +154,5 @@ func ExampleStorage_Write() {
 	// v1: -62.338889
 	// err1: <nil>
 	// err2: storage_not_found_error: /users/1/color: document does not exist
-
-}
-
-func ExampleStorage_Open() {
-	// Initialize context for the example. Normally the caller would obtain the
-	// context from an input parameter or instantiate their own.
-	ctx := context.Background()
-
-	// Define two example modules and write them to disk in a temporary directory.
-	ex1 := `
-
-        package opa.example
-
-        p { q.r != 0 }
-
-    `
-
-	ex2 := `
-
-        package opa.example
-
-        q = {"r": 100}
-
-    `
-
-	path, err := ioutil.TempDir("", "")
-	if err != nil {
-		// Handle error.
-	}
-
-	defer os.RemoveAll(path)
-
-	if err = ioutil.WriteFile(filepath.Join(path, "ex1.rego"), []byte(ex1), 0644); err != nil {
-		// Handle error.
-	}
-
-	if err = ioutil.WriteFile(filepath.Join(path, "ex2.rego"), []byte(ex2), 0644); err != nil {
-		// Handle error.
-	}
-
-	// Instantiate storage layer and configure with a directory to persist policy modules.
-	store := storage.New(storage.InMemoryConfig().WithPolicyDir(path))
-
-	if err = store.Open(ctx); err != nil {
-		// Handle error.
-	}
-
-	// Inspect one of the loaded policies.
-	mod, _, err := storage.GetPolicy(ctx, store, "ex1.rego")
-
-	if err != nil {
-		// Handle error.
-	}
-
-	fmt.Println("Expr:", mod.Rules[0].Body[0])
-
-	// Output:
-	// Expr: q.r != 0
 
 }

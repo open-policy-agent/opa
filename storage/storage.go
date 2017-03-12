@@ -13,15 +13,13 @@ import (
 
 // Config represents the configuration for the policy engine's storage layer.
 type Config struct {
-	Builtin   Store
-	PolicyDir string
+	Builtin Store
 }
 
 // InMemoryConfig returns a new Config for an in-memory storage layer.
 func InMemoryConfig() Config {
 	return Config{
-		Builtin:   NewDataStore(),
-		PolicyDir: "",
+		Builtin: NewDataStore(),
 	}
 }
 
@@ -29,15 +27,8 @@ func InMemoryConfig() Config {
 // using existing JSON data. This is primarily for test purposes.
 func InMemoryWithJSONConfig(data map[string]interface{}) Config {
 	return Config{
-		Builtin:   NewDataStoreFromJSONObject(data),
-		PolicyDir: "",
+		Builtin: NewDataStoreFromJSONObject(data),
 	}
-}
-
-// WithPolicyDir returns a new Config with the policy directory configured.
-func (c Config) WithPolicyDir(dir string) Config {
-	c.PolicyDir = dir
-	return c
 }
 
 // Storage represents the policy engine's storage layer.
@@ -66,15 +57,15 @@ func New(config Config) *Storage {
 	return &Storage{
 		builtin:     config.Builtin,
 		indices:     newIndices(),
-		policyStore: newPolicyStore(config.PolicyDir),
+		policyStore: newPolicyStore(),
 		active:      map[string]struct{}{},
 	}
 }
 
 // Open initializes the storage layer. Open should normally be called
 // immediately after instantiating a new instance of the storage layer. If the
-// storage layer is configured to use in-memory storage and is not persisting
-// policy modules to disk, the call to Open() may be omitted.
+// storage layer is configured to use in-memory storage the Open() call can be
+// skiped.
 func (s *Storage) Open(ctx context.Context) error {
 
 	txn, err := s.NewTransaction(ctx)
@@ -84,7 +75,7 @@ func (s *Storage) Open(ctx context.Context) error {
 
 	defer s.Close(ctx, txn)
 
-	return s.policyStore.Open(txn, loadPolicies)
+	return nil
 }
 
 // ListPolicies returns a map of policy modules that have been loaded into the
@@ -111,8 +102,8 @@ func (s *Storage) GetPolicy(txn Transaction, id string) (*ast.Module, []byte, er
 // InsertPolicy upserts a policy module into the storage layer. If the policy
 // module already exists, it is replaced. If the persist flag is true, the
 // storage layer will attempt to write the raw policy module content to disk.
-func (s *Storage) InsertPolicy(txn Transaction, id string, module *ast.Module, raw []byte, persist bool) error {
-	return s.policyStore.Add(id, module, raw, persist)
+func (s *Storage) InsertPolicy(txn Transaction, id string, module *ast.Module, raw []byte) error {
+	return s.policyStore.Add(id, module, raw)
 }
 
 // DeletePolicy removes a policy from the storage layer.
@@ -367,13 +358,13 @@ func (s *Storage) notifyStoresClose(ctx context.Context, txn Transaction) {
 }
 
 // InsertPolicy upserts a policy module into storage inside a new transaction.
-func InsertPolicy(ctx context.Context, store *Storage, id string, mod *ast.Module, raw []byte, persist bool) error {
+func InsertPolicy(ctx context.Context, store *Storage, id string, mod *ast.Module, raw []byte) error {
 	txn, err := store.NewTransaction(ctx)
 	if err != nil {
 		return err
 	}
 	defer store.Close(ctx, txn)
-	return store.InsertPolicy(txn, id, mod, raw, persist)
+	return store.InsertPolicy(txn, id, mod, raw)
 }
 
 // DeletePolicy removes a policy module from storage inside a new transaction.
