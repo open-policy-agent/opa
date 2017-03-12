@@ -59,6 +59,7 @@ type Server struct {
 	Handler http.Handler
 
 	addr           string
+	insecureAddr   string
 	authentication AuthenticationScheme
 	authorization  AuthorizationScheme
 	cert           *tls.Certificate
@@ -133,6 +134,12 @@ func (s *Server) WithAddress(addr string) *Server {
 	return s
 }
 
+// WithInsecureAddress sets the listening address that the server will bind to.
+func (s *Server) WithInsecureAddress(addr string) *Server {
+	s.insecureAddr = addr
+	return s
+}
+
 // WithAuthentication sets authentication scheme to use on the server.
 func (s *Server) WithAuthentication(scheme AuthenticationScheme) *Server {
 	s.authentication = scheme
@@ -175,26 +182,37 @@ func (s *Server) Compiler() *ast.Compiler {
 	return s.compiler
 }
 
-// Loop starts the server. This function does not return.
-func (s *Server) Loop() error {
-	httpServer := http.Server{
+// Listeners returns functions that listen and serve connections.
+func (s *Server) Listeners() (func() error, func() error) {
+
+	server1 := http.Server{
 		Addr:    s.addr,
 		Handler: s.Handler,
 	}
 
-	if s.cert != nil {
-		httpServer.TLSConfig = &tls.Config{
+	loop1 := func() error { return server1.ListenAndServe() }
+
+	if s.cert == nil {
+		return loop1, nil
+	}
+
+	server2 := http.Server{
+		Addr:    s.addr,
+		Handler: s.Handler,
+		TLSConfig: &tls.Config{
 			Certificates: []tls.Certificate{*s.cert},
-		}
+		},
 	}
 
-	if httpServer.TLSConfig == nil {
-		return httpServer.ListenAndServe()
+	loop2 := func() error { return server2.ListenAndServeTLS("", "") }
+
+	if s.insecureAddr == "" {
+		return loop2, nil
 	}
 
-	// http.Server will ignore the cert and key file params if the
-	// TLSConfig.Certificates field is set.
-	return httpServer.ListenAndServeTLS("", "")
+	server1.Addr = s.insecureAddr
+
+	return loop2, loop1
 }
 
 func (s *Server) execQuery(ctx context.Context, compiler *ast.Compiler, txn storage.Transaction, query ast.Body, explainMode types.ExplainModeV1) (types.QueryResponseV1, error) {

@@ -39,8 +39,9 @@ startup:
 OPA will exit immediately with a non-zero status code if only one of these flags
 is specified.
 
-When TLS credentials are provided, OPA will ignore normal/insecure incoming HTTP
-connections.
+By default, OPA ignores insecure HTTP connections when TLS is enabled. To allow
+insecure HTTP connections in addition to HTTPS connections, provide another
+listening address with `--insecure-addr`.
 
 #### 1. Generate the TLS credentials for OPA (Example)
 

@@ -32,6 +32,10 @@ type Params struct {
 	// Addr is the listening address that the OPA server will bind to.
 	Addr string
 
+	// InsecureAddr is the listening address that the OPA server will bind to
+	// in addition to Addr if TLS is enabled.
+	InsecureAddr string
+
 	// Authentication is the type of authentication scheme to use.
 	Authentication server.AuthenticationScheme
 
@@ -164,7 +168,8 @@ func (rt *Runtime) startServer(ctx context.Context, params *Params) {
 	setupLogging(params.Logging)
 
 	logrus.WithFields(logrus.Fields{
-		"addr": params.Addr,
+		"addr":          params.Addr,
+		"insecure_addr": params.InsecureAddr,
 	}).Infof("First line of log stream.")
 
 	persist := len(params.PolicyDir) > 0
@@ -172,6 +177,7 @@ func (rt *Runtime) startServer(ctx context.Context, params *Params) {
 	s, err := server.New().
 		WithStorage(rt.Store).
 		WithAddress(params.Addr).
+		WithInsecureAddress(params.InsecureAddr).
 		WithPersist(persist).
 		WithCertificate(params.Certificate).
 		WithAuthentication(params.Authentication).
@@ -184,7 +190,16 @@ func (rt *Runtime) startServer(ctx context.Context, params *Params) {
 
 	s.Handler = NewLoggingHandler(s.Handler)
 
-	if err := s.Loop(); err != nil {
+	loop1, loop2 := s.Listeners()
+	if loop2 != nil {
+		go func() {
+			if err := loop2(); err != nil {
+				logrus.WithField("err", err).Fatalf("Server exiting.")
+			}
+		}()
+	}
+
+	if err := loop1(); err != nil {
 		logrus.WithField("err", err).Fatalf("Server exiting.")
 	}
 }
