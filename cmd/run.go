@@ -139,7 +139,6 @@ to delete policies will remove the definition file.
 	runCommand.Flags().VarP(authorization, "authorization", "", "set authorization scheme")
 
 	wrapFlags(runCommand.Flags())
-	flag.Parse()
 
 	usageTemplate := `Usage:
   {{.UseLine}} [flags] [files]
