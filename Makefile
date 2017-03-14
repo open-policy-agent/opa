@@ -13,6 +13,7 @@ PACKAGES := \
 	github.com/open-policy-agent/opa/server/.../ \
 	github.com/open-policy-agent/opa/storage/.../ \
 	github.com/open-policy-agent/opa/topdown/.../ \
+	github.com/open-policy-agent/opa/types/.../ \
 	github.com/open-policy-agent/opa/util/.../ \
 	github.com/open-policy-agent/opa/test/.../
 
