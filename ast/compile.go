@@ -1009,9 +1009,9 @@ func (bc *builtinChecker) Visit(x interface{}) Visitor {
 	case *Expr:
 		if ts, ok := x.Terms.([]*Term); ok {
 			if bi, ok := BuiltinMap[ts[0].Value.(Var)]; ok {
-				if bi.NumArgs != len(ts[1:]) {
+				if len(bi.Args) != len(ts[1:]) {
 					msg := "built-in function %v takes exactly %v arguments but got %v"
-					bc.err(TypeErr, x.Location, msg, ts[0], bi.NumArgs, len(ts[1:]))
+					bc.err(TypeErr, x.Location, msg, ts[0], len(bi.Args), len(ts[1:]))
 				}
 			} else {
 				msg := "unknown built-in function %v"

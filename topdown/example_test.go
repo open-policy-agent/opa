@@ -16,6 +16,7 @@ import (
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/topdown"
 	"github.com/open-policy-agent/opa/topdown/builtins"
+	"github.com/open-policy-agent/opa/types"
 )
 
 func ExampleEval() {
@@ -165,8 +166,11 @@ func ExampleRegisterFunctionalBuiltin1() {
 	// registry to include your built-in. Otherwise, the compiler will complain
 	// when it encounters your built-in.
 	builtin := &ast.Builtin{
-		Name:      ast.Var("selective_upper"),
-		NumArgs:   2,
+		Name: ast.Var("selective_upper"),
+		Args: []types.Type{
+			types.S,
+			types.S,
+		},
 		TargetPos: []int{1},
 	}
 
