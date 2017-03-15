@@ -9,8 +9,8 @@ import (
 	"testing"
 )
 
-func TestUnifies(t *testing.T) {
-	b := &Builtin{Name: Var("dummy"), NumArgs: 4, TargetPos: []int{1, 3}}
+func TestIsTargetPos(t *testing.T) {
+	b := &Builtin{Name: Var("dummy"), TargetPos: []int{1, 3}}
 	expected := []int{1, 3}
 	result := []int{}
 	for i := 0; i < 4; i++ {

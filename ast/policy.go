@@ -781,7 +781,7 @@ func (expr *Expr) String() string {
 		bi := BuiltinMap[name]
 		var s string
 		if bi != nil && len(bi.Infix) > 0 {
-			switch bi.NumArgs {
+			switch len(bi.Args) {
 			case 2:
 				s = fmt.Sprintf("%v %v %v", t[1], bi.Infix, t[2])
 			case 3:
