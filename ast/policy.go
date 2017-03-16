@@ -737,6 +737,46 @@ func (expr *Expr) IsEquality() bool {
 	return terms[0].Value.Equal(Equality.Name)
 }
 
+// IsBuiltin returns true if this expression refers to a built-in function.
+func (expr *Expr) IsBuiltin() bool {
+	_, ok := expr.Terms.([]*Term)
+	return ok
+}
+
+// Builtin returns the builtin object referred to by this expression. If the
+// expression does not refer to a built-in or the built-in is unknown, this
+// function returns nil.
+func (expr *Expr) Builtin() *Builtin {
+	terms, ok := expr.Terms.([]*Term)
+	if !ok {
+		return nil
+	}
+	return BuiltinMap[terms[0].Value.(Var)]
+}
+
+// Operand returns the term at the zero-based pos. If the expr does not include
+// at least pos+1 terms, this function returns nil.
+func (expr *Expr) Operand(pos int) *Term {
+	terms, ok := expr.Terms.([]*Term)
+	if !ok {
+		return nil
+	}
+	idx := pos + 1
+	if idx < len(terms) {
+		return terms[idx]
+	}
+	return nil
+}
+
+// Operands returns the built-in function operands.
+func (expr *Expr) Operands() []*Term {
+	terms, ok := expr.Terms.([]*Term)
+	if !ok {
+		return nil
+	}
+	return terms[1:]
+}
+
 // IsGround returns true if all of the expression terms are ground.
 func (expr *Expr) IsGround() bool {
 	switch ts := expr.Terms.(type) {
