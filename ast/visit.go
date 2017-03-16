@@ -103,6 +103,18 @@ func WalkClosures(x interface{}, f func(interface{}) bool) {
 	Walk(vis, x)
 }
 
+// WalkExprs calls the function f on all expressions under x. If the function f
+// returns true, AST nodes under the last node will not be visited.
+func WalkExprs(x interface{}, f func(*Expr) bool) {
+	vis := &GenericVisitor{func(x interface{}) bool {
+		if r, ok := x.(*Expr); ok {
+			return f(r)
+		}
+		return false
+	}}
+	Walk(vis, x)
+}
+
 // WalkRefs calls the function f on all references under x. If the function f
 // returns true, AST nodes under the last node will not be visited.
 func WalkRefs(x interface{}, f func(Ref) bool) {
