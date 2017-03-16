@@ -296,7 +296,7 @@ func (r *REPL) complete(line string) (c []string) {
 	// add virtual docs defined in repl
 	for _, mod := range r.modules {
 		for _, rule := range mod.Rules {
-			path := rule.Path(mod.Package.Path).String()
+			path := rule.Path().String()
 			if strings.HasPrefix(path, line) {
 				c = append(c, path)
 			}
@@ -308,7 +308,7 @@ func (r *REPL) complete(line string) (c []string) {
 	// add virtual docs defined by policies
 	for _, mod := range mods {
 		for _, rule := range mod.Rules {
-			path := rule.Path(mod.Package.Path).String()
+			path := rule.Path().String()
 			if strings.HasPrefix(path, line) {
 				c = append(c, path)
 			}
@@ -591,7 +591,7 @@ func (r *REPL) evalStatement(ctx context.Context, stmt interface{}) error {
 		body, err := r.compileBody(s, input)
 
 		if err != nil {
-			rule, err2 := ast.ParseRuleFromBody(s)
+			rule, err2 := ast.ParseRuleFromBody(r.modules[r.currentModuleID], s)
 			if err2 != nil {
 				// The statement cannot be understood as a rule, so the original
 				// error returned from compiling the query should be given the
@@ -601,7 +601,7 @@ func (r *REPL) evalStatement(ctx context.Context, stmt interface{}) error {
 			return r.compileRule(rule)
 		}
 
-		rule, err3 := ast.ParseRuleFromBody(body)
+		rule, err3 := ast.ParseRuleFromBody(r.modules[r.currentModuleID], body)
 		if err3 == nil {
 			return r.compileRule(rule)
 		}

@@ -845,6 +845,28 @@ func TestWildcards(t *testing.T) {
 		)))
 }
 
+func TestRuleModulePtr(t *testing.T) {
+	mod := `package test
+
+	p { true }
+	p { true }
+	q { true }
+	r = 1
+	default s = 2
+	`
+
+	parsed, err := ParseModule("", mod)
+	if err != nil {
+		t.Fatalf("Unexpected parse error: %v", err)
+	}
+
+	for _, rule := range parsed.Rules {
+		if rule.Module != parsed {
+			t.Fatalf("Expected module ptr to be %p but got %p", parsed, rule.Module)
+		}
+	}
+}
+
 func TestNoMatchError(t *testing.T) {
 	mod := `package test
 

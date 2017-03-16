@@ -119,7 +119,7 @@ func MustParseTerm(input string) *Term {
 // ParseRuleFromBody attempts to return a rule from a body. Equality expressions
 // of the form <var> = <term> can be converted into rules of the form <var> =
 // <term> { true }. This is a concise way of defining constants inside modules.
-func ParseRuleFromBody(body Body) (*Rule, error) {
+func ParseRuleFromBody(module *Module, body Body) (*Rule, error) {
 
 	if len(body) != 1 {
 		return nil, fmt.Errorf("multiple %vs cannot be used for %v", ExprTypeName, HeadTypeName)
@@ -159,6 +159,7 @@ func ParseRuleFromBody(body Body) (*Rule, error) {
 		Body: NewBody(
 			&Expr{Terms: BooleanTerm(true)},
 		),
+		Module: module,
 	}
 
 	return rule, nil
@@ -382,9 +383,10 @@ func parseModule(stmts []Statement) (*Module, error) {
 		case *Import:
 			mod.Imports = append(mod.Imports, stmt)
 		case *Rule:
+			stmt.Module = mod
 			mod.Rules = append(mod.Rules, stmt)
 		case Body:
-			rule, err := ParseRuleFromBody(stmt)
+			rule, err := ParseRuleFromBody(mod, stmt)
 			if err != nil {
 				errs = append(errs, NewError(ParseErr, stmt[0].Location, err.Error()))
 			} else {
