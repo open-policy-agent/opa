@@ -129,6 +129,12 @@ type (
 		Default bool  `json:"default,omitempty"`
 		Head    *Head `json:"head"`
 		Body    Body  `json:"body"`
+
+		// Module is a pointer to the module containing this rule. If the rule
+		// was NOT created while parsing/constructing a module, this should be
+		// left unset. The pointer is not included in any standard operations
+		// on the rule (e.g., printing, comparison, visiting, etc.)
+		Module *Module `json:"-"`
 	}
 
 	// Head represents the head of a rule.
@@ -362,9 +368,13 @@ func (rule *Rule) Loc() *Location {
 	return rule.Head.Location
 }
 
-// Path returns a reference that identifies the rule under ns.
-func (rule *Rule) Path(ns Ref) Ref {
-	return ns.Append(StringTerm(string(rule.Head.Name)))
+// Path returns a ref referring to the document produced by this rule. If rule
+// is not contained in a module, this function panics.
+func (rule *Rule) Path() Ref {
+	if rule.Module == nil {
+		panic("assertion failed")
+	}
+	return rule.Module.Package.Path.Append(StringTerm(string(rule.Head.Name)))
 }
 
 func (rule *Rule) String() string {
