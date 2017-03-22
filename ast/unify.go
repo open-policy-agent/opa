@@ -44,16 +44,22 @@ func (u *unifier) unify(a *Term, b *Term) {
 			}
 		case Array, Object:
 			u.unifyAll(a, b)
+		case Ref:
+			if u.isSafe(b[0].Value.(Var)) {
+				u.markSafe(a)
+			}
 		default:
 			u.markSafe(a)
 		}
 
 	case Ref:
-		switch b := b.Value.(type) {
-		case Var:
-			u.markSafe(b)
-		case Array, Object:
-			u.markAllSafe(b, a)
+		if u.isSafe(a[0].Value.(Var)) {
+			switch b := b.Value.(type) {
+			case Var:
+				u.markSafe(b)
+			case Array, Object:
+				u.markAllSafe(b, a)
+			}
 		}
 
 	case *ArrayComprehension:
