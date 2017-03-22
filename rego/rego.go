@@ -175,16 +175,7 @@ func (r *Rego) Eval(ctx context.Context) (ResultSet, error) {
 		return nil, err
 	}
 
-	// If the query contains expressions that consist of a single term, rewrite
-	// those expressions so that we capture the value of the term in a variable
-	// that can be included in the result.
-	for i := range query {
-		if !query[i].Negated {
-			if term, ok := query[i].Terms.(*ast.Term); ok {
-				query[i].Terms = ast.Equality.Expr(term, r.generateTermVar()).Terms
-			}
-		}
-	}
+	query = r.captureTerms(query)
 
 	// Compile inputs
 	compiled, err := r.compile(parsed, query)
@@ -301,7 +292,10 @@ func (r *Rego) eval(ctx context.Context, compiled ast.Body, txn storage.Transact
 			}
 		}
 		for _, expr := range compiled {
-			if _, ok := exprs[expr]; !ok {
+			// Don't include expressions without locations. Lack of location
+			// indicates it was not parsed and so the caller should not be
+			// shown it.
+			if _, ok := exprs[expr]; !ok && expr.Location != nil {
 				result.Expressions = append(result.Expressions, newExpressionValue(expr, true))
 			}
 		}
@@ -318,6 +312,39 @@ func (r *Rego) eval(ctx context.Context, compiled ast.Body, txn storage.Transact
 	}
 
 	return rs, nil
+}
+
+func (r *Rego) captureTerms(query ast.Body) ast.Body {
+
+	// If the query contains expressions that consist of a single term, rewrite
+	// those expressions so that we capture the value of the term in a variable
+	// that can be included in the result.
+	extras := map[*ast.Expr]struct{}{}
+
+	for i := range query {
+		if !query[i].Negated {
+			if term, ok := query[i].Terms.(*ast.Term); ok {
+
+				// If len(query) > 1 we must still test that evaluated value is
+				// not false.
+				if len(query) > 1 {
+					cpy := query[i].Copy()
+					// Unset location so that this expression is not included
+					// in the results.
+					cpy.Location = nil
+					extras[cpy] = struct{}{}
+				}
+
+				query[i].Terms = ast.Equality.Expr(term, r.generateTermVar()).Terms
+			}
+		}
+	}
+
+	for expr := range extras {
+		query.Append(expr)
+	}
+
+	return query
 }
 
 func (r *Rego) generateTermVar() *ast.Term {
