@@ -308,6 +308,31 @@ func (term *Term) Vars() VarSet {
 	return vis.vars
 }
 
+// IsConstant returns true if the AST value is constant.
+func IsConstant(v Value) bool {
+	switch v := v.(type) {
+	case Var, Ref, *ArrayComprehension:
+		return false
+	case Array:
+		for i := 0; i < len(v); i++ {
+			if !IsConstant(v[i].Value) {
+				return false
+			}
+		}
+	case Object:
+		for i := 0; i < len(v); i++ {
+			if !IsConstant(v[i][0].Value) || !IsConstant(v[i][1].Value) {
+				return false
+			}
+		}
+	case *Set:
+		return !v.Iter(func(t *Term) bool {
+			return !IsConstant(t.Value)
+		})
+	}
+	return true
+}
+
 // IsScalar returns true if the AST value is a scalar.
 func IsScalar(v Value) bool {
 	switch v.(type) {
@@ -592,6 +617,16 @@ func (ref Ref) Append(term *Term) Ref {
 	copy(dst, ref)
 	dst[n] = term
 	return dst
+}
+
+// Dynamic returns the offset of the first non-constant operand of ref.
+func (ref Ref) Dynamic() int {
+	for i := 1; i < len(ref); i++ {
+		if !IsConstant(ref[i].Value) {
+			return i
+		}
+	}
+	return -1
 }
 
 // Extend returns a copy of ref with the terms from other appended. The head of
