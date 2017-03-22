@@ -756,7 +756,7 @@ func (expr *Expr) OutputVars(safe VarSet) VarSet {
 
 		switch terms := expr.Terms.(type) {
 		case *Term:
-			return expr.outputVarsRefs()
+			return expr.outputVarsRefs(safe)
 		case []*Term:
 			name := terms[0].Value.(Var)
 			if b := BuiltinMap[name]; b != nil {
@@ -832,7 +832,7 @@ func (expr *Expr) Vars(params VarVisitorParams) VarSet {
 
 func (expr *Expr) outputVarsBuiltins(b *Builtin, safe VarSet) VarSet {
 
-	o := expr.outputVarsRefs()
+	o := expr.outputVarsRefs(safe)
 	terms := expr.Terms.([]*Term)
 
 	// Check that all input terms are ground or safe.
@@ -870,17 +870,20 @@ func (expr *Expr) outputVarsBuiltins(b *Builtin, safe VarSet) VarSet {
 
 func (expr *Expr) outputVarsEquality(safe VarSet) VarSet {
 	ts := expr.Terms.([]*Term)
-	o := expr.outputVarsRefs()
+	o := expr.outputVarsRefs(safe)
 	o.Update(safe)
 	o.Update(Unify(o, ts[1], ts[2]))
 	return o.Diff(safe)
 }
 
-func (expr *Expr) outputVarsRefs() VarSet {
+func (expr *Expr) outputVarsRefs(safe VarSet) VarSet {
 	o := VarSet{}
 	WalkRefs(expr, func(r Ref) bool {
-		o.Update(r.OutputVars())
-		return false
+		if safe.Contains(r[0].Value.(Var)) {
+			o.Update(r.OutputVars())
+			return false
+		}
+		return true
 	})
 	return o
 }

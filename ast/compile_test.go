@@ -170,28 +170,36 @@ func TestCompilerCheckSafetyBodyReordering(t *testing.T) {
 		{"with", `data.a.b.d.t with input as x; x = 1`, `x = 1; data.a.b.d.t with input as x`},
 		{"with-2", `data.a.b.d.t with input.x as x; x = 1`, `x = 1; data.a.b.d.t with input.x as x`},
 		{"with-nop", "data.somedoc[x] with input as true", "data.somedoc[x] with input as true"},
+		{"ref-head", `s = [["foo"], ["bar"]]; x = y[0]; y = s[_]; contains(x, "oo")`, `
+			s = [["foo"], ["bar"]];
+			y = s[_];
+			x = y[0];
+			contains(x, "oo")
+		`},
 	}
 
 	for i, tc := range tests {
-		c := NewCompiler()
-		c.Modules = getCompilerTestModules()
-		c.Modules["reordering"] = MustParseModule(fmt.Sprintf(
-			`package test
+		test.Subtest(t, tc.note, func(t *testing.T) {
+			c := NewCompiler()
+			c.Modules = getCompilerTestModules()
+			c.Modules["reordering"] = MustParseModule(fmt.Sprintf(
+				`package test
 			 p { %s }`, tc.body))
 
-		compileStages(c, "", "checkSafetyBody")
+			compileStages(c, "", "checkSafetyBody")
 
-		if c.Failed() {
-			t.Errorf("%v (#%d): Unexpected compilation error: %v", tc.note, i, c.Errors)
-			return
-		}
+			if c.Failed() {
+				t.Errorf("%v (#%d): Unexpected compilation error: %v", tc.note, i, c.Errors)
+				return
+			}
 
-		expected := MustParseBody(tc.expected)
-		result := c.Modules["reordering"].Rules[0].Body
+			expected := MustParseBody(tc.expected)
+			result := c.Modules["reordering"].Rules[0].Body
 
-		if !expected.Equal(result) {
-			t.Errorf("%v (#%d): Expected body to be ordered and equal to %v but got: %v", tc.note, i, expected, result)
-		}
+			if !expected.Equal(result) {
+				t.Errorf("%v (#%d): Expected body to be ordered and equal to %v but got: %v", tc.note, i, expected, result)
+			}
+		})
 	}
 }
 
@@ -226,96 +234,93 @@ q = true { _ = [x | x = b[i]]; _ = b[j]; _ = [x | x = true; x != false]; true !=
 }
 
 func TestCompilerCheckSafetyBodyErrors(t *testing.T) {
-	c := NewCompiler()
 
-	c.Modules = getCompilerTestModules()
-	c.Modules = map[string]*Module{
-		"newMod": MustParseModule(`package a.b
+	moduleBegin := `
+		package a.b
 
-import input.aref.b.c as foo
-import input.avar as bar
-import data.m.n as baz
+		import input.aref.b.c as foo
+		import input.avar as bar
+		import data.m.n as baz
+	`
 
-unboundRef1 = true { a.b.c = "foo" }
-unboundRef2 = true { {"foo": [{"bar": a.b.c}]} = {"foo": [{"bar": "baz"}]} }
-inputPosRef = true { a = [1, 2, 3, 4]; a[i] != 100 }
-unboundNegated1 = true { a = [1, 2, 3, 4]; not a[i] = x }
-unboundNegated2[x] { a = [1, 2, 3, 4]; not a[i] = x }
-unboundNegated3[x] = true { a = [1, 2, 3, 4]; b = [1, 2, 3, 4]; not a[i] = x; not b[j] = x }
-unboundNegated4 = true { a = [{"foo": ["bar", "baz"]}]; not a[0].foo = [a[0].foo[i], a[0].foo[j]] }
-unsafeBuiltin = true { count([1, 2, x], x) }
-unsafeBuiltinOperator = true { count(eq, 1) }
-negatedSafe = true { a = [1, 2, 3, 4]; b = [1, 2, 3, 4]; not a[i] = x; b[i] = x }
-unboundNoTarget = true { x > 0; x <= 3; x != 2 }
-unboundArrayComprBody1 = true { _ = [x | x = data.a[_]; y > 1] }
-unboundArrayComprBody2 = true { _ = [x | x = a[_]; a = [y | y = data.a[_]; z > 1]] }
-unboundArrayComprBody3 = true { _ = [v | v = [x | x = data.a[_]]; x > 1] }
-unboundArrayComprTerm1 = true { _ = [u | true] }
-unboundArrayComprTerm2 = true { _ = [v | v = [w | w != 0]] }
-unboundArrayComprTerm3 = true { _ = [x[i] | x = []] }
-unboundArrayComprMixed1 = true { _ = [x | y = [a | a = z[i]]] }
-unboundBuiltinOperatorArrayCompr = true { 1 = 1; [true | eq != 2] }
-unsafeClosure1 = true { x = [x | x = 1] }
-unsafeClosure2 = true { x = y; x = [y | y = 1] }
-unsafeNestedHead = true { count(baz[i].attr[bar[dead.beef]], n) }
-negatedImport1 = true { not foo }
-negatedImport2 = true { not bar }
-negatedImport3 = true { not baz }
-rewriteUnsafe[{"foo": dead[i]}] { true }
-unsafeWithValue1 = true { data.a.b.d.t with input as x }
-unsafeWithValue2 = true { x = data.a.b.d.t with input as x }`,
-		)}
-	compileStages(c, "", "checkSafetyBody")
+	tests := []struct {
+		note          string
+		moduleContent string
+		expected      string
+	}{
+		{"ref-head", `p { a.b.c = "foo" }`, `{a,}`},
+		{"ref-head-2", `p { {"foo": [{"bar": a.b.c}]} = {"foo": [{"bar": "baz"}]} }`, `{a,}`},
+		{"negation", `p { a = [1, 2, 3, 4]; not a[i] = x }`, `{i, x}`},
+		{"negation-head", `p[x] { a = [1, 2, 3, 4]; not a[i] = x }`, `{i,x}`},
+		{"negation-multiple", `p { a = [1, 2, 3, 4]; b = [1, 2, 3, 4]; not a[i] = x; not b[j] = x }`, `{i, x, j}`},
+		{"negation-nested", `p { a = [{"foo": ["bar", "baz"]}]; not a[0].foo = [a[0].foo[i], a[0].foo[j]] } `, `{i, j}`},
+		{"builtin-input", `p { count([1, 2, x], x) }`, `{x,}`},
+		{"builtin-input-name", `p { count(eq, 1) }`, `{eq,}`},
+		{"builtin-multiple", `p { x > 0; x <= 3; x != 2 }`, `{x,}`},
+		{"array-compr", `p { _ = [x | x = data.a[_]; y > 1] }`, `{y,}`},
+		{"array-compr-nested", `p { _ = [x | x = a[_]; a = [y | y = data.a[_]; z > 1]] }`, `{z,}`},
+		{"array-compr-closure", `p { _ = [v | v = [x | x = data.a[_]]; x > 1] }`, `{x,}`},
+		{"array-compr-term", `p { _ = [u | true] }`, `{u,}`},
+		{"array-compr-term-nested", `p { _ = [v | v = [w | w != 0]] }`, `{w,}`},
+		{"array-compr-term-output", `p { _ = [x[i] | x = []] }`, `{i,}`},
+		{"array-compr-mixed", `p { _ = [x | y = [a | a = z[i]]] }`, `{a, x, z, i}`},
+		{"array-compr-builtin", `p { [true | eq != 2] }`, `{eq,}`},
+		{"closure-self", `p { x = [x | x = 1] }`, `{x,}`},
+		{"closure-transitive", `p { x = y; x = [y | y = 1] }`, `{y,}`},
+		{"nested", `p { count(baz[i].attr[bar[dead.beef]], n) }`, `{dead,}`},
+		{"negated-import", `p { not foo; not bar; not baz }`, `set()`},
+		{"rewritten", `p[{"foo": dead[i]}] { true }`, `{dead, i}`},
+		{"with-value", `p { data.a.b.d.t with input as x }`, `{x,}`},
+		{"with-value-2", `p { x = data.a.b.d.t with input as x }`, `{x,}`},
+	}
 
 	makeErrMsg := func(varName string) string {
 		return fmt.Sprintf("rego_unsafe_var_error: var %v is unsafe", varName)
 	}
 
-	expected := []string{
-		makeErrMsg("a"),
-		makeErrMsg("a"),
-		makeErrMsg("i"),
-		makeErrMsg("x"),
-		makeErrMsg("i"),
-		makeErrMsg("x"),
-		makeErrMsg("i"),
-		makeErrMsg("j"),
-		makeErrMsg("x"),
-		makeErrMsg("i"),
-		makeErrMsg("j"),
-		makeErrMsg("x"),
-		makeErrMsg("eq"),
-		makeErrMsg("x"),
-		makeErrMsg("y"),
-		makeErrMsg("z"),
-		makeErrMsg("x"),
-		makeErrMsg("u"),
-		makeErrMsg("w"),
-		makeErrMsg("i"),
-		makeErrMsg("x"),
-		makeErrMsg("z"),
-		makeErrMsg("eq"),
-		makeErrMsg("x"),
-		makeErrMsg("y"),
-		makeErrMsg("dead"),
-		makeErrMsg("dead"),
-		makeErrMsg("x"),
-		makeErrMsg("x"),
+	for _, tc := range tests {
+		test.Subtest(t, tc.note, func(t *testing.T) {
+
+			// Build slice of expected error messages.
+			expected := []string{}
+
+			MustParseTerm(tc.expected).Value.(*Set).Iter(func(x *Term) bool {
+				expected = append(expected, makeErrMsg(string(x.Value.(Var))))
+				return false
+			})
+
+			sort.Strings(expected)
+
+			// Compile test module.
+			c := NewCompiler()
+			c.Modules = map[string]*Module{
+				"newMod": MustParseModule(fmt.Sprintf(`
+
+				%v
+
+				%v
+
+				`, moduleBegin, tc.moduleContent)),
+			}
+
+			compileStages(c, "", "checkSafetyBody")
+
+			// Get errors.
+			result := compilerErrsToStringSlice(c.Errors)
+
+			// Check against expected.
+			if len(result) != len(expected) {
+				t.Fatalf("Expected %d:\n%v\nBut got %d:\n%v", len(expected), strings.Join(expected, "\n"), len(result), strings.Join(result, "\n"))
+			}
+
+			for i := range result {
+				if expected[i] != result[i] {
+					t.Errorf("Expected %v but got: %v", expected[i], result[i])
+				}
+			}
+
+		})
 	}
-
-	result := compilerErrsToStringSlice(c.Errors)
-	sort.Strings(expected)
-
-	if len(result) != len(expected) {
-		t.Fatalf("Expected %d:\n%v\nBut got %d:\n%v", len(expected), strings.Join(expected, "\n"), len(result), strings.Join(result, "\n"))
-	}
-
-	for i := range result {
-		if expected[i] != result[i] {
-			t.Errorf("Expected %v but got: %v", expected[i], result[i])
-		}
-	}
-
 }
 
 func TestCompilerCheckWithModifiers(t *testing.T) {
@@ -595,7 +600,8 @@ q[x] = y { p[x] = y }`),
 		"newMod6": MustParseModule(`package rec5
 
 acp[x] { acq[x] }
-acq[x] { a = [x | acp[x]]; a[i] = x }`,
+acq[x] { a = [true | acp[_]]; a[_] = x }
+`,
 		),
 		"newMod7": MustParseModule(`package rec6
 

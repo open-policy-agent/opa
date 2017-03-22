@@ -67,8 +67,9 @@ type Compiler struct {
 	// A rule depends on another rule if it refers to it.
 	RuleGraph map[*Rule]map[*Rule]struct{}
 
-	moduleLoader ModuleLoader
-	stages       []stage
+	generatedVars map[*Module]VarSet
+	moduleLoader  ModuleLoader
+	stages        []stage
 }
 
 // QueryContext contains contextual information for running an ad-hoc query.
@@ -155,8 +156,9 @@ type stage struct {
 func NewCompiler() *Compiler {
 
 	c := &Compiler{
-		Modules:   map[string]*Module{},
-		RuleGraph: map[*Rule]map[*Rule]struct{}{},
+		Modules:       map[string]*Module{},
+		RuleGraph:     map[*Rule]map[*Rule]struct{}{},
+		generatedVars: map[*Module]VarSet{},
 	}
 
 	c.ModuleTree = NewModuleTree(nil)
@@ -435,7 +437,9 @@ func (c *Compiler) checkSafetyRuleBodies() {
 			reordered, unsafe := reorderBodyForSafety(safe, r.Body)
 			if len(unsafe) != 0 {
 				for v := range unsafe.Vars() {
-					c.err(NewError(UnsafeVarErr, r.Loc(), "%v %v is unsafe", VarTypeName, v))
+					if !c.generatedVars[m].Contains(v) {
+						c.err(NewError(UnsafeVarErr, r.Loc(), "%v %v is unsafe", VarTypeName, v))
+					}
 				}
 			} else {
 				r.Body = reordered
@@ -456,7 +460,9 @@ func (c *Compiler) checkSafetyRuleHeads() {
 		for _, r := range m.Rules {
 			unsafe := r.Head.Vars().Diff(r.Body.Vars(safetyCheckVarVisitorParams))
 			for v := range unsafe {
-				c.err(NewError(UnsafeVarErr, r.Loc(), "%v %v is unsafe", VarTypeName, v))
+				if !c.generatedVars[m].Contains(v) {
+					c.err(NewError(UnsafeVarErr, r.Loc(), "%v %v is unsafe", VarTypeName, v))
+				}
 			}
 		}
 	}
@@ -634,6 +640,7 @@ func (c *Compiler) rewriteRefsInHead() {
 				}
 			}
 		}
+		c.generatedVars[mod] = generator.Generated()
 	}
 }
 
@@ -1339,7 +1346,8 @@ func reorderBodyForClosures(globals VarSet, body Body) (Body, unsafeVars) {
 const localVarFmt = "__local%d__"
 
 type localVarGenerator struct {
-	exclude VarSet
+	exclude   VarSet
+	generated VarSet
 }
 
 func newLocalVarGenerator(module *Module) *localVarGenerator {
@@ -1348,17 +1356,21 @@ func newLocalVarGenerator(module *Module) *localVarGenerator {
 		vars: exclude,
 	}
 	Walk(vis, module)
-	return &localVarGenerator{exclude}
+	return &localVarGenerator{exclude, NewVarSet()}
+}
+
+func (l *localVarGenerator) Generated() VarSet {
+	return l.generated
 }
 
 func (l *localVarGenerator) Generate() Var {
 	name := Var("")
 	x := 0
-	for len(name) == 0 || l.exclude.Contains(name) {
+	for len(name) == 0 || l.generated.Contains(name) || l.exclude.Contains(name) {
 		name = Var(fmt.Sprintf(localVarFmt, x))
 		x++
 	}
-	l.exclude.Add(name)
+	l.generated.Add(name)
 	return name
 }
 
