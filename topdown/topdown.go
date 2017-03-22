@@ -966,6 +966,12 @@ func evalExpr(t *Topdown, iter Iterator) error {
 // reference refers to a virtual document (ditto for nested references).
 func evalRef(t *Topdown, ref, path ast.Ref, iter Iterator) error {
 
+	// If ref is already bound then invoke iterator immediately. No further
+	// evaluation has to be done.
+	if len(path) == 0 && t.Binding(ref) != nil {
+		return iter(t)
+	}
+
 	if len(ref) == 0 {
 
 		if path.HasPrefix(ast.DefaultRootRef) {

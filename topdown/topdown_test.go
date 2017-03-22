@@ -832,6 +832,7 @@ func TestTopDownVarReferences(t *testing.T) {
 		{"non-ground", []string{`p[x] { v = [[1, 2], [2, 3], [3, 4]]; x = v[i][j] }`}, "[1,2,3,4]"},
 		{"mixed", []string{`p[x] = y { v = [{"a": 1, "b": 2}, {"c": 3, "z": [4]}]; y = v[i][x][j] }`}, `{"z": 4}`},
 		{"ref binding", []string{`p[x] { v = c[i][j]; x = v[k]; x = true }`}, "[true, true]"},
+		{"existing ref binding", []string{`p = x { q = a; q[0] = x; q[0] }`}, `1`},
 		{"embedded", []string{`p[x] { v = [1, 2, 3]; x = [{"a": v[i]}] }`}, `[[{"a": 1}], [{"a": 2}], [{"a": 3}]]`},
 		{"embedded ref binding", []string{`p[x] { v = c[i][j]; w = [v[0], v[1]]; x = w[y] }`}, "[null, false, true, 3.14159]"},
 		{"array: ground var", []string{`p[x] { i = [1, 2, 3, 4]; j = [1, 2, 999]; j[k] = y; i[y] = x }`}, "[2,3]"},
