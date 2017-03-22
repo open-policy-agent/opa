@@ -215,6 +215,22 @@ func TestTermIsGround(t *testing.T) {
 
 }
 
+func TestIsConstant(t *testing.T) {
+	tests := []struct {
+		term     string
+		expected bool
+	}{
+		{`[{"foo": {true, false, [1, 2]}}]`, true},
+		{`[{"foo": {x}}]`, false},
+	}
+	for _, tc := range tests {
+		term := MustParseTerm(tc.term)
+		if IsConstant(term.Value) != tc.expected {
+			t.Fatalf("Expected IsConstant(%v) = %v", term, tc.expected)
+		}
+	}
+}
+
 func TestIsScalar(t *testing.T) {
 
 	tests := []struct {
@@ -283,6 +299,16 @@ func TestRefAppend(t *testing.T) {
 	b := a.Append(VarTerm("x"))
 	if !b.Equal(MustParseRef("foo.bar.baz[x]")) {
 		t.Error("Expected foo.bar.baz[x]")
+	}
+}
+
+func TestRefDynamic(t *testing.T) {
+	a := MustParseRef("foo.bar[baz.qux].corge")
+	if a.Dynamic() != 2 {
+		t.Fatalf("Expected dynamic offset to be baz.qux for foo.bar[baz.qux].corge")
+	}
+	if a[:a.Dynamic()].Dynamic() != -1 {
+		t.Fatalf("Expected dynamic offset to be -1 for foo.bar")
 	}
 }
 
