@@ -3,7 +3,13 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## 0.4.7
+
+### Fixes
+
+- Fix recursive binding by short-circuiting ref eval ([#298](https://github.com/open-policy-agent/opa/issues/298))
+- Fix reordering for unsafe ref heads ([#297](https://github.com/open-policy-agent/opa/issues/297))
+- Fix rewriting of single term exprs ([#299](https://github.com/open-policy-agent/opa/issues/299))
 
 ## 0.4.6
 
