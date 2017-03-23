@@ -69,7 +69,7 @@ type Compiler struct {
 
 	generatedVars map[*Module]VarSet
 	moduleLoader  ModuleLoader
-	stages        []stage
+	stages        []func()
 }
 
 // QueryContext contains contextual information for running an ad-hoc query.
@@ -147,11 +147,6 @@ type QueryCompiler interface {
 	WithContext(qctx *QueryContext) QueryCompiler
 }
 
-type stage struct {
-	f    func()
-	name string
-}
-
 // NewCompiler returns a new empty compiler.
 func NewCompiler() *Compiler {
 
@@ -163,18 +158,18 @@ func NewCompiler() *Compiler {
 	c.ModuleTree = NewModuleTree(nil)
 	c.RuleTree = NewRuleTree(c.ModuleTree)
 
-	c.stages = []stage{
-		{c.resolveAllRefs, "resolveAllRefs"},
-		{c.setModuleTree, "setModuleTree"},
-		{c.setRuleTree, "setRuleTree"},
-		{c.setRuleGraph, "setRuleGraph"},
-		{c.rewriteRefsInHead, "rewriteRefsInHead"},
-		{c.checkWithModifiers, "checkWithModifiers"},
-		{c.checkRuleConflicts, "checkRuleConflicts"},
-		{c.checkBuiltins, "checkBuiltins"},
-		{c.checkSafetyRuleHeads, "checkSafetyRuleHeads"},
-		{c.checkSafetyRuleBodies, "checkSafetyRuleBodies"},
-		{c.checkRecursion, "checkRecursion"},
+	c.stages = []func(){
+		c.resolveAllRefs,
+		c.setModuleTree,
+		c.setRuleTree,
+		c.setRuleGraph,
+		c.rewriteRefsInHead,
+		c.checkWithModifiers,
+		c.checkRuleConflicts,
+		c.checkBuiltins,
+		c.checkSafetyRuleHeads,
+		c.checkSafetyRuleBodies,
+		c.checkRecursion,
 	}
 
 	return c
@@ -483,8 +478,8 @@ func (c *Compiler) checkWithModifiers() {
 }
 
 func (c *Compiler) compile() {
-	for _, s := range c.stages {
-		if s.f(); c.Failed() {
+	for _, fn := range c.stages {
+		if fn(); c.Failed() {
 			return
 		}
 	}

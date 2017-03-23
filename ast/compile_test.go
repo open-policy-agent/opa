@@ -120,7 +120,7 @@ unboundCompositeVal[y] = [{"foo": x, "bar": y}] { q[y] = {"foo": [1, 2, [{"bar":
 unboundCompositeKey[[{"x": x}]] { q[y] }
 unboundBuiltinOperator = eq { x = 1 }`,
 	)
-	compileStages(c, "", "checkSafetyHead")
+	compileStages(c, c.checkSafetyRuleHeads)
 
 	makeErrMsg := func(v string) string {
 		return fmt.Sprintf("rego_unsafe_var_error: var %v is unsafe", v)
@@ -186,7 +186,7 @@ func TestCompilerCheckSafetyBodyReordering(t *testing.T) {
 				`package test
 			 p { %s }`, tc.body))
 
-			compileStages(c, "", "checkSafetyBody")
+			compileStages(c, c.checkSafetyRuleBodies)
 
 			if c.Failed() {
 				t.Errorf("%v (#%d): Unexpected compilation error: %v", tc.note, i, c.Errors)
@@ -217,7 +217,7 @@ q = true { _ = [x | x = b[i]]; _ = b[j]; _ = [x | x = true; x != false]; true !=
 		),
 	}
 
-	compileStages(c, "", "checkSafetyBody")
+	compileStages(c, c.checkSafetyRuleBodies)
 	assertNotFailed(t, c)
 
 	result1 := c.Modules["mod"].Rules[0].Body
@@ -303,7 +303,7 @@ func TestCompilerCheckSafetyBodyErrors(t *testing.T) {
 				`, moduleBegin, tc.moduleContent)),
 			}
 
-			compileStages(c, "", "checkSafetyBody")
+			compileStages(c, c.checkSafetyRuleBodies)
 
 			// Get errors.
 			result := compilerErrsToStringSlice(c.Errors)
@@ -337,7 +337,7 @@ closure_in_value = true { req_dep with input as [null | null] }
 data_target = true { req_dep with data.p as "foo" }`,
 	)
 
-	compileStages(c, "", "checkWithModifiers")
+	compileStages(c, c.checkWithModifiers)
 
 	expected := []string{
 		"rego_type_error: closure_in_value: with keyword value must not contain closures",
@@ -359,7 +359,7 @@ q = true { count([1, 2, 3], x, 1) }
 r = true { [x | deadbeef(1, 2, x)] }`,
 		),
 	}
-	compileStages(c, "", "checkBuiltins")
+	compileStages(c, c.checkBuiltins)
 
 	expected := []string{
 		"rego_type_error: p: built-in function count takes exactly 2 arguments but got 1",
@@ -393,7 +393,7 @@ default foo = 2
 foo = 3 { true }`,
 	})
 
-	compileStages(c, "", "checkRuleConflicts")
+	compileStages(c, c.checkRuleConflicts)
 
 	expected := []string{
 		"rego_type_error: conflicting rules named p found",
@@ -441,7 +441,7 @@ import input.x.y.foo
 import input.qux as baz
 
 p[foo[bar[i]]] = {"baz": baz} { true }`)
-	compileStages(c, "", "resolveAllRefs")
+	compileStages(c, c.resolveAllRefs)
 	assertNotFailed(t, c)
 
 	// Basic test cases.
@@ -527,7 +527,7 @@ import input.qux as baz
 p[foo[bar[i]]] = {"baz": baz, "corge": corge} { true }
 q = [true | true] { true }`)
 
-	compileStages(c, "", "rewriteRefsInHead")
+	compileStages(c, c.rewriteRefsInHead)
 	assertNotFailed(t, c)
 
 	rule1 := c.Modules["head"].Rules[0]
@@ -546,7 +546,7 @@ q = [true | true] { true }`)
 func TestCompilerSetRuleGraph(t *testing.T) {
 	c := NewCompiler()
 	c.Modules = getCompilerTestModules()
-	compileStages(c, "", "setRuleGraph")
+	compileStages(c, c.setRuleGraph)
 
 	assertNotFailed(t, c)
 
@@ -630,10 +630,8 @@ func TestRuleGraphCycle(t *testing.T) {
 		"mod1": MustParseModule(mod1),
 	}
 
-	compileStages(c, "", "setRuleGraph")
+	compileStages(c, c.setRuleGraph)
 	assertNotFailed(t, c)
-
-	// fmt.Println(c.Modules)
 
 	_, ok := c.RuleGraph.Sort()
 	if ok {
@@ -693,7 +691,7 @@ dataref = true { data }`,
 		),
 	}
 
-	compileStages(c, "", "checkRecursion")
+	compileStages(c, c.checkRecursion)
 
 	makeErrMsg := func(rule string, loop ...string) string {
 		return fmt.Sprintf("rego_recursion_error: rule %v is recursive: %v", rule, strings.Join(loop, " -> "))
@@ -929,7 +927,7 @@ q["a"] = 1 { true }
 q["b"] = 2 { true }`,
 	})
 
-	compileStages(compiler, "", "")
+	compileStages(compiler, nil)
 
 	rule1 := compiler.Modules["mod1"].Rules[0]
 	rule2 := compiler.Modules["mod1"].Rules[1]
@@ -1146,25 +1144,20 @@ func getCompilerWithParsedModules(mods map[string]string) *Compiler {
 	return compiler
 }
 
-func compileStages(c *Compiler, from string, to string) {
-	start := 0
-	end := len(c.stages) - 1
-	for i, s := range c.stages {
-		if s.name == from {
-			start = i
-			break
-		}
+// helper function to run compiler upto given stage. If nil is provided, a
+// normal compile run is performed.
+func compileStages(c *Compiler, upto func()) {
+	if upto == nil {
+		c.compile()
+		return
 	}
-	for i, s := range c.stages {
-		if s.name == to {
-			end = i
-			break
-		}
-	}
-	for i := start; i <= end; i++ {
-		s := c.stages[i]
-		if s.f(); c.Failed() {
+	target := reflect.ValueOf(upto)
+	for _, fn := range c.stages {
+		if fn(); c.Failed() {
 			return
+		}
+		if reflect.ValueOf(fn).Pointer() == target.Pointer() {
+			break
 		}
 	}
 }
