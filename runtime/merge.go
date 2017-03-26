@@ -4,43 +4,35 @@
 
 package runtime
 
-import (
-	"fmt"
-
-	"github.com/pkg/errors"
-)
-
 // mergeDocs returns the result of merging a and b. If a and b cannot be merged
-// because of conflicting key-value pairs, an error is returned.
-func mergeDocs(a map[string]interface{}, b map[string]interface{}) (map[string]interface{}, error) {
+// because of conflicting key-value pairs, ok is false.
+func mergeDocs(a map[string]interface{}, b map[string]interface{}) (c map[string]interface{}, ok bool) {
 
-	merged := map[string]interface{}{}
+	c = map[string]interface{}{}
 	for k := range a {
-		merged[k] = a[k]
+		c[k] = a[k]
 	}
 
 	for k := range b {
 
 		add := b[k]
-		exist, ok := merged[k]
+		exist, ok := c[k]
 		if !ok {
-			merged[k] = add
+			c[k] = add
 			continue
 		}
 
 		existObj, existOk := exist.(map[string]interface{})
 		addObj, addOk := add.(map[string]interface{})
 		if !existOk || !addOk {
-			return nil, fmt.Errorf("%v: merge error: %T cannot merge into %T", k, add, exist)
+			return nil, false
 		}
 
-		mergedObj, err := mergeDocs(existObj, addObj)
-		if err != nil {
-			return nil, errors.Wrapf(err, k)
+		c[k], ok = mergeDocs(existObj, addObj)
+		if !ok {
+			return nil, false
 		}
-
-		merged[k] = mergedObj
 	}
 
-	return merged, nil
+	return c, true
 }

@@ -18,6 +18,26 @@ import (
 	"github.com/pkg/errors"
 )
 
+type loaderErrors []error
+
+func (e loaderErrors) Error() string {
+	if len(e) == 0 {
+		return "no error(s)"
+	}
+	if len(e) == 1 {
+		return "1 error occurred during loading: " + e[0].Error()
+	}
+	buf := make([]string, len(e))
+	for i := range buf {
+		buf[i] = e[i].Error()
+	}
+	return fmt.Sprintf("%v errors occured during loading:\n", len(e)) + strings.Join(buf, "\n")
+}
+
+func (e *loaderErrors) Add(err error) {
+	*e = append(*e, err)
+}
+
 type loaded struct {
 	Documents map[string]interface{}
 	Modules   map[string]*loadedModule
@@ -47,14 +67,14 @@ func (l *loaded) WithParent(p string) *loaded {
 
 type unsupportedDocumentType string
 
-func (u unsupportedDocumentType) Error() string {
-	return "unsupported document type: " + string(u)
+func (path unsupportedDocumentType) Error() string {
+	return string(path) + ": bad document type"
 }
 
 type unrecognizedFile string
 
-func (u unrecognizedFile) Error() string {
-	return "unrecognized file: " + string(u)
+func (path unrecognizedFile) Error() string {
+	return string(path) + ": can't recognize file type"
 }
 
 func isUnrecognizedFile(err error) bool {
@@ -62,18 +82,30 @@ func isUnrecognizedFile(err error) bool {
 	return ok
 }
 
+type mergeError string
+
+func (e mergeError) Error() string {
+	return string(e) + ": merge error"
+}
+
+type emptyModuleError string
+
+func (e emptyModuleError) Error() string {
+	return string(e) + ": empty policy"
+}
+
 func (l *loaded) Merge(path string, result interface{}) error {
 	switch result := result.(type) {
 	case *loadedModule:
 		l.Modules[normalizeModuleID(path)] = result
 	default:
-		obj, err := makeDir(l.path, result)
-		if err != nil {
-			return err
+		obj, ok := makeDir(l.path, result)
+		if !ok {
+			return unsupportedDocumentType(path)
 		}
-		merged, err := mergeDocs(l.Documents, obj)
-		if err != nil {
-			return err
+		merged, ok := mergeDocs(l.Documents, obj)
+		if !ok {
+			return mergeError(path)
 		}
 		for k := range merged {
 			l.Documents[k] = merged[k]
@@ -85,6 +117,7 @@ func (l *loaded) Merge(path string, result interface{}) error {
 func loadAllPaths(paths []string) (*loaded, error) {
 
 	root := newLoaded()
+	errors := loaderErrors{}
 
 	for _, path := range paths {
 
@@ -98,56 +131,59 @@ func loadAllPaths(paths []string) (*loaded, error) {
 
 		info, err := os.Stat(path)
 		if err != nil {
-			return nil, err
+			errors.Add(err)
+			continue
 		}
 
 		if info.IsDir() {
-			if err := loadDirRecursive(path, loaded.WithParent(info.Name())); err != nil {
-				return nil, err
-			}
+			loadDirRecursive(&errors, path, loaded.WithParent(info.Name()))
 		} else {
 			result, err := loadFile(path)
 			if err != nil {
-				return nil, err
-			}
-			if err := loaded.Merge(path, result); err != nil {
-				return nil, err
+				errors.Add(err)
+			} else {
+				if err := loaded.Merge(path, result); err != nil {
+					errors.Add(err)
+				}
 			}
 		}
+	}
+
+	if len(errors) > 0 {
+		return nil, errors
 	}
 
 	return root, nil
 }
 
-func loadDirRecursive(dirPath string, loaded *loaded) error {
+func loadDirRecursive(errors *loaderErrors, dirPath string, loaded *loaded) {
 	files, err := ioutil.ReadDir(dirPath)
 	if err != nil {
-		return err
+		errors.Add(err)
+		return
 	}
 	for _, file := range files {
 		filePath := filepath.Join(dirPath, file.Name())
 		info, err := os.Stat(filePath)
 		if err != nil {
-			return err
-		}
-		if info.IsDir() {
-			if err := loadDirRecursive(filePath, loaded.WithParent(info.Name())); err != nil {
-				return err
-			}
+			errors.Add(err)
 		} else {
-			result, err := loadFileForKnownTypes(filePath)
-			if err != nil {
-				if _, ok := err.(unrecognizedFile); !ok {
-					return err
-				}
+			if info.IsDir() {
+				loadDirRecursive(errors, filePath, loaded.WithParent(info.Name()))
 			} else {
-				if err := loaded.Merge(filePath, result); err != nil {
-					return err
+				result, err := loadFileForKnownTypes(filePath)
+				if err != nil {
+					if _, ok := err.(unrecognizedFile); !ok {
+						errors.Add(err)
+					}
+				} else {
+					if err := loaded.Merge(filePath, result); err != nil {
+						errors.Add(err)
+					}
 				}
 			}
 		}
 	}
-	return nil
 }
 
 func loadFileForKnownTypes(path string) (interface{}, error) {
@@ -197,7 +233,10 @@ func jsonLoad(path string) (interface{}, error) {
 	defer f.Close()
 	decoder := util.NewJSONDecoder(f)
 	var x interface{}
-	return x, decoder.Decode(&x)
+	if err = decoder.Decode(&x); err != nil {
+		return nil, errors.Wrapf(err, path)
+	}
+	return x, nil
 }
 
 func regoLoad(path string) (interface{}, error) {
@@ -208,6 +247,9 @@ func regoLoad(path string) (interface{}, error) {
 	module, err := ast.ParseModule(path, string(bs))
 	if err != nil {
 		return nil, err
+	}
+	if module == nil {
+		return nil, emptyModuleError(path)
 	}
 	result := &loadedModule{
 		Parsed: module,
@@ -228,13 +270,13 @@ func yamlLoad(path string) (interface{}, error) {
 	return x, nil
 }
 
-func makeDir(path []string, x interface{}) (map[string]interface{}, error) {
+func makeDir(path []string, x interface{}) (map[string]interface{}, bool) {
 	if len(path) == 0 {
 		obj, ok := x.(map[string]interface{})
 		if !ok {
-			return nil, unsupportedDocumentType(fmt.Sprintf("%T", x))
+			return nil, false
 		}
-		return obj, nil
+		return obj, true
 	}
 	return makeDir(path[:len(path)-1], map[string]interface{}{path[len(path)-1]: x})
 }
