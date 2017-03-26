@@ -5,7 +5,6 @@
 package runtime
 
 import (
-	"fmt"
 	"reflect"
 	"testing"
 
@@ -15,14 +14,15 @@ import (
 func TestMergeDocs(t *testing.T) {
 
 	tests := []struct {
-		a string
-		b string
-		c interface{}
+		a  string
+		b  string
+		c  string
+		ok bool
 	}{
-		{`{"x": 1, "y": 2}`, `{"z": 3}`, `{"x": 1, "y": 2, "z": 3}`},
-		{`{"x": {"y": 2}}`, `{"z": 3, "x": {"q": 4}}`, `{"x": {"y": 2, "q": 4}, "z": 3}`},
-		{`{"x": 1}`, `{"x": 1}`, fmt.Errorf("x: merge error: json.Number cannot merge into json.Number")},
-		{`{"x": {"y": [{"z": 2}]}}`, `{"x": {"y": [{"z": 3}]}}`, fmt.Errorf("x: y: merge error: []interface {} cannot merge into []interface {}")},
+		{`{"x": 1, "y": 2}`, `{"z": 3}`, `{"x": 1, "y": 2, "z": 3}`, true},
+		{`{"x": {"y": 2}}`, `{"z": 3, "x": {"q": 4}}`, `{"x": {"y": 2, "q": 4}, "z": 3}`, true},
+		{`{"x": 1}`, `{"x": 1}`, "", false},
+		{`{"x": {"y": [{"z": 2}]}}`, `{"x": {"y": [{"z": 3}]}}`, "", false},
 	}
 
 	for _, tc := range tests {
@@ -36,27 +36,23 @@ func TestMergeDocs(t *testing.T) {
 			panic(err)
 		}
 
-		switch c := tc.c.(type) {
-		case error:
-			_, err := mergeDocs(a, b)
-			if !reflect.DeepEqual(err.Error(), c.Error()) {
-				t.Errorf("Expected error to be exactly %v but got: %v", c, err)
+		if len(tc.c) == 0 {
+
+			c, ok := mergeDocs(a, b)
+			if ok {
+				t.Errorf("Expected merge(%v,%v) == false but got: %v", a, b, c)
 			}
 
-		case string:
+		} else {
+
 			expected := map[string]interface{}{}
-			if err := util.UnmarshalJSON([]byte(c), &expected); err != nil {
+			if err := util.UnmarshalJSON([]byte(tc.c), &expected); err != nil {
 				panic(err)
 			}
 
-			result, err := mergeDocs(a, b)
-			if err != nil {
-				t.Errorf("Unexpected error on merge(%v, %v): %v", a, b, err)
-				continue
-			}
-
-			if !reflect.DeepEqual(result, expected) {
-				t.Errorf("Expected merge(%v, %v) to be %v but got: %v", a, b, expected, result)
+			c, ok := mergeDocs(a, b)
+			if !ok || !reflect.DeepEqual(c, expected) {
+				t.Errorf("Expected merge(%v, %v) == %v but got: %v (ok: %v)", a, b, expected, c, ok)
 			}
 		}
 	}

@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"sort"
+	"strings"
 	"testing"
 
 	"github.com/ghodss/yaml"
@@ -173,6 +174,42 @@ func TestLoadRooted(t *testing.T) {
 		`)
 		if !reflect.DeepEqual(loaded.Documents, expected) {
 			t.Fatalf("Expected %v but got: %v", expected, loaded.Documents)
+		}
+	})
+}
+
+func TestLoadErrors(t *testing.T) {
+	files := map[string]string{
+		"/x1.json":    `{"x": [1,2,3]}`,
+		"/x2.json":    `{"x": {"y": 1}}`,
+		"/empty.rego": `   `,
+		"/dir/a.json": ``,
+		"/dir/b.yaml": `
+		foo:
+		  - bar:
+		`,
+		"/bad_doc.json": "[1,2,3]",
+	}
+	withTempFS(files, func(rootDir string) {
+		paths := mustListPaths(rootDir, false)[1:]
+		sort.Strings(paths)
+		_, err := loadAllPaths(paths)
+		if err == nil {
+			t.Fatalf("Expected failure")
+		}
+
+		expected := []string{
+			"bad_doc.json: bad document type",
+			"a.json: EOF",
+			"b.yaml: error converting YAML to JSON",
+			"empty.rego: empty policy",
+			"x2.json: merge error",
+		}
+
+		for _, s := range expected {
+			if !strings.Contains(err.Error(), s) {
+				t.Fatalf("Expected error to contain %v but got:\n%v", s, err)
+			}
 		}
 	})
 }
