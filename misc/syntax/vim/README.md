@@ -1,3 +1,3 @@
 # vim-rego
 
-A Vim plugin for the Rego language that includes support for syntax highlighting.
+For the latest version of the vim-rego plugin see https://github.com/tsandall/vim-rego.
