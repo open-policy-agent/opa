@@ -11,9 +11,13 @@
     {% when 'MAIN_GET_OPA' %}
       {% assign page_get = page %}
     {% when 'MAIN_DOCUMENTATION' %}
-      {% assign page_doc = page %}
+      {% if page.doc_id == 'WHAT_IS_POLICY_ENABLEMENT' %}
+        {% assign page_doc = page %}
+      {% endif %}
     {% when 'MAIN_EXAMPLES' %}
-      {% assign page_xmp = page %}
+      {% if page.xmp_id == 'WORKING_WITH_THE_OPA_REPL' %}
+        {% assign page_xmp = page %}
+      {% endif %}
     {% when 'MAIN_COMMUNITY' %}
       {% assign page_com = page %}
   {% endcase %}
