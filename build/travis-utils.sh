@@ -11,10 +11,7 @@ function is_travis_push_env() {
 # If the tag matches the source version then we can assume this is build is
 # for a release.
 function is_travis_release_env() {
-  version="$(make version)"
-  echo "TRAVIS_TAG=$TRAVIS_TAG"
-  echo "VERSION=$version"
-  if [ "$TRAVIS_TAG" = $version ]; then
+  if [ "$TRAVIS_TAG" = "v$(make version)" ]; then
     return 0
   fi
   return 1
