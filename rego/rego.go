@@ -280,7 +280,7 @@ func (r *Rego) eval(ctx context.Context, compiled ast.Body, txn storage.Transact
 	err = topdown.Eval(t, func(t *topdown.Topdown) error {
 		result := newResult()
 		for key, value := range t.Vars() {
-			val, err := topdown.ValueToInterface(value, t)
+			val, err := ast.ValueToInterface(value, t)
 			if err != nil {
 				return err
 			}

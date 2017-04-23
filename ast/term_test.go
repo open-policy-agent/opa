@@ -398,6 +398,65 @@ func TestSetOperations(t *testing.T) {
 	}
 }
 
+func TestValueToInterface(t *testing.T) {
+
+	// Happy path
+	term := MustParseTerm(`{
+		"foo": [
+			1, "two", true, null, {
+				3,
+			}
+		]
+	}`)
+
+	value, err := JSON(term.Value)
+	if err != nil {
+		t.Fatalf("Unexpected error while converting term %v to JSON: %v", term, err)
+	}
+
+	var expected interface{}
+	if err := util.UnmarshalJSON([]byte(`{"foo": [1, "two", true, null, [3]]}`), &expected); err != nil {
+		panic(err)
+	}
+
+	if util.Compare(value, expected) != 0 {
+		t.Fatalf("Expected %v but got: %v", expected, value)
+	}
+
+	// Nested ref value
+	term = MustParseTerm(`{
+		"foo": [{data.a.b.c,}]
+	}`)
+
+	_, err = JSON(term.Value)
+
+	if err == nil {
+		t.Fatalf("Expected error from JSON(%v)", term)
+	}
+
+	// Ref key
+	term = MustParseTerm(`{
+		data.foo.a: 1
+	}`)
+
+	_, err = JSON(term.Value)
+
+	if err == nil {
+		t.Fatalf("Expected error from JSON(%v)", term)
+	}
+
+	// Requires evaluation
+	term = MustParseTerm(`{
+		"foo": [x | x = 1]
+	}`)
+
+	_, err = JSON(term.Value)
+
+	if err == nil {
+		t.Fatalf("Expected error from JSON(%v)", term)
+	}
+}
+
 func assertTermEqual(t *testing.T, x *Term, y *Term) {
 	if !x.Equal(y) {
 		t.Errorf("Failure on equality: \n%s and \n%s\n", x, y)
