@@ -47,6 +47,9 @@ var DefaultBuiltins = [...]*Builtin{
 
 	// Strings
 	Concat, FormatInt, IndexOf, Substring, Lower, Upper, Contains, StartsWith, EndsWith,
+
+	// JSON
+	JSONMarshal, JSONUnmarshal,
 }
 
 // BuiltinMap provides a convenient mapping of built-in names to
@@ -286,6 +289,24 @@ var Lower = &Builtin{
 // Upper returns the input string but with all characters in upper-case
 var Upper = &Builtin{
 	Name:      Var("upper"),
+	NumArgs:   2,
+	TargetPos: []int{1},
+}
+
+/**
+ * JSON
+ */
+
+// JSONMarshal serializes the input term.
+var JSONMarshal = &Builtin{
+	Name:      Var("json_marshal"),
+	NumArgs:   2,
+	TargetPos: []int{1},
+}
+
+// JSONUnmarshal deserializes the input string.
+var JSONUnmarshal = &Builtin{
+	Name:      Var("json_unmarshal"),
 	NumArgs:   2,
 	TargetPos: []int{1},
 }

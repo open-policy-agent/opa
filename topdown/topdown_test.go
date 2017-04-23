@@ -1144,6 +1144,26 @@ func TestTopDownStrings(t *testing.T) {
 	}
 }
 
+func TestTopDownJSONBuiltins(t *testing.T) {
+
+	tests := []struct {
+		note     string
+		rules    []string
+		expected interface{}
+	}{
+		{"marshal", []string{`p = x { json_marshal([{"foo": {1,2,3}}], x) }`}, `"[{\"foo\":[1,2,3]}]"`},
+		{"unmarshal", []string{`p = x { json_unmarshal("[{\"foo\":[1,2,3]}]", x) }`}, `[{"foo": [1,2,3]}]"`},
+		{"unmarshal-non-string", []string{`p = x { json_unmarshal(data.a[0], x) }`}, fmt.Errorf("operand 1 must be string but got number")},
+	}
+
+	data := loadSmallTestData()
+
+	for _, tc := range tests {
+		runTopDownTestCase(t, data, tc.note, tc.rules, tc.expected)
+	}
+
+}
+
 func TestTopDownEmbeddedVirtualDoc(t *testing.T) {
 
 	compiler := compileModules([]string{
