@@ -663,7 +663,7 @@ func (r *REPL) evalBody(ctx context.Context, compiler *ast.Compiler, input ast.V
 
 		for k, v := range t.Vars() {
 			if !k.IsWildcard() {
-				x, err := topdown.ValueToInterface(v, t)
+				x, err := ast.ValueToInterface(v, t)
 				if err != nil {
 					return err
 				}
@@ -765,7 +765,7 @@ func (r *REPL) evalTermSingleValue(ctx context.Context, compiler *ast.Compiler, 
 
 	err := topdown.Eval(t, func(t *topdown.Topdown) error {
 		p := t.Binding(outputVar.Value)
-		v, err := topdown.ValueToInterface(p, t)
+		v, err := ast.ValueToInterface(p, t)
 		if err != nil {
 			return err
 		}
@@ -831,7 +831,7 @@ func (r *REPL) evalTermMultiValue(ctx context.Context, compiler *ast.Compiler, i
 
 		for k, v := range t.Vars() {
 			if !k.IsWildcard() && !k.Equal(outputVar.Value) {
-				x, err := topdown.ValueToInterface(v, t)
+				x, err := ast.ValueToInterface(v, t)
 				if err != nil {
 					return err
 				}
@@ -842,7 +842,7 @@ func (r *REPL) evalTermMultiValue(ctx context.Context, compiler *ast.Compiler, i
 
 		if includeValue {
 			p := topdown.PlugTerm(term, t.Binding)
-			v, err := topdown.ValueToInterface(p.Value, t)
+			v, err := ast.ValueToInterface(p.Value, t)
 			if err != nil {
 				return err
 			}

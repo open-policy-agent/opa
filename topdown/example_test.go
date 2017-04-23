@@ -73,7 +73,7 @@ func ExampleEval() {
 		x = t.Vars()[ast.Var("x")]
 
 		// The bindings are ast.Value types so we will convert to a native Go value here.
-		v, err := topdown.ValueToInterface(x, t)
+		v, err := ast.ValueToInterface(x, t)
 		if err != nil {
 			return err
 		}

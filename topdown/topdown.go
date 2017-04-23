@@ -6,7 +6,6 @@ package topdown
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"strings"
 	"sync"
@@ -644,7 +643,7 @@ func Query(params *QueryParams) (QueryResultSet, error) {
 		// Gather bindings for vars from the request.
 		bindings := map[string]interface{}{}
 		for v := range requestVars {
-			binding, err := ValueToInterface(PlugValue(v, t.Binding), t)
+			binding, err := ast.ValueToInterface(PlugValue(v, t.Binding), t)
 			if err != nil {
 				return err
 			}
@@ -652,7 +651,7 @@ func Query(params *QueryParams) (QueryResultSet, error) {
 		}
 
 		// Gather binding for result var.
-		val, err := ValueToInterface(PlugValue(resultVar, t.Binding), t)
+		val, err := ast.ValueToInterface(PlugValue(resultVar, t.Binding), t)
 		if err != nil {
 			return err
 		}
@@ -743,64 +742,6 @@ func ResolveRefsTerm(term *ast.Term, t *Topdown) (*ast.Term, error) {
 		return nil, err
 	}
 	return &cpy, nil
-}
-
-// ValueToInterface returns the underlying Go value associated with an AST value.
-// If the value is a reference, the reference is fetched from storage. Composite
-// AST values such as objects and arrays are converted recursively.
-func ValueToInterface(v ast.Value, resolver Resolver) (interface{}, error) {
-	switch v := v.(type) {
-	case ast.Null:
-		return nil, nil
-	case ast.Boolean:
-		return bool(v), nil
-	case ast.Number:
-		return json.Number(v), nil
-	case ast.String:
-		return string(v), nil
-	case ast.Array:
-		buf := []interface{}{}
-		for _, x := range v {
-			x1, err := ValueToInterface(x.Value, resolver)
-			if err != nil {
-				return nil, err
-			}
-			buf = append(buf, x1)
-		}
-		return buf, nil
-	case ast.Object:
-		buf := map[string]interface{}{}
-		for _, x := range v {
-			k, err := ValueToInterface(x[0].Value, resolver)
-			if err != nil {
-				return nil, err
-			}
-			asStr, stringKey := k.(string)
-			if !stringKey {
-				return nil, fmt.Errorf("object key type %T", k)
-			}
-			v, err := ValueToInterface(x[1].Value, resolver)
-			if err != nil {
-				return nil, err
-			}
-			buf[asStr] = v
-		}
-		return buf, nil
-	case *ast.Set:
-		buf := []interface{}{}
-		for _, x := range *v {
-			x1, err := ValueToInterface(x.Value, resolver)
-			if err != nil {
-				return nil, err
-			}
-			buf = append(buf, x1)
-		}
-		return buf, nil
-	case ast.Ref:
-		return resolver.Resolve(v)
-	default:
-		return nil, fmt.Errorf("unbound value: %v", v)
-	}
 }
 
 func eval(t *Topdown, iter Iterator) error {
@@ -1934,7 +1875,7 @@ func evalTermsIndexed(t *Topdown, iter Iterator, indexed ast.Ref, nonIndexed *as
 	iterateIndex := func(t *Topdown) error {
 
 		// Evaluate the non-indexed term.
-		value, err := ValueToInterface(PlugValue(nonIndexed.Value, t.Binding), t)
+		value, err := ast.ValueToInterface(PlugValue(nonIndexed.Value, t.Binding), t)
 		if err != nil {
 			return err
 		}

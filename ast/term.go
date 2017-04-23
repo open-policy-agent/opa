@@ -120,6 +120,81 @@ func InterfaceToValue(x interface{}) (Value, error) {
 	}
 }
 
+// Resolver defines the interface for resolving references to native Go values.
+type Resolver interface {
+	Resolve(ref Ref) (value interface{}, err error)
+}
+
+type illegalResolver struct{}
+
+func (illegalResolver) Resolve(ref Ref) (interface{}, error) {
+	return nil, fmt.Errorf("illegal value: %v", ref)
+}
+
+// ValueToInterface returns the Go representation of an AST value.  The AST
+// value should not contain any values that require evaluation (e.g., vars,
+// comprehensions, etc.)
+func ValueToInterface(v Value, resolver Resolver) (interface{}, error) {
+	switch v := v.(type) {
+	case Null:
+		return nil, nil
+	case Boolean:
+		return bool(v), nil
+	case Number:
+		return json.Number(v), nil
+	case String:
+		return string(v), nil
+	case Array:
+		buf := []interface{}{}
+		for _, x := range v {
+			x1, err := ValueToInterface(x.Value, resolver)
+			if err != nil {
+				return nil, err
+			}
+			buf = append(buf, x1)
+		}
+		return buf, nil
+	case Object:
+		buf := map[string]interface{}{}
+		for _, x := range v {
+			k, err := ValueToInterface(x[0].Value, resolver)
+			if err != nil {
+				return nil, err
+			}
+			asStr, stringKey := k.(string)
+			if !stringKey {
+				return nil, fmt.Errorf("object value has non-string key (%T)", k)
+			}
+			v, err := ValueToInterface(x[1].Value, resolver)
+			if err != nil {
+				return nil, err
+			}
+			buf[asStr] = v
+		}
+		return buf, nil
+	case *Set:
+		buf := []interface{}{}
+		for _, x := range *v {
+			x1, err := ValueToInterface(x.Value, resolver)
+			if err != nil {
+				return nil, err
+			}
+			buf = append(buf, x1)
+		}
+		return buf, nil
+	case Ref:
+		return resolver.Resolve(v)
+	default:
+		return nil, fmt.Errorf("value requires evaluation (%T)", v)
+	}
+}
+
+// JSON returns the JSON representation of v. The value must not contain any
+// refs or terms that require evaluation (e.g., vars, comprehensions, etc.)
+func JSON(v Value) (interface{}, error) {
+	return ValueToInterface(v, illegalResolver{})
+}
+
 // MustInterfaceToValue converts a native Go value x to a Value. If the
 // conversion fails, this function will panic. This function is mostly for test
 // purposes.

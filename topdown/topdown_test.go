@@ -309,7 +309,7 @@ func TestTopDownPartialObjectDoc(t *testing.T) {
 		// TODO(tsandall): this error should be handled earlier during
 		// evaluation but that will require updating a bunch of tests that are
 		// currently producing non-string keys.
-		{"non-var/string key", `p[k] = v { a[k] = v }`, fmt.Errorf("object key type json.Number")},
+		{"non-var/string key", `p[k] = v { a[k] = v }`, fmt.Errorf("object value has non-string key")},
 		{"body/join var", `p[k] = v { a[i] = v; g[k][i] = v }`, `{"a": 1, "b": 2, "c": 4}`},
 		{"composite value", `p[k] = [v1, {"v2": v2}] { g[k] = x; x[v1] = v2; v2 != 0 }`, `{
 			"a": [0, {"v2": 1}],

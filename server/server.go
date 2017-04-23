@@ -225,7 +225,7 @@ func (s *Server) execQuery(ctx context.Context, compiler *ast.Compiler, txn stor
 		result := map[string]interface{}{}
 		for k, v := range t.Vars() {
 			if !k.IsWildcard() {
-				x, err := topdown.ValueToInterface(v, t)
+				x, err := ast.ValueToInterface(v, t)
 				if err != nil {
 					return err
 				}
