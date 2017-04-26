@@ -1184,6 +1184,14 @@ func (ac *ArrayComprehension) String() string {
 	return "[" + ac.Term.String() + " | " + ac.Body.String() + "]"
 }
 
+func formatString(s String) string {
+	str := string(s)
+	if varRegexp.MatchString(str) {
+		return str
+	}
+	return s.String()
+}
+
 func termSliceCopy(a []*Term) []*Term {
 	cpy := make([]*Term, len(a))
 	for i := range a {

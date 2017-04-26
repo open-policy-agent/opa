@@ -370,7 +370,6 @@ func TestTopDownEqExpr(t *testing.T) {
 	}{
 		// undefined cases
 		{"undefined: same type", `p = true { true = false }`, ""},
-		{"undefined: diff type", `p = true { 42 = "hello" }`, ""},
 		{"undefined: array order", `p = true { [1, 2, 3] = [1, 3, 2] }`, ""},
 		{"undefined: ref value", `p = true { a[3] = 9999 }`, ""},
 		{"undefined: ref values", `p = true { a[i] = 9999 }`, ""},
@@ -380,8 +379,6 @@ func TestTopDownEqExpr(t *testing.T) {
 		{"undefined: object var 1", `p = true { {"a": 1, "b": 2} = {"a": a, "b": a} }`, ""},
 		{"undefined: array deep var 1", `p = true { [[1, x], [3, x]] = [[1, 2], [3, 4]] }`, ""},
 		{"undefined: array deep var 2", `p = true { [[1, x], [3, 4]] = [[1, 2], [x, 4]] }`, ""},
-		{"undefined: array uneven", `p = true { [true, false, "foo", "deadbeef"] = c[i][j] }`, ""},
-		{"undefined: object uneven", `p = true { {"a": 1, "b": 2} = {"a": 1} }`, ""},
 		{"undefined: set", `p = true { {1, 2, 3} = {1, 2, 4} }`, ""},
 
 		// ground terms
@@ -1078,8 +1075,6 @@ func TestTopDownSets(t *testing.T) {
 	}{
 		{"set_diff", []string{`p = x { s1 = {1, 2, 3, 4}; s2 = {1, 3}; x = s1 - s2 }`}, `[2,4]`},
 		{"set_diff: refs", []string{`p = x { s1 = {a[2], a[1], a[0]}; s2 = {a[0], 2}; set_diff(s1, s2, x) }`}, "[3]"},
-		{"set_diff: bad input", []string{`p = x { s1 = [1, 2, 3]; s2 = {1, 2}; set_diff(s1, s2, x) }`}, fmt.Errorf("operand 1 must be set but got array")},
-		{"set_diff: bad input", []string{`p = x { s1 = {1, 2, 3}; s2 = [1, 2]; set_diff(s1, s2, x) }`}, fmt.Errorf("operand 2 must be set but got array")},
 		{"set_diff: ground output", []string{`p = true { {1} = {1, 2, 3} - {2, 3} }`}, "true"},
 		{"set_diff: virt docs", []string{`p = x { x = s1 - s2 }`, `s1[1] { true }`, `s1[2] { true }`, `s1["c"] { true }`, `s2 = {"c", 1} { true }`}, "[2]"},
 		{"intersect", []string{`p = x { x = {a[1], a[2], 3} & {a[2], 4, 3} }`}, "[3]"},
@@ -1101,40 +1096,26 @@ func TestTopDownStrings(t *testing.T) {
 	}{
 		{"format_int", []string{`p = x { format_int(15.5, 16, x) }`}, `"f"`},
 		{"format_int: undefined", []string{`p = true { format_int(15.5, 16, "10000") }`}, ""},
-		{"format_int: err", []string{`p = true { format_int(null, 16, x) }`}, fmt.Errorf("operand 1 must be number but got null")},
 		{"format_int: ref dest", []string{`p = true { format_int(3.1, 10, numbers[2]) }`}, "true"},
 		{"format_int: ref dest (2)", []string{`p = true { not format_int(4.1, 10, numbers[2]) }`}, "true"},
-		{"format_int: err: bad base", []string{`p = true { format_int(4.1, 199, true) }`}, fmt.Errorf("operand 2 must be one of {2, 8, 10, 16}")},
+		{"format_int: err: bad base", []string{`p = true { format_int(4.1, 199, x) }`}, fmt.Errorf("operand 2 must be one of {2, 8, 10, 16}")},
 		{"concat", []string{`p = x { concat("/", ["", "foo", "bar", "0", "baz"], x) }`}, `"/foo/bar/0/baz"`},
 		{"concat: set", []string{`p = x { concat(",", {"1", "2", "3"}, x) }`}, `"1,2,3"`},
 		{"concat: undefined", []string{`p = true { concat("/", ["a", "b"], "deadbeef") }`}, ""},
-		{"concat: non-string err", []string{`p = x { concat("/", ["", "foo", "bar", 0, "baz"], x) }`}, fmt.Errorf("operand 2 must be array of strings but got array containing number")},
 		{"concat: ref dest", []string{`p = true { concat("", ["f", "o", "o"], c[0].x[2]) }`}, "true"},
 		{"concat: ref dest (2)", []string{`p = true { not concat("", ["b", "a", "r"], c[0].x[2]) }`}, "true"},
 		{"indexof", []string{`p = x { indexof("abcdefgh", "cde", x) }`}, "2"},
 		{"indexof: not found", []string{`p = x { indexof("abcdefgh", "xyz", x) }`}, "-1"},
-		{"indexof: error", []string{`p = x { indexof("abcdefgh", 1, x) }`}, fmt.Errorf("operand 2 must be string but got number")},
 		{"substring", []string{`p = x { substring("abcdefgh", 2, 3, x) }`}, `"cde"`},
 		{"substring: remainder", []string{`p = x { substring("abcdefgh", 2, -1, x) }`}, `"cdefgh"`},
-		{"substring: error 1", []string{`p = x { substring(17, "xyz", 3, x) }`}, fmt.Errorf("operand 1 must be string but got number")},
-		{"substring: error 2", []string{`p = x { substring("abcdefgh", "xyz", 3, x) }`}, fmt.Errorf(`operand 2 must be number but got string`)},
-		{"substring: error 3", []string{`p = x { substring("abcdefgh", 2, "xyz", x) }`}, fmt.Errorf(`operand 3 must be number but got string`)},
 		{"contains", []string{`p = true { contains("abcdefgh", "defg") }`}, "true"},
 		{"contains: undefined", []string{`p = true { contains("abcdefgh", "ac") }`}, ""},
-		{"contains: error 1", []string{`p = true { contains(17, "ac") }`}, fmt.Errorf(`operand 1 must be string but got number`)},
-		{"contains: error 2", []string{`p = true { contains("abcdefgh", 17) }`}, fmt.Errorf(`operand 2 must be string but got number`)},
 		{"startswith", []string{`p = true { startswith("abcdefgh", "abcd") }`}, "true"},
 		{"startswith: undefined", []string{`p = true { startswith("abcdefgh", "bcd") }`}, ""},
-		{"startswith: error 1", []string{`p = true { startswith(17, "bcd") }`}, fmt.Errorf(`operand 1 must be string but got number`)},
-		{"startswith: error 2", []string{`p = true { startswith("abcdefgh", 17) }`}, fmt.Errorf(`operand 2 must be string but got number`)},
 		{"endswith", []string{`p = true { endswith("abcdefgh", "fgh") }`}, "true"},
 		{"endswith: undefined", []string{`p = true { endswith("abcdefgh", "fg") }`}, ""},
-		{"endswith: error 1", []string{`p = true { endswith(17, "bcd") }`}, fmt.Errorf(`operand 1 must be string but got number`)},
-		{"endswith: error 2", []string{`p = true { endswith("abcdefgh", 17) }`}, fmt.Errorf(`perand 2 must be string but got number`)},
 		{"lower", []string{`p = x { lower("AbCdEf", x) }`}, `"abcdef"`},
-		{"lower error", []string{`p = x { lower(true, x) }`}, fmt.Errorf("operand 1 must be string but got boolean")},
 		{"upper", []string{`p = x { upper("AbCdEf", x) }`}, `"ABCDEF"`},
-		{"upper error", []string{`p = x { upper(true, x) }`}, fmt.Errorf("operand 1 must be string but got boolean")},
 	}
 
 	data := loadSmallTestData()
@@ -1685,7 +1666,7 @@ func compileModules(input []string) *ast.Compiler {
 	return c
 }
 
-func compileRules(imports []string, input []string) *ast.Compiler {
+func compileRules(imports []string, input []string) (*ast.Compiler, error) {
 
 	rules := []*ast.Rule{}
 	for _, i := range input {
@@ -1708,12 +1689,16 @@ func compileRules(imports []string, input []string) *ast.Compiler {
 		Rules:   rules,
 	}
 
-	c := ast.NewCompiler()
-	if c.Compile(map[string]*ast.Module{"testMod": m}); c.Failed() {
-		panic(c.Errors)
+	for i := range rules {
+		rules[i].Module = m
 	}
 
-	return c
+	c := ast.NewCompiler()
+	if c.Compile(map[string]*ast.Module{"testMod": m}); c.Failed() {
+		return nil, c.Errors
+	}
+
+	return c, nil
 }
 
 func parseExpr(s string, idx int) *ast.Expr {
@@ -1871,7 +1856,11 @@ func runTopDownTestCase(t *testing.T, data map[string]interface{}, note string, 
 		imports = append(imports, "data."+k)
 	}
 
-	compiler := compileRules(imports, rules)
+	compiler, err := compileRules(imports, rules)
+	if err != nil {
+		t.Errorf("%v: Compiler error: %v", note, err)
+		return
+	}
 
 	store := storage.New(storage.InMemoryWithJSONConfig(data))
 
