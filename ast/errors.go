@@ -60,11 +60,17 @@ func IsError(code string, err error) bool {
 	return false
 }
 
+// ErrorDetails defines the interface for detailed error messages.
+type ErrorDetails interface {
+	Lines() []string
+}
+
 // Error represents a single error caught during parsing, compiling, etc.
 type Error struct {
-	Code     string    `json:"code"`
-	Message  string    `json:"message"`
-	Location *Location `json:"location,omitempty"`
+	Code     string       `json:"code"`
+	Message  string       `json:"message"`
+	Location *Location    `json:"location,omitempty"`
+	Details  ErrorDetails `json:"details,omitempty"`
 }
 
 func (e *Error) Error() string {
@@ -84,6 +90,12 @@ func (e *Error) Error() string {
 
 	if len(prefix) > 0 {
 		msg = prefix + ": " + msg
+	}
+
+	if e.Details != nil {
+		for _, line := range e.Details.Lines() {
+			msg += "\n\t" + line
+		}
 	}
 
 	return msg

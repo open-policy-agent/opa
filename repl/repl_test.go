@@ -232,6 +232,30 @@ p[2] { true }` + "\n"
 	buffer.Reset()
 }
 
+func TestTypes(t *testing.T) {
+	ctx := context.Background()
+	store := storage.New(storage.InMemoryConfig())
+	var buffer bytes.Buffer
+	repl := newRepl(store, &buffer)
+
+	repl.OneShot(ctx, "types")
+	repl.OneShot(ctx, "data.repl.version[x]")
+
+	output := strings.TrimSpace(buffer.String())
+
+	exp := []string{
+		"# data.repl.version[x]: string",
+		"# x: string",
+	}
+
+	for i := range exp {
+		if !strings.Contains(output, exp[i]) {
+			t.Fatalf("Expected output to contain %q but got: %v", exp[i], output)
+		}
+	}
+
+}
+
 func TestUnset(t *testing.T) {
 	ctx := context.Background()
 	store := storage.New(storage.InMemoryConfig())
@@ -495,11 +519,10 @@ func TestEvalConstantRule(t *testing.T) {
 		return
 	}
 	buffer.Reset()
-	repl.OneShot(ctx, "pi.deadbeef")
+	err := repl.OneShot(ctx, "pi.deadbeef")
 	result = buffer.String()
-	if result != "undefined\n" {
-		t.Errorf("Expected pi.deadbeef to be undefined but got: %v", result)
-		return
+	if result != "" || !strings.Contains(err.Error(), "undefined ref: data.repl.pi.deadbeef") {
+		t.Fatalf("Expected pi.deadbeef to fail/error but got:\nresult: %q\nerr: %v", result, err)
 	}
 	buffer.Reset()
 	repl.OneShot(ctx, "pi > 3")

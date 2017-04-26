@@ -67,6 +67,9 @@ type Compiler struct {
 	// rule "v" if rule "u" refers to the virtual document defined by rule "v".
 	RuleGraph *RuleGraph
 
+	// TypeEnv holds type information for values inferred by the compiler.
+	TypeEnv *TypeEnv
+
 	generatedVars map[*Module]VarSet
 	moduleLoader  ModuleLoader
 	stages        []func()
@@ -142,6 +145,10 @@ type QueryCompiler interface {
 	// the compiled version of the query.
 	Compile(q Body) (Body, error)
 
+	// TypeEnv returns the type environment built after running type checking
+	// on the query.
+	TypeEnv() *TypeEnv
+
 	// WithContext sets the QueryContext on the QueryCompiler. Subsequent calls
 	// to Compile will take the QueryContext into account.
 	WithContext(qctx *QueryContext) QueryCompiler
@@ -152,6 +159,7 @@ func NewCompiler() *Compiler {
 
 	c := &Compiler{
 		Modules:       map[string]*Module{},
+		TypeEnv:       NewTypeEnv(),
 		generatedVars: map[*Module]VarSet{},
 	}
 
@@ -166,10 +174,10 @@ func NewCompiler() *Compiler {
 		c.rewriteRefsInHead,
 		c.checkWithModifiers,
 		c.checkRuleConflicts,
-		c.checkBuiltins,
 		c.checkSafetyRuleHeads,
 		c.checkSafetyRuleBodies,
 		c.checkRecursion,
+		c.checkTypes,
 	}
 
 	return c
@@ -348,16 +356,6 @@ func (c *Compiler) WithModuleLoader(f ModuleLoader) *Compiler {
 	return c
 }
 
-// checkBuiltins ensures that built-in functions are specified correctly.
-func (c *Compiler) checkBuiltins() {
-	for _, mod := range c.Modules {
-		bc := newBuiltinChecker()
-		for _, err := range bc.Check(mod) {
-			c.err(err)
-		}
-	}
-}
-
 // checkRecursion ensures that there are no recursive rule definitions, i.e., there are
 // no cycles in the RuleGraph.
 func (c *Compiler) checkRecursion() {
@@ -464,6 +462,19 @@ func (c *Compiler) checkSafetyRuleHeads() {
 			}
 		}
 	}
+}
+
+// checkTypes runs the type checker on all rules. The type checker builds a
+// TypeEnv that is stored on the compiler.
+func (c *Compiler) checkTypes() {
+	// Recursion is caught in earlier step, so this cannot fail.
+	sorted, _ := c.RuleGraph.Sort()
+	checker := newTypeChecker()
+	env, errs := checker.CheckRules(nil, sorted)
+	for _, err := range errs {
+		c.err(err)
+	}
+	c.TypeEnv = env
 }
 
 // checkWithModifiers ensures that with modifier values do not contain
@@ -657,6 +668,7 @@ func (c *Compiler) setRuleGraph() {
 type queryCompiler struct {
 	compiler *Compiler
 	qctx     *QueryContext
+	typeEnv  *TypeEnv
 }
 
 func newQueryCompiler(compiler *Compiler) QueryCompiler {
@@ -678,8 +690,8 @@ func (qc *queryCompiler) Compile(query Body) (Body, error) {
 		qc.resolveRefs,
 		qc.checkWithModifiers,
 		qc.checkSafety,
-		qc.checkBuiltins,
 		qc.checkInput,
+		qc.checkTypes,
 	}
 
 	qctx := qc.qctx.Copy()
@@ -692,6 +704,10 @@ func (qc *queryCompiler) Compile(query Body) (Body, error) {
 	}
 
 	return query, nil
+}
+
+func (qc *queryCompiler) TypeEnv() *TypeEnv {
+	return qc.typeEnv
 }
 
 func (qc *queryCompiler) resolveRefs(qctx *QueryContext, body Body) (Body, error) {
@@ -724,14 +740,6 @@ func (qc *queryCompiler) checkSafety(_ *QueryContext, body Body) (Body, error) {
 	}
 
 	return reordered, nil
-}
-
-func (qc *queryCompiler) checkBuiltins(qctx *QueryContext, body Body) (Body, error) {
-	bc := newBuiltinChecker()
-	if errs := bc.Check(body); len(errs) != 0 {
-		return nil, errs
-	}
-	return body, nil
 }
 
 func (qc *queryCompiler) checkInput(qctx *QueryContext, body Body) (Body, error) {
@@ -839,6 +847,16 @@ func definesInput(expr *Expr) bool {
 		}
 	}
 	return false
+}
+
+func (qc *queryCompiler) checkTypes(qctx *QueryContext, body Body) (Body, error) {
+	checker := newTypeChecker()
+	var errs Errors
+	qc.typeEnv, errs = checker.CheckBody(qc.compiler.TypeEnv, body)
+	if len(errs) > 0 {
+		return nil, errs
+	}
+	return body, nil
 }
 
 func (qc *queryCompiler) checkWithModifiers(qctx *QueryContext, body Body) (Body, error) {
@@ -979,49 +997,6 @@ func (n *RuleTreeNode) DepthFirst(f func(node *RuleTreeNode) bool) {
 			node.DepthFirst(f)
 		}
 	}
-}
-
-// builtinChecker verifies that built-in functions are called correctly.
-type builtinChecker struct {
-	errors Errors
-	prefix string
-}
-
-func newBuiltinChecker() *builtinChecker {
-	return &builtinChecker{}
-}
-
-// Check returns built-in function call errors underneath the AST node x.
-func (bc *builtinChecker) Check(x interface{}) Errors {
-	Walk(bc, x)
-	return bc.errors
-}
-
-func (bc *builtinChecker) Visit(x interface{}) Visitor {
-	switch x := x.(type) {
-	case *Rule:
-		bc.prefix = string(x.Head.Name)
-	case *Expr:
-		if ts, ok := x.Terms.([]*Term); ok {
-			if bi, ok := BuiltinMap[ts[0].Value.(Var)]; ok {
-				if len(bi.Args) != len(ts[1:]) {
-					msg := "built-in function %v takes exactly %v arguments but got %v"
-					bc.err(TypeErr, x.Location, msg, ts[0], len(bi.Args), len(ts[1:]))
-				}
-			} else {
-				msg := "unknown built-in function %v"
-				bc.err(TypeErr, x.Location, msg, ts[0])
-			}
-		}
-	}
-	return bc
-}
-
-func (bc *builtinChecker) err(code string, loc *Location, f string, a ...interface{}) {
-	if bc.prefix != "" {
-		f = bc.prefix + ": " + f
-	}
-	bc.errors = append(bc.errors, NewError(code, loc, f, a...))
 }
 
 type withModifierChecker struct {

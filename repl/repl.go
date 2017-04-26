@@ -39,13 +39,13 @@ type REPL struct {
 
 	// TODO(tsandall): replace this state with rule definitions
 	// inside the default module.
-	outputFormat string
-	explain      explainMode
-	historyPath  string
-	initPrompt   string
-	bufferPrompt string
-	banner       string
-
+	outputFormat      string
+	explain           explainMode
+	historyPath       string
+	initPrompt        string
+	bufferPrompt      string
+	banner            string
+	types             bool
 	bufferDisabled    bool
 	undefinedDisabled bool
 }
@@ -239,6 +239,8 @@ func (r *REPL) OneShot(ctx context.Context, line string) error {
 				return r.cmdTrace()
 			case "truth":
 				return r.cmdTruth()
+			case "types":
+				return r.cmdTypes()
 			case "help":
 				return r.cmdHelp(cmd.args)
 			case "exit":
@@ -383,6 +385,11 @@ func (r *REPL) cmdTruth() error {
 	return nil
 }
 
+func (r *REPL) cmdTypes() error {
+	r.types = !r.types
+	return nil
+}
+
 func (r *REPL) cmdUnset(args []string) error {
 
 	if len(args) != 1 {
@@ -441,7 +448,7 @@ func (r *REPL) cmdUnset(args []string) error {
 	return nil
 }
 
-func (r *REPL) compileBody(body ast.Body, input ast.Value) (ast.Body, error) {
+func (r *REPL) compileBody(body ast.Body, input ast.Value) (ast.Body, *ast.TypeEnv, error) {
 
 	policies := r.store.ListPolicies(r.txn)
 
@@ -452,7 +459,7 @@ func (r *REPL) compileBody(body ast.Body, input ast.Value) (ast.Body, error) {
 	compiler := ast.NewCompiler()
 
 	if compiler.Compile(policies); compiler.Failed() {
-		return nil, compiler.Errors
+		return nil, nil, compiler.Errors
 	}
 
 	qctx := ast.NewQueryContext().
@@ -460,9 +467,9 @@ func (r *REPL) compileBody(body ast.Body, input ast.Value) (ast.Body, error) {
 		WithImports(r.modules[r.currentModuleID].Imports).
 		WithInput(input)
 
-	return compiler.QueryCompiler().
-		WithContext(qctx).
-		Compile(body)
+	qc := compiler.QueryCompiler()
+	body, err := qc.WithContext(qctx).Compile(body)
+	return body, qc.TypeEnv(), err
 }
 
 func (r *REPL) compileRule(rule *ast.Rule) error {
@@ -470,6 +477,7 @@ func (r *REPL) compileRule(rule *ast.Rule) error {
 	mod := r.modules[r.currentModuleID]
 	prev := mod.Rules
 	mod.Rules = append(mod.Rules, rule)
+	rule.Module = mod
 
 	policies := r.store.ListPolicies(r.txn)
 	for id, mod := range r.modules {
@@ -588,17 +596,23 @@ func (r *REPL) evalStatement(ctx context.Context, stmt interface{}) error {
 			return err
 		}
 
-		body, err := r.compileBody(s, input)
+		body, typeEnv, err := r.compileBody(s, input)
 
 		if err != nil {
-			rule, err2 := ast.ParseRuleFromBody(r.modules[r.currentModuleID], s)
-			if err2 != nil {
-				// The statement cannot be understood as a rule, so the original
-				// error returned from compiling the query should be given the
-				// caller.
-				return err
+			// The compile step can fail if input is undefined. In that case,
+			// we still want to allow users to define an input document (e.g.,
+			// "input = { ... }") so try to parse a rule nonetheless.
+			if ast.IsError(ast.InputErr, err) {
+				rule, err2 := ast.ParseRuleFromBody(r.modules[r.currentModuleID], s)
+				if err2 != nil {
+					// The statement cannot be understood as a rule, so the original
+					// error returned from compiling the query should be given the
+					// caller.
+					return err
+				}
+				return r.compileRule(rule)
 			}
-			return r.compileRule(rule)
+			return err
 		}
 
 		rule, err3 := ast.ParseRuleFromBody(r.modules[r.currentModuleID], body)
@@ -610,7 +624,14 @@ func (r *REPL) evalStatement(ctx context.Context, stmt interface{}) error {
 		if err != nil {
 			return err
 		}
-		return r.evalBody(ctx, compiler, input, body)
+
+		err = r.evalBody(ctx, compiler, input, body)
+
+		if r.types {
+			r.printTypes(ctx, typeEnv, body)
+		}
+
+		return err
 	case *ast.Rule:
 		return r.compileRule(s)
 	case *ast.Import:
@@ -970,6 +991,25 @@ func (r *REPL) printTrace(ctx context.Context, compiler *ast.Compiler, trace []*
 	topdown.PrettyTrace(r.output, trace)
 }
 
+func (r *REPL) printTypes(ctx context.Context, typeEnv *ast.TypeEnv, body ast.Body) {
+
+	ast.WalkRefs(body, func(ref ast.Ref) bool {
+		fmt.Fprintf(r.output, "# %v: %v\n", ref, typeEnv.Get(ref))
+		return false
+	})
+
+	vis := ast.NewVarVisitor().WithParams(ast.VarVisitorParams{
+		SkipBuiltinOperators: true,
+		SkipRefHead:          true,
+	})
+
+	ast.Walk(vis, body)
+
+	for v := range vis.Vars() {
+		fmt.Fprintf(r.output, "# %v: %v\n", v, typeEnv.Get(v))
+	}
+}
+
 func (r *REPL) printUndefined() {
 	fmt.Fprintln(r.output, "undefined")
 }
@@ -1017,6 +1057,7 @@ var builtin = [...]commandDesc{
 	{"json", []string{}, "set output format to JSON"},
 	{"pretty", []string{}, "set output format to pretty"},
 	{"trace", []string{}, "toggle full trace"},
+	{"types", []string{}, "toggle type information"},
 	{"truth", []string{}, "toggle truth explanation"},
 	{"dump", []string{"[path]"}, "dump raw data in storage"},
 	{"help", []string{"[topic]"}, "print this message"},
