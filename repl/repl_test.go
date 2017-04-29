@@ -1089,6 +1089,26 @@ Enter data.a[i].b.c[j] = x; data.a[k].b.c[x] = 1
 	}
 }
 
+func TestTruncatePrettyOutput(t *testing.T) {
+	ctx := context.Background()
+	store := inmem.New()
+	var buffer bytes.Buffer
+	repl := newRepl(store, &buffer)
+	repl.prettyLimit = 1000 // crank up limit to test repl command
+	repl.OneShot(ctx, "pretty-limit 80")
+	repl.OneShot(ctx, "data[x]")
+	for _, line := range strings.Split(buffer.String(), "\n") {
+		// | "repl" | {"version": <elided>... |
+		if len(line) > 96 {
+			t.Fatalf("Expected len(line) to be < 96 but got:\n\n%v", buffer)
+		}
+	}
+	buffer.Reset()
+	if err := repl.OneShot(ctx, "pretty-limit"); err == nil || !strings.Contains(err.Error(), "usage: pretty-limit <n>") {
+		t.Fatalf("Expected usage error but got: %v", err)
+	}
+}
+
 func TestBuildHeader(t *testing.T) {
 	expr := ast.MustParseStatement(`[{"a": x, "b": data.a.b[y]}] = [{"a": 1, "b": 2}]`).(ast.Body)[0]
 	terms := expr.Terms.([]*ast.Term)
