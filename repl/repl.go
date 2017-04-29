@@ -16,6 +16,7 @@ import (
 	"io"
 	"os"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/olekukonko/tablewriter"
@@ -50,6 +51,7 @@ type REPL struct {
 	bufferDisabled    bool
 	undefinedDisabled bool
 	errLimit          int
+	prettyLimit       int
 }
 
 type explainMode int
@@ -59,6 +61,8 @@ const (
 	explainTrace explainMode = iota
 	explainTruth explainMode = iota
 )
+
+const defaultPrettyLimit = 80
 
 const exitPromptMessage = "Do you want to exit ([y]/n)? "
 
@@ -82,6 +86,7 @@ func New(store storage.Store, historyPath string, output io.Writer, outputFormat
 		bufferPrompt:    "| ",
 		banner:          banner,
 		errLimit:        errLimit,
+		prettyLimit:     defaultPrettyLimit,
 	}
 }
 
@@ -238,6 +243,8 @@ func (r *REPL) OneShot(ctx context.Context, line string) error {
 				return r.cmdUnset(ctx, cmd.args)
 			case "pretty":
 				return r.cmdFormat("pretty")
+			case "pretty-limit":
+				return r.cmdPrettyLimit(cmd.args)
 			case "trace":
 				return r.cmdTrace()
 			case "truth":
@@ -353,6 +360,18 @@ func (r *REPL) cmdExit() error {
 
 func (r *REPL) cmdFormat(s string) error {
 	r.outputFormat = s
+	return nil
+}
+
+func (r *REPL) cmdPrettyLimit(s []string) error {
+	if len(s) != 1 {
+		return fmt.Errorf("usage: pretty-limit <n>")
+	}
+	i64, err := strconv.ParseInt(s[0], 10, 0)
+	if err != nil {
+		return err
+	}
+	r.prettyLimit = int(i64)
 	return nil
 }
 
@@ -1085,7 +1104,11 @@ func (r *REPL) printPrettyRow(table *tablewriter.Table, keys []string, row map[s
 		if err != nil {
 			buf = append(buf, err.Error())
 		} else {
-			buf = append(buf, string(js))
+			s := string(js)
+			if r.prettyLimit > 0 && len(s) > r.prettyLimit {
+				s = s[:r.prettyLimit] + "..."
+			}
+			buf = append(buf, s)
 		}
 	}
 
@@ -1169,6 +1192,7 @@ var builtin = [...]commandDesc{
 	{"unset", []string{"<var>"}, "undefine rules in currently active module"},
 	{"json", []string{}, "set output format to JSON"},
 	{"pretty", []string{}, "set output format to pretty"},
+	{"pretty-limit", []string{}, "set pretty value output limit"},
 	{"trace", []string{}, "toggle full trace"},
 	{"types", []string{}, "toggle type information"},
 	{"truth", []string{}, "toggle truth explanation"},
