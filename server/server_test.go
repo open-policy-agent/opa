@@ -593,7 +593,7 @@ func TestPoliciesPutV1ParseError(t *testing.T) {
 
 	v := ast.MustInterfaceToValue(response)
 
-	name, err := v.Find([]string{"errors", "0", "location", "file"})
+	name, err := v.Find(ast.MustParseRef("_.errors[0].location.file")[1:])
 	if err != nil {
 		t.Fatalf("Expecfted to find name in errors but: %v", err)
 	}
@@ -629,7 +629,7 @@ q[x] { p[x] }`,
 
 	v := ast.MustInterfaceToValue(response)
 
-	name, err := v.Find([]string{"errors", "0", "location", "file"})
+	name, err := v.Find(ast.MustParseRef("_.errors[0].location.file")[1:])
 	if err != nil {
 		t.Fatalf("Expecfted to find name in errors but: %v", err)
 	}

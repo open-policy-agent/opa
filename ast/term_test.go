@@ -131,16 +131,16 @@ func TestFind(t *testing.T) {
 	term := MustParseTerm(`{"foo": [1,{"bar": {2,3,4}}], "baz": {"qux": ["hello", "world"]}}`)
 
 	tests := []struct {
-		path     string
+		path     *Term
 		expected interface{}
 	}{
-		{"foo/1/bar", MustParseTerm(`{2, 3, 4}`)},
-		{"foo/2", fmt.Errorf("not found")},
-		{"baz/qux/0", MustParseTerm(`"hello"`)},
+		{RefTerm(StringTerm("foo"), IntNumberTerm(1), StringTerm("bar")), MustParseTerm(`{2, 3, 4}`)},
+		{RefTerm(StringTerm("foo"), IntNumberTerm(2)), fmt.Errorf("not found")},
+		{RefTerm(StringTerm("baz"), StringTerm("qux"), IntNumberTerm(0)), MustParseTerm(`"hello"`)},
 	}
 
 	for _, tc := range tests {
-		result, err := term.Value.Find(strings.Split(tc.path, "/"))
+		result, err := term.Value.Find(tc.path.Value.(Ref))
 		switch expected := tc.expected.(type) {
 		case *Term:
 			if err != nil {

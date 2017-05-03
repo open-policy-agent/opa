@@ -175,14 +175,14 @@ func TestBasic(t *testing.T) {
 					t.Fatalf("Expected JSON response but got: %v", recorder)
 				}
 				response := ast.MustInterfaceToValue(x)
-				code, err := response.Find([]string{"code"})
+				code, err := response.Find(ast.RefTerm(ast.StringTerm("code")).Value.(ast.Ref))
 				if err != nil {
 					t.Fatalf("Missing code in response: %v", recorder)
 				} else if !code.Equal(ast.String(tc.expectedCode)) {
 					t.Fatalf("Expected code %v but got: %v", tc.expectedCode, recorder)
 				}
 
-				msg, err := response.Find([]string{"message"})
+				msg, err := response.Find(ast.RefTerm(ast.StringTerm("message")).Value.(ast.Ref))
 				if err != nil {
 					t.Fatalf("Missing message in response: %v", recorder)
 				} else if !strings.Contains(msg.String(), tc.expectedMsg) {
