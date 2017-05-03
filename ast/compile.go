@@ -72,6 +72,7 @@ type Compiler struct {
 
 	generatedVars map[*Module]VarSet
 	moduleLoader  ModuleLoader
+	ruleIndices   *util.HashMap
 	stages        []func()
 }
 
@@ -161,6 +162,12 @@ func NewCompiler() *Compiler {
 		Modules:       map[string]*Module{},
 		TypeEnv:       NewTypeEnv(),
 		generatedVars: map[*Module]VarSet{},
+		ruleIndices: util.NewHashMap(func(a, b util.T) bool {
+			r1, r2 := a.(Ref), b.(Ref)
+			return r1.Equal(r2)
+		}, func(x util.T) int {
+			return x.(Ref).Hash()
+		}),
 	}
 
 	c.ModuleTree = NewModuleTree(nil)
@@ -178,6 +185,7 @@ func NewCompiler() *Compiler {
 		c.checkSafetyRuleBodies,
 		c.checkRecursion,
 		c.checkTypes,
+		c.buildRuleIndices,
 	}
 
 	return c
@@ -339,6 +347,18 @@ func (c *Compiler) GetRules(ref Ref) (rules []*Rule) {
 	return rules
 }
 
+// RuleIndex returns a RuleIndex built for the rule set referred to by path.
+// The path must refer to the rule set exactly, i.e., given a rule set at path
+// data.a.b.c.p, refs data.a.b.c.p.x and data.a.b.c would not return a
+// RuleIndex built for the rule.
+func (c *Compiler) RuleIndex(path Ref) RuleIndex {
+	r, ok := c.ruleIndices.Get(path)
+	if !ok {
+		return nil
+	}
+	return r.(RuleIndex)
+}
+
 // ModuleLoader defines the interface that callers can implement to enable lazy
 // loading of modules during compilation.
 type ModuleLoader func(resolved map[string]*Module) (parsed map[string]*Module, err error)
@@ -354,6 +374,23 @@ type ModuleLoader func(resolved map[string]*Module) (parsed map[string]*Module, 
 func (c *Compiler) WithModuleLoader(f ModuleLoader) *Compiler {
 	c.moduleLoader = f
 	return c
+}
+
+// buildRuleIndices constructs indices for rules.
+func (c *Compiler) buildRuleIndices() {
+
+	c.RuleTree.DepthFirst(func(node *RuleTreeNode) bool {
+		if len(node.Rules) > 1 {
+			index := newBaseDocEqIndex(func(ref Ref) bool {
+				return len(c.GetRules(ref.GroundPrefix())) > 0
+			})
+			if index.Build(node.Rules) {
+				c.ruleIndices.Put(node.Rules[0].Path(), index)
+			}
+		}
+		return false
+	})
+
 }
 
 // checkRecursion ensures that there are no recursive rule definitions, i.e., there are

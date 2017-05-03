@@ -235,6 +235,18 @@ func (t *Topdown) Resolve(ref ast.Ref) (interface{}, error) {
 	return doc, nil
 }
 
+type valueResolver struct {
+	t *Topdown
+}
+
+func (r valueResolver) Resolve(ref ast.Ref) (ast.Value, error) {
+	v, err := lookupValue(r.t, ref)
+	if storage.IsNotFound(err) {
+		return nil, nil
+	}
+	return v, nil
+}
+
 // Step returns a new Topdown object to evaluate the next expression.
 func (t *Topdown) Step() *Topdown {
 	cpy := *t
@@ -1211,6 +1223,21 @@ func evalRefRecNonGround(t *Topdown, ref, prefix ast.Ref, iter Iterator) error {
 
 func evalRefRule(t *Topdown, ref ast.Ref, path ast.Ref, rules []*ast.Rule, iter Iterator) error {
 
+	if index := t.Compiler.RuleIndex(path); index != nil {
+		rs, dr, err := index.Index(valueResolver{t})
+		if err != nil {
+			return err
+		}
+		if dr != nil {
+			rs = append(rs, dr)
+		}
+		rules = rs
+	}
+
+	if len(rules) == 0 {
+		return nil
+	}
+
 	suffix := ref[len(path):]
 
 	switch rules[0].Head.DocKind() {
@@ -2104,11 +2131,24 @@ func indexingAllowed(ref ast.Ref, term *ast.Term) bool {
 }
 
 func lookupValue(t *Topdown, ref ast.Ref) (ast.Value, error) {
-	r, err := t.Resolve(ref)
-	if err != nil {
-		return nil, err
+	if ref[0].Equal(ast.DefaultRootDocument) {
+		r, err := t.Resolve(ref)
+		if err != nil {
+			return nil, err
+		}
+		return ast.InterfaceToValue(r)
 	}
-	return ast.InterfaceToValue(r)
+	if ref[0].Equal(ast.InputRootDocument) {
+		if t.Input == nil {
+			return nil, nil
+		}
+		r, err := t.Input.Find(ref[1:])
+		if err != nil {
+			return nil, nil
+		}
+		return r, nil
+	}
+	panic("illegal value")
 }
 
 // valueMapStack is used to store a stack of bindings.
