@@ -14,76 +14,52 @@ import (
 	"github.com/open-policy-agent/opa/storage"
 )
 
-func BenchmarkVirtualDocs1(b *testing.B) {
-	runVirtualDocsBenchmark(b, 1)
+func BenchmarkVirtualDocs1x1(b *testing.B) {
+	runVirtualDocsBenchmark(b, 1, 1)
 }
 
-func BenchmarkVirtualDocs10(b *testing.B) {
-	runVirtualDocsBenchmark(b, 10)
+func BenchmarkVirtualDocs10x1(b *testing.B) {
+	runVirtualDocsBenchmark(b, 10, 1)
 }
 
-func BenchmarkVirtualDocs100(b *testing.B) {
-	runVirtualDocsBenchmark(b, 100)
+func BenchmarkVirtualDocs100x1(b *testing.B) {
+	runVirtualDocsBenchmark(b, 100, 1)
 }
 
-func BenchmarkVirtualDocs1000(b *testing.B) {
-	runVirtualDocsBenchmark(b, 1000)
+func BenchmarkVirtualDocs1000x1(b *testing.B) {
+	runVirtualDocsBenchmark(b, 1000, 1)
 }
 
-func runVirtualDocsBenchmark(b *testing.B, numRules int) {
+func BenchmarkVirtualDocs10x10(b *testing.B) {
+	runVirtualDocsBenchmark(b, 10, 10)
+}
 
-	// Generate test module containing numRules instances of allow.
-	testRule := `
-	allow {
-		input.method = "POST"
-		input.path = ["accounts", account_id]
-		input.user_id = account_id
-	}
-	`
+func BenchmarkVirtualDocs100x10(b *testing.B) {
+	runVirtualDocsBenchmark(b, 100, 10)
+}
 
-	testModuleTmpl := `
-	package a.b.c
+func BenchmarkVirtualDocs1000x10(b *testing.B) {
+	runVirtualDocsBenchmark(b, 1000, 10)
+}
 
-	{{range . }}
-		{{ . }}
-	{{end}}
-	`
+func runVirtualDocsBenchmark(b *testing.B, numTotalRules, numHitRules int) {
 
-	tmpl, err := template.New("Test").Parse(testModuleTmpl)
-	if err != nil {
-		b.Fatalf("Unexpected error while parsing template: %v", err)
-	}
-
-	var buf bytes.Buffer
-
-	rules := make([]string, numRules)
-	for i := range rules {
-		rules[i] = testRule
-	}
-
-	err = tmpl.Execute(&buf, rules)
-	if err != nil {
-		b.Fatalf("Unexpected error while executing template: %v", err)
-	}
+	// Generate test input
+	mod, input := generateRulesAndInput(numTotalRules, numHitRules)
 
 	// Setup evaluation...
 	ctx := context.Background()
 	compiler := ast.NewCompiler()
-	mod := ast.MustParseModule(buf.String())
 	mods := map[string]*ast.Module{"module": mod}
 	store := storage.New(storage.InMemoryConfig())
 	txn := storage.NewTransactionOrDie(ctx, store)
-	input := ast.MustParseTerm(`{
-			"path": ["accounts", "alice"],
-			"method": "POST",
-			"user_id": "alice"
-		}`).Value
-
 	if compiler.Compile(mods); compiler.Failed() {
 		b.Fatalf("Unexpected compiler error: %v", compiler.Errors)
 	}
 
 	params := NewQueryParams(ctx, compiler, store, txn, input, ast.MustParseRef("data.a.b.c.allow"))
+
+	b.ResetTimer()
 
 	// Run query N times.
 	for i := 0; i < b.N; i++ {
@@ -100,4 +76,77 @@ func runVirtualDocsBenchmark(b *testing.B, numRules int) {
 		}()
 
 	}
+}
+
+func generateRulesAndInput(numTotalRules, numHitRules int) (*ast.Module, ast.Value) {
+
+	hitRule := `
+	allow {
+		input.method = "POST"
+		input.path = ["accounts", account_id]
+		input.user_id = account_id
+	}
+	`
+
+	missRule := `
+	allow {
+		input.method = "GET"
+		input.path = ["salaries", account_id]
+		input.user_id = account_id
+	}
+	`
+
+	testModuleTmpl := `
+	package a.b.c
+
+	{{range .MissRules }}
+		{{ . }}
+	{{end}}
+
+	{{range .HitRules }}
+		{{ . }}
+	{{end}}
+	`
+
+	tmpl, err := template.New("Test").Parse(testModuleTmpl)
+	if err != nil {
+		panic(err)
+	}
+
+	var buf bytes.Buffer
+
+	var missRules []string
+
+	if numTotalRules > numHitRules {
+		missRules = make([]string, numTotalRules-numHitRules)
+		for i := range missRules {
+			missRules[i] = missRule
+		}
+	}
+
+	hitRules := make([]string, numHitRules)
+	for i := range hitRules {
+		hitRules[i] = hitRule
+	}
+
+	params := struct {
+		MissRules []string
+		HitRules  []string
+	}{
+		MissRules: missRules,
+		HitRules:  hitRules,
+	}
+
+	err = tmpl.Execute(&buf, params)
+	if err != nil {
+		panic(err)
+	}
+
+	input := ast.MustParseTerm(`{
+			"path": ["accounts", "alice"],
+			"method": "POST",
+			"user_id": "alice"
+		}`).Value
+
+	return ast.MustParseModule(buf.String()), input
 }

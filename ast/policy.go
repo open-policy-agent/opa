@@ -215,6 +215,17 @@ func (mod *Module) String() string {
 	return strings.Join(buf, "\n")
 }
 
+// RuleSet returns a RuleSet containing named rules in the mod.
+func (mod *Module) RuleSet(name Var) RuleSet {
+	rs := NewRuleSet()
+	for _, rule := range mod.Rules {
+		if rule.Head.Name.Equal(name) {
+			rs.Add(rule)
+		}
+	}
+	return rs
+}
+
 // NewComment returns a new Comment object.
 func NewComment(text []byte) *Comment {
 	return &Comment{
@@ -990,6 +1001,74 @@ func (w *With) Copy() *With {
 // Hash returns the hash code of the With.
 func (w With) Hash() int {
 	return w.Target.Hash() + w.Value.Hash()
+}
+
+// RuleSet represents a collection of rules that produce a virtual document.
+type RuleSet []*Rule
+
+// NewRuleSet returns a new RuleSet containing the given rules.
+func NewRuleSet(rules ...*Rule) RuleSet {
+	rs := make(RuleSet, 0, len(rules))
+	for _, rule := range rules {
+		rs.Add(rule)
+	}
+	return rs
+}
+
+// Add inserts the rule into rs.
+func (rs *RuleSet) Add(rule *Rule) {
+	for _, exist := range *rs {
+		if exist.Equal(rule) {
+			return
+		}
+	}
+	*rs = append(*rs, rule)
+}
+
+// Contains returns true if rs contains rule.
+func (rs RuleSet) Contains(rule *Rule) bool {
+	for i := range rs {
+		if rs[i].Equal(rule) {
+			return true
+		}
+	}
+	return false
+}
+
+// Diff returns a new RuleSet containing rules in rs that are not in other.
+func (rs RuleSet) Diff(other RuleSet) RuleSet {
+	result := NewRuleSet()
+	for i := range rs {
+		if !other.Contains(rs[i]) {
+			result.Add(rs[i])
+		}
+	}
+	return result
+}
+
+// Equal returns true if rs equals other.
+func (rs RuleSet) Equal(other RuleSet) bool {
+	return len(rs.Diff(other)) == 0 && len(other.Diff(rs)) == 0
+}
+
+// Merge returns a ruleset containing the union of rules from rs an other.
+func (rs RuleSet) Merge(other RuleSet) RuleSet {
+	result := NewRuleSet()
+	for i := range rs {
+		result.Add(rs[i])
+	}
+	for i := range other {
+		result.Add(other[i])
+	}
+	return result
+}
+
+func (rs RuleSet) String() string {
+	buf := make([]string, 0, len(rs))
+	for _, rule := range rs {
+		buf = append(buf, rule.String())
+	}
+	return "{" + strings.Join(buf, ", ") + "}"
 }
 
 type ruleSlice []*Rule

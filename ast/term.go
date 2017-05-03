@@ -125,6 +125,11 @@ type Resolver interface {
 	Resolve(ref Ref) (value interface{}, err error)
 }
 
+// ValueResolver defines the interface for resolving references to AST values.
+type ValueResolver interface {
+	Resolve(ref Ref) (value Value, err error)
+}
+
 type illegalResolver struct{}
 
 func (illegalResolver) Resolve(ref Ref) (interface{}, error) {
@@ -792,6 +797,25 @@ func (arr Array) Find(path Ref) (Value, error) {
 		return nil, fmt.Errorf("find: not found")
 	}
 	return arr[i].Value.Find(path[1:])
+}
+
+// Get returns the element at pos or nil if not possible.
+func (arr Array) Get(pos *Term) *Term {
+	num, ok := pos.Value.(Number)
+	if !ok {
+		return nil
+	}
+
+	i, ok := num.Int()
+	if !ok {
+		return nil
+	}
+
+	if i > 0 && i < len(arr) {
+		return arr[i]
+	}
+
+	return nil
 }
 
 // Hash returns the hash code for the Value.
