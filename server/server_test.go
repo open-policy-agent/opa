@@ -54,11 +54,6 @@ undef = true { false }`
 p = [1, 2, 3, 4] { true }
 q = {"a": 1, "b": 2} { true }`
 
-	testMod3 := `package testmod
-
-p = true { loopback with input as true }
-loopback = input { true }`
-
 	testMod4 := `package testmod
 
 p = true { true }
@@ -168,24 +163,6 @@ p = true { false }`
 			tr{"PUT", "/policies/test", testMod1, 200, ""},
 			tr{"GET", "/data/testmod/g?input=req1%3A%7B%22a%22%3A%5B1%5D%7D&input=req2%3A%7B%22b%22%3A%5B0%2C1%5D%7D", "", 200, `{"result": true}`},
 		}},
-		{"get missing input", []tr{
-			tr{"PUT", "/policies/test", testMod1, 200, ""},
-			tr{"GET", "/data/testmod/g", "", 400, `{
-    		  "code": "invalid_parameter",
-    		  "errors": [
-    		    {
-    		      "code": "rego_input_error",
-    		      "location": {
-    		        "col": 12,
-    		        "file": "test",
-    		        "row": 10
-    		      },
-    		      "message": "input document not defined"
-    		    }
-    		  ],
-    		  "message": "input document is missing or conflicts with query"
-    		}`},
-		}},
 		{"get with input (missing input value)", []tr{
 			tr{"PUT", "/policies/test", testMod1, 200, ""},
 			tr{"GET", "/data/testmod/g?input=req1%3A%7B%22a%22%3A%5B1%5D%7D", "", 200, "{}"}, // req2 not specified
@@ -257,24 +234,6 @@ p = true { false }`
 			tr{"PUT", "/policies/test", testMod1, 200, ""},
 			tr{"POST", "/data/testmod/gt1", `{"input": {"req1": 2}}`, 200, `{"result": true}`},
 		}},
-		{"post missing input", []tr{
-			tr{"PUT", "/policies/test", testMod1, 200, ""},
-			tr{"POST", "/data/testmod/gt1", ``, 400, `{
-				"code": "invalid_parameter",
-				"message": "input document is missing or conflicts with query",
-				"errors": [
-					{
-						"code": "rego_input_error",
-						"location": {
-							"file": "test",
-							"row": 12,
-							"col": 14
-						},
-						"message": "input document not defined"
-					}
-				]
-			}`},
-		}},
 		{"post malformed input", []tr{
 			tr{"POST", "/data/deadbeef", `{"input": @}`, 400, `{
 				"code": "invalid_parameter",
@@ -297,24 +256,6 @@ p = true { false }`
     		    }
     		  ],
     		  "message": "error(s) occurred while evaluating query"
-    		}`},
-		}},
-		{"input conflict", []tr{
-			tr{"PUT", "/policies/test", testMod3, 200, ""},
-			tr{"POST", "/data/testmod/p", `{"input": false}`, 400, `{
-    		  "code": "invalid_parameter",
-    		  "errors": [
-    		    {
-    		      "code": "rego_input_error",
-    		      "location": {
-    		        "col": 12,
-    		        "file": "test",
-    		        "row": 3
-    		      },
-    		      "message": "input document conflict"
-    		    }
-    		  ],
-    		  "message": "input document is missing or conflicts with query"
     		}`},
 		}},
 		{"query wildcards omitted", []tr{

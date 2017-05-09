@@ -321,11 +321,13 @@ func TestUnset(t *testing.T) {
 		t.Fatalf("Expected unset to succeed for input: %v", err)
 	}
 
-	err = repl.OneShot(ctx, `true = input`)
+	buffer.Reset()
+	repl.OneShot(ctx, `not input`)
 
-	if !strings.Contains(err.Error(), "input document not defined") {
-		t.Fatalf("Expected undefined error but got: %v", err)
+	if buffer.String() != "true\n" {
+		t.Fatalf("Expected unset input to remove input document: %v", buffer.String())
 	}
+
 }
 
 func TestOneShotEmptyBufferOneExpr(t *testing.T) {
@@ -827,11 +829,13 @@ func TestEvalBodyWith(t *testing.T) {
 	repl := newRepl(store, &buffer)
 
 	repl.OneShot(ctx, `p = true { input.foo = "bar" }`)
-	err := repl.OneShot(ctx, "p")
+	repl.OneShot(ctx, "p")
 
-	if err == nil || !strings.Contains(err.Error(), "input document not defined") {
-		t.Fatalf("Expected input document undefined error")
+	if buffer.String() != "undefined\n" {
+		t.Fatalf("Expected undefined but got: %v", buffer.String())
 	}
+
+	buffer.Reset()
 
 	repl.OneShot(ctx, `p with input.foo as "bar"`)
 

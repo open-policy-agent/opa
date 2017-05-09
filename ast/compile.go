@@ -690,7 +690,6 @@ func (qc *queryCompiler) Compile(query Body) (Body, error) {
 		qc.resolveRefs,
 		qc.checkWithModifiers,
 		qc.checkSafety,
-		qc.checkInput,
 		qc.checkTypes,
 	}
 
@@ -740,73 +739,6 @@ func (qc *queryCompiler) checkSafety(_ *QueryContext, body Body) (Body, error) {
 	}
 
 	return reordered, nil
-}
-
-func (qc *queryCompiler) checkInput(qctx *QueryContext, body Body) (Body, error) {
-	return body, qc.checkInputRec(qctx.InputDefined(), body)
-}
-
-func (qc *queryCompiler) checkInputRec(definedPrev bool, body Body) error {
-
-	// Perform DFS for conflicting or missing input document.
-	for _, expr := range body {
-
-		definedCurr := definesInput(expr)
-
-		if definedPrev && definedCurr {
-			return NewError(InputErr, expr.Location, "input document conflict")
-		} else if !definedCurr && !definedPrev && referencesInput(expr) {
-			return NewError(InputErr, expr.Location, "input document not defined")
-		}
-
-		var err error
-
-		// Check closures contained in this expression.
-		vis := NewGenericVisitor(func(x interface{}) bool {
-			if err != nil {
-				return true
-			}
-			switch x := x.(type) {
-			case *ArrayComprehension:
-				if err = qc.checkInputRec(definedPrev || definedCurr, x.Body); err != nil {
-					return true
-				}
-			}
-			return false
-		})
-
-		Walk(vis, expr)
-
-		if err != nil {
-			return err
-		}
-
-		// Check rule bodies referred to by this expression.
-		vis = NewGenericVisitor(func(x interface{}) bool {
-			if err != nil {
-				return true
-			}
-			switch x := x.(type) {
-			case Ref:
-				if x.HasPrefix(DefaultRootRef) {
-					for _, rule := range qc.compiler.GetRules(x.GroundPrefix()) {
-						if err = qc.checkInputRec(definedPrev || definedCurr, rule.Body); err != nil {
-							return true
-						}
-					}
-				}
-			}
-			return false
-		})
-
-		Walk(vis, expr)
-
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
 }
 
 // referencesInput returns true if expr refers to the input document. This
