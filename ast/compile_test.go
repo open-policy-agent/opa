@@ -1081,12 +1081,8 @@ func TestQueryCompiler(t *testing.T) {
 		{"unsafe vars", "z", "", nil, "", fmt.Errorf("1 error occurred: 1:1: rego_unsafe_var_error: var z is unsafe")},
 		{"safe vars", `data; abc`, `package ex`, []string{"import input.xyz as abc"}, `{}`, `data; input.xyz`},
 		{"reorder", `x != 1; x = 0`, "", nil, "", `x = 0; x != 1`},
-		// {"bad builtin", "deadbeef(1,2,3)", "", nil, "", fmt.Errorf("1 error occurred: 1:1: rego_type_error: undefined built-in function")},
 		{"bad with target", "x = 1 with data.p as null", "", nil, "", fmt.Errorf("1 error occurred: 1:7: rego_type_error: with keyword target must be input")},
-		// wrapping refs in extra terms to cover error handling
-		{"undefined input", `[[true | [data.a.b.d.t, true]], true]`, "", nil, "", fmt.Errorf("5:12: rego_input_error: input document not defined")},
-		{"conflicting input", `[true | data.a.b.d.t with input as 1]`, "", nil, "2", fmt.Errorf("1:9: rego_input_error: input document conflict")},
-		{"conflicting input-2", `sum([1 | data.a.b.d.t with input as 2], x) with input as 3`, "", nil, "", fmt.Errorf("1:10: rego_input_error: input document conflict")},
+		{"check types", "x = data.a.b.c.z; y = null; x = y", "", nil, "", fmt.Errorf("match error\n\tleft  : number\n\tright : null")},
 	}
 
 	for _, tc := range tests {
@@ -1259,7 +1255,7 @@ func runQueryCompilerTest(t *testing.T, note, q, pkg string, imports []string, i
 			if err == nil {
 				t.Fatalf("Expected error from %v but got: %v", query, result)
 			}
-			if err.Error() != expected.Error() {
+			if !strings.Contains(err.Error(), expected.Error()) {
 				t.Fatalf("Expected error %v but got: %v", expected, err)
 			}
 		}
