@@ -7,6 +7,10 @@
       {% assign xmp_repl = page %}
     {% when 'DOCKER_AUTHORIZATION' %}
       {% assign xmp_auth = page %}
+    {% when 'HTTP_API_AUTHORIZATION' %}
+      {% assign xmp_http_api_auth = page %}
+    {% when 'SSH_SUDO_AUTHORIZATION' %}
+      {% assign xmp_ssh_sudo_auth = page %}
   {% endcase %}
 {% endfor %}
 
@@ -17,6 +21,12 @@
     </li>
     <li class="opa-header--abstract--nav-item{% if page.xmp_id == xmp_auth.xmp_id %}--selected{% endif %}">
       {% if page.xmp_id != xmp_auth.xmp_id %}<a class="opa-header--abstract--nav-link" href="{{xmp_auth.url}}">{{ xmp_auth.title }}</a>{% else %}{{ xmp_auth.title }}{% endif %}
+    </li>
+    <li class="opa-header--abstract--nav-item{% if page.xmp_id == xmp_http_api_auth.xmp_id %}--selected{% endif %}">
+      {% if page.xmp_id != xmp_http_api_auth.xmp_id %}<a class="opa-header--abstract--nav-link" href="{{xmp_http_api_auth.url}}">{{ xmp_http_api_auth.title }}</a>{% else %}{{ xmp_http_api_auth.title }}{% endif %}
+    </li>
+    <li class="opa-header--abstract--nav-item{% if page.xmp_id == xmp_ssh_sudo_auth.xmp_id %}--selected{% endif %}">
+      {% if page.xmp_id != xmp_ssh_sudo_auth.xmp_id %}<a class="opa-header--abstract--nav-link" href="{{xmp_ssh_sudo_auth.url}}">{{ xmp_ssh_sudo_auth.title }}</a>{% else %}{{ xmp_ssh_sudo_auth.title }}{% endif %}
     </li>
   </ul>
 </nav>
