@@ -122,7 +122,7 @@ Exiting
 
 ### 2. Create a data file and a policy module.
 
-Let's define a bit of JSON data that will be used in the example:
+Let's define a bit of JSON data that will be used in the tutorial:
 
 ```shell
 $ cat >data.json <<EOF
