@@ -1380,6 +1380,7 @@ seccomp_unconfined {
 - **input** - Provide an input document. Format is `[[<path>]:]<value>` where `<path>` is the import path of the input document. The parameter may be specified multiple times but each instance should specify a unique `<path>`. The `<path>` may be empty (in which case, the entire input will be set to the `<value>`). The `<value>` may be a reference to a document in OPA. If `<value>` contains variables the response will contain a set of results instead of a single document. In most cases, input should be provided using the POST method, see [Get a Document With Input](#get-a-document-with-input).
 - **pretty** - If parameter is `true`, response will formatted for humans.
 - **explain** - Return query explanation in addition to result. Values: **full**, **truth**.
+- **metrics** - Return query performance metrics in addition to result. See [Performance Metrics](#performance-metrics) for more detail.
 
 #### Status Codes
 
@@ -1485,6 +1486,7 @@ HTTP/1.1 200 OK
 
 - **pretty** - If parameter is `true`, response will formatted for humans.
 - **explain** - Return query explanation in addition to result. Values: **full**, **truth**.
+- **metrics** - Return query performance metrics in addition to result. See [Performance Metrics](#performance-metrics) for more detail.
 
 #### Status Codes
 
@@ -1635,6 +1637,7 @@ Content-Type: application/json
 - **q** - The ad-hoc query to execute. OPA will parse, compile, and execute the query represented by the parameter value. The value MUST be URL encoded.
 - **pretty** - If parameter is `true`, response will formatted for humans.
 - **explain** - Return query explanation in addition to result. Values: **full**, **truth**.
+- **metrics** - Return query performance metrics in addition to result. See [Performance Metrics](#performance-metrics) for more detail.
 
 #### Status Codes
 
@@ -1791,5 +1794,49 @@ restarts, a **Redo** Trace Event is emitted.
 }
 ```
 
+## <a name="performance-metrics"></a> Performance Metrics
+
+OPA can report detailed performance metrics at runtime. Currently, performance metrics can be requested on individual API calls and are returned inline with the API response. To enable performance metric collection on an API call, specify the `metrics=true` query parameter when executing the API call. Performance metrics are currently supported for the following APIs:
+
+- Data API GET
+- Data API POST
+- Query API
+
+For example:
+
+```http
+POST /v1/data/example?metrics=true HTTP/1.1
+```
+
+Response:
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+```
+
+```json
+{
+  "metrics": {
+    "timer_rego_query_compile_ns": 69994,
+    "timer_rego_query_eval_ns": 48425,
+    "timer_rego_query_parse_ns": 4096
+  },
+  "result": {
+    "some_strings": [
+      "hello",
+      "world"
+    ]
+  }
+}
+```
+
+### <a name="query-performance-metrics"></a> Query Performance Metrics
+
+OPA currently supports the following query performance metrics:
+
+- **timer_rego_query_parse_ns**: time taken (in nanonseconds) to parse the query.
+- **timer_rego_query_compile_ns**: time taken (in nanonseconds) to compile the query.
+- **timer_rego_query_eval_ns**: time taken (in nanonseconds) to evaluate the query.
 
 {% endcontentfor %}

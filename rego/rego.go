@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/topdown"
 )
@@ -86,6 +87,7 @@ type Rego struct {
 	modules   []rawModule
 	compiler  *ast.Compiler
 	storage   *storage.Storage
+	metrics   metrics.Metrics
 	termVarID int
 }
 
@@ -143,6 +145,13 @@ func Storage(s *storage.Storage) func(r *Rego) {
 	}
 }
 
+// Metrics returns an argument that sets the metrics collection and enables instrumentation.
+func Metrics(m metrics.Metrics) func(r *Rego) {
+	return func(r *Rego) {
+		r.metrics = m
+	}
+}
+
 // New returns a new Rego object.
 func New(options ...func(*Rego)) *Rego {
 	r := &Rego{}
@@ -159,6 +168,10 @@ func New(options ...func(*Rego)) *Rego {
 		r.storage = storage.New(storage.InMemoryConfig())
 	}
 
+	if r.metrics == nil {
+		r.metrics = metrics.New()
+	}
+
 	return r
 }
 
@@ -169,19 +182,27 @@ func (r *Rego) Eval(ctx context.Context) (ResultSet, error) {
 		return nil, fmt.Errorf("cannot evaluate empty query")
 	}
 
+	r.metrics.Timer(metrics.RegoQueryParse).Start()
+
 	// Parse inputs
 	parsed, query, err := r.parse()
 	if err != nil {
 		return nil, err
 	}
 
+	r.metrics.Timer(metrics.RegoQueryParse).Stop()
+
 	query = r.captureTerms(query)
+
+	r.metrics.Timer(metrics.RegoQueryCompile).Start()
 
 	// Compile inputs
 	compiled, err := r.compile(parsed, query)
 	if err != nil {
 		return nil, err
 	}
+
+	r.metrics.Timer(metrics.RegoQueryCompile).Stop()
 
 	// Prepare storage layer. Transaction could be an argument in the future.
 	txn, err := r.storage.NewTransaction(ctx)
@@ -269,6 +290,8 @@ func (r *Rego) compile(modules map[string]*ast.Module, query ast.Body) (ast.Body
 
 func (r *Rego) eval(ctx context.Context, compiled ast.Body, txn storage.Transaction) (rs ResultSet, err error) {
 
+	r.metrics.Timer(metrics.RegoQueryEval).Start()
+
 	t := topdown.New(ctx, compiled, r.compiler, r.storage, txn)
 
 	if r.input != nil {
@@ -310,6 +333,8 @@ func (r *Rego) eval(ctx context.Context, compiled ast.Body, txn storage.Transact
 	if len(rs) == 0 {
 		return nil, nil
 	}
+
+	r.metrics.Timer(metrics.RegoQueryEval).Stop()
 
 	return rs, nil
 }

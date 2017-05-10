@@ -117,12 +117,17 @@ type DataRequestV1 struct {
 // DataResponseV1 models the response message for Data API read operations.
 type DataResponseV1 struct {
 	Explanation TraceV1      `json:"explanation,omitempty"`
+	Metrics     MetricsV1    `json:"metrics,omitempty"`
 	Result      *interface{} `json:"result,omitempty"`
 }
+
+// MetricsV1 models a collection of performance metrics.
+type MetricsV1 map[string]interface{}
 
 // QueryResponseV1 models the response message for Query API operations.
 type QueryResponseV1 struct {
 	Explanation TraceV1               `json:"explanation,omitempty"`
+	Metrics     MetricsV1             `json:"metrics,omitempty"`
 	Result      AdhocQueryResultSetV1 `json:"result"`
 }
 
@@ -285,6 +290,11 @@ const (
 	// ParamPrettyV1 defines the name of the HTTP URL parameter that indicates
 	// the client wants to receive a pretty-printed version of the response.
 	ParamPrettyV1 = "pretty"
+
+	// ParamMetricsV1 defines the name of the HTTP URL parameter that indicates
+	// the client wants to receive performance metrics in addition to the
+	// result.
+	ParamMetricsV1 = "metrics"
 )
 
 // WriteConflictErr represents an error condition raised if the caller attempts

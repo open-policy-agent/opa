@@ -413,6 +413,35 @@ p = [1, 2, 3, 4] { true }`, 200, "")
 
 }
 
+func TestDataMetrics(t *testing.T) {
+
+	f := newFixture(t)
+
+	req := newReqV1("POST", "/data?metrics", "")
+	f.reset()
+	f.server.Handler.ServeHTTP(f.recorder, req)
+
+	var result types.DataResponseV1
+
+	if err := util.NewJSONDecoder(f.recorder.Body).Decode(&result); err != nil {
+		t.Fatalf("Unexpected JSON decode error: %v", err)
+	}
+
+	// Test some basic well-known metrics.
+	expected := []string{
+		"timer_rego_query_parse_ns",
+		"timer_rego_query_compile_ns",
+		"timer_rego_query_eval_ns",
+	}
+
+	for _, key := range expected {
+		if result.Metrics[key] == 0 {
+			t.Fatalf("Expected non-zero metric for %v but got: %v", key, result)
+		}
+	}
+
+}
+
 func TestV1Pretty(t *testing.T) {
 
 	f := newFixture(t)
