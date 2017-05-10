@@ -22,6 +22,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/server/authorizer"
 	"github.com/open-policy-agent/opa/server/identifier"
 	"github.com/open-policy-agent/opa/server/types"
@@ -311,12 +312,18 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 	path := stringPathToDataRef(vars["path"])
 	pretty := getBoolParam(r.URL, types.ParamPrettyV1, true)
 	explainMode := getExplain(r.URL.Query()["explain"])
-	input, nonGround, err := parseInput(r.URL.Query()[types.ParamInputV1])
+	includeMetrics := getBoolParam(r.URL, types.ParamMetricsV1, true)
+	m := metrics.New()
 
+	m.Timer(metrics.RegoQueryParse).Start()
+
+	input, nonGround, err := parseInput(r.URL.Query()[types.ParamInputV1])
 	if err != nil {
 		writer.ErrorString(w, http.StatusBadRequest, types.CodeInvalidParameter, err)
 		return
 	}
+
+	m.Timer(metrics.RegoQueryParse).Stop()
 
 	if nonGround && explainMode != types.ExplainOffV1 {
 		writer.Error(w, http.StatusBadRequest, types.NewErrorV1(types.CodeInvalidParameter, "not supported: explanations with non-ground input values"))
@@ -334,6 +341,7 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 
 	compiler := s.Compiler()
 	params := topdown.NewQueryParams(ctx, compiler, s.store, txn, input, path)
+	params.Metrics = m
 
 	var buf *topdown.BufferTracer
 	if explainMode != types.ExplainOffV1 {
@@ -351,6 +359,10 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 	}
 
 	result := types.DataResponseV1{}
+
+	if includeMetrics {
+		result.Metrics = m.All()
+	}
 
 	if qrs.Undefined() {
 		if explainMode == types.ExplainFullV1 {
@@ -424,12 +436,18 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 	path := stringPathToDataRef(vars["path"])
 	pretty := getBoolParam(r.URL, types.ParamPrettyV1, true)
 	explainMode := getExplain(r.URL.Query()["explain"])
+	includeMetrics := getBoolParam(r.URL, types.ParamMetricsV1, true)
+	m := metrics.New()
+
+	m.Timer(metrics.RegoQueryParse).Start()
 
 	input, err := readInput(r.Body)
 	if err != nil {
 		writer.ErrorString(w, http.StatusBadRequest, types.CodeInvalidParameter, err)
 		return
 	}
+
+	m.Timer(metrics.RegoQueryParse).Stop()
 
 	// Prepare for query.
 	txn, err := s.store.NewTransaction(ctx)
@@ -442,6 +460,8 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 
 	compiler := s.Compiler()
 	params := topdown.NewQueryParams(ctx, compiler, s.store, txn, input, path)
+
+	params.Metrics = m
 
 	var buf *topdown.BufferTracer
 	if explainMode != types.ExplainOffV1 {
@@ -459,6 +479,10 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 	}
 
 	result := types.DataResponseV1{}
+
+	if includeMetrics {
+		result.Metrics = m.All()
+	}
 
 	if qrs.Undefined() {
 		if explainMode == types.ExplainFullV1 {
@@ -699,6 +723,9 @@ func (s *Server) v1QueryGet(w http.ResponseWriter, r *http.Request) {
 	values := r.URL.Query()
 	pretty := getBoolParam(r.URL, types.ParamPrettyV1, true)
 	explainMode := getExplain(r.URL.Query()["explain"])
+	includeMetrics := getBoolParam(r.URL, types.ParamMetricsV1, true)
+	m := metrics.New()
+
 	qStrs := values["q"]
 	if len(qStrs) == 0 {
 		writer.Error(w, http.StatusBadRequest, types.NewErrorV1(types.CodeInvalidParameter, "missing parameter 'q'"))
@@ -717,11 +744,16 @@ func (s *Server) v1QueryGet(w http.ResponseWriter, r *http.Request) {
 
 	compiler := s.Compiler()
 
+	m.Timer(metrics.RegoQueryParse).Start()
+
 	query, err := ast.ParseBody(qStr)
 	if err != nil {
 		handleCompileError(w, err)
 		return
 	}
+
+	m.Timer(metrics.RegoQueryParse).Stop()
+	m.Timer(metrics.RegoQueryCompile).Start()
 
 	compiled, err := compiler.QueryCompiler().Compile(query)
 	if err != nil {
@@ -729,10 +761,19 @@ func (s *Server) v1QueryGet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	m.Timer(metrics.RegoQueryCompile).Stop()
+	m.Timer(metrics.RegoQueryEval).Start()
+
 	results, err := s.execQuery(ctx, compiler, txn, compiled, explainMode)
 	if err != nil {
 		writer.ErrorAuto(w, err)
 		return
+	}
+
+	m.Timer(metrics.RegoQueryEval).Stop()
+
+	if includeMetrics {
+		results.Metrics = m.All()
 	}
 
 	writer.JSON(w, 200, results, pretty)

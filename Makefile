@@ -7,6 +7,7 @@ VERSION := 0.4.9-dev
 PACKAGES := \
 	github.com/open-policy-agent/opa/ast/.../ \
 	github.com/open-policy-agent/opa/cmd/.../ \
+	github.com/open-policy-agent/opa/metrics/.../ \
 	github.com/open-policy-agent/opa/rego/.../ \
 	github.com/open-policy-agent/opa/repl/.../ \
 	github.com/open-policy-agent/opa/runtime/.../ \

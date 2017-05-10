@@ -11,6 +11,7 @@ import (
 	"sync"
 
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/pkg/errors"
 )
@@ -592,6 +593,7 @@ type QueryParams struct {
 	Transaction storage.Transaction
 	Input       ast.Value
 	Tracer      Tracer
+	Metrics     metrics.Metrics
 	Path        ast.Ref
 }
 
@@ -643,12 +645,18 @@ func (qrs *QueryResultSet) Add(qr *QueryResult) {
 // results.
 func Query(params *QueryParams) (QueryResultSet, error) {
 
+	if params.Metrics == nil {
+		params.Metrics = metrics.New()
+	}
+
 	t, resultVar, requestVars, err := makeTopdown(params)
 	if err != nil {
 		return nil, err
 	}
 
 	qrs := QueryResultSet{}
+
+	params.Metrics.Timer(metrics.RegoQueryEval).Start()
 
 	err = Eval(t, func(t *Topdown) error {
 
@@ -673,6 +681,8 @@ func Query(params *QueryParams) (QueryResultSet, error) {
 		return nil
 	})
 
+	params.Metrics.Timer(metrics.RegoQueryEval).Stop()
+
 	return qrs, err
 }
 
@@ -682,6 +692,8 @@ func makeTopdown(params *QueryParams) (*Topdown, ast.Var, ast.VarSet, error) {
 	pathVar := ast.VarTerm(ast.WildcardPrefix + "1")
 
 	var query ast.Body
+
+	params.Metrics.Timer(metrics.RegoQueryCompile).Start()
 
 	if params.Input == nil {
 		query = ast.NewBody(ast.Equality.Expr(ast.NewTerm(params.Path), pathVar))
@@ -698,6 +710,8 @@ func makeTopdown(params *QueryParams) (*Topdown, ast.Var, ast.VarSet, error) {
 	if err != nil {
 		return nil, "", nil, err
 	}
+
+	params.Metrics.Timer(metrics.RegoQueryCompile).Stop()
 
 	vis := ast.NewVarVisitor().WithParams(ast.VarVisitorParams{
 		SkipRefHead:  true,
