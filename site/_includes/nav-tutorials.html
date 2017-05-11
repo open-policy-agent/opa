@@ -1,0 +1,34 @@
+{% assign tutorial_repl = false %}
+{% assign tutorial_auth = false %}
+{% assign tutorial_http_api_auth = false %}
+{% assign tutorial_ssh_sudo_auth = false %}
+
+{% for page in site.pages %}
+  {% case page.tutorial_id %}
+    {% when 'WORKING_WITH_THE_OPA_REPL' %}
+      {% assign tutorial_repl = page %}
+    {% when 'DOCKER_AUTHORIZATION' %}
+      {% assign tutorial_auth = page %}
+    {% when 'HTTP_API_AUTHORIZATION' %}
+      {% assign tutorial_http_api_auth = page %}
+    {% when 'SSH_SUDO_AUTHORIZATION' %}
+      {% assign tutorial_ssh_sudo_auth = page %}
+  {% endcase %}
+{% endfor %}
+
+<nav class="opa-header--abstract--nav">
+  <ul class="opa-header--abstract--nav-list">
+    <li class="opa-header--abstract--nav-item{% if page.tutorial_id == tutorial_repl.tutorial_id %}--selected{% endif %}">
+      {% if page.tutorial_id != tutorial_repl.tutorial_id %}<a class="opa-header--abstract--nav-link" href="{{tutorial_repl.url}}">{{ tutorial_repl.title }}</a>{% else %}{{ tutorial_repl.title }}{% endif %}
+    </li>
+    <li class="opa-header--abstract--nav-item{% if page.tutorial_id == tutorial_auth.tutorial_id %}--selected{% endif %}">
+      {% if page.tutorial_id != tutorial_auth.tutorial_id %}<a class="opa-header--abstract--nav-link" href="{{tutorial_auth.url}}">{{ tutorial_auth.title }}</a>{% else %}{{ tutorial_auth.title }}{% endif %}
+    </li>
+    <li class="opa-header--abstract--nav-item{% if page.tutorial_id == tutorial_http_api_auth.tutorial_id %}--selected{% endif %}">
+      {% if page.tutorial_id != tutorial_http_api_auth.tutorial_id %}<a class="opa-header--abstract--nav-link" href="{{tutorial_http_api_auth.url}}">{{ tutorial_http_api_auth.title }}</a>{% else %}{{ tutorial_http_api_auth.title }}{% endif %}
+    </li>
+    <li class="opa-header--abstract--nav-item{% if page.tutorial_id == tutorial_ssh_sudo_auth.tutorial_id %}--selected{% endif %}">
+      {% if page.tutorial_id != tutorial_ssh_sudo_auth.tutorial_id %}<a class="opa-header--abstract--nav-link" href="{{tutorial_ssh_sudo_auth.url}}">{{ tutorial_ssh_sudo_auth.title }}</a>{% else %}{{ tutorial_ssh_sudo_auth.title }}{% endif %}
+    </li>
+  </ul>
+</nav>

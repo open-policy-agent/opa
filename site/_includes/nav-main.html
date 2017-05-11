@@ -1,7 +1,7 @@
 {% assign page_top = false %}
 {% assign page_get = false %}
 {% assign page_doc = false %}
-{% assign page_xmp = false %}
+{% assign page_tutorial = false %}
 {% assign page_com = false %}
 
 {% for page in site.pages %}
@@ -14,9 +14,9 @@
       {% if page.doc_id == 'WHAT_IS_POLICY_ENABLEMENT' %}
         {% assign page_doc = page %}
       {% endif %}
-    {% when 'MAIN_EXAMPLES' %}
-      {% if page.xmp_id == 'WORKING_WITH_THE_OPA_REPL' %}
-        {% assign page_xmp = page %}
+    {% when 'MAIN_TUTORIALS' %}
+      {% if page.tutorial_id == 'WORKING_WITH_THE_OPA_REPL' %}
+        {% assign page_tutorial = page %}
       {% endif %}
     {% when 'MAIN_COMMUNITY' %}
       {% assign page_com = page %}
@@ -34,8 +34,8 @@
     <li class="opa-nav-main--item{% if page.nav_id == page_doc.nav_id %}--selected{% endif %}">
       {% if page.nav_id != page_doc.nav_id %}<a class="opa-nav-main--link" href="{{page_doc.url}}">Documentation</a>{% else %}Documentation{% endif %}
     </li>
-    <li class="opa-nav-main--item{% if page.nav_id == page_xmp.nav_id %}--selected{% endif %}">
-      {% if page.nav_id != page_xmp.nav_id %}<a class="opa-nav-main--link" href="{{page_xmp.url}}">Examples</a>{% else %}Examples{% endif %}
+    <li class="opa-nav-main--item{% if page.nav_id == page_tutorial.nav_id %}--selected{% endif %}">
+      {% if page.nav_id != page_tutorial.nav_id %}<a class="opa-nav-main--link" href="{{page_tutorial.url}}">Tutorials</a>{% else %}Tutorials{% endif %}
     </li>
     <li class="opa-nav-main--item{% if page.nav_id == page_com.nav_id %}--selected{% endif %}">
       {% if page.nav_id != page_com.nav_id %}<a class="opa-nav-main--link" href="{{page_com.url}}">Community</a>{% else %}Community{% endif %}

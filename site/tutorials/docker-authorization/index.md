@@ -1,8 +1,8 @@
 ---
 sort_order: 1001
-nav_id: MAIN_EXAMPLES
-xmp_id: DOCKER_AUTHORIZATION
-layout: examples
+nav_id: MAIN_TUTORIALS
+tutorial_id: DOCKER_AUTHORIZATION
+layout: tutorials
 
 title: Docker Authorization
 ---
@@ -20,7 +20,7 @@ This is an excellent opportunity to see how to policy enable an existing service
 
 ## Goals
 
-This example helps you get started with OPA and introduces you to core concepts in OPA, including Rego the language used to define policies.
+This tutorial helps you get started with OPA and introduces you to core concepts in OPA, including Rego the language used to define policies.
 
 > Policy enabling an application decouples the policy implementation from the business logic so that administrators can define policy without changing the application while still keeping up with the size, complexity, and dynamic nature of modern applications.
 {: .opa-tip}
@@ -30,12 +30,12 @@ Although there are a multitude of desirable access control policies, for demonst
   * Containers with insecure configurations.
   * Users modifying the system without sufficient read+write access.
 
-This example illustrates two key concepts:
+This tutorial illustrates two key concepts:
 
   1. OPA policy definition is decoupled from the implementation of the service (in this case Docker). The administrator is empowered to define and manage policies without requiring changes to any of the apps.
   2. Both the data relevant to policy and the policy definitions themselves can change rapidly.
 
-Once you finish this example, you will be familiar with:
+Once you finish this tutorial, you will be familiar with:
 
   * Running OPA as a server/daemon.
   * Loading policy definitions and data via the REST APIs.
@@ -44,12 +44,12 @@ Once you finish this example, you will be familiar with:
 
 ## Prerequisites
 
-This example requires:
+This tutorial requires:
 
   * Docker Engine 1.11 or newer
   * `root` or `sudo` access
 
-The example has been tested on the following platforms:
+The tutorial has been tested on the following platforms:
 
   * Ubuntu 16.04 (64-bit)
 
@@ -77,7 +77,7 @@ $ chmod u+x opa
 $ ./opa run --server --log-level debug
 ```
 
-OPA will run until it receives a signal to stop. Open another terminal to continue with the rest of the example.
+OPA will run until it receives a signal to stop. Open another terminal to continue with the rest of the tutorial.
 
 ### 4. Download the [open-policy-agent/opa-docker-authz](https://github.com/open-policy-agent/opa-docker-authz) executable.
 
@@ -233,11 +233,11 @@ Congratulations! You have successfully prevented containers from running without
 
 So far, the policy has been defined in terms of input data from the plugin. In many cases, it's necessary to write policies against multiple data sources.
 
-The rest of the example shows how you can grant fine grained access to specific clients. To do so, we will insert fake user data into OPA to simulate an authentication system.
+The rest of the tutorial shows how you can grant fine grained access to specific clients. To do so, we will insert fake user data into OPA to simulate an authentication system.
 
 ### <a name="identify-user"></a> 12. Identify the user in Docker requests.
 
-> Back up your existing Docker configuration, just in case. You can replace your original configuration after you are done with the example.
+> Back up your existing Docker configuration, just in case. You can replace your original configuration after you are done with the tutorial.
 {: .opa-tip}
 
 ```shell
@@ -257,7 +257,7 @@ $ cat >~/.docker/config.json <<EOF
 EOF
 ```
 
-Docker does not currently provide a way to authenticate clients. But in Docker 1.12, clients can be authenticated using TLS and there are plans to include other means of authentication. For the purpose of this example, we assume that an authentication system is place.
+Docker does not currently provide a way to authenticate clients. But in Docker 1.12, clients can be authenticated using TLS and there are plans to include other means of authentication. For the purpose of this tutorial, we assume that an authentication system is place.
 
 ### 13. Add user data directly to OPA.
 

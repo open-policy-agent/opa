@@ -1,8 +1,8 @@
 ---
 sort_order: 1002
-nav_id: MAIN_EXAMPLES
-xmp_id: HTTP_API_AUTHORIZATION
-layout: examples
+nav_id: MAIN_TUTORIALS
+tutorial_id: HTTP_API_AUTHORIZATION
+layout: tutorials
 
 title: HTTP API Authorization
 ---
@@ -18,22 +18,22 @@ Anything that exposes an HTTP API (whether an individual microservice or an appl
 
 ## Goals
 
-In this example, you'll use a simple HTTP web server that accepts any HTTP GET
+In this tutorial, you'll use a simple HTTP web server that accepts any HTTP GET
 request that you issue and echoes the OPA decision back as text. Both OPA and
 the web server will be run as containers.
 
-For this example, our desired policy is:
+For this tutorial, our desired policy is:
 
 * People can see their own salaries (`GET /finance/salary/{user}` is permitted for `{user}`)
 * A manager can see their direct reports' salaries (`GET /finance/salary/{user}` is permitted for `{user}`'s manager)
 
 ## Prerequisites
 
-This example requires [Docker Compose](https://docs.docker.com/compose/install/) to run a demo web server along with OPA.
+This tutorial requires [Docker Compose](https://docs.docker.com/compose/install/) to run a demo web server along with OPA.
 
 ## Steps
 
-### 1. Bootstrap the example environment using Docker Compose.
+### 1. Bootstrap the tutorial environment using Docker Compose.
 
 First, create a docker-compose.yml file that runs OPA and the demo web server.
 
@@ -175,7 +175,7 @@ curl --user frank:password localhost:5000/finance/salary/frank
 
 ## Wrap Up
 
-Congratulations for finishing the example!
+Congratulations for finishing the tutorial!
 
 You learned a number of things about API authorization with OPA:
 
@@ -185,7 +185,7 @@ You learned a number of things about API authorization with OPA:
 * You can import external data into OPA and write policies that depend on
   that data.
 
-The code for this example can be found in the
+The code for this tutorial can be found in the
 [open-policy-agent/contrib](https://github.com/open-policy-agent/contrib)
 repository.
 

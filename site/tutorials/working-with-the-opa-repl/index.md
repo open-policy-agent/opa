@@ -1,8 +1,8 @@
 ---
 sort_order: 1000
-nav_id: MAIN_EXAMPLES
-xmp_id: WORKING_WITH_THE_OPA_REPL
-layout: examples
+nav_id: MAIN_TUTORIALS
+tutorial_id: WORKING_WITH_THE_OPA_REPL
+layout: tutorials
 
 title: Working with the OPA REPL
 ---
@@ -19,7 +19,7 @@ REPLs are great for learning new languages and running quick experiments. You ca
 
 ## Goals
 
-This example helps you get started with OPA's interactive shell or [REPL (read-eval-print loop)](https://en.wikipedia.org/wiki/Read–eval–print_loop)
+This tutorial helps you get started with OPA's interactive shell or [REPL (read-eval-print loop)](https://en.wikipedia.org/wiki/Read–eval–print_loop)
 
 To introduce the REPL, we will use dummy data and an example policy. In English, the policy can be stated as follows:
 
@@ -27,15 +27,15 @@ To introduce the REPL, we will use dummy data and an example policy. In English,
 
 We will use the REPL to define rules that codify the policy stated above.
 
-Once you finish this example, you will be familiar with:
+Once you finish this tutorial, you will be familiar with:
 
   * Running OPA as an interactive shell/REPL.
   * Writing ad-hoc queries in [Rego](/docs/lang.html).
 
 ## Prerequisites
 
-  * This example requires that you have the latest version of OPA. You can download the latest version of OPA at [openpolicyagent.org](/get-opa/).
-  * This example assumes you have the OPA executable in your `$PATH`.
+  * This tutorial requires that you have the latest version of OPA. You can download the latest version of OPA at [openpolicyagent.org](/get-opa/).
+  * This tutorial assumes you have the OPA executable in your `$PATH`.
 
 ## Steps
 

@@ -1,8 +1,8 @@
 ---
 sort_order: 1003
-nav_id: MAIN_EXAMPLES
-xmp_id: SSH_SUDO_AUTHORIZATION
-layout: examples
+nav_id: MAIN_TUTORIALS
+tutorial_id: SSH_SUDO_AUTHORIZATION
+layout: tutorials
 
 title: SSH and sudo Authorization
 ---
@@ -11,9 +11,9 @@ title: SSH and sudo Authorization
 
 # SSH and sudo Authorization
 
-Enforcing access controls at the host-level is an important part of every
-organization's security strategy. Using [Linux-PAM](http://tldp.org/HOWTO/User-Authentication-HOWTO/x115.html) and OPA we can extend
-policy-based access control to SSH and sudo.
+Host-level access controls are an important part of every organization's
+security strategy. Using [Linux-PAM](http://tldp.org/HOWTO/User-Authentication-HOWTO/x115.html) and OPA
+we can extend policy-based access control to SSH and sudo.
 
 {% endcontentfor %}
 
@@ -21,15 +21,15 @@ policy-based access control to SSH and sudo.
 
 ## Goals
 
-This example shows how you can use OPA and Linux-PAM to enforce fine-grained,
+This tutorial shows how you can use OPA and Linux-PAM to enforce fine-grained,
 host-level access controls over SSH and sudo.
 
 Linux-PAM can be configured to delegate authorization decisions to plugins
 (shared libraries). In this case, we have created an OPA-based plugin that can
 be configured to authorize SSH and sudo access. The OPA-based Linux-PAM plugin
-used in this example can be found at [open-policy-agent/contrib](https://github.com/open-policy-agent/contrib).
+used in this tutorial can be found at [open-policy-agent/contrib](https://github.com/open-policy-agent/contrib).
 
-For this example, our desired policy is:
+For this tutorial, our desired policy is:
 
 * Admins can SSH into any host and run sudo commands.
 * Normal users can SSH into hosts that they have *contributed* to.
@@ -42,7 +42,7 @@ Furthermore, we'll assume we have the following set of users and hosts:
 * `ops` is an administrator for the organization.
 
 Authentication (verifying user identity) is outside the scope of OPA's
-responsibility so this example relies on identities being statically
+responsibility so this tutorial relies on identities being statically
 defined. In real-world scenarios authentication can be delegated to SSH itself
 (authorized_keys) or other identity management systems.
 
@@ -50,7 +50,7 @@ Let's get started.
 
 ## Prerequisites
 
-This example requires [Docker Compose](https://docs.docker.com/compose/install/) to run dummy SSH hosts along
+This tutorial requires [Docker Compose](https://docs.docker.com/compose/install/) to run dummy SSH hosts along
 with OPA. The dummy SSH hosts are just containers running sshd inside.
 
 ## Steps
@@ -204,7 +204,7 @@ curl -X PUT localhost:8181/v1/data/hosts -d \
 
 ### 3. Prepare SSH key to login to hosts.
 
-This example uses a special Docker image named `openpolicyagent/demo-pam` to simulate an SSH server. This image contains:
+This tutorial uses a special Docker image named `openpolicyagent/demo-pam` to simulate an SSH server. This image contains:
 
 1. Pre-created Linux accounts for our users.
 2. Pre-populated authorized_keys files for our users.
