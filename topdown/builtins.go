@@ -71,31 +71,31 @@ type (
 )
 
 // RegisterBuiltinFunc adds a new built-in function to the evaluation engine.
-func RegisterBuiltinFunc(name ast.Var, fun BuiltinFunc) {
+func RegisterBuiltinFunc(name ast.String, fun BuiltinFunc) {
 	builtinFunctions[name] = fun
 }
 
 // RegisterFunctionalBuiltinVoid2 adds a new built-in function to the evaluation
 // engine.
-func RegisterFunctionalBuiltinVoid2(name ast.Var, fun FunctionalBuiltinVoid2) {
+func RegisterFunctionalBuiltinVoid2(name ast.String, fun FunctionalBuiltinVoid2) {
 	builtinFunctions[name] = functionalWrapperVoid2(name, fun)
 }
 
 // RegisterFunctionalBuiltin1 adds a new built-in function to the evaluation
 // engine.
-func RegisterFunctionalBuiltin1(name ast.Var, fun FunctionalBuiltin1) {
+func RegisterFunctionalBuiltin1(name ast.String, fun FunctionalBuiltin1) {
 	builtinFunctions[name] = functionalWrapper1(name, fun)
 }
 
 // RegisterFunctionalBuiltin2 adds a new built-in function to the evaluation
 // engine.
-func RegisterFunctionalBuiltin2(name ast.Var, fun FunctionalBuiltin2) {
+func RegisterFunctionalBuiltin2(name ast.String, fun FunctionalBuiltin2) {
 	builtinFunctions[name] = functionalWrapper2(name, fun)
 }
 
 // RegisterFunctionalBuiltin3 adds a new built-in function to the evaluation
 // engine.
-func RegisterFunctionalBuiltin3(name ast.Var, fun FunctionalBuiltin3) {
+func RegisterFunctionalBuiltin3(name ast.String, fun FunctionalBuiltin3) {
 	builtinFunctions[name] = functionalWrapper3(name, fun)
 }
 
@@ -107,9 +107,9 @@ func (BuiltinEmpty) Error() string {
 	return "<empty>"
 }
 
-var builtinFunctions = map[ast.Var]BuiltinFunc{}
+var builtinFunctions = map[ast.String]BuiltinFunc{}
 
-func functionalWrapperVoid2(name ast.Var, fn FunctionalBuiltinVoid2) BuiltinFunc {
+func functionalWrapperVoid2(name ast.String, fn FunctionalBuiltinVoid2) BuiltinFunc {
 	return func(t *Topdown, expr *ast.Expr, iter Iterator) error {
 		operands := expr.Terms.([]*ast.Term)[1:]
 		resolved, err := resolveN(t, name, operands, 2)
@@ -124,7 +124,7 @@ func functionalWrapperVoid2(name ast.Var, fn FunctionalBuiltinVoid2) BuiltinFunc
 	}
 }
 
-func functionalWrapper1(name ast.Var, fn FunctionalBuiltin1) BuiltinFunc {
+func functionalWrapper1(name ast.String, fn FunctionalBuiltin1) BuiltinFunc {
 	return func(t *Topdown, expr *ast.Expr, iter Iterator) error {
 		operands := expr.Terms.([]*ast.Term)[1:]
 		resolved, err := resolveN(t, name, operands, 1)
@@ -139,7 +139,7 @@ func functionalWrapper1(name ast.Var, fn FunctionalBuiltin1) BuiltinFunc {
 	}
 }
 
-func functionalWrapper2(name ast.Var, fn FunctionalBuiltin2) BuiltinFunc {
+func functionalWrapper2(name ast.String, fn FunctionalBuiltin2) BuiltinFunc {
 	return func(t *Topdown, expr *ast.Expr, iter Iterator) error {
 		operands := expr.Terms.([]*ast.Term)[1:]
 		resolved, err := resolveN(t, name, operands, 2)
@@ -154,7 +154,7 @@ func functionalWrapper2(name ast.Var, fn FunctionalBuiltin2) BuiltinFunc {
 	}
 }
 
-func functionalWrapper3(name ast.Var, fn FunctionalBuiltin3) BuiltinFunc {
+func functionalWrapper3(name ast.String, fn FunctionalBuiltin3) BuiltinFunc {
 	return func(t *Topdown, expr *ast.Expr, iter Iterator) error {
 		operands := expr.Terms.([]*ast.Term)[1:]
 		resolved, err := resolveN(t, name, operands, 3)
@@ -169,26 +169,26 @@ func functionalWrapper3(name ast.Var, fn FunctionalBuiltin3) BuiltinFunc {
 	}
 }
 
-func handleFunctionalBuiltinErr(name ast.Var, loc *ast.Location, err error) error {
+func handleFunctionalBuiltinErr(name ast.String, loc *ast.Location, err error) error {
 	switch err := err.(type) {
 	case BuiltinEmpty:
 		return nil
 	case builtins.ErrOperand:
 		return &Error{
 			Code:     TypeErr,
-			Message:  fmt.Sprintf("%v: %v", name.String(), err.Error()),
+			Message:  fmt.Sprintf("%v: %v", string(name), err.Error()),
 			Location: loc,
 		}
 	default:
 		return &Error{
 			Code:     InternalErr,
-			Message:  fmt.Sprintf("%v: %v", name.String(), err.Error()),
+			Message:  fmt.Sprintf("%v: %v", string(name), err.Error()),
 			Location: loc,
 		}
 	}
 }
 
-func resolveN(t *Topdown, name ast.Var, ops []*ast.Term, n int) ([]ast.Value, error) {
+func resolveN(t *Topdown, name ast.String, ops []*ast.Term, n int) ([]ast.Value, error) {
 	result := make([]ast.Value, n)
 	for i := 0; i < n; i++ {
 		op, err := ResolveRefs(ops[i].Value, t)

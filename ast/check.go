@@ -21,13 +21,13 @@ type exprChecker func(*TypeEnv, *Expr) *Error
 // issues.
 type typeChecker struct {
 	errs         Errors
-	exprCheckers map[Var]exprChecker
+	exprCheckers map[String]exprChecker
 }
 
 // newTypeChecker returns a new typeChecker object that has no errors.
 func newTypeChecker() *typeChecker {
 	tc := &typeChecker{}
-	tc.exprCheckers = map[Var]exprChecker{
+	tc.exprCheckers = map[String]exprChecker{
 		Equality.Name: tc.checkExprEq,
 	}
 	return tc
@@ -670,7 +670,7 @@ func newRefError(loc *Location, ref Ref, idx int, refers, referrer types.Type) *
 	return err
 }
 
-func newArgError(loc *Location, builtinName Var, msg string, have []types.Type, want []types.Type) *Error {
+func newArgError(loc *Location, builtinName String, msg string, have []types.Type, want []types.Type) *Error {
 	err := NewError(TypeErr, loc, "%v: %v", builtinName, msg)
 	err.Details = &ArgErrDetail{
 		Have: have,

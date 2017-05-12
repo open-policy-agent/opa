@@ -10,7 +10,7 @@ import (
 )
 
 func TestIsTargetPos(t *testing.T) {
-	b := &Builtin{Name: Var("dummy"), TargetPos: []int{1, 3}}
+	b := &Builtin{Name: String("dummy"), TargetPos: []int{1, 3}}
 	expected := []int{1, 3}
 	result := []int{}
 	for i := 0; i < 4; i++ {

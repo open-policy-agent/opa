@@ -482,8 +482,7 @@ func (c *Compiler) checkSafetyRuleBodies() {
 }
 
 var safetyCheckVarVisitorParams = VarVisitorParams{
-	SkipClosures:         true,
-	SkipBuiltinOperators: true,
+	SkipClosures: true,
 }
 
 // checkSafetyRuleHeads ensures that variables appearing in the head of a

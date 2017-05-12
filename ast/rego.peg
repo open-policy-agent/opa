@@ -298,7 +298,7 @@ ArithInfixOp <- val:("+" / "-" / "*" / "/" / "&" / "|" / "-") {
             op = string(b.Name)
         }
     }
-    operator := VarTerm(op)
+    operator := StringTerm(op)
     operator.Location = currentLocation(c)
 	return operator, nil
 }
@@ -314,7 +314,7 @@ InfixOp <- val:("=" / "!=" / "<=" / ">=" / "<" / ">") {
             op = string(b.Name)
         }
     }
-    operator := VarTerm(op)
+    operator := StringTerm(op)
     operator.Location = currentLocation(c)
 	return operator, nil
 }
@@ -322,7 +322,7 @@ InfixOp <- val:("=" / "!=" / "<=" / ">=" / "<" / ">") {
 PrefixExpr <- SetEmpty / Builtin
 
 Builtin <- name:BuiltinName "(" _ head:Term? tail:( _ "," _ Term )* _  ")" {
-    buf := []*Term{VarTerm(name.(string))}
+    buf := []*Term{name.(*Term)}
     if head == nil {
         return buf, nil
     }
@@ -346,7 +346,9 @@ BuiltinName <- head:Var tail:( "." Var )* {
         part := elem.([]interface{})[1].(*Term).Value.(Var)
         buf[i+1] = string(part)
     }
-    return strings.Join(buf, "."), nil
+    name := StringTerm(strings.Join(buf, "."))
+    name.Location = currentLocation(c)
+    return name, nil
 }
 
 Term <- val:( Comprehension / Composite / Scalar / Ref / Var ) {

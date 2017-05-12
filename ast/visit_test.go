@@ -106,7 +106,7 @@ func TestWalkVars(t *testing.T) {
 		found.Add(v)
 		return false
 	})
-	expected := NewVarSet(Var("x"), Var("data"), Var("y"), Var("z"), Var("q"), Var("eq"))
+	expected := NewVarSet(Var("x"), Var("data"), Var("y"), Var("z"), Var("q"))
 	if !expected.Equal(found) {
 		t.Fatalf("Expected %v but got: %v", expected, found)
 	}
@@ -119,10 +119,10 @@ func TestVarVisitor(t *testing.T) {
 		params   VarVisitorParams
 		expected string
 	}{
-		{"data.foo[x] = bar.baz[y]", VarVisitorParams{SkipRefHead: true}, "[eq, x, y]"},
+		{"data.foo[x] = bar.baz[y]", VarVisitorParams{SkipRefHead: true}, "[x, y]"},
 		{"{x: y}", VarVisitorParams{SkipObjectKeys: true}, "[y]"},
-		{`foo = [x | data.a[i] = x]`, VarVisitorParams{SkipClosures: true}, "[eq, foo]"},
-		{`x = 1; y = 2; z = x + y; count([x, y, z], z)`, VarVisitorParams{SkipBuiltinOperators: true}, "[x, y, z]"},
+		{`foo = [x | data.a[i] = x]`, VarVisitorParams{SkipClosures: true}, "[foo]"},
+		{`x = 1; y = 2; z = x + y; count([x, y, z], z)`, VarVisitorParams{}, "[x, y, z]"},
 		{"foo with input.bar.baz as qux[corge]", VarVisitorParams{SkipWithTarget: true}, "[foo, qux, corge]"},
 	}
 

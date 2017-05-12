@@ -162,9 +162,8 @@ func (u *unifier) unifyAll(a Var, b Value) {
 
 func (u *unifier) varVisitor() *VarVisitor {
 	return NewVarVisitor().WithParams(VarVisitorParams{
-		SkipRefHead:          true,
-		SkipObjectKeys:       true,
-		SkipClosures:         true,
-		SkipBuiltinOperators: true,
+		SkipRefHead:    true,
+		SkipObjectKeys: true,
+		SkipClosures:   true,
 	})
 }

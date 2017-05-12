@@ -902,7 +902,7 @@ func evalExpr(t *Topdown, iter Iterator) error {
 	expr := PlugExpr(t.Current(), t.Binding)
 	switch tt := expr.Terms.(type) {
 	case []*ast.Term:
-		builtin, ok := builtinFunctions[tt[0].Value.(ast.Var)]
+		builtin, ok := builtinFunctions[tt[0].Value.(ast.String)]
 		if !ok {
 			return unsupportedBuiltinErr(expr.Location)
 		}

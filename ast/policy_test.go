@@ -152,19 +152,19 @@ func TestExprEquals(t *testing.T) {
 	// Builtins and negation
 	expr20 := &Expr{
 		Negated: true,
-		Terms:   []*Term{VarTerm("="), VarTerm("x"), ref1},
+		Terms:   []*Term{StringTerm("="), VarTerm("x"), ref1},
 	}
 	expr21 := &Expr{
 		Negated: true,
-		Terms:   []*Term{VarTerm("="), VarTerm("x"), ref1},
+		Terms:   []*Term{StringTerm("="), VarTerm("x"), ref1},
 	}
 	expr22 := &Expr{
 		Negated: false,
-		Terms:   []*Term{VarTerm("="), VarTerm("x"), ref1},
+		Terms:   []*Term{StringTerm("="), VarTerm("x"), ref1},
 	}
 	expr23 := &Expr{
 		Negated: true,
-		Terms:   []*Term{VarTerm("="), VarTerm("y"), ref1},
+		Terms:   []*Term{StringTerm("="), VarTerm("y"), ref1},
 	}
 	assertExprEqual(t, expr20, expr21)
 	assertExprNotEqual(t, expr20, expr22)
@@ -260,11 +260,11 @@ func TestExprString(t *testing.T) {
 		Terms:   RefTerm(VarTerm("q"), StringTerm("r"), VarTerm("x")),
 	}
 	expr3 := &Expr{
-		Terms: []*Term{VarTerm("="), StringTerm("a"), FloatNumberTerm(17.1)},
+		Terms: []*Term{StringTerm("="), StringTerm("a"), FloatNumberTerm(17.1)},
 	}
 	expr4 := &Expr{
 		Terms: []*Term{
-			VarTerm("!="),
+			StringTerm("!="),
 			ObjectTerm(Item(VarTerm("foo"), ArrayTerm(
 				IntNumberTerm(1), RefTerm(VarTerm("a"), StringTerm("b")),
 			))),
@@ -286,7 +286,7 @@ func TestExprString(t *testing.T) {
 	}
 	expr6 := &Expr{
 		Terms: []*Term{
-			VarTerm("+"),
+			StringTerm("+"),
 			IntNumberTerm(1),
 			IntNumberTerm(2),
 			IntNumberTerm(3),
@@ -294,7 +294,7 @@ func TestExprString(t *testing.T) {
 	}
 	expr7 := &Expr{
 		Terms: []*Term{
-			VarTerm("count"),
+			StringTerm("count"),
 			StringTerm("foo"),
 			VarTerm("x"),
 		},
