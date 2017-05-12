@@ -120,7 +120,7 @@ rule-body      = literal { ";" | [\r\n] literal }
 literal        = ( expr | "not" expr ) { with-modifier }
 with-modifier  = "with" term "as" term
 expr           = term | expr-built-in | expr-infix
-expr-built-in  = var "(" [ term { , term } ] ")"
+expr-built-in  = var [ "." var ] "(" [ term { , term } ] ")"
 expr-infix     = [ term "=" ] term infix-operator term
 term           = ref | var | scalar | array | object | set | array-compr
 array-compr    = "[" term "|" rule-body "]"
