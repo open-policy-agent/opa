@@ -1200,6 +1200,23 @@ true
 +----------+
 ```
 
+### Encoding
+
+```
+> json_marshal([1,2,3], x)
++-----------+
+|     x     |
++-----------+
+| "[1,2,3]" |
++-----------+
+> json_unmarshal("[1,2,3]", x)
++---------+
+|    x    |
++---------+
+| [1,2,3] |
++---------+
+```
+
 ## <a name="examples"></a> Examples
 
 The rules below define the content of documents describing a simplistic deployment environment. These documents are referenced in other sections above.
