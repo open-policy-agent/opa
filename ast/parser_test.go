@@ -321,7 +321,7 @@ func TestInfixArithExpr(t *testing.T) {
 }
 
 func TestMiscBuiltinExpr(t *testing.T) {
-	xyz := VarTerm("xyz")
+	xyz := StringTerm("xyz")
 	assertParseOneExpr(t, "empty", "xyz()", NewBuiltinExpr(xyz))
 	assertParseOneExpr(t, "single", "xyz(abc)", NewBuiltinExpr(xyz, VarTerm("abc")))
 	assertParseOneExpr(t, "multiple", "xyz(abc, {\"one\": [1,2,3]})", NewBuiltinExpr(xyz, VarTerm("abc"), ObjectTerm(Item(StringTerm("one"), ArrayTerm(IntNumberTerm(1), IntNumberTerm(2), IntNumberTerm(3))))))
@@ -339,7 +339,7 @@ func TestNegatedExpr(t *testing.T) {
 	ref1 := RefTerm(VarTerm("x"), VarTerm("y"), StringTerm("z"), VarTerm("a"))
 
 	assertParseOneExprNegated(t, "membership", "not x[y].z[a] = \"b\"", Equality.Expr(ref1, StringTerm("b")))
-	assertParseOneExprNegated(t, "misc. builtin", "not sorted(x[y].z[a])", NewBuiltinExpr(VarTerm("sorted"), ref1))
+	assertParseOneExprNegated(t, "misc. builtin", "not sorted(x[y].z[a])", NewBuiltinExpr(StringTerm("sorted"), ref1))
 }
 
 func TestExprWith(t *testing.T) {
@@ -902,7 +902,7 @@ func TestNamespacedBuiltins(t *testing.T) {
 		expected *Term
 		wantErr  bool
 	}{
-		{`foo.bar.baz(1, 2)`, VarTerm("foo.bar.baz"), false},
+		{`foo.bar.baz(1, 2)`, StringTerm("foo.bar.baz"), false},
 		{`foo.(1,2)`, nil, true},
 		{`foo.#.bar(1,2)`, nil, true},
 		{`foo(1,2,3).bar`, nil, true},

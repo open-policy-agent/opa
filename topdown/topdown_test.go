@@ -1431,7 +1431,7 @@ violations[server] { server = servers[_]; server.protocols[_] = "http"; public_s
 func TestTopDownUnsupportedBuiltin(t *testing.T) {
 
 	ast.RegisterBuiltin(&ast.Builtin{
-		Name: ast.Var("unsupported_builtin"),
+		Name: ast.String("unsupported_builtin"),
 	})
 
 	body := ast.MustParseBody(`unsupported_builtin()`)

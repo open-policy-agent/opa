@@ -15,7 +15,7 @@ func TestCheckInference(t *testing.T) {
 
 	// fake_builtin_1([str1,str2])
 	RegisterBuiltin(&Builtin{
-		Name: Var("fake_builtin_1"),
+		Name: String("fake_builtin_1"),
 		Args: []types.Type{
 			types.NewArray(
 				[]types.Type{types.S, types.S}, nil,
@@ -26,7 +26,7 @@ func TestCheckInference(t *testing.T) {
 
 	// fake_builtin_2({"a":str1,"b":str2})
 	RegisterBuiltin(&Builtin{
-		Name: Var("fake_builtin_2"),
+		Name: String("fake_builtin_2"),
 		Args: []types.Type{
 			types.NewObject(
 				[]*types.Property{
@@ -40,7 +40,7 @@ func TestCheckInference(t *testing.T) {
 
 	// fake_builtin_3({str1,str2,...})
 	RegisterBuiltin(&Builtin{
-		Name: Var("fake_builtin_3"),
+		Name: String("fake_builtin_3"),
 		Args: []types.Type{
 			types.NewSet(types.S),
 		},
@@ -515,7 +515,7 @@ func TestCheckMatchErrors(t *testing.T) {
 func TestCheckBuiltinErrors(t *testing.T) {
 
 	RegisterBuiltin(&Builtin{
-		Name: Var("fake_builtin_2"),
+		Name: String("fake_builtin_2"),
 		Args: []types.Type{
 			types.NewAny(types.NewObject(
 				[]*types.Property{

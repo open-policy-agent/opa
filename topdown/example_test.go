@@ -166,7 +166,7 @@ func ExampleRegisterFunctionalBuiltin1() {
 	// registry to include your built-in. Otherwise, the compiler will complain
 	// when it encounters your built-in.
 	builtin := &ast.Builtin{
-		Name: ast.Var("mybuiltins.upper"),
+		Name: ast.String("mybuiltins.upper"),
 		Args: []types.Type{
 			types.S,
 			types.S,

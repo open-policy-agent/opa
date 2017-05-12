@@ -762,7 +762,7 @@ func (expr *Expr) Builtin() *Builtin {
 	if !ok {
 		return nil
 	}
-	return BuiltinMap[terms[0].Value.(Var)]
+	return BuiltinMap[terms[0].Value.(String)]
 }
 
 // Operand returns the term at the zero-based pos. If the expr does not include
@@ -819,7 +819,7 @@ func (expr *Expr) OutputVars(safe VarSet) VarSet {
 		case *Term:
 			return expr.outputVarsRefs(safe)
 		case []*Term:
-			name := terms[0].Value.(Var)
+			name := terms[0].Value.(String)
 			if b := BuiltinMap[name]; b != nil {
 				if b.Name.Equal(Equality.Name) {
 					return expr.outputVarsEquality(safe)
@@ -838,17 +838,17 @@ func (expr *Expr) String() string {
 	}
 	switch t := expr.Terms.(type) {
 	case []*Term:
-		name := t[0].Value.(Var)
+		name := t[0].Value.(String)
 		bi := BuiltinMap[name]
 		var s string
 		if bi != nil && len(bi.Infix) > 0 {
 			switch len(bi.Args) {
 			case 2:
-				s = fmt.Sprintf("%v %v %v", t[1], bi.Infix, t[2])
+				s = fmt.Sprintf("%v %v %v", t[1], string(bi.Infix), t[2])
 			case 3:
 				// Special case for "x = y <operand> z" built-ins.
 				if len(bi.TargetPos) == 1 && bi.TargetPos[0] == 2 {
-					s = fmt.Sprintf("%v = %v %v %v", t[3], t[1], bi.Infix, t[2])
+					s = fmt.Sprintf("%v = %v %v %v", t[3], t[1], string(bi.Infix), t[2])
 				}
 			}
 		}
@@ -857,7 +857,7 @@ func (expr *Expr) String() string {
 			for _, v := range t[1:] {
 				args = append(args, v.String())
 			}
-			name := t[0].Value.(Var).String()
+			name := string(t[0].Value.(String))
 			s = fmt.Sprintf("%s(%s)", name, strings.Join(args, ", "))
 		}
 
@@ -905,10 +905,9 @@ func (expr *Expr) outputVarsBuiltins(b *Builtin, safe VarSet) VarSet {
 			continue
 		}
 		vis := NewVarVisitor().WithParams(VarVisitorParams{
-			SkipClosures:         true,
-			SkipObjectKeys:       true,
-			SkipRefHead:          true,
-			SkipBuiltinOperators: true,
+			SkipClosures:   true,
+			SkipObjectKeys: true,
+			SkipRefHead:    true,
 		})
 		Walk(vis, t)
 		unsafe := vis.Vars().Diff(o).Diff(safe)

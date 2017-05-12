@@ -999,8 +999,7 @@ func (r *REPL) printTypes(ctx context.Context, typeEnv *ast.TypeEnv, body ast.Bo
 	})
 
 	vis := ast.NewVarVisitor().WithParams(ast.VarVisitorParams{
-		SkipBuiltinOperators: true,
-		SkipRefHead:          true,
+		SkipRefHead: true,
 	})
 
 	ast.Walk(vis, body)
