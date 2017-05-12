@@ -166,7 +166,7 @@ func ExampleRegisterFunctionalBuiltin1() {
 	// registry to include your built-in. Otherwise, the compiler will complain
 	// when it encounters your built-in.
 	builtin := &ast.Builtin{
-		Name: ast.Var("selective_upper"),
+		Name: ast.Var("mybuiltins.upper"),
 		Args: []types.Type{
 			types.S,
 			types.S,
@@ -203,7 +203,7 @@ func ExampleRegisterFunctionalBuiltin1() {
 	// queries. Our custom built-in converts strings to upper case but is not
 	// defined for the input "magic".
 	compiler := ast.NewCompiler()
-	query, err := compiler.QueryCompiler().Compile(ast.MustParseBody(`selective_upper("custom", x); not selective_upper("magic", "MAGIC")`))
+	query, err := compiler.QueryCompiler().Compile(ast.MustParseBody(`mybuiltins.upper("custom", x); not mybuiltins.upper("magic", "MAGIC")`))
 	if err != nil {
 		// Handle error.
 	}

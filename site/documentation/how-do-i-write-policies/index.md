@@ -1042,6 +1042,10 @@ Built-ins usually take one or more input values and produce at least one output
 value. Unless stated otherwise, all built-ins accept values or variables as
 output arguments.
 
+Built-ins can include "." characters in the name. This allows them to be
+namespaced. If you are adding custom built-ins to OPA, consider namespacing
+them to avoid naming conflicts, e.g., `org.example.special_func`.
+
 See the [Language Reference](/documentation/references/language) document for
 details on each built-in function.
 

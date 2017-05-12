@@ -895,6 +895,35 @@ func TestNoMatchError(t *testing.T) {
 	}
 }
 
+func TestNamespacedBuiltins(t *testing.T) {
+
+	tests := []struct {
+		expr     string
+		expected *Term
+		wantErr  bool
+	}{
+		{`foo.bar.baz(1, 2)`, VarTerm("foo.bar.baz"), false},
+		{`foo.(1,2)`, nil, true},
+		{`foo.#.bar(1,2)`, nil, true},
+		{`foo(1,2,3).bar`, nil, true},
+	}
+
+	for _, tc := range tests {
+		expr, err := ParseExpr(tc.expr)
+		if !tc.wantErr {
+			if err != nil {
+				t.Fatalf("Unexpected parse error: %v", err)
+			}
+			terms := expr.Terms.([]*Term)
+			if !terms[0].Equal(tc.expected) {
+				t.Fatalf("Expected builtin-name to equal %v but got: %v", tc.expected, terms)
+			}
+		} else if err == nil {
+			t.Fatalf("Expected error from %v but got: %v", tc.expr, expr)
+		}
+	}
+}
+
 func assertParse(t *testing.T, msg string, input string, correct func([]Statement)) {
 	p, err := ParseStatements("", input)
 	if err != nil {

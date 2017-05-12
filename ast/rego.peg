@@ -321,8 +321,8 @@ InfixOp <- val:("=" / "!=" / "<=" / ">=" / "<" / ">") {
 
 PrefixExpr <- SetEmpty / Builtin
 
-Builtin <- op:Var "(" _ head:Term? tail:( _ "," _ Term )* _  ")" {
-    buf := []*Term{op.(*Term)}
+Builtin <- name:BuiltinName "(" _ head:Term? tail:( _ "," _ Term )* _  ")" {
+    buf := []*Term{VarTerm(name.(string))}
     if head == nil {
         return buf, nil
     }
@@ -335,6 +335,18 @@ Builtin <- op:Var "(" _ head:Term? tail:( _ "," _ Term )* _  ")" {
         buf = append(buf, s[len(s) - 1].(*Term))
     }
     return buf, nil
+}
+
+BuiltinName <- head:Var tail:( "." Var )* {
+    tailSlice := tail.([]interface{})
+    buf := make([]string, 1+len(tailSlice))
+    buf[0] = string(head.(*Term).Value.(Var))
+    for i := range tailSlice {
+        elem := tailSlice[i]
+        part := elem.([]interface{})[1].(*Term).Value.(Var)
+        buf[i+1] = string(part)
+    }
+    return strings.Join(buf, "."), nil
 }
 
 Term <- val:( Comprehension / Composite / Scalar / Ref / Var ) {
