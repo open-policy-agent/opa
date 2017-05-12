@@ -81,6 +81,13 @@ complex types.
 | ------- |--------|-------------|
 | <span class="opa-keep-it-together">``to_number(x, output)``</span> | 1 | ``output`` is ``x`` converted to a number |
 
+### Encoding
+
+| Built-in | Inputs | Description |
+| ------- |--------|-------------|
+| <span class="opa-keep-it-together">``json_marshal(x, output)``</span> | 1 | ``output`` is ``x`` serialized to a JSON string |
+| <span class="opa-keep-it-together">``json_unmarshal(string, output)``</span> | 1 | ``output`` is ``string`` deserialized to a term |
+
 ## <a name="reserved"></a> Reserved Names
 
 The following words are reserved and cannot be used as variable names, rule
