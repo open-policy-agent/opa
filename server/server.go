@@ -209,9 +209,9 @@ func (s *Server) Listeners() (func() error, func() error) {
 	return loop2, loop1
 }
 
-func (s *Server) execQuery(ctx context.Context, compiler *ast.Compiler, txn storage.Transaction, query ast.Body, explainMode types.ExplainModeV1) (types.QueryResponseV1, error) {
+func (s *Server) execQuery(ctx context.Context, compiler *ast.Compiler, txn storage.Transaction, query ast.Body, input ast.Value, explainMode types.ExplainModeV1) (types.QueryResponseV1, error) {
 
-	t := topdown.New(ctx, query, s.Compiler(), s.store, txn)
+	t := topdown.New(ctx, query, s.Compiler(), s.store, txn).WithInput(input)
 
 	var buf *topdown.BufferTracer
 
@@ -266,39 +266,68 @@ func (s *Server) indexGet(w http.ResponseWriter, r *http.Request) {
 	renderHeader(w)
 	renderBanner(w)
 	renderVersion(w)
+	defer renderFooter(w)
 
 	values := r.URL.Query()
 	qStrs := values["q"]
+	inputStrs := values["input"]
+
 	explainMode := getExplain(r.URL.Query()["explain"])
 	ctx := r.Context()
 
-	renderQueryForm(w, qStrs, explainMode)
+	renderQueryForm(w, qStrs, inputStrs, explainMode)
 
-	if len(qStrs) > 0 {
-		qStr := qStrs[len(qStrs)-1]
-		t0 := time.Now()
-
-		var results interface{}
-		txn, err := s.store.NewTransaction(ctx)
-
-		if err == nil {
-			var query ast.Body
-			query, err = ast.ParseBody(qStr)
-			if err == nil {
-				compiler := s.Compiler()
-				query, err = compiler.QueryCompiler().Compile(query)
-				if err == nil {
-					results, err = s.execQuery(ctx, compiler, txn, query, explainMode)
-				}
-			}
-			s.store.Close(ctx, txn)
-		}
-
-		dt := time.Since(t0)
-		renderQueryResult(w, results, err, dt)
+	if len(qStrs) == 0 {
+		return
 	}
 
-	renderFooter(w)
+	qStr := qStrs[len(qStrs)-1]
+	t0 := time.Now()
+
+	var results interface{}
+	txn, err := s.store.NewTransaction(ctx)
+
+	if err != nil {
+		renderQueryResult(w, nil, err, t0)
+		return
+	}
+
+	defer s.store.Close(ctx, txn)
+
+	var query ast.Body
+	query, err = ast.ParseBody(qStr)
+	if err != nil {
+		renderQueryResult(w, nil, err, t0)
+		return
+	}
+
+	var input ast.Value
+
+	if len(inputStrs) > 0 {
+		inputStr := inputStrs[len(qStrs)-1]
+		t, err := ast.ParseTerm(inputStr)
+		if err != nil {
+			renderQueryResult(w, nil, err, t0)
+			return
+		}
+		input = t.Value
+	}
+
+	compiler := s.Compiler()
+	queryContext := ast.NewQueryContext().WithInput(input)
+	query, err = compiler.QueryCompiler().WithContext(queryContext).Compile(query)
+	if err != nil {
+		renderQueryResult(w, nil, err, t0)
+		return
+	}
+
+	results, err = s.execQuery(ctx, compiler, txn, query, input, explainMode)
+	if err != nil {
+		renderQueryResult(w, nil, err, t0)
+		return
+	}
+
+	renderQueryResult(w, results, err, t0)
 }
 
 func (s *Server) registerHandlerV1(router *mux.Router, path string, method string, h func(http.ResponseWriter, *http.Request)) {
@@ -764,7 +793,7 @@ func (s *Server) v1QueryGet(w http.ResponseWriter, r *http.Request) {
 	m.Timer(metrics.RegoQueryCompile).Stop()
 	m.Timer(metrics.RegoQueryEval).Start()
 
-	results, err := s.execQuery(ctx, compiler, txn, compiled, explainMode)
+	results, err := s.execQuery(ctx, compiler, txn, compiled, nil, explainMode)
 	if err != nil {
 		writer.ErrorAuto(w, err)
 		return
@@ -1066,12 +1095,17 @@ func renderHeader(w http.ResponseWriter) {
 	fmt.Fprintln(w, "<body>")
 }
 
-func renderQueryForm(w http.ResponseWriter, qStrs []string, explain types.ExplainModeV1) {
+func renderQueryForm(w http.ResponseWriter, qStrs []string, inputStrs []string, explain types.ExplainModeV1) {
 
-	input := ""
+	query := ""
 
 	if len(qStrs) > 0 {
-		input = qStrs[len(qStrs)-1]
+		query = qStrs[len(qStrs)-1]
+	}
+
+	input := ""
+	if len(inputStrs) > 0 {
+		input = inputStrs[len(inputStrs)-1]
 	}
 
 	explainRadioCheck := []string{"", "", ""}
@@ -1088,16 +1122,19 @@ func renderQueryForm(w http.ResponseWriter, qStrs []string, explain types.Explai
 	<form>
   	Query:<br>
 	<textarea rows="10" cols="50" name="q">%s</textarea><br>
-	<input type="submit" value="Submit"> Explain:
+	<br>Input Data (JSON):<br>
+	<textarea rows="10" cols="50" name="input">%s</textarea><br>
+	<br><input type="submit" value="Submit"> Explain:
 	<input type="radio" name="explain" value="off" %v>Off
 	<input type="radio" name="explain" value="full" %v>Full
 	<input type="radio" name="explain" value="truth" %v>Truth
-	</form>`, input, explainRadioCheck[0], explainRadioCheck[1], explainRadioCheck[2])
+	</form>`, query, input, explainRadioCheck[0], explainRadioCheck[1], explainRadioCheck[2])
 }
 
-func renderQueryResult(w io.Writer, results interface{}, err error, d time.Duration) {
+func renderQueryResult(w io.Writer, results interface{}, err error, t0 time.Time) {
 
 	buf, err2 := json.MarshalIndent(results, "", "  ")
+	d := time.Since(t0)
 
 	if err != nil {
 		fmt.Fprintf(w, "Query error (took %v): <pre>%v</pre>", d, err)
