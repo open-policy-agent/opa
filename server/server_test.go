@@ -32,6 +32,51 @@ type tr struct {
 	resp   string
 }
 
+func TestDataV0(t *testing.T) {
+
+	testMod1 := `package test
+
+	p = "hello"
+
+	q = {
+		"foo": [1,2,3,4]
+	} {
+		input.flag = true
+	}
+	`
+
+	f := newFixture(t)
+
+	if err := f.v1("PUT", "/policies/test", testMod1, 200, ""); err != nil {
+		t.Fatalf("Unexpected error while creating policy: %v", err)
+	}
+
+	if err := f.v0("POST", "/data/test/p", "", 200, `"hello"`); err != nil {
+		t.Fatalf("Expected response hello but got: %v", err)
+	}
+
+	if err := f.v0("POST", "/data/test/q/foo", `{"flag": true}`, 200, `[1,2,3,4]`); err != nil {
+		t.Fatalf("Exepcted response [1,2,3,4] but got: %v", err)
+	}
+
+	req := newReqV0("POST", "/data/test/q", "")
+	f.reset()
+	f.server.Handler.ServeHTTP(f.recorder, req)
+
+	if f.recorder.Code != 404 {
+		t.Fatalf("Expected HTTP 404 but got: %v", f.recorder)
+	}
+
+	var resp types.ErrorV1
+	if err := util.NewJSONDecoder(f.recorder.Body).Decode(&resp); err != nil {
+		t.Fatalf("Unexpected error while deserializing response: %v", err)
+	}
+
+	if resp.Code != types.CodeUndefinedDocument {
+		t.Fatalf("Expected undefiend code but got: %v", resp)
+	}
+}
+
 func TestDataV1(t *testing.T) {
 
 	testMod1 := `package testmod
@@ -1010,6 +1055,11 @@ func (f *fixture) v1(method string, path string, body string, code int, resp str
 	return f.executeRequest(req, code, resp)
 }
 
+func (f *fixture) v0(method string, path string, body string, code int, resp string) error {
+	req := newReqV0(method, path, body)
+	return f.executeRequest(req, code, resp)
+}
+
 func (f *fixture) executeRequest(req *http.Request, code int, resp string) error {
 	f.reset()
 	f.server.Handler.ServeHTTP(f.recorder, req)
@@ -1064,9 +1114,18 @@ func newPolicy(id, s string) types.PolicyV1 {
 }
 
 func newReqV1(method string, path string, body string) *http.Request {
-	req, err := http.NewRequest(method, "/v1"+path, strings.NewReader(body))
+	return newReq(1, method, path, body)
+}
+
+func newReqV0(method string, path string, body string) *http.Request {
+	return newReq(0, method, path, body)
+}
+
+func newReq(version int, method, path, body string) *http.Request {
+	req, err := http.NewRequest(method, fmt.Sprintf("/v%d", version)+path, strings.NewReader(body))
 	if err != nil {
 		panic(err)
 	}
 	return req
+
 }
