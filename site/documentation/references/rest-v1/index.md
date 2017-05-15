@@ -3,20 +3,20 @@ nav_id: MAIN_DOCUMENTATION
 doc_id: REST_API_VERSION_1
 layout: documentation
 
-title: REST API
+title: REST API (V1)
 ---
 
 {% contentfor header %}
 
-# REST API
+# REST API (V1)
 
-This document is the authoritative specification of the OPA REST API (v1). These APIs are the foundation for integrating with OPA using languages other than Go.
+This document is the authoritative specification of the OPA REST API (v1).
 
 {% endcontentfor %}
 
 {% contentfor body %}
 
-## Policy API
+## <a name="policy-api"></a> Policy API
 
 The Policy API exposes CRUD endpoints for managing policy modules. Policy modules can be added, removed, and modified at any time.
 
@@ -1645,7 +1645,7 @@ Content-Type: application/json
 - **400** - bad request
 - **500** - server error
 
-## Authentication
+## <a name="authentication"></a> Authentication
 
 The API is secured via [HTTPS, Authentication, and
 Authorization](/documentation/references/security).
@@ -1668,7 +1668,7 @@ above) and provide it to the authorization component inside OPA that will (i)
 validate the token and (ii) execute the authorization policy configured by the
 admin.
 
-## Errors
+## <a name="errors"></a> Errors
 
 All of the API endpoints use standard HTTP status codes to indicate success or
 failure of an API call. If an API call fails, the response will contain a JSON

@@ -100,7 +100,7 @@ default to `off`.
 
 For authentication, OPA supports:
 
-- [Bearer tokens](/documentation/references/rest#bearer-tokens): Bearer tokens are enabled by starting OPA with ``--authentication=token``.
+- [Bearer tokens](/documentation/references/rest-v1#bearer-tokens): Bearer tokens are enabled by starting OPA with ``--authentication=token``.
 
 For authorization, OPA relies on policy written in Rego. Authorization is
 enabled by starting OPA with ``--authorization=basic``.
