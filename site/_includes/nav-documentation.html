@@ -2,7 +2,8 @@
 {% assign doc_work = false %}
 {% assign doc_rego = false %}
 {% assign doc_refer = false %}
-{% assign doc_rest = false %}
+{% assign doc_rest_v1 = false %}
+{% assign doc_rest_v0 = false %}
 {% assign doc_deployments = false %}
 {% assign doc_security = false %}
 
@@ -17,7 +18,9 @@
     {% when 'LANGUAGE_REFERENCE' %}
       {% assign doc_refer = page %}
     {% when 'REST_API_VERSION_1' %}
-      {% assign doc_rest = page %}
+      {% assign doc_rest_v1 = page %}
+    {% when 'REST_API_VERSION_0' %}
+      {% assign doc_rest_v0 = page %}
     {% when 'DEPLOYMENTS' %}
       {% assign doc_deployments = page %}
     {% when 'SECURITY' %}
@@ -39,8 +42,11 @@
     <li class="opa-header--abstract--nav-item{% if page.doc_id == doc_refer.doc_id %}--selected{% endif %}">
       {% if page.doc_id != doc_refer.doc_id %}<a class="opa-header--abstract--nav-link" href="{{doc_refer.url}}">{{ doc_refer.title }}</a>{% else %}{{ doc_refer.title }}{% endif %}
     </li>
-    <li class="opa-header--abstract--nav-item{% if page.doc_id == doc_rest.doc_id %}--selected{% endif %}">
-      {% if page.doc_id != doc_rest.doc_id %}<a class="opa-header--abstract--nav-link" href="{{doc_rest.url}}">{{ doc_rest.title }}</a>{% else %}{{ doc_rest.title }}{% endif %}
+    <li class="opa-header--abstract--nav-item{% if page.doc_id == doc_rest_v1.doc_id %}--selected{% endif %}">
+      {% if page.doc_id != doc_rest_v1.doc_id %}<a class="opa-header--abstract--nav-link" href="{{doc_rest_v1.url}}">{{ doc_rest_v1.title }}</a>{% else %}{{ doc_rest_v1.title }}{% endif %}
+    </li>
+    <li class="opa-header--abstract--nav-item{% if page.doc_id == doc_rest_v0.doc_id %}--selected{% endif %}">
+      {% if page.doc_id != doc_rest_v0.doc_id %}<a class="opa-header--abstract--nav-link" href="{{doc_rest_v0.url}}">{{ doc_rest_v0.title }}</a>{% else %}{{ doc_rest_v0.title }}{% endif %}
     </li>
     <li class="opa-header--abstract--nav-item{% if page.doc_id == doc_deployments.doc_id %}--selected{% endif %}">
       {% if page.doc_id != doc_deployments.doc_id %}<a class="opa-header--abstract--nav-link" href="{{doc_deployments.url}}">{{ doc_deployments.title }}</a>{% else %}{{ doc_deployments.title }}{% endif %}
