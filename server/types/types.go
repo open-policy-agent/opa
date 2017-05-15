@@ -19,13 +19,14 @@ import (
 
 // Error codes returned by OPA's REST API.
 const (
-	CodeInternal         = "internal_error"
-	CodeEvaluation       = "evaluation_error"
-	CodeUnauthorized     = "unauthorized"
-	CodeInvalidParameter = "invalid_parameter"
-	CodeInvalidOperation = "invalid_operation"
-	CodeResourceNotFound = "resource_not_found"
-	CodeResourceConflict = "resource_conflict"
+	CodeInternal          = "internal_error"
+	CodeEvaluation        = "evaluation_error"
+	CodeUnauthorized      = "unauthorized"
+	CodeInvalidParameter  = "invalid_parameter"
+	CodeInvalidOperation  = "invalid_operation"
+	CodeResourceNotFound  = "resource_not_found"
+	CodeResourceConflict  = "resource_conflict"
+	CodeUndefinedDocument = "undefined_document"
 )
 
 // ErrorV1 models an error response sent to the client.
@@ -74,6 +75,7 @@ const (
 	MsgInputDocError              = "input document is missing or conflicts with query"
 	MsgUnauthorizedUndefinedError = "authorization policy missing or undefined"
 	MsgUnauthorizedError          = "request rejected by administrative policy"
+	MsgUndefinedError             = "document missing or undefined"
 )
 
 // PatchV1 models a single patch operation against a document.
