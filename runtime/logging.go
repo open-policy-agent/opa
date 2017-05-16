@@ -18,10 +18,8 @@ import (
 	"github.com/open-policy-agent/opa/server/types"
 )
 
-// DebugLogging returns true if log verbosity is high enough to emit debug
-// messages.
-func DebugLogging() bool {
-	return logrus.DebugLevel >= logrus.GetLevel()
+func loggingEnabled(level logrus.Level) bool {
+	return level <= logrus.GetLevel()
 }
 
 // LoggingHandler returns an http.Handler that will print log messages
@@ -37,37 +35,39 @@ func NewLoggingHandler(inner http.Handler) http.Handler {
 }
 
 func (h *LoggingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	recorder := newRecorder(w)
+	recorder := newRecorder(w, loggingEnabled(logrus.DebugLevel))
 	t0 := time.Now()
 	requestID := atomic.AddUint64(&h.requestID, uint64(1))
 
-	if DebugLogging() {
+	if loggingEnabled(logrus.InfoLevel) {
 
-		var bs []byte
+		fields := logrus.Fields{
+			"client_addr": r.RemoteAddr,
+			"req_id":      requestID,
+			"req_method":  r.Method,
+			"req_path":    r.URL.Path,
+			"req_params":  r.URL.Query(),
+		}
+
 		var err error
 
-		if r.Body != nil {
-			bs, r.Body, err = readBody(r.Body)
+		if loggingEnabled(logrus.DebugLevel) {
+			var bs []byte
+			var err error
+			if r.Body != nil {
+				bs, r.Body, err = readBody(r.Body)
+			}
+			if err == nil {
+				fields["req_body"] = string(bs)
+			} else {
+				fields["err"] = err
+			}
 		}
 
 		if err == nil {
-			logrus.WithFields(logrus.Fields{
-				"client_addr": r.RemoteAddr,
-				"req_id":      requestID,
-				"req_method":  r.Method,
-				"req_path":    r.URL.Path,
-				"req_params":  r.URL.Query(),
-				"req_body":    string(bs),
-			}).Debug("Received request.")
+			logrus.WithFields(fields).Info("Received request.")
 		} else {
-			logrus.WithFields(logrus.Fields{
-				"client_addr": r.RemoteAddr,
-				"req_id":      requestID,
-				"req_method":  r.Method,
-				"req_path":    r.URL.Path,
-				"req_params":  r.URL.Query(),
-				"err":         err,
-			}).Error("Failed to read body.")
+			logrus.WithFields(fields).Error("Failed to read body.")
 		}
 	}
 
@@ -79,8 +79,8 @@ func (h *LoggingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		statusCode = recorder.statusCode
 	}
 
-	if DebugLogging() {
-		logrus.WithFields(logrus.Fields{
+	if loggingEnabled(logrus.InfoLevel) {
+		fields := logrus.Fields{
 			"client_addr":   r.RemoteAddr,
 			"req_id":        requestID,
 			"req_method":    r.Method,
@@ -88,18 +88,30 @@ func (h *LoggingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			"resp_status":   statusCode,
 			"resp_bytes":    recorder.bytesWritten,
 			"resp_duration": float64(dt.Nanoseconds()) / 1e6,
-		}).Debug("Sent response.")
+		}
+
+		if loggingEnabled(logrus.DebugLevel) {
+			fields["resp_body"] = recorder.buf.String()
+		}
+
+		logrus.WithFields(fields).Info("Sent response.")
 	}
 }
 
 type recorder struct {
 	inner        http.ResponseWriter
+	buf          *bytes.Buffer
 	bytesWritten int
 	statusCode   int
 }
 
-func newRecorder(w http.ResponseWriter) *recorder {
+func newRecorder(w http.ResponseWriter, buffer bool) *recorder {
+	var buf *bytes.Buffer
+	if buffer {
+		buf = new(bytes.Buffer)
+	}
 	return &recorder{
+		buf:   buf,
 		inner: w,
 	}
 }
@@ -110,6 +122,9 @@ func (r *recorder) Header() http.Header {
 
 func (r *recorder) Write(bs []byte) (int, error) {
 	r.bytesWritten += len(bs)
+	if r.buf != nil {
+		r.buf.Write(bs)
+	}
 	return r.inner.Write(bs)
 }
 
