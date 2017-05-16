@@ -27,7 +27,7 @@ recommend you review this section to familiarize yourself with the basics.
 
 OPA releases are available as images on Docker Hub.
 
-* [openpolicyagent/opa:0.4.8](https://hub.docker.com/r/openpolicyagent/opa/){: .opa-deployments--docker-hub-list--link}
+* [openpolicyagent/opa:0.4.9](https://hub.docker.com/r/openpolicyagent/opa/){: .opa-deployments--docker-hub-list--link}
 {: .opa-deployments--docker-hub-list}
 
 ### Running

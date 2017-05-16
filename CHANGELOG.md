@@ -3,7 +3,24 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## 0.4.9
+
+This release includes a bunch of cool stuff!
+
+- Basic type checking for queries and virtual docs ([#312](https://github.com/open-policy-agent/opa/pull/312))
+- Optimizations for HTTP API authorization policies ([#319](https://github.com/open-policy-agent/opa/pull/319))
+- New /v0 API to support webhook integrations ([docs](http://www.openpolicyagent.org/documentation/references/rest-v0))
+
+### Fixes
+
+- Add support for namespaced built-ins ([#314](https://github.com/open-policy-agent/opa/issues/314))
+- Improve logging to include request/response bodies ([#328](https://github.com/open-policy-agent/opa/pull/328))
+- Add basic performance metrics ([#320](https://github.com/open-policy-agent/opa/pull/320))
+
+### Miscellaneous
+
+- Add built-ins to un/marshal JSON
+- Add input form to diagnostic page
 
 ## 0.4.8
 
