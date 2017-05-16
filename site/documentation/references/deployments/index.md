@@ -63,8 +63,7 @@ curl -i localhost:8181/
 
 #### Logging
 
-OPA logs to stderr. The verbosity can be increased with `--log-level
-debug` to provide details on API requests and responses:
+OPA logs to stderr and the level can be set with `--log-level/-l`. The default log level is `info` which causes OPA to log request/response headers.
 
 ```
 time="2017-03-12T03:03:23Z" level=info msg="First line of log stream." addr=":8181"
@@ -72,9 +71,12 @@ time="2017-03-12T03:03:30Z" level=debug msg="Received request." client_addr="172
 time="2017-03-12T03:03:30Z" level=debug msg="Sent response." client_addr="172.17.0.1:60952" req_id=1 req_method=GET req_path="/v1/data" resp_bytes=13 resp_duration=0.402793 resp_status=200
 ```
 
-> Request logs contain the entire message body. This is useful for debugging
-> purposes but can be expensive in practice.
-{: .opa-tip }
+If the log level is set to `debug` the request and response message bodies will be logged. This is useful for development however it can be expensive in production.
+
+```
+time="2017-05-16T00:09:24Z" level=info msg="Received request." client_addr="172.17.0.1:42164" req_body="{"input": "hello"}" req_id=1 req_method=POST req_params=map[] req_path="/v1/data"
+time="2017-05-16T00:09:24Z" level=info msg="Sent response." client_addr="172.17.0.1:42164" req_id=1 req_method=POST req_path="/v1/data" resp_body="{"result":{"example":{"message":"world"}}}" resp_bytes=42 resp_duration=0.618689 resp_status=200
+```
 
 The default log format is text-based and intended for development. For
 production, enable JSON formatting with `--log-format json`:
