@@ -253,8 +253,8 @@ func ParseTerm(input string) (*Term, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to parse term")
 	}
-	if len(body) > 1 {
-		return nil, fmt.Errorf("expected exactly one term but got %v", body)
+	if len(body) != 1 {
+		return nil, fmt.Errorf("expected exactly one term but got: %v", body)
 	}
 	term, ok := body[0].Terms.(*Term)
 	if !ok {
