@@ -10,6 +10,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/open-policy-agent/opa/types"
 	"github.com/open-policy-agent/opa/util"
 )
 
@@ -213,6 +214,22 @@ func TestBodyIsGround(t *testing.T) {
 
 func TestExprOutputVars(t *testing.T) {
 
+	RegisterBuiltin(&Builtin{
+		Name: String("test_out_array"),
+		Args: []types.Type{
+			types.NewArray(nil, types.N),
+		},
+		TargetPos: []int{0},
+	})
+
+	RegisterBuiltin(&Builtin{
+		Name: String("test_out_set"),
+		Args: []types.Type{
+			types.NewArray(nil, types.N),
+		},
+		TargetPos: []int{0},
+	})
+
 	tests := []struct {
 		note     string
 		expr     string
@@ -223,6 +240,8 @@ func TestExprOutputVars(t *testing.T) {
 		{"ref 2", "[1,2,a[i]]", "[a]", "[i]"},
 		{"simple unify", `{"a": [{x: y}, b[z]]} = c[i]`, "[b, c]", "[y, z, i]"},
 		{"built-in", "count([], x)", "[]", "[x]"},
+		{"built-in-array", "test_out_array([x])", "[]", "[x]"},
+		{"built-in-set", "test_out_set({x})", "[]", "[]"},
 		{"with", "data.foo[x] with input as bar", "[bar]", "[x]"},
 		{"with unsafe", "data.foo[x] with input as x", "[]", "[]"},
 	}

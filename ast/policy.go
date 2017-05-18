@@ -918,10 +918,15 @@ func (expr *Expr) outputVarsBuiltins(b *Builtin, safe VarSet) VarSet {
 
 	// Add vars in target positions to result.
 	for i, t := range terms[1:] {
-		if v, ok := t.Value.(Var); ok {
-			if b.IsTargetPos(i) {
-				o.Add(v)
-			}
+		if b.IsTargetPos(i) {
+			vis := NewVarVisitor().WithParams(VarVisitorParams{
+				SkipRefHead:    true,
+				SkipSets:       true,
+				SkipObjectKeys: true,
+				SkipClosures:   true,
+			})
+			Walk(vis, t)
+			o.Update(vis.vars)
 		}
 	}
 
