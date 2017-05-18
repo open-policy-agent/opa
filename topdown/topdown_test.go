@@ -1116,6 +1116,9 @@ func TestTopDownStrings(t *testing.T) {
 		{"endswith: undefined", []string{`p = true { endswith("abcdefgh", "fg") }`}, ""},
 		{"lower", []string{`p = x { lower("AbCdEf", x) }`}, `"abcdef"`},
 		{"upper", []string{`p = x { upper("AbCdEf", x) }`}, `"ABCDEF"`},
+		{"split: empty string", []string{`p = x { split("", ".", [x]) }`}, `""`},
+		{"split: one", []string{`p = x { split("foo", ".", [x]) }`}, `"foo"`},
+		{"split: many", []string{`p = [x,y] { split("foo.bar.baz", ".", [x,"bar",y]) }`}, `["foo","baz"]`},
 	}
 
 	data := loadSmallTestData()

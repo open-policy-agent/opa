@@ -71,6 +71,7 @@ complex types.
 | <span class="opa-keep-it-together">``indexof(string, search, output)``</span> | 2 | ``output`` is the index inside ``string`` where ``search`` first occurs, or -1 if ``search`` does not exist |
 | <span class="opa-keep-it-together">``lower(string, output)``</span> | 1 | ``output`` is ``string`` after converting to lower case |
 | <span class="opa-keep-it-together">``re_match(pattern, value)``</span> | 2 | true if the value matches the pattern |
+| <span class="opa-keep-it-together">``split(string, delimiter, output)``</span> | 2 | ``output`` is ``array[string]`` representing elements of ``string`` separated by ``delimiter`` |
 | <span class="opa-keep-it-together">``startswith(string, search)``</span> | 2 | true if ``string`` begins with ``search`` |
 | <span class="opa-keep-it-together">``substring(string, start, length, output)``</span> | 2 | ``output`` is the portion of ``string`` from index ``start`` and having a length of ``length``.  If ``length`` is less than zero, ``length`` is the remainder of the ``string``. |
 | <span class="opa-keep-it-together">``upper(string, output)``</span> | 1 | ``output`` is ``string`` after converting to upper case |

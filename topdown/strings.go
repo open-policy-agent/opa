@@ -197,6 +197,20 @@ func builtinUpper(a ast.Value) (ast.Value, error) {
 	return ast.String(strings.ToUpper(string(s))), nil
 }
 
+func builtinSplit(a, b ast.Value) (ast.Value, error) {
+	s, err := builtins.StringOperand(a, 1)
+	if err != nil {
+		return nil, err
+	}
+	d, err := builtins.StringOperand(b, 2)
+	elems := strings.Split(string(s), string(d))
+	arr := make(ast.Array, len(elems))
+	for i := range arr {
+		arr[i] = ast.StringTerm(elems[i])
+	}
+	return arr, nil
+}
+
 func init() {
 	RegisterFunctionalBuiltin2(ast.FormatInt.Name, builtinFormatInt)
 	RegisterFunctionalBuiltin2(ast.Concat.Name, builtinConcat)
@@ -207,4 +221,5 @@ func init() {
 	RegisterFunctionalBuiltinVoid2(ast.EndsWith.Name, builtinEndsWith)
 	RegisterFunctionalBuiltin1(ast.Upper.Name, builtinUpper)
 	RegisterFunctionalBuiltin1(ast.Lower.Name, builtinLower)
+	RegisterFunctionalBuiltin2(ast.Split.Name, builtinSplit)
 }
