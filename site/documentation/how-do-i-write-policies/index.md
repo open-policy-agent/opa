@@ -1188,6 +1188,12 @@ true
 +----------+
 | "abcdef" |
 +----------+
+> split("foo.bar.baz", ".", [x, "bar", y])
++-------+-------+
+|   x   |   y   |
++-------+-------+
+| "foo" | "baz" |
++-------+-------+
 > startswith("abcdef", "abcd")
 true
 > substring("abcdef", 2, 3, x)

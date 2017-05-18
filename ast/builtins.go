@@ -48,7 +48,7 @@ var DefaultBuiltins = [...]*Builtin{
 	SetDiff,
 
 	// Strings
-	Concat, FormatInt, IndexOf, Substring, Lower, Upper, Contains, StartsWith, EndsWith,
+	Concat, FormatInt, IndexOf, Substring, Lower, Upper, Contains, StartsWith, EndsWith, Split,
 
 	// JSON
 	JSONMarshal, JSONUnmarshal,
@@ -408,6 +408,17 @@ var Upper = &Builtin{
 		types.S,
 	},
 	TargetPos: []int{1},
+}
+
+// Split returns an array containing elements of the input string split on a delimiter.
+var Split = &Builtin{
+	Name: String("split"),
+	Args: []types.Type{
+		types.S,
+		types.S,
+		types.NewArray(nil, types.S),
+	},
+	TargetPos: []int{2},
 }
 
 /**
