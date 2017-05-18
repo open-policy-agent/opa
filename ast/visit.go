@@ -198,6 +198,7 @@ type VarVisitorParams struct {
 	SkipObjectKeys bool
 	SkipClosures   bool
 	SkipWithTarget bool
+	SkipSets       bool
 }
 
 // NewVarVisitor returns a new VarVisitor object.
@@ -245,6 +246,11 @@ func (vis *VarVisitor) Visit(v interface{}) Visitor {
 	if vis.params.SkipWithTarget {
 		if v, ok := v.(*With); ok {
 			Walk(vis, v.Value)
+			return nil
+		}
+	}
+	if vis.params.SkipSets {
+		if _, ok := v.(*Set); ok {
 			return nil
 		}
 	}
