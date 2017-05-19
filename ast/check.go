@@ -122,7 +122,8 @@ func (tc *typeChecker) checkExpr(env *TypeEnv, expr *Expr) *Error {
 
 	bi := expr.Builtin()
 	if bi == nil {
-		return NewError(TypeErr, expr.Location, "undefined built-in function")
+		name := expr.Terms.([]*Term)[0].Value
+		return NewError(TypeErr, expr.Location, "undefined built-in function %v", name)
 	}
 
 	checker := tc.exprCheckers[bi.Name]
