@@ -36,7 +36,7 @@ var DefaultBuiltins = [...]*Builtin{
 	And, Or,
 
 	// Aggregates
-	Count, Sum, Max,
+	Count, Sum, Max, Min,
 
 	// Casting
 	ToNumber,
@@ -265,6 +265,19 @@ var Sum = &Builtin{
 // Max returns the maximum value in a collection.
 var Max = &Builtin{
 	Name: String("max"),
+	Args: []types.Type{
+		types.NewAny(
+			types.NewSet(types.A),
+			types.NewArray(nil, types.A),
+		),
+		types.A,
+	},
+	TargetPos: []int{1},
+}
+
+// Min returns the minimum value in a collection.
+var Min = &Builtin{
+	Name: String("min"),
 	Args: []types.Type{
 		types.NewAny(
 			types.NewSet(types.A),

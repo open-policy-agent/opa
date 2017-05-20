@@ -51,6 +51,7 @@ complex types.
 | <span class="opa-keep-it-together">``count(collection, output)``</span> | 1 | ``output`` is the length of the object, array, or set ``collection`` |
 | <span class="opa-keep-it-together">``sum(array_or_set, output)``</span> | 1 | ``output`` is the sum of the numbers in ``array_or_set`` |
 | <span class="opa-keep-it-together">``max(array_or_set, output)``</span> | 1 | ``output`` is the maximum value in ``array_or_set`` |
+| <span class="opa-keep-it-together">``min(array_or_set, output)``</span> | 1 | ``output`` is the minimum value in ``array_or_set`` |
 
 ### Sets
 

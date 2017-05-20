@@ -80,8 +80,45 @@ func builtinMax(a ast.Value) (ast.Value, error) {
 	return nil, builtins.NewOperandTypeErr(1, a, ast.SetTypeName, ast.ArrayTypeName)
 }
 
+func builtinMin(a ast.Value) (ast.Value, error) {
+	switch a := a.(type) {
+	case ast.Array:
+		if len(a) == 0 {
+			return nil, BuiltinEmpty{}
+		}
+		min := a[0].Value
+		for i := range a {
+			if ast.Compare(min, a[i].Value) >= 0 {
+				min = a[i].Value
+			}
+		}
+		return min, nil
+	case *ast.Set:
+		if len(*a) == 0 {
+			return nil, BuiltinEmpty{}
+		}
+		min, err := a.Reduce(ast.NullTerm(), func(min *ast.Term, elem *ast.Term) (*ast.Term, error) {
+			// The null term is considered to be less than any other term,
+			// so in order for min of a set to make sense, we need to check
+			// for it.
+			if min.Value.Equal(ast.Null{}) {
+				return elem, nil
+			}
+
+			if ast.Compare(min, elem) >= 0 {
+				return elem, nil
+			}
+			return min, nil
+		})
+		return min.Value, err
+	}
+
+	return nil, builtins.NewOperandTypeErr(1, a, ast.SetTypeName, ast.ArrayTypeName)
+}
+
 func init() {
 	RegisterFunctionalBuiltin1(ast.Count.Name, builtinCount)
 	RegisterFunctionalBuiltin1(ast.Sum.Name, builtinSum)
 	RegisterFunctionalBuiltin1(ast.Max.Name, builtinMax)
+	RegisterFunctionalBuiltin1(ast.Min.Name, builtinMin)
 }
