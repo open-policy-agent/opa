@@ -48,7 +48,7 @@ var DefaultBuiltins = [...]*Builtin{
 	SetDiff,
 
 	// Strings
-	Concat, FormatInt, IndexOf, Substring, Lower, Upper, Contains, StartsWith, EndsWith, Split,
+	Concat, FormatInt, IndexOf, Substring, Lower, Upper, Contains, StartsWith, EndsWith, Split, Replace, Trim, Sprintf,
 
 	// JSON
 	JSONMarshal, JSONUnmarshal,
@@ -417,6 +417,42 @@ var Split = &Builtin{
 		types.S,
 		types.S,
 		types.NewArray(nil, types.S),
+	},
+	TargetPos: []int{2},
+}
+
+// Replace returns the given string with all instances of the second argument replaced
+// by the third.
+var Replace = &Builtin{
+	Name: String("replace"),
+	Args: []types.Type{
+		types.S,
+		types.S,
+		types.S,
+		types.S,
+	},
+	TargetPos: []int{3},
+}
+
+// Trim returns the given string will all leading or trailing instances of the second
+// argument removed.
+var Trim = &Builtin{
+	Name: String("trim"),
+	Args: []types.Type{
+		types.S,
+		types.S,
+		types.S,
+	},
+	TargetPos: []int{2},
+}
+
+// Sprintf returns the given string, formatted.
+var Sprintf = &Builtin{
+	Name: String("sprintf"),
+	Args: []types.Type{
+		types.S,
+		types.NewArray(nil, types.A),
+		types.S,
 	},
 	TargetPos: []int{2},
 }

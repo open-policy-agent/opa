@@ -211,6 +211,63 @@ func builtinSplit(a, b ast.Value) (ast.Value, error) {
 	return arr, nil
 }
 
+func builtinReplace(a, b, c ast.Value) (ast.Value, error) {
+	s, err := builtins.StringOperand(a, 1)
+	if err != nil {
+		return nil, err
+	}
+
+	old, err := builtins.StringOperand(b, 2)
+	if err != nil {
+		return nil, err
+	}
+
+	new, err := builtins.StringOperand(c, 3)
+	if err != nil {
+		return nil, err
+	}
+
+	return ast.String(strings.Replace(string(s), string(old), string(new), -1)), nil
+}
+
+func builtinTrim(a, b ast.Value) (ast.Value, error) {
+	s, err := builtins.StringOperand(a, 1)
+	if err != nil {
+		return nil, err
+	}
+
+	c, err := builtins.StringOperand(b, 2)
+	if err != nil {
+		return nil, err
+	}
+
+	return ast.String(strings.Trim(string(s), string(c))), nil
+}
+
+func builtinSprintf(a, b ast.Value) (ast.Value, error) {
+	s, err := builtins.StringOperand(a, 1)
+	if err != nil {
+		return nil, err
+	}
+
+	astArr, ok := b.(ast.Array)
+	if !ok {
+		return nil, builtins.NewOperandTypeErr(2, b, ast.ArrayTypeName)
+	}
+
+	strArr := []interface{}{}
+	for i := range astArr {
+		if str, ok := astArr[i].Value.(ast.String); ok {
+			strArr = append(strArr, string(str))
+		} else {
+			strArr = append(strArr, astArr[i].Value.String())
+		}
+	}
+
+	fmtStr := fmt.Sprintf(string(s), strArr...)
+	return ast.String(fmtStr), nil
+}
+
 func init() {
 	RegisterFunctionalBuiltin2(ast.FormatInt.Name, builtinFormatInt)
 	RegisterFunctionalBuiltin2(ast.Concat.Name, builtinConcat)
@@ -222,4 +279,7 @@ func init() {
 	RegisterFunctionalBuiltin1(ast.Upper.Name, builtinUpper)
 	RegisterFunctionalBuiltin1(ast.Lower.Name, builtinLower)
 	RegisterFunctionalBuiltin2(ast.Split.Name, builtinSplit)
+	RegisterFunctionalBuiltin3(ast.Replace.Name, builtinReplace)
+	RegisterFunctionalBuiltin2(ast.Trim.Name, builtinTrim)
+	RegisterFunctionalBuiltin2(ast.Sprintf.Name, builtinSprintf)
 }
