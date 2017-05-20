@@ -1119,6 +1119,22 @@ func TestTopDownStrings(t *testing.T) {
 		{"split: empty string", []string{`p = x { split("", ".", [x]) }`}, `""`},
 		{"split: one", []string{`p = x { split("foo", ".", [x]) }`}, `"foo"`},
 		{"split: many", []string{`p = [x,y] { split("foo.bar.baz", ".", [x,"bar",y]) }`}, `["foo","baz"]`},
+		{"replace: empty string", []string{`p = x { replace("", "hi", "bye", x) }`}, `""`},
+		{"replace: one", []string{`p = x { replace("foo.bar", ".", ",", x) }`}, `"foo,bar"`},
+		{"replace: many", []string{`p = x { replace("foo.bar.baz", ".", ",", x) }`}, `"foo,bar,baz"`},
+		{"replace: overlap", []string{`p = x { replace("foo...bar", "..", ",,", x) }`}, `"foo,,.bar"`},
+		{"trim: empty string", []string{`p = x { trim("", ".", x) }`}, `""`},
+		{"trim: end", []string{`p = x { trim("foo.bar...", ".", x) }`}, `"foo.bar"`},
+		{"trim: start", []string{`p = x { trim("...foo.bar", ".", x) }`}, `"foo.bar"`},
+		{"trim: both", []string{`p = x { trim("...foo.bar...", ".", x) }`}, `"foo.bar"`},
+		{"trim: multi-cutset", []string{`p = x { trim("...foo.bar...", ".fr", x) }`}, `"oo.ba"`},
+		{"trim: multi-cutset-none", []string{`p = x { trim("...foo.bar...", ".o", x) }`}, `"foo.bar"`},
+		{"sprintf: none", []string{`p = x { sprintf("hi", [], x) }`}, `"hi"`},
+		{"sprintf: string", []string{`p = x { sprintf("hi %s", ["there"], x) }`}, `"hi there"`},
+		{"sprintf: int", []string{`p = x { sprintf("hi %s", [5], x) }`}, `"hi 5"`},
+		{"sprintf: float", []string{`p = x { sprintf("hi %s", [3.14], x) }`}, `"hi 3.14"`},
+		{"sprintf: bool", []string{`p = x { sprintf("hi %s", [true], x) }`}, `"hi true"`},
+		{"sprintf: composite", []string{`p = x { sprintf("hi %s", [["there", 5, 3.14]], x) }`}, `"hi [\"there\", 5, 3.14]"`},
 	}
 
 	data := loadSmallTestData()
