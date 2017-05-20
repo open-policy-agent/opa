@@ -108,7 +108,7 @@ func builtinMinus(a, b ast.Value) (ast.Value, error) {
 		return nil, builtins.NewOperandTypeErr(1, a, ast.NumberTypeName, ast.SetTypeName)
 	}
 
-	return nil, builtins.NewOperandTypeErr(2, a, ast.NumberTypeName, ast.SetTypeName)
+	return nil, builtins.NewOperandTypeErr(2, b, ast.NumberTypeName, ast.SetTypeName)
 }
 
 func init() {
