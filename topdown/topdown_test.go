@@ -990,6 +990,12 @@ func TestTopDownAggregates(t *testing.T) {
 		{"max set", []string{`p = x { max({1, 2, 3, 4}, x) }`}, "4"},
 		{"max virtual", []string{`p[x] { max([y | q[y]], x) }`, `q[x] { a[_] = x }`}, "[4]"},
 		{"max virtual set", []string{`p = x { max(q, x) }`, `q[x] { a[_] = x }`}, "4"},
+		{"min", []string{`p[x] { min([1, 2, 3, 4], x) }`}, "[1]"},
+		{"min dups", []string{`p[x] { min([1, 2, 1, 3, 4], x) }`}, "[1]"},
+		{"min out-of-order", []string{`p[x] { min([3, 2, 1, 4, 6, -7, 10], x) }`}, "[-7]"},
+		{"min set", []string{`p = x { min({1, 2, 3, 4}, x) }`}, "1"},
+		{"min virtual", []string{`p[x] { min([y | q[y]], x) }`, `q[x] { a[_] = x }`}, "[1]"},
+		{"min virtual set", []string{`p = x { min(q, x) }`, `q[x] { a[_] = x }`}, "1"},
 		{"reduce ref dest", []string{`p = true { max([1, 2, 3, 4], a[3]) }`}, "true"},
 		{"reduce ref dest (2)", []string{`p = true { not max([1, 2, 3, 4, 5], a[3]) }`}, "true"},
 	}

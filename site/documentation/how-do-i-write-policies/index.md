@@ -1111,6 +1111,12 @@ details on each built-in function.
 +---+
 | 3 |
 +---+
+> min([1,2,3], x)
++---+
+| x |
++---+
+| 1 |
++---+
 ```
 
 ### Casting
