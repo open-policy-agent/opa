@@ -885,17 +885,30 @@ func evalWith(t *Topdown, iter Iterator) error {
 
 	// All ref bindings added during evaluation of this expression must be
 	// discarded before moving to the next expression. Push a new binding map
-	// onto the stack that will be popped below before continuing.
+	// onto the stack that will be popped below before continuing. Similarly,
+	// the document caches must be invalidated before continuing.
+	//
+	// TODO(tsandall): analyze queries and invalidate only affected caches.
 	cpy.refs.Push(ast.NewValueMap())
 
-	return evalStep(cpy, func(next *Topdown) error {
+	err = evalStep(cpy, func(next *Topdown) error {
 		next.refs.Pop()
-		// TODO(tsandall): invalidation could be smarter, e.g., only invalidate
-		// caches for rules that were evaluated during this expr.
 		next.cache.Invalidate()
 		next = next.Step()
 		return eval(next, iter)
 	})
+
+	if err != nil {
+		return err
+	}
+
+	if vm := cpy.refs.Peek(); vm != nil {
+		cpy.refs.Pop()
+	}
+
+	cpy.cache.Invalidate()
+
+	return nil
 }
 
 func evalExpr(t *Topdown, iter Iterator) error {
