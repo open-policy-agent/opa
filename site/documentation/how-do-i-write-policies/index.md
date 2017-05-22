@@ -1003,6 +1003,37 @@ The term may be any scalar, composite, or comprehension value but it may not be
 a variable or reference. If the value is a composite then it may not contain
 variables or references.
 
+## <a name="else"></a> Else Keyword
+
+The ``else``  keyword is a basic control flow construct that gives you control
+over rule evaluation order.
+
+Rules grouped together with the ``else`` keyword are evaluated until a match is
+found. Once a match is found, rule evaluation does not proceed to rules further
+in the chain.
+
+The ``else`` keyword is useful if you are porting policies into Rego from an
+order-sensitive system like IPTables.
+
+```
+# Service queries "authorize" and intreprets result ("allow" or "deny")
+authorize = "allow" {
+    input.user = "superuser"
+}
+
+# Check if caller is from outside network.
+else = "deny" {
+    input.path[0] = "admin"
+    input.source_network = "external"
+}
+
+# Check if caller is from inside network.
+else = "allow" {
+    input.path[0] = "admin"
+    input.source_network = "internal"
+} # ... more rules
+```
+
 ## <a name="operators"></a> Operators
 
 ### <a name="equality"></a> Equality
