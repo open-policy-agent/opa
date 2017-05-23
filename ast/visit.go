@@ -40,6 +40,9 @@ func Walk(v Visitor, x interface{}) {
 	case *Rule:
 		Walk(w, x.Head)
 		Walk(w, x.Body)
+		if x.Else != nil {
+			Walk(w, x.Else)
+		}
 	case *Head:
 		Walk(w, x.Name)
 		if x.Key != nil {
@@ -120,6 +123,18 @@ func WalkExprs(x interface{}, f func(*Expr) bool) {
 func WalkRefs(x interface{}, f func(Ref) bool) {
 	vis := &GenericVisitor{func(x interface{}) bool {
 		if r, ok := x.(Ref); ok {
+			return f(r)
+		}
+		return false
+	}}
+	Walk(vis, x)
+}
+
+// WalkRules calls the function f on all rules under x. If the function f
+// returns true, AST nodes under the last node will not be visited.
+func WalkRules(x interface{}, f func(*Rule) bool) {
+	vis := &GenericVisitor{func(x interface{}) bool {
+		if r, ok := x.(*Rule); ok {
 			return f(r)
 		}
 		return false

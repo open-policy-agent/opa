@@ -68,6 +68,7 @@ var Keywords = [...]string{
 	"import",
 	"as",
 	"default",
+	"else",
 	"with",
 	"null",
 	"true",
@@ -129,6 +130,7 @@ type (
 		Default bool  `json:"default,omitempty"`
 		Head    *Head `json:"head"`
 		Body    Body  `json:"body"`
+		Else    *Rule `json:"else,omitempty"`
 
 		// Module is a pointer to the module containing this rule. If the rule
 		// was NOT created while parsing/constructing a module, this should be
@@ -382,7 +384,10 @@ func (rule *Rule) Compare(other *Rule) int {
 	if cmp := util.Compare(rule.Default, other.Default); cmp != 0 {
 		return cmp
 	}
-	return rule.Body.Compare(other.Body)
+	if cmp := rule.Body.Compare(other.Body); cmp != 0 {
+		return cmp
+	}
+	return rule.Else.Compare(other.Else)
 }
 
 // Copy returns a deep copy of rule.
@@ -390,6 +395,9 @@ func (rule *Rule) Copy() *Rule {
 	cpy := *rule
 	cpy.Head = rule.Head.Copy()
 	cpy.Body = rule.Body.Copy()
+	if cpy.Else != nil {
+		cpy.Else = rule.Else.Copy()
+	}
 	return &cpy
 }
 
@@ -423,6 +431,31 @@ func (rule *Rule) String() string {
 		buf = append(buf, rule.Body.String())
 		buf = append(buf, "}")
 	}
+	if rule.Else != nil {
+		buf = append(buf, rule.Else.elseString())
+	}
+	return strings.Join(buf, " ")
+}
+
+func (rule *Rule) elseString() string {
+	var buf []string
+
+	buf = append(buf, "else")
+
+	value := rule.Head.Value
+	if value != nil {
+		buf = append(buf, "=")
+		buf = append(buf, value.String())
+	}
+
+	buf = append(buf, "{")
+	buf = append(buf, rule.Body.String())
+	buf = append(buf, "}")
+
+	if rule.Else != nil {
+		buf = append(buf, rule.Else.elseString())
+	}
+
 	return strings.Join(buf, " ")
 }
 

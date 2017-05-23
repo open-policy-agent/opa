@@ -255,6 +255,7 @@ func TestCheckInferenceRules(t *testing.T) {
 		{`a`, `partialobj[x] = {"foo": y} { y = "bar"; x = y }`},
 		{`b`, `trivial_ref = x { x = data.a.trivial }`},
 		{`b`, `transitive_ref = [x] { y = data.b.trivial_ref; x = y }`},
+		{`c`, `else_kw = null { false } else = 100 { true } else = "foo" { true }`},
 		{`iteration`, `arr = [[1], ["two"], {"x": true}, ["four"]] { true }`},
 		{`iteration`, `values[x] { data.iteration.arr[_][_] = x } `},
 		{`iteration`, `keys[i] { data.iteration.arr[_][i] = _ } `},
@@ -297,6 +298,8 @@ func TestCheckInferenceRules(t *testing.T) {
 		)},
 
 		{"complete-doc-suffix", ruleset1, `data.a.complete[0].foo`, types.N},
+
+		{"else-kw", ruleset1, "data.c.else_kw", types.NewAny(types.NewNull(), types.N, types.S)},
 
 		{"partial-set-doc", ruleset1, `data.a.partialset`, types.NewSet(
 			types.NewObject(
@@ -404,7 +407,7 @@ func TestCheckInferenceRules(t *testing.T) {
 
 	for _, tc := range tests {
 		test.Subtest(t, tc.note, func(t *testing.T) {
-			rules := make([]*Rule, len(tc.rules))
+			var rules []*Rule
 
 			// Convert test rules into rule slice for call.
 			for i := range tc.rules {
@@ -415,7 +418,11 @@ func TestCheckInferenceRules(t *testing.T) {
 					Rules:   []*Rule{rule},
 				}
 				rule.Module = module
-				rules[i] = rule
+				rules = append(rules, rule)
+				for next := rule.Else; next != nil; next = next.Else {
+					next.Module = module
+					rules = append(rules, next)
+				}
 			}
 
 			ref := MustParseRef(tc.ref)
@@ -569,12 +576,19 @@ func TestCheckRefErrors(t *testing.T) {
 		`obj = {"foo": 1, "bar": 2} { true }`,
 		`nested = {"foo": [1,2,3]} { true }`,
 		`set[1] { true }`,
+		`else_kw = [1,2,3] { false } else = {"foo": 1} { true } else = {"bar": 2} { true }`,
 	}
 
-	rules := make([]*Rule, len(rs))
-	for i := range rules {
-		rules[i] = MustParseRule(rs[i])
-		rules[i].Module = module
+	var rules []*Rule
+
+	for i := range rs {
+		rule := MustParseRule(rs[i])
+		rule.Module = module
+		rules = append(rules, rule)
+		for next := rule.Else; next != nil; next = next.Else {
+			next.Module = module
+			rules = append(rules, next)
+		}
 	}
 
 	env, err := newTypeChecker().CheckRules(nil, rules)
@@ -596,6 +610,9 @@ func TestCheckRefErrors(t *testing.T) {
 		{"leaf-var", `{ x = 1; data.test.obj[x] }`},
 		{"repeat", `{ data.test.nested[x][x] }`},
 		{"scalar", `{ data.test.scalar[x] }`},
+		{"else-arr", `{ data.test.else_kw[3] }`},
+		{"else-obj", `{ data.test.else_kw.deadbeef }`},
+		{"else-too-far", `{ data.test.else_kw.foo.bar }`},
 	}
 
 	for _, tc := range tests {

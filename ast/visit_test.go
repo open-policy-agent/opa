@@ -21,7 +21,9 @@ func TestVisitor(t *testing.T) {
 
 import input.x.y as z
 
-t[x] = y { p[x] = {"foo": [y, 2, {"bar": 3}]}; not q[x]; y = [[x, z] | x = "x"; z = "z"]; count({1, 2, 3}, n) with input.foo.bar as x }`,
+t[x] = y { p[x] = {"foo": [y, 2, {"bar": 3}]}; not q[x]; y = [[x, z] | x = "x"; z = "z"]; count({1, 2, 3}, n) with input.foo.bar as x }
+
+p { false } else { false } else { true }`,
 	)
 	vis := &testVis{}
 
@@ -92,9 +94,33 @@ t[x] = y { p[x] = {"foo": [y, 2, {"bar": 3}]}; not q[x]; y = [[x, z] | x = "x"; 
 								foo
 								bar
 							baz
+			rule
+				head
+					p
+					<nil> # not counted
+					true
+				body
+					expr
+						false
+				rule
+					head
+						p
+						<nil> # not counted
+						true
+					body
+						expr
+							false
+					rule
+						head
+							p
+							<nil> # not counted
+							true
+						body
+							expr
+								true
 	*/
-	if len(vis.elems) != 64 {
-		t.Errorf("Expected exactly 64 elements in AST but got %d: %v", len(vis.elems), vis.elems)
+	if len(vis.elems) != 85 {
+		t.Errorf("Expected exactly 85 elements in AST but got %d: %v", len(vis.elems), vis.elems)
 	}
 
 }

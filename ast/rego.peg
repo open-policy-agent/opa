@@ -154,29 +154,53 @@ DefaultRules <- "default" ws name:Var _ "=" _ value:Term {
     return []*Rule{rule}, nil
 }
 
-NormalRules <- head:RuleHead _ val:(NonEmptyBraceEnclosedBody (_ NonEmptyBraceEnclosedBody)*) {
+NormalRules <- head:RuleHead _ b:(NonEmptyBraceEnclosedBody ( _ Else? _ NonEmptyBraceEnclosedBody)* ) {
 
     if head == nil {
         return nil, nil
     }
 
-    // Parser is expected to return []Statement. If the author has chained
-    // rule bodies together (disjunction) then multiple rules must be returned.
-    bodies := []Body{}
+    sl := b.([]interface{})
 
-    sl := val.([]interface{})
-    bodies = append(bodies, sl[0].(Body))
-    for _, x := range sl[1].([]interface{}) {
-        bodies = append(bodies, x.([]interface{})[1].(Body))
+    rules := []*Rule{
+        &Rule{
+            Head: head.(*Head),
+            Body: sl[0].(Body),
+        },
     }
 
-    rules := make([]*Rule, len(bodies))
-    for i := range bodies {
-        rules[i] = &Rule{
-            Head: head.(*Head).Copy(),
-            Body: bodies[i],
+    var ordered bool
+    prev := rules[0]
+
+    for i, elem := range sl[1].([]interface{}) {
+
+        next := elem.([]interface{})
+
+        if term, ok := next[1].(*Term); !ok {
+            if ordered {
+                return nil, fmt.Errorf("expected 'else' keyword")
+            }
+            rules = append(rules, &Rule{
+                Head: prev.Head.Copy(),
+                Body: next[3].(Body),
+            })
+        } else {
+            if (rules[0].Head.DocKind() != CompleteDoc) || (i != 0 && !ordered) {
+                return nil, fmt.Errorf("unexpected 'else' keyword")
+            }
+            ordered = true
+            curr := &Rule{
+                Head: &Head{
+                    Name: prev.Head.Name,
+                    Value: term,
+                    Location: term.Location,
+                },
+                Body: next[3].(Body),
+            }
+            prev.Else = curr
+            prev = curr
         }
-    }
+   }
 
     return rules, nil
 }
@@ -213,6 +237,18 @@ RuleHead <- name:Var key:( _ "[" _ Term _ "]" _ )? value:( _ "=" _ Term )? {
     }
 
     return head, nil
+}
+
+Else <- "else" val:( _ "=" _ Term )? {
+
+    if val == nil {
+        term := BooleanTerm(true)
+        term.Location = currentLocation(c)
+        return term, nil
+    }
+
+    sl := val.([]interface{})
+    return sl[3].(*Term), nil
 }
 
 Body <- BraceEnclosedBody / NonWhitespaceBody

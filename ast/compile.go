@@ -466,7 +466,7 @@ func (c *Compiler) checkRuleConflicts() {
 func (c *Compiler) checkSafetyRuleBodies() {
 	for _, m := range c.Modules {
 		safe := ReservedVars.Copy()
-		for _, r := range m.Rules {
+		WalkRules(m, func(r *Rule) bool {
 			reordered, unsafe := reorderBodyForSafety(safe, r.Body)
 			if len(unsafe) != 0 {
 				for v := range unsafe.Vars() {
@@ -477,7 +477,8 @@ func (c *Compiler) checkSafetyRuleBodies() {
 			} else {
 				r.Body = reordered
 			}
-		}
+			return false
+		})
 	}
 }
 
@@ -489,14 +490,15 @@ var safetyCheckVarVisitorParams = VarVisitorParams{
 // rule also appear in the body.
 func (c *Compiler) checkSafetyRuleHeads() {
 	for _, m := range c.Modules {
-		for _, r := range m.Rules {
+		WalkRules(m, func(r *Rule) bool {
 			unsafe := r.Head.Vars().Diff(r.Body.Vars(safetyCheckVarVisitorParams))
 			for v := range unsafe {
 				if !c.generatedVars[m].Contains(v) {
 					c.err(NewError(UnsafeVarErr, r.Loc(), "%v %v is unsafe", VarTypeName, v))
 				}
 			}
-		}
+			return false
+		})
 	}
 }
 
@@ -582,16 +584,10 @@ func (c *Compiler) resolveAllRefs() {
 		}
 
 		globals := getGlobals(mod.Package, exportsForPackage, mod.Imports)
-
-		for _, rule := range mod.Rules {
-			if rule.Head.Key != nil {
-				rule.Head.Key = resolveRefsInTerm(globals, rule.Head.Key)
-			}
-			if rule.Head.Value != nil {
-				rule.Head.Value = resolveRefsInTerm(globals, rule.Head.Value)
-			}
-			rule.Body = resolveRefsInBody(globals, rule.Body)
-		}
+		WalkRules(mod, func(rule *Rule) bool {
+			resolveRefsInRule(globals, rule)
+			return false
+		})
 
 		// Once imports have been resolved, they are no longer needed.
 		mod.Imports = nil
@@ -633,7 +629,7 @@ func (c *Compiler) resolveAllRefs() {
 func (c *Compiler) rewriteRefsInHead() {
 	for _, mod := range c.Modules {
 		generator := newLocalVarGenerator(mod)
-		for _, rule := range mod.Rules {
+		WalkRules(mod, func(rule *Rule) bool {
 			if rule.Head.Key != nil {
 				found := false
 				vis := NewGenericVisitor(func(x interface{}) bool {
@@ -684,7 +680,8 @@ func (c *Compiler) rewriteRefsInHead() {
 					rule.Body.Append(expr)
 				}
 			}
-		}
+			return false
+		})
 		c.generatedVars[mod] = generator.Generated()
 	}
 }
@@ -1050,7 +1047,7 @@ func NewRuleGraph(modules map[string]*Module, list func(Ref) []*Rule) *RuleGraph
 
 	// Walk over all rules, add them to graph, and build adjencency lists.
 	for _, module := range modules {
-		for _, ruleA := range module.Rules {
+		WalkRules(module, func(ruleA *Rule) bool {
 			ruleGraph.addNode(ruleA)
 			WalkRefs(ruleA, func(ref Ref) bool {
 				for _, ruleB := range list(ref.GroundPrefix()) {
@@ -1058,7 +1055,8 @@ func NewRuleGraph(modules map[string]*Module, list func(Ref) []*Rule) *RuleGraph
 				}
 				return false
 			})
-		}
+			return false
+		})
 	}
 
 	return ruleGraph
@@ -1461,6 +1459,16 @@ func resolveRef(globals map[Var]Value, ref Ref) Ref {
 	}
 
 	return r
+}
+
+func resolveRefsInRule(globals map[Var]Value, rule *Rule) {
+	if rule.Head.Key != nil {
+		rule.Head.Key = resolveRefsInTerm(globals, rule.Head.Key)
+	}
+	if rule.Head.Value != nil {
+		rule.Head.Value = resolveRefsInTerm(globals, rule.Head.Value)
+	}
+	rule.Body = resolveRefsInBody(globals, rule.Body)
 }
 
 func resolveRefsInBody(globals map[Var]Value, body Body) Body {
