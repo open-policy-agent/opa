@@ -1237,6 +1237,18 @@ true
 ### Encoding
 
 ```
+> base64url.encode("opa", x)
++--------+
+|   x    |
++--------+
+| "b3Bh" |
++--------+
+> base64url.decode("b3Bh", x)
++-------+
+|   x   |
++-------+
+| "opa" |
++-------+
 > json_marshal([1,2,3], x)
 +-----------+
 |     x     |

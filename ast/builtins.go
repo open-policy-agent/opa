@@ -50,8 +50,8 @@ var DefaultBuiltins = [...]*Builtin{
 	// Strings
 	Concat, FormatInt, IndexOf, Substring, Lower, Upper, Contains, StartsWith, EndsWith, Split, Replace, Trim, Sprintf,
 
-	// JSON
-	JSONMarshal, JSONUnmarshal,
+	// Encoding
+	JSONMarshal, JSONUnmarshal, Base64UrlEncode, Base64UrlDecode,
 }
 
 // BuiltinMap provides a convenient mapping of built-in names to
@@ -490,6 +490,26 @@ var JSONUnmarshal = &Builtin{
 	Args: []types.Type{
 		types.S,
 		types.A,
+	},
+	TargetPos: []int{1},
+}
+
+// Base64UrlEncode serializes the input string into base64url encoding.
+var Base64UrlEncode = &Builtin{
+	Name: String("base64url.encode"),
+	Args: []types.Type{
+		types.S,
+		types.S,
+	},
+	TargetPos: []int{1},
+}
+
+// Base64UrlDecode deserializes the base64url encoded input string.
+var Base64UrlDecode = &Builtin{
+	Name: String("base64url.decode"),
+	Args: []types.Type{
+		types.S,
+		types.S,
 	},
 	TargetPos: []int{1},
 }

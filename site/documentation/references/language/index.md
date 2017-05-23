@@ -90,6 +90,8 @@ complex types.
 
 | Built-in | Inputs | Description |
 | ------- |--------|-------------|
+| <span class="opa-keep-it-together">``base64url.encode(x, output)``</span> | 1 | ``output`` is ``x`` serialized to a base64url encoded string |
+| <span class="opa-keep-it-together">``base64url.decode(string, output)``</span> | 1 | ``output`` is ``string`` deserialized from a base64url encoding to a string |
 | <span class="opa-keep-it-together">``json_marshal(x, output)``</span> | 1 | ``output`` is ``x`` serialized to a JSON string |
 | <span class="opa-keep-it-together">``json_unmarshal(string, output)``</span> | 1 | ``output`` is ``string`` deserialized to a term |
 
