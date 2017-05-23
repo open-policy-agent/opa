@@ -236,18 +236,6 @@ func (t *Topdown) Resolve(ref ast.Ref) (interface{}, error) {
 	return doc, nil
 }
 
-type valueResolver struct {
-	t *Topdown
-}
-
-func (r valueResolver) Resolve(ref ast.Ref) (ast.Value, error) {
-	v, err := lookupValue(r.t, ref)
-	if storage.IsNotFound(err) {
-		return nil, nil
-	}
-	return v, nil
-}
-
 // Step returns a new Topdown object to evaluate the next expression.
 func (t *Topdown) Step() *Topdown {
 	cpy := *t
@@ -869,7 +857,11 @@ func evalWith(t *Topdown, iter Iterator) error {
 
 	for i := range curr.With {
 		plugged := PlugTerm(curr.With[i].Value, t.Binding)
-		pairs[i] = [...]*ast.Term{curr.With[i].Target, plugged}
+		resolved, err := ResolveRefsTerm(plugged, t)
+		if err != nil {
+			return err
+		}
+		pairs[i] = [...]*ast.Term{curr.With[i].Target, resolved}
 	}
 
 	input, err := MakeInput(pairs)
@@ -1033,14 +1025,17 @@ func evalRefRec(t *Topdown, ref ast.Ref, iter Iterator) error {
 		return iter(t)
 	}
 
-	// Check if the prefix refers to a virtual document.
-	var rules []*ast.Rule
-	path := prefix
-	for len(path) > 0 {
-		if rules = t.Compiler.GetRulesExact(path); rules != nil {
-			return evalRefRule(t, ref, path, rules, iter)
+	// Check if ref refers to virtual doc by walking down the rule tree.
+	node := t.Compiler.RuleTree
+	for i := 0; i < len(prefix); i++ {
+		child := node.Child(prefix[i].Value)
+		if child == nil {
+			break
 		}
-		path = path[:len(path)-1]
+		if len(child.Rules) > 0 {
+			return evalRefRule(t, ref, prefix[:i+1], iter)
+		}
+		node = child
 	}
 
 	if len(prefix) == len(ref) {
@@ -1113,10 +1108,10 @@ func evalRefRecGround(t *Topdown, ref, prefix ast.Ref, iter Iterator) error {
 	return Continue(t, ref, result, iter)
 }
 
-// evalRefRecTree evaluates the rules found in the leaves of the tree. If the  For each
-// non-leaf node in the tree, the results are merged together to form an object.
-// The final result is the object representing the virtual document rooted at
-// node.
+// evalRefRecTree evaluates the rules found in the leaves of the tree. For each
+// non-leaf node in the tree, the results are merged together to form an
+// object. The final result is the object representing the virtual document
+// rooted at node.
 func evalRefRecTree(t *Topdown, path ast.Ref, node *ast.RuleTreeNode) (ast.Object, error) {
 	v := ast.Object{}
 
@@ -1127,20 +1122,19 @@ func evalRefRecTree(t *Topdown, path ast.Ref, node *ast.RuleTreeNode) (ast.Objec
 		path = append(path, &ast.Term{Value: c.Key})
 		if len(c.Rules) > 0 {
 			var result ast.Value
-			err := evalRefRule(t, path, path, c.Rules, func(t *Topdown) error {
+			err := evalRefRule(t, path, path, func(t *Topdown) error {
 				result = t.Binding(path)
 				return nil
 			})
 			if err != nil {
 				return nil, err
 			}
-			if result == nil {
-				continue
+			if result != nil {
+				key := path[len(path)-1]
+				val := &ast.Term{Value: result}
+				obj := ast.Object{ast.Item(key, val)}
+				v, _ = v.Merge(obj)
 			}
-			key := path[len(path)-1]
-			val := &ast.Term{Value: result}
-			obj := ast.Object{ast.Item(key, val)}
-			v, _ = v.Merge(obj)
 		} else {
 			result, err := evalRefRecTree(t, path, c)
 			if err != nil {
@@ -1248,37 +1242,33 @@ func evalRefRecNonGround(t *Topdown, ref, prefix ast.Ref, iter Iterator) error {
 	return nil
 }
 
-func evalRefRule(t *Topdown, ref ast.Ref, path ast.Ref, rules []*ast.Rule, iter Iterator) error {
+func evalRefRule(t *Topdown, ref ast.Ref, path ast.Ref, iter Iterator) error {
 
-	if index := t.Compiler.RuleIndex(path); index != nil {
+	// Invariant: evalRefRule is called with path equal to existing rule path.
+	// Index must exist.
+	index := t.Compiler.RuleIndex(path)
 
-		ir, err := index.Lookup(valueResolver{t})
-		if err != nil {
-			return err
-		}
-
-		rules = ir.Rules
-		if ir.Default != nil {
-			rules = append(rules, ir.Default)
-		}
+	ir, err := index.Lookup(valueResolver{t})
+	if err != nil {
+		return err
 	}
 
-	if len(rules) == 0 {
+	if ir.Empty() {
 		return nil
 	}
 
 	suffix := ref[len(path):]
 
-	switch rules[0].Head.DocKind() {
+	switch ir.Kind() {
 
 	case ast.CompleteDoc:
-		return evalRefRuleCompleteDoc(t, ref, suffix, rules, iter)
+		return evalRefRuleCompleteDoc(t, ref, suffix, ir, iter)
 
 	case ast.PartialObjectDoc:
 		if len(suffix) == 0 {
-			return evalRefRulePartialObjectDocFull(t, ref, rules, iter)
+			return evalRefRulePartialObjectDocFull(t, ref, ir.Rules, iter)
 		}
-		for i, rule := range rules {
+		for i, rule := range ir.Rules {
 			err := evalRefRulePartialObjectDoc(t, ref, path, rule, i > 0, iter)
 			if err != nil {
 				return err
@@ -1287,9 +1277,9 @@ func evalRefRule(t *Topdown, ref ast.Ref, path ast.Ref, rules []*ast.Rule, iter 
 
 	case ast.PartialSetDoc:
 		if len(suffix) == 0 {
-			return evalRefRulePartialSetDocFull(t, ref, rules, iter)
+			return evalRefRulePartialSetDocFull(t, ref, ir.Rules, iter)
 		}
-		for i, rule := range rules {
+		for i, rule := range ir.Rules {
 			err := evalRefRulePartialSetDoc(t, ref, path, rule, i > 0, iter)
 			if err != nil {
 				return err
@@ -1300,25 +1290,25 @@ func evalRefRule(t *Topdown, ref ast.Ref, path ast.Ref, rules []*ast.Rule, iter 
 	return nil
 }
 
-func evalRefRuleCompleteDoc(t *Topdown, ref ast.Ref, suffix ast.Ref, rules []*ast.Rule, iter Iterator) error {
+func evalRefRuleCompleteDoc(t *Topdown, ref ast.Ref, suffix ast.Ref, ir *ast.IndexResult, iter Iterator) error {
 
-	// Check if we have cached the result of evaluating this rule set already.
-	for _, rule := range rules {
-		if doc, ok := t.cache.complete[rule]; ok {
-			return evalRefRuleResult(t, ref, suffix, doc, iter)
-		}
+	// Determine cache key for rule set. Since the rule set must generate at
+	// most one value, we can cache the result on any rule.
+	var cacheKey *ast.Rule
+	if len(ir.Rules) > 0 {
+		cacheKey = ir.Rules[0]
+	} else {
+		cacheKey = ir.Default
+	}
+
+	if doc, ok := t.cache.complete[cacheKey]; ok {
+		return evalRefRuleResult(t, ref, suffix, doc, iter)
 	}
 
 	var result ast.Value
-	var defaultRule *ast.Rule
 	var redo bool
 
-	for _, rule := range rules {
-		if rule.Default {
-			// Compiler guarantees that there is only one default rule per shared name.
-			defaultRule = rule
-			continue
-		}
+	for _, rule := range ir.Rules {
 		next, err := evalRefRuleCompleteDocSingle(t, rule, redo, result)
 		if err != nil {
 			return err
@@ -1329,19 +1319,16 @@ func evalRefRuleCompleteDoc(t *Topdown, ref ast.Ref, suffix ast.Ref, rules []*as
 		redo = true
 	}
 
-	if result == nil && defaultRule != nil {
+	if result == nil && ir.Default != nil {
 		var err error
-		result, err = evalRefRuleCompleteDocSingle(t, defaultRule, redo, nil)
+		result, err = evalRefRuleCompleteDocSingle(t, ir.Default, redo, nil)
 		if err != nil {
 			return err
 		}
 	}
 
 	if result != nil {
-		// Add the result to the cache. All of the rules have either produced the same value
-		// or only one of them has produced a value. As such, we can cache the result on any
-		// of them.
-		t.cache.complete[rules[0]] = result
+		t.cache.complete[cacheKey] = result
 		return evalRefRuleResult(t, ref, suffix, result, iter)
 	}
 
@@ -2157,6 +2144,18 @@ func indexingAllowed(ref ast.Ref, term *ast.Term) bool {
 	}
 
 	return true
+}
+
+type valueResolver struct {
+	t *Topdown
+}
+
+func (r valueResolver) Resolve(ref ast.Ref) (ast.Value, error) {
+	v, err := lookupValue(r.t, ref)
+	if storage.IsNotFound(err) {
+		return nil, nil
+	}
+	return v, nil
 }
 
 func lookupValue(t *Topdown, ref ast.Ref) (ast.Value, error) {
