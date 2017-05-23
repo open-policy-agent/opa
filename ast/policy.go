@@ -168,6 +168,14 @@ type (
 // Compare returns an integer indicating whether mod is less than, equal to,
 // or greater than other.
 func (mod *Module) Compare(other *Module) int {
+	if mod == nil {
+		if other == nil {
+			return 0
+		}
+		return -1
+	} else if other == nil {
+		return 1
+	}
 	if cmp := mod.Package.Compare(other.Package); cmp != 0 {
 		return cmp
 	}
@@ -299,6 +307,14 @@ func IsValidImportPath(v Value) (err error) {
 // Compare returns an integer indicating whether imp is less than, equal to,
 // or greater than other.
 func (imp *Import) Compare(other *Import) int {
+	if imp == nil {
+		if other == nil {
+			return 0
+		}
+		return -1
+	} else if other == nil {
+		return 1
+	}
 	if cmp := Compare(imp.Path, other.Path); cmp != 0 {
 		return cmp
 	}
@@ -352,6 +368,14 @@ func (imp *Import) String() string {
 // Compare returns an integer indicating whether rule is less than, equal to,
 // or greater than other.
 func (rule *Rule) Compare(other *Rule) int {
+	if rule == nil {
+		if other == nil {
+			return 0
+		}
+		return -1
+	} else if other == nil {
+		return 1
+	}
 	if cmp := rule.Head.Compare(other.Head); cmp != 0 {
 		return cmp
 	}
@@ -447,6 +471,14 @@ func (head *Head) DocKind() DocKind {
 // Compare returns an integer indicating whether head is less than, equal to,
 // or greater than other.
 func (head *Head) Compare(other *Head) int {
+	if head == nil {
+		if other == nil {
+			return 0
+		}
+		return -1
+	} else if other == nil {
+		return 1
+	}
 	if cmp := Compare(head.Name, other.Name); cmp != 0 {
 		return cmp
 	}
@@ -642,6 +674,15 @@ func (expr *Expr) Equal(other *Expr) bool {
 // Otherwise, the expression terms are compared normally. If both expressions
 // have the same terms, the modifiers are compared.
 func (expr *Expr) Compare(other *Expr) int {
+
+	if expr == nil {
+		if other == nil {
+			return 0
+		}
+		return -1
+	} else if other == nil {
+		return 1
+	}
 
 	switch {
 	case expr.Index < other.Index:
@@ -988,6 +1029,14 @@ func (w *With) Equal(other *With) bool {
 // Compare returns an integer indicating whether w is less than, equal to, or
 // greater than other.
 func (w *With) Compare(other *With) int {
+	if w == nil {
+		if other == nil {
+			return 0
+		}
+		return -1
+	} else if other == nil {
+		return 1
+	}
 	if cmp := Compare(w.Target, other.Target); cmp != 0 {
 		return cmp
 	}
