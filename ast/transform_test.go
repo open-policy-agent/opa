@@ -17,7 +17,9 @@ p = "this" { false }
 p["this"] { false }
 p[y] = {"this": ["this"]} { false }
 p = true { ["this" | "this"] }
-p = n { count({"this", "that"}, n) with input.foo.this as {"this": true} }`)
+p = n { count({"this", "that"}, n) with input.foo.this as {"this": true} }
+p { false } else = "this" { "this" } else = ["this"] { true }
+`)
 
 	result, err := Transform(&GenericTransformer{
 		func(x interface{}) (interface{}, error) {
@@ -47,7 +49,9 @@ p = "that" { false }
 p["that"] { false }
 p[y] = {"that": ["that"]} { false }
 p = true { ["that" | "that"] }
-p = n { count({"that"}, n) with input.foo.that as {"that": true} }`)
+p = n { count({"that"}, n) with input.foo.that as {"that": true} }
+p { false } else = "that" { "that" } else = ["that"] { true }
+`)
 
 	if !expected.Equal(resultMod) {
 		t.Fatalf("Expected module:\n%v\n\nGot:\n%v\n", expected, resultMod)

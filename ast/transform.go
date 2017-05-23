@@ -85,6 +85,15 @@ func Transform(t Transformer, x interface{}) (interface{}, error) {
 		if y.Body, err = transformBody(t, y.Body); err != nil {
 			return nil, err
 		}
+		if y.Else != nil {
+			rule, err := Transform(t, y.Else)
+			if err != nil {
+				return nil, err
+			}
+			if y.Else, ok = rule.(*Rule); !ok {
+				return nil, fmt.Errorf("illegal transform: %T != %T", y.Else, rule)
+			}
+		}
 		return y, nil
 	case *Head:
 		if y.Name, err = transformVar(t, y.Name); err != nil {

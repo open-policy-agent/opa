@@ -383,7 +383,7 @@ func parseModule(stmts []Statement) (*Module, error) {
 		case *Import:
 			mod.Imports = append(mod.Imports, stmt)
 		case *Rule:
-			stmt.Module = mod
+			setRuleModule(stmt, mod)
 			mod.Rules = append(mod.Rules, stmt)
 		case Body:
 			rule, err := ParseRuleFromBody(mod, stmt)
@@ -530,6 +530,13 @@ func setFilename(filename string, stmts []Statement) {
 			return false
 		}}
 		Walk(vis, stmt)
+	}
+}
+
+func setRuleModule(rule *Rule, module *Module) {
+	rule.Module = module
+	if rule.Else != nil {
+		setRuleModule(rule.Else, module)
 	}
 }
 

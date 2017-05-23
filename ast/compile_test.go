@@ -118,7 +118,9 @@ unboundKey[x] = y { q[y] = {"foo": [1, 2, [{"bar": y}]]} }
 unboundVal[y] = x { q[y] = {"foo": [1, 2, [{"bar": y}]]} }
 unboundCompositeVal[y] = [{"foo": x, "bar": y}] { q[y] = {"foo": [1, 2, [{"bar": y}]]} }
 unboundCompositeKey[[{"x": x}]] { q[y] }
-unboundBuiltinOperator = eq { x = 1 }`,
+unboundBuiltinOperator = eq { x = 1 }
+unboundElse { false } else = else_var { true }
+`,
 	)
 	compileStages(c, c.checkSafetyRuleHeads)
 
@@ -132,6 +134,7 @@ unboundBuiltinOperator = eq { x = 1 }`,
 		makeErrMsg("x"),
 		makeErrMsg("x"),
 		makeErrMsg("eq"),
+		makeErrMsg("else_var"),
 	}
 
 	result := compilerErrsToStringSlice(c.Errors)
@@ -272,6 +275,7 @@ func TestCompilerCheckSafetyBodyErrors(t *testing.T) {
 		{"rewritten", `p[{"foo": dead[i]}] { true }`, `{dead, i}`},
 		{"with-value", `p { data.a.b.d.t with input as x }`, `{x,}`},
 		{"with-value-2", `p { x = data.a.b.d.t with input as x }`, `{x,}`},
+		{"else-kw", "p { false } else { count(x, 1) }", `{x,}`},
 	}
 
 	makeErrMsg := func(varName string) string {
@@ -427,6 +431,22 @@ import input.x.y.foo
 import input.qux as baz
 
 p[foo[bar[i]]] = {"baz": baz} { true }`)
+
+	c.Modules["elsekw"] = MustParseModule(`package elsekw
+
+	import input.x.y.foo
+	import data.doc1 as bar
+	import input.baz
+
+	p {
+		false
+	} else = foo {
+		bar
+	} else = baz {
+		true
+	}
+	`)
+
 	compileStages(c, c.resolveAllRefs)
 	assertNotFailed(t, c)
 
@@ -499,6 +519,12 @@ p[foo[bar[i]]] = {"baz": baz} { true }`)
 	mod7 := c.Modules["head"]
 	assertTermEqual(t, mod7.Rules[0].Head.Key, MustParseTerm("input.x.y.foo[data.doc1[i]]"))
 	assertTermEqual(t, mod7.Rules[0].Head.Value, MustParseTerm(`{"baz": input.qux}`))
+
+	// Refs in else.
+	mod8 := c.Modules["elsekw"]
+	assertTermEqual(t, mod8.Rules[0].Else.Head.Value, MustParseTerm("input.x.y.foo"))
+	assertTermEqual(t, mod8.Rules[0].Else.Body[0].Terms.(*Term), MustParseTerm("data.doc1"))
+	assertTermEqual(t, mod8.Rules[0].Else.Else.Head.Value, MustParseTerm("input.baz"))
 }
 
 func TestCompilerRewriteTermsInHead(t *testing.T) {
@@ -511,27 +537,48 @@ import input.x.y.foo
 import input.qux as baz
 
 p[foo[bar[i]]] = {"baz": baz, "corge": corge} { true }
-q = [true | true] { true }`)
+q = [true | true] { true }
+
+elsekw {
+	false
+} else = baz {
+	true
+}
+`)
 
 	compileStages(c, c.rewriteRefsInHead)
 	assertNotFailed(t, c)
 
 	rule1 := c.Modules["head"].Rules[0]
-
 	expected1 := MustParseRule(`p[__local0__] = __local1__ { true; __local0__ = input.x.y.foo[data.doc1[i]]; __local1__ = {"baz": input.qux, "corge": data.doc2} }`)
-
 	assertRulesEqual(t, rule1, expected1)
 
 	rule2 := c.Modules["head"].Rules[1]
-
 	expected2 := MustParseRule(`q = __local2__ { true; __local2__ = [true | true] }`)
-
 	assertRulesEqual(t, rule2, expected2)
+
+	rule3 := c.Modules["head"].Rules[2]
+	expected3 := MustParseRule(`elsekw { false } else = __local3__ { true; __local3__ = input.qux }`)
+	assertRulesEqual(t, rule3, expected3)
 }
 
 func TestCompilerSetRuleGraph(t *testing.T) {
 	c := NewCompiler()
 	c.Modules = getCompilerTestModules()
+	c.Modules["elsekw"] = MustParseModule(`
+	package elsekw
+
+	p {
+		false
+	} else = q {
+		false
+	} else {
+		r
+	}
+
+	q = true
+	r = true
+	`)
 	compileStages(c, c.setRuleGraph)
 
 	assertNotFailed(t, c)
@@ -559,12 +606,10 @@ func TestCompilerSetRuleGraph(t *testing.T) {
 	numRules := 0
 
 	for _, module := range c.Modules {
-		Walk(NewGenericVisitor(func(x interface{}) bool {
-			if _, ok := x.(*Rule); ok {
-				numRules++
-			}
+		WalkRules(module, func(*Rule) bool {
+			numRules++
 			return false
-		}), module)
+		})
 	}
 
 	if len(sorted) != numRules {
@@ -574,12 +619,14 @@ func TestCompilerSetRuleGraph(t *testing.T) {
 	// Probe rules with dependencies. Ordering is not stable for ties because
 	// nodes are stored in a map.
 	probes := [][2]*Rule{
-		{c.Modules["mod1"].Rules[1], c.Modules["mod1"].Rules[0]}, // mod1.q before mod1.p
-		{c.Modules["mod2"].Rules[0], c.Modules["mod1"].Rules[0]}, // mod2.r before mod1.p
-		{c.Modules["mod1"].Rules[1], c.Modules["mod5"].Rules[1]}, // mod1.q before mod5.r
-		{c.Modules["mod1"].Rules[1], c.Modules["mod5"].Rules[3]}, // mod1.q before mod6.t
-		{c.Modules["mod1"].Rules[1], c.Modules["mod5"].Rules[5]}, // mod1.q before mod6.v
-		{c.Modules["mod6"].Rules[2], c.Modules["mod6"].Rules[3]}, // mod6.r before mod6.s
+		{c.Modules["mod1"].Rules[1], c.Modules["mod1"].Rules[0]},               // mod1.q before mod1.p
+		{c.Modules["mod2"].Rules[0], c.Modules["mod1"].Rules[0]},               // mod2.r before mod1.p
+		{c.Modules["mod1"].Rules[1], c.Modules["mod5"].Rules[1]},               // mod1.q before mod5.r
+		{c.Modules["mod1"].Rules[1], c.Modules["mod5"].Rules[3]},               // mod1.q before mod6.t
+		{c.Modules["mod1"].Rules[1], c.Modules["mod5"].Rules[5]},               // mod1.q before mod6.v
+		{c.Modules["mod6"].Rules[2], c.Modules["mod6"].Rules[3]},               // mod6.r before mod6.s
+		{c.Modules["elsekw"].Rules[1], c.Modules["elsekw"].Rules[0].Else},      // elsekw.q before elsekw.p.else
+		{c.Modules["elsekw"].Rules[2], c.Modules["elsekw"].Rules[0].Else.Else}, // elsekw.r before elsekw.p.else.else
 	}
 
 	getSortedIdx := func(r *Rule) int {
@@ -620,6 +667,38 @@ func TestRuleGraphCycle(t *testing.T) {
 	assertNotFailed(t, c)
 
 	_, ok := c.RuleGraph.Sort()
+	if ok {
+		t.Fatalf("Expected to find cycle in rule graph")
+	}
+
+	elsekw := `package elsekw
+
+	p {
+		false
+	} else = q {
+		true
+	}
+
+	q {
+		false
+	} else {
+		r
+	}
+
+	r { s }
+
+	s { p }
+	`
+
+	c = NewCompiler()
+	c.Modules = map[string]*Module{
+		"elsekw": MustParseModule(elsekw),
+	}
+
+	compileStages(c, c.setRuleGraph)
+	assertNotFailed(t, c)
+
+	_, ok = c.RuleGraph.Sort()
 	if ok {
 		t.Fatalf("Expected to find cycle in rule graph")
 	}
@@ -675,6 +754,24 @@ prefix = true { data.rec7 }`,
 
 dataref = true { data }`,
 		),
+		"newMod10": MustParseModule(`package rec9
+
+		else_self { false } else { else_self }
+
+		elsetop {
+			false
+		} else = elsemid {
+			true
+		}
+
+		elsemid {
+			false
+		} else {
+			elsebottom
+		}
+
+		elsebottom { elsetop }
+		`),
 	}
 
 	compileStages(c, c.checkRecursion)
@@ -698,6 +795,10 @@ dataref = true { data }`,
 		makeErrMsg("nq", "nq", "np", "nq"),
 		makeErrMsg("prefix", "prefix", "prefix"),
 		makeErrMsg("dataref", "dataref", "dataref"),
+		makeErrMsg("else_self", "else_self", "else_self"),
+		makeErrMsg("elsetop", "elsetop", "elsemid", "elsebottom", "elsetop"),
+		makeErrMsg("elsemid", "elsemid", "elsebottom", "elsetop", "elsemid"),
+		makeErrMsg("elsebottom", "elsebottom", "elsetop", "elsemid", "elsebottom"),
 	}
 
 	result := compilerErrsToStringSlice(c.Errors)

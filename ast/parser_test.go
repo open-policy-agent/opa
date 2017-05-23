@@ -585,6 +585,146 @@ func TestRule(t *testing.T) {
 	assertParseError(t, "dangling semicolon", "p { true; false; }")
 }
 
+func TestRuleElseKeyword(t *testing.T) {
+	mod := `package test
+
+	p {
+		"p0"
+	}
+
+	p {
+		"p1"
+	} else {
+		"p1_e1"
+	} else = [null] {
+		"p1_e2"
+	} else = x {
+		x = "p1_e3"
+	}
+
+	p {
+		"p2"
+	}
+	`
+
+	parsed, err := ParseModule("", mod)
+	if err != nil {
+		t.Fatalf("Unexpected parse error: %v", err)
+	}
+
+	name := Var("p")
+	tr := BooleanTerm(true)
+	head := &Head{Name: name, Value: tr}
+
+	expected := &Module{
+		Package: MustParsePackage(`package test`),
+		Rules: []*Rule{
+			&Rule{
+				Head: head,
+				Body: MustParseBody(`"p0"`),
+			},
+			&Rule{
+				Head: head,
+				Body: MustParseBody(`"p1"`),
+				Else: &Rule{
+					Head: head,
+					Body: MustParseBody(`"p1_e1"`),
+					Else: &Rule{
+						Head: &Head{
+							Name:  Var("p"),
+							Value: ArrayTerm(NullTerm()),
+						},
+						Body: MustParseBody(`"p1_e2"`),
+						Else: &Rule{
+							Head: &Head{
+								Name:  name,
+								Value: VarTerm("x"),
+							},
+							Body: MustParseBody(`x = "p1_e3"`),
+						},
+					},
+				},
+			},
+			&Rule{
+				Head: head,
+				Body: MustParseBody(`"p2"`),
+			},
+		},
+	}
+
+	if parsed.Compare(expected) != 0 {
+		t.Fatalf("Expected:\n%v\n\nGot:\n%v", expected, parsed)
+	}
+
+	notExpected := &Module{
+		Package: MustParsePackage(`package test`),
+		Rules: []*Rule{
+			&Rule{
+				Head: head,
+				Body: MustParseBody(`"p0"`),
+			},
+			&Rule{
+				Head: head,
+				Body: MustParseBody(`"p1"`),
+				Else: &Rule{
+					Head: head,
+					Body: MustParseBody(`"p1_e1"`),
+					Else: &Rule{
+						Head: &Head{
+							Name:  Var("p"),
+							Value: ArrayTerm(NullTerm()),
+						},
+						Body: MustParseBody(`"p1_e2"`),
+						Else: &Rule{
+							Head: &Head{
+								Name:  name,
+								Value: VarTerm("x"),
+							},
+							Body: MustParseBody(`x = "p1_e4"`),
+						},
+					},
+				},
+			},
+			&Rule{
+				Head: head,
+				Body: MustParseBody(`"p2"`),
+			},
+		},
+	}
+
+	if parsed.Compare(notExpected) != -1 {
+		t.Fatalf("Expected not equal:\n%v\n\nGot:\n%v", parsed, notExpected)
+	}
+
+	_, err = ParseModule("", `
+	package test
+	p[1] { false } else { true }
+	`)
+
+	if err == nil || !strings.Contains(err.Error(), "unexpected 'else' keyword") {
+		t.Fatalf("Expected parse error but got: %v", err)
+	}
+
+	_, err = ParseModule("", `
+	package test
+	p { false } { false } else { true }
+	`)
+
+	if err == nil || !strings.Contains(err.Error(), "unexpected 'else' keyword") {
+		t.Fatalf("Expected parse error but got: %v", err)
+	}
+
+	_, err = ParseModule("", `
+	package test
+	p { false } else { false } { true }
+	`)
+
+	if err == nil || !strings.Contains(err.Error(), "expected 'else' keyword") {
+		t.Fatalf("Expected parse error but got: %v", err)
+	}
+
+}
+
 func TestMultipleEnclosedBodies(t *testing.T) {
 
 	result, err := ParseModule("", `package ex
@@ -866,7 +1006,6 @@ func TestRuleModulePtr(t *testing.T) {
 		}
 	}
 }
-
 func TestNoMatchError(t *testing.T) {
 	mod := `package test
 
