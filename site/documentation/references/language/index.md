@@ -95,6 +95,12 @@ complex types.
 | <span class="opa-keep-it-together">``json_marshal(x, output)``</span> | 1 | ``output`` is ``x`` serialized to a JSON string |
 | <span class="opa-keep-it-together">``json_unmarshal(string, output)``</span> | 1 | ``output`` is ``string`` deserialized to a term |
 
+### Tokens
+
+| Built-in | Inputs | Description |
+| ------- |--------|-------------|
+| <span class="opa-keep-it-together">``io.jwt.decode(input, header, payload, signature)``</span> | 1 | ``input`` is a JSON Web Token in JWS Compact Serialization representation. JWE and JWS JSON Serialization are not supported. ``header`` and ``payload`` are ``Object`` representations of the header and payload of the token, respectively. ``signature`` is the hexadecimal representation of the signature on the token. If nested signing was used, the ``header``, ``payload`` and ``signature`` will represent the most deeply nested token. |
+
 ## <a name="reserved"></a> Reserved Names
 
 The following words are reserved and cannot be used as variable names, rule

@@ -6,6 +6,7 @@ package topdown
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"reflect"
 	"sort"
@@ -1180,6 +1181,150 @@ func TestTopDownBase64UrlBuiltins(t *testing.T) {
 		{"encode-2", []string{`p = x { base64url.encode("there", x) }`}, `"dGhlcmU="`},
 		{"decode-1", []string{`p = x { base64url.decode("aGVsbG8=", x) }`}, `"hello"`},
 		{"decode-2", []string{`p = x { base64url.decode("dGhlcmU=", x) }`}, `"there"`},
+	}
+
+	data := loadSmallTestData()
+
+	for _, tc := range tests {
+		runTopDownTestCase(t, data, tc.note, tc.rules, tc.expected)
+	}
+}
+
+func TestTopDownJWTBuiltins(t *testing.T) {
+	params := []struct {
+		note      string
+		input     string
+		header    string
+		payload   string
+		signature string
+		err       string
+	}{
+		{
+			"simple",
+			`eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwIiwiaXNzIjoib3BhIn0.XmVoLoHI3pxMtMO_WRONMSJzGUDP9pDjy8Jp0_tdRXY`,
+			`{ "alg": "HS256", "typ": "JWT" }`,
+			`{ "sub": "0", "iss": "opa" }`,
+			`5e65682e81c8de9c4cb4c3bf59138d3122731940cff690e3cbc269d3fb5d4576`,
+			"",
+		},
+		{
+			"simple-non-registered",
+			`eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJuZXciOiJJIGFtIGEgdXNlciBjcmVhdGVkIGZpZWxkIiwiaXNzIjoib3BhIn0.6UmjsclVDGD9jcmX_F8RJzVgHtUZuLu2pxkF_UEQCrE`,
+			`{ "alg": "HS256", "typ": "JWT" }`,
+			`{ "new": "I am a user created field", "iss": "opa" }`,
+			`e949a3b1c9550c60fd8dc997fc5f112735601ed519b8bbb6a71905fd41100ab1`,
+			"",
+		},
+		{
+			"no-support-jwe",
+			`eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImVuYyI6ImJsYWgifQ.eyJuZXciOiJJIGFtIGEgdXNlciBjcmVhdGVkIGZpZWxkIiwiaXNzIjoib3BhIn0.McGUb1e-UviZKy6UyQErNNQzEUgeV25Buwk7OHOa8U8`,
+			``,
+			``,
+			``,
+			"JWT is a JWE object, which is not supported",
+		},
+		{
+			"no-periods",
+			`eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9eyJzdWIiOiIwIiwiaXNzIjoib3BhIn0XmVoLoHI3pxMtMO_WRONMSJzGUDP9pDjy8Jp0_tdRXY`,
+			``,
+			``,
+			``,
+			"encoded JWT had no period separators",
+		},
+		{
+			"wrong-period-count",
+			`eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXV.CJ9eyJzdWIiOiIwIiwiaXNzIjoib3BhIn0XmVoLoHI3pxMtMO_WRONMSJzGUDP9pDjy8Jp0_tdRXY`,
+			``,
+			``,
+			``,
+			"encoded JWT must have 3 sections, found 2",
+		},
+		{
+			"bad-header-encoding",
+			`eyJhbGciOiJIU^%zI1NiI+sInR5cCI6IkpXVCJ9.eyJzdWIiOiIwIiwiaXNzIjoib3BhIn0.XmVoLoHI3pxMtMO_WRONMSJzGUDP9pDjy8Jp0_tdRXY`,
+			``,
+			``,
+			``,
+			"JWT header had invalid encoding: illegal base64 data at input byte 13",
+		},
+		{
+			"bad-payload-encoding",
+			`eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwIiwia/XNzIjoib3BhIn0.XmVoLoHI3pxMtMO_WRONMSJzGUDP9pDjy8Jp0_tdRXY`,
+			``,
+			``,
+			``,
+			"JWT payload had invalid encoding: illegal base64 data at input byte 17",
+		},
+		{
+			"bad-signature-encoding",
+			`eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwIiwiaXNzIjoib3BhIn0.XmVoLoHI3pxMtMO(_WRONMSJzGUDP9pDjy8Jp0_tdRXY`,
+			``,
+			``,
+			``,
+			"JWT signature had invalid encoding: illegal base64 data at input byte 15",
+		},
+		{
+			"nested",
+			`eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImN0eSI6IkpXVCJ9.ImV5SmhiR2NpT2lKSVV6STFOaUlzSW5SNWNDSTZJa3BYVkNKOS5leUp6ZFdJaU9pSXdJaXdpYVhOeklqb2liM0JoSW4wLlhtVm9Mb0hJM3B4TXRNT19XUk9OTVNKekdVRFA5cERqeThKcDBfdGRSWFki.8W0qx4mLxslmZl7wEMUWBxH7tST3XsEuWXxesXqFnRI`,
+			`{ "alg": "HS256", "typ": "JWT" }`,
+			`{ "sub": "0", "iss": "opa" }`,
+			`5e65682e81c8de9c4cb4c3bf59138d3122731940cff690e3cbc269d3fb5d4576`,
+			"",
+		},
+		{
+			"double-nested",
+			`eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImN0eSI6IkpXVCJ9.ImV5SmhiR2NpT2lKSVV6STFOaUlzSW5SNWNDSTZJa3BYVkNJc0ltTjBlU0k2SWtwWFZDSjkuSW1WNVNtaGlSMk5wVDJsS1NWVjZTVEZPYVVselNXNVNOV05EU1RaSmEzQllWa05LT1M1bGVVcDZaRmRKYVU5cFNYZEphWGRwWVZoT2VrbHFiMmxpTTBKb1NXNHdMbGh0Vm05TWIwaEpNM0I0VFhSTlQxOVhVazlPVFZOS2VrZFZSRkE1Y0VScWVUaEtjREJmZEdSU1dGa2kuOFcwcXg0bUx4c2xtWmw3d0VNVVdCeEg3dFNUM1hzRXVXWHhlc1hxRm5SSSI.U8rwnGAJ-bJoGrAYKEzNtbJQWd3x1eW0Y25nLKHDCgo`,
+			`{ "alg": "HS256", "typ": "JWT" }`,
+			`{ "sub": "0", "iss": "opa" }`,
+			`5e65682e81c8de9c4cb4c3bf59138d3122731940cff690e3cbc269d3fb5d4576`,
+			"",
+		},
+		{
+			"complex-values",
+			`eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwIiwiaXNzIjoib3BhIiwiZXh0Ijp7ImFiYyI6IjEyMyIsImNiYSI6WzEwLCIxMCJdfX0.IIxF-uJ6i4K5Dj71xNLnUeqB9jmujl6ujTInhii1PxE`,
+			`{ "alg": "HS256", "typ": "JWT" }`,
+			`{ "sub": "0", "iss": "opa", "ext": { "abc": "123", "cba": [10, "10"] } }`,
+			`208c45fae27a8b82b90e3ef5c4d2e751ea81f639ae8e5eae8d32278628b53f11`,
+			"",
+		},
+		// The test below checks that payloads with duplicate keys
+		// in their encoding produce a token object that binds the key
+		// to the last occurring value, as per RFC 7519 Section 4.
+		// It tests a payload encoding that has 3 duplicates of the
+		// "iss" key, with the values "not opa", "also not opa" and
+		// "opa", in that order.
+		// Go's json.Unmarshal exhibits this behavior, but it is not
+		// documented, so this test is meant to catch that behavior
+		// if it changes.
+		{
+			"duplicate-keys",
+			`eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiAiMCIsImlzcyI6ICJub3Qgb3BhIiwgImlzcyI6ICJhbHNvIG5vdCBvcGEiLCAiaXNzIjogIm9wYSJ9.XmVoLoHI3pxMtMO_WRONMSJzGUDP9pDjy8Jp0_tdRXY`,
+			`{ "alg": "HS256", "typ": "JWT" }`,
+			`{ "sub": "0", "iss": "opa" }`,
+			`5e65682e81c8de9c4cb4c3bf59138d3122731940cff690e3cbc269d3fb5d4576`,
+			"",
+		},
+	}
+
+	type test struct {
+		note     string
+		rules    []string
+		expected interface{}
+	}
+	tests := []test{}
+
+	for _, p := range params {
+		var exp interface{}
+		exp = fmt.Sprintf(`[%s, %s, "%s"]`, p.header, p.payload, p.signature)
+		if p.err != "" {
+			exp = errors.New(p.err)
+		}
+
+		tests = append(tests, test{
+			p.note,
+			[]string{fmt.Sprintf(`p = [x, y, z] { io.jwt.decode("%s", x, y, z) }`, p.input)},
+			exp,
+		})
 	}
 
 	data := loadSmallTestData()

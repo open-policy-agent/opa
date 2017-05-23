@@ -1263,6 +1263,17 @@ true
 +---------+
 ```
 
+### Tokens
+
+```
+> io.jwt.decode("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwIiwiaXNzIjoib3BhIn0.XmVoLoHI3pxMtMO_WRONMSJzGUDP9pDjy8Jp0_tdRXY", header, payload, signature)
++-----------------------------+-------------------------+--------------------------------------------------------------------+
+|           header            |         payload         |                             signature                              |
++-----------------------------+-------------------------+--------------------------------------------------------------------+
+| {"alg":"HS256","typ":"JWT"} | {"iss":"opa","sub":"0"} | "5e65682e81c8de9c4cb4c3bf59138d3122731940cff690e3cbc269d3fb5d4576" |
++-----------------------------+-------------------------+--------------------------------------------------------------------+
+```
+
 ## <a name="examples"></a> Examples
 
 The rules below define the content of documents describing a simplistic deployment environment. These documents are referenced in other sections above.
