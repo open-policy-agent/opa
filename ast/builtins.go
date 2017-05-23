@@ -52,6 +52,9 @@ var DefaultBuiltins = [...]*Builtin{
 
 	// Encoding
 	JSONMarshal, JSONUnmarshal, Base64UrlEncode, Base64UrlDecode,
+
+	// Tokens
+	JWTDecode,
 }
 
 // BuiltinMap provides a convenient mapping of built-in names to
@@ -512,6 +515,22 @@ var Base64UrlDecode = &Builtin{
 		types.S,
 	},
 	TargetPos: []int{1},
+}
+
+/**
+ * Tokens
+ */
+
+// JWTDecode decodes a JSON Web Token and outputs it as an Object.
+var JWTDecode = &Builtin{
+	Name: String("io.jwt.decode"),
+	Args: []types.Type{
+		types.S,
+		types.NewObject(nil, types.A),
+		types.NewObject(nil, types.A),
+		types.S,
+	},
+	TargetPos: []int{1, 2, 3},
 }
 
 /**

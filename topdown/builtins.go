@@ -43,6 +43,16 @@ type (
 	// framework takes care of this.
 	FunctionalBuiltin3 func(op1, op2, op3 ast.Value) (output ast.Value, err error)
 
+	// FunctionalBuiltin1Out3 defines an interface for functional built-ins.
+	//
+	// Implement this interface if your built-in function takes one input and
+	// produces three outputs.
+	//
+	// If an error occurs, the functional built-in should return a descriptive
+	// message. The message should not be prefixed with the built-in name as the
+	// framework takes care of this.
+	FunctionalBuiltin1Out3 func(op1 ast.Value) (a, b, c ast.Value, err error)
+
 	// FunctionalBuiltinVoid2 defines an interface for simple functional built-ins.
 	//
 	// Implement this interface if your built-in function takes two inputs and
@@ -97,6 +107,12 @@ func RegisterFunctionalBuiltin2(name ast.String, fun FunctionalBuiltin2) {
 // engine.
 func RegisterFunctionalBuiltin3(name ast.String, fun FunctionalBuiltin3) {
 	builtinFunctions[name] = functionalWrapper3(name, fun)
+}
+
+// RegisterFunctionalBuiltin1Out3 adds a new built-in function to the evaluation
+// engine.
+func RegisterFunctionalBuiltin1Out3(name ast.String, fun FunctionalBuiltin1Out3) {
+	builtinFunctions[name] = functionalWrapper1Out3(name, fun)
 }
 
 // BuiltinEmpty is used to signal that the built-in function evaluated, but the
@@ -166,6 +182,23 @@ func functionalWrapper3(name ast.String, fn FunctionalBuiltin3) BuiltinFunc {
 			return handleFunctionalBuiltinErr(name, expr.Location, err)
 		}
 		return unifyAndContinue(t, iter, result, operands[3].Value)
+	}
+}
+
+func functionalWrapper1Out3(name ast.String, fn FunctionalBuiltin1Out3) BuiltinFunc {
+	return func(t *Topdown, expr *ast.Expr, iter Iterator) error {
+		operands := expr.Terms.([]*ast.Term)[1:]
+		resolved, err := resolveN(t, name, operands, 1)
+		if err != nil {
+			return err
+		}
+		a, b, c, err := fn(resolved[0])
+		if err != nil {
+			return handleFunctionalBuiltinErr(name, expr.Location, err)
+		}
+		results := ast.ArrayTerm(ast.NewTerm(a), ast.NewTerm(b), ast.NewTerm(c))
+		targets := ast.ArrayTerm(operands[1], operands[2], operands[3])
+		return unifyAndContinue(t, iter, results.Value, targets.Value)
 	}
 }
 
