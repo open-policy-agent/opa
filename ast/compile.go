@@ -380,13 +380,14 @@ func (c *Compiler) WithModuleLoader(f ModuleLoader) *Compiler {
 func (c *Compiler) buildRuleIndices() {
 
 	c.RuleTree.DepthFirst(func(node *RuleTreeNode) bool {
-		if len(node.Rules) > 1 {
-			index := newBaseDocEqIndex(func(ref Ref) bool {
-				return len(c.GetRules(ref.GroundPrefix())) > 0
-			})
-			if index.Build(node.Rules) {
-				c.ruleIndices.Put(node.Rules[0].Path(), index)
-			}
+		if len(node.Rules) == 0 {
+			return false
+		}
+		index := newBaseDocEqIndex(func(ref Ref) bool {
+			return len(c.GetRules(ref.GroundPrefix())) > 0
+		})
+		if index.Build(node.Rules) {
+			c.ruleIndices.Put(node.Rules[0].Path(), index)
 		}
 		return false
 	})
