@@ -20,9 +20,23 @@ type RuleIndex interface {
 	// constructed, ok is true, otherwise false.
 	Build(rules []*Rule) (ok bool)
 
-	// Index returns a set of rules to evaluate and a default rule if one was
-	// present when the index was built.
-	Index(resolver ValueResolver) (rules []*Rule, defaultRule *Rule, err error)
+	// Lookup searches the index for rules that will match the provided
+	// resolver. If the resolver returns an error, it is returned via err.
+	Lookup(resolver ValueResolver) (result *IndexResult, err error)
+}
+
+// IndexResult contains the result of an index lookup.
+type IndexResult struct {
+	Rules   []*Rule
+	Else    map[*Rule][]*Rule
+	Default *Rule
+}
+
+// NewIndexResult returns a new IndexResult object.
+func NewIndexResult() *IndexResult {
+	return &IndexResult{
+		Else: map[*Rule][]*Rule{},
+	}
 }
 
 type baseDocEqIndex struct {
@@ -52,26 +66,31 @@ func (i *baseDocEqIndex) Build(rules []*Rule) bool {
 	})
 
 	// Build refs and freq maps
-	for _, rule := range rules {
+	for idx := range rules {
 
-		if rule.Default {
-			// Compiler guarantees that only one default will be defined per path.
-			i.defaultRule = rule
-			continue
-		}
+		WalkRules(rules[idx], func(rule *Rule) bool {
 
-		for _, expr := range rule.Body {
-			ref, value, ok := i.getRefAndValue(expr)
-			if ok {
-				refs.Insert(rule, ref, value)
-				count, ok := freq.Get(ref)
-				if !ok {
-					count = 0
-				}
-				count = count.(int) + 1
-				freq.Put(ref, count)
+			if rule.Default {
+				// Compiler guarantees that only one default will be defined per path.
+				i.defaultRule = rule
+				return false
 			}
-		}
+
+			for _, expr := range rule.Body {
+				ref, value, ok := i.getRefAndValue(expr)
+				if ok {
+					refs.Insert(rule, ref, value)
+					count, ok := freq.Get(ref)
+					if !ok {
+						count = 0
+					}
+					count = count.(int) + 1
+					freq.Put(ref, count)
+				}
+			}
+
+			return false
+		})
 	}
 
 	// Sort by frequency
@@ -95,57 +114,64 @@ func (i *baseDocEqIndex) Build(rules []*Rule) bool {
 	})
 
 	// Build trie
-	for _, rule := range rules {
+	for idx := range rules {
 
-		if rule.Default {
-			continue
-		}
+		var prio int
 
-		node := i.root
+		WalkRules(rules[idx], func(rule *Rule) bool {
 
-		if refs := refs[rule]; refs != nil {
-			for _, pair := range sorted {
-				value := refs.Get(pair.ref)
-				node = node.Insert(pair.ref, value)
+			if rule.Default {
+				return false
 			}
-		}
 
-		node.rules = append(node.rules, rule)
+			node := i.root
+
+			if refs := refs[rule]; refs != nil {
+				for _, pair := range sorted {
+					value := refs.Get(pair.ref)
+					node = node.Insert(pair.ref, value)
+				}
+			}
+
+			// Insert rule into trie with (insertion order, priority order)
+			// tuple. Retaining the insertion order allows us to return rules
+			// in the order they were passed to this function.
+			node.rules = append(node.rules, &ruleNode{[...]int{idx, prio}, rule})
+			prio++
+			return false
+		})
+
 	}
 
 	return true
 }
 
-func (i *baseDocEqIndex) Index(resolver ValueResolver) ([]*Rule, *Rule, error) {
-	rules, err := i.traverse(i.root, resolver)
-	return rules, i.defaultRule, err
-}
+func (i *baseDocEqIndex) Lookup(resolver ValueResolver) (*IndexResult, error) {
 
-func (i *baseDocEqIndex) traverse(node *trieNode, resolver ValueResolver) ([]*Rule, error) {
+	tr := newTrieTraversalResult()
 
-	if node == nil {
-		return nil, nil
-	}
-
-	result := make([]*Rule, len(node.rules))
-	copy(result, node.rules)
-	next := node.next
-
-	if next == nil {
-		return result, nil
-	}
-
-	children, err := next.Resolve(resolver)
+	err := i.root.Traverse(resolver, tr)
 	if err != nil {
 		return nil, err
 	}
 
-	for _, child := range children {
-		rules, err := i.traverse(child, resolver)
-		if err != nil {
-			return nil, err
+	result := NewIndexResult()
+	result.Default = i.defaultRule
+	result.Rules = make([]*Rule, 0, len(tr.ordering))
+
+	for _, pos := range tr.ordering {
+		sort.Slice(tr.unordered[pos], func(i, j int) bool {
+			return tr.unordered[pos][i].prio[1] < tr.unordered[pos][j].prio[1]
+		})
+		nodes := tr.unordered[pos]
+		root := nodes[0].rule
+		result.Rules = append(result.Rules, root)
+		if len(nodes) > 1 {
+			result.Else[root] = make([]*Rule, len(nodes)-1)
+			for i := 1; i < len(nodes); i++ {
+				result.Else[root][i-1] = nodes[i].rule
+			}
 		}
-		result = append(result, rules...)
 	}
 
 	return result, nil
@@ -227,6 +253,26 @@ type trieWalker interface {
 	Do(x interface{}) trieWalker
 }
 
+type trieTraversalResult struct {
+	unordered map[int][]*ruleNode
+	ordering  []int
+}
+
+func newTrieTraversalResult() *trieTraversalResult {
+	return &trieTraversalResult{
+		unordered: map[int][]*ruleNode{},
+	}
+}
+
+func (tr *trieTraversalResult) Add(node *ruleNode) {
+	root := node.prio[0]
+	nodes, ok := tr.unordered[root]
+	if !ok {
+		tr.ordering = append(tr.ordering, root)
+	}
+	tr.unordered[root] = append(nodes, node)
+}
+
 type trieNode struct {
 	ref       Ref
 	next      *trieNode
@@ -234,7 +280,12 @@ type trieNode struct {
 	undefined *trieNode
 	scalars   map[Value]*trieNode
 	array     *trieNode
-	rules     []*Rule
+	rules     []*ruleNode
+}
+
+type ruleNode struct {
+	prio [2]int
+	rule *Rule
 }
 
 func newTrieNodeImpl() *trieNode {
@@ -276,29 +327,17 @@ func (node *trieNode) Insert(ref Ref, value Value) *trieNode {
 	return node.next.insertValue(value)
 }
 
-func (node *trieNode) Resolve(resolver ValueResolver) ([]*trieNode, error) {
+func (node *trieNode) Traverse(resolver ValueResolver, tr *trieTraversalResult) error {
 
-	v, err := resolver.Resolve(node.ref)
-	if err != nil {
-		return nil, err
+	if node == nil {
+		return nil
 	}
 
-	result := []*trieNode{}
-
-	if node.undefined != nil {
-		result = append(result, node.undefined)
+	for i := range node.rules {
+		tr.Add(node.rules[i])
 	}
 
-	if v == nil {
-		return result, nil
-	}
-
-	if node.any != nil {
-		result = append(result, node.any)
-	}
-
-	result = append(result, node.resolveValue(v)...)
-	return result, nil
+	return node.next.traverse(resolver, tr)
 }
 
 func (node *trieNode) insertValue(value Value) *trieNode {
@@ -355,31 +394,57 @@ func (node *trieNode) insertArray(arr Array) *trieNode {
 	panic("illegal value")
 }
 
-func (node *trieNode) resolveValue(value Value) []*trieNode {
+func (node *trieNode) traverse(resolver ValueResolver, tr *trieTraversalResult) error {
+
+	if node == nil {
+		return nil
+	}
+
+	v, err := resolver.Resolve(node.ref)
+	if err != nil {
+		return err
+	}
+
+	if node.undefined != nil {
+		node.undefined.Traverse(resolver, tr)
+	}
+
+	if v == nil {
+		return nil
+	}
+
+	if node.any != nil {
+		node.any.Traverse(resolver, tr)
+	}
+
+	return node.traverseValue(resolver, tr, v)
+}
+
+func (node *trieNode) traverseValue(resolver ValueResolver, tr *trieTraversalResult, value Value) error {
 
 	switch value := value.(type) {
 	case Array:
 		if node.array == nil {
 			return nil
 		}
-		return node.array.resolveArray(value)
+		return node.array.traverseArray(resolver, tr, value)
 
 	case Null, Boolean, Number, String:
 		child, ok := node.scalars[value]
 		if !ok {
 			return nil
 		}
-		return []*trieNode{child}
+		return child.Traverse(resolver, tr)
 	}
 
 	return nil
 }
 
-func (node *trieNode) resolveArray(arr Array) []*trieNode {
+func (node *trieNode) traverseArray(resolver ValueResolver, tr *trieTraversalResult, arr Array) error {
 
 	if len(arr) == 0 {
 		if node.next != nil || len(node.rules) > 0 {
-			return []*trieNode{node}
+			return node.Traverse(resolver, tr)
 		}
 		return nil
 	}
@@ -390,18 +455,16 @@ func (node *trieNode) resolveArray(arr Array) []*trieNode {
 		return nil
 	}
 
-	var result []*trieNode
-
 	if node.any != nil {
-		result = append(result, node.any.resolveArray(arr[1:])...)
+		node.any.traverseArray(resolver, tr, arr[1:])
 	}
 
 	child, ok := node.scalars[head]
 	if !ok {
-		return result
+		return nil
 	}
 
-	return append(result, child.resolveArray(arr[1:])...)
+	return child.traverseArray(resolver, tr, arr[1:])
 }
 
 type triePrinter struct {
