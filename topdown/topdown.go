@@ -1251,14 +1251,16 @@ func evalRefRecNonGround(t *Topdown, ref, prefix ast.Ref, iter Iterator) error {
 func evalRefRule(t *Topdown, ref ast.Ref, path ast.Ref, rules []*ast.Rule, iter Iterator) error {
 
 	if index := t.Compiler.RuleIndex(path); index != nil {
-		rs, dr, err := index.Index(valueResolver{t})
+
+		ir, err := index.Lookup(valueResolver{t})
 		if err != nil {
 			return err
 		}
-		if dr != nil {
-			rs = append(rs, dr)
+
+		rules = ir.Rules
+		if ir.Default != nil {
+			rules = append(rules, ir.Default)
 		}
-		rules = rs
 	}
 
 	if len(rules) == 0 {

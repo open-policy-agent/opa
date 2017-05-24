@@ -305,27 +305,91 @@ func TestBaseDocEqIndexing(t *testing.T) {
 				t.Fatalf("Expected index build to succeed")
 			}
 
-			rs, dr, err := index.Index(testResolver{input, nil})
+			result, err := index.Lookup(testResolver{input, nil})
 			if err != nil {
 				t.Fatalf("Unexpected error during index lookup: %v", err)
 			}
 
-			result := NewRuleSet(rs...)
-
-			if !result.Equal(expectedRS) {
-				t.Fatalf("Expected ruleset %v but got: %v", expectedRS, rs)
+			if !NewRuleSet(result.Rules...).Equal(expectedRS) {
+				t.Fatalf("Expected ruleset %v but got: %v", expectedRS, result.Rules)
 			}
 
-			if dr == nil && tc.expectedDR != nil {
+			if result.Default == nil && tc.expectedDR != nil {
 				t.Fatalf("Expected default rule but got nil")
-			} else if dr != nil && tc.expectedDR == nil {
-				t.Fatalf("Unexpected default rule %v", dr)
-			} else if dr != nil && tc.expectedDR != nil && !dr.Equal(tc.expectedDR) {
-				t.Fatalf("Expected default rule %v but got: %v", tc.expectedDR, dr)
+			} else if result.Default != nil && tc.expectedDR == nil {
+				t.Fatalf("Unexpected default rule %v", result.Default)
+			} else if result.Default != nil && tc.expectedDR != nil && !result.Default.Equal(tc.expectedDR) {
+				t.Fatalf("Expected default rule %v but got: %v", tc.expectedDR, result.Default)
 			}
 		})
 	}
 
+}
+
+func TestBaseDocEqIndexingPriorities(t *testing.T) {
+
+	module := MustParseModule(`
+	package test
+
+	p {						# r1
+		false
+	} else {				# r2
+		input.x = "x1"
+		input.y = "y1"
+	} else {				# r3
+		input.z = "z1"
+	}
+
+	p {						# r4
+		input.x = "x1"
+	}
+
+	p {						# r5
+		input.z = "z2"
+	} else {				# r6
+		input.z = "z1"
+	}
+	`)
+
+	index := newBaseDocEqIndex(func(Ref) bool { return false })
+
+	ok := index.Build(module.Rules)
+	if !ok {
+		t.Fatalf("Expected index build to succeed")
+	}
+
+	input := MustParseTerm(`{"x": "x1", "y": "y1", "z": "z1"}`)
+
+	result, err := index.Lookup(testResolver{input, nil})
+	if err != nil {
+		t.Fatalf("Unexpected error during index lookup: %v", err)
+	}
+
+	expectedRules := NewRuleSet(
+		module.Rules[0],
+		module.Rules[1],
+		module.Rules[2].Else)
+
+	expectedElse := map[*Rule]RuleSet{
+		module.Rules[0]: []*Rule{
+			module.Rules[0].Else,
+			module.Rules[0].Else.Else,
+		},
+	}
+
+	if result.Default != nil {
+		t.Fatalf("Expected default rule to be nil")
+	}
+
+	if !NewRuleSet(result.Rules...).Equal(expectedRules) {
+		t.Fatalf("Expected rules to be %v but got: %v", expectedRules, result.Rules)
+	}
+
+	r1 := module.Rules[0]
+
+	if !NewRuleSet(result.Else[r1]...).Equal(expectedElse[r1]) {
+		t.Fatalf("Expected else to be %v but got: %v", result.Else[r1], expectedElse[r1])
+	}
 }
 
 func TestBaseDocEqIndexingErrors(t *testing.T) {
@@ -342,7 +406,7 @@ func TestBaseDocEqIndexingErrors(t *testing.T) {
 		t.Fatalf("Expected index to build")
 	}
 
-	_, _, err := index.Index(testResolver{MustParseTerm(`{}`), MustParseRef("input.raise_error")})
+	_, err := index.Lookup(testResolver{MustParseTerm(`{}`), MustParseRef("input.raise_error")})
 
 	if err == nil || err.Error() != "some error" {
 		t.Fatalf("Expected error but got: %v", err)
