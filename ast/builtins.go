@@ -479,7 +479,7 @@ var Sprintf = &Builtin{
 
 // JSONMarshal serializes the input term.
 var JSONMarshal = &Builtin{
-	Name: String("json_marshal"),
+	Name: String("json.marshal"),
 	Args: []types.Type{
 		types.A,
 		types.S,
@@ -489,7 +489,7 @@ var JSONMarshal = &Builtin{
 
 // JSONUnmarshal deserializes the input string.
 var JSONUnmarshal = &Builtin{
-	Name: String("json_unmarshal"),
+	Name: String("json.unmarshal"),
 	Args: []types.Type{
 		types.S,
 		types.A,
