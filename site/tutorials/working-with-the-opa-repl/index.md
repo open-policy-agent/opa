@@ -113,7 +113,7 @@ The rule above defines a set of values that are the indices of elements in the a
 
 When you enter expressions into the OPA REPL, you are effectively running *queries*. The REPL output shows the values of variables in the expression that make the query `true`. If there is no set of variables that would make the query `true`, the REPL prints `false`. If there are no variables in the query and the query evaluates successfully, then the REPL just prints `true`.
 
-Quit out of the REPL by pressing Control-C or typing `exit`:
+Quit out of the REPL by pressing Control-D or typing `exit`:
 
 ```ruby
 > exit
