@@ -75,25 +75,27 @@ request their own salary as well as the salary of their direct subordinates.
 cat >example.rego <<EOF
 package httpapi.authz
 
+# bob is alice's manager, and betty is charlie's.
+subordinates = {"alice": [], "charlie": [], "bob": ["alice"], "betty": ["charlie"]}
+
+# HTTP API request
+import input as http_api
+
 default allow = false
 
 # Allow users to get their own salaries.
 allow {
-  input.method = "GET"
-  input.path = ["finance", "salary", user]
-  user = input.user
+  http_api.method = "GET"
+  http_api.path = ["finance", "salary", username]
+  username = http_api.user
 }
 
 # Allow managers to get their subordinates' salaries.
 allow {
-  input.method = "GET"
-  input.path = ["finance", "salary", user]
-  manager_of[user] = input.user
+  http_api.method = "GET"
+  http_api.path = ["finance", "salary", username]
+  subordinates[http_api.user][_] = username
 }
-
-# Manager of alice is bob...
-# Manager of charlie is betty...
-manager_of = {"alice": "bob", "charlie": "betty"}
 EOF
 ```
 {: .opa-collapse--ignore}
@@ -137,16 +139,18 @@ this.
 cat >example-hr.rego <<EOF
 package httpapi.authz
 
+import input as http_api
+
 # Allow HR members to get anyone's salary.
 allow {
-  input.method = "GET"
-  input.path = ["finance", "salary", _]
-  hr[_] = input.user
+  http_api.method = "GET"
+  http_api.path = ["finance", "salary", _]
+  hr[_] = http_api.user
 }
 
-# Frank is the only member of HR.
+# David is the only member of HR.
 hr = [
-  "frank",
+  "david",
 ]
 EOF
 ```
@@ -164,13 +168,13 @@ inside the policies. In real-world scenarios that information would be imported
 from external data sources.
 
 ### 7. Check that the new policy works.
-Check that `frank` can see anyone's salary.
+Check that `david` can see anyone's salary.
 
 ```shell
-curl --user frank:password localhost:5000/finance/salary/alice
-curl --user frank:password localhost:5000/finance/salary/bob
-curl --user frank:password localhost:5000/finance/salary/charlie
-curl --user frank:password localhost:5000/finance/salary/frank
+curl --user david:password localhost:5000/finance/salary/alice
+curl --user david:password localhost:5000/finance/salary/bob
+curl --user david:password localhost:5000/finance/salary/charlie
+curl --user david:password localhost:5000/finance/salary/david
 ```
 
 ## Wrap Up
