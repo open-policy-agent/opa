@@ -177,6 +177,110 @@ curl --user david:password localhost:5000/finance/salary/charlie
 curl --user david:password localhost:5000/finance/salary/david
 ```
 
+### 8. (Optional) Use JSON Web Tokens to communicate policy data.
+OPA supports the parsing of JSON Web Tokens via the builtin function `io.jwt.decode`.
+To get a sense of one way the subordinate and HR data might be communicated in the
+real world, let's try a similar exercise utilizing the JWT utilities of OPA.
+
+Shut down your `docker-compose` instance from before with `^C` and then restart it to
+ensure you are working with a fresh instance of OPA.
+
+Then update the policy:
+
+```shell
+cat >example.rego <<EOF
+package httpapi.authz
+
+import input as http_api
+
+# io.jwt.decode takes one argument (the encoded token) and has three outputs:
+# the decoded header, payload and signature, in that order. Our policy only
+# cares about the payload, so we ignore the others.
+token = {"payload": payload} { io.jwt.decode(http_api.token, _, payload, _) }
+
+# Ensure that the token was issued to the user supplying it.
+user_owns_token { http_api.user = token.payload.azp }
+
+default allow = false
+
+# Allow users to get their own salaries.
+allow {
+  http_api.method = "GET"
+  http_api.path = ["finance", "salary", username]
+  username = token.payload.user
+  user_owns_token
+}
+
+# Allow managers to get their subordinate' salaries.
+allow {
+  http_api.method = "GET"
+  http_api.path = ["finance", "salary", username]
+  token.payload.subordinates[_] = username
+  user_owns_token
+}
+
+# Allow HR members to get anyone's salary.
+allow {
+  http_api.method = "GET"
+  http_api.path = ["finance", "salary", _]
+  token.payload.hr = true
+  user_owns_token
+}
+EOF
+```
+
+And load it into OPA:
+
+```shell
+curl -X PUT --data-binary @example.rego \
+  localhost:8181/v1/policies/example
+```
+
+For convenience, we'll want to store user tokens in environment variables (they're really long).
+
+```shell
+export ALICE_TOKEN="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyIjoiYWxpY2UiLCJhenAiOiJhbGljZSIsInN1Ym9yZGluYXRlcyI6W10sImhyIjpmYWxzZX0.rz3jTY033z-NrKfwrK89_dcLF7TN4gwCMj-fVBDyLoM"
+export BOB_TOKEN="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyIjoiYm9iIiwiYXpwIjoiYm9iIiwic3Vib3JkaW5hdGVzIjpbImFsaWNlIl0sImhyIjpmYWxzZX0.n_lXN4H8UXGA_fXTbgWRx8b40GXpAGQHWluiYVI9qf0"
+export CHARLIE_TOKEN="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyIjoiY2hhcmxpZSIsImF6cCI6ImNoYXJsaWUiLCJzdWJvcmRpbmF0ZXMiOltdLCJociI6ZmFsc2V9.EZd_y_RHUnrCRMuauY7y5a1yiwdUHKRjm9xhVtjNALo"
+export BETTY_TOKEN="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyIjoiYmV0dHkiLCJhenAiOiJiZXR0eSIsInN1Ym9yZGluYXRlcyI6WyJjaGFybGllIl0sImhyIjpmYWxzZX0.TGCS6pTzjrs3nmALSOS7yiLO9Bh9fxzDXEDiq1LIYtE"
+export DAVID_TOKEN="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyIjoiZGF2aWQiLCJhenAiOiJkYXZpZCIsInN1Ym9yZGluYXRlcyI6W10sImhyIjp0cnVlfQ.Q6EiWzU1wx1g6sdWQ1r4bxT1JgSHUpVXpINMqMaUDMU"
+```
+
+These tokens encode the same information as the policies we did before (`bob` is `alice`'s manager, `betty` is `charlie`'s, `david` is the only HR member, etc).
+If you want to inspect their contents, start up the OPA REPL and execute `io.jwt.decode(<token here>, header, payload, signature)`.
+
+Let's try a few queries (note: you may need to escape the `?` characters in the queries for your shell):
+
+Check that `charlie` can't see `bob`'s salary.
+
+```shell
+curl --user charlie:password localhost:5000/finance/salary/bob?token=$CHARLIE_TOKEN
+```
+
+Check that `charlie` can't pretend to be `bob` to see `alice`'s salary.
+
+```shell
+curl --user charlie:password localhost:5000/finance/salary/alice?token=$BOB_TOKEN
+```
+
+Check that `david` can see `betty`'s salary.
+
+```shell
+curl --user david:password localhost:5000/finance/salary/betty?token=$DAVID_TOKEN
+```
+
+Check that `bob` can see `alice`'s salary.
+
+```shell
+curl --user bob:password localhost:5000/finance/salary/alice?token=$BOB_TOKEN
+```
+
+Check that `alice` can see her own salary.
+
+```shell
+curl --user alice:password localhost:5000/finance/salary/alice?token=$ALICE_TOKEN
+```
+
 ## Wrap Up
 
 Congratulations for finishing the tutorial!
@@ -188,6 +292,7 @@ You learned a number of things about API authorization with OPA:
 * You write allow/deny policies to control which APIs can be executed by whom.
 * You can import external data into OPA and write policies that depend on
   that data.
+* You can use OPA data structures to define abstractions over your data.
 
 The code for this tutorial can be found in the
 [open-policy-agent/contrib](https://github.com/open-policy-agent/contrib)
