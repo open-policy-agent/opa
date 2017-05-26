@@ -1481,6 +1481,97 @@ negation_invalidate[x] { data.a[_] = x; not data.ex.input_eq with input.x as x }
 	assertTopDown(t, compiler, store, "With invalidate", []string{"test", "negation_invalidate"}, "", "[2,3,4]")
 }
 
+func TestTopDownElseKeyword(t *testing.T) {
+	tests := []struct {
+		note     string
+		path     string
+		expected interface{}
+	}{
+		{"no-op", "ex.no_op", "true"},
+		{"trivial", "ex.bool", "true"},
+		{"trivial-non-bool", "ex.non_bool", "[100]"},
+		{"trivial-3", "ex.triple", `"hello"`},
+		{"var-head", "ex.vars", `["hello", "goodbye"]`},
+		{"ref-head", "ex.refs", `["hello", "goodbye"]`},
+		{"first-match", "ex.multiple_defined", `true`},
+		{"default-1", "ex.default_1", "2"},
+		{"default-2", "ex.default_2", "2"},
+		{"multiple-roots", "ex.multiple_roots", `2`},
+		{"indexed", "ex.indexed", "2"},
+		{"conflict-1", "ex.conflict_1", completeDocConflictErr(nil)},
+		{"conflict-2", "ex.conflict_2", completeDocConflictErr(nil)},
+	}
+
+	for _, tc := range tests {
+
+		compiler := compileModules([]string{
+			`package ex
+
+			no_op { true } else = false { true }
+			bool { false } else { true }
+			non_bool = null { false } else = [100] { true }
+			triple { false } else { false } else = "hello" { true }
+			vars { false } else = ["hello", x] { data.b.v2 = x }
+			refs { false } else = ["hello", data.b.v2] { true }
+			multiple_defined = false { false } else = true { true } else = false { true }
+
+			default default_1 = 1
+			default_1 { false } default_1 = 2 { true }
+
+			default default_2 = 2
+			default_2 { false } default_2 = 1 { false }
+
+			multiple_roots {
+				false
+			} else = 1 {
+				false
+			} else = 2 {
+				true
+			} else = 3 {
+				true
+			}
+
+			multiple_roots = 2
+
+			multiple_roots = 3 {
+				false
+			} else = 2 {
+				true
+			}
+
+			indexed {
+				data.a[0] = 0
+			} else = 2 {
+				data.a[0] = 1
+			} else = 3 {
+				data.a[0] = 1
+			}
+
+			indexed {
+				data.a[0] = 1
+				data.a[2] = 2
+			} else {
+				false
+			} else = 2 {
+				data.a[0] = x
+				x = 1
+				data.a[2] = 3
+			}
+
+			conflict_1 { false } else { true }
+			conflict_1 = false { true }
+
+			conflict_2 { false } else = false { true }
+			conflict_2 { false } else = true { true }
+			`,
+		})
+
+		store := storage.New(storage.InMemoryWithJSONConfig(loadSmallTestData()))
+
+		assertTopDown(t, compiler, store, tc.note, strings.Split(tc.path, "."), "", tc.expected)
+	}
+}
+
 func TestTopDownCaching(t *testing.T) {
 	compiler := compileModules([]string{`package topdown.caching
 
