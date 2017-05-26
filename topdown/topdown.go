@@ -1313,10 +1313,24 @@ func evalRefRuleCompleteDoc(t *Topdown, ref ast.Ref, suffix ast.Ref, ir *ast.Ind
 		if err != nil {
 			return err
 		}
+
+		redo = true
+
 		if next != nil {
 			result = next
+		} else {
+			chain := ir.Else[rule]
+			for i := range chain {
+				next, err := evalRefRuleCompleteDocSingle(t, chain[i], redo, result)
+				if err != nil {
+					return err
+				}
+				if next != nil {
+					result = next
+					break
+				}
+			}
 		}
-		redo = true
 	}
 
 	if result == nil && ir.Default != nil {
