@@ -477,7 +477,10 @@ func (r *REPL) compileRule(rule *ast.Rule) error {
 	mod := r.modules[r.currentModuleID]
 	prev := mod.Rules
 	mod.Rules = append(mod.Rules, rule)
-	rule.Module = mod
+	ast.WalkRules(rule, func(r *ast.Rule) bool {
+		r.Module = mod
+		return false
+	})
 
 	policies := r.store.ListPolicies(r.txn)
 	for id, mod := range r.modules {
