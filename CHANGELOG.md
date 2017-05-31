@@ -3,6 +3,8 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
+## Unreleased
+
 ## 0.4.10
 
 This release includes a bunch of new built-in functions to help with string manipulation, JWTs, and more.
