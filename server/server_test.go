@@ -558,16 +558,13 @@ func TestPoliciesPutV1(t *testing.T) {
 		t.Fatalf("Expected success but got %v", f.recorder)
 	}
 
-	var response types.PolicyPutResponseV1
-
-	if err := util.NewJSONDecoder(f.recorder.Body).Decode(&response); err != nil {
-		t.Fatalf("Unexpected error: %v", err)
+	var response map[string]interface{}
+	if err := json.NewDecoder(f.recorder.Body).Decode(&response); err != nil {
+		t.Fatalf("Unexpected error while unmarshalling response: %v", err)
 	}
 
-	expected := newPolicy("1", testMod)
-
-	if !expected.Equal(response.Result) {
-		t.Errorf("Expected policies to be equal. Expected:\n\n%v\n\nGot:\n\n%v\n", expected, response.Result)
+	if len(response) != 0 {
+		t.Fatalf("Expected empty wrapper object")
 	}
 }
 

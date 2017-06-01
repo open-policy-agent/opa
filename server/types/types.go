@@ -97,7 +97,7 @@ type PolicyGetResponseV1 struct {
 
 // PolicyPutResponseV1 models the response message for the Policy API put operation.
 type PolicyPutResponseV1 struct {
-	Result PolicyV1 `json:"result"`
+	Metrics MetricsV1 `json:"metrics,omitempty"`
 }
 
 // PolicyV1 models a policy module in OPA.
