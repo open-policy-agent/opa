@@ -685,7 +685,7 @@ func (s *Server) v1PoliciesGet(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	vars := mux.Vars(r)
 	path := vars["path"]
-	source := getBoolParam(r.URL, types.ParamSourceV1, true)
+	pretty := getBoolParam(r.URL, types.ParamPrettyV1, true)
 
 	txn, err := s.store.NewTransaction(ctx)
 	if err != nil {
@@ -701,33 +701,45 @@ func (s *Server) v1PoliciesGet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if source {
-		writer.Bytes(w, 200, bs)
-		return
-	}
-
 	c := s.Compiler()
 
 	response := types.PolicyGetResponseV1{
 		Result: types.PolicyV1{
-			ID:     path,
-			Module: c.Modules[path],
+			ID:  path,
+			Raw: string(bs),
+			AST: c.Modules[path],
 		},
 	}
 
-	writer.JSON(w, 200, response, true)
+	writer.JSON(w, http.StatusOK, response, pretty)
 }
 
 func (s *Server) v1PoliciesList(w http.ResponseWriter, r *http.Request) {
 
-	policies := []types.PolicyV1{}
+	ctx := r.Context()
+	pretty := getBoolParam(r.URL, types.ParamPrettyV1, true)
 
+	txn, err := s.store.NewTransaction(ctx)
+	if err != nil {
+		writer.ErrorAuto(w, err)
+		return
+	}
+
+	defer s.store.Close(ctx, txn)
+
+	policies := []types.PolicyV1{}
 	c := s.Compiler()
 
 	for id, mod := range c.Modules {
+		_, bs, err := s.store.GetPolicy(txn, id)
+		if err != nil {
+			writer.ErrorAuto(w, err)
+			return
+		}
 		policy := types.PolicyV1{
-			ID:     id,
-			Module: mod,
+			ID:  id,
+			Raw: string(bs),
+			AST: mod,
 		}
 		policies = append(policies, policy)
 	}
@@ -736,7 +748,7 @@ func (s *Server) v1PoliciesList(w http.ResponseWriter, r *http.Request) {
 		Result: policies,
 	}
 
-	writer.JSON(w, 200, response, true)
+	writer.JSON(w, http.StatusOK, response, pretty)
 }
 
 func (s *Server) v1PoliciesPut(w http.ResponseWriter, r *http.Request) {

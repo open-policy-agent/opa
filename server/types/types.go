@@ -107,13 +107,14 @@ type PolicyDeleteResponseV1 struct {
 
 // PolicyV1 models a policy module in OPA.
 type PolicyV1 struct {
-	ID     string      `json:"id"`
-	Module *ast.Module `json:"module"`
+	ID  string      `json:"id"`
+	Raw string      `json:"raw"`
+	AST *ast.Module `json:"ast"`
 }
 
 // Equal returns true if p is equal to other.
 func (p PolicyV1) Equal(other PolicyV1) bool {
-	return p.ID == other.ID && p.Module.Equal(other.Module)
+	return p.ID == other.ID && p.Raw == other.Raw && p.AST.Equal(other.AST)
 }
 
 // DataRequestV1 models the request message for Data API POST operations.
@@ -289,10 +290,6 @@ const (
 	// ParamInputV1 defines the name of the HTTP URL parameter that specifies
 	// values for the "input" document.
 	ParamInputV1 = "input"
-
-	// ParamSourceV1 defines the name of the HTTP URL parameter that indicates
-	// the client wants to receive the raw (uncompiled) version of the module.
-	ParamSourceV1 = "source"
 
 	// ParamPrettyV1 defines the name of the HTTP URL parameter that indicates
 	// the client wants to receive a pretty-printed version of the response.

@@ -718,31 +718,6 @@ func TestPoliciesGetV1(t *testing.T) {
 	}
 }
 
-func TestPoliciesGetSourceV1(t *testing.T) {
-	f := newFixture(t)
-	put := newReqV1("PUT", "/policies/1", testMod)
-	f.server.Handler.ServeHTTP(f.recorder, put)
-
-	if f.recorder.Code != 200 {
-		t.Fatalf("Expected success but got %v", f.recorder)
-	}
-
-	f.reset()
-	get := newReqV1("GET", "/policies/1?source", "")
-
-	f.server.Handler.ServeHTTP(f.recorder, get)
-
-	if f.recorder.Code != 200 {
-		t.Fatalf("Expected success but got %v", f.recorder)
-	}
-
-	raw := f.recorder.Body.String()
-	if raw != testMod {
-		t.Fatalf("Expected raw string to equal testMod:\n\nExpected:\n\n%v\n\nGot:\n\n%v\n", testMod, raw)
-	}
-
-}
-
 func TestPoliciesDeleteV1(t *testing.T) {
 	f := newFixture(t)
 	put := newReqV1("PUT", "/policies/1", testMod)
@@ -1116,7 +1091,7 @@ func newPolicy(id, s string) types.PolicyV1 {
 		panic(compiler.Errors)
 	}
 	mod := compiler.Modules[""]
-	return types.PolicyV1{ID: id, Module: mod}
+	return types.PolicyV1{ID: id, AST: mod, Raw: s}
 }
 
 func newReqV1(method string, path string, body string) *http.Request {
