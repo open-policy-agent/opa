@@ -633,7 +633,10 @@ func (s *Server) v1DataPut(w http.ResponseWriter, r *http.Request) {
 func (s *Server) v1PoliciesDelete(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	vars := mux.Vars(r)
+	pretty := getBoolParam(r.URL, types.ParamPrettyV1, true)
+	includeMetrics := getBoolParam(r.URL, types.ParamPrettyV1, true)
 	id := vars["path"]
+	m := metrics.New()
 
 	txn, err := s.store.NewTransaction(ctx)
 	if err != nil {
@@ -654,10 +657,14 @@ func (s *Server) v1PoliciesDelete(w http.ResponseWriter, r *http.Request) {
 
 	c := ast.NewCompiler()
 
+	m.Timer(metrics.RegoModuleCompile).Start()
+
 	if c.Compile(mods); c.Failed() {
 		writer.Error(w, http.StatusBadRequest, types.NewErrorV1(types.CodeInvalidOperation, types.MsgCompileModuleError).WithASTErrors(c.Errors))
 		return
 	}
+
+	m.Timer(metrics.RegoModuleCompile).Stop()
 
 	if err := s.store.DeletePolicy(txn, id); err != nil {
 		writer.ErrorAuto(w, err)
@@ -666,7 +673,12 @@ func (s *Server) v1PoliciesDelete(w http.ResponseWriter, r *http.Request) {
 
 	s.setCompiler(c)
 
-	writer.Bytes(w, 204, nil)
+	response := types.PolicyDeleteResponseV1{}
+	if includeMetrics {
+		response.Metrics = m.All()
+	}
+
+	writer.JSON(w, http.StatusOK, response, pretty)
 }
 
 func (s *Server) v1PoliciesGet(w http.ResponseWriter, r *http.Request) {

@@ -100,6 +100,11 @@ type PolicyPutResponseV1 struct {
 	Metrics MetricsV1 `json:"metrics,omitempty"`
 }
 
+// PolicyDeleteResponseV1 models the response message for the Policy API delete operation.
+type PolicyDeleteResponseV1 struct {
+	Metrics MetricsV1 `json:"metrics,omitempty"`
+}
+
 // PolicyV1 models a policy module in OPA.
 type PolicyV1 struct {
 	ID     string      `json:"id"`

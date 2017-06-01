@@ -757,8 +757,17 @@ func TestPoliciesDeleteV1(t *testing.T) {
 
 	f.server.Handler.ServeHTTP(f.recorder, del)
 
-	if f.recorder.Code != 204 {
+	if f.recorder.Code != 200 {
 		t.Fatalf("Expected success but got %v", f.recorder)
+	}
+
+	var response map[string]interface{}
+	if err := json.NewDecoder(f.recorder.Body).Decode(&response); err != nil {
+		t.Fatalf("Unexpected unmarshal error: %v", err)
+	}
+
+	if len(response) > 0 {
+		t.Fatalf("Expected empty response but got: %v", response)
 	}
 
 	f.reset()
