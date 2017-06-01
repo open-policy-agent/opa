@@ -895,16 +895,13 @@ func TestPoliciesPutV1(t *testing.T) {
 		t.Fatalf("Expected success but got %v", f.recorder)
 	}
 
-	var response types.PolicyPutResponseV1
-
-	if err := util.NewJSONDecoder(f.recorder.Body).Decode(&response); err != nil {
-		t.Fatalf("Unexpected error: %v", err)
+	var response map[string]interface{}
+	if err := json.NewDecoder(f.recorder.Body).Decode(&response); err != nil {
+		t.Fatalf("Unexpected error while unmarshalling response: %v", err)
 	}
 
-	expected := newPolicy("1", testMod)
-
-	if !expected.Equal(response.Result) {
-		t.Errorf("Expected policies to be equal. Expected:\n\n%v\n\nGot:\n\n%v\n", expected, response.Result)
+	if len(response) != 0 {
+		t.Fatalf("Expected empty wrapper object")
 	}
 }
 
@@ -1058,31 +1055,6 @@ func TestPoliciesGetV1(t *testing.T) {
 	}
 }
 
-func TestPoliciesGetSourceV1(t *testing.T) {
-	f := newFixture(t)
-	put := newReqV1(http.MethodPut, "/policies/1", testMod)
-	f.server.Handler.ServeHTTP(f.recorder, put)
-
-	if f.recorder.Code != 200 {
-		t.Fatalf("Expected success but got %v", f.recorder)
-	}
-
-	f.reset()
-	get := newReqV1(http.MethodGet, "/policies/1?source", "")
-
-	f.server.Handler.ServeHTTP(f.recorder, get)
-
-	if f.recorder.Code != 200 {
-		t.Fatalf("Expected success but got %v", f.recorder)
-	}
-
-	raw := f.recorder.Body.String()
-	if raw != testMod {
-		t.Fatalf("Expected raw string to equal testMod:\n\nExpected:\n\n%v\n\nGot:\n\n%v\n", testMod, raw)
-	}
-
-}
-
 func TestPoliciesDeleteV1(t *testing.T) {
 	f := newFixture(t)
 	put := newReqV1(http.MethodPut, "/policies/1", testMod)
@@ -1097,8 +1069,17 @@ func TestPoliciesDeleteV1(t *testing.T) {
 
 	f.server.Handler.ServeHTTP(f.recorder, del)
 
-	if f.recorder.Code != 204 {
+	if f.recorder.Code != 200 {
 		t.Fatalf("Expected success but got %v", f.recorder)
+	}
+
+	var response map[string]interface{}
+	if err := json.NewDecoder(f.recorder.Body).Decode(&response); err != nil {
+		t.Fatalf("Unexpected unmarshal error: %v", err)
+	}
+
+	if len(response) > 0 {
+		t.Fatalf("Expected empty response but got: %v", response)
 	}
 
 	f.reset()
@@ -2130,7 +2111,7 @@ func newPolicy(id, s string) types.PolicyV1 {
 		panic(compiler.Errors)
 	}
 	mod := compiler.Modules[""]
-	return types.PolicyV1{ID: id, Module: mod}
+	return types.PolicyV1{ID: id, AST: mod, Raw: s}
 }
 
 func newReqV1(method string, path string, body string) *http.Request {

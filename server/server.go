@@ -765,7 +765,10 @@ func (s *Server) v1DataPut(w http.ResponseWriter, r *http.Request) {
 func (s *Server) v1PoliciesDelete(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	vars := mux.Vars(r)
+	pretty := getBoolParam(r.URL, types.ParamPrettyV1, true)
+	includeMetrics := getBoolParam(r.URL, types.ParamPrettyV1, true)
 	id := vars["path"]
+	m := metrics.New()
 
 	txn, err := s.store.NewTransaction(ctx, storage.WriteParams)
 	if err != nil {
@@ -784,12 +787,16 @@ func (s *Server) v1PoliciesDelete(w http.ResponseWriter, r *http.Request) {
 
 	c := ast.NewCompiler().SetErrorLimit(s.errLimit)
 
+	m.Timer(metrics.RegoModuleCompile).Start()
+
 	if c.Compile(modules); c.Failed() {
 		s.abort(ctx, txn, func() {
 			writer.Error(w, http.StatusBadRequest, types.NewErrorV1(types.CodeInvalidOperation, types.MsgCompileModuleError).WithASTErrors(c.Errors))
 		})
 		return
 	}
+
+	m.Timer(metrics.RegoModuleCompile).Stop()
 
 	if err := s.store.DeletePolicy(ctx, txn, id); err != nil {
 		s.abortAuto(ctx, txn, w, err)
@@ -798,17 +805,24 @@ func (s *Server) v1PoliciesDelete(w http.ResponseWriter, r *http.Request) {
 
 	if err := s.store.Commit(ctx, txn); err != nil {
 		writer.ErrorAuto(w, err)
-	} else {
-		s.setCompiler(c)
-		writer.Bytes(w, 204, nil)
+		return
 	}
+
+	s.setCompiler(c)
+
+	response := types.PolicyDeleteResponseV1{}
+	if includeMetrics {
+		response.Metrics = m.All()
+	}
+
+	writer.JSON(w, http.StatusOK, response, pretty)
 }
 
 func (s *Server) v1PoliciesGet(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	vars := mux.Vars(r)
 	path := vars["path"]
-	source := getBoolParam(r.URL, types.ParamSourceV1, true)
+	pretty := getBoolParam(r.URL, types.ParamPrettyV1, true)
 
 	txn, err := s.store.NewTransaction(ctx)
 	if err != nil {
@@ -824,33 +838,45 @@ func (s *Server) v1PoliciesGet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if source {
-		writer.Bytes(w, 200, bs)
-		return
-	}
-
 	c := s.Compiler()
 
 	response := types.PolicyGetResponseV1{
 		Result: types.PolicyV1{
-			ID:     path,
-			Module: c.Modules[path],
+			ID:  path,
+			Raw: string(bs),
+			AST: c.Modules[path],
 		},
 	}
 
-	writer.JSON(w, 200, response, true)
+	writer.JSON(w, http.StatusOK, response, pretty)
 }
 
 func (s *Server) v1PoliciesList(w http.ResponseWriter, r *http.Request) {
 
-	policies := []types.PolicyV1{}
+	ctx := r.Context()
+	pretty := getBoolParam(r.URL, types.ParamPrettyV1, true)
 
+	txn, err := s.store.NewTransaction(ctx)
+	if err != nil {
+		writer.ErrorAuto(w, err)
+		return
+	}
+
+	defer s.store.Abort(ctx, txn)
+
+	policies := []types.PolicyV1{}
 	c := s.Compiler()
 
 	for id, mod := range c.Modules {
+		bs, err := s.store.GetPolicy(ctx, txn, id)
+		if err != nil {
+			writer.ErrorAuto(w, err)
+			return
+		}
 		policy := types.PolicyV1{
-			ID:     id,
-			Module: mod,
+			ID:  id,
+			Raw: string(bs),
+			AST: mod,
 		}
 		policies = append(policies, policy)
 	}
@@ -859,13 +885,18 @@ func (s *Server) v1PoliciesList(w http.ResponseWriter, r *http.Request) {
 		Result: policies,
 	}
 
-	writer.JSON(w, 200, response, true)
+	writer.JSON(w, http.StatusOK, response, pretty)
 }
 
 func (s *Server) v1PoliciesPut(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	vars := mux.Vars(r)
 	path := vars["path"]
+	includeMetrics := getBoolParam(r.URL, types.ParamMetricsV1, true)
+	pretty := getBoolParam(r.URL, types.ParamPrettyV1, true)
+	m := metrics.New()
+
+	m.Timer("server_read_bytes").Start()
 
 	buf, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -873,7 +904,12 @@ func (s *Server) v1PoliciesPut(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	m.Timer("server_read_bytes").Stop()
+	m.Timer(metrics.RegoModuleParse).Start()
+
 	parsedMod, err := ast.ParseModule(path, string(buf))
+
+	m.Timer(metrics.RegoModuleParse).Stop()
 
 	if err != nil {
 		switch err := err.(type) {
@@ -907,12 +943,16 @@ func (s *Server) v1PoliciesPut(w http.ResponseWriter, r *http.Request) {
 
 	c := ast.NewCompiler().SetErrorLimit(s.errLimit)
 
+	m.Timer(metrics.RegoModuleCompile).Start()
+
 	if c.Compile(modules); c.Failed() {
 		s.abort(ctx, txn, func() {
 			writer.Error(w, http.StatusBadRequest, types.NewErrorV1(types.CodeInvalidParameter, types.MsgCompileModuleError).WithASTErrors(c.Errors))
 		})
 		return
 	}
+
+	m.Timer(metrics.RegoModuleCompile).Stop()
 
 	if err := s.store.UpsertPolicy(ctx, txn, path, buf); err != nil {
 		s.abortAuto(ctx, txn, w, err)
@@ -921,16 +961,18 @@ func (s *Server) v1PoliciesPut(w http.ResponseWriter, r *http.Request) {
 
 	if err := s.store.Commit(ctx, txn); err != nil {
 		writer.ErrorAuto(w, err)
-	} else {
-		s.setCompiler(c)
-		response := types.PolicyPutResponseV1{
-			Result: types.PolicyV1{
-				ID:     path,
-				Module: c.Modules[path],
-			},
-		}
-		writer.JSON(w, 200, response, true)
+		return
 	}
+
+	s.setCompiler(c)
+
+	response := types.PolicyPutResponseV1{}
+
+	if includeMetrics {
+		response.Metrics = m.All()
+	}
+
+	writer.JSON(w, http.StatusOK, response, pretty)
 }
 
 func (s *Server) v1QueryGet(w http.ResponseWriter, r *http.Request) {
