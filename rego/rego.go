@@ -13,6 +13,7 @@ import (
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/storage"
+	"github.com/open-policy-agent/opa/storage/inmem"
 	"github.com/open-policy-agent/opa/topdown"
 )
 
@@ -86,7 +87,7 @@ type Rego struct {
 	input     ast.Value
 	modules   []rawModule
 	compiler  *ast.Compiler
-	storage   *storage.Storage
+	store     storage.Store
 	metrics   metrics.Metrics
 	termVarID int
 }
@@ -138,10 +139,10 @@ func Compiler(c *ast.Compiler) func(r *Rego) {
 	}
 }
 
-// Storage returns an argument that sets the policy engine's data storage layer.
-func Storage(s *storage.Storage) func(r *Rego) {
+// Store returns an argument that sets the policy engine's data storage layer.
+func Store(s storage.Store) func(r *Rego) {
 	return func(r *Rego) {
-		r.storage = s
+		r.store = s
 	}
 }
 
@@ -164,8 +165,8 @@ func New(options ...func(*Rego)) *Rego {
 		r.compiler = ast.NewCompiler()
 	}
 
-	if r.storage == nil {
-		r.storage = storage.New(storage.InMemoryConfig())
+	if r.store == nil {
+		r.store = inmem.New()
 	}
 
 	if r.metrics == nil {
@@ -205,12 +206,12 @@ func (r *Rego) Eval(ctx context.Context) (ResultSet, error) {
 	r.metrics.Timer(metrics.RegoQueryCompile).Stop()
 
 	// Prepare storage layer. Transaction could be an argument in the future.
-	txn, err := r.storage.NewTransaction(ctx)
+	txn, err := r.store.NewTransaction(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	defer r.storage.Close(ctx, txn)
+	defer r.store.Abort(ctx, txn)
 
 	// Evaluate query
 	return r.eval(ctx, compiled, txn)
@@ -292,7 +293,7 @@ func (r *Rego) eval(ctx context.Context, compiled ast.Body, txn storage.Transact
 
 	r.metrics.Timer(metrics.RegoQueryEval).Start()
 
-	t := topdown.New(ctx, compiled, r.compiler, r.storage, txn)
+	t := topdown.New(ctx, compiled, r.compiler, r.store, txn)
 
 	if r.input != nil {
 		t.Input = r.input

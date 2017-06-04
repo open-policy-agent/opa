@@ -2,7 +2,7 @@
 // Use of this source code is governed by an Apache2
 // license that can be found in the LICENSE file.
 
-package storage
+package inmem
 
 import (
 	"context"
@@ -11,10 +11,11 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/util"
 )
 
-func TestDataStoreGet(t *testing.T) {
+func TestInMemoryRead(t *testing.T) {
 
 	data := loadSmallTestData()
 
@@ -32,18 +33,18 @@ func TestDataStoreGet(t *testing.T) {
 		{"/d/e/1", "baz"},
 		{"/d/e", []interface{}{"bar", "baz"}},
 		{"/c/0/z", map[string]interface{}{"p": true, "q": false}},
-		{"/d/100", notFoundError(MustParsePath("/d/100"))},
-		{"/dead/beef", notFoundError(MustParsePath("/dead/beef"))},
-		{"/a/str", notFoundErrorHint(MustParsePath("/a/str"), arrayIndexTypeMsg)},
-		{"/a/100", notFoundErrorHint(MustParsePath("/a/100"), outOfRangeMsg)},
-		{"/a/-1", notFoundErrorHint(MustParsePath("/a/-1"), outOfRangeMsg)},
-		{"/b/vdeadbeef", notFoundError(MustParsePath("/b/vdeadbeef"))},
+		{"/d/100", notFoundError(storage.MustParsePath("/d/100"))},
+		{"/dead/beef", notFoundError(storage.MustParsePath("/dead/beef"))},
+		{"/a/str", notFoundErrorHint(storage.MustParsePath("/a/str"), arrayIndexTypeMsg)},
+		{"/a/100", notFoundErrorHint(storage.MustParsePath("/a/100"), outOfRangeMsg)},
+		{"/a/-1", notFoundErrorHint(storage.MustParsePath("/a/-1"), outOfRangeMsg)},
+		{"/b/vdeadbeef", notFoundError(storage.MustParsePath("/b/vdeadbeef"))},
 	}
 
-	ds := NewDataStoreFromJSONObject(data)
+	store := NewFromObject(data)
 
 	for idx, tc := range tests {
-		result, err := ds.Read(context.Background(), nil, MustParsePath(tc.path))
+		result, err := store.Read(context.Background(), nil, storage.MustParsePath(tc.path))
 		switch e := tc.expected.(type) {
 		case error:
 			if err == nil {
@@ -63,7 +64,7 @@ func TestDataStoreGet(t *testing.T) {
 
 }
 
-func TestDataStorePatch(t *testing.T) {
+func TestInMemoryWrite(t *testing.T) {
 
 	tests := []struct {
 		note        string
@@ -86,7 +87,7 @@ func TestDataStorePatch(t *testing.T) {
 		{"append obj/arr", "add", `/c/0/x/-`, `"x"`, nil, "/c/0/x", `[true,false,"foo","x"]`},
 		{"append arr/arr", "add", `/h/0/-`, `"x"`, nil, `/h/0/3`, `"x"`},
 
-		{"remove", "remove", "/a", "", nil, "/a", notFoundError(MustParsePath("/a"))},
+		{"remove", "remove", "/a", "", nil, "/a", notFoundError(storage.MustParsePath("/a"))},
 		{"remove arr", "remove", "/a/1", "", nil, "/a", "[1,3,4]"},
 		{"remove obj/arr", "remove", "/c/0/x/1", "", nil, "/c/0/x", `[true,"foo"]`},
 		{"remove arr/arr", "remove", "/h/0/1", "", nil, "/h/0", "[1,3]"},
@@ -99,44 +100,55 @@ func TestDataStorePatch(t *testing.T) {
 
 		{"err: bad root type", "add", "/", "[1,2,3]", invalidPatchErr(rootMustBeObjectMsg), "", nil},
 		{"err: remove root", "remove", "/", "", invalidPatchErr(rootCannotBeRemovedMsg), "", nil},
-		{"err: add arr (non-integer)", "add", "/a/foo", "1", notFoundErrorHint(MustParsePath("/a/foo"), arrayIndexTypeMsg), "", nil},
-		{"err: add arr (non-integer)", "add", "/a/3.14", "1", notFoundErrorHint(MustParsePath("/a/3.14"), arrayIndexTypeMsg), "", nil},
-		{"err: add arr (out of range)", "add", "/a/5", "1", notFoundErrorHint(MustParsePath("/a/5"), outOfRangeMsg), "", nil},
-		{"err: add arr (out of range)", "add", "/a/-1", "1", notFoundErrorHint(MustParsePath("/a/-1"), outOfRangeMsg), "", nil},
-		{"err: add arr (missing root)", "add", "/dead/beef/0", "1", notFoundError(MustParsePath("/dead/beef")), "", nil},
-		{"err: add non-coll", "add", "/a/1/2", "1", notFoundError(MustParsePath("/a/1/2")), "", nil},
-		{"err: append (missing)", "add", `/dead/beef/-`, "1", notFoundError(MustParsePath("/dead")), "", nil},
-		{"err: append obj/arr", "add", `/c/0/deadbeef/-`, `"x"`, notFoundError(MustParsePath("/c/0/deadbeef")), "", nil},
-		{"err: append arr/arr (out of range)", "add", `/h/9999/-`, `"x"`, notFoundErrorHint(MustParsePath("/h/9999"), outOfRangeMsg), "", nil},
-		{"err: append append+add", "add", `/a/-/b/-`, `"x"`, notFoundErrorHint(MustParsePath(`/a/-`), arrayIndexTypeMsg), "", nil},
-		{"err: append arr/arr (non-array)", "add", `/b/v1/-`, "1", notFoundError(MustParsePath("/b/v1")), "", nil},
-		{"err: remove missing", "remove", "/dead/beef/0", "", notFoundError(MustParsePath("/dead/beef/0")), "", nil},
-		{"err: remove obj (non string)", "remove", "/b/100", "", notFoundError(MustParsePath("/b/100")), "", nil},
-		{"err: remove obj (missing)", "remove", "/b/deadbeef", "", notFoundError(MustParsePath("/b/deadbeef")), "", nil},
-		{"err: replace root (missing)", "replace", "/deadbeef", "1", notFoundError(MustParsePath("/deadbeef")), "", nil},
-		{"err: replace missing", "replace", "/dead/beef/1", "1", notFoundError(MustParsePath("/dead/beef/1")), "", nil},
+		{"err: add arr (non-integer)", "add", "/a/foo", "1", notFoundErrorHint(storage.MustParsePath("/a/foo"), arrayIndexTypeMsg), "", nil},
+		{"err: add arr (non-integer)", "add", "/a/3.14", "1", notFoundErrorHint(storage.MustParsePath("/a/3.14"), arrayIndexTypeMsg), "", nil},
+		{"err: add arr (out of range)", "add", "/a/5", "1", notFoundErrorHint(storage.MustParsePath("/a/5"), outOfRangeMsg), "", nil},
+		{"err: add arr (out of range)", "add", "/a/-1", "1", notFoundErrorHint(storage.MustParsePath("/a/-1"), outOfRangeMsg), "", nil},
+		{"err: add arr (missing root)", "add", "/dead/beef/0", "1", notFoundError(storage.MustParsePath("/dead/beef")), "", nil},
+		{"err: add non-coll", "add", "/a/1/2", "1", notFoundError(storage.MustParsePath("/a/1/2")), "", nil},
+		{"err: append (missing)", "add", `/dead/beef/-`, "1", notFoundError(storage.MustParsePath("/dead")), "", nil},
+		{"err: append obj/arr", "add", `/c/0/deadbeef/-`, `"x"`, notFoundError(storage.MustParsePath("/c/0/deadbeef")), "", nil},
+		{"err: append arr/arr (out of range)", "add", `/h/9999/-`, `"x"`, notFoundErrorHint(storage.MustParsePath("/h/9999"), outOfRangeMsg), "", nil},
+		{"err: append append+add", "add", `/a/-/b/-`, `"x"`, notFoundErrorHint(storage.MustParsePath(`/a/-`), arrayIndexTypeMsg), "", nil},
+		{"err: append arr/arr (non-array)", "add", `/b/v1/-`, "1", notFoundError(storage.MustParsePath("/b/v1")), "", nil},
+		{"err: remove missing", "remove", "/dead/beef/0", "", notFoundError(storage.MustParsePath("/dead/beef/0")), "", nil},
+		{"err: remove obj (non string)", "remove", "/b/100", "", notFoundError(storage.MustParsePath("/b/100")), "", nil},
+		{"err: remove obj (missing)", "remove", "/b/deadbeef", "", notFoundError(storage.MustParsePath("/b/deadbeef")), "", nil},
+		{"err: replace root (missing)", "replace", "/deadbeef", "1", notFoundError(storage.MustParsePath("/deadbeef")), "", nil},
+		{"err: replace missing", "replace", "/dead/beef/1", "1", notFoundError(storage.MustParsePath("/dead/beef/1")), "", nil},
 	}
+
+	ctx := context.Background()
 
 	for i, tc := range tests {
 		data := loadSmallTestData()
-		ds := NewDataStoreFromJSONObject(data)
+		store := NewFromObject(data)
 
 		// Perform patch and check result
 		value := loadExpectedSortedResult(tc.value)
 
-		var op PatchOp
+		var op storage.PatchOp
 		switch tc.op {
 		case "add":
-			op = AddOp
+			op = storage.AddOp
 		case "remove":
-			op = RemoveOp
+			op = storage.RemoveOp
 		case "replace":
-			op = ReplaceOp
+			op = storage.ReplaceOp
 		default:
 			panic(fmt.Sprintf("illegal value: %v", tc.op))
 		}
 
-		err := ds.patch(context.Background(), op, MustParsePath(tc.path), value)
+		txn := storage.NewTransactionOrDie(ctx, store)
+		err := store.Write(ctx, txn, op, storage.MustParsePath(tc.path), value)
+
+		if err != nil {
+			store.Abort(ctx, txn)
+		} else {
+			if err := store.Commit(ctx, txn); err != nil {
+				panic(err)
+			}
+		}
 
 		if tc.expected == nil {
 			if err != nil {
@@ -159,7 +171,10 @@ func TestDataStorePatch(t *testing.T) {
 		}
 
 		// Perform get and verify result
-		result, err := ds.Read(context.Background(), nil, MustParsePath(tc.getPath))
+		txn = storage.NewTransactionOrDie(ctx, store)
+		result, err := store.Read(ctx, txn, storage.MustParsePath(tc.getPath))
+		store.Abort(ctx, txn)
+
 		switch expected := tc.getExpected.(type) {
 		case error:
 			if err == nil {

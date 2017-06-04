@@ -10,7 +10,7 @@ import (
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/rego"
-	"github.com/open-policy-agent/opa/storage"
+	"github.com/open-policy-agent/opa/storage/inmem"
 	"github.com/open-policy-agent/opa/util"
 )
 
@@ -158,12 +158,12 @@ func ExampleRego_Eval_storage() {
 	// return configure the storage layer to use an in-memory store with the
 	// specified json data. This is mostly for test purposes. See storage
 	// package for more information on custom storage backends.
-	store := storage.New(storage.InMemoryWithJSONConfig(json))
+	store := inmem.NewFromObject(json)
 
 	// Create new query that returns the value
 	rego := rego.New(
 		rego.Query("data.example.users[0].likes"),
-		rego.Storage(store))
+		rego.Store(store))
 
 	// Run evaluation.
 	rs, err := rego.Eval(ctx)

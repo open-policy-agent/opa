@@ -2,7 +2,7 @@
 // Use of this source code is governed by an Apache2
 // license that can be found in the LICENSE file.
 
-package storage
+package inmem
 
 import (
 	"context"
@@ -10,8 +10,10 @@ import (
 	"fmt"
 	"hash/fnv"
 	"strings"
+	"sync"
 
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/util"
 )
 
@@ -34,6 +36,7 @@ import (
 // index key.
 //
 type indices struct {
+	mu    sync.Mutex
 	table map[int]*indicesNode
 }
 
@@ -43,7 +46,6 @@ type indicesNode struct {
 	next *indicesNode
 }
 
-// NewIndices returns an empty indices.
 func newIndices() *indices {
 	return &indices{
 		table: map[int]*indicesNode{},
@@ -52,15 +54,29 @@ func newIndices() *indices {
 
 // Build initializes the references' index by walking the store for the reference and
 // creating the index that maps values to bindings.
-func (ind *indices) Build(ctx context.Context, store Store, txn Transaction, ref ast.Ref) error {
-	index := newBindingIndex()
-	ind.registerTriggers(store)
-	err := iterStorage(ctx, store, txn, ref, ast.EmptyRef(), ast.NewValueMap(), func(bindings *ast.ValueMap, val interface{}) {
-		index.Add(val, bindings)
-	})
-	if err != nil {
+func (ind *indices) Build(ctx context.Context, store storage.Store, txn storage.Transaction, ref ast.Ref) error {
+
+	ind.mu.Lock()
+	defer ind.mu.Unlock()
+
+	if exist := ind.get(ref); exist != nil {
+		return nil
+	}
+
+	config := storage.TriggerConfig{
+		Before: ind.dropAll,
+	}
+
+	if err := store.Register(triggerID, config); err != nil {
 		return err
 	}
+
+	index := newBindingIndex()
+
+	if err := iterStorage(ctx, store, txn, ref, ast.EmptyRef(), ast.NewValueMap(), index.Add); err != nil {
+		return err
+	}
+
 	hashCode := ref.Hash()
 	head := ind.table[hashCode]
 	entry := &indicesNode{
@@ -68,28 +84,30 @@ func (ind *indices) Build(ctx context.Context, store Store, txn Transaction, ref
 		val:  index,
 		next: head,
 	}
+
 	ind.table[hashCode] = entry
+
 	return nil
 }
 
-// Drop removes the index for the reference.
-func (ind *indices) Drop(ref ast.Ref) {
-	hashCode := ref.Hash()
-	var prev *indicesNode
-	for entry := ind.table[hashCode]; entry != nil; entry = entry.next {
-		if entry.key.Equal(ref) {
-			if prev == nil {
-				ind.table[hashCode] = entry.next
-			} else {
-				prev.next = entry.next
-			}
-			return
-		}
+func (ind *indices) Index(ctx context.Context, ref ast.Ref, value interface{}, iter func(*ast.ValueMap) error) error {
+	ind.mu.Lock()
+	node := ind.get(ref)
+	ind.mu.Unlock()
+	if node == nil {
+		return fmt.Errorf("missing index")
 	}
+	return node.Iter(value, iter)
 }
 
-// Get returns the reference's index.
-func (ind *indices) Get(ref ast.Ref) *bindingIndex {
+func (ind *indices) dropAll(context.Context, storage.Transaction, storage.PatchOp, storage.Path, interface{}) error {
+	ind.mu.Lock()
+	defer ind.mu.Unlock()
+	ind.table = map[int]*indicesNode{}
+	return nil
+}
+
+func (ind *indices) get(ref ast.Ref) *bindingIndex {
 	node := ind.getNode(ref)
 	if node != nil {
 		return node.val
@@ -97,13 +115,22 @@ func (ind *indices) Get(ref ast.Ref) *bindingIndex {
 	return nil
 }
 
-// Iter calls the iter function for each of the indices.
-func (ind *indices) Iter(iter func(ast.Ref, *bindingIndex) error) error {
+func (ind *indices) iter(iter func(ast.Ref, *bindingIndex) error) error {
 	for _, head := range ind.table {
 		for entry := head; entry != nil; entry = entry.next {
 			if err := iter(entry.key, entry.val); err != nil {
 				return err
 			}
+		}
+	}
+	return nil
+}
+
+func (ind *indices) getNode(ref ast.Ref) *indicesNode {
+	hashCode := ref.Hash()
+	for entry := ind.table[hashCode]; entry != nil; entry = entry.next {
+		if entry.key.Equal(ref) {
+			return entry
 		}
 	}
 	return nil
@@ -120,30 +147,9 @@ func (ind *indices) String() string {
 	return "{" + strings.Join(buf, ", ") + "}"
 }
 
-func (ind *indices) dropAll(context.Context, Transaction, PatchOp, Path, interface{}) error {
-	ind.table = map[int]*indicesNode{}
-	return nil
-}
-
-func (ind *indices) getNode(ref ast.Ref) *indicesNode {
-	hashCode := ref.Hash()
-	for entry := ind.table[hashCode]; entry != nil; entry = entry.next {
-		if entry.key.Equal(ref) {
-			return entry
-		}
-	}
-	return nil
-}
-
 const (
 	triggerID = "org.openpolicyagent/index-maintenance"
 )
-
-func (ind *indices) registerTriggers(store Store) error {
-	return store.Register(triggerID, TriggerConfig{
-		Before: ind.dropAll,
-	})
-}
 
 // bindingIndex contains a mapping of values to bindings.
 type bindingIndex struct {
@@ -308,21 +314,21 @@ func hash(v interface{}) int {
 	panic(fmt.Sprintf("illegal argument: %v (%T)", v, v))
 }
 
-func iterStorage(ctx context.Context, store Store, txn Transaction, nonGround, ground ast.Ref, bindings *ast.ValueMap, iter func(*ast.ValueMap, interface{})) error {
+func iterStorage(ctx context.Context, store storage.Store, txn storage.Transaction, nonGround, ground ast.Ref, bindings *ast.ValueMap, iter func(interface{}, *ast.ValueMap)) error {
 
 	if len(nonGround) == 0 {
-		path, err := NewPathForRef(ground)
+		path, err := storage.NewPathForRef(ground)
 		if err != nil {
 			return err
 		}
 		node, err := store.Read(ctx, txn, path)
 		if err != nil {
-			if IsNotFound(err) {
+			if storage.IsNotFound(err) {
 				return nil
 			}
 			return err
 		}
-		iter(bindings, node)
+		iter(node, bindings)
 		return nil
 	}
 
@@ -336,14 +342,14 @@ func iterStorage(ctx context.Context, store Store, txn Transaction, nonGround, g
 		return iterStorage(ctx, store, txn, tail, ground, bindings, iter)
 	}
 
-	path, err := NewPathForRef(ground)
+	path, err := storage.NewPathForRef(ground)
 	if err != nil {
 		return err
 	}
 
 	node, err := store.Read(ctx, txn, path)
 	if err != nil {
-		if IsNotFound(err) {
+		if storage.IsNotFound(err) {
 			return nil
 		}
 		return err

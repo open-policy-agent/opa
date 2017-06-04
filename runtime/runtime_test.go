@@ -13,7 +13,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/util"
 )
@@ -87,13 +86,12 @@ p = true { 1 = 2 }`
 		return
 	}
 
-	modules := rt.Store.ListPolicies(txn)
-	expected := ast.MustParseModule(mod1)
+	id := normalizeModuleID(tmp2.Name())
 
-	if !expected.Equal(modules[normalizeModuleID(tmp2.Name())]) {
-		t.Fatalf("Expected %v but got: %v", expected, modules[tmp2.Name()])
+	result, err := rt.Store.GetPolicy(ctx, txn, id)
+	if err != nil || string(result) != mod1 {
+		t.Fatalf("Expected %v but got: %v (err: %v)", mod1, result, err)
 	}
-
 }
 
 func TestWatchPaths(t *testing.T) {

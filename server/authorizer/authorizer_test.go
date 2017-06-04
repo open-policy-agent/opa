@@ -15,7 +15,7 @@ import (
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/server/identifier"
 	"github.com/open-policy-agent/opa/server/types"
-	"github.com/open-policy-agent/opa/storage"
+	"github.com/open-policy-agent/opa/storage/inmem"
 	"github.com/open-policy-agent/opa/util"
 	"github.com/open-policy-agent/opa/util/test"
 )
@@ -127,7 +127,7 @@ func TestBasic(t *testing.T) {
     }
     `))
 
-	store := storage.New(storage.InMemoryWithJSONConfig(data.(map[string]interface{})))
+	store := inmem.NewFromObject(data.(map[string]interface{}))
 
 	tests := []struct {
 		note           string
@@ -207,7 +207,7 @@ func TestBasicEscapeError(t *testing.T) {
 		return ast.NewCompiler()
 	}
 
-	store := storage.New(storage.InMemoryConfig())
+	store := inmem.New()
 
 	NewBasic(&mockHandler{}, compiler, store).ServeHTTP(recorder, req)
 

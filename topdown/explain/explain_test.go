@@ -11,6 +11,7 @@ import (
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/storage"
+	"github.com/open-policy-agent/opa/storage/inmem"
 	"github.com/open-policy-agent/opa/topdown"
 	"github.com/open-policy-agent/opa/util"
 )
@@ -187,9 +188,9 @@ func executeQuery(data string, compiler *ast.Compiler, tracer topdown.Tracer) {
 	}
 
 	ctx := context.Background()
-	store := storage.New(storage.InMemoryWithJSONConfig(d))
+	store := inmem.NewFromObject(d)
 	txn := storage.NewTransactionOrDie(ctx, store)
-	defer store.Close(ctx, txn)
+	defer store.Abort(ctx, txn)
 	params := topdown.NewQueryParams(ctx, compiler, store, txn, nil, ast.MustParseRef("data.test.p"))
 	params.Tracer = tracer
 

@@ -17,6 +17,7 @@ import (
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/storage"
+	"github.com/open-policy-agent/opa/storage/inmem"
 	"github.com/open-policy-agent/opa/types"
 	"github.com/open-policy-agent/opa/util"
 	testutil "github.com/open-policy-agent/opa/util/test"
@@ -61,9 +62,9 @@ func TestEvalRef(t *testing.T) {
 
 	ctx := context.Background()
 	compiler := ast.NewCompiler()
-	store := storage.New(storage.InMemoryWithJSONConfig(loadSmallTestData()))
+	store := inmem.NewFromObject(loadSmallTestData())
 	txn := storage.NewTransactionOrDie(ctx, store)
-	defer store.Close(ctx, txn)
+	defer store.Abort(ctx, txn)
 
 	top := New(ctx, nil, compiler, store, txn)
 
@@ -150,10 +151,10 @@ func TestEvalTerms(t *testing.T) {
 
 	ctx := context.Background()
 	compiler := ast.NewCompiler()
-	store := storage.New(storage.InMemoryWithJSONConfig(loadSmallTestData()))
+	store := inmem.NewFromObject(loadSmallTestData())
 
 	txn := storage.NewTransactionOrDie(ctx, store)
-	defer store.Close(ctx, txn)
+	defer store.Abort(ctx, txn)
 
 	for _, tc := range tests {
 
@@ -724,7 +725,7 @@ v = data.topdown.g { true }
 w = data.topdown.set { true }`,
 	})
 
-	store := storage.New(storage.InMemoryWithJSONConfig(data))
+	store := inmem.NewFromObject(data)
 
 	assertTopDown(t, compiler, store, "base/virtual", []string{"topdown", "p"}, "{}", `[
 		["c", "p", 0, 1],
@@ -1388,7 +1389,7 @@ import data.g
 p[x] { a[i] = x; q[x] }
 q[x] { g[j][k] = x }`})
 
-	store := storage.New(storage.InMemoryWithJSONConfig(loadSmallTestData()))
+	store := inmem.NewFromObject(loadSmallTestData())
 
 	assertTopDown(t, compiler, store, "deep embedded vdoc", []string{"b", "c", "d", "p"}, "{}", "[1, 2, 4]")
 }
@@ -1414,7 +1415,7 @@ gt1 = true { req1 > 1 }
 keys[x] = y { data.numbers[_] = x; to_number(x, y) }
 loopback = input { true }`})
 
-	store := storage.New(storage.InMemoryWithJSONConfig(loadSmallTestData()))
+	store := inmem.NewFromObject(loadSmallTestData())
 
 	assertTopDown(t, compiler, store, "loopback", []string{"z", "loopback"}, `{"foo": 1}`, `{"foo": 1}`)
 
@@ -1514,7 +1515,7 @@ negation_invalidate[x] { data.a[_] = x; not data.ex.input_eq with input.x as x }
 `,
 	})
 
-	store := storage.New(storage.InMemoryWithJSONConfig(loadSmallTestData()))
+	store := inmem.NewFromObject(loadSmallTestData())
 
 	assertTopDown(t, compiler, store, "with", []string{"test", "basic"}, "", "true")
 	assertTopDown(t, compiler, store, "with not", []string{"test", "negation"}, "", "true")
@@ -1609,7 +1610,7 @@ func TestTopDownElseKeyword(t *testing.T) {
 			`,
 		})
 
-		store := storage.New(storage.InMemoryWithJSONConfig(loadSmallTestData()))
+		store := inmem.NewFromObject(loadSmallTestData())
 
 		assertTopDown(t, compiler, store, tc.note, strings.Split(tc.path, "."), "", tc.expected)
 	}
@@ -1625,33 +1626,12 @@ err_top = true { data.l[_] = x; err_obj[x] = _ }
 err_obj[k] = true { k = data.l[_] }`,
 	})
 
-	store := storage.New(storage.InMemoryWithJSONConfig(loadSmallTestData()))
+	store := inmem.NewFromObject(loadSmallTestData())
 
 	assertTopDown(t, compiler, store, "reference lookup", []string{"topdown", "caching", "p"}, `{}`, "[2,3]")
 
 	assertTopDown(t, compiler, store, "unhandled error", []string{"topdown", "caching", "err_top"}, "{}", objectDocKeyTypeErr(nil))
 	assertTopDown(t, compiler, store, "unhandled error", []string{"topdown", "caching", "err_obj"}, "{}", objectDocKeyTypeErr(nil))
-}
-
-func TestTopDownStoragePlugin(t *testing.T) {
-
-	compiler := compileModules([]string{`package topdown.plugins
-
-p[x] { q[x]; not r[x] }
-q[x] { data.a[_] = x }
-r[x] { data.plugin.b[_] = x }`,
-	})
-
-	store := storage.New(storage.InMemoryWithJSONConfig(loadSmallTestData()))
-
-	plugin := storage.NewDataStoreFromReader(strings.NewReader(`{"b": [1,3,5,6]}`))
-	mountPath, _ := storage.ParsePath("/plugin")
-
-	if err := store.Mount(plugin, mountPath); err != nil {
-		t.Fatalf("Unexpected mount error: %v", err)
-	}
-
-	assertTopDown(t, compiler, store, "rule with plugin", []string{"topdown", "plugins", "p"}, `{}`, "[2,4]")
 }
 
 func TestTopDownSystemDocument(t *testing.T) {
@@ -1666,14 +1646,16 @@ func TestTopDownSystemDocument(t *testing.T) {
 		bar = "goodbye"
 	`})
 
-	store := storage.New(storage.InMemoryWithJSONConfig(map[string]interface{}{
+	data := map[string]interface{}{
 		"system": map[string]interface{}{
 			"somedata": []interface{}{"a", "b", "c"},
 		},
 		"com": map[string]interface{}{
 			"system": "deadbeef",
 		},
-	}))
+	}
+
+	store := inmem.NewFromObject(data)
 
 	assertTopDown(t, compiler, store, "root query", []string{}, `{}`, `{
 		"topdown": {
@@ -1728,7 +1710,7 @@ violations[server] { server = servers[_]; server.protocols[_] = "http"; public_s
 
 	compiler := compileModules([]string{vd})
 
-	store := storage.New(storage.InMemoryWithJSONConfig(doc))
+	store := inmem.NewFromObject(doc)
 
 	assertTopDown(t, compiler, store, "public servers", []string{"opa", "example", "public_servers"}, "{}", `
         [
@@ -1765,7 +1747,7 @@ func TestTopDownUnsupportedBuiltin(t *testing.T) {
 	body := ast.MustParseBody(`unsupported_builtin()`)
 	ctx := context.Background()
 	compiler := ast.NewCompiler()
-	store := storage.New(storage.InMemoryConfig())
+	store := inmem.New()
 	txn := storage.NewTransactionOrDie(ctx, store)
 	top := New(ctx, body, compiler, store, txn)
 
@@ -1789,18 +1771,20 @@ type contextPropagationMock struct{}
 type contextPropagationStore struct {
 	storage.WritesNotSupported
 	storage.TriggersNotSupported
+	storage.PolicyNotSupported
+	storage.IndexingNotSupported
 	calls []interface{}
 }
 
-func (m *contextPropagationStore) ID() string {
-	return "mock"
+func (m *contextPropagationStore) NewTransaction(context.Context, ...storage.TransactionParams) (storage.Transaction, error) {
+	return nil, nil
 }
 
-func (m *contextPropagationStore) Begin(context.Context, storage.Transaction, storage.TransactionParams) error {
+func (m *contextPropagationStore) Commit(context.Context, storage.Transaction) error {
 	return nil
 }
 
-func (m *contextPropagationStore) Close(context.Context, storage.Transaction) {
+func (m *contextPropagationStore) Abort(context.Context, storage.Transaction) {
 }
 
 func (m *contextPropagationStore) Read(ctx context.Context, txn storage.Transaction, path storage.Path) (interface{}, error) {
@@ -1822,11 +1806,8 @@ p[x] { data.a[i] = x }`,
 	})
 
 	mockStore := &contextPropagationStore{}
-	store := storage.New(storage.Config{
-		Builtin: mockStore,
-	})
-	txn := storage.NewTransactionOrDie(ctx, store)
-	params := NewQueryParams(ctx, compiler, store, txn, nil, ast.MustParseRef("data.ex.p"))
+	txn := storage.NewTransactionOrDie(ctx, mockStore)
+	params := NewQueryParams(ctx, compiler, mockStore, txn, nil, ast.MustParseRef("data.ex.p"))
 
 	_, err := Query(params)
 	if err != nil {
@@ -2190,7 +2171,7 @@ func runTopDownTestCase(t *testing.T, data map[string]interface{}, note string, 
 		return
 	}
 
-	store := storage.New(storage.InMemoryWithJSONConfig(data))
+	store := inmem.NewFromObject(data)
 
 	assertTopDown(t, compiler, store, note, []string{"p"}, "", expected)
 }
@@ -2200,7 +2181,7 @@ func runTopDownTracingTestCase(t *testing.T, module string, n int, cases map[int
 	ctx := context.Background()
 	compiler := compileModules([]string{module})
 	data := loadSmallTestData()
-	store := storage.New(storage.InMemoryWithJSONConfig(data))
+	store := inmem.NewFromObject(data)
 	txn := storage.NewTransactionOrDie(ctx, store)
 	params := NewQueryParams(ctx, compiler, store, txn, nil, ast.MustParseRef("data.test.p"))
 	buf := NewBufferTracer()
@@ -2236,7 +2217,7 @@ func runTopDownTracingTestCase(t *testing.T, module string, n int, cases map[int
 	}
 }
 
-func assertTopDown(t *testing.T, compiler *ast.Compiler, store *storage.Storage, note string, path []string, input string, expected interface{}) {
+func assertTopDown(t *testing.T, compiler *ast.Compiler, store storage.Store, note string, path []string, input string, expected interface{}) {
 
 	var req ast.Value
 
@@ -2250,9 +2231,9 @@ func assertTopDown(t *testing.T, compiler *ast.Compiler, store *storage.Storage,
 	}
 
 	ctx := context.Background()
-
 	txn := storage.NewTransactionOrDie(ctx, store)
-	defer store.Close(ctx, txn)
+
+	defer store.Abort(ctx, txn)
 
 	var ref ast.Ref
 	if len(path) == 0 {

@@ -27,11 +27,11 @@ const SystemAuthzPath = "data.system.authz.allow"
 type Basic struct {
 	inner    http.Handler
 	compiler func() *ast.Compiler
-	store    *storage.Storage
+	store    storage.Store
 }
 
 // NewBasic returns a new Basic object.
-func NewBasic(inner http.Handler, compiler func() *ast.Compiler, store *storage.Storage) http.Handler {
+func NewBasic(inner http.Handler, compiler func() *ast.Compiler, store storage.Store) http.Handler {
 	return &Basic{
 		inner:    inner,
 		compiler: compiler,
@@ -50,7 +50,7 @@ func (h *Basic) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	rego := rego.New(
 		rego.Query(SystemAuthzPath),
 		rego.Compiler(h.compiler()),
-		rego.Storage(h.store),
+		rego.Store(h.store),
 		rego.Input(input),
 	)
 

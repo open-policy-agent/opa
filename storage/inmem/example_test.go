@@ -2,7 +2,7 @@
 // Use of this source code is governed by an Apache2
 // license that can be found in the LICENSE file.
 
-package storage_test
+package inmem_test
 
 import (
 	"bytes"
@@ -11,9 +11,10 @@ import (
 	"fmt"
 
 	"github.com/open-policy-agent/opa/storage"
+	"github.com/open-policy-agent/opa/storage/inmem"
 )
 
-func ExampleStorage_Read() {
+func ExampleIneMmeory_Read() {
 	// Initialize context for the example. Normally the caller would obtain the
 	// context from an input parameter or instantiate their own.
 	ctx := context.Background()
@@ -48,14 +49,15 @@ func ExampleStorage_Read() {
 	}
 
 	// Instantiate the storage layer.
-	store := storage.New(storage.InMemoryWithJSONConfig(data))
+	store := inmem.NewFromObject(data)
 
 	txn, err := store.NewTransaction(ctx)
 	if err != nil {
 		// Handle error.
 	}
 
-	defer store.Close(ctx, txn)
+	// Cancel transaction because no writes are performed.
+	defer store.Abort(ctx, txn)
 
 	// Read values out of storage.
 	v1, err1 := store.Read(ctx, txn, storage.MustParsePath("/users/1/likes/1"))
@@ -76,7 +78,7 @@ func ExampleStorage_Read() {
 	// err2 is not found: true
 }
 
-func ExampleStorage_Write() {
+func ExampleInMemory_Write() {
 	// Initialize context for the example. Normally the caller would obtain the
 	// context from an input parameter or instantiate their own.
 	ctx := context.Background()
@@ -110,8 +112,8 @@ func ExampleStorage_Write() {
 		// Handle error.
 	}
 
-	// Create the new DataStore with the dummy data.
-	store := storage.New(storage.InMemoryWithJSONConfig(data))
+	// Create the new store with the dummy data.
+	store := inmem.NewFromObject(data)
 
 	// Define dummy data to add to the DataStore.
 	examplePatch := `{
@@ -134,8 +136,6 @@ func ExampleStorage_Write() {
 		// Handle error.
 	}
 
-	defer store.Close(ctx, txn)
-
 	// Write values into storage and read result.
 	err0 := store.Write(ctx, txn, storage.AddOp, storage.MustParsePath("/users/0/location"), patch)
 	v1, err1 := store.Read(ctx, txn, storage.MustParsePath("/users/0/location/latitude"))
@@ -148,6 +148,7 @@ func ExampleStorage_Write() {
 	fmt.Println("err2:", err2)
 
 	// Rollback transaction because write failed.
+	store.Abort(ctx, txn)
 
 	// Output:
 	// err0: <nil>

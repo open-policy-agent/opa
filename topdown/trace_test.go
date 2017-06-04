@@ -13,6 +13,7 @@ import (
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/storage"
+	"github.com/open-policy-agent/opa/storage/inmem"
 )
 
 func TestEventEqual(t *testing.T) {
@@ -60,9 +61,9 @@ q[x] { x = data.a[_] }`
 	ctx := context.Background()
 	compiler := compileModules([]string{module})
 	data := loadSmallTestData()
-	store := storage.New(storage.InMemoryWithJSONConfig(data))
+	store := inmem.NewFromObject(data)
 	txn := storage.NewTransactionOrDie(ctx, store)
-	defer store.Close(ctx, txn)
+	defer store.Abort(ctx, txn)
 
 	params := NewQueryParams(ctx, compiler, store, txn, nil, ast.MustParseRef("data.test.p"))
 	tracer := NewBufferTracer()

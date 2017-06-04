@@ -30,7 +30,7 @@ import (
 // REPL represents an instance of the interactive shell.
 type REPL struct {
 	output io.Writer
-	store  *storage.Storage
+	store  storage.Store
 
 	modules         map[string]*ast.Module
 	currentModuleID string
@@ -61,7 +61,7 @@ const (
 const exitPromptMessage = "Do you want to exit ([y]/n)? "
 
 // New returns a new instance of the REPL.
-func New(store *storage.Storage, historyPath string, output io.Writer, outputFormat string, banner string) *REPL {
+func New(store storage.Store, historyPath string, output io.Writer, outputFormat string, banner string) *REPL {
 
 	module := defaultModule()
 	moduleID := module.Package.Path.String()
@@ -220,7 +220,7 @@ func (r *REPL) OneShot(ctx context.Context, line string) error {
 		return err
 	}
 
-	defer r.store.Close(ctx, r.txn)
+	defer r.store.Abort(ctx, r.txn)
 
 	if len(r.buffer) == 0 {
 		if cmd := newCommand(line); cmd != nil {
@@ -232,7 +232,7 @@ func (r *REPL) OneShot(ctx context.Context, line string) error {
 			case "show":
 				return r.cmdShow()
 			case "unset":
-				return r.cmdUnset(cmd.args)
+				return r.cmdUnset(ctx, cmd.args)
 			case "pretty":
 				return r.cmdFormat("pretty")
 			case "trace":
@@ -283,7 +283,7 @@ func (r *REPL) complete(line string) (c []string) {
 		return c
 	}
 
-	defer r.store.Close(ctx, txn)
+	defer r.store.Abort(ctx, txn)
 
 	// add imports
 	for _, mod := range r.modules {
@@ -305,7 +305,11 @@ func (r *REPL) complete(line string) (c []string) {
 		}
 	}
 
-	mods := r.store.ListPolicies(txn)
+	mods, err := r.loadModules(ctx, txn)
+	if err != nil {
+		fmt.Fprintln(r.output, "error:", err)
+		return c
+	}
 
 	// add virtual docs defined by policies
 	for _, mod := range mods {
@@ -390,7 +394,7 @@ func (r *REPL) cmdTypes() error {
 	return nil
 }
 
-func (r *REPL) cmdUnset(args []string) error {
+func (r *REPL) cmdUnset(ctx context.Context, args []string) error {
 
 	if len(args) != 1 {
 		return newBadArgsErr("unset <var>: expects exactly one argument")
@@ -428,7 +432,11 @@ func (r *REPL) cmdUnset(args []string) error {
 	cpy := mod.Copy()
 	cpy.Rules = rules
 
-	policies := r.store.ListPolicies(r.txn)
+	policies, err := r.loadModules(ctx, r.txn)
+	if err != nil {
+		return err
+	}
+
 	policies[r.currentModuleID] = cpy
 
 	for id, mod := range r.modules {
@@ -448,9 +456,12 @@ func (r *REPL) cmdUnset(args []string) error {
 	return nil
 }
 
-func (r *REPL) compileBody(body ast.Body, input ast.Value) (ast.Body, *ast.TypeEnv, error) {
+func (r *REPL) compileBody(ctx context.Context, body ast.Body, input ast.Value) (ast.Body, *ast.TypeEnv, error) {
 
-	policies := r.store.ListPolicies(r.txn)
+	policies, err := r.loadModules(ctx, r.txn)
+	if err != nil {
+		return nil, nil, err
+	}
 
 	for id, mod := range r.modules {
 		policies[id] = mod
@@ -468,11 +479,11 @@ func (r *REPL) compileBody(body ast.Body, input ast.Value) (ast.Body, *ast.TypeE
 		WithInput(input)
 
 	qc := compiler.QueryCompiler()
-	body, err := qc.WithContext(qctx).Compile(body)
+	body, err = qc.WithContext(qctx).Compile(body)
 	return body, qc.TypeEnv(), err
 }
 
-func (r *REPL) compileRule(rule *ast.Rule) error {
+func (r *REPL) compileRule(ctx context.Context, rule *ast.Rule) error {
 
 	mod := r.modules[r.currentModuleID]
 	prev := mod.Rules
@@ -482,7 +493,11 @@ func (r *REPL) compileRule(rule *ast.Rule) error {
 		return false
 	})
 
-	policies := r.store.ListPolicies(r.txn)
+	policies, err := r.loadModules(ctx, r.txn)
+	if err != nil {
+		return err
+	}
+
 	for id, mod := range r.modules {
 		policies[id] = mod
 	}
@@ -552,9 +567,13 @@ func (r *REPL) evalBufferMulti(ctx context.Context) error {
 	return nil
 }
 
-func (r *REPL) loadCompiler() (*ast.Compiler, error) {
+func (r *REPL) loadCompiler(ctx context.Context) (*ast.Compiler, error) {
 
-	policies := r.store.ListPolicies(r.txn)
+	policies, err := r.loadModules(ctx, r.txn)
+	if err != nil {
+		return nil, err
+	}
+
 	for id, mod := range r.modules {
 		policies[id] = mod
 	}
@@ -572,7 +591,7 @@ func (r *REPL) loadCompiler() (*ast.Compiler, error) {
 // input from the data.repl.input document.
 func (r *REPL) loadInput(ctx context.Context) (ast.Value, error) {
 
-	compiler, err := r.loadCompiler()
+	compiler, err := r.loadCompiler(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -599,7 +618,7 @@ func (r *REPL) evalStatement(ctx context.Context, stmt interface{}) error {
 			return err
 		}
 
-		body, typeEnv, err := r.compileBody(s, input)
+		body, typeEnv, err := r.compileBody(ctx, s, input)
 
 		if err != nil {
 			// The compile step can fail if input is undefined. In that case,
@@ -613,17 +632,17 @@ func (r *REPL) evalStatement(ctx context.Context, stmt interface{}) error {
 					// caller.
 					return err
 				}
-				return r.compileRule(rule)
+				return r.compileRule(ctx, rule)
 			}
 			return err
 		}
 
 		rule, err3 := ast.ParseRuleFromBody(r.modules[r.currentModuleID], body)
 		if err3 == nil {
-			return r.compileRule(rule)
+			return r.compileRule(ctx, rule)
 		}
 
-		compiler, err := r.loadCompiler()
+		compiler, err := r.loadCompiler(ctx)
 		if err != nil {
 			return err
 		}
@@ -636,7 +655,7 @@ func (r *REPL) evalStatement(ctx context.Context, stmt interface{}) error {
 
 		return err
 	case *ast.Rule:
-		return r.compileRule(s)
+		return r.compileRule(ctx, s)
 	case *ast.Import:
 		return r.evalImport(s)
 	case *ast.Package:
@@ -937,6 +956,32 @@ func (r *REPL) loadHistory(prompt *liner.State) {
 	}
 }
 
+func (r *REPL) loadModules(ctx context.Context, txn storage.Transaction) (map[string]*ast.Module, error) {
+
+	ids, err := r.store.ListPolicies(ctx, txn)
+	if err != nil {
+		return nil, err
+	}
+
+	modules := make(map[string]*ast.Module, len(ids))
+
+	for _, id := range ids {
+		bs, err := r.store.GetPolicy(ctx, txn, id)
+		if err != nil {
+			return nil, err
+		}
+
+		parsed, err := ast.ParseModule(id, string(bs))
+		if err != nil {
+			return nil, err
+		}
+
+		modules[id] = parsed
+	}
+
+	return modules, nil
+}
+
 func (r *REPL) printResults(keys []string, results []map[string]interface{}) {
 	switch r.outputFormat {
 	case "json":
@@ -1165,7 +1210,7 @@ func singleValue(body ast.Body) bool {
 	}
 }
 
-func dumpStorage(ctx context.Context, store *storage.Storage, txn storage.Transaction, w io.Writer) error {
+func dumpStorage(ctx context.Context, store storage.Store, txn storage.Transaction, w io.Writer) error {
 	data, err := store.Read(ctx, txn, storage.Path{})
 	if err != nil {
 		return err
@@ -1174,7 +1219,7 @@ func dumpStorage(ctx context.Context, store *storage.Storage, txn storage.Transa
 	return e.Encode(data)
 }
 
-func mangleTrace(ctx context.Context, store *storage.Storage, txn storage.Transaction, trace []*topdown.Event) error {
+func mangleTrace(ctx context.Context, store storage.Store, txn storage.Transaction, trace []*topdown.Event) error {
 	for _, event := range trace {
 		if err := mangleEvent(ctx, store, txn, event); err != nil {
 			return err
@@ -1183,7 +1228,7 @@ func mangleTrace(ctx context.Context, store *storage.Storage, txn storage.Transa
 	return nil
 }
 
-func mangleEvent(ctx context.Context, store *storage.Storage, txn storage.Transaction, event *topdown.Event) error {
+func mangleEvent(ctx context.Context, store storage.Store, txn storage.Transaction, event *topdown.Event) error {
 
 	// Replace bindings with ref values with the values from storage.
 	cpy := event.Locals.Copy()
