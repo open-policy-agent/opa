@@ -18,6 +18,7 @@ import (
 	"github.com/open-policy-agent/opa/server/identifier"
 	"github.com/open-policy-agent/opa/server/types"
 	"github.com/open-policy-agent/opa/storage"
+	"github.com/open-policy-agent/opa/storage/inmem"
 	"github.com/open-policy-agent/opa/util"
 	"github.com/open-policy-agent/opa/util/test"
 )
@@ -851,7 +852,7 @@ func TestQueryV1Explain(t *testing.T) {
 func TestAuthorization(t *testing.T) {
 
 	ctx := context.Background()
-	store := storage.New(storage.InMemoryConfig())
+	store := inmem.New()
 	txn := storage.NewTransactionOrDie(ctx, store)
 
 	authzPolicy := `package system.authz
@@ -865,17 +866,17 @@ func TestAuthorization(t *testing.T) {
 		}
 		`
 
-	module := ast.MustParseModule(authzPolicy)
-
-	if err := store.InsertPolicy(txn, "test", module, nil); err != nil {
+	if err := store.UpsertPolicy(ctx, txn, "test", []byte(authzPolicy)); err != nil {
 		panic(err)
 	}
 
-	store.Close(ctx, txn)
+	if err := store.Commit(ctx, txn); err != nil {
+		panic(err)
+	}
 
 	server, err := New().
 		WithAddress(":8182").
-		WithStorage(store).
+		WithStore(store).
 		WithAuthorization(AuthorizationBasic).
 		Init(ctx)
 
@@ -950,11 +951,9 @@ func TestAuthorization(t *testing.T) {
 type queryBindingErrStore struct {
 	storage.TriggersNotSupported
 	storage.WritesNotSupported
+	storage.PolicyNotSupported
+	storage.IndexingNotSupported
 	count int
-}
-
-func (queryBindingErrStore) ID() string {
-	return "mock"
 }
 
 func (s *queryBindingErrStore) Read(ctx context.Context, txn storage.Transaction, path storage.Path) (interface{}, error) {
@@ -968,25 +967,28 @@ func (s *queryBindingErrStore) Read(ctx context.Context, txn storage.Transaction
 	return "", nil
 }
 
-func (queryBindingErrStore) Begin(ctx context.Context, txn storage.Transaction, params storage.TransactionParams) error {
+func (*queryBindingErrStore) ListPolicies(ctx context.Context, txn storage.Transaction) ([]string, error) {
+	return nil, nil
+}
+
+func (queryBindingErrStore) NewTransaction(ctx context.Context, params ...storage.TransactionParams) (storage.Transaction, error) {
+	return nil, nil
+}
+
+func (queryBindingErrStore) Commit(ctx context.Context, txn storage.Transaction) error {
 	return nil
 }
 
-func (queryBindingErrStore) Close(ctx context.Context, txn storage.Transaction) {
+func (queryBindingErrStore) Abort(ctx context.Context, txn storage.Transaction) {
 
 }
 
 func TestQueryBindingIterationError(t *testing.T) {
 
 	ctx := context.Background()
-	store := storage.New(storage.InMemoryConfig())
 	mock := &queryBindingErrStore{}
 
-	if err := store.Mount(mock, storage.MustParsePath("/foo/bar")); err != nil {
-		panic(err)
-	}
-
-	server, err := New().WithStorage(store).WithAddress(":8182").Init(ctx)
+	server, err := New().WithStore(mock).WithAddress(":8182").Init(ctx)
 	if err != nil {
 		panic(err)
 	}
@@ -1024,10 +1026,10 @@ type fixture struct {
 
 func newFixture(t *testing.T) *fixture {
 	ctx := context.Background()
-	store := storage.New(storage.InMemoryConfig())
+	store := inmem.New()
 	server, err := New().
 		WithAddress(":8182").
-		WithStorage(store).
+		WithStore(store).
 		Init(ctx)
 	if err != nil {
 		panic(err)

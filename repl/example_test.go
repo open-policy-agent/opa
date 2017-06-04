@@ -10,7 +10,7 @@ import (
 	"fmt"
 
 	"github.com/open-policy-agent/opa/repl"
-	"github.com/open-policy-agent/opa/storage"
+	"github.com/open-policy-agent/opa/storage/inmem"
 )
 
 func ExampleREPL_OneShot() {
@@ -19,7 +19,7 @@ func ExampleREPL_OneShot() {
 	ctx := context.Background()
 
 	// Instantiate the policy engine's storage layer.
-	store := storage.New(storage.InMemoryConfig())
+	store := inmem.New()
 
 	// Create a buffer that will receive REPL output.
 	var buf bytes.Buffer

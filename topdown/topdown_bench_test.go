@@ -12,6 +12,7 @@ import (
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/storage"
+	"github.com/open-policy-agent/opa/storage/inmem"
 )
 
 func BenchmarkVirtualDocs1x1(b *testing.B) {
@@ -51,7 +52,7 @@ func runVirtualDocsBenchmark(b *testing.B, numTotalRules, numHitRules int) {
 	ctx := context.Background()
 	compiler := ast.NewCompiler()
 	mods := map[string]*ast.Module{"module": mod}
-	store := storage.New(storage.InMemoryConfig())
+	store := inmem.New()
 	txn := storage.NewTransactionOrDie(ctx, store)
 	if compiler.Compile(mods); compiler.Failed() {
 		b.Fatalf("Unexpected compiler error: %v", compiler.Errors)

@@ -22,6 +22,7 @@ import (
 	"github.com/open-policy-agent/opa/repl"
 	"github.com/open-policy-agent/opa/server"
 	"github.com/open-policy-agent/opa/storage"
+	"github.com/open-policy-agent/opa/storage/inmem"
 	"github.com/open-policy-agent/opa/version"
 	"github.com/pkg/errors"
 )
@@ -96,7 +97,7 @@ func NewParams() *Params {
 
 // Runtime represents a single OPA instance.
 type Runtime struct {
-	Store *storage.Storage
+	Store storage.Store
 }
 
 // Start is the entry point of an OPA instance.
@@ -124,27 +125,25 @@ func (rt *Runtime) init(ctx context.Context, params *Params) error {
 		return err
 	}
 
-	// Open data store and load base documents.
-	store := storage.New(storage.InMemoryConfig())
-
-	if err := store.Open(ctx); err != nil {
-		return err
-	}
+	store := inmem.New()
 
 	txn, err := store.NewTransaction(ctx)
 	if err != nil {
 		return err
 	}
 
-	defer store.Close(ctx, txn)
-
 	if err := store.Write(ctx, txn, storage.AddOp, storage.Path{}, loaded.Documents); err != nil {
+		store.Abort(ctx, txn)
 		return errors.Wrapf(err, "storage error")
 	}
 
-	// Load policies provided via input.
-	if err := compileAndStoreInputs(loaded.Modules, store, txn); err != nil {
+	if err := compileAndStoreInputs(ctx, store, txn, loaded.Modules); err != nil {
+		store.Abort(ctx, txn)
 		return errors.Wrapf(err, "compile error")
+	}
+
+	if err := store.Commit(ctx, txn); err != nil {
+		return errors.Wrapf(err, "storage error")
 	}
 
 	rt.Store = store
@@ -162,7 +161,7 @@ func (rt *Runtime) startServer(ctx context.Context, params *Params) {
 	}).Infof("First line of log stream.")
 
 	s, err := server.New().
-		WithStorage(rt.Store).
+		WithStore(rt.Store).
 		WithAddress(params.Addr).
 		WithInsecureAddress(params.InsecureAddr).
 		WithCertificate(params.Certificate).
@@ -249,13 +248,17 @@ func (rt *Runtime) processWatcherUpdate(ctx context.Context, paths []string) err
 		return err
 	}
 
-	defer rt.Store.Close(ctx, txn)
-
 	if err := rt.Store.Write(ctx, txn, storage.AddOp, storage.Path{}, loaded.Documents); err != nil {
+		rt.Store.Abort(ctx, txn)
 		return err
 	}
 
-	return compileAndStoreInputs(loaded.Modules, rt.Store, txn)
+	if err := compileAndStoreInputs(ctx, rt.Store, txn, loaded.Modules); err != nil {
+		rt.Store.Abort(ctx, txn)
+		return err
+	}
+
+	return rt.Store.Commit(ctx, txn)
 }
 
 func (rt *Runtime) getBanner() string {
@@ -266,12 +269,12 @@ func (rt *Runtime) getBanner() string {
 	return buf.String()
 }
 
-func compileAndStoreInputs(modules map[string]*loadedModule, store *storage.Storage, txn storage.Transaction) error {
+func compileAndStoreInputs(ctx context.Context, store storage.Store, txn storage.Transaction, modules map[string]*loadedModule) error {
 
-	policies := store.ListPolicies(txn)
+	policies := make(map[string]*ast.Module, len(modules))
 
-	for id, mod := range modules {
-		policies[id] = mod.Parsed
+	for id, parsed := range modules {
+		policies[id] = parsed.Parsed
 	}
 
 	c := ast.NewCompiler()
@@ -280,8 +283,8 @@ func compileAndStoreInputs(modules map[string]*loadedModule, store *storage.Stor
 		return c.Errors
 	}
 
-	for id := range modules {
-		if err := store.InsertPolicy(txn, id, modules[id].Parsed, modules[id].Raw); err != nil {
+	for id, parsed := range modules {
+		if err := store.UpsertPolicy(ctx, txn, id, parsed.Raw); err != nil {
 			return err
 		}
 	}

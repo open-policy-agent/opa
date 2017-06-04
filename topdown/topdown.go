@@ -25,7 +25,7 @@ type Topdown struct {
 	Input    ast.Value
 	Index    int
 	Previous *Topdown
-	Store    *storage.Storage
+	Store    storage.Store
 	Tracer   Tracer
 	Context  context.Context
 
@@ -76,7 +76,7 @@ type redoStackElement struct {
 }
 
 // New returns a new Topdown object without any bindings.
-func New(ctx context.Context, query ast.Body, compiler *ast.Compiler, store *storage.Storage, txn storage.Transaction) *Topdown {
+func New(ctx context.Context, query ast.Body, compiler *ast.Compiler, store storage.Store, txn storage.Transaction) *Topdown {
 	return &Topdown{
 		Context:  ctx,
 		Query:    query,
@@ -580,7 +580,7 @@ func PlugValue(v ast.Value, binding func(ast.Value) ast.Value) ast.Value {
 type QueryParams struct {
 	Context     context.Context
 	Compiler    *ast.Compiler
-	Store       *storage.Storage
+	Store       storage.Store
 	Transaction storage.Transaction
 	Input       ast.Value
 	Tracer      Tracer
@@ -589,7 +589,7 @@ type QueryParams struct {
 }
 
 // NewQueryParams returns a new QueryParams.
-func NewQueryParams(ctx context.Context, compiler *ast.Compiler, store *storage.Storage, txn storage.Transaction, input ast.Value, path ast.Ref) *QueryParams {
+func NewQueryParams(ctx context.Context, compiler *ast.Compiler, store storage.Store, txn storage.Transaction, input ast.Value, path ast.Ref) *QueryParams {
 	return &QueryParams{
 		Context:     ctx,
 		Compiler:    compiler,
@@ -725,7 +725,7 @@ type Resolver interface {
 
 type resolver struct {
 	context context.Context
-	store   *storage.Storage
+	store   storage.Store
 	txn     storage.Transaction
 }
 
@@ -1942,7 +1942,7 @@ func evalTermsIndexed(t *Topdown, iter Iterator, indexed ast.Ref, nonIndexed *as
 
 		// Iterate the bindings for the indexed term that when applied to the reference
 		// would locate the non-indexed value obtained above.
-		return t.Store.Index(t.txn, indexed, value, func(bindings *ast.ValueMap) error {
+		err = t.Store.Index(t.Context, t.txn, indexed, value, func(bindings *ast.ValueMap) error {
 			var prev *Undo
 
 			// We will skip these bindings if the non-indexed term contains a
@@ -1966,6 +1966,7 @@ func evalTermsIndexed(t *Topdown, iter Iterator, indexed ast.Ref, nonIndexed *as
 			return err
 		})
 
+		return err
 	}
 
 	return evalTermsRec(t, iterateIndex, []*ast.Term{nonIndexed})
@@ -2098,11 +2099,6 @@ func evalTermsRecSet(t *Topdown, set *ast.Set, idx int, iter Iterator) error {
 // built on the fly.
 func indexBuildLazy(t *Topdown, ref ast.Ref) (bool, error) {
 
-	// Check if index was already built.
-	if t.Store.IndexExists(ref) {
-		return true, nil
-	}
-
 	// Ignore refs against variables.
 	if !ref[0].Equal(ast.DefaultRootDocument) {
 		return false, nil
@@ -2128,12 +2124,9 @@ func indexBuildLazy(t *Topdown, ref ast.Ref) (bool, error) {
 		}
 	}
 
-	if err := t.Store.BuildIndex(t.Context, t.txn, ref); err != nil {
-		switch err := err.(type) {
-		case *storage.Error:
-			if err.Code == storage.IndexingNotSupportedErr {
-				return false, nil
-			}
+	if err := t.Store.Build(t.Context, t.txn, ref); err != nil {
+		if storage.IsIndexingNotSupported(err) {
+			return false, nil
 		}
 		return false, err
 	}

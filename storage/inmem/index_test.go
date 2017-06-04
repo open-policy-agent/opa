@@ -1,8 +1,7 @@
 // Copyright 2016 The OPA Authors.  All rights reserved.
 // Use of this source code is governed by an Apache2
 // license that can be found in the LICENSE file.
-
-package storage
+package inmem
 
 import (
 	"context"
@@ -11,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/util"
 )
 
@@ -46,15 +46,19 @@ func TestIndicesBuild(t *testing.T) {
 
 func TestIndicesAdd(t *testing.T) {
 
-	indices := newIndices()
 	data := loadSmallTestData()
-	store := NewDataStoreFromJSONObject(data)
+	ctx := context.Background()
+	store := NewFromObject(data)
+	txn := storage.NewTransactionOrDie(ctx, store)
 
+	indices := newIndices()
 	ref := ast.MustParseRef("data.d[x][y]")
 
-	// TODO(tsandall):
-	indices.Build(context.Background(), store, invalidTXN, ref)
-	index := indices.Get(ref)
+	if err := indices.Build(ctx, store, txn, ref); err != nil {
+		t.Fatal(err)
+	}
+
+	index := indices.get(ref)
 
 	// new value to add
 	var val1 interface{}
@@ -77,24 +81,26 @@ func TestIndicesAdd(t *testing.T) {
 
 func runIndexBuildTestCase(t *testing.T, i int, note string, refStr string, expectedStr string, value interface{}) {
 
-	indices := newIndices()
+	ctx := context.Background()
 	data := loadSmallTestData()
-	store := NewDataStoreFromJSONObject(data)
+	store := NewFromObject(data)
+	txn := storage.NewTransactionOrDie(ctx, store)
+	indices := newIndices()
+
 	ref := ast.MustParseRef(refStr)
 
-	if indices.Get(ref) != nil {
+	if indices.get(ref) != nil {
 		t.Errorf("Test case %d (%v): Did not expect indices to contain %v yet", i, note, ref)
 		return
 	}
 
-	// TODO(tsandall):
-	err := indices.Build(context.Background(), store, invalidTXN, ref)
+	err := indices.Build(ctx, store, txn, ref)
 	if err != nil {
 		t.Errorf("Test case %d (%v): Did not expect error from build: %v", i, note, err)
 		return
 	}
 
-	index := indices.Get(ref)
+	index := indices.get(ref)
 	if index == nil {
 		t.Errorf("Test case %d (%v): Did not expect nil index for %v", i, note, ref)
 		return

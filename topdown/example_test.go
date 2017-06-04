@@ -14,6 +14,7 @@ import (
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/storage"
+	"github.com/open-policy-agent/opa/storage/inmem"
 	"github.com/open-policy-agent/opa/topdown"
 	"github.com/open-policy-agent/opa/topdown/builtins"
 	"github.com/open-policy-agent/opa/types"
@@ -45,16 +46,16 @@ func ExampleEval() {
 	}
 
 	// Instantiate the policy engine's storage layer.
-	store := storage.New(storage.InMemoryWithJSONConfig(data))
+	store := inmem.NewFromObject(data)
 
 	// Create a new transaction. Transactions allow the policy engine to
 	// evaluate the query over a consistent snapshot fo the storage layer.
-	txn, err := store.NewTransaction(ctx)
+	txn, err := store.NewTransaction(ctx, storage.TransactionParams{})
 	if err != nil {
 		// Handle error.
 	}
 
-	defer store.Close(ctx, txn)
+	defer store.Abort(ctx, txn)
 
 	// Prepare the evaluation parameters. Evaluation executes against the policy
 	// engine's storage. In this case, we seed the storage with a single array
@@ -119,22 +120,10 @@ r[z] { b = [2, 4]; z = b[_] }`,
 		// Handle error.
 	}
 
-	// Instantiate the policy engine's storage layer.
-	store := storage.New(storage.InMemoryConfig())
-
-	// Create a new transaction. Transactions allow the policy engine to
-	// evaluate the query over a consistent snapshot fo the storage layer.
-	txn, err := store.NewTransaction(ctx)
-	if err != nil {
-		// Handle error.
-	}
-
-	defer store.Close(ctx, txn)
-
 	// Prepare query parameters. In this case, there are no additional documents
 	// required by the policy so the input is nil.
 	var input ast.Value
-	params := topdown.NewQueryParams(ctx, compiler, store, txn, input, ast.MustParseRef("data.opa.example.p"))
+	params := topdown.NewQueryParams(ctx, compiler, nil, nil, input, ast.MustParseRef("data.opa.example.p"))
 
 	// Execute the query against "p".
 	v1, err1 := topdown.Query(params)

@@ -15,12 +15,13 @@ import (
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/storage"
+	"github.com/open-policy-agent/opa/storage/inmem"
 	"github.com/open-policy-agent/opa/topdown"
 )
 
 func TestScheduler(t *testing.T) {
 	params := setup(t, "data_10nodes_30pods.json")
-	defer params.Store.Close(params.Context, params.Transaction)
+	defer params.Store.Abort(params.Context, params.Transaction)
 
 	qrs, err := topdown.Query(params)
 
@@ -51,9 +52,7 @@ func setup(t *testing.T, filename string) *topdown.QueryParams {
 	}
 
 	// storage setup
-	store := storage.New(storage.Config{
-		Builtin: loadDataStore(filename),
-	})
+	store := loadDataStore(filename)
 
 	// parameter setup
 	ctx := context.Background()
@@ -65,13 +64,13 @@ func setup(t *testing.T, filename string) *topdown.QueryParams {
 	return params
 }
 
-func loadDataStore(filename string) *storage.DataStore {
+func loadDataStore(filename string) storage.Store {
 	f, err := os.Open(getFilename(filename))
 	if err != nil {
 		panic(err)
 	}
 	defer f.Close()
-	return storage.NewDataStoreFromReader(f)
+	return inmem.NewFromReader(f)
 }
 
 func getFilename(filename string) string {

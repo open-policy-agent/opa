@@ -4,23 +4,26 @@
 
 package storage
 
-import "context"
+import (
+	"context"
 
-// Store defines the interface for the storage layer's backend. Users can
-// implement their own stores and mount them into the storage layer to provide
-// the policy engine access to external data sources.
+	"github.com/open-policy-agent/opa/ast"
+)
+
+// Transaction defines the interface that identifies a consistent snapshot over
+// the policy engine's storage layer.
+type Transaction interface {
+	ID() uint64
+}
+
+// Store defines the interface for the storage layer's backend.
 type Store interface {
 	Trigger
+	Policy
+	Indexing
 
-	// Returns a unique identifier for this store. The function should namespace
-	// the identifier to avoid potential conflicts, e.g.,
-	// com.example/foo-service.
-	ID() string
-
-	// Begin is called to indicate that a new transaction has started. The store
-	// can use the call to initialize any resources that may be required for the
-	// transaction.
-	Begin(ctx context.Context, txn Transaction, params TransactionParams) error
+	// NewTransaction is called create a new transaction in the store.
+	NewTransaction(ctx context.Context, params ...TransactionParams) (Transaction, error)
 
 	// Read is called to fetch a document referred to by path.
 	Read(ctx context.Context, txn Transaction, path Path) (interface{}, error)
@@ -28,29 +31,15 @@ type Store interface {
 	// Write is called to modify a document referred to by path.
 	Write(ctx context.Context, txn Transaction, op PatchOp, path Path, value interface{}) error
 
-	// Close indicates a transaction has finished. The store can use the call to
-	// release any resources temporarily allocated for the transaction.
-	Close(ctx context.Context, txn Transaction)
+	// Commit is called to finish the transaction.
+	Commit(ctx context.Context, txn Transaction) error
+
+	// Abort is called to cancel the transaction.
+	Abort(ctx context.Context, txn Transaction)
 }
 
 // TransactionParams describes a new transaction.
 type TransactionParams struct {
-
-	// Paths represents a set of document paths that may be read during the
-	// transaction. The paths may be provided by the caller to hint to the
-	// storage layer that certain documents could be pre-loaded.
-	Paths []Path
-}
-
-// NewTransactionParams returns a new TransactionParams object.
-func NewTransactionParams() TransactionParams {
-	return TransactionParams{}
-}
-
-// WithPaths returns a new TransactionParams object with the paths set.
-func (params TransactionParams) WithPaths(paths []Path) TransactionParams {
-	params.Paths = paths
-	return params
 }
 
 // PatchOp is the enumeration of supposed modifications.
@@ -69,4 +58,95 @@ type WritesNotSupported struct{}
 
 func (WritesNotSupported) Write(ctx context.Context, txn Transaction, op PatchOp, path Path, value interface{}) error {
 	return writesNotSupportedError()
+}
+
+// Policy defines the interface for policy module storage.
+type Policy interface {
+	ListPolicies(context.Context, Transaction) ([]string, error)
+	GetPolicy(context.Context, Transaction, string) ([]byte, error)
+	UpsertPolicy(context.Context, Transaction, string, []byte) error
+	DeletePolicy(context.Context, Transaction, string) error
+}
+
+// PolicyNotSupported provides a default implementation of the policy interface
+// which may be used if the backend does not support policy storage.
+type PolicyNotSupported struct{}
+
+// ListPolicies always returns a PolicyNotSupportedErr.
+func (PolicyNotSupported) ListPolicies(context.Context, Transaction) ([]string, error) {
+	return nil, policyNotSupportedError()
+}
+
+// GetPolicy always returns a PolicyNotSupportedErr.
+func (PolicyNotSupported) GetPolicy(context.Context, Transaction, string) ([]byte, error) {
+	return nil, policyNotSupportedError()
+}
+
+// UpsertPolicy always returns a PolicyNotSupportedErr.
+func (PolicyNotSupported) UpsertPolicy(context.Context, Transaction, string, []byte) error {
+	return policyNotSupportedError()
+}
+
+// DeletePolicy always returns a PolicyNotSupportedErr.
+func (PolicyNotSupported) DeletePolicy(context.Context, Transaction, string) error {
+	return policyNotSupportedError()
+}
+
+// TriggerCallback defines the interface that callers can implement to handle
+// changes in the stores.
+type TriggerCallback func(ctx context.Context, txn Transaction, op PatchOp, path Path, value interface{}) error
+
+// TriggerConfig contains the trigger registration configuration.
+type TriggerConfig struct {
+
+	// Before is called before the change is applied to the store.
+	Before TriggerCallback
+
+	// After is called after the change is applied to the store.
+	After TriggerCallback
+
+	// TODO(tsandall): include callbacks for aborted changes
+}
+
+// Trigger defines the interface that stores implement to register for change
+// notifications when the store is changed.
+type Trigger interface {
+	Register(id string, config TriggerConfig) error
+	Unregister(id string)
+}
+
+// TriggersNotSupported provides default implementations of the Trigger
+// interface which may be used if the backend does not support triggers.
+type TriggersNotSupported struct{}
+
+// Register always returns an error indicating triggers are not supported.
+func (TriggersNotSupported) Register(string, TriggerConfig) error {
+	return triggersNotSupportedError()
+}
+
+// Unregister is a no-op.
+func (TriggersNotSupported) Unregister(string) {
+}
+
+// IndexIterator defines the interface for iterating over index results.
+type IndexIterator func(*ast.ValueMap) error
+
+// Indexing defines the interface for building and searching storage indices.
+type Indexing interface {
+	Build(context.Context, Transaction, ast.Ref) error
+	Index(context.Context, Transaction, ast.Ref, interface{}, IndexIterator) error
+}
+
+// IndexingNotSupported provides default implementations of the Indexing
+// interface which may be used if the backend does not support indexing.
+type IndexingNotSupported struct{}
+
+// Build always returns an error indicating indexing is not supported.
+func (IndexingNotSupported) Build(context.Context, Transaction, ast.Ref) error {
+	return indexingNotSupportedError()
+}
+
+// Index always returns an error indicating indexing is not supported.
+func (IndexingNotSupported) Index(context.Context, Transaction, ast.Ref, interface{}, IndexIterator) error {
+	return indexingNotSupportedError()
 }

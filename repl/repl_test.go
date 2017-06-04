@@ -20,27 +20,33 @@ import (
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/storage"
+	"github.com/open-policy-agent/opa/storage/inmem"
 	"github.com/open-policy-agent/opa/util"
 )
 
 func TestComplete(t *testing.T) {
-	store := newTestStore()
 	ctx := context.Background()
+	store := newTestStore()
+	txn := storage.NewTransactionOrDie(ctx, store)
 
-	mod1 := ast.MustParseModule(`package a.b.c
+	mod1 := []byte(`package a.b.c
 
 p = 1 { true }
 q = 2 { true }`)
 
-	mod2 := ast.MustParseModule(`package a.b.d
+	mod2 := []byte(`package a.b.d
 
 r = 3 { true }`)
 
-	if err := storage.InsertPolicy(ctx, store, "mod1", mod1, nil); err != nil {
+	if err := store.UpsertPolicy(ctx, txn, "mod1", mod1); err != nil {
 		panic(err)
 	}
 
-	if err := storage.InsertPolicy(ctx, store, "mod2", mod2, nil); err != nil {
+	if err := store.UpsertPolicy(ctx, txn, "mod2", mod2); err != nil {
+		panic(err)
+	}
+
+	if err := store.Commit(ctx, txn); err != nil {
 		panic(err)
 	}
 
@@ -107,7 +113,7 @@ func TestDump(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	store := storage.New(storage.InMemoryWithJSONConfig(data))
+	store := inmem.NewFromObject(data)
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
 	repl.OneShot(ctx, "dump")
@@ -122,7 +128,7 @@ func TestDumpPath(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	store := storage.New(storage.InMemoryWithJSONConfig(data))
+	store := inmem.NewFromObject(data)
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
 
@@ -163,7 +169,7 @@ func TestHelp(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	store := storage.New(storage.InMemoryConfig())
+	store := inmem.New()
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
 	repl.OneShot(ctx, "help deadbeef")
@@ -177,7 +183,7 @@ func TestHelp(t *testing.T) {
 
 func TestShow(t *testing.T) {
 	ctx := context.Background()
-	store := storage.New(storage.InMemoryConfig())
+	store := inmem.New()
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
 
@@ -234,7 +240,7 @@ p[2] { true }` + "\n"
 
 func TestTypes(t *testing.T) {
 	ctx := context.Background()
-	store := storage.New(storage.InMemoryConfig())
+	store := inmem.New()
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
 
@@ -258,7 +264,7 @@ func TestTypes(t *testing.T) {
 
 func TestUnset(t *testing.T) {
 	ctx := context.Background()
-	store := storage.New(storage.InMemoryConfig())
+	store := inmem.New()
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
 
@@ -441,13 +447,22 @@ func TestEvalData(t *testing.T) {
 	store := newTestStore()
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
-	testmod := ast.MustParseModule(`package ex
+	testMod := []byte(`package ex
 
 p = [1, 2, 3] { true }`)
-	if err := storage.InsertPolicy(ctx, store, "test", testmod, nil); err != nil {
+
+	txn := storage.NewTransactionOrDie(ctx, store)
+
+	if err := store.UpsertPolicy(ctx, txn, "test", testMod); err != nil {
 		panic(err)
 	}
+
+	if err := store.Commit(ctx, txn); err != nil {
+		panic(err)
+	}
+
 	repl.OneShot(ctx, "data")
+
 	expected := parseJSON(`
 	{
 		"a": [
@@ -993,12 +1008,12 @@ func expectOutput(t *testing.T, output string, expected string) {
 	}
 }
 
-func newRepl(store *storage.Storage, buffer *bytes.Buffer) *REPL {
+func newRepl(store storage.Store, buffer *bytes.Buffer) *REPL {
 	repl := New(store, "", buffer, "", "")
 	return repl
 }
 
-func newTestStore() *storage.Storage {
+func newTestStore() storage.Store {
 	input := `
     {
         "a": [
@@ -1020,7 +1035,7 @@ func newTestStore() *storage.Storage {
 	if err != nil {
 		panic(err)
 	}
-	return storage.New(storage.InMemoryWithJSONConfig(data))
+	return inmem.NewFromObject(data)
 }
 
 func parseJSON(s string) interface{} {

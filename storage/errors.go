@@ -6,8 +6,6 @@ package storage
 
 import (
 	"fmt"
-
-	"github.com/open-policy-agent/opa/ast"
 )
 
 const (
@@ -22,18 +20,6 @@ const (
 	// was rejected.
 	InvalidPatchErr = "storage_invalid_patch_error"
 
-	// MountConflictErr indicates a mount attempt was made on a path that is
-	// already used for a mount.
-	MountConflictErr = "storage_mount_conflict_error"
-
-	// IndexNotFoundErr indicates the caller attempted to use indexing on a
-	// reference that has not been indexed.
-	IndexNotFoundErr = "storage_index_not_found_error"
-
-	// IndexingNotSupportedErr indicates the caller attempted to index a
-	// reference provided by a store that does not support indexing.
-	IndexingNotSupportedErr = "storage_indexing_not_supported_error"
-
 	// TriggersNotSupportedErr indicates the caller attempted to register a
 	// trigger against a store that does not support them.
 	TriggersNotSupportedErr = "storage_triggers_not_supported_error"
@@ -41,6 +27,14 @@ const (
 	// WritesNotSupportedErr indicate the caller attempted to perform a write
 	// against a store that does not support them.
 	WritesNotSupportedErr = "storage_writes_not_supported_error"
+
+	// PolicyNotSupportedErr indicate the caller attempted to perform a policy
+	// management operation against a store that does not support them.
+	PolicyNotSupportedErr = "storage_policy_not_supported_error"
+
+	// IndexingNotSupportedErr indicate the caller attempted to perform an
+	// indexing operation against a store that does not support them.
+	IndexingNotSupportedErr = "storage_indexing_not_supported_error"
 )
 
 // Error is the error type returned by the storage layer.
@@ -74,62 +68,13 @@ func IsInvalidPatch(err error) bool {
 	return false
 }
 
-var doesNotExistMsg = "document does not exist"
-var rootMustBeObjectMsg = "root must be object"
-var rootCannotBeRemovedMsg = "root cannot be removed"
-var outOfRangeMsg = "array index out of range"
-var arrayIndexTypeMsg = "array index must be integer"
-
-func indexNotFoundError() *Error {
-	return &Error{
-		Code: IndexNotFoundErr,
+// IsIndexingNotSupported returns true if this error is a IndexingNotSupportedErr.
+func IsIndexingNotSupported(err error) bool {
+	switch err := err.(type) {
+	case *Error:
+		return err.Code == IndexingNotSupportedErr
 	}
-}
-
-func indexingNotSupportedError() *Error {
-	return &Error{
-		Code: IndexingNotSupportedErr,
-	}
-}
-
-func internalError(f string, a ...interface{}) *Error {
-	return &Error{
-		Code:    InternalErr,
-		Message: fmt.Sprintf(f, a...),
-	}
-}
-
-func invalidPatchErr(f string, a ...interface{}) *Error {
-	return &Error{
-		Code:    InvalidPatchErr,
-		Message: fmt.Sprintf(f, a...),
-	}
-}
-
-func mountConflictError() *Error {
-	return &Error{
-		Code: MountConflictErr,
-	}
-}
-
-func notFoundError(path Path) *Error {
-	return notFoundErrorf("%v: %v", path.String(), doesNotExistMsg)
-}
-
-func notFoundErrorHint(path Path, hint string) *Error {
-	return notFoundErrorf("%v: %v", path.String(), hint)
-}
-
-func notFoundRefError(ref ast.Ref) *Error {
-	return notFoundErrorf("%v: %v", ref.String(), doesNotExistMsg)
-}
-
-func notFoundErrorf(f string, a ...interface{}) *Error {
-	msg := fmt.Sprintf(f, a...)
-	return &Error{
-		Code:    NotFoundErr,
-		Message: msg,
-	}
+	return false
 }
 
 func triggersNotSupportedError() *Error {
@@ -141,5 +86,17 @@ func triggersNotSupportedError() *Error {
 func writesNotSupportedError() *Error {
 	return &Error{
 		Code: WritesNotSupportedErr,
+	}
+}
+
+func policyNotSupportedError() *Error {
+	return &Error{
+		Code: PolicyNotSupportedErr,
+	}
+}
+
+func indexingNotSupportedError() *Error {
+	return &Error{
+		Code: IndexingNotSupportedErr,
 	}
 }

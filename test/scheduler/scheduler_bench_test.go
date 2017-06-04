@@ -14,6 +14,7 @@ import (
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/storage"
+	"github.com/open-policy-agent/opa/storage/inmem"
 	"github.com/open-policy-agent/opa/topdown"
 	"github.com/open-policy-agent/opa/util"
 )
@@ -32,7 +33,7 @@ func BenchmarkScheduler1000x3000(b *testing.B) {
 
 func runSchedulerBenchmark(b *testing.B, nodes int, pods int) {
 	params := setupBenchmark(nodes, pods)
-	defer params.Store.Close(params.Context, params.Transaction)
+	defer params.Store.Abort(params.Context, params.Transaction)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		qrs, err := topdown.Query(params)
@@ -64,7 +65,7 @@ func setupBenchmark(nodes int, pods int) *topdown.QueryParams {
 	}
 
 	// storage setup
-	store := storage.New(storage.InMemoryConfig())
+	store := inmem.New()
 
 	// parameter setup
 	ctx := context.Background()
@@ -94,7 +95,7 @@ type rcTemplateInput struct {
 	Name string
 }
 
-func setupNodes(ctx context.Context, store *storage.Storage, txn storage.Transaction, n int) {
+func setupNodes(ctx context.Context, store storage.Store, txn storage.Transaction, n int) {
 	tmpl, err := template.New("node").Parse(nodeTemplate)
 	if err != nil {
 		panic(err)
@@ -114,7 +115,7 @@ func setupNodes(ctx context.Context, store *storage.Storage, txn storage.Transac
 	}
 }
 
-func setupRCs(ctx context.Context, store *storage.Storage, txn storage.Transaction, n int) {
+func setupRCs(ctx context.Context, store storage.Store, txn storage.Transaction, n int) {
 	tmpl, err := template.New("rc").Parse(nodeTemplate)
 	if err != nil {
 		panic(err)
@@ -135,7 +136,7 @@ func setupRCs(ctx context.Context, store *storage.Storage, txn storage.Transacti
 	}
 }
 
-func setupPods(ctx context.Context, store *storage.Storage, txn storage.Transaction, n int, numNodes int) {
+func setupPods(ctx context.Context, store storage.Store, txn storage.Transaction, n int, numNodes int) {
 	tmpl, err := template.New("pod").Parse(podTemplate)
 	if err != nil {
 		panic(err)

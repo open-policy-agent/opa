@@ -10,6 +10,7 @@ import (
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/storage"
+	"github.com/open-policy-agent/opa/storage/inmem"
 	"github.com/open-policy-agent/opa/topdown"
 	"github.com/open-policy-agent/opa/util"
 )
@@ -47,7 +48,7 @@ func runAuthzBenchmark(b *testing.B, mode inputMode, numPaths int) {
 
 	ctx := context.Background()
 	data := generateDataset(profile)
-	store := storage.New(storage.InMemoryWithJSONConfig(data))
+	store := inmem.NewFromObject(data)
 	txn := storage.NewTransactionOrDie(ctx, store)
 	compiler := ast.NewCompiler()
 	module := ast.MustParseModule(policy)

@@ -66,7 +66,7 @@ type Server struct {
 	cert           *tls.Certificate
 	mtx            sync.RWMutex
 	compiler       *ast.Compiler
-	store          *storage.Storage
+	store          storage.Store
 }
 
 // New returns a new Server.
@@ -118,9 +118,15 @@ func (s *Server) Init(ctx context.Context) (*Server, error) {
 		return nil, err
 	}
 
-	defer s.store.Close(ctx, txn)
-	modules := s.store.ListPolicies(txn)
+	defer s.store.Abort(ctx, txn)
+
+	modules, err := s.loadModules(ctx, txn)
+	if err != nil {
+		return nil, err
+	}
+
 	compiler := ast.NewCompiler()
+
 	if compiler.Compile(modules); compiler.Failed() {
 		return nil, compiler.Errors
 	}
@@ -160,8 +166,8 @@ func (s *Server) WithCertificate(cert *tls.Certificate) *Server {
 	return s
 }
 
-// WithStorage sets the storage used by the server.
-func (s *Server) WithStorage(store *storage.Storage) *Server {
+// WithStore sets the storage used by the server.
+func (s *Server) WithStore(store storage.Store) *Server {
 	s.store = store
 	return s
 }
@@ -294,7 +300,7 @@ func (s *Server) indexGet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	defer s.store.Close(ctx, txn)
+	defer s.store.Abort(ctx, txn)
 
 	var query ast.Body
 	query, err = ast.ParseBody(qStr)
@@ -369,7 +375,7 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	defer s.store.Close(ctx, txn)
+	defer s.store.Abort(ctx, txn)
 
 	compiler := s.Compiler()
 	params := topdown.NewQueryParams(ctx, compiler, s.store, txn, input, path)
@@ -437,15 +443,13 @@ func (s *Server) v1DataPatch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	txn, err := s.store.NewTransaction(ctx)
+	patches, err := s.prepareV1PatchSlice(vars["path"], ops)
 	if err != nil {
 		writer.ErrorAuto(w, err)
 		return
 	}
 
-	defer s.store.Close(ctx, txn)
-
-	patches, err := s.prepareV1PatchSlice(vars["path"], ops)
+	txn, err := s.store.NewTransaction(ctx)
 	if err != nil {
 		writer.ErrorAuto(w, err)
 		return
@@ -453,12 +457,16 @@ func (s *Server) v1DataPatch(w http.ResponseWriter, r *http.Request) {
 
 	for _, patch := range patches {
 		if err := s.store.Write(ctx, txn, patch.op, patch.path, patch.value); err != nil {
-			writer.ErrorAuto(w, err)
+			s.abortAuto(ctx, txn, w, err)
 			return
 		}
 	}
 
-	writer.Bytes(w, 204, nil)
+	if err := s.store.Commit(ctx, txn); err != nil {
+		writer.ErrorAuto(w, err)
+	} else {
+		writer.Bytes(w, 204, nil)
+	}
 }
 
 func (s *Server) v0DataPost(w http.ResponseWriter, r *http.Request) {
@@ -480,7 +488,7 @@ func (s *Server) v0DataPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	defer s.store.Close(ctx, txn)
+	defer s.store.Abort(ctx, txn)
 
 	compiler := s.Compiler()
 	params := topdown.NewQueryParams(ctx, compiler, s.store, txn, input, path)
@@ -529,7 +537,7 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	defer s.store.Close(ctx, txn)
+	defer s.store.Abort(ctx, txn)
 
 	compiler := s.Compiler()
 	params := topdown.NewQueryParams(ctx, compiler, s.store, txn, input, path)
@@ -592,17 +600,15 @@ func (s *Server) v1DataPut(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	txn, err := s.store.NewTransaction(ctx)
-	if err != nil {
-		writer.ErrorAuto(w, err)
-		return
-	}
-
-	defer s.store.Close(ctx, txn)
-
 	path, ok := storage.ParsePath("/" + strings.Trim(vars["path"], "/"))
 	if !ok {
 		writer.Error(w, http.StatusBadRequest, types.NewErrorV1(types.CodeInvalidParameter, "bad path: %v", vars["path"]))
+		return
+	}
+
+	txn, err := s.store.NewTransaction(ctx)
+	if err != nil {
+		writer.ErrorAuto(w, err)
 		return
 	}
 
@@ -610,24 +616,29 @@ func (s *Server) v1DataPut(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		if !storage.IsNotFound(err) {
-			writer.ErrorAuto(w, err)
+			s.abortAuto(ctx, txn, w, err)
 			return
 		}
 		if err := s.makeDir(ctx, txn, path[:len(path)-1]); err != nil {
-			writer.ErrorAuto(w, err)
+			s.abortAuto(ctx, txn, w, err)
 			return
 		}
 	} else if r.Header.Get("If-None-Match") == "*" {
+		s.store.Abort(ctx, txn)
 		writer.Bytes(w, 304, nil)
 		return
 	}
 
 	if err := s.store.Write(ctx, txn, storage.AddOp, path, value); err != nil {
-		writer.ErrorAuto(w, err)
+		s.abortAuto(ctx, txn, w, err)
 		return
 	}
 
-	writer.Bytes(w, 204, nil)
+	if err := s.store.Commit(ctx, txn); err != nil {
+		writer.ErrorAuto(w, err)
+	} else {
+		writer.Bytes(w, 204, nil)
+	}
 }
 
 func (s *Server) v1PoliciesDelete(w http.ResponseWriter, r *http.Request) {
@@ -641,32 +652,35 @@ func (s *Server) v1PoliciesDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	defer s.store.Close(ctx, txn)
+	modules, err := s.loadModules(ctx, txn)
 
-	_, _, err = s.store.GetPolicy(txn, id)
 	if err != nil {
-		writer.ErrorAuto(w, err)
+		s.abortAuto(ctx, txn, w, err)
 		return
 	}
 
-	mods := s.store.ListPolicies(txn)
-	delete(mods, id)
+	delete(modules, id)
 
 	c := ast.NewCompiler()
 
-	if c.Compile(mods); c.Failed() {
-		writer.Error(w, http.StatusBadRequest, types.NewErrorV1(types.CodeInvalidOperation, types.MsgCompileModuleError).WithASTErrors(c.Errors))
+	if c.Compile(modules); c.Failed() {
+		s.abort(ctx, txn, func() {
+			writer.Error(w, http.StatusBadRequest, types.NewErrorV1(types.CodeInvalidOperation, types.MsgCompileModuleError).WithASTErrors(c.Errors))
+		})
 		return
 	}
 
-	if err := s.store.DeletePolicy(txn, id); err != nil {
+	if err := s.store.DeletePolicy(ctx, txn, id); err != nil {
+		s.abortAuto(ctx, txn, w, err)
+		return
+	}
+
+	if err := s.store.Commit(ctx, txn); err != nil {
 		writer.ErrorAuto(w, err)
-		return
+	} else {
+		s.setCompiler(c)
+		writer.Bytes(w, 204, nil)
 	}
-
-	s.setCompiler(c)
-
-	writer.Bytes(w, 204, nil)
 }
 
 func (s *Server) v1PoliciesGet(w http.ResponseWriter, r *http.Request) {
@@ -681,9 +695,9 @@ func (s *Server) v1PoliciesGet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	defer s.store.Close(ctx, txn)
+	defer s.store.Abort(ctx, txn)
 
-	_, bs, err := s.store.GetPolicy(txn, path)
+	bs, err := s.store.GetPolicy(ctx, txn, path)
 	if err != nil {
 		writer.ErrorAuto(w, err)
 		return
@@ -762,33 +776,40 @@ func (s *Server) v1PoliciesPut(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	defer s.store.Close(ctx, txn)
+	modules, err := s.loadModules(ctx, txn)
+	if err != nil {
+		s.abortAuto(ctx, txn, w, err)
+		return
+	}
 
-	mods := s.store.ListPolicies(txn)
-	mods[path] = parsedMod
+	modules[path] = parsedMod
 
 	c := ast.NewCompiler()
 
-	if c.Compile(mods); c.Failed() {
-		writer.Error(w, http.StatusBadRequest, types.NewErrorV1(types.CodeInvalidParameter, types.MsgCompileModuleError).WithASTErrors(c.Errors))
+	if c.Compile(modules); c.Failed() {
+		s.abort(ctx, txn, func() {
+			writer.Error(w, http.StatusBadRequest, types.NewErrorV1(types.CodeInvalidParameter, types.MsgCompileModuleError).WithASTErrors(c.Errors))
+		})
 		return
 	}
 
-	if err := s.store.InsertPolicy(txn, path, parsedMod, buf); err != nil {
+	if err := s.store.UpsertPolicy(ctx, txn, path, buf); err != nil {
+		s.abortAuto(ctx, txn, w, err)
+		return
+	}
+
+	if err := s.store.Commit(ctx, txn); err != nil {
 		writer.ErrorAuto(w, err)
-		return
+	} else {
+		s.setCompiler(c)
+		response := types.PolicyPutResponseV1{
+			Result: types.PolicyV1{
+				ID:     path,
+				Module: c.Modules[path],
+			},
+		}
+		writer.JSON(w, 200, response, true)
 	}
-
-	s.setCompiler(c)
-
-	response := types.PolicyPutResponseV1{
-		Result: types.PolicyV1{
-			ID:     path,
-			Module: c.Modules[path],
-		},
-	}
-
-	writer.JSON(w, 200, response, true)
 }
 
 func (s *Server) v1QueryGet(w http.ResponseWriter, r *http.Request) {
@@ -813,7 +834,7 @@ func (s *Server) v1QueryGet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	defer s.store.Close(ctx, txn)
+	defer s.store.Abort(ctx, txn)
 
 	compiler := s.Compiler()
 
@@ -852,13 +873,39 @@ func (s *Server) v1QueryGet(w http.ResponseWriter, r *http.Request) {
 	writer.JSON(w, 200, results, pretty)
 }
 
-func handleCompileError(w http.ResponseWriter, err error) {
-	switch err := err.(type) {
-	case ast.Errors:
-		writer.Error(w, http.StatusBadRequest, types.NewErrorV1(types.CodeInvalidParameter, types.MsgCompileQueryError).WithASTErrors(err))
-	default:
-		writer.ErrorString(w, http.StatusBadRequest, types.CodeInvalidParameter, err)
+func (s *Server) abort(ctx context.Context, txn storage.Transaction, finish func()) {
+	s.store.Abort(ctx, txn)
+	finish()
+}
+
+func (s *Server) abortAuto(ctx context.Context, txn storage.Transaction, w http.ResponseWriter, err error) {
+	s.abort(ctx, txn, func() { writer.ErrorAuto(w, err) })
+}
+
+func (s *Server) loadModules(ctx context.Context, txn storage.Transaction) (map[string]*ast.Module, error) {
+
+	ids, err := s.store.ListPolicies(ctx, txn)
+	if err != nil {
+		return nil, err
 	}
+
+	modules := make(map[string]*ast.Module, len(ids))
+
+	for _, id := range ids {
+		bs, err := s.store.GetPolicy(ctx, txn, id)
+		if err != nil {
+			return nil, err
+		}
+
+		parsed, err := ast.ParseModule(id, string(bs))
+		if err != nil {
+			return nil, err
+		}
+
+		modules[id] = parsed
+	}
+
+	return modules, nil
 }
 
 func (s *Server) setCompiler(compiler *ast.Compiler) {
@@ -956,6 +1003,15 @@ func (s *Server) writeConflict(op storage.PatchOp, path storage.Path) error {
 	}
 
 	return nil
+}
+
+func handleCompileError(w http.ResponseWriter, err error) {
+	switch err := err.(type) {
+	case ast.Errors:
+		writer.Error(w, http.StatusBadRequest, types.NewErrorV1(types.CodeInvalidParameter, types.MsgCompileQueryError).WithASTErrors(err))
+	default:
+		writer.ErrorString(w, http.StatusBadRequest, types.CodeInvalidParameter, err)
+	}
 }
 
 func stringPathToDataRef(s string) (r ast.Ref) {
