@@ -55,6 +55,9 @@ var DefaultBuiltins = [...]*Builtin{
 
 	// Tokens
 	JWTDecode,
+
+	// Time
+	NowNanos,
 }
 
 // BuiltinMap provides a convenient mapping of built-in names to
@@ -531,6 +534,19 @@ var JWTDecode = &Builtin{
 		types.S,
 	},
 	TargetPos: []int{1, 2, 3},
+}
+
+/**
+ * Time
+ */
+
+// NowNanos returns the current time since epoch in nanoseconds.
+var NowNanos = &Builtin{
+	Name: String("time.now_ns"),
+	Args: []types.Type{
+		types.N,
+	},
+	TargetPos: []int{0},
 }
 
 /**

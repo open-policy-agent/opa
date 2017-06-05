@@ -13,8 +13,11 @@ import (
 	"strings"
 	"testing"
 
+	"time"
+
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/storage"
+	"github.com/open-policy-agent/opa/types"
 	"github.com/open-policy-agent/opa/util"
 	testutil "github.com/open-policy-agent/opa/util/test"
 )
@@ -1332,6 +1335,33 @@ func TestTopDownJWTBuiltins(t *testing.T) {
 	for _, tc := range tests {
 		runTopDownTestCase(t, data, tc.note, tc.rules, tc.expected)
 	}
+}
+
+func TestTopDownTime(t *testing.T) {
+
+	ast.RegisterBuiltin(&ast.Builtin{
+		Name: ast.String("test_sleep"),
+		Args: []types.Type{
+			types.S,
+		},
+		TargetPos: []int{1},
+	})
+
+	RegisterFunctionalBuiltinVoid1(ast.String("test_sleep"), func(a ast.Value) error {
+		duration, err := time.ParseDuration(string(a.(ast.String)))
+		if err != nil {
+			panic(err)
+		}
+		time.Sleep(duration)
+		return nil
+	})
+
+	data := loadSmallTestData()
+
+	runTopDownTestCase(t, data, "time caching", []string{`
+		p { time.now_ns(t0); test_sleep("10ms"); time.now_ns(t1); t1 = t2 }
+	`}, "true")
+
 }
 
 func TestTopDownEmbeddedVirtualDoc(t *testing.T) {
