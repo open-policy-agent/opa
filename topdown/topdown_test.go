@@ -1362,6 +1362,14 @@ func TestTopDownTime(t *testing.T) {
 		p { time.now_ns(t0); test_sleep("10ms"); time.now_ns(t1); t1 = t2 }
 	`}, "true")
 
+	runTopDownTestCase(t, data, "parse nanos", []string{`
+		p = ns { time.parse_ns("2006-01-02T15:04:05Z07:00", "2017-06-02T19:00:00-07:00", ns) }
+	`}, "1496455200000000000")
+
+	runTopDownTestCase(t, data, "parse rfc3339 nanos", []string{`
+		p = ns { time.parse_rfc3339_ns("2017-06-02T19:00:00-07:00", ns) }
+		`}, "1496455200000000000")
+
 }
 
 func TestTopDownEmbeddedVirtualDoc(t *testing.T) {
