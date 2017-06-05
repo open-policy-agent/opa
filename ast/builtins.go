@@ -57,7 +57,7 @@ var DefaultBuiltins = [...]*Builtin{
 	JWTDecode,
 
 	// Time
-	NowNanos,
+	NowNanos, ParseNanos, ParseRFC3339Nanos,
 }
 
 // BuiltinMap provides a convenient mapping of built-in names to
@@ -547,6 +547,27 @@ var NowNanos = &Builtin{
 		types.N,
 	},
 	TargetPos: []int{0},
+}
+
+// ParseNanos returns the time in nanoseconds parsed from the string in the given format.
+var ParseNanos = &Builtin{
+	Name: String("time.parse_ns"),
+	Args: []types.Type{
+		types.S,
+		types.S,
+		types.N,
+	},
+	TargetPos: []int{2},
+}
+
+// ParseRFC3339Nanos returns the time in nanoseconds parsed from the string in RFC3339 format.
+var ParseRFC3339Nanos = &Builtin{
+	Name: String("time.parse_rfc3339_ns"),
+	Args: []types.Type{
+		types.S,
+		types.N,
+	},
+	TargetPos: []int{1},
 }
 
 /**
