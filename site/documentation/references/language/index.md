@@ -101,6 +101,18 @@ complex types.
 | ------- |--------|-------------|
 | <span class="opa-keep-it-together">``io.jwt.decode(input, header, payload, signature)``</span> | 1 | ``input`` is a JSON Web Token in JWS Compact Serialization representation. JWE and JWS JSON Serialization are not supported. ``header`` and ``payload`` are ``Object`` representations of the header and payload of the token, respectively. ``signature`` is the hexadecimal representation of the signature on the token. If nested signing was used, the ``header``, ``payload`` and ``signature`` will represent the most deeply nested token. |
 
+### Time
+
+| Built-in | Inputs | Description |
+| -------- | ------ | ----------- |
+| <span class="opa-keep-it-together">``time.now_ns(output)``</span> | 0 | ``output`` is ``number`` representing the current time since epoch in nanoseconds. |
+| <span class="opa-keep-it-together">``time.parse_ns(layout, value, output)``</span> | 2 | ``output`` is ``number`` representing the time ``value`` in nanoseconds since epoch. See the [Go `time` package documentation](https://golang.org/pkg/time/#Parse) for more details on `layout`. `` |
+| <span class="opa-keep-it-together">``time.parse_rfc3339_ns(value, output)``</span> | 1 | ``output`` is ``number`` representing the time ``value`` in nanoseconds since epoch.`` |
+
+> Multiple calls to the `time.now_ns` built-in function within a single policy
+evaluation query will always the same value.
+{: .opa-tip}
+
 ## <a name="reserved"></a> Reserved Names
 
 The following words are reserved and cannot be used as variable names, rule
