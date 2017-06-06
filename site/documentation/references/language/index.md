@@ -91,15 +91,19 @@ complex types.
 | Built-in | Inputs | Description |
 | ------- |--------|-------------|
 | <span class="opa-keep-it-together">``base64url.encode(x, output)``</span> | 1 | ``output`` is ``x`` serialized to a base64url encoded string |
-| <span class="opa-keep-it-together">``base64url.decode(string, output)``</span> | 1 | ``output`` is ``string`` deserialized from a base64url encoding to a string |
+| <span class="opa-keep-it-together">``base64url.decode(string, output)``</span> | 1 | ``output`` is ``string`` deserialized from a base64url encoding string |
 | <span class="opa-keep-it-together">``json.marshal(x, output)``</span> | 1 | ``output`` is ``x`` serialized to a JSON string |
-| <span class="opa-keep-it-together">``json.unmarshal(string, output)``</span> | 1 | ``output`` is ``string`` deserialized to a term |
+| <span class="opa-keep-it-together">``json.unmarshal(string, output)``</span> | 1 | ``output`` is ``string`` deserialized to a term from a JSON encoded string |
+| <span class="opa-keep-it-together">``yaml.marshal(x, output)``</span> | 1 | ``output`` is ``x`` serialized to a YAML string |
+| <span class="opa-keep-it-together">``yaml.unmarshal(string, output)``</span> | 1 | ``output`` is ``string`` deserialized to a term from YAML encoded string |
 
 ### Tokens
 
 | Built-in | Inputs | Description |
 | ------- |--------|-------------|
-| <span class="opa-keep-it-together">``io.jwt.decode(input, header, payload, signature)``</span> | 1 | ``input`` is a JSON Web Token in JWS Compact Serialization representation. JWE and JWS JSON Serialization are not supported. ``header`` and ``payload`` are ``Object`` representations of the header and payload of the token, respectively. ``signature`` is the hexadecimal representation of the signature on the token. If nested signing was used, the ``header``, ``payload`` and ``signature`` will represent the most deeply nested token. |
+| <span class="opa-keep-it-together">``io.jwt.decode(string, header, payload, sig)``</span> | 1 | ``header`` and ``payload`` are ``object``. ``signature`` is the hexadecimal representation of the signature on the token. |
+
+The input `string` is a JSON Web Token encoded with JWS Compact Serialization. JWE and JWS JSON Serialization are not supported. If nested signing was used, the ``header``, ``payload`` and ``signature`` will represent the most deeply nested token.
 
 ### Time
 
