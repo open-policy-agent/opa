@@ -1,0 +1,9 @@
+@import 'extends';
+
+.base--inline-label {
+  @extend %base--inline-label;
+}
+
+.base--block-label {
+  @extend %base--block-label;
+}

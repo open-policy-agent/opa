@@ -1,0 +1,7 @@
+$RangeSettings: (
+  'range height': .5em,
+  'range thumb size': 1.5em,
+  'range outline width': .125em
+);
+
+$GlobalSettings: map-merge($GlobalSettings, $RangeSettings);

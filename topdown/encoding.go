@@ -5,10 +5,13 @@
 package topdown
 
 import (
+	"bytes"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"strings"
+
+	ghodss "github.com/ghodss/yaml"
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/topdown/builtins"
@@ -80,9 +83,55 @@ func builtinBase64UrlDecode(a ast.Value) (ast.Value, error) {
 	return ast.String(result), err
 }
 
+func builtinYAMLMarshal(a ast.Value) (ast.Value, error) {
+
+	asJSON, err := ast.JSON(a)
+	if err != nil {
+		return nil, err
+	}
+
+	var buf bytes.Buffer
+	encoder := json.NewEncoder(&buf)
+	if err := encoder.Encode(asJSON); err != nil {
+		return nil, err
+	}
+
+	bs, err := ghodss.JSONToYAML(buf.Bytes())
+	if err != nil {
+		return nil, err
+	}
+
+	return ast.String(string(bs)), nil
+}
+
+func builtinYAMLUnmarshal(a ast.Value) (ast.Value, error) {
+
+	str, err := builtins.StringOperand(a, 1)
+	if err != nil {
+		return nil, err
+	}
+
+	bs, err := ghodss.YAMLToJSON([]byte(str))
+	if err != nil {
+		return nil, err
+	}
+
+	buf := bytes.NewBuffer(bs)
+	decoder := util.NewJSONDecoder(buf)
+	var val interface{}
+	err = decoder.Decode(&val)
+	if err != nil {
+		return nil, err
+	}
+
+	return ast.InterfaceToValue(val)
+}
+
 func init() {
 	RegisterFunctionalBuiltin1(ast.JSONMarshal.Name, builtinJSONMarshal)
 	RegisterFunctionalBuiltin1(ast.JSONUnmarshal.Name, builtinJSONUnmarshal)
 	RegisterFunctionalBuiltin1(ast.Base64UrlEncode.Name, builtinBase64UrlEncode)
 	RegisterFunctionalBuiltin1(ast.Base64UrlDecode.Name, builtinBase64UrlDecode)
+	RegisterFunctionalBuiltin1(ast.YAMLMarshal.Name, builtinYAMLMarshal)
+	RegisterFunctionalBuiltin1(ast.YAMLUnmarshal.Name, builtinYAMLUnmarshal)
 }

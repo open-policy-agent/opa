@@ -13,6 +13,21 @@ import (
 	"github.com/open-policy-agent/opa/ast"
 )
 
+// Cache defines the built-in cache used by the top-down evaluation. The keys
+// must be comparable and should not be of type string.
+type Cache map[interface{}]interface{}
+
+// Put updates the cache for the named built-in.
+func (c Cache) Put(k, v interface{}) {
+	c[k] = v
+}
+
+// Get returns the cached value for k.
+func (c Cache) Get(k interface{}) (interface{}, bool) {
+	v, ok := c[k]
+	return v, ok
+}
+
 // ErrOperand represents an invalid operand has been passed to a built-in
 // function. Built-ins should return ErrOperand to indicate a type error has
 // occurred.

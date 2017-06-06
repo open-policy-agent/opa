@@ -1,0 +1,192 @@
+//timing functions
+$timing-functions: (
+  ease-in: cubic-bezier(.24, 0, .285, .995),
+  ease-out: cubic-bezier(.725, .005, .695, 1),
+  bounce-out: cubic-bezier(.52, -.27, .345, 1.005),
+  bounce-in: cubic-bezier(.805, .005, .41, 1.28),
+  bounce-in-out: cubic-bezier(.555, -.27, .37, 1.35),
+  snap-in: cubic-bezier(1, 0, .765, 1),
+  snap-out: cubic-bezier(.155, 0, 0, .995),
+  snap-in-out: cubic-bezier(.92, .01, .05, 1),
+);
+
+$included-animations: ();
+
+$animations: (
+  'fade-in': (
+    0%: (
+      opacity: 0
+    ),
+    100%: (
+      opacity: 1
+    )
+  ),
+  'fade-in--up': (
+    0%: (
+      opacity: 0,
+      transform: translateY(100%)
+    ),
+    80%: (
+      opacity: 1
+      ),
+    100%: (
+      transform: translateY(0)
+    )
+  ),
+  'fade-in--down': (
+    0%: (
+      opacity: 0,
+      transform: translateY(-100%)
+    ),
+    80%: (
+      opacity: 1
+      ),
+    100%: (
+      transform: translateY(0)
+    )
+  ),
+  'fade-in--left': (
+    0%: (
+      opacity: 0,
+      transform: translateX(-100%)
+    ),
+    80%: (
+      opacity: 1
+      ),
+    100%: (
+      transform: translateX(0)
+    )
+  ),
+  'fade-in--right': (
+    0%: (
+      opacity: 0,
+      transform: translateX(100%)
+    ),
+    80%: (
+      opacity: 1
+      ),
+    100%: (
+      transform: translateX(0)
+    )
+  ),
+  'slide-in--up' : (
+    0%: (
+      transform: translateY(100%)
+    ),
+    100%: (
+      transform: translateY(0)
+    )
+  ),
+  'slide-in--down' : (
+    0%: (
+      transform: translateY(-100%)
+    ),
+    100%: (
+      transform: translateY(0)
+    )
+  ),
+  'slide-in--left' : (
+    0%: (
+      transform: translateX(-100%)
+    ),
+    100%: (
+      transform: translateX(0)
+    )
+  ),
+  'slide-in--right' : (
+    0%: (
+      transform: translateX(100%)
+    ),
+    100%: (
+      transform: translateX(0)
+    )
+  ),
+  'fade-out': (
+    0%: (
+      opacity: 1
+    ),
+    100%: (
+      opacity: 0
+    )
+  ),
+  'fade-out--up': (
+    0%: (
+      opacity: 1,
+      transform: translateY(0)
+    ),
+    80%: (
+      opacity: 0
+      ),
+    100%: (
+      transform: translateY(-100%)
+    )
+  ),
+  'fade-out--down': (
+    0%: (
+      opacity: 1,
+      transform: translateY(0)
+    ),
+    80%: (
+      opacity: 0
+      ),
+    100%: (
+      transform: translateY(100%)
+    )
+  ),
+  'fade-out--left': (
+    0%: (
+      opacity: 1,
+      transform: translateX(0)
+    ),
+    80%: (
+      opacity: 0
+      ),
+    100%: (
+      transform: translateX(-100%)
+    )
+  ),
+  'fade-out--right': (
+    0%: (
+      opacity: 1,
+      transform: translateX(0)
+    ),
+    80%: (
+      opacity: 0
+      ),
+    100%: (
+      transform: translateX(100%)
+    )
+  ),
+  'slide-out--up': (
+    0%: (
+      transform: translateY(0)
+    ),
+    100%: (
+      transform: translateY(100%)
+    )
+  ),
+  'slide-out--down': (
+    0%: (
+      transform: translateY(0)
+    ),
+    100%: (
+      transform: translateY(-100%)
+    )
+  ),
+  'slide-out--left': (
+    0%: (
+      transform: translateX(0)
+    ),
+    100%: (
+      transform: translateX(-100%)
+    )
+  ),
+  'slide-out--right': (
+    0%: (
+      transform: translateX(0)
+    ),
+    100%: (
+      transform: translateX(100%)
+    )
+  )
+);

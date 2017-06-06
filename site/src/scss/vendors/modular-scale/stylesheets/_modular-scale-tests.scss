@@ -1,0 +1,74 @@
+@if "#{ms(2, 16, $minor-sixth)}" != "40.96" {
+  @debug "";
+  @warn "function ms(): FAIL!";
+  @debug "function ms(2, 16, $minor-sixth)";
+  @debug "Result:   #{ms(2, 16, $minor-sixth)}";
+  @debug "Intended: 40.96";
+  @debug "";
+}@else {
+  @warn "function ms(+): pass";
+}
+
+@if "#{ms(-2, 16, $minor-sixth)}" != "6.25" {
+  @debug "";
+  @warn "function ms(): FAIL!";
+  @debug "function ms(-2, 16, $minor-sixth)";
+  @debug "Result:   #{ms(-2, 16, $minor-sixth)}";
+  @debug "Intended: 6.25";
+  @debug "";
+}@else {
+  @warn "function ms(-): pass";
+}
+
+@if ms(2, 14 18, $major-second) != 15.75 {
+  @debug "";
+  @warn "function ms() multi-base: FAIL!";
+  @debug "function ms(2, 14 18, $major-second)";
+  @debug "Result:   #{ms(2, 14 18, $major-second)}";
+  @debug "Intended: 15.75";
+  @debug "";
+}@else {
+  @warn "function ms(+) multi-base: pass";
+}
+
+@if ms(-1, 14 18, $major-third) != 11.52 {
+  @debug "";
+  @warn "function ms() multi-base: FAIL!";
+  @debug "function ms(-1, 14 18, $major-third)";
+  @debug "Result:   #{ms(-1, 14 18, $major-third)}";
+  @debug "Intended: 11.52";
+  @debug "";
+}@else {
+  @warn "function ms(-) multi-base: pass";
+}
+
+@if "#{ms(-4, 12, $major-tenth $octave)}" != "1.92" {
+  @debug "";
+  @warn "function ms() multi-ratio: FAIL!";
+  @debug "function ms(-4, 12, $major-tenth $octave)";
+  @debug "Result:   #{ms(-4, 12, $major-tenth $octave)}";
+  @debug "Intended: 1.92";
+  @debug "";
+}@else {
+  @warn "function ms(+) multi-ratio: pass";
+}
+
+@if ms(-4, 12, $major-tenth $octave) != 1.92 {
+  @debug "";
+  @warn "function ms() multi-ratio: FAIL!";
+  @debug "function ms(-4, 12, $major-tenth $octave)";
+  @debug "Result:   #{ms(-4, 12, $major-tenth $octave)}";
+  @debug "Intended: 1.92";
+  @debug "";
+}@else {
+  @warn "function ms(-) multi-ratio: pass";
+}
+
+@if ms-list(-3, 3, 10 16, $major-third) != (6.5536 8 8.192 10 10.24 12.5 12.8) {
+  @debug "function ms-list(): FAIL!";
+  @warn "function ms-list(-3, 3, 10 16, $major-third)";
+  @debug "Result:   (#{ms-list(-3, 3, 10 16, $major-third)})";
+  @debug "Intended: (6.5536 8 8.192 10 10.24 12.5 12.8)";
+}@else {
+  @warn "function ms-list(): pass";
+}

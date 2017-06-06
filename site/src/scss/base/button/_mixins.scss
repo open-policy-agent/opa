@@ -1,0 +1,44 @@
+@mixin base--button($color: #EF6C00, $background: transparent, $border: #EF6C00, $block: false) {
+  padding: 0.5em 1em;
+  color: $color;
+  font-weight: bold;
+  background-color: $background;
+  border: 2px solid $border;
+
+  @if $block {
+    display: block;
+  }
+  @else {
+    display: inline-block;
+  }
+
+  &:hover,
+  &:focus {
+    color: get('white');
+    background-color: $border;
+  }
+}
+
+@mixin button--strip-styles() {
+  background-color: transparent;
+  border: none;
+  text-decoration: underline;
+  padding: 0rem;
+  margin: 0rem;
+}
+
+@mixin base--button_blue() {
+  @include base--button($color: white, $background: get('primary color'), $border: get('primary color'));
+  &:focus,
+  &:hover {
+    @include base--button($background: color('blue', 70), $border: color('blue', 70));
+  }
+}
+
+@mixin base--button_red() {
+  @include base--button($color: white, $background: color('orange', 60), $border: color('orange', 60));
+  &:focus,
+  &:hover {
+    @include base--button($background: color('orange', 70), $border: color('orange', 70));
+  }
+}

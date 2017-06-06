@@ -1,0 +1,14 @@
+{
+  "plugins": [
+    "header",
+    "addcssjs"
+  ],
+  "pluginsConfig": {
+    "layout": {
+      "headerPath" : "layouts/header.html"
+    },
+    "addcssjs": {
+      "js": ["js/custom.js"]
+    }
+  }
+}

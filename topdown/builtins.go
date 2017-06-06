@@ -53,6 +53,16 @@ type (
 	// framework takes care of this.
 	FunctionalBuiltin1Out3 func(op1 ast.Value) (a, b, c ast.Value, err error)
 
+	// FunctionalBuiltinVoid1 defines an interface for simple functional built-ins.
+	//
+	// Implement this interface if your built-in function takes one input and
+	// produces no outputs.
+	//
+	// If an error occurs, the functional built-in should return a descriptive
+	// message. The message should not be prefixed with the built-in name as the
+	// framework takes care of this.
+	FunctionalBuiltinVoid1 func(op1 ast.Value) (err error)
+
 	// FunctionalBuiltinVoid2 defines an interface for simple functional built-ins.
 	//
 	// Implement this interface if your built-in function takes two inputs and
@@ -83,6 +93,12 @@ type (
 // RegisterBuiltinFunc adds a new built-in function to the evaluation engine.
 func RegisterBuiltinFunc(name ast.String, fun BuiltinFunc) {
 	builtinFunctions[name] = fun
+}
+
+// RegisterFunctionalBuiltinVoid1 adds a new built-in function to the evaluation
+// engine.
+func RegisterFunctionalBuiltinVoid1(name ast.String, fun FunctionalBuiltinVoid1) {
+	builtinFunctions[name] = functionalWrapperVoid1(name, fun)
 }
 
 // RegisterFunctionalBuiltinVoid2 adds a new built-in function to the evaluation
@@ -124,6 +140,21 @@ func (BuiltinEmpty) Error() string {
 }
 
 var builtinFunctions = map[ast.String]BuiltinFunc{}
+
+func functionalWrapperVoid1(name ast.String, fn FunctionalBuiltinVoid1) BuiltinFunc {
+	return func(t *Topdown, expr *ast.Expr, iter Iterator) error {
+		operands := expr.Terms.([]*ast.Term)[1:]
+		resolved, err := resolveN(t, name, operands, 1)
+		if err != nil {
+			return err
+		}
+		err = fn(resolved[0])
+		if err == nil {
+			return iter(t)
+		}
+		return handleFunctionalBuiltinErr(name, expr.Location, err)
+	}
+}
 
 func functionalWrapperVoid2(name ast.String, fn FunctionalBuiltinVoid2) BuiltinFunc {
 	return func(t *Topdown, expr *ast.Expr, iter Iterator) error {

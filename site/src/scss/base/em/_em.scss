@@ -1,0 +1,6 @@
+@import 'mixins';
+@import 'extends';
+
+.base--em {
+  @extend %base--em;
+}

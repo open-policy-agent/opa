@@ -1,0 +1,29 @@
+%base--pre-build {
+  @extend %font--mono;
+  display: block;
+  hyphens: none;
+  word-spacing: normal;
+  text-align: left;
+  word-break: normal;
+  white-space: pre;
+  word-wrap: normal;
+  direction: ltr;
+  tab-size: 2;
+  overflow-y: overlay;
+}
+
+%base--pre {
+  @extend %base--pre-build;
+  margin: .5em 0;
+  overflow: auto;
+
+  border: 1px solid rgba(color('gray', 50), .25);
+
+  code,
+  .base--code {
+    @extend %base--pre-build;
+    padding: 1em;
+    font-size: 1em;
+    outline: 0;
+  }
+}

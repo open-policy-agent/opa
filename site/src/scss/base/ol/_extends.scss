@@ -1,0 +1,3 @@
+%base--ol {
+  @include base--list(counter(table-ol) '.');
+}

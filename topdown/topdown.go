@@ -13,6 +13,7 @@ import (
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/storage"
+	"github.com/open-policy-agent/opa/topdown/builtins"
 	"github.com/pkg/errors"
 )
 
@@ -28,12 +29,13 @@ type Topdown struct {
 	Tracer   Tracer
 	Context  context.Context
 
-	txn    storage.Transaction
-	locals *ast.ValueMap
-	refs   *valueMapStack
-	cache  *contextcache
-	qid    uint64
-	redos  *redoStack
+	txn      storage.Transaction
+	locals   *ast.ValueMap
+	refs     *valueMapStack
+	cache    *contextcache
+	qid      uint64
+	redos    *redoStack
+	builtins builtins.Cache
 }
 
 // ResetQueryIDs resets the query ID generator. This is only for test purposes.
@@ -85,6 +87,7 @@ func New(ctx context.Context, query ast.Body, compiler *ast.Compiler, store *sto
 		cache:    newContextCache(),
 		qid:      qidFactory.Next(),
 		redos:    &redoStack{},
+		builtins: builtins.Cache{},
 	}
 }
 
@@ -1253,13 +1256,9 @@ func evalRefRule(t *Topdown, ref ast.Ref, path ast.Ref, iter Iterator) error {
 		return err
 	}
 
-	if ir.Empty() {
-		return nil
-	}
-
 	suffix := ref[len(path):]
 
-	switch ir.Kind() {
+	switch ir.Kind {
 
 	case ast.CompleteDoc:
 		return evalRefRuleCompleteDoc(t, ref, suffix, ir, iter)
@@ -1291,6 +1290,10 @@ func evalRefRule(t *Topdown, ref ast.Ref, path ast.Ref, iter Iterator) error {
 }
 
 func evalRefRuleCompleteDoc(t *Topdown, ref ast.Ref, suffix ast.Ref, ir *ast.IndexResult, iter Iterator) error {
+
+	if ir.Empty() {
+		return nil
+	}
 
 	// Determine cache key for rule set. Since the rule set must generate at
 	// most one value, we can cache the result on any rule.

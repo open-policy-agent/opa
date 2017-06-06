@@ -1,0 +1,21 @@
+@mixin range--thumb($prefix: null, $range: null) {
+  @if $prefix != null {
+    $prefix: '-#{$prefix}-';
+  }
+
+  &::#{$prefix}#{$range}-thumb {
+    #{$prefix}appearance: none;
+    width: get('range thumb size');
+    height: get('range thumb size');
+    background: get('white');
+    border-radius: get('range thumb size');
+    box-shadow: inset 0 0 0 get('range outline width') * 1.5 get('input border color');
+    transition-duration: .5s;
+  }
+
+  &:active::#{$prefix}#{$range}-thumb {
+    box-shadow: inset 0 0 0 get('range outline width') * 10 get('input border color');
+    width: get('range thumb size') * 1.25;
+    height: get('range thumb size') * 1.25;
+  }
+}
