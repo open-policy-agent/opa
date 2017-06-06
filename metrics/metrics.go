@@ -11,9 +11,11 @@ import (
 
 // Well-known metric names.
 const (
-	RegoQueryCompile = "rego_query_compile"
-	RegoQueryEval    = "rego_query_eval"
-	RegoQueryParse   = "rego_query_parse"
+	RegoQueryCompile  = "rego_query_compile"
+	RegoQueryEval     = "rego_query_eval"
+	RegoQueryParse    = "rego_query_parse"
+	RegoModuleParse   = "rego_module_parse"
+	RegoModuleCompile = "rego_module_compile"
 )
 
 // Metrics defines the interface for a collection of perfomrance metrics in the

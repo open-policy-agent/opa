@@ -47,206 +47,9 @@ Content-Type: application/json
 {
   "result": [
     {
-      "id": "example1",
-      "module": {
-        "package": {
-          "path": [
-            {
-              "type": "var",
-              "value": "data"
-            },
-            {
-              "type": "string",
-              "value": "opa"
-            },
-            {
-              "type": "string",
-              "value": "examples"
-            }
-          ]
-        },
-        "rules": [
-          {
-            "name": "public_servers",
-            "key": {
-              "type": "var",
-              "value": "server"
-            },
-            "body": [
-              {
-                "index": 0,
-                "terms": [
-                  {
-                    "type": "var",
-                    "value": "eq"
-                  },
-                  {
-                    "type": "var",
-                    "value": "server"
-                  },
-                  {
-                    "type": "ref",
-                    "value": [
-                      {
-                        "type": "var",
-                        "value": "data"
-                      },
-                      {
-                        "type": "string",
-                        "value": "servers"
-                      },
-                      {
-                        "type": "var",
-                        "value": "$0"
-                      }
-                    ]
-                  }
-                ]
-              },
-              {
-                "index": 1,
-                "terms": [
-                  {
-                    "type": "var",
-                    "value": "eq"
-                  },
-                  {
-                    "type": "ref",
-                    "value": [
-                      {
-                        "type": "var",
-                        "value": "server"
-                      },
-                      {
-                        "type": "string",
-                        "value": "ports"
-                      },
-                      {
-                        "type": "var",
-                        "value": "$1"
-                      }
-                    ]
-                  },
-                  {
-                    "type": "ref",
-                    "value": [
-                      {
-                        "type": "var",
-                        "value": "data"
-                      },
-                      {
-                        "type": "string",
-                        "value": "ports"
-                      },
-                      {
-                        "type": "var",
-                        "value": "k"
-                      },
-                      {
-                        "type": "string",
-                        "value": "id"
-                      }
-                    ]
-                  }
-                ]
-              },
-              {
-                "index": 2,
-                "terms": [
-                  {
-                    "type": "var",
-                    "value": "eq"
-                  },
-                  {
-                    "type": "ref",
-                    "value": [
-                      {
-                        "type": "var",
-                        "value": "data"
-                      },
-                      {
-                        "type": "string",
-                        "value": "ports"
-                      },
-                      {
-                        "type": "var",
-                        "value": "k"
-                      },
-                      {
-                        "type": "string",
-                        "value": "networks"
-                      },
-                      {
-                        "type": "var",
-                        "value": "$2"
-                      }
-                    ]
-                  },
-                  {
-                    "type": "ref",
-                    "value": [
-                      {
-                        "type": "var",
-                        "value": "data"
-                      },
-                      {
-                        "type": "string",
-                        "value": "networks"
-                      },
-                      {
-                        "type": "var",
-                        "value": "m"
-                      },
-                      {
-                        "type": "string",
-                        "value": "id"
-                      }
-                    ]
-                  }
-                ]
-              },
-              {
-                "index": 3,
-                "terms": [
-                  {
-                    "type": "var",
-                    "value": "eq"
-                  },
-                  {
-                    "type": "ref",
-                    "value": [
-                      {
-                        "type": "var",
-                        "value": "data"
-                      },
-                      {
-                        "type": "string",
-                        "value": "networks"
-                      },
-                      {
-                        "type": "var",
-                        "value": "m"
-                      },
-                      {
-                        "type": "string",
-                        "value": "public"
-                      }
-                    ]
-                  },
-                  {
-                    "type": "boolean",
-                    "value": true
-                  }
-                ]
-              }
-            ]
-          }
-        ]
-      }
-    },
-    {
       "id": "example2",
-      "module": {
+      "raw": "package opa.examples\n\nimport data.servers\n\nviolations[server] {\n\tserver = servers[_]\n\tserver.protocols[_] = \"http\"\n\tpublic_servers[server]\n}\n",
+      "ast": {
         "package": {
           "path": [
             {
@@ -265,17 +68,19 @@ Content-Type: application/json
         },
         "rules": [
           {
-            "name": "violations",
-            "key": {
-              "type": "var",
-              "value": "server"
+            "head": {
+              "name": "violations",
+              "key": {
+                "type": "var",
+                "value": "server"
+              }
             },
             "body": [
               {
                 "index": 0,
                 "terms": [
                   {
-                    "type": "var",
+                    "type": "string",
                     "value": "eq"
                   },
                   {
@@ -305,7 +110,7 @@ Content-Type: application/json
                 "index": 1,
                 "terms": [
                   {
-                    "type": "var",
+                    "type": "string",
                     "value": "eq"
                   },
                   {
@@ -363,9 +168,211 @@ Content-Type: application/json
           }
         ]
       }
+    },
+    {
+      "id": "example1",
+      "raw": "package opa.examples\n\nimport data.servers\nimport data.networks\nimport data.ports\n\npublic_servers[server] {\n\tserver = servers[_]\n\tserver.ports[_] = ports[k].id\n\tports[k].networks[_] = networks[m].id\n\tnetworks[m].public = true\n}\n",
+      "ast": {
+        "package": {
+          "path": [
+            {
+              "type": "var",
+              "value": "data"
+            },
+            {
+              "type": "string",
+              "value": "opa"
+            },
+            {
+              "type": "string",
+              "value": "examples"
+            }
+          ]
+        },
+        "rules": [
+          {
+            "head": {
+              "name": "public_servers",
+              "key": {
+                "type": "var",
+                "value": "server"
+              }
+            },
+            "body": [
+              {
+                "index": 0,
+                "terms": [
+                  {
+                    "type": "string",
+                    "value": "eq"
+                  },
+                  {
+                    "type": "var",
+                    "value": "server"
+                  },
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "data"
+                      },
+                      {
+                        "type": "string",
+                        "value": "servers"
+                      },
+                      {
+                        "type": "var",
+                        "value": "$0"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "index": 1,
+                "terms": [
+                  {
+                    "type": "string",
+                    "value": "eq"
+                  },
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "server"
+                      },
+                      {
+                        "type": "string",
+                        "value": "ports"
+                      },
+                      {
+                        "type": "var",
+                        "value": "$1"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "data"
+                      },
+                      {
+                        "type": "string",
+                        "value": "ports"
+                      },
+                      {
+                        "type": "var",
+                        "value": "k"
+                      },
+                      {
+                        "type": "string",
+                        "value": "id"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "index": 2,
+                "terms": [
+                  {
+                    "type": "string",
+                    "value": "eq"
+                  },
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "data"
+                      },
+                      {
+                        "type": "string",
+                        "value": "ports"
+                      },
+                      {
+                        "type": "var",
+                        "value": "k"
+                      },
+                      {
+                        "type": "string",
+                        "value": "networks"
+                      },
+                      {
+                        "type": "var",
+                        "value": "$2"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "data"
+                      },
+                      {
+                        "type": "string",
+                        "value": "networks"
+                      },
+                      {
+                        "type": "var",
+                        "value": "m"
+                      },
+                      {
+                        "type": "string",
+                        "value": "id"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "index": 3,
+                "terms": [
+                  {
+                    "type": "string",
+                    "value": "eq"
+                  },
+                  {
+                    "type": "ref",
+                    "value": [
+                      {
+                        "type": "var",
+                        "value": "data"
+                      },
+                      {
+                        "type": "string",
+                        "value": "networks"
+                      },
+                      {
+                        "type": "var",
+                        "value": "m"
+                      },
+                      {
+                        "type": "string",
+                        "value": "public"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "boolean",
+                    "value": true
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
     }
   ]
 }
+
 ```
 
 #### Status Codes
@@ -398,7 +405,8 @@ Content-Type: application/json
 {
   "result": {
     "id": "example1",
-    "module": {
+    "raw": "package opa.examples\n\nimport data.servers\nimport data.networks\nimport data.ports\n\npublic_servers[server] {\n\tserver = servers[_]\n\tserver.ports[_] = ports[k].id\n\tports[k].networks[_] = networks[m].id\n\tnetworks[m].public = true\n}\n",
+    "ast": {
       "package": {
         "path": [
           {
@@ -417,17 +425,19 @@ Content-Type: application/json
       },
       "rules": [
         {
-          "name": "public_servers",
-          "key": {
-            "type": "var",
-            "value": "server"
+          "head": {
+            "name": "public_servers",
+            "key": {
+              "type": "var",
+              "value": "server"
+            }
           },
           "body": [
             {
               "index": 0,
               "terms": [
                 {
-                  "type": "var",
+                  "type": "string",
                   "value": "eq"
                 },
                 {
@@ -457,7 +467,7 @@ Content-Type: application/json
               "index": 1,
               "terms": [
                 {
-                  "type": "var",
+                  "type": "string",
                   "value": "eq"
                 },
                 {
@@ -504,7 +514,7 @@ Content-Type: application/json
               "index": 2,
               "terms": [
                 {
-                  "type": "var",
+                  "type": "string",
                   "value": "eq"
                 },
                 {
@@ -559,7 +569,7 @@ Content-Type: application/json
               "index": 3,
               "terms": [
                 {
-                  "type": "var",
+                  "type": "string",
                   "value": "eq"
                 },
                 {
@@ -597,38 +607,9 @@ Content-Type: application/json
 }
 ```
 
-#### Example Request For Source
-
-```http
-GET /v1/policies/example1?source=true HTTP/1.1
-```
-
-#### Example Response For Source
-
-```http
-HTTP/1.1 200 OK
-Content-Type: text/plain; charset=utf-8
-```
-
-```ruby
-package opa.examples
-
-import data.servers
-import data.networks
-import data.ports
-
-public_servers[server] {
-	server = servers[_]
-	server.ports[_] = ports[k].id
-	ports[k].networks[_] = networks[m].id
-	networks[m].public = true
-}
-```
-
 #### Query Parameters
 
-- **source** - If `true` the response will contain the raw source instead of
-  the AST.
+- **pretty** - If parameter is `true`, response will formatted for humans.
 
 #### Status Codes
 
@@ -680,207 +661,13 @@ Content-Type: application/json
 ```
 
 ```json
-{
-  "result": {
-    "id": "example1",
-    "module": {
-      "package": {
-        "path": [
-          {
-            "type": "var",
-            "value": "data"
-          },
-          {
-            "type": "string",
-            "value": "opa"
-          },
-          {
-            "type": "string",
-            "value": "examples"
-          }
-        ]
-      },
-      "rules": [
-        {
-          "name": "public_servers",
-          "key": {
-            "type": "var",
-            "value": "server"
-          },
-          "body": [
-            {
-              "index": 0,
-              "terms": [
-                {
-                  "type": "var",
-                  "value": "eq"
-                },
-                {
-                  "type": "var",
-                  "value": "server"
-                },
-                {
-                  "type": "ref",
-                  "value": [
-                    {
-                      "type": "var",
-                      "value": "data"
-                    },
-                    {
-                      "type": "string",
-                      "value": "servers"
-                    },
-                    {
-                      "type": "var",
-                      "value": "$0"
-                    }
-                  ]
-                }
-              ]
-            },
-            {
-              "index": 1,
-              "terms": [
-                {
-                  "type": "var",
-                  "value": "eq"
-                },
-                {
-                  "type": "ref",
-                  "value": [
-                    {
-                      "type": "var",
-                      "value": "server"
-                    },
-                    {
-                      "type": "string",
-                      "value": "ports"
-                    },
-                    {
-                      "type": "var",
-                      "value": "$1"
-                    }
-                  ]
-                },
-                {
-                  "type": "ref",
-                  "value": [
-                    {
-                      "type": "var",
-                      "value": "data"
-                    },
-                    {
-                      "type": "string",
-                      "value": "ports"
-                    },
-                    {
-                      "type": "var",
-                      "value": "k"
-                    },
-                    {
-                      "type": "string",
-                      "value": "id"
-                    }
-                  ]
-                }
-              ]
-            },
-            {
-              "index": 2,
-              "terms": [
-                {
-                  "type": "var",
-                  "value": "eq"
-                },
-                {
-                  "type": "ref",
-                  "value": [
-                    {
-                      "type": "var",
-                      "value": "data"
-                    },
-                    {
-                      "type": "string",
-                      "value": "ports"
-                    },
-                    {
-                      "type": "var",
-                      "value": "k"
-                    },
-                    {
-                      "type": "string",
-                      "value": "networks"
-                    },
-                    {
-                      "type": "var",
-                      "value": "$2"
-                    }
-                  ]
-                },
-                {
-                  "type": "ref",
-                  "value": [
-                    {
-                      "type": "var",
-                      "value": "data"
-                    },
-                    {
-                      "type": "string",
-                      "value": "networks"
-                    },
-                    {
-                      "type": "var",
-                      "value": "m"
-                    },
-                    {
-                      "type": "string",
-                      "value": "id"
-                    }
-                  ]
-                }
-              ]
-            },
-            {
-              "index": 3,
-              "terms": [
-                {
-                  "type": "var",
-                  "value": "eq"
-                },
-                {
-                  "type": "ref",
-                  "value": [
-                    {
-                      "type": "var",
-                      "value": "data"
-                    },
-                    {
-                      "type": "string",
-                      "value": "networks"
-                    },
-                    {
-                      "type": "var",
-                      "value": "m"
-                    },
-                    {
-                      "type": "string",
-                      "value": "public"
-                    }
-                  ]
-                },
-                {
-                  "type": "boolean",
-                  "value": true
-                }
-              ]
-            }
-          ]
-        }
-      ]
-    }
-  }
-}
+{}
 ```
+
+### Query Parameters
+
+- **pretty** - If parameter is `true`, response will formatted for humans.
+- **metrics** - Return compiler performance metrics in addition to result. See [Performance Metrics](#performance-metrics) for more detail.
 
 #### Status Codes
 
@@ -907,8 +694,18 @@ DELETE /v1/policies/example2 HTTP/1.1
 #### Example Response
 
 ```http
-HTTP/1.1 204 No Content
+HTTP/1.1 200 OK
+Content-Type: application/json
 ```
+
+```json
+{}
+```
+
+#### Query Parameters
+
+- **pretty** - If parameter is `true`, response will formatted for humans.
+- **metrics** - Return compiler performance metrics in addition to result. See [Performance Metrics](#performance-metrics) for more detail.
 
 #### Status Codes
 
@@ -1838,5 +1635,7 @@ OPA currently supports the following query performance metrics:
 - **timer_rego_query_parse_ns**: time taken (in nanonseconds) to parse the query.
 - **timer_rego_query_compile_ns**: time taken (in nanonseconds) to compile the query.
 - **timer_rego_query_eval_ns**: time taken (in nanonseconds) to evaluate the query.
+- **timer_rego_module_parse_ns**: time taken (in nanoseconds) to parse the input policy module.
+- **timer_rego_module_compile_ns**: time taken (in nanoseconds) to compile the loaded policy modules.
 
 {% endcontentfor %}
