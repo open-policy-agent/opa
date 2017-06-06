@@ -51,7 +51,7 @@ var DefaultBuiltins = [...]*Builtin{
 	Concat, FormatInt, IndexOf, Substring, Lower, Upper, Contains, StartsWith, EndsWith, Split, Replace, Trim, Sprintf,
 
 	// Encoding
-	JSONMarshal, JSONUnmarshal, Base64UrlEncode, Base64UrlDecode,
+	JSONMarshal, JSONUnmarshal, Base64UrlEncode, Base64UrlDecode, YAMLMarshal, YAMLUnmarshal,
 
 	// Tokens
 	JWTDecode,
@@ -516,6 +516,26 @@ var Base64UrlDecode = &Builtin{
 	Args: []types.Type{
 		types.S,
 		types.S,
+	},
+	TargetPos: []int{1},
+}
+
+// YAMLMarshal serializes the input term.
+var YAMLMarshal = &Builtin{
+	Name: String("yaml.marshal"),
+	Args: []types.Type{
+		types.A,
+		types.S,
+	},
+	TargetPos: []int{1},
+}
+
+// YAMLUnmarshal deserializes the input string.
+var YAMLUnmarshal = &Builtin{
+	Name: String("yaml.unmarshal"),
+	Args: []types.Type{
+		types.S,
+		types.A,
 	},
 	TargetPos: []int{1},
 }

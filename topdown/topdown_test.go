@@ -1164,6 +1164,8 @@ func TestTopDownJSONBuiltins(t *testing.T) {
 		{"marshal", []string{`p = x { json.marshal([{"foo": {1,2,3}}], x) }`}, `"[{\"foo\":[1,2,3]}]"`},
 		{"unmarshal", []string{`p = x { json.unmarshal("[{\"foo\":[1,2,3]}]", x) }`}, `[{"foo": [1,2,3]}]"`},
 		{"unmarshal-non-string", []string{`p = x { json.unmarshal(data.a[0], x) }`}, fmt.Errorf("operand 1 must be string but got number")},
+		{"yaml round-trip", []string{`p = y { yaml.marshal([{"foo": {1,2,3}}], x); yaml.unmarshal(x, y) }`}, `[{"foo": [1,2,3]}]`},
+		{"yaml unmarshal error", []string{`p { yaml.unmarshal("[1,2,3", _) } `}, fmt.Errorf("yaml: line 1: did not find")},
 	}
 
 	data := loadSmallTestData()
