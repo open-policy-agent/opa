@@ -1,0 +1,39 @@
+.header {
+
+  &--logo-image {
+    width: 3rem;
+    display: inline-block;
+  }
+
+  &--logo-txt{
+    display: inline-block;
+    font-family: 'adobe fan heiti std';
+    color: #000;
+  }
+
+  &--logo-link{
+     text-decoration: none;
+  }
+
+  &--menu-image{
+    width: 2rem;
+  }
+
+  &--menu-image-github{
+    width: 1.8rem;
+  }
+
+  &--link{
+    text-decoration: none;
+  }
+
+  &--logo-image{
+    vertical-align: middle;
+  }
+
+  &--logo-txt{
+    margin-left: 0.5rem;
+  }
+
+
+}

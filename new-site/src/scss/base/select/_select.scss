@@ -1,0 +1,5 @@
+@import 'extends';
+
+.base--select {
+  @extend %base--select;
+}

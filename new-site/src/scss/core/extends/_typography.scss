@@ -1,0 +1,12 @@
+%font--sans {
+  font-family: get('sans serif font');
+}
+
+%font--mono {
+  font-family: get('monospace font');
+}
+
+%font-weight--light,
+%base--font-weight {
+  font-weight: get('light weight font');
+}

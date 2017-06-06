@@ -1,0 +1,16 @@
+@mixin ms-respond($property, $value, $range: $ms-range, $base: $ms-base) {
+  @if $ms-range == null {
+    #{$property}: ms($value,$base,$ms-ratio);
+  } @else {
+    @for $i from 1 through length($range) {
+      @debug nth($range,$i);
+      @if $i == 1 {
+        #{$property}: ms($value,$base,nth(nth($range,$i),1));
+      } @else {
+        @media (min-width: nth(nth($range,$i),2)) {
+          #{$property}: ms($value,$base,nth(nth($range,$i),1));
+        }
+      }
+    }
+  }
+}

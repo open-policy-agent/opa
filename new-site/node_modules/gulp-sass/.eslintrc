@@ -1,0 +1,162 @@
+root: true
+
+env:
+  mocha: true
+  node: true
+
+# globals:
+  #########################
+  ## Only add globals if you're absolutely certain they need to be globals
+  ##########################
+  # console: true
+
+#########################
+## set to 0 to allow
+## set to 1 to disallow as warning
+## set to 2 to disallow as error
+#########################
+rules:
+  #########################
+  ## Optional Rules
+  #########################
+  # Disallow use of `console`
+  no-console: 2
+
+  # Disallow warning comments
+  no-warning-comments:
+    - 1
+    - terms:
+        - todo
+        - fixme
+      location: anywhere
+
+  # Warns when variables are defined but never used
+  no-unused-vars: 1
+
+  # Enforces comma style (first or last)
+  comma-style:
+    - 2
+    - last
+
+  # Enforces one true `this` variable
+  consistent-this:
+    - 2
+    - self
+  # Allows dangling underscores in identifiers
+  no-underscore-dangle: 2
+
+  # Enforces function expressions to have a name
+  func-names: 0
+
+  # Set maximum depth of nested callbacks
+  max-nested-callbacks:
+    - 1
+    - 3
+
+  #########################
+  ## Core Rules
+  ##########################
+  # Enforces camel case names
+  camelcase: 2
+
+  # Prohibit use of == and != in favor of === and !==
+  eqeqeq: 2
+
+  # Suppresses warnings about == null comparisons
+  no-eq-null: 2
+
+  # No mixing tabs and spaces, with 2 spaces only
+  no-mixed-spaces-and-tabs: 2
+
+  # Prohibits use of a variable before it is defined
+  no-use-before-define: 2
+
+  # Requires capitalized names for constructor functions
+  new-cap: 2
+
+  # Prohibits use of explicitly undeclared variables
+  no-undef: 2
+
+  # Enforces Use Strict at the top of function scope
+  strict:
+    - 2
+    - global
+
+  # Requires variable declarations to be at the top
+  vars-on-top: 2
+
+  # Enforce curly braces around blocks in loops and conditionals
+  curly: 2
+
+  # Prohibits the use of immediate function invocations w/o wrapping in parentheses
+  wrap-iife: 2
+
+  # Prohibits `argument.caller` and `argument.callee`
+  no-caller: 2
+
+  # Requires all `for in` loops to filter object's items
+  guard-for-in: 2
+
+  # Prohibits comparing a variable against itself
+  no-self-compare: 2
+
+  # Prohibits use of `undefined` variable
+  no-undefined: 0
+
+  # Prohibits nested ternaries
+  no-nested-ternary: 2
+
+  # Enforces a space before blocks
+  space-before-blocks:
+    - 2
+    - always
+
+  # Enforces spaces following keywords
+  keyword-spacing:
+    - 2
+    - after: true
+
+  # Enforces quoted property names
+  quote-props:
+    - 2
+    - always
+
+  # Enforces padded blocks
+  padded-blocks:
+    - 1
+    - never
+
+  # Enforce functions as expressions
+  func-style:
+    - 2
+    - expression
+
+  # Require brace style
+  brace-style:
+    - 2
+    - stroustrup
+
+  # Prohibits Yoda conditions
+  yoda:
+    - 2
+    - never
+
+  # Enforce use of single quotation marks for strings.
+  quotes:
+    - 2
+    - single
+
+  # Disallow or enforce spaces inside of curly braces in objects.
+  object-curly-spacing:
+    - 2
+    - always
+
+  # Disallow or enforce spaces inside of brackets.
+  array-bracket-spacing:
+    - 2
+    - never
+
+  # Disallow or enforce spaces inside of computed properties.
+  computed-property-spacing:
+    - 2
+    - never

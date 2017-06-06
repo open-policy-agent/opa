@@ -1,0 +1,39 @@
+.tab-panels {
+  @include panel();
+  margin-top: get('rhythm');
+  // min-height: 20rem;
+  &--tab-list {
+    border-bottom: 2px solid color('neutral-white', 40);
+  }
+  &--tab-list-item {
+    display: inline-block;
+    margin-top: get('rhythm') / 2;
+  }
+  &--tab {
+    display: block;
+    text-decoration: none;
+    padding: 0 get('rhythm') / 2 get('rhythm') / 2;
+    &:focus,
+    &:hover {
+      border-bottom: 6px solid get('secondary color');
+      color: get('secondary color');
+    }
+    &.active {
+      font-weight: get('bold weight font');
+      border-bottom: 6px solid get('secondary color');
+    }
+  }
+  &--tab-content {
+    .base--textarea {
+      min-height: #{(7 * 1.5 + 1.2)}rem;
+      margin-top: 0;
+    }
+  }
+  &--tab-pane {
+    display: none;
+    margin-top: 0;
+    &.active {
+      display: block;
+    }
+  }
+}

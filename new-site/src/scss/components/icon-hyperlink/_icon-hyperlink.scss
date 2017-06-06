@@ -1,0 +1,13 @@
+.icon-hyperlink {
+  display: inline-block;
+  color: get('secondary color');
+
+  &--button {
+    @include button--strip-styles;
+		@include base--a;
+  }
+
+	.icon-reset {
+		font-size: 1.5em;
+	}
+}

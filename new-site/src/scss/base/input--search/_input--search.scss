@@ -1,0 +1,5 @@
+@import 'extends';
+
+.base--search-input {
+  @extend %base--search-input;
+}

@@ -1,0 +1,18 @@
+<?xml version="1.0" standalone="no"?> 
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd" >
+<svg xmlns="http://www.w3.org/2000/svg">
+<defs>
+  <font id="multipathicons" horiz-adv-x="150">
+    <font-face font-family="multipathicons"
+      units-per-em="150" ascent="150"
+      descent="0" />
+    <missing-glyph horiz-adv-x="0" />
+    <glyph glyph-name="basket"
+      unicode="&#xE001;"
+      horiz-adv-x="150" d=" M10 118.79455L11.71448 106.79316L36.83017 106.79316L48.68117 37.94309L131.51782 37.94309L140 100.08562L47.83896 100.08562L44.77094 118.79455L10 118.79455z M57.012957 30.15271C51.452494 30.15271 46.9366 25.63586 46.9366 20.07636C46.9366 14.5159 51.452494 10 57.012957 10C62.56957 10 67.089311 14.5159 67.089311 20.07636C67.089311 25.63586 62.56957 30.15271 57.012957 30.15271z M121.47154 30.15271C115.91224 30.15271 111.39519 25.63566 111.39519 20.07636C111.39519 14.51706 115.91224 10 121.47154 10C127.03084 10 131.51782 14.51706 131.51782 20.07636C131.51782 25.63566 127.03084 30.15271 121.47154 30.15271z" />
+    <glyph glyph-name="kikoolol"
+      unicode="&#xE002;"
+      horiz-adv-x="150" d=" M75 75L120 25L30 25z M75 75L120 125L30 125z" />
+  </font>
+</defs>
+</svg>

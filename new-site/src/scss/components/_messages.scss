@@ -1,0 +1,35 @@
+.messages{
+  &--main{
+    font-size: ms(5);
+    font-family: 'adobe gothic std';
+  }
+
+  &--side{
+    color: #777677;
+  }
+
+  &--btns{
+    margin-top: get('rhythm');
+  }
+
+  &--btn{
+    border-radius: 2rem;
+    padding: 0.8rem 2rem;
+    font-size: ms(-1);
+  }
+
+  &--get-started-btn{
+    background-color: #FF9512;
+    color: #fff;
+    font-weight: 400;
+    border-color: #FF9512;
+  }
+
+  &--learn-more-btn{
+    background-color: #fff;
+    color: #FF9512;
+    font-weight: 400;
+    border-color: #FF9512;
+    margin-left: get('rhythm') / 2;
+  }
+}

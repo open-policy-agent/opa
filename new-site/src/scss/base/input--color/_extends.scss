@@ -1,0 +1,6 @@
+%base--color-input {
+  @extend %base--input;
+  height: 3em;
+  padding: .25em;
+  background: get('white');
+}

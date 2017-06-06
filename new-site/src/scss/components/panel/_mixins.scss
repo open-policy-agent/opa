@@ -1,0 +1,5 @@
+@mixin panel {
+	background-color: color('neutral-white', 30);
+	border: 2px solid color('neutral-white', 40);
+	padding: 0 get('rhythm') / 2 get('rhythm') / 2;
+}

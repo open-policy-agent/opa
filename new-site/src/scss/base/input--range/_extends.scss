@@ -1,0 +1,31 @@
+@import 'settings';
+@import 'mixins';
+
+%base--range-input {
+  @extend %base--input;
+  height: get('range height');
+  padding: 0;
+  background-color: get('white');
+  border-radius: get('range height');
+  box-shadow: inset 0 0 0 get('range outline width') get('input border color');
+
+  &:focus {
+    outline: 0;
+    box-shadow: inset 0 0 0 get('range outline width') get('primary color');
+  }
+
+  &:disabled {
+    opacity: .5;
+  }
+
+  &::-moz-range-track {
+    height: get('range height');
+    padding: 0;
+    background-color: get('white');
+    border-radius: get('range height');
+    box-shadow: inset 0 0 0 get('range outline width') get('input border color');
+  }
+
+  @include range--thumb('webkit', 'slider');
+  @include range--thumb('moz', 'range');
+}

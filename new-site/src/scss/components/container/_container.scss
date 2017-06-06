@@ -1,0 +1,6 @@
+@import 'mixins';
+@import 'extends';
+
+.container {
+  @extend %container;
+}

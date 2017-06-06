@@ -1,0 +1,12 @@
+{
+  "env": { "es6": true, "node": true },
+  "extends": "eslint:recommended",
+  "rules": {
+    "indent": ["error", 2],
+    "linebreak-style": ["warn", "unix"],
+    "quotes": ["error", "single"],
+    "semi": ["error", "never"],
+    "valid-jsdoc": ["error"],
+    "no-console": "off"
+  }
+}

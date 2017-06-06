@@ -1,0 +1,43 @@
+._homepage{
+
+  &--container{
+    margin: 0 1rem;
+  }
+
+  &--banner-cloud{
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 14rem;
+    z-index: -10;
+  }
+
+  &--banner{
+    position: relative;
+  }
+
+  &--header{
+    position: relative;
+  }
+
+  &--logo{
+    float: left;
+  }
+
+  &--menu-mobile{
+    float: right;
+    margin-top: 0;
+  }
+
+  &--menu-mobile-hamburger-inner{
+    width: 20px;
+  }
+
+  &--menu-desktop{
+    display: none;
+  }
+
+  &--messages{
+    margin-top: get('rhythm') * 2;
+  }
+}
