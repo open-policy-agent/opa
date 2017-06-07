@@ -659,7 +659,7 @@ apps_by_hostname[hostname] = app {
 }
 ```
 
-The rule above defines an object that maps hostnames to app names. The main difference between this rule and one which defines a set is the rule head: in addition to declaring a value, the rule head also declares a key for the document.
+The rule above defines an object that maps hostnames to app names. The main difference between this rule and one which defines a set is the rule head: in addition to declaring a key, the rule head also declares a value for the document.
 
 The result:
 
