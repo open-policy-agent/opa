@@ -140,37 +140,45 @@ with
 Rego’s syntax is defined by the following grammar:
 
 ```
-module         = package { import } policy
-package        = "package" ref
-import         = "import" package [ "as" var ]
-policy         = { rule }
-rule           = [ "default" ] rule-head { rule-body }
-rule-head      = var [ "[" term "]" ] [ = term ]
-rule-body      = [ else [ = term ] ] "{" query "}"
-query          = literal { ";" | [\r\n] literal }
-literal        = ( expr | "not" expr ) { with-modifier }
-with-modifier  = "with" term "as" term
-expr           = term | expr-built-in | expr-infix
-expr-built-in  = var [ "." var ] "(" [ term { , term } ] ")"
-expr-infix     = [ term "=" ] term infix-operator term
-term           = ref | var | scalar | array | object | set | array-compr
-array-compr    = "[" term "|" rule-body "]"
-infix-operator = bool-operator | arith-operator | bin-operator
-bool-operator  = "=" | "!=" | "<" | ">" | ">=" | "<="
-arith-operator = "+" | "-" | "*" | "/"
-bin-operator   = "&" | "|"
-ref            = var { ref-arg }
-ref-arg        = ref-arg-dot | ref-arg-brack
-ref-arg-brack  = "[" ( scalar | var | "_" ) "]"
-ref-arg-dot    = "." var
-var            = ( ALPHA | "_" ) { ALPHA | DIGIT | "_" }
-scalar         = STRING | NUMBER | TRUE | FALSE | NULL
-array          = "[" term { "," term } "]"
-object         = "{" object-item { "," object-item } "}"
-object-item    = ( scalar | ref | var ) ":" term
-set            = empty-set | non-empty-set
-non-empty-set  = "{" term { "," term } "}"
-empty-set      = "set(" ")"
+module          = package { import } policy
+package         = "package" ref
+import          = "import" package [ "as" var ]
+policy          = { rule }
+rule            = [ "default" ] rule-head { rule-body }
+rule-head       = var [ "[" term "]" ] [ = term ]
+rule-body       = [ else [ = term ] ] "{" query "}"
+function        = func-head func-body
+func-head       = var "(" [ arg-term { , arg-term } ] ")" = term
+func-body       = "{" instructions "}"
+query           = literal { ";" | [\r\n] literal }
+literal         = ( expr | "not" expr ) { with-modifier }
+with-modifier   = "with" term "as" term
+instructions    = expr { ";" | [\r\n] expr }
+expr            = term | expr-built-in | expr-infix
+expr-built-in   = var [ "." var ] "(" [ term { , term } ] ")"
+expr-infix      = [ term "=" ] term infix-operator term
+term            = ref | var | scalar | array | object | set | array-compr
+arg-term        = scalar | var | arg-object | arg-array
+array-compr     = "[" term "|" rule-body "]"
+infix-operator  = bool-operator | arith-operator | bin-operator
+bool-operator   = "=" | "!=" | "<" | ">" | ">=" | "<="
+arith-operator  = "+" | "-" | "*" | "/"
+bin-operator    = "&" | "|"
+ref             = var { ref-arg }
+ref-arg         = ref-arg-dot | ref-arg-brack
+ref-arg-brack   = "[" ( scalar | var | "_" ) "]"
+ref-arg-dot     = "." var
+var             = ( ALPHA | "_" ) { ALPHA | DIGIT | "_" }
+scalar          = STRING | NUMBER | TRUE | FALSE | NULL
+array           = "[" term { "," term } "]"
+arg-array       = "[" arg-term { "," arg-term } "]"
+object          = "{" object-item { "," object-item } "}"
+object-item     = ( scalar | ref | var ) ":" term
+arg-object      = "{" arg-object-item { "," arg-object-item } "}"
+arg-object-item = ( scalar | ref ) ":" arg-term
+set             = empty-set | non-empty-set
+non-empty-set   = "{" term { "," term } "}"
+empty-set       = "set(" ")"
 ```
 {: .opa-collapse--ignore}
 
