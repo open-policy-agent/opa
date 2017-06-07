@@ -786,6 +786,46 @@ undefined
 
 In some cases, having an undefined result for a document is not desirable. In those cases, policies can use the [Default Keyword](#default) to provide a fallback value.
 
+## <a name="user-functions"></a> User Functions
+
+Rego supports user defined functions. Once defined, a user function can be called with the same semantics as [Built-in Functions](#built-ins). User functions can be referred to and imported like [Rules](#rules), and have access to both the [the data Document](../how-does-opa-work#the-data-document) and [the input Document](../how-does-opa-work#the-input-document).
+
+For example, the following user function will return the result of trimming the spaces from a string and then splitting it by periods.
+
+```
+trim_and_split(s) = x {
+    trim(s, " ", t)
+    split(t, ".", x)
+}
+```
+
+Executing the function, we get:
+
+```ruby
+> trim_and_split("  foo.bar ", out)
++---------------+
+|      out      |
++---------------+
+| ["foo","bar"] |
++---------------+
+```
+
+In general, functions may have an arbitrary number of inputs, but exactly a single output. If you need multiple outputs, write your functions so that the output is an array or object containing your results. Void functions are not supported; Rego does not have side effects, so they would be useless.
+
+The outputs of user functions have some additional limitations, namely that they must resolve to a single value. For example, if this restriction was not in place, the Rego below would be legal:
+
+```
+p(x) = y {
+    x[_] = y
+}
+
+p([1, 2, 3], out)
+```
+
+The issue with this is that y is not bound to a single value. Instead, it represents a set of possible bindings which conflict.
+
+For a formal definition of the function syntax, see the [Language Reference](/documentation/references/language#grammar) document.
+
 ## <a name="negation"></a> Negation
 
 To generate the content of a [Virtual Document](/docs/arch.html#data-model), OPA attempts to bind variables in the body of the rule such that all expressions in the rule evaluate to True.

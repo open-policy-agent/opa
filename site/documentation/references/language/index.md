@@ -147,9 +147,13 @@ policy         = { rule }
 rule           = [ "default" ] rule-head { rule-body }
 rule-head      = var [ "[" term "]" ] [ = term ]
 rule-body      = [ else [ = term ] ] "{" query "}"
+function       = func-head func-body
+func-head      = var "(" [ var { , var } ] ")" = term
+func-body      = "{" instructions "}"
 query          = literal { ";" | [\r\n] literal }
 literal        = ( expr | "not" expr ) { with-modifier }
 with-modifier  = "with" term "as" term
+instructions   = expr { ";" | [\r\n] expr }
 expr           = term | expr-built-in | expr-infix
 expr-built-in  = var [ "." var ] "(" [ term { , term } ] ")"
 expr-infix     = [ term "=" ] term infix-operator term
