@@ -44,6 +44,53 @@ func ifacesToBody(i interface{}, a ...interface{}) Body {
     return buf
 }
 
+func makeObject(head interface{}, tail interface{}, loc *Location) (*Term, error) {
+   obj := ObjectTerm()
+   obj.Location = loc
+
+   // Empty object.
+   if head == nil {
+       return obj, nil
+   }
+
+   // Object definition above describes the "head" structure. We only care about the "Key" and "Term" elements.
+   headSlice := head.([]interface{})
+   obj.Value = append(obj.Value.(Object), Item(headSlice[0].(*Term), headSlice[len(headSlice) - 1].(*Term)))
+
+   // Non-empty object, remaining key/value pairs.
+   tailSlice := tail.([]interface{})
+   for _, v := range tailSlice {
+       s := v.([]interface{})
+       // Object definition above describes the "tail" structure. We only care about the "Key" and "Term" elements.
+       obj.Value = append(obj.Value.(Object), Item(s[3].(*Term), s[len(s) - 1].(*Term)))
+   }
+
+   return obj, nil
+}
+
+func makeArray(head interface{}, tail interface{}, loc *Location) (*Term, error) {
+   arr := ArrayTerm()
+   arr.Location = loc
+
+   // Empty array.
+   if head == nil {
+       return arr, nil
+   }
+
+   // Non-empty array, first element.
+   arr.Value = append(arr.Value.(Array), head.(*Term))
+
+   // Non-empty array, remaining elements.
+   tailSlice := tail.([]interface{})
+   for _, v := range tailSlice {
+       s := v.([]interface{})
+       // Array definition above describes the "tail" structure. We only care about the "Term" elements.
+       arr.Value = append(arr.Value.(Array), s[len(s) - 1].(*Term))
+   }
+
+   return arr, nil
+}
+
 }
 
 Program <- _ vals:(head:Stmt tail:((ws / ParseError) Stmt)*)? _ EOF {
@@ -64,7 +111,7 @@ Program <- _ vals:(head:Stmt tail:((ws / ParseError) Stmt)*)? _ EOF {
     return program{buf, c.globalStore[commentsKey]}, nil
 }
 
-Stmt <- val:(Package / Import / Rules / Body / Comment / ParseError) {
+Stmt <- val:(Package / Import / Rules / UserFunc / Body / Comment / ParseError) {
     return val, nil
 }
 
@@ -227,6 +274,57 @@ NormalRules <- head:RuleHead _ b:(NonEmptyBraceEnclosedBody ( _ RuleExt)* ) {
     return rules, nil
 }
 
+UserFunc <- head:FuncHead _ b:NonEmptyBraceEnclosedBody {
+
+    if head == nil {
+        return nil, nil
+    }
+
+    f := &Func{
+        Head: head.(*FuncHead),
+        Body: b.(Body),
+    }
+
+    return f, nil
+}
+
+FuncHead <- name:Var args:FuncArgs output:( _ "=" _ Term )? {
+
+    head := &FuncHead{}
+
+    head.Location = currentLocation(c)
+    head.Name = name.(*Term).Value.(Var)
+    head.Args = args.(Args)
+
+    if output != nil {
+        valueSlice := output.([]interface{})
+        head.Output = valueSlice[len(valueSlice)-1].(*Term)
+    }
+
+    return head, nil
+}
+
+FuncArgs <- _ "("  _  head:ArgTerm? tail:(_ ',' _ ArgTerm)* _ ")" _ {
+    args := Args{}
+    if head == nil {
+        return args, nil
+    }
+
+    first := head.(*Term)
+    first.Location = currentLocation(c)
+    args = append(args, first)
+
+    tailSlice := tail.([]interface{})
+    for _, v := range tailSlice {
+        s := v.([]interface{})
+        arg := s[len(s) - 1].(*Term)
+        arg.Location = currentLocation(c)
+        args = append(args, arg)
+    }
+
+    return args, nil
+}
+
 RuleHead <- name:Var key:( _ "[" _ Term _ "]" _ )? value:( _ "=" _ Term )? {
 
     head := &Head{}
@@ -305,7 +403,7 @@ BraceEnclosedBody <- "{" _ val:WhitespaceBody? _ "}" {
 }
 
 // When body is enclosed, literals must be separated by newline or semicolon.
-// This is used for rules and comprehensions.
+// This is used for rules, comprehensions, and user functions.
 WhitespaceBody <- head:Literal tail:([ \t]* ((";" Comment?) / (Comment? [\r\n])) _ Literal)* {
     return ifacesToBody(head, tail.([]interface{})...), nil
 }
@@ -439,51 +537,30 @@ Scalar <- Number / String / Bool / Null
 Key <- Scalar / Ref / Var
 
 Object <- '{' _ head:(Key _ ':' _ Term)? tail:( _ ',' _ Key _ ':' _ Term )* _ ','? _ '}' {
-   obj := ObjectTerm()
-   obj.Location = currentLocation(c)
-
-   // Empty object.
-   if head == nil {
-       return obj, nil
-   }
-
-   // Object definition above describes the "head" structure. We only care about the "Key" and "Term" elements.
-   headSlice := head.([]interface{})
-   obj.Value = append(obj.Value.(Object), Item(headSlice[0].(*Term), headSlice[len(headSlice) - 1].(*Term)))
-
-   // Non-empty object, remaining key/value pairs.
-   tailSlice := tail.([]interface{})
-   for _, v := range tailSlice {
-       s := v.([]interface{})
-       // Object definition above describes the "tail" structure. We only care about the "Key" and "Term" elements.
-       obj.Value = append(obj.Value.(Object), Item(s[3].(*Term), s[len(s) - 1].(*Term)))
-   }
-
-   return obj, nil
+    return makeObject(head, tail, currentLocation(c))
 }
 
 Array <- '[' _  head:Term? tail:(_ ',' _ Term)* _ ','? _  ']' {
+    return makeArray(head, tail, currentLocation(c))
+}
 
-   arr := ArrayTerm()
-   arr.Location = currentLocation(c)
+// Function arguments can only be declared as scalars, vars, objects or arrays
+// (recursively restricted).
+// Anything else really doesn't make sense. Note that the values passed
+// to the functions can be any term, whenever a declared input variable is
+// encountered, it should just wrap whatever type is left on the runtime end.
+ArgTerm <- val:(Scalar / Var / ArgObject / ArgArray) {
+    return val, nil
+}
 
-   // Empty array.
-   if head == nil {
-       return arr, nil
-   }
+ArgObject <- '{' _ head:(ArgKey _ ':' _ ArgTerm)? tail:( _ ',' _ ArgKey _ ':' _ ArgTerm )* _ ','? _ '}' {
+    return makeObject(head, tail, currentLocation(c))
+}
 
-   // Non-empty array, first element.
-   arr.Value = append(arr.Value.(Array), head.(*Term))
+ArgKey <- Scalar
 
-   // Non-empty array, remaining elements.
-   tailSlice := tail.([]interface{})
-   for _, v := range tailSlice {
-       s := v.([]interface{})
-       // Array definition above describes the "tail" structure. We only care about the "Term" elements.
-       arr.Value = append(arr.Value.(Array), s[len(s) - 1].(*Term))
-   }
-
-   return arr, nil
+ArgArray <- '[' _  head:ArgTerm? tail:(_ ',' _ ArgTerm)* _ ','? _  ']' {
+    return makeArray(head, tail, currentLocation(c))
 }
 
 Set <- SetEmpty / SetNonEmpty

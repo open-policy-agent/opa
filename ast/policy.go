@@ -149,7 +149,27 @@ type (
 		Value    *Term     `json:"value,omitempty"`
 	}
 
-	// Body represents one or more expressios contained inside a rule.
+	// Func represents a user function as defined in the language. Funcs define
+	// reusable queries than can be called like built-ins, but have access to the
+	// data and input documents like rules.
+	Func struct {
+		Head *FuncHead `json:"head"`
+		Body Body      `json:"body"`
+	}
+
+	// FuncHead represents the head of a user function.
+	FuncHead struct {
+		Location *Location `json:"-"`
+		Name     Var       `json:"name"`
+		Args     Args      `json:"args,omitempty"`
+		Output   *Term     `json:"output,omitempty"`
+	}
+
+	// Args represents zero or more arguments to a user function.
+	Args []*Term
+
+	// Body represents one or more expressions contained inside a rule or user
+	// function.
 	Body []*Expr
 
 	// Expr represents a single expression contained inside the body of a rule.
