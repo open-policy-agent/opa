@@ -31,6 +31,9 @@ const (
 	BodyTypeName               = "body"
 	HeadTypeName               = "head"
 	RuleTypeName               = "rule"
+	FuncTypeName               = "func"
+	FuncHeadTypeName           = "funchead"
+	ArgsTypeName               = "args"
 	ImportTypeName             = "import"
 	PackageTypeName            = "package"
 )

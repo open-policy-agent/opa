@@ -402,6 +402,9 @@ func parseModule(stmts []Statement, comments []*Comment) (*Module, error) {
 		case *Rule:
 			setRuleModule(stmt, mod)
 			mod.Rules = append(mod.Rules, stmt)
+		case *Func:
+			setFuncModule(stmt, mod)
+			mod.Funcs = append(mod.Funcs, stmt)
 		case Body:
 			rule, err := ParseRuleFromBody(mod, stmt)
 			if err != nil {
@@ -425,6 +428,13 @@ func parseModule(stmts []Statement, comments []*Comment) (*Module, error) {
 }
 
 func postProcess(filename string, stmts []Statement) error {
+	for _, stmt := range stmts {
+		switch stmt := stmt.(type) {
+		case *Func:
+			expandVoidFunction(stmt)
+		}
+	}
+
 	if err := mangleDataVars(stmts); err != nil {
 		return err
 	}
@@ -437,6 +447,13 @@ func postProcess(filename string, stmts []Statement) error {
 	mangleExprIndices(stmts)
 
 	return nil
+}
+
+func expandVoidFunction(fn *Func) {
+	if fn.Head.Output == nil {
+		fn.Head.Output = BooleanTerm(true)
+		fn.Head.Output.Location = fn.Head.Location
+	}
 }
 
 func mangleDataVars(stmts []Statement) error {
@@ -534,6 +551,10 @@ func setRuleModule(rule *Rule, module *Module) {
 	}
 }
 
+func setFuncModule(fn *Func, module *Module) {
+	fn.Module = module
+}
+
 type varToRefTransformer struct {
 	orig   Var
 	target Ref
@@ -556,8 +577,8 @@ func (vt *varToRefTransformer) Transform(x interface{}) (interface{}, error) {
 		return x, nil
 	}
 	switch x := x.(type) {
-	case *Head:
-		// The next AST node will be the rule name (which should not be
+	case *Head, *FuncHead:
+		// The next AST node will be the rule/func name (which should not be
 		// transformed).
 		vt.skip = true
 	case Ref:

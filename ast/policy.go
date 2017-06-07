@@ -101,6 +101,7 @@ type (
 		Package  *Package   `json:"package"`
 		Imports  []*Import  `json:"imports,omitempty"`
 		Rules    []*Rule    `json:"rules,omitempty"`
+		Funcs    []*Func    `json:"funcs,omitempty"`
 		Comments []*Comment `json:"comments,omitempty"`
 	}
 
@@ -155,6 +156,12 @@ type (
 	Func struct {
 		Head *FuncHead `json:"head"`
 		Body Body      `json:"body"`
+
+		// Module is a pointer to the module containing this func. If the func
+		// was NOT created while parsing/constructing a module, this should be
+		// left unset. The pointer is not included in any standard operations
+		// on the func (e.g., printing, comparison, visiting, etc.)
+		Module *Module `json:"-"`
 	}
 
 	// FuncHead represents the head of a user function.
@@ -481,6 +488,78 @@ func (rule *Rule) elseString() string {
 	return strings.Join(buf, " ")
 }
 
+// Compare returns an integer indicating whether f is less than, equal to,
+// or greater than other.
+func (f *Func) Compare(other *Func) int {
+	if f == nil {
+		if other == nil {
+			return 0
+		}
+		return -1
+	} else if other == nil {
+		return 1
+	}
+
+	if cmp := f.Head.Compare(other.Head); cmp != 0 {
+		return cmp
+	}
+	return f.Body.Compare(other.Body)
+}
+
+// Copy returns a deep copy of f.
+func (f *Func) Copy() *Func {
+	cpy := *f
+	cpy.Head = f.Head.Copy()
+	cpy.Body = f.Body.Copy()
+	return &cpy
+}
+
+// Equal returns true if f is equal to other.
+func (f *Func) Equal(other *Func) bool {
+	return f.Compare(other) == 0
+}
+
+// Loc returns the location of the Func in the definition.
+func (f *Func) Loc() *Location {
+	return f.Head.Location
+}
+
+// Path returns a ref referring to the this Func. If f is not contained in a
+// module, this function panics.
+func (f *Func) Path() Ref {
+	if f.Module == nil {
+		panic("assertion failed")
+	}
+
+	pkg := f.Module.Package.Path
+	head, tail := pkg[1], pkg[2:]
+	h := VarTerm(string(head.Value.(String)))
+
+	global := append(Ref{h}, tail...)
+	global = append(global, StringTerm(f.Head.Name.String()))
+	return global
+}
+
+// PathString returns a String type representing the full path of this Func.
+func (f *Func) PathString() String {
+	return String(f.Path().String())
+}
+
+func (f *Func) String() string {
+	return f.Head.String() + " { " + f.Body.String() + " }"
+}
+
+// NewFuncHead returns a new FuncHead objects. If args are provided, they denote
+// the inputs to the function.
+func NewFuncHead(name Var, out *Term, args ...*Term) *FuncHead {
+	head := &FuncHead{
+		Name: name,
+	}
+	head.Args = args
+	head.Output = out
+	return head
+}
+
 // NewHead returns a new Head object. If args are provided, the first will be
 // used for the key and the second will be used for the value.
 func NewHead(name Var, args ...*Term) *Head {
@@ -580,6 +659,87 @@ func (head *Head) Vars() VarSet {
 		Walk(vis, head.Value)
 	}
 	return vis.vars
+}
+
+// Compare returns an integer indicating whether h is less than, equal to,
+// or greater than other.
+func (h *FuncHead) Compare(other *FuncHead) int {
+	if h == nil {
+		if other == nil {
+			return 0
+		}
+		return -1
+	} else if other == nil {
+		return 1
+	}
+
+	if cmp := Compare(h.Name, other.Name); cmp != 0 {
+		return cmp
+	}
+	if cmp := Compare(h.Args, other.Args); cmp != 0 {
+		return cmp
+	}
+	return Compare(h.Output, other.Output)
+}
+
+// Copy returns a deep copy of h.
+func (h *FuncHead) Copy() *FuncHead {
+	cpy := *h
+	cpy.Args = h.Args.Copy()
+	cpy.Output = h.Output.Copy()
+	return &cpy
+}
+
+// Equal returns true if h is equal to other.
+func (h *FuncHead) Equal(other *FuncHead) bool {
+	return h.Compare(other) == 0
+}
+
+// Loc returns the location of the FuncHead in the definition.
+func (h *FuncHead) Loc() *Location {
+	return h.Location
+}
+
+// Vars returns a set of vars found in the FuncHead.
+func (h *FuncHead) Vars() VarSet {
+	vars := h.ArgVars()
+	vars.Update(h.OutVars())
+	return vars
+}
+
+// ArgVars returns a set of vars found in the FuncHead's arguments.
+func (h *FuncHead) ArgVars() VarSet {
+	vis := &VarVisitor{vars: VarSet{}}
+	Walk(vis, h.Args)
+	return vis.vars
+}
+
+// OutVars returns a set of vars found in the FuncHead's output.
+func (h *FuncHead) OutVars() VarSet {
+	vis := &VarVisitor{vars: VarSet{}}
+	Walk(vis, h.Output)
+	return vis.vars
+}
+
+func (h *FuncHead) String() string {
+	return h.Name.String() + h.Args.String() + " = " + h.Output.String()
+}
+
+// Copy returns a deep copy of a.
+func (a Args) Copy() Args {
+	cpy := Args{}
+	for _, t := range a {
+		cpy = append(cpy, t.Copy())
+	}
+	return cpy
+}
+
+func (a Args) String() string {
+	var buf []string
+	for _, t := range a {
+		buf = append(buf, t.String())
+	}
+	return "(" + strings.Join(buf, ", ") + ")"
 }
 
 // NewBody returns a new Body containing the given expressions. The indices of
@@ -844,21 +1004,20 @@ func (expr *Expr) IsEquality() bool {
 	return terms[0].Value.Compare(Equality.Name) == 0
 }
 
-// IsBuiltin returns true if this expression refers to a built-in function.
+// IsBuiltin returns true if this expression refers to a function.
 func (expr *Expr) IsBuiltin() bool {
 	_, ok := expr.Terms.([]*Term)
 	return ok
 }
 
-// Builtin returns the builtin object referred to by this expression. If the
-// expression does not refer to a built-in or the built-in is unknown, this
-// function returns nil.
-func (expr *Expr) Builtin() *Builtin {
+// Name returns the name of the user function or built-in this expression refers to. If
+// this expression is not a function call, returns the empty string.
+func (expr *Expr) Name() String {
 	terms, ok := expr.Terms.([]*Term)
-	if !ok {
-		return nil
+	if !ok || len(terms) == 0 {
+		return ""
 	}
-	return BuiltinMap[terms[0].Value.(String)]
+	return terms[0].Value.(String)
 }
 
 // Operand returns the term at the zero-based pos. If the expr does not include
@@ -922,6 +1081,14 @@ func (expr *Expr) OutputVars(safe VarSet) VarSet {
 				}
 				return expr.outputVarsBuiltins(b, safe)
 			}
+
+			// Mark output variables as safe for user
+			// functions.
+			last := terms[len(terms)-1]
+			WalkVars(last, func(v Var) bool {
+				safe.Add(v)
+				return false
+			})
 		}
 	}
 	return VarSet{}

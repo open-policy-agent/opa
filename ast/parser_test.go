@@ -466,6 +466,57 @@ func TestIsValidImportPath(t *testing.T) {
 
 }
 
+func TestUserFunctions(t *testing.T) {
+	assertParseFunc(t, "identity", `f(x) = y { y = x }`, &Func{
+		Head: NewFuncHead(Var("f"), VarTerm("y"), VarTerm("x")),
+		Body: NewBody(
+			Equality.Expr(VarTerm("y"), VarTerm("x")),
+		),
+	})
+
+	assertParseFunc(t, "set", `f() = y { y = 42 }`, &Func{
+		Head: NewFuncHead(Var("f"), VarTerm("y")),
+		Body: NewBody(
+			Equality.Expr(VarTerm("y"), IntNumberTerm(42)),
+		),
+	})
+
+	assertParseFunc(t, "term input", `f([x, y]) = z { split(x, y, z) }`, &Func{
+		Head: NewFuncHead(Var("f"), VarTerm("z"), ArrayTerm(VarTerm("x"), VarTerm("y"))),
+		Body: NewBody(
+			&Expr{Terms: []*Term{StringTerm("split"), VarTerm("x"), VarTerm("y"), VarTerm("z")}},
+		),
+	})
+
+	assertParseFunc(t, "term output", `f() = [x, y] { split("foo.bar", x, y) }`, &Func{
+		Head: NewFuncHead(Var("f"), ArrayTerm(VarTerm("x"), VarTerm("y"))),
+		Body: NewBody(
+			&Expr{Terms: []*Term{StringTerm("split"), StringTerm("foo.bar"), VarTerm("x"), VarTerm("y")}},
+		),
+	})
+
+	assertParseFunc(t, "comprehension", `f(x) = y { count([1 | x[_]], y) }`, &Func{
+		Head: NewFuncHead(Var("f"), VarTerm("y"), VarTerm("x")),
+		Body: NewBody(
+			&Expr{Terms: []*Term{StringTerm("count"), MustParseTerm("[1 | x[_]]"), VarTerm("y")}},
+		),
+	})
+
+	assertParseFunc(t, "nested braces", `f(x) = y { z = {"foo": "bar", "baz": {"hi": 5}}; y = z.baz.hi }`, &Func{
+		Head: NewFuncHead(Var("f"), VarTerm("y"), VarTerm("x")),
+		Body: NewBody(
+			Equality.Expr(VarTerm("z"), MustParseTerm(`{"foo": "bar", "baz": {"hi": 5}}`)),
+			Equality.Expr(VarTerm("y"), MustParseTerm("z.baz.hi")),
+		),
+	})
+
+	assertParseErrorEquals(t, "no output", `f() = { "foo" = "bar" }`, "rego_parse_error: no match found, unexpected '='")
+	assertParseErrorEquals(t, "no body", `f() = y`, "rego_parse_error: no match found, unexpected '='")
+	assertParseErrorEquals(t, "empty body", `f() = y {}`, "rego_parse_error: body must be non-empty")
+	assertParseErrorEquals(t, "unmatched braces", `f(x) = y { trim(x, ".", y) `, "rego_parse_error: no match found, unexpected '='")
+	assertParseErrorEquals(t, "set input", `f({x}) = y { x = y }`, "rego_parse_error: no match found, unexpected '='")
+}
+
 func TestRule(t *testing.T) {
 
 	assertParseRule(t, "identity", `p = true { true }`, &Rule{
@@ -1177,6 +1228,15 @@ func assertParseRule(t *testing.T, msg string, input string, correct *Rule) {
 		rule := parsed.(*Rule)
 		if !rule.Equal(correct) {
 			t.Errorf("Error on test %s: rules not equal: %v (parsed), %v (correct)", msg, rule, correct)
+		}
+	})
+}
+
+func assertParseFunc(t *testing.T, msg string, input string, correct *Func) {
+	assertParseOne(t, msg, input, func(parsed interface{}) {
+		fn := parsed.(*Func)
+		if !fn.Equal(correct) {
+			t.Errorf("Error on test %s: funcs not equal: %v (parsed), %v (correct)", msg, fn, correct)
 		}
 	})
 }
