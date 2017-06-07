@@ -786,6 +786,125 @@ undefined
 
 In some cases, having an undefined result for a document is not desirable. In those cases, policies can use the [Default Keyword](#default) to provide a fallback value.
 
+## <a name="user-functions"></a> User Functions
+
+Rego supports user defined functions that can be called with the same semantics as [Built-in Functions](#built-ins). User functions do not need to be imported, and can be accessed by their name preceded by their package name. They have access to both the [the data Document](../how-does-opa-work#the-data-document) and [the input Document](../how-does-opa-work#the-input-document).
+
+For example, the following function will return the result of trimming the spaces from a string and then splitting it by periods.
+
+```ruby
+> trim_and_split(s) = x {
+|     trim(s, " ", t)
+|     split(t, ".", x)
+| }
+|
+> trim_and_split("   foo.bar ", out)
++---------------+
+|      out      |
++---------------+
+| ["foo","bar"] |
++---------------+
+```
+
+In general, functions may have an arbitrary number of inputs, but exactly one output. All function inputs must be either Scalars, [Variables](#variables), Arrays or Objects. The contents of Arrays and Objects passed to functions also must obey this restriction, applied recursively.
+
+It is worth noting that these restrictions only apply to the declared inputs of functions. When calling a function, any term that matches the declared terms may be passed. If the passed term has deeper components than the declared term, the deep parts will be folded into the appropriate variables in the declaration.
+
+As an example, suppose we have the user defined function below:
+```
+foo([x, {"bar": y}]) = z {
+    z = {x: y}
+}
+```
+
+The following calls would produce the logical mappings given:
+
+| Call                                                  | ``x``      | ``y``                         |
+| ----------------------------------------------------- | ---------- | ----------------------------- |
+| ``foo(a, z) ``                                        | ``a[0]``   | ``a[1].bar``                  |
+| ``foo(["5", {"bar": "hello"}], z)``                   | ``"5"``    | ``"hello"``                   |
+| ``foo(["5", {"bar": [1, 2, 3, ["foo", "bar"]]}], z)`` | ``"5"``    | ``[1, 2, 3, ["foo", "bar"]]`` |
+
+
+If you need multiple outputs, write your functions so that the output is an array, object or set containing your results. If the output term is omitted, it is equivalent to having the output term be the literal `true`. That is, the function declarations below are equivalent:
+```
+f(x) {
+    x = "foo"
+}
+
+f(x) = true {
+    x = "foo"
+}
+```
+
+The outputs of user functions have some additional limitations, namely that they must resolve to a single value. If you write a function that has multiple possible bindings for an output variable, you will get a conflict error:
+
+```ruby
+> p(x) = y {
+|     x[_] = y
+| }
+|
+> p([1, 2, 3], out)
+p([1, 2, 3], out): eval_conflict_error: function "repl.p" produces conflicting outputs
+```
+
+It is possible in Rego to define a function more than once, to achieve a conditional selection of which function to execute:
+
+```ruby
+> p(1, x) = y {
+|     y = x
+| }
+| 
+> p(2, x) = y {
+|     y = x*4
+| }
+| 
+> p(1, 2, y)
++---+
+| y |
++---+
+| 2 |
++---+
+> p(2, 2, y)
++---+
+| y |
++---+
+| 8 |
++---+
+```
+
+A given function call will execute all functions that match the signature given. If a call matches multiple functions, they must produce the same output, or else a conflict error will occur:
+```ruby
+> p(1, x) = y {
+|     y = x
+| }
+|
+> p(x, 2) = y {
+|     y = x*4
+| }
+|
+> p(1, 2, y)
+p(1, 2, y): eval_conflict_error: function "repl.p" produces conflicting outputs
+```
+
+On the other hand, if a call matches no functions, then the result is undefined, and the query containing it will become unsatisfied.
+```
+> p(x, 2) = y {
+|     y = x*4
+| }
+|
+> p(5, 2, y)
++----+
+| y  |
++----+
+| 20 |
++----+
+> p(5, 3, y)
+false
+```
+
+For a formal definition of the function syntax (as well as formal definitions for Array, Object and Scalar), see the [Language Reference](/documentation/references/language#grammar) document.
+
 ## <a name="negation"></a> Negation
 
 To generate the content of a [Virtual Document](/docs/arch.html#data-model), OPA attempts to bind variables in the body of the rule such that all expressions in the rule evaluate to True.
