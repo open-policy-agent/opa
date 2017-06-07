@@ -212,6 +212,8 @@ func sortOrder(x interface{}) int {
 		return 100
 	case *With:
 		return 110
+	case *Head:
+		return 120
 	case Body:
 		return 200
 	case *Rule:
