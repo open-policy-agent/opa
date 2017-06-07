@@ -1,0 +1,104 @@
+.value-section{
+
+  &--values{
+    color: #fff;
+    padding-bottom: get('rhythm') * 2;
+  }
+
+  &--value-img{
+    width: 3rem;
+  }
+
+  &--value-item-container{
+    margin-top: get('rhythm') * 2;
+  }
+
+  &--value-title{
+    font-size: ms(1);
+    font-family: "adobe fan heiti std";
+  }
+
+  &--value-para{
+    font-size: ms(-1);
+    font-weight: 300;
+  }
+
+  &--light-blue-wave-container{
+    position: absolute;
+    bottom: 100%;
+    width: 100%;
+    overflow: hidden;
+    height: 84px;
+  }
+
+  &--light-blue-wave{
+    position: absolute;
+    left: -9999px;
+    right: -9999px;
+    margin: auto;
+    width: 2100px;
+    min-width: 2100px;
+    height: 84px;
+  }
+
+  &--boat-container{
+    position: absolute;
+    bottom: 105%;
+    width: 100%;
+    overflow: hidden;
+    height: 115px;
+  }
+
+  &--boat{
+    position: absolute;
+    left: -9999px;
+    right: -9999px;
+    margin: auto;
+    width: 300px;
+    min-width: 300px;
+    height: 116px;
+
+  }
+
+  &--middle-blue-wave-container{
+    position: absolute;
+    bottom:98%;
+    width: 100%;
+    overflow: hidden;
+    height: 91px;
+  }
+
+  &--middle-blue-wave{
+    position: absolute;
+    left: -9999px;
+    right: -9999px;
+    margin: auto;
+    width: 2100px;
+    min-width: 2100px;
+    height: 91px;
+  }
+
+  &--long-wave-container{
+    position: absolute;
+    top: 99%;
+    width: 100%;
+    overflow: hidden;
+    height: 150px;
+    margin-top: 0;
+    z-index: 100;
+  }
+
+  &--long-wave{
+    position: absolute;
+    left: -9999px;
+    right: -9999px;
+    margin: auto;
+    width: 2000px;
+    min-width: 2000px;
+    height: 156px;
+  }
+
+
+
+
+}

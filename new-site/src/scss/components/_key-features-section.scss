@@ -1,0 +1,65 @@
+.key-features-section{
+  &--section-title{
+    font-family: "adobe gothic std";
+    font-size: ms(1);
+    color: #fff;
+  }
+
+  &--key-features{
+    color: #fff;
+  }
+
+  &--key-feature-container{
+    margin-top: get('rhythm') * 2;
+  }
+
+  &--key-feature-title{
+    font-size: 18px;
+    font-family: "adobe fan heiti std";
+  }
+
+  &--key-feature-para{
+    font-size: ms(-1);
+  }
+
+  &--sea-plants-container{
+    position: absolute;
+    bottom: 0%;
+    width: 100%;
+    overflow: hidden;
+    height: 95px;
+  }
+
+  &--sea-plants{
+    position: absolute;
+    left: -9999px;
+    right: -9999px;
+    margin: auto;
+    width: 2100px;
+    min-width: 2100px;
+    height: 140px;
+  }
+
+  &--dark-blue-long-wave-container{
+    position: absolute;
+    bottom: 100%;
+    width: 100%;
+    overflow: hidden;
+    height: 150px;
+    margin-top: 0;
+    z-index: 100;
+  }
+
+  &--dark-blue-long-wave{
+    position: absolute;
+    left: -9999px;
+    right: -9999px;
+    margin: auto;
+    width: 2000px;
+    min-width: 2000px;
+    height: 156px;
+  }
+
+
+
+}

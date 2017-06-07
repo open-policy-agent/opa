@@ -1,4 +1,4 @@
-@mixin base--button($color: color('teal', 60), $background: transparent, $border: color('teal', 30), $block: false) {
+@mixin base--button($color: #EF6C00, $background: transparent, $border: #EF6C00, $block: false) {
   padding: 0.5em 1em;
   color: $color;
   font-weight: bold;
