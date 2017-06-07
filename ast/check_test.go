@@ -5,9 +5,12 @@
 package ast
 
 import (
+	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/open-policy-agent/opa/types"
+	"github.com/open-policy-agent/opa/util"
 	"github.com/open-policy-agent/opa/util/test"
 )
 
@@ -221,7 +224,9 @@ func TestCheckInference(t *testing.T) {
 		test.Subtest(t, tc.note, func(t *testing.T) {
 			body := MustParseBody(tc.query)
 			checker := newTypeChecker()
-			env, err := checker.CheckBody(nil, body)
+			env := NewTypeEnv()
+			env = checker.checkLanguageBuiltins(env)
+			env, err := checker.CheckBody(env, body)
 			if len(err) != 0 {
 				t.Fatalf("Unexpected error: %v", err)
 			}
@@ -407,7 +412,7 @@ func TestCheckInferenceRules(t *testing.T) {
 
 	for _, tc := range tests {
 		test.Subtest(t, tc.note, func(t *testing.T) {
-			var rules []*Rule
+			var elems []util.T
 
 			// Convert test rules into rule slice for call.
 			for i := range tc.rules {
@@ -418,16 +423,16 @@ func TestCheckInferenceRules(t *testing.T) {
 					Rules:   []*Rule{rule},
 				}
 				rule.Module = module
-				rules = append(rules, rule)
+				elems = append(elems, rule)
 				for next := rule.Else; next != nil; next = next.Else {
 					next.Module = module
-					rules = append(rules, next)
+					elems = append(elems, next)
 				}
 			}
 
 			ref := MustParseRef(tc.ref)
 			checker := newTypeChecker()
-			env, err := checker.CheckRules(nil, rules)
+			env, err := checker.CheckTypes(nil, elems)
 
 			if err != nil {
 				t.Fatalf("Unexpected error %v:", err)
@@ -450,38 +455,40 @@ func TestCheckInferenceRules(t *testing.T) {
 
 }
 
-func TestCheckBadBuiltin(t *testing.T) {
-	body := MustParseBody(`bad_builtin()`)
-	tc := newTypeChecker()
-	_, err := tc.CheckBody(nil, body)
-	if len(err) != 1 || err[0].Code != TypeErr {
-		t.Fatalf("Expected type error from %v but got: %v", body, err)
-	}
-}
-
 func TestCheckBadCardinality(t *testing.T) {
-	body := MustParseBody("plus(1,2); plus(1,2,3,4)")
-	tc := newTypeChecker()
-	_, err := tc.CheckBody(nil, body)
-	if len(err) != 2 || err[0].Code != TypeErr || err[1].Code != TypeErr {
-		t.Fatalf("Expected 2 type errors from %v but got: %v", body, err)
+	tests := []struct {
+		body string
+		exp  []types.Type
+	}{
+		{
+			body: "plus(1, 2)",
+			exp:  []types.Type{types.N, types.N},
+		},
+		{
+			body: "plus(1, 2, 3, 4)",
+			exp:  []types.Type{types.N, types.N, types.N, types.N},
+		},
 	}
-	detail, ok := err[1].Details.(*ArgErrDetail)
-	if !ok {
-		t.Fatalf("Expected argument error details but got: %v", err)
-	}
-	expected := []types.Type{
-		types.N,
-		types.N,
-		types.N,
-		types.N,
-	}
-	if len(expected) != len(detail.Have) {
-		t.Fatalf("Expected arg types %v but got: %v", expected, detail.Have)
-	}
-	for i := range expected {
-		if types.Compare(expected[i], detail.Have[i]) != 0 {
-			t.Fatalf("Expected types for %v to be %v but got: %v", body[0], expected, detail.Have)
+	for _, test := range tests {
+		body := MustParseBody(test.body)
+		env := NewTypeEnv()
+		tc := newTypeChecker()
+		env = tc.checkLanguageBuiltins(env)
+		_, err := tc.CheckBody(env, body)
+		if len(err) != 1 || err[0].Code != TypeErr {
+			t.Fatalf("Expected 1 type error from %v but got: %v", body, err)
+		}
+		detail, ok := err[0].Details.(*ArgErrDetail)
+		if !ok {
+			t.Fatalf("Expected argument error details but got: %v", err)
+		}
+		if len(test.exp) != len(detail.Have) {
+			t.Fatalf("Expected arg types %v but got: %v", test.exp, detail.Have)
+		}
+		for i := range test.exp {
+			if types.Compare(test.exp[i], detail.Have[i]) != 0 {
+				t.Fatalf("Expected types for %v to be %v but got: %v", body[0], test.exp, detail.Have)
+			}
 		}
 	}
 }
@@ -579,19 +586,19 @@ func TestCheckRefErrors(t *testing.T) {
 		`else_kw = [1,2,3] { false } else = {"foo": 1} { true } else = {"bar": 2} { true }`,
 	}
 
-	var rules []*Rule
+	var elems []util.T
 
 	for i := range rs {
 		rule := MustParseRule(rs[i])
 		rule.Module = module
-		rules = append(rules, rule)
+		elems = append(elems, rule)
 		for next := rule.Else; next != nil; next = next.Else {
 			next.Module = module
-			rules = append(rules, next)
+			elems = append(elems, next)
 		}
 	}
 
-	env, err := newTypeChecker().CheckRules(nil, rules)
+	env, err := newTypeChecker().CheckTypes(nil, elems)
 	if len(err) > 0 {
 		t.Fatalf("Unexpected error in rules: %v", err)
 	}
@@ -621,6 +628,67 @@ func TestCheckRefErrors(t *testing.T) {
 			_, err := newTypeChecker().CheckBody(env, body)
 			if len(err) != 1 {
 				t.Fatalf("Expected exactly one error but got: %v", err)
+			}
+		})
+	}
+}
+
+func TestUserFunctionsTypeInference(t *testing.T) {
+	functions := []string{
+		`foo([a, b]) = y { split(a, b, y) }`,
+		`bar(x) = y { count(x, y) }`,
+		`baz([x, y]) = z { sprintf("%s%s", [x, y], z) }`,
+		`buz({"bar": x, "foo": y}) = {a: b} { upper(y, a); json.unmarshal(x, b) }`,
+		`foobar(x) = y { buz({"bar": x, "foo": x}, a); baz([a["{5: true}"], "BUZ"], y) }`,
+	}
+	body := strings.Join(functions, "\n")
+	base := fmt.Sprintf("package base\n%s", body)
+
+	c := NewCompiler()
+	if c.Compile(map[string]*Module{"base": MustParseModule(base)}); c.Failed() {
+		t.Fatalf("Failed to compile base module: %v", c.Errors)
+	}
+
+	tests := []struct {
+		body string
+		err  bool
+	}{
+		{
+			`fn() = y { base.foo(["hello", 5], y) }`,
+			true,
+		},
+		{
+			`fn() = y { base.foo(["hello", "ll"], y) }`,
+			false,
+		},
+		{
+			`fn() = y { base.baz(["hello", "ll"], y) }`,
+			false,
+		},
+		{
+			`fn() = y { base.baz([5, ["foo", "bar", true]], y) }`,
+			false,
+		},
+		{
+			`fn() = y { base.baz(["hello", {"a": "b", "c": 3}], y) }`,
+			false,
+		},
+		{
+			`fn() = y { base.foobar("this is not json", y) }`,
+			false,
+		},
+		{
+			`fn(x) = y { noexist(x, a); y = a[0] }`,
+			true,
+		},
+	}
+
+	for n, test := range tests {
+		t.Run(fmt.Sprintf("Test Case %d", n), func(t *testing.T) {
+			mod := MustParseModule(fmt.Sprintf("package test\n%s", test.body))
+			c := NewCompiler()
+			if c.Compile(map[string]*Module{"base": MustParseModule(base), "mod": mod}); c.Failed() != test.err {
+				t.Fatalf("Expected compiler to fail: %t, compiler failed: %t", test.err, c.Failed())
 			}
 		})
 	}

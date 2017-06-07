@@ -1035,7 +1035,7 @@ func evalRefRec(t *Topdown, ref ast.Ref, iter Iterator) error {
 		if child == nil {
 			break
 		}
-		if len(child.Rules) > 0 {
+		if len(child.Values) > 0 {
 			return evalRefRule(t, ref, prefix[:i+1], iter)
 		}
 		node = child
@@ -1115,7 +1115,7 @@ func evalRefRecGround(t *Topdown, ref, prefix ast.Ref, iter Iterator) error {
 // non-leaf node in the tree, the results are merged together to form an
 // object. The final result is the object representing the virtual document
 // rooted at node.
-func evalRefRecTree(t *Topdown, path ast.Ref, node *ast.RuleTreeNode) (ast.Object, error) {
+func evalRefRecTree(t *Topdown, path ast.Ref, node *ast.TreeNode) (ast.Object, error) {
 	v := ast.Object{}
 
 	for _, c := range node.Children {
@@ -1123,7 +1123,7 @@ func evalRefRecTree(t *Topdown, path ast.Ref, node *ast.RuleTreeNode) (ast.Objec
 			continue
 		}
 		path = append(path, &ast.Term{Value: c.Key})
-		if len(c.Rules) > 0 {
+		if len(c.Values) > 0 {
 			var result ast.Value
 			err := evalRefRule(t, path, path, func(t *Topdown) error {
 				result = t.Binding(path)

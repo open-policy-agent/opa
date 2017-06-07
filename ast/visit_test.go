@@ -25,8 +25,9 @@ import input.x.y as z
 
 t[x] = y { p[x] = {"foo": [y, 2, {"bar": 3}]}; not q[x]; y = [[x, z] | x = "x"; z = "z"]; count({1, 2, 3}, n) with input.foo.bar as x }
 
-p { false } else { false } else { true }`,
-	)
+p { false } else { false } else { true }
+
+fn([x, y]) = z { z = "bar"; trim(x, y, z) }`)
 	vis := &testVis{}
 
 	Walk(vis, rule)
@@ -173,11 +174,38 @@ p { false } else { false } else { true }`,
 							expr
 								term
 									true
+			func
+				head
+					fn
+					term
+						array
+							term
+								x
+							term
+								y
+					term
+						z
+				body
+					expr1
+						term
+							=
+						term
+							z
+						term
+							"bar"
+					expr2
+						term
+							trim
+						term
+							x
+						term
+							y
+						term
+							z
 	*/
-	if len(vis.elems) != 138 {
-		t.Errorf("Expected exactly 138 elements in AST but got %d: %v", len(vis.elems), vis.elems)
+	if len(vis.elems) != 165 {
+		t.Errorf("Expected exactly 165 elements in AST but got %d: %v", len(vis.elems), vis.elems)
 	}
-
 }
 
 func TestWalkVars(t *testing.T) {

@@ -11,6 +11,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/open-policy-agent/opa/util"
 	"github.com/open-policy-agent/opa/util/test"
 )
 
@@ -28,7 +29,7 @@ func TestModuleTree(t *testing.T) {
 	p = 1
 	`)
 	tree := NewModuleTree(mods)
-	expectedSize := 8
+	expectedSize := 9
 
 	if tree.Size() != expectedSize {
 		t.Fatalf("Expected %v but got %v modules", expectedSize, tree.Size())
@@ -68,7 +69,7 @@ s[2] { true }`,
 	)
 
 	tree := NewRuleTree(NewModuleTree(mods))
-	expectedNumRules := 20
+	expectedNumRules := 21
 
 	if tree.Size() != expectedNumRules {
 		t.Errorf("Expected %v but got %v rules", expectedNumRules, tree.Size())
@@ -77,7 +78,7 @@ s[2] { true }`,
 	// Check that empty packages are represented as leaves with no rules.
 	node := tree.Children[Var("data")].Children[String("a")].Children[String("b")].Children[String("empty")]
 
-	if node == nil || len(node.Children) != 0 || len(node.Rules) != 0 {
+	if node == nil || len(node.Children) != 0 || len(node.Values) != 0 {
 		t.Fatalf("Unexpected nil value or non-empty leaf of non-leaf node: %v", node)
 	}
 
@@ -107,6 +108,217 @@ func TestCompilerExample(t *testing.T) {
 	m := MustParseModule(testModule)
 	c.Compile(map[string]*Module{"testMod": m})
 	assertNotFailed(t, c)
+}
+
+func TestCompilerUserFunction(t *testing.T) {
+	tests := []struct {
+		modules []string
+		assert  func(*testing.T, *Compiler)
+		errs    []string
+	}{
+		{
+			// Test that functions can have different input types.
+			modules: []string{`package x
+
+				f([x]) = y {
+					y = x
+				}
+
+				f({"foo": x}) = y {
+					y = x
+				}`},
+			assert: assertNotFailed,
+		},
+		{
+			modules: []string{`package x
+
+				f([x]) = y {
+					y = x
+				}
+
+				f([[x]]) = y {
+					y = x
+				}`},
+			assert: assertNotFailed,
+		},
+		{
+			modules: []string{`package x
+
+				f(1, x) = y {
+					y = x
+				}
+
+				f(x, y) = z {
+					z = x+y
+				}`},
+			assert: assertNotFailed,
+		},
+		{
+			modules: []string{`package x
+
+				f(x, 1) = y {
+					y = x
+				}
+
+				f(x, [y]) = z {
+					z = x+y
+				}`},
+			assert: assertNotFailed,
+		},
+		{
+			modules: []string{`package x
+
+				f({"foo": {"bar": x}}) = y {
+					y = x
+				}
+
+				f({"foo": [x]}) = y {
+					y = x
+				}`},
+			assert: assertNotFailed,
+		},
+		{
+			modules: []string{`package x
+
+				f(1) = y {
+					y = "foo"
+				}
+
+				f(2) = y {
+					y = 2
+				}`},
+			assert: assertNotFailed,
+		},
+		{
+			modules: []string{`package x
+
+				f(1) = y {
+					y = "foo"
+				}
+
+				f(2) = y {
+					y = "bar"
+				}`},
+			assert: assertNotFailed,
+		},
+		// Test that functions must have the same number of inputs.
+		{
+			modules: []string{`package x
+
+				f(x) = y {
+					y = x
+				}
+
+				f(x, y) = z {
+					z = x+y
+				}
+
+				f(x, y, z) = a {
+					b = x+y
+					a = b+z
+				}`},
+			assert: assertFailed,
+		},
+		// Test that a function and rule within the same package cannot
+		// share a name.
+		{
+			modules: []string{`package x
+
+			f(x) = y {
+				y = x
+			}
+
+			f[x] = y {
+				x = "foo"
+				y = "bar"
+			}`},
+			assert: assertFailed,
+		},
+		// Test that a function and rule within different packages can
+		// share a name.
+		{
+			modules: []string{
+				`package x
+
+				f(x) = y {
+					data.y.f[x] = y
+				}`,
+				`package y
+
+				f[x] = y {
+					y = "bar"
+					x = "foo"
+				}`,
+			},
+			assert: assertNotFailed,
+		},
+		// Test that a reference to a function that does not invoke it
+		// errors.
+		{
+			modules: []string{
+				`package x
+
+				f(x) = y {
+					y = x
+				}
+
+				g = y {
+					y = "foo"
+					f
+				}`,
+				`package y
+
+				g = y {
+					y = "foo"
+					x.f
+				}`,
+			},
+			assert: assertFailed,
+			errs: []string{
+				"rego_compile_error: mod0:9: f refers to a known builtin but does not call it",
+				"rego_compile_error: mod1:5: x.f refers to a known builtin but does not call it",
+			},
+		},
+		// Test that void functions compile properly.
+		{
+			modules: []string{
+				`package x
+
+				f(x) {
+					x = "foo"
+				}`},
+			assert: assertNotFailed,
+		},
+	}
+	for _, test := range tests {
+		var err error
+		modules := map[string]*Module{}
+		for i, module := range test.modules {
+			name := fmt.Sprintf("mod%d", i)
+			modules[name], err = ParseModule(name, module)
+			if err != nil {
+				panic(err)
+			}
+		}
+
+		c := NewCompiler()
+		c.Compile(modules)
+		test.assert(t, c)
+
+		if test.errs != nil {
+			errs := c.Errors
+			var result []string
+			for _, err := range errs {
+				result = append(result, err.Error())
+			}
+
+			sort.Strings(test.errs)
+			sort.Strings(result)
+			if !reflect.DeepEqual(test.errs, result) {
+				t.Errorf("Expected errors %v test.errs, got %v", test.errs, result)
+			}
+		}
+	}
 }
 
 func TestCompilerCheckSafetyHead(t *testing.T) {
@@ -179,6 +391,7 @@ func TestCompilerCheckSafetyBodyReordering(t *testing.T) {
 			x = y[0];
 			contains(x, "oo")
 		`},
+		{"userfunc", `split(y, ".", z); a.b.funcs.fn("...foo.bar..", y)`, `a.b.funcs.fn("...foo.bar..", y); split(y, ".", z)`},
 	}
 
 	for i, tc := range tests {
@@ -215,8 +428,13 @@ func TestCompilerCheckSafetyBodyReorderingClosures(t *testing.T) {
 import data.b
 import data.c
 
+fn(x) = y {
+	trim(x, ".", y)
+}
+
 p = true { v = [null | true]; xs = [x | a[i] = x; a = [y | y != 1; y = c[j]]]; xs[j] > 0; z = [true | data.a.b.d.t with input as i2; i2 = i]; b[i] = j }
-q = true { _ = [x | x = b[i]]; _ = b[j]; _ = [x | x = true; x != false]; true != false; _ = [x | data.foo[_] = x]; data.foo[_] = _ }`,
+q = true { _ = [x | x = b[i]]; _ = b[j]; _ = [x | x = true; x != false]; true != false; _ = [x | data.foo[_] = x]; data.foo[_] = _ }
+r = true { a = [x | split(y, ".", z); x = z[i]; fn("...foo.bar..", y)] }`,
 		),
 	}
 
@@ -233,6 +451,12 @@ q = true { _ = [x | x = b[i]]; _ = b[j]; _ = [x | x = true; x != false]; true !=
 	expected2 := MustParseBody(`_ = [x | x = data.b[i]]; _ = data.b[j]; _ = [x | x = true; x != false]; true != false; _ = [x | data.foo[_] = x]; data.foo[_] = _`)
 	if !result2.Equal(expected2) {
 		t.Errorf("Expected pre-ordered body to equal:\n%v\nBut got:\n%v", expected2, result2)
+	}
+
+	result3 := c.Modules["mod"].Rules[2].Body
+	expected3 := MustParseBody(`a = [x | compr.fn("...foo.bar..", y); split(y, ".", z); x = z[i]]`)
+	if !result3.Equal(expected3) {
+		t.Errorf("Expected pre-ordered body to equal:\n%v\nBut got:\n%v", expected3, result3)
 	}
 }
 
@@ -276,6 +500,7 @@ func TestCompilerCheckSafetyBodyErrors(t *testing.T) {
 		{"with-value", `p { data.a.b.d.t with input as x }`, `{x,}`},
 		{"with-value-2", `p { x = data.a.b.d.t with input as x }`, `{x,}`},
 		{"else-kw", "p { false } else { count(x, 1) }", `{x,}`},
+		{"userfunc", "foo(x) = [y, z] { split(x, y, z) }", `{y,z}`},
 	}
 
 	makeErrMsg := func(varName string) string {
@@ -355,7 +580,8 @@ data_target = true { req_dep with data.p as "foo" }`,
 
 func TestCompilerCheckTypes(t *testing.T) {
 	c := NewCompiler()
-	c.Modules = map[string]*Module{"mod6": getCompilerTestModules()["mod6"]}
+	modules := getCompilerTestModules()
+	c.Modules = map[string]*Module{"mod6": modules["mod6"], "mod7": modules["mod7"]}
 	compileStages(c, c.checkTypes)
 	assertNotFailed(t, c)
 }
@@ -569,7 +795,7 @@ elsekw {
 	assertRulesEqual(t, rule3, expected3)
 }
 
-func TestCompilerSetRuleGraph(t *testing.T) {
+func TestCompilerSetGraph(t *testing.T) {
 	c := NewCompiler()
 	c.Modules = getCompilerTestModules()
 	c.Modules["elsekw"] = MustParseModule(`
@@ -586,7 +812,7 @@ func TestCompilerSetRuleGraph(t *testing.T) {
 	q = true
 	r = true
 	`)
-	compileStages(c, c.setRuleGraph)
+	compileStages(c, c.setGraph)
 
 	assertNotFailed(t, c)
 
@@ -596,31 +822,36 @@ func TestCompilerSetRuleGraph(t *testing.T) {
 	mod2 := c.Modules["mod2"]
 	r := mod2.Rules[0]
 
-	edges := map[*Rule]struct{}{
+	edges := map[util.T]struct{}{
 		q: struct{}{},
 		r: struct{}{},
 	}
 
-	if !reflect.DeepEqual(edges, c.RuleGraph.Dependencies(p)) {
-		t.Fatalf("Expected dependencies for p to be q and r but got: %v", c.RuleGraph.Dependencies(p))
+	if !reflect.DeepEqual(edges, c.Graph.Dependencies(p)) {
+		t.Fatalf("Expected dependencies for p to be q and r but got: %v", c.Graph.Dependencies(p))
 	}
 
-	sorted, ok := c.RuleGraph.Sort()
+	sorted, ok := c.Graph.Sort()
 	if !ok {
 		t.Fatalf("Expected sort to succeed.")
 	}
 
 	numRules := 0
+	numFuncs := 0
 
 	for _, module := range c.Modules {
 		WalkRules(module, func(*Rule) bool {
 			numRules++
 			return false
 		})
+		WalkFuncs(module, func(*Func) bool {
+			numFuncs++
+			return false
+		})
 	}
 
-	if len(sorted) != numRules {
-		t.Fatalf("Expected numRules (%v) to be same as len(sorted) (%v)", numRules, len(sorted))
+	if len(sorted) != numRules+numFuncs {
+		t.Fatalf("Expected numRules+numFuncs (%v) to be same as len(sorted) (%v)", numRules+numFuncs, len(sorted))
 	}
 
 	// Probe rules with dependencies. Ordering is not stable for ties because
@@ -657,7 +888,7 @@ func TestCompilerSetRuleGraph(t *testing.T) {
 	}
 }
 
-func TestRuleGraphCycle(t *testing.T) {
+func TestGraphCycle(t *testing.T) {
 	mod1 := `package a.b.c
 
 	p { q }
@@ -670,10 +901,10 @@ func TestRuleGraphCycle(t *testing.T) {
 		"mod1": MustParseModule(mod1),
 	}
 
-	compileStages(c, c.setRuleGraph)
+	compileStages(c, c.setGraph)
 	assertNotFailed(t, c)
 
-	_, ok := c.RuleGraph.Sort()
+	_, ok := c.Graph.Sort()
 	if ok {
 		t.Fatalf("Expected to find cycle in rule graph")
 	}
@@ -702,10 +933,10 @@ func TestRuleGraphCycle(t *testing.T) {
 		"elsekw": MustParseModule(elsekw),
 	}
 
-	compileStages(c, c.setRuleGraph)
+	compileStages(c, c.setGraph)
 	assertNotFailed(t, c)
 
-	_, ok = c.RuleGraph.Sort()
+	_, ok = c.Graph.Sort()
 	if ok {
 		t.Fatalf("Expected to find cycle in rule graph")
 	}
@@ -779,33 +1010,72 @@ dataref = true { data }`,
 
 		elsebottom { elsetop }
 		`),
+		"fnMod1": MustParseModule(`package f0
+
+		fn(x) = y {
+			fn(x, y)
+		}`),
+		"fnMod2": MustParseModule(`package f1
+
+		foo(x) = y {
+			bar("buz", x, y)
+		}
+
+		bar(x, y) = z {
+			foo([x, y], z)
+		}`),
+		"fnMod3": MustParseModule(`package f2
+
+		foo(x) = y {
+			bar("buz", x, y)
+		}
+
+		bar(x, y) = z {
+			x = p[y]
+			z = x
+		}
+
+		p[x] = y {
+			x = "foo.bar"
+			foo(x, y)
+		}`),
 	}
 
 	compileStages(c, c.checkRecursion)
 
-	makeErrMsg := func(rule string, loop ...string) string {
+	makeRuleErrMsg := func(rule string, loop ...string) string {
 		return fmt.Sprintf("rego_recursion_error: rule %v is recursive: %v", rule, strings.Join(loop, " -> "))
 	}
 
+	makeFuncErrMsg := func(fn string, loop ...string) string {
+		return fmt.Sprintf("rego_recursion_error: func %v is recursive: %v", fn, strings.Join(loop, " -> "))
+	}
+
 	expected := []string{
-		makeErrMsg("s", "s", "t", "s"),
-		makeErrMsg("t", "t", "s", "t"),
-		makeErrMsg("a", "a", "b", "c", "e", "a"),
-		makeErrMsg("b", "b", "c", "e", "a", "b"),
-		makeErrMsg("c", "c", "e", "a", "b", "c"),
-		makeErrMsg("e", "e", "a", "b", "c", "e"),
-		makeErrMsg("p", "p", "q", "p"),
-		makeErrMsg("q", "q", "p", "q"),
-		makeErrMsg("acq", "acq", "acp", "acq"),
-		makeErrMsg("acp", "acp", "acq", "acp"),
-		makeErrMsg("np", "np", "nq", "np"),
-		makeErrMsg("nq", "nq", "np", "nq"),
-		makeErrMsg("prefix", "prefix", "prefix"),
-		makeErrMsg("dataref", "dataref", "dataref"),
-		makeErrMsg("else_self", "else_self", "else_self"),
-		makeErrMsg("elsetop", "elsetop", "elsemid", "elsebottom", "elsetop"),
-		makeErrMsg("elsemid", "elsemid", "elsebottom", "elsetop", "elsemid"),
-		makeErrMsg("elsebottom", "elsebottom", "elsetop", "elsemid", "elsebottom"),
+		makeRuleErrMsg("s", "s", "t", "s"),
+		makeRuleErrMsg("t", "t", "s", "t"),
+		makeRuleErrMsg("a", "a", "b", "c", "e", "a"),
+		makeRuleErrMsg("b", "b", "c", "e", "a", "b"),
+		makeRuleErrMsg("c", "c", "e", "a", "b", "c"),
+		makeRuleErrMsg("e", "e", "a", "b", "c", "e"),
+		makeRuleErrMsg("p", "p", "q", "p"),
+		makeRuleErrMsg("q", "q", "p", "q"),
+		makeRuleErrMsg("acq", "acq", "acp", "acq"),
+		makeRuleErrMsg("acp", "acp", "acq", "acp"),
+		makeRuleErrMsg("np", "np", "nq", "np"),
+		makeRuleErrMsg("nq", "nq", "np", "nq"),
+		makeRuleErrMsg("prefix", "prefix", "prefix"),
+		makeRuleErrMsg("dataref", "dataref", "dataref"),
+		makeRuleErrMsg("else_self", "else_self", "else_self"),
+		makeRuleErrMsg("elsetop", "elsetop", "elsemid", "elsebottom", "elsetop"),
+		makeRuleErrMsg("elsemid", "elsemid", "elsebottom", "elsetop", "elsemid"),
+		makeRuleErrMsg("elsebottom", "elsebottom", "elsetop", "elsemid", "elsebottom"),
+		makeFuncErrMsg("fn", "fn", "fn"),
+		makeFuncErrMsg("foo", "foo", "bar", "foo"),
+		makeFuncErrMsg("bar", "bar", "foo", "bar"),
+		makeFuncErrMsg("bar", "bar", "p", "foo", "bar"),
+		makeFuncErrMsg("foo", "foo", "bar", "p", "foo"),
+		makeRuleErrMsg("p", "p", "foo", "bar", "p"),
 	}
 
 	result := compilerErrsToStringSlice(c.Errors)
@@ -1216,6 +1486,12 @@ func assertNotFailed(t *testing.T, c *Compiler) {
 	}
 }
 
+func assertFailed(t *testing.T, c *Compiler) {
+	if !c.Failed() {
+		t.Error("Expected compilation error.")
+	}
+}
+
 func getCompilerWithParsedModules(mods map[string]string) *Compiler {
 
 	parsed := map[string]*Module{}
@@ -1305,6 +1581,23 @@ r = 1 { true }
 s = true { x[r] }`,
 	)
 
+	mod7 := MustParseModule(`package a.b.funcs
+
+fn(x) = y {
+	trim(x, ".", y)
+}
+
+bar([x, y]) = [a, [b, c]] {
+	fn(x, a)
+	y[1].b = b
+	y[i].a = "hi"
+	c = y[i].b
+}
+
+foorule = true {
+	bar(["hi.there", [{"a": "hi", "b": 1}, {"a": "bye", "b": 0}]], [a, [b, c]])
+}`)
+
 	return map[string]*Module{
 		"mod1": mod1,
 		"mod2": mod2,
@@ -1312,6 +1605,7 @@ s = true { x[r] }`,
 		"mod4": mod4,
 		"mod5": mod5,
 		"mod6": mod6,
+		"mod7": mod7,
 	}
 }
 

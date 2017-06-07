@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/open-policy-agent/opa/types"
+	"github.com/open-policy-agent/opa/util"
 )
 
 // exprChecker defines the interface for executing type checking on a single
@@ -22,6 +23,12 @@ type exprChecker func(*TypeEnv, *Expr) *Error
 type typeChecker struct {
 	errs         Errors
 	exprCheckers map[String]exprChecker
+
+	// When checking the types of functions, their inputs need to initially
+	// be assumed as types.Any. In order to fill the TypeEnv with more accurate
+	// type information for the inputs, we need to overwrite this types.Any
+	// after we've infered more accurate typing from the function bodies.
+	inFunc bool
 }
 
 // newTypeChecker returns a new typeChecker object that has no errors.
@@ -44,7 +51,24 @@ func (tc *typeChecker) CheckBody(env *TypeEnv, body Body) (*TypeEnv, Errors) {
 		env = env.wrap()
 	}
 
+	prev := len(tc.errs)
 	WalkExprs(body, func(expr *Expr) bool {
+		// If walking this body resulted in errors, then we should not
+		// continue walking it, otherwise the refChecker could panic
+		// when resolving unsafe references. A simple function that
+		// demonstrates this problem is:
+		//
+		// f(x) = y {
+		//     noexist(x, b)
+		//     y = b[0]
+		// }
+		//
+		// The fundamental problem is that functions make their output
+		// safe, but if the function itself fails to compile, the output
+		// is falsely assumed safe by other bodies using it.
+		if len(tc.errs) > prev {
+			return false
+		}
 
 		vis := newRefChecker(env)
 		Walk(vis, expr)
@@ -61,77 +85,172 @@ func (tc *typeChecker) CheckBody(env *TypeEnv, body Body) (*TypeEnv, Errors) {
 	return env, tc.errs
 }
 
-// CheckRules runs type checking on the rules and returns a TypeEnv if no
-// errors are found. The resulting TypeEnv wraps the provided one. The
-// resulting TypeEnv will be able to resolve types of refs that refer to rules.
-func (tc *typeChecker) CheckRules(env *TypeEnv, rules []*Rule) (*TypeEnv, Errors) {
+func (tc *typeChecker) checkLanguageBuiltins(env *TypeEnv) *TypeEnv {
+	if env == nil {
+		env = NewTypeEnv()
+	} else {
+		env = env.wrap()
+	}
 
+	for _, bi := range Builtins {
+		env.PutFunc(bi.Name, bi.Args)
+	}
+
+	return env
+}
+
+// CheckTypes runs type checking on the rules and funcs and returns a TypeEnv if no
+// errors are found. The resulting TypeEnv wraps the provided one. The
+// resulting TypeEnv will be able to resolve types of refs that refer to rules
+// and funcs.
+func (tc *typeChecker) CheckTypes(env *TypeEnv, sorted []util.T) (*TypeEnv, Errors) {
 	if env == nil {
 		env = NewTypeEnv()
 	} else {
 		env.wrap()
 	}
 
-	for _, rule := range rules {
-		cpy, err := tc.CheckBody(env, rule.Body)
-
-		if len(err) == 0 {
-
-			path := rule.Path()
-			var tpe types.Type
-
-			switch rule.Head.DocKind() {
-			case CompleteDoc:
-				typeV := cpy.Get(rule.Head.Value)
-				if typeV != nil {
-					exist := env.tree.Get(path)
-					tpe = types.Or(typeV, exist)
-				}
-			case PartialObjectDoc:
-				// TODO(tsandall): partial object keys require 'optional' support
-				// in types.Object. For now, treat partial objects as having
-				// dynamic keys where the value type is constrained.
-				typeV := cpy.Get(rule.Head.Value)
-				if typeV != nil {
-					exist := env.tree.Get(path)
-					typeV = types.Or(types.Values(exist), typeV)
-					tpe = types.NewObject(nil, typeV)
-				}
-			case PartialSetDoc:
-				typeK := cpy.Get(rule.Head.Key)
-				if typeK != nil {
-					exist := env.tree.Get(path)
-					typeK = types.Or(types.Keys(exist), typeK)
-					tpe = types.NewSet(typeK)
-				}
-			}
-			if tpe != nil {
-				env.tree.Put(path, tpe)
-			}
+	for _, s := range sorted {
+		switch s := s.(type) {
+		case *Rule:
+			tc.checkRule(env, s)
+		case *Func:
+			// TODO(mmussomele, tsandall): Currently this infers
+			// function input/output types from the body. We'll want
+			// to spend some time thinking about whether or not we
+			// want to keep that.
+			tc.checkFunc(env, s)
 		}
 	}
 
 	return env, tc.errs
 }
 
-func (tc *typeChecker) checkExpr(env *TypeEnv, expr *Expr) *Error {
+func (tc *typeChecker) checkFunc(env *TypeEnv, fn *Func) {
+	tc.inFunc = true
+	defer func() {
+		tc.inFunc = false
+	}()
 
+	cpy := env.wrap()
+	for _, arg := range fn.Head.Args {
+		WalkVars(arg, func(v Var) bool {
+			cpy.tree.PutOne(v, types.A)
+			return false
+		})
+	}
+
+	prev := len(tc.errs)
+	cpy, err := tc.CheckBody(cpy, fn.Body)
+
+	// If this function did not error, there is no reason to return early,
+	// as that means that its dependencies compiled fine.
+	if len(err) > prev {
+		return
+	}
+	name := fn.PathString()
+
+	// Ensure that multiple definitions of this function have consistent argument
+	// lengths.
+	cur := env.GetFunc(name)
+	numArgs := len(fn.Head.Args)
+	if cur != nil && len(cur)-1 != numArgs {
+		tc.err(NewError(TypeErr, fn.Head.Loc(), "function definitions for %s have different number of arguments (%d vs %d)", name, numArgs, len(cur)-1))
+		return
+	}
+
+	var argTypes []types.Type
+	for i, arg := range fn.Head.Args {
+		tpe := mergeTypes(cpy.Get(arg), cur, i)
+		argTypes = append(argTypes, tpe)
+	}
+
+	out := mergeTypes(cpy.Get(fn.Head.Output), cur, numArgs)
+	argTypes = append(argTypes, out)
+	env.PutFunc(name, argTypes)
+}
+
+func (tc *typeChecker) checkRule(env *TypeEnv, rule *Rule) {
+	cpy, err := tc.CheckBody(env, rule.Body)
+
+	if len(err) == 0 {
+		path := rule.Path()
+		var tpe types.Type
+
+		switch rule.Head.DocKind() {
+		case CompleteDoc:
+			typeV := cpy.Get(rule.Head.Value)
+			if typeV != nil {
+				exist := env.tree.Get(path)
+				tpe = types.Or(typeV, exist)
+			}
+		case PartialObjectDoc:
+			// TODO(tsandall): partial object keys require 'optional' support
+			// in types.Object. For now, treat partial objects as having
+			// dynamic keys where the value type is constrained.
+			typeV := cpy.Get(rule.Head.Value)
+			if typeV != nil {
+				exist := env.tree.Get(path)
+				typeV = types.Or(types.Values(exist), typeV)
+				tpe = types.NewObject(nil, typeV)
+			}
+		case PartialSetDoc:
+			typeK := cpy.Get(rule.Head.Key)
+			if typeK != nil {
+				exist := env.tree.Get(path)
+				typeK = types.Or(types.Keys(exist), typeK)
+				tpe = types.NewSet(typeK)
+			}
+		}
+		if tpe != nil {
+			env.tree.Put(path, tpe)
+		}
+	}
+}
+
+func (tc *typeChecker) checkExpr(env *TypeEnv, expr *Expr) *Error {
 	if !expr.IsBuiltin() {
 		return nil
 	}
 
-	bi := expr.Builtin()
-	if bi == nil {
-		name := expr.Terms.([]*Term)[0].Value
-		return NewError(TypeErr, expr.Location, "undefined built-in function %v", name)
-	}
-
-	checker := tc.exprCheckers[bi.Name]
+	checker := tc.exprCheckers[expr.Name()]
 	if checker != nil {
 		return checker(env, expr)
 	}
 
-	return tc.checkExprBuiltin(env, bi, expr)
+	return tc.checkExprBuiltin(env, expr)
+}
+
+func (tc *typeChecker) checkExprBuiltin(env *TypeEnv, expr *Expr) *Error {
+	name := expr.Name()
+	expArgs := env.GetFunc(name)
+	if expArgs == nil {
+		return NewError(TypeErr, expr.Location, "undefined built-in function %v", name)
+	}
+
+	args := expr.Operands()
+	pre := make([]types.Type, len(args))
+	for i := range args {
+		pre[i] = env.Get(args[i])
+	}
+
+	if len(args) < len(expArgs) {
+		return newArgError(expr.Location, name, "too few arguments", pre, expArgs)
+	} else if len(args) > len(expArgs) {
+		return newArgError(expr.Location, name, "too many arguments", pre, expArgs)
+	}
+
+	for i := range args {
+		if !tc.unify1(env, args[i], expArgs[i]) {
+			post := make([]types.Type, len(args))
+			for i := range args {
+				post[i] = env.Get(args[i])
+			}
+			return newArgError(expr.Location, name, "invalid argument(s)", post, expArgs)
+		}
+	}
+
+	return nil
 }
 
 func (tc *typeChecker) checkExprEq(env *TypeEnv, expr *Expr) *Error {
@@ -146,34 +265,6 @@ func (tc *typeChecker) checkExprEq(env *TypeEnv, expr *Expr) *Error {
 			Right: typeB,
 		}
 		return err
-	}
-
-	return nil
-}
-
-func (tc *typeChecker) checkExprBuiltin(env *TypeEnv, bi *Builtin, expr *Expr) *Error {
-
-	args := expr.Operands()
-
-	pre := make([]types.Type, len(args))
-	for i := range args {
-		pre[i] = env.Get(args[i])
-	}
-
-	if len(args) < len(bi.Args) {
-		return newArgError(expr.Location, bi.Name, "too few arguments", pre, bi.Args)
-	} else if len(args) > len(bi.Args) {
-		return newArgError(expr.Location, bi.Name, "too many arguments", pre, bi.Args)
-	}
-
-	for i := range args {
-		if !tc.unify1(env, args[i], bi.Args[i]) {
-			post := make([]types.Type, len(args))
-			for i := range args {
-				post[i] = env.Get(args[i])
-			}
-			return newArgError(expr.Location, bi.Name, "invalid argument(s)", post, bi.Args)
-		}
 	}
 
 	return nil
@@ -286,7 +377,9 @@ func (tc *typeChecker) unify1(env *TypeEnv, term *Term, tpe types.Type) bool {
 		return unifies(env.Get(v), tpe)
 	case Var:
 		if exist := env.Get(v); exist != nil {
-			return unifies(exist, tpe)
+			if e, ok := exist.(types.Any); !ok || len(e) != 0 || !tc.inFunc {
+				return unifies(exist, tpe)
+			}
 		}
 		env.tree.PutOne(term.Value, tpe)
 		return true
@@ -587,6 +680,26 @@ func unifiesObjectsStatic(a, b *types.Object) bool {
 		}
 	}
 	return true
+}
+
+func mergeTypes(found types.Type, cur []types.Type, i int) types.Type {
+	if found == nil {
+		found = types.A
+	}
+
+	if cur == nil {
+		return found
+	}
+
+	return types.Or(found, cur[i])
+}
+
+func builtinNameRef(name String) Ref {
+	n, err := ParseRef(string(name))
+	if err != nil {
+		n = Ref([]*Term{{Value: name}})
+	}
+	return n
 }
 
 // ArgErrDetail represents a generic argument error.

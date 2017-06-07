@@ -119,6 +119,34 @@ func Transform(t Transformer, x interface{}) (interface{}, error) {
 			}
 		}
 		return y, nil
+	case *Func:
+		if y.Head, err = transformFuncHead(t, y.Head); err != nil {
+			return nil, err
+		}
+		if y.Body, err = transformBody(t, y.Body); err != nil {
+			return nil, err
+		}
+		return y, nil
+	case *FuncHead:
+		if y.Name, err = transformVar(t, y.Name); err != nil {
+			return nil, err
+		}
+		for i := range y.Args {
+			if y.Args[i], err = transformTerm(t, y.Args[i]); err != nil {
+				return nil, err
+			}
+		}
+		if y.Output, err = transformTerm(t, y.Output); err != nil {
+			return nil, err
+		}
+		return y, nil
+	case Args:
+		for i := range y {
+			if y[i], err = transformTerm(t, y[i]); err != nil {
+				return nil, err
+			}
+		}
+		return y, nil
 	case Body:
 		for i, e := range y {
 			e, err := Transform(t, e)
@@ -237,6 +265,18 @@ func transformHead(t Transformer, head *Head) (*Head, error) {
 		return nil, err
 	}
 	h, ok := y.(*Head)
+	if !ok {
+		return nil, fmt.Errorf("illegal transform: %T != %T", head, y)
+	}
+	return h, nil
+}
+
+func transformFuncHead(t Transformer, head *FuncHead) (*FuncHead, error) {
+	y, err := Transform(t, head)
+	if err != nil {
+		return nil, err
+	}
+	h, ok := y.(*FuncHead)
 	if !ok {
 		return nil, fmt.Errorf("illegal transform: %T != %T", head, y)
 	}
