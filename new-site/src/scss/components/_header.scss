@@ -3,12 +3,24 @@
   &--logo-image {
     width: 3rem;
     display: inline-block;
+    position: relative;
+    top: -4px;
+
+    @include breakpoint(900px){
+      width: 4rem;
+      top: -7px;
+    };
   }
 
   &--logo-txt{
     display: inline-block;
     font-family: 'adobe fan heiti std';
     color: #000;
+
+    @include breakpoint(900px){
+      font-size: ms(1);
+    };
+
   }
 
   &--logo-link{
@@ -25,6 +37,17 @@
 
   &--link{
     text-decoration: none;
+    margin-top: 0;
+    color: #777677;
+    display: inline-block;
+  }
+
+  &--link_SMALL{
+    margin-left: 0.5rem;
+  }
+
+  &--link_LONG{
+    margin-left: 1rem;
   }
 
   &--logo-image{

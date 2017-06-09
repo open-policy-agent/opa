@@ -3,23 +3,51 @@
     font-family: "adobe gothic std";
     font-size: ms(1);
     color: #fff;
+
+    @include breakpoint(1200px){
+      font-size: ms(4);
+    };
   }
 
   &--key-features{
     color: #fff;
+
+    @include breakpoint(850px){
+      margin-top: 1rem;
+    };
   }
 
   &--key-feature-container{
-    margin-top: get('rhythm') * 2;
+    margin-top: get('rhythm') * 2.5;
+
+    @include breakpoint(600px){
+      @include divisions(2, 1rem);
+    };
+
+    @include breakpoint(900px){
+      @include divisions(2, 2rem);
+    };
+
+    @include breakpoint(1100px){
+      @include divisions(2, 3rem);
+    };
   }
 
   &--key-feature-title{
-    font-size: 18px;
+    font-size: ms(1);
     font-family: "adobe fan heiti std";
+
+    @include breakpoint(1200px){
+      font-size: ms(2);
+    };
   }
 
   &--key-feature-para{
     font-size: ms(-1);
+
+    @include breakpoint(1200px){
+      font-size: ms(0);
+    };
   }
 
   &--sea-plants-container{
@@ -58,6 +86,15 @@
     width: 2000px;
     min-width: 2000px;
     height: 156px;
+  }
+
+  &--row-container:first-child{
+    margin-top: 0;
+
+    @include breakpoint(850px){
+      margin-top: 1rem;
+    };
+
   }
 
 

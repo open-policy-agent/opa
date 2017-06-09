@@ -11,16 +11,36 @@
 
   &--value-item-container{
     margin-top: get('rhythm') * 2;
+
+    @include breakpoint(600px){
+      @include divisions(3, 1rem);
+    };
+
+    @include breakpoint(900px){
+      @include divisions(3, 2rem);
+    };
+
+    @include breakpoint(1100px){
+      @include divisions(3, 3rem);
+    };
   }
 
   &--value-title{
     font-size: ms(1);
     font-family: "adobe fan heiti std";
+
+    @include breakpoint(1200px){
+      font-size: ms(2);
+    };
   }
 
   &--value-para{
     font-size: ms(-1);
     font-weight: 300;
+
+    @include breakpoint(1200px){
+      font-size: ms(0);
+    };
   }
 
   &--light-blue-wave-container{
@@ -43,29 +63,44 @@
 
   &--boat-container{
     position: absolute;
-    bottom: 105%;
+    bottom: 103%;
     width: 100%;
-    overflow: hidden;
     height: 115px;
+
+    @include breakpoint(600px){
+      bottom: 108%;
+    };
+
+    @include breakpoint(1200px){
+      bottom: 111%;
+    };
   }
 
   &--boat{
     position: absolute;
-    left: -9999px;
-    right: -9999px;
-    margin: auto;
-    width: 300px;
-    min-width: 300px;
-    height: 116px;
+    width: 17rem;
+    right: 17%;
+
+    @include breakpoint(1200px){
+      width: 20rem;
+    };
 
   }
 
   &--middle-blue-wave-container{
     position: absolute;
-    bottom:98%;
+    bottom:96%;
     width: 100%;
     overflow: hidden;
     height: 91px;
+
+    @include breakpoint(600px){
+      bottom: 92%;
+    };
+
+    @include breakpoint(1200px){
+      bottom: 90%;
+    };
   }
 
   &--middle-blue-wave{

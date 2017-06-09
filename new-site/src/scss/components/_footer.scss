@@ -2,6 +2,10 @@
   &--text{
     font-size: ms(-3);
     color: #BDBDBD;
+
+    @include breakpoint(1200px){
+      font-size: ms(-1);
+    };
   }
 
   &--link{
