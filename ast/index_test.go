@@ -411,4 +411,9 @@ func TestBaseDocEqIndexingErrors(t *testing.T) {
 	if err == nil || err.Error() != "some error" {
 		t.Fatalf("Expected error but got: %v", err)
 	}
+
+	index = newBaseDocEqIndex(func(Ref) bool { return true })
+	if index.Build(nil) {
+		t.Fatalf("Expected index build to fail")
+	}
 }
