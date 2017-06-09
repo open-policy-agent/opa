@@ -11,7 +11,7 @@
     <link rel="shortcut icon" href="images/favicon.png" />
     <title>Open Policy Agent</title>
   </head>
-  <body>
+  <body class="_homepage--body">
     <div class="_homepage--banner">
 
       <div class="_homepage--banner-cloud">
@@ -31,7 +31,7 @@
             </div>
 
             <div class="_homepage--menu-mobile">
-              <button class="hamburger hamburger--spring" type="button">
+              <button class="hamburger hamburger--spring" type="button" style="outline: none;">
                 <span class=" hamburger-box">
                   <span class="menu-mobile--hamburger-inner hamburger-inner"></span>
                 </span>
@@ -262,10 +262,50 @@
       </div>
     </div>
 
+    <div class="_homepage--hamburger-menu-container">
+
+      <a class="header--hamburger-menu-link" href="/">
+        <li class="header--hamburger-menu-item">
+          <div class="header--menu-txt">
+            Documentation
+          </div>
+        </li>
+      </a>
+
+      <a class="header--hamburger-menu-link" href="/">
+        <li class="header--hamburger-menu-item">
+          <div class="header--menu-txt">
+            Tutorials
+          </div>
+        </li>
+      </a>
+
+      <a class="header--hamburger-menu-link" href="https://blog.openpolicyagent.org/" target="_blank">
+        <li class="header--hamburger-menu-item">
+          <img class="header--menu-image" src="images/Medium.svg" alt="" />
+        </li>
+      </a>
+
+      <a class="header--hamburger-menu-link" href="https://github.com/open-policy-agent/opa/issues" target="_blank">
+        <li class="header--hamburger-menu-item">
+          <img class="header--menu-image" src="images/Github.svg" alt="" />
+        </li>
+      </a>
+
+      <a class="header--hamburger-menu-link" href="http://a5ec585d42ace11e7aaad0260e83477e-1095713357.us-west-2.elb.amazonaws.com/" target="_blank">
+        <li class="header--hamburger-menu-item">
+          <img class="header--menu-image" src="images/Slack.svg" alt="" />
+        </li>
+      </a>
+
+
+    </div>
+
     <script src="https://use.typekit.net/uhd1bba.js"></script>
     <script>try{Typekit.load({ async: true });}catch(e){}</script>
 
     <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jquery/2.2.3/jquery.min.js"></script>
     <script type="text/javascript" src="js/script.js"></script>
+    <script type="text/javascript" src="js/opa.js"></script>
   </body>
 </html>

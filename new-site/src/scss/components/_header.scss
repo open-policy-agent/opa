@@ -60,5 +60,16 @@
     margin-left: 0.5rem;
   }
 
+  &--hamburger-menu-item{
+    list-style-type: none;
+  }
+
+  &--hamburger-menu-link{
+    text-decoration: none;
+    color: #776777;
+    text-align: center;
+    padding: 1rem;
+  }
+
 
 }

@@ -127,5 +127,20 @@
     padding: 4rem 1rem 1rem 1rem;
   }
 
+  &--hamburger-menu-container{
+    position: fixed;
+    background-color: #fff;
+    width: 100%;
+    z-index: 100;
+    top: 0;
+    height: 100%;
+    margin-top: 6rem;
+
+    @include breakpoint(640px){
+      display: none;
+    };
+
+  }
+
 
 }
