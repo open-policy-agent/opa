@@ -628,6 +628,9 @@ func TestTopDownVirtualDocs(t *testing.T) {
 			`p[x] = y { xs = ["a", "b", "c", "a"]; x = xs[i]; y = a[i] }`},
 			objectDocKeyConflictErr(nil)},
 		{"no suffix: set", []string{`p[x] { q = s; s[x] }`, `q[x] { a[i] = x }`}, "[1,2,3,4]"},
+
+		{"empty partial set", []string{"p[1] { a[0] = 100 }"}, "[]"},
+		{"empty partial object", []string{`p["x"] = 1 { a[0] = 100 }`}, "{}"},
 	}
 
 	data := loadSmallTestData()
