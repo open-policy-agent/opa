@@ -651,7 +651,9 @@ body {
   text-decoration: none; }
 
 .header--menu-image {
-  width: 2rem; }
+  width: 2rem;
+  position: relative;
+  top: 10px; }
 
 .header--menu-image-github {
   width: 1.8rem; }
