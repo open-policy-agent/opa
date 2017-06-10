@@ -131,6 +131,17 @@ func RegisterFunctionalBuiltin1Out3(name ast.String, fun FunctionalBuiltin1Out3)
 	builtinFunctions[name] = functionalWrapper1Out3(name, fun)
 }
 
+func (t *Topdown) registerUserFunctions() {
+	if t.Compiler == nil {
+		return
+	}
+
+	fns := t.Compiler.GetAllFuncs()
+	for name, fn := range fns {
+		t.userBuiltins[name] = userFunctionWrapper(name, fn)
+	}
+}
+
 // BuiltinEmpty is used to signal that the built-in function evaluated, but the
 // result is undefined so evaluation should not continue.
 type BuiltinEmpty struct{}
@@ -230,6 +241,61 @@ func functionalWrapper1Out3(name ast.String, fn FunctionalBuiltin1Out3) BuiltinF
 		results := ast.ArrayTerm(ast.NewTerm(a), ast.NewTerm(b), ast.NewTerm(c))
 		targets := ast.ArrayTerm(operands[1], operands[2], operands[3])
 		return unifyAndContinue(t, iter, results.Value, targets.Value)
+	}
+}
+
+func userFunctionWrapper(name ast.String, fns []*ast.Func) BuiltinFunc {
+	return func(t *Topdown, expr *ast.Expr, iter Iterator) error {
+		operands := expr.Terms.([]*ast.Term)[1:]
+		resolved, err := resolveN(t, name, operands, len(operands)-1)
+		if err != nil {
+			return err
+		}
+
+		var rTerms ast.Array
+		for _, r := range resolved {
+			rTerms = append(rTerms, ast.NewTerm(r))
+		}
+
+		var redo bool
+		var result *ast.Term
+		for _, fn := range fns {
+			child := t.Child(fn.Body)
+			if !redo {
+				child.traceEnter(fn)
+				redo = true
+			} else {
+				child.traceRedo(fn)
+			}
+
+			arr := ast.Array(fn.Head.Args)
+			undo, err := evalEqUnify(child, rTerms, arr, nil, func(child *Topdown) error {
+				return eval(child, func(child *Topdown) error {
+					next := PlugTerm(fn.Head.Output, child.Binding)
+					if result != nil && !result.Equal(next) {
+						return &Error{
+							Code:     ConflictErr,
+							Message:  fmt.Sprintf("function %s produces conflicting outputs", name),
+							Location: expr.Location,
+						}
+					}
+					result = next
+					child.traceExit(fn)
+					return nil
+				})
+			})
+			defer child.Unbind(undo)
+
+			if err != nil {
+				return err
+			}
+		}
+
+		if result == nil {
+			return nil
+		}
+
+		return unifyAndContinue(t, iter, result.Value, operands[len(operands)-1].Value)
 	}
 }
 

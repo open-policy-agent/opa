@@ -29,13 +29,14 @@ type Topdown struct {
 	Tracer   Tracer
 	Context  context.Context
 
-	txn      storage.Transaction
-	locals   *ast.ValueMap
-	refs     *valueMapStack
-	cache    *contextcache
-	qid      uint64
-	redos    *redoStack
-	builtins builtins.Cache
+	txn          storage.Transaction
+	locals       *ast.ValueMap
+	refs         *valueMapStack
+	cache        *contextcache
+	qid          uint64
+	redos        *redoStack
+	builtins     builtins.Cache
+	userBuiltins map[ast.String]BuiltinFunc
 }
 
 // ResetQueryIDs resets the query ID generator. This is only for test purposes.
@@ -77,18 +78,21 @@ type redoStackElement struct {
 
 // New returns a new Topdown object without any bindings.
 func New(ctx context.Context, query ast.Body, compiler *ast.Compiler, store storage.Store, txn storage.Transaction) *Topdown {
-	return &Topdown{
-		Context:  ctx,
-		Query:    query,
-		Compiler: compiler,
-		Store:    store,
-		refs:     newValueMapStack(),
-		txn:      txn,
-		cache:    newContextCache(),
-		qid:      qidFactory.Next(),
-		redos:    &redoStack{},
-		builtins: builtins.Cache{},
+	t := &Topdown{
+		Context:      ctx,
+		Query:        query,
+		Compiler:     compiler,
+		Store:        store,
+		refs:         newValueMapStack(),
+		txn:          txn,
+		cache:        newContextCache(),
+		qid:          qidFactory.Next(),
+		redos:        &redoStack{},
+		builtins:     builtins.Cache{},
+		userBuiltins: map[ast.String]BuiltinFunc{},
 	}
+	t.registerUserFunctions()
+	return t
 }
 
 // Vars represents a set of var bindings.
@@ -910,9 +914,13 @@ func evalExpr(t *Topdown, iter Iterator) error {
 	expr := PlugExpr(t.Current(), t.Binding)
 	switch tt := expr.Terms.(type) {
 	case []*ast.Term:
-		builtin, ok := builtinFunctions[tt[0].Value.(ast.String)]
+		name := tt[0].Value.(ast.String)
+		builtin, ok := builtinFunctions[name]
 		if !ok {
-			return unsupportedBuiltinErr(expr.Location)
+			builtin, ok = t.userBuiltins[name]
+			if !ok {
+				return unsupportedBuiltinErr(expr.Location)
+			}
 		}
 		return builtin(t, expr, iter)
 	case *ast.Term:
