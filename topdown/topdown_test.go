@@ -1491,6 +1491,214 @@ loopback = input { true }`})
 	})
 }
 
+func TestTopDownUserFunc(t *testing.T) {
+	compiler := compileModules([]string{
+		`package ex
+
+		foo(x) = y {
+			split(x, "i", y)
+		}
+
+		bar[x] = y {
+			data.l[_].a = x
+			foo(x, y)
+		}
+
+		chain0(x) = y {
+			foo(x, y)
+		}
+
+		chain1(a) = b {
+			chain0(a, b)
+		}
+
+		chain2 = d {
+			chain1("fooibar", d)
+		}
+
+		cross(x) = [a, b] {
+			split(x, "i", y)
+			foo(y[1], b)
+			test.foo(y[2], a)
+		}
+
+		arrays([x, y]) = [a, b] {
+			foo(x, a)
+			foo(y, b)
+		}
+
+		arraysrule = y {
+			arrays(["hih", "foo"], y)
+		}
+
+		objects({"foo": x, "bar": y}) = z {
+			foo(x, a)
+			test.foo(y, b)
+			z = [a, b]
+		}
+
+		objectsrule = y {
+			objects({"foo": "hih", "bar": "hi ho"}, y)
+		}
+
+		refoutput = y {
+			foo("hih", z)
+			y = z[1]
+		}
+
+		void(x) {
+			x = "foo"
+		}
+
+		voidGood {
+			not void("bar", true)
+		}
+
+		voidBad {
+			void("bar", true)
+		}
+
+		multi(1, x) = y {
+			y = x
+		}
+
+		multi(2, x) = y {
+			a = 2*x
+			y = a+1
+		}
+
+		multi(3, x) = y {
+			y = x*10
+		}
+
+		multi("foo", x) = y {
+			y = "bar"
+		}
+
+		multi1 = y {
+			multi(1, 2, y)
+		}
+
+		multi2 = y {
+			multi(2, 2, y)
+		}
+
+		multi3 = y {
+			multi(3, 2, y)
+		}
+
+		multi4 = y {
+			multi("foo", 2, y)
+		}`,
+		`
+		package test
+
+		import data.ex
+
+		foo(x) = y {
+			trim(x, "h o", y)
+		}
+
+		cross = y {
+			ex.cross("hi, my name is foo", y)
+		}
+
+		multi("foo", x) = y {
+			y = x
+		}
+
+		multi("bar", x) = y {
+			y = "baz"
+		}
+
+		multi_cross_pkg = [y, z] {
+			multi("foo", "bar", y)
+			ex.multi(2, 1, z)
+		}`,
+		`
+		package test
+
+		samepkg = y {
+			foo("how do you do?", y)
+		}`,
+	})
+	store := inmem.NewFromObject(loadSmallTestData())
+	ctx := context.Background()
+	txn := storage.NewTransactionOrDie(ctx, store)
+	defer store.Abort(ctx, txn)
+
+	assertTopDown(t, compiler, store, "basic call", []string{"ex", "bar", "alice"}, "", `["al", "ce"]`)
+	assertTopDown(t, compiler, store, "chained", []string{"ex", "chain2"}, "", `["foo", "bar"]`)
+	assertTopDown(t, compiler, store, "cross package", []string{"test", "cross"}, "", `["s f", [", my name "]]`)
+	assertTopDown(t, compiler, store, "array params", []string{"ex", "arraysrule"}, "", `[["h", "h"], ["foo"]]`)
+	assertTopDown(t, compiler, store, "object params", []string{"ex", "objectsrule"}, "", `[["h", "h"], "i"]`)
+	assertTopDown(t, compiler, store, "ref func output", []string{"ex", "refoutput"}, "", `"h"`)
+	assertTopDown(t, compiler, store, "same package call", []string{"test", "samepkg"}, "", `"w do you do?"`)
+	assertTopDown(t, compiler, store, "void good", []string{"ex", "voidGood"}, "", `true`)
+	assertTopDown(t, compiler, store, "void bad", []string{"ex", "voidBad"}, "", "")
+	assertTopDown(t, compiler, store, "multi1", []string{"ex", "multi1"}, "", `2`)
+	assertTopDown(t, compiler, store, "multi2", []string{"ex", "multi2"}, "", `5`)
+	assertTopDown(t, compiler, store, "multi3", []string{"ex", "multi3"}, "", `20`)
+	assertTopDown(t, compiler, store, "multi4", []string{"ex", "multi4"}, "", `"bar"`)
+	assertTopDown(t, compiler, store, "multi cross package", []string{"test", "multi_cross_pkg"}, "", `["bar", 3]`)
+}
+
+func TestUserFunctionErrors(t *testing.T) {
+	compiler := compileModules([]string{
+		`
+		package test1
+
+		p(x) = y {
+			y = x[_]
+		}
+
+		r = y {
+			p([1, 2, 3], y)
+		}`,
+		`
+		package test2
+
+		p(1, x) = y {
+			y = x
+		}
+
+		p(2, x) = y {
+			y = x+1
+		}
+
+		r = y {
+			p(3, 0, y)
+		}`,
+		`
+		package test3
+
+		p(1, x) = y {
+			y = x
+		}
+
+		p(2, x) = y {
+			y = x+1
+		}
+
+		p(x, y) = z {
+			z = x
+		}
+
+		r = y {
+			p(1, 0, y)
+		}`,
+	})
+
+	store := inmem.NewFromObject(loadSmallTestData())
+	ctx := context.Background()
+	txn := storage.NewTransactionOrDie(ctx, store)
+	defer store.Abort(ctx, txn)
+
+	assertTopDown(t, compiler, store, "function output conflict single", []string{"test1", "r"}, "", errors.New(`eval_conflict_error: function "test1.p" produces conflicting outputs`))
+	assertTopDown(t, compiler, store, "function input no match", []string{"test2", "r"}, "", "")
+	assertTopDown(t, compiler, store, "function output conflict multiple", []string{"test3", "r"}, "", errors.New(`eval_conflict_error: function "test3.p" produces conflicting outputs`))
+}
+
 func TestTopDownWithKeyword(t *testing.T) {
 
 	compiler := compileModules([]string{
