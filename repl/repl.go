@@ -395,26 +395,28 @@ func (r *REPL) cmdTypes() error {
 }
 
 func (r *REPL) cmdUnset(ctx context.Context, args []string) error {
-
 	if len(args) != 1 {
 		return newBadArgsErr("unset <var>: expects exactly one argument")
 	}
 
 	term, err := ast.ParseTerm(args[0])
-
 	if err != nil {
-		return newBadArgsErr("argument must identify a rule")
+		return newBadArgsErr("argument must identify a rule or function")
 	}
 
 	v, ok := term.Value.(ast.Var)
 
 	if !ok {
 		if !ast.RootDocumentRefs.Contains(term) {
-			return newBadArgsErr("argument must identify a rule")
+			return r.unsetFunc(ctx, term.Value)
 		}
 		v = term.Value.(ast.Ref)[0].Value.(ast.Var)
 	}
 
+	return r.unsetRule(ctx, v)
+}
+
+func (r *REPL) unsetRule(ctx context.Context, v ast.Var) error {
 	mod := r.modules[r.currentModuleID]
 	rules := []*ast.Rule{}
 
@@ -431,7 +433,33 @@ func (r *REPL) cmdUnset(ctx context.Context, args []string) error {
 
 	cpy := mod.Copy()
 	cpy.Rules = rules
+	return r.recompile(ctx, cpy)
+}
 
+func (r *REPL) unsetFunc(ctx context.Context, v ast.Value) error {
+	ref, ok := v.(ast.Ref)
+	if !ok {
+		return newBadArgsErr("arguments must identify a rule or function")
+	}
+
+	mod := r.modules[r.currentModuleID]
+	funcs := []*ast.Func{}
+	for _, f := range mod.Funcs {
+		if !f.PathString().Equal(ast.String(ref.String())) {
+			funcs = append(funcs, f)
+		}
+	}
+	if len(funcs) == len(mod.Funcs) {
+		fmt.Fprintln(r.output, "warning: no matching functions in current module")
+		return nil
+	}
+
+	cpy := mod.Copy()
+	cpy.Funcs = funcs
+	return r.recompile(ctx, cpy)
+}
+
+func (r *REPL) recompile(ctx context.Context, cpy *ast.Module) error {
 	policies, err := r.loadModules(ctx, r.txn)
 	if err != nil {
 		return err
@@ -452,7 +480,6 @@ func (r *REPL) cmdUnset(ctx context.Context, args []string) error {
 	}
 
 	r.modules[r.currentModuleID] = cpy
-
 	return nil
 }
 
@@ -512,6 +539,34 @@ func (r *REPL) compileRule(ctx context.Context, rule *ast.Rule) error {
 	return nil
 }
 
+func (r *REPL) compileFunc(ctx context.Context, fn *ast.Func) error {
+
+	mod := r.modules[r.currentModuleID]
+	prev := mod.Funcs
+	mod.Funcs = append(mod.Funcs, fn)
+	ast.WalkFuncs(fn, func(f *ast.Func) bool {
+		f.Module = mod
+		return false
+	})
+
+	policies, err := r.loadModules(ctx, r.txn)
+	if err != nil {
+		return err
+	}
+
+	for id, mod := range r.modules {
+		policies[id] = mod
+	}
+
+	compiler := ast.NewCompiler()
+
+	if compiler.Compile(policies); compiler.Failed() {
+		mod.Funcs = prev
+		return compiler.Errors
+	}
+
+	return nil
+}
 func (r *REPL) evalBufferOne(ctx context.Context) error {
 
 	line := strings.Join(r.buffer, "\n")
@@ -656,6 +711,8 @@ func (r *REPL) evalStatement(ctx context.Context, stmt interface{}) error {
 		return err
 	case *ast.Rule:
 		return r.compileRule(ctx, s)
+	case *ast.Func:
+		return r.compileFunc(ctx, s)
 	case *ast.Import:
 		return r.evalImport(s)
 	case *ast.Package:

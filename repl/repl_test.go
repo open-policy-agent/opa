@@ -24,6 +24,83 @@ import (
 	"github.com/open-policy-agent/opa/util"
 )
 
+func TestFunction(t *testing.T) {
+	store := newTestStore()
+	ctx := context.Background()
+	txn := storage.NewTransactionOrDie(ctx, store, storage.WriteParams)
+
+	mod1 := []byte(`package a.b.c
+
+foo(x) = y {
+	split(x, ".", y)
+}
+
+bar([x, y]) = z {
+	trim(x, y, z)
+}
+`)
+
+	mod2 := []byte(`package a.b.d
+
+baz() = y {
+	a.b.c.foo("barfoobar.bar", x)
+	a.b.c.bar(x, y)
+}`)
+
+	if err := store.UpsertPolicy(ctx, txn, "mod1", mod1); err != nil {
+		panic(err)
+	}
+
+	if err := store.UpsertPolicy(ctx, txn, "mod2", mod2); err != nil {
+		panic(err)
+	}
+
+	if err := store.Commit(ctx, txn); err != nil {
+		panic(err)
+	}
+
+	var buf bytes.Buffer
+	repl := newRepl(store, &buf)
+	repl.OneShot(ctx, "json")
+	repl.OneShot(ctx, "a.b.d.baz(x)")
+	exp := util.MustUnmarshalJSON([]byte(`[{"x": "foo"}]`))
+	result := util.MustUnmarshalJSON(buf.Bytes())
+	if !reflect.DeepEqual(exp, result) {
+		t.Fatalf("expected a.b.d.baz(x) to be %v, got %v", exp, result)
+	}
+
+	err := repl.OneShot(ctx, "p(x) = y { y = x+4 }")
+	if err != nil {
+		t.Fatalf("failed to compile repl function: %v", err)
+	}
+
+	buf.Reset()
+	repl.OneShot(ctx, "repl.p(5, y)")
+	exp = util.MustUnmarshalJSON([]byte(`[{"y": 9}]`))
+	result = util.MustUnmarshalJSON(buf.Bytes())
+	if !reflect.DeepEqual(exp, result) {
+		t.Fatalf("expected repl.p(x) to be %v, got %v", exp, result)
+	}
+
+	repl.OneShot(ctx, "f(1, x) = y { y = x }")
+	repl.OneShot(ctx, "f(2, x) = y { y = x*2 }")
+
+	buf.Reset()
+	repl.OneShot(ctx, "repl.f(1, 2, y)")
+	exp = util.MustUnmarshalJSON([]byte(`[{"y": 2}]`))
+	result = util.MustUnmarshalJSON(buf.Bytes())
+	if !reflect.DeepEqual(exp, result) {
+		t.Fatalf("expected repl.f(1, 2, y) to be %v, got %v", exp, result)
+	}
+	buf.Reset()
+	repl.OneShot(ctx, "repl.f(2, 2, y)")
+	exp = util.MustUnmarshalJSON([]byte(`[{"y": 4}]`))
+	result = util.MustUnmarshalJSON(buf.Bytes())
+	if !reflect.DeepEqual(exp, result) {
+		t.Fatalf("expected repl.f(2, 2, y) to be %v, got %v", exp, result)
+	}
+}
+
 func TestComplete(t *testing.T) {
 	ctx := context.Background()
 	store := newTestStore()
@@ -303,9 +380,34 @@ func TestUnset(t *testing.T) {
 	}
 
 	buffer.Reset()
+	repl.OneShot(ctx, "p(x) = y { y = x }")
+	repl.OneShot(ctx, "unset repl.p")
+
+	err = repl.OneShot(ctx, "repl.p(5, y)")
+	if err == nil || err.Error() != `1 error occurred: 1:1: rego_type_error: undefined built-in function "repl.p"` {
+		t.Fatalf("Expected eval error (undefined built-in) but got err: '%v'", err)
+	}
+
+	buffer.Reset()
+	repl.OneShot(ctx, "p(1, x) = y { y = x }")
+	repl.OneShot(ctx, "p(2, x) = y { y = x+1 }")
+	repl.OneShot(ctx, "unset repl.p")
+
+	err = repl.OneShot(ctx, "repl.p(1, 2, y)")
+	if err == nil || err.Error() != `1 error occurred: 1:1: rego_type_error: undefined built-in function "repl.p"` {
+		t.Fatalf("Expected eval error (undefined built-in) but got err: '%v'", err)
+	}
+
+	buffer.Reset()
 	repl.OneShot(ctx, `unset q`)
 	if buffer.String() != "warning: no matching rules in current module\n" {
 		t.Fatalf("Expected unset error for missing rule but got: %v", buffer.String())
+	}
+
+	buffer.Reset()
+	repl.OneShot(ctx, `unset repl.q`)
+	if buffer.String() != "warning: no matching functions in current module\n" {
+		t.Fatalf("Expected unset error for missing function but got: %v", buffer.String())
 	}
 
 	buffer.Reset()
