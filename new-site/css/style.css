@@ -1,6 +1,6 @@
 @charset "UTF-8";
 .base--input, .base--color-input, .base--date-input, .base--datetime-local-input, .base--email-input, .base--file-input, .base--hidden-input, .base--month-input, .base--number-input, .base--password-input, .base--range-input, .base--search-input, .base--tel-input, .base--text-input, .base--time-input, .base--url-input, .base--week-input, .base--select, .base--textarea {
-  font-family: "Open Sans", Arial, "Lucida Grande", "Roboto", sans-serif; }
+  font-family: "Roboto", "Open Sans", Arial, "Lucida Grande", sans-serif; }
 
 .base--code, .base--pre, .base--pre code, .base--pre .base--code {
   font-family: "Courier New", "Lucida Console", monospace; }
@@ -286,7 +286,7 @@ video {
   height: auto; }
 
 body {
-  font-family: "Open Sans", Arial, "Lucida Grande", "Roboto", sans-serif;
+  font-family: "Roboto", "Open Sans", Arial, "Lucida Grande", sans-serif;
   font-weight: 300;
   line-height: 1.5; }
 
@@ -641,7 +641,7 @@ body {
 
 .header--logo-txt {
   display: inline-block;
-  font-family: 'adobe fan heiti std';
+  font-family: "adobe-fan-heiti-std";
   color: #000; }
   @media (min-width: 900px) {
     .header--logo-txt {
@@ -691,7 +691,7 @@ body {
 
 .messages--main {
   font-size: 1.95312em;
-  font-family: 'adobe gothic std'; }
+  font-family: adobeGothicStd; }
   @media (min-width: 700px) {
     .messages--main {
       font-size: 2.36859em; } }
@@ -773,7 +773,7 @@ body {
 
 .value-section--value-title {
   font-size: 1.25em;
-  font-family: "adobe fan heiti std"; }
+  font-family: "adobe-fan-heiti-std"; }
   @media (min-width: 1200px) {
     .value-section--value-title {
       font-size: 1.333em; } }
@@ -862,7 +862,7 @@ body {
   height: 156px; }
 
 .use-case-section--use-case-section-title {
-  font-family: "adobe gothic std";
+  font-family: adobeGothicStd;
   font-size: 1.25em; }
   @media (min-width: 1200px) {
     .use-case-section--use-case-section-title {
@@ -918,7 +918,7 @@ body {
 
 .use-case-section--use-case-title {
   font-size: 1.25em;
-  font-family: "adobe fan heiti std"; }
+  font-family: "adobe-fan-heiti-std"; }
   @media (min-width: 1200px) {
     .use-case-section--use-case-title {
       font-size: 1.333em; } }
@@ -949,7 +949,7 @@ body {
       width: 200px; } }
 
 .key-features-section--section-title {
-  font-family: "adobe gothic std";
+  font-family: adobeGothicStd;
   font-size: 1.25em;
   color: #fff; }
   @media (min-width: 1200px) {
@@ -991,7 +991,7 @@ body {
 
 .key-features-section--key-feature-title {
   font-size: 1.25em;
-  font-family: "adobe fan heiti std"; }
+  font-family: "adobe-fan-heiti-std"; }
   @media (min-width: 1200px) {
     .key-features-section--key-feature-title {
       font-size: 1.333em; } }
@@ -1051,6 +1051,10 @@ body {
 
 .footer--link {
   color: #FF9512; }
+
+@font-face {
+  font-family: adobeGothicStd;
+  src: url(/fonts/AdobeGothicStd-Bold.otf); }
 
 ._homepage--container {
   margin: 0 1rem; }
