@@ -3,6 +3,11 @@
   &--values{
     color: #fff;
     padding-bottom: get('rhythm') * 2;
+
+    @include breakpoint(1990px){
+      padding-top: 4rem;
+      padding-bottom: 8rem;
+    };
   }
 
   &--value-img{
@@ -49,6 +54,10 @@
     width: 100%;
     overflow: hidden;
     height: 84px;
+
+    @include breakpoint(1990px){
+      display: none;
+    };
   }
 
   &--light-blue-wave{
@@ -73,6 +82,10 @@
 
     @include breakpoint(1200px){
       bottom: 111%;
+    };
+
+    @include breakpoint(1990px){
+      bottom: 95%
     };
   }
 
@@ -101,6 +114,10 @@
     @include breakpoint(1200px){
       bottom: 90%;
     };
+
+    @include breakpoint(1990px){
+      display: none;
+    };
   }
 
   &--middle-blue-wave{
@@ -121,6 +138,10 @@
     height: 150px;
     margin-top: 0;
     z-index: 100;
+
+    @include breakpoint(1990px){
+      display: none;
+    };
   }
 
   &--long-wave{

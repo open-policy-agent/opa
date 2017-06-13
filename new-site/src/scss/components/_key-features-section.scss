@@ -76,6 +76,10 @@
     height: 150px;
     margin-top: 0;
     z-index: 100;
+
+    @include breakpoint(1990px){
+      display: none;
+    };
   }
 
   &--dark-blue-long-wave{

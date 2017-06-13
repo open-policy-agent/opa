@@ -123,6 +123,12 @@
     padding-bottom: 12rem;
     padding-top: 2rem;
     position: relative;
+
+    @include breakpoint(1990px){
+      padding-top: 11rem;
+      padding-bottom: 15rem;
+    };
+
   }
 
   &--footer{

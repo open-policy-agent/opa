@@ -43,6 +43,10 @@
     @include breakpoint(600px){
       margin-top: 8rem;
     };
+
+    @include breakpoint(1990px){
+      margin-top: 6rem;
+    };
   }
 
   &--infrastructure{
@@ -50,7 +54,11 @@
 
     @include breakpoint(600px){
       margin-top: 10rem;
-    }
+    };
+
+    @include breakpoint(1990px){
+      margin-top: 6rem;
+    };
   }
 
   &--use-case-title{

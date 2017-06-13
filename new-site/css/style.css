@@ -740,6 +740,10 @@ body {
 .value-section--values {
   color: #fff;
   padding-bottom: 4rem; }
+  @media (min-width: 1990px) {
+    .value-section--values {
+      padding-top: 4rem;
+      padding-bottom: 8rem; } }
 
 .value-section--value-img {
   width: 3rem; }
@@ -791,6 +795,9 @@ body {
   width: 100%;
   overflow: hidden;
   height: 84px; }
+  @media (min-width: 1990px) {
+    .value-section--light-blue-wave-container {
+      display: none; } }
 
 .value-section--light-blue-wave {
   position: absolute;
@@ -812,6 +819,9 @@ body {
   @media (min-width: 1200px) {
     .value-section--boat-container {
       bottom: 111%; } }
+  @media (min-width: 1990px) {
+    .value-section--boat-container {
+      bottom: 95%; } }
 
 .value-section--boat {
   position: absolute;
@@ -833,6 +843,9 @@ body {
   @media (min-width: 1200px) {
     .value-section--middle-blue-wave-container {
       bottom: 90%; } }
+  @media (min-width: 1990px) {
+    .value-section--middle-blue-wave-container {
+      display: none; } }
 
 .value-section--middle-blue-wave {
   position: absolute;
@@ -851,6 +864,9 @@ body {
   height: 150px;
   margin-top: 0;
   z-index: 100; }
+  @media (min-width: 1990px) {
+    .value-section--long-wave-container {
+      display: none; } }
 
 .value-section--long-wave {
   position: absolute;
@@ -909,12 +925,18 @@ body {
   @media (min-width: 600px) {
     .use-case-section--containers {
       margin-top: 8rem; } }
+  @media (min-width: 1990px) {
+    .use-case-section--containers {
+      margin-top: 6rem; } }
 
 .use-case-section--infrastructure {
   margin-top: 6rem; }
   @media (min-width: 600px) {
     .use-case-section--infrastructure {
       margin-top: 10rem; } }
+  @media (min-width: 1990px) {
+    .use-case-section--infrastructure {
+      margin-top: 6rem; } }
 
 .use-case-section--use-case-title {
   font-size: 1.25em;
@@ -1026,6 +1048,9 @@ body {
   height: 150px;
   margin-top: 0;
   z-index: 100; }
+  @media (min-width: 1990px) {
+    .key-features-section--dark-blue-long-wave-container {
+      display: none; } }
 
 .key-features-section--dark-blue-long-wave {
   position: absolute;
@@ -1148,6 +1173,10 @@ body {
   padding-bottom: 12rem;
   padding-top: 2rem;
   position: relative; }
+  @media (min-width: 1990px) {
+    ._homepage--key-features-section {
+      padding-top: 11rem;
+      padding-bottom: 15rem; } }
 
 ._homepage--footer {
   text-align: center;
