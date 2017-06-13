@@ -51,10 +51,13 @@ var DefaultBuiltins = [...]*Builtin{
 	Concat, FormatInt, IndexOf, Substring, Lower, Upper, Contains, StartsWith, EndsWith, Split, Replace, Trim, Sprintf,
 
 	// Encoding
-	JSONMarshal, JSONUnmarshal, Base64UrlEncode, Base64UrlDecode,
+	JSONMarshal, JSONUnmarshal, Base64UrlEncode, Base64UrlDecode, YAMLMarshal, YAMLUnmarshal,
 
 	// Tokens
 	JWTDecode,
+
+	// Time
+	NowNanos, ParseNanos, ParseRFC3339Nanos,
 }
 
 // BuiltinMap provides a convenient mapping of built-in names to
@@ -517,6 +520,26 @@ var Base64UrlDecode = &Builtin{
 	TargetPos: []int{1},
 }
 
+// YAMLMarshal serializes the input term.
+var YAMLMarshal = &Builtin{
+	Name: String("yaml.marshal"),
+	Args: []types.Type{
+		types.A,
+		types.S,
+	},
+	TargetPos: []int{1},
+}
+
+// YAMLUnmarshal deserializes the input string.
+var YAMLUnmarshal = &Builtin{
+	Name: String("yaml.unmarshal"),
+	Args: []types.Type{
+		types.S,
+		types.A,
+	},
+	TargetPos: []int{1},
+}
+
 /**
  * Tokens
  */
@@ -531,6 +554,40 @@ var JWTDecode = &Builtin{
 		types.S,
 	},
 	TargetPos: []int{1, 2, 3},
+}
+
+/**
+ * Time
+ */
+
+// NowNanos returns the current time since epoch in nanoseconds.
+var NowNanos = &Builtin{
+	Name: String("time.now_ns"),
+	Args: []types.Type{
+		types.N,
+	},
+	TargetPos: []int{0},
+}
+
+// ParseNanos returns the time in nanoseconds parsed from the string in the given format.
+var ParseNanos = &Builtin{
+	Name: String("time.parse_ns"),
+	Args: []types.Type{
+		types.S,
+		types.S,
+		types.N,
+	},
+	TargetPos: []int{2},
+}
+
+// ParseRFC3339Nanos returns the time in nanoseconds parsed from the string in RFC3339 format.
+var ParseRFC3339Nanos = &Builtin{
+	Name: String("time.parse_rfc3339_ns"),
+	Args: []types.Type{
+		types.S,
+		types.N,
+	},
+	TargetPos: []int{1},
 }
 
 /**

@@ -13,8 +13,11 @@ import (
 	"strings"
 	"testing"
 
+	"time"
+
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/storage"
+	"github.com/open-policy-agent/opa/types"
 	"github.com/open-policy-agent/opa/util"
 	testutil "github.com/open-policy-agent/opa/util/test"
 )
@@ -625,6 +628,9 @@ func TestTopDownVirtualDocs(t *testing.T) {
 			`p[x] = y { xs = ["a", "b", "c", "a"]; x = xs[i]; y = a[i] }`},
 			objectDocKeyConflictErr(nil)},
 		{"no suffix: set", []string{`p[x] { q = s; s[x] }`, `q[x] { a[i] = x }`}, "[1,2,3,4]"},
+
+		{"empty partial set", []string{"p[1] { a[0] = 100 }"}, "[]"},
+		{"empty partial object", []string{`p["x"] = 1 { a[0] = 100 }`}, "{}"},
 	}
 
 	data := loadSmallTestData()
@@ -1161,6 +1167,8 @@ func TestTopDownJSONBuiltins(t *testing.T) {
 		{"marshal", []string{`p = x { json.marshal([{"foo": {1,2,3}}], x) }`}, `"[{\"foo\":[1,2,3]}]"`},
 		{"unmarshal", []string{`p = x { json.unmarshal("[{\"foo\":[1,2,3]}]", x) }`}, `[{"foo": [1,2,3]}]"`},
 		{"unmarshal-non-string", []string{`p = x { json.unmarshal(data.a[0], x) }`}, fmt.Errorf("operand 1 must be string but got number")},
+		{"yaml round-trip", []string{`p = y { yaml.marshal([{"foo": {1,2,3}}], x); yaml.unmarshal(x, y) }`}, `[{"foo": [1,2,3]}]`},
+		{"yaml unmarshal error", []string{`p { yaml.unmarshal("[1,2,3", _) } `}, fmt.Errorf("yaml: line 1: did not find")},
 	}
 
 	data := loadSmallTestData()
@@ -1332,6 +1340,41 @@ func TestTopDownJWTBuiltins(t *testing.T) {
 	for _, tc := range tests {
 		runTopDownTestCase(t, data, tc.note, tc.rules, tc.expected)
 	}
+}
+
+func TestTopDownTime(t *testing.T) {
+
+	ast.RegisterBuiltin(&ast.Builtin{
+		Name: ast.String("test_sleep"),
+		Args: []types.Type{
+			types.S,
+		},
+		TargetPos: []int{1},
+	})
+
+	RegisterFunctionalBuiltinVoid1(ast.String("test_sleep"), func(a ast.Value) error {
+		duration, err := time.ParseDuration(string(a.(ast.String)))
+		if err != nil {
+			panic(err)
+		}
+		time.Sleep(duration)
+		return nil
+	})
+
+	data := loadSmallTestData()
+
+	runTopDownTestCase(t, data, "time caching", []string{`
+		p { time.now_ns(t0); test_sleep("10ms"); time.now_ns(t1); t1 = t2 }
+	`}, "true")
+
+	runTopDownTestCase(t, data, "parse nanos", []string{`
+		p = ns { time.parse_ns("2006-01-02T15:04:05Z07:00", "2017-06-02T19:00:00-07:00", ns) }
+	`}, "1496455200000000000")
+
+	runTopDownTestCase(t, data, "parse rfc3339 nanos", []string{`
+		p = ns { time.parse_rfc3339_ns("2017-06-02T19:00:00-07:00", ns) }
+		`}, "1496455200000000000")
+
 }
 
 func TestTopDownEmbeddedVirtualDoc(t *testing.T) {
