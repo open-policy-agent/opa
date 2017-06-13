@@ -89,7 +89,7 @@ func (tc *typeChecker) CheckTypes(env *TypeEnv, sorted []util.T) (*TypeEnv, Erro
 	if env == nil {
 		env = NewTypeEnv()
 	} else {
-		env.wrap()
+		env = env.wrap()
 	}
 
 	for _, s := range sorted {
