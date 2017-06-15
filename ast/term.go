@@ -224,6 +224,12 @@ func NewTerm(v Value) *Term {
 	}
 }
 
+// SetLocation updates the term's Location and returns the term itself.
+func (term *Term) SetLocation(loc *Location) *Term {
+	term.Location = loc
+	return term
+}
+
 // Copy returns a deep copy of term.
 func (term *Term) Copy() *Term {
 

@@ -157,7 +157,7 @@ func ParseRuleFromBody(module *Module, body Body) (*Rule, error) {
 			Value:    terms[2],
 		},
 		Body: NewBody(
-			&Expr{Terms: BooleanTerm(true)},
+			&Expr{Terms: BooleanTerm(true).SetLocation(body[0].Location)},
 		),
 		Module: module,
 	}
@@ -523,6 +523,8 @@ func setFilename(filename string, stmts []Statement) {
 			case *Head:
 				x.Location.File = filename
 			case *Expr:
+				x.Location.File = filename
+			case *Term:
 				x.Location.File = filename
 			}
 			return false

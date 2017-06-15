@@ -59,14 +59,13 @@ ParseError <- . {
 
 Package <- "package" ws val:(Ref / Var) {
     // All packages are implicitly declared under the default root document.
-    path := RefTerm(DefaultRootDocument)
-    switch v := val.(*Term).Value.(type) {
+    term := val.(*Term)
+    path := Ref{DefaultRootDocument.Copy().SetLocation(term.Location)}
+    switch v := term.Value.(type) {
     case Ref:
         // Convert head of package Ref to String because it will be prefixed
         // with the root document variable.
-        head := v[0]
-        head = StringTerm(string(head.Value.(Var)))
-        head.Location = v[0].Location
+        head := StringTerm(string(v[0].Value.(Var))).SetLocation(v[0].Location)
         tail := v[1:]
         if !tail.IsGround() {
             return nil, fmt.Errorf("package name cannot contain variables: %v", v)
@@ -82,14 +81,13 @@ Package <- "package" ws val:(Ref / Var) {
                 return nil, fmt.Errorf("package name cannot contain non-string values: %v", v)
             }
         }
-        path.Value = append(path.Value.(Ref), head)
-        path.Value = append(path.Value.(Ref), tail...)
+        path = append(path, head)
+        path = append(path, tail...)
     case Var:
-        s := StringTerm(string(v))
-        s.Location = val.(*Term).Location
-        path.Value = append(path.Value.(Ref), s)
+        s := StringTerm(string(v)).SetLocation(term.Location)
+        path = append(path, s)
     }
-    pkg := &Package{Location: currentLocation(c), Path: path.Value.(Ref)}
+    pkg := &Package{Location: currentLocation(c), Path: path}
     return pkg, nil
 }
 
@@ -136,8 +134,9 @@ DefaultRules <- "default" ws name:Var _ "=" _ value:Term {
         return nil, err
     }
 
-    body := NewBody(NewExpr(BooleanTerm(true)))
-    body[0].Location = currentLocation(c)
+    loc := currentLocation(c)
+    body := NewBody(NewExpr(BooleanTerm(true).SetLocation(loc)))
+    body[0].Location =loc
 
     rule := &Rule{
         Default: true,
@@ -226,6 +225,7 @@ RuleHead <- name:Var key:( _ "[" _ Term _ "]" _ )? value:( _ "=" _ Term )? {
 
     if key == nil && value == nil {
         head.Value = BooleanTerm(true)
+        head.Value.Location = head.Location
     }
 
     if key != nil && value != nil {
@@ -263,8 +263,9 @@ NonEmptyBraceEnclosedBody <- "{" _ val:WhitespaceBody? _ "}" {
 BraceEnclosedBody <- "{" _ val:WhitespaceBody? _ "}" {
 
     if val == nil {
-        body := NewBody(NewExpr(ObjectTerm()))
-        body[0].Location = currentLocation(c)
+        loc := currentLocation(c)
+        body := NewBody(NewExpr(ObjectTerm().SetLocation(loc)))
+        body[0].Location = loc
         return body, nil
     }
 
