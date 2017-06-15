@@ -4,7 +4,9 @@
 
 package ast
 
-import "testing"
+import (
+	"testing"
+)
 
 type testVis struct {
 	elems []interface{}
@@ -33,94 +35,147 @@ p { false } else { false } else { true }`,
 		mod
 			package
 				data.a.b
-					data
-					a
-					b
+					term
+						data
+					term
+						a
+					term
+						b
 			import
-				input.x.y
-					input
-					x
-					y
-				z
+				term
+					input.x.y
+						term
+							input
+						term
+							x
+						term
+							y
+						z
 			rule
 				head
 					t
-					x
-					y
+					term
+						x
+					term
+						y
 				body
 					expr1
-						=
-						ref1
-							p
-							x
-						object1
-							"foo"
-							array
-								y
-								2
-								object2
-									"bar"
-									3
-					expr2
-						ref2
-							q
-							x
-					expr3
-						=
-						y
-						compr
-							array
-								x
-								z
-							body
-								expr4
-									=
+						term
+							=
+						term
+							ref1
+								term
+									p
+								term
 									x
-									"x"
-								expr5
-									=
-									z
-									"z"
+						term
+							object1
+								term
+									"foo"
+								term
+									array
+										term
+											y
+										term
+											2
+										term
+											object2
+												term
+													"bar"
+												term
+													3
+					expr2
+						term
+							ref2
+								term
+									q
+								term
+									x
+					expr3
+						term
+							=
+						term
+							y
+						term
+							compr
+								term
+									array
+										term
+											x
+										term
+											z
+								body
+									expr4
+										term
+											=
+										term
+											x
+										term
+											"x"
+									expr5
+										term
+											=
+										term
+											z
+										term
+											"z"
 					expr4
-						count
-						set
-							1
-							2
-							3
-						n
+						term
+							count
+						term
+							set
+								term
+									1
+								term
+									2
+								term
+									3
+						term
+							n
 						with
-							input.foo.bar
-								input
-								foo
-								bar
-							baz
+							term
+								input.foo.bar
+									term
+										input
+									term
+										foo
+									term
+										bar
+							term
+								baz
 			rule
 				head
 					p
 					<nil> # not counted
-					true
+					term
+						true
 				body
 					expr
-						false
+						term
+							false
 				rule
 					head
 						p
 						<nil> # not counted
-						true
+						term
+							true
 					body
 						expr
-							false
+							term
+								false
 					rule
 						head
 							p
 							<nil> # not counted
-							true
+							term
+								true
 						body
 							expr
-								true
+								term
+									true
 	*/
-	if len(vis.elems) != 85 {
-		t.Errorf("Expected exactly 85 elements in AST but got %d: %v", len(vis.elems), vis.elems)
+	if len(vis.elems) != 138 {
+		t.Errorf("Expected exactly 138 elements in AST but got %d: %v", len(vis.elems), vis.elems)
 	}
 
 }

@@ -4,10 +4,10 @@
 
 package ast
 
-// Visitor defines the interface for iterating AST elements.
-// The Visit function can return a Visitor w which will be
-// used to visit the children of the AST element v. If the
-// Visit function returns nil, the children will not be visited.
+// Visitor defines the interface for iterating AST elements. The Visit function
+// can return a Visitor w which will be used to visit the children of the AST
+// element v. If the Visit function returns nil, the children will not be
+// visited.
 type Visitor interface {
 	Visit(v interface{}) (w Visitor)
 }
@@ -15,10 +15,6 @@ type Visitor interface {
 // Walk iterates the AST by calling the Visit function on the Visitor
 // v for x before recursing.
 func Walk(v Visitor, x interface{}) {
-	if t, ok := x.(*Term); ok {
-		Walk(v, t.Value)
-		return
-	}
 	w := v.Visit(x)
 	if w == nil {
 		return
@@ -35,7 +31,7 @@ func Walk(v Visitor, x interface{}) {
 	case *Package:
 		Walk(w, x.Path)
 	case *Import:
-		Walk(w, x.Path.Value)
+		Walk(w, x.Path)
 		Walk(w, x.Alias)
 	case *Rule:
 		Walk(w, x.Head)
@@ -46,10 +42,10 @@ func Walk(v Visitor, x interface{}) {
 	case *Head:
 		Walk(w, x.Name)
 		if x.Key != nil {
-			Walk(w, x.Key.Value)
+			Walk(w, x.Key)
 		}
 		if x.Value != nil {
-			Walk(w, x.Value.Value)
+			Walk(w, x.Value)
 		}
 	case Body:
 		for _, e := range x {
@@ -59,10 +55,10 @@ func Walk(v Visitor, x interface{}) {
 		switch ts := x.Terms.(type) {
 		case []*Term:
 			for _, t := range ts {
-				Walk(w, t.Value)
+				Walk(w, t)
 			}
 		case *Term:
-			Walk(w, ts.Value)
+			Walk(w, ts)
 		}
 		for i := range x.With {
 			Walk(w, x.With[i])
@@ -70,22 +66,24 @@ func Walk(v Visitor, x interface{}) {
 	case *With:
 		Walk(w, x.Target)
 		Walk(w, x.Value)
+	case *Term:
+		Walk(w, x.Value)
 	case Ref:
 		for _, t := range x {
-			Walk(w, t.Value)
+			Walk(w, t)
 		}
 	case Object:
 		for _, t := range x {
-			Walk(w, t[0].Value)
-			Walk(w, t[1].Value)
+			Walk(w, t[0])
+			Walk(w, t[1])
 		}
 	case Array:
 		for _, t := range x {
-			Walk(w, t.Value)
+			Walk(w, t)
 		}
 	case *Set:
 		for _, t := range *x {
-			Walk(w, t.Value)
+			Walk(w, t)
 		}
 	case *ArrayComprehension:
 		Walk(w, x.Term)

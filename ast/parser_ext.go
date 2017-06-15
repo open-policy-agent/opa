@@ -524,8 +524,6 @@ func setFilename(filename string, stmts []Statement) {
 				x.Location.File = filename
 			case *Expr:
 				x.Location.File = filename
-			case *Term:
-				x.Location.File = filename
 			}
 			return false
 		}}
