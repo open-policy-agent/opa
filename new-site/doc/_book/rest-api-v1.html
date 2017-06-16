@@ -1,0 +1,2089 @@
+
+<!DOCTYPE HTML>
+<html lang="">
+    <head>
+        <meta charset="UTF-8">
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <title>REST API (V1) &#xB7; GitBook</title>
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="description" content="">
+        <meta name="generator" content="GitBook 3.2.2">
+        
+        
+        
+    
+    
+    <link rel="stylesheet" href="gitbook/style.css">
+
+    
+            
+                
+                <link rel="stylesheet" href="gitbook/gitbook-plugin-highlight/website.css">
+                
+            
+                
+                <link rel="stylesheet" href="gitbook/gitbook-plugin-search/search.css">
+                
+            
+                
+                <link rel="stylesheet" href="gitbook/gitbook-plugin-fontsettings/website.css">
+                
+            
+        
+
+    
+
+    
+        
+        <link rel="stylesheet" href="styles/website.css">
+        
+    
+        
+    
+        
+    
+        
+    
+        
+    
+        
+    
+
+    
+    <link rel="stylesheet" type="text/css" href="css/custom.css">
+    
+
+        
+    
+    
+    <meta name="HandheldFriendly" content="true">
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <link rel="apple-touch-icon-precomposed" sizes="152x152" href="gitbook/images/apple-touch-icon-precomposed-152.png">
+    <link rel="shortcut icon" href="gitbook/images/favicon.ico" type="image/x-icon">
+
+    
+    <link rel="next" href="rest-api-v0.html">
+    
+    
+    <link rel="prev" href="language-reference.html">
+    
+
+    </head>
+    <body>
+        
+<div class="book"><div class="_doc--header">
+  <div class="header _doc--container">
+
+      <div class="_doc--logo header--logo">
+        <a class="header--logo-link" href="/">
+          <img class="header--logo-image" src="images/opa-logo.svg" alt="">
+          <div class="header--logo-txt">
+            Open Policy Agent
+          </div>
+        </a>
+      </div>
+
+      <div class="_doc--menu-mobile">
+        <button class="hamburger hamburger--spring" type="button" style="outline: none; padding-bottom: 8px;">
+          <span class=" hamburger-box">
+            <span class="menu-mobile--hamburger-inner hamburger-inner"></span>
+          </span>
+        </button>
+      </div>
+
+      <div class="_doc--menu-desktop header--menu">
+        <a class="header--link header--link_LONG" href="/doc/_book/">
+          <div class="header--menu-txt">
+            Documentation
+          </div>
+        </a>
+        <a class="header--link header--link_LONG" href="/doc/_book/working-with-the-opa-repl.html">
+          <div class="header--menu-txt">
+            Tutorials
+          </div>
+        </a>
+        <a class="header--link header--social-link" href="https://blog.openpolicyagent.org/" target="_blank">
+          <img class="header--menu-image" src="images/Medium.svg" alt="">
+        </a>
+        <a class="header--link header--social-link" href="https://github.com/open-policy-agent/opa/issues" target="_blank">
+          <img class="header--menu-image" src="images/Github.svg" alt="">
+        </a>
+        <a class="header--link header--social-link" href="http://a5ec585d42ace11e7aaad0260e83477e-1095713357.us-west-2.elb.amazonaws.com/" target="_blank">
+          <img class="header--menu-image" src="images/Slack.svg" alt="">
+        </a>
+      </div>
+
+  </div>
+</div>
+
+<div class="_doc--hamburger-menu-container">
+
+  <a class="header--hamburger-menu-link" href="/doc/_book">
+    <li class="header--hamburger-menu-item">
+      <div class="header--menu-txt">
+        Documentation
+      </div>
+    </li>
+  </a>
+
+  <a class="header--hamburger-menu-link" href="/doc/_book/working-with-the-opa-repl.html">
+    <li class="header--hamburger-menu-item">
+      <div class="header--menu-txt">
+        Tutorials
+      </div>
+    </li>
+  </a>
+
+  <a class="header--hamburger-menu-link" href="https://blog.openpolicyagent.org/" target="_blank">
+    <li class="header--hamburger-menu-item">
+      <img class="header--menu-image" src="images/Medium.svg" alt="">
+    </li>
+  </a>
+
+  <a class="header--hamburger-menu-link" href="https://github.com/open-policy-agent/opa/issues" target="_blank">
+    <li class="header--hamburger-menu-item">
+      <img class="header--menu-image" src="images/Github.svg" alt="">
+    </li>
+  </a>
+
+  <a class="header--hamburger-menu-link" href="http://a5ec585d42ace11e7aaad0260e83477e-1095713357.us-west-2.elb.amazonaws.com/" target="_blank">
+    <li class="header--hamburger-menu-item">
+      <img class="header--menu-image" src="images/Slack.svg" alt="">
+    </li>
+  </a>
+
+
+</div>
+
+    <div class="book-summary">
+        
+            
+<div id="book-search-input" role="search">
+    <input type="text" placeholder="Type to search">
+</div>
+
+            
+                <nav role="navigation">
+                
+
+
+<ul class="summary">
+    
+    
+
+    
+
+    
+        
+        <li class="header">Documentation</li>
+        
+        
+    
+        <li class="chapter " data-level="1.1" data-path="./">
+            
+                <a href="./">
+            
+                    
+                    Introduction
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter " data-level="1.2" data-path="how-does-opa-work.html">
+            
+                <a href="how-does-opa-work.html">
+            
+                    
+                    How Does OPA Work?
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter " data-level="1.3" data-path="how-do-i-write-policies.html">
+            
+                <a href="how-do-i-write-policies.html">
+            
+                    
+                    How Do I Write Policies?
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter " data-level="1.4" data-path="language-reference.html">
+            
+                <a href="language-reference.html">
+            
+                    
+                    Language Reference
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter active" data-level="1.5" data-path="rest-api-v1.html">
+            
+                <a href="rest-api-v1.html">
+            
+                    
+                    REST API (V1)
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter " data-level="1.6" data-path="rest-api-v0.html">
+            
+                <a href="rest-api-v0.html">
+            
+                    
+                    REST API (V0)
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter " data-level="1.7" data-path="deployments.html">
+            
+                <a href="deployments.html">
+            
+                    
+                    Deployments
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter " data-level="1.8" data-path="security.html">
+            
+                <a href="security.html">
+            
+                    
+                    Security
+            
+                </a>
+            
+
+            
+        </li>
+    
+
+    
+        
+        <li class="header">Tutorials</li>
+        
+        
+    
+        <li class="chapter " data-level="2.1" data-path="working-with-the-opa-repl.html">
+            
+                <a href="working-with-the-opa-repl.html">
+            
+                    
+                    Working with the OPA REPL
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter " data-level="2.2" data-path="docker-authorization.html">
+            
+                <a href="docker-authorization.html">
+            
+                    
+                    Docker Authorization
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter " data-level="2.3" data-path="http-api-authorization.html">
+            
+                <a href="http-api-authorization.html">
+            
+                    
+                    HTTP API Authorization
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter " data-level="2.4" data-path="ssh-and-sudo-authorization.html">
+            
+                <a href="ssh-and-sudo-authorization.html">
+            
+                    
+                    SSH and sudo Authorization
+            
+                </a>
+            
+
+            
+        </li>
+    
+
+    
+
+    <li class="divider"></li>
+
+    <li>
+        <a href="https://www.gitbook.com" target="blank" class="gitbook-link">
+            Published with GitBook
+        </a>
+    </li>
+</ul>
+
+
+                </nav>
+            
+        
+    </div>
+
+    <div class="book-body">
+        
+            <div class="body-inner">
+                
+                    
+
+<div class="book-header" role="navigation">
+    
+
+    <!-- Title -->
+    <h1>
+        <i class="fa fa-circle-o-notch fa-spin"></i>
+        <a href=".">REST API (V1)</a>
+    </h1>
+</div>
+
+
+
+
+                    <div class="page-wrapper" tabindex="-1" role="main">
+                        <div class="page-inner">
+                            
+<div id="book-search-results">
+    <div class="search-noresults">
+    
+                                <section class="normal markdown-section">
+                                
+                                <h1 id="rest-api-v1">REST API (V1)</h1>
+<p>This document is the authoritative specification of the OPA REST API (v1).</p>
+<h2 id="policy-api"><a name="policy-api"></a> Policy API</h2>
+<p>The Policy API exposes CRUD endpoints for managing policy modules. Policy modules can be added, removed, and modified at any time.</p>
+<p>The identifiers given to policy modules are only used for management purposes. They are not used outside of the Policy API.</p>
+<h3 id="list-policies">List Policies</h3>
+<pre><code>GET /v1/policies
+</code></pre><p>List policy modules.</p>
+<h4 id="example-request">Example Request</h4>
+<pre><code class="lang-http"><span class="hljs-keyword">GET</span> <span class="hljs-string">/v1/policies</span> HTTP/1.1
+</code></pre>
+<h4 id="example-response">Example Response</h4>
+<pre><code class="lang-http">HTTP/1.1 <span class="hljs-number">200</span> OK
+<span class="hljs-attribute">Content-Type</span>: application/json
+</code></pre>
+<pre><code class="lang-json">{
+  <span class="hljs-string">&quot;result&quot;</span>: [
+    {
+      <span class="hljs-string">&quot;id&quot;</span>: <span class="hljs-string">&quot;example1&quot;</span>,
+      <span class="hljs-string">&quot;module&quot;</span>: {
+        <span class="hljs-string">&quot;package&quot;</span>: {
+          <span class="hljs-string">&quot;path&quot;</span>: [
+            {
+              <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;var&quot;</span>,
+              <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-string">&quot;data&quot;</span>
+            },
+            {
+              <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;string&quot;</span>,
+              <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-string">&quot;opa&quot;</span>
+            },
+            {
+              <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;string&quot;</span>,
+              <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-string">&quot;examples&quot;</span>
+            }
+          ]
+        },
+        <span class="hljs-string">&quot;rules&quot;</span>: [
+          {
+            <span class="hljs-string">&quot;name&quot;</span>: <span class="hljs-string">&quot;public_servers&quot;</span>,
+            <span class="hljs-string">&quot;key&quot;</span>: {
+              <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;var&quot;</span>,
+              <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-string">&quot;server&quot;</span>
+            },
+            <span class="hljs-string">&quot;body&quot;</span>: [
+              {
+                <span class="hljs-string">&quot;index&quot;</span>: <span class="hljs-number">0</span>,
+                <span class="hljs-string">&quot;terms&quot;</span>: [
+                  {
+                    <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;var&quot;</span>,
+                    <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-string">&quot;eq&quot;</span>
+                  },
+                  {
+                    <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;var&quot;</span>,
+                    <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-string">&quot;server&quot;</span>
+                  },
+                  {
+                    <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;ref&quot;</span>,
+                    <span class="hljs-string">&quot;value&quot;</span>: [
+                      {
+                        <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;var&quot;</span>,
+                        <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-string">&quot;data&quot;</span>
+                      },
+                      {
+                        <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;string&quot;</span>,
+                        <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-string">&quot;servers&quot;</span>
+                      },
+                      {
+                        <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;var&quot;</span>,
+                        <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-string">&quot;$0&quot;</span>
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                <span class="hljs-string">&quot;index&quot;</span>: <span class="hljs-number">1</span>,
+                <span class="hljs-string">&quot;terms&quot;</span>: [
+                  {
+                    <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;var&quot;</span>,
+                    <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-string">&quot;eq&quot;</span>
+                  },
+                  {
+                    <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;ref&quot;</span>,
+                    <span class="hljs-string">&quot;value&quot;</span>: [
+                      {
+                        <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;var&quot;</span>,
+                        <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-string">&quot;server&quot;</span>
+                      },
+                      {
+                        <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;string&quot;</span>,
+                        <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-string">&quot;ports&quot;</span>
+                      },
+                      {
+                        <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;var&quot;</span>,
+                        <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-string">&quot;$1&quot;</span>
+                      }
+                    ]
+                  },
+                  {
+                    <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;ref&quot;</span>,
+                    <span class="hljs-string">&quot;value&quot;</span>: [
+                      {
+                        <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;var&quot;</span>,
+                        <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-string">&quot;data&quot;</span>
+                      },
+                      {
+                        <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;string&quot;</span>,
+                        <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-string">&quot;ports&quot;</span>
+                      },
+                      {
+                        <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;var&quot;</span>,
+                        <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-string">&quot;k&quot;</span>
+                      },
+                      {
+                        <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;string&quot;</span>,
+                        <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-string">&quot;id&quot;</span>
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                <span class="hljs-string">&quot;index&quot;</span>: <span class="hljs-number">2</span>,
+                <span class="hljs-string">&quot;terms&quot;</span>: [
+                  {
+                    <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;var&quot;</span>,
+                    <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-string">&quot;eq&quot;</span>
+                  },
+                  {
+                    <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;ref&quot;</span>,
+                    <span class="hljs-string">&quot;value&quot;</span>: [
+                      {
+                        <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;var&quot;</span>,
+                        <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-string">&quot;data&quot;</span>
+                      },
+                      {
+                        <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;string&quot;</span>,
+                        <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-string">&quot;ports&quot;</span>
+                      },
+                      {
+                        <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;var&quot;</span>,
+                        <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-string">&quot;k&quot;</span>
+                      },
+                      {
+                        <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;string&quot;</span>,
+                        <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-string">&quot;networks&quot;</span>
+                      },
+                      {
+                        <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;var&quot;</span>,
+                        <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-string">&quot;$2&quot;</span>
+                      }
+                    ]
+                  },
+                  {
+                    <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;ref&quot;</span>,
+                    <span class="hljs-string">&quot;value&quot;</span>: [
+                      {
+                        <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;var&quot;</span>,
+                        <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-string">&quot;data&quot;</span>
+                      },
+                      {
+                        <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;string&quot;</span>,
+                        <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-string">&quot;networks&quot;</span>
+                      },
+                      {
+                        <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;var&quot;</span>,
+                        <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-string">&quot;m&quot;</span>
+                      },
+                      {
+                        <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;string&quot;</span>,
+                        <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-string">&quot;id&quot;</span>
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                <span class="hljs-string">&quot;index&quot;</span>: <span class="hljs-number">3</span>,
+                <span class="hljs-string">&quot;terms&quot;</span>: [
+                  {
+                    <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;var&quot;</span>,
+                    <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-string">&quot;eq&quot;</span>
+                  },
+                  {
+                    <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;ref&quot;</span>,
+                    <span class="hljs-string">&quot;value&quot;</span>: [
+                      {
+                        <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;var&quot;</span>,
+                        <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-string">&quot;data&quot;</span>
+                      },
+                      {
+                        <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;string&quot;</span>,
+                        <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-string">&quot;networks&quot;</span>
+                      },
+                      {
+                        <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;var&quot;</span>,
+                        <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-string">&quot;m&quot;</span>
+                      },
+                      {
+                        <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;string&quot;</span>,
+                        <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-string">&quot;public&quot;</span>
+                      }
+                    ]
+                  },
+                  {
+                    <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;boolean&quot;</span>,
+                    <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-literal">true</span>
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      <span class="hljs-string">&quot;id&quot;</span>: <span class="hljs-string">&quot;example2&quot;</span>,
+      <span class="hljs-string">&quot;module&quot;</span>: {
+        <span class="hljs-string">&quot;package&quot;</span>: {
+          <span class="hljs-string">&quot;path&quot;</span>: [
+            {
+              <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;var&quot;</span>,
+              <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-string">&quot;data&quot;</span>
+            },
+            {
+              <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;string&quot;</span>,
+              <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-string">&quot;opa&quot;</span>
+            },
+            {
+              <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;string&quot;</span>,
+              <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-string">&quot;examples&quot;</span>
+            }
+          ]
+        },
+        <span class="hljs-string">&quot;rules&quot;</span>: [
+          {
+            <span class="hljs-string">&quot;name&quot;</span>: <span class="hljs-string">&quot;violations&quot;</span>,
+            <span class="hljs-string">&quot;key&quot;</span>: {
+              <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;var&quot;</span>,
+              <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-string">&quot;server&quot;</span>
+            },
+            <span class="hljs-string">&quot;body&quot;</span>: [
+              {
+                <span class="hljs-string">&quot;index&quot;</span>: <span class="hljs-number">0</span>,
+                <span class="hljs-string">&quot;terms&quot;</span>: [
+                  {
+                    <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;var&quot;</span>,
+                    <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-string">&quot;eq&quot;</span>
+                  },
+                  {
+                    <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;var&quot;</span>,
+                    <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-string">&quot;server&quot;</span>
+                  },
+                  {
+                    <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;ref&quot;</span>,
+                    <span class="hljs-string">&quot;value&quot;</span>: [
+                      {
+                        <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;var&quot;</span>,
+                        <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-string">&quot;data&quot;</span>
+                      },
+                      {
+                        <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;string&quot;</span>,
+                        <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-string">&quot;servers&quot;</span>
+                      },
+                      {
+                        <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;var&quot;</span>,
+                        <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-string">&quot;$0&quot;</span>
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                <span class="hljs-string">&quot;index&quot;</span>: <span class="hljs-number">1</span>,
+                <span class="hljs-string">&quot;terms&quot;</span>: [
+                  {
+                    <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;var&quot;</span>,
+                    <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-string">&quot;eq&quot;</span>
+                  },
+                  {
+                    <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;ref&quot;</span>,
+                    <span class="hljs-string">&quot;value&quot;</span>: [
+                      {
+                        <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;var&quot;</span>,
+                        <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-string">&quot;server&quot;</span>
+                      },
+                      {
+                        <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;string&quot;</span>,
+                        <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-string">&quot;protocols&quot;</span>
+                      },
+                      {
+                        <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;var&quot;</span>,
+                        <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-string">&quot;$1&quot;</span>
+                      }
+                    ]
+                  },
+                  {
+                    <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;string&quot;</span>,
+                    <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-string">&quot;http&quot;</span>
+                  }
+                ]
+              },
+              {
+                <span class="hljs-string">&quot;index&quot;</span>: <span class="hljs-number">2</span>,
+                <span class="hljs-string">&quot;terms&quot;</span>: {
+                  <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;ref&quot;</span>,
+                  <span class="hljs-string">&quot;value&quot;</span>: [
+                    {
+                      <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;var&quot;</span>,
+                      <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-string">&quot;data&quot;</span>
+                    },
+                    {
+                      <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;string&quot;</span>,
+                      <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-string">&quot;opa&quot;</span>
+                    },
+                    {
+                      <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;string&quot;</span>,
+                      <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-string">&quot;examples&quot;</span>
+                    },
+                    {
+                      <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;string&quot;</span>,
+                      <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-string">&quot;public_servers&quot;</span>
+                    },
+                    {
+                      <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;var&quot;</span>,
+                      <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-string">&quot;server&quot;</span>
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}
+</code></pre>
+<h4 id="status-codes">Status Codes</h4>
+<ul>
+<li><strong>200</strong> - no error</li>
+<li><strong>500</strong> - server error</li>
+</ul>
+<h3 id="get-a-policy">Get a Policy</h3>
+<pre><code>GET /v1/policies/&lt;id&gt;
+</code></pre><p>Get a policy module.</p>
+<h4 id="example-request">Example Request</h4>
+<pre><code class="lang-http"><span class="hljs-keyword">GET</span> <span class="hljs-string">/v1/policies/example1</span> HTTP/1.1
+</code></pre>
+<h4 id="example-response">Example Response</h4>
+<pre><code class="lang-http">HTTP/1.1 <span class="hljs-number">200</span> OK
+<span class="hljs-attribute">Content-Type</span>: application/json
+</code></pre>
+<pre><code class="lang-json">{
+  <span class="hljs-string">&quot;result&quot;</span>: {
+    <span class="hljs-string">&quot;id&quot;</span>: <span class="hljs-string">&quot;example1&quot;</span>,
+    <span class="hljs-string">&quot;module&quot;</span>: {
+      <span class="hljs-string">&quot;package&quot;</span>: {
+        <span class="hljs-string">&quot;path&quot;</span>: [
+          {
+            <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;var&quot;</span>,
+            <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-string">&quot;data&quot;</span>
+          },
+          {
+            <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;string&quot;</span>,
+            <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-string">&quot;opa&quot;</span>
+          },
+          {
+            <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;string&quot;</span>,
+            <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-string">&quot;examples&quot;</span>
+          }
+        ]
+      },
+      <span class="hljs-string">&quot;rules&quot;</span>: [
+        {
+          <span class="hljs-string">&quot;name&quot;</span>: <span class="hljs-string">&quot;public_servers&quot;</span>,
+          <span class="hljs-string">&quot;key&quot;</span>: {
+            <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;var&quot;</span>,
+            <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-string">&quot;server&quot;</span>
+          },
+          <span class="hljs-string">&quot;body&quot;</span>: [
+            {
+              <span class="hljs-string">&quot;index&quot;</span>: <span class="hljs-number">0</span>,
+              <span class="hljs-string">&quot;terms&quot;</span>: [
+                {
+                  <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;var&quot;</span>,
+                  <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-string">&quot;eq&quot;</span>
+                },
+                {
+                  <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;var&quot;</span>,
+                  <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-string">&quot;server&quot;</span>
+                },
+                {
+                  <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;ref&quot;</span>,
+                  <span class="hljs-string">&quot;value&quot;</span>: [
+                    {
+                      <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;var&quot;</span>,
+                      <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-string">&quot;data&quot;</span>
+                    },
+                    {
+                      <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;string&quot;</span>,
+                      <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-string">&quot;servers&quot;</span>
+                    },
+                    {
+                      <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;var&quot;</span>,
+                      <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-string">&quot;$0&quot;</span>
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              <span class="hljs-string">&quot;index&quot;</span>: <span class="hljs-number">1</span>,
+              <span class="hljs-string">&quot;terms&quot;</span>: [
+                {
+                  <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;var&quot;</span>,
+                  <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-string">&quot;eq&quot;</span>
+                },
+                {
+                  <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;ref&quot;</span>,
+                  <span class="hljs-string">&quot;value&quot;</span>: [
+                    {
+                      <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;var&quot;</span>,
+                      <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-string">&quot;server&quot;</span>
+                    },
+                    {
+                      <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;string&quot;</span>,
+                      <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-string">&quot;ports&quot;</span>
+                    },
+                    {
+                      <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;var&quot;</span>,
+                      <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-string">&quot;$1&quot;</span>
+                    }
+                  ]
+                },
+                {
+                  <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;ref&quot;</span>,
+                  <span class="hljs-string">&quot;value&quot;</span>: [
+                    {
+                      <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;var&quot;</span>,
+                      <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-string">&quot;data&quot;</span>
+                    },
+                    {
+                      <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;string&quot;</span>,
+                      <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-string">&quot;ports&quot;</span>
+                    },
+                    {
+                      <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;var&quot;</span>,
+                      <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-string">&quot;k&quot;</span>
+                    },
+                    {
+                      <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;string&quot;</span>,
+                      <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-string">&quot;id&quot;</span>
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              <span class="hljs-string">&quot;index&quot;</span>: <span class="hljs-number">2</span>,
+              <span class="hljs-string">&quot;terms&quot;</span>: [
+                {
+                  <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;var&quot;</span>,
+                  <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-string">&quot;eq&quot;</span>
+                },
+                {
+                  <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;ref&quot;</span>,
+                  <span class="hljs-string">&quot;value&quot;</span>: [
+                    {
+                      <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;var&quot;</span>,
+                      <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-string">&quot;data&quot;</span>
+                    },
+                    {
+                      <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;string&quot;</span>,
+                      <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-string">&quot;ports&quot;</span>
+                    },
+                    {
+                      <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;var&quot;</span>,
+                      <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-string">&quot;k&quot;</span>
+                    },
+                    {
+                      <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;string&quot;</span>,
+                      <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-string">&quot;networks&quot;</span>
+                    },
+                    {
+                      <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;var&quot;</span>,
+                      <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-string">&quot;$2&quot;</span>
+                    }
+                  ]
+                },
+                {
+                  <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;ref&quot;</span>,
+                  <span class="hljs-string">&quot;value&quot;</span>: [
+                    {
+                      <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;var&quot;</span>,
+                      <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-string">&quot;data&quot;</span>
+                    },
+                    {
+                      <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;string&quot;</span>,
+                      <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-string">&quot;networks&quot;</span>
+                    },
+                    {
+                      <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;var&quot;</span>,
+                      <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-string">&quot;m&quot;</span>
+                    },
+                    {
+                      <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;string&quot;</span>,
+                      <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-string">&quot;id&quot;</span>
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              <span class="hljs-string">&quot;index&quot;</span>: <span class="hljs-number">3</span>,
+              <span class="hljs-string">&quot;terms&quot;</span>: [
+                {
+                  <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;var&quot;</span>,
+                  <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-string">&quot;eq&quot;</span>
+                },
+                {
+                  <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;ref&quot;</span>,
+                  <span class="hljs-string">&quot;value&quot;</span>: [
+                    {
+                      <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;var&quot;</span>,
+                      <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-string">&quot;data&quot;</span>
+                    },
+                    {
+                      <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;string&quot;</span>,
+                      <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-string">&quot;networks&quot;</span>
+                    },
+                    {
+                      <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;var&quot;</span>,
+                      <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-string">&quot;m&quot;</span>
+                    },
+                    {
+                      <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;string&quot;</span>,
+                      <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-string">&quot;public&quot;</span>
+                    }
+                  ]
+                },
+                {
+                  <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;boolean&quot;</span>,
+                  <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-literal">true</span>
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
+</code></pre>
+<h4 id="example-request-for-source">Example Request For Source</h4>
+<pre><code class="lang-http"><span class="hljs-keyword">GET</span> <span class="hljs-string">/v1/policies/example1?source=true</span> HTTP/1.1
+</code></pre>
+<h4 id="example-response-for-source">Example Response For Source</h4>
+<pre><code class="lang-http">HTTP/1.1 <span class="hljs-number">200</span> OK
+<span class="hljs-attribute">Content-Type</span>: text/plain; charset=utf-8
+</code></pre>
+<pre><code class="lang-ruby">package opa.examples
+
+import data.servers
+import data.networks
+import data.ports
+
+public_servers[server] {
+    server = servers[<span class="hljs-number">_</span>]
+    server.ports[<span class="hljs-number">_</span>] = ports[k].id
+    ports[k].networks[<span class="hljs-number">_</span>] = networks[m].id
+    networks[m].public = <span class="hljs-keyword">true</span>
+}
+</code></pre>
+<h4 id="query-parameters">Query Parameters</h4>
+<ul>
+<li><strong>source</strong> - If <code>true</code> the response will contain the raw source instead of
+the AST.</li>
+</ul>
+<h4 id="status-codes">Status Codes</h4>
+<ul>
+<li><strong>200</strong> - no error</li>
+<li><strong>404</strong> - not found</li>
+<li><strong>500</strong> - server error</li>
+</ul>
+<h3 id="create-or-update-a-policy">Create or Update a Policy</h3>
+<pre><code>PUT /v1/policies/&lt;id&gt;
+Content-Type: text/plain
+</code></pre><p>Create or update a policy module.</p>
+<p>If the policy module does not exist, it is created. If the policy module already exists, it is replaced.</p>
+<h4 id="example-request">Example Request</h4>
+<pre><code class="lang-http"><span class="hljs-keyword">PUT</span> <span class="hljs-string">/v1/policies/example1</span> HTTP/1.1
+<span class="hljs-attribute">Content-Type</span>: text/plain
+</code></pre>
+<pre><code class="lang-ruby">package opa.examples
+
+import data.servers
+import data.networks
+import data.ports
+
+public_servers[server] {
+    server = servers[<span class="hljs-number">_</span>]
+    server.ports[<span class="hljs-number">_</span>] = ports[k].id
+    ports[k].networks[<span class="hljs-number">_</span>] = networks[m].id
+    networks[m].public = <span class="hljs-keyword">true</span>
+}
+</code></pre>
+<blockquote>
+<p>cURL&apos;s <code>-d/--data</code> flag removes newline characters from input files. Use the <code>--data-binary</code> flag instead.
+{: .opa-tip}</p>
+</blockquote>
+<h4 id="example-response">Example Response</h4>
+<pre><code class="lang-http">HTTP/1.1 <span class="hljs-number">200</span> OK
+<span class="hljs-attribute">Content-Type</span>: application/json
+</code></pre>
+<pre><code class="lang-json">{
+  <span class="hljs-string">&quot;result&quot;</span>: {
+    <span class="hljs-string">&quot;id&quot;</span>: <span class="hljs-string">&quot;example1&quot;</span>,
+    <span class="hljs-string">&quot;module&quot;</span>: {
+      <span class="hljs-string">&quot;package&quot;</span>: {
+        <span class="hljs-string">&quot;path&quot;</span>: [
+          {
+            <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;var&quot;</span>,
+            <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-string">&quot;data&quot;</span>
+          },
+          {
+            <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;string&quot;</span>,
+            <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-string">&quot;opa&quot;</span>
+          },
+          {
+            <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;string&quot;</span>,
+            <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-string">&quot;examples&quot;</span>
+          }
+        ]
+      },
+      <span class="hljs-string">&quot;rules&quot;</span>: [
+        {
+          <span class="hljs-string">&quot;name&quot;</span>: <span class="hljs-string">&quot;public_servers&quot;</span>,
+          <span class="hljs-string">&quot;key&quot;</span>: {
+            <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;var&quot;</span>,
+            <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-string">&quot;server&quot;</span>
+          },
+          <span class="hljs-string">&quot;body&quot;</span>: [
+            {
+              <span class="hljs-string">&quot;index&quot;</span>: <span class="hljs-number">0</span>,
+              <span class="hljs-string">&quot;terms&quot;</span>: [
+                {
+                  <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;var&quot;</span>,
+                  <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-string">&quot;eq&quot;</span>
+                },
+                {
+                  <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;var&quot;</span>,
+                  <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-string">&quot;server&quot;</span>
+                },
+                {
+                  <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;ref&quot;</span>,
+                  <span class="hljs-string">&quot;value&quot;</span>: [
+                    {
+                      <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;var&quot;</span>,
+                      <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-string">&quot;data&quot;</span>
+                    },
+                    {
+                      <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;string&quot;</span>,
+                      <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-string">&quot;servers&quot;</span>
+                    },
+                    {
+                      <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;var&quot;</span>,
+                      <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-string">&quot;$0&quot;</span>
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              <span class="hljs-string">&quot;index&quot;</span>: <span class="hljs-number">1</span>,
+              <span class="hljs-string">&quot;terms&quot;</span>: [
+                {
+                  <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;var&quot;</span>,
+                  <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-string">&quot;eq&quot;</span>
+                },
+                {
+                  <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;ref&quot;</span>,
+                  <span class="hljs-string">&quot;value&quot;</span>: [
+                    {
+                      <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;var&quot;</span>,
+                      <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-string">&quot;server&quot;</span>
+                    },
+                    {
+                      <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;string&quot;</span>,
+                      <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-string">&quot;ports&quot;</span>
+                    },
+                    {
+                      <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;var&quot;</span>,
+                      <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-string">&quot;$1&quot;</span>
+                    }
+                  ]
+                },
+                {
+                  <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;ref&quot;</span>,
+                  <span class="hljs-string">&quot;value&quot;</span>: [
+                    {
+                      <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;var&quot;</span>,
+                      <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-string">&quot;data&quot;</span>
+                    },
+                    {
+                      <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;string&quot;</span>,
+                      <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-string">&quot;ports&quot;</span>
+                    },
+                    {
+                      <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;var&quot;</span>,
+                      <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-string">&quot;k&quot;</span>
+                    },
+                    {
+                      <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;string&quot;</span>,
+                      <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-string">&quot;id&quot;</span>
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              <span class="hljs-string">&quot;index&quot;</span>: <span class="hljs-number">2</span>,
+              <span class="hljs-string">&quot;terms&quot;</span>: [
+                {
+                  <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;var&quot;</span>,
+                  <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-string">&quot;eq&quot;</span>
+                },
+                {
+                  <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;ref&quot;</span>,
+                  <span class="hljs-string">&quot;value&quot;</span>: [
+                    {
+                      <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;var&quot;</span>,
+                      <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-string">&quot;data&quot;</span>
+                    },
+                    {
+                      <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;string&quot;</span>,
+                      <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-string">&quot;ports&quot;</span>
+                    },
+                    {
+                      <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;var&quot;</span>,
+                      <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-string">&quot;k&quot;</span>
+                    },
+                    {
+                      <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;string&quot;</span>,
+                      <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-string">&quot;networks&quot;</span>
+                    },
+                    {
+                      <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;var&quot;</span>,
+                      <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-string">&quot;$2&quot;</span>
+                    }
+                  ]
+                },
+                {
+                  <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;ref&quot;</span>,
+                  <span class="hljs-string">&quot;value&quot;</span>: [
+                    {
+                      <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;var&quot;</span>,
+                      <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-string">&quot;data&quot;</span>
+                    },
+                    {
+                      <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;string&quot;</span>,
+                      <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-string">&quot;networks&quot;</span>
+                    },
+                    {
+                      <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;var&quot;</span>,
+                      <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-string">&quot;m&quot;</span>
+                    },
+                    {
+                      <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;string&quot;</span>,
+                      <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-string">&quot;id&quot;</span>
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              <span class="hljs-string">&quot;index&quot;</span>: <span class="hljs-number">3</span>,
+              <span class="hljs-string">&quot;terms&quot;</span>: [
+                {
+                  <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;var&quot;</span>,
+                  <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-string">&quot;eq&quot;</span>
+                },
+                {
+                  <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;ref&quot;</span>,
+                  <span class="hljs-string">&quot;value&quot;</span>: [
+                    {
+                      <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;var&quot;</span>,
+                      <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-string">&quot;data&quot;</span>
+                    },
+                    {
+                      <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;string&quot;</span>,
+                      <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-string">&quot;networks&quot;</span>
+                    },
+                    {
+                      <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;var&quot;</span>,
+                      <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-string">&quot;m&quot;</span>
+                    },
+                    {
+                      <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;string&quot;</span>,
+                      <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-string">&quot;public&quot;</span>
+                    }
+                  ]
+                },
+                {
+                  <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;boolean&quot;</span>,
+                  <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-literal">true</span>
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
+</code></pre>
+<h4 id="status-codes">Status Codes</h4>
+<ul>
+<li><strong>200</strong> - no error</li>
+<li><strong>400</strong> - bad request</li>
+<li><strong>500</strong> - server error</li>
+</ul>
+<p>Before accepting the request, the server will parse, compile, and install the policy module. If the policy module is invalid, one of these steps will fail and the server will respond with 400. The error message in the response will be set to indicate the source of the error.</p>
+<h3 id="delete-a-policy">Delete a Policy</h3>
+<pre><code>DELETE /v1/policies/&lt;id&gt;
+</code></pre><p>Delete a policy module.</p>
+<h4 id="example-request">Example Request</h4>
+<pre><code class="lang-http"><span class="hljs-keyword">DELETE</span> <span class="hljs-string">/v1/policies/example2</span> HTTP/1.1
+</code></pre>
+<h4 id="example-response">Example Response</h4>
+<pre><code class="lang-http">HTTP/1.1 <span class="hljs-number">204</span> No Content
+</code></pre>
+<h4 id="status-codes">Status Codes</h4>
+<ul>
+<li><strong>204</strong> - no content</li>
+<li><strong>400</strong> - bad request</li>
+<li><strong>404</strong> - not found</li>
+<li><strong>500</strong> - server error</li>
+</ul>
+<p>If other policy modules in the same package depend on rules in the policy module to be deleted, the server will return 400.</p>
+<h2 id="data-api"><a name="data-api"></a> Data API</h2>
+<p>The Data API exposes endpoints for reading and writing documents in OPA. For an introduction to the different types of documents in OPA see <a href="../../how-does-opa-work">How Does OPA Work?</a>.</p>
+<h3 id="get-a-document">Get a Document</h3>
+<pre><code>GET /v1/data/{path:.+}
+</code></pre><p>Get a document.</p>
+<p>The path separator is used to access values inside object and array documents. If the path indexes into an array, the server will attempt to convert the array index to an integer. If the path element cannot be converted to an integer, the server will respond with 404.</p>
+<h4 id="example-request">Example Request</h4>
+<pre><code class="lang-http"><span class="hljs-keyword">GET</span> <span class="hljs-string">/v1/data/opa/examples/public_servers</span> HTTP/1.1
+</code></pre>
+<h4 id="example-response">Example Response</h4>
+<pre><code class="lang-http">HTTP/1.1 <span class="hljs-number">200</span> OK
+<span class="hljs-attribute">Content-Type</span>: application/json
+</code></pre>
+<pre><code class="lang-json">{
+  <span class="hljs-string">&quot;result&quot;</span>: [
+    {
+      <span class="hljs-string">&quot;id&quot;</span>: <span class="hljs-string">&quot;s1&quot;</span>,
+      <span class="hljs-string">&quot;name&quot;</span>: <span class="hljs-string">&quot;app&quot;</span>,
+      <span class="hljs-string">&quot;ports&quot;</span>: [
+        <span class="hljs-string">&quot;p1&quot;</span>,
+        <span class="hljs-string">&quot;p2&quot;</span>,
+        <span class="hljs-string">&quot;p3&quot;</span>
+      ],
+      <span class="hljs-string">&quot;protocols&quot;</span>: [
+        <span class="hljs-string">&quot;https&quot;</span>,
+        <span class="hljs-string">&quot;ssh&quot;</span>
+      ]
+    },
+    {
+      <span class="hljs-string">&quot;id&quot;</span>: <span class="hljs-string">&quot;s4&quot;</span>,
+      <span class="hljs-string">&quot;name&quot;</span>: <span class="hljs-string">&quot;dev&quot;</span>,
+      <span class="hljs-string">&quot;ports&quot;</span>: [
+        <span class="hljs-string">&quot;p1&quot;</span>,
+        <span class="hljs-string">&quot;p2&quot;</span>
+      ],
+      <span class="hljs-string">&quot;protocols&quot;</span>: [
+        <span class="hljs-string">&quot;http&quot;</span>
+      ]
+    }
+  ]
+}
+</code></pre>
+<h4 id="example-request-for-result-set">Example Request For Result Set</h4>
+<pre><code class="lang-http"><span class="hljs-keyword">GET</span> <span class="hljs-string">/v1/data/opa/examples/allow_container?input=container:data.containers[container_index]</span> HTTP/1.1
+</code></pre>
+<h4 id="example-response-for-result-set">Example Response For Result Set</h4>
+<pre><code class="lang-http">HTTP/1.1 <span class="hljs-number">200</span> OK
+<span class="hljs-attribute">Content-Type</span>: application/json
+
+<span class="json">{
+  <span class="hljs-attr">&quot;result&quot;</span>: [
+    [
+      <span class="hljs-literal">true</span>,
+      {
+        <span class="hljs-attr">&quot;container_index&quot;</span>: <span class="hljs-number">0</span>
+      }
+    ]
+  ]
+}
+</span></code></pre>
+<p>Result sets have the following schema:</p>
+<pre><code class="lang-json">{
+  <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;array&quot;</span>,
+  <span class="hljs-string">&quot;title&quot;</span>: <span class="hljs-string">&quot;Result Set&quot;</span>,
+  <span class="hljs-string">&quot;description&quot;</span>: <span class="hljs-string">&quot;Set of results returned for a Data API query.&quot;</span>,
+  <span class="hljs-string">&quot;items&quot;</span>: {
+    <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;array&quot;</span>,
+    <span class="hljs-string">&quot;minItems&quot;</span>: <span class="hljs-number">2</span>,
+    <span class="hljs-string">&quot;maxItems&quot;</span>: <span class="hljs-number">2</span>,
+    <span class="hljs-string">&quot;items&quot;</span>: [
+      {
+        <span class="hljs-string">&quot;title&quot;</span>: <span class="hljs-string">&quot;Value&quot;</span>,
+        <span class="hljs-string">&quot;description&quot;</span>: <span class="hljs-string">&quot;The value of the document referred to by the Data API path.&quot;</span>
+      },
+      {
+        <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;object&quot;</span>,
+        <span class="hljs-string">&quot;title&quot;</span>: <span class="hljs-string">&quot;Bindings&quot;</span>,
+        <span class="hljs-string">&quot;description&quot;</span>: <span class="hljs-string">&quot;The bindings of variables found in the Data API query input documents.&quot;</span>
+      }
+    ]
+  }
+}
+</code></pre>
+<p>The example above assumes the following data and policy:</p>
+<pre><code class="lang-json">{
+  <span class="hljs-string">&quot;containers&quot;</span>: [
+    {
+        <span class="hljs-string">&quot;Id&quot;</span>: <span class="hljs-string">&quot;a4288db7773ebb4f1b4d502712b87b241e3c28184cda6a1ad58f91ac6d89f052&quot;</span>,
+        <span class="hljs-string">&quot;Created&quot;</span>: <span class="hljs-string">&quot;2016-11-21T03:13:14.288557666Z&quot;</span>,
+        <span class="hljs-string">&quot;Path&quot;</span>: <span class="hljs-string">&quot;sh&quot;</span>,
+        <span class="hljs-string">&quot;Args&quot;</span>: [],
+        <span class="hljs-string">&quot;State&quot;</span>: {
+            <span class="hljs-string">&quot;Status&quot;</span>: <span class="hljs-string">&quot;running&quot;</span>,
+            <span class="hljs-string">&quot;Running&quot;</span>: <span class="hljs-literal">true</span>,
+            <span class="hljs-string">&quot;Paused&quot;</span>: <span class="hljs-literal">false</span>,
+            <span class="hljs-string">&quot;Restarting&quot;</span>: <span class="hljs-literal">false</span>,
+            <span class="hljs-string">&quot;OOMKilled&quot;</span>: <span class="hljs-literal">false</span>,
+            <span class="hljs-string">&quot;Dead&quot;</span>: <span class="hljs-literal">false</span>,
+            <span class="hljs-string">&quot;Pid&quot;</span>: <span class="hljs-number">12127</span>,
+            <span class="hljs-string">&quot;ExitCode&quot;</span>: <span class="hljs-number">0</span>,
+            <span class="hljs-string">&quot;Error&quot;</span>: <span class="hljs-string">&quot;&quot;</span>,
+            <span class="hljs-string">&quot;StartedAt&quot;</span>: <span class="hljs-string">&quot;2016-11-21T03:13:14.915355869Z&quot;</span>,
+            <span class="hljs-string">&quot;FinishedAt&quot;</span>: <span class="hljs-string">&quot;0001-01-01T00:00:00Z&quot;</span>
+        },
+        <span class="hljs-string">&quot;Image&quot;</span>: <span class="hljs-string">&quot;sha256:baa5d63471ead618ff91ddfacf1e2c81bf0612bfeb1daf00eb0843a41fbfade3&quot;</span>,
+        <span class="hljs-string">&quot;ResolvConfPath&quot;</span>: <span class="hljs-string">&quot;/var/lib/docker/containers/a4288db7773ebb4f1b4d502712b87b241e3c28184cda6a1ad58f91ac6d89f052/resolv.conf&quot;</span>,
+        <span class="hljs-string">&quot;HostnamePath&quot;</span>: <span class="hljs-string">&quot;/var/lib/docker/containers/a4288db7773ebb4f1b4d502712b87b241e3c28184cda6a1ad58f91ac6d89f052/hostname&quot;</span>,
+        <span class="hljs-string">&quot;HostsPath&quot;</span>: <span class="hljs-string">&quot;/var/lib/docker/containers/a4288db7773ebb4f1b4d502712b87b241e3c28184cda6a1ad58f91ac6d89f052/hosts&quot;</span>,
+        <span class="hljs-string">&quot;LogPath&quot;</span>: <span class="hljs-string">&quot;/var/lib/docker/containers/a4288db7773ebb4f1b4d502712b87b241e3c28184cda6a1ad58f91ac6d89f052/a4288db7773ebb4f1b4d502712b87b241e3c28184cda6a1ad58f91ac6d89f052-json.log&quot;</span>,
+        <span class="hljs-string">&quot;Name&quot;</span>: <span class="hljs-string">&quot;/suspicious_brahmagupta&quot;</span>,
+        <span class="hljs-string">&quot;RestartCount&quot;</span>: <span class="hljs-number">0</span>,
+        <span class="hljs-string">&quot;Driver&quot;</span>: <span class="hljs-string">&quot;aufs&quot;</span>,
+        <span class="hljs-string">&quot;MountLabel&quot;</span>: <span class="hljs-string">&quot;&quot;</span>,
+        <span class="hljs-string">&quot;ProcessLabel&quot;</span>: <span class="hljs-string">&quot;&quot;</span>,
+        <span class="hljs-string">&quot;AppArmorProfile&quot;</span>: <span class="hljs-string">&quot;&quot;</span>,
+        <span class="hljs-string">&quot;ExecIDs&quot;</span>: <span class="hljs-literal">null</span>,
+        <span class="hljs-string">&quot;HostConfig&quot;</span>: {
+            <span class="hljs-string">&quot;Binds&quot;</span>: <span class="hljs-literal">null</span>,
+            <span class="hljs-string">&quot;ContainerIDFile&quot;</span>: <span class="hljs-string">&quot;&quot;</span>,
+            <span class="hljs-string">&quot;LogConfig&quot;</span>: {
+                <span class="hljs-string">&quot;Type&quot;</span>: <span class="hljs-string">&quot;json-file&quot;</span>,
+                <span class="hljs-string">&quot;Config&quot;</span>: {}
+            },
+            <span class="hljs-string">&quot;NetworkMode&quot;</span>: <span class="hljs-string">&quot;default&quot;</span>,
+            <span class="hljs-string">&quot;PortBindings&quot;</span>: {},
+            <span class="hljs-string">&quot;RestartPolicy&quot;</span>: {
+                <span class="hljs-string">&quot;Name&quot;</span>: <span class="hljs-string">&quot;no&quot;</span>,
+                <span class="hljs-string">&quot;MaximumRetryCount&quot;</span>: <span class="hljs-number">0</span>
+            },
+            <span class="hljs-string">&quot;AutoRemove&quot;</span>: <span class="hljs-literal">false</span>,
+            <span class="hljs-string">&quot;VolumeDriver&quot;</span>: <span class="hljs-string">&quot;&quot;</span>,
+            <span class="hljs-string">&quot;VolumesFrom&quot;</span>: <span class="hljs-literal">null</span>,
+            <span class="hljs-string">&quot;CapAdd&quot;</span>: <span class="hljs-literal">null</span>,
+            <span class="hljs-string">&quot;CapDrop&quot;</span>: <span class="hljs-literal">null</span>,
+            <span class="hljs-string">&quot;Dns&quot;</span>: [],
+            <span class="hljs-string">&quot;DnsOptions&quot;</span>: [],
+            <span class="hljs-string">&quot;DnsSearch&quot;</span>: [],
+            <span class="hljs-string">&quot;ExtraHosts&quot;</span>: <span class="hljs-literal">null</span>,
+            <span class="hljs-string">&quot;GroupAdd&quot;</span>: <span class="hljs-literal">null</span>,
+            <span class="hljs-string">&quot;IpcMode&quot;</span>: <span class="hljs-string">&quot;&quot;</span>,
+            <span class="hljs-string">&quot;Cgroup&quot;</span>: <span class="hljs-string">&quot;&quot;</span>,
+            <span class="hljs-string">&quot;Links&quot;</span>: <span class="hljs-literal">null</span>,
+            <span class="hljs-string">&quot;OomScoreAdj&quot;</span>: <span class="hljs-number">0</span>,
+            <span class="hljs-string">&quot;PidMode&quot;</span>: <span class="hljs-string">&quot;&quot;</span>,
+            <span class="hljs-string">&quot;Privileged&quot;</span>: <span class="hljs-literal">false</span>,
+            <span class="hljs-string">&quot;PublishAllPorts&quot;</span>: <span class="hljs-literal">false</span>,
+            <span class="hljs-string">&quot;ReadonlyRootfs&quot;</span>: <span class="hljs-literal">false</span>,
+            <span class="hljs-string">&quot;SecurityOpt&quot;</span>: <span class="hljs-literal">null</span>,
+            <span class="hljs-string">&quot;UTSMode&quot;</span>: <span class="hljs-string">&quot;&quot;</span>,
+            <span class="hljs-string">&quot;UsernsMode&quot;</span>: <span class="hljs-string">&quot;&quot;</span>,
+            <span class="hljs-string">&quot;ShmSize&quot;</span>: <span class="hljs-number">67108864</span>,
+            <span class="hljs-string">&quot;Runtime&quot;</span>: <span class="hljs-string">&quot;runc&quot;</span>,
+            <span class="hljs-string">&quot;ConsoleSize&quot;</span>: [
+                <span class="hljs-number">0</span>,
+                <span class="hljs-number">0</span>
+            ],
+            <span class="hljs-string">&quot;Isolation&quot;</span>: <span class="hljs-string">&quot;&quot;</span>,
+            <span class="hljs-string">&quot;CpuShares&quot;</span>: <span class="hljs-number">0</span>,
+            <span class="hljs-string">&quot;Memory&quot;</span>: <span class="hljs-number">0</span>,
+            <span class="hljs-string">&quot;CgroupParent&quot;</span>: <span class="hljs-string">&quot;&quot;</span>,
+            <span class="hljs-string">&quot;BlkioWeight&quot;</span>: <span class="hljs-number">0</span>,
+            <span class="hljs-string">&quot;BlkioWeightDevice&quot;</span>: <span class="hljs-literal">null</span>,
+            <span class="hljs-string">&quot;BlkioDeviceReadBps&quot;</span>: <span class="hljs-literal">null</span>,
+            <span class="hljs-string">&quot;BlkioDeviceWriteBps&quot;</span>: <span class="hljs-literal">null</span>,
+            <span class="hljs-string">&quot;BlkioDeviceReadIOps&quot;</span>: <span class="hljs-literal">null</span>,
+            <span class="hljs-string">&quot;BlkioDeviceWriteIOps&quot;</span>: <span class="hljs-literal">null</span>,
+            <span class="hljs-string">&quot;CpuPeriod&quot;</span>: <span class="hljs-number">0</span>,
+            <span class="hljs-string">&quot;CpuQuota&quot;</span>: <span class="hljs-number">0</span>,
+            <span class="hljs-string">&quot;CpusetCpus&quot;</span>: <span class="hljs-string">&quot;&quot;</span>,
+            <span class="hljs-string">&quot;CpusetMems&quot;</span>: <span class="hljs-string">&quot;&quot;</span>,
+            <span class="hljs-string">&quot;Devices&quot;</span>: [],
+            <span class="hljs-string">&quot;DiskQuota&quot;</span>: <span class="hljs-number">0</span>,
+            <span class="hljs-string">&quot;KernelMemory&quot;</span>: <span class="hljs-number">0</span>,
+            <span class="hljs-string">&quot;MemoryReservation&quot;</span>: <span class="hljs-number">0</span>,
+            <span class="hljs-string">&quot;MemorySwap&quot;</span>: <span class="hljs-number">0</span>,
+            <span class="hljs-string">&quot;MemorySwappiness&quot;</span>: <span class="hljs-number">-1</span>,
+            <span class="hljs-string">&quot;OomKillDisable&quot;</span>: <span class="hljs-literal">false</span>,
+            <span class="hljs-string">&quot;PidsLimit&quot;</span>: <span class="hljs-number">0</span>,
+            <span class="hljs-string">&quot;Ulimits&quot;</span>: <span class="hljs-literal">null</span>,
+            <span class="hljs-string">&quot;CpuCount&quot;</span>: <span class="hljs-number">0</span>,
+            <span class="hljs-string">&quot;CpuPercent&quot;</span>: <span class="hljs-number">0</span>,
+            <span class="hljs-string">&quot;IOMaximumIOps&quot;</span>: <span class="hljs-number">0</span>,
+            <span class="hljs-string">&quot;IOMaximumBandwidth&quot;</span>: <span class="hljs-number">0</span>
+        },
+        <span class="hljs-string">&quot;GraphDriver&quot;</span>: {
+            <span class="hljs-string">&quot;Name&quot;</span>: <span class="hljs-string">&quot;aufs&quot;</span>,
+            <span class="hljs-string">&quot;Data&quot;</span>: <span class="hljs-literal">null</span>
+        },
+        <span class="hljs-string">&quot;Mounts&quot;</span>: [],
+        <span class="hljs-string">&quot;Config&quot;</span>: {
+            <span class="hljs-string">&quot;Hostname&quot;</span>: <span class="hljs-string">&quot;a4288db7773e&quot;</span>,
+            <span class="hljs-string">&quot;Domainname&quot;</span>: <span class="hljs-string">&quot;&quot;</span>,
+            <span class="hljs-string">&quot;User&quot;</span>: <span class="hljs-string">&quot;&quot;</span>,
+            <span class="hljs-string">&quot;AttachStdin&quot;</span>: <span class="hljs-literal">true</span>,
+            <span class="hljs-string">&quot;AttachStdout&quot;</span>: <span class="hljs-literal">true</span>,
+            <span class="hljs-string">&quot;AttachStderr&quot;</span>: <span class="hljs-literal">true</span>,
+            <span class="hljs-string">&quot;Tty&quot;</span>: <span class="hljs-literal">true</span>,
+            <span class="hljs-string">&quot;OpenStdin&quot;</span>: <span class="hljs-literal">true</span>,
+            <span class="hljs-string">&quot;StdinOnce&quot;</span>: <span class="hljs-literal">true</span>,
+            <span class="hljs-string">&quot;Env&quot;</span>: [
+                <span class="hljs-string">&quot;no_proxy=*.local, 169.254/16&quot;</span>,
+                <span class="hljs-string">&quot;PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin&quot;</span>
+            ],
+            <span class="hljs-string">&quot;Cmd&quot;</span>: [
+                <span class="hljs-string">&quot;sh&quot;</span>
+            ],
+            <span class="hljs-string">&quot;Image&quot;</span>: <span class="hljs-string">&quot;alpine:latest&quot;</span>,
+            <span class="hljs-string">&quot;Volumes&quot;</span>: <span class="hljs-literal">null</span>,
+            <span class="hljs-string">&quot;WorkingDir&quot;</span>: <span class="hljs-string">&quot;&quot;</span>,
+            <span class="hljs-string">&quot;Entrypoint&quot;</span>: <span class="hljs-literal">null</span>,
+            <span class="hljs-string">&quot;OnBuild&quot;</span>: <span class="hljs-literal">null</span>,
+            <span class="hljs-string">&quot;Labels&quot;</span>: {}
+        },
+        <span class="hljs-string">&quot;NetworkSettings&quot;</span>: {
+            <span class="hljs-string">&quot;Bridge&quot;</span>: <span class="hljs-string">&quot;&quot;</span>,
+            <span class="hljs-string">&quot;SandboxID&quot;</span>: <span class="hljs-string">&quot;2dadac1a8b18b7ae5658c4215637d998572c95bc0673bac2aceefbdd830d8860&quot;</span>,
+            <span class="hljs-string">&quot;HairpinMode&quot;</span>: <span class="hljs-literal">false</span>,
+            <span class="hljs-string">&quot;LinkLocalIPv6Address&quot;</span>: <span class="hljs-string">&quot;&quot;</span>,
+            <span class="hljs-string">&quot;LinkLocalIPv6PrefixLen&quot;</span>: <span class="hljs-number">0</span>,
+            <span class="hljs-string">&quot;Ports&quot;</span>: {},
+            <span class="hljs-string">&quot;SandboxKey&quot;</span>: <span class="hljs-string">&quot;/var/run/docker/netns/2dadac1a8b18&quot;</span>,
+            <span class="hljs-string">&quot;SecondaryIPAddresses&quot;</span>: <span class="hljs-literal">null</span>,
+            <span class="hljs-string">&quot;SecondaryIPv6Addresses&quot;</span>: <span class="hljs-literal">null</span>,
+            <span class="hljs-string">&quot;EndpointID&quot;</span>: <span class="hljs-string">&quot;fb1af875e2f0e7643224b6505a2c713748175689b8e8edb7cc1496efa8cdcafd&quot;</span>,
+            <span class="hljs-string">&quot;Gateway&quot;</span>: <span class="hljs-string">&quot;172.17.0.1&quot;</span>,
+            <span class="hljs-string">&quot;GlobalIPv6Address&quot;</span>: <span class="hljs-string">&quot;&quot;</span>,
+            <span class="hljs-string">&quot;GlobalIPv6PrefixLen&quot;</span>: <span class="hljs-number">0</span>,
+            <span class="hljs-string">&quot;IPAddress&quot;</span>: <span class="hljs-string">&quot;172.17.0.3&quot;</span>,
+            <span class="hljs-string">&quot;IPPrefixLen&quot;</span>: <span class="hljs-number">16</span>,
+            <span class="hljs-string">&quot;IPv6Gateway&quot;</span>: <span class="hljs-string">&quot;&quot;</span>,
+            <span class="hljs-string">&quot;MacAddress&quot;</span>: <span class="hljs-string">&quot;02:42:ac:11:00:03&quot;</span>,
+            <span class="hljs-string">&quot;Networks&quot;</span>: {
+                <span class="hljs-string">&quot;bridge&quot;</span>: {
+                    <span class="hljs-string">&quot;IPAMConfig&quot;</span>: <span class="hljs-literal">null</span>,
+                    <span class="hljs-string">&quot;Links&quot;</span>: <span class="hljs-literal">null</span>,
+                    <span class="hljs-string">&quot;Aliases&quot;</span>: <span class="hljs-literal">null</span>,
+                    <span class="hljs-string">&quot;NetworkID&quot;</span>: <span class="hljs-string">&quot;ad1022afa0af59671f2b701ff8cbd4607de24740b59484acd4a740fac4ad26f9&quot;</span>,
+                    <span class="hljs-string">&quot;EndpointID&quot;</span>: <span class="hljs-string">&quot;fb1af875e2f0e7643224b6505a2c713748175689b8e8edb7cc1496efa8cdcafd&quot;</span>,
+                    <span class="hljs-string">&quot;Gateway&quot;</span>: <span class="hljs-string">&quot;172.17.0.1&quot;</span>,
+                    <span class="hljs-string">&quot;IPAddress&quot;</span>: <span class="hljs-string">&quot;172.17.0.3&quot;</span>,
+                    <span class="hljs-string">&quot;IPPrefixLen&quot;</span>: <span class="hljs-number">16</span>,
+                    <span class="hljs-string">&quot;IPv6Gateway&quot;</span>: <span class="hljs-string">&quot;&quot;</span>,
+                    <span class="hljs-string">&quot;GlobalIPv6Address&quot;</span>: <span class="hljs-string">&quot;&quot;</span>,
+                    <span class="hljs-string">&quot;GlobalIPv6PrefixLen&quot;</span>: <span class="hljs-number">0</span>,
+                    <span class="hljs-string">&quot;MacAddress&quot;</span>: <span class="hljs-string">&quot;02:42:ac:11:00:03&quot;</span>
+                }
+            }
+        }
+    },
+    {
+        <span class="hljs-string">&quot;Id&quot;</span>: <span class="hljs-string">&quot;6887a5168d0e2324b8c9544c4b30321bce4952f12698491f268c17bbe77e5218&quot;</span>,
+        <span class="hljs-string">&quot;Created&quot;</span>: <span class="hljs-string">&quot;2016-11-21T03:13:05.080079329Z&quot;</span>,
+        <span class="hljs-string">&quot;Path&quot;</span>: <span class="hljs-string">&quot;sh&quot;</span>,
+        <span class="hljs-string">&quot;Args&quot;</span>: [],
+        <span class="hljs-string">&quot;State&quot;</span>: {
+            <span class="hljs-string">&quot;Status&quot;</span>: <span class="hljs-string">&quot;running&quot;</span>,
+            <span class="hljs-string">&quot;Running&quot;</span>: <span class="hljs-literal">true</span>,
+            <span class="hljs-string">&quot;Paused&quot;</span>: <span class="hljs-literal">false</span>,
+            <span class="hljs-string">&quot;Restarting&quot;</span>: <span class="hljs-literal">false</span>,
+            <span class="hljs-string">&quot;OOMKilled&quot;</span>: <span class="hljs-literal">false</span>,
+            <span class="hljs-string">&quot;Dead&quot;</span>: <span class="hljs-literal">false</span>,
+            <span class="hljs-string">&quot;Pid&quot;</span>: <span class="hljs-number">12079</span>,
+            <span class="hljs-string">&quot;ExitCode&quot;</span>: <span class="hljs-number">0</span>,
+            <span class="hljs-string">&quot;Error&quot;</span>: <span class="hljs-string">&quot;&quot;</span>,
+            <span class="hljs-string">&quot;StartedAt&quot;</span>: <span class="hljs-string">&quot;2016-11-21T03:13:05.718411107Z&quot;</span>,
+            <span class="hljs-string">&quot;FinishedAt&quot;</span>: <span class="hljs-string">&quot;0001-01-01T00:00:00Z&quot;</span>
+        },
+        <span class="hljs-string">&quot;Image&quot;</span>: <span class="hljs-string">&quot;sha256:baa5d63471ead618ff91ddfacf1e2c81bf0612bfeb1daf00eb0843a41fbfade3&quot;</span>,
+        <span class="hljs-string">&quot;ResolvConfPath&quot;</span>: <span class="hljs-string">&quot;/var/lib/docker/containers/6887a5168d0e2324b8c9544c4b30321bce4952f12698491f268c17bbe77e5218/resolv.conf&quot;</span>,
+        <span class="hljs-string">&quot;HostnamePath&quot;</span>: <span class="hljs-string">&quot;/var/lib/docker/containers/6887a5168d0e2324b8c9544c4b30321bce4952f12698491f268c17bbe77e5218/hostname&quot;</span>,
+        <span class="hljs-string">&quot;HostsPath&quot;</span>: <span class="hljs-string">&quot;/var/lib/docker/containers/6887a5168d0e2324b8c9544c4b30321bce4952f12698491f268c17bbe77e5218/hosts&quot;</span>,
+        <span class="hljs-string">&quot;LogPath&quot;</span>: <span class="hljs-string">&quot;/var/lib/docker/containers/6887a5168d0e2324b8c9544c4b30321bce4952f12698491f268c17bbe77e5218/6887a5168d0e2324b8c9544c4b30321bce4952f12698491f268c17bbe77e5218-json.log&quot;</span>,
+        <span class="hljs-string">&quot;Name&quot;</span>: <span class="hljs-string">&quot;/fervent_almeida&quot;</span>,
+        <span class="hljs-string">&quot;RestartCount&quot;</span>: <span class="hljs-number">0</span>,
+        <span class="hljs-string">&quot;Driver&quot;</span>: <span class="hljs-string">&quot;aufs&quot;</span>,
+        <span class="hljs-string">&quot;MountLabel&quot;</span>: <span class="hljs-string">&quot;&quot;</span>,
+        <span class="hljs-string">&quot;ProcessLabel&quot;</span>: <span class="hljs-string">&quot;&quot;</span>,
+        <span class="hljs-string">&quot;AppArmorProfile&quot;</span>: <span class="hljs-string">&quot;&quot;</span>,
+        <span class="hljs-string">&quot;ExecIDs&quot;</span>: <span class="hljs-literal">null</span>,
+        <span class="hljs-string">&quot;HostConfig&quot;</span>: {
+            <span class="hljs-string">&quot;Binds&quot;</span>: <span class="hljs-literal">null</span>,
+            <span class="hljs-string">&quot;ContainerIDFile&quot;</span>: <span class="hljs-string">&quot;&quot;</span>,
+            <span class="hljs-string">&quot;LogConfig&quot;</span>: {
+                <span class="hljs-string">&quot;Type&quot;</span>: <span class="hljs-string">&quot;json-file&quot;</span>,
+                <span class="hljs-string">&quot;Config&quot;</span>: {}
+            },
+            <span class="hljs-string">&quot;NetworkMode&quot;</span>: <span class="hljs-string">&quot;default&quot;</span>,
+            <span class="hljs-string">&quot;PortBindings&quot;</span>: {},
+            <span class="hljs-string">&quot;RestartPolicy&quot;</span>: {
+                <span class="hljs-string">&quot;Name&quot;</span>: <span class="hljs-string">&quot;no&quot;</span>,
+                <span class="hljs-string">&quot;MaximumRetryCount&quot;</span>: <span class="hljs-number">0</span>
+            },
+            <span class="hljs-string">&quot;AutoRemove&quot;</span>: <span class="hljs-literal">false</span>,
+            <span class="hljs-string">&quot;VolumeDriver&quot;</span>: <span class="hljs-string">&quot;&quot;</span>,
+            <span class="hljs-string">&quot;VolumesFrom&quot;</span>: <span class="hljs-literal">null</span>,
+            <span class="hljs-string">&quot;CapAdd&quot;</span>: <span class="hljs-literal">null</span>,
+            <span class="hljs-string">&quot;CapDrop&quot;</span>: <span class="hljs-literal">null</span>,
+            <span class="hljs-string">&quot;Dns&quot;</span>: [],
+            <span class="hljs-string">&quot;DnsOptions&quot;</span>: [],
+            <span class="hljs-string">&quot;DnsSearch&quot;</span>: [],
+            <span class="hljs-string">&quot;ExtraHosts&quot;</span>: <span class="hljs-literal">null</span>,
+            <span class="hljs-string">&quot;GroupAdd&quot;</span>: <span class="hljs-literal">null</span>,
+            <span class="hljs-string">&quot;IpcMode&quot;</span>: <span class="hljs-string">&quot;&quot;</span>,
+            <span class="hljs-string">&quot;Cgroup&quot;</span>: <span class="hljs-string">&quot;&quot;</span>,
+            <span class="hljs-string">&quot;Links&quot;</span>: <span class="hljs-literal">null</span>,
+            <span class="hljs-string">&quot;OomScoreAdj&quot;</span>: <span class="hljs-number">0</span>,
+            <span class="hljs-string">&quot;PidMode&quot;</span>: <span class="hljs-string">&quot;&quot;</span>,
+            <span class="hljs-string">&quot;Privileged&quot;</span>: <span class="hljs-literal">false</span>,
+            <span class="hljs-string">&quot;PublishAllPorts&quot;</span>: <span class="hljs-literal">false</span>,
+            <span class="hljs-string">&quot;ReadonlyRootfs&quot;</span>: <span class="hljs-literal">false</span>,
+            <span class="hljs-string">&quot;SecurityOpt&quot;</span>: [
+                <span class="hljs-string">&quot;seccomp:unconfined&quot;</span>
+            ],
+            <span class="hljs-string">&quot;UTSMode&quot;</span>: <span class="hljs-string">&quot;&quot;</span>,
+            <span class="hljs-string">&quot;UsernsMode&quot;</span>: <span class="hljs-string">&quot;&quot;</span>,
+            <span class="hljs-string">&quot;ShmSize&quot;</span>: <span class="hljs-number">67108864</span>,
+            <span class="hljs-string">&quot;Runtime&quot;</span>: <span class="hljs-string">&quot;runc&quot;</span>,
+            <span class="hljs-string">&quot;ConsoleSize&quot;</span>: [
+                <span class="hljs-number">0</span>,
+                <span class="hljs-number">0</span>
+            ],
+            <span class="hljs-string">&quot;Isolation&quot;</span>: <span class="hljs-string">&quot;&quot;</span>,
+            <span class="hljs-string">&quot;CpuShares&quot;</span>: <span class="hljs-number">0</span>,
+            <span class="hljs-string">&quot;Memory&quot;</span>: <span class="hljs-number">0</span>,
+            <span class="hljs-string">&quot;CgroupParent&quot;</span>: <span class="hljs-string">&quot;&quot;</span>,
+            <span class="hljs-string">&quot;BlkioWeight&quot;</span>: <span class="hljs-number">0</span>,
+            <span class="hljs-string">&quot;BlkioWeightDevice&quot;</span>: <span class="hljs-literal">null</span>,
+            <span class="hljs-string">&quot;BlkioDeviceReadBps&quot;</span>: <span class="hljs-literal">null</span>,
+            <span class="hljs-string">&quot;BlkioDeviceWriteBps&quot;</span>: <span class="hljs-literal">null</span>,
+            <span class="hljs-string">&quot;BlkioDeviceReadIOps&quot;</span>: <span class="hljs-literal">null</span>,
+            <span class="hljs-string">&quot;BlkioDeviceWriteIOps&quot;</span>: <span class="hljs-literal">null</span>,
+            <span class="hljs-string">&quot;CpuPeriod&quot;</span>: <span class="hljs-number">0</span>,
+            <span class="hljs-string">&quot;CpuQuota&quot;</span>: <span class="hljs-number">0</span>,
+            <span class="hljs-string">&quot;CpusetCpus&quot;</span>: <span class="hljs-string">&quot;&quot;</span>,
+            <span class="hljs-string">&quot;CpusetMems&quot;</span>: <span class="hljs-string">&quot;&quot;</span>,
+            <span class="hljs-string">&quot;Devices&quot;</span>: [],
+            <span class="hljs-string">&quot;DiskQuota&quot;</span>: <span class="hljs-number">0</span>,
+            <span class="hljs-string">&quot;KernelMemory&quot;</span>: <span class="hljs-number">0</span>,
+            <span class="hljs-string">&quot;MemoryReservation&quot;</span>: <span class="hljs-number">0</span>,
+            <span class="hljs-string">&quot;MemorySwap&quot;</span>: <span class="hljs-number">0</span>,
+            <span class="hljs-string">&quot;MemorySwappiness&quot;</span>: <span class="hljs-number">-1</span>,
+            <span class="hljs-string">&quot;OomKillDisable&quot;</span>: <span class="hljs-literal">false</span>,
+            <span class="hljs-string">&quot;PidsLimit&quot;</span>: <span class="hljs-number">0</span>,
+            <span class="hljs-string">&quot;Ulimits&quot;</span>: <span class="hljs-literal">null</span>,
+            <span class="hljs-string">&quot;CpuCount&quot;</span>: <span class="hljs-number">0</span>,
+            <span class="hljs-string">&quot;CpuPercent&quot;</span>: <span class="hljs-number">0</span>,
+            <span class="hljs-string">&quot;IOMaximumIOps&quot;</span>: <span class="hljs-number">0</span>,
+            <span class="hljs-string">&quot;IOMaximumBandwidth&quot;</span>: <span class="hljs-number">0</span>
+        },
+        <span class="hljs-string">&quot;GraphDriver&quot;</span>: {
+            <span class="hljs-string">&quot;Name&quot;</span>: <span class="hljs-string">&quot;aufs&quot;</span>,
+            <span class="hljs-string">&quot;Data&quot;</span>: <span class="hljs-literal">null</span>
+        },
+        <span class="hljs-string">&quot;Mounts&quot;</span>: [],
+        <span class="hljs-string">&quot;Config&quot;</span>: {
+            <span class="hljs-string">&quot;Hostname&quot;</span>: <span class="hljs-string">&quot;6887a5168d0e&quot;</span>,
+            <span class="hljs-string">&quot;Domainname&quot;</span>: <span class="hljs-string">&quot;&quot;</span>,
+            <span class="hljs-string">&quot;User&quot;</span>: <span class="hljs-string">&quot;&quot;</span>,
+            <span class="hljs-string">&quot;AttachStdin&quot;</span>: <span class="hljs-literal">true</span>,
+            <span class="hljs-string">&quot;AttachStdout&quot;</span>: <span class="hljs-literal">true</span>,
+            <span class="hljs-string">&quot;AttachStderr&quot;</span>: <span class="hljs-literal">true</span>,
+            <span class="hljs-string">&quot;Tty&quot;</span>: <span class="hljs-literal">true</span>,
+            <span class="hljs-string">&quot;OpenStdin&quot;</span>: <span class="hljs-literal">true</span>,
+            <span class="hljs-string">&quot;StdinOnce&quot;</span>: <span class="hljs-literal">true</span>,
+            <span class="hljs-string">&quot;Env&quot;</span>: [
+                <span class="hljs-string">&quot;no_proxy=*.local, 169.254/16&quot;</span>,
+                <span class="hljs-string">&quot;PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin&quot;</span>
+            ],
+            <span class="hljs-string">&quot;Cmd&quot;</span>: [
+                <span class="hljs-string">&quot;sh&quot;</span>
+            ],
+            <span class="hljs-string">&quot;Image&quot;</span>: <span class="hljs-string">&quot;alpine:latest&quot;</span>,
+            <span class="hljs-string">&quot;Volumes&quot;</span>: <span class="hljs-literal">null</span>,
+            <span class="hljs-string">&quot;WorkingDir&quot;</span>: <span class="hljs-string">&quot;&quot;</span>,
+            <span class="hljs-string">&quot;Entrypoint&quot;</span>: <span class="hljs-literal">null</span>,
+            <span class="hljs-string">&quot;OnBuild&quot;</span>: <span class="hljs-literal">null</span>,
+            <span class="hljs-string">&quot;Labels&quot;</span>: {}
+        },
+        <span class="hljs-string">&quot;NetworkSettings&quot;</span>: {
+            <span class="hljs-string">&quot;Bridge&quot;</span>: <span class="hljs-string">&quot;&quot;</span>,
+            <span class="hljs-string">&quot;SandboxID&quot;</span>: <span class="hljs-string">&quot;580a6d3f8bebfb1647c8b34f7766dee1b86443752ef3e255d37517dfb35076ed&quot;</span>,
+            <span class="hljs-string">&quot;HairpinMode&quot;</span>: <span class="hljs-literal">false</span>,
+            <span class="hljs-string">&quot;LinkLocalIPv6Address&quot;</span>: <span class="hljs-string">&quot;&quot;</span>,
+            <span class="hljs-string">&quot;LinkLocalIPv6PrefixLen&quot;</span>: <span class="hljs-number">0</span>,
+            <span class="hljs-string">&quot;Ports&quot;</span>: {},
+            <span class="hljs-string">&quot;SandboxKey&quot;</span>: <span class="hljs-string">&quot;/var/run/docker/netns/580a6d3f8beb&quot;</span>,
+            <span class="hljs-string">&quot;SecondaryIPAddresses&quot;</span>: <span class="hljs-literal">null</span>,
+            <span class="hljs-string">&quot;SecondaryIPv6Addresses&quot;</span>: <span class="hljs-literal">null</span>,
+            <span class="hljs-string">&quot;EndpointID&quot;</span>: <span class="hljs-string">&quot;a4340ac5857a79310cc7eaa344d4ff6771fdf6372f72447b91928c038d9ada7d&quot;</span>,
+            <span class="hljs-string">&quot;Gateway&quot;</span>: <span class="hljs-string">&quot;172.17.0.1&quot;</span>,
+            <span class="hljs-string">&quot;GlobalIPv6Address&quot;</span>: <span class="hljs-string">&quot;&quot;</span>,
+            <span class="hljs-string">&quot;GlobalIPv6PrefixLen&quot;</span>: <span class="hljs-number">0</span>,
+            <span class="hljs-string">&quot;IPAddress&quot;</span>: <span class="hljs-string">&quot;172.17.0.2&quot;</span>,
+            <span class="hljs-string">&quot;IPPrefixLen&quot;</span>: <span class="hljs-number">16</span>,
+            <span class="hljs-string">&quot;IPv6Gateway&quot;</span>: <span class="hljs-string">&quot;&quot;</span>,
+            <span class="hljs-string">&quot;MacAddress&quot;</span>: <span class="hljs-string">&quot;02:42:ac:11:00:02&quot;</span>,
+            <span class="hljs-string">&quot;Networks&quot;</span>: {
+                <span class="hljs-string">&quot;bridge&quot;</span>: {
+                    <span class="hljs-string">&quot;IPAMConfig&quot;</span>: <span class="hljs-literal">null</span>,
+                    <span class="hljs-string">&quot;Links&quot;</span>: <span class="hljs-literal">null</span>,
+                    <span class="hljs-string">&quot;Aliases&quot;</span>: <span class="hljs-literal">null</span>,
+                    <span class="hljs-string">&quot;NetworkID&quot;</span>: <span class="hljs-string">&quot;ad1022afa0af59671f2b701ff8cbd4607de24740b59484acd4a740fac4ad26f9&quot;</span>,
+                    <span class="hljs-string">&quot;EndpointID&quot;</span>: <span class="hljs-string">&quot;a4340ac5857a79310cc7eaa344d4ff6771fdf6372f72447b91928c038d9ada7d&quot;</span>,
+                    <span class="hljs-string">&quot;Gateway&quot;</span>: <span class="hljs-string">&quot;172.17.0.1&quot;</span>,
+                    <span class="hljs-string">&quot;IPAddress&quot;</span>: <span class="hljs-string">&quot;172.17.0.2&quot;</span>,
+                    <span class="hljs-string">&quot;IPPrefixLen&quot;</span>: <span class="hljs-number">16</span>,
+                    <span class="hljs-string">&quot;IPv6Gateway&quot;</span>: <span class="hljs-string">&quot;&quot;</span>,
+                    <span class="hljs-string">&quot;GlobalIPv6Address&quot;</span>: <span class="hljs-string">&quot;&quot;</span>,
+                    <span class="hljs-string">&quot;GlobalIPv6PrefixLen&quot;</span>: <span class="hljs-number">0</span>,
+                    <span class="hljs-string">&quot;MacAddress&quot;</span>: <span class="hljs-string">&quot;02:42:ac:11:00:02&quot;</span>
+                }
+            }
+        }
+    }]
+}
+</code></pre>
+<pre><code class="lang-ruby">package opa.examples
+
+import input.container
+
+allow_container { <span class="hljs-keyword">not</span> seccomp_unconfined }
+
+seccomp_unconfined {
+  container.HostConfig.SecurityOpt[<span class="hljs-number">_</span>] = <span class="hljs-string">&quot;seccomp:unconfined&quot;</span>
+}
+</code></pre>
+<h4 id="query-parameters">Query Parameters</h4>
+<ul>
+<li><strong>input</strong> - Provide an input document. Format is <code>[[&lt;path&gt;]:]&lt;value&gt;</code> where <code>&lt;path&gt;</code> is the import path of the input document. The parameter may be specified multiple times but each instance should specify a unique <code>&lt;path&gt;</code>. The <code>&lt;path&gt;</code> may be empty (in which case, the entire input will be set to the <code>&lt;value&gt;</code>). The <code>&lt;value&gt;</code> may be a reference to a document in OPA. If <code>&lt;value&gt;</code> contains variables the response will contain a set of results instead of a single document. In most cases, input should be provided using the POST method, see <a href="#get-a-document-with-input">Get a Document With Input</a>.</li>
+<li><strong>pretty</strong> - If parameter is <code>true</code>, response will formatted for humans.</li>
+<li><strong>explain</strong> - Return query explanation in addition to result. Values: <strong>full</strong>, <strong>truth</strong>.</li>
+<li><strong>metrics</strong> - Return query performance metrics in addition to result. See <a href="#performance-metrics">Performance Metrics</a> for more detail.</li>
+</ul>
+<h4 id="status-codes">Status Codes</h4>
+<ul>
+<li><strong>200</strong> - no error</li>
+<li><strong>400</strong> - bad request</li>
+<li><strong>500</strong> - server error</li>
+</ul>
+<p>The server returns 400 if either:</p>
+<ul>
+<li>The query requires the input document and the caller does not provide it.</li>
+<li>The caller provides the input document but the query already defines it programmatically.</li>
+</ul>
+<p>The server returns 200 if the path refers to an undefined document. In this
+case, the response will not contain a <code>result</code> property.</p>
+<h3 id="get-a-document-with-input"><a name="get-a-document-with-input"></a> Get a Document With Input</h3>
+<pre><code>POST /v1/data/{path:.+}
+Content-Type: application/json
+</code></pre><pre><code class="lang-json">{
+  <span class="hljs-string">&quot;input&quot;</span>: ...
+}
+</code></pre>
+<p>Get a document that requires input.</p>
+<p>The path separator is used to access values inside object and array documents. If the path indexes into an array, the server will attempt to convert the array index to an integer. If the path element cannot be converted to an integer, the server will respond with 404.</p>
+<p>The request body contains an object that specifies a value for <a href="../../how-does-opa-work#the-input-document">The input Document</a>.</p>
+<p>The examples below assume the following policy:</p>
+<pre><code class="lang-ruby">package opa.examples
+
+import input.example.flag
+
+allow_request { flag = <span class="hljs-keyword">true</span> }
+</code></pre>
+<h4 id="example-request">Example Request</h4>
+<pre><code class="lang-http"><span class="hljs-keyword">POST</span> <span class="hljs-string">/v1/data/opa/examples/allow_request</span> HTTP/1.1
+<span class="hljs-attribute">Content-Type</span>: application/json
+</code></pre>
+<pre><code class="lang-json">{
+  <span class="hljs-string">&quot;input&quot;</span>: {
+    <span class="hljs-string">&quot;example&quot;</span>: {
+      <span class="hljs-string">&quot;flag&quot;</span>: <span class="hljs-literal">true</span>
+    }
+  }
+}
+</code></pre>
+<h4 id="example-response">Example Response</h4>
+<pre><code class="lang-http">HTTP/1.1 <span class="hljs-number">200</span> OK
+<span class="hljs-attribute">Content-Type</span>: application/json
+</code></pre>
+<pre><code class="lang-json">{
+  <span class="hljs-string">&quot;result&quot;</span>: <span class="hljs-literal">true</span>
+}
+</code></pre>
+<h4 id="example-request">Example Request</h4>
+<pre><code class="lang-http"><span class="hljs-keyword">POST</span> <span class="hljs-string">/v1/data/opa/examples/allow_request</span> HTTP/1.1
+<span class="hljs-attribute">Content-Type</span>: application/json
+</code></pre>
+<pre><code class="lang-json">{
+  <span class="hljs-string">&quot;input&quot;</span>: {
+    <span class="hljs-string">&quot;example&quot;</span>: {
+      <span class="hljs-string">&quot;flag&quot;</span>: <span class="hljs-literal">false</span>
+    }
+  }
+}
+</code></pre>
+<h4 id="example-response">Example Response</h4>
+<pre><code class="lang-http">HTTP/1.1 <span class="hljs-number">200</span> OK
+</code></pre>
+<pre><code class="lang-json">{}
+</code></pre>
+<h4 id="query-parameters">Query Parameters</h4>
+<ul>
+<li><strong>pretty</strong> - If parameter is <code>true</code>, response will formatted for humans.</li>
+<li><strong>explain</strong> - Return query explanation in addition to result. Values: <strong>full</strong>, <strong>truth</strong>.</li>
+<li><strong>metrics</strong> - Return query performance metrics in addition to result. See <a href="#performance-metrics">Performance Metrics</a> for more detail.</li>
+</ul>
+<h4 id="status-codes">Status Codes</h4>
+<ul>
+<li><strong>200</strong> - no error</li>
+<li><strong>400</strong> - bad request</li>
+<li><strong>500</strong> - server error</li>
+</ul>
+<p>The server returns 400 if either:</p>
+<ol>
+<li>The query requires an input document and the client did not supply one.</li>
+<li>The query already defines an input document and the client did supply one.</li>
+</ol>
+<p>The server returns 200 if the path refers to an undefined document. In this
+case, the response will not contain a <code>result</code> property.</p>
+<h3 id="create-or-overwrite-a-document">Create or Overwrite a Document</h3>
+<pre><code>PUT /v1/data/{path:.+}
+Content-Type: application/json
+</code></pre><p>Create or overwrite a document.</p>
+<p>If the path does not refer to an existing document, the server will attempt to create all of the necessary containing documents. This behavior is similar in principle to the Unix command <code>mkdir -p</code>.</p>
+<p>The server will respect the <code>If-None-Match</code> header if it is set to <code>*</code>. In this case, the server will not overwrite an existing document located at the path.</p>
+<h4 id="example-request-to-initialize-document-with-if-none-match">Example Request To Initialize Document With If-None-Match</h4>
+<pre><code class="lang-http"><span class="hljs-keyword">PUT</span> <span class="hljs-string">/v1/data/us-west/servers</span> HTTP/1.1
+<span class="hljs-attribute">Content-Type</span>: application/json
+<span class="hljs-attribute">If-None-Match</span>: *
+</code></pre>
+<pre><code class="lang-json">{}
+</code></pre>
+<h4 id="example-response-if-document-already-exists">Example Response If Document Already Exists</h4>
+<pre><code class="lang-http">HTTP/1.1 <span class="hljs-number">304</span> Not Modified
+</code></pre>
+<h4 id="example-response-if-document-does-not-exist">Example Response If Document Does Not Exist</h4>
+<pre><code class="lang-http">HTTP/1.1 <span class="hljs-number">204</span> No Content
+</code></pre>
+<h4 id="status-codes">Status Codes</h4>
+<ul>
+<li><strong>204</strong> - no content (success)</li>
+<li><strong>304</strong> - not modified</li>
+<li><strong>404</strong> - write conflict</li>
+</ul>
+<p>If the path refers to a virtual document or a conflicting base document the server will respond with 404. A base document conflict will occur if the parent portion of the path refers to a non-object document.</p>
+<h3 id="patch-a-document">Patch a Document</h3>
+<pre><code>PATCH /v1/data/{path:.+}
+Content-Type: application/json-patch+json
+</code></pre><p>Update a document.</p>
+<p>The path separator is used to access values inside object and array documents. If the path indexes into an array, the server will attempt to convert the array index to an integer. If the path element cannot be converted to an integer, the server will respond with 404.</p>
+<p>The server accepts updates encoded as JSON Patch operations. The message body of the request should contain a JSON encoded array containing one or more JSON Patch operations. Each operation specifies the operation type, path, and an optional value. For more information on JSON Patch, see <a href="https://tools.ietf.org/html/rfc6902" target="_blank">RFC 6902</a>.</p>
+<h4 id="example-request">Example Request</h4>
+<pre><code class="lang-http"><span class="hljs-keyword">PATCH</span> <span class="hljs-string">/v1/data/servers</span> HTTP/1.1
+<span class="hljs-attribute">Content-Type</span>: application/json-patch+json
+</code></pre>
+<pre><code class="lang-json">[
+    {<span class="hljs-string">&quot;op&quot;</span>: <span class="hljs-string">&quot;add&quot;</span>,
+     <span class="hljs-string">&quot;path&quot;</span>: <span class="hljs-string">&quot;-&quot;</span>,
+     <span class="hljs-string">&quot;value&quot;</span>: {
+         <span class="hljs-string">&quot;id&quot;</span>: <span class="hljs-string">&quot;s5&quot;</span>,
+         <span class="hljs-string">&quot;name&quot;</span>: <span class="hljs-string">&quot;job&quot;</span>,
+         <span class="hljs-string">&quot;protocols&quot;</span>: [<span class="hljs-string">&quot;amqp&quot;</span>],
+         <span class="hljs-string">&quot;ports&quot;</span>: [<span class="hljs-string">&quot;p3&quot;</span>]
+     }}
+]
+</code></pre>
+<h4 id="example-response">Example Response</h4>
+<pre><code class="lang-http">HTTP/1.1 <span class="hljs-number">204</span> No Content
+</code></pre>
+<h4 id="status-codes">Status Codes</h4>
+<ul>
+<li><strong>204</strong> - no content (success)</li>
+<li><strong>404</strong> - not found</li>
+<li><strong>500</strong> - server error</li>
+</ul>
+<p>The effective path of the JSON Patch operation is obtained by joining the path portion of the URL with the path value from the operation(s) contained in the message body. In all cases, the parent of the effective path MUST refer to an existing document, otherwise the server returns 404. In the case of <strong>remove</strong> and <strong>replace</strong> operations, the effective path MUST refer to an existing document, otherwise the server returns 404.</p>
+<h2 id="query-api"><a name="query-api"></a> Query API</h2>
+<h3 id="execute-a-query">Execute a Query</h3>
+<pre><code>GET /v1/query
+</code></pre><p>Execute an ad-hoc query and return bindings for variables found in the query.</p>
+<h4 id="example-request">Example Request</h4>
+<pre><code>GET /v1/query?q=data.servers[i].ports[_] = &quot;p2&quot;; data.servers[i].name = name HTTP/1.1
+</code></pre><h4 id="example-response">Example Response</h4>
+<pre><code class="lang-http">HTTP/1.1 <span class="hljs-number">200</span> OK
+<span class="hljs-attribute">Content-Type</span>: application/json
+</code></pre>
+<pre><code class="lang-json">{
+  <span class="hljs-string">&quot;result&quot;</span>: [
+    {
+      <span class="hljs-string">&quot;i&quot;</span>: <span class="hljs-number">3</span>,
+      <span class="hljs-string">&quot;name&quot;</span>: <span class="hljs-string">&quot;dev&quot;</span>
+    },
+    {
+      <span class="hljs-string">&quot;i&quot;</span>: <span class="hljs-number">0</span>,
+      <span class="hljs-string">&quot;name&quot;</span>: <span class="hljs-string">&quot;app&quot;</span>
+    }
+  ]
+}
+</code></pre>
+<h4 id="query-parameters">Query Parameters</h4>
+<ul>
+<li><strong>q</strong> - The ad-hoc query to execute. OPA will parse, compile, and execute the query represented by the parameter value. The value MUST be URL encoded.</li>
+<li><strong>pretty</strong> - If parameter is <code>true</code>, response will formatted for humans.</li>
+<li><strong>explain</strong> - Return query explanation in addition to result. Values: <strong>full</strong>, <strong>truth</strong>.</li>
+<li><strong>metrics</strong> - Return query performance metrics in addition to result. See <a href="#performance-metrics">Performance Metrics</a> for more detail.</li>
+</ul>
+<h4 id="status-codes">Status Codes</h4>
+<ul>
+<li><strong>200</strong> - no error</li>
+<li><strong>400</strong> - bad request</li>
+<li><strong>500</strong> - server error</li>
+</ul>
+<h2 id="authentication"><a name="authentication"></a> Authentication</h2>
+<p>The API is secured via <a href="documentation/references/security">HTTPS, Authentication, and
+Authorization</a>.</p>
+<h3 id="bearer-tokens"><a name="bearer-tokens"> Bearer Tokens</a></h3>
+<p>When OPA is started with the <code>--authentication=token</code> command line flag,
+clients MUST provide a Bearer token in the HTTP Authorization header:</p>
+<pre><code class="lang-http"><span class="hljs-keyword">GET</span> <span class="hljs-string">/v1/data/exempli-gratia</span> HTTP/1.1
+<span class="hljs-attribute">Authorization</span>: Bearer my-secret-token
+</code></pre>
+<p>Bearer tokens must be represented with a valid HTTP header value character
+sequence.</p>
+<p>OPA will extract the Bearer token value (which is set to <code>my-secret-token</code>
+above) and provide it to the authorization component inside OPA that will (i)
+validate the token and (ii) execute the authorization policy configured by the
+admin.</p>
+<h2 id="errors"><a name="errors"></a> Errors</h2>
+<p>All of the API endpoints use standard HTTP status codes to indicate success or
+failure of an API call. If an API call fails, the response will contain a JSON
+encoded object that provides more detail. The <code>errors</code> and <code>location</code> fields are
+optional:</p>
+<pre><code>{
+  &quot;code&quot;: &quot;invalid_parameter&quot;,
+  &quot;message&quot;: &quot;error(s) occurred while compiling module(s)&quot;,
+  &quot;errors&quot;: [
+    {
+      &quot;code&quot;: &quot;rego_unsafe_var_error&quot;,
+      &quot;message&quot;: &quot;var x is unsafe&quot;,
+      &quot;location&quot;: {
+        &quot;file&quot;: &quot;example&quot;,
+        &quot;row&quot;: 3,
+        &quot;col&quot;: 1
+      }
+    }
+  ]
+}
+</code></pre><h2 id="explanations"><a name="explanations"></a> Explanations</h2>
+<p>OPA supports query explanations that describe (in detail) the steps taken to
+produce query results.</p>
+<p>Explanations can be requested for:</p>
+<ul>
+<li><a href="#data-api">Data API</a> GET queries</li>
+<li><a href="#query-api">Query API</a> queries</li>
+</ul>
+<p>Explanations are requested by setting the <code>explain</code> query parameter to one of
+the following values:</p>
+<ul>
+<li><strong>full</strong> - returns a full query trace containing every step in the query evaluation process.</li>
+<li><strong>truth</strong> - returns a partial query trace containing one path that leads to the overall query being successful.</li>
+</ul>
+<h3 id="trace-events">Trace Events</h3>
+<p>When the <code>explain</code> query parameter is set to <strong>full</strong> or <strong>truth</strong> , the
+response contains an array of Trace Event objects.</p>
+<p>Trace Event objects contain the following fields:</p>
+<ul>
+<li><strong>op</strong> - identifies the kind of Trace Event. Values: <strong>&quot;Enter&quot;</strong>, <strong>&quot;Exit&quot;</strong>, <strong>&quot;Eval&quot;</strong>, <strong>&quot;Fail&quot;</strong>, <strong>&quot;Redo&quot;</strong>.</li>
+<li><strong>query_id</strong> - uniquely identifies the query that the Trace Event was emitted for.</li>
+<li><strong>parent_id</strong> - identifies the parent query.</li>
+<li><strong>type</strong> - indicates the type of the <strong>node</strong> field. Values: <strong>&quot;expr&quot;</strong>, <strong>&quot;rule&quot;</strong>, <strong>&quot;body&quot;</strong>.</li>
+<li><strong>node</strong> - contains the AST element associated with the evaluation step.</li>
+<li><strong>locals</strong> - contains the term bindings from the query at the time when the Trace Event was emitted.</li>
+</ul>
+<h4 id="query-ids">Query IDs</h4>
+<p>Queries often reference rules or contain comprehensions. In both cases, query
+evaluation involves evaluation of one or more other queries, e.g., the body of
+the rule or comprehension.</p>
+<p>Trace Events from different queries can be distinguished by the <strong>query_id</strong>
+field.</p>
+<p>Trace Events from related queries can be identified by the <strong>parent_id</strong> field.</p>
+<p>For example, if query A references a rule R, Trace Events emitted as part of
+evaluating rule R&apos;s body will have the <strong>parent_id</strong> field set to query A&apos;s
+<strong>query_id</strong>.</p>
+<h4 id="types-of-events">Types of Events</h4>
+<p>Each Trace Event represents a step in the query evaluation process. Trace Events
+are emitted at the following points:</p>
+<ul>
+<li><strong>enter</strong> - before a body or rule is evaluated.</li>
+<li><strong>exit</strong> - after a body or rule has evaluated successfully.</li>
+<li><strong>eval</strong> - before an expression is evaluated.</li>
+<li><strong>fail</strong> - after an expression has evaluated to false.</li>
+<li><strong>redo</strong> - before evaluation restarts from a body, rule, or expression.</li>
+</ul>
+<p>By default, OPA searches for all sets of term bindings that make all expressions
+in the query evaluate to true. Because there may be multiple answers, the search
+can <em>restart</em> when OPA determines the query is true or false. When the search
+restarts, a <strong>Redo</strong> Trace Event is emitted.</p>
+<h4 id="example-trace-event">Example Trace Event</h4>
+<pre><code class="lang-json">{
+  <span class="hljs-string">&quot;op&quot;</span>: <span class="hljs-string">&quot;eval&quot;</span>,
+  <span class="hljs-string">&quot;query_id&quot;</span>: <span class="hljs-number">20</span>,
+  <span class="hljs-string">&quot;parent_id&quot;</span>: <span class="hljs-number">0</span>,
+  <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;expr&quot;</span>,
+  <span class="hljs-string">&quot;node&quot;</span>: {
+    <span class="hljs-string">&quot;index&quot;</span>: <span class="hljs-number">1</span>,
+    <span class="hljs-string">&quot;terms&quot;</span>: [
+      {
+        <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;var&quot;</span>,
+        <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-string">&quot;eq&quot;</span>
+      },
+      {
+        <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;var&quot;</span>,
+        <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-string">&quot;x&quot;</span>
+      },
+      {
+        <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;var&quot;</span>,
+        <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-string">&quot;y&quot;</span>
+      }
+    ]
+  },
+  <span class="hljs-string">&quot;locals&quot;</span>: [
+    {
+      <span class="hljs-string">&quot;key&quot;</span>: {
+        <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;var&quot;</span>,
+        <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-string">&quot;x&quot;</span>
+      },
+      <span class="hljs-string">&quot;value&quot;</span>: {
+        <span class="hljs-string">&quot;type&quot;</span>: <span class="hljs-string">&quot;string&quot;</span>,
+        <span class="hljs-string">&quot;value&quot;</span>: <span class="hljs-string">&quot;hello&quot;</span>
+      }
+    }
+  ]
+}
+</code></pre>
+<h2 id="performance-metrics"><a name="performance-metrics"></a> Performance Metrics</h2>
+<p>OPA can report detailed performance metrics at runtime. Currently, performance metrics can be requested on individual API calls and are returned inline with the API response. To enable performance metric collection on an API call, specify the <code>metrics=true</code> query parameter when executing the API call. Performance metrics are currently supported for the following APIs:</p>
+<ul>
+<li>Data API GET</li>
+<li>Data API POST</li>
+<li>Query API</li>
+</ul>
+<p>For example:</p>
+<pre><code class="lang-http"><span class="hljs-keyword">POST</span> <span class="hljs-string">/v1/data/example?metrics=true</span> HTTP/1.1
+</code></pre>
+<p>Response:</p>
+<pre><code class="lang-http">HTTP/1.1 <span class="hljs-number">200</span> OK
+<span class="hljs-attribute">Content-Type</span>: application/json
+</code></pre>
+<pre><code class="lang-json">{
+  <span class="hljs-string">&quot;metrics&quot;</span>: {
+    <span class="hljs-string">&quot;timer_rego_query_compile_ns&quot;</span>: <span class="hljs-number">69994</span>,
+    <span class="hljs-string">&quot;timer_rego_query_eval_ns&quot;</span>: <span class="hljs-number">48425</span>,
+    <span class="hljs-string">&quot;timer_rego_query_parse_ns&quot;</span>: <span class="hljs-number">4096</span>
+  },
+  <span class="hljs-string">&quot;result&quot;</span>: {
+    <span class="hljs-string">&quot;some_strings&quot;</span>: [
+      <span class="hljs-string">&quot;hello&quot;</span>,
+      <span class="hljs-string">&quot;world&quot;</span>
+    ]
+  }
+}
+</code></pre>
+<h3 id="query-performance-metrics"><a name="query-performance-metrics"></a> Query Performance Metrics</h3>
+<p>OPA currently supports the following query performance metrics:</p>
+<ul>
+<li><strong>timer_rego_query_parse_ns</strong>: time taken (in nanonseconds) to parse the query.</li>
+<li><strong>timer_rego_query_compile_ns</strong>: time taken (in nanonseconds) to compile the query.</li>
+<li><strong>timer_rego_query_eval_ns</strong>: time taken (in nanonseconds) to evaluate the query.</li>
+</ul>
+
+                                
+                                </section>
+                            
+    </div>
+    <div class="search-results">
+        <div class="has-results">
+            
+            <h1 class="search-results-title"><span class="search-results-count"></span> results matching &quot;<span class="search-query"></span>&quot;</h1>
+            <ul class="search-results-list"></ul>
+            
+        </div>
+        <div class="no-results">
+            
+            <h1 class="search-results-title">No results matching &quot;<span class="search-query"></span>&quot;</h1>
+            
+        </div>
+    </div>
+</div>
+
+                        </div>
+                    </div>
+                
+            </div>
+
+            
+                
+                <a href="language-reference.html" class="navigation navigation-prev " aria-label="Previous page: Language Reference">
+                    <i class="fa fa-angle-left"></i>
+                </a>
+                
+                
+                <a href="rest-api-v0.html" class="navigation navigation-next " aria-label="Next page: REST API (V0)">
+                    <i class="fa fa-angle-right"></i>
+                </a>
+                
+            
+        
+    </div>
+
+    <script>
+        var gitbook = gitbook || [];
+        gitbook.push(function() {
+            gitbook.page.hasChanged({"page":{"title":"REST API (V1)","level":"1.5","depth":1,"next":{"title":"REST API (V0)","level":"1.6","depth":1,"path":"rest-api-v0.md","ref":"rest-api-v0.md","articles":[]},"previous":{"title":"Language Reference","level":"1.4","depth":1,"path":"language-reference.md","ref":"language-reference.md","articles":[]},"dir":"ltr"},"config":{"gitbook":"*","theme":"default","variables":{},"plugins":["header","addcssjs","livereload"],"pluginsConfig":{"livereload":{},"search":{},"layout":{"headerPath":"layouts/header.html"},"addcssjs":{"css":["css/custom.css"],"js":["js/custom.js"]},"lunr":{"maxIndexSize":1000000,"ignoreSpecialCharacters":false},"header":{},"fontsettings":{"theme":"white","family":"sans","size":2},"highlight":{},"sharing":{"facebook":true,"twitter":true,"google":false,"weibo":false,"instapaper":false,"vk":false,"all":["facebook","google","twitter","weibo","instapaper"]},"theme-default":{"styles":{"website":"styles/website.css","pdf":"styles/pdf.css","epub":"styles/epub.css","mobi":"styles/mobi.css","ebook":"styles/ebook.css","print":"styles/print.css"},"showLevel":false}},"structure":{"langs":"LANGS.md","readme":"README.md","glossary":"GLOSSARY.md","summary":"SUMMARY.md"},"pdf":{"pageNumbers":true,"fontSize":12,"fontFamily":"Arial","paperSize":"a4","chapterMark":"pagebreak","pageBreaksBefore":"/","margin":{"right":62,"left":62,"top":56,"bottom":56}},"styles":{"website":"styles/website.css","pdf":"styles/pdf.css","epub":"styles/epub.css","mobi":"styles/mobi.css","ebook":"styles/ebook.css","print":"styles/print.css"}},"file":{"path":"rest-api-v1.md","mtime":"2017-06-14T22:48:57.000Z","type":"markdown"},"gitbook":{"version":"3.2.2","time":"2017-06-16T00:41:56.745Z"},"basePath":".","book":{"language":""}});
+        });
+    </script>
+</div>
+
+        
+    
+    <script src="gitbook/gitbook.js"></script>
+    <script src="gitbook/theme.js"></script>
+    
+        
+        <script src="gitbook/gitbook-plugin-livereload/plugin.js"></script>
+        
+    
+        
+        <script src="gitbook/gitbook-plugin-search/search-engine.js"></script>
+        
+    
+        
+        <script src="gitbook/gitbook-plugin-search/search.js"></script>
+        
+    
+        
+        <script src="gitbook/gitbook-plugin-lunr/lunr.min.js"></script>
+        
+    
+        
+        <script src="gitbook/gitbook-plugin-lunr/search-lunr.js"></script>
+        
+    
+        
+        <script src="gitbook/gitbook-plugin-sharing/buttons.js"></script>
+        
+    
+        
+        <script src="gitbook/gitbook-plugin-fontsettings/fontsettings.js"></script>
+        
+    
+
+    
+    <script type="text/javascript" src="js/custom.js"></script>
+    
+
+    </body>
+</html>
+

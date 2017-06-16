@@ -1,0 +1,936 @@
+
+<!DOCTYPE HTML>
+<html lang="">
+    <head>
+        <meta charset="UTF-8">
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <title>How Does OPA Work? &#xB7; GitBook</title>
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="description" content="">
+        <meta name="generator" content="GitBook 3.2.2">
+        
+        
+        
+    
+    
+    <link rel="stylesheet" href="gitbook/style.css">
+
+    
+            
+                
+                <link rel="stylesheet" href="gitbook/gitbook-plugin-highlight/website.css">
+                
+            
+                
+                <link rel="stylesheet" href="gitbook/gitbook-plugin-search/search.css">
+                
+            
+                
+                <link rel="stylesheet" href="gitbook/gitbook-plugin-fontsettings/website.css">
+                
+            
+        
+
+    
+
+    
+        
+        <link rel="stylesheet" href="styles/website.css">
+        
+    
+        
+    
+        
+    
+        
+    
+        
+    
+        
+    
+
+    
+    <link rel="stylesheet" type="text/css" href="css/custom.css">
+    
+
+        
+    
+    
+    <meta name="HandheldFriendly" content="true">
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <link rel="apple-touch-icon-precomposed" sizes="152x152" href="gitbook/images/apple-touch-icon-precomposed-152.png">
+    <link rel="shortcut icon" href="gitbook/images/favicon.ico" type="image/x-icon">
+
+    
+    <link rel="next" href="how-do-i-write-policies.html">
+    
+    
+    <link rel="prev" href="./">
+    
+
+    </head>
+    <body>
+        
+<div class="book"><div class="_doc--header">
+  <div class="header _doc--container">
+
+      <div class="_doc--logo header--logo">
+        <a class="header--logo-link" href="/">
+          <img class="header--logo-image" src="images/opa-logo.svg" alt="">
+          <div class="header--logo-txt">
+            Open Policy Agent
+          </div>
+        </a>
+      </div>
+
+      <div class="_doc--menu-mobile">
+        <button class="hamburger hamburger--spring" type="button" style="outline: none; padding-bottom: 8px;">
+          <span class=" hamburger-box">
+            <span class="menu-mobile--hamburger-inner hamburger-inner"></span>
+          </span>
+        </button>
+      </div>
+
+      <div class="_doc--menu-desktop header--menu">
+        <a class="header--link header--link_LONG" href="/doc/_book/">
+          <div class="header--menu-txt">
+            Documentation
+          </div>
+        </a>
+        <a class="header--link header--link_LONG" href="/doc/_book/working-with-the-opa-repl.html">
+          <div class="header--menu-txt">
+            Tutorials
+          </div>
+        </a>
+        <a class="header--link header--social-link" href="https://blog.openpolicyagent.org/" target="_blank">
+          <img class="header--menu-image" src="images/Medium.svg" alt="">
+        </a>
+        <a class="header--link header--social-link" href="https://github.com/open-policy-agent/opa/issues" target="_blank">
+          <img class="header--menu-image" src="images/Github.svg" alt="">
+        </a>
+        <a class="header--link header--social-link" href="http://a5ec585d42ace11e7aaad0260e83477e-1095713357.us-west-2.elb.amazonaws.com/" target="_blank">
+          <img class="header--menu-image" src="images/Slack.svg" alt="">
+        </a>
+      </div>
+
+  </div>
+</div>
+
+<div class="_doc--hamburger-menu-container">
+
+  <a class="header--hamburger-menu-link" href="/doc/_book">
+    <li class="header--hamburger-menu-item">
+      <div class="header--menu-txt">
+        Documentation
+      </div>
+    </li>
+  </a>
+
+  <a class="header--hamburger-menu-link" href="/doc/_book/working-with-the-opa-repl.html">
+    <li class="header--hamburger-menu-item">
+      <div class="header--menu-txt">
+        Tutorials
+      </div>
+    </li>
+  </a>
+
+  <a class="header--hamburger-menu-link" href="https://blog.openpolicyagent.org/" target="_blank">
+    <li class="header--hamburger-menu-item">
+      <img class="header--menu-image" src="images/Medium.svg" alt="">
+    </li>
+  </a>
+
+  <a class="header--hamburger-menu-link" href="https://github.com/open-policy-agent/opa/issues" target="_blank">
+    <li class="header--hamburger-menu-item">
+      <img class="header--menu-image" src="images/Github.svg" alt="">
+    </li>
+  </a>
+
+  <a class="header--hamburger-menu-link" href="http://a5ec585d42ace11e7aaad0260e83477e-1095713357.us-west-2.elb.amazonaws.com/" target="_blank">
+    <li class="header--hamburger-menu-item">
+      <img class="header--menu-image" src="images/Slack.svg" alt="">
+    </li>
+  </a>
+
+
+</div>
+
+    <div class="book-summary">
+        
+            
+<div id="book-search-input" role="search">
+    <input type="text" placeholder="Type to search">
+</div>
+
+            
+                <nav role="navigation">
+                
+
+
+<ul class="summary">
+    
+    
+
+    
+
+    
+        
+        <li class="header">Documentation</li>
+        
+        
+    
+        <li class="chapter " data-level="1.1" data-path="./">
+            
+                <a href="./">
+            
+                    
+                    Introduction
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter active" data-level="1.2" data-path="how-does-opa-work.html">
+            
+                <a href="how-does-opa-work.html">
+            
+                    
+                    How Does OPA Work?
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter " data-level="1.3" data-path="how-do-i-write-policies.html">
+            
+                <a href="how-do-i-write-policies.html">
+            
+                    
+                    How Do I Write Policies?
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter " data-level="1.4" data-path="language-reference.html">
+            
+                <a href="language-reference.html">
+            
+                    
+                    Language Reference
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter " data-level="1.5" data-path="rest-api-v1.html">
+            
+                <a href="rest-api-v1.html">
+            
+                    
+                    REST API (V1)
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter " data-level="1.6" data-path="rest-api-v0.html">
+            
+                <a href="rest-api-v0.html">
+            
+                    
+                    REST API (V0)
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter " data-level="1.7" data-path="deployments.html">
+            
+                <a href="deployments.html">
+            
+                    
+                    Deployments
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter " data-level="1.8" data-path="security.html">
+            
+                <a href="security.html">
+            
+                    
+                    Security
+            
+                </a>
+            
+
+            
+        </li>
+    
+
+    
+        
+        <li class="header">Tutorials</li>
+        
+        
+    
+        <li class="chapter " data-level="2.1" data-path="working-with-the-opa-repl.html">
+            
+                <a href="working-with-the-opa-repl.html">
+            
+                    
+                    Working with the OPA REPL
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter " data-level="2.2" data-path="docker-authorization.html">
+            
+                <a href="docker-authorization.html">
+            
+                    
+                    Docker Authorization
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter " data-level="2.3" data-path="http-api-authorization.html">
+            
+                <a href="http-api-authorization.html">
+            
+                    
+                    HTTP API Authorization
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter " data-level="2.4" data-path="ssh-and-sudo-authorization.html">
+            
+                <a href="ssh-and-sudo-authorization.html">
+            
+                    
+                    SSH and sudo Authorization
+            
+                </a>
+            
+
+            
+        </li>
+    
+
+    
+
+    <li class="divider"></li>
+
+    <li>
+        <a href="https://www.gitbook.com" target="blank" class="gitbook-link">
+            Published with GitBook
+        </a>
+    </li>
+</ul>
+
+
+                </nav>
+            
+        
+    </div>
+
+    <div class="book-body">
+        
+            <div class="body-inner">
+                
+                    
+
+<div class="book-header" role="navigation">
+    
+
+    <!-- Title -->
+    <h1>
+        <i class="fa fa-circle-o-notch fa-spin"></i>
+        <a href=".">How Does OPA Work?</a>
+    </h1>
+</div>
+
+
+
+
+                    <div class="page-wrapper" tabindex="-1" role="main">
+                        <div class="page-inner">
+                            
+<div id="book-search-results">
+    <div class="search-noresults">
+    
+                                <section class="normal markdown-section">
+                                
+                                <h1 id="how-does-opa-work">How Does OPA Work?</h1>
+<p>OPA is a full-featured policy engine that runs as a host-local daemon alongside your service. You can think of it as a concierge for your service who can answer detailed questions on behalf of your users to meet their specific needs.</p>
+<h2 id="overview">Overview</h2>
+<p>OPA&#x2019;s RESTful APIs use JSON over HTTP so you and your users can integrate OPA with any programming language. At a high level, integrating OPA into your service involves:</p>
+<ul>
+<li>Deploying OPA alongside your service</li>
+<li>Pushing relevant data about your service&#x2019;s state into OPA&#x2019;s document store</li>
+<li>Offloading some or all decision-making to OPA by querying it</li>
+</ul>
+<p>When your service is integrated with OPA, your users will be able author and deploy custom policies that control the behavior of your service&#x2019;s policy-enabled features. Furthermore, users can publish data to OPA that is not available to your service about their own deployment context.</p>
+<p><img src="images/request-response.svg" alt="request response" title="request response"></p>
+<p>In the future, both your service and its users will be able to register for, and react to, notifications triggered when OPA detects a policy-relevant change.</p>
+<h2 id="deployment">Deployment</h2>
+<p>Unless you embed OPA as a Go library, you will deploy it alongside your service &#x2013; either directly as an operating system daemon or inside a container. In this way, transactions will have low latency and availability will be determined through shared fate with your service.</p>
+<p>When OPA starts for the first time, it will not contain any policies or data. Policies and data can be added, removed, and modified at any time. For example: by deployment automation software or your service as it is deployed, by your service during an upgrade, or by administrators as needed.</p>
+<h2 id="data-and-policies">Data and Policies</h2>
+<p>The primary unit of data in OPA is a document, which is similar to a JSON value. Documents typically correspond to single, self-contained objects and are capable of representing both primitive types (strings, numbers, booleans, and null) as well as structured types (objects, and arrays). Documents are created, read, updated, and deleted via OPA&#x2019;s RESTful HTTP APIs.</p>
+<p><img src="images/data-model-dependencies.svg" alt="data model dependencies" title="data model dependencies"></p>
+<h3 id="base-documents"><a name="base-documents"></a> Base Documents</h3>
+<p>So-called base documents contain static, structured data stored in memory and optionally saved to disk for resiliency. Your service will publish and update base documents in order to describe its current state, and your users can do the same to include relevant data about the state of their own deployment context.</p>
+<p>Base documents are published and updated using OPA&#x2019;s Data API. For example, the following request publishes a list of servers to OPA:</p>
+<pre><code class="lang-http"><span class="hljs-keyword">PATCH</span> <span class="hljs-string">https://example.com/v1/data/servers</span> HTTP/1.1
+<span class="hljs-attribute">Content-Type</span>: application/json-patch+json
+</code></pre>
+<pre><code class="lang-json">[
+  {
+    <span class="hljs-string">&quot;op&quot;</span>: <span class="hljs-string">&quot;add&quot;</span>,
+    <span class="hljs-string">&quot;path&quot;</span>: <span class="hljs-string">&quot;-&quot;</span>,
+    <span class="hljs-string">&quot;value&quot;</span>: {
+      <span class="hljs-string">&quot;id&quot;</span>: <span class="hljs-string">&quot;s1&quot;</span>,
+      <span class="hljs-string">&quot;name&quot;</span>: <span class="hljs-string">&quot;app&quot;</span>,
+      <span class="hljs-string">&quot;protocols&quot;</span>: [
+        <span class="hljs-string">&quot;http&quot;</span>,
+        <span class="hljs-string">&quot;https&quot;</span>,
+        <span class="hljs-string">&quot;ssh&quot;</span>
+      ],
+      <span class="hljs-string">&quot;ports&quot;</span>: [
+        <span class="hljs-string">&quot;p1&quot;</span>,
+        <span class="hljs-string">&quot;p2&quot;</span>,
+        <span class="hljs-string">&quot;p3&quot;</span>
+      ]
+    }
+  },
+  {
+    <span class="hljs-string">&quot;op&quot;</span>: <span class="hljs-string">&quot;add&quot;</span>,
+    <span class="hljs-string">&quot;path&quot;</span>: <span class="hljs-string">&quot;-&quot;</span>,
+    <span class="hljs-string">&quot;value&quot;</span>: {
+      <span class="hljs-string">&quot;id&quot;</span>: <span class="hljs-string">&quot;s2&quot;</span>,
+      <span class="hljs-string">&quot;name&quot;</span>: <span class="hljs-string">&quot;db&quot;</span>,
+      <span class="hljs-string">&quot;protocols&quot;</span>: [
+        <span class="hljs-string">&quot;mysql&quot;</span>
+      ],
+      <span class="hljs-string">&quot;ports&quot;</span>: [
+        <span class="hljs-string">&quot;p3&quot;</span>
+      ]
+    }
+  },
+  {
+    <span class="hljs-string">&quot;op&quot;</span>: <span class="hljs-string">&quot;add&quot;</span>,
+    <span class="hljs-string">&quot;path&quot;</span>: <span class="hljs-string">&quot;-&quot;</span>,
+    <span class="hljs-string">&quot;value&quot;</span>: {
+      <span class="hljs-string">&quot;id&quot;</span>: <span class="hljs-string">&quot;s3&quot;</span>,
+      <span class="hljs-string">&quot;name&quot;</span>: <span class="hljs-string">&quot;cache&quot;</span>,
+      <span class="hljs-string">&quot;protocols&quot;</span>: [
+        <span class="hljs-string">&quot;memcache&quot;</span>
+      ],
+      <span class="hljs-string">&quot;ports&quot;</span>: [
+        <span class="hljs-string">&quot;p3&quot;</span>
+      ]
+    }
+  },
+  {
+    <span class="hljs-string">&quot;op&quot;</span>: <span class="hljs-string">&quot;add&quot;</span>,
+    <span class="hljs-string">&quot;path&quot;</span>: <span class="hljs-string">&quot;-&quot;</span>,
+    <span class="hljs-string">&quot;value&quot;</span>: {
+      <span class="hljs-string">&quot;id&quot;</span>: <span class="hljs-string">&quot;s4&quot;</span>,
+      <span class="hljs-string">&quot;name&quot;</span>: <span class="hljs-string">&quot;dev&quot;</span>,
+      <span class="hljs-string">&quot;protocols&quot;</span>: [
+        <span class="hljs-string">&quot;http&quot;</span>,
+        <span class="hljs-string">&quot;https&quot;</span>,
+        <span class="hljs-string">&quot;ssh&quot;</span>
+      ],
+      <span class="hljs-string">&quot;ports&quot;</span>: [
+        <span class="hljs-string">&quot;p1&quot;</span>,
+        <span class="hljs-string">&quot;p2&quot;</span>
+      ]
+    }
+  }
+]
+</code></pre>
+<h3 id="policies">Policies</h3>
+<p>Policies are written using OPA&#x2019;s purpose-built, declarative language Rego. Rego includes rich support for traversing nested documents and transforming data using syntax inspired by dictionary and array access in languages like Python and JSONPath. For detailed information about using Rego, see <a href="documentation/how-do-i-write-policies">How Do I Write Policies?</a>.</p>
+<p>Each Rego file defines a policy module using a collection of rules that describe the expected state of your service. Both your service and its users can publish and update policy modules using OPA&#x2019;s Policy API. For example, the following request creates a policy with two rules (violations and public_servers) named &#x201C;exempli-gratia&#x201D;:</p>
+<pre><code class="lang-http"><span class="hljs-keyword">PUT</span> <span class="hljs-string">https://example.com/v1/policies/exempli-gratia</span> HTTP/1.1
+<span class="hljs-attribute">Content-Type</span>: text/plain
+</code></pre>
+<pre><code class="lang-ruby">package opa.examples
+
+import data.servers
+import data.networks
+import data.ports
+
+violations[server] {
+    server = servers[<span class="hljs-number">_</span>]
+    server.protocols[<span class="hljs-number">_</span>] = <span class="hljs-string">&quot;http&quot;</span>
+    public_servers[server] = <span class="hljs-keyword">true</span>
+}
+
+public_servers[server] {
+    server = servers[<span class="hljs-number">_</span>]
+    server.ports[<span class="hljs-number">_</span>] = ports[i].id
+    ports[i].networks[<span class="hljs-number">_</span>] = networks[j].id
+    networks[j].public = <span class="hljs-keyword">true</span>
+}
+</code></pre>
+<p>A policy file must contain a single package declaration, which defines the path to the policy module and its rules (for example, data.opa.examples.violations &#x2013; see The data Document for more information about accessing nested documents). The policy name itself (in this case, &#x201C;exempli-gratia&#x201D;) is only used to identify policies for file management purposes; it is not used otherwise.</p>
+<h3 id="rules-and-virtual-documents"><a name="virtual-documents"></a> Rules and Virtual Documents</h3>
+<p>In contrast to base documents, virtual documents embody the results of evaluating the rules included in policy modules. Virtual documents are computed when users publish new policy modules, update existing modules, run queries, and when any relevant base document is published or updated. Rules allow policy authors to write questions with yes-no answers (that is, predicates) and to generate structured values from raw data found in base documents as well as from intermediate data found in other virtual documents.</p>
+<h3 id="the-data-document"><a name="the-data-document"></a> The <code>data</code> Document</h3>
+<p>All documents pushed into OPA or computed by rules are nested under a built-in root document named data.</p>
+<p><img src="images/data-model-logical.svg" alt="data model logical" title="data model logical"></p>
+<pre><code class="lang-json">{
+  <span class="hljs-string">&quot;data&quot;</span>: {
+    <span class="hljs-string">&quot;servers&quot;</span>: [...],
+    <span class="hljs-string">&quot;ports&quot;</span>: [...],
+    <span class="hljs-string">&quot;networks&quot;</span>: [...],
+    <span class="hljs-string">&quot;opa&quot;</span>: {
+      <span class="hljs-string">&quot;examples&quot;</span>: {
+        <span class="hljs-string">&quot;violations&quot;</span>: [...],
+        <span class="hljs-string">&quot;public_servers&quot;</span>: [...]
+      }
+    }
+  }
+}
+</code></pre>
+<p>As a result, any document, base or virtual, can be accessed hierarchically starting from the root data node &#x2013; either as an identifier:</p>
+<pre><code class="lang-ruby">import data.servers                            <span class="hljs-comment"># Base document</span>
+import data.opa.examples.violations            <span class="hljs-comment"># Virtual document</span>
+</code></pre>
+<p>or as a URI component in an HTTP request:</p>
+<pre><code class="lang-http"><span class="hljs-keyword">GET</span> <span class="hljs-string">https://example.com/v1/data/servers</span> HTTP/1.1
+</code></pre>
+<pre><code class="lang-http"><span class="hljs-keyword">GET</span> <span class="hljs-string">https://example.com/v1/data/opa/examples/violations</span> HTTP/1.1
+</code></pre>
+<h3 id="the-input-document"><a name="the-input-document"></a> The <code>input</code> Document</h3>
+<p>In some cases, to evaluate a policy, the query must specify additional documents
+as arguments.</p>
+<p>Query arguments are nested under a built-in root document named input (similar to data).</p>
+<pre><code class="lang-json">{
+  <span class="hljs-string">&quot;input&quot;</span>: {
+      <span class="hljs-string">&quot;method&quot;</span>: <span class="hljs-string">&quot;GET&quot;</span>,
+      <span class="hljs-string">&quot;path&quot;</span>: <span class="hljs-string">&quot;/servers/s2&quot;</span>,
+      <span class="hljs-string">&quot;user&quot;</span>: <span class="hljs-string">&quot;alice&quot;</span>
+  }
+}
+</code></pre>
+<p>Query arguments can be accessed hierarchically starting from the root input
+node:</p>
+<pre><code class="lang-ruby">allow { input.user = <span class="hljs-string">&quot;alice&quot;</span> }
+</code></pre>
+<p>Just like state stored in OPA, documents supplied with the query can be aliased:</p>
+<pre><code class="lang-ruby">package opa.examples
+
+import input.method
+import input.user
+
+<span class="hljs-comment"># allow &quot;bob&quot; to perform read-only operations</span>
+allow { user = <span class="hljs-string">&quot;bob&quot;</span>; method = <span class="hljs-string">&quot;GET&quot;</span> }
+
+<span class="hljs-comment"># allow &quot;alice&quot; to perform any operation</span>
+allow { user = <span class="hljs-string">&quot;alice&quot;</span> }
+</code></pre>
+<h3 id="putting-it-all-together">Putting It All Together</h3>
+<p>Let&#x2019;s take a look at some documents representing the state of a hypothetical service and a policy module that uses this data. The following documents describe a set of servers, the protocols they use, the ports they open, and the networks those ports are connected to.</p>
+<pre><code class="lang-json">{
+  <span class="hljs-string">&quot;data&quot;</span>: {
+    <span class="hljs-string">&quot;servers&quot;</span>: [
+      {
+        <span class="hljs-string">&quot;id&quot;</span>: <span class="hljs-string">&quot;s1&quot;</span>,
+        <span class="hljs-string">&quot;name&quot;</span>: <span class="hljs-string">&quot;app&quot;</span>,
+        <span class="hljs-string">&quot;protocols&quot;</span>: [
+          <span class="hljs-string">&quot;https&quot;</span>,
+          <span class="hljs-string">&quot;ssh&quot;</span>
+        ],
+        <span class="hljs-string">&quot;ports&quot;</span>: [
+          <span class="hljs-string">&quot;p1&quot;</span>,
+          <span class="hljs-string">&quot;p2&quot;</span>,
+          <span class="hljs-string">&quot;p3&quot;</span>
+        ]
+      },
+      {
+        <span class="hljs-string">&quot;id&quot;</span>: <span class="hljs-string">&quot;s2&quot;</span>,
+        <span class="hljs-string">&quot;name&quot;</span>: <span class="hljs-string">&quot;db&quot;</span>,
+        <span class="hljs-string">&quot;protocols&quot;</span>: [
+          <span class="hljs-string">&quot;mysql&quot;</span>
+        ],
+        <span class="hljs-string">&quot;ports&quot;</span>: [
+          <span class="hljs-string">&quot;p3&quot;</span>
+        ]
+      },
+      {
+        <span class="hljs-string">&quot;id&quot;</span>: <span class="hljs-string">&quot;s3&quot;</span>,
+        <span class="hljs-string">&quot;name&quot;</span>: <span class="hljs-string">&quot;cache&quot;</span>,
+        <span class="hljs-string">&quot;protocols&quot;</span>: [
+          <span class="hljs-string">&quot;memcache&quot;</span>,
+          <span class="hljs-string">&quot;http&quot;</span>
+        ],
+        <span class="hljs-string">&quot;ports&quot;</span>: [
+          <span class="hljs-string">&quot;p3&quot;</span>
+        ]
+      },
+      {
+        <span class="hljs-string">&quot;id&quot;</span>: <span class="hljs-string">&quot;s4&quot;</span>,
+        <span class="hljs-string">&quot;name&quot;</span>: <span class="hljs-string">&quot;dev&quot;</span>,
+        <span class="hljs-string">&quot;protocols&quot;</span>: [
+          <span class="hljs-string">&quot;http&quot;</span>
+        ],
+        <span class="hljs-string">&quot;ports&quot;</span>: [
+          <span class="hljs-string">&quot;p1&quot;</span>,
+          <span class="hljs-string">&quot;p2&quot;</span>
+        ]
+      }
+    ],
+    <span class="hljs-string">&quot;networks&quot;</span>: [
+      {
+        <span class="hljs-string">&quot;id&quot;</span>: <span class="hljs-string">&quot;n1&quot;</span>,
+        <span class="hljs-string">&quot;public&quot;</span>: <span class="hljs-literal">false</span>
+      },
+      {
+        <span class="hljs-string">&quot;id&quot;</span>: <span class="hljs-string">&quot;n2&quot;</span>,
+        <span class="hljs-string">&quot;public&quot;</span>: <span class="hljs-literal">false</span>
+      },
+      {
+        <span class="hljs-string">&quot;id&quot;</span>: <span class="hljs-string">&quot;n3&quot;</span>,
+        <span class="hljs-string">&quot;public&quot;</span>: <span class="hljs-literal">true</span>
+      }
+    ],
+    <span class="hljs-string">&quot;ports&quot;</span>: [
+      {
+        <span class="hljs-string">&quot;id&quot;</span>: <span class="hljs-string">&quot;p1&quot;</span>,
+        <span class="hljs-string">&quot;networks&quot;</span>: [
+          <span class="hljs-string">&quot;n1&quot;</span>
+        ]
+      },
+      {
+        <span class="hljs-string">&quot;id&quot;</span>: <span class="hljs-string">&quot;p2&quot;</span>,
+        <span class="hljs-string">&quot;networks&quot;</span>: [
+          <span class="hljs-string">&quot;n3&quot;</span>
+        ]
+      },
+      {
+        <span class="hljs-string">&quot;id&quot;</span>: <span class="hljs-string">&quot;p3&quot;</span>,
+        <span class="hljs-string">&quot;networks&quot;</span>: [
+          <span class="hljs-string">&quot;n2&quot;</span>
+        ]
+      }
+    ]
+  }
+}
+</code></pre>
+<p>When the data is published, we can use OPA&#x2019;s API to inspect base documents like servers:</p>
+<pre><code class="lang-http"><span class="hljs-keyword">GET</span> <span class="hljs-string">https://example.com/v1/data/servers</span> HTTP/1.1
+</code></pre>
+<p>The response is an object that contains the array of servers:</p>
+<pre><code class="lang-json">{
+  <span class="hljs-string">&quot;result&quot;</span>: [
+    {
+      <span class="hljs-string">&quot;id&quot;</span>: <span class="hljs-string">&quot;s1&quot;</span>,
+      <span class="hljs-string">&quot;name&quot;</span>: <span class="hljs-string">&quot;app&quot;</span>,
+      <span class="hljs-string">&quot;protocols&quot;</span>: [
+        <span class="hljs-string">&quot;https&quot;</span>,
+        <span class="hljs-string">&quot;ssh&quot;</span>
+      ],
+      <span class="hljs-string">&quot;ports&quot;</span>: [
+        <span class="hljs-string">&quot;p1&quot;</span>,
+        <span class="hljs-string">&quot;p2&quot;</span>,
+        <span class="hljs-string">&quot;p3&quot;</span>
+      ]
+    },
+    {
+      <span class="hljs-string">&quot;id&quot;</span>: <span class="hljs-string">&quot;s2&quot;</span>,
+      <span class="hljs-string">&quot;name&quot;</span>: <span class="hljs-string">&quot;db&quot;</span>,
+      <span class="hljs-string">&quot;protocols&quot;</span>: [
+        <span class="hljs-string">&quot;mysql&quot;</span>
+      ],
+      <span class="hljs-string">&quot;ports&quot;</span>: [
+        <span class="hljs-string">&quot;p3&quot;</span>
+      ]
+    },
+    {
+      <span class="hljs-string">&quot;id&quot;</span>: <span class="hljs-string">&quot;s3&quot;</span>,
+      <span class="hljs-string">&quot;name&quot;</span>: <span class="hljs-string">&quot;cache&quot;</span>,
+      <span class="hljs-string">&quot;protocols&quot;</span>: [
+        <span class="hljs-string">&quot;memcache&quot;</span>,
+        <span class="hljs-string">&quot;http&quot;</span>
+      ],
+      <span class="hljs-string">&quot;ports&quot;</span>: [
+        <span class="hljs-string">&quot;p3&quot;</span>
+      ]
+    },
+    {
+      <span class="hljs-string">&quot;id&quot;</span>: <span class="hljs-string">&quot;s4&quot;</span>,
+      <span class="hljs-string">&quot;name&quot;</span>: <span class="hljs-string">&quot;dev&quot;</span>,
+      <span class="hljs-string">&quot;protocols&quot;</span>: [
+        <span class="hljs-string">&quot;http&quot;</span>
+      ],
+      <span class="hljs-string">&quot;ports&quot;</span>: [
+        <span class="hljs-string">&quot;p1&quot;</span>,
+        <span class="hljs-string">&quot;p2&quot;</span>
+      ]
+    }
+  ]
+}
+</code></pre>
+<p>Now let&#x2019;s write a policy that enumerates servers that are connected to public networks and that are using HTTP. These servers are violating a business rule that states that all public servers must use HTTPS.</p>
+<pre><code class="lang-ruby"><span class="hljs-comment"># This policy module belongs the opa.example package.</span>
+package opa.examples
+
+<span class="hljs-comment"># Refer to data.servers as `servers`.</span>
+import data.servers
+<span class="hljs-comment"># Refer to the data.networks as `networks`.</span>
+import data.networks
+<span class="hljs-comment"># Refer to the data.ports as `ports`.</span>
+import data.ports
+
+<span class="hljs-comment"># A server exists in the violations set if...</span>
+violations[server] {
+    <span class="hljs-comment"># ...the server exists</span>
+    server = servers[<span class="hljs-number">_</span>]
+    <span class="hljs-comment"># ...and any of the server&#x2019;s protocols is HTTP</span>
+    server.protocols[<span class="hljs-number">_</span>] = <span class="hljs-string">&quot;http&quot;</span>
+    <span class="hljs-comment"># ...and the server is public.</span>
+    public_servers[server] = <span class="hljs-keyword">true</span>
+}
+
+<span class="hljs-comment"># A server exists in the public_servers set if...</span>
+public_servers[server] {
+    <span class="hljs-comment"># ...the server exists</span>
+    server = servers[<span class="hljs-number">_</span>]
+    <span class="hljs-comment"># ...and the server is connected to a port</span>
+    server.ports[<span class="hljs-number">_</span>] = ports[i].id
+    <span class="hljs-comment"># ...and the port is connected to a network</span>
+    ports[i].networks[<span class="hljs-number">_</span>] = networks[j].id
+    <span class="hljs-comment"># ...and the network is public.</span>
+    networks[j].public = <span class="hljs-keyword">true</span>
+}
+</code></pre>
+<p>Note that:</p>
+<ul>
+<li>Rules consist of assertions about data stored in OPA. In this case, the assertions test for equality with, and membership of, values in the servers, networks, and ports documents.</li>
+<li>Expressions can reference elements in a collection using the <code>[_]</code> and <code>[&lt;variable&gt;]</code> syntax. OPA knows to evaluate such queries by iterating over each element in the corresponding collection.</li>
+<li>Assertions about elements in a collection are <code>true</code> if any of the elements match the expression, and are only <code>false</code> when none of the elements match. For example, <code>ports[i].networks[_] = networks[j].id</code> will be <code>true</code> whenever any element in <code>ports[i].networks</code> matches the id of any element in <code>networks</code>.</li>
+<li>Expressions can reference nested documents. For <code>example,ports[i].networks[_]</code> refers to each network ID listed in each port document.</li>
+<li>Expressions can reference virtual documents. For example, <code>public_servers[server] = true</code> matches only if <code>server</code> is in the list produced by the <code>public_servers</code> rule.</li>
+</ul>
+<p>After publishing this policy module, data will include additional documents corresponding to the module&#x2019;s package declaration (opa.examples) and the virtual documents its rules generate.</p>
+<pre><code class="lang-json">{
+  <span class="hljs-string">&quot;data&quot;</span>: {
+    <span class="hljs-string">&quot;servers&quot;</span>: [...],
+    <span class="hljs-string">&quot;networks&quot;</span>: [...],
+    <span class="hljs-string">&quot;ports&quot;</span>: [...],
+    <span class="hljs-string">&quot;opa&quot;</span>: {
+      <span class="hljs-string">&quot;examples&quot;</span>: {
+        <span class="hljs-string">&quot;violations&quot;</span>: [
+          {
+            <span class="hljs-string">&quot;id&quot;</span>: <span class="hljs-string">&quot;s4&quot;</span>,
+            <span class="hljs-string">&quot;name&quot;</span>: <span class="hljs-string">&quot;dev&quot;</span>,
+            <span class="hljs-string">&quot;protocols&quot;</span>: [
+              <span class="hljs-string">&quot;http&quot;</span>
+            ],
+            <span class="hljs-string">&quot;ports&quot;</span>: [
+              <span class="hljs-string">&quot;p1&quot;</span>,
+              <span class="hljs-string">&quot;p2&quot;</span>
+            ]
+          }
+        ],
+        <span class="hljs-string">&quot;public_servers&quot;</span>: [
+          {
+            <span class="hljs-string">&quot;id&quot;</span>: <span class="hljs-string">&quot;s1&quot;</span>,
+            <span class="hljs-string">&quot;name&quot;</span>: <span class="hljs-string">&quot;app&quot;</span>,
+            <span class="hljs-string">&quot;protocols&quot;</span>: [
+              <span class="hljs-string">&quot;https&quot;</span>,
+              <span class="hljs-string">&quot;ssh&quot;</span>
+            ],
+            <span class="hljs-string">&quot;ports&quot;</span>: [
+              <span class="hljs-string">&quot;p1&quot;</span>,
+              <span class="hljs-string">&quot;p2&quot;</span>,
+              <span class="hljs-string">&quot;p3&quot;</span>
+            ]
+          },
+          {
+            <span class="hljs-string">&quot;id&quot;</span>: <span class="hljs-string">&quot;s4&quot;</span>,
+            <span class="hljs-string">&quot;name&quot;</span>: <span class="hljs-string">&quot;dev&quot;</span>,
+            <span class="hljs-string">&quot;protocols&quot;</span>: [
+              <span class="hljs-string">&quot;http&quot;</span>
+            ],
+            <span class="hljs-string">&quot;ports&quot;</span>: [
+              <span class="hljs-string">&quot;p1&quot;</span>,
+              <span class="hljs-string">&quot;p2&quot;</span>
+            ]
+          }
+        ]
+      }
+    }
+  }
+}
+</code></pre>
+<p>If we use OPA&#x2019;s API to inspect the violations virtual document&#x2026;</p>
+<pre><code class="lang-http"><span class="hljs-keyword">GET</span> <span class="hljs-string">https://example.com/v1/data/opa/examples/violations</span> HTTP/1.1
+</code></pre>
+<p>&#x2026;the response is the subset of the servers base document that use HTTP and are connected to a public network:</p>
+<pre><code class="lang-http">HTTP/1.1 <span class="hljs-number">200</span> OK
+<span class="hljs-attribute">Content-Type</span>: application/json
+</code></pre>
+<pre><code class="lang-json">{
+  <span class="hljs-string">&quot;result&quot;</span>: [
+    {
+      <span class="hljs-string">&quot;id&quot;</span>: <span class="hljs-string">&quot;s4&quot;</span>,
+      <span class="hljs-string">&quot;name&quot;</span>: <span class="hljs-string">&quot;dev&quot;</span>,
+      <span class="hljs-string">&quot;protocols&quot;</span>: [
+        <span class="hljs-string">&quot;http&quot;</span>
+      ],
+      <span class="hljs-string">&quot;ports&quot;</span>: [
+        <span class="hljs-string">&quot;p1&quot;</span>,
+        <span class="hljs-string">&quot;p2&quot;</span>
+      ]
+    }
+  ]
+}
+</code></pre>
+<h2 id="future-features">Future Features</h2>
+<p>OPA is under active development. The following features are planned but not yet implemented.</p>
+<h3 id="triggers">Triggers</h3>
+<p>Your service and its users can register to be notified when the system exits the expected state so that violations can be remediated automatically.</p>
+<p>Any rule can be used as the trigger for a notification. For example, let&#x2019;s assume that you want to migrate containers to a new host if their current host shuts down. You need a rule to detect when there are containers assigned to hosts that are no longer running.</p>
+<pre><code class="lang-ruby"><span class="hljs-comment"># All production containers are running if...</span>
+containers_to_migrate[id] {
+    <span class="hljs-comment"># ...the container exists</span>
+    container = containers[id]
+    <span class="hljs-comment"># ...and it is in production</span>
+    container.site.name = <span class="hljs-string">&quot;prod&quot;</span>
+    <span class="hljs-comment"># ...and its host is running.</span>
+    container.host.state != <span class="hljs-string">&quot;terminated&quot;</span>
+}
+</code></pre>
+<p>This rule produces a list of containers that should be migrated. You can register to observe this rule, and when the underlying data changes, OPA will re-evaluate it and trigger a notification. You can handle the event by re-deploying the containers in the resulting list to a running host.</p>
+<h3 id="transactions">Transactions</h3>
+<p>OPA APIs support transactional operations. Either all of the operations within a transaction succeed or the whole transaction fails. For example, to deploy a new virtual machine, you might:</p>
+<ul>
+<li>Open a new transaction.</li>
+<li>Query OPA for a list of hosts where the VM can be deployed.</li>
+<li>Deploy the VM to host from the list.</li>
+<li>Push data about the new deployment into OPA&#x2019;s document store.</li>
+<li>Close the transaction.</li>
+</ul>
+<p>If any of steps 2&#x2013;4 fail, so will the transaction.</p>
+
+                                
+                                </section>
+                            
+    </div>
+    <div class="search-results">
+        <div class="has-results">
+            
+            <h1 class="search-results-title"><span class="search-results-count"></span> results matching &quot;<span class="search-query"></span>&quot;</h1>
+            <ul class="search-results-list"></ul>
+            
+        </div>
+        <div class="no-results">
+            
+            <h1 class="search-results-title">No results matching &quot;<span class="search-query"></span>&quot;</h1>
+            
+        </div>
+    </div>
+</div>
+
+                        </div>
+                    </div>
+                
+            </div>
+
+            
+                
+                <a href="./" class="navigation navigation-prev " aria-label="Previous page: Introduction">
+                    <i class="fa fa-angle-left"></i>
+                </a>
+                
+                
+                <a href="how-do-i-write-policies.html" class="navigation navigation-next " aria-label="Next page: How Do I Write Policies?">
+                    <i class="fa fa-angle-right"></i>
+                </a>
+                
+            
+        
+    </div>
+
+    <script>
+        var gitbook = gitbook || [];
+        gitbook.push(function() {
+            gitbook.page.hasChanged({"page":{"title":"How Does OPA Work?","level":"1.2","depth":1,"next":{"title":"How Do I Write Policies?","level":"1.3","depth":1,"path":"how-do-i-write-policies.md","ref":"how-do-i-write-policies.md","articles":[]},"previous":{"title":"Introduction","level":"1.1","depth":1,"path":"README.md","ref":"README.md","articles":[]},"dir":"ltr"},"config":{"gitbook":"*","theme":"default","variables":{},"plugins":["header","addcssjs","livereload"],"pluginsConfig":{"livereload":{},"search":{},"layout":{"headerPath":"layouts/header.html"},"addcssjs":{"css":["css/custom.css"],"js":["js/custom.js"]},"lunr":{"maxIndexSize":1000000,"ignoreSpecialCharacters":false},"header":{},"fontsettings":{"theme":"white","family":"sans","size":2},"highlight":{},"sharing":{"facebook":true,"twitter":true,"google":false,"weibo":false,"instapaper":false,"vk":false,"all":["facebook","google","twitter","weibo","instapaper"]},"theme-default":{"styles":{"website":"styles/website.css","pdf":"styles/pdf.css","epub":"styles/epub.css","mobi":"styles/mobi.css","ebook":"styles/ebook.css","print":"styles/print.css"},"showLevel":false}},"structure":{"langs":"LANGS.md","readme":"README.md","glossary":"GLOSSARY.md","summary":"SUMMARY.md"},"pdf":{"pageNumbers":true,"fontSize":12,"fontFamily":"Arial","paperSize":"a4","chapterMark":"pagebreak","pageBreaksBefore":"/","margin":{"right":62,"left":62,"top":56,"bottom":56}},"styles":{"website":"styles/website.css","pdf":"styles/pdf.css","epub":"styles/epub.css","mobi":"styles/mobi.css","ebook":"styles/ebook.css","print":"styles/print.css"}},"file":{"path":"how-does-opa-work.md","mtime":"2017-06-14T22:18:06.000Z","type":"markdown"},"gitbook":{"version":"3.2.2","time":"2017-06-16T00:41:56.745Z"},"basePath":".","book":{"language":""}});
+        });
+    </script>
+</div>
+
+        
+    
+    <script src="gitbook/gitbook.js"></script>
+    <script src="gitbook/theme.js"></script>
+    
+        
+        <script src="gitbook/gitbook-plugin-livereload/plugin.js"></script>
+        
+    
+        
+        <script src="gitbook/gitbook-plugin-search/search-engine.js"></script>
+        
+    
+        
+        <script src="gitbook/gitbook-plugin-search/search.js"></script>
+        
+    
+        
+        <script src="gitbook/gitbook-plugin-lunr/lunr.min.js"></script>
+        
+    
+        
+        <script src="gitbook/gitbook-plugin-lunr/search-lunr.js"></script>
+        
+    
+        
+        <script src="gitbook/gitbook-plugin-sharing/buttons.js"></script>
+        
+    
+        
+        <script src="gitbook/gitbook-plugin-fontsettings/fontsettings.js"></script>
+        
+    
+
+    
+    <script type="text/javascript" src="js/custom.js"></script>
+    
+
+    </body>
+</html>
+

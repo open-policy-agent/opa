@@ -1,0 +1,695 @@
+
+<!DOCTYPE HTML>
+<html lang="">
+    <head>
+        <meta charset="UTF-8">
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <title>Security &#xB7; GitBook</title>
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="description" content="">
+        <meta name="generator" content="GitBook 3.2.2">
+        
+        
+        
+    
+    
+    <link rel="stylesheet" href="gitbook/style.css">
+
+    
+            
+                
+                <link rel="stylesheet" href="gitbook/gitbook-plugin-highlight/website.css">
+                
+            
+                
+                <link rel="stylesheet" href="gitbook/gitbook-plugin-search/search.css">
+                
+            
+                
+                <link rel="stylesheet" href="gitbook/gitbook-plugin-fontsettings/website.css">
+                
+            
+        
+
+    
+
+    
+        
+        <link rel="stylesheet" href="styles/website.css">
+        
+    
+        
+    
+        
+    
+        
+    
+        
+    
+        
+    
+
+    
+    <link rel="stylesheet" type="text/css" href="css/custom.css">
+    
+
+        
+    
+    
+    <meta name="HandheldFriendly" content="true">
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <link rel="apple-touch-icon-precomposed" sizes="152x152" href="gitbook/images/apple-touch-icon-precomposed-152.png">
+    <link rel="shortcut icon" href="gitbook/images/favicon.ico" type="image/x-icon">
+
+    
+    <link rel="next" href="working-with-the-opa-repl.html">
+    
+    
+    <link rel="prev" href="deployments.html">
+    
+
+    </head>
+    <body>
+        
+<div class="book"><div class="_doc--header">
+  <div class="header _doc--container">
+
+      <div class="_doc--logo header--logo">
+        <a class="header--logo-link" href="/">
+          <img class="header--logo-image" src="images/opa-logo.svg" alt="">
+          <div class="header--logo-txt">
+            Open Policy Agent
+          </div>
+        </a>
+      </div>
+
+      <div class="_doc--menu-mobile">
+        <button class="hamburger hamburger--spring" type="button" style="outline: none; padding-bottom: 8px;">
+          <span class=" hamburger-box">
+            <span class="menu-mobile--hamburger-inner hamburger-inner"></span>
+          </span>
+        </button>
+      </div>
+
+      <div class="_doc--menu-desktop header--menu">
+        <a class="header--link header--link_LONG" href="/doc/_book/">
+          <div class="header--menu-txt">
+            Documentation
+          </div>
+        </a>
+        <a class="header--link header--link_LONG" href="/doc/_book/working-with-the-opa-repl.html">
+          <div class="header--menu-txt">
+            Tutorials
+          </div>
+        </a>
+        <a class="header--link header--social-link" href="https://blog.openpolicyagent.org/" target="_blank">
+          <img class="header--menu-image" src="images/Medium.svg" alt="">
+        </a>
+        <a class="header--link header--social-link" href="https://github.com/open-policy-agent/opa/issues" target="_blank">
+          <img class="header--menu-image" src="images/Github.svg" alt="">
+        </a>
+        <a class="header--link header--social-link" href="http://a5ec585d42ace11e7aaad0260e83477e-1095713357.us-west-2.elb.amazonaws.com/" target="_blank">
+          <img class="header--menu-image" src="images/Slack.svg" alt="">
+        </a>
+      </div>
+
+  </div>
+</div>
+
+<div class="_doc--hamburger-menu-container">
+
+  <a class="header--hamburger-menu-link" href="/doc/_book">
+    <li class="header--hamburger-menu-item">
+      <div class="header--menu-txt">
+        Documentation
+      </div>
+    </li>
+  </a>
+
+  <a class="header--hamburger-menu-link" href="/doc/_book/working-with-the-opa-repl.html">
+    <li class="header--hamburger-menu-item">
+      <div class="header--menu-txt">
+        Tutorials
+      </div>
+    </li>
+  </a>
+
+  <a class="header--hamburger-menu-link" href="https://blog.openpolicyagent.org/" target="_blank">
+    <li class="header--hamburger-menu-item">
+      <img class="header--menu-image" src="images/Medium.svg" alt="">
+    </li>
+  </a>
+
+  <a class="header--hamburger-menu-link" href="https://github.com/open-policy-agent/opa/issues" target="_blank">
+    <li class="header--hamburger-menu-item">
+      <img class="header--menu-image" src="images/Github.svg" alt="">
+    </li>
+  </a>
+
+  <a class="header--hamburger-menu-link" href="http://a5ec585d42ace11e7aaad0260e83477e-1095713357.us-west-2.elb.amazonaws.com/" target="_blank">
+    <li class="header--hamburger-menu-item">
+      <img class="header--menu-image" src="images/Slack.svg" alt="">
+    </li>
+  </a>
+
+
+</div>
+
+    <div class="book-summary">
+        
+            
+<div id="book-search-input" role="search">
+    <input type="text" placeholder="Type to search">
+</div>
+
+            
+                <nav role="navigation">
+                
+
+
+<ul class="summary">
+    
+    
+
+    
+
+    
+        
+        <li class="header">Documentation</li>
+        
+        
+    
+        <li class="chapter " data-level="1.1" data-path="./">
+            
+                <a href="./">
+            
+                    
+                    Introduction
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter " data-level="1.2" data-path="how-does-opa-work.html">
+            
+                <a href="how-does-opa-work.html">
+            
+                    
+                    How Does OPA Work?
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter " data-level="1.3" data-path="how-do-i-write-policies.html">
+            
+                <a href="how-do-i-write-policies.html">
+            
+                    
+                    How Do I Write Policies?
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter " data-level="1.4" data-path="language-reference.html">
+            
+                <a href="language-reference.html">
+            
+                    
+                    Language Reference
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter " data-level="1.5" data-path="rest-api-v1.html">
+            
+                <a href="rest-api-v1.html">
+            
+                    
+                    REST API (V1)
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter " data-level="1.6" data-path="rest-api-v0.html">
+            
+                <a href="rest-api-v0.html">
+            
+                    
+                    REST API (V0)
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter " data-level="1.7" data-path="deployments.html">
+            
+                <a href="deployments.html">
+            
+                    
+                    Deployments
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter active" data-level="1.8" data-path="security.html">
+            
+                <a href="security.html">
+            
+                    
+                    Security
+            
+                </a>
+            
+
+            
+        </li>
+    
+
+    
+        
+        <li class="header">Tutorials</li>
+        
+        
+    
+        <li class="chapter " data-level="2.1" data-path="working-with-the-opa-repl.html">
+            
+                <a href="working-with-the-opa-repl.html">
+            
+                    
+                    Working with the OPA REPL
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter " data-level="2.2" data-path="docker-authorization.html">
+            
+                <a href="docker-authorization.html">
+            
+                    
+                    Docker Authorization
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter " data-level="2.3" data-path="http-api-authorization.html">
+            
+                <a href="http-api-authorization.html">
+            
+                    
+                    HTTP API Authorization
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter " data-level="2.4" data-path="ssh-and-sudo-authorization.html">
+            
+                <a href="ssh-and-sudo-authorization.html">
+            
+                    
+                    SSH and sudo Authorization
+            
+                </a>
+            
+
+            
+        </li>
+    
+
+    
+
+    <li class="divider"></li>
+
+    <li>
+        <a href="https://www.gitbook.com" target="blank" class="gitbook-link">
+            Published with GitBook
+        </a>
+    </li>
+</ul>
+
+
+                </nav>
+            
+        
+    </div>
+
+    <div class="book-body">
+        
+            <div class="body-inner">
+                
+                    
+
+<div class="book-header" role="navigation">
+    
+
+    <!-- Title -->
+    <h1>
+        <i class="fa fa-circle-o-notch fa-spin"></i>
+        <a href=".">Security</a>
+    </h1>
+</div>
+
+
+
+
+                    <div class="page-wrapper" tabindex="-1" role="main">
+                        <div class="page-inner">
+                            
+<div id="book-search-results">
+    <div class="search-noresults">
+    
+                                <section class="normal markdown-section">
+                                
+                                <h1 id="security">Security</h1>
+<p>This document provides guidelines for deploying OPA inside untrusted
+environments. You should read this document if you are deploying OPA as a
+service.</p>
+<h2 id="api-security">API Security</h2>
+<p>Securing the API involves configuring OPA to use TLS, authentication, and
+authorization so that:</p>
+<ul>
+<li>Traffic between OPA and clients is encrypted.</li>
+<li>Clients verify the OPA API endpoint identity.</li>
+<li>OPA verifies client identities.</li>
+<li>Clients are only granted access to specific APIs or sections of <a href="documentation/how-does-opa-work#the-data-document">The <code>data</code> Document</a>.</li>
+</ul>
+<h3 id="tls--https">TLS &amp; HTTPS</h3>
+<p>HTTPS is configured by specifying TLS credentials via command line flags at
+startup:</p>
+<ul>
+<li><code>--tls-cert-file=&lt;path&gt;</code> specifies the path of the file containing the TLS certificate.</li>
+<li><code>--tls-private-key-file=&lt;path&gt;</code> specifies the path of the file containing the TLS private key.</li>
+</ul>
+<p>OPA will exit immediately with a non-zero status code if only one of these flags
+is specified.</p>
+<p>By default, OPA ignores insecure HTTP connections when TLS is enabled. To allow
+insecure HTTP connections in addition to HTTPS connections, provide another
+listening address with <code>--insecure-addr</code>.</p>
+<h4 id="1-generate-the-tls-credentials-for-opa-example">1. Generate the TLS credentials for OPA (Example)</h4>
+<pre><code class="lang-bash">openssl genrsa -out private.key 2048
+openssl req -new -x509 -sha256 -key private.key -out public.crt -days 1
+</code></pre>
+<blockquote>
+<p>We have generated a self-signed certificate for example purposes here. DO NOT
+rely on self-signed certificates outside of development without understanding
+the risks.</p>
+</blockquote>
+<h4 id="2-start-opa-with-tls-enabled">2. Start OPA with TLS enabled</h4>
+<pre><code class="lang-bash">opa run --server --log-level debug \
+    --tls-cert-file public.crt \
+    --tls-private-key-file private.key
+</code></pre>
+<h4 id="3-try-to-access-the-api-with-http">3. Try to access the API with HTTP</h4>
+<pre><code class="lang-bash">curl http://localhost:8181/v1/data
+</code></pre>
+<h4 id="4-access-the-api-with-https">4. Access the API with HTTPS</h4>
+<pre><code class="lang-bash">curl -k https://localhost:8181/v1/data
+</code></pre>
+<blockquote>
+<p>We have to use cURL&apos;s <code>-k/--insecure</code> flag because we are using a
+self-signed certificate.</p>
+</blockquote>
+<h3 id="authentication--authorization">Authentication &amp; Authorization</h3>
+<p>This section shows how to configure OPA to authenticate and authorize client
+requests. Client-side authentication of the OPA API endpoint should be handled
+with TLS.</p>
+<p>Authentication and authorization allow OPA to:</p>
+<ul>
+<li>Verify client identities.</li>
+<li>Control client access to APIs and data.</li>
+</ul>
+<p>Both are configured via command line flags:</p>
+<ul>
+<li><code>--authentication=&lt;scheme&gt;</code> specifies the authentication scheme to use.</li>
+<li><code>--authorization=&lt;scheme&gt;</code> specifies the authorization scheme to use.</li>
+</ul>
+<p>By default, OPA does not perform authentication or authorization and these flags
+default to <code>off</code>.</p>
+<p>For authentication, OPA supports:</p>
+<ul>
+<li><a href="documentation/references/rest-v1#bearer-tokens">Bearer tokens</a>: Bearer tokens are enabled by starting OPA with <code>--authentication=token</code>.</li>
+</ul>
+<p>For authorization, OPA relies on policy written in Rego. Authorization is
+enabled by starting OPA with <code>--authorization=basic</code>.</p>
+<p>When the <code>basic</code> authorization scheme is enabled, a minimal authorization policy
+must be provided on startup. The authorization policy must be structured as follows:</p>
+<pre><code class="lang-ruby"><span class="hljs-comment"># The &quot;system&quot; namespace is reserved for internal use</span>
+<span class="hljs-comment"># by OPA. Authorization policy must be defined under</span>
+<span class="hljs-comment"># system.authz as follows:</span>
+package system.authz
+
+default allow = <span class="hljs-keyword">false</span>  <span class="hljs-comment"># Reject requests by default.</span>
+
+allow {
+  <span class="hljs-comment"># Logic to authorize request goes here.</span>
+}
+</code></pre>
+<p>When OPA receives a request, it executes a query against the document defined
+<code>data.system.authz.allow</code>. The implementation of the policy may span multiple
+packages however it is recommended that administrators keep the policy under the
+<code>system</code> namespace.</p>
+<p>If the document produced by the <code>allow</code> rule is <code>true</code>, the request is
+processed normally. If the document is undefined or <strong>not</strong> <code>true</code>, the
+request is rejected immediately.</p>
+<p>OPA provides the following input document when executing the authorization
+policy:</p>
+<pre><code class="lang-ruby">{
+    <span class="hljs-string">&quot;input&quot;</span><span class="hljs-symbol">:</span> {
+        <span class="hljs-comment"># Identity established by authentication scheme.</span>
+        <span class="hljs-comment"># When Bearer tokens are used, the identity is</span>
+        <span class="hljs-comment"># set to the Bearer token value.</span>
+        <span class="hljs-string">&quot;identity&quot;</span><span class="hljs-symbol">:</span> &lt;String&gt;,
+
+        <span class="hljs-comment"># One of {GET, POST, PUT, PATCH, DELETE}.</span>
+        <span class="hljs-string">&quot;method&quot;</span><span class="hljs-symbol">:</span> &lt;HTTP Method&gt;,
+
+        <span class="hljs-comment"># URL path represented as an array.</span>
+        <span class="hljs-comment"># For example: /v1/data/exempli-gratia</span>
+        <span class="hljs-comment"># is represented as [v1, data, exampli-gratia]</span>
+        <span class="hljs-string">&quot;path&quot;</span><span class="hljs-symbol">:</span> &lt;HTTP URL Path&gt;,
+    }
+}
+</code></pre>
+<p>At a minimum, the authorization policy should grant access to a special root
+identity:</p>
+<pre><code class="lang-ruby">package system.authz
+
+default allow = <span class="hljs-keyword">false</span>          <span class="hljs-comment"># Reject requests by default.</span>
+
+allow {                        <span class="hljs-comment"># Allow request if...</span>
+    <span class="hljs-string">&quot;secret&quot;</span> = input.identity  <span class="hljs-comment"># Identity is the secret root key.</span>
+}
+</code></pre>
+<p>When OPA is configured with this minimal authorization policy, requests without
+authentication are rejected:</p>
+<pre><code class="lang-http"><span class="hljs-keyword">GET</span> <span class="hljs-string">/v1/policies</span> HTTP/1.1
+</code></pre>
+<p>Response:</p>
+<pre><code class="lang-http">HTTP/1.1 <span class="hljs-number">401</span> Unauthorized
+<span class="hljs-attribute">Content-Type</span>: application/json
+</code></pre>
+<pre><code class="lang-json">{
+  <span class="hljs-string">&quot;code&quot;</span>: <span class="hljs-string">&quot;unauthorized&quot;</span>,
+  <span class="hljs-string">&quot;message&quot;</span>: <span class="hljs-string">&quot;request rejected by administrative policy&quot;</span>
+}
+</code></pre>
+<p>However, if Bearer token authentication is enabled and the request includes the
+secret from above, the request is allowed:</p>
+<pre><code class="lang-http"><span class="hljs-keyword">GET</span> <span class="hljs-string">/v1/policies</span> HTTP/1.1
+<span class="hljs-attribute">Authorization</span>: Bearer secret
+</code></pre>
+<p>Response:</p>
+<pre><code class="lang-http">HTTP/1.1 <span class="hljs-number">200</span> OK
+<span class="hljs-attribute">Content-Type</span>: application/json
+</code></pre>
+<p>When Bearer tokens are used for authentication, the policy should at minimum
+validate the identity:</p>
+<pre><code class="lang-ruby">package system.authz
+
+<span class="hljs-comment"># Tokens may defined in policy or pushed into OPA as data.</span>
+tokens = {
+    <span class="hljs-string">&quot;my-secret-token-foo&quot;</span><span class="hljs-symbol">:</span> {
+        <span class="hljs-string">&quot;roles&quot;</span><span class="hljs-symbol">:</span> [<span class="hljs-string">&quot;admin&quot;</span>]
+    },
+    <span class="hljs-string">&quot;my-secret-token-bar&quot;</span><span class="hljs-symbol">:</span> {
+        <span class="hljs-string">&quot;roles&quot;</span><span class="hljs-symbol">:</span> [<span class="hljs-string">&quot;service-1&quot;</span>]
+    },
+    <span class="hljs-string">&quot;my-secret-token-baz&quot;</span><span class="hljs-symbol">:</span> {
+        <span class="hljs-string">&quot;roles&quot;</span><span class="hljs-symbol">:</span> [<span class="hljs-string">&quot;service-2&quot;</span>, <span class="hljs-string">&quot;service-3&quot;</span>]
+    }
+}
+
+default allow = <span class="hljs-keyword">false</span>          <span class="hljs-comment"># Reject requests by default.</span>
+
+allow {                        <span class="hljs-comment"># Allow request if...</span>
+    input.identity = <span class="hljs-string">&quot;secret&quot;</span>  <span class="hljs-comment"># Identity is the secret root key.</span>
+}
+
+allow {                        <span class="hljs-comment"># Allow request if...</span>
+    tokens[input.identity]     <span class="hljs-comment"># Identity exists in &quot;tokens&quot;.</span>
+}
+</code></pre>
+<p>To complete this example, the policy could further restrict tokens to specific
+documents:</p>
+<pre><code class="lang-ruby">package system.authz
+
+<span class="hljs-comment"># Rights may be defined in policy or pushed into OPA as data.</span>
+rights = {
+    <span class="hljs-string">&quot;admin&quot;</span><span class="hljs-symbol">:</span> {
+        <span class="hljs-string">&quot;path&quot;</span><span class="hljs-symbol">:</span> <span class="hljs-string">&quot;*&quot;</span>
+    },
+    <span class="hljs-string">&quot;service-1&quot;</span><span class="hljs-symbol">:</span> {
+        <span class="hljs-string">&quot;path&quot;</span><span class="hljs-symbol">:</span> [<span class="hljs-string">&quot;v1&quot;</span>, <span class="hljs-string">&quot;data&quot;</span>, <span class="hljs-string">&quot;exempli&quot;</span>, <span class="hljs-string">&quot;gratia&quot;</span>]
+    },
+    <span class="hljs-string">&quot;service-2&quot;</span><span class="hljs-symbol">:</span> {
+        <span class="hljs-string">&quot;path&quot;</span><span class="hljs-symbol">:</span> [<span class="hljs-string">&quot;v1&quot;</span>, <span class="hljs-string">&quot;data&quot;</span>, <span class="hljs-string">&quot;par&quot;</span>, <span class="hljs-string">&quot;example&quot;</span>]
+    }
+}
+
+<span class="hljs-comment"># Tokens may be defined in policy or pushed into OPA as data.</span>
+tokens = {
+    <span class="hljs-string">&quot;my-secret-token-foo&quot;</span><span class="hljs-symbol">:</span> {
+        <span class="hljs-string">&quot;roles&quot;</span><span class="hljs-symbol">:</span> [<span class="hljs-string">&quot;admin&quot;</span>]
+    },
+    <span class="hljs-string">&quot;my-secret-token-bar&quot;</span><span class="hljs-symbol">:</span> {
+        <span class="hljs-string">&quot;roles&quot;</span><span class="hljs-symbol">:</span> [<span class="hljs-string">&quot;service-1&quot;</span>]
+    },
+    <span class="hljs-string">&quot;my-secret-token-baz&quot;</span><span class="hljs-symbol">:</span> {
+        <span class="hljs-string">&quot;roles&quot;</span><span class="hljs-symbol">:</span> [<span class="hljs-string">&quot;service-2&quot;</span>, <span class="hljs-string">&quot;service-3&quot;</span>]
+    }
+}
+
+default allow = <span class="hljs-keyword">false</span>               <span class="hljs-comment"># Reject requests by default.</span>
+
+allow {                             <span class="hljs-comment"># Allow request if...</span>
+    identity_rights[right]          <span class="hljs-comment"># Rights for identity exist, and...</span>
+    right.path = <span class="hljs-string">&quot;*&quot;</span>                <span class="hljs-comment"># Right.path is &apos;*&apos;.</span>
+} {                                 <span class="hljs-comment"># Or...</span>
+    identity_rights[right]          <span class="hljs-comment"># Rights for identity exist, and...</span>
+    right.path = input.path         <span class="hljs-comment"># Right.path matches input.path.</span>
+}
+
+identity_rights[right] {            <span class="hljs-comment"># Right is in the identity_rights set if...</span>
+    token = tokens[input.identity]  <span class="hljs-comment"># Token exists for identity, and...</span>
+    role = token.roles[<span class="hljs-number">_</span>]           <span class="hljs-comment"># Token has a role, and...</span>
+    right = rights[role]            <span class="hljs-comment"># Role has rights defined.</span>
+}
+</code></pre>
+
+                                
+                                </section>
+                            
+    </div>
+    <div class="search-results">
+        <div class="has-results">
+            
+            <h1 class="search-results-title"><span class="search-results-count"></span> results matching &quot;<span class="search-query"></span>&quot;</h1>
+            <ul class="search-results-list"></ul>
+            
+        </div>
+        <div class="no-results">
+            
+            <h1 class="search-results-title">No results matching &quot;<span class="search-query"></span>&quot;</h1>
+            
+        </div>
+    </div>
+</div>
+
+                        </div>
+                    </div>
+                
+            </div>
+
+            
+                
+                <a href="deployments.html" class="navigation navigation-prev " aria-label="Previous page: Deployments">
+                    <i class="fa fa-angle-left"></i>
+                </a>
+                
+                
+                <a href="working-with-the-opa-repl.html" class="navigation navigation-next " aria-label="Next page: Working with the OPA REPL">
+                    <i class="fa fa-angle-right"></i>
+                </a>
+                
+            
+        
+    </div>
+
+    <script>
+        var gitbook = gitbook || [];
+        gitbook.push(function() {
+            gitbook.page.hasChanged({"page":{"title":"Security","level":"1.8","depth":1,"next":{"title":"Working with the OPA REPL","level":"2.1","depth":1,"path":"working-with-the-opa-repl.md","ref":"working-with-the-opa-repl.md","articles":[]},"previous":{"title":"Deployments","level":"1.7","depth":1,"path":"deployments.md","ref":"deployments.md","articles":[]},"dir":"ltr"},"config":{"gitbook":"*","theme":"default","variables":{},"plugins":["header","addcssjs","livereload"],"pluginsConfig":{"livereload":{},"search":{},"layout":{"headerPath":"layouts/header.html"},"addcssjs":{"css":["css/custom.css"],"js":["js/custom.js"]},"lunr":{"maxIndexSize":1000000,"ignoreSpecialCharacters":false},"header":{},"fontsettings":{"theme":"white","family":"sans","size":2},"highlight":{},"sharing":{"facebook":true,"twitter":true,"google":false,"weibo":false,"instapaper":false,"vk":false,"all":["facebook","google","twitter","weibo","instapaper"]},"theme-default":{"styles":{"website":"styles/website.css","pdf":"styles/pdf.css","epub":"styles/epub.css","mobi":"styles/mobi.css","ebook":"styles/ebook.css","print":"styles/print.css"},"showLevel":false}},"structure":{"langs":"LANGS.md","readme":"README.md","glossary":"GLOSSARY.md","summary":"SUMMARY.md"},"pdf":{"pageNumbers":true,"fontSize":12,"fontFamily":"Arial","paperSize":"a4","chapterMark":"pagebreak","pageBreaksBefore":"/","margin":{"right":62,"left":62,"top":56,"bottom":56}},"styles":{"website":"styles/website.css","pdf":"styles/pdf.css","epub":"styles/epub.css","mobi":"styles/mobi.css","ebook":"styles/ebook.css","print":"styles/print.css"}},"file":{"path":"security.md","mtime":"2017-06-14T23:18:44.000Z","type":"markdown"},"gitbook":{"version":"3.2.2","time":"2017-06-16T00:41:56.745Z"},"basePath":".","book":{"language":""}});
+        });
+    </script>
+</div>
+
+        
+    
+    <script src="gitbook/gitbook.js"></script>
+    <script src="gitbook/theme.js"></script>
+    
+        
+        <script src="gitbook/gitbook-plugin-livereload/plugin.js"></script>
+        
+    
+        
+        <script src="gitbook/gitbook-plugin-search/search-engine.js"></script>
+        
+    
+        
+        <script src="gitbook/gitbook-plugin-search/search.js"></script>
+        
+    
+        
+        <script src="gitbook/gitbook-plugin-lunr/lunr.min.js"></script>
+        
+    
+        
+        <script src="gitbook/gitbook-plugin-lunr/search-lunr.js"></script>
+        
+    
+        
+        <script src="gitbook/gitbook-plugin-sharing/buttons.js"></script>
+        
+    
+        
+        <script src="gitbook/gitbook-plugin-fontsettings/fontsettings.js"></script>
+        
+    
+
+    
+    <script type="text/javascript" src="js/custom.js"></script>
+    
+
+    </body>
+</html>
+

@@ -1,0 +1,713 @@
+
+<!DOCTYPE HTML>
+<html lang="">
+    <head>
+        <meta charset="UTF-8">
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <title>Docker Authorization &#xB7; GitBook</title>
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="description" content="">
+        <meta name="generator" content="GitBook 3.2.2">
+        
+        
+        
+    
+    
+    <link rel="stylesheet" href="gitbook/style.css">
+
+    
+            
+                
+                <link rel="stylesheet" href="gitbook/gitbook-plugin-highlight/website.css">
+                
+            
+                
+                <link rel="stylesheet" href="gitbook/gitbook-plugin-search/search.css">
+                
+            
+                
+                <link rel="stylesheet" href="gitbook/gitbook-plugin-fontsettings/website.css">
+                
+            
+        
+
+    
+
+    
+        
+        <link rel="stylesheet" href="styles/website.css">
+        
+    
+        
+    
+        
+    
+        
+    
+        
+    
+        
+    
+
+    
+    <link rel="stylesheet" type="text/css" href="css/custom.css">
+    
+
+        
+    
+    
+    <meta name="HandheldFriendly" content="true">
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <link rel="apple-touch-icon-precomposed" sizes="152x152" href="gitbook/images/apple-touch-icon-precomposed-152.png">
+    <link rel="shortcut icon" href="gitbook/images/favicon.ico" type="image/x-icon">
+
+    
+    <link rel="next" href="http-api-authorization.html">
+    
+    
+    <link rel="prev" href="working-with-the-opa-repl.html">
+    
+
+    </head>
+    <body>
+        
+<div class="book"><div class="_doc--header">
+  <div class="header _doc--container">
+
+      <div class="_doc--logo header--logo">
+        <a class="header--logo-link" href="/">
+          <img class="header--logo-image" src="images/opa-logo.svg" alt="">
+          <div class="header--logo-txt">
+            Open Policy Agent
+          </div>
+        </a>
+      </div>
+
+      <div class="_doc--menu-mobile">
+        <button class="hamburger hamburger--spring" type="button" style="outline: none; padding-bottom: 8px;">
+          <span class=" hamburger-box">
+            <span class="menu-mobile--hamburger-inner hamburger-inner"></span>
+          </span>
+        </button>
+      </div>
+
+      <div class="_doc--menu-desktop header--menu">
+        <a class="header--link header--link_LONG" href="/doc/_book/">
+          <div class="header--menu-txt">
+            Documentation
+          </div>
+        </a>
+        <a class="header--link header--link_LONG" href="/doc/_book/working-with-the-opa-repl.html">
+          <div class="header--menu-txt">
+            Tutorials
+          </div>
+        </a>
+        <a class="header--link header--social-link" href="https://blog.openpolicyagent.org/" target="_blank">
+          <img class="header--menu-image" src="images/Medium.svg" alt="">
+        </a>
+        <a class="header--link header--social-link" href="https://github.com/open-policy-agent/opa/issues" target="_blank">
+          <img class="header--menu-image" src="images/Github.svg" alt="">
+        </a>
+        <a class="header--link header--social-link" href="http://a5ec585d42ace11e7aaad0260e83477e-1095713357.us-west-2.elb.amazonaws.com/" target="_blank">
+          <img class="header--menu-image" src="images/Slack.svg" alt="">
+        </a>
+      </div>
+
+  </div>
+</div>
+
+<div class="_doc--hamburger-menu-container">
+
+  <a class="header--hamburger-menu-link" href="/doc/_book">
+    <li class="header--hamburger-menu-item">
+      <div class="header--menu-txt">
+        Documentation
+      </div>
+    </li>
+  </a>
+
+  <a class="header--hamburger-menu-link" href="/doc/_book/working-with-the-opa-repl.html">
+    <li class="header--hamburger-menu-item">
+      <div class="header--menu-txt">
+        Tutorials
+      </div>
+    </li>
+  </a>
+
+  <a class="header--hamburger-menu-link" href="https://blog.openpolicyagent.org/" target="_blank">
+    <li class="header--hamburger-menu-item">
+      <img class="header--menu-image" src="images/Medium.svg" alt="">
+    </li>
+  </a>
+
+  <a class="header--hamburger-menu-link" href="https://github.com/open-policy-agent/opa/issues" target="_blank">
+    <li class="header--hamburger-menu-item">
+      <img class="header--menu-image" src="images/Github.svg" alt="">
+    </li>
+  </a>
+
+  <a class="header--hamburger-menu-link" href="http://a5ec585d42ace11e7aaad0260e83477e-1095713357.us-west-2.elb.amazonaws.com/" target="_blank">
+    <li class="header--hamburger-menu-item">
+      <img class="header--menu-image" src="images/Slack.svg" alt="">
+    </li>
+  </a>
+
+
+</div>
+
+    <div class="book-summary">
+        
+            
+<div id="book-search-input" role="search">
+    <input type="text" placeholder="Type to search">
+</div>
+
+            
+                <nav role="navigation">
+                
+
+
+<ul class="summary">
+    
+    
+
+    
+
+    
+        
+        <li class="header">Documentation</li>
+        
+        
+    
+        <li class="chapter " data-level="1.1" data-path="./">
+            
+                <a href="./">
+            
+                    
+                    Introduction
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter " data-level="1.2" data-path="how-does-opa-work.html">
+            
+                <a href="how-does-opa-work.html">
+            
+                    
+                    How Does OPA Work?
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter " data-level="1.3" data-path="how-do-i-write-policies.html">
+            
+                <a href="how-do-i-write-policies.html">
+            
+                    
+                    How Do I Write Policies?
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter " data-level="1.4" data-path="language-reference.html">
+            
+                <a href="language-reference.html">
+            
+                    
+                    Language Reference
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter " data-level="1.5" data-path="rest-api-v1.html">
+            
+                <a href="rest-api-v1.html">
+            
+                    
+                    REST API (V1)
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter " data-level="1.6" data-path="rest-api-v0.html">
+            
+                <a href="rest-api-v0.html">
+            
+                    
+                    REST API (V0)
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter " data-level="1.7" data-path="deployments.html">
+            
+                <a href="deployments.html">
+            
+                    
+                    Deployments
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter " data-level="1.8" data-path="security.html">
+            
+                <a href="security.html">
+            
+                    
+                    Security
+            
+                </a>
+            
+
+            
+        </li>
+    
+
+    
+        
+        <li class="header">Tutorials</li>
+        
+        
+    
+        <li class="chapter " data-level="2.1" data-path="working-with-the-opa-repl.html">
+            
+                <a href="working-with-the-opa-repl.html">
+            
+                    
+                    Working with the OPA REPL
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter active" data-level="2.2" data-path="docker-authorization.html">
+            
+                <a href="docker-authorization.html">
+            
+                    
+                    Docker Authorization
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter " data-level="2.3" data-path="http-api-authorization.html">
+            
+                <a href="http-api-authorization.html">
+            
+                    
+                    HTTP API Authorization
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter " data-level="2.4" data-path="ssh-and-sudo-authorization.html">
+            
+                <a href="ssh-and-sudo-authorization.html">
+            
+                    
+                    SSH and sudo Authorization
+            
+                </a>
+            
+
+            
+        </li>
+    
+
+    
+
+    <li class="divider"></li>
+
+    <li>
+        <a href="https://www.gitbook.com" target="blank" class="gitbook-link">
+            Published with GitBook
+        </a>
+    </li>
+</ul>
+
+
+                </nav>
+            
+        
+    </div>
+
+    <div class="book-body">
+        
+            <div class="body-inner">
+                
+                    
+
+<div class="book-header" role="navigation">
+    
+
+    <!-- Title -->
+    <h1>
+        <i class="fa fa-circle-o-notch fa-spin"></i>
+        <a href=".">Docker Authorization</a>
+    </h1>
+</div>
+
+
+
+
+                    <div class="page-wrapper" tabindex="-1" role="main">
+                        <div class="page-inner">
+                            
+<div id="book-search-results">
+    <div class="search-noresults">
+    
+                                <section class="normal markdown-section">
+                                
+                                <h1 id="docker-authorization">Docker Authorization</h1>
+<p>Docker&#x2019;s out-of-the-box authorization model is all or nothing. But many users require finer-grained access control and Docker&#x2019;s plugin infrastructure allows us to do so.</p>
+<p>This is an excellent opportunity to see how to policy enable an existing service.</p>
+<h2 id="goals">Goals</h2>
+<p>This tutorial helps you get started with OPA and introduces you to core concepts in OPA, including Rego the language used to define policies.</p>
+<blockquote>
+<p>Policy enabling an application decouples the policy implementation from the business logic so that administrators can define policy without changing the application while still keeping up with the size, complexity, and dynamic nature of modern applications.</p>
+</blockquote>
+<p>Although there are a multitude of desirable access control policies, for demonstration purposes, we want to prevent the following:</p>
+<ul>
+<li>Containers with insecure configurations.</li>
+<li>Users modifying the system without sufficient read+write access.</li>
+</ul>
+<p>This tutorial illustrates two key concepts:</p>
+<ol>
+<li>OPA policy definition is decoupled from the implementation of the service (in this case Docker). The administrator is empowered to define and manage policies without requiring changes to any of the apps.</li>
+<li>Both the data relevant to policy and the policy definitions themselves can change rapidly.</li>
+</ol>
+<p>Once you finish this tutorial, you will be familiar with:</p>
+<ul>
+<li>Running OPA as a server/daemon.</li>
+<li>Loading policy definitions and data via the REST APIs.</li>
+<li>Querying data via the REST APIs.</li>
+<li>The basics of <a href="documentation/how-do-i-write-policies">Rego</a>, OPA&#x2019;s purpose-built policy language.</li>
+</ul>
+<h2 id="prerequisites">Prerequisites</h2>
+<p>This tutorial requires:</p>
+<ul>
+<li>Docker Engine 1.11 or newer</li>
+<li><code>root</code> or <code>sudo</code> access</li>
+</ul>
+<p>The tutorial has been tested on the following platforms:</p>
+<ul>
+<li>Ubuntu 16.04 (64-bit)</li>
+</ul>
+<p>If you are using a different distro, OS, or architecture, the steps will be the same. However, there may be slight differences in the commands you need to run.</p>
+<h2 id="steps">Steps</h2>
+<h3 id="1-create-a-directory-for-opa-policy-defintions">1. Create a directory for OPA policy defintions.</h3>
+<pre><code class="lang-shell">$ mkdir -p policies
+</code></pre>
+<h3 id="2-download-the-latest-version-of-opa">2. Download the latest version of OPA.</h3>
+<pre><code class="lang-shell">$ curl -L https://github.com/open-policy-agent/opa/releases/download/v0.4.10/opa_linux_amd64 &gt; opa
+$ chmod u+x opa
+</code></pre>
+<h3 id="3-run-opa-in-server-mode-with-debug-logging-enabled">3. Run OPA in server mode with debug logging enabled.</h3>
+<pre><code class="lang-shell">$ ./opa run --server --log-level debug
+</code></pre>
+<p>OPA will run until it receives a signal to stop. Open another terminal to continue with the rest of the tutorial.</p>
+<h3 id="4-download-the-open-policy-agentopa-docker-authz-executable">4. Download the <a href="https://github.com/open-policy-agent/opa-docker-authz" target="_blank">open-policy-agent/opa-docker-authz</a> executable.</h3>
+<pre><code class="lang-shell">$ curl -L https://github.com/open-policy-agent/opa-docker-authz/releases/download/v0.1.5/opa-docker-authz_linux_amd64 &gt; opa-docker-authz
+$ chmod u+x opa-docker-authz
+</code></pre>
+<p>The open-policy-agent/opa-docker-authz repository hosts a small <a href="https://docs.docker.com/engine/extend/plugins_authorization/" target="_blank">Docker Authorization Plugin</a>. Docker&apos;s authorization plugin system allows an external process to receive all requests sent to the Docker daemon. The authorization plugin replies, instructing the Docker daemon to allow or reject the request.</p>
+<h3 id="5-create-an-empty-policy-definition-that-will-allow-all-requests">5. Create an empty policy definition that will allow all requests.</h3>
+<pre><code class="lang-shell">$ cat &gt;example.rego &lt;&lt;EOF
+package opa.example
+
+allow_request = true
+EOF
+</code></pre>
+<p>This policy definition is about simple as it can be. It includes a single rule named <code>allow_request</code> that is defined to always be <code>true</code>. Once all of the components are running, we will come back and extend this policy.</p>
+<h3 id="6-run-the-opa-docker-authz-plugin-and-then-open-another-terminal">6. Run the opa-docker-authz plugin and then open another terminal.</h3>
+<pre><code class="lang-shell">$ sudo ./opa-docker-authz -policy-file=example.rego
+</code></pre>
+<blockquote>
+<p>This step requires sudo access because the Docker plugin framework will attempt to update the Docker daemon configuration. If you run without sudo you may encounter a permission error.</p>
+</blockquote>
+<h3 id="7-reconfigure-docker"><a name="reconfigure-docker"></a> 7. Reconfigure Docker.</h3>
+<p>Docker must include the following command-line argument:</p>
+<pre><code class="lang-shell">--authorization-plugin=opa-docker-authz
+</code></pre>
+<p>On Ubuntu 16.04 with systemd, this can be done as follows (requires root):</p>
+<pre><code class="lang-shell">$ sudo mkdir -p /etc/systemd/system/docker.service.d
+$ sudo tee -a /etc/systemd/system/docker.service.d/override.conf &gt; /dev/null &lt;&lt;EOF
+[Service]
+ExecStart=
+ExecStart=/usr/bin/docker daemon -H fd:// --authorization-plugin=opa-docker-authz
+EOF
+$ sudo systemctl daemon-reload
+$ sudo service docker restart
+</code></pre>
+<p>If you are using a different Linux distribution or you are not running systemd, the process will be slightly different.</p>
+<h3 id="8-run-a-simple-docker-command-to-make-sure-everything-is-still-working">8. Run a simple Docker command to make sure everything is still working.</h3>
+<pre><code class="lang-shell">$ docker ps
+</code></pre>
+<p>If everything is setup correctly, the command should exit successfully. You can expect to see log messages from OPA and the plugin.</p>
+<h3 id="9-test-that-the-policy-definition-is-working">9. Test that the policy definition is working.</h3>
+<p>Let&#x2019;s modify our policy to <strong>deny</strong> all requests:</p>
+<pre><code class="lang-shell">$ cat &gt;example.rego &lt;&lt;EOF
+package opa.example
+
+allow_request = true { false }
+EOF
+</code></pre>
+<p>In OPA, rules defines the content of documents (for example, objects, arrays, strings, booleans, and so on).</p>
+<p>In steps above, we created a rule named <code>allow_request</code> that defines a document that is the boolean value <code>true</code>. When all of the expressions on the body of the rule evaluate to <code>true</code>, we say the document is defined. If any of the expressions evaluate to <code>false</code>, we say the document is <em>undefined</em>. In this case, the document will always be undefined because the body of the rule is <code>false</code>.</p>
+<pre><code class="lang-shell">$ docker ps
+</code></pre>
+<p>The output should be:</p>
+<pre><code>Error response from daemon: authorization denied by plugin opa-docker-authz: request rejected by administrative policy
+</code></pre><p>To learn more about how rules define the content of documents, see: <a href="documentation/how-does-opa-work">How Does OPA Work?</a></p>
+<p>With this policy in place, users will not be able to run any Docker commands. Go ahead and try other commands such as <code>docker run</code> or <code>docker pull</code>. They will all be rejected.</p>
+<p>Now let&apos;s change the policy so that it&apos;s a bit more useful.</p>
+<h3 id="10-update-the-policy-to-reject-requests-with-the-unconfined-seccomp-profile">10. Update the policy to reject requests with the unconfined <a href="https://en.wikipedia.org/wiki/Seccomp" target="_blank">seccomp</a> profile:</h3>
+<pre><code class="lang-shell">$ cat &gt;example.rego &lt;&lt;EOF
+package opa.example
+
+seccomp_unconfined {
+    # This expression asserts that the string on the right-hand side is equal
+    # to an element in the array SecurityOpt referenced on the left-hand side.
+    input.Body.HostConfig.SecurityOpt[_] = &quot;seccomp:unconfined&quot;
+}
+
+allow_request {
+    not seccomp_unconfined
+}
+EOF
+</code></pre>
+<p>The opa-docker-authz plugin is watching the policy definition file for changes. Each time we change the file, the plugin reads the file and sends it to OPA. To manually send the policy to OPA, you can use the following API:</p>
+<pre><code class="lang-shell">$ curl -X PUT --data-binary @example.rego http://localhost:8181/v1/policies/example_policy
+</code></pre>
+<p>This API is idempotent so sending the policy multiple times is fine. Go ahead and try it yourself.</p>
+<h3 id="11-test-the-policy-is-working-by-running-a-simple-container">11. Test the policy is working by running a simple container:</h3>
+<pre><code class="lang-shell">$ docker run hello-world
+</code></pre>
+<p>Now try running the same container but disable seccomp (which should be prevented by the policy):</p>
+<pre><code class="lang-shell">$ docker run --security-opt seccomp:unconfined hello-world
+</code></pre>
+<p>When Docker processes the run command, it contacts the plugin to see if the request should be allowed. The plugin takes the request and executes a query against OPA using the request as input data to the query. The same API call that the plugin makes can be executed using curl:</p>
+<pre><code class="lang-shell">$ curl -i -d &apos;{&quot;input&quot;: {&quot;Body&quot;:{&quot;HostConfig&quot;:{&quot;SecurityOpt&quot;:[&quot;seccomp:unconfined&quot;]}}}}&apos; \
+    -H &apos;Content-Type: application/json&apos; \
+    http://localhost:8181/v1/data/opa/example/allow_request
+</code></pre>
+<p>Because the document generated by the <code>allow_request</code> rule is undefined in this
+case, the response object does not include a value for the document.</p>
+<p>You can re-run the same query with the default seccomp profile and see that it succeeds:</p>
+<pre><code class="lang-shell">$ curl -i -d &apos;{&quot;input&quot;: {&quot;Body&quot;:{&quot;HostConfig&quot;:{&quot;SecurityOpt&quot;:[&quot;seccomp:default&quot;]}}}}&apos; \
+    -H &apos;Content-Type: application/json&apos; \
+    http://localhost:8181/v1/data/opa/example/allow_request
+</code></pre>
+<p>Congratulations! You have successfully prevented containers from running without seccomp!</p>
+<p>So far, the policy has been defined in terms of input data from the plugin. In many cases, it&apos;s necessary to write policies against multiple data sources.</p>
+<p>The rest of the tutorial shows how you can grant fine grained access to specific clients. To do so, we will insert fake user data into OPA to simulate an authentication system.</p>
+<h3 id="12-identify-the-user-in-docker-requests"><a name="identify-user"></a> 12. Identify the user in Docker requests.</h3>
+<blockquote>
+<p>Back up your existing Docker configuration, just in case. You can replace your original configuration after you are done with the tutorial.</p>
+</blockquote>
+<pre><code class="lang-shell">$ mkdir -p ~/.docker
+$ cp ~/.docker/config.json ~/.docker/config.json~
+</code></pre>
+<p>To identify the user, include an HTTP header in all of the requests sent to the Docker daemon:</p>
+<pre><code class="lang-shell">$ cat &gt;~/.docker/config.json &lt;&lt;EOF
+{
+    &quot;HttpHeaders&quot;: {
+        &quot;Authz-User&quot;: &quot;bob&quot;
+    }
+}
+EOF
+</code></pre>
+<p>Docker does not currently provide a way to authenticate clients. But in Docker 1.12, clients can be authenticated using TLS and there are plans to include other means of authentication. For the purpose of this tutorial, we assume that an authentication system is place.</p>
+<h3 id="13-add-user-data-directly-to-opa">13. Add user data directly to OPA.</h3>
+<pre><code class="lang-shell">$ cat &gt;users.json &lt;&lt;EOF
+[
+    {
+        &quot;op&quot;: &quot;add&quot;,
+        &quot;path&quot;: &quot;/&quot;,
+        &quot;value&quot;: {
+            &quot;alice&quot;: {
+                &quot;readOnly&quot;: false
+            },
+            &quot;bob&quot;: {
+                &quot;readOnly&quot;: true
+            }
+        }
+    }
+]
+EOF
+$ curl -X PATCH -d @users.json http://localhost:8181/v1/data/users -H &quot;Content-Type: application/json&quot;
+</code></pre>
+<p>This data represents information about users that could either come from an external system or be included in policy definitions.</p>
+<p>To see that the user data has been added, we can query the Data API. This shows the properties associated with the user &quot;alice&quot;:</p>
+<pre><code class="lang-shell">$ curl http://localhost:8181/v1/data/users/alice
+</code></pre>
+<h3 id="14-update-the-policy-to-include-basic-user-access-controls">14. Update the policy to include basic user access controls.</h3>
+<pre><code class="lang-shell">$ cat &gt;example.rego &lt;&lt;EOF
+package opa.example
+
+import data.users
+
+allow_request {
+    valid_user_role
+}
+
+# valid_user_role defines a document that is the boolean value true if this is
+# a write request and the user is allowed to perform writes.
+valid_user_role {
+    user_id = input.Headers[&quot;Authz-User&quot;]
+    user = users[user_id]
+    user.readOnly = false
+}
+
+# valid_user_role is defined again here to handle read requests. When a rule
+# like this is defined multiple times, the rule definition must ensure that
+# only one instance evaluates successfully in a given query. If multiple
+# instances evaluated successfully, it indicates a conflict.
+valid_user_role {
+    user_id = input.Headers[&quot;Authz-User&quot;]
+    user = users[user_id]
+    input.Method = &quot;GET&quot;
+    user.readOnly = true
+}
+EOF
+</code></pre>
+<p>In the new policy, the valid_user_role rules reference the &quot;users&quot; document created in the previous step.</p>
+<h3 id="15-attempt-to-run-a-container">15. Attempt to run a container.</h3>
+<p>Because the configured user is <code>&quot;bob&quot;</code>, the request is rejected:</p>
+<pre><code class="lang-shell">$ docker run hello-world
+</code></pre>
+<h3 id="16-change-the-user-to-alice-and-re-run-the-container">16. Change the user to &quot;alice&quot; and re-run the container.</h3>
+<pre><code class="lang-shell">$ cat &gt; ~/.docker/config.json &lt;&lt;EOF
+{
+    &quot;HttpHeaders&quot;: {
+        &quot;Authz-User&quot;: &quot;alice&quot;
+    }
+}
+EOF
+</code></pre>
+<p>Because the configured user is <code>&quot;alice&quot;</code>, the request will succeed:</p>
+<pre><code class="lang-shell">$ docker run hello-world
+</code></pre>
+<h3 id="17-restore-your-original-configuration">17. Restore your original configuration.</h3>
+<p>See: &#x201C;<a href="#reconfigure-docker">Reconfigure Docker.</a>&#x201D; and &#x201C;<a href="#identify-user">Identify the user in Docker requests.</a>&#x201D;.</p>
+<p>That&apos;s it!</p>
+
+                                
+                                </section>
+                            
+    </div>
+    <div class="search-results">
+        <div class="has-results">
+            
+            <h1 class="search-results-title"><span class="search-results-count"></span> results matching &quot;<span class="search-query"></span>&quot;</h1>
+            <ul class="search-results-list"></ul>
+            
+        </div>
+        <div class="no-results">
+            
+            <h1 class="search-results-title">No results matching &quot;<span class="search-query"></span>&quot;</h1>
+            
+        </div>
+    </div>
+</div>
+
+                        </div>
+                    </div>
+                
+            </div>
+
+            
+                
+                <a href="working-with-the-opa-repl.html" class="navigation navigation-prev " aria-label="Previous page: Working with the OPA REPL">
+                    <i class="fa fa-angle-left"></i>
+                </a>
+                
+                
+                <a href="http-api-authorization.html" class="navigation navigation-next " aria-label="Next page: HTTP API Authorization">
+                    <i class="fa fa-angle-right"></i>
+                </a>
+                
+            
+        
+    </div>
+
+    <script>
+        var gitbook = gitbook || [];
+        gitbook.push(function() {
+            gitbook.page.hasChanged({"page":{"title":"Docker Authorization","level":"2.2","depth":1,"next":{"title":"HTTP API Authorization","level":"2.3","depth":1,"path":"http-api-authorization.md","ref":"http-api-authorization.md","articles":[]},"previous":{"title":"Working with the OPA REPL","level":"2.1","depth":1,"path":"working-with-the-opa-repl.md","ref":"working-with-the-opa-repl.md","articles":[]},"dir":"ltr"},"config":{"gitbook":"*","theme":"default","variables":{},"plugins":["header","addcssjs","livereload"],"pluginsConfig":{"livereload":{},"search":{},"layout":{"headerPath":"layouts/header.html"},"addcssjs":{"css":["css/custom.css"],"js":["js/custom.js"]},"lunr":{"maxIndexSize":1000000,"ignoreSpecialCharacters":false},"header":{},"fontsettings":{"theme":"white","family":"sans","size":2},"highlight":{},"sharing":{"facebook":true,"twitter":true,"google":false,"weibo":false,"instapaper":false,"vk":false,"all":["facebook","google","twitter","weibo","instapaper"]},"theme-default":{"styles":{"website":"styles/website.css","pdf":"styles/pdf.css","epub":"styles/epub.css","mobi":"styles/mobi.css","ebook":"styles/ebook.css","print":"styles/print.css"},"showLevel":false}},"structure":{"langs":"LANGS.md","readme":"README.md","glossary":"GLOSSARY.md","summary":"SUMMARY.md"},"pdf":{"pageNumbers":true,"fontSize":12,"fontFamily":"Arial","paperSize":"a4","chapterMark":"pagebreak","pageBreaksBefore":"/","margin":{"right":62,"left":62,"top":56,"bottom":56}},"styles":{"website":"styles/website.css","pdf":"styles/pdf.css","epub":"styles/epub.css","mobi":"styles/mobi.css","ebook":"styles/ebook.css","print":"styles/print.css"}},"file":{"path":"docker-authorization.md","mtime":"2017-06-15T00:10:41.000Z","type":"markdown"},"gitbook":{"version":"3.2.2","time":"2017-06-16T00:41:56.745Z"},"basePath":".","book":{"language":""}});
+        });
+    </script>
+</div>
+
+        
+    
+    <script src="gitbook/gitbook.js"></script>
+    <script src="gitbook/theme.js"></script>
+    
+        
+        <script src="gitbook/gitbook-plugin-livereload/plugin.js"></script>
+        
+    
+        
+        <script src="gitbook/gitbook-plugin-search/search-engine.js"></script>
+        
+    
+        
+        <script src="gitbook/gitbook-plugin-search/search.js"></script>
+        
+    
+        
+        <script src="gitbook/gitbook-plugin-lunr/lunr.min.js"></script>
+        
+    
+        
+        <script src="gitbook/gitbook-plugin-lunr/search-lunr.js"></script>
+        
+    
+        
+        <script src="gitbook/gitbook-plugin-sharing/buttons.js"></script>
+        
+    
+        
+        <script src="gitbook/gitbook-plugin-fontsettings/fontsettings.js"></script>
+        
+    
+
+    
+    <script type="text/javascript" src="js/custom.js"></script>
+    
+
+    </body>
+</html>
+

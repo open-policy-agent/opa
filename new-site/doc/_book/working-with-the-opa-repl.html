@@ -1,0 +1,682 @@
+
+<!DOCTYPE HTML>
+<html lang="">
+    <head>
+        <meta charset="UTF-8">
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <title>Working with the OPA REPL &#xB7; GitBook</title>
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="description" content="">
+        <meta name="generator" content="GitBook 3.2.2">
+        
+        
+        
+    
+    
+    <link rel="stylesheet" href="gitbook/style.css">
+
+    
+            
+                
+                <link rel="stylesheet" href="gitbook/gitbook-plugin-highlight/website.css">
+                
+            
+                
+                <link rel="stylesheet" href="gitbook/gitbook-plugin-search/search.css">
+                
+            
+                
+                <link rel="stylesheet" href="gitbook/gitbook-plugin-fontsettings/website.css">
+                
+            
+        
+
+    
+
+    
+        
+        <link rel="stylesheet" href="styles/website.css">
+        
+    
+        
+    
+        
+    
+        
+    
+        
+    
+        
+    
+
+    
+    <link rel="stylesheet" type="text/css" href="css/custom.css">
+    
+
+        
+    
+    
+    <meta name="HandheldFriendly" content="true">
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <link rel="apple-touch-icon-precomposed" sizes="152x152" href="gitbook/images/apple-touch-icon-precomposed-152.png">
+    <link rel="shortcut icon" href="gitbook/images/favicon.ico" type="image/x-icon">
+
+    
+    <link rel="next" href="docker-authorization.html">
+    
+    
+    <link rel="prev" href="security.html">
+    
+
+    </head>
+    <body>
+        
+<div class="book"><div class="_doc--header">
+  <div class="header _doc--container">
+
+      <div class="_doc--logo header--logo">
+        <a class="header--logo-link" href="/">
+          <img class="header--logo-image" src="images/opa-logo.svg" alt="">
+          <div class="header--logo-txt">
+            Open Policy Agent
+          </div>
+        </a>
+      </div>
+
+      <div class="_doc--menu-mobile">
+        <button class="hamburger hamburger--spring" type="button" style="outline: none; padding-bottom: 8px;">
+          <span class=" hamburger-box">
+            <span class="menu-mobile--hamburger-inner hamburger-inner"></span>
+          </span>
+        </button>
+      </div>
+
+      <div class="_doc--menu-desktop header--menu">
+        <a class="header--link header--link_LONG" href="/doc/_book/">
+          <div class="header--menu-txt">
+            Documentation
+          </div>
+        </a>
+        <a class="header--link header--link_LONG" href="/doc/_book/working-with-the-opa-repl.html">
+          <div class="header--menu-txt">
+            Tutorials
+          </div>
+        </a>
+        <a class="header--link header--social-link" href="https://blog.openpolicyagent.org/" target="_blank">
+          <img class="header--menu-image" src="images/Medium.svg" alt="">
+        </a>
+        <a class="header--link header--social-link" href="https://github.com/open-policy-agent/opa/issues" target="_blank">
+          <img class="header--menu-image" src="images/Github.svg" alt="">
+        </a>
+        <a class="header--link header--social-link" href="http://a5ec585d42ace11e7aaad0260e83477e-1095713357.us-west-2.elb.amazonaws.com/" target="_blank">
+          <img class="header--menu-image" src="images/Slack.svg" alt="">
+        </a>
+      </div>
+
+  </div>
+</div>
+
+<div class="_doc--hamburger-menu-container">
+
+  <a class="header--hamburger-menu-link" href="/doc/_book">
+    <li class="header--hamburger-menu-item">
+      <div class="header--menu-txt">
+        Documentation
+      </div>
+    </li>
+  </a>
+
+  <a class="header--hamburger-menu-link" href="/doc/_book/working-with-the-opa-repl.html">
+    <li class="header--hamburger-menu-item">
+      <div class="header--menu-txt">
+        Tutorials
+      </div>
+    </li>
+  </a>
+
+  <a class="header--hamburger-menu-link" href="https://blog.openpolicyagent.org/" target="_blank">
+    <li class="header--hamburger-menu-item">
+      <img class="header--menu-image" src="images/Medium.svg" alt="">
+    </li>
+  </a>
+
+  <a class="header--hamburger-menu-link" href="https://github.com/open-policy-agent/opa/issues" target="_blank">
+    <li class="header--hamburger-menu-item">
+      <img class="header--menu-image" src="images/Github.svg" alt="">
+    </li>
+  </a>
+
+  <a class="header--hamburger-menu-link" href="http://a5ec585d42ace11e7aaad0260e83477e-1095713357.us-west-2.elb.amazonaws.com/" target="_blank">
+    <li class="header--hamburger-menu-item">
+      <img class="header--menu-image" src="images/Slack.svg" alt="">
+    </li>
+  </a>
+
+
+</div>
+
+    <div class="book-summary">
+        
+            
+<div id="book-search-input" role="search">
+    <input type="text" placeholder="Type to search">
+</div>
+
+            
+                <nav role="navigation">
+                
+
+
+<ul class="summary">
+    
+    
+
+    
+
+    
+        
+        <li class="header">Documentation</li>
+        
+        
+    
+        <li class="chapter " data-level="1.1" data-path="./">
+            
+                <a href="./">
+            
+                    
+                    Introduction
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter " data-level="1.2" data-path="how-does-opa-work.html">
+            
+                <a href="how-does-opa-work.html">
+            
+                    
+                    How Does OPA Work?
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter " data-level="1.3" data-path="how-do-i-write-policies.html">
+            
+                <a href="how-do-i-write-policies.html">
+            
+                    
+                    How Do I Write Policies?
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter " data-level="1.4" data-path="language-reference.html">
+            
+                <a href="language-reference.html">
+            
+                    
+                    Language Reference
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter " data-level="1.5" data-path="rest-api-v1.html">
+            
+                <a href="rest-api-v1.html">
+            
+                    
+                    REST API (V1)
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter " data-level="1.6" data-path="rest-api-v0.html">
+            
+                <a href="rest-api-v0.html">
+            
+                    
+                    REST API (V0)
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter " data-level="1.7" data-path="deployments.html">
+            
+                <a href="deployments.html">
+            
+                    
+                    Deployments
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter " data-level="1.8" data-path="security.html">
+            
+                <a href="security.html">
+            
+                    
+                    Security
+            
+                </a>
+            
+
+            
+        </li>
+    
+
+    
+        
+        <li class="header">Tutorials</li>
+        
+        
+    
+        <li class="chapter active" data-level="2.1" data-path="working-with-the-opa-repl.html">
+            
+                <a href="working-with-the-opa-repl.html">
+            
+                    
+                    Working with the OPA REPL
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter " data-level="2.2" data-path="docker-authorization.html">
+            
+                <a href="docker-authorization.html">
+            
+                    
+                    Docker Authorization
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter " data-level="2.3" data-path="http-api-authorization.html">
+            
+                <a href="http-api-authorization.html">
+            
+                    
+                    HTTP API Authorization
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter " data-level="2.4" data-path="ssh-and-sudo-authorization.html">
+            
+                <a href="ssh-and-sudo-authorization.html">
+            
+                    
+                    SSH and sudo Authorization
+            
+                </a>
+            
+
+            
+        </li>
+    
+
+    
+
+    <li class="divider"></li>
+
+    <li>
+        <a href="https://www.gitbook.com" target="blank" class="gitbook-link">
+            Published with GitBook
+        </a>
+    </li>
+</ul>
+
+
+                </nav>
+            
+        
+    </div>
+
+    <div class="book-body">
+        
+            <div class="body-inner">
+                
+                    
+
+<div class="book-header" role="navigation">
+    
+
+    <!-- Title -->
+    <h1>
+        <i class="fa fa-circle-o-notch fa-spin"></i>
+        <a href=".">Working with the OPA REPL</a>
+    </h1>
+</div>
+
+
+
+
+                    <div class="page-wrapper" tabindex="-1" role="main">
+                        <div class="page-inner">
+                            
+<div id="book-search-results">
+    <div class="search-noresults">
+    
+                                <section class="normal markdown-section">
+                                
+                                <h1 id="working-with-the-opa-repl">Working with the OPA REPL</h1>
+<p>REPLs are great for learning new languages and running quick experiments. You can take advantage of OPA&apos;s REPL to quickly run ad-hoc queries or prototype policies.</p>
+<h2 id="goals">Goals</h2>
+<p>This tutorial helps you get started with OPA&apos;s interactive shell or <a href="https://en.wikipedia.org/wiki/Read&#x2013;eval&#x2013;print_loop" target="_blank">REPL (read-eval-print loop)</a></p>
+<p>To introduce the REPL, we will use dummy data and an example policy. In English, the policy can be stated as follows:</p>
+<ul>
+<li>Servers that open an unencrypted HTTP port must not be connected to a public network.</li>
+</ul>
+<p>We will use the REPL to define rules that codify the policy stated above.</p>
+<p>Once you finish this tutorial, you will be familiar with:</p>
+<ul>
+<li>Running OPA as an interactive shell/REPL.</li>
+<li>Writing ad-hoc queries in <a href="docs/lang.html">Rego</a>.</li>
+</ul>
+<h2 id="prerequisites">Prerequisites</h2>
+<ul>
+<li>This tutorial requires that you have the latest version of OPA. You can download the latest version of OPA at <a href="get-opa">openpolicyagent.org</a>.</li>
+<li>This tutorial assumes you have the OPA executable in your <code>$PATH</code>.</li>
+</ul>
+<h2 id="steps">Steps</h2>
+<h3 id="1-make-sure-you-can-run-the-repl-on-your-machine">1. Make sure you can run the REPL on your machine.</h3>
+<pre><code class="lang-shell">$ opa run
+</code></pre>
+<p>Without any data, you can experiment with simple expressions to get the hang of it:</p>
+<pre><code class="lang-ruby">&gt; <span class="hljs-keyword">true</span>
+<span class="hljs-keyword">true</span>
+&gt; <span class="hljs-number">3.14</span>
+<span class="hljs-number">3.14</span>
+&gt; [<span class="hljs-string">&quot;hello&quot;</span>, <span class="hljs-string">&quot;world&quot;</span>]
+[
+  <span class="hljs-string">&quot;hello&quot;</span>,
+  <span class="hljs-string">&quot;world&quot;</span>
+]
+</code></pre>
+<p>You can also test simple boolean expressions:</p>
+<pre><code class="lang-ruby">&gt; <span class="hljs-keyword">true</span> = <span class="hljs-keyword">false</span>
+<span class="hljs-keyword">false</span>
+&gt; <span class="hljs-number">3.14</span> &gt; <span class="hljs-number">3</span>
+<span class="hljs-keyword">true</span>
+&gt; <span class="hljs-string">&quot;hello&quot;</span> != <span class="hljs-string">&quot;goodbye&quot;</span>
+<span class="hljs-keyword">true</span>
+</code></pre>
+<p>Most REPLs let you define variables that you can reference later on. OPA allows you to do something similar. For example, we can define a <code>pi</code> constant as follows:</p>
+<pre><code class="lang-ruby">&gt; pi = <span class="hljs-number">3.14</span>
+</code></pre>
+<p>Once &quot;pi&quot; is defined, you query for the value and write expressions in terms of it:</p>
+<pre><code class="lang-ruby">&gt; pi
+<span class="hljs-number">3.14</span>
+&gt; pi &gt; <span class="hljs-number">3</span>
+<span class="hljs-keyword">true</span>
+</code></pre>
+<p>One thing to watch out for in the REPL is that <code>=</code> is used both for assigning variables values and for testing the value of variables. For example <code>p = q</code> sometimes assigns <code>p</code> the value of <code>q</code> and sometimes checks if the values of <code>p</code> and <code>q</code> are the same. The REPL decides between assignment and test based on whether <code>p</code> already has a value or not. If <code>p</code> has a value, <code>p = q</code> is a test (returning <code>true</code> or <code>false</code>), and if <code>p</code> has no value <code>p = q</code> is an assignment. To unset a value for a variable, use the <code>unset</code> command. (This ambiguity is only really an issue in the REPL. When writing policy, the duality of <code>=</code> is actually beneficial.)</p>
+<pre><code class="lang-ruby">&gt; pi = <span class="hljs-number">3</span>
+<span class="hljs-keyword">false</span>
+&gt; unset pi
+&gt; pi = <span class="hljs-number">3</span>
+&gt; pi
+<span class="hljs-number">3</span>
+</code></pre>
+<p>In addition to running queries, the REPL also lets you define rules:</p>
+<pre><code class="lang-ruby">&gt; p[x] { a = [<span class="hljs-number">1</span>,<span class="hljs-number">2</span>,<span class="hljs-number">3</span>,<span class="hljs-number">4</span>]; a[x] }
+&gt; p[x] &gt; <span class="hljs-number">1</span>
++---+
+| x |
++---+
+| <span class="hljs-number">2</span> |
+| <span class="hljs-number">3</span> |
++---+
+</code></pre>
+<p>The rule above defines a set of values that are the indices of elements in the array <code>a</code>.</p>
+<p>When you enter expressions into the OPA REPL, you are effectively running <em>queries</em>. The REPL output shows the values of variables in the expression that make the query <code>true</code>. If there is no set of variables that would make the query <code>true</code>, the REPL prints <code>false</code>. If there are no variables in the query and the query evaluates successfully, then the REPL just prints <code>true</code>.</p>
+<p>Quit out of the REPL by pressing Control-D or typing <code>exit</code>:</p>
+<pre><code class="lang-ruby">&gt; exit
+Exiting
+</code></pre>
+<h3 id="2-create-a-data-file-and-a-policy-module">2. Create a data file and a policy module.</h3>
+<p>Let&apos;s define a bit of JSON data that will be used in the tutorial:</p>
+<pre><code class="lang-shell">$ cat &gt;data.json &lt;&lt;EOF
+{
+    &quot;servers&quot;: [
+        {&quot;id&quot;: &quot;s1&quot;, &quot;name&quot;: &quot;app&quot;, &quot;protocols&quot;: [&quot;https&quot;, &quot;ssh&quot;], &quot;ports&quot;: [&quot;p1&quot;, &quot;p2&quot;, &quot;p3&quot;]},
+        {&quot;id&quot;: &quot;s2&quot;, &quot;name&quot;: &quot;db&quot;, &quot;protocols&quot;: [&quot;mysql&quot;], &quot;ports&quot;: [&quot;p3&quot;]},
+        {&quot;id&quot;: &quot;s3&quot;, &quot;name&quot;: &quot;cache&quot;, &quot;protocols&quot;: [&quot;memcache&quot;], &quot;ports&quot;: [&quot;p3&quot;]},
+        {&quot;id&quot;: &quot;s4&quot;, &quot;name&quot;: &quot;dev&quot;, &quot;protocols&quot;: [&quot;http&quot;], &quot;ports&quot;: [&quot;p1&quot;, &quot;p2&quot;]}
+    ],
+    &quot;networks&quot;: [
+        {&quot;id&quot;: &quot;n1&quot;, &quot;public&quot;: false},
+        {&quot;id&quot;: &quot;n2&quot;, &quot;public&quot;: false},
+        {&quot;id&quot;: &quot;n3&quot;, &quot;public&quot;: true}
+    ],
+    &quot;ports&quot;: [
+        {&quot;id&quot;: &quot;p1&quot;, &quot;networks&quot;: [&quot;n1&quot;]},
+        {&quot;id&quot;: &quot;p2&quot;, &quot;networks&quot;: [&quot;n3&quot;]},
+        {&quot;id&quot;: &quot;p3&quot;, &quot;networks&quot;: [&quot;n2&quot;]}
+    ]
+}
+EOF
+</code></pre>
+<p>Also, let&apos;s include a rule that defines a set of servers that are attached to public networks:</p>
+<pre><code class="lang-shell">$ cat &gt;example.rego &lt;&lt;EOF
+package opa.example
+
+import data.servers
+import data.networks
+import data.ports
+
+public_servers[s] {
+    s = servers[_]
+    s.ports[_] = ports[i].id
+    ports[i].networks[_] = networks[j].id
+    networks[j].public = true
+}
+EOF
+</code></pre>
+<h3 id="3-run-the-repl-with-the-data-file-and-policy-module-as-input">3. Run the REPL with the data file and policy module as input.</h3>
+<pre><code class="lang-shell">$ opa run data.json example.rego
+</code></pre>
+<p>You can now run queries against the various documents:</p>
+<pre><code class="lang-ruby">&gt; data.servers[<span class="hljs-number">_</span>].id
++--------------------+
+| data.servers[<span class="hljs-number">_</span>].id |
++--------------------+
+| <span class="hljs-string">&quot;s1&quot;</span>               |
+| <span class="hljs-string">&quot;s2&quot;</span>               |
+| <span class="hljs-string">&quot;s3&quot;</span>               |
+| <span class="hljs-string">&quot;s4&quot;</span>               |
++--------------------+
+&gt; data.opa.example.public_servers[x]
++-------------------------------------------------------------------------------+
+|                                       x                                       |
++-------------------------------------------------------------------------------+
+| {<span class="hljs-string">&quot;id&quot;</span><span class="hljs-symbol">:<span class="hljs-string">&quot;s1&quot;</span></span>,<span class="hljs-string">&quot;name&quot;</span><span class="hljs-symbol">:<span class="hljs-string">&quot;app&quot;</span></span>,<span class="hljs-string">&quot;ports&quot;</span><span class="hljs-symbol">:</span>[<span class="hljs-string">&quot;p1&quot;</span>,<span class="hljs-string">&quot;p2&quot;</span>,<span class="hljs-string">&quot;p3&quot;</span>],<span class="hljs-string">&quot;protocols&quot;</span><span class="hljs-symbol">:</span>[<span class="hljs-string">&quot;https&quot;</span>,<span class="hljs-string">&quot;ssh&quot;</span>]} |
+| {<span class="hljs-string">&quot;id&quot;</span><span class="hljs-symbol">:<span class="hljs-string">&quot;s4&quot;</span></span>,<span class="hljs-string">&quot;name&quot;</span><span class="hljs-symbol">:<span class="hljs-string">&quot;dev&quot;</span></span>,<span class="hljs-string">&quot;ports&quot;</span><span class="hljs-symbol">:</span>[<span class="hljs-string">&quot;p1&quot;</span>,<span class="hljs-string">&quot;p2&quot;</span>],<span class="hljs-string">&quot;protocols&quot;</span><span class="hljs-symbol">:</span>[<span class="hljs-string">&quot;http&quot;</span>]}             |
++-------------------------------------------------------------------------------+
+</code></pre>
+<p>One powerful thing about Rego and the REPL is that you can run queries using the same syntax that you would use to lookup values.</p>
+<p>For example if <code>i</code> has value <code>0</code> then <code>data.servers[i]</code> returns the first value in the <code>data.servers</code> array:</p>
+<pre><code class="lang-ruby">&gt; i = <span class="hljs-number">0</span>
+&gt; data.servers[i]
+{
+  <span class="hljs-string">&quot;id&quot;</span><span class="hljs-symbol">:</span> <span class="hljs-string">&quot;s1&quot;</span>,
+  <span class="hljs-string">&quot;name&quot;</span><span class="hljs-symbol">:</span> <span class="hljs-string">&quot;app&quot;</span>,
+  <span class="hljs-string">&quot;ports&quot;</span><span class="hljs-symbol">:</span> [
+      <span class="hljs-string">&quot;p1&quot;</span>,
+      <span class="hljs-string">&quot;p2&quot;</span>,
+      <span class="hljs-string">&quot;p3&quot;</span>
+  ],
+  <span class="hljs-string">&quot;protocols&quot;</span><span class="hljs-symbol">:</span> [
+      <span class="hljs-string">&quot;https&quot;</span>,
+      <span class="hljs-string">&quot;ssh&quot;</span>
+  ]
+}
+</code></pre>
+<p>That same expression <code>data.servers[i]</code> when <code>i</code> has no value defines a query that returns all the values of <code>i</code> and <code>data.servers[i]</code>:</p>
+<pre><code class="lang-ruby">&gt; unset i
+&gt; data.servers[i]
++---+-------------------------------------------------------------------------------+
+| i |                                data.servers[i]                                |
++---+-------------------------------------------------------------------------------+
+| <span class="hljs-number">0</span> | {<span class="hljs-string">&quot;id&quot;</span><span class="hljs-symbol">:<span class="hljs-string">&quot;s1&quot;</span></span>,<span class="hljs-string">&quot;name&quot;</span><span class="hljs-symbol">:<span class="hljs-string">&quot;app&quot;</span></span>,<span class="hljs-string">&quot;ports&quot;</span><span class="hljs-symbol">:</span>[<span class="hljs-string">&quot;p1&quot;</span>,<span class="hljs-string">&quot;p2&quot;</span>,<span class="hljs-string">&quot;p3&quot;</span>],<span class="hljs-string">&quot;protocols&quot;</span><span class="hljs-symbol">:</span>[<span class="hljs-string">&quot;https&quot;</span>,<span class="hljs-string">&quot;ssh&quot;</span>]} |
+| <span class="hljs-number">1</span> | {<span class="hljs-string">&quot;id&quot;</span><span class="hljs-symbol">:<span class="hljs-string">&quot;s2&quot;</span></span>,<span class="hljs-string">&quot;name&quot;</span><span class="hljs-symbol">:<span class="hljs-string">&quot;db&quot;</span></span>,<span class="hljs-string">&quot;ports&quot;</span><span class="hljs-symbol">:</span>[<span class="hljs-string">&quot;p3&quot;</span>],<span class="hljs-string">&quot;protocols&quot;</span><span class="hljs-symbol">:</span>[<span class="hljs-string">&quot;mysql&quot;</span>]}                  |
+| <span class="hljs-number">2</span> | {<span class="hljs-string">&quot;id&quot;</span><span class="hljs-symbol">:<span class="hljs-string">&quot;s3&quot;</span></span>,<span class="hljs-string">&quot;name&quot;</span><span class="hljs-symbol">:<span class="hljs-string">&quot;cache&quot;</span></span>,<span class="hljs-string">&quot;ports&quot;</span><span class="hljs-symbol">:</span>[<span class="hljs-string">&quot;p3&quot;</span>],<span class="hljs-string">&quot;protocols&quot;</span><span class="hljs-symbol">:</span>[<span class="hljs-string">&quot;memcache&quot;</span>]}            |
+| <span class="hljs-number">3</span> | {<span class="hljs-string">&quot;id&quot;</span><span class="hljs-symbol">:<span class="hljs-string">&quot;s4&quot;</span></span>,<span class="hljs-string">&quot;name&quot;</span><span class="hljs-symbol">:<span class="hljs-string">&quot;dev&quot;</span></span>,<span class="hljs-string">&quot;ports&quot;</span><span class="hljs-symbol">:</span>[<span class="hljs-string">&quot;p1&quot;</span>,<span class="hljs-string">&quot;p2&quot;</span>],<span class="hljs-string">&quot;protocols&quot;</span><span class="hljs-symbol">:</span>[<span class="hljs-string">&quot;http&quot;</span>]}             |
++---+-------------------------------------------------------------------------------+
+</code></pre>
+<h3 id="4-import-and-export-documents">4. Import and export documents.</h3>
+<p>The REPL also understands the <a href="documentation/how-do-i-write-policies#modules">Import and Package</a> directives.</p>
+<pre><code class="lang-ruby">&gt; import data.servers
+&gt; servers[i].ports[<span class="hljs-number">_</span>] = <span class="hljs-string">&quot;p2&quot;</span>; servers[i].id = id
++---+------+
+| i |  id  |
++---+------+
+| <span class="hljs-number">0</span> | <span class="hljs-string">&quot;s1&quot;</span> |
+| <span class="hljs-number">3</span> | <span class="hljs-string">&quot;s4&quot;</span> |
++---+------+
+</code></pre>
+<pre><code class="lang-ruby">&gt; package opa.example
+&gt; public_servers[x].protocols[<span class="hljs-number">_</span>] = <span class="hljs-string">&quot;http&quot;</span>
++-------------------------------------------------------------------+
+|                                 x                                 |
++-------------------------------------------------------------------+
+| {<span class="hljs-string">&quot;id&quot;</span><span class="hljs-symbol">:<span class="hljs-string">&quot;s4&quot;</span></span>,<span class="hljs-string">&quot;name&quot;</span><span class="hljs-symbol">:<span class="hljs-string">&quot;dev&quot;</span></span>,<span class="hljs-string">&quot;ports&quot;</span><span class="hljs-symbol">:</span>[<span class="hljs-string">&quot;p1&quot;</span>,<span class="hljs-string">&quot;p2&quot;</span>],<span class="hljs-string">&quot;protocols&quot;</span><span class="hljs-symbol">:</span>[<span class="hljs-string">&quot;http&quot;</span>]} |
++-------------------------------------------------------------------+
+</code></pre>
+<h3 id="5-define-a-rule-to-identify-servers-in-violation-of-our-security-policy">5. Define a rule to identify servers in violation of our security policy.</h3>
+<pre><code class="lang-ruby">&gt; import data.servers
+&gt; violations[s] {
+  s = servers[<span class="hljs-number">_</span>]
+  s.protocols[<span class="hljs-number">_</span>] = <span class="hljs-string">&quot;http&quot;</span>
+  public_servers[s]
+}
+
+&gt; violations[server]
++-------------------------------------------------------------------+
+|                              server                               |
++-------------------------------------------------------------------+
+| {<span class="hljs-string">&quot;id&quot;</span><span class="hljs-symbol">:<span class="hljs-string">&quot;s4&quot;</span></span>,<span class="hljs-string">&quot;name&quot;</span><span class="hljs-symbol">:<span class="hljs-string">&quot;dev&quot;</span></span>,<span class="hljs-string">&quot;ports&quot;</span><span class="hljs-symbol">:</span>[<span class="hljs-string">&quot;p1&quot;</span>,<span class="hljs-string">&quot;p2&quot;</span>],<span class="hljs-string">&quot;protocols&quot;</span><span class="hljs-symbol">:</span>[<span class="hljs-string">&quot;http&quot;</span>]} |
++-------------------------------------------------------------------+
+</code></pre>
+<blockquote>
+<p>The REPL accepts multi-line input and will change appearance when it detects multi-line input.</p>
+</blockquote>
+
+                                
+                                </section>
+                            
+    </div>
+    <div class="search-results">
+        <div class="has-results">
+            
+            <h1 class="search-results-title"><span class="search-results-count"></span> results matching &quot;<span class="search-query"></span>&quot;</h1>
+            <ul class="search-results-list"></ul>
+            
+        </div>
+        <div class="no-results">
+            
+            <h1 class="search-results-title">No results matching &quot;<span class="search-query"></span>&quot;</h1>
+            
+        </div>
+    </div>
+</div>
+
+                        </div>
+                    </div>
+                
+            </div>
+
+            
+                
+                <a href="security.html" class="navigation navigation-prev " aria-label="Previous page: Security">
+                    <i class="fa fa-angle-left"></i>
+                </a>
+                
+                
+                <a href="docker-authorization.html" class="navigation navigation-next " aria-label="Next page: Docker Authorization">
+                    <i class="fa fa-angle-right"></i>
+                </a>
+                
+            
+        
+    </div>
+
+    <script>
+        var gitbook = gitbook || [];
+        gitbook.push(function() {
+            gitbook.page.hasChanged({"page":{"title":"Working with the OPA REPL","level":"2.1","depth":1,"next":{"title":"Docker Authorization","level":"2.2","depth":1,"path":"docker-authorization.md","ref":"docker-authorization.md","articles":[]},"previous":{"title":"Security","level":"1.8","depth":1,"path":"security.md","ref":"security.md","articles":[]},"dir":"ltr"},"config":{"gitbook":"*","theme":"default","variables":{},"plugins":["header","addcssjs","livereload"],"pluginsConfig":{"livereload":{},"search":{},"layout":{"headerPath":"layouts/header.html"},"addcssjs":{"css":["css/custom.css"],"js":["js/custom.js"]},"lunr":{"maxIndexSize":1000000,"ignoreSpecialCharacters":false},"header":{},"fontsettings":{"theme":"white","family":"sans","size":2},"highlight":{},"sharing":{"facebook":true,"twitter":true,"google":false,"weibo":false,"instapaper":false,"vk":false,"all":["facebook","google","twitter","weibo","instapaper"]},"theme-default":{"styles":{"website":"styles/website.css","pdf":"styles/pdf.css","epub":"styles/epub.css","mobi":"styles/mobi.css","ebook":"styles/ebook.css","print":"styles/print.css"},"showLevel":false}},"structure":{"langs":"LANGS.md","readme":"README.md","glossary":"GLOSSARY.md","summary":"SUMMARY.md"},"pdf":{"pageNumbers":true,"fontSize":12,"fontFamily":"Arial","paperSize":"a4","chapterMark":"pagebreak","pageBreaksBefore":"/","margin":{"right":62,"left":62,"top":56,"bottom":56}},"styles":{"website":"styles/website.css","pdf":"styles/pdf.css","epub":"styles/epub.css","mobi":"styles/mobi.css","ebook":"styles/ebook.css","print":"styles/print.css"}},"file":{"path":"working-with-the-opa-repl.md","mtime":"2017-06-14T23:59:17.000Z","type":"markdown"},"gitbook":{"version":"3.2.2","time":"2017-06-16T00:41:56.745Z"},"basePath":".","book":{"language":""}});
+        });
+    </script>
+</div>
+
+        
+    
+    <script src="gitbook/gitbook.js"></script>
+    <script src="gitbook/theme.js"></script>
+    
+        
+        <script src="gitbook/gitbook-plugin-livereload/plugin.js"></script>
+        
+    
+        
+        <script src="gitbook/gitbook-plugin-search/search-engine.js"></script>
+        
+    
+        
+        <script src="gitbook/gitbook-plugin-search/search.js"></script>
+        
+    
+        
+        <script src="gitbook/gitbook-plugin-lunr/lunr.min.js"></script>
+        
+    
+        
+        <script src="gitbook/gitbook-plugin-lunr/search-lunr.js"></script>
+        
+    
+        
+        <script src="gitbook/gitbook-plugin-sharing/buttons.js"></script>
+        
+    
+        
+        <script src="gitbook/gitbook-plugin-fontsettings/fontsettings.js"></script>
+        
+    
+
+    
+    <script type="text/javascript" src="js/custom.js"></script>
+    
+
+    </body>
+</html>
+
