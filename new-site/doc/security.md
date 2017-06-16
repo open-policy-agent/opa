@@ -12,7 +12,7 @@ authorization so that:
 - Traffic between OPA and clients is encrypted.
 - Clients verify the OPA API endpoint identity.
 - OPA verifies client identities.
-- Clients are only granted access to specific APIs or sections of [The `data` Document](/documentation/how-does-opa-work#the-data-document).
+- Clients are only granted access to specific APIs or sections of [The `data` Document](/how-does-opa-work.html#the-data-document).
 
 ### TLS & HTTPS
 
