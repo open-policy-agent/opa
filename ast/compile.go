@@ -745,7 +745,7 @@ func (qc *queryCompiler) TypeEnv() *TypeEnv {
 
 func (qc *queryCompiler) resolveRefs(qctx *QueryContext, body Body) (Body, error) {
 
-	var globals map[Var]Value
+	var globals map[Var]Ref
 
 	if qctx != nil && qctx.Package != nil {
 		var exports []Var
@@ -1402,9 +1402,9 @@ func (l *localVarGenerator) Generate() Var {
 	return name
 }
 
-func getGlobals(pkg *Package, exports []Var, imports []*Import) map[Var]Value {
+func getGlobals(pkg *Package, exports []Var, imports []*Import) map[Var]Ref {
 
-	globals := map[Var]Value{}
+	globals := map[Var]Ref{}
 
 	// Populate globals with exports within the package.
 	for _, v := range exports {
@@ -1432,22 +1432,21 @@ func getGlobals(pkg *Package, exports []Var, imports []*Import) map[Var]Value {
 	return globals
 }
 
-func resolveRef(globals map[Var]Value, ref Ref) Ref {
+func resolveRef(globals map[Var]Ref, ref Ref) Ref {
 
 	r := Ref{}
 	for i, x := range ref {
 		switch v := x.Value.(type) {
 		case Var:
 			if g, ok := globals[v]; ok {
-				switch g := g.(type) {
-				case Ref:
-					if i == 0 {
-						r = append(r, g...)
-					} else {
-						r = append(r, &Term{Location: x.Location, Value: g[:]})
-					}
-				case Var:
-					r = append(r, &Term{Value: g})
+				cpy := g.Copy()
+				for i := range cpy {
+					cpy[i].SetLocation(x.Location)
+				}
+				if i == 0 {
+					r = cpy
+				} else {
+					r = append(r, NewTerm(cpy).SetLocation(x.Location))
 				}
 			} else {
 				r = append(r, x)
@@ -1462,7 +1461,7 @@ func resolveRef(globals map[Var]Value, ref Ref) Ref {
 	return r
 }
 
-func resolveRefsInRule(globals map[Var]Value, rule *Rule) {
+func resolveRefsInRule(globals map[Var]Ref, rule *Rule) {
 	if rule.Head.Key != nil {
 		rule.Head.Key = resolveRefsInTerm(globals, rule.Head.Key)
 	}
@@ -1472,7 +1471,7 @@ func resolveRefsInRule(globals map[Var]Value, rule *Rule) {
 	rule.Body = resolveRefsInBody(globals, rule.Body)
 }
 
-func resolveRefsInBody(globals map[Var]Value, body Body) Body {
+func resolveRefsInBody(globals map[Var]Ref, body Body) Body {
 	r := Body{}
 	for _, expr := range body {
 		r = append(r, resolveRefsInExpr(globals, expr))
@@ -1480,7 +1479,7 @@ func resolveRefsInBody(globals map[Var]Value, body Body) Body {
 	return r
 }
 
-func resolveRefsInExpr(globals map[Var]Value, expr *Expr) *Expr {
+func resolveRefsInExpr(globals map[Var]Ref, expr *Expr) *Expr {
 	cpy := *expr
 	switch ts := expr.Terms.(type) {
 	case *Term:
@@ -1499,13 +1498,15 @@ func resolveRefsInExpr(globals map[Var]Value, expr *Expr) *Expr {
 	return &cpy
 }
 
-func resolveRefsInTerm(globals map[Var]Value, term *Term) *Term {
+func resolveRefsInTerm(globals map[Var]Ref, term *Term) *Term {
 	switch v := term.Value.(type) {
 	case Var:
-		if r, ok := globals[v]; ok {
-			cpy := *term
-			cpy.Value = r
-			return &cpy
+		if g, ok := globals[v]; ok {
+			cpy := g.Copy()
+			for i := range cpy {
+				cpy[i].SetLocation(term.Location)
+			}
+			return NewTerm(cpy).SetLocation(term.Location)
 		}
 		return term
 	case Ref:
