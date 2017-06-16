@@ -8,8 +8,7 @@
       "headerPath" : "layouts/header.html"
     },
     "addcssjs": {
-      "js": ["js/custom.js"],
-      "css": ["css/custom.css"]
+      "js": ["js/custom.js"]
     }
   }
 }
