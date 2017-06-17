@@ -1,4 +1,4 @@
-<div class="_doc--header">
+<nav class="_doc--header">
   <div class="header _doc--container">
 
       <div class="_doc--logo header--logo">
@@ -41,9 +41,9 @@
       </div>
 
   </div>
-</div>
+</nav>
 
-<div class="_doc--hamburger-menu-container">
+<nav class="_doc--hamburger-menu-container">
 
   <a class="header--hamburger-menu-link" href="/doc/_book">
     <li class="header--hamburger-menu-item">
@@ -80,4 +80,4 @@
   </a>
 
 
-</div>
+</nav>

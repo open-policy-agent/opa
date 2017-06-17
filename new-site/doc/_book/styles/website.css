@@ -42,6 +42,10 @@ h6{
   font-family: "adobe-fan-heiti-std" !important;
 }
 
+.opa-keep-it-together{
+  white-space: nowrap;
+}
+
 .chapter{
   font-family: Roboto !important;
 }
@@ -64,10 +68,6 @@ h6{
 
 .markdown-section a {
   color: #EF6C00 !important;
-}
-
-.markdown-section pre{
-  max-height: 30rem;
 }
 
 .book-summary{

@@ -599,36 +599,6 @@ body {
 .base--hr {
   border-top: 2px solid #ececec; }
 
-@font-face {
-  font-family: "icons";
-  src: url("../../fonts/icon-fonts/icons.eot");
-  src: url("../../fonts/icon-fonts/icons.eot?#iefix") format("eot"), url("../../fonts/icon-fonts/icons.woff") format("woff"), url("../../fonts/icon-fonts/icons.ttf") format("truetype"), url("../../fonts/icon-fonts/icons.svg#icons") format("svg"); }
-
-.icon:before {
-  font-family: "icons";
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  font-style: normal;
-  font-variant: normal;
-  font-weight: normal;
-  /* speak: none; only necessary if not using the private unicode range (firstGlyph option) */
-  text-decoration: none;
-  text-transform: none; }
-
-.icon-icons:before {
-  content: "\E001"; }
-
-.icon-link:before {
-  content: "\E002"; }
-
-.icon-reset:before {
-  content: "\E003"; }
-
-.icon {
-  vertical-align: middle;
-  font-size: 1em;
-  color: inherit; }
-
 .header--logo-image {
   width: 3rem;
   display: inline-block;
@@ -723,6 +693,9 @@ body {
   @media (min-width: 1200px) {
     .messages--btn {
       font-size: 1em; } }
+
+.messages--btn-link {
+  text-decoration: none !important; }
 
 .messages--get-started-btn {
   background-color: #FF9512;

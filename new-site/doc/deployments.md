@@ -141,7 +141,6 @@ This section shows how to quickly deploy OPA on top of Kubernetes to try it out.
 [minikube](https://github.com/kubernetes/minikube). If you are using a different
 Kubernetes provider, the steps should be similar. You may need to use a
 different Service configuration at the end.
-{: .opa-tip}
 
 First, create a ConfigMap containing a test policy. The policy will inspect
 "pod" objects provided as input. If the pod is missing a "customer" label or the
@@ -168,7 +167,6 @@ allow = false {
     not re_match("^registry.acmecorp.com/.+$", container.image)
 }
 ```
-{: .opa-collapse--ignore}
 
 ```bash
 kubectl create configmap example-policy \
@@ -212,7 +210,6 @@ spec:
           mountPath: /policies
           name: example-policy
 ```
-{: .opa-collapse--ignore}
 
 ```bash
 kubectl create -f rc_opa.yaml
@@ -238,7 +235,6 @@ spec:
       port: 8181
       targetPort: 8181
 ```
-{: .opa-collapse--ignore}
 
 ```bash
 kubectl create -f svc_opa.yaml

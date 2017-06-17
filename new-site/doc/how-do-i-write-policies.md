@@ -289,7 +289,6 @@ documents as arrays when serializing to JSON or other formats that do not
 support a set data type. The important distinction between sets and arrays or
 objects is that sets are unkeyed while arrays and objects are keyed, i.e., you
 cannot refer to the index of an element within a set.
-{: .opa-tip}
 
 When comparing sets, the order of elements does not matter:
 
@@ -450,7 +449,6 @@ In the reference above, we effectively used variables named `i` and `j` to itera
 The underscore is special because it cannot be referred to by other parts of the rule, e.g., the other side of the expression, another expression, etc. The underscore can be thought of as a special iterator. Each time an underscore is specified, a new iterator is instantiated.
 
 > Under the hood, OPA translates the `_` character to a unique variable name that does not conflict with variables and rules that are in scope.
-{: .opa-tip}
 
 ### Multiple Expressions
 
@@ -537,7 +535,6 @@ The body of a comprehension is able to refer to variables defined in the outer b
 In the above query, the second expression contains an [Array Comprehension](#array-comprehension) that refers to the `region` variable. The region variable will be bound in the outer body.
 
 > When a comprehension refers to a variable in an outer body, OPA will reorder expressions in the outer body so that variables referred to in the comprehension are bound by the time the comprehension is evaluated.
-{: .opa-tip}
 
 Comprehensions are similar to the same constructs found in other languages like Python. For example, we could write the above comprehension in Python as follows:
 
@@ -728,7 +725,6 @@ pi = 3.14159
 
 > Rego allows authors to omit the body of rules. If the body is omitted, it
 > defaults to true.
-{: .opa-tip}
 
 Documents produced by rules with complete definitions can only have one value at
 a time. If evaluation produces multiple values for the same document, an error
@@ -781,7 +777,6 @@ This generates the correct result when the expressions represent assertions abou
 For safety, a variable appearing in a negated expression must also appear in another non-negated equality expression in the rule.
 
 > OPA will reorder expressions to ensure that negated expressions are evaluated after other non-negated expressions with the same variables. OPA will reject rules containing negated expressions that do not meet the safety criteria described above.
-{: .opa-tip}
 
 The simplest use of negation involves only scalar values or variables and is equivalent to complementing the operator:
 
