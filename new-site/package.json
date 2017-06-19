@@ -29,6 +29,7 @@
     "eslint-plugin-react": "^5.1.1",
     "gulp": "^3.9.0",
     "gulp-autoprefixer": "^3.0.2",
+    "gulp-build": "^0.5.3",
     "gulp-clean": "^0.3.1",
     "gulp-concat": "^2.6.0",
     "gulp-env": "^0.2.0",
