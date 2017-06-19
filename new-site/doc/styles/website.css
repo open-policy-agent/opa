@@ -93,6 +93,7 @@ h6{
   display: inline-block;
   padding: 7px 7px;
   line-height: 36px;
+  margin: 0;
 
   font-family: "adobe-fan-heiti-std" !important;
   color: #121212;
@@ -124,6 +125,12 @@ h6{
   display: flex;
   align-items: center;
 }
+
+.header--menu-txt{
+  margin: 0;
+}
+
+
 
 ._doc--header:after {
   content: "";
