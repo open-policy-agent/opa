@@ -966,7 +966,11 @@ func (s *Server) prepareV1PatchSlice(root string, ops []types.PatchV1) (result [
 		// Construct patch path.
 		path := strings.Trim(op.Path, "/")
 		if len(path) > 0 {
-			path = root + "/" + path
+			if root == "/" {
+				path = root + path
+			} else {
+				path = root + "/" + path
+			}
 		} else {
 			path = root
 		}
