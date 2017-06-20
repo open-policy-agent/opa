@@ -105,7 +105,7 @@ func (rt *Runtime) Start(params *Params) {
 
 	ctx := context.Background()
 
-	if err := rt.init(ctx, params); err != nil {
+	if err := rt.init(ctx, params.Paths); err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}
@@ -118,9 +118,9 @@ func (rt *Runtime) Start(params *Params) {
 
 }
 
-func (rt *Runtime) init(ctx context.Context, params *Params) error {
+func (rt *Runtime) init(ctx context.Context, paths []string) error {
 
-	loaded, err := loadAllPaths(params.Paths)
+	loaded, err := loadAllPaths(paths)
 	if err != nil {
 		return err
 	}
@@ -195,14 +195,10 @@ func (rt *Runtime) startRepl(ctx context.Context, params *Params) {
 	repl := repl.New(rt.Store, params.HistoryPath, params.Output, params.OutputFormat, banner)
 
 	if params.Watch {
-
-		watcher, err := getWatcher(params.Paths)
-		if err != nil {
+		if err := rt.startWatcher(ctx, params.Paths, params.Output); err != nil {
 			fmt.Fprintln(params.Output, "error opening watch:", err)
 			os.Exit(1)
 		}
-
-		go rt.readWatcher(ctx, watcher, params.Paths)
 	}
 
 	if params.Eval == "" {
@@ -219,7 +215,16 @@ func (rt *Runtime) startRepl(ctx context.Context, params *Params) {
 
 }
 
-func (rt *Runtime) readWatcher(ctx context.Context, watcher *fsnotify.Watcher, paths []string) {
+func (rt *Runtime) startWatcher(ctx context.Context, paths []string, output io.Writer) error {
+	watcher, err := getWatcher(paths)
+	if err != nil {
+		return err
+	}
+	go rt.readWatcher(ctx, watcher, paths, output)
+	return nil
+}
+
+func (rt *Runtime) readWatcher(ctx context.Context, watcher *fsnotify.Watcher, paths []string, output io.Writer) {
 	for {
 		select {
 		case evt := <-watcher.Events:
@@ -227,9 +232,9 @@ func (rt *Runtime) readWatcher(ctx context.Context, watcher *fsnotify.Watcher, p
 			if (evt.Op & mask) != 0 {
 				t0 := time.Now()
 				if err := rt.processWatcherUpdate(ctx, paths); err != nil {
-					fmt.Fprintf(os.Stdout, "\n# reload error (took %v): %v", time.Since(t0), err)
+					fmt.Fprintf(output, "\n# reload error (took %v): %v", time.Since(t0), err)
 				} else {
-					fmt.Fprintf(os.Stdout, "\n# reloaded files (took %v)", time.Since(t0))
+					fmt.Fprintf(output, "\n# reloaded files (took %v)", time.Since(t0))
 				}
 			}
 		}
