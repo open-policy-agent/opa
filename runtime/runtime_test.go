@@ -9,9 +9,11 @@ import (
 	"context"
 	"io/ioutil"
 	"os"
+	"path"
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/util"
@@ -69,10 +71,7 @@ p = true { 1 = 2 }`
 
 	rt := Runtime{}
 
-	err = rt.init(ctx, &Params{
-		Paths: []string{tmp1.Name(), tmp2.Name()},
-	})
-
+	err = rt.init(ctx, []string{tmp1.Name(), tmp2.Name()})
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
 		return
@@ -116,6 +115,62 @@ func TestWatchPaths(t *testing.T) {
 		if !reflect.DeepEqual(expected, result) {
 			t.Fatalf("Expected %v but got: %v", expected, result)
 		}
+	})
+}
+
+func TestRuntimeProcessWatchEvents(t *testing.T) {
+
+	ctx := context.Background()
+	fs := map[string]string{
+		"/some/data.json": `{
+			"hello": "world"
+		}`,
+	}
+
+	withTempFS(fs, func(rootDir string) {
+		rt := &Runtime{}
+		paths := []string{rootDir}
+
+		if err := rt.init(ctx, paths); err != nil {
+			t.Fatalf("Unexpected init error: %v", err)
+		}
+
+		var buf bytes.Buffer
+
+		if err := rt.startWatcher(ctx, paths, &buf); err != nil {
+			t.Fatalf("Unexpected watcher init error: %v", err)
+		}
+
+		expected := map[string]interface{}{
+			"hello": "world-2",
+		}
+
+		if err := ioutil.WriteFile(path.Join(rootDir, "some/data.json"), util.MustMarshalJSON(expected), 0644); err != nil {
+			panic(err)
+		}
+
+		t0 := time.Now()
+		path := storage.MustParsePath("/" + path.Base(rootDir) + "/some")
+
+		// In practice, reload takes ~100us on development machine.
+		maxWaitTime := time.Second * 1
+		var val interface{}
+
+		for time.Since(t0) < maxWaitTime {
+			time.Sleep(1 * time.Millisecond)
+			txn := storage.NewTransactionOrDie(ctx, rt.Store)
+			var err error
+			val, err = rt.Store.Read(ctx, txn, path)
+			if err != nil {
+				panic(err)
+			}
+			rt.Store.Abort(ctx, txn)
+			if reflect.DeepEqual(val, expected) {
+				return // success
+			}
+		}
+
+		t.Fatalf("Did not see expected change in %v, last value: %v, buf: %v", maxWaitTime, val, buf.String())
 	})
 }
 
