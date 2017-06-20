@@ -23,31 +23,56 @@ gulp.task('build', function() {
   gulp.src('*.html')
       .pipe(gulp.dest('deploy'));
 
-  gulp.src('*.html')
-      .pipe(gulp.dest('deploy'));
-
   gulp.src('doc/_book/*.html')
-      .pipe(gulp.dest('deploy/doc/_book'));
+      .pipe(gulp.dest('deploy/docs'));
 
   gulp.src('doc/_book/*.json')
-      .pipe(gulp.dest('deploy/doc/_book'));
+      .pipe(gulp.dest('deploy/docs'));
 
   gulp.src('doc/_book/gitbook/*/**')
-      .pipe(gulp.dest('deploy/doc/_book/gitbook'));
+      .pipe(gulp.dest('deploy/docs/gitbook'));
 
   gulp.src('doc/_book/gitbook/*')
-      .pipe(gulp.dest('deploy/doc/_book/gitbook'));
+      .pipe(gulp.dest('deploy/docs/gitbook'));
 
   gulp.src('doc/_book/images/*')
-      .pipe(gulp.dest('deploy/doc/_book/images'));
+      .pipe(gulp.dest('deploy/docs/images'));
 
   gulp.src('doc/_book/js/*')
-      .pipe(gulp.dest('deploy/doc/_book/js'));
+      .pipe(gulp.dest('deploy/docs/js'));
 
   gulp.src('doc/_book/styles/*/**')
-      .pipe(gulp.dest('deploy/doc/_book/styles'));
+      .pipe(gulp.dest('deploy/docs/styles'));
 
   gulp.src('doc/_book/styles/*')
-      .pipe(gulp.dest('deploy/doc/_book/styles'));
+      .pipe(gulp.dest('deploy/docs/styles'));
+
+});
+
+gulp.task('doc-build', function() {
+
+  gulp.src('doc/_book/*.html')
+      .pipe(gulp.dest('docs/'));
+
+  gulp.src('doc/_book/*.json')
+      .pipe(gulp.dest('docs/'));
+
+  gulp.src('doc/_book/gitbook/*/**')
+      .pipe(gulp.dest('docs/gitbook'));
+
+  gulp.src('doc/_book/gitbook/*')
+      .pipe(gulp.dest('docs/gitbook'));
+
+  gulp.src('doc/_book/images/*')
+      .pipe(gulp.dest('docs/images'));
+
+  gulp.src('doc/_book/js/*')
+      .pipe(gulp.dest('docs/js'));
+
+  gulp.src('doc/_book/styles/*/**')
+      .pipe(gulp.dest('docs/styles'));
+
+  gulp.src('doc/_book/styles/*')
+      .pipe(gulp.dest('docs/styles'));
 
 });

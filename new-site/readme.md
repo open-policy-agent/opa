@@ -36,6 +36,8 @@ You also need to have [gulp](http://gulpjs.com/) installed to build the site.
 
         ```
         gitbook build
+        cd ..
+        gulp doc-build
         ```
 
 ## Build site
