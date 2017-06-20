@@ -27,7 +27,7 @@ import (
 func TestComplete(t *testing.T) {
 	ctx := context.Background()
 	store := newTestStore()
-	txn := storage.NewTransactionOrDie(ctx, store)
+	txn := storage.NewTransactionOrDie(ctx, store, storage.WriteParams)
 
 	mod1 := []byte(`package a.b.c
 
@@ -451,7 +451,7 @@ func TestEvalData(t *testing.T) {
 
 p = [1, 2, 3] { true }`)
 
-	txn := storage.NewTransactionOrDie(ctx, store)
+	txn := storage.NewTransactionOrDie(ctx, store, storage.WriteParams)
 
 	if err := store.UpsertPolicy(ctx, txn, "test", testMod); err != nil {
 		panic(err)

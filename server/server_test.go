@@ -853,7 +853,7 @@ func TestAuthorization(t *testing.T) {
 
 	ctx := context.Background()
 	store := inmem.New()
-	txn := storage.NewTransactionOrDie(ctx, store)
+	txn := storage.NewTransactionOrDie(ctx, store, storage.WriteParams)
 
 	authzPolicy := `package system.authz
 

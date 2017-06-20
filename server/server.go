@@ -449,7 +449,7 @@ func (s *Server) v1DataPatch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	txn, err := s.store.NewTransaction(ctx)
+	txn, err := s.store.NewTransaction(ctx, storage.WriteParams)
 	if err != nil {
 		writer.ErrorAuto(w, err)
 		return
@@ -606,7 +606,7 @@ func (s *Server) v1DataPut(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	txn, err := s.store.NewTransaction(ctx)
+	txn, err := s.store.NewTransaction(ctx, storage.WriteParams)
 	if err != nil {
 		writer.ErrorAuto(w, err)
 		return
@@ -646,7 +646,7 @@ func (s *Server) v1PoliciesDelete(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["path"]
 
-	txn, err := s.store.NewTransaction(ctx)
+	txn, err := s.store.NewTransaction(ctx, storage.WriteParams)
 	if err != nil {
 		writer.ErrorAuto(w, err)
 		return
@@ -769,7 +769,7 @@ func (s *Server) v1PoliciesPut(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	txn, err := s.store.NewTransaction(ctx)
+	txn, err := s.store.NewTransaction(ctx, storage.WriteParams)
 
 	if err != nil {
 		writer.ErrorAuto(w, err)

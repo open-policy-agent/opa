@@ -20,6 +20,10 @@ const (
 	// was rejected.
 	InvalidPatchErr = "storage_invalid_patch_error"
 
+	// InvalidTransactionErr indicates an invalid operation was performed
+	// inside of the transaction.
+	InvalidTransactionErr = "storage_invalid_txn_error"
+
 	// TriggersNotSupportedErr indicates the caller attempted to register a
 	// trigger against a store that does not support them.
 	TriggersNotSupportedErr = "storage_triggers_not_supported_error"
@@ -64,6 +68,15 @@ func IsInvalidPatch(err error) bool {
 	switch err := err.(type) {
 	case *Error:
 		return err.Code == InvalidPatchErr
+	}
+	return false
+}
+
+// IsInvalidTransaction returns true if this error is a InvalidTransactionErr.
+func IsInvalidTransaction(err error) bool {
+	switch err := err.(type) {
+	case *Error:
+		return err.Code == InvalidTransactionErr
 	}
 	return false
 }

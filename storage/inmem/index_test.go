@@ -54,15 +54,14 @@ func TestIndicesAdd(t *testing.T) {
 	indices := newIndices()
 	ref := ast.MustParseRef("data.d[x][y]")
 
-	if err := indices.Build(ctx, store, txn, ref); err != nil {
+	index, err := indices.Build(ctx, store, txn, ref)
+	if err != nil {
 		t.Fatal(err)
 	}
 
-	index := indices.get(ref)
-
 	// new value to add
 	var val1 interface{}
-	err := util.UnmarshalJSON([]byte(`{"x":[1,true]}`), &val1)
+	err = util.UnmarshalJSON([]byte(`{"x":[1,true]}`), &val1)
 	if err != nil {
 		panic(err)
 	}
@@ -94,15 +93,9 @@ func runIndexBuildTestCase(t *testing.T, i int, note string, refStr string, expe
 		return
 	}
 
-	err := indices.Build(ctx, store, txn, ref)
+	index, err := indices.Build(ctx, store, txn, ref)
 	if err != nil {
 		t.Errorf("Test case %d (%v): Did not expect error from build: %v", i, note, err)
-		return
-	}
-
-	index := indices.get(ref)
-	if index == nil {
-		t.Errorf("Test case %d (%v): Did not expect nil index for %v", i, note, ref)
 		return
 	}
 
@@ -113,7 +106,7 @@ func assertBindingsEqual(t *testing.T, note string, index *bindingIndex, value i
 
 	expected := loadExpectedBindings(expectedStr)
 
-	err := index.Iter(value, func(bindings *ast.ValueMap) error {
+	err := index.Lookup(context.Background(), nil, value, func(bindings *ast.ValueMap) error {
 		for j := range expected {
 			if expected[j].Equal(bindings) {
 				tmp := expected[:j]
