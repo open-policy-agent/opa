@@ -161,6 +161,14 @@ p = true { false }`
 				}
 			]`, 400, ""},
 		}},
+		{"patch abort", []tr{
+			tr{"PATCH", "/data", `[
+				{"op": "add", "path": "/foo", "value": "hello"},
+				{"op": "add", "path": "/bar", "value": "world"},
+				{"op": "add", "path": "/foo/bad", "value": "deadbeef"}
+			]`, 404, ""},
+			tr{"GET", "/data", "", 200, `{"result": {}}`},
+		}},
 		{"put root", []tr{
 			tr{"PUT", "/data", `{"foo": [1,2,3]}`, 204, ""},
 			tr{"GET", "/data", "", 200, `{"result": {"foo": [1,2,3]}}`},
