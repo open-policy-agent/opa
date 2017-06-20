@@ -72,6 +72,7 @@
 
   &--use-case-para{
     font-size: ms(-1);
+    margin-bottom: 1rem;
 
     @include breakpoint(1200px){
       font-size: ms(0);

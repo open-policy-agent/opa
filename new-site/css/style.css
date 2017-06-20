@@ -919,7 +919,8 @@ body {
       font-size: 1.333em; } }
 
 .use-case-section--use-case-para {
-  font-size: 0.8em; }
+  font-size: 0.8em;
+  margin-bottom: 1rem; }
   @media (min-width: 1200px) {
     .use-case-section--use-case-para {
       font-size: 1em; } }

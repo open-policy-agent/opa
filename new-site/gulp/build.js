@@ -29,7 +29,13 @@ gulp.task('build', function() {
   gulp.src('doc/_book/*.html')
       .pipe(gulp.dest('deploy/doc/_book'));
 
+  gulp.src('doc/_book/*.json')
+      .pipe(gulp.dest('deploy/doc/_book'));
+
   gulp.src('doc/_book/gitbook/*/**')
+      .pipe(gulp.dest('deploy/doc/_book/gitbook'));
+
+  gulp.src('doc/_book/gitbook/*')
       .pipe(gulp.dest('deploy/doc/_book/gitbook'));
 
   gulp.src('doc/_book/images/*')
@@ -37,6 +43,9 @@ gulp.task('build', function() {
 
   gulp.src('doc/_book/js/*')
       .pipe(gulp.dest('deploy/doc/_book/js'));
+
+  gulp.src('doc/_book/styles/*/**')
+      .pipe(gulp.dest('deploy/doc/_book/styles'));
 
   gulp.src('doc/_book/styles/*')
       .pipe(gulp.dest('deploy/doc/_book/styles'));
