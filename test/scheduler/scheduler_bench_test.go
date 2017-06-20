@@ -71,14 +71,18 @@ func setupBenchmark(nodes int, pods int) *topdown.QueryParams {
 	ctx := context.Background()
 	input := ast.ObjectTerm(ast.Item(ast.StringTerm("pod"), ast.MustParseTerm(requestedPod)))
 	path := ast.MustParseRef("data.opa.test.scheduler.fit")
-	txn := storage.NewTransactionOrDie(ctx, store)
-	params := topdown.NewQueryParams(ctx, c, store, txn, input.Value, path)
 
 	// data setup
+	txn := storage.NewTransactionOrDie(ctx, store, storage.WriteParams)
 	setupNodes(ctx, store, txn, nodes)
 	setupRCs(ctx, store, txn, 1)
 	setupPods(ctx, store, txn, pods, nodes)
+	if err := store.Commit(ctx, txn); err != nil {
+		panic(err)
+	}
 
+	txn = storage.NewTransactionOrDie(ctx, store)
+	params := topdown.NewQueryParams(ctx, c, store, txn, input.Value, path)
 	return params
 }
 

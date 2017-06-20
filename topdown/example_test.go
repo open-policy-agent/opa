@@ -13,7 +13,6 @@ import (
 	"strings"
 
 	"github.com/open-policy-agent/opa/ast"
-	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/storage/inmem"
 	"github.com/open-policy-agent/opa/topdown"
 	"github.com/open-policy-agent/opa/topdown/builtins"
@@ -50,7 +49,7 @@ func ExampleEval() {
 
 	// Create a new transaction. Transactions allow the policy engine to
 	// evaluate the query over a consistent snapshot fo the storage layer.
-	txn, err := store.NewTransaction(ctx, storage.TransactionParams{})
+	txn, err := store.NewTransaction(ctx)
 	if err != nil {
 		// Handle error.
 	}

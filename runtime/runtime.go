@@ -127,7 +127,7 @@ func (rt *Runtime) init(ctx context.Context, params *Params) error {
 
 	store := inmem.New()
 
-	txn, err := store.NewTransaction(ctx)
+	txn, err := store.NewTransaction(ctx, storage.WriteParams)
 	if err != nil {
 		return err
 	}
@@ -243,7 +243,7 @@ func (rt *Runtime) processWatcherUpdate(ctx context.Context, paths []string) err
 		return err
 	}
 
-	txn, err := rt.Store.NewTransaction(ctx)
+	txn, err := rt.Store.NewTransaction(ctx, storage.WriteParams)
 	if err != nil {
 		return err
 	}

@@ -40,6 +40,14 @@ type Store interface {
 
 // TransactionParams describes a new transaction.
 type TransactionParams struct {
+
+	// Write indicates if this transaction will perform any write operations.
+	Write bool
+}
+
+// WriteParams specifies the TransactionParams for a write transaction.
+var WriteParams = TransactionParams{
+	Write: true,
 }
 
 // PatchOp is the enumeration of supposed modifications.
@@ -92,27 +100,51 @@ func (PolicyNotSupported) DeletePolicy(context.Context, Transaction, string) err
 	return policyNotSupportedError()
 }
 
-// TriggerCallback defines the interface that callers can implement to handle
-// changes in the stores.
-type TriggerCallback func(ctx context.Context, txn Transaction, op PatchOp, path Path, value interface{}) error
+// TriggerEvent describes the changes that caused the trigger to be invoked.
+type TriggerEvent int
+
+// IsZero returns true if the TriggerEvent indicates no changes occurred. This
+// function is primarily for test purposes.
+func (e TriggerEvent) IsZero() bool {
+	return e == 0
+}
+
+// SetPolicyChanged returns a copy of the TriggerEvent that indicates a policy
+// change occurred.
+func (e *TriggerEvent) SetPolicyChanged() {
+	*e = *e | 1
+}
+
+// SetDataChanged returns a copy of the TriggerEvent that indicates a data
+// change occurred.
+func (e *TriggerEvent) SetDataChanged() {
+	*e = *e | 2
+}
+
+// PolicyChanged returns true if the trigger was caused by a policy change.
+func (e TriggerEvent) PolicyChanged() bool {
+	return (e & 1) != 0
+}
+
+// DataChanged returns true if the trigger was caused by a data change.
+func (e TriggerEvent) DataChanged() bool {
+	return (e & 2) != 0
+}
 
 // TriggerConfig contains the trigger registration configuration.
 type TriggerConfig struct {
 
-	// Before is called before the change is applied to the store.
-	Before TriggerCallback
-
-	// After is called after the change is applied to the store.
-	After TriggerCallback
-
-	// TODO(tsandall): include callbacks for aborted changes
+	// OnCommit is invoked when a transaction is succesfully committed. The
+	// callback is invoked with a handle to the write transaction that
+	// successfully committed before other clients see the changes.
+	OnCommit func(ctx context.Context, txn Transaction, event TriggerEvent)
 }
 
 // Trigger defines the interface that stores implement to register for change
 // notifications when the store is changed.
 type Trigger interface {
-	Register(id string, config TriggerConfig) error
-	Unregister(id string)
+	Register(ctx context.Context, txn Transaction, id string, config TriggerConfig) error
+	Unregister(ctx context.Context, txn Transaction, id string)
 }
 
 // TriggersNotSupported provides default implementations of the Trigger
@@ -120,21 +152,25 @@ type Trigger interface {
 type TriggersNotSupported struct{}
 
 // Register always returns an error indicating triggers are not supported.
-func (TriggersNotSupported) Register(string, TriggerConfig) error {
+func (TriggersNotSupported) Register(context.Context, Transaction, string, TriggerConfig) error {
 	return triggersNotSupportedError()
 }
 
 // Unregister is a no-op.
-func (TriggersNotSupported) Unregister(string) {
+func (TriggersNotSupported) Unregister(context.Context, Transaction, string) {
 }
 
 // IndexIterator defines the interface for iterating over index results.
 type IndexIterator func(*ast.ValueMap) error
 
-// Indexing defines the interface for building and searching storage indices.
+// Indexing defines the interface for building an index.
 type Indexing interface {
-	Build(context.Context, Transaction, ast.Ref) error
-	Index(context.Context, Transaction, ast.Ref, interface{}, IndexIterator) error
+	Build(ctx context.Context, txn Transaction, ref ast.Ref) (Index, error)
+}
+
+// Index defines the interface for searching a pre-built index.
+type Index interface {
+	Lookup(ctx context.Context, txn Transaction, value interface{}, iter IndexIterator) error
 }
 
 // IndexingNotSupported provides default implementations of the Indexing
@@ -142,11 +178,6 @@ type Indexing interface {
 type IndexingNotSupported struct{}
 
 // Build always returns an error indicating indexing is not supported.
-func (IndexingNotSupported) Build(context.Context, Transaction, ast.Ref) error {
-	return indexingNotSupportedError()
-}
-
-// Index always returns an error indicating indexing is not supported.
-func (IndexingNotSupported) Index(context.Context, Transaction, ast.Ref, interface{}, IndexIterator) error {
-	return indexingNotSupportedError()
+func (IndexingNotSupported) Build(context.Context, Transaction, ast.Ref) (Index, error) {
+	return nil, indexingNotSupportedError()
 }

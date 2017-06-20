@@ -14,7 +14,7 @@ import (
 	"github.com/open-policy-agent/opa/storage/inmem"
 )
 
-func ExampleIneMmeory_Read() {
+func ExampleStore_Read() {
 	// Initialize context for the example. Normally the caller would obtain the
 	// context from an input parameter or instantiate their own.
 	ctx := context.Background()
@@ -78,7 +78,7 @@ func ExampleIneMmeory_Read() {
 	// err2 is not found: true
 }
 
-func ExampleInMemory_Write() {
+func ExampleStore_Write() {
 	// Initialize context for the example. Normally the caller would obtain the
 	// context from an input parameter or instantiate their own.
 	ctx := context.Background()
@@ -131,7 +131,7 @@ func ExampleInMemory_Write() {
 		// Handle error.
 	}
 
-	txn, err := store.NewTransaction(ctx)
+	txn, err := store.NewTransaction(ctx, storage.WriteParams)
 	if err != nil {
 		// Handle error.
 	}

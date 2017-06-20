@@ -7,13 +7,137 @@ package topdown
 import (
 	"bytes"
 	"context"
+	"sync"
 	"testing"
 	"text/template"
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/storage/inmem"
+	"github.com/open-policy-agent/opa/util"
 )
+
+func BenchmarkConcurrency1(b *testing.B) {
+	benchmarkConcurrency(b, getParams(1, 0))
+}
+
+func BenchmarkConcurrency2(b *testing.B) {
+	benchmarkConcurrency(b, getParams(2, 0))
+}
+
+func BenchmarkConcurrency4(b *testing.B) {
+	benchmarkConcurrency(b, getParams(4, 0))
+}
+
+func BenchmarkConcurrency8(b *testing.B) {
+	benchmarkConcurrency(b, getParams(8, 0))
+}
+
+func BenchmarkConcurrency4Readers1Writer(b *testing.B) {
+	benchmarkConcurrency(b, getParams(4, 1))
+}
+
+func BenchmarkConcurrency8Writers(b *testing.B) {
+	benchmarkConcurrency(b, getParams(0, 8))
+}
+
+func benchmarkConcurrency(b *testing.B, params []storage.TransactionParams) {
+
+	mod, data := generateConcurrencyBenchmarkData()
+	ctx := context.Background()
+	store := inmem.NewFromObject(data)
+	mods := map[string]*ast.Module{"module": mod}
+	compiler := ast.NewCompiler()
+
+	if compiler.Compile(mods); compiler.Failed() {
+		b.Fatalf("Unexpected compiler error: %v", compiler.Errors)
+	}
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		wg := new(sync.WaitGroup)
+		queriesPerCore := 1000 / len(params)
+		for j := 0; j < len(params); j++ {
+			param := params[j] // capture j'th params before goroutine
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				for k := 0; k < queriesPerCore; k++ {
+					txn := storage.NewTransactionOrDie(ctx, store, param)
+					params := NewQueryParams(ctx, compiler, store, txn, nil, ast.MustParseRef("data.test.p"))
+					rs, err := Query(params)
+					if err != nil {
+						b.Fatalf("Unexpected topdown query error: %v", err)
+					}
+					if rs.Undefined() || len(rs) != 1 || rs[0].Result.(bool) != true {
+						b.Fatalf("Unexpecfted undefined/extra/bad result: %v", rs)
+					}
+					store.Abort(ctx, txn)
+				}
+			}()
+		}
+
+		wg.Wait()
+	}
+}
+
+func getParams(nReaders, nWriters int) (sl []storage.TransactionParams) {
+	for i := 0; i < nReaders; i++ {
+		sl = append(sl, storage.TransactionParams{})
+	}
+	for i := 0; i < nWriters; i++ {
+		sl = append(sl, storage.WriteParams)
+	}
+	return sl
+}
+
+func generateConcurrencyBenchmarkData() (*ast.Module, map[string]interface{}) {
+	obj := util.MustUnmarshalJSON([]byte(`
+		{
+			"objs": [
+				{
+					"attr1": "get",
+					"path": "/foo/bar",
+					"user": "bob"
+				},
+				{
+					"attr1": "set",
+					"path": "/foo/bar/baz",
+					"user": "alice"
+				},
+				{
+					"attr1": "get",
+					"path": "/foo",
+					"groups": [
+						"admin",
+						"eng"
+					]
+				},
+				{
+					"path": "/foo/bar",
+					"user": "alice"
+				}
+			]
+		}
+		`))
+
+	mod := `package test
+
+	import data.objs
+
+	p {
+		objs[i].attr1 = "get"
+		objs[i].groups[j] = "eng"
+	}
+
+	p {
+		objs[i].user = "alice"
+	}
+	`
+
+	return ast.MustParseModule(mod), obj.(map[string]interface{})
+}
 
 func BenchmarkVirtualDocs1x1(b *testing.B) {
 	runVirtualDocsBenchmark(b, 1, 1)
@@ -45,10 +169,7 @@ func BenchmarkVirtualDocs1000x10(b *testing.B) {
 
 func runVirtualDocsBenchmark(b *testing.B, numTotalRules, numHitRules int) {
 
-	// Generate test input
-	mod, input := generateRulesAndInput(numTotalRules, numHitRules)
-
-	// Setup evaluation...
+	mod, input := generateVirtualDocsBenchmarkData(numTotalRules, numHitRules)
 	ctx := context.Background()
 	compiler := ast.NewCompiler()
 	mods := map[string]*ast.Module{"module": mod}
@@ -59,18 +180,14 @@ func runVirtualDocsBenchmark(b *testing.B, numTotalRules, numHitRules int) {
 	}
 
 	params := NewQueryParams(ctx, compiler, store, txn, input, ast.MustParseRef("data.a.b.c.allow"))
-
 	b.ResetTimer()
 
-	// Run query N times.
 	for i := 0; i < b.N; i++ {
 		func() {
-
 			rs, err := Query(params)
 			if err != nil {
 				b.Fatalf("Unexpected topdown query error: %v", err)
 			}
-
 			if rs.Undefined() || len(rs) != 1 || rs[0].Result.(bool) != true {
 				b.Fatalf("Unexpecfted undefined/extra/bad result: %v", rs)
 			}
@@ -79,7 +196,7 @@ func runVirtualDocsBenchmark(b *testing.B, numTotalRules, numHitRules int) {
 	}
 }
 
-func generateRulesAndInput(numTotalRules, numHitRules int) (*ast.Module, ast.Value) {
+func generateVirtualDocsBenchmarkData(numTotalRules, numHitRules int) (*ast.Module, ast.Value) {
 
 	hitRule := `
 	allow {

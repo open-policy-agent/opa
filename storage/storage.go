@@ -11,8 +11,8 @@ import (
 // NewTransactionOrDie is a helper function to create a new transaction. If the
 // storage layer cannot create a new transaction, this function will panic. This
 // function should only be used for tests.
-func NewTransactionOrDie(ctx context.Context, store Store) Transaction {
-	txn, err := store.NewTransaction(ctx, TransactionParams{})
+func NewTransactionOrDie(ctx context.Context, store Store, params ...TransactionParams) Transaction {
+	txn, err := store.NewTransaction(ctx, params...)
 	if err != nil {
 		panic(err)
 	}

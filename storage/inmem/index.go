@@ -52,29 +52,19 @@ func newIndices() *indices {
 	}
 }
 
-// Build initializes the references' index by walking the store for the reference and
-// creating the index that maps values to bindings.
-func (ind *indices) Build(ctx context.Context, store storage.Store, txn storage.Transaction, ref ast.Ref) error {
+func (ind *indices) Build(ctx context.Context, store storage.Store, txn storage.Transaction, ref ast.Ref) (*bindingIndex, error) {
 
 	ind.mu.Lock()
 	defer ind.mu.Unlock()
 
 	if exist := ind.get(ref); exist != nil {
-		return nil
-	}
-
-	config := storage.TriggerConfig{
-		Before: ind.dropAll,
-	}
-
-	if err := store.Register(triggerID, config); err != nil {
-		return err
+		return exist, nil
 	}
 
 	index := newBindingIndex()
 
 	if err := iterStorage(ctx, store, txn, ref, ast.EmptyRef(), ast.NewValueMap(), index.Add); err != nil {
-		return err
+		return nil, err
 	}
 
 	hashCode := ref.Hash()
@@ -87,24 +77,7 @@ func (ind *indices) Build(ctx context.Context, store storage.Store, txn storage.
 
 	ind.table[hashCode] = entry
 
-	return nil
-}
-
-func (ind *indices) Index(ctx context.Context, ref ast.Ref, value interface{}, iter func(*ast.ValueMap) error) error {
-	ind.mu.Lock()
-	node := ind.get(ref)
-	ind.mu.Unlock()
-	if node == nil {
-		return fmt.Errorf("missing index")
-	}
-	return node.Iter(value, iter)
-}
-
-func (ind *indices) dropAll(context.Context, storage.Transaction, storage.PatchOp, storage.Path, interface{}) error {
-	ind.mu.Lock()
-	defer ind.mu.Unlock()
-	ind.table = map[int]*indicesNode{}
-	return nil
+	return index, nil
 }
 
 func (ind *indices) get(ref ast.Ref) *bindingIndex {
@@ -162,15 +135,12 @@ type indexNode struct {
 	next *indexNode
 }
 
-// newBindingIndex returns a new empty index.
 func newBindingIndex() *bindingIndex {
 	return &bindingIndex{
 		table: map[int]*indexNode{},
 	}
 }
 
-// Add updates the index to include new bindings for the value.
-// If the bindings already exist for the value, no change is made.
 func (ind *bindingIndex) Add(val interface{}, bindings *ast.ValueMap) {
 
 	node := ind.getNode(val)
@@ -192,8 +162,7 @@ func (ind *bindingIndex) Add(val interface{}, bindings *ast.ValueMap) {
 	ind.table[hashCode] = entry
 }
 
-// Iter calls the iter function for each set of bindings for the value.
-func (ind *bindingIndex) Iter(val interface{}, iter func(*ast.ValueMap) error) error {
+func (ind *bindingIndex) Lookup(_ context.Context, _ storage.Transaction, val interface{}, iter storage.IndexIterator) error {
 	node := ind.getNode(val)
 	if node == nil {
 		return nil

@@ -1875,22 +1875,22 @@ func evalTerms(t *Topdown, iter Iterator) error {
 		r2, _ := t2.Value.(ast.Ref)
 
 		if indexingAllowed(r1, t2) {
-			ok, err := indexBuildLazy(t, r1)
+			index, err := indexBuildLazy(t, r1)
 			if err != nil {
 				return errors.Wrapf(err, "index build failed on %v", r1)
 			}
-			if ok {
-				return evalTermsIndexed(t, iter, r1, t2)
+			if index != nil {
+				return evalTermsIndexed(t, iter, index, t2)
 			}
 		}
 
 		if indexingAllowed(r2, t1) {
-			ok, err := indexBuildLazy(t, r2)
+			index, err := indexBuildLazy(t, r2)
 			if err != nil {
 				return errors.Wrapf(err, "index build failed on %v", r2)
 			}
-			if ok {
-				return evalTermsIndexed(t, iter, r2, t1)
+			if index != nil {
+				return evalTermsIndexed(t, iter, index, t1)
 			}
 		}
 	}
@@ -1930,7 +1930,7 @@ func evalTermsComprehension(t *Topdown, comp ast.Value, iter Iterator) error {
 	}
 }
 
-func evalTermsIndexed(t *Topdown, iter Iterator, indexed ast.Ref, nonIndexed *ast.Term) error {
+func evalTermsIndexed(t *Topdown, iter Iterator, index storage.Index, nonIndexed *ast.Term) error {
 
 	iterateIndex := func(t *Topdown) error {
 
@@ -1942,7 +1942,7 @@ func evalTermsIndexed(t *Topdown, iter Iterator, indexed ast.Ref, nonIndexed *as
 
 		// Iterate the bindings for the indexed term that when applied to the reference
 		// would locate the non-indexed value obtained above.
-		err = t.Store.Index(t.Context, t.txn, indexed, value, func(bindings *ast.ValueMap) error {
+		err = index.Lookup(t.Context, t.txn, value, func(bindings *ast.ValueMap) error {
 			var prev *Undo
 
 			// We will skip these bindings if the non-indexed term contains a
@@ -2094,21 +2094,20 @@ func evalTermsRecSet(t *Topdown, set *ast.Set, idx int, iter Iterator) error {
 	}
 }
 
-// indexBuildLazy returns true if there is an index built for this term. If there is no index
-// currently built for the term, but the term is a candidate for indexing, ther index will be
-// built on the fly.
-func indexBuildLazy(t *Topdown, ref ast.Ref) (bool, error) {
+// indexBuildLazy returns a storage index if an index exists or can be built
+// for the ref.
+func indexBuildLazy(t *Topdown, ref ast.Ref) (storage.Index, error) {
 
 	// Ignore refs against variables.
 	if !ref[0].Equal(ast.DefaultRootDocument) {
-		return false, nil
+		return nil, nil
 	}
 
 	// Ignore refs against virtual docs.
 	tmp := ast.Ref{ref[0], ref[1]}
 	r := t.Compiler.GetRulesExact(tmp)
 	if r != nil {
-		return false, nil
+		return nil, nil
 	}
 
 	for _, p := range ref[2:] {
@@ -2120,18 +2119,19 @@ func indexBuildLazy(t *Topdown, ref ast.Ref) (bool, error) {
 		tmp = append(tmp, p)
 		r := t.Compiler.GetRulesExact(tmp)
 		if r != nil {
-			return false, nil
+			return nil, nil
 		}
 	}
 
-	if err := t.Store.Build(t.Context, t.txn, ref); err != nil {
+	index, err := t.Store.Build(t.Context, t.txn, ref)
+	if err != nil {
 		if storage.IsIndexingNotSupported(err) {
-			return false, nil
+			return nil, nil
 		}
-		return false, err
+		return nil, err
 	}
 
-	return true, nil
+	return index, nil
 }
 
 // indexingAllowed returns true if indexing can be used for the expression
