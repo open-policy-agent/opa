@@ -1,2 +1,0 @@
-
-See `src/main.ts`

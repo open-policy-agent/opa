@@ -1,4 +1,0 @@
---reporter spec
---ui bdd
---recursive
---require ./testinit

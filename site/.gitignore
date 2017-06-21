@@ -1,4 +1,4 @@
-.asset-cache
-.jekyll-metadata
-.sass-cache
-_site
+node_modules
+deploy
+docs
+doc/_book

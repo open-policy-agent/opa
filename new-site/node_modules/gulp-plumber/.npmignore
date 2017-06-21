@@ -1,9 +1,0 @@
-temp/
-coverage
-
-.editorconfig
-test
-.gitattributes
-.jshintrc
-.travis.yml
-gulpfile.js

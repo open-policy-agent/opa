@@ -1,8 +1,0 @@
-{
-  "name": "test object",
-  "version": "1.0.0",
-  "nested": {
-    "name": "nested object",
-    "version": "1.0.0"
-  }
-}
