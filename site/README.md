@@ -2,68 +2,49 @@
 
 We use GitHub pages to host the website that includes all of the OPA documentation. In order to update the website, you need to have write permission on the open-policy-agent/opa repository.
 
-You also need to have [Jekyll](http://jekyllrb.com) installed to build the site. The instructions below install it
-for you. Assuming you have Ruby installed, all you should need to do is run:
+You also need to have [gulp](http://gulpjs.com/) installed to build the site.
 
-```
-gem install --user-install jekyll \
-    autoprefixer-rails jekyll-assets jekyll-contentblocks jekyll-minifier
-```
+## Run Site Locally
 
-Changing the documentation on the live site requires two separate merges:
-
-1. Changes to documentation source files must be merged into the master branch.
-
-1. Website artifacts must be re-built and merged into the gh-pages branch.
-
-## Write and View Documentation Locally
-
-1. Start webserver on your local machine:
+1. For first time user, run
 
     ```
-    cd opa/site
-    jekyll serve .
+    npm install
     ```
 
-1. View docs in the browser.  After you make local changes, you can just refresh your browser to the latest version.
+2. To start the server, run
 
     ```
-    http://localhost:4000/
+    gulp
     ```
 
-Once you are happy with the changes, commit them and open a Pull Request against master.
+## Run Documentation Locally
 
-## Update Website Artifacts
+    1. For first time user, run
 
-To update the live website, perform the following steps:
+        ```
+        gitbook install
+        ```
 
-1. Obtain a fresh copy of the repository and build the site.
+    2. To start the server, run
 
-    ```
-    git clone git@github.com:open-policy-agent/opa.git
-    cd opa/site
-    jekyll build .
-    tar czvf ~/site.tar.gz -C _site .
-    ```
+        ```
+        gitbook serve
+        ```
 
-    > If you are updating the website as part of a release, the site content
-    > will have been built by the `make release` command so this step can be
-    > skipped.
+    3. Once you are happy about your changes to documentation, run
 
-1. Checkout the gh-pages branch and overlay the new site content:
+        ```
+        gitbook build
+        cd ..
+        gulp doc-build
+        ```
 
-    ```
-    git checkout gh-pages
-    tar zxvf ~/site.tar.gz
-    git commit -a
-    ```
+## Build site
 
-1. Push the gh-pages branch back to GitHub:
+Once you are happy about your changes to the site and wanna deploy it, run
 
     ```
-    git push origin gh-pages
+    gulp build
     ```
-
-## REST API Examples
-
-The REST API specification contains examples that are generated manually by running `./_scripts/rest-examples/gen-examples.sh`. This script will launch OPA and execute a series of API calls to produce output can be copied into the specification.
+And you will find a folder called "deploy" being genarated. Deploy files inside to gh-pages.

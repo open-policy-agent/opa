@@ -1,0 +1,22 @@
+// @import '../../../input/sass/partials/extends';
+
+%base--textarea {
+  @extend %font--sans;
+  width: 100%;
+  padding: get('input padding');
+  font-size: 1em;
+  font-weight: 300;
+  border: 2px solid color('neutral-white', 40);
+  background-color: get('background color');
+
+  &:focus {
+    outline: #3B99FC auto 5px;
+    border-color: color('neutral-white', 40);
+  }
+
+  &:disabled {
+    background-color: color('neutral-white', 40);
+  }
+
+
+}

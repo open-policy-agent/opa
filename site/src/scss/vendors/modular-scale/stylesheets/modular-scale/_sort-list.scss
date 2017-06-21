@@ -1,0 +1,93 @@
+// List sorting via a modified merge-sort algorythmn
+// http://en.wikipedia.org/wiki/Merge_sort
+
+@function ms-merge($A, $B) {
+  
+  $Return: ();
+  
+  // Some empty lists get passed through
+  // so just pass the other list throguh
+  @if length($A) == 0 {
+    @return $B;
+  }
+
+  // If lists fit next to each other, just merge them
+  // This helps performance skipping the need to check each value
+  @if nth($A, length($A)) < nth($B, 1) {
+    @return join($A, $B);
+  }
+  @if nth($B, length($B)) < nth($A, 1) {
+    @return join($B, $A);
+  }
+  
+  // Counters start at 1
+  $A-counter: 1;
+  $B-counter: 1;
+  
+  // Start looping through all numbers in array
+  @while $A-counter <= length($A) and $B-counter <= length($B) {
+    
+    // Check if the A value is smaller
+    // Uses or equal to avoid duplicate numbers
+    @if nth($A, $A-counter) <= nth($B, $B-counter) {
+      $Return: join($Return, nth($A, $A-counter));
+      $A-counter: $A-counter + 1;
+    }
+    
+    // Check if the B value is smaller
+    @elseif nth($A, $A-counter) > nth($B, $B-counter) {
+      $Return: join($Return, nth($B, $B-counter));
+      $B-counter: $B-counter + 1;
+    }
+  }
+  
+  // Run through remainder values in the list
+  @while $A-counter <= length($A) {
+    $Current: nth($A, $A-counter);
+    @if $Current != nth($Return, length($Return)) {
+      $Return: join($Return, $Current);
+    }
+    $A-counter: $A-counter + 1;
+  }
+  @while $B-counter <= length($B) {
+    $Current: nth($B, $B-counter);
+    @if $Current != nth($Return, length($Return)) {
+      $Return: join($Return, $Current);
+    }
+    $B-counter: $B-counter + 1;
+  }
+  
+  // Done! return is now sorted and complete
+  @return $Return;
+}
+
+
+
+// Pull it all together
+@function ms-sort-list($Lists) {
+  
+  $Return: ();
+
+  @each $List in $Lists {
+    @if $Return == () {
+      $Return: $List;
+    }
+    @else {
+      $Return: ms-merge($List, $Return);
+    }
+  }
+
+  // final cleanup of repeated items
+  $Last: null;
+  $New-list: ();
+  @each $Item in $Return {
+    @if $Item != $Last {
+      $New-list: join($New-list, $Item);
+    }
+    $Last: $Item;
+  }
+  $Return: $New-list;
+
+
+  @return $Return;
+}

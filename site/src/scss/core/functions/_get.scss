@@ -1,0 +1,7 @@
+//////////////////////////////
+// Get a setting
+// Adapted from Sass-toolkit's setting-get function
+//////////////////////////////
+@function get($setting) {
+  @return map-get($GlobalSettings, $setting);
+}
