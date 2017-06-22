@@ -1,0 +1,5 @@
+@import 'extends';
+
+.base--pre {
+  @extend %base--pre;
+}

@@ -1,0 +1,23 @@
+@mixin base--checkbox {
+  display: none;
+
+  + label {
+    position: relative;
+
+    &:before {
+      display: inline-block;
+      width: 1em;
+      height: 1em;
+      margin-right: get('rhythm') / 2;
+      vertical-align: middle;
+      border: get('input border width') solid color('gray', 30);
+      content: '';
+      transform: translateY(-.125em);
+    }
+  }
+
+  &:checked + label:before {
+    background: color('gray', 80);
+    box-shadow: inset 0 0 0 get('input border width')/1.5 get('white');
+  }
+}

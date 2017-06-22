@@ -1,0 +1,21 @@
+@import 'mixins';
+@import 'extends';
+
+.base--button {
+  @extend %base--button;
+
+  &_submit {
+    @include base--button_blue();
+  }
+
+  &_reset {
+    @include base--button($color: color('gray', 60), $background: get('background color'), $border: color('gray', 30));
+    border-width: 3px;
+
+    &:hover,
+    &:focus {
+      background-color: color('gray', 60);
+      border-color: color('gray', 60);
+    }
+  }
+}

@@ -1,0 +1,40 @@
+//////////////////////////////
+// Divisions
+//
+// Divides a total row (from width: 100%) by number of {$columns} specified
+//
+// Useful for things like splitting a view into equal sections or creating
+// a grid list of tiles
+//
+// Usage:
+//
+// .panel1 {
+//   @include divisions(2);
+// }
+// .panel2 {
+//   @include divisions(2);
+// }
+//
+// 3 column tiles
+// .tile-block {
+//   @include divisions(3, 1rem);
+//   margin-bottom: 1rem;
+// }
+//////////////////////////////
+@mixin divisions($columns, $margin: 0rem) {
+  width: calc(#{(100% / $columns)} - #{($margin * ($columns - 1) / $columns)});
+  margin-right: $margin;
+  display: block;
+  float: left;
+
+  &:nth-of-type(#{($columns)}n) {
+    margin-right: 0rem;
+  }
+};
+
+@mixin divisions-reset {
+  width: auto;
+  margin-right: 0rem;
+  display: block;
+  float: none;
+}

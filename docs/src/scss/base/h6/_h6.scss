@@ -1,0 +1,6 @@
+@import 'mixins';
+@import 'extends';
+
+.base--h6 {
+  @extend %base--h6;
+}
