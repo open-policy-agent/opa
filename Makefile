@@ -134,10 +134,18 @@ push-release-builder:
 	docker push $(REPOSITORY)/release-builder
 
 release:
-	docker run -it --rm -v $(PWD)/_release/$(VERSION):/_release/$(VERSION) \
-		-v $(PWD)/build/build-release.sh:/build-release.sh \
+	docker run -it --rm \
+		-v $(PWD)/_release/$(VERSION):/_release/$(VERSION) \
+		-v $(PWD):/_src \
 		$(REPOSITORY)/release-builder:latest \
-		/build-release.sh $(VERSION) /_release/$(VERSION)
+		/_src/build/build-release.sh --tag=$(VERSION) --output-dir=/_release/$(VERSION) --source-url=/_src
+
+release-local:
+	docker run -it --rm \
+		-v $(PWD)/_release/$(VERSION):/_release/$(VERSION) \
+		-v $(PWD):/_src \
+		$(REPOSITORY)/release-builder:latest \
+		/_src/build/build-release.sh --output-dir=/_release/$(VERSION) --source-url=/_src
 
 release-patch:
 	@docker run -it --rm -v $(PWD)/build/gen-release-patch.sh:/gen-release-patch.sh \
