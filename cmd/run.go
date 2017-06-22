@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"os"
 	"path"
-	"path/filepath"
 
 	"github.com/open-policy-agent/opa/runtime"
 	"github.com/open-policy-agent/opa/server"
@@ -19,9 +18,6 @@ import (
 
 // default filename for the interactive shell's history
 var defaultHistoryFile = ".opa_history"
-
-// default policy definition storage directory
-var defaultPolicyDir = "policies"
 
 // default listening address for the server
 var defaultAddr = ":8181"
@@ -156,14 +152,6 @@ func historyPath() string {
 		return defaultHistoryFile
 	}
 	return path.Join(home, defaultHistoryFile)
-}
-
-func policyDir() string {
-	cwd, err := os.Getwd()
-	if err != nil {
-		return defaultPolicyDir
-	}
-	return filepath.Join(cwd, defaultPolicyDir)
 }
 
 func loadCertificate(tlsCertFile, tlsPrivateKeyFile string) (*tls.Certificate, error) {
