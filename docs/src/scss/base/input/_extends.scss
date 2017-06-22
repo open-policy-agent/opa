@@ -1,0 +1,18 @@
+%base--input {
+  @extend %font--sans;
+  width: 100%;
+  padding: get('input padding');
+  font-size: 1em;
+  font-weight: 300;
+  border: get('input border width') solid get('input border color');
+  background-color: get('background color');
+
+  &:focus {
+    outline: get('focus border width') solid get('primary color');
+    border-color: get('primary color');
+  }
+
+  &:disabled {
+    background-color: color('neutral-white', 40);
+  }
+}

@@ -3,6 +3,9 @@
 
 set -e
 
+OPA_DIR=/go/src/github.com/open-policy-agent/opa
+BUILD_DIR=$OPA_DIR/build
+
 usage() {
     echo "build-release.sh --output-dir=<path>"
     echo "                 --source-url=<git-url>"
@@ -45,13 +48,6 @@ build_binaries() {
     mv opa_*_* $OUTPUT_DIR
 }
 
-build_site() {
-    pushd site
-    jekyll build . && rm _site/assets/.sprockets-manifest-*.json
-    tar czvf $OUTPUT_DIR/site.tar.gz -C _site .
-    popd
-}
-
 clone_repo() {
     git clone $SOURCE_URL /go/src/github.com/open-policy-agent/opa
     cd /go/src/github.com/open-policy-agent/opa
@@ -63,7 +59,7 @@ clone_repo() {
 main() {
     clone_repo
     build_binaries
-    build_site
+    $BUILD_DIR/build-docs.sh --output-dir=$OUTPUT_DIR
     make test
 }
 

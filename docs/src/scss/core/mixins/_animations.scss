@@ -1,0 +1,73 @@
+// Import the IBM animation variables
+@import '../variables/animations';
+
+//////////////////////////////
+// Keyframe Generator
+//
+// Creates a @keyframe animation for any animations
+// that are included for use within the application.
+//
+// Usage:
+//
+// @include keyframe-gen($animation-name)
+// @include keyframe-gen(fade-in)
+//////////////////////////////
+@mixin keyframe-gen($name) {
+  @if map-has-key($animations, $name) {
+    @keyframes #{$name} {
+      @each $position, $change in map-get($animations, $name) {
+        #{$position} {
+          @each $prop, $val in $change {
+            #{$prop}: #{$val};
+          }
+        }
+      }
+    }
+  }
+
+  @if feature-exists(at-error) {
+    @error $name + ' is not an animation option. ' +
+          'These are your options: ' + '#{map-keys($animations)}';
+  }
+  @else {
+    @warn $name + ' is not an animation option. ' +
+          'These are your options: ' + '#{map-keys($animations)}';
+  }
+};
+
+//////////////////////////////
+// Animate
+//
+// Builds an animation with mixin keframe-gen during
+// first use, and gives the element an animation with
+// customizable properties.
+//
+// Usage:
+//
+// @include animate(fade-in);
+// @include animate(fade-in, 3s, snapin);
+//////////////////////////////
+@mixin animate($name, $duration: 2s, $timing: ease-in) {
+  $exists: index($included-animations, '#{$name}');
+  @if not $exists {
+    @at-root {
+      @include keyframe-gen($name);
+    }
+    $included-animations: append($included-animations, '#{$name}') !global;
+  }
+
+  @if map-has-key($timing-functions, $timing) {
+    $timing: map-get($timing-functions, $timing);
+  }
+
+  @if feature-exists(at-error) {
+    @error $timing + ' is not a timing function option. ' +
+          'These are your options: ' + '#{map-keys($timing-functions)}';
+  }
+  @else {
+    @warn $timing + ' is not a timing function option. ' +
+          'These are your options: ' + '#{map-keys($timing-functions)}';
+  }
+
+  animation: $name $duration $timing;
+};

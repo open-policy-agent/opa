@@ -1,0 +1,27 @@
+//////////////////////////////
+// SVG Creation
+//
+// Turns `$paths` into an SVG with option to encode (for use with background images)
+// @param {String} $paths - SVG paths to be turned into an SVG
+// @param {String} $viewbox - The viewbox of the SVG
+// @param {Boolean} $encode - Encodes the SVG for use, especially with background images
+// @return {String} - Updated string
+//
+// Dependencies: `url-encode`
+//////////////////////////////
+@function svg($paths, $viewbox: null, $encode: true) {
+  $content: $paths;
+  $paths: '<svg xmlns="http://www.w3.org/2000/svg"';
+
+  @if $viewbox {
+    $paths: $paths + ' viewbox="#{$viewbox}" xml:space="preserve"';
+  }
+
+  $paths: $paths + '>' + $content + '</svg>';
+
+  @if $encode {
+    $paths: url-encode($paths);
+    $paths: 'data:image/svg+xml,' + $paths;
+  }
+  @return $paths;
+}

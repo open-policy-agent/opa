@@ -41,7 +41,7 @@ GO15VENDOREXPERIMENT := 1
 export GO15VENDOREXPERIMENT
 
 .PHONY: all build check check-fmt check-lint check-vet \
-	clean cover deps fmt generate install perf perf-regression \
+	clean cover deps docs fmt generate install perf perf-regression \
 	push push-latest push-release-builder release release-builder \
 	release-patch tag-latest test version
 
@@ -117,8 +117,17 @@ fmt:
 	$(GO) fmt $(PACKAGES)
 
 clean:
-	rm -f opa_*_*
 	rm -f .Dockerfile_*
+	rm -f opa_*_*
+	rm -fr site.tar.gz docs/_site docs/node_modules docs/book/_book docs/book/node_modules
+
+docs:
+	docker run -it --rm \
+		-v $(PWD):/go/src/github.com/open-policy-agent/opa \
+		-w /go/src/github.com/open-policy-agent/opa \
+		-p 4000:4000 \
+		$(REPOSITORY)/release-builder:latest \
+		./build/build-docs.sh --output-dir=/go/src/github.com/open-policy-agent/opa --serve=4000
 
 ######################################################
 #
@@ -148,5 +157,7 @@ release-local:
 		/_src/build/build-release.sh --output-dir=/_release/$(VERSION) --source-url=/_src
 
 release-patch:
-	@docker run -it --rm -v $(PWD)/build/gen-release-patch.sh:/gen-release-patch.sh \
-		python:2.7 /gen-release-patch.sh $(VERSION)
+	@docker run -it --rm \
+		-v $(PWD):/_src \
+		python:2.7 \
+		/_src/build/gen-release-patch.sh --version=$(VERSION) --source-url=/_src

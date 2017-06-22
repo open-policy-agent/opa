@@ -1,0 +1,11 @@
+$TypographySettings: (
+  'sans serif font': ('Roboto', 'Open Sans', Arial, 'Lucida Grande', sans-serif),
+  'monospace font': ('Courier New', 'Lucida Console', monospace),
+  'light weight font': 300,
+  'normal weight font': 400,
+  'semi bold weight font': 600,
+  'bold weight font': 700,
+  'rhythm': 2rem
+);
+
+$GlobalSettings: map-merge($GlobalSettings, $TypographySettings);

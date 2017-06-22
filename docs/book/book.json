@@ -1,0 +1,18 @@
+{
+  "plugins": [
+    "header",
+    "addcssjs",
+    "collapsible-menu",
+    "custom-favicon",
+    "-fontsettings"
+  ],
+  "pluginsConfig": {
+    "layout": {
+      "headerPath" : "layouts/header.html"
+    },
+    "addcssjs": {
+      "js": ["js/custom.js"]
+    },
+    "favicon": "images/favicon.png"
+  }
+}

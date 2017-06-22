@@ -1,0 +1,5 @@
+@mixin base--h6 {
+  font-size: ms(0);
+  font-weight: get('normal weight font');
+  color: color('gray', 80);
+}

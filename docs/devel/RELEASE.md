@@ -1,0 +1,101 @@
+# Release Process
+
+## Overview
+
+The release process consists of three phases: versioning, building, and
+publishing.
+
+Versioning involves maintaining the following files:
+
+- **CHANGELOG.md** - this file contains a list of all the important changes in each release.
+- **Makefile** - the Makefile contains a VERSION variable that defines the version of the project.
+- **docs/*** - there are a few files in the documentation that contain hardcoded versions.
+
+The steps below explain how to update these files. In addition, the repository
+should be tagged with the semantic version identifying the release.
+
+Building involves obtaining a copy of the repository, checking out the release
+tag, and building the binaries.
+
+Publishing involves creating a new *Release* on GitHub with the relevant
+CHANGELOG.md snippet and uploading the binaries from the build phase.
+
+## Versioning
+
+1. Obtain a copy of repository.
+
+	```
+	git clone git@github.com:open-policy-agent/opa.git
+	```
+
+1. Execute the release-patch target to generate boilerplate patch. Give the semantic version of the release:
+
+	```
+	make release-patch VERSION=0.12.8 > ~/release.patch
+	```
+
+1. Apply the release patch to the working copy:
+
+	```
+	patch -p1 < ~/release.patch
+	```
+
+	> Amend the changes as necessary, e.g., many of the Fixes and Miscellaneous
+	> changes may not be user facing (so remove them). Also, if there have been
+	> any significant API changes, call them out in their own sections.
+
+1. Commit the changes and push to remote repository.
+
+	```
+	git commit -a -m “Prepare v<version> release”
+	git push origin master
+	```
+
+1. Tag repository with release version and push tags to remote repository.
+
+	```
+	git tag v<semver>
+	git push origin --tags
+	```
+
+1. Edit CHANGELOG.md to add back the Unreleased header to prepare for development.
+
+1. Edit Makefile to set VERSION variable to prepare for development (e.g., s/VERSION := “0.12.8”/VERSION = “0.12.9-dev”/).
+
+1. Commit the changes and push to remote repository.
+
+	```
+	git commit -a -m “Prepare v<next_semvar> development”
+	git push origin master
+	```
+
+## Building
+
+1. Obtain copy of remote repository.
+
+	```
+	git clone git@github.com:open-policy-agent/opa.git
+	```
+
+1. Execute the release target. The results can be found under _release/VERSION:
+
+	```
+	make release VERSION=0.12.8
+	```
+
+## Publishing
+
+1. Open browser and go to https://github.com/open-policy-agent/opa/releases
+
+1. Create a new release for the version.
+	- Copy the changelog content into the message.
+	- Upload the binaries.
+
+1. There may be documentation updates that should be released. See
+   [docs/README.md](../README.md) for steps to update the website.
+
+## Notes
+
+- The openpolicyagent/opa Docker image is automatically built and published to
+  Docker Hub as part of the Travis-CI pipeline. There are no manual steps
+  involved here.

@@ -8,7 +8,7 @@ If you have questions, comments, or requests feel free to post on the mailing li
 create an issue on GitHub.
 
 If you want to contribute code and you are new to the Go programming language, check out
-the [Development](http://openpolicyagent.org/docs/development.html) reference for help getting started.
+the [DEVELOPMENT.md](./docs/devel/DEVELOPMENT.md) reference for help getting started.
 
 We currently welcome contributions of all kinds. For example:
 
