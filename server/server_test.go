@@ -956,8 +956,27 @@ func TestAuthorization(t *testing.T) {
 	}
 }
 
+func TestServerReloadTrigger(t *testing.T) {
+	f := newFixture(t)
+	store := f.server.store
+	ctx := context.Background()
+	txn := storage.NewTransactionOrDie(ctx, store, storage.WriteParams)
+	if err := store.UpsertPolicy(ctx, txn, "test", []byte("package test\np = 1")); err != nil {
+		panic(err)
+	}
+	if err := f.v1("GET", "/data/test", "", 200, `{}`); err != nil {
+		t.Fatalf("Unexpected error from server: %v", err)
+	}
+
+	if err := store.Commit(ctx, txn); err != nil {
+		panic(err)
+	}
+	if err := f.v1("GET", "/data/test", "", 200, `{"result": {"p": 1}}`); err != nil {
+		t.Fatalf("Unexpected error from server: %v", err)
+	}
+}
+
 type queryBindingErrStore struct {
-	storage.TriggersNotSupported
 	storage.WritesNotSupported
 	storage.PolicyNotSupported
 	storage.IndexingNotSupported
@@ -988,6 +1007,14 @@ func (queryBindingErrStore) Commit(ctx context.Context, txn storage.Transaction)
 }
 
 func (queryBindingErrStore) Abort(ctx context.Context, txn storage.Transaction) {
+
+}
+
+func (queryBindingErrStore) Register(context.Context, storage.Transaction, string, storage.TriggerConfig) error {
+	return nil
+}
+
+func (queryBindingErrStore) Unregister(context.Context, storage.Transaction, string) {
 
 }
 

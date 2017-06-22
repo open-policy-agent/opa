@@ -68,9 +68,8 @@ type Params struct {
 	Server bool
 
 	// Watch flag controls whether OPA will watch the Paths files for changes.
-	// This flag is only supported if OPA instance is running as an interactive
-	// shell. If this flag is true, OPA will watch the Paths files for changes
-	// and reload the storage layer each time they change. This is useful for
+	// If this flag is true, OPA will watch the Paths files for changes and
+	// reload the storage layer each time they change. This is useful for
 	// interactive development.
 	Watch bool
 
@@ -173,6 +172,13 @@ func (rt *Runtime) startServer(ctx context.Context, params *Params) {
 		logrus.WithField("err", err).Fatalf("Unable to initialize server.")
 	}
 
+	if params.Watch {
+		if err := rt.startWatcher(ctx, params.Paths, onReloadLogger); err != nil {
+			fmt.Fprintln(params.Output, "error opening watch:", err)
+			os.Exit(1)
+		}
+	}
+
 	s.Handler = NewLoggingHandler(s.Handler)
 
 	loop1, loop2 := s.Listeners()
@@ -195,7 +201,7 @@ func (rt *Runtime) startRepl(ctx context.Context, params *Params) {
 	repl := repl.New(rt.Store, params.HistoryPath, params.Output, params.OutputFormat, banner)
 
 	if params.Watch {
-		if err := rt.startWatcher(ctx, params.Paths, params.Output); err != nil {
+		if err := rt.startWatcher(ctx, params.Paths, onReloadPrinter(params.Output)); err != nil {
 			fmt.Fprintln(params.Output, "error opening watch:", err)
 			os.Exit(1)
 		}
@@ -215,27 +221,24 @@ func (rt *Runtime) startRepl(ctx context.Context, params *Params) {
 
 }
 
-func (rt *Runtime) startWatcher(ctx context.Context, paths []string, output io.Writer) error {
+func (rt *Runtime) startWatcher(ctx context.Context, paths []string, onReload func(time.Duration, error)) error {
 	watcher, err := getWatcher(paths)
 	if err != nil {
 		return err
 	}
-	go rt.readWatcher(ctx, watcher, paths, output)
+	go rt.readWatcher(ctx, watcher, paths, onReload)
 	return nil
 }
 
-func (rt *Runtime) readWatcher(ctx context.Context, watcher *fsnotify.Watcher, paths []string, output io.Writer) {
+func (rt *Runtime) readWatcher(ctx context.Context, watcher *fsnotify.Watcher, paths []string, onReload func(time.Duration, error)) {
 	for {
 		select {
 		case evt := <-watcher.Events:
 			mask := (fsnotify.Create | fsnotify.Remove | fsnotify.Rename | fsnotify.Write)
 			if (evt.Op & mask) != 0 {
 				t0 := time.Now()
-				if err := rt.processWatcherUpdate(ctx, paths); err != nil {
-					fmt.Fprintf(output, "\n# reload error (took %v): %v", time.Since(t0), err)
-				} else {
-					fmt.Fprintf(output, "\n# reloaded files (took %v)", time.Since(t0))
-				}
+				err := rt.processWatcherUpdate(ctx, paths)
+				onReload(time.Since(t0), err)
 			}
 		}
 	}
@@ -349,6 +352,23 @@ func listPaths(path string, recurse bool) (paths []string, err error) {
 		return nil
 	})
 	return paths, err
+}
+
+func onReloadLogger(d time.Duration, err error) {
+	logrus.WithFields(logrus.Fields{
+		"duration": d,
+		"err":      err,
+	}).Warn("Processed file watch event.")
+}
+
+func onReloadPrinter(output io.Writer) func(time.Duration, error) {
+	return func(d time.Duration, err error) {
+		if err != nil {
+			fmt.Fprintf(output, "\n# reload error (took %v): %v", d, err)
+		} else {
+			fmt.Fprintf(output, "\n# reloaded files (took %v)", d)
+		}
+	}
 }
 
 func setupLogging(config LoggingConfig) {

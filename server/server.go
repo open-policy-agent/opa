@@ -112,28 +112,28 @@ func (s *Server) Init(ctx context.Context) (*Server, error) {
 		s.Handler = identifier.NewTokenBased(s.Handler)
 	}
 
-	// Load policies from storage and initialize server's compiler.
-	txn, err := s.store.NewTransaction(ctx)
+	txn, err := s.store.NewTransaction(ctx, storage.WriteParams)
 	if err != nil {
 		return nil, err
 	}
 
-	defer s.store.Abort(ctx, txn)
-
-	modules, err := s.loadModules(ctx, txn)
-	if err != nil {
+	// Load policies from storage and initialize server's cached compiler.
+	if err := s.reloadCompiler(ctx, txn); err != nil {
+		s.store.Abort(ctx, txn)
 		return nil, err
 	}
 
-	compiler := ast.NewCompiler()
-
-	if compiler.Compile(modules); compiler.Failed() {
-		return nil, compiler.Errors
+	// Register triggers so that if runtime reloads the policies, the
+	// server sees the change.
+	config := storage.TriggerConfig{
+		OnCommit: s.reload,
+	}
+	if err := s.store.Register(ctx, txn, "opa/server", config); err != nil {
+		s.store.Abort(ctx, txn)
+		return nil, err
 	}
 
-	s.setCompiler(compiler)
-
-	return s, nil
+	return s, s.store.Commit(ctx, txn)
 }
 
 // WithAddress sets the listening address that the server will bind to.
@@ -341,6 +341,36 @@ func (s *Server) indexGet(w http.ResponseWriter, r *http.Request) {
 func (s *Server) registerHandler(router *mux.Router, version int, path string, method string, h func(http.ResponseWriter, *http.Request)) {
 	prefix := fmt.Sprintf("/v%d", version)
 	router.HandleFunc(prefix+path, h).Methods(method)
+}
+
+func (s *Server) reload(ctx context.Context, txn storage.Transaction, event storage.TriggerEvent) {
+
+	if !event.PolicyChanged() {
+		return
+	}
+
+	if err := s.reloadCompiler(ctx, txn); err != nil {
+		panic(err)
+	}
+
+}
+
+func (s *Server) reloadCompiler(ctx context.Context, txn storage.Transaction) error {
+
+	modules, err := s.loadModules(ctx, txn)
+	if err != nil {
+		return err
+	}
+
+	compiler := ast.NewCompiler()
+
+	if compiler.Compile(modules); compiler.Failed() {
+		return compiler.Errors
+	}
+
+	s.setCompiler(compiler)
+
+	return nil
 }
 
 func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {

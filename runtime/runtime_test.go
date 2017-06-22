@@ -137,7 +137,7 @@ func TestRuntimeProcessWatchEvents(t *testing.T) {
 
 		var buf bytes.Buffer
 
-		if err := rt.startWatcher(ctx, paths, &buf); err != nil {
+		if err := rt.startWatcher(ctx, paths, onReloadPrinter(&buf)); err != nil {
 			t.Fatalf("Unexpected watcher init error: %v", err)
 		}
 
