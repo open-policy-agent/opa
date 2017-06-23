@@ -1,6 +1,13 @@
 {
 package ast
 
+const commentsKey = "comments"
+
+type program struct {
+	buf []interface{}
+	comments interface{}
+}
+
 // currentLocation converts the parser context to a Location object.
 func currentLocation(c *current) *Location {
     return NewLocation(c.text, "", c.pos.line, c.pos.col)
@@ -41,7 +48,7 @@ Program <- _ vals:(head:Stmt tail:((ws / ParseError) Stmt)*)? _ EOF {
         buf = append(buf, stmt)
     }
 
-    return buf, nil
+    return program{buf, c.globalStore[commentsKey]}, nil
 }
 
 Stmt <- val:(Package / Import / Rules / Body / Comment / ParseError) {
@@ -593,6 +600,11 @@ _ "whitespace" <- ( [ \t\r\n] / Comment )*
 Comment <- [ \t]* "#" text:[^\r\n]* {
     comment := NewComment(ifaceSliceToByteSlice(text))
     comment.Location = currentLocation(c)
+
+    comments := c.globalStore[commentsKey].([]*Comment)
+    comments = append(comments, comment)
+    c.globalStore[commentsKey] = comments
+
     return comment, nil
 }
 

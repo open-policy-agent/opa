@@ -524,7 +524,7 @@ func (r *REPL) evalBufferOne(ctx context.Context) error {
 	// The user may enter lines with comments on the end or
 	// multiple lines with comments interspersed. In these cases
 	// the parser will return multiple statements.
-	stmts, err := ast.ParseStatements("", line)
+	stmts, _, err := ast.ParseStatements("", line)
 	if err != nil {
 		if r.bufferDisabled {
 			return err
@@ -552,7 +552,7 @@ func (r *REPL) evalBufferMulti(ctx context.Context) error {
 		return nil
 	}
 
-	stmts, err := ast.ParseStatements("", line)
+	stmts, _, err := ast.ParseStatements("", line)
 
 	if err != nil {
 		return err

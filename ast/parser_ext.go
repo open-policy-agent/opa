@@ -69,7 +69,7 @@ func MustParsePackage(input string) *Package {
 // MustParseStatements returns a slice of parsed statements.
 // If an error occurs during parsing, panic.
 func MustParseStatements(input string) []Statement {
-	parsed, err := ParseStatements("", input)
+	parsed, _, err := ParseStatements("", input)
 	if err != nil {
 		panic(err)
 	}
@@ -167,7 +167,7 @@ func ParseRuleFromBody(module *Module, body Body) (*Rule, error) {
 
 // ParseImports returns a slice of Import objects.
 func ParseImports(input string) ([]*Import, error) {
-	stmts, err := ParseStatements("", input)
+	stmts, _, err := ParseStatements("", input)
 	if err != nil {
 		return nil, err
 	}
@@ -186,17 +186,17 @@ func ParseImports(input string) ([]*Import, error) {
 // For details on Module objects and their fields, see policy.go.
 // Empty input will return nil, nil.
 func ParseModule(filename, input string) (*Module, error) {
-	stmts, err := ParseStatements(filename, input)
+	stmts, comments, err := ParseStatements(filename, input)
 	if err != nil {
 		return nil, err
 	}
-	return parseModule(stmts)
+	return parseModule(stmts, comments)
 }
 
 // ParseBody returns exactly one body.
 // If multiple bodies are parsed, an error is returned.
 func ParseBody(input string) (Body, error) {
-	stmts, err := ParseStatements("", input)
+	stmts, _, err := ParseStatements("", input)
 	if err != nil {
 		return nil, err
 	}
@@ -279,7 +279,7 @@ func ParseRef(input string) (Ref, error) {
 // ParseRule returns exactly one rule.
 // If multiple rules are parsed, an error is returned.
 func ParseRule(input string) (*Rule, error) {
-	stmts, err := ParseStatements("", input)
+	stmts, _, err := ParseStatements("", input)
 	if err != nil {
 		return nil, err
 	}
@@ -298,7 +298,7 @@ func ParseRule(input string) (*Rule, error) {
 // this function expects *exactly* one statement. If multiple
 // statements are parsed, an error is returned.
 func ParseStatement(input string) (Statement, error) {
-	stmts, err := ParseStatements("", input)
+	stmts, _, err := ParseStatements("", input)
 	if err != nil {
 		return nil, err
 	}
@@ -308,21 +308,35 @@ func ParseStatement(input string) (Statement, error) {
 	return stmts[0], nil
 }
 
+func setupComments() Option {
+	return func(p *parser) Option {
+		p.cur.globalStore[commentsKey] = []*Comment{}
+		return nil
+	}
+}
+
 // ParseStatements returns a slice of parsed statements.
 // This is the default return value from the parser.
-func ParseStatements(filename, input string) ([]Statement, error) {
+func ParseStatements(filename, input string) ([]Statement, []*Comment, error) {
 
-	parsed, err := Parse(filename, []byte(input))
+	parsed, err := Parse(filename, []byte(input), setupComments())
 	if err != nil {
 		switch err := err.(type) {
 		case errList:
-			return nil, convertErrList(filename, err)
+			return nil, nil, convertErrList(filename, err)
 		default:
-			return nil, err
+			return nil, nil, err
 		}
 	}
 
-	sl := parsed.([]interface{})
+	var comments []*Comment
+	var sl []interface{}
+	if p, ok := parsed.(program); ok {
+		sl = p.buf
+		comments = p.comments.([]*Comment)
+	} else {
+		sl = parsed.([]interface{})
+	}
 	stmts := make([]Statement, 0, len(sl))
 
 	for _, x := range sl {
@@ -339,7 +353,7 @@ func ParseStatements(filename, input string) ([]Statement, error) {
 
 	postProcess(filename, stmts)
 
-	return stmts, err
+	return stmts, comments, err
 }
 
 func convertErrList(filename string, errs errList) error {
@@ -360,7 +374,7 @@ func formatParserError(filename string, e *parserError) *Error {
 	return NewError(ParseErr, loc, e.Inner.Error())
 }
 
-func parseModule(stmts []Statement) (*Module, error) {
+func parseModule(stmts []Statement, comments []*Comment) (*Module, error) {
 
 	if len(stmts) == 0 {
 		return nil, nil
@@ -378,6 +392,9 @@ func parseModule(stmts []Statement) (*Module, error) {
 		Package: _package,
 	}
 
+	// The comments slice only holds comments that were not their own statements.
+	mod.Comments = append(mod.Comments, comments...)
+
 	for _, stmt := range stmts[1:] {
 		switch stmt := stmt.(type) {
 		case *Import:
@@ -394,7 +411,7 @@ func parseModule(stmts []Statement) (*Module, error) {
 			}
 		case *Package:
 			errs = append(errs, NewError(ParseErr, stmt.Loc(), "unexpected "+PackageTypeName))
-		case *Comment: // Drop comments for now.
+		case *Comment: // Ignore comments, they're handled above.
 		default:
 			panic("illegal value") // Indicates grammar is out-of-sync with code.
 		}

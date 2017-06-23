@@ -98,9 +98,10 @@ type (
 	// within a namespace (defined by the package) and optional
 	// dependencies on external documents (defined by imports).
 	Module struct {
-		Package *Package  `json:"package"`
-		Imports []*Import `json:"imports,omitempty"`
-		Rules   []*Rule   `json:"rules,omitempty"`
+		Package  *Package   `json:"package"`
+		Imports  []*Import  `json:"imports,omitempty"`
+		Rules    []*Rule    `json:"rules,omitempty"`
+		Comments []*Comment `json:"comments,omitempty"`
 	}
 
 	// Comment contains the raw text from the comment in the definition.

@@ -28,6 +28,9 @@ func Walk(v Visitor, x interface{}) {
 		for _, r := range x.Rules {
 			Walk(w, r)
 		}
+		for _, c := range x.Comments {
+			Walk(w, c)
+		}
 	case *Package:
 		Walk(w, x.Path)
 	case *Import:
