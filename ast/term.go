@@ -5,6 +5,7 @@
 package ast
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"math/rand"
@@ -31,6 +32,14 @@ type Location struct {
 // NewLocation returns a new Location object.
 func NewLocation(text []byte, file string, row int, col int) *Location {
 	return &Location{Text: text, File: file, Row: row, Col: col}
+}
+
+// Equal checks if two locations are equal to each other.
+func (loc *Location) Equal(other *Location) bool {
+	return bytes.Equal(loc.Text, other.Text) &&
+		loc.File == other.File &&
+		loc.Row == other.Row &&
+		loc.Col == other.Col
 }
 
 // Errorf returns a new error value with a message formatted to include the location
