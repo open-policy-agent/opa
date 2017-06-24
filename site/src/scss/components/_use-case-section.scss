@@ -16,6 +16,25 @@
     };
   }
 
+  &--use-case-summary-container{
+
+    @include breakpoint(600px){
+      width: calc(67% - 1.33rem);
+      margin-right: 1rem;
+    };
+
+    @include breakpoint(900px){
+      width: calc(67% - 1.33rem);
+      margin-right: 2rem;
+    };
+
+    @include breakpoint(1100px){
+      width: calc(67% - 1.33rem);
+      margin-right: 3rem;
+    };
+
+  }
+
   &--use-case-container{
 
     @include breakpoint(600px){
@@ -98,7 +117,7 @@
 
     @include breakpoint(600px){
       top: 3%;
-      width: 200px;
+      width: 280px;
     };
   }
 
