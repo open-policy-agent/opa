@@ -1,0 +1,20 @@
+{
+package main
+
+func main() {
+	ast, err := Parse("STDIN", []byte("iiziid"))
+	if err != nil {
+		fmt.Printf("error: %s\n", err)
+		return
+	}
+	fmt.Printf("%+v\n", ast)
+}
+}
+
+Input ← &{ c.globalStore["result"] = c.globalStore["initial"].(int); return true, nil } (increment / decrement / zero)+ EOF { return c.globalStore["result"].(int), nil }
+
+increment ← "i" &{ c.globalStore["result"] = c.globalStore["result"].(int) + 1; return true, nil }
+decrement ← "d" &{ c.globalStore["result"] = c.globalStore["result"].(int) - 1; return true, nil }
+zero ← "z" &{ c.globalStore["result"] = 0; return true, nil }
+EOF ← !.
+

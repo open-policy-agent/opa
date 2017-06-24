@@ -1,6 +1,6 @@
 package: github.com/open-policy-agent/opa
 import:
-- package: github.com/PuerkitoBio/pigeon
+- package: github.com/mna/pigeon
 - package: golang.org/x/tools
   subpackages:
   - cmd/goimports

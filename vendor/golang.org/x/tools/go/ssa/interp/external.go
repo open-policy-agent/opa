@@ -73,6 +73,7 @@ func init() {
 		"bytes.Equal":                      ext۰bytes۰Equal,
 		"bytes.IndexByte":                  ext۰bytes۰IndexByte,
 		"hash/crc32.haveSSE42":             ext۰crc32۰haveSSE42,
+		"internal/cpu.cpuid":               ext۰cpu۰cpuid,
 		"math.Abs":                         ext۰math۰Abs,
 		"math.Exp":                         ext۰math۰Exp,
 		"math.Float32bits":                 ext۰math۰Float32bits,
@@ -113,6 +114,7 @@ func init() {
 		"runtime.environ":                  ext۰runtime۰environ,
 		"runtime.getgoroot":                ext۰runtime۰getgoroot,
 		"strings.init":                     ext۰nop, // avoid asm dependency
+		"strings.Count":                    ext۰strings۰Count,
 		"strings.Index":                    ext۰strings۰Index,
 		"strings.IndexByte":                ext۰strings۰IndexByte,
 		"sync.runtime_Semacquire":          ext۰nop, // unimplementable
@@ -136,6 +138,7 @@ func init() {
 		"sync/atomic.LoadUint64":           ext۰atomic۰LoadUint64,
 		"sync/atomic.StoreInt64":           ext۰atomic۰StoreInt64,
 		"sync/atomic.StoreUint64":          ext۰atomic۰StoreUint64,
+		"testing.callerEntry":              ext۰testing۰callerEntry,
 		"testing.runExample":               ext۰testing۰runExample,
 		"time.Sleep":                       ext۰time۰Sleep,
 		"time.now":                         ext۰time۰now,
@@ -279,7 +282,7 @@ func ext۰runtime۰Callers(fr *frame, args []value) value {
 		}
 	}
 	i := 0
-	for fr != nil {
+	for fr != nil && i < len(pc) {
 		pc[i] = uintptr(unsafe.Pointer(fr.fn))
 		i++
 		fr = fr.caller
@@ -306,6 +309,11 @@ func ext۰runtime۰environ(fr *frame, args []value) value {
 
 func ext۰runtime۰getgoroot(fr *frame, args []value) value {
 	return os.Getenv("GOROOT")
+}
+
+func ext۰strings۰Count(fr *frame, args []value) value {
+	// Call compiled version to avoid asm dependency.
+	return strings.Count(args[0].(string), args[1].(string))
 }
 
 func ext۰strings۰IndexByte(fr *frame, args []value) value {
@@ -469,6 +477,10 @@ func ext۰atomic۰AddUint64(fr *frame, args []value) value {
 	return newv
 }
 
+func ext۰cpu۰cpuid(fr *frame, args []value) value {
+	return tuple{uint32(0), uint32(0), uint32(0), uint32(0)}
+}
+
 // Pretend: type runtime.Func struct { entry *ssa.Function }
 
 func ext۰runtime۰Func۰FileLine(fr *frame, args []value) value {
@@ -513,6 +525,10 @@ func ext۰testing۰runExample(fr *frame, args []value) value {
 	F := args[0].(structure)[1]
 	call(fr.i, fr, 0, F, nil)
 	return true
+}
+
+func ext۰testing۰callerEntry(fr *frame, args []value) value {
+	return uintptr(0) // bogus implementation for now
 }
 
 func ext۰time۰now(fr *frame, args []value) value {

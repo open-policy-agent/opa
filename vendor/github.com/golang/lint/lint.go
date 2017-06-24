@@ -8,6 +8,7 @@
 package lint
 
 import (
+	"bufio"
 	"bytes"
 	"fmt"
 	"go/ast"
@@ -81,15 +82,15 @@ func (l *Linter) Lint(filename string, src []byte) ([]Problem, error) {
 // LintFiles lints a set of files of a single package.
 // The argument is a map of filename to source.
 func (l *Linter) LintFiles(files map[string][]byte) ([]Problem, error) {
-	if len(files) == 0 {
-		return nil, nil
-	}
 	pkg := &pkg{
 		fset:  token.NewFileSet(),
 		files: make(map[string]*file),
 	}
 	var pkgName string
 	for filename, src := range files {
+		if isGenerated(src) {
+			continue // See issue #239
+		}
 		f, err := parser.ParseFile(pkg.fset, filename, src, parser.ParseComments)
 		if err != nil {
 			return nil, err
@@ -107,7 +108,28 @@ func (l *Linter) LintFiles(files map[string][]byte) ([]Problem, error) {
 			filename: filename,
 		}
 	}
+	if len(pkg.files) == 0 {
+		return nil, nil
+	}
 	return pkg.lint(), nil
+}
+
+var (
+	genHdr = []byte("// Code generated ")
+	genFtr = []byte(" DO NOT EDIT.")
+)
+
+// isGenerated reports whether the source file is generated code
+// according the rules from https://golang.org/s/generatedcode.
+func isGenerated(src []byte) bool {
+	sc := bufio.NewScanner(bytes.NewReader(src))
+	for sc.Scan() {
+		b := sc.Bytes()
+		if bytes.HasPrefix(b, genHdr) && bytes.HasSuffix(b, genFtr) && len(b) >= len(genHdr)+len(genFtr) {
+			return true
+		}
+	}
+	return false
 }
 
 // pkg represents a package being linted.

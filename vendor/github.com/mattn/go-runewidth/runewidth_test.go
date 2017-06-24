@@ -52,6 +52,8 @@ var runewidthtests = []struct {
 	{'\x00', 0, 0},
 	{'\x01', 0, 0},
 	{'\u0300', 0, 0},
+	{'\u2028', 0, 0},
+	{'\u2029', 0, 0},
 }
 
 func TestRuneWidth(t *testing.T) {

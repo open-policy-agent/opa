@@ -37,6 +37,11 @@ pre .ln {
 	-ms-user-select: none;
 	user-select: none;
 }
+.ln::before {
+	/* Inserting the line numbers as a ::before pseudo-element avoids making
+	 * them selectable; it's the trick Github uses as well. */
+	content: attr(data-content);
+}
 body {
 	color: #222;
 }
@@ -95,6 +100,9 @@ h4,
 h1 {
 	font-size: 28px;
 	line-height: 1;
+}
+h1 .text-muted {
+	color:#777;
 }
 h2 {
 	font-size: 20px;
