@@ -9,7 +9,7 @@ fi
 
 which pigeon >/dev/null || {
 	echo "Installing pigeon from vendor"
-	go install ./vendor/github.com/PuerkitoBio/pigeon
+	go install ./vendor/github.com/mna/pigeon
 }
 
 

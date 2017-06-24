@@ -24,6 +24,9 @@ func (l Link) TemplateName() string { return "link" }
 
 func parseLink(ctx *Context, fileName string, lineno int, text string) (Elem, error) {
 	args := strings.Fields(text)
+	if len(args) < 2 {
+		return nil, fmt.Errorf("link element must have at least 2 arguments")
+	}
 	url, err := url.Parse(args[1])
 	if err != nil {
 		return nil, err
@@ -49,7 +52,7 @@ func renderLink(href, text string) string {
 	// Open links in new window only when their url is absolute.
 	target := "_blank"
 	if u, err := url.Parse(href); err != nil {
-		log.Println("rendernLink parsing url:", err)
+		log.Println("renderLink parsing url:", err)
 	} else if !u.IsAbs() || u.Scheme == "javascript" {
 		target = "_self"
 	}

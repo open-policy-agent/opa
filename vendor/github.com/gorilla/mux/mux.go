@@ -299,10 +299,6 @@ type WalkFunc func(route *Route, router *Router, ancestors []*Route) error
 
 func (r *Router) walk(walkFn WalkFunc, ancestors []*Route) error {
 	for _, t := range r.routes {
-		if t.regexp == nil || t.regexp.path == nil || t.regexp.path.template == "" {
-			continue
-		}
-
 		err := walkFn(t, r, ancestors)
 		if err == SkipRouter {
 			continue
@@ -312,10 +308,12 @@ func (r *Router) walk(walkFn WalkFunc, ancestors []*Route) error {
 		}
 		for _, sr := range t.matchers {
 			if h, ok := sr.(*Router); ok {
+				ancestors = append(ancestors, t)
 				err := h.walk(walkFn, ancestors)
 				if err != nil {
 					return err
 				}
+				ancestors = ancestors[:len(ancestors)-1]
 			}
 		}
 		if h, ok := t.handler.(*Router); ok {
@@ -458,7 +456,7 @@ func mapFromPairsToString(pairs ...string) (map[string]string, error) {
 	return m, nil
 }
 
-// mapFromPairsToRegex converts variadic string paramers to a
+// mapFromPairsToRegex converts variadic string parameters to a
 // string to regex map.
 func mapFromPairsToRegex(pairs ...string) (map[string]*regexp.Regexp, error) {
 	length, err := checkPairs(pairs...)
