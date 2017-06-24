@@ -23,6 +23,9 @@ const (
 	// InternalErr represents an unknown evaluation error.
 	InternalErr string = "eval_internal_error"
 
+	// CancelErr indicates the evaluation process was cancelled.
+	CancelErr string = "eval_cancel_error"
+
 	// ConflictErr indicates a conflict was encountered during evaluation. For
 	// instance, a conflict occurs if a rule produces multiple, differing values
 	// for the same key in an object. Conflict errors indicate the policy does

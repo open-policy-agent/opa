@@ -9,6 +9,11 @@ import (
 	"encoding/json"
 	"reflect"
 	"testing"
+	"time"
+
+	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/topdown"
+	"github.com/open-policy-agent/opa/types"
 )
 
 func TestRegoCaptureTermsRewrite(t *testing.T) {
@@ -43,5 +48,30 @@ func TestRegoCaptureTermsRewrite(t *testing.T) {
 		if !reflect.DeepEqual(expected[ev.Text], ev.Value) {
 			t.Fatalf("Expected %v == %v but got: %v", ev.Text, expected[ev.Text], ev.Value)
 		}
+	}
+}
+
+func TestRegoCancellation(t *testing.T) {
+
+	ast.RegisterBuiltin(&ast.Builtin{
+		Name: ast.String("test.sleep"),
+		Args: []types.Type{
+			types.S,
+		},
+	})
+
+	topdown.RegisterFunctionalBuiltinVoid1("test.sleep", func(a ast.Value) error {
+		d, _ := time.ParseDuration(string(a.(ast.String)))
+		time.Sleep(d)
+		return nil
+	})
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond*50)
+	r := New(Query(`test.sleep("1s")`))
+	rs, err := r.Eval(ctx)
+	cancel()
+
+	if err == nil || err.(*topdown.Error).Code != topdown.CancelErr {
+		t.Fatalf("Expected cancellation error but got: %v (err: %v)", rs, err)
 	}
 }

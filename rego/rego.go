@@ -299,6 +299,14 @@ func (r *Rego) eval(ctx context.Context, compiled ast.Body, txn storage.Transact
 		t.Input = r.input
 	}
 
+	// Cancel query if context is cancelled or deadline is reached.
+	t.Cancel = topdown.NewCancel()
+	exit := make(chan struct{})
+	defer close(exit)
+	go waitForDone(ctx, exit, func() {
+		t.Cancel.Cancel()
+	})
+
 	exprs := map[*ast.Expr]struct{}{}
 
 	err = topdown.Eval(t, func(t *topdown.Topdown) error {
@@ -391,6 +399,16 @@ func findExprForTermVar(query ast.Body, v ast.Var) *ast.Expr {
 		}
 	}
 	return nil
+}
+
+func waitForDone(ctx context.Context, exit chan struct{}, f func()) {
+	select {
+	case <-exit:
+		return
+	case <-ctx.Done():
+		f()
+		return
+	}
 }
 
 type rawModule struct {

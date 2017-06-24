@@ -1971,6 +1971,52 @@ func TestTopDownUnsupportedBuiltin(t *testing.T) {
 
 }
 
+func TestTopDownQueryCancellation(t *testing.T) {
+	ast.RegisterBuiltin(&ast.Builtin{
+		Name: ast.String("test.sleep"),
+		Args: []types.Type{
+			types.S,
+		},
+	})
+
+	RegisterFunctionalBuiltinVoid1("test.sleep", func(a ast.Value) error {
+		d, _ := time.ParseDuration(string(a.(ast.String)))
+		time.Sleep(d)
+		return nil
+	})
+
+	ctx := context.Background()
+
+	compiler := compileModules([]string{
+		`
+		package test
+
+		p { data.arr[_] = _; test.sleep("1ms") }
+		`,
+	})
+
+	data := map[string]interface{}{
+		"arr": make([]interface{}, 1000),
+	}
+
+	store := inmem.NewFromObject(data)
+	txn := storage.NewTransactionOrDie(ctx, store)
+
+	params := NewQueryParams(ctx, compiler, store, txn, nil, ast.MustParseRef("data.test.p"))
+	params.Cancel = NewCancel()
+
+	go func() {
+		time.Sleep(time.Millisecond * 50)
+		params.Cancel.Cancel()
+	}()
+
+	qrs, err := Query(params)
+	if err == nil || err.(*Error).Code != CancelErr {
+		t.Fatalf("Expected cancel error but got: %v (err: %v)", qrs, err)
+	}
+
+}
+
 type contextPropagationMock struct{}
 
 // contextPropagationStore will accumulate values from the contexts provided to
