@@ -20,6 +20,7 @@ import (
 // Topdown stores the state of the evaluation process and contains context
 // needed to evaluate queries.
 type Topdown struct {
+	Cancel   Cancel
 	Query    ast.Body
 	Compiler *ast.Compiler
 	Input    ast.Value
@@ -261,6 +262,13 @@ func (t *Topdown) WithInput(input ast.Value) *Topdown {
 func (t *Topdown) WithTracer(tracer Tracer) *Topdown {
 	cpy := *t
 	cpy.Tracer = tracer
+	return &cpy
+}
+
+// WithCancel returns a new Topdown object that has cancellation set.
+func (t *Topdown) WithCancel(c Cancel) *Topdown {
+	cpy := *t
+	cpy.Cancel = c
 	return &cpy
 }
 
@@ -583,6 +591,7 @@ func PlugValue(v ast.Value, binding func(ast.Value) ast.Value) ast.Value {
 // QueryParams defines input parameters for the query interface.
 type QueryParams struct {
 	Context     context.Context
+	Cancel      Cancel
 	Compiler    *ast.Compiler
 	Store       storage.Store
 	Transaction storage.Transaction
@@ -609,7 +618,7 @@ func NewQueryParams(ctx context.Context, compiler *ast.Compiler, store storage.S
 // This function will not propagate optional values such as the tracer, input
 // document, etc. Those must be set by the caller.
 func (q *QueryParams) NewTopdown(query ast.Body) *Topdown {
-	return New(q.Context, query, q.Compiler, q.Store, q.Transaction)
+	return New(q.Context, query, q.Compiler, q.Store, q.Transaction).WithCancel(q.Cancel)
 }
 
 // QueryResult represents a single query result.
@@ -766,6 +775,13 @@ func ResolveRefsTerm(term *ast.Term, t *Topdown) (*ast.Term, error) {
 }
 
 func eval(t *Topdown, iter Iterator) error {
+
+	if t.Cancel != nil && t.Cancel.Cancelled() {
+		return &Error{
+			Code:    CancelErr,
+			Message: "caller cancelled query execution",
+		}
+	}
 
 	if t.Index >= len(t.Query) {
 		return iter(t)
