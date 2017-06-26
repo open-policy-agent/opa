@@ -220,14 +220,14 @@ func TestPlugValue(t *testing.T) {
 
 	r1 := PlugValue(a, t1.Binding)
 
-	if !expected.Equal(r1) {
+	if expected.Compare(r1) != 0 {
 		t.Errorf("Expected %v but got %v", expected, r1)
 		return
 	}
 
 	r2 := PlugValue(a, t2.Binding)
 
-	if !expected.Equal(r2) {
+	if expected.Compare(r2) != 0 {
 		t.Errorf("Expected %v but got %v", expected, r2)
 	}
 
@@ -241,7 +241,7 @@ func TestPlugValue(t *testing.T) {
 
 	r3 := PlugValue(n, t3.Binding)
 
-	if !expected.Equal(r3) {
+	if expected.Compare(r3) != 0 {
 		t.Errorf("Expected %v but got: %v", expected, r3)
 	}
 }

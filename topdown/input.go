@@ -23,7 +23,7 @@ func MakeInput(pairs [][2]*ast.Term) (ast.Value, error) {
 	}
 
 	// Fast-path for the root case.
-	if len(pairs) == 1 && pairs[0][0].Value.Equal(ast.InputRootRef) {
+	if len(pairs) == 1 && pairs[0][0].Value.Compare(ast.InputRootRef) == 0 {
 		return pairs[0][1].Value, nil
 	}
 

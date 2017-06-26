@@ -819,7 +819,7 @@ func (expr *Expr) IsEquality() bool {
 	if len(terms) != 3 {
 		return false
 	}
-	return terms[0].Value.Equal(Equality.Name)
+	return terms[0].Value.Compare(Equality.Name) == 0
 }
 
 // IsBuiltin returns true if this expression refers to a built-in function.

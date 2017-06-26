@@ -854,7 +854,7 @@ func NewModuleTree(mods map[string]*Module) *ModuleTreeNode {
 			c, ok := node.Children[x.Value]
 			if !ok {
 				var hide bool
-				if i == 1 && x.Value.Equal(SystemDocumentKey) {
+				if i == 1 && x.Value.Compare(SystemDocumentKey) == 0 {
 					hide = true
 				}
 				c = &ModuleTreeNode{
