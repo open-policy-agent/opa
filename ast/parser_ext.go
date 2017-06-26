@@ -308,18 +308,17 @@ func ParseStatement(input string) (Statement, error) {
 	return stmts[0], nil
 }
 
-func setupComments() Option {
-	return func(p *parser) Option {
-		p.cur.globalStore[commentsKey] = []*Comment{}
-		return nil
-	}
+// CommentsOption returns a parser option to initialize the comments store within
+// the parser.
+func CommentsOption() Option {
+	return GlobalStore(commentsKey, []*Comment{})
 }
 
 // ParseStatements returns a slice of parsed statements.
 // This is the default return value from the parser.
 func ParseStatements(filename, input string) ([]Statement, []*Comment, error) {
 
-	parsed, err := Parse(filename, []byte(input), setupComments())
+	parsed, err := Parse(filename, []byte(input), CommentsOption())
 	if err != nil {
 		switch err := err.(type) {
 		case errList:

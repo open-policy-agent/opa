@@ -128,10 +128,11 @@ type (
 	// Rule represents a rule as defined in the language. Rules define the
 	// content of documents that represent policy decisions.
 	Rule struct {
-		Default bool  `json:"default,omitempty"`
-		Head    *Head `json:"head"`
-		Body    Body  `json:"body"`
-		Else    *Rule `json:"else,omitempty"`
+		Location *Location `json:"-"`
+		Default  bool      `json:"default,omitempty"`
+		Head     *Head     `json:"head"`
+		Body     Body      `json:"body"`
+		Else     *Rule     `json:"else,omitempty"`
 
 		// Module is a pointer to the module containing this rule. If the rule
 		// was NOT created while parsing/constructing a module, this should be

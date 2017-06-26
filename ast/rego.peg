@@ -1,11 +1,18 @@
 {
 package ast
 
+// commentsKey is the global map key for the comments slice.
 const commentsKey = "comments"
 
 type program struct {
 	buf []interface{}
 	comments interface{}
+}
+
+type ruleExt struct {
+    loc *Location
+    term *Term
+    body Body
 }
 
 // currentLocation converts the parser context to a Location object.
@@ -160,7 +167,7 @@ DefaultRules <- "default" ws name:Var _ "=" _ value:Term {
     return []*Rule{rule}, nil
 }
 
-NormalRules <- head:RuleHead _ b:(NonEmptyBraceEnclosedBody ( _ Else? _ NonEmptyBraceEnclosedBody)* ) {
+NormalRules <- head:RuleHead _ b:(NonEmptyBraceEnclosedBody ( _ RuleExt)* ) {
 
     if head == nil {
         return nil, nil
@@ -170,6 +177,7 @@ NormalRules <- head:RuleHead _ b:(NonEmptyBraceEnclosedBody ( _ Else? _ NonEmpty
 
     rules := []*Rule{
         &Rule{
+            Location: currentLocation(c),
             Head: head.(*Head),
             Body: sl[0].(Body),
         },
@@ -181,14 +189,16 @@ NormalRules <- head:RuleHead _ b:(NonEmptyBraceEnclosedBody ( _ Else? _ NonEmpty
     for i, elem := range sl[1].([]interface{}) {
 
         next := elem.([]interface{})
+        re := next[1].(ruleExt)
 
-        if term, ok := next[1].(*Term); !ok {
+        if re.term == nil {
             if ordered {
                 return nil, fmt.Errorf("expected 'else' keyword")
             }
             rules = append(rules, &Rule{
+                Location: re.loc,
                 Head: prev.Head.Copy(),
-                Body: next[3].(Body),
+                Body: re.body,
             })
         } else {
             if (rules[0].Head.DocKind() != CompleteDoc) || (i != 0 && !ordered) {
@@ -196,12 +206,13 @@ NormalRules <- head:RuleHead _ b:(NonEmptyBraceEnclosedBody ( _ Else? _ NonEmpty
             }
             ordered = true
             curr := &Rule{
+                Location: re.loc,
                 Head: &Head{
                     Name: prev.Head.Name,
-                    Value: term,
-                    Location: term.Location,
+                    Value: re.term,
+                    Location: re.term.Location,
                 },
-                Body: next[3].(Body),
+                Body: re.body,
             }
             prev.Else = curr
             prev = curr
@@ -246,17 +257,26 @@ RuleHead <- name:Var key:( _ "[" _ Term _ "]" _ )? value:( _ "=" _ Term )? {
     return head, nil
 }
 
-Else <- "else" val:( _ "=" _ Term )? {
+Else <- "else" val:( _ "=" _ Term )? b:( _ NonEmptyBraceEnclosedBody ) {
+    bs := b.([]interface{})
+    body := bs[1].(Body)
 
     if val == nil {
         term := BooleanTerm(true)
         term.Location = currentLocation(c)
-        return term, nil
+        return ruleExt{term.Location, term, body}, nil
     }
 
-    sl := val.([]interface{})
-    return sl[3].(*Term), nil
+    vs := val.([]interface{})
+    t := vs[3].(*Term)
+    return ruleExt{currentLocation(c), t, body}, nil
 }
+
+RuleDup <- b:NonEmptyBraceEnclosedBody {
+    return ruleExt{loc: currentLocation(c), body: b.(Body)}, nil
+}
+
+RuleExt <- Else / RuleDup
 
 Body <- BraceEnclosedBody / NonWhitespaceBody
 
