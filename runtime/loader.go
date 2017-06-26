@@ -40,11 +40,12 @@ func (e *loaderErrors) Add(err error) {
 
 type loaded struct {
 	Documents map[string]interface{}
-	Modules   map[string]*loadedModule
+	Modules   map[string]*LoadedModule
 	path      []string
 }
 
-type loadedModule struct {
+// LoadedModule represents a module that has been successfully loaded.
+type LoadedModule struct {
 	Parsed *ast.Module
 	Raw    []byte
 }
@@ -52,7 +53,7 @@ type loadedModule struct {
 func newLoaded() *loaded {
 	return &loaded{
 		Documents: map[string]interface{}{},
-		Modules:   map[string]*loadedModule{},
+		Modules:   map[string]*LoadedModule{},
 	}
 }
 
@@ -96,7 +97,7 @@ func (e emptyModuleError) Error() string {
 
 func (l *loaded) Merge(path string, result interface{}) error {
 	switch result := result.(type) {
-	case *loadedModule:
+	case *LoadedModule:
 		l.Modules[normalizeModuleID(path)] = result
 	default:
 		obj, ok := makeDir(l.path, result)
@@ -191,7 +192,7 @@ func loadFileForKnownTypes(path string) (interface{}, error) {
 	case ".json":
 		return jsonLoad(path)
 	case ".rego":
-		return regoLoad(path)
+		return RegoLoad(path)
 	case ".yaml", ".yml":
 		return yamlLoad(path)
 	}
@@ -199,7 +200,7 @@ func loadFileForKnownTypes(path string) (interface{}, error) {
 }
 
 func loadFileForAnyType(path string) (interface{}, error) {
-	module, err := regoLoad(path)
+	module, err := RegoLoad(path)
 	if err == nil {
 		return module, nil
 	}
@@ -239,7 +240,8 @@ func jsonLoad(path string) (interface{}, error) {
 	return x, nil
 }
 
-func regoLoad(path string) (interface{}, error) {
+// RegoLoad loads and parses a rego source file.
+func RegoLoad(path string) (*LoadedModule, error) {
 	bs, err := ioutil.ReadFile(path)
 	if err != nil {
 		return nil, err
@@ -251,7 +253,7 @@ func regoLoad(path string) (interface{}, error) {
 	if module == nil {
 		return nil, emptyModuleError(path)
 	}
-	result := &loadedModule{
+	result := &LoadedModule{
 		Parsed: module,
 		Raw:    bs,
 	}

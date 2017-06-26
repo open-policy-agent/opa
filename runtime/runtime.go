@@ -277,7 +277,7 @@ func (rt *Runtime) getBanner() string {
 	return buf.String()
 }
 
-func compileAndStoreInputs(ctx context.Context, store storage.Store, txn storage.Transaction, modules map[string]*loadedModule) error {
+func compileAndStoreInputs(ctx context.Context, store storage.Store, txn storage.Transaction, modules map[string]*LoadedModule) error {
 
 	policies := make(map[string]*ast.Module, len(modules))
 
