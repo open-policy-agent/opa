@@ -110,5 +110,5 @@ func valueHash(v util.T) int {
 func valueEq(a, b util.T) bool {
 	av := a.(Value)
 	bv := b.(Value)
-	return av.Equal(bv)
+	return av.Compare(bv) == 0
 }

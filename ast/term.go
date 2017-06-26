@@ -73,7 +73,7 @@ func (loc *Location) String() string {
 // - Variables, References
 // - Array Comprehensions
 type Value interface {
-	Equal(other Value) bool       // Equal returns true if this value equals the other value.
+	Compare(other Value) int      // Compare returns <0, 0, or >0 if this Value is less than, equal to, or greater than other, respectively.
 	Find(path Ref) (Value, error) // Find returns value referred to by path or an error if path is not found.
 	Hash() int                    // Returns hash code of the value.
 	IsGround() bool               // IsGround returns true if this value is not a variable or contains no variables.
@@ -269,7 +269,7 @@ func (term *Term) Equal(other *Term) bool {
 	if term == other {
 		return true
 	}
-	return term.Value.Equal(other.Value)
+	return term.Value.Compare(other.Value) == 0
 }
 
 // Hash returns the hash code of the Term's value.
@@ -377,6 +377,12 @@ func (null Null) Equal(other Value) bool {
 	}
 }
 
+// Compare compares null to other, return <0, 0, or >0 if it is less than, equal to,
+// or greater than other.
+func (null Null) Compare(other Value) int {
+	return Compare(null, other)
+}
+
 // Find returns the current value or a not found error.
 func (null Null) Find(path Ref) (Value, error) {
 	if len(path) == 0 {
@@ -415,6 +421,12 @@ func (bol Boolean) Equal(other Value) bool {
 	default:
 		return false
 	}
+}
+
+// Compare compares bol to other, return <0, 0, or >0 if it is less than, equal to,
+// or greater than other.
+func (bol Boolean) Compare(other Value) int {
+	return Compare(bol, other)
 }
 
 // Find returns the current value or a not found error.
@@ -470,6 +482,12 @@ func (num Number) Equal(other Value) bool {
 	default:
 		return false
 	}
+}
+
+// Compare compares num to other, return <0, 0, or >0 if it is less than, equal to,
+// or greater than other.
+func (num Number) Compare(other Value) int {
+	return Compare(num, other)
 }
 
 // Find returns the current value or a not found error.
@@ -531,6 +549,12 @@ func (str String) Equal(other Value) bool {
 	}
 }
 
+// Compare compares str to other, return <0, 0, or >0 if it is less than, equal to,
+// or greater than other.
+func (str String) Compare(other Value) int {
+	return Compare(str, other)
+}
+
 // Find returns the current value or a not found error.
 func (str String) Find(path Ref) (Value, error) {
 	if len(path) == 0 {
@@ -571,6 +595,12 @@ func (v Var) Equal(other Value) bool {
 	default:
 		return false
 	}
+}
+
+// Compare compares v to other, return <0, 0, or >0 if it is less than, equal to,
+// or greater than other.
+func (v Var) Compare(other Value) int {
+	return Compare(v, other)
 }
 
 // Find returns the current value or a not found error.
@@ -665,6 +695,12 @@ func (ref Ref) Copy() Ref {
 // Equal returns true if ref is equal to other.
 func (ref Ref) Equal(other Value) bool {
 	return Compare(ref, other) == 0
+}
+
+// Compare compares ref to other, return <0, 0, or >0 if it is less than, equal to,
+// or greater than other.
+func (ref Ref) Compare(other Value) int {
+	return Compare(ref, other)
 }
 
 // Find returns the current value or a not found error.
@@ -786,6 +822,12 @@ func (arr Array) Equal(other Value) bool {
 	return Compare(arr, other) == 0
 }
 
+// Compare compares arr to other, return <0, 0, or >0 if it is less than, equal to,
+// or greater than other.
+func (arr Array) Compare(other Value) int {
+	return Compare(arr, other)
+}
+
 // Find returns the value at the index or an out-of-range error.
 func (arr Array) Find(path Ref) (Value, error) {
 	if len(path) == 0 {
@@ -900,6 +942,12 @@ func (s *Set) String() string {
 // Equal returns true if s is equal to v.
 func (s *Set) Equal(v Value) bool {
 	return Compare(s, v) == 0
+}
+
+// Compare compares s to other, return <0, 0, or >0 if it is less than, equal to,
+// or greater than other.
+func (s *Set) Compare(other Value) int {
+	return Compare(s, other)
 }
 
 // Find returns the current value or a not found error.
@@ -1017,6 +1065,12 @@ func Item(key, value *Term) [2]*Term {
 // Equal returns true if obj is equal to other.
 func (obj Object) Equal(other Value) bool {
 	return Compare(obj, other) == 0
+}
+
+// Compare compares obj to other, return <0, 0, or >0 if it is less than, equal to,
+// or greater than other.
+func (obj Object) Compare(other Value) int {
+	return Compare(obj, other)
 }
 
 // Find returns the value at the key or undefined.
@@ -1193,6 +1247,12 @@ func (ac *ArrayComprehension) Copy() *ArrayComprehension {
 // Equal returns true if ac is equal to other.
 func (ac *ArrayComprehension) Equal(other Value) bool {
 	return Compare(ac, other) == 0
+}
+
+// Compare compares ac to other, return <0, 0, or >0 if it is less than, equal to,
+// or greater than other.
+func (ac *ArrayComprehension) Compare(other Value) int {
+	return Compare(ac, other)
 }
 
 // Find returns the current value or a not found error.

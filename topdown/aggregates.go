@@ -101,7 +101,7 @@ func builtinMin(a ast.Value) (ast.Value, error) {
 			// The null term is considered to be less than any other term,
 			// so in order for min of a set to make sense, we need to check
 			// for it.
-			if min.Value.Equal(ast.Null{}) {
+			if min.Value.Compare(ast.Null{}) == 0 {
 				return elem, nil
 			}
 

@@ -924,7 +924,7 @@ func evalExpr(t *Topdown, iter Iterator) error {
 				return err
 			}
 		}
-		if !v.Equal(ast.Boolean(false)) {
+		if v.Compare(ast.Boolean(false)) != 0 {
 			if v.IsGround() {
 				return iter(t)
 			}
@@ -1370,7 +1370,7 @@ func evalRefRuleCompleteDocSingle(t *Topdown, rule *ast.Rule, redo bool, last as
 
 		// If document is already defined, check for conflict.
 		if last != nil {
-			if !last.Equal(result) {
+			if last.Compare(result) != 0 {
 				return completeDocConflictErr(t.currentLocation(rule))
 			}
 		} else {
@@ -1560,7 +1560,7 @@ func evalRefRulePartialObjectDocFull(t *Topdown, ref ast.Ref, rules []*ast.Rule,
 				return fmt.Errorf("unbound variable: %v", value)
 			}
 
-			if exist := keys.Get(key); exist != nil && !exist.Equal(value) {
+			if exist := keys.Get(key); exist != nil && exist.Compare(value) != 0 {
 				return objectDocKeyConflictErr(t.currentLocation(rule))
 			}
 
@@ -1784,7 +1784,7 @@ func evalRefRuleResultRecObject(t *Topdown, obj ast.Object, ref, path ast.Ref, i
 					return err
 				}
 			}
-			if x.Equal(k) {
+			if x.Compare(k) == 0 {
 				match = idx
 				break
 			}
@@ -1949,7 +1949,7 @@ func evalTermsIndexed(t *Topdown, iter Iterator, index storage.Index, nonIndexed
 			// different binding for the same variable. This can arise if output
 			// variables in references on either side intersect (e.g., a[i] = g[i][j]).
 			skip := bindings.Iter(func(k, v ast.Value) bool {
-				if o := t.Binding(k); o != nil && !o.Equal(v) {
+				if o := t.Binding(k); o != nil && o.Compare(v) != 0 {
 					return true
 				}
 				prev = t.Bind(k, v, prev)

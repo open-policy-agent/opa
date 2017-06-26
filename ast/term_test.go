@@ -41,7 +41,7 @@ func TestInterfaceToValue(t *testing.T) {
 		return
 	}
 
-	if !v.Equal(expected) {
+	if v.Compare(expected) != 0 {
 		t.Errorf("Expected ast.Value to equal:\n%v\nBut got:\n%v", expected, v)
 	}
 }
@@ -146,7 +146,7 @@ func TestFind(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Unexpected error occurred for %v: %v", tc.path, err)
 			}
-			if !result.Equal(expected.Value) {
+			if result.Compare(expected.Value) != 0 {
 				t.Fatalf("Expected value %v for %v but got: %v", expected, tc.path, result)
 			}
 		case error:

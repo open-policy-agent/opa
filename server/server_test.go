@@ -622,7 +622,7 @@ func TestPoliciesPutV1ParseError(t *testing.T) {
 		t.Fatalf("Expecfted to find name in errors but: %v", err)
 	}
 
-	if !name.Equal(ast.String("test")) {
+	if name.Compare(ast.String("test")) != 0 {
 		t.Fatalf("Expected name ot equal test but got: %v", name)
 	}
 }
@@ -658,7 +658,7 @@ q[x] { p[x] }`,
 		t.Fatalf("Expecfted to find name in errors but: %v", err)
 	}
 
-	if !name.Equal(ast.String("test")) {
+	if name.Compare(ast.String("test")) != 0 {
 		t.Fatalf("Expected name ot equal test but got: %v", name)
 	}
 }

@@ -178,7 +178,7 @@ func TestBasic(t *testing.T) {
 				code, err := response.Find(ast.RefTerm(ast.StringTerm("code")).Value.(ast.Ref))
 				if err != nil {
 					t.Fatalf("Missing code in response: %v", recorder)
-				} else if !code.Equal(ast.String(tc.expectedCode)) {
+				} else if code.Compare(ast.String(tc.expectedCode)) != 0 {
 					t.Fatalf("Expected code %v but got: %v", tc.expectedCode, recorder)
 				}
 

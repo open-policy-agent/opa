@@ -75,7 +75,7 @@ func TestMakeInput(t *testing.T) {
 				continue
 			}
 			expected := ast.MustParseTerm(e)
-			if !expected.Value.Equal(input) {
+			if expected.Value.Compare(input) != 0 {
 				t.Errorf("%v (#%d): Expected input to equal %v but got: %v", tc.note, i+1, expected, input)
 			}
 		}
