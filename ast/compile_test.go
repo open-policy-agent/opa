@@ -289,6 +289,17 @@ func TestCompilerUserFunction(t *testing.T) {
 				}`},
 			assert: assertNotFailed,
 		},
+		// Test that unsafe outputs do not result in panics when checking
+		// refs, instead they should just fail to compile.
+		{
+			modules: []string{`package x
+
+				f(x) = y {
+					noexist(x, b)
+					y = b[0]
+				}`},
+			assert: assertFailed,
+		},
 	}
 	for _, test := range tests {
 		var err error
