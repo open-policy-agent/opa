@@ -51,25 +51,7 @@ func (tc *typeChecker) CheckBody(env *TypeEnv, body Body) (*TypeEnv, Errors) {
 		env = env.wrap()
 	}
 
-	prev := len(tc.errs)
 	WalkExprs(body, func(expr *Expr) bool {
-		// If walking this body resulted in errors, then we should not
-		// continue walking it, otherwise the refChecker could panic
-		// when resolving unsafe references. A simple function that
-		// demonstrates this problem is:
-		//
-		// f(x) = y {
-		//     noexist(x, b)
-		//     y = b[0]
-		// }
-		//
-		// The fundamental problem is that functions make their output
-		// safe, but if the function itself fails to compile, the output
-		// is falsely assumed safe by other bodies using it.
-		if len(tc.errs) > prev {
-			return false
-		}
-
 		vis := newRefChecker(env)
 		Walk(vis, expr)
 		for _, err := range vis.errs {
@@ -572,7 +554,7 @@ func (rc *refChecker) checkRefNext(curr *TypeEnv, ref Ref) *Error {
 		return rc.checkRefLeaf(types.A, ref, 0)
 	}
 
-	panic("unreachable")
+	return NewError(TypeErr, ref[0].Location, "ref is unsafe: %v", ref)
 }
 
 func unifies(a, b types.Type) bool {
