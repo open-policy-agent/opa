@@ -73,6 +73,8 @@ type store struct {
 	policies map[string][]byte                // raw policies
 	triggers map[string]storage.TriggerConfig // registered triggers
 	indices  *indices                         // data ref indices
+
+	storage.WatchesNotSupported
 }
 
 func (db *store) NewTransaction(ctx context.Context, params ...storage.TransactionParams) (storage.Transaction, error) {

@@ -977,6 +977,7 @@ func TestServerReloadTrigger(t *testing.T) {
 }
 
 type queryBindingErrStore struct {
+	storage.WatchesNotSupported
 	storage.WritesNotSupported
 	storage.PolicyNotSupported
 	storage.IndexingNotSupported

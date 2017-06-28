@@ -1771,6 +1771,7 @@ type contextPropagationMock struct{}
 type contextPropagationStore struct {
 	storage.WritesNotSupported
 	storage.TriggersNotSupported
+	storage.WatchesNotSupported
 	storage.PolicyNotSupported
 	storage.IndexingNotSupported
 	calls []interface{}

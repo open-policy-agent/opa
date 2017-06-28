@@ -28,6 +28,10 @@ const (
 	// trigger against a store that does not support them.
 	TriggersNotSupportedErr = "storage_triggers_not_supported_error"
 
+	// WatchesNotSupportedErr indicates the caller attempted to register a
+	// watch against a store that does not support them.
+	WatchesNotSupportedErr = "storage_watches_not_supported_error"
+
 	// WritesNotSupportedErr indicate the caller attempted to perform a write
 	// against a store that does not support them.
 	WritesNotSupportedErr = "storage_writes_not_supported_error"
@@ -93,6 +97,12 @@ func IsIndexingNotSupported(err error) bool {
 func triggersNotSupportedError() *Error {
 	return &Error{
 		Code: TriggersNotSupportedErr,
+	}
+}
+
+func watchesNotSupportedError() *Error {
+	return &Error{
+		Code: WatchesNotSupportedErr,
 	}
 }
 
