@@ -318,7 +318,7 @@ func CommentsOption() Option {
 // This is the default return value from the parser.
 func ParseStatements(filename, input string) ([]Statement, []*Comment, error) {
 
-	parsed, err := Parse(filename, []byte(input), CommentsOption())
+	parsed, err := Parse(filename, []byte(input), GlobalStore(filenameKey, filename), CommentsOption())
 	if err != nil {
 		switch err := err.(type) {
 		case errList:
@@ -424,8 +424,6 @@ func parseModule(stmts []Statement, comments []*Comment) (*Module, error) {
 }
 
 func postProcess(filename string, stmts []Statement) error {
-	setFilename(filename, stmts)
-
 	if err := mangleDataVars(stmts); err != nil {
 		return err
 	}
@@ -525,27 +523,6 @@ func (vis *wildcardMangler) mangle(x *Term) {
 func (vis *wildcardMangler) mangleSlice(xs []*Term) {
 	for _, x := range xs {
 		vis.mangle(x)
-	}
-}
-
-func setFilename(filename string, stmts []Statement) {
-	for _, stmt := range stmts {
-		vis := &GenericVisitor{func(x interface{}) bool {
-			switch x := x.(type) {
-			case *Package:
-				x.Location.File = filename
-			case *Import:
-				x.Location.File = filename
-			case *Head:
-				x.Location.File = filename
-			case *Expr:
-				x.Location.File = filename
-			case *Term:
-				x.Location.File = filename
-			}
-			return false
-		}}
-		Walk(vis, stmt)
 	}
 }
 

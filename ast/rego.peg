@@ -1,8 +1,14 @@
 {
 package ast
 
-// commentsKey is the global map key for the comments slice.
-const commentsKey = "comments"
+const (
+	// commentsKey is the global map key for the comments slice.
+	commentsKey = "comments"
+
+	// filenameKey is the global map key for the filename.
+	filenameKey = "filename"
+)
+
 
 type program struct {
 	buf []interface{}
@@ -17,7 +23,7 @@ type ruleExt struct {
 
 // currentLocation converts the parser context to a Location object.
 func currentLocation(c *current) *Location {
-    return NewLocation(c.text, "", c.pos.line, c.pos.col)
+    return NewLocation(c.text, c.globalStore[filenameKey].(string), c.pos.line, c.pos.col)
 }
 
 func ifaceSliceToByteSlice(i interface{}) []byte {
