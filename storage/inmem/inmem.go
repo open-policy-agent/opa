@@ -32,6 +32,7 @@ func New() storage.Store {
 	return &store{
 		data:     map[string]interface{}{},
 		triggers: map[string]storage.TriggerConfig{},
+		watches:  map[string]dataWatch{},
 		policies: map[string][]byte{},
 		indices:  newIndices(),
 	}
@@ -74,7 +75,8 @@ type store struct {
 	triggers map[string]storage.TriggerConfig // registered triggers
 	indices  *indices                         // data ref indices
 
-	storage.WatchesNotSupported
+	wlock   sync.Mutex           // lock around the watch set
+	watches map[string]dataWatch // registered watches
 }
 
 func (db *store) NewTransaction(ctx context.Context, params ...storage.TransactionParams) (storage.Transaction, error) {
@@ -95,9 +97,10 @@ func (db *store) Commit(ctx context.Context, txn storage.Transaction) error {
 	underlying := txn.(*transaction)
 	if underlying.write {
 		db.rmu.Lock()
-		event := underlying.Commit()
+		trigger, events := underlying.Commit()
 		db.indices = newIndices()
-		db.runOnCommitTriggers(ctx, txn, event)
+		db.runOnCommitTriggers(ctx, txn, trigger)
+		db.runWatchNotify(events)
 		db.rmu.Unlock()
 		db.wmu.Unlock()
 	} else {
@@ -136,6 +139,39 @@ func (db *store) DeletePolicy(_ context.Context, txn storage.Transaction, id str
 		return err
 	}
 	return underlying.DeletePolicy(id)
+}
+
+func (db *store) Watch(ctx context.Context, path storage.Path, c chan<- storage.Event) error {
+	db.wlock.Lock()
+	defer db.wlock.Unlock()
+
+	key := path.String()
+	if _, ok := db.watches[key]; ok {
+		return fmt.Errorf("watch on %s already exists", key)
+	}
+	db.watches[key] = dataWatch{path, c}
+	return nil
+}
+
+func (db *store) EndWatch(ctx context.Context, path storage.Path) error {
+	key := path.String()
+
+	db.wlock.Lock()
+	_, ok := db.watches[key]
+	delete(db.watches, key)
+	db.wlock.Unlock()
+
+	if !ok {
+		return fmt.Errorf("no watch on %s", key)
+	}
+
+	// Lock and unlock the write lock. This guarantees that if a goroutine
+	// is committing a write, that any notifications to this path are delivered
+	// first before we return.
+	db.wmu.Lock()
+	db.wmu.Unlock()
+
+	return nil
 }
 
 func (db *store) Register(ctx context.Context, txn storage.Transaction, id string, config storage.TriggerConfig) error {
@@ -183,6 +219,35 @@ func (db *store) runOnCommitTriggers(ctx context.Context, txn storage.Transactio
 	for _, t := range db.triggers {
 		t.OnCommit(ctx, txn, event)
 	}
+}
+
+func (db *store) runWatchNotify(events []storage.Event) {
+	var notifications []dataNotify
+
+	// Collect the notifications before sending to not block the watch list.
+	db.wlock.Lock()
+	for _, event := range events {
+		for _, watch := range db.watches {
+			if event.Path.HasPrefix(watch.path) {
+				notifications = append(notifications, dataNotify{event, watch.out})
+			}
+		}
+	}
+	db.wlock.Unlock()
+
+	for _, notify := range notifications {
+		notify.out <- notify.event
+	}
+}
+
+type dataNotify struct {
+	event storage.Event
+	out   chan<- storage.Event
+}
+
+type dataWatch struct {
+	path storage.Path
+	out  chan<- storage.Event
 }
 
 var doesNotExistMsg = "document does not exist"
