@@ -120,7 +120,6 @@ func MustParseTerm(input string) *Term {
 // of the form <var> = <term> can be converted into rules of the form <var> =
 // <term> { true }. This is a concise way of defining constants inside modules.
 func ParseRuleFromBody(module *Module, body Body) (*Rule, error) {
-
 	if len(body) != 1 {
 		return nil, fmt.Errorf("multiple %vs cannot be used for %v", ExprTypeName, HeadTypeName)
 	}

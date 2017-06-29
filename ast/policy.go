@@ -410,7 +410,7 @@ func (rule *Rule) Equal(other *Rule) bool {
 
 // Loc returns the location of the Rule in the definition.
 func (rule *Rule) Loc() *Location {
-	return rule.Head.Location
+	return rule.Location
 }
 
 // Path returns a ref referring to the document produced by this rule. If rule
