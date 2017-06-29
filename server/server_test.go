@@ -13,6 +13,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/server/identifier"
@@ -431,6 +432,126 @@ p = true { a = [1, 2, 3, 4]; a[_] = x; x > 1 }`, 204, "")
 
 	if result2.Result != nil {
 		t.Fatalf("Expected undefined result but got: %v", result2.Result)
+	}
+}
+
+type watchReply struct {
+	Path string
+	Data interface{}
+}
+
+type mockHandler struct {
+	t *testing.T
+
+	i   int
+	exp []watchReply
+}
+
+func (h *mockHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	defer w.WriteHeader(http.StatusOK)
+
+	i := h.i
+	h.i++
+
+	var reply watchReply
+	decoder := util.NewJSONDecoder(r.Body)
+	if err := decoder.Decode(&reply); err != nil {
+		h.t.Fatalf("Invalid JSON reply: %v", err)
+	}
+
+	if tpe := r.Header.Get("Content-Type"); tpe != "application/json" {
+		h.t.Fatalf("Unexpected content type: %s", tpe)
+	}
+
+	if i >= len(h.exp) {
+		h.t.Fatalf("Unexpected watch notification: %v", reply)
+		return
+	}
+
+	if !reflect.DeepEqual(h.exp[i], reply) {
+		h.t.Fatalf("Expected notification to be %v, got %v", h.exp[i], reply)
+	}
+}
+
+func TestDataGetWatch(t *testing.T) {
+	f := newFixture(t)
+
+	exp := []watchReply{
+		{
+			Path: "/x/a",
+			Data: json.Number("2"),
+		},
+		{
+			Path: "/x/b",
+			Data: nil,
+		},
+		{
+			Path: "/x/c",
+			Data: "bar",
+		},
+		{
+			Path: "/x",
+			Data: "foo",
+		},
+		{
+			Path: "/x",
+			Data: "d",
+		},
+	}
+
+	f.v1(http.MethodPut, "/data/x", `{"a":1,"b":2}`, 204, "")
+
+	handler := &mockHandler{t: t, exp: exp}
+	server := httptest.NewUnstartedServer(handler)
+	addr := server.Listener.Addr().String()
+	server.Start()
+
+	req := newReqV1(http.MethodGet, "/data/x?watch=true", "")
+	req.RemoteAddr = addr
+	if err := f.executeRequest(req, 200, `{"result":{"a":1,"b":2}}`); err != nil {
+		t.Errorf("Unexpected response: %v", err)
+	}
+
+	f.v1(http.MethodPut, "/data/x/a", `2`, 204, "")
+	f.v1(http.MethodPatch, "/data", `[{"op":"remove","path":"/x/b"}]`, 204, "")
+	f.v1(http.MethodPut, "/data/x/c", `"bar"`, 204, "")
+	f.v1(http.MethodPut, "/data/x", `"foo"`, 204, "")
+
+	req = newReqV1(http.MethodGet, "/data/x?watch=false", "")
+	req.RemoteAddr = addr
+	if err := f.executeRequest(req, 200, `{"result":"foo"}`); err != nil {
+		t.Errorf("Unexpected response: %v", err)
+	}
+
+	// Additional PUTs to /x should not cause more notifications.
+	f.v1(http.MethodPut, "/data/x", `"a"`, 204, "")
+	f.v1(http.MethodPut, "/data/x", `"b"`, 204, "")
+	f.v1(http.MethodPut, "/data/x", `"c"`, 204, "")
+
+	WatchTimeout = 10 * time.Millisecond
+	req = newReqV1(http.MethodGet, "/data/x?watch=true", "")
+	req.RemoteAddr = addr
+	if err := f.executeRequest(req, 200, `{"result":"c"}`); err != nil {
+		t.Errorf("Unexpected response: %v", err)
+	}
+
+	f.v1(http.MethodPut, "/data/x", `"d"`, 204, "")
+
+	// Let the watch expire.
+	time.Sleep(50 * time.Millisecond)
+
+	// Additional PUTs to /x should not cause notifications, the watch should
+	// have expired and unregistered itself.
+	f.v1(http.MethodPut, "/data/x", `"e"`, 204, "")
+	f.v1(http.MethodPut, "/data/x", `"f"`, 204, "")
+
+	// The notifications are being sent in a goroutine, so they won't block
+	// our PUT requests. Give them some time to get back.
+	time.Sleep(10 * time.Millisecond)
+	server.Close()
+
+	if handler.i != len(exp) {
+		t.Fatalf("Expected %d notifications, received %d", len(exp), handler.i)
 	}
 }
 

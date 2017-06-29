@@ -297,6 +297,10 @@ const (
 	// the client wants to receive performance metrics in addition to the
 	// result.
 	ParamMetricsV1 = "metrics"
+
+	// ParamWatchV1 defines the name of the HTTP URL parameter that indicates
+	// a clients desired watch state on a data path.
+	ParamWatchV1 = "watch"
 )
 
 // WriteConflictErr represents an error condition raised if the caller attempts
