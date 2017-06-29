@@ -494,6 +494,10 @@ func (w *writer) writeIterable(elements []interface{}, last *ast.Location, comme
 }
 
 func (w *writer) writeIterableLine(elements []interface{}, comments []*ast.Comment, fn entryWriter) []*ast.Comment {
+	if len(elements) == 0 {
+		return comments
+	}
+
 	i := 0
 	for ; i < len(elements)-1; i++ {
 		comments = fn(elements[i], comments)
