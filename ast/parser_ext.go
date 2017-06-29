@@ -151,16 +151,18 @@ func ParseRuleFromBody(module *Module, body Body) (*Rule, error) {
 	}
 
 	rule := &Rule{
+		Location: expr.Location,
 		Head: &Head{
 			Location: expr.Location,
 			Name:     name,
 			Value:    terms[2],
 		},
 		Body: NewBody(
-			&Expr{Terms: BooleanTerm(true).SetLocation(body[0].Location)},
+			&Expr{Terms: BooleanTerm(true).SetLocation(expr.Location)},
 		),
 		Module: module,
 	}
+	rule.Body[0].Location = expr.Location
 
 	return rule, nil
 }
