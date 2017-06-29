@@ -156,9 +156,9 @@ DefaultRules <- "default" ws name:Var _ "=" _ value:Term {
 
     loc := currentLocation(c)
     body := NewBody(NewExpr(BooleanTerm(true).SetLocation(loc)))
-    body[0].Location =loc
 
     rule := &Rule{
+        Location: loc,
         Default: true,
         Head: &Head{
             Location: currentLocation(c),
@@ -167,7 +167,6 @@ DefaultRules <- "default" ws name:Var _ "=" _ value:Term {
         },
         Body: body,
     }
-
     rule.Body[0].Location = currentLocation(c)
 
     return []*Rule{rule}, nil
