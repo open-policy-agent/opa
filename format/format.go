@@ -31,7 +31,11 @@ func Source(filename string, src []byte) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return Ast(module)
+	formatted, err := Ast(module)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %v", filename, err)
+	}
+	return formatted, nil
 }
 
 // Ast formats a Rego AST element. If the passed value is not a valid AST element,
