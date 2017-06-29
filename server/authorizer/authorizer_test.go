@@ -138,15 +138,15 @@ func TestBasic(t *testing.T) {
 		expectedCode   string
 		expectedMsg    string
 	}{
-		{"root (ok)", "token0", "GET", "", http.StatusOK, "", ""},
-		{"index.html (ok)", "token0", "GET", "/index.html", http.StatusOK, "", ""},
-		{"undefined", "token0", "GET", "/undefined", http.StatusInternalServerError, types.CodeInternal, types.MsgUnauthorizedUndefinedError},
-		{"evaluation error", "token0", "GET", "/divide_by_zero", http.StatusInternalServerError, types.CodeInternal, types.MsgEvaluationError},
-		{"ok", "token1", "GET", "/data/some/specific/document", http.StatusOK, "", ""},
-		{"ok (w/ query params)", "token1", "GET", "/data/some/specific/document?pretty=true", http.StatusOK, "", ""},
-		{"unauthorized method", "token1", "PUT", "/data/some/specific/document", http.StatusUnauthorized, types.CodeUnauthorized, types.MsgUnauthorizedError},
-		{"unauthorized path", "token2", "GET", "/data/some/doc/not/allowed", http.StatusUnauthorized, types.CodeUnauthorized, types.MsgUnauthorizedError},
-		{"unauthorized path (w/ query params)", "token2", "GET", "/data/some/doc/not/allowed?pretty=true", http.StatusUnauthorized, types.CodeUnauthorized, types.MsgUnauthorizedError},
+		{"root (ok)", "token0", http.MethodGet, "", http.StatusOK, "", ""},
+		{"index.html (ok)", "token0", http.MethodGet, "/index.html", http.StatusOK, "", ""},
+		{"undefined", "token0", http.MethodGet, "/undefined", http.StatusInternalServerError, types.CodeInternal, types.MsgUnauthorizedUndefinedError},
+		{"evaluation error", "token0", http.MethodGet, "/divide_by_zero", http.StatusInternalServerError, types.CodeInternal, types.MsgEvaluationError},
+		{"ok", "token1", http.MethodGet, "/data/some/specific/document", http.StatusOK, "", ""},
+		{"ok (w/ query params)", "token1", http.MethodGet, "/data/some/specific/document?pretty=true", http.StatusOK, "", ""},
+		{"unauthorized method", "token1", http.MethodPut, "/data/some/specific/document", http.StatusUnauthorized, types.CodeUnauthorized, types.MsgUnauthorizedError},
+		{"unauthorized path", "token2", http.MethodGet, "/data/some/doc/not/allowed", http.StatusUnauthorized, types.CodeUnauthorized, types.MsgUnauthorizedError},
+		{"unauthorized path (w/ query params)", "token2", http.MethodGet, "/data/some/doc/not/allowed?pretty=true", http.StatusUnauthorized, types.CodeUnauthorized, types.MsgUnauthorizedError},
 	}
 
 	for _, tc := range tests {
@@ -196,7 +196,7 @@ func TestBasic(t *testing.T) {
 func TestBasicEscapeError(t *testing.T) {
 
 	recorder := httptest.NewRecorder()
-	req, err := http.NewRequest("GET", "http://localhost:8181", nil)
+	req, err := http.NewRequest(http.MethodGet, "http://localhost:8181", nil)
 	if err != nil {
 		panic(err)
 	}
