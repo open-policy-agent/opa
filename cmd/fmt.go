@@ -42,7 +42,8 @@ If the '-d' option is supplied, the 'fmt' command will output a diff between the
 original and formatted source.
 
 If the '-l' option is suppled, the 'fmt' command will output the names of files
-that would change if formatted.`,
+that would change if formatted. The '-l' option will suppress any other output
+to stdout from the 'fmt' command.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		os.Exit(opaFmt(args))
 	},
@@ -91,6 +92,7 @@ func formatFile(filename string, info os.FileInfo, err error) error {
 	var out io.Writer = os.Stdout
 	if list {
 		fmt.Fprintln(out, filename)
+		out = ioutil.Discard
 	}
 
 	if diff {
