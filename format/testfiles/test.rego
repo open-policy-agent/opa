@@ -11,6 +11,14 @@ import data.a.b.c              # Another comment!
 import data.a
 import data.f.g
 
+default foo = false
+foo[x] {
+not x = g
+}
+
+globals = {"foo": "bar",
+"fizz": "buzz"}
+
 # Latent comment.
 
 r = y {

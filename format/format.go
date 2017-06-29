@@ -188,7 +188,7 @@ func (w *writer) writeComments(comments []*ast.Comment) {
 
 func (w *writer) writeRules(rules []*ast.Rule, comments []*ast.Comment) []*ast.Comment {
 	for _, rule := range rules {
-		comments = w.insertComments(comments, rule.Loc())
+		comments = w.insertComments(comments, rule.Location)
 		comments = w.writeRule(rule, comments)
 		w.blankLine()
 	}
@@ -204,9 +204,14 @@ func (w *writer) writeRule(rule *ast.Rule, comments []*ast.Comment) []*ast.Comme
 	if rule.Default {
 		w.write("default ")
 	}
-
 	comments = w.writeHead(rule.Head, comments)
-	if len(rule.Body) == 0 {
+
+	// OPA transforms lone bodies like `foo = {"a": "b"}` into rules of the form
+	// `foo = {"a": "b"} { true }` in the AST. We want to preserve that notation
+	// in the formatted code instead of expanding the bodies into rules, so we
+	// pretend that the rule has no body in this case.
+	isExpandedConst := rule.Head.DocKind() == ast.CompleteDoc && rule.Body.Equal(ast.NewBody(ast.NewExpr(ast.BooleanTerm(true))))
+	if len(rule.Body) == 0 || isExpandedConst {
 		w.endLine()
 		return comments
 	}

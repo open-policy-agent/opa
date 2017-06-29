@@ -6,7 +6,6 @@ package format
 
 import (
 	"bytes"
-	"fmt"
 	"io/ioutil"
 	"path/filepath"
 	"testing"
@@ -28,6 +27,24 @@ func TestFormatNilLocation(t *testing.T) {
 	}
 }
 
+func TestFormatSourceError(t *testing.T) {
+	rego := "testfiles/test.rego.error"
+	contents, err := ioutil.ReadFile(rego)
+	if err != nil {
+		t.Fatalf("Failed to read rego source: %v", err)
+	}
+
+	_, err = Source(rego, contents)
+	if err == nil {
+		t.Fatal("Expected parsing error, not nil")
+	}
+
+	exp := "1 error occurred: testfiles/test.rego.error:25: rego_parse_error: no match found, unexpected '{'"
+	if err.Error() != exp {
+		t.Fatalf("Expected error message '%s', got '%s'", exp, err.Error())
+	}
+}
+
 func TestFormatSource(t *testing.T) {
 	regoFiles, err := filepath.Glob("testfiles/*.rego")
 	if err != nil {
@@ -36,7 +53,6 @@ func TestFormatSource(t *testing.T) {
 
 	for _, rego := range regoFiles {
 		t.Run(rego, func(t *testing.T) {
-			fmt.Println(rego)
 			contents, err := ioutil.ReadFile(rego)
 			if err != nil {
 				t.Fatalf("Failed to read rego source: %v", err)
