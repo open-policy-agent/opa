@@ -22,7 +22,7 @@ func TestTokenBased(t *testing.T) {
 	mock := &mockHandler{}
 	handler := NewTokenBased(mock)
 
-	req, err := http.NewRequest("GET", "/foo/bar/baz", nil)
+	req, err := http.NewRequest(http.MethodGet, "/foo/bar/baz", nil)
 	if err != nil {
 		t.Fatalf("Unexpected error creating request: %v", err)
 	}

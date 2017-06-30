@@ -19,6 +19,7 @@ type Transaction interface {
 // Store defines the interface for the storage layer's backend.
 type Store interface {
 	Trigger
+	Watcher
 	Policy
 	Indexing
 
@@ -100,7 +101,52 @@ func (PolicyNotSupported) DeletePolicy(context.Context, Transaction, string) err
 	return policyNotSupportedError()
 }
 
-// TriggerEvent describes the changes that caused the trigger to be invoked.
+// Event describes a detailed change to a data document within the store.
+type Event struct {
+	Path Path        // The data document that changed.
+	Data interface{} // The new value of the data document. Nil if the document was removed.
+}
+
+// IsRemoval returns true if this Event represents the removal of data.
+func (e *Event) IsRemoval() bool {
+	return e.Data == nil
+}
+
+// Watcher defines the interface that Stores implement to register for notifications
+// when a certain data document in the Store is changed. Any type implementing the
+// Watcher interface must guarantee that notifications are sent in the order
+// they are generated.
+type Watcher interface {
+
+	// Watch registers a watch on the given Path. Whenever changes are made
+	// to the path or any document underneath it, an Event describing the
+	// changes are sent along the channel. The channel must not be closed
+	// until EndWatch has been called (and returned) on every path it was
+	// registered with. Otherwise, the Store may panic.
+	Watch(ctx context.Context, path Path, c chan<- Event) error
+
+	// EndWatch ends the watch on the given path. The Watcher must not close
+	// the channel associated with the path, it is the caller's responsibility
+	// to close the channel. EndWatch must block until all notifications queued
+	// to the path have been delivered.
+	EndWatch(ctx context.Context, path Path) error
+}
+
+// WatchesNotSupported provides default implementations of the Watcher
+// interface which may be used if the backend does not support watches.
+type WatchesNotSupported struct{}
+
+// Watch always returns an error indicating watches are not supported.
+func (WatchesNotSupported) Watch(context.Context, Path, chan<- Event) error {
+	return watchesNotSupportedError()
+}
+
+// EndWatch always returns an error indicating watches are not supported.
+func (WatchesNotSupported) EndWatch(context.Context, Path) error {
+	return watchesNotSupportedError()
+}
+
+// TriggerEvent represents basic informations about changes to the store.
 type TriggerEvent int
 
 // IsZero returns true if the TriggerEvent indicates no changes occurred. This

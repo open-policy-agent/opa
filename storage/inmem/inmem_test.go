@@ -9,7 +9,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/util"
@@ -491,6 +493,175 @@ func TestInMemoryTriggers(t *testing.T) {
 
 	if event.IsZero() || !event.PolicyChanged() || !event.DataChanged() {
 		t.Fatalf("Expected policy and data change but got: %v", event)
+	}
+}
+
+func TestInMemoryWatchesSimple(t *testing.T) {
+	ctx := context.Background()
+	store := NewFromObject(loadSmallTestData())
+
+	modifiedPath := storage.MustParsePath("/a")
+	expectedValue := "hello"
+
+	cancel := make(chan struct{})
+	defer close(cancel)
+
+	aChan := make(chan storage.Event)
+	if err := store.Watch(ctx, modifiedPath, aChan); err != nil {
+		t.Fatalf("Unexpected error setting watch: %v", err)
+	}
+
+	bChan := make(chan storage.Event)
+	if err := store.Watch(ctx, storage.MustParsePath("/b"), bChan); err != nil {
+		t.Fatalf("Unexpected error setting watch: %v", err)
+	}
+
+	exp := storage.Event{
+		Path: modifiedPath,
+		Data: expectedValue,
+	}
+
+	done := make(chan struct{})
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go func() {
+		wg.Wait()
+		close(done)
+	}()
+
+	go func() {
+		i := 0
+		for {
+			select {
+			case e := <-aChan:
+				if i > 1 {
+					t.Fatal("Unexpected watch notification on /a")
+				}
+
+				if !reflect.DeepEqual(exp, e) {
+					t.Fatalf("Expected notification %v, got %v", exp, e)
+				}
+
+				wg.Done()
+				exp.Data = nil
+				i++
+			case <-cancel:
+				return
+			}
+		}
+	}()
+
+	go func() {
+		select {
+		case <-bChan:
+			t.Fatal("Unexpected watch notification on /b")
+		case <-cancel:
+			return
+		}
+	}()
+
+	writeTxn := storage.NewTransactionOrDie(ctx, store, storage.WriteParams)
+	if err := store.Write(ctx, writeTxn, storage.ReplaceOp, modifiedPath, expectedValue); err != nil {
+		t.Fatalf("Unexpected write error: %v", err)
+	}
+	if err := store.UpsertPolicy(ctx, writeTxn, "test", []byte("package abc")); err != nil {
+		t.Fatalf("Unexpected upsert error: %v", err)
+	}
+	if err := store.Commit(ctx, writeTxn); err != nil {
+		t.Fatalf("Unexpected commit error: %v", err)
+	}
+
+	writeTxn = storage.NewTransactionOrDie(ctx, store, storage.WriteParams)
+	if err := store.Write(ctx, writeTxn, storage.RemoveOp, modifiedPath, nil); err != nil {
+		t.Fatalf("Unexpected write error: %v", err)
+	}
+	if err := store.Commit(ctx, writeTxn); err != nil {
+		t.Fatalf("Unexpected commit error: %v", err)
+	}
+
+	timeout := time.After(50 * time.Millisecond)
+	select {
+	case <-done:
+	case <-timeout:
+		t.Fatal("timed out")
+	}
+}
+
+func TestInMemoryEndWatch(t *testing.T) {
+	ctx := context.Background()
+	store := NewFromObject(loadSmallTestData())
+
+	modifiedPath := storage.MustParsePath("/a")
+	expectedValue := "hello"
+
+	cancel := make(chan struct{})
+	defer close(cancel)
+
+	aChan := make(chan storage.Event)
+	go func() {
+		for {
+			select {
+			case <-aChan:
+				t.Fatal("Unexpected watch notification on /a")
+			case <-cancel:
+				return
+			}
+		}
+	}()
+
+	if err := store.Watch(ctx, modifiedPath, aChan); err != nil {
+		t.Fatalf("Unexpected error setting watch: %v", err)
+	}
+
+	if err := store.EndWatch(ctx, modifiedPath); err != nil {
+		t.Fatalf("Unexpected error removing watch: %v", err)
+	}
+
+	writeTxn := storage.NewTransactionOrDie(ctx, store, storage.WriteParams)
+	if err := store.Write(ctx, writeTxn, storage.ReplaceOp, modifiedPath, expectedValue); err != nil {
+		t.Fatalf("Unexpected write error: %v", err)
+	}
+	if err := store.Commit(ctx, writeTxn); err != nil {
+		t.Fatalf("Unexpected commit error: %v", err)
+	}
+
+	time.Sleep(5 * time.Millisecond)
+}
+
+func TestInMemoryWatchErrors(t *testing.T) {
+	ctx := context.Background()
+	store := NewFromObject(loadSmallTestData())
+
+	modifiedPath := storage.MustParsePath("/a")
+
+	cancel := make(chan struct{})
+	defer close(cancel)
+
+	aChan := make(chan storage.Event)
+	defer close(aChan)
+
+	if err := store.Watch(ctx, modifiedPath, aChan); err != nil {
+		t.Fatalf("Unexpected error setting watch: %v", err)
+	}
+	if err := store.Watch(ctx, modifiedPath, aChan); err == nil {
+		t.Fatalf("Expected error setting watch: %v", err)
+	}
+
+	if err := store.EndWatch(ctx, modifiedPath); err != nil {
+		t.Fatalf("Unexpected error removing watch: %v", err)
+	}
+	if err := store.EndWatch(ctx, modifiedPath); err == nil {
+		t.Fatalf("Expected error removing watch: %v", err)
+	}
+
+	select {
+	case _, ok := <-aChan:
+		if ok {
+			t.Fatal("Unexpected watch notification on /a")
+		} else {
+			t.Fatal("Watch channel for /a was closed")
+		}
+	default:
 	}
 }
 

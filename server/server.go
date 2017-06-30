@@ -5,6 +5,7 @@
 package server
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -67,31 +68,41 @@ type Server struct {
 	mtx            sync.RWMutex
 	compiler       *ast.Compiler
 	store          storage.Store
+
+	watchLock *sync.Mutex
+	watches   map[string]watchData
 }
+
+// WatchTimeout is the amount of time a watch is active without being refreshed.
+// If a watch is not refreshed after this duration passes, it will be unregistered.
+var WatchTimeout = time.Minute
 
 // New returns a new Server.
 func New() *Server {
 
-	s := Server{}
+	s := Server{
+		watches:   map[string]watchData{},
+		watchLock: &sync.Mutex{},
+	}
 
 	// Initialize HTTP handlers.
 	router := mux.NewRouter()
-	s.registerHandler(router, 0, "/data/{path:.+}", "POST", s.v0DataPost)
-	s.registerHandler(router, 0, "/data", "POST", s.v0DataPost)
-	s.registerHandler(router, 1, "/data/{path:.+}", "PUT", s.v1DataPut)
-	s.registerHandler(router, 1, "/data", "PUT", s.v1DataPut)
-	s.registerHandler(router, 1, "/data/{path:.+}", "GET", s.v1DataGet)
-	s.registerHandler(router, 1, "/data", "GET", s.v1DataGet)
-	s.registerHandler(router, 1, "/data/{path:.+}", "PATCH", s.v1DataPatch)
-	s.registerHandler(router, 1, "/data", "PATCH", s.v1DataPatch)
-	s.registerHandler(router, 1, "/data/{path:.+}", "POST", s.v1DataPost)
-	s.registerHandler(router, 1, "/data", "POST", s.v1DataPost)
-	s.registerHandler(router, 1, "/policies", "GET", s.v1PoliciesList)
-	s.registerHandler(router, 1, "/policies/{path:.+}", "DELETE", s.v1PoliciesDelete)
-	s.registerHandler(router, 1, "/policies/{path:.+}", "GET", s.v1PoliciesGet)
-	s.registerHandler(router, 1, "/policies/{path:.+}", "PUT", s.v1PoliciesPut)
-	s.registerHandler(router, 1, "/query", "GET", s.v1QueryGet)
-	router.HandleFunc("/", s.indexGet).Methods("GET")
+	s.registerHandler(router, 0, "/data/{path:.+}", http.MethodPost, s.v0DataPost)
+	s.registerHandler(router, 0, "/data", http.MethodPost, s.v0DataPost)
+	s.registerHandler(router, 1, "/data/{path:.+}", http.MethodPut, s.v1DataPut)
+	s.registerHandler(router, 1, "/data", http.MethodPut, s.v1DataPut)
+	s.registerHandler(router, 1, "/data/{path:.+}", http.MethodGet, s.v1DataGet)
+	s.registerHandler(router, 1, "/data", http.MethodGet, s.v1DataGet)
+	s.registerHandler(router, 1, "/data/{path:.+}", http.MethodPatch, s.v1DataPatch)
+	s.registerHandler(router, 1, "/data", http.MethodPatch, s.v1DataPatch)
+	s.registerHandler(router, 1, "/data/{path:.+}", http.MethodPost, s.v1DataPost)
+	s.registerHandler(router, 1, "/data", http.MethodPost, s.v1DataPost)
+	s.registerHandler(router, 1, "/policies", http.MethodGet, s.v1PoliciesList)
+	s.registerHandler(router, 1, "/policies/{path:.+}", http.MethodDelete, s.v1PoliciesDelete)
+	s.registerHandler(router, 1, "/policies/{path:.+}", http.MethodGet, s.v1PoliciesGet)
+	s.registerHandler(router, 1, "/policies/{path:.+}", http.MethodPut, s.v1PoliciesPut)
+	s.registerHandler(router, 1, "/query", http.MethodGet, s.v1QueryGet)
+	router.HandleFunc("/", s.indexGet).Methods(http.MethodGet)
 	s.Handler = router
 
 	return &s
@@ -377,11 +388,30 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 
 	ctx := r.Context()
 	vars := mux.Vars(r)
-	path := stringPathToDataRef(vars["path"])
+	path := vars["path"]
+	pathRef := stringPathToDataRef(path)
 	pretty := getBoolParam(r.URL, types.ParamPrettyV1, true)
 	explainMode := getExplain(r.URL.Query()["explain"])
 	includeMetrics := getBoolParam(r.URL, types.ParamMetricsV1, true)
 	m := metrics.New()
+
+	watch, ok, err := getWatchParam(r.URL)
+	if err != nil {
+		writer.ErrorString(w, http.StatusBadRequest, types.CodeInvalidParameter, err)
+		return
+	}
+
+	if ok {
+		if watch {
+			err = s.registerWatch(ctx, "/"+path, r.RemoteAddr)
+		} else {
+			err = s.unregisterWatch(ctx, "/"+path, r.RemoteAddr)
+		}
+	}
+	if err != nil {
+		writer.ErrorAuto(w, err)
+		return
+	}
 
 	m.Timer(metrics.RegoQueryParse).Start()
 
@@ -408,7 +438,7 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 	defer s.store.Abort(ctx, txn)
 
 	compiler := s.Compiler()
-	params := topdown.NewQueryParams(ctx, compiler, s.store, txn, input, path)
+	params := topdown.NewQueryParams(ctx, compiler, s.store, txn, input, pathRef)
 	params.Metrics = m
 
 	var buf *topdown.BufferTracer
@@ -903,6 +933,183 @@ func (s *Server) v1QueryGet(w http.ResponseWriter, r *http.Request) {
 	writer.JSON(w, 200, results, pretty)
 }
 
+// watch data represents the set of data documents a remote address has requested
+// change notifications on.
+type watchData struct {
+	notify  chan storage.Event
+	refresh chan struct{}
+	stop    chan struct{}
+	paths   map[string]struct{}
+}
+
+func (s *Server) registerWatch(ctx context.Context, path, addr string) error {
+	spath, ok := storage.ParsePath(path)
+	if !ok {
+		return fmt.Errorf("invalid path: %s", path)
+	}
+
+	s.watchLock.Lock()
+	watch, ok := s.watches[addr]
+	if !ok {
+		// This is the first time we've recieved a watch request from this
+		// address. Init the watch struct and start a goroutine to send
+		// it notifications.
+		watch.notify = make(chan storage.Event)
+		watch.stop = make(chan struct{})
+		watch.paths = map[string]struct{}{}
+
+		// We want the refresh to go through even if the notify loop is
+		// currently processing a notification.
+		watch.refresh = make(chan struct{}, 1)
+		go s.notify(ctx, addr, watch)
+	} else {
+		select {
+		case watch.refresh <- struct{}{}:
+		default: // Already a refresh in the queue.
+		}
+	}
+
+	watch.paths[path] = struct{}{}
+	s.watches[addr] = watch
+	s.watchLock.Unlock()
+
+	if err := s.store.Watch(ctx, spath, watch.notify); err != nil {
+		// We failed to create the watch, clean up our state before returning.
+		s.deleteWatchEntry(addr, path)
+		return err
+	}
+
+	return nil
+}
+
+func (s *Server) unregisterWatch(ctx context.Context, path, addr string) error {
+	spath, ok := storage.ParsePath(path)
+	if !ok {
+		return fmt.Errorf("invalid path: %s", path)
+	}
+
+	s.watchLock.Lock()
+	watch, ok := s.watches[addr]
+	s.watchLock.Unlock()
+
+	// Before we try and remove the watch, we should guarantee that the user
+	// at the provided address actually has a watch on the path. If they don't,
+	// either they never did or it expired.
+	if !ok {
+		return nil
+	}
+
+	if _, ok := watch.paths[path]; !ok {
+		return nil
+	}
+
+	if err := s.store.EndWatch(ctx, spath); err != nil {
+		return err
+	}
+
+	s.deleteWatchEntry(addr, path)
+	return nil
+}
+
+func (s *Server) notify(ctx context.Context, addr string, watch watchData) {
+	var body string
+	prefix := "http"
+	if s.authentication == AuthenticationToken {
+		prefix += "s"
+	}
+
+	dst := prefix + "://" + addr + "/notify"
+	if _, err := url.Parse(dst); err != nil {
+		panic("invalid address in request: " + addr)
+	}
+
+	timer := time.NewTimer(WatchTimeout)
+	defer timer.Stop()
+	client := &http.Client{Timeout: 5 * time.Second}
+
+	for {
+		select {
+		case event := <-watch.notify:
+			// Since Go selects read channels at random, when events
+			// and stop are closed, this channel could be sent a zero
+			// storage.Event. To prevent a notification, we need to
+			// check if we've stopped.
+			select {
+			case <-watch.stop:
+				return
+			default:
+			}
+
+			data, err := json.Marshal(event.Data)
+			if err != nil {
+				body = `"error: failed to marshal data"`
+			} else {
+				buf := &bytes.Buffer{}
+				json.Compact(buf, data)
+				body = fmt.Sprintf(`{"path":"%s","data":%s}`, event.Path.String(), buf.String())
+			}
+
+			// TODO BEFORE MERGE: Is this secure?
+			client.Post(dst, "application/json", strings.NewReader(body))
+		case <-watch.refresh:
+			timer.Stop()
+			timer = time.NewTimer(WatchTimeout)
+		case <-timer.C:
+			s.expireWatch(ctx, addr)
+			return // The watch expired.
+		case <-watch.stop:
+			return
+		}
+	}
+}
+
+func (s *Server) deleteWatchEntry(addr, path string) {
+	s.watchLock.Lock()
+	defer s.watchLock.Unlock()
+
+	watch, ok := s.watches[addr]
+	if !ok {
+		return
+	}
+
+	delete(watch.paths, path)
+	if len(watch.paths) == 0 {
+		s.deleteWatch(watch, addr)
+	} else {
+		s.watches[addr] = watch
+	}
+}
+
+func (s *Server) expireWatch(ctx context.Context, addr string) {
+	s.watchLock.Lock()
+	defer s.watchLock.Unlock()
+
+	watch, ok := s.watches[addr]
+	if !ok {
+		return
+	}
+
+	for path := range watch.paths {
+		spath, _ := storage.ParsePath(path)
+		s.store.EndWatch(ctx, spath)
+	}
+
+	s.deleteWatch(watch, addr)
+}
+
+func (s *Server) deleteWatch(watch watchData, addr string) {
+	// Closing stop will end the goroutine sending the notifications
+	// to the user.
+	close(watch.stop)
+
+	// Since the number of watches using this channel is now 0, we
+	// can guarantee that there will be no more writes to this channel.
+	close(watch.notify)
+
+	close(watch.refresh)
+	delete(s.watches, addr)
+}
+
 func (s *Server) abort(ctx context.Context, txn storage.Transaction, finish func()) {
 	s.store.Abort(ctx, txn)
 	finish()
@@ -1093,6 +1300,29 @@ func getBoolParam(url *url.URL, name string, ifEmpty bool) bool {
 	}
 
 	return false
+}
+
+func getWatchParam(url *url.URL) (watch bool, ok bool, err error) {
+	watchParams, ok := url.Query()[types.ParamWatchV1]
+	if !ok {
+		return false, false, nil
+	}
+
+	var val string
+	for _, p := range watchParams {
+		p = strings.ToLower(p)
+		if p == "true" || p == "false" {
+			if val == "" {
+				val = p
+			} else if val != p {
+				return false, false, fmt.Errorf("conflicting entries for param watch: %s and %s", val, p)
+			}
+		} else if p != "" {
+			return false, false, fmt.Errorf("Invalid watch param value: %s", val)
+		}
+	}
+
+	return val == "true", val != "", nil
 }
 
 func getExplain(p []string) types.ExplainModeV1 {

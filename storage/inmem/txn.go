@@ -138,11 +138,18 @@ func (txn *transaction) updateRoot(op storage.PatchOp, value interface{}) error 
 	return nil
 }
 
-func (txn *transaction) Commit() (result storage.TriggerEvent) {
+func (txn *transaction) Commit() (result storage.TriggerEvent, events []storage.Event) {
 	for curr := txn.updates.Front(); curr != nil; curr = curr.Next() {
-		updated := curr.Value.(*update).Apply(txn.db.data)
+		action := curr.Value.(*update)
+		updated := action.Apply(txn.db.data)
 		txn.db.data = updated.(map[string]interface{})
 		result.SetDataChanged()
+
+		event := storage.Event{Path: action.path}
+		if !action.remove {
+			event.Data = action.value
+		}
+		events = append(events, event)
 	}
 	for id, update := range txn.policies {
 		if update.remove {
@@ -152,7 +159,7 @@ func (txn *transaction) Commit() (result storage.TriggerEvent) {
 		}
 		result.SetPolicyChanged()
 	}
-	return result
+	return result, events
 }
 
 func (txn *transaction) Read(path storage.Path) (interface{}, error) {

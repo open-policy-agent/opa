@@ -1381,6 +1381,7 @@ seccomp_unconfined {
 - **pretty** - If parameter is `true`, response will formatted for humans.
 - **explain** - Return query explanation in addition to result. Values: **full**, **truth**.
 - **metrics** - Return query performance metrics in addition to result. See [Performance Metrics](#performance-metrics) for more detail.
+- **watch** - If parameter is `true`, a watch will be registered on the requested path. Any changes to the path or a document under it will result in a [Watch Notification](#notifications) being POST-ed to the source address of the GET request. If parameter is `false`, the watch registered on the requested path will be removed. Watches are temporary and expire after one minute if not refreshed. To refresh a watch, simply make a GET request to the path again with the `watch` parameter set to `true`. Refreshes are done on a per-client basis, so if a client at `1.2.3.4` has watches on `/a`, `/b` and `/c`, then refreshing the watch on any individual path will refresh all watches registered to `1.2.3.4`.
 
 #### Status Codes
 
@@ -1667,6 +1668,38 @@ OPA will extract the Bearer token value (which is set to ``my-secret-token``
 above) and provide it to the authorization component inside OPA that will (i)
 validate the token and (ii) execute the authorization policy configured by the
 admin.
+
+## <a name="notifications"></a> Watch Notifications
+
+When a watch is registered on a data document, the OPA server will make a POST to
+the address `http://ip:port/notify` (https when the connection is secure) whenever
+the document is modified, where `ip` and `port` are the IP and port number of the
+process that sent the GET request.  The body of the POST will be of content type
+`application/json`, and the body will contain the changed path and the new value
+at that path. If the path was removed, the value will be a JSON null.
+
+For example, suppose that a watch had been registered on path `/a`. If the string "foo"
+was written to `/a/b`, a notification with the body below would be sent:
+
+```
+{
+    "path": "/a/b",
+    "data": "foo",
+}
+```
+
+Similarly, if the path `/a` was later deleted, another notification would be sent with
+the body:
+
+```
+{
+    "path": "/a",
+    "data": null,
+}
+```
+
+If for some reason the server encounters an error reporting the notification, the body
+of the message will instead be a JSON string prefixed with `error: `.
 
 ## <a name="errors"></a> Errors
 

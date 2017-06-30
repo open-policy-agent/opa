@@ -13,6 +13,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/server/identifier"
@@ -48,19 +49,19 @@ func TestDataV0(t *testing.T) {
 
 	f := newFixture(t)
 
-	if err := f.v1("PUT", "/policies/test", testMod1, 200, ""); err != nil {
+	if err := f.v1(http.MethodPut, "/policies/test", testMod1, 200, ""); err != nil {
 		t.Fatalf("Unexpected error while creating policy: %v", err)
 	}
 
-	if err := f.v0("POST", "/data/test/p", "", 200, `"hello"`); err != nil {
+	if err := f.v0(http.MethodPost, "/data/test/p", "", 200, `"hello"`); err != nil {
 		t.Fatalf("Expected response hello but got: %v", err)
 	}
 
-	if err := f.v0("POST", "/data/test/q/foo", `{"flag": true}`, 200, `[1,2,3,4]`); err != nil {
+	if err := f.v0(http.MethodPost, "/data/test/q/foo", `{"flag": true}`, 200, `[1,2,3,4]`); err != nil {
 		t.Fatalf("Exepcted response [1,2,3,4] but got: %v", err)
 	}
 
-	req := newReqV0("POST", "/data/test/q", "")
+	req := newReqV0(http.MethodPost, "/data/test/q", "")
 	f.reset()
 	f.server.Handler.ServeHTTP(f.recorder, req)
 
@@ -115,46 +116,46 @@ p = true { false }`
 		reqs []tr
 	}{
 		{"add root", []tr{
-			tr{"PATCH", "/data/x", `[{"op": "add", "path": "/", "value": {"a": 1}}]`, 204, ""},
-			tr{"GET", "/data/x/a", "", 200, `{"result": 1}`},
+			tr{http.MethodPatch, "/data/x", `[{"op": "add", "path": "/", "value": {"a": 1}}]`, 204, ""},
+			tr{http.MethodGet, "/data/x/a", "", 200, `{"result": 1}`},
 		}},
 		{"append array", []tr{
-			tr{"PATCH", "/data/x", `[{"op": "add", "path": "/", "value": []}]`, 204, ""},
-			tr{"PATCH", "/data/x", `[{"op": "add", "path": "-", "value": {"a": 1}}]`, 204, ""},
-			tr{"PATCH", "/data/x", `[{"op": "add", "path": "-", "value": {"a": 2}}]`, 204, ""},
-			tr{"GET", "/data/x/0/a", "", 200, `{"result": 1}`},
-			tr{"GET", "/data/x/1/a", "", 200, `{"result": 2}`},
+			tr{http.MethodPatch, "/data/x", `[{"op": "add", "path": "/", "value": []}]`, 204, ""},
+			tr{http.MethodPatch, "/data/x", `[{"op": "add", "path": "-", "value": {"a": 1}}]`, 204, ""},
+			tr{http.MethodPatch, "/data/x", `[{"op": "add", "path": "-", "value": {"a": 2}}]`, 204, ""},
+			tr{http.MethodGet, "/data/x/0/a", "", 200, `{"result": 1}`},
+			tr{http.MethodGet, "/data/x/1/a", "", 200, `{"result": 2}`},
 		}},
 		{"append array one-shot", []tr{
-			tr{"PATCH", "/data/x", `[
+			tr{http.MethodPatch, "/data/x", `[
                 {"op": "add", "path": "/", "value": []},
                 {"op": "add", "path": "-", "value": {"a": 1}},
                 {"op": "add", "path": "-", "value": {"a": 2}}
             ]`, 204, ""},
-			tr{"GET", "/data/x/1/a", "", 200, `{"result": 2}`},
+			tr{http.MethodGet, "/data/x/1/a", "", 200, `{"result": 2}`},
 		}},
 		{"insert array", []tr{
-			tr{"PATCH", "/data/x", `[{"op": "add", "path": "/", "value": {
+			tr{http.MethodPatch, "/data/x", `[{"op": "add", "path": "/", "value": {
                 "y": [
                     {"z": [1,2,3]},
                     {"z": [4,5,6]}
                 ]
             }}]`, 204, ""},
-			tr{"GET", "/data/x/y/1/z/2", "", 200, `{"result": 6}`},
-			tr{"PATCH", "/data/x/y/1", `[{"op": "add", "path": "/z/1", "value": 100}]`, 204, ""},
-			tr{"GET", "/data/x/y/1/z", "", 200, `{"result": [4, 100, 5, 6]}`},
+			tr{http.MethodGet, "/data/x/y/1/z/2", "", 200, `{"result": 6}`},
+			tr{http.MethodPatch, "/data/x/y/1", `[{"op": "add", "path": "/z/1", "value": 100}]`, 204, ""},
+			tr{http.MethodGet, "/data/x/y/1/z", "", 200, `{"result": [4, 100, 5, 6]}`},
 		}},
 		{"patch root", []tr{
-			tr{"PATCH", "/data", `[
+			tr{http.MethodPatch, "/data", `[
 				{"op": "add",
 				 "path": "/",
 				 "value": {"a": 1, "b": 2}
 				}
 			]`, 204, ""},
-			tr{"GET", "/data", "", 200, `{"result": {"a": 1, "b": 2}}`},
+			tr{http.MethodGet, "/data", "", 200, `{"result": {"a": 1, "b": 2}}`},
 		}},
 		{"patch invalid", []tr{
-			tr{"PATCH", "/data", `[
+			tr{http.MethodPatch, "/data", `[
 				{
 					"op": "remove",
 					"path": "/"
@@ -162,141 +163,141 @@ p = true { false }`
 			]`, 400, ""},
 		}},
 		{"patch abort", []tr{
-			tr{"PATCH", "/data", `[
+			tr{http.MethodPatch, "/data", `[
 				{"op": "add", "path": "/foo", "value": "hello"},
 				{"op": "add", "path": "/bar", "value": "world"},
 				{"op": "add", "path": "/foo/bad", "value": "deadbeef"}
 			]`, 404, ""},
-			tr{"GET", "/data", "", 200, `{"result": {}}`},
+			tr{http.MethodGet, "/data", "", 200, `{"result": {}}`},
 		}},
 		{"put root", []tr{
-			tr{"PUT", "/data", `{"foo": [1,2,3]}`, 204, ""},
-			tr{"GET", "/data", "", 200, `{"result": {"foo": [1,2,3]}}`},
+			tr{http.MethodPut, "/data", `{"foo": [1,2,3]}`, 204, ""},
+			tr{http.MethodGet, "/data", "", 200, `{"result": {"foo": [1,2,3]}}`},
 		}},
 		{"put deep makedir", []tr{
-			tr{"PUT", "/data/a/b/c/d", `1`, 204, ""},
-			tr{"GET", "/data/a/b/c", "", 200, `{"result": {"d": 1}}`},
+			tr{http.MethodPut, "/data/a/b/c/d", `1`, 204, ""},
+			tr{http.MethodGet, "/data/a/b/c", "", 200, `{"result": {"d": 1}}`},
 		}},
 		{"put deep makedir partial", []tr{
-			tr{"PUT", "/data/a/b", `{}`, 204, ""},
-			tr{"PUT", "/data/a/b/c/d", `0`, 204, ""},
-			tr{"GET", "/data/a/b/c", "", 200, `{"result": {"d": 0}}`},
+			tr{http.MethodPut, "/data/a/b", `{}`, 204, ""},
+			tr{http.MethodPut, "/data/a/b/c/d", `0`, 204, ""},
+			tr{http.MethodGet, "/data/a/b/c", "", 200, `{"result": {"d": 0}}`},
 		}},
 		{"put exists overwrite", []tr{
-			tr{"PUT", "/data/a/b/c", `"hello"`, 204, ""},
-			tr{"PUT", "/data/a/b", `"goodbye"`, 204, ""},
-			tr{"GET", "/data/a", "", 200, `{"result": {"b": "goodbye"}}`},
+			tr{http.MethodPut, "/data/a/b/c", `"hello"`, 204, ""},
+			tr{http.MethodPut, "/data/a/b", `"goodbye"`, 204, ""},
+			tr{http.MethodGet, "/data/a", "", 200, `{"result": {"b": "goodbye"}}`},
 		}},
 		{"put base write conflict", []tr{
-			tr{"PUT", "/data/a/b", `[1,2,3,4]`, 204, ""},
-			tr{"PUT", "/data/a/b/c/d", "0", 404, `{
+			tr{http.MethodPut, "/data/a/b", `[1,2,3,4]`, 204, ""},
+			tr{http.MethodPut, "/data/a/b/c/d", "0", 404, `{
 				"code": "resource_conflict",
 				"message": "write conflict: /a/b"
 			}`},
 		}},
 		{"put virtual write conflict", []tr{
-			tr{"PUT", "/policies/test", testMod2, 200, ""},
-			tr{"PUT", "/data/testmod/q/x", "0", 404, `{
+			tr{http.MethodPut, "/policies/test", testMod2, 200, ""},
+			tr{http.MethodPut, "/data/testmod/q/x", "0", 404, `{
 				"code": "resource_conflict",
 				"message": "write conflict: /testmod/q"
 			}`},
 		}},
 		{"get virtual", []tr{
-			tr{"PUT", "/policies/test", testMod1, 200, ""},
-			tr{"PATCH", "/data/x", `[{"op": "add", "path": "/", "value": {"y": [1,2,3,4], "z": [3,4,5,6]}}]`, 204, ""},
-			tr{"GET", "/data/testmod/p", "", 200, `{"result": [1,2]}`},
+			tr{http.MethodPut, "/policies/test", testMod1, 200, ""},
+			tr{http.MethodPatch, "/data/x", `[{"op": "add", "path": "/", "value": {"y": [1,2,3,4], "z": [3,4,5,6]}}]`, 204, ""},
+			tr{http.MethodGet, "/data/testmod/p", "", 200, `{"result": [1,2]}`},
 		}},
 		{"patch virtual error", []tr{
-			tr{"PUT", "/policies/test", testMod1, 200, ""},
-			tr{"PATCH", "/data/testmod/p", `[{"op": "add", "path": "-", "value": 1}]`, 404, `{
+			tr{http.MethodPut, "/policies/test", testMod1, 200, ""},
+			tr{http.MethodPatch, "/data/testmod/p", `[{"op": "add", "path": "-", "value": 1}]`, 404, `{
                 "code": "resource_conflict",
                 "message": "write conflict: /testmod/p"
             }`},
 		}},
 		{"get with input", []tr{
-			tr{"PUT", "/policies/test", testMod1, 200, ""},
-			tr{"GET", "/data/testmod/g?input=req1%3A%7B%22a%22%3A%5B1%5D%7D&input=req2%3A%7B%22b%22%3A%5B0%2C1%5D%7D", "", 200, `{"result": true}`},
+			tr{http.MethodPut, "/policies/test", testMod1, 200, ""},
+			tr{http.MethodGet, "/data/testmod/g?input=req1%3A%7B%22a%22%3A%5B1%5D%7D&input=req2%3A%7B%22b%22%3A%5B0%2C1%5D%7D", "", 200, `{"result": true}`},
 		}},
 		{"get with input (missing input value)", []tr{
-			tr{"PUT", "/policies/test", testMod1, 200, ""},
-			tr{"GET", "/data/testmod/g?input=req1%3A%7B%22a%22%3A%5B1%5D%7D", "", 200, "{}"}, // req2 not specified
+			tr{http.MethodPut, "/policies/test", testMod1, 200, ""},
+			tr{http.MethodGet, "/data/testmod/g?input=req1%3A%7B%22a%22%3A%5B1%5D%7D", "", 200, "{}"}, // req2 not specified
 		}},
 		{"get with input (namespaced)", []tr{
-			tr{"PUT", "/policies/test", testMod1, 200, ""},
-			tr{"GET", "/data/testmod/h?input=req3.attr1%3A%5B4%2C3%2C2%2C1%5D", "", 200, `{"result": true}`},
+			tr{http.MethodPut, "/policies/test", testMod1, 200, ""},
+			tr{http.MethodGet, "/data/testmod/h?input=req3.attr1%3A%5B4%2C3%2C2%2C1%5D", "", 200, `{"result": true}`},
 		}},
 		{"get with input (non-ground ref)", []tr{
-			tr{"PUT", "/policies/test", testMod1, 200, ""},
-			tr{"GET", "/data/testmod/gt1?input=req1:data.testmod.arr[i]", "", 200, `{"result": [[true, {"i": 1}], [true, {"i": 2}], [true, {"i": 3}]]}`},
+			tr{http.MethodPut, "/policies/test", testMod1, 200, ""},
+			tr{http.MethodGet, "/data/testmod/gt1?input=req1:data.testmod.arr[i]", "", 200, `{"result": [[true, {"i": 1}], [true, {"i": 2}], [true, {"i": 3}]]}`},
 		}},
 		{"get with input (root)", []tr{
-			tr{"PUT", "/policies/test", testMod1, 200, ""},
-			tr{"GET", `/data/testmod/gt1?input=:{"req1":2}`, "", 200, `{"result": true}`},
+			tr{http.MethodPut, "/policies/test", testMod1, 200, ""},
+			tr{http.MethodGet, `/data/testmod/gt1?input=:{"req1":2}`, "", 200, `{"result": true}`},
 		}},
 		{"get with input (root-2)", []tr{
-			tr{"PUT", "/policies/test", testMod1, 200, ""},
-			tr{"GET", `/data/testmod/gt1?input={"req1":2}`, "", 200, `{"result": true}`},
+			tr{http.MethodPut, "/policies/test", testMod1, 200, ""},
+			tr{http.MethodGet, `/data/testmod/gt1?input={"req1":2}`, "", 200, `{"result": true}`},
 		}},
 		{"get with input (root+non-ground)", []tr{
-			tr{"PUT", "/policies/test", testMod1, 200, ""},
-			tr{"GET", `/data/testmod/gt1?input={"req1":data.testmod.arr[i]}`, "", 200, `{"result": [[true, {"i": 1}], [true, {"i": 2}], [true, {"i": 3}]]}`},
+			tr{http.MethodPut, "/policies/test", testMod1, 200, ""},
+			tr{http.MethodGet, `/data/testmod/gt1?input={"req1":data.testmod.arr[i]}`, "", 200, `{"result": [[true, {"i": 1}], [true, {"i": 2}], [true, {"i": 3}]]}`},
 		}},
 		{"get with input (bad format)", []tr{
-			tr{"GET", "/data/deadbeef?input", "", 400, `{
+			tr{http.MethodGet, "/data/deadbeef?input", "", 400, `{
 				"code": "invalid_parameter",
 				"message": "input parameter format is [[<path>]:]<value> where <path> is either var or ref"
 			}`},
-			tr{"GET", "/data/deadbeef?input=", "", 400, `{
+			tr{http.MethodGet, "/data/deadbeef?input=", "", 400, `{
 				"code": "invalid_parameter",
 				"message": "input parameter format is [[<path>]:]<value> where <path> is either var or ref"
 			}`},
-			tr{"GET", `/data/deadbeef?input="foo`, "", 400, `{
+			tr{http.MethodGet, `/data/deadbeef?input="foo`, "", 400, `{
 				"code": "invalid_parameter",
 				"message": "input parameter format is [[<path>]:]<value> where <path> is either var or ref"
 			}`},
 		}},
 		{"get with input (path error)", []tr{
-			tr{"GET", `/data/deadbeef?input="foo:1`, "", 400, `{
+			tr{http.MethodGet, `/data/deadbeef?input="foo:1`, "", 400, `{
 				"code": "invalid_parameter",
 				"message": "input parameter format is [[<path>]:]<value> where <path> is either var or ref"
 			}`},
 		}},
 		{"get empty and undefined", []tr{
-			tr{"PUT", "/policies/test", testMod1, 200, ""},
-			tr{"PUT", "/policies/test2", testMod5, 200, ""},
-			tr{"PUT", "/policies/test3", testMod6, 200, ""},
-			tr{"GET", "/data/testmod/undef", "", 200, "{}"},
-			tr{"GET", "/data/does/not/exist", "", 200, "{}"},
-			tr{"GET", "/data/testmod/empty/mod", "", 200, `{
+			tr{http.MethodPut, "/policies/test", testMod1, 200, ""},
+			tr{http.MethodPut, "/policies/test2", testMod5, 200, ""},
+			tr{http.MethodPut, "/policies/test3", testMod6, 200, ""},
+			tr{http.MethodGet, "/data/testmod/undef", "", 200, "{}"},
+			tr{http.MethodGet, "/data/does/not/exist", "", 200, "{}"},
+			tr{http.MethodGet, "/data/testmod/empty/mod", "", 200, `{
 				"result": {}
 			}`},
-			tr{"GET", "/data/testmod/all/undefined", "", 200, `{
+			tr{http.MethodGet, "/data/testmod/all/undefined", "", 200, `{
 				"result": {}
 			}`},
 		}},
 		{"get root", []tr{
-			tr{"PUT", "/policies/test", testMod2, 200, ""},
-			tr{"PATCH", "/data/x", `[{"op": "add", "path": "/", "value": [1,2,3,4]}]`, 204, ""},
-			tr{"GET", "/data", "", 200, `{"result": {"testmod": {"p": [1,2,3,4], "q": {"a":1, "b": 2}}, "x": [1,2,3,4]}}`},
+			tr{http.MethodPut, "/policies/test", testMod2, 200, ""},
+			tr{http.MethodPatch, "/data/x", `[{"op": "add", "path": "/", "value": [1,2,3,4]}]`, 204, ""},
+			tr{http.MethodGet, "/data", "", 200, `{"result": {"testmod": {"p": [1,2,3,4], "q": {"a":1, "b": 2}}, "x": [1,2,3,4]}}`},
 		}},
 		{"post root", []tr{
-			tr{"POST", "/data", "", 200, `{"result": {}}`},
-			tr{"PUT", "/policies/test", testMod2, 200, ""},
-			tr{"POST", "/data", "", 200, `{"result": {"testmod": {"p": [1,2,3,4], "q": {"b": 2, "a": 1}}}}`},
+			tr{http.MethodPost, "/data", "", 200, `{"result": {}}`},
+			tr{http.MethodPut, "/policies/test", testMod2, 200, ""},
+			tr{http.MethodPost, "/data", "", 200, `{"result": {"testmod": {"p": [1,2,3,4], "q": {"b": 2, "a": 1}}}}`},
 		}},
 		{"post input", []tr{
-			tr{"PUT", "/policies/test", testMod1, 200, ""},
-			tr{"POST", "/data/testmod/gt1", `{"input": {"req1": 2}}`, 200, `{"result": true}`},
+			tr{http.MethodPut, "/policies/test", testMod1, 200, ""},
+			tr{http.MethodPost, "/data/testmod/gt1", `{"input": {"req1": 2}}`, 200, `{"result": true}`},
 		}},
 		{"post malformed input", []tr{
-			tr{"POST", "/data/deadbeef", `{"input": @}`, 400, `{
+			tr{http.MethodPost, "/data/deadbeef", `{"input": @}`, 400, `{
 				"code": "invalid_parameter",
 				"message": "body contains malformed input document: invalid character '@' looking for beginning of value"
 			}`},
 		}},
 		{"evaluation conflict", []tr{
-			tr{"PUT", "/policies/test", testMod4, 200, ""},
-			tr{"POST", "/data/testmod/p", "", 500, `{
+			tr{http.MethodPut, "/policies/test", testMod4, 200, ""},
+			tr{http.MethodPost, "/data/testmod/p", "", 500, `{
     		  "code": "internal_error",
     		  "errors": [
     		    {
@@ -313,13 +314,13 @@ p = true { false }`
     		}`},
 		}},
 		{"query wildcards omitted", []tr{
-			tr{"PATCH", "/data/x", `[{"op": "add", "path": "/", "value": [1,2,3,4]}]`, 204, ""},
-			tr{"GET", "/query?q=data.x[_]%20=%20x", "", 200, `{"result": [{"x": 1}, {"x": 2}, {"x": 3}, {"x": 4}]}`},
+			tr{http.MethodPatch, "/data/x", `[{"op": "add", "path": "/", "value": [1,2,3,4]}]`, 204, ""},
+			tr{http.MethodGet, "/query?q=data.x[_]%20=%20x", "", 200, `{"result": [{"x": 1}, {"x": 2}, {"x": 3}, {"x": 4}]}`},
 		}},
 		{"query compiler error", []tr{
-			tr{"GET", "/query?q=x", "", 400, ""},
+			tr{http.MethodGet, "/query?q=x", "", 400, ""},
 			// Subsequent query should not fail.
-			tr{"GET", "/query?q=x=1", "", 200, `{"result": [{"x": 1}]}`},
+			tr{http.MethodGet, "/query?q=x=1", "", 200, `{"result": [{"x": 1}]}`},
 		}},
 	}
 
@@ -332,10 +333,10 @@ p = true { false }`
 
 func TestDataPutV1IfNoneMatch(t *testing.T) {
 	f := newFixture(t)
-	if err := f.v1("PUT", "/data/a/b/c", "0", 204, ""); err != nil {
+	if err := f.v1(http.MethodPut, "/data/a/b/c", "0", 204, ""); err != nil {
 		t.Fatalf("Unexpected error from PUT /data/a/b/c: %v", err)
 	}
-	req := newReqV1("PUT", "/data/a/b/c", "1")
+	req := newReqV1(http.MethodPut, "/data/a/b/c", "1")
 	req.Header.Set("If-None-Match", "*")
 	if err := f.executeRequest(req, 304, ""); err != nil {
 		t.Fatalf("Unexpected error from PUT with If-None-Match=*: %v", err)
@@ -345,9 +346,9 @@ func TestDataPutV1IfNoneMatch(t *testing.T) {
 func TestDataGetExplainFull(t *testing.T) {
 	f := newFixture(t)
 
-	f.v1("PUT", "/data/x", `{"a":1,"b":2}`, 204, "")
+	f.v1(http.MethodPut, "/data/x", `{"a":1,"b":2}`, 204, "")
 
-	req := newReqV1("GET", "/data/x?explain=full", "")
+	req := newReqV1(http.MethodGet, "/data/x?explain=full", "")
 	f.reset()
 	f.server.Handler.ServeHTTP(f.recorder, req)
 
@@ -370,7 +371,7 @@ func TestDataGetExplainFull(t *testing.T) {
 		t.Fatalf("Expected one binding but got: %v", result.Explanation[2].Locals)
 	}
 
-	req = newReqV1("GET", "/data/deadbeef?explain=full", "")
+	req = newReqV1(http.MethodGet, "/data/deadbeef?explain=full", "")
 	f.reset()
 	f.server.Handler.ServeHTTP(f.recorder, req)
 
@@ -397,11 +398,11 @@ func TestDataGetExplainFull(t *testing.T) {
 func TestDataGetExplainTruth(t *testing.T) {
 	f := newFixture(t)
 
-	f.v1("PUT", "/policies/test", `package test
+	f.v1(http.MethodPut, "/policies/test", `package test
 
 p = true { a = [1, 2, 3, 4]; a[_] = x; x > 1 }`, 204, "")
 
-	req := newReqV1("GET", "/data/test/p?explain=truth", "")
+	req := newReqV1(http.MethodGet, "/data/test/p?explain=truth", "")
 	f.reset()
 	f.server.Handler.ServeHTTP(f.recorder, req)
 
@@ -415,7 +416,7 @@ p = true { a = [1, 2, 3, 4]; a[_] = x; x > 1 }`, 204, "")
 		t.Fatalf("Expected exactly 8 events but got %d", len(result.Explanation))
 	}
 
-	req = newReqV1("GET", "/data/deadbeef?explain=truth", "")
+	req = newReqV1(http.MethodGet, "/data/deadbeef?explain=truth", "")
 	f.reset()
 	f.server.Handler.ServeHTTP(f.recorder, req)
 
@@ -434,14 +435,134 @@ p = true { a = [1, 2, 3, 4]; a[_] = x; x > 1 }`, 204, "")
 	}
 }
 
+type watchReply struct {
+	Path string
+	Data interface{}
+}
+
+type mockHandler struct {
+	t *testing.T
+
+	i   int
+	exp []watchReply
+}
+
+func (h *mockHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	defer w.WriteHeader(http.StatusOK)
+
+	i := h.i
+	h.i++
+
+	var reply watchReply
+	decoder := util.NewJSONDecoder(r.Body)
+	if err := decoder.Decode(&reply); err != nil {
+		h.t.Fatalf("Invalid JSON reply: %v", err)
+	}
+
+	if tpe := r.Header.Get("Content-Type"); tpe != "application/json" {
+		h.t.Fatalf("Unexpected content type: %s", tpe)
+	}
+
+	if i >= len(h.exp) {
+		h.t.Fatalf("Unexpected watch notification: %v", reply)
+		return
+	}
+
+	if !reflect.DeepEqual(h.exp[i], reply) {
+		h.t.Fatalf("Expected notification to be %v, got %v", h.exp[i], reply)
+	}
+}
+
+func TestDataGetWatch(t *testing.T) {
+	f := newFixture(t)
+
+	exp := []watchReply{
+		{
+			Path: "/x/a",
+			Data: json.Number("2"),
+		},
+		{
+			Path: "/x/b",
+			Data: nil,
+		},
+		{
+			Path: "/x/c",
+			Data: "bar",
+		},
+		{
+			Path: "/x",
+			Data: "foo",
+		},
+		{
+			Path: "/x",
+			Data: "d",
+		},
+	}
+
+	f.v1(http.MethodPut, "/data/x", `{"a":1,"b":2}`, 204, "")
+
+	handler := &mockHandler{t: t, exp: exp}
+	server := httptest.NewUnstartedServer(handler)
+	addr := server.Listener.Addr().String()
+	server.Start()
+
+	req := newReqV1(http.MethodGet, "/data/x?watch=true", "")
+	req.RemoteAddr = addr
+	if err := f.executeRequest(req, 200, `{"result":{"a":1,"b":2}}`); err != nil {
+		t.Errorf("Unexpected response: %v", err)
+	}
+
+	f.v1(http.MethodPut, "/data/x/a", `2`, 204, "")
+	f.v1(http.MethodPatch, "/data", `[{"op":"remove","path":"/x/b"}]`, 204, "")
+	f.v1(http.MethodPut, "/data/x/c", `"bar"`, 204, "")
+	f.v1(http.MethodPut, "/data/x", `"foo"`, 204, "")
+
+	req = newReqV1(http.MethodGet, "/data/x?watch=false", "")
+	req.RemoteAddr = addr
+	if err := f.executeRequest(req, 200, `{"result":"foo"}`); err != nil {
+		t.Errorf("Unexpected response: %v", err)
+	}
+
+	// Additional PUTs to /x should not cause more notifications.
+	f.v1(http.MethodPut, "/data/x", `"a"`, 204, "")
+	f.v1(http.MethodPut, "/data/x", `"b"`, 204, "")
+	f.v1(http.MethodPut, "/data/x", `"c"`, 204, "")
+
+	WatchTimeout = 10 * time.Millisecond
+	req = newReqV1(http.MethodGet, "/data/x?watch=true", "")
+	req.RemoteAddr = addr
+	if err := f.executeRequest(req, 200, `{"result":"c"}`); err != nil {
+		t.Errorf("Unexpected response: %v", err)
+	}
+
+	f.v1(http.MethodPut, "/data/x", `"d"`, 204, "")
+
+	// Let the watch expire.
+	time.Sleep(50 * time.Millisecond)
+
+	// Additional PUTs to /x should not cause notifications, the watch should
+	// have expired and unregistered itself.
+	f.v1(http.MethodPut, "/data/x", `"e"`, 204, "")
+	f.v1(http.MethodPut, "/data/x", `"f"`, 204, "")
+
+	// The notifications are being sent in a goroutine, so they won't block
+	// our PUT requests. Give them some time to get back.
+	time.Sleep(10 * time.Millisecond)
+	server.Close()
+
+	if handler.i != len(exp) {
+		t.Fatalf("Expected %d notifications, received %d", len(exp), handler.i)
+	}
+}
+
 func TestDataPostExplain(t *testing.T) {
 	f := newFixture(t)
 
-	f.v1("PUT", "/policies/test", `package test
+	f.v1(http.MethodPut, "/policies/test", `package test
 
 p = [1, 2, 3, 4] { true }`, 200, "")
 
-	req := newReqV1("POST", "/data/test/p?explain=full", "")
+	req := newReqV1(http.MethodPost, "/data/test/p?explain=full", "")
 	f.reset()
 	f.server.Handler.ServeHTTP(f.recorder, req)
 
@@ -471,7 +592,7 @@ func TestDataMetrics(t *testing.T) {
 
 	f := newFixture(t)
 
-	req := newReqV1("POST", "/data?metrics", "")
+	req := newReqV1(http.MethodPost, "/data?metrics", "")
 	f.reset()
 	f.server.Handler.ServeHTTP(f.recorder, req)
 
@@ -499,9 +620,9 @@ func TestDataMetrics(t *testing.T) {
 func TestV1Pretty(t *testing.T) {
 
 	f := newFixture(t)
-	f.v1("PATCH", "/data/x", `[{"op": "add", "path":"/", "value": [1,2,3,4]}]`, 204, "")
+	f.v1(http.MethodPatch, "/data/x", `[{"op": "add", "path":"/", "value": [1,2,3,4]}]`, 204, "")
 
-	req := newReqV1("GET", "/data/x?pretty=true", "")
+	req := newReqV1(http.MethodGet, "/data/x?pretty=true", "")
 	f.reset()
 	f.server.Handler.ServeHTTP(f.recorder, req)
 
@@ -510,7 +631,7 @@ func TestV1Pretty(t *testing.T) {
 		t.Errorf("Expected 8 lines in output but got %d:\n%v", len(lines), lines)
 	}
 
-	req = newReqV1("GET", "/query?q=data.x[i]&pretty=true", "")
+	req = newReqV1(http.MethodGet, "/query?q=data.x[i]&pretty=true", "")
 	f.reset()
 	f.server.Handler.ServeHTTP(f.recorder, req)
 
@@ -522,7 +643,7 @@ func TestV1Pretty(t *testing.T) {
 
 func TestIndexGet(t *testing.T) {
 	f := newFixture(t)
-	get, err := http.NewRequest("GET", `/?q=foo = 1`, strings.NewReader(""))
+	get, err := http.NewRequest(http.MethodGet, `/?q=foo = 1`, strings.NewReader(""))
 	if err != nil {
 		panic(err)
 	}
@@ -541,7 +662,7 @@ func TestIndexGet(t *testing.T) {
 func TestIndexGetCompileError(t *testing.T) {
 	f := newFixture(t)
 	// "foo" is not bound
-	get, err := http.NewRequest("GET", `/?q=foo`, strings.NewReader(""))
+	get, err := http.NewRequest(http.MethodGet, `/?q=foo`, strings.NewReader(""))
 	if err != nil {
 		panic(err)
 	}
@@ -559,7 +680,7 @@ func TestIndexGetCompileError(t *testing.T) {
 
 func TestPoliciesPutV1(t *testing.T) {
 	f := newFixture(t)
-	req := newReqV1("PUT", "/policies/1", testMod)
+	req := newReqV1(http.MethodPut, "/policies/1", testMod)
 
 	f.server.Handler.ServeHTTP(f.recorder, req)
 
@@ -582,7 +703,7 @@ func TestPoliciesPutV1(t *testing.T) {
 
 func TestPoliciesPutV1Empty(t *testing.T) {
 	f := newFixture(t)
-	req := newReqV1("PUT", "/policies/1", "")
+	req := newReqV1(http.MethodPut, "/policies/1", "")
 
 	f.server.Handler.ServeHTTP(f.recorder, req)
 
@@ -593,7 +714,7 @@ func TestPoliciesPutV1Empty(t *testing.T) {
 
 func TestPoliciesPutV1ParseError(t *testing.T) {
 	f := newFixture(t)
-	req := newReqV1("PUT", "/policies/test", `
+	req := newReqV1(http.MethodPut, "/policies/test", `
     package a.b.c
 
     p ;- true
@@ -629,7 +750,7 @@ func TestPoliciesPutV1ParseError(t *testing.T) {
 
 func TestPoliciesPutV1CompileError(t *testing.T) {
 	f := newFixture(t)
-	req := newReqV1("PUT", "/policies/test", `package a.b.c
+	req := newReqV1(http.MethodPut, "/policies/test", `package a.b.c
 
 p[x] { q[x] }
 q[x] { p[x] }`,
@@ -665,13 +786,13 @@ q[x] { p[x] }`,
 
 func TestPoliciesListV1(t *testing.T) {
 	f := newFixture(t)
-	put := newReqV1("PUT", "/policies/1", testMod)
+	put := newReqV1(http.MethodPut, "/policies/1", testMod)
 	f.server.Handler.ServeHTTP(f.recorder, put)
 	if f.recorder.Code != 200 {
 		t.Fatalf("Expected success but got %v", f.recorder)
 	}
 	f.reset()
-	list := newReqV1("GET", "/policies", "")
+	list := newReqV1(http.MethodGet, "/policies", "")
 
 	f.server.Handler.ServeHTTP(f.recorder, list)
 
@@ -702,7 +823,7 @@ func TestPoliciesListV1(t *testing.T) {
 
 func TestPoliciesGetV1(t *testing.T) {
 	f := newFixture(t)
-	put := newReqV1("PUT", "/policies/1", testMod)
+	put := newReqV1(http.MethodPut, "/policies/1", testMod)
 	f.server.Handler.ServeHTTP(f.recorder, put)
 
 	if f.recorder.Code != 200 {
@@ -710,7 +831,7 @@ func TestPoliciesGetV1(t *testing.T) {
 	}
 
 	f.reset()
-	get := newReqV1("GET", "/policies/1", "")
+	get := newReqV1(http.MethodGet, "/policies/1", "")
 
 	f.server.Handler.ServeHTTP(f.recorder, get)
 
@@ -732,7 +853,7 @@ func TestPoliciesGetV1(t *testing.T) {
 
 func TestPoliciesGetSourceV1(t *testing.T) {
 	f := newFixture(t)
-	put := newReqV1("PUT", "/policies/1", testMod)
+	put := newReqV1(http.MethodPut, "/policies/1", testMod)
 	f.server.Handler.ServeHTTP(f.recorder, put)
 
 	if f.recorder.Code != 200 {
@@ -740,7 +861,7 @@ func TestPoliciesGetSourceV1(t *testing.T) {
 	}
 
 	f.reset()
-	get := newReqV1("GET", "/policies/1?source", "")
+	get := newReqV1(http.MethodGet, "/policies/1?source", "")
 
 	f.server.Handler.ServeHTTP(f.recorder, get)
 
@@ -757,7 +878,7 @@ func TestPoliciesGetSourceV1(t *testing.T) {
 
 func TestPoliciesDeleteV1(t *testing.T) {
 	f := newFixture(t)
-	put := newReqV1("PUT", "/policies/1", testMod)
+	put := newReqV1(http.MethodPut, "/policies/1", testMod)
 	f.server.Handler.ServeHTTP(f.recorder, put)
 
 	if f.recorder.Code != 200 {
@@ -765,7 +886,7 @@ func TestPoliciesDeleteV1(t *testing.T) {
 	}
 
 	f.reset()
-	del := newReqV1("DELETE", "/policies/1", "")
+	del := newReqV1(http.MethodDelete, "/policies/1", "")
 
 	f.server.Handler.ServeHTTP(f.recorder, del)
 
@@ -774,7 +895,7 @@ func TestPoliciesDeleteV1(t *testing.T) {
 	}
 
 	f.reset()
-	get := newReqV1("GET", "/policies/1", "")
+	get := newReqV1(http.MethodGet, "/policies/1", "")
 	f.server.Handler.ServeHTTP(f.recorder, get)
 	if f.recorder.Code != 404 {
 		t.Fatalf("Expected not found but got %v", f.recorder)
@@ -783,17 +904,17 @@ func TestPoliciesDeleteV1(t *testing.T) {
 
 func TestPoliciesPathSlashes(t *testing.T) {
 	f := newFixture(t)
-	if err := f.v1("PUT", "/policies/a/b/c.rego", testMod, 200, ""); err != nil {
+	if err := f.v1(http.MethodPut, "/policies/a/b/c.rego", testMod, 200, ""); err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
-	if err := f.v1("GET", "/policies/a/b/c.rego", testMod, 200, ""); err != nil {
+	if err := f.v1(http.MethodGet, "/policies/a/b/c.rego", testMod, 200, ""); err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
 }
 
 func TestQueryV1(t *testing.T) {
 	f := newFixture(t)
-	get := newReqV1("GET", `/query?q=a=[1,2,3]%3Ba[i]=x`, "")
+	get := newReqV1(http.MethodGet, `/query?q=a=[1,2,3]%3Ba[i]=x`, "")
 	f.server.Handler.ServeHTTP(f.recorder, get)
 
 	if f.recorder.Code != 200 {
@@ -821,7 +942,7 @@ func TestQueryV1(t *testing.T) {
 
 func TestQueryV1Explain(t *testing.T) {
 	f := newFixture(t)
-	get := newReqV1("GET", `/query?q=a=[1,2,3]%3Ba[i]=x&explain=full`, "")
+	get := newReqV1(http.MethodGet, `/query?q=a=[1,2,3]%3Ba[i]=x&explain=full`, "")
 	f.server.Handler.ServeHTTP(f.recorder, get)
 
 	if f.recorder.Code != 200 {
@@ -838,7 +959,7 @@ func TestQueryV1Explain(t *testing.T) {
 		t.Fatalf("Expected exactly 10 trace events for full query but got %d", len(result.Explanation))
 	}
 
-	get = newReqV1("GET", "/query?q=a=[1,2,3]%3Ba[_]=x%3Bx>1&explain=truth", "")
+	get = newReqV1(http.MethodGet, "/query?q=a=[1,2,3]%3Ba[_]=x%3Bx>1&explain=truth", "")
 	f.reset()
 	f.server.Handler.ServeHTTP(f.recorder, get)
 
@@ -895,7 +1016,7 @@ func TestAuthorization(t *testing.T) {
 	recorder := httptest.NewRecorder()
 
 	// Test that bob can do stuff.
-	req1, err := http.NewRequest("GET", "http://localhost:8182/v1/data/foo", nil)
+	req1, err := http.NewRequest(http.MethodGet, "http://localhost:8182/v1/data/foo", nil)
 	if err != nil {
 		panic(err)
 	}
@@ -910,7 +1031,7 @@ func TestAuthorization(t *testing.T) {
 	recorder = httptest.NewRecorder()
 
 	// Test that alice can't do stuff.
-	req2, err := http.NewRequest("GET", "http://localhost:8182/v1/data/foo", nil)
+	req2, err := http.NewRequest(http.MethodGet, "http://localhost:8182/v1/data/foo", nil)
 	if err != nil {
 		panic(err)
 	}
@@ -923,7 +1044,7 @@ func TestAuthorization(t *testing.T) {
 	}
 
 	// Reverse the policy.
-	update := identifier.SetIdentity(newReqV1("PUT", "/policies/test", `
+	update := identifier.SetIdentity(newReqV1(http.MethodPut, "/policies/test", `
 		package system.authz
 
 		import input.identity
@@ -964,19 +1085,20 @@ func TestServerReloadTrigger(t *testing.T) {
 	if err := store.UpsertPolicy(ctx, txn, "test", []byte("package test\np = 1")); err != nil {
 		panic(err)
 	}
-	if err := f.v1("GET", "/data/test", "", 200, `{}`); err != nil {
+	if err := f.v1(http.MethodGet, "/data/test", "", 200, `{}`); err != nil {
 		t.Fatalf("Unexpected error from server: %v", err)
 	}
 
 	if err := store.Commit(ctx, txn); err != nil {
 		panic(err)
 	}
-	if err := f.v1("GET", "/data/test", "", 200, `{"result": {"p": 1}}`); err != nil {
+	if err := f.v1(http.MethodGet, "/data/test", "", 200, `{"result": {"p": 1}}`); err != nil {
 		t.Fatalf("Unexpected error from server: %v", err)
 	}
 }
 
 type queryBindingErrStore struct {
+	storage.WatchesNotSupported
 	storage.WritesNotSupported
 	storage.PolicyNotSupported
 	storage.IndexingNotSupported
@@ -1035,7 +1157,7 @@ func TestQueryBindingIterationError(t *testing.T) {
 		t:        t,
 	}
 
-	get := newReqV1("GET", `/query?q=a=data.foo.bar`, "")
+	get := newReqV1(http.MethodGet, `/query?q=a=data.foo.bar`, "")
 	f.server.Handler.ServeHTTP(f.recorder, get)
 
 	if f.recorder.Code != 500 {
