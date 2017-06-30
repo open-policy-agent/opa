@@ -100,35 +100,40 @@ func (PolicyNotSupported) DeletePolicy(context.Context, Transaction, string) err
 	return policyNotSupportedError()
 }
 
+// PolicyEvent describes a change to a policy.
+type PolicyEvent struct {
+	ID      string
+	Data    []byte
+	Removed bool
+}
+
+// DataEvent describes a change to a base data document.
+type DataEvent struct {
+	Path    Path
+	Data    interface{}
+	Removed bool
+}
+
 // TriggerEvent describes the changes that caused the trigger to be invoked.
-type TriggerEvent int
+type TriggerEvent struct {
+	Policy []PolicyEvent
+	Data   []DataEvent
+}
 
 // IsZero returns true if the TriggerEvent indicates no changes occurred. This
 // function is primarily for test purposes.
 func (e TriggerEvent) IsZero() bool {
-	return e == 0
-}
-
-// SetPolicyChanged returns a copy of the TriggerEvent that indicates a policy
-// change occurred.
-func (e *TriggerEvent) SetPolicyChanged() {
-	*e = *e | 1
-}
-
-// SetDataChanged returns a copy of the TriggerEvent that indicates a data
-// change occurred.
-func (e *TriggerEvent) SetDataChanged() {
-	*e = *e | 2
+	return !e.PolicyChanged() && !e.DataChanged()
 }
 
 // PolicyChanged returns true if the trigger was caused by a policy change.
 func (e TriggerEvent) PolicyChanged() bool {
-	return (e & 1) != 0
+	return len(e.Policy) > 0
 }
 
 // DataChanged returns true if the trigger was caused by a data change.
 func (e TriggerEvent) DataChanged() bool {
-	return (e & 2) != 0
+	return len(e.Data) > 0
 }
 
 // TriggerConfig contains the trigger registration configuration.

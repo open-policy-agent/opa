@@ -481,7 +481,9 @@ func TestInMemoryTriggers(t *testing.T) {
 		t.Fatalf("Unexpected write error: %v", err)
 	}
 
-	if err := store.UpsertPolicy(ctx, writeTxn, "test", []byte("package abc")); err != nil {
+	id := "test"
+	data := []byte("package abc")
+	if err := store.UpsertPolicy(ctx, writeTxn, id, data); err != nil {
 		t.Fatalf("Unexpected upsert error: %v", err)
 	}
 
@@ -491,6 +493,16 @@ func TestInMemoryTriggers(t *testing.T) {
 
 	if event.IsZero() || !event.PolicyChanged() || !event.DataChanged() {
 		t.Fatalf("Expected policy and data change but got: %v", event)
+	}
+
+	expData := storage.DataEvent{Path: modifiedPath, Data: expectedValue, Removed: false}
+	if d := event.Data[0]; !reflect.DeepEqual(expData, d) {
+		t.Fatalf("Expected data event %v, got %v", expData, d)
+	}
+
+	expPolicy := storage.PolicyEvent{ID: id, Data: data, Removed: false}
+	if p := event.Policy[0]; !reflect.DeepEqual(expPolicy, p) {
+		t.Fatalf("Expected policy event %v, got %v", expPolicy, p)
 	}
 }
 
