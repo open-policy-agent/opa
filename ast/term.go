@@ -742,6 +742,17 @@ func (ref Ref) HasPrefix(other Ref) bool {
 	return true
 }
 
+// ConstantPrefix returns the constant portion of the ref starting from the head.
+func (ref Ref) ConstantPrefix() Ref {
+	ref = ref.Copy()
+
+	i := ref.Dynamic()
+	if i < 0 {
+		return ref
+	}
+	return ref[:i]
+}
+
 // GroundPrefix returns the ground portion of the ref starting from the head. By
 // definition, the head of the reference is always ground.
 func (ref Ref) GroundPrefix() Ref {
