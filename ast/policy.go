@@ -154,8 +154,9 @@ type (
 	// reusable queries than can be called like built-ins, but have access to the
 	// data and input documents like rules.
 	Func struct {
-		Head *FuncHead `json:"head"`
-		Body Body      `json:"body"`
+		Location *Location `json:"-"`
+		Head     *FuncHead `json:"head"`
+		Body     Body      `json:"body"`
 
 		// Module is a pointer to the module containing this func. If the func
 		// was NOT created while parsing/constructing a module, this should be

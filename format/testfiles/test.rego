@@ -38,6 +38,26 @@ r = y {
     3, 4]}
     }
 
+fn(x) = y {
+		y = x
+}
+
+long(x) = true {
+    x = "foo"
+    }
+
+    short(x) {
+    x = "bar"
+    }
+
+foo([x, y,
+z], {"foo": a}) = b {
+split(x, y, c)
+trim(a, z, d) # function comment 1
+split(c[0], d, b)
+#function comment 2
+} # function comment 3
+
 f[x] {
     x = "hi"
 } { # Comment on chain
