@@ -74,7 +74,7 @@ func Ast(x interface{}) (formatted []byte, err error) {
 			default:
 				assertHasLocation(x)
 			}
-		case *ast.Package, *ast.Import, *ast.Rule, *ast.Head, ast.Body, *ast.Expr, *ast.With, *ast.Comment:
+		case *ast.Package, *ast.Import, *ast.Rule, *ast.Func, *ast.Head, ast.Body, *ast.Expr, *ast.With, *ast.Comment:
 			assertHasLocation(x)
 		}
 		return false
@@ -92,6 +92,10 @@ func Ast(x interface{}) (formatted []byte, err error) {
 		w.writeRule(x, nil)
 	case *ast.Head:
 		w.write(x.String())
+	case *ast.Func:
+		w.writeFunc(x, nil)
+	case *ast.FuncHead:
+		w.writeFuncHead(x, nil)
 	case ast.Body:
 		w.writeBody(x, nil)
 	case *ast.Expr:
@@ -129,7 +133,7 @@ func (w *writer) writeModule(module *ast.Module) {
 		case *ast.Comment:
 			comments = append(comments, x)
 			return true
-		case *ast.Import, *ast.Rule:
+		case *ast.Import, *ast.Rule, *ast.Func:
 			others = append(others, x)
 			return true
 		case *ast.Package:
@@ -155,11 +159,14 @@ func (w *writer) writeModule(module *ast.Module) {
 	comments = w.writePackage(pkg, comments)
 	var imports []*ast.Import
 	var rules []*ast.Rule
+	var funcs []*ast.Func
 	for len(others) > 0 {
 		imports, others = gatherImports(others)
 		comments = w.writeImports(imports, comments)
 		rules, others = gatherRules(others)
 		comments = w.writeRules(rules, comments)
+		funcs, others = gatherFuncs(others)
+		comments = w.writeFuncs(funcs, comments)
 	}
 
 	for _, c := range comments {
@@ -221,7 +228,7 @@ func (w *writer) writeRule(rule *ast.Rule, comments []*ast.Comment) []*ast.Comme
 	w.up()
 
 	comments = w.writeBody(rule.Body, comments)
-	comments = w.insertComments(comments, closingLoc('{', '}', rule.Location))
+	comments = w.insertComments(comments, closingLoc('[', ']', '{', '}', rule.Location))
 
 	w.down()
 	w.startLine()
@@ -247,6 +254,58 @@ func (w *writer) writeHead(head *ast.Head, comments []*ast.Comment) []*ast.Comme
 		comments = w.writeTerm(head.Value, comments)
 	}
 	return comments
+}
+
+func (w *writer) writeFuncs(funcs []*ast.Func, comments []*ast.Comment) []*ast.Comment {
+	for _, fn := range funcs {
+		comments = w.insertComments(comments, fn.Location)
+		comments = w.writeFunc(fn, comments)
+		w.blankLine()
+	}
+	return comments
+}
+
+func (w *writer) writeFunc(fn *ast.Func, comments []*ast.Comment) []*ast.Comment {
+	if fn == nil {
+		return comments
+	}
+
+	w.startLine()
+	comments = w.writeFuncHead(fn.Head, comments)
+
+	w.write(" {")
+	w.endLine()
+	w.up()
+
+	comments = w.writeBody(fn.Body, comments)
+	comments = w.insertComments(comments, closingLoc('(', ')', '{', '}', fn.Location))
+
+	w.down()
+	w.startLine()
+	w.write("}")
+	return comments
+}
+
+func (w *writer) writeFuncHead(head *ast.FuncHead, comments []*ast.Comment) []*ast.Comment {
+	w.write(head.Name.String())
+
+	var args []interface{}
+	for _, arg := range head.Args {
+		args = append(args, arg)
+	}
+
+	w.write("(")
+	comments = w.writeIterable(args, head.Location, comments, w.listWriter())
+	w.write(")")
+
+	// If a function's output is the value true, it can be written in shorthand
+	// as a void function. Formatting such functions should use the shorthand.
+	if head.Output.Equal(ast.BooleanTerm(true)) {
+		return comments
+	}
+
+	w.write(" = ")
+	return w.writeTerm(head.Output, comments)
 }
 
 func (w *writer) insertComments(comments []*ast.Comment, loc *ast.Location) []*ast.Comment {
@@ -384,7 +443,7 @@ func (w *writer) writeObject(obj ast.Object, loc *ast.Location, comments []*ast.
 		s = append(s, t)
 	}
 	comments = w.writeIterable(s, loc, comments, w.objectWriter())
-	return w.insertComments(comments, closingLoc('{', '}', loc))
+	return w.insertComments(comments, closingLoc(0, 0, '{', '}', loc))
 }
 
 func (w *writer) writeArray(arr ast.Array, loc *ast.Location, comments []*ast.Comment) []*ast.Comment {
@@ -396,7 +455,7 @@ func (w *writer) writeArray(arr ast.Array, loc *ast.Location, comments []*ast.Co
 		s = append(s, t)
 	}
 	comments = w.writeIterable(s, loc, comments, w.listWriter())
-	return w.insertComments(comments, closingLoc('[', ']', loc))
+	return w.insertComments(comments, closingLoc(0, 0, '[', ']', loc))
 }
 
 func (w *writer) writeSet(set *ast.Set, loc *ast.Location, comments []*ast.Comment) []*ast.Comment {
@@ -408,7 +467,7 @@ func (w *writer) writeSet(set *ast.Set, loc *ast.Location, comments []*ast.Comme
 		s = append(s, t)
 	}
 	comments = w.writeIterable(s, loc, comments, w.listWriter())
-	return w.insertComments(comments, closingLoc('{', '}', loc))
+	return w.insertComments(comments, closingLoc(0, 0, '{', '}', loc))
 }
 
 func (w *writer) writeArrayComprehension(arr *ast.ArrayComprehension, loc *ast.Location, comments []*ast.Comment) []*ast.Comment {
@@ -446,7 +505,7 @@ func (w *writer) writeArrayComprehension(arr *ast.ArrayComprehension, loc *ast.L
 		comments = w.writeExpr(arr.Body[i], comments)
 	}
 
-	return w.insertComments(comments, closingLoc('[', ']', loc))
+	return w.insertComments(comments, closingLoc(0, 0, '[', ']', loc))
 }
 
 func (w *writer) writeImports(imports []*ast.Import, comments []*ast.Comment) []*ast.Comment {
@@ -608,7 +667,7 @@ loop:
 		switch x := others[i].(type) {
 		case *ast.Import:
 			imports = append(imports, x)
-		case *ast.Rule:
+		case *ast.Rule, *ast.Func:
 			break loop
 		}
 	}
@@ -622,11 +681,25 @@ loop:
 		switch x := others[i].(type) {
 		case *ast.Rule:
 			rules = append(rules, x)
-		case *ast.Import:
+		case *ast.Import, *ast.Func:
 			break loop
 		}
 	}
 	return rules, others[i:]
+}
+
+func gatherFuncs(others []interface{}) (funcs []*ast.Func, rest []interface{}) {
+	i := 0
+loop:
+	for ; i < len(others); i++ {
+		switch x := others[i].(type) {
+		case *ast.Func:
+			funcs = append(funcs, x)
+		case *ast.Rule, *ast.Import:
+			break loop
+		}
+	}
+	return funcs, others[i:]
 }
 
 func locLess(a, b interface{}) bool {
@@ -664,8 +737,16 @@ func getLoc(x interface{}) *ast.Location {
 	}
 }
 
-func closingLoc(open, close byte, loc *ast.Location) *ast.Location {
-	i := 0
+func closingLoc(skipOpen, skipClose, open, close byte, loc *ast.Location) *ast.Location {
+	i, offset := 0, 0
+
+	// Functions and Rules can have composites as their inputs. To avoid
+	// counting the braces around objects and sets, the [] in rule heads and
+	// the () in function heads can be skipped past before scanning.
+	if skipOpen > 0 {
+		i, offset = skipPast(skipOpen, skipClose, loc)
+	}
+
 	for ; i < len(loc.Text) && loc.Text[i] != open; i++ {
 	}
 
@@ -674,7 +755,6 @@ func closingLoc(open, close byte, loc *ast.Location) *ast.Location {
 	}
 
 	state := 1
-	offset := 0
 	for state > 0 {
 		i++
 		if i >= len(loc.Text) {
@@ -692,6 +772,32 @@ func closingLoc(open, close byte, loc *ast.Location) *ast.Location {
 	}
 
 	return &ast.Location{Row: loc.Row + offset}
+}
+
+func skipPast(open, close byte, loc *ast.Location) (int, int) {
+	i := 0
+	for ; i < len(loc.Text) && loc.Text[i] != open; i++ {
+	}
+
+	state := 1
+	offset := 0
+	for state > 0 {
+		i++
+		if i >= len(loc.Text) {
+			return i, offset
+		}
+
+		switch loc.Text[i] {
+		case open:
+			state++
+		case close:
+			state--
+		case '\n':
+			offset++
+		}
+	}
+
+	return i, offset
 }
 
 func dedupComments(comments []*ast.Comment) []*ast.Comment {
