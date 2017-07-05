@@ -1,0 +1,58 @@
+._about{
+  &--session{
+    margin-top: get('rhythm') * 2;
+  }
+  &--title{
+    font-weight: get('bold weight font');
+    font-size: ms(-1);
+
+    @include breakpoint(700px){
+      @include divisions(6);
+    };
+  }
+
+  &--des{
+    color: color('gray', 50);
+
+    @include breakpoint(700px){
+      margin-top: 0;
+      @include divisions(6 / 5);
+    };
+  }
+
+  &--job-des{
+    margin-top: get('rhythm') / 4;
+    color: color('gray', 50);
+  }
+
+  &--job-title{
+    font-weight: get('bold weight font');
+    color: color('gray', 70);
+  }
+
+  &--date{
+    font-size: ms(-1);
+    color: color('gray', 30);
+    margin-top: get('rhythm') / 4;
+  }
+
+  &--job-session{
+    margin-top: get('rhythm');
+
+    &:first-child{
+      margin-top: 0;
+    }
+  }
+
+  &--job-container{
+    @include breakpoint(700px){
+      margin-top: 0;
+      @include divisions(6 / 5);
+    };
+  }
+
+  &--gpa{
+    margin-right: get('rhythm') / 2;
+  }
+
+}

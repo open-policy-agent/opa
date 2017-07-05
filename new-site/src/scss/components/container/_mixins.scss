@@ -1,0 +1,12 @@
+@mixin container {
+  width: 100%;
+  padding: 0rem get('rhythm') / 2;
+  margin: auto;
+
+  @include breakpoint(get('medium')) {
+    width: get('medium');
+  }
+  @include breakpoint(get('large')) {
+    width: get('large');
+  }
+}

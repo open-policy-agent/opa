@@ -1,0 +1,96 @@
+.use-case-section{
+  &--use-case-section-title{
+    font-family: adobeGothicStd;
+    font-size: ms(1);
+
+    @include breakpoint(1200px){
+      font-size: ms(4);
+    };
+  }
+
+  &--use-case-section-para{
+    font-size: ms(-1);
+
+    @include breakpoint(1200px){
+      font-size: ms(0);
+    };
+  }
+
+  &--use-case-container{
+
+    @include breakpoint(600px){
+      @include divisions(3, 1rem);
+    };
+
+    @include breakpoint(900px){
+      @include divisions(3, 2rem);
+    };
+
+    @include breakpoint(1100px){
+      @include divisions(3, 3rem);
+    };
+
+
+  }
+
+  &--microservices{
+    margin-top: 6rem;
+  }
+
+  &--containers{
+    margin-top: 6rem;
+
+    @include breakpoint(600px){
+      margin-top: 8rem;
+    };
+  }
+
+  &--infrastructure{
+    margin-top: 6rem;
+
+    @include breakpoint(600px){
+      margin-top: 10rem;
+    }
+  }
+
+  &--use-case-title{
+    font-size: ms(1);
+    font-family: "adobe-fan-heiti-std";
+
+    @include breakpoint(1200px){
+      font-size: ms(2);
+    };
+  }
+
+  &--use-case-para{
+    font-size: ms(-1);
+
+    @include breakpoint(1200px){
+      font-size: ms(0);
+    }
+  }
+
+  &--btn{
+    padding: 0.8rem 2rem;
+    font-size: ms(-1);
+  }
+
+  &--use-cases{
+    padding-bottom: 4rem;
+  }
+
+  &--village-container{
+    position: absolute;
+    right: 5%;
+    top: 0%;
+    width: 150px;
+    height: 150px;
+    z-index: 100;
+
+    @include breakpoint(600px){
+      top: 3%;
+      width: 200px;
+    };
+  }
+
+}

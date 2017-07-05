@@ -1,0 +1,19 @@
+/* line 1, /Users/xzyfer/Projects/Sass/upstream/gulp-sass/test.scss */
+foo {
+  bar: '1';
+}
+
+/* line 5, /Users/xzyfer/Projects/Sass/upstream/gulp-sass/test.scss */
+foo {
+  bar: '2';
+}
+
+/* line 9, /Users/xzyfer/Projects/Sass/upstream/gulp-sass/test.scss */
+foo {
+  bar: '3';
+}
+
+/* line 13, /Users/xzyfer/Projects/Sass/upstream/gulp-sass/test.scss */
+foo {
+  bar: '4';
+}

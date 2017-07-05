@@ -1,0 +1,24 @@
+<?xml version="1.0" standalone="no"?> 
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd" >
+<svg xmlns="http://www.w3.org/2000/svg">
+<defs>
+  <font id="transformedicons" horiz-adv-x="150">
+    <font-face font-family="transformedicons"
+      units-per-em="150" ascent="150"
+      descent="0" />
+    <missing-glyph horiz-adv-x="0" />
+    <glyph glyph-name="arrow-down"
+      unicode="&#xE001;"
+      horiz-adv-x="150" d=" M85 40L130 90L40 90z" />
+    <glyph glyph-name="arrow-left"
+      unicode="&#xE002;"
+      horiz-adv-x="150" d=" M50 75L100 120L100 30z" />
+    <glyph glyph-name="arrow-right"
+      unicode="&#xE003;"
+      horiz-adv-x="150" d=" M100 75L50 120L50 30z" />
+    <glyph glyph-name="arrow-up"
+      unicode="&#xE004;"
+      horiz-adv-x="150" d=" M75 80L120 30L30 30z" />
+  </font>
+</defs>
+</svg>

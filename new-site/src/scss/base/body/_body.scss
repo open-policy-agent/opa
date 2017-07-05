@@ -1,0 +1,9 @@
+@import 'extends';
+
+body {
+  @extend %body--typography;
+  @extend %body--block;
+
+  background: get('background color');
+  color: get('text color');
+}

@@ -1,0 +1,91 @@
+.banner {
+	$icon-medium-width: 6.25rem;
+	$icon-large-width: 8.125rem;
+	$breakpoint-medium: 500px;
+	$breakpoint-large: 700px;
+	$breakpoint-x-large: 1200px;
+
+	padding: get('rhythm')  * 3 / 4 get('rhythm') / 2;
+
+	&--service-container {
+		@include breakpoint($breakpoint-x-large) {
+			@include grid(9);
+			margin-top: 0rem;
+		}
+	}
+
+	&--service-icon {
+		vertical-align: middle;
+		margin-top: get('rhythm') / 4;
+
+		@include breakpoint($breakpoint-medium) {
+			width: $icon-medium-width;
+		}
+
+		@include breakpoint($breakpoint-large) {
+			width: $icon-large-width;
+		}
+	}
+
+	&--service-icon_INLINE {
+		vertical-align: middle;
+		display: inline;
+		height: 1.25em;
+		display: none;
+		margin-top: #{(-11/40)}em;	// -11px
+		@include breakpoint($breakpoint-medium) {
+			display: none;
+		}
+	}
+
+	&--service-icon-container {
+		@include grid(12);
+		display: none;
+
+		@include breakpoint($breakpoint-large) {
+			@include grid(2);
+		}
+	}
+
+	&--service-info{
+		@include breakpoint($breakpoint-large) {
+			@include grid(10, $has-right-gutter: false);
+			margin-top: 0rem;
+		}
+	}
+
+	&--service-link-item{
+		display: block;
+		margin-top: 0;
+
+		@include breakpoint($breakpoint-large) {
+			display: inline-block;
+			margin-right: get('rhythm') / 2;
+		}
+	}
+
+	&--service-resource-container {
+		@include breakpoint($breakpoint-x-large) {
+			@include grid(3, $has-right-gutter: false);
+			margin-top: 0rem;
+			padding-top: get('rhythm') / 2;
+		}
+	}
+
+	&--service-resource {
+		@include grid(12, $has-right-gutter: false);
+
+		@include breakpoint($breakpoint-large) {
+			@include grid(10, $has-right-gutter: false, $push-left: 2);
+		}
+	}
+
+	&--service-links{
+		@include grid(12, $has-right-gutter: false);
+
+		@include breakpoint($breakpoint-large) {
+			@include grid-reset;
+			@include grid(10, $has-right-gutter: false, $push-left: 2);
+		}
+	}
+}
