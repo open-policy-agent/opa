@@ -67,6 +67,10 @@ func opaFmt(args []string) int {
 }
 
 func formatFile(filename string, info os.FileInfo, err error) error {
+	if err != nil {
+		return err
+	}
+
 	if info.IsDir() {
 		return nil
 	}
