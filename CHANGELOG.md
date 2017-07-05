@@ -3,7 +3,43 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## 0.5.0
+
+### User Functions
+
+OPA now supports user-defined functions that have the same semantics as built-in
+functions. This allows policy authors to quickly define reusable pieces of logic
+in Rego without overloading the input document or thinking about variable
+safety.
+
+### Storage Improvements
+
+The storage layer has been improved to support single-writer/multiple-reader
+concurrency. The storage interfaces have been simplified in the process. Users
+can rely on https://godoc.org/github.com/open-policy-agent/opa/storage/inmem in
+place of the old storage package.
+
+### Website Refresh
+
+The website has been redesigned and the documentation has been ported over to
+GitBook.
+
+### `opa check` and `opa fmt`
+
+OPA supports two new commands that check and format policies. Check out `opa
+help` for more information.
+
+### Miscellaneous
+
+- Add YAML serialization built-ins
+- Add time built-ins
+
+### Fixes
+
+- Fixed incorrect source locations on refs and manually constructed terms. All
+  term locations should be set correctly now.
+- Fixed evaluation bug that caused partial sets and partial objects to be
+  undefined in some cases.
 
 ## 0.4.10
 

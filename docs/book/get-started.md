@@ -36,13 +36,13 @@ If this is your first time using OPA, download the latest executable for your sy
 On macOS (64-bit):
 
 ```shell
-curl -L -o opa https://github.com/open-policy-agent/opa/releases/download/v0.4.10/opa_darwin_amd64
+curl -L -o opa https://github.com/open-policy-agent/opa/releases/download/v0.5.0/opa_darwin_amd64
 ```
 
 On Linux (64-bit):
 
 ```shell
-curl -L -o opa https://github.com/open-policy-agent/opa/releases/download/v0.4.10/opa_linux_amd64
+curl -L -o opa https://github.com/open-policy-agent/opa/releases/download/v0.5.0/opa_linux_amd64
 ```
 
 Set permissions on the OPA executable:

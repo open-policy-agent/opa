@@ -50,7 +50,7 @@ cat > docker-compose.yml <<EOF
 version: '2'
 services:
   opa:
-    image: openpolicyagent/opa:0.4.10
+    image: openpolicyagent/opa:0.5.0
     ports:
       - 8181:8181
     command:
