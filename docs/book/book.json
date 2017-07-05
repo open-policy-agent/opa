@@ -4,6 +4,7 @@
     "addcssjs",
     "collapsible-menu",
     "custom-favicon",
+    "ga",
     "-fontsettings"
   ],
   "pluginsConfig": {
@@ -13,6 +14,9 @@
     "addcssjs": {
       "js": ["js/custom.js"]
     },
-    "favicon": "images/favicon.png"
+    "favicon": "images/favicon.png",
+    "ga": {
+      "token": "UA-84550302-1"
+    }
   }
 }
