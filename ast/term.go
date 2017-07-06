@@ -261,6 +261,10 @@ func (term *Term) Copy() *Term {
 		cpy.Value = v.Copy()
 	case *ArrayComprehension:
 		cpy.Value = v.Copy()
+	case *ObjectComprehension:
+		cpy.Value = v.Copy()
+	case *SetComprehension:
+		cpy.Value = v.Copy()
 	}
 
 	return &cpy
@@ -331,7 +335,7 @@ func (term *Term) Vars() VarSet {
 // IsConstant returns true if the AST value is constant.
 func IsConstant(v Value) bool {
 	switch v := v.(type) {
-	case Var, Ref, *ArrayComprehension:
+	case Var, Ref, *ArrayComprehension, *ObjectComprehension, *SetComprehension:
 		return false
 	case Array:
 		for i := 0; i < len(v); i++ {
@@ -1286,6 +1290,123 @@ func (ac *ArrayComprehension) String() string {
 	return "[" + ac.Term.String() + " | " + ac.Body.String() + "]"
 }
 
+// ObjectComprehension represents an object comprehension as defined in the language.
+type ObjectComprehension struct {
+	Key   *Term `json:"key"`
+	Value *Term `json:"value"`
+	Body  Body  `json:"body"`
+}
+
+// ObjectComprehensionTerm creates a new Term with an ObjectComprehension value.
+func ObjectComprehensionTerm(key, value *Term, body Body) *Term {
+	return &Term{
+		Value: &ObjectComprehension{
+			Key:   key,
+			Value: value,
+			Body:  body,
+		},
+	}
+}
+
+// Copy returns a deep copy of oc.
+func (oc *ObjectComprehension) Copy() *ObjectComprehension {
+	cpy := *oc
+	cpy.Body = oc.Body.Copy()
+	cpy.Key = oc.Key.Copy()
+	cpy.Value = oc.Value.Copy()
+	return &cpy
+}
+
+// Equal returns true if oc is equal to other.
+func (oc *ObjectComprehension) Equal(other Value) bool {
+	return Compare(oc, other) == 0
+}
+
+// Compare compares oc to other, return <0, 0, or >0 if it is less than, equal to,
+// or greater than other.
+func (oc *ObjectComprehension) Compare(other Value) int {
+	return Compare(oc, other)
+}
+
+// Find returns the current value or a not found error.
+func (oc *ObjectComprehension) Find(path Ref) (Value, error) {
+	if len(path) == 0 {
+		return oc, nil
+	}
+	return nil, fmt.Errorf("find: not found")
+}
+
+// Hash returns the hash code of the Value.
+func (oc *ObjectComprehension) Hash() int {
+	return oc.Key.Hash() + oc.Value.Hash() + oc.Body.Hash()
+}
+
+// IsGround returns true if the Key, Value and Body are ground.
+func (oc *ObjectComprehension) IsGround() bool {
+	return oc.Key.IsGround() && oc.Value.IsGround() && oc.Body.IsGround()
+}
+
+func (oc *ObjectComprehension) String() string {
+	return "{" + oc.Key.String() + ": " + oc.Value.String() + " | " + oc.Body.String() + "}"
+}
+
+// SetComprehension represents a set comprehension as defined in the language.
+type SetComprehension struct {
+	Term *Term `json:"term"`
+	Body Body  `json:"body"`
+}
+
+// SetComprehensionTerm creates a new Term with an SetComprehension value.
+func SetComprehensionTerm(term *Term, body Body) *Term {
+	return &Term{
+		Value: &SetComprehension{
+			Term: term,
+			Body: body,
+		},
+	}
+}
+
+// Copy returns a deep copy of sc.
+func (sc *SetComprehension) Copy() *SetComprehension {
+	cpy := *sc
+	cpy.Body = sc.Body.Copy()
+	cpy.Term = sc.Term.Copy()
+	return &cpy
+}
+
+// Equal returns true if sc is equal to other.
+func (sc *SetComprehension) Equal(other Value) bool {
+	return Compare(sc, other) == 0
+}
+
+// Compare compares sc to other, return <0, 0, or >0 if it is less than, equal to,
+// or greater than other.
+func (sc *SetComprehension) Compare(other Value) int {
+	return Compare(sc, other)
+}
+
+// Find returns the current value or a not found error.
+func (sc *SetComprehension) Find(path Ref) (Value, error) {
+	if len(path) == 0 {
+		return sc, nil
+	}
+	return nil, fmt.Errorf("find: not found")
+}
+
+// Hash returns the hash code of the Value.
+func (sc *SetComprehension) Hash() int {
+	return sc.Term.Hash() + sc.Body.Hash()
+}
+
+// IsGround returns true if the Term and Body are ground.
+func (sc *SetComprehension) IsGround() bool {
+	return sc.Term.IsGround() && sc.Body.IsGround()
+}
+
+func (sc *SetComprehension) String() string {
+	return "{" + sc.Term.String() + " | " + sc.Body.String() + "}"
+}
+
 func formatString(s String) string {
 	str := string(s)
 	if varRegexp.MatchString(str) {
@@ -1515,21 +1636,66 @@ func unmarshalValue(d map[string]interface{}) (Value, error) {
 			}
 			return buf, nil
 		}
-	case "arraycomprehension":
+	case "arraycomprehension", "setcomprehension":
 		if m, ok := v.(map[string]interface{}); ok {
-			if t, ok := m["term"].(map[string]interface{}); ok {
-				if term, err := unmarshalTerm(t); err == nil {
-					if b, ok := m["body"].([]interface{}); ok {
-						if body, err := unmarshalBody(b); err == nil {
-							buf := &ArrayComprehension{
-								Term: term,
-								Body: body,
-							}
-							return buf, nil
-						}
-					}
-				}
+			t, ok := m["term"].(map[string]interface{})
+			if !ok {
+				goto unmarshal_error
 			}
+
+			term, err := unmarshalTerm(t)
+			if err != nil {
+				goto unmarshal_error
+			}
+
+			b, ok := m["body"].([]interface{})
+			if !ok {
+				goto unmarshal_error
+			}
+
+			body, err := unmarshalBody(b)
+			if err != nil {
+				goto unmarshal_error
+			}
+
+			if d["type"] == "arraycomprehension" {
+				return &ArrayComprehension{Term: term, Body: body}, nil
+			}
+			return &SetComprehension{Term: term, Body: body}, nil
+		}
+	case "objectcomprehension":
+		if m, ok := v.(map[string]interface{}); ok {
+			k, ok := m["key"].(map[string]interface{})
+			if !ok {
+				goto unmarshal_error
+			}
+
+			key, err := unmarshalTerm(k)
+			if err != nil {
+				goto unmarshal_error
+			}
+
+			v, ok := m["value"].(map[string]interface{})
+			if !ok {
+				goto unmarshal_error
+			}
+
+			value, err := unmarshalTerm(v)
+			if err != nil {
+				goto unmarshal_error
+			}
+
+			b, ok := m["body"].([]interface{})
+			if !ok {
+				goto unmarshal_error
+			}
+
+			body, err := unmarshalBody(b)
+			if err != nil {
+				goto unmarshal_error
+			}
+
+			return &ObjectComprehension{Key: key, Value: value, Body: body}, nil
 		}
 	}
 unmarshal_error:

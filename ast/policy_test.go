@@ -35,7 +35,10 @@ empty_set = true { set() }
 using_with = true { x = data.foo + 1 with input.foo as bar }
 x = 2 { input = null }
 default allow = true
-f(x) = y { y = x }`)
+f(x) = y { y = x }
+a = true { xs = {a: b | input.y[a] = "foo"; b = input.z["bar"]} }
+b = true { xs = {{"x": a[i].a} | a[i].n = "bob"; b[x]} }
+`)
 
 	bs, err := json.Marshal(mod)
 	if err != nil {

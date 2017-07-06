@@ -771,6 +771,8 @@ import input.qux as baz
 
 p[foo[bar[i]]] = {"baz": baz, "corge": corge} { true }
 q = [true | true] { true }
+r = {"true": true | true} { true }
+s = {true | true} { true }
 
 elsekw {
 	false
@@ -791,8 +793,16 @@ elsekw {
 	assertRulesEqual(t, rule2, expected2)
 
 	rule3 := c.Modules["head"].Rules[2]
-	expected3 := MustParseRule(`elsekw { false } else = __local3__ { true; __local3__ = input.qux }`)
+	expected3 := MustParseRule(`r = __local3__ { true; __local3__ = {"true": true | true} }`)
 	assertRulesEqual(t, rule3, expected3)
+
+	rule4 := c.Modules["head"].Rules[3]
+	expected4 := MustParseRule(`s = __local4__ { true; __local4__ = {true | true} }`)
+	assertRulesEqual(t, rule4, expected4)
+
+	rule5 := c.Modules["head"].Rules[4]
+	expected5 := MustParseRule(`elsekw { false } else = __local5__ { true; __local5__ = input.qux }`)
+	assertRulesEqual(t, rule5, expected5)
 }
 
 func TestCompilerSetGraph(t *testing.T) {

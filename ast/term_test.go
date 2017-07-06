@@ -111,6 +111,9 @@ func TestTermEqual(t *testing.T) {
 	assertTermEqual(t, VarTerm("foo"), VarTerm("foo"))
 	assertTermEqual(t, RefTerm(VarTerm("foo"), VarTerm("i"), IntNumberTerm(2)), RefTerm(VarTerm("foo"), VarTerm("i"), IntNumberTerm(2)))
 	assertTermEqual(t, ArrayComprehensionTerm(VarTerm("x"), NewBody(&Expr{Terms: RefTerm(VarTerm("a"), VarTerm("i"))})), ArrayComprehensionTerm(VarTerm("x"), NewBody(&Expr{Terms: RefTerm(VarTerm("a"), VarTerm("i"))})))
+	assertTermEqual(t, ObjectComprehensionTerm(VarTerm("x"), VarTerm("y"), NewBody(&Expr{Terms: RefTerm(VarTerm("a"), VarTerm("i"))})), ObjectComprehensionTerm(VarTerm("x"), VarTerm("y"), NewBody(&Expr{Terms: RefTerm(VarTerm("a"), VarTerm("i"))})))
+	assertTermEqual(t, SetComprehensionTerm(VarTerm("x"), NewBody(&Expr{Terms: RefTerm(VarTerm("a"), VarTerm("i"))})), SetComprehensionTerm(VarTerm("x"), NewBody(&Expr{Terms: RefTerm(VarTerm("a"), VarTerm("i"))})))
+
 	assertTermNotEqual(t, NullTerm(), BooleanTerm(true))
 	assertTermNotEqual(t, BooleanTerm(true), BooleanTerm(false))
 	assertTermNotEqual(t, IntNumberTerm(5), IntNumberTerm(7))
@@ -124,6 +127,8 @@ func TestTermEqual(t *testing.T) {
 	assertTermNotEqual(t, VarTerm("foo"), VarTerm("bar"))
 	assertTermNotEqual(t, RefTerm(VarTerm("foo"), VarTerm("i"), IntNumberTerm(2)), RefTerm(VarTerm("foo"), StringTerm("i"), IntNumberTerm(2)))
 	assertTermNotEqual(t, ArrayComprehensionTerm(VarTerm("x"), NewBody(&Expr{Terms: RefTerm(VarTerm("a"), VarTerm("j"))})), ArrayComprehensionTerm(VarTerm("x"), NewBody(&Expr{Terms: RefTerm(VarTerm("a"), VarTerm("i"))})))
+	assertTermNotEqual(t, ObjectComprehensionTerm(VarTerm("x"), VarTerm("y"), NewBody(&Expr{Terms: RefTerm(VarTerm("a"), VarTerm("j"))})), ObjectComprehensionTerm(VarTerm("x"), VarTerm("y"), NewBody(&Expr{Terms: RefTerm(VarTerm("a"), VarTerm("i"))})))
+	assertTermNotEqual(t, SetComprehensionTerm(VarTerm("x"), NewBody(&Expr{Terms: RefTerm(VarTerm("a"), VarTerm("j"))})), SetComprehensionTerm(VarTerm("x"), NewBody(&Expr{Terms: RefTerm(VarTerm("a"), VarTerm("i"))})))
 }
 
 func TestFind(t *testing.T) {
@@ -164,7 +169,7 @@ func TestFind(t *testing.T) {
 
 func TestHash(t *testing.T) {
 
-	doc := `{"a": [[true, {"b": [null]}, {"c": "d"}]], "e": {100: a[i].b}, "k": ["foo" | true], "s": {1, 2, {3, 4}}, "big": 1e+1000}`
+	doc := `{"a": [[true, {"b": [null]}, {"c": "d"}]], "e": {100: a[i].b}, "k": ["foo" | true], "o": {"foo": "bar" | true}, "sc": {"foo" | true}, "s": {1, 2, {3, 4}}, "big": 1e+1000}`
 
 	stmt1 := MustParseStatement(doc)
 	stmt2 := MustParseStatement(doc)
@@ -273,6 +278,8 @@ func TestTermString(t *testing.T) {
 	assertToString(t, SetTerm().Value, "set()")
 	assertToString(t, ArrayTerm(ObjectTerm(Item(VarTerm("foo"), ArrayTerm(RefTerm(VarTerm("bar"), VarTerm("i"))))), StringTerm("foo"), SetTerm(BooleanTerm(true), NullTerm()), FloatNumberTerm(42.1)).Value, "[{foo: [bar[i]]}, \"foo\", {true, null}, 42.1]")
 	assertToString(t, ArrayComprehensionTerm(ArrayTerm(VarTerm("x")), NewBody(&Expr{Terms: RefTerm(VarTerm("a"), VarTerm("i"))})).Value, `[[x] | a[i]]`)
+	assertToString(t, ObjectComprehensionTerm(VarTerm("y"), ArrayTerm(VarTerm("x")), NewBody(&Expr{Terms: RefTerm(VarTerm("a"), VarTerm("i"))})).Value, `{y: [x] | a[i]}`)
+	assertToString(t, SetComprehensionTerm(ArrayTerm(VarTerm("x")), NewBody(&Expr{Terms: RefTerm(VarTerm("a"), VarTerm("i"))})).Value, `{[x] | a[i]}`)
 }
 
 func TestRefHasPrefix(t *testing.T) {

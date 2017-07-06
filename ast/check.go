@@ -362,9 +362,7 @@ func (tc *typeChecker) unify1(env *TypeEnv, term *Term, tpe types.Type) bool {
 			return unifies
 		}
 		return false
-	case *ArrayComprehension:
-		return unifies(env.Get(v), tpe)
-	case Ref:
+	case Ref, *ArrayComprehension, *ObjectComprehension, *SetComprehension:
 		return unifies(env.Get(v), tpe)
 	case Var:
 		if exist := env.Get(v); exist != nil {
@@ -435,7 +433,7 @@ func newRefChecker(env *TypeEnv) *refChecker {
 
 func (rc *refChecker) Visit(x interface{}) Visitor {
 	switch x := x.(type) {
-	case *ArrayComprehension:
+	case *ArrayComprehension, *ObjectComprehension, *SetComprehension:
 		return nil
 	case Ref:
 		if err := rc.checkRef(rc.env, rc.env.tree, x, 0); err != nil {

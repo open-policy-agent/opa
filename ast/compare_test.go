@@ -31,8 +31,10 @@ func TestCompare(t *testing.T) {
 		{`{1: 2, 3: 4}`, `{1: 2, 3: 4, 5: 6}`, -1},
 		{`{1: 2, 3: 4, 5: 6}`, `{1: 2, 3: 4}`, 1},
 
-		// Array comprehensions
+		// Comprehensions
 		{`[null | true]`, `[false | null]`, -1},
+		{`{null | true}`, `{false | null}`, -1},
+		{`{"abc": null | true}`, `{"cba": false | null}`, -1},
 
 		// Expressions
 		{`a = b`, `b = a`, -1},

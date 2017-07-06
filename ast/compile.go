@@ -816,7 +816,7 @@ func (c *Compiler) rewriteRefsInHead() {
 						return true
 					}
 					switch x.(type) {
-					case Ref, *ArrayComprehension:
+					case Ref, *ArrayComprehension, *ObjectComprehension, *SetComprehension:
 						found = true
 						return true
 					}
@@ -841,7 +841,7 @@ func (c *Compiler) rewriteRefsInHead() {
 						return true
 					}
 					switch x.(type) {
-					case Ref, *ArrayComprehension:
+					case Ref, *ArrayComprehension, *ObjectComprehension, *SetComprehension:
 						found = true
 						return true
 					}
@@ -975,7 +975,7 @@ func referencesInput(expr *Expr) bool {
 			return found
 		}
 		switch x := x.(type) {
-		case *ArrayComprehension: // skip closures
+		case *ArrayComprehension, *ObjectComprehension, *SetComprehension: // skip closures
 			return true
 		case Ref:
 			if x.HasPrefix(InputRootRef) {
@@ -1550,14 +1550,19 @@ func (vis *bodySafetyVisitor) Visit(x interface{}) Visitor {
 	case *ArrayComprehension:
 		vis.checkArrayComprehensionSafety(x)
 		return nil
+	case *ObjectComprehension:
+		vis.checkObjectComprehensionSafety(x)
+		return nil
+	case *SetComprehension:
+		vis.checkSetComprehensionSafety(x)
+		return nil
 	}
 	return vis
 }
 
-func (vis *bodySafetyVisitor) checkArrayComprehensionSafety(ac *ArrayComprehension) {
-	// Check term for safety. This is analogous to the rule head safety check.
-	tv := ac.Term.Vars()
-	bv := ac.Body.Vars(safetyCheckVarVisitorParams)
+// Check term for safety. This is analogous to the rule head safety check.
+func (vis *bodySafetyVisitor) checkComprehensionSafety(tv VarSet, body Body) Body {
+	bv := body.Vars(safetyCheckVarVisitorParams)
 	bv.Update(vis.globals)
 	uv := tv.Diff(bv)
 	for v := range uv {
@@ -1565,12 +1570,27 @@ func (vis *bodySafetyVisitor) checkArrayComprehensionSafety(ac *ArrayComprehensi
 	}
 
 	// Check body for safety, reordering as necessary.
-	r, u := reorderBodyForSafety(vis.globals, ac.Body)
+	r, u := reorderBodyForSafety(vis.globals, body)
 	if len(u) == 0 {
-		ac.Body = r
-	} else {
-		vis.unsafe.Update(u)
+		return r
 	}
+
+	vis.unsafe.Update(u)
+	return body
+}
+
+func (vis *bodySafetyVisitor) checkArrayComprehensionSafety(ac *ArrayComprehension) {
+	ac.Body = vis.checkComprehensionSafety(ac.Term.Vars(), ac.Body)
+}
+
+func (vis *bodySafetyVisitor) checkObjectComprehensionSafety(oc *ObjectComprehension) {
+	tv := oc.Key.Vars()
+	tv.Update(oc.Value.Vars())
+	oc.Body = vis.checkComprehensionSafety(tv, oc.Body)
+}
+
+func (vis *bodySafetyVisitor) checkSetComprehensionSafety(sc *SetComprehension) {
+	sc.Body = vis.checkComprehensionSafety(sc.Term.Vars(), sc.Body)
 }
 
 // reorderBodyForClosures returns a copy of the body ordered such that
@@ -1818,6 +1838,21 @@ func resolveRefsInTerm(globals map[Var]Ref, term *Term) *Term {
 		ac.Body = resolveRefsInBody(globals, v.Body)
 		cpy := *term
 		cpy.Value = ac
+		return &cpy
+	case *ObjectComprehension:
+		oc := &ObjectComprehension{}
+		oc.Key = resolveRefsInTerm(globals, v.Key)
+		oc.Value = resolveRefsInTerm(globals, v.Value)
+		oc.Body = resolveRefsInBody(globals, v.Body)
+		cpy := *term
+		cpy.Value = oc
+		return &cpy
+	case *SetComprehension:
+		sc := &SetComprehension{}
+		sc.Term = resolveRefsInTerm(globals, v.Term)
+		sc.Body = resolveRefsInBody(globals, v.Body)
+		cpy := *term
+		cpy.Value = sc
 		return &cpy
 	default:
 		return term
