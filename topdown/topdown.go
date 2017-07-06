@@ -485,32 +485,7 @@ func PlugExpr(expr *ast.Expr, binding Binding) *ast.Expr {
 // PlugTerm returns a copy of term with bound terms substituted for the binding.
 func PlugTerm(term *ast.Term, binding Binding) *ast.Term {
 	switch v := term.Value.(type) {
-	case ast.Var:
-		plugged := *term
-		plugged.Value = PlugValue(v, binding)
-		return &plugged
-
-	case ast.Ref:
-		plugged := *term
-		plugged.Value = PlugValue(v, binding)
-		return &plugged
-
-	case ast.Array:
-		plugged := *term
-		plugged.Value = PlugValue(v, binding)
-		return &plugged
-
-	case ast.Object:
-		plugged := *term
-		plugged.Value = PlugValue(v, binding)
-		return &plugged
-
-	case *ast.Set:
-		plugged := *term
-		plugged.Value = PlugValue(v, binding)
-		return &plugged
-
-	case *ast.ArrayComprehension:
+	case ast.Var, ast.Ref, ast.Array, ast.Object, *ast.Set, *ast.ArrayComprehension, *ast.ObjectComprehension, *ast.SetComprehension:
 		plugged := *term
 		plugged.Value = PlugValue(v, binding)
 		return &plugged
@@ -533,7 +508,7 @@ func PlugValue(v ast.Value, binding func(ast.Value) ast.Value) ast.Value {
 		}
 		return v
 
-	case *ast.ArrayComprehension:
+	case *ast.ArrayComprehension, *ast.ObjectComprehension, *ast.SetComprehension:
 		b := binding(v)
 		if b == nil {
 			return v
@@ -1948,7 +1923,42 @@ func evalTermsComprehension(t *Topdown, comp ast.Value, iter Iterator) error {
 		}
 
 		return Continue(t, comp, result, iter)
+	case *ast.SetComprehension:
+		result := ast.Set{}
+		child := t.Closure(comp.Body)
 
+		err := Eval(child, func(child *Topdown) error {
+			result.Add(PlugTerm(comp.Term, child.Binding))
+			return nil
+		})
+
+		if err != nil {
+			return err
+		}
+
+		return Continue(t, comp, &result, iter)
+	case *ast.ObjectComprehension:
+		result := ast.Object{}
+		child := t.Closure(comp.Body)
+		err := Eval(child, func(child *Topdown) error {
+			key := PlugTerm(comp.Key, child.Binding)
+			value := PlugTerm(comp.Value, child.Binding)
+			if v := result.Get(key); v != nil && !v.Equal(value) {
+				return &Error{
+					Code:     ConflictErr,
+					Message:  "object comprehension produces conflicting outputs",
+					Location: t.Current().Location,
+				}
+			}
+
+			result = append(result, [2]*ast.Term{key, value})
+			return nil
+		})
+		if err != nil {
+			return err
+		}
+
+		return Continue(t, comp, result, iter)
 	default:
 		panic(fmt.Sprintf("illegal argument: %v %v", t, comp))
 	}
@@ -2018,7 +2028,7 @@ func evalTermsRec(t *Topdown, iter Iterator, ts []*ast.Term) error {
 		return evalTermsRecObject(t, head, 0, rec)
 	case *ast.Set:
 		return evalTermsRecSet(t, head, 0, rec)
-	case *ast.ArrayComprehension:
+	case *ast.ArrayComprehension, *ast.ObjectComprehension, *ast.SetComprehension:
 		return evalTermsComprehension(t, head, rec)
 	default:
 		return evalTermsRec(t, iter, tail)
@@ -2043,7 +2053,7 @@ func evalTermsRecArray(t *Topdown, arr ast.Array, idx int, iter Iterator) error 
 		return evalTermsRecObject(t, v, 0, rec)
 	case *ast.Set:
 		return evalTermsRecSet(t, v, 0, rec)
-	case *ast.ArrayComprehension:
+	case *ast.ArrayComprehension, *ast.ObjectComprehension, *ast.SetComprehension:
 		return evalTermsComprehension(t, v, rec)
 	default:
 		return evalTermsRecArray(t, arr, idx+1, iter)
@@ -2071,7 +2081,7 @@ func evalTermsRecObject(t *Topdown, obj ast.Object, idx int, iter Iterator) erro
 				return evalTermsRecObject(t, v, 0, rec)
 			case *ast.Set:
 				return evalTermsRecSet(t, v, 0, rec)
-			case *ast.ArrayComprehension:
+			case *ast.ArrayComprehension, *ast.ObjectComprehension, *ast.SetComprehension:
 				return evalTermsComprehension(t, v, rec)
 			default:
 				return evalTermsRecObject(t, obj, idx+1, iter)
@@ -2087,7 +2097,7 @@ func evalTermsRecObject(t *Topdown, obj ast.Object, idx int, iter Iterator) erro
 			return evalTermsRecObject(t, v, 0, rec)
 		case *ast.Set:
 			return evalTermsRecSet(t, v, 0, rec)
-		case *ast.ArrayComprehension:
+		case *ast.ArrayComprehension, *ast.ObjectComprehension, *ast.SetComprehension:
 			return evalTermsComprehension(t, v, rec)
 		default:
 			return evalTermsRecObject(t, obj, idx+1, iter)
@@ -2111,7 +2121,7 @@ func evalTermsRecSet(t *Topdown, set *ast.Set, idx int, iter Iterator) error {
 		return evalTermsRecArray(t, v, 0, rec)
 	case ast.Object:
 		return evalTermsRecObject(t, v, 0, rec)
-	case *ast.ArrayComprehension:
+	case *ast.ArrayComprehension, *ast.ObjectComprehension, *ast.SetComprehension:
 		return evalTermsComprehension(t, v, rec)
 	default:
 		return evalTermsRecSet(t, set, idx+1, iter)
