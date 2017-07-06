@@ -237,7 +237,7 @@ func (i *baseDocEqIndex) getRefAndValueFromTerms(a, b *Term) (Ref, Value, bool) 
 			}
 			switch x.(type) {
 			// No nested structures or values that require evaluation (other than var).
-			case Array, Object, *Set, *ArrayComprehension, Ref:
+			case Array, Object, *Set, *ArrayComprehension, *ObjectComprehension, *SetComprehension, Ref:
 				stop = true
 			}
 			return stop

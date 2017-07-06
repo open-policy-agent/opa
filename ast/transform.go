@@ -232,6 +232,25 @@ func Transform(t Transformer, x interface{}) (interface{}, error) {
 			return nil, err
 		}
 		return y, nil
+	case *ObjectComprehension:
+		if y.Key, err = transformTerm(t, y.Key); err != nil {
+			return nil, err
+		}
+		if y.Value, err = transformTerm(t, y.Value); err != nil {
+			return nil, err
+		}
+		if y.Body, err = transformBody(t, y.Body); err != nil {
+			return nil, err
+		}
+		return y, nil
+	case *SetComprehension:
+		if y.Term, err = transformTerm(t, y.Term); err != nil {
+			return nil, err
+		}
+		if y.Body, err = transformBody(t, y.Body); err != nil {
+			return nil, err
+		}
+		return y, nil
 	default:
 		return y, nil
 	}

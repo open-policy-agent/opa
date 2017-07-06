@@ -281,7 +281,76 @@ func TestArrayComprehensions(t *testing.T) {
 	)
 
 	assertParseOneTerm(t, "nested", input, expected)
+}
 
+func TestObjectComprehensions(t *testing.T) {
+	input := `[{"x": {a[i]: b[i] | xs = {"foo":{"a": ["baz", j]} | q[p]; p.a != "bar"; j = "foo"}; xs[j].a[k] = "foo"}}]`
+
+	expected := ArrayTerm(
+		ObjectTerm(Item(
+			StringTerm("x"),
+			ObjectComprehensionTerm(
+				RefTerm(VarTerm("a"), VarTerm("i")),
+				RefTerm(VarTerm("b"), VarTerm("i")),
+				NewBody(
+					Equality.Expr(
+						VarTerm("xs"),
+						ObjectComprehensionTerm(
+							StringTerm("foo"),
+							ObjectTerm(Item(StringTerm("a"), ArrayTerm(StringTerm("baz"), VarTerm("j")))),
+							NewBody(
+								&Expr{
+									Terms: RefTerm(VarTerm("q"), VarTerm("p")),
+								},
+								NotEqual.Expr(RefTerm(VarTerm("p"), StringTerm("a")), StringTerm("bar")),
+								Equality.Expr(VarTerm("j"), StringTerm("foo")),
+							),
+						),
+					),
+					Equality.Expr(
+						RefTerm(VarTerm("xs"), VarTerm("j"), StringTerm("a"), VarTerm("k")),
+						StringTerm("foo"),
+					),
+				),
+			),
+		)),
+	)
+
+	assertParseOneTerm(t, "nested", input, expected)
+}
+
+func TestSetComprehensions(t *testing.T) {
+	input := `[{"x": {a[i] | xs = {{"a": ["baz", j]} | q[p]; p.a != "bar"; j = "foo"}; xs[j].a[k] = "foo"}}]`
+
+	expected := ArrayTerm(
+		ObjectTerm(Item(
+			StringTerm("x"),
+			SetComprehensionTerm(
+				RefTerm(VarTerm("a"), VarTerm("i")),
+				NewBody(
+					Equality.Expr(
+						VarTerm("xs"),
+						SetComprehensionTerm(
+							ObjectTerm(Item(StringTerm("a"), ArrayTerm(StringTerm("baz"), VarTerm("j")))),
+							NewBody(
+								&Expr{
+									Terms: RefTerm(VarTerm("q"), VarTerm("p")),
+								},
+								NotEqual.Expr(RefTerm(VarTerm("p"), StringTerm("a")), StringTerm("bar")),
+								Equality.Expr(VarTerm("j"), StringTerm("foo")),
+							),
+						),
+					),
+					Equality.Expr(
+						RefTerm(VarTerm("xs"), VarTerm("j"), StringTerm("a"), VarTerm("k")),
+						StringTerm("foo"),
+					),
+				),
+			),
+		)),
+	)
+
+	assertParseOneTerm(t, "nested", input, expected)
 }
 
 func TestInfixExpr(t *testing.T) {
@@ -851,6 +920,13 @@ func TestComments(t *testing.T) {
 					  a = z[i]
 	                  b[i].a = a ]
 
+		y = { a | # inside set comprehension
+				a = z[i]
+			b[i].a = a}
+
+		z = {a: i | # inside object comprehension
+				a = z[i]
+			b[i].a = a}
 					  }`
 
 	assertParseModule(t, "module comments", testModule, &Module{
@@ -863,7 +939,7 @@ func TestComments(t *testing.T) {
 		Rules: []*Rule{
 			MustParseStatement(`p[x] = y { y = "foo"; x = "bar"; x != y; q[x] }`).(*Rule),
 			MustParseStatement(`q[a] { m = [1, 2, 3]; a = m[i] }`).(*Rule),
-			MustParseStatement(`r[x] { x = [a | a = z[i]; b[i].a = a] }`).(*Rule),
+			MustParseStatement(`r[x] { x = [a | a = z[i]; b[i].a = a]; y = {a |  a = z[i]; b[i].a = a}; z = {a: i | a = z[i]; b[i].a = a} }`).(*Rule),
 		},
 	})
 }

@@ -23,7 +23,7 @@ func TestVisitor(t *testing.T) {
 
 import input.x.y as z
 
-t[x] = y { p[x] = {"foo": [y, 2, {"bar": 3}]}; not q[x]; y = [[x, z] | x = "x"; z = "z"]; count({1, 2, 3}, n) with input.foo.bar as x }
+t[x] = y { p[x] = {"foo": [y, 2, {"bar": 3}]}; not q[x]; y = [[x, z] | x = "x"; z = "z"]; z = {"foo": [x, z] | x = "x"; z = "z"}; s = {1 | a[i] = "foo"}; count({1, 2, 3}, n) with input.foo.bar as x }
 
 p { false } else { false } else { true }
 
@@ -122,6 +122,59 @@ fn([x, y]) = z { z = "bar"; trim(x, y, z) }`)
 											"z"
 					expr4
 						term
+							=
+						term
+							z
+						term
+							compr
+								key
+									term
+										"foo"
+								value
+									array
+										term
+											x
+										term
+											z
+								body
+									expr1
+										term
+											=
+										term
+											x
+										term
+											"x"
+									expr2
+										term
+											=
+										term
+											z
+										term
+											"z"
+					expr5
+						term
+							=
+						term
+							s
+						term
+							compr
+								term
+									1
+								body
+									expr1
+										term
+											=
+										term
+											ref
+												term
+													a
+												term
+													i
+
+										term
+											"foo"
+					expr6
+						term
 							count
 						term
 							set
@@ -203,8 +256,8 @@ fn([x, y]) = z { z = "bar"; trim(x, y, z) }`)
 						term
 							z
 	*/
-	if len(vis.elems) != 165 {
-		t.Errorf("Expected exactly 165 elements in AST but got %d: %v", len(vis.elems), vis.elems)
+	if len(vis.elems) != 216 {
+		t.Errorf("Expected exactly 216 elements in AST but got %d: %v", len(vis.elems), vis.elems)
 	}
 }
 

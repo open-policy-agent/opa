@@ -152,6 +152,21 @@ func Compare(a, b interface{}) int {
 			return cmp
 		}
 		return Compare(a.Body, b.Body)
+	case *ObjectComprehension:
+		b := b.(*ObjectComprehension)
+		if cmp := Compare(a.Key, b.Key); cmp != 0 {
+			return cmp
+		}
+		if cmp := Compare(a.Value, b.Value); cmp != 0 {
+			return cmp
+		}
+		return Compare(a.Body, b.Body)
+	case *SetComprehension:
+		b := b.(*SetComprehension)
+		if cmp := Compare(a.Term, b.Term); cmp != 0 {
+			return cmp
+		}
+		return Compare(a.Body, b.Body)
 	case *Expr:
 		b := b.(*Expr)
 		return a.Compare(b)
@@ -217,8 +232,12 @@ func sortOrder(x interface{}) int {
 		return 8
 	case *ArrayComprehension:
 		return 9
-	case Args:
+	case *ObjectComprehension:
 		return 10
+	case *SetComprehension:
+		return 11
+	case Args:
+		return 12
 	case *Expr:
 		return 100
 	case *With:

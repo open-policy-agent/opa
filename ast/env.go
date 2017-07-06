@@ -107,11 +107,26 @@ func (env *TypeEnv) Get(x interface{}) types.Type {
 
 	// Comprehensions.
 	case *ArrayComprehension:
-
 		checker := newTypeChecker()
 		cpy, errs := checker.CheckBody(env, x.Body)
 		if len(errs) == 0 {
 			return types.NewArray(nil, cpy.Get(x.Term))
+		}
+
+		return nil
+	case *ObjectComprehension:
+		checker := newTypeChecker()
+		cpy, errs := checker.CheckBody(env, x.Body)
+		if len(errs) == 0 {
+			return types.NewObject(nil, cpy.Get(x.Value))
+		}
+
+		return nil
+	case *SetComprehension:
+		checker := newTypeChecker()
+		cpy, errs := checker.CheckBody(env, x.Body)
+		if len(errs) == 0 {
+			return types.NewSet(cpy.Get(x.Term))
 		}
 
 		return nil

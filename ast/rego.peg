@@ -186,7 +186,7 @@ DefaultRules <- "default" ws name:Var _ "=" _ value:Term {
             return true
         }
         switch x.(type) {
-        case *ArrayComprehension: // skip closures
+        case *ArrayComprehension, *ObjectComprehension, *SetComprehension: // skip closures
             return true
         case Ref, Var:
             err = fmt.Errorf("default rule value cannot contain %v", TypeName(x))
@@ -523,12 +523,24 @@ Term <- val:( Comprehension / Composite / Scalar / Ref / Var ) {
     return val, nil
 }
 
-Comprehension <- ArrayComprehension
+Comprehension <- ArrayComprehension / ObjectComprehension / SetComprehension
 
 ArrayComprehension <- "[" _ term:Term _ "|" _ body:WhitespaceBody _ "]" {
     ac := ArrayComprehensionTerm(term.(*Term), body.(Body))
     ac.Location = currentLocation(c)
     return ac, nil
+}
+
+ObjectComprehension <- "{" _ key:Key _ ':' _ value:Term  _ "|" _ body:WhitespaceBody _ "}" {
+    oc := ObjectComprehensionTerm(key.(*Term), value.(*Term), body.(Body))
+    oc.Location = currentLocation(c)
+    return oc, nil
+}
+
+SetComprehension <- "{" _ term:Term _ "|" _ body:WhitespaceBody _ "}" {
+    sc := SetComprehensionTerm(term.(*Term), body.(Body))
+    sc.Location = currentLocation(c)
+    return sc, nil
 }
 
 Composite <- Object / Array / Set

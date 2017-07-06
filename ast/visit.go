@@ -105,6 +105,13 @@ func Walk(v Visitor, x interface{}) {
 	case *ArrayComprehension:
 		Walk(w, x.Term)
 		Walk(w, x.Body)
+	case *ObjectComprehension:
+		Walk(w, x.Key)
+		Walk(w, x.Value)
+		Walk(w, x.Body)
+	case *SetComprehension:
+		Walk(w, x.Term)
+		Walk(w, x.Body)
 	}
 }
 
@@ -113,7 +120,7 @@ func Walk(v Visitor, x interface{}) {
 func WalkClosures(x interface{}, f func(interface{}) bool) {
 	vis := &GenericVisitor{func(x interface{}) bool {
 		switch x.(type) {
-		case *ArrayComprehension:
+		case *ArrayComprehension, *ObjectComprehension, *SetComprehension:
 			return f(x)
 		}
 		return false
@@ -282,7 +289,7 @@ func (vis *VarVisitor) Visit(v interface{}) Visitor {
 	}
 	if vis.params.SkipClosures {
 		switch v.(type) {
-		case *ArrayComprehension:
+		case *ArrayComprehension, *ObjectComprehension, *SetComprehension:
 			return nil
 		}
 	}
