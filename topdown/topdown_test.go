@@ -940,16 +940,43 @@ func TestTopDownComprehensions(t *testing.T) {
 		rules    []string
 		expected interface{}
 	}{
-		{"simple", []string{`p[i] { xs = [x | x = a[_]]; xs[i] > 1 }`}, "[1,2,3]"},
-		{"nested", []string{`p[i] { ys = [y | y = x[_]; x = [z | z = a[_]]]; ys[i] > 1 }`}, "[1,2,3]"},
-		{"embedded array", []string{`p[i] { xs = [[x | x = a[_]]]; xs[0][i] > 1 }`}, "[1,2,3]"},
-		{"embedded object", []string{`p[i] { xs = {"a": [x | x = a[_]]}; xs.a[i] > 1 }`}, "[1,2,3]"},
-		{"embedded set", []string{`p = xs { xs = {[x | x = a[_]]} }`}, "[[1,2,3,4]]"},
-		{"closure", []string{`p[x] { y = 1; x = [y | y = 1] }`}, "[[1]]"},
-		{"dereference embedded", []string{
+		{"array simple", []string{`p[i] { xs = [x | x = a[_]]; xs[i] > 1 }`}, "[1,2,3]"},
+		{"array nested", []string{`p[i] { ys = [y | y = x[_]; x = [z | z = a[_]]]; ys[i] > 1 }`}, "[1,2,3]"},
+		{"array embedded array", []string{`p[i] { xs = [[x | x = a[_]]]; xs[0][i] > 1 }`}, "[1,2,3]"},
+		{"array embedded object", []string{`p[i] { xs = {"a": [x | x = a[_]]}; xs.a[i] > 1 }`}, "[1,2,3]"},
+		{"array embedded set", []string{`p = xs { xs = {[x | x = a[_]]} }`}, "[[1,2,3,4]]"},
+		{"array closure", []string{`p[x] { y = 1; x = [y | y = 1] }`}, "[[1]]"},
+		{"array dereference embedded", []string{
 			`p[x] { q.a[2][i] = x }`,
 			`q[k] = v { k = "a"; v = [y | i[_] = _; i = y; i = [z | z = a[_]]] }`,
 		}, "[1,2,3,4]"},
+
+		{"object simple", []string{`p[i] { xs = {s: x | x = a[_]; format_int(x, 10, s)}; y = xs[i]; y > 1 }`}, `["2","3","4"]`},
+		{"object nested", []string{`p = r { r = {x: y | z = {i: q | i = b[q]}; x = z[y]}}`}, `{"v1": "hello", "v2": "goodbye"}`},
+		{"object embedded array", []string{`p[i] { xs = [{s: x | x = a[_]; format_int(x, 10, s)}]; xs[0][i] > 1 }`}, `["2","3","4"]`},
+		{"object embedded object", []string{`p[i] { xs = {"a": {s: x | x = a[_]; format_int(x, 10, s)}}; xs.a[i] > 1 }`}, `["2","3","4"]`},
+		{"object embedded set", []string{`p = xs { xs = {{s: x | x = a[_]; format_int(x, 10, s)}} }`}, `[{"1":1,"2":2,"3":3,"4":4}]`},
+		{"object closure", []string{`p[x] { y = 1; x = {"foo":y | y = 1} }`}, `[{"foo": 1}]`},
+		{"object dereference embedded", []string{
+			`a = [4] { true }`,
+			`p[x] { q.a = x }`,
+			`q[k] = v { k = "a"; v = {"bar": y | i[_] = _; i = y; i = {"foo": z | z = a[_]}} }`,
+		}, `[{"bar": {"foo": 4}}]`},
+		{"object conflict", []string{
+			`p[x] { q.a = x }`,
+			`q[k] = v { k = "a"; v = {"bar": y | i[_] = _; i = y; i = {"foo": z | z = a[_]}} }`,
+		}, errors.New(`i = {"foo": z | z = a[_]}: eval_conflict_error: object comprehension produces conflicting outputs`)},
+
+		{"set simple", []string{`p = y {y = {x | x = a[_]; x > 1}}`}, "[2,3,4]"},
+		{"set nested", []string{`p[i] { ys = {y | y = x[_]; x = {z | z = a[_]}}; ys[i] > 1 }`}, "[2,3,4]"},
+		{"set embedded array", []string{`p[i] { xs = [{x | x = a[_]}]; xs[0][i] > 1 }`}, "[2,3,4]"},
+		{"set embedded object", []string{`p[i] { xs = {"a": {x | x = a[_]}}; xs.a[i] > 1 }`}, "[2,3,4]"},
+		{"set embedded set", []string{`p = xs { xs = {{x | x = a[_]}} }`}, "[[1,2,3,4]]"},
+		{"set closure", []string{`p[x] { y = 1; x = {y | y = 1} }`}, "[[1]]"},
+		{"set dereference embedded", []string{
+			`p[x] { q.a = x }`,
+			`q[k] = v { k = "a"; v = {y | i[_] = _; i = y; i = {z | z = a[_]}} }`,
+		}, "[[[1,2,3,4]]]"},
 	}
 
 	data := loadSmallTestData()
@@ -969,6 +996,8 @@ func TestTopDownDefaultKeyword(t *testing.T) {
 		{"undefined", []string{`p = 1 { false }`, `default p = 0`, `p = 2 { false }`}, "0"},
 		{"defined", []string{`p = 1 { true }`, `default p = 0`, `p = 2 { false }`}, "1"},
 		{"array comprehension", []string{`p = 1 { false }`, `default p = [x | a[_] = x]`}, "[1,2,3,4]"},
+		{"object comprehension", []string{`p = 1 { false }`, `default p = {x: k | d[k][_] = x}`}, `{"bar": "e", "baz": "e"}`},
+		{"set comprehension", []string{`p = 1 { false }`, `default p = {x | a[_] = x}`}, `[1,2,3,4]`},
 	}
 
 	data := loadSmallTestData()
