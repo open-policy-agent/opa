@@ -91,7 +91,7 @@ func Ast(x interface{}) (formatted []byte, err error) {
 	case *ast.Rule:
 		w.writeRule(x, nil)
 	case *ast.Head:
-		w.write(x.String())
+		w.writeHead(x, nil)
 	case *ast.Func:
 		w.writeFunc(x, nil)
 	case *ast.FuncHead:
