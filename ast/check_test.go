@@ -6,6 +6,7 @@ package ast
 
 import (
 	"fmt"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -455,6 +456,21 @@ func TestCheckInferenceRules(t *testing.T) {
 
 }
 
+func TestCheckErrorSuppression(t *testing.T) {
+
+	query := `arr = [1,2,3]; arr[0].deadbeef = 1`
+
+	_, errs := newTypeChecker().CheckBody(nil, MustParseBody(query))
+	if len(errs) != 1 {
+		t.Fatalf("Expected exactly one error but got: %v", errs)
+	}
+
+	_, ok := errs[0].Details.(*RefErrUnsupportedDetail)
+	if !ok {
+		t.Fatalf("Expected ref error but got: %v", errs)
+	}
+}
+
 func TestCheckBadCardinality(t *testing.T) {
 	tests := []struct {
 		body string
@@ -572,19 +588,10 @@ func TestCheckBuiltinErrors(t *testing.T) {
 	}
 }
 
-func TestCheckRefErrors(t *testing.T) {
-
+func newTestEnv(rs []string) *TypeEnv {
 	module := MustParseModule(`
 		package test
 	`)
-
-	rs := []string{
-		`scalar = 1 { true }`,
-		`obj = {"foo": 1, "bar": 2} { true }`,
-		`nested = {"foo": [1,2,3]} { true }`,
-		`set[1] { true }`,
-		`else_kw = [1,2,3] { false } else = {"foo": 1} { true } else = {"bar": 2} { true }`,
-	}
 
 	var elems []util.T
 
@@ -600,35 +607,162 @@ func TestCheckRefErrors(t *testing.T) {
 
 	env, err := newTypeChecker().CheckTypes(nil, elems)
 	if len(err) > 0 {
-		t.Fatalf("Unexpected error in rules: %v", err)
+		panic(err)
 	}
+
+	return env
+}
+
+func TestCheckRefErrUnsupported(t *testing.T) {
+
+	query := `arr = [[1,2],[3,4]]; arr[1][0].deadbeef`
+
+	_, errs := newTypeChecker().CheckBody(nil, MustParseBody(query))
+	if len(errs) != 1 {
+		t.Fatalf("Expected exactly one error but got: %v", errs)
+	}
+
+	details, ok := errs[0].Details.(*RefErrUnsupportedDetail)
+	if !ok {
+		t.Fatalf("Expected ref err unsupported but got: %v", errs)
+	}
+
+	wantRef := MustParseRef(`arr[1][0].deadbeef`)
+	wantPos := 2
+	wantHave := types.N
+
+	if !wantRef.Equal(details.Ref) ||
+		wantPos != details.Pos ||
+		types.Compare(wantHave, details.Have) != 0 {
+		t.Fatalf("Expected (%v, %v, %v) but got: (%v, %v, %v)", wantRef, wantPos, wantHave, details.Ref, details.Pos, details.Have)
+	}
+
+}
+
+func TestCheckRefErrMissing(t *testing.T) {
+
+	query := `arr = [1,2,3]; arr[0].deadbeef = elem; elem[0]`
+
+	_, errs := newTypeChecker().CheckBody(nil, MustParseBody(query))
+	if len(errs) != 2 {
+		t.Fatalf("Expected exactly two errors but got: %v", errs)
+	}
+
+	details, ok := errs[1].Details.(*RefErrMissingDetail)
+	if !ok {
+		t.Fatalf("Expected ref err missing but got: %v", errs)
+	}
+
+	if !details.Ref.Equal(MustParseRef("elem[0]")) {
+		t.Fatalf("Expected ref elem[0] but got: %v", errs)
+	}
+}
+
+func TestCheckRefErrInvalid(t *testing.T) {
+
+	env := newTestEnv([]string{
+		`p { true }`,
+		`q = {"foo": 1, "bar": 2} { true }`,
+	})
 
 	tests := []struct {
 		note  string
-		input string
+		query string
+		ref   string
+		pos   int
+		have  types.Type
+		want  types.Type
+		oneOf []Value
 	}{
-		{"trivial", "{ data.test.obj.deadbeef }"},
-		{"trivial-2", "{ data.test.obj.foo.deadbeef }"},
-		{"non-leaf-var", `{ x = null; data.test[x] }`},
-		{"non-leaf-ref", `{ x = [1]; data.test[x[0]] }`},
-		{"non-leaf-nested-ref", `{ x = ["a"]; data.test[x[1]] }`},
-		{"non-leaf-invalid", `{ data.test[100] }`},
-		{"leaf-ref", `{ x = {"foo": 1}; data.test.obj[x.foo] }`},
-		{"leaf-var", `{ x = 1; data.test.obj[x] }`},
-		{"repeat", `{ data.test.nested[x][x] }`},
-		{"scalar", `{ data.test.scalar[x] }`},
-		{"else-arr", `{ data.test.else_kw[3] }`},
-		{"else-obj", `{ data.test.else_kw.deadbeef }`},
-		{"else-too-far", `{ data.test.else_kw.foo.bar }`},
-		{"suppression", `{ a = [1,2,3]; a[0].deadbeef = 1 }`},
+		{
+			note:  "bad non-leaf var",
+			query: `x = 1; data.test[x]`,
+			ref:   `data.test[x]`,
+			pos:   2,
+			have:  types.N,
+			want:  types.S,
+			oneOf: []Value{String("p"), String("q")},
+		},
+		{
+			note:  "bad non-leaf ref",
+			query: `arr = [1]; data.test[arr[0]]`,
+			ref:   `data.test[arr[0]]`,
+			pos:   2,
+			have:  types.N,
+			want:  types.S,
+			oneOf: []Value{String("p"), String("q")},
+		},
+		{
+			note:  "bad leaf ref",
+			query: `arr = [1]; data.test.q[arr[0]]`,
+			ref:   `data.test.q[arr[0]]`,
+			pos:   3,
+			have:  types.N,
+			want:  types.S,
+			oneOf: []Value{String("bar"), String("foo")},
+		},
+		{
+			note:  "bad leaf var",
+			query: `x = 1; data.test.q[x]`,
+			ref:   `data.test.q[x]`,
+			pos:   3,
+			have:  types.N,
+			want:  types.S,
+			oneOf: []Value{String("bar"), String("foo")},
+		},
+		{
+			note:  "bad array index value",
+			query: "arr = [[1,2],[3],[4]]; arr[0].dead.beef = x",
+			ref:   "arr[0].dead.beef",
+			pos:   2,
+			want:  types.N,
+		},
+		{
+			note:  "bad set element value",
+			query: `s = {{1,2},{3,4}}; x = {1,2}; s[x].deadbeef`,
+			ref:   "s[x].deadbeef",
+			pos:   2,
+			want:  types.N,
+		},
+		{
+			note:  "bad object key value",
+			query: `arr = [{"a": 1, "c": 3}, {"b": 2}]; arr[0].b`,
+			ref:   "arr[0].b",
+			pos:   2,
+			want:  types.S,
+			oneOf: []Value{String("a"), String("c")},
+		},
+		{
+			note:  "bad non-leaf value",
+			query: `data.test[1]`,
+			ref:   "data.test[1]",
+			pos:   2,
+			want:  types.S,
+			oneOf: []Value{String("p"), String("q")},
+		},
 	}
 
 	for _, tc := range tests {
 		test.Subtest(t, tc.note, func(t *testing.T) {
-			body := MustParseBody(tc.input)
-			_, err := newTypeChecker().CheckBody(env, body)
-			if len(err) != 1 {
-				t.Fatalf("Expected exactly one error but got: %v", err)
+
+			_, errs := newTypeChecker().CheckBody(env, MustParseBody(tc.query))
+			if len(errs) != 1 {
+				t.Fatalf("Expected exactly one error but got: %v", errs)
+			}
+
+			details, ok := errs[0].Details.(*RefErrInvalidDetail)
+			if !ok {
+				t.Fatalf("Expected ref error invalid but got: %v", errs)
+			}
+
+			wantRef := MustParseRef(tc.ref)
+
+			if details.Pos != tc.pos ||
+				!details.Ref.Equal(wantRef) ||
+				types.Compare(details.Want, tc.want) != 0 ||
+				types.Compare(details.Have, tc.have) != 0 ||
+				!reflect.DeepEqual(details.OneOf, tc.oneOf) {
+				t.Fatalf("Expected (%v, %v, %v, %v, %v) but got: (%v, %v, %v, %v, %v)", wantRef, tc.pos, tc.have, tc.want, tc.oneOf, details.Ref, details.Pos, details.Have, details.Want, details.OneOf)
 			}
 		})
 	}
@@ -692,5 +826,89 @@ func TestUserFunctionsTypeInference(t *testing.T) {
 				t.Fatalf("Expected compiler to fail: %t, compiler failed: %t", test.err, c.Failed())
 			}
 		})
+	}
+}
+
+func TestCheckErrorDetails(t *testing.T) {
+
+	tests := []struct {
+		detail   ErrorDetails
+		expected []string
+	}{
+		{
+			detail: &RefErrUnsupportedDetail{
+				Ref:  MustParseRef("data.foo[x]"),
+				Pos:  1,
+				Have: types.N,
+			},
+			expected: []string{
+				"data.foo[x]",
+				"^^^^^^^^",
+				"have: number",
+			},
+		},
+		{
+			detail: &RefErrInvalidDetail{
+				Ref:  MustParseRef("data.foo[x]"),
+				Pos:  2,
+				Have: types.N,
+				Want: types.S,
+			},
+			expected: []string{
+				"data.foo[x]",
+				"         ^",
+				"         have (type): number",
+				"         want (type): string",
+			},
+		},
+		{
+			detail: &RefErrInvalidDetail{
+				Ref:  MustParseRef("data.foo[100]"),
+				Pos:  2,
+				Want: types.S,
+				OneOf: []Value{
+					String("a"),
+					String("b"),
+				},
+			},
+			expected: []string{
+				"data.foo[100]",
+				"         ^",
+				"         have: 100",
+				`         want (one of): ["a" "b"]`,
+			},
+		},
+		{
+			detail: &RefErrMissingDetail{
+				Ref: MustParseRef("xxx.foo"),
+			},
+			expected: []string{
+				"xxx.foo",
+				"^^^",
+				"missing type information",
+			},
+		},
+		{
+			detail: &ArgErrDetail{
+				Have: []types.Type{
+					types.N,
+					types.S,
+				},
+				Want: []types.Type{
+					types.S,
+					types.S,
+				},
+			},
+			expected: []string{
+				"have: (number, string)",
+				"want: (string, string)",
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		if !reflect.DeepEqual(tc.detail.Lines(), tc.expected) {
+			t.Errorf("Expected %v for %v but got: %v", tc.expected, tc.detail, tc.detail.Lines())
+		}
 	}
 }

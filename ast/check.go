@@ -6,6 +6,7 @@ package ast
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/open-policy-agent/opa/types"
@@ -474,7 +475,7 @@ func (rc *refChecker) checkRef(curr *TypeEnv, node *typeTreeNode, ref Ref, idx i
 
 		if exist := rc.env.Get(value); exist != nil {
 			if !unifies(types.S, exist) {
-				return newRefError(ref[0].Location, ref, idx, nil, exist)
+				return newRefErrInvalid(ref[0].Location, ref, idx, exist, types.S, getOneOfForNode(node))
 			}
 		} else {
 			rc.env.tree.PutOne(value, types.S)
@@ -490,13 +491,13 @@ func (rc *refChecker) checkRef(curr *TypeEnv, node *typeTreeNode, ref Ref, idx i
 		}
 
 		if !unifies(types.S, exist) {
-			return newRefError(ref[0].Location, ref, idx, nil, exist)
+			return newRefErrInvalid(ref[0].Location, ref, idx, exist, types.S, getOneOfForNode(node))
 		}
 
 	// Catch other ref operand types here. Non-leaf nodes must be referred to
 	// with string values.
 	default:
-		return newRefError(ref[0].Location, ref, idx, nil, rc.env.Get(value))
+		return newRefErrInvalid(ref[0].Location, ref, idx, nil, types.S, getOneOfForNode(node))
 	}
 
 	// Run checking on remaining portion of the ref. Note, since the ref
@@ -519,7 +520,7 @@ func (rc *refChecker) checkRefLeaf(tpe types.Type, ref Ref, idx int) *Error {
 
 	keys := types.Keys(tpe)
 	if keys == nil {
-		return newRefError(ref[0].Location, ref, idx, tpe, nil)
+		return newRefErrUnsupported(ref[0].Location, ref, idx-1, tpe)
 	}
 
 	switch value := head.Value.(type) {
@@ -527,7 +528,7 @@ func (rc *refChecker) checkRefLeaf(tpe types.Type, ref Ref, idx int) *Error {
 	case Var:
 		if exist := rc.env.Get(value); exist != nil {
 			if !unifies(exist, keys) {
-				return newRefError(ref[0].Location, ref, idx, tpe, exist)
+				return newRefErrInvalid(ref[0].Location, ref, idx, exist, keys, getOneOfForType(tpe))
 			}
 		} else {
 			rc.env.tree.PutOne(value, types.Keys(tpe))
@@ -536,14 +537,14 @@ func (rc *refChecker) checkRefLeaf(tpe types.Type, ref Ref, idx int) *Error {
 	case Ref:
 		if exist := rc.env.Get(value); exist != nil {
 			if !unifies(exist, keys) {
-				return newRefError(ref[0].Location, ref, idx, tpe, exist)
+				return newRefErrInvalid(ref[0].Location, ref, idx, exist, keys, getOneOfForType(tpe))
 			}
 		}
 
 	default:
 		child := selectConstant(tpe, head)
 		if child == nil {
-			return newRefError(ref[0].Location, ref, idx, tpe, nil)
+			return newRefErrInvalid(ref[0].Location, ref, idx, nil, types.Keys(tpe), getOneOfForType(tpe))
 		}
 		return rc.checkRefLeaf(child, ref, idx+1)
 	}
@@ -562,7 +563,7 @@ func (rc *refChecker) checkRefNext(curr *TypeEnv, ref Ref) *Error {
 		return rc.checkRefLeaf(types.A, ref, 0)
 	}
 
-	return NewError(TypeErr, ref[0].Location, "ref is unsafe: %v", ref)
+	return newRefErrMissing(ref[0].Location, ref)
 }
 
 func unifies(a, b types.Type) bool {
@@ -716,8 +717,8 @@ type ArgErrDetail struct {
 // Lines returns the string representation of the detail.
 func (d *ArgErrDetail) Lines() []string {
 	lines := make([]string, 2)
-	lines[0] = fmt.Sprint("have : ", formatArgs(d.Have))
-	lines[1] = fmt.Sprint("want : ", formatArgs(d.Want))
+	lines[0] = fmt.Sprint("have: ", formatArgs(d.Have))
+	lines[1] = fmt.Sprint("want: ", formatArgs(d.Want))
 	return lines
 }
 
@@ -730,8 +731,8 @@ func (d *ArgErrDetail) nilType() bool {
 	return false
 }
 
-// UnificationErrDetail represents a type mismatch error when two **values**
-// are unified (as in x = y).
+// UnificationErrDetail describes a type mismatch error when two values are
+// unified (e.g., x = [1,2,y]).
 type UnificationErrDetail struct {
 	Left  types.Type `json:"a"`
 	Right types.Type `json:"b"`
@@ -749,38 +750,67 @@ func (a *UnificationErrDetail) Lines() []string {
 	return lines
 }
 
-// RefErrDetail represents an undefined ref.
-type RefErrDetail struct {
-	Ref      Ref        `json:"ref"`
-	Index    int        `json:"index"`
-	Refers   types.Type `json:"refers"`
-	Referrer types.Type `json:"referrer"`
+// RefErrUnsupportedDetail describes an undefined reference error where the
+// referenced value does not support dereferencing (e.g., scalars).
+type RefErrUnsupportedDetail struct {
+	Ref  Ref        `json:"ref"`  // invalid ref
+	Pos  int        `json:"pos"`  // invalid element
+	Have types.Type `json:"have"` // referenced type
 }
 
 // Lines returns the string representation of the detail.
-func (r *RefErrDetail) Lines() []string {
-	lines := []string{}
-	lines = append(lines, fmt.Sprintf("prefix    : %v (valid)", r.Ref[:r.Index]))
-	if r.Refers != nil {
-		lines = append(lines, fmt.Sprintf("refers to : %v", r.Refers))
-	}
-	tail := r.Ref[r.Index:]
-	var str string
-	if len(tail) == 1 {
-		switch v := tail[0].Value.(type) {
-		case String:
-			str = formatString(v)
-		default:
-			str = v.String()
-		}
-	} else {
-		str = tail.String()
-	}
-	lines = append(lines, fmt.Sprintf("suffix    : %v (invalid)", str))
-	if r.Referrer != nil {
-		lines = append(lines, fmt.Sprintf("refers to : %v", r.Referrer))
+func (r *RefErrUnsupportedDetail) Lines() []string {
+	lines := []string{
+		r.Ref.String(),
+		strings.Repeat("^", len(r.Ref[:r.Pos+1].String())),
+		fmt.Sprintf("have: %v", r.Have),
 	}
 	return lines
+}
+
+// RefErrInvalidDetail describes an undefined reference error where the referenced
+// value does not support the reference operand (e.g., missing object key,
+// invalid key type, etc.)
+type RefErrInvalidDetail struct {
+	Ref   Ref        `json:"ref"`            // invalid ref
+	Pos   int        `json:"pos"`            // invalid element
+	Have  types.Type `json:"have,omitempty"` // type of invalid element (for var/ref elements)
+	Want  types.Type `json:"want"`           // allowed type (for non-object values)
+	OneOf []Value    `json:"oneOf"`          // allowed values (e.g., for object keys)
+}
+
+// Lines returns the string representation of the detail.
+func (r *RefErrInvalidDetail) Lines() []string {
+	lines := []string{r.Ref.String()}
+	offset := len(r.Ref[:r.Pos].String()) + 1
+	pad := strings.Repeat(" ", offset)
+	lines = append(lines, fmt.Sprintf("%s^", pad))
+	if r.Have != nil {
+		lines = append(lines, fmt.Sprintf("%shave (type): %v", pad, r.Have))
+	} else {
+		lines = append(lines, fmt.Sprintf("%shave: %v", pad, r.Ref[r.Pos]))
+	}
+	if len(r.OneOf) > 0 {
+		lines = append(lines, fmt.Sprintf("%swant (one of): %v", pad, r.OneOf))
+	} else {
+		lines = append(lines, fmt.Sprintf("%swant (type): %v", pad, r.Want))
+	}
+	return lines
+}
+
+// RefErrMissingDetail describes an undefined reference error where the type
+// information for the head of the reference is missing.
+type RefErrMissingDetail struct {
+	Ref Ref
+}
+
+// Lines returns the string representation of the detail.
+func (r *RefErrMissingDetail) Lines() []string {
+	return []string{
+		r.Ref.String(),
+		strings.Repeat("^", len(r.Ref[0].String())),
+		"missing type information",
+	}
 }
 
 func formatArgs(args []types.Type) string {
@@ -791,15 +821,38 @@ func formatArgs(args []types.Type) string {
 	return "(" + strings.Join(buf, ", ") + ")"
 }
 
-func newRefError(loc *Location, ref Ref, idx int, refers, referrer types.Type) *Error {
-	err := NewError(TypeErr, loc, "undefined ref: %v", ref)
-	err.Details = &RefErrDetail{
-		Ref:      ref,
-		Index:    idx,
-		Refers:   refers,
-		Referrer: referrer,
+func newRefErrInvalid(loc *Location, ref Ref, idx int, have, want types.Type, oneOf []Value) *Error {
+	err := newRefError(loc, ref)
+	err.Details = &RefErrInvalidDetail{
+		Ref:   ref,
+		Pos:   idx,
+		Have:  have,
+		Want:  want,
+		OneOf: oneOf,
 	}
 	return err
+}
+
+func newRefErrUnsupported(loc *Location, ref Ref, idx int, have types.Type) *Error {
+	err := newRefError(loc, ref)
+	err.Details = &RefErrUnsupportedDetail{
+		Ref:  ref,
+		Pos:  idx,
+		Have: have,
+	}
+	return err
+}
+
+func newRefErrMissing(loc *Location, ref Ref) *Error {
+	err := newRefError(loc, ref)
+	err.Details = &RefErrMissingDetail{
+		Ref: ref,
+	}
+	return err
+}
+
+func newRefError(loc *Location, ref Ref) *Error {
+	return NewError(TypeErr, loc, "undefined ref: %v", ref)
 }
 
 func newArgError(loc *Location, builtinName String, msg string, have []types.Type, want []types.Type) *Error {
@@ -809,4 +862,33 @@ func newArgError(loc *Location, builtinName String, msg string, have []types.Typ
 		Want: want,
 	}
 	return err
+}
+
+func getOneOfForNode(node *typeTreeNode) (result []Value) {
+	for k := range node.Children() {
+		result = append(result, k)
+	}
+	sortValueSlice(result)
+	return result
+}
+
+func getOneOfForType(tpe types.Type) (result []Value) {
+	switch tpe := tpe.(type) {
+	case *types.Object:
+		for _, k := range tpe.Keys() {
+			v, err := InterfaceToValue(k)
+			if err != nil {
+				panic(err)
+			}
+			result = append(result, v)
+		}
+	}
+	sortValueSlice(result)
+	return result
+}
+
+func sortValueSlice(sl []Value) {
+	sort.Slice(sl, func(i, j int) bool {
+		return sl[i].Compare(sl[j]) < 0
+	})
 }
