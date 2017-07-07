@@ -88,8 +88,33 @@ e = [1 | split("foo.bar", ".", x); x[_]]
 f = [1 | split("foo.bar", ".", x)
 x[_]]
 g = [1 |
-split("foo.bar", ".", x)
-x[_]]
+split("foo.bar", ".", x) # comment in array comprehension
+x[_]
+# inner comment
+]
+
+h = {1 | b[_]}
+i = {1 | split("foo.bar", ".", x); x[_]}
+j = {1 | split("foo.bar", ".", x)
+x[_]}
+k = {1 |
+split("foo.bar", ".", x) # comment in set comprehension
+x[_]
+
+# inner comment
+}
+
+l = {"foo":1 | b[_]}
+m = {y:
+x | split("foo.bar", ".", x); y = x[_]}
+n = {y:  x | split("foo.bar", ".", x)
+y = x[_]}
+o = {y: x | 
+split("foo.bar", ".", x) # comment in object comprehension
+y = x[_]
+
+# inner comment
+}
 } # Comment on rule closing brace
 
 # more comments!

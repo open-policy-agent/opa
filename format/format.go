@@ -399,16 +399,9 @@ func (w *writer) writeWith(with *ast.With, comments []*ast.Comment) []*ast.Comme
 	return w.writeTerm(with.Value, comments)
 }
 
-// writeTerm assumes that the current line has been started. it must leave the
-// current line started as well.
 func (w *writer) writeTerm(term *ast.Term, comments []*ast.Comment) []*ast.Comment {
-	if !w.inline {
-		panic("writing term on unstarted line")
-	}
-
 	comments = w.insertComments(comments, term.Location)
 	if !w.inline {
-		// If any comments were written, we need to start the line again.
 		w.startLine()
 	}
 
@@ -424,12 +417,16 @@ func (w *writer) writeTerm(term *ast.Term, comments []*ast.Comment) []*ast.Comme
 		comments = w.writeSet(x, term.Location, comments)
 	case *ast.ArrayComprehension:
 		comments = w.writeArrayComprehension(x, term.Location, comments)
+	case *ast.ObjectComprehension:
+		comments = w.writeObjectComprehension(x, term.Location, comments)
+	case *ast.SetComprehension:
+		comments = w.writeSetComprehension(x, term.Location, comments)
 	case fmt.Stringer:
 		w.write(x.String())
 	}
 
 	if !w.inline {
-		panic("writeTerm did not leave the line in started state")
+		w.startLine()
 	}
 	return comments
 }
@@ -474,38 +471,68 @@ func (w *writer) writeArrayComprehension(arr *ast.ArrayComprehension, loc *ast.L
 	w.write("[")
 	defer w.write("]")
 
-	if arr.Term.Location.Row-loc.Row > 1 {
+	return w.writeComprehension('[', ']', arr.Term, arr.Body, loc, comments)
+}
+
+func (w *writer) writeSetComprehension(set *ast.SetComprehension, loc *ast.Location, comments []*ast.Comment) []*ast.Comment {
+	w.write("{")
+	defer w.write("}")
+
+	return w.writeComprehension('{', '}', set.Term, set.Body, loc, comments)
+}
+
+func (w *writer) writeObjectComprehension(object *ast.ObjectComprehension, loc *ast.Location, comments []*ast.Comment) []*ast.Comment {
+	w.write("{")
+	defer w.write("}")
+
+	object.Value.Location = object.Key.Location // Ensure the value is not written on the next line.
+	if object.Key.Location.Row-loc.Row > 1 {
 		w.endLine()
 		w.startLine()
 	}
 
-	comments = w.writeTerm(arr.Term, comments)
+	comments = w.writeTerm(object.Key, comments)
+	w.write(": ")
+	return w.writeComprehension('{', '}', object.Value, object.Body, loc, comments)
+}
+
+func (w *writer) writeComprehension(open, close byte, term *ast.Term, body ast.Body, loc *ast.Location, comments []*ast.Comment) []*ast.Comment {
+	if term.Location.Row-loc.Row > 1 {
+		w.endLine()
+		w.startLine()
+	}
+
+	comments = w.writeTerm(term, comments)
 	w.write(" |")
 
+	return w.writeComprehensionBody(open, close, body, term.Location, loc, comments)
+}
+
+func (w *writer) writeComprehensionBody(open, close byte, body ast.Body, term, compr *ast.Location, comments []*ast.Comment) []*ast.Comment {
 	var exprs []interface{}
-	for _, expr := range arr.Body {
+	for _, expr := range body {
 		exprs = append(exprs, expr)
 	}
-	lines := groupIterable(exprs, arr.Term.Location)
+	lines := groupIterable(exprs, term)
 
-	if arr.Body.Loc().Row-loc.Row > 0 || len(lines) > 1 {
+	if body.Loc().Row-term.Row > 0 || len(lines) > 1 {
 		w.endLine()
 		w.up()
 		defer w.startLine()
 		defer w.down()
 
-		comments = w.writeBody(arr.Body, comments)
+		comments = w.writeBody(body, comments)
 	} else {
 		w.write(" ")
 		i := 0
-		for ; i < len(arr.Body)-1; i++ {
-			comments = w.writeExpr(arr.Body[i], comments)
+		for ; i < len(body)-1; i++ {
+			comments = w.writeExpr(body[i], comments)
 			w.write("; ")
 		}
-		comments = w.writeExpr(arr.Body[i], comments)
+		comments = w.writeExpr(body[i], comments)
 	}
 
-	return w.insertComments(comments, closingLoc(0, 0, '[', ']', loc))
+	return w.insertComments(comments, closingLoc(0, 0, open, close, compr))
 }
 
 func (w *writer) writeImports(imports []*ast.Import, comments []*ast.Comment) []*ast.Comment {
