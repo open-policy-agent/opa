@@ -58,7 +58,7 @@ func (u *unifier) unify(a *Term, b *Term) {
 			case Var:
 				u.markSafe(b)
 			case Array, Object:
-				u.markAllSafe(b, a)
+				u.markAllSafe(b)
 			}
 		}
 
@@ -67,14 +67,14 @@ func (u *unifier) unify(a *Term, b *Term) {
 		case Var:
 			u.markSafe(b)
 		case Array:
-			u.markAllSafe(b, a)
+			u.markAllSafe(b)
 		}
 	case *ObjectComprehension:
 		switch b := b.Value.(type) {
 		case Var:
 			u.markSafe(b)
 		case Object:
-			u.markAllSafe(b, a)
+			u.markAllSafe(b)
 		}
 	case *SetComprehension:
 		switch b := b.Value.(type) {
@@ -87,7 +87,7 @@ func (u *unifier) unify(a *Term, b *Term) {
 		case Var:
 			u.unifyAll(b, a)
 		case Ref, *ArrayComprehension, *ObjectComprehension, *SetComprehension:
-			u.markAllSafe(a, b)
+			u.markAllSafe(a)
 		case Array:
 			if len(a) == len(b) {
 				for i := range a {
@@ -101,7 +101,7 @@ func (u *unifier) unify(a *Term, b *Term) {
 		case Var:
 			u.unifyAll(b, a)
 		case Ref:
-			u.markAllSafe(a, b)
+			u.markAllSafe(a)
 		case Object:
 			if len(a) == len(b) {
 				for i := range a {
@@ -118,7 +118,7 @@ func (u *unifier) unify(a *Term, b *Term) {
 	}
 }
 
-func (u *unifier) markAllSafe(x Value, y Value) {
+func (u *unifier) markAllSafe(x Value) {
 	vis := u.varVisitor()
 	Walk(vis, x)
 	for v := range vis.Vars() {
@@ -157,7 +157,7 @@ func (u *unifier) markUnknown(a, b Var) {
 
 func (u *unifier) unifyAll(a Var, b Value) {
 	if u.isSafe(a) {
-		u.markAllSafe(b, a)
+		u.markAllSafe(b)
 	} else {
 		vis := u.varVisitor()
 		Walk(vis, b)
