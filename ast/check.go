@@ -67,20 +67,6 @@ func (tc *typeChecker) CheckBody(env *TypeEnv, body Body) (*TypeEnv, Errors) {
 	return env, tc.errs
 }
 
-func (tc *typeChecker) checkLanguageBuiltins(env *TypeEnv) *TypeEnv {
-	if env == nil {
-		env = NewTypeEnv()
-	} else {
-		env = env.wrap()
-	}
-
-	for _, bi := range Builtins {
-		env.PutFunc(bi.Name, bi.Args)
-	}
-
-	return env
-}
-
 // CheckTypes runs type checking on the rules and funcs and returns a TypeEnv if no
 // errors are found. The resulting TypeEnv wraps the provided one. The
 // resulting TypeEnv will be able to resolve types of refs that refer to rules
@@ -150,6 +136,20 @@ func (tc *typeChecker) checkFunc(env *TypeEnv, fn *Func) {
 	out := mergeTypes(cpy.Get(fn.Head.Output), cur, numArgs)
 	argTypes = append(argTypes, out)
 	env.PutFunc(name, argTypes)
+}
+
+func (tc *typeChecker) checkLanguageBuiltins(env *TypeEnv) *TypeEnv {
+	if env == nil {
+		env = NewTypeEnv()
+	} else {
+		env = env.wrap()
+	}
+
+	for _, bi := range Builtins {
+		env.PutFunc(bi.Name, bi.Args)
+	}
+
+	return env
 }
 
 func (tc *typeChecker) checkRule(env *TypeEnv, rule *Rule) {
