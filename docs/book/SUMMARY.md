@@ -32,6 +32,8 @@
       * [Self-Joins](how-do-i-write-policies.md#self-joins)
     * [Comprehensions](how-do-i-write-policies.md#comprehensions)
       * [Array Comprehensions](how-do-i-write-policies.md#array-comprehensions)
+      * [Object Comprehensions](how-do-i-write-policies.md#object-comprehensions)
+      * [Set Comprehensions](how-do-i-write-policies.md#set-comprehensions)
     * [Rules](how-do-i-write-policies.md#rules)
       * [Generating Sets](how-do-i-write-policies.md#generating-sets)
       * [Generating Objects](how-do-i-write-policies.md#generating-objects)

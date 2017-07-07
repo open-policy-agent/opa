@@ -579,7 +579,68 @@ The result:
 +-----------+------------------------------------------------------+
 ```
 
-In the future, Rego will support Set and Object comprehensions.
+### <a name="object-comprehensions"></a> Object Comprehensions
+
+Object Comprehensions build object values out of sub-queries. Object Comprehensions have the form:
+
+```ruby
+{ <key>: <term> | <body> }
+```
+
+We can use Object Comprehensions to write the rule from above as a comprehension instead:
+
+```ruby
+app_to_hostnames = {app.name: hostnames |
+    apps[_] = app
+    hostnames = [hostname |
+                    name = app.servers[_]
+                    sites[_].servers[_] = s
+                    s.name = name
+                    hostname = s.hostname]
+}
+```
+
+The result is the same:
+
+```ruby
+> app_to_hostnames[app]
++-----------+------------------------------------------------------+
+|    app    |                app_to_hostnames[app]                 |
++-----------+------------------------------------------------------+
+| "web"     | ["hydrogen","helium","beryllium","boron","nitrogen"] |
+| "mysql"   | ["lithium","carbon"]                                 |
+| "mongodb" | ["oxygen"]                                           |
++-----------+------------------------------------------------------+
+```
+
+Object comprehensions are not allowed to have conflicting entries, similar to rules:
+
+```ruby
+> {"foo": y | y = z[_]; z = [1, 2, 3]}
+{"foo": y | y = z[_]; z = [1, 2, 3]}: eval_conflict_error: object comprehension produces conflicting outputs
+```
+
+### <a name="set-comprehensions"></a> Set Comprehensions
+
+Set Comprehensions build set values out of sub-queries. Set Comprehensions have the form:
+
+```ruby
+{ <term> | <body> }
+```
+
+For example, to construct a set from an array:
+```ruby
+> a = [1, 2, 3, 4, 3, 4, 3, 4, 5]
+> b = {x | x = a[_]}
+> b
+[
+  1,
+  2,
+  3,
+  4,
+  5
+]
+```
 
 ## <a name="rules"></a> Rules
 

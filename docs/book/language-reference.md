@@ -145,6 +145,8 @@ expr-infix      = [ term "=" ] term infix-operator term
 term            = ref | var | scalar | array | object | set | array-compr
 arg-term        = scalar | var | arg-object | arg-array
 array-compr     = "[" term "|" rule-body "]"
+set-compr       = "{" term "|" rule-body "}"
+object-compr    = "{" object-item "|" rule-body "}"
 infix-operator  = bool-operator | arith-operator | bin-operator
 bool-operator   = "=" | "!=" | "<" | ">" | ">=" | "<="
 arith-operator  = "+" | "-" | "*" | "/"
