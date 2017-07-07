@@ -620,6 +620,7 @@ func TestCheckRefErrors(t *testing.T) {
 		{"else-arr", `{ data.test.else_kw[3] }`},
 		{"else-obj", `{ data.test.else_kw.deadbeef }`},
 		{"else-too-far", `{ data.test.else_kw.foo.bar }`},
+		{"suppression", `{ a = [1,2,3]; a[0].deadbeef = 1 }`},
 	}
 
 	for _, tc := range tests {
