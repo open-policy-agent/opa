@@ -5,7 +5,9 @@
 package rego_test
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 
 	"github.com/open-policy-agent/opa/ast"
@@ -34,6 +36,47 @@ func ExampleRego_Eval_simple() {
 	// len: 1
 	// bindings: map[x:1]
 	// err: <nil>
+}
+
+func ExampleRego_Eval_input() {
+
+	ctx := context.Background()
+
+	// Raw input data that will be used in evaluation.
+	raw := `{"users": [{"id": "bob"}, {"id": "alice"}]}`
+	d := json.NewDecoder(bytes.NewBufferString(raw))
+
+	// Numeric values must be represented using json.Number.
+	d.UseNumber()
+
+	var input interface{}
+
+	if err := d.Decode(&input); err != nil {
+		panic(err)
+	}
+
+	// Create a simple query over the input.
+	rego := rego.New(
+		rego.Query("input.users[idx].id = user_id"),
+		rego.Input(input))
+
+	//Run evaluation.
+	rs, err := rego.Eval(ctx)
+
+	if err != nil {
+		// Handle error.
+	}
+
+	// Inspect results.
+	fmt.Println("len:", len(rs))
+	fmt.Println("bindings.idx:", rs[1].Bindings["idx"])
+	fmt.Println("bindings.user_id:", rs[1].Bindings["user_id"])
+
+	// Output:
+	//
+	// len: 2
+	// bindings.idx: 1
+	// bindings.user_id: alice
 }
 
 func ExampleRego_Eval_multipleBindings() {
@@ -128,6 +171,72 @@ p = {"hello": "alice", "goodbye": "bob"} { true }`,
 	// value: bob (i=1)
 }
 
+func ExampleRego_Eval_compiler() {
+
+	ctx := context.Background()
+
+	// Define a simple policy.
+	module := `
+		package example
+
+		default allow = false
+
+		allow {
+			input.identity = "admin"
+		}
+
+		allow {
+			input.method = "GET"
+		}
+	`
+
+	// Parse the module. The first argument is used as an identifier in error messages.
+	parsed, err := ast.ParseModule("example.rego", module)
+	if err != nil {
+		// Handle error.
+	}
+
+	// Create a new compiler and compile the module. The keys are used as
+	// identifiers in error messages.
+	compiler := ast.NewCompiler()
+	compiler.Compile(map[string]*ast.Module{
+		"example.rego": parsed,
+	})
+
+	if compiler.Failed() {
+		// Handle error. Compilation errors are stored on the compiler.
+		panic(compiler.Errors)
+	}
+
+	// Create a new query that uses the compiled policy from above.
+	rego := rego.New(
+		rego.Query("data.example.allow"),
+		rego.Compiler(compiler),
+		rego.Input(
+			map[string]interface{}{
+				"identity": "bob",
+				"method":   "GET",
+			},
+		),
+	)
+
+	// Run evaluation.
+	rs, err := rego.Eval(ctx)
+
+	if err != nil {
+		// Handle error.
+	}
+
+	// Inspect results.
+	fmt.Println("len:", len(rs))
+	fmt.Println("value:", rs[0].Expressions[0].Value)
+
+	// Output:
+	//
+	// len: 1
+	// value: true
+}
+
 func ExampleRego_Eval_storage() {
 
 	ctx := context.Background()
@@ -154,10 +263,8 @@ func ExampleRego_Eval_storage() {
 		// Handle error.
 	}
 
-	// Manually create the storage layer. storage.InMemoryWithJSONConfig will
-	// return configure the storage layer to use an in-memory store with the
-	// specified json data. This is mostly for test purposes. See storage
-	// package for more information on custom storage backends.
+	// Manually create the storage layer. inmem.NewFromObject returns an
+	// in-memory store containing the supplied data.
 	store := inmem.NewFromObject(json)
 
 	// Create new query that returns the value
