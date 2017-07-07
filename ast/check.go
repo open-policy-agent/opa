@@ -58,8 +58,16 @@ func (tc *typeChecker) CheckBody(env *TypeEnv, body Body) (*TypeEnv, Errors) {
 			tc.err(err)
 		}
 
+		refErrors := len(vis.errs) > 0
+
 		if err := tc.checkExpr(env, expr); err != nil {
-			tc.err(err)
+			// Suppress errors if another error occurred that is more
+			// actionable. In this case, if there is a ref error and the
+			// expression error is due to a nil type, it's likely caused by
+			// inability to infer a value's type referred to in the expr.
+			if !refErrors || !causedByNilType(err) {
+				tc.err(err)
+			}
 		}
 		return false
 	})
@@ -684,6 +692,21 @@ func builtinNameRef(name String) Ref {
 	return n
 }
 
+// typeErrorCause defines an interface to determine the reason for a type
+// error. The type error details implement this interface so that type checking
+// can report more actionable errors.
+type typeErrorCause interface {
+	nilType() bool
+}
+
+func causedByNilType(err *Error) bool {
+	cause, ok := err.Details.(typeErrorCause)
+	if !ok {
+		return false
+	}
+	return cause.nilType()
+}
+
 // ArgErrDetail represents a generic argument error.
 type ArgErrDetail struct {
 	Have []types.Type `json:"have"`
@@ -698,11 +721,24 @@ func (d *ArgErrDetail) Lines() []string {
 	return lines
 }
 
+func (d *ArgErrDetail) nilType() bool {
+	for i := range d.Have {
+		if types.Nil(d.Have[i]) {
+			return true
+		}
+	}
+	return false
+}
+
 // UnificationErrDetail represents a type mismatch error when two **values**
 // are unified (as in x = y).
 type UnificationErrDetail struct {
 	Left  types.Type `json:"a"`
 	Right types.Type `json:"b"`
+}
+
+func (a *UnificationErrDetail) nilType() bool {
+	return types.Nil(a.Left) || types.Nil(a.Right)
 }
 
 // Lines returns the string representation of the detail.
