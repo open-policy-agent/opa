@@ -176,9 +176,8 @@ h6{
   list-style-type: none;
 }
 
-  @media (min-width: 640px) {
     ._doc--hamburger-menu-container {
-      display: none; } }
+      display: none; }
 
 @media (min-width: 640px) {
   ._doc--menu-mobile {
