@@ -23,6 +23,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/metrics"
+	"github.com/open-policy-agent/opa/rego"
 	"github.com/open-policy-agent/opa/server/authorizer"
 	"github.com/open-policy-agent/opa/server/identifier"
 	"github.com/open-policy-agent/opa/server/types"
@@ -220,56 +221,48 @@ func (s *Server) Listeners() (func() error, func() error) {
 	return loop2, loop1
 }
 
-func (s *Server) execQuery(ctx context.Context, compiler *ast.Compiler, txn storage.Transaction, query ast.Body, input ast.Value, explainMode types.ExplainModeV1) (types.QueryResponseV1, error) {
-
-	t := topdown.New(ctx, query, s.Compiler(), s.store, txn).WithInput(input)
-
+func (s *Server) execQuery(ctx context.Context, query string, input ast.Value, explainMode types.ExplainModeV1, includeMetrics bool) (results types.QueryResponseV1, err error) {
 	var buf *topdown.BufferTracer
-
 	if explainMode != types.ExplainOffV1 {
 		buf = topdown.NewBufferTracer()
-		t.Tracer = buf
 	}
+	m := metrics.New()
 
-	qrs := types.AdhocQueryResultSetV1{}
+	compiler := s.Compiler()
+	r := rego.New(
+		rego.Store(s.store),
+		rego.Compiler(compiler),
+		rego.Query(query),
+		rego.Input(input),
+		rego.Metrics(m),
+		rego.Tracer(buf),
+	)
 
-	err := topdown.Eval(t, func(t *topdown.Topdown) error {
-		result := map[string]interface{}{}
-		for k, v := range t.Vars() {
-			if !k.IsWildcard() {
-				x, err := ast.ValueToInterface(v, t)
-				if err != nil {
-					return err
-				}
-				result[k.String()] = x
-			}
-		}
-		if len(result) > 0 {
-			qrs = append(qrs, result)
-		}
-		return nil
-	})
-
+	output, err := r.Eval(ctx)
 	if err != nil {
-		return types.QueryResponseV1{}, err
+		return results, err
 	}
 
-	result := types.QueryResponseV1{
-		Result: qrs,
+	for _, result := range output {
+		results.Result = append(results.Result, result.Bindings.WithoutWildcards())
+	}
+
+	if includeMetrics {
+		results.Metrics = m.All()
 	}
 
 	switch explainMode {
 	case types.ExplainFullV1:
-		result.Explanation = types.NewTraceV1(*buf)
+		results.Explanation = types.NewTraceV1(*buf)
 	case types.ExplainTruthV1:
 		answer, err := explain.Truth(compiler, *buf)
 		if err != nil {
-			return types.QueryResponseV1{}, err
+			return results, err
 		}
-		result.Explanation = types.NewTraceV1(answer)
+		results.Explanation = types.NewTraceV1(answer)
 	}
 
-	return result, nil
+	return results, nil
 }
 
 func (s *Server) indexGet(w http.ResponseWriter, r *http.Request) {
@@ -295,25 +288,7 @@ func (s *Server) indexGet(w http.ResponseWriter, r *http.Request) {
 	qStr := qStrs[len(qStrs)-1]
 	t0 := time.Now()
 
-	var results interface{}
-	txn, err := s.store.NewTransaction(ctx)
-
-	if err != nil {
-		renderQueryResult(w, nil, err, t0)
-		return
-	}
-
-	defer s.store.Abort(ctx, txn)
-
-	var query ast.Body
-	query, err = ast.ParseBody(qStr)
-	if err != nil {
-		renderQueryResult(w, nil, err, t0)
-		return
-	}
-
 	var input ast.Value
-
 	if len(inputStrs) > 0 {
 		inputStr := inputStrs[len(qStrs)-1]
 		t, err := ast.ParseTerm(inputStr)
@@ -324,15 +299,7 @@ func (s *Server) indexGet(w http.ResponseWriter, r *http.Request) {
 		input = t.Value
 	}
 
-	compiler := s.Compiler()
-	queryContext := ast.NewQueryContext().WithInput(input)
-	query, err = compiler.QueryCompiler().WithContext(queryContext).Compile(query)
-	if err != nil {
-		renderQueryResult(w, nil, err, t0)
-		return
-	}
-
-	results, err = s.execQuery(ctx, compiler, txn, query, input, explainMode)
+	results, err := s.execQuery(ctx, qStr, input, explainMode, false)
 	if err != nil {
 		renderQueryResult(w, nil, err, t0)
 		return
@@ -858,56 +825,23 @@ func (s *Server) v1QueryGet(w http.ResponseWriter, r *http.Request) {
 	pretty := getBoolParam(r.URL, types.ParamPrettyV1, true)
 	explainMode := getExplain(r.URL.Query()["explain"])
 	includeMetrics := getBoolParam(r.URL, types.ParamMetricsV1, true)
-	m := metrics.New()
 
 	qStrs := values["q"]
 	if len(qStrs) == 0 {
 		writer.Error(w, http.StatusBadRequest, types.NewErrorV1(types.CodeInvalidParameter, "missing parameter 'q'"))
 		return
 	}
-
 	qStr := qStrs[len(qStrs)-1]
 
-	txn, err := s.store.NewTransaction(ctx)
+	results, err := s.execQuery(ctx, qStr, nil, explainMode, includeMetrics)
 	if err != nil {
-		writer.ErrorAuto(w, err)
+		switch err := err.(type) {
+		case ast.Errors:
+			writer.Error(w, http.StatusBadRequest, types.NewErrorV1(types.CodeInvalidParameter, types.MsgCompileQueryError).WithASTErrors(err))
+		default:
+			writer.ErrorAuto(w, err)
+		}
 		return
-	}
-
-	defer s.store.Abort(ctx, txn)
-
-	compiler := s.Compiler()
-
-	m.Timer(metrics.RegoQueryParse).Start()
-
-	query, err := ast.ParseBody(qStr)
-	if err != nil {
-		handleCompileError(w, err)
-		return
-	}
-
-	m.Timer(metrics.RegoQueryParse).Stop()
-	m.Timer(metrics.RegoQueryCompile).Start()
-
-	compiled, err := compiler.QueryCompiler().Compile(query)
-	if err != nil {
-		handleCompileError(w, err)
-		return
-	}
-
-	m.Timer(metrics.RegoQueryCompile).Stop()
-	m.Timer(metrics.RegoQueryEval).Start()
-
-	results, err := s.execQuery(ctx, compiler, txn, compiled, nil, explainMode)
-	if err != nil {
-		writer.ErrorAuto(w, err)
-		return
-	}
-
-	m.Timer(metrics.RegoQueryEval).Stop()
-
-	if includeMetrics {
-		results.Metrics = m.All()
 	}
 
 	writer.JSON(w, 200, results, pretty)
