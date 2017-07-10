@@ -3,7 +3,17 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## 0.5.1
+
+### Fixes
+
+- Correct `opa fmt` panic on missing files
+- Fix minor site issues
+
+### Miscellaneous
+
+- Add rego examples with input and compiler
+- Add support for query cancellation
 
 ## 0.5.0
 
