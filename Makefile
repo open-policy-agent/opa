@@ -147,7 +147,7 @@ release:
 		-v $(PWD)/_release/$(VERSION):/_release/$(VERSION) \
 		-v $(PWD):/_src \
 		$(REPOSITORY)/release-builder:latest \
-		/_src/build/build-release.sh --tag=$(VERSION) --output-dir=/_release/$(VERSION) --source-url=/_src
+		/_src/build/build-release.sh --version=$(VERSION) --output-dir=/_release/$(VERSION) --source-url=/_src
 
 release-local:
 	docker run -it --rm \
