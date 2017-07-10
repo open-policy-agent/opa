@@ -61,6 +61,18 @@ type ResultSet []Result
 // names and the values are the binding values.
 type Vars map[string]interface{}
 
+// WithoutWildcards returns a copy of v with wildcard variables removed.
+func (v Vars) WithoutWildcards() Vars {
+	n := Vars{}
+	for k, v := range v {
+		if ast.Var(k).IsWildcard() {
+			continue
+		}
+		n[k] = v
+	}
+	return n
+}
+
 // Errors represents a collection of errors returned when evaluating Rego.
 type Errors []error
 
