@@ -9,7 +9,7 @@ BUILD_DIR=$OPA_DIR/build
 usage() {
     echo "build-release.sh --output-dir=<path>"
     echo "                 --source-url=<git-url>"
-    echo "                 [--tag=<tag>]"
+    echo "                 [--version=<mj.mn.pt>]"
 }
 
 for i in "$@"; do
@@ -22,8 +22,8 @@ for i in "$@"; do
         OUTPUT_DIR="${i#*=}"
         shift
         ;;
-    --tag=*)
-        TAG="${i#*=}"
+    --version=*)
+        VERSION="${i#*=}"
         shift
         ;;
     *)
@@ -51,8 +51,8 @@ build_binaries() {
 clone_repo() {
     git clone $SOURCE_URL /go/src/github.com/open-policy-agent/opa
     cd /go/src/github.com/open-policy-agent/opa
-    if [ -n "$TAG" ]; then
-        git checkout $TAG
+    if [ -n "$VERSION" ]; then
+        git checkout v${VERSION}
     fi
 }
 
