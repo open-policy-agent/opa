@@ -80,16 +80,18 @@ func (errs Errors) Error() string {
 
 // Rego constructs a query and can be evaluated to obtain results.
 type Rego struct {
-	query     string
-	pkg       string
-	imports   []string
-	rawInput  *interface{}
-	input     ast.Value
-	modules   []rawModule
-	compiler  *ast.Compiler
-	store     storage.Store
-	txn       storage.Transaction
-	metrics   metrics.Metrics
+	query    string
+	pkg      string
+	imports  []string
+	rawInput *interface{}
+	input    ast.Value
+	modules  []rawModule
+	compiler *ast.Compiler
+	store    storage.Store
+	txn      storage.Transaction
+	metrics  metrics.Metrics
+	tracer   topdown.Tracer
+
 	termVarID int
 }
 
@@ -159,6 +161,13 @@ func Transaction(txn storage.Transaction) func(r *Rego) {
 func Metrics(m metrics.Metrics) func(r *Rego) {
 	return func(r *Rego) {
 		r.metrics = m
+	}
+}
+
+// Tracer returns an argument that sets the topdown Tracer.
+func Tracer(t topdown.Tracer) func(r *Rego) {
+	return func(r *Rego) {
+		r.tracer = t
 	}
 }
 
@@ -306,6 +315,9 @@ func (r *Rego) eval(ctx context.Context, compiled ast.Body, txn storage.Transact
 	r.metrics.Timer(metrics.RegoQueryEval).Start()
 
 	t := topdown.New(ctx, compiled, r.compiler, r.store, txn)
+	if r.tracer != nil {
+		t.Tracer = r.tracer
+	}
 
 	if r.input != nil {
 		t.Input = r.input

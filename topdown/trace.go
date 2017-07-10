@@ -115,8 +115,11 @@ func NewBufferTracer() *BufferTracer {
 	return &BufferTracer{}
 }
 
-// Enabled always returns true.
+// Enabled always returns true if the BufferTracer is instantiated.
 func (b *BufferTracer) Enabled() bool {
+	if b == nil {
+		return false
+	}
 	return true
 }
 
