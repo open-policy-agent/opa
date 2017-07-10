@@ -5,8 +5,11 @@
 package runtime
 
 import (
+	"bufio"
 	"bytes"
+	"errors"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"sync/atomic"
@@ -35,9 +38,10 @@ func NewLoggingHandler(inner http.Handler) http.Handler {
 }
 
 func (h *LoggingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	recorder := newRecorder(w, loggingEnabled(logrus.DebugLevel))
-	t0 := time.Now()
 	requestID := atomic.AddUint64(&h.requestID, uint64(1))
+
+	recorder := newRecorder(w, r, requestID, loggingEnabled(logrus.DebugLevel))
+	t0 := time.Now()
 
 	if loggingEnabled(logrus.InfoLevel) {
 
@@ -99,13 +103,16 @@ func (h *LoggingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 type recorder struct {
-	inner        http.ResponseWriter
+	inner http.ResponseWriter
+	req   *http.Request
+	id    uint64
+
 	buf          *bytes.Buffer
 	bytesWritten int
 	statusCode   int
 }
 
-func newRecorder(w http.ResponseWriter, buffer bool) *recorder {
+func newRecorder(w http.ResponseWriter, r *http.Request, id uint64, buffer bool) *recorder {
 	var buf *bytes.Buffer
 	if buffer {
 		buf = new(bytes.Buffer)
@@ -113,6 +120,8 @@ func newRecorder(w http.ResponseWriter, buffer bool) *recorder {
 	return &recorder{
 		buf:   buf,
 		inner: w,
+		req:   r,
+		id:    id,
 	}
 }
 
@@ -131,6 +140,33 @@ func (r *recorder) Write(bs []byte) (int, error) {
 func (r *recorder) WriteHeader(s int) {
 	r.statusCode = s
 	r.inner.WriteHeader(s)
+}
+
+func (r *recorder) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	h, ok := r.inner.(http.Hijacker)
+	if !ok {
+		return nil, nil, errors.New("response writer is not a http.Hijacker")
+	}
+
+	c, rw, err := h.Hijack()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	fields := logrus.Fields{
+		"client_addr": r.req.RemoteAddr,
+		"req_id":      r.id,
+		"req_method":  r.req.Method,
+		"req_path":    r.req.URL.Path,
+	}
+
+	queries := r.req.URL.Query()[types.ParamQueryV1]
+	if len(queries) > 0 {
+		fields["req_query"] = queries[len(queries)-1]
+	}
+	logrus.WithFields(fields).Info("Started watch.")
+
+	return c, rw, nil
 }
 
 func dropInputParam(u *url.URL) string {

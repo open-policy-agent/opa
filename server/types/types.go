@@ -133,6 +133,17 @@ type QueryResponseV1 struct {
 	Result      AdhocQueryResultSetV1 `json:"result"`
 }
 
+// WatchResponseV1 models a message in the response stream for a watch.
+type WatchResponseV1 struct {
+	Explanation TraceV1     `json:"explanation,omitempty"`
+	Metrics     MetricsV1   `json:"metrics,omitempty"`
+	Result      interface{} `json:"result"`
+
+	// The Error needs to be in the response since we've hijacked the connection
+	// when writing WatchResponseV1 streams.
+	Error *ErrorV1 `json:"error,omitempty"`
+}
+
 // AdhocQueryResultSetV1 models the result of a Query API query.
 type AdhocQueryResultSetV1 []map[string]interface{}
 
@@ -297,6 +308,10 @@ const (
 	// the client wants to receive performance metrics in addition to the
 	// result.
 	ParamMetricsV1 = "metrics"
+
+	// ParamWatchV1 defines the name of the HTTP URL parameter that indicates
+	// the client wants to set a watch on the current query or data reference.
+	ParamWatchV1 = "watch"
 )
 
 // WriteConflictErr represents an error condition raised if the caller attempts

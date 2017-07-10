@@ -5,14 +5,19 @@
 package server
 
 import (
+	"bufio"
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"net"
 	"net/http"
 	"net/http/httptest"
+	"net/http/httputil"
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/server/identifier"
@@ -34,7 +39,6 @@ type tr struct {
 }
 
 func TestDataV0(t *testing.T) {
-
 	testMod1 := `package test
 
 	p = "hello"
@@ -79,7 +83,6 @@ func TestDataV0(t *testing.T) {
 }
 
 func TestDataV1(t *testing.T) {
-
 	testMod1 := `package testmod
 
 import input.req1
@@ -339,6 +342,62 @@ func TestDataPutV1IfNoneMatch(t *testing.T) {
 	req.Header.Set("If-None-Match", "*")
 	if err := f.executeRequest(req, 304, ""); err != nil {
 		t.Fatalf("Unexpected error from PUT with If-None-Match=*: %v", err)
+	}
+}
+
+func TestDataWatch(t *testing.T) {
+	f := newFixture(t)
+
+	// Test watching /data.
+	exp := strings.Join([]string{
+		"HTTP/1.1 200 OK\nContent-Type: application/json\nTransfer-Encoding: chunked\n\ne",
+		`{"result":{}}
+`,
+		`1f`,
+		`{"result":{"x":{"a":1,"b":2}}}
+`,
+		`17`,
+		`{"result":{"x":"foo"}}
+`,
+		`13`,
+		`{"result":{"x":7}}
+`,
+		``,
+	}, "\r\n")
+	r1 := newMockConn()
+	r2 := newMockConn()
+
+	get := newReqV1(http.MethodGet, `/data?watch`, "")
+	go f.server.Handler.ServeHTTP(r1, get)
+	<-r1.hijacked
+	<-r1.write
+
+	get = newReqV1(http.MethodPost, `/data?watch`, "")
+	go f.server.Handler.ServeHTTP(r2, get)
+	<-r2.hijacked
+	<-r2.write
+
+	tests := []tr{
+		{http.MethodPut, "/data/x", `{"a":1,"b":2}`, 204, ""},
+		{http.MethodPut, "/data/x", `"foo"`, 204, ""},
+		{http.MethodPut, "/data/x", `7`, 204, ""},
+	}
+
+	for _, tr := range tests {
+		if err := f.v1(tr.method, tr.path, tr.body, tr.code, tr.resp); err != nil {
+			t.Fatal(err)
+		}
+		<-r1.write
+		<-r2.write
+	}
+	r1.Close()
+	r2.Close()
+
+	if result := r1.buf.String(); result != exp {
+		t.Fatalf("Expected stream to equal %s, got %s", exp, result)
+	}
+	if result := r2.buf.String(); result != exp {
+		t.Fatalf("Expected stream to equal %s, got %s", exp, result)
 	}
 }
 
@@ -791,6 +850,401 @@ func TestPoliciesPathSlashes(t *testing.T) {
 	}
 }
 
+func TestQueryWatch(t *testing.T) {
+	f := newFixture(t)
+
+	type trw struct {
+		tr   tr
+		wait chan struct{}
+	}
+
+	// Test basic watch results.
+	exp := strings.Join([]string{
+		"HTTP/1.1 200 OK\nContent-Type: application/json\nTransfer-Encoding: chunked\n\n10",
+		`{"result":null}
+`,
+		`7c`,
+		`{"result":[{"expressions":[{"value":true,"text":"a=data.x","location":{"row":1,"col":1}}],"bindings":{"a":{"a":1,"b":2}}}]}
+`,
+		`74`,
+		`{"result":[{"expressions":[{"value":true,"text":"a=data.x","location":{"row":1,"col":1}}],"bindings":{"a":"foo"}}]}
+`,
+		`70`,
+		`{"result":[{"expressions":[{"value":true,"text":"a=data.x","location":{"row":1,"col":1}}],"bindings":{"a":7}}]}
+`,
+		``,
+	}, "\r\n")
+	recorder := newMockConn()
+
+	get := newReqV1(http.MethodGet, `/query?q=a=data.x&watch`, "")
+	go f.server.Handler.ServeHTTP(recorder, get)
+	<-recorder.hijacked
+	<-recorder.write
+
+	tests := []trw{
+		{tr{http.MethodPut, "/data/x", `{"a":1,"b":2}`, 204, ""}, recorder.write},
+		{tr{http.MethodPut, "/data/x", `"foo"`, 204, ""}, recorder.write},
+		{tr{http.MethodPut, "/data/x", `7`, 204, ""}, recorder.write},
+	}
+
+	for _, test := range tests {
+		tr := test.tr
+		if err := f.v1(tr.method, tr.path, tr.body, tr.code, tr.resp); err != nil {
+			t.Fatal(err)
+		}
+		if test.wait != nil {
+			<-test.wait
+		}
+	}
+	recorder.Close()
+
+	if result := recorder.buf.String(); result != exp {
+		t.Fatalf("Expected stream to equal %s, got %s", exp, result)
+	}
+
+	// Test two watches at once, one with a virtual document as a dependency.
+	// Print the second in pretty format.
+	exp1 := strings.Join([]string{
+		"HTTP/1.1 200 OK\nContent-Type: application/json\nTransfer-Encoding: chunked\n\n7a",
+		`{"result":[{"expressions":[{"value":true,"text":"a=data.z.r+data.x","location":{"row":1,"col":1}}],"bindings":{"a":12}}]}
+`,
+		`7a`,
+		`{"result":[{"expressions":[{"value":true,"text":"a=data.z.r+data.x","location":{"row":1,"col":1}}],"bindings":{"a":13}}]}
+`,
+		`7a`,
+		`{"result":[{"expressions":[{"value":true,"text":"a=data.z.r+data.x","location":{"row":1,"col":1}}],"bindings":{"a":14}}]}
+`,
+		`7a`,
+		`{"result":[{"expressions":[{"value":true,"text":"a=data.z.r+data.x","location":{"row":1,"col":1}}],"bindings":{"a":15}}]}
+`,
+		`7a`,
+		`{"result":[{"expressions":[{"value":true,"text":"a=data.z.r+data.x","location":{"row":1,"col":1}}],"bindings":{"a":16}}]}
+`,
+		`7a`,
+		`{"result":[{"expressions":[{"value":true,"text":"a=data.z.r+data.x","location":{"row":1,"col":1}}],"bindings":{"a":17}}]}
+`,
+		``,
+	}, "\r\n")
+	exp2 := strings.Join([]string{
+		"HTTP/1.1 200 OK\nContent-Type: application/json\nTransfer-Encoding: chunked\n\n74",
+		`{"result":[{"expressions":[{"value":true,"text":"a=data.y","location":{"row":1,"col":1}}],"bindings":{"a":"foo"}}]}
+`,
+		`74`,
+		`{"result":[{"expressions":[{"value":true,"text":"a=data.y","location":{"row":1,"col":1}}],"bindings":{"a":"bar"}}]}
+`,
+		`74`,
+		`{"result":[{"expressions":[{"value":true,"text":"a=data.y","location":{"row":1,"col":1}}],"bindings":{"a":"baz"}}]}
+`,
+		``,
+	}, "\r\n")
+	r1, r2 := newMockConn(), newMockConn()
+
+	setup := []tr{
+		{http.MethodPut, "/policies/foo", "package z\nr = y { y = data.a }", 200, ""},
+		{http.MethodPut, "/data/y", `"foo"`, 204, ""},
+		{http.MethodPut, "/data/a", `5`, 204, ""},
+	}
+	for _, s := range setup {
+		if err := f.v1(s.method, s.path, s.body, s.code, s.resp); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	get1 := newReqV1(http.MethodGet, `/query?q=a=data.z.r%2Bdata.x&watch`, "")
+	go f.server.Handler.ServeHTTP(r1, get1)
+	<-r1.hijacked
+	<-r1.write
+
+	get2 := newReqV1(http.MethodGet, `/query?q=a=data.y&watch`, "")
+	go f.server.Handler.ServeHTTP(r2, get2)
+	<-r2.hijacked
+	<-r2.write
+
+	tests = []trw{
+		{tr{http.MethodPut, "/data/a", `6`, 204, ""}, r1.write},
+		{tr{http.MethodPut, "/data/a", `7`, 204, ""}, r1.write},
+		{tr{http.MethodPut, "/data/y", `"bar"`, 204, ""}, r2.write},
+		{tr{http.MethodPut, "/data/a", `8`, 204, ""}, r1.write},
+		{tr{http.MethodPut, "/data/y", `"baz"`, 204, ""}, r2.write},
+		{tr{http.MethodPut, "/data/a", `9`, 204, ""}, r1.write},
+		{tr{http.MethodPut, "/data/a", `10`, 204, ""}, r1.write},
+	}
+
+	for _, test := range tests {
+		tr := test.tr
+		if err := f.v1(tr.method, tr.path, tr.body, tr.code, tr.resp); err != nil {
+			t.Fatal(err)
+		}
+		if test.wait != nil {
+			<-test.wait
+		}
+	}
+	r1.Close()
+	r2.Close()
+
+	if result := r1.buf.String(); result != exp1 {
+		t.Fatalf("Expected stream to equal %s, got %s", exp1, result)
+	}
+	if result := r2.buf.String(); result != exp2 {
+		t.Fatalf("Expected stream to equal %s, got %s", exp2, result)
+	}
+
+	// Test migrating to a new compiler.
+	exp = strings.Join([]string{
+		"HTTP/1.1 200 OK\nContent-Type: application/json\nTransfer-Encoding: chunked\n\n7a",
+		`{"result":[{"expressions":[{"value":true,"text":"a=data.z.r+data.x","location":{"row":1,"col":1}}],"bindings":{"a":17}}]}
+`,
+		`7a`,
+		`{"result":[{"expressions":[{"value":true,"text":"a=data.z.r+data.x","location":{"row":1,"col":1}}],"bindings":{"a":14}}]}
+`,
+		`7b`,
+		`{"result":[{"expressions":[{"value":true,"text":"a=data.z.r+data.x","location":{"row":1,"col":1}}],"bindings":{"a":200}}]}
+`,
+		`7c`,
+		`{"result":[{"expressions":[{"value":true,"text":"a=data.z.r+data.x","location":{"row":1,"col":1}}],"bindings":{"a":-200}}]}
+`,
+		``,
+	}, "\r\n")
+	recorder = newMockConn()
+
+	get = newReqV1(http.MethodGet, `/query?q=a=data.z.r%2Bdata.x&watch`, "")
+	go f.server.Handler.ServeHTTP(recorder, get)
+	<-recorder.hijacked
+	<-recorder.write
+
+	if err := f.v1(http.MethodPut, "/policies/foo", "package z\nr = y { y = data.x }", 200, ""); err != nil {
+		t.Fatal(err)
+	}
+	<-recorder.write
+
+	tests = []trw{
+		{tr{http.MethodPut, "/data/x", `100`, 204, ""}, recorder.write},
+		{tr{http.MethodPut, "/data/x", `-100`, 204, ""}, recorder.write},
+	}
+
+	for _, test := range tests {
+		tr := test.tr
+		if err := f.v1(tr.method, tr.path, tr.body, tr.code, tr.resp); err != nil {
+			t.Fatal(err)
+		}
+
+		if test.wait != nil {
+			<-test.wait
+		}
+	}
+	recorder.Close()
+
+	if result := recorder.buf.String(); result != exp {
+		t.Fatalf("Expected stream to equal %s, got %s", exp, result)
+	}
+
+	// Test migrating to a new compiler that invalidates a query watch.
+	exp = strings.Join([]string{
+		"HTTP/1.1 200 OK\nContent-Type: application/json\nTransfer-Encoding: chunked\n\n7c",
+		`{"result":[{"expressions":[{"value":true,"text":"a=data.z.r+data.x","location":{"row":1,"col":1}}],"bindings":{"a":-200}}]}
+`,
+		`92`,
+		`{"result":null,"error":{"code":"evaluation_error","message":"a=data.z.r+data.x: eval_type_error: plus: operand 1 must be number but got string"}}
+`,
+		``,
+	}, "\r\n")
+
+	if err := f.v1(http.MethodPut, "/policies/foo", "package z\nr = y { y = data.x }", 200, ""); err != nil {
+		t.Fatal(err)
+	}
+
+	recorder = newMockConn()
+	get = newReqV1(http.MethodGet, `/query?q=a=data.z.r%2Bdata.x&watch`, "")
+	go f.server.Handler.ServeHTTP(recorder, get)
+	<-recorder.hijacked
+	<-recorder.write
+
+	if err := f.v1(http.MethodPut, "/policies/foo", "package z\nr = \"foo\"", 200, ""); err != nil {
+		t.Fatal(err)
+	}
+	<-recorder.write
+	recorder.Close()
+
+	if result := recorder.buf.String(); result != exp {
+		t.Fatalf("Expected stream to equal %s, got %s", exp, result)
+	}
+}
+
+func TestWatchParams(t *testing.T) {
+	f := newFixture(t)
+	r1 := newMockConn()
+	r2 := newMockConn()
+
+	if err := f.v1(http.MethodPut, "/data/x", `{"a":1,"b":2}`, 204, ""); err != nil {
+		t.Fatal(err)
+	}
+
+	get := newReqV1(http.MethodGet, `/query?q=a=data.x&watch&metrics=true&explain=full`, "")
+	go f.server.Handler.ServeHTTP(r1, get)
+	<-r1.hijacked
+	<-r1.write
+
+	get = newReqV1(http.MethodGet, `/query?q=a=data.x&watch&pretty=true`, "")
+	go f.server.Handler.ServeHTTP(r2, get)
+	<-r2.hijacked
+	<-r2.write
+
+	// Test watch metrics and explanations.
+	expOne := []struct {
+		result        map[string]interface{}
+		explainLength int
+	}{
+		{map[string]interface{}{
+			"a": map[string]interface{}{
+				"a": json.Number("1"),
+				"b": json.Number("2"),
+			},
+		}, 3},
+		{map[string]interface{}{"a": "foo"}, 3},
+		{map[string]interface{}{"a": json.Number("7")}, 3},
+	}
+
+	// Test watch pretty.
+	expTwo := strings.Join([]string{
+		"HTTP/1.1 200 OK\nContent-Type: application/json\nTransfer-Encoding: chunked\n\n134",
+		`{
+  "result": [
+    {
+      "expressions": [
+        {
+          "value": true,
+          "text": "a=data.x",
+          "location": {
+            "row": 1,
+            "col": 1
+          }
+        }
+      ],
+      "bindings": {
+        "a": {
+          "a": 1,
+          "b": 2
+        }
+      }
+    }
+  ]
+}
+`,
+		`10b`,
+		`{
+  "result": [
+    {
+      "expressions": [
+        {
+          "value": true,
+          "text": "a=data.x",
+          "location": {
+            "row": 1,
+            "col": 1
+          }
+        }
+      ],
+      "bindings": {
+        "a": "foo"
+      }
+    }
+  ]
+}
+`,
+		`107`,
+		`{
+  "result": [
+    {
+      "expressions": [
+        {
+          "value": true,
+          "text": "a=data.x",
+          "location": {
+            "row": 1,
+            "col": 1
+          }
+        }
+      ],
+      "bindings": {
+        "a": 7
+      }
+    }
+  ]
+}
+`,
+		``,
+	}, "\r\n")
+
+	tests := []tr{
+		{http.MethodPut, "/data/x", `"foo"`, 204, ""},
+		{http.MethodPut, "/data/x", `7`, 204, ""},
+	}
+
+	for _, tr := range tests {
+		if err := f.v1(tr.method, tr.path, tr.body, tr.code, tr.resp); err != nil {
+			t.Fatal(err)
+		}
+		<-r1.write
+		<-r2.write
+	}
+	r1.Close()
+	r2.Close()
+
+	if result := r2.buf.String(); result != expTwo {
+		t.Fatalf("Expected stream to equal %s, got %s", expTwo, result)
+	}
+
+	// Skip the header
+	headerLen := len("HTTP/1.1 200 OK\nContent-Type: application/json\nTransfer-Encoding: chunked\n\n")
+	r1.buf.Read(make([]byte, headerLen))
+
+	reader := httputil.NewChunkedReader(&r1.buf)
+	decoder := util.NewJSONDecoder(reader)
+
+	metricsKeys := []string{
+		"timer_rego_query_parse_ns",
+		"timer_rego_query_compile_ns",
+		"timer_rego_query_eval_ns",
+	}
+
+	for _, exp := range expOne {
+		var v interface{}
+		if err := decoder.Decode(&v); err != nil {
+			t.Fatalf("Failed to decode JSON stream: %v", err)
+		}
+		m := v.(map[string]interface{})
+
+		met, ok := m["metrics"]
+		if !ok {
+			t.Fatalf("Expected metrics")
+		}
+		metrics := met.(map[string]interface{})
+
+		for _, key := range metricsKeys {
+			if v, ok := metrics[key]; !ok || v == 0 {
+				t.Fatalf("Expected non-zero metric for %v but got: %v", key, v)
+			}
+		}
+
+		expl, ok := m["explanation"]
+		if !ok {
+			t.Fatalf("Expected explanation")
+		}
+		explain := expl.([]interface{})
+		if len(explain) != exp.explainLength {
+			t.Fatalf("Expection %d explanations, got %d", exp.explainLength, len(explain))
+		}
+
+		result, ok := m["result"].([]interface{})[0].(map[string]interface{})["bindings"]
+		if !ok {
+			t.Fatalf("Expected bindings")
+		}
+		if !reflect.DeepEqual(exp.result, result) {
+			t.Fatalf("Expected bindings %v, got %v", exp.result, result)
+		}
+	}
+}
+
 func TestQueryV1(t *testing.T) {
 	f := newFixture(t)
 	get := newReqV1(http.MethodGet, `/query?q=a=[1,2,3]%3Ba[i]=x`, "")
@@ -1208,4 +1662,70 @@ func newReqUnversioned(method, path, body string) *http.Request {
 		panic(err)
 	}
 	return req
+}
+
+// A mock http.ResponseWriter, http.Hijacker and net.Conn to test watch streams
+// Most operations are simple no-ops, except for writes and hijacks.
+type mockResponseWriterConn struct {
+	t   *testing.T
+	exp []byte
+	buf bytes.Buffer
+
+	write    chan struct{}
+	hijacked chan struct{}
+}
+
+func newMockConn() *mockResponseWriterConn {
+	return &mockResponseWriterConn{
+		write:    make(chan struct{}),
+		hijacked: make(chan struct{}),
+	}
+}
+
+func (m *mockResponseWriterConn) Read(b []byte) (n int, err error) {
+	return 0, nil
+}
+
+func (m *mockResponseWriterConn) Write(b []byte) (int, error) {
+	defer func() {
+		m.write <- struct{}{}
+	}()
+	return m.buf.Write(b)
+}
+
+func (m *mockResponseWriterConn) Close() error {
+	return nil
+}
+
+func (m *mockResponseWriterConn) LocalAddr() net.Addr {
+	return nil
+}
+
+func (m *mockResponseWriterConn) RemoteAddr() net.Addr {
+	return nil
+}
+
+func (m *mockResponseWriterConn) SetDeadline(t time.Time) error {
+	return nil
+}
+
+func (m *mockResponseWriterConn) SetReadDeadline(t time.Time) error {
+	return nil
+}
+
+func (m *mockResponseWriterConn) SetWriteDeadline(t time.Time) error {
+	return nil
+}
+
+func (m *mockResponseWriterConn) Header() http.Header {
+	return http.Header(map[string][]string{})
+}
+
+func (m *mockResponseWriterConn) WriteHeader(code int) {
+	m.buf.WriteString(fmt.Sprintf("Code: %d\n", code))
+}
+
+func (m *mockResponseWriterConn) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	defer close(m.hijacked)
+	return m, bufio.NewReadWriter(bufio.NewReader(m), bufio.NewWriter(m)), nil
 }
