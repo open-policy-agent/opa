@@ -819,6 +819,46 @@ func TestQueryV1(t *testing.T) {
 	}
 }
 
+func TestUnversionedPost(t *testing.T) {
+
+	f := newFixture(t)
+
+	post := func() *http.Request {
+		return newReqUnversioned("POST", "/", `
+		{
+			"foo": {
+				"bar": [1,2,3]
+			}
+		}`)
+	}
+
+	f.server.Handler.ServeHTTP(f.recorder, post())
+
+	if f.recorder.Code != 404 {
+		t.Fatalf("Expected not found before policy added but got %v", f.recorder)
+	}
+
+	module := `
+	package system.main
+
+	agg = x {
+		sum(input.foo.bar, x)
+	}
+	`
+
+	if err := f.v1("PUT", "/policies/test", module, 200, ""); err != nil {
+		t.Fatal(err)
+	}
+
+	f.reset()
+	f.server.Handler.ServeHTTP(f.recorder, post())
+
+	expected := `{"agg":6}`
+	if f.recorder.Code != 200 || f.recorder.Body.String() != expected {
+		t.Fatalf(`Expected HTTP 200 / %v but got: %v`, expected, f.recorder)
+	}
+}
+
 func TestQueryV1Explain(t *testing.T) {
 	f := newFixture(t)
 	get := newReqV1("GET", `/query?q=a=[1,2,3]%3Ba[i]=x&explain=full`, "")
@@ -1159,10 +1199,13 @@ func newReqV0(method string, path string, body string) *http.Request {
 }
 
 func newReq(version int, method, path, body string) *http.Request {
-	req, err := http.NewRequest(method, fmt.Sprintf("/v%d", version)+path, strings.NewReader(body))
+	return newReqUnversioned(method, fmt.Sprintf("/v%d", version)+path, body)
+}
+
+func newReqUnversioned(method, path, body string) *http.Request {
+	req, err := http.NewRequest(method, path, strings.NewReader(body))
 	if err != nil {
 		panic(err)
 	}
 	return req
-
 }
