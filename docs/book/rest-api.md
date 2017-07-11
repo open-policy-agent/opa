@@ -1648,7 +1648,68 @@ The effective path of the JSON Patch operation is obtained by joining the path p
 
 ## <a name="query-api"></a> Query API
 
-### <a name="execute-a-query"/>Execute a Query
+### <a name="execute-a-simple-query"/>Execute a Simple Query
+
+```
+POST /
+Content-Type: application/json
+```
+
+Execute a simple query.
+
+OPA serves POST requests without a URL path by querying for the document at
+path `/data/system/main`. The content of that document defines the response
+entirely. The example below shows how to define a rule that will produce a
+value for the `/data/system/main` document.
+
+The request message body is mapped to the [Input Document](/how-does-opa-work.md#the-input-document).
+
+```ruby
+package system
+
+main = msg {
+  sprintf("hello, %v", input.user, msg)
+}
+```
+
+#### Example Request
+
+```http
+POST /
+Content-Type: application/json
+```
+
+```json
+{
+  "user": "alice"
+}
+```
+
+#### Example Response
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+```
+
+```json
+"hello, alice"
+```
+
+#### Query Parameters
+
+- **pretty** - If parameter is `true`, response will formatted for humans.
+
+#### Status Codes
+
+- **200** - no error
+- **400** - bad request
+- **404** - not found
+- **500** - server error
+
+If the `/data/system/main` document is undefined (e.g., because the administrator has not defined one) the server returns 404.
+
+### <a name="execute-an-ad-hoc-query"/>Execute an Ad-hoc Query
 
 ```
 GET /v1/query
