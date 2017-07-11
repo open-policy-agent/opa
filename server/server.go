@@ -55,6 +55,8 @@ const (
 	AuthorizationBasic                     = iota
 )
 
+var systemMainPath = ast.MustParseRef("data.system.main")
+
 // Server represents an instance of OPA running in server mode.
 type Server struct {
 	Handler http.Handler
@@ -91,6 +93,7 @@ func New() *Server {
 	s.registerHandler(router, 1, "/policies/{path:.+}", "GET", s.v1PoliciesGet)
 	s.registerHandler(router, 1, "/policies/{path:.+}", "PUT", s.v1PoliciesPut)
 	s.registerHandler(router, 1, "/query", "GET", s.v1QueryGet)
+	router.HandleFunc("/", s.unversionedPost).Methods("POST")
 	router.HandleFunc("/", s.indexGet).Methods("GET")
 	s.Handler = router
 
@@ -373,6 +376,54 @@ func (s *Server) reloadCompiler(ctx context.Context, txn storage.Transaction) er
 	return nil
 }
 
+func (s *Server) unversionedPost(w http.ResponseWriter, r *http.Request) {
+	s.v0QueryPath(w, r, systemMainPath)
+}
+
+func (s *Server) v0DataPost(w http.ResponseWriter, r *http.Request) {
+	path := stringPathToDataRef(mux.Vars(r)["path"])
+	s.v0QueryPath(w, r, path)
+}
+
+func (s *Server) v0QueryPath(w http.ResponseWriter, r *http.Request, path ast.Ref) {
+	ctx := r.Context()
+
+	input, err := readInputV0(r.Body)
+	if err != nil {
+		writer.ErrorString(w, http.StatusBadRequest, types.CodeInvalidParameter, errors.Wrapf(err, "unexpected parse error for input"))
+		return
+	}
+
+	// Prepare for query.
+	txn, err := s.store.NewTransaction(ctx)
+	if err != nil {
+		writer.ErrorAuto(w, err)
+		return
+	}
+
+	defer s.store.Abort(ctx, txn)
+
+	compiler := s.Compiler()
+
+	params := topdown.NewQueryParams(ctx, compiler, s.store, txn, input, path)
+
+	// Execute query.
+	qrs, err := topdown.Query(params)
+
+	// Handle results.
+	if err != nil {
+		writer.ErrorAuto(w, err)
+		return
+	}
+
+	if qrs.Undefined() {
+		writer.Error(w, 404, types.NewErrorV1(types.CodeUndefinedDocument, fmt.Sprintf("%v: %v", types.MsgUndefinedError, path)))
+		return
+	}
+
+	writer.JSON(w, 200, qrs[0].Result, false)
+}
+
 func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 
 	ctx := r.Context()
@@ -497,47 +548,6 @@ func (s *Server) v1DataPatch(w http.ResponseWriter, r *http.Request) {
 	} else {
 		writer.Bytes(w, 204, nil)
 	}
-}
-
-func (s *Server) v0DataPost(w http.ResponseWriter, r *http.Request) {
-
-	ctx := r.Context()
-	vars := mux.Vars(r)
-	path := stringPathToDataRef(vars["path"])
-
-	input, err := readInputV0(r.Body)
-	if err != nil {
-		writer.ErrorString(w, http.StatusBadRequest, types.CodeInvalidParameter, errors.Wrapf(err, "unexpected parse error for input"))
-		return
-	}
-
-	// Prepare for query.
-	txn, err := s.store.NewTransaction(ctx)
-	if err != nil {
-		writer.ErrorAuto(w, err)
-		return
-	}
-
-	defer s.store.Abort(ctx, txn)
-
-	compiler := s.Compiler()
-	params := topdown.NewQueryParams(ctx, compiler, s.store, txn, input, path)
-
-	// Execute query.
-	qrs, err := topdown.Query(params)
-
-	// Handle results.
-	if err != nil {
-		writer.ErrorAuto(w, err)
-		return
-	}
-
-	if qrs.Undefined() {
-		writer.Error(w, 404, types.NewErrorV1(types.CodeUndefinedDocument, fmt.Sprintf("%v: %v", types.MsgUndefinedError, path)))
-		return
-	}
-
-	writer.JSON(w, 200, qrs[0].Result, false)
 }
 
 func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
