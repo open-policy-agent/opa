@@ -7,6 +7,7 @@ VERSION := 0.5.2-dev
 PACKAGES := \
 	github.com/open-policy-agent/opa/ast/.../ \
 	github.com/open-policy-agent/opa/cmd/.../ \
+	github.com/open-policy-agent/opa/format/.../ \
 	github.com/open-policy-agent/opa/metrics/.../ \
 	github.com/open-policy-agent/opa/rego/.../ \
 	github.com/open-policy-agent/opa/repl/.../ \
