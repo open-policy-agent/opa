@@ -147,13 +147,8 @@ func (tc *typeChecker) checkFunc(env *TypeEnv, fn *Func) {
 	env.PutFunc(name, argTypes)
 }
 
-func (tc *typeChecker) checkLanguageBuiltins(env *TypeEnv) *TypeEnv {
-	if env == nil {
-		env = NewTypeEnv()
-	} else {
-		env = env.wrap()
-	}
-
+func (tc *typeChecker) checkLanguageBuiltins() *TypeEnv {
+	env := NewTypeEnv()
 	for _, bi := range Builtins {
 		env.PutFunc(bi.Name, bi.Args)
 	}

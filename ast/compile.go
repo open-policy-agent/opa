@@ -201,6 +201,9 @@ func NewCompiler() *Compiler {
 	c.RuleTree = NewRuleTree(c.ModuleTree)
 	c.FuncTree = NewFuncTree(c.ModuleTree)
 
+	checker := newTypeChecker()
+	c.TypeEnv = checker.checkLanguageBuiltins()
+
 	c.stages = []func(){
 		c.resolveAllRefs,
 		c.setModuleTree,
@@ -640,8 +643,7 @@ func (c *Compiler) checkTypes() {
 	// Recursion is caught in earlier step, so this cannot fail.
 	sorted, _ := c.Graph.Sort()
 	checker := newTypeChecker()
-	env := checker.checkLanguageBuiltins(nil)
-	env, errs := checker.CheckTypes(env, sorted)
+	env, errs := checker.CheckTypes(c.TypeEnv, sorted)
 	for _, err := range errs {
 		c.err(err)
 	}
@@ -1007,7 +1009,6 @@ func definesInput(expr *Expr) bool {
 func (qc *queryCompiler) checkTypes(qctx *QueryContext, body Body) (Body, error) {
 	var errs Errors
 	checker := newTypeChecker()
-	qc.compiler.TypeEnv = checker.checkLanguageBuiltins(qc.compiler.TypeEnv)
 	qc.typeEnv, errs = checker.CheckBody(qc.compiler.TypeEnv, body)
 	if len(errs) > 0 {
 		return nil, errs

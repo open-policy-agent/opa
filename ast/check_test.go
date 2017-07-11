@@ -225,8 +225,7 @@ func TestCheckInference(t *testing.T) {
 		test.Subtest(t, tc.note, func(t *testing.T) {
 			body := MustParseBody(tc.query)
 			checker := newTypeChecker()
-			env := NewTypeEnv()
-			env = checker.checkLanguageBuiltins(env)
+			env := checker.checkLanguageBuiltins()
 			env, err := checker.CheckBody(env, body)
 			if len(err) != 0 {
 				t.Fatalf("Unexpected error: %v", err)
@@ -487,9 +486,8 @@ func TestCheckBadCardinality(t *testing.T) {
 	}
 	for _, test := range tests {
 		body := MustParseBody(test.body)
-		env := NewTypeEnv()
 		tc := newTypeChecker()
-		env = tc.checkLanguageBuiltins(env)
+		env := tc.checkLanguageBuiltins()
 		_, err := tc.CheckBody(env, body)
 		if len(err) != 1 || err[0].Code != TypeErr {
 			t.Fatalf("Expected 1 type error from %v but got: %v", body, err)
