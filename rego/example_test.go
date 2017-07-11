@@ -12,6 +12,7 @@ import (
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/rego"
+	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/storage/inmem"
 	"github.com/open-policy-agent/opa/util"
 )
@@ -281,6 +282,80 @@ func ExampleRego_Eval_storage() {
 	// Output:
 	//
 	// value: [dogs clouds]
+}
+
+func ExampleRego_Eval_transactions() {
+
+	ctx := context.Background()
+
+	// Create storage layer and load dummy data.
+	store := inmem.NewFromReader(bytes.NewBufferString(`{
+		"favourites": {
+			"pizza": "cheese",
+			"colour": "violet"
+		}
+	}`))
+
+	// Open a write transaction on the store that will perform write operations.
+	txn, err := store.NewTransaction(ctx, storage.WriteParams)
+	if err != nil {
+		// Handle error.
+	}
+
+	// Create rego query that uses the transaction created above.
+	inside := rego.New(
+		rego.Query("data.favourites.pizza"),
+		rego.Store(store),
+		rego.Transaction(txn),
+	)
+
+	// Create rego query that DOES NOT use the transaction created above. Under
+	// the hood, the rego package will create it's own read-only transaction to
+	// ensure it evaluates over a consistent snapshot of the storage layer.
+	outside := rego.New(
+		rego.Query("data.favourites.pizza"),
+		rego.Store(store),
+	)
+
+	// Write change to storage layer inside the transaction.
+	err = store.Write(ctx, txn, storage.AddOp, storage.MustParsePath("/favourites/pizza"), "pepperoni")
+	if err != nil {
+		// Handle error.
+	}
+
+	// Run evaluation INSIDE the transction.
+	rs, err := inside.Eval(ctx)
+	if err != nil {
+		// Handle error.
+	}
+
+	fmt.Println("value (inside txn):", rs[0].Expressions[0].Value)
+
+	// Run evaluation OUTSIDE the transaction.
+	rs, err = outside.Eval(ctx)
+	if err != nil {
+		// Handle error.
+	}
+
+	fmt.Println("value (outside txn):", rs[0].Expressions[0].Value)
+
+	if err := store.Commit(ctx, txn); err != nil {
+		// Handle error.
+	}
+
+	// Run evaluation AFTER the transaction commits.
+	rs, err = outside.Eval(ctx)
+	if err != nil {
+		// Handle error.
+	}
+
+	fmt.Println("value (after txn):", rs[0].Expressions[0].Value)
+
+	// Output:
+	//
+	// value (inside txn): pepperoni
+	// value (outside txn): cheese
+	// value (after txn): pepperoni
 }
 
 func ExampleRego_Eval_errors() {

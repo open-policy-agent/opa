@@ -88,6 +88,7 @@ type Rego struct {
 	modules   []rawModule
 	compiler  *ast.Compiler
 	store     storage.Store
+	txn       storage.Transaction
 	metrics   metrics.Metrics
 	termVarID int
 }
@@ -143,6 +144,14 @@ func Compiler(c *ast.Compiler) func(r *Rego) {
 func Store(s storage.Store) func(r *Rego) {
 	return func(r *Rego) {
 		r.store = s
+	}
+}
+
+// Transaction returns an argument that sets the transaction to use for storage
+// layer operations.
+func Transaction(txn storage.Transaction) func(r *Rego) {
+	return func(r *Rego) {
+		r.txn = txn
 	}
 }
 
@@ -205,13 +214,16 @@ func (r *Rego) Eval(ctx context.Context) (ResultSet, error) {
 
 	r.metrics.Timer(metrics.RegoQueryCompile).Stop()
 
-	// Prepare storage layer. Transaction could be an argument in the future.
-	txn, err := r.store.NewTransaction(ctx)
-	if err != nil {
-		return nil, err
-	}
+	txn := r.txn
 
-	defer r.store.Abort(ctx, txn)
+	if txn == nil {
+		// Open transaction for this run if user did not provide one.
+		txn, err = r.store.NewTransaction(ctx)
+		if err != nil {
+			return nil, err
+		}
+		defer r.store.Abort(ctx, txn)
+	}
 
 	// Evaluate query
 	return r.eval(ctx, compiled, txn)
