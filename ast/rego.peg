@@ -382,7 +382,7 @@ RuleDup <- b:NonEmptyBraceEnclosedBody {
 
 RuleExt <- Else / RuleDup
 
-Body <- BraceEnclosedBody / NonWhitespaceBody
+Body <- NonWhitespaceBody / BraceEnclosedBody
 
 NonEmptyBraceEnclosedBody <- "{" _ val:WhitespaceBody? _ "}" {
     if val == nil {
