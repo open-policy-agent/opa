@@ -832,11 +832,11 @@ var g = &grammar{
 				alternatives: []interface{}{
 					&ruleRefExpr{
 						pos:  position{line: 385, col: 9, offset: 10356},
-						name: "BraceEnclosedBody",
+						name: "NonWhitespaceBody",
 					},
 					&ruleRefExpr{
 						pos:  position{line: 385, col: 29, offset: 10376},
-						name: "NonWhitespaceBody",
+						name: "BraceEnclosedBody",
 					},
 				},
 			},

@@ -353,6 +353,25 @@ func TestSetComprehensions(t *testing.T) {
 	assertParseOneTerm(t, "nested", input, expected)
 }
 
+func TestSetComprehensionsAlone(t *testing.T) {
+	input := `{k | a = [1,2,3]; a[k]}`
+
+	expected := SetComprehensionTerm(
+		VarTerm("k"),
+		NewBody(
+			Equality.Expr(
+				VarTerm("a"),
+				ArrayTerm(NumberTerm("1"), NumberTerm("2"), NumberTerm("3")),
+			),
+			&Expr{
+				Terms: RefTerm(VarTerm("a"), VarTerm("k")),
+			},
+		),
+	)
+
+	assertParseOneTerm(t, "alone", input, expected)
+}
+
 func TestInfixExpr(t *testing.T) {
 	assertParseOneExpr(t, "scalars 1", "true = false", Equality.Expr(BooleanTerm(true), BooleanTerm(false)))
 	assertParseOneExpr(t, "scalars 2", "3.14 = null", Equality.Expr(FloatNumberTerm(3.14), NullTerm()))
