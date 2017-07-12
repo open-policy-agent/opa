@@ -1361,12 +1361,228 @@ seccomp_unconfined {
 }
 ```
 
+#### Example Watch Request
+
+If we make the following GET request:
+
+```http
+GET /v1/data/servers?watch&pretty=true HTTP/1.1
+```
+
+Followed by these PATCH requests:
+
+```http
+PATCH /v1/data/servers HTTP/1.1
+Content-Type: application/json-patch+json
+```
+
+```json
+[
+    {"op": "add",
+     "path": "-",
+     "value": {
+         "id": "s5",
+         "name": "job",
+         "protocols": ["amqp"],
+         "ports": ["p3"]
+     }}
+]
+```
+
+```http
+PATCH /v1/data/servers HTTP/1.1
+Content-Type: application/json-patch+json
+```
+
+```json
+[
+    {
+     "op": "remove",
+     "path": "1"
+    }
+]
+```
+
+#### Example Watch Response
+
+The response below represents the response _after_ the chunked encoding has been processed.
+It is not complete, as further changes to `/data/servers` would cause more notifications to be streamed.
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+Transfer-Encoding: chunked
+```
+
+```json
+{
+  "result": [
+    {
+      "id": "s1",
+      "name": "app",
+      "ports": [
+        "p1",
+        "p2",
+        "p3"
+      ],
+      "protocols": [
+        "https",
+        "ssh"
+      ]
+    },
+    {
+      "id": "s2",
+      "name": "db",
+      "ports": [
+        "p3"
+      ],
+      "protocols": [
+        "mysql"
+      ]
+    },
+    {
+      "id": "s3",
+      "name": "cache",
+      "ports": [
+        "p3"
+      ],
+      "protocols": [
+        "memcache",
+        "http"
+      ]
+    },
+    {
+      "id": "s4",
+      "name": "dev",
+      "ports": [
+        "p1",
+        "p2"
+      ],
+      "protocols": [
+        "http"
+      ]
+    }
+  ]
+}
+
+{
+  "result": [
+    {
+      "id": "s1",
+      "name": "app",
+      "ports": [
+        "p1",
+        "p2",
+        "p3"
+      ],
+      "protocols": [
+        "https",
+        "ssh"
+      ]
+    },
+    {
+      "id": "s2",
+      "name": "db",
+      "ports": [
+        "p3"
+      ],
+      "protocols": [
+        "mysql"
+      ]
+    },
+    {
+      "id": "s3",
+      "name": "cache",
+      "ports": [
+        "p3"
+      ],
+      "protocols": [
+        "memcache",
+        "http"
+      ]
+    },
+    {
+      "id": "s4",
+      "name": "dev",
+      "ports": [
+        "p1",
+        "p2"
+      ],
+      "protocols": [
+        "http"
+      ]
+    },
+    {
+      "id": "s5",
+      "name": "job",
+      "ports": [
+        "p3"
+      ],
+      "protocols": [
+        "amqp"
+      ]
+    }
+  ]
+}
+
+{
+  "result": [
+    {
+      "id": "s1",
+      "name": "app",
+      "ports": [
+        "p1",
+        "p2",
+        "p3"
+      ],
+      "protocols": [
+        "https",
+        "ssh"
+      ]
+    },
+    {
+      "id": "s3",
+      "name": "cache",
+      "ports": [
+        "p3"
+      ],
+      "protocols": [
+        "memcache",
+        "http"
+      ]
+    },
+    {
+      "id": "s4",
+      "name": "dev",
+      "ports": [
+        "p1",
+        "p2"
+      ],
+      "protocols": [
+        "http"
+      ]
+    },
+    {
+      "id": "s5",
+      "name": "job",
+      "ports": [
+        "p3"
+      ],
+      "protocols": [
+        "amqp"
+      ]
+    }
+  ]
+}
+```
+
 #### Query Parameters
 
 - **input** - Provide an input document. Format is `[[<path>]:]<value>` where `<path>` is the import path of the input document. The parameter may be specified multiple times but each instance should specify a unique `<path>`. The `<path>` may be empty (in which case, the entire input will be set to the `<value>`). The `<value>` may be a reference to a document in OPA. If `<value>` contains variables the response will contain a set of results instead of a single document. In most cases, input should be provided using the POST method, see [Get a Document (with Input)](#get-a-document-with-input).
 - **pretty** - If parameter is `true`, response will formatted for humans.
 - **explain** - Return query explanation in addition to result. Values: **full**, **truth**.
 - **metrics** - Return query performance metrics in addition to result. See [Performance Metrics](#performance-metrics) for more detail.
+- **watch** - Set a watch on the data reference if the parameter is present. See [Watches](#watches) for more detail.
 
 #### Status Codes
 
@@ -1751,12 +1967,15 @@ Content-Type: application/json
 - **pretty** - If parameter is `true`, response will formatted for humans.
 - **explain** - Return query explanation in addition to result. Values: **full**, **truth**.
 - **metrics** - Return query performance metrics in addition to result. See [Performance Metrics](#performance-metrics) for more detail.
+- **watch** - Set a watch on the query if the parameter is present. See [Watches](#watches) for more detail.
 
 #### Status Codes
 
 - **200** - no error
 - **400** - bad request
+- **404** - watch ID not found
 - **500** - server error
+- **501** - streaming not implemented
 
 ## <a name="authentication"></a> Authentication
 
@@ -1949,3 +2168,46 @@ OPA currently supports the following query performance metrics:
 - **timer_rego_query_parse_ns**: time taken (in nanonseconds) to parse the query.
 - **timer_rego_query_compile_ns**: time taken (in nanonseconds) to compile the query.
 - **timer_rego_query_eval_ns**: time taken (in nanonseconds) to evaluate the query.
+
+## <a name="watches"></a> Watches
+
+OPA can set watches on queries and report whenever the result of evaluating the query has changed. When a watch is set on a query, the requesting connection will be maintained as the query results are streamed back in HTTP Chunked Encoding format. A notification reflecting a certain change to the query results will be delivered _at most once_. That is, if a watch is set on `data.x`, and then multiple writes are made to `data.x`, say `1`, `2` and `3`, only the notification reflecting `data.x=3` is always seen eventually (assuming the watch is not ended, there are no connection problems, etc). The notifications reflecting `data.x=1` and `data.x=2` _might_ be seen. However, the notifications sent are guaranteed to be in order (`data.x=2` will always come after `data.x=1`, if it comes).
+
+The notification stream will not be delimited by any value; the client is expected to be able to parse JSON values from the stream one by one, recognizing where one ends and the next begins.
+
+The notification stream is a stream of JSON objects, each of which has the following structure:
+```
+{
+    "result": <result>,
+    "error": <error>,
+    "metrics": <metrics>,
+    "explanation": <explanation>,
+}
+```
+
+The `error` field is optional; it is omitted when no errors occur. If it is present, it is an [Error](#errors) describing any errors encountered while evaluating the query the watch was set on. If the policies on the server are changed such that the query no longer compiles, the contents of the error's `message` field will start with the text "watch invalidated:" and will be followed with the reason for invalidation. The watch will be ended by the server and the stream closed.
+
+The `metrics` field represents [Performance Metrics](#performance-metrics) for the evaluation of the query. It will only be present if metrics were requested in the API call that started the watch.
+
+The `explanation` field represents an [Explanation](#explanations) of how the query answer was found. It will only be present if explanations were requested in the API call that started the watch.
+
+If there are no errors, the `result` field will be a JSON array of the results of evaluating the query. The format of a result is:
+```
+{
+    "expressions": [
+        {
+            "value": true,
+            "text": "a = data.x",
+            "location":{"row":1,"col":1}
+        },
+        ...
+    ],
+    "bindings": {...}
+}
+```
+
+The `expressions` field is an array of the results of evaluating each of the expressions in the query. `value` is the expression's value, `text` is the actual expression, and `location` describes the location of the expression within the query. The values above are examples.
+
+The `bindings` field is a JSON object mapping `string`s to JSON values that describe the variable bindings resulting from evaluating the query.
+
+If the watch was set on a data reference instead of a query, the `result` field will simply be the value of the document requested, instead of an array of values.

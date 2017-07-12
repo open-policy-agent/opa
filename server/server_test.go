@@ -401,6 +401,252 @@ func TestDataWatch(t *testing.T) {
 	}
 }
 
+const servers = `[
+  {
+    "id": "s1",
+    "name": "app",
+    "protocols": [
+      "https",
+      "ssh"
+    ],
+    "ports": [
+      "p1",
+      "p2",
+      "p3"
+    ]
+  },
+  {
+    "id": "s2",
+    "name": "db",
+    "protocols": [
+      "mysql"
+    ],
+    "ports": [
+      "p3"
+    ]
+  },
+  {
+    "id": "s3",
+    "name": "cache",
+    "protocols": [
+      "memcache",
+      "http"
+    ],
+    "ports": [
+      "p3"
+    ]
+  },
+  {
+    "id": "s4",
+    "name": "dev",
+    "protocols": [
+      "http"
+    ],
+    "ports": [
+      "p1",
+      "p2"
+    ]
+  }
+]`
+
+func TestDataWatchDocsExample(t *testing.T) {
+	f := newFixture(t)
+	if err := f.v1(http.MethodPut, "/data/servers", servers, 204, ""); err != nil {
+		t.Fatal(err)
+	}
+
+	exp := strings.Join([]string{
+		"HTTP/1.1 200 OK\nContent-Type: application/json\nTransfer-Encoding: chunked\n\n281",
+		`{
+  "result": [
+    {
+      "id": "s1",
+      "name": "app",
+      "ports": [
+        "p1",
+        "p2",
+        "p3"
+      ],
+      "protocols": [
+        "https",
+        "ssh"
+      ]
+    },
+    {
+      "id": "s2",
+      "name": "db",
+      "ports": [
+        "p3"
+      ],
+      "protocols": [
+        "mysql"
+      ]
+    },
+    {
+      "id": "s3",
+      "name": "cache",
+      "ports": [
+        "p3"
+      ],
+      "protocols": [
+        "memcache",
+        "http"
+      ]
+    },
+    {
+      "id": "s4",
+      "name": "dev",
+      "ports": [
+        "p1",
+        "p2"
+      ],
+      "protocols": [
+        "http"
+      ]
+    }
+  ]
+}
+`,
+
+		`308`,
+		`{
+  "result": [
+    {
+      "id": "s1",
+      "name": "app",
+      "ports": [
+        "p1",
+        "p2",
+        "p3"
+      ],
+      "protocols": [
+        "https",
+        "ssh"
+      ]
+    },
+    {
+      "id": "s2",
+      "name": "db",
+      "ports": [
+        "p3"
+      ],
+      "protocols": [
+        "mysql"
+      ]
+    },
+    {
+      "id": "s3",
+      "name": "cache",
+      "ports": [
+        "p3"
+      ],
+      "protocols": [
+        "memcache",
+        "http"
+      ]
+    },
+    {
+      "id": "s4",
+      "name": "dev",
+      "ports": [
+        "p1",
+        "p2"
+      ],
+      "protocols": [
+        "http"
+      ]
+    },
+    {
+      "id": "s5",
+      "name": "job",
+      "ports": [
+        "p3"
+      ],
+      "protocols": [
+        "amqp"
+      ]
+    }
+  ]
+}
+`,
+		`281`,
+		`{
+  "result": [
+    {
+      "id": "s1",
+      "name": "app",
+      "ports": [
+        "p1",
+        "p2",
+        "p3"
+      ],
+      "protocols": [
+        "https",
+        "ssh"
+      ]
+    },
+    {
+      "id": "s3",
+      "name": "cache",
+      "ports": [
+        "p3"
+      ],
+      "protocols": [
+        "memcache",
+        "http"
+      ]
+    },
+    {
+      "id": "s4",
+      "name": "dev",
+      "ports": [
+        "p1",
+        "p2"
+      ],
+      "protocols": [
+        "http"
+      ]
+    },
+    {
+      "id": "s5",
+      "name": "job",
+      "ports": [
+        "p3"
+      ],
+      "protocols": [
+        "amqp"
+      ]
+    }
+  ]
+}
+`,
+		``,
+	}, "\r\n")
+
+	tests := []tr{
+		{http.MethodPatch, "/data/servers", `[{"op": "add", "path": "-", "value": {"id": "s5", "name": "job", "protocols": ["amqp"], "ports": ["p3"]}}]`, 204, ""},
+		{http.MethodPatch, "/data/servers", `[{"op": "remove", "path": "1"}]`, 204, ""},
+	}
+
+	recorder := newMockConn()
+	get := newReqV1(http.MethodGet, `/data/servers?watch&pretty=true`, "")
+	go f.server.Handler.ServeHTTP(recorder, get)
+	<-recorder.hijacked
+	<-recorder.write
+
+	for _, tr := range tests {
+		if err := f.v1(tr.method, tr.path, tr.body, tr.code, tr.resp); err != nil {
+			t.Fatal(err)
+		}
+		<-recorder.write
+	}
+	recorder.Close()
+
+	if result := recorder.buf.String(); result != exp {
+		t.Fatalf("Expected stream to equal %s, got %s", exp, result)
+	}
+}
+
 func TestDataGetExplainFull(t *testing.T) {
 	f := newFixture(t)
 
