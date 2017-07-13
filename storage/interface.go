@@ -149,8 +149,7 @@ type TriggerConfig struct {
 // Trigger defines the interface that stores implement to register for change
 // notifications when the store is changed.
 type Trigger interface {
-	Register(ctx context.Context, txn Transaction, id string, config TriggerConfig) error
-	Unregister(ctx context.Context, txn Transaction, id string)
+	Register(ctx context.Context, txn Transaction, config TriggerConfig) (TriggerHandle, error)
 }
 
 // TriggersNotSupported provides default implementations of the Trigger
@@ -158,12 +157,14 @@ type Trigger interface {
 type TriggersNotSupported struct{}
 
 // Register always returns an error indicating triggers are not supported.
-func (TriggersNotSupported) Register(context.Context, Transaction, string, TriggerConfig) error {
-	return triggersNotSupportedError()
+func (TriggersNotSupported) Register(context.Context, Transaction, TriggerConfig) (TriggerHandle, error) {
+	return nil, triggersNotSupportedError()
 }
 
-// Unregister is a no-op.
-func (TriggersNotSupported) Unregister(context.Context, Transaction, string) {
+// TriggerHandle defines the interface that can be used to unregister triggers that have
+// been registered on a Store.
+type TriggerHandle interface {
+	Unregister(ctx context.Context, txn Transaction)
 }
 
 // IndexIterator defines the interface for iterating over index results.

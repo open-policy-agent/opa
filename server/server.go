@@ -131,7 +131,7 @@ func (s *Server) Init(ctx context.Context) (*Server, error) {
 	config := storage.TriggerConfig{
 		OnCommit: s.reload,
 	}
-	if err := s.store.Register(ctx, txn, "opa/server", config); err != nil {
+	if _, err := s.store.Register(ctx, txn, config); err != nil {
 		s.store.Abort(ctx, txn)
 		return nil, err
 	}

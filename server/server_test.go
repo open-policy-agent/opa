@@ -1050,8 +1050,8 @@ func (queryBindingErrStore) Abort(ctx context.Context, txn storage.Transaction) 
 
 }
 
-func (queryBindingErrStore) Register(context.Context, storage.Transaction, string, storage.TriggerConfig) error {
-	return nil
+func (queryBindingErrStore) Register(context.Context, storage.Transaction, storage.TriggerConfig) (storage.TriggerHandle, error) {
+	return nil, nil
 }
 
 func (queryBindingErrStore) Unregister(context.Context, storage.Transaction, string) {
