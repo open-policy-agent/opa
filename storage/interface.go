@@ -31,7 +31,8 @@ type Store interface {
 	// Write is called to modify a document referred to by path.
 	Write(ctx context.Context, txn Transaction, op PatchOp, path Path, value interface{}) error
 
-	// Commit is called to finish the transaction.
+	// Commit is called to finish the transaction. If Commit returns an error, the
+	// transaction must be automatically aborted by the Store implementation.
 	Commit(ctx context.Context, txn Transaction) error
 
 	// Abort is called to cancel the transaction.
