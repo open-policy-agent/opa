@@ -438,7 +438,7 @@ func TestInMemoryTriggers(t *testing.T) {
 	writeTxn := storage.NewTransactionOrDie(ctx, store, storage.WriteParams)
 	readTxn := storage.NewTransactionOrDie(ctx, store)
 
-	err := store.Register(ctx, readTxn, "err", storage.TriggerConfig{
+	_, err := store.Register(ctx, readTxn, storage.TriggerConfig{
 		OnCommit: func(context.Context, storage.Transaction, storage.TriggerEvent) {},
 	})
 
@@ -452,7 +452,7 @@ func TestInMemoryTriggers(t *testing.T) {
 	modifiedPath := storage.MustParsePath("/a")
 	expectedValue := "hello"
 
-	err = store.Register(ctx, writeTxn, "test", storage.TriggerConfig{
+	_, err = store.Register(ctx, writeTxn, storage.TriggerConfig{
 		OnCommit: func(ctx context.Context, txn storage.Transaction, evt storage.TriggerEvent) {
 			result, err := store.Read(ctx, txn, modifiedPath)
 			if err != nil || !reflect.DeepEqual(result, expectedValue) {
@@ -461,6 +461,9 @@ func TestInMemoryTriggers(t *testing.T) {
 			event = evt
 		},
 	})
+	if err != nil {
+		t.Fatalf("Failed to register callback: %v", err)
+	}
 
 	if err := store.Write(ctx, writeTxn, storage.ReplaceOp, modifiedPath, expectedValue); err != nil {
 		t.Fatalf("Unexpected write error: %v", err)
@@ -488,6 +491,55 @@ func TestInMemoryTriggers(t *testing.T) {
 	expPolicy := storage.PolicyEvent{ID: id, Data: data, Removed: false}
 	if p := event.Policy[0]; !reflect.DeepEqual(expPolicy, p) {
 		t.Fatalf("Expected policy event %v, got %v", expPolicy, p)
+	}
+}
+
+func TestInMemoryTriggersUnregister(t *testing.T) {
+	ctx := context.Background()
+	store := NewFromObject(loadSmallTestData())
+	writeTxn := storage.NewTransactionOrDie(ctx, store, storage.WriteParams)
+	modifiedPath := storage.MustParsePath("/a")
+	expectedValue := "hello"
+
+	var called bool
+	_, err := store.Register(ctx, writeTxn, storage.TriggerConfig{
+		OnCommit: func(ctx context.Context, txn storage.Transaction, evt storage.TriggerEvent) {
+			if !evt.IsZero() {
+				called = true
+			}
+		},
+	})
+	if err != nil {
+		t.Fatalf("Failed to register callback: %v", err)
+	}
+
+	handle, err := store.Register(ctx, writeTxn, storage.TriggerConfig{
+		OnCommit: func(ctx context.Context, txn storage.Transaction, evt storage.TriggerEvent) {
+			if !evt.IsZero() {
+				t.Fatalf("Callback should have been unregistered")
+			}
+		},
+	})
+	if err != nil {
+		t.Fatalf("Failed to register callback: %v", err)
+	}
+
+	if err := store.Commit(ctx, writeTxn); err != nil {
+		t.Fatalf("Unexpected commit error: %v", err)
+	}
+
+	writeTxn = storage.NewTransactionOrDie(ctx, store, storage.WriteParams)
+	if err := store.Write(ctx, writeTxn, storage.AddOp, modifiedPath, expectedValue); err != nil {
+		t.Fatalf("Failed to write to store: %v", err)
+	}
+	handle.Unregister(ctx, writeTxn)
+
+	if err := store.Commit(ctx, writeTxn); err != nil {
+		t.Fatalf("Unexpected commit error: %v", err)
+	}
+
+	if !called {
+		t.Fatal("Registered callback was not called")
 	}
 }
 

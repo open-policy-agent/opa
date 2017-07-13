@@ -31,7 +31,7 @@ import (
 func New() storage.Store {
 	return &store{
 		data:     map[string]interface{}{},
-		triggers: map[string]storage.TriggerConfig{},
+		triggers: map[*handle]storage.TriggerConfig{},
 		policies: map[string][]byte{},
 		indices:  newIndices(),
 	}
@@ -66,13 +66,17 @@ func NewFromReader(r io.Reader) storage.Store {
 }
 
 type store struct {
-	rmu      sync.RWMutex                     // reader-writer lock
-	wmu      sync.Mutex                       // writer lock
-	xid      uint64                           // last generated transaction id
-	data     map[string]interface{}           // raw data
-	policies map[string][]byte                // raw policies
-	triggers map[string]storage.TriggerConfig // registered triggers
-	indices  *indices                         // data ref indices
+	rmu      sync.RWMutex                      // reader-writer lock
+	wmu      sync.Mutex                        // writer lock
+	xid      uint64                            // last generated transaction id
+	data     map[string]interface{}            // raw data
+	policies map[string][]byte                 // raw policies
+	triggers map[*handle]storage.TriggerConfig // registered triggers
+	indices  *indices                          // data ref indices
+}
+
+type handle struct {
+	db *store
 }
 
 func (db *store) NewTransaction(ctx context.Context, params ...storage.TransactionParams) (storage.Transaction, error) {
@@ -136,24 +140,17 @@ func (db *store) DeletePolicy(_ context.Context, txn storage.Transaction, id str
 	return underlying.DeletePolicy(id)
 }
 
-func (db *store) Register(ctx context.Context, txn storage.Transaction, id string, config storage.TriggerConfig) error {
+func (db *store) Register(ctx context.Context, txn storage.Transaction, config storage.TriggerConfig) (storage.TriggerHandle, error) {
 	underlying := txn.(*transaction)
 	if !underlying.write {
-		return &storage.Error{
+		return nil, &storage.Error{
 			Code:    storage.InvalidTransactionErr,
 			Message: "triggers must be registered with a write transaction",
 		}
 	}
-	db.triggers[id] = config
-	return nil
-}
-
-func (db *store) Unregister(ctx context.Context, txn storage.Transaction, id string) {
-	underlying := txn.(*transaction)
-	if !underlying.write {
-		return
-	}
-	delete(db.triggers, id)
+	h := &handle{db}
+	db.triggers[h] = config
+	return h, nil
 }
 
 func (db *store) Read(ctx context.Context, txn storage.Transaction, path storage.Path) (interface{}, error) {
@@ -175,6 +172,14 @@ func (db *store) Build(ctx context.Context, txn storage.Transaction, ref ast.Ref
 		}
 	}
 	return db.indices.Build(ctx, db, txn, ref)
+}
+
+func (h *handle) Unregister(ctx context.Context, txn storage.Transaction) {
+	underlying := txn.(*transaction)
+	if !underlying.write {
+		return
+	}
+	delete(h.db.triggers, h)
 }
 
 func (db *store) runOnCommitTriggers(ctx context.Context, txn storage.Transaction, event storage.TriggerEvent) {
