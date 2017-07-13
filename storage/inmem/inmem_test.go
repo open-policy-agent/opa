@@ -45,9 +45,7 @@ func TestInMemoryRead(t *testing.T) {
 	ctx := context.Background()
 
 	for idx, tc := range tests {
-		txn := storage.NewTransactionOrDie(ctx, store)
-		result, err := store.Read(ctx, txn, storage.MustParsePath(tc.path))
-		store.Abort(ctx, txn)
+		result, err := storage.ReadOne(ctx, store, storage.MustParsePath(tc.path))
 		switch e := tc.expected.(type) {
 		case error:
 			if err == nil {
@@ -143,17 +141,7 @@ func TestInMemoryWrite(t *testing.T) {
 			panic(fmt.Sprintf("illegal value: %v", tc.op))
 		}
 
-		txn := storage.NewTransactionOrDie(ctx, store, storage.WriteParams)
-		err := store.Write(ctx, txn, op, storage.MustParsePath(tc.path), value)
-
-		if err != nil {
-			store.Abort(ctx, txn)
-		} else {
-			if err := store.Commit(ctx, txn); err != nil {
-				panic(err)
-			}
-		}
-
+		err := storage.WriteOne(ctx, store, op, storage.MustParsePath(tc.path), value)
 		if tc.expected == nil {
 			if err != nil {
 				t.Errorf("Test case %d (%v): unexpected patch error: %v", i+1, tc.note, err)
@@ -175,10 +163,7 @@ func TestInMemoryWrite(t *testing.T) {
 		}
 
 		// Perform get and verify result
-		txn = storage.NewTransactionOrDie(ctx, store)
-		result, err := store.Read(ctx, txn, storage.MustParsePath(tc.getPath))
-		store.Abort(ctx, txn)
-
+		result, err := storage.ReadOne(ctx, store, storage.MustParsePath(tc.getPath))
 		switch expected := tc.getExpected.(type) {
 		case error:
 			if err == nil {
