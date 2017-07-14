@@ -292,6 +292,10 @@ func NewBindingsV1(locals *ast.ValueMap) (result []*BindingV1) {
 }
 
 const (
+	// ParamQueryV1 defines the name of the HTTP URL parameter that specifies
+	// values for the request query.
+	ParamQueryV1 = "q"
+
 	// ParamInputV1 defines the name of the HTTP URL parameter that specifies
 	// values for the "input" document.
 	ParamInputV1 = "input"
@@ -303,6 +307,10 @@ const (
 	// ParamPrettyV1 defines the name of the HTTP URL parameter that indicates
 	// the client wants to receive a pretty-printed version of the response.
 	ParamPrettyV1 = "pretty"
+
+	// ParamExplainV1 defines the name of the HTTP URL parameter that indicates the
+	// client wants to receive explanations in addition to the result.
+	ParamExplainV1 = "explain"
 
 	// ParamMetricsV1 defines the name of the HTTP URL parameter that indicates
 	// the client wants to receive performance metrics in addition to the

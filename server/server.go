@@ -280,10 +280,10 @@ func (s *Server) indexGet(w http.ResponseWriter, r *http.Request) {
 	defer renderFooter(w)
 
 	values := r.URL.Query()
-	qStrs := values["q"]
-	inputStrs := values["input"]
+	qStrs := values[types.ParamQueryV1]
+	inputStrs := values[types.ParamInputV1]
 
-	explainMode := getExplain(r.URL.Query()["explain"])
+	explainMode := getExplain(r.URL.Query()[types.ParamExplainV1])
 	ctx := r.Context()
 
 	renderQueryForm(w, qStrs, inputStrs, explainMode)
@@ -551,7 +551,7 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 	}
 
 	pretty := getBoolParam(r.URL, types.ParamPrettyV1, true)
-	explainMode := getExplain(r.URL.Query()["explain"])
+	explainMode := getExplain(r.URL.Query()[types.ParamExplainV1])
 	includeMetrics := getBoolParam(r.URL, types.ParamMetricsV1, true)
 
 	m := metrics.New()
@@ -851,7 +851,8 @@ func (s *Server) v1PoliciesPut(w http.ResponseWriter, r *http.Request) {
 func (s *Server) v1QueryGet(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	values := r.URL.Query()
-	qStrs := values["q"]
+
+	qStrs := values[types.ParamQueryV1]
 	if len(qStrs) == 0 {
 		writer.Error(w, http.StatusBadRequest, types.NewErrorV1(types.CodeInvalidParameter, "missing parameter 'q'"))
 		return
