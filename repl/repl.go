@@ -20,6 +20,7 @@ import (
 
 	"github.com/olekukonko/tablewriter"
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/format"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/topdown"
 	"github.com/open-policy-agent/opa/topdown/explain"
@@ -367,7 +368,13 @@ func (r *REPL) cmdHelp(args []string) error {
 
 func (r *REPL) cmdShow() error {
 	module := r.modules[r.currentModuleID]
-	fmt.Fprintln(r.output, module)
+
+	bs, err := format.Ast(module)
+	if err != nil {
+		return err
+	}
+
+	fmt.Fprint(r.output, string(bs))
 	return nil
 }
 

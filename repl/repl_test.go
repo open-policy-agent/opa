@@ -266,7 +266,7 @@ func TestShow(t *testing.T) {
 
 	repl.OneShot(ctx, `package repl_test`)
 	repl.OneShot(ctx, "show")
-	assertREPLText(t, buffer, "package repl_test\n")
+	assertREPLText(t, buffer, "package repl_test\n\n")
 	buffer.Reset()
 
 	repl.OneShot(ctx, "import input.xyz")
@@ -274,7 +274,7 @@ func TestShow(t *testing.T) {
 
 	expected := `package repl_test
 
-import input.xyz` + "\n"
+import input.xyz` + "\n\n"
 	assertREPLText(t, buffer, expected)
 	buffer.Reset()
 
@@ -283,8 +283,8 @@ import input.xyz` + "\n"
 
 	expected = `package repl_test
 
-import input.xyz
-import data.foo as bar` + "\n"
+import data.foo as bar
+import input.xyz` + "\n\n"
 	assertREPLText(t, buffer, expected)
 	buffer.Reset()
 
@@ -294,18 +294,23 @@ import data.foo as bar` + "\n"
 
 	expected = `package repl_test
 
-import input.xyz
 import data.foo as bar
+import input.xyz
 
-p[1] { true }
-p[2] { true }` + "\n"
+p[1] {
+	true
+}
+
+p[2] {
+	true
+}` + "\n\n"
 	assertREPLText(t, buffer, expected)
 	buffer.Reset()
 
 	repl.OneShot(ctx, "package abc")
 	repl.OneShot(ctx, "show")
 
-	assertREPLText(t, buffer, "package abc\n")
+	assertREPLText(t, buffer, "package abc\n\n")
 	buffer.Reset()
 
 	repl.OneShot(ctx, "package repl_test")
