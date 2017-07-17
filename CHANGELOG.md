@@ -3,7 +3,21 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## 0.5.2
+
+### Fixes
+
+- Fix mobile view navigation bug
+- Fix panic in compiler from concurrent map writes ([#379](https://github.com/open-policy-agent/opa/pull/379)
+- Fix ambiguous syntax around body and set comprehensions ([#377](https://github.com/open-policy-agent/opa/issues/377))
+
+### Miscellaneous
+
+- Add support for set and object comprehensions
+- Add support for system.main policy in server
+- Add transaction support in rego package
+- Improve type checking error messages
+- Format REPL modules before printing them
 
 ## 0.5.1
 
