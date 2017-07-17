@@ -666,12 +666,23 @@ Exponent <- 'e'i [+-]? DecimalDigit+
 
 Integer <- '0' / ( NonZeroDecimalDigit DecimalDigit* )
 
-String <- '"' Char* '"' {
+String <- QuotedString / RawString
+
+QuotedString <- '"' Char* '"' {
     var v string
     err := json.Unmarshal([]byte(c.text), &v)
     str := StringTerm(v)
     str.Location = currentLocation(c)
     return str, err
+}
+
+RawString <- '`' [^`]* '`' {
+    s := string(c.text)
+    s = s[1:len(s)-1] // Trim surrounding quotes.
+
+    str := StringTerm(s)
+    str.Location = currentLocation(c)
+    return str, nil
 }
 
 Bool <- "true" {

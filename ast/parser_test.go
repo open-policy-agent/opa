@@ -92,6 +92,10 @@ func TestStringTerms(t *testing.T) {
 		{`"foo\u005C"`, "foo\u005c"}, // unicode (upper hex)
 		{`"foo\u005c"`, "foo\u005C"}, // unicode (lower hex)
 		{`"\uD834\uDD1E"`, `𝄞`},      // g-clef
+		{"`hi\\there`", `hi\there`},  // basic raw string
+		{"`foo\nbar\n    baz`", `foo
+bar
+    baz`}, // multi-line raw string
 	}
 
 	for _, tc := range tests {
@@ -120,6 +124,7 @@ func TestScalarTerms(t *testing.T) {
 	assertParseOneTerm(t, "string", "\"a string u6abc7def8abc0def with unicode\"", StringTerm("a string u6abc7def8abc0def with unicode"))
 	assertParseError(t, "hex", "6abc")
 	assertParseError(t, "non-terminated", "\"foo")
+	assertParseError(t, "non-terminated-raw", "`foo")
 	assertParseError(t, "non-string", "'a string'")
 	assertParseError(t, "non-number", "6zxy")
 	assertParseError(t, "non-number2", "6d7")
