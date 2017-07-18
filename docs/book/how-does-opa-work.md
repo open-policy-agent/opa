@@ -509,26 +509,6 @@ Content-Type: application/json
 
 OPA is under active development. The following features are planned but not yet implemented.
 
-### Triggers
-
-Your service and its users can register to be notified when the system exits the expected state so that violations can be remediated automatically.
-
-Any rule can be used as the trigger for a notification. For example, let’s assume that you want to migrate containers to a new host if their current host shuts down. You need a rule to detect when there are containers assigned to hosts that are no longer running.
-
-```ruby
-# All production containers are running if...
-containers_to_migrate[id] {
-    # ...the container exists
-    container = containers[id]
-    # ...and it is in production
-    container.site.name = "prod"
-    # ...and its host is running.
-    container.host.state != "terminated"
-}
-```
-
-This rule produces a list of containers that should be migrated. You can register to observe this rule, and when the underlying data changes, OPA will re-evaluate it and trigger a notification. You can handle the event by re-deploying the containers in the resulting list to a running host.
-
 ### Transactions
 
 OPA APIs support transactional operations. Either all of the operations within a transaction succeed or the whole transaction fails. For example, to deploy a new virtual machine, you might:
