@@ -969,9 +969,17 @@ func evalRef(t *Topdown, ref, path ast.Ref, iter Iterator) error {
 		return fmt.Errorf("unbound ref head: %v", path)
 	}
 
+	var n ast.Ref
 	head, tail := ref[0], ref[1:]
-	n, ok := head.Value.(ast.Ref)
-	if !ok {
+	switch h := head.Value.(type) {
+	case ast.Ref:
+		n = h
+	case ast.Array, ast.Object, *ast.Set:
+		return evalTermsRec(t, func(t *Topdown) error {
+			path = append(path, head)
+			return evalRef(t, tail, path, iter)
+		}, []*ast.Term{ast.NewTerm(h)})
+	default:
 		path = append(path, head)
 		return evalRef(t, tail, path, iter)
 	}
@@ -1818,40 +1826,17 @@ func evalRefRuleResultRecRef(t *Topdown, v, ref, path ast.Ref, iter func(*Topdow
 
 func evalRefRuleResultRecSet(t *Topdown, set *ast.Set, ref, path ast.Ref, iter func(*Topdown, ast.Value) error) error {
 	head, tail := ref[0], ref[1:]
-	switch k := head.Value.(type) {
-	case ast.Var:
-		for _, e := range *set {
-			undo := t.Bind(k, e.Value, nil)
-			path = append(path, e)
-			if err := evalRefRuleResultRec(t, e.Value, tail, path, iter); err != nil {
-				return err
-			}
-			path = path[:len(path)-1]
-			t.Unbind(undo)
-		}
-		return nil
-	default:
-		// Set lookup requires that nested references be resolved to their
-		// values. In some cases this will be expensive, so it may have to be
-		// revisited.
-		resolved, err := ResolveRefs(set, t)
+	for _, e := range *set {
+		undo, err := evalEqUnify(t, e.Value, head.Value, nil, func(t *Topdown) error {
+			return evalRefRuleResultRec(t, e.Value, tail, path.Append(e), iter)
+		})
+
 		if err != nil {
 			return err
 		}
-
-		rset := resolved.(*ast.Set)
-		rval, err := ResolveRefs(k, t)
-		if err != nil {
-			return err
-		}
-
-		if !rset.Contains(ast.NewTerm(rval)) {
-			return nil
-		}
-
-		path = append(path, head)
-		return evalRefRuleResultRec(t, rval, tail, path, iter)
+		t.Unbind(undo)
 	}
+	return nil
 }
 
 func evalTerms(t *Topdown, iter Iterator) error {

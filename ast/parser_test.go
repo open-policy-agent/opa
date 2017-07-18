@@ -163,10 +163,11 @@ func TestRefTerms(t *testing.T) {
 		),
 		StringTerm("bar"),
 	))
+	assertParseOneTerm(t, "composite operand 1", "foo[[1,2,3]].bar", RefTerm(VarTerm("foo"), ArrayTerm(NumberTerm("1"), NumberTerm("2"), NumberTerm("3")), StringTerm("bar")))
+	assertParseOneTerm(t, "composite operand 2", `foo[{"foo": 2}].bar`, RefTerm(VarTerm("foo"), ObjectTerm(Item(StringTerm("foo"), NumberTerm("2"))), StringTerm("bar")))
+
 	assertParseError(t, "missing component 1", "foo.")
 	assertParseError(t, "missing component 2", "foo[].bar")
-	assertParseError(t, "composite operand 1", "foo[[1,2,3]].bar")
-	assertParseError(t, "composite operand 2", "foo[{1: 2}].bar")
 }
 
 func TestObjectWithScalars(t *testing.T) {

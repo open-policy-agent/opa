@@ -464,7 +464,6 @@ func TestTopDownIneqExpr(t *testing.T) {
 	}
 
 	data := loadSmallTestData()
-
 	for _, tc := range tests {
 		runTopDownTestCase(t, data, tc.note, []string{tc.rule}, tc.expected)
 	}
@@ -727,7 +726,7 @@ w = data.topdown.set { true }`,
 
 	store := inmem.NewFromObject(data)
 
-	assertTopDown(t, compiler, store, "base/virtual", []string{"topdown", "p"}, "{}", `[
+	assertTopDownWithPath(t, compiler, store, "base/virtual", []string{"topdown", "p"}, "{}", `[
 		["c", "p", 0, 1],
 		["c", "p", 1, 2],
 		["c", "q", 0, 3],
@@ -740,13 +739,13 @@ w = data.topdown.set { true }`,
 		["c", "s", "w", {"f":10, "g": 9.9}]
 	]`)
 
-	assertTopDown(t, compiler, store, "base/virtual: ground key", []string{"topdown", "q"}, "{}", `[
+	assertTopDownWithPath(t, compiler, store, "base/virtual: ground key", []string{"topdown", "q"}, "{}", `[
 		["c", "p", 1],
 		["c", "q", 3],
 		["c", "x", 100]
 	]`)
 
-	assertTopDown(t, compiler, store, "base/virtual: prefix", []string{"topdown", "r"}, "{}", `[
+	assertTopDownWithPath(t, compiler, store, "base/virtual: prefix", []string{"topdown", "r"}, "{}", `[
 		["c", {
 			"p": [1,2],
 			"q": [3,4],
@@ -761,15 +760,15 @@ w = data.topdown.set { true }`,
 		}]
 	]`)
 
-	assertTopDown(t, compiler, store, "base/virtual: set", []string{"topdown", "w"}, "{}", `{
+	assertTopDownWithPath(t, compiler, store, "base/virtual: set", []string{"topdown", "w"}, "{}", `{
 		"v": [1,2,3,4],
 		"u": [1,2,3,4]
 	}`)
 
-	assertTopDown(t, compiler, store, "base/virtual: no base", []string{"topdown", "s"}, "{}", `{"base": {"doc": {"p": true}}}`)
-	assertTopDown(t, compiler, store, "base/virtual: undefined", []string{"topdown", "t"}, "{}", "{}")
-	assertTopDown(t, compiler, store, "base/virtual: undefined-2", []string{"topdown", "v"}, "{}", `{"h": {"k": [1,2,3]}}`)
-	assertTopDown(t, compiler, store, "base/virtual: missing input value", []string{"topdown", "u"}, "{}", "")
+	assertTopDownWithPath(t, compiler, store, "base/virtual: no base", []string{"topdown", "s"}, "{}", `{"base": {"doc": {"p": true}}}`)
+	assertTopDownWithPath(t, compiler, store, "base/virtual: undefined", []string{"topdown", "t"}, "{}", "{}")
+	assertTopDownWithPath(t, compiler, store, "base/virtual: undefined-2", []string{"topdown", "v"}, "{}", `{"h": {"k": [1,2,3]}}`)
+	assertTopDownWithPath(t, compiler, store, "base/virtual: missing input value", []string{"topdown", "u"}, "{}", "")
 }
 
 func TestTopDownNestedReferences(t *testing.T) {
@@ -856,6 +855,62 @@ func TestTopDownVarReferences(t *testing.T) {
 
 	for _, tc := range tests {
 		runTopDownTestCase(t, data, tc.note, tc.rules, tc.expected)
+	}
+}
+
+func TestTopDownCompositeReferences(t *testing.T) {
+	tests := []struct {
+		note     string
+		ref      string
+		expected interface{}
+	}{
+		{"array", "data.test.r[[1, 2]]", "[1, 2]"},
+		{"object", `data.test.r[{"foo": "bar"}]`, `{"foo": "bar"}`},
+		{"set", `data.test.r[{1, 2}]`, "[1, 2]"},
+
+		{"unify array", `data.test.r[[1, x]]`, []string{"[1, 2]", "[1, 3]"}},
+		{"unify object", `data.test.r[{"foo": y}]`, `{"foo": "bar"}`},
+
+		{"complete doc unify", `data.test.s[[x, y]]`, []string{"[1, 2]", "[1, 3]", "[2, 7]", "[[1,1], 4]"}},
+		{"partial doc unify", `data.test.r[[x, y]]`, []string{"[1, 2]", "[1, 3]", "[2, 7]", "[[1,1], 4]"}},
+
+		{"empty set", `data.test.empty[set()]`, "[]"},
+
+		{"ref", `data.test.r[[data.test.foo.bar, 3]]`, "[1,3]"},
+		{"nested ref", `data.test.r[[data.test.foo[data.test.o.foo], 3]]`, "[1,3]"},
+
+		{"comprehension", `data.test.s[[[x | x = y[_]; y = [1, 1]], 4]]`, "[[1,1],4]"},
+
+		{"missing array", `data.test.r[[1, 4]]`, ``},
+		{"missing object value", `data.test.r[{"foo": "baz"}]`, ``},
+		{"missing set", `data.test.r[{1, 3}]`, ``},
+
+		{"array doc", `data.test.a[[1, 2]]`, errors.New(`rego_type_error: undefined ref: data.test.a[[1, 2]]`)},
+		{"object doc", `data.test.o[[1, 2]]`, errors.New(`rego_type_error: undefined ref: data.test.o[[1, 2]]`)},
+
+		{"base document", `data.a[{0}]`, errors.New("composites cannot be base document keys: data.a[{0}]")},
+		{"missing object key", `data.test.r[{"baz": "bar"}]`, errors.New(`1 error occurred: 1:1: rego_type_error: undefined ref: data.test.r[{"baz": "bar"}]`)},
+	}
+
+	mod := `package test
+
+		empty = {set()}
+
+		s = {[1, 2], [1, 3], {"foo": "bar"}, {1, 2}, [2, 7], [[1,1], 4]}
+
+		r[x] { s[x] }
+
+		a = [1, 2]
+		o = {"foo": "bar"}
+
+		foo = {"bar": 1}
+		`
+
+	compiler := ast.NewCompiler()
+	compiler.Compile(map[string]*ast.Module{"test": ast.MustParseModule(mod)})
+
+	for _, tc := range tests {
+		assertTopDownWithRef(t, compiler, inmem.New(), tc.note, ast.MustParseRef(tc.ref), "", tc.expected)
 	}
 }
 
@@ -1423,7 +1478,7 @@ q[x] { g[j][k] = x }`})
 
 	store := inmem.NewFromObject(loadSmallTestData())
 
-	assertTopDown(t, compiler, store, "deep embedded vdoc", []string{"b", "c", "d", "p"}, "{}", "[1, 2, 4]")
+	assertTopDownWithPath(t, compiler, store, "deep embedded vdoc", []string{"b", "c", "d", "p"}, "{}", "[1, 2, 4]")
 }
 
 func TestTopDownInputValues(t *testing.T) {
@@ -1449,20 +1504,20 @@ loopback = input { true }`})
 
 	store := inmem.NewFromObject(loadSmallTestData())
 
-	assertTopDown(t, compiler, store, "loopback", []string{"z", "loopback"}, `{"foo": 1}`, `{"foo": 1}`)
+	assertTopDownWithPath(t, compiler, store, "loopback", []string{"z", "loopback"}, `{"foo": 1}`, `{"foo": 1}`)
 
-	assertTopDown(t, compiler, store, "loopback undefined", []string{"z", "loopback"}, ``, ``)
+	assertTopDownWithPath(t, compiler, store, "loopback undefined", []string{"z", "loopback"}, ``, ``)
 
-	assertTopDown(t, compiler, store, "simple", []string{"z", "p"}, `{
+	assertTopDownWithPath(t, compiler, store, "simple", []string{"z", "p"}, `{
 		"req1": {"foo": 4},
 		"req2": {"bar": 4}
 	}`, "true")
 
-	assertTopDown(t, compiler, store, "missing", []string{"z", "p"}, `{
+	assertTopDownWithPath(t, compiler, store, "missing", []string{"z", "p"}, `{
 		"req1": {"foo": 4}
 	}`, "")
 
-	assertTopDown(t, compiler, store, "namespaced", []string{"z", "s"}, `{
+	assertTopDownWithPath(t, compiler, store, "namespaced", []string{"z", "s"}, `{
 		"req3": {
 			"a": {
 				"b": {
@@ -1472,7 +1527,7 @@ loopback = input { true }`})
 		}
 	}`, "true")
 
-	assertTopDown(t, compiler, store, "namespaced with alias", []string{"z", "t"}, `{
+	assertTopDownWithPath(t, compiler, store, "namespaced with alias", []string{"z", "t"}, `{
 		"req4": {
 			"a": {
 				"b": {
@@ -1482,7 +1537,7 @@ loopback = input { true }`})
 		}
 	}`, "true")
 
-	assertTopDown(t, compiler, store, "embedded ref to base doc", []string{"z", "s"}, `{
+	assertTopDownWithPath(t, compiler, store, "embedded ref to base doc", []string{"z", "s"}, `{
 		"req3": {
 			"a": {
 				"b": {
@@ -1492,7 +1547,7 @@ loopback = input { true }`})
 		}
 	}`, "true")
 
-	assertTopDown(t, compiler, store, "embedded non-ground ref to base doc", []string{"z", "u"}, `{
+	assertTopDownWithPath(t, compiler, store, "embedded non-ground ref to base doc", []string{"z", "u"}, `{
 		"req3": {
 			"a": {
 				"b": data.l[x].c
@@ -1503,7 +1558,7 @@ loopback = input { true }`})
 		{"[2,3,4,5]", `{"x": 1}`},
 	})
 
-	assertTopDown(t, compiler, store, "embedded non-ground ref to virtual doc", []string{"z", "u"}, `{
+	assertTopDownWithPath(t, compiler, store, "embedded non-ground ref to virtual doc", []string{"z", "u"}, `{
 		"req3": {
 			"a": {
 				"b": data.z.w[x]
@@ -1514,7 +1569,7 @@ loopback = input { true }`})
 		{"[3,4]", `{"x": 1}`},
 	})
 
-	assertTopDown(t, compiler, store, "non-ground ref to virtual doc-2", []string{"z", "gt1"}, `{
+	assertTopDownWithPath(t, compiler, store, "non-ground ref to virtual doc-2", []string{"z", "gt1"}, `{
 		"req1": data.z.keys[x]
 	}`, [][2]string{
 		{"true", `{"x": "2"}`},
@@ -1659,20 +1714,20 @@ func TestTopDownUserFunc(t *testing.T) {
 	txn := storage.NewTransactionOrDie(ctx, store)
 	defer store.Abort(ctx, txn)
 
-	assertTopDown(t, compiler, store, "basic call", []string{"ex", "bar", "alice"}, "", `["al", "ce"]`)
-	assertTopDown(t, compiler, store, "chained", []string{"ex", "chain2"}, "", `["foo", "bar"]`)
-	assertTopDown(t, compiler, store, "cross package", []string{"test", "cross"}, "", `["s f", [", my name "]]`)
-	assertTopDown(t, compiler, store, "array params", []string{"ex", "arraysrule"}, "", `[["h", "h"], ["foo"]]`)
-	assertTopDown(t, compiler, store, "object params", []string{"ex", "objectsrule"}, "", `[["h", "h"], "i"]`)
-	assertTopDown(t, compiler, store, "ref func output", []string{"ex", "refoutput"}, "", `"h"`)
-	assertTopDown(t, compiler, store, "same package call", []string{"test", "samepkg"}, "", `"w do you do?"`)
-	assertTopDown(t, compiler, store, "void good", []string{"ex", "voidGood"}, "", `true`)
-	assertTopDown(t, compiler, store, "void bad", []string{"ex", "voidBad"}, "", "")
-	assertTopDown(t, compiler, store, "multi1", []string{"ex", "multi1"}, "", `2`)
-	assertTopDown(t, compiler, store, "multi2", []string{"ex", "multi2"}, "", `5`)
-	assertTopDown(t, compiler, store, "multi3", []string{"ex", "multi3"}, "", `20`)
-	assertTopDown(t, compiler, store, "multi4", []string{"ex", "multi4"}, "", `"bar"`)
-	assertTopDown(t, compiler, store, "multi cross package", []string{"test", "multi_cross_pkg"}, "", `["bar", 3]`)
+	assertTopDownWithPath(t, compiler, store, "basic call", []string{"ex", "bar", "alice"}, "", `["al", "ce"]`)
+	assertTopDownWithPath(t, compiler, store, "chained", []string{"ex", "chain2"}, "", `["foo", "bar"]`)
+	assertTopDownWithPath(t, compiler, store, "cross package", []string{"test", "cross"}, "", `["s f", [", my name "]]`)
+	assertTopDownWithPath(t, compiler, store, "array params", []string{"ex", "arraysrule"}, "", `[["h", "h"], ["foo"]]`)
+	assertTopDownWithPath(t, compiler, store, "object params", []string{"ex", "objectsrule"}, "", `[["h", "h"], "i"]`)
+	assertTopDownWithPath(t, compiler, store, "ref func output", []string{"ex", "refoutput"}, "", `"h"`)
+	assertTopDownWithPath(t, compiler, store, "same package call", []string{"test", "samepkg"}, "", `"w do you do?"`)
+	assertTopDownWithPath(t, compiler, store, "void good", []string{"ex", "voidGood"}, "", `true`)
+	assertTopDownWithPath(t, compiler, store, "void bad", []string{"ex", "voidBad"}, "", "")
+	assertTopDownWithPath(t, compiler, store, "multi1", []string{"ex", "multi1"}, "", `2`)
+	assertTopDownWithPath(t, compiler, store, "multi2", []string{"ex", "multi2"}, "", `5`)
+	assertTopDownWithPath(t, compiler, store, "multi3", []string{"ex", "multi3"}, "", `20`)
+	assertTopDownWithPath(t, compiler, store, "multi4", []string{"ex", "multi4"}, "", `"bar"`)
+	assertTopDownWithPath(t, compiler, store, "multi cross package", []string{"test", "multi_cross_pkg"}, "", `["bar", 3]`)
 }
 
 func TestUserFunctionErrors(t *testing.T) {
@@ -1726,9 +1781,9 @@ func TestUserFunctionErrors(t *testing.T) {
 	txn := storage.NewTransactionOrDie(ctx, store)
 	defer store.Abort(ctx, txn)
 
-	assertTopDown(t, compiler, store, "function output conflict single", []string{"test1", "r"}, "", errors.New(`eval_conflict_error: function "test1.p" produces conflicting outputs`))
-	assertTopDown(t, compiler, store, "function input no match", []string{"test2", "r"}, "", "")
-	assertTopDown(t, compiler, store, "function output conflict multiple", []string{"test3", "r"}, "", errors.New(`eval_conflict_error: function "test3.p" produces conflicting outputs`))
+	assertTopDownWithPath(t, compiler, store, "function output conflict single", []string{"test1", "r"}, "", errors.New(`eval_conflict_error: function "test1.p" produces conflicting outputs`))
+	assertTopDownWithPath(t, compiler, store, "function input no match", []string{"test2", "r"}, "", "")
+	assertTopDownWithPath(t, compiler, store, "function output conflict multiple", []string{"test3", "r"}, "", errors.New(`eval_conflict_error: function "test3.p" produces conflicting outputs`))
 }
 
 func TestTopDownWithKeyword(t *testing.T) {
@@ -1757,12 +1812,12 @@ negation_invalidate[x] { data.a[_] = x; not data.ex.input_eq with input.x as x }
 
 	store := inmem.NewFromObject(loadSmallTestData())
 
-	assertTopDown(t, compiler, store, "with", []string{"test", "basic"}, "", "true")
-	assertTopDown(t, compiler, store, "with not", []string{"test", "negation"}, "", "true")
-	assertTopDown(t, compiler, store, "with composite", []string{"test", "composite"}, "", "[3,4]")
-	assertTopDown(t, compiler, store, "with vars", []string{"test", "vars"}, "", `{"foo": "hello", "bar": "world"}`)
-	assertTopDown(t, compiler, store, "with conflict", []string{"test", "conflict"}, "", fmt.Errorf("conflicting input documents"))
-	assertTopDown(t, compiler, store, "With invalidate", []string{"test", "negation_invalidate"}, "", "[2,3,4]")
+	assertTopDownWithPath(t, compiler, store, "with", []string{"test", "basic"}, "", "true")
+	assertTopDownWithPath(t, compiler, store, "with not", []string{"test", "negation"}, "", "true")
+	assertTopDownWithPath(t, compiler, store, "with composite", []string{"test", "composite"}, "", "[3,4]")
+	assertTopDownWithPath(t, compiler, store, "with vars", []string{"test", "vars"}, "", `{"foo": "hello", "bar": "world"}`)
+	assertTopDownWithPath(t, compiler, store, "with conflict", []string{"test", "conflict"}, "", fmt.Errorf("conflicting input documents"))
+	assertTopDownWithPath(t, compiler, store, "With invalidate", []string{"test", "negation_invalidate"}, "", "[2,3,4]")
 }
 
 func TestTopDownElseKeyword(t *testing.T) {
@@ -1852,7 +1907,7 @@ func TestTopDownElseKeyword(t *testing.T) {
 
 		store := inmem.NewFromObject(loadSmallTestData())
 
-		assertTopDown(t, compiler, store, tc.note, strings.Split(tc.path, "."), "", tc.expected)
+		assertTopDownWithPath(t, compiler, store, tc.note, strings.Split(tc.path, "."), "", tc.expected)
 	}
 }
 
@@ -1868,10 +1923,10 @@ err_obj[k] = true { k = data.l[_] }`,
 
 	store := inmem.NewFromObject(loadSmallTestData())
 
-	assertTopDown(t, compiler, store, "reference lookup", []string{"topdown", "caching", "p"}, `{}`, "[2,3]")
+	assertTopDownWithPath(t, compiler, store, "reference lookup", []string{"topdown", "caching", "p"}, `{}`, "[2,3]")
 
-	assertTopDown(t, compiler, store, "unhandled error", []string{"topdown", "caching", "err_top"}, "{}", objectDocKeyTypeErr(nil))
-	assertTopDown(t, compiler, store, "unhandled error", []string{"topdown", "caching", "err_obj"}, "{}", objectDocKeyTypeErr(nil))
+	assertTopDownWithPath(t, compiler, store, "unhandled error", []string{"topdown", "caching", "err_top"}, "{}", objectDocKeyTypeErr(nil))
+	assertTopDownWithPath(t, compiler, store, "unhandled error", []string{"topdown", "caching", "err_obj"}, "{}", objectDocKeyTypeErr(nil))
 }
 
 func TestTopDownSystemDocument(t *testing.T) {
@@ -1897,7 +1952,7 @@ func TestTopDownSystemDocument(t *testing.T) {
 
 	store := inmem.NewFromObject(data)
 
-	assertTopDown(t, compiler, store, "root query", []string{}, `{}`, `{
+	assertTopDownWithPath(t, compiler, store, "root query", []string{}, `{}`, `{
 		"topdown": {
 			"system": {
 				"bar": "goodbye"
@@ -1952,20 +2007,20 @@ violations[server] { server = servers[_]; server.protocols[_] = "http"; public_s
 
 	store := inmem.NewFromObject(doc)
 
-	assertTopDown(t, compiler, store, "public servers", []string{"opa", "example", "public_servers"}, "{}", `
+	assertTopDownWithPath(t, compiler, store, "public servers", []string{"opa", "example", "public_servers"}, "{}", `
         [
             {"id": "s1", "name": "app", "protocols": ["https", "ssh"], "ports": ["p1", "p2", "p3"]},
             {"id": "s4", "name": "dev", "protocols": ["http"], "ports": ["p1", "p2"]}
         ]
     `)
 
-	assertTopDown(t, compiler, store, "violations", []string{"opa", "example", "violations"}, "{}", `
+	assertTopDownWithPath(t, compiler, store, "violations", []string{"opa", "example", "violations"}, "{}", `
 	    [
 	        {"id": "s4", "name": "dev", "protocols": ["http"], "ports": ["p1", "p2"]}
 	    ]
 	`)
 
-	assertTopDown(t, compiler, store, "both", []string{"opa", "example"}, "{}", `
+	assertTopDownWithPath(t, compiler, store, "both", []string{"opa", "example"}, "{}", `
 		{
 			"public_servers": [
 				{"id": "s1", "name": "app", "protocols": ["https", "ssh"], "ports": ["p1", "p2", "p3"]},
@@ -2459,7 +2514,7 @@ func runTopDownTestCase(t *testing.T, data map[string]interface{}, note string, 
 
 	store := inmem.NewFromObject(data)
 
-	assertTopDown(t, compiler, store, note, []string{"p"}, "", expected)
+	assertTopDownWithPath(t, compiler, store, note, []string{"p"}, "", expected)
 }
 
 func runTopDownTracingTestCase(t *testing.T, module string, n int, cases map[int]*Event) {
@@ -2503,30 +2558,28 @@ func runTopDownTracingTestCase(t *testing.T, module string, n int, cases map[int
 	}
 }
 
-func assertTopDown(t *testing.T, compiler *ast.Compiler, store storage.Store, note string, path []string, input string, expected interface{}) {
-
-	var req ast.Value
-
-	if len(input) > 0 {
-		req = ast.MustParseTerm(input).Value
-	}
-
-	p := []interface{}{}
-	for _, x := range path {
-		p = append(p, x)
-	}
-
-	ctx := context.Background()
-	txn := storage.NewTransactionOrDie(ctx, store)
-
-	defer store.Abort(ctx, txn)
-
+func assertTopDownWithPath(t *testing.T, compiler *ast.Compiler, store storage.Store, note string, path []string, input string, expected interface{}) {
 	var ref ast.Ref
 	if len(path) == 0 {
 		ref = ast.DefaultRootRef
 	} else {
 		ref = ast.MustParseRef("data." + strings.Join(path, "."))
 	}
+
+	assertTopDownWithRef(t, compiler, store, note, ref, input, expected)
+}
+
+func assertTopDownWithRef(t *testing.T, compiler *ast.Compiler, store storage.Store, note string, ref ast.Ref, input string, expected interface{}) {
+	var req ast.Value
+
+	if len(input) > 0 {
+		req = ast.MustParseTerm(input).Value
+	}
+
+	ctx := context.Background()
+	txn := storage.NewTransactionOrDie(ctx, store)
+
+	defer store.Abort(ctx, txn)
 
 	params := NewQueryParams(ctx, compiler, store, txn, req, ref)
 
@@ -2586,6 +2639,45 @@ func assertTopDown(t *testing.T, compiler *ast.Compiler, store storage.Store, no
 			if !reflect.DeepEqual(qrs[0].Result, expected) {
 				t.Errorf("Expected %v but got: %v", expected, qrs[0].Result)
 			}
+		case []string:
+			qrs, err := Query(params)
+
+			if err != nil {
+				t.Fatalf("Unexpected error: %v", err)
+			}
+
+			if len(e) == 0 {
+				if !qrs.Undefined() {
+					t.Fatalf("Expected undefined result but got: %v", qrs)
+				}
+				return
+			}
+
+			if qrs.Undefined() {
+				t.Fatalf("Expected %v but got undefined", e)
+			}
+
+			var expected interface{}
+
+			for i, result := range qrs {
+				if i >= len(e) {
+					t.Errorf("Unexpected result: %v", result.Result)
+					continue
+				}
+
+				// Sort set results so that comparisons are not dependant on order.
+				if rs := compiler.GetRulesExact(ref); len(rs) > 0 && rs[0].Head.DocKind() == ast.PartialSetDoc {
+					sort.Sort(resultSet(result.Result.([]interface{})))
+					expected = parseSortedJSON(e[i])
+				} else {
+					expected = parseJSON(e[i])
+				}
+
+				if !reflect.DeepEqual(result.Result, expected) {
+					t.Errorf("Expected %v but got: %v", expected, result.Result)
+				}
+			}
+
 		}
 	})
 }

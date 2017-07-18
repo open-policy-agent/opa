@@ -108,6 +108,11 @@ func TestCheckInference(t *testing.T) {
 			),
 		}},
 		{"sets-nested", `{"a", 1, 2} = {1,2,3}`, nil},
+		{"sets-composite-ref-operand", `s = {[1, 2], [3, 4]}; s[[x, y]]`, map[Var]types.Type{
+			Var("x"): types.N,
+			Var("y"): types.N,
+			Var("s"): types.NewSet(types.NewArray([]types.Type{types.N, types.N}, nil)),
+		}},
 		{"empty-composites", `
 				obj = {};
 				arr = [];
@@ -737,6 +742,30 @@ func TestCheckRefErrInvalid(t *testing.T) {
 			pos:   2,
 			want:  types.S,
 			oneOf: []Value{String("p"), String("q")},
+		},
+		{
+			note:  "composite ref into non-set",
+			query: `data.test.q[[1, 2]]`,
+			ref:   "data.test.q[[1, 2]]",
+			pos:   3,
+			have:  types.NewObject([]*types.Property{types.NewProperty("bar", types.N), types.NewProperty("foo", types.N)}, nil),
+			want:  types.NewSet(types.A),
+		},
+		{
+			note:  "composite ref type error 1",
+			query: `a = {[1], [2], [3]}; a[["foo"]]`,
+			ref:   `a[["foo"]]`,
+			pos:   1,
+			have:  types.NewArray([]types.Type{types.S}, nil),
+			want:  types.NewArray([]types.Type{types.N}, nil),
+		},
+		{
+			note:  "composite ref type error 2",
+			query: `a = {{"a": 2}}; a[{"a": "foo"}]`,
+			ref:   `a[{"a": "foo"}]`,
+			pos:   1,
+			have:  types.NewObject([]*types.Property{types.NewProperty("a", types.S)}, nil),
+			want:  types.NewObject([]*types.Property{types.NewProperty("a", types.N)}, nil),
 		},
 	}
 

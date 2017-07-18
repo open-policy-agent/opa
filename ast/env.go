@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 
 	"github.com/open-policy-agent/opa/types"
+	"github.com/open-policy-agent/opa/util"
 )
 
 // TypeEnv contains type info for static analysis such as type checking.
@@ -202,13 +203,17 @@ func (env *TypeEnv) getRefRecExtent(node *typeTreeNode) types.Type {
 
 	children := []*types.Property{}
 
-	for key, child := range node.Children() {
+	node.Children().Iter(func(k, v util.T) bool {
+		key := k.(Value)
+		child := v.(*typeTreeNode)
+
 		tpe := env.getRefRecExtent(child)
 		// TODO(tsandall): handle non-string keys?
 		if s, ok := key.(String); ok {
 			children = append(children, types.NewProperty(string(s), tpe))
 		}
-	}
+		return false
+	})
 
 	// TODO(tsandall): for now, these objects can have any dynamic properties
 	// because we don't have schema for base docs. Once schemas are supported
@@ -227,33 +232,37 @@ func (env *TypeEnv) wrap() *TypeEnv {
 type typeTreeNode struct {
 	key      Value
 	value    types.Type
-	children map[Value]*typeTreeNode
+	children *util.HashMap
 }
 
 func newTypeTree() *typeTreeNode {
 	return &typeTreeNode{
 		key:      nil,
 		value:    nil,
-		children: map[Value]*typeTreeNode{},
+		children: util.NewHashMap(valueEq, valueHash),
 	}
 }
 
 func (n *typeTreeNode) Child(key Value) *typeTreeNode {
-	return n.children[key]
+	value, ok := n.children.Get(key)
+	if !ok {
+		return nil
+	}
+	return value.(*typeTreeNode)
 }
 
-func (n *typeTreeNode) Children() map[Value]*typeTreeNode {
+func (n *typeTreeNode) Children() *util.HashMap {
 	return n.children
 }
 
 func (n *typeTreeNode) Get(path Ref) types.Type {
 	curr := n
 	for _, term := range path {
-		child, ok := curr.children[term.Value]
+		child, ok := curr.children.Get(term.Value)
 		if !ok {
 			return nil
 		}
-		curr = child
+		curr = child.(*typeTreeNode)
 	}
 	return curr.Value()
 }
@@ -263,24 +272,34 @@ func (n *typeTreeNode) Leaf() bool {
 }
 
 func (n *typeTreeNode) PutOne(key Value, tpe types.Type) {
-	child, ok := n.children[key]
+	c, ok := n.children.Get(key)
+
+	var child *typeTreeNode
 	if !ok {
 		child = newTypeTree()
 		child.key = key
-		n.children[key] = child
+		n.children.Put(key, child)
+	} else {
+		child = c.(*typeTreeNode)
 	}
+
 	child.value = tpe
 }
 
 func (n *typeTreeNode) Put(path Ref, tpe types.Type) {
 	curr := n
 	for _, term := range path {
-		child, ok := curr.children[term.Value]
+		c, ok := curr.children.Get(term.Value)
+
+		var child *typeTreeNode
 		if !ok {
 			child = newTypeTree()
 			child.key = term.Value
-			curr.children[child.key] = child
+			curr.children.Put(child.key, child)
+		} else {
+			child = c.(*typeTreeNode)
 		}
+
 		curr = child
 	}
 	curr.value = tpe
@@ -320,7 +339,7 @@ func selectRef(tpe types.Type, ref Ref) types.Type {
 	head, tail := ref[0], ref[1:]
 
 	switch head.Value.(type) {
-	case Var, Ref:
+	case Var, Ref, Array, Object, *Set:
 		return selectRef(types.Values(tpe), tail)
 	default:
 		return selectRef(selectConstant(tpe, head), tail)

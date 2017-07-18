@@ -1754,7 +1754,7 @@ func resolveRef(globals map[Var]Ref, ref Ref) Ref {
 			} else {
 				r = append(r, x)
 			}
-		case Ref:
+		case Ref, Array, Object, *Set:
 			r = append(r, resolveRefsInTerm(globals, x))
 		default:
 			r = append(r, x)
