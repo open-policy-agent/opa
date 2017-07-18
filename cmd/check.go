@@ -15,6 +15,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var errLimit int
+
 var checkCommand = &cobra.Command{
 	Use:   "check",
 	Short: "Check policies for errors",
@@ -58,7 +60,7 @@ func checkModules(args []string) int {
 	}
 
 	if len(errors) == 0 {
-		c := ast.NewCompiler()
+		c := ast.NewCompiler().SetErrorLimit(errLimit)
 		if c.Compile(modules); c.Failed() {
 			errors = append(errors, c.Errors.Error())
 		}
@@ -71,5 +73,6 @@ func checkModules(args []string) int {
 }
 
 func init() {
+	checkCommand.Flags().IntVarP(&errLimit, "max-errors", "m", ast.CompileErrorLimitDefault, "set the number of errors to allow before compilation fails early")
 	RootCommand.AddCommand(checkCommand)
 }

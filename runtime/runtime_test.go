@@ -71,7 +71,7 @@ p = true { 1 = 2 }`
 
 	rt := Runtime{}
 
-	err = rt.init(ctx, []string{tmp1.Name(), tmp2.Name()})
+	err = rt.init(ctx, &Params{Paths: []string{tmp1.Name(), tmp2.Name()}})
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
 		return
@@ -131,7 +131,7 @@ func TestRuntimeProcessWatchEvents(t *testing.T) {
 		rt := &Runtime{}
 		paths := []string{rootDir}
 
-		if err := rt.init(ctx, paths); err != nil {
+		if err := rt.init(ctx, &Params{Paths: paths}); err != nil {
 			t.Fatalf("Unexpected init error: %v", err)
 		}
 
