@@ -394,11 +394,12 @@ References are typically written using the “dot-access” style. The canonical
 "helium"
 ```
 
-Both forms are valid, however, the dot-access style is typically more readable. Note that there are two cases where brackets must be used:
+Both forms are valid, however, the dot-access style is typically more readable. Note that there are four cases where brackets must be used:
 
   1. String keys containing characters other than `[a-z]`, `[A-Z]`, `[0-9]`, or `_` (underscore).
   1. Non-string keys such as numbers, booleans, and null.
   1. Variable keys which are described later.
+  1. Composite keys which are described later.
 
 References are always prefixed with a variable that identifies the root
 document. In the example above this is `p`. The root document may be:
@@ -463,6 +464,30 @@ In the reference above, we effectively used variables named `i` and `j` to itera
 The underscore is special because it cannot be referred to by other parts of the rule, e.g., the other side of the expression, another expression, etc. The underscore can be thought of as a special iterator. Each time an underscore is specified, a new iterator is instantiated.
 
 > Under the hood, OPA translates the `_` character to a unique variable name that does not conflict with variables and rules that are in scope.
+
+### <a name="composite-keys"/>Composite Keys
+
+References can include [Composite Values](#composite-values) as keys if the key is being used to refer into a set. Composite keys may not be used in refs
+for base data documents, they are only valid for references into virtual documents.
+
+This is useful for checking for the presence of composite values within a set, or extracting all values within a set matching some pattern.
+For example:
+
+```ruby
+> s = {[1, 2], [1, 4], [2, 6]}
+> s[[1, 2]]
+[
+  1,
+  2
+]
+> s[[1, x]]
++---+
+| x |
++---+
+| 2 |
+| 4 |
++---+
+```
 
 ### <a name="multiple-expressions"/>Multiple Expressions
 
