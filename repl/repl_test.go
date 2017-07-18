@@ -1116,7 +1116,7 @@ func expectOutput(t *testing.T, output string, expected string) {
 }
 
 func newRepl(store storage.Store, buffer *bytes.Buffer) *REPL {
-	repl := New(store, "", buffer, "", "")
+	repl := New(store, "", buffer, "", 0, "")
 	return repl
 }
 

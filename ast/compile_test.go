@@ -321,6 +321,41 @@ func TestCompilerUserFunction(t *testing.T) {
 	}
 }
 
+func TestCompilerErrorLimit(t *testing.T) {
+	modules := map[string]*Module{
+		"test": MustParseModule(`package test
+	r = y { y = true; x = z }
+
+	s[x] = y {
+		z = y + x
+	}
+
+	t[x] { split(x, y, z) }
+	`),
+	}
+
+	c := NewCompiler().SetErrorLimit(2)
+	c.Compile(modules)
+
+	errs := c.Errors
+	exp := []string{
+		"2:2: rego_unsafe_var_error: var x is unsafe",
+		"2:2: rego_unsafe_var_error: var z is unsafe",
+		"rego_compile_error: error limit reached",
+	}
+
+	var result []string
+	for _, err := range errs {
+		result = append(result, err.Error())
+	}
+
+	sort.Strings(exp)
+	sort.Strings(result)
+	if !reflect.DeepEqual(exp, result) {
+		t.Errorf("Expected errors %v, got %v", exp, result)
+	}
+}
+
 func TestCompilerCheckSafetyHead(t *testing.T) {
 	c := NewCompiler()
 	c.Modules = getCompilerTestModules()
@@ -1523,6 +1558,7 @@ func getCompilerWithParsedModules(mods map[string]string) *Compiler {
 // helper function to run compiler upto given stage. If nil is provided, a
 // normal compile run is performed.
 func compileStages(c *Compiler, upto func()) {
+	c.SetErrorLimit(0)
 	if upto == nil {
 		c.compile()
 		return

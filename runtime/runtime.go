@@ -73,6 +73,10 @@ type Params struct {
 	// interactive development.
 	Watch bool
 
+	// ErrorLimit is the number of errors the compiler will allow to occur before
+	// exiting early.
+	ErrorLimit int
+
 	// Logging configures the logging behaviour.
 	Logging LoggingConfig
 
@@ -104,7 +108,7 @@ func (rt *Runtime) Start(params *Params) {
 
 	ctx := context.Background()
 
-	if err := rt.init(ctx, params.Paths); err != nil {
+	if err := rt.init(ctx, params); err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}
@@ -117,8 +121,9 @@ func (rt *Runtime) Start(params *Params) {
 
 }
 
-func (rt *Runtime) init(ctx context.Context, paths []string) error {
+func (rt *Runtime) init(ctx context.Context, params *Params) error {
 
+	paths := params.Paths
 	loaded, err := loadAllPaths(paths)
 	if err != nil {
 		return err
@@ -136,7 +141,7 @@ func (rt *Runtime) init(ctx context.Context, paths []string) error {
 		return errors.Wrapf(err, "storage error")
 	}
 
-	if err := compileAndStoreInputs(ctx, store, txn, loaded.Modules); err != nil {
+	if err := compileAndStoreInputs(ctx, store, txn, loaded.Modules, params); err != nil {
 		store.Abort(ctx, txn)
 		return errors.Wrapf(err, "compile error")
 	}
@@ -161,6 +166,7 @@ func (rt *Runtime) startServer(ctx context.Context, params *Params) {
 
 	s, err := server.New().
 		WithStore(rt.Store).
+		WithCompilerErrorLimit(params.ErrorLimit).
 		WithAddress(params.Addr).
 		WithInsecureAddress(params.InsecureAddr).
 		WithCertificate(params.Certificate).
@@ -198,7 +204,7 @@ func (rt *Runtime) startServer(ctx context.Context, params *Params) {
 func (rt *Runtime) startRepl(ctx context.Context, params *Params) {
 
 	banner := rt.getBanner()
-	repl := repl.New(rt.Store, params.HistoryPath, params.Output, params.OutputFormat, banner)
+	repl := repl.New(rt.Store, params.HistoryPath, params.Output, params.OutputFormat, params.ErrorLimit, banner)
 
 	if params.Watch {
 		if err := rt.startWatcher(ctx, params.Paths, onReloadPrinter(params.Output)); err != nil {
@@ -261,7 +267,7 @@ func (rt *Runtime) processWatcherUpdate(ctx context.Context, paths []string) err
 		return err
 	}
 
-	if err := compileAndStoreInputs(ctx, rt.Store, txn, loaded.Modules); err != nil {
+	if err := compileAndStoreInputs(ctx, rt.Store, txn, loaded.Modules, nil); err != nil {
 		rt.Store.Abort(ctx, txn)
 		return err
 	}
@@ -277,7 +283,7 @@ func (rt *Runtime) getBanner() string {
 	return buf.String()
 }
 
-func compileAndStoreInputs(ctx context.Context, store storage.Store, txn storage.Transaction, modules map[string]*LoadedModule) error {
+func compileAndStoreInputs(ctx context.Context, store storage.Store, txn storage.Transaction, modules map[string]*LoadedModule, params *Params) error {
 
 	policies := make(map[string]*ast.Module, len(modules))
 
@@ -286,6 +292,9 @@ func compileAndStoreInputs(ctx context.Context, store storage.Store, txn storage
 	}
 
 	c := ast.NewCompiler()
+	if params != nil {
+		c = c.SetErrorLimit(params.ErrorLimit)
+	}
 
 	if c.Compile(policies); c.Failed() {
 		return c.Errors

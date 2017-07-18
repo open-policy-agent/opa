@@ -49,6 +49,7 @@ type REPL struct {
 	types             bool
 	bufferDisabled    bool
 	undefinedDisabled bool
+	errLimit          int
 }
 
 type explainMode int
@@ -62,7 +63,7 @@ const (
 const exitPromptMessage = "Do you want to exit ([y]/n)? "
 
 // New returns a new instance of the REPL.
-func New(store storage.Store, historyPath string, output io.Writer, outputFormat string, banner string) *REPL {
+func New(store storage.Store, historyPath string, output io.Writer, outputFormat string, errLimit int, banner string) *REPL {
 
 	module := defaultModule()
 	moduleID := module.Package.Path.String()
@@ -80,6 +81,7 @@ func New(store storage.Store, historyPath string, output io.Writer, outputFormat
 		initPrompt:      "> ",
 		bufferPrompt:    "| ",
 		banner:          banner,
+		errLimit:        errLimit,
 	}
 }
 
@@ -480,7 +482,7 @@ func (r *REPL) recompile(ctx context.Context, cpy *ast.Module) error {
 		}
 	}
 
-	compiler := ast.NewCompiler()
+	compiler := ast.NewCompiler().SetErrorLimit(r.errLimit)
 
 	if compiler.Compile(policies); compiler.Failed() {
 		return compiler.Errors
@@ -501,7 +503,7 @@ func (r *REPL) compileBody(ctx context.Context, body ast.Body, input ast.Value) 
 		policies[id] = mod
 	}
 
-	compiler := ast.NewCompiler()
+	compiler := ast.NewCompiler().SetErrorLimit(r.errLimit)
 
 	if compiler.Compile(policies); compiler.Failed() {
 		return nil, nil, compiler.Errors
@@ -536,7 +538,7 @@ func (r *REPL) compileRule(ctx context.Context, rule *ast.Rule) error {
 		policies[id] = mod
 	}
 
-	compiler := ast.NewCompiler()
+	compiler := ast.NewCompiler().SetErrorLimit(r.errLimit)
 
 	if compiler.Compile(policies); compiler.Failed() {
 		mod.Rules = prev
@@ -565,7 +567,7 @@ func (r *REPL) compileFunc(ctx context.Context, fn *ast.Func) error {
 		policies[id] = mod
 	}
 
-	compiler := ast.NewCompiler()
+	compiler := ast.NewCompiler().SetErrorLimit(r.errLimit)
 
 	if compiler.Compile(policies); compiler.Failed() {
 		mod.Funcs = prev
@@ -640,7 +642,7 @@ func (r *REPL) loadCompiler(ctx context.Context) (*ast.Compiler, error) {
 		policies[id] = mod
 	}
 
-	compiler := ast.NewCompiler()
+	compiler := ast.NewCompiler().SetErrorLimit(r.errLimit)
 
 	if compiler.Compile(policies); compiler.Failed() {
 		return nil, compiler.Errors

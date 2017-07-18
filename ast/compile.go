@@ -11,6 +11,12 @@ import (
 	"github.com/open-policy-agent/opa/util"
 )
 
+// CompileErrorLimitDefault is the default number errors a compiler will allow before
+// exiting.
+const CompileErrorLimitDefault = 10
+
+var errLimitReached = NewError(CompileErr, nil, "error limit reached")
+
 // Compiler contains the state of a compilation process.
 type Compiler struct {
 
@@ -100,6 +106,7 @@ type Compiler struct {
 	moduleLoader  ModuleLoader
 	ruleIndices   *util.HashMap
 	stages        []func()
+	maxErrs       int
 }
 
 // QueryContext contains contextual information for running an ad-hoc query.
@@ -195,6 +202,7 @@ func NewCompiler() *Compiler {
 		}, func(x util.T) int {
 			return x.(Ref).Hash()
 		}),
+		maxErrs: CompileErrorLimitDefault,
 	}
 
 	c.ModuleTree = NewModuleTree(nil)
@@ -222,6 +230,13 @@ func NewCompiler() *Compiler {
 		c.buildRuleIndices,
 	}
 
+	return c
+}
+
+// SetErrorLimit sets the number of errors the compiler can encounter before it
+// quits. Zero or a negative number indicates no limit.
+func (c *Compiler) SetErrorLimit(limit int) *Compiler {
+	c.maxErrs = limit
 	return c
 }
 
@@ -662,6 +677,12 @@ func (c *Compiler) checkWithModifiers() {
 }
 
 func (c *Compiler) compile() {
+	defer func() {
+		if r := recover(); r != nil && r != errLimitReached {
+			panic(r)
+		}
+	}()
+
 	for _, fn := range c.stages {
 		if fn(); c.Failed() {
 			return
@@ -670,6 +691,10 @@ func (c *Compiler) compile() {
 }
 
 func (c *Compiler) err(err *Error) {
+	if c.maxErrs > 0 && len(c.Errors) >= c.maxErrs {
+		c.Errors = append(c.Errors, errLimitReached)
+		panic(errLimitReached)
+	}
 	c.Errors = append(c.Errors, err)
 }
 
@@ -916,6 +941,11 @@ func (qc *queryCompiler) Compile(query Body) (Body, error) {
 	for _, s := range stages {
 		var err error
 		if query, err = s(qctx, query); err != nil {
+			if errs, ok := err.(Errors); ok {
+				if qc.compiler.maxErrs > 0 && len(errs) > qc.compiler.maxErrs {
+					err = append(errs[:qc.compiler.maxErrs], errLimitReached)
+				}
+			}
 			return nil, err
 		}
 	}

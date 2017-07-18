@@ -73,6 +73,8 @@ type Server struct {
 	compiler       *ast.Compiler
 	store          storage.Store
 	watcher        *watch.Watcher
+
+	errLimit int
 }
 
 // New returns a new Server.
@@ -180,6 +182,13 @@ func (s *Server) WithCertificate(cert *tls.Certificate) *Server {
 // WithStore sets the storage used by the server.
 func (s *Server) WithStore(store storage.Store) *Server {
 	s.store = store
+	return s
+}
+
+// WithCompilerErrorLimit sets the limit on the number of compiler errors the server will
+// allow.
+func (s *Server) WithCompilerErrorLimit(limit int) *Server {
+	s.errLimit = limit
 	return s
 }
 
@@ -348,7 +357,8 @@ func (s *Server) reloadCompiler(ctx context.Context, txn storage.Transaction) er
 		return err
 	}
 
-	compiler := ast.NewCompiler()
+	compiler := ast.NewCompiler().SetErrorLimit(s.errLimit)
+
 	if compiler.Compile(modules); compiler.Failed() {
 		return compiler.Errors
 	}
@@ -697,7 +707,7 @@ func (s *Server) v1PoliciesDelete(w http.ResponseWriter, r *http.Request) {
 
 	delete(modules, id)
 
-	c := ast.NewCompiler()
+	c := ast.NewCompiler().SetErrorLimit(s.errLimit)
 
 	if c.Compile(modules); c.Failed() {
 		s.abort(ctx, txn, func() {
@@ -820,7 +830,7 @@ func (s *Server) v1PoliciesPut(w http.ResponseWriter, r *http.Request) {
 
 	modules[path] = parsedMod
 
-	c := ast.NewCompiler()
+	c := ast.NewCompiler().SetErrorLimit(s.errLimit)
 
 	if c.Compile(modules); c.Failed() {
 		s.abort(ctx, txn, func() {

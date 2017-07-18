@@ -10,6 +10,7 @@ import (
 	"os"
 	"path"
 
+	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/runtime"
 	"github.com/open-policy-agent/opa/server"
 	"github.com/open-policy-agent/opa/util"
@@ -127,6 +128,7 @@ For example:
 	runCommand.Flags().StringVarP(&params.InsecureAddr, "insecure-addr", "", "", "set insecure listening address of the server")
 	runCommand.Flags().StringVarP(&params.OutputFormat, "format", "f", "pretty", "set shell output format, i.e, pretty, json")
 	runCommand.Flags().BoolVarP(&params.Watch, "watch", "w", false, "watch command line files for changes")
+	runCommand.Flags().IntVarP(&params.ErrorLimit, "max-errors", "m", ast.CompileErrorLimitDefault, "set the number of errors to allow before compilation fails early")
 	runCommand.Flags().StringVarP(&tlsCertFile, "tls-cert-file", "", "", "set path of TLS certificate file")
 	runCommand.Flags().StringVarP(&tlsPrivateKeyFile, "tls-private-key-file", "", "", "set path of TLS private key file")
 	runCommand.Flags().VarP(authentication, "authentication", "", "set authentication scheme")
