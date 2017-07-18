@@ -48,6 +48,10 @@ func TestNewPathForRef(t *testing.T) {
 			Code:    NotFoundErr,
 			Message: fmt.Sprintf("%v: does not exist", ast.MustParseRef("data.foo[true]")),
 		}},
+		{ast.MustParseRef("data.foo[[1, 2]]"), nil, fmt.Errorf("composites cannot be base document keys: %v", ast.MustParseRef("data.foo[[1, 2]]"))},
+		{ast.MustParseRef("data.foo[{1, 2}]"), nil, fmt.Errorf("composites cannot be base document keys: %v", ast.MustParseRef("data.foo[{1, 2}]"))},
+		{ast.MustParseRef(`data.foo[{"foo": 2}]`), nil, fmt.Errorf("composites cannot be base document keys: %v", ast.MustParseRef(`data.foo[{"foo": 2}]`))},
+
 		{ast.MustParseRef("data"), Path{}, nil},
 		{ast.MustParseRef("data.foo"), Path{"foo"}, nil},
 		{ast.MustParseRef("data.foo[1]"), Path{"foo", "1"}, nil},
