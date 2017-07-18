@@ -156,7 +156,9 @@ ref-arg         = ref-arg-dot | ref-arg-brack
 ref-arg-brack   = "[" ( scalar | var | "_" ) "]"
 ref-arg-dot     = "." var
 var             = ( ALPHA | "_" ) { ALPHA | DIGIT | "_" }
-scalar          = STRING | NUMBER | TRUE | FALSE | NULL
+scalar          = string | NUMBER | TRUE | FALSE | NULL
+string          = STRING | raw-string
+raw-string      = "`" { CHAR-"`" } "`"
 array           = "[" term { "," term } "]"
 arg-array       = "[" arg-term { "," arg-term } "]"
 object          = "{" object-item { "," object-item } "}"
@@ -180,6 +182,7 @@ NUMBER JSON number
 TRUE   JSON true
 FALSE  JSON false
 NULL   JSON null
+CHAR   Unicode character
 ALPHA  ASCII characters A-Z and a-z
 DIGIT  ASCII characters 0-9
 ```

@@ -213,7 +213,7 @@ Reference](/documentation/references/language) document.
 
 ## <a name="scalar-values"></a> Scalar Values
 
-Scalar values are the simplest type of term in Rego. Scalar values can be strings, numbers, booleans, or null.
+Scalar values are the simplest type of term in Rego. Scalar values can be [Strings](#strings), numbers, booleans, or null.
 
 Documents can be defined solely in terms of scalar values. This is useful for defining constants that are referenced in multiple places. For example:
 
@@ -239,6 +239,20 @@ true
 > sentinel
 null
 ```
+
+## <a name="strings"></a> Strings
+
+Rego supports two different types of syntax for declaring strings. The first is likely to be the most familiar: characters surrounded by double quotes.
+In such strings, certain characters must be escaped to appear in the string, such as double quotes themselves, backslashes, etc. See the [Language
+Reference](/documentation/references/language) for a formal definition.
+
+The other type of string declaration is a raw string declaration. These are made of characters surrounded by backticks (`` ` ``), with the exception
+that raw strings may not contain backticks themselves. Raw strings are what they sound like: escape sequences are not interpreted, but instead taken
+as the literal text inside the backticks. For example, the raw string `` `hello\there` `` will be the text "hello\there", not "hello" and "here"
+separated by a tab.  Raw strings are particularly useful when constructing regular expressions for matching, as it eliminates the need to double
+escape special characters.
+
+A simple example is a regex to match a valid Rego variable. With a regular string, the regex is `"[a-zA-Z_]\\w*"`, but with raw strings, it becomes `` `[a-zA-Z_]\w*` ``.
 
 ## <a name="composite-values"></a> Composite Values
 
