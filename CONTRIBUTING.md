@@ -29,7 +29,7 @@ Before submitting large changes, please open an issue on GitHub outlining:
 - Alternative solutions or approaches if applicable.
 
 Use your judgement about what constitutes a large change. If you aren't sure, send a message to the
-mailing list or submit an issue on GitHub.
+OPA slack or submit an issue on GitHub.
 
 ## Code Contributions
 
@@ -46,3 +46,32 @@ If you are contributing code, please consider the following:
 
 - Related commits must be squashed before they are merged.
 - All tests must pass and there must be no warnings from the `make check` target.
+
+## Code Review
+
+Before a Pull Request is merged, it will undergo code review from other members
+of the OPA community. In order to streamline the code review process, when
+amending your Pull Request in response to a review, do not squash your changes
+into relevant commits until it has been approved for merge. This allows the
+reviewer to see what changes are new and removes the need to wade through code
+that has not been modified to search for a small change.
+
+When adding temporary patches in response to review comments, consider
+formatting the message subject like one of the following:
+- `Fixup into commit <commit ID> (squash before merge)`
+- `Fixed changes requested by @username (squash before merge)`
+- `Amended <description> (squash before merge)`
+
+The purpose of these formats is to provide some context into the reason the
+temporary commit exists, and to label it as needing squashed before a merge
+is performed.
+
+It is worth noting that not all changes need be squashed before a merge is
+performed. Some changes made as a result of review stand well on their own,
+independent of other commits in the series. Such changes should be made into
+their own commit and added to the PR.
+
+If your Pull Request is small though, it is acceptable to squash changes during
+the review process. Use your judgement about what constitutes a small Pull
+Request.  If you aren't sure, send a message to the OPA slack or post a comment
+on the Pull Request.
