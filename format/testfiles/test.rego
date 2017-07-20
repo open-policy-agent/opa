@@ -50,6 +50,12 @@ long(x) = true {
     x = "bar"
     }
 
+raw_string = `hi\there`
+raw_multiline = `this
+string
+  is on
+multiple lines`
+
 foo([x, y,
 z], {"foo": a}) = b {
 split(x, y, c)
