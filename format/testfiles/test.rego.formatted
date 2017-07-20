@@ -55,6 +55,13 @@ short(x) {
 	x = "bar"
 }
 
+raw_string = `hi\there`
+
+raw_multiline = `this
+string
+  is on
+multiple lines`
+
 foo([
 	x, y,
 	z,

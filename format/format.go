@@ -421,6 +421,10 @@ func (w *writer) writeTerm(term *ast.Term, comments []*ast.Comment) []*ast.Comme
 		comments = w.writeObjectComprehension(x, term.Location, comments)
 	case *ast.SetComprehension:
 		comments = w.writeSetComprehension(x, term.Location, comments)
+	case ast.String:
+		// To preserve raw strings, we need to output the original text,
+		// not what x.String() would give us.
+		w.write(string(term.Location.Text))
 	case fmt.Stringer:
 		w.write(x.String())
 	}
