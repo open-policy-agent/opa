@@ -123,6 +123,19 @@ type DataResponseV1 struct {
 	Result      *interface{} `json:"result,omitempty"`
 }
 
+// DiagnosticsResponseElementV1 models an element in the response message for the
+// Diagnostics API.
+type DiagnosticsResponseElementV1 struct {
+	Query     string `json:"query"`
+	Timestamp int64  `json:"timestamp"`
+
+	Input       interface{}  `json:"input,omitempty"`
+	Result      *interface{} `json:"result,omitempty"`
+	Error       *ErrorV1     `json:"error,omitempty"`
+	Explanation TraceV1      `json:"explanation,omitempty"`
+	Metrics     MetricsV1    `json:"metrics,omitempty"`
+}
+
 // MetricsV1 models a collection of performance metrics.
 type MetricsV1 map[string]interface{}
 

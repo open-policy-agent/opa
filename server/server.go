@@ -5,6 +5,7 @@
 package server
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -58,6 +59,9 @@ const (
 	AuthorizationBasic                     = iota
 )
 
+// DefaultDiagnosticsBufferSize is the default size of the server's diagnostic buffer.
+const DefaultDiagnosticsBufferSize = 10
+
 var systemMainPath = ast.MustParseRef("data.system.main")
 
 // Server represents an instance of OPA running in server mode.
@@ -74,6 +78,8 @@ type Server struct {
 	store          storage.Store
 	watcher        *watch.Watcher
 
+	diagnostics Buffer
+
 	errLimit int
 }
 
@@ -88,6 +94,7 @@ func New() *Server {
 	s.registerHandler(router, 0, "/data", http.MethodPost, s.v0DataPost)
 	s.registerHandler(router, 1, "/data/{path:.+}", http.MethodPut, s.v1DataPut)
 	s.registerHandler(router, 1, "/data", http.MethodPut, s.v1DataPut)
+	s.registerHandler(router, 1, "/data/system/diagnostics", http.MethodGet, s.v1DiagnosticsGet)
 	s.registerHandler(router, 1, "/data/{path:.+}", http.MethodGet, s.v1DataGet)
 	s.registerHandler(router, 1, "/data", http.MethodGet, s.v1DataGet)
 	s.registerHandler(router, 1, "/data/{path:.+}", http.MethodPatch, s.v1DataPatch)
@@ -103,6 +110,7 @@ func New() *Server {
 	router.HandleFunc("/", s.indexGet).Methods(http.MethodGet)
 	s.Handler = router
 
+	s.diagnostics = NewBoundedBuffer(DefaultDiagnosticsBufferSize)
 	return &s
 }
 
@@ -192,6 +200,12 @@ func (s *Server) WithCompilerErrorLimit(limit int) *Server {
 	return s
 }
 
+// WithDiagnosticsBuffer sets the diagnostics buffer stored by the server.
+func (s *Server) WithDiagnosticsBuffer(buf Buffer) *Server {
+	s.diagnostics = buf
+	return s
+}
+
 // Compiler returns the server's compiler.
 //
 // The server's compiler contains the compiled versions of all modules added to
@@ -237,15 +251,19 @@ func (s *Server) Listeners() (func() error, func() error) {
 	return loop2, loop1
 }
 
-func (s *Server) execQuery(ctx context.Context, query string, input ast.Value, explainMode types.ExplainModeV1, includeMetrics bool) (results types.QueryResponseV1, err error) {
+func (s *Server) execQuery(ctx context.Context, r *http.Request, query string, input ast.Value, explainMode types.ExplainModeV1, includeMetrics bool) (results types.QueryResponseV1, err error) {
+
+	settings := s.evalDiagnosticPolicy(r)
+
 	var buf *topdown.BufferTracer
-	if explainMode != types.ExplainOffV1 {
+	if explainMode != types.ExplainOffV1 || settings.explain {
 		buf = topdown.NewBufferTracer()
 	}
+
 	m := metrics.New()
 
 	compiler := s.Compiler()
-	r := rego.New(
+	rego := rego.New(
 		rego.Store(s.store),
 		rego.Compiler(compiler),
 		rego.Query(query),
@@ -254,8 +272,9 @@ func (s *Server) execQuery(ctx context.Context, query string, input ast.Value, e
 		rego.Tracer(buf),
 	)
 
-	output, err := r.Eval(ctx)
+	output, err := rego.Eval(ctx)
 	if err != nil {
+		s.logDiagnostics(query, input, nil, err, m, buf, settings)
 		return results, err
 	}
 
@@ -267,17 +286,12 @@ func (s *Server) execQuery(ctx context.Context, query string, input ast.Value, e
 		results.Metrics = m.All()
 	}
 
-	switch explainMode {
-	case types.ExplainFullV1:
-		results.Explanation = types.NewTraceV1(*buf)
-	case types.ExplainTruthV1:
-		answer, err := explain.Truth(compiler, *buf)
-		if err != nil {
-			return results, err
-		}
-		results.Explanation = types.NewTraceV1(answer)
+	if explainMode != types.ExplainOffV1 {
+		results.Explanation = s.getExplainResponse(explainMode, *buf)
 	}
 
+	var x interface{} = results.Result
+	s.logDiagnostics(query, input, &x, nil, m, buf, settings)
 	return results, nil
 }
 
@@ -292,7 +306,7 @@ func (s *Server) indexGet(w http.ResponseWriter, r *http.Request) {
 	qStrs := values[types.ParamQueryV1]
 	inputStrs := values[types.ParamInputV1]
 
-	explainMode := getExplain(r.URL.Query()[types.ParamExplainV1])
+	explainMode := getExplain(r.URL.Query()[types.ParamExplainV1], types.ExplainOffV1)
 	ctx := r.Context()
 
 	renderQueryForm(w, qStrs, inputStrs, explainMode)
@@ -314,7 +328,7 @@ func (s *Server) indexGet(w http.ResponseWriter, r *http.Request) {
 		input = t.Value
 	}
 
-	results, err := s.execQuery(ctx, qStr, input, explainMode, false)
+	results, err := s.execQuery(ctx, r, qStr, input, explainMode, false)
 	if err != nil {
 		renderQueryResult(w, nil, err, t0)
 		return
@@ -378,10 +392,19 @@ func (s *Server) v0DataPost(w http.ResponseWriter, r *http.Request) {
 func (s *Server) v0QueryPath(w http.ResponseWriter, r *http.Request, path ast.Ref) {
 	ctx := r.Context()
 
+	settings := s.evalDiagnosticPolicy(r)
 	input, err := readInputV0(r.Body)
 	if err != nil {
 		writer.ErrorString(w, http.StatusBadRequest, types.CodeInvalidParameter, errors.Wrapf(err, "unexpected parse error for input"))
 		return
+	}
+
+	var goInput interface{}
+	if input != nil {
+		if goInput, err = ast.JSON(input); err != nil {
+			writer.ErrorString(w, http.StatusInternalServerError, types.CodeInvalidParameter, errors.Wrapf(err, "could not marshal input"))
+			return
+		}
 	}
 
 	// Prepare for query.
@@ -397,11 +420,24 @@ func (s *Server) v0QueryPath(w http.ResponseWriter, r *http.Request, path ast.Re
 
 	params := topdown.NewQueryParams(ctx, compiler, s.store, txn, input, path)
 
+	var m metrics.Metrics
+	var buf *topdown.BufferTracer
+	if settings.explain {
+		buf = topdown.NewBufferTracer()
+		params.Tracer = buf
+	}
+
+	if settings.metrics {
+		m = metrics.New()
+		params.Metrics = m
+	}
+
 	// Execute query.
 	qrs, err := topdown.Query(params)
 
 	// Handle results.
 	if err != nil {
+		s.logDiagnostics(path.String(), goInput, nil, err, m, buf, settings)
 		writer.ErrorAuto(w, err)
 		return
 	}
@@ -411,14 +447,47 @@ func (s *Server) v0QueryPath(w http.ResponseWriter, r *http.Request, path ast.Re
 		return
 	}
 
+	s.logDiagnostics(path.String(), goInput, &qrs[0].Result, nil, m, buf, settings)
 	writer.JSON(w, 200, qrs[0].Result, false)
 }
 
-func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
+func (s *Server) v1DiagnosticsGet(w http.ResponseWriter, r *http.Request) {
+	pretty := getBoolParam(r.URL, types.ParamPrettyV1, true)
+	explainMode := getExplain(r.URL.Query()[types.ParamExplainV1], types.ExplainTruthV1)
 
+	var results []types.DiagnosticsResponseElementV1
+	s.diagnostics.Iter(func(i *Info) {
+		result := types.DiagnosticsResponseElementV1{
+			Timestamp: i.Timestamp.UnixNano(),
+			Query:     i.Query,
+			Input:     i.Input,
+		}
+
+		if i.Metrics != nil {
+			result.Metrics = i.Metrics.All()
+		}
+
+		if i.Trace != nil {
+			result.Explanation = s.getExplainResponse(explainMode, i.Trace)
+		}
+
+		if i.Error != nil {
+			result.Error = types.NewErrorV1(types.CodeInternal, i.Error.Error())
+		} else {
+			result.Result = i.Results
+		}
+
+		results = append(results, result)
+	})
+
+	writer.JSON(w, 200, results, pretty)
+}
+
+func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	vars := mux.Vars(r)
 	path := stringPathToDataRef(vars["path"])
+	settings := s.evalDiagnosticPolicy(r)
 
 	watch := getWatch(r.URL.Query()[types.ParamWatchV1])
 	if watch {
@@ -427,7 +496,7 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 	}
 
 	pretty := getBoolParam(r.URL, types.ParamPrettyV1, true)
-	explainMode := getExplain(r.URL.Query()["explain"])
+	explainMode := getExplain(r.URL.Query()["explain"], types.ExplainOffV1)
 	includeMetrics := getBoolParam(r.URL, types.ParamMetricsV1, true)
 
 	m := metrics.New()
@@ -447,6 +516,15 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 
 	m.Timer(metrics.RegoQueryParse).Stop()
 
+	var goInput interface{}
+	if input != nil {
+		var err error
+		if goInput, err = ast.JSON(input); err != nil {
+			writer.ErrorString(w, http.StatusInternalServerError, types.CodeInvalidParameter, errors.Wrapf(err, "could not marshal input"))
+			return
+		}
+	}
+
 	// Prepare for query.
 	txn, err := s.store.NewTransaction(ctx)
 	if err != nil {
@@ -461,7 +539,7 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 	params.Metrics = m
 
 	var buf *topdown.BufferTracer
-	if explainMode != types.ExplainOffV1 {
+	if explainMode != types.ExplainOffV1 || settings.explain {
 		buf = topdown.NewBufferTracer()
 		params.Tracer = buf
 	}
@@ -471,6 +549,7 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 
 	// Handle results.
 	if err != nil {
+		s.logDiagnostics(path.String(), goInput, nil, err, m, buf, settings)
 		writer.ErrorAuto(w, err)
 		return
 	}
@@ -485,23 +564,17 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 		if explainMode == types.ExplainFullV1 {
 			result.Explanation = types.NewTraceV1(*buf)
 		}
+		s.logDiagnostics(path.String(), goInput, nil, nil, m, buf, settings)
 		writer.JSON(w, 200, result, pretty)
 		return
 	}
 	result.Result = &qrs[0].Result
 
-	switch explainMode {
-	case types.ExplainFullV1:
-		result.Explanation = types.NewTraceV1(*buf)
-	case types.ExplainTruthV1:
-		answer, err := explain.Truth(compiler, *buf)
-		if err != nil {
-			writer.ErrorAuto(w, err)
-			return
-		}
-		result.Explanation = types.NewTraceV1(answer)
-	}
+	s.logDiagnostics(path.String(), goInput, result.Result, nil, m, buf, settings)
 
+	if explainMode != types.ExplainOffV1 {
+		result.Explanation = s.getExplainResponse(explainMode, *buf)
+	}
 	writer.JSON(w, 200, result, pretty)
 }
 
@@ -543,10 +616,10 @@ func (s *Server) v1DataPatch(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
-
 	ctx := r.Context()
 	vars := mux.Vars(r)
 	path := stringPathToDataRef(vars["path"])
+	settings := s.evalDiagnosticPolicy(r)
 
 	watch := getWatch(r.URL.Query()[types.ParamWatchV1])
 	if watch {
@@ -555,7 +628,7 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 	}
 
 	pretty := getBoolParam(r.URL, types.ParamPrettyV1, true)
-	explainMode := getExplain(r.URL.Query()[types.ParamExplainV1])
+	explainMode := getExplain(r.URL.Query()[types.ParamExplainV1], types.ExplainOffV1)
 	includeMetrics := getBoolParam(r.URL, types.ParamMetricsV1, true)
 
 	m := metrics.New()
@@ -566,6 +639,14 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		writer.ErrorString(w, http.StatusBadRequest, types.CodeInvalidParameter, err)
 		return
+	}
+
+	var goInput interface{}
+	if input != nil {
+		if goInput, err = ast.JSON(input); err != nil {
+			writer.ErrorString(w, http.StatusInternalServerError, types.CodeInvalidParameter, errors.Wrapf(err, "could not marshal input"))
+			return
+		}
 	}
 
 	m.Timer(metrics.RegoQueryParse).Stop()
@@ -585,7 +666,7 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 	params.Metrics = m
 
 	var buf *topdown.BufferTracer
-	if explainMode != types.ExplainOffV1 {
+	if explainMode != types.ExplainOffV1 || settings.explain {
 		buf = topdown.NewBufferTracer()
 		params.Tracer = buf
 	}
@@ -595,12 +676,12 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 
 	// Handle results.
 	if err != nil {
+		s.logDiagnostics(path.String(), goInput, nil, err, m, buf, settings)
 		writer.ErrorAuto(w, err)
 		return
 	}
 
 	result := types.DataResponseV1{}
-
 	if includeMetrics {
 		result.Metrics = m.All()
 	}
@@ -609,24 +690,18 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 		if explainMode == types.ExplainFullV1 {
 			result.Explanation = types.NewTraceV1(*buf)
 		}
+		s.logDiagnostics(path.String(), goInput, nil, nil, m, buf, settings)
 		writer.JSON(w, 200, result, pretty)
 		return
 	}
 
 	result.Result = &qrs[0].Result
 
-	switch explainMode {
-	case types.ExplainFullV1:
-		result.Explanation = types.NewTraceV1(*buf)
-	case types.ExplainTruthV1:
-		answer, err := explain.Truth(compiler, *buf)
-		if err != nil {
-			writer.ErrorAuto(w, err)
-			return
-		}
-		result.Explanation = types.NewTraceV1(answer)
-	}
+	s.logDiagnostics(path.String(), goInput, result.Result, nil, m, buf, settings)
 
+	if explainMode != types.ExplainOffV1 {
+		result.Explanation = s.getExplainResponse(explainMode, *buf)
+	}
 	writer.JSON(w, 200, result, pretty)
 }
 
@@ -870,10 +945,10 @@ func (s *Server) v1QueryGet(w http.ResponseWriter, r *http.Request) {
 	}
 
 	pretty := getBoolParam(r.URL, types.ParamPrettyV1, true)
-	explainMode := getExplain(r.URL.Query()["explain"])
+	explainMode := getExplain(r.URL.Query()["explain"], types.ExplainOffV1)
 	includeMetrics := getBoolParam(r.URL, types.ParamMetricsV1, true)
 
-	results, err := s.execQuery(ctx, qStr, nil, explainMode, includeMetrics)
+	results, err := s.execQuery(ctx, r, qStr, nil, explainMode, includeMetrics)
 	if err != nil {
 		switch err := err.(type) {
 		case ast.Errors:
@@ -889,7 +964,7 @@ func (s *Server) v1QueryGet(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) watchQuery(query string, w http.ResponseWriter, r *http.Request, data bool) {
 	pretty := getBoolParam(r.URL, types.ParamPrettyV1, true)
-	explainMode := getExplain(r.URL.Query()["explain"])
+	explainMode := getExplain(r.URL.Query()["explain"], types.ExplainOffV1)
 	includeMetrics := getBoolParam(r.URL, types.ParamMetricsV1, true)
 
 	watch, err := s.watcher.Query(query)
@@ -945,17 +1020,7 @@ func (s *Server) watchQuery(query string, w http.ResponseWriter, r *http.Request
 				r.Metrics = e.Metrics.All()
 			}
 
-			switch explainMode {
-			case types.ExplainFullV1:
-				r.Explanation = types.NewTraceV1(e.Tracer)
-			case types.ExplainTruthV1:
-				answer, err := explain.Truth(s.Compiler(), e.Tracer)
-				if err != nil {
-					return
-				}
-				r.Explanation = types.NewTraceV1(answer)
-			}
-
+			r.Explanation = s.getExplainResponse(explainMode, e.Tracer)
 			if err := encoder.Encode(r); err != nil {
 				return
 			}
@@ -967,6 +1032,172 @@ func (s *Server) watchQuery(query string, w http.ResponseWriter, r *http.Request
 			return
 		}
 	}
+}
+
+func constructDiagnosticsInput(r *http.Request) (map[string]interface{}, error) {
+	var body interface{}
+	if r.Body != nil {
+		buf, err := ioutil.ReadAll(r.Body)
+		if err != nil {
+			return nil, err
+		}
+		r.Body = ioutil.NopCloser(bytes.NewReader(buf))
+
+		decoder := util.NewJSONDecoder(bytes.NewReader(buf))
+		if err := decoder.Decode(&body); err != nil {
+			body = nil
+		}
+	}
+
+	input := map[string]interface{}{
+		"method": r.Method,
+		"path":   r.URL.Path,
+		"body":   body,
+	}
+
+	params := map[string]interface{}{}
+	for param, value := range r.URL.Query() {
+		var ifaces []interface{}
+		for _, v := range value {
+			ifaces = append(ifaces, v)
+		}
+		params[param] = ifaces
+	}
+	input["params"] = params
+
+	header := map[string]interface{}{}
+	for key, value := range r.Header {
+		var ifaces []interface{}
+		for _, v := range value {
+			ifaces = append(ifaces, v)
+		}
+		header[key] = ifaces
+	}
+	input["header"] = header
+
+	return input, nil
+}
+
+func (s *Server) evalDiagnosticPolicy(r *http.Request) settings {
+	input, err := constructDiagnosticsInput(r)
+	if err != nil {
+		return diagsOff
+	}
+
+	compiler := s.Compiler()
+	rego := rego.New(
+		rego.Store(s.store),
+		rego.Compiler(compiler),
+		rego.Query(`config = data.system.diagnostics.config`),
+		rego.Input(input),
+	)
+
+	output, err := rego.Eval(r.Context())
+	if err != nil {
+		return diagsOff
+	}
+
+	if len(output) != 1 {
+		return diagsOff
+	} else if exprs := len(output[0].Expressions); exprs != 1 {
+		return diagsOff
+	}
+
+	if value, ok := output[0].Expressions[0].Value.(bool); !ok {
+		return diagsOff
+	} else if !value {
+		return diagsOff
+	}
+
+	config, ok := output[0].Bindings["config"]
+	if !ok {
+		return diagsOff
+	}
+
+	bindings, ok := config.(map[string]interface{})
+	if !ok {
+		return diagsOff
+	}
+
+	var infoSettings settings
+	mode, err := getStringVar(bindings, "mode")
+	if err != nil || mode == "off" {
+		return diagsOff
+	} else if mode == "all" {
+		return diagsFull
+	} else if mode == "on" {
+		infoSettings.on = true
+	}
+
+	infoSettings.metrics, err = getBooleanVar(bindings, "metrics")
+	if err != nil {
+		return diagsOff
+	}
+
+	infoSettings.explain, err = getBooleanVar(bindings, "explain")
+	if err != nil {
+		return diagsOff
+	}
+
+	infoSettings.on = infoSettings.on || infoSettings.metrics || infoSettings.explain
+	return infoSettings
+}
+
+func (s *Server) logDiagnostics(q string, input interface{}, result *interface{}, err error, m metrics.Metrics, t *topdown.BufferTracer, config settings) {
+	if !config.on {
+		return
+	}
+
+	i := newInfo(q, input, result)
+	if err != nil {
+		i = i.withError(err)
+	}
+
+	if config.metrics {
+		i = i.withMetrics(m)
+	}
+
+	if config.explain {
+		i = i.withTrace(*t)
+	}
+
+	s.diagnostics.Push(i)
+}
+
+func getBooleanVar(bindings rego.Vars, name string) (bool, error) {
+	if v, ok := bindings[name]; ok {
+		t, ok := v.(bool)
+		if !ok {
+			return false, fmt.Errorf("non-boolean '%s' field: %v (%T)", name, v, v)
+		}
+		return t, nil
+	}
+	return false, nil
+}
+
+func getStringVar(bindings rego.Vars, name string) (string, error) {
+	if v, ok := bindings[name]; ok {
+		t, ok := v.(string)
+		if !ok {
+			return "", fmt.Errorf("non-string '%s' field: %v (%T)", name, v, v)
+		}
+		return t, nil
+	}
+	return "", nil
+}
+
+func (s *Server) getExplainResponse(explainMode types.ExplainModeV1, trace []*topdown.Event) (explanation types.TraceV1) {
+	switch explainMode {
+	case types.ExplainFullV1:
+		explanation = types.NewTraceV1(trace)
+	case types.ExplainTruthV1:
+		answer, err := explain.Truth(s.Compiler(), trace)
+		if err != nil {
+			break
+		}
+		explanation = types.NewTraceV1(answer)
+	}
+	return explanation
 }
 
 func (s *Server) abort(ctx context.Context, txn storage.Transaction, finish func()) {
@@ -1165,7 +1396,7 @@ func getWatch(p []string) (watch bool) {
 	return len(p) > 0
 }
 
-func getExplain(p []string) types.ExplainModeV1 {
+func getExplain(p []string, zero types.ExplainModeV1) types.ExplainModeV1 {
 	for _, x := range p {
 		switch x {
 		case string(types.ExplainFullV1):
@@ -1174,7 +1405,7 @@ func getExplain(p []string) types.ExplainModeV1 {
 			return types.ExplainTruthV1
 		}
 	}
-	return types.ExplainOffV1
+	return zero
 }
 
 var errInputPathFormat = fmt.Errorf(`input parameter format is [[<path>]:]<value> where <path> is either var or ref`)
