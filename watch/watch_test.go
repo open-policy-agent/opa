@@ -98,6 +98,18 @@ func TestWatchSimple(t *testing.T) {
 				t.Errorf("Expected result set length 1, got %d", len(e.Value))
 			}
 
+			for s, v := range e.Metrics.All() {
+				if d := v.(int64); d == 0 {
+					t.Errorf("Expected non-zero metrics, got %s:%d", s, d)
+				}
+			}
+			e.Metrics = nil
+
+			if len(e.Tracer) != 3 {
+				t.Errorf("Expected explanation to have length 3, got %d", len(e.Tracer))
+			}
+			e.Tracer = nil
+
 			e.Value[0].Expressions = nil
 			if !reflect.DeepEqual(exp[i], e) {
 				t.Errorf("Expected notification %v, got %v", exp[i], e)
