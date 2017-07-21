@@ -1304,6 +1304,223 @@ func TestQueryWatch(t *testing.T) {
 	}
 }
 
+func TestDiagnostics(t *testing.T) {
+	f := newFixture(t)
+	f.server, _ = New().
+		WithAddress(":8182").
+		WithStore(f.server.store).
+		WithDiagnosticsBuffer(NewBoundedBuffer(11)).
+		Init(context.Background())
+
+	queriesOnly := `package system.diagnostics
+
+	default config = {"mode": "off"}
+	config = {"mode": "on"} {
+		input.path = "/v1/query"
+	}`
+
+	setup := []tr{
+		{http.MethodPut, "/data", `{"foo": "bar", "y": 7, "x": [1, 2, 3], "bar": null}`, 204, ""},
+		{http.MethodPut, "/policies/main", "package system\nmain = \"foo\"", 200, ""},
+
+		// Diagnostics should be disabled by default.
+		{http.MethodGet, "/data/y", "", 200, `{"result":7}`},
+		{http.MethodPost, "/data/y", "", 200, `{"result":7}`},
+		{http.MethodGet, "/query?q=a=data.y", "", 200, `{"result":[{"a":7}]}`},
+
+		// We should only get back metrics.
+		{http.MethodPut, "/policies/diagnostics", "package system.diagnostics\nconfig = {\"metrics\": true}", 200, ""},
+		{http.MethodGet, "/data/y", "", 200, `{"result":7}`}, // This one should fall off the ring buffer.
+		{http.MethodGet, "/data/x", "", 200, `{"result":[1,2,3]}`},
+		{http.MethodPost, "/data/x", `{"input":{"test":"foo"}}`, 200, `{"result":[1,2,3]}`},
+		{http.MethodGet, "/query?q=a=data.x", "", 200, `{"result":[{"a":[1,2,3]}]}`},
+
+		// We should only get back explanations.
+		{http.MethodPut, "/policies/diagnostics", "package system.diagnostics\nconfig = {\"explain\": true}", 200, ""},
+		{http.MethodGet, "/data/bar", "", 200, `{"result":null}`},
+		{http.MethodPost, "/data/x", `{"input":{"test":"bar"}}`, 200, `{"result":[1,2,3]}`},
+		{http.MethodGet, "/query?q=a=data.x", "", 200, `{"result":[{"a":[1,2,3]}]}`},
+
+		// We should get back everything.
+		{http.MethodPut, "/policies/diagnostics", "package system.diagnostics\nconfig = {\"mode\": \"all\"}", 200, ""},
+		{http.MethodGet, "/data/x", "", 200, `{"result":[1,2,3]}`},
+		{http.MethodPost, "/data/z", "", 200, ``},
+		{http.MethodGet, "/query?q=a=data.x", "", 200, `{"result":[{"a":[1,2,3]}]}`},
+
+		// We should get back nothing.
+		{http.MethodPut, "/policies/diagnostics", "package system.diagnostics\nconfig = {\"mode\": \"off\"}", 200, ""},
+		{http.MethodGet, "/data/x", "", 200, `{"result":[1,2,3]}`},
+		{http.MethodPost, "/data/x", "", 200, `{"result":[1,2,3]}`},
+		{http.MethodGet, "/query?q=a=data.x", "", 200, `{"result":[{"a":[1,2,3]}]}`},
+
+		// We should get back only the query request, and only it's results (no
+		// metrics or explanation).
+		{http.MethodPut, "/policies/diagnostics", queriesOnly, 200, ""},
+		{http.MethodGet, "/data/y", "", 200, `{"result":7}`},
+		{http.MethodPost, "/data/y", "", 200, `{"result":7}`},
+		{http.MethodGet, "/query?q=a=data.y", "", 200, `{"result":[{"a":7}]}`},
+
+		// We should get back the results of the webhook.
+		{http.MethodPut, "/policies/diagnostics", "package system.diagnostics\nconfig = {\"mode\": \"on\"}", 200, ""},
+	}
+
+	for _, tr := range setup {
+		if err := f.v1(tr.method, tr.path, tr.body, tr.code, tr.resp); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	get := newReqUnversioned(http.MethodPost, `/`, "")
+	if err := f.executeRequest(get, 200, `"foo"`); err != nil {
+		t.Fatal(err)
+	}
+
+	expList := interface{}([]interface{}{json.Number("1"), json.Number("2"), json.Number("3")})
+	expMap1 := interface{}([]interface{}{map[string]interface{}{"a": expList}})
+	expMap2 := interface{}([]interface{}{map[string]interface{}{"a": json.Number("7")}})
+	expStr := interface{}("foo")
+	expNull := interface{}(nil)
+
+	exp := []struct {
+		query      string
+		input      interface{}
+		result     *interface{}
+		metrics    bool
+		explainLen int
+	}{
+		{
+			query:   "data.x",
+			result:  &expList,
+			metrics: true,
+		},
+		{
+			query:   "data.x",
+			input:   map[string]interface{}{"test": "foo"},
+			result:  &expList,
+			metrics: true,
+		},
+		{
+			query:   "a=data.x",
+			result:  &expMap1,
+			metrics: true,
+		},
+		{
+			query:      "data.bar",
+			result:     &expNull,
+			explainLen: 3,
+		},
+		{
+			query:      "data.x",
+			input:      map[string]interface{}{"test": "bar"},
+			result:     &expList,
+			explainLen: 4,
+		},
+		{
+			query:      "a=data.x",
+			result:     &expMap1,
+			explainLen: 3,
+		},
+		{
+			query:      "data.x",
+			result:     &expList,
+			metrics:    true,
+			explainLen: 3,
+		},
+		{
+			query:      "data.z",
+			result:     nil,
+			metrics:    true,
+			explainLen: 0,
+		},
+		{
+			query:      "a=data.x",
+			result:     &expMap1,
+			metrics:    true,
+			explainLen: 3,
+		},
+		{
+			query:  "a=data.y",
+			result: &expMap2,
+		},
+		{
+			query:  "data.system.main",
+			result: &expStr,
+		},
+	}
+
+	get = newReqV1(http.MethodGet, `/data/system/diagnostics`, "")
+	f.reset()
+	f.server.Handler.ServeHTTP(f.recorder, get)
+
+	var diags []map[string]interface{}
+	decoder := util.NewJSONDecoder(f.recorder.Body)
+	if err := decoder.Decode(&diags); err != nil {
+		t.Fatal(err)
+	}
+
+	if len(diags) != len(exp) {
+		t.Fatalf("Expected %d diagnostics, got %d", len(exp), len(diags))
+	}
+
+	for i, d := range diags {
+		e := exp[i]
+		if e.query != d["query"].(string) {
+			t.Fatalf("Expected query to be %v, got %v", e.query, d["query"])
+		}
+
+		if !reflect.DeepEqual(e.input, d["input"]) {
+			t.Fatalf("Expected input to be %v, got %v", e.input, d["input"])
+		}
+
+		r, ok := d["result"]
+		if e.result == nil {
+			if ok {
+				t.Fatalf("Expected result to be nil, got %v", r)
+			}
+		} else if !reflect.DeepEqual(*e.result, r) {
+			t.Fatalf("Expected result to be %v, got %v", *e.result, r)
+		}
+
+		metrics, ok := d["metrics"]
+		m := map[string]interface{}{}
+		if ok {
+			m = metrics.(map[string]interface{})
+		}
+
+		if e.metrics {
+			if len(m) == 0 {
+				t.Fatal("Expected metrics")
+			}
+
+			for key, value := range m {
+				v, ok := value.(json.Number)
+				if !ok {
+					t.Fatalf("Metrics for %v was not a number", key)
+				}
+
+				n, err := v.Int64()
+				if err != nil {
+					t.Fatal(err)
+				} else if n <= 0 {
+					t.Fatalf("Expected non-zero metric for %v but got: %v", key, n)
+				}
+			}
+		} else if len(m) > 0 {
+			t.Fatalf("Did not expect metrics, got %v", m)
+		}
+
+		explain, ok := d["explanation"]
+		expl := []interface{}{}
+		if ok {
+			expl = explain.([]interface{})
+		}
+
+		if len(expl) != e.explainLen {
+			t.Fatalf("Expected explanation of length %d, got %d", e.explainLen, len(expl))
+		}
+	}
+}
+
 func TestWatchParams(t *testing.T) {
 	f := newFixture(t)
 	r1 := newMockConn()
@@ -1712,11 +1929,12 @@ type queryBindingErrStore struct {
 }
 
 func (s *queryBindingErrStore) Read(ctx context.Context, txn storage.Transaction, path storage.Path) (interface{}, error) {
-	// At this time, the store will receive two reads:
-	// - The first during evaluation
-	// - The second when the server tries to accumulate the bindings
+	// At this time, the store will receive three reads:
+	// - The first during evaluation of the diagnostics config policy (which ignores errors)
+	// - The second during evaluation of the request
+	// - The third when the server tries to accumulate the bindings
 	s.count++
-	if s.count == 2 {
+	if s.count == 3 {
 		return nil, fmt.Errorf("unknown error")
 	}
 	return "", nil
