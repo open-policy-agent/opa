@@ -3,7 +3,19 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## 0.5.3
+
+### Fixes
+
+- Add support for raw strings ([#265](https://github.com/open-policy-agent/opa/issues/265))
+- Add support to cancel compilation after some number of errors ([#249](https://github.com/open-policy-agent/opa/issues/249))
+
+### Miscellaneous
+
+- Add Kubernetes admission control tutorial
+- Add tracing support to rego package
+- Add watch package for watching changes to queries
+- Add dependencies package to perform dependency analysis on ASTs
 
 ## 0.5.2
 
