@@ -4,21 +4,8 @@
 
 VERSION := 0.5.4-dev
 
-PACKAGES := \
-	github.com/open-policy-agent/opa/ast/.../ \
-	github.com/open-policy-agent/opa/cmd/.../ \
-	github.com/open-policy-agent/opa/format/.../ \
-	github.com/open-policy-agent/opa/metrics/.../ \
-	github.com/open-policy-agent/opa/rego/.../ \
-	github.com/open-policy-agent/opa/repl/.../ \
-	github.com/open-policy-agent/opa/runtime/.../ \
-	github.com/open-policy-agent/opa/server/.../ \
-	github.com/open-policy-agent/opa/storage/.../ \
-	github.com/open-policy-agent/opa/topdown/.../ \
-	github.com/open-policy-agent/opa/types/.../ \
-	github.com/open-policy-agent/opa/util/.../ \
-	github.com/open-policy-agent/opa/test/.../ \
-	github.com/open-policy-agent/opa/watch/.../
+PACKAGES := $(shell go list ./.../ | grep -v 'vendor')
+
 
 GO := go
 GOARCH := $(shell go env GOARCH)
