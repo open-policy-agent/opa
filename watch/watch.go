@@ -193,7 +193,11 @@ func (w *Watcher) registerHandle(h *Handle) error {
 	if err != nil {
 		return err
 	}
-	refs := w.extractBaseRefs(compiled)
+
+	refs, err := dependencies.Base(w.compiler, compiled)
+	if err != nil {
+		panic(err)
+	}
 
 	h.watcher = w
 	w.handles[h] = struct{}{}
@@ -332,27 +336,6 @@ func (w *Watcher) notify(ctx context.Context, txn storage.Transaction, event sto
 		default: // Already a notification in the queue.
 		}
 	}
-}
-
-func (w *Watcher) extractBaseRefs(query interface{}) []ast.Ref {
-	refs, err := dependencies.Minimal(query)
-	if err != nil {
-		panic("query was not an AST element")
-	}
-
-	var baseRefs []ast.Ref
-	for _, r := range refs {
-		r = r.ConstantPrefix()
-		if rules := w.compiler.GetRules(r); len(rules) > 0 {
-			for _, rule := range rules {
-				baseRefs = append(baseRefs, w.extractBaseRefs(rule)...)
-			}
-		} else {
-			baseRefs = append(baseRefs, r)
-		}
-	}
-
-	return baseRefs
 }
 
 func newInvalidatedWatchError(err error) error {
