@@ -386,6 +386,60 @@ func TestDependencies(t *testing.T) {
 	}
 }
 
+func TestBaseAndVirtual(t *testing.T) {
+	mods := map[string]*ast.Module{
+		"one": ast.MustParseModule(`package x
+
+		y = "foo"
+
+		z[x] = w {
+			w = x
+			x = "bar"
+			y = x
+		}`),
+		"two": ast.MustParseModule(`package a
+
+		b = {"buz": "bar"}
+
+		c[a] = e {
+			e = data.d[_]
+			data.x.z[a] = e[2]
+		}`),
+	}
+
+	compiler := ast.NewCompiler()
+	if compiler.Compile(mods); compiler.Failed() {
+		t.Fatalf("Compilation failed: %v", compiler.Errors)
+	}
+
+	body := ast.MustParseBody("x = data.a.c[y]")
+	base, err := Base(compiler, body)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	expBase := ast.MustParseRef("data.d")
+	if len(base) != 1 || !expBase.Equal(base[0]) {
+		t.Errorf("Expected base ref %v, got %v", expBase, base)
+	}
+
+	virtual, err := Virtual(compiler, body)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	expVirtual := []ast.Ref{ast.MustParseRef("data.a.c"), ast.MustParseRef("data.x.y"), ast.MustParseRef("data.x.z")}
+	if len(virtual) != len(expVirtual) {
+		t.Errorf("Expected base refs %v, got %v", expVirtual, virtual)
+	}
+
+	for i, r := range expVirtual {
+		if !r.Equal(virtual[i]) {
+			t.Fatalf("Expected base refs %v, got %v", expVirtual, virtual)
+		}
+	}
+}
+
 func runDeps(t *testing.T, x interface{}, test testData) (min, full []ast.Ref) {
 	min, err := Minimal(x)
 	if err != nil {
