@@ -29,7 +29,7 @@ CERT_DIR=<path/to/directory/containing/certificates>
 # Set to admission controllers to include. This example uses the default set of
 # admission controllers enabled in the Kubernetes API server plus the
 # GenericAdmissionWebhook admission controller.
-ADMISSION_CONTROLLERS=NamespaceLifecycle,LimitRanger,ServiceAccount,PersistentVolumeLabel,DefaultStorageClass,ResourceQuota,DefaultTolerationSeconds,GenericAdmissionWebhook
+ADMISSION_CONTROLLERS=NamespaceLifecycle,LimitRanger,ServiceAccount,PersistentVolumeLabel,DefaultStorageClass,GenericAdmissionWebhook,ResourceQuota,DefaultTolerationSeconds
 
 minikube start --kubernetes-version v1.7.0 \
     --extra-config=apiserver.Admission.PluginNames=$ADMISSION_CONTROLLERS
