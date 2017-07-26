@@ -167,10 +167,15 @@ func doDiff(old, new []byte) (stdout, stderr bytes.Buffer, err error) {
 	if err != nil {
 		return stdout, stderr, err
 	}
+	defer os.Remove(o.Name())
+	defer o.Close()
+
 	n, err := ioutil.TempFile("", ".opafmt")
 	if err != nil {
 		return stdout, stderr, err
 	}
+	defer os.Remove(n.Name())
+	defer n.Close()
 
 	o.Write(old)
 	n.Write(new)
