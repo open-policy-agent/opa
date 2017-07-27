@@ -129,6 +129,7 @@ For example:
 	runCommand.Flags().StringVarP(&params.OutputFormat, "format", "f", "pretty", "set shell output format, i.e, pretty, json")
 	runCommand.Flags().BoolVarP(&params.Watch, "watch", "w", false, "watch command line files for changes")
 	runCommand.Flags().IntVarP(&params.ErrorLimit, "max-errors", "m", ast.CompileErrorLimitDefault, "set the number of errors to allow before compilation fails early")
+	runCommand.Flags().IntVarP(&params.ServerDiagnosticsBufferSize, "server-diagnostics-buffer-size", "", server.DefaultDiagnosticsBufferSize, "set the size of the server's diagnostics buffer")
 	runCommand.Flags().StringVarP(&tlsCertFile, "tls-cert-file", "", "", "set path of TLS certificate file")
 	runCommand.Flags().StringVarP(&tlsPrivateKeyFile, "tls-private-key-file", "", "", "set path of TLS private key file")
 	runCommand.Flags().VarP(authentication, "authentication", "", "set authentication scheme")
