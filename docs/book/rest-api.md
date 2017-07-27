@@ -1771,6 +1771,112 @@ OPA currently supports the following query performance metrics:
 - **timer_rego_query_compile_ns**: time taken (in nanonseconds) to compile the query.
 - **timer_rego_query_eval_ns**: time taken (in nanonseconds) to evaluate the query.
 
+## <a name="diagnostics"></a> Diagnostics
+
+The OPA server has the capability to log and return diagnostics on past requests to the user. By default, the server will not log any diagnostics at all. In order to have the server start logging diagnostic information, the document located at `data.system.diagnostics.config` (henceforth referred to as the config) must be defined. The config must evaluate to an object, which must be structured as follows:
+
+```
+{
+    "mode": <"all"/"on"/"off">,
+    "metrics": <true/false>,
+    "explain": <true/false>
+}
+```
+
+An example of a policy that defines a simple diagnostics config that only logs GET requests:
+
+```
+package system.diagnostics
+
+default config = {"mode": "off"}
+config = {"mode": "on"} {
+    input.method = "GET"
+}
+```
+
+If the config document does not conform to the structure above, then diagnostics are automatically disabled.
+
+Whenever a data GET/POST, a POST to `/` or query GET request is received by the server, it evaluates the config document to determine whether or not diagnostics should be logged. The table below describes the behavior of diagnostics depending on the values of the config fields.
+
+| Field     | Value | Behavior                                                                                                                                           |
+| --------- | ----- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `mode`    | "all" | All diagnostics are recorded. Equivalent to `explain` and `metrics` both being true.                                                               |
+| `mode`    | "on"  | Diagnostics are recorded. Query, timestamp, input and result are logged. Explanations and metrics depend on `explain` and `metrics`, respectively. |
+| `mode`    | "off" | No diagnostics are recorded. Overrides `explain` and `metrics` field.                                                                              |
+| `explain` | false | Explanations are not logged.                                                                                                                       |
+| `explain` | true  | Explanations are logged. `mode` is implicitly "on".                                                                                                |
+| `metrics` | false | Metrics are not logged.                                                                                                                            |
+| `metrics` | true  | Metrics are logged. `mode` is implicitly "on".                                                                                                     |
+
+In order to allow the config document to make dynamic decisions about whether or not to record diagnostics for a given request, the server will provide a special input document when evaluating it. The input document will contain information from the HTTP request that was issued to the server, of the form:
+
+```
+{
+    "method": <HTTP request method>,
+    "path": <Full HTTP request path>,
+    "body": <HTTP request body (null if not present or invalid JSON)>,
+
+    # The query parameters in the HTTP request.
+    "params": {
+        "param0": ["value0", "value1", ...],
+        "param1": [...],
+        ...
+    },
+
+    # The header fields in the HTTP request.
+    "header": {
+        "field0": ["value0", "value1", ...],
+        "field1": [...],
+        ...
+    }
+}
+```
+
+As an example, the request `GET /v1/data/servers?watch&pretty=true HTTP/1.1` would result in the input document below (the headers will likely depend on the client used to send the request):
+
+```
+{
+    "method": "GET",
+    "path": "/v1/data/servers",
+    "body": null,
+    "params": {
+        "watch": [""],
+        "pretty": ["true"],
+    },
+
+    "header": { ... }
+}
+```
+
+Diagnostics may be fetched from the server using the Data GET endpoint. When the server sees a GET request to `/v1/data/system/diagnostics`, it will not evaluate the document located there, but instead return a list of the diagnostics stored on the server (ordered from oldest to newest). The server will honor the `explainMode` and `pretty` parameters from the GET request, but the others will be ignored. The response is of the form:
+
+```
+[
+    {
+        "timestamp": ...,
+        "query": ...,
+        "input": ...,
+        "result": ...,
+        "error": ...,
+        "explanation": ...,
+        "metrics": ...
+    },
+    ...
+]
+```
+
+| Field         | Always Present | Description                                                                                                                                                                                                |
+| ------------  | -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `timestamp`   | Yes            | Nanoseconds since the Unix Epoch time                                                                                                                                                                      |
+| `query`       | Yes            | The query, if the request for the record was a query request. Otherwise the data path from the original request.                                                                                           |
+| `input`       | No             | Input provided to the `query` at evaluation time.                                                                                                                                                          |
+| `result`      | No             | Result of evaluating `query`. See the [Data](#data-api) and [Query](#query-api) APIs for detailed descriptions of formats.                                                                                 |
+| `error`       | No             | [Error](#errors) encountered while evaluating `query`.                                                                                                                                                     |
+| `metrics`     | No             | [Performance Metrics](#performance-metrics) for `query`.                                                                                                                                                   |
+| `explanation` | No             | [Explanation](#explanations) of how `result` was found. Whether it contains a `truth` level or `full` level explanation depends on the explanation mode in the GET request that requested the diagnostics. |
+
+The server will only store a finite number of diagnostics. If the server's diagnostics storage becomes full, it will delete the oldest diagnostic to make room for the new one. The size of the storage may be configured when the server is started.
+
 ## <a name="watches"></a> Watches
 
 OPA can set watches on queries and report whenever the result of evaluating the query has changed. When a watch is set on a query, the requesting connection will be maintained as the query results are streamed back in HTTP Chunked Encoding format. A notification reflecting a certain change to the query results will be delivered _at most once_. That is, if a watch is set on `data.x`, and then multiple writes are made to `data.x`, say `1`, `2` and `3`, only the notification reflecting `data.x=3` is always seen eventually (assuming the watch is not ended, there are no connection problems, etc). The notifications reflecting `data.x=1` and `data.x=2` _might_ be seen. However, the notifications sent are guaranteed to be in order (`data.x=2` will always come after `data.x=1`, if it comes).
