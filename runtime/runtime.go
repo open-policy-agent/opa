@@ -77,6 +77,9 @@ type Params struct {
 	// exiting early.
 	ErrorLimit int
 
+	// ServerDiagnosticsBufferSize is the size of the server's diagnostic buffer.
+	ServerDiagnosticsBufferSize int
+
 	// Logging configures the logging behaviour.
 	Logging LoggingConfig
 
@@ -172,6 +175,7 @@ func (rt *Runtime) startServer(ctx context.Context, params *Params) {
 		WithCertificate(params.Certificate).
 		WithAuthentication(params.Authentication).
 		WithAuthorization(params.Authorization).
+		WithDiagnosticsBuffer(server.NewBoundedBuffer(params.ServerDiagnosticsBufferSize)).
 		Init(ctx)
 
 	if err != nil {
