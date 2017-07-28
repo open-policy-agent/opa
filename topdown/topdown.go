@@ -28,6 +28,7 @@ type Topdown struct {
 	Previous *Topdown
 	Store    storage.Store
 	Tracer   Tracer
+	Metrics  metrics.Metrics
 	Context  context.Context
 
 	txn          storage.Transaction
@@ -265,6 +266,13 @@ func (t *Topdown) WithTracer(tracer Tracer) *Topdown {
 	return &cpy
 }
 
+// WithMetrics returns a new Topdown object that has Metrics set.
+func (t *Topdown) WithMetrics(metrics metrics.Metrics) *Topdown {
+	cpy := *t
+	cpy.Metrics = metrics
+	return &cpy
+}
+
 // WithCancel returns a new Topdown object that has cancellation set.
 func (t *Topdown) WithCancel(c Cancel) *Topdown {
 	cpy := *t
@@ -289,6 +297,14 @@ func (t *Topdown) currentLocation(fallback ...ast.Statement) *ast.Location {
 }
 
 func (t *Topdown) traceEnter(node interface{}) {
+	if t.Metrics != nil {
+		switch node := node.(type) {
+		case *ast.Rule:
+			t.Metrics.Timer(node.Path().String()).Start()
+		case *ast.Func:
+			t.Metrics.Timer(node.Path().String()).Start()
+		}
+	}
 	if t.tracingEnabled() {
 		evt := t.makeEvent(EnterOp, node)
 		t.flushRedos(evt)
@@ -297,6 +313,15 @@ func (t *Topdown) traceEnter(node interface{}) {
 }
 
 func (t *Topdown) traceExit(node interface{}) {
+	if t.Metrics != nil {
+		switch node := node.(type) {
+		case *ast.Rule:
+			t.Metrics.Timer(node.Path().String()).Stop()
+		case *ast.Func:
+			t.Metrics.Timer(node.Path().String()).Stop()
+		}
+	}
+
 	if t.tracingEnabled() {
 		evt := t.makeEvent(ExitOp, node)
 		t.flushRedos(evt)
@@ -305,6 +330,9 @@ func (t *Topdown) traceExit(node interface{}) {
 }
 
 func (t *Topdown) traceEval(node interface{}) {
+	// TODO(mmussomele): Enable profiling for expressions. Currently there's
+	// no information about what rule we're within, so it's hard to scope the
+	// profiling of two identical expressions that exist within different rules.
 	if t.tracingEnabled() {
 		evt := t.makeEvent(EvalOp, node)
 		t.flushRedos(evt)
@@ -313,6 +341,15 @@ func (t *Topdown) traceEval(node interface{}) {
 }
 
 func (t *Topdown) traceRedo(node interface{}) {
+	if t.Metrics != nil {
+		switch node := node.(type) {
+		case *ast.Rule:
+			t.Metrics.Timer(node.Path().String()).Start()
+		case *ast.Func:
+			t.Metrics.Timer(node.Path().String()).Start()
+		}
+	}
+
 	if t.tracingEnabled() {
 		evt := t.makeEvent(RedoOp, node)
 		t.saveRedo(evt)
@@ -320,6 +357,15 @@ func (t *Topdown) traceRedo(node interface{}) {
 }
 
 func (t *Topdown) traceFail(node interface{}) {
+	if t.Metrics != nil {
+		switch node := node.(type) {
+		case *ast.Rule:
+			t.Metrics.Timer(node.Path().String()).Stop()
+		case *ast.Func:
+			t.Metrics.Timer(node.Path().String()).Stop()
+		}
+	}
+
 	if t.tracingEnabled() {
 		evt := t.makeEvent(FailOp, node)
 		t.flushRedos(evt)
@@ -700,7 +746,8 @@ func makeTopdown(params *QueryParams) (*Topdown, ast.Var, ast.VarSet, error) {
 	ast.Walk(vis, params.Input)
 
 	t := params.NewTopdown(compiled).
-		WithTracer(params.Tracer)
+		WithTracer(params.Tracer).
+		WithMetrics(params.Metrics)
 
 	return t, pathVar.Value.(ast.Var), vis.Vars(), nil
 }

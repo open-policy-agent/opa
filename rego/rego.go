@@ -330,6 +330,9 @@ func (r *Rego) eval(ctx context.Context, compiled ast.Body, txn storage.Transact
 	if r.tracer != nil {
 		t.Tracer = r.tracer
 	}
+	if r.metrics != nil {
+		t.Metrics = r.metrics
+	}
 
 	if r.input != nil {
 		t.Input = r.input
