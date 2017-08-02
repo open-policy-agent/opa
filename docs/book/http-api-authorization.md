@@ -51,9 +51,34 @@ Then run `docker-compose` to pull and run the containers.
 docker-compose -f docker-compose.yml up
 ```
 
-### 2. Load a simple policy into OPA.
+Every time the demo web server receives an HTTP request, it 
+asks OPA to decide whether an HTTP API is authorized or not
+using a single RESTful API call.  The full code is [here](https://github.com/open-policy-agent/contrib/blob/master/api_authz/docker/echo_server.py), 
+but the crux of the (Python) code is shown below.
 
-In another terminal, create a simple policy. The policy below allows users to
+```python
+request = ...    # grab incoming HTTP API request
+input_dict = {   # create input to hand to OPA
+  "input": {
+        "user": request.token.username,
+        "path": request.path.split("/"),   # turn "/finance/salary" into ["finance", "salary"]
+        "method": request.method           # HTTP verb, e.g. GET, POST, PUT, ...
+    }}
+
+# ask OPA for a policy decision
+# (in reality OPA URL would be constructed from environment)
+rsp = requests.post("http://opa:8181/v1/data/httpapi/authz", data=input_dict)
+if rsp.json()["allow"] {
+  # HTTP API allowed
+} else {
+  # HTTP API denied
+}
+```
+
+
+### 2. Load a policy into OPA.
+
+In another terminal, create a policy that allows users to
 request their own salary as well as the salary of their direct subordinates.
 
 ```shell
