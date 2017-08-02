@@ -95,6 +95,7 @@
   * [Security](security.md)
     * [TLS & HTTPS](security.md#tls-and-https)
     * [Authentication & Authorization](security.md#authentication-and-authorization)
+  * [FAQ](faq.md)
 
 ### Tutorials
 
