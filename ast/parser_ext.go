@@ -458,7 +458,7 @@ func expandVoidFunction(fn *Func) {
 
 func mangleDataVars(stmts []Statement) error {
 	for i := range stmts {
-		vt := newVarToRefTransformer(DefaultRootDocument.Value.(Var), DefaultRootRef)
+		vt := newVarToRefTransformer(DefaultRootDocument.Value.(Var), DefaultRootRef.Copy())
 		stmt, err := Transform(vt, stmts[i])
 		if err != nil {
 			return err
@@ -470,7 +470,7 @@ func mangleDataVars(stmts []Statement) error {
 
 func mangleInputVars(stmts []Statement) error {
 	for i := range stmts {
-		vt := newVarToRefTransformer(InputRootDocument.Value.(Var), InputRootRef)
+		vt := newVarToRefTransformer(InputRootDocument.Value.(Var), InputRootRef.Copy())
 		stmt, err := Transform(vt, stmts[i])
 		if err != nil {
 			return err
