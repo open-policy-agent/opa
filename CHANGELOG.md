@@ -3,7 +3,12 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## 0.5.4
+
+### Miscellaneous
+
+- Properly remove temporary files when running `opa fmt -d`
+- Add support for refs with composite operands (e.g,. `p[[x,y]]`)
 
 ## 0.5.3
 
