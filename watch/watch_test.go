@@ -361,9 +361,12 @@ func TestWatchRandom(t *testing.T) {
 
 func testWatchRandom(t *testing.T, watcher *Watcher, zero, one, two, three *Handle) {
 	var wg sync.WaitGroup
-	check := func(h *Handle, key string, offset int64) {
+	check := func(h *Handle, done chan struct{}, key string, offset int64) {
 		defer wg.Done()
 		last := offset
+		exp := testOps + offset
+
+		var sent bool
 		for e := range h.C {
 			// Until the data is uploaded, the query will be
 			// unsatisfied.
@@ -423,20 +426,25 @@ func testWatchRandom(t *testing.T, watcher *Watcher, zero, one, two, three *Hand
 
 			last = i
 
+			if last == exp && !sent {
+				done <- struct{}{}
+				sent = true
+			}
 		}
 
-		if last < testOps+offset {
-			t.Errorf("%s did not receive all notifications, expected %d, got %d", key, testOps+offset, last)
-		} else if last > testOps+offset {
-			t.Errorf("%s received extra notifications, expected %d, got %d", key, testOps+offset, last)
+		if last < exp {
+			t.Errorf("%s did not receive all notifications, expected %d, got %d", key, exp, last)
+		} else if last > exp {
+			t.Errorf("%s received extra notifications, expected %d, got %d", key, exp, last)
 		}
 	}
 
-	wg.Add(4)
-	go check(zero, "x0", 0)
-	go check(one, "x1", 0)
-	go check(two, "x2", 0)
-	go check(three, "x3", 1)
+	wg.Add(testPaths)
+	done := make(chan struct{}, testPaths)
+	go check(zero, done, "x0", 0)
+	go check(one, done, "x1", 0)
+	go check(two, done, "x2", 0)
+	go check(three, done, "x3", 1)
 
 	writesDone := make(signal)
 	xacts := generateTestSet()
@@ -459,6 +467,10 @@ func testWatchRandom(t *testing.T, watcher *Watcher, zero, one, two, three *Hand
 	}()
 
 	<-writesDone
+	for i := 0; i < testPaths; i++ {
+		<-done
+	}
+
 	zero.Stop()
 	one.Stop()
 	two.Stop()
