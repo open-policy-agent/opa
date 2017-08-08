@@ -22,6 +22,7 @@ import (
 	"github.com/olekukonko/tablewriter"
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/format"
+	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/topdown"
 	"github.com/open-policy-agent/opa/topdown/explain"
@@ -38,6 +39,7 @@ type REPL struct {
 	currentModuleID string
 	buffer          []string
 	txn             storage.Transaction
+	metrics         metrics.Metrics
 
 	// TODO(tsandall): replace this state with rule definitions
 	// inside the default module.
@@ -230,6 +232,10 @@ func (r *REPL) OneShot(ctx context.Context, line string) error {
 
 	defer r.store.Abort(ctx, r.txn)
 
+	if r.metrics != nil {
+		defer r.metrics.Clear()
+	}
+
 	if len(r.buffer) == 0 {
 		if cmd := newCommand(line); cmd != nil {
 			switch cmd.op {
@@ -247,6 +253,8 @@ func (r *REPL) OneShot(ctx context.Context, line string) error {
 				return r.cmdPrettyLimit(cmd.args)
 			case "trace":
 				return r.cmdTrace()
+			case "metrics":
+				return r.cmdMetrics()
 			case "truth":
 				return r.cmdTruth()
 			case "types":
@@ -257,6 +265,7 @@ func (r *REPL) OneShot(ctx context.Context, line string) error {
 				return r.cmdExit()
 			}
 		}
+
 		r.buffer = append(r.buffer, line)
 		return r.evalBufferOne(ctx)
 	}
@@ -408,6 +417,15 @@ func (r *REPL) cmdTrace() error {
 	return nil
 }
 
+func (r *REPL) cmdMetrics() error {
+	if r.metrics == nil {
+		r.metrics = metrics.New()
+	} else {
+		r.metrics = nil
+	}
+	return nil
+}
+
 func (r *REPL) cmdTruth() error {
 	if r.explain == explainTruth {
 		r.explain = explainOff
@@ -487,6 +505,18 @@ func (r *REPL) unsetFunc(ctx context.Context, v ast.Value) error {
 	return r.recompile(ctx, cpy)
 }
 
+func (r *REPL) timerStart(msg string) {
+	if r.metrics != nil {
+		r.metrics.Timer(msg).Start()
+	}
+}
+
+func (r *REPL) timerStop(msg string) {
+	if r.metrics != nil {
+		r.metrics.Timer(msg).Stop()
+	}
+}
+
 func (r *REPL) recompile(ctx context.Context, cpy *ast.Module) error {
 	policies, err := r.loadModules(ctx, r.txn)
 	if err != nil {
@@ -512,6 +542,8 @@ func (r *REPL) recompile(ctx context.Context, cpy *ast.Module) error {
 }
 
 func (r *REPL) compileBody(ctx context.Context, body ast.Body, input ast.Value) (ast.Body, *ast.TypeEnv, error) {
+	r.timerStart(metrics.RegoQueryCompile)
+	defer r.timerStop(metrics.RegoQueryCompile)
 
 	policies, err := r.loadModules(ctx, r.txn)
 	if err != nil {
@@ -539,6 +571,8 @@ func (r *REPL) compileBody(ctx context.Context, body ast.Body, input ast.Value) 
 }
 
 func (r *REPL) compileRule(ctx context.Context, rule *ast.Rule) error {
+	r.timerStart(metrics.RegoQueryCompile)
+	defer r.timerStop(metrics.RegoQueryCompile)
 
 	mod := r.modules[r.currentModuleID]
 	prev := mod.Rules
@@ -568,6 +602,8 @@ func (r *REPL) compileRule(ctx context.Context, rule *ast.Rule) error {
 }
 
 func (r *REPL) compileFunc(ctx context.Context, fn *ast.Func) error {
+	r.timerStart(metrics.RegoQueryCompile)
+	defer r.timerStop(metrics.RegoQueryCompile)
 
 	mod := r.modules[r.currentModuleID]
 	prev := mod.Funcs
@@ -595,6 +631,7 @@ func (r *REPL) compileFunc(ctx context.Context, fn *ast.Func) error {
 
 	return nil
 }
+
 func (r *REPL) evalBufferOne(ctx context.Context) error {
 
 	line := strings.Join(r.buffer, "\n")
@@ -607,7 +644,10 @@ func (r *REPL) evalBufferOne(ctx context.Context) error {
 	// The user may enter lines with comments on the end or
 	// multiple lines with comments interspersed. In these cases
 	// the parser will return multiple statements.
+	r.timerStart(metrics.RegoQueryParse)
 	stmts, _, err := ast.ParseStatements("", line)
+	r.timerStop(metrics.RegoQueryParse)
+
 	if err != nil {
 		if r.bufferDisabled {
 			return err
@@ -635,7 +675,9 @@ func (r *REPL) evalBufferMulti(ctx context.Context) error {
 		return nil
 	}
 
+	r.timerStart(metrics.RegoQueryParse)
 	stmts, _, err := ast.ParseStatements("", line)
+	r.timerStop(metrics.RegoQueryParse)
 
 	if err != nil {
 		return err
@@ -785,6 +827,7 @@ func (r *REPL) evalBody(ctx context.Context, compiler *ast.Compiler, input ast.V
 	var results []map[string]interface{}
 
 	// Execute query and accumulate results.
+	r.timerStart(metrics.RegoQueryEval)
 	err := topdown.Eval(t, func(t *topdown.Topdown) error {
 
 		row := map[string]interface{}{}
@@ -807,9 +850,14 @@ func (r *REPL) evalBody(ctx context.Context, compiler *ast.Compiler, input ast.V
 
 		return nil
 	})
+	r.timerStop(metrics.RegoQueryEval)
 
 	if buf != nil {
 		r.printTrace(ctx, compiler, *buf)
+	}
+
+	if r.metrics != nil {
+		r.printMetrics(r.metrics)
 	}
 
 	if err != nil {
@@ -830,6 +878,8 @@ func (r *REPL) evalBody(ctx context.Context, compiler *ast.Compiler, input ast.V
 }
 
 func (r *REPL) evalImport(i *ast.Import) error {
+	r.timerStart(metrics.RegoQueryEval)
+	defer r.timerStop(metrics.RegoQueryEval)
 
 	mod := r.modules[r.currentModuleID]
 
@@ -845,6 +895,8 @@ func (r *REPL) evalImport(i *ast.Import) error {
 }
 
 func (r *REPL) evalPackage(p *ast.Package) error {
+	r.timerStart(metrics.RegoQueryEval)
+	defer r.timerStop(metrics.RegoQueryEval)
 
 	moduleID := p.Path.String()
 
@@ -891,6 +943,7 @@ func (r *REPL) evalTermSingleValue(ctx context.Context, compiler *ast.Compiler, 
 	var result interface{}
 	isTrue := false
 
+	r.timerStart(metrics.RegoQueryEval)
 	err := topdown.Eval(t, func(t *topdown.Topdown) error {
 		p := t.Binding(outputVar.Value)
 		v, err := ast.ValueToInterface(p, t)
@@ -901,9 +954,14 @@ func (r *REPL) evalTermSingleValue(ctx context.Context, compiler *ast.Compiler, 
 		isTrue = true
 		return nil
 	})
+	r.timerStop(metrics.RegoQueryEval)
 
 	if buf != nil {
 		r.printTrace(ctx, compiler, *buf)
+	}
+
+	if r.metrics != nil {
+		r.printMetrics(r.metrics)
 	}
 
 	if err != nil {
@@ -953,6 +1011,7 @@ func (r *REPL) evalTermMultiValue(ctx context.Context, compiler *ast.Compiler, i
 	// as true.
 	includeValue := !r.isSetReference(compiler, term)
 
+	r.timerStart(metrics.RegoQueryEval)
 	err := topdown.Eval(t, func(t *topdown.Topdown) error {
 
 		result := map[string]interface{}{}
@@ -981,9 +1040,14 @@ func (r *REPL) evalTermMultiValue(ctx context.Context, compiler *ast.Compiler, i
 
 		return nil
 	})
+	r.timerStop(metrics.RegoQueryEval)
 
 	if buf != nil {
 		r.printTrace(ctx, compiler, *buf)
+	}
+
+	if r.metrics != nil {
+		r.printMetrics(r.metrics)
 	}
 
 	if err != nil {
@@ -1128,6 +1192,16 @@ func (r *REPL) printTrace(ctx context.Context, compiler *ast.Compiler, trace []*
 	topdown.PrettyTrace(r.output, trace)
 }
 
+func (r *REPL) printMetrics(metrics metrics.Metrics) {
+	buf, err := json.MarshalIndent(metrics.All(), "", "  ")
+	if err != nil {
+		panic("not reached")
+	}
+
+	r.output.Write(buf)
+	fmt.Fprintln(r.output)
+}
+
 func (r *REPL) printTypes(ctx context.Context, typeEnv *ast.TypeEnv, body ast.Body) {
 
 	ast.WalkRefs(body, func(ref ast.Ref) bool {
@@ -1194,6 +1268,7 @@ var builtin = [...]commandDesc{
 	{"pretty", []string{}, "set output format to pretty"},
 	{"pretty-limit", []string{}, "set pretty value output limit"},
 	{"trace", []string{}, "toggle full trace"},
+	{"metrics", []string{}, "toggle metrics"},
 	{"types", []string{}, "toggle type information"},
 	{"truth", []string{}, "toggle truth explanation"},
 	{"dump", []string{"[path]"}, "dump raw data in storage"},

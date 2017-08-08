@@ -14,6 +14,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"regexp"
 	"sort"
 	"strings"
 	"testing"
@@ -1018,6 +1019,60 @@ func TestEvalPackage(t *testing.T) {
 	if buffer.String() != "true\n" {
 		t.Errorf("Expected expression to eval successfully but got: %v", buffer.String())
 		return
+	}
+}
+
+func TestMetrics(t *testing.T) {
+	ctx := context.Background()
+	store := newTestStore()
+	var buffer bytes.Buffer
+	expected := `{
+  "timer_rego_query_compile_ns": [1-9]\d*,
+  "timer_rego_query_eval_ns": [1-9]\d*,
+  "timer_rego_query_parse_ns": [1-9]\d*
+}
+\[
+  \[
+    1,
+    2
+  \],
+  \[
+    3,
+    4
+  \]
+\]`
+
+	repl := newRepl(store, &buffer)
+	repl.OneShot(ctx, "a = {[1,2], [3,4]}")
+	repl.OneShot(ctx, "metrics")
+	repl.OneShot(ctx, `[x | a[x]]`)
+	if exp := regexp.MustCompile(expected); !exp.MatchString(buffer.String()) {
+		t.Fatalf("Expected output to match:\n%v\n\nGot:\n\n%v\n", expected, buffer.String())
+	}
+
+	buffer.Reset()
+	repl.OneShot(ctx, `[x | a[x]]`)
+	if exp := regexp.MustCompile(expected); !exp.MatchString(buffer.String()) {
+		t.Fatalf("Expected output to match:\n%v\n\nGot:\n\n%v\n", expected, buffer.String())
+	}
+
+	expected = `[
+  [
+    1,
+    2
+  ],
+  [
+    3,
+    4
+  ]
+]
+`
+
+	buffer.Reset()
+	repl.OneShot(ctx, "metrics")
+	repl.OneShot(ctx, `[x | a[x]]`)
+	if expected != buffer.String() {
+		t.Fatalf("Expected output to be exactly:\n%v\n\nGot:\n\n%v\n", expected, buffer.String())
 	}
 }
 
