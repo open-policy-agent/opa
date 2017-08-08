@@ -434,18 +434,19 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 	m := metrics.New()
 	m.Timer(metrics.RegoQueryParse).Start()
 
-	input, nonGround, err := readInputParam(r.URL.Query()[types.ParamInputV1])
-	if err != nil {
-		writer.ErrorString(w, http.StatusBadRequest, types.CodeInvalidParameter, err)
-		return
+	inputs := r.URL.Query()[types.ParamInputV1]
+
+	var input ast.Value
+	if len(inputs) > 0 {
+		var err error
+		input, err = readInputGetV1(inputs[len(inputs)-1])
+		if err != nil {
+			writer.ErrorString(w, http.StatusBadRequest, types.CodeInvalidParameter, err)
+			return
+		}
 	}
 
 	m.Timer(metrics.RegoQueryParse).Stop()
-
-	if nonGround && explainMode != types.ExplainOffV1 {
-		writer.Error(w, http.StatusBadRequest, types.NewErrorV1(types.CodeInvalidParameter, "not supported: explanations with non-ground input values"))
-		return
-	}
 
 	// Prepare for query.
 	txn, err := s.store.NewTransaction(ctx)
@@ -488,13 +489,7 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 		writer.JSON(w, 200, result, pretty)
 		return
 	}
-
-	if nonGround {
-		var i interface{} = types.NewQueryResultSetV1(qrs)
-		result.Result = &i
-	} else {
-		result.Result = &qrs[0].Result
-	}
+	result.Result = &qrs[0].Result
 
 	switch explainMode {
 	case types.ExplainFullV1:
@@ -568,7 +563,7 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 
 	m.Timer(metrics.RegoQueryParse).Start()
 
-	input, err := readInputV1(r.Body)
+	input, err := readInputPostV1(r.Body)
 	if err != nil {
 		writer.ErrorString(w, http.StatusBadRequest, types.CodeInvalidParameter, err)
 		return
@@ -1206,15 +1201,23 @@ func readInputV0(r io.ReadCloser) (ast.Value, error) {
 	return term.Value, nil
 }
 
-func readInputV1(r io.ReadCloser) (ast.Value, error) {
+func readInputGetV1(str string) (ast.Value, error) {
+	var input interface{}
+
+	if err := util.UnmarshalJSON([]byte(str), &input); err != nil {
+		return nil, errors.Wrapf(err, "parameter contains malformed input document")
+	}
+
+	return ast.InterfaceToValue(input)
+}
+
+func readInputPostV1(r io.ReadCloser) (ast.Value, error) {
 
 	bs, err := ioutil.ReadAll(r)
 
 	if err != nil {
 		return nil, err
 	}
-
-	var input ast.Value
 
 	if len(bs) > 0 {
 
@@ -1228,74 +1231,10 @@ func readInputV1(r io.ReadCloser) (ast.Value, error) {
 			return nil, fmt.Errorf(types.MsgInputDocError)
 		}
 
-		var err error
-		input, err = ast.InterfaceToValue(*request.Input)
-		if err != nil {
-			return nil, err
-		}
+		return ast.InterfaceToValue(*request.Input)
 	}
 
-	return input, nil
-}
-
-func readInputParam(s []string) (ast.Value, bool, error) {
-
-	pairs := make([][2]*ast.Term, len(s))
-	nonGround := false
-
-	for i := range s {
-
-		var k *ast.Term
-		var v *ast.Term
-		var err error
-
-		if len(s[i]) == 0 {
-			return nil, false, errInputPathFormat
-		}
-
-		if s[i][0] == ':' {
-			k = ast.NewTerm(ast.InputRootRef)
-			v, err = ast.ParseTerm(s[i][1:])
-		} else {
-			v, err = ast.ParseTerm(s[i])
-			if err == nil {
-				k = ast.NewTerm(ast.InputRootRef)
-			} else {
-				vs := strings.SplitN(s[i], ":", 2)
-				if len(vs) != 2 {
-					return nil, false, errInputPathFormat
-				}
-				k, err = ast.ParseTerm(ast.InputRootDocument.String() + "." + vs[0])
-				if err != nil {
-					return nil, false, errInputPathFormat
-				}
-				v, err = ast.ParseTerm(vs[1])
-			}
-		}
-
-		if err != nil {
-			return nil, false, err
-		}
-
-		pairs[i] = [...]*ast.Term{k, v}
-
-		if !nonGround {
-			ast.WalkVars(v, func(x ast.Var) bool {
-				if x.Equal(ast.DefaultRootDocument.Value) {
-					return false
-				}
-				nonGround = true
-				return true
-			})
-		}
-	}
-
-	input, err := topdown.MakeInput(pairs)
-	if err != nil {
-		return nil, false, err
-	}
-
-	return input, nonGround, nil
+	return nil, nil
 }
 
 func renderBanner(w http.ResponseWriter) {
