@@ -305,9 +305,8 @@ func (s *Server) indexGet(w http.ResponseWriter, r *http.Request) {
 	t0 := time.Now()
 
 	var input ast.Value
-	if len(inputStrs) > 0 {
-		inputStr := inputStrs[len(qStrs)-1]
-		t, err := ast.ParseTerm(inputStr)
+	if len(inputStrs) > 0 && len(inputStrs[len(qStrs)-1]) > 0 {
+		t, err := ast.ParseTerm(inputStrs[len(qStrs)-1])
 		if err != nil {
 			renderQueryResult(w, nil, err, t0)
 			return

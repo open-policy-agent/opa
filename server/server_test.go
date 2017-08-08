@@ -815,7 +815,7 @@ func TestV1Pretty(t *testing.T) {
 
 func TestIndexGet(t *testing.T) {
 	f := newFixture(t)
-	get, err := http.NewRequest(http.MethodGet, `/?q=foo = 1`, strings.NewReader(""))
+	get, err := http.NewRequest(http.MethodGet, `/?q=foo = 1&input=`, strings.NewReader(""))
 	if err != nil {
 		panic(err)
 	}
