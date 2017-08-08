@@ -218,50 +218,38 @@ p = true { false }`
 		}},
 		{"get with input", []tr{
 			tr{http.MethodPut, "/policies/test", testMod1, 200, ""},
-			tr{http.MethodGet, "/data/testmod/g?input=req1%3A%7B%22a%22%3A%5B1%5D%7D&input=req2%3A%7B%22b%22%3A%5B0%2C1%5D%7D", "", 200, `{"result": true}`},
+			tr{http.MethodGet, "/data/testmod/g?input=%7B%22req1%22%3A%7B%22a%22%3A%5B1%5D%7D%2C+%22req2%22%3A%7B%22b%22%3A%5B0%2C1%5D%7D%7D", "", 200, `{"result": true}`},
 		}},
 		{"get with input (missing input value)", []tr{
 			tr{http.MethodPut, "/policies/test", testMod1, 200, ""},
-			tr{http.MethodGet, "/data/testmod/g?input=req1%3A%7B%22a%22%3A%5B1%5D%7D", "", 200, "{}"}, // req2 not specified
+			tr{http.MethodGet, "/data/testmod/g?input=%7B%22req1%22%3A%7B%22a%22%3A%5B1%5D%7D%7D", "", 200, "{}"}, // req2 not specified
 		}},
 		{"get with input (namespaced)", []tr{
 			tr{http.MethodPut, "/policies/test", testMod1, 200, ""},
-			tr{http.MethodGet, "/data/testmod/h?input=req3.attr1%3A%5B4%2C3%2C2%2C1%5D", "", 200, `{"result": true}`},
-		}},
-		{"get with input (non-ground ref)", []tr{
-			tr{http.MethodPut, "/policies/test", testMod1, 200, ""},
-			tr{http.MethodGet, "/data/testmod/gt1?input=req1:data.testmod.arr[i]", "", 200, `{"result": [[true, {"i": 1}], [true, {"i": 2}], [true, {"i": 3}]]}`},
+			tr{http.MethodGet, "/data/testmod/h?input=%7B%22req3%22%3A%7B%22attr1%22%3A%5B4%2C3%2C2%2C1%5D%7D%7D", "", 200, `{"result": true}`},
 		}},
 		{"get with input (root)", []tr{
 			tr{http.MethodPut, "/policies/test", testMod1, 200, ""},
-			tr{http.MethodGet, `/data/testmod/gt1?input=:{"req1":2}`, "", 200, `{"result": true}`},
-		}},
-		{"get with input (root-2)", []tr{
-			tr{http.MethodPut, "/policies/test", testMod1, 200, ""},
 			tr{http.MethodGet, `/data/testmod/gt1?input={"req1":2}`, "", 200, `{"result": true}`},
-		}},
-		{"get with input (root+non-ground)", []tr{
-			tr{http.MethodPut, "/policies/test", testMod1, 200, ""},
-			tr{http.MethodGet, `/data/testmod/gt1?input={"req1":data.testmod.arr[i]}`, "", 200, `{"result": [[true, {"i": 1}], [true, {"i": 2}], [true, {"i": 3}]]}`},
 		}},
 		{"get with input (bad format)", []tr{
 			tr{http.MethodGet, "/data/deadbeef?input", "", 400, `{
 				"code": "invalid_parameter",
-				"message": "input parameter format is [[<path>]:]<value> where <path> is either var or ref"
+				"message": "parameter contains malformed input document: EOF"
 			}`},
 			tr{http.MethodGet, "/data/deadbeef?input=", "", 400, `{
 				"code": "invalid_parameter",
-				"message": "input parameter format is [[<path>]:]<value> where <path> is either var or ref"
+				"message": "parameter contains malformed input document: EOF"
 			}`},
 			tr{http.MethodGet, `/data/deadbeef?input="foo`, "", 400, `{
 				"code": "invalid_parameter",
-				"message": "input parameter format is [[<path>]:]<value> where <path> is either var or ref"
+				"message": "parameter contains malformed input document: unexpected EOF"
 			}`},
 		}},
 		{"get with input (path error)", []tr{
-			tr{http.MethodGet, `/data/deadbeef?input="foo:1`, "", 400, `{
+			tr{http.MethodGet, `/data/deadbeef?input={"foo:1}`, "", 400, `{
 				"code": "invalid_parameter",
-				"message": "input parameter format is [[<path>]:]<value> where <path> is either var or ref"
+				"message": "parameter contains malformed input document: unexpected EOF"
 			}`},
 		}},
 		{"get empty and undefined", []tr{
