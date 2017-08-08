@@ -22,6 +22,7 @@ import (
 	"github.com/olekukonko/tablewriter"
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/format"
+	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/topdown"
 	"github.com/open-policy-agent/opa/topdown/explain"
@@ -50,6 +51,7 @@ type REPL struct {
 	types             bool
 	bufferDisabled    bool
 	undefinedDisabled bool
+	metrics           bool
 	errLimit          int
 	prettyLimit       int
 }
@@ -247,6 +249,8 @@ func (r *REPL) OneShot(ctx context.Context, line string) error {
 				return r.cmdPrettyLimit(cmd.args)
 			case "trace":
 				return r.cmdTrace()
+			case "metrics":
+				return r.cmdMetrics()
 			case "truth":
 				return r.cmdTruth()
 			case "types":
@@ -405,6 +409,11 @@ func (r *REPL) cmdTrace() error {
 	} else {
 		r.explain = explainTrace
 	}
+	return nil
+}
+
+func (r *REPL) cmdMetrics() error {
+	r.metrics = !r.metrics
 	return nil
 }
 
@@ -774,6 +783,10 @@ func (r *REPL) evalBody(ctx context.Context, compiler *ast.Compiler, input ast.V
 		t.Tracer = buf
 	}
 
+	if r.metrics {
+		t.Metrics = metrics.New()
+	}
+
 	// Flag indicates whether the query was defined for some context.
 	// If the query does not include any ground terms, the results will
 	// be empty, but we still want to output "true". If there are
@@ -810,6 +823,10 @@ func (r *REPL) evalBody(ctx context.Context, compiler *ast.Compiler, input ast.V
 
 	if buf != nil {
 		r.printTrace(ctx, compiler, *buf)
+	}
+
+	if r.metrics {
+		r.printMetrics(t.Metrics)
 	}
 
 	if err != nil {
@@ -888,6 +905,10 @@ func (r *REPL) evalTermSingleValue(ctx context.Context, compiler *ast.Compiler, 
 		t.Tracer = buf
 	}
 
+	if r.metrics {
+		t.Metrics = metrics.New()
+	}
+
 	var result interface{}
 	isTrue := false
 
@@ -904,6 +925,10 @@ func (r *REPL) evalTermSingleValue(ctx context.Context, compiler *ast.Compiler, 
 
 	if buf != nil {
 		r.printTrace(ctx, compiler, *buf)
+	}
+
+	if r.metrics {
+		r.printMetrics(t.Metrics)
 	}
 
 	if err != nil {
@@ -942,6 +967,10 @@ func (r *REPL) evalTermMultiValue(ctx context.Context, compiler *ast.Compiler, i
 	if r.explain != explainOff {
 		buf = topdown.NewBufferTracer()
 		t.Tracer = buf
+	}
+
+	if r.metrics {
+		t.Metrics = metrics.New()
 	}
 
 	vars := map[string]struct{}{}
@@ -984,6 +1013,10 @@ func (r *REPL) evalTermMultiValue(ctx context.Context, compiler *ast.Compiler, i
 
 	if buf != nil {
 		r.printTrace(ctx, compiler, *buf)
+	}
+
+	if r.metrics {
+		r.printMetrics(t.Metrics)
 	}
 
 	if err != nil {
@@ -1128,6 +1161,16 @@ func (r *REPL) printTrace(ctx context.Context, compiler *ast.Compiler, trace []*
 	topdown.PrettyTrace(r.output, trace)
 }
 
+func (r *REPL) printMetrics(metrics metrics.Metrics) {
+	buf, err := json.MarshalIndent(metrics.All(), "", "  ")
+	if err != nil {
+		panic("not reached")
+	}
+
+	r.output.Write(buf)
+	fmt.Fprintln(r.output)
+}
+
 func (r *REPL) printTypes(ctx context.Context, typeEnv *ast.TypeEnv, body ast.Body) {
 
 	ast.WalkRefs(body, func(ref ast.Ref) bool {
@@ -1194,6 +1237,7 @@ var builtin = [...]commandDesc{
 	{"pretty", []string{}, "set output format to pretty"},
 	{"pretty-limit", []string{}, "set pretty value output limit"},
 	{"trace", []string{}, "toggle full trace"},
+	{"metrics", []string{}, "toggle profiling"},
 	{"types", []string{}, "toggle type information"},
 	{"truth", []string{}, "toggle truth explanation"},
 	{"dump", []string{"[path]"}, "dump raw data in storage"},

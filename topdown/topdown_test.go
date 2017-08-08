@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/storage/inmem"
 	"github.com/open-policy-agent/opa/types"
@@ -2297,6 +2298,68 @@ p = true { m = 1; count([x | x = data.a[_]; x > m], n); n = 3 }`
 		16: &Event{RedoOp, compr, 3, 2, parseBindings(`{m: 1}`)},
 		19: &Event{ExitOp, compr, 3, 2, parseBindings(`{m: 1, x: data.a[3]}`)},
 	})
+}
+
+func TestTopDownProfiling(t *testing.T) {
+	module := ast.MustParseModule(`package test
+
+	a = {1, 2, 3, 4}
+	b[x] { a[x] }
+	c(x) = y {
+		y = [z | b[z]; x[z]]
+	}
+
+	d = x {
+		e = {2, 4, 5}
+		c(e, x)
+		not a[5]
+	}`)
+
+	compiler := ast.NewCompiler()
+	compiler.Compile(map[string]*ast.Module{"test": module})
+	if compiler.Failed() {
+		t.Fatalf("Compilation failed: %v", compiler.Errors)
+	}
+
+	store := inmem.NewFromObject(loadSmallTestData())
+
+	ctx := context.Background()
+	txn := storage.NewTransactionOrDie(ctx, store, storage.WriteParams)
+
+	params := NewQueryParams(context.Background(), compiler, store, txn, nil, ast.MustParseRef("data.test.d"))
+	params.Metrics = metrics.New()
+	qrs, err := Query(params)
+
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	if qrs.Undefined() {
+		t.Fatal("Expected [2, 4] but got undefined")
+	}
+
+	var expected interface{}
+
+	expected = parseJSON(`[2, 4]`)
+	if !reflect.DeepEqual(qrs[0].Result, expected) {
+		t.Errorf("Expected %v but got: %v", expected, qrs[0].Result)
+	}
+
+	metrics := params.Metrics.All()
+	exp := []string{
+		"timer_data.test.a_ns",
+		"timer_data.test.b_ns",
+		"timer_test.c_ns",
+		"timer_data.test.d_ns",
+	}
+
+	for _, key := range exp {
+		if value, ok := metrics[key]; !ok {
+			t.Fatalf("Expected metrics to have key %v", key)
+		} else if n, ok := value.(int64); !ok || n <= 0 {
+			t.Fatalf("Expected metrics value for %v to be positive int64, got %v", key, value)
+		}
+	}
 }
 
 func compileModules(input []string) *ast.Compiler {

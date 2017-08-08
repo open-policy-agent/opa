@@ -83,7 +83,11 @@ func (t *timer) Start() {
 }
 
 func (t *timer) Stop() {
-	t.value += time.Now().Sub(t.start).Nanoseconds()
+	// Successive calls to Stop() should not increase value.
+	if !t.start.IsZero() {
+		t.value += time.Now().Sub(t.start).Nanoseconds()
+	}
+	t.start = time.Time{}
 }
 
 func (t timer) Value() interface{} {
