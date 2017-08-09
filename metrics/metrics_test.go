@@ -17,4 +17,9 @@ func TestMetricsTimer(t *testing.T) {
 	if m.All()["timer_foo_ns"] == 0 {
 		t.Fatalf("Expected foo timer to be non-zero: %v", m.All())
 	}
+	m.Clear()
+
+	if len(m.All()) > 0 {
+		t.Fatalf("Expected metrics to be cleared, but found %v", m.All())
+	}
 }
