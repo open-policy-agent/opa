@@ -21,6 +21,7 @@ const (
 type Metrics interface {
 	Timer(name string) Timer
 	All() map[string]interface{}
+	Clear()
 }
 
 type metrics struct {
@@ -54,6 +55,10 @@ func (m *metrics) All() map[string]interface{} {
 		result[m.formatKey(name, timer)] = timer.Value()
 	}
 	return result
+}
+
+func (m *metrics) Clear() {
+	m.timers = map[string]Timer{}
 }
 
 func (m *metrics) formatKey(name string, sample Sample) string {
