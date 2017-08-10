@@ -1643,6 +1643,9 @@ the following values:
 - **full** - returns a full query trace containing every step in the query evaluation process.
 - **truth** - returns a partial query trace containing one path that leads to the overall query being successful.
 
+By default, explanations are represented in a machine-friendly format. Set the
+`pretty` parameter to request a human-friendly format for debugging purposes.
+
 ### <a name="trace-events"/>Trace Events
 
 When the `explain` query parameter is set to **full** or **truth** , the
