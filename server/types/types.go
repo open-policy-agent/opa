@@ -6,9 +6,9 @@
 package types
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
-
 	"strings"
 
 	"github.com/open-policy-agent/opa/ast"
@@ -197,13 +197,60 @@ const (
 )
 
 // TraceV1 models the trace result returned for queries that include the
+// "explain" parameter.
+type TraceV1 json.RawMessage
+
+// MarshalJSON unmarshals the TraceV1 to a JSON representation.
+func (t TraceV1) MarshalJSON() ([]byte, error) {
+	return t, nil
+}
+
+// UnmarshalJSON unmarshals the TraceV1 from a JSON representation.
+func (t *TraceV1) UnmarshalJSON(b []byte) error {
+	*t = TraceV1(b[:])
+	return nil
+}
+
+// TraceV1Raw models the trace result returned for queries that include the
 // "explain" parameter. The trace is modelled as series of trace events that
 // identify the expression, local term bindings, query hierarchy, etc.
-type TraceV1 []TraceEventV1
+type TraceV1Raw []TraceEventV1
+
+// UnmarshalJSON unmarshals the TraceV1Raw from a JSON representation.
+func (t *TraceV1Raw) UnmarshalJSON(b []byte) error {
+	var trace []TraceEventV1
+	if err := json.Unmarshal(b, &trace); err != nil {
+		return err
+	}
+	*t = TraceV1Raw(trace)
+	return nil
+}
+
+// TraceV1Pretty models the trace result returned for queries that include the "explain"
+// parameter. The trace is modelled as a human readable array of strings representing the
+// evaluation of the query.
+type TraceV1Pretty []string
+
+// UnmarshalJSON unmarshals the TraceV1Pretty from a JSON representation.
+func (t *TraceV1Pretty) UnmarshalJSON(b []byte) error {
+	var s []string
+	if err := json.Unmarshal(b, &s); err != nil {
+		return err
+	}
+	*t = TraceV1Pretty(s)
+	return nil
+}
 
 // NewTraceV1 returns a new TraceV1 object.
-func NewTraceV1(trace []*topdown.Event) (result TraceV1) {
-	result = make(TraceV1, len(trace))
+func NewTraceV1(trace []*topdown.Event, pretty bool) (result TraceV1, err error) {
+	if pretty {
+		return newPrettyTraceV1(trace)
+	}
+	return newRawTraceV1(trace)
+}
+
+func newRawTraceV1(trace []*topdown.Event) (TraceV1, error) {
+	result := TraceV1Raw(make([]TraceEventV1, len(trace)))
 	for i := range trace {
 		result[i] = TraceEventV1{
 			Op:       strings.ToLower(string(trace[i].Op)),
@@ -214,7 +261,24 @@ func NewTraceV1(trace []*topdown.Event) (result TraceV1) {
 			Locals:   NewBindingsV1(trace[i].Locals),
 		}
 	}
-	return result
+
+	b, err := json.Marshal(result)
+	if err != nil {
+		return nil, err
+	}
+	return TraceV1(json.RawMessage(b)), nil
+}
+
+func newPrettyTraceV1(trace []*topdown.Event) (TraceV1, error) {
+	var buf bytes.Buffer
+	topdown.PrettyTrace(&buf, trace)
+
+	str := strings.Trim(buf.String(), "\n")
+	b, err := json.Marshal(strings.Split(str, "\n"))
+	if err != nil {
+		return nil, err
+	}
+	return TraceV1(json.RawMessage(b)), nil
 }
 
 // TraceEventV1 represents a step in the query evaluation process.

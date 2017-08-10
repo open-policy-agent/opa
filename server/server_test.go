@@ -650,17 +650,18 @@ func TestDataGetExplainFull(t *testing.T) {
 		t.Fatalf("Unexpected JSON decode error: %v", err)
 	}
 
-	if len(result.Explanation) != 3 {
-		t.Fatalf("Expected exactly 3 events but got %d", len(result.Explanation))
+	explain := mustUnmarshalTrace(result.Explanation)
+	if len(explain) != 3 {
+		t.Fatalf("Expected exactly 3 events but got %d", len(explain))
 	}
 
-	_, ok := result.Explanation[2].Node.(ast.Body)
+	_, ok := explain[2].Node.(ast.Body)
 	if !ok {
-		t.Fatalf("Expected body for node but got: %v", result.Explanation[2].Node)
+		t.Fatalf("Expected body for node but got: %v", explain[2].Node)
 	}
 
-	if len(result.Explanation[2].Locals) != 1 {
-		t.Fatalf("Expected one binding but got: %v", result.Explanation[2].Locals)
+	if len(explain[2].Locals) != 1 {
+		t.Fatalf("Expected one binding but got: %v", explain[2].Locals)
 	}
 
 	req = newReqV1(http.MethodGet, "/data/deadbeef?explain=full", "")
@@ -677,14 +678,30 @@ func TestDataGetExplainFull(t *testing.T) {
 		t.Fatalf("Unexpected JSON decode error: %v", err)
 	}
 
-	if len(result.Explanation) != 3 {
-		t.Fatalf("Expected exactly 3 events but got %d", len(result.Explanation))
+	explain = mustUnmarshalTrace(result.Explanation)
+	if len(explain) != 3 {
+		t.Fatalf("Expected exactly 3 events but got %d", len(explain))
 	}
 
-	if result.Explanation[2].Op != "fail" {
-		t.Fatalf("Expected last event to be 'fail' but got: %v", result.Explanation[2])
+	if explain[2].Op != "fail" {
+		t.Fatalf("Expected last event to be 'fail' but got: %v", explain[2])
 	}
 
+	req = newReqV1(http.MethodGet, "/data/x?explain=full&pretty=true", "")
+	f.reset()
+	f.server.Handler.ServeHTTP(f.recorder, req)
+
+	result = types.DataResponseV1{}
+	if err := util.NewJSONDecoder(f.recorder.Body).Decode(&result); err != nil {
+		t.Fatalf("Unexpected JSON decode error: %v", err)
+	}
+
+	exp := []interface{}{`Enter data.x = _`, `| Eval data.x = _`, `| Exit data.x = _`}
+
+	actual := util.MustUnmarshalJSON(result.Explanation).([]interface{})
+	if !reflect.DeepEqual(actual, exp) {
+		t.Fatalf(`Expected pretty explanation to be %v, got %v`, exp, actual)
+	}
 }
 
 func TestDataGetExplainTruth(t *testing.T) {
@@ -704,8 +721,9 @@ p = true { a = [1, 2, 3, 4]; a[_] = x; x > 1 }`, 204, "")
 		t.Fatalf("Unexpected JSON decode error: %v", err)
 	}
 
-	if len(result.Explanation) != 8 {
-		t.Fatalf("Expected exactly 8 events but got %d", len(result.Explanation))
+	explain := mustUnmarshalTrace(result.Explanation)
+	if len(explain) != 8 {
+		t.Fatalf("Expected exactly 8 events but got %d", len(explain))
 	}
 
 	req = newReqV1(http.MethodGet, "/data/deadbeef?explain=truth", "")
@@ -724,6 +742,22 @@ p = true { a = [1, 2, 3, 4]; a[_] = x; x > 1 }`, 204, "")
 
 	if result2.Result != nil {
 		t.Fatalf("Expected undefined result but got: %v", result2.Result)
+	}
+
+	req = newReqV1(http.MethodGet, "/data/test/p?explain=truth&pretty=true", "")
+	f.reset()
+	f.server.Handler.ServeHTTP(f.recorder, req)
+
+	result = types.DataResponseV1{}
+	if err := util.NewJSONDecoder(f.recorder.Body).Decode(&result); err != nil {
+		t.Fatalf("Unexpected JSON decode error: %v", err)
+	}
+
+	exp := []interface{}{`Enter data.test.p = _`, `| Eval data.test.p = _`, `| Enter p = true { a = [1, 2, 3, 4]; a[_] = x; x > 1 }`, `| | Eval a = [1, 2, 3, 4]`, `| | Redo a[_] = x`, `| | Eval x > 1`, `| | Exit p = true { a = [1, 2, 3, 4]; a[_] = x; x > 1 }`, `| Exit data.test.p = _`}
+
+	actual := util.MustUnmarshalJSON(result.Explanation).([]interface{})
+	if !reflect.DeepEqual(actual, exp) {
+		t.Fatalf(`Expected pretty explanation to be %v, got %v`, exp, actual)
 	}
 }
 
@@ -744,8 +778,9 @@ p = [1, 2, 3, 4] { true }`, 200, "")
 		t.Fatalf("Unexpected JSON decode error: %v", err)
 	}
 
-	if len(result.Explanation) != 6 {
-		t.Fatalf("Expected exactly 6 events but got %d", len(result.Explanation))
+	explain := mustUnmarshalTrace(result.Explanation)
+	if len(explain) != 6 {
+		t.Fatalf("Expected exactly 6 events but got %d", len(explain))
 	}
 
 	var expected interface{}
@@ -1510,7 +1545,7 @@ func TestDiagnostics(t *testing.T) {
 		}
 
 		explain, ok := d["explanation"]
-		expl := []interface{}{}
+		var expl []interface{}
 		if ok {
 			expl = explain.([]interface{})
 		}
@@ -1779,8 +1814,9 @@ func TestQueryV1Explain(t *testing.T) {
 		t.Fatalf("Unexpected JSON decode error: %v", err)
 	}
 
-	if len(result.Explanation) != 10 {
-		t.Fatalf("Expected exactly 10 trace events for full query but got %d", len(result.Explanation))
+	explain := mustUnmarshalTrace(result.Explanation)
+	if len(explain) != 10 {
+		t.Fatalf("Expected exactly 10 trace events for full query but got %d", len(explain))
 	}
 
 	get = newReqV1(http.MethodGet, "/query?q=a=[1,2,3]%3Ba[_]=x%3Bx>1&explain=truth", "")
@@ -1797,8 +1833,9 @@ func TestQueryV1Explain(t *testing.T) {
 		t.Fatalf("Unexpected JSON decode error: %v", err)
 	}
 
-	if len(result.Explanation) != 5 {
-		t.Fatalf("Expected exactly 5 trace events for truth query but got %d", len(result.Explanation))
+	explain = mustUnmarshalTrace(result.Explanation)
+	if len(explain) != 5 {
+		t.Fatalf("Expected exactly 5 trace events for truth query but got %d", len(explain))
 	}
 }
 
@@ -2114,6 +2151,13 @@ func newReqUnversioned(method, path, body string) *http.Request {
 		panic(err)
 	}
 	return req
+}
+
+func mustUnmarshalTrace(t types.TraceV1) (trace types.TraceV1Raw) {
+	if err := json.Unmarshal(t, &trace); err != nil {
+		panic("not reached")
+	}
+	return trace
 }
 
 // A mock http.ResponseWriter, http.Hijacker and net.Conn to test watch streams

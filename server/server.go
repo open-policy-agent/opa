@@ -251,7 +251,7 @@ func (s *Server) Listeners() (func() error, func() error) {
 	return loop2, loop1
 }
 
-func (s *Server) execQuery(ctx context.Context, r *http.Request, query string, input ast.Value, explainMode types.ExplainModeV1, includeMetrics bool) (results types.QueryResponseV1, err error) {
+func (s *Server) execQuery(ctx context.Context, r *http.Request, query string, input ast.Value, explainMode types.ExplainModeV1, includeMetrics, pretty bool) (results types.QueryResponseV1, err error) {
 
 	settings := s.evalDiagnosticPolicy(r)
 
@@ -287,7 +287,7 @@ func (s *Server) execQuery(ctx context.Context, r *http.Request, query string, i
 	}
 
 	if explainMode != types.ExplainOffV1 {
-		results.Explanation = s.getExplainResponse(explainMode, *buf)
+		results.Explanation = s.getExplainResponse(explainMode, *buf, pretty)
 	}
 
 	var x interface{} = results.Result
@@ -328,7 +328,7 @@ func (s *Server) indexGet(w http.ResponseWriter, r *http.Request) {
 		input = t.Value
 	}
 
-	results, err := s.execQuery(ctx, r, qStr, input, explainMode, false)
+	results, err := s.execQuery(ctx, r, qStr, input, explainMode, false, true)
 	if err != nil {
 		renderQueryResult(w, nil, err, t0)
 		return
@@ -468,7 +468,7 @@ func (s *Server) v1DiagnosticsGet(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if i.Trace != nil {
-			result.Explanation = s.getExplainResponse(explainMode, i.Trace)
+			result.Explanation = s.getExplainResponse(explainMode, i.Trace, pretty)
 		}
 
 		if i.Error != nil {
@@ -562,7 +562,10 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 
 	if qrs.Undefined() {
 		if explainMode == types.ExplainFullV1 {
-			result.Explanation = types.NewTraceV1(*buf)
+			result.Explanation, err = types.NewTraceV1(*buf, pretty)
+			if err != nil {
+				writer.ErrorAuto(w, err)
+			}
 		}
 		s.logDiagnostics(path.String(), goInput, nil, nil, m, buf, settings)
 		writer.JSON(w, 200, result, pretty)
@@ -573,7 +576,7 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 	s.logDiagnostics(path.String(), goInput, result.Result, nil, m, buf, settings)
 
 	if explainMode != types.ExplainOffV1 {
-		result.Explanation = s.getExplainResponse(explainMode, *buf)
+		result.Explanation = s.getExplainResponse(explainMode, *buf, pretty)
 	}
 	writer.JSON(w, 200, result, pretty)
 }
@@ -688,7 +691,10 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 
 	if qrs.Undefined() {
 		if explainMode == types.ExplainFullV1 {
-			result.Explanation = types.NewTraceV1(*buf)
+			result.Explanation, err = types.NewTraceV1(*buf, pretty)
+			if err != nil {
+				writer.ErrorAuto(w, err)
+			}
 		}
 		s.logDiagnostics(path.String(), goInput, nil, nil, m, buf, settings)
 		writer.JSON(w, 200, result, pretty)
@@ -700,7 +706,7 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 	s.logDiagnostics(path.String(), goInput, result.Result, nil, m, buf, settings)
 
 	if explainMode != types.ExplainOffV1 {
-		result.Explanation = s.getExplainResponse(explainMode, *buf)
+		result.Explanation = s.getExplainResponse(explainMode, *buf, pretty)
 	}
 	writer.JSON(w, 200, result, pretty)
 }
@@ -948,7 +954,7 @@ func (s *Server) v1QueryGet(w http.ResponseWriter, r *http.Request) {
 	explainMode := getExplain(r.URL.Query()["explain"], types.ExplainOffV1)
 	includeMetrics := getBoolParam(r.URL, types.ParamMetricsV1, true)
 
-	results, err := s.execQuery(ctx, r, qStr, nil, explainMode, includeMetrics)
+	results, err := s.execQuery(ctx, r, qStr, nil, explainMode, includeMetrics, pretty)
 	if err != nil {
 		switch err := err.(type) {
 		case ast.Errors:
@@ -1020,7 +1026,7 @@ func (s *Server) watchQuery(query string, w http.ResponseWriter, r *http.Request
 				r.Metrics = e.Metrics.All()
 			}
 
-			r.Explanation = s.getExplainResponse(explainMode, e.Tracer)
+			r.Explanation = s.getExplainResponse(explainMode, e.Tracer, pretty)
 			if err := encoder.Encode(r); err != nil {
 				return
 			}
@@ -1186,16 +1192,23 @@ func getStringVar(bindings rego.Vars, name string) (string, error) {
 	return "", nil
 }
 
-func (s *Server) getExplainResponse(explainMode types.ExplainModeV1, trace []*topdown.Event) (explanation types.TraceV1) {
+func (s *Server) getExplainResponse(explainMode types.ExplainModeV1, trace []*topdown.Event, pretty bool) (explanation types.TraceV1) {
 	switch explainMode {
 	case types.ExplainFullV1:
-		explanation = types.NewTraceV1(trace)
+		var err error
+		explanation, err = types.NewTraceV1(trace, pretty)
+		if err != nil {
+			break
+		}
 	case types.ExplainTruthV1:
 		answer, err := explain.Truth(s.Compiler(), trace)
 		if err != nil {
 			break
 		}
-		explanation = types.NewTraceV1(answer)
+		explanation, err = types.NewTraceV1(answer, pretty)
+		if err != nil {
+			break
+		}
 	}
 	return explanation
 }
