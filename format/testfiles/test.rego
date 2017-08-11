@@ -19,6 +19,14 @@ not x = g
 globals = {"foo": "bar",
 "fizz": "buzz"}
 
+partial["x"] = 1
+partial.y = 2
+
+
+partial["z"] = 3 {
+    true
+}
+
 # Latent comment.
 
 r = y {
