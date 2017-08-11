@@ -135,6 +135,7 @@ func ParseRuleFromBody(module *Module, body Body) (*Rule, error) {
 
 	terms := expr.Terms.([]*Term)
 	var name Var
+	var key *Term
 
 	switch v := terms[1].Value.(type) {
 	case Var:
@@ -142,6 +143,9 @@ func ParseRuleFromBody(module *Module, body Body) (*Rule, error) {
 	case Ref:
 		if v.Equal(InputRootRef) || v.Equal(DefaultRootRef) {
 			name = Var(v.String())
+		} else if n, ok := v[0].Value.(Var); ok && len(v) == 2 && IsConstant(v[1].Value) {
+			name = n
+			key = v[1]
 		} else {
 			return nil, fmt.Errorf("%v cannot be used for name of %v", RefTypeName, RuleTypeName)
 		}
@@ -154,6 +158,7 @@ func ParseRuleFromBody(module *Module, body Body) (*Rule, error) {
 		Head: &Head{
 			Location: expr.Location,
 			Name:     name,
+			Key:      key,
 			Value:    terms[2],
 		},
 		Body: NewBody(

@@ -1578,6 +1578,33 @@ loopback = input { true }`})
 	})
 }
 
+func TestTopDownPartialDocConstants(t *testing.T) {
+	compiler := compileModules([]string{
+		`package ex
+
+		foo["bar"] = 0
+		foo["buz"] = 1
+		foo["baz"] = 2
+		foo.foo = 1000
+
+		foo["full"] = [1, 2, 3] {
+			input.foo = 7
+		}
+	`})
+	store := inmem.NewFromObject(loadSmallTestData())
+	ctx := context.Background()
+	txn := storage.NewTransactionOrDie(ctx, store)
+	defer store.Abort(ctx, txn)
+
+	assertTopDownWithPath(t, compiler, store, "bar", []string{"ex", "foo", "bar"}, "", `0`)
+	assertTopDownWithPath(t, compiler, store, "buz", []string{"ex", "foo", "buz"}, "", `1`)
+	assertTopDownWithPath(t, compiler, store, "baz", []string{"ex", "foo", "baz"}, "", `2`)
+	assertTopDownWithPath(t, compiler, store, "foo", []string{"ex", "foo", "foo"}, "", `1000`)
+	assertTopDownWithPath(t, compiler, store, "none", []string{"ex", "foo", "none"}, "", ``)
+	assertTopDownWithPath(t, compiler, store, "full-good", []string{"ex", "foo", "full"}, `{"foo": 7}`, `[1, 2, 3]`)
+	assertTopDownWithPath(t, compiler, store, "full-bad", []string{"ex", "foo", "full"}, `{"foo": 10}`, ``)
+}
+
 func TestTopDownUserFunc(t *testing.T) {
 	compiler := compileModules([]string{
 		`package ex
