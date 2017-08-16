@@ -58,6 +58,9 @@ var DefaultBuiltins = [...]*Builtin{
 
 	// Time
 	NowNanos, ParseNanos, ParseRFC3339Nanos,
+
+	// Graphs
+	WalkBuiltin,
 }
 
 // BuiltinMap provides a convenient mapping of built-in names to
@@ -586,6 +589,27 @@ var ParseRFC3339Nanos = &Builtin{
 	Args: []types.Type{
 		types.S,
 		types.N,
+	},
+	TargetPos: []int{1},
+}
+
+/**
+ * Graphs.
+ */
+
+// WalkBuiltin generates [path, value] tuples for all nested documents
+// (recursively).
+var WalkBuiltin = &Builtin{
+	Name: String("walk"),
+	Args: []types.Type{
+		types.A,
+		types.NewArray(
+			[]types.Type{
+				types.NewArray(nil, types.A),
+				types.A,
+			},
+			nil,
+		),
 	},
 	TargetPos: []int{1},
 }

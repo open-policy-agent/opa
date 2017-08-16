@@ -204,13 +204,10 @@ func ExampleRegisterFunctionalBuiltin1() {
 		return nil
 	})
 
-	// If you are adding new built-in functions to upstream OPA, you must also
-	// update the [Language
-	// Reference](http://www.openpolicyagent.org/documentation/references/language/)
-	// and [How Do I Write
-	// Policies](http://www.openpolicyagent.org/documentation/how-do-i-write-policies/)
-	// documents. In addition, you must add tests for your new built-in. See the
-	// existing integration tests in the topdown package.
+	// If you add a new built-in function to OPA, you should:
+	//
+	// 1. Update the Language Reference: http://www.openpolicyagent.org/docs/language-reference.html.
+	// 2. Add an integration test to the topdown package.
 
 	// Output:
 	//

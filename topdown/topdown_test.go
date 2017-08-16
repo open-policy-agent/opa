@@ -1465,6 +1465,84 @@ func TestTopDownTime(t *testing.T) {
 
 }
 
+func TestTopDownWalkBuiltin(t *testing.T) {
+
+	tests := []struct {
+		note     string
+		rules    []string
+		expected interface{}
+	}{
+		{
+			note: "scalar",
+			rules: []string{
+				`p[x] { walk(data.a[0], x) }`,
+			},
+			expected: `[
+				[[], 1]
+			]`,
+		},
+		{
+			note: "arrays",
+			rules: []string{
+				`p[x] { walk(data.a, x) }`,
+			},
+			expected: `[
+				[[], [1,2,3,4]],
+				[[0], 1],
+				[[1], 2],
+				[[2], 3],
+				[[3], 4]
+			]`,
+		},
+		{
+			note: "objects",
+			rules: []string{
+				"p[x] { walk(data.b, x) }",
+			},
+			expected: `[
+				[[], {"v1": "hello", "v2": "goodbye"}],
+				[["v1"], "hello"],
+				[["v2"], "goodbye"]
+			]`,
+		},
+		{
+			note: "sets",
+			rules: []string{
+				"p[x] { walk(q, x) }",
+				`q = {{1,2,3}} { true }`,
+			},
+			expected: `[
+				[[], [[1,2,3]]],
+				[[[1,2,3]], [1,2,3]],
+				[[[1,2,3], 1], 1],
+				[[[1,2,3], 2], 2],
+				[[[1,2,3], 3], 3]
+			]`,
+		},
+		{
+			note: "match and filter",
+			rules: []string{
+				`p[[k,x]] { walk(q, [k, x]); contains(k[1], "oo") }`,
+				`q = [
+					{
+						"foo": 1,
+						"bar": 2,
+						"bazoo": 3,
+					}
+				] { true }`,
+			},
+			expected: `[[[0, "foo"], 1], [[0, "bazoo"], 3]]`,
+		},
+	}
+
+	data := loadSmallTestData()
+
+	for _, tc := range tests {
+		runTopDownTestCase(t, data, tc.note, tc.rules, tc.expected)
+	}
+
+}
+
 func TestTopDownEmbeddedVirtualDoc(t *testing.T) {
 
 	compiler := compileModules([]string{
