@@ -100,7 +100,13 @@ The input `string` is a JSON Web Token encoded with JWS Compact Serialization. J
 | <span class="opa-keep-it-together">``time.parse_rfc3339_ns(value, output)``</span> | 1 | ``output`` is ``number`` representing the time ``value`` in nanoseconds since epoch.`` |
 
 > Multiple calls to the `time.now_ns` built-in function within a single policy
-evaluation query will always the same value.
+evaluation query will always return the same value.
+
+### <a name="graphs"/>Graphs
+
+| Built-in | Inputs | Description |
+| --- | --- | --- |
+| <span class="opa-keep-it-together">``walk(x, [path, value])``</span> | 0 | ``path`` is ``array`` representing a pointer to ``value`` in ``x``.  Queries can use ``walk`` to traverse documents nested under ``x`` (recursively). |
 
 ## <a name="reserved-names"></a> Reserved Names
 
