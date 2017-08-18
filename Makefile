@@ -149,3 +149,9 @@ release-patch:
 		-v $(PWD):/_src \
 		python:2.7 \
 		/_src/build/gen-release-patch.sh --version=$(VERSION) --source-url=/_src
+
+dev-patch:
+	@docker run -it --rm \
+		-v $(PWD):/_src \
+		python:2.7 \
+		/_src/build/gen-dev-patch.sh --version=$(VERSION) --source-url=/_src
