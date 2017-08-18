@@ -3,7 +3,20 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## 0.5.5
+
+This release adds [Diagnostics](http://www.openpolicyagent.org/docs/rest-api.html#diagnostics) support to the server. This greatly improves OPA's debuggability when deployed as a daemon.
+
+### Miscellaneous
+
+- Fix data race in the parser extensions
+- Fix index.html GET requests returning error on empty input
+- Fix race condition in watch test
+- Fix image version in HTTP API tutorial
+- Add metrics command to the REPL
+- Limit length of pretty printed values in the REPL
+- Simplify input query parameters in data GET requests
+- Update server to support pretty explanations
 
 ## 0.5.4
 
