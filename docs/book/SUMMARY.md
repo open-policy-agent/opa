@@ -86,6 +86,7 @@
     * [Explanations](rest-api.md#explanations)
       * [Trace Events](rest-api.md#trace-events)
     * [Performance Metrics](rest-api.md#performance-metrics)
+    * [Diagnostics](rest-api.md#diagnostics)
     * [Watches](rest-api.md#watches)
   * [Deployments](deployments.md)
     * [Docker](deployments.md#docker)
