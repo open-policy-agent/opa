@@ -34,10 +34,11 @@ CHANGELOG.md snippet and uploading the binaries from the build phase.
 	make release-patch VERSION=0.12.8 > ~/release.patch
 	```
 
-1. Apply the release patch to the working copy:
+1. Apply the release patch to the working copy and preview the changes:
 
 	```
 	patch -p1 < ~/release.patch
+	git diff
 	```
 
 	> Amend the changes as necessary, e.g., many of the Fixes and Miscellaneous
@@ -58,9 +59,20 @@ CHANGELOG.md snippet and uploading the binaries from the build phase.
 	git push origin --tags
 	```
 
-1. Edit CHANGELOG.md to add back the Unreleased header to prepare for development.
+1. Execute the dev-patch target to generate boilerplate patch. Give the semantic version of the next release:
 
-1. Edit Makefile to set VERSION variable to prepare for development (e.g., s/VERSION := “0.12.8”/VERSION = “0.12.9-dev”/).
+	```
+	make dev-patch VERSION=0.12.9 > ~/dev.patch
+	```
+
+	> The semantic version of the next release typically increments the point version by one.
+
+1. Apply the patch to the working copy and preview the changes:
+
+	```
+	patch -p1 < ~/dev.patch
+	git diff
+	```
 
 1. Commit the changes and push to remote repository.
 
