@@ -36,7 +36,7 @@ services:
       - "--server"
       - "--log-level=debug"
   api_server:
-    image: openpolicyagent/demo-restful-api:latest
+    image: openpolicyagent/demo-restful-api:0.2
     ports:
       - 5000:5000
     environment:
@@ -51,9 +51,9 @@ Then run `docker-compose` to pull and run the containers.
 docker-compose -f docker-compose.yml up
 ```
 
-Every time the demo web server receives an HTTP request, it 
+Every time the demo web server receives an HTTP request, it
 asks OPA to decide whether an HTTP API is authorized or not
-using a single RESTful API call.  The full code is [here](https://github.com/open-policy-agent/contrib/blob/master/api_authz/docker/echo_server.py), 
+using a single RESTful API call.  The full code is [here](https://github.com/open-policy-agent/contrib/blob/master/api_authz/docker/echo_server.py),
 but the crux of the (Python) code is shown below.
 
 ```python
