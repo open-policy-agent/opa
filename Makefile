@@ -2,10 +2,9 @@
 # Use of this source code is governed by an Apache2
 # license that can be found in the LICENSE file.
 
-VERSION := 0.5.5
+VERSION := 0.5.6-dev
 
 PACKAGES := $(shell go list ./.../ | grep -v 'vendor')
-
 
 GO := go
 GOARCH := $(shell go env GOARCH)
