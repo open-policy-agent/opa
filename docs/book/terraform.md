@@ -3,10 +3,10 @@
 Terraform lets you describe the infrastructure you want and automatically creates, deletes, and modifies
 your existing infrastructure to match.  OPA makes it possible to write policies that test the changes
 Terraform is about to make before it makes them.  Such tests help in different ways:
-* tests help individual developers sanity check their terraform changes
+* tests help individual developers sanity check their Terraform changes
 * tests can auto-approve run-of-the-mill infrastructure changes and reduce
 the burden of peer-review
-* tests can help catch problems that arise when applying terraform to production after applying it to staging
+* tests can help catch problems that arise when applying Terraform to production after applying it to staging
 
 
 ## Goals
@@ -37,7 +37,6 @@ to point to your AWS credentials.)
 cat >main.tf <<EOF
 provider "aws" {
     region = "us-west-1"
-    shared_credentials_file = "/Users/alice/.aws/credentials"
 }
 resource "aws_instance" "web" {
   instance_type = "t2.micro"
@@ -270,8 +269,78 @@ based on both the user and the Terraform plan, the input you would give to OPA w
 `{"user": <user>, "plan": <plan>}`, and your policy would reference the user with `input.user` and
 the plan with `input.plan`.  You could even go so far as to provide the Terraform state file and the AWS
 EC2 data to OPA and write policy using all of that context.
- 
-### 5. (Optional) Run OPA as a daemon and evaluate policy 
+
+### 5. Create a Large Terraform plan and Evaluate it
+
+Create a Terraform plan that creates enough resources to exceed the blast-radius permitted
+by policy.  
+
+```shell
+cat >main.tf <<EOF
+provider "aws" {
+    region = "us-west-1"
+}
+resource "aws_instance" "web" {
+  instance_type = "t2.micro"
+  ami = "ami-09b4b74c"
+}
+resource "aws_autoscaling_group" "my_asg" {
+  availability_zones        = ["us-west-1a"]
+  name                      = "my_asg"
+  max_size                  = 5
+  min_size                  = 1
+  health_check_grace_period = 300
+  health_check_type         = "ELB"
+  desired_capacity          = 4
+  force_delete              = true
+  launch_configuration      = "my_web_config"
+}
+resource "aws_launch_configuration" "my_web_config" {
+    name = "my_web_config"
+    image_id = "ami-09b4b74c"
+    instance_type = "t2.micro"
+}
+resource "aws_autoscaling_group" "my_asg2" {
+  availability_zones        = ["us-west-2a"]
+  name                      = "my_asg2"
+  max_size                  = 6
+  min_size                  = 1
+  health_check_grace_period = 300
+  health_check_type         = "ELB"
+  desired_capacity          = 4
+  force_delete              = true
+  launch_configuration      = "my_web_config"
+}
+resource "aws_autoscaling_group" "my_asg3" {
+  availability_zones        = ["us-west-2b"]
+  name                      = "my_asg3"
+  max_size                  = 7
+  min_size                  = 1
+  health_check_grace_period = 300
+  health_check_type         = "ELB"
+  desired_capacity          = 4
+  force_delete              = true
+  launch_configuration      = "my_web_config"
+}
+EOF
+```
+
+Generate the Terraform plan and convert it to JSON.
+
+```shell
+terraform plan --out tfplan_large.binary
+tfjson tfplan_large.binary > tfplan_large.json
+```
+
+Evaluate the policy to see that it fails the policy tests and check the score.
+
+```shell
+opa run terraform.rego repl.input:tfplan_large.json -e "data.terraform.analysis.authz"
+opa run terraform.rego repl.input:tfplan_large.json -e "data.terraform.analysis.score"
+```
+
+
+### 6. (Optional) Run OPA as a daemon and evaluate policy 
 
 In addition to running OPA from the command-line, you can run it as a daemon loaded with the Terraform policy and
 then interact with it using its HTTP API.  First, start the daemon:
@@ -280,10 +349,11 @@ then interact with it using its HTTP API.  First, start the daemon:
 opa run -s terraform.rego
 ```
 
-Then in a separate terminal, use OPA's HTTP API to evaluate the policy against the Terraform plan.
+Then in a separate terminal, use OPA's HTTP API to evaluate the policy against the two Terraform plans.
 
 ```shell
 curl localhost:8181/v0/data/terraform/analysis/authz -d @tfplan.json
+curl localhost:8181/v0/data/terraform/analysis/authz -d @tfplan_large.json
 ```
 
 
@@ -299,4 +369,4 @@ You learned a number of things about Terraform Testing with OPA:
 Keep in mind that it's up to you to decide how to use OPA's Terraform tests and authorization decision.  Here are some ideas.
 * Add it as part of your Terraform wrapper to implement unit tests on Terraform plans
 * Use it to automatically approve run-of-the-mill Terraform changes to reduce the burden of peer-review
-* Embed it into your deployment system to catch problems that arise when applying terraform to production after applying it to staging
+* Embed it into your deployment system to catch problems that arise when applying Terraform to production after applying it to staging
