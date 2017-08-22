@@ -106,7 +106,7 @@ evaluation query will always return the same value.
 
 | Built-in | Inputs | Description |
 | --- | --- | --- |
-| <span class="opa-keep-it-together">``walk(x, [path, value])``</span> | 0 | ``path`` is ``array`` representing a pointer to ``value`` in ``x``.  Queries can use ``walk`` to traverse documents nested under ``x`` (recursively). |
+| <span class="opa-keep-it-together">``walk(x, [path, value])``</span> | 0 | ``walk`` is a relation that produces ``path`` and ``value`` pairs for documents under ``x``. ``path`` is ``array`` representing a pointer to ``value`` in ``x``.  Queries can use ``walk`` to traverse documents nested under ``x`` (recursively). |
 
 ## <a name="reserved-names"></a> Reserved Names
 
