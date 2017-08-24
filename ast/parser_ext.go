@@ -120,14 +120,56 @@ func MustParseTerm(input string) *Term {
 // of the form <var> = <term> can be converted into rules of the form <var> =
 // <term> { true }. This is a concise way of defining constants inside modules.
 func ParseRuleFromBody(module *Module, body Body) (*Rule, error) {
+
 	if len(body) != 1 {
 		return nil, fmt.Errorf("multiple %vs cannot be used for %v", ExprTypeName, HeadTypeName)
 	}
 
 	expr := body[0]
-	if !expr.IsEquality() {
-		return nil, fmt.Errorf("non-equality %v cannot be used for %v", ExprTypeName, HeadTypeName)
+
+	if expr.IsEquality() {
+		return parseRuleFromEquality(module, expr)
+	} else if !expr.IsBuiltin() {
+		return parseRuleFromTerm(module, expr.Terms.(*Term))
 	}
+
+	return nil, fmt.Errorf("%vs cannot be used for %v", TypeName(expr), RuleTypeName)
+}
+
+func parseRuleFromTerm(module *Module, term *Term) (*Rule, error) {
+
+	ref, ok := term.Value.(Ref)
+	if !ok {
+		return nil, fmt.Errorf("%vs cannot be used for %v", TypeName(term.Value), HeadTypeName)
+	}
+
+	var name Var
+	var key *Term
+
+	if v, ok := ref[0].Value.(Var); ok && len(ref) == 2 {
+		name = v
+		key = ref[1]
+	} else {
+		return nil, fmt.Errorf("%v cannot be used for %v", RefTypeName, RuleTypeName)
+	}
+
+	rule := &Rule{
+		Location: term.Location,
+		Head: &Head{
+			Location: term.Location,
+			Name:     name,
+			Key:      key,
+		},
+		Body: NewBody(
+			NewExpr(BooleanTerm(true).SetLocation(term.Location)).SetLocation(term.Location),
+		),
+		Module: module,
+	}
+
+	return rule, nil
+}
+
+func parseRuleFromEquality(module *Module, expr *Expr) (*Rule, error) {
 
 	if len(expr.With) > 0 {
 		return nil, fmt.Errorf("%vs using %v cannot be used for %v", ExprTypeName, WithTypeName, HeadTypeName)
@@ -135,6 +177,7 @@ func ParseRuleFromBody(module *Module, body Body) (*Rule, error) {
 
 	terms := expr.Terms.([]*Term)
 	var name Var
+	var key *Term
 
 	switch v := terms[1].Value.(type) {
 	case Var:
@@ -142,6 +185,9 @@ func ParseRuleFromBody(module *Module, body Body) (*Rule, error) {
 	case Ref:
 		if v.Equal(InputRootRef) || v.Equal(DefaultRootRef) {
 			name = Var(v.String())
+		} else if n, ok := v[0].Value.(Var); ok && len(v) == 2 {
+			name = n
+			key = v[1]
 		} else {
 			return nil, fmt.Errorf("%v cannot be used for name of %v", RefTypeName, RuleTypeName)
 		}
@@ -154,10 +200,11 @@ func ParseRuleFromBody(module *Module, body Body) (*Rule, error) {
 		Head: &Head{
 			Location: expr.Location,
 			Name:     name,
+			Key:      key,
 			Value:    terms[2],
 		},
 		Body: NewBody(
-			&Expr{Terms: BooleanTerm(true).SetLocation(expr.Location)},
+			NewExpr(BooleanTerm(true).SetLocation(expr.Location)).SetLocation(expr.Location),
 		),
 		Module: module,
 	}

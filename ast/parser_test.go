@@ -1034,17 +1034,28 @@ p[x] { x = 1 }
 greeting = "hello" { true }
 cores = [{0: 1}, {1: 2}] { true }
 wrapper = cores[0][1] { true }
-pi = [3, 1, 4, x, y, z] { true }`
+pi = [3, 1, 4, x, y, z] { true }
+foo["bar"] = "buz"
+foo["9"] = "10"
+foo.buz = "bar"
+bar[1]
+bar[[{"foo":"baz"}]]
+`
 
 	assertParseModule(t, "rules from bodies", testModule, &Module{
 		Package: MustParseStatement(`package a.b.c`).(*Package),
 		Rules: []*Rule{
-			MustParseStatement(`pi = 3.14159 { true }`).(*Rule),
-			MustParseStatement(`p[x] { x = 1 }`).(*Rule),
-			MustParseStatement(`greeting = "hello" { true }`).(*Rule),
-			MustParseStatement(`cores = [{0: 1}, {1: 2}] { true }`).(*Rule),
-			MustParseStatement(`wrapper = cores[0][1] { true }`).(*Rule),
-			MustParseStatement(`pi = [3, 1, 4, x, y, z] { true }`).(*Rule),
+			MustParseRule(`pi = 3.14159 { true }`),
+			MustParseRule(`p[x] { x = 1 }`),
+			MustParseRule(`greeting = "hello" { true }`),
+			MustParseRule(`cores = [{0: 1}, {1: 2}] { true }`),
+			MustParseRule(`wrapper = cores[0][1] { true }`),
+			MustParseRule(`pi = [3, 1, 4, x, y, z] { true }`),
+			MustParseRule(`foo["bar"] = "buz" { true }`),
+			MustParseRule(`foo["9"] = "10" { true }`),
+			MustParseRule(`foo["buz"] = "bar" { true }`),
+			MustParseRule(`bar[1] { true }`),
+			MustParseRule(`bar[[{"foo":"baz"}]] { true }`),
 		},
 	})
 
@@ -1079,23 +1090,28 @@ data = {"bar": 2} { true }`
     "pi" = 3
     `
 
-	refName := `
-	package a.b.c
-
-	input.x = true
-	`
-
 	withExpr := `
 	package a.b.c
 
 	foo = input with input as 1
 	`
 
+	badRefLen1 := `
+	package a.b.c
+
+	p["x"].y = 1`
+
+	badRefLen2 := `
+	package a.b.c
+
+	p["x"].y`
+
 	assertParseModuleError(t, "multiple expressions", multipleExprs)
 	assertParseModuleError(t, "non-equality", nonEquality)
 	assertParseModuleError(t, "non-var name", nonVarName)
-	assertParseModuleError(t, "ref name", refName)
 	assertParseModuleError(t, "with expr", withExpr)
+	assertParseModuleError(t, "bad ref (too long)", badRefLen1)
+	assertParseModuleError(t, "bad ref (too long)", badRefLen2)
 }
 
 func TestWildcards(t *testing.T) {

@@ -1095,6 +1095,12 @@ func (expr *Expr) OutputVars(safe VarSet) VarSet {
 	return VarSet{}
 }
 
+// SetLocation sets the expr's location and returns the expr itself.
+func (expr *Expr) SetLocation(loc *Location) *Expr {
+	expr.Location = loc
+	return expr
+}
+
 func (expr *Expr) String() string {
 	var buf []string
 	if expr.Negated {

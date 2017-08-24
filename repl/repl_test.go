@@ -298,13 +298,9 @@ import input.xyz` + "\n\n"
 import data.foo as bar
 import input.xyz
 
-p[1] {
-	true
-}
+p[1]
 
-p[2] {
-	true
-}` + "\n\n"
+p[2]` + "\n\n"
 	assertREPLText(t, buffer, expected)
 	buffer.Reset()
 

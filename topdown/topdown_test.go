@@ -1656,6 +1656,73 @@ loopback = input { true }`})
 	})
 }
 
+func TestTopDownPartialDocConstants(t *testing.T) {
+	compiler := compileModules([]string{
+		`package ex
+
+		foo["bar"] = 0
+		foo["baz"] = 1
+		foo["*"] = [1, 2, 3] {
+			input.foo = 7
+		}
+
+		bar["x"]
+		bar["y"]
+		bar["*"] {
+			input.foo = 7
+		}
+	`})
+
+	store := inmem.NewFromObject(loadSmallTestData())
+	ctx := context.Background()
+	txn := storage.NewTransactionOrDie(ctx, store)
+	defer store.Abort(ctx, txn)
+
+	tests := []struct {
+		note     string
+		path     string
+		input    string
+		expected string
+	}{
+		{
+			note:     "obj-1",
+			path:     "ex.foo.bar",
+			expected: "0",
+		},
+		{
+			note:     "obj",
+			path:     "ex.foo",
+			expected: `{"bar": 0, "baz": 1}`,
+		},
+		{
+			note:     "obj-all",
+			path:     "ex.foo",
+			input:    `{"foo": 7}`,
+			expected: `{"bar": 0, "baz": 1, "*": [1,2,3]}`,
+		},
+		{
+			note:     "set-1",
+			path:     "ex.bar.x",
+			expected: `"x"`,
+		},
+		{
+			note:     "set",
+			path:     "ex.bar",
+			expected: `["x", "y"]`,
+		},
+		{
+			note:     "set-all",
+			path:     "ex.bar",
+			input:    `{"foo": 7}`,
+			expected: `["x", "y", "*"]`,
+		},
+	}
+
+	for _, tc := range tests {
+		assertTopDownWithPath(t, compiler, store, tc.note, strings.Split(tc.path, "."), tc.input, tc.expected)
+	}
+}
+
 func TestTopDownUserFunc(t *testing.T) {
 	compiler := compileModules([]string{
 		`package ex

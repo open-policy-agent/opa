@@ -19,6 +19,16 @@ not x = g
 globals = {"foo": "bar",
 "fizz": "buzz"}
 
+partial_obj["x"] = 1
+partial_obj.y = 2
+
+partial_obj["z"] = 3 {
+    true
+}
+
+partial_set["x"]
+partial_set.y
+
 # Latent comment.
 
 r = y {
@@ -84,8 +94,8 @@ a = {"a": "b", "c": "d"}
 b = [1, 2, 3, 4]
 c = [1, 2,
 # Comment inside array
-3, 4, 
-5, 6, 7, 
+3, 4,
+5, 6, 7,
 8,
 ] # Comment on closing array bracket.
 
@@ -115,7 +125,7 @@ m = {y:
 x | split("foo.bar", ".", x); y = x[_]}
 n = {y:  x | split("foo.bar", ".", x)
 y = x[_]}
-o = {y: x | 
+o = {y: x |
 split("foo.bar", ".", x) # comment in object comprehension
 y = x[_]
 
