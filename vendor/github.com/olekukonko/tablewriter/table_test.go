@@ -19,7 +19,6 @@ import (
 )
 
 func ExampleShort() {
-
 	data := [][]string{
 		[]string{"A", "The Good", "500"},
 		[]string{"B", "The Very very Bad Man", "288"},
@@ -35,10 +34,17 @@ func ExampleShort() {
 	}
 	table.Render()
 
+	// Output: +------+-----------------------+--------+
+	// | NAME |         SIGN          | RATING |
+	// +------+-----------------------+--------+
+	// | A    | The Good              |    500 |
+	// | B    | The Very very Bad Man |    288 |
+	// | C    | The Ugly              |    120 |
+	// | D    | The Gopher            |    800 |
+	// +------+-----------------------+--------+
 }
 
 func ExampleLong() {
-
 	data := [][]string{
 		[]string{"Learn East has computers with adapted keyboards with enlarged print etc", "  Some Data  ", " Another Data"},
 		[]string{"Instead of lining up the letters all ", "the way across, he splits the keyboard in two", "Like most ergonomic keyboards", "See Data"},
@@ -53,7 +59,6 @@ func ExampleLong() {
 		table.Append(v)
 	}
 	table.Render()
-
 }
 
 func ExampleCSV() {
@@ -62,10 +67,19 @@ func ExampleCSV() {
 	table.SetRowSeparator("=")
 
 	table.Render()
+
+	// Output: *============*===========*=========*
+	// | FIRST NAME | LAST NAME |   SSN   |
+	// *============*===========*=========*
+	// | John       | Barry     |  123456 |
+	// | Kathy      | Smith     |  687987 |
+	// | Bob        | McCornick | 3979870 |
+	// *============*===========*=========*
 }
 
 func TestCSVInfo(t *testing.T) {
-	table, err := NewCSV(os.Stdout, "test_info.csv", true)
+	buf := &bytes.Buffer{}
+	table, err := NewCSV(buf, "test_info.csv", true)
 	if err != nil {
 		t.Error(err)
 		return
@@ -73,10 +87,23 @@ func TestCSVInfo(t *testing.T) {
 	table.SetAlignment(ALIGN_LEFT)
 	table.SetBorder(false)
 	table.Render()
+
+	got := buf.String()
+	want := `   FIELD   |     TYPE     | NULL | KEY | DEFAULT |     EXTRA       
++----------+--------------+------+-----+---------+----------------+
+  user_id  | smallint(5)  | NO   | PRI | NULL    | auto_increment  
+  username | varchar(10)  | NO   |     | NULL    |                 
+  password | varchar(100) | NO   |     | NULL    |                 
+`
+
+	if got != want {
+		t.Errorf("CSV info failed\ngot:\n[%s]\nwant:\n[%s]\n", got, want)
+	}
 }
 
 func TestCSVSeparator(t *testing.T) {
-	table, err := NewCSV(os.Stdout, "test.csv", true)
+	buf := &bytes.Buffer{}
+	table, err := NewCSV(buf, "test.csv", true)
 	if err != nil {
 		t.Error(err)
 		return
@@ -92,6 +119,22 @@ func TestCSVSeparator(t *testing.T) {
 	table.SetRowSeparator("-")
 	table.SetAlignment(ALIGN_LEFT)
 	table.Render()
+
+	want := `*------------*-----------*---------*
+‡ FIRST NAME ‡ LAST NAME ‡   SSN   ‡
+*------------*-----------*---------*
+‡ John       ‡ Barry     ‡ 123456  ‡
+*------------*-----------*---------*
+‡ Kathy      ‡ Smith     ‡ 687987  ‡
+*------------*-----------*---------*
+‡ Bob        ‡ McCornick ‡ 3979870 ‡
+*------------*-----------*---------*
+`
+
+	got := buf.String()
+	if got != want {
+		t.Errorf("CSV info failed\ngot:\n[%s]\nwant:\n[%s]\n", got, want)
+	}
 }
 
 func TestNoBorder(t *testing.T) {
@@ -460,5 +503,99 @@ func TestAutoMergeRows(t *testing.T) {
 	got = buf.String()
 	if got != want {
 		t.Errorf("\ngot:\n%s\nwant:\n%s\n", got, want)
+	}
+}
+
+func TestClearRows(t *testing.T) {
+	data := [][]string{
+		[]string{"1/1/2014", "Domain name", "2233", "$10.98"},
+	}
+
+	var buf bytes.Buffer
+	table := NewWriter(&buf)
+	table.SetAutoWrapText(false)
+	table.SetHeader([]string{"Date", "Description", "CV2", "Amount"})
+	table.SetFooter([]string{"", "", "Total", "$145.93"}) // Add Footer
+	table.AppendBulk(data)                                // Add Bulk Data
+	table.Render()
+
+	originalWant := `+----------+-------------+-------+---------+
+|   DATE   | DESCRIPTION |  CV2  | AMOUNT  |
++----------+-------------+-------+---------+
+| 1/1/2014 | Domain name |  2233 | $10.98  |
++----------+-------------+-------+---------+
+|                          TOTAL | $145 93 |
++----------+-------------+-------+---------+
+`
+	want := originalWant
+
+	got := buf.String()
+	if got != want {
+		t.Errorf("table clear rows failed\ngot:\n%s\nwant:\n%s\n", got, want)
+	}
+
+	buf.Reset()
+	table.ClearRows()
+	table.Render()
+
+	want = `+----------+-------------+-------+---------+
+|   DATE   | DESCRIPTION |  CV2  | AMOUNT  |
++----------+-------------+-------+---------+
++----------+-------------+-------+---------+
+|                          TOTAL | $145 93 |
++----------+-------------+-------+---------+
+`
+
+	got = buf.String()
+	if got != want {
+		t.Errorf("table clear failed\ngot:\n%s\nwant:\n%s\n", got, want)
+	}
+
+	buf.Reset()
+	table.AppendBulk(data) // Add Bulk Data
+	table.Render()
+
+	want = `+----------+-------------+-------+---------+
+|   DATE   | DESCRIPTION |  CV2  | AMOUNT  |
++----------+-------------+-------+---------+
+| 1/1/2014 | Domain name |  2233 | $10.98  |
++----------+-------------+-------+---------+
+|                          TOTAL | $145 93 |
++----------+-------------+-------+---------+
+`
+
+	got = buf.String()
+	if got != want {
+		t.Errorf("table clear rows failed\ngot:\n%s\nwant:\n%s\n", got, want)
+	}
+}
+
+func TestClearFooters(t *testing.T) {
+	data := [][]string{
+		[]string{"1/1/2014", "Domain name", "2233", "$10.98"},
+	}
+
+	var buf bytes.Buffer
+	table := NewWriter(&buf)
+	table.SetAutoWrapText(false)
+	table.SetHeader([]string{"Date", "Description", "CV2", "Amount"})
+	table.SetFooter([]string{"", "", "Total", "$145.93"}) // Add Footer
+	table.AppendBulk(data)                                // Add Bulk Data
+	table.Render()
+
+	buf.Reset()
+	table.ClearFooter()
+	table.Render()
+
+	want := `+----------+-------------+-------+---------+
+|   DATE   | DESCRIPTION |  CV2  | AMOUNT  |
++----------+-------------+-------+---------+
+| 1/1/2014 | Domain name |  2233 | $10.98  |
++----------+-------------+-------+---------+
+`
+
+	got := buf.String()
+	if got != want {
+		t.Errorf("table clear rows failed\ngot:\n%s\nwant:\n%s\n", got, want)
 	}
 }

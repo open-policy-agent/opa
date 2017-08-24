@@ -1,5 +1,5 @@
-hash: 3964ea6629e65596dadc08812ef90f47cb5c6567f1bd8e282eeabb8413b0ef54
-updated: 2017-06-27T09:55:51.877722024-07:00
+hash: 78c0e4550d10db32276c02a4eea477c61d77a765a20af29e1396cf4fc6fdfa13
+updated: 2017-08-24T01:59:01.441909202Z
 imports:
 - name: github.com/dchest/siphash
   version: 4ebf1de738443ea7f45f02dc394c4df1942a126d
@@ -10,35 +10,40 @@ imports:
 - name: github.com/gorilla/context
   version: 08b5f424b9271eedf6f9f0ce86cb9396ed337a42
 - name: github.com/gorilla/mux
-  version: 8c683ee571b6ee7ffc9f1cafd13103c422e71cbf
+  version: ac112f7d75a0714af1bd86ab17749b31f7809640
 - name: github.com/inconshreveable/mousetrap
   version: 76626ae9c91c4f2a10f34cad8ce83ea42c93bb75
 - name: github.com/mattn/go-runewidth
   version: 97311d9f7767e3d6f422ea06661bc2c7a19e8a5d
 - name: github.com/mna/pigeon
-  version: 3ad7b4379454d41dc287081d455492b3b00b81df
+  version: 7397997f31ddb24949618f11bab1588199703721
 - name: github.com/olekukonko/tablewriter
-  version: febf2d34b54a69ce7530036c7503b1c9fbfdf0bb
+  version: be5337e7b39e64e5f91445ce7e721888dbab7387
 - name: github.com/peterh/liner
   version: bf27d3ba8e1d9899d45a457ffac16c953eb2d647
 - name: github.com/pkg/errors
   version: c605e284fe17294bda444b34710735b29d1a9d90
-- name: github.com/Sirupsen/logrus
-  version: 0208149b40d863d2c1a2f8fe5753096a9cf2cc8b
+- name: github.com/sirupsen/logrus
+  version: f006c2ac4710855cf0f916dd6b77acf6b048dc6e
 - name: github.com/spf13/cobra
-  version: 4d647c8944eb42504a714e57e97f244ed6344722
+  version: 2df9a531813370438a4d79bfc33e21f58063ed87
 - name: github.com/spf13/pflag
   version: e57e3eeb33f795204c1ca35f56c44f83227c6e66
+- name: golang.org/x/crypto
+  version: eb71ad9bd329b5ac0fd0148dd99bd62e8be8e035
+  subpackages:
+  - ssh/terminal
 - name: golang.org/x/sys
-  version: 90796e5a05ce440b41c768bd9af257005e470461
+  version: 07c182904dbd53199946ba614a412c61d3c548f5
   subpackages:
   - unix
+  - windows
 - name: golang.org/x/tools
-  version: e6cb469339aef5b7be0c89de730d5f3cc8e47e50
+  version: 1807494da808122833b9bd8e3e5fa179ef237d41
   subpackages:
   - cmd/goimports
 - name: gopkg.in/fsnotify.v1
   version: 629574ca2a5df945712d3079857300b5e4da0236
 - name: gopkg.in/yaml.v2
-  version: cd8b52f8269e0feb286dfeef29f8fe4d5b397e0b
+  version: eb3733d160e74a9c7e442f435eb3bea458e1d19f
 testImports: []

@@ -17,7 +17,6 @@ import (
 
 	"path/filepath"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/repl"
 	"github.com/open-policy-agent/opa/server"
@@ -25,6 +24,7 @@ import (
 	"github.com/open-policy-agent/opa/storage/inmem"
 	"github.com/open-policy-agent/opa/version"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 )
 
 // Params stores the configuration for an OPA instance.

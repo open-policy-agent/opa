@@ -254,10 +254,12 @@ func fixImports(fset *token.FileSet, f *ast.File, filename string) (added []stri
 	results := make(chan result)
 	for pkgName, symbols := range refs {
 		go func(pkgName string, symbols map[string]bool) {
-			sibling := packageInfo.Imports[pkgName]
-			if sibling.Path != "" {
-				results <- result{ipath: sibling.Path, name: sibling.Alias}
-				return
+			if packageInfo != nil {
+				sibling := packageInfo.Imports[pkgName]
+				if sibling.Path != "" {
+					results <- result{ipath: sibling.Path, name: sibling.Alias}
+					return
+				}
 			}
 			ipath, rename, err := findImport(pkgName, symbols, filename)
 			r := result{ipath: ipath, err: err}
@@ -774,7 +776,7 @@ func findImportGoPath(pkgName string, symbols map[string]bool, filename string) 
 	sort.Sort(byImportPathShortLength(candidates))
 	if Debug {
 		for i, pkg := range candidates {
-			log.Printf("%s candidate %d/%d: %v", pkgName, i+1, len(candidates), pkg.importPathShort)
+			log.Printf("%s candidate %d/%d: %v in %v", pkgName, i+1, len(candidates), pkg.importPathShort, pkg.dir)
 		}
 	}
 

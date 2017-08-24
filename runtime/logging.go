@@ -17,8 +17,8 @@ import (
 
 	"io/ioutil"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/open-policy-agent/opa/server/types"
+	"github.com/sirupsen/logrus"
 )
 
 func loggingEnabled(level logrus.Level) bool {
