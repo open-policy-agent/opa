@@ -3,7 +3,7 @@
 
 package builder
 
-var rangeTable = `
+var rangeTable0 = `
 func rangeTable(class string) *unicode.RangeTable {
 	if rt, ok := unicode.Categories[class]; ok {
 		return rt

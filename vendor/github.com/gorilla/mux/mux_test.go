@@ -1215,6 +1215,28 @@ func TestSubRouter(t *testing.T) {
 			pathTemplate: `/{category}`,
 			shouldMatch:  true,
 		},
+		{
+			title:        "Build with scheme on parent router",
+			route:        new(Route).Schemes("ftp").Host("google.com").Subrouter().Path("/"),
+			request:      newRequest("GET", "ftp://google.com/"),
+			scheme:       "ftp",
+			host:         "google.com",
+			path:         "/",
+			pathTemplate: `/`,
+			hostTemplate: `google.com`,
+			shouldMatch:  true,
+		},
+		{
+			title:        "Prefer scheme on child route when building URLs",
+			route:        new(Route).Schemes("https", "ftp").Host("google.com").Subrouter().Schemes("ftp").Path("/"),
+			request:      newRequest("GET", "ftp://google.com/"),
+			scheme:       "ftp",
+			host:         "google.com",
+			path:         "/",
+			pathTemplate: `/`,
+			hostTemplate: `google.com`,
+			shouldMatch:  true,
+		},
 	}
 
 	for _, test := range tests {

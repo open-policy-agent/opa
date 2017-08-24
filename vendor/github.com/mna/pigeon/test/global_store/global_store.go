@@ -256,7 +256,9 @@ func ParseFile(filename string, opts ...Option) (i interface{}, err error) {
 		return nil, err
 	}
 	defer func() {
-		err = f.Close()
+		if closeErr := f.Close(); closeErr != nil {
+			err = closeErr
+		}
 	}()
 	return ParseReader(filename, f, opts...)
 }
@@ -372,13 +374,14 @@ type litMatcher struct {
 }
 
 type charClassMatcher struct {
-	pos        position
-	val        string
-	chars      []rune
-	ranges     []rune
-	classes    []*unicode.RangeTable
-	ignoreCase bool
-	inverted   bool
+	pos             position
+	val             string
+	basicLatinChars [128]bool
+	chars           []rune
+	ranges          []rune
+	classes         []*unicode.RangeTable
+	ignoreCase      bool
+	inverted        bool
 }
 
 type anyMatcher position
@@ -432,9 +435,10 @@ func (e errList) Error() string {
 // parserError wraps an error with a prefix indicating the rule in which
 // the error occurred. The original error is stored in the Inner field.
 type parserError struct {
-	Inner  error
-	pos    position
-	prefix string
+	Inner    error
+	pos      position
+	prefix   string
+	expected []string
 }
 
 // Error returns the error message.
@@ -454,7 +458,7 @@ func newParser(filename string, b []byte, opts ...Option) *parser {
 			globalStore: make(map[string]interface{}),
 		},
 		maxFailPos:      position{col: 1, line: 1},
-		maxFailExpected: make(map[string]struct{}),
+		maxFailExpected: make([]string, 0, 20),
 	}
 	p.setOptions(opts)
 	return p
@@ -502,7 +506,7 @@ type parser struct {
 
 	// parse fail
 	maxFailPos            position
-	maxFailExpected       map[string]struct{}
+	maxFailExpected       []string
 	maxFailInvertExpected bool
 }
 
@@ -559,10 +563,10 @@ func (p *parser) out(s string) string {
 }
 
 func (p *parser) addErr(err error) {
-	p.addErrAt(err, p.pt.position)
+	p.addErrAt(err, p.pt.position, []string{})
 }
 
-func (p *parser) addErrAt(err error, pos position) {
+func (p *parser) addErrAt(err error, pos position, expected []string) {
 	var buf bytes.Buffer
 	if p.filename != "" {
 		buf.WriteString(p.filename)
@@ -582,8 +586,27 @@ func (p *parser) addErrAt(err error, pos position) {
 			buf.WriteString("rule " + rule.name)
 		}
 	}
-	pe := &parserError{Inner: err, pos: pos, prefix: buf.String()}
+	pe := &parserError{Inner: err, pos: pos, prefix: buf.String(), expected: expected}
 	p.errs.add(pe)
+}
+
+func (p *parser) failAt(fail bool, pos position, want string) {
+	// process fail if parsing fails and not inverted or parsing succeeds and invert is set
+	if fail == p.maxFailInvertExpected {
+		if pos.offset < p.maxFailPos.offset {
+			return
+		}
+
+		if pos.offset > p.maxFailPos.offset {
+			p.maxFailPos = pos
+			p.maxFailExpected = p.maxFailExpected[:0]
+		}
+
+		if p.maxFailInvertExpected {
+			want = "!" + want
+		}
+		p.maxFailExpected = append(p.maxFailExpected, want)
+	}
 }
 
 // read advances the parser to the next rune.
@@ -688,25 +711,39 @@ func (p *parser) parse(g *grammar) (val interface{}, err error) {
 		if len(*p.errs) == 0 {
 			// If parsing fails, but no errors have been recorded, the expected values
 			// for the farthest parser position are returned as error.
-			var expected []string
-			eof := ""
-			if _, ok := p.maxFailExpected["!."]; ok {
-				delete(p.maxFailExpected, "!.")
-				if len(p.maxFailExpected) > 0 {
-					eof = " or EOF"
-				} else {
-					eof = "EOF"
-				}
+			maxFailExpectedMap := make(map[string]struct{}, len(p.maxFailExpected))
+			for _, v := range p.maxFailExpected {
+				maxFailExpectedMap[v] = struct{}{}
 			}
-			for k := range p.maxFailExpected {
+			expected := make([]string, 0, len(maxFailExpectedMap))
+			eof := false
+			if _, ok := maxFailExpectedMap["!."]; ok {
+				delete(maxFailExpectedMap, "!.")
+				eof = true
+			}
+			for k := range maxFailExpectedMap {
 				expected = append(expected, k)
 			}
 			sort.Strings(expected)
-			p.addErrAt(errors.New("no match found, expected: "+strings.Join(expected, ", ")+eof), p.maxFailPos)
+			if eof {
+				expected = append(expected, "EOF")
+			}
+			p.addErrAt(errors.New("no match found, expected: "+listJoin(expected, ", ", "or")), p.maxFailPos, expected)
 		}
 		return nil, p.errs.err()
 	}
 	return val, p.errs.err()
+}
+
+func listJoin(list []string, sep string, lastSep string) string {
+	switch len(list) {
+	case 0:
+		return ""
+	case 1:
+		return list[0]
+	default:
+		return fmt.Sprintf("%s %s %s", strings.Join(list[:len(list)-1], sep), lastSep, list[len(list)-1])
+	}
 }
 
 func (p *parser) parseRule(rule *rule) (interface{}, bool) {
@@ -805,7 +842,7 @@ func (p *parser) parseActionExpr(act *actionExpr) (interface{}, bool) {
 		p.cur.text = p.sliceFrom(start)
 		actVal, err := act.run(p)
 		if err != nil {
-			p.addErrAt(err, start.position)
+			p.addErrAt(err, start.position, []string{})
 		}
 		val = actVal
 	}
@@ -862,11 +899,13 @@ func (p *parser) parseCharClassMatcher(chr *charClassMatcher) (interface{}, bool
 
 	cur := p.pt.rn
 	start := p.pt
+
 	// can't match EOF
 	if cur == utf8.RuneError {
 		p.failAt(false, start.position, chr.val)
 		return nil, false
 	}
+
 	if chr.ignoreCase {
 		cur = unicode.ToLower(cur)
 	}
@@ -977,25 +1016,6 @@ func (p *parser) parseLitMatcher(lit *litMatcher) (interface{}, bool) {
 	return p.sliceFrom(start), true
 }
 
-func (p *parser) failAt(fail bool, pos position, want string) {
-	// process fail if parsing fails and not inverted or parsing succeeds and invert is set
-	if fail == p.maxFailInvertExpected {
-		if pos.offset < p.maxFailPos.offset {
-			return
-		}
-
-		if pos.offset > p.maxFailPos.offset {
-			p.maxFailPos = pos
-			p.maxFailExpected = make(map[string]struct{})
-		}
-
-		if p.maxFailInvertExpected {
-			want = "!" + want
-		}
-		p.maxFailExpected[want] = struct{}{}
-	}
-}
-
 func (p *parser) parseNotCodeExpr(not *notCodeExpr) (interface{}, bool) {
 	if p.debug {
 		defer p.out(p.in("parseNotCodeExpr"))
@@ -1067,7 +1087,7 @@ func (p *parser) parseSeqExpr(seq *seqExpr) (interface{}, bool) {
 		defer p.out(p.in("parseSeqExpr"))
 	}
 
-	var vals []interface{}
+	vals := make([]interface{}, 0, len(seq.exprs))
 
 	pt := p.pt
 	for _, expr := range seq.exprs {

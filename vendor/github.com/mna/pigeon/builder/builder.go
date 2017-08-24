@@ -8,7 +8,10 @@ import (
 	"io"
 	"strconv"
 	"strings"
+	"text/template"
 	"unicode"
+
+	"regexp"
 
 	"github.com/mna/pigeon/ast"
 )
@@ -52,6 +55,29 @@ func ReceiverName(nm string) Option {
 	}
 }
 
+// Optimize returns an option that specifies the optimize option
+// If optimize is true, the Debug and Memoize code is completely
+// removed from the resulting parser
+func Optimize(optimize bool) Option {
+	return func(b *builder) Option {
+		prev := b.optimize
+		b.optimize = optimize
+		return Optimize(prev)
+	}
+}
+
+// BasicLatinLookupTable returns an option that specifies the basicLatinLookup option
+// If basicLatinLookup is true, a lookup slice for the first 128 chars of
+// the Unicode table (Basic Latin) is generated for each CharClassMatcher
+// to increase the character matching.
+func BasicLatinLookupTable(basicLatinLookupTable bool) Option {
+	return func(b *builder) Option {
+		prev := b.basicLatinLookupTable
+		b.basicLatinLookupTable = basicLatinLookupTable
+		return BasicLatinLookupTable(prev)
+	}
+}
+
 // BuildParser builds the PEG parser using the provider grammar. The code is
 // written to the specified w.
 func BuildParser(w io.Writer, g *ast.Grammar, opts ...Option) error {
@@ -65,7 +91,9 @@ type builder struct {
 	err error
 
 	// options
-	recvName string
+	recvName              string
+	optimize              bool
+	basicLatinLookupTable bool
 
 	ruleName  string
 	exprIndex int
@@ -263,9 +291,52 @@ func (b *builder) writeCharClassMatcher(ch *ast.CharClassMatcher) {
 		}
 		b.writelnf("},")
 	}
+	if b.basicLatinLookupTable {
+		b.writelnf("\tbasicLatinChars: %#v,", BasicLatinLookup(ch.Chars, ch.Ranges, ch.UnicodeClasses, ch.IgnoreCase))
+	}
 	b.writelnf("\tignoreCase: %t,", ch.IgnoreCase)
 	b.writelnf("\tinverted: %t,", ch.Inverted)
 	b.writelnf("},")
+}
+
+// BasicLatinLookup calculates the decision results for the first 256 characters of the UTF-8 character
+// set for a given set of chars, ranges and unicodeClasses to speedup the CharClassMatcher.
+func BasicLatinLookup(chars, ranges []rune, unicodeClasses []string, ignoreCase bool) (basicLatinChars [128]bool) {
+	for _, rn := range chars {
+		if rn < 128 {
+			basicLatinChars[rn] = true
+			if ignoreCase {
+				if unicode.IsLower(rn) {
+					basicLatinChars[unicode.ToUpper(rn)] = true
+				} else {
+					basicLatinChars[unicode.ToLower(rn)] = true
+				}
+			}
+		}
+	}
+	for i := 0; i < len(ranges); i += 2 {
+		if ranges[i] < 128 {
+			for j := ranges[i]; j < 128 && j <= ranges[i+1]; j++ {
+				basicLatinChars[j] = true
+				if ignoreCase {
+					if unicode.IsLower(j) {
+						basicLatinChars[unicode.ToUpper(j)] = true
+					} else {
+						basicLatinChars[unicode.ToLower(j)] = true
+					}
+				}
+			}
+		}
+	}
+	for _, cl := range unicodeClasses {
+		rt := rangeTable(cl)
+		for r := rune(0); r < 128; r++ {
+			if unicode.Is(rt, r) {
+				basicLatinChars[r] = true
+			}
+		}
+	}
+	return
 }
 
 func (b *builder) writeChoiceExpr(ch *ast.ChoiceExpr) {
@@ -558,9 +629,39 @@ func (b *builder) writeFunc(funcIx int, code *ast.CodeBlock, callTpl, funcTpl st
 }
 
 func (b *builder) writeStaticCode() {
-	b.writeln(staticCode)
+	buffer := bytes.NewBufferString("")
+	params := struct {
+		Optimize              bool
+		BasicLatinLookupTable bool
+	}{
+		Optimize:              b.optimize,
+		BasicLatinLookupTable: b.basicLatinLookupTable,
+	}
+	t := template.Must(template.New("static_code").Parse(staticCode))
+
+	err := t.Execute(buffer, params)
+	if err != nil {
+		// This is very unlikely to ever happen
+		panic("executing template: " + err.Error())
+	}
+
+	// Clean the ==template== comments from the generated parser
+	lines := strings.Split(buffer.String(), "\n")
+	buffer.Reset()
+	re := regexp.MustCompile(`^\s*//\s*(==template==\s*)+$`)
+	for _, line := range lines {
+		if !re.MatchString(line) {
+			_, err := buffer.WriteString(line + "\n")
+			if err != nil {
+				// This is very unlikely to ever happen
+				panic("unable to write to byte buffer: " + err.Error())
+			}
+		}
+	}
+
+	b.writeln(buffer.String())
 	if b.rangeTable {
-		b.writeln(rangeTable)
+		b.writeln(rangeTable0)
 	}
 }
 
