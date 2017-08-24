@@ -18,6 +18,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strings"
 )
@@ -48,9 +49,9 @@ func detectrepo() string {
 	}
 
 	for _, path := range filepath.SplitList(build.Default.GOPATH) {
-		rightdir := filepath.Join(path, "src", "golang.org", "x")
+		rightdir := filepath.Join(path, "src", "golang.org", "x") + string(os.PathSeparator)
 		if strings.HasPrefix(wd, rightdir) {
-			tail := wd[len(rightdir)+1:]
+			tail := wd[len(rightdir):]
 			end := strings.Index(tail, string(os.PathSeparator))
 			if end > 0 {
 				repo := tail[:end]
@@ -62,13 +63,14 @@ func detectrepo() string {
 	return "go"
 }
 
+var googleSourceRx = regexp.MustCompile(`(?m)^(go|go-review)?\.googlesource.com\b`)
+
 func checkCLA() {
 	slurp, err := ioutil.ReadFile(cookiesFile())
 	if err != nil && !os.IsNotExist(err) {
 		log.Fatal(err)
 	}
-	if bytes.Contains(slurp, []byte("go.googlesource.com")) &&
-		bytes.Contains(slurp, []byte("go-review.googlesource.com")) {
+	if googleSourceRx.Match(slurp) {
 		// Probably good.
 		return
 	}
@@ -145,15 +147,19 @@ func checkGoroot() {
 }
 
 func checkWorkingDir() {
-	if *repo == "go" {
-		if inGoPath() {
-			log.Fatal("You can't work on Go from within your GOPATH. Please checkout Go outside of your GOPATH")
-		}
-		return
-	}
 	wd, err := os.Getwd()
 	if err != nil {
 		log.Fatal(err)
+	}
+	if *repo == "go" {
+		if inGoPath(wd) {
+			log.Fatalf(`You can't work on Go from within your GOPATH. Please checkout Go outside of your GOPATH
+
+Current directory: %s
+GOPATH: %s
+`, wd, os.Getenv("GOPATH"))
+		}
+		return
 	}
 
 	gopath := firstGoPath()
@@ -195,12 +201,7 @@ func exists(path string) (bool, error) {
 	return true, err
 }
 
-func inGoPath() bool {
-	wd, err := os.Getwd()
-	if err != nil {
-		log.Fatal(err)
-	}
-
+func inGoPath(wd string) bool {
 	if os.Getenv("GOPATH") == "" {
 		return false
 	}
@@ -262,7 +263,7 @@ func checkGitCodeReview() {
 		}
 		err := exec.Command("go", "get", "golang.org/x/review/git-codereview").Run()
 		if err != nil {
-			log.Printf("Error running go get golang.org/x/review/git-codereview: %v", cmdErr(err))
+			log.Fatalf("Error running go get golang.org/x/review/git-codereview: %v", cmdErr(err))
 		}
 		log.Printf("Installed git-codereview (ran `go get golang.org/x/review/git-codereview`)")
 	}

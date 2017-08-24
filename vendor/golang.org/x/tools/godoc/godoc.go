@@ -421,9 +421,9 @@ func sanitizeFunc(src string) string {
 }
 
 type PageInfo struct {
-	Dirname string // directory containing the package
-	Err     error  // error or nil
-	Share   bool   // show share button on examples
+	Dirname  string // directory containing the package
+	Err      error  // error or nil
+	GoogleCN bool   // page is being served from golang.google.cn
 
 	Mode PageInfoMode // display metadata from query string
 
@@ -461,16 +461,13 @@ func pkgLinkFunc(path string) string {
 	return "pkg/" + path
 }
 
-// srcToPkgLinkFunc builds an <a> tag linking to
-// the package documentation of relpath.
+// srcToPkgLinkFunc builds an <a> tag linking to the package
+// documentation of relpath.
 func srcToPkgLinkFunc(relpath string) string {
 	relpath = pkgLinkFunc(relpath)
-	if relpath == "pkg/" {
+	relpath = pathpkg.Dir(relpath)
+	if relpath == "pkg" {
 		return `<a href="/pkg">Index</a>`
-	}
-	if i := strings.LastIndex(relpath, "/"); i != -1 {
-		// Remove filename after last slash.
-		relpath = relpath[:i]
 	}
 	return fmt.Sprintf(`<a href="/%s">%s</a>`, relpath, relpath[len("pkg/"):])
 }
@@ -683,8 +680,8 @@ func (p *Presentation) example_htmlFunc(info *PageInfo, funcName string) string 
 
 		err := p.ExampleHTML.Execute(&buf, struct {
 			Name, Doc, Code, Play, Output string
-			Share                         bool
-		}{eg.Name, eg.Doc, code, play, out, info.Share})
+			GoogleCN                      bool
+		}{eg.Name, eg.Doc, code, play, out, info.GoogleCN})
 		if err != nil {
 			log.Print(err)
 		}

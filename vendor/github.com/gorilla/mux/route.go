@@ -488,8 +488,8 @@ func (r *Route) URL(pairs ...string) (*url.URL, error) {
 			return nil, err
 		}
 		scheme = "http"
-		if r.buildScheme != "" {
-			scheme = r.buildScheme
+		if s := r.getBuildScheme(); s != "" {
+			scheme = s
 		}
 	}
 	if r.regexp.path != nil {
@@ -534,8 +534,8 @@ func (r *Route) URLHost(pairs ...string) (*url.URL, error) {
 		Scheme: "http",
 		Host:   host,
 	}
-	if r.buildScheme != "" {
-		u.Scheme = r.buildScheme
+	if s := r.getBuildScheme(); s != "" {
+		u.Scheme = s
 	}
 	return u, nil
 }
@@ -649,9 +649,20 @@ func (r *Route) buildVars(m map[string]string) map[string]string {
 
 // parentRoute allows routes to know about parent host and path definitions.
 type parentRoute interface {
+	getBuildScheme() string
 	getNamedRoutes() map[string]*Route
 	getRegexpGroup() *routeRegexpGroup
 	buildVars(map[string]string) map[string]string
+}
+
+func (r *Route) getBuildScheme() string {
+	if r.buildScheme != "" {
+		return r.buildScheme
+	}
+	if r.parent != nil {
+		return r.parent.getBuildScheme()
+	}
+	return ""
 }
 
 // getNamedRoutes returns the map where named routes are registered.

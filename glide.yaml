@@ -15,5 +15,5 @@ import:
 - package: github.com/dchest/siphash
 - package: gopkg.in/fsnotify.v1
 - package: github.com/ghodss/yaml
-- package: github.com/Sirupsen/logrus
-  version: v0.11.4
+- package: github.com/sirupsen/logrus
+  version: v1.0.3
