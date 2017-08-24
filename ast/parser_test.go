@@ -1034,7 +1034,11 @@ p[x] { x = 1 }
 greeting = "hello" { true }
 cores = [{0: 1}, {1: 2}] { true }
 wrapper = cores[0][1] { true }
-pi = [3, 1, 4, x, y, z] { true }`
+pi = [3, 1, 4, x, y, z] { true }
+foo["bar"] = "buz"
+foo["9"] = "10"
+foo.buz = "bar"
+`
 
 	assertParseModule(t, "rules from bodies", testModule, &Module{
 		Package: MustParseStatement(`package a.b.c`).(*Package),
@@ -1045,6 +1049,9 @@ pi = [3, 1, 4, x, y, z] { true }`
 			MustParseStatement(`cores = [{0: 1}, {1: 2}] { true }`).(*Rule),
 			MustParseStatement(`wrapper = cores[0][1] { true }`).(*Rule),
 			MustParseStatement(`pi = [3, 1, 4, x, y, z] { true }`).(*Rule),
+			MustParseStatement(`foo["bar"] = "buz" { true }`).(*Rule),
+			MustParseStatement(`foo["9"] = "10" { true }`).(*Rule),
+			MustParseStatement(`foo["buz"] = "bar" { true }`).(*Rule),
 		},
 	})
 
@@ -1079,12 +1086,6 @@ data = {"bar": 2} { true }`
     "pi" = 3
     `
 
-	refName := `
-	package a.b.c
-
-	input.x = true
-	`
-
 	withExpr := `
 	package a.b.c
 
@@ -1094,7 +1095,6 @@ data = {"bar": 2} { true }`
 	assertParseModuleError(t, "multiple expressions", multipleExprs)
 	assertParseModuleError(t, "non-equality", nonEquality)
 	assertParseModuleError(t, "non-var name", nonVarName)
-	assertParseModuleError(t, "ref name", refName)
 	assertParseModuleError(t, "with expr", withExpr)
 }
 

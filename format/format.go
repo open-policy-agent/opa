@@ -218,7 +218,9 @@ func (w *writer) writeRule(rule *ast.Rule, comments []*ast.Comment) []*ast.Comme
 	// `foo = {"a": "b"} { true }` in the AST. We want to preserve that notation
 	// in the formatted code instead of expanding the bodies into rules, so we
 	// pretend that the rule has no body in this case.
-	isExpandedConst := rule.Head.DocKind() == ast.CompleteDoc && rule.Body.Equal(ast.NewBody(ast.NewExpr(ast.BooleanTerm(true))))
+	isExpandedConst := (rule.Head.DocKind() == ast.CompleteDoc || rule.Head.DocKind() == ast.PartialObjectDoc) &&
+		rule.Body.Equal(ast.NewBody(ast.NewExpr(ast.BooleanTerm(true))))
+
 	if len(rule.Body) == 0 || isExpandedConst {
 		w.endLine()
 		return comments
@@ -409,7 +411,6 @@ func (w *writer) writeTerm(term *ast.Term, comments []*ast.Comment) []*ast.Comme
 	switch x := term.Value.(type) {
 	case ast.Ref:
 		w.write(x.String())
-		return comments
 	case ast.Object:
 		comments = w.writeObject(x, term.Location, comments)
 	case ast.Array:
@@ -423,9 +424,14 @@ func (w *writer) writeTerm(term *ast.Term, comments []*ast.Comment) []*ast.Comme
 	case *ast.SetComprehension:
 		comments = w.writeSetComprehension(x, term.Location, comments)
 	case ast.String:
-		// To preserve raw strings, we need to output the original text,
-		// not what x.String() would give us.
-		w.write(string(term.Location.Text))
+		if term.Location.Text[0] == '.' {
+			// This string was parsed from a ref, so preserve the value.
+			w.write(`"%s"`, string(x))
+		} else {
+			// To preserve raw strings, we need to output the original text,
+			// not what x.String() would give us.
+			w.write(string(term.Location.Text))
+		}
 	case fmt.Stringer:
 		w.write(x.String())
 	}
