@@ -22,6 +22,16 @@ globals = {
 	"fizz": "buzz",
 }
 
+partial_obj["x"] = 1
+
+partial_obj["y"] = 2
+
+partial_obj["z"] = 3
+
+partial_set["x"]
+
+partial_set["y"]
+
 # Latent comment.
 
 r = y {

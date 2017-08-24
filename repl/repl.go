@@ -762,6 +762,10 @@ func (r *REPL) evalStatement(ctx context.Context, stmt interface{}) error {
 			return err
 		}
 
+		// This will only parse rules from equality expressions that can be
+		// interpreted as rules defining complete docs because rules defining
+		// partial sets/objects would fail to compile above (due to the head of
+		// the ref being unsafe, e.g., p["foo"] = "bar".
 		rule, err3 := ast.ParseRuleFromBody(r.modules[r.currentModuleID], body)
 		if err3 == nil {
 			return r.compileRule(ctx, rule)
