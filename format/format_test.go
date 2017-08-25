@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"io/ioutil"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/open-policy-agent/opa/ast"
@@ -39,8 +40,9 @@ func TestFormatSourceError(t *testing.T) {
 		t.Fatal("Expected parsing error, not nil")
 	}
 
-	exp := "1 error occurred: testfiles/test.rego.error:25: rego_parse_error: no match found, unexpected '{'"
-	if err.Error() != exp {
+	exp := "1 error occurred: testfiles/test.rego.error:27: rego_parse_error: no match found"
+
+	if !strings.HasPrefix(err.Error(), exp) {
 		t.Fatalf("Expected error message '%s', got '%s'", exp, err.Error())
 	}
 }

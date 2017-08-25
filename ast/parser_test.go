@@ -604,11 +604,11 @@ func TestUserFunctions(t *testing.T) {
 		),
 	})
 
-	assertParseErrorEquals(t, "no output", `f() = { "foo" = "bar" }`, "rego_parse_error: no match found, unexpected '='")
-	assertParseErrorEquals(t, "no body", `f() = y`, "rego_parse_error: no match found, unexpected '='")
+	assertParseErrorContains(t, "no output", `f() = { "foo" = "bar" }`, "rego_parse_error: no match found")
+	assertParseErrorContains(t, "no body", `f() = y`, "rego_parse_error: no match found")
+	assertParseErrorContains(t, "unmatched braces", `f(x) = y { trim(x, ".", y) `, "rego_parse_error: no match found")
+	assertParseErrorContains(t, "set input", `f({x}) = y { x = y }`, "rego_parse_error: no match found")
 	assertParseErrorEquals(t, "empty body", `f() = y {}`, "rego_parse_error: body must be non-empty")
-	assertParseErrorEquals(t, "unmatched braces", `f(x) = y { trim(x, ".", y) `, "rego_parse_error: no match found, unexpected '='")
-	assertParseErrorEquals(t, "set input", `f({x}) = y { x = y }`, "rego_parse_error: no match found, unexpected '='")
 }
 
 func TestRule(t *testing.T) {
@@ -1183,9 +1183,9 @@ func TestNoMatchError(t *testing.T) {
 
 	_, err := ParseModule("foo.rego", mod)
 
-	expected := "1 error occurred: foo.rego:3: rego_parse_error: no match found, unexpected '{'"
+	expected := "1 error occurred: foo.rego:5: rego_parse_error: no match found"
 
-	if err.Error() != expected {
+	if !strings.HasPrefix(err.Error(), expected) {
 		t.Fatalf("Bad parse error, expected %v but got: %v", expected, err)
 	}
 
@@ -1240,16 +1240,27 @@ func assertParse(t *testing.T, msg string, input string, correct func([]Statemen
 	correct(p)
 }
 
-// TODO(tsandall): add assertions to check that error message is as expected
 func assertParseError(t *testing.T, msg string, input string) {
-	p, err := ParseStatement(input)
-	if err == nil {
-		t.Errorf("Error on test %s: expected parse error: %v (parsed)", msg, p)
-		return
-	}
+	assertParseErrorFunc(t, msg, input, func(string) {})
+}
+
+func assertParseErrorContains(t *testing.T, msg string, input string, expected string) {
+	assertParseErrorFunc(t, msg, input, func(result string) {
+		if !strings.Contains(result, expected) {
+			t.Errorf("Error on test %s: expected parse error to contain %v but got: %v", msg, expected, result)
+		}
+	})
 }
 
 func assertParseErrorEquals(t *testing.T, msg string, input string, expected string) {
+	assertParseErrorFunc(t, msg, input, func(result string) {
+		if result != expected {
+			t.Errorf("Error on test %s: expected parse error to equal %v but got: %v", msg, expected, result)
+		}
+	})
+}
+
+func assertParseErrorFunc(t *testing.T, msg string, input string, f func(string)) {
 	p, err := ParseStatement(input)
 	if err == nil {
 		t.Errorf("Error on test %s: expected parse error: %v (parsed)", msg, p)
@@ -1259,10 +1270,7 @@ func assertParseErrorEquals(t *testing.T, msg string, input string, expected str
 	// error occurred: <line>:<col>: <message>
 	parts := strings.SplitN(result, ":", 4)
 	result = strings.TrimSpace(parts[len(parts)-1])
-
-	if result != expected {
-		t.Errorf("Error on test %s: expected parse error to equal %v but got: %v", msg, expected, result)
-	}
+	f(result)
 }
 
 func assertParseImport(t *testing.T, msg string, input string, correct *Import) {
