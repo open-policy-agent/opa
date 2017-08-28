@@ -107,8 +107,8 @@ type (
 
 	// Comment contains the raw text from the comment in the definition.
 	Comment struct {
-		Text     []byte
-		Location *Location
+		Text     string    `json:"text"`
+		Location *Location `json:"-"`
 	}
 
 	// Package represents the namespace of the documents produced
@@ -267,7 +267,7 @@ func (mod *Module) RuleSet(name Var) RuleSet {
 }
 
 // NewComment returns a new Comment object.
-func NewComment(text []byte) *Comment {
+func NewComment(text string) *Comment {
 	return &Comment{
 		Text: text,
 	}
@@ -279,7 +279,7 @@ func (c *Comment) Loc() *Location {
 }
 
 func (c *Comment) String() string {
-	return "#" + string(c.Text)
+	return "#" + c.Text
 }
 
 // Compare returns an integer indicating whether pkg is less than, equal to,

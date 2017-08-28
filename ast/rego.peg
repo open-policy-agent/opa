@@ -26,12 +26,12 @@ func currentLocation(c *current) *Location {
     return NewLocation(c.text, c.globalStore[filenameKey].(string), c.pos.line, c.pos.col)
 }
 
-func ifaceSliceToByteSlice(i interface{}) []byte {
+func ifaceSliceToString(i interface{}) string {
     var buf bytes.Buffer
     for _, x := range i.([]interface{}) {
         buf.Write(x.([]byte))
     }
-    return buf.Bytes()
+    return string(buf.Bytes())
 }
 
 func ifacesToBody(i interface{}, a ...interface{}) Body {
@@ -724,7 +724,7 @@ ws "whitespace" <- [ \t\r\n]+
 _ "whitespace" <- ( [ \t\r\n] / Comment )*
 
 Comment <- [ \t]* "#" text:[^\r\n]* {
-    comment := NewComment(ifaceSliceToByteSlice(text))
+    comment := NewComment(ifaceSliceToString(text))
     comment.Location = currentLocation(c)
 
     comments := c.globalStore[commentsKey].([]*Comment)
