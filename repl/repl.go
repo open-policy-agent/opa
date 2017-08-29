@@ -744,21 +744,7 @@ func (r *REPL) evalStatement(ctx context.Context, stmt interface{}) error {
 		}
 
 		body, typeEnv, err := r.compileBody(ctx, s, input)
-
 		if err != nil {
-			// The compile step can fail if input is undefined. In that case,
-			// we still want to allow users to define an input document (e.g.,
-			// "input = { ... }") so try to parse a rule nonetheless.
-			if ast.IsError(ast.InputErr, err) {
-				rule, err2 := ast.ParseRuleFromBody(r.modules[r.currentModuleID], s)
-				if err2 != nil {
-					// The statement cannot be understood as a rule, so the original
-					// error returned from compiling the query should be given the
-					// caller.
-					return err
-				}
-				return r.compileRule(ctx, rule)
-			}
 			return err
 		}
 

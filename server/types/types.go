@@ -72,7 +72,6 @@ const (
 	MsgCompileModuleError         = "error(s) occurred while compiling module(s)"
 	MsgCompileQueryError          = "error(s) occurred while compiling query"
 	MsgEvaluationError            = "error(s) occurred while evaluating query"
-	MsgInputDocError              = "input document is missing or conflicts with query"
 	MsgUnauthorizedUndefinedError = "authorization policy missing or undefined"
 	MsgUnauthorizedError          = "request rejected by administrative policy"
 	MsgUndefinedError             = "document missing or undefined"

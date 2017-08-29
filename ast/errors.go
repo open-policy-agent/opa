@@ -46,10 +46,6 @@ const (
 
 	// RecursionErr indicates recursion was found during compilation.
 	RecursionErr = "rego_recursion_error"
-
-	// InputErr indicates the query depends on input but no input or conflicting
-	// input was provided.
-	InputErr = "rego_input_error"
 )
 
 // IsError returns true if err is an AST error with code.

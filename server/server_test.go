@@ -285,6 +285,9 @@ p = true { false }`
 				"message": "body contains malformed input document: invalid character '@' looking for beginning of value"
 			}`},
 		}},
+		{"post empty object", []tr{
+			tr{http.MethodPost, "/data", `{}`, 200, `{"result": {}}`},
+		}},
 		{"evaluation conflict", []tr{
 			tr{http.MethodPut, "/policies/test", testMod4, 200, ""},
 			tr{http.MethodPost, "/data/testmod/p", "", 500, `{
