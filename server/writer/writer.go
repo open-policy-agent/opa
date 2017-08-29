@@ -9,7 +9,6 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/server/types"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/topdown"
@@ -30,11 +29,6 @@ func ErrorAuto(w http.ResponseWriter, err error) {
 
 	if topdown.IsError(err) {
 		Error(w, http.StatusInternalServerError, types.NewErrorV1(types.CodeInternal, types.MsgEvaluationError).WithError(err))
-		return
-	}
-
-	if ast.IsError(ast.InputErr, err) {
-		Error(w, http.StatusBadRequest, types.NewErrorV1(types.CodeInvalidParameter, types.MsgInputDocError).WithError(err))
 		return
 	}
 

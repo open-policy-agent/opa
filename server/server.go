@@ -1463,8 +1463,6 @@ func getExplain(p []string, zero types.ExplainModeV1) types.ExplainModeV1 {
 	return zero
 }
 
-var errInputPathFormat = fmt.Errorf(`input parameter format is [[<path>]:]<value> where <path> is either var or ref`)
-
 func readInputV0(r io.ReadCloser) (ast.Value, error) {
 
 	bs, err := ioutil.ReadAll(r)
@@ -1513,7 +1511,7 @@ func readInputPostV1(r io.ReadCloser) (ast.Value, error) {
 		}
 
 		if request.Input == nil {
-			return nil, fmt.Errorf(types.MsgInputDocError)
+			return nil, nil
 		}
 
 		return ast.InterfaceToValue(*request.Input)

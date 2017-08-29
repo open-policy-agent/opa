@@ -996,46 +996,6 @@ func (qc *queryCompiler) checkSafety(_ *QueryContext, body Body) (Body, error) {
 	return reordered, nil
 }
 
-// referencesInput returns true if expr refers to the input document. This
-// function will not visit closures.
-func referencesInput(expr *Expr) bool {
-
-	found := false
-
-	vis := NewGenericVisitor(func(x interface{}) bool {
-		if found {
-			return found
-		}
-		switch x := x.(type) {
-		case *ArrayComprehension, *ObjectComprehension, *SetComprehension: // skip closures
-			return true
-		case Ref:
-			if x.HasPrefix(InputRootRef) {
-				found = true
-				return found
-			}
-		}
-		return false
-	})
-
-	Walk(vis, expr)
-
-	return found
-}
-
-// definesInput returns true if expr defines the input document using the with
-// modifier.
-func definesInput(expr *Expr) bool {
-	for _, w := range expr.With {
-		if ref, ok := w.Target.Value.(Ref); ok {
-			if ref.HasPrefix(InputRootRef) {
-				return true
-			}
-		}
-	}
-	return false
-}
-
 func (qc *queryCompiler) checkTypes(qctx *QueryContext, body Body) (Body, error) {
 	var errs Errors
 	checker := newTypeChecker()
