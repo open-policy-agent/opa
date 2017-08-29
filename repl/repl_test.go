@@ -939,6 +939,23 @@ func TestEvalBodyInputComplete(t *testing.T) {
 		t.Fatalf("Expected 1 but got: %v", result)
 	}
 
+	// Test that deferencing undefined input results in undefined
+	buffer.Reset()
+
+	repl = newRepl(store, &buffer)
+	repl.OneShot(ctx, `input.p`)
+	result = buffer.String()
+	if result != "undefined\n" {
+		t.Fatalf("Expected undefined but got: %v", result)
+	}
+
+	buffer.Reset()
+	repl.OneShot(ctx, `input.p = false`)
+	result = buffer.String()
+	if result != "false\n" {
+		t.Fatalf("Expected false but got: %v", result)
+	}
+
 }
 
 func TestEvalBodyWith(t *testing.T) {

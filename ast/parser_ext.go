@@ -116,40 +116,119 @@ func MustParseTerm(input string) *Term {
 	return parsed
 }
 
-// ParseRuleFromBody attempts to return a rule from a body. Equality expressions
-// of the form <var> = <term> can be converted into rules of the form <var> =
-// <term> { true }. This is a concise way of defining constants inside modules.
+// ParseRuleFromBody returns a rule if the body can be interpreted as a rule
+// definition. Otherwise, an error is returned.
 func ParseRuleFromBody(module *Module, body Body) (*Rule, error) {
 
 	if len(body) != 1 {
 		return nil, fmt.Errorf("multiple %vs cannot be used for %v", ExprTypeName, HeadTypeName)
 	}
 
-	expr := body[0]
-
-	if expr.IsEquality() {
-		return parseRuleFromEquality(module, expr)
-	} else if !expr.IsBuiltin() {
-		return parseRuleFromTerm(module, expr.Terms.(*Term))
-	}
-
-	return nil, fmt.Errorf("%vs cannot be used for %v", TypeName(expr), RuleTypeName)
+	return ParseRuleFromExpr(module, body[0])
 }
 
-func parseRuleFromTerm(module *Module, term *Term) (*Rule, error) {
+// ParseRuleFromExpr returns a rule if the expression can be interpreted as a
+// rule definition.
+func ParseRuleFromExpr(module *Module, expr *Expr) (*Rule, error) {
+
+	if len(expr.With) > 0 {
+		return nil, fmt.Errorf("%vs using %v cannot be used for %v", ExprTypeName, WithTypeName, HeadTypeName)
+	}
+
+	if expr.Negated {
+		return nil, fmt.Errorf("negated %v cannot be used for %v", TypeName(expr), RuleTypeName)
+	}
+
+	if !expr.IsBuiltin() {
+		return ParsePartialSetDocRuleFromTerm(module, expr.Terms.(*Term))
+	}
+
+	if !expr.IsEquality() {
+		return nil, fmt.Errorf("%v cannot be used for %v", TypeName(expr), RuleTypeName)
+	}
+
+	lhs, rhs := expr.Operand(0), expr.Operand(1)
+
+	rule, err := ParseCompleteDocRuleFromEqExpr(module, lhs, rhs)
+	if err == nil {
+		return rule, nil
+	}
+
+	return ParsePartialObjectDocRuleFromEqExpr(module, lhs, rhs)
+}
+
+// ParseCompleteDocRuleFromEqExpr returns a rule if the expression can be
+// interpreted as a complete document definition.
+func ParseCompleteDocRuleFromEqExpr(module *Module, lhs, rhs *Term) (*Rule, error) {
+
+	var name Var
+
+	if RootDocumentRefs.Contains(lhs) {
+		name = lhs.Value.(Ref)[0].Value.(Var)
+	} else if v, ok := lhs.Value.(Var); ok {
+		name = v
+	} else {
+		return nil, fmt.Errorf("%v cannot be used for name of %v", TypeName(lhs.Value), RuleTypeName)
+	}
+
+	rule := &Rule{
+		Location: rhs.Location,
+		Head: &Head{
+			Location: rhs.Location,
+			Name:     name,
+			Value:    rhs,
+		},
+		Body: NewBody(
+			NewExpr(BooleanTerm(true).SetLocation(rhs.Location)).SetLocation(rhs.Location),
+		),
+		Module: module,
+	}
+
+	rule.Body[0].Location = rhs.Location
+
+	return rule, nil
+}
+
+// ParsePartialObjectDocRuleFromEqExpr returns a rule if the expression can be
+// interpreted as a partial object document definition.
+func ParsePartialObjectDocRuleFromEqExpr(module *Module, lhs, rhs *Term) (*Rule, error) {
+
+	ref, ok := lhs.Value.(Ref)
+	if !ok || len(ref) != 2 {
+		return nil, fmt.Errorf("%v cannot be used for name of %v", TypeName(lhs.Value), RuleTypeName)
+	}
+
+	name := ref[0].Value.(Var)
+	key := ref[1]
+
+	rule := &Rule{
+		Location: rhs.Location,
+		Head: &Head{
+			Location: rhs.Location,
+			Name:     name,
+			Key:      key,
+			Value:    rhs,
+		},
+		Body: NewBody(
+			NewExpr(BooleanTerm(true).SetLocation(rhs.Location)).SetLocation(rhs.Location),
+		),
+		Module: module,
+	}
+
+	rule.Body[0].Location = rhs.Location
+	return rule, nil
+}
+
+// ParsePartialSetDocRuleFromTerm returns a rule if the term can be interpreted
+// as a partial set document definition.
+func ParsePartialSetDocRuleFromTerm(module *Module, term *Term) (*Rule, error) {
 
 	ref, ok := term.Value.(Ref)
 	if !ok {
 		return nil, fmt.Errorf("%vs cannot be used for %v", TypeName(term.Value), HeadTypeName)
 	}
 
-	var name Var
-	var key *Term
-
-	if v, ok := ref[0].Value.(Var); ok && len(ref) == 2 {
-		name = v
-		key = ref[1]
-	} else {
+	if len(ref) != 2 {
 		return nil, fmt.Errorf("%v cannot be used for %v", RefTypeName, RuleTypeName)
 	}
 
@@ -157,58 +236,14 @@ func parseRuleFromTerm(module *Module, term *Term) (*Rule, error) {
 		Location: term.Location,
 		Head: &Head{
 			Location: term.Location,
-			Name:     name,
-			Key:      key,
+			Name:     ref[0].Value.(Var),
+			Key:      ref[1],
 		},
 		Body: NewBody(
 			NewExpr(BooleanTerm(true).SetLocation(term.Location)).SetLocation(term.Location),
 		),
 		Module: module,
 	}
-
-	return rule, nil
-}
-
-func parseRuleFromEquality(module *Module, expr *Expr) (*Rule, error) {
-
-	if len(expr.With) > 0 {
-		return nil, fmt.Errorf("%vs using %v cannot be used for %v", ExprTypeName, WithTypeName, HeadTypeName)
-	}
-
-	terms := expr.Terms.([]*Term)
-	var name Var
-	var key *Term
-
-	switch v := terms[1].Value.(type) {
-	case Var:
-		name = v
-	case Ref:
-		if v.Equal(InputRootRef) || v.Equal(DefaultRootRef) {
-			name = Var(v.String())
-		} else if n, ok := v[0].Value.(Var); ok && len(v) == 2 {
-			name = n
-			key = v[1]
-		} else {
-			return nil, fmt.Errorf("%v cannot be used for name of %v", RefTypeName, RuleTypeName)
-		}
-	default:
-		return nil, fmt.Errorf("%v cannot be used for name of %v", TypeName(v), RuleTypeName)
-	}
-
-	rule := &Rule{
-		Location: expr.Location,
-		Head: &Head{
-			Location: expr.Location,
-			Name:     name,
-			Key:      key,
-			Value:    terms[2],
-		},
-		Body: NewBody(
-			NewExpr(BooleanTerm(true).SetLocation(expr.Location)).SetLocation(expr.Location),
-		),
-		Module: module,
-	}
-	rule.Body[0].Location = expr.Location
 
 	return rule, nil
 }

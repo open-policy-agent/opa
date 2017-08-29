@@ -1040,6 +1040,8 @@ foo["9"] = "10"
 foo.buz = "bar"
 bar[1]
 bar[[{"foo":"baz"}]]
+input = 1
+data = 2
 `
 
 	assertParseModule(t, "rules from bodies", testModule, &Module{
@@ -1056,6 +1058,8 @@ bar[[{"foo":"baz"}]]
 			MustParseRule(`foo["buz"] = "bar" { true }`),
 			MustParseRule(`bar[1] { true }`),
 			MustParseRule(`bar[[{"foo":"baz"}]] { true }`),
+			MustParseRule(`input = 1 { true }`),
+			MustParseRule(`data = 2 { true }`),
 		},
 	})
 
@@ -1106,12 +1110,24 @@ data = {"bar": 2} { true }`
 
 	p["x"].y`
 
+	negated := `
+	package a.b.c
+
+	not p = 1`
+
+	nonRefTerm := `
+	package a.b.c
+
+	p`
+
 	assertParseModuleError(t, "multiple expressions", multipleExprs)
 	assertParseModuleError(t, "non-equality", nonEquality)
 	assertParseModuleError(t, "non-var name", nonVarName)
 	assertParseModuleError(t, "with expr", withExpr)
 	assertParseModuleError(t, "bad ref (too long)", badRefLen1)
 	assertParseModuleError(t, "bad ref (too long)", badRefLen2)
+	assertParseModuleError(t, "negated", negated)
+	assertParseModuleError(t, "non ref term", nonRefTerm)
 }
 
 func TestWildcards(t *testing.T) {
