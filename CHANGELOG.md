@@ -3,7 +3,21 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## 0.5.6
+
+As part of this release, logrus was revendored to deal with the naming issue. If you use logrus, or one of your other dependencies does (such as Docker), be sure to check out https://github.com/sirupsen/logrus/issues/570#issuecomment-313933276.
+
+### Fixes
+
+- Fix incorrect REPL interpretation of some exprs ([#433](https://github.com/open-policy-agent/opa/issues/433))
+- Fix inaccurate location information in some parser errors ([#214](https://github.com/open-policy-agent/opa/issues/214))
+
+### Miscellaneous
+
+- Add Terraform Testing tutorial to documentation
+- Add shorthand for defining partial documents (e.g., `p[1]` instead of `p[1] { true }`)
+- Add walk built-in function to recursively process nested documents
+- Refactor Policy API response representations based on usage
 
 ## 0.5.5
 
