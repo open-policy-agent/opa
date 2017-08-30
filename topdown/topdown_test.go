@@ -861,56 +861,44 @@ func TestTopDownVarReferences(t *testing.T) {
 func TestTopDownCompositeReferences(t *testing.T) {
 	tests := []struct {
 		note     string
-		ref      string
+		rule     string
 		expected interface{}
 	}{
-		{"array", "data.test.r[[1, 2]]", "[1, 2]"},
-		{"object", `data.test.r[{"foo": "bar"}]`, `{"foo": "bar"}`},
-		{"set", `data.test.r[{1, 2}]`, "[1, 2]"},
+		{"array", "p = fixture.r[[1, 2]]", "[1, 2]"},
+		{"object", `p = fixture.r[{"foo": "bar"}]`, `{"foo": "bar"}`},
+		{"set", `p = fixture.r[{1, 2}]`, "[1, 2]"},
 
-		{"unify array", `data.test.r[[1, x]]`, []string{"[1, 2]", "[1, 3]"}},
-		{"unify object", `data.test.r[{"foo": y}]`, `{"foo": "bar"}`},
+		{"unify array", `p = [x | fixture.r[[1, x]]]`, "[2, 3]"},
+		{"unify object", `p = [x | fixture.r[{"foo": x}]]`, `["bar"]`},
 
-		{"complete doc unify", `data.test.s[[x, y]]`, []string{"[1, 2]", "[1, 3]", "[2, 7]", "[[1,1], 4]"}},
-		{"partial doc unify", `data.test.r[[x, y]]`, []string{"[1, 2]", "[1, 3]", "[2, 7]", "[[1,1], 4]"}},
+		{"complete doc unify", `p = [[x,y] | fixture.s[[x, y]]]`, `[[1, 2], [1, 3], [2, 7], [[1,1], 4]]`},
+		{"partial doc unify", `p = [[x,y] | fixture.r[[x, y]]]`, `[[1, 2], [1, 3], [2, 7], [[1,1], 4]]`},
 
-		{"empty set", `data.test.empty[set()]`, "[]"},
+		{"empty set", `p { fixture.empty[set()]} `, "true"},
 
-		{"ref", `data.test.r[[data.test.foo.bar, 3]]`, "[1,3]"},
-		{"nested ref", `data.test.r[[data.test.foo[data.test.o.foo], 3]]`, "[1,3]"},
+		{"ref", `p = fixture.r[[fixture.foo.bar, 3]]`, "[1,3]"},
+		{"nested ref", `p = fixture.r[[fixture.foo[fixture.o.foo], 3]]`, "[1,3]"},
 
-		{"comprehension", `data.test.s[[[x | x = y[_]; y = [1, 1]], 4]]`, "[[1,1],4]"},
+		{"comprehension", `p = fixture.s[[[x | x = y[_]; y = [1, 1]], 4]]`, "[[1,1],4]"},
 
-		{"missing array", `data.test.r[[1, 4]]`, ``},
-		{"missing object value", `data.test.r[{"foo": "baz"}]`, ``},
-		{"missing set", `data.test.r[{1, 3}]`, ``},
-
-		{"array doc", `data.test.a[[1, 2]]`, errors.New(`rego_type_error: undefined ref: data.test.a[[1, 2]]`)},
-		{"object doc", `data.test.o[[1, 2]]`, errors.New(`rego_type_error: undefined ref: data.test.o[[1, 2]]`)},
-
-		{"base document", `data.a[{0}]`, errors.New("composites cannot be base document keys: data.a[{0}]")},
-		{"missing object key", `data.test.r[{"baz": "bar"}]`, errors.New(`1 error occurred: 1:1: rego_type_error: undefined ref: data.test.r[{"baz": "bar"}]`)},
+		{"missing array", `p = fixture.r[[1, 4]]`, ``},
+		{"missing object value", `p = fixture.r[{"foo": "baz"}]`, ``},
+		{"missing set", `p = fixture.r[{1, 3}]`, ``},
 	}
 
-	mod := `package test
-
+	fixture := `package fixture
 		empty = {set()}
-
 		s = {[1, 2], [1, 3], {"foo": "bar"}, {1, 2}, [2, 7], [[1,1], 4]}
-
 		r[x] { s[x] }
-
 		a = [1, 2]
 		o = {"foo": "bar"}
-
 		foo = {"bar": 1}
-		`
-
-	compiler := ast.NewCompiler()
-	compiler.Compile(map[string]*ast.Module{"test": ast.MustParseModule(mod)})
+	`
 
 	for _, tc := range tests {
-		assertTopDownWithRef(t, compiler, inmem.New(), tc.note, ast.MustParseRef(tc.ref), "", tc.expected)
+		module := "package test\nimport data.fixture\n" + tc.rule
+		compiler := compileModules([]string{fixture, module})
+		assertTopDownWithPath(t, compiler, inmem.New(), tc.note, []string{"test", "p"}, "", tc.expected)
 	}
 }
 
@@ -2784,45 +2772,6 @@ func assertTopDownWithRef(t *testing.T, compiler *ast.Compiler, store storage.St
 			if !reflect.DeepEqual(qrs[0].Result, expected) {
 				t.Errorf("Expected %v but got: %v", expected, qrs[0].Result)
 			}
-		case []string:
-			qrs, err := Query(params)
-
-			if err != nil {
-				t.Fatalf("Unexpected error: %v", err)
-			}
-
-			if len(e) == 0 {
-				if !qrs.Undefined() {
-					t.Fatalf("Expected undefined result but got: %v", qrs)
-				}
-				return
-			}
-
-			if qrs.Undefined() {
-				t.Fatalf("Expected %v but got undefined", e)
-			}
-
-			var expected interface{}
-
-			for i, result := range qrs {
-				if i >= len(e) {
-					t.Errorf("Unexpected result: %v", result.Result)
-					continue
-				}
-
-				// Sort set results so that comparisons are not dependant on order.
-				if rs := compiler.GetRulesExact(ref); len(rs) > 0 && rs[0].Head.DocKind() == ast.PartialSetDoc {
-					sort.Sort(resultSet(result.Result.([]interface{})))
-					expected = parseSortedJSON(e[i])
-				} else {
-					expected = parseJSON(e[i])
-				}
-
-				if !reflect.DeepEqual(result.Result, expected) {
-					t.Errorf("Expected %v but got: %v", expected, result.Result)
-				}
-			}
-
 		}
 	})
 }
