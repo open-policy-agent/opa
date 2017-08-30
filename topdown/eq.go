@@ -125,10 +125,10 @@ func evalEqUnifyArrayRef(t *Topdown, a ast.Array, b ast.Ref, prev *Undo, iter It
 		})
 		prev = p
 		if err != nil {
-			return nil, err
+			return prev, err
 		}
 		if tmp == nil {
-			return nil, nil
+			return prev, nil
 		}
 		t = tmp
 	}
@@ -139,7 +139,7 @@ func evalEqUnifyArrays(t *Topdown, a ast.Array, b ast.Array, prev *Undo, iter It
 	aLen := len(a)
 	bLen := len(b)
 	if aLen != bLen {
-		return nil, nil
+		return prev, nil
 	}
 	for i := 0; i < aLen; i++ {
 		ai := a[i].Value
@@ -151,19 +151,16 @@ func evalEqUnifyArrays(t *Topdown, a ast.Array, b ast.Array, prev *Undo, iter It
 		})
 		prev = p
 		if err != nil {
-			return nil, err
+			return prev, err
 		}
 		if tmp == nil {
-			return nil, nil
+			return prev, nil
 		}
 		t = tmp
 	}
 	return prev, iter(t)
 }
 
-// evalEqUnifyObject attempts to unify the object "a" with some other value "b".
-// TODO(tsandal): unification of object keys (or unordered sets in general) is not
-// supported because it would be too expensive. We may revisit this in the future.
 func evalEqUnifyObject(t *Topdown, a ast.Object, b ast.Value, prev *Undo, iter Iterator) (*Undo, error) {
 	switch b := b.(type) {
 	case ast.Var:
@@ -173,7 +170,7 @@ func evalEqUnifyObject(t *Topdown, a ast.Object, b ast.Value, prev *Undo, iter I
 	case ast.Object:
 		return evalEqUnifyObjects(t, a, b, prev, iter)
 	default:
-		return nil, nil
+		return prev, nil
 	}
 }
 
@@ -209,7 +206,7 @@ func evalEqUnifyObjectRef(t *Topdown, a ast.Object, b ast.Ref, prev *Undo, iter 
 
 		_, ok = obj[string(k)]
 		if !ok {
-			return nil, nil
+			return prev, nil
 		}
 
 		child := make(ast.Ref, len(b), len(b)+1)
@@ -222,10 +219,10 @@ func evalEqUnifyObjectRef(t *Topdown, a ast.Object, b ast.Ref, prev *Undo, iter 
 		})
 		prev = p
 		if err != nil {
-			return nil, err
+			return prev, err
 		}
 		if tmp == nil {
-			return nil, nil
+			return prev, nil
 		}
 		t = tmp
 	}
@@ -235,7 +232,7 @@ func evalEqUnifyObjectRef(t *Topdown, a ast.Object, b ast.Ref, prev *Undo, iter 
 func evalEqUnifyObjects(t *Topdown, a ast.Object, b ast.Object, prev *Undo, iter Iterator) (*Undo, error) {
 
 	if len(a) != len(b) {
-		return nil, nil
+		return prev, nil
 	}
 
 	for i := range a {
@@ -257,7 +254,7 @@ func evalEqUnifyObjects(t *Topdown, a ast.Object, b ast.Object, prev *Undo, iter
 				})
 				prev = p
 				if err != nil {
-					return nil, err
+					return prev, err
 				}
 				if tmp == nil {
 					break
@@ -265,7 +262,7 @@ func evalEqUnifyObjects(t *Topdown, a ast.Object, b ast.Object, prev *Undo, iter
 			}
 		}
 		if tmp == nil {
-			return nil, nil
+			return prev, nil
 		}
 		t = tmp
 	}

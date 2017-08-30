@@ -444,6 +444,72 @@ func TestTopDownEqExpr(t *testing.T) {
 	}
 }
 
+func TestTopDownUndo(t *testing.T) {
+	tests := []struct {
+		note     string
+		rule     string
+		expected interface{}
+	}{
+		{
+			note:     "array-type",
+			rule:     "p[x] { arr = [[1, [2]], [1, null], [2, [2]]]; [x, [2]] = arr[_] }",
+			expected: "[1, 2]",
+		},
+		{
+			note:     "arrays-element",
+			rule:     "p[x] { arr = [[1, 2], [1, null], [2, 2]]; arr[_] = [x, 2] }",
+			expected: "[1, 2]",
+		},
+		{
+			note:     "arrays-length",
+			rule:     "p[x] { arr = [[1, [2]], [1, []], [2, [2]]]; arr[_] = [x, [2]] }",
+			expected: "[1, 2]",
+		},
+		{
+			note:     "array-ref-element",
+			rule:     "p[x] { arr = [[1, 2], data.arr_ref, [2, 2]]; arr[_] = [x, 2] }",
+			expected: "[1, 2]",
+		},
+		{
+			note:     "object-type",
+			rule:     `p[x] { obj = {"a": {"x": 1, "y": {"v": 2}}, "b": {"x": 1, "y": null}, "c": {"x": 2, "y": {"v": 2}}}; {"x": x, "y": {"v": 2}} = obj[_] }`,
+			expected: "[1, 2]",
+		},
+		{
+			note:     "objects-element",
+			rule:     `p[x] { obj = {"a": {"x": 1, "y": 2}, "b": {"x": 1, "y": null}, "c": {"x": 2, "y": 2}}; obj[_] = {"x": x, "y": 2}}`,
+			expected: "[1, 2]",
+		},
+		{
+			note:     "objects-length",
+			rule:     `p[x] { obj = {"a": {"x": 1, "y": {"v": 2}}, "b": {"x": 1, "y": {}}, "c": {"x": 2, "y": {"v": 2}}}; obj[_] = {"x": x, "y": {"v": 2}}}`,
+			expected: "[1, 2]",
+		},
+		{
+			note:     "object-ref-element",
+			rule:     `p[x] { obj = {"a": {"x": 1, "y": 2}, "b": obj_ref, "c": {"x": 2, "y": 2}}; obj[_] = {"x": x, "y": 2}}`,
+			expected: "[1, 2]",
+		},
+		{
+			note:     "object-ref-missing-key",
+			rule:     `p[x] { obj = {"a": {"x": 1, "y": 2}, "b": obj_ref_missing_key, "c": {"x": 2, "y": 2}}; obj[_] = {"x": x, "y": 2}}`,
+			expected: "[1, 2]",
+		},
+	}
+
+	data := util.MustUnmarshalJSON([]byte(`
+		{
+			"arr_ref": [1, null],
+			"obj_ref": {"x": 1, "y": null},
+			"obj_ref_missing_key": {"x": 3, "z": 2}
+		}
+		`)).(map[string]interface{})
+
+	for _, tc := range tests {
+		runTopDownTestCase(t, data, tc.note, []string{tc.rule}, tc.expected)
+	}
+}
+
 func TestTopDownIneqExpr(t *testing.T) {
 
 	tests := []struct {
@@ -870,6 +936,7 @@ func TestTopDownCompositeReferences(t *testing.T) {
 
 		{"unify array", `p = [x | fixture.r[[1, x]]]`, "[2, 3]"},
 		{"unify object", `p = [x | fixture.r[{"foo": x}]]`, `["bar"]`},
+		{"unify partial ground array", `p = [x | fixture.p1[[x,2]]]`, `[1,2]`},
 
 		{"complete doc unify", `p = [[x,y] | fixture.s[[x, y]]]`, `[[1, 2], [1, 3], [2, 7], [[1,1], 4]]`},
 		{"partial doc unify", `p = [[x,y] | fixture.r[[x, y]]]`, `[[1, 2], [1, 3], [2, 7], [[1,1], 4]]`},
@@ -893,6 +960,10 @@ func TestTopDownCompositeReferences(t *testing.T) {
 		a = [1, 2]
 		o = {"foo": "bar"}
 		foo = {"bar": 1}
+
+		p1[[1,2]]
+		p1[[1,3]]
+		p1[[2,2]]
 	`
 
 	for _, tc := range tests {
