@@ -53,24 +53,34 @@ func (tc *typeChecker) CheckBody(env *TypeEnv, body Body) (*TypeEnv, Errors) {
 	}
 
 	WalkExprs(body, func(expr *Expr) bool {
+
+		closureErrs := tc.checkClosures(env, expr)
+		for _, err := range closureErrs {
+			tc.err(err)
+		}
+
+		hasClosureErrors := len(closureErrs) > 0
+
 		vis := newRefChecker(env)
 		Walk(vis, expr)
 		for _, err := range vis.errs {
 			tc.err(err)
 		}
 
-		refErrors := len(vis.errs) > 0
+		hasRefErrors := len(vis.errs) > 0
 
 		if err := tc.checkExpr(env, expr); err != nil {
-			// Suppress errors if another error occurred that is more
-			// actionable. In this case, if there is a ref error and the
-			// expression error is due to a nil type, it's likely caused by
-			// inability to infer a value's type referred to in the expr.
-			if !refErrors || !causedByNilType(err) {
+			// Suppress this error if a more actionable one has occurred. In
+			// this case, if an error occurred in a ref or closure contained in
+			// this expression, and the error is due to a nil type, then it's
+			// likely to be the result of the more specific error.
+			skip := (hasClosureErrors || hasRefErrors) && causedByNilType(err)
+			if !skip {
 				tc.err(err)
 			}
 		}
-		return false
+
+		return true
 	})
 
 	return env, tc.errs
@@ -101,6 +111,34 @@ func (tc *typeChecker) CheckTypes(env *TypeEnv, sorted []util.T) (*TypeEnv, Erro
 	}
 
 	return env, tc.errs
+}
+
+func (tc *typeChecker) checkClosures(env *TypeEnv, expr *Expr) Errors {
+	var result Errors
+	WalkClosures(expr, func(x interface{}) bool {
+		switch x := x.(type) {
+		case *ArrayComprehension:
+			_, errs := newTypeChecker().CheckBody(env, x.Body)
+			if len(errs) > 0 {
+				result = errs
+				return true
+			}
+		case *SetComprehension:
+			_, errs := newTypeChecker().CheckBody(env, x.Body)
+			if len(errs) > 0 {
+				result = errs
+				return true
+			}
+		case *ObjectComprehension:
+			_, errs := newTypeChecker().CheckBody(env, x.Body)
+			if len(errs) > 0 {
+				result = errs
+				return true
+			}
+		}
+		return false
+	})
+	return result
 }
 
 func (tc *typeChecker) checkFunc(env *TypeEnv, fn *Func) {
