@@ -209,14 +209,13 @@ func (tc *typeChecker) checkRule(env *TypeEnv, rule *Rule) {
 				tpe = types.Or(typeV, exist)
 			}
 		case PartialObjectDoc:
-			// TODO(tsandall): partial object keys require 'optional' support
-			// in types.Object. For now, treat partial objects as having
-			// dynamic keys where the value type is constrained.
+			typeK := cpy.Get(rule.Head.Key)
 			typeV := cpy.Get(rule.Head.Value)
-			if typeV != nil {
+			if typeK != nil && typeV != nil {
 				exist := env.tree.Get(path)
 				typeV = types.Or(types.Values(exist), typeV)
-				tpe = types.NewObject(nil, typeV)
+				typeK = types.Or(types.Keys(exist), typeK)
+				tpe = types.NewObject(nil, types.NewDynamicProperty(typeK, typeV))
 			}
 		case PartialSetDoc:
 			typeK := cpy.Get(rule.Head.Key)
@@ -426,16 +425,24 @@ func unify1Array(env *TypeEnv, val Array, tpe *types.Array, inFunc bool) bool {
 }
 
 func unify1Object(env *TypeEnv, val Object, tpe *types.Object, inFunc bool) bool {
-	if len(val) != len(tpe.Keys()) && tpe.Dynamic() == nil {
+	if len(val) != len(tpe.Keys()) && tpe.DynamicValue() == nil {
 		return false
 	}
 	for i := range val {
-		if child := selectConstant(tpe, val[i][0]); child != nil {
-			if !unify1(env, val[i][1], child, inFunc) {
+		if IsConstant(val[i][0].Value) {
+			if child := selectConstant(tpe, val[i][0]); child != nil {
+				if !unify1(env, val[i][1], child, inFunc) {
+					return false
+				}
+			} else {
 				return false
 			}
 		} else {
-			return false
+			// Inferring type of value under dynamic key would involve unioning
+			// with all property values of tpe whose keys unify. For now, type
+			// these values as Any. We can investigate stricter inference in
+			// the future.
+			unify1(env, val[i][1], types.A, inFunc)
 		}
 	}
 	return true
@@ -703,7 +710,7 @@ func unifiesObjects(a, b *types.Object) bool {
 		return false
 	}
 
-	return a.Dynamic() == nil || b.Dynamic() == nil || unifies(a.Dynamic(), b.Dynamic())
+	return a.DynamicValue() == nil || b.DynamicValue() == nil || unifies(a.DynamicValue(), b.DynamicValue())
 }
 
 func unifiesObjectsStatic(a, b *types.Object) bool {

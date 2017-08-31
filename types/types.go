@@ -169,7 +169,7 @@ type StaticProperty struct {
 	Value Type
 }
 
-// NewStaticProperty returns a new Property object.
+// NewStaticProperty returns a new StaticProperty object.
 func NewStaticProperty(key interface{}, value Type) *StaticProperty {
 	return &StaticProperty{
 		Key:   key,
@@ -177,14 +177,32 @@ func NewStaticProperty(key interface{}, value Type) *StaticProperty {
 	}
 }
 
+// DynamicProperty represents a dynamic object property.
+type DynamicProperty struct {
+	Key   Type
+	Value Type
+}
+
+// NewDynamicProperty returns a new DynamicProperty object.
+func NewDynamicProperty(key, value Type) *DynamicProperty {
+	return &DynamicProperty{
+		Key:   key,
+		Value: value,
+	}
+}
+
+func (p *DynamicProperty) String() string {
+	return fmt.Sprintf("%s: %s", Sprint(p.Key), Sprint(p.Value))
+}
+
 // Object represents the object type.
 type Object struct {
 	static  []*StaticProperty // constant properties
-	dynamic Type              // dynamic properties
+	dynamic *DynamicProperty  // dynamic properties
 }
 
 // NewObject returns a new Object type.
-func NewObject(static []*StaticProperty, dynamic Type) *Object {
+func NewObject(static []*StaticProperty, dynamic *DynamicProperty) *Object {
 	sort.Slice(static, func(i, j int) bool {
 		cmp := util.Compare(static[i].Key, static[j].Key)
 		return cmp == -1
@@ -211,9 +229,12 @@ func (t *Object) String() string {
 	return repr
 }
 
-// Dynamic returns the type of the object's dynamic elements.
-func (t *Object) Dynamic() Type {
-	return t.dynamic
+// DynamicValue returns the type of the object's dynamic elements.
+func (t *Object) DynamicValue() Type {
+	if t.dynamic == nil {
+		return nil
+	}
+	return t.dynamic.Value
 }
 
 // Keys returns the keys of the object's static elements.
@@ -233,7 +254,9 @@ func (t *Object) Select(name interface{}) Type {
 		}
 	}
 	if t.dynamic != nil {
-		return t.dynamic
+		if Contains(t.dynamic.Key, TypeOf(name)) {
+			return t.dynamic.Value
+		}
 	}
 	return nil
 }
@@ -343,7 +366,10 @@ func Compare(a, b Type) int {
 			return -1
 		}
 		if objA.dynamic != nil && objB.dynamic != nil {
-			if cmp := Compare(objA.dynamic, objB.dynamic); cmp != 0 {
+			if cmp := Compare(objA.dynamic.Key, objB.dynamic.Key); cmp != 0 {
+				return cmp
+			}
+			if cmp := Compare(objA.dynamic.Value, objB.dynamic.Value); cmp != 0 {
 				return cmp
 			}
 		}
@@ -392,6 +418,14 @@ func Compare(a, b Type) int {
 	default:
 		panic("unreachable")
 	}
+}
+
+// Contains returns true if a is a superset or equal to b.
+func Contains(a, b Type) bool {
+	if any, ok := a.(Any); ok {
+		return any.Contains(b)
+	}
+	return Compare(a, b) == 0
 }
 
 // Or returns a type that represents the union of a and b. If one type is a
@@ -465,7 +499,14 @@ func Keys(a Type) Type {
 	case *Array:
 		return N
 	case *Object:
-		return S
+		var tpe Type
+		for _, k := range a.Keys() {
+			tpe = Or(tpe, TypeOf(k))
+		}
+		if a.dynamic != nil {
+			tpe = Or(tpe, a.dynamic.Key)
+		}
+		return tpe
 	case *Set:
 		return a.of
 	case Any:
@@ -496,7 +537,10 @@ func Values(a Type) Type {
 		for _, v := range a.static {
 			tpe = Or(tpe, v.Value)
 		}
-		return Or(tpe, a.dynamic)
+		if a.dynamic != nil {
+			tpe = Or(tpe, a.dynamic.Value)
+		}
+		return tpe
 	case *Set:
 		return a.of
 	case Any:
@@ -523,11 +567,17 @@ func Nil(a Type) bool {
 				return true
 			}
 		}
+		if a.dynamic != nil {
+			return Nil(a.dynamic)
+		}
 	case *Object:
 		for i := range a.static {
 			if Nil(a.static[i].Value) {
 				return true
 			}
+		}
+		if a.dynamic != nil {
+			return Nil(a.dynamic.Key) || Nil(a.dynamic.Value)
 		}
 	case *Set:
 		return Nil(a.of)

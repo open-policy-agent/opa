@@ -5,8 +5,6 @@
 package ast
 
 import (
-	"encoding/json"
-
 	"github.com/open-policy-agent/opa/types"
 	"github.com/open-policy-agent/opa/util"
 )
@@ -79,17 +77,25 @@ func (env *TypeEnv) Get(x interface{}) types.Type {
 
 	case Object:
 		static := []*types.StaticProperty{}
-		// TODO(tsandall): handle non-string keys?
+		var dynamic *types.DynamicProperty
+
 		for _, pair := range x {
-			if k, ok := pair[0].Value.(String); ok {
+			if IsConstant(pair[0].Value) {
+				k, err := JSON(pair[0].Value)
+				if err != nil {
+					panic("unreachable")
+				}
 				tpe := env.Get(pair[1].Value)
-				static = append(static, types.NewStaticProperty(string(k), tpe))
+				static = append(static, types.NewStaticProperty(k, tpe))
+			} else {
+				typeK := env.Get(pair[0].Value)
+				typeV := env.Get(pair[1].Value)
+				dynamic = types.NewDynamicProperty(typeK, typeV)
 			}
 		}
 
-		var dynamic types.Type
-		if len(static) == 0 {
-			dynamic = types.A
+		if len(static) == 0 && dynamic == nil {
+			dynamic = types.NewDynamicProperty(types.A, types.A)
 		}
 
 		return types.NewObject(static, dynamic)
@@ -113,15 +119,13 @@ func (env *TypeEnv) Get(x interface{}) types.Type {
 		if len(errs) == 0 {
 			return types.NewArray(nil, cpy.Get(x.Term))
 		}
-
 		return nil
 	case *ObjectComprehension:
 		checker := newTypeChecker()
 		cpy, errs := checker.CheckBody(env, x.Body)
 		if len(errs) == 0 {
-			return types.NewObject(nil, cpy.Get(x.Value))
+			return types.NewObject(nil, types.NewDynamicProperty(cpy.Get(x.Key), cpy.Get(x.Value)))
 		}
-
 		return nil
 	case *SetComprehension:
 		checker := newTypeChecker()
@@ -129,7 +133,6 @@ func (env *TypeEnv) Get(x interface{}) types.Type {
 		if len(errs) == 0 {
 			return types.NewSet(cpy.Get(x.Term))
 		}
-
 		return nil
 
 	// Refs.
@@ -218,7 +221,7 @@ func (env *TypeEnv) getRefRecExtent(node *typeTreeNode) types.Type {
 	// TODO(tsandall): for now, these objects can have any dynamic properties
 	// because we don't have schema for base docs. Once schemas are supported
 	// we can improve this.
-	return types.NewObject(children, types.A)
+	return types.NewObject(children, types.NewDynamicProperty(types.S, types.A))
 }
 
 func (env *TypeEnv) wrap() *TypeEnv {
@@ -312,18 +315,11 @@ func (n *typeTreeNode) Value() types.Type {
 // selectConstant returns the attribute of the type referred to by the term. If
 // the attribute type cannot be determined, nil is returned.
 func selectConstant(tpe types.Type, term *Term) types.Type {
-	switch v := term.Value.(type) {
-	case String:
-		return types.Select(tpe, string(v))
-	case Number:
-		return types.Select(tpe, json.Number(v))
-	case Boolean:
-		return types.Select(tpe, bool(v))
-	case Null:
-		return types.Select(tpe, nil)
-	default:
-		return nil
+	x, err := JSON(term.Value)
+	if err == nil {
+		return types.Select(tpe, x)
 	}
+	return nil
 }
 
 // selectRef returns the type of the nested attribute referred to by ref. If
