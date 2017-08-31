@@ -5,6 +5,7 @@
 package ast
 
 import (
+	"encoding/json"
 	"fmt"
 	"reflect"
 	"strings"
@@ -94,6 +95,10 @@ func TestCheckInference(t *testing.T) {
 		{"object-embedded", `{"1": "2", "2": x} = data.foo`, map[Var]types.Type{
 			Var("x"): types.A,
 		}},
+		{"object-numeric-key", `x = {1: 2}; y = 1; x[y]`, map[Var]types.Type{
+			Var("x"): types.NewObject([]*types.StaticProperty{{json.Number("1"), types.N}}, nil),
+			Var("y"): types.N,
+		}},
 		{"sets", `x = {1, 2}; y = {{"foo", 1}, x}`, map[Var]types.Type{
 			Var("x"): types.NewSet(types.N),
 			Var("y"): types.NewSet(
@@ -124,8 +129,8 @@ func TestCheckInference(t *testing.T) {
 				arr = [1];
 				set = {1,2,3}
 				`, map[Var]types.Type{
-			Var("obj"): types.NewObject(nil, types.A),
-			Var("i"):   types.S,
+			Var("obj"): types.NewObject(nil, types.NewDynamicProperty(types.A, types.A)),
+			Var("i"):   types.A,
 			Var("v1"):  types.A,
 			Var("arr"): types.NewArray(nil, types.A),
 			Var("j"):   types.N,
@@ -193,7 +198,7 @@ func TestCheckInference(t *testing.T) {
 			a = [[], {}];
 			a[_][i]
 		`, map[Var]types.Type{
-			Var("i"): types.NewAny(types.S, types.N),
+			Var("i"): types.A,
 		}},
 		{"local-reference-nested", `
 			a = [["foo"], 0, {"bar": "baz"}, 2];
@@ -223,6 +228,10 @@ func TestCheckInference(t *testing.T) {
 		}},
 		{"array-comprehension-var-closure", `x = 1; y = [ i | x = i ]`, map[Var]types.Type{
 			Var("y"): types.NewArray(nil, types.N),
+		}},
+		{"dynamic-object-value", `q = {"a": "b", "c": "d"}; {k: [v]} = {k: [q[k]]}`, map[Var]types.Type{
+			Var("k"): types.S,
+			Var("v"): types.A,
 		}},
 	}
 
@@ -322,12 +331,12 @@ func TestCheckInferenceRules(t *testing.T) {
 
 		{"partial-object-doc", ruleset1, "data.a.partialobj", types.NewObject(
 			nil,
-			types.NewObject(
+			types.NewDynamicProperty(types.S, types.NewObject(
 				[]*types.StaticProperty{{
 					"foo", types.S,
 				}},
 				nil,
-			),
+			)),
 		)},
 
 		{"partial-object-doc-suffix", ruleset1, `data.a.partialobj.somekey.foo`, types.S},
@@ -361,9 +370,7 @@ func TestCheckInferenceRules(t *testing.T) {
 
 		{"disj-partial-obj-doc", ruleset1, "data.disjunction.partialobj", types.NewObject(
 			nil,
-			types.NewAny(
-				types.S,
-				types.N),
+			types.NewDynamicProperty(types.S, types.NewAny(types.S, types.N)),
 		)},
 
 		{"ref", ruleset1, "data.b.trivial_ref", types.B},
@@ -378,13 +385,11 @@ func TestCheckInferenceRules(t *testing.T) {
 		{"prefix", ruleset1, `data.prefix.a.b`, types.NewObject(
 			[]*types.StaticProperty{{
 				"c", types.NewObject(
-					[]*types.StaticProperty{{
-						"d", types.B,
-					}},
-					types.A,
+					[]*types.StaticProperty{{"d", types.B}},
+					types.NewDynamicProperty(types.S, types.A),
 				),
 			}},
-			types.A,
+			types.NewDynamicProperty(types.S, types.A),
 		)},
 
 		// Check that prefixes that iterate fallback to any.

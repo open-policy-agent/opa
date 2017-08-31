@@ -250,7 +250,7 @@ var Count = &Builtin{
 		types.NewAny(
 			types.NewSet(types.A),
 			types.NewArray(nil, types.A),
-			types.NewObject(nil, types.A),
+			types.NewObject(nil, types.NewDynamicProperty(types.A, types.A)),
 			types.S,
 		),
 		types.N,
@@ -552,8 +552,8 @@ var JWTDecode = &Builtin{
 	Name: String("io.jwt.decode"),
 	Args: []types.Type{
 		types.S,
-		types.NewObject(nil, types.A),
-		types.NewObject(nil, types.A),
+		types.NewObject(nil, types.NewDynamicProperty(types.A, types.A)),
+		types.NewObject(nil, types.NewDynamicProperty(types.A, types.A)),
 		types.S,
 	},
 	TargetPos: []int{1, 2, 3},

@@ -11,6 +11,8 @@ import (
 	"github.com/open-policy-agent/opa/util/test"
 )
 
+var dynamicPropertyAnyAny = NewDynamicProperty(A, A)
+
 func TestStrings(t *testing.T) {
 
 	tpe := NewObject([]*StaticProperty{
@@ -26,9 +28,9 @@ func TestStrings(t *testing.T) {
 			}, NewString(),
 		)},
 		{"nil", nil},
-	}, NewNumber())
+	}, NewDynamicProperty(S, N))
 
-	expected := `object<bar: boolean, baz: number, corge: array<any, any<null, string>, set[string]>[string], foo: null, nil: ???, qux: string>[number]`
+	expected := `object<bar: boolean, baz: number, corge: array<any, any<null, string>, set[string]>[string], foo: null, nil: ???, qux: string>[string: number]`
 
 	if tpe.String() != expected {
 		t.Fatalf("Expected %v but got: %v", expected, tpe)
@@ -56,10 +58,10 @@ func TestCompare(t *testing.T) {
 		{NewArray(NewAny(), NewAny()), NewArray(NewAny(), NewString()), 1},
 		{NewArray(NewAny(), NewAny()), NewArray(NewAny(), nil), 1},
 		{NewArray([]Type{NewString()}, nil), NewArray([]Type{NewNumber()}, nil), 1},
-		{NewObject(nil, nil), NewObject(nil, NewAny()), -1},
-		{NewObject(nil, NewAny()), NewObject(nil, nil), 1},
-		{NewObject(nil, NewAny()), NewObject(nil, NewAny()), 0},
-		{NewObject(nil, NewAny()), NewObject(nil, NewAny(NewString(), NewNull())), -1},
+		{NewObject(nil, nil), NewObject(nil, dynamicPropertyAnyAny), -1},
+		{NewObject(nil, dynamicPropertyAnyAny), NewObject(nil, nil), 1},
+		{NewObject(nil, dynamicPropertyAnyAny), NewObject(nil, dynamicPropertyAnyAny), 0},
+		{NewObject(nil, NewDynamicProperty(S, NewAny(NewString(), NewNull()))), NewObject(nil, dynamicPropertyAnyAny), -1},
 		{NewSet(NewNull()), NewSet(NewAny()), -1},
 		{
 			NewObject(
@@ -116,6 +118,25 @@ func TestCompare(t *testing.T) {
 	}
 }
 
+func TestContains(t *testing.T) {
+	tests := []struct {
+		a        Type
+		b        Type
+		expected bool
+	}{
+		{S, S, true},
+		{A, S, true},
+		{NewAny(N, B), S, false},
+		{N, S, false},
+	}
+
+	for _, tc := range tests {
+		if Contains(tc.a, tc.b) != tc.expected {
+			t.Fatalf("Expected Contains(%v, %v) == %v", tc.a, tc.b, tc.expected)
+		}
+	}
+}
+
 func TestOr(t *testing.T) {
 	tests := []struct {
 		a        Type
@@ -158,7 +179,7 @@ func TestSelect(t *testing.T) {
 		{"non int", NewArray([]Type{S, N, B}, nil), json.Number("1.5"), nil},
 		{"non int-2", NewArray([]Type{S, N, B}, nil), 1, nil},
 		{"static", NewObject([]*StaticProperty{NewStaticProperty("hello", S)}, nil), "hello", S},
-		{"dynamic", NewObject([]*StaticProperty{NewStaticProperty("hello", S)}, N), "goodbye", N},
+		{"dynamic", NewObject([]*StaticProperty{NewStaticProperty("hello", S)}, NewDynamicProperty(S, N)), "goodbye", N},
 		{"non exist", NewObject([]*StaticProperty{NewStaticProperty("hello", S)}, nil), "deadbeef", nil},
 		{"non string", NewObject([]*StaticProperty{NewStaticProperty(json.Number("1"), S), NewStaticProperty(json.Number("2"), N)}, nil), json.Number("2"), N},
 		{"member of", NewSet(N), json.Number("2"), N},
@@ -189,7 +210,7 @@ func TestKeys(t *testing.T) {
 		expected Type
 	}{
 		{"array", NewArray(nil, nil), N},
-		{"object", NewObject(nil, nil), S},
+		{"object", NewObject(nil, NewDynamicProperty(S, S)), S},
 		{"set", NewSet(N), N},
 		{"any", NewAny(NewArray(nil, nil), NewSet(S)), NewAny(S, N)},
 		{"any", NewAny(NewArray(nil, nil), S), N},
@@ -219,7 +240,7 @@ func TestValues(t *testing.T) {
 		{"array", NewArray([]Type{N}, nil), N},
 		{"array dynamic", NewArray([]Type{N, S}, B), NewAny(S, N, B)},
 		{"object", NewObject([]*StaticProperty{NewStaticProperty("a", S), NewStaticProperty("b", N)}, nil), NewAny(S, N)},
-		{"object dynamic", NewObject([]*StaticProperty{NewStaticProperty("a", S), NewStaticProperty("b", N)}, B), NewAny(S, N, B)},
+		{"object dynamic", NewObject([]*StaticProperty{NewStaticProperty("a", S), NewStaticProperty("b", N)}, NewDynamicProperty(A, B)), NewAny(S, N, B)},
 		{"set", NewSet(N), N},
 		{"superset", A, A},
 		{"any", NewAny(NewArray(nil, N), S), N},
