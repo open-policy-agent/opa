@@ -26,7 +26,17 @@ func Sprint(x Type) string {
 // Type represents a type of a term in the language.
 type Type interface {
 	String() string
+	typeMarker()
 }
+
+func (Null) typeMarker()    {}
+func (Boolean) typeMarker() {}
+func (Number) typeMarker()  {}
+func (String) typeMarker()  {}
+func (*Array) typeMarker()  {}
+func (*Object) typeMarker() {}
+func (*Set) typeMarker()    {}
+func (Any) typeMarker()     {}
 
 // Null represents the null type.
 type Null struct{}
