@@ -473,6 +473,19 @@ func TestCheckErrorSuppression(t *testing.T) {
 	if !ok {
 		t.Fatalf("Expected ref error but got: %v", errs)
 	}
+
+	query = `_ = [true | count(1)]`
+
+	_, errs = newTypeChecker().CheckBody(newTypeChecker().checkLanguageBuiltins(), MustParseBody(query))
+	if len(errs) != 1 {
+		t.Fatalf("Expected exactly one error but got: %v", errs)
+	}
+
+	_, ok = errs[0].Details.(*ArgErrDetail)
+	if !ok {
+		t.Fatalf("Expected arg error but got: %v", errs)
+	}
+
 }
 
 func TestCheckBadCardinality(t *testing.T) {
