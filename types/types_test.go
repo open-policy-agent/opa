@@ -13,7 +13,7 @@ import (
 
 func TestStrings(t *testing.T) {
 
-	tpe := NewObject([]*Property{
+	tpe := NewObject([]*StaticProperty{
 		{"foo", NewNull()},
 		{"bar", NewBoolean()},
 		{"baz", NewNumber()},
@@ -63,46 +63,46 @@ func TestCompare(t *testing.T) {
 		{NewSet(NewNull()), NewSet(NewAny()), -1},
 		{
 			NewObject(
-				[]*Property{{"foo", NewString()}},
+				[]*StaticProperty{{"foo", NewString()}},
 				nil),
 			NewObject(
-				[]*Property{{"foo", NewString()}, {"bar", NewNumber()}},
-				nil),
-			1,
-		},
-		{
-			NewObject(
-				[]*Property{{"foo", NewString()}, {"bar", NewNumber()}},
-				nil),
-			NewObject(
-				[]*Property{{"foo", NewString()}},
-				nil),
-			-1,
-		},
-		{
-			NewObject(
-				[]*Property{{"foo", NewString()}},
-				nil),
-			NewObject(
-				[]*Property{{"foo", NewNull()}},
+				[]*StaticProperty{{"foo", NewString()}, {"bar", NewNumber()}},
 				nil),
 			1,
 		},
 		{
 			NewObject(
-				[]*Property{{"foo", NewString()}},
+				[]*StaticProperty{{"foo", NewString()}, {"bar", NewNumber()}},
 				nil),
 			NewObject(
-				[]*Property{{"foo", NewString()}, {"foo-2", NewNumber()}},
+				[]*StaticProperty{{"foo", NewString()}},
 				nil),
 			-1,
 		},
 		{
 			NewObject(
-				[]*Property{{"foo", NewString()}, {"foo-2", NewNumber()}},
+				[]*StaticProperty{{"foo", NewString()}},
 				nil),
 			NewObject(
-				[]*Property{{"foo", NewString()}},
+				[]*StaticProperty{{"foo", NewNull()}},
+				nil),
+			1,
+		},
+		{
+			NewObject(
+				[]*StaticProperty{{"foo", NewString()}},
+				nil),
+			NewObject(
+				[]*StaticProperty{{"foo", NewString()}, {"foo-2", NewNumber()}},
+				nil),
+			-1,
+		},
+		{
+			NewObject(
+				[]*StaticProperty{{"foo", NewString()}, {"foo-2", NewNumber()}},
+				nil),
+			NewObject(
+				[]*StaticProperty{{"foo", NewString()}},
 				nil),
 			1,
 		},
@@ -157,10 +157,10 @@ func TestSelect(t *testing.T) {
 		{"out of range", NewArray([]Type{S, N, B}, nil), json.Number("4"), nil},
 		{"non int", NewArray([]Type{S, N, B}, nil), json.Number("1.5"), nil},
 		{"non int-2", NewArray([]Type{S, N, B}, nil), 1, nil},
-		{"static", NewObject([]*Property{NewProperty("hello", S)}, nil), "hello", S},
-		{"dynamic", NewObject([]*Property{NewProperty("hello", S)}, N), "goodbye", N},
-		{"non exist", NewObject([]*Property{NewProperty("hello", S)}, nil), "deadbeef", nil},
-		{"non string", NewObject([]*Property{NewProperty(json.Number("1"), S), NewProperty(json.Number("2"), N)}, nil), json.Number("2"), N},
+		{"static", NewObject([]*StaticProperty{NewStaticProperty("hello", S)}, nil), "hello", S},
+		{"dynamic", NewObject([]*StaticProperty{NewStaticProperty("hello", S)}, N), "goodbye", N},
+		{"non exist", NewObject([]*StaticProperty{NewStaticProperty("hello", S)}, nil), "deadbeef", nil},
+		{"non string", NewObject([]*StaticProperty{NewStaticProperty(json.Number("1"), S), NewStaticProperty(json.Number("2"), N)}, nil), json.Number("2"), N},
 		{"member of", NewSet(N), json.Number("2"), N},
 		{"non exist", NewSet(N), "foo", nil},
 		{"superset", A, A, A},
@@ -218,8 +218,8 @@ func TestValues(t *testing.T) {
 	}{
 		{"array", NewArray([]Type{N}, nil), N},
 		{"array dynamic", NewArray([]Type{N, S}, B), NewAny(S, N, B)},
-		{"object", NewObject([]*Property{NewProperty("a", S), NewProperty("b", N)}, nil), NewAny(S, N)},
-		{"object dynamic", NewObject([]*Property{NewProperty("a", S), NewProperty("b", N)}, B), NewAny(S, N, B)},
+		{"object", NewObject([]*StaticProperty{NewStaticProperty("a", S), NewStaticProperty("b", N)}, nil), NewAny(S, N)},
+		{"object dynamic", NewObject([]*StaticProperty{NewStaticProperty("a", S), NewStaticProperty("b", N)}, B), NewAny(S, N, B)},
 		{"set", NewSet(N), N},
 		{"superset", A, A},
 		{"any", NewAny(NewArray(nil, N), S), N},
@@ -246,8 +246,8 @@ func TestTypeOf(t *testing.T) {
 		},
 	})
 
-	exp := NewObject([]*Property{
-		NewProperty("foo", NewArray(
+	exp := NewObject([]*StaticProperty{
+		NewStaticProperty("foo", NewArray(
 			[]Type{
 				N, B, NewNull(), S,
 			}, nil,
@@ -261,8 +261,8 @@ func TestTypeOf(t *testing.T) {
 
 func TestNil(t *testing.T) {
 
-	tpe := NewObject([]*Property{
-		NewProperty("foo", NewArray(
+	tpe := NewObject([]*StaticProperty{
+		NewStaticProperty("foo", NewArray(
 			[]Type{
 				N, B, NewNull(), S, NewSet(nil),
 			}, nil,

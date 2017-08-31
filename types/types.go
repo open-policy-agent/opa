@@ -153,15 +153,15 @@ func (t *Set) String() string {
 	return prefix + "[" + Sprint(t.of) + "]"
 }
 
-// Property represents a static object property.
-type Property struct {
+// StaticProperty represents a static object property.
+type StaticProperty struct {
 	Key   interface{}
 	Value Type
 }
 
-// NewProperty returns a new Property object.
-func NewProperty(key interface{}, value Type) *Property {
-	return &Property{
+// NewStaticProperty returns a new Property object.
+func NewStaticProperty(key interface{}, value Type) *StaticProperty {
+	return &StaticProperty{
 		Key:   key,
 		Value: value,
 	}
@@ -169,12 +169,12 @@ func NewProperty(key interface{}, value Type) *Property {
 
 // Object represents the object type.
 type Object struct {
-	static  []*Property // constant properties
-	dynamic Type        // dynamic properties
+	static  []*StaticProperty // constant properties
+	dynamic Type              // dynamic properties
 }
 
 // NewObject returns a new Object type.
-func NewObject(static []*Property, dynamic Type) *Object {
+func NewObject(static []*StaticProperty, dynamic Type) *Object {
 	sort.Slice(static, func(i, j int) bool {
 		cmp := util.Compare(static[i].Key, static[j].Key)
 		return cmp == -1
@@ -537,9 +537,9 @@ func TypeOf(x interface{}) Type {
 	case json.Number:
 		return N
 	case map[interface{}]interface{}:
-		static := make([]*Property, 0, len(x))
+		static := make([]*StaticProperty, 0, len(x))
 		for k, v := range x {
-			static = append(static, NewProperty(k, TypeOf(v)))
+			static = append(static, NewStaticProperty(k, TypeOf(v)))
 		}
 		return NewObject(static, nil)
 	case []interface{}:

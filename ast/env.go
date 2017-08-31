@@ -78,12 +78,12 @@ func (env *TypeEnv) Get(x interface{}) types.Type {
 		return types.NewArray(static, dynamic)
 
 	case Object:
-		static := []*types.Property{}
+		static := []*types.StaticProperty{}
 		// TODO(tsandall): handle non-string keys?
 		for _, pair := range x {
 			if k, ok := pair[0].Value.(String); ok {
 				tpe := env.Get(pair[1].Value)
-				static = append(static, types.NewProperty(string(k), tpe))
+				static = append(static, types.NewStaticProperty(string(k), tpe))
 			}
 		}
 
@@ -201,7 +201,7 @@ func (env *TypeEnv) getRefRecExtent(node *typeTreeNode) types.Type {
 		return node.Value()
 	}
 
-	children := []*types.Property{}
+	children := []*types.StaticProperty{}
 
 	node.Children().Iter(func(k, v util.T) bool {
 		key := k.(Value)
@@ -210,7 +210,7 @@ func (env *TypeEnv) getRefRecExtent(node *typeTreeNode) types.Type {
 		tpe := env.getRefRecExtent(child)
 		// TODO(tsandall): handle non-string keys?
 		if s, ok := key.(String); ok {
-			children = append(children, types.NewProperty(string(s), tpe))
+			children = append(children, types.NewStaticProperty(string(s), tpe))
 		}
 		return false
 	})

@@ -33,7 +33,7 @@ func TestCheckInference(t *testing.T) {
 		Name: String("fake_builtin_2"),
 		Args: []types.Type{
 			types.NewObject(
-				[]*types.Property{
+				[]*types.StaticProperty{
 					{"a", types.S},
 					{"b", types.S},
 				}, nil,
@@ -299,7 +299,7 @@ func TestCheckInferenceRules(t *testing.T) {
 
 		{"complete-doc", ruleset1, `data.a.complete`, types.NewArray(
 			[]types.Type{types.NewObject(
-				[]*types.Property{{
+				[]*types.StaticProperty{{
 					"foo", types.N,
 				}},
 				nil,
@@ -313,7 +313,7 @@ func TestCheckInferenceRules(t *testing.T) {
 
 		{"partial-set-doc", ruleset1, `data.a.partialset`, types.NewSet(
 			types.NewObject(
-				[]*types.Property{{
+				[]*types.StaticProperty{{
 					"foo", types.S,
 				}},
 				nil,
@@ -323,7 +323,7 @@ func TestCheckInferenceRules(t *testing.T) {
 		{"partial-object-doc", ruleset1, "data.a.partialobj", types.NewObject(
 			nil,
 			types.NewObject(
-				[]*types.Property{{
+				[]*types.StaticProperty{{
 					"foo", types.S,
 				}},
 				nil,
@@ -376,9 +376,9 @@ func TestCheckInferenceRules(t *testing.T) {
 		)},
 
 		{"prefix", ruleset1, `data.prefix.a.b`, types.NewObject(
-			[]*types.Property{{
+			[]*types.StaticProperty{{
 				"c", types.NewObject(
-					[]*types.Property{{
+					[]*types.StaticProperty{{
 						"d", types.B,
 					}},
 					types.A,
@@ -564,12 +564,12 @@ func TestCheckBuiltinErrors(t *testing.T) {
 		Name: String("fake_builtin_2"),
 		Args: []types.Type{
 			types.NewAny(types.NewObject(
-				[]*types.Property{
+				[]*types.StaticProperty{
 					{"a", types.S},
 					{"b", types.S},
 				}, nil,
 			), types.NewObject(
-				[]*types.Property{
+				[]*types.StaticProperty{
 					{"b", types.S},
 					{"c", types.S},
 				}, nil,
@@ -761,7 +761,7 @@ func TestCheckRefErrInvalid(t *testing.T) {
 			query: `data.test.q[[1, 2]]`,
 			ref:   "data.test.q[[1, 2]]",
 			pos:   3,
-			have:  types.NewObject([]*types.Property{types.NewProperty("bar", types.N), types.NewProperty("foo", types.N)}, nil),
+			have:  types.NewObject([]*types.StaticProperty{types.NewStaticProperty("bar", types.N), types.NewStaticProperty("foo", types.N)}, nil),
 			want:  types.NewSet(types.A),
 		},
 		{
@@ -777,8 +777,8 @@ func TestCheckRefErrInvalid(t *testing.T) {
 			query: `a = {{"a": 2}}; a[{"a": "foo"}]`,
 			ref:   `a[{"a": "foo"}]`,
 			pos:   1,
-			have:  types.NewObject([]*types.Property{types.NewProperty("a", types.S)}, nil),
-			want:  types.NewObject([]*types.Property{types.NewProperty("a", types.N)}, nil),
+			have:  types.NewObject([]*types.StaticProperty{types.NewStaticProperty("a", types.S)}, nil),
+			want:  types.NewObject([]*types.StaticProperty{types.NewStaticProperty("a", types.N)}, nil),
 		},
 	}
 
