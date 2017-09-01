@@ -26,17 +26,18 @@ func Sprint(x Type) string {
 // Type represents a type of a term in the language.
 type Type interface {
 	String() string
-	typeMarker()
+	typeMarker() string
+	json.Marshaler
 }
 
-func (Null) typeMarker()    {}
-func (Boolean) typeMarker() {}
-func (Number) typeMarker()  {}
-func (String) typeMarker()  {}
-func (*Array) typeMarker()  {}
-func (*Object) typeMarker() {}
-func (*Set) typeMarker()    {}
-func (Any) typeMarker()     {}
+func (Null) typeMarker() string    { return "null" }
+func (Boolean) typeMarker() string { return "boolean" }
+func (Number) typeMarker() string  { return "number" }
+func (String) typeMarker() string  { return "string" }
+func (*Array) typeMarker() string  { return "array" }
+func (*Object) typeMarker() string { return "object" }
+func (*Set) typeMarker() string    { return "set" }
+func (Any) typeMarker() string     { return "any" }
 
 // Null represents the null type.
 type Null struct{}
@@ -44,6 +45,13 @@ type Null struct{}
 // NewNull returns a new Null type.
 func NewNull() Null {
 	return Null{}
+}
+
+// MarshalJSON returns the JSON encoding of t.
+func (t Null) MarshalJSON() ([]byte, error) {
+	return json.Marshal(map[string]interface{}{
+		"type": t.typeMarker(),
+	})
 }
 
 func (t Null) String() string {
@@ -61,6 +69,13 @@ func NewBoolean() Boolean {
 	return Boolean{}
 }
 
+// MarshalJSON returns the JSON encoding of t.
+func (t Boolean) MarshalJSON() ([]byte, error) {
+	return json.Marshal(map[string]interface{}{
+		"type": t.typeMarker(),
+	})
+}
+
 func (t Boolean) String() string {
 	return "boolean"
 }
@@ -76,6 +91,13 @@ func NewString() String {
 	return String{}
 }
 
+// MarshalJSON returns the JSON encoding of t.
+func (t String) MarshalJSON() ([]byte, error) {
+	return json.Marshal(map[string]interface{}{
+		"type": t.typeMarker(),
+	})
+}
+
 func (t String) String() string {
 	return "string"
 }
@@ -89,6 +111,13 @@ var N = NewNumber()
 // NewNumber returns a new Number type.
 func NewNumber() Number {
 	return Number{}
+}
+
+// MarshalJSON returns the JSON encoding of t.
+func (t Number) MarshalJSON() ([]byte, error) {
+	return json.Marshal(map[string]interface{}{
+		"type": t.typeMarker(),
+	})
 }
 
 func (Number) String() string {
@@ -107,6 +136,20 @@ func NewArray(static []Type, dynamic Type) *Array {
 		static:  static,
 		dynamic: dynamic,
 	}
+}
+
+// MarshalJSON returns the JSON encoding of t.
+func (t *Array) MarshalJSON() ([]byte, error) {
+	repr := map[string]interface{}{
+		"type": t.typeMarker(),
+	}
+	if len(t.static) != 0 {
+		repr["static"] = t.static
+	}
+	if t.dynamic != nil {
+		repr["dynamic"] = t.dynamic
+	}
+	return json.Marshal(repr)
 }
 
 func (t *Array) String() string {
@@ -158,6 +201,17 @@ func NewSet(of Type) *Set {
 	}
 }
 
+// MarshalJSON returns the JSON encoding of t.
+func (t *Set) MarshalJSON() ([]byte, error) {
+	repr := map[string]interface{}{
+		"type": t.typeMarker(),
+	}
+	if t.of != nil {
+		repr["of"] = t.of
+	}
+	return json.Marshal(repr)
+}
+
 func (t *Set) String() string {
 	prefix := "set"
 	return prefix + "[" + Sprint(t.of) + "]"
@@ -177,6 +231,14 @@ func NewStaticProperty(key interface{}, value Type) *StaticProperty {
 	}
 }
 
+// MarshalJSON returns the JSON encoding of p.
+func (p *StaticProperty) MarshalJSON() ([]byte, error) {
+	return json.Marshal(map[string]interface{}{
+		"key":   p.Key,
+		"value": p.Value,
+	})
+}
+
 // DynamicProperty represents a dynamic object property.
 type DynamicProperty struct {
 	Key   Type
@@ -189,6 +251,14 @@ func NewDynamicProperty(key, value Type) *DynamicProperty {
 		Key:   key,
 		Value: value,
 	}
+}
+
+// MarshalJSON returns the JSON encoding of p.
+func (p *DynamicProperty) MarshalJSON() ([]byte, error) {
+	return json.Marshal(map[string]interface{}{
+		"key":   p.Key,
+		"value": p.Value,
+	})
 }
 
 func (p *DynamicProperty) String() string {
@@ -246,6 +316,20 @@ func (t *Object) Keys() []interface{} {
 	return sl
 }
 
+// MarshalJSON returns the JSON encoding of t.
+func (t *Object) MarshalJSON() ([]byte, error) {
+	repr := map[string]interface{}{
+		"type": t.typeMarker(),
+	}
+	if len(t.static) != 0 {
+		repr["static"] = t.static
+	}
+	if t.dynamic != nil {
+		repr["dynamic"] = t.dynamic
+	}
+	return json.Marshal(repr)
+}
+
 // Select returns the type of the named property.
 func (t *Object) Select(name interface{}) Type {
 	for _, p := range t.static {
@@ -284,6 +368,14 @@ func (t Any) Contains(other Type) bool {
 		}
 	}
 	return len(t) == 0
+}
+
+// MarshalJSON returns the JSON encoding of t.
+func (t Any) MarshalJSON() ([]byte, error) {
+	return json.Marshal(map[string]interface{}{
+		"type": t.typeMarker(),
+		"of":   []Type(t),
+	})
 }
 
 // Merge return a new Any type that is the superset of t and other.

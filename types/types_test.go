@@ -6,8 +6,10 @@ package types
 
 import (
 	"encoding/json"
+	"reflect"
 	"testing"
 
+	"github.com/open-policy-agent/opa/util"
 	"github.com/open-policy-agent/opa/util/test"
 )
 
@@ -292,6 +294,60 @@ func TestNil(t *testing.T) {
 
 	if !Nil(tpe) {
 		t.Fatalf("Expected %v type to be unknown", tpe)
+	}
+
+}
+
+func TestMarshalJSON(t *testing.T) {
+
+	tpe := NewAny(
+		NewObject(
+			[]*StaticProperty{
+				{"foo", N},
+			},
+			NewDynamicProperty(S, NewArray([]Type{NewSet(B)}, N)),
+		),
+	)
+
+	bs, err := json.Marshal(tpe)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	expected := util.MustUnmarshalJSON([]byte(`
+	{
+		"type": "any",
+		"of": [
+			{
+				"type": "object",
+				"static": [
+					{
+						"key": "foo",
+						"value": {"type": "number"}
+					}
+				],
+				"dynamic": {
+					"key": {"type": "string"},
+					"value": {
+						"type": "array",
+						"static": [
+							{
+								"type": "set",
+								"of": {"type": "boolean"}
+							}
+						],
+						"dynamic": {"type": "number"}
+					}
+				}
+			}
+		]
+	}
+	`))
+
+	result := util.MustUnmarshalJSON(bs)
+
+	if !reflect.DeepEqual(expected, result) {
+		t.Fatalf("Expected:\n\n%s\n\nGot:\n\n%s", util.MustMarshalJSON(expected), util.MustMarshalJSON(result))
 	}
 
 }
