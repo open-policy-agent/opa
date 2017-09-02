@@ -609,7 +609,9 @@ func (rc *refChecker) checkRefNext(curr *TypeEnv, ref Ref) *Error {
 	}
 
 	if RootDocumentNames.Contains(ref[0]) {
-		return rc.checkRefLeaf(types.A, ref, 0)
+		// Skip ref head. Type of head should not be inferred from this
+		// descent.
+		return rc.checkRefLeaf(types.A, ref, 1)
 	}
 
 	return newRefErrMissing(ref[0].Location, ref)
