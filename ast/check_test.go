@@ -595,43 +595,23 @@ func TestCheckBuiltinErrors(t *testing.T) {
 		{"objects-any", `fake_builtin_2({"a": a, "c": c})`},
 		{"objects-bad-input", `sum({"a": 1, "b": 2}, x)`},
 		{"sets-any", `sum({1,2,"3",4}, x)`},
+		{"xxx", "data.test.p + data.deadbeef = q"},
 	}
+
+	env := newTestEnv([]string{
+		`p = "foo" { true }`,
+	})
 
 	for _, tc := range tests {
 		test.Subtest(t, tc.note, func(t *testing.T) {
 			body := MustParseBody(tc.query)
 			checker := newTypeChecker()
-			_, err := checker.CheckBody(nil, body)
+			_, err := checker.CheckBody(env, body)
 			if len(err) != 1 {
 				t.Fatalf("Expected exactly one error from %v but got:\n%v", body, err)
 			}
 		})
 	}
-}
-
-func newTestEnv(rs []string) *TypeEnv {
-	module := MustParseModule(`
-		package test
-	`)
-
-	var elems []util.T
-
-	for i := range rs {
-		rule := MustParseRule(rs[i])
-		rule.Module = module
-		elems = append(elems, rule)
-		for next := rule.Else; next != nil; next = next.Else {
-			next.Module = module
-			elems = append(elems, next)
-		}
-	}
-
-	env, err := newTypeChecker().CheckTypes(nil, elems)
-	if len(err) > 0 {
-		panic(err)
-	}
-
-	return env
 }
 
 func TestCheckRefErrUnsupported(t *testing.T) {
@@ -956,4 +936,29 @@ func TestCheckErrorDetails(t *testing.T) {
 			t.Errorf("Expected %v for %v but got: %v", tc.expected, tc.detail, tc.detail.Lines())
 		}
 	}
+}
+
+func newTestEnv(rs []string) *TypeEnv {
+	module := MustParseModule(`
+		package test
+	`)
+
+	var elems []util.T
+
+	for i := range rs {
+		rule := MustParseRule(rs[i])
+		rule.Module = module
+		elems = append(elems, rule)
+		for next := rule.Else; next != nil; next = next.Else {
+			next.Module = module
+			elems = append(elems, next)
+		}
+	}
+
+	env, err := newTypeChecker().CheckTypes(newTypeChecker().checkLanguageBuiltins(), elems)
+	if len(err) > 0 {
+		panic(err)
+	}
+
+	return env
 }

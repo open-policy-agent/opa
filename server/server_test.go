@@ -1296,8 +1296,8 @@ func TestQueryWatch(t *testing.T) {
 		"HTTP/1.1 200 OK\nContent-Type: application/json\nTransfer-Encoding: chunked\n\n7c",
 		`{"result":[{"expressions":[{"value":true,"text":"a=data.z.r+data.x","location":{"row":1,"col":1}}],"bindings":{"a":-200}}]}
 `,
-		`92`,
-		`{"result":null,"error":{"code":"evaluation_error","message":"a=data.z.r+data.x: eval_type_error: plus: operand 1 must be number but got string"}}
+		`d7`,
+		`{"result":null,"error":{"code":"evaluation_error","message":"watch invalidated: 1 error occurred: 1:1: rego_type_error: \"plus\": invalid argument(s)\n\thave: (string, any, ???)\n\twant: (number, number, number)"}}
 `,
 		``,
 	}, "\r\n")
