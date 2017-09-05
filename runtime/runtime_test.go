@@ -17,6 +17,7 @@ import (
 
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/util"
+	"github.com/open-policy-agent/opa/util/test"
 )
 
 func TestEval(t *testing.T) {
@@ -27,8 +28,8 @@ func TestEval(t *testing.T) {
 	params.Eval = `a = b; a = 1; c = 2; c > b`
 	rt := &Runtime{}
 	rt.Start(params)
-	expected := parseJSON(`[{"a": 1, "b": 1, "c": 2}]`)
-	result := parseJSON(buffer.String())
+	expected := util.MustUnmarshalJSON([]byte(`[{"a": 1, "b": 1, "c": 2}]`))
+	result := util.MustUnmarshalJSON(buffer.Bytes())
 	if !reflect.DeepEqual(expected, result) {
 		t.Fatalf("Expected %v but got: %v", expected, result)
 	}
@@ -85,9 +86,12 @@ p = true { 1 = 2 }`
 		return
 	}
 
-	id := normalizeModuleID(tmp2.Name())
+	ids, err := rt.Store.ListPolicies(ctx, txn)
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	result, err := rt.Store.GetPolicy(ctx, txn, id)
+	result, err := rt.Store.GetPolicy(ctx, txn, ids[0])
 	if err != nil || string(result) != mod1 {
 		t.Fatalf("Expected %v but got: %v (err: %v)", mod1, result, err)
 	}
@@ -103,7 +107,7 @@ func TestWatchPaths(t *testing.T) {
 		"/foo", "/foo/bar", "/foo/bar/baz.json",
 	}
 
-	withTempFS(fs, func(rootDir string) {
+	test.WithTempFS(fs, func(rootDir string) {
 		paths, err := getWatchPaths([]string{"prefix:" + rootDir + "/foo"})
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
@@ -127,7 +131,7 @@ func TestRuntimeProcessWatchEvents(t *testing.T) {
 		}`,
 	}
 
-	withTempFS(fs, func(rootDir string) {
+	test.WithTempFS(fs, func(rootDir string) {
 		rt := &Runtime{}
 		paths := []string{rootDir}
 
@@ -172,12 +176,4 @@ func TestRuntimeProcessWatchEvents(t *testing.T) {
 
 		t.Fatalf("Did not see expected change in %v, last value: %v, buf: %v", maxWaitTime, val, buf.String())
 	})
-}
-
-func parseJSON(s string) interface{} {
-	var x interface{}
-	if err := util.UnmarshalJSON([]byte(s), &x); err != nil {
-		panic(err)
-	}
-	return x
 }
