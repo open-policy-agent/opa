@@ -19,8 +19,8 @@ var errLimit int
 
 var checkCommand = &cobra.Command{
 	Use:   "check",
-	Short: "Check policies for errors",
-	Long: `Check that policy source files can be parsed and compiled.
+	Short: "Check Rego source files",
+	Long: `Check Rego source files for parse and compilation errors.
 
 If the 'check' command succeeds in parsing and compiling the source file(s), no output
 is produced. If the parsing or compiling fails, 'check' will output the errors
