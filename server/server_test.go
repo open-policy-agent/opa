@@ -26,6 +26,7 @@ import (
 	"github.com/open-policy-agent/opa/storage/inmem"
 	"github.com/open-policy-agent/opa/util"
 	"github.com/open-policy-agent/opa/util/test"
+	"github.com/pkg/errors"
 )
 
 var policyDir string
@@ -36,6 +37,11 @@ type tr struct {
 	body   string
 	code   int
 	resp   string
+}
+
+type trw struct {
+	tr   tr
+	wait chan struct{}
 }
 
 func TestDataV0(t *testing.T) {
@@ -1103,13 +1109,8 @@ func TestPoliciesPathSlashes(t *testing.T) {
 	}
 }
 
-func TestQueryWatch(t *testing.T) {
+func TestQueryWatchBasic(t *testing.T) {
 	f := newFixture(t)
-
-	type trw struct {
-		tr   tr
-		wait chan struct{}
-	}
 
 	// Test basic watch results.
 	exp := strings.Join([]string{
@@ -1154,6 +1155,11 @@ func TestQueryWatch(t *testing.T) {
 	if result := recorder.buf.String(); result != exp {
 		t.Fatalf("Expected stream to equal %s, got %s", exp, result)
 	}
+}
+
+func TestQueryWatchConcurrent(t *testing.T) {
+
+	f := newFixture(t)
 
 	// Test two watches at once, one with a virtual document as a dependency.
 	// Print the second in pretty format.
@@ -1193,6 +1199,7 @@ func TestQueryWatch(t *testing.T) {
 	r1, r2 := newMockConn(), newMockConn()
 
 	setup := []tr{
+		{http.MethodPut, "/data/x", `7`, 204, ""},
 		{http.MethodPut, "/policies/foo", "package z\nr = y { y = data.a }", 200, ""},
 		{http.MethodPut, "/data/y", `"foo"`, 204, ""},
 		{http.MethodPut, "/data/a", `5`, 204, ""},
@@ -1213,7 +1220,7 @@ func TestQueryWatch(t *testing.T) {
 	<-r2.hijacked
 	<-r2.write
 
-	tests = []trw{
+	tests := []trw{
 		{tr{http.MethodPut, "/data/a", `6`, 204, ""}, r1.write},
 		{tr{http.MethodPut, "/data/a", `7`, 204, ""}, r1.write},
 		{tr{http.MethodPut, "/data/y", `"bar"`, 204, ""}, r2.write},
@@ -1242,8 +1249,28 @@ func TestQueryWatch(t *testing.T) {
 		t.Fatalf("Expected stream to equal %s, got %s", exp2, result)
 	}
 
+}
+
+func TestQueryWatchMigrate(t *testing.T) {
+
+	f := newFixture(t)
+
+	testPolicy := `
+		package z
+
+		r = y { y = data.a }
+	`
+
+	if err := f.v1TestRequests([]tr{
+		{http.MethodPut, "/data/x", "7", 204, ""},
+		{http.MethodPut, "/data/a", "10", 204, ""},
+		{http.MethodPut, "/policies/foo", testPolicy, 200, ""},
+	}); err != nil {
+		t.Fatal(err)
+	}
+
 	// Test migrating to a new compiler.
-	exp = strings.Join([]string{
+	exp := strings.Join([]string{
 		"HTTP/1.1 200 OK\nContent-Type: application/json\nTransfer-Encoding: chunked\n\n7a",
 		`{"result":[{"expressions":[{"value":true,"text":"a=data.z.r+data.x","location":{"row":1,"col":1}}],"bindings":{"a":17}}]}
 `,
@@ -1258,9 +1285,9 @@ func TestQueryWatch(t *testing.T) {
 `,
 		``,
 	}, "\r\n")
-	recorder = newMockConn()
+	recorder := newMockConn()
 
-	get = newReqV1(http.MethodGet, `/query?q=a=data.z.r%2Bdata.x&watch`, "")
+	get := newReqV1(http.MethodGet, `/query?q=a=data.z.r%2Bdata.x&watch`, "")
 	go f.server.Handler.ServeHTTP(recorder, get)
 	<-recorder.hijacked
 	<-recorder.write
@@ -1270,7 +1297,7 @@ func TestQueryWatch(t *testing.T) {
 	}
 	<-recorder.write
 
-	tests = []trw{
+	tests := []trw{
 		{tr{http.MethodPut, "/data/x", `100`, 204, ""}, recorder.write},
 		{tr{http.MethodPut, "/data/x", `-100`, 204, ""}, recorder.write},
 	}
@@ -1290,15 +1317,34 @@ func TestQueryWatch(t *testing.T) {
 	if result := recorder.buf.String(); result != exp {
 		t.Fatalf("Expected stream to equal %s, got %s", exp, result)
 	}
+}
+
+func TestQueryWatchMigrateInvalidate(t *testing.T) {
+
+	f := newFixture(t)
+
+	testPolicy := `
+		package z
+
+		r = y { y = data.x }
+	`
+
+	if err := f.v1TestRequests([]tr{
+		{http.MethodPut, "/data/x", "-100", 204, ""},
+		{http.MethodPut, "/policies/foo", testPolicy, 200, ""},
+	}); err != nil {
+		t.Fatal(err)
+	}
 
 	// Test migrating to a new compiler that invalidates a query watch.
-	exp = strings.Join([]string{
+	exp := strings.Join([]string{
 		"HTTP/1.1 200 OK\nContent-Type: application/json\nTransfer-Encoding: chunked\n\n7c",
 		`{"result":[{"expressions":[{"value":true,"text":"a=data.z.r+data.x","location":{"row":1,"col":1}}],"bindings":{"a":-200}}]}
 `,
 		`d7`,
 		`{"result":null,"error":{"code":"evaluation_error","message":"watch invalidated: 1 error occurred: 1:1: rego_type_error: \"plus\": invalid argument(s)\n\thave: (string, any, ???)\n\twant: (number, number, number)"}}
 `,
+		`0`,
 		``,
 	}, "\r\n")
 
@@ -1306,8 +1352,8 @@ func TestQueryWatch(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	recorder = newMockConn()
-	get = newReqV1(http.MethodGet, `/query?q=a=data.z.r%2Bdata.x&watch`, "")
+	recorder := newMockConn()
+	get := newReqV1(http.MethodGet, `/query?q=a=data.z.r%2Bdata.x&watch`, "")
 	go f.server.Handler.ServeHTTP(recorder, get)
 	<-recorder.hijacked
 	<-recorder.write
@@ -1316,6 +1362,7 @@ func TestQueryWatch(t *testing.T) {
 		t.Fatal(err)
 	}
 	<-recorder.write
+	<-recorder.write // 2nd read will consume the flush call made by the server.
 	recorder.Close()
 
 	if result := recorder.buf.String(); result != exp {
@@ -2052,6 +2099,15 @@ func (f *fixture) loadResponse() interface{} {
 		panic(err)
 	}
 	return v
+}
+
+func (f *fixture) v1TestRequests(trs []tr) error {
+	for i, tr := range trs {
+		if err := f.v1(tr.method, tr.path, tr.body, tr.code, tr.resp); err != nil {
+			return errors.Wrapf(err, "error on test request #%d", i+1)
+		}
+	}
+	return nil
 }
 
 func (f *fixture) v1(method string, path string, body string, code int, resp string) error {
