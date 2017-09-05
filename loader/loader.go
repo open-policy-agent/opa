@@ -1,8 +1,9 @@
-// Copyright 2016 The OPA Authors.  All rights reserved.
+// Copyright 2017 The OPA Authors.  All rights reserved.
 // Use of this source code is governed by an Apache2
 // license that can be found in the LICENSE file.
 
-package runtime
+// Package loader contains utilities for loading files into OPA.
+package loader
 
 import (
 	"bytes"
@@ -18,86 +19,99 @@ import (
 	"github.com/pkg/errors"
 )
 
-type loaderErrors []error
+// RegoExt declares the standard extension for Rego source files.
+const RegoExt = ".rego"
 
-func (e loaderErrors) Error() string {
-	if len(e) == 0 {
-		return "no error(s)"
-	}
-	if len(e) == 1 {
-		return "1 error occurred during loading: " + e[0].Error()
-	}
-	buf := make([]string, len(e))
-	for i := range buf {
-		buf[i] = e[i].Error()
-	}
-	return fmt.Sprintf("%v errors occured during loading:\n", len(e)) + strings.Join(buf, "\n")
-}
-
-func (e *loaderErrors) Add(err error) {
-	*e = append(*e, err)
-}
-
-type loaded struct {
+// Result represents the result of successfully loading zero or more files.
+type Result struct {
 	Documents map[string]interface{}
-	Modules   map[string]*LoadedModule
+	Modules   map[string]*RegoFile
 	path      []string
 }
 
-// LoadedModule represents a module that has been successfully loaded.
-type LoadedModule struct {
+// RegoFile represents the result of loading a single Rego source file.
+type RegoFile struct {
+	Name   string
 	Parsed *ast.Module
 	Raw    []byte
 }
 
-func newLoaded() *loaded {
-	return &loaded{
-		Documents: map[string]interface{}{},
-		Modules:   map[string]*LoadedModule{},
+// All returns a Result object loaded (recursively) from the specified paths.
+func All(paths []string) (*Result, error) {
+	return all(paths, func(curr *Result, path string) error {
+		result, err := loadFile(path)
+		if err != nil {
+			return err
+		}
+		return curr.merge(path, result)
+	})
+}
+
+// AllRegos returns a Result object loaded (recursively) with all Rego source
+// files from the specified paths.
+func AllRegos(paths []string) (*Result, error) {
+	return all(paths, func(curr *Result, path string) error {
+		if !strings.HasSuffix(path, RegoExt) {
+			return nil
+		}
+		result, err := Rego(path)
+		if err != nil {
+			return err
+		}
+		return curr.merge(path, result)
+	})
+}
+
+// Rego returns a RegoFile object loaded from the given path.
+func Rego(path string) (*RegoFile, error) {
+	bs, err := ioutil.ReadFile(path)
+	if err != nil {
+		return nil, err
 	}
-}
-
-func (l *loaded) WithParent(p string) *loaded {
-	path := append(l.path, p)
-	return &loaded{
-		Documents: l.Documents,
-		Modules:   l.Modules,
-		path:      path,
+	module, err := ast.ParseModule(path, string(bs))
+	if err != nil {
+		return nil, err
 	}
+	if module == nil {
+		return nil, emptyModuleError(path)
+	}
+	result := &RegoFile{
+		Name:   path,
+		Parsed: module,
+		Raw:    bs,
+	}
+	return result, nil
 }
 
-type unsupportedDocumentType string
-
-func (path unsupportedDocumentType) Error() string {
-	return string(path) + ": bad document type"
+// Paths returns a sorted list of files contained at path. If recurse is true
+// and path is a directory, then Paths will walk the directory structure
+// recursively and list files at each level.
+func Paths(path string, recurse bool) (paths []string, err error) {
+	err = filepath.Walk(path, func(f string, info os.FileInfo, err error) error {
+		if !recurse {
+			if path != f && path != filepath.Dir(f) {
+				return filepath.SkipDir
+			}
+		}
+		paths = append(paths, f)
+		return nil
+	})
+	return paths, err
 }
 
-type unrecognizedFile string
-
-func (path unrecognizedFile) Error() string {
-	return string(path) + ": can't recognize file type"
+// SplitPrefix returns a tuple specifying the document prefix and the file
+// path.
+func SplitPrefix(path string) ([]string, string) {
+	parts := strings.SplitN(path, ":", 2)
+	if len(parts) == 2 && len(parts[0]) > 0 {
+		return strings.Split(parts[0], "."), parts[1]
+	}
+	return nil, path
 }
 
-func isUnrecognizedFile(err error) bool {
-	_, ok := err.(unrecognizedFile)
-	return ok
-}
-
-type mergeError string
-
-func (e mergeError) Error() string {
-	return string(e) + ": merge error"
-}
-
-type emptyModuleError string
-
-func (e emptyModuleError) Error() string {
-	return string(e) + ": empty policy"
-}
-
-func (l *loaded) Merge(path string, result interface{}) error {
+func (l *Result) merge(path string, result interface{}) error {
 	switch result := result.(type) {
-	case *LoadedModule:
+	case *RegoFile:
 		l.Modules[normalizeModuleID(path)] = result
 	default:
 		obj, ok := makeDir(l.path, result)
@@ -115,18 +129,26 @@ func (l *loaded) Merge(path string, result interface{}) error {
 	return nil
 }
 
-func loadAllPaths(paths []string) (*loaded, error) {
+func (l *Result) withParent(p string) *Result {
+	path := append(l.path, p)
+	return &Result{
+		Documents: l.Documents,
+		Modules:   l.Modules,
+		path:      path,
+	}
+}
 
-	root := newLoaded()
+func all(paths []string, f func(*Result, string) error) (*Result, error) {
 	errors := loaderErrors{}
+	root := newResult()
 
 	for _, path := range paths {
 
 		loaded := root
-		prefix, path := splitPathPrefix(path)
+		prefix, path := SplitPrefix(path)
 		if len(prefix) > 0 {
 			for _, part := range prefix {
-				loaded = loaded.WithParent(part)
+				loaded = loaded.withParent(part)
 			}
 		}
 
@@ -137,17 +159,14 @@ func loadAllPaths(paths []string) (*loaded, error) {
 		}
 
 		if info.IsDir() {
-			loadDirRecursive(&errors, path, loaded.WithParent(info.Name()))
+			loadDirRecursive(&errors, path, loaded.withParent(info.Name()))
 		} else {
-			result, err := loadFile(path)
+			err := f(loaded, path)
 			if err != nil {
 				errors.Add(err)
-			} else {
-				if err := loaded.Merge(path, result); err != nil {
-					errors.Add(err)
-				}
 			}
 		}
+
 	}
 
 	if len(errors) > 0 {
@@ -156,8 +175,7 @@ func loadAllPaths(paths []string) (*loaded, error) {
 
 	return root, nil
 }
-
-func loadDirRecursive(errors *loaderErrors, dirPath string, loaded *loaded) {
+func loadDirRecursive(errors *loaderErrors, dirPath string, loaded *Result) {
 	files, err := ioutil.ReadDir(dirPath)
 	if err != nil {
 		errors.Add(err)
@@ -170,7 +188,7 @@ func loadDirRecursive(errors *loaderErrors, dirPath string, loaded *loaded) {
 			errors.Add(err)
 		} else {
 			if info.IsDir() {
-				loadDirRecursive(errors, filePath, loaded.WithParent(info.Name()))
+				loadDirRecursive(errors, filePath, loaded.withParent(info.Name()))
 			} else {
 				result, err := loadFileForKnownTypes(filePath)
 				if err != nil {
@@ -178,7 +196,7 @@ func loadDirRecursive(errors *loaderErrors, dirPath string, loaded *loaded) {
 						errors.Add(err)
 					}
 				} else {
-					if err := loaded.Merge(filePath, result); err != nil {
+					if err := loaded.merge(filePath, result); err != nil {
 						errors.Add(err)
 					}
 				}
@@ -192,7 +210,7 @@ func loadFileForKnownTypes(path string) (interface{}, error) {
 	case ".json":
 		return jsonLoad(path)
 	case ".rego":
-		return RegoLoad(path)
+		return Rego(path)
 	case ".yaml", ".yml":
 		return yamlLoad(path)
 	}
@@ -200,7 +218,7 @@ func loadFileForKnownTypes(path string) (interface{}, error) {
 }
 
 func loadFileForAnyType(path string) (interface{}, error) {
-	module, err := RegoLoad(path)
+	module, err := Rego(path)
 	if err == nil {
 		return module, nil
 	}
@@ -240,26 +258,6 @@ func jsonLoad(path string) (interface{}, error) {
 	return x, nil
 }
 
-// RegoLoad loads and parses a rego source file.
-func RegoLoad(path string) (*LoadedModule, error) {
-	bs, err := ioutil.ReadFile(path)
-	if err != nil {
-		return nil, err
-	}
-	module, err := ast.ParseModule(path, string(bs))
-	if err != nil {
-		return nil, err
-	}
-	if module == nil {
-		return nil, emptyModuleError(path)
-	}
-	result := &LoadedModule{
-		Parsed: module,
-		Raw:    bs,
-	}
-	return result, nil
-}
-
 func yamlLoad(path string) (interface{}, error) {
 	bs, err := ioutil.ReadFile(path)
 	if err != nil {
@@ -287,16 +285,6 @@ func normalizeModuleID(x string) string {
 	return strings.Trim(x, "/")
 }
 
-func splitPathPrefix(path string) ([]string, string) {
-	parts := strings.SplitN(path, ":", 2)
-	if len(parts) == 2 && len(parts[0]) > 0 {
-		return strings.Split(parts[0], "."), parts[1]
-	}
-	return nil, path
-}
-
-// unmarshalYAML re-implements yaml.Unmarshal so that the JSON decoder can have
-// UseNumber set.
 func unmarshalYAML(y []byte, o interface{}) error {
 	bs, err := yaml.YAMLToJSON(y)
 	if err != nil {

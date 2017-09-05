@@ -1,12 +1,10 @@
-// Copyright 2016 The OPA Authors.  All rights reserved.
+// Copyright 2017 The OPA Authors.  All rights reserved.
 // Use of this source code is governed by an Apache2
 // license that can be found in the LICENSE file.
 
-package runtime
+package loader
 
 import (
-	"io/ioutil"
-	"os"
 	"path/filepath"
 	"reflect"
 	"sort"
@@ -15,6 +13,8 @@ import (
 
 	"github.com/ghodss/yaml"
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/util"
+	"github.com/open-policy-agent/opa/util/test"
 )
 
 func TestLoadJSON(t *testing.T) {
@@ -23,9 +23,9 @@ func TestLoadJSON(t *testing.T) {
 		"/foo.json": `{"a": [1,2,3]}`,
 	}
 
-	withTempFS(files, func(rootDir string) {
+	test.WithTempFS(files, func(rootDir string) {
 
-		loaded, err := loadAllPaths([]string{filepath.Join(rootDir, "foo.json")})
+		loaded, err := All([]string{filepath.Join(rootDir, "foo.json")})
 
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
@@ -46,9 +46,9 @@ func TestLoadRego(t *testing.T) {
 
 p = true { true }`}
 
-	withTempFS(files, func(rootDir string) {
+	test.WithTempFS(files, func(rootDir string) {
 		moduleFile := filepath.Join(rootDir, "foo.rego")
-		loaded, err := loadAllPaths([]string{moduleFile})
+		loaded, err := All([]string{moduleFile})
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
@@ -73,9 +73,9 @@ func TestLoadYAML(t *testing.T) {
         `,
 	}
 
-	withTempFS(files, func(rootDir string) {
+	test.WithTempFS(files, func(rootDir string) {
 		yamlFile := filepath.Join(rootDir, "foo.yml")
-		loaded, err := loadAllPaths([]string{yamlFile})
+		loaded, err := All([]string{yamlFile})
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
@@ -93,9 +93,9 @@ func TestLoadGuessYAML(t *testing.T) {
         a: b
         `,
 	}
-	withTempFS(files, func(rootDir string) {
+	test.WithTempFS(files, func(rootDir string) {
 		yamlFile := filepath.Join(rootDir, "foo")
-		loaded, err := loadAllPaths([]string{yamlFile})
+		loaded, err := All([]string{yamlFile})
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
@@ -118,8 +118,8 @@ func TestLoadDirRecursive(t *testing.T) {
 		"/foo":          `{"zzz": "b"}`,
 	}
 
-	withTempFS(files, func(rootDir string) {
-		loaded, err := loadAllPaths(mustListPaths(rootDir, false)[1:])
+	test.WithTempFS(files, func(rootDir string) {
+		loaded, err := All(mustListPaths(rootDir, false)[1:])
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
@@ -159,13 +159,13 @@ func TestLoadRooted(t *testing.T) {
 		"/baz/qux.json": "null",
 	}
 
-	withTempFS(files, func(rootDir string) {
+	test.WithTempFS(files, func(rootDir string) {
 		paths := mustListPaths(rootDir, false)[1:]
 		sort.Strings(paths)
 		paths[0] = "one.two:" + paths[0]
 		paths[1] = "three:" + paths[1]
 		paths[2] = "four:" + paths[2]
-		loaded, err := loadAllPaths(paths)
+		loaded, err := All(paths)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
@@ -190,10 +190,10 @@ func TestLoadErrors(t *testing.T) {
 		`,
 		"/bad_doc.json": "[1,2,3]",
 	}
-	withTempFS(files, func(rootDir string) {
+	test.WithTempFS(files, func(rootDir string) {
 		paths := mustListPaths(rootDir, false)[1:]
 		sort.Strings(paths)
-		_, err := loadAllPaths(paths)
+		_, err := All(paths)
 		if err == nil {
 			t.Fatalf("Expected failure")
 		}
@@ -214,59 +214,33 @@ func TestLoadErrors(t *testing.T) {
 	})
 }
 
-func withTempFS(files map[string]string, f func(string)) {
-	rootDir, cleanup, err := makeTempFS(files)
-	if err != nil {
-		panic(err)
-	}
-	defer cleanup()
-	f(rootDir)
-}
-
-// makeTempFS creates a temporary directory structure for test purposes. If the
-// creation fails, cleanup is nil and the caller does not have to invoke it. If
-// creation succeeds, the caller should invoke cleanup when they are done.
-func makeTempFS(files map[string]string) (rootDir string, cleanup func(), err error) {
-
-	rootDir, err = ioutil.TempDir("", "loader_test")
-
-	if err != nil {
-		return "", nil, err
+func TestLoadRegos(t *testing.T) {
+	files := map[string]string{
+		"/x.rego": `
+			package x
+			p = true
+			`,
+		"/y.reg": `
+			package x
+			p = true { # syntax error missing }
+		`,
+		"/z.rego": `
+			package x
+			q = true
+		`,
 	}
 
-	cleanup = func() {
-		os.RemoveAll(rootDir)
-	}
-
-	skipCleanup := false
-
-	// Cleanup unless flag is unset. It will be unset if we succeed.
-	defer func() {
-		if !skipCleanup {
-			cleanup()
-		}
-	}()
-
-	for path, content := range files {
-		dirname, filename := filepath.Split(path)
-		dirPath := filepath.Join(rootDir, dirname)
-		if err := os.MkdirAll(dirPath, 0777); err != nil {
-			return "", nil, err
-		}
-
-		f, err := os.Create(filepath.Join(dirPath, filename))
+	test.WithTempFS(files, func(rootDir string) {
+		paths := mustListPaths(rootDir, false)[1:]
+		sort.Strings(paths)
+		result, err := AllRegos(paths)
 		if err != nil {
-			return "", nil, err
+			t.Fatal(err)
 		}
-
-		if _, err := f.WriteString(content); err != nil {
-			return "", nil, err
+		if len(result.Modules) != 2 {
+			t.Fatalf("Expected exactly two modules but found: %v", result)
 		}
-	}
-
-	skipCleanup = true
-
-	return rootDir, cleanup, nil
+	})
 }
 
 func parseYAML(s string) interface{} {
@@ -277,8 +251,12 @@ func parseYAML(s string) interface{} {
 	return x
 }
 
+func parseJSON(x string) interface{} {
+	return util.MustUnmarshalJSON([]byte(x))
+}
+
 func mustListPaths(path string, recurse bool) (paths []string) {
-	paths, err := listPaths(path, recurse)
+	paths, err := Paths(path, recurse)
 	if err != nil {
 		panic(err)
 	}

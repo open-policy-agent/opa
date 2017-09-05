@@ -15,9 +15,8 @@ import (
 
 	fsnotify "gopkg.in/fsnotify.v1"
 
-	"path/filepath"
-
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/loader"
 	"github.com/open-policy-agent/opa/repl"
 	"github.com/open-policy-agent/opa/server"
 	"github.com/open-policy-agent/opa/storage"
@@ -127,7 +126,7 @@ func (rt *Runtime) Start(params *Params) {
 func (rt *Runtime) init(ctx context.Context, params *Params) error {
 
 	paths := params.Paths
-	loaded, err := loadAllPaths(paths)
+	loaded, err := loader.All(paths)
 	if err != nil {
 		return err
 	}
@@ -256,7 +255,7 @@ func (rt *Runtime) readWatcher(ctx context.Context, watcher *fsnotify.Watcher, p
 
 func (rt *Runtime) processWatcherUpdate(ctx context.Context, paths []string) error {
 
-	loaded, err := loadAllPaths(paths)
+	loaded, err := loader.All(paths)
 	if err != nil {
 		return err
 	}
@@ -287,7 +286,7 @@ func (rt *Runtime) getBanner() string {
 	return buf.String()
 }
 
-func compileAndStoreInputs(ctx context.Context, store storage.Store, txn storage.Transaction, modules map[string]*LoadedModule, params *Params) error {
+func compileAndStoreInputs(ctx context.Context, store storage.Store, txn storage.Transaction, modules map[string]*loader.RegoFile, params *Params) error {
 
 	policies := make(map[string]*ast.Module, len(modules))
 
@@ -339,8 +338,8 @@ func getWatchPaths(rootPaths []string) ([]string, error) {
 
 	for _, path := range rootPaths {
 
-		_, path = splitPathPrefix(path)
-		result, err := listPaths(path, true)
+		_, path = loader.SplitPrefix(path)
+		result, err := loader.Paths(path, true)
 		if err != nil {
 			return nil, err
 		}
@@ -349,22 +348,6 @@ func getWatchPaths(rootPaths []string) ([]string, error) {
 	}
 
 	return paths, nil
-}
-
-// listPaths returns a sorted list of files contained at path. If recurse is
-// true and path is a directory, then listPaths will walk the directory
-// structure recursively and list files at each level.
-func listPaths(path string, recurse bool) (paths []string, err error) {
-	err = filepath.Walk(path, func(f string, info os.FileInfo, err error) error {
-		if !recurse {
-			if path != f && path != filepath.Dir(f) {
-				return filepath.SkipDir
-			}
-		}
-		paths = append(paths, f)
-		return nil
-	})
-	return paths, err
 }
 
 func onReloadLogger(d time.Duration, err error) {

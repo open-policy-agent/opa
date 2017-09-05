@@ -7,10 +7,9 @@ package cmd
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 
 	"github.com/open-policy-agent/opa/ast"
-	"github.com/open-policy-agent/opa/runtime"
+	"github.com/open-policy-agent/opa/loader"
 
 	"github.com/spf13/cobra"
 )
@@ -31,45 +30,29 @@ and exit with a non-zero exit code.`,
 }
 
 func checkModules(args []string) int {
-	var errors []string
-	modules := map[string]*ast.Module{}
-	checkModule := func(filename string, info os.FileInfo, err error) error {
-		if info.IsDir() {
-			return nil
-		}
 
-		if filepath.Ext(filename) != ".rego" {
-			return nil
-		}
-
-		loaded, err := runtime.RegoLoad(filename)
-		if err != nil {
-			errors = append(errors, err.Error())
-			return nil
-		}
-
-		modules[filename] = loaded.Parsed
-		return nil
-	}
-
-	for _, filename := range args {
-		if err := filepath.Walk(filename, checkModule); err != nil {
-			fmt.Fprintln(os.Stderr, err.Error())
-			return 2
-		}
-	}
-
-	if len(errors) == 0 {
-		c := ast.NewCompiler().SetErrorLimit(errLimit)
-		if c.Compile(modules); c.Failed() {
-			errors = append(errors, c.Errors.Error())
-		}
-	}
-
-	for _, err := range errors {
+	result, err := loader.AllRegos(args)
+	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
+		return 1
 	}
-	return len(errors)
+
+	modules := map[string]*ast.Module{}
+
+	for _, m := range result.Modules {
+		modules[m.Name] = m.Parsed
+	}
+
+	compiler := ast.NewCompiler().SetErrorLimit(errLimit)
+
+	if compiler.Compile(modules); compiler.Failed() {
+		for _, err := range compiler.Errors {
+			fmt.Fprintln(os.Stderr, err)
+		}
+		return 1
+	}
+
+	return 0
 }
 
 func init() {
