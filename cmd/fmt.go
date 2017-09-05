@@ -28,8 +28,8 @@ var (
 
 var formatCommand = &cobra.Command{
 	Use:   "fmt",
-	Short: "Format Rego source code",
-	Long: `Format Rego source code.
+	Short: "Format Rego source files",
+	Long: `Format Rego source files.
 
 The 'fmt' command takes a Rego source file and outputs a reformatted version.
 The format of the output is not defined specifically; whatever this tool outputs
