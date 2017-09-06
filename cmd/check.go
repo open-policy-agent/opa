@@ -10,7 +10,6 @@ import (
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/loader"
-
 	"github.com/spf13/cobra"
 )
 
@@ -56,6 +55,6 @@ func checkModules(args []string) int {
 }
 
 func init() {
-	checkCommand.Flags().IntVarP(&errLimit, "max-errors", "m", ast.CompileErrorLimitDefault, "set the number of errors to allow before compilation fails early")
+	setMaxErrors(checkCommand.Flags(), &errLimit)
 	RootCommand.AddCommand(checkCommand)
 }
