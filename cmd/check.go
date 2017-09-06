@@ -13,6 +13,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var checkParams = struct {
+	errLimit int
+}{}
+
 var errLimit int
 
 var checkCommand = &cobra.Command{
@@ -42,7 +46,7 @@ func checkModules(args []string) int {
 		modules[m.Name] = m.Parsed
 	}
 
-	compiler := ast.NewCompiler().SetErrorLimit(errLimit)
+	compiler := ast.NewCompiler().SetErrorLimit(checkParams.errLimit)
 
 	if compiler.Compile(modules); compiler.Failed() {
 		for _, err := range compiler.Errors {
@@ -55,6 +59,6 @@ func checkModules(args []string) int {
 }
 
 func init() {
-	setMaxErrors(checkCommand.Flags(), &errLimit)
+	setMaxErrors(checkCommand.Flags(), &checkParams.errLimit)
 	RootCommand.AddCommand(checkCommand)
 }

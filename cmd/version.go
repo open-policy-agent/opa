@@ -11,18 +11,19 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var versionCommand = &cobra.Command{
-	Use:   "version",
-	Short: "Print the version of OPA",
-	Long:  "Show version and build information for OPA.",
-	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("Version: " + version.Version)
-		fmt.Println("Build Commit: " + version.Vcs)
-		fmt.Println("Build Timestamp: " + version.Timestamp)
-		fmt.Println("Build Hostname: " + version.Hostname)
-	},
-}
-
 func init() {
+
+	var versionCommand = &cobra.Command{
+		Use:   "version",
+		Short: "Print the version of OPA",
+		Long:  "Show version and build information for OPA.",
+		Run: func(cmd *cobra.Command, args []string) {
+			fmt.Println("Version: " + version.Version)
+			fmt.Println("Build Commit: " + version.Vcs)
+			fmt.Println("Build Timestamp: " + version.Timestamp)
+			fmt.Println("Build Hostname: " + version.Hostname)
+		},
+	}
+
 	RootCommand.AddCommand(versionCommand)
 }

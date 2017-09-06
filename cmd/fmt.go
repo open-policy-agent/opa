@@ -20,11 +20,11 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var (
+var fmtParams = struct {
 	overwrite bool
 	list      bool
 	diff      bool
-)
+}{}
 
 var formatCommand = &cobra.Command{
 	Use:   "fmt",
@@ -94,12 +94,12 @@ func formatFile(filename string, info os.FileInfo, err error) error {
 	}
 
 	var out io.Writer = os.Stdout
-	if list {
+	if fmtParams.list {
 		fmt.Fprintln(out, filename)
 		out = ioutil.Discard
 	}
 
-	if diff {
+	if fmtParams.diff {
 		stdout, stderr, err := doDiff(contents, formatted)
 		if err != nil && stdout.Len() == 0 {
 			fmt.Fprintln(os.Stderr, stderr.String())
@@ -112,7 +112,7 @@ func formatFile(filename string, info os.FileInfo, err error) error {
 		out = ioutil.Discard
 	}
 
-	if overwrite {
+	if fmtParams.overwrite {
 		backupName := filename + ".bak"
 		if _, err := os.Stat(backupName); err == nil || !os.IsNotExist(err) {
 			backupName, err = requestBackupName(backupName)
@@ -203,8 +203,8 @@ func newError(msg string, a ...interface{}) fmtError {
 }
 
 func init() {
-	formatCommand.Flags().BoolVarP(&overwrite, "write", "w", false, "overwrite the original source file")
-	formatCommand.Flags().BoolVarP(&list, "list", "l", false, "list all files who would change when formatted")
-	formatCommand.Flags().BoolVarP(&diff, "diff", "d", false, "only display a diff of the changes")
+	formatCommand.Flags().BoolVarP(&fmtParams.overwrite, "write", "w", false, "overwrite the original source file")
+	formatCommand.Flags().BoolVarP(&fmtParams.list, "list", "l", false, "list all files who would change when formatted")
+	formatCommand.Flags().BoolVarP(&fmtParams.diff, "diff", "d", false, "only display a diff of the changes")
 	RootCommand.AddCommand(formatCommand)
 }
