@@ -3,7 +3,17 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## 0.5.7
+
+This release adds a new `test` subcommand to OPA. The `test` subcommand enables policy unit testing. The unit tests are expressed as rules containing assertions over test data. The `test` subcommand provides a test runner that automatically discovers and executes these test rules. See `opa test --help` for examples.
+
+### Fixes
+
+- Fix type error marshalling bug ([#391](https://github.com/open-policy-agent/opa/issues/391))
+- Fix type inference bug ([#381](https://github.com/open-policy-agent/opa/issues/381))
+- Fix unification bug ([#436](https://github.com/open-policy-agent/opa/issues/436))
+- Fix type inferecen bug for partial objects with non-string keys ([#440](https://github.com/open-policy-agent/opa/issues/440))
+- Suppress match errors if closures contained errors ([#438](https://github.com/open-policy-agent/opa/issues/438))
 
 ## 0.5.6
 
