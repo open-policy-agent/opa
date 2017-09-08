@@ -563,7 +563,7 @@ Like [Rules](#rules), comprehensions consist of a head and a body. The body of a
 The body of a comprehension is able to refer to variables defined in the outer body. For example:
 
 ```ruby
-> region = "west", names = [name | sites[i].region = region, sites[i].name = name]
+> region = "west"; names = [name | sites[i].region = region; sites[i].name = name]
 +-----------------+--------+
 |      names      | region |
 +-----------------+--------+
