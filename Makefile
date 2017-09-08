@@ -65,12 +65,15 @@ image-quick:
 
 push:
 	docker push $(IMAGE):$(VERSION)
+	docker push $(IMAGE):$(VERSION)-alpine
 
 tag-latest:
 	docker tag $(IMAGE):$(VERSION) $(IMAGE):latest
+	docker tag $(IMAGE):$(VERSION)-alpine $(IMAGE):latest-alpine
 
 push-latest:
 	docker push $(IMAGE):latest
+	docker push $(IMAGE):latest-alpine
 
 install: generate
 	$(DISABLE_CGO) $(GO) install -ldflags $(LDFLAGS)
