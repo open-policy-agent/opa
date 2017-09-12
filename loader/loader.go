@@ -68,19 +68,7 @@ func Rego(path string) (*RegoFile, error) {
 	if err != nil {
 		return nil, err
 	}
-	module, err := ast.ParseModule(path, string(bs))
-	if err != nil {
-		return nil, err
-	}
-	if module == nil {
-		return nil, emptyModuleError(path)
-	}
-	result := &RegoFile{
-		Name:   path,
-		Parsed: module,
-		Raw:    bs,
-	}
-	return result, nil
+	return loadRego(path, bs)
 }
 
 // Paths returns a sorted list of files contained at path. If recurse is true
@@ -190,43 +178,49 @@ func loadDirRecursive(errors *loaderErrors, dirPath string, loaded *Result) {
 			if info.IsDir() {
 				loadDirRecursive(errors, filePath, loaded.withParent(info.Name()))
 			} else {
-				result, err := loadFileForKnownTypes(filePath)
+				bs, err := ioutil.ReadFile(filePath)
 				if err != nil {
-					if _, ok := err.(unrecognizedFile); !ok {
-						errors.Add(err)
-					}
+					errors.Add(err)
 				} else {
-					if err := loaded.merge(filePath, result); err != nil {
-						errors.Add(err)
+					result, err := loadKnownTypes(filePath, bs)
+					if err != nil {
+						if _, ok := err.(unrecognizedFile); !ok {
+							errors.Add(err)
+						}
+					} else {
+						if err := loaded.merge(filePath, result); err != nil {
+							errors.Add(err)
+						}
 					}
+
 				}
 			}
 		}
 	}
 }
 
-func loadFileForKnownTypes(path string) (interface{}, error) {
+func loadKnownTypes(path string, bs []byte) (interface{}, error) {
 	switch filepath.Ext(path) {
 	case ".json":
-		return jsonLoad(path)
+		return loadJSON(path, bs)
 	case ".rego":
 		return Rego(path)
 	case ".yaml", ".yml":
-		return yamlLoad(path)
+		return loadYAML(path, bs)
 	}
 	return nil, unrecognizedFile(path)
 }
 
-func loadFileForAnyType(path string) (interface{}, error) {
-	module, err := Rego(path)
+func loadFileForAnyType(path string, bs []byte) (interface{}, error) {
+	module, err := loadRego(path, bs)
 	if err == nil {
 		return module, nil
 	}
-	doc, err := jsonLoad(path)
+	doc, err := loadJSON(path, bs)
 	if err == nil {
 		return doc, nil
 	}
-	doc, err = yamlLoad(path)
+	doc, err = loadYAML(path, bs)
 	if err == nil {
 		return doc, nil
 	}
@@ -234,40 +228,52 @@ func loadFileForAnyType(path string) (interface{}, error) {
 }
 
 func loadFile(path string) (interface{}, error) {
-	result, err := loadFileForKnownTypes(path)
+	bs, err := ioutil.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	result, err := loadKnownTypes(path, bs)
 	if err != nil {
 		if isUnrecognizedFile(err) {
-			return loadFileForAnyType(path)
+			return loadFileForAnyType(path, bs)
 		}
 		return nil, err
 	}
 	return result, nil
 }
 
-func jsonLoad(path string) (interface{}, error) {
-	f, err := os.Open(path)
+func loadRego(path string, bs []byte) (*RegoFile, error) {
+	module, err := ast.ParseModule(path, string(bs))
 	if err != nil {
-		return nil, errors.Wrapf(err, path)
+		return nil, err
 	}
-	defer f.Close()
-	decoder := util.NewJSONDecoder(f)
+	if module == nil {
+		return nil, emptyModuleError(path)
+	}
+	result := &RegoFile{
+		Name:   path,
+		Parsed: module,
+		Raw:    bs,
+	}
+	return result, nil
+}
+
+func loadJSON(path string, bs []byte) (interface{}, error) {
+	buf := bytes.NewBuffer(bs)
+	decoder := util.NewJSONDecoder(buf)
 	var x interface{}
-	if err = decoder.Decode(&x); err != nil {
-		return nil, errors.Wrapf(err, path)
+	if err := decoder.Decode(&x); err != nil {
+		return nil, errors.Wrap(err, path)
 	}
 	return x, nil
 }
 
-func yamlLoad(path string) (interface{}, error) {
-	bs, err := ioutil.ReadFile(path)
+func loadYAML(path string, bs []byte) (interface{}, error) {
+	bs, err := yaml.YAMLToJSON(bs)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%v: error converting YAML to JSON: %v", path, err)
 	}
-	var x interface{}
-	if err := unmarshalYAML(bs, &x); err != nil {
-		return nil, errors.Wrapf(err, path)
-	}
-	return x, nil
+	return loadJSON(path, bs)
 }
 
 func makeDir(path []string, x interface{}) (map[string]interface{}, bool) {
@@ -283,14 +289,4 @@ func makeDir(path []string, x interface{}) (map[string]interface{}, bool) {
 
 func normalizeModuleID(x string) string {
 	return strings.Trim(x, "/")
-}
-
-func unmarshalYAML(y []byte, o interface{}) error {
-	bs, err := yaml.YAMLToJSON(y)
-	if err != nil {
-		return fmt.Errorf("error converting YAML to JSON: %v", err)
-	}
-	buf := bytes.NewBuffer(bs)
-	decoder := util.NewJSONDecoder(buf)
-	return decoder.Decode(o)
 }
