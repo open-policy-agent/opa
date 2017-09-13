@@ -334,27 +334,42 @@ func (term *Term) Vars() VarSet {
 
 // IsConstant returns true if the AST value is constant.
 func IsConstant(v Value) bool {
-	switch v := v.(type) {
-	case Var, Ref, *ArrayComprehension, *ObjectComprehension, *SetComprehension:
-		return false
-	case Array:
-		for i := 0; i < len(v); i++ {
-			if !IsConstant(v[i].Value) {
-				return false
+	found := false
+	Walk(&GenericVisitor{
+		func(x interface{}) bool {
+			switch x.(type) {
+			case Var, Ref, *ArrayComprehension, *ObjectComprehension, *SetComprehension:
+				found = true
+				return true
 			}
+			return false
+		},
+	}, v)
+	return !found
+}
+
+// ContainsRefs returns true if the Value v contains refs.
+func ContainsRefs(v interface{}) bool {
+	found := false
+	WalkRefs(v, func(r Ref) bool {
+		found = true
+		return found
+	})
+	return found
+}
+
+// ContainsComprehensions returns true if the Value v contains comprehensions.
+func ContainsComprehensions(v interface{}) bool {
+	found := false
+	WalkClosures(v, func(x interface{}) bool {
+		switch x.(type) {
+		case *ArrayComprehension, *ObjectComprehension, *SetComprehension:
+			found = true
+			return found
 		}
-	case Object:
-		for i := 0; i < len(v); i++ {
-			if !IsConstant(v[i][0].Value) || !IsConstant(v[i][1].Value) {
-				return false
-			}
-		}
-	case *Set:
-		return !v.Iter(func(t *Term) bool {
-			return !IsConstant(t.Value)
-		})
-	}
-	return true
+		return found
+	})
+	return found
 }
 
 // IsScalar returns true if the AST value is a scalar.
