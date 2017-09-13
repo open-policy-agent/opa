@@ -267,6 +267,22 @@ func TransformRefs(x interface{}, f func(Ref) (Value, error)) (interface{}, erro
 	return Transform(t, x)
 }
 
+// TransformComprehensions calls the functio nf on all comprehensions under x.
+func TransformComprehensions(x interface{}, f func(interface{}) (Value, error)) (interface{}, error) {
+	t := &GenericTransformer{func(x interface{}) (interface{}, error) {
+		switch x := x.(type) {
+		case *ArrayComprehension:
+			return f(x)
+		case *SetComprehension:
+			return f(x)
+		case *ObjectComprehension:
+			return f(x)
+		}
+		return x, nil
+	}}
+	return Transform(t, x)
+}
+
 // GenericTransformer implements the Transformer interface to provide a utility
 // to transform AST nodes using a closure.
 type GenericTransformer struct {

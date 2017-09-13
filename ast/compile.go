@@ -218,6 +218,7 @@ func NewCompiler() *Compiler {
 		c.setRuleTree,
 		c.setFuncTree,
 		c.setGraph,
+		c.rewriteComprehensionTerms,
 		c.rewriteRefsInHead,
 		c.checkWithModifiers,
 		c.checkRuleConflicts,
@@ -819,6 +820,18 @@ func (c *Compiler) resolveAllRefs() {
 	}
 }
 
+func (c *Compiler) rewriteComprehensionTerms() {
+	for _, mod := range c.Modules {
+		f := newEqualityFactory(newLocalVarGenerator(mod))
+		rewriteComprehensionTerms(f, mod)
+		if vs, ok := c.generatedVars[mod]; !ok {
+			c.generatedVars[mod] = f.gen.Generated()
+		} else {
+			vs.Update(f.gen.Generated())
+		}
+	}
+}
+
 // rewriteTermsInHead will rewrite rules so that the head does not contain any
 // terms that require evaluation (e.g., refs or comprehensions). If the key or
 // value contains or more of these terms, the key or value will be moved into
@@ -834,61 +847,25 @@ func (c *Compiler) resolveAllRefs() {
 // p[__local0__] { i < 100; __local0__ = {"foo": data.foo[i]} }
 func (c *Compiler) rewriteRefsInHead() {
 	for _, mod := range c.Modules {
-		generator := newLocalVarGenerator(mod)
+		f := newEqualityFactory(newLocalVarGenerator(mod))
 		WalkRules(mod, func(rule *Rule) bool {
-			if rule.Head.Key != nil {
-				found := false
-				vis := NewGenericVisitor(func(x interface{}) bool {
-					if found {
-						return true
-					}
-					switch x.(type) {
-					case Ref, *ArrayComprehension, *ObjectComprehension, *SetComprehension:
-						found = true
-						return true
-					}
-					return false
-				})
-				Walk(vis, rule.Head.Key)
-				if found {
-					// Replace rule key with generated var
-					key := rule.Head.Key
-					local := generator.Generate()
-					term := &Term{Value: local}
-					rule.Head.Key = term
-					expr := Equality.Expr(term, key)
-					expr.Location = rule.Loc()
-					rule.Body.Append(expr)
-				}
+			if requiresEval(rule.Head.Key) {
+				expr := f.Generate(rule.Head.Key)
+				rule.Head.Key = expr.Operand(0)
+				rule.Body.Append(expr)
 			}
-			if rule.Head.Value != nil {
-				found := false
-				vis := NewGenericVisitor(func(x interface{}) bool {
-					if found {
-						return true
-					}
-					switch x.(type) {
-					case Ref, *ArrayComprehension, *ObjectComprehension, *SetComprehension:
-						found = true
-						return true
-					}
-					return false
-				})
-				Walk(vis, rule.Head.Value)
-				if found {
-					// Replace rule value with generated var
-					value := rule.Head.Value
-					local := generator.Generate()
-					term := &Term{Value: local}
-					rule.Head.Value = term
-					expr := Equality.Expr(term, value)
-					expr.Location = rule.Loc()
-					rule.Body.Append(expr)
-				}
+			if requiresEval(rule.Head.Value) {
+				expr := f.Generate(rule.Head.Value)
+				rule.Head.Value = expr.Operand(0)
+				rule.Body.Append(expr)
 			}
 			return false
 		})
-		c.generatedVars[mod] = generator.Generated()
+		if vs, ok := c.generatedVars[mod]; !ok {
+			c.generatedVars[mod] = f.gen.Generated()
+		} else {
+			vs.Update(f.gen.Generated())
+		}
 	}
 }
 
@@ -931,6 +908,7 @@ func (qc *queryCompiler) Compile(query Body) (Body, error) {
 
 	stages := []func(*QueryContext, Body) (Body, error){
 		qc.resolveRefs,
+		qc.rewriteComprehensionTerms,
 		qc.checkWithModifiers,
 		qc.checkSafety,
 		qc.checkTypes,
@@ -978,6 +956,16 @@ func (qc *queryCompiler) resolveRefs(qctx *QueryContext, body Body) (Body, error
 	}
 
 	return resolveRefsInBody(globals, body), nil
+}
+
+func (qc *queryCompiler) rewriteComprehensionTerms(_ *QueryContext, body Body) (Body, error) {
+	gen := newLocalVarGenerator(body)
+	f := newEqualityFactory(gen)
+	node, err := rewriteComprehensionTerms(f, body)
+	if err != nil {
+		return nil, err
+	}
+	return node.(Body), nil
 }
 
 func (qc *queryCompiler) checkSafety(_ *QueryContext, body Body) (Body, error) {
@@ -1631,6 +1619,21 @@ func reorderBodyForClosures(globals VarSet, body Body) (Body, unsafeVars) {
 	return reordered, unsafe
 }
 
+type equalityFactory struct {
+	gen *localVarGenerator
+}
+
+func newEqualityFactory(gen *localVarGenerator) *equalityFactory {
+	return &equalityFactory{gen}
+}
+
+func (f *equalityFactory) Generate(other *Term) *Expr {
+	term := NewTerm(f.gen.Generate()).SetLocation(other.Location)
+	expr := Equality.Expr(term, other)
+	expr.Location = other.Location
+	return expr
+}
+
 const localVarFmt = "__local%d__"
 
 type localVarGenerator struct {
@@ -1638,17 +1641,13 @@ type localVarGenerator struct {
 	generated VarSet
 }
 
-func newLocalVarGenerator(module *Module) *localVarGenerator {
+func newLocalVarGenerator(node interface{}) *localVarGenerator {
 	exclude := NewVarSet()
 	vis := &VarVisitor{
 		vars: exclude,
 	}
-	Walk(vis, module)
+	Walk(vis, node)
 	return &localVarGenerator{exclude, NewVarSet()}
-}
-
-func (l *localVarGenerator) Generated() VarSet {
-	return l.generated
 }
 
 func (l *localVarGenerator) Generate() Var {
@@ -1660,6 +1659,10 @@ func (l *localVarGenerator) Generate() Var {
 	}
 	l.generated.Add(name)
 	return name
+}
+
+func (l *localVarGenerator) Generated() VarSet {
+	return l.generated
 }
 
 func getGlobals(pkg *Package, rules []Var, funcs []*Func, imports []*Import) map[Var]Ref {
@@ -1693,6 +1696,13 @@ func getGlobals(pkg *Package, rules []Var, funcs []*Func, imports []*Import) map
 	}
 
 	return globals
+}
+
+func requiresEval(x *Term) bool {
+	if x == nil {
+		return false
+	}
+	return ContainsRefs(x) || ContainsComprehensions(x)
 }
 
 func resolveRef(globals map[Var]Ref, ref Ref) Ref {
@@ -1848,4 +1858,49 @@ func resolveRefsInTerm(globals map[Var]Ref, term *Term) *Term {
 	default:
 		return term
 	}
+}
+
+// rewriteComprehensionTerms will rewrite comprehensions so that the term part
+// is bound to a variable in the body. This allows any type of term to be used
+// in the term part (even if the term requires evaluation.)
+//
+// For instance, given the following comprehension:
+//
+// [x[0] | x = y[_]; y = [1,2,3]]
+//
+// The comprehension would be rewritten as:
+//
+// [__local0__ | x = y[_]; y = [1,2,3]; __local0__ = x[0]]
+func rewriteComprehensionTerms(f *equalityFactory, node interface{}) (interface{}, error) {
+	return TransformComprehensions(node, func(x interface{}) (Value, error) {
+		switch x := x.(type) {
+		case *ArrayComprehension:
+			if requiresEval(x.Term) {
+				expr := f.Generate(x.Term)
+				x.Term = expr.Operand(0)
+				x.Body.Append(expr)
+			}
+			return x, nil
+		case *SetComprehension:
+			if requiresEval(x.Term) {
+				expr := f.Generate(x.Term)
+				x.Term = expr.Operand(0)
+				x.Body.Append(expr)
+			}
+			return x, nil
+		case *ObjectComprehension:
+			if requiresEval(x.Key) {
+				expr := f.Generate(x.Key)
+				x.Key = expr.Operand(0)
+				x.Body.Append(expr)
+			}
+			if requiresEval(x.Value) {
+				expr := f.Generate(x.Value)
+				x.Value = expr.Operand(0)
+				x.Body.Append(expr)
+			}
+			return x, nil
+		}
+		panic("illegal type")
+	})
 }

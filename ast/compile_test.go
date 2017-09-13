@@ -524,7 +524,6 @@ func TestCompilerCheckSafetyBodyErrors(t *testing.T) {
 		{"array-compr-closure", `p { _ = [v | v = [x | x = data.a[_]]; x > 1] }`, `{x,}`},
 		{"array-compr-term", `p { _ = [u | true] }`, `{u,}`},
 		{"array-compr-term-nested", `p { _ = [v | v = [w | w != 0]] }`, `{w,}`},
-		{"array-compr-term-output", `p { _ = [x[i] | x = []] }`, `{i,}`},
 		{"array-compr-mixed", `p { _ = [x | y = [a | a = z[i]]] }`, `{a, x, z, i}`},
 		{"array-compr-builtin", `p { [true | eq != 2] }`, `{eq,}`},
 		{"closure-self", `p { x = [x | x = 1] }`, `{x,}`},
@@ -838,6 +837,33 @@ elsekw {
 	rule5 := c.Modules["head"].Rules[4]
 	expected5 := MustParseRule(`elsekw { false } else = __local5__ { true; __local5__ = input.qux }`)
 	assertRulesEqual(t, rule5, expected5)
+}
+
+func TestRewriteComprehensionTerm(t *testing.T) {
+
+	c := NewCompiler()
+	c.Modules["head"] = MustParseModule(`package head
+	arr = [[1], [2], [3]]
+	arr2 = [["a"], ["b"], ["c"]]
+	arr_comp = [[x[i]] | arr[j] = x]
+	set_comp = {[x[i]] | arr[j] = x}
+	obj_comp = {x[i]: x[i] | arr2[j] = x}
+	`)
+
+	compileStages(c, c.rewriteComprehensionTerms)
+	assertNotFailed(t, c)
+
+	arrCompRule := c.Modules["head"].Rules[2]
+	exp1 := MustParseRule(`arr_comp = [__local0__ | data.head.arr[j] = x; __local0__ = [x[i]]] { true }`)
+	assertRulesEqual(t, arrCompRule, exp1)
+
+	setCompRule := c.Modules["head"].Rules[3]
+	exp2 := MustParseRule(`set_comp = {__local1__ | data.head.arr[j] = x; __local1__ = [x[i]]} { true }`)
+	assertRulesEqual(t, setCompRule, exp2)
+
+	objCompRule := c.Modules["head"].Rules[4]
+	exp3 := MustParseRule(`obj_comp = {__local2__: __local3__ | data.head.arr2[j] = x; __local2__ = x[i]; __local3__ = x[i]} { true }`)
+	assertRulesEqual(t, objCompRule, exp3)
 }
 
 func TestCompilerSetGraph(t *testing.T) {
@@ -1501,6 +1527,7 @@ func TestQueryCompiler(t *testing.T) {
 	}{
 		{"exports resolved", "z", `package a.b.c`, nil, "", "data.a.b.c.z"},
 		{"imports resolved", "z", `package a.b.c.d`, []string{"import data.a.b.c.z"}, "", "data.a.b.c.z"},
+		{"rewrite comprehensions", "[x[i] | a = [[1], [2]]; x = a[j]]", "", nil, "", "[__local0__ | a = [[1], [2]]; x = a[j]; __local0__ = x[i]]"},
 		{"unsafe vars", "z", "", nil, "", fmt.Errorf("1 error occurred: 1:1: rego_unsafe_var_error: var z is unsafe")},
 		{"safe vars", `data; abc`, `package ex`, []string{"import input.xyz as abc"}, `{}`, `data; input.xyz`},
 		{"reorder", `x != 1; x = 0`, "", nil, "", `x = 0; x != 1`},
