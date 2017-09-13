@@ -5,7 +5,6 @@
 package cmd
 
 import (
-	"bufio"
 	"bytes"
 	"fmt"
 	"io"
@@ -13,7 +12,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 
 	"github.com/open-policy-agent/opa/format"
 
@@ -113,24 +111,6 @@ func formatFile(filename string, info os.FileInfo, err error) error {
 	}
 
 	if fmtParams.overwrite {
-		backupName := filename + ".bak"
-		if _, err := os.Stat(backupName); err == nil || !os.IsNotExist(err) {
-			backupName, err = requestBackupName(backupName)
-			if err != nil {
-				return newError("failed to read user input: %v", err)
-			}
-		}
-
-		bak, err := os.OpenFile(backupName, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, info.Mode().Perm())
-		if err != nil {
-			return newError("failed to open backup file for writing: %v", err)
-		}
-		defer bak.Close()
-
-		if _, err := bak.Write(contents); err != nil {
-			return newError("failed to write to backup file: %v", err)
-		}
-
 		outfile, err := os.OpenFile(filename, os.O_WRONLY|os.O_TRUNC, info.Mode().Perm())
 		if err != nil {
 			return newError("failed to open file for writing: %v", err)
@@ -145,21 +125,6 @@ func formatFile(filename string, info os.FileInfo, err error) error {
 	}
 
 	return nil
-}
-
-func requestBackupName(old string) (string, error) {
-	r := bufio.NewReader(os.Stdin)
-	fmt.Printf("Backup file (%s) already exists. Enter a name for the backup file (or blank to overwrite): ", old)
-	resp, err := r.ReadString('\n')
-	if err != nil {
-		return "", err
-	}
-
-	resp = strings.TrimSpace(resp)
-	if resp == "" {
-		return old, nil
-	}
-	return resp, nil
 }
 
 func doDiff(old, new []byte) (stdout, stderr bytes.Buffer, err error) {
