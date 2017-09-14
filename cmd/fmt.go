@@ -48,6 +48,15 @@ to stdout from the 'fmt' command.`,
 }
 
 func opaFmt(args []string) int {
+
+	if len(args) == 0 {
+		if err := formatStdin(os.Stdin, os.Stdout); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return 1
+		}
+		return 0
+	}
+
 	for _, filename := range args {
 		if err := filepath.Walk(filename, formatFile); err != nil {
 			switch err := err.(type) {
@@ -122,6 +131,26 @@ func formatFile(filename string, info os.FileInfo, err error) error {
 	_, err = out.Write(formatted)
 	if err != nil {
 		return newError("failed writing formatted contents: %v", err)
+	}
+
+	return nil
+}
+
+func formatStdin(r io.Reader, w io.Writer) error {
+
+	contents, err := ioutil.ReadAll(r)
+	if err != nil {
+		return err
+	}
+
+	formatted, err := format.Source("stdin", contents)
+	if err != nil {
+		return err
+	}
+
+	if !bytes.Equal(formatted, contents) {
+		_, err := w.Write(formatted)
+		return err
 	}
 
 	return nil
