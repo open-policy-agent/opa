@@ -53,7 +53,7 @@ fn(x) = y {
 }
 
 long(x) = true {
-    x = "foo"
+    x = "foo %host"
     }
 
     short(x) {

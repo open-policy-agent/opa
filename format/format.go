@@ -378,12 +378,12 @@ func (w *writer) writeFunctionCall(t []*ast.Term, comments []*ast.Comment) []*as
 			fallthrough
 		case 2:
 			comments = w.writeTerm(t[1], comments)
-			w.write(" %s ", string(bi.Infix))
+			w.write(" " + string(bi.Infix) + " ")
 			return w.writeTerm(t[2], comments)
 		}
 	}
 
-	w.write("%s(", string(t[0].Value.(ast.String)))
+	w.write(string(t[0].Value.(ast.String)) + "(")
 	for _, v := range t[1 : len(t)-1] {
 		comments = w.writeTerm(v, comments)
 		w.write(", ")
@@ -425,7 +425,7 @@ func (w *writer) writeTerm(term *ast.Term, comments []*ast.Comment) []*ast.Comme
 	case ast.String:
 		if term.Location.Text[0] == '.' {
 			// This string was parsed from a ref, so preserve the value.
-			w.write(`"%s"`, string(x))
+			w.write(`"` + string(x) + `"`)
 		} else {
 			// To preserve raw strings, we need to output the original text,
 			// not what x.String() would give us.
@@ -901,18 +901,17 @@ func (w *writer) blankLine() {
 	w.write("\n")
 }
 
-// write formats the input string and writes it to the buffer.
-func (w *writer) write(s string, a ...interface{}) {
-	w.buf.WriteString(fmt.Sprintf(s, a...))
+// write the input string and writes it to the buffer.
+func (w *writer) write(s string) {
+	w.buf.WriteString(s)
 }
 
-// writeLine writes the formatted string on a newly started line, then terminates
-// the line.
-func (w *writer) writeLine(s string, a ...interface{}) {
+// writeLine writes the string on a newly started line, then terminate the line.
+func (w *writer) writeLine(s string) {
 	if !w.inline {
 		w.startLine()
 	}
-	w.write(s, a...)
+	w.write(s)
 	w.endLine()
 }
 
