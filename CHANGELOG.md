@@ -3,7 +3,21 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## 0.5.8
+
+### Fixes
+
+- Substitute comprehension terms requring eval ([#453](https://github.com/open-policy-agent/opa/issues/453))
+
+### Miscellaneous
+
+- Add alpine-based Docker image
+- Add stdin mode to opa fmt
+- Fix syntax error in comprehension example
+- Improve input parsing performance in V0 API
+- Refactor loader to read inputs once (allows use of process substitution)
+- Remove backup creation from fmt subcommand
+- Remove use of sprintf in formatter
 
 ## 0.5.7
 
