@@ -1464,33 +1464,26 @@ func getExplain(p []string, zero types.ExplainModeV1) types.ExplainModeV1 {
 }
 
 func readInputV0(r io.ReadCloser) (ast.Value, error) {
-
 	bs, err := ioutil.ReadAll(r)
-
 	if err != nil {
 		return nil, err
 	}
-
-	s := strings.TrimSpace(string(bs))
-	if len(s) == 0 {
+	bs = bytes.TrimSpace(bs)
+	if len(bs) == 0 {
 		return nil, nil
 	}
-
-	term, err := ast.ParseTerm(s)
-	if err != nil {
+	var x interface{}
+	if err := util.UnmarshalJSON(bs, &x); err != nil {
 		return nil, err
 	}
-
-	return term.Value, nil
+	return ast.InterfaceToValue(x)
 }
 
 func readInputGetV1(str string) (ast.Value, error) {
 	var input interface{}
-
 	if err := util.UnmarshalJSON([]byte(str), &input); err != nil {
 		return nil, errors.Wrapf(err, "parameter contains malformed input document")
 	}
-
 	return ast.InterfaceToValue(input)
 }
 
