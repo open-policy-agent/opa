@@ -5,6 +5,7 @@
 package cmd
 
 import (
+	"context"
 	"crypto/tls"
 	"fmt"
 	"os"
@@ -24,6 +25,7 @@ var defaultAddr = ":8181"
 
 func init() {
 
+	var serverMode bool
 	var tlsCertFile string
 	var tlsPrivateKeyFile string
 
@@ -115,12 +117,23 @@ For example:
 			}
 			params.Paths = args
 
-			rt := &runtime.Runtime{}
-			rt.Start(params)
+			ctx := context.Background()
+
+			rt, err := runtime.NewRuntime(ctx, params)
+			if err != nil {
+				fmt.Fprintln(os.Stderr, "error:", err)
+				os.Exit(1)
+			}
+
+			if serverMode {
+				rt.StartServer(ctx)
+			} else {
+				rt.StartREPL(ctx)
+			}
 		},
 	}
 
-	runCommand.Flags().BoolVarP(&params.Server, "server", "s", false, "start the runtime in server mode")
+	runCommand.Flags().BoolVarP(&serverMode, "server", "s", false, "start the runtime in server mode")
 	runCommand.Flags().StringVarP(&params.Eval, "eval", "e", "", "evaluate, print, exit")
 	runCommand.Flags().StringVarP(&params.HistoryPath, "history", "H", historyPath(), "set path of history file")
 	runCommand.Flags().StringVarP(&params.Addr, "addr", "a", defaultAddr, "set listening address of the server")
