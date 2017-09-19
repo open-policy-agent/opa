@@ -1575,13 +1575,11 @@ OPA currently supports the following query performance metrics:
 
 ## <a name="diagnostics"></a> Diagnostics
 
-The OPA server has the capability to log and return diagnostics on past requests to the user. By default, the server will not log any diagnostics at all. In order to have the server start logging diagnostic information, the document located at `data.system.diagnostics.config` (henceforth referred to as the config) must be defined. The config must evaluate to an object, which must be structured as follows:
+The OPA server has the capability to log and return diagnostics on past requests to the user. By default, the server will not log any diagnostics at all. In order to have the server start logging diagnostic information, the document located at `data.system.diagnostics.config` (referred to as config below) must be defined. The config must evaluate to an object that is structured as follows:
 
 ```
 {
     "mode": <"all"/"on"/"off">,
-    "metrics": <true/false>,
-    "explain": <true/false>
 }
 ```
 
@@ -1591,6 +1589,7 @@ An example of a policy that defines a simple diagnostics config that only logs G
 package system.diagnostics
 
 default config = {"mode": "off"}
+
 config = {"mode": "on"} {
     input.method = "GET"
 }
@@ -1600,15 +1599,11 @@ If the config document does not conform to the structure above, then diagnostics
 
 Whenever a data GET/POST, a POST to `/` or query GET request is received by the server, it evaluates the config document to determine whether or not diagnostics should be logged. The table below describes the behavior of diagnostics depending on the values of the config fields.
 
-| Field     | Value | Behavior                                                                                                                                           |
-| --------- | ----- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `mode`    | "all" | All diagnostics are recorded. Equivalent to `explain` and `metrics` both being true.                                                               |
-| `mode`    | "on"  | Diagnostics are recorded. Query, timestamp, input and result are logged. Explanations and metrics depend on `explain` and `metrics`, respectively. |
-| `mode`    | "off" | No diagnostics are recorded. Overrides `explain` and `metrics` field.                                                                              |
-| `explain` | false | Explanations are not logged.                                                                                                                       |
-| `explain` | true  | Explanations are logged. `mode` is implicitly "on".                                                                                                |
-| `metrics` | false | Metrics are not logged.                                                                                                                            |
-| `metrics` | true  | Metrics are logged. `mode` is implicitly "on".                                                                                                     |
+| Field | Value | Behavior |
+| --- | --- | --- |
+| `mode`    | "off" | No diagnostics are recorded. |
+| `mode`    | "on"  | Enables collection of inexpensive values. This includes the query, input, result, and performance metrics. |
+| `mode`    | "all" | All diagnostics are collected. This includes a full trace of the query evaluation. |
 
 In order to allow the config document to make dynamic decisions about whether or not to record diagnostics for a given request, the server will provide a special input document when evaluating it. The input document will contain information from the HTTP request that was issued to the server, of the form:
 
@@ -1642,8 +1637,8 @@ As an example, the request `GET /v1/data/servers?watch&pretty=true HTTP/1.1` wou
     "path": "/v1/data/servers",
     "body": null,
     "params": {
-        "watch": [""],
-        "pretty": ["true"],
+      "watch": [""],
+      "pretty": ["true"],
     },
 
     "header": { ... }
@@ -1653,18 +1648,20 @@ As an example, the request `GET /v1/data/servers?watch&pretty=true HTTP/1.1` wou
 Diagnostics may be fetched from the server using the Data GET endpoint. When the server sees a GET request to `/v1/data/system/diagnostics`, it will not evaluate the document located there, but instead return a list of the diagnostics stored on the server (ordered from oldest to newest). The server will honor the `explainMode` and `pretty` parameters from the GET request, but the others will be ignored. The response is of the form:
 
 ```
-[
+{
+  "result": [
     {
-        "timestamp": ...,
-        "query": ...,
-        "input": ...,
-        "result": ...,
-        "error": ...,
-        "explanation": ...,
-        "metrics": ...
+      "timestamp": ...,
+      "query": ...,
+      "input": ...,
+      "result": ...,
+      "error": ...,
+      "explanation": ...,
+      "metrics": ...
     },
     ...
-]
+  ]
+}
 ```
 
 | Field         | Always Present | Description                                                                                                                                                                                                |

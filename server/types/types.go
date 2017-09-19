@@ -75,6 +75,7 @@ const (
 	MsgUnauthorizedUndefinedError = "authorization policy missing or undefined"
 	MsgUnauthorizedError          = "request rejected by administrative policy"
 	MsgUndefinedError             = "document missing or undefined"
+	MsgDiagnosticsDisabled        = "diagnostics are not enabled"
 )
 
 // PatchV1 models a single patch operation against a document.
@@ -129,12 +130,18 @@ type DataResponseV1 struct {
 	Result      *interface{} `json:"result,omitempty"`
 }
 
+// DiagnosticsResponseV1 models the response message for diagnostics reads.
+type DiagnosticsResponseV1 struct {
+	Result []DiagnosticsResponseElementV1 `json:"result"`
+}
+
 // DiagnosticsResponseElementV1 models an element in the response message for the
 // Diagnostics API.
 type DiagnosticsResponseElementV1 struct {
 	DecisionID  string       `json:"decision_id,omitempty"`
+	RemoteAddr  string       `json:"remote_addr"`
 	Query       string       `json:"query"`
-	Timestamp   int64        `json:"timestamp"`
+	Timestamp   string       `json:"timestamp"`
 	Input       interface{}  `json:"input,omitempty"`
 	Result      *interface{} `json:"result,omitempty"`
 	Error       *ErrorV1     `json:"error,omitempty"`

@@ -1375,12 +1375,13 @@ func TestDiagnostics(t *testing.T) {
 	f.server, _ = New().
 		WithAddress(":8182").
 		WithStore(f.server.store).
-		WithDiagnosticsBuffer(NewBoundedBuffer(11)).
+		WithDiagnosticsBuffer(NewBoundedBuffer(8)).
 		Init(context.Background())
 
 	queriesOnly := `package system.diagnostics
 
 	default config = {"mode": "off"}
+
 	config = {"mode": "on"} {
 		input.path = "/v1/query"
 	}`
@@ -1395,16 +1396,10 @@ func TestDiagnostics(t *testing.T) {
 		{http.MethodGet, "/query?q=a=data.y", "", 200, `{"result":[{"a":7}]}`},
 
 		// We should only get back metrics.
-		{http.MethodPut, "/policies/diagnostics", "package system.diagnostics\nconfig = {\"metrics\": true}", 200, ""},
+		{http.MethodPut, "/policies/diagnostics", "package system.diagnostics\nconfig = {\"mode\": \"on\"}", 200, ""},
 		{http.MethodGet, "/data/y", "", 200, `{"result":7}`}, // This one should fall off the ring buffer.
 		{http.MethodGet, "/data/x", "", 200, `{"result":[1,2,3]}`},
 		{http.MethodPost, "/data/x", `{"input":{"test":"foo"}}`, 200, `{"result":[1,2,3]}`},
-		{http.MethodGet, "/query?q=a=data.x", "", 200, `{"result":[{"a":[1,2,3]}]}`},
-
-		// We should only get back explanations.
-		{http.MethodPut, "/policies/diagnostics", "package system.diagnostics\nconfig = {\"explain\": true}", 200, ""},
-		{http.MethodGet, "/data/bar", "", 200, `{"result":null}`},
-		{http.MethodPost, "/data/x", `{"input":{"test":"bar"}}`, 200, `{"result":[1,2,3]}`},
 		{http.MethodGet, "/query?q=a=data.x", "", 200, `{"result":[{"a":[1,2,3]}]}`},
 
 		// We should get back everything.
@@ -1419,8 +1414,7 @@ func TestDiagnostics(t *testing.T) {
 		{http.MethodPost, "/data/x", "", 200, `{"result":[1,2,3]}`},
 		{http.MethodGet, "/query?q=a=data.x", "", 200, `{"result":[{"a":[1,2,3]}]}`},
 
-		// We should get back only the query request, and only it's results (no
-		// metrics or explanation).
+		// We should get back only the query request.
 		{http.MethodPut, "/policies/diagnostics", queriesOnly, 200, ""},
 		{http.MethodGet, "/data/y", "", 200, `{"result":7}`},
 		{http.MethodPost, "/data/y", "", 200, `{"result":7}`},
@@ -1431,7 +1425,11 @@ func TestDiagnostics(t *testing.T) {
 	}
 
 	for _, tr := range setup {
-		if err := f.v1(tr.method, tr.path, tr.body, tr.code, tr.resp); err != nil {
+
+		req := newReqV1(tr.method, tr.path, tr.body)
+		req.RemoteAddr = "testaddr"
+
+		if err := f.executeRequest(req, tr.code, tr.resp); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -1445,9 +1443,9 @@ func TestDiagnostics(t *testing.T) {
 	expMap1 := interface{}([]interface{}{map[string]interface{}{"a": expList}})
 	expMap2 := interface{}([]interface{}{map[string]interface{}{"a": json.Number("7")}})
 	expStr := interface{}("foo")
-	expNull := interface{}(nil)
 
 	exp := []struct {
+		remoteAddr string
 		query      string
 		input      interface{}
 		result     *interface{}
@@ -1455,9 +1453,10 @@ func TestDiagnostics(t *testing.T) {
 		explainLen int
 	}{
 		{
-			query:   "data.x",
-			result:  &expList,
-			metrics: true,
+			remoteAddr: "testaddr",
+			query:      "data.x",
+			result:     &expList,
+			metrics:    true,
 		},
 		{
 			query:   "data.x",
@@ -1469,22 +1468,6 @@ func TestDiagnostics(t *testing.T) {
 			query:   "a=data.x",
 			result:  &expMap1,
 			metrics: true,
-		},
-		{
-			query:      "data.bar",
-			result:     &expNull,
-			explainLen: 3,
-		},
-		{
-			query:      "data.x",
-			input:      map[string]interface{}{"test": "bar"},
-			result:     &expList,
-			explainLen: 4,
-		},
-		{
-			query:      "a=data.x",
-			result:     &expMap1,
-			explainLen: 3,
 		},
 		{
 			query:      "data.x",
@@ -1518,47 +1501,36 @@ func TestDiagnostics(t *testing.T) {
 	f.reset()
 	f.server.Handler.ServeHTTP(f.recorder, get)
 
-	var diags []map[string]interface{}
+	var resp types.DiagnosticsResponseV1
 	decoder := util.NewJSONDecoder(f.recorder.Body)
-	if err := decoder.Decode(&diags); err != nil {
+	if err := decoder.Decode(&resp); err != nil {
 		t.Fatal(err)
 	}
 
-	if len(diags) != len(exp) {
-		t.Fatalf("Expected %d diagnostics, got %d", len(exp), len(diags))
+	if len(resp.Result) != len(exp) {
+		t.Fatalf("Expected %d diagnostics, got %d", len(exp), len(resp.Result))
 	}
 
-	for i, d := range diags {
+	for i, d := range resp.Result {
 		e := exp[i]
-		if e.query != d["query"].(string) {
-			t.Fatalf("Expected query to be %v, got %v", e.query, d["query"])
+		if e.query != d.Query {
+			t.Fatalf("Expected query to be %v, got %v", e.query, d.Query)
 		}
 
-		if !reflect.DeepEqual(e.input, d["input"]) {
-			t.Fatalf("Expected input to be %v, got %v", e.input, d["input"])
+		if !reflect.DeepEqual(e.input, d.Input) {
+			t.Fatalf("Expected input to be %v, got %v", e.input, d.Input)
 		}
 
-		r, ok := d["result"]
-		if e.result == nil {
-			if ok {
-				t.Fatalf("Expected result to be nil, got %v", r)
-			}
-		} else if !reflect.DeepEqual(*e.result, r) {
-			t.Fatalf("Expected result to be %v, got %v", *e.result, r)
-		}
-
-		metrics, ok := d["metrics"]
-		m := map[string]interface{}{}
-		if ok {
-			m = metrics.(map[string]interface{})
+		if !reflect.DeepEqual(e.result, d.Result) {
+			t.Fatalf("Expected result to be %v but got: %v", e.result, d.Result)
 		}
 
 		if e.metrics {
-			if len(m) == 0 {
+			if len(d.Metrics) == 0 {
 				t.Fatal("Expected metrics")
 			}
 
-			for key, value := range m {
+			for key, value := range d.Metrics {
 				v, ok := value.(json.Number)
 				if !ok {
 					t.Fatalf("Metrics for %v was not a number", key)
@@ -1571,30 +1543,40 @@ func TestDiagnostics(t *testing.T) {
 					t.Fatalf("Expected non-zero metric for %v but got: %v", key, n)
 				}
 			}
-		} else if len(m) > 0 {
-			t.Fatalf("Did not expect metrics, got %v", m)
 		}
 
-		explain, ok := d["explanation"]
-		var expl []interface{}
-		if ok {
-			expl = explain.([]interface{})
+		var trace types.TraceV1Raw
+		if d.Explanation != nil {
+			if err := trace.UnmarshalJSON(d.Explanation); err != nil {
+				t.Fatal(err)
+			}
 		}
 
-		if len(expl) != e.explainLen {
-			t.Fatalf("Expected explanation of length %d, got %d", e.explainLen, len(expl))
+		if len(trace) != e.explainLen {
+			t.Fatalf("Expected explanation of length %d, got %d", e.explainLen, len(trace))
 		}
 	}
 }
 
 func TestDecisionIDs(t *testing.T) {
 	f := newFixture(t)
+	f.server = f.server.WithDiagnosticsBuffer(NewBoundedBuffer(4))
 	ctr := 0
 
 	f.server = f.server.WithDecisionIDFactory(func() string {
 		ctr++
 		return fmt.Sprint(ctr)
 	})
+
+	enableDiagnostics := `
+		package system.diagnostics
+
+		config = {"mode": "on"}
+	`
+
+	if err := f.v1("PUT", "/policies/test", enableDiagnostics, 200, "{}"); err != nil {
+		t.Fatal(err)
+	}
 
 	if err := f.v1("GET", "/data/undefined", "", 200, `{"decision_id": "1"}`); err != nil {
 		t.Fatal(err)
@@ -1612,6 +1594,20 @@ func TestDecisionIDs(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	infos := []*Info{}
+	ctr = 0
+
+	f.server.diagnostics.Iter(func(info *Info) {
+		ctr++
+		if info.DecisionID != fmt.Sprint(ctr) {
+			t.Fatalf("Expected decision ID to be %v but got: %v", ctr, info.DecisionID)
+		}
+		infos = append(infos, info)
+	})
+
+	if len(infos) != 4 {
+		t.Fatalf("Expected exactly 4 elements but got: %v", infos)
+	}
 }
 
 func TestWatchParams(t *testing.T) {
@@ -2024,12 +2020,11 @@ type queryBindingErrStore struct {
 }
 
 func (s *queryBindingErrStore) Read(ctx context.Context, txn storage.Transaction, path storage.Path) (interface{}, error) {
-	// At this time, the store will receive three reads:
-	// - The first during evaluation of the diagnostics config policy (which ignores errors)
-	// - The second during evaluation of the request
-	// - The third when the server tries to accumulate the bindings
+	// At this time, the store will receive two reads:
+	// - The first during evaluation of the request
+	// - The second when the server tries to accumulate the bindings
 	s.count++
-	if s.count == 3 {
+	if s.count == 2 {
 		return nil, fmt.Errorf("unknown error")
 	}
 	return "", nil
