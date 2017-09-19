@@ -72,6 +72,10 @@ type Params struct {
 	// exiting early.
 	ErrorLimit int
 
+	// DecisionIDFactory generates decision IDs to include in API responses
+	// sent by the server (in response to Data API queries.)
+	DecisionIDFactory func() string
+
 	// DiagnosticsBuffer is used by the server to record policy decisions.
 	DiagnosticsBuffer server.Buffer
 
@@ -158,6 +162,7 @@ func (rt *Runtime) StartServer(ctx context.Context) {
 		WithAuthentication(rt.Params.Authentication).
 		WithAuthorization(rt.Params.Authorization).
 		WithDiagnosticsBuffer(rt.Params.DiagnosticsBuffer).
+		WithDecisionIDFactory(rt.Params.DecisionIDFactory).
 		Init(ctx)
 
 	if err != nil {
