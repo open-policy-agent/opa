@@ -62,10 +62,6 @@ type Params struct {
 	// where the contained document should be loaded.
 	Paths []string
 
-	// Server flag controls whether the OPA instance will start a server.
-	// By default, the OPA instance acts as an interactive shell.
-	Server bool
-
 	// Watch flag controls whether OPA will watch the Paths files for changes.
 	// If this flag is true, OPA will watch the Paths files for changes and
 	// reload the storage layer each time they change. This is useful for
@@ -94,96 +90,83 @@ type LoggingConfig struct {
 }
 
 // NewParams returns a new Params object.
-func NewParams() *Params {
-	return &Params{
+func NewParams() Params {
+	return Params{
 		Output: os.Stdout,
 	}
 }
 
 // Runtime represents a single OPA instance.
 type Runtime struct {
-	Store storage.Store
+	Params Params
+	Store  storage.Store
 }
 
-// Start is the entry point of an OPA instance.
-func (rt *Runtime) Start(params *Params) {
+// NewRuntime returns a new Runtime object initialized with params.
+func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 
-	ctx := context.Background()
-
-	if err := rt.init(ctx, params); err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
-
-	if params.Server {
-		rt.startServer(ctx, params)
-	} else {
-		rt.startRepl(ctx, params)
-	}
-
-}
-
-func (rt *Runtime) init(ctx context.Context, params *Params) error {
-
-	paths := params.Paths
-	loaded, err := loader.All(paths)
+	loaded, err := loader.All(params.Paths)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	store := inmem.New()
 
 	txn, err := store.NewTransaction(ctx, storage.WriteParams)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if err := store.Write(ctx, txn, storage.AddOp, storage.Path{}, loaded.Documents); err != nil {
 		store.Abort(ctx, txn)
-		return errors.Wrapf(err, "storage error")
+		return nil, errors.Wrapf(err, "storage error")
 	}
 
-	if err := compileAndStoreInputs(ctx, store, txn, loaded.Modules, params); err != nil {
+	if err := compileAndStoreInputs(ctx, store, txn, loaded.Modules, params.ErrorLimit); err != nil {
 		store.Abort(ctx, txn)
-		return errors.Wrapf(err, "compile error")
+		return nil, errors.Wrapf(err, "compile error")
 	}
 
 	if err := store.Commit(ctx, txn); err != nil {
-		return errors.Wrapf(err, "storage error")
+		return nil, errors.Wrapf(err, "storage error")
 	}
 
-	rt.Store = store
+	rt := &Runtime{
+		Store:  store,
+		Params: params,
+	}
 
-	return nil
+	return rt, nil
 }
 
-func (rt *Runtime) startServer(ctx context.Context, params *Params) {
+// StartServer starts the runtime in server mode. This function will block the calling goroutine.
+func (rt *Runtime) StartServer(ctx context.Context) {
 
-	setupLogging(params.Logging)
+	setupLogging(rt.Params.Logging)
 
 	logrus.WithFields(logrus.Fields{
-		"addr":          params.Addr,
-		"insecure_addr": params.InsecureAddr,
+		"addr":          rt.Params.Addr,
+		"insecure_addr": rt.Params.InsecureAddr,
 	}).Infof("First line of log stream.")
 
 	s, err := server.New().
 		WithStore(rt.Store).
-		WithCompilerErrorLimit(params.ErrorLimit).
-		WithAddress(params.Addr).
-		WithInsecureAddress(params.InsecureAddr).
-		WithCertificate(params.Certificate).
-		WithAuthentication(params.Authentication).
-		WithAuthorization(params.Authorization).
-		WithDiagnosticsBuffer(server.NewBoundedBuffer(params.ServerDiagnosticsBufferSize)).
+		WithCompilerErrorLimit(rt.Params.ErrorLimit).
+		WithAddress(rt.Params.Addr).
+		WithInsecureAddress(rt.Params.InsecureAddr).
+		WithCertificate(rt.Params.Certificate).
+		WithAuthentication(rt.Params.Authentication).
+		WithAuthorization(rt.Params.Authorization).
+		WithDiagnosticsBuffer(server.NewBoundedBuffer(rt.Params.ServerDiagnosticsBufferSize)).
 		Init(ctx)
 
 	if err != nil {
 		logrus.WithField("err", err).Fatalf("Unable to initialize server.")
 	}
 
-	if params.Watch {
-		if err := rt.startWatcher(ctx, params.Paths, onReloadLogger); err != nil {
-			fmt.Fprintln(params.Output, "error opening watch:", err)
+	if rt.Params.Watch {
+		if err := rt.startWatcher(ctx, rt.Params.Paths, onReloadLogger); err != nil {
+			fmt.Fprintln(rt.Params.Output, "error opening watch:", err)
 			os.Exit(1)
 		}
 	}
@@ -202,28 +185,30 @@ func (rt *Runtime) startServer(ctx context.Context, params *Params) {
 	if err := loop1(); err != nil {
 		logrus.WithField("err", err).Fatalf("Server exiting.")
 	}
+
 }
 
-func (rt *Runtime) startRepl(ctx context.Context, params *Params) {
+// StartREPL starts the runtime in REPL mode. This function will block the calling goroutine.
+func (rt *Runtime) StartREPL(ctx context.Context) {
 
 	banner := rt.getBanner()
-	repl := repl.New(rt.Store, params.HistoryPath, params.Output, params.OutputFormat, params.ErrorLimit, banner)
+	repl := repl.New(rt.Store, rt.Params.HistoryPath, rt.Params.Output, rt.Params.OutputFormat, rt.Params.ErrorLimit, banner)
 
-	if params.Watch {
-		if err := rt.startWatcher(ctx, params.Paths, onReloadPrinter(params.Output)); err != nil {
-			fmt.Fprintln(params.Output, "error opening watch:", err)
+	if rt.Params.Watch {
+		if err := rt.startWatcher(ctx, rt.Params.Paths, onReloadPrinter(rt.Params.Output)); err != nil {
+			fmt.Fprintln(rt.Params.Output, "error opening watch:", err)
 			os.Exit(1)
 		}
 	}
 
-	if params.Eval == "" {
+	if rt.Params.Eval == "" {
 		repl.Loop(ctx)
 	} else {
 		repl.DisableUndefinedOutput(true)
 		repl.DisableMultiLineBuffering(true)
 
-		if err := repl.OneShot(ctx, params.Eval); err != nil {
-			fmt.Fprintln(params.Output, "error:", err)
+		if err := repl.OneShot(ctx, rt.Params.Eval); err != nil {
+			fmt.Fprintln(rt.Params.Output, "error:", err)
 			os.Exit(1)
 		}
 	}
@@ -270,7 +255,7 @@ func (rt *Runtime) processWatcherUpdate(ctx context.Context, paths []string) err
 		return err
 	}
 
-	if err := compileAndStoreInputs(ctx, rt.Store, txn, loaded.Modules, nil); err != nil {
+	if err := compileAndStoreInputs(ctx, rt.Store, txn, loaded.Modules, -1); err != nil {
 		rt.Store.Abort(ctx, txn)
 		return err
 	}
@@ -286,7 +271,7 @@ func (rt *Runtime) getBanner() string {
 	return buf.String()
 }
 
-func compileAndStoreInputs(ctx context.Context, store storage.Store, txn storage.Transaction, modules map[string]*loader.RegoFile, params *Params) error {
+func compileAndStoreInputs(ctx context.Context, store storage.Store, txn storage.Transaction, modules map[string]*loader.RegoFile, errorLimit int) error {
 
 	policies := make(map[string]*ast.Module, len(modules))
 
@@ -294,10 +279,7 @@ func compileAndStoreInputs(ctx context.Context, store storage.Store, txn storage
 		policies[id] = parsed.Parsed
 	}
 
-	c := ast.NewCompiler()
-	if params != nil {
-		c = c.SetErrorLimit(params.ErrorLimit)
-	}
+	c := ast.NewCompiler().SetErrorLimit(errorLimit)
 
 	if c.Compile(policies); c.Failed() {
 		return c.Errors

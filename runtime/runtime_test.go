@@ -21,13 +21,17 @@ import (
 )
 
 func TestEval(t *testing.T) {
+	ctx := context.Background()
 	params := NewParams()
 	var buffer bytes.Buffer
 	params.Output = &buffer
 	params.OutputFormat = "json"
 	params.Eval = `a = b; a = 1; c = 2; c > b`
-	rt := &Runtime{}
-	rt.Start(params)
+	rt, err := NewRuntime(ctx, params)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rt.StartREPL(ctx)
 	expected := util.MustUnmarshalJSON([]byte(`[{"a": 1, "b": 1, "c": 2}]`))
 	result := util.MustUnmarshalJSON(buffer.Bytes())
 	if !reflect.DeepEqual(expected, result) {
@@ -70,12 +74,12 @@ p = true { 1 = 2 }`
 		panic(err)
 	}
 
-	rt := Runtime{}
+	params := NewParams()
+	params.Paths = []string{tmp1.Name(), tmp2.Name()}
 
-	err = rt.init(ctx, &Params{Paths: []string{tmp1.Name(), tmp2.Name()}})
+	rt, err := NewRuntime(ctx, params)
 	if err != nil {
-		t.Errorf("Unexpected error: %v", err)
-		return
+		t.Fatal(err)
 	}
 
 	txn := storage.NewTransactionOrDie(ctx, rt.Store)
@@ -132,16 +136,16 @@ func TestRuntimeProcessWatchEvents(t *testing.T) {
 	}
 
 	test.WithTempFS(fs, func(rootDir string) {
-		rt := &Runtime{}
-		paths := []string{rootDir}
-
-		if err := rt.init(ctx, &Params{Paths: paths}); err != nil {
-			t.Fatalf("Unexpected init error: %v", err)
+		params := NewParams()
+		params.Paths = []string{rootDir}
+		rt, err := NewRuntime(ctx, params)
+		if err != nil {
+			t.Fatal(err)
 		}
 
 		var buf bytes.Buffer
 
-		if err := rt.startWatcher(ctx, paths, onReloadPrinter(&buf)); err != nil {
+		if err := rt.startWatcher(ctx, params.Paths, onReloadPrinter(&buf)); err != nil {
 			t.Fatalf("Unexpected watcher init error: %v", err)
 		}
 
