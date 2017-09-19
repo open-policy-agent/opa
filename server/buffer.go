@@ -77,24 +77,24 @@ func (b *buffer) Iter(fn func(*Info)) {
 
 // Info stores diagnostic information about the evaluation of a query.
 type Info struct {
-	Query     string
-	Timestamp time.Time
-
-	Input   interface{}
-	Results *interface{}
-	Error   error
-
-	Metrics metrics.Metrics
-	Trace   []*topdown.Event
+	DecisionID string
+	Query      string
+	Timestamp  time.Time
+	Input      interface{}
+	Results    *interface{}
+	Error      error
+	Metrics    metrics.Metrics
+	Trace      []*topdown.Event
 }
 
 // newInfo creates an returns a new Info.
-func newInfo(query string, input interface{}, results *interface{}) *Info {
+func newInfo(decisionID, query string, input interface{}, results *interface{}) *Info {
 	return &Info{
-		Query:     query,
-		Timestamp: time.Now(),
-		Input:     input,
-		Results:   results,
+		DecisionID: decisionID,
+		Query:      query,
+		Timestamp:  time.Now(),
+		Input:      input,
+		Results:    results,
 	}
 }
 

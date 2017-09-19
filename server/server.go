@@ -68,19 +68,18 @@ var systemMainPath = ast.MustParseRef("data.system.main")
 type Server struct {
 	Handler http.Handler
 
-	addr           string
-	insecureAddr   string
-	authentication AuthenticationScheme
-	authorization  AuthorizationScheme
-	cert           *tls.Certificate
-	mtx            sync.RWMutex
-	compiler       *ast.Compiler
-	store          storage.Store
-	watcher        *watch.Watcher
-
-	diagnostics Buffer
-
-	errLimit int
+	addr              string
+	insecureAddr      string
+	authentication    AuthenticationScheme
+	authorization     AuthorizationScheme
+	cert              *tls.Certificate
+	mtx               sync.RWMutex
+	compiler          *ast.Compiler
+	store             storage.Store
+	watcher           *watch.Watcher
+	decisionIDFactory func() string
+	diagnostics       Buffer
+	errLimit          int
 }
 
 // New returns a new Server.
@@ -206,6 +205,12 @@ func (s *Server) WithDiagnosticsBuffer(buf Buffer) *Server {
 	return s
 }
 
+// WithDecisionIDFactory sets a function on the server to generate decision IDs.
+func (s *Server) WithDecisionIDFactory(f func() string) *Server {
+	s.decisionIDFactory = f
+	return s
+}
+
 // Compiler returns the server's compiler.
 //
 // The server's compiler contains the compiled versions of all modules added to
@@ -274,7 +279,7 @@ func (s *Server) execQuery(ctx context.Context, r *http.Request, query string, i
 
 	output, err := rego.Eval(ctx)
 	if err != nil {
-		s.logDiagnostics(query, input, nil, err, m, buf, settings)
+		s.logDiagnostics("", query, input, nil, err, m, buf, settings)
 		return results, err
 	}
 
@@ -291,7 +296,7 @@ func (s *Server) execQuery(ctx context.Context, r *http.Request, query string, i
 	}
 
 	var x interface{} = results.Result
-	s.logDiagnostics(query, input, &x, nil, m, buf, settings)
+	s.logDiagnostics("", query, input, &x, nil, m, buf, settings)
 	return results, nil
 }
 
@@ -437,7 +442,7 @@ func (s *Server) v0QueryPath(w http.ResponseWriter, r *http.Request, path ast.Re
 
 	// Handle results.
 	if err != nil {
-		s.logDiagnostics(path.String(), goInput, nil, err, m, buf, settings)
+		s.logDiagnostics("", path.String(), goInput, nil, err, m, buf, settings)
 		writer.ErrorAuto(w, err)
 		return
 	}
@@ -447,7 +452,7 @@ func (s *Server) v0QueryPath(w http.ResponseWriter, r *http.Request, path ast.Re
 		return
 	}
 
-	s.logDiagnostics(path.String(), goInput, &qrs[0].Result, nil, m, buf, settings)
+	s.logDiagnostics("", path.String(), goInput, &qrs[0].Result, nil, m, buf, settings)
 	writer.JSON(w, 200, qrs[0].Result, false)
 }
 
@@ -458,9 +463,10 @@ func (s *Server) v1DiagnosticsGet(w http.ResponseWriter, r *http.Request) {
 	var results []types.DiagnosticsResponseElementV1
 	s.diagnostics.Iter(func(i *Info) {
 		result := types.DiagnosticsResponseElementV1{
-			Timestamp: i.Timestamp.UnixNano(),
-			Query:     i.Query,
-			Input:     i.Input,
+			DecisionID: i.DecisionID,
+			Timestamp:  i.Timestamp.UnixNano(),
+			Query:      i.Query,
+			Input:      i.Input,
 		}
 
 		if i.Metrics != nil {
@@ -549,12 +555,16 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 
 	// Handle results.
 	if err != nil {
-		s.logDiagnostics(path.String(), goInput, nil, err, m, buf, settings)
+		s.logDiagnostics("", path.String(), goInput, nil, err, m, buf, settings)
 		writer.ErrorAuto(w, err)
 		return
 	}
 
-	result := types.DataResponseV1{}
+	decisionID := s.generateDecisionID()
+
+	result := types.DataResponseV1{
+		DecisionID: decisionID,
+	}
 
 	if includeMetrics {
 		result.Metrics = m.All()
@@ -567,13 +577,13 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 				writer.ErrorAuto(w, err)
 			}
 		}
-		s.logDiagnostics(path.String(), goInput, nil, nil, m, buf, settings)
+		s.logDiagnostics(decisionID, path.String(), goInput, nil, nil, m, buf, settings)
 		writer.JSON(w, 200, result, pretty)
 		return
 	}
 	result.Result = &qrs[0].Result
 
-	s.logDiagnostics(path.String(), goInput, result.Result, nil, m, buf, settings)
+	s.logDiagnostics(decisionID, path.String(), goInput, result.Result, nil, m, buf, settings)
 
 	if explainMode != types.ExplainOffV1 {
 		result.Explanation = s.getExplainResponse(explainMode, *buf, pretty)
@@ -679,12 +689,17 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 
 	// Handle results.
 	if err != nil {
-		s.logDiagnostics(path.String(), goInput, nil, err, m, buf, settings)
+		s.logDiagnostics("", path.String(), goInput, nil, err, m, buf, settings)
 		writer.ErrorAuto(w, err)
 		return
 	}
 
-	result := types.DataResponseV1{}
+	decisionID := s.generateDecisionID()
+
+	result := types.DataResponseV1{
+		DecisionID: decisionID,
+	}
+
 	if includeMetrics {
 		result.Metrics = m.All()
 	}
@@ -696,18 +711,18 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 				writer.ErrorAuto(w, err)
 			}
 		}
-		s.logDiagnostics(path.String(), goInput, nil, nil, m, buf, settings)
+		s.logDiagnostics(decisionID, path.String(), goInput, nil, nil, m, buf, settings)
 		writer.JSON(w, 200, result, pretty)
 		return
 	}
 
 	result.Result = &qrs[0].Result
-
-	s.logDiagnostics(path.String(), goInput, result.Result, nil, m, buf, settings)
+	s.logDiagnostics(decisionID, path.String(), goInput, result.Result, nil, m, buf, settings)
 
 	if explainMode != types.ExplainOffV1 {
 		result.Explanation = s.getExplainResponse(explainMode, *buf, pretty)
 	}
+
 	writer.JSON(w, 200, result, pretty)
 }
 
@@ -1191,12 +1206,13 @@ func (s *Server) evalDiagnosticPolicy(r *http.Request) settings {
 	return infoSettings
 }
 
-func (s *Server) logDiagnostics(q string, input interface{}, result *interface{}, err error, m metrics.Metrics, t *topdown.BufferTracer, config settings) {
+func (s *Server) logDiagnostics(decisionID, q string, input interface{}, result *interface{}, err error, m metrics.Metrics, t *topdown.BufferTracer, config settings) {
 	if !config.on {
 		return
 	}
 
-	i := newInfo(q, input, result)
+	i := newInfo(decisionID, q, input, result)
+
 	if err != nil {
 		i = i.withError(err)
 	}
@@ -1389,6 +1405,13 @@ func (s *Server) writeConflict(op storage.PatchOp, path storage.Path) error {
 	}
 
 	return nil
+}
+
+func (s *Server) generateDecisionID() string {
+	if s.decisionIDFactory != nil {
+		return s.decisionIDFactory()
+	}
+	return ""
 }
 
 func handleCompileError(w http.ResponseWriter, err error) {

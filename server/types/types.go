@@ -123,6 +123,7 @@ type DataRequestV1 struct {
 
 // DataResponseV1 models the response message for Data API read operations.
 type DataResponseV1 struct {
+	DecisionID  string       `json:"decision_id,omitempty"`
 	Explanation TraceV1      `json:"explanation,omitempty"`
 	Metrics     MetricsV1    `json:"metrics,omitempty"`
 	Result      *interface{} `json:"result,omitempty"`
@@ -131,9 +132,9 @@ type DataResponseV1 struct {
 // DiagnosticsResponseElementV1 models an element in the response message for the
 // Diagnostics API.
 type DiagnosticsResponseElementV1 struct {
-	Query     string `json:"query"`
-	Timestamp int64  `json:"timestamp"`
-
+	DecisionID  string       `json:"decision_id,omitempty"`
+	Query       string       `json:"query"`
+	Timestamp   int64        `json:"timestamp"`
 	Input       interface{}  `json:"input,omitempty"`
 	Result      *interface{} `json:"result,omitempty"`
 	Error       *ErrorV1     `json:"error,omitempty"`
