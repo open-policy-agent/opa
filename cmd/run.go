@@ -17,11 +17,11 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// default filename for the interactive shell's history
-var defaultHistoryFile = ".opa_history"
-
-// default listening address for the server
-var defaultAddr = ":8181"
+const (
+	defaultAddr                        = ":8181"        // default listening address for server
+	defaultHistoryFile                 = ".opa_history" // default filename for shell history
+	defaultServerDiagnosticsBufferSize = 10             // default number of items to keep in diagnostics buffer for server
+)
 
 func init() {
 
@@ -42,6 +42,8 @@ func init() {
 		"basic": server.AuthorizationBasic,
 		"off":   server.AuthorizationOff,
 	}
+
+	var serverDiagnosticsBufferSize int
 
 	logLevel := util.NewEnumFlag("info", []string{"debug", "info", "error"})
 	logFormat := util.NewEnumFlag("text", []string{"text", "json"})
@@ -115,6 +117,7 @@ For example:
 				Level:  logLevel.String(),
 				Format: logFormat.String(),
 			}
+			params.DiagnosticsBuffer = server.NewBoundedBuffer(serverDiagnosticsBufferSize)
 			params.Paths = args
 
 			ctx := context.Background()
@@ -141,7 +144,7 @@ For example:
 	runCommand.Flags().StringVarP(&params.OutputFormat, "format", "f", "pretty", "set shell output format, i.e, pretty, json")
 	runCommand.Flags().BoolVarP(&params.Watch, "watch", "w", false, "watch command line files for changes")
 	setMaxErrors(runCommand.Flags(), &params.ErrorLimit)
-	runCommand.Flags().IntVarP(&params.ServerDiagnosticsBufferSize, "server-diagnostics-buffer-size", "", server.DefaultDiagnosticsBufferSize, "set the size of the server's diagnostics buffer")
+	runCommand.Flags().IntVarP(&serverDiagnosticsBufferSize, "server-diagnostics-buffer-size", "", defaultServerDiagnosticsBufferSize, "set the size of the server's diagnostics buffer")
 	runCommand.Flags().StringVarP(&tlsCertFile, "tls-cert-file", "", "", "set path of TLS certificate file")
 	runCommand.Flags().StringVarP(&tlsPrivateKeyFile, "tls-private-key-file", "", "", "set path of TLS private key file")
 	runCommand.Flags().VarP(authentication, "authentication", "", "set authentication scheme")
