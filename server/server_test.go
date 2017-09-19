@@ -1587,6 +1587,33 @@ func TestDiagnostics(t *testing.T) {
 	}
 }
 
+func TestDecisionIDs(t *testing.T) {
+	f := newFixture(t)
+	ctr := 0
+
+	f.server = f.server.WithDecisionIDFactory(func() string {
+		ctr++
+		return fmt.Sprint(ctr)
+	})
+
+	if err := f.v1("GET", "/data/undefined", "", 200, `{"decision_id": "1"}`); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := f.v1("POST", "/data/undefined", "", 200, `{"decision_id": "2"}`); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := f.v1("GET", "/data", "", 200, `{"decision_id": "3", "result": {}}`); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := f.v1("POST", "/data", "", 200, `{"decision_id": "4", "result": {}}`); err != nil {
+		t.Fatal(err)
+	}
+
+}
+
 func TestWatchParams(t *testing.T) {
 	f := newFixture(t)
 	r1 := newMockConn()
