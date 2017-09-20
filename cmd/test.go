@@ -74,13 +74,23 @@ Example test run:
 }
 
 func opaTest(args []string) int {
-
-	compiler := ast.NewCompiler().SetErrorLimit(testParams.errLimit)
-
 	ctx, cancel := context.WithTimeout(context.Background(), testParams.timeout)
 	defer cancel()
 
-	ch, err := tester.NewRunner().SetCompiler(compiler).Paths(ctx, args...)
+	compiler := ast.NewCompiler().
+		SetErrorLimit(testParams.errLimit)
+
+	modules, store, err := tester.Load(args)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 1
+	}
+
+	runner := tester.NewRunner().
+		SetCompiler(compiler).
+		SetStore(store)
+
+	ch, err := runner.Run(ctx, modules)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return 1

@@ -96,14 +96,12 @@ func TestRunnerCancel(t *testing.T) {
 	}
 
 	test.WithTempFS(files, func(d string) {
-		ch, err := NewRunner().Paths(ctx, d)
+		results, err := Run(ctx, d)
 		if err != nil {
 			t.Fatal(err)
 		}
-		<-ch
-		_, ok := <-ch
-		if ok {
-			t.Fatal("Expected channel to be closed after first test")
+		if results[0].Error.(*topdown.Error).Code != topdown.CancelErr {
+			t.Fatalf("Expected cancel error but got: %v", results[0].Error)
 		}
 	})
 
