@@ -2,11 +2,6 @@
 
 set -e
 
-if [ -z "$GOPATH" ]; then
-	echo '$GOPATH environment variable not set. Have you installed Go?'
-	exit 1
-fi
-
 which pigeon >/dev/null || {
 	echo "Installing pigeon from vendor"
 	go install ./vendor/github.com/mna/pigeon
