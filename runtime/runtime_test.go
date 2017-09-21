@@ -15,6 +15,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/util"
 	"github.com/open-policy-agent/opa/util/test"
@@ -179,5 +180,87 @@ func TestRuntimeProcessWatchEvents(t *testing.T) {
 		}
 
 		t.Fatalf("Did not see expected change in %v, last value: %v, buf: %v", maxWaitTime, val, buf.String())
+	})
+}
+
+func TestRuntimeProcessWatchEventPolicyError(t *testing.T) {
+
+	ctx := context.Background()
+
+	fs := map[string]string{
+		"/x.rego": `package test
+
+		default x = 1
+		`,
+	}
+
+	test.WithTempFS(fs, func(rootDir string) {
+		params := NewParams()
+		params.Paths = []string{rootDir}
+		rt, err := NewRuntime(ctx, params)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		storage.Txn(ctx, rt.Store, storage.WriteParams, func(txn storage.Transaction) error {
+			return rt.Store.UpsertPolicy(ctx, txn, "out-of-band.rego", []byte(`package foo`))
+		})
+
+		ch := make(chan error)
+
+		testFunc := func(d time.Duration, err error) {
+			ch <- err
+		}
+
+		if err := rt.startWatcher(ctx, params.Paths, testFunc); err != nil {
+			t.Fatalf("Unexpected watcher init error: %v", err)
+		}
+
+		newModule := []byte(`package test
+
+		default x = 2`)
+
+		if err := ioutil.WriteFile(path.Join(rootDir, "y.rego"), newModule, 0644); err != nil {
+			t.Fatal(err)
+		}
+
+		result := <-ch
+
+		if errs, ok := result.(ast.Errors); !ok {
+			t.Fatal("Expected error but got:", result)
+		} else if errs[0].Code != ast.TypeErr {
+			t.Fatal("Expected type error but got:", result)
+		}
+
+		if err := os.Remove(path.Join(rootDir, "x.rego")); err != nil {
+			t.Fatal(err)
+		}
+
+		// Wait for up to 1 second before considering test failed. On Linux we
+		// observe multiple events on write (e.g., create -> write) which
+		// triggers two errors instead of one, whereas on Darwin only a single
+		// event (e.g., create) is sent.
+		maxWait := time.Second
+		timer := time.NewTimer(maxWait)
+
+		func() {
+			for {
+				select {
+				case result := <-ch:
+					if result == nil {
+						err = nil
+						return
+					}
+					err = result
+				case <-timer.C:
+					return
+				}
+			}
+		}()
+
+		if err != nil {
+			t.Fatalf("Expected result to succeed before %v. Last error: %v", maxWait, err)
+		}
+
 	})
 }
