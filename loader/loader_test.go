@@ -53,7 +53,7 @@ p = true { true }`}
 			t.Fatalf("Unexpected error: %v", err)
 		}
 		expected := ast.MustParseModule(files["/foo.rego"])
-		if !expected.Equal(loaded.Modules[normalizeModuleID(moduleFile)].Parsed) {
+		if !expected.Equal(loaded.Modules[CleanPath(moduleFile)].Parsed) {
 			t.Fatalf("Expected:\n%v\n\nGot:\n%v", expected, loaded.Modules[moduleFile])
 		}
 	})
@@ -141,8 +141,8 @@ func TestLoadDirRecursive(t *testing.T) {
 		}
 		mod1 := ast.MustParseModule(files["/a/e.rego"])
 		mod2 := ast.MustParseModule(files["/b/d/e.rego"])
-		expectedMod1 := loaded.Modules[normalizeModuleID(filepath.Join(rootDir, "/a/e.rego"))].Parsed
-		expectedMod2 := loaded.Modules[normalizeModuleID(filepath.Join(rootDir, "/b/d/e.rego"))].Parsed
+		expectedMod1 := loaded.Modules[CleanPath(filepath.Join(rootDir, "/a/e.rego"))].Parsed
+		expectedMod2 := loaded.Modules[CleanPath(filepath.Join(rootDir, "/b/d/e.rego"))].Parsed
 		if !mod1.Equal(expectedMod1) {
 			t.Fatalf("Expected:\n%v\n\nGot:\n%v", expectedMod1, mod1)
 		}

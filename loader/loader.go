@@ -71,6 +71,11 @@ func Rego(path string) (*RegoFile, error) {
 	return loadRego(path, bs)
 }
 
+// CleanPath returns the normalized version of a path that can be used as an identifier.
+func CleanPath(path string) string {
+	return strings.Trim(path, "/")
+}
+
 // Paths returns a sorted list of files contained at path. If recurse is true
 // and path is a directory, then Paths will walk the directory structure
 // recursively and list files at each level.
@@ -100,7 +105,7 @@ func SplitPrefix(path string) ([]string, string) {
 func (l *Result) merge(path string, result interface{}) error {
 	switch result := result.(type) {
 	case *RegoFile:
-		l.Modules[normalizeModuleID(path)] = result
+		l.Modules[CleanPath(path)] = result
 	default:
 		obj, ok := makeDir(l.path, result)
 		if !ok {
@@ -285,8 +290,4 @@ func makeDir(path []string, x interface{}) (map[string]interface{}, bool) {
 		return obj, true
 	}
 	return makeDir(path[:len(path)-1], map[string]interface{}{path[len(path)-1]: x})
-}
-
-func normalizeModuleID(x string) string {
-	return strings.Trim(x, "/")
 }
