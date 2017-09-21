@@ -48,3 +48,22 @@ func WriteOne(ctx context.Context, store Store, op PatchOp, path Path, value int
 
 	return store.Commit(ctx, txn)
 }
+
+// Txn is a convenience function that executes f inside a new transaction
+// opened on the store. If the function returns an error, the transaction is
+// aborted and the error is returned. Otherwise, the transaction is committed
+// and the result of the commit is returned.
+func Txn(ctx context.Context, store Store, params TransactionParams, f func(Transaction) error) error {
+
+	txn, err := store.NewTransaction(ctx, params)
+	if err != nil {
+		return err
+	}
+
+	if err := f(txn); err != nil {
+		store.Abort(ctx, txn)
+		return err
+	}
+
+	return store.Commit(ctx, txn)
+}
