@@ -233,39 +233,71 @@ func (rt *Runtime) readWatcher(ctx context.Context, watcher *fsnotify.Watcher, p
 	for {
 		select {
 		case evt := <-watcher.Events:
-			mask := (fsnotify.Create | fsnotify.Remove | fsnotify.Rename | fsnotify.Write)
+			removalMask := (fsnotify.Remove | fsnotify.Rename)
+			mask := (fsnotify.Create | fsnotify.Write | removalMask)
 			if (evt.Op & mask) != 0 {
 				t0 := time.Now()
-				err := rt.processWatcherUpdate(ctx, paths)
+				removed := ""
+				if (evt.Op & removalMask) != 0 {
+					removed = evt.Name
+				}
+				err := rt.processWatcherUpdate(ctx, paths, removed)
 				onReload(time.Since(t0), err)
 			}
 		}
 	}
 }
 
-func (rt *Runtime) processWatcherUpdate(ctx context.Context, paths []string) error {
+func (rt *Runtime) processWatcherUpdate(ctx context.Context, paths []string, removed string) error {
 
 	loaded, err := loader.All(paths)
 	if err != nil {
 		return err
 	}
 
-	txn, err := rt.Store.NewTransaction(ctx, storage.WriteParams)
-	if err != nil {
-		return err
-	}
+	removed = loader.CleanPath(removed)
 
-	if err := rt.Store.Write(ctx, txn, storage.AddOp, storage.Path{}, loaded.Documents); err != nil {
-		rt.Store.Abort(ctx, txn)
-		return err
-	}
-
-	if err := compileAndStoreInputs(ctx, rt.Store, txn, loaded.Modules, -1); err != nil {
-		rt.Store.Abort(ctx, txn)
-		return err
-	}
-
-	return rt.Store.Commit(ctx, txn)
+	return storage.Txn(ctx, rt.Store, storage.WriteParams, func(txn storage.Transaction) error {
+		if err := rt.Store.Write(ctx, txn, storage.AddOp, storage.Path{}, loaded.Documents); err != nil {
+			return err
+		}
+		ids, err := rt.Store.ListPolicies(ctx, txn)
+		if err != nil {
+			return err
+		}
+		for _, id := range ids {
+			if id == removed {
+				if err := rt.Store.DeletePolicy(ctx, txn, id); err != nil {
+					return err
+				}
+			} else if _, exists := loaded.Modules[id]; !exists {
+				// This branch get hit in two cases.
+				// 1. Another piece of code has access to the store and inserts
+				//    a policy out-of-band.
+				// 2. In between FS notification and loader.All() call above, a
+				//    policy is removed from disk.
+				bs, err := rt.Store.GetPolicy(ctx, txn, id)
+				if err != nil {
+					return err
+				}
+				module, err := ast.ParseModule(id, string(bs))
+				if err != nil {
+					return err
+				}
+				if _, ok := loaded.Modules[id]; !ok {
+					loaded.Modules[id] = &loader.RegoFile{
+						Name:   id,
+						Raw:    bs,
+						Parsed: module,
+					}
+				}
+			}
+		}
+		if err := compileAndStoreInputs(ctx, rt.Store, txn, loaded.Modules, -1); err != nil {
+			return err
+		}
+		return nil
+	})
 }
 
 func (rt *Runtime) getBanner() string {
