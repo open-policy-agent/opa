@@ -54,7 +54,7 @@ func TestRegoCaptureTermsRewrite(t *testing.T) {
 func TestRegoCancellation(t *testing.T) {
 
 	ast.RegisterBuiltin(&ast.Builtin{
-		Name: ast.String("test.sleep"),
+		Name: "test.sleep",
 		Args: []types.Type{
 			types.S,
 		},

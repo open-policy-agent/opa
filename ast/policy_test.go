@@ -219,7 +219,7 @@ func TestBodyIsGround(t *testing.T) {
 func TestExprOutputVars(t *testing.T) {
 
 	RegisterBuiltin(&Builtin{
-		Name: String("test_out_array"),
+		Name: "test_out_array",
 		Args: []types.Type{
 			types.NewArray(nil, types.N),
 		},
@@ -227,7 +227,7 @@ func TestExprOutputVars(t *testing.T) {
 	})
 
 	RegisterBuiltin(&Builtin{
-		Name: String("test_out_set"),
+		Name: "test_out_set",
 		Args: []types.Type{
 			types.NewArray(nil, types.N),
 		},
@@ -235,7 +235,7 @@ func TestExprOutputVars(t *testing.T) {
 	})
 
 	RegisterBuiltin(&Builtin{
-		Name: String("foo"),
+		Name: "foo",
 		Args: []types.Type{
 			types.A,
 			types.A,
@@ -292,18 +292,13 @@ func TestExprString(t *testing.T) {
 		Negated: true,
 		Terms:   RefTerm(VarTerm("q"), StringTerm("r"), VarTerm("x")),
 	}
-	expr3 := &Expr{
-		Terms: []*Term{StringTerm("="), StringTerm("a"), FloatNumberTerm(17.1)},
-	}
-	expr4 := &Expr{
-		Terms: []*Term{
-			StringTerm("!="),
-			ObjectTerm(Item(VarTerm("foo"), ArrayTerm(
-				IntNumberTerm(1), RefTerm(VarTerm("a"), StringTerm("b")),
-			))),
-			BooleanTerm(false),
-		},
-	}
+	expr3 := Equality.Expr(StringTerm("a"), FloatNumberTerm(17.1))
+	expr4 := NotEqual.Expr(
+		ObjectTerm(Item(VarTerm("foo"), ArrayTerm(
+			IntNumberTerm(1), RefTerm(VarTerm("a"), StringTerm("b")),
+		))),
+		BooleanTerm(false),
+	)
 	expr5 := &Expr{
 		Terms: BooleanTerm(true),
 		With: []*With{
@@ -317,21 +312,15 @@ func TestExprString(t *testing.T) {
 			},
 		},
 	}
-	expr6 := &Expr{
-		Terms: []*Term{
-			StringTerm("+"),
-			IntNumberTerm(1),
-			IntNumberTerm(2),
-			IntNumberTerm(3),
-		},
-	}
-	expr7 := &Expr{
-		Terms: []*Term{
-			StringTerm("count"),
-			StringTerm("foo"),
-			VarTerm("x"),
-		},
-	}
+	expr6 := Plus.Expr(
+		IntNumberTerm(1),
+		IntNumberTerm(2),
+		IntNumberTerm(3),
+	)
+	expr7 := Count.Expr(
+		StringTerm("foo"),
+		VarTerm("x"),
+	)
 	assertExprString(t, expr1, "q.r[x]")
 	assertExprString(t, expr2, "not q.r[x]")
 	assertExprString(t, expr3, "\"a\" = 17.1")

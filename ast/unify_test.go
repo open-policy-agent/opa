@@ -53,8 +53,8 @@ func TestUnify(t *testing.T) {
 		}
 
 		terms := expr.Terms.([]*Term)
-		if terms[0].Value.Compare(Equality.Name) != 0 {
-			panic(terms)
+		if !expr.IsEquality() {
+			panic(expr)
 		}
 
 		a, b := terms[1], terms[2]

@@ -1341,8 +1341,8 @@ func TestQueryWatchMigrateInvalidate(t *testing.T) {
 		"HTTP/1.1 200 OK\nContent-Type: application/json\nTransfer-Encoding: chunked\n\n7c",
 		`{"result":[{"expressions":[{"value":true,"text":"a=data.z.r+data.x","location":{"row":1,"col":1}}],"bindings":{"a":-200}}]}
 `,
-		`d7`,
-		`{"result":null,"error":{"code":"evaluation_error","message":"watch invalidated: 1 error occurred: 1:1: rego_type_error: \"plus\": invalid argument(s)\n\thave: (string, any, ???)\n\twant: (number, number, number)"}}
+		`d3`,
+		`{"result":null,"error":{"code":"evaluation_error","message":"watch invalidated: 1 error occurred: 1:1: rego_type_error: plus: invalid argument(s)\n\thave: (string, any, ???)\n\twant: (number, number, number)"}}
 `,
 		`0`,
 		``,

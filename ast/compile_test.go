@@ -427,6 +427,7 @@ func TestCompilerCheckSafetyBodyReordering(t *testing.T) {
 			contains(x, "oo")
 		`},
 		{"userfunc", `split(y, ".", z); a.b.funcs.fn("...foo.bar..", y)`, `a.b.funcs.fn("...foo.bar..", y); split(y, ".", z)`},
+		{"call-vars", `f.g[i](1); i = "foo"`, `i = "foo"; f.g[i](1)`},
 	}
 
 	for i, tc := range tests {
@@ -535,6 +536,7 @@ func TestCompilerCheckSafetyBodyErrors(t *testing.T) {
 		{"with-value-2", `p { x = data.a.b.d.t with input as x }`, `{x,}`},
 		{"else-kw", "p { false } else { count(x, 1) }", `{x,}`},
 		{"userfunc", "foo(x) = [y, z] { split(x, y, z) }", `{y,z}`},
+		{"call-vars", "p { f[i].g[j](1) }", `{i, j}`},
 	}
 
 	makeErrMsg := func(varName string) string {

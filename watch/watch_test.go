@@ -228,7 +228,7 @@ func TestWatchMigrateInvalidate(t *testing.T) {
 	second := <-handle.C
 	expSecond := Event{
 		Query: `x = data.y.r["foo"]+1`,
-		Error: errors.New(`watch invalidated: 1 error occurred: 1:1: rego_type_error: "plus": invalid argument(s)
+		Error: errors.New(`watch invalidated: 1 error occurred: 1:1: rego_type_error: plus: invalid argument(s)
 	have: (string, number, ???)
 	want: (number, number, number)`),
 	}

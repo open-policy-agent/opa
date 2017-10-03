@@ -4,7 +4,11 @@
 
 package ast
 
-import "github.com/open-policy-agent/opa/types"
+import (
+	"strings"
+
+	"github.com/open-policy-agent/opa/types"
+)
 
 // Builtins is the registry of built-in functions supported by OPA.
 // Call RegisterBuiltin to add a new built-in.
@@ -65,7 +69,7 @@ var DefaultBuiltins = [...]*Builtin{
 
 // BuiltinMap provides a convenient mapping of built-in names to
 // built-in definitions.
-var BuiltinMap map[String]*Builtin
+var BuiltinMap map[string]*Builtin
 
 /**
  * Unification
@@ -73,8 +77,8 @@ var BuiltinMap map[String]*Builtin
 
 // Equality represents the "=" operator.
 var Equality = &Builtin{
-	Name:  String("eq"),
-	Infix: String("="),
+	Name:  "eq",
+	Infix: "=",
 	Args: []types.Type{
 		types.A,
 		types.A,
@@ -88,8 +92,8 @@ var Equality = &Builtin{
 
 // GreaterThan represents the ">" comparison operator.
 var GreaterThan = &Builtin{
-	Name:  String("gt"),
-	Infix: String(">"),
+	Name:  "gt",
+	Infix: ">",
 	Args: []types.Type{
 		types.A,
 		types.A,
@@ -98,8 +102,8 @@ var GreaterThan = &Builtin{
 
 // GreaterThanEq represents the ">=" comparison operator.
 var GreaterThanEq = &Builtin{
-	Name:  String("gte"),
-	Infix: String(">="),
+	Name:  "gte",
+	Infix: ">=",
 	Args: []types.Type{
 		types.A,
 		types.A,
@@ -108,8 +112,8 @@ var GreaterThanEq = &Builtin{
 
 // LessThan represents the "<" comparison operator.
 var LessThan = &Builtin{
-	Name:  String("lt"),
-	Infix: String("<"),
+	Name:  "lt",
+	Infix: "<",
 	Args: []types.Type{
 		types.A,
 		types.A,
@@ -118,8 +122,8 @@ var LessThan = &Builtin{
 
 // LessThanEq represents the "<=" comparison operator.
 var LessThanEq = &Builtin{
-	Name:  String("lte"),
-	Infix: String("<="),
+	Name:  "lte",
+	Infix: "<=",
 	Args: []types.Type{
 		types.A,
 		types.A,
@@ -128,8 +132,8 @@ var LessThanEq = &Builtin{
 
 // NotEqual represents the "!=" comparison operator.
 var NotEqual = &Builtin{
-	Name:  String("neq"),
-	Infix: String("!="),
+	Name:  "neq",
+	Infix: "!=",
 	Args: []types.Type{
 		types.A,
 		types.A,
@@ -142,8 +146,8 @@ var NotEqual = &Builtin{
 
 // Plus adds two numbers together.
 var Plus = &Builtin{
-	Name:  String("plus"),
-	Infix: String("+"),
+	Name:  "plus",
+	Infix: "+",
 	Args: []types.Type{
 		types.N,
 		types.N,
@@ -155,8 +159,8 @@ var Plus = &Builtin{
 // Minus subtracts the second number from the first number or computes the diff
 // between two sets.
 var Minus = &Builtin{
-	Name:  String("minus"),
-	Infix: String("-"),
+	Name:  "minus",
+	Infix: "-",
 	Args: []types.Type{
 		types.NewAny(types.N, types.NewSet(types.A)),
 		types.NewAny(types.N, types.NewSet(types.A)),
@@ -167,8 +171,8 @@ var Minus = &Builtin{
 
 // Multiply multiplies two numbers together.
 var Multiply = &Builtin{
-	Name:  String("mul"),
-	Infix: String("*"),
+	Name:  "mul",
+	Infix: "*",
 	Args: []types.Type{
 		types.N,
 		types.N,
@@ -179,8 +183,8 @@ var Multiply = &Builtin{
 
 // Divide divides the first number by the second number.
 var Divide = &Builtin{
-	Name:  String("div"),
-	Infix: String("/"),
+	Name:  "div",
+	Infix: "/",
 	Args: []types.Type{
 		types.N,
 		types.N,
@@ -191,7 +195,7 @@ var Divide = &Builtin{
 
 // Round rounds the number up to the nearest integer.
 var Round = &Builtin{
-	Name: String("round"),
+	Name: "round",
 	Args: []types.Type{
 		types.N,
 		types.N,
@@ -201,7 +205,7 @@ var Round = &Builtin{
 
 // Abs returns the number without its sign.
 var Abs = &Builtin{
-	Name: String("abs"),
+	Name: "abs",
 	Args: []types.Type{
 		types.N,
 		types.N,
@@ -217,8 +221,8 @@ var Abs = &Builtin{
 
 // And performs an intersection operation on sets.
 var And = &Builtin{
-	Name:  String("and"),
-	Infix: String("&"),
+	Name:  "and",
+	Infix: "&",
 	Args: []types.Type{
 		types.NewSet(types.A),
 		types.NewSet(types.A),
@@ -229,8 +233,8 @@ var And = &Builtin{
 
 // Or performs a union operation on sets.
 var Or = &Builtin{
-	Name:  String("or"),
-	Infix: String("|"),
+	Name:  "or",
+	Infix: "|",
 	Args: []types.Type{
 		types.NewSet(types.A),
 		types.NewSet(types.A),
@@ -245,7 +249,7 @@ var Or = &Builtin{
 
 // Count takes a collection or string and counts the number of elements in it.
 var Count = &Builtin{
-	Name: String("count"),
+	Name: "count",
 	Args: []types.Type{
 		types.NewAny(
 			types.NewSet(types.A),
@@ -260,7 +264,7 @@ var Count = &Builtin{
 
 // Sum takes an array or set of numbers and sums them.
 var Sum = &Builtin{
-	Name: String("sum"),
+	Name: "sum",
 	Args: []types.Type{
 		types.NewAny(
 			types.NewSet(types.N),
@@ -273,7 +277,7 @@ var Sum = &Builtin{
 
 // Max returns the maximum value in a collection.
 var Max = &Builtin{
-	Name: String("max"),
+	Name: "max",
 	Args: []types.Type{
 		types.NewAny(
 			types.NewSet(types.A),
@@ -286,7 +290,7 @@ var Max = &Builtin{
 
 // Min returns the minimum value in a collection.
 var Min = &Builtin{
-	Name: String("min"),
+	Name: "min",
 	Args: []types.Type{
 		types.NewAny(
 			types.NewSet(types.A),
@@ -305,7 +309,7 @@ var Min = &Builtin{
 // Strings are converted to numbers using strconv.Atoi.
 // Boolean false is converted to 0 and boolean true is converted to 1.
 var ToNumber = &Builtin{
-	Name: String("to_number"),
+	Name: "to_number",
 	Args: []types.Type{
 		types.NewAny(
 			types.N,
@@ -325,7 +329,7 @@ var ToNumber = &Builtin{
 // RegexMatch takes two strings and evaluates to true if the string in the second
 // position matches the pattern in the first position.
 var RegexMatch = &Builtin{
-	Name: String("re_match"),
+	Name: "re_match",
 	Args: []types.Type{
 		types.S,
 		types.S,
@@ -338,7 +342,7 @@ var RegexMatch = &Builtin{
 
 // Concat joins an array of strings with an input string.
 var Concat = &Builtin{
-	Name: String("concat"),
+	Name: "concat",
 	Args: []types.Type{
 		types.S,
 		types.NewAny(
@@ -352,7 +356,7 @@ var Concat = &Builtin{
 
 // FormatInt returns the string representation of the number in the given base after converting it to an integer value.
 var FormatInt = &Builtin{
-	Name: String("format_int"),
+	Name: "format_int",
 	Args: []types.Type{
 		types.N,
 		types.N,
@@ -363,7 +367,7 @@ var FormatInt = &Builtin{
 
 // IndexOf returns the index of a substring contained inside a string
 var IndexOf = &Builtin{
-	Name: String("indexof"),
+	Name: "indexof",
 	Args: []types.Type{
 		types.S,
 		types.S,
@@ -375,7 +379,7 @@ var IndexOf = &Builtin{
 // Substring returns the portion of a string for a given start index and a length.
 //   If the length is less than zero, then substring returns the remainder of the string.
 var Substring = &Builtin{
-	Name: String("substring"),
+	Name: "substring",
 	Args: []types.Type{
 		types.S,
 		types.N,
@@ -387,7 +391,7 @@ var Substring = &Builtin{
 
 // Contains returns true if the search string is included in the base string
 var Contains = &Builtin{
-	Name: String("contains"),
+	Name: "contains",
 	Args: []types.Type{
 		types.S,
 		types.S,
@@ -396,7 +400,7 @@ var Contains = &Builtin{
 
 // StartsWith returns true if the search string begins with the base string
 var StartsWith = &Builtin{
-	Name: String("startswith"),
+	Name: "startswith",
 	Args: []types.Type{
 		types.S,
 		types.S,
@@ -405,7 +409,7 @@ var StartsWith = &Builtin{
 
 // EndsWith returns true if the search string begins with the base string
 var EndsWith = &Builtin{
-	Name: String("endswith"),
+	Name: "endswith",
 	Args: []types.Type{
 		types.S,
 		types.S,
@@ -414,7 +418,7 @@ var EndsWith = &Builtin{
 
 // Lower returns the input string but with all characters in lower-case
 var Lower = &Builtin{
-	Name: String("lower"),
+	Name: "lower",
 	Args: []types.Type{
 		types.S,
 		types.S,
@@ -424,7 +428,7 @@ var Lower = &Builtin{
 
 // Upper returns the input string but with all characters in upper-case
 var Upper = &Builtin{
-	Name: String("upper"),
+	Name: "upper",
 	Args: []types.Type{
 		types.S,
 		types.S,
@@ -434,7 +438,7 @@ var Upper = &Builtin{
 
 // Split returns an array containing elements of the input string split on a delimiter.
 var Split = &Builtin{
-	Name: String("split"),
+	Name: "split",
 	Args: []types.Type{
 		types.S,
 		types.S,
@@ -446,7 +450,7 @@ var Split = &Builtin{
 // Replace returns the given string with all instances of the second argument replaced
 // by the third.
 var Replace = &Builtin{
-	Name: String("replace"),
+	Name: "replace",
 	Args: []types.Type{
 		types.S,
 		types.S,
@@ -459,7 +463,7 @@ var Replace = &Builtin{
 // Trim returns the given string will all leading or trailing instances of the second
 // argument removed.
 var Trim = &Builtin{
-	Name: String("trim"),
+	Name: "trim",
 	Args: []types.Type{
 		types.S,
 		types.S,
@@ -470,7 +474,7 @@ var Trim = &Builtin{
 
 // Sprintf returns the given string, formatted.
 var Sprintf = &Builtin{
-	Name: String("sprintf"),
+	Name: "sprintf",
 	Args: []types.Type{
 		types.S,
 		types.NewArray(nil, types.A),
@@ -485,7 +489,7 @@ var Sprintf = &Builtin{
 
 // JSONMarshal serializes the input term.
 var JSONMarshal = &Builtin{
-	Name: String("json.marshal"),
+	Name: "json.marshal",
 	Args: []types.Type{
 		types.A,
 		types.S,
@@ -495,7 +499,7 @@ var JSONMarshal = &Builtin{
 
 // JSONUnmarshal deserializes the input string.
 var JSONUnmarshal = &Builtin{
-	Name: String("json.unmarshal"),
+	Name: "json.unmarshal",
 	Args: []types.Type{
 		types.S,
 		types.A,
@@ -505,7 +509,7 @@ var JSONUnmarshal = &Builtin{
 
 // Base64UrlEncode serializes the input string into base64url encoding.
 var Base64UrlEncode = &Builtin{
-	Name: String("base64url.encode"),
+	Name: "base64url.encode",
 	Args: []types.Type{
 		types.S,
 		types.S,
@@ -515,7 +519,7 @@ var Base64UrlEncode = &Builtin{
 
 // Base64UrlDecode deserializes the base64url encoded input string.
 var Base64UrlDecode = &Builtin{
-	Name: String("base64url.decode"),
+	Name: "base64url.decode",
 	Args: []types.Type{
 		types.S,
 		types.S,
@@ -525,7 +529,7 @@ var Base64UrlDecode = &Builtin{
 
 // YAMLMarshal serializes the input term.
 var YAMLMarshal = &Builtin{
-	Name: String("yaml.marshal"),
+	Name: "yaml.marshal",
 	Args: []types.Type{
 		types.A,
 		types.S,
@@ -535,7 +539,7 @@ var YAMLMarshal = &Builtin{
 
 // YAMLUnmarshal deserializes the input string.
 var YAMLUnmarshal = &Builtin{
-	Name: String("yaml.unmarshal"),
+	Name: "yaml.unmarshal",
 	Args: []types.Type{
 		types.S,
 		types.A,
@@ -549,7 +553,7 @@ var YAMLUnmarshal = &Builtin{
 
 // JWTDecode decodes a JSON Web Token and outputs it as an Object.
 var JWTDecode = &Builtin{
-	Name: String("io.jwt.decode"),
+	Name: "io.jwt.decode",
 	Args: []types.Type{
 		types.S,
 		types.NewObject(nil, types.NewDynamicProperty(types.A, types.A)),
@@ -565,7 +569,7 @@ var JWTDecode = &Builtin{
 
 // NowNanos returns the current time since epoch in nanoseconds.
 var NowNanos = &Builtin{
-	Name: String("time.now_ns"),
+	Name: "time.now_ns",
 	Args: []types.Type{
 		types.N,
 	},
@@ -574,7 +578,7 @@ var NowNanos = &Builtin{
 
 // ParseNanos returns the time in nanoseconds parsed from the string in the given format.
 var ParseNanos = &Builtin{
-	Name: String("time.parse_ns"),
+	Name: "time.parse_ns",
 	Args: []types.Type{
 		types.S,
 		types.S,
@@ -585,7 +589,7 @@ var ParseNanos = &Builtin{
 
 // ParseRFC3339Nanos returns the time in nanoseconds parsed from the string in RFC3339 format.
 var ParseRFC3339Nanos = &Builtin{
-	Name: String("time.parse_rfc3339_ns"),
+	Name: "time.parse_rfc3339_ns",
 	Args: []types.Type{
 		types.S,
 		types.N,
@@ -600,7 +604,7 @@ var ParseRFC3339Nanos = &Builtin{
 // WalkBuiltin generates [path, value] tuples for all nested documents
 // (recursively).
 var WalkBuiltin = &Builtin{
-	Name: String("walk"),
+	Name: "walk",
 	Args: []types.Type{
 		types.A,
 		types.NewArray(
@@ -620,7 +624,7 @@ var WalkBuiltin = &Builtin{
 
 // SetDiff has been replaced by the minus built-in.
 var SetDiff = &Builtin{
-	Name: String("set_diff"),
+	Name: "set_diff",
 	Args: []types.Type{
 		types.NewSet(types.A),
 		types.NewSet(types.A),
@@ -632,21 +636,33 @@ var SetDiff = &Builtin{
 // Builtin represents a built-in function supported by OPA. Every
 // built-in function is uniquely identified by a name.
 type Builtin struct {
-	Name      String       // Unique name of built-in function, e.g., name(term,term,...,term)
-	Infix     String       // Unique name of infix operator. Default should be unset.
+	Name      string       // Unique name of built-in function, e.g., <name>(arg1,arg2,...,argN)
+	Infix     string       // Unique name of infix operator. Default should be unset.
 	Args      []types.Type // Built-in argument type declaration.
 	TargetPos []int        // Argument positions that bind outputs. Indexing is zero-based.
 }
 
 // Expr creates a new expression for the built-in with the given terms.
 func (b *Builtin) Expr(terms ...*Term) *Expr {
-	ts := []*Term{StringTerm(string(b.Name))}
-	for _, t := range terms {
-		ts = append(ts, t)
+	ts := make([]*Term, len(terms)+1)
+	ts[0] = NewTerm(b.Ref())
+	for i := range terms {
+		ts[i+1] = terms[i]
 	}
 	return &Expr{
 		Terms: ts,
 	}
+}
+
+// Ref returns a Ref that refers to the built-in function.
+func (b *Builtin) Ref() Ref {
+	parts := strings.Split(b.Name, ".")
+	ref := make(Ref, len(parts))
+	ref[0] = VarTerm(parts[0])
+	for i := 1; i < len(parts); i++ {
+		ref[i] = StringTerm(parts[i])
+	}
+	return ref
 }
 
 // IsTargetPos returns true if a variable in the i-th position will be
@@ -661,7 +677,7 @@ func (b *Builtin) IsTargetPos(i int) bool {
 }
 
 func init() {
-	BuiltinMap = map[String]*Builtin{}
+	BuiltinMap = map[string]*Builtin{}
 	for _, b := range DefaultBuiltins {
 		RegisterBuiltin(b)
 	}

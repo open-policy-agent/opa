@@ -243,12 +243,13 @@ type VarVisitor struct {
 
 // VarVisitorParams contains settings for a VarVisitor.
 type VarVisitorParams struct {
-	SkipRefHead    bool
-	SkipObjectKeys bool
-	SkipClosures   bool
-	SkipWithTarget bool
-	SkipSets       bool
-	SkipFuncVars   bool
+	SkipRefHead     bool
+	SkipRefCallHead bool
+	SkipObjectKeys  bool
+	SkipClosures    bool
+	SkipWithTarget  bool
+	SkipSets        bool
+	SkipFuncVars    bool
 }
 
 // NewVarVisitor returns a new VarVisitor object.
@@ -302,6 +303,22 @@ func (vis *VarVisitor) Visit(v interface{}) Visitor {
 	if vis.params.SkipSets {
 		if _, ok := v.(*Set); ok {
 			return nil
+		}
+	}
+	if vis.params.SkipRefCallHead {
+		if expr, ok := v.(*Expr); ok {
+			if terms, ok := expr.Terms.([]*Term); ok {
+				for _, t := range terms[0].Value.(Ref)[1:] {
+					Walk(vis, t)
+				}
+				for i := 1; i < len(terms); i++ {
+					Walk(vis, terms[i])
+				}
+				for _, w := range expr.With {
+					Walk(vis, w)
+				}
+				return nil
+			}
 		}
 	}
 	if vis.params.SkipFuncVars {

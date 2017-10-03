@@ -11,7 +11,7 @@ import (
 
 // TypeEnv contains type info for static analysis such as type checking.
 type TypeEnv struct {
-	funcs map[String][]types.Type
+	funcs map[string][]types.Type
 	tree  *typeTreeNode
 	next  *TypeEnv
 }
@@ -19,7 +19,7 @@ type TypeEnv struct {
 // NewTypeEnv returns an empty TypeEnv.
 func NewTypeEnv() *TypeEnv {
 	return &TypeEnv{
-		funcs: map[String][]types.Type{},
+		funcs: map[string][]types.Type{},
 		tree:  newTypeTree(),
 	}
 }
@@ -27,7 +27,7 @@ func NewTypeEnv() *TypeEnv {
 // GetFunc returns the type array corresponding to the arguments of the function
 // referred to by name. GetFunc returns nil if there is no function matching that
 // name.
-func (env *TypeEnv) GetFunc(name String) []types.Type {
+func (env *TypeEnv) GetFunc(name string) []types.Type {
 	tps, ok := env.funcs[name]
 	if !ok && env.next != nil {
 		return env.next.GetFunc(name)
@@ -37,7 +37,7 @@ func (env *TypeEnv) GetFunc(name String) []types.Type {
 
 // PutFunc inserts the type information for the function referred to by name into
 // this TypeEnv.
-func (env *TypeEnv) PutFunc(name String, args []types.Type) {
+func (env *TypeEnv) PutFunc(name string, args []types.Type) {
 	env.funcs[name] = args
 }
 

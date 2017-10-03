@@ -368,7 +368,7 @@ func (w *writer) writeExpr(expr *ast.Expr, comments []*ast.Comment) []*ast.Comme
 }
 
 func (w *writer) writeFunctionCall(t []*ast.Term, comments []*ast.Comment) []*ast.Comment {
-	name := t[0].Value.(ast.String)
+	name := t[0].Value.String()
 	bi := ast.BuiltinMap[name]
 	if bi != nil && len(bi.Infix) > 0 {
 		switch len(bi.Args) {
@@ -383,7 +383,7 @@ func (w *writer) writeFunctionCall(t []*ast.Term, comments []*ast.Comment) []*as
 		}
 	}
 
-	w.write(string(t[0].Value.(ast.String)) + "(")
+	w.write(string(t[0].String()) + "(")
 	for _, v := range t[1 : len(t)-1] {
 		comments = w.writeTerm(v, comments)
 		w.write(", ")

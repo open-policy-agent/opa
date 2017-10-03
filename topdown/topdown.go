@@ -37,7 +37,7 @@ type Topdown struct {
 	qid          uint64
 	redos        *redoStack
 	builtins     builtins.Cache
-	userBuiltins map[ast.String]BuiltinFunc
+	userBuiltins map[string]BuiltinFunc
 }
 
 // ResetQueryIDs resets the query ID generator. This is only for test purposes.
@@ -90,7 +90,7 @@ func New(ctx context.Context, query ast.Body, compiler *ast.Compiler, store stor
 		qid:          qidFactory.Next(),
 		redos:        &redoStack{},
 		builtins:     builtins.Cache{},
-		userBuiltins: map[ast.String]BuiltinFunc{},
+		userBuiltins: map[string]BuiltinFunc{},
 	}
 	t.registerUserFunctions()
 	return t
@@ -905,7 +905,7 @@ func evalExpr(t *Topdown, iter Iterator) error {
 	expr := PlugExpr(t.Current(), t.Binding)
 	switch tt := expr.Terms.(type) {
 	case []*ast.Term:
-		name := tt[0].Value.(ast.String)
+		name := tt[0].String()
 		builtin, ok := builtinFunctions[name]
 		if !ok {
 			builtin, ok = t.userBuiltins[name]
@@ -966,7 +966,7 @@ func evalRef(t *Topdown, ref, path ast.Ref, iter Iterator) error {
 		}
 
 		// This should not be reachable.
-		return fmt.Errorf("unbound ref head: %v", path)
+		return fmt.Errorf("unbound ref head")
 	}
 
 	var n ast.Ref
@@ -1882,7 +1882,7 @@ func evalTerms(t *Topdown, iter Iterator) error {
 	var ts []*ast.Term
 	switch t := expr.Terms.(type) {
 	case []*ast.Term:
-		ts = t
+		ts = t[1:]
 	case *ast.Term:
 		ts = append(ts, t)
 	default:

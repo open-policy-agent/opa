@@ -91,7 +91,7 @@ type Compiler struct {
 
 	// FunctionMap is a map containing the user defined functions of this
 	// compiler's modules.
-	FuncMap map[String][]*Func
+	FuncMap map[string][]*Func
 
 	// Graph represents the dependencies between rules and funcs (lets call
 	// them targets). An edge (u,v) is added to the graph if target "u"
@@ -194,7 +194,7 @@ func NewCompiler() *Compiler {
 	c := &Compiler{
 		Modules:       map[string]*Module{},
 		TypeEnv:       NewTypeEnv(),
-		FuncMap:       map[String][]*Func{},
+		FuncMap:       map[string][]*Func{},
 		generatedVars: map[*Module]VarSet{},
 		ruleIndices: util.NewHashMap(func(a, b util.T) bool {
 			r1, r2 := a.(Ref), b.(Ref)
@@ -405,7 +405,7 @@ func (c *Compiler) GetRules(ref Ref) (rules []*Rule) {
 }
 
 // GetFunc returns the function referred to by name.
-func (c *Compiler) GetFunc(name String) []*Func {
+func (c *Compiler) GetFunc(name string) []*Func {
 	if fn, ok := c.FuncMap[name]; ok {
 		return fn
 	}
@@ -413,14 +413,14 @@ func (c *Compiler) GetFunc(name String) []*Func {
 }
 
 // GetAllFuncs returns a map of functions that this compiler has discovered.
-func (c *Compiler) GetAllFuncs() map[String][]*Func {
-	cpy := map[String][]*Func{}
+func (c *Compiler) GetAllFuncs() map[string][]*Func {
+	cpy := map[string][]*Func{}
 	for _, fn := range c.FuncMap {
 		var fns []*Func
 		for _, f := range fn {
 			fns = append(fns, f.Copy())
 		}
-		cpy[fn[0].PathString()] = fns
+		cpy[fn[0].Path().String()] = fns
 	}
 	return cpy
 }
@@ -618,7 +618,8 @@ func (c *Compiler) checkBodySafety(safe VarSet, m *Module, b Body, l *Location) 
 }
 
 var safetyCheckVarVisitorParams = VarVisitorParams{
-	SkipClosures: true,
+	SkipRefCallHead: true,
+	SkipClosures:    true,
 }
 
 // checkSafetyRuleHeads ensures that variables appearing in the head of a
@@ -768,7 +769,7 @@ func (c *Compiler) resolveAllRefs() {
 		})
 		WalkFuncs(mod, func(fn *Func) bool {
 			resolveRefsInFunc(globals, fn)
-			path := fn.PathString()
+			path := fn.Path().String()
 			c.FuncMap[path] = append(c.FuncMap[path], fn)
 
 			return false
@@ -779,14 +780,20 @@ func (c *Compiler) resolveAllRefs() {
 	}
 
 	for _, mod := range c.Modules {
-		visitor := NewGenericVisitor(func(x interface{}) bool {
-			// Walk terms in order to provide more detailed location
-			// information.
+		var visitor Visitor
+		visitor = NewGenericVisitor(func(x interface{}) bool {
 			switch x := x.(type) {
+			case *Expr:
+				if terms, ok := x.Terms.([]*Term); ok {
+					for i := 1; i < len(terms); i++ {
+						Walk(visitor, terms[i])
+					}
+					return true
+				}
 			case *Term:
 				switch v := x.Value.(type) {
 				case Ref:
-					if _, ok := c.FuncMap[String(v.String())]; ok {
+					if _, ok := c.FuncMap[v.String()]; ok {
 						c.err(&Error{
 							Code:    CompileErr,
 							Message: x.Location.Format("%v refers to a known builtin but does not call it", string(x.Location.Text)),
@@ -1243,7 +1250,7 @@ type Graph struct {
 
 // NewGraph returns a new Graph based on modules. The list function
 // must return the rules or user functions referred to directly by the ref.
-func NewGraph(modules map[string]*Module, list func(Ref) []*Rule, resolve func(String) []*Func) *Graph {
+func NewGraph(modules map[string]*Module, list func(Ref) []*Rule, resolve func(string) []*Func) *Graph {
 
 	graph := &Graph{
 		adj:    map[util.T]map[util.T]struct{}{},
@@ -1264,7 +1271,7 @@ func NewGraph(modules map[string]*Module, list func(Ref) []*Rule, resolve func(S
 		addFuncDeps := func(a util.T) func(expr *Expr) bool {
 			return func(expr *Expr) bool {
 				if expr.IsBuiltin() {
-					name := expr.Terms.([]*Term)[0].Value.(String)
+					name := expr.Terms.([]*Term)[0].String()
 
 					// Language builtins won't be resolved.
 					if b := resolve(name); b != nil {
@@ -1766,20 +1773,27 @@ func resolveRefsInExpr(globals map[Var]Ref, expr *Expr) *Expr {
 	case *Term:
 		cpy.Terms = resolveRefsInTerm(globals, ts)
 	case []*Term:
-		buf := []*Term{}
+		buf := make([]*Term, len(ts))
 
-		// Resolve user defined functions.
-		v := Var(ts[0].Value.(String))
-		if r, ok := globals[v]; ok {
-			tcpy := *ts[0]
-			tcpy.Value = String(r.String())
-			buf = append(buf, &tcpy)
-			ts = ts[1:]
+		// Resolve refs to functions inside the package. Refs outside the
+		// package must be fully qualified. FIXME(tsandall): this can go away
+		// once functions are merged with rules.
+		ref := ts[0].Value.(Ref)
+		if path, ok := globals[ref[0].Value.(Var)]; ok && len(ref) == 1 {
+			refCopy := path.Copy()
+			for i := range refCopy {
+				refCopy[i].SetLocation(ts[0].Location)
+			}
+			buf[0] = NewTerm(refCopy)
+		} else {
+			buf[0] = ts[0]
 		}
 
-		for _, t := range ts {
-			buf = append(buf, resolveRefsInTerm(globals, t))
+		// resolve remaining terms normally
+		for i := 1; i < len(ts); i++ {
+			buf[i] = resolveRefsInTerm(globals, ts[i])
 		}
+
 		cpy.Terms = buf
 	}
 	for _, w := range cpy.With {
