@@ -20,7 +20,7 @@ func TestCheckInference(t *testing.T) {
 
 	// fake_builtin_1([str1,str2])
 	RegisterBuiltin(&Builtin{
-		Name: String("fake_builtin_1"),
+		Name: "fake_builtin_1",
 		Args: []types.Type{
 			types.NewArray(
 				[]types.Type{types.S, types.S}, nil,
@@ -31,7 +31,7 @@ func TestCheckInference(t *testing.T) {
 
 	// fake_builtin_2({"a":str1,"b":str2})
 	RegisterBuiltin(&Builtin{
-		Name: String("fake_builtin_2"),
+		Name: "fake_builtin_2",
 		Args: []types.Type{
 			types.NewObject(
 				[]*types.StaticProperty{
@@ -45,7 +45,7 @@ func TestCheckInference(t *testing.T) {
 
 	// fake_builtin_3({str1,str2,...})
 	RegisterBuiltin(&Builtin{
-		Name: String("fake_builtin_3"),
+		Name: "fake_builtin_3",
 		Args: []types.Type{
 			types.NewSet(types.S),
 		},
@@ -549,7 +549,6 @@ func TestCheckMatchErrors(t *testing.T) {
 		{"object-dynamic", `{ obj2 = obj1 }`},
 		{"set", "{{1,2,3} = null}"},
 	}
-
 	for _, tc := range tests {
 		test.Subtest(t, tc.note, func(t *testing.T) {
 			body := MustParseBody(tc.query)
@@ -560,13 +559,12 @@ func TestCheckMatchErrors(t *testing.T) {
 			}
 		})
 	}
-
 }
 
 func TestCheckBuiltinErrors(t *testing.T) {
 
 	RegisterBuiltin(&Builtin{
-		Name: String("fake_builtin_2"),
+		Name: "fake_builtin_2",
 		Args: []types.Type{
 			types.NewAny(types.NewObject(
 				[]*types.StaticProperty{

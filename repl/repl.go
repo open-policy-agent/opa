@@ -491,7 +491,7 @@ func (r *REPL) unsetFunc(ctx context.Context, v ast.Value) error {
 	mod := r.modules[r.currentModuleID]
 	funcs := []*ast.Func{}
 	for _, f := range mod.Funcs {
-		if !f.PathString().Equal(ast.String(ref.String())) {
+		if f.Path().String() != ref.String() {
 			funcs = append(funcs, f)
 		}
 	}

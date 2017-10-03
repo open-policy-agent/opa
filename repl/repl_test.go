@@ -386,7 +386,7 @@ func TestUnset(t *testing.T) {
 	repl.OneShot(ctx, "unset repl.p")
 
 	err = repl.OneShot(ctx, "repl.p(5, y)")
-	if err == nil || err.Error() != `1 error occurred: 1:1: rego_type_error: undefined built-in function "repl.p"` {
+	if err == nil || err.Error() != `1 error occurred: 1:1: rego_type_error: undefined built-in function repl.p` {
 		t.Fatalf("Expected eval error (undefined built-in) but got err: '%v'", err)
 	}
 
@@ -396,7 +396,7 @@ func TestUnset(t *testing.T) {
 	repl.OneShot(ctx, "unset repl.p")
 
 	err = repl.OneShot(ctx, "repl.p(1, 2, y)")
-	if err == nil || err.Error() != `1 error occurred: 1:1: rego_type_error: undefined built-in function "repl.p"` {
+	if err == nil || err.Error() != `1 error occurred: 1:1: rego_type_error: undefined built-in function repl.p` {
 		t.Fatalf("Expected eval error (undefined built-in) but got err: '%v'", err)
 	}
 

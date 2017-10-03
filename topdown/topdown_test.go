@@ -1492,14 +1492,14 @@ func TestTopDownJWTBuiltins(t *testing.T) {
 func TestTopDownTime(t *testing.T) {
 
 	ast.RegisterBuiltin(&ast.Builtin{
-		Name: ast.String("test_sleep"),
+		Name: "test_sleep",
 		Args: []types.Type{
 			types.S,
 		},
 		TargetPos: []int{1},
 	})
 
-	RegisterFunctionalBuiltinVoid1(ast.String("test_sleep"), func(a ast.Value) error {
+	RegisterFunctionalBuiltinVoid1("test_sleep", func(a ast.Value) error {
 		duration, err := time.ParseDuration(string(a.(ast.String)))
 		if err != nil {
 			panic(err)
@@ -1783,8 +1783,7 @@ func TestTopDownPartialDocConstants(t *testing.T) {
 }
 
 func TestTopDownUserFunc(t *testing.T) {
-	compiler := compileModules([]string{
-		`package ex
+	modules := []string{`package ex
 
 		foo(x) = y {
 			split(x, "i", y)
@@ -1911,8 +1910,9 @@ func TestTopDownUserFunc(t *testing.T) {
 
 		samepkg = y {
 			foo("how do you do?", y)
-		}`,
-	})
+		}`}
+
+	compiler := compileModules(modules)
 	store := inmem.NewFromObject(loadSmallTestData())
 	ctx := context.Background()
 	txn := storage.NewTransactionOrDie(ctx, store)
@@ -1985,9 +1985,9 @@ func TestUserFunctionErrors(t *testing.T) {
 	txn := storage.NewTransactionOrDie(ctx, store)
 	defer store.Abort(ctx, txn)
 
-	assertTopDownWithPath(t, compiler, store, "function output conflict single", []string{"test1", "r"}, "", errors.New(`eval_conflict_error: function "test1.p" produces conflicting outputs`))
+	assertTopDownWithPath(t, compiler, store, "function output conflict single", []string{"test1", "r"}, "", errors.New(`eval_conflict_error: function test1.p produces conflicting outputs`))
 	assertTopDownWithPath(t, compiler, store, "function input no match", []string{"test2", "r"}, "", "")
-	assertTopDownWithPath(t, compiler, store, "function output conflict multiple", []string{"test3", "r"}, "", errors.New(`eval_conflict_error: function "test3.p" produces conflicting outputs`))
+	assertTopDownWithPath(t, compiler, store, "function output conflict multiple", []string{"test3", "r"}, "", errors.New(`eval_conflict_error: function test3.p produces conflicting outputs`))
 }
 
 func TestTopDownWithKeyword(t *testing.T) {
@@ -2240,7 +2240,7 @@ violations[server] { server = servers[_]; server.protocols[_] = "http"; public_s
 func TestTopDownUnsupportedBuiltin(t *testing.T) {
 
 	ast.RegisterBuiltin(&ast.Builtin{
-		Name: ast.String("unsupported_builtin"),
+		Name: "unsupported_builtin",
 	})
 
 	body := ast.MustParseBody(`unsupported_builtin()`)
@@ -2264,7 +2264,7 @@ func TestTopDownUnsupportedBuiltin(t *testing.T) {
 
 func TestTopDownQueryCancellation(t *testing.T) {
 	ast.RegisterBuiltin(&ast.Builtin{
-		Name: ast.String("test.sleep"),
+		Name: "test.sleep",
 		Args: []types.Type{
 			types.S,
 		},

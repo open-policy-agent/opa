@@ -457,8 +457,8 @@ ArithInfixOp <- val:("+" / "-" / "*" / "/" / "&" / "|" / "-") {
             op = string(b.Name)
         }
     }
-    operator := StringTerm(op)
-    operator.Location = currentLocation(c)
+    loc := currentLocation(c)
+    operator := RefTerm(VarTerm(op).SetLocation(loc)).SetLocation(loc)
 	return operator, nil
 }
 
@@ -473,14 +473,14 @@ InfixOp <- val:("=" / "!=" / "<=" / ">=" / "<" / ">") {
             op = string(b.Name)
         }
     }
-    operator := StringTerm(op)
-    operator.Location = currentLocation(c)
+    loc := currentLocation(c)
+    operator := RefTerm(VarTerm(op).SetLocation(loc)).SetLocation(loc)
 	return operator, nil
 }
 
-PrefixExpr <- SetEmpty / Builtin
+PrefixExpr <- SetEmpty / Call
 
-Builtin <- name:BuiltinName "(" _ head:Term? tail:( _ "," _ Term )* _  ")" {
+Call <- name:Operator "(" _ head:Term? tail:( _ "," _ Term )* _  ")" {
     buf := []*Term{name.(*Term)}
     if head == nil {
         return buf, nil
@@ -496,18 +496,16 @@ Builtin <- name:BuiltinName "(" _ head:Term? tail:( _ "," _ Term )* _  ")" {
     return buf, nil
 }
 
-BuiltinName <- head:Var tail:( "." Var )* {
-    tailSlice := tail.([]interface{})
-    buf := make([]string, 1+len(tailSlice))
-    buf[0] = string(head.(*Term).Value.(Var))
-    for i := range tailSlice {
-        elem := tailSlice[i]
-        part := elem.([]interface{})[1].(*Term).Value.(Var)
-        buf[i+1] = string(part)
+Operator <- val:(Ref / Var) {
+    term := val.(*Term)
+    switch term.Value.(type) {
+    case Ref:
+        return val, nil
+    case Var:
+        return RefTerm(term).SetLocation(currentLocation(c)), nil
+    default:
+        panic("unreachable")
     }
-    name := StringTerm(strings.Join(buf, "."))
-    name.Location = currentLocation(c)
-    return name, nil
 }
 
 Term <- val:( Comprehension / Composite / Scalar / Ref / Var ) {

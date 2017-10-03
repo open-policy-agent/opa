@@ -71,7 +71,7 @@ func TestRun(t *testing.T) {
 func TestRunnerCancel(t *testing.T) {
 
 	ast.RegisterBuiltin(&ast.Builtin{
-		Name: ast.String("test.sleep"),
+		Name: "test.sleep",
 		Args: []types.Type{
 			types.S,
 		},

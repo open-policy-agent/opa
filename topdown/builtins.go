@@ -91,43 +91,43 @@ type (
 )
 
 // RegisterBuiltinFunc adds a new built-in function to the evaluation engine.
-func RegisterBuiltinFunc(name ast.String, fun BuiltinFunc) {
+func RegisterBuiltinFunc(name string, fun BuiltinFunc) {
 	builtinFunctions[name] = fun
 }
 
 // RegisterFunctionalBuiltinVoid1 adds a new built-in function to the evaluation
 // engine.
-func RegisterFunctionalBuiltinVoid1(name ast.String, fun FunctionalBuiltinVoid1) {
+func RegisterFunctionalBuiltinVoid1(name string, fun FunctionalBuiltinVoid1) {
 	builtinFunctions[name] = functionalWrapperVoid1(name, fun)
 }
 
 // RegisterFunctionalBuiltinVoid2 adds a new built-in function to the evaluation
 // engine.
-func RegisterFunctionalBuiltinVoid2(name ast.String, fun FunctionalBuiltinVoid2) {
+func RegisterFunctionalBuiltinVoid2(name string, fun FunctionalBuiltinVoid2) {
 	builtinFunctions[name] = functionalWrapperVoid2(name, fun)
 }
 
 // RegisterFunctionalBuiltin1 adds a new built-in function to the evaluation
 // engine.
-func RegisterFunctionalBuiltin1(name ast.String, fun FunctionalBuiltin1) {
+func RegisterFunctionalBuiltin1(name string, fun FunctionalBuiltin1) {
 	builtinFunctions[name] = functionalWrapper1(name, fun)
 }
 
 // RegisterFunctionalBuiltin2 adds a new built-in function to the evaluation
 // engine.
-func RegisterFunctionalBuiltin2(name ast.String, fun FunctionalBuiltin2) {
+func RegisterFunctionalBuiltin2(name string, fun FunctionalBuiltin2) {
 	builtinFunctions[name] = functionalWrapper2(name, fun)
 }
 
 // RegisterFunctionalBuiltin3 adds a new built-in function to the evaluation
 // engine.
-func RegisterFunctionalBuiltin3(name ast.String, fun FunctionalBuiltin3) {
+func RegisterFunctionalBuiltin3(name string, fun FunctionalBuiltin3) {
 	builtinFunctions[name] = functionalWrapper3(name, fun)
 }
 
 // RegisterFunctionalBuiltin1Out3 adds a new built-in function to the evaluation
 // engine.
-func RegisterFunctionalBuiltin1Out3(name ast.String, fun FunctionalBuiltin1Out3) {
+func RegisterFunctionalBuiltin1Out3(name string, fun FunctionalBuiltin1Out3) {
 	builtinFunctions[name] = functionalWrapper1Out3(name, fun)
 }
 
@@ -150,9 +150,9 @@ func (BuiltinEmpty) Error() string {
 	return "<empty>"
 }
 
-var builtinFunctions = map[ast.String]BuiltinFunc{}
+var builtinFunctions = map[string]BuiltinFunc{}
 
-func functionalWrapperVoid1(name ast.String, fn FunctionalBuiltinVoid1) BuiltinFunc {
+func functionalWrapperVoid1(name string, fn FunctionalBuiltinVoid1) BuiltinFunc {
 	return func(t *Topdown, expr *ast.Expr, iter Iterator) error {
 		operands := expr.Terms.([]*ast.Term)[1:]
 		resolved, err := resolveN(t, name, operands, 1)
@@ -167,7 +167,7 @@ func functionalWrapperVoid1(name ast.String, fn FunctionalBuiltinVoid1) BuiltinF
 	}
 }
 
-func functionalWrapperVoid2(name ast.String, fn FunctionalBuiltinVoid2) BuiltinFunc {
+func functionalWrapperVoid2(name string, fn FunctionalBuiltinVoid2) BuiltinFunc {
 	return func(t *Topdown, expr *ast.Expr, iter Iterator) error {
 		operands := expr.Terms.([]*ast.Term)[1:]
 		resolved, err := resolveN(t, name, operands, 2)
@@ -182,7 +182,7 @@ func functionalWrapperVoid2(name ast.String, fn FunctionalBuiltinVoid2) BuiltinF
 	}
 }
 
-func functionalWrapper1(name ast.String, fn FunctionalBuiltin1) BuiltinFunc {
+func functionalWrapper1(name string, fn FunctionalBuiltin1) BuiltinFunc {
 	return func(t *Topdown, expr *ast.Expr, iter Iterator) error {
 		operands := expr.Terms.([]*ast.Term)[1:]
 		resolved, err := resolveN(t, name, operands, 1)
@@ -197,7 +197,7 @@ func functionalWrapper1(name ast.String, fn FunctionalBuiltin1) BuiltinFunc {
 	}
 }
 
-func functionalWrapper2(name ast.String, fn FunctionalBuiltin2) BuiltinFunc {
+func functionalWrapper2(name string, fn FunctionalBuiltin2) BuiltinFunc {
 	return func(t *Topdown, expr *ast.Expr, iter Iterator) error {
 		operands := expr.Terms.([]*ast.Term)[1:]
 		resolved, err := resolveN(t, name, operands, 2)
@@ -212,7 +212,7 @@ func functionalWrapper2(name ast.String, fn FunctionalBuiltin2) BuiltinFunc {
 	}
 }
 
-func functionalWrapper3(name ast.String, fn FunctionalBuiltin3) BuiltinFunc {
+func functionalWrapper3(name string, fn FunctionalBuiltin3) BuiltinFunc {
 	return func(t *Topdown, expr *ast.Expr, iter Iterator) error {
 		operands := expr.Terms.([]*ast.Term)[1:]
 		resolved, err := resolveN(t, name, operands, 3)
@@ -227,7 +227,7 @@ func functionalWrapper3(name ast.String, fn FunctionalBuiltin3) BuiltinFunc {
 	}
 }
 
-func functionalWrapper1Out3(name ast.String, fn FunctionalBuiltin1Out3) BuiltinFunc {
+func functionalWrapper1Out3(name string, fn FunctionalBuiltin1Out3) BuiltinFunc {
 	return func(t *Topdown, expr *ast.Expr, iter Iterator) error {
 		operands := expr.Terms.([]*ast.Term)[1:]
 		resolved, err := resolveN(t, name, operands, 1)
@@ -244,7 +244,7 @@ func functionalWrapper1Out3(name ast.String, fn FunctionalBuiltin1Out3) BuiltinF
 	}
 }
 
-func userFunctionWrapper(name ast.String, fns []*ast.Func) BuiltinFunc {
+func userFunctionWrapper(name string, fns []*ast.Func) BuiltinFunc {
 	return func(t *Topdown, expr *ast.Expr, iter Iterator) error {
 		operands := expr.Terms.([]*ast.Term)[1:]
 		resolved, err := resolveN(t, name, operands, len(operands)-1)
@@ -299,7 +299,7 @@ func userFunctionWrapper(name ast.String, fns []*ast.Func) BuiltinFunc {
 	}
 }
 
-func handleFunctionalBuiltinErr(name ast.String, loc *ast.Location, err error) error {
+func handleFunctionalBuiltinErr(name string, loc *ast.Location, err error) error {
 	switch err := err.(type) {
 	case BuiltinEmpty:
 		return nil
@@ -318,7 +318,7 @@ func handleFunctionalBuiltinErr(name ast.String, loc *ast.Location, err error) e
 	}
 }
 
-func resolveN(t *Topdown, name ast.String, ops []*ast.Term, n int) ([]ast.Value, error) {
+func resolveN(t *Topdown, name string, ops []*ast.Term, n int) ([]ast.Value, error) {
 	result := make([]ast.Value, n)
 	for i := 0; i < n; i++ {
 		op, err := ResolveRefs(ops[i].Value, t)

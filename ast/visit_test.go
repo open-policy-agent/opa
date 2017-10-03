@@ -23,11 +23,19 @@ func TestVisitor(t *testing.T) {
 
 import input.x.y as z
 
-t[x] = y { p[x] = {"foo": [y, 2, {"bar": 3}]}; not q[x]; y = [[x, z] | x = "x"; z = "z"]; z = {"foo": [x, z] | x = "x"; z = "z"}; s = {1 | a[i] = "foo"}; count({1, 2, 3}, n) with input.foo.bar as x }
+t[x] = y {
+	p[x] = {"foo": [y, 2, {"bar": 3}]}
+	not q[x]
+	y = [[x, z] | x = "x"; z = "z"]
+	z = {"foo": [x, z] | x = "x"; z = "z"}
+	s = {1 | a[i] = "foo"}
+	count({1, 2, 3}, n) with input.foo.bar as x
+}
 
 p { false } else { false } else { true }
 
-fn([x, y]) = z { z = "bar"; trim(x, y, z) }`)
+fn([x, y]) = z { json.unmarshal(x, z); z > y }
+`)
 	vis := &testVis{}
 
 	Walk(vis, rule)
@@ -62,7 +70,9 @@ fn([x, y]) = z { z = "bar"; trim(x, y, z) }`)
 				body
 					expr1
 						term
-							=
+							ref
+								term
+									=
 						term
 							ref1
 								term
@@ -94,7 +104,9 @@ fn([x, y]) = z { z = "bar"; trim(x, y, z) }`)
 									x
 					expr3
 						term
-							=
+							ref
+								term
+									=
 						term
 							y
 						term
@@ -108,21 +120,27 @@ fn([x, y]) = z { z = "bar"; trim(x, y, z) }`)
 								body
 									expr4
 										term
-											=
+											ref
+												term
+													=
 										term
 											x
 										term
 											"x"
 									expr5
 										term
-											=
+											ref
+												term
+													=
 										term
 											z
 										term
 											"z"
 					expr4
 						term
-							=
+							ref
+								term
+									=
 						term
 							z
 						term
@@ -139,21 +157,27 @@ fn([x, y]) = z { z = "bar"; trim(x, y, z) }`)
 								body
 									expr1
 										term
-											=
+											ref
+												term
+													=
 										term
 											x
 										term
 											"x"
 									expr2
 										term
-											=
+											ref
+												term
+													=
 										term
 											z
 										term
 											"z"
 					expr5
 						term
-							=
+							ref
+								term
+									=
 						term
 							s
 						term
@@ -163,7 +187,9 @@ fn([x, y]) = z { z = "bar"; trim(x, y, z) }`)
 								body
 									expr1
 										term
-											=
+											ref
+												term
+													=
 										term
 											ref
 												term
@@ -175,7 +201,9 @@ fn([x, y]) = z { z = "bar"; trim(x, y, z) }`)
 											"foo"
 					expr6
 						term
-							count
+							ref
+								term
+									count
 						term
 							set
 								term
@@ -241,23 +269,27 @@ fn([x, y]) = z { z = "bar"; trim(x, y, z) }`)
 				body
 					expr1
 						term
-							=
-						term
-							z
-						term
-							"bar"
-					expr2
-						term
-							trim
+							ref
+								term
+									json
+								term
+									unmarshal
 						term
 							x
 						term
-							y
+							z
+					expr2
+						term
+							ref
+								term
+									>
 						term
 							z
+						term
+							y
 	*/
-	if len(vis.elems) != 216 {
-		t.Errorf("Expected exactly 216 elements in AST but got %d: %v", len(vis.elems), vis.elems)
+	if len(vis.elems) != 240 {
+		t.Errorf("Expected exactly 240 elements in AST but got %d: %v", len(vis.elems), vis.elems)
 	}
 }
 
@@ -268,7 +300,7 @@ func TestWalkVars(t *testing.T) {
 		found.Add(v)
 		return false
 	})
-	expected := NewVarSet(Var("x"), Var("data"), Var("y"), Var("z"), Var("q"))
+	expected := NewVarSet(Var("x"), Var("data"), Var("y"), Var("z"), Var("q"), Var("eq"))
 	if !expected.Equal(found) {
 		t.Fatalf("Expected %v but got: %v", expected, found)
 	}
@@ -281,11 +313,11 @@ func TestVarVisitor(t *testing.T) {
 		params   VarVisitorParams
 		expected string
 	}{
-		{"data.foo[x] = bar.baz[y]", VarVisitorParams{SkipRefHead: true}, "[x, y]"},
 		{"{x: y}", VarVisitorParams{SkipObjectKeys: true}, "[y]"},
-		{`foo = [x | data.a[i] = x]`, VarVisitorParams{SkipClosures: true}, "[foo]"},
-		{`x = 1; y = 2; z = x + y; count([x, y, z], z)`, VarVisitorParams{}, "[x, y, z]"},
 		{"foo with input.bar.baz as qux[corge]", VarVisitorParams{SkipWithTarget: true}, "[foo, qux, corge]"},
+		{"data.foo[x] = bar.baz[y]", VarVisitorParams{SkipRefHead: true}, "[x, y]"},
+		{`foo = [x | data.a[i] = x]`, VarVisitorParams{SkipClosures: true}, "[foo, eq]"},
+		{`x = 1; y = 2; z = x + y; count([x, y, z], z)`, VarVisitorParams{}, "[x, y, z, eq, plus, count]"},
 	}
 
 	for _, tc := range tests {

@@ -415,7 +415,7 @@ func TestInfixArithExpr(t *testing.T) {
 }
 
 func TestMiscBuiltinExpr(t *testing.T) {
-	xyz := StringTerm("xyz")
+	xyz := RefTerm(VarTerm("xyz"))
 	assertParseOneExpr(t, "empty", "xyz()", NewBuiltinExpr(xyz))
 	assertParseOneExpr(t, "single", "xyz(abc)", NewBuiltinExpr(xyz, VarTerm("abc")))
 	assertParseOneExpr(t, "multiple", "xyz(abc, {\"one\": [1,2,3]})", NewBuiltinExpr(xyz, VarTerm("abc"), ObjectTerm(Item(StringTerm("one"), ArrayTerm(IntNumberTerm(1), IntNumberTerm(2), IntNumberTerm(3))))))
@@ -433,7 +433,7 @@ func TestNegatedExpr(t *testing.T) {
 	ref1 := RefTerm(VarTerm("x"), VarTerm("y"), StringTerm("z"), VarTerm("a"))
 
 	assertParseOneExprNegated(t, "membership", "not x[y].z[a] = \"b\"", Equality.Expr(ref1, StringTerm("b")))
-	assertParseOneExprNegated(t, "misc. builtin", "not sorted(x[y].z[a])", NewBuiltinExpr(StringTerm("sorted"), ref1))
+	assertParseOneExprNegated(t, "misc. builtin", "not sorted(x[y].z[a])", NewBuiltinExpr(RefTerm(VarTerm("sorted")), ref1))
 }
 
 func TestExprWith(t *testing.T) {
@@ -578,21 +578,21 @@ func TestUserFunctions(t *testing.T) {
 	assertParseFunc(t, "term input", `f([x, y]) = z { split(x, y, z) }`, &Func{
 		Head: NewFuncHead(Var("f"), VarTerm("z"), ArrayTerm(VarTerm("x"), VarTerm("y"))),
 		Body: NewBody(
-			&Expr{Terms: []*Term{StringTerm("split"), VarTerm("x"), VarTerm("y"), VarTerm("z")}},
+			Split.Expr(VarTerm("x"), VarTerm("y"), VarTerm("z")),
 		),
 	})
 
 	assertParseFunc(t, "term output", `f() = [x, y] { split("foo.bar", x, y) }`, &Func{
 		Head: NewFuncHead(Var("f"), ArrayTerm(VarTerm("x"), VarTerm("y"))),
 		Body: NewBody(
-			&Expr{Terms: []*Term{StringTerm("split"), StringTerm("foo.bar"), VarTerm("x"), VarTerm("y")}},
+			Split.Expr(StringTerm("foo.bar"), VarTerm("x"), VarTerm("y")),
 		),
 	})
 
 	assertParseFunc(t, "comprehension", `f(x) = y { count([1 | x[_]], y) }`, &Func{
 		Head: NewFuncHead(Var("f"), VarTerm("y"), VarTerm("x")),
 		Body: NewBody(
-			&Expr{Terms: []*Term{StringTerm("count"), MustParseTerm("[1 | x[_]]"), VarTerm("y")}},
+			Count.Expr(MustParseTerm("[1 | x[_]]"), VarTerm("y")),
 		),
 	})
 
@@ -1225,7 +1225,7 @@ func TestNamespacedBuiltins(t *testing.T) {
 		expected *Term
 		wantErr  bool
 	}{
-		{`foo.bar.baz(1, 2)`, StringTerm("foo.bar.baz"), false},
+		{`foo.bar.baz(1, 2)`, MustParseTerm("foo.bar.baz"), false},
 		{`foo.(1,2)`, nil, true},
 		{`foo.#.bar(1,2)`, nil, true},
 		{`foo(1,2,3).bar`, nil, true},

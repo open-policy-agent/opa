@@ -541,11 +541,6 @@ func (f *Func) Path() Ref {
 	return global
 }
 
-// PathString returns a String type representing the full path of this Func.
-func (f *Func) PathString() String {
-	return String(f.Path().String())
-}
-
 func (f *Func) String() string {
 	return f.Head.String() + " { " + f.Body.String() + " }"
 }
@@ -999,10 +994,7 @@ func (expr *Expr) IsEquality() bool {
 	if !ok {
 		return false
 	}
-	if len(terms) != 3 {
-		return false
-	}
-	return terms[0].Value.Compare(Equality.Name) == 0
+	return terms[0].Value.Compare(Equality.Ref()) == 0
 }
 
 // IsBuiltin returns true if this expression refers to a function.
@@ -1011,14 +1003,14 @@ func (expr *Expr) IsBuiltin() bool {
 	return ok
 }
 
-// Name returns the name of the user function or built-in this expression refers to. If
-// this expression is not a function call, returns the empty string.
-func (expr *Expr) Name() String {
+// Name returns the name of the user function or built-in this expression
+// refers to. If this expression is not a function call, returns nil.
+func (expr *Expr) Name() Ref {
 	terms, ok := expr.Terms.([]*Term)
 	if !ok || len(terms) == 0 {
-		return ""
+		return nil
 	}
-	return terms[0].Value.(String)
+	return terms[0].Value.(Ref)
 }
 
 // Operand returns the term at the zero-based pos. If the expr does not include
@@ -1075,9 +1067,9 @@ func (expr *Expr) OutputVars(safe VarSet) VarSet {
 		case *Term:
 			return expr.outputVarsRefs(safe)
 		case []*Term:
-			name := terms[0].Value.(String)
+			name := terms[0].String()
 			if b := BuiltinMap[name]; b != nil {
-				if b.Name.Equal(Equality.Name) {
+				if b.Name == Equality.Name {
 					return expr.outputVarsEquality(safe)
 				}
 				return expr.outputVarsBuiltins(b, safe)
@@ -1108,7 +1100,7 @@ func (expr *Expr) String() string {
 	}
 	switch t := expr.Terms.(type) {
 	case []*Term:
-		name := t[0].Value.(String)
+		name := t[0].String()
 		bi := BuiltinMap[name]
 		var s string
 		if bi != nil && len(bi.Infix) > 0 {
@@ -1127,7 +1119,7 @@ func (expr *Expr) String() string {
 			for _, v := range t[1:] {
 				args = append(args, v.String())
 			}
-			name := string(t[0].Value.(String))
+			name := string(t[0].String())
 			s = fmt.Sprintf("%s(%s)", name, strings.Join(args, ", "))
 		}
 

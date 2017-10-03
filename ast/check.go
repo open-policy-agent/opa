@@ -23,7 +23,7 @@ type exprChecker func(*TypeEnv, *Expr) *Error
 // issues.
 type typeChecker struct {
 	errs         Errors
-	exprCheckers map[String]exprChecker
+	exprCheckers map[string]exprChecker
 
 	// When checking the types of functions, their inputs need to initially
 	// be assumed as types.Any. In order to fill the TypeEnv with more accurate
@@ -35,8 +35,8 @@ type typeChecker struct {
 // newTypeChecker returns a new typeChecker object that has no errors.
 func newTypeChecker() *typeChecker {
 	tc := &typeChecker{}
-	tc.exprCheckers = map[String]exprChecker{
-		Equality.Name: tc.checkExprEq,
+	tc.exprCheckers = map[string]exprChecker{
+		"eq": tc.checkExprEq,
 	}
 	return tc
 }
@@ -163,7 +163,7 @@ func (tc *typeChecker) checkFunc(env *TypeEnv, fn *Func) {
 	if len(err) > prev {
 		return
 	}
-	name := fn.PathString()
+	name := fn.Path().String()
 
 	// Ensure that multiple definitions of this function have consistent argument
 	// lengths.
@@ -188,7 +188,7 @@ func (tc *typeChecker) checkFunc(env *TypeEnv, fn *Func) {
 func (tc *typeChecker) checkLanguageBuiltins() *TypeEnv {
 	env := NewTypeEnv()
 	for _, bi := range Builtins {
-		env.PutFunc(bi.Name, bi.Args)
+		env.PutFunc(string(bi.Name), bi.Args)
 	}
 
 	return env
@@ -236,7 +236,7 @@ func (tc *typeChecker) checkExpr(env *TypeEnv, expr *Expr) *Error {
 		return nil
 	}
 
-	checker := tc.exprCheckers[expr.Name()]
+	checker := tc.exprCheckers[expr.Name().String()]
 	if checker != nil {
 		return checker(env, expr)
 	}
@@ -245,7 +245,7 @@ func (tc *typeChecker) checkExpr(env *TypeEnv, expr *Expr) *Error {
 }
 
 func (tc *typeChecker) checkExprBuiltin(env *TypeEnv, expr *Expr) *Error {
-	name := expr.Name()
+	name := expr.Name().String()
 	expArgs := env.GetFunc(name)
 	if expArgs == nil {
 		return NewError(TypeErr, expr.Location, "undefined built-in function %v", name)
@@ -475,6 +475,13 @@ func (rc *refChecker) Visit(x interface{}) Visitor {
 	switch x := x.(type) {
 	case *ArrayComprehension, *ObjectComprehension, *SetComprehension:
 		return nil
+	case *Expr:
+		if terms, ok := x.Terms.([]*Term); ok {
+			for i := 1; i < len(terms); i++ {
+				Walk(rc, terms[i])
+			}
+			return nil
+		}
 	case Ref:
 		if err := rc.checkRef(rc.env, rc.env.tree, x, 0); err != nil {
 			rc.errs = append(rc.errs, err)
@@ -906,7 +913,7 @@ func newRefError(loc *Location, ref Ref) *Error {
 	return NewError(TypeErr, loc, "undefined ref: %v", ref)
 }
 
-func newArgError(loc *Location, builtinName String, msg string, have []types.Type, want []types.Type) *Error {
+func newArgError(loc *Location, builtinName, msg string, have []types.Type, want []types.Type) *Error {
 	err := NewError(TypeErr, loc, "%v: %v", builtinName, msg)
 	err.Details = &ArgErrDetail{
 		Have: have,
