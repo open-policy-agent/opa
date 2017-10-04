@@ -51,7 +51,7 @@ complex types.
 
 | Built-in | Inputs | Description |
 | ------- |--------|-------------|
-| <span class="opa-keep-it-together">``concat(join, array_or_set, output)``</span> | 2 | ``output`` is the result of concatenating the elements of ``array_or_set`` with the  string ``join`` |
+| <span class="opa-keep-it-together">``concat(delimiter, array_or_set, output)``</span> | 2 | ``output`` is the result of joining together the elements of ``array_or_set`` with the  string ``delimiter`` |
 | <span class="opa-keep-it-together">``contains(string, search)``</span> | 2 | true if ``string`` contains ``search`` |
 | <span class="opa-keep-it-together">``endswith(string, search)``</span> | 2 | true if ``string`` ends with ``search`` |
 | <span class="opa-keep-it-together">``format_int(number, base, output)``</span> | 2 | ``output`` is string representation of ``number`` in the given ``base`` |
