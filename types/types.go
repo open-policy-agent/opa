@@ -30,14 +30,15 @@ type Type interface {
 	json.Marshaler
 }
 
-func (Null) typeMarker() string    { return "null" }
-func (Boolean) typeMarker() string { return "boolean" }
-func (Number) typeMarker() string  { return "number" }
-func (String) typeMarker() string  { return "string" }
-func (*Array) typeMarker() string  { return "array" }
-func (*Object) typeMarker() string { return "object" }
-func (*Set) typeMarker() string    { return "set" }
-func (Any) typeMarker() string     { return "any" }
+func (Null) typeMarker() string     { return "null" }
+func (Boolean) typeMarker() string  { return "boolean" }
+func (Number) typeMarker() string   { return "number" }
+func (String) typeMarker() string   { return "string" }
+func (*Array) typeMarker() string   { return "array" }
+func (*Object) typeMarker() string  { return "object" }
+func (*Set) typeMarker() string     { return "set" }
+func (Any) typeMarker() string      { return "any" }
+func (Function) typeMarker() string { return "function" }
 
 // Null represents the null type.
 type Null struct{}
@@ -59,10 +60,21 @@ func (t Null) String() string {
 }
 
 // Boolean represents the boolean type.
-type Boolean struct{}
+type Boolean struct {
+	v *bool
+}
 
 // B represents an instance of the boolean type.
 var B = NewBoolean()
+
+var t = true
+var f = false
+
+// T represents an instance of the value true.
+var T = Boolean{v: &t}
+
+// F represents an instance of the value false.
+var F = Boolean{v: &f}
 
 // NewBoolean returns a new Boolean type.
 func NewBoolean() Boolean {
@@ -71,13 +83,23 @@ func NewBoolean() Boolean {
 
 // MarshalJSON returns the JSON encoding of t.
 func (t Boolean) MarshalJSON() ([]byte, error) {
-	return json.Marshal(map[string]interface{}{
+	repr := map[string]interface{}{
 		"type": t.typeMarker(),
-	})
+	}
+	if t.v != nil {
+		repr["value"] = *t.v
+	}
+	return json.Marshal(repr)
 }
 
 func (t Boolean) String() string {
-	return "boolean"
+	if t.v == nil {
+		return "boolean"
+	} else if *t.v {
+		return "true"
+	} else {
+		return "false"
+	}
 }
 
 // String represents the string type.
@@ -362,6 +384,9 @@ func NewAny(of ...Type) Any {
 
 // Contains returns true if t is a superset of other.
 func (t Any) Contains(other Type) bool {
+	if _, ok := other.(*Function); ok {
+		return false
+	}
 	for i := range t {
 		if Compare(t[i], other) == 0 {
 			return true
@@ -421,6 +446,85 @@ func (t Any) String() string {
 	return prefix + "<" + strings.Join(buf, ", ") + ">"
 }
 
+// Function represents a function type.
+type Function struct {
+	args   []Type
+	result Type
+}
+
+// NewFunction returns a new Function object where xs[:len(xs)-1] are arguments
+// and xs[len(xs)-1] is the result type.
+func NewFunction(xs ...Type) *Function {
+	if len(xs) == 0 {
+		return &Function{}
+	}
+	return &Function{
+		args:   xs[:len(xs)-1],
+		result: xs[len(xs)-1],
+	}
+}
+
+// Args returns the function's argument types.
+func (t *Function) Args() []Type {
+	return t.args
+}
+
+// Result returns the function's result type.
+func (t *Function) Result() Type {
+	return t.result
+}
+
+func (t *Function) String() string {
+	var args string
+	if len(t.args) != 1 {
+		args = "("
+	}
+	buf := []string{}
+	for _, a := range t.Args() {
+		buf = append(buf, Sprint(a))
+	}
+	args += strings.Join(buf, ", ")
+	if len(t.args) != 1 {
+		args += ")"
+	}
+	return fmt.Sprintf("%v => %v", args, Sprint(t.Result()))
+}
+
+// MarshalJSON returns the JSON encoding of t.
+func (t *Function) MarshalJSON() ([]byte, error) {
+	repr := map[string]interface{}{
+		"type": t.typeMarker(),
+	}
+	if len(t.args) > 0 {
+		repr["args"] = t.args
+	}
+	if t.result != nil {
+		repr["result"] = t.result
+	}
+	return json.Marshal(repr)
+}
+
+// Union returns a new function represnting the union of t and other. Functions
+// must have the same arity to be unioned.
+func (t *Function) Union(other *Function) *Function {
+	if other == nil {
+		return t
+	} else if t == nil {
+		return other
+	}
+	a := t.Args()
+	b := other.Args()
+	if len(a) != len(b) {
+		return nil
+	}
+	args := make([]Type, len(a)+1)
+	for i := range a {
+		args[i] = Or(a[i], b[i])
+	}
+	args[len(args)-1] = Or(t.Result(), other.Result())
+	return NewFunction(args...)
+}
+
 // Compare returns -1, 0, 1 based on comparison between a and b.
 func Compare(a, b Type) int {
 	x := typeOrder(a)
@@ -433,7 +537,24 @@ func Compare(a, b Type) int {
 	switch a.(type) {
 	case nil:
 		return 0
-	case Null, Boolean, Number, String:
+	case Boolean:
+		bA := a.(Boolean)
+		bB := b.(Boolean)
+		if bA.v == nil && bB.v == nil {
+			return 0
+		} else if bA.v != nil && bB.v != nil {
+			if *bA.v == *bB.v {
+				return 0
+			} else if *bA.v {
+				return 1
+			} else {
+				return -1
+			}
+		} else if bA.v != nil {
+			return 1
+		}
+		return -1
+	case Null, Number, String:
 		return 0
 	case *Array:
 		arrA := a.(*Array)
@@ -507,6 +628,20 @@ func Compare(a, b Type) int {
 		sort.Sort(sl1)
 		sort.Sort(sl2)
 		return typeSliceCompare(sl1, sl2)
+	case *Function:
+		fA := a.(*Function)
+		fB := b.(*Function)
+		if len(fA.args) < len(fB.args) {
+			return -1
+		} else if len(fA.args) > len(fB.args) {
+			return 1
+		}
+		for i := 0; i < len(fA.args); i++ {
+			if cmp := Compare(fA.args[i], fB.args[i]); cmp != 0 {
+				return cmp
+			}
+		}
+		return Compare(fA.result, fB.result)
 	default:
 		panic("unreachable")
 	}
@@ -527,6 +662,13 @@ func Or(a, b Type) Type {
 		return b
 	} else if b == nil {
 		return a
+	}
+	fA, ok1 := a.(*Function)
+	fB, ok2 := b.(*Function)
+	if ok1 && ok2 {
+		return fA.Union(fB)
+	} else if ok1 || ok2 {
+		return nil
 	}
 	anyA, ok1 := a.(Any)
 	anyB, ok2 := b.(Any)
@@ -653,6 +795,13 @@ func Nil(a Type) bool {
 	switch a := a.(type) {
 	case nil:
 		return true
+	case *Function:
+		for i := range a.args {
+			if Nil(a.args[i]) {
+				return true
+			}
+		}
+		return Nil(a.result)
 	case *Array:
 		for i := range a.static {
 			if Nil(a.static[i]) {
@@ -746,6 +895,8 @@ func typeOrder(x Type) int {
 		return 6
 	case Any:
 		return 7
+	case *Function:
+		return 8
 	case nil:
 		return -1
 	}

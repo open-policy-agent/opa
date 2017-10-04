@@ -37,6 +37,13 @@ func TestStrings(t *testing.T) {
 	if tpe.String() != expected {
 		t.Fatalf("Expected %v but got: %v", expected, tpe)
 	}
+
+	ftpe := NewFunction(S, S, N)
+	expected = "(string, string) => number"
+
+	if ftpe.String() != expected {
+		t.Fatalf("Expected %v but got: %v", expected, ftpe)
+	}
 }
 
 func TestCompare(t *testing.T) {
@@ -51,6 +58,14 @@ func TestCompare(t *testing.T) {
 		{NewBoolean(), NewNull(), 1},
 		{NewBoolean(), NewBoolean(), 0},
 		{NewBoolean(), NewNumber(), -1},
+		{T, B, 1},
+		{B, T, -1},
+		{T, T, 0},
+		{F, B, 1},
+		{B, F, -1},
+		{F, F, 0},
+		{T, F, 1},
+		{F, T, -1},
 		{NewNumber(), NewNumber(), 0},
 		{NewNumber(), NewString(), -1},
 		{NewString(), NewString(), 0},
@@ -110,6 +125,12 @@ func TestCompare(t *testing.T) {
 				nil),
 			1,
 		},
+		{NewFunction(), NewAny(), 1},
+		{NewFunction(B, N), NewFunction(S, N), -1},
+		{NewFunction(S), NewFunction(N), 1},
+		{NewFunction(S), NewFunction(N, S), -1},
+		{NewFunction(S, N), NewFunction(S), 1},
+		{NewFunction(S, N), NewFunction(S, N), 0},
 	}
 
 	for _, tc := range tests {
@@ -156,6 +177,7 @@ func TestOr(t *testing.T) {
 		{NewAny(NewNull(), NewNumber()), NewAny(), NewAny()},
 		{NewAny(NewNumber(), NewString()), NewAny(NewNull(), NewBoolean()), NewAny(NewNull(), NewBoolean(), NewString(), NewNumber())},
 		{NewAny(NewNull(), NewNumber()), NewNull(), NewAny(NewNull(), NewNumber())},
+		{NewFunction(S, T), NewFunction(N, T), NewFunction(NewAny(S, N), T)},
 	}
 
 	for _, tc := range tests {
@@ -304,6 +326,7 @@ func TestMarshalJSON(t *testing.T) {
 		NewObject(
 			[]*StaticProperty{
 				{"foo", N},
+				{"func", NewFunction(S, N)},
 			},
 			NewDynamicProperty(S, NewArray([]Type{NewSet(B)}, N)),
 		),
@@ -324,6 +347,20 @@ func TestMarshalJSON(t *testing.T) {
 					{
 						"key": "foo",
 						"value": {"type": "number"}
+					},
+					{
+						"key": "func",
+						"value": {
+							"type": "function",
+							"args": [
+								{
+									"type": "string"
+								}
+							],
+							"result": {
+								"type": "number"
+							}
+						}
 					}
 				],
 				"dynamic": {
