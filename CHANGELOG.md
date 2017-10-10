@@ -3,7 +3,19 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## 0.5.9
+
+### Fixes
+
+- Fix unsafe var errors on functions ([#471](https://github.com/open-policy-agent/opa/issues/471), [#467](https://github.com/open-policy-agent/opa/issues/467))
+
+### Miscellaneous
+
+- Fix docs example of set union
+- Fix file watch bug causing panic in server mode
+- Modify AST to represent function names as refs
+- Refactor runtime to separate init and start
+- Refactor test runner to accept Store argument
 
 ## 0.5.8
 
