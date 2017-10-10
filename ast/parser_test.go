@@ -414,6 +414,18 @@ func TestInfixArithExpr(t *testing.T) {
 	assertParseOneExpr(t, "plus (reverse)", "1 + 2 = x", Plus.Expr(IntNumberTerm(1), IntNumberTerm(2), VarTerm("x")))
 }
 
+func TestInfixCallExpr(t *testing.T) {
+	assertParseOneExpr(t, "call", "count([true, false]) = x", Count.Expr(ArrayTerm(BooleanTerm(true), BooleanTerm(false)), VarTerm("x")))
+	assertParseOneExpr(t, "call-reverse", "x = count([true, false])", Count.Expr(ArrayTerm(BooleanTerm(true), BooleanTerm(false)), VarTerm("x")))
+	assertParseOneExpr(t, "call-ref", "foo.bar(1) = x", &Expr{
+		Terms: []*Term{
+			RefTerm(VarTerm("foo"), StringTerm("bar")),
+			IntNumberTerm(1),
+			VarTerm("x"),
+		},
+	})
+}
+
 func TestMiscBuiltinExpr(t *testing.T) {
 	xyz := RefTerm(VarTerm("xyz"))
 	assertParseOneExpr(t, "empty", "xyz()", NewBuiltinExpr(xyz))
@@ -560,60 +572,9 @@ func TestIsValidImportPath(t *testing.T) {
 
 }
 
-func TestUserFunctions(t *testing.T) {
-	assertParseFunc(t, "identity", `f(x) = y { y = x }`, &Func{
-		Head: NewFuncHead(Var("f"), VarTerm("y"), VarTerm("x")),
-		Body: NewBody(
-			Equality.Expr(VarTerm("y"), VarTerm("x")),
-		),
-	})
-
-	assertParseFunc(t, "set", `f() = y { y = 42 }`, &Func{
-		Head: NewFuncHead(Var("f"), VarTerm("y")),
-		Body: NewBody(
-			Equality.Expr(VarTerm("y"), IntNumberTerm(42)),
-		),
-	})
-
-	assertParseFunc(t, "term input", `f([x, y]) = z { split(x, y, z) }`, &Func{
-		Head: NewFuncHead(Var("f"), VarTerm("z"), ArrayTerm(VarTerm("x"), VarTerm("y"))),
-		Body: NewBody(
-			Split.Expr(VarTerm("x"), VarTerm("y"), VarTerm("z")),
-		),
-	})
-
-	assertParseFunc(t, "term output", `f() = [x, y] { split("foo.bar", x, y) }`, &Func{
-		Head: NewFuncHead(Var("f"), ArrayTerm(VarTerm("x"), VarTerm("y"))),
-		Body: NewBody(
-			Split.Expr(StringTerm("foo.bar"), VarTerm("x"), VarTerm("y")),
-		),
-	})
-
-	assertParseFunc(t, "comprehension", `f(x) = y { count([1 | x[_]], y) }`, &Func{
-		Head: NewFuncHead(Var("f"), VarTerm("y"), VarTerm("x")),
-		Body: NewBody(
-			Count.Expr(MustParseTerm("[1 | x[_]]"), VarTerm("y")),
-		),
-	})
-
-	assertParseFunc(t, "nested braces", `f(x) = y { z = {"foo": "bar", "baz": {"hi": 5}}; y = z.baz.hi }`, &Func{
-		Head: NewFuncHead(Var("f"), VarTerm("y"), VarTerm("x")),
-		Body: NewBody(
-			Equality.Expr(VarTerm("z"), MustParseTerm(`{"foo": "bar", "baz": {"hi": 5}}`)),
-			Equality.Expr(VarTerm("y"), MustParseTerm("z.baz.hi")),
-		),
-	})
-
-	assertParseErrorContains(t, "no output", `f() = { "foo" = "bar" }`, "rego_parse_error: no match found")
-	assertParseErrorContains(t, "no body", `f() = y`, "rego_parse_error: no match found")
-	assertParseErrorContains(t, "unmatched braces", `f(x) = y { trim(x, ".", y) `, "rego_parse_error: no match found")
-	assertParseErrorContains(t, "set input", `f({x}) = y { x = y }`, "rego_parse_error: no match found")
-	assertParseErrorEquals(t, "empty body", `f() = y {}`, "rego_parse_error: body must be non-empty")
-}
-
 func TestRule(t *testing.T) {
 
-	assertParseRule(t, "identity", `p = true { true }`, &Rule{
+	assertParseRule(t, "constant", `p = true { true }`, &Rule{
 		Head: NewHead(Var("p"), nil, BooleanTerm(true)),
 		Body: NewBody(
 			&Expr{Terms: BooleanTerm(true)},
@@ -719,10 +680,50 @@ func TestRule(t *testing.T) {
 			Body: MustParseBody(`[data.a[0]] = [{"x": x}]; count(x, 3); sum(x, y); y > 100`),
 		})
 
+	fxy := &Head{
+		Name:  Var("f"),
+		Args:  Args{VarTerm("x")},
+		Value: VarTerm("y"),
+	}
+
+	assertParseRule(t, "identity", `f(x) = y { y = x }`, &Rule{
+		Head: fxy,
+		Body: NewBody(
+			Equality.Expr(VarTerm("y"), VarTerm("x")),
+		),
+	})
+
+	assertParseRule(t, "composite arg", `f([x, y]) = z { split(x, y, z) }`, &Rule{
+		Head: &Head{
+			Name:  Var("f"),
+			Args:  Args{ArrayTerm(VarTerm("x"), VarTerm("y"))},
+			Value: VarTerm("z"),
+		},
+		Body: NewBody(
+			Split.Expr(VarTerm("x"), VarTerm("y"), VarTerm("z")),
+		),
+	})
+
+	assertParseRule(t, "composite result", `f(1) = [x, y] { split("foo.bar", x, y) }`, &Rule{
+		Head: &Head{
+			Name:  Var("f"),
+			Args:  Args{IntNumberTerm(1)},
+			Value: ArrayTerm(VarTerm("x"), VarTerm("y")),
+		},
+		Body: NewBody(
+			Split.Expr(StringTerm("foo.bar"), VarTerm("x"), VarTerm("y")),
+		),
+	})
+
+	assertParseErrorEquals(t, "empty body", `f(_) = y {}`, "rego_parse_error: body must be non-empty")
 	assertParseErrorEquals(t, "object composite key", "p[[x,y]] = z { true }", "rego_parse_error: object key must be one of string, var, ref not array")
 	assertParseErrorEquals(t, "default ref value", "default p = [data.foo]", "rego_parse_error: default rule value cannot contain ref")
 	assertParseErrorEquals(t, "default var value", "default p = [x]", "rego_parse_error: default rule value cannot contain var")
 	assertParseErrorEquals(t, "empty rule body", "p {}", "rego_parse_error: body must be non-empty")
+
+	assertParseErrorContains(t, "0-arity", `f() = 1 { true }`, "rego_parse_error: no match found")
+	assertParseErrorContains(t, "no output", `f(_) = { "foo" = "bar" }`, "rego_parse_error: no match found")
+	assertParseErrorContains(t, "unmatched braces", `f(x) = y { trim(x, ".", y) `, "rego_parse_error: no match found")
 
 	// TODO(tsandall): improve error checking here. This is a common mistake
 	// and the current error message is not very good. Need to investigate if the
@@ -749,6 +750,14 @@ func TestRuleElseKeyword(t *testing.T) {
 
 	p {
 		"p2"
+	}
+
+	f(x) {
+		x < 100
+	} else = false {
+		x > 200
+	} else {
+		x != 150
 	}
 	`
 
@@ -793,6 +802,30 @@ func TestRuleElseKeyword(t *testing.T) {
 			&Rule{
 				Head: head,
 				Body: MustParseBody(`"p2"`),
+			},
+			&Rule{
+				Head: &Head{
+					Name:  Var("f"),
+					Args:  Args{VarTerm("x")},
+					Value: BooleanTerm(true),
+				},
+				Body: MustParseBody(`x < 100`),
+				Else: &Rule{
+					Head: &Head{
+						Name:  Var("f"),
+						Args:  Args{VarTerm("x")},
+						Value: BooleanTerm(false),
+					},
+					Body: MustParseBody(`x > 200`),
+					Else: &Rule{
+						Head: &Head{
+							Name:  Var("f"),
+							Args:  Args{VarTerm("x")},
+							Value: BooleanTerm(true),
+						},
+						Body: MustParseBody(`x != 150`),
+					},
+				},
 			},
 		},
 	}
@@ -882,7 +915,14 @@ p[x] = y {
 	y = 2
 }
 
-q = 1`,
+q = 1
+
+f(x) {
+	x < 10
+} {
+	x > 1000
+}
+`,
 	)
 
 	if err != nil {
@@ -893,7 +933,9 @@ q = 1`,
 
 p[x] = y { x = "a"; y = 1 }
 p[x] = y { x = "b"; y = 2 }
-q = 1 { true }`,
+q = 1 { true }
+f(x) { x < 10 }
+f(x) { x > 1000 }`,
 	)
 
 	if !expected.Equal(result) {
@@ -1042,6 +1084,8 @@ bar[1]
 bar[[{"foo":"baz"}]]
 input = 1
 data = 2
+f(1) = 2
+f(1)
 `
 
 	assertParseModule(t, "rules from bodies", testModule, &Module{
@@ -1060,6 +1104,8 @@ data = 2
 			MustParseRule(`bar[[{"foo":"baz"}]] { true }`),
 			MustParseRule(`input = 1 { true }`),
 			MustParseRule(`data = 2 { true }`),
+			MustParseRule(`f(1) = 2 { true }`),
+			MustParseRule(`f(1) = true { true }`),
 		},
 	})
 
@@ -1120,6 +1166,11 @@ data = {"bar": 2} { true }`
 
 	p`
 
+	zeroArgs := `
+	package a.b.c
+
+	p()`
+
 	assertParseModuleError(t, "multiple expressions", multipleExprs)
 	assertParseModuleError(t, "non-equality", nonEquality)
 	assertParseModuleError(t, "non-var name", nonVarName)
@@ -1128,6 +1179,7 @@ data = {"bar": 2} { true }`
 	assertParseModuleError(t, "bad ref (too long)", badRefLen2)
 	assertParseModuleError(t, "negated", negated)
 	assertParseModuleError(t, "non ref term", nonRefTerm)
+	assertParseModuleError(t, "zero args", zeroArgs)
 }
 
 func TestWildcards(t *testing.T) {
@@ -1369,15 +1421,6 @@ func assertParseRule(t *testing.T, msg string, input string, correct *Rule) {
 		rule := parsed.(*Rule)
 		if !rule.Equal(correct) {
 			t.Errorf("Error on test %s: rules not equal: %v (parsed), %v (correct)", msg, rule, correct)
-		}
-	})
-}
-
-func assertParseFunc(t *testing.T, msg string, input string, correct *Func) {
-	assertParseOne(t, msg, input, func(parsed interface{}) {
-		fn := parsed.(*Func)
-		if !fn.Equal(correct) {
-			t.Errorf("Error on test %s: funcs not equal: %v (parsed), %v (correct)", msg, fn, correct)
 		}
 	})
 }

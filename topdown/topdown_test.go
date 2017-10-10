@@ -1493,10 +1493,9 @@ func TestTopDownTime(t *testing.T) {
 
 	ast.RegisterBuiltin(&ast.Builtin{
 		Name: "test_sleep",
-		Args: []types.Type{
+		Decl: types.NewFunction(
 			types.S,
-		},
-		TargetPos: []int{1},
+		),
 	})
 
 	RegisterFunctionalBuiltinVoid1("test_sleep", func(a ast.Value) error {
@@ -1782,7 +1781,7 @@ func TestTopDownPartialDocConstants(t *testing.T) {
 	}
 }
 
-func TestTopDownUserFunc(t *testing.T) {
+func TestTopDownFunctions(t *testing.T) {
 	modules := []string{`package ex
 
 		foo(x) = y {
@@ -1809,7 +1808,7 @@ func TestTopDownUserFunc(t *testing.T) {
 		cross(x) = [a, b] {
 			split(x, "i", y)
 			foo(y[1], b)
-			test.foo(y[2], a)
+			data.test.foo(y[2], a)
 		}
 
 		arrays([x, y]) = [a, b] {
@@ -1823,7 +1822,7 @@ func TestTopDownUserFunc(t *testing.T) {
 
 		objects({"foo": x, "bar": y}) = z {
 			foo(x, a)
-			test.foo(y, b)
+			data.test.foo(y, b)
 			z = [a, b]
 		}
 
@@ -1879,7 +1878,14 @@ func TestTopDownUserFunc(t *testing.T) {
 
 		multi4 = y {
 			multi("foo", 2, y)
-		}`,
+		}
+
+		always_true_fn(x)
+
+		always_true {
+			always_true_fn(1)
+		}
+		`,
 		`
 		package test
 
@@ -1910,7 +1916,17 @@ func TestTopDownUserFunc(t *testing.T) {
 
 		samepkg = y {
 			foo("how do you do?", y)
-		}`}
+		}`,
+		`
+		package test.l1.l3
+
+		g(x) = x`,
+		`
+		package test.l1.l2
+
+		p = true
+		f(x) = x`,
+	}
 
 	compiler := compileModules(modules)
 	store := inmem.NewFromObject(loadSmallTestData())
@@ -1924,6 +1940,7 @@ func TestTopDownUserFunc(t *testing.T) {
 	assertTopDownWithPath(t, compiler, store, "array params", []string{"ex", "arraysrule"}, "", `[["h", "h"], ["foo"]]`)
 	assertTopDownWithPath(t, compiler, store, "object params", []string{"ex", "objectsrule"}, "", `[["h", "h"], "i"]`)
 	assertTopDownWithPath(t, compiler, store, "ref func output", []string{"ex", "refoutput"}, "", `"h"`)
+	assertTopDownWithPath(t, compiler, store, "always_true", []string{"ex.always_true"}, ``, `true`)
 	assertTopDownWithPath(t, compiler, store, "same package call", []string{"test", "samepkg"}, "", `"w do you do?"`)
 	assertTopDownWithPath(t, compiler, store, "void good", []string{"ex", "voidGood"}, "", `true`)
 	assertTopDownWithPath(t, compiler, store, "void bad", []string{"ex", "voidBad"}, "", "")
@@ -1932,9 +1949,10 @@ func TestTopDownUserFunc(t *testing.T) {
 	assertTopDownWithPath(t, compiler, store, "multi3", []string{"ex", "multi3"}, "", `20`)
 	assertTopDownWithPath(t, compiler, store, "multi4", []string{"ex", "multi4"}, "", `"bar"`)
 	assertTopDownWithPath(t, compiler, store, "multi cross package", []string{"test", "multi_cross_pkg"}, "", `["bar", 3]`)
+	assertTopDownWithPath(t, compiler, store, "skip-functions", []string{"test.l1"}, ``, `{"l2": {"p": true}, "l3": {}}`)
 }
 
-func TestUserFunctionErrors(t *testing.T) {
+func TestTopDownFunctionErrors(t *testing.T) {
 	compiler := compileModules([]string{
 		`
 		package test1
@@ -1985,9 +2003,9 @@ func TestUserFunctionErrors(t *testing.T) {
 	txn := storage.NewTransactionOrDie(ctx, store)
 	defer store.Abort(ctx, txn)
 
-	assertTopDownWithPath(t, compiler, store, "function output conflict single", []string{"test1", "r"}, "", errors.New(`eval_conflict_error: function test1.p produces conflicting outputs`))
+	assertTopDownWithPath(t, compiler, store, "function output conflict single", []string{"test1", "r"}, "", completeDocConflictErr(nil))
 	assertTopDownWithPath(t, compiler, store, "function input no match", []string{"test2", "r"}, "", "")
-	assertTopDownWithPath(t, compiler, store, "function output conflict multiple", []string{"test3", "r"}, "", errors.New(`eval_conflict_error: function test3.p produces conflicting outputs`))
+	assertTopDownWithPath(t, compiler, store, "function output conflict multiple", []string{"test3", "r"}, "", completeDocConflictErr(nil))
 }
 
 func TestTopDownWithKeyword(t *testing.T) {
@@ -2043,6 +2061,7 @@ func TestTopDownElseKeyword(t *testing.T) {
 		{"indexed", "ex.indexed", "2"},
 		{"conflict-1", "ex.conflict_1", completeDocConflictErr(nil)},
 		{"conflict-2", "ex.conflict_2", completeDocConflictErr(nil)},
+		{"functions", "ex.fn_result", `["large", "small", "medium"]`},
 	}
 
 	for _, tc := range tests {
@@ -2106,6 +2125,16 @@ func TestTopDownElseKeyword(t *testing.T) {
 
 			conflict_2 { false } else = false { true }
 			conflict_2 { false } else = true { true }
+
+			fn_result = [x,y,z] { fn(101, true, x); fn(100, true, y); fn(100, false, z) }
+
+			fn(x, y) = "large" {
+				x > 100
+			} else = "small" {
+				y = true
+			} else = "medium" {
+				true
+			}
 			`,
 		})
 
@@ -2265,9 +2294,9 @@ func TestTopDownUnsupportedBuiltin(t *testing.T) {
 func TestTopDownQueryCancellation(t *testing.T) {
 	ast.RegisterBuiltin(&ast.Builtin{
 		Name: "test.sleep",
-		Args: []types.Type{
+		Decl: types.NewFunction(
 			types.S,
-		},
+		),
 	})
 
 	RegisterFunctionalBuiltinVoid1("test.sleep", func(a ast.Value) error {

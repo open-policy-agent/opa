@@ -220,26 +220,26 @@ func TestExprOutputVars(t *testing.T) {
 
 	RegisterBuiltin(&Builtin{
 		Name: "test_out_array",
-		Args: []types.Type{
+		Decl: types.NewFunction(
 			types.NewArray(nil, types.N),
-		},
+		),
 		TargetPos: []int{0},
 	})
 
 	RegisterBuiltin(&Builtin{
 		Name: "test_out_set",
-		Args: []types.Type{
+		Decl: types.NewFunction(
 			types.NewArray(nil, types.N),
-		},
+		),
 		TargetPos: []int{0},
 	})
 
 	RegisterBuiltin(&Builtin{
 		Name: "foo",
-		Args: []types.Type{
+		Decl: types.NewFunction(
 			types.A,
 			types.A,
-		},
+		),
 		TargetPos: []int{1},
 	})
 
@@ -321,13 +321,25 @@ func TestExprString(t *testing.T) {
 		StringTerm("foo"),
 		VarTerm("x"),
 	)
+	expr7.Infix = true
+	expr8 := &Expr{
+		Terms: []*Term{
+			RefTerm(VarTerm("data"), StringTerm("test"), StringTerm("f")),
+			IntNumberTerm(1),
+			VarTerm("x"),
+		},
+	}
+	expr8.Infix = true
+	expr9 := Contains.Expr(StringTerm("foo.bar"), StringTerm("."))
 	assertExprString(t, expr1, "q.r[x]")
 	assertExprString(t, expr2, "not q.r[x]")
 	assertExprString(t, expr3, "\"a\" = 17.1")
 	assertExprString(t, expr4, "{foo: [1, a.b]} != false")
 	assertExprString(t, expr5, "true with foo as bar with baz as qux")
 	assertExprString(t, expr6, "3 = 1 + 2")
-	assertExprString(t, expr7, "count(\"foo\", x)")
+	assertExprString(t, expr7, "x = count(\"foo\")")
+	assertExprString(t, expr8, "x = data.test.f(1)")
+	assertExprString(t, expr9, `contains("foo.bar", ".")`)
 }
 
 func TestExprBadJSON(t *testing.T) {
@@ -389,23 +401,13 @@ func TestRuleHeadEquals(t *testing.T) {
 	assertHeadsEqual(t, &Head{Name: Var("p")}, &Head{Name: Var("p")})
 	assertHeadsEqual(t, &Head{Key: VarTerm("x")}, &Head{Key: VarTerm("x")})
 	assertHeadsEqual(t, &Head{Value: VarTerm("x")}, &Head{Value: VarTerm("x")})
+	assertHeadsEqual(t, &Head{Args: []*Term{VarTerm("x"), VarTerm("y")}}, &Head{Args: []*Term{VarTerm("x"), VarTerm("y")}})
 
 	// Different name/key/value
 	assertHeadsNotEqual(t, &Head{Name: Var("p")}, &Head{Name: Var("q")})
 	assertHeadsNotEqual(t, &Head{Key: VarTerm("x")}, &Head{Key: VarTerm("y")})
 	assertHeadsNotEqual(t, &Head{Value: VarTerm("x")}, &Head{Value: VarTerm("y")})
-}
-
-func TestFuncHeadEquals(t *testing.T) {
-	assertFuncHeadsEqual(t, &FuncHead{}, &FuncHead{})
-
-	assertFuncHeadsEqual(t, &FuncHead{Name: Var("f")}, &FuncHead{Name: Var("f")})
-	assertFuncHeadsEqual(t, &FuncHead{Args: []*Term{VarTerm("x"), VarTerm("y")}}, &FuncHead{Args: []*Term{VarTerm("x"), VarTerm("y")}})
-	assertFuncHeadsEqual(t, &FuncHead{Output: ArrayTerm(VarTerm("x"), VarTerm("y"))}, &FuncHead{Output: ArrayTerm(VarTerm("x"), VarTerm("y"))})
-
-	assertFuncHeadsNotEqual(t, &FuncHead{Name: Var("f")}, &FuncHead{Name: Var("b")})
-	assertFuncHeadsNotEqual(t, &FuncHead{Args: []*Term{VarTerm("x"), VarTerm("z")}}, &FuncHead{Args: []*Term{VarTerm("x"), VarTerm("y")}})
-	assertFuncHeadsNotEqual(t, &FuncHead{Output: ArrayTerm(VarTerm("x"), VarTerm("z"))}, &FuncHead{Output: ArrayTerm(VarTerm("z"), VarTerm("y"))})
+	assertHeadsNotEqual(t, &Head{Args: []*Term{VarTerm("x"), VarTerm("z")}}, &Head{Args: []*Term{VarTerm("x"), VarTerm("y")}})
 }
 
 func TestRuleBodyEquals(t *testing.T) {
@@ -458,37 +460,19 @@ func TestRuleString(t *testing.T) {
 		Head:    NewHead("p", nil, BooleanTerm(true)),
 	}
 
+	rule4 := &Rule{
+		Head: &Head{
+			Name:  Var("f"),
+			Args:  Args{VarTerm("x"), VarTerm("y")},
+			Value: VarTerm("z"),
+		},
+		Body: NewBody(Plus.Expr(VarTerm("x"), VarTerm("y"), VarTerm("z"))),
+	}
+
 	assertRuleString(t, rule1, `p { "foo" = "bar" }`)
 	assertRuleString(t, rule2, `p[x] = y { "foo" = x; not a.b[x]; "b" = y }`)
 	assertRuleString(t, rule3, `default p = true`)
-}
-
-func TestFuncString(t *testing.T) {
-	fn1 := &Func{
-		Head: NewFuncHead(Var("foo"), VarTerm("y")),
-		Body: NewBody(
-			Equality.Expr(VarTerm("y"), StringTerm("bar")),
-		),
-	}
-
-	fn2 := &Func{
-		Head: NewFuncHead(Var("foo"), VarTerm("y"), VarTerm("x")),
-		Body: NewBody(
-			Equality.Expr(VarTerm("y"), VarTerm("x")),
-		),
-	}
-
-	fn3 := &Func{
-		Head: NewFuncHead(Var("foo"), ArrayTerm(VarTerm("y"), VarTerm("z")), VarTerm("x")),
-		Body: NewBody(
-			Equality.Expr(VarTerm("y"), IntNumberTerm(5)),
-			MustParseExpr(`z = x + y`),
-		),
-	}
-
-	assertFuncString(t, fn1, `foo() = y { y = "bar" }`)
-	assertFuncString(t, fn2, `foo(x) = y { y = x }`)
-	assertFuncString(t, fn3, `foo(x) = [y, z] { y = 5; z = x + y }`)
+	assertRuleString(t, rule4, "f(x, y) = z { z = x + y }")
 }
 
 func TestModuleString(t *testing.T) {
@@ -614,27 +598,8 @@ func assertHeadsNotEqual(t *testing.T, a, b *Head) {
 	}
 }
 
-func assertFuncHeadsEqual(t *testing.T, a, b *FuncHead) {
-	if !a.Equal(b) {
-		t.Errorf("FuncHeads are not equal (expected equal): a=%v b=%v", a, b)
-	}
-}
-
-func assertFuncHeadsNotEqual(t *testing.T, a, b *FuncHead) {
-	if a.Equal(b) {
-		t.Errorf("FuncHeads are equal (expected not equal): a=%v b=%v", a, b)
-	}
-}
-
 func assertRuleString(t *testing.T, rule *Rule, expected string) {
 	result := rule.String()
-	if result != expected {
-		t.Errorf("Expected %v but got %v", expected, result)
-	}
-}
-
-func assertFuncString(t *testing.T, fn *Func, expected string) {
-	result := fn.String()
 	if result != expected {
 		t.Errorf("Expected %v but got %v", expected, result)
 	}

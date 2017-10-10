@@ -11,34 +11,15 @@ import (
 
 // TypeEnv contains type info for static analysis such as type checking.
 type TypeEnv struct {
-	funcs map[string][]types.Type
-	tree  *typeTreeNode
-	next  *TypeEnv
+	tree *typeTreeNode
+	next *TypeEnv
 }
 
 // NewTypeEnv returns an empty TypeEnv.
 func NewTypeEnv() *TypeEnv {
 	return &TypeEnv{
-		funcs: map[string][]types.Type{},
-		tree:  newTypeTree(),
+		tree: newTypeTree(),
 	}
-}
-
-// GetFunc returns the type array corresponding to the arguments of the function
-// referred to by name. GetFunc returns nil if there is no function matching that
-// name.
-func (env *TypeEnv) GetFunc(name string) []types.Type {
-	tps, ok := env.funcs[name]
-	if !ok && env.next != nil {
-		return env.next.GetFunc(name)
-	}
-	return tps
-}
-
-// PutFunc inserts the type information for the function referred to by name into
-// this TypeEnv.
-func (env *TypeEnv) PutFunc(name string, args []types.Type) {
-	env.funcs[name] = args
 }
 
 // Get returns the type of x.
@@ -54,7 +35,10 @@ func (env *TypeEnv) Get(x interface{}) types.Type {
 	case Null:
 		return types.NewNull()
 	case Boolean:
-		return types.NewBoolean()
+		if x.Compare(Boolean(true)) == 0 {
+			return types.T
+		}
+		return types.F
 	case Number:
 		return types.NewNumber()
 	case String:

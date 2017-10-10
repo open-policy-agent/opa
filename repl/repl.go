@@ -447,16 +447,17 @@ func (r *REPL) cmdUnset(ctx context.Context, args []string) error {
 
 	term, err := ast.ParseTerm(args[0])
 	if err != nil {
-		return newBadArgsErr("argument must identify a rule or function")
+		return newBadArgsErr("argument must identify a rule")
 	}
 
 	v, ok := term.Value.(ast.Var)
 
 	if !ok {
-		if !ast.RootDocumentRefs.Contains(term) {
-			return r.unsetFunc(ctx, term.Value)
+		ref, ok := term.Value.(ast.Ref)
+		if !ok || !ast.RootDocumentNames.Contains(ref[0]) {
+			return newBadArgsErr("arguments must identify a rule")
 		}
-		v = term.Value.(ast.Ref)[0].Value.(ast.Var)
+		v = ref[0].Value.(ast.Var)
 	}
 
 	return r.unsetRule(ctx, v)
@@ -479,29 +480,6 @@ func (r *REPL) unsetRule(ctx context.Context, v ast.Var) error {
 
 	cpy := mod.Copy()
 	cpy.Rules = rules
-	return r.recompile(ctx, cpy)
-}
-
-func (r *REPL) unsetFunc(ctx context.Context, v ast.Value) error {
-	ref, ok := v.(ast.Ref)
-	if !ok {
-		return newBadArgsErr("arguments must identify a rule or function")
-	}
-
-	mod := r.modules[r.currentModuleID]
-	funcs := []*ast.Func{}
-	for _, f := range mod.Funcs {
-		if f.Path().String() != ref.String() {
-			funcs = append(funcs, f)
-		}
-	}
-	if len(funcs) == len(mod.Funcs) {
-		fmt.Fprintln(r.output, "warning: no matching functions in current module")
-		return nil
-	}
-
-	cpy := mod.Copy()
-	cpy.Funcs = funcs
 	return r.recompile(ctx, cpy)
 }
 
@@ -595,37 +573,6 @@ func (r *REPL) compileRule(ctx context.Context, rule *ast.Rule) error {
 
 	if compiler.Compile(policies); compiler.Failed() {
 		mod.Rules = prev
-		return compiler.Errors
-	}
-
-	return nil
-}
-
-func (r *REPL) compileFunc(ctx context.Context, fn *ast.Func) error {
-	r.timerStart(metrics.RegoQueryCompile)
-	defer r.timerStop(metrics.RegoQueryCompile)
-
-	mod := r.modules[r.currentModuleID]
-	prev := mod.Funcs
-	mod.Funcs = append(mod.Funcs, fn)
-	ast.WalkFuncs(fn, func(f *ast.Func) bool {
-		f.Module = mod
-		return false
-	})
-
-	policies, err := r.loadModules(ctx, r.txn)
-	if err != nil {
-		return err
-	}
-
-	for id, mod := range r.modules {
-		policies[id] = mod
-	}
-
-	compiler := ast.NewCompiler().SetErrorLimit(r.errLimit)
-
-	if compiler.Compile(policies); compiler.Failed() {
-		mod.Funcs = prev
 		return compiler.Errors
 	}
 
@@ -770,8 +717,6 @@ func (r *REPL) evalStatement(ctx context.Context, stmt interface{}) error {
 		return err
 	case *ast.Rule:
 		return r.compileRule(ctx, s)
-	case *ast.Func:
-		return r.compileFunc(ctx, s)
 	case *ast.Import:
 		return r.evalImport(s)
 	case *ast.Package:

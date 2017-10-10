@@ -179,14 +179,8 @@ func Compare(a, b interface{}) int {
 	case *Head:
 		b := b.(*Head)
 		return a.Compare(b)
-	case *FuncHead:
-		b := b.(*FuncHead)
-		return a.Compare(b)
 	case *Rule:
 		b := b.(*Rule)
-		return a.Compare(b)
-	case *Func:
-		b := b.(*Func)
 		return a.Compare(b)
 	case Args:
 		b := b.(Args)
@@ -244,18 +238,14 @@ func sortOrder(x interface{}) int {
 		return 110
 	case *Head:
 		return 120
-	case *FuncHead:
-		return 130
 	case Body:
 		return 200
 	case *Rule:
 		return 1000
-	case *Func:
-		return 1001
 	case *Import:
-		return 1002
+		return 1001
 	case *Package:
-		return 1003
+		return 1002
 	case *Module:
 		return 10000
 	}

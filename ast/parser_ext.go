@@ -139,12 +139,17 @@ func ParseRuleFromExpr(module *Module, expr *Expr) (*Rule, error) {
 		return nil, fmt.Errorf("negated %v cannot be used for %v", TypeName(expr), RuleTypeName)
 	}
 
-	if !expr.IsBuiltin() {
+	if !expr.IsCall() {
 		return ParsePartialSetDocRuleFromTerm(module, expr.Terms.(*Term))
 	}
 
 	if !expr.IsEquality() {
-		return nil, fmt.Errorf("%v cannot be used for %v", TypeName(expr), RuleTypeName)
+		for _, bi := range Builtins {
+			if expr.Operator().Equal(bi.Ref()) {
+				return nil, fmt.Errorf("%v name conflicts with built-in function", RuleTypeName)
+			}
+		}
+		return ParseRuleFromCallExpr(module, expr.Terms.([]*Term))
 	}
 
 	lhs, rhs := expr.Operand(0), expr.Operand(1)
@@ -245,6 +250,38 @@ func ParsePartialSetDocRuleFromTerm(module *Module, term *Term) (*Rule, error) {
 		Module: module,
 	}
 
+	return rule, nil
+}
+
+// ParseRuleFromCallExpr returns a rule if the terms can be interpreted as a
+// function returning true or some value (e.g., f(x) => f(x) = true { true },
+// f(x) = y => f(x) = y { true }).
+func ParseRuleFromCallExpr(module *Module, terms []*Term) (*Rule, error) {
+	var args Args
+	var value *Term
+	loc := terms[0].Location
+
+	if len(terms) <= 1 {
+		return nil, fmt.Errorf("%ss with %v must take at least one argument", RuleTypeName, ArgsTypeName)
+	} else if len(terms) == 2 {
+		args = Args{terms[1]}
+		value = BooleanTerm(true).SetLocation(loc)
+	} else {
+		args = terms[1 : len(terms)-1]
+		value = terms[len(terms)-1]
+	}
+
+	rule := &Rule{
+		Location: loc,
+		Head: &Head{
+			Location: loc,
+			Name:     Var(terms[0].String()),
+			Args:     args,
+			Value:    value,
+		},
+		Module: module,
+		Body:   NewBody(NewExpr(BooleanTerm(true).SetLocation(loc)).SetLocation(loc)),
+	}
 	return rule, nil
 }
 
@@ -433,9 +470,7 @@ func ParseStatements(filename, input string) ([]Statement, []*Comment, error) {
 		}
 	}
 
-	postProcess(filename, stmts)
-
-	return stmts, comments, err
+	return stmts, comments, postProcess(filename, stmts)
 }
 
 func convertErrList(filename string, errs errList) error {
@@ -484,9 +519,6 @@ func parseModule(stmts []Statement, comments []*Comment) (*Module, error) {
 		case *Rule:
 			setRuleModule(stmt, mod)
 			mod.Rules = append(mod.Rules, stmt)
-		case *Func:
-			setFuncModule(stmt, mod)
-			mod.Funcs = append(mod.Funcs, stmt)
 		case Body:
 			rule, err := ParseRuleFromBody(mod, stmt)
 			if err != nil {
@@ -510,12 +542,6 @@ func parseModule(stmts []Statement, comments []*Comment) (*Module, error) {
 }
 
 func postProcess(filename string, stmts []Statement) error {
-	for _, stmt := range stmts {
-		switch stmt := stmt.(type) {
-		case *Func:
-			expandVoidFunction(stmt)
-		}
-	}
 
 	if err := mangleDataVars(stmts); err != nil {
 		return err
@@ -529,13 +555,6 @@ func postProcess(filename string, stmts []Statement) error {
 	mangleExprIndices(stmts)
 
 	return nil
-}
-
-func expandVoidFunction(fn *Func) {
-	if fn.Head.Output == nil {
-		fn.Head.Output = BooleanTerm(true)
-		fn.Head.Output.Location = fn.Head.Location
-	}
 }
 
 func mangleDataVars(stmts []Statement) error {
@@ -633,10 +652,6 @@ func setRuleModule(rule *Rule, module *Module) {
 	}
 }
 
-func setFuncModule(fn *Func, module *Module) {
-	fn.Module = module
-}
-
 type varToRefTransformer struct {
 	orig   Var
 	target Ref
@@ -659,12 +674,13 @@ func (vt *varToRefTransformer) Transform(x interface{}) (interface{}, error) {
 		return x, nil
 	}
 	switch x := x.(type) {
-	case *Head, *FuncHead:
-		// The next AST node will be the rule/func name (which should not be
+	case *Head:
+		// The next AST node will be the rule name (which should not be
 		// transformed).
 		vt.skip = true
 	case Ref:
-		// The next AST node will be the ref head (which should not be transformed).
+		// The next AST node will be the ref head (which should not be
+		// transformed).
 		vt.skip = true
 	case Var:
 		if x.Equal(vt.orig) {

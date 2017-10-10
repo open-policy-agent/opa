@@ -91,6 +91,35 @@ func makeArray(head interface{}, tail interface{}, loc *Location) (*Term, error)
    return arr, nil
 }
 
+func makeArgs(head interface{}, tail interface{}, loc *Location) (Args, error) {
+   args := Args{}
+   if head == nil {
+       return nil, nil
+   }
+   args = append(args, head.(*Term))
+   tailSlice := tail.([]interface{})
+   for _, v := range tailSlice {
+       s := v.([]interface{})
+       args = append(args, s[len(s) - 1].(*Term))
+   }
+   return args, nil
+}
+
+func makeInfixCallExpr(operator interface{}, args interface{}, output interface{}) (*Expr, error) {
+    expr := &Expr{}
+    a := args.(Args)
+    terms := make([]*Term, len(a)+2)
+    terms[0] = operator.(*Term)
+    dst := terms[1:]
+    for i := 0; i < len(a); i++ {
+        dst[i] = a[i]
+    }
+    terms[len(terms)-1] = output.(*Term)
+    expr.Terms = terms
+    expr.Infix = true
+    return expr, nil
+}
+
 }
 
 Program <- _ vals:(head:Stmt tail:(ws Stmt)*)? _ EOF {
@@ -111,7 +140,7 @@ Program <- _ vals:(head:Stmt tail:(ws Stmt)*)? _ EOF {
     return program{buf, c.globalStore[commentsKey]}, nil
 }
 
-Stmt <- val:(Package / Import / Rules / UserFunc / Body / Comment) {
+Stmt <- val:(Package / Import / Rules / Body / Comment) {
     return val, nil
 }
 
@@ -252,6 +281,7 @@ NormalRules <- head:RuleHead _ b:(NonEmptyBraceEnclosedBody ( _ RuleExt)* ) {
                 Location: re.loc,
                 Head: &Head{
                     Name: prev.Head.Name,
+					Args: prev.Head.Args.Copy(),
                     Value: re.term,
                     Location: re.term.Location,
                 },
@@ -265,66 +295,23 @@ NormalRules <- head:RuleHead _ b:(NonEmptyBraceEnclosedBody ( _ RuleExt)* ) {
     return rules, nil
 }
 
-UserFunc <- head:FuncHead _ b:NonEmptyBraceEnclosedBody {
-
-    if head == nil {
-        return nil, nil
-    }
-
-    f := &Func{
-        Location: currentLocation(c),
-        Head: head.(*FuncHead),
-        Body: b.(Body),
-    }
-
-    return f, nil
-}
-
-FuncHead <- name:Var args:FuncArgs output:( _ "=" _ Term )? {
-
-    head := &FuncHead{}
-
-    head.Location = currentLocation(c)
-    head.Name = name.(*Term).Value.(Var)
-    head.Args = args.(Args)
-
-    if output != nil {
-        valueSlice := output.([]interface{})
-        head.Output = valueSlice[len(valueSlice)-1].(*Term)
-    }
-
-    return head, nil
-}
-
-FuncArgs <- _ "("  _  head:ArgTerm? tail:(_ ',' _ ArgTerm)* _ ")" _ {
-    args := Args{}
-    if head == nil {
-        return args, nil
-    }
-
-    first := head.(*Term)
-    first.Location = currentLocation(c)
-    args = append(args, first)
-
-    tailSlice := tail.([]interface{})
-    for _, v := range tailSlice {
-        s := v.([]interface{})
-        arg := s[len(s) - 1].(*Term)
-        arg.Location = currentLocation(c)
-        args = append(args, arg)
-    }
-
-    return args, nil
-}
-
-RuleHead <- name:Var key:( _ "[" _ Term _ "]" _ )? value:( _ "=" _ Term )? {
+RuleHead <- name:Var args:( _ "(" _ Args _ ")" _ )? key:( _ "[" _ Term _ "]" _ )? value:( _ "=" _ Term )? {
 
     head := &Head{}
 
     head.Location = currentLocation(c)
     head.Name = name.(*Term).Value.(Var)
 
-    if key != nil {
+    if args != nil && key != nil {
+		return nil, fmt.Errorf("partial %v/%v %vs cannot take arguments", SetTypeName, ObjectTypeName, RuleTypeName)
+	}
+
+	if args != nil {
+		argSlice := args.([]interface{})
+		head.Args = argSlice[3].(Args)
+	}
+
+	if key != nil {
         keySlice := key.([]interface{})
         // Head definition above describes the "key" slice. We care about the "Term" element.
         head.Key = keySlice[3].(*Term)
@@ -337,8 +324,7 @@ RuleHead <- name:Var key:( _ "[" _ Term _ "]" _ )? value:( _ "=" _ Term )? {
     }
 
     if key == nil && value == nil {
-        head.Value = BooleanTerm(true)
-        head.Value.Location = head.Location
+        head.Value = BooleanTerm(true).SetLocation(head.Location)
     }
 
     if key != nil && value != nil {
@@ -350,6 +336,10 @@ RuleHead <- name:Var key:( _ "[" _ Term _ "]" _ )? value:( _ "=" _ Term )? {
     }
 
     return head, nil
+}
+
+Args <- _ head:Term tail:(_ ',' _ Term)* _ ','? _ {
+	return makeArgs(head, tail, currentLocation(c))
 }
 
 Else <- "else" val:( _ "=" _ Term )? b:( _ NonEmptyBraceEnclosedBody ) {
@@ -407,10 +397,15 @@ NonWhitespaceBody <- head:Literal tail:( _ ";" _ Literal)* {
 }
 
 Literal <- neg:( "not" ws )? val:Expr with:( ws With (ws With)* )? {
-    expr := &Expr{}
+    var expr *Expr
+    switch val := val.(type) {
+    case *Expr:
+        expr = val
+    case *Term:
+        expr = &Expr{Terms: val}
+    }
     expr.Location = currentLocation(c)
     expr.Negated = neg != nil
-    expr.Terms = val
 
     if with != nil {
         sl := with.([]interface{})
@@ -440,14 +435,24 @@ With <- "with" ws target:Term ws "as" ws value:Term {
     return with, nil
 }
 
-Expr <- (InfixArithExpr / InfixArithExprReverse) / InfixExpr / PrefixExpr / Term
+Expr <- InfixExpr / PrefixExpr / Term
 
-InfixArithExpr <- output:Term _ "=" _ left:Term _ op:ArithInfixOp _ right:Term {
-    return []*Term{op.(*Term), left.(*Term), right.(*Term), output.(*Term)}, nil
+InfixExpr <- (InfixCallExpr / InfixCallExprReverse) / (InfixArithExpr / InfixArithExprReverse) / InfixRelationExpr
+
+InfixCallExpr <- output:Term _ "=" _ operator:Operator _ "(" _ args:Args _ ")" {
+    return makeInfixCallExpr(operator, args, output)
 }
 
-InfixArithExprReverse <- left:Term _ op:ArithInfixOp _ right:Term _ "=" _ output:Term {
-    return []*Term{op.(*Term), left.(*Term), right.(*Term), output.(*Term)}, nil
+InfixCallExprReverse <- operator:Operator _ "(" _ args:Args _ ")" _ "=" _ output:Term {
+    return makeInfixCallExpr(operator, args, output)
+}
+
+InfixArithExpr <- output:Term _ "=" _ left:Term _ operator:ArithInfixOp _ right:Term {
+    return makeInfixCallExpr(operator, Args{left.(*Term), right.(*Term)}, output)
+}
+
+InfixArithExprReverse <- left:Term _ operator:ArithInfixOp _ right:Term _ "=" _ output:Term {
+    return makeInfixCallExpr(operator, Args{left.(*Term), right.(*Term)}, output)
 }
 
 ArithInfixOp <- val:("+" / "-" / "*" / "/" / "&" / "|" / "-") {
@@ -462,11 +467,18 @@ ArithInfixOp <- val:("+" / "-" / "*" / "/" / "&" / "|" / "-") {
 	return operator, nil
 }
 
-InfixExpr <- left:Term _ op:InfixOp _ right:Term {
-    return []*Term{op.(*Term), left.(*Term), right.(*Term)}, nil
+InfixRelationExpr <- left:Term _ operator:InfixRelationOp _ right:Term {
+    return &Expr{
+        Terms: []*Term{
+            operator.(*Term),
+            left.(*Term),
+            right.(*Term),
+        },
+        Infix: true,
+    }, nil
 }
 
-InfixOp <- val:("=" / "!=" / "<=" / ">=" / "<" / ">") {
+InfixRelationOp <- val:("=" / "!=" / "<=" / ">=" / "<" / ">") {
     op := string(c.text)
     for _, b := range Builtins {
         if string(b.Infix) == op {
@@ -483,8 +495,9 @@ PrefixExpr <- SetEmpty / Call
 Call <- name:Operator "(" _ head:Term? tail:( _ "," _ Term )* _  ")" {
     buf := []*Term{name.(*Term)}
     if head == nil {
-        return buf, nil
+        return &Expr{Terms: buf}, nil
     }
+
     buf = append(buf, head.(*Term))
 
     // PrefixExpr above describes the "tail" structure. We only care about the "Term" elements.
@@ -493,7 +506,8 @@ Call <- name:Operator "(" _ head:Term? tail:( _ "," _ Term )* _  ")" {
         s := v.([]interface{})
         buf = append(buf, s[len(s) - 1].(*Term))
     }
-    return buf, nil
+
+    return &Expr{Terms: buf}, nil
 }
 
 Operator <- val:(Ref / Var) {
@@ -543,25 +557,6 @@ Object <- '{' _ head:(Key _ ':' _ Term)? tail:( _ ',' _ Key _ ':' _ Term )* _ ',
 }
 
 Array <- '[' _  head:Term? tail:(_ ',' _ Term)* _ ','? _  ']' {
-    return makeArray(head, tail, currentLocation(c))
-}
-
-// Function arguments can only be declared as scalars, vars, objects or arrays
-// (recursively restricted).
-// Anything else really doesn't make sense. Note that the values passed
-// to the functions can be any term, whenever a declared input variable is
-// encountered, it should just wrap whatever type is left on the runtime end.
-ArgTerm <- val:(Scalar / Var / ArgObject / ArgArray) {
-    return val, nil
-}
-
-ArgObject <- '{' _ head:(ArgKey _ ':' _ ArgTerm)? tail:( _ ',' _ ArgKey _ ':' _ ArgTerm )* _ ','? _ '}' {
-    return makeObject(head, tail, currentLocation(c))
-}
-
-ArgKey <- Scalar
-
-ArgArray <- '[' _  head:ArgTerm? tail:(_ ',' _ ArgTerm)* _ ','? _  ']' {
     return makeArray(head, tail, currentLocation(c))
 }
 
