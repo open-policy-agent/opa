@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/open-policy-agent/opa/types"
 	"github.com/open-policy-agent/opa/util"
 )
 
@@ -101,7 +102,6 @@ type (
 		Package  *Package   `json:"package"`
 		Imports  []*Import  `json:"imports,omitempty"`
 		Rules    []*Rule    `json:"rules,omitempty"`
-		Funcs    []*Func    `json:"funcs,omitempty"`
 		Comments []*Comment `json:"comments,omitempty"`
 	}
 
@@ -146,34 +146,12 @@ type (
 	Head struct {
 		Location *Location `json:"-"`
 		Name     Var       `json:"name"`
+		Args     Args      `json:"args,omitempty"`
 		Key      *Term     `json:"key,omitempty"`
 		Value    *Term     `json:"value,omitempty"`
 	}
 
-	// Func represents a user function as defined in the language. Funcs define
-	// reusable queries than can be called like built-ins, but have access to the
-	// data and input documents like rules.
-	Func struct {
-		Location *Location `json:"-"`
-		Head     *FuncHead `json:"head"`
-		Body     Body      `json:"body"`
-
-		// Module is a pointer to the module containing this func. If the func
-		// was NOT created while parsing/constructing a module, this should be
-		// left unset. The pointer is not included in any standard operations
-		// on the func (e.g., printing, comparison, visiting, etc.)
-		Module *Module `json:"-"`
-	}
-
-	// FuncHead represents the head of a user function.
-	FuncHead struct {
-		Location *Location `json:"-"`
-		Name     Var       `json:"name"`
-		Args     Args      `json:"args,omitempty"`
-		Output   *Term     `json:"output,omitempty"`
-	}
-
-	// Args represents zero or more arguments to a user function.
+	// Args represents zero or more arguments to a rule.
 	Args []*Term
 
 	// Body represents one or more expressions contained inside a rule or user
@@ -187,6 +165,7 @@ type (
 		Negated  bool        `json:"negated,omitempty"`
 		Terms    interface{} `json:"terms"`
 		With     []*With     `json:"with,omitempty"`
+		Infix    bool        `json:"infix,omitempty"`
 	}
 
 	// With represents a modifier on an expression.
@@ -489,73 +468,6 @@ func (rule *Rule) elseString() string {
 	return strings.Join(buf, " ")
 }
 
-// Compare returns an integer indicating whether f is less than, equal to,
-// or greater than other.
-func (f *Func) Compare(other *Func) int {
-	if f == nil {
-		if other == nil {
-			return 0
-		}
-		return -1
-	} else if other == nil {
-		return 1
-	}
-
-	if cmp := f.Head.Compare(other.Head); cmp != 0 {
-		return cmp
-	}
-	return f.Body.Compare(other.Body)
-}
-
-// Copy returns a deep copy of f.
-func (f *Func) Copy() *Func {
-	cpy := *f
-	cpy.Head = f.Head.Copy()
-	cpy.Body = f.Body.Copy()
-	return &cpy
-}
-
-// Equal returns true if f is equal to other.
-func (f *Func) Equal(other *Func) bool {
-	return f.Compare(other) == 0
-}
-
-// Loc returns the location of the Func in the definition.
-func (f *Func) Loc() *Location {
-	return f.Head.Location
-}
-
-// Path returns a ref referring to the this Func. If f is not contained in a
-// module, this function panics.
-func (f *Func) Path() Ref {
-	if f.Module == nil {
-		panic("assertion failed")
-	}
-
-	pkg := f.Module.Package.Path
-	head, tail := pkg[1], pkg[2:]
-	h := VarTerm(string(head.Value.(String)))
-
-	global := append(Ref{h}, tail...)
-	global = append(global, StringTerm(f.Head.Name.String()))
-	return global
-}
-
-func (f *Func) String() string {
-	return f.Head.String() + " { " + f.Body.String() + " }"
-}
-
-// NewFuncHead returns a new FuncHead objects. If args are provided, they denote
-// the inputs to the function.
-func NewFuncHead(name Var, out *Term, args ...*Term) *FuncHead {
-	head := &FuncHead{
-		Name: name,
-	}
-	head.Args = args
-	head.Output = out
-	return head
-}
-
 // NewHead returns a new Head object. If args are provided, the first will be
 // used for the key and the second will be used for the value.
 func NewHead(name Var, args ...*Term) *Head {
@@ -609,6 +521,9 @@ func (head *Head) Compare(other *Head) int {
 	} else if other == nil {
 		return 1
 	}
+	if cmp := Compare(head.Args, other.Args); cmp != 0 {
+		return cmp
+	}
 	if cmp := Compare(head.Name, other.Name); cmp != 0 {
 		return cmp
 	}
@@ -621,6 +536,7 @@ func (head *Head) Compare(other *Head) int {
 // Copy returns a deep copy of head.
 func (head *Head) Copy() *Head {
 	cpy := *head
+	cpy.Args = head.Args.Copy()
 	cpy.Key = head.Key.Copy()
 	cpy.Value = head.Value.Copy()
 	return &cpy
@@ -633,7 +549,9 @@ func (head *Head) Equal(other *Head) bool {
 
 func (head *Head) String() string {
 	var buf []string
-	if head.Key != nil {
+	if len(head.Args) != 0 {
+		buf = append(buf, head.Name.String()+head.Args.String())
+	} else if head.Key != nil {
 		buf = append(buf, head.Name.String()+"["+head.Key.String()+"]")
 	} else {
 		buf = append(buf, head.Name.String())
@@ -648,6 +566,7 @@ func (head *Head) String() string {
 // Vars returns a set of vars found in the head.
 func (head *Head) Vars() VarSet {
 	vis := &VarVisitor{vars: VarSet{}}
+	// FIXME(tsandall): include args?
 	if head.Key != nil {
 		Walk(vis, head.Key)
 	}
@@ -655,70 +574,6 @@ func (head *Head) Vars() VarSet {
 		Walk(vis, head.Value)
 	}
 	return vis.vars
-}
-
-// Compare returns an integer indicating whether h is less than, equal to,
-// or greater than other.
-func (h *FuncHead) Compare(other *FuncHead) int {
-	if h == nil {
-		if other == nil {
-			return 0
-		}
-		return -1
-	} else if other == nil {
-		return 1
-	}
-
-	if cmp := Compare(h.Name, other.Name); cmp != 0 {
-		return cmp
-	}
-	if cmp := Compare(h.Args, other.Args); cmp != 0 {
-		return cmp
-	}
-	return Compare(h.Output, other.Output)
-}
-
-// Copy returns a deep copy of h.
-func (h *FuncHead) Copy() *FuncHead {
-	cpy := *h
-	cpy.Args = h.Args.Copy()
-	cpy.Output = h.Output.Copy()
-	return &cpy
-}
-
-// Equal returns true if h is equal to other.
-func (h *FuncHead) Equal(other *FuncHead) bool {
-	return h.Compare(other) == 0
-}
-
-// Loc returns the location of the FuncHead in the definition.
-func (h *FuncHead) Loc() *Location {
-	return h.Location
-}
-
-// Vars returns a set of vars found in the FuncHead.
-func (h *FuncHead) Vars() VarSet {
-	vars := h.ArgVars()
-	vars.Update(h.OutVars())
-	return vars
-}
-
-// ArgVars returns a set of vars found in the FuncHead's arguments.
-func (h *FuncHead) ArgVars() VarSet {
-	vis := &VarVisitor{vars: VarSet{}}
-	Walk(vis, h.Args)
-	return vis.vars
-}
-
-// OutVars returns a set of vars found in the FuncHead's output.
-func (h *FuncHead) OutVars() VarSet {
-	vis := &VarVisitor{vars: VarSet{}}
-	Walk(vis, h.Output)
-	return vis.vars
-}
-
-func (h *FuncHead) String() string {
-	return h.Name.String() + h.Args.String() + " = " + h.Output.String()
 }
 
 // Copy returns a deep copy of a.
@@ -736,6 +591,13 @@ func (a Args) String() string {
 		buf = append(buf, t.String())
 	}
 	return "(" + strings.Join(buf, ", ") + ")"
+}
+
+// Vars returns a set of vars that appear in a.
+func (a Args) Vars() VarSet {
+	vis := &VarVisitor{vars: VarSet{}}
+	Walk(vis, a)
+	return vis.vars
 }
 
 // NewBody returns a new Body containing the given expressions. The indices of
@@ -997,15 +859,15 @@ func (expr *Expr) IsEquality() bool {
 	return terms[0].Value.Compare(Equality.Ref()) == 0
 }
 
-// IsBuiltin returns true if this expression refers to a function.
-func (expr *Expr) IsBuiltin() bool {
+// IsCall returns true if this expression calls a function.
+func (expr *Expr) IsCall() bool {
 	_, ok := expr.Terms.([]*Term)
 	return ok
 }
 
-// Name returns the name of the user function or built-in this expression
-// refers to. If this expression is not a function call, returns nil.
-func (expr *Expr) Name() Ref {
+// Operator returns the name of the function or built-in this expression refers
+// to. If this expression is not a function call, returns nil.
+func (expr *Expr) Operator() Ref {
 	terms, ok := expr.Terms.([]*Term)
 	if !ok || len(terms) == 0 {
 		return nil
@@ -1074,14 +936,7 @@ func (expr *Expr) OutputVars(safe VarSet) VarSet {
 				}
 				return expr.outputVarsBuiltins(b, safe)
 			}
-
-			// Mark output variables as safe for user
-			// functions.
-			last := terms[len(terms)-1]
-			WalkVars(last, func(v Var) bool {
-				safe.Add(v)
-				return false
-			})
+			return expr.outputVarsFunc(safe, terms)
 		}
 	}
 	return VarSet{}
@@ -1103,26 +958,22 @@ func (expr *Expr) String() string {
 		name := t[0].String()
 		bi := BuiltinMap[name]
 		var s string
-		if bi != nil && len(bi.Infix) > 0 {
-			switch len(bi.Args) {
-			case 2:
-				s = fmt.Sprintf("%v %v %v", t[1], string(bi.Infix), t[2])
-			case 3:
-				// Special case for "x = y <operand> z" built-ins.
-				if len(bi.TargetPos) == 1 && bi.TargetPos[0] == 2 {
-					s = fmt.Sprintf("%v = %v %v %v", t[3], t[1], string(bi.Infix), t[2])
-				}
+		// Handle infix operators (e.g., =, !=, >=, +, /, etc.)
+		if bi != nil && bi.Infix != "" {
+			if types.Compare(bi.Decl.Result(), types.T) == 0 {
+				s = fmt.Sprintf("%v %v %v", t[1], bi.Infix, t[2])
+			} else {
+				s = fmt.Sprintf("%v = %v %v %v", t[3], t[1], bi.Infix, t[2])
 			}
 		}
+		// Handle infix call expressions.
+		if len(s) == 0 && expr.Infix {
+			s = fmt.Sprintf("%v = %v%v", t[len(t)-1], t[0], Args(t[1:len(t)-1]))
+		}
+		// Handle anything else.
 		if len(s) == 0 {
-			var args []string
-			for _, v := range t[1:] {
-				args = append(args, v.String())
-			}
-			name := string(t[0].String())
-			s = fmt.Sprintf("%s(%s)", name, strings.Join(args, ", "))
+			s = fmt.Sprintf("%v%v", t[0], Args(t[1:]))
 		}
-
 		buf = append(buf, s)
 
 	case *Term:
@@ -1201,6 +1052,41 @@ func (expr *Expr) outputVarsEquality(safe VarSet) VarSet {
 	o.Update(safe)
 	o.Update(Unify(o, ts[1], ts[2]))
 	return o.Diff(safe)
+}
+
+func (expr *Expr) outputVarsFunc(safe VarSet, terms []*Term) VarSet {
+
+	// Functions called with 0 or 1 args cannot produce output vars.
+	if len(expr.Operands()) < 2 {
+		return VarSet{}
+	}
+
+	o := expr.outputVarsRefs(safe)
+
+	// Find unsafe input vars.
+	args := Args(terms[:len(terms)-1])
+	vis := NewVarVisitor().WithParams(VarVisitorParams{
+		SkipClosures:   true,
+		SkipObjectKeys: true,
+		SkipRefHead:    true,
+	})
+	Walk(vis, args)
+	unsafe := vis.Vars().Diff(o).Diff(safe)
+	if len(unsafe) > 0 {
+		return VarSet{}
+	}
+
+	// Find safe output vars.
+	vis = NewVarVisitor().WithParams(VarVisitorParams{
+		SkipRefHead:    true,
+		SkipSets:       true,
+		SkipObjectKeys: true,
+		SkipClosures:   true,
+	})
+	Walk(vis, terms[len(terms)-1])
+	o.Update(vis.vars)
+
+	return o
 }
 
 func (expr *Expr) outputVarsRefs(safe VarSet) VarSet {

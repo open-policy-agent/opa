@@ -30,14 +30,13 @@ type Topdown struct {
 	Tracer   Tracer
 	Context  context.Context
 
-	txn          storage.Transaction
-	locals       *ast.ValueMap
-	refs         *valueMapStack
-	cache        *contextcache
-	qid          uint64
-	redos        *redoStack
-	builtins     builtins.Cache
-	userBuiltins map[string]BuiltinFunc
+	txn      storage.Transaction
+	locals   *ast.ValueMap
+	refs     *valueMapStack
+	cache    *contextcache
+	qid      uint64
+	redos    *redoStack
+	builtins builtins.Cache
 }
 
 // ResetQueryIDs resets the query ID generator. This is only for test purposes.
@@ -80,19 +79,17 @@ type redoStackElement struct {
 // New returns a new Topdown object without any bindings.
 func New(ctx context.Context, query ast.Body, compiler *ast.Compiler, store storage.Store, txn storage.Transaction) *Topdown {
 	t := &Topdown{
-		Context:      ctx,
-		Query:        query,
-		Compiler:     compiler,
-		Store:        store,
-		refs:         newValueMapStack(),
-		txn:          txn,
-		cache:        newContextCache(),
-		qid:          qidFactory.Next(),
-		redos:        &redoStack{},
-		builtins:     builtins.Cache{},
-		userBuiltins: map[string]BuiltinFunc{},
+		Context:  ctx,
+		Query:    query,
+		Compiler: compiler,
+		Store:    store,
+		refs:     newValueMapStack(),
+		txn:      txn,
+		cache:    newContextCache(),
+		qid:      qidFactory.Next(),
+		redos:    &redoStack{},
+		builtins: builtins.Cache{},
 	}
-	t.registerUserFunctions()
 	return t
 }
 
@@ -905,13 +902,14 @@ func evalExpr(t *Topdown, iter Iterator) error {
 	expr := PlugExpr(t.Current(), t.Binding)
 	switch tt := expr.Terms.(type) {
 	case []*ast.Term:
+		ref := tt[0].Value.(ast.Ref)
+		if ast.DefaultRootDocument.Equal(ref[0]) {
+			return evalRefRuleApply(t, ref, tt[1:], iter)
+		}
 		name := tt[0].String()
 		builtin, ok := builtinFunctions[name]
 		if !ok {
-			builtin, ok = t.userBuiltins[name]
-			if !ok {
-				return unsupportedBuiltinErr(expr.Location)
-			}
+			return unsupportedBuiltinErr(expr.Location)
 		}
 		return builtin(t, expr, iter)
 	case *ast.Term:
@@ -1296,9 +1294,101 @@ func evalRefRule(t *Topdown, ref ast.Ref, path ast.Ref, iter Iterator) error {
 	return nil
 }
 
+func evalRefRuleApply(t *Topdown, path ast.Ref, args []*ast.Term, iter Iterator) error {
+
+	index := t.Compiler.RuleIndex(path)
+	ir, err := index.Lookup(valueResolver{t})
+	if err != nil || ir.Empty() {
+		return err
+	}
+
+	// If function is being applied and return value is being ignored, append a
+	// wildcard variable to the expression so that it will unify below.
+	if len(args) == len(ir.Rules[0].Head.Args) {
+		args = append(args, ast.VarTerm(ast.WildcardPrefix+"apply"))
+	}
+
+	resolved, err := resolveN(t, path.String(), args, len(args)-1)
+	if err != nil {
+		return err
+	}
+
+	resolvedArgs := make(ast.Array, len(resolved))
+	for i := range resolved {
+		resolvedArgs[i] = ast.NewTerm(resolved[i])
+	}
+
+	var redo bool
+	var result *ast.Term
+
+	for _, rule := range ir.Rules {
+		next, err := evalRefRuleApplyOne(t, rule, resolvedArgs, redo, result)
+		if err != nil {
+			return err
+		}
+		redo = true
+		if next != nil {
+			result = next
+		} else {
+			chain := ir.Else[rule]
+			for i := range chain {
+				next, err := evalRefRuleApplyOne(t, chain[i], resolvedArgs, redo, result)
+				if err != nil {
+					return err
+				}
+				if next != nil {
+					result = next
+					break
+				}
+			}
+		}
+	}
+
+	if result == nil {
+		return nil
+	}
+
+	return unifyAndContinue(t, iter, result.Value, args[len(args)-1].Value)
+}
+
+func evalRefRuleApplyOne(t *Topdown, rule *ast.Rule, args ast.Array, redo bool, last *ast.Term) (*ast.Term, error) {
+	child := t.Child(rule.Body)
+	if !redo {
+		child.traceEnter(rule)
+	} else {
+		child.traceRedo(rule)
+	}
+	var result *ast.Term
+	ruleArgs := ast.Array(rule.Head.Args)
+	undo, err := evalEqUnify(child, args, ruleArgs, nil, func(child *Topdown) error {
+		return eval(child, func(child *Topdown) error {
+			result = PlugTerm(rule.Head.Value, child.Binding)
+			if last != nil && ast.Compare(last, result) != 0 {
+				return completeDocConflictErr(t.currentLocation(rule))
+			}
+			if last == nil && result != nil {
+				last = result
+			}
+			child.traceExit(rule)
+			return nil
+		})
+	})
+	if err != nil {
+		return nil, err
+	}
+	child.Unbind(undo)
+	return result, nil
+}
+
 func evalRefRuleCompleteDoc(t *Topdown, ref ast.Ref, suffix ast.Ref, ir *ast.IndexResult, iter Iterator) error {
 
 	if ir.Empty() {
+		return nil
+	}
+
+	if len(ir.Rules) > 0 && len(ir.Rules[0].Head.Args) > 0 {
+		// Skip functions. Functions are not evaluated if args are unavailable.
+		// Functions are evaluated when the overall expression is evaluated.
 		return nil
 	}
 
@@ -1319,6 +1409,7 @@ func evalRefRuleCompleteDoc(t *Topdown, ref ast.Ref, suffix ast.Ref, ir *ast.Ind
 	var redo bool
 
 	for _, rule := range ir.Rules {
+
 		next, err := evalRefRuleCompleteDocSingle(t, rule, redo, result)
 		if err != nil {
 			return err

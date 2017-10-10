@@ -72,9 +72,9 @@ func TestRunnerCancel(t *testing.T) {
 
 	ast.RegisterBuiltin(&ast.Builtin{
 		Name: "test.sleep",
-		Args: []types.Type{
+		Decl: types.NewFunction(
 			types.S,
-		},
+		),
 	})
 
 	topdown.RegisterFunctionalBuiltinVoid1("test.sleep", func(a ast.Value) error {

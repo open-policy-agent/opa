@@ -155,10 +155,10 @@ func ExampleRegisterFunctionalBuiltin1() {
 	// when it encounters your built-in.
 	builtin := &ast.Builtin{
 		Name: "mybuiltins.upper",
-		Args: []types.Type{
+		Decl: types.NewFunction(
 			types.S,
 			types.S,
-		},
+		),
 		TargetPos: []int{1},
 	}
 

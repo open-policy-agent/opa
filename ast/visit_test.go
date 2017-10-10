@@ -63,6 +63,7 @@ fn([x, y]) = z { json.unmarshal(x, z); z > y }
 			rule
 				head
 					t
+					args
 					term
 						x
 					term
@@ -228,6 +229,7 @@ fn([x, y]) = z { json.unmarshal(x, z); z > y }
 			rule
 				head
 					p
+					args
 					<nil> # not counted
 					term
 						true
@@ -238,6 +240,7 @@ fn([x, y]) = z { json.unmarshal(x, z); z > y }
 				rule
 					head
 						p
+						args
 						<nil> # not counted
 						term
 							true
@@ -248,6 +251,7 @@ fn([x, y]) = z { json.unmarshal(x, z); z > y }
 					rule
 						head
 							p
+							args
 							<nil> # not counted
 							term
 								true
@@ -258,12 +262,13 @@ fn([x, y]) = z { json.unmarshal(x, z); z > y }
 			func
 				head
 					fn
-					term
-						array
-							term
-								x
-							term
-								y
+					args
+						term
+							array
+								term
+									x
+								term
+									y
 					term
 						z
 				body
@@ -288,8 +293,8 @@ fn([x, y]) = z { json.unmarshal(x, z); z > y }
 						term
 							y
 	*/
-	if len(vis.elems) != 240 {
-		t.Errorf("Expected exactly 240 elements in AST but got %d: %v", len(vis.elems), vis.elems)
+	if len(vis.elems) != 246 {
+		t.Errorf("Expected exactly 246 elements in AST but got %d: %v", len(vis.elems), vis.elems)
 	}
 }
 

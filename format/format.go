@@ -11,6 +11,7 @@ import (
 	"sort"
 
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/types"
 )
 
 // Bytes formats Rego source code. The bytes provided do not have to be an entire
@@ -75,7 +76,7 @@ func Ast(x interface{}) (formatted []byte, err error) {
 			default:
 				assertHasLocation(x)
 			}
-		case *ast.Package, *ast.Import, *ast.Rule, *ast.Func, *ast.Head, ast.Body, *ast.Expr, *ast.With, *ast.Comment:
+		case *ast.Package, *ast.Import, *ast.Rule, *ast.Head, ast.Body, *ast.Expr, *ast.With, *ast.Comment:
 			assertHasLocation(x)
 		}
 		return false
@@ -93,10 +94,6 @@ func Ast(x interface{}) (formatted []byte, err error) {
 		w.writeRule(x, nil)
 	case *ast.Head:
 		w.writeHead(x, nil)
-	case *ast.Func:
-		w.writeFunc(x, nil)
-	case *ast.FuncHead:
-		w.writeFuncHead(x, nil)
 	case ast.Body:
 		w.writeBody(x, nil)
 	case *ast.Expr:
@@ -134,7 +131,7 @@ func (w *writer) writeModule(module *ast.Module) {
 		case *ast.Comment:
 			comments = append(comments, x)
 			return true
-		case *ast.Import, *ast.Rule, *ast.Func:
+		case *ast.Import, *ast.Rule:
 			others = append(others, x)
 			return true
 		case *ast.Package:
@@ -160,14 +157,11 @@ func (w *writer) writeModule(module *ast.Module) {
 	comments = w.writePackage(pkg, comments)
 	var imports []*ast.Import
 	var rules []*ast.Rule
-	var funcs []*ast.Func
 	for len(others) > 0 {
 		imports, others = gatherImports(others)
 		comments = w.writeImports(imports, comments)
 		rules, others = gatherRules(others)
 		comments = w.writeRules(rules, comments)
-		funcs, others = gatherFuncs(others)
-		comments = w.writeFuncs(funcs, comments)
 	}
 
 	for _, c := range comments {
@@ -230,7 +224,16 @@ func (w *writer) writeRule(rule *ast.Rule, comments []*ast.Comment) []*ast.Comme
 	w.up()
 
 	comments = w.writeBody(rule.Body, comments)
-	comments = w.insertComments(comments, closingLoc('[', ']', '{', '}', rule.Location))
+
+	var close *ast.Location
+
+	if len(rule.Head.Args) > 0 {
+		close = closingLoc('(', ')', '{', '}', rule.Location)
+	} else {
+		close = closingLoc('[', ']', '{', '}', rule.Location)
+	}
+
+	comments = w.insertComments(comments, close)
 
 	w.down()
 	w.startLine()
@@ -246,68 +249,25 @@ func (w *writer) writeRule(rule *ast.Rule, comments []*ast.Comment) []*ast.Comme
 
 func (w *writer) writeHead(head *ast.Head, comments []*ast.Comment) []*ast.Comment {
 	w.write(head.Name.String())
+	if len(head.Args) > 0 {
+		w.write("(")
+		var args []interface{}
+		for _, arg := range head.Args {
+			args = append(args, arg)
+		}
+		comments = w.writeIterable(args, head.Location, comments, w.listWriter())
+		w.write(")")
+	}
 	if head.Key != nil {
 		w.write("[")
 		comments = w.writeTerm(head.Key, comments)
 		w.write("]")
 	}
-	if head.Value != nil {
+	if head.Value != nil && ast.Compare(head.Value, ast.BooleanTerm(true)) != 0 {
 		w.write(" = ")
 		comments = w.writeTerm(head.Value, comments)
 	}
 	return comments
-}
-
-func (w *writer) writeFuncs(funcs []*ast.Func, comments []*ast.Comment) []*ast.Comment {
-	for _, fn := range funcs {
-		comments = w.insertComments(comments, fn.Location)
-		comments = w.writeFunc(fn, comments)
-		w.blankLine()
-	}
-	return comments
-}
-
-func (w *writer) writeFunc(fn *ast.Func, comments []*ast.Comment) []*ast.Comment {
-	if fn == nil {
-		return comments
-	}
-
-	w.startLine()
-	comments = w.writeFuncHead(fn.Head, comments)
-
-	w.write(" {")
-	w.endLine()
-	w.up()
-
-	comments = w.writeBody(fn.Body, comments)
-	comments = w.insertComments(comments, closingLoc('(', ')', '{', '}', fn.Location))
-
-	w.down()
-	w.startLine()
-	w.write("}")
-	return comments
-}
-
-func (w *writer) writeFuncHead(head *ast.FuncHead, comments []*ast.Comment) []*ast.Comment {
-	w.write(head.Name.String())
-
-	var args []interface{}
-	for _, arg := range head.Args {
-		args = append(args, arg)
-	}
-
-	w.write("(")
-	comments = w.writeIterable(args, head.Location, comments, w.listWriter())
-	w.write(")")
-
-	// If a function's output is the value true, it can be written in shorthand
-	// as a void function. Formatting such functions should use the shorthand.
-	if head.Output.Equal(ast.BooleanTerm(true)) {
-		return comments
-	}
-
-	w.write(" = ")
-	return w.writeTerm(head.Output, comments)
 }
 
 func (w *writer) insertComments(comments []*ast.Comment, loc *ast.Location) []*ast.Comment {
@@ -344,7 +304,7 @@ func (w *writer) writeExpr(expr *ast.Expr, comments []*ast.Comment) []*ast.Comme
 
 	switch t := expr.Terms.(type) {
 	case []*ast.Term:
-		comments = w.writeFunctionCall(t, comments)
+		comments = w.writeFunctionCall(expr, comments)
 	case *ast.Term:
 		comments = w.writeTerm(t, comments)
 	}
@@ -367,28 +327,46 @@ func (w *writer) writeExpr(expr *ast.Expr, comments []*ast.Comment) []*ast.Comme
 	return comments
 }
 
-func (w *writer) writeFunctionCall(t []*ast.Term, comments []*ast.Comment) []*ast.Comment {
-	name := t[0].Value.String()
-	bi := ast.BuiltinMap[name]
-	if bi != nil && len(bi.Infix) > 0 {
-		switch len(bi.Args) {
-		case 3:
-			comments = w.writeTerm(t[3], comments)
+func (w *writer) writeFunctionCall(expr *ast.Expr, comments []*ast.Comment) []*ast.Comment {
+
+	terms := expr.Terms.([]*ast.Term)
+
+	if expr.Infix {
+		name := terms[0].Value.String()
+		if bi, ok := ast.BuiltinMap[name]; ok {
+			// Handle relational operators (=, !=, >, etc.)
+			if types.Compare(bi.Decl.Result(), types.T) == 0 {
+				comments = w.writeTerm(terms[1], comments)
+				w.write(" " + string(bi.Infix) + " ")
+				return w.writeTerm(terms[2], comments)
+			}
+			// Handle arithmetic operators (+, *, &, etc.)
+			comments = w.writeTerm(terms[3], comments)
 			w.write(" = ")
-			fallthrough
-		case 2:
-			comments = w.writeTerm(t[1], comments)
+			comments = w.writeTerm(terms[1], comments)
 			w.write(" " + string(bi.Infix) + " ")
-			return w.writeTerm(t[2], comments)
+			return w.writeTerm(terms[2], comments)
 		}
+		comments = w.writeTerm(terms[len(terms)-1], comments)
+		w.write(" = " + string(terms[0].String()) + "(")
+		for i := 1; ; i++ {
+			comments = w.writeTerm(terms[i], comments)
+			if i < len(terms)-2 {
+				w.write(", ")
+			} else {
+				w.write(")")
+				break
+			}
+		}
+		return comments
 	}
 
-	w.write(string(t[0].String()) + "(")
-	for _, v := range t[1 : len(t)-1] {
+	w.write(string(terms[0].String()) + "(")
+	for _, v := range terms[1 : len(terms)-1] {
 		comments = w.writeTerm(v, comments)
 		w.write(", ")
 	}
-	comments = w.writeTerm(t[len(t)-1], comments)
+	comments = w.writeTerm(terms[len(terms)-1], comments)
 	w.write(")")
 	return comments
 }
@@ -704,7 +682,7 @@ loop:
 		switch x := others[i].(type) {
 		case *ast.Import:
 			imports = append(imports, x)
-		case *ast.Rule, *ast.Func:
+		case *ast.Rule:
 			break loop
 		}
 	}
@@ -718,25 +696,11 @@ loop:
 		switch x := others[i].(type) {
 		case *ast.Rule:
 			rules = append(rules, x)
-		case *ast.Import, *ast.Func:
+		case *ast.Import:
 			break loop
 		}
 	}
 	return rules, others[i:]
-}
-
-func gatherFuncs(others []interface{}) (funcs []*ast.Func, rest []interface{}) {
-	i := 0
-loop:
-	for ; i < len(others); i++ {
-		switch x := others[i].(type) {
-		case *ast.Func:
-			funcs = append(funcs, x)
-		case *ast.Rule, *ast.Import:
-			break loop
-		}
-	}
-	return funcs, others[i:]
 }
 
 func locLess(a, b interface{}) bool {
@@ -777,9 +741,7 @@ func getLoc(x interface{}) *ast.Location {
 func closingLoc(skipOpen, skipClose, open, close byte, loc *ast.Location) *ast.Location {
 	i, offset := 0, 0
 
-	// Functions and Rules can have composites as their inputs. To avoid
-	// counting the braces around objects and sets, the [] in rule heads and
-	// the () in function heads can be skipped past before scanning.
+	// Skip past parens/brackets/braces in rule heads.
 	if skipOpen > 0 {
 		i, offset = skipPast(skipOpen, skipClose, loc)
 	}

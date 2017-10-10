@@ -28,9 +28,6 @@ func Walk(v Visitor, x interface{}) {
 		for _, r := range x.Rules {
 			Walk(w, r)
 		}
-		for _, f := range x.Funcs {
-			Walk(w, f)
-		}
 		for _, c := range x.Comments {
 			Walk(w, c)
 		}
@@ -47,6 +44,7 @@ func Walk(v Visitor, x interface{}) {
 		}
 	case *Head:
 		Walk(w, x.Name)
+		Walk(w, x.Args)
 		if x.Key != nil {
 			Walk(w, x.Key)
 		}
@@ -57,16 +55,9 @@ func Walk(v Visitor, x interface{}) {
 		for _, e := range x {
 			Walk(w, e)
 		}
-	case *Func:
-		Walk(w, x.Head)
-		Walk(w, x.Body)
-	case *FuncHead:
-		Walk(w, x.Name)
-		Walk(w, x.Args)
-		Walk(w, x.Output.Value)
 	case Args:
 		for _, t := range x {
-			Walk(w, t.Value)
+			Walk(w, t)
 		}
 	case *Expr:
 		switch ts := x.Terms.(type) {
@@ -158,18 +149,6 @@ func WalkRules(x interface{}, f func(*Rule) bool) {
 	vis := &GenericVisitor{func(x interface{}) bool {
 		if r, ok := x.(*Rule); ok {
 			return f(r)
-		}
-		return false
-	}}
-	Walk(vis, x)
-}
-
-// WalkFuncs calls the function f on all user functions under x. If the function f
-// returns true, AST nodes under the last node will not be visited.
-func WalkFuncs(x interface{}, f func(*Func) bool) {
-	vis := &GenericVisitor{func(x interface{}) bool {
-		if fn, ok := x.(*Func); ok {
-			return f(fn)
 		}
 		return false
 	}}
@@ -319,18 +298,6 @@ func (vis *VarVisitor) Visit(v interface{}) Visitor {
 				}
 				return nil
 			}
-		}
-	}
-	if vis.params.SkipFuncVars {
-		if f, ok := v.(*Func); ok {
-			Walk(vis, f.Body)
-			return nil
-		}
-		if _, ok := v.(*FuncHead); ok {
-			return nil
-		}
-		if _, ok := v.(Args); ok {
-			return nil
 		}
 	}
 	if v, ok := v.(Var); ok {

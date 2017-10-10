@@ -21,34 +21,34 @@ func TestCheckInference(t *testing.T) {
 	// fake_builtin_1([str1,str2])
 	RegisterBuiltin(&Builtin{
 		Name: "fake_builtin_1",
-		Args: []types.Type{
+		Decl: types.NewFunction(
 			types.NewArray(
 				[]types.Type{types.S, types.S}, nil,
 			),
-		},
+		),
 		TargetPos: []int{0},
 	})
 
 	// fake_builtin_2({"a":str1,"b":str2})
 	RegisterBuiltin(&Builtin{
 		Name: "fake_builtin_2",
-		Args: []types.Type{
+		Decl: types.NewFunction(
 			types.NewObject(
 				[]*types.StaticProperty{
 					{"a", types.S},
 					{"b", types.S},
 				}, nil,
 			),
-		},
+		),
 		TargetPos: []int{0},
 	})
 
 	// fake_builtin_3({str1,str2,...})
 	RegisterBuiltin(&Builtin{
 		Name: "fake_builtin_3",
-		Args: []types.Type{
+		Decl: types.NewFunction(
 			types.NewSet(types.S),
-		},
+		),
 		TargetPos: []int{0},
 	})
 
@@ -70,7 +70,7 @@ func TestCheckInference(t *testing.T) {
 			Var("z"): types.N,
 		}},
 		{"array-nested", "[x, 1] = [true, y]", map[Var]types.Type{
-			Var("x"): types.B,
+			Var("x"): types.T,
 			Var("y"): types.N,
 		}},
 		{"array-transitive", "y = [[2], 1]; [[x], 1] = y", map[Var]types.Type{
@@ -159,7 +159,7 @@ func TestCheckInference(t *testing.T) {
 				3];
 
 			x = a[1].foo[_].bar`, map[Var]types.Type{
-			Var("x"): types.NewAny(types.NewNull(), types.B),
+			Var("x"): types.NewAny(types.NewNull(), types.T),
 		}},
 		{"local-reference-var", `
 
@@ -191,8 +191,8 @@ func TestCheckInference(t *testing.T) {
 			`, map[Var]types.Type{
 			Var("i"): types.N,
 			Var("j"): types.S,
-			Var("k"): types.NewAny(types.S, types.N, types.B),
-			Var("x"): types.NewAny(types.S, types.N, types.B),
+			Var("k"): types.NewAny(types.S, types.N, types.T),
+			Var("x"): types.NewAny(types.S, types.N, types.T),
 		}},
 		{"local-reference-var-any", `
 			a = [[], {}];
@@ -304,7 +304,7 @@ func TestCheckInferenceRules(t *testing.T) {
 		ref      string
 		expected types.Type
 	}{
-		{"trivial", ruleset1, `data.a.trivial`, types.B},
+		{"trivial", ruleset1, `data.a.trivial`, types.T},
 
 		{"complete-doc", ruleset1, `data.a.complete`, types.NewArray(
 			[]types.Type{types.NewObject(
@@ -347,7 +347,7 @@ func TestCheckInferenceRules(t *testing.T) {
 			types.NewAny(
 				types.S,
 				types.N,
-				types.B),
+				types.T),
 		)},
 
 		{"iteration-keys", ruleset1, "data.iteration.keys", types.NewSet(
@@ -373,11 +373,11 @@ func TestCheckInferenceRules(t *testing.T) {
 			types.NewDynamicProperty(types.S, types.NewAny(types.S, types.N)),
 		)},
 
-		{"ref", ruleset1, "data.b.trivial_ref", types.B},
+		{"ref", ruleset1, "data.b.trivial_ref", types.T},
 
 		{"ref-transitive", ruleset1, "data.b.transitive_ref", types.NewArray(
 			[]types.Type{
-				types.B,
+				types.T,
 			},
 			nil,
 		)},
@@ -385,7 +385,7 @@ func TestCheckInferenceRules(t *testing.T) {
 		{"prefix", ruleset1, `data.prefix.a.b`, types.NewObject(
 			[]*types.StaticProperty{{
 				"c", types.NewObject(
-					[]*types.StaticProperty{{"d", types.B}},
+					[]*types.StaticProperty{{"d", types.T}},
 					types.NewDynamicProperty(types.S, types.A),
 				),
 			}},
@@ -546,7 +546,6 @@ func TestCheckMatchErrors(t *testing.T) {
 		{"object", `{{"a": 1, "b": 2} = null}`},
 		{"object-nested", `{ {"a": 1, "b": "2"} = {"a": 1, "b": 2} }`},
 		{"object-nested-2", `{ {"a": 1} = {"a": 1, "b": "2"} }`},
-		{"object-dynamic", `{ obj2 = obj1 }`},
 		{"set", "{{1,2,3} = null}"},
 	}
 	for _, tc := range tests {
@@ -565,7 +564,7 @@ func TestCheckBuiltinErrors(t *testing.T) {
 
 	RegisterBuiltin(&Builtin{
 		Name: "fake_builtin_2",
-		Args: []types.Type{
+		Decl: types.NewFunction(
 			types.NewAny(types.NewObject(
 				[]*types.StaticProperty{
 					{"a", types.S},
@@ -577,7 +576,7 @@ func TestCheckBuiltinErrors(t *testing.T) {
 					{"c", types.S},
 				}, nil,
 			)),
-		},
+		),
 		TargetPos: []int{0},
 	})
 
@@ -593,11 +592,13 @@ func TestCheckBuiltinErrors(t *testing.T) {
 		{"objects-any", `fake_builtin_2({"a": a, "c": c})`},
 		{"objects-bad-input", `sum({"a": 1, "b": 2}, x)`},
 		{"sets-any", `sum({1,2,"3",4}, x)`},
-		{"xxx", "data.test.p + data.deadbeef = q"},
+		{"virtual-ref", `data.test.p + data.deabeef = 0`},
+		{"function-ref", `data.test.f(1, data.test.f)`},
 	}
 
 	env := newTestEnv([]string{
 		`p = "foo" { true }`,
+		`f(x) = x { true }`,
 	})
 
 	for _, tc := range tests {
@@ -636,25 +637,6 @@ func TestCheckRefErrUnsupported(t *testing.T) {
 		t.Fatalf("Expected (%v, %v, %v) but got: (%v, %v, %v)", wantRef, wantPos, wantHave, details.Ref, details.Pos, details.Have)
 	}
 
-}
-
-func TestCheckRefErrMissing(t *testing.T) {
-
-	query := `arr = [1,2,3]; arr[0].deadbeef = elem; elem[0]`
-
-	_, errs := newTypeChecker().CheckBody(nil, MustParseBody(query))
-	if len(errs) != 2 {
-		t.Fatalf("Expected exactly two errors but got: %v", errs)
-	}
-
-	details, ok := errs[1].Details.(*RefErrMissingDetail)
-	if !ok {
-		t.Fatalf("Expected ref err missing but got: %v", errs)
-	}
-
-	if !details.Ref.Equal(MustParseRef("elem[0]")) {
-		t.Fatalf("Expected ref elem[0] but got: %v", errs)
-	}
 }
 
 func TestCheckRefErrInvalid(t *testing.T) {
@@ -796,8 +778,8 @@ func TestUserFunctionsTypeInference(t *testing.T) {
 		`foo([a, b]) = y { split(a, b, y) }`,
 		`bar(x) = y { count(x, y) }`,
 		`baz([x, y]) = z { sprintf("%s%s", [x, y], z) }`,
-		`buz({"bar": x, "foo": y}) = {a: b} { upper(y, a); json.unmarshal(x, b) }`,
-		`foobar(x) = y { buz({"bar": x, "foo": x}, a); baz([a["{5: true}"], "BUZ"], y) }`,
+		`qux({"bar": x, "foo": y}) = {a: b} { upper(y, a); json.unmarshal(x, b) }`,
+		`corge(x) = y { qux({"bar": x, "foo": x}, a); baz([a["{5: true}"], "BUZ"], y) }`,
 	}
 	body := strings.Join(functions, "\n")
 	base := fmt.Sprintf("package base\n%s", body)
@@ -808,35 +790,35 @@ func TestUserFunctionsTypeInference(t *testing.T) {
 	}
 
 	tests := []struct {
-		body string
-		err  bool
+		body    string
+		wantErr bool
 	}{
 		{
-			`fn() = y { base.foo(["hello", 5], y) }`,
+			`fn(_) = y { data.base.foo(["hello", 5], y) }`,
 			true,
 		},
 		{
-			`fn() = y { base.foo(["hello", "ll"], y) }`,
+			`fn(_) = y { data.base.foo(["hello", "ll"], y) }`,
 			false,
 		},
 		{
-			`fn() = y { base.baz(["hello", "ll"], y) }`,
+			`fn(_) = y { data.base.baz(["hello", "ll"], y) }`,
 			false,
 		},
 		{
-			`fn() = y { base.baz([5, ["foo", "bar", true]], y) }`,
+			`fn(_) = y { data.base.baz([5, ["foo", "bar", true]], y) }`,
 			false,
 		},
 		{
-			`fn() = y { base.baz(["hello", {"a": "b", "c": 3}], y) }`,
+			`fn(_) = y { data.base.baz(["hello", {"a": "b", "c": 3}], y) }`,
 			false,
 		},
 		{
-			`fn() = y { base.foobar("this is not json", y) }`,
+			`fn(_) = y { data.base.corge("this is not json", y) }`,
 			false,
 		},
 		{
-			`fn(x) = y { noexist(x, a); y = a[0] }`,
+			`fn(x) = y { data.non_existent(x, a); y = a[0] }`,
 			true,
 		},
 	}
@@ -845,8 +827,11 @@ func TestUserFunctionsTypeInference(t *testing.T) {
 		t.Run(fmt.Sprintf("Test Case %d", n), func(t *testing.T) {
 			mod := MustParseModule(fmt.Sprintf("package test\n%s", test.body))
 			c := NewCompiler()
-			if c.Compile(map[string]*Module{"base": MustParseModule(base), "mod": mod}); c.Failed() != test.err {
-				t.Fatalf("Expected compiler to fail: %t, compiler failed: %t", test.err, c.Failed())
+			c.Compile(map[string]*Module{"base": MustParseModule(base), "mod": mod})
+			if test.wantErr && !c.Failed() {
+				t.Errorf("Expected error but got success")
+			} else if !test.wantErr && c.Failed() {
+				t.Errorf("Expected success but got error: %v", c.Errors)
 			}
 		})
 	}
@@ -899,16 +884,6 @@ func TestCheckErrorDetails(t *testing.T) {
 				"         ^",
 				"         have: 100",
 				`         want (one of): ["a" "b"]`,
-			},
-		},
-		{
-			detail: &RefErrMissingDetail{
-				Ref: MustParseRef("xxx.foo"),
-			},
-			expected: []string{
-				"xxx.foo",
-				"^^^",
-				"missing type information",
 			},
 		},
 		{

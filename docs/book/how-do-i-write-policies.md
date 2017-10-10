@@ -868,9 +868,9 @@ undefined
 
 In some cases, having an undefined result for a document is not desirable. In those cases, policies can use the [Default Keyword](#default) to provide a fallback value.
 
-## <a name="user-functions"></a> User Functions
+### <a name="functions"></a> Functions
 
-Rego supports user defined functions that can be called with the same semantics as [Built-in Functions](#built-ins). User functions do not need to be imported, and can be accessed by their name preceded by their package name. They have access to both the [the data Document](/how-does-opa-work.md#the-data-document) and [the input Document](/how-does-opa-work.md#the-input-document).
+Rego supports user-defined functions that can be called with the same semantics as [Built-in Functions](#built-ins). They have access to both the [the data Document](/how-does-opa-work.md#the-data-document) and [the input Document](/how-does-opa-work.md#the-input-document).
 
 For example, the following function will return the result of trimming the spaces from a string and then splitting it by periods.
 
@@ -888,11 +888,8 @@ For example, the following function will return the result of trimming the space
 +---------------+
 ```
 
-In general, functions may have an arbitrary number of inputs, but exactly one output. All function inputs must be either Scalars, [Variables](#variables), Arrays or Objects. The contents of Arrays and Objects passed to functions also must obey this restriction, applied recursively.
+Functions may have an arbitrary number of inputs, but exactly one output. Function arguments may be any kind of term. For example, suppose we have the following function:
 
-It is worth noting that these restrictions only apply to the declared inputs of functions. When calling a function, any term that matches the declared terms may be passed. If the passed term has deeper components than the declared term, the deep parts will be folded into the appropriate variables in the declaration.
-
-As an example, suppose we have the user defined function below:
 ```
 foo([x, {"bar": y}]) = z {
     z = {x: y}
@@ -927,10 +924,12 @@ The outputs of user functions have some additional limitations, namely that they
 | }
 |
 > p([1, 2, 3], out)
-p([1, 2, 3], out): eval_conflict_error: function "repl.p" produces conflicting outputs
+p([1, 2, 3], out): eval_conflict_error: completely defined rules must produce exactly one value
 ```
 
 It is possible in Rego to define a function more than once, to achieve a conditional selection of which function to execute:
+
+Functions can be defined incrementally.
 
 ```ruby
 > p(1, x) = y {
@@ -956,6 +955,7 @@ It is possible in Rego to define a function more than once, to achieve a conditi
 ```
 
 A given function call will execute all functions that match the signature given. If a call matches multiple functions, they must produce the same output, or else a conflict error will occur:
+
 ```ruby
 > p(1, x) = y {
 |     y = x
@@ -966,7 +966,7 @@ A given function call will execute all functions that match the signature given.
 | }
 |
 > p(1, 2, y)
-p(1, 2, y): eval_conflict_error: function "repl.p" produces conflicting outputs
+p(1, 2, y): eval_conflict_error: completely defined rules must produce exactly one value
 ```
 
 On the other hand, if a call matches no functions, then the result is undefined, and the query containing it will become unsatisfied.
@@ -984,8 +984,6 @@ On the other hand, if a call matches no functions, then the result is undefined,
 > p(5, 3, y)
 false
 ```
-
-For a formal definition of the function syntax (as well as formal definitions for Array, Object and Scalar), see the [Language Reference](/language-reference.md#grammar) document.
 
 ## <a name="negation"></a> Negation
 

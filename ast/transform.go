@@ -108,6 +108,9 @@ func Transform(t Transformer, x interface{}) (interface{}, error) {
 		if y.Name, err = transformVar(t, y.Name); err != nil {
 			return nil, err
 		}
+		if y.Args, err = transformArgs(t, y.Args); err != nil {
+			return nil, err
+		}
 		if y.Key != nil {
 			if y.Key, err = transformTerm(t, y.Key); err != nil {
 				return nil, err
@@ -117,27 +120,6 @@ func Transform(t Transformer, x interface{}) (interface{}, error) {
 			if y.Value, err = transformTerm(t, y.Value); err != nil {
 				return nil, err
 			}
-		}
-		return y, nil
-	case *Func:
-		if y.Head, err = transformFuncHead(t, y.Head); err != nil {
-			return nil, err
-		}
-		if y.Body, err = transformBody(t, y.Body); err != nil {
-			return nil, err
-		}
-		return y, nil
-	case *FuncHead:
-		if y.Name, err = transformVar(t, y.Name); err != nil {
-			return nil, err
-		}
-		for i := range y.Args {
-			if y.Args[i], err = transformTerm(t, y.Args[i]); err != nil {
-				return nil, err
-			}
-		}
-		if y.Output, err = transformTerm(t, y.Output); err != nil {
-			return nil, err
 		}
 		return y, nil
 	case Args:
@@ -305,17 +287,16 @@ func transformHead(t Transformer, head *Head) (*Head, error) {
 	}
 	return h, nil
 }
-
-func transformFuncHead(t Transformer, head *FuncHead) (*FuncHead, error) {
-	y, err := Transform(t, head)
+func transformArgs(t Transformer, args Args) (Args, error) {
+	y, err := Transform(t, args)
 	if err != nil {
 		return nil, err
 	}
-	h, ok := y.(*FuncHead)
+	a, ok := y.(Args)
 	if !ok {
-		return nil, fmt.Errorf("illegal transform: %T != %T", head, y)
+		return nil, fmt.Errorf("illegal transform: %T != %T", args, y)
 	}
-	return h, nil
+	return a, nil
 }
 
 func transformBody(t Transformer, body Body) (Body, error) {

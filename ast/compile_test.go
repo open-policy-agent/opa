@@ -69,7 +69,7 @@ s[2] { true }`,
 	)
 
 	tree := NewRuleTree(NewModuleTree(mods))
-	expectedNumRules := 21
+	expectedNumRules := 23
 
 	if tree.Size() != expectedNumRules {
 		t.Errorf("Expected %v but got %v rules", expectedNumRules, tree.Size())
@@ -110,14 +110,14 @@ func TestCompilerExample(t *testing.T) {
 	assertNotFailed(t, c)
 }
 
-func TestCompilerUserFunction(t *testing.T) {
+func TestCompilerFunctions(t *testing.T) {
 	tests := []struct {
+		note    string
 		modules []string
-		assert  func(*testing.T, *Compiler)
-		errs    []string
+		wantErr bool
 	}{
 		{
-			// Test that functions can have different input types.
+			note: "multiple input types",
 			modules: []string{`package x
 
 				f([x]) = y {
@@ -127,9 +127,9 @@ func TestCompilerUserFunction(t *testing.T) {
 				f({"foo": x}) = y {
 					y = x
 				}`},
-			assert: assertNotFailed,
 		},
 		{
+			note: "multiple input types",
 			modules: []string{`package x
 
 				f([x]) = y {
@@ -139,57 +139,9 @@ func TestCompilerUserFunction(t *testing.T) {
 				f([[x]]) = y {
 					y = x
 				}`},
-			assert: assertNotFailed,
 		},
 		{
-			modules: []string{`package x
-
-				f(1, x) = y {
-					y = x
-				}
-
-				f(x, y) = z {
-					z = x+y
-				}`},
-			assert: assertNotFailed,
-		},
-		{
-			modules: []string{`package x
-
-				f(x, 1) = y {
-					y = x
-				}
-
-				f(x, [y]) = z {
-					z = x+y
-				}`},
-			assert: assertNotFailed,
-		},
-		{
-			modules: []string{`package x
-
-				f({"foo": {"bar": x}}) = y {
-					y = x
-				}
-
-				f({"foo": [x]}) = y {
-					y = x
-				}`},
-			assert: assertNotFailed,
-		},
-		{
-			modules: []string{`package x
-
-				f(1) = y {
-					y = "foo"
-				}
-
-				f(2) = y {
-					y = 2
-				}`},
-			assert: assertNotFailed,
-		},
-		{
+			note: "constant input",
 			modules: []string{`package x
 
 				f(1) = y {
@@ -199,44 +151,57 @@ func TestCompilerUserFunction(t *testing.T) {
 				f(2) = y {
 					y = "bar"
 				}`},
-			assert: assertNotFailed,
 		},
-		// Test that functions must have the same number of inputs.
 		{
+			note: "constant input",
 			modules: []string{`package x
 
-				f(x) = y {
+				f(1, x) = y {
 					y = x
 				}
 
 				f(x, y) = z {
 					z = x+y
-				}
-
-				f(x, y, z) = a {
-					b = x+y
-					a = b+z
 				}`},
-			assert: assertFailed,
 		},
-		// Test that a function and rule within the same package cannot
-		// share a name.
 		{
+			note: "constant input",
 			modules: []string{`package x
 
-			f(x) = y {
-				y = x
-			}
+				f(x, 1) = y {
+					y = x
+				}
 
-			f[x] = y {
-				x = "foo"
-				y = "bar"
-			}`},
-			assert: assertFailed,
+				f(x, [y]) = z {
+					z = x+y
+				}`},
 		},
-		// Test that a function and rule within different packages can
-		// share a name.
 		{
+			note: "multiple input types (nested)",
+			modules: []string{`package x
+
+				f({"foo": {"bar": x}}) = y {
+					y = x
+				}
+
+				f({"foo": [x]}) = y {
+					y = x
+				}`},
+		},
+		{
+			note: "multiple output types",
+			modules: []string{`package x
+
+				f(1) = y {
+					y = "foo"
+				}
+
+				f(2) = y {
+					y = 2
+				}`},
+		},
+		{
+			note: "namespacing",
 			modules: []string{
 				`package x
 
@@ -250,74 +215,88 @@ func TestCompilerUserFunction(t *testing.T) {
 					x = "foo"
 				}`,
 			},
-			assert: assertNotFailed,
 		},
-		// Test that a reference to a function that does not invoke it
-		// errors.
 		{
-			modules: []string{
-				`package x
-
-				f(x) = y {
-					y = x
-				}
-
-				g = y {
-					y = "foo"
-					f
-				}`,
-				`package y
-
-				g = y {
-					y = "foo"
-					x.f
-				}`,
-			},
-			assert: assertFailed,
-			errs: []string{
-				"rego_compile_error: mod0:9: f refers to a known builtin but does not call it",
-				"rego_compile_error: mod1:5: x.f refers to a known builtin but does not call it",
-			},
-		},
-		// Test that void functions compile properly.
-		{
+			note: "implicit value",
 			modules: []string{
 				`package x
 
 				f(x) {
 					x = "foo"
 				}`},
-			assert: assertNotFailed,
+		},
+		{
+			note: "resolving",
+			modules: []string{
+				`package x
+
+				f(x) = x { true }`,
+
+				`package y
+
+				import data.x
+				import data.x.f as g
+
+				p { g(1, _) }
+				p { x.f(1, _) }
+				p { data.x.f(1, _) }
+				`,
+			},
+		},
+		{
+			note: "undefined",
+			modules: []string{
+				`package x
+
+				p {
+					f(1)
+				}`,
+			},
+			wantErr: true,
+		},
+		{
+			note: "must apply",
+			modules: []string{
+				`package x
+
+				f(1)
+
+				p {
+					f
+				}
+				`,
+			},
+			wantErr: true,
+		},
+		{
+			note: "must apply",
+			modules: []string{
+				`package x
+				f(1)
+				p { f.x }`,
+			},
+			wantErr: true,
 		},
 	}
-	for _, test := range tests {
-		var err error
-		modules := map[string]*Module{}
-		for i, module := range test.modules {
-			name := fmt.Sprintf("mod%d", i)
-			modules[name], err = ParseModule(name, module)
-			if err != nil {
-				panic(err)
+	for _, tc := range tests {
+		test.Subtest(t, tc.note, func(t *testing.T) {
+			var err error
+			modules := map[string]*Module{}
+			for i, module := range tc.modules {
+				name := fmt.Sprintf("mod%d", i)
+				modules[name], err = ParseModule(name, module)
+				if err != nil {
+					panic(err)
+				}
 			}
-		}
-
-		c := NewCompiler()
-		c.Compile(modules)
-		test.assert(t, c)
-
-		if test.errs != nil {
-			errs := c.Errors
-			var result []string
-			for _, err := range errs {
-				result = append(result, err.Error())
+			c := NewCompiler()
+			c.Compile(modules)
+			if tc.wantErr && !c.Failed() {
+				t.Errorf("Expected compilation error")
+			} else if !tc.wantErr && c.Failed() {
+				t.Errorf("Unexpected compilation error(s): %v", c.Errors)
 			}
-
-			sort.Strings(test.errs)
-			sort.Strings(result)
-			if !reflect.DeepEqual(test.errs, result) {
-				t.Errorf("Expected errors %v test.errs, got %v", test.errs, result)
-			}
-		}
+		})
 	}
 }
 
@@ -426,8 +405,8 @@ func TestCompilerCheckSafetyBodyReordering(t *testing.T) {
 			x = y[0];
 			contains(x, "oo")
 		`},
-		{"userfunc", `split(y, ".", z); a.b.funcs.fn("...foo.bar..", y)`, `a.b.funcs.fn("...foo.bar..", y); split(y, ".", z)`},
-		{"call-vars", `f.g[i](1); i = "foo"`, `i = "foo"; f.g[i](1)`},
+		{"userfunc", `split(y, ".", z); data.a.b.funcs.fn("...foo.bar..", y)`, `data.a.b.funcs.fn("...foo.bar..", y); split(y, ".", z)`},
+		{"call-vars", `data.f.g[i](1); i = "foo"`, `i = "foo"; data.f.g[i](1)`},
 	}
 
 	for i, tc := range tests {
@@ -477,20 +456,20 @@ r = true { a = [x | split(y, ".", z); x = z[i]; fn("...foo.bar..", y)] }`,
 	compileStages(c, c.checkSafetyRuleBodies)
 	assertNotFailed(t, c)
 
-	result1 := c.Modules["mod"].Rules[0].Body
+	result1 := c.Modules["mod"].Rules[1].Body
 	expected1 := MustParseBody(`v = [null | true]; data.b[i] = j; xs = [x | a = [y | y = data.c[j]; y != 1]; a[i] = x]; z = [true | i2 = i; data.a.b.d.t with input as i2]; xs[j] > 0`)
 	if !result1.Equal(expected1) {
 		t.Errorf("Expected reordered body to be equal to:\n%v\nBut got:\n%v", expected1, result1)
 	}
 
-	result2 := c.Modules["mod"].Rules[1].Body
+	result2 := c.Modules["mod"].Rules[2].Body
 	expected2 := MustParseBody(`_ = [x | x = data.b[i]]; _ = data.b[j]; _ = [x | x = true; x != false]; true != false; _ = [x | data.foo[_] = x]; data.foo[_] = _`)
 	if !result2.Equal(expected2) {
 		t.Errorf("Expected pre-ordered body to equal:\n%v\nBut got:\n%v", expected2, result2)
 	}
 
-	result3 := c.Modules["mod"].Rules[2].Body
-	expected3 := MustParseBody(`a = [x | compr.fn("...foo.bar..", y); split(y, ".", z); x = z[i]]`)
+	result3 := c.Modules["mod"].Rules[3].Body
+	expected3 := MustParseBody(`a = [x | data.compr.fn("...foo.bar..", y); split(y, ".", z); x = z[i]]`)
 	if !result3.Equal(expected3) {
 		t.Errorf("Expected pre-ordered body to equal:\n%v\nBut got:\n%v", expected3, result3)
 	}
@@ -537,6 +516,8 @@ func TestCompilerCheckSafetyBodyErrors(t *testing.T) {
 		{"else-kw", "p { false } else { count(x, 1) }", `{x,}`},
 		{"userfunc", "foo(x) = [y, z] { split(x, y, z) }", `{y,z}`},
 		{"call-vars", "p { f[i].g[j](1) }", `{i, j}`},
+		{"call-vars-input", "p { f(x, x) } f(x) = x { true }", `{x,}`},
+		{"call-no-output", "p { f(x) } f(x) = x { true }", `{x,}`},
 	}
 
 	makeErrMsg := func(varName string) string {
@@ -643,11 +624,20 @@ q[1] { true }`,
 default foo = 1
 default foo = 2
 foo = 3 { true }`,
+		"mod4.rego": `package adrules.arity
+
+f(1) { true }
+f { true }
+
+g(1) { true }
+g(1,2) { true }`,
 	})
 
 	compileStages(c, c.checkRuleConflicts)
 
 	expected := []string{
+		"rego_type_error: conflicting rules named f found",
+		"rego_type_error: conflicting rules named g found",
 		"rego_type_error: conflicting rules named p found",
 		"rego_type_error: conflicting rules named q found",
 		"rego_type_error: multiple default rules named foo found",
@@ -910,21 +900,16 @@ func TestCompilerSetGraph(t *testing.T) {
 	}
 
 	numRules := 0
-	numFuncs := 0
 
 	for _, module := range c.Modules {
 		WalkRules(module, func(*Rule) bool {
 			numRules++
 			return false
 		})
-		WalkFuncs(module, func(*Func) bool {
-			numFuncs++
-			return false
-		})
 	}
 
-	if len(sorted) != numRules+numFuncs {
-		t.Fatalf("Expected numRules+numFuncs (%v) to be same as len(sorted) (%v)", numRules+numFuncs, len(sorted))
+	if len(sorted) != numRules {
+		t.Fatalf("Expected numRules (%v) to be same as len(sorted) (%v)", numRules, len(sorted))
 	}
 
 	// Probe rules with dependencies. Ordering is not stable for ties because
@@ -1120,10 +1105,6 @@ dataref = true { data }`,
 		return fmt.Sprintf("rego_recursion_error: rule %v is recursive: %v", rule, strings.Join(loop, " -> "))
 	}
 
-	makeFuncErrMsg := func(fn string, loop ...string) string {
-		return fmt.Sprintf("rego_recursion_error: func %v is recursive: %v", fn, strings.Join(loop, " -> "))
-	}
-
 	expected := []string{
 		makeRuleErrMsg("s", "s", "t", "s"),
 		makeRuleErrMsg("t", "t", "s", "t"),
@@ -1143,11 +1124,11 @@ dataref = true { data }`,
 		makeRuleErrMsg("elsetop", "elsetop", "elsemid", "elsebottom", "elsetop"),
 		makeRuleErrMsg("elsemid", "elsemid", "elsebottom", "elsetop", "elsemid"),
 		makeRuleErrMsg("elsebottom", "elsebottom", "elsetop", "elsemid", "elsebottom"),
-		makeFuncErrMsg("fn", "fn", "fn"),
-		makeFuncErrMsg("foo", "foo", "bar", "foo"),
-		makeFuncErrMsg("bar", "bar", "foo", "bar"),
-		makeFuncErrMsg("bar", "bar", "p", "foo", "bar"),
-		makeFuncErrMsg("foo", "foo", "bar", "p", "foo"),
+		makeRuleErrMsg("fn", "fn", "fn"),
+		makeRuleErrMsg("foo", "foo", "bar", "foo"),
+		makeRuleErrMsg("bar", "bar", "foo", "bar"),
+		makeRuleErrMsg("bar", "bar", "p", "foo", "bar"),
+		makeRuleErrMsg("foo", "foo", "bar", "p", "foo"),
 		makeRuleErrMsg("p", "p", "foo", "bar", "p"),
 	}
 

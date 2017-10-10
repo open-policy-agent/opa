@@ -68,35 +68,8 @@ type Compiler struct {
 	//                +--- q (1 rule)
 	RuleTree *TreeNode
 
-	// FuncTree organizes user functions into a tree where each node is keyed
-	// by an element in the logical path to the function. The logical path is
-	// the concatenations of the containing package and the stringified function
-	// name. Functions are only located at the lead nodes, each of which have
-	// exactly 1 function. E.g., given the following module:
-	//
-	//  package a.b
-	//  p(x) = y { y = x }
-	//  q(x) = y { y = 2*x }
-	//
-	//  root
-	//    |
-	//    +--- a (no functions)
-	//         |
-	//         +--- b (no functions)
-	//              |
-	//              +--- p
-	//              |
-	//              +--- q
-	FuncTree *TreeNode
-
-	// FunctionMap is a map containing the user defined functions of this
-	// compiler's modules.
-	FuncMap map[string][]*Func
-
-	// Graph represents the dependencies between rules and funcs (lets call
-	// them targets). An edge (u,v) is added to the graph if target "u"
-	// depends on target "v". A target "u" depends on target "v" if target
-	// "u" refers to the virtual document (or function) defined by target "v".
+	// Graph contains dependencies between rules. An edge (u,v) is added to the
+	// graph if rule 'u' refers to the virtual document defined by 'v'.
 	Graph *Graph
 
 	// TypeEnv holds type information for values inferred by the compiler.
@@ -194,7 +167,6 @@ func NewCompiler() *Compiler {
 	c := &Compiler{
 		Modules:       map[string]*Module{},
 		TypeEnv:       NewTypeEnv(),
-		FuncMap:       map[string][]*Func{},
 		generatedVars: map[*Module]VarSet{},
 		ruleIndices: util.NewHashMap(func(a, b util.T) bool {
 			r1, r2 := a.(Ref), b.(Ref)
@@ -207,7 +179,6 @@ func NewCompiler() *Compiler {
 
 	c.ModuleTree = NewModuleTree(nil)
 	c.RuleTree = NewRuleTree(c.ModuleTree)
-	c.FuncTree = NewFuncTree(c.ModuleTree)
 
 	checker := newTypeChecker()
 	c.TypeEnv = checker.checkLanguageBuiltins()
@@ -216,14 +187,11 @@ func NewCompiler() *Compiler {
 		c.resolveAllRefs,
 		c.setModuleTree,
 		c.setRuleTree,
-		c.setFuncTree,
 		c.setGraph,
 		c.rewriteComprehensionTerms,
 		c.rewriteRefsInHead,
 		c.checkWithModifiers,
 		c.checkRuleConflicts,
-		c.checkSafetyFuncHeads,
-		c.checkSafetyFuncBodies,
 		c.checkSafetyRuleHeads,
 		c.checkSafetyRuleBodies,
 		c.checkRecursion,
@@ -404,27 +372,6 @@ func (c *Compiler) GetRules(ref Ref) (rules []*Rule) {
 	return rules
 }
 
-// GetFunc returns the function referred to by name.
-func (c *Compiler) GetFunc(name string) []*Func {
-	if fn, ok := c.FuncMap[name]; ok {
-		return fn
-	}
-	return nil
-}
-
-// GetAllFuncs returns a map of functions that this compiler has discovered.
-func (c *Compiler) GetAllFuncs() map[string][]*Func {
-	cpy := map[string][]*Func{}
-	for _, fn := range c.FuncMap {
-		var fns []*Func
-		for _, f := range fn {
-			fns = append(fns, f.Copy())
-		}
-		cpy[fn[0].Path().String()] = fns
-	}
-	return cpy
-}
-
 // RuleIndex returns a RuleIndex built for the rule set referred to by path.
 // The path must refer to the rule set exactly, i.e., given a rule set at path
 // data.a.b.c.p, refs data.a.b.c.p.x and data.a.b.c would not return a
@@ -476,29 +423,13 @@ func (c *Compiler) buildRuleIndices() {
 // no cycles in the Graph.
 func (c *Compiler) checkRecursion() {
 	eq := func(a, b util.T) bool {
-		ar, aok := a.(*Rule)
-		br, bok := b.(*Rule)
-		if aok && bok {
-			return ar == br
-		}
-
-		af, aok := a.(*Func)
-		bf, bok := b.(*Func)
-		return aok && bok && af == bf
+		return a.(*Rule) == b.(*Rule)
 	}
 
 	c.RuleTree.DepthFirst(func(node *TreeNode) bool {
 		for _, rule := range node.Values {
 			r := rule.(*Rule)
 			c.checkSelfPath(RuleTypeName, r.Loc(), eq, r, r)
-		}
-		return false
-	})
-
-	c.FuncTree.DepthFirst(func(node *TreeNode) bool {
-		for _, fn := range node.Values {
-			f := fn.(*Func)
-			c.checkSelfPath(FuncTypeName, f.Loc(), eq, f, f)
 		}
 		return false
 	})
@@ -519,8 +450,6 @@ func astNodeToString(x interface{}) string {
 	switch x := x.(type) {
 	case *Rule:
 		return string(x.Head.Name)
-	case *Func:
-		return string(x.Head.Name)
 	default:
 		panic("not reached")
 	}
@@ -535,10 +464,12 @@ func (c *Compiler) checkRuleConflicts() {
 
 		kinds := map[DocKind]struct{}{}
 		defaultRules := 0
+		arities := map[int]struct{}{}
 
 		for _, rule := range node.Values {
 			r := rule.(*Rule)
 			kinds[r.Head.DocKind()] = struct{}{}
+			arities[len(r.Head.Args)] = struct{}{}
 			if r.Default {
 				defaultRules++
 			}
@@ -546,7 +477,7 @@ func (c *Compiler) checkRuleConflicts() {
 
 		name := Var(node.Key.(String))
 
-		if len(kinds) > 1 {
+		if len(kinds) > 1 || len(arities) > 1 {
 			c.err(NewError(TypeErr, node.Values[0].(*Rule).Loc(), "conflicting rules named %v found", name))
 		}
 
@@ -560,13 +491,6 @@ func (c *Compiler) checkRuleConflicts() {
 	c.ModuleTree.DepthFirst(func(node *ModuleTreeNode) bool {
 		for _, mod := range node.Modules {
 			for _, rule := range mod.Rules {
-				for _, fn := range mod.Funcs {
-					if rule.Head.Name.Equal(fn.Head.Name) {
-						msg := fmt.Sprintf("rule defined at %v conflicts with function defined at %v", rule.Loc(), fn.Loc())
-						c.err(NewError(CompileErr, mod.Package.Loc(), msg))
-					}
-				}
-
 				if childNode, ok := node.Children[String(rule.Head.Name)]; ok {
 					for _, childMod := range childNode.Modules {
 						msg := fmt.Sprintf("%v conflicts with rule defined at %v", childMod.Package, rule.Loc())
@@ -584,21 +508,10 @@ func (c *Compiler) checkRuleConflicts() {
 // to right, re-ordering as necessary.
 func (c *Compiler) checkSafetyRuleBodies() {
 	for _, m := range c.Modules {
-		safe := ReservedVars.Copy()
 		WalkRules(m, func(r *Rule) bool {
+			safe := ReservedVars.Copy()
+			safe.Update(r.Head.Args.Vars())
 			r.Body = c.checkBodySafety(safe, m, r.Body, r.Loc())
-			return false
-		})
-	}
-}
-
-func (c *Compiler) checkSafetyFuncBodies() {
-	for _, m := range c.Modules {
-		safe := ReservedVars.Copy()
-		WalkFuncs(m, func(f *Func) bool {
-			s := safe.Copy()
-			s.Update(f.Head.ArgVars())
-			f.Body = c.checkBodySafety(s, m, f.Body, f.Loc())
 			return false
 		})
 	}
@@ -627,7 +540,9 @@ var safetyCheckVarVisitorParams = VarVisitorParams{
 func (c *Compiler) checkSafetyRuleHeads() {
 	for _, m := range c.Modules {
 		WalkRules(m, func(r *Rule) bool {
-			unsafe := r.Head.Vars().Diff(r.Body.Vars(safetyCheckVarVisitorParams))
+			safe := r.Body.Vars(safetyCheckVarVisitorParams)
+			safe.Update(r.Head.Args.Vars())
+			unsafe := r.Head.Vars().Diff(safe)
 			for v := range unsafe {
 				if !c.generatedVars[m].Contains(v) {
 					c.err(NewError(UnsafeVarErr, r.Loc(), "%v %v is unsafe", VarTypeName, v))
@@ -638,24 +553,8 @@ func (c *Compiler) checkSafetyRuleHeads() {
 	}
 }
 
-func (c *Compiler) checkSafetyFuncHeads() {
-	for _, m := range c.Modules {
-		WalkFuncs(m, func(f *Func) bool {
-			vars := f.Body.Vars(safetyCheckVarVisitorParams)
-			vars.Update(f.Head.ArgVars())
-			unsafe := f.Head.OutVars().Diff(vars)
-			for v := range unsafe {
-				if !c.generatedVars[m].Contains(v) {
-					c.err(NewError(UnsafeVarErr, f.Loc(), "%v %v is unsafe", VarTypeName, v))
-				}
-			}
-			return false
-		})
-	}
-}
-
-// checkTypes runs the type checker on all rules and user functions. The type
-// checker builds a TypeEnv that is stored on the compiler.
+// checkTypes runs the type checker on all rules. The type checker builds a
+// TypeEnv that is stored on the compiler.
 func (c *Compiler) checkTypes() {
 	// Recursion is caught in earlier step, so this cannot fail.
 	sorted, _ := c.Graph.Sort()
@@ -700,7 +599,7 @@ func (c *Compiler) err(err *Error) {
 	c.Errors = append(c.Errors, err)
 }
 
-func (c *Compiler) getExports() (*util.HashMap, *util.HashMap) {
+func (c *Compiler) getExports() *util.HashMap {
 
 	rules := util.NewHashMap(func(a, b util.T) bool {
 		r1 := a.(Ref)
@@ -709,7 +608,6 @@ func (c *Compiler) getExports() (*util.HashMap, *util.HashMap) {
 	}, func(v util.T) int {
 		return v.(Ref).Hash()
 	})
-	funcs := rules.Copy()
 
 	for _, mod := range c.Modules {
 		rv, ok := rules.Get(mod.Package.Path)
@@ -718,23 +616,13 @@ func (c *Compiler) getExports() (*util.HashMap, *util.HashMap) {
 		}
 		rvs := rv.([]Var)
 
-		fv, ok := funcs.Get(mod.Package.Path)
-		if !ok {
-			fv = []*Func{}
-		}
-		fvs := fv.([]*Func)
-
 		for _, rule := range mod.Rules {
 			rvs = append(rvs, rule.Head.Name)
 		}
-		for _, fn := range mod.Funcs {
-			fvs = append(fvs, fn)
-		}
 		rules.Put(mod.Package.Path, rvs)
-		funcs.Put(mod.Package.Path, fvs)
 	}
 
-	return rules, funcs
+	return rules
 }
 
 // resolveAllRefs resolves references in expressions to their fully qualified values.
@@ -748,7 +636,7 @@ func (c *Compiler) getExports() (*util.HashMap, *util.HashMap) {
 // The reference "bar[_]" would be resolved to "data.foo.bar[_]".
 func (c *Compiler) resolveAllRefs() {
 
-	rules, funcs := c.getExports()
+	rules := c.getExports()
 
 	for _, mod := range c.Modules {
 
@@ -757,54 +645,15 @@ func (c *Compiler) resolveAllRefs() {
 			ruleExports = x.([]Var)
 		}
 
-		var funcExports []*Func
-		if x, ok := funcs.Get(mod.Package.Path); ok {
-			funcExports = x.([]*Func)
-		}
+		globals := getGlobals(mod.Package, ruleExports, mod.Imports)
 
-		globals := getGlobals(mod.Package, ruleExports, funcExports, mod.Imports)
 		WalkRules(mod, func(rule *Rule) bool {
 			resolveRefsInRule(globals, rule)
-			return false
-		})
-		WalkFuncs(mod, func(fn *Func) bool {
-			resolveRefsInFunc(globals, fn)
-			path := fn.Path().String()
-			c.FuncMap[path] = append(c.FuncMap[path], fn)
-
 			return false
 		})
 
 		// Once imports have been resolved, they are no longer needed.
 		mod.Imports = nil
-	}
-
-	for _, mod := range c.Modules {
-		var visitor Visitor
-		visitor = NewGenericVisitor(func(x interface{}) bool {
-			switch x := x.(type) {
-			case *Expr:
-				if terms, ok := x.Terms.([]*Term); ok {
-					for i := 1; i < len(terms); i++ {
-						Walk(visitor, terms[i])
-					}
-					return true
-				}
-			case *Term:
-				switch v := x.Value.(type) {
-				case Ref:
-					if _, ok := c.FuncMap[v.String()]; ok {
-						c.err(&Error{
-							Code:    CompileErr,
-							Message: x.Location.Format("%v refers to a known builtin but does not call it", string(x.Location.Text)),
-						})
-					}
-				}
-			}
-			return false
-		})
-
-		Walk(visitor, mod)
 	}
 
 	if c.moduleLoader != nil {
@@ -884,12 +733,8 @@ func (c *Compiler) setRuleTree() {
 	c.RuleTree = NewRuleTree(c.ModuleTree)
 }
 
-func (c *Compiler) setFuncTree() {
-	c.FuncTree = NewFuncTree(c.ModuleTree)
-}
-
 func (c *Compiler) setGraph() {
-	c.Graph = NewGraph(c.Modules, c.GetRules, c.GetFunc)
+	c.Graph = NewGraph(c.Modules, c.GetRules)
 }
 
 type queryCompiler struct {
@@ -948,17 +793,12 @@ func (qc *queryCompiler) resolveRefs(qctx *QueryContext, body Body) (Body, error
 
 	if qctx != nil && qctx.Package != nil {
 		var ruleExports []Var
-		rules, funcs := qc.compiler.getExports()
+		rules := qc.compiler.getExports()
 		if exist, ok := rules.Get(qctx.Package.Path); ok {
 			ruleExports = exist.([]Var)
 		}
 
-		var funcExports []*Func
-		if exist, ok := funcs.Get(qctx.Package.Path); ok {
-			funcExports = exist.([]*Func)
-		}
-
-		globals = getGlobals(qctx.Package, ruleExports, funcExports, qc.qctx.Imports)
+		globals = getGlobals(qctx.Package, ruleExports, qc.qctx.Imports)
 		qctx.Imports = nil
 	}
 
@@ -1141,42 +981,6 @@ func (n *TreeNode) DepthFirst(f func(node *TreeNode) bool) {
 	}
 }
 
-// NewFuncTree returns a new TreeNode that represents the root
-// of the function tree populated with the given functions.
-func NewFuncTree(mtree *ModuleTreeNode) *TreeNode {
-	funcSet := map[String]*Func{}
-
-	// Build function sets for this package.
-	for _, mod := range mtree.Modules {
-		for _, fn := range mod.Funcs {
-			key := String(fn.Head.Name)
-			funcSet[key] = fn
-		}
-	}
-
-	// Each function becomes a leaf node.
-	children := map[Value]*TreeNode{}
-	for key, fn := range funcSet {
-		children[key] = &TreeNode{
-			Key:      key,
-			Children: nil,
-			Values:   []util.T{fn},
-		}
-	}
-
-	// Each module in subpackage becomes child node.
-	for _, child := range mtree.Children {
-		children[child.Key] = NewFuncTree(child)
-	}
-
-	return &TreeNode{
-		Key:      mtree.Key,
-		Values:   nil,
-		Children: children,
-		Hide:     mtree.Hide,
-	}
-}
-
 type withModifierChecker struct {
 	errors Errors
 	expr   *Expr
@@ -1241,16 +1045,16 @@ func (wc *withModifierChecker) err(code string, loc *Location, f string, a ...in
 	wc.errors = append(wc.errors, NewError(code, loc, f, a...))
 }
 
-// Graph represents the graph of dependencies between ast Rules and Funcs.
+// Graph represents the graph of dependencies between rules.
 type Graph struct {
 	adj    map[util.T]map[util.T]struct{}
 	nodes  map[util.T]struct{}
 	sorted []util.T
 }
 
-// NewGraph returns a new Graph based on modules. The list function
-// must return the rules or user functions referred to directly by the ref.
-func NewGraph(modules map[string]*Module, list func(Ref) []*Rule, resolve func(string) []*Func) *Graph {
+// NewGraph returns a new Graph based on modules. The list function must return
+// the rules referred to directly by the ref.
+func NewGraph(modules map[string]*Module, list func(Ref) []*Rule) *Graph {
 
 	graph := &Graph{
 		adj:    map[util.T]map[util.T]struct{}{},
@@ -1258,7 +1062,7 @@ func NewGraph(modules map[string]*Module, list func(Ref) []*Rule, resolve func(s
 		sorted: nil,
 	}
 
-	// Walk over all rules and functions, add them to graph, and build adjencency lists.
+	// Walk over all rules, add them to graph, and build adjencency lists.
 	for _, module := range modules {
 		addRefDeps := func(a util.T) func(ref Ref) bool {
 			return func(ref Ref) bool {
@@ -1268,32 +1072,9 @@ func NewGraph(modules map[string]*Module, list func(Ref) []*Rule, resolve func(s
 				return false
 			}
 		}
-		addFuncDeps := func(a util.T) func(expr *Expr) bool {
-			return func(expr *Expr) bool {
-				if expr.IsBuiltin() {
-					name := expr.Terms.([]*Term)[0].String()
-
-					// Language builtins won't be resolved.
-					if b := resolve(name); b != nil {
-						for _, c := range b {
-							graph.addDependency(a, c)
-						}
-					}
-				}
-				return false
-			}
-		}
-
 		WalkRules(module, func(a *Rule) bool {
 			graph.addNode(a)
 			WalkRefs(a, addRefDeps(a))
-			WalkExprs(a, addFuncDeps(a))
-			return false
-		})
-		WalkFuncs(module, func(a *Func) bool {
-			graph.addNode(a)
-			WalkRefs(a, addRefDeps(a))
-			WalkExprs(a, addFuncDeps(a))
 			return false
 		})
 	}
@@ -1301,13 +1082,13 @@ func NewGraph(modules map[string]*Module, list func(Ref) []*Rule, resolve func(s
 	return graph
 }
 
-// Dependencies returns the set of rules and funcs that x depends on.
+// Dependencies returns the set of rules that x depends on.
 func (g *Graph) Dependencies(x util.T) map[util.T]struct{} {
 	return g.adj[x]
 }
 
-// Sort returns a slice of rules and functions sorted by dependencies. If a cycle
-// is found, ok is set to false.
+// Sort returns a slice of rules sorted by dependencies. If a cycle is found,
+// ok is set to false.
 func (g *Graph) Sort() (sorted []util.T, ok bool) {
 	if g.sorted != nil {
 		return g.sorted, true
@@ -1672,7 +1453,7 @@ func (l *localVarGenerator) Generated() VarSet {
 	return l.generated
 }
 
-func getGlobals(pkg *Package, rules []Var, funcs []*Func, imports []*Import) map[Var]Ref {
+func getGlobals(pkg *Package, rules []Var, imports []*Import) map[Var]Ref {
 
 	globals := map[Var]Ref{}
 
@@ -1681,9 +1462,6 @@ func getGlobals(pkg *Package, rules []Var, funcs []*Func, imports []*Import) map
 		global := append(Ref{}, pkg.Path...)
 		global = append(global, &Term{Value: String(v)})
 		globals[v] = global
-	}
-	for _, fn := range funcs {
-		globals[fn.Head.Name] = fn.Path()
 	}
 
 	// Populate globals with imports.
@@ -1742,6 +1520,9 @@ func resolveRef(globals map[Var]Ref, ref Ref) Ref {
 }
 
 func resolveRefsInRule(globals map[Var]Ref, rule *Rule) {
+	for i := range rule.Head.Args {
+		rule.Head.Args[i] = resolveRefsInTerm(globals, rule.Head.Args[i])
+	}
 	if rule.Head.Key != nil {
 		rule.Head.Key = resolveRefsInTerm(globals, rule.Head.Key)
 	}
@@ -1749,14 +1530,6 @@ func resolveRefsInRule(globals map[Var]Ref, rule *Rule) {
 		rule.Head.Value = resolveRefsInTerm(globals, rule.Head.Value)
 	}
 	rule.Body = resolveRefsInBody(globals, rule.Body)
-}
-
-func resolveRefsInFunc(globals map[Var]Ref, fn *Func) {
-	for i := range fn.Head.Args {
-		fn.Head.Args[i] = resolveRefsInTerm(globals, fn.Head.Args[i])
-	}
-	fn.Head.Output = resolveRefsInTerm(globals, fn.Head.Output)
-	fn.Body = resolveRefsInBody(globals, fn.Body)
 }
 
 func resolveRefsInBody(globals map[Var]Ref, body Body) Body {
@@ -1774,26 +1547,9 @@ func resolveRefsInExpr(globals map[Var]Ref, expr *Expr) *Expr {
 		cpy.Terms = resolveRefsInTerm(globals, ts)
 	case []*Term:
 		buf := make([]*Term, len(ts))
-
-		// Resolve refs to functions inside the package. Refs outside the
-		// package must be fully qualified. FIXME(tsandall): this can go away
-		// once functions are merged with rules.
-		ref := ts[0].Value.(Ref)
-		if path, ok := globals[ref[0].Value.(Var)]; ok && len(ref) == 1 {
-			refCopy := path.Copy()
-			for i := range refCopy {
-				refCopy[i].SetLocation(ts[0].Location)
-			}
-			buf[0] = NewTerm(refCopy)
-		} else {
-			buf[0] = ts[0]
-		}
-
-		// resolve remaining terms normally
-		for i := 1; i < len(ts); i++ {
+		for i := 0; i < len(ts); i++ {
 			buf[i] = resolveRefsInTerm(globals, ts[i])
 		}
-
 		cpy.Terms = buf
 	}
 	for _, w := range cpy.With {

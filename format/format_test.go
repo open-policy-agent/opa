@@ -70,8 +70,8 @@ func TestFormatSource(t *testing.T) {
 				t.Fatalf("Failed to format file: %v", err)
 			}
 
-			if !bytes.Equal(expected, formatted) {
-				t.Fatalf("Formatted bytes did not match expected:\n%s", string(formatted))
+			if ln, at := differsAt(formatted, expected); ln != 0 {
+				t.Fatalf("Expected formatted bytes to equal expected bytes but differed near line %d / byte %d:\n%s", ln, at, formatted)
 			}
 
 			if _, err := ast.ParseModule(rego+".tmp", string(formatted)); err != nil {
@@ -83,10 +83,30 @@ func TestFormatSource(t *testing.T) {
 				t.Fatalf("Failed to double format file")
 			}
 
-			if !bytes.Equal(expected, formatted) {
-				t.Fatal("Formatted bytes did not match expected")
+			if ln, at := differsAt(formatted, expected); ln != 0 {
+				t.Fatalf("Expected roundtripped bytes to equal expected bytes but differed near line %d / byte %d:\n%s", ln, at, formatted)
 			}
 
 		})
 	}
+}
+
+func differsAt(a, b []byte) (int, int) {
+	if bytes.Equal(a, b) {
+		return 0, 0
+	}
+	minLen := len(a)
+	if minLen > len(b) {
+		minLen = len(b)
+	}
+	ln := 1
+	for i := 0; i < minLen; i++ {
+		if a[i] == '\n' {
+			ln++
+		}
+		if a[i] != b[i] {
+			return ln, i
+		}
+	}
+	return ln, minLen
 }

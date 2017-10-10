@@ -14,6 +14,10 @@ import data.f.g
 default foo = false
 foo[x] {
 not x = g
+    f(x) = 1
+    g(
+        x, "foo"
+    ) = z
 }
 
 globals = {"foo": "bar",
@@ -66,7 +70,7 @@ string
   is on
 multiple lines`
 
-foo([x, y,
+fn2([x, y,
 z], {"foo": a}) = b {
 split(x, y, c)
 trim(a, z, d) # function comment 1

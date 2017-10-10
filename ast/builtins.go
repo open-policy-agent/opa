@@ -79,11 +79,12 @@ var BuiltinMap map[string]*Builtin
 var Equality = &Builtin{
 	Name:  "eq",
 	Infix: "=",
-	Args: []types.Type{
+	Decl: types.NewFunction(
 		types.A,
 		types.A,
-	},
-	TargetPos: []int{0, 1},
+		types.T,
+	),
+	TargetPos: []int{0, 1, 2},
 }
 
 /**
@@ -94,50 +95,65 @@ var Equality = &Builtin{
 var GreaterThan = &Builtin{
 	Name:  "gt",
 	Infix: ">",
-	Args: []types.Type{
+	Decl: types.NewFunction(
 		types.A,
 		types.A,
-	},
+		types.T,
+	),
+
+	TargetPos: []int{2},
 }
 
 // GreaterThanEq represents the ">=" comparison operator.
 var GreaterThanEq = &Builtin{
 	Name:  "gte",
 	Infix: ">=",
-	Args: []types.Type{
+	Decl: types.NewFunction(
 		types.A,
 		types.A,
-	},
+		types.T,
+	),
+
+	TargetPos: []int{2},
 }
 
 // LessThan represents the "<" comparison operator.
 var LessThan = &Builtin{
 	Name:  "lt",
 	Infix: "<",
-	Args: []types.Type{
+	Decl: types.NewFunction(
 		types.A,
 		types.A,
-	},
+		types.T,
+	),
+
+	TargetPos: []int{2},
 }
 
 // LessThanEq represents the "<=" comparison operator.
 var LessThanEq = &Builtin{
 	Name:  "lte",
 	Infix: "<=",
-	Args: []types.Type{
+	Decl: types.NewFunction(
 		types.A,
 		types.A,
-	},
+		types.T,
+	),
+
+	TargetPos: []int{2},
 }
 
 // NotEqual represents the "!=" comparison operator.
 var NotEqual = &Builtin{
 	Name:  "neq",
 	Infix: "!=",
-	Args: []types.Type{
+	Decl: types.NewFunction(
 		types.A,
 		types.A,
-	},
+		types.T,
+	),
+
+	TargetPos: []int{2},
 }
 
 /**
@@ -148,11 +164,11 @@ var NotEqual = &Builtin{
 var Plus = &Builtin{
 	Name:  "plus",
 	Infix: "+",
-	Args: []types.Type{
+	Decl: types.NewFunction(
 		types.N,
 		types.N,
 		types.N,
-	},
+	),
 	TargetPos: []int{2},
 }
 
@@ -161,11 +177,11 @@ var Plus = &Builtin{
 var Minus = &Builtin{
 	Name:  "minus",
 	Infix: "-",
-	Args: []types.Type{
+	Decl: types.NewFunction(
 		types.NewAny(types.N, types.NewSet(types.A)),
 		types.NewAny(types.N, types.NewSet(types.A)),
 		types.NewAny(types.N, types.NewSet(types.A)),
-	},
+	),
 	TargetPos: []int{2},
 }
 
@@ -173,11 +189,11 @@ var Minus = &Builtin{
 var Multiply = &Builtin{
 	Name:  "mul",
 	Infix: "*",
-	Args: []types.Type{
+	Decl: types.NewFunction(
 		types.N,
 		types.N,
 		types.N,
-	},
+	),
 	TargetPos: []int{2},
 }
 
@@ -185,31 +201,31 @@ var Multiply = &Builtin{
 var Divide = &Builtin{
 	Name:  "div",
 	Infix: "/",
-	Args: []types.Type{
+	Decl: types.NewFunction(
 		types.N,
 		types.N,
 		types.N,
-	},
+	),
 	TargetPos: []int{2},
 }
 
 // Round rounds the number up to the nearest integer.
 var Round = &Builtin{
 	Name: "round",
-	Args: []types.Type{
+	Decl: types.NewFunction(
 		types.N,
 		types.N,
-	},
+	),
 	TargetPos: []int{1},
 }
 
 // Abs returns the number without its sign.
 var Abs = &Builtin{
 	Name: "abs",
-	Args: []types.Type{
+	Decl: types.NewFunction(
 		types.N,
 		types.N,
-	},
+	),
 	TargetPos: []int{1},
 }
 
@@ -223,11 +239,11 @@ var Abs = &Builtin{
 var And = &Builtin{
 	Name:  "and",
 	Infix: "&",
-	Args: []types.Type{
+	Decl: types.NewFunction(
 		types.NewSet(types.A),
 		types.NewSet(types.A),
 		types.NewSet(types.A),
-	},
+	),
 	TargetPos: []int{2},
 }
 
@@ -235,11 +251,11 @@ var And = &Builtin{
 var Or = &Builtin{
 	Name:  "or",
 	Infix: "|",
-	Args: []types.Type{
+	Decl: types.NewFunction(
 		types.NewSet(types.A),
 		types.NewSet(types.A),
 		types.NewSet(types.A),
-	},
+	),
 	TargetPos: []int{2},
 }
 
@@ -250,7 +266,7 @@ var Or = &Builtin{
 // Count takes a collection or string and counts the number of elements in it.
 var Count = &Builtin{
 	Name: "count",
-	Args: []types.Type{
+	Decl: types.NewFunction(
 		types.NewAny(
 			types.NewSet(types.A),
 			types.NewArray(nil, types.A),
@@ -258,46 +274,46 @@ var Count = &Builtin{
 			types.S,
 		),
 		types.N,
-	},
+	),
 	TargetPos: []int{1},
 }
 
 // Sum takes an array or set of numbers and sums them.
 var Sum = &Builtin{
 	Name: "sum",
-	Args: []types.Type{
+	Decl: types.NewFunction(
 		types.NewAny(
 			types.NewSet(types.N),
 			types.NewArray(nil, types.N),
 		),
 		types.N,
-	},
+	),
 	TargetPos: []int{1},
 }
 
 // Max returns the maximum value in a collection.
 var Max = &Builtin{
 	Name: "max",
-	Args: []types.Type{
+	Decl: types.NewFunction(
 		types.NewAny(
 			types.NewSet(types.A),
 			types.NewArray(nil, types.A),
 		),
 		types.A,
-	},
+	),
 	TargetPos: []int{1},
 }
 
 // Min returns the minimum value in a collection.
 var Min = &Builtin{
 	Name: "min",
-	Args: []types.Type{
+	Decl: types.NewFunction(
 		types.NewAny(
 			types.NewSet(types.A),
 			types.NewArray(nil, types.A),
 		),
 		types.A,
-	},
+	),
 	TargetPos: []int{1},
 }
 
@@ -310,7 +326,7 @@ var Min = &Builtin{
 // Boolean false is converted to 0 and boolean true is converted to 1.
 var ToNumber = &Builtin{
 	Name: "to_number",
-	Args: []types.Type{
+	Decl: types.NewFunction(
 		types.NewAny(
 			types.N,
 			types.S,
@@ -318,7 +334,7 @@ var ToNumber = &Builtin{
 			types.NewNull(),
 		),
 		types.N,
-	},
+	),
 	TargetPos: []int{1},
 }
 
@@ -330,10 +346,13 @@ var ToNumber = &Builtin{
 // position matches the pattern in the first position.
 var RegexMatch = &Builtin{
 	Name: "re_match",
-	Args: []types.Type{
+	Decl: types.NewFunction(
 		types.S,
 		types.S,
-	},
+		types.T,
+	),
+
+	TargetPos: []int{2},
 }
 
 /**
@@ -343,36 +362,36 @@ var RegexMatch = &Builtin{
 // Concat joins an array of strings with an input string.
 var Concat = &Builtin{
 	Name: "concat",
-	Args: []types.Type{
+	Decl: types.NewFunction(
 		types.S,
 		types.NewAny(
 			types.NewSet(types.S),
 			types.NewArray(nil, types.S),
 		),
 		types.S,
-	},
+	),
 	TargetPos: []int{2},
 }
 
 // FormatInt returns the string representation of the number in the given base after converting it to an integer value.
 var FormatInt = &Builtin{
 	Name: "format_int",
-	Args: []types.Type{
+	Decl: types.NewFunction(
 		types.N,
 		types.N,
 		types.S,
-	},
+	),
 	TargetPos: []int{2},
 }
 
 // IndexOf returns the index of a substring contained inside a string
 var IndexOf = &Builtin{
 	Name: "indexof",
-	Args: []types.Type{
+	Decl: types.NewFunction(
 		types.S,
 		types.S,
 		types.N,
-	},
+	),
 	TargetPos: []int{2},
 }
 
@@ -380,70 +399,76 @@ var IndexOf = &Builtin{
 //   If the length is less than zero, then substring returns the remainder of the string.
 var Substring = &Builtin{
 	Name: "substring",
-	Args: []types.Type{
+	Decl: types.NewFunction(
 		types.S,
 		types.N,
 		types.N,
 		types.S,
-	},
+	),
 	TargetPos: []int{3},
 }
 
 // Contains returns true if the search string is included in the base string
 var Contains = &Builtin{
 	Name: "contains",
-	Args: []types.Type{
+	Decl: types.NewFunction(
 		types.S,
 		types.S,
-	},
+		types.T,
+	),
+	TargetPos: []int{2},
 }
 
 // StartsWith returns true if the search string begins with the base string
 var StartsWith = &Builtin{
 	Name: "startswith",
-	Args: []types.Type{
+	Decl: types.NewFunction(
 		types.S,
 		types.S,
-	},
+		types.T,
+	),
+	TargetPos: []int{2},
 }
 
 // EndsWith returns true if the search string begins with the base string
 var EndsWith = &Builtin{
 	Name: "endswith",
-	Args: []types.Type{
+	Decl: types.NewFunction(
 		types.S,
 		types.S,
-	},
+		types.T,
+	),
+	TargetPos: []int{2},
 }
 
 // Lower returns the input string but with all characters in lower-case
 var Lower = &Builtin{
 	Name: "lower",
-	Args: []types.Type{
+	Decl: types.NewFunction(
 		types.S,
 		types.S,
-	},
+	),
 	TargetPos: []int{1},
 }
 
 // Upper returns the input string but with all characters in upper-case
 var Upper = &Builtin{
 	Name: "upper",
-	Args: []types.Type{
+	Decl: types.NewFunction(
 		types.S,
 		types.S,
-	},
+	),
 	TargetPos: []int{1},
 }
 
 // Split returns an array containing elements of the input string split on a delimiter.
 var Split = &Builtin{
 	Name: "split",
-	Args: []types.Type{
+	Decl: types.NewFunction(
 		types.S,
 		types.S,
 		types.NewArray(nil, types.S),
-	},
+	),
 	TargetPos: []int{2},
 }
 
@@ -451,12 +476,12 @@ var Split = &Builtin{
 // by the third.
 var Replace = &Builtin{
 	Name: "replace",
-	Args: []types.Type{
+	Decl: types.NewFunction(
 		types.S,
 		types.S,
 		types.S,
 		types.S,
-	},
+	),
 	TargetPos: []int{3},
 }
 
@@ -464,22 +489,22 @@ var Replace = &Builtin{
 // argument removed.
 var Trim = &Builtin{
 	Name: "trim",
-	Args: []types.Type{
+	Decl: types.NewFunction(
 		types.S,
 		types.S,
 		types.S,
-	},
+	),
 	TargetPos: []int{2},
 }
 
 // Sprintf returns the given string, formatted.
 var Sprintf = &Builtin{
 	Name: "sprintf",
-	Args: []types.Type{
+	Decl: types.NewFunction(
 		types.S,
 		types.NewArray(nil, types.A),
 		types.S,
-	},
+	),
 	TargetPos: []int{2},
 }
 
@@ -490,60 +515,60 @@ var Sprintf = &Builtin{
 // JSONMarshal serializes the input term.
 var JSONMarshal = &Builtin{
 	Name: "json.marshal",
-	Args: []types.Type{
+	Decl: types.NewFunction(
 		types.A,
 		types.S,
-	},
+	),
 	TargetPos: []int{1},
 }
 
 // JSONUnmarshal deserializes the input string.
 var JSONUnmarshal = &Builtin{
 	Name: "json.unmarshal",
-	Args: []types.Type{
+	Decl: types.NewFunction(
 		types.S,
 		types.A,
-	},
+	),
 	TargetPos: []int{1},
 }
 
 // Base64UrlEncode serializes the input string into base64url encoding.
 var Base64UrlEncode = &Builtin{
 	Name: "base64url.encode",
-	Args: []types.Type{
+	Decl: types.NewFunction(
 		types.S,
 		types.S,
-	},
+	),
 	TargetPos: []int{1},
 }
 
 // Base64UrlDecode deserializes the base64url encoded input string.
 var Base64UrlDecode = &Builtin{
 	Name: "base64url.decode",
-	Args: []types.Type{
+	Decl: types.NewFunction(
 		types.S,
 		types.S,
-	},
+	),
 	TargetPos: []int{1},
 }
 
 // YAMLMarshal serializes the input term.
 var YAMLMarshal = &Builtin{
 	Name: "yaml.marshal",
-	Args: []types.Type{
+	Decl: types.NewFunction(
 		types.A,
 		types.S,
-	},
+	),
 	TargetPos: []int{1},
 }
 
 // YAMLUnmarshal deserializes the input string.
 var YAMLUnmarshal = &Builtin{
 	Name: "yaml.unmarshal",
-	Args: []types.Type{
+	Decl: types.NewFunction(
 		types.S,
 		types.A,
-	},
+	),
 	TargetPos: []int{1},
 }
 
@@ -554,12 +579,12 @@ var YAMLUnmarshal = &Builtin{
 // JWTDecode decodes a JSON Web Token and outputs it as an Object.
 var JWTDecode = &Builtin{
 	Name: "io.jwt.decode",
-	Args: []types.Type{
+	Decl: types.NewFunction(
 		types.S,
 		types.NewObject(nil, types.NewDynamicProperty(types.A, types.A)),
 		types.NewObject(nil, types.NewDynamicProperty(types.A, types.A)),
 		types.S,
-	},
+	),
 	TargetPos: []int{1, 2, 3},
 }
 
@@ -570,30 +595,30 @@ var JWTDecode = &Builtin{
 // NowNanos returns the current time since epoch in nanoseconds.
 var NowNanos = &Builtin{
 	Name: "time.now_ns",
-	Args: []types.Type{
+	Decl: types.NewFunction(
 		types.N,
-	},
+	),
 	TargetPos: []int{0},
 }
 
 // ParseNanos returns the time in nanoseconds parsed from the string in the given format.
 var ParseNanos = &Builtin{
 	Name: "time.parse_ns",
-	Args: []types.Type{
+	Decl: types.NewFunction(
 		types.S,
 		types.S,
 		types.N,
-	},
+	),
 	TargetPos: []int{2},
 }
 
 // ParseRFC3339Nanos returns the time in nanoseconds parsed from the string in RFC3339 format.
 var ParseRFC3339Nanos = &Builtin{
 	Name: "time.parse_rfc3339_ns",
-	Args: []types.Type{
+	Decl: types.NewFunction(
 		types.S,
 		types.N,
-	},
+	),
 	TargetPos: []int{1},
 }
 
@@ -605,7 +630,7 @@ var ParseRFC3339Nanos = &Builtin{
 // (recursively).
 var WalkBuiltin = &Builtin{
 	Name: "walk",
-	Args: []types.Type{
+	Decl: types.NewFunction(
 		types.A,
 		types.NewArray(
 			[]types.Type{
@@ -614,7 +639,7 @@ var WalkBuiltin = &Builtin{
 			},
 			nil,
 		),
-	},
+	),
 	TargetPos: []int{1},
 }
 
@@ -625,21 +650,21 @@ var WalkBuiltin = &Builtin{
 // SetDiff has been replaced by the minus built-in.
 var SetDiff = &Builtin{
 	Name: "set_diff",
-	Args: []types.Type{
+	Decl: types.NewFunction(
 		types.NewSet(types.A),
 		types.NewSet(types.A),
 		types.NewSet(types.A),
-	},
+	),
 	TargetPos: []int{2},
 }
 
 // Builtin represents a built-in function supported by OPA. Every
 // built-in function is uniquely identified by a name.
 type Builtin struct {
-	Name      string       // Unique name of built-in function, e.g., <name>(arg1,arg2,...,argN)
-	Infix     string       // Unique name of infix operator. Default should be unset.
-	Args      []types.Type // Built-in argument type declaration.
-	TargetPos []int        // Argument positions that bind outputs. Indexing is zero-based.
+	Name      string          // Unique name of built-in function, e.g., <name>(arg1,arg2,...,argN)
+	Infix     string          // Unique name of infix operator. Default should be unset.
+	Decl      *types.Function // Built-in argument type declaration.
+	TargetPos []int           // Argument positions that bind outputs. Indexing is zero-based.
 }
 
 // Expr creates a new expression for the built-in with the given terms.
