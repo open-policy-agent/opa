@@ -1194,9 +1194,9 @@ func TestWildcards(t *testing.T) {
 
 	assertParseOneTerm(t, "nested", `[{"a": a[_]}, _, {"b": _}]`, ArrayTerm(
 		ObjectTerm(
-			Item(StringTerm("a"), RefTerm(VarTerm("a"), VarTerm("$1"))),
+			Item(StringTerm("a"), RefTerm(VarTerm("a"), VarTerm("$0"))),
 		),
-		VarTerm("$0"),
+		VarTerm("$1"),
 		ObjectTerm(
 			Item(StringTerm("b"), VarTerm("$2")),
 		),
@@ -1219,6 +1219,17 @@ func TestWildcards(t *testing.T) {
 				),
 			),
 		)))
+
+	assertParseRule(t, "functions", `f(_) = y { true }`, &Rule{
+		Head: &Head{
+			Name: Var("f"),
+			Args: Args{
+				VarTerm("$0"),
+			},
+			Value: VarTerm("y"),
+		},
+		Body: NewBody(NewExpr(BooleanTerm(true))),
+	})
 }
 
 func TestRuleModulePtr(t *testing.T) {
