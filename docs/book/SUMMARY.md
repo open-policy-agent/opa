@@ -39,7 +39,7 @@
       * [Generating Objects](how-do-i-write-policies.md#generating-objects)
       * [Incremental Definitions](how-do-i-write-policies.md#incremental-definitions)
       * [Complete Definitions](how-do-i-write-policies.md#complete-definitions)
-    * [User Functions](how-do-i-write-policies.md#user-functions)
+    * [Functions](how-do-i-write-policies.md#functions)
     * [Negation](how-do-i-write-policies.md#negation)
     * [Modules](how-do-i-write-policies.md#modules)
       * [Comments](how-do-i-write-policies.md#comments)
