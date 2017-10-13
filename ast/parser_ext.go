@@ -609,40 +609,16 @@ type wildcardMangler struct {
 }
 
 func (vis *wildcardMangler) Visit(x interface{}) Visitor {
-	switch x := x.(type) {
-	case Object:
-		for _, i := range x {
-			vis.mangleSlice(i[:])
-		}
-	case Array:
-		vis.mangleSlice(x)
-	case *Set:
-		vis.mangleSlice(*x)
-	case Ref:
-		vis.mangleSlice(x)
-	case *Expr:
-		switch ts := x.Terms.(type) {
-		case []*Term:
-			vis.mangleSlice(ts)
-		case *Term:
-			vis.mangle(ts)
-		}
+	term, ok := x.(*Term)
+	if !ok {
+		return vis
 	}
-	return vis
-}
-
-func (vis *wildcardMangler) mangle(x *Term) {
-	if x.Equal(Wildcard) {
+	if term.Equal(Wildcard) {
 		name := fmt.Sprintf("%s%d", WildcardPrefix, vis.c)
-		x.Value = Var(name)
+		term.Value = Var(name)
 		vis.c++
 	}
-}
-
-func (vis *wildcardMangler) mangleSlice(xs []*Term) {
-	for _, x := range xs {
-		vis.mangle(x)
-	}
+	return vis
 }
 
 func setRuleModule(rule *Rule, module *Module) {
