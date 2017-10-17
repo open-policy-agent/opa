@@ -1137,6 +1137,8 @@ func TestTopDownAggregates(t *testing.T) {
 		{"sum set", []string{`p = x { sum({1, 2, 3, 4}, x) }`}, "10"},
 		{"sum virtual", []string{`p[x] { sum([y | q[y]], x) }`, `q[x] { a[_] = x }`}, "[10]"},
 		{"sum virtual set", []string{`p = x { sum(q, x) }`, `q[x] { a[_] = x }`}, "10"},
+		{"product", []string{"p { product([1,2,3,4], 24) }"}, "true"},
+		{"product set", []string{`p = x { product({1, 2, 3, 4}, x) }`}, "24"},
 		{"max", []string{`p[x] { max([1, 2, 3, 4], x) }`}, "[4]"},
 		{"max set", []string{`p = x { max({1, 2, 3, 4}, x) }`}, "4"},
 		{"max virtual", []string{`p[x] { max([y | q[y]], x) }`, `q[x] { a[_] = x }`}, "[4]"},
