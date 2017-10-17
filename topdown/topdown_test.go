@@ -1521,6 +1521,9 @@ func TestTopDownTime(t *testing.T) {
 		p = ns { time.parse_rfc3339_ns("2017-06-02T19:00:00-07:00", ns) }
 		`}, "1496455200000000000")
 
+	runTopDownTestCase(t, data, "parse duration nanos", []string{`
+		p = ns { time.parse_duration_ns("100ms", ns) }
+	`}, "100000000")
 }
 
 func TestTopDownWalkBuiltin(t *testing.T) {
