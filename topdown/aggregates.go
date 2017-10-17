@@ -51,6 +51,32 @@ func builtinSum(a ast.Value) (ast.Value, error) {
 	return nil, builtins.NewOperandTypeErr(1, a, ast.SetTypeName, ast.ArrayTypeName)
 }
 
+func builtinProduct(a ast.Value) (ast.Value, error) {
+	switch a := a.(type) {
+	case ast.Array:
+		product := big.NewFloat(1)
+		for _, x := range a {
+			n, ok := x.Value.(ast.Number)
+			if !ok {
+				return nil, builtins.NewOperandElementErr(1, a, x.Value, ast.NumberTypeName)
+			}
+			product = new(big.Float).Mul(product, builtins.NumberToFloat(n))
+		}
+		return builtins.FloatToNumber(product), nil
+	case *ast.Set:
+		product := big.NewFloat(1)
+		for _, x := range *a {
+			n, ok := x.Value.(ast.Number)
+			if !ok {
+				return nil, builtins.NewOperandElementErr(1, a, x.Value, ast.NumberTypeName)
+			}
+			product = new(big.Float).Mul(product, builtins.NumberToFloat(n))
+		}
+		return builtins.FloatToNumber(product), nil
+	}
+	return nil, builtins.NewOperandTypeErr(1, a, ast.SetTypeName, ast.ArrayTypeName)
+}
+
 func builtinMax(a ast.Value) (ast.Value, error) {
 	switch a := a.(type) {
 	case ast.Array:
@@ -119,6 +145,7 @@ func builtinMin(a ast.Value) (ast.Value, error) {
 func init() {
 	RegisterFunctionalBuiltin1(ast.Count.Name, builtinCount)
 	RegisterFunctionalBuiltin1(ast.Sum.Name, builtinSum)
+	RegisterFunctionalBuiltin1(ast.Product.Name, builtinProduct)
 	RegisterFunctionalBuiltin1(ast.Max.Name, builtinMax)
 	RegisterFunctionalBuiltin1(ast.Min.Name, builtinMin)
 }
