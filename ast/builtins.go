@@ -61,7 +61,7 @@ var DefaultBuiltins = [...]*Builtin{
 	JWTDecode,
 
 	// Time
-	NowNanos, ParseNanos, ParseRFC3339Nanos,
+	NowNanos, ParseNanos, ParseRFC3339Nanos, ParseDurationNanos,
 
 	// Graphs
 	WalkBuiltin,
@@ -615,6 +615,17 @@ var ParseNanos = &Builtin{
 // ParseRFC3339Nanos returns the time in nanoseconds parsed from the string in RFC3339 format.
 var ParseRFC3339Nanos = &Builtin{
 	Name: "time.parse_rfc3339_ns",
+	Decl: types.NewFunction(
+		types.S,
+		types.N,
+	),
+	TargetPos: []int{1},
+}
+
+// ParseDurationNanos returns the duration in nanoseconds represented by a duration string.
+// Duration string is similar to the Go time.ParseDuration string
+var ParseDurationNanos = &Builtin{
+	Name: "time.parse_duration_ns",
 	Decl: types.NewFunction(
 		types.S,
 		types.N,

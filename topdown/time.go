@@ -70,6 +70,19 @@ func builtinTimeNowNanos(t *Topdown, expr *ast.Expr, iter Iterator) error {
 	return unifyAndContinue(t, iter, now, operands[1].Value)
 }
 
+func builtinParseDurationNanos(a ast.Value) (ast.Value, error) {
+
+	duration, err := builtins.StringOperand(a, 1)
+	if err != nil {
+		return nil, err
+	}
+	value, err := time.ParseDuration(string(duration))
+	if err != nil {
+		return nil, err
+	}
+	return ast.Number(int64ToJSONNumber(int64(value))), nil
+}
+
 func int64ToJSONNumber(i int64) json.Number {
 	return json.Number(strconv.FormatInt(i, 10))
 }
@@ -78,4 +91,5 @@ func init() {
 	RegisterFunctionalBuiltin1(ast.ParseRFC3339Nanos.Name, builtinTimeParseRFC3339Nanos)
 	RegisterFunctionalBuiltin2(ast.ParseNanos.Name, builtinTimeParseNanos)
 	RegisterBuiltinFunc(ast.NowNanos.Name, builtinTimeNowNanos)
+	RegisterFunctionalBuiltin1(ast.ParseDurationNanos.Name, builtinParseDurationNanos)
 }
