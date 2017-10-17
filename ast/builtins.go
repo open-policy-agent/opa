@@ -40,7 +40,7 @@ var DefaultBuiltins = [...]*Builtin{
 	And, Or,
 
 	// Aggregates
-	Count, Sum, Max, Min,
+	Count, Sum, Product, Max, Min,
 
 	// Casting
 	ToNumber,
@@ -281,6 +281,19 @@ var Count = &Builtin{
 // Sum takes an array or set of numbers and sums them.
 var Sum = &Builtin{
 	Name: "sum",
+	Decl: types.NewFunction(
+		types.NewAny(
+			types.NewSet(types.N),
+			types.NewArray(nil, types.N),
+		),
+		types.N,
+	),
+	TargetPos: []int{1},
+}
+
+// Product takes an array or set of numbers and multiplies them.
+var Product = &Builtin{
+	Name: "product",
 	Decl: types.NewFunction(
 		types.NewAny(
 			types.NewSet(types.N),
