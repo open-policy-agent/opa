@@ -1,10 +1,7 @@
 Rego v2 - Proposal
 
 Authors: Tristan Swadell, Tim Hinrichs, Torin Sandall 
-
 Last-Modified: 2017-10-20
-
-[[TOC]]
 
 # Goals
 
