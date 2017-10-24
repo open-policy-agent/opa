@@ -173,10 +173,10 @@ salary are lumped into a single policy decision.
 
 ## Conditions
 
-Conditions are Common Expression Language (CEL) expressions and evaluate to a
-boolean outcome. A condition may be used to select applicable rules or to make
-an effect or trigger conditional. Conditions may also be used to filter list
-and map entries within a for-in expression. 
+Conditions are [Common Expression Language](https://github.com/google/cel-spec)
+(CEL) expressions and evaluate to a boolean outcome. A condition may be used
+to select applicable rules or to make an effect or trigger conditional.
+Conditions may also be used to filter list and map entries within a for-in expression. 
 
 Declarations within a condition are within its block scope and may be shadowed
 by declarations in nested conditions. Once a declaration has been assigned, it
