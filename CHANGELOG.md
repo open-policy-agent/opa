@@ -3,7 +3,18 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## 0.5.10
+
+### Fixes
+
+- Fix index usage for virtual docs ([#490](https://github.com/open-policy-agent/opa/issues/490))
+- Fix match error panic ([#494](https://github.com/open-policy-agent/opa/issues/494))
+- Fix wildcard mangling in rule head ([#480](https://github.com/open-policy-agent/opa/issues/480))
+
+### Miscellaneous
+
+- Add parse_duration_ns to generate nanos based on duration string
+- Add product to calculate the product of array or set
 
 ## 0.5.9
 

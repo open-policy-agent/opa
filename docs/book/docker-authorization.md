@@ -51,7 +51,7 @@ $ mkdir -p policies
 ### 2. Download the latest version of OPA.
 
 ```shell
-$ curl -L https://github.com/open-policy-agent/opa/releases/download/v0.5.9/opa_linux_amd64 > opa
+$ curl -L https://github.com/open-policy-agent/opa/releases/download/v0.5.10/opa_linux_amd64 > opa
 $ chmod u+x opa
 ```
 
