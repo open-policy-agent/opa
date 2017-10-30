@@ -715,6 +715,13 @@ func (c *Compiler) rewriteRefsInHead() {
 				rule.Head.Value = expr.Operand(0)
 				rule.Body.Append(expr)
 			}
+			for i := 0; i < len(rule.Head.Args); i++ {
+				if requiresEval(rule.Head.Args[i]) {
+					expr := f.Generate(rule.Head.Args[i])
+					rule.Head.Args[i] = expr.Operand(0)
+					rule.Body.Append(expr)
+				}
+			}
 			return false
 		})
 		if vs, ok := c.generatedVars[mod]; !ok {
