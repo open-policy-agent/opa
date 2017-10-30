@@ -805,6 +805,8 @@ elsekw {
 } else = baz {
 	true
 }
+
+f(0, [baz], 2) = true { true }
 `)
 
 	compileStages(c, c.rewriteRefsInHead)
@@ -829,6 +831,10 @@ elsekw {
 	rule5 := c.Modules["head"].Rules[4]
 	expected5 := MustParseRule(`elsekw { false } else = __local5__ { true; __local5__ = input.qux }`)
 	assertRulesEqual(t, rule5, expected5)
+
+	rule6 := c.Modules["head"].Rules[5]
+	expected6 := MustParseRule(`f(0, __local6__, 2) = true { true; __local6__ = [input.qux] }`)
+	assertRulesEqual(t, rule6, expected6)
 }
 
 func TestRewriteComprehensionTerm(t *testing.T) {
