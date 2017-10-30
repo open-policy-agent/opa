@@ -2214,23 +2214,20 @@ func indexBuildLazy(t *Topdown, ref ast.Ref) (storage.Index, error) {
 	}
 
 	// Ignore refs against virtual docs.
-	tmp := ast.Ref{ref[0], ref[1]}
-	r := t.Compiler.GetRulesExact(tmp)
-	if r != nil {
-		return nil, nil
-	}
+	node := t.Compiler.RuleTree.Child(ref[0].Value)
 
-	for _, p := range ref[2:] {
-
-		if !p.Value.IsGround() {
+	for i := 1; i < len(ref); i++ {
+		if node == nil || !ref[i].IsGround() {
 			break
 		}
-
-		tmp = append(tmp, p)
-		r := t.Compiler.GetRulesExact(tmp)
-		if r != nil {
-			return nil, nil
+		if len(node.Values) > 0 {
+			break
 		}
+		node = node.Child(ref[i].Value)
+	}
+
+	if node != nil {
+		return nil, nil
 	}
 
 	index, err := t.Store.Build(t.Context, t.txn, ref)

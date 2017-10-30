@@ -777,6 +777,12 @@ p = true { input.foo }`,
 
 p = true { false }`,
 
+		`package topdown.virtual.constants
+
+		p = 1
+		q = 2
+		r = 1`,
+
 		// Define virtual docs that we can query to obtain merged result.
 		`package topdown
 
@@ -787,7 +793,10 @@ s = data.topdown.no { true }
 t = data.topdown.a.b.c.undefined1 { true }
 u = data.topdown.missing.input.value { true }
 v = data.topdown.g { true }
-w = data.topdown.set { true }`,
+w = data.topdown.set { true }
+
+iterate_ground[x] { data.topdown.virtual.constants[x] = 1 }
+`,
 	})
 
 	store := inmem.NewFromObject(data)
@@ -835,6 +844,7 @@ w = data.topdown.set { true }`,
 	assertTopDownWithPath(t, compiler, store, "base/virtual: undefined", []string{"topdown", "t"}, "{}", "{}")
 	assertTopDownWithPath(t, compiler, store, "base/virtual: undefined-2", []string{"topdown", "v"}, "{}", `{"h": {"k": [1,2,3]}}`)
 	assertTopDownWithPath(t, compiler, store, "base/virtual: missing input value", []string{"topdown", "u"}, "{}", "")
+	assertTopDownWithPath(t, compiler, store, "iterate ground", []string{"topdown", "iterate_ground"}, "{}", `["p", "r"]`)
 }
 
 func TestTopDownNestedReferences(t *testing.T) {
