@@ -630,18 +630,22 @@ func unifies(a, b types.Type) bool {
 		return false
 	}
 
-	var unified bool
-
-	if anyA, ok := a.(types.Any); ok {
-		unified = unifiesAny(anyA, b)
+	anyA, ok1 := a.(types.Any)
+	if ok1 {
+		if unifiesAny(anyA, b) {
+			return true
+		}
 	}
 
-	if anyB, ok := b.(types.Any); ok {
-		unified = unified || unifiesAny(anyB, a)
+	anyB, ok2 := b.(types.Any)
+	if ok2 {
+		if unifiesAny(anyB, a) {
+			return true
+		}
 	}
 
-	if unified {
-		return true
+	if ok1 || ok2 {
+		return false
 	}
 
 	switch a := a.(type) {

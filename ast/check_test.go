@@ -547,6 +547,7 @@ func TestCheckMatchErrors(t *testing.T) {
 		{"object-nested", `{ {"a": 1, "b": "2"} = {"a": 1, "b": 2} }`},
 		{"object-nested-2", `{ {"a": 1} = {"a": 1, "b": "2"} }`},
 		{"set", "{{1,2,3} = null}"},
+		{"any", `{x = ["str", 1]; x[_] = null}`},
 	}
 	for _, tc := range tests {
 		test.Subtest(t, tc.note, func(t *testing.T) {
