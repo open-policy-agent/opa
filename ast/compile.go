@@ -194,6 +194,7 @@ func NewCompiler() *Compiler {
 		c.checkRuleConflicts,
 		c.checkSafetyRuleHeads,
 		c.checkSafetyRuleBodies,
+		c.rewriteDynamicTerms,
 		c.checkRecursion,
 		c.checkTypes,
 		c.buildRuleIndices,
@@ -732,6 +733,21 @@ func (c *Compiler) rewriteRefsInHead() {
 	}
 }
 
+func (c *Compiler) rewriteDynamicTerms() {
+	for _, mod := range c.Modules {
+		f := newEqualityFactory(newLocalVarGenerator(mod))
+		WalkRules(mod, func(rule *Rule) bool {
+			rule.Body = rewriteDynamics(f, rule.Body)
+			return false
+		})
+		if vs, ok := c.generatedVars[mod]; !ok {
+			c.generatedVars[mod] = f.gen.Generated()
+		} else {
+			vs.Update(f.gen.Generated())
+		}
+	}
+}
+
 func (c *Compiler) setModuleTree() {
 	c.ModuleTree = NewModuleTree(c.Modules)
 }
@@ -768,6 +784,7 @@ func (qc *queryCompiler) Compile(query Body) (Body, error) {
 	stages := []func(*QueryContext, Body) (Body, error){
 		qc.resolveRefs,
 		qc.rewriteComprehensionTerms,
+		qc.rewriteDynamicTerms,
 		qc.checkWithModifiers,
 		qc.checkSafety,
 		qc.checkTypes,
@@ -820,6 +837,12 @@ func (qc *queryCompiler) rewriteComprehensionTerms(_ *QueryContext, body Body) (
 		return nil, err
 	}
 	return node.(Body), nil
+}
+
+func (qc *queryCompiler) rewriteDynamicTerms(_ *QueryContext, body Body) (Body, error) {
+	gen := newLocalVarGenerator(body)
+	f := newEqualityFactory(gen)
+	return rewriteDynamics(f, body), nil
 }
 
 func (qc *queryCompiler) checkSafety(_ *QueryContext, body Body) (Body, error) {
@@ -1680,4 +1703,120 @@ func rewriteComprehensionTerms(f *equalityFactory, node interface{}) (interface{
 		}
 		panic("illegal type")
 	})
+}
+
+// rewriteDynamics will rewrite the body so that dynamic terms (i.e., refs and
+// comprehensions) are bound to vars earlier in the query. This translation
+// results in eager evaluation.
+//
+// For instance, given the following query:
+//
+// foo(data.bar) = 1
+//
+// The rewritten vresion will be:
+//
+// __local0__ = data.bar; foo(__local0__) = 1
+func rewriteDynamics(f *equalityFactory, body Body) Body {
+	cpy := Body{}
+	for _, expr := range body {
+		var exprs []*Expr
+		switch expr.Terms.(type) {
+		case []*Term:
+			if expr.IsEquality() {
+				exprs = rewriteDynamicsEqExpr(f, expr)
+			} else {
+				exprs = rewriteDynamicsCallExpr(f, expr)
+			}
+		case *Term:
+			exprs = rewriteDynamicsTermExpr(f, expr)
+		}
+		for _, expr := range exprs {
+			cpy.Append(expr)
+		}
+	}
+	return cpy
+}
+
+func rewriteDynamicsEqExpr(f *equalityFactory, expr *Expr) []*Expr {
+	terms := expr.Terms.([]*Term)
+	var extras []*Expr
+	extras, terms[1] = rewriteDynamicsInTerm(f, terms[1], nil)
+	extras, terms[2] = rewriteDynamicsInTerm(f, terms[2], extras)
+	return append(extras, expr)
+}
+
+func rewriteDynamicsCallExpr(f *equalityFactory, expr *Expr) []*Expr {
+	terms := expr.Terms.([]*Term)
+	var extras []*Expr
+	for i := 1; i < len(terms); i++ {
+		extras, terms[i] = rewriteDynamicsOne(f, terms[i], extras)
+	}
+	return append(extras, expr)
+}
+
+func rewriteDynamicsTermExpr(f *equalityFactory, expr *Expr) []*Expr {
+	term := expr.Terms.(*Term)
+	var extras []*Expr
+	extras, expr.Terms = rewriteDynamicsInTerm(f, term, nil)
+	return append(extras, expr)
+}
+
+func rewriteDynamicsInTerm(f *equalityFactory, term *Term, extras []*Expr) ([]*Expr, *Term) {
+	switch v := term.Value.(type) {
+	case Ref:
+		for i := 1; i < len(v); i++ {
+			extras, v[i] = rewriteDynamicsOne(f, v[i], extras)
+		}
+	case *ArrayComprehension:
+		v.Body = rewriteDynamics(f, v.Body)
+	case *SetComprehension:
+		v.Body = rewriteDynamics(f, v.Body)
+	case *ObjectComprehension:
+		v.Body = rewriteDynamics(f, v.Body)
+	default:
+
+		extras, term = rewriteDynamicsOne(f, term, extras)
+	}
+	return extras, term
+}
+
+func rewriteDynamicsOne(f *equalityFactory, term *Term, extras []*Expr) ([]*Expr, *Term) {
+	switch v := term.Value.(type) {
+	case Ref:
+		for i := 1; i < len(v); i++ {
+			extras, v[i] = rewriteDynamicsOne(f, v[i], extras)
+		}
+		extras = append(extras, f.Generate(term))
+		return extras, extras[len(extras)-1].Operand(0)
+	case Array:
+		for i := 0; i < len(v); i++ {
+			extras, v[i] = rewriteDynamicsOne(f, v[i], extras)
+		}
+		return extras, term
+	case Object:
+		for i := 0; i < len(v); i++ {
+			extras, v[i][0] = rewriteDynamicsOne(f, v[i][0], extras)
+			extras, v[i][1] = rewriteDynamicsOne(f, v[i][1], extras)
+		}
+		return extras, term
+	case *Set:
+		v, _ = v.Map(func(term *Term) (*Term, error) {
+			extras, term = rewriteDynamicsOne(f, term, extras)
+			return term, nil
+		})
+		return extras, NewTerm(v).SetLocation(term.Location)
+	case *ArrayComprehension:
+		v.Body = rewriteDynamics(f, v.Body)
+		extras = append(extras, f.Generate(term))
+		return extras, extras[len(extras)-1].Operand(0)
+	case *SetComprehension:
+		v.Body = rewriteDynamics(f, v.Body)
+		extras = append(extras, f.Generate(term))
+		return extras, extras[len(extras)-1].Operand(0)
+	case *ObjectComprehension:
+		v.Body = rewriteDynamics(f, v.Body)
+		extras = append(extras, f.Generate(term))
+		return extras, extras[len(extras)-1].Operand(0)
+	}
+	return extras, term
 }
