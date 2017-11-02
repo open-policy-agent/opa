@@ -271,6 +271,14 @@ type GenericTransformer struct {
 	f func(x interface{}) (interface{}, error)
 }
 
+// NewGenericTransformer returns a new GenericTransformer that will transform
+// AST nodes using the function f.
+func NewGenericTransformer(f func(x interface{}) (interface{}, error)) *GenericTransformer {
+	return &GenericTransformer{
+		f: f,
+	}
+}
+
 // Transform calls the function f on the GenericTransformer.
 func (t *GenericTransformer) Transform(x interface{}) (interface{}, error) {
 	return t.f(x)
