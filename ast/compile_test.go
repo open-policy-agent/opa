@@ -864,6 +864,53 @@ func TestRewriteComprehensionTerm(t *testing.T) {
 	assertRulesEqual(t, objCompRule, exp3)
 }
 
+func TestRewriteDynamicTerms(t *testing.T) {
+
+	fixture := `
+		package test
+		str = "hello"
+	`
+
+	tests := []struct {
+		input    string
+		expected string
+	}{
+		{`arr { [str] }`, `{__local0__ = data.test.str; [__local0__]}`},
+		{`arr2 { [[str]] }`, `{__local0__ = data.test.str; [[__local0__]]}`},
+		{`obj { {"x": str} }`, `{__local0__ = data.test.str; {"x": __local0__}}`},
+		{`obj2 { {"x": {"y": str}} }`, `{__local0__ = data.test.str; {"x": {"y": __local0__}}}`},
+		{`set { {str} }`, `{__local0__ = data.test.str; {__local0__}}`},
+		{`set2 { {{str}} }`, `{__local0__ = data.test.str; {{__local0__}}}`},
+		{`ref { str[str] }`, `{__local0__ = data.test.str; data.test.str[__local0__]}`},
+		{`ref2 { str[str[str]] }`, `{__local0__ = data.test.str; __local1__ = data.test.str[__local0__]; data.test.str[__local1__]}`},
+		{`arr_compr { [1 | [str]] }`, `[1 | __local0__ = data.test.str; [__local0__]]`},
+		{`arr_compr2 { [1 | [1 | [str]]] }`, `[1 | [1 | __local0__ = data.test.str; [__local0__]]]`},
+		{`set_compr { {1 | [str]} }`, `{1 | __local0__ = data.test.str; [__local0__]}`},
+		{`set_compr2 { {1 | {1 | [str]}} }`, `{1 | {1 | __local0__ = data.test.str; [__local0__]}}`},
+		{`obj_compr { {"a": "b" | [str]} }`, `{"a": "b" | __local0__ = data.test.str; [__local0__]}`},
+		{`obj_compr2 { {"a": "b" | {"a": "b" | [str]}} }`, `{"a": "b" | {"a": "b" | __local0__ = data.test.str; [__local0__]}}`},
+		{`equality { str = str }`, `{data.test.str = data.test.str}`},
+		{`equality2 { [str] = [str] }`, `{__local0__ = data.test.str; __local1__ = data.test.str; [__local0__] = [__local1__]}`},
+		{`call { startswith(str, "") }`, `{__local0__ = data.test.str; startswith(__local0__, "")}`},
+		{`call2 { count([str], n) }`, `{__local0__ = data.test.str; count([__local0__], n)}`},
+	}
+
+	for _, tc := range tests {
+		test.Subtest(t, tc.input, func(t *testing.T) {
+			c := NewCompiler()
+			module := fixture + tc.input
+			c.Modules["test"] = MustParseModule(module)
+			compileStages(c, c.rewriteDynamicTerms)
+			assertNotFailed(t, c)
+			expected := MustParseBody(tc.expected)
+			result := c.Modules["test"].Rules[1].Body
+			if result.Compare(expected) != 0 {
+				t.Fatalf("\nExp: %v\nGot: %v", expected, result)
+			}
+		})
+	}
+}
+
 func TestCompilerSetGraph(t *testing.T) {
 	c := NewCompiler()
 	c.Modules = getCompilerTestModules()
