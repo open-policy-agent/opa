@@ -431,6 +431,42 @@ func TestSetOperations(t *testing.T) {
 	}
 }
 
+func TestArrayOperations(t *testing.T) {
+
+	arr := MustParseTerm(`[1,2,3,4]`).Value.(Array)
+
+	getTests := []struct {
+		input    string
+		expected string
+	}{
+		{"x", ""},
+		{"4.1", ""},
+		{"-1", ""},
+		{"4", ""},
+		{"0", "1"},
+		{"3", "4"},
+	}
+
+	for _, tc := range getTests {
+		input := MustParseTerm(tc.input)
+		result := arr.Get(input)
+
+		if result != nil {
+			if tc.expected != "" {
+				expected := MustParseTerm(tc.expected)
+				if expected.Equal(result) {
+					continue
+				}
+			}
+		} else if tc.expected == "" {
+			continue
+		}
+
+		t.Errorf("Expected %v.get(%v) => %v but got: %v", arr, input, tc.expected, result)
+	}
+
+}
+
 func TestValueToInterface(t *testing.T) {
 
 	// Happy path
