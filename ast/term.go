@@ -898,7 +898,7 @@ func (arr Array) Get(pos *Term) *Term {
 		return nil
 	}
 
-	if i > 0 && i < len(arr) {
+	if i >= 0 && i < len(arr) {
 		return arr[i]
 	}
 
