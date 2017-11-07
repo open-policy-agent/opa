@@ -65,13 +65,16 @@ func benchmarkConcurrency(b *testing.B, params []storage.TransactionParams) {
 				defer wg.Done()
 				for k := 0; k < queriesPerCore; k++ {
 					txn := storage.NewTransactionOrDie(ctx, store, param)
-					params := NewQueryParams(ctx, compiler, store, txn, nil, ast.MustParseRef("data.test.p"))
-					rs, err := Query(params)
+					query := NewQuery(ast.MustParseBody("data.test.p = x")).
+						WithCompiler(compiler).
+						WithStore(store).
+						WithTransaction(txn)
+					rs, err := query.Run(ctx)
 					if err != nil {
 						b.Fatalf("Unexpected topdown query error: %v", err)
 					}
-					if rs.Undefined() || len(rs) != 1 || rs[0].Result.(bool) != true {
-						b.Fatalf("Unexpecfted undefined/extra/bad result: %v", rs)
+					if len(rs) != 1 || !rs[0][ast.Var("x")].Equal(ast.BooleanTerm(true)) {
+						b.Fatalf("Unexpected undefined/extra/bad result: %v", rs)
 					}
 					store.Abort(ctx, txn)
 				}
@@ -179,16 +182,21 @@ func runVirtualDocsBenchmark(b *testing.B, numTotalRules, numHitRules int) {
 		b.Fatalf("Unexpected compiler error: %v", compiler.Errors)
 	}
 
-	params := NewQueryParams(ctx, compiler, store, txn, input, ast.MustParseRef("data.a.b.c.allow"))
+	query := NewQuery(ast.MustParseBody("data.a.b.c.allow = x")).
+		WithCompiler(compiler).
+		WithStore(store).
+		WithTransaction(txn).
+		WithInput(input)
+
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
 		func() {
-			rs, err := Query(params)
+			rs, err := query.Run(ctx)
 			if err != nil {
 				b.Fatalf("Unexpected topdown query error: %v", err)
 			}
-			if rs.Undefined() || len(rs) != 1 || rs[0].Result.(bool) != true {
+			if len(rs) != 1 || !rs[0][ast.Var("x")].Equal(ast.BooleanTerm(true)) {
 				b.Fatalf("Unexpecfted undefined/extra/bad result: %v", rs)
 			}
 		}()
@@ -196,7 +204,7 @@ func runVirtualDocsBenchmark(b *testing.B, numTotalRules, numHitRules int) {
 	}
 }
 
-func generateVirtualDocsBenchmarkData(numTotalRules, numHitRules int) (*ast.Module, ast.Value) {
+func generateVirtualDocsBenchmarkData(numTotalRules, numHitRules int) (*ast.Module, *ast.Term) {
 
 	hitRule := `
 	allow {
@@ -264,7 +272,7 @@ func generateVirtualDocsBenchmarkData(numTotalRules, numHitRules int) (*ast.Modu
 			"path": ["accounts", "alice"],
 			"method": "POST",
 			"user_id": "alice"
-		}`).Value
+		}`)
 
 	return ast.MustParseModule(buf.String()), input
 }

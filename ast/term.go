@@ -348,6 +348,15 @@ func IsConstant(v Value) bool {
 	return !found
 }
 
+// IsComprehension returns true if the supplied value is a comprehension.
+func IsComprehension(x Value) bool {
+	switch x.(type) {
+	case *ArrayComprehension, *ObjectComprehension, *SetComprehension:
+		return true
+	}
+	return false
+}
+
 // ContainsRefs returns true if the Value v contains refs.
 func ContainsRefs(v interface{}) bool {
 	found := false
@@ -653,6 +662,11 @@ func (v Var) IsGround() bool {
 // IsWildcard returns true if this is a wildcard variable.
 func (v Var) IsWildcard() bool {
 	return strings.HasPrefix(string(v), WildcardPrefix)
+}
+
+// IsGenerated returns true if this variable was generated during compilation.
+func (v Var) IsGenerated() bool {
+	return strings.HasPrefix(string(v), "__local")
 }
 
 func (v Var) String() string {

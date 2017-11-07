@@ -1,3 +1,7 @@
+// Copyright 2017 The OPA Authors.  All rights reserved.
+// Use of this source code is governed by an Apache2
+// license that can be found in the LICENSE file.
+
 package topdown
 
 import (
@@ -20,31 +24,31 @@ var (
 // It does no data validation, it merely checks that the given string
 // represents a structurally valid JWT. It supports JWTs using JWS compact
 // serialization.
-func builtinJWTDecode(a ast.Value) (ast.Value, ast.Value, ast.Value, error) {
+func builtinJWTDecode(a ast.Value) (ast.Value, error) {
 	astEncode, err := builtins.StringOperand(a, 1)
 	encoding := string(astEncode)
 	if !strings.Contains(encoding, ".") {
-		return nil, nil, nil, errors.New("encoded JWT had no period separators")
+		return nil, errors.New("encoded JWT had no period separators")
 	}
 
 	parts := strings.Split(encoding, ".")
 	if len(parts) != 3 {
-		return nil, nil, nil, fmt.Errorf("encoded JWT must have 3 sections, found %d", len(parts))
+		return nil, fmt.Errorf("encoded JWT must have 3 sections, found %d", len(parts))
 	}
 
 	h, err := builtinBase64UrlDecode(ast.String(parts[0]))
 	if err != nil {
-		return nil, nil, nil, fmt.Errorf("JWT header had invalid encoding: %v", err)
+		return nil, fmt.Errorf("JWT header had invalid encoding: %v", err)
 	}
 
 	header, err := validateJWTHeader(string(h.(ast.String)))
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, err
 	}
 
 	p, err := builtinBase64UrlDecode(ast.String(parts[1]))
 	if err != nil {
-		return nil, nil, nil, fmt.Errorf("JWT payload had invalid encoding: %v", err)
+		return nil, fmt.Errorf("JWT payload had invalid encoding: %v", err)
 	}
 
 	if cty := header.Get(jwtCtyKey); cty != nil {
@@ -68,16 +72,21 @@ func builtinJWTDecode(a ast.Value) (ast.Value, ast.Value, ast.Value, error) {
 
 	payload, err := extractJSONObject(string(p.(ast.String)))
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, err
 	}
 
 	s, err := builtinBase64UrlDecode(ast.String(parts[2]))
 	if err != nil {
-		return nil, nil, nil, fmt.Errorf("JWT signature had invalid encoding: %v", err)
+		return nil, fmt.Errorf("JWT signature had invalid encoding: %v", err)
 	}
 	sign := hex.EncodeToString([]byte(s.(ast.String)))
 
-	return header, payload, ast.String(sign), nil
+	arr := make(ast.Array, 3)
+	arr[0] = ast.NewTerm(header)
+	arr[1] = ast.NewTerm(payload)
+	arr[2] = ast.StringTerm(sign)
+
+	return arr, nil
 }
 
 // Extract, validate and return the JWT header as an ast.Object.
@@ -121,5 +130,5 @@ func extractJSONObject(s string) (ast.Object, error) {
 }
 
 func init() {
-	RegisterFunctionalBuiltin1Out3(ast.JWTDecode.Name, builtinJWTDecode)
+	RegisterFunctionalBuiltin1(ast.JWTDecode.Name, builtinJWTDecode)
 }

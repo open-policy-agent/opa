@@ -58,7 +58,7 @@ func TestMakeInput(t *testing.T) {
 			pairs[j] = [...]*ast.Term{k, v}
 		}
 
-		input, err := MakeInput(pairs)
+		input, err := makeInput(pairs)
 
 		switch e := tc.expected.(type) {
 		case error:

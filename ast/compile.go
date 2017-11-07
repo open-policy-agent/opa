@@ -1448,6 +1448,7 @@ func newEqualityFactory(gen *localVarGenerator) *equalityFactory {
 func (f *equalityFactory) Generate(other *Term) *Expr {
 	term := NewTerm(f.gen.Generate()).SetLocation(other.Location)
 	expr := Equality.Expr(term, other)
+	expr.Generated = true
 	expr.Location = other.Location
 	return expr
 }

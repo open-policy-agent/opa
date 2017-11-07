@@ -204,7 +204,7 @@ import input as http_api
 # io.jwt.decode takes one argument (the encoded token) and has three outputs:
 # the decoded header, payload and signature, in that order. Our policy only
 # cares about the payload, so we ignore the others.
-token = {"payload": payload} { io.jwt.decode(http_api.token, _, payload, _) }
+token = {"payload": payload} { io.jwt.decode(http_api.token, [_, payload, _]) }
 
 # Ensure that the token was issued to the user supplying it.
 user_owns_token { http_api.user = token.payload.azp }
@@ -255,7 +255,7 @@ export DAVID_TOKEN="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyIjoiZGF2aWQiLCJ
 ```
 
 These tokens encode the same information as the policies we did before (`bob` is `alice`'s manager, `betty` is `charlie`'s, `david` is the only HR member, etc).
-If you want to inspect their contents, start up the OPA REPL and execute `io.jwt.decode(<token here>, header, payload, signature)`.
+If you want to inspect their contents, start up the OPA REPL and execute `io.jwt.decode(<token here>, [header, payload, signature])`.
 
 Let's try a few queries (note: you may need to escape the `?` characters in the queries for your shell):
 

@@ -17,6 +17,22 @@ type nowKeyID string
 
 var nowKey = nowKeyID("time.now_ns")
 
+func builtinTimeNowNanos(bctx BuiltinContext, _ []*ast.Term, iter func(*ast.Term) error) error {
+
+	exist, ok := bctx.Cache.Get(nowKey)
+	var now *ast.Term
+
+	if !ok {
+		curr := time.Now()
+		now = ast.NewTerm(ast.Number(int64ToJSONNumber(curr.UnixNano())))
+		bctx.Cache.Put(nowKey, now)
+	} else {
+		now = exist.(*ast.Term)
+	}
+
+	return iter(now)
+}
+
 func builtinTimeParseNanos(a, b ast.Value) (ast.Value, error) {
 
 	format, err := builtins.StringOperand(a, 1)
@@ -51,25 +67,6 @@ func builtinTimeParseRFC3339Nanos(a ast.Value) (ast.Value, error) {
 
 	return ast.Number(int64ToJSONNumber(result.UnixNano())), nil
 }
-
-func builtinTimeNowNanos(t *Topdown, expr *ast.Expr, iter Iterator) error {
-
-	operands := expr.Terms.([]*ast.Term)
-
-	var now ast.Number
-	exist, ok := t.builtins.Get(nowKey)
-
-	if !ok {
-		curr := time.Now()
-		now = ast.Number(int64ToJSONNumber(curr.UnixNano()))
-		t.builtins.Put(nowKey, now)
-	} else {
-		now = exist.(ast.Number)
-	}
-
-	return unifyAndContinue(t, iter, now, operands[1].Value)
-}
-
 func builtinParseDurationNanos(a ast.Value) (ast.Value, error) {
 
 	duration, err := builtins.StringOperand(a, 1)
@@ -88,8 +85,8 @@ func int64ToJSONNumber(i int64) json.Number {
 }
 
 func init() {
+	RegisterBuiltinFunc(ast.NowNanos.Name, builtinTimeNowNanos)
 	RegisterFunctionalBuiltin1(ast.ParseRFC3339Nanos.Name, builtinTimeParseRFC3339Nanos)
 	RegisterFunctionalBuiltin2(ast.ParseNanos.Name, builtinTimeParseNanos)
-	RegisterBuiltinFunc(ast.NowNanos.Name, builtinTimeNowNanos)
 	RegisterFunctionalBuiltin1(ast.ParseDurationNanos.Name, builtinParseDurationNanos)
 }

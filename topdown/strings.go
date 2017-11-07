@@ -125,58 +125,58 @@ func builtinSubstring(a, b, c ast.Value) (ast.Value, error) {
 	return s, nil
 }
 
-func builtinContains(a, b ast.Value) error {
+func builtinContains(a, b ast.Value) (ast.Value, error) {
 	s, err := builtins.StringOperand(a, 1)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	substr, err := builtins.StringOperand(b, 2)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if !strings.Contains(string(s), string(substr)) {
-		return BuiltinEmpty{}
+		return nil, BuiltinEmpty{}
 	}
 
-	return nil
+	return ast.Boolean(true), nil
 }
 
-func builtinStartsWith(a, b ast.Value) error {
+func builtinStartsWith(a, b ast.Value) (ast.Value, error) {
 	s, err := builtins.StringOperand(a, 1)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	prefix, err := builtins.StringOperand(b, 2)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if !strings.HasPrefix(string(s), string(prefix)) {
-		return BuiltinEmpty{}
+		return nil, BuiltinEmpty{}
 	}
 
-	return nil
+	return ast.Boolean(true), nil
 }
 
-func builtinEndsWith(a, b ast.Value) error {
+func builtinEndsWith(a, b ast.Value) (ast.Value, error) {
 	s, err := builtins.StringOperand(a, 1)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	suffix, err := builtins.StringOperand(b, 2)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if !strings.HasSuffix(string(s), string(suffix)) {
-		return BuiltinEmpty{}
+		return nil, BuiltinEmpty{}
 	}
 
-	return nil
+	return ast.Boolean(true), nil
 }
 
 func builtinLower(a ast.Value) (ast.Value, error) {
@@ -273,9 +273,9 @@ func init() {
 	RegisterFunctionalBuiltin2(ast.Concat.Name, builtinConcat)
 	RegisterFunctionalBuiltin2(ast.IndexOf.Name, builtinIndexOf)
 	RegisterFunctionalBuiltin3(ast.Substring.Name, builtinSubstring)
-	RegisterFunctionalBuiltinVoid2(ast.Contains.Name, builtinContains)
-	RegisterFunctionalBuiltinVoid2(ast.StartsWith.Name, builtinStartsWith)
-	RegisterFunctionalBuiltinVoid2(ast.EndsWith.Name, builtinEndsWith)
+	RegisterFunctionalBuiltin2(ast.Contains.Name, builtinContains)
+	RegisterFunctionalBuiltin2(ast.StartsWith.Name, builtinStartsWith)
+	RegisterFunctionalBuiltin2(ast.EndsWith.Name, builtinEndsWith)
 	RegisterFunctionalBuiltin1(ast.Upper.Name, builtinUpper)
 	RegisterFunctionalBuiltin1(ast.Lower.Name, builtinLower)
 	RegisterFunctionalBuiltin2(ast.Split.Name, builtinSplit)

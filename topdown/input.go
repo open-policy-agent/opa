@@ -13,9 +13,7 @@ import (
 var errConflictingInputDoc = fmt.Errorf("conflicting input documents")
 var errBadInputPath = fmt.Errorf("bad input document path")
 
-// MakeInput converts the slice of key/value pairs into a single input value.
-// The keys define an object hierarchy.
-func MakeInput(pairs [][2]*ast.Term) (ast.Value, error) {
+func makeInput(pairs [][2]*ast.Term) (ast.Value, error) {
 
 	// Fast-path for empty case.
 	if len(pairs) == 0 {

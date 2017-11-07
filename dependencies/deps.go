@@ -196,6 +196,13 @@ func filter(rs []ast.Ref, pred func(ast.Ref, ast.Ref) bool) (filtered []ast.Ref)
 	return filtered
 }
 
+// FIXME(tsandall): this logic should be revisited as it seems overly
+// complicated. It should be possible to compute all dependencies in two
+// passes:
+//
+// 1) perform syntactic unification on vars
+// 2) gather all refs rooted at data after plugging the head with substitution
+//    from (1)
 func ruleDeps(rule *ast.Rule) (resolved []ast.Ref) {
 	vars, others := extractEq(rule.Body)
 	joined := joinVarRefs(vars)
@@ -226,6 +233,17 @@ func ruleDeps(rule *ast.Rule) (resolved []ast.Ref) {
 	}
 
 	usedVars := varVisitor.Vars()
+
+	// Vars included in refs must be counted as used.
+	ast.WalkRefs(rule.Body, func(r ast.Ref) bool {
+		for i := 1; i < len(r); i++ {
+			if v, ok := r[i].Value.(ast.Var); ok {
+				usedVars.Add(v)
+			}
+		}
+		return false
+	})
+
 	resolveRemainingVars(joined, visitor, usedVars, headVars)
 	return resolved
 }

@@ -25,7 +25,6 @@ import (
 	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/topdown"
-	"github.com/open-policy-agent/opa/topdown/explain"
 	"github.com/open-policy-agent/opa/version"
 	"github.com/peterh/liner"
 )
@@ -61,7 +60,6 @@ type explainMode int
 const (
 	explainOff   explainMode = iota
 	explainTrace explainMode = iota
-	explainTruth explainMode = iota
 )
 
 const defaultPrettyLimit = 80
@@ -255,8 +253,6 @@ func (r *REPL) OneShot(ctx context.Context, line string) error {
 				return r.cmdTrace()
 			case "metrics":
 				return r.cmdMetrics()
-			case "truth":
-				return r.cmdTruth()
 			case "types":
 				return r.cmdTypes()
 			case "help":
@@ -422,15 +418,6 @@ func (r *REPL) cmdMetrics() error {
 		r.metrics = metrics.New()
 	} else {
 		r.metrics = nil
-	}
-	return nil
-}
-
-func (r *REPL) cmdTruth() error {
-	if r.explain == explainTruth {
-		r.explain = explainOff
-	} else {
-		r.explain = explainTruth
 	}
 	return nil
 }
@@ -668,18 +655,21 @@ func (r *REPL) loadInput(ctx context.Context) (ast.Value, error) {
 		return nil, err
 	}
 
-	params := topdown.NewQueryParams(ctx, compiler, r.store, r.txn, nil, ast.MustParseRef("data.repl.input"))
-	result, err := topdown.Query(params)
+	q := topdown.NewQuery(ast.MustParseBody("data.repl.input = x")).
+		WithCompiler(compiler).
+		WithStore(r.store).
+		WithTransaction(r.txn)
 
+	qrs, err := q.Run(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	if result.Undefined() {
+	if len(qrs) != 1 {
 		return nil, nil
 	}
 
-	return ast.InterfaceToValue(result[0].Result)
+	return qrs[0][ast.Var("x")].Value, nil
 }
 
 func (r *REPL) evalStatement(ctx context.Context, stmt interface{}) error {
@@ -740,14 +730,16 @@ func (r *REPL) evalBody(ctx context.Context, compiler *ast.Compiler, input ast.V
 		}
 	}
 
-	t := topdown.New(ctx, body, compiler, r.store, r.txn)
-	t.Input = input
+	q := topdown.NewQuery(body).WithCompiler(compiler).WithStore(r.store).WithTransaction(r.txn)
+	if input != nil {
+		q = q.WithInput(ast.NewTerm(input))
+	}
 
 	var buf *topdown.BufferTracer
 
 	if r.explain != explainOff {
 		buf = topdown.NewBufferTracer()
-		t.Tracer = buf
+		q = q.WithTracer(buf)
 	}
 
 	// Flag indicates whether the query was defined for some context.
@@ -762,13 +754,12 @@ func (r *REPL) evalBody(ctx context.Context, compiler *ast.Compiler, input ast.V
 
 	// Execute query and accumulate results.
 	r.timerStart(metrics.RegoQueryEval)
-	err := topdown.Eval(t, func(t *topdown.Topdown) error {
+	err := q.Iter(ctx, func(qr topdown.QueryResult) error {
 
 		row := map[string]interface{}{}
-
-		for k, v := range t.Vars() {
-			if !k.IsWildcard() {
-				x, err := ast.ValueToInterface(v, t)
+		for k, v := range qr {
+			if !k.IsWildcard() && !k.IsGenerated() {
+				x, err := ast.JSON(v.Value)
 				if err != nil {
 					return err
 				}
@@ -864,23 +855,25 @@ func (r *REPL) evalTermSingleValue(ctx context.Context, compiler *ast.Compiler, 
 	expr.Location = body.Loc()
 	body = ast.NewBody(expr)
 
-	t := topdown.New(ctx, body, compiler, r.store, r.txn)
-	t.Input = input
+	q := topdown.NewQuery(body).WithCompiler(compiler).WithStore(r.store).WithTransaction(r.txn)
+	if input != nil {
+		q = q.WithInput(ast.NewTerm(input))
+	}
 
 	var buf *topdown.BufferTracer
 
 	if r.explain != explainOff {
 		buf = topdown.NewBufferTracer()
-		t.Tracer = buf
+		q = q.WithTracer(buf)
 	}
 
 	var result interface{}
 	isTrue := false
 
 	r.timerStart(metrics.RegoQueryEval)
-	err := topdown.Eval(t, func(t *topdown.Topdown) error {
-		p := t.Binding(outputVar.Value)
-		v, err := ast.ValueToInterface(p, t)
+	err := q.Iter(ctx, func(qr topdown.QueryResult) error {
+		p := qr[outputVar.Value.(ast.Var)]
+		v, err := ast.JSON(p.Value)
 		if err != nil {
 			return err
 		}
@@ -926,14 +919,16 @@ func (r *REPL) evalTermMultiValue(ctx context.Context, compiler *ast.Compiler, i
 	expr.Location = body.Loc()
 	body = ast.NewBody(expr)
 
-	t := topdown.New(ctx, body, compiler, r.store, r.txn)
-	t.Input = input
+	q := topdown.NewQuery(body).WithCompiler(compiler).WithStore(r.store).WithTransaction(r.txn)
+	if input != nil {
+		q = q.WithInput(ast.NewTerm(input))
+	}
 
 	var buf *topdown.BufferTracer
 
 	if r.explain != explainOff {
 		buf = topdown.NewBufferTracer()
-		t.Tracer = buf
+		q = q.WithTracer(buf)
 	}
 
 	vars := map[string]struct{}{}
@@ -946,13 +941,13 @@ func (r *REPL) evalTermMultiValue(ctx context.Context, compiler *ast.Compiler, i
 	includeValue := !r.isSetReference(compiler, term)
 
 	r.timerStart(metrics.RegoQueryEval)
-	err := topdown.Eval(t, func(t *topdown.Topdown) error {
+	err := q.Iter(ctx, func(qr topdown.QueryResult) error {
 
 		result := map[string]interface{}{}
 
-		for k, v := range t.Vars() {
+		for k, v := range qr {
 			if !k.IsWildcard() && !k.Equal(outputVar.Value) {
-				x, err := ast.ValueToInterface(v, t)
+				x, err := ast.JSON(v.Value)
 				if err != nil {
 					return err
 				}
@@ -962,12 +957,11 @@ func (r *REPL) evalTermMultiValue(ctx context.Context, compiler *ast.Compiler, i
 		}
 
 		if includeValue {
-			p := topdown.PlugTerm(term, t.Binding)
-			v, err := ast.ValueToInterface(p.Value, t)
+			var err error
+			result[resultKey], err = ast.JSON(qr[outputVar.Value.(ast.Var)].Value)
 			if err != nil {
 				return err
 			}
-			result[resultKey] = v
 		}
 
 		results = append(results, result)
@@ -1115,13 +1109,6 @@ func (r *REPL) printPrettyRow(table *tablewriter.Table, keys []string, row map[s
 }
 
 func (r *REPL) printTrace(ctx context.Context, compiler *ast.Compiler, trace []*topdown.Event) {
-	if r.explain == explainTruth {
-		answer, err := explain.Truth(compiler, trace)
-		if err != nil {
-			fmt.Fprintf(r.output, "error: %v\n", err)
-		}
-		trace = answer
-	}
 	mangleTrace(ctx, r.store, r.txn, trace)
 	topdown.PrettyTrace(r.output, trace)
 }
@@ -1204,7 +1191,6 @@ var builtin = [...]commandDesc{
 	{"trace", []string{}, "toggle full trace"},
 	{"metrics", []string{}, "toggle metrics"},
 	{"types", []string{}, "toggle type information"},
-	{"truth", []string{}, "toggle truth explanation"},
 	{"dump", []string{"[path]"}, "dump raw data in storage"},
 	{"help", []string{"[topic]"}, "print this message"},
 	{"exit", []string{}, "exit out of shell (or ctrl+d)"},
@@ -1356,9 +1342,9 @@ func mangleEvent(ctx context.Context, store storage.Store, txn storage.Transacti
 
 	switch node := event.Node.(type) {
 	case *ast.Rule:
-		event.Node = topdown.PlugHead(node.Head, event.Locals.Get)
+		event.Node = node.Head //topdown.PlugHead(node.Head, event.Locals.Get)
 	case *ast.Expr:
-		event.Node = topdown.PlugExpr(node, event.Locals.Get)
+		event.Node = node // topdown.PlugExpr(node, event.Locals.Get)
 	}
 	return nil
 }

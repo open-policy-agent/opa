@@ -11,9 +11,9 @@ import (
 	"testing"
 
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/rego"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/storage/inmem"
-	"github.com/open-policy-agent/opa/topdown"
 	"github.com/open-policy-agent/opa/util"
 )
 
@@ -35,7 +35,6 @@ func TestAuthz(t *testing.T) {
 	txn := storage.NewTransactionOrDie(ctx, store)
 	compiler := ast.NewCompiler()
 	module := ast.MustParseModule(policy)
-	path := ast.MustParseRef("data.restauthz.allow")
 
 	compiler.Compile(map[string]*ast.Module{"": module})
 	if compiler.Failed() {
@@ -44,16 +43,22 @@ func TestAuthz(t *testing.T) {
 
 	input, expected := generateInput(profile, forbidPath)
 
-	params := topdown.NewQueryParams(ctx, compiler, store, txn, input, path)
+	r := rego.New(
+		rego.Compiler(compiler),
+		rego.Store(store),
+		rego.Transaction(txn),
+		rego.Input(input),
+		rego.Query("data.restauthz.allow"),
+	)
 
-	rs, err := topdown.Query(params)
+	rs, err := r.Eval(ctx)
 
 	if err != nil {
 		t.Fatalf("Unexpected error(s): %v", err)
 	}
 
-	if util.Compare(rs[0].Result, expected) != 0 {
-		t.Fatalf("Unexpected result: %v", rs[0].Result)
+	if len(rs) != 1 || util.Compare(rs[0].Expressions[0].Value, expected) != 0 {
+		t.Fatalf("Unexpected result: %v", rs)
 	}
 }
 
@@ -66,7 +71,7 @@ const (
 	allow          = iota
 )
 
-func generateInput(profile dataSetProfile, mode inputMode) (ast.Value, interface{}) {
+func generateInput(profile dataSetProfile, mode inputMode) (interface{}, interface{}) {
 
 	var input string
 	var allow bool
@@ -106,7 +111,7 @@ func generateInput(profile dataSetProfile, mode inputMode) (ast.Value, interface
 		allow = true
 	}
 
-	return ast.MustParseTerm(input).Value, allow
+	return util.MustUnmarshalJSON([]byte(input)), allow
 }
 
 func generateDataset(profile dataSetProfile) map[string]interface{} {

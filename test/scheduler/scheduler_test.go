@@ -14,32 +14,33 @@ import (
 	"context"
 
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/rego"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/storage/inmem"
-	"github.com/open-policy-agent/opa/topdown"
+	"github.com/open-policy-agent/opa/util"
 )
 
 func TestScheduler(t *testing.T) {
-	params := setup(t, "data_10nodes_30pods.json")
-	defer params.Store.Abort(params.Context, params.Transaction)
+	ctx := context.Background()
+	rego := setup(ctx, t, "data_10nodes_30pods.json")
 
-	qrs, err := topdown.Query(params)
+	rs, err := rego.Eval(ctx)
 
 	if err != nil {
 		t.Fatal("unexpected error:", err)
 	}
-	ws := qrs[0].Result.(map[string]interface{})
+	ws := rs[0].Expressions[0].Value.(map[string]interface{})
 	if len(ws) != 10 {
-		t.Fatal("unexpected query result:", qrs)
+		t.Fatal("unexpected query result:", rs)
 	}
 	for n, w := range ws {
 		if fmt.Sprint(w) != "5.01388889" {
-			t.Fatalf("unexpected weight for: %v: %v\n\nDumping all weights:\n\n%v\n", n, w, qrs)
+			t.Fatalf("unexpected weight for: %v: %v\n\nDumping all weights:\n\n%v\n", n, w, rs)
 		}
 	}
 }
 
-func setup(t *testing.T, filename string) *topdown.QueryParams {
+func setup(ctx context.Context, t *testing.T, filename string) *rego.Rego {
 
 	// policy compilation
 	c := ast.NewCompiler()
@@ -55,13 +56,14 @@ func setup(t *testing.T, filename string) *topdown.QueryParams {
 	store := loadDataStore(filename)
 
 	// parameter setup
-	ctx := context.Background()
-	input := ast.ObjectTerm(ast.Item(ast.StringTerm("pod"), ast.MustParseTerm(requestedPod)))
-	path := ast.MustParseRef("data.opa.test.scheduler.fit")
-	txn := storage.NewTransactionOrDie(ctx, store)
-	params := topdown.NewQueryParams(ctx, c, store, txn, input.Value, path)
+	input := util.MustUnmarshalJSON([]byte(requestedPod))
 
-	return params
+	return rego.New(
+		rego.Compiler(c),
+		rego.Store(store),
+		rego.Input(input),
+		rego.Query("data.opa.test.scheduler.fit"),
+	)
 }
 
 func loadDataStore(filename string) storage.Store {
@@ -91,7 +93,7 @@ func getGOPATH() string {
 const (
 	path = "src/github.com/open-policy-agent/opa/test/scheduler"
 
-	requestedPod = `{
+	requestedPod = `{"pod": {
  "status": {
   "phase": "Pending"
  },
@@ -134,7 +136,7 @@ const (
   "selfLink": "/api/v1/namespaces/kubemark/pods/nginx-mdj4s",
   "uid": "af25a765-4620-11e6-bd6d-0800275521ee"
  }
-}`
+}}`
 
 	policy = `
 package opa.test.scheduler

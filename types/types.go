@@ -452,15 +452,17 @@ type Function struct {
 	result Type
 }
 
+// Args returns an argument list.
+func Args(x ...Type) []Type {
+	return x
+}
+
 // NewFunction returns a new Function object where xs[:len(xs)-1] are arguments
 // and xs[len(xs)-1] is the result type.
-func NewFunction(xs ...Type) *Function {
-	if len(xs) == 0 {
-		return &Function{}
-	}
+func NewFunction(args []Type, result Type) *Function {
 	return &Function{
-		args:   xs[:len(xs)-1],
-		result: xs[len(xs)-1],
+		args:   args,
+		result: result,
 	}
 }
 
@@ -517,12 +519,12 @@ func (t *Function) Union(other *Function) *Function {
 	if len(a) != len(b) {
 		return nil
 	}
-	args := make([]Type, len(a)+1)
+	args := make([]Type, len(a))
 	for i := range a {
 		args[i] = Or(a[i], b[i])
 	}
-	args[len(args)-1] = Or(t.Result(), other.Result())
-	return NewFunction(args...)
+
+	return NewFunction(args, Or(t.Result(), other.Result()))
 }
 
 // Compare returns -1, 0, 1 based on comparison between a and b.

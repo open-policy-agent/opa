@@ -51,7 +51,7 @@ func TestWatchSimple(t *testing.T) {
 		"hello",
 		"bye",
 		"foo",
-		5,
+		json.Number("5"),
 		[]interface{}{json.Number("1"), json.Number("2"), json.Number("3")},
 	}
 
@@ -105,15 +105,19 @@ func TestWatchSimple(t *testing.T) {
 			}
 			e.Metrics = nil
 
-			if len(e.Tracer) != 3 {
-				t.Errorf("Expected explanation to have length 3, got %d", len(e.Tracer))
+			if len(e.Tracer) != 5 {
+				t.Errorf("Expected explanation to have length 5, got %d", len(e.Tracer))
 			}
+
 			e.Tracer = nil
 
-			e.Value[0].Expressions = nil
-			if !reflect.DeepEqual(exp[i], e) {
-				t.Errorf("Expected notification %v, got %v", exp[i], e)
+			if len(e.Value) > 0 {
+				e.Value[0].Expressions = nil
+				if !reflect.DeepEqual(exp[i], e) {
+					t.Errorf("Expected notification %v, got %v", exp[i], e)
+				}
 			}
+
 			notifyRead <- struct{}{}
 			wg.Done()
 		}

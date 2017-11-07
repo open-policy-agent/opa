@@ -151,12 +151,12 @@ func (tc *typeChecker) checkRule(env *TypeEnv, rule *Rule) {
 			})
 
 			// Construct function type.
-			args := make([]types.Type, len(rule.Head.Args)+1)
+			args := make([]types.Type, len(rule.Head.Args))
 			for i := 0; i < len(rule.Head.Args); i++ {
 				args[i] = cpy.Get(rule.Head.Args[i])
 			}
-			args[len(args)-1] = cpy.Get(rule.Head.Value)
-			f := types.NewFunction(args...)
+
+			f := types.NewFunction(args, cpy.Get(rule.Head.Value))
 
 			// Union with existing.
 			exist := env.tree.Get(path)
@@ -228,18 +228,18 @@ func (tc *typeChecker) checkExprBuiltin(env *TypeEnv, expr *Expr) *Error {
 		return NewError(TypeErr, expr.Location, "undefined function %v", name)
 	}
 
-	expArgs := append(ftpe.Args(), ftpe.Result())
+	maxArgs := len(ftpe.Args())
+	expArgs := ftpe.Args()
 
-	if len(args) < len(expArgs) {
-		// TODO(tsandall): this allows callers to omit the result operand if
-		// the value is always true. In future, callers should always allowed
-		// to be able to ignore the result. This leaks into topdown which could
-		// be improved.
-		if len(args) != len(expArgs)-1 || types.Compare(ftpe.Result(), types.T) != 0 {
-			return newArgError(expr.Location, name, "too few arguments", pre, expArgs)
-		}
-	} else if len(args) > len(expArgs) {
+	if ftpe.Result() != nil {
+		maxArgs++
+		expArgs = append(expArgs, ftpe.Result())
+	}
+
+	if len(args) > maxArgs {
 		return newArgError(expr.Location, name, "too many arguments", pre, expArgs)
+	} else if len(args) < len(ftpe.Args()) {
+		return newArgError(expr.Location, name, "too few arguments", pre, expArgs)
 	}
 
 	for i := range args {

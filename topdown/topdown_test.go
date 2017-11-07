@@ -23,229 +23,6 @@ import (
 	testutil "github.com/open-policy-agent/opa/util/test"
 )
 
-func TestEvalRef(t *testing.T) {
-
-	var tests = []struct {
-		ref      string
-		expected interface{}
-	}{
-		{"data.c[i][j]", `[
-		    {i: 0, j: "x"},
-		    {i: 0, j: "y"},
-		    {i: 0, j: "z"}
-		 ]`},
-		{"data.c[i][j][k]", `[
-		    {i: 0, j: "x", k: 0},
-		    {i: 0, j: "x", k: 1},
-		    {i: 0, j: "x", k: 2},
-		    {i: 0, j: "y", k: 0},
-		    {i: 0, j: "y", k: 1},
-		    {i: 0, j: "z", k: "p"},
-		    {i: 0, j: "z", k: "q"}
-		]`},
-		{"data.d[x][y]", `[
-		    {x: "e", y: 0},
-		    {x: "e", y: 1}
-		]`},
-		{`data.c[i]["x"][k]`, `[
-		    {i: 0, k: 0},
-		    {i: 0, k: 1},
-		    {i: 0, k: 2}
-		]`},
-		{"data.c[i][j][i]", `[
-		    {i: 0, j: "x"},
-		    {i: 0, j: "y"}
-		]`},
-		{`data.c[i]["deadbeef"][k]`, nil},
-		{`data.c[999]`, nil},
-	}
-
-	ctx := context.Background()
-	compiler := ast.NewCompiler()
-	store := inmem.NewFromObject(loadSmallTestData())
-	txn := storage.NewTransactionOrDie(ctx, store)
-	defer store.Abort(ctx, txn)
-
-	top := New(ctx, nil, compiler, store, txn)
-
-	for _, tc := range tests {
-
-		testutil.Subtest(t, tc.ref, func(t *testing.T) {
-
-			switch e := tc.expected.(type) {
-			case nil:
-				var tmp *Topdown
-				err := evalRef(top, ast.MustParseRef(tc.ref), ast.Ref{}, func(t *Topdown) error {
-					tmp = t
-					return nil
-				})
-				if err != nil {
-					t.Errorf("Unexpected error: %v", err)
-					return
-				}
-				if tmp != nil {
-					t.Errorf("Expected no bindings (nil) but got: %v", tmp)
-				}
-			case string:
-				expected := parseVarsSlice(e)
-				err := evalRef(top, ast.MustParseRef(tc.ref), ast.Ref{}, func(t *Topdown) error {
-					for j, exp := range expected {
-						if exp.Equal(t.Vars()) {
-							tmp := expected[:j]
-							expected = append(tmp, expected[j+1:]...)
-							return nil
-						}
-					}
-					// If there was not a matching expected binding, treat this case as a failure.
-					return fmt.Errorf("unexpected bindings: %v", t.Vars())
-				})
-				if err != nil {
-					t.Errorf("Expected success but got error: %v", err)
-					return
-				}
-				if len(expected) > 0 {
-					t.Errorf("Missing expected bindings: %v", expected)
-				}
-			}
-		})
-	}
-}
-
-func TestEvalTerms(t *testing.T) {
-
-	tests := []struct {
-		body     string
-		expected string
-	}{
-		{"data.c[i][j][k] = x", `[
-            {i: 0, j: "x", k: 0},
-            {i: 0, j: "x", k: 1},
-            {i: 0, j: "x", k: 2},
-            {i: 0, j: "y", k: 0},
-            {i: 0, j: "y", k: 1},
-            {i: 0, j: "z", k: "p"},
-            {i: 0, j: "z", k: "q"}
-        ]`},
-		{"data.a[i] = data.h[j][k]", `[
-		    {i: 0, j: 0, k: 0},
-		    {i: 1, j: 0, k: 1},
-		    {i: 1, j: 1, k: 0},
-		    {i: 2, j: 0, k: 2},
-		    {i: 2, j: 1, k: 1},
-		    {i: 3, j: 1, k: 2}
-		]`},
-		{`data.d[x][y] = "baz"`, `[
-		    {x: "e", y: 1}
-		]`},
-		{"data.d[x][y] = data.d[x][y]", `[
-		    {x: "e", y: 0},
-		    {x: "e", y: 1}
-		]`},
-		{"data.d[x][y] = data.z[i]", `[]`},
-		{"data.a[data.a[i]] = 3", `[
-			{i: 0},
-			{i: 1},
-			{i: 2}
-		]`},
-	}
-
-	ctx := context.Background()
-	compiler := ast.NewCompiler()
-	store := inmem.NewFromObject(loadSmallTestData())
-
-	txn := storage.NewTransactionOrDie(ctx, store)
-	defer store.Abort(ctx, txn)
-
-	for _, tc := range tests {
-
-		testutil.Subtest(t, tc.body, func(t *testing.T) {
-
-			top := New(ctx, ast.MustParseBody(tc.body), compiler, store, txn)
-
-			expected := parseVarsSlice(tc.expected)
-
-			err := evalTerms(top, func(t *Topdown) error {
-				if len(expected) > 0 {
-					for j, exp := range expected {
-						if exp.Equal(t.Vars()) {
-							tmp := expected[:j]
-							expected = append(tmp, expected[j+1:]...)
-							return nil
-						}
-					}
-				}
-				// If there was not a matching expected binding, treat this case as a failure.
-				return fmt.Errorf("unexpected bindings: %v", t.Vars())
-			})
-
-			if err != nil {
-				t.Errorf("Expected success but got error: %v", err)
-				return
-			}
-
-			if len(expected) > 0 {
-				t.Errorf("Missing expected bindings: %v", expected)
-			}
-
-		})
-	}
-}
-
-func TestPlugValue(t *testing.T) {
-
-	a := ast.Var("a")
-	b := ast.Var("b")
-	c := ast.Var("c")
-	k := ast.Var("k")
-	v := ast.Var("v")
-	cs := ast.MustParseTerm("[c]").Value
-	ks := ast.MustParseTerm(`{k: "world"}`).Value
-	vs := ast.MustParseTerm(`{"hello": v}`).Value
-	hello := ast.String("hello")
-	world := ast.String("world")
-
-	t1 := New(nil, nil, nil, nil, nil)
-	t1.Bind(a, b, nil)
-	t1.Bind(b, cs, nil)
-	t1.Bind(c, ks, nil)
-	t1.Bind(k, hello, nil)
-
-	t2 := New(nil, nil, nil, nil, nil)
-	t2.Bind(a, b, nil)
-	t2.Bind(b, cs, nil)
-	t2.Bind(c, vs, nil)
-	t2.Bind(v, world, nil)
-
-	expected := ast.MustParseTerm(`[{"hello": "world"}]`).Value
-
-	r1 := PlugValue(a, t1.Binding)
-
-	if expected.Compare(r1) != 0 {
-		t.Errorf("Expected %v but got %v", expected, r1)
-		return
-	}
-
-	r2 := PlugValue(a, t2.Binding)
-
-	if expected.Compare(r2) != 0 {
-		t.Errorf("Expected %v but got %v", expected, r2)
-	}
-
-	n := ast.MustParseTerm("a.b[x.y[i]]").Value
-
-	t3 := New(nil, nil, nil, nil, nil)
-	t3.Bind(ast.Var("i"), ast.IntNumberTerm(1).Value, nil)
-	t3.Bind(ast.MustParseTerm("x.y[i]").Value, ast.IntNumberTerm(1).Value, nil)
-
-	expected = ast.MustParseTerm("a.b[1]").Value
-
-	r3 := PlugValue(n, t3.Binding)
-
-	if expected.Compare(r3) != 0 {
-		t.Errorf("Expected %v but got: %v", expected, r3)
-	}
-}
-
 func TestTopDownCompleteDoc(t *testing.T) {
 	tests := []struct {
 		note     string
@@ -291,7 +68,7 @@ func TestTopDownPartialSetDoc(t *testing.T) {
 		{"object keys", `p[x] { b[x] = _ }`, `["v1", "v2"]`},
 		{"object values", `p[x] { b[i] = x }`, `["hello", "goodbye"]`},
 		{"nested composites", `p[x] { f[i] = x }`, `[{"xs": [1.0], "ys": [2.0]}, {"xs": [2.0], "ys": [3.0]}]`},
-		{"deep ref/heterogeneous", `p[x] { c[i][j][k] = x }`, `[null, 3.14159, true, false, true, false, "foo"]`},
+		{"deep ref/heterogeneous", `p[x] { c[i][j][k] = x }`, `[null, 3.14159, false, true, "foo"]`},
 		{"composite var value", `p[x] { x = [i, a[i]] }`, "[[0,1],[1,2],[2,3],[3,4]]"},
 		{"composite key", `p[[x, {"y": y}]] { x = 1; y = 2 }`, `[[1,{"y": 2}]]`},
 	}
@@ -311,10 +88,6 @@ func TestTopDownPartialObjectDoc(t *testing.T) {
 	}{
 		{"identity", `p[k] = v { b[k] = v }`, `{"v1": "hello", "v2": "goodbye"}`},
 		{"composites", `p[k] = v { d[k] = v }`, `{"e": ["bar", "baz"]}`},
-		// TODO(tsandall): this error should be handled earlier during
-		// evaluation but that will require updating a bunch of tests that are
-		// currently producing non-string keys.
-		{"non-var/string key", `p[k] = v { a[k] = v }`, fmt.Errorf("object value has non-string key")},
 		{"body/join var", `p[k] = v { a[i] = v; g[k][i] = v }`, `{"a": 1, "b": 2, "c": 4}`},
 		{"composite value", `p[k] = [v1, {"v2": v2}] { g[k] = x; x[v1] = v2; v2 != 0 }`, `{
 			"a": [0, {"v2": 1}],
@@ -353,6 +126,7 @@ func TestTopDownEvalTermExpr(t *testing.T) {
 		{"set empty", `p = true { set() }`, "true"},
 		{"ref", `p = true { a[i] }`, "true"},
 		{"ref undefined", `p = true { data.deadbeef[i] }`, ""},
+		{"ref undefined (path)", `p = true { data.a[true] }`, ""},
 		{"ref false", `p = true { data.c[0].x[1] }`, ""},
 		{"array comprehension", `p = true { [x | x = 1] }`, "true"},
 		{"array comprehension empty", `p = true { [x | x = 1; x = 2] }`, "true"},
@@ -444,7 +218,7 @@ func TestTopDownEqExpr(t *testing.T) {
 	}
 }
 
-func TestTopDownUndo(t *testing.T) {
+func TestTopDownUndos(t *testing.T) {
 	tests := []struct {
 		note     string
 		rule     string
@@ -783,6 +557,10 @@ p = true { false }`,
 		q = 2
 		r = 1`,
 
+		`package topdown.missing.input.value
+
+		p = input.deadbeef`,
+
 		// Define virtual docs that we can query to obtain merged result.
 		`package topdown
 
@@ -843,7 +621,7 @@ iterate_ground[x] { data.topdown.virtual.constants[x] = 1 }
 	assertTopDownWithPath(t, compiler, store, "base/virtual: no base", []string{"topdown", "s"}, "{}", `{"base": {"doc": {"p": true}}}`)
 	assertTopDownWithPath(t, compiler, store, "base/virtual: undefined", []string{"topdown", "t"}, "{}", "{}")
 	assertTopDownWithPath(t, compiler, store, "base/virtual: undefined-2", []string{"topdown", "v"}, "{}", `{"h": {"k": [1,2,3]}}`)
-	assertTopDownWithPath(t, compiler, store, "base/virtual: missing input value", []string{"topdown", "u"}, "{}", "")
+	assertTopDownWithPath(t, compiler, store, "base/virtual: missing input value", []string{"topdown", "u"}, "{}", "{}")
 	assertTopDownWithPath(t, compiler, store, "iterate ground", []string{"topdown", "iterate_ground"}, "{}", `["p", "r"]`)
 }
 
@@ -911,7 +689,7 @@ func TestTopDownVarReferences(t *testing.T) {
 		{"ground", []string{`p[x] { v = [[1, 2], [2, 3], [3, 4]]; x = v[2][1] }`}, "[4]"},
 		{"non-ground", []string{`p[x] { v = [[1, 2], [2, 3], [3, 4]]; x = v[i][j] }`}, "[1,2,3,4]"},
 		{"mixed", []string{`p[x] = y { v = [{"a": 1, "b": 2}, {"c": 3, "z": [4]}]; y = v[i][x][j] }`}, `{"z": 4}`},
-		{"ref binding", []string{`p[x] { v = c[i][j]; x = v[k]; x = true }`}, "[true, true]"},
+		{"ref binding", []string{`p[x] { v = c[i][j]; x = v[k]; x = true }`}, "[true]"},
 		{"existing ref binding", []string{`p = x { q = a; q[0] = x; q[0] }`}, `1`},
 		{"embedded", []string{`p[x] { v = [1, 2, 3]; x = [{"a": v[i]}] }`}, `[[{"a": 1}], [{"a": 2}], [{"a": 3}]]`},
 		{"embedded ref binding", []string{`p[x] { v = c[i][j]; w = [v[0], v[1]]; x = w[y] }`}, "[null, false, true, 3.14159]"},
@@ -1089,7 +867,7 @@ func TestTopDownComprehensions(t *testing.T) {
 		{"object conflict", []string{
 			`p[x] { q.a = x }`,
 			`q[k] = v { k = "a"; v = {"bar": y | i[_] = _; i = y; i = {"foo": z | z = a[_]}} }`,
-		}, errors.New(`i = {"foo": z | z = a[_]}: eval_conflict_error: object comprehension produces conflicting outputs`)},
+		}, objectDocKeyConflictErr(nil)},
 
 		{"set simple", []string{`p = y {y = {x | x = a[_]; x > 1}}`}, "[2,3,4]"},
 		{"set nested", []string{`p[i] { ys = {y | y = x[_]; x = {z | z = a[_]}}; ys[i] > 1 }`}, "[2,3,4]"},
@@ -1489,7 +1267,7 @@ func TestTopDownJWTBuiltins(t *testing.T) {
 
 		tests = append(tests, test{
 			p.note,
-			[]string{fmt.Sprintf(`p = [x, y, z] { io.jwt.decode("%s", x, y, z) }`, p.input)},
+			[]string{fmt.Sprintf(`p = [x, y, z] { io.jwt.decode("%s", [x, y, z]) }`, p.input)},
 			exp,
 		})
 	}
@@ -1506,7 +1284,8 @@ func TestTopDownTime(t *testing.T) {
 	ast.RegisterBuiltin(&ast.Builtin{
 		Name: "test_sleep",
 		Decl: types.NewFunction(
-			types.S,
+			types.Args(types.S),
+			nil,
 		),
 	})
 
@@ -1687,46 +1466,6 @@ loopback = input { true }`})
 			}
 		}
 	}`, "true")
-
-	assertTopDownWithPath(t, compiler, store, "embedded ref to base doc", []string{"z", "s"}, `{
-		"req3": {
-			"a": {
-				"b": {
-					"x": data.a
-				}
-			}
-		}
-	}`, "true")
-
-	assertTopDownWithPath(t, compiler, store, "embedded non-ground ref to base doc", []string{"z", "u"}, `{
-		"req3": {
-			"a": {
-				"b": data.l[x].c
-			}
-		}
-	}`, [][2]string{
-		{"[2,3,4]", `{"x": 0}`},
-		{"[2,3,4,5]", `{"x": 1}`},
-	})
-
-	assertTopDownWithPath(t, compiler, store, "embedded non-ground ref to virtual doc", []string{"z", "u"}, `{
-		"req3": {
-			"a": {
-				"b": data.z.w[x]
-			}
-		}
-	}`, [][2]string{
-		{"[2]", `{"x": 0}`},
-		{"[3,4]", `{"x": 1}`},
-	})
-
-	assertTopDownWithPath(t, compiler, store, "non-ground ref to virtual doc-2", []string{"z", "gt1"}, `{
-		"req1": data.z.keys[x]
-	}`, [][2]string{
-		{"true", `{"x": "2"}`},
-		{"true", `{"x": "3"}`},
-		{"true", `{"x": "4"}`},
-	})
 }
 
 func TestTopDownPartialDocConstants(t *testing.T) {
@@ -1941,6 +1680,13 @@ func TestTopDownFunctions(t *testing.T) {
 
 		p = true
 		f(x) = x`,
+		`
+		package test.omit_result
+
+		f(x) = x
+
+		p { f(1) }
+		`,
 	}
 
 	compiler := compileModules(modules)
@@ -1965,6 +1711,7 @@ func TestTopDownFunctions(t *testing.T) {
 	assertTopDownWithPath(t, compiler, store, "multi4", []string{"ex", "multi4"}, "", `"bar"`)
 	assertTopDownWithPath(t, compiler, store, "multi cross package", []string{"test", "multi_cross_pkg"}, "", `["bar", 3]`)
 	assertTopDownWithPath(t, compiler, store, "skip-functions", []string{"test.l1"}, ``, `{"l2": {"p": true}, "l3": {}}`)
+	assertTopDownWithPath(t, compiler, store, "omit result", []string{"test.omit_result.p"}, ``, `true`)
 }
 
 func TestTopDownFunctionErrors(t *testing.T) {
@@ -2018,7 +1765,7 @@ func TestTopDownFunctionErrors(t *testing.T) {
 	txn := storage.NewTransactionOrDie(ctx, store)
 	defer store.Abort(ctx, txn)
 
-	assertTopDownWithPath(t, compiler, store, "function output conflict single", []string{"test1", "r"}, "", completeDocConflictErr(nil))
+	assertTopDownWithPath(t, compiler, store, "function output conflict single", []string{"test1", "r"}, "", functionConflictErr(nil))
 	assertTopDownWithPath(t, compiler, store, "function input no match", []string{"test2", "r"}, "", "")
 	assertTopDownWithPath(t, compiler, store, "function output conflict multiple", []string{"test3", "r"}, "", completeDocConflictErr(nil))
 }
@@ -2159,24 +1906,6 @@ func TestTopDownElseKeyword(t *testing.T) {
 	}
 }
 
-func TestTopDownCaching(t *testing.T) {
-	compiler := compileModules([]string{`package topdown.caching
-
-p[x] { q[x]; q[y] }
-q[x] { data.d.e[_] = k; r[k] = x }
-r[k] = v { data.strings[k] = v }
-err_top = true { data.l[_] = x; err_obj[x] = _ }
-err_obj[k] = true { k = data.l[_] }`,
-	})
-
-	store := inmem.NewFromObject(loadSmallTestData())
-
-	assertTopDownWithPath(t, compiler, store, "reference lookup", []string{"topdown", "caching", "p"}, `{}`, "[2,3]")
-
-	assertTopDownWithPath(t, compiler, store, "unhandled error", []string{"topdown", "caching", "err_top"}, "{}", objectDocKeyTypeErr(nil))
-	assertTopDownWithPath(t, compiler, store, "unhandled error", []string{"topdown", "caching", "err_obj"}, "{}", objectDocKeyTypeErr(nil))
-}
-
 func TestTopDownSystemDocument(t *testing.T) {
 
 	compiler := compileModules([]string{`
@@ -2292,11 +2021,8 @@ func TestTopDownUnsupportedBuiltin(t *testing.T) {
 	compiler := ast.NewCompiler()
 	store := inmem.New()
 	txn := storage.NewTransactionOrDie(ctx, store)
-	top := New(ctx, body, compiler, store, txn)
-
-	err := Eval(top, func(*Topdown) error {
-		return nil
-	})
+	q := NewQuery(body).WithCompiler(compiler).WithStore(store).WithTransaction(txn)
+	_, err := q.Run(ctx)
 
 	expected := unsupportedBuiltinErr(body[0].Location)
 
@@ -2310,7 +2036,8 @@ func TestTopDownQueryCancellation(t *testing.T) {
 	ast.RegisterBuiltin(&ast.Builtin{
 		Name: "test.sleep",
 		Decl: types.NewFunction(
-			types.S,
+			types.Args(types.S),
+			nil,
 		),
 	})
 
@@ -2336,16 +2063,20 @@ func TestTopDownQueryCancellation(t *testing.T) {
 
 	store := inmem.NewFromObject(data)
 	txn := storage.NewTransactionOrDie(ctx, store)
+	cancel := NewCancel()
 
-	params := NewQueryParams(ctx, compiler, store, txn, nil, ast.MustParseRef("data.test.p"))
-	params.Cancel = NewCancel()
+	query := NewQuery(ast.MustParseBody("data.test.p")).
+		WithCompiler(compiler).
+		WithStore(store).
+		WithTransaction(txn).
+		WithCancel(cancel)
 
 	go func() {
 		time.Sleep(time.Millisecond * 50)
-		params.Cancel.Cancel()
+		cancel.Cancel()
 	}()
 
-	qrs, err := Query(params)
+	qrs, err := query.Run(ctx)
 	if err == nil || err.(*Error).Code != CancelErr {
 		t.Fatalf("Expected cancel error but got: %v (err: %v)", qrs, err)
 	}
@@ -2396,9 +2127,12 @@ p[x] { data.a[i] = x }`,
 
 	mockStore := &contextPropagationStore{}
 	txn := storage.NewTransactionOrDie(ctx, mockStore)
-	params := NewQueryParams(ctx, compiler, mockStore, txn, nil, ast.MustParseRef("data.ex.p"))
+	query := NewQuery(ast.MustParseBody("data.ex.p")).
+		WithCompiler(compiler).
+		WithStore(mockStore).
+		WithTransaction(txn)
 
-	_, err := Query(params)
+	_, err := query.Run(ctx)
 	if err != nil {
 		t.Fatalf("Unexpected query error: %v", err)
 	}
@@ -2408,143 +2142,6 @@ p[x] { data.a[i] = x }`,
 	if !reflect.DeepEqual(expectedCalls, mockStore.calls) {
 		t.Fatalf("Expected %v but got: %v", expectedCalls, mockStore.calls)
 	}
-}
-
-func TestTopDownTracingEval(t *testing.T) {
-	module := `package test
-
-p = true { arr = [1, 2, 3]; x = arr[_]; x != 2 }`
-
-	p := ast.MustParseRule(`p = true { arr = [1, 2, 3]; x = arr[_]; x != 2 }`)
-	runTopDownTracingTestCase(t, module, 15, map[int]*Event{
-		6:  &Event{ExitOp, p, 2, 1, parseBindings("{x: 1}")},
-		7:  &Event{RedoOp, p, 2, 1, nil},
-		8:  &Event{RedoOp, parseExpr("x = arr[_]", 1), 2, 1, nil},
-		9:  &Event{EvalOp, parseExpr("x != 2", 2), 2, 1, parseBindings("{x: 2}")},
-		10: &Event{FailOp, parseExpr("x != 2", 2), 2, 1, parseBindings("{x: 2}")},
-		11: &Event{RedoOp, parseExpr("x = arr[_]", 1), 2, 1, parseBindings("{arr: [1,2,3]}")},
-		12: &Event{EvalOp, parseExpr("x != 2", 2), 2, 1, parseBindings("{x: 3}")},
-		13: &Event{ExitOp, p, 2, 1, parseBindings("{x: 3}")},
-	})
-}
-
-func TestTopDownTracingNegation(t *testing.T) {
-	module := `package test
-
-p = true { arr = [1, 2, 3, 4]; x = arr[_]; not x = 2 }`
-
-	runTopDownTracingTestCase(t, module, 31, map[int]*Event{
-		5:  &Event{EvalOp, parseExpr("not x = 2", 2), 2, 1, parseBindings("{x: 1}")},
-		6:  &Event{EnterOp, ast.MustParseBody("x = 2"), 3, 2, parseBindings("{x: 1}")},
-		16: &Event{FailOp, parseExpr("not x = 2", 2), 2, 1, parseBindings("{x: 2}")},
-	})
-}
-
-func TestTopDownTracingCompleteDocs(t *testing.T) {
-	module := `package test
-
-p = true { q[1] = "b" }
-q = ["a", "b", "c", "d"] { true }
-q = null { false }`
-
-	runTopDownTracingTestCase(t, module, 12, map[int]*Event{
-		4: &Event{EnterOp, ast.MustParseRule(`q = ["a", "b", "c", "d"] { true }`), 3, 2, nil},
-		6: &Event{ExitOp, ast.MustParseRule(`q = ["a", "b", "c", "d"] { true }`), 3, 2, nil},
-		7: &Event{RedoOp, ast.MustParseRule(`q = null { false }`), 4, 2, nil},
-		9: &Event{FailOp, parseExpr("false", 0), 4, 2, nil},
-	})
-}
-
-func TestTopDownTracingPartialSets(t *testing.T) {
-	module := `package test
-
-p = true { q[x]; x != 2; r[x]; s[x] }
-q[y] { arr = [1, 2, 3, 4]; y = arr[i] }
-r[z] { z = data.a[i]; z > 1 }
-s[x] { x = 3 }
-s[y] { y = 4 }`
-
-	q := ast.MustParseRule(`q[y] { arr = [1, 2, 3, 4]; y = arr[i] }`)
-	r := ast.MustParseRule(`r[z] { z = data.a[i]; z > 1 }`)
-	sx := ast.MustParseRule(`s[x] { x = 3 }`)
-	sy := ast.MustParseRule(`s[y] { y = 4 }`)
-
-	runTopDownTracingTestCase(t, module, 60, map[int]*Event{
-		4:  &Event{EnterOp, q, 3, 2, nil},
-		7:  &Event{ExitOp, q, 3, 2, parseBindings("{y: 1}")},
-		10: &Event{EnterOp, r, 4, 2, parseBindings("{z: 1}")},
-		16: &Event{RedoOp, q, 3, 2, nil},
-		17: &Event{RedoOp, parseExpr("y = arr[i]", 1), 3, 2, nil},
-		18: &Event{ExitOp, q, 3, 2, parseBindings("{y: 2}")},
-		30: &Event{ExitOp, r, 5, 2, parseBindings("{z: 3}")},
-		32: &Event{EnterOp, sx, 6, 2, parseBindings("{x: 3}")},
-		34: &Event{ExitOp, sx, 6, 2, parseBindings("{x: 3}")},
-		38: &Event{RedoOp, sy, 7, 2, parseBindings("{y: 3}")},
-		40: &Event{FailOp, parseExpr("y = 4", 0), 7, 2, parseBindings("{y: 3}")},
-	})
-}
-
-func TestTopDownTracingPartialObjects(t *testing.T) {
-	module := `package test
-
-p = true { q[x] = y; x != "b"; r[x] > y }
-q[k] = v { obj = {"a": 1, "b": 2, "c": 3, "d": 4}; obj[k] = v }
-r["a"] = 0 { true }
-r["c"] = 4 { true }`
-
-	q := ast.MustParseRule(`q[k] = v { obj = {"a": 1, "b": 2, "c": 3, "d": 4}; obj[k] = v }`)
-	ra := ast.MustParseRule(`r["a"] = 0 { true }`)
-	rc := ast.MustParseRule(`r["c"] = 4 { true }`)
-
-	runTopDownTracingTestCase(t, module, 39, map[int]*Event{
-		4:  &Event{EnterOp, q, 3, 2, nil},
-		7:  &Event{ExitOp, q, 3, 2, parseBindings(`{k: "a", v: 1}`)},
-		10: &Event{EnterOp, ra, 4, 2, nil},
-		15: &Event{RedoOp, q, 3, 2, nil},
-		16: &Event{RedoOp, parseExpr("obj[k] = v", 1), 3, 2, nil},
-		17: &Event{ExitOp, q, 3, 2, parseBindings(`{k: "b", v: 2}`)},
-		26: &Event{RedoOp, rc, 7, 2, nil},
-		28: &Event{ExitOp, rc, 7, 2, nil},
-	})
-}
-
-func TestTopDownTracingPartialObjectsFull(t *testing.T) {
-	module := `package test
-
-p = true { q = v; v.b != 0 }
-q[k] = 1 { ks = ["a", "b", "c"]; k = ks[_] }
-q["x"] = 100 { true }`
-
-	q := ast.MustParseRule(`q[k] = 1 { ks = ["a", "b", "c"]; k = ks[_] }`)
-	qx := ast.MustParseRule(`q["x"] = 100 { true }`)
-
-	runTopDownTracingTestCase(t, module, 20, map[int]*Event{
-		4:  &Event{EnterOp, q, 3, 2, nil},
-		7:  &Event{ExitOp, q, 3, 2, parseBindings(`{k: "a"}`)},
-		8:  &Event{RedoOp, q, 3, 2, nil},
-		10: &Event{ExitOp, q, 3, 2, parseBindings(`{k: "b"}`)},
-		11: &Event{RedoOp, q, 3, 2, nil},
-		13: &Event{ExitOp, q, 3, 2, parseBindings(`{k: "c"}`)},
-		14: &Event{RedoOp, qx, 4, 2, nil},
-		16: &Event{ExitOp, qx, 4, 2, nil},
-	})
-}
-
-func TestTopDownTracingComprehensions(t *testing.T) {
-	module := `package test
-
-p = true { m = 1; count([x | x = data.a[_]; x > m], n); n = 3 }`
-
-	compr := ast.MustParseBody(`x = data.a[_]; x > m`)
-
-	runTopDownTracingTestCase(t, module, 23, map[int]*Event{
-		5:  &Event{EnterOp, compr, 3, 2, parseBindings(`{m: 1}`)},
-		11: &Event{ExitOp, compr, 3, 2, parseBindings(`{m: 1, x: data.a[1]}`)},
-		12: &Event{RedoOp, compr, 3, 2, parseBindings(`{m: 1}`)},
-		15: &Event{ExitOp, compr, 3, 2, parseBindings(`{m: 1, x: data.a[2]}`)},
-		16: &Event{RedoOp, compr, 3, 2, parseBindings(`{m: 1}`)},
-		19: &Event{ExitOp, compr, 3, 2, parseBindings(`{m: 1, x: data.a[3]}`)},
-	})
 }
 
 func compileModules(input []string) *ast.Compiler {
@@ -2566,10 +2163,7 @@ func compileModules(input []string) *ast.Compiler {
 
 func compileRules(imports []string, input []string) (*ast.Compiler, error) {
 
-	rules := []*ast.Rule{}
-	for _, i := range input {
-		rules = append(rules, ast.MustParseRule(i))
-	}
+	p := ast.Ref{ast.DefaultRootDocument}
 
 	is := []*ast.Import{}
 	for _, i := range imports {
@@ -2578,14 +2172,20 @@ func compileRules(imports []string, input []string) (*ast.Compiler, error) {
 		})
 	}
 
-	p := ast.Ref{ast.DefaultRootDocument}
 	m := &ast.Module{
 		Package: &ast.Package{
 			Path: p,
 		},
 		Imports: is,
-		Rules:   rules,
 	}
+
+	rules := []*ast.Rule{}
+	for i := range input {
+		rules = append(rules, ast.MustParseRule(input[i]))
+		rules[i].Module = m
+	}
+
+	m.Rules = rules
 
 	for i := range rules {
 		rules[i].Module = m
@@ -2619,13 +2219,13 @@ func parseBindings(s string) *ast.ValueMap {
 	return r
 }
 
-func parseVars(s string) Vars {
+func parseVars(s string) map[ast.Var]ast.Value {
 	t := ast.MustParseTerm(s)
 	obj, ok := t.Value.(ast.Object)
 	if !ok {
 		return nil
 	}
-	r := Vars{}
+	r := map[ast.Var]ast.Value{}
 	for _, pair := range obj {
 		k, v := pair[0].Value, pair[1].Value
 		if k, ok := k.(ast.Var); ok {
@@ -2637,13 +2237,13 @@ func parseVars(s string) Vars {
 	return r
 }
 
-func parseVarsSlice(s string) []Vars {
+func parseVarsSlice(s string) []map[ast.Var]ast.Value {
 	t := ast.MustParseTerm(s)
 	arr, ok := t.Value.(ast.Array)
 	if !ok {
 		return nil
 	}
-	r := []Vars{}
+	r := []map[ast.Var]ast.Value{}
 	for _, elem := range arr {
 		if vars := parseVars(elem.String()); vars != nil {
 			r = append(r, vars)
@@ -2660,24 +2260,6 @@ func parseJSON(input string) interface{} {
 		panic(err)
 	}
 	return data
-}
-
-func parseQueryResultSetJSON(input [][2]string) (result QueryResultSet) {
-	for i := range input {
-		result.Add(&QueryResult{parseJSON(input[i][0]), parseJSON(input[i][1]).(map[string]interface{})})
-	}
-	return result
-}
-
-func parseSortedJSON(input string) interface{} {
-	data := parseJSON(input)
-	switch data := data.(type) {
-	case []interface{}:
-		sort.Sort(resultSet(data))
-		return data
-	default:
-		return data
-	}
 }
 
 // loadSmallTestData returns base documents that are referenced
@@ -2765,63 +2347,12 @@ func runTopDownTestCase(t *testing.T, data map[string]interface{}, note string, 
 	assertTopDownWithPath(t, compiler, store, note, []string{"p"}, "", expected)
 }
 
-func runTopDownTracingTestCase(t *testing.T, module string, n int, cases map[int]*Event) {
-
-	ctx := context.Background()
-	compiler := compileModules([]string{module})
-	data := loadSmallTestData()
-	store := inmem.NewFromObject(data)
-	txn := storage.NewTransactionOrDie(ctx, store)
-	params := NewQueryParams(ctx, compiler, store, txn, nil, ast.MustParseRef("data.test.p"))
-	buf := NewBufferTracer()
-	params.Tracer = buf
-
-	qidFactory.Reset()
-
-	_, err := Query(params)
-	if err != nil {
-		t.Fatalf("Unexpected error: %v", err)
-	}
-
-	if len(*buf) != n {
-		t.Errorf("Expected %d events but got: %v\n%v", n, len(*buf), buf)
-	}
-
-	for i, expected := range cases {
-		if len(*buf) <= i {
-			continue
-		}
-		result := (*buf)[i]
-		bindings := ast.NewValueMap()
-		expected.Locals.Iter(func(k, _ ast.Value) bool {
-			if v := result.Locals.Get(k); v != nil {
-				bindings.Put(k, v)
-			}
-			return false
-		})
-		result.Locals = bindings
-		if !result.Equal(expected) {
-			t.Errorf("Expected event %d to equal %v but got: %v", i, expected, result)
-		}
-	}
-}
-
 func assertTopDownWithPath(t *testing.T, compiler *ast.Compiler, store storage.Store, note string, path []string, input string, expected interface{}) {
-	var ref ast.Ref
-	if len(path) == 0 {
-		ref = ast.DefaultRootRef
-	} else {
-		ref = ast.MustParseRef("data." + strings.Join(path, "."))
-	}
 
-	assertTopDownWithRef(t, compiler, store, note, ref, input, expected)
-}
-
-func assertTopDownWithRef(t *testing.T, compiler *ast.Compiler, store storage.Store, note string, ref ast.Ref, input string, expected interface{}) {
-	var req ast.Value
+	var inputTerm *ast.Term
 
 	if len(input) > 0 {
-		req = ast.MustParseTerm(input).Value
+		inputTerm = ast.MustParseTerm(input)
 	}
 
 	ctx := context.Background()
@@ -2829,12 +2360,25 @@ func assertTopDownWithRef(t *testing.T, compiler *ast.Compiler, store storage.St
 
 	defer store.Abort(ctx, txn)
 
-	params := NewQueryParams(ctx, compiler, store, txn, req, ref)
+	var lhs *ast.Term
+	if len(path) == 0 {
+		lhs = ast.NewTerm(ast.DefaultRootRef)
+	} else {
+		lhs = ast.MustParseTerm("data." + strings.Join(path, "."))
+	}
+
+	rhs := ast.VarTerm(ast.WildcardPrefix + "result")
+
+	query := NewQuery(ast.NewBody(ast.Equality.Expr(lhs, rhs))).
+		WithCompiler(compiler).
+		WithStore(store).
+		WithTransaction(txn).
+		WithInput(inputTerm)
 
 	testutil.Subtest(t, note, func(t *testing.T) {
 		switch e := expected.(type) {
 		case error:
-			result, err := Query(params)
+			result, err := query.Run(ctx)
 			if err == nil {
 				t.Errorf("Expected error but got: %v", result)
 				return
@@ -2844,48 +2388,40 @@ func assertTopDownWithRef(t *testing.T, compiler *ast.Compiler, store storage.St
 				t.Errorf("Expected error %v but got: %v", e, err)
 			}
 
-		case [][2]string:
-			qrs, err := Query(params)
-			if err != nil {
-				t.Fatalf("Unexpected error: %v", err)
-			}
-
-			expected := parseQueryResultSetJSON(e)
-
-			if !reflect.DeepEqual(expected, qrs) {
-				t.Fatalf("Expected %v but got: %v", expected, qrs)
-			}
-
 		case string:
-			qrs, err := Query(params)
+			qrs, err := query.Run(ctx)
 
 			if err != nil {
 				t.Fatalf("Unexpected error: %v", err)
 			}
 
 			if len(e) == 0 {
-				if !qrs.Undefined() {
+				if len(qrs) != 0 {
 					t.Fatalf("Expected undefined result but got: %v", qrs)
 				}
 				return
 			}
 
-			if qrs.Undefined() {
+			if len(qrs) == 0 {
 				t.Fatalf("Expected %v but got undefined", e)
 			}
 
-			var expected interface{}
-
-			// Sort set results so that comparisons are not dependant on order.
-			if rs := compiler.GetRulesExact(ref); len(rs) > 0 && rs[0].Head.DocKind() == ast.PartialSetDoc {
-				sort.Sort(resultSet(qrs[0].Result.([]interface{})))
-				expected = parseSortedJSON(e)
-			} else {
-				expected = parseJSON(e)
+			result, err := ast.JSON(qrs[0][rhs.Value.(ast.Var)].Value)
+			if err != nil {
+				t.Fatal(err)
 			}
 
-			if !reflect.DeepEqual(qrs[0].Result, expected) {
-				t.Errorf("Expected %v but got: %v", expected, qrs[0].Result)
+			expected := util.MustUnmarshalJSON([]byte(e))
+
+			if rules := compiler.GetRulesExact(lhs.Value.(ast.Ref)); len(rules) > 0 && rules[0].Head.DocKind() == ast.PartialSetDoc {
+				sort.Sort(resultSet(result.([]interface{})))
+				if sl, ok := expected.([]interface{}); ok {
+					sort.Sort(resultSet(sl))
+				}
+			}
+
+			if util.Compare(expected, result) != 0 {
+				t.Fatalf("Unexpected result:\nGot: %v\nExp:\n%v", result, expected)
 			}
 		}
 	})

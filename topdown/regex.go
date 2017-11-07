@@ -15,23 +15,23 @@ import (
 var regexpCacheLock = sync.Mutex{}
 var regexpCache map[string]*regexp.Regexp
 
-func builtinRegexMatch(a, b ast.Value) error {
+func builtinRegexMatch(a, b ast.Value) (ast.Value, error) {
 	s1, err := builtins.StringOperand(a, 1)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	s2, err := builtins.StringOperand(b, 2)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	re, err := getRegexp(string(s1))
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if re.Match([]byte(s2)) {
-		return nil
+		return ast.Boolean(true), nil
 	}
-	return BuiltinEmpty{}
+	return nil, BuiltinEmpty{}
 }
 
 func getRegexp(pat string) (*regexp.Regexp, error) {
@@ -51,5 +51,5 @@ func getRegexp(pat string) (*regexp.Regexp, error) {
 
 func init() {
 	regexpCache = map[string]*regexp.Regexp{}
-	RegisterFunctionalBuiltinVoid2(ast.RegexMatch.Name, builtinRegexMatch)
+	RegisterFunctionalBuiltin2(ast.RegexMatch.Name, builtinRegexMatch)
 }

@@ -22,17 +22,18 @@ func TestCheckInference(t *testing.T) {
 	RegisterBuiltin(&Builtin{
 		Name: "fake_builtin_1",
 		Decl: types.NewFunction(
+			nil,
 			types.NewArray(
 				[]types.Type{types.S, types.S}, nil,
 			),
 		),
-		TargetPos: []int{0},
 	})
 
 	// fake_builtin_2({"a":str1,"b":str2})
 	RegisterBuiltin(&Builtin{
 		Name: "fake_builtin_2",
 		Decl: types.NewFunction(
+			nil,
 			types.NewObject(
 				[]*types.StaticProperty{
 					{"a", types.S},
@@ -40,16 +41,15 @@ func TestCheckInference(t *testing.T) {
 				}, nil,
 			),
 		),
-		TargetPos: []int{0},
 	})
 
 	// fake_builtin_3({str1,str2,...})
 	RegisterBuiltin(&Builtin{
 		Name: "fake_builtin_3",
 		Decl: types.NewFunction(
+			nil,
 			types.NewSet(types.S),
 		),
-		TargetPos: []int{0},
 	})
 
 	tests := []struct {
@@ -499,8 +499,8 @@ func TestCheckBadCardinality(t *testing.T) {
 		exp  []types.Type
 	}{
 		{
-			body: "plus(1, 2)",
-			exp:  []types.Type{types.N, types.N},
+			body: "plus(1)",
+			exp:  []types.Type{types.N},
 		},
 		{
 			body: "plus(1, 2, 3, 4)",
@@ -566,19 +566,21 @@ func TestCheckBuiltinErrors(t *testing.T) {
 	RegisterBuiltin(&Builtin{
 		Name: "fake_builtin_2",
 		Decl: types.NewFunction(
-			types.NewAny(types.NewObject(
-				[]*types.StaticProperty{
-					{"a", types.S},
-					{"b", types.S},
-				}, nil,
-			), types.NewObject(
+			types.Args(
+				types.NewAny(types.NewObject(
+					[]*types.StaticProperty{
+						{"a", types.S},
+						{"b", types.S},
+					}, nil),
+				),
+			),
+			types.NewObject(
 				[]*types.StaticProperty{
 					{"b", types.S},
 					{"c", types.S},
 				}, nil,
-			)),
+			),
 		),
-		TargetPos: []int{0},
 	})
 
 	tests := []struct {
@@ -612,6 +614,40 @@ func TestCheckBuiltinErrors(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestVoidBuiltins(t *testing.T) {
+
+	// Void builtins are used in test cases.
+	RegisterBuiltin(&Builtin{
+		Name: "fake_void_builtin",
+		Decl: types.NewFunction(
+			types.Args(types.N),
+			nil,
+		),
+	})
+
+	tests := []struct {
+		query   string
+		wantErr bool
+	}{
+		{"fake_void_builtin(1)", false},
+		{"fake_void_builtin()", true},
+		{"fake_void_builtin(1,2)", true},
+		{"fake_void_builtin(true)", true},
+	}
+
+	for _, tc := range tests {
+		body := MustParseBody(tc.query)
+		checker := newTypeChecker()
+		_, err := checker.CheckBody(newTestEnv(nil), body)
+		if err != nil && !tc.wantErr {
+			t.Fatal(err)
+		} else if err == nil && tc.wantErr {
+			t.Fatal("Expected error")
+		}
+	}
+
 }
 
 func TestCheckRefErrUnsupported(t *testing.T) {

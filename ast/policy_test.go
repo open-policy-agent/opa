@@ -221,26 +221,23 @@ func TestExprOutputVars(t *testing.T) {
 	RegisterBuiltin(&Builtin{
 		Name: "test_out_array",
 		Decl: types.NewFunction(
-			types.NewArray(nil, types.N),
+			nil, types.NewArray(nil, types.N),
 		),
-		TargetPos: []int{0},
 	})
 
 	RegisterBuiltin(&Builtin{
 		Name: "test_out_set",
 		Decl: types.NewFunction(
-			types.NewArray(nil, types.N),
+			nil, types.NewArray(nil, types.N),
 		),
-		TargetPos: []int{0},
 	})
 
 	RegisterBuiltin(&Builtin{
 		Name: "foo",
 		Decl: types.NewFunction(
-			types.A,
+			types.Args(types.A),
 			types.A,
 		),
-		TargetPos: []int{1},
 	})
 
 	tests := []struct {

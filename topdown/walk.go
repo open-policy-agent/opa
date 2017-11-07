@@ -6,58 +6,51 @@ package topdown
 
 import "github.com/open-policy-agent/opa/ast"
 
-func evalWalk(t *Topdown, expr *ast.Expr, iter Iterator) error {
-
-	a, err := ResolveRefs(expr.Operand(0).Value, t)
-	if err != nil {
-		return err
-	}
-
-	b := expr.Operand(1)
-
-	return walkRec(t, b.Value, a, ast.Array{}, iter)
+func evalWalk(bctx BuiltinContext, args []*ast.Term, iter func(*ast.Term) error) error {
+	input := args[0]
+	var path ast.Array
+	return walk(input, path, iter)
 }
 
-func walkRec(t *Topdown, output ast.Value, v ast.Value, path ast.Array, iter Iterator) error {
+func walk(input *ast.Term, path ast.Array, iter func(*ast.Term) error) error {
 
-	if err := unifyAndContinue(t, iter, ast.Array{ast.NewTerm(path), ast.NewTerm(v)}, output); err != nil {
+	output := ast.ArrayTerm(ast.NewTerm(path), input)
+
+	if err := iter(output); err != nil {
 		return err
 	}
 
-	if ast.IsScalar(v) {
-		return nil
-	}
-
-	switch v := v.(type) {
+	switch v := input.Value.(type) {
 	case ast.Array:
 		for i := range v {
 			path = append(path, ast.IntNumberTerm(i))
-			if err := walkRec(t, output, v[i].Value, path, iter); err != nil {
+			if err := walk(v[i], path, iter); err != nil {
 				return err
 			}
 			path = path[:len(path)-1]
 		}
 	case ast.Object:
-		for _, p := range v {
-			path = append(path, p[0])
-			if err := walkRec(t, output, p[1].Value, path, iter); err != nil {
+		for _, pair := range v {
+			path = append(path, pair[0])
+			if err := walk(pair[1], path, iter); err != nil {
 				return err
 			}
 			path = path[:len(path)-1]
 		}
 	case *ast.Set:
 		var err error
-		v.Iter(func(e *ast.Term) bool {
-			path = append(path, e)
-			if err = walkRec(t, output, e.Value, path, iter); err != nil {
+		v.Iter(func(elem *ast.Term) bool {
+			if err != nil {
+				return true
+			}
+			path = append(path, elem)
+			if err = walk(elem, path, iter); err != nil {
 				return true
 			}
 			path = path[:len(path)-1]
 			return false
 		})
-		if err != nil {
-			return err
-		}
+		return err
 	}
 
 	return nil

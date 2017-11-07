@@ -263,7 +263,7 @@ p = true { false }`
 			tr{http.MethodPut, "/policies/test2", testMod5, 200, ""},
 			tr{http.MethodPut, "/policies/test3", testMod6, 200, ""},
 			tr{http.MethodGet, "/data/testmod/undef", "", 200, "{}"},
-			tr{http.MethodGet, "/data/does/not/exist", "", 200, "{}"},
+			tr{http.MethodGet, "/data/doesnot/exist", "", 200, "{}"},
 			tr{http.MethodGet, "/data/testmod/empty/mod", "", 200, `{
 				"result": {}
 			}`},
@@ -306,7 +306,7 @@ p = true { false }`
     		        "file": "test",
     		        "row": 4
     		      },
-    		      "message": "completely defined rules must produce exactly one value"
+    		      "message": "complete rules must not produce multiple outputs"
     		    }
     		  ],
     		  "message": "error(s) occurred while evaluating query"
@@ -660,8 +660,9 @@ func TestDataGetExplainFull(t *testing.T) {
 	}
 
 	explain := mustUnmarshalTrace(result.Explanation)
-	if len(explain) != 3 {
-		t.Fatalf("Expected exactly 3 events but got %d", len(explain))
+	nexpect := 5
+	if len(explain) != nexpect {
+		t.Fatalf("Expected exactly %d events but got %d", nexpect, len(explain))
 	}
 
 	_, ok := explain[2].Node.(ast.Body)
@@ -705,64 +706,7 @@ func TestDataGetExplainFull(t *testing.T) {
 		t.Fatalf("Unexpected JSON decode error: %v", err)
 	}
 
-	exp := []interface{}{`Enter data.x = _`, `| Eval data.x = _`, `| Exit data.x = _`}
-
-	actual := util.MustUnmarshalJSON(result.Explanation).([]interface{})
-	if !reflect.DeepEqual(actual, exp) {
-		t.Fatalf(`Expected pretty explanation to be %v, got %v`, exp, actual)
-	}
-}
-
-func TestDataGetExplainTruth(t *testing.T) {
-	f := newFixture(t)
-
-	f.v1(http.MethodPut, "/policies/test", `package test
-
-p = true { a = [1, 2, 3, 4]; a[_] = x; x > 1 }`, 204, "")
-
-	req := newReqV1(http.MethodGet, "/data/test/p?explain=truth", "")
-	f.reset()
-	f.server.Handler.ServeHTTP(f.recorder, req)
-
-	var result types.DataResponseV1
-
-	if err := util.NewJSONDecoder(f.recorder.Body).Decode(&result); err != nil {
-		t.Fatalf("Unexpected JSON decode error: %v", err)
-	}
-
-	explain := mustUnmarshalTrace(result.Explanation)
-	if len(explain) != 8 {
-		t.Fatalf("Expected exactly 8 events but got %d", len(explain))
-	}
-
-	req = newReqV1(http.MethodGet, "/data/deadbeef?explain=truth", "")
-	f.reset()
-	f.server.Handler.ServeHTTP(f.recorder, req)
-
-	if f.recorder.Code != 200 {
-		t.Fatalf("Expected status code to be 200 but got: %v", f.recorder)
-	}
-
-	var result2 types.DataResponseV1
-
-	if err := util.NewJSONDecoder(f.recorder.Body).Decode(&result2); err != nil {
-		t.Fatalf("Unexpected JSON decode error: %v", err)
-	}
-
-	if result2.Result != nil {
-		t.Fatalf("Expected undefined result but got: %v", result2.Result)
-	}
-
-	req = newReqV1(http.MethodGet, "/data/test/p?explain=truth&pretty=true", "")
-	f.reset()
-	f.server.Handler.ServeHTTP(f.recorder, req)
-
-	result = types.DataResponseV1{}
-	if err := util.NewJSONDecoder(f.recorder.Body).Decode(&result); err != nil {
-		t.Fatalf("Unexpected JSON decode error: %v", err)
-	}
-
-	exp := []interface{}{`Enter data.test.p = _`, `| Eval data.test.p = _`, `| Enter p = true { a = [1, 2, 3, 4]; a[_] = x; x > 1 }`, `| | Eval a = [1, 2, 3, 4]`, `| | Redo a[_] = x`, `| | Eval x > 1`, `| | Exit p = true { a = [1, 2, 3, 4]; a[_] = x; x > 1 }`, `| Exit data.test.p = _`}
+	exp := []interface{}{`Enter data.x = _`, `| Eval data.x = _`, `| Exit data.x = _`, `Redo data.x = _`, `| Redo data.x = _`}
 
 	actual := util.MustUnmarshalJSON(result.Explanation).([]interface{})
 	if !reflect.DeepEqual(actual, exp) {
@@ -788,8 +732,10 @@ p = [1, 2, 3, 4] { true }`, 200, "")
 	}
 
 	explain := mustUnmarshalTrace(result.Explanation)
-	if len(explain) != 6 {
-		t.Fatalf("Expected exactly 6 events but got %d", len(explain))
+	nexpect := 10
+
+	if len(explain) != 10 {
+		t.Fatalf("Expected exactly %d events but got %d", nexpect, len(explain))
 	}
 
 	var expected interface{}
@@ -1473,19 +1419,19 @@ func TestDiagnostics(t *testing.T) {
 			query:      "data.x",
 			result:     &expList,
 			metrics:    true,
-			explainLen: 3,
+			explainLen: 5,
 		},
 		{
 			query:      "data.z",
 			result:     nil,
 			metrics:    true,
-			explainLen: 0,
+			explainLen: 3,
 		},
 		{
 			query:      "a=data.x",
 			result:     &expMap1,
 			metrics:    true,
-			explainLen: 3,
+			explainLen: 5,
 		},
 		{
 			query:  "a=data.y",
@@ -1512,49 +1458,51 @@ func TestDiagnostics(t *testing.T) {
 	}
 
 	for i, d := range resp.Result {
-		e := exp[i]
-		if e.query != d.Query {
-			t.Fatalf("Expected query to be %v, got %v", e.query, d.Query)
-		}
-
-		if !reflect.DeepEqual(e.input, d.Input) {
-			t.Fatalf("Expected input to be %v, got %v", e.input, d.Input)
-		}
-
-		if !reflect.DeepEqual(e.result, d.Result) {
-			t.Fatalf("Expected result to be %v but got: %v", e.result, d.Result)
-		}
-
-		if e.metrics {
-			if len(d.Metrics) == 0 {
-				t.Fatal("Expected metrics")
+		test.Subtest(t, fmt.Sprint(i), func(t *testing.T) {
+			e := exp[i]
+			if e.query != d.Query {
+				t.Fatalf("Expected query to be %v, got %v", e.query, d.Query)
 			}
 
-			for key, value := range d.Metrics {
-				v, ok := value.(json.Number)
-				if !ok {
-					t.Fatalf("Metrics for %v was not a number", key)
+			if !reflect.DeepEqual(e.input, d.Input) {
+				t.Fatalf("Expected input to be %v, got %v", e.input, d.Input)
+			}
+
+			if !reflect.DeepEqual(e.result, d.Result) {
+				t.Fatalf("Expected result to be %v but got: %v", e.result, d.Result)
+			}
+
+			if e.metrics {
+				if len(d.Metrics) == 0 {
+					t.Fatal("Expected metrics")
 				}
 
-				n, err := v.Int64()
-				if err != nil {
+				for key, value := range d.Metrics {
+					v, ok := value.(json.Number)
+					if !ok {
+						t.Fatalf("Metrics for %v was not a number", key)
+					}
+
+					n, err := v.Int64()
+					if err != nil {
+						t.Fatal(err)
+					} else if n <= 0 {
+						t.Fatalf("Expected non-zero metric for %v but got: %v", key, n)
+					}
+				}
+			}
+
+			var trace types.TraceV1Raw
+			if d.Explanation != nil {
+				if err := trace.UnmarshalJSON(d.Explanation); err != nil {
 					t.Fatal(err)
-				} else if n <= 0 {
-					t.Fatalf("Expected non-zero metric for %v but got: %v", key, n)
 				}
 			}
-		}
 
-		var trace types.TraceV1Raw
-		if d.Explanation != nil {
-			if err := trace.UnmarshalJSON(d.Explanation); err != nil {
-				t.Fatal(err)
+			if len(trace) != e.explainLen {
+				t.Fatalf("Expected explanation of length %d, got %d", e.explainLen, len(trace))
 			}
-		}
-
-		if len(trace) != e.explainLen {
-			t.Fatalf("Expected explanation of length %d, got %d", e.explainLen, len(trace))
-		}
+		})
 	}
 }
 
@@ -1639,9 +1587,9 @@ func TestWatchParams(t *testing.T) {
 				"a": json.Number("1"),
 				"b": json.Number("2"),
 			},
-		}, 3},
-		{map[string]interface{}{"a": "foo"}, 3},
-		{map[string]interface{}{"a": json.Number("7")}, 3},
+		}, 5},
+		{map[string]interface{}{"a": "foo"}, 5},
+		{map[string]interface{}{"a": json.Number("7")}, 5},
 	}
 
 	// Test watch pretty.
@@ -1869,27 +1817,8 @@ func TestQueryV1Explain(t *testing.T) {
 	}
 
 	explain := mustUnmarshalTrace(result.Explanation)
-	if len(explain) != 10 {
+	if len(explain) != 13 {
 		t.Fatalf("Expected exactly 10 trace events for full query but got %d", len(explain))
-	}
-
-	get = newReqV1(http.MethodGet, "/query?q=a=[1,2,3]%3Ba[_]=x%3Bx>1&explain=truth", "")
-	f.reset()
-	f.server.Handler.ServeHTTP(f.recorder, get)
-
-	if f.recorder.Code != 200 {
-		t.Fatalf("Expected 200 but got: %v", f.recorder)
-	}
-
-	result = types.QueryResponseV1{}
-
-	if err := util.NewJSONDecoder(f.recorder.Body).Decode(&result); err != nil {
-		t.Fatalf("Unexpected JSON decode error: %v", err)
-	}
-
-	explain = mustUnmarshalTrace(result.Explanation)
-	if len(explain) != 5 {
-		t.Fatalf("Expected exactly 5 trace events for truth query but got %d", len(explain))
 	}
 }
 
@@ -2020,14 +1949,7 @@ type queryBindingErrStore struct {
 }
 
 func (s *queryBindingErrStore) Read(ctx context.Context, txn storage.Transaction, path storage.Path) (interface{}, error) {
-	// At this time, the store will receive two reads:
-	// - The first during evaluation of the request
-	// - The second when the server tries to accumulate the bindings
-	s.count++
-	if s.count == 2 {
-		return nil, fmt.Errorf("unknown error")
-	}
-	return "", nil
+	return nil, fmt.Errorf("unknown error")
 }
 
 func (*queryBindingErrStore) ListPolicies(ctx context.Context, txn storage.Transaction) ([]string, error) {
