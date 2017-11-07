@@ -160,12 +160,13 @@ type (
 
 	// Expr represents a single expression contained inside the body of a rule.
 	Expr struct {
-		Location *Location   `json:"-"`
-		Index    int         `json:"index"`
-		Negated  bool        `json:"negated,omitempty"`
-		Terms    interface{} `json:"terms"`
-		With     []*With     `json:"with,omitempty"`
-		Infix    bool        `json:"infix,omitempty"`
+		Location  *Location   `json:"-"`
+		Generated bool        `json:"generated,omitempty"`
+		Index     int         `json:"index"`
+		Negated   bool        `json:"negated,omitempty"`
+		Terms     interface{} `json:"terms"`
+		With      []*With     `json:"with,omitempty"`
+		Infix     bool        `json:"infix,omitempty"`
 	}
 
 	// With represents a modifier on an expression.

@@ -252,9 +252,9 @@ func TestDependencies(t *testing.T) {
 				"a.x.y.z[0]",
 				"a.x.y.a.c",
 				"a.x.y.a.b",
-				"a.y[b.z[0]]",
-				"a.z[b.a.c][i]",
-				"a.f[j][b.a.b]",
+				"a.y[__local0__]",
+				"a.z[__local1__][i]",
+				"a.f[j][__local2__]",
 				"a.g.foo[k]",
 			},
 		},
@@ -310,7 +310,7 @@ func TestDependencies(t *testing.T) {
 			 }`,
 
 			min:  []string{"a.x.y.z", "a.x.b", "a.x.c"},
-			full: []string{"a.x.b[a.c].c", "a.x.y.z.e"},
+			full: []string{"a.x.b[__local1__].c", "a.x.y.z.e"},
 		},
 		{
 			ast: `package a.b.c
@@ -321,7 +321,7 @@ func TestDependencies(t *testing.T) {
 				 b = a.y.z
 				 c = b.e
 				 d = a.u
-				 indexof(b, a.c[d].c, g)
+			 	 indexof(b, a.c[d].c, g)
 				 c = "foo"
 			 }`,
 
@@ -358,13 +358,13 @@ func TestDependencies(t *testing.T) {
 			})
 
 			mod := compiler.Modules["test"]
-			min, full := runDeps(t, mod, test)
+			min, full := runDeps(t, mod)
 
 			// Test that we get the same result by analyzing all the
 			// rules separately.
 			var minRules, fullRules []ast.Ref
 			for _, rule := range mod.Rules {
-				m, f := runDeps(t, rule, test)
+				m, f := runDeps(t, rule)
 				minRules = append(minRules, m...)
 				fullRules = append(fullRules, f...)
 			}
@@ -440,7 +440,7 @@ func TestBaseAndVirtual(t *testing.T) {
 	}
 }
 
-func runDeps(t *testing.T, x interface{}, test testData) (min, full []ast.Ref) {
+func runDeps(t *testing.T, x interface{}) (min, full []ast.Ref) {
 	min, err := Minimal(x)
 	if err != nil {
 		t.Fatalf("Unexpected dependency error: %v", err)

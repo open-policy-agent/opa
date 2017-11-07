@@ -32,7 +32,6 @@ import (
 	"github.com/open-policy-agent/opa/server/writer"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/topdown"
-	"github.com/open-policy-agent/opa/topdown/explain"
 	"github.com/open-policy-agent/opa/util"
 	"github.com/open-policy-agent/opa/version"
 	"github.com/open-policy-agent/opa/watch"
@@ -419,17 +418,25 @@ func (s *Server) v0QueryPath(w http.ResponseWriter, r *http.Request, path ast.Re
 
 	compiler := s.Compiler()
 
-	params := topdown.NewQueryParams(ctx, compiler, s.store, txn, input, path)
-	params.Metrics = m
-
-	var buf *topdown.BufferTracer
-	if diagLogger.Explain() {
-		buf = topdown.NewBufferTracer()
-		params.Tracer = buf
+	opts := []func(*rego.Rego){
+		rego.Compiler(compiler),
+		rego.Store(s.store),
+		rego.Transaction(txn),
+		rego.Input(goInput),
+		rego.Query(path.String()),
+		rego.Metrics(m),
 	}
 
-	// Execute query.
-	qrs, err := topdown.Query(params)
+	var buf *topdown.BufferTracer
+
+	if diagLogger.Explain() {
+		buf = topdown.NewBufferTracer()
+		opts = append(opts, rego.Tracer(buf))
+	}
+
+	rego := rego.New(opts...)
+
+	rs, err := rego.Eval(ctx)
 
 	// Handle results.
 	if err != nil {
@@ -438,13 +445,13 @@ func (s *Server) v0QueryPath(w http.ResponseWriter, r *http.Request, path ast.Re
 		return
 	}
 
-	if qrs.Undefined() {
+	if len(rs) == 0 {
 		writer.Error(w, 404, types.NewErrorV1(types.CodeUndefinedDocument, fmt.Sprintf("%v: %v", types.MsgUndefinedError, path)))
 		return
 	}
 
-	diagLogger.Log("", r.RemoteAddr, path.String(), goInput, &qrs[0].Result, nil, m, buf)
-	writer.JSON(w, 200, qrs[0].Result, false)
+	diagLogger.Log("", r.RemoteAddr, path.String(), goInput, &rs[0].Expressions[0].Value, nil, m, buf)
+	writer.JSON(w, 200, rs[0].Expressions[0].Value, false)
 }
 
 func (s *Server) v1DiagnosticsGet(w http.ResponseWriter, r *http.Request) {
@@ -453,7 +460,7 @@ func (s *Server) v1DiagnosticsGet(w http.ResponseWriter, r *http.Request) {
 		writer.ErrorAuto(w, fmt.Errorf(types.MsgDiagnosticsDisabled))
 		return
 	}
-	explainMode := getExplain(r.URL.Query()[types.ParamExplainV1], types.ExplainTruthV1)
+	explainMode := getExplain(r.URL.Query()[types.ParamExplainV1], types.ExplainFullV1)
 	resp := types.DiagnosticsResponseV1{
 		Result: []types.DiagnosticsResponseElementV1{},
 	}
@@ -531,17 +538,26 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 	defer s.store.Abort(ctx, txn)
 
 	compiler := s.Compiler()
-	params := topdown.NewQueryParams(ctx, compiler, s.store, txn, input, path)
-	params.Metrics = m
 
-	var buf *topdown.BufferTracer
-	if explainMode != types.ExplainOffV1 || diagLogger.Explain() {
-		buf = topdown.NewBufferTracer()
-		params.Tracer = buf
+	opts := []func(*rego.Rego){
+		rego.Compiler(compiler),
+		rego.Store(s.store),
+		rego.Transaction(txn),
+		rego.Input(goInput),
+		rego.Query(path.String()),
+		rego.Metrics(m),
 	}
 
-	// Execute query.
-	qrs, err := topdown.Query(params)
+	var buf *topdown.BufferTracer
+
+	if explainMode != types.ExplainOffV1 || diagLogger.Explain() {
+		buf = topdown.NewBufferTracer()
+		opts = append(opts, rego.Tracer(buf))
+	}
+
+	rego := rego.New(opts...)
+
+	rs, err := rego.Eval(ctx)
 
 	// Handle results.
 	if err != nil {
@@ -560,7 +576,7 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 		result.Metrics = m.All()
 	}
 
-	if qrs.Undefined() {
+	if len(rs) == 0 {
 		if explainMode == types.ExplainFullV1 {
 			result.Explanation, err = types.NewTraceV1(*buf, pretty)
 			if err != nil {
@@ -572,7 +588,8 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result.Result = &qrs[0].Result
+	result.Result = &rs[0].Expressions[0].Value
+
 	if explainMode != types.ExplainOffV1 {
 		result.Explanation = s.getExplainResponse(explainMode, *buf, pretty)
 	}
@@ -664,18 +681,26 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 	defer s.store.Abort(ctx, txn)
 
 	compiler := s.Compiler()
-	params := topdown.NewQueryParams(ctx, compiler, s.store, txn, input, path)
 
-	params.Metrics = m
-
-	var buf *topdown.BufferTracer
-	if explainMode != types.ExplainOffV1 || diagLogger.Explain() {
-		buf = topdown.NewBufferTracer()
-		params.Tracer = buf
+	opts := []func(*rego.Rego){
+		rego.Compiler(compiler),
+		rego.Store(s.store),
+		rego.Transaction(txn),
+		rego.Input(goInput),
+		rego.Query(path.String()),
+		rego.Metrics(m),
 	}
 
-	// Execute query.
-	qrs, err := topdown.Query(params)
+	var buf *topdown.BufferTracer
+
+	if explainMode != types.ExplainOffV1 || diagLogger.Explain() {
+		buf = topdown.NewBufferTracer()
+		opts = append(opts, rego.Tracer(buf))
+	}
+
+	rego := rego.New(opts...)
+
+	rs, err := rego.Eval(ctx)
 
 	// Handle results.
 	if err != nil {
@@ -694,7 +719,7 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 		result.Metrics = m.All()
 	}
 
-	if qrs.Undefined() {
+	if len(rs) == 0 {
 		if explainMode == types.ExplainFullV1 {
 			result.Explanation, err = types.NewTraceV1(*buf, pretty)
 			if err != nil {
@@ -706,7 +731,7 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result.Result = &qrs[0].Result
+	result.Result = &rs[0].Expressions[0].Value
 
 	if explainMode != types.ExplainOffV1 {
 		result.Explanation = s.getExplainResponse(explainMode, *buf, pretty)
@@ -1204,15 +1229,6 @@ func (s *Server) getExplainResponse(explainMode types.ExplainModeV1, trace []*to
 		if err != nil {
 			break
 		}
-	case types.ExplainTruthV1:
-		answer, err := explain.Truth(s.Compiler(), trace)
-		if err != nil {
-			break
-		}
-		explanation, err = types.NewTraceV1(answer, pretty)
-		if err != nil {
-			break
-		}
 	}
 	return explanation
 }
@@ -1425,8 +1441,6 @@ func getExplain(p []string, zero types.ExplainModeV1) types.ExplainModeV1 {
 		switch x {
 		case string(types.ExplainFullV1):
 			return types.ExplainFullV1
-		case string(types.ExplainTruthV1):
-			return types.ExplainTruthV1
 		}
 	}
 	return zero
@@ -1525,8 +1539,6 @@ func renderQueryForm(w http.ResponseWriter, qStrs []string, inputStrs []string, 
 		explainRadioCheck[0] = "checked"
 	case types.ExplainFullV1:
 		explainRadioCheck[1] = "checked"
-	case types.ExplainTruthV1:
-		explainRadioCheck[2] = "checked"
 	}
 
 	fmt.Fprintf(w, `
@@ -1538,8 +1550,7 @@ func renderQueryForm(w http.ResponseWriter, qStrs []string, inputStrs []string, 
 	<br><input type="submit" value="Submit"> Explain:
 	<input type="radio" name="explain" value="off" %v>Off
 	<input type="radio" name="explain" value="full" %v>Full
-	<input type="radio" name="explain" value="truth" %v>Truth
-	</form>`, query, input, explainRadioCheck[0], explainRadioCheck[1], explainRadioCheck[2])
+	</form>`, query, input, explainRadioCheck[0], explainRadioCheck[1])
 }
 
 func renderQueryResult(w io.Writer, results interface{}, err error, t0 time.Time) {

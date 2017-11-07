@@ -43,6 +43,14 @@ func IsError(err error) bool {
 	return ok
 }
 
+// IsCancel returns true if err was caused by cancellation.
+func IsCancel(err error) bool {
+	if e, ok := err.(*Error); ok {
+		return e.Code == CancelErr
+	}
+	return false
+}
+
 func (e *Error) Error() string {
 
 	msg := fmt.Sprintf("%v: %v", e.Code, e.Message)
@@ -54,11 +62,19 @@ func (e *Error) Error() string {
 	return msg
 }
 
+func functionConflictErr(loc *ast.Location) error {
+	return &Error{
+		Code:     ConflictErr,
+		Location: loc,
+		Message:  "functions must not produce multiple outputs for same inputs",
+	}
+}
+
 func completeDocConflictErr(loc *ast.Location) error {
 	return &Error{
 		Code:     ConflictErr,
 		Location: loc,
-		Message:  "completely defined rules must produce exactly one value",
+		Message:  "complete rules must not produce multiple outputs",
 	}
 }
 
@@ -66,7 +82,7 @@ func objectDocKeyConflictErr(loc *ast.Location) error {
 	return &Error{
 		Code:     ConflictErr,
 		Location: loc,
-		Message:  "partial rule definitions must produce exactly one value per object key",
+		Message:  "object keys must be unique",
 	}
 }
 
@@ -75,13 +91,5 @@ func unsupportedBuiltinErr(loc *ast.Location) error {
 		Code:     InternalErr,
 		Location: loc,
 		Message:  "unsupported built-in",
-	}
-}
-
-func objectDocKeyTypeErr(loc *ast.Location) error {
-	return &Error{
-		Code:     TypeErr,
-		Location: loc,
-		Message:  "partial rule definitions must produce string values for object keys",
 	}
 }

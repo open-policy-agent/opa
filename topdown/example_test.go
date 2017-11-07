@@ -19,7 +19,7 @@ import (
 	"github.com/open-policy-agent/opa/types"
 )
 
-func ExampleEval() {
+func ExampleQuery_Iter() {
 	// Initialize context for the example. Normally the caller would obtain the
 	// context from an input parameter or instantiate their own.
 	ctx := context.Background()
@@ -59,22 +59,22 @@ func ExampleEval() {
 	// Prepare the evaluation parameters. Evaluation executes against the policy
 	// engine's storage. In this case, we seed the storage with a single array
 	// of number. Other parameters such as the input, tracing configuration,
-	// etc. can be set on the Topdown object.
-	t := topdown.New(ctx, query, compiler, store, txn)
+	// etc. can be set on the query object.
+	q := topdown.NewQuery(query).
+		WithCompiler(compiler).
+		WithStore(store).
+		WithTransaction(txn)
 
 	result := []interface{}{}
 
-	// Execute the query and provide a callbakc function to accumulate the results.
-	err = topdown.Eval(t, func(t *topdown.Topdown) error {
+	// Execute the query and provide a callback function to accumulate the results.
+	err = q.Iter(ctx, func(qr topdown.QueryResult) error {
 
-		// Each variable in the query will have an associated "binding".
-		x := t.Binding(ast.Var("x"))
-
-		// Alternatively, you can get a mapping of all bound variables.
-		x = t.Vars()[ast.Var("x")]
+		// Each variable in the query will have an associated binding.
+		x := qr[ast.Var("x")]
 
 		// The bindings are ast.Value types so we will convert to a native Go value here.
-		v, err := ast.ValueToInterface(x, t)
+		v, err := ast.JSON(x.Value)
 		if err != nil {
 			return err
 		}
@@ -90,51 +90,6 @@ func ExampleEval() {
 	// Output:
 	// result: [2 3 4]
 	// err: <nil>
-}
-
-func ExampleQuery() {
-	// Initialize context for the example. Normally the caller would obtain the
-	// context from an input parameter or instantiate their own.
-	ctx := context.Background()
-
-	compiler := ast.NewCompiler()
-
-	// Define a dummy module with rules that produce documents that we will query below.
-	module, err := ast.ParseModule("my_module.rego", `package opa.example
-
-p[x] { q[x]; not r[x] }
-q[y] { a = [1, 2, 3]; y = a[_] }
-r[z] { b = [2, 4]; z = b[_] }`,
-	)
-
-	mods := map[string]*ast.Module{
-		"my_module": module,
-	}
-
-	if compiler.Compile(mods); compiler.Failed() {
-		fmt.Println(compiler.Errors)
-	}
-
-	if err != nil {
-		// Handle error.
-	}
-
-	// Prepare query parameters. In this case, there are no additional documents
-	// required by the policy so the input is nil.
-	var input ast.Value
-	params := topdown.NewQueryParams(ctx, compiler, nil, nil, input, ast.MustParseRef("data.opa.example.p"))
-
-	// Execute the query against "p".
-	v1, err1 := topdown.Query(params)
-
-	// Inspect the result.
-	fmt.Println("v1:", v1[0].Result)
-	fmt.Println("err1:", err1)
-
-	// Output:
-	// v1: [1 3]
-	// err1: <nil>
-
 }
 
 func ExampleRegisterFunctionalBuiltin1() {
@@ -156,10 +111,9 @@ func ExampleRegisterFunctionalBuiltin1() {
 	builtin := &ast.Builtin{
 		Name: "mybuiltins.upper",
 		Decl: types.NewFunction(
-			types.S,
+			types.Args(types.S),
 			types.S,
 		),
-		TargetPos: []int{1},
 	}
 
 	ast.RegisterBuiltin(builtin)
@@ -197,10 +151,10 @@ func ExampleRegisterFunctionalBuiltin1() {
 	}
 
 	// Evaluate the query.
-	t := topdown.New(ctx, query, compiler, nil, nil)
+	q := topdown.NewQuery(query).WithCompiler(compiler)
 
-	topdown.Eval(t, func(t *topdown.Topdown) error {
-		fmt.Println("x:", t.Binding(ast.Var("x")))
+	q.Iter(ctx, func(qr topdown.QueryResult) error {
+		fmt.Println("x:", qr[ast.Var("x")])
 		return nil
 	})
 

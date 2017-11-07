@@ -65,7 +65,7 @@ type Vars map[string]interface{}
 func (v Vars) WithoutWildcards() Vars {
 	n := Vars{}
 	for k, v := range v {
-		if ast.Var(k).IsWildcard() {
+		if ast.Var(k).IsWildcard() || ast.Var(k).IsGenerated() {
 			continue
 		}
 		n[k] = v
@@ -326,34 +326,42 @@ func (r *Rego) eval(ctx context.Context, compiled ast.Body, txn storage.Transact
 
 	r.metrics.Timer(metrics.RegoQueryEval).Start()
 
-	t := topdown.New(ctx, compiled, r.compiler, r.store, txn)
+	q := topdown.NewQuery(compiled).
+		WithCompiler(r.compiler).
+		WithStore(r.store).
+		WithTransaction(txn).
+		WithMetrics(r.metrics)
+
 	if r.tracer != nil {
-		t.Tracer = r.tracer
+		q = q.WithTracer(r.tracer)
 	}
 
 	if r.input != nil {
-		t.Input = r.input
+		q = q.WithInput(ast.NewTerm(r.input))
 	}
 
 	// Cancel query if context is cancelled or deadline is reached.
-	t.Cancel = topdown.NewCancel()
+	c := topdown.NewCancel()
+	q = q.WithCancel(c)
 	exit := make(chan struct{})
 	defer close(exit)
 	go waitForDone(ctx, exit, func() {
-		t.Cancel.Cancel()
+		c.Cancel()
 	})
 
 	exprs := map[*ast.Expr]struct{}{}
 
-	err = topdown.Eval(t, func(t *topdown.Topdown) error {
+	err = q.Iter(ctx, func(qr topdown.QueryResult) error {
 		result := newResult()
-		for key, value := range t.Vars() {
-			val, err := ast.ValueToInterface(value, t)
+		for key, value := range qr {
+			val, err := ast.JSON(value.Value)
 			if err != nil {
 				return err
 			}
 			if !isTermVar(key) {
-				result.Bindings[string(key)] = val
+				if !key.IsWildcard() && !key.IsGenerated() {
+					result.Bindings[string(key)] = val
+				}
 			} else if expr := findExprForTermVar(compiled, key); expr != nil {
 				result.Expressions = append(result.Expressions, newExpressionValue(expr, val))
 				exprs[expr] = struct{}{}
@@ -363,7 +371,7 @@ func (r *Rego) eval(ctx context.Context, compiled ast.Body, txn storage.Transact
 			// Don't include expressions without locations. Lack of location
 			// indicates it was not parsed and so the caller should not be
 			// shown it.
-			if _, ok := exprs[expr]; !ok && expr.Location != nil {
+			if _, ok := exprs[expr]; !ok && expr.Location != nil && !expr.Generated {
 				result.Expressions = append(result.Expressions, newExpressionValue(expr, true))
 			}
 		}

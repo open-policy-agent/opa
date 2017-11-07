@@ -1099,52 +1099,26 @@ func TestEvalTrace(t *testing.T) {
 	expected := strings.TrimSpace(`
 Enter data.a[i].b.c[j] = x; data.a[k].b.c[x] = 1
 | Eval data.a[i].b.c[j] = x
-| Eval data.a[k].b.c[true] = 1
-| Fail data.a[k].b.c[true] = 1
-| Redo data.a[0].b.c[0] = x
-| Eval data.a[k].b.c[2] = 1
-| Fail data.a[0].b.c[2] = 1
-| Redo data.a[0].b.c[2] = 1
+| Eval data.a[k].b.c[x] = 1
+| Fail data.a[k].b.c[x] = 1
+| Redo data.a[i].b.c[j] = x
+| Eval data.a[k].b.c[x] = 1
 | Exit data.a[i].b.c[j] = x; data.a[k].b.c[x] = 1
 Redo data.a[i].b.c[j] = x; data.a[k].b.c[x] = 1
-| Redo data.a[0].b.c[1] = x
-| Eval data.a[k].b.c[false] = 1
-| Fail data.a[k].b.c[false] = 1
-| Redo data.a[0].b.c[2] = x
-| Eval data.a[k].b.c[false] = 1
-| Fail data.a[k].b.c[false] = 1
-| Redo data.a[1].b.c[0] = x
-| Eval data.a[k].b.c[true] = 1
-| Fail data.a[k].b.c[true] = 1
-| Redo data.a[1].b.c[1] = x
-| Eval data.a[k].b.c[1] = 1
-| Fail data.a[0].b.c[1] = 1
-| Redo data.a[0].b.c[1] = 1
-| Fail data.a[1].b.c[1] = 1
-+---+---+---+---+
-| i | j | k | x |
-+---+---+---+---+
-| 0 | 1 | 1 | 2 |
-+---+---+---+---+`)
-	expected += "\n"
-
-	if expected != buffer.String() {
-		t.Fatalf("Expected output to be exactly:\n%v\n\nGot:\n\n%v\n", expected, buffer.String())
-	}
-}
-
-func TestEvalTruth(t *testing.T) {
-	ctx := context.Background()
-	store := newTestStore()
-	var buffer bytes.Buffer
-	repl := newRepl(store, &buffer)
-	repl.OneShot(ctx, "truth")
-	repl.OneShot(ctx, `data.a[i].b.c[j] = x; data.a[k].b.c[x] = 1`)
-	expected := strings.TrimSpace(`
-Enter data.a[i].b.c[j] = x; data.a[k].b.c[x] = 1
-| Redo data.a[0].b.c[0] = x
-| Redo data.a[0].b.c[2] = 1
-| Exit data.a[i].b.c[j] = x; data.a[k].b.c[x] = 1
+| Redo data.a[k].b.c[x] = 1
+| Redo data.a[i].b.c[j] = x
+| Eval data.a[k].b.c[x] = 1
+| Fail data.a[k].b.c[x] = 1
+| Redo data.a[i].b.c[j] = x
+| Eval data.a[k].b.c[x] = 1
+| Fail data.a[k].b.c[x] = 1
+| Redo data.a[i].b.c[j] = x
+| Eval data.a[k].b.c[x] = 1
+| Fail data.a[k].b.c[x] = 1
+| Redo data.a[i].b.c[j] = x
+| Eval data.a[k].b.c[x] = 1
+| Fail data.a[k].b.c[x] = 1
+| Redo data.a[i].b.c[j] = x
 +---+---+---+---+
 | i | j | k | x |
 +---+---+---+---+

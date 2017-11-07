@@ -73,7 +73,8 @@ func TestRunnerCancel(t *testing.T) {
 	ast.RegisterBuiltin(&ast.Builtin{
 		Name: "test.sleep",
 		Decl: types.NewFunction(
-			types.S,
+			types.Args(types.S),
+			nil,
 		),
 	})
 
@@ -100,7 +101,7 @@ func TestRunnerCancel(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if results[0].Error.(*topdown.Error).Code != topdown.CancelErr {
+		if !topdown.IsCancel(results[0].Error) {
 			t.Fatalf("Expected cancel error but got: %v", results[0].Error)
 		}
 	})

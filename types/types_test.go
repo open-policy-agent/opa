@@ -38,7 +38,7 @@ func TestStrings(t *testing.T) {
 		t.Fatalf("Expected %v but got: %v", expected, tpe)
 	}
 
-	ftpe := NewFunction(S, S, N)
+	ftpe := NewFunction([]Type{S, S}, N)
 	expected = "(string, string) => number"
 
 	if ftpe.String() != expected {
@@ -125,12 +125,12 @@ func TestCompare(t *testing.T) {
 				nil),
 			1,
 		},
-		{NewFunction(), NewAny(), 1},
-		{NewFunction(B, N), NewFunction(S, N), -1},
-		{NewFunction(S), NewFunction(N), 1},
-		{NewFunction(S), NewFunction(N, S), -1},
-		{NewFunction(S, N), NewFunction(S), 1},
-		{NewFunction(S, N), NewFunction(S, N), 0},
+		{NewFunction(nil, nil), NewAny(), 1},
+		{NewFunction([]Type{B}, N), NewFunction([]Type{S}, N), -1},
+		{NewFunction(nil, S), NewFunction(nil, N), 1},
+		{NewFunction(nil, S), NewFunction([]Type{N}, S), -1},
+		{NewFunction([]Type{S}, N), NewFunction(nil, S), 1},
+		{NewFunction([]Type{S}, N), NewFunction([]Type{S}, N), 0},
 	}
 
 	for _, tc := range tests {
@@ -177,7 +177,7 @@ func TestOr(t *testing.T) {
 		{NewAny(NewNull(), NewNumber()), NewAny(), NewAny()},
 		{NewAny(NewNumber(), NewString()), NewAny(NewNull(), NewBoolean()), NewAny(NewNull(), NewBoolean(), NewString(), NewNumber())},
 		{NewAny(NewNull(), NewNumber()), NewNull(), NewAny(NewNull(), NewNumber())},
-		{NewFunction(S, T), NewFunction(N, T), NewFunction(NewAny(S, N), T)},
+		{NewFunction([]Type{S}, T), NewFunction([]Type{N}, T), NewFunction([]Type{NewAny(S, N)}, T)},
 	}
 
 	for _, tc := range tests {
@@ -326,7 +326,7 @@ func TestMarshalJSON(t *testing.T) {
 		NewObject(
 			[]*StaticProperty{
 				{"foo", N},
-				{"func", NewFunction(S, N)},
+				{"func", NewFunction([]Type{S}, N)},
 			},
 			NewDynamicProperty(S, NewArray([]Type{NewSet(B)}, N)),
 		),

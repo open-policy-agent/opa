@@ -6,10 +6,9 @@ package topdown
 
 import (
 	"bytes"
+	"context"
 	"strings"
 	"testing"
-
-	"context"
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/storage"
@@ -55,8 +54,8 @@ func TestEventEqual(t *testing.T) {
 func TestPrettyTrace(t *testing.T) {
 	module := `package test
 
-p = true { q[x]; n = x + 1 }
-q[x] { x = data.a[_] }`
+	p = true { q[x]; n = x + 1 }
+	q[x] { x = data.a[_] }`
 
 	ctx := context.Background()
 	compiler := compileModules([]string{module})
@@ -65,11 +64,14 @@ q[x] { x = data.a[_] }`
 	txn := storage.NewTransactionOrDie(ctx, store)
 	defer store.Abort(ctx, txn)
 
-	params := NewQueryParams(ctx, compiler, store, txn, nil, ast.MustParseRef("data.test.p"))
 	tracer := NewBufferTracer()
-	params.Tracer = tracer
+	query := NewQuery(ast.MustParseBody("data.test.p = _")).
+		WithCompiler(compiler).
+		WithStore(store).
+		WithTransaction(txn).
+		WithTracer(tracer)
 
-	_, err := Query(params)
+	_, err := query.Run(ctx)
 	if err != nil {
 		panic(err)
 	}
@@ -83,28 +85,38 @@ q[x] { x = data.a[_] }`
 | | | Exit q[x] { x = data.a[_] }
 | | Eval n = x + 1
 | | Exit p = true { data.test.q[x]; n = x + 1 }
-| Redo p = true { data.test.q[x]; n = x + 1 }
-| | Redo data.test.q[x]
-| | Redo q[x] { x = data.a[_] }
-| | | Redo x = data.a[_]
-| | | Exit q[x] { x = data.a[_] }
-| | Eval n = x + 1
-| | Exit p = true { data.test.q[x]; n = x + 1 }
-| Redo p = true { data.test.q[x]; n = x + 1 }
-| | Redo data.test.q[x]
-| | Redo q[x] { x = data.a[_] }
-| | | Redo x = data.a[_]
-| | | Exit q[x] { x = data.a[_] }
-| | Eval n = x + 1
-| | Exit p = true { data.test.q[x]; n = x + 1 }
-| Redo p = true { data.test.q[x]; n = x + 1 }
-| | Redo data.test.q[x]
-| | Redo q[x] { x = data.a[_] }
-| | | Redo x = data.a[_]
-| | | Exit q[x] { x = data.a[_] }
-| | Eval n = x + 1
-| | Exit p = true { data.test.q[x]; n = x + 1 }
 | Exit data.test.p = _
+Redo data.test.p = _
+| Redo data.test.p = _
+| Redo p = true { data.test.q[x]; n = x + 1 }
+| | Redo n = x + 1
+| | Redo data.test.q[x]
+| | Redo q[x] { x = data.a[_] }
+| | | Redo x = data.a[_]
+| | | Exit q[x] { x = data.a[_] }
+| | Eval n = x + 1
+| | Exit p = true { data.test.q[x]; n = x + 1 }
+| Redo p = true { data.test.q[x]; n = x + 1 }
+| | Redo n = x + 1
+| | Redo data.test.q[x]
+| | Redo q[x] { x = data.a[_] }
+| | | Redo x = data.a[_]
+| | | Exit q[x] { x = data.a[_] }
+| | Eval n = x + 1
+| | Exit p = true { data.test.q[x]; n = x + 1 }
+| Redo p = true { data.test.q[x]; n = x + 1 }
+| | Redo n = x + 1
+| | Redo data.test.q[x]
+| | Redo q[x] { x = data.a[_] }
+| | | Redo x = data.a[_]
+| | | Exit q[x] { x = data.a[_] }
+| | Eval n = x + 1
+| | Exit p = true { data.test.q[x]; n = x + 1 }
+| Redo p = true { data.test.q[x]; n = x + 1 }
+| | Redo n = x + 1
+| | Redo data.test.q[x]
+| | Redo q[x] { x = data.a[_] }
+| | | Redo x = data.a[_]
 `
 
 	a := strings.Split(expected, "\n")

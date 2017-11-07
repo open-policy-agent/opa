@@ -9,9 +9,9 @@ import (
 	"testing"
 
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/rego"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/storage/inmem"
-	"github.com/open-policy-agent/opa/topdown"
 	"github.com/open-policy-agent/opa/util"
 )
 
@@ -52,7 +52,6 @@ func runAuthzBenchmark(b *testing.B, mode inputMode, numPaths int) {
 	txn := storage.NewTransactionOrDie(ctx, store)
 	compiler := ast.NewCompiler()
 	module := ast.MustParseModule(policy)
-	path := ast.MustParseRef("data.restauthz.allow")
 
 	compiler.Compile(map[string]*ast.Module{"": module})
 	if compiler.Failed() {
@@ -63,12 +62,22 @@ func runAuthzBenchmark(b *testing.B, mode inputMode, numPaths int) {
 
 	for i := 0; i < b.N; i++ {
 		input, expected := generateInput(profile, mode)
-		params := topdown.NewQueryParams(ctx, compiler, store, txn, input, path)
-		rs, err := topdown.Query(params)
+
+		r := rego.New(
+			rego.Compiler(compiler),
+			rego.Store(store),
+			rego.Transaction(txn),
+			rego.Input(input),
+			rego.Query("data.restauthz.allow"),
+		)
+
+		rs, err := r.Eval(ctx)
+
 		if err != nil {
 			b.Fatalf("Unexpected error(s): %v", err)
 		}
-		if util.Compare(rs[0].Result, expected) != 0 {
+
+		if len(rs) != 1 || util.Compare(rs[0].Expressions[0].Value, expected) != 0 {
 			b.Fatalf("Unexpected result: %v", rs)
 		}
 	}

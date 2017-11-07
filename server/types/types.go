@@ -173,40 +173,13 @@ type WatchResponseV1 struct {
 // AdhocQueryResultSetV1 models the result of a Query API query.
 type AdhocQueryResultSetV1 []map[string]interface{}
 
-// QueryResultSetV1 models the result of a Data API query when the query would
-// return multiple values for the document.
-type QueryResultSetV1 []*QueryResultV1
-
-// NewQueryResultSetV1 returns a new QueryResultSetV1 object.
-func NewQueryResultSetV1(qrs topdown.QueryResultSet) *QueryResultSetV1 {
-	result := make(QueryResultSetV1, len(qrs))
-	for i := range qrs {
-		result[i] = &QueryResultV1{qrs[i].Result, qrs[i].Bindings}
-	}
-	return &result
-}
-
-// QueryResultV1 models a single result of a Data API query that would return
-// multiple values for the document. The bindings can be used to differentiate
-// between results.
-type QueryResultV1 struct {
-	result   interface{}
-	bindings map[string]interface{}
-}
-
-// MarshalJSON serializes the QueryResultV1 object as an array.
-func (qr *QueryResultV1) MarshalJSON() ([]byte, error) {
-	return json.Marshal([]interface{}{qr.result, qr.bindings})
-}
-
 // ExplainModeV1 defines supported values for the "explain" query parameter.
 type ExplainModeV1 string
 
 // Explanation mode enumeration.
 const (
-	ExplainOffV1   ExplainModeV1 = "off"
-	ExplainFullV1  ExplainModeV1 = "full"
-	ExplainTruthV1 ExplainModeV1 = "truth"
+	ExplainOffV1  ExplainModeV1 = "off"
+	ExplainFullV1 ExplainModeV1 = "full"
 )
 
 // TraceV1 models the trace result returned for queries that include the

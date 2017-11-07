@@ -13,46 +13,63 @@ import (
 	"context"
 
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/rego"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/storage/inmem"
-	"github.com/open-policy-agent/opa/topdown"
 	"github.com/open-policy-agent/opa/util"
 )
+
+// FIXME(tsandall): scheduling policy depends heavily on data indexing to
+// provide adequate performance. Data indexing has been removed until it can be
+// performed during compilation. Once data indexing is restored, the large
+// benchmarks can be re-enabled.
 
 func BenchmarkScheduler10x30(b *testing.B) {
 	runSchedulerBenchmark(b, 10, 30)
 }
 
-func BenchmarkScheduler100x300(b *testing.B) {
+func benchmarkScheduler100x300(b *testing.B) {
 	runSchedulerBenchmark(b, 100, 300)
 }
 
-func BenchmarkScheduler1000x3000(b *testing.B) {
+func benchmarkScheduler1000x3000(b *testing.B) {
 	runSchedulerBenchmark(b, 1000, 3000)
 }
 
+type benchmarkParams struct {
+	store    storage.Store
+	compiler *ast.Compiler
+	input    interface{}
+}
+
 func runSchedulerBenchmark(b *testing.B, nodes int, pods int) {
+	ctx := context.Background()
 	params := setupBenchmark(nodes, pods)
-	defer params.Store.Abort(params.Context, params.Transaction)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		qrs, err := topdown.Query(params)
+		rego := rego.New(
+			rego.Compiler(params.compiler),
+			rego.Store(params.store),
+			rego.Input(params.input),
+			rego.Query("data.opa.test.scheduler.fit"),
+		)
+		rs, err := rego.Eval(ctx)
 		if err != nil {
 			b.Fatal("unexpected error:", err)
 		}
-		ws := qrs[0].Result.(map[string]interface{})
+		ws := rs[0].Expressions[0].Value.(map[string]interface{})
 		if len(ws) != nodes {
-			b.Fatal("unexpected query result:", qrs)
+			b.Fatal("unexpected query result:", rs)
 		}
 		for n, w := range ws {
 			if fmt.Sprint(w) != "5.01388889" {
-				b.Fatalf("unexpected weight for: %v: %v\n\nDumping all weights:\n\n%v\n", n, w, qrs)
+				b.Fatalf("unexpected weight for: %v: %v\n\nDumping all weights:\n\n%v\n", n, w, rs)
 			}
 		}
 	}
 }
 
-func setupBenchmark(nodes int, pods int) *topdown.QueryParams {
+func setupBenchmark(nodes int, pods int) benchmarkParams {
 
 	// policy compilation
 	c := ast.NewCompiler()
@@ -69,8 +86,7 @@ func setupBenchmark(nodes int, pods int) *topdown.QueryParams {
 
 	// parameter setup
 	ctx := context.Background()
-	input := ast.ObjectTerm(ast.Item(ast.StringTerm("pod"), ast.MustParseTerm(requestedPod)))
-	path := ast.MustParseRef("data.opa.test.scheduler.fit")
+	input := util.MustUnmarshalJSON([]byte(requestedPod))
 
 	// data setup
 	txn := storage.NewTransactionOrDie(ctx, store, storage.WriteParams)
@@ -81,9 +97,11 @@ func setupBenchmark(nodes int, pods int) *topdown.QueryParams {
 		panic(err)
 	}
 
-	txn = storage.NewTransactionOrDie(ctx, store)
-	params := topdown.NewQueryParams(ctx, c, store, txn, input.Value, path)
-	return params
+	return benchmarkParams{
+		store:    store,
+		compiler: c,
+		input:    input,
+	}
 }
 
 type nodeTemplateInput struct {

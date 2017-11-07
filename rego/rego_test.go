@@ -56,7 +56,8 @@ func TestRegoCancellation(t *testing.T) {
 	ast.RegisterBuiltin(&ast.Builtin{
 		Name: "test.sleep",
 		Decl: types.NewFunction(
-			types.S,
+			types.Args(types.S),
+			nil,
 		),
 	})
 

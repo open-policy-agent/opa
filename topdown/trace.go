@@ -103,7 +103,7 @@ func (evt *Event) equalNodes(other *Event) bool {
 // Tracer defines the interface for tracing in the top-down evaluation engine.
 type Tracer interface {
 	Enabled() bool
-	Trace(t *Topdown, evt *Event)
+	Trace(*Event)
 }
 
 // BufferTracer implements the Tracer interface by simply buffering all events
@@ -124,7 +124,7 @@ func (b *BufferTracer) Enabled() bool {
 }
 
 // Trace adds the event to the buffer.
-func (b *BufferTracer) Trace(t *Topdown, evt *Event) {
+func (b *BufferTracer) Trace(evt *Event) {
 	*b = append(*b, evt)
 }
 

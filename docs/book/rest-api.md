@@ -979,7 +979,7 @@ Transfer-Encoding: chunked
 
 - **input** - Provide an input document. Format is a JSON value that will be used as the value for the input document.
 - **pretty** - If parameter is `true`, response will formatted for humans.
-- **explain** - Return query explanation in addition to result. Values: **full**, **truth**.
+- **explain** - Return query explanation in addition to result. Values: **full**.
 - **metrics** - Return query performance metrics in addition to result. See [Performance Metrics](#performance-metrics) for more detail.
 - **watch** - Set a watch on the data reference if the parameter is present. See [Watches](#watches) for more detail.
 
@@ -1086,7 +1086,7 @@ HTTP/1.1 200 OK
 #### Query Parameters
 
 - **pretty** - If parameter is `true`, response will formatted for humans.
-- **explain** - Return query explanation in addition to result. Values: **full**, **truth**.
+- **explain** - Return query explanation in addition to result. Values: **full**.
 - **metrics** - Return query performance metrics in addition to result. See [Performance Metrics](#performance-metrics) for more detail.
 
 #### Status Codes
@@ -1364,7 +1364,7 @@ Content-Type: application/json
 
 - **q** - The ad-hoc query to execute. OPA will parse, compile, and execute the query represented by the parameter value. The value MUST be URL encoded.
 - **pretty** - If parameter is `true`, response will formatted for humans.
-- **explain** - Return query explanation in addition to result. Values: **full**, **truth**.
+- **explain** - Return query explanation in addition to result. Values: **full**.
 - **metrics** - Return query performance metrics in addition to result. See [Performance Metrics](#performance-metrics) for more detail.
 - **watch** - Set a watch on the query if the parameter is present. See [Watches](#watches) for more detail.
 
@@ -1438,15 +1438,13 @@ Explanations are requested by setting the `explain` query parameter to one of
 the following values:
 
 - **full** - returns a full query trace containing every step in the query evaluation process.
-- **truth** - returns a partial query trace containing one path that leads to the overall query being successful.
 
 By default, explanations are represented in a machine-friendly format. Set the
 `pretty` parameter to request a human-friendly format for debugging purposes.
 
 ### <a name="trace-events"/>Trace Events
 
-When the `explain` query parameter is set to **full** or **truth** , the
-response contains an array of Trace Event objects.
+When the `explain` query parameter is set to **full** , the response contains an array of Trace Event objects.
 
 Trace Event objects contain the following fields:
 
@@ -1672,7 +1670,7 @@ Diagnostics may be fetched from the server using the Data GET endpoint. When the
 | `result`      | No             | Result of evaluating `query`. See the [Data](#data-api) and [Query](#query-api) APIs for detailed descriptions of formats.                                                                                 |
 | `error`       | No             | [Error](#errors) encountered while evaluating `query`.                                                                                                                                                     |
 | `metrics`     | No             | [Performance Metrics](#performance-metrics) for `query`.                                                                                                                                                   |
-| `explanation` | No             | [Explanation](#explanations) of how `result` was found. Whether it contains a `truth` level or `full` level explanation depends on the explanation mode in the GET request that requested the diagnostics. |
+| `explanation` | No             | [Explanation](#explanations) of how `result` was found. |
 
 The server will only store a finite number of diagnostics. If the server's diagnostics storage becomes full, it will delete the oldest diagnostic to make room for the new one. The size of the storage may be configured when the server is started.
 

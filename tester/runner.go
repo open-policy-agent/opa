@@ -166,7 +166,7 @@ func (r *Runner) runTest(ctx context.Context, mod *ast.Module, rule *ast.Rule) (
 
 	if err != nil {
 		tr.Error = err
-		if err, ok := err.(*topdown.Error); ok && err.Code == topdown.CancelErr {
+		if topdown.IsCancel(err) {
 			stop = true
 		}
 	} else if len(rs) == 0 {
