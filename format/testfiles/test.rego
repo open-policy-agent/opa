@@ -75,6 +75,8 @@ z], {"foo": a}) = b {
 split(x, y, c)
 trim(a, z, d) # function comment 1
 split(c[0], d, b)
+x = sprintf("hello %v",
+["world"])
 #function comment 2
 } # function comment 3
 
