@@ -1741,8 +1741,8 @@ func rewriteDynamics(f *equalityFactory, body Body) Body {
 func rewriteDynamicsEqExpr(f *equalityFactory, expr *Expr) []*Expr {
 	terms := expr.Terms.([]*Term)
 	var extras []*Expr
-	extras, terms[1] = rewriteDynamicsInTerm(f, terms[1], nil)
-	extras, terms[2] = rewriteDynamicsInTerm(f, terms[2], extras)
+	extras, terms[1] = rewriteDynamicsInTerm(expr, f, terms[1], nil)
+	extras, terms[2] = rewriteDynamicsInTerm(expr, f, terms[2], extras)
 	return append(extras, expr)
 }
 
@@ -1750,7 +1750,7 @@ func rewriteDynamicsCallExpr(f *equalityFactory, expr *Expr) []*Expr {
 	terms := expr.Terms.([]*Term)
 	var extras []*Expr
 	for i := 1; i < len(terms); i++ {
-		extras, terms[i] = rewriteDynamicsOne(f, terms[i], extras)
+		extras, terms[i] = rewriteDynamicsOne(expr, f, terms[i], extras)
 	}
 	return append(extras, expr)
 }
@@ -1758,15 +1758,15 @@ func rewriteDynamicsCallExpr(f *equalityFactory, expr *Expr) []*Expr {
 func rewriteDynamicsTermExpr(f *equalityFactory, expr *Expr) []*Expr {
 	term := expr.Terms.(*Term)
 	var extras []*Expr
-	extras, expr.Terms = rewriteDynamicsInTerm(f, term, nil)
+	extras, expr.Terms = rewriteDynamicsInTerm(expr, f, term, nil)
 	return append(extras, expr)
 }
 
-func rewriteDynamicsInTerm(f *equalityFactory, term *Term, extras []*Expr) ([]*Expr, *Term) {
+func rewriteDynamicsInTerm(original *Expr, f *equalityFactory, term *Term, extras []*Expr) ([]*Expr, *Term) {
 	switch v := term.Value.(type) {
 	case Ref:
 		for i := 1; i < len(v); i++ {
-			extras, v[i] = rewriteDynamicsOne(f, v[i], extras)
+			extras, v[i] = rewriteDynamicsOne(original, f, v[i], extras)
 		}
 	case *ArrayComprehension:
 		v.Body = rewriteDynamics(f, v.Body)
@@ -1775,49 +1775,60 @@ func rewriteDynamicsInTerm(f *equalityFactory, term *Term, extras []*Expr) ([]*E
 	case *ObjectComprehension:
 		v.Body = rewriteDynamics(f, v.Body)
 	default:
-
-		extras, term = rewriteDynamicsOne(f, term, extras)
+		extras, term = rewriteDynamicsOne(original, f, term, extras)
 	}
 	return extras, term
 }
 
-func rewriteDynamicsOne(f *equalityFactory, term *Term, extras []*Expr) ([]*Expr, *Term) {
+func rewriteDynamicsOne(original *Expr, f *equalityFactory, term *Term, extras []*Expr) ([]*Expr, *Term) {
 	switch v := term.Value.(type) {
 	case Ref:
 		for i := 1; i < len(v); i++ {
-			extras, v[i] = rewriteDynamicsOne(f, v[i], extras)
+			extras, v[i] = rewriteDynamicsOne(original, f, v[i], extras)
 		}
-		extras = append(extras, f.Generate(term))
+		generated := f.Generate(term)
+		generated.With = original.With
+		extras = append(extras, generated)
 		return extras, extras[len(extras)-1].Operand(0)
 	case Array:
 		for i := 0; i < len(v); i++ {
-			extras, v[i] = rewriteDynamicsOne(f, v[i], extras)
+			extras, v[i] = rewriteDynamicsOne(original, f, v[i], extras)
 		}
 		return extras, term
 	case Object:
 		for i := 0; i < len(v); i++ {
-			extras, v[i][0] = rewriteDynamicsOne(f, v[i][0], extras)
-			extras, v[i][1] = rewriteDynamicsOne(f, v[i][1], extras)
+			extras, v[i][0] = rewriteDynamicsOne(original, f, v[i][0], extras)
+			extras, v[i][1] = rewriteDynamicsOne(original, f, v[i][1], extras)
 		}
 		return extras, term
 	case *Set:
 		v, _ = v.Map(func(term *Term) (*Term, error) {
-			extras, term = rewriteDynamicsOne(f, term, extras)
+			extras, term = rewriteDynamicsOne(original, f, term, extras)
 			return term, nil
 		})
 		return extras, NewTerm(v).SetLocation(term.Location)
 	case *ArrayComprehension:
-		v.Body = rewriteDynamics(f, v.Body)
-		extras = append(extras, f.Generate(term))
+		var extra *Expr
+		v.Body, extra = rewriteDynamicsComprehensionBody(original, f, v.Body, term)
+		extras = append(extras, extra)
 		return extras, extras[len(extras)-1].Operand(0)
 	case *SetComprehension:
-		v.Body = rewriteDynamics(f, v.Body)
-		extras = append(extras, f.Generate(term))
+		var extra *Expr
+		v.Body, extra = rewriteDynamicsComprehensionBody(original, f, v.Body, term)
+		extras = append(extras, extra)
 		return extras, extras[len(extras)-1].Operand(0)
 	case *ObjectComprehension:
-		v.Body = rewriteDynamics(f, v.Body)
-		extras = append(extras, f.Generate(term))
+		var extra *Expr
+		v.Body, extra = rewriteDynamicsComprehensionBody(original, f, v.Body, term)
+		extras = append(extras, extra)
 		return extras, extras[len(extras)-1].Operand(0)
 	}
 	return extras, term
+}
+
+func rewriteDynamicsComprehensionBody(original *Expr, f *equalityFactory, body Body, term *Term) (Body, *Expr) {
+	body = rewriteDynamics(f, body)
+	generated := f.Generate(term)
+	generated.With = original.With
+	return body, generated
 }

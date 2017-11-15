@@ -893,6 +893,9 @@ func TestRewriteDynamicTerms(t *testing.T) {
 		{`equality2 { [str] = [str] }`, `{__local0__ = data.test.str; __local1__ = data.test.str; [__local0__] = [__local1__]}`},
 		{`call { startswith(str, "") }`, `{__local0__ = data.test.str; startswith(__local0__, "")}`},
 		{`call2 { count([str], n) }`, `{__local0__ = data.test.str; count([__local0__], n)}`},
+		{`eq_with { [str] = [1] with input as 1 }`, `{__local0__ = data.test.str with input as 1; [__local0__] = [1] with input as 1}`},
+		{`term_with { [[str]] with input as 1 }`, `{__local0__ = data.test.str with input as 1; [[__local0__]] with input as 1}`},
+		{`call_with { count(str) with input as 1 }`, `{__local0__ = data.test.str with input as 1; count(__local0__) with input as 1}`},
 	}
 
 	for _, tc := range tests {
