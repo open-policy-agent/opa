@@ -334,18 +334,19 @@ func (w *writer) writeFunctionCall(expr *ast.Expr, comments []*ast.Comment) []*a
 	if expr.Infix {
 		name := terms[0].Value.String()
 		if bi, ok := ast.BuiltinMap[name]; ok {
-			// Handle relational operators (=, !=, >, etc.)
 			if types.Compare(bi.Decl.Result(), types.T) == 0 {
+				// Handle relational operators (=, !=, >, etc.)
+				comments = w.writeTerm(terms[1], comments)
+				w.write(" " + string(bi.Infix) + " ")
+				return w.writeTerm(terms[2], comments)
+			} else if bi.Infix != "" {
+				// Handle arithmetic operators (+, *, &, etc.)
+				comments = w.writeTerm(terms[3], comments)
+				w.write(" = ")
 				comments = w.writeTerm(terms[1], comments)
 				w.write(" " + string(bi.Infix) + " ")
 				return w.writeTerm(terms[2], comments)
 			}
-			// Handle arithmetic operators (+, *, &, etc.)
-			comments = w.writeTerm(terms[3], comments)
-			w.write(" = ")
-			comments = w.writeTerm(terms[1], comments)
-			w.write(" " + string(bi.Infix) + " ")
-			return w.writeTerm(terms[2], comments)
 		}
 		comments = w.writeTerm(terms[len(terms)-1], comments)
 		w.write(" = " + string(terms[0].String()) + "(")
