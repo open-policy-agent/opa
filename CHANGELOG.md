@@ -3,7 +3,18 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## 0.5.11
+
+### Fixes
+
+- Refactor topdown evaluation/unification ([#131](https://github.com/open-policy-agent/opa/issues/131))
+- Rewrite refs in rule args ([#497](https://github.com/open-policy-agent/opa/issues/497))
+
+### Miscellaneous
+
+- Fix bug in expression formatting
+- Fix dynamic rewriting to copy with modifiers
+- Fix off-by-one bug in array helper
 
 ## 0.5.10
 
