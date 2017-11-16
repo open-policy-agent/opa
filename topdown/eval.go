@@ -1328,15 +1328,6 @@ func (e evalTerm) next(iter unifyIterator, plugged *ast.Term) error {
 func (e evalTerm) enumerate(iter unifyIterator) error {
 
 	switch v := e.term.Value.(type) {
-	case *ast.Set:
-		for _, elem := range *v {
-			err := e.e.biunify(elem, e.ref[e.pos], e.termbindings, e.bindings, func() error {
-				return e.next(iter, elem)
-			})
-			if err != nil {
-				return err
-			}
-		}
 	case ast.Array:
 		for i := range v {
 			k := ast.IntNumberTerm(i)
@@ -1349,8 +1340,17 @@ func (e evalTerm) enumerate(iter unifyIterator) error {
 		}
 	case ast.Object:
 		for _, pair := range v {
-			err := e.e.biunify(pair[0], e.ref[e.pos], e.bindings, e.bindings, func() error {
-				return e.next(iter, pair[0])
+			err := e.e.biunify(pair[0], e.ref[e.pos], e.termbindings, e.bindings, func() error {
+				return e.next(iter, e.bindings.Plug(e.ref[e.pos]))
+			})
+			if err != nil {
+				return err
+			}
+		}
+	case *ast.Set:
+		for _, elem := range *v {
+			err := e.e.biunify(elem, e.ref[e.pos], e.termbindings, e.bindings, func() error {
+				return e.next(iter, e.bindings.Plug(e.ref[e.pos]))
 			})
 			if err != nil {
 				return err
@@ -1364,13 +1364,29 @@ func (e evalTerm) enumerate(iter unifyIterator) error {
 func (e evalTerm) get(plugged *ast.Term) (*ast.Term, *bindings) {
 	switch v := e.term.Value.(type) {
 	case *ast.Set:
-		if v.Contains(plugged) {
-			return e.termbindings.apply(plugged)
+		if v.IsGround() {
+			if v.Contains(plugged) {
+				return e.termbindings.apply(plugged)
+			}
+		} else {
+			for _, elem := range *v {
+				if e.termbindings.Plug(elem).Equal(plugged) {
+					return e.termbindings.apply(plugged)
+				}
+			}
 		}
 	case ast.Object:
-		term := v.Get(plugged)
-		if term != nil {
-			return e.termbindings.apply(term)
+		if v.IsGround() {
+			term := v.Get(plugged)
+			if term != nil {
+				return e.termbindings.apply(term)
+			}
+		} else {
+			for i := range v {
+				if e.termbindings.Plug(v[i][0]).Equal(plugged) {
+					return e.termbindings.apply(v[i][1])
+				}
+			}
 		}
 	case ast.Array:
 		term := v.Get(plugged)

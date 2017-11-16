@@ -8,6 +8,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"reflect"
 	"sort"
 	"strings"
@@ -471,6 +472,26 @@ func TestTopDownVirtualDocs(t *testing.T) {
 
 		{"empty partial set", []string{"p[1] { a[0] = 100 }"}, "[]"},
 		{"empty partial object", []string{`p["x"] = 1 { a[0] = 100 }`}, "{}"},
+
+		{"input: non-ground object keys", []string{
+			`p = x { q.a.b = x }`,
+			`q = {x: {y: 1}} { x = "a"; y = "b" }`,
+		}, "1"},
+
+		{"input: non-ground set elements", []string{
+			`p { q["c"] }`,
+			`q = {x, "b", z} { x = "a"; z = "c" }`,
+		}, "true"},
+
+		{"output: non-ground object keys", []string{
+			`p[x] { q[i][j] = x }`,
+			`q = {x: {x1: 1}, y: {y1: 2}} { x = "a"; y = "b"; x1 = "a1"; y1 = "b1" }`,
+		}, "[1, 2]"},
+
+		{"output: non-ground set elements", []string{
+			`p[x] { q[x] }`,
+			`q = {x, "b", z} { x = "a"; z = "c" }`,
+		}, `["a", "b", "c"]`},
 	}
 
 	data := loadSmallTestData()
@@ -2375,6 +2396,12 @@ func assertTopDownWithPath(t *testing.T, compiler *ast.Compiler, store storage.S
 		WithTransaction(txn).
 		WithInput(inputTerm)
 
+	var tracer BufferTracer
+
+	if os.Getenv("OPA_TRACE_TEST") != "" {
+		query = query.WithTracer(&tracer)
+	}
+
 	testutil.Subtest(t, note, func(t *testing.T) {
 		switch e := expected.(type) {
 		case error:
@@ -2390,6 +2417,10 @@ func assertTopDownWithPath(t *testing.T, compiler *ast.Compiler, store storage.S
 
 		case string:
 			qrs, err := query.Run(ctx)
+
+			if tracer != nil {
+				PrettyTrace(os.Stdout, tracer)
+			}
 
 			if err != nil {
 				t.Fatalf("Unexpected error: %v", err)
