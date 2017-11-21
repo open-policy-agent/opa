@@ -513,10 +513,10 @@ OPA is under active development. The following features are planned but not yet 
 
 OPA APIs support transactional operations. Either all of the operations within a transaction succeed or the whole transaction fails. For example, to deploy a new virtual machine, you might:
 
-  * Open a new transaction.
-  * Query OPA for a list of hosts where the VM can be deployed.
-  * Deploy the VM to host from the list.
-  * Push data about the new deployment into OPA’s document store.
-  * Close the transaction.
+  1. Open a new transaction.
+  1. Query OPA for a list of hosts where the VM can be deployed.
+  1. Deploy the VM to host from the list.
+  1. Push data about the new deployment into OPA’s document store.
+  1. Close the transaction.
 
 If any of steps 2–4 fail, so will the transaction.
