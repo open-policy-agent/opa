@@ -3,7 +3,12 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## 0.5.12
+
+### Fixes
+
+- Fix eval of objects/sets containing vars ([#505](https://github.com/open-policy-agent/opa/issues/505))
+- Fix REPL printing of generated vars
 
 ## 0.5.11
 
