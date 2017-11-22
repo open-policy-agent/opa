@@ -25,6 +25,7 @@ import (
 	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/topdown"
+	"github.com/open-policy-agent/opa/types"
 	"github.com/open-policy-agent/opa/version"
 	"github.com/peterh/liner"
 )
@@ -717,20 +718,54 @@ func (r *REPL) evalStatement(ctx context.Context, stmt interface{}) error {
 
 func (r *REPL) evalBody(ctx context.Context, compiler *ast.Compiler, input ast.Value, body ast.Body) error {
 
-	// Special case for positive, single term inputs.
+	// Define value to print if query is undefined. For most queries, false is
+	// the preferred value. For queries consisting of a single ref, use
+	// undefined instead.
+	undefinedResult := "false"
+
 	if len(body) == 1 {
-		expr := body[0]
-		if !expr.Negated {
-			if _, ok := expr.Terms.(*ast.Term); ok {
-				if singleValue(body) {
-					return r.evalTermSingleValue(ctx, compiler, input, body)
-				}
-				return r.evalTermMultiValue(ctx, compiler, input, body)
+		if term, ok := body[0].Terms.(*ast.Term); ok {
+			if _, ok := term.Value.(ast.Ref); ok {
+				undefinedResult = "undefined"
 			}
 		}
 	}
 
-	q := topdown.NewQuery(body).WithCompiler(compiler).WithStore(r.store).WithTransaction(r.txn)
+	// Build set of vars to capture and display.
+	vis := ast.NewVarVisitor().WithParams(ast.VarVisitorParams{
+		SkipRefHead:  true,
+		SkipClosures: true,
+	})
+
+	ast.Walk(vis, body)
+
+	capture := map[ast.Var]string{}
+	for k := range vis.Vars() {
+		if !k.IsWildcard() && !k.IsGenerated() {
+			capture[k] = k.String()
+		}
+	}
+
+	// Rewrite query to capture the value of single term expressions. Do not
+	// capture refs that refer to set elements.
+	for i := range body {
+		if term, ok := body[i].Terms.(*ast.Term); ok {
+			if !body[i].Negated {
+				replVar := newREPLVar(i)
+				body[i].Terms = ast.Equality.Expr(term, ast.NewTerm(replVar)).Terms
+				if !r.isSetReference(compiler, term) || term.IsGround() {
+					capture[replVar] = body[i].Location.String()
+				}
+			}
+		}
+	}
+
+	// Prepare query.
+	q := topdown.NewQuery(body).
+		WithCompiler(compiler).
+		WithStore(r.store).
+		WithTransaction(r.txn)
+
 	if input != nil {
 		q = q.WithInput(ast.NewTerm(input))
 	}
@@ -742,32 +777,27 @@ func (r *REPL) evalBody(ctx context.Context, compiler *ast.Compiler, input ast.V
 		q = q.WithTracer(buf)
 	}
 
-	// Flag indicates whether the query was defined for some context.
-	// If the query does not include any ground terms, the results will
-	// be empty, but we still want to output "true". If there are
-	// no results, this will remain "false" and we will output "false".
-	var isTrue = false
+	results := []map[string]interface{}{}
+	isDefined := false
 
-	// Store bindings as slice of maps where map keys are variables
-	// and values are the underlying Go values.
-	var results []map[string]interface{}
-
-	// Execute query and accumulate results.
 	r.timerStart(metrics.RegoQueryEval)
+
+	// Run query.
 	err := q.Iter(ctx, func(qr topdown.QueryResult) error {
 
 		row := map[string]interface{}{}
+
 		for k, v := range qr {
-			if !k.IsWildcard() && !k.IsGenerated() {
+			if c, ok := capture[k]; ok {
 				x, err := ast.JSON(v.Value)
 				if err != nil {
 					return err
 				}
-				row[k.String()] = x
+				row[c] = x
 			}
 		}
 
-		isTrue = true
+		isDefined = true
 
 		if len(row) > 0 {
 			results = append(results, row)
@@ -775,6 +805,7 @@ func (r *REPL) evalBody(ctx context.Context, compiler *ast.Compiler, input ast.V
 
 		return nil
 	})
+
 	r.timerStop(metrics.RegoQueryEval)
 
 	if buf != nil {
@@ -789,15 +820,34 @@ func (r *REPL) evalBody(ctx context.Context, compiler *ast.Compiler, input ast.V
 		return err
 	}
 
-	if isTrue {
-		if len(results) >= 1 {
-			r.printResults(getHeaderForBody(body), results)
-		} else {
+	// Handle query results.
+	if len(results) == 0 {
+		if isDefined {
 			fmt.Fprintln(r.output, "true")
+			return nil
 		}
-	} else {
-		fmt.Fprintln(r.output, "false")
+		fmt.Fprintln(r.output, undefinedResult)
+		return nil
 	}
+
+	if len(results) == 1 && len(results[0]) == 1 {
+		for k, v := range results[0] {
+			for varName, c := range capture {
+				if isREPLVar(varName) && c == k {
+					r.printJSON(v)
+					return nil
+				}
+			}
+		}
+	}
+
+	keys := []string{}
+	for _, v := range capture {
+		keys = append(keys, v)
+	}
+
+	sort.Strings(keys)
+	r.printResults(keys, results)
 
 	return nil
 }
@@ -839,166 +889,6 @@ func (r *REPL) evalPackage(p *ast.Package) error {
 	return nil
 }
 
-// evalTermSingleValue evaluates and prints terms in cases where the term evaluates to a
-// single value, e.g., "1", true, [1,2,"foo"], [x | x = a[i], a = [1,2,3]], etc. Ground terms
-// and comprehensions always evaluate to a single value. To handle references, this function
-// still executes the query, except it does so by rewriting the body to assign the term
-// to a variable. This allows the REPL to obtain the result even if the term is false.
-func (r *REPL) evalTermSingleValue(ctx context.Context, compiler *ast.Compiler, input ast.Value, body ast.Body) error {
-
-	term := body[0].Terms.(*ast.Term)
-	outputVar := ast.Wildcard
-	expr := ast.Equality.Expr(term, outputVar)
-	for _, with := range body[0].With {
-		expr = expr.IncludeWith(with.Target, with.Value)
-	}
-	expr.Location = body.Loc()
-	body = ast.NewBody(expr)
-
-	q := topdown.NewQuery(body).WithCompiler(compiler).WithStore(r.store).WithTransaction(r.txn)
-	if input != nil {
-		q = q.WithInput(ast.NewTerm(input))
-	}
-
-	var buf *topdown.BufferTracer
-
-	if r.explain != explainOff {
-		buf = topdown.NewBufferTracer()
-		q = q.WithTracer(buf)
-	}
-
-	var result interface{}
-	isTrue := false
-
-	r.timerStart(metrics.RegoQueryEval)
-	err := q.Iter(ctx, func(qr topdown.QueryResult) error {
-		p := qr[outputVar.Value.(ast.Var)]
-		v, err := ast.JSON(p.Value)
-		if err != nil {
-			return err
-		}
-		result = v
-		isTrue = true
-		return nil
-	})
-	r.timerStop(metrics.RegoQueryEval)
-
-	if buf != nil {
-		r.printTrace(ctx, compiler, *buf)
-	}
-
-	if r.metrics != nil {
-		r.printMetrics(r.metrics)
-	}
-
-	if err != nil {
-		return err
-	}
-
-	if isTrue {
-		r.printJSON(result)
-	} else if !r.undefinedDisabled {
-		r.printUndefined()
-	}
-
-	return nil
-}
-
-// evalTermMultiValue evaluates and prints terms in cases where the term may evaluate to multiple
-// ground values, e.g., a[i], [servers[x]], etc.
-func (r *REPL) evalTermMultiValue(ctx context.Context, compiler *ast.Compiler, input ast.Value, body ast.Body) error {
-
-	// Mangle the expression in the same way we do for evalTermSingleValue. When handling the
-	// evaluation result below, we will ignore this variable.
-	term := body[0].Terms.(*ast.Term)
-	outputVar := ast.Wildcard
-	expr := ast.Equality.Expr(term, outputVar)
-	for _, with := range body[0].With {
-		expr = expr.IncludeWith(with.Target, with.Value)
-	}
-	expr.Location = body.Loc()
-	body = ast.NewBody(expr)
-
-	q := topdown.NewQuery(body).WithCompiler(compiler).WithStore(r.store).WithTransaction(r.txn)
-	if input != nil {
-		q = q.WithInput(ast.NewTerm(input))
-	}
-
-	var buf *topdown.BufferTracer
-
-	if r.explain != explainOff {
-		buf = topdown.NewBufferTracer()
-		q = q.WithTracer(buf)
-	}
-
-	vars := map[string]struct{}{}
-	results := []map[string]interface{}{}
-	resultKey := string(term.Location.Text)
-
-	// Do not include the value of the input term if the input term was a set reference. E.g.,
-	// for "p[x]", the value users are interested in is "x" not p[x] which is always defined
-	// as true.
-	includeValue := !r.isSetReference(compiler, term)
-
-	r.timerStart(metrics.RegoQueryEval)
-	err := q.Iter(ctx, func(qr topdown.QueryResult) error {
-
-		result := map[string]interface{}{}
-
-		for k, v := range qr {
-			if !k.IsWildcard() && !k.Equal(outputVar.Value) {
-				x, err := ast.JSON(v.Value)
-				if err != nil {
-					return err
-				}
-				result[k.String()] = x
-				vars[k.String()] = struct{}{}
-			}
-		}
-
-		if includeValue {
-			var err error
-			result[resultKey], err = ast.JSON(qr[outputVar.Value.(ast.Var)].Value)
-			if err != nil {
-				return err
-			}
-		}
-
-		results = append(results, result)
-
-		return nil
-	})
-	r.timerStop(metrics.RegoQueryEval)
-
-	if buf != nil {
-		r.printTrace(ctx, compiler, *buf)
-	}
-
-	if r.metrics != nil {
-		r.printMetrics(r.metrics)
-	}
-
-	if err != nil {
-		return err
-	}
-
-	if len(results) > 0 {
-		keys := []string{}
-		for v := range vars {
-			keys = append(keys, v)
-		}
-		sort.Strings(keys)
-		if includeValue {
-			keys = append(keys, resultKey)
-		}
-		r.printResults(keys, results)
-	} else if !r.undefinedDisabled {
-		r.printUndefined()
-	}
-
-	return nil
-}
-
 func (r *REPL) getPrompt() string {
 	if len(r.buffer) > 0 {
 		return r.bufferPrompt
@@ -1006,24 +896,15 @@ func (r *REPL) getPrompt() string {
 	return r.initPrompt
 }
 
-// isSetReference returns true if term is a reference that refers to a set document.
 func (r *REPL) isSetReference(compiler *ast.Compiler, term *ast.Term) bool {
-	ref, ok := term.Value.(ast.Ref)
-	if !ok {
-		return false
+	if ref, ok := term.Value.(ast.Ref); ok {
+		if tpe := compiler.TypeEnv.Get(ref.ConstantPrefix()); tpe != nil {
+			if _, ok := tpe.(*types.Set); ok {
+				return true
+			}
+		}
 	}
-	rs := compiler.GetRulesExact(ref.GroundPrefix())
-	if rs == nil {
-		return false
-	}
-	if rs[0].Head.DocKind() == ast.PartialSetDoc {
-		return true
-	}
-	if rs[0].Head.Value == nil {
-		return false
-	}
-	_, ok = rs[0].Head.Value.Value.(*ast.Set)
-	return ok
+	return false
 }
 
 func (r *REPL) loadHistory(prompt *liner.State) {
@@ -1227,72 +1108,12 @@ func newCommand(line string) *command {
 	return nil
 }
 
-func buildHeader(fields map[string]struct{}, term *ast.Term) {
-	switch v := term.Value.(type) {
-	case ast.Ref:
-		for _, t := range v[1:] {
-			buildHeader(fields, t)
-		}
-	case ast.Var:
-		if !v.IsWildcard() {
-			s := string(v)
-			fields[s] = struct{}{}
-		}
-	case ast.Object:
-		for _, i := range v {
-			buildHeader(fields, i[0])
-			buildHeader(fields, i[1])
-		}
-	case ast.Array:
-		for _, e := range v {
-			buildHeader(fields, e)
-		}
-	}
+func isREPLVar(x ast.Var) bool {
+	return strings.HasPrefix(string(x), "__repl")
 }
 
-func getHeaderForBody(body ast.Body) []string {
-	// Build set of fields for the output. The fields are the variables from inside the body.
-	// If the variable appears multiple times, we only want a single field so store them in a
-	// map/set.
-	fields := map[string]struct{}{}
-
-	// TODO(tsandall): perhaps we could refactor this to use a "walk" function on the body.
-	for _, expr := range body {
-		switch ts := expr.Terms.(type) {
-		case []*ast.Term:
-			for _, t := range ts[1:] {
-				buildHeader(fields, t)
-			}
-		case *ast.Term:
-			buildHeader(fields, ts)
-		}
-	}
-
-	// Sort/display fields by name.
-	keys := []string{}
-	for k := range fields {
-		keys = append(keys, k)
-	}
-
-	sort.Strings(keys)
-	return keys
-}
-
-// singleValue returns true if body can be evaluated to a single term.
-func singleValue(body ast.Body) bool {
-	if len(body) != 1 {
-		return false
-	}
-	term, ok := body[0].Terms.(*ast.Term)
-	if !ok {
-		return false
-	}
-	switch term.Value.(type) {
-	case *ast.ArrayComprehension:
-		return true
-	default:
-		return term.IsGround()
-	}
+func newREPLVar(i int) ast.Var {
+	return ast.Var(fmt.Sprintf("__repl%d__", i))
 }
 
 func dumpStorage(ctx context.Context, store storage.Store, txn storage.Transaction, w io.Writer) error {

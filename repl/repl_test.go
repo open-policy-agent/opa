@@ -983,6 +983,51 @@ func TestEvalBodyWith(t *testing.T) {
 	}
 }
 
+func TestEvalBodyRewrittenBuiltin(t *testing.T) {
+	ctx := context.Background()
+	store := newTestStore()
+	var buffer bytes.Buffer
+	repl := newRepl(store, &buffer)
+	repl.OneShot(ctx, "json")
+	repl.OneShot(ctx, `p[x] { a[x]; a = [1,2,3,4] }`)
+	repl.OneShot(ctx, "p[x] > 1")
+	result := util.MustUnmarshalJSON(buffer.Bytes())
+	expected := util.MustUnmarshalJSON([]byte(`[{"x": 2}, {"x": 3}]`))
+	if util.Compare(result, expected) != 0 {
+		t.Fatalf("Expected %v but got: %v", expected, result)
+	}
+}
+
+func TestEvalBodyRewrittenRef(t *testing.T) {
+	ctx := context.Background()
+	store := newTestStore()
+	var buffer bytes.Buffer
+	repl := newRepl(store, &buffer)
+	repl.OneShot(ctx, "json")
+	repl.OneShot(ctx, `i = 1`)
+	repl.OneShot(ctx, `data.a[0].b.c[i]`)
+	result := util.MustUnmarshalJSON(buffer.Bytes())
+	expected := util.MustUnmarshalJSON([]byte(`2`))
+	if util.Compare(result, expected) != 0 {
+		t.Fatalf("Expected %v but got: %v", expected, result)
+	}
+	buffer.Reset()
+	repl.OneShot(ctx, "p = {1,2,3}")
+	repl.OneShot(ctx, "p")
+	result = util.MustUnmarshalJSON(buffer.Bytes())
+	expected = util.MustUnmarshalJSON([]byte(`[1,2,3]`))
+	if util.Compare(result, expected) != 0 {
+		t.Fatalf("Expected %v but got: %v", expected, result)
+	}
+	buffer.Reset()
+	repl.OneShot(ctx, "p[x]")
+	result = util.MustUnmarshalJSON(buffer.Bytes())
+	expected = util.MustUnmarshalJSON([]byte(`[{"x": 1}, {"x": 2}, {"x": 3}]`))
+	if util.Compare(result, expected) != 0 {
+		t.Fatalf("Expected %v but got: %v", expected, result)
+	}
+}
+
 func TestEvalImport(t *testing.T) {
 	ctx := context.Background()
 	store := newTestStore()
@@ -1148,19 +1193,6 @@ func TestTruncatePrettyOutput(t *testing.T) {
 	buffer.Reset()
 	if err := repl.OneShot(ctx, "pretty-limit"); err == nil || !strings.Contains(err.Error(), "usage: pretty-limit <n>") {
 		t.Fatalf("Expected usage error but got: %v", err)
-	}
-}
-
-func TestBuildHeader(t *testing.T) {
-	expr := ast.MustParseStatement(`[{"a": x, "b": data.a.b[y]}] = [{"a": 1, "b": 2}]`).(ast.Body)[0]
-	terms := expr.Terms.([]*ast.Term)
-	result := map[string]struct{}{}
-	buildHeader(result, terms[1])
-	expected := map[string]struct{}{
-		"x": struct{}{}, "y": struct{}{},
-	}
-	if !reflect.DeepEqual(result, expected) {
-		t.Errorf("Build header expected %v but got %v", expected, result)
 	}
 }
 
