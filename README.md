@@ -29,7 +29,7 @@ that enables unified, context-aware policy enforcement across the entire stack.
 
 * See [DEVELOPMENT.md](./docs/devel/DEVELOPMENT.md) to build and test OPA itself.
 * See [CONTRIBUTING.md](./CONTRIBUTING.md) to get started.
-* Use [GitHub Issues]() to request features or file bugs.
+* Use [GitHub Issues](https://github.com/open-policy-agent/opa/issues) to request features or file bugs.
 
 ## How does OPA work?
 
