@@ -823,7 +823,7 @@ func TestTopDownDisjunction(t *testing.T) {
 			`q["b"] = 2 { true }`},
 			`{"a": 1, "b": 2}`},
 		{"complete: undefined", []string{`p = true { false }`, `p = true { false }`}, ""},
-		{"complete: error", []string{`p = true { true }`, `p = false { true }`}, completeDocConflictErr(nil)},
+		{"complete: error", []string{`p = true { true }`, `p = false { false }`, `p = false { true }`}, completeDocConflictErr(nil)},
 		{"complete: valid", []string{`p = true { true }`, `p = true { true }`}, "true"},
 		{"complete: valid-2", []string{`p = true { true }`, `p = false { false }`}, "true"},
 		{"complete: reference error", []string{`p = true { q }`, `q = true { true }`, `q = false { true }`}, completeDocConflictErr(nil)},
@@ -917,7 +917,8 @@ func TestTopDownDefaultKeyword(t *testing.T) {
 		expected interface{}
 	}{
 		{"undefined", []string{`p = 1 { false }`, `default p = 0`, `p = 2 { false }`}, "0"},
-		{"defined", []string{`p = 1 { true }`, `default p = 0`, `p = 2 { false }`}, "1"},
+		{"defined", []string{`default p = 0`, `p = 1 { true }`, `p = 2 { false }`}, `1`},
+		{"defined-ooo", []string{`p = 1 { true }`, `default p = 0`, `p = 2 { false }`}, "1"},
 		{"array comprehension", []string{`p = 1 { false }`, `default p = [x | a[_] = x]`}, "[1,2,3,4]"},
 		{"object comprehension", []string{`p = 1 { false }`, `default p = {x: k | d[k][_] = x}`}, `{"bar": "e", "baz": "e"}`},
 		{"set comprehension", []string{`p = 1 { false }`, `default p = {x | a[_] = x}`}, `[1,2,3,4]`},
@@ -1788,7 +1789,7 @@ func TestTopDownFunctionErrors(t *testing.T) {
 
 	assertTopDownWithPath(t, compiler, store, "function output conflict single", []string{"test1", "r"}, "", functionConflictErr(nil))
 	assertTopDownWithPath(t, compiler, store, "function input no match", []string{"test2", "r"}, "", "")
-	assertTopDownWithPath(t, compiler, store, "function output conflict multiple", []string{"test3", "r"}, "", completeDocConflictErr(nil))
+	assertTopDownWithPath(t, compiler, store, "function output conflict multiple", []string{"test3", "r"}, "", functionConflictErr(nil))
 }
 
 func TestTopDownWithKeyword(t *testing.T) {
