@@ -36,20 +36,33 @@ that enables unified, context-aware policy enforcement across the entire stack.
 OPA gives you a high-level declarative language to author and enforce policies
 across your stack.
 
-With OPA, you:
+With OPA, you define _rules_ that govern how your system should behave. These
+rules exist to answer questions like:
 
-1. Define _rules_ that govern how your system should behave.
-2. Integrate services with OPA by _querying_ for policy decisions when they are needed.
+* Can user X call operation Y on resource Z?
+* What clusters should workload W be deployed to?
+* What tags must be set on resource R before it's created?
 
-OPA takes the queries your system executes and computes policy decisions using
-the rules (and data) that have been loaded. The decisions are returned to your
-system so they can be enforced.
+You integrate services with OPA so that these kinds of policy decisions do not
+have to be *hardcoded* in your service. Services integrate with OPA by
+executing _queries_ when policy decisions are needed.
+
+When you query OPA for a policy decision, OPA evaluates the rules and data
+(which you give it) to produce an answer. The policy decision is sent back as
+the result of the query.
+
+For example, in a simple API authorization use case:
+
+* You write rules that allow (or deny) access to your service APIs.
+* Your service queries OPA when it receives API requests.
+* OPA returns allow (or deny) decisions to your service.
+* Your service _enforces_ the decisions by accepting or rejecting requests accordingly.
 
 The examples below show different kinds of policies you can define with OPA as
 well as different kinds of queries your system can execute against OPA. The
 example queries are executed inside OPA's
 [REPL](http://www.openpolicyagent.org/docs/get-started.html) which was built to
-make it easy to test policies and queries.
+make it easy to develop and test policies.
 
 For concrete examples of how to integrate OPA with systems like [Kubernetes](http://www.openpolicyagent.org/docs/kubernetes-admission-control.html), [Terraform](http://www.openpolicyagent.org/docs/terraform.html), [Docker](http://www.openpolicyagent.org/docs/docker-authorization.html), [SSH](http://www.openpolicyagent.org/docs/ssh-and-sudo-authorization.html), and more, see [openpolicyagent.org](http://www.openpolicyagent.org).
 
