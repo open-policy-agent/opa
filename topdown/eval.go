@@ -730,7 +730,9 @@ func (e evalFunc) eval(iter unifyIterator) error {
 				}
 			}
 		}
-		prev = next
+		if next != nil {
+			prev = next
+		}
 	}
 
 	return nil
@@ -1216,7 +1218,9 @@ func (e evalVirtualComplete) eval(iter unifyIterator) error {
 				}
 			}
 		}
-		prev = next
+		if next != nil {
+			prev = next
+		}
 	}
 
 	if e.ir.Default != nil && prev == nil {
