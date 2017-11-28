@@ -15,6 +15,8 @@ import (
 )
 
 func TestInterfaceToValue(t *testing.T) {
+
+	// Test util package unmarshalled inputs
 	input := `
 	{
 		"x": [
@@ -30,20 +32,56 @@ func TestInterfaceToValue(t *testing.T) {
 	`
 	var x interface{}
 	if err := util.UnmarshalJSON([]byte(input), &x); err != nil {
-		panic(err)
+		t.Fatal(err)
 	}
 
 	expected := MustParseTerm(input).Value
 
 	v, err := InterfaceToValue(x)
 	if err != nil {
-		t.Errorf("Unexpected error converting interface{} to ast.Value: %v", err)
-		return
+		t.Fatal(err)
 	}
 
 	if v.Compare(expected) != 0 {
-		t.Errorf("Expected ast.Value to equal:\n%v\nBut got:\n%v", expected, v)
+		t.Fatalf("Expected %v but got: %v", expected, v)
 	}
+
+	// Test standard JSON package unmarshalled inputs
+	if err := json.Unmarshal([]byte(input), &x); err != nil {
+		t.Fatal(err)
+	}
+
+	expected = MustParseTerm(input).Value
+	if v, err = InterfaceToValue(x); err != nil {
+		t.Fatal(err)
+	}
+
+	if expected.Compare(v) != 0 {
+		t.Fatalf("Expected %v but got: %v", expected, v)
+	}
+
+	// Test misc. types
+	tests := []struct {
+		input    interface{}
+		expected string
+	}{
+		{int64(100), "100"},
+		{float64(100), "100"},
+		{int(100), "100"},
+		{map[string]string{"foo": "bar"}, `{"foo": "bar"}`},
+	}
+
+	for _, tc := range tests {
+		expected := MustParseTerm(tc.expected).Value
+		v, err := InterfaceToValue(tc.input)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if v.Compare(expected) != 0 {
+			t.Fatalf("Expected %v but got: %v", expected, v)
+		}
+	}
+
 }
 
 func TestObjectSetOperations(t *testing.T) {
