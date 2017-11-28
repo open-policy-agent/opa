@@ -98,6 +98,12 @@ func InterfaceToValue(x interface{}) (Value, error) {
 		return Boolean(x), nil
 	case json.Number:
 		return Number(x), nil
+	case int64:
+		return int64Number(x), nil
+	case float64:
+		return floatNumber(x), nil
+	case int:
+		return intNumber(x), nil
 	case string:
 		return String(x), nil
 	case []interface{}:
@@ -111,6 +117,20 @@ func InterfaceToValue(x interface{}) (Value, error) {
 		}
 		return r, nil
 	case map[string]interface{}:
+		r := Object{}
+		for k, v := range x {
+			k, err := InterfaceToValue(k)
+			if err != nil {
+				return nil, err
+			}
+			v, err := InterfaceToValue(v)
+			if err != nil {
+				return nil, err
+			}
+			r = append(r, Item(&Term{Value: k}, &Term{Value: v}))
+		}
+		return r, nil
+	case map[string]string:
 		r := Object{}
 		for k, v := range x {
 			k, err := InterfaceToValue(k)
@@ -566,6 +586,18 @@ func (num Number) MarshalJSON() ([]byte, error) {
 
 func (num Number) String() string {
 	return string(num)
+}
+
+func intNumber(i int) Number {
+	return Number(json.Number(fmt.Sprintf("%d", i)))
+}
+
+func int64Number(i int64) Number {
+	return Number(json.Number(fmt.Sprintf("%d", i)))
+}
+
+func floatNumber(f float64) Number {
+	return Number(strconv.FormatFloat(f, 'g', -1, 64))
 }
 
 // String represents a string value as defined by JSON.
