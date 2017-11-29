@@ -1,0 +1,20 @@
+{
+    "input": {
+        "kind": "Pod",
+        "apiVersion": "v1",
+        "metadata": {
+            "name": "opa",
+            "labels": {
+                "customer": "example.org"
+            }
+        },
+        "spec": {
+            "containers": [
+                {
+                    "name": "opa",
+                    "image": "openpolicyagent/opa"
+                }
+            ]
+        }
+    }
+}
