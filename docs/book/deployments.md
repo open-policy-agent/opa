@@ -85,23 +85,11 @@ docker run -v $PWD/example:/example openpolicyagent/opa \
     /example
 ```
 
-**$PWD/example/data.json**:
+**$PWD/example/[data.json](https://github.com/open-policy-agent/opa/docs/book/tutorials/deployments-docker/example/data.json)**:
+<pre><code class="lang-yaml">{% include "./tutorials/deployments-docker/example/data.json" %}</code></pre>
 
-```json
-{
-    "hostOS": "$(uname)"
-}
-```
-
-**$PWD/example/policy.rego**:
-
-```ruby
-package example
-
-greeting = msg {
-    concat("", ["Hello ", data.example.hostOS, "!"], msg)
-}
-```
+**$PWD/example/[policy.rego](https://github.com/open-policy-agent/opa/docs/book/tutorials/deployments-docker/example/policy.rego)**:
+<pre><code class="lang-ruby">{% include "./tutorials/deployments-docker/example/policy.rego" %}</code></pre>
 
 #### More Information
 
@@ -151,22 +139,8 @@ In this case, the policy file does not contain sensitive information so it's
 fine to store as a ConfigMap. If the file contained sensitive information, then
 we recommend you store it as a Secret.
 
-```ruby
-package example
-
-import input.pod
-
-default allow = true
-
-allow = false {
-    not pod.metadata.labels.customer
-}
-
-allow = false {
-    container = pod.spec.containers[_]
-    not re_match("^registry.acmecorp.com/.+$", container.image)
-}
-```
+**[example.rego](https://github.com/open-policy-agent/opa/docs/book/tutorials/deployments-kubernetes/example.rego)**
+<pre><code class="lang-ruby">{% include "./tutorials/deployments-kubernetes/example.rego" %}</code></pre>
 
 ```bash
 kubectl create configmap example-policy \
@@ -177,39 +151,8 @@ Next, create a ReplicationController to deploy OPA. The ConfigMap containing the
 policy is volume mounted into the container. This allows OPA to load the policy
 from the file system.
 
-```yaml
-kind: ReplicationController
-apiVersion: v1
-metadata:
-  name: opa
-spec:
-  replicas: 1
-  selector:
-    app: opa
-  template:
-    metadata:
-      labels:
-        app: opa
-    spec:
-      volumes:
-      - name: example-policy
-        configMap:
-          name: example-policy
-      containers:
-      - name: opa
-        image: openpolicyagent/opa
-        ports:
-        - name: http
-          containerPort: 8181
-        args:
-        - "run"
-        - "--server"
-        - "/policies/example.rego"
-        volumeMounts:
-        - readOnly: true
-          mountPath: /policies
-          name: example-policy
-```
+**[rc_opa.yaml](https://github.com/open-policy-agent/opa/docs/book/tutorials/deployments-kubernetes/rc_opa.yaml)**
+<pre><code class="lang-yaml">{% include "./tutorials/deployments-kubernetes/rc_opa.yaml" %}</code></pre>
 
 ```bash
 kubectl create -f rc_opa.yaml
@@ -218,23 +161,9 @@ kubectl create -f rc_opa.yaml
 At this point OPA is up and running. Create a Service to expose the OPA API so
 that you can query it:
 
-```yaml
-kind: Service
-apiVersion: v1
-metadata:
-  name: opa
-  labels:
-    app: opa
-spec:
-  type: NodePort
-  selector:
-    app: opa
-  ports:
-    - name: http
-      protocol: TCP
-      port: 8181
-      targetPort: 8181
-```
+**[svc_opa.yaml](https://github.com/open-policy-agent/opa/docs/book/tutorials/deployments-kubernetes/svc_opa.yaml)**
+<pre><code class="lang-yaml">{% include "./tutorials/deployments-kubernetes/svc_opa.yaml" %}</code></pre>
+
 
 ```bash
 kubectl create -f svc_opa.yaml
@@ -249,28 +178,8 @@ OPA_URL=$(minikube service opa --url)
 Exercise the OPA API. Note that the container below references an image outside
 our hypothetical repository:
 
-```json
-{
-    "input": {
-        "kind": "Pod",
-        "apiVersion": "v1",
-        "metadata": {
-            "name": "opa",
-            "labels": {
-                "customer": "example.org"
-            }
-        },
-        "spec": {
-            "containers": [
-                {
-                    "name": "opa",
-                    "image": "openpolicyagent/opa"
-                }
-            ]
-        }
-    }
-}
-```
+**[example_pod.json](https://github.com/open-policy-agent/opa/docs/book/tutorials/deployments-kubernetes/example_pod.json)**
+<pre><code class="lang-json">{% include "./tutorials/deployments-kubernetes/example_pod.json" %}</code></pre>
 
 ```bash
 curl $OPA_URL/v1/data -d @example_pod.json

@@ -1,0 +1,31 @@
+kind: ReplicationController
+apiVersion: v1
+metadata:
+  name: opa
+spec:
+  replicas: 1
+  selector:
+    app: opa
+  template:
+    metadata:
+      labels:
+        app: opa
+    spec:
+      volumes:
+      - name: example-policy
+        configMap:
+          name: example-policy
+      containers:
+      - name: opa
+        image: openpolicyagent/opa
+        ports:
+        - name: http
+          containerPort: 8181
+        args:
+        - "run"
+        - "--server"
+        - "/policies/example.rego"
+        volumeMounts:
+        - readOnly: true
+          mountPath: /policies
+          name: example-policy
