@@ -92,6 +92,69 @@ func ExampleQuery_Iter() {
 	// err: <nil>
 }
 
+func ExampleQuery_Run() {
+	// Initialize context for the example. Normally the caller would obtain the
+	// context from an input parameter or instantiate their own.
+	ctx := context.Background()
+
+	compiler := ast.NewCompiler()
+
+	// Define a dummy query and some data that the query will execute against.
+	query, err := compiler.QueryCompiler().Compile(ast.MustParseBody(`data.a[_] = x; x >= 2`))
+	if err != nil {
+		// Handle error.
+	}
+
+	var data map[string]interface{}
+
+	// OPA uses Go's standard JSON library but assumes that numbers have been
+	// decoded as json.Number instead of float64. You MUST decode with UseNumber
+	// enabled.
+	decoder := json.NewDecoder(bytes.NewBufferString(`{"a": [1,2,3,4]}`))
+	decoder.UseNumber()
+
+	if err := decoder.Decode(&data); err != nil {
+		// Handle error.
+	}
+
+	// Instantiate the policy engine's storage layer.
+	store := inmem.NewFromObject(data)
+
+	// Create a new transaction. Transactions allow the policy engine to
+	// evaluate the query over a consistent snapshot fo the storage layer.
+	txn, err := store.NewTransaction(ctx)
+	if err != nil {
+		// Handle error.
+	}
+
+	defer store.Abort(ctx, txn)
+
+	// Prepare the evaluation parameters. Evaluation executes against the policy
+	// engine's storage. In this case, we seed the storage with a single array
+	// of number. Other parameters such as the input, tracing configuration,
+	// etc. can be set on the query object.
+	q := topdown.NewQuery(query).
+		WithCompiler(compiler).
+		WithStore(store).
+		WithTransaction(txn)
+
+	rs, err := q.Run(ctx)
+
+	// Inspect the query result set.
+	fmt.Println("len:", len(rs))
+	for i := range rs {
+		fmt.Printf("rs[%d][\"x\"]: %v\n", i, rs[i]["x"])
+	}
+	fmt.Println("err:", err)
+
+	// Output:
+	// len: 3
+	// rs[0]["x"]: 2
+	// rs[1]["x"]: 3
+	// rs[2]["x"]: 4
+	// err: <nil>
+}
+
 func ExampleRegisterFunctionalBuiltin1() {
 
 	// Rego includes a number of built-in functions ("built-ins") for performing
