@@ -3,7 +3,12 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## 0.5.13
+
+### Fixes
+
+- Improve InterfaceToValue to handle other Go types ([#473](https://github.com/open-policy-agent/opa/issues/473))
+- Fix bug in conflict detection ([#518](https://github.com/open-policy-agent/opa/issues/518))
 
 ## 0.5.12
 
