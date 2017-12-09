@@ -56,6 +56,20 @@ fn(x) = y {
 		y = x
 }
 
+fn_else(x) = 1 {
+    true
+} # foo
+else  =
+# bar
+2
+{
+    true
+} else = 3
+# baz
+{
+    false
+}
+
 long(x) = true {
     x = "foo %host"
     }
