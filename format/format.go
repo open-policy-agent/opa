@@ -91,7 +91,7 @@ func Ast(x interface{}) (formatted []byte, err error) {
 	case *ast.Import:
 		w.writeImports([]*ast.Import{x}, nil)
 	case *ast.Rule:
-		w.writeRule(x, nil)
+		w.writeRule(x, false, nil)
 	case *ast.Head:
 		w.writeHead(x, nil)
 	case ast.Body:
@@ -191,13 +191,13 @@ func (w *writer) writeComments(comments []*ast.Comment) {
 func (w *writer) writeRules(rules []*ast.Rule, comments []*ast.Comment) []*ast.Comment {
 	for _, rule := range rules {
 		comments = w.insertComments(comments, rule.Location)
-		comments = w.writeRule(rule, comments)
+		comments = w.writeRule(rule, false, comments)
 		w.blankLine()
 	}
 	return comments
 }
 
-func (w *writer) writeRule(rule *ast.Rule, comments []*ast.Comment) []*ast.Comment {
+func (w *writer) writeRule(rule *ast.Rule, isElse bool, comments []*ast.Comment) []*ast.Comment {
 	if rule == nil {
 		return comments
 	}
@@ -212,9 +212,9 @@ func (w *writer) writeRule(rule *ast.Rule, comments []*ast.Comment) []*ast.Comme
 	// `foo = {"a": "b"} { true }` in the AST. We want to preserve that notation
 	// in the formatted code instead of expanding the bodies into rules, so we
 	// pretend that the rule has no body in this case.
-	isExpandedConst := rule.Body.Equal(ast.NewBody(ast.NewExpr(ast.BooleanTerm(true))))
+	isExpandedConst := rule.Body.Equal(ast.NewBody(ast.NewExpr(ast.BooleanTerm(true)))) && rule.Else == nil
 
-	if len(rule.Body) == 0 || isExpandedConst {
+	if (len(rule.Body) == 0 || isExpandedConst) && !isElse {
 		w.endLine()
 		return comments
 	}
@@ -241,8 +241,9 @@ func (w *writer) writeRule(rule *ast.Rule, comments []*ast.Comment) []*ast.Comme
 	if rule.Else != nil {
 		w.blankLine()
 		rule.Else.Head.Name = ast.Var("else")
-		comments = w.insertComments(comments, rule.Else.Loc())
-		comments = w.writeRule(rule.Else, comments)
+		rule.Else.Head.Args = nil
+		comments = w.insertComments(comments, rule.Else.Head.Location)
+		comments = w.writeRule(rule.Else, true, comments)
 	}
 	return comments
 }
