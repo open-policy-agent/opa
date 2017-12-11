@@ -209,7 +209,7 @@ This section introduced the main aspects of Rego. The rest of this document
 walks through each part of the language in more detail.
 
 For a concise reference, see the [Language
-Reference](/documentation/references/language) document.
+Reference](/language-reference.md) document.
 
 ## <a name="scalar-values"></a> Scalar Values
 
@@ -244,7 +244,7 @@ null
 
 Rego supports two different types of syntax for declaring strings. The first is likely to be the most familiar: characters surrounded by double quotes.
 In such strings, certain characters must be escaped to appear in the string, such as double quotes themselves, backslashes, etc. See the [Language
-Reference](/documentation/references/language) for a formal definition.
+Reference](/language-reference.md) for a formal definition.
 
 The other type of string declaration is a raw string declaration. These are made of characters surrounded by backticks (`` ` ``), with the exception
 that raw strings may not contain backticks themselves. Raw strings are what they sound like: escape sequences are not interpreted, but instead taken
@@ -378,7 +378,7 @@ Variables appearing in the head of a rule must also appear in a non-negated equa
 
 Referenced are used to access nested documents.
 
-The examples in this section use the data defined in the [Examples](#examples) section.
+The examples in this section use the data defined in the [Examples](#examples-data) section.
 
 The simplest reference contains no variables. For example, the following reference returns the hostname of the second server in the first site document from our example data:
 
@@ -772,7 +772,7 @@ instances[instance] {
 }
 
 instances[instance] {
-    containers[_] = container,
+    containers[_] = container
     instance = {"address": container.ipaddress, "name": container.name}
 }
 ```
@@ -785,7 +785,7 @@ instances[instance] {
     sites[_].servers[_] = server
     instance = {"address": server.hostname, "name": server.name}
 } {
-    containers[_] = container,
+    containers[_] = container
     instance = {"address": container.ipaddress, "name": container.name}
 }
 ```
@@ -866,11 +866,11 @@ The documents produced by rules with complete definitions may still be undefined
 undefined
 ```
 
-In some cases, having an undefined result for a document is not desirable. In those cases, policies can use the [Default Keyword](#default) to provide a fallback value.
+In some cases, having an undefined result for a document is not desirable. In those cases, policies can use the [Default Keyword](#default-keyword) to provide a fallback value.
 
 ### <a name="functions"></a> Functions
 
-Rego supports user-defined functions that can be called with the same semantics as [Built-in Functions](#built-ins). They have access to both the [the data Document](/how-does-opa-work.md#the-data-document) and [the input Document](/how-does-opa-work.md#the-input-document).
+Rego supports user-defined functions that can be called with the same semantics as [Built-in Functions](#built-in-functions). They have access to both the [the data Document](/how-does-opa-work.md#the-data-document) and [the input Document](/how-does-opa-work.md#the-input-document).
 
 For example, the following function will return the result of trimming the spaces from a string and then splitting it by periods.
 
