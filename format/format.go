@@ -394,7 +394,7 @@ func (w *writer) writeTerm(term *ast.Term, comments []*ast.Comment) []*ast.Comme
 		comments = w.writeObject(x, term.Location, comments)
 	case ast.Array:
 		comments = w.writeArray(x, term.Location, comments)
-	case *ast.Set:
+	case ast.Set:
 		comments = w.writeSet(x, term.Location, comments)
 	case *ast.ArrayComprehension:
 		comments = w.writeArrayComprehension(x, term.Location, comments)
@@ -426,9 +426,9 @@ func (w *writer) writeObject(obj ast.Object, loc *ast.Location, comments []*ast.
 	defer w.write("}")
 
 	var s []interface{}
-	for _, t := range obj {
-		s = append(s, t)
-	}
+	obj.Foreach(func(k, v *ast.Term) {
+		s = append(s, ast.Item(k, v))
+	})
 	comments = w.writeIterable(s, loc, comments, w.objectWriter())
 	return w.insertComments(comments, closingLoc(0, 0, '{', '}', loc))
 }
@@ -445,14 +445,14 @@ func (w *writer) writeArray(arr ast.Array, loc *ast.Location, comments []*ast.Co
 	return w.insertComments(comments, closingLoc(0, 0, '[', ']', loc))
 }
 
-func (w *writer) writeSet(set *ast.Set, loc *ast.Location, comments []*ast.Comment) []*ast.Comment {
+func (w *writer) writeSet(set ast.Set, loc *ast.Location, comments []*ast.Comment) []*ast.Comment {
 	w.write("{")
 	defer w.write("}")
 
 	var s []interface{}
-	for _, t := range *set {
+	set.Foreach(func(t *ast.Term) {
 		s = append(s, t)
-	}
+	})
 	comments = w.writeIterable(s, loc, comments, w.listWriter())
 	return w.insertComments(comments, closingLoc(0, 0, '{', '}', loc))
 }

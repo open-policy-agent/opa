@@ -23,7 +23,7 @@ var InputRootDocument = VarTerm("input")
 
 // RootDocumentNames contains the names of top-level documents that can be
 // referred to in modules and queries.
-var RootDocumentNames = &Set{
+var RootDocumentNames Set = &set{
 	DefaultRootDocument,
 	InputRootDocument,
 }
@@ -40,7 +40,7 @@ var InputRootRef = Ref{InputRootDocument}
 
 // RootDocumentRefs contains the prefixes of top-level documents that all
 // non-local references start with.
-var RootDocumentRefs = &Set{
+var RootDocumentRefs Set = &set{
 	NewTerm(DefaultRootRef),
 	NewTerm(InputRootRef),
 }

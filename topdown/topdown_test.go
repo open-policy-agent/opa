@@ -2234,10 +2234,10 @@ func parseBindings(s string) *ast.ValueMap {
 		return nil
 	}
 	r := ast.NewValueMap()
-	for _, pair := range obj {
-		k, v := pair[0], pair[1]
+	obj.Iter(func(k, v *ast.Term) error {
 		r.Put(k.Value, v.Value)
-	}
+		return nil
+	})
 	return r
 }
 
@@ -2248,13 +2248,15 @@ func parseVars(s string) map[ast.Var]ast.Value {
 		return nil
 	}
 	r := map[ast.Var]ast.Value{}
-	for _, pair := range obj {
-		k, v := pair[0].Value, pair[1].Value
-		if k, ok := k.(ast.Var); ok {
-			r[k] = v
-		} else {
-			return nil
+	stop := obj.Until(func(k, v *ast.Term) bool {
+		if asVar, ok := k.Value.(ast.Var); ok {
+			r[asVar] = v.Value
+			return false
 		}
+		return true
+	})
+	if stop {
+		return nil
 	}
 	return r
 }

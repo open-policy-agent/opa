@@ -1540,7 +1540,7 @@ func resolveRef(globals map[Var]Ref, ref Ref) Ref {
 			} else {
 				r = append(r, x)
 			}
-		case Ref, Array, Object, *Set:
+		case Ref, Array, Object, Set:
 			r = append(r, resolveRefsInTerm(globals, x))
 		default:
 			r = append(r, x)
@@ -1607,14 +1607,12 @@ func resolveRefsInTerm(globals map[Var]Ref, term *Term) *Term {
 		cpy.Value = fqn
 		return &cpy
 	case Object:
-		o := Object{}
-		for _, i := range v {
-			k := resolveRefsInTerm(globals, i[0])
-			v := resolveRefsInTerm(globals, i[1])
-			o = append(o, Item(k, v))
-		}
 		cpy := *term
-		cpy.Value = o
+		cpy.Value, _ = v.Map(func(k, v *Term) (*Term, *Term, error) {
+			k = resolveRefsInTerm(globals, k)
+			v = resolveRefsInTerm(globals, v)
+			return k, v, nil
+		})
 		return &cpy
 	case Array:
 		a := Array{}
@@ -1625,12 +1623,10 @@ func resolveRefsInTerm(globals map[Var]Ref, term *Term) *Term {
 		cpy := *term
 		cpy.Value = a
 		return &cpy
-	case *Set:
-		s := &Set{}
-		for _, e := range *v {
-			x := resolveRefsInTerm(globals, e)
-			s.Add(x)
-		}
+	case Set:
+		s, _ := v.Map(func(e *Term) (*Term, error) {
+			return resolveRefsInTerm(globals, e), nil
+		})
 		cpy := *term
 		cpy.Value = s
 		return &cpy
@@ -1796,12 +1792,13 @@ func rewriteDynamicsOne(original *Expr, f *equalityFactory, term *Term, extras [
 		}
 		return extras, term
 	case Object:
-		for i := 0; i < len(v); i++ {
-			extras, v[i][0] = rewriteDynamicsOne(original, f, v[i][0], extras)
-			extras, v[i][1] = rewriteDynamicsOne(original, f, v[i][1], extras)
-		}
+		term.Value, _ = v.Map(func(k, v *Term) (*Term, *Term, error) {
+			extras, k = rewriteDynamicsOne(original, f, k, extras)
+			extras, v = rewriteDynamicsOne(original, f, v, extras)
+			return k, v, nil
+		})
 		return extras, term
-	case *Set:
+	case Set:
 		v, _ = v.Map(func(term *Term) (*Term, error) {
 			extras, term = rewriteDynamicsOne(original, f, term, extras)
 			return term, nil

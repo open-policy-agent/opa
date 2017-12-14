@@ -81,18 +81,18 @@ func Walk(v Visitor, x interface{}) {
 			Walk(w, t)
 		}
 	case Object:
-		for _, t := range x {
-			Walk(w, t[0])
-			Walk(w, t[1])
-		}
+		x.Foreach(func(k, v *Term) {
+			Walk(w, k)
+			Walk(w, v)
+		})
 	case Array:
 		for _, t := range x {
 			Walk(w, t)
 		}
-	case *Set:
-		for _, t := range *x {
+	case Set:
+		x.Foreach(func(t *Term) {
 			Walk(w, t)
-		}
+		})
 	case *ArrayComprehension:
 		Walk(w, x.Term)
 		Walk(w, x.Body)
@@ -253,9 +253,9 @@ func (vis *VarVisitor) Vars() VarSet {
 func (vis *VarVisitor) Visit(v interface{}) Visitor {
 	if vis.params.SkipObjectKeys {
 		if o, ok := v.(Object); ok {
-			for _, i := range o {
-				Walk(vis, i[1])
-			}
+			o.Foreach(func(_, v *Term) {
+				Walk(vis, v)
+			})
 			return nil
 		}
 	}
@@ -280,7 +280,7 @@ func (vis *VarVisitor) Visit(v interface{}) Visitor {
 		}
 	}
 	if vis.params.SkipSets {
-		if _, ok := v.(*Set); ok {
+		if _, ok := v.(Set); ok {
 			return nil
 		}
 	}

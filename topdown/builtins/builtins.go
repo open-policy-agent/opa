@@ -104,8 +104,8 @@ func NumberOperand(x ast.Value, pos int) (ast.Number, error) {
 
 // SetOperand converts x to a set. If the cast fails, a descriptive error is
 // returned.
-func SetOperand(x ast.Value, pos int) (*ast.Set, error) {
-	s, ok := x.(*ast.Set)
+func SetOperand(x ast.Value, pos int) (ast.Set, error) {
+	s, ok := x.(ast.Set)
 	if !ok {
 		return nil, NewOperandTypeErr(pos, x, ast.SetTypeName)
 	}
