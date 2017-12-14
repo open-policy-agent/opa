@@ -42,13 +42,7 @@ If you are using a different distro, OS, or architecture, the steps will be the 
 
 ## Steps
 
-### 1. Create a directory for OPA policy defintions.
-
-```shell
-$ mkdir -p policies
-```
-
-### 2. Download the latest version of OPA.
+### 1. Download the latest version of OPA.
 
 ```shell
 $ curl -L https://github.com/open-policy-agent/opa/releases/download/v0.5.13/opa_linux_amd64 > opa
@@ -56,7 +50,7 @@ $ chmod u+x opa
 ```
 
 
-### 3. Run OPA in server mode with debug logging enabled.
+### 2. Run OPA in server mode with debug logging enabled.
 
 ```shell
 $ ./opa run --server --log-level debug
@@ -64,16 +58,16 @@ $ ./opa run --server --log-level debug
 
 OPA will run until it receives a signal to stop. Open another terminal to continue with the rest of the tutorial.
 
-### 4. Download the [open-policy-agent/opa-docker-authz](https://github.com/open-policy-agent/opa-docker-authz) executable.
+### 3. Download the [open-policy-agent/opa-docker-authz](https://github.com/open-policy-agent/opa-docker-authz) executable.
 
 ```shell
-$ curl -L https://github.com/open-policy-agent/opa-docker-authz/releases/download/v0.1.5/opa-docker-authz_linux_amd64 > opa-docker-authz
+$ curl -L https://github.com/open-policy-agent/opa-docker-authz/releases/download/v0.1.6/opa-docker-authz_linux_amd64 > opa-docker-authz
 $ chmod u+x opa-docker-authz
 ```
 
 The open-policy-agent/opa-docker-authz repository hosts a small [Docker Authorization Plugin](https://docs.docker.com/engine/extend/plugins_authorization/). Docker's authorization plugin system allows an external process to receive all requests sent to the Docker daemon. The authorization plugin replies, instructing the Docker daemon to allow or reject the request.
 
-### 5. Create an empty policy definition that will allow all requests.
+### 4. Create an empty policy definition that will allow all requests.
 
 ```shell
 $ cat >example.rego <<EOF
@@ -85,7 +79,7 @@ EOF
 
 This policy definition is about simple as it can be. It includes a single rule named `allow_request` that is defined to always be `true`. Once all of the components are running, we will come back and extend this policy.
 
-### 6. Run the opa-docker-authz plugin and then open another terminal.
+### 5. Run the opa-docker-authz plugin and then open another terminal.
 
 ```shell
 $ sudo ./opa-docker-authz -policy-file=example.rego
@@ -93,7 +87,7 @@ $ sudo ./opa-docker-authz -policy-file=example.rego
 
 > This step requires sudo access because the Docker plugin framework will attempt to update the Docker daemon configuration. If you run without sudo you may encounter a permission error.
 
-### <a name="reconfigure-docker"></a> 7. Reconfigure Docker.
+### <a name="reconfigure-docker"></a> 6. Reconfigure Docker.
 
 Docker must include the following command-line argument:
 
@@ -116,7 +110,7 @@ $ sudo service docker restart
 
 If you are using a different Linux distribution or you are not running systemd, the process will be slightly different.
 
-### 8. Run a simple Docker command to make sure everything is still working.
+### 7. Run a simple Docker command to make sure everything is still working.
 
 ```shell
 $ docker ps
@@ -124,7 +118,7 @@ $ docker ps
 
 If everything is setup correctly, the command should exit successfully. You can expect to see log messages from OPA and the plugin.
 
-### 9. Test that the policy definition is working.
+### 8. Test that the policy definition is working.
 
 Let’s modify our policy to **deny** all requests:
 
@@ -156,7 +150,7 @@ With this policy in place, users will not be able to run any Docker commands. Go
 
 Now let's change the policy so that it's a bit more useful.
 
-### 10. Update the policy to reject requests with the unconfined [seccomp](https://en.wikipedia.org/wiki/Seccomp) profile:
+### 9. Update the policy to reject requests with the unconfined [seccomp](https://en.wikipedia.org/wiki/Seccomp) profile:
 
 ```shell
 $ cat >example.rego <<EOF
@@ -182,7 +176,7 @@ $ curl -X PUT --data-binary @example.rego http://localhost:8181/v1/policies/exam
 
 This API is idempotent so sending the policy multiple times is fine. Go ahead and try it yourself.
 
-### 11. Test the policy is working by running a simple container:
+### 10. Test the policy is working by running a simple container:
 
 ```shell
 $ docker run hello-world
@@ -219,7 +213,7 @@ So far, the policy has been defined in terms of input data from the plugin. In m
 
 The rest of the tutorial shows how you can grant fine grained access to specific clients. To do so, we will insert fake user data into OPA to simulate an authentication system.
 
-### <a name="identify-user"></a> 12. Identify the user in Docker requests.
+### <a name="identify-user"></a> 11. Identify the user in Docker requests.
 
 > Back up your existing Docker configuration, just in case. You can replace your original configuration after you are done with the tutorial.
 
@@ -242,7 +236,7 @@ EOF
 
 Docker does not currently provide a way to authenticate clients. But in Docker 1.12, clients can be authenticated using TLS and there are plans to include other means of authentication. For the purpose of this tutorial, we assume that an authentication system is place.
 
-### 13. Add user data directly to OPA.
+### 12. Add user data directly to OPA.
 
 ```shell
 $ cat >users.json <<EOF
@@ -272,7 +266,7 @@ To see that the user data has been added, we can query the Data API. This shows 
 $ curl http://localhost:8181/v1/data/users/alice
 ```
 
-### 14. Update the policy to include basic user access controls.
+### 13. Update the policy to include basic user access controls.
 
 ```shell
 $ cat >example.rego <<EOF
@@ -307,7 +301,7 @@ EOF
 
 In the new policy, the valid_user_role rules reference the "users" document created in the previous step.
 
-### 15. Attempt to run a container.
+### 14. Attempt to run a container.
 
 Because the configured user is `"bob"`, the request is rejected:
 
@@ -315,7 +309,7 @@ Because the configured user is `"bob"`, the request is rejected:
 $ docker run hello-world
 ```
 
-### 16. Change the user to "alice" and re-run the container.
+### 15. Change the user to "alice" and re-run the container.
 
 ```shell
 $ cat > ~/.docker/config.json <<EOF
@@ -333,7 +327,7 @@ Because the configured user is `"alice"`, the request will succeed:
 $ docker run hello-world
 ```
 
-### 17. Restore your original configuration.
+### 16. Restore your original configuration.
 
 See: “[Reconfigure Docker.](#reconfigure-docker)” and “[Identify the user in Docker requests.](#identify-user)”.
 
