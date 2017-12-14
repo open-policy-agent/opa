@@ -63,20 +63,20 @@ func (env *TypeEnv) Get(x interface{}) types.Type {
 		static := []*types.StaticProperty{}
 		var dynamic *types.DynamicProperty
 
-		for _, pair := range x {
-			if IsConstant(pair[0].Value) {
-				k, err := JSON(pair[0].Value)
+		x.Foreach(func(k, v *Term) {
+			if IsConstant(k.Value) {
+				kjson, err := JSON(k.Value)
 				if err != nil {
 					panic("unreachable")
 				}
-				tpe := env.Get(pair[1].Value)
-				static = append(static, types.NewStaticProperty(k, tpe))
+				tpe := env.Get(v)
+				static = append(static, types.NewStaticProperty(kjson, tpe))
 			} else {
-				typeK := env.Get(pair[0].Value)
-				typeV := env.Get(pair[1].Value)
+				typeK := env.Get(k.Value)
+				typeV := env.Get(v.Value)
 				dynamic = types.NewDynamicProperty(typeK, typeV)
 			}
-		}
+		})
 
 		if len(static) == 0 && dynamic == nil {
 			dynamic = types.NewDynamicProperty(types.A, types.A)
@@ -84,12 +84,11 @@ func (env *TypeEnv) Get(x interface{}) types.Type {
 
 		return types.NewObject(static, dynamic)
 
-	case *Set:
+	case Set:
 		var tpe types.Type
-		x.Iter(func(elem *Term) bool {
+		x.Foreach(func(elem *Term) {
 			other := env.Get(elem.Value)
 			tpe = types.Or(tpe, other)
-			return false
 		})
 		if tpe == nil {
 			tpe = types.A
@@ -319,7 +318,7 @@ func selectRef(tpe types.Type, ref Ref) types.Type {
 	head, tail := ref[0], ref[1:]
 
 	switch head.Value.(type) {
-	case Var, Ref, Array, Object, *Set:
+	case Var, Ref, Array, Object, Set:
 		return selectRef(types.Values(tpe), tail)
 	default:
 		return selectRef(selectConstant(tpe, head), tail)

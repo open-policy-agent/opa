@@ -62,18 +62,16 @@ func builtinConcat(a, b ast.Value) (ast.Value, error) {
 			}
 			strs = append(strs, string(s))
 		}
-	case *ast.Set:
-		var err error
-		stopped := b.Iter(func(x *ast.Term) bool {
+	case ast.Set:
+		err := b.Iter(func(x *ast.Term) error {
 			s, ok := x.Value.(ast.String)
 			if !ok {
-				err = builtins.NewOperandElementErr(2, b, x.Value, ast.StringTypeName)
-				return true
+				return builtins.NewOperandElementErr(2, b, x.Value, ast.StringTypeName)
 			}
 			strs = append(strs, string(s))
-			return false
+			return nil
 		})
-		if stopped {
+		if err != nil {
 			return nil, err
 		}
 	default:

@@ -91,13 +91,11 @@ func (u *bindings) Plug(a *ast.Term) *ast.Term {
 		return &cpy
 	case ast.Object:
 		cpy := *a
-		obj := make(ast.Object, len(v))
-		for i := 0; i < len(obj); i++ {
-			obj[i] = ast.Item(u.Plug(v[i][0]), u.Plug(v[i][1]))
-		}
-		cpy.Value = obj
+		cpy.Value, _ = v.Map(func(k, v *ast.Term) (*ast.Term, *ast.Term, error) {
+			return u.Plug(k), u.Plug(v), nil
+		})
 		return &cpy
-	case *ast.Set:
+	case ast.Set:
 		cpy := *a
 		cpy.Value, _ = v.Map(func(x *ast.Term) (*ast.Term, error) {
 			return u.Plug(x), nil

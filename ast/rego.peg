@@ -45,27 +45,26 @@ func ifacesToBody(i interface{}, a ...interface{}) Body {
 }
 
 func makeObject(head interface{}, tail interface{}, loc *Location) (*Term, error) {
-   obj := ObjectTerm()
-   obj.Location = loc
+   term := ObjectTerm()
+   term.Location = loc
 
    // Empty object.
    if head == nil {
-       return obj, nil
+       return term, nil
    }
 
-   // Object definition above describes the "head" structure. We only care about the "Key" and "Term" elements.
    headSlice := head.([]interface{})
-   obj.Value = append(obj.Value.(Object), Item(headSlice[0].(*Term), headSlice[len(headSlice) - 1].(*Term)))
+   obj := term.Value.(Object)
+   obj.Insert(headSlice[0].(*Term), headSlice[len(headSlice)-1].(*Term))
 
    // Non-empty object, remaining key/value pairs.
    tailSlice := tail.([]interface{})
    for _, v := range tailSlice {
        s := v.([]interface{})
-       // Object definition above describes the "tail" structure. We only care about the "Key" and "Term" elements.
-       obj.Value = append(obj.Value.(Object), Item(s[3].(*Term), s[len(s) - 1].(*Term)))
+       obj.Insert(s[3].(*Term), s[len(s)-1].(*Term))
    }
 
-   return obj, nil
+   return term, nil
 }
 
 func makeArray(head interface{}, tail interface{}, loc *Location) (*Term, error) {
@@ -572,7 +571,7 @@ SetNonEmpty <- '{' _ head:Term tail:(_ ',' _ Term)* _ ','? _ '}' {
     set := SetTerm()
     set.Location = currentLocation(c)
 
-    val := set.Value.(*Set)
+    val := set.Value.(Set)
     val.Add(head.(*Term))
 
     tailSlice := tail.([]interface{})

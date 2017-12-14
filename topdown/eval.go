@@ -330,7 +330,7 @@ func (e *eval) biunify(a, b *ast.Term, b1, b2 *bindings, iter unifyIterator) err
 		case ast.Object:
 			return e.biunifyObjects(vA, vB, b1, b2, iter)
 		}
-	case *ast.Set:
+	case ast.Set:
 		return e.biunifyValues(a, b, b1, b2, iter)
 	}
 	return nil
@@ -353,23 +353,22 @@ func (e *eval) biunifyArraysRec(a, b ast.Array, b1, b2 *bindings, iter unifyIter
 }
 
 func (e *eval) biunifyObjects(a, b ast.Object, b1, b2 *bindings, iter unifyIterator) error {
-	if len(a) != len(b) {
+	if a.Len() != b.Len() {
 		return nil
 	}
-	return e.biunifyObjectsRec(a, b, b1, b2, iter, 0)
+	return e.biunifyObjectsRec(a, b, b1, b2, iter, a.Keys(), 0)
 }
 
-func (e *eval) biunifyObjectsRec(a, b ast.Object, b1, b2 *bindings, iter unifyIterator, idx int) error {
-	if idx == len(a) {
+func (e *eval) biunifyObjectsRec(a, b ast.Object, b1, b2 *bindings, iter unifyIterator, keys []*ast.Term, idx int) error {
+	if idx == len(keys) {
 		return iter()
 	}
-	item := a[idx]
-	other := b.Get(item[0])
-	if other == nil {
+	v2 := b.Get(keys[idx])
+	if v2 == nil {
 		return nil
 	}
-	return e.biunify(item[1], other, b1, b2, func() error {
-		return e.biunifyObjectsRec(a, b, b1, b2, iter, idx+1)
+	return e.biunify(a.Get(keys[idx]), v2, b1, b2, func() error {
+		return e.biunifyObjectsRec(a, b, b1, b2, iter, keys, idx+1)
 	})
 }
 
@@ -514,7 +513,7 @@ func (e *eval) biunifyComprehensionArray(x *ast.ArrayComprehension, b *ast.Term,
 }
 
 func (e *eval) biunifyComprehensionSet(x *ast.SetComprehension, b *ast.Term, b1, b2 *bindings, iter unifyIterator) error {
-	result := &ast.Set{}
+	result := ast.NewSet()
 	child := e.closure(x.Body)
 	err := child.Run(func(child *eval) error {
 		result.Add(child.bindings.Plug(x.Term))
@@ -527,7 +526,7 @@ func (e *eval) biunifyComprehensionSet(x *ast.SetComprehension, b *ast.Term, b1,
 }
 
 func (e *eval) biunifyComprehensionObject(x *ast.ObjectComprehension, b *ast.Term, b1, b2 *bindings, iter unifyIterator) error {
-	result := ast.Object{}
+	result := ast.NewObject()
 	child := e.closure(x.Body)
 	err := child.Run(func(child *eval) error {
 		key := child.bindings.Plug(x.Key)
@@ -536,7 +535,7 @@ func (e *eval) biunifyComprehensionObject(x *ast.ObjectComprehension, b *ast.Ter
 		if exist != nil && !exist.Equal(value) {
 			return objectDocKeyConflictErr(x.Key.Location)
 		}
-		result = append(result, ast.Item(key, value))
+		result.Insert(key, value)
 		return nil
 	})
 	if err != nil {
@@ -868,13 +867,13 @@ func (e evalTree) enumerate(iter unifyIterator) error {
 				}
 			}
 		case ast.Object:
-			for _, pair := range doc {
-				err := e.e.biunify(pair[0], e.ref[e.pos], e.bindings, e.bindings, func() error {
-					return e.next(iter, pair[0])
+			err := doc.Iter(func(k, _ *ast.Term) error {
+				return e.e.biunify(k, e.ref[e.pos], e.bindings, e.bindings, func() error {
+					return e.next(iter, k)
 				})
-				if err != nil {
-					return err
-				}
+			})
+			if err != nil {
+				return err
 			}
 		}
 	}
@@ -926,7 +925,7 @@ func (e evalTree) leaves(plugged ast.Ref, node *ast.TreeNode) (ast.Object, error
 		return nil, nil
 	}
 
-	result := ast.Object{}
+	result := ast.NewObject()
 
 	for _, child := range node.Children {
 		if child.Hide {
@@ -953,7 +952,8 @@ func (e evalTree) leaves(plugged ast.Ref, node *ast.TreeNode) (ast.Object, error
 		}
 
 		if save != nil {
-			result, _ = result.Merge(ast.Object{ast.Item(plugged[len(plugged)-1], ast.NewTerm(save))})
+			v := ast.NewObject([2]*ast.Term{plugged[len(plugged)-1], ast.NewTerm(save)})
+			result, _ = result.Merge(v)
 		}
 
 		plugged = plugged[:len(plugged)-1]
@@ -1157,7 +1157,7 @@ func (e evalVirtualPartial) evalTerm(iter unifyIterator, term *ast.Term, termbin
 func (e evalVirtualPartial) reduce(head *ast.Head, b *bindings, result *ast.Term) (*ast.Term, error) {
 
 	switch v := result.Value.(type) {
-	case *ast.Set:
+	case ast.Set:
 		v.Add(b.Plug(head.Key))
 	case ast.Object:
 		key := b.Plug(head.Key)
@@ -1166,7 +1166,7 @@ func (e evalVirtualPartial) reduce(head *ast.Head, b *bindings, result *ast.Term
 		if exist != nil && !exist.Equal(value) {
 			return nil, objectDocKeyConflictErr(head.Location)
 		}
-		v = append(v, ast.Item(key, value))
+		v.Insert(key, value)
 		result.Value = v
 	}
 
@@ -1343,23 +1343,17 @@ func (e evalTerm) enumerate(iter unifyIterator) error {
 			}
 		}
 	case ast.Object:
-		for _, pair := range v {
-			err := e.e.biunify(pair[0], e.ref[e.pos], e.termbindings, e.bindings, func() error {
+		return v.Iter(func(k, _ *ast.Term) error {
+			return e.e.biunify(k, e.ref[e.pos], e.termbindings, e.bindings, func() error {
 				return e.next(iter, e.bindings.Plug(e.ref[e.pos]))
 			})
-			if err != nil {
-				return err
-			}
-		}
-	case *ast.Set:
-		for _, elem := range *v {
-			err := e.e.biunify(elem, e.ref[e.pos], e.termbindings, e.bindings, func() error {
+		})
+	case ast.Set:
+		return v.Iter(func(elem *ast.Term) error {
+			return e.e.biunify(elem, e.ref[e.pos], e.termbindings, e.bindings, func() error {
 				return e.next(iter, e.bindings.Plug(e.ref[e.pos]))
 			})
-			if err != nil {
-				return err
-			}
-		}
+		})
 	}
 
 	return nil
@@ -1367,16 +1361,23 @@ func (e evalTerm) enumerate(iter unifyIterator) error {
 
 func (e evalTerm) get(plugged *ast.Term) (*ast.Term, *bindings) {
 	switch v := e.term.Value.(type) {
-	case *ast.Set:
+	case ast.Set:
 		if v.IsGround() {
 			if v.Contains(plugged) {
 				return e.termbindings.apply(plugged)
 			}
 		} else {
-			for _, elem := range *v {
+			var t *ast.Term
+			var b *bindings
+			stop := v.Until(func(elem *ast.Term) bool {
 				if e.termbindings.Plug(elem).Equal(plugged) {
-					return e.termbindings.apply(plugged)
+					t, b = e.termbindings.apply(plugged)
+					return true
 				}
+				return false
+			})
+			if stop {
+				return t, b
 			}
 		}
 	case ast.Object:
@@ -1386,10 +1387,17 @@ func (e evalTerm) get(plugged *ast.Term) (*ast.Term, *bindings) {
 				return e.termbindings.apply(term)
 			}
 		} else {
-			for i := range v {
-				if e.termbindings.Plug(v[i][0]).Equal(plugged) {
-					return e.termbindings.apply(v[i][1])
+			var t *ast.Term
+			var b *bindings
+			stop := v.Until(func(k, v *ast.Term) bool {
+				if e.termbindings.Plug(k).Equal(plugged) {
+					t, b = e.termbindings.apply(v)
+					return true
 				}
+				return false
+			})
+			if stop {
+				return t, b
 			}
 		}
 	case ast.Array:

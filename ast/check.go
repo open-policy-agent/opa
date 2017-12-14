@@ -304,7 +304,7 @@ func unify2(env *TypeEnv, a *Term, typeA types.Type, b *Term, typeB types.Type) 
 		switch bv := b.Value.(type) {
 		case Object:
 			cv := av.Intersect(bv)
-			if len(av) == len(bv) && len(bv) == len(cv) {
+			if av.Len() == bv.Len() && bv.Len() == len(cv) {
 				for i := range cv {
 					if !unify2(env, cv[i][1], env.Get(cv[i][1]), cv[i][2], env.Get(cv[i][2])) {
 						return false
@@ -350,9 +350,9 @@ func unify1(env *TypeEnv, term *Term, tpe types.Type) bool {
 			return unify1Object(env, v, tpe)
 		case types.Any:
 			if types.Compare(tpe, types.A) == 0 {
-				for i := range v {
-					unify1(env, v[i][1], types.A)
-				}
+				v.Foreach(func(_, value *Term) {
+					unify1(env, value, types.A)
+				})
 				return true
 			}
 			unifies := false
@@ -362,15 +362,14 @@ func unify1(env *TypeEnv, term *Term, tpe types.Type) bool {
 			return unifies
 		}
 		return false
-	case *Set:
+	case Set:
 		switch tpe := tpe.(type) {
 		case *types.Set:
 			return unify1Set(env, v, tpe)
 		case types.Any:
 			if types.Compare(tpe, types.A) == 0 {
-				v.Iter(func(elem *Term) bool {
+				v.Foreach(func(elem *Term) {
 					unify1(env, elem, types.A)
-					return true
 				})
 				return true
 			}
@@ -410,32 +409,33 @@ func unify1Array(env *TypeEnv, val Array, tpe *types.Array) bool {
 }
 
 func unify1Object(env *TypeEnv, val Object, tpe *types.Object) bool {
-	if len(val) != len(tpe.Keys()) && tpe.DynamicValue() == nil {
+	if val.Len() != len(tpe.Keys()) && tpe.DynamicValue() == nil {
 		return false
 	}
-	for i := range val {
-		if IsConstant(val[i][0].Value) {
-			if child := selectConstant(tpe, val[i][0]); child != nil {
-				if !unify1(env, val[i][1], child) {
-					return false
+	stop := val.Until(func(k, v *Term) bool {
+		if IsConstant(k.Value) {
+			if child := selectConstant(tpe, k); child != nil {
+				if !unify1(env, v, child) {
+					return true
 				}
 			} else {
-				return false
+				return true
 			}
 		} else {
 			// Inferring type of value under dynamic key would involve unioning
 			// with all property values of tpe whose keys unify. For now, type
 			// these values as Any. We can investigate stricter inference in
 			// the future.
-			unify1(env, val[i][1], types.A)
+			unify1(env, v, types.A)
 		}
-	}
-	return true
+		return false
+	})
+	return !stop
 }
 
-func unify1Set(env *TypeEnv, val *Set, tpe *types.Set) bool {
+func unify1Set(env *TypeEnv, val Set, tpe *types.Set) bool {
 	of := types.Values(tpe)
-	return !val.Iter(func(elem *Term) bool {
+	return !val.Until(func(elem *Term) bool {
 		return !unify1(env, elem, of)
 	})
 }
@@ -604,7 +604,7 @@ func (rc *refChecker) checkRefLeaf(tpe types.Type, ref Ref, idx int) *Error {
 			}
 		}
 
-	case Array, Object, *Set:
+	case Array, Object, Set:
 		// Composite references operands may only be used with a set.
 		if !unifies(tpe, types.NewSet(types.A)) {
 			return newRefErrInvalid(ref[0].Location, ref, idx, tpe, types.NewSet(types.A), nil)

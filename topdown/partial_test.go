@@ -265,12 +265,12 @@ func prepareTest(ctx context.Context, t *testing.T, params fixtureParams, f func
 }
 
 func toTerm(qrs QueryResultSet) *ast.Term {
-	set := &ast.Set{}
+	set := ast.NewSet()
 	for _, qr := range qrs {
-		obj := ast.Object{}
+		obj := ast.NewObject()
 		for k, v := range qr {
 			if !k.IsWildcard() {
-				obj = append(obj, ast.Item(ast.NewTerm(k), v))
+				obj.Insert(ast.NewTerm(k), v)
 			}
 		}
 		set.Add(ast.NewTerm(obj))

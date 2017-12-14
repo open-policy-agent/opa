@@ -66,10 +66,9 @@ func makeInput(pairs [][2]*ast.Term) (ast.Value, error) {
 func makeTree(k ast.Ref, v *ast.Term) ast.Object {
 	var obj ast.Object
 	for i := len(k) - 1; i >= 1; i-- {
-		obj = ast.Object{ast.Item(k[i], v)}
+		obj = ast.NewObject(ast.Item(k[i], v))
 		v = &ast.Term{Value: obj}
-		obj = ast.Object{}
 	}
-	obj = ast.Object{ast.Item(k[0], v)}
+	obj = ast.NewObject(ast.Item(k[0], v))
 	return obj
 }

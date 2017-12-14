@@ -90,7 +90,7 @@ func TestObjectSetOperations(t *testing.T) {
 	b := MustParseTerm(`{"c": "q", "d": "e"}`).Value.(Object)
 
 	r1 := a.Diff(b)
-	if !r1.Equal(MustParseTerm(`{"a": "b"}`).Value) {
+	if r1.Compare(MustParseTerm(`{"a": "b"}`).Value) != 0 {
 		t.Errorf(`Expected a.Diff(b) to equal {"a": "b"} but got: %v`, r1)
 	}
 
@@ -108,7 +108,7 @@ func TestObjectSetOperations(t *testing.T) {
 	r3, ok := c.Merge(d)
 	expected := MustParseTerm(`{"a": {"b": [1], "x": [3], "c": {"d": 2, "y": 4}}}`).Value.(Object)
 
-	if !ok || !r3.Equal(expected) {
+	if !ok || r3.Compare(expected) != 0 {
 		t.Errorf("Expected c.Merge(d) to equal %v but got: %v", expected, r3)
 	}
 }
@@ -403,7 +403,7 @@ func TestSetEqual(t *testing.T) {
 
 func TestSetMap(t *testing.T) {
 
-	set := MustParseTerm(`{"foo", "bar", "baz", "qux"}`).Value.(*Set)
+	set := MustParseTerm(`{"foo", "bar", "baz", "qux"}`).Value.(Set)
 
 	result, err := set.Map(func(term *Term) (*Term, error) {
 		s := string(term.Value.(String))
@@ -419,7 +419,7 @@ func TestSetMap(t *testing.T) {
 
 	expected := MustParseTerm(`{"foo", "BAR", "BAZ", "qux"}`).Value
 
-	if !result.Equal(expected) {
+	if result.Compare(expected) != 0 {
 		t.Fatalf("Expected map result to be %v but got: %v", expected, result)
 	}
 
@@ -450,10 +450,10 @@ func TestSetOperations(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		s1 := MustParseTerm(tc.a).Value.(*Set)
-		s2 := MustParseTerm(tc.b).Value.(*Set)
-		s3 := MustParseTerm(tc.c).Value.(*Set)
-		var result *Set
+		s1 := MustParseTerm(tc.a).Value.(Set)
+		s2 := MustParseTerm(tc.b).Value.(Set)
+		s3 := MustParseTerm(tc.c).Value.(Set)
+		var result Set
 		if tc.op == "-" {
 			result = s1.Diff(s2)
 		} else if tc.op == "&" {
@@ -463,7 +463,7 @@ func TestSetOperations(t *testing.T) {
 		} else {
 			panic("bad operation")
 		}
-		if !result.Equal(s3) {
+		if result.Compare(s3) != 0 {
 			t.Errorf("Expected %v for %v %v %v but got: %v", s3, tc.a, tc.op, tc.b, result)
 		}
 	}

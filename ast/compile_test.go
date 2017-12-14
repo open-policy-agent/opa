@@ -530,9 +530,9 @@ func TestCompilerCheckSafetyBodyErrors(t *testing.T) {
 			// Build slice of expected error messages.
 			expected := []string{}
 
-			MustParseTerm(tc.expected).Value.(*Set).Iter(func(x *Term) bool {
+			MustParseTerm(tc.expected).Value.(Set).Iter(func(x *Term) error {
 				expected = append(expected, makeErrMsg(string(x.Value.(Var))))
-				return false
+				return nil
 			})
 
 			sort.Strings(expected)

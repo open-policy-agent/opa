@@ -30,27 +30,23 @@ func walk(input *ast.Term, path ast.Array, iter func(*ast.Term) error) error {
 			path = path[:len(path)-1]
 		}
 	case ast.Object:
-		for _, pair := range v {
-			path = append(path, pair[0])
-			if err := walk(pair[1], path, iter); err != nil {
+		return v.Iter(func(k, v *ast.Term) error {
+			path = append(path, k)
+			if err := walk(v, path, iter); err != nil {
 				return err
 			}
 			path = path[:len(path)-1]
-		}
-	case *ast.Set:
-		var err error
-		v.Iter(func(elem *ast.Term) bool {
-			if err != nil {
-				return true
-			}
+			return nil
+		})
+	case ast.Set:
+		return v.Iter(func(elem *ast.Term) error {
 			path = append(path, elem)
-			if err = walk(elem, path, iter); err != nil {
-				return true
+			if err := walk(elem, path, iter); err != nil {
+				return err
 			}
 			path = path[:len(path)-1]
-			return false
+			return nil
 		})
-		return err
 	}
 
 	return nil

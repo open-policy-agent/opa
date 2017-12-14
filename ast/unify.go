@@ -103,10 +103,13 @@ func (u *unifier) unify(a *Term, b *Term) {
 		case Ref:
 			u.markAllSafe(a)
 		case Object:
-			if len(a) == len(b) {
-				for i := range a {
-					u.unify(a[i][1], b[i][1])
-				}
+			if a.Len() == b.Len() {
+				a.Iter(func(k, v *Term) error {
+					if v2 := b.Get(k); v2 != nil {
+						u.unify(v, v2)
+					}
+					return nil
+				})
 			}
 		}
 
