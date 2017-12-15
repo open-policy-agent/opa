@@ -6,11 +6,20 @@ package ast
 
 import (
 	"fmt"
+	"math/rand"
 	"strings"
+	"time"
 
 	"github.com/open-policy-agent/opa/types"
 	"github.com/open-policy-agent/opa/util"
 )
+
+// Initialize seed for term hashing. This is intentionally placed before the
+// root document sets are constructed to ensure they use the same hash seed as
+// subsequent lookups. If the hash seeds are out of sync, lookups will fail.
+var hashSeed = rand.New(rand.NewSource(time.Now().UnixNano()))
+var hashSeed0 = (uint64(hashSeed.Uint32()) << 32) | uint64(hashSeed.Uint32())
+var hashSeed1 = (uint64(hashSeed.Uint32()) << 32) | uint64(hashSeed.Uint32())
 
 // DefaultRootDocument is the default root document.
 //
@@ -23,10 +32,10 @@ var InputRootDocument = VarTerm("input")
 
 // RootDocumentNames contains the names of top-level documents that can be
 // referred to in modules and queries.
-var RootDocumentNames Set = &set{
+var RootDocumentNames = NewSet(
 	DefaultRootDocument,
 	InputRootDocument,
-}
+)
 
 // DefaultRootRef is a reference to the root of the default document.
 //
@@ -40,10 +49,10 @@ var InputRootRef = Ref{InputRootDocument}
 
 // RootDocumentRefs contains the prefixes of top-level documents that all
 // non-local references start with.
-var RootDocumentRefs Set = &set{
+var RootDocumentRefs = NewSet(
 	NewTerm(DefaultRootRef),
 	NewTerm(InputRootRef),
-}
+)
 
 // SystemDocumentKey is the name of the top-level key that identifies the system
 // document.
