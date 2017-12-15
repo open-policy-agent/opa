@@ -597,10 +597,10 @@ func setExprIndices(x interface{}) {
 }
 
 func mangleWildcards(stmts []Statement) {
-
-	mangler := &wildcardMangler{}
-	for _, stmt := range stmts {
-		Walk(mangler, stmt)
+	m := &wildcardMangler{}
+	for i := range stmts {
+		stmt, _ := Transform(m, stmts[i])
+		stmts[i] = stmt.(Statement)
 	}
 }
 
@@ -608,17 +608,15 @@ type wildcardMangler struct {
 	c int
 }
 
-func (vis *wildcardMangler) Visit(x interface{}) Visitor {
-	term, ok := x.(*Term)
-	if !ok {
-		return vis
+func (m *wildcardMangler) Transform(x interface{}) (interface{}, error) {
+	if term, ok := x.(Var); ok {
+		if term.Equal(Wildcard.Value) {
+			name := fmt.Sprintf("%s%d", WildcardPrefix, m.c)
+			m.c++
+			return Var(name), nil
+		}
 	}
-	if term.Equal(Wildcard) {
-		name := fmt.Sprintf("%s%d", WildcardPrefix, vis.c)
-		term.Value = Var(name)
-		vis.c++
-	}
-	return vis
+	return x, nil
 }
 
 func setRuleModule(rule *Rule, module *Module) {
