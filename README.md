@@ -270,3 +270,13 @@ true
 | "10.0.0.3" | "host-efg" |
 +------------+------------+
 ```
+
+## Further Reading
+
+### Presentations
+
+- How Netflix Is Solving Authorization Across Their Cloud @ CloudNativeCon US 2017: [video](https://www.youtube.com/watch?v=R6tUNpRpdnY), [slides](https://www.slideshare.net/TorinSandall/how-netflix-is-solving-authorization-across-their-cloud).
+- Policy-based Resource Placement in Kubernetes Federat @ LinuxCon Beijing 2017: [slides](https://www.slideshare.net/TorinSandall/policybased-resource-placement-across-hybrid-cloud), [screencast](https://www.youtube.com/watch?v=hRz13baBhfg&feature=youtu.be).
+- Enforcing Bespoke Policies In Kubernetes @ KubeCon US 2017: [video](https://www.youtube.com/watch?v=llDI8VvkUj8), [slides](https://www.slideshare.net/TorinSandall/enforcing-bespoke-policies-in-kubernetes).
+- Istio's Mixer: Policy Enforcement with Custom Adapters @ CloudNativeCon US 2017: [video](https://www.youtube.com/watch?v=czZLXUqzd24), [slides](https://www.slideshare.net/TorinSandall/istios-mixer-policy-enforcement-with-custom-adapters-cloud-nativecon-17).
+- The Open Policy Agent Project @ Netflix OSS Meetup Season 5 Episode 1 (2017): [video](https://www.youtube.com/watch?v=SfpsnlQf5bY&feature=youtu.be&t=33m45s), [slides](https://www.slideshare.net/aspyker/netflix-oss-meetup-season-5-episode-1).
