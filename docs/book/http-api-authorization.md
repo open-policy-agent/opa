@@ -53,26 +53,37 @@ docker-compose -f docker-compose.yml up
 
 Every time the demo web server receives an HTTP request, it
 asks OPA to decide whether an HTTP API is authorized or not
-using a single RESTful API call.  The full code is [here](https://github.com/open-policy-agent/contrib/blob/master/api_authz/docker/echo_server.py),
+using a single RESTful API call.  An example code is [here](https://github.com/open-policy-agent/contrib/blob/master/api_authz/docker/echo_server.py),
 but the crux of the (Python) code is shown below.
 
 ```python
-request = ...    # grab incoming HTTP API request
-input_dict = {   # create input to hand to OPA
-  "input": {
-        "user": request.token.username,
-        "path": request.path.split("/"),   # turn "/finance/salary" into ["finance", "salary"]
-        "method": request.method           # HTTP verb, e.g. GET, POST, PUT, ...
-    }}
 
+# Grab basic information. We assume user is passed on a form.
+http_api_user = request.form['user']
+orig_path_list = request.path.split("/")
+
+# Remove empty entries from list that are a result of the split
+# Example: "<some_prefix>/finance/salary/" will become ["", "finance", "salary", ""]
+http_api_path_list = [x for x in orig_path_list if x]
+
+# We need to append user to the list. See OPA Policy format.
+http_api_path_list.append(http_api_user)
+
+input_dict = {  # create input to hand to OPA
+    "input": {
+        "user": http_api_user,
+        "path": http_api_path_list, # Ex: ["finance", "salary", "alice"]
+        "method": request.method  # HTTP verb, e.g. GET, POST, PUT, ...
+    }
+}
 # ask OPA for a policy decision
 # (in reality OPA URL would be constructed from environment)
-rsp = requests.post("http://opa:8181/v1/data/httpapi/authz", data=input_dict)
-if rsp.json()["allow"] {
+rsp = requests.post("http://127.0.0.1:8181/v1/data/httpapi/authz", data=json.dumps(input_dict))
+if rsp.json()["allow"]:
   # HTTP API allowed
-} else {
+else:
   # HTTP API denied
-}
+
 ```
 
 
