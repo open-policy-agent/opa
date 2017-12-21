@@ -66,9 +66,6 @@ orig_path_list = request.path.split("/")
 # Example: "<some_prefix>/finance/salary/" will become ["", "finance", "salary", ""]
 http_api_path_list = [x for x in orig_path_list if x]
 
-# We need to append user to the list. See OPA Policy format.
-http_api_path_list.append(http_api_user)
-
 input_dict = {  # create input to hand to OPA
     "input": {
         "user": http_api_user,
