@@ -1,6 +1,7 @@
 # development environment
 .DS_Store
 .vscode
+.idea
 
 # build artifacts
 coverage
