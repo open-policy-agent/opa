@@ -116,6 +116,11 @@ In addition to running queries, the REPL also lets you define rules:
 > items = ["pizza", "apples", "bread", "coffee"]
 > users = {"bob": {"likes": [0, 2]}, "alice": {"likes": [1, 2, 3]}}
 > likes[[name, item]] { index = users[name].likes[_]; item = items[index] }
+```
+
+The likes rule above defines a set of tuples specifying what each user likes.
+
+```
 > likes[["alice", item]] # what does alice like?
 +----------+
 |   item   |
@@ -131,10 +136,7 @@ In addition to running queries, the REPL also lets you define rules:
 | "bob"   |
 | "alice" |
 +---------+
->
 ```
-
-The rule above defines a set of values that are the indices of elements in the array `a`.
 
 When you enter expressions into the OPA REPL, you are effectively running *queries*. The REPL output shows the values of variables in the expression that make the query `true`. If there is no set of variables that would make the query `true`, the REPL prints `false`. If there are no variables in the query and the query evaluates successfully, then the REPL just prints `true`.
 
