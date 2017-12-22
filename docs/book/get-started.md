@@ -113,14 +113,25 @@ false
 In addition to running queries, the REPL also lets you define rules:
 
 ```ruby
-> p[x] { a = [1,2,3,4]; a[x] }
-> p[x] > 1
-+---+
-| x |
-+---+
-| 2 |
-| 3 |
-+---+
+> items = ["pizza", "apples", "bread", "coffee"]
+> users = {"bob": {"likes": [0, 2]}, "alice": {"likes": [1, 2, 3]}}
+> likes[[name, item]] { index = users[name].likes[_]; item = items[index] }
+> likes[["alice", item]] # what does alice like?
++----------+
+|   item   |
++----------+
+| "apples" |
+| "bread"  |
+| "coffee" |
++----------+
+> likes[[name, "bread"]] # who likes bread?
++---------+
+|  name   |
++---------+
+| "bob"   |
+| "alice" |
++---------+
+>
 ```
 
 The rule above defines a set of values that are the indices of elements in the array `a`.
