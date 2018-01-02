@@ -1217,19 +1217,49 @@ order-sensitive system like IPTables.
 # Service queries "authorize" and intreprets result ("allow" or "deny")
 authorize = "allow" {
     input.user = "superuser"
-}
-
-# Check if caller is from outside network.
-else = "deny" {
+} else = "deny" {
+    # Check if caller is from outside network.
     input.path[0] = "admin"
     input.source_network = "external"
-}
-
-# Check if caller is from inside network.
-else = "allow" {
+} else = "allow" {
+    # Check if caller is from inside network.
     input.path[0] = "admin"
     input.source_network = "internal"
 } # ... more rules
+
+
+# We can set input to a couple of different cases in order to see how evaluation happens
+
+# here authorize evaluates to "allow"
+
+> input
+{
+  "path": [
+    "joe",
+    "sam"
+  ],
+  "source_network": "internal",
+  "user": "superuser"
+}
+
+> authorize
+"allow"
+
+# If we now change the input, authorize will evaluate to "deny"
+
+
+> input
+{
+  "path": [
+    "admin",
+    "sam"
+  ],
+  "source_network": "external",
+  "user": "alice"
+}
+> authorize
+"deny"
+
 ```
 
 ## <a name="operators"></a> Operators
