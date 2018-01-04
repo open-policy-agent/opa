@@ -1294,6 +1294,12 @@ func Item(key, value *Term) [2]*Term {
 	return [2]*Term{key, value}
 }
 
+// SortCollection sorts an array using custom function
+func SortCollection(a []*Term) int {
+	sort.Sort(termSlice(a))
+	return 0
+}
+
 // Compare compares obj to other, return <0, 0, or >0 if it is less than, equal to,
 // or greater than other.
 func (obj *object) Compare(other Value) int {
