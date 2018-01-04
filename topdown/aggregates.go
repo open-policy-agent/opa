@@ -144,10 +144,29 @@ func builtinMin(a ast.Value) (ast.Value, error) {
 	return nil, builtins.NewOperandTypeErr(1, a, ast.SetTypeName, ast.ArrayTypeName)
 }
 
+func builtinSort(a ast.Value) (ast.Value, error) {
+	switch a := a.(type) {
+	case ast.Array:
+		if len(a) == 0 {
+			return nil, BuiltinEmpty{}
+		}
+		ast.SortCollection(a)
+		return a, nil
+	case ast.Set:
+		if a.Len() == 0 {
+			return nil, BuiltinEmpty{}
+		}
+		return a, nil
+	}
+
+	return nil, builtins.NewOperandTypeErr(1, a, ast.SetTypeName, ast.ArrayTypeName)
+}
+
 func init() {
 	RegisterFunctionalBuiltin1(ast.Count.Name, builtinCount)
 	RegisterFunctionalBuiltin1(ast.Sum.Name, builtinSum)
 	RegisterFunctionalBuiltin1(ast.Product.Name, builtinProduct)
 	RegisterFunctionalBuiltin1(ast.Max.Name, builtinMax)
 	RegisterFunctionalBuiltin1(ast.Min.Name, builtinMin)
+	RegisterFunctionalBuiltin1(ast.Sort.Name, builtinSort)
 }

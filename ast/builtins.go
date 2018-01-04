@@ -65,6 +65,9 @@ var DefaultBuiltins = [...]*Builtin{
 
 	// Graphs
 	WalkBuiltin,
+
+	//Sort
+	Sort,
 }
 
 // BuiltinMap provides a convenient mapping of built-in names to
@@ -650,6 +653,24 @@ var WalkBuiltin = &Builtin{
 			},
 			nil,
 		),
+	),
+}
+
+/**
+ * Sorting
+ */
+
+// Sort a collection
+// Trying new built-in
+var Sort = &Builtin{
+	Name: "sort",
+	Decl: types.NewFunction(
+		types.Args(
+			types.NewAny(
+				types.NewArray(nil, types.A),
+			),
+		),
+		types.A,
 	),
 }
 
