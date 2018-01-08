@@ -1213,54 +1213,51 @@ in the chain.
 The ``else`` keyword is useful if you are porting policies into Rego from an
 order-sensitive system like IPTables.
 
-```
-# Service queries "authorize" and intreprets result ("allow" or "deny")
+```ruby
 authorize = "allow" {
-    input.user = "superuser"
+    input.user = "superuser"           # allow 'superuser' to perform any operation.
 } else = "deny" {
-    # Check if caller is from outside network.
-    input.path[0] = "admin"
-    input.source_network = "external"
-} else = "allow" {
-    # Check if caller is from inside network.
-    input.path[0] = "admin"
-    input.source_network = "internal"
+    input.path[0] = "admin"            # disallow 'admin' operations...
+    input.source_network = "external"  # from external networks.
 } # ... more rules
+```
 
+In the example below, evaluation stops immediately after the first rule even
+though the input matches the second rule as well.
 
-# We can set input to a couple of different cases in order to see how evaluation happens
-
-# here authorize evaluates to "allow"
-
-> input
-{
-  "path": [
-    "joe",
-    "sam"
-  ],
-  "source_network": "internal",
-  "user": "superuser"
-}
-
-> authorize
-"allow"
-
-# If we now change the input, authorize will evaluate to "deny"
-
-
+```ruby
 > input
 {
   "path": [
     "admin",
-    "sam"
+    "exec_shell"
+  ],
+  "source_network": "external",
+  "user": "superuser"
+}
+> authorize
+"allow"
+```
+
+In the next example, the input matches the second rule (but not the first) so
+evaluation continues to the second rule before stopping.
+
+```ruby
+> input
+{
+  "path": [
+    "admin",
+    "exec_shell"
   ],
   "source_network": "external",
   "user": "alice"
 }
 > authorize
 "deny"
-
 ```
+
+The `else` keyword may be used repeatedly on the same rule and there is no
+limit imposed on the number of `else` clauses on a rule.
 
 ## <a name="operators"></a> Operators
 
