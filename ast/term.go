@@ -958,6 +958,16 @@ func (arr Array) Get(pos *Term) *Term {
 	return nil
 }
 
+// Sorted returns a new Array that contains the sorted elements of arr.
+func (arr Array) Sorted() Array {
+	cpy := make(Array, len(arr))
+	for i := range cpy {
+		cpy[i] = arr[i]
+	}
+	sort.Sort(termSlice(cpy))
+	return cpy
+}
+
 // Hash returns the hash code for the Value.
 func (arr Array) Hash() int {
 	return termSliceHash(arr)
@@ -999,6 +1009,7 @@ type Set interface {
 	Contains(*Term) bool
 	Map(func(*Term) (*Term, error)) (Set, error)
 	Reduce(*Term, func(*Term, *Term) (*Term, error)) (*Term, error)
+	Sorted() Array
 }
 
 // NewSet returns a new Set containing t.
@@ -1219,6 +1230,16 @@ func (s *set) MarshalJSON() ([]byte, error) {
 	return json.Marshal(s.keys)
 }
 
+// Sorted returns an Array that contains the sorted elements of s.
+func (s *set) Sorted() Array {
+	cpy := make(Array, len(s.keys))
+	for i := range cpy {
+		cpy[i] = s.keys[i]
+	}
+	sort.Sort(termSlice(cpy))
+	return cpy
+}
+
 func (s *set) insert(x *Term) {
 	hash := x.Hash()
 	head := s.elems[hash]
@@ -1292,12 +1313,6 @@ type objectElem struct {
 // representing a key/value pair in an Object.
 func Item(key, value *Term) [2]*Term {
 	return [2]*Term{key, value}
-}
-
-// SortCollection sorts an array using custom function
-func SortCollection(a []*Term) int {
-	sort.Sort(termSlice(a))
-	return 0
 }
 
 // Compare compares obj to other, return <0, 0, or >0 if it is less than, equal to,

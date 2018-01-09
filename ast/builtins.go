@@ -660,17 +660,17 @@ var WalkBuiltin = &Builtin{
  * Sorting
  */
 
-// Sort a collection
-// Trying new built-in
+// Sort returns a sorted array.
 var Sort = &Builtin{
 	Name: "sort",
 	Decl: types.NewFunction(
 		types.Args(
 			types.NewAny(
 				types.NewArray(nil, types.A),
+				types.NewSet(types.A),
 			),
 		),
-		types.A,
+		types.NewArray(nil, types.A),
 	),
 }
 
