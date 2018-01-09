@@ -962,6 +962,7 @@ func TestTopDownAggregates(t *testing.T) {
 		{"reduce ref dest", []string{`p = true { max([1, 2, 3, 4], a[3]) }`}, "true"},
 		{"reduce ref dest (2)", []string{`p = true { not max([1, 2, 3, 4, 5], a[3]) }`}, "true"},
 		{"sort", []string{`p = x { sort([4, 3, 2, 1], x) }`}, "[1 ,2, 3, 4]"},
+		{"sort set", []string{`p = x { sort({4,3,2,1}, x) }`}, "[1,2,3,4]"},
 	}
 
 	data := loadSmallTestData()
