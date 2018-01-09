@@ -356,6 +356,18 @@ func (e *eval) biunifyObjects(a, b ast.Object, b1, b2 *bindings, iter unifyItera
 	if a.Len() != b.Len() {
 		return nil
 	}
+
+	// Objects must not contain unbound variables as keys at this point as we
+	// cannot unify them. Similar to sets, plug both sides before comparing the
+	// keys and unifying the values.
+	if nonGroundKeys(a) {
+		a = plugKeys(a, b1)
+	}
+
+	if nonGroundKeys(b) {
+		b = plugKeys(b, b2)
+	}
+
 	return e.biunifyObjectsRec(a, b, b1, b2, iter, a.Keys(), 0)
 }
 
@@ -428,6 +440,15 @@ func (e *eval) biunifyValues(a, b *ast.Term, b1, b2 *bindings, iter unifyIterato
 		err := iter()
 		undo.Undo()
 		return err
+	}
+
+	// Sets must not contain unbound variables at this point as we cannot unify
+	// them. So simply plug both sides (to substitute any bound variables with
+	// values) and then check for equality.
+	switch a.Value.(type) {
+	case ast.Set:
+		a = b1.Plug(a)
+		b = b2.Plug(b)
 	}
 
 	if a.Equal(b) {
@@ -1407,4 +1428,17 @@ func (e evalTerm) get(plugged *ast.Term) (*ast.Term, *bindings) {
 		}
 	}
 	return nil, nil
+}
+
+func nonGroundKeys(a ast.Object) bool {
+	return a.Until(func(k, _ *ast.Term) bool {
+		return !k.IsGround()
+	})
+}
+
+func plugKeys(a ast.Object, b *bindings) ast.Object {
+	plugged, _ := a.Map(func(k, v *ast.Term) (*ast.Term, *ast.Term, error) {
+		return b.Plug(k), v, nil
+	})
+	return plugged
 }

@@ -208,6 +208,11 @@ func TestTopDownEqExpr(t *testing.T) {
 		{"pattern: object/array nested", `p[ys] { f[i] = {"xs": [2], "ys": ys} }`, `[[3.0]]`},
 		{"pattern: object/array nested 2", `p[v] { f[i] = {"xs": [x], "ys": [y]}; v = [x, y] }`, `[[1.0, 2.0], [2.0, 3.0]]`},
 
+		// unordered collections requiring plug
+		{"unordered: sets", `p[x] { x = 2; {1,x,3} = {1,2,3} }`, `[2]`},
+		{"unordered: object keys", `p[x] { x = "a"; {x: 1} = {"a": 1} }`, `["a"]`},
+		{"unordered: object keys (reverse)", `p[x] { x = "a"; {"a": 1} = {x: 1} }`, `["a"]`},
+
 		// indexing
 		{"indexing: intersection", `p = true { a[i] = g[i][j] }`, ""},
 	}
