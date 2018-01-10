@@ -89,7 +89,6 @@ func New() *Server {
 	s.registerHandler(router, 0, "/data", http.MethodPost, s.v0DataPost)
 	s.registerHandler(router, 1, "/data/{path:.+}", http.MethodPut, s.v1DataPut)
 	s.registerHandler(router, 1, "/data", http.MethodPut, s.v1DataPut)
-	s.registerHandler(router, 1, "/data/system/diagnostics", http.MethodGet, s.v1DiagnosticsGet)
 	s.registerHandler(router, 1, "/data/{path:.+}", http.MethodGet, s.v1DataGet)
 	s.registerHandler(router, 1, "/data", http.MethodGet, s.v1DataGet)
 	s.registerHandler(router, 1, "/data/{path:.+}", http.MethodPatch, s.v1DataPatch)
@@ -101,11 +100,37 @@ func New() *Server {
 	s.registerHandler(router, 1, "/policies/{path:.+}", http.MethodGet, s.v1PoliciesGet)
 	s.registerHandler(router, 1, "/policies/{path:.+}", http.MethodPut, s.v1PoliciesPut)
 	s.registerHandler(router, 1, "/query", http.MethodGet, s.v1QueryGet)
+	s.registerHandler(router, 1, "/data/system/diagnostics", http.MethodGet, s.v1DiagnosticsGet)
 	router.HandleFunc("/", s.unversionedPost).Methods(http.MethodPost)
 	router.HandleFunc("/", s.indexGet).Methods(http.MethodGet)
+	// These are catch all handlers that respond 405 for resources that exist but the method is not allowed
+	router.HandleFunc("/v0/data/{path:.*}", httpStatus(405)).Methods(http.MethodGet, http.MethodHead,
+		http.MethodConnect, http.MethodDelete, http.MethodOptions, http.MethodPatch, http.MethodPut,
+			http.MethodTrace)
+	// v1 Data catch all
+	router.HandleFunc("/v1/data/{path:.*}", httpStatus(405)).Methods(http.MethodHead,
+		http.MethodConnect, http.MethodDelete, http.MethodOptions, http.MethodTrace)
+	// Policies catch all
+	router.HandleFunc("/v1/policies", httpStatus(405)).Methods(http.MethodHead,
+		http.MethodConnect, http.MethodDelete, http.MethodOptions, http.MethodTrace, http.MethodPost, http.MethodPut,
+		http.MethodPatch)
+	// Policies (/policies/{path.+} catch all
+	router.HandleFunc("/v1/policies/{path:.*}", httpStatus(405)).Methods(http.MethodHead,
+		http.MethodConnect, http.MethodOptions, http.MethodTrace, http.MethodPost)
+	// Query catch all
+	router.HandleFunc("/v1/query/{path:.*}", httpStatus(405)).Methods(http.MethodHead,
+		http.MethodConnect, http.MethodDelete, http.MethodOptions, http.MethodTrace, http.MethodPost, http.MethodPut,
+			http.MethodPatch)
 	s.Handler = router
-
 	return &s
+}
+
+// httpStatus is used to set a specific status code
+// Adapted from https://stackoverflow.com/questions/27711154/what-response-code-to-return-on-a-non-supported-http-method-on-rest
+func httpStatus(code int) func(w http.ResponseWriter, req *http.Request) {
+	return func(w http.ResponseWriter, req *http.Request) {
+		w.WriteHeader(code)
+	}
 }
 
 // Init initializes the server. This function MUST be called before Loop.
