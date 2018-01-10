@@ -1097,7 +1097,9 @@ func NewGraph(modules map[string]*Module, list func(Ref) []*Rule) *Graph {
 		addRefDeps := func(a util.T) func(ref Ref) bool {
 			return func(ref Ref) bool {
 				for _, b := range list(ref.GroundPrefix()) {
-					graph.addDependency(a, b)
+					for node := b; node != nil; node = node.Else {
+						graph.addDependency(a, node)
+					}
 				}
 				return false
 			}
