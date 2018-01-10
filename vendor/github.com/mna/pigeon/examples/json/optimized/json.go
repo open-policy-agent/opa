@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"math"
 	"os"
 	"sort"
 	"strconv"
@@ -750,14 +751,67 @@ var (
 	// errNoRule is returned when the grammar to parse has no rule.
 	errNoRule = errors.New("grammar has no rule")
 
+	// errInvalidEntrypoint is returned when the specified entrypoint rule
+	// does not exit.
+	errInvalidEntrypoint = errors.New("invalid entrypoint")
+
 	// errInvalidEncoding is returned when the source is not properly
 	// utf8-encoded.
 	errInvalidEncoding = errors.New("invalid encoding")
+
+	// errMaxExprCnt is used to signal that the maximum number of
+	// expressions have been parsed.
+	errMaxExprCnt = errors.New("max number of expresssions parsed")
 )
 
 // Option is a function that can set an option on the parser. It returns
 // the previous setting as an Option.
 type Option func(*parser) Option
+
+// MaxExpressions creates an Option to stop parsing after the provided
+// number of expressions have been parsed, if the value is 0 then the parser will
+// parse for as many steps as needed (possibly an infinite number).
+//
+// The default for maxExprCnt is 0.
+func MaxExpressions(maxExprCnt uint64) Option {
+	return func(p *parser) Option {
+		oldMaxExprCnt := p.maxExprCnt
+		p.maxExprCnt = maxExprCnt
+		return MaxExpressions(oldMaxExprCnt)
+	}
+}
+
+// Entrypoint creates an Option to set the rule name to use as entrypoint.
+// The rule name must have been specified in the -alternate-entrypoints
+// if generating the parser with the -optimize-grammar flag, otherwise
+// it may have been optimized out. Passing an empty string sets the
+// entrypoint to the first rule in the grammar.
+//
+// The default is to start parsing at the first rule in the grammar.
+func Entrypoint(ruleName string) Option {
+	return func(p *parser) Option {
+		oldEntrypoint := p.entrypoint
+		p.entrypoint = ruleName
+		if ruleName == "" {
+			p.entrypoint = g.rules[0].name
+		}
+		return Entrypoint(oldEntrypoint)
+	}
+}
+
+// AllowInvalidUTF8 creates an Option to allow invalid UTF-8 bytes.
+// Every invalid UTF-8 byte is treated as a utf8.RuneError (U+FFFD)
+// by character class matchers and is matched by the any matcher.
+// The returned matched value, c.text and c.offset are NOT affected.
+//
+// The default is false.
+func AllowInvalidUTF8(b bool) Option {
+	return func(p *parser) Option {
+		old := p.allowInvalidUTF8
+		p.allowInvalidUTF8 = b
+		return AllowInvalidUTF8(old)
+	}
+}
 
 // Recover creates an Option to set the recover flag to b. When set to
 // true, this causes the parser to recover from panics and convert it
@@ -835,9 +889,15 @@ type current struct {
 	pos  position // start position of the match
 	text []byte   // raw text of the match
 
-	// the globalStore allows the parser to store arbitrary values
-	globalStore map[string]interface{}
+	// globalStore is a general store for the user to store arbitrary key-value
+	// pairs that they need to manage and that they do not want tied to the
+	// backtracking of the parser. This is only modified by the user and never
+	// rolled back by the parser. It is always up to the user to keep this in a
+	// consistent state.
+	globalStore storeDict
 }
+
+type storeDict map[string]interface{}
 
 // the AST types...
 
@@ -864,9 +924,21 @@ type actionExpr struct {
 	run  func(*parser) (interface{}, error)
 }
 
+type recoveryExpr struct {
+	pos          position
+	expr         interface{}
+	recoverExpr  interface{}
+	failureLabel []string
+}
+
 type seqExpr struct {
 	pos   position
 	exprs []interface{}
+}
+
+type throwExpr struct {
+	pos   position
+	label string
 }
 
 type labeledExpr struct {
@@ -982,6 +1054,10 @@ func (p *parserError) Error() string {
 
 // newParser creates a parser with the specified input source and options.
 func newParser(filename string, b []byte, opts ...Option) *parser {
+	stats := Stats{
+		ChoiceAltCnt: make(map[string]map[string]int),
+	}
+
 	p := &parser{
 		filename: filename,
 		errs:     new(errList),
@@ -989,12 +1065,20 @@ func newParser(filename string, b []byte, opts ...Option) *parser {
 		pt:       savepoint{position: position{line: 1}},
 		recover:  true,
 		cur: current{
-			globalStore: make(map[string]interface{}),
+			globalStore: make(storeDict),
 		},
 		maxFailPos:      position{col: 1, line: 1},
 		maxFailExpected: make([]string, 0, 20),
+		Stats:           &stats,
+		// start rule is rule [0] unless an alternate entrypoint is specified
+		entrypoint: g.rules[0].name,
 	}
 	p.setOptions(opts)
+
+	if p.maxExprCnt == 0 {
+		p.maxExprCnt = math.MaxUint64
+	}
+
 	return p
 }
 
@@ -1009,6 +1093,30 @@ type resultTuple struct {
 	v   interface{}
 	b   bool
 	end savepoint
+}
+
+const choiceNoMatch = -1
+
+// Stats stores some statistics, gathered during parsing
+type Stats struct {
+	// ExprCnt counts the number of expressions processed during parsing
+	// This value is compared to the maximum number of expressions allowed
+	// (set by the MaxExpressions option).
+	ExprCnt uint64
+
+	// ChoiceAltCnt is used to count for each ordered choice expression,
+	// which alternative is used how may times.
+	// These numbers allow to optimize the order of the ordered choice expression
+	// to increase the performance of the parser
+	//
+	// The outer key of ChoiceAltCnt is composed of the name of the rule as well
+	// as the line and the column of the ordered choice.
+	// The inner key of ChoiceAltCnt is the number (one-based) of the matching alternative.
+	// For each alternative the number of matches are counted. If an ordered choice does not
+	// match, a special counter is incremented. The name of this counter is set with
+	// the parser option Statistics.
+	// For an alternative to be included in ChoiceAltCnt, it has to match at least once.
+	ChoiceAltCnt map[string]map[string]int
 }
 
 type parser struct {
@@ -1033,6 +1141,22 @@ type parser struct {
 	maxFailPos            position
 	maxFailExpected       []string
 	maxFailInvertExpected bool
+
+	// max number of expressions to be parsed
+	maxExprCnt uint64
+	// entrypoint for the parser
+	entrypoint string
+
+	allowInvalidUTF8 bool
+
+	*Stats
+
+	choiceNoMatch string
+	// recovery expression stack, keeps track of the currently available recovery expression, these are traversed in reverse
+	recoveryStack []map[string]interface{}
+
+	// emptyState contains an empty storeDict, which is used to optimize cloneState if global "state" store is not used.
+	emptyState storeDict
 }
 
 // push a variable set on the vstack.
@@ -1065,6 +1189,31 @@ func (p *parser) popV() {
 		p.vstack[len(p.vstack)-1] = nil
 	}
 	p.vstack = p.vstack[:len(p.vstack)-1]
+}
+
+// push a recovery expression with its labels to the recoveryStack
+func (p *parser) pushRecovery(labels []string, expr interface{}) {
+	if cap(p.recoveryStack) == len(p.recoveryStack) {
+		// create new empty slot in the stack
+		p.recoveryStack = append(p.recoveryStack, nil)
+	} else {
+		// slice to 1 more
+		p.recoveryStack = p.recoveryStack[:len(p.recoveryStack)+1]
+	}
+
+	m := make(map[string]interface{}, len(labels))
+	for _, fl := range labels {
+		m[fl] = expr
+	}
+	p.recoveryStack[len(p.recoveryStack)-1] = m
+}
+
+// pop a recovery expression from the recoveryStack
+func (p *parser) popRecovery() {
+	// GC that map
+	p.recoveryStack[len(p.recoveryStack)-1] = nil
+
+	p.recoveryStack = p.recoveryStack[:len(p.recoveryStack)-1]
 }
 
 func (p *parser) addErr(err error) {
@@ -1126,8 +1275,8 @@ func (p *parser) read() {
 		p.pt.col = 0
 	}
 
-	if rn == utf8.RuneError {
-		if n == 1 {
+	if rn == utf8.RuneError && n == 1 { // see utf8.DecodeRune
+		if !p.allowInvalidUTF8 {
 			p.addErr(errInvalidEncoding)
 		}
 	}
@@ -1179,9 +1328,14 @@ func (p *parser) parse(g *grammar) (val interface{}, err error) {
 		}()
 	}
 
-	// start rule is rule [0]
+	startRule, ok := p.rules[p.entrypoint]
+	if !ok {
+		p.addErr(errInvalidEntrypoint)
+		return nil, p.errs.err()
+	}
+
 	p.read() // advance to first rune
-	val, ok := p.parseRule(g.rules[0])
+	val, ok = p.parseRule(startRule)
 	if !ok {
 		if len(*p.errs) == 0 {
 			// If parsing fails, but no errors have been recorded, the expected values
@@ -1205,6 +1359,7 @@ func (p *parser) parse(g *grammar) (val interface{}, err error) {
 			}
 			p.addErrAt(errors.New("no match found, expected: "+listJoin(expected, ", ", "or")), p.maxFailPos, expected)
 		}
+
 		return nil, p.errs.err()
 	}
 	return val, p.errs.err()
@@ -1231,6 +1386,12 @@ func (p *parser) parseRule(rule *rule) (interface{}, bool) {
 }
 
 func (p *parser) parseExpr(expr interface{}) (interface{}, bool) {
+
+	p.ExprCnt++
+	if p.ExprCnt > p.maxExprCnt {
+		panic(errMaxExprCnt)
+	}
+
 	var val interface{}
 	var ok bool
 	switch expr := expr.(type) {
@@ -1256,10 +1417,14 @@ func (p *parser) parseExpr(expr interface{}) (interface{}, bool) {
 		val, ok = p.parseNotExpr(expr)
 	case *oneOrMoreExpr:
 		val, ok = p.parseOneOrMoreExpr(expr)
+	case *recoveryExpr:
+		val, ok = p.parseRecoveryExpr(expr)
 	case *ruleRefExpr:
 		val, ok = p.parseRuleRefExpr(expr)
 	case *seqExpr:
 		val, ok = p.parseSeqExpr(expr)
+	case *throwExpr:
+		val, ok = p.parseThrowExpr(expr)
 	case *zeroOrMoreExpr:
 		val, ok = p.parseZeroOrMoreExpr(expr)
 	case *zeroOrOneExpr:
@@ -1280,16 +1445,19 @@ func (p *parser) parseActionExpr(act *actionExpr) (interface{}, bool) {
 		if err != nil {
 			p.addErrAt(err, start.position, []string{})
 		}
+
 		val = actVal
 	}
 	return val, ok
 }
 
 func (p *parser) parseAndCodeExpr(and *andCodeExpr) (interface{}, bool) {
+
 	ok, err := and.run(p)
 	if err != nil {
 		p.addErr(err)
 	}
+
 	return nil, ok
 }
 
@@ -1299,18 +1467,20 @@ func (p *parser) parseAndExpr(and *andExpr) (interface{}, bool) {
 	_, ok := p.parseExpr(and.expr)
 	p.popV()
 	p.restore(pt)
+
 	return nil, ok
 }
 
 func (p *parser) parseAnyMatcher(any *anyMatcher) (interface{}, bool) {
-	if p.pt.rn != utf8.RuneError {
-		start := p.pt
-		p.read()
-		p.failAt(true, start.position, ".")
-		return p.sliceFrom(start), true
+	if p.pt.rn == utf8.RuneError && p.pt.w == 0 {
+		// EOF - see utf8.DecodeRune
+		p.failAt(false, p.pt.position, ".")
+		return nil, false
 	}
-	p.failAt(false, p.pt.position, ".")
-	return nil, false
+	start := p.pt
+	p.read()
+	p.failAt(true, start.position, ".")
+	return p.sliceFrom(start), true
 }
 
 func (p *parser) parseCharClassMatcher(chr *charClassMatcher) (interface{}, bool) {
@@ -1328,7 +1498,7 @@ func (p *parser) parseCharClassMatcher(chr *charClassMatcher) (interface{}, bool
 	}
 
 	// can't match EOF
-	if cur == utf8.RuneError {
+	if cur == utf8.RuneError && p.pt.w == 0 { // see utf8.DecodeRune
 		p.failAt(false, start.position, chr.val)
 		return nil, false
 	}
@@ -1386,7 +1556,10 @@ func (p *parser) parseCharClassMatcher(chr *charClassMatcher) (interface{}, bool
 }
 
 func (p *parser) parseChoiceExpr(ch *choiceExpr) (interface{}, bool) {
-	for _, alt := range ch.alternatives {
+	for altI, alt := range ch.alternatives {
+		// dummy assignment to prevent compile error if optimized
+		_ = altI
+
 		p.pushV()
 		val, ok := p.parseExpr(alt)
 		p.popV()
@@ -1436,6 +1609,7 @@ func (p *parser) parseNotCodeExpr(not *notCodeExpr) (interface{}, bool) {
 	if err != nil {
 		p.addErr(err)
 	}
+
 	return nil, !ok
 }
 
@@ -1447,6 +1621,7 @@ func (p *parser) parseNotExpr(not *notExpr) (interface{}, bool) {
 	p.maxFailInvertExpected = !p.maxFailInvertExpected
 	p.popV()
 	p.restore(pt)
+
 	return nil, !ok
 }
 
@@ -1466,6 +1641,15 @@ func (p *parser) parseOneOrMoreExpr(expr *oneOrMoreExpr) (interface{}, bool) {
 		}
 		vals = append(vals, val)
 	}
+}
+
+func (p *parser) parseRecoveryExpr(recover *recoveryExpr) (interface{}, bool) {
+
+	p.pushRecovery(recover.failureLabel, recover.recoverExpr)
+	val, ok := p.parseExpr(recover.expr)
+	p.popRecovery()
+
+	return val, ok
 }
 
 func (p *parser) parseRuleRefExpr(ref *ruleRefExpr) (interface{}, bool) {
@@ -1494,6 +1678,19 @@ func (p *parser) parseSeqExpr(seq *seqExpr) (interface{}, bool) {
 		vals = append(vals, val)
 	}
 	return vals, true
+}
+
+func (p *parser) parseThrowExpr(expr *throwExpr) (interface{}, bool) {
+
+	for i := len(p.recoveryStack) - 1; i >= 0; i-- {
+		if recoverExpr, ok := p.recoveryStack[i][expr.label]; ok {
+			if val, ok := p.parseExpr(recoverExpr); ok {
+				return val, ok
+			}
+		}
+	}
+
+	return nil, false
 }
 
 func (p *parser) parseZeroOrMoreExpr(expr *zeroOrMoreExpr) (interface{}, bool) {

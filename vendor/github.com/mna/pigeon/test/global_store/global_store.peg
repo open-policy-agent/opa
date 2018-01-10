@@ -1,14 +1,5 @@
 {
-package main
-
-func main() {
-	ast, err := Parse("STDIN", []byte("iiziid"))
-	if err != nil {
-		fmt.Printf("error: %s\n", err)
-		return
-	}
-	fmt.Printf("%+v\n", ast)
-}
+package globalstore
 }
 
 Input ← &{ c.globalStore["result"] = c.globalStore["initial"].(int); return true, nil } (increment / decrement / zero)+ EOF { return c.globalStore["result"].(int), nil }

@@ -135,8 +135,8 @@ func TestMemoization(t *testing.T) {
 	if goti != want {
 		t.Errorf("want %d, got %d", want, goti)
 	}
-	if p.exprCnt != 415 {
-		t.Errorf("with Memoize=false, want %d expressions evaluated, got %d", 415, p.exprCnt)
+	if p.ExprCnt != 415 {
+		t.Errorf("with Memoize=false, want %d expressions evaluated, got %d", 415, p.ExprCnt)
 	}
 
 	p = newParser("", []byte(in), Memoize(true))
@@ -148,8 +148,8 @@ func TestMemoization(t *testing.T) {
 	if goti != want {
 		t.Errorf("want %d, got %d", want, goti)
 	}
-	if p.exprCnt != 389 {
-		t.Errorf("with Memoize=true, want %d expressions evaluated, got %d", 389, p.exprCnt)
+	if p.ExprCnt != 389 {
+		t.Errorf("with Memoize=true, want %d expressions evaluated, got %d", 389, p.ExprCnt)
 	}
 }
 

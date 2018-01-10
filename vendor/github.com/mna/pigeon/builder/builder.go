@@ -26,6 +26,10 @@ var (
 %s
 }
 `
+	onStateFuncTemplate = `func (%s *current) %s(%s) (error) {
+%s
+}
+`
 	callFuncTemplate = `func (p *parser) call%s() (interface{}, error) {
 	stack := p.vstack[len(p.vstack)-1]
 	_ = stack
@@ -36,6 +40,12 @@ var (
 	stack := p.vstack[len(p.vstack)-1]
 	_ = stack
 	return p.cur.%[1]s(%s)
+}
+`
+	callStateFuncTemplate = `func (p *parser) call%s() error {
+    stack := p.vstack[len(p.vstack)-1]
+    _ = stack
+    return p.cur.%[1]s(%s)
 }
 `
 )
@@ -94,6 +104,7 @@ type builder struct {
 	recvName              string
 	optimize              bool
 	basicLatinLookupTable bool
+	globalState           bool
 
 	ruleName  string
 	exprIndex int
@@ -187,10 +198,16 @@ func (b *builder) writeExpr(expr ast.Expression) {
 		b.writeNotExpr(expr)
 	case *ast.OneOrMoreExpr:
 		b.writeOneOrMoreExpr(expr)
+	case *ast.RecoveryExpr:
+		b.writeRecoveryExpr(expr)
 	case *ast.RuleRefExpr:
 		b.writeRuleRefExpr(expr)
 	case *ast.SeqExpr:
 		b.writeSeqExpr(expr)
+	case *ast.StateCodeExpr:
+		b.writeStateCodeExpr(expr)
+	case *ast.ThrowExpr:
+		b.writeThrowExpr(expr)
 	case *ast.ZeroOrMoreExpr:
 		b.writeZeroOrMoreExpr(expr)
 	case *ast.ZeroOrOneExpr:
@@ -429,6 +446,27 @@ func (b *builder) writeOneOrMoreExpr(one *ast.OneOrMoreExpr) {
 	b.writelnf("},")
 }
 
+func (b *builder) writeRecoveryExpr(recover *ast.RecoveryExpr) {
+	if recover == nil {
+		b.writelnf("nil,")
+		return
+	}
+	b.writelnf("&recoveryExpr{")
+	pos := recover.Pos()
+	b.writelnf("\tpos: position{line: %d, col: %d, offset: %d},", pos.Line, pos.Col, pos.Off)
+
+	b.writef("\texpr: ")
+	b.writeExpr(recover.Expr)
+	b.writef("\trecoverExpr: ")
+	b.writeExpr(recover.RecoverExpr)
+	b.writelnf("\tfailureLabel: []string{")
+	for _, label := range recover.Labels {
+		b.writelnf("%q,", label)
+	}
+	b.writelnf("\t},")
+	b.writelnf("},")
+}
+
 func (b *builder) writeRuleRefExpr(ref *ast.RuleRefExpr) {
 	if ref == nil {
 		b.writelnf("nil,")
@@ -458,6 +496,32 @@ func (b *builder) writeSeqExpr(seq *ast.SeqExpr) {
 		}
 		b.writelnf("\t},")
 	}
+	b.writelnf("},")
+}
+
+func (b *builder) writeStateCodeExpr(state *ast.StateCodeExpr) {
+	if state == nil {
+		b.writelnf("nil,")
+		return
+	}
+	b.globalState = true
+	b.writelnf("&stateCodeExpr{")
+	pos := state.Pos()
+	state.FuncIx = b.exprIndex
+	b.writelnf("\tpos: position{line: %d, col: %d, offset: %d},", pos.Line, pos.Col, pos.Off)
+	b.writelnf("\trun: (*parser).call%s,", b.funcName(state.FuncIx))
+	b.writelnf("},")
+}
+
+func (b *builder) writeThrowExpr(throw *ast.ThrowExpr) {
+	if throw == nil {
+		b.writelnf("nil,")
+		return
+	}
+	b.writelnf("&throwExpr{")
+	pos := throw.Pos()
+	b.writelnf("\tpos: position{line: %d, col: %d, offset: %d},", pos.Line, pos.Col, pos.Off)
+	b.writelnf("\tlabel: %q,", throw.Label)
 	b.writelnf("},")
 }
 
@@ -538,28 +602,43 @@ func (b *builder) writeExprCode(expr ast.Expression) {
 		b.pushArgsSet()
 		b.writeExprCode(expr.Expr)
 		b.popArgsSet()
+
 	case *ast.ChoiceExpr:
 		for _, alt := range expr.Alternatives {
 			b.pushArgsSet()
 			b.writeExprCode(alt)
 			b.popArgsSet()
 		}
+
 	case *ast.NotExpr:
 		b.pushArgsSet()
 		b.writeExprCode(expr.Expr)
 		b.popArgsSet()
+
 	case *ast.OneOrMoreExpr:
 		b.pushArgsSet()
 		b.writeExprCode(expr.Expr)
 		b.popArgsSet()
+
+	case *ast.RecoveryExpr:
+		b.pushArgsSet()
+		b.writeExprCode(expr.Expr)
+		b.writeExprCode(expr.RecoverExpr)
+		b.popArgsSet()
+
 	case *ast.SeqExpr:
 		for _, sub := range expr.Exprs {
 			b.writeExprCode(sub)
 		}
+
+	case *ast.StateCodeExpr:
+		b.writeStateCodeExprCode(expr)
+
 	case *ast.ZeroOrMoreExpr:
 		b.pushArgsSet()
 		b.writeExprCode(expr.Expr)
 		b.popArgsSet()
+
 	case *ast.ZeroOrOneExpr:
 		b.pushArgsSet()
 		b.writeExprCode(expr.Expr)
@@ -586,6 +665,13 @@ func (b *builder) writeNotCodeExprCode(not *ast.NotCodeExpr) {
 		return
 	}
 	b.writeFunc(not.FuncIx, not.Code, callPredFuncTemplate, onPredFuncTemplate)
+}
+
+func (b *builder) writeStateCodeExprCode(state *ast.StateCodeExpr) {
+	if state == nil {
+		return
+	}
+	b.writeFunc(state.FuncIx, state.Code, callStateFuncTemplate, onStateFuncTemplate)
 }
 
 func (b *builder) writeFunc(funcIx int, code *ast.CodeBlock, callTpl, funcTpl string) {
@@ -633,9 +719,11 @@ func (b *builder) writeStaticCode() {
 	params := struct {
 		Optimize              bool
 		BasicLatinLookupTable bool
+		GlobalState           bool
 	}{
 		Optimize:              b.optimize,
 		BasicLatinLookupTable: b.basicLatinLookupTable,
+		GlobalState:           b.globalState,
 	}
 	t := template.Must(template.New("static_code").Parse(staticCode))
 

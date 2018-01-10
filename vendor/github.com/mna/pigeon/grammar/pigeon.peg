@@ -38,7 +38,31 @@ Rule ← name:IdentifierName __ display:( StringLiteral __ )? RuleDefOp __ expr:
     return rule, nil
 }
 
-Expression ← ChoiceExpr
+Expression ← RecoveryExpr
+
+RecoveryExpr ← expr:ChoiceExpr recoverExprs:( __ "//{" __ Labels __ "}" __ ChoiceExpr )* {
+    recoverExprSlice := toIfaceSlice(recoverExprs)
+    recover := expr.(ast.Expression)
+    for _, sl := range recoverExprSlice {
+        pos := c.astPos()
+        r := ast.NewRecoveryExpr(pos)
+        r.Expr = recover
+        r.RecoverExpr = sl.([]interface{})[7].(ast.Expression)
+        r.Labels = sl.([]interface{})[3].([]ast.FailureLabel)
+
+        recover = r
+    }
+    return recover, nil
+}
+
+Labels ← label:IdentifierName labels:( __ "," __ IdentifierName)* {
+    failureLabels := []ast.FailureLabel{ast.FailureLabel(label.(*ast.Identifier).Val)}
+    labelSlice := toIfaceSlice(labels)
+    for _, fl := range labelSlice {
+        failureLabels = append(failureLabels, ast.FailureLabel(fl.([]interface{})[3].(*ast.Identifier).Val))
+    }
+    return failureLabels, nil
+}
 
 ChoiceExpr ← first:ActionExpr rest:( __ "/" __ ActionExpr )* {
     restSlice := toIfaceSlice(rest)
@@ -88,7 +112,7 @@ LabeledExpr ← label:Identifier __ ':' __ expr:PrefixedExpr {
     lab.Label = label.(*ast.Identifier)
     lab.Expr = expr.(ast.Expression)
     return lab, nil
-} / PrefixedExpr
+} / PrefixedExpr / ThrowExpr
 
 PrefixedExpr ← op:PrefixedOp __ expr:SuffixedExpr {
     pos := c.astPos()
@@ -141,17 +165,26 @@ RuleRefExpr ← name:IdentifierName !( __ ( StringLiteral __ )? RuleDefOp ) {
     return ref, nil
 }
 SemanticPredExpr ← op:SemanticPredOp __ code:CodeBlock {
-    opStr := op.(string)
-    if opStr == "&" {
+    switch op.(string) {
+    case "#":
+        state := ast.NewStateCodeExpr(c.astPos())
+        state.Code = code.(*ast.CodeBlock)
+        return state, nil
+
+    case "&":
         and := ast.NewAndCodeExpr(c.astPos())
         and.Code = code.(*ast.CodeBlock)
         return and, nil
+
+    // case "!":
+    default:
+        not := ast.NewNotCodeExpr(c.astPos())
+        not.Code = code.(*ast.CodeBlock)
+        return not, nil
+
     }
-    not := ast.NewNotCodeExpr(c.astPos())
-    not.Code = code.(*ast.CodeBlock)
-    return not, nil
 }
-SemanticPredOp ← ( '&' / '!' ) {
+SemanticPredOp ← ( '#' / '&' / '!' ) {
     return string(c.text), nil
 }
 
@@ -161,7 +194,7 @@ SourceChar ← .
 Comment ← MultiLineComment / SingleLineComment
 MultiLineComment ← "/*" ( !"*/" SourceChar )* "*/"
 MultiLineCommentNoLineTerminator ← "/*" ( !( "*/" / EOL ) SourceChar )* "*/"
-SingleLineComment ← "//" ( !EOL SourceChar )*
+SingleLineComment ← !("//{") "//" ( !EOL SourceChar )*
 
 Identifier ← ident:IdentifierName {
     astIdent := ast.NewIdentifier(c.astPos(), string(c.text))
@@ -271,6 +304,14 @@ SingleCharUnicodeClass ← [LMNCPZS]
 AnyMatcher ← "." {
     any := ast.NewAnyMatcher(c.astPos(), ".")
     return any, nil
+}
+
+ThrowExpr ← '%' '{' label:IdentifierName '}' {
+    t := ast.NewThrowExpr(c.astPos())
+    t.Label = label.(*ast.Identifier).Val
+    return t, nil
+} / '%' '{' IdentifierName EOF {
+    return nil, errors.New("throw expression not terminated")
 }
 
 CodeBlock ← '{' Code '}' {

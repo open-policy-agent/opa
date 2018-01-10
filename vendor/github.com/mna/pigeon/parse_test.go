@@ -11,11 +11,11 @@ var invalidParseCases = map[string]string{
 	"a":          `file:1:2 (1): no match found, expected: "'", "/*", "//", "<-", "=", "\"", "\n", "` + "`" + `", "←", "⟵", [ \t\r], [\pL_] or [\p{Nd}]`,
 	"abc":        `file:1:4 (3): no match found, expected: "'", "/*", "//", "<-", "=", "\"", "\n", "` + "`" + `", "←", "⟵", [ \t\r], [\pL_] or [\p{Nd}]`,
 	" ":          `file:1:2 (1): no match found, expected: "/*", "//", "\n", "{", [ \t\r] or [\pL_]`,
-	`a = +`:      `file:1:5 (4): no match found, expected: "!", "&", "'", "(", ".", "/*", "//", "[", "\"", "\n", "` + "`" + `", [ \t\r] or [\pL_]`,
-	`a = *`:      `file:1:5 (4): no match found, expected: "!", "&", "'", "(", ".", "/*", "//", "[", "\"", "\n", "` + "`" + `", [ \t\r] or [\pL_]`,
-	`a = ?`:      `file:1:5 (4): no match found, expected: "!", "&", "'", "(", ".", "/*", "//", "[", "\"", "\n", "` + "`" + `", [ \t\r] or [\pL_]`,
-	"a ←":        `file:1:4 (5): no match found, expected: "!", "&", "'", "(", ".", "/*", "//", "[", "\"", "\n", "` + "`" + `", [ \t\r] or [\pL_]`,
-	"a ← b\nb ←": `file:2:4 (13): no match found, expected: "!", "&", "'", "(", ".", "/*", "//", "[", "\"", "\n", "` + "`" + `", [ \t\r] or [\pL_]`,
+	`a = +`:      `file:1:5 (4): no match found, expected: "!", "#", "%", "&", "'", "(", ".", "/*", "//", "[", "\"", "\n", "` + "`" + `", [ \t\r] or [\pL_]`,
+	`a = *`:      `file:1:5 (4): no match found, expected: "!", "#", "%", "&", "'", "(", ".", "/*", "//", "[", "\"", "\n", "` + "`" + `", [ \t\r] or [\pL_]`,
+	`a = ?`:      `file:1:5 (4): no match found, expected: "!", "#", "%", "&", "'", "(", ".", "/*", "//", "[", "\"", "\n", "` + "`" + `", [ \t\r] or [\pL_]`,
+	"a ←":        `file:1:4 (5): no match found, expected: "!", "#", "%", "&", "'", "(", ".", "/*", "//", "[", "\"", "\n", "` + "`" + `", [ \t\r] or [\pL_]`,
+	"a ← b\nb ←": `file:2:4 (13): no match found, expected: "!", "#", "%", "&", "'", "(", ".", "/*", "//", "[", "\"", "\n", "` + "`" + `", [ \t\r] or [\pL_]`,
 	"a ← nil:b":  "file:1:5 (6): rule Identifier: identifier is a reserved word",
 	"\xfe":       "file:1:1 (0): invalid encoding",
 	"{}{}":       `file:1:3 (2): no match found, expected: "/*", "//", ";", "\n", [ \t\r] or EOF`,
@@ -193,7 +193,7 @@ func TestInvalidParseCases(t *testing.T) {
 }
 
 var validParseCases = map[string]*ast.Grammar{
-	"a = b": &ast.Grammar{
+	"a = b": {
 		Rules: []*ast.Rule{
 			{
 				Name: ast.NewIdentifier(ast.Pos{}, "a"),
@@ -201,7 +201,7 @@ var validParseCases = map[string]*ast.Grammar{
 			},
 		},
 	},
-	"a ← b\nc=d \n e <- f \ng\u27f5h": &ast.Grammar{
+	"a ← b\nc=d \n e <- f \ng\u27f5h": {
 		Rules: []*ast.Rule{
 			{
 				Name: ast.NewIdentifier(ast.Pos{}, "a"),
@@ -221,7 +221,7 @@ var validParseCases = map[string]*ast.Grammar{
 			},
 		},
 	},
-	`a "A"← b`: &ast.Grammar{
+	`a "A"← b`: {
 		Rules: []*ast.Rule{
 			{
 				Name:        ast.NewIdentifier(ast.Pos{}, "a"),
@@ -230,7 +230,7 @@ var validParseCases = map[string]*ast.Grammar{
 			},
 		},
 	},
-	"{ init \n}\na 'A'← b": &ast.Grammar{
+	"{ init \n}\na 'A'← b": {
 		Init: ast.NewCodeBlock(ast.Pos{}, "{ init \n}"),
 		Rules: []*ast.Rule{
 			{
@@ -240,7 +240,7 @@ var validParseCases = map[string]*ast.Grammar{
 			},
 		},
 	},
-	"a\n<-\nb": &ast.Grammar{
+	"a\n<-\nb": {
 		Rules: []*ast.Rule{
 			{
 				Name: ast.NewIdentifier(ast.Pos{}, "a"),
@@ -248,7 +248,7 @@ var validParseCases = map[string]*ast.Grammar{
 			},
 		},
 	},
-	"a\n<-\nb\nc": &ast.Grammar{
+	"a\n<-\nb\nc": {
 		Rules: []*ast.Rule{
 			{
 				Name: ast.NewIdentifier(ast.Pos{}, "a"),
@@ -261,7 +261,7 @@ var validParseCases = map[string]*ast.Grammar{
 			},
 		},
 	},
-	"a\n<-\nb\nc\n=\nd": &ast.Grammar{
+	"a\n<-\nb\nc\n=\nd": {
 		Rules: []*ast.Rule{
 			{
 				Name: ast.NewIdentifier(ast.Pos{}, "a"),
@@ -273,7 +273,7 @@ var validParseCases = map[string]*ast.Grammar{
 			},
 		},
 	},
-	"a\n<-\nb\nc\n'C'\n=\nd": &ast.Grammar{
+	"a\n<-\nb\nc\n'C'\n=\nd": {
 		Rules: []*ast.Rule{
 			{
 				Name: ast.NewIdentifier(ast.Pos{}, "a"),
@@ -286,7 +286,7 @@ var validParseCases = map[string]*ast.Grammar{
 			},
 		},
 	},
-	`a = [a-def]`: &ast.Grammar{
+	`a = [a-def]`: {
 		Rules: []*ast.Rule{
 			{
 				Name: ast.NewIdentifier(ast.Pos{}, "a"),
@@ -297,7 +297,7 @@ var validParseCases = map[string]*ast.Grammar{
 			},
 		},
 	},
-	`a = [abc-f]`: &ast.Grammar{
+	`a = [abc-f]`: {
 		Rules: []*ast.Rule{
 			{
 				Name: ast.NewIdentifier(ast.Pos{}, "a"),
@@ -308,7 +308,7 @@ var validParseCases = map[string]*ast.Grammar{
 			},
 		},
 	},
-	`a = [abc-fg]`: &ast.Grammar{
+	`a = [abc-fg]`: {
 		Rules: []*ast.Rule{
 			{
 				Name: ast.NewIdentifier(ast.Pos{}, "a"),
@@ -319,7 +319,7 @@ var validParseCases = map[string]*ast.Grammar{
 			},
 		},
 	},
-	`a = [abc-fgh-l]`: &ast.Grammar{
+	`a = [abc-fgh-l]`: {
 		Rules: []*ast.Rule{
 			{
 				Name: ast.NewIdentifier(ast.Pos{}, "a"),
@@ -330,7 +330,7 @@ var validParseCases = map[string]*ast.Grammar{
 			},
 		},
 	},
-	`a = [\x00-\xabc]`: &ast.Grammar{
+	`a = [\x00-\xabc]`: {
 		Rules: []*ast.Rule{
 			{
 				Name: ast.NewIdentifier(ast.Pos{}, "a"),
@@ -341,7 +341,7 @@ var validParseCases = map[string]*ast.Grammar{
 			},
 		},
 	},
-	`a = [-a-b]`: &ast.Grammar{
+	`a = [-a-b]`: {
 		Rules: []*ast.Rule{
 			{
 				Name: ast.NewIdentifier(ast.Pos{}, "a"),
@@ -352,7 +352,7 @@ var validParseCases = map[string]*ast.Grammar{
 			},
 		},
 	},
-	`a = [a-b-d]`: &ast.Grammar{
+	`a = [a-b-d]`: {
 		Rules: []*ast.Rule{
 			{
 				Name: ast.NewIdentifier(ast.Pos{}, "a"),
@@ -363,7 +363,7 @@ var validParseCases = map[string]*ast.Grammar{
 			},
 		},
 	},
-	`a = [\u0012\123]`: &ast.Grammar{
+	`a = [\u0012\123]`: {
 		Rules: []*ast.Rule{
 			{
 				Name: ast.NewIdentifier(ast.Pos{}, "a"),
@@ -373,7 +373,7 @@ var validParseCases = map[string]*ast.Grammar{
 			},
 		},
 	},
-	`a = [-\u0012-\U00001234]`: &ast.Grammar{
+	`a = [-\u0012-\U00001234]`: {
 		Rules: []*ast.Rule{
 			{
 				Name: ast.NewIdentifier(ast.Pos{}, "a"),
@@ -384,7 +384,7 @@ var validParseCases = map[string]*ast.Grammar{
 			},
 		},
 	},
-	`a = [\p{Latin}]`: &ast.Grammar{
+	`a = [\p{Latin}]`: {
 		Rules: []*ast.Rule{
 			{
 				Name: ast.NewIdentifier(ast.Pos{}, "a"),
@@ -394,7 +394,7 @@ var validParseCases = map[string]*ast.Grammar{
 			},
 		},
 	},
-	`a = [\p{Latin}\pZ]`: &ast.Grammar{
+	`a = [\p{Latin}\pZ]`: {
 		Rules: []*ast.Rule{
 			{
 				Name: ast.NewIdentifier(ast.Pos{}, "a"),
@@ -404,7 +404,7 @@ var validParseCases = map[string]*ast.Grammar{
 			},
 		},
 	},
-	"a = `a\nb\nc`": &ast.Grammar{
+	"a = `a\nb\nc`": {
 		Rules: []*ast.Rule{
 			{
 				Name: ast.NewIdentifier(ast.Pos{}, "a"),
@@ -412,7 +412,7 @@ var validParseCases = map[string]*ast.Grammar{
 			},
 		},
 	},
-	"a = ``": &ast.Grammar{
+	"a = ``": {
 		Rules: []*ast.Rule{
 			{
 				Name: ast.NewIdentifier(ast.Pos{}, "a"),

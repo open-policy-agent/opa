@@ -58,6 +58,8 @@ func Walk(v Visitor, expr Expression) {
 		for _, e := range expr.Exprs {
 			Walk(v, e)
 		}
+	case *StateCodeExpr:
+		// Nothing to do
 	case *ZeroOrMoreExpr:
 		Walk(v, expr.Expr)
 	case *ZeroOrOneExpr:

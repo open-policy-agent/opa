@@ -38,8 +38,13 @@ func TestWrapOneLine(t *testing.T) {
 
 func TestUnicode(t *testing.T) {
 	input := "Česká řeřicha"
-	wordsUnicode, _ := WrapString(input, 13)
-	// input contains 13 runes, so it fits on one line.
+	var wordsUnicode []string
+	if runewidth.IsEastAsian() {
+		wordsUnicode, _ = WrapString(input, 14)
+	} else {
+		wordsUnicode, _ = WrapString(input, 13)
+	}
+	// input contains 13 (or 14 for CJK) runes, so it fits on one line.
 	if len(wordsUnicode) != 1 {
 		t.Fail()
 	}

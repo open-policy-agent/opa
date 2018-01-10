@@ -199,6 +199,7 @@ func (f *file) lint() {
 	f.lintNames()
 	f.lintVarDecls()
 	f.lintElses()
+	f.lintIfError()
 	f.lintRanges()
 	f.lintErrorf()
 	f.lintErrors()
@@ -1237,7 +1238,7 @@ func (f *file) lintReceiverNames() {
 		name := names[0].Name
 		const ref = styleGuideBase + "#receiver-names"
 		if name == "_" {
-			f.errorf(n, 1, link(ref), category("naming"), `receiver name should not be an underscore`)
+			f.errorf(n, 1, link(ref), category("naming"), `receiver name should not be an underscore, omit the name if it is unused`)
 			return true
 		}
 		if name == "this" || name == "self" {
@@ -1466,6 +1467,85 @@ func (f *file) lintContextArgs() {
 	})
 }
 
+// containsComments returns whether the interval [start, end) contains any
+// comments without "// MATCH " prefix.
+func (f *file) containsComments(start, end token.Pos) bool {
+	for _, cgroup := range f.f.Comments {
+		comments := cgroup.List
+		if comments[0].Slash >= end {
+			// All comments starting with this group are after end pos.
+			return false
+		}
+		if comments[len(comments)-1].Slash < start {
+			// Comments group ends before start pos.
+			continue
+		}
+		for _, c := range comments {
+			if start <= c.Slash && c.Slash < end && !strings.HasPrefix(c.Text, "// MATCH ") {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func (f *file) lintIfError() {
+	f.walk(func(node ast.Node) bool {
+		switch v := node.(type) {
+		case *ast.BlockStmt:
+			for i := 0; i < len(v.List)-1; i++ {
+				// if var := whatever; var != nil { return var }
+				s, ok := v.List[i].(*ast.IfStmt)
+				if !ok || s.Body == nil || len(s.Body.List) != 1 || s.Else != nil {
+					continue
+				}
+				assign, ok := s.Init.(*ast.AssignStmt)
+				if !ok || len(assign.Lhs) != 1 || !(assign.Tok == token.DEFINE || assign.Tok == token.ASSIGN) {
+					continue
+				}
+				id, ok := assign.Lhs[0].(*ast.Ident)
+				if !ok {
+					continue
+				}
+				expr, ok := s.Cond.(*ast.BinaryExpr)
+				if !ok || expr.Op != token.NEQ {
+					continue
+				}
+				if lhs, ok := expr.X.(*ast.Ident); !ok || lhs.Name != id.Name {
+					continue
+				}
+				if rhs, ok := expr.Y.(*ast.Ident); !ok || rhs.Name != "nil" {
+					continue
+				}
+				r, ok := s.Body.List[0].(*ast.ReturnStmt)
+				if !ok || len(r.Results) != 1 {
+					continue
+				}
+				if r, ok := r.Results[0].(*ast.Ident); !ok || r.Name != id.Name {
+					continue
+				}
+
+				// return nil
+				r, ok = v.List[i+1].(*ast.ReturnStmt)
+				if !ok || len(r.Results) != 1 {
+					continue
+				}
+				if r, ok := r.Results[0].(*ast.Ident); !ok || r.Name != "nil" {
+					continue
+				}
+
+				// check if there are any comments explaining the construct, don't emit an error if there are some.
+				if f.containsComments(s.Pos(), r.Pos()) {
+					continue
+				}
+
+				f.errorf(v.List[i], 0.9, "redundant if ...; err != nil check, just return error instead.")
+			}
+		}
+		return true
+	})
+}
+
 // receiverType returns the named type of the method receiver, sans "*",
 // or "invalid-type" if fn.Recv is ill formed.
 func receiverType(fn *ast.FuncDecl) string {
@@ -1524,11 +1604,6 @@ func isBlank(id *ast.Ident) bool { return id != nil && id.Name == "_" }
 func isPkgDot(expr ast.Expr, pkg, name string) bool {
 	sel, ok := expr.(*ast.SelectorExpr)
 	return ok && isIdent(sel.X, pkg) && isIdent(sel.Sel, name)
-}
-
-func isZero(expr ast.Expr) bool {
-	lit, ok := expr.(*ast.BasicLit)
-	return ok && lit.Kind == token.INT && lit.Value == "0"
 }
 
 func isOne(expr ast.Expr) bool {

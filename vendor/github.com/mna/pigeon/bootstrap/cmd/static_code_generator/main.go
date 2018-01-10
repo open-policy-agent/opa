@@ -45,7 +45,7 @@ func generateFile(source, dest, varname string) {
 	}
 	dstLines = append(dstLines, strings.Split(footer, eol)...)
 
-	err = ioutil.WriteFile(dest, []byte(strings.Join(dstLines, eol)), 0644)
+	err = ioutil.WriteFile(dest, []byte(strings.Join(dstLines, eol)+eol), 0644)
 	if err != nil {
 		panic(err)
 	}

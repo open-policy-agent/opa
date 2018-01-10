@@ -35,9 +35,9 @@ import (
 )
 
 const (
-	gcsBaseURL    = "https://storage.googleapis.com/golang/"
-	cacheKey      = "download_list_3" // increment if listTemplateData changes
-	cacheDuration = time.Hour
+	downloadBaseURL = "https://dl.google.com/go/"
+	cacheKey        = "download_list_3" // increment if listTemplateData changes
+	cacheDuration   = time.Hour
 )
 
 func RegisterHandlers(mux *http.ServeMux) {
@@ -133,7 +133,7 @@ func (f File) Highlight() bool {
 }
 
 func (f File) URL() string {
-	return gcsBaseURL + f.Filename
+	return downloadBaseURL + f.Filename
 }
 
 type Release struct {
@@ -159,7 +159,7 @@ type Feature struct {
 var featuredFiles = []Feature{
 	{
 		Platform:     "Microsoft Windows",
-		Requirements: "Windows XP SP2 or later, Intel 64-bit processor",
+		Requirements: "Windows XP SP3 or later, Intel 64-bit processor",
 		fileRE:       regexp.MustCompile(`\.windows-amd64\.msi$`),
 	},
 	{
@@ -424,12 +424,12 @@ func getHandler(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	http.Redirect(w, r, gcsBaseURL+name, http.StatusFound)
+	http.Redirect(w, r, downloadBaseURL+name, http.StatusFound)
 }
 
 func validUser(user string) bool {
 	switch user {
-	case "adg", "bradfitz", "cbro":
+	case "adg", "bradfitz", "cbro", "andybons":
 		return true
 	}
 	return false

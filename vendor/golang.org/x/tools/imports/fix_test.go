@@ -5,6 +5,7 @@
 package imports
 
 import (
+	"bufio"
 	"bytes"
 	"flag"
 	"go/build"
@@ -1608,14 +1609,18 @@ func TestSiblingImports(t *testing.T) {
 	const provide = `package siblingimporttest
 
 import "local/log"
+import "my/bytes"
 
 func LogSomething() {
 	log.Print("Something")
+	bytes.SomeFunc()
 }
 `
 
 	// need is the file being tested that needs the import.
 	const need = `package siblingimporttest
+
+var _ = bytes.Buffer{}
 
 func LogSomethingElse() {
 	log.Print("Something else")
@@ -1625,7 +1630,12 @@ func LogSomethingElse() {
 	// want is the expected result file
 	const want = `package siblingimporttest
 
-import "local/log"
+import (
+	"bytes"
+	"local/log"
+)
+
+var _ = bytes.Buffer{}
 
 func LogSomethingElse() {
 	log.Print("Something else")
@@ -1876,5 +1886,176 @@ func TestProcessStdin(t *testing.T) {
 	}
 	if !strings.Contains(string(got), `"fmt"`) {
 		t.Errorf("expected fmt import; got: %s", got)
+	}
+}
+
+// Tests LocalPackagePromotion when there is a local package that matches, it
+// should be the closest match.
+// https://golang.org/issues/17557
+func TestLocalPackagePromotion(t *testing.T) {
+	testConfig{
+		gopathFiles: map[string]string{
+			"config.net/config/config.go":         "package config\n type SystemConfig struct {}", // Will match but should not be first choice
+			"mycompany.net/config/config.go":      "package config\n type SystemConfig struct {}", // Will match but should not be first choice
+			"mycompany.net/tool/config/config.go": "package config\n type SystemConfig struct {}", // Local package should be promoted over shorter package
+		},
+	}.test(t, func(t *goimportTest) {
+		const in = "package main\n var c = &config.SystemConfig{}"
+		const want = `package main
+
+import "mycompany.net/tool/config"
+
+var c = &config.SystemConfig{}
+`
+		got, err := Process(filepath.Join(t.gopath, "src", "mycompany.net/tool/main.go"), []byte(in), nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if string(got) != want {
+			t.Errorf("Process = %q; want %q", got, want)
+		}
+	})
+}
+
+// Tests FindImportInLocalGoFiles looks at the import lines for other Go files in the
+// local directory, since the user is likely to import the same packages in the current
+// Go file.  If an import is found that satisfies the need, it should be used over the
+// standard library.
+// https://golang.org/issues/17557
+func TestFindImportInLocalGoFiles(t *testing.T) {
+	testConfig{
+		gopathFiles: map[string]string{
+			"bytes.net/bytes/bytes.go":  "package bytes\n type Buffer struct {}",                               // Should be selected over standard library
+			"mycompany.net/tool/io.go":  "package main\n import \"bytes.net/bytes\"\n var _ = &bytes.Buffer{}", // Contains package import that will cause stdlib to be ignored
+			"mycompany.net/tool/err.go": "package main\n import \"bogus.net/bytes\"\n var _ = &bytes.Buffer{}", // Contains import which is not resolved, so it is ignored
+		},
+	}.test(t, func(t *goimportTest) {
+		const in = "package main\n var _ = &bytes.Buffer{}"
+		const want = `package main
+
+import "bytes.net/bytes"
+
+var _ = &bytes.Buffer{}
+`
+		got, err := Process(filepath.Join(t.gopath, "src", "mycompany.net/tool/main.go"), []byte(in), nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if string(got) != want {
+			t.Errorf("Process = got %q; want %q", got, want)
+		}
+	})
+}
+
+func TestImportNoGoFiles(t *testing.T) {
+	testConfig{
+		gopathFiles: map[string]string{},
+	}.test(t, func(t *goimportTest) {
+		const in = "package main\n var _ = &bytes.Buffer{}"
+		const want = `package main
+
+import "bytes"
+
+var _ = &bytes.Buffer{}
+`
+		got, err := Process(filepath.Join(t.gopath, "src", "mycompany.net/tool/main.go"), []byte(in), nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if string(got) != want {
+			t.Errorf("Process = got %q; want %q", got, want)
+		}
+	})
+}
+
+// A happy path test for Process
+func TestProcess(t *testing.T) {
+	in := `package testimports
+
+	var s = fmt.Sprintf("%s", "value")
+`
+	out, err := Process("foo", []byte(in), nil)
+
+	if err != nil {
+		t.Errorf("Process returned error.\n got:\n%v\nwant:\nnil", err)
+	}
+
+	want := `package testimports
+
+import "fmt"
+
+var s = fmt.Sprintf("%s", "value")
+`
+	if got := string(out); got != want {
+		t.Errorf("Process returned unexpected result.\ngot:\n%v\nwant:\n%v", got, want)
+	}
+}
+
+// Ensures a token as large as 500000 bytes can be handled
+// https://golang.org/issues/18201
+func TestProcessLargeToken(t *testing.T) {
+	largeString := strings.Repeat("x", 500000)
+
+	in := `package testimports
+
+import (
+	"fmt"
+	"mydomain.mystuff/mypkg"
+)
+
+const s = fmt.Sprintf("%s", "` + largeString + `")
+const x = mypkg.Sprintf("%s", "my package")
+
+// end
+`
+
+	out, err := Process("foo", []byte(in), nil)
+
+	if err != nil {
+		t.Errorf("Process returned error.\n got:\n%v\nwant:\nnil", err)
+	}
+
+	want := `package testimports
+
+import (
+	"fmt"
+
+	"mydomain.mystuff/mypkg"
+)
+
+const s = fmt.Sprintf("%s", "` + largeString + `")
+const x = mypkg.Sprintf("%s", "my package")
+
+// end
+`
+
+	if got := string(out); got != want {
+		t.Errorf("Process returned unexpected result.\ngot:\n%v\nwant:\n%v", got, want)
+	}
+}
+
+// Ensures a token that is larger that
+// https://golang.org/issues/18201
+func TestProcessTokenTooLarge(t *testing.T) {
+	const largeSize = maxScanTokenSize + 1
+	largeString := strings.Repeat("x", largeSize)
+
+	in := `package testimports
+
+import (
+	"fmt"
+	"mydomain.mystuff/mypkg"
+)
+
+const s = fmt.Sprintf("%s", "` + largeString + `")
+const x = mypkg.Sprintf("%s", "my package")
+
+// end
+`
+
+	_, err := Process("foo", []byte(in), nil)
+
+	if err != bufio.ErrTooLong {
+		t.Errorf("Process did not returned expected error.\n got:\n%v\nwant:\n%v", err, bufio.ErrTooLong)
 	}
 }

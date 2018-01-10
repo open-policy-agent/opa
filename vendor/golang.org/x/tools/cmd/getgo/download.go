@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// +build !plan9
+
 package main
 
 import (
@@ -44,7 +46,7 @@ func downloadGoVersion(version, ops, arch, dest string) error {
 		return fmt.Errorf("Downloading Go from %s failed: %v", uri, err)
 	}
 	if resp.StatusCode > 299 {
-		return fmt.Errorf("Downloading Go from %s failed with HTTP status %s", resp.Status)
+		return fmt.Errorf("Downloading Go from %s failed with HTTP status %s", uri, resp.Status)
 	}
 	defer resp.Body.Close()
 
@@ -69,7 +71,7 @@ func downloadGoVersion(version, ops, arch, dest string) error {
 	}
 	defer sresp.Body.Close()
 	if sresp.StatusCode > 299 {
-		return fmt.Errorf("Downloading Go sha256 from %s.sha256 failed with HTTP status %s", sresp.Status)
+		return fmt.Errorf("Downloading Go sha256 from %s.sha256 failed with HTTP status %s", uri, sresp.Status)
 	}
 
 	shasum, err := ioutil.ReadAll(sresp.Body)

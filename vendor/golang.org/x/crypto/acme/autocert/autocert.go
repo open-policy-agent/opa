@@ -83,8 +83,10 @@ func defaultHostPolicy(context.Context, string) error {
 // It obtains and refreshes certificates automatically,
 // as well as providing them to a TLS server via tls.Config.
 //
-// To preserve issued certificates and improve overall performance,
-// use a cache implementation of Cache. For instance, DirCache.
+// You must specify a cache implementation, such as DirCache,
+// to reuse obtained certificates across program restarts.
+// Otherwise your server is very likely to exceed the certificate
+// issuer's request rate limits.
 type Manager struct {
 	// Prompt specifies a callback function to conditionally accept a CA's Terms of Service (TOS).
 	// The registration may require the caller to agree to the CA's TOS.
@@ -369,7 +371,7 @@ func (m *Manager) createCert(ctx context.Context, domain string) (*tls.Certifica
 
 	// We are the first; state is locked.
 	// Unblock the readers when domain ownership is verified
-	// and the we got the cert or the process failed.
+	// and we got the cert or the process failed.
 	defer state.Unlock()
 	state.locked = false
 
@@ -437,7 +439,7 @@ func (m *Manager) certState(domain string) (*certState, error) {
 	return state, nil
 }
 
-// authorizedCert starts domain ownership verification process and requests a new cert upon success.
+// authorizedCert starts the domain ownership verification process and requests a new cert upon success.
 // The key argument is the certificate private key.
 func (m *Manager) authorizedCert(ctx context.Context, key crypto.Signer, domain string) (der [][]byte, leaf *x509.Certificate, err error) {
 	if err := m.verify(ctx, domain); err != nil {

@@ -2,11 +2,12 @@
 
 [![GoDoc](https://godoc.org/github.com/mna/pigeon?status.png)](https://godoc.org/github.com/mna/pigeon)
 [![build status](https://secure.travis-ci.org/mna/pigeon.png?branch=master)](http://travis-ci.org/mna/pigeon)
+[![GoReportCard](https://goreportcard.com/badge/github.com/mna/pigeon)](https://goreportcard.com/report/github.com/mna/pigeon)
 [![Software License](https://img.shields.io/badge/license-BSD-blue.svg)](LICENSE)
 
 The pigeon command generates parsers based on a [parsing expression grammar (PEG)][0]. Its grammar and syntax is inspired by the [PEG.js project][1], while the implementation is loosely based on the [parsing expression grammar for C# 3.0][2] article. It parses Unicode text encoded in UTF-8.
 
-See the [godoc page][3] for detailed usage.
+See the [godoc page][3] for detailed usage. Also have a look at the [Pigeon Wiki](https://github.com/mna/pigeon/wiki) for additional information about Pigeon and PEG in general.
 
 ## Releases
 

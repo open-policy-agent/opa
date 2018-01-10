@@ -1,8 +1,5 @@
 {
-    package main
-
-    func main() {
-    }
+package linear
 }
 
 // any base64 input is good. force some backtracking.

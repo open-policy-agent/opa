@@ -79,6 +79,9 @@ $(EXAMPLES_DIR)/json/optimized-grammar/json.go: $(EXAMPLES_DIR)/json/json.peg $(
 $(EXAMPLES_DIR)/calculator/calculator.go: $(EXAMPLES_DIR)/calculator/calculator.peg $(BINDIR)/pigeon
 	$(BINDIR)/pigeon $< > $@
 
+$(EXAMPLES_DIR)/indentation/indentation.go: $(EXAMPLES_DIR)/indentation/indentation.peg $(BINDIR)/pigeon
+	$(BINDIR)/pigeon $< > $@
+
 $(TEST_DIR)/andnot/andnot.go: $(TEST_DIR)/andnot/andnot.peg $(BINDIR)/pigeon
 	$(BINDIR)/pigeon $< > $@
 
@@ -91,10 +94,10 @@ $(TEST_DIR)/issue_1/issue_1.go: $(TEST_DIR)/issue_1/issue_1.peg $(BINDIR)/pigeon
 $(TEST_DIR)/linear/linear.go: $(TEST_DIR)/linear/linear.peg $(BINDIR)/pigeon
 	$(BINDIR)/pigeon $< > $@
 
-$(TEST_DIR)/issue_12/issue_12.go: $(TEST_DIR)/issue_12/issue_12.peg $(BINDIR)/pigeon
+$(TEST_DIR)/issue_18/issue_18.go: $(TEST_DIR)/issue_18/issue_18.peg $(BINDIR)/pigeon
 	$(BINDIR)/pigeon $< > $@
 
-$(TEST_DIR)/issue_18/issue_18.go: $(TEST_DIR)/issue_18/issue_18.peg $(BINDIR)/pigeon
+$(TEST_DIR)/runeerror/runeerror.go: $(TEST_DIR)/runeerror/runeerror.peg $(BINDIR)/pigeon
 	$(BINDIR)/pigeon $< > $@
 
 $(TEST_DIR)/errorpos/errorpos.go: $(TEST_DIR)/errorpos/errorpos.peg $(BINDIR)/pigeon
@@ -104,6 +107,42 @@ $(TEST_DIR)/global_store/global_store.go: $(TEST_DIR)/global_store/global_store.
 	$(BINDIR)/pigeon $< > $@
 
 $(TEST_DIR)/goto/goto.go: $(TEST_DIR)/goto/goto.peg $(BINDIR)/pigeon
+	$(BINDIR)/pigeon $< > $@
+
+$(TEST_DIR)/goto_state/goto_state.go: $(TEST_DIR)/goto_state/goto_state.peg $(BINDIR)/pigeon
+	$(BINDIR)/pigeon $< > $@
+
+$(TEST_DIR)/max_expr_cnt/maxexpr.go: $(TEST_DIR)/max_expr_cnt/maxexpr.peg $(BINDIR)/pigeon
+	$(BINDIR)/pigeon $< > $@
+
+$(TEST_DIR)/labeled_failures/labeled_failures.go: $(TEST_DIR)/labeled_failures/labeled_failures.peg $(BINDIR)/pigeon
+	$(BINDIR)/pigeon $< > $@
+
+$(TEST_DIR)/thrownrecover/thrownrecover.go: $(TEST_DIR)/thrownrecover/thrownrecover.peg $(BINDIR)/pigeon
+	$(BINDIR)/pigeon $< > $@
+
+$(TEST_DIR)/alternate_entrypoint/altentry.go: $(TEST_DIR)/alternate_entrypoint/altentry.peg $(BINDIR)/pigeon
+	$(BINDIR)/pigeon -optimize-grammar -alternate-entrypoints Entry2,Entry3,C $< > $@
+
+$(TEST_DIR)/state/state.go: $(TEST_DIR)/state/state.peg $(BINDIR)/pigeon
+	$(BINDIR)/pigeon -optimize-grammar $< > $@
+
+$(TEST_DIR)/stateclone/stateclone.go: $(TEST_DIR)/stateclone/stateclone.peg $(BINDIR)/pigeon
+	$(BINDIR)/pigeon $< > $@
+
+$(TEST_DIR)/statereadonly/statereadonly.go: $(TEST_DIR)/statereadonly/statereadonly.peg $(BINDIR)/pigeon
+	$(BINDIR)/pigeon $< > $@
+
+$(TEST_DIR)/staterestore/staterestore.go: $(TEST_DIR)/staterestore/staterestore.peg $(TEST_DIR)/staterestore/standard/staterestore.go $(TEST_DIR)/staterestore/optimized/staterestore.go $(BINDIR)/pigeon
+	$(BINDIR)/pigeon $< > $@
+
+$(TEST_DIR)/staterestore/standard/staterestore.go: $(TEST_DIR)/staterestore/staterestore.peg $(BINDIR)/pigeon
+	$(BINDIR)/pigeon $< > $@
+
+$(TEST_DIR)/staterestore/optimized/staterestore.go: $(TEST_DIR)/staterestore/staterestore.peg $(BINDIR)/pigeon
+	$(BINDIR)/pigeon -optimize-grammar -optimize-parser -alternate-entrypoints TestAnd,TestNot $< > $@
+
+$(TEST_DIR)/emptystate/emptystate.go: $(TEST_DIR)/emptystate/emptystate.peg $(BINDIR)/pigeon
 	$(BINDIR)/pigeon $< > $@
 
 lint:
@@ -119,7 +158,7 @@ cmp:
 
 clean:
 	rm -f $(BUILDER_DIR)/generated_static_code.go $(BUILDER_DIR)/generated_static_code_range_table.go
-	rm -f $(BOOTSTRAPPIGEON_DIR)/bootstrap_pigeon.go $(ROOT)/pigeon.go $(TEST_GENERATED_SRC) $(EXAMPLES_DIR)/json/optimized/json.go $(EXAMPLES_DIR)/json/optimized-grammar/json.go
+	rm -f $(BOOTSTRAPPIGEON_DIR)/bootstrap_pigeon.go $(ROOT)/pigeon.go $(TEST_GENERATED_SRC) $(EXAMPLES_DIR)/json/optimized/json.go $(EXAMPLES_DIR)/json/optimized-grammar/json.go $(TEST_DIR)/staterestore/optimized/staterestore.go $(TEST_DIR)/staterestore/standard/staterestore.go
 	rm -rf $(BINDIR)
 
 .PHONY: all clean lint cmp

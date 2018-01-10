@@ -72,7 +72,7 @@ func addJump(c *current, name string) *Jump {
 		ll[name] = label{
 			line: -1,
 			jumps: []unresolvedJump{
-				unresolvedJump{
+				{
 					line: c.pos.line,
 					jump: &j,
 				},
