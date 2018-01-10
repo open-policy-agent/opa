@@ -76,6 +76,62 @@ func testJSONFiles(t *testing.T) []string {
 	return files
 }
 
+func TestChoiceAltStatistics(t *testing.T) {
+	cases := []struct {
+		json          string
+		expectedStats map[string]map[string]int
+	}{
+		{
+			json: `{}`,
+			expectedStats: map[string]map[string]int{
+				"Bool 92:8": {
+					"no match": 1,
+				},
+				"Integer 68:11": {
+					"no match": 1,
+				},
+				"Value 29:15": {
+					"1":        1,
+					"no match": 1,
+				},
+			},
+		},
+		{
+			json: `{ "string": "string", "number": 123 }`,
+			expectedStats: map[string]map[string]int{
+				"Integer 68:11": {
+					"2":        1,
+					"no match": 2,
+				},
+				"Bool 92:8": {
+					"no match": 1,
+				},
+				"String 72:16": {
+					"1":        18,
+					"no match": 3,
+				},
+				"Value 29:15": {
+					"1":        1,
+					"3":        1,
+					"4":        1,
+					"no match": 1,
+				},
+			},
+		},
+	}
+
+	for _, test := range cases {
+		stats := Stats{}
+		_, err := Parse("TestStatistics", []byte(test.json), Statistics(&stats, "no match"))
+		if err != nil {
+			t.Fatalf("Expected to parse %s without error, got: %v", test.json, err)
+		}
+		if !reflect.DeepEqual(test.expectedStats, stats.ChoiceAltCnt) {
+			t.Fatalf("Expected stats to equal %#v, got %#v", test.expectedStats, stats.ChoiceAltCnt)
+		}
+	}
+}
+
 func BenchmarkPigeonJSONNoMemo(b *testing.B) {
 	d, err := ioutil.ReadFile("testdata/github-octokit-repos.json")
 	if err != nil {

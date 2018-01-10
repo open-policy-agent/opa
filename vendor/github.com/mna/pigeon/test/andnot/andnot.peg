@@ -1,21 +1,5 @@
 {
-package main
-
-func main() {
-	in := os.Stdin
-	if len(os.Args) > 1 {
-		f, err := os.Open(os.Args[1])
-		if err != nil {
-			log.Fatal(err)
-		}
-		defer func() {
-			_ = f.Close()
-		}()
-		in = f
-	}
-	got, err := ParseReader("", in)
-	fmt.Println(got, err)
-}
+package andnot
 
 func toString(v interface{}) string {
     ifSl := v.([]interface{})

@@ -1,14 +1,5 @@
 {
-package main
-
-func main() {
-  ast, err := Parse("STDIN", []byte("foo"))
-  if err != nil {
-    fmt.Printf("error: %s\n", err)
-    return
-  }
-  fmt.Printf("%+v\n", ast)
-}
+package issue1
 }
 
 TableRef <- database:(ID '.')? table:ID    { return fmt.Sprintf("%v.%s", database, table), nil }

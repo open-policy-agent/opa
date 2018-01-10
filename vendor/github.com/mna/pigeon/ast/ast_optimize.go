@@ -8,7 +8,7 @@ import (
 
 type grammarOptimizer struct {
 	rule            string
-	firstRule       string
+	protectedRules  map[string]struct{}
 	rules           map[string]*Rule
 	ruleUsesRules   map[string]map[string]struct{}
 	ruleUsedByRules map[string]map[string]struct{}
@@ -16,8 +16,14 @@ type grammarOptimizer struct {
 	optimized       bool
 }
 
-func newGrammarOptimizer() *grammarOptimizer {
+func newGrammarOptimizer(protectedRules []string) *grammarOptimizer {
+	pr := make(map[string]struct{}, len(protectedRules))
+	for _, nm := range protectedRules {
+		pr[nm] = struct{}{}
+	}
+
 	r := grammarOptimizer{
+		protectedRules:  pr,
 		rules:           make(map[string]*Rule),
 		ruleUsesRules:   make(map[string]map[string]struct{}),
 		ruleUsedByRules: make(map[string]map[string]struct{}),
@@ -39,9 +45,6 @@ func (r *grammarOptimizer) Visit(expr Expression) Visitor {
 func (r *grammarOptimizer) init(expr Expression) Visitor {
 	switch expr := expr.(type) {
 	case *Rule:
-		if r.firstRule == "" {
-			r.firstRule = expr.Name.Val
-		}
 		// Keep track of current rule, which is processed
 		r.rule = expr.Name.Val
 		r.rules[expr.Name.Val] = expr
@@ -146,7 +149,9 @@ func (r *grammarOptimizer) optimize(expr0 Expression) Visitor {
 		for i := 0; i < len(expr.Rules); i++ {
 			rule := expr.Rules[i]
 			// Remove Rule, if it is no longer used by any other Rule and it is not the first Rule.
-			if _, ok := r.ruleUsedByRules[rule.Name.Val]; !ok && rule.Name.Val != r.firstRule {
+			_, used := r.ruleUsedByRules[rule.Name.Val]
+			_, protected := r.protectedRules[rule.Name.Val]
+			if !used && !protected {
 				expr.Rules = append(expr.Rules[:i], expr.Rules[i+1:]...)
 				r.optimized = true
 				continue
@@ -315,6 +320,12 @@ func cloneExpr(expr Expression) Expression {
 			Exprs: exprs,
 			p:     expr.p,
 		}
+	case *StateCodeExpr:
+		return &StateCodeExpr{
+			p:      expr.p,
+			Code:   expr.Code,
+			FuncIx: expr.FuncIx,
+		}
 	case *ZeroOrMoreExpr:
 		return &ZeroOrMoreExpr{
 			Expr: cloneExpr(expr.Expr),
@@ -423,8 +434,13 @@ func escapeRune(r rune) string {
 // * resolve nested sequences expression
 // * resolve sequence expressions with only one element
 // * combine character class matcher and literal matcher, where possible
-func Optimize(g *Grammar) {
-	r := newGrammarOptimizer()
+func Optimize(g *Grammar, alternateEntrypoints ...string) {
+	entrypoints := alternateEntrypoints
+	if len(g.Rules) > 0 {
+		entrypoints = append(entrypoints, g.Rules[0].Name.Val)
+	}
+
+	r := newGrammarOptimizer(entrypoints)
 	Walk(r, g)
 
 	r.visitor = r.optimize

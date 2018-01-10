@@ -44,7 +44,7 @@ func TestParseAnyMatcher(t *testing.T) {
 		{"ab", []byte("a")},
 		{"\u2190\U00001100", []byte("\u2190")},
 		{"\x0d", []byte("\x0d")},
-		{"\xfa", nil},
+		{"\xfa", []byte("\xfa")},
 		{"\nab", []byte("\n")},
 	}
 
@@ -763,6 +763,10 @@ func TestParseChoiceExpr(t *testing.T) {
 
 	for _, tc := range cases {
 		p := newParser("", []byte(tc.in))
+
+		// add dummy rule to rule stack of parser
+		r := rule{name: "dummy"}
+		p.rstack = append(p.rstack, &r)
 
 		// advance to the first rune
 		p.read()

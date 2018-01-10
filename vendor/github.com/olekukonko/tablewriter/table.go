@@ -55,6 +55,8 @@ type Table struct {
 	rs             map[int]int
 	headers        []string
 	footers        []string
+	caption        bool
+	captionText    string
 	autoFmt        bool
 	autoWrap       bool
 	mW             int
@@ -72,35 +74,45 @@ type Table struct {
 	hdrLine        bool
 	borders        Border
 	colSize        int
+	headerParams   []string
+	columnsParams  []string
+	footerParams   []string
+	columnsAlign   []int
 }
 
 // Start New Table
 // Take io.Writer Directly
 func NewWriter(writer io.Writer) *Table {
 	t := &Table{
-		out:      writer,
-		rows:     [][]string{},
-		lines:    [][][]string{},
-		cs:       make(map[int]int),
-		rs:       make(map[int]int),
-		headers:  []string{},
-		footers:  []string{},
-		autoFmt:  true,
-		autoWrap: true,
-		mW:       MAX_ROW_WIDTH,
-		pCenter:  CENTER,
-		pRow:     ROW,
-		pColumn:  COLUMN,
-		tColumn:  -1,
-		tRow:     -1,
-		hAlign:   ALIGN_DEFAULT,
-		fAlign:   ALIGN_DEFAULT,
-		align:    ALIGN_DEFAULT,
-		newLine:  NEWLINE,
-		rowLine:  false,
-		hdrLine:  true,
-		borders:  Border{Left: true, Right: true, Bottom: true, Top: true},
-		colSize:  -1}
+		out:           writer,
+		rows:          [][]string{},
+		lines:         [][][]string{},
+		cs:            make(map[int]int),
+		rs:            make(map[int]int),
+		headers:       []string{},
+		footers:       []string{},
+		caption:       false,
+		captionText:   "Table caption.",
+		autoFmt:       true,
+		autoWrap:      true,
+		mW:            MAX_ROW_WIDTH,
+		pCenter:       CENTER,
+		pRow:          ROW,
+		pColumn:       COLUMN,
+		tColumn:       -1,
+		tRow:          -1,
+		hAlign:        ALIGN_DEFAULT,
+		fAlign:        ALIGN_DEFAULT,
+		align:         ALIGN_DEFAULT,
+		newLine:       NEWLINE,
+		rowLine:       false,
+		hdrLine:       true,
+		borders:       Border{Left: true, Right: true, Bottom: true, Top: true},
+		colSize:       -1,
+		headerParams:  []string{},
+		columnsParams: []string{},
+		footerParams:  []string{},
+		columnsAlign:  []int{}}
 	return t
 }
 
@@ -119,6 +131,10 @@ func (t *Table) Render() {
 		t.printLine(true)
 	}
 	t.printFooter()
+
+	if t.caption {
+		t.printCaption()
+	}
 }
 
 // Set table header
@@ -139,6 +155,14 @@ func (t *Table) SetFooter(keys []string) {
 	}
 }
 
+// Set table Caption
+func (t *Table) SetCaption(caption bool, captionText ...string) {
+	t.caption = caption
+	if len(captionText) == 1 {
+		t.captionText = captionText[0]
+	}
+}
+
 // Turn header autoformatting on/off. Default is on (true).
 func (t *Table) SetAutoFormatHeaders(auto bool) {
 	t.autoFmt = auto
@@ -152,6 +176,11 @@ func (t *Table) SetAutoWrapText(auto bool) {
 // Set the Default column width
 func (t *Table) SetColWidth(width int) {
 	t.mW = width
+}
+
+// Set the minimal width for a column
+func (t *Table) SetColMinWidth(column int, width int) {
+	t.cs[column] = width
 }
 
 // Set the Column Separator
@@ -182,6 +211,22 @@ func (t *Table) SetFooterAlignment(fAlign int) {
 // Set Table Alignment
 func (t *Table) SetAlignment(align int) {
 	t.align = align
+}
+
+func (t *Table) SetColumnAlignment(keys []int) {
+	for _, v := range keys {
+		switch v {
+		case ALIGN_CENTER:
+			break
+		case ALIGN_LEFT:
+			break
+		case ALIGN_RIGHT:
+			break
+		default:
+			v = ALIGN_DEFAULT
+		}
+		t.columnsAlign = append(t.columnsAlign, v)
+	}
 }
 
 // Set New Line
@@ -245,6 +290,11 @@ func (t *Table) AppendBulk(rows [][]string) {
 	for _, row := range rows {
 		t.Append(row)
 	}
+}
+
+// NumLines to get the number of lines
+func (t *Table) NumLines() int {
+	return len(t.lines)
 }
 
 // Clear rows
@@ -327,17 +377,34 @@ func (t *Table) printHeading() {
 	// Get pad function
 	padFunc := pad(t.hAlign)
 
+	// Checking for ANSI escape sequences for header
+	is_esc_seq := false
+	if len(t.headerParams) > 0 {
+		is_esc_seq = true
+	}
+
 	// Print Heading column
 	for i := 0; i <= end; i++ {
 		v := t.cs[i]
-		h := t.headers[i]
+		h := ""
+		if i < len(t.headers) {
+			h = t.headers[i]
+		}
 		if t.autoFmt {
 			h = Title(h)
 		}
 		pad := ConditionString((i == end && !t.borders.Left), SPACE, t.pColumn)
-		fmt.Fprintf(t.out, " %s %s",
-			padFunc(h, SPACE, v),
-			pad)
+
+		if is_esc_seq {
+			fmt.Fprintf(t.out, " %s %s",
+				format(padFunc(h, SPACE, v),
+					t.headerParams[i]), pad)
+		} else {
+			fmt.Fprintf(t.out, " %s %s",
+				padFunc(h, SPACE, v),
+				pad)
+		}
+
 	}
 	// Next line
 	fmt.Fprint(t.out, t.newLine)
@@ -367,6 +434,12 @@ func (t *Table) printFooter() {
 	// Get pad function
 	padFunc := pad(t.fAlign)
 
+	// Checking for ANSI escape sequences for header
+	is_esc_seq := false
+	if len(t.footerParams) > 0 {
+		is_esc_seq = true
+	}
+
 	// Print Heading column
 	for i := 0; i <= end; i++ {
 		v := t.cs[i]
@@ -379,9 +452,20 @@ func (t *Table) printFooter() {
 		if len(t.footers[i]) == 0 {
 			pad = SPACE
 		}
-		fmt.Fprintf(t.out, " %s %s",
-			padFunc(f, SPACE, v),
-			pad)
+
+		if is_esc_seq {
+			fmt.Fprintf(t.out, " %s %s",
+				format(padFunc(f, SPACE, v),
+					t.footerParams[i]), pad)
+		} else {
+			fmt.Fprintf(t.out, " %s %s",
+				padFunc(f, SPACE, v),
+				pad)
+		}
+
+		//fmt.Fprintf(t.out, " %s %s",
+		//	padFunc(f, SPACE, v),
+		//	pad)
 	}
 	// Next line
 	fmt.Fprint(t.out, t.newLine)
@@ -438,9 +522,42 @@ func (t *Table) printFooter() {
 	fmt.Fprint(t.out, t.newLine)
 }
 
-func (t *Table) printRows() {
+// Print caption text
+func (t Table) printCaption() {
+	width := t.getTableWidth()
+	paragraph, _ := WrapString(t.captionText, width)
+	for linecount := 0; linecount < len(paragraph); linecount++ {
+		fmt.Fprintln(t.out, paragraph[linecount])
+	}
+}
+
+// Calculate the total number of characters in a row
+func (t Table) getTableWidth() int {
+	var chars int
+	for _, v := range t.cs {
+		chars += v
+	}
+
+	// Add chars, spaces, seperators to calculate the total width of the table.
+	// ncols := t.colSize
+	// spaces := ncols * 2
+	// seps := ncols + 1
+
+	return (chars + (3 * t.colSize) + 2)
+}
+
+func (t Table) printRows() {
 	for i, lines := range t.lines {
 		t.printRow(lines, i)
+	}
+}
+
+func (t *Table) fillAlignment(num int) {
+	if len(t.columnsAlign) < num {
+		t.columnsAlign = make([]int, num)
+		for i := range t.columnsAlign {
+			t.columnsAlign[i] = t.align
+		}
 	}
 }
 
@@ -464,6 +581,13 @@ func (t *Table) printRow(columns [][]string, colKey int) {
 	// pads := []int{}
 	pads := []int{}
 
+	// Checking for ANSI escape sequences for columns
+	is_esc_seq := false
+	if len(t.columnsParams) > 0 {
+		is_esc_seq = true
+	}
+	t.fillAlignment(total)
+
 	for i, line := range columns {
 		length := len(line)
 		pad := max - length
@@ -482,9 +606,14 @@ func (t *Table) printRow(columns [][]string, colKey int) {
 			fmt.Fprintf(t.out, SPACE)
 			str := columns[y][x]
 
+			// Embedding escape sequence with column value
+			if is_esc_seq {
+				str = format(str, t.columnsParams[y])
+			}
+
 			// This would print alignment
 			// Default alignment  would use multiple configuration
-			switch t.align {
+			switch t.columnsAlign[y] {
 			case ALIGN_CENTER: //
 				fmt.Fprintf(t.out, "%s", Pad(str, SPACE, t.cs[y]))
 			case ALIGN_RIGHT:
@@ -561,6 +690,7 @@ func (t *Table) printRowMergeCells(writer io.Writer, columns [][]string, colKey 
 	}
 
 	var displayCellBorder []bool
+	t.fillAlignment(total)
 	for x := 0; x < max; x++ {
 		for y := 0; y < total; y++ {
 
@@ -586,7 +716,7 @@ func (t *Table) printRowMergeCells(writer io.Writer, columns [][]string, colKey 
 
 			// This would print alignment
 			// Default alignment  would use multiple configuration
-			switch t.align {
+			switch t.columnsAlign[y] {
 			case ALIGN_CENTER: //
 				fmt.Fprintf(writer, "%s", Pad(str, SPACE, t.cs[y]))
 			case ALIGN_RIGHT:

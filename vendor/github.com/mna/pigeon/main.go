@@ -17,7 +17,22 @@ import (
 	"github.com/mna/pigeon/builder"
 )
 
+// exit function mockable for tests
 var exit = os.Exit
+
+// ruleNamesFlag is a custom flag that parses a comma-separated
+// list of rule names. It implements flag.Value.
+type ruleNamesFlag []string
+
+func (r *ruleNamesFlag) String() string {
+	return fmt.Sprint(*r)
+}
+
+func (r *ruleNamesFlag) Set(value string) error {
+	names := strings.Split(value, ",")
+	*r = append(*r, names...)
+	return nil
+}
 
 func main() {
 	fs := flag.NewFlagSet(os.Args[0], flag.ExitOnError)
@@ -35,7 +50,10 @@ func main() {
 		optimizeParserFlag     = fs.Bool("optimize-parser", false, "generate optimized parser without Debug and Memoize options")
 		recvrNmFlag            = fs.String("receiver-name", "c", "receiver name for the generated methods")
 		noBuildFlag            = fs.Bool("x", false, "do not build, only parse")
+
+		altEntrypointsFlag ruleNamesFlag
 	)
+	fs.Var(&altEntrypointsFlag, "alternate-entrypoints", "comma-separated list of rule names that may be used as entrypoints")
 
 	fs.Usage = usage
 	err := fs.Parse(os.Args[1:])
@@ -79,9 +97,26 @@ func main() {
 		exit(3)
 	}
 
+	// validate alternate entrypoints
+	grammar := g.(*ast.Grammar)
+	rules := make(map[string]struct{}, len(grammar.Rules))
+	for _, rule := range grammar.Rules {
+		rules[rule.Name.Val] = struct{}{}
+	}
+	for _, entrypoint := range altEntrypointsFlag {
+		if entrypoint == "" {
+			continue
+		}
+
+		if _, ok := rules[entrypoint]; !ok {
+			fmt.Fprintf(os.Stderr, "argument error:\nunknown rule name %s used as alternate entrypoint\n", entrypoint)
+			exit(9)
+		}
+	}
+
 	if !*noBuildFlag {
 		if *optimizeGrammar {
-			ast.Optimize(g.(*ast.Grammar))
+			ast.Optimize(grammar, altEntrypointsFlag...)
 		}
 
 		// generate parser
@@ -99,7 +134,7 @@ func main() {
 		curNmOpt := builder.ReceiverName(*recvrNmFlag)
 		optimizeParser := builder.Optimize(*optimizeParserFlag)
 		basicLatinOptimize := builder.BasicLatinLookupTable(*optimizeBasicLatinFlag)
-		if err := builder.BuildParser(outBuf, g.(*ast.Grammar), curNmOpt, optimizeParser, basicLatinOptimize); err != nil {
+		if err := builder.BuildParser(outBuf, grammar, curNmOpt, optimizeParser, basicLatinOptimize); err != nil {
 			fmt.Fprintln(os.Stderr, "build error: ", err)
 			exit(5)
 		}
@@ -156,12 +191,17 @@ the generated code is written to this file instead.
 	-optimize-grammar
 		performes several performance optimizations on the grammar (EXPERIMENTAL FEATURE)
 	-optimize-parser
-		generate optimized parser without Debug and Memoize options
+		generate optimized parser without Debug and Memoize options and
+		with some other optimizations applied.
 	-receiver-name NAME
 		use NAME as for the receiver name of the generated methods
 		for the grammar's code blocks. Defaults to "c".
 	-x
 		do not generate the parser, only parse the grammar.
+ 	-alternate-entrypoints RULE[,RULE...]
+		comma-separated list of rule names that may be used as alternate
+		entrypoints for the parser, in addition to the first rule in the
+		grammar.
 
 See https://godoc.org/github.com/mna/pigeon for more information.
 `

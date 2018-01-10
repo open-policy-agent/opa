@@ -17,7 +17,7 @@ var cases = []struct {
 	{
 		in: &Grammar{
 			Rules: []*Rule{
-				&Rule{
+				{
 					Name: &Identifier{
 						posValue: posValue{
 							Val: "Input",
@@ -123,7 +123,7 @@ var cases = []struct {
 						},
 					},
 				},
-				&Rule{
+				{
 					Name: &Identifier{
 						posValue: posValue{
 							Val: "innerseq",
@@ -135,7 +135,7 @@ var cases = []struct {
 						},
 					},
 				},
-				&Rule{
+				{
 					Name: &Identifier{
 						posValue: posValue{
 							Val: "innerseq2",
@@ -151,7 +151,7 @@ var cases = []struct {
 		},
 		out: &Grammar{
 			Rules: []*Rule{
-				&Rule{
+				{
 					Name: &Identifier{
 						posValue: posValue{
 							Val: "Input",
@@ -218,7 +218,7 @@ var cases = []struct {
 	{
 		in: &Grammar{
 			Rules: []*Rule{
-				&Rule{
+				{
 					Name: &Identifier{
 						posValue: posValue{
 							Val: "x",
@@ -261,7 +261,7 @@ var cases = []struct {
 						},
 					},
 				},
-				&Rule{
+				{
 					Name: &Identifier{
 						posValue: posValue{
 							Val: "y",
@@ -284,7 +284,7 @@ var cases = []struct {
 						},
 					},
 				},
-				&Rule{
+				{
 					Name: &Identifier{
 						posValue: posValue{
 							Val: "b",
@@ -300,7 +300,7 @@ var cases = []struct {
 		},
 		out: &Grammar{
 			Rules: []*Rule{
-				&Rule{
+				{
 					Name: &Identifier{
 						posValue: posValue{
 							Val: "x",

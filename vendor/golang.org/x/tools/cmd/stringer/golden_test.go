@@ -16,18 +16,22 @@ import (
 
 // Golden represents a test case.
 type Golden struct {
-	name   string
-	input  string // input; the package clause is provided when running the test.
-	output string // exected output.
+	name        string
+	trimPrefix  string
+	lineComment bool
+	input       string // input; the package clause is provided when running the test.
+	output      string // exected output.
 }
 
 var golden = []Golden{
-	{"day", day_in, day_out},
-	{"offset", offset_in, offset_out},
-	{"gap", gap_in, gap_out},
-	{"num", num_in, num_out},
-	{"unum", unum_in, unum_out},
-	{"prime", prime_in, prime_out},
+	{"day", "", false, day_in, day_out},
+	{"offset", "", false, offset_in, offset_out},
+	{"gap", "", false, gap_in, gap_out},
+	{"num", "", false, num_in, num_out},
+	{"unum", "", false, unum_in, unum_out},
+	{"prime", "", false, prime_in, prime_out},
+	{"prefix", "Type", false, prefix_in, prefix_out},
+	{"tokens", "", true, tokens_in, tokens_out},
 }
 
 // Each example starts with "type XXX [u]int", with a single space separating them.
@@ -52,7 +56,7 @@ var _Day_index = [...]uint8{0, 6, 13, 22, 30, 36, 44, 50}
 
 func (i Day) String() string {
 	if i < 0 || i >= Day(len(_Day_index)-1) {
-		return fmt.Sprintf("Day(%d)", i)
+		return "Day(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
 	return _Day_name[_Day_index[i]:_Day_index[i+1]]
 }
@@ -78,7 +82,7 @@ var _Number_index = [...]uint8{0, 3, 6, 11}
 func (i Number) String() string {
 	i -= 1
 	if i < 0 || i >= Number(len(_Number_index)-1) {
-		return fmt.Sprintf("Number(%d)", i+1)
+		return "Number(" + strconv.FormatInt(int64(i+1), 10) + ")"
 	}
 	return _Number_name[_Number_index[i]:_Number_index[i+1]]
 }
@@ -108,7 +112,6 @@ const (
 var (
 	_Gap_index_0 = [...]uint8{0, 3, 8}
 	_Gap_index_1 = [...]uint8{0, 4, 7, 12, 17, 21}
-	_Gap_index_2 = [...]uint8{0, 6}
 )
 
 func (i Gap) String() string {
@@ -122,7 +125,7 @@ func (i Gap) String() string {
 	case i == 11:
 		return _Gap_name_2
 	default:
-		return fmt.Sprintf("Gap(%d)", i)
+		return "Gap(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
 }
 `
@@ -146,7 +149,7 @@ var _Num_index = [...]uint8{0, 3, 6, 8, 10, 12}
 func (i Num) String() string {
 	i -= -2
 	if i < 0 || i >= Num(len(_Num_index)-1) {
-		return fmt.Sprintf("Num(%d)", i+-2)
+		return "Num(" + strconv.FormatInt(int64(i+-2), 10) + ")"
 	}
 	return _Num_name[_Num_index[i]:_Num_index[i+1]]
 }
@@ -185,7 +188,7 @@ func (i Unum) String() string {
 		i -= 253
 		return _Unum_name_1[_Unum_index_1[i]:_Unum_index_1[i+1]]
 	default:
-		return fmt.Sprintf("Unum(%d)", i)
+		return "Unum(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
 }
 `
@@ -234,13 +237,71 @@ func (i Prime) String() string {
 	if str, ok := _Prime_map[i]; ok {
 		return str
 	}
-	return fmt.Sprintf("Prime(%d)", i)
+	return "Prime(" + strconv.FormatInt(int64(i), 10) + ")"
+}
+`
+
+const prefix_in = `type Type int
+const (
+	TypeInt Type = iota
+	TypeString
+	TypeFloat
+	TypeRune
+	TypeByte
+	TypeStruct
+	TypeSlice
+)
+`
+
+const prefix_out = `
+const _Type_name = "IntStringFloatRuneByteStructSlice"
+
+var _Type_index = [...]uint8{0, 3, 9, 14, 18, 22, 28, 33}
+
+func (i Type) String() string {
+	if i < 0 || i >= Type(len(_Type_index)-1) {
+		return "Type(" + strconv.FormatInt(int64(i), 10) + ")"
+	}
+	return _Type_name[_Type_index[i]:_Type_index[i+1]]
+}
+`
+
+const tokens_in = `type Token int
+const (
+	And Token = iota // &
+	Or               // |
+	Add              // +
+	Sub              // -
+	Ident
+	Period // .
+
+	// not to be used
+	SingleBefore
+	// not to be used
+	BeforeAndInline // inline
+	InlineGeneral /* inline general */
+)
+`
+
+const tokens_out = `
+const _Token_name = "&|+-Ident.SingleBeforeinlineinline general"
+
+var _Token_index = [...]uint8{0, 1, 2, 3, 4, 9, 10, 22, 28, 42}
+
+func (i Token) String() string {
+	if i < 0 || i >= Token(len(_Token_index)-1) {
+		return "Token(" + strconv.FormatInt(int64(i), 10) + ")"
+	}
+	return _Token_name[_Token_index[i]:_Token_index[i+1]]
 }
 `
 
 func TestGolden(t *testing.T) {
 	for _, test := range golden {
-		var g Generator
+		g := Generator{
+			trimPrefix:  test.trimPrefix,
+			lineComment: test.lineComment,
+		}
 		input := "package test\n" + test.input
 		file := test.name + ".go"
 		g.parsePackage(".", []string{file}, input)

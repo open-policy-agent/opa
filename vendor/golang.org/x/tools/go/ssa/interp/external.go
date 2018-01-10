@@ -84,6 +84,7 @@ func init() {
 		"math.Log":                         ext۰math۰Log,
 		"math.Min":                         ext۰math۰Min,
 		"math.hasSSE4":                     ext۰math۰hasSSE4,
+		"math.hasVectorFacility":           ext۰math۰hasVectorFacility,
 		"os.runtime_args":                  ext۰os۰runtime_args,
 		"os.runtime_beforeExit":            ext۰nop,
 		"os/signal.init":                   ext۰nop,
@@ -138,8 +139,7 @@ func init() {
 		"sync/atomic.LoadUint64":           ext۰atomic۰LoadUint64,
 		"sync/atomic.StoreInt64":           ext۰atomic۰StoreInt64,
 		"sync/atomic.StoreUint64":          ext۰atomic۰StoreUint64,
-		"testing.callerEntry":              ext۰testing۰callerEntry,
-		"testing.runExample":               ext۰testing۰runExample,
+		"testing.MainStart":                ext۰testing۰MainStart,
 		"time.Sleep":                       ext۰time۰Sleep,
 		"time.now":                         ext۰time۰now,
 	} {
@@ -227,6 +227,10 @@ func ext۰math۰Min(fr *frame, args []value) value {
 }
 
 func ext۰math۰hasSSE4(fr *frame, args []value) value {
+	return false
+}
+
+func ext۰math۰hasVectorFacility(fr *frame, args []value) value {
 	return false
 }
 
@@ -511,26 +515,6 @@ func ext۰runtime۰Func۰Entry(fr *frame, args []value) value {
 	return uintptr(unsafe.Pointer(f))
 }
 
-// This is a workaround for a bug in go/ssa/testmain.go: it creates
-// InternalExamples even for Example functions with no Output comment.
-// TODO(adonovan): fix (and redesign) testmain.go..
-func ext۰testing۰runExample(fr *frame, args []value) value {
-	// This is a stripped down runExample that simply calls the function.
-	// It does not capture and compare output nor recover from panic.
-	//
-	// func runExample(eg testing.InternalExample) bool {
-	//     eg.F()
-	//     return true
-	// }
-	F := args[0].(structure)[1]
-	call(fr.i, fr, 0, F, nil)
-	return true
-}
-
-func ext۰testing۰callerEntry(fr *frame, args []value) value {
-	return uintptr(0) // bogus implementation for now
-}
-
 func ext۰time۰now(fr *frame, args []value) value {
 	nano := time.Now().UnixNano()
 	return tuple{int64(nano / 1e9), int32(nano % 1e9), int64(0)}
@@ -548,4 +532,11 @@ func valueToBytes(v value) []byte {
 		b[i] = in[i].(byte)
 	}
 	return b
+}
+
+func ext۰testing۰MainStart(fr *frame, args []value) value {
+	// We no longer support interpretation of the "testing" package
+	// because it changes too often and uses low-level features that
+	// are a pain to emulate.
+	panic(`interpretation of the "testing" package is no longer supported`)
 }

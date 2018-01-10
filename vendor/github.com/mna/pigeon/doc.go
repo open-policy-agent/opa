@@ -64,9 +64,12 @@ The following options can be specified:
 	more optimizations have applied). This process takes some time, depending on the
 	optimization potential of the grammar.
 
-	-optimize-parser : boolean, if set, the options Debug and Memoize are removed
-	from the resulting parser. This saves a few cpu cycles, when using the
-	generated parser (default: false).
+	-optimize-parser : boolean, if set, the options Debug, Memoize and Statistics are
+	removed	from the resulting parser. The global "state" is optimized as well by
+	either removing all related code if no state change expression is present in the
+	grammar or by removing the restoration of the global "state" store after action
+	and predicate code blocks. This saves a few cpu cycles, when using the generated
+	parser (default: false).
 
 	-x : boolean, if set, do not build the parser, just parse the input grammar
 	(default: false).
@@ -74,6 +77,14 @@ The following options can be specified:
 	-receiver-name=NAME : string, name of the receiver variable for the generated
 	code blocks. Non-initializer code blocks in the grammar end up as methods on the
 	*current type, and this option sets the name of the receiver (default: c).
+
+	-alternate-entrypoints=RULE[,RULE...] : string, comma-separated list of rule names
+	that may be used as alternate entrypoints for the parser, in addition to the
+	default entrypoint (the first rule in the grammar) (default: none).
+	Such entrypoints can be specified in the call to Parse by passing an
+	Entrypoint option that specifies the alternate rule name to use. This is only
+	necessary if the -optimize-parser flag is set, as some rules may be optimized
+	out of the resulting parser.
 
 If the code blocks in the grammar (see below, section "Code block") are golint-
 and go vet-compliant, then the resulting generated code will also be golint-
@@ -293,15 +304,34 @@ Predicate code blocks are code blocks declared immediately after the and "&"
 or the not "!" operators. Like action code blocks, predicate code blocks
 are turned into a method on the "*current" type in the generated source code.
 The method receives any labeled expression's value as argument (as interface{})
-and must return two values, the first being a bool and the second an error.
+and must return two opt, the first being a bool and the second an error.
 If a non-nil error is returned, it is added to the list of errors that the
 parser will return. E.g.:
 	RuleAB = [ab]i+ &{
 		return true, nil
 	}
 
-The current type is a struct that provides three useful fields that can be
-accessed in action and predicate code blocks: "pos", "text" and "globalStore".
+State change code blocks are code blocks starting with "#". In contrast to
+action and predicate code blocks, state change code blocks are allowed to
+modify values in the global "state" store (see below).
+State change code blocks are turned into a method on the "*current" type
+in the generated source code.
+The method is passed any labeled expression's value as an argument (of type
+interface{}) and must return a value of type error.
+If a non-nil error is returned, it is added to the list of errors that the
+parser will return, note that the parser does NOT backtrack if a non-nil
+error is returned.
+E.g:
+    Rule = [a] #{
+        c.state["a"]++
+        if c.state["a"] > 5 {
+            return fmt.Errorf("we have seen more than 5 a's") // parser will not backtrack
+        }
+        return nil
+    }
+The "*current" type is a struct that provides four useful fields that can be
+accessed in action, state change, and predicate code blocks: "pos", "text",
+"state" and "globalStore".
 
 The "pos" field indicates the current position of the parser in the source
 input. It is itself a struct with three fields: "line", "col" and "offset".
@@ -310,6 +340,31 @@ runes from the start of the line, and offset is a 0-based byte offset.
 
 The "text" field is the slice of bytes of the current match. It is empty
 in a predicate code block.
+
+The "state" field is a global store, with backtrack support, of type
+"map[string]interface{}". The values in the store are tied to the parser's
+backtracking, in particular if a rule fails to match then all updates to the
+state that occurred in the process of matching the rule are rolled back. For a
+key-value store that is not tied to the parser's backtracking, see the
+"globalStore".
+The values in the "state" store are available for read access in action and
+predicate code blocks, any changes made to the "state" store will be reverted
+once the action or predicate code block is finished running. To update values
+in the "state" use state change code blocks ("#{}").
+
+IMPORTANT:
+	- In order to properly roll back the state if a rule fails to match the
+	  parser must clone the state before trying to match a rule.
+	- The default clone mechanism makes a "shallow" copy of each value in the
+	  "state", this implies that pointers, maps, slices, channels, and structs
+	  containing any of the previous types are not properly copied.
+	- To support theses cases pigeon offers the "Cloner" interface which
+	  consists of a single method "Clone". If a value stored in the "state"
+	  store implements this interface, the "Clone" method is used to obtain a
+	  proper copy.
+	- If a general solution is needed, external libraries which provide deep
+	  copy functionality may be used in the "Clone" method
+	  (e.g. https://github.com/mitchellh/copystructure).
 
 The "globalStore" field is a global store of type "map[string]interface{}",
 which allows to store arbitrary values, which are available in action and
@@ -324,6 +379,50 @@ of pigeon and should not be used nor modified. Those keys are treated as
 internal implementation details and therefore there are no guarantees given in
 regards of API stability.
 
+Failure labels, throw and recover
+
+pigeon supports an extension of the classical PEG syntax called failure labels,
+proposed by Maidl et al. in their paper "Error Reporting in Parsing Expression Grammars" [7].
+The used syntax for the introduced expressions is borrowed from their lpeglabel [8]
+implementation.
+
+This extension allows to signal different kinds of errors and to specify, which
+recovery pattern should handle a given label.
+
+With labeled failures it is possible to distinguish between an ordinary failure
+and an error. Usually, an ordinary failure is produced when the matching of a
+character fails, and this failure is caught by ordered choice. An error
+(a non-ordinary failure), by its turn, is produced by the throw operator and
+may be caught by the recovery operator.
+
+In pigeon, the recovery expression consists of the regular expression, the recovery
+expression and a set of labels to be matched. First, the regular expression is tried.
+If this fails with one of the provided labels, the recovery expression is tried. If
+this fails as well, the error is propagated. E.g.:
+	FailureRecoveryExpr = RegularExpr //{FailureLabel1, FailureLabel2} RecoveryExpr
+
+To signal a failure condition, the throw expression is used. E.g.:
+	ThrowExpr = %{FailureLabel1}
+
+For concrete examples, how to use throw and recover, have a look at the examples
+"labeled_failures" and "thrownrecover" in the "test" folder.
+
+The implementation of the throw and recover operators work as follows:
+The failure recover expression adds the recover expression for every failure label
+to the recovery stack and runs the regular expression.
+The throw expression checks the recovery stack in reversed order for the provided
+failure label. If the label is found, the respective recovery expression is run. If
+this expression is successful, the parser continues the processing of the input. If
+the recovery expression is not successful, the parsing fails and the parser starts
+to backtrack.
+
+If throw and recover expressions are used together with global state, it is the
+responsibility of the author of the grammar to reset the global state to a valid 
+state during the recovery operation.
+
+	[7]: https://arxiv.org/pdf/1405.6646v3.pdf
+	[8]: https://github.com/sqmedeiros/lpeglabel
+
 Using the generated parser
 
 The parser generated by pigeon exports a few symbols so that it can be used
@@ -331,10 +430,14 @@ as a package with public functions to parse input text. The exported API is:
 	- Parse(string, []byte, ...Option) (interface{}, error)
 	- ParseFile(string, ...Option) (interface{}, error)
 	- ParseReader(string, io.Reader, ...Option) (interface{}, error)
+	- AllowInvalidUTF8(bool) Option
 	- Debug(bool) Option
+	- Entrypoint(string) Option
 	- GlobalStore(string, interface{}) Option
+	- MaxExpressions(uint64) Option
 	- Memoize(bool) Option
 	- Recover(bool) Option
+	- Statistics(*Stats) Option
 
 See the godoc page of the generated parser for the test/predicates grammar
 for an example documentation page of the exported API:

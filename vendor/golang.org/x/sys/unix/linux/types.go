@@ -24,6 +24,7 @@ package unix
 #include <netinet/tcp.h>
 #include <netpacket/packet.h>
 #include <poll.h>
+#include <sched.h>
 #include <signal.h>
 #include <stdio.h>
 #include <sys/epoll.h>
@@ -62,6 +63,9 @@ package unix
 #include <linux/fs.h>
 #include <linux/vm_sockets.h>
 #include <linux/random.h>
+#include <linux/taskstats.h>
+#include <linux/cgroupstats.h>
+#include <linux/genetlink.h>
 
 // On mips64, the glibc stat and kernel stat do not agree
 #if (defined(__mips__) && _MIPS_SIM == _MIPS_SIM_ABI64)
@@ -111,14 +115,6 @@ struct stat {
 #include <sys/types.h>
 
 #endif
-
-// Certain constants and structs are missing from the fs/crypto UAPI
-#define FS_MAX_KEY_SIZE                 64
-struct fscrypt_key {
-  __u32 mode;
-  __u8 raw[FS_MAX_KEY_SIZE];
-  __u32 size;
-};
 
 #ifdef TCSETS2
 // On systems that have "struct termios2" use this as type Termios.
@@ -518,6 +514,7 @@ type EpollEvent C.struct_my_epoll_event
 
 const (
 	AT_FDCWD            = C.AT_FDCWD
+	AT_NO_AUTOMOUNT     = C.AT_NO_AUTOMOUNT
 	AT_REMOVEDIR        = C.AT_REMOVEDIR
 	AT_SYMLINK_FOLLOW   = C.AT_SYMLINK_FOLLOW
 	AT_SYMLINK_NOFOLLOW = C.AT_SYMLINK_NOFOLLOW
@@ -541,12 +538,82 @@ const RNDGETENTCNT = C.RNDGETENTCNT
 
 const PERF_IOC_FLAG_GROUP = C.PERF_IOC_FLAG_GROUP
 
-// sysconf information
-
-const _SC_PAGESIZE = C._SC_PAGESIZE
-
 // Terminal handling
 
 type Termios C.termios_t
 
 type Winsize C.struct_winsize
+
+// Taskstats and cgroup stats.
+
+type Taskstats C.struct_taskstats
+
+const (
+	TASKSTATS_CMD_UNSPEC                  = C.TASKSTATS_CMD_UNSPEC
+	TASKSTATS_CMD_GET                     = C.TASKSTATS_CMD_GET
+	TASKSTATS_CMD_NEW                     = C.TASKSTATS_CMD_NEW
+	TASKSTATS_TYPE_UNSPEC                 = C.TASKSTATS_TYPE_UNSPEC
+	TASKSTATS_TYPE_PID                    = C.TASKSTATS_TYPE_PID
+	TASKSTATS_TYPE_TGID                   = C.TASKSTATS_TYPE_TGID
+	TASKSTATS_TYPE_STATS                  = C.TASKSTATS_TYPE_STATS
+	TASKSTATS_TYPE_AGGR_PID               = C.TASKSTATS_TYPE_AGGR_PID
+	TASKSTATS_TYPE_AGGR_TGID              = C.TASKSTATS_TYPE_AGGR_TGID
+	TASKSTATS_TYPE_NULL                   = C.TASKSTATS_TYPE_NULL
+	TASKSTATS_CMD_ATTR_UNSPEC             = C.TASKSTATS_CMD_ATTR_UNSPEC
+	TASKSTATS_CMD_ATTR_PID                = C.TASKSTATS_CMD_ATTR_PID
+	TASKSTATS_CMD_ATTR_TGID               = C.TASKSTATS_CMD_ATTR_TGID
+	TASKSTATS_CMD_ATTR_REGISTER_CPUMASK   = C.TASKSTATS_CMD_ATTR_REGISTER_CPUMASK
+	TASKSTATS_CMD_ATTR_DEREGISTER_CPUMASK = C.TASKSTATS_CMD_ATTR_DEREGISTER_CPUMASK
+)
+
+type CGroupStats C.struct_cgroupstats
+
+const (
+	CGROUPSTATS_CMD_UNSPEC        = C.__TASKSTATS_CMD_MAX
+	CGROUPSTATS_CMD_GET           = C.CGROUPSTATS_CMD_GET
+	CGROUPSTATS_CMD_NEW           = C.CGROUPSTATS_CMD_NEW
+	CGROUPSTATS_TYPE_UNSPEC       = C.CGROUPSTATS_TYPE_UNSPEC
+	CGROUPSTATS_TYPE_CGROUP_STATS = C.CGROUPSTATS_TYPE_CGROUP_STATS
+	CGROUPSTATS_CMD_ATTR_UNSPEC   = C.CGROUPSTATS_CMD_ATTR_UNSPEC
+	CGROUPSTATS_CMD_ATTR_FD       = C.CGROUPSTATS_CMD_ATTR_FD
+)
+
+// Generic netlink
+
+type Genlmsghdr C.struct_genlmsghdr
+
+const (
+	CTRL_CMD_UNSPEC            = C.CTRL_CMD_UNSPEC
+	CTRL_CMD_NEWFAMILY         = C.CTRL_CMD_NEWFAMILY
+	CTRL_CMD_DELFAMILY         = C.CTRL_CMD_DELFAMILY
+	CTRL_CMD_GETFAMILY         = C.CTRL_CMD_GETFAMILY
+	CTRL_CMD_NEWOPS            = C.CTRL_CMD_NEWOPS
+	CTRL_CMD_DELOPS            = C.CTRL_CMD_DELOPS
+	CTRL_CMD_GETOPS            = C.CTRL_CMD_GETOPS
+	CTRL_CMD_NEWMCAST_GRP      = C.CTRL_CMD_NEWMCAST_GRP
+	CTRL_CMD_DELMCAST_GRP      = C.CTRL_CMD_DELMCAST_GRP
+	CTRL_CMD_GETMCAST_GRP      = C.CTRL_CMD_GETMCAST_GRP
+	CTRL_ATTR_UNSPEC           = C.CTRL_ATTR_UNSPEC
+	CTRL_ATTR_FAMILY_ID        = C.CTRL_ATTR_FAMILY_ID
+	CTRL_ATTR_FAMILY_NAME      = C.CTRL_ATTR_FAMILY_NAME
+	CTRL_ATTR_VERSION          = C.CTRL_ATTR_VERSION
+	CTRL_ATTR_HDRSIZE          = C.CTRL_ATTR_HDRSIZE
+	CTRL_ATTR_MAXATTR          = C.CTRL_ATTR_MAXATTR
+	CTRL_ATTR_OPS              = C.CTRL_ATTR_OPS
+	CTRL_ATTR_MCAST_GROUPS     = C.CTRL_ATTR_MCAST_GROUPS
+	CTRL_ATTR_OP_UNSPEC        = C.CTRL_ATTR_OP_UNSPEC
+	CTRL_ATTR_OP_ID            = C.CTRL_ATTR_OP_ID
+	CTRL_ATTR_OP_FLAGS         = C.CTRL_ATTR_OP_FLAGS
+	CTRL_ATTR_MCAST_GRP_UNSPEC = C.CTRL_ATTR_MCAST_GRP_UNSPEC
+	CTRL_ATTR_MCAST_GRP_NAME   = C.CTRL_ATTR_MCAST_GRP_NAME
+	CTRL_ATTR_MCAST_GRP_ID     = C.CTRL_ATTR_MCAST_GRP_ID
+)
+
+// CPU affinity
+
+type cpuMask C.__cpu_mask
+
+const (
+	_CPU_SETSIZE = C.__CPU_SETSIZE
+	_NCPUBITS    = C.__NCPUBITS
+)

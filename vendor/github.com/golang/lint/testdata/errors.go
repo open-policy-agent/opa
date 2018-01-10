@@ -33,5 +33,6 @@ func g(x int) error {
 	err = fmt.Errorf("newlines are fun\n")        // MATCH /error strings.*end with punctuation/
 	err = fmt.Errorf("Newlines are really fun\n") // MATCH /error strings.+not be capitalized/
 	err = errors.New(`too much stuff.`)           // MATCH /error strings.*end with punctuation/
+	err = errors.New("This %d is too low", x)     // MATCH /error strings.*be capitalized/
 	return err
 }
