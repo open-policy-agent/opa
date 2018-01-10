@@ -930,6 +930,10 @@ func TestCompilerSetGraph(t *testing.T) {
 
 	q = true
 	r = true
+
+	s { t }
+	t { false } else { true }
+
 	`)
 	compileStages(c, c.setGraph)
 
@@ -979,6 +983,8 @@ func TestCompilerSetGraph(t *testing.T) {
 		{c.Modules["mod6"].Rules[2], c.Modules["mod6"].Rules[3]},               // mod6.r before mod6.s
 		{c.Modules["elsekw"].Rules[1], c.Modules["elsekw"].Rules[0].Else},      // elsekw.q before elsekw.p.else
 		{c.Modules["elsekw"].Rules[2], c.Modules["elsekw"].Rules[0].Else.Else}, // elsekw.r before elsekw.p.else.else
+		{c.Modules["elsekw"].Rules[4], c.Modules["elsekw"].Rules[3]},           // elsekw.t before elsekw.s
+		{c.Modules["elsekw"].Rules[4].Else, c.Modules["elsekw"].Rules[3]},      // elsekw.t.else before elsekw.s
 	}
 
 	getSortedIdx := func(r *Rule) int {
