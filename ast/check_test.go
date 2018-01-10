@@ -858,6 +858,22 @@ func TestUserFunctionsTypeInference(t *testing.T) {
 			`fn(x) = y { data.non_existent(x, a); y = a[0] }`,
 			true,
 		},
+		{
+			`fn(x) = y { y = [x] }`,
+			false,
+		},
+		{
+			`f(x) = y { [x] = y }`,
+			false,
+		},
+		{
+			`fn(x) = y { y = {"k": x} }`,
+			false,
+		},
+		{
+			`f(x) = y { {"k": x} = y }`,
+			false,
+		},
 	}
 
 	for n, test := range tests {
