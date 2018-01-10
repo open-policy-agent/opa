@@ -325,11 +325,7 @@ func (te *TraceEventV1) UnmarshalJSON(bs []byte) error {
 		te.Node = &rule
 	}
 
-	if err := util.UnmarshalJSON(keys["locals"], &te.Locals); err != nil {
-		return err
-	}
-
-	return nil
+	return util.UnmarshalJSON(keys["locals"], &te.Locals)
 }
 
 // BindingsV1 represents a set of term bindings.

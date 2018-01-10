@@ -293,10 +293,7 @@ func (rt *Runtime) processWatcherUpdate(ctx context.Context, paths []string, rem
 				}
 			}
 		}
-		if err := compileAndStoreInputs(ctx, rt.Store, txn, loaded.Modules, -1); err != nil {
-			return err
-		}
-		return nil
+		return compileAndStoreInputs(ctx, rt.Store, txn, loaded.Modules, -1)
 	})
 }
 
