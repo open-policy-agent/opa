@@ -285,42 +285,59 @@ func unify2(env *TypeEnv, a *Term, typeA types.Type, b *Term, typeB types.Type) 
 		return unifies(typeA, typeB)
 	}
 
-	switch av := a.Value.(type) {
+	switch a.Value.(type) {
 	case Array:
-		switch bv := b.Value.(type) {
-		case Array:
-			if len(av) == len(bv) {
-				for i := range av {
-					if !unify2(env, av[i], env.Get(av[i]), bv[i], env.Get(bv[i])) {
-						return false
-					}
-				}
-				return true
-			}
-		case Var:
-			return unify1(env, a, types.A) && unify1(env, b, env.Get(a))
-		}
+		return unify2Array(env, a, typeA, b, typeB)
 	case Object:
-		switch bv := b.Value.(type) {
-		case Object:
-			cv := av.Intersect(bv)
-			if av.Len() == bv.Len() && bv.Len() == len(cv) {
-				for i := range cv {
-					if !unify2(env, cv[i][1], env.Get(cv[i][1]), cv[i][2], env.Get(cv[i][2])) {
-						return false
-					}
-				}
-				return true
-			}
+		return unify2Object(env, a, typeA, b, typeB)
+	case Var:
+		switch b.Value.(type) {
 		case Var:
 			return unify1(env, a, types.A) && unify1(env, b, env.Get(a))
-		}
-	case Var:
-		if _, ok := b.Value.(Var); ok {
-			return unify1(env, a, types.A) && unify1(env, b, env.Get(a))
+		case Array:
+			return unify2Array(env, b, typeB, a, typeA)
+		case Object:
+			return unify2Object(env, b, typeB, a, typeA)
 		}
 	}
 
+	return false
+}
+
+func unify2Array(env *TypeEnv, a *Term, typeA types.Type, b *Term, typeB types.Type) bool {
+	arr := a.Value.(Array)
+	switch bv := b.Value.(type) {
+	case Array:
+		if len(arr) == len(bv) {
+			for i := range arr {
+				if !unify2(env, arr[i], env.Get(arr[i]), bv[i], env.Get(bv[i])) {
+					return false
+				}
+			}
+			return true
+		}
+	case Var:
+		return unify1(env, a, types.A) && unify1(env, b, env.Get(a))
+	}
+	return false
+}
+
+func unify2Object(env *TypeEnv, a *Term, typeA types.Type, b *Term, typeB types.Type) bool {
+	obj := a.Value.(Object)
+	switch bv := b.Value.(type) {
+	case Object:
+		cv := obj.Intersect(bv)
+		if obj.Len() == bv.Len() && bv.Len() == len(cv) {
+			for i := range cv {
+				if !unify2(env, cv[i][1], env.Get(cv[i][1]), cv[i][2], env.Get(cv[i][2])) {
+					return false
+				}
+			}
+			return true
+		}
+	case Var:
+		return unify1(env, a, types.A) && unify1(env, b, env.Get(a))
+	}
 	return false
 }
 
