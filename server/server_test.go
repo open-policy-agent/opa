@@ -88,7 +88,7 @@ func TestDataV0(t *testing.T) {
 	}
 }
 
-// Tests that the responses for (theoretically) valid resources but with forbidden mewthods return the proper status code
+// Tests that the responses for (theoretically) valid resources but with forbidden methods return the proper status code
 func Test405StatusCodev1(t *testing.T) {
 	tests := []struct {
 		note string
@@ -124,6 +124,26 @@ func Test405StatusCodev1(t *testing.T) {
 			tr{http.MethodOptions, "/policies/lvl1", "", 405, ""},
 			tr{http.MethodTrace, "/policies/lvl1", "", 405, ""},
 			tr{http.MethodPost, "/policies/lvl1", "", 405, ""},
+		}},
+		{"v1 query one level 405", []tr{
+			tr{http.MethodHead, "/query/lvl1", "", 405, ""},
+			tr{http.MethodConnect, "/query/lvl1", "", 405, ""},
+			tr{http.MethodDelete, "/query/lvl1", "", 405, ""},
+			tr{http.MethodOptions, "/query/lvl1", "", 405, ""},
+			tr{http.MethodTrace, "/query/lvl1", "", 405, ""},
+			tr{http.MethodPost, "/query/lvl1", "", 405, ""},
+			tr{http.MethodPut, "/query/lvl1", "", 405, ""},
+			tr{http.MethodPatch, "/query/lvl1", "", 405, ""},
+		}},
+		{"v1 query 405", []tr{
+			tr{http.MethodHead, "/query", "", 405, ""},
+			tr{http.MethodConnect, "/query", "", 405, ""},
+			tr{http.MethodDelete, "/query", "", 405, ""},
+			tr{http.MethodOptions, "/query", "", 405, ""},
+			tr{http.MethodTrace, "/query", "", 405, ""},
+			tr{http.MethodPost, "/query", "", 405, ""},
+			tr{http.MethodPut, "/query", "", 405, ""},
+			tr{http.MethodPatch, "/query", "", 405, ""},
 		}},
 	}
 	for _, tc := range tests {

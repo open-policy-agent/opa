@@ -124,6 +124,9 @@ func New() *Server {
 	// Query catch all
 	router.HandleFunc("/v1/query/{path:.*}", writer.HTTPStatus(405)).Methods(http.MethodHead,
 		http.MethodConnect, http.MethodDelete, http.MethodOptions, http.MethodTrace, http.MethodPost, http.MethodPut, http.MethodPatch)
+	router.HandleFunc("/v1/query", writer.HTTPStatus(405)).Methods(http.MethodHead,
+		http.MethodConnect, http.MethodDelete, http.MethodOptions, http.MethodTrace, http.MethodPost, http.MethodPut, http.MethodPatch)
+
 	s.Handler = router
 	return &s
 }
