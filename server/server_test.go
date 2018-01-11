@@ -88,6 +88,7 @@ func TestDataV0(t *testing.T) {
 	}
 }
 
+// Tests that the responses for (theoretically) valid resources but with forbidden mewthods return the proper status code
 func Test405StatusCodev1(t *testing.T) {
 	tests := []struct {
 		note string
@@ -132,6 +133,7 @@ func Test405StatusCodev1(t *testing.T) {
 	}
 }
 
+// Tests that the responses for (theoretically) valid resources but with forbidden mewthods return the proper status code
 func Test405StatusCodev0(t *testing.T) {
 	tests := []struct {
 		note string
@@ -2184,6 +2186,7 @@ func executeRequests(t *testing.T, reqs []tr) {
 	}
 }
 
+// Runs through an array of test cases against the v0 REST API tree
 func executeRequestsv0(t *testing.T, reqs []tr) {
 	f := newFixture(t)
 	for i, req := range reqs {
