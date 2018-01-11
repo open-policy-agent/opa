@@ -104,28 +104,26 @@ func New() *Server {
 	router.HandleFunc("/", s.unversionedPost).Methods(http.MethodPost)
 	router.HandleFunc("/", s.indexGet).Methods(http.MethodGet)
 	// These are catch all handlers that respond 405 for resources that exist but the method is not allowed
-	router.HandleFunc("/v0/data/{path:.*}", writer.HttpStatus(405)).Methods(http.MethodGet, http.MethodHead,
-		http.MethodConnect, http.MethodDelete, http.MethodOptions, http.MethodPatch, http.MethodPut,
-			http.MethodTrace)
-	router.HandleFunc("/v0/data", writer.HttpStatus(405)).Methods(http.MethodGet, http.MethodHead,
+	router.HandleFunc("/v0/data/{path:.*}", writer.HTTPStatus(405)).Methods(http.MethodGet, http.MethodHead,
+		http.MethodConnect, http.MethodDelete, http.MethodOptions, http.MethodPatch, http.MethodPut, http.MethodTrace)
+	router.HandleFunc("/v0/data", writer.HTTPStatus(405)).Methods(http.MethodGet, http.MethodHead,
 		http.MethodConnect, http.MethodDelete, http.MethodOptions, http.MethodPatch, http.MethodPut,
 		http.MethodTrace)
 	// v1 Data catch all
-	router.HandleFunc("/v1/data/{path:.*}", writer.HttpStatus(405)).Methods(http.MethodHead,
+	router.HandleFunc("/v1/data/{path:.*}", writer.HTTPStatus(405)).Methods(http.MethodHead,
 		http.MethodConnect, http.MethodDelete, http.MethodOptions, http.MethodTrace)
-	router.HandleFunc("/v1/data", writer.HttpStatus(405)).Methods(http.MethodHead,
+	router.HandleFunc("/v1/data", writer.HTTPStatus(405)).Methods(http.MethodHead,
 		http.MethodConnect, http.MethodDelete, http.MethodOptions, http.MethodTrace)
 	// Policies catch all
-	router.HandleFunc("/v1/policies", writer.HttpStatus(405)).Methods(http.MethodHead,
+	router.HandleFunc("/v1/policies", writer.HTTPStatus(405)).Methods(http.MethodHead,
 		http.MethodConnect, http.MethodDelete, http.MethodOptions, http.MethodTrace, http.MethodPost, http.MethodPut,
 		http.MethodPatch)
 	// Policies (/policies/{path.+} catch all
-	router.HandleFunc("/v1/policies/{path:.*}", writer.HttpStatus(405)).Methods(http.MethodHead,
+	router.HandleFunc("/v1/policies/{path:.*}", writer.HTTPStatus(405)).Methods(http.MethodHead,
 		http.MethodConnect, http.MethodOptions, http.MethodTrace, http.MethodPost)
 	// Query catch all
-	router.HandleFunc("/v1/query/{path:.*}", writer.HttpStatus(405)).Methods(http.MethodHead,
-		http.MethodConnect, http.MethodDelete, http.MethodOptions, http.MethodTrace, http.MethodPost, http.MethodPut,
-			http.MethodPatch)
+	router.HandleFunc("/v1/query/{path:.*}", writer.HTTPStatus(405)).Methods(http.MethodHead,
+		http.MethodConnect, http.MethodDelete, http.MethodOptions, http.MethodTrace, http.MethodPost, http.MethodPut, http.MethodPatch)
 	s.Handler = router
 	return &s
 }

@@ -14,9 +14,9 @@ import (
 	"github.com/open-policy-agent/opa/topdown"
 )
 
-// httpStatus is used to set a specific status code
+// HTTPStatus is used to set a specific status code
 // Adapted from https://stackoverflow.com/questions/27711154/what-response-code-to-return-on-a-non-supported-http-method-on-rest
-func HttpStatus(code int) func(w http.ResponseWriter, req *http.Request) {
+func HTTPStatus(code int) func(w http.ResponseWriter, req *http.Request) {
 	return func(w http.ResponseWriter, req *http.Request) {
 		w.WriteHeader(code)
 	}

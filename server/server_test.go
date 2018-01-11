@@ -146,7 +146,6 @@ func Test405StatusCodev0(t *testing.T) {
 			tr{http.MethodGet, "/data/lvl2", "", 405, ""},
 			tr{http.MethodPatch, "/data/lvl2", "", 405, ""},
 			tr{http.MethodPut, "/data/lvl2", "", 405, ""},
-
 		}},
 		{"v0 data 405", []tr{
 			tr{http.MethodHead, "/data", "", 405, ""},
