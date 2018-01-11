@@ -87,6 +87,7 @@ func New() *Server {
 	router := mux.NewRouter()
 	s.registerHandler(router, 0, "/data/{path:.+}", http.MethodPost, s.v0DataPost)
 	s.registerHandler(router, 0, "/data", http.MethodPost, s.v0DataPost)
+	s.registerHandler(router, 1, "/data/system/diagnostics", http.MethodGet, s.v1DiagnosticsGet)
 	s.registerHandler(router, 1, "/data/{path:.+}", http.MethodPut, s.v1DataPut)
 	s.registerHandler(router, 1, "/data", http.MethodPut, s.v1DataPut)
 	s.registerHandler(router, 1, "/data/{path:.+}", http.MethodGet, s.v1DataGet)
@@ -100,7 +101,6 @@ func New() *Server {
 	s.registerHandler(router, 1, "/policies/{path:.+}", http.MethodGet, s.v1PoliciesGet)
 	s.registerHandler(router, 1, "/policies/{path:.+}", http.MethodPut, s.v1PoliciesPut)
 	s.registerHandler(router, 1, "/query", http.MethodGet, s.v1QueryGet)
-	s.registerHandler(router, 1, "/data/system/diagnostics", http.MethodGet, s.v1DiagnosticsGet)
 	router.HandleFunc("/", s.unversionedPost).Methods(http.MethodPost)
 	router.HandleFunc("/", s.indexGet).Methods(http.MethodGet)
 	// These are catch all handlers that respond 405 for resources that exist but the method is not allowed
