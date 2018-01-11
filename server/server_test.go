@@ -88,6 +88,84 @@ func TestDataV0(t *testing.T) {
 	}
 }
 
+func Test405StatusCodev1(t *testing.T) {
+	tests := []struct {
+		note string
+		reqs []tr
+	}{
+		{"v1 data one level 405", []tr{
+			tr{http.MethodHead, "/data/lvl1", "", 405, ""},
+			tr{http.MethodConnect, "/data/lvl1", "", 405, ""},
+			tr{http.MethodDelete, "/data/lvl1", "", 405, ""},
+			tr{http.MethodOptions, "/data/lvl1", "", 405, ""},
+			tr{http.MethodTrace, "/data/lvl1", "", 405, ""},
+		}},
+		{"v1 data 405", []tr{
+			tr{http.MethodHead, "/data", "", 405, ""},
+			tr{http.MethodConnect, "/data", "", 405, ""},
+			tr{http.MethodDelete, "/data", "", 405, ""},
+			tr{http.MethodOptions, "/data", "", 405, ""},
+			tr{http.MethodTrace, "/data", "", 405, ""},
+		}},
+		{"v1 policies 405", []tr{
+			tr{http.MethodHead, "/policies", "", 405, ""},
+			tr{http.MethodConnect, "/policies", "", 405, ""},
+			tr{http.MethodDelete, "/policies", "", 405, ""},
+			tr{http.MethodOptions, "/policies", "", 405, ""},
+			tr{http.MethodTrace, "/policies", "", 405, ""},
+			tr{http.MethodPost, "/policies", "", 405, ""},
+			tr{http.MethodPut, "/policies", "", 405, ""},
+			tr{http.MethodPatch, "/policies", "", 405, ""},
+		}},
+		{"v1 policies one level 405", []tr{
+			tr{http.MethodHead, "/policies/lvl1", "", 405, ""},
+			tr{http.MethodConnect, "/policies/lvl1", "", 405, ""},
+			tr{http.MethodOptions, "/policies/lvl1", "", 405, ""},
+			tr{http.MethodTrace, "/policies/lvl1", "", 405, ""},
+			tr{http.MethodPost, "/policies/lvl1", "", 405, ""},
+		}},
+	}
+	for _, tc := range tests {
+		test.Subtest(t, tc.note, func(t *testing.T) {
+			executeRequests(t, tc.reqs)
+		})
+	}
+}
+
+func Test405StatusCodev0(t *testing.T) {
+	tests := []struct {
+		note string
+		reqs []tr
+	}{
+		{"v0 data one levels 405", []tr{
+			tr{http.MethodHead, "/data/lvl2", "", 405, ""},
+			tr{http.MethodConnect, "/data/lvl2", "", 405, ""},
+			tr{http.MethodDelete, "/data/lvl2", "", 405, ""},
+			tr{http.MethodOptions, "/data/lvl2", "", 405, ""},
+			tr{http.MethodTrace, "/data/lvl2", "", 405, ""},
+			tr{http.MethodGet, "/data/lvl2", "", 405, ""},
+			tr{http.MethodPatch, "/data/lvl2", "", 405, ""},
+			tr{http.MethodPut, "/data/lvl2", "", 405, ""},
+
+		}},
+		{"v0 data 405", []tr{
+			tr{http.MethodHead, "/data", "", 405, ""},
+			tr{http.MethodConnect, "/data", "", 405, ""},
+			tr{http.MethodDelete, "/data", "", 405, ""},
+			tr{http.MethodOptions, "/data", "", 405, ""},
+			tr{http.MethodTrace, "/data", "", 405, ""},
+			tr{http.MethodGet, "/data", "", 405, ""},
+			tr{http.MethodPatch, "/data", "", 405, ""},
+			tr{http.MethodPut, "/data", "", 405, ""},
+		}},
+	}
+	for _, tc := range tests {
+		test.Subtest(t, tc.note, func(t *testing.T) {
+			executeRequestsv0(t, tc.reqs)
+		})
+	}
+}
+
 func TestDataV1(t *testing.T) {
 	testMod1 := `package testmod
 
@@ -2102,6 +2180,15 @@ func executeRequests(t *testing.T, reqs []tr) {
 	f := newFixture(t)
 	for i, req := range reqs {
 		if err := f.v1(req.method, req.path, req.body, req.code, req.resp); err != nil {
+			t.Errorf("Unexpected response on request %d: %v", i+1, err)
+		}
+	}
+}
+
+func executeRequestsv0(t *testing.T, reqs []tr) {
+	f := newFixture(t)
+	for i, req := range reqs {
+		if err := f.v0(req.method, req.path, req.body, req.code, req.resp); err != nil {
 			t.Errorf("Unexpected response on request %d: %v", i+1, err)
 		}
 	}
