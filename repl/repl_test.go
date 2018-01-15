@@ -110,7 +110,8 @@ func TestComplete(t *testing.T) {
 	mod1 := []byte(`package a.b.c
 
 p = 1 { true }
-q = 2 { true }`)
+q = 2 { true }
+q = 3 { false }`)
 
 	mod2 := []byte(`package a.b.d
 
@@ -164,7 +165,7 @@ r = 3 { true }`)
 	}
 
 	result = repl.complete("data.a.b.c.p[x]")
-	expected = nil
+	expected = []string{}
 
 	if !reflect.DeepEqual(result, expected) {
 		t.Fatalf("Expected %v but got: %v", expected, result)

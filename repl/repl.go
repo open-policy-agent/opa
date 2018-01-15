@@ -289,8 +289,9 @@ func (r *REPL) DisableUndefinedOutput(yes bool) *REPL {
 	return r
 }
 
-func (r *REPL) complete(line string) (c []string) {
-
+func (r *REPL) complete(line string) []string {
+	c := []string{}
+	set := map[string]struct{}{}
 	ctx := context.Background()
 	txn, err := r.store.NewTransaction(ctx)
 
@@ -306,7 +307,7 @@ func (r *REPL) complete(line string) (c []string) {
 		for _, imp := range mod.Imports {
 			path := imp.Name().String()
 			if strings.HasPrefix(path, line) {
-				c = append(c, path)
+				set[path] = struct{}{}
 			}
 		}
 	}
@@ -316,7 +317,7 @@ func (r *REPL) complete(line string) (c []string) {
 		for _, rule := range mod.Rules {
 			path := rule.Path().String()
 			if strings.HasPrefix(path, line) {
-				c = append(c, path)
+				set[path] = struct{}{}
 			}
 		}
 	}
@@ -332,11 +333,14 @@ func (r *REPL) complete(line string) (c []string) {
 		for _, rule := range mod.Rules {
 			path := rule.Path().String()
 			if strings.HasPrefix(path, line) {
-				c = append(c, path)
+				set[path] = struct{}{}
 			}
 		}
 	}
 
+	for path := range set {
+		c = append(c, path)
+	}
 	return c
 }
 
