@@ -72,6 +72,14 @@ complex types.
 | Built-in | Inputs | Description |
 | ------- |--------|-------------|
 | <span class="opa-keep-it-together">``to_number(x, output)``</span> | 1 | ``output`` is ``x`` converted to a number |
+| <span class="opa-keep-it-together">``is_number(x, output)``</span> | 1 | ``output`` is ``true`` if ``x`` is a number |
+| <span class="opa-keep-it-together">``is_string(x, output)``</span> | 1 | ``output`` is ``true`` if ``x`` is a string |
+| <span class="opa-keep-it-together">``is_boolean(x, output)``</span> | 1 | ``output`` is ``true`` if ``x`` is a boolean |
+| <span class="opa-keep-it-together">``is_array(x, output)``</span> | 1 | ``output`` is ``true`` if ``x`` is an array |
+| <span class="opa-keep-it-together">``is_set(x, output)``</span> | 1 | ``output`` is ``true`` if ``x`` is a set |
+| <span class="opa-keep-it-together">``is_object(x, output)``</span> | 1 | ``output`` is ``true`` if ``x`` is an object |
+| <span class="opa-keep-it-together">``is_null(x, output)``</span> | 1 | ``output`` is ``true`` if ``x`` is null |
+| <span class="opa-keep-it-together">``type_name(x, output)``</span> | 1 | ``output`` is the type of ``x`` |
 
 ### <a name="encoding"/>Encoding
 

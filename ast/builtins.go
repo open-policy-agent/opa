@@ -66,8 +66,20 @@ var DefaultBuiltins = [...]*Builtin{
 	// Graphs
 	WalkBuiltin,
 
-	//Sort
+	// Sort
 	Sort,
+
+	// Type
+	IsNumber,
+	IsString,
+	IsBoolean,
+	IsArray,
+	IsSet,
+	IsObject,
+	IsNull,
+
+	//Type Name
+	TypeNameBuiltin,
 }
 
 // BuiltinMap provides a convenient mapping of built-in names to
@@ -671,6 +683,104 @@ var Sort = &Builtin{
 			),
 		),
 		types.NewArray(nil, types.A),
+	),
+}
+
+/**
+ * Type
+ */
+
+// IsNumber returns true if the input value is a number
+var IsNumber = &Builtin{
+	Name: "is_number",
+	Decl: types.NewFunction(
+		types.Args(
+			types.A,
+		),
+		types.B,
+	),
+}
+
+// IsString returns true if the input value is a string.
+var IsString = &Builtin{
+	Name: "is_string",
+	Decl: types.NewFunction(
+		types.Args(
+			types.A,
+		),
+		types.B,
+	),
+}
+
+// IsBoolean returns true if the input value is a boolean.
+var IsBoolean = &Builtin{
+	Name: "is_boolean",
+	Decl: types.NewFunction(
+		types.Args(
+			types.A,
+		),
+		types.B,
+	),
+}
+
+// IsArray returns true if the input value is an array.
+var IsArray = &Builtin{
+	Name: "is_array",
+	Decl: types.NewFunction(
+		types.Args(
+			types.A,
+		),
+		types.B,
+	),
+}
+
+// IsSet returns true if the input value is a set.
+var IsSet = &Builtin{
+	Name: "is_set",
+	Decl: types.NewFunction(
+		types.Args(
+			types.A,
+		),
+		types.B,
+	),
+}
+
+// IsObject returns true if the input value is an object.
+var IsObject = &Builtin{
+	Name: "is_object",
+	Decl: types.NewFunction(
+		types.Args(
+			types.A,
+		),
+		types.B,
+	),
+}
+
+// IsNull returns true if the input value is null.
+var IsNull = &Builtin{
+	Name: "is_null",
+	Decl: types.NewFunction(
+		types.Args(
+			types.A,
+		),
+		types.B,
+	),
+}
+
+/**
+ * Type Name
+ */
+
+// TypeNameBuiltin returns the type of the input.
+var TypeNameBuiltin = &Builtin{
+	Name: "type_name",
+	Decl: types.NewFunction(
+		types.Args(
+			types.NewAny(
+				types.A,
+			),
+		),
+		types.S,
 	),
 }
 
