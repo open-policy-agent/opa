@@ -429,8 +429,9 @@ func (c *Compiler) checkRecursion() {
 
 	c.RuleTree.DepthFirst(func(node *TreeNode) bool {
 		for _, rule := range node.Values {
-			r := rule.(*Rule)
-			c.checkSelfPath(RuleTypeName, r.Loc(), eq, r, r)
+			for node := rule.(*Rule); node != nil; node = node.Else {
+				c.checkSelfPath(RuleTypeName, node.Loc(), eq, node, node)
+			}
 		}
 		return false
 	})
@@ -1092,21 +1093,35 @@ func NewGraph(modules map[string]*Module, list func(Ref) []*Rule) *Graph {
 		sorted: nil,
 	}
 
-	// Walk over all rules, add them to graph, and build adjencency lists.
-	for _, module := range modules {
-		addRefDeps := func(a util.T) func(ref Ref) bool {
-			return func(ref Ref) bool {
-				for _, b := range list(ref.GroundPrefix()) {
+	// Create visitor to walk a rule AST and add edges to the rule graph for
+	// each dependency.
+	vis := func(a *Rule) Visitor {
+		stop := false
+		return NewGenericVisitor(func(x interface{}) bool {
+			switch x := x.(type) {
+			case Ref:
+				for _, b := range list(x.GroundPrefix()) {
 					for node := b; node != nil; node = node.Else {
 						graph.addDependency(a, node)
 					}
 				}
-				return false
+			case *Rule:
+				if stop {
+					// Do not recurse into else clauses (which will be handled
+					// by the outer visitor.)
+					return true
+				}
+				stop = true
 			}
-		}
+			return false
+		})
+	}
+
+	// Walk over all rules, add them to graph, and build adjencency lists.
+	for _, module := range modules {
 		WalkRules(module, func(a *Rule) bool {
 			graph.addNode(a)
-			WalkRefs(a, addRefDeps(a))
+			Walk(vis(a), a)
 			return false
 		})
 	}
