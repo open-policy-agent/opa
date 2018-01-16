@@ -97,9 +97,9 @@ The input `string` is a JSON Web Token encoded with JWS Compact Serialization. J
 | Built-in | Inputs | Description |
 | -------- | ------ | ----------- |
 | <span class="opa-keep-it-together">``time.now_ns(output)``</span> | 0 | ``output`` is ``number`` representing the current time since epoch in nanoseconds. |
-| <span class="opa-keep-it-together">``time.parse_ns(layout, value, output)``</span> | 2 | ``output`` is ``number`` representing the time ``value`` in nanoseconds since epoch. See the [Go `time` package documentation](https://golang.org/pkg/time/#Parse) for more details on `layout`. `` |
-| <span class="opa-keep-it-together">``time.parse_rfc3339_ns(value, output)``</span> | 1 | ``output`` is ``number`` representing the time ``value`` in nanoseconds since epoch.`` |
-| <span class="opa-keep-it-together">``time.parse_duration_ns(duration, output)``</span> | 1 | ``output`` is ``number`` representing the duration ``duration`` in nanoseconds. See the [Go `time` package documentation](https://golang.org/pkg/time/#ParseDuration) for more details on `duration`.`` |
+| <span class="opa-keep-it-together">``time.parse_ns(layout, value, output)``</span> | 2 | ``output`` is ``number`` representing the time ``value`` in nanoseconds since epoch. See the [Go `time` package documentation](https://golang.org/pkg/time/#Parse) for more details on ``layout``. |
+| <span class="opa-keep-it-together">``time.parse_rfc3339_ns(value, output)``</span> | 1 | ``output`` is ``number`` representing the time ``value`` in nanoseconds since epoch. |
+| <span class="opa-keep-it-together">``time.parse_duration_ns(duration, output)``</span> | 1 | ``output`` is ``number`` representing the duration ``duration`` in nanoseconds. See the [Go `time` package documentation](https://golang.org/pkg/time/#ParseDuration) for more details on ``duration``. |
 
 > Multiple calls to the `time.now_ns` built-in function within a single policy
 evaluation query will always return the same value.
