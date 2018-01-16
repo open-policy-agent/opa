@@ -1024,6 +1024,130 @@ func TestTopDownCasts(t *testing.T) {
 	}
 }
 
+func TestTopDownTypeBuiltin(t *testing.T) {
+	tests := []struct {
+		note     string
+		rules    []string
+		expected interface{}
+	}{
+		{"is_number", []string{
+			`p = [x, y, z] { is_number(-42.0, x); is_number(0, y); is_number(100.1, z) }`,
+		}, "[true, true, true]"},
+
+		{"is_number", []string{
+			`p = x { is_number(null, x) }`,
+		}, ""},
+
+		{"is_number", []string{
+			`p = x { is_number(false, x) }`,
+		}, ""},
+
+		{"is_number", []string{
+			`p[x] {arr = [true, 1]; arr[_] = x; is_number(x) }`,
+		}, "[1]"},
+
+		{"is_string", []string{
+			`p = [x, y, z] { is_string("Hello", x); is_string("There", y); is_string("OPA", z) }`,
+		}, "[true, true, true]"},
+
+		{"is_string", []string{
+			`p = x { is_string(null, x) }`,
+		}, ""},
+
+		{"is_string", []string{
+			`p = x { is_string(false, x) }`,
+		}, ""},
+
+		{"is_string", []string{
+			`p[x] {arr = [true, 1, "Hey"]; arr[_] = x; is_string(x) }`,
+		}, "[\"Hey\"]"},
+
+		{"is_boolean", []string{
+			`p = [x, y] { is_boolean(true, x); is_boolean(false, y) }`,
+		}, "[true, true]"},
+
+		{"is_boolean", []string{
+			`p = x { is_boolean(null, x) }`,
+		}, ""},
+
+		{"is_boolean", []string{
+			`p = x { is_boolean("Hello", x) }`,
+		}, ""},
+
+		{"is_boolean", []string{
+			`p[x] {arr = [false, 1, "Hey"]; arr[_] = x; is_boolean(x) }`,
+		}, "[false]"},
+
+		{"is_array", []string{
+			`p = [x, y] { is_array([1,2,3], x); is_array(["a", "b"], y) }`,
+		}, "[true, true]"},
+
+		{"is_array", []string{
+			`p = x { is_array({1,2,3}, x) }`,
+		}, ""},
+
+		{"is_set", []string{
+			`p = [x, y] { is_set({1,2,3}, x); is_set({"a", "b"}, y) }`,
+		}, "[true, true]"},
+
+		{"is_set", []string{
+			`p = x { is_set([1,2,3], x) }`,
+		}, ""},
+
+		{"is_object", []string{
+			`p = x { is_object({"foo": yy | yy = 1}, x) }`,
+		}, "true"},
+
+		{"is_object", []string{
+			`p = x { is_object("foo", x) }`,
+		}, ""},
+
+		{"is_null", []string{
+			`p = x { is_null(null, x) }`,
+		}, "true"},
+
+		{"is_null", []string{
+			`p = x { is_null(true, x) }`,
+		}, ""},
+	}
+
+	data := loadSmallTestData()
+
+	for _, tc := range tests {
+		runTopDownTestCase(t, data, tc.note, tc.rules, tc.expected)
+	}
+}
+
+func TestTopDownTypeNameBuiltin(t *testing.T) {
+	tests := []struct {
+		note     string
+		rules    []string
+		expected interface{}
+	}{
+		{"type_name", []string{
+			`p = x { type_name(null, x) }`}, ast.String("null")},
+		{"type_name", []string{
+			`p = x { type_name(true, x) }`}, ast.String("boolean")},
+		{"type_name", []string{
+			`p = x { type_name(100, x) }`}, ast.String("number")},
+		{"type_name", []string{
+			`p = x { type_name("Hello", x) }`}, ast.String("string")},
+		{"type_name", []string{
+			`p = x { type_name([1,2,3], x) }`}, ast.String("array")},
+		{"type_name", []string{
+			`p = x { type_name({1,2,3}, x) }`}, ast.String("set")},
+		{"type_name", []string{
+			`p = x { type_name({"foo": yy | yy = 1}, x) }`}, ast.String("object")},
+	}
+
+	data := loadSmallTestData()
+
+	for _, tc := range tests {
+		runTopDownTestCase(t, data, tc.note, tc.rules, tc.expected)
+	}
+
+}
+
 func TestTopDownRegex(t *testing.T) {
 	tests := []struct {
 		note     string

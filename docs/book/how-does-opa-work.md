@@ -378,7 +378,7 @@ The response is an object that contains the array of servers:
 Now let’s write a policy that enumerates servers that are connected to public networks and that are using HTTP. These servers are violating a business rule that states that all public servers must use HTTPS.
 
 ```ruby
-# This policy module belongs the opa.example package.
+# This policy module belongs to the opa.examples package.
 package opa.examples
 
 # Refer to data.servers as `servers`.
@@ -416,7 +416,7 @@ Note that:
   * Rules consist of assertions about data stored in OPA. In this case, the assertions test for equality with, and membership of, values in the servers, networks, and ports documents.
   * Expressions can reference elements in a collection using the `[_]` and `[<variable>]` syntax. OPA knows to evaluate such queries by iterating over each element in the corresponding collection.
   * Assertions about elements in a collection are `true` if any of the elements match the expression, and are only `false` when none of the elements match. For example, `ports[i].networks[_] = networks[j].id` will be `true` whenever any element in `ports[i].networks` matches the id of any element in `networks`.
-  * Expressions can reference nested documents. For `example,ports[i].networks[_]` refers to each network ID listed in each port document.
+  * Expressions can reference nested documents. For example, `ports[i].networks[_]` refers to each network ID listed in each port document.
   * Expressions can reference virtual documents. For example, `public_servers[server] = true` matches only if `server` is in the list produced by the `public_servers` rule.
 
 After publishing this policy module, data will include additional documents corresponding to the module’s package declaration (opa.examples) and the virtual documents its rules generate.

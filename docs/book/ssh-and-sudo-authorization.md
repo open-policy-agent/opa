@@ -85,7 +85,7 @@ echo '{"host_id": "frontend"}' > frontend_host_id.json
 echo '{"host_id": "backend"}' > backend_host_id.json
 ```
 
-> In real-world scenarios, these files could contain arbitrary infomration that we want to expose to the policy.
+> In real-world scenarios, these files could contain arbitrary information that we want to expose to the policy.
 
 Finally, run `docker-compose` to pull and run the containers.
 

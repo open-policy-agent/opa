@@ -376,7 +376,7 @@ Variables appearing in the head of a rule must also appear in a non-negated equa
 
 ## <a name="references"></a> References
 
-Referenced are used to access nested documents.
+References are used to access nested documents.
 
 The examples in this section use the data defined in the [Examples](#examples-data) section.
 
@@ -579,7 +579,7 @@ Comprehensions are similar to the same constructs found in other languages like 
 
 ```ruby
 # Python equivalent of Rego comprehension shown above.
-names = [site.name for site in sites if site.region = "west"]
+names = [site.name for site in sites if site.region == "west"]
 ```
 
 Comprehensions are often used to group elements by some key. A common use case for comprehensions is to assist in computing aggregate values (e.g., the number of containers running on a host).
