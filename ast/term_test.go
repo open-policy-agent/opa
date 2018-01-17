@@ -347,6 +347,26 @@ func TestRefAppend(t *testing.T) {
 	}
 }
 
+func TestRefInsert(t *testing.T) {
+	ref := MustParseRef("test.ex")
+	cases := []struct {
+		pos      int
+		term     *Term
+		expected string
+	}{
+		{0, VarTerm("foo"), `foo[test].ex`},
+		{1, StringTerm("foo"), `test.foo.ex`},
+		{2, StringTerm("foo"), `test.ex.foo`},
+	}
+	for i := range cases {
+		result := ref.Insert(cases[i].term, cases[i].pos)
+		expected := MustParseRef(cases[i].expected)
+		if !expected.Equal(result) {
+			t.Fatalf("Expected %v (len: %d) but got: %v (len: %d)", expected, len(expected), result, len(result))
+		}
+	}
+}
+
 func TestRefDynamic(t *testing.T) {
 	a := MustParseRef("foo.bar[baz.qux].corge")
 	if a.Dynamic() != 2 {

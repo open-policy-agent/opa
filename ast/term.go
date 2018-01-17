@@ -741,14 +741,24 @@ func (ref Ref) Append(term *Term) Ref {
 	return dst
 }
 
-// Dynamic returns the offset of the first non-constant operand of ref.
-func (ref Ref) Dynamic() int {
-	for i := 1; i < len(ref); i++ {
-		if !IsConstant(ref[i].Value) {
-			return i
-		}
+// Insert returns a copy of the ref with x inserted at pos. If pos < len(ref),
+// existing elements are shifted to the right. If pos > len(ref)+1 this
+// function panics.
+func (ref Ref) Insert(x *Term, pos int) Ref {
+	if pos == len(ref) {
+		return ref.Append(x)
+	} else if pos > len(ref)+1 {
+		panic("illegal index")
 	}
-	return -1
+	cpy := make(Ref, len(ref)+1)
+	for i := 0; i < pos; i++ {
+		cpy[i] = ref[i]
+	}
+	cpy[pos] = x
+	for i := pos; i < len(ref); i++ {
+		cpy[i+1] = ref[i]
+	}
+	return cpy
 }
 
 // Extend returns a copy of ref with the terms from other appended. The head of
@@ -766,6 +776,16 @@ func (ref Ref) Extend(other Ref) Ref {
 		dst[offset+i+1] = other[i+1]
 	}
 	return dst
+}
+
+// Dynamic returns the offset of the first non-constant operand of ref.
+func (ref Ref) Dynamic() int {
+	for i := 1; i < len(ref); i++ {
+		if !IsConstant(ref[i].Value) {
+			return i
+		}
+	}
+	return -1
 }
 
 // Copy returns a deep copy of ref.
