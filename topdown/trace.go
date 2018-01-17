@@ -28,6 +28,10 @@ const (
 	// RedoOp is emitted when an expression, rule, or query is being re-evaluated.
 	RedoOp Op = "Redo"
 
+	// SaveOp is emitted when an expression is saved instead of evaluated
+	// during partial evaluation.
+	SaveOp Op = "Save"
+
 	// FailOp is emitted when an expression evaluates to false.
 	FailOp Op = "Fail"
 )

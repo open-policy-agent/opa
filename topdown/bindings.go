@@ -6,6 +6,7 @@ package topdown
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/util"
@@ -31,10 +32,11 @@ func (u *undo) Undo() {
 }
 
 type bindings struct {
+	id     uint64
 	values *util.HashMap
 }
 
-func newBindings() *bindings {
+func newBindings(id uint64) *bindings {
 
 	eq := func(a, b util.T) bool {
 		v1, ok1 := a.(*ast.Term)
@@ -54,10 +56,10 @@ func newBindings() *bindings {
 
 	values := util.NewHashMap(eq, hash)
 
-	return &bindings{values}
+	return &bindings{id, values}
 }
 
-func (u *bindings) Iter(iter func(*ast.Term, *ast.Term) error) error {
+func (u *bindings) Iter(caller *bindings, iter func(*ast.Term, *ast.Term) error) error {
 
 	var err error
 
@@ -66,7 +68,7 @@ func (u *bindings) Iter(iter func(*ast.Term, *ast.Term) error) error {
 			return true
 		}
 		term := k.(*ast.Term)
-		err = iter(term, u.Plug(term))
+		err = iter(term, u.PlugNamespaced(term, caller))
 		return false
 	})
 
@@ -74,46 +76,56 @@ func (u *bindings) Iter(iter func(*ast.Term, *ast.Term) error) error {
 }
 
 func (u *bindings) Plug(a *ast.Term) *ast.Term {
+	return u.PlugNamespaced(a, nil)
+}
+
+func (u *bindings) PlugNamespaced(a *ast.Term, caller *bindings) *ast.Term {
 	switch v := a.Value.(type) {
 	case ast.Var:
 		b, next := u.apply(a)
 		if a != b || u != next {
-			return next.Plug(b)
+			return next.PlugNamespaced(b, caller)
+		}
+		if caller != nil && caller != u {
+			if name, ok := b.Value.(ast.Var); ok {
+				return ast.NewTerm(ast.Var(string(name) + fmt.Sprint(u.id)))
+			}
 		}
 		return b
 	case ast.Array:
 		cpy := *a
 		arr := make(ast.Array, len(v))
 		for i := 0; i < len(arr); i++ {
-			arr[i] = u.Plug(v[i])
+			arr[i] = u.PlugNamespaced(v[i], caller)
 		}
 		cpy.Value = arr
 		return &cpy
 	case ast.Object:
 		cpy := *a
 		cpy.Value, _ = v.Map(func(k, v *ast.Term) (*ast.Term, *ast.Term, error) {
-			return u.Plug(k), u.Plug(v), nil
+			return u.PlugNamespaced(k, caller), u.PlugNamespaced(v, caller), nil
 		})
 		return &cpy
 	case ast.Set:
 		cpy := *a
 		cpy.Value, _ = v.Map(func(x *ast.Term) (*ast.Term, error) {
-			return u.Plug(x), nil
+			return u.PlugNamespaced(x, caller), nil
 		})
+		return &cpy
+	case ast.Ref:
+		cpy := *a
+		ref := make(ast.Ref, len(v))
+		ref[0] = v[0]
+		for i := 1; i < len(ref); i++ {
+			ref[i] = u.PlugNamespaced(v[i], caller)
+		}
+		cpy.Value = ref
 		return &cpy
 	}
 	return a
 }
 
-func (u *bindings) String() string {
-	if u == nil {
-		return "{}"
-	}
-	return u.values.String()
-}
-
 func (u *bindings) bind(a *ast.Term, b *ast.Term, other *bindings) *undo {
-	// fmt.Println("bind:", a, b)
 	u.values.Put(a, value{
 		u: other,
 		v: b,
@@ -144,13 +156,25 @@ func (u *bindings) get(v *ast.Term) (value, bool) {
 	return r.(value), true
 }
 
+func (u *bindings) String() string {
+	if u == nil {
+		return "()"
+	}
+	var buf []string
+	u.values.Iter(func(a, b util.T) bool {
+		buf = append(buf, fmt.Sprintf("%v: %v", a, b))
+		return false
+	})
+	return fmt.Sprintf("({%v}, %v)", strings.Join(buf, ", "), u.id)
+}
+
 type value struct {
 	u *bindings
 	v *ast.Term
 }
 
 func (v value) String() string {
-	return fmt.Sprintf("<%v, %p>", v.v, v.u)
+	return fmt.Sprintf("(%v, %d)", v.v, v.u.id)
 }
 
 func (v value) equal(other *value) bool {

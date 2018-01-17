@@ -21,8 +21,8 @@ func TestBindingsZeroValues(t *testing.T) {
 	}
 
 	// String
-	if unifier.String() != "{}" {
-		t.Fatalf("Expected empty string but got: %v", unifier.String())
+	if unifier.String() != "()" {
+		t.Fatalf("Expected empty binding list but got: %v", unifier.String())
 	}
 }
 

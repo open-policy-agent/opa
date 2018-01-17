@@ -50,6 +50,7 @@ type REPL struct {
 	bufferPrompt      string
 	banner            string
 	types             bool
+	unknowns          []*ast.Term
 	bufferDisabled    bool
 	undefinedDisabled bool
 	errLimit          int
@@ -256,6 +257,8 @@ func (r *REPL) OneShot(ctx context.Context, line string) error {
 				return r.cmdMetrics()
 			case "types":
 				return r.cmdTypes()
+			case "partial":
+				return r.cmdPartial(cmd.args)
 			case "help":
 				return r.cmdHelp(cmd.args)
 			case "exit":
@@ -429,6 +432,21 @@ func (r *REPL) cmdMetrics() error {
 
 func (r *REPL) cmdTypes() error {
 	r.types = !r.types
+	return nil
+}
+
+func (r *REPL) cmdPartial(s []string) error {
+	if len(s) == 0 && len(r.unknowns) == 0 {
+		return fmt.Errorf("usage: partial <unknown-1> [<unknown-2> [...]] (hint: try just 'input')")
+	}
+	r.unknowns = make([]*ast.Term, len(s))
+	for i := range r.unknowns {
+		ref, err := ast.ParseRef(s[i])
+		if err != nil {
+			return err
+		}
+		r.unknowns[i] = ast.NewTerm(ref)
+	}
 	return nil
 }
 
@@ -703,10 +721,13 @@ func (r *REPL) evalStatement(ctx context.Context, stmt interface{}) error {
 			return err
 		}
 
-		err = r.evalBody(ctx, compiler, input, body)
-
-		if r.types {
-			r.printTypes(ctx, typeEnv, body)
+		if len(r.unknowns) > 0 {
+			err = r.evalPartial(ctx, compiler, input, body)
+		} else {
+			err = r.evalBody(ctx, compiler, input, body)
+			if r.types {
+				r.printTypes(ctx, typeEnv, body)
+			}
 		}
 
 		return err
@@ -852,6 +873,36 @@ func (r *REPL) evalBody(ctx context.Context, compiler *ast.Compiler, input ast.V
 
 	sort.Strings(keys)
 	r.printResults(keys, results)
+
+	return nil
+}
+
+func (r *REPL) evalPartial(ctx context.Context, compiler *ast.Compiler, input ast.Value, body ast.Body) error {
+
+	q := topdown.NewQuery(body).
+		WithCompiler(compiler).
+		WithStore(r.store).
+		WithTransaction(r.txn).
+		WithUnknowns(r.unknowns)
+
+	if input != nil {
+		q = q.WithInput(ast.NewTerm(input))
+	}
+
+	queries, support, err := q.PartialRun(ctx)
+	if err != nil {
+		return err
+	}
+
+	for i := range queries {
+		fmt.Fprintln(r.output, queries[i])
+	}
+
+	for i := range support {
+		fmt.Fprintln(r.output)
+		fmt.Fprintf(r.output, "# support module %d\n", i+1)
+		fmt.Fprintln(r.output, support[i])
+	}
 
 	return nil
 }
@@ -1076,6 +1127,7 @@ var builtin = [...]commandDesc{
 	{"trace", []string{}, "toggle full trace"},
 	{"metrics", []string{}, "toggle metrics"},
 	{"types", []string{}, "toggle type information"},
+	{"partial", []string{"[ref-1 [ref-2 [...]]]"}, "toggle partial evaluation mode"},
 	{"dump", []string{"[path]"}, "dump raw data in storage"},
 	{"help", []string{"[topic]"}, "print this message"},
 	{"exit", []string{}, "exit out of shell (or ctrl+d)"},
@@ -1088,7 +1140,8 @@ type topicDesc struct {
 }
 
 var topics = map[string]topicDesc{
-	"input": {printHelpInput, "how to set input document"},
+	"input":   {printHelpInput, "how to set input document"},
+	"partial": {printHelpPartial, "how to use partial evaluation"},
 }
 
 type command struct {
@@ -1252,10 +1305,8 @@ func printHelpCommands(output io.Writer) {
 }
 
 func printHelpInput(output io.Writer) error {
-	fmt.Fprintln(output, "")
-	fmt.Fprintln(output, "Input")
-	fmt.Fprintln(output, "=======")
-	fmt.Fprintln(output, "")
+
+	printHelpTitle(output, "Input")
 
 	txt := strings.TrimSpace(`
 Rego allows queries to refer to documents outside of the storage layer. These
@@ -1288,4 +1339,39 @@ For example:
 
 	fmt.Fprintln(output, txt)
 	return nil
+}
+
+func printHelpPartial(output io.Writer) error {
+
+	printHelpTitle(output, "Partial")
+
+	txt := strings.TrimSpace(`
+Rego queries can be partially evaluated with respect to the specific variables,
+inputs, or any document rooted under data. The result of partial evaluation is
+a new set of queries that can be evaluated later.
+
+For example:
+
+	> allowed_methods = ["GET", "HEAD"]
+
+	# Enable partial evaluation. Treat input document as unknown.
+	> partial input
+
+	# Partially evaluate a query.
+	> method = allowed_methods[i]; input.method = method
+	input.method = "GET"; i = 0; method = "GET"
+	input.method = "HEAD"; i = 1; method = "HEAD"
+
+	# Turn off partial evaluation by running the 'partial' command with no arguments.
+	> partial`) + "\n"
+
+	fmt.Fprintln(output, txt)
+	return nil
+}
+
+func printHelpTitle(output io.Writer, title string) {
+	fmt.Fprintln(output, "")
+	fmt.Fprintln(output, title)
+	fmt.Fprintln(output, "=======")
+	fmt.Fprintln(output, "")
 }
