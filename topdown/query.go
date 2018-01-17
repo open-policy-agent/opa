@@ -2,6 +2,7 @@ package topdown
 
 import (
 	"context"
+	"sort"
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/metrics"
@@ -18,20 +19,25 @@ type QueryResult map[ast.Var]*ast.Term
 
 // Query provides a configurable interface for performing query evaluation.
 type Query struct {
-	cancel   Cancel
-	query    ast.Body
-	compiler *ast.Compiler
-	store    storage.Store
-	txn      storage.Transaction
-	input    *ast.Term
-	tracer   Tracer
-	partial  []*ast.Term
-	metrics  metrics.Metrics
+	cancel           Cancel
+	query            ast.Body
+	compiler         *ast.Compiler
+	store            storage.Store
+	txn              storage.Transaction
+	input            *ast.Term
+	tracer           Tracer
+	unknowns         []*ast.Term
+	partialNamespace string
+	metrics          metrics.Metrics
+	genvarprefix     string
 }
 
 // NewQuery returns a new Query object that can be run.
 func NewQuery(query ast.Body) *Query {
-	return &Query{query: query}
+	return &Query{
+		query:        query,
+		genvarprefix: ast.WildcardPrefix,
+	}
 }
 
 // WithCompiler sets the compiler to use for the query.
@@ -80,54 +86,76 @@ func (q *Query) WithMetrics(metrics metrics.Metrics) *Query {
 	return q
 }
 
-// WithPartial sets the initial set of vars or refs to treat as unavailable
-// during query evaluation. This is typically required for partial evaluation.
-func (q *Query) WithPartial(terms []*ast.Term) *Query {
-	q.partial = terms
+// WithUnknowns sets the initial set of variables or references to treat as
+// unknown during query evaluation. This is required for partial evaluation.
+func (q *Query) WithUnknowns(terms []*ast.Term) *Query {
+	q.unknowns = terms
 	return q
 }
 
-// PartialRun is a wrapper around PartialIter that accumulates results and returns
-// them in one shot.
-func (q *Query) PartialRun(ctx context.Context) ([]ast.Body, error) {
-	partials := []ast.Body{}
-	return partials, q.PartialIter(ctx, func(partial ast.Body) error {
-		partials = append(partials, partial)
-		return nil
-	})
+// WithPartialNamespace sets the namespace to use for supporting rules
+// generated as part of the partial evaluation process. The ns value must be a
+// valid package path component.
+func (q *Query) WithPartialNamespace(ns string) *Query {
+	q.partialNamespace = ns
+	return q
 }
 
-// PartialIter executes the query invokes the iter function with partially
-// evaluated queries produced by evaluating the query with a partial set.
-func (q *Query) PartialIter(ctx context.Context, iter func(ast.Body) error) error {
+// PartialRun executes partial evaluation on the query with respect to unknown
+// values. Partial evaluation attempts to evaluate as much of the query as
+// possible without requiring values for the unknowns set on the query. The
+// result of partial evaluation is a new set of queries that can be evaluated
+// once the unknown value is known. In addition to new queries, partial
+// evaluation may produce additional support modules that should be used in
+// conjunction with the partially evaluated queries.
+func (q *Query) PartialRun(ctx context.Context) (partials []ast.Body, support []*ast.Module, err error) {
+	if q.partialNamespace == "" {
+		q.partialNamespace = "partial" // lazily initialize partial namespace
+	}
 	e := &eval{
-		ctx:          ctx,
-		cancel:       q.cancel,
-		query:        q.query,
-		bindings:     newBindings(),
-		compiler:     q.compiler,
-		store:        q.store,
-		txn:          q.txn,
-		input:        q.input,
-		tracer:       q.tracer,
-		builtinCache: builtins.Cache{},
-		virtualCache: newVirtualCache(),
-		saveSet:      newSaveSet(q.partial),
-		saveStack:    newSaveStack(),
+		ctx:           ctx,
+		cancel:        q.cancel,
+		query:         q.query,
+		bindings:      newBindings(0),
+		compiler:      q.compiler,
+		store:         q.store,
+		txn:           q.txn,
+		input:         q.input,
+		tracer:        q.tracer,
+		builtinCache:  builtins.Cache{},
+		virtualCache:  newVirtualCache(),
+		saveSet:       newSaveSet(q.unknowns),
+		saveStack:     newSaveStack(),
+		saveSupport:   newSaveSupport(),
+		saveNamespace: ast.StringTerm(q.partialNamespace),
+		genvarprefix:  q.genvarprefix,
 	}
 	q.startTimer()
 	defer q.stopTimer()
-	return e.Run(func(e *eval) error {
+	err = e.Run(func(e *eval) error {
+		// Build output from saved expressions.
 		body := ast.NewBody()
-		for _, elem := range e.saveStack.Stack {
-			body.Append(plugExpr(elem.Bindings, elem.Expr))
+		for _, elem := range e.saveStack.Stack[len(e.saveStack.Stack)-1] {
+			body.Append(elem.Plug(e.bindings))
 		}
-		e.bindings.Iter(func(a, b *ast.Term) error {
-			body.Append(ast.Equality.Expr(a, b))
+		// Include bindings as exprs so that when caller evals the result, they
+		// can obtain values for the vars in their query.
+		bindingExprs := []*ast.Expr{}
+		e.bindings.Iter(e.bindings, func(a, b *ast.Term) error {
+			bindingExprs = append(bindingExprs, ast.Equality.Expr(a, b))
 			return nil
 		})
-		return iter(body)
+		// Sort binding expressions so that results are deterministic.
+		sort.Slice(bindingExprs, func(i, j int) bool {
+			return bindingExprs[i].Compare(bindingExprs[j]) < 0
+		})
+		for i := range bindingExprs {
+			body.Append(bindingExprs[i])
+		}
+		partials = append(partials, body)
+		return nil
 	})
+	return partials, e.saveSupport.List(), err
 }
 
 // Run is a wrapper around Iter that accumulates query results and returns them
@@ -147,7 +175,7 @@ func (q *Query) Iter(ctx context.Context, iter func(QueryResult) error) error {
 		ctx:          ctx,
 		cancel:       q.cancel,
 		query:        q.query,
-		bindings:     newBindings(),
+		bindings:     newBindings(0),
 		compiler:     q.compiler,
 		store:        q.store,
 		txn:          q.txn,
@@ -155,12 +183,13 @@ func (q *Query) Iter(ctx context.Context, iter func(QueryResult) error) error {
 		tracer:       q.tracer,
 		builtinCache: builtins.Cache{},
 		virtualCache: newVirtualCache(),
+		genvarprefix: q.genvarprefix,
 	}
 	q.startTimer()
 	defer q.stopTimer()
 	return e.Run(func(e *eval) error {
 		qr := QueryResult{}
-		e.bindings.Iter(func(k, v *ast.Term) error {
+		e.bindings.Iter(nil, func(k, v *ast.Term) error {
 			qr[k.Value.(ast.Var)] = v
 			return nil
 		})
@@ -178,17 +207,4 @@ func (q *Query) stopTimer() {
 	if q.metrics != nil {
 		q.metrics.Timer(metrics.RegoQueryEval).Stop()
 	}
-}
-
-func plugExpr(b *bindings, expr *ast.Expr) *ast.Expr {
-	expr = expr.Copy()
-	switch terms := expr.Terms.(type) {
-	case *ast.Term:
-		expr.Terms = b.Plug(terms)
-	case []*ast.Term:
-		for i := range terms {
-			terms[i] = b.Plug(terms[i])
-		}
-	}
-	return expr
 }

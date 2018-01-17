@@ -626,6 +626,13 @@ func (body *Body) Append(expr *Expr) {
 	*body = append(*body, expr)
 }
 
+// Set sets the expr in the body at the specified position and updates the
+// expr's index accordingly.
+func (body Body) Set(expr *Expr, pos int) {
+	body[pos] = expr
+	expr.Index = pos
+}
+
 // Compare returns an integer indicating whether body is less than, equal to,
 // or greater than other.
 //

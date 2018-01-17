@@ -155,6 +155,173 @@ func ExampleQuery_Run() {
 	// err: <nil>
 }
 
+func ExampleQuery_PartialRun() {
+
+	// Initialize context for the example. Normally the caller would obtain the
+	// context from an input parameter or instantiate their own.
+	ctx := context.Background()
+
+	var data map[string]interface{}
+	decoder := json.NewDecoder(bytes.NewBufferString(`{
+		"roles": [
+			{
+				"permissions": ["read_bucket"],
+				"groups": ["dev", "test", "sre"]
+			},
+			{
+				"permissions": ["write_bucket", "delete_bucket"],
+				"groups": ["sre"]
+			}
+		]
+	}`))
+	if err := decoder.Decode(&data); err != nil {
+		// Handle error.
+	}
+
+	// Instantiate the policy engine's storage layer.
+	store := inmem.NewFromObject(data)
+
+	// Create a new transaction. Transactions allow the policy engine to
+	// evaluate the query over a consistent snapshot fo the storage layer.
+	txn, err := store.NewTransaction(ctx)
+	if err != nil {
+		// Handle error.
+	}
+
+	defer store.Abort(ctx, txn)
+
+	// Define policy that searches for roles that match input request. If no
+	// roles are found, allow is undefined and the caller will reject the
+	// request. This is the user supplied policy that OPA will partially
+	// evaluate.
+	modules := map[string]*ast.Module{
+		"authz.rego": ast.MustParseModule(`
+			package example
+
+			default allow = false
+
+			allow {
+				role = data.roles[i]
+				input.group = role.groups[j]
+				input.permission = role.permissions[k]
+			}
+		`),
+	}
+
+	// Compile policy.
+	compiler := ast.NewCompiler()
+	if compiler.Compile(modules); compiler.Failed() {
+		// Handle error.
+	}
+
+	// Construct query and mark the entire input document as partial.
+	q := topdown.NewQuery(ast.MustParseBody("data.example.allow = true")).
+		WithCompiler(compiler).
+		WithUnknowns([]*ast.Term{
+			ast.InputRootDocument,
+		}).
+		WithStore(store).
+		WithTransaction(txn)
+
+	// Execute partial evaluation.
+	partial, support, err := q.PartialRun(ctx)
+	if err != nil {
+		// Handle error.
+	}
+
+	// Show result of partially evaluating the policy.
+
+	fmt.Println("# partial evaluation result:")
+
+	for i := range partial {
+		fmt.Println(partial[i])
+	}
+
+	fmt.Println()
+	fmt.Println("# partial evaluation support:")
+
+	for i := range support {
+		fmt.Println(support[i])
+	}
+
+	// Construct a new policy to contain the result of partial evaluation.
+	module := ast.MustParseModule("package partial")
+
+	for i := range partial {
+		rule := &ast.Rule{
+			Head: &ast.Head{
+				Name:  ast.Var("allow"),
+				Value: ast.BooleanTerm(true),
+			},
+			Body:   partial[i],
+			Module: module,
+		}
+		module.Rules = append(module.Rules, rule)
+	}
+
+	// Compile the partially evaluated policy with the original policy.
+	modules["partial"] = module
+
+	for i, v := range support {
+		modules[fmt.Sprintf("partial_support_%d", i)] = v
+	}
+
+	if compiler.Compile(modules); compiler.Failed() {
+		// Handle error.
+	}
+
+	// Test different inputs against partially evaluated policy.
+	inputs := []string{
+		`{"group": "dev", "permission": "read_bucket"}`,  // allow
+		`{"group": "dev", "permission": "write_bucket"}`, // deny
+		`{"group": "sre", "permission": "write_bucket"}`, // allow
+	}
+
+	fmt.Println()
+	fmt.Println("# evaluation results:")
+
+	for i := range inputs {
+
+		// Query partially evaluated policy.
+		q = topdown.NewQuery(ast.MustParseBody("data.partial.allow = true")).
+			WithCompiler(compiler).
+			WithStore(store).
+			WithTransaction(txn).
+			WithInput(ast.MustParseTerm(inputs[i]))
+
+		qrs, err := q.Run(ctx)
+		if err != nil {
+			// Handle error.
+		}
+
+		// Check if input is allowed.
+		allowed := len(qrs) == 1
+
+		fmt.Printf("input %d allowed: %v\n", i+1, allowed)
+	}
+
+	// Output:
+	//
+	// # partial evaluation result:
+	// data.partial.example.allow = true
+	//
+	// # partial evaluation support:
+	// package partial.example
+	//
+	// allow = true { "dev" = input.group; "read_bucket" = input.permission }
+	// allow = true { "test" = input.group; "read_bucket" = input.permission }
+	// allow = true { "sre" = input.group; "read_bucket" = input.permission }
+	// allow = true { "sre" = input.group; "write_bucket" = input.permission }
+	// allow = true { "sre" = input.group; "delete_bucket" = input.permission }
+	// default allow = false
+	//
+	// # evaluation results:
+	// input 1 allowed: true
+	// input 2 allowed: false
+	// input 3 allowed: true
+
+}
+
 func ExampleRegisterFunctionalBuiltin1() {
 
 	// Rego includes a number of built-in functions ("built-ins") for performing

@@ -342,6 +342,33 @@ func TestTypes(t *testing.T) {
 
 }
 
+func TestPartial(t *testing.T) {
+	ctx := context.Background()
+	store := inmem.New()
+	var buffer bytes.Buffer
+	repl := newRepl(store, &buffer)
+
+	repl.OneShot(ctx, "xs = [1,2,3]")
+
+	err := repl.OneShot(ctx, "partial input")
+	if err != nil {
+		t.Fatal("Unexpected command error:", err)
+	}
+
+	repl.OneShot(ctx, "data.repl.xs[i] = x; input.x = x")
+
+	output := strings.TrimSpace(buffer.String())
+	expected := strings.TrimSpace(`
+input.x = 1; i = 0; x = 1
+input.x = 2; i = 1; x = 2
+input.x = 3; i = 2; x = 3
+`)
+
+	if output != expected {
+		t.Fatalf("Unexpected output. Expected:\n\n%v\n\nGot:\n\n%v", expected, output)
+	}
+}
+
 func TestUnset(t *testing.T) {
 	ctx := context.Background()
 	store := inmem.New()

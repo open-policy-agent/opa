@@ -7,6 +7,7 @@ package topdown
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"sync"
 	"testing"
 	"text/template"
@@ -275,4 +276,219 @@ func generateVirtualDocsBenchmarkData(numTotalRules, numHitRules int) (*ast.Modu
 		}`)
 
 	return ast.MustParseModule(buf.String()), input
+}
+
+func BenchmarkPartialEval(b *testing.B) {
+	sizes := []int{1, 10, 100, 1000}
+	for _, n := range sizes {
+		b.Run(fmt.Sprint(n), func(b *testing.B) {
+			runPartialEvalBenchmark(b, n)
+		})
+	}
+}
+
+func BenchmarkPartialEvalCompile(b *testing.B) {
+	sizes := []int{1, 10, 100, 1000}
+	for _, n := range sizes {
+		b.Run(fmt.Sprint(n), func(b *testing.B) {
+			runPartialEvalCompileBenchmark(b, n)
+		})
+	}
+}
+
+func runPartialEvalBenchmark(b *testing.B, numRoles int) {
+
+	ctx := context.Background()
+	compiler := ast.NewCompiler()
+	compiler.Compile(map[string]*ast.Module{
+		"authz": ast.MustParseModule(partialEvalBenchmarkPolicy),
+	})
+
+	if compiler.Failed() {
+		b.Fatal(compiler.Errors)
+	}
+
+	var partials []ast.Body
+	var support []*ast.Module
+	data := generatePartialEvalBenchmarkData(numRoles)
+	store := inmem.NewFromObject(data)
+
+	err := storage.Txn(ctx, store, storage.TransactionParams{}, func(txn storage.Transaction) error {
+		query := NewQuery(ast.MustParseBody("data.authz.allow = true")).
+			WithUnknowns([]*ast.Term{ast.InputRootDocument}).
+			WithCompiler(compiler).
+			WithStore(store).
+			WithTransaction(txn)
+		var err error
+		partials, support, err = query.PartialRun(ctx)
+		return err
+	})
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	if len(partials) != 1 {
+		b.Fatal("Expected exactly one partial query result but got:", partials)
+	} else if len(support) != 1 {
+		b.Fatal("Expected exactly one partial support result but got:", support)
+	}
+
+	compiler = ast.NewCompiler()
+	compiler.Compile(map[string]*ast.Module{
+		"authz":   ast.MustParseModule(partialEvalBenchmarkPolicy),
+		"partial": support[0],
+	})
+	if compiler.Failed() {
+		b.Fatal(compiler.Errors)
+	}
+
+	input := generatePartialEvalBenchmarkInput(numRoles)
+
+	err = storage.Txn(ctx, store, storage.TransactionParams{}, func(txn storage.Transaction) error {
+		query := NewQuery(ast.MustParseBody("data.partial.authz.allow = true")).
+			WithCompiler(compiler).
+			WithStore(store).
+			WithTransaction(txn).
+			WithInput(input)
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			qrs, err := query.Run(ctx)
+			if len(qrs) != 1 || err != nil {
+				b.Fatal("Unexpected query result:", qrs, "err:", err)
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		b.Fatal(err)
+	}
+}
+
+func runPartialEvalCompileBenchmark(b *testing.B, numRoles int) {
+
+	ctx := context.Background()
+	data := generatePartialEvalBenchmarkData(numRoles)
+	store := inmem.NewFromObject(data)
+
+	err := storage.Txn(ctx, store, storage.TransactionParams{}, func(txn storage.Transaction) error {
+
+		b.ResetTimer()
+
+		for i := 0; i < b.N; i++ {
+			// compile original policy
+			compiler := ast.NewCompiler()
+			compiler.Compile(map[string]*ast.Module{
+				"authz": ast.MustParseModule(partialEvalBenchmarkPolicy),
+			})
+			if compiler.Failed() {
+				return compiler.Errors
+			}
+
+			// run partial evaluation
+			var partials []ast.Body
+			var support []*ast.Module
+			query := NewQuery(ast.MustParseBody("data.authz.allow = true")).
+				WithUnknowns([]*ast.Term{ast.InputRootDocument}).
+				WithCompiler(compiler).
+				WithStore(store).
+				WithTransaction(txn)
+			var err error
+			partials, support, err = query.PartialRun(ctx)
+			if err != nil {
+				return err
+			}
+
+			if len(partials) != 1 {
+				b.Fatal("Expected exactly one partial query result but got:", partials)
+			} else if len(support) != 1 {
+				b.Fatal("Expected exactly one partial support result but got:", support)
+			}
+
+			// recompile output
+			compiler = ast.NewCompiler()
+			compiler.Compile(map[string]*ast.Module{
+				"authz":   ast.MustParseModule(partialEvalBenchmarkPolicy),
+				"partial": support[0],
+			})
+			if compiler.Failed() {
+				b.Fatal(compiler.Errors)
+			}
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		b.Fatal(err)
+	}
+}
+
+const partialEvalBenchmarkPolicy = `package authz
+
+	default allow = false
+
+	allow {
+		user_has_role[role_name]
+		role_has_permission[role_name]
+	}
+
+	user_has_role[role_name] {
+		data.bindings[_] = binding
+		binding.iss = input.iss
+		binding.group = input.group
+		role_name = binding.role
+	}
+
+	role_has_permission[role_name] {
+		data.roles[_] = role
+		role.name = role_name
+		role.operation = input.operation
+		role.resource = input.resource
+	}
+	`
+
+func generatePartialEvalBenchmarkData(numRoles int) map[string]interface{} {
+	roles := make([]interface{}, numRoles)
+	bindings := make([]interface{}, numRoles)
+	for i := 0; i < numRoles; i++ {
+		role := map[string]interface{}{
+			"name":      fmt.Sprintf("role-%d", i),
+			"operation": fmt.Sprintf("operation-%d", i),
+			"resource":  fmt.Sprintf("resource-%d", i),
+		}
+		roles[i] = role
+		binding := map[string]interface{}{
+			"name":  fmt.Sprintf("binding-%d", i),
+			"iss":   fmt.Sprintf("iss-%d", i),
+			"group": fmt.Sprintf("group-%d", i),
+			"role":  role["name"],
+		}
+		bindings[i] = binding
+	}
+	return map[string]interface{}{
+		"roles":    roles,
+		"bindings": bindings,
+	}
+}
+
+func generatePartialEvalBenchmarkInput(numRoles int) *ast.Term {
+
+	tmpl, err := template.New("Test").Parse(`{
+		"operation": "operation-{{ . }}",
+		"resource": "resource-{{ . }}",
+		"iss": "iss-{{ . }}",
+		"group": "group-{{ . }}"
+	}`)
+	if err != nil {
+		panic(err)
+	}
+
+	var buf bytes.Buffer
+
+	err = tmpl.Execute(&buf, numRoles-1)
+	if err != nil {
+		panic(err)
+	}
+
+	return ast.MustParseTerm(buf.String())
 }
