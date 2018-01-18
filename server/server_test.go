@@ -893,6 +893,18 @@ func TestDataMetrics(t *testing.T) {
 		}
 	}
 
+	req = newReqV1(http.MethodPost, "/data?metrics&partial", "")
+	f.reset()
+	f.server.Handler.ServeHTTP(f.recorder, req)
+
+	if err := util.NewJSONDecoder(f.recorder.Body).Decode(&result); err != nil {
+		t.Fatalf("Unexpected JSON decode error: %v", err)
+	}
+
+	if result.Metrics["timer_rego_partial_eval_ns"] == 0 {
+		t.Fatalf("Expected partial evaluation latency but got: %v", result)
+	}
+
 }
 
 func TestV1Pretty(t *testing.T) {
