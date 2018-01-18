@@ -372,6 +372,11 @@ const (
 	// result.
 	ParamMetricsV1 = "metrics"
 
+	// ParamPartialV1 defines the name of the HTTP URL parameter that indicates
+	// the client wants the partial evaluation optimization to be used during
+	// query evaluation.
+	ParamPartialV1 = "partial"
+
 	// ParamWatchV1 defines the name of the HTTP URL parameter that indicates
 	// the client wants to set a watch on the current query or data reference.
 	ParamWatchV1 = "watch"
