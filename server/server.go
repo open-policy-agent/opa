@@ -70,12 +70,17 @@ type Server struct {
 	authorization     AuthorizationScheme
 	cert              *tls.Certificate
 	mtx               sync.RWMutex
-	compiler          *ast.Compiler
+	compilers         map[string]cachedCompiler
 	store             storage.Store
 	watcher           *watch.Watcher
 	decisionIDFactory func() string
 	diagnostics       Buffer
 	errLimit          int
+}
+
+type cachedCompiler struct {
+	queryPath string
+	compiler  *ast.Compiler
 }
 
 // New returns a new Server.
@@ -138,7 +143,7 @@ func (s *Server) Init(ctx context.Context) (*Server, error) {
 	// so that the latter can run first.
 	switch s.authorization {
 	case AuthorizationBasic:
-		s.Handler = authorizer.NewBasic(s.Handler, s.Compiler, s.store)
+		s.Handler = authorizer.NewBasic(s.Handler, s.getDefaultCompiler, s.store)
 	}
 
 	switch s.authentication {
@@ -166,7 +171,7 @@ func (s *Server) Init(ctx context.Context) (*Server, error) {
 		s.store.Abort(ctx, txn)
 		return nil, err
 	}
-	s.watcher, err = watch.New(ctx, s.store, s.Compiler(), txn)
+	s.watcher, err = watch.New(ctx, s.store, s.getDefaultCompiler(), txn)
 	if err != nil {
 		return nil, err
 	}
@@ -229,18 +234,6 @@ func (s *Server) WithDecisionIDFactory(f func() string) *Server {
 	return s
 }
 
-// Compiler returns the server's compiler.
-//
-// The server's compiler contains the compiled versions of all modules added to
-// the server as well as data structures for performing query analysis. This is
-// intended to allow services to embed the OPA server while still relying on the
-// topdown package for query evaluation.
-func (s *Server) Compiler() *ast.Compiler {
-	s.mtx.RLock()
-	defer s.mtx.RUnlock()
-	return s.compiler
-}
-
 // Listeners returns functions that listen and serve connections.
 func (s *Server) Listeners() (func() error, func() error) {
 
@@ -285,7 +278,7 @@ func (s *Server) execQuery(ctx context.Context, r *http.Request, query string, i
 
 	m := metrics.New()
 
-	compiler := s.Compiler()
+	compiler := s.getDefaultCompiler()
 	rego := rego.New(
 		rego.Store(s.store),
 		rego.Compiler(compiler),
@@ -376,7 +369,7 @@ func (s *Server) reload(ctx context.Context, txn storage.Transaction, event stor
 		panic(err)
 	}
 
-	s.watcher, err = s.watcher.Migrate(s.Compiler(), txn)
+	s.watcher, err = s.watcher.Migrate(s.getDefaultCompiler(), txn)
 	if err != nil {
 		// The only way migration can fail is if the old watcher is closed or if
 		// the new one cannot register a trigger with the store. Since we're
@@ -399,7 +392,8 @@ func (s *Server) reloadCompiler(ctx context.Context, txn storage.Transaction) er
 		return compiler.Errors
 	}
 
-	s.setCompiler(compiler)
+	s.resetCompilers(compiler)
+
 	return nil
 }
 
@@ -439,7 +433,7 @@ func (s *Server) v0QueryPath(w http.ResponseWriter, r *http.Request, path ast.Re
 
 	defer s.store.Abort(ctx, txn)
 
-	compiler := s.Compiler()
+	compiler := s.getDefaultCompiler()
 
 	opts := []func(*rego.Rego){
 		rego.Compiler(compiler),
@@ -560,7 +554,7 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 
 	defer s.store.Abort(ctx, txn)
 
-	compiler := s.Compiler()
+	compiler := s.getDefaultCompiler()
 
 	opts := []func(*rego.Rego){
 		rego.Compiler(compiler),
@@ -673,6 +667,7 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 	pretty := getBoolParam(r.URL, types.ParamPrettyV1, true)
 	explainMode := getExplain(r.URL.Query()[types.ParamExplainV1], types.ExplainOffV1)
 	includeMetrics := getBoolParam(r.URL, types.ParamMetricsV1, true)
+	partial := getBoolParam(r.URL, types.ParamPartialV1, true)
 
 	m := metrics.New()
 
@@ -703,14 +698,25 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 
 	defer s.store.Abort(ctx, txn)
 
-	compiler := s.Compiler()
+	compiler := s.getDefaultCompiler()
+	queryPath := path.String()
+
+	if partial {
+		var err error
+		compiler, queryPath, err = s.lazyPartialEval(ctx, compiler, txn, path)
+		if err != nil {
+			diagLogger.Log("", r.RemoteAddr, path.String(), goInput, nil, err, m, nil)
+			writer.ErrorAuto(w, err)
+			return
+		}
+	}
 
 	opts := []func(*rego.Rego){
 		rego.Compiler(compiler),
 		rego.Store(s.store),
 		rego.Transaction(txn),
 		rego.Input(goInput),
-		rego.Query(path.String()),
+		rego.Query(queryPath),
 		rego.Metrics(m),
 	}
 
@@ -727,7 +733,7 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 
 	// Handle results.
 	if err != nil {
-		diagLogger.Log("", r.RemoteAddr, path.String(), goInput, nil, err, m, buf)
+		diagLogger.Log("", r.RemoteAddr, queryPath, goInput, nil, err, m, buf)
 		writer.ErrorAuto(w, err)
 		return
 	}
@@ -749,7 +755,7 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 				writer.ErrorAuto(w, err)
 			}
 		}
-		diagLogger.Log(decisionID, r.RemoteAddr, path.String(), goInput, nil, nil, m, buf)
+		diagLogger.Log(decisionID, r.RemoteAddr, queryPath, goInput, nil, nil, m, buf)
 		writer.JSON(w, 200, result, pretty)
 		return
 	}
@@ -760,7 +766,7 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 		result.Explanation = s.getExplainResponse(explainMode, *buf, pretty)
 	}
 
-	diagLogger.Log(decisionID, r.RemoteAddr, path.String(), goInput, result.Result, nil, m, buf)
+	diagLogger.Log(decisionID, r.RemoteAddr, queryPath, goInput, result.Result, nil, m, buf)
 	writer.JSON(w, 200, result, pretty)
 }
 
@@ -861,8 +867,6 @@ func (s *Server) v1PoliciesDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	s.setCompiler(c)
-
 	response := types.PolicyDeleteResponseV1{}
 	if includeMetrics {
 		response.Metrics = m.All()
@@ -891,7 +895,7 @@ func (s *Server) v1PoliciesGet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	c := s.Compiler()
+	c := s.getDefaultCompiler()
 
 	response := types.PolicyGetResponseV1{
 		Result: types.PolicyV1{
@@ -918,7 +922,7 @@ func (s *Server) v1PoliciesList(w http.ResponseWriter, r *http.Request) {
 	defer s.store.Abort(ctx, txn)
 
 	policies := []types.PolicyV1{}
-	c := s.Compiler()
+	c := s.getDefaultCompiler()
 
 	for id, mod := range c.Modules {
 		bs, err := s.store.GetPolicy(ctx, txn, id)
@@ -1016,8 +1020,6 @@ func (s *Server) v1PoliciesPut(w http.ResponseWriter, r *http.Request) {
 		writer.ErrorAuto(w, err)
 		return
 	}
-
-	s.setCompiler(c)
 
 	response := types.PolicyPutResponseV1{}
 
@@ -1190,7 +1192,8 @@ func (s *Server) evalDiagnosticPolicy(r *http.Request) diagnosticsLogger {
 		return diagnosticsLogger{}
 	}
 
-	compiler := s.Compiler()
+	compiler := s.getDefaultCompiler()
+
 	rego := rego.New(
 		rego.Store(s.store),
 		rego.Compiler(compiler),
@@ -1291,10 +1294,32 @@ func (s *Server) loadModules(ctx context.Context, txn storage.Transaction) (map[
 	return modules, nil
 }
 
-func (s *Server) setCompiler(compiler *ast.Compiler) {
+func (s *Server) getDefaultCompiler() *ast.Compiler {
+	s.mtx.RLock()
+	defer s.mtx.RUnlock()
+	cached, ok := s.compilers[""]
+	if !ok {
+		return nil
+	}
+	return cached.compiler
+}
+
+func (s *Server) setDefaultCompiler(compiler *ast.Compiler) {
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
-	s.compiler = compiler
+	s.compilers[""] = cachedCompiler{
+		compiler: compiler,
+	}
+}
+
+func (s *Server) resetCompilers(defaultCompiler *ast.Compiler) {
+	s.mtx.Lock()
+	defer s.mtx.Unlock()
+	s.compilers = map[string]cachedCompiler{
+		"": cachedCompiler{
+			compiler: defaultCompiler,
+		},
+	}
 }
 
 func (s *Server) makeDir(ctx context.Context, txn storage.Transaction, path storage.Path) error {
@@ -1383,7 +1408,7 @@ func (s *Server) writeConflict(op storage.PatchOp, path storage.Path) error {
 
 	ref := path.Ref(ast.DefaultRootDocument)
 
-	if rs := s.Compiler().GetRulesForVirtualDocument(ref); rs != nil {
+	if rs := s.getDefaultCompiler().GetRulesForVirtualDocument(ref); rs != nil {
 		return types.WriteConflictErr{
 			Path: path,
 		}
@@ -1397,6 +1422,72 @@ func (s *Server) generateDecisionID() string {
 		return s.decisionIDFactory()
 	}
 	return ""
+}
+
+func (s *Server) lazyPartialEval(ctx context.Context, compiler *ast.Compiler, txn storage.Transaction, path ast.Ref) (*ast.Compiler, string, error) {
+	s.mtx.Lock()
+	defer s.mtx.Unlock()
+	cacheKey := path.String()
+	cached, ok := s.compilers[cacheKey]
+	if !ok {
+		optimizedCompiler, optimizedPath, err := partialEval(ctx, compiler, s.store, txn, ast.NewTerm(path))
+		if err != nil {
+			return nil, "", err
+		}
+		cached = cachedCompiler{
+			queryPath: optimizedPath,
+			compiler:  optimizedCompiler,
+		}
+		s.compilers[cacheKey] = cached
+	}
+	return cached.compiler, cached.queryPath, nil
+}
+
+func partialEval(ctx context.Context, compiler *ast.Compiler, store storage.Store, txn storage.Transaction, path *ast.Term) (*ast.Compiler, string, error) {
+
+	body := ast.NewBody(ast.Equality.Expr(ast.VarTerm("x"), path))
+
+	query := topdown.NewQuery(body).
+		WithCompiler(compiler).
+		WithStore(store).
+		WithTransaction(txn).
+		WithUnknowns([]*ast.Term{ast.InputRootDocument})
+
+	partials, support, err := query.PartialRun(ctx)
+	if err != nil {
+		return nil, "", err
+	}
+
+	module := ast.MustParseModule("package partial")
+
+	for _, body := range partials {
+		rule := &ast.Rule{
+			Head:   ast.NewHead(ast.Var("result"), nil, ast.VarTerm("x")),
+			Body:   body,
+			Module: module,
+		}
+		module.Rules = append(module.Rules, rule)
+	}
+
+	modules := map[string]*ast.Module{}
+
+	for k, v := range compiler.Modules {
+		modules[k] = v
+	}
+
+	for i, module := range support {
+		modules[fmt.Sprintf("support-%d", i)] = module
+	}
+
+	modules["result"] = module
+
+	compiler = ast.NewCompiler()
+	compiler.Compile(modules)
+	if compiler.Failed() {
+		return nil, "", compiler.Errors
+	}
+
+	return compiler, "data.partial.result", nil
 }
 
 func handleCompileError(w http.ResponseWriter, err error) {

@@ -1085,6 +1085,7 @@ HTTP/1.1 200 OK
 
 #### Query Parameters
 
+- **partial** - Use the partial evaluation (optimization) when evaluating the query.
 - **pretty** - If parameter is `true`, response will formatted for humans.
 - **explain** - Return query explanation in addition to result. Values: **full**.
 - **metrics** - Return query performance metrics in addition to result. See [Performance Metrics](#performance-metrics) for more detail.

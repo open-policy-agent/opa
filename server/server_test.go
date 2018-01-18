@@ -218,6 +218,16 @@ p = false { true }`
 
 p = true { false }`
 
+	testMod7 := `package testmod
+
+	default p = false
+
+	p { q[x]; not r[x] }
+
+	q[1] { input.x = 1 }
+	q[2] { input.y = 2 }
+	r[1] { input.z = 3 }`
+
 	tests := []struct {
 		note string
 		reqs []tr
@@ -392,6 +402,13 @@ p = true { false }`
 		}},
 		{"post empty object", []tr{
 			tr{http.MethodPost, "/data", `{}`, 200, `{"result": {}}`},
+		}},
+		{"post partial", []tr{
+			tr{http.MethodPut, "/policies/test", testMod7, 200, ""},
+			tr{http.MethodPost, "/data/testmod/p?partial", `{"input": {"x": 1, "y": 2, "z": 9999}}`, 200, `{"result": true}`},
+			tr{http.MethodPost, "/data/testmod/p?partial", `{"input": {"x": 1, "z": 3}}`, 200, `{"result": false}`},
+			tr{http.MethodPost, "/data/testmod/p", `{"input": {"x": 1, "y": 2, "z": 9999}}`, 200, `{"result": true}`},
+			tr{http.MethodPost, "/data/testmod/p", `{"input": {"x": 1, "z": 3}}`, 200, `{"result": false}`},
 		}},
 		{"evaluation conflict", []tr{
 			tr{http.MethodPut, "/policies/test", testMod4, 200, ""},
