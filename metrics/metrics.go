@@ -16,6 +16,7 @@ const (
 	RegoQueryParse    = "rego_query_parse"
 	RegoModuleParse   = "rego_module_parse"
 	RegoModuleCompile = "rego_module_compile"
+	RegoPartialEval   = "rego_partial_eval"
 )
 
 // Metrics defines the interface for a collection of perfomrance metrics in the

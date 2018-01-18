@@ -703,7 +703,7 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 
 	if partial {
 		var err error
-		compiler, queryPath, err = s.lazyPartialEval(ctx, compiler, txn, path)
+		compiler, queryPath, err = s.lazyPartialEval(ctx, compiler, txn, path, m)
 		if err != nil {
 			diagLogger.Log("", r.RemoteAddr, path.String(), goInput, nil, err, m, nil)
 			writer.ErrorAuto(w, err)
@@ -1424,13 +1424,13 @@ func (s *Server) generateDecisionID() string {
 	return ""
 }
 
-func (s *Server) lazyPartialEval(ctx context.Context, compiler *ast.Compiler, txn storage.Transaction, path ast.Ref) (*ast.Compiler, string, error) {
+func (s *Server) lazyPartialEval(ctx context.Context, compiler *ast.Compiler, txn storage.Transaction, path ast.Ref, m metrics.Metrics) (*ast.Compiler, string, error) {
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
 	cacheKey := path.String()
 	cached, ok := s.compilers[cacheKey]
 	if !ok {
-		optimizedCompiler, optimizedPath, err := partialEval(ctx, compiler, s.store, txn, ast.NewTerm(path))
+		optimizedCompiler, optimizedPath, err := partialEval(ctx, compiler, s.store, txn, ast.NewTerm(path), m)
 		if err != nil {
 			return nil, "", err
 		}
@@ -1443,7 +1443,7 @@ func (s *Server) lazyPartialEval(ctx context.Context, compiler *ast.Compiler, tx
 	return cached.compiler, cached.queryPath, nil
 }
 
-func partialEval(ctx context.Context, compiler *ast.Compiler, store storage.Store, txn storage.Transaction, path *ast.Term) (*ast.Compiler, string, error) {
+func partialEval(ctx context.Context, compiler *ast.Compiler, store storage.Store, txn storage.Transaction, path *ast.Term, m metrics.Metrics) (*ast.Compiler, string, error) {
 
 	body := ast.NewBody(ast.Equality.Expr(ast.VarTerm("x"), path))
 
@@ -1451,6 +1451,7 @@ func partialEval(ctx context.Context, compiler *ast.Compiler, store storage.Stor
 		WithCompiler(compiler).
 		WithStore(store).
 		WithTransaction(txn).
+		WithMetrics(m).
 		WithUnknowns([]*ast.Term{ast.InputRootDocument})
 
 	partials, support, err := query.PartialRun(ctx)

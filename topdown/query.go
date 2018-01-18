@@ -130,8 +130,8 @@ func (q *Query) PartialRun(ctx context.Context) (partials []ast.Body, support []
 		saveNamespace: ast.StringTerm(q.partialNamespace),
 		genvarprefix:  q.genvarprefix,
 	}
-	q.startTimer()
-	defer q.stopTimer()
+	q.startTimer(metrics.RegoPartialEval)
+	defer q.stopTimer(metrics.RegoPartialEval)
 	err = e.Run(func(e *eval) error {
 		// Build output from saved expressions.
 		body := ast.NewBody()
@@ -185,8 +185,8 @@ func (q *Query) Iter(ctx context.Context, iter func(QueryResult) error) error {
 		virtualCache: newVirtualCache(),
 		genvarprefix: q.genvarprefix,
 	}
-	q.startTimer()
-	defer q.stopTimer()
+	q.startTimer(metrics.RegoQueryEval)
+	defer q.stopTimer(metrics.RegoQueryEval)
 	return e.Run(func(e *eval) error {
 		qr := QueryResult{}
 		e.bindings.Iter(nil, func(k, v *ast.Term) error {
@@ -197,14 +197,14 @@ func (q *Query) Iter(ctx context.Context, iter func(QueryResult) error) error {
 	})
 }
 
-func (q *Query) startTimer() {
+func (q *Query) startTimer(name string) {
 	if q.metrics != nil {
-		q.metrics.Timer(metrics.RegoQueryEval).Start()
+		q.metrics.Timer(name).Start()
 	}
 }
 
-func (q *Query) stopTimer() {
+func (q *Query) stopTimer(name string) {
 	if q.metrics != nil {
-		q.metrics.Timer(metrics.RegoQueryEval).Stop()
+		q.metrics.Timer(name).Stop()
 	}
 }
