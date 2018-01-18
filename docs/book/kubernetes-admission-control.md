@@ -112,7 +112,7 @@ spec:
     spec:
       containers:
         - name: opa
-          image: openpolicyagent/opa:0.5.13
+          image: openpolicyagent/opa:0.6.0
           args:
             - "run"
             - "--server"

@@ -45,7 +45,7 @@ If you are using a different distro, OS, or architecture, the steps will be the 
 ### 1. Download the latest version of OPA.
 
 ```shell
-$ curl -L https://github.com/open-policy-agent/opa/releases/download/v0.5.13/opa_linux_amd64 > opa
+$ curl -L https://github.com/open-policy-agent/opa/releases/download/v0.6.0/opa_linux_amd64 > opa
 $ chmod u+x opa
 ```
 
