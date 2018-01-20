@@ -324,8 +324,6 @@ func (r *Rego) compile(modules map[string]*ast.Module, query ast.Body) (ast.Body
 
 func (r *Rego) eval(ctx context.Context, compiled ast.Body, txn storage.Transaction) (rs ResultSet, err error) {
 
-	r.metrics.Timer(metrics.RegoQueryEval).Start()
-
 	q := topdown.NewQuery(compiled).
 		WithCompiler(r.compiler).
 		WithStore(r.store).
@@ -386,8 +384,6 @@ func (r *Rego) eval(ctx context.Context, compiled ast.Body, txn storage.Transact
 	if len(rs) == 0 {
 		return nil, nil
 	}
-
-	r.metrics.Timer(metrics.RegoQueryEval).Stop()
 
 	return rs, nil
 }
