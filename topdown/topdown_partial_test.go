@@ -246,6 +246,23 @@ func TestTopDownPartialEval(t *testing.T) {
 			},
 		},
 		{
+			note:  "namespace: calls",
+			query: "data.test.p = x",
+			modules: []string{
+				`package test
+
+				p {
+					a = "a"
+					b = input.b
+					a != b
+				}
+				`,
+			},
+			wantQueries: []string{
+				`b1 = input.b; "a" != b1; x = true`,
+			},
+		},
+		{
 			note:  "ignore conflicts: complete",
 			query: "data.test.p = x",
 			modules: []string{
