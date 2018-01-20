@@ -17,6 +17,22 @@ import (
 	"github.com/open-policy-agent/opa/topdown"
 )
 
+const defaultPartialNamespace = "partial"
+
+// PartialResult represents the result of partial evaluation. The result can be
+// used to generate a new query that can be run when inputs are known.
+type PartialResult struct {
+	compiler *ast.Compiler
+	store    storage.Store
+	body     ast.Body
+}
+
+// Rego returns an object that can be evaluated to produce a query result.
+func (pr PartialResult) Rego(options ...func(*Rego)) *Rego {
+	options = append(options, Compiler(pr.compiler), Store(pr.store), ParsedQuery(pr.body))
+	return New(options...)
+}
+
 // Result defines the output of Rego evaluation.
 type Result struct {
 	Expressions []*ExpressionValue `json:"expressions"`
@@ -92,17 +108,20 @@ func (errs Errors) Error() string {
 
 // Rego constructs a query and can be evaluated to obtain results.
 type Rego struct {
-	query    string
-	pkg      string
-	imports  []string
-	rawInput *interface{}
-	input    ast.Value
-	modules  []rawModule
-	compiler *ast.Compiler
-	store    storage.Store
-	txn      storage.Transaction
-	metrics  metrics.Metrics
-	tracer   topdown.Tracer
+	query            string
+	parsedQuery      ast.Body
+	pkg              string
+	imports          []string
+	rawInput         *interface{}
+	input            ast.Value
+	unknowns         []string
+	partialNamespace string
+	modules          []rawModule
+	compiler         *ast.Compiler
+	store            storage.Store
+	txn              storage.Transaction
+	metrics          metrics.Metrics
+	tracer           topdown.Tracer
 
 	termVarID int
 }
@@ -111,6 +130,13 @@ type Rego struct {
 func Query(q string) func(r *Rego) {
 	return func(r *Rego) {
 		r.query = q
+	}
+}
+
+// ParsedQuery returns an argument that sets the Rego query.
+func ParsedQuery(q ast.Body) func(r *Rego) {
+	return func(r *Rego) {
+		r.parsedQuery = q
 	}
 }
 
@@ -134,6 +160,23 @@ func Imports(p []string) func(r *Rego) {
 func Input(x interface{}) func(r *Rego) {
 	return func(r *Rego) {
 		r.rawInput = &x
+	}
+}
+
+// Unknowns returns an argument that sets the values to treat as unknown during
+// partial evaluation.
+func Unknowns(unknowns []string) func(r *Rego) {
+	return func(r *Rego) {
+		r.unknowns = unknowns
+	}
+}
+
+// PartialNamespace returns an argument that sets the namespace to use for
+// partial evaluation results. The namespace must be a valid package path
+// component.
+func PartialNamespace(ns string) func(r *Rego) {
+	return func(r *Rego) {
+		r.partialNamespace = ns
 	}
 }
 
@@ -209,36 +252,25 @@ func New(options ...func(*Rego)) *Rego {
 // Eval evaluates this Rego object and returns a ResultSet.
 func (r *Rego) Eval(ctx context.Context) (ResultSet, error) {
 
-	if len(r.query) == 0 {
+	if len(r.query) == 0 && len(r.parsedQuery) == 0 {
 		return nil, fmt.Errorf("cannot evaluate empty query")
 	}
 
-	r.metrics.Timer(metrics.RegoQueryParse).Start()
-
-	// Parse inputs
 	parsed, query, err := r.parse()
 	if err != nil {
 		return nil, err
 	}
 
-	r.metrics.Timer(metrics.RegoQueryParse).Stop()
-
 	query = r.captureTerms(query)
 
-	r.metrics.Timer(metrics.RegoQueryCompile).Start()
-
-	// Compile inputs
 	compiled, err := r.compile(parsed, query)
 	if err != nil {
 		return nil, err
 	}
 
-	r.metrics.Timer(metrics.RegoQueryCompile).Stop()
-
 	txn := r.txn
 
 	if txn == nil {
-		// Open transaction for this run if user did not provide one.
 		txn, err = r.store.NewTransaction(ctx)
 		if err != nil {
 			return nil, err
@@ -246,11 +278,49 @@ func (r *Rego) Eval(ctx context.Context) (ResultSet, error) {
 		defer r.store.Abort(ctx, txn)
 	}
 
-	// Evaluate query
 	return r.eval(ctx, compiled, txn)
 }
 
+// PartialEval partially evaluates this Rego object and returns a PartialResult.
+func (r *Rego) PartialEval(ctx context.Context) (PartialResult, error) {
+
+	if len(r.query) == 0 && len(r.parsedQuery) == 0 {
+		return PartialResult{}, fmt.Errorf("cannot evaluate empty query")
+	}
+
+	parsed, query, err := r.parse()
+	if err != nil {
+		return PartialResult{}, err
+	}
+
+	query, outputVar, err := rewriteQueryForPartialEval(query)
+	if err != nil {
+		return PartialResult{}, err
+	}
+
+	compiled, err := r.compile(parsed, query)
+	if err != nil {
+		return PartialResult{}, err
+	}
+
+	txn := r.txn
+
+	if txn == nil {
+		txn, err = r.store.NewTransaction(ctx)
+		if err != nil {
+			return PartialResult{}, err
+		}
+		defer r.store.Abort(ctx, txn)
+	}
+
+	return r.partialEval(ctx, compiled, txn, outputVar)
+}
+
 func (r *Rego) parse() (map[string]*ast.Module, ast.Body, error) {
+
+	r.metrics.Timer(metrics.RegoQueryParse).Start()
+	defer r.metrics.Timer(metrics.RegoQueryParse).Stop()
+
 	var errs Errors
 	parsed := map[string]*ast.Module{}
 
@@ -262,19 +332,28 @@ func (r *Rego) parse() (map[string]*ast.Module, ast.Body, error) {
 		parsed[module.filename] = p
 	}
 
-	query, err := ast.ParseBody(r.query)
-	if err != nil {
-		errs = append(errs, err)
-	}
+	var query ast.Body
 
-	if len(errs) > 0 {
-		return nil, nil, errs
+	if r.parsedQuery != nil {
+		query = r.parsedQuery
+	} else {
+		var err error
+		query, err = ast.ParseBody(r.query)
+		if err != nil {
+			errs = append(errs, err)
+		}
+		if len(errs) > 0 {
+			return nil, nil, errs
+		}
 	}
 
 	return parsed, query, nil
 }
 
 func (r *Rego) compile(modules map[string]*ast.Module, query ast.Body) (ast.Body, error) {
+
+	r.metrics.Timer(metrics.RegoQueryCompile).Start()
+	defer r.metrics.Timer(metrics.RegoQueryCompile).Stop()
 
 	if len(modules) > 0 {
 		r.compiler.Compile(modules)
@@ -388,6 +467,97 @@ func (r *Rego) eval(ctx context.Context, compiled ast.Body, txn storage.Transact
 	return rs, nil
 }
 
+func (r *Rego) partialEval(ctx context.Context, compiled ast.Body, txn storage.Transaction, output *ast.Term) (PartialResult, error) {
+
+	var unknowns []*ast.Term
+
+	// Use input document as unknown if caller has not specified any.
+	if r.unknowns == nil {
+		unknowns = []*ast.Term{ast.InputRootDocument}
+	} else {
+		unknowns = make([]*ast.Term, len(r.unknowns))
+		for i := range r.unknowns {
+			var err error
+			unknowns[i], err = ast.ParseTerm(r.unknowns[i])
+			if err != nil {
+				return PartialResult{}, err
+			}
+		}
+	}
+
+	partialNamespace := r.partialNamespace
+	if partialNamespace == "" {
+		partialNamespace = defaultPartialNamespace
+	}
+
+	// Check partial namespace to ensure it's valid.
+	if term, err := ast.ParseTerm(partialNamespace); err != nil {
+		return PartialResult{}, err
+	} else if _, ok := term.Value.(ast.Var); !ok {
+		return PartialResult{}, fmt.Errorf("bad partial namespace")
+	}
+
+	q := topdown.NewQuery(compiled).
+		WithCompiler(r.compiler).
+		WithStore(r.store).
+		WithTransaction(txn).
+		WithMetrics(r.metrics).
+		WithUnknowns(unknowns).
+		WithPartialNamespace(partialNamespace)
+
+	if r.tracer != nil {
+		q = q.WithTracer(r.tracer)
+	}
+
+	if r.input != nil {
+		q = q.WithInput(ast.NewTerm(r.input))
+	}
+
+	// Cancel query if context is cancelled or deadline is reached.
+	c := topdown.NewCancel()
+	q = q.WithCancel(c)
+	exit := make(chan struct{})
+	defer close(exit)
+	go waitForDone(ctx, exit, func() {
+		c.Cancel()
+	})
+
+	partials, support, err := q.PartialRun(ctx)
+	if err != nil {
+		return PartialResult{}, err
+	}
+
+	// Construct module for queries.
+	module := ast.MustParseModule("package " + partialNamespace)
+	module.Rules = make([]*ast.Rule, len(partials))
+	for i, body := range partials {
+		module.Rules[i] = &ast.Rule{
+			Head:   ast.NewHead(ast.Var("__result__"), nil, output),
+			Body:   body,
+			Module: module,
+		}
+	}
+
+	// Update compiler with partial evaluation output.
+	r.compiler.Modules["__partialresult__"] = module
+	for i, module := range support {
+		r.compiler.Modules[fmt.Sprintf("__partialsupport%d__", i)] = module
+	}
+
+	r.compiler.Compile(r.compiler.Modules)
+	if r.compiler.Failed() {
+		return PartialResult{}, r.compiler.Errors
+	}
+
+	result := PartialResult{
+		compiler: r.compiler,
+		store:    r.store,
+		body:     ast.MustParseBody(fmt.Sprintf("data.%v.__result__", partialNamespace)),
+	}
+
+	return result, nil
+}
+
 func (r *Rego) captureTerms(query ast.Body) ast.Body {
 
 	// If the query contains expressions that consist of a single term, rewrite
@@ -449,6 +619,28 @@ func waitForDone(ctx context.Context, exit chan struct{}, f func()) {
 		f()
 		return
 	}
+}
+
+func rewriteQueryForPartialEval(query ast.Body) (ast.Body, *ast.Term, error) {
+	if len(query) != 1 {
+		return nil, nil, fmt.Errorf("partial evaluation requires single %v (not multiple %v)", ast.RefTypeName, ast.ExprTypeName)
+	}
+
+	term, ok := query[0].Terms.(*ast.Term)
+	if !ok {
+		return nil, nil, fmt.Errorf("partial evaluation requires %v (not call %v)", ast.RefTypeName, ast.TypeName(query[0]))
+	}
+
+	ref, ok := term.Value.(ast.Ref)
+	if !ok {
+		return nil, nil, fmt.Errorf("partial evaluation requires %v (not %v)", ast.RefTypeName, ast.TypeName(term))
+	}
+
+	if !ref.IsGround() {
+		return nil, nil, fmt.Errorf("partial evaluation requires ground %v", ast.RefTypeName)
+	}
+
+	return ast.NewBody(ast.Equality.Expr(ast.Wildcard, term)), ast.Wildcard, nil
 }
 
 type rawModule struct {
