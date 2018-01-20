@@ -197,7 +197,7 @@ func (e saveStackElem) Plug(caller *bindings) *ast.Expr {
 			terms[2] = e.B2.PlugNamespaced(terms[2], caller)
 		} else {
 			for i := 1; i < len(terms); i++ {
-				terms[1] = e.B1.PlugNamespaced(terms[1], caller)
+				terms[i] = e.B1.PlugNamespaced(terms[i], caller)
 			}
 		}
 	case *ast.Term:
