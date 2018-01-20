@@ -1117,57 +1117,13 @@ func (s *Server) watchQuery(query string, w http.ResponseWriter, r *http.Request
 	}
 }
 
-func constructDiagnosticsInput(r *http.Request) (map[string]interface{}, error) {
-	var body interface{}
-	if r.Body != nil {
-		buf, err := ioutil.ReadAll(r.Body)
-		if err != nil {
-			return nil, err
-		}
-		r.Body = ioutil.NopCloser(bytes.NewReader(buf))
-
-		decoder := util.NewJSONDecoder(bytes.NewReader(buf))
-		if err := decoder.Decode(&body); err != nil {
-			body = nil
-		}
-	}
-
-	input := map[string]interface{}{
-		"method": r.Method,
-		"path":   r.URL.Path,
-		"body":   body,
-	}
-
-	params := map[string]interface{}{}
-	for param, value := range r.URL.Query() {
-		var ifaces []interface{}
-		for _, v := range value {
-			ifaces = append(ifaces, v)
-		}
-		params[param] = ifaces
-	}
-	input["params"] = params
-
-	header := map[string]interface{}{}
-	for key, value := range r.Header {
-		var ifaces []interface{}
-		for _, v := range value {
-			ifaces = append(ifaces, v)
-		}
-		header[key] = ifaces
-	}
-	input["header"] = header
-
-	return input, nil
-}
-
 func (s *Server) evalDiagnosticPolicy(r *http.Request) diagnosticsLogger {
 
 	if s.diagnostics == nil {
 		return diagnosticsLogger{}
 	}
 
-	input, err := constructDiagnosticsInput(r)
+	input, err := makeDiagnosticsInput(r)
 	if err != nil {
 		return diagnosticsLogger{}
 	}
@@ -1203,28 +1159,6 @@ func (s *Server) evalDiagnosticPolicy(r *http.Request) diagnosticsLogger {
 	}
 
 	return diagnosticsLogger{}
-}
-
-func getBooleanVar(bindings rego.Vars, name string) (bool, error) {
-	if v, ok := bindings[name]; ok {
-		t, ok := v.(bool)
-		if !ok {
-			return false, fmt.Errorf("non-boolean '%s' field: %v (%T)", name, v, v)
-		}
-		return t, nil
-	}
-	return false, nil
-}
-
-func getStringVar(bindings rego.Vars, name string) (string, error) {
-	if v, ok := bindings[name]; ok {
-		t, ok := v.(string)
-		if !ok {
-			return "", fmt.Errorf("non-string '%s' field: %v (%T)", name, v, v)
-		}
-		return t, nil
-	}
-	return "", nil
 }
 
 func (s *Server) getExplainResponse(explainMode types.ExplainModeV1, trace []*topdown.Event, pretty bool) (explanation types.TraceV1) {
@@ -1480,6 +1414,28 @@ func getBoolParam(url *url.URL, name string, ifEmpty bool) bool {
 	return false
 }
 
+func getBooleanVar(bindings rego.Vars, name string) (bool, error) {
+	if v, ok := bindings[name]; ok {
+		t, ok := v.(bool)
+		if !ok {
+			return false, fmt.Errorf("non-boolean '%s' field: %v (%T)", name, v, v)
+		}
+		return t, nil
+	}
+	return false, nil
+}
+
+func getStringVar(bindings rego.Vars, name string) (string, error) {
+	if v, ok := bindings[name]; ok {
+		t, ok := v.(string)
+		if !ok {
+			return "", fmt.Errorf("non-string '%s' field: %v (%T)", name, v, v)
+		}
+		return t, nil
+	}
+	return "", nil
+}
+
 func getWatch(p []string) (watch bool) {
 	return len(p) > 0
 }
@@ -1492,6 +1448,50 @@ func getExplain(p []string, zero types.ExplainModeV1) types.ExplainModeV1 {
 		}
 	}
 	return zero
+}
+
+func makeDiagnosticsInput(r *http.Request) (map[string]interface{}, error) {
+	var body interface{}
+	if r.Body != nil {
+		buf, err := ioutil.ReadAll(r.Body)
+		if err != nil {
+			return nil, err
+		}
+		r.Body = ioutil.NopCloser(bytes.NewReader(buf))
+
+		decoder := util.NewJSONDecoder(bytes.NewReader(buf))
+		if err := decoder.Decode(&body); err != nil {
+			body = nil
+		}
+	}
+
+	input := map[string]interface{}{
+		"method": r.Method,
+		"path":   r.URL.Path,
+		"body":   body,
+	}
+
+	params := map[string]interface{}{}
+	for param, value := range r.URL.Query() {
+		var ifaces []interface{}
+		for _, v := range value {
+			ifaces = append(ifaces, v)
+		}
+		params[param] = ifaces
+	}
+	input["params"] = params
+
+	header := map[string]interface{}{}
+	for key, value := range r.Header {
+		var ifaces []interface{}
+		for _, v := range value {
+			ifaces = append(ifaces, v)
+		}
+		header[key] = ifaces
+	}
+	input["header"] = header
+
+	return input, nil
 }
 
 func readInputV0(r io.ReadCloser) (ast.Value, error) {
