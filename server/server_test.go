@@ -888,21 +888,33 @@ func TestDataMetrics(t *testing.T) {
 	}
 
 	for _, key := range expected {
-		if result.Metrics[key] == 0 {
+		if result.Metrics[key] == nil {
 			t.Fatalf("Expected non-zero metric for %v but got: %v", key, result)
 		}
 	}
 
 	req = newReqV1(http.MethodPost, "/data?metrics&partial", "")
+
 	f.reset()
 	f.server.Handler.ServeHTTP(f.recorder, req)
+
+	result = types.DataResponseV1{}
 
 	if err := util.NewJSONDecoder(f.recorder.Body).Decode(&result); err != nil {
 		t.Fatalf("Unexpected JSON decode error: %v", err)
 	}
 
-	if result.Metrics["timer_rego_partial_eval_ns"] == 0 {
-		t.Fatalf("Expected partial evaluation latency but got: %v", result)
+	expected = []string{
+		"timer_rego_query_parse_ns",
+		"timer_rego_query_compile_ns",
+		"timer_rego_query_eval_ns",
+		"timer_rego_partial_eval_ns",
+	}
+
+	for _, key := range expected {
+		if result.Metrics[key] == nil {
+			t.Fatalf("Expected non-zero metric for %v but got: %v", key, result)
+		}
 	}
 
 }

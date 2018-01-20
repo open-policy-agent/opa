@@ -222,7 +222,9 @@ func Metrics(m metrics.Metrics) func(r *Rego) {
 // Tracer returns an argument that sets the topdown Tracer.
 func Tracer(t topdown.Tracer) func(r *Rego) {
 	return func(r *Rego) {
-		r.tracer = t
+		if t != nil {
+			r.tracer = t
+		}
 	}
 }
 
