@@ -233,6 +233,33 @@ func TestCheckInference(t *testing.T) {
 			Var("k"): types.S,
 			Var("v"): types.A,
 		}},
+		{
+			note:  "type unioning: arrays",
+			query: `x = [[1], ["foo"]]; x[_] = [y]`,
+			expected: map[Var]types.Type{
+				Var("y"): types.NewAny(
+					types.N, types.S,
+				),
+			},
+		},
+		{
+			note:  "type unioning: sets",
+			query: `x = {[1], ["foo"]}; x[[y]]`,
+			expected: map[Var]types.Type{
+				Var("y"): types.NewAny(
+					types.N, types.S,
+				),
+			},
+		},
+		{
+			note:  "type unioning: object values",
+			query: `x = {"a": [1], "b": ["foo"]}; x[_] = [y]`,
+			expected: map[Var]types.Type{
+				Var("y"): types.NewAny(
+					types.N, types.S,
+				),
+			},
+		},
 	}
 
 	for _, tc := range tests {
