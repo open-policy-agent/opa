@@ -78,8 +78,11 @@ var DefaultBuiltins = [...]*Builtin{
 	IsObject,
 	IsNull,
 
-	//Type Name
+	// Type Name
 	TypeNameBuiltin,
+
+	// HTTP Request
+	HTTPReqBuiltin,
 }
 
 // BuiltinMap provides a convenient mapping of built-in names to
@@ -781,6 +784,21 @@ var TypeNameBuiltin = &Builtin{
 			),
 		),
 		types.S,
+	),
+}
+
+/**
+ * HTTP Request
+ */
+
+// HTTPReqBuiltin returns a HTTP response to the given HTTP request
+var HTTPReqBuiltin = &Builtin{
+	Name: "http.send",
+	Decl: types.NewFunction(
+		types.Args(
+			types.NewObject(nil, types.NewDynamicProperty(types.S, types.A)),
+		),
+		types.NewObject(nil, types.NewDynamicProperty(types.A, types.A)),
 	),
 }
 
