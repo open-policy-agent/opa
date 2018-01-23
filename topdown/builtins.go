@@ -22,6 +22,17 @@ type (
 	// framework takes care of this.
 	FunctionalBuiltin1 func(op1 ast.Value) (output ast.Value, err error)
 
+	// FunctionalBuiltin1WithCtxt defines an interface for simple
+	// functional built-ins. It also contains context from the evaluator.
+	//
+	// Implement this interface if your built-in function takes one input and
+	// produces one output and uses the context from the evaluator.
+	//
+	// If an error occurs, the functional built-in should return a descriptive
+	// message. The message should not be prefixed with the built-in name as the
+	// framework takes care of this.
+	FunctionalBuiltin1WithCtxt func(ctxt BuiltinContext, op1 ast.Value) (output ast.Value, err error)
+
 	// FunctionalBuiltin2 defines an interface for simple functional built-ins.
 	//
 	// Implement this interface if your built-in function takes two inputs and
@@ -80,6 +91,12 @@ func RegisterFunctionalBuiltin1(name string, fun FunctionalBuiltin1) {
 	builtinFunctions[name] = functionalWrapper1(name, fun)
 }
 
+// RegisterFunctionalBuiltin1WithCtxt adds a new built-in function to
+// the evaluation engine.
+func RegisterFunctionalBuiltin1WithCtxt(name string, fun FunctionalBuiltin1WithCtxt) {
+	builtinFunctions[name] = functionalWrapper1WithCtxt(name, fun)
+}
+
 // RegisterFunctionalBuiltin2 adds a new built-in function to the evaluation
 // engine.
 func RegisterFunctionalBuiltin2(name string, fun FunctionalBuiltin2) {
@@ -118,6 +135,19 @@ func functionalWrapperVoid1(name string, fn FunctionalBuiltinVoid1) BuiltinFunc 
 func functionalWrapper1(name string, fn FunctionalBuiltin1) BuiltinFunc {
 	return func(bctx BuiltinContext, args []*ast.Term, iter func(*ast.Term) error) error {
 		result, err := fn(args[0].Value)
+		if err == nil {
+			return iter(ast.NewTerm(result))
+		}
+		if _, empty := err.(BuiltinEmpty); empty {
+			return nil
+		}
+		return handleFunctionalBuiltinEr(name, bctx.Location, err)
+	}
+}
+
+func functionalWrapper1WithCtxt(name string, fn FunctionalBuiltin1WithCtxt) BuiltinFunc {
+	return func(bctx BuiltinContext, args []*ast.Term, iter func(*ast.Term) error) error {
+		result, err := fn(bctx, args[0].Value)
 		if err == nil {
 			return iter(ast.NewTerm(result))
 		}

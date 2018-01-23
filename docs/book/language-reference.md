@@ -118,6 +118,11 @@ evaluation query will always return the same value.
 | --- | --- | --- |
 | <span class="opa-keep-it-together">``walk(x, [path, value])``</span> | 0 | ``walk`` is a relation that produces ``path`` and ``value`` pairs for documents under ``x``. ``path`` is ``array`` representing a pointer to ``value`` in ``x``.  Queries can use ``walk`` to traverse documents nested under ``x`` (recursively). |
 
+### <a name="http"/>HTTP
+| Built-in | Inputs | Description |
+| ------- |--------|-------------|
+| <span class="opa-keep-it-together">``http.send(request, output)``</span> | 1 | ``http.send`` executes a HTTP request and returns the response.``request`` is an object containing keys ``method``, ``url`` and  optionally ``body``. For example, ``http.send({"method": "get", "url": "http://www.openpolicyagent.org/"}, output)``. ``output`` is an object containing keys ``status``, ``status_code`` and ``body`` which represent the HTTP status, status code and response body respectively. Sample output, ``{"status": "200 OK", "status_code": 200, "body": null``}|
+
 ## <a name="reserved-names"></a> Reserved Names
 
 The following words are reserved and cannot be used as variable names, rule
