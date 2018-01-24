@@ -122,6 +122,16 @@ func StringOperand(x ast.Value, pos int) (ast.String, error) {
 	return s, nil
 }
 
+// ObjectOperand converts x to an object. If the cast fails, a descriptive
+// error is returned.
+func ObjectOperand(x ast.Value, pos int) (ast.Object, error) {
+	o, ok := x.(ast.Object)
+	if !ok {
+		return nil, NewOperandTypeErr(pos, x, ast.ObjectTypeName)
+	}
+	return o, nil
+}
+
 // NumberToFloat converts n to a big float.
 func NumberToFloat(n ast.Number) *big.Float {
 	r, ok := new(big.Float).SetString(string(n))
