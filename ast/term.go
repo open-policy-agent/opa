@@ -16,7 +16,6 @@ import (
 
 	"github.com/dchest/siphash"
 	"github.com/open-policy-agent/opa/util"
-
 	"github.com/pkg/errors"
 )
 
@@ -79,7 +78,7 @@ func (loc *Location) String() string {
 // - Null, Boolean, Number, String
 // - Object, Array, Set
 // - Variables, References
-// - Array Comprehensions
+// - Array, Set, and Object Comprehensions
 type Value interface {
 	Compare(other Value) int      // Compare returns <0, 0, or >0 if this Value is less than, equal to, or greater than other, respectively.
 	Find(path Ref) (Value, error) // Find returns value referred to by path or an error if path is not found.
@@ -310,6 +309,21 @@ func (term *Term) Equal(other *Term) bool {
 		return true
 	}
 	return term.Value.Compare(other.Value) == 0
+}
+
+// Get returns a value referred to by name from the term.
+func (term *Term) Get(name *Term) *Term {
+	switch v := term.Value.(type) {
+	case Array:
+		return v.Get(name)
+	case Object:
+		return v.Get(name)
+	case Set:
+		if v.Contains(name) {
+			return name
+		}
+	}
+	return nil
 }
 
 // Hash returns the hash code of the Term's value.
