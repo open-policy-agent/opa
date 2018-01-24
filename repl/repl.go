@@ -795,6 +795,10 @@ func (r *REPL) evalBody(ctx context.Context, compiler *ast.Compiler, input ast.V
 		q = q.WithInput(ast.NewTerm(input))
 	}
 
+	if r.metrics != nil {
+		q = q.WithMetrics(r.metrics)
+	}
+
 	var buf *topdown.BufferTracer
 
 	if r.explain != explainOff {
@@ -804,8 +808,6 @@ func (r *REPL) evalBody(ctx context.Context, compiler *ast.Compiler, input ast.V
 
 	results := []map[string]interface{}{}
 	isDefined := false
-
-	r.timerStart(metrics.RegoQueryEval)
 
 	// Run query.
 	err := q.Iter(ctx, func(qr topdown.QueryResult) error {
@@ -830,8 +832,6 @@ func (r *REPL) evalBody(ctx context.Context, compiler *ast.Compiler, input ast.V
 
 		return nil
 	})
-
-	r.timerStop(metrics.RegoQueryEval)
 
 	if buf != nil {
 		r.printTrace(ctx, compiler, *buf)
@@ -889,6 +889,10 @@ func (r *REPL) evalPartial(ctx context.Context, compiler *ast.Compiler, input as
 		q = q.WithInput(ast.NewTerm(input))
 	}
 
+	if r.metrics != nil {
+		q = q.WithMetrics(r.metrics)
+	}
+
 	queries, support, err := q.PartialRun(ctx)
 	if err != nil {
 		return err
@@ -908,9 +912,6 @@ func (r *REPL) evalPartial(ctx context.Context, compiler *ast.Compiler, input as
 }
 
 func (r *REPL) evalImport(i *ast.Import) error {
-	r.timerStart(metrics.RegoQueryEval)
-	defer r.timerStop(metrics.RegoQueryEval)
-
 	mod := r.modules[r.currentModuleID]
 
 	for _, other := range mod.Imports {
@@ -925,9 +926,6 @@ func (r *REPL) evalImport(i *ast.Import) error {
 }
 
 func (r *REPL) evalPackage(p *ast.Package) error {
-	r.timerStart(metrics.RegoQueryEval)
-	defer r.timerStop(metrics.RegoQueryEval)
-
 	moduleID := p.Path.String()
 
 	if _, ok := r.modules[moduleID]; ok {
