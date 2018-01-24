@@ -1538,6 +1538,26 @@ func TestTopDownWalkBuiltin(t *testing.T) {
 			},
 			expected: `[[[0, "foo"], 1], [[0, "bazoo"], 3]]`,
 		},
+		{
+			note: "partially ground path",
+			rules: []string{
+				`p[[k1,k2,x]] {
+					walk(q, [["a", k1, "b", k2], x])
+				}`,
+				`q = {
+					"a": [
+						{
+							"b": {"foo": 1, "bar": 2},
+						},
+						{
+							"b": {"baz": 3, "qux": 4},
+						}
+					]
+				} { true }
+				`,
+			},
+			expected: `[[0, "foo", 1], [0, "bar", 2], [1, "baz", 3], [1, "qux", 4]]`,
+		},
 	}
 
 	data := loadSmallTestData()
