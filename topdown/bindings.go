@@ -126,6 +126,11 @@ func (u *bindings) PlugNamespaced(a *ast.Term, caller *bindings) *ast.Term {
 }
 
 func (u *bindings) bind(a *ast.Term, b *ast.Term, other *bindings) *undo {
+	// See note in apply about non-var terms.
+	_, ok := a.Value.(ast.Var)
+	if !ok {
+		panic("illegal value")
+	}
 	u.values.Put(a, value{
 		u: other,
 		v: b,
@@ -134,6 +139,14 @@ func (u *bindings) bind(a *ast.Term, b *ast.Term, other *bindings) *undo {
 }
 
 func (u *bindings) apply(a *ast.Term) (*ast.Term, *bindings) {
+	// Early exit for non-var terms. Only vars are bound in the binding list,
+	// so the lookup below will always fail for non-var terms. In some cases,
+	// the lookup may be expensive as it has to hash the term (which for large
+	// inputs can be costly.)
+	_, ok := a.Value.(ast.Var)
+	if !ok {
+		return a, u
+	}
 	val, ok := u.get(a)
 	if !ok {
 		return a, u
