@@ -223,29 +223,8 @@ func TestInvalidKeyError(t *testing.T) {
 		rules    []string
 		expected interface{}
 	}{
-		{"http.send", []string{
-			`p = x { http.send({"method": "get", "url": "http://127.0.0.1:51113", "bad_key": "bad_value"}, x) }`}, fmt.Errorf("invalid key {\"bad_key\"}")},
-	}
-
-	data := loadSmallTestData()
-
-	for _, tc := range tests {
-		runTopDownTestCase(t, data, tc.note, tc.rules, tc.expected)
-	}
-}
-
-// TestMissingKeyError returns an error when a required key is not passed
-// in the http.send builtin
-func TestMissingKeyError(t *testing.T) {
-
-	// run the test
-	tests := []struct {
-		note     string
-		rules    []string
-		expected interface{}
-	}{
-		{"http.send", []string{
-			`p = x { http.send({"method": "get"}, x) }`}, fmt.Errorf("missing keys {\"url\"}")},
+		{"invalid keys", []string{`p = x { http.send({"method": "get", "url": "http://127.0.0.1:51113", "bad_key": "bad_value"}, x) }`}, fmt.Errorf(`invalid request parameters(s): {"bad_key"}`)},
+		{"missing keys", []string{`p = x { http.send({"method": "get"}, x) }`}, fmt.Errorf(`missing required request parameters(s): {"url"}`)},
 	}
 
 	data := loadSmallTestData()

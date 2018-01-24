@@ -7,7 +7,6 @@ package topdown
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 
 	"net/http"
 	"os"
@@ -18,75 +17,75 @@ import (
 	"github.com/open-policy-agent/opa/topdown/builtins"
 )
 
-// DefaultHTTPRequestTimeoutSec Default timeout value for http client
-const defaultHTTPRequestTimeoutSec = 5
+const defaultHTTPRequestTimeout = time.Second * 5
 
 var allowedKeys = ast.NewSet(ast.StringTerm("method"), ast.StringTerm("url"), ast.StringTerm("body"))
 var requiredKeys = ast.NewSet(ast.StringTerm("method"), ast.StringTerm("url"))
 
 var client *http.Client
 
-func builtinHTTPReq(bctx BuiltinContext, a ast.Value) (ast.Value, error) {
-	switch a.(type) {
-	case ast.Object:
-		obj, ok := a.(ast.Object)
-		if !ok {
-			return nil, fmt.Errorf("type assertion error")
-		}
+func builtinHTTPSend(bctx BuiltinContext, args []*ast.Term, iter func(*ast.Term) error) error {
 
-		return evaluateHTTPRequest(obj, bctx)
-	default:
-		return nil, builtins.NewOperandTypeErr(1, a, ast.ObjectTypeName)
+	req, err := validateHTTPRequestOperand(args[0], 1)
+	if err != nil {
+		return handleFunctionalBuiltinEr(ast.HTTPSend.Name, bctx.Location, err)
 	}
 
+	resp, err := executeHTTPRequest(bctx, req)
+	if err != nil {
+		return handleFunctionalBuiltinEr(ast.HTTPSend.Name, bctx.Location, err)
+	}
+
+	return iter(ast.NewTerm(resp))
 }
 
 func init() {
 	createHTTPClient()
-	RegisterFunctionalBuiltin1WithCtxt(ast.HTTPSend.Name, builtinHTTPReq)
+	RegisterBuiltinFunc(ast.HTTPSend.Name, builtinHTTPSend)
 }
 
-// createHTTPClient creates a HTTP client
 func createHTTPClient() {
-	var timeout time.Duration
-
+	timeout := defaultHTTPRequestTimeout
 	timeoutDuration := os.Getenv("HTTP_SEND_TIMEOUT")
-
-	if timeoutDuration == "" {
-		timeout = time.Duration(defaultHTTPRequestTimeoutSec) * time.Second
-	} else {
+	if timeoutDuration != "" {
 		timeout, _ = time.ParseDuration(timeoutDuration)
 	}
-
 	client = &http.Client{
 		Timeout: timeout,
 	}
 }
 
-// evaluateHTTPRequest executes the HTTP request and processes the response
-func evaluateHTTPRequest(obj ast.Object, bctx BuiltinContext) (ast.Value, error) {
-	var url string
-	var method string
-	var body *bytes.Buffer
+func validateHTTPRequestOperand(term *ast.Term, pos int) (ast.Object, error) {
+
+	obj, err := builtins.ObjectOperand(term.Value, pos)
+	if err != nil {
+		return nil, err
+	}
 
 	requestKeys := ast.NewSet(obj.Keys()...)
 
-	// check invalid keys
 	invalidKeys := requestKeys.Diff(allowedKeys)
 	if invalidKeys.Len() != 0 {
-		return nil, fmt.Errorf("invalid key %s", invalidKeys)
+		return nil, builtins.NewOperandErr(pos, "invalid request parameters(s): %v", invalidKeys)
 	}
 
-	// check missing keys
 	missingKeys := requiredKeys.Diff(requestKeys)
 	if missingKeys.Len() != 0 {
-		return nil, fmt.Errorf("missing keys %s", missingKeys)
+		return nil, builtins.NewOperandErr(pos, "missing required request parameters(s): %v", missingKeys)
 	}
 
+	return obj, nil
+
+}
+
+func executeHTTPRequest(bctx BuiltinContext, obj ast.Object) (ast.Value, error) {
+	var url string
+	var method string
+	var body *bytes.Buffer
 	for _, val := range obj.Keys() {
 		key, err := ast.JSON(val.Value)
 		if err != nil {
-			return nil, fmt.Errorf("error while converting value to json %v", err)
+			return nil, err
 		}
 		key = key.(string)
 
@@ -100,12 +99,12 @@ func evaluateHTTPRequest(obj ast.Object, bctx BuiltinContext) (ast.Value, error)
 			bodyVal := obj.Get(val).Value
 			bodyValInterface, err := ast.JSON(bodyVal)
 			if err != nil {
-				return nil, fmt.Errorf("error while converting value to json %v", err)
+				return nil, err
 			}
 
 			bodyValBytes, err := json.Marshal(bodyValInterface)
 			if err != nil {
-				return nil, fmt.Errorf("error while json marshalling %v", err)
+				return nil, err
 			}
 			body = bytes.NewBuffer(bodyValBytes)
 		}
