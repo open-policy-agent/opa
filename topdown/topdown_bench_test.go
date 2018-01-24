@@ -492,3 +492,50 @@ func generatePartialEvalBenchmarkInput(numRoles int) *ast.Term {
 
 	return ast.MustParseTerm(buf.String())
 }
+
+func BenchmarkWalk(b *testing.B) {
+
+	ctx := context.Background()
+	sizes := []int{100, 1000, 2000, 3000}
+
+	for _, n := range sizes {
+		b.Run(fmt.Sprint(n), func(b *testing.B) {
+			data := genWalkBenchmarkData(n)
+			store := inmem.NewFromObject(data)
+			compiler := ast.NewCompiler()
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				err := storage.Txn(ctx, store, storage.TransactionParams{}, func(txn storage.Transaction) error {
+					query := ast.MustParseBody(fmt.Sprintf(`walk(data, [["arr", %v], x])`, n-1))
+					compiledQuery, err := compiler.QueryCompiler().Compile(query)
+					if err != nil {
+						b.Fatal(err)
+					}
+					q := NewQuery(compiledQuery).
+						WithStore(store).
+						WithCompiler(compiler).
+						WithTransaction(txn)
+					rs, err := q.Run(ctx)
+					if err != nil || len(rs) != 1 || !rs[0][ast.Var("x")].Equal(ast.IntNumberTerm(n-1)) {
+						b.Fatal("Unexpected result:", rs, "err:", err)
+					}
+					return nil
+				})
+				if err != nil {
+					b.Fatal(err)
+				}
+			}
+		})
+	}
+
+}
+
+func genWalkBenchmarkData(n int) map[string]interface{} {
+	sl := make([]interface{}, n)
+	for i := 0; i < n; i++ {
+		sl[i] = i
+	}
+	return map[string]interface{}{
+		"arr": sl,
+	}
+}

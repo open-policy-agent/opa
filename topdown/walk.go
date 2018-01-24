@@ -4,27 +4,41 @@
 
 package topdown
 
-import "github.com/open-policy-agent/opa/ast"
+import (
+	"github.com/open-policy-agent/opa/ast"
+)
 
 func evalWalk(bctx BuiltinContext, args []*ast.Term, iter func(*ast.Term) error) error {
 	input := args[0]
+	filter := getOutputPath(args)
 	var path ast.Array
-	return walk(input, path, iter)
+	return walk(filter, path, input, iter)
 }
 
-func walk(input *ast.Term, path ast.Array, iter func(*ast.Term) error) error {
+func walk(filter, path ast.Array, input *ast.Term, iter func(*ast.Term) error) error {
 
-	output := ast.ArrayTerm(ast.NewTerm(path), input)
+	if len(filter) == 0 {
+		if err := iter(ast.ArrayTerm(ast.NewTerm(path), input)); err != nil {
+			return err
+		}
+	}
 
-	if err := iter(output); err != nil {
-		return err
+	if len(filter) > 0 {
+		key := filter[0]
+		filter = filter[1:]
+		if key.IsGround() {
+			if term := input.Get(key); term != nil {
+				return walk(filter, append(path, key), term, iter)
+			}
+			return nil
+		}
 	}
 
 	switch v := input.Value.(type) {
 	case ast.Array:
 		for i := range v {
 			path = append(path, ast.IntNumberTerm(i))
-			if err := walk(v[i], path, iter); err != nil {
+			if err := walk(filter, path, v[i], iter); err != nil {
 				return err
 			}
 			path = path[:len(path)-1]
@@ -32,7 +46,7 @@ func walk(input *ast.Term, path ast.Array, iter func(*ast.Term) error) error {
 	case ast.Object:
 		return v.Iter(func(k, v *ast.Term) error {
 			path = append(path, k)
-			if err := walk(v, path, iter); err != nil {
+			if err := walk(filter, path, v, iter); err != nil {
 				return err
 			}
 			path = path[:len(path)-1]
@@ -41,7 +55,7 @@ func walk(input *ast.Term, path ast.Array, iter func(*ast.Term) error) error {
 	case ast.Set:
 		return v.Iter(func(elem *ast.Term) error {
 			path = append(path, elem)
-			if err := walk(elem, path, iter); err != nil {
+			if err := walk(filter, path, elem, iter); err != nil {
 				return err
 			}
 			path = path[:len(path)-1]
@@ -49,6 +63,19 @@ func walk(input *ast.Term, path ast.Array, iter func(*ast.Term) error) error {
 		})
 	}
 
+	return nil
+}
+
+func getOutputPath(args []*ast.Term) ast.Array {
+	if len(args) == 2 {
+		if arr, ok := args[1].Value.(ast.Array); ok {
+			if len(arr) == 2 {
+				if path, ok := arr[0].Value.(ast.Array); ok {
+					return path
+				}
+			}
+		}
+	}
 	return nil
 }
 
