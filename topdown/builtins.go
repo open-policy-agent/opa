@@ -111,7 +111,7 @@ func functionalWrapperVoid1(name string, fn FunctionalBuiltinVoid1) BuiltinFunc 
 		if _, empty := err.(BuiltinEmpty); empty {
 			return nil
 		}
-		return handleFunctionalBuiltinEr(name, bctx.Location, err)
+		return handleBuiltinErr(name, bctx.Location, err)
 	}
 }
 
@@ -124,7 +124,7 @@ func functionalWrapper1(name string, fn FunctionalBuiltin1) BuiltinFunc {
 		if _, empty := err.(BuiltinEmpty); empty {
 			return nil
 		}
-		return handleFunctionalBuiltinEr(name, bctx.Location, err)
+		return handleBuiltinErr(name, bctx.Location, err)
 	}
 }
 
@@ -137,7 +137,7 @@ func functionalWrapper2(name string, fn FunctionalBuiltin2) BuiltinFunc {
 		if _, empty := err.(BuiltinEmpty); empty {
 			return nil
 		}
-		return handleFunctionalBuiltinEr(name, bctx.Location, err)
+		return handleBuiltinErr(name, bctx.Location, err)
 	}
 }
 
@@ -150,11 +150,11 @@ func functionalWrapper3(name string, fn FunctionalBuiltin3) BuiltinFunc {
 		if _, empty := err.(BuiltinEmpty); empty {
 			return nil
 		}
-		return handleFunctionalBuiltinEr(name, bctx.Location, err)
+		return handleBuiltinErr(name, bctx.Location, err)
 	}
 }
 
-func handleFunctionalBuiltinEr(name string, loc *ast.Location, err error) error {
+func handleBuiltinErr(name string, loc *ast.Location, err error) error {
 	switch err := err.(type) {
 	case BuiltinEmpty:
 		return nil
