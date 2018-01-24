@@ -43,7 +43,7 @@ func builtinHTTPReq(bctx BuiltinContext, a ast.Value) (ast.Value, error) {
 
 func init() {
 	createHTTPClient()
-	RegisterFunctionalBuiltin1WithCtxt(ast.HTTPReqBuiltin.Name, builtinHTTPReq)
+	RegisterFunctionalBuiltin1WithCtxt(ast.HTTPSend.Name, builtinHTTPReq)
 }
 
 // createHTTPClient creates a HTTP client

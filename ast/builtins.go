@@ -69,7 +69,7 @@ var DefaultBuiltins = [...]*Builtin{
 	// Sort
 	Sort,
 
-	// Type
+	// Types
 	IsNumber,
 	IsString,
 	IsBoolean,
@@ -77,12 +77,10 @@ var DefaultBuiltins = [...]*Builtin{
 	IsSet,
 	IsObject,
 	IsNull,
-
-	// Type Name
 	TypeNameBuiltin,
 
-	// HTTP Request
-	HTTPReqBuiltin,
+	// HTTP
+	HTTPSend,
 }
 
 // BuiltinMap provides a convenient mapping of built-in names to
@@ -791,8 +789,8 @@ var TypeNameBuiltin = &Builtin{
  * HTTP Request
  */
 
-// HTTPReqBuiltin returns a HTTP response to the given HTTP request
-var HTTPReqBuiltin = &Builtin{
+// HTTPSend returns a HTTP response to the given HTTP request.
+var HTTPSend = &Builtin{
 	Name: "http.send",
 	Decl: types.NewFunction(
 		types.Args(
