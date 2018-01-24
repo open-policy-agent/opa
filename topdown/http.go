@@ -28,12 +28,12 @@ func builtinHTTPSend(bctx BuiltinContext, args []*ast.Term, iter func(*ast.Term)
 
 	req, err := validateHTTPRequestOperand(args[0], 1)
 	if err != nil {
-		return handleFunctionalBuiltinEr(ast.HTTPSend.Name, bctx.Location, err)
+		return handleBuiltinErr(ast.HTTPSend.Name, bctx.Location, err)
 	}
 
 	resp, err := executeHTTPRequest(bctx, req)
 	if err != nil {
-		return handleFunctionalBuiltinEr(ast.HTTPSend.Name, bctx.Location, err)
+		return handleBuiltinErr(ast.HTTPSend.Name, bctx.Location, err)
 	}
 
 	return iter(ast.NewTerm(resp))
