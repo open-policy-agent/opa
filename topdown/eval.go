@@ -752,20 +752,19 @@ type evalBuiltin struct {
 
 func (e evalBuiltin) eval(iter unifyIterator) error {
 
-	nargs := len(e.bi.Decl.Args())
-	nterms := len(e.terms)
+	operands := make([]*ast.Term, len(e.terms))
 
-	args := make([]*ast.Term, nargs)
-
-	for i := 0; i < nargs; i++ {
-		args[i] = e.e.bindings.Plug(e.terms[i])
+	for i := 0; i < len(e.terms); i++ {
+		operands[i] = e.e.bindings.Plug(e.terms[i])
 	}
 
-	return e.f(e.bctx, args, func(output *ast.Term) error {
-		if nargs == nterms {
+	numDeclArgs := len(e.bi.Decl.Args())
+
+	return e.f(e.bctx, operands, func(output *ast.Term) error {
+		if len(operands) == numDeclArgs {
 			return iter()
 		}
-		return e.e.unify(e.terms[nterms-1], output, iter)
+		return e.e.unify(e.terms[len(e.terms)-1], output, iter)
 	})
 }
 
