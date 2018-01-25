@@ -47,6 +47,8 @@ complex types.
 | <span class="opa-keep-it-together">``s3 = s1 & s2``</span> | 2 | ``s3`` is the intersection of ``s1`` and ``s2``. |
 | <span class="opa-keep-it-together"><code>s3 = s1 &#124; s2</code></span> | 2 | ``s3`` is the union of ``s1`` and ``s2``. |
 | <span class="opa-keep-it-together">``s3 = s1 - s2``</span> | 2 | ``s3`` is the difference between ``s1`` and ``s2``, i.e., the elements in ``s1`` that are not in ``s2`` |
+| <span class="opa-keep-it-together">``intersection(set[set], output)``</span> | 1 | ``output`` is the intersection of the sets in the input set  |
+| <span class="opa-keep-it-together">``union(set[set], output)``</span> | 1 | ``output`` is the union of the sets in the input set  |
 
 ### <a name="strings"/>Strings
 
