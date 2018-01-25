@@ -50,6 +50,8 @@ var DefaultBuiltins = [...]*Builtin{
 
 	// Sets
 	SetDiff,
+	Intersection,
+	Union,
 
 	// Strings
 	Concat, FormatInt, IndexOf, Substring, Lower, Upper, Contains, StartsWith, EndsWith, Split, Replace, Trim, Sprintf,
@@ -797,6 +799,32 @@ var HTTPSend = &Builtin{
 			types.NewObject(nil, types.NewDynamicProperty(types.S, types.A)),
 		),
 		types.NewObject(nil, types.NewDynamicProperty(types.A, types.A)),
+	),
+}
+
+/**
+ * Set
+ */
+
+// Intersection returns the intersection of the given input sets
+var Intersection = &Builtin{
+	Name: "intersection",
+	Decl: types.NewFunction(
+		types.Args(
+			types.NewSet(types.NewSet(types.A)),
+		),
+		types.NewSet(types.A),
+	),
+}
+
+// Union returns the union of the given input sets
+var Union = &Builtin{
+	Name: "union",
+	Decl: types.NewFunction(
+		types.Args(
+			types.NewSet(types.NewSet(types.A)),
+		),
+		types.NewSet(types.A),
 	),
 }
 
