@@ -48,7 +48,7 @@ min_x = 100 { true }`
 	// Expr 1: data.foo[x]
 	// Expr 2: not input.bar[x]
 	// Expr 3: __local0__ = data.opa.example.min_x
-	// Expr 4: x >= __local0__
+	// Expr 4: gte(x, __local0__)
 }
 
 func ExampleQueryCompiler_Compile() {
@@ -110,5 +110,5 @@ min_x = 100 { true }`
 
 	// Output:
 	//
-	// Compiled: data.opa.example.p[x]; __local0__ = input.query_arg; x < __local0__
+	// Compiled: data.opa.example.p[x]; __local0__ = input.query_arg; lt(x, __local0__)
 }

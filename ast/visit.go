@@ -103,6 +103,10 @@ func Walk(v Visitor, x interface{}) {
 	case *SetComprehension:
 		Walk(w, x.Term)
 		Walk(w, x.Body)
+	case Call:
+		for _, t := range x {
+			Walk(w, t)
+		}
 	}
 }
 

@@ -207,10 +207,10 @@ func TestCheckInference(t *testing.T) {
 			`, map[Var]types.Type{
 			Var("k"): types.NewAny(types.S, types.N),
 		}},
-		{"simple-built-in", "x = 1 + 2", map[Var]types.Type{
+		{"simple-built-in", "plus(1,2,x)", map[Var]types.Type{
 			Var("x"): types.N,
 		}},
-		{"simple-built-in-exists", "x = 1 + 2; y = x + 2", map[Var]types.Type{
+		{"simple-built-in-exists", "plus(1,2,x); plus(x,2,y)", map[Var]types.Type{
 			Var("x"): types.N,
 			Var("y"): types.N,
 		}},
@@ -614,15 +614,15 @@ func TestCheckBuiltinErrors(t *testing.T) {
 		note  string
 		query string
 	}{
-		{"trivial", "x = true + 1"},
-		{"refs", "x = [null]; y = x[0] + 1"},
+		{"trivial", "plus(true, 1, x)"},
+		{"refs", "x = [null]; plus(x[0], 1, y)"},
 		{"array comprehensions", `sum([null | true], x)`},
 		{"arrays-any", `sum([1,2,"3",4], x)`},
 		{"arrays-bad-input", `contains([1,2,3], "x")`},
 		{"objects-any", `fake_builtin_2({"a": a, "c": c})`},
 		{"objects-bad-input", `sum({"a": 1, "b": 2}, x)`},
 		{"sets-any", `sum({1,2,"3",4}, x)`},
-		{"virtual-ref", `data.test.p + data.deabeef = 0`},
+		{"virtual-ref", `plus(data.test.p, data.deabeef, 0)`},
 		{"function-ref", `data.test.f(1, data.test.f)`},
 	}
 

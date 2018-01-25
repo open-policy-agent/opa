@@ -135,6 +135,9 @@ func Compare(a, b interface{}) int {
 			return cmp
 		}
 		return Compare(a.Body, b.Body)
+	case Call:
+		b := b.(Call)
+		return termSliceCompare(a, b)
 	case *Expr:
 		b := b.(*Expr)
 		return a.Compare(b)
@@ -198,8 +201,10 @@ func sortOrder(x interface{}) int {
 		return 10
 	case *SetComprehension:
 		return 11
-	case Args:
+	case Call:
 		return 12
+	case Args:
+		return 13
 	case *Expr:
 		return 100
 	case *With:

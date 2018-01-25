@@ -139,15 +139,18 @@ func ParseRuleFromExpr(module *Module, expr *Expr) (*Rule, error) {
 		return nil, fmt.Errorf("negated %v cannot be used for %v", TypeName(expr), RuleTypeName)
 	}
 
-	if !expr.IsCall() {
-		return ParsePartialSetDocRuleFromTerm(module, expr.Terms.(*Term))
+	if term, ok := expr.Terms.(*Term); ok {
+		switch v := term.Value.(type) {
+		case Ref:
+			return ParsePartialSetDocRuleFromTerm(module, term)
+		default:
+			return nil, fmt.Errorf("%v cannot be used for name of %v", TypeName(v), RuleTypeName)
+		}
 	}
 
-	if !expr.IsEquality() {
-		for _, bi := range Builtins {
-			if expr.Operator().Equal(bi.Ref()) {
-				return nil, fmt.Errorf("%v name conflicts with built-in function", RuleTypeName)
-			}
+	if !expr.IsEquality() && expr.IsCall() {
+		if _, ok := BuiltinMap[expr.Operator().String()]; ok {
+			return nil, fmt.Errorf("%v name conflicts with built-in function", RuleTypeName)
 		}
 		return ParseRuleFromCallExpr(module, expr.Terms.([]*Term))
 	}
@@ -155,6 +158,11 @@ func ParseRuleFromExpr(module *Module, expr *Expr) (*Rule, error) {
 	lhs, rhs := expr.Operand(0), expr.Operand(1)
 
 	rule, err := ParseCompleteDocRuleFromEqExpr(module, lhs, rhs)
+	if err == nil {
+		return rule, nil
+	}
+
+	rule, err = ParseRuleFromCallEqExpr(module, lhs, rhs)
 	if err == nil {
 		return rule, nil
 	}
@@ -189,8 +197,6 @@ func ParseCompleteDocRuleFromEqExpr(module *Module, lhs, rhs *Term) (*Rule, erro
 		Module: module,
 	}
 
-	rule.Body[0].Location = rhs.Location
-
 	return rule, nil
 }
 
@@ -220,7 +226,6 @@ func ParsePartialObjectDocRuleFromEqExpr(module *Module, lhs, rhs *Term) (*Rule,
 		Module: module,
 	}
 
-	rule.Body[0].Location = rhs.Location
 	return rule, nil
 }
 
@@ -253,23 +258,41 @@ func ParsePartialSetDocRuleFromTerm(module *Module, term *Term) (*Rule, error) {
 	return rule, nil
 }
 
+// ParseRuleFromCallEqExpr returns a rule if the term can be interpreted as a
+// function definition (e.g., f(x) = y => f(x) = y { true }).
+func ParseRuleFromCallEqExpr(module *Module, lhs, rhs *Term) (*Rule, error) {
+
+	call, ok := lhs.Value.(Call)
+	if !ok {
+		return nil, fmt.Errorf("must be call")
+	}
+
+	rule := &Rule{
+		Location: lhs.Location,
+		Head: &Head{
+			Location: lhs.Location,
+			Name:     call[0].Value.(Ref)[0].Value.(Var),
+			Args:     Args(call[1:]),
+			Value:    rhs,
+		},
+		Body:   NewBody(NewExpr(BooleanTerm(true).SetLocation(rhs.Location).SetLocation(rhs.Location))),
+		Module: module,
+	}
+
+	return rule, nil
+}
+
 // ParseRuleFromCallExpr returns a rule if the terms can be interpreted as a
-// function returning true or some value (e.g., f(x) => f(x) = true { true },
-// f(x) = y => f(x) = y { true }).
+// function returning true or some value (e.g., f(x) => f(x) = true { true }).
 func ParseRuleFromCallExpr(module *Module, terms []*Term) (*Rule, error) {
-	var args Args
-	var value *Term
-	loc := terms[0].Location
 
 	if len(terms) <= 1 {
 		return nil, fmt.Errorf("%ss with %v must take at least one argument", RuleTypeName, ArgsTypeName)
-	} else if len(terms) == 2 {
-		args = Args{terms[1]}
-		value = BooleanTerm(true).SetLocation(loc)
-	} else {
-		args = terms[1 : len(terms)-1]
-		value = terms[len(terms)-1]
 	}
+
+	loc := terms[0].Location
+	args := terms[1:]
+	value := BooleanTerm(true).SetLocation(loc)
 
 	rule := &Rule{
 		Location: loc,

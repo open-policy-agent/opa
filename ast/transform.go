@@ -232,6 +232,13 @@ func Transform(t Transformer, x interface{}) (interface{}, error) {
 			return nil, err
 		}
 		return y, nil
+	case Call:
+		for i := range y {
+			if y[i], err = transformTerm(t, y[i]); err != nil {
+				return nil, err
+			}
+		}
+		return y, nil
 	default:
 		return y, nil
 	}

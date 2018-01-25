@@ -10,7 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/open-policy-agent/opa/types"
 	"github.com/open-policy-agent/opa/util"
 )
 
@@ -175,7 +174,6 @@ type (
 		Negated   bool        `json:"negated,omitempty"`
 		Terms     interface{} `json:"terms"`
 		With      []*With     `json:"with,omitempty"`
-		Infix     bool        `json:"infix,omitempty"`
 	}
 
 	// With represents a modifier on an expression.
@@ -972,27 +970,11 @@ func (expr *Expr) String() string {
 	}
 	switch t := expr.Terms.(type) {
 	case []*Term:
-		name := t[0].String()
-		bi := BuiltinMap[name]
-		var s string
-		// Handle infix operators (e.g., =, !=, >=, +, /, etc.)
-		if bi != nil && bi.Infix != "" {
-			if types.Compare(bi.Decl.Result(), types.T) == 0 {
-				s = fmt.Sprintf("%v %v %v", t[1], bi.Infix, t[2])
-			} else {
-				s = fmt.Sprintf("%v = %v %v %v", t[3], t[1], bi.Infix, t[2])
-			}
+		if expr.IsEquality() {
+			buf = append(buf, fmt.Sprintf("%v %v %v", t[1], Equality.Infix, t[2]))
+		} else {
+			buf = append(buf, Call(t).String())
 		}
-		// Handle infix call expressions.
-		if len(s) == 0 && expr.Infix {
-			s = fmt.Sprintf("%v = %v%v", t[len(t)-1], t[0], Args(t[1:len(t)-1]))
-		}
-		// Handle anything else.
-		if len(s) == 0 {
-			s = fmt.Sprintf("%v%v", t[0], Args(t[1:]))
-		}
-		buf = append(buf, s)
-
 	case *Term:
 		buf = append(buf, t.String())
 	}
@@ -1178,6 +1160,12 @@ func (w *With) Copy() *With {
 // Hash returns the hash code of the With.
 func (w With) Hash() int {
 	return w.Target.Hash() + w.Value.Hash()
+}
+
+// SetLocation sets the location on w.
+func (w *With) SetLocation(loc *Location) *With {
+	w.Location = loc
+	return w
 }
 
 // RuleSet represents a collection of rules that produce a virtual document.
