@@ -529,11 +529,8 @@ func TestValueToInterface(t *testing.T) {
 
 	// Happy path
 	term := MustParseTerm(`{
-		"foo": [
-			1, "two", true, null, {
-				3,
-			}
-		]
+		"foo": [1, "two", true, null, {3,
+			}]
 	}`)
 
 	value, err := JSON(term.Value)

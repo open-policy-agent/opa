@@ -1,142 +1,9 @@
 {
 package ast
-
-const (
-	// commentsKey is the global map key for the comments slice.
-	commentsKey = "comments"
-
-	// filenameKey is the global map key for the filename.
-	filenameKey = "filename"
-)
-
-
-type program struct {
-	buf []interface{}
-	comments interface{}
 }
 
-type ruleExt struct {
-    loc *Location
-    term *Term
-    body Body
-}
-
-// currentLocation converts the parser context to a Location object.
-func currentLocation(c *current) *Location {
-    return NewLocation(c.text, c.globalStore[filenameKey].(string), c.pos.line, c.pos.col)
-}
-
-func ifaceSliceToByteSlice(i interface{}) []byte {
-    var buf bytes.Buffer
-    for _, x := range i.([]interface{}) {
-        buf.Write(x.([]byte))
-    }
-    return buf.Bytes()
-}
-
-func ifacesToBody(i interface{}, a ...interface{}) Body {
-    var buf Body
-    buf = append(buf, i.(*Expr))
-    for _, s := range a {
-        expr := s.([]interface{})[3].(*Expr)
-        buf = append(buf, expr)
-    }
-    return buf
-}
-
-func makeObject(head interface{}, tail interface{}, loc *Location) (*Term, error) {
-   term := ObjectTerm()
-   term.Location = loc
-
-   // Empty object.
-   if head == nil {
-       return term, nil
-   }
-
-   headSlice := head.([]interface{})
-   obj := term.Value.(Object)
-   obj.Insert(headSlice[0].(*Term), headSlice[len(headSlice)-1].(*Term))
-
-   // Non-empty object, remaining key/value pairs.
-   tailSlice := tail.([]interface{})
-   for _, v := range tailSlice {
-       s := v.([]interface{})
-       obj.Insert(s[3].(*Term), s[len(s)-1].(*Term))
-   }
-
-   return term, nil
-}
-
-func makeArray(head interface{}, tail interface{}, loc *Location) (*Term, error) {
-   arr := ArrayTerm()
-   arr.Location = loc
-
-   // Empty array.
-   if head == nil {
-       return arr, nil
-   }
-
-   // Non-empty array, first element.
-   arr.Value = append(arr.Value.(Array), head.(*Term))
-
-   // Non-empty array, remaining elements.
-   tailSlice := tail.([]interface{})
-   for _, v := range tailSlice {
-       s := v.([]interface{})
-       // Array definition above describes the "tail" structure. We only care about the "Term" elements.
-       arr.Value = append(arr.Value.(Array), s[len(s) - 1].(*Term))
-   }
-
-   return arr, nil
-}
-
-func makeArgs(head interface{}, tail interface{}, loc *Location) (Args, error) {
-   args := Args{}
-   if head == nil {
-       return nil, nil
-   }
-   args = append(args, head.(*Term))
-   tailSlice := tail.([]interface{})
-   for _, v := range tailSlice {
-       s := v.([]interface{})
-       args = append(args, s[len(s) - 1].(*Term))
-   }
-   return args, nil
-}
-
-func makeInfixCallExpr(operator interface{}, args interface{}, output interface{}) (*Expr, error) {
-    expr := &Expr{}
-    a := args.(Args)
-    terms := make([]*Term, len(a)+2)
-    terms[0] = operator.(*Term)
-    dst := terms[1:]
-    for i := 0; i < len(a); i++ {
-        dst[i] = a[i]
-    }
-    terms[len(terms)-1] = output.(*Term)
-    expr.Terms = terms
-    expr.Infix = true
-    return expr, nil
-}
-
-}
-
-Program <- _ vals:(head:Stmt tail:(ws Stmt)*)? _ EOF {
-    var buf []interface{}
-
-    if vals == nil {
-        return buf, nil
-    }
-
-    ifaceSlice := vals.([]interface{})
-    head := ifaceSlice[0]
-    buf = append(buf, head)
-    for _, tail := range ifaceSlice[1].([]interface{}) {
-        stmt := tail.([]interface{})[1]
-        buf = append(buf, stmt)
-    }
-
-    return program{buf, c.globalStore[commentsKey]}, nil
+Program <- _ vals:(Stmt (ws Stmt)*)? _ EOF {
+    return makeProgram(c, vals)
 }
 
 Stmt <- val:(Package / Import / Rules / Body / Comment) {
@@ -144,216 +11,33 @@ Stmt <- val:(Package / Import / Rules / Body / Comment) {
 }
 
 Package <- "package" ws val:(Ref / Var) {
-    // All packages are implicitly declared under the default root document.
-    term := val.(*Term)
-    path := Ref{DefaultRootDocument.Copy().SetLocation(term.Location)}
-    switch v := term.Value.(type) {
-    case Ref:
-        // Convert head of package Ref to String because it will be prefixed
-        // with the root document variable.
-        head := StringTerm(string(v[0].Value.(Var))).SetLocation(v[0].Location)
-        tail := v[1:]
-        if !tail.IsGround() {
-            return nil, fmt.Errorf("package name cannot contain variables: %v", v)
+    return makePackage(currentLocation(c), val)
         }
-
-        // We do not allow non-string values in package names.
-        // Because documents are typically represented as JSON, non-string keys are
-        // not allowed for now.
-        // TODO(tsandall): consider special syntax for namespacing under arrays.
-        for _, p := range tail {
-            _, ok := p.Value.(String)
-            if !ok {
-                return nil, fmt.Errorf("package name cannot contain non-string values: %v", v)
-            }
-        }
-        path = append(path, head)
-        path = append(path, tail...)
-    case Var:
-        s := StringTerm(string(v)).SetLocation(term.Location)
-        path = append(path, s)
-    }
-    pkg := &Package{Location: currentLocation(c), Path: path}
-    return pkg, nil
-}
 
 Import <- "import" ws path:(Ref / Var) alias:(ws "as" ws Var)? {
-    imp := &Import{}
-    imp.Location = currentLocation(c)
-    imp.Path = path.(*Term)
-    if err := IsValidImportPath(imp.Path.Value); err != nil {
-        return nil, err
-    }
-    if alias == nil {
-        return imp, nil
-    }
-    aliasSlice := alias.([]interface{})
-    // Import definition above describes the "alias" slice. We only care about the "Var" element.
-    imp.Alias = aliasSlice[3].(*Term).Value.(Var)
-    return imp, nil
+    return makeImport(currentLocation(c), path, alias)
 }
 
 Rules <- DefaultRules / NormalRules
 
 DefaultRules <- "default" ws name:Var _ "=" _ value:Term {
-
-    term := value.(*Term)
-    var err error
-
-    vis := NewGenericVisitor(func(x interface{}) bool {
-        if err != nil {
-            return true
-        }
-        switch x.(type) {
-        case *ArrayComprehension, *ObjectComprehension, *SetComprehension: // skip closures
-            return true
-        case Ref, Var:
-            err = fmt.Errorf("default rule value cannot contain %v", TypeName(x))
-            return true
-        }
-        return false
-    })
-
-    Walk(vis, term)
-
-    if err != nil {
-        return nil, err
-    }
-
-    loc := currentLocation(c)
-    body := NewBody(NewExpr(BooleanTerm(true).SetLocation(loc)))
-
-    rule := &Rule{
-        Location: loc,
-        Default: true,
-        Head: &Head{
-            Location: currentLocation(c),
-            Name: name.(*Term).Value.(Var),
-            Value: value.(*Term),
-        },
-        Body: body,
-    }
-    rule.Body[0].Location = currentLocation(c)
-
-    return []*Rule{rule}, nil
+    return makeDefaultRule(currentLocation(c), name, value)
 }
 
-NormalRules <- head:RuleHead _ b:(NonEmptyBraceEnclosedBody ( _ RuleExt)* ) {
-
-    if head == nil {
-        return nil, nil
-    }
-
-    sl := b.([]interface{})
-
-    rules := []*Rule{
-        &Rule{
-            Location: currentLocation(c),
-            Head: head.(*Head),
-            Body: sl[0].(Body),
-        },
-    }
-
-    var ordered bool
-    prev := rules[0]
-
-    for i, elem := range sl[1].([]interface{}) {
-
-        next := elem.([]interface{})
-        re := next[1].(ruleExt)
-
-        if re.term == nil {
-            if ordered {
-                return nil, fmt.Errorf("expected 'else' keyword")
-            }
-            rules = append(rules, &Rule{
-                Location: re.loc,
-                Head: prev.Head.Copy(),
-                Body: re.body,
-            })
-        } else {
-            if (rules[0].Head.DocKind() != CompleteDoc) || (i != 0 && !ordered) {
-                return nil, fmt.Errorf("unexpected 'else' keyword")
-            }
-            ordered = true
-            curr := &Rule{
-                Location: re.loc,
-                Head: &Head{
-                    Name: prev.Head.Name,
-					Args: prev.Head.Args.Copy(),
-                    Value: re.term,
-                    Location: re.term.Location,
-                },
-                Body: re.body,
-            }
-            prev.Else = curr
-            prev = curr
-        }
-   }
-
-    return rules, nil
+NormalRules <- head:RuleHead _ rest:(NonEmptyBraceEnclosedBody ( _ RuleExt)* ) {
+    return makeRule(currentLocation(c), head, rest)
 }
 
 RuleHead <- name:Var args:( _ "(" _ Args _ ")" _ )? key:( _ "[" _ Term _ "]" _ )? value:( _ "=" _ Term )? {
-
-    head := &Head{}
-
-    head.Location = currentLocation(c)
-    head.Name = name.(*Term).Value.(Var)
-
-    if args != nil && key != nil {
-		return nil, fmt.Errorf("partial %v/%v %vs cannot take arguments", SetTypeName, ObjectTypeName, RuleTypeName)
-	}
-
-	if args != nil {
-		argSlice := args.([]interface{})
-		head.Args = argSlice[3].(Args)
-	}
-
-	if key != nil {
-        keySlice := key.([]interface{})
-        // Head definition above describes the "key" slice. We care about the "Term" element.
-        head.Key = keySlice[3].(*Term)
-    }
-
-    if value != nil {
-        valueSlice := value.([]interface{})
-        // Head definition above describes the "value" slice. We care about the "Term" element.
-        head.Value = valueSlice[len(valueSlice)-1].(*Term)
-    }
-
-    if key == nil && value == nil {
-        head.Value = BooleanTerm(true).SetLocation(head.Location)
-    }
-
-    if key != nil && value != nil {
-        switch head.Key.Value.(type) {
-        case Var, String, Ref: // nop
-        default:
-            return nil, fmt.Errorf("object key must be one of %v, %v, %v not %v", StringTypeName, VarTypeName, RefTypeName, TypeName(head.Key.Value))
-        }
-    }
-
-    return head, nil
+    return makeRuleHead(currentLocation(c), name, args, key, value)
 }
 
-Args <- _ head:Term tail:(_ ',' _ Term)* _ ','? _ {
-	return makeArgs(head, tail, currentLocation(c))
+Args <- list:ExprTermList {
+    return makeArgs(list)
 }
 
-Else <- "else" val:( _ "=" _ Term )? b:( _ NonEmptyBraceEnclosedBody ) {
-    bs := b.([]interface{})
-    body := bs[1].(Body)
-
-    if val == nil {
-        term := BooleanTerm(true)
-        term.Location = currentLocation(c)
-        return ruleExt{term.Location, term, body}, nil
-    }
-
-    vs := val.([]interface{})
-    t := vs[3].(*Term)
-    return ruleExt{currentLocation(c), t, body}, nil
+Else <- "else" value:( _ "=" _ Term )? body:( _ NonEmptyBraceEnclosedBody ) {
+    return makeRuleExt(currentLocation(c), value, body)
 }
 
 RuleDup <- b:NonEmptyBraceEnclosedBody {
@@ -372,239 +56,163 @@ NonEmptyBraceEnclosedBody <- "{" _ val:WhitespaceBody? _ "}" {
 }
 
 BraceEnclosedBody <- "{" _ val:WhitespaceBody? _ "}" {
-
-    if val == nil {
-        loc := currentLocation(c)
-        body := NewBody(NewExpr(ObjectTerm().SetLocation(loc)))
-        body[0].Location = loc
-        return body, nil
-    }
-
-    return val, nil
+    return makeBraceEnclosedBody(currentLocation(c), val)
 }
 
-// When body is enclosed, literals must be separated by newline or semicolon.
-// This is used for rules, comprehensions, and user functions.
-WhitespaceBody <- head:Literal tail:([ \t]* ((";" Comment?) / (Comment? [\r\n])) _ Literal)* {
-    return ifacesToBody(head, tail.([]interface{})...), nil
+WhitespaceBody <- head:Literal tail:(WhitespaceLiteralSeparator _ Literal)* {
+    return makeBody(head, tail, 2)
 }
 
-// When body is not enclosed, literals must be separated by semicolon This is
-// used for parsing ad-hoc queries.
-NonWhitespaceBody <- head:Literal tail:( _ ";" _ Literal)* {
-    return ifacesToBody(head, tail.([]interface{})...), nil
+NonWhitespaceBody <- head:Literal tail:( _ NonWhitespaceLiteralSeparator _ Literal)* {
+    return makeBody(head, tail, 3)
 }
 
-Literal <- neg:( "not" ws )? val:Expr with:( ws With (ws With)* )? {
-    var expr *Expr
-    switch val := val.(type) {
-    case *Expr:
-        expr = val
-    case *Term:
-        expr = &Expr{Terms: val}
-    }
-    expr.Location = currentLocation(c)
-    expr.Negated = neg != nil
+WhitespaceLiteralSeparator <- [ \t]* ((NonWhitespaceLiteralSeparator Comment?) / (Comment? [\r\n]))
 
-    if with != nil {
-        sl := with.([]interface{})
-        if head, ok := sl[1].(*With); ok {
-            expr.With = []*With{head}
-            if sl, ok := sl[2].([]interface{}); ok {
-                for i := range sl {
-                    if w, ok := sl[i].([]interface{})[1].(*With); ok {
-                        expr.With = append(expr.With, w)
-                    }
-                }
-            }
-        }
-    }
+NonWhitespaceLiteralSeparator <- ";"
 
+Literal <- negated:NotKeyword? value:LiteralExpr with:WithKeywordList? {
+    return makeLiteral(negated, value, with)
+}
+
+LiteralExpr <- lhs:ExprTerm rest:( _ LiteralExprOperator _ ExprTerm)? {
+    return makeLiteralExpr(currentLocation(c), lhs, rest)
+}
+
+LiteralExprOperator <- val:( "=" ) {
+    return makeInfixOperator(currentLocation(c), c.text)
+}
+
+NotKeyword <- val:("not" ws)? {
+    return val != nil, nil
+}
+
+WithKeywordList <- ws head:WithKeyword rest:( ws WithKeyword )* {
+    return makeWithKeywordList(head, rest)
+}
+
+WithKeyword <- "with" ws target:ExprTerm ws "as" ws value:ExprTerm {
+    return makeWithKeyword(currentLocation(c), target, value)
+}
+
+ExprTerm <- lhs:RelationExpr rest:( _ RelationOperator _ RelationExpr )* {
+    return makeExprTerm(currentLocation(c), lhs, rest)
+}
+
+ExprTermPairList <- head:ExprTermPair? tail:( _ ',' _ ExprTermPair )* _ ","? {
+    return makeExprTermPairList(head, tail)
+}
+
+ExprTermList <- head:ExprTerm? tail:( _ ',' _ ExprTerm )* _ ","? {
+     return makeExprTermList(head, tail)
+}
+
+ExprTermPair <- key:ExprTerm _ ':' _ value:ExprTerm {
+    return makeExprTermPair(key, value)
+}
+
+RelationOperator <- val:("==" / "!=" / "<=" / ">=" / ">" / "<") {
+    return makeInfixOperator(currentLocation(c), c.text)
+}
+
+RelationExpr <- lhs:BitwiseOrExpr rest:( _ BitwiseOrOperator _ BitwiseOrExpr)* {
+    return makeExprTerm(currentLocation(c), lhs, rest)
+}
+
+BitwiseOrOperator <- val:"|" {
+    return makeInfixOperator(currentLocation(c), c.text)
+}
+
+BitwiseOrExpr <- lhs:BitwiseAndExpr rest:( _ BitwiseAndOperator _ BitwiseAndExpr)* {
+    return makeExprTerm(currentLocation(c), lhs, rest)
+}
+
+BitwiseAndOperator <- val:"&" {
+    return makeInfixOperator(currentLocation(c), c.text)
+}
+
+BitwiseAndExpr <- lhs:ArithExpr rest:( _ ArithOperator _ ArithExpr)* {
+    return makeExprTerm(currentLocation(c), lhs, rest)
+}
+
+ArithOperator <- val:("+" / "-") {
+    return makeInfixOperator(currentLocation(c), c.text)
+}
+
+ArithExpr <- lhs:FactorExpr rest:( _ FactorOperator _ FactorExpr )* {
+    return makeExprTerm(currentLocation(c), lhs, rest)
+}
+
+FactorOperator <- val:("*" / "/"){
+    return makeInfixOperator(currentLocation(c), c.text)
+}
+
+FactorExpr <- ( "(" _ expr:ExprTerm _ ")" ) {
     return expr, nil
+} / term:Term {
+    return term, nil
 }
 
-With <- "with" ws target:Term ws "as" ws value:Term {
-    with := &With{}
-    with.Location = currentLocation(c)
-    with.Target = target.(*Term)
-    if err := IsValidImportPath(with.Target.Value); err != nil {
-        return nil, err
-    }
-    with.Value = value.(*Term)
-    return with, nil
+Call <- operator:(Ref / Var) "(" _ args:ExprTermList _ ")" {
+    return makeCall(currentLocation(c), operator, args)
 }
 
-Expr <- InfixExpr / PrefixExpr / Term
-
-InfixExpr <- (InfixCallExpr / InfixCallExprReverse) / (InfixArithExpr / InfixArithExprReverse) / InfixRelationExpr
-
-InfixCallExpr <- output:Term _ "=" _ operator:Operator _ "(" _ args:Args _ ")" {
-    return makeInfixCallExpr(operator, args, output)
-}
-
-InfixCallExprReverse <- operator:Operator _ "(" _ args:Args _ ")" _ "=" _ output:Term {
-    return makeInfixCallExpr(operator, args, output)
-}
-
-InfixArithExpr <- output:Term _ "=" _ left:Term _ operator:ArithInfixOp _ right:Term {
-    return makeInfixCallExpr(operator, Args{left.(*Term), right.(*Term)}, output)
-}
-
-InfixArithExprReverse <- left:Term _ operator:ArithInfixOp _ right:Term _ "=" _ output:Term {
-    return makeInfixCallExpr(operator, Args{left.(*Term), right.(*Term)}, output)
-}
-
-ArithInfixOp <- val:("+" / "-" / "*" / "/" / "&" / "|" / "-") {
-    op := string(c.text)
-    for _, b := range Builtins {
-        if string(b.Infix) == op {
-            op = string(b.Name)
-        }
-    }
-    loc := currentLocation(c)
-    operator := RefTerm(VarTerm(op).SetLocation(loc)).SetLocation(loc)
-	return operator, nil
-}
-
-InfixRelationExpr <- left:Term _ operator:InfixRelationOp _ right:Term {
-    return &Expr{
-        Terms: []*Term{
-            operator.(*Term),
-            left.(*Term),
-            right.(*Term),
-        },
-        Infix: true,
-    }, nil
-}
-
-InfixRelationOp <- val:("=" / "!=" / "<=" / ">=" / "<" / ">") {
-    op := string(c.text)
-    for _, b := range Builtins {
-        if string(b.Infix) == op {
-            op = string(b.Name)
-        }
-    }
-    loc := currentLocation(c)
-    operator := RefTerm(VarTerm(op).SetLocation(loc)).SetLocation(loc)
-	return operator, nil
-}
-
-PrefixExpr <- SetEmpty / Call
-
-Call <- name:Operator "(" _ head:Term? tail:( _ "," _ Term )* _  ")" {
-    buf := []*Term{name.(*Term)}
-    if head == nil {
-        return &Expr{Terms: buf}, nil
-    }
-
-    buf = append(buf, head.(*Term))
-
-    // PrefixExpr above describes the "tail" structure. We only care about the "Term" elements.
-    tailSlice := tail.([]interface{})
-    for _, v := range tailSlice {
-        s := v.([]interface{})
-        buf = append(buf, s[len(s) - 1].(*Term))
-    }
-
-    return &Expr{Terms: buf}, nil
-}
-
-Operator <- val:(Ref / Var) {
-    term := val.(*Term)
-    switch term.Value.(type) {
-    case Ref:
-        return val, nil
-    case Var:
-        return RefTerm(term).SetLocation(currentLocation(c)), nil
-    default:
-        panic("unreachable")
-    }
-}
-
-Term <- val:( Comprehension / Composite / Scalar / Ref / Var ) {
+Term <- val:( Comprehension / Composite / Scalar / Call / Ref / Var ) {
     return val, nil
+}
+
+TermPair <- key:Term _ ":" _ value:Term {
+    return makeExprTermPair(key, value)
 }
 
 Comprehension <- ArrayComprehension / ObjectComprehension / SetComprehension
 
-ArrayComprehension <- "[" _ term:Term _ "|" _ body:WhitespaceBody _ "]" {
-    ac := ArrayComprehensionTerm(term.(*Term), body.(Body))
-    ac.Location = currentLocation(c)
-    return ac, nil
+ArrayComprehension <- "[" _ head:Term _ "|" _ body:WhitespaceBody _ "]" {
+    return makeArrayComprehension(currentLocation(c), head, body)
 }
 
-ObjectComprehension <- "{" _ key:Key _ ':' _ value:Term  _ "|" _ body:WhitespaceBody _ "}" {
-    oc := ObjectComprehensionTerm(key.(*Term), value.(*Term), body.(Body))
-    oc.Location = currentLocation(c)
-    return oc, nil
+ObjectComprehension <- "{" _ head:TermPair  _ "|" _ body:WhitespaceBody _ "}" {
+    return makeObjectComprehension(currentLocation(c), head, body)
 }
 
-SetComprehension <- "{" _ term:Term _ "|" _ body:WhitespaceBody _ "}" {
-    sc := SetComprehensionTerm(term.(*Term), body.(Body))
-    sc.Location = currentLocation(c)
-    return sc, nil
+SetComprehension <- "{" _ head:Term _ "|" _ body:WhitespaceBody _ "}" {
+    return makeSetComprehension(currentLocation(c), head, body)
 }
 
 Composite <- Object / Array / Set
 
 Scalar <- Number / String / Bool / Null
 
-Key <- Scalar / Ref / Var
-
-Object <- '{' _ head:(Key _ ':' _ Term)? tail:( _ ',' _ Key _ ':' _ Term )* _ ','? _ '}' {
-    return makeObject(head, tail, currentLocation(c))
+Object <- '{' _ list:ExprTermPairList _ '}' {
+    return makeObject(currentLocation(c), list)
 }
 
-Array <- '[' _  head:Term? tail:(_ ',' _ Term)* _ ','? _  ']' {
-    return makeArray(head, tail, currentLocation(c))
+Array <- '[' _ list:ExprTermList _ ']' {
+    return makeArray(currentLocation(c), list)
 }
 
 Set <- SetEmpty / SetNonEmpty
 
 SetEmpty <- "set(" _ ")" {
-    set := SetTerm()
-    set.Location = currentLocation(c)
-    return set, nil
+    var empty []*Term
+    return makeSet(currentLocation(c), empty)
 }
 
-SetNonEmpty <- '{' _ head:Term tail:(_ ',' _ Term)* _ ','? _ '}' {
-    set := SetTerm()
-    set.Location = currentLocation(c)
-
-    val := set.Value.(Set)
-    val.Add(head.(*Term))
-
-    tailSlice := tail.([]interface{})
-    for _, v := range tailSlice {
-        s := v.([]interface{})
-        // SetNonEmpty definition above describes the "tail" structure. We only care about the "Term" elements.
-        val.Add(s[len(s) - 1].(*Term))
-    }
-
-    return set, nil
+SetNonEmpty <- '{' _ list:ExprTermList _ '}' {
+    return makeSet(currentLocation(c), list)
 }
 
-Ref <- head:Var tail:( RefDot / RefBracket )+ {
-
-   ref := RefTerm(head.(*Term))
-   ref.Location = currentLocation(c)
-
-   tailSlice := tail.([]interface{})
-   for _, v := range tailSlice {
-       ref.Value = append(ref.Value.(Ref), v.(*Term))
-   }
-
-   return ref, nil
+Ref <- head:Var rest:RefOperand+ {
+    return makeRef(currentLocation(c), head, rest)
 }
 
-RefDot <- "." val:Var {
-    // Convert the Var into a string because 'foo.bar.baz' is equivalent to 'foo["bar"]["baz"]'.
-    str := StringTerm(string(val.(*Term).Value.(Var)))
-    str.Location = currentLocation(c)
-    return str, nil
+RefOperand <- RefOperandDot / RefOperandCanonical
+
+RefOperandDot <- "." val:Var {
+    return makeRefOperandDot(currentLocation(c), val)
 }
 
-RefBracket <- "[" val:(Composite / Ref / Scalar / Var) "]" {
+RefOperandCanonical <- "[" val:ExprTerm "]" {
     return val, nil
 }
 
@@ -612,29 +220,16 @@ Var <- val:VarChecked {
     return val.([]interface{})[0], nil
 }
 
-// VarChecked prevents keywords from being used as variable names.
 VarChecked <- val:VarUnchecked !{
     return IsKeyword(string(val.(*Term).Value.(Var))), nil
 }
 
 VarUnchecked <- AsciiLetter (AsciiLetter / DecimalDigit)* {
-    str := string(c.text)
-    variable := VarTerm(str)
-    variable.Location = currentLocation(c)
-    return variable, nil
+    return makeVar(currentLocation(c), c.text)
 }
 
 Number <- '-'? ( Float / Integer ) {
-    f, ok := new(big.Float).SetString(string(c.text))
-    if !ok {
-        // This indicates the grammar is out-of-sync with what the string
-        // representation of floating point numbers. This should not be
-        // possible.
-        panic("illegal value")
-    }
-    num := NumberTerm(json.Number(f.String()))
-    num.Location = currentLocation(c)
-    return num, nil
+    return makeNumber(currentLocation(c), c.text)
 }
 
 Float <- ExponentFloat / PointFloat
@@ -652,36 +247,19 @@ Integer <- '0' / ( NonZeroDecimalDigit DecimalDigit* )
 String <- QuotedString / RawString
 
 QuotedString <- '"' Char* '"' {
-    var v string
-    err := json.Unmarshal([]byte(c.text), &v)
-    str := StringTerm(v)
-    str.Location = currentLocation(c)
-    return str, err
+    return makeString(currentLocation(c), c.text)
 }
 
 RawString <- '`' [^`]* '`' {
-    s := string(c.text)
-    s = s[1:len(s)-1] // Trim surrounding quotes.
-
-    str := StringTerm(s)
-    str.Location = currentLocation(c)
-    return str, nil
+    return makeRawString(currentLocation(c), c.text)
 }
 
-Bool <- "true" {
-    bol := BooleanTerm(true)
-    bol.Location = currentLocation(c)
-    return bol, nil
-} / "false" {
-    bol := BooleanTerm(false)
-    bol.Location = currentLocation(c)
-    return bol, nil
+Bool <- val:("true" / "false") {
+    return makeBool(currentLocation(c), c.text)
 }
 
 Null <- "null" {
-    null := NullTerm()
-    null.Location = currentLocation(c)
-    return null, nil
+    return makeNull(currentLocation(c))
 }
 
 AsciiLetter <- [A-Za-z_]
@@ -707,14 +285,7 @@ ws "whitespace" <- [ \t\r\n]+
 _ "whitespace" <- ( [ \t\r\n] / Comment )*
 
 Comment <- [ \t]* "#" text:[^\r\n]* {
-    comment := NewComment(ifaceSliceToByteSlice(text))
-    comment.Location = currentLocation(c)
-
-    comments := c.globalStore[commentsKey].([]*Comment)
-    comments = append(comments, comment)
-    c.globalStore[commentsKey] = comments
-
-    return comment, nil
+    return makeComments(c, text)
 }
 
 EOF <- !.

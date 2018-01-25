@@ -26,6 +26,7 @@ const (
 	ObjectTypeName             = "object"
 	SetTypeName                = "set"
 	ArrayComprehensionTypeName = "arraycomprehension"
+	CallTypeName               = "call"
 	ExprTypeName               = "expr"
 	WithTypeName               = "with"
 	BodyTypeName               = "body"

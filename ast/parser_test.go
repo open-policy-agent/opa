@@ -142,8 +142,6 @@ func TestVarTerms(t *testing.T) {
 	assertParseOneTerm(t, "import prefix", "imports", VarTerm("imports"))
 	assertParseOneTerm(t, "not prefix", "not_foo", VarTerm("not_foo"))
 	assertParseOneTerm(t, `package prefix`, "packages", VarTerm("packages"))
-	assertParseError(t, "non-var", "foo-bar")
-	assertParseError(t, "non-var2", "foo-7")
 	assertParseError(t, "not keyword", "not")
 	assertParseError(t, `package keyword`, "package")
 	assertParseError(t, "import keyword", "import")
@@ -269,9 +267,7 @@ func TestArrayComprehensions(t *testing.T) {
 						ArrayComprehensionTerm(
 							ObjectTerm(Item(StringTerm("a"), ArrayTerm(StringTerm("baz"), VarTerm("j")))),
 							NewBody(
-								&Expr{
-									Terms: RefTerm(VarTerm("q"), VarTerm("p")),
-								},
+								NewExpr(RefTerm(VarTerm("q"), VarTerm("p"))),
 								NotEqual.Expr(RefTerm(VarTerm("p"), StringTerm("a")), StringTerm("bar")),
 								Equality.Expr(VarTerm("j"), StringTerm("foo")),
 							),
@@ -305,9 +301,7 @@ func TestObjectComprehensions(t *testing.T) {
 							StringTerm("foo"),
 							ObjectTerm(Item(StringTerm("a"), ArrayTerm(StringTerm("baz"), VarTerm("j")))),
 							NewBody(
-								&Expr{
-									Terms: RefTerm(VarTerm("q"), VarTerm("p")),
-								},
+								NewExpr(RefTerm(VarTerm("q"), VarTerm("p"))),
 								NotEqual.Expr(RefTerm(VarTerm("p"), StringTerm("a")), StringTerm("bar")),
 								Equality.Expr(VarTerm("j"), StringTerm("foo")),
 							),
@@ -339,9 +333,7 @@ func TestSetComprehensions(t *testing.T) {
 						SetComprehensionTerm(
 							ObjectTerm(Item(StringTerm("a"), ArrayTerm(StringTerm("baz"), VarTerm("j")))),
 							NewBody(
-								&Expr{
-									Terms: RefTerm(VarTerm("q"), VarTerm("p")),
-								},
+								NewExpr(RefTerm(VarTerm("q"), VarTerm("p"))),
 								NotEqual.Expr(RefTerm(VarTerm("p"), StringTerm("a")), StringTerm("bar")),
 								Equality.Expr(VarTerm("j"), StringTerm("foo")),
 							),
@@ -378,6 +370,33 @@ func TestSetComprehensionsAlone(t *testing.T) {
 	assertParseOneTerm(t, "alone", input, expected)
 }
 
+func TestCalls(t *testing.T) {
+
+	assertParseOneExpr(t, "ne", "100 != 200", NotEqual.Expr(IntNumberTerm(100), IntNumberTerm(200)))
+	assertParseOneExpr(t, "gt", "17.4 > \"hello\"", GreaterThan.Expr(FloatNumberTerm(17.4), StringTerm("hello")))
+	assertParseOneExpr(t, "lt", "17.4 < \"hello\"", LessThan.Expr(FloatNumberTerm(17.4), StringTerm("hello")))
+	assertParseOneExpr(t, "gte", "17.4 >= \"hello\"", GreaterThanEq.Expr(FloatNumberTerm(17.4), StringTerm("hello")))
+	assertParseOneExpr(t, "lte", "17.4 <= \"hello\"", LessThanEq.Expr(FloatNumberTerm(17.4), StringTerm("hello")))
+
+	left2 := ArrayTerm(ObjectTerm(Item(FloatNumberTerm(14.2), BooleanTerm(true)), Item(StringTerm("a"), NullTerm())))
+	right2 := ObjectTerm(Item(VarTerm("foo"), ObjectTerm(Item(RefTerm(VarTerm("a"), StringTerm("b"), IntNumberTerm(0)), ArrayTerm(IntNumberTerm(10))))))
+	assertParseOneExpr(t, "composites", "[{14.2: true, \"a\": null}] != {foo: {a.b[0]: [10]}}", NotEqual.Expr(left2, right2))
+
+	assertParseOneExpr(t, "plus", "1 + 2", Plus.Expr(IntNumberTerm(1), IntNumberTerm(2)))
+	assertParseOneExpr(t, "minus", "1 - 2", Minus.Expr(IntNumberTerm(1), IntNumberTerm(2)))
+	assertParseOneExpr(t, "mul", "1 * 2", Multiply.Expr(IntNumberTerm(1), IntNumberTerm(2)))
+	assertParseOneExpr(t, "div", "1 / 2", Divide.Expr(IntNumberTerm(1), IntNumberTerm(2)))
+	assertParseOneExpr(t, "and", "{1,2,3} & {2,3,4}", And.Expr(SetTerm(IntNumberTerm(1), IntNumberTerm(2), IntNumberTerm(3)), SetTerm(IntNumberTerm(2), IntNumberTerm(3), IntNumberTerm(4))))
+	assertParseOneExpr(t, "or", "{1,2,3} | {3,4,5}", Or.Expr(SetTerm(IntNumberTerm(1), IntNumberTerm(2), IntNumberTerm(3)), SetTerm(IntNumberTerm(3), IntNumberTerm(4), IntNumberTerm(5))))
+
+	assertParseOneExpr(t, "call", "count([true, false])", Count.Expr(ArrayTerm(BooleanTerm(true), BooleanTerm(false))))
+	assertParseOneExpr(t, "call-ref", "foo.bar(1)", NewExpr(
+		[]*Term{RefTerm(VarTerm("foo"), StringTerm("bar")),
+			IntNumberTerm(1)}))
+	assertParseOneExpr(t, "call-void", "foo()", NewExpr(
+		[]*Term{RefTerm(VarTerm("foo"))}))
+}
+
 func TestInfixExpr(t *testing.T) {
 	assertParseOneExpr(t, "scalars 1", "true = false", Equality.Expr(BooleanTerm(true), BooleanTerm(false)))
 	assertParseOneExpr(t, "scalars 2", "3.14 = null", Equality.Expr(FloatNumberTerm(3.14), NullTerm()))
@@ -393,44 +412,11 @@ func TestInfixExpr(t *testing.T) {
 	right1 := ArrayTerm(ObjectTerm(Item(IntNumberTerm(42), BooleanTerm(true))))
 	assertParseOneExpr(t, "composites", "{a: [foo[0].bar[x]]} = [{42: true}]", Equality.Expr(left1, right1))
 
-	assertParseOneExpr(t, "ne", "100 != 200", NotEqual.Expr(IntNumberTerm(100), IntNumberTerm(200)))
-	assertParseOneExpr(t, "gt", "17.4 > \"hello\"", GreaterThan.Expr(FloatNumberTerm(17.4), StringTerm("hello")))
-	assertParseOneExpr(t, "lt", "17.4 < \"hello\"", LessThan.Expr(FloatNumberTerm(17.4), StringTerm("hello")))
-	assertParseOneExpr(t, "gte", "17.4 >= \"hello\"", GreaterThanEq.Expr(FloatNumberTerm(17.4), StringTerm("hello")))
-	assertParseOneExpr(t, "lte", "17.4 <= \"hello\"", LessThanEq.Expr(FloatNumberTerm(17.4), StringTerm("hello")))
+	assertParseOneExpr(t, "plus", "x = 1 + 2", Equality.Expr(VarTerm("x"), Plus.Call(IntNumberTerm(1), IntNumberTerm(2))))
+	assertParseOneExpr(t, "plus reverse", "1 + 2 = x", Equality.Expr(Plus.Call(IntNumberTerm(1), IntNumberTerm(2)), VarTerm("x")))
 
-	left2 := ArrayTerm(ObjectTerm(Item(FloatNumberTerm(14.2), BooleanTerm(true)), Item(StringTerm("a"), NullTerm())))
-	right2 := ObjectTerm(Item(VarTerm("foo"), ObjectTerm(Item(RefTerm(VarTerm("a"), StringTerm("b"), IntNumberTerm(0)), ArrayTerm(IntNumberTerm(10))))))
-	assertParseOneExpr(t, "composites", "[{14.2: true, \"a\": null}] != {foo: {a.b[0]: [10]}}", NotEqual.Expr(left2, right2))
-}
-
-func TestInfixArithExpr(t *testing.T) {
-	assertParseOneExpr(t, "plus", "x = 1 + 2", Plus.Expr(IntNumberTerm(1), IntNumberTerm(2), VarTerm("x")))
-	assertParseOneExpr(t, "minus", "x = 1 - 2", Minus.Expr(IntNumberTerm(1), IntNumberTerm(2), VarTerm("x")))
-	assertParseOneExpr(t, "mul", "x = 1 * 2", Multiply.Expr(IntNumberTerm(1), IntNumberTerm(2), VarTerm("x")))
-	assertParseOneExpr(t, "div", "x = 1 / 2", Divide.Expr(IntNumberTerm(1), IntNumberTerm(2), VarTerm("x")))
-	assertParseOneExpr(t, "and", "x = {1,2,3} & {2,3,4}", And.Expr(SetTerm(IntNumberTerm(1), IntNumberTerm(2), IntNumberTerm(3)), SetTerm(IntNumberTerm(2), IntNumberTerm(3), IntNumberTerm(4)), VarTerm("x")))
-	assertParseOneExpr(t, "or", "x = {1,2,3} | {3,4,5}", Or.Expr(SetTerm(IntNumberTerm(1), IntNumberTerm(2), IntNumberTerm(3)), SetTerm(IntNumberTerm(3), IntNumberTerm(4), IntNumberTerm(5)), VarTerm("x")))
-	assertParseOneExpr(t, "plus (reverse)", "1 + 2 = x", Plus.Expr(IntNumberTerm(1), IntNumberTerm(2), VarTerm("x")))
-}
-
-func TestInfixCallExpr(t *testing.T) {
-	assertParseOneExpr(t, "call", "count([true, false]) = x", Count.Expr(ArrayTerm(BooleanTerm(true), BooleanTerm(false)), VarTerm("x")))
-	assertParseOneExpr(t, "call-reverse", "x = count([true, false])", Count.Expr(ArrayTerm(BooleanTerm(true), BooleanTerm(false)), VarTerm("x")))
-	assertParseOneExpr(t, "call-ref", "foo.bar(1) = x", &Expr{
-		Terms: []*Term{
-			RefTerm(VarTerm("foo"), StringTerm("bar")),
-			IntNumberTerm(1),
-			VarTerm("x"),
-		},
-	})
-}
-
-func TestMiscBuiltinExpr(t *testing.T) {
-	xyz := RefTerm(VarTerm("xyz"))
-	assertParseOneExpr(t, "empty", "xyz()", NewBuiltinExpr(xyz))
-	assertParseOneExpr(t, "single", "xyz(abc)", NewBuiltinExpr(xyz, VarTerm("abc")))
-	assertParseOneExpr(t, "multiple", "xyz(abc, {\"one\": [1,2,3]})", NewBuiltinExpr(xyz, VarTerm("abc"), ObjectTerm(Item(StringTerm("one"), ArrayTerm(IntNumberTerm(1), IntNumberTerm(2), IntNumberTerm(3))))))
+	assertParseOneExpr(t, "call", "count([true, false]) = x", Equality.Expr(Count.Call(ArrayTerm(BooleanTerm(true), BooleanTerm(false))), VarTerm("x")))
+	assertParseOneExpr(t, "call-reverse", "x = count([true, false])", Equality.Expr(VarTerm("x"), Count.Call(ArrayTerm(BooleanTerm(true), BooleanTerm(false)))))
 }
 
 func TestNegatedExpr(t *testing.T) {
@@ -445,7 +431,7 @@ func TestNegatedExpr(t *testing.T) {
 	ref1 := RefTerm(VarTerm("x"), VarTerm("y"), StringTerm("z"), VarTerm("a"))
 
 	assertParseOneExprNegated(t, "membership", "not x[y].z[a] = \"b\"", Equality.Expr(ref1, StringTerm("b")))
-	assertParseOneExprNegated(t, "misc. builtin", "not sorted(x[y].z[a])", NewBuiltinExpr(RefTerm(VarTerm("sorted")), ref1))
+	assertParseOneExprNegated(t, "misc. builtin", "not sorted(x[y].z[a])", NewExpr([]*Term{RefTerm(VarTerm("sorted")), ref1}))
 }
 
 func TestExprWith(t *testing.T) {
@@ -482,8 +468,117 @@ func TestExprWith(t *testing.T) {
 			},
 		},
 	})
+}
 
-	assertParseErrorEquals(t, "invalid import path", `data.foo with foo.bar as "x"`, "rego_parse_error: invalid path foo.bar: path must begin with input or data")
+func TestNestedExpressions(t *testing.T) {
+
+	n1 := IntNumberTerm(1)
+	n2 := IntNumberTerm(2)
+	n3 := IntNumberTerm(3)
+	n4 := IntNumberTerm(4)
+	n6 := IntNumberTerm(6)
+	x := VarTerm("x")
+	y := VarTerm("y")
+	z := VarTerm("z")
+	w := VarTerm("w")
+	f := RefTerm(VarTerm("f"))
+	g := RefTerm(VarTerm("g"))
+
+	tests := []struct {
+		note     string
+		input    string
+		expected *Expr
+	}{
+		{"associativity", "1 + 2 * 6 / 3",
+			Plus.Expr(
+				n1,
+				Divide.Call(
+					Multiply.Call(
+						n2,
+						n6),
+					n3))},
+		{"grouping", "(1 + 2 * 6 / 3) > 4",
+			GreaterThan.Expr(
+				Plus.Call(
+					n1,
+					Divide.Call(
+						Multiply.Call(
+							n2,
+							n6),
+						n3)),
+				n4)},
+		{"nested parens", "(((1 + 2) * (6 / (3))) > 4) != false",
+			NotEqual.Expr(
+				GreaterThan.Call(
+					Multiply.Call(
+						Plus.Call(
+							n1,
+							n2),
+						Divide.Call(
+							n6,
+							n3)),
+					n4,
+				),
+				BooleanTerm(false))},
+		{"bitwise or", "x + 1 | 2", Or.Expr(Plus.Call(x, n1), n2)},
+		{"bitwise and", "x + 1 | 2 & 3", Or.Expr(Plus.Call(x, n1), And.Call(n2, n3))},
+		{"array", "[x + 1, y > 2, z]", NewExpr(ArrayTerm(Plus.Call(x, n1), GreaterThan.Call(y, n2), z))},
+		{"object", "{x * 2: y < 2, z[3]: 1 + 6/2}", NewExpr(
+			ObjectTerm(
+				Item(Multiply.Call(x, n2), LessThan.Call(y, n2)),
+				Item(RefTerm(z, n3), Plus.Call(n1, Divide.Call(n6, n2))),
+			),
+		)},
+		{"set", "{x + 1, y + 2, set()}", NewExpr(
+			SetTerm(
+				Plus.Call(x, n1),
+				Plus.Call(y, n2),
+				SetTerm(),
+			),
+		)},
+		{"ref", `x[1][y + z[w + 1]].b`, NewExpr(
+			RefTerm(
+				x,
+				n1,
+				Plus.Call(
+					y,
+					RefTerm(
+						z,
+						Plus.Call(w, n1))),
+				StringTerm("b"),
+			),
+		)},
+		{"call void", "f()", NewExpr([]*Term{f})},
+		{"call unary", "f(x)", NewExpr([]*Term{f, x})},
+		{"call binary", "f(x, y)", NewExpr([]*Term{f, x, y})},
+		{"call embedded", "f([g(x), y+1])", NewExpr([]*Term{
+			f,
+			ArrayTerm(
+				CallTerm(g, x),
+				Plus.Call(y, n1))})},
+		{"call fqn", "foo.bar(1)", NewExpr([]*Term{
+			RefTerm(VarTerm("foo"), StringTerm("bar")),
+			n1,
+		})},
+		{"unify", "x = 1", Equality.Expr(x, n1)},
+		{"unify embedded", "1 + x = 2 - y", Equality.Expr(Plus.Call(n1, x), Minus.Call(n2, y))},
+		{"not keyword", "not x = y", Equality.Expr(x, y).Complement()},
+		{"with keyword", "x with p[q] as f([x+1])", NewExpr(x).IncludeWith(
+			RefTerm(VarTerm("p"), VarTerm("q")),
+			CallTerm(f, ArrayTerm(Plus.Call(x, n1))),
+		)},
+	}
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			expr, err := ParseExpr(tc.input)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !expr.Equal(tc.expected) {
+				t.Fatalf("Expected %v but got %v", tc.expected, expr)
+			}
+		})
+	}
 }
 
 func TestMultiLineBody(t *testing.T) {
@@ -721,7 +816,6 @@ func TestRule(t *testing.T) {
 	assertParseErrorEquals(t, "default var value", "default p = [x]", "rego_parse_error: default rule value cannot contain var")
 	assertParseErrorEquals(t, "empty rule body", "p {}", "rego_parse_error: body must be non-empty")
 
-	assertParseErrorContains(t, "0-arity", `f() = 1 { true }`, "rego_parse_error: no match found")
 	assertParseErrorContains(t, "no output", `f(_) = { "foo" = "bar" }`, "rego_parse_error: no match found")
 	assertParseErrorContains(t, "unmatched braces", `f(x) = y { trim(x, ".", y) `, "rego_parse_error: no match found")
 
@@ -1202,7 +1296,7 @@ func TestWildcards(t *testing.T) {
 		),
 	))
 
-	assertParseOneExpr(t, "expr", `eq(_, [a[_]])`, Equality.Expr(
+	assertParseOneExpr(t, "expr", `_ = [a[_]]`, Equality.Expr(
 		VarTerm("$0"),
 		ArrayTerm(
 			RefTerm(VarTerm("a"), VarTerm("$1")),
@@ -1300,7 +1394,10 @@ func TestNamespacedBuiltins(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Unexpected parse error: %v", err)
 			}
-			terms := expr.Terms.([]*Term)
+			terms, ok := expr.Terms.([]*Term)
+			if !ok {
+				t.Fatalf("Expected terms not: %T", expr.Terms)
+			}
 			if !terms[0].Equal(tc.expected) {
 				t.Fatalf("Expected builtin-name to equal %v but got: %v", tc.expected, terms)
 			}

@@ -400,11 +400,11 @@ func TestCompilerCheckSafetyBodyReordering(t *testing.T) {
 		{"with-2", `data.a.b.d.t with input.x as x; x = 1`, `x = 1; data.a.b.d.t with input.x as x`},
 		{"with-nop", "data.somedoc[x] with input as true", "data.somedoc[x] with input as true"},
 		{"ref-head", `s = [["foo"], ["bar"]]; x = y[0]; y = s[_]; contains(x, "oo")`, `
-			s = [["foo"], ["bar"]];
-			y = s[_];
-			x = y[0];
-			contains(x, "oo")
-		`},
+		s = [["foo"], ["bar"]];
+		y = s[_];
+		x = y[0];
+		contains(x, "oo")
+	`},
 		{"userfunc", `split(y, ".", z); data.a.b.funcs.fn("...foo.bar..", y)`, `data.a.b.funcs.fn("...foo.bar..", y); split(y, ".", z)`},
 		{"call-vars", `data.f.g[i](1); i = "foo"`, `i = "foo"; data.f.g[i](1)`},
 	}
@@ -671,6 +671,176 @@ import input.abc as qux`,
 		t.Fatalf("Expected imports to be empty after compile but got: %v", c.Modules)
 	}
 
+}
+
+func TestCompilerExprExpansion(t *testing.T) {
+
+	tests := []struct {
+		note     string
+		input    string
+		expected []*Expr
+	}{
+		{
+			note:  "identity",
+			input: "x",
+			expected: []*Expr{
+				MustParseExpr("x"),
+			},
+		},
+		{
+			note:  "single",
+			input: "x+y",
+			expected: []*Expr{
+				MustParseExpr("x+y"),
+			},
+		},
+		{
+			note:  "chained",
+			input: "x+y+z+w",
+			expected: []*Expr{
+				MustParseExpr("plus(x, y, __local0__)"),
+				MustParseExpr("plus(__local0__, z, __local1__)"),
+				MustParseExpr("plus(__local1__, w)"),
+			},
+		},
+		{
+			note:  "assoc",
+			input: "x+y*z",
+			expected: []*Expr{
+				MustParseExpr("mul(y, z, __local0__)"),
+				MustParseExpr("plus(x, __local0__)"),
+			},
+		},
+		{
+			note:  "refs",
+			input: "p[q[f(x)]][g(x)]",
+			expected: []*Expr{
+				MustParseExpr("f(x, __local0__)"),
+				MustParseExpr("g(x, __local1__)"),
+				MustParseExpr("p[q[__local0__]][__local1__]"),
+			},
+		},
+		{
+			note:  "arrays",
+			input: "[[f(x)], g(x)]",
+			expected: []*Expr{
+				MustParseExpr("f(x, __local0__)"),
+				MustParseExpr("g(x, __local1__)"),
+				MustParseExpr("[[__local0__], __local1__]"),
+			},
+		},
+		{
+			note:  "objects",
+			input: `{f(x): {g(x): h(x)}}`,
+			expected: []*Expr{
+				MustParseExpr("f(x, __local0__)"),
+				MustParseExpr("g(x, __local1__)"),
+				MustParseExpr("h(x, __local2__)"),
+				MustParseExpr("{__local0__: {__local1__: __local2__}}"),
+			},
+		},
+		{
+			note:  "sets",
+			input: `{f(x), {g(x)}}`,
+			expected: []*Expr{
+				MustParseExpr("f(x, __local0__)"),
+				MustParseExpr("g(x, __local1__)"),
+				MustParseExpr("{__local0__, {__local1__,}}"),
+			},
+		},
+		{
+			note:  "unify",
+			input: "f(x) = g(x)",
+			expected: []*Expr{
+				MustParseExpr("f(x, __local0__)"),
+				MustParseExpr("g(x, __local1__)"),
+				MustParseExpr("__local0__ = __local1__"),
+			},
+		},
+		{
+			note:  "unify: composites",
+			input: "[x, f(x)] = [g(y), y]",
+			expected: []*Expr{
+				MustParseExpr("f(x, __local0__)"),
+				MustParseExpr("g(y, __local1__)"),
+				MustParseExpr("[x, __local0__] = [__local1__, y]"),
+			},
+		},
+		{
+			note:  "with",
+			input: "f[x+1] with input as q",
+			expected: []*Expr{
+				MustParseExpr("plus(x, 1, __local0__)"),
+				MustParseExpr("f[__local0__] with input as q"),
+			},
+		},
+		{
+			note:  "comprehensions",
+			input: `f(y) = [[plus(x,1) | x = sum(y[z+1])], g(w)]`,
+			expected: []*Expr{
+				MustParseExpr("f(y, __local0__)"),
+				MustParseExpr("g(w, __local4__)"),
+				MustParseExpr("__local0__ = [[__local1__ | plus(z,1,__local2__); sum(y[__local2__], __local3__); eq(x, __local3__); plus(x, 1, __local1__)], __local4__]"),
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			gen := newLocalVarGenerator(NullTerm())
+			expr := MustParseExpr(tc.input)
+			result := expandExpr(gen, expr.Copy())
+			if len(result) != len(tc.expected) {
+				t.Fatalf("Expected %v exprs but got %v:\n\nExpected:\n\n%v\n\nGot:\n\n%v", len(tc.expected), len(result), Body(tc.expected), Body(result))
+			}
+			for i := range tc.expected {
+				if !tc.expected[i].Equal(result[i]) {
+					t.Fatalf("Expected expr %d to be %v but got: %v\n\nExpected:\n\n%v\n\nGot:\n\n%v", i, tc.expected[i], result[i], Body(tc.expected), Body(result))
+				}
+			}
+		})
+	}
+}
+
+func TestCompilerRewriteExprTerms(t *testing.T) {
+	module := `
+		package test
+
+		p { x = a + b * y }
+
+		q[[f(x)]] { x = 1 }
+
+		r = [f(x)] { x = 1 }
+
+		f(x) = g(x)
+
+		pi = 3 + .14
+	`
+
+	compiler := NewCompiler()
+	compiler.Modules = map[string]*Module{
+		"test": MustParseModule(module),
+	}
+	compileStages(compiler, compiler.rewriteExprTerms)
+	assertNotFailed(t, compiler)
+
+	expected := MustParseModule(`
+		package test
+
+		p { mul(b, y, __local0__); plus(a, __local0__, __local1__); eq(x, __local1__) }
+
+		q[[__local2__]] { x = 1; f(x, __local2__) }
+
+		r = [__local3__] { x = 1; f(x, __local3__) }
+
+		f(x) = __local4__ { true; g(x, __local4__) }
+
+		pi = __local5__ { true; plus(3, 0.14, __local5__) }
+	`)
+
+	if !expected.Equal(compiler.Modules["test"]) {
+		t.Fatalf("Expected modules to be equal. Expected:\n\n%v\n\nGot:\n\n%v", expected, compiler.Modules["test"])
+	}
 }
 
 func TestCompilerResolveAllRefs(t *testing.T) {
@@ -1684,7 +1854,8 @@ r = true { [q.a | true] }
 s = true { [true | y.a = 0] }
 t = true { [true | q[i] = 1] }
 u = true { [true | _ = [y.a | true]] }
-v = true { [true | _ = [true | q[i] = 1]] }`,
+v = true { [true | _ = [true | q[i] = 1]] }
+`,
 	)
 
 	mod6 := MustParseModule(`package a.b.nested

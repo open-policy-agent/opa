@@ -79,6 +79,7 @@ func (loc *Location) String() string {
 // - Object, Array, Set
 // - Variables, References
 // - Array, Set, and Object Comprehensions
+// - Calls
 type Value interface {
 	Compare(other Value) int      // Compare returns <0, 0, or >0 if this Value is less than, equal to, or greater than other, respectively.
 	Find(path Ref) (Value, error) // Find returns value referred to by path or an error if path is not found.
@@ -225,7 +226,7 @@ func ValueToInterface(v Value, resolver Resolver) (interface{}, error) {
 	case Ref:
 		return resolver.Resolve(v)
 	default:
-		return nil, fmt.Errorf("value requires evaluation (%T)", v)
+		return nil, fmt.Errorf("%v requires evaluation", TypeName(v))
 	}
 }
 
@@ -290,6 +291,8 @@ func (term *Term) Copy() *Term {
 	case *ObjectComprehension:
 		cpy.Value = v.Copy()
 	case *SetComprehension:
+		cpy.Value = v.Copy()
+	case Call:
 		cpy.Value = v.Copy()
 	}
 
@@ -379,7 +382,7 @@ func IsConstant(v Value) bool {
 	Walk(&GenericVisitor{
 		func(x interface{}) bool {
 			switch x.(type) {
-			case Var, Ref, *ArrayComprehension, *ObjectComprehension, *SetComprehension:
+			case Var, Ref, *ArrayComprehension, *ObjectComprehension, *SetComprehension, Call:
 				found = true
 				return true
 			}
@@ -1786,6 +1789,55 @@ func (sc *SetComprehension) String() string {
 	return "{" + sc.Term.String() + " | " + sc.Body.String() + "}"
 }
 
+// Call represents as function call in the language.
+type Call []*Term
+
+// CallTerm returns a new Term with a Call value defined by terms. The first
+// term is the operator and the rest are operands.
+func CallTerm(terms ...*Term) *Term {
+	return NewTerm(Call(terms))
+}
+
+// Copy returns a deep copy of c.
+func (c Call) Copy() Call {
+	return termSliceCopy(c)
+}
+
+// Compare compares c to other, return <0, 0, or >0 if it is less than, equal to,
+// or greater than other.
+func (c Call) Compare(other Value) int {
+	return Compare(c, other)
+}
+
+// Find returns the current value or a not found error.
+func (c Call) Find(Ref) (Value, error) {
+	return nil, fmt.Errorf("find: not found")
+}
+
+// Hash returns the hash code for the Value.
+func (c Call) Hash() int {
+	return termSliceHash(c)
+}
+
+// IsGround returns true if the Value is ground.
+func (c Call) IsGround() bool {
+	return termSliceIsGround(c)
+}
+
+// MakeExpr returns an ew Expr from this call.
+func (c Call) MakeExpr(output *Term) *Expr {
+	terms := []*Term(c)
+	return NewExpr(append(terms, output))
+}
+
+func (c Call) String() string {
+	args := make([]string, len(c)-1)
+	for i := 1; i < len(c); i++ {
+		args[i-1] = c[i].String()
+	}
+	return fmt.Sprintf("%v(%v)", c[0], strings.Join(args, ", "))
+}
+
 func formatString(s String) string {
 	str := string(s)
 	if varRegexp.MatchString(str) {
@@ -2075,6 +2127,10 @@ func unmarshalValue(d map[string]interface{}) (Value, error) {
 			}
 
 			return &ObjectComprehension{Key: key, Value: value, Body: body}, nil
+		}
+	case "call":
+		if s, err := unmarshalTermSliceValue(d); err == nil {
+			return Call(s), nil
 		}
 	}
 unmarshal_error:

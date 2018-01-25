@@ -824,16 +824,26 @@ type Builtin struct {
 	Decl  *types.Function // Built-in function type declaration.
 }
 
-// Expr creates a new expression for the built-in with the given terms.
-func (b *Builtin) Expr(terms ...*Term) *Expr {
-	ts := make([]*Term, len(terms)+1)
+// Expr creates a new expression for the built-in with the given operands.
+func (b *Builtin) Expr(operands ...*Term) *Expr {
+	ts := make([]*Term, len(operands)+1)
 	ts[0] = NewTerm(b.Ref())
-	for i := range terms {
-		ts[i+1] = terms[i]
+	for i := range operands {
+		ts[i+1] = operands[i]
 	}
 	return &Expr{
 		Terms: ts,
 	}
+}
+
+// Call creates a new term for the built-in with the given operands.
+func (b *Builtin) Call(operands ...*Term) *Term {
+	call := make(Call, len(operands)+1)
+	call[0] = NewTerm(b.Ref())
+	for i := range operands {
+		call[i+1] = operands[i]
+	}
+	return NewTerm(call)
 }
 
 // Ref returns a Ref that refers to the built-in function.

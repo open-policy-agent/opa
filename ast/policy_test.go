@@ -38,6 +38,7 @@ default allow = true
 f(x) = y { y = x }
 a = true { xs = {a: b | input.y[a] = "foo"; b = input.z["bar"]} }
 b = true { xs = {{"x": a[i].a} | a[i].n = "bob"; b[x]} }
+call_values { f(x) != g(x) }
 `)
 
 	bs, err := json.Marshal(mod)
@@ -318,7 +319,6 @@ func TestExprString(t *testing.T) {
 		StringTerm("foo"),
 		VarTerm("x"),
 	)
-	expr7.Infix = true
 	expr8 := &Expr{
 		Terms: []*Term{
 			RefTerm(VarTerm("data"), StringTerm("test"), StringTerm("f")),
@@ -326,16 +326,15 @@ func TestExprString(t *testing.T) {
 			VarTerm("x"),
 		},
 	}
-	expr8.Infix = true
 	expr9 := Contains.Expr(StringTerm("foo.bar"), StringTerm("."))
 	assertExprString(t, expr1, "q.r[x]")
 	assertExprString(t, expr2, "not q.r[x]")
 	assertExprString(t, expr3, "\"a\" = 17.1")
-	assertExprString(t, expr4, "{foo: [1, a.b]} != false")
+	assertExprString(t, expr4, "neq({foo: [1, a.b]}, false)")
 	assertExprString(t, expr5, "true with foo as bar with baz as qux")
-	assertExprString(t, expr6, "3 = 1 + 2")
-	assertExprString(t, expr7, "x = count(\"foo\")")
-	assertExprString(t, expr8, "x = data.test.f(1)")
+	assertExprString(t, expr6, "plus(1, 2, 3)")
+	assertExprString(t, expr7, "count(\"foo\", x)")
+	assertExprString(t, expr8, "data.test.f(1, x)")
 	assertExprString(t, expr9, `contains("foo.bar", ".")`)
 }
 
@@ -469,7 +468,7 @@ func TestRuleString(t *testing.T) {
 	assertRuleString(t, rule1, `p { "foo" = "bar" }`)
 	assertRuleString(t, rule2, `p[x] = y { "foo" = x; not a.b[x]; "b" = y }`)
 	assertRuleString(t, rule3, `default p = true`)
-	assertRuleString(t, rule4, "f(x, y) = z { z = x + y }")
+	assertRuleString(t, rule4, "f(x, y) = z { plus(x, y, z) }")
 }
 
 func TestModuleString(t *testing.T) {
