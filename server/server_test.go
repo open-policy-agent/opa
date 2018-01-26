@@ -1247,41 +1247,6 @@ func TestQueryWatchConcurrent(t *testing.T) {
 
 	f := newFixture(t)
 
-	// Test two watches at once, one with a virtual document as a dependency.
-	// Print the second in pretty format.
-	exp1 := strings.Join([]string{
-		"HTTP/1.1 200 OK\nContent-Type: application/json\nTransfer-Encoding: chunked\n\n7a",
-		`{"result":[{"expressions":[{"value":true,"text":"a=data.z.r+data.x","location":{"row":1,"col":1}}],"bindings":{"a":12}}]}
-`,
-		`7a`,
-		`{"result":[{"expressions":[{"value":true,"text":"a=data.z.r+data.x","location":{"row":1,"col":1}}],"bindings":{"a":13}}]}
-`,
-		`7a`,
-		`{"result":[{"expressions":[{"value":true,"text":"a=data.z.r+data.x","location":{"row":1,"col":1}}],"bindings":{"a":14}}]}
-`,
-		`7a`,
-		`{"result":[{"expressions":[{"value":true,"text":"a=data.z.r+data.x","location":{"row":1,"col":1}}],"bindings":{"a":15}}]}
-`,
-		`7a`,
-		`{"result":[{"expressions":[{"value":true,"text":"a=data.z.r+data.x","location":{"row":1,"col":1}}],"bindings":{"a":16}}]}
-`,
-		`7a`,
-		`{"result":[{"expressions":[{"value":true,"text":"a=data.z.r+data.x","location":{"row":1,"col":1}}],"bindings":{"a":17}}]}
-`,
-		``,
-	}, "\r\n")
-	exp2 := strings.Join([]string{
-		"HTTP/1.1 200 OK\nContent-Type: application/json\nTransfer-Encoding: chunked\n\n74",
-		`{"result":[{"expressions":[{"value":true,"text":"a=data.y","location":{"row":1,"col":1}}],"bindings":{"a":"foo"}}]}
-`,
-		`74`,
-		`{"result":[{"expressions":[{"value":true,"text":"a=data.y","location":{"row":1,"col":1}}],"bindings":{"a":"bar"}}]}
-`,
-		`74`,
-		`{"result":[{"expressions":[{"value":true,"text":"a=data.y","location":{"row":1,"col":1}}],"bindings":{"a":"baz"}}]}
-`,
-		``,
-	}, "\r\n")
 	r1, r2 := newMockConn(), newMockConn()
 
 	setup := []tr{
@@ -1328,13 +1293,42 @@ func TestQueryWatchConcurrent(t *testing.T) {
 	r1.Close()
 	r2.Close()
 
-	if result := r1.buf.String(); result != exp1 {
-		t.Fatalf("Expected stream to equal %s, got %s", exp1, result)
-	}
-	if result := r2.buf.String(); result != exp2 {
-		t.Fatalf("Expected stream to equal %s, got %s", exp2, result)
+	exp1 := util.MustUnmarshalJSON([]byte(`[
+		{"a": 12},
+		{"a": 13},
+		{"a": 14},
+		{"a": 15},
+		{"a": 16},
+		{"a": 17}
+	]`))
+
+	exp2 := util.MustUnmarshalJSON([]byte(`[
+		{"a": "foo"},
+		{"a": "bar"},
+		{"a": "baz"}
+	]`))
+
+	stream1, err := r1.consumeQueryResultStream()
+	if err != nil {
+		t.Fatal(err)
 	}
 
+	result1 := queryResultStreamBindingSet(stream1)
+
+	if !reflect.DeepEqual(result1, exp1) {
+		t.Fatalf("Expected:\n\n%v\n\nGot:\n\n%v", exp1, result1)
+	}
+
+	stream2, err := r2.consumeQueryResultStream()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	result2 := queryResultStreamBindingSet(stream2)
+
+	if !reflect.DeepEqual(result2, exp2) {
+		t.Fatalf("Expected:\n\n%v\n\nGot:\n\n%v", exp2, result2)
+	}
 }
 
 func TestQueryWatchMigrate(t *testing.T) {
@@ -1356,21 +1350,6 @@ func TestQueryWatchMigrate(t *testing.T) {
 	}
 
 	// Test migrating to a new compiler.
-	exp := strings.Join([]string{
-		"HTTP/1.1 200 OK\nContent-Type: application/json\nTransfer-Encoding: chunked\n\n7a",
-		`{"result":[{"expressions":[{"value":true,"text":"a=data.z.r+data.x","location":{"row":1,"col":1}}],"bindings":{"a":17}}]}
-`,
-		`7a`,
-		`{"result":[{"expressions":[{"value":true,"text":"a=data.z.r+data.x","location":{"row":1,"col":1}}],"bindings":{"a":14}}]}
-`,
-		`7b`,
-		`{"result":[{"expressions":[{"value":true,"text":"a=data.z.r+data.x","location":{"row":1,"col":1}}],"bindings":{"a":200}}]}
-`,
-		`7c`,
-		`{"result":[{"expressions":[{"value":true,"text":"a=data.z.r+data.x","location":{"row":1,"col":1}}],"bindings":{"a":-200}}]}
-`,
-		``,
-	}, "\r\n")
 	recorder := newMockConn()
 
 	get := newReqV1(http.MethodGet, `/query?q=a=data.z.r%2Bdata.x&watch`, "")
@@ -1400,8 +1379,21 @@ func TestQueryWatchMigrate(t *testing.T) {
 	}
 	recorder.Close()
 
-	if result := recorder.buf.String(); result != exp {
-		t.Fatalf("Expected stream to equal %s, got %s", exp, result)
+	exp1 := util.MustUnmarshalJSON([]byte(`[
+		{"a": 17},
+		{"a": 14},
+		{"a": 200},
+		{"a": -200}]`))
+
+	stream, err := recorder.consumeQueryResultStream()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	result := queryResultStreamBindingSet(stream)
+
+	if !reflect.DeepEqual(exp1, result) {
+		t.Fatalf("Expected:\n\n%v\n\nGot:\n\n%v", exp1, result)
 	}
 }
 
@@ -1423,17 +1415,6 @@ func TestQueryWatchMigrateInvalidate(t *testing.T) {
 	}
 
 	// Test migrating to a new compiler that invalidates a query watch.
-	exp := strings.Join([]string{
-		"HTTP/1.1 200 OK\nContent-Type: application/json\nTransfer-Encoding: chunked\n\n7c",
-		`{"result":[{"expressions":[{"value":true,"text":"a=data.z.r+data.x","location":{"row":1,"col":1}}],"bindings":{"a":-200}}]}
-`,
-		`d3`,
-		`{"result":null,"error":{"code":"evaluation_error","message":"watch invalidated: 1 error occurred: 1:1: rego_type_error: plus: invalid argument(s)\n\thave: (string, any, ???)\n\twant: (number, number, number)"}}
-`,
-		`0`,
-		``,
-	}, "\r\n")
-
 	if err := f.v1(http.MethodPut, "/policies/foo", "package z\nr = y { y = data.x }", 200, ""); err != nil {
 		t.Fatal(err)
 	}
@@ -1451,8 +1432,19 @@ func TestQueryWatchMigrateInvalidate(t *testing.T) {
 	<-recorder.write // 2nd read will consume the flush call made by the server.
 	recorder.Close()
 
-	if result := recorder.buf.String(); result != exp {
-		t.Fatalf("Expected stream to equal %s, got %s", exp, result)
+	stream, err := recorder.consumeQueryResultStream()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if stream[0].Result[0].Bindings["a"] != json.Number("-200") {
+		t.Fatalf("Expected -200 but got: %v", stream[0].Result[0].Bindings["a"])
+	}
+
+	expMsg := "watch invalidated: 1 error occurred: 1:3: rego_type_error: plus: invalid argument(s)\n\thave: (string, any, ???)\n\twant: (number, number, number)"
+
+	if stream[1].Error.Message != expMsg {
+		t.Fatalf("Unexpected error: %v", stream[1])
 	}
 }
 
@@ -2358,4 +2350,39 @@ func (m *mockResponseWriterConn) WriteHeader(code int) {
 func (m *mockResponseWriterConn) Hijack() (net.Conn, *bufio.ReadWriter, error) {
 	defer close(m.hijacked)
 	return m, bufio.NewReadWriter(bufio.NewReader(m), bufio.NewWriter(m)), nil
+}
+
+type queryResultStreamMsg struct {
+	Result []struct {
+		Bindings map[string]interface{} `json:"bindings"`
+	} `json:"result"`
+	Error struct {
+		Code    string `json:"code"`
+		Message string `json:"message"`
+	}
+}
+
+func queryResultStreamBindingSet(qs []queryResultStreamMsg) []interface{} {
+	result := []interface{}{}
+	for i := range qs {
+		for j := range qs[i].Result {
+			result = append(result, qs[i].Result[j].Bindings)
+		}
+	}
+	return result
+}
+
+func (m *mockResponseWriterConn) consumeQueryResultStream() ([]queryResultStreamMsg, error) {
+	result := []queryResultStreamMsg{}
+	for _, line := range strings.Split(m.buf.String(), "\n") {
+		if strings.HasPrefix(line, `{"result":`) {
+			var qr queryResultStreamMsg
+			err := util.NewJSONDecoder(bytes.NewBufferString(line)).Decode(&qr)
+			if err != nil {
+				return nil, err
+			}
+			result = append(result, qr)
+		}
+	}
+	return result, nil
 }

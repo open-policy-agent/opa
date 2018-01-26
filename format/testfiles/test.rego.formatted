@@ -15,8 +15,8 @@ default foo = false
 
 foo[x] {
 	not x = g
-	1 = f(x)
-	z = g(x, "foo")
+	f(x) = 1
+	g(x, "foo") = z
 }
 
 globals = {
@@ -177,6 +177,20 @@ p[x] = y {
 		# inner comment
 	}
 } # Comment on rule closing brace
+
+nested_infix {
+	x + 1
+	x = y + 2
+	2 = x + 1
+	x + 1
+	y = f(x)
+	f(x, y)
+	y = (x + 1) + 2
+	x = y + z # comment
+
+	x = (a + b) / 2
+	f((a + b) / 2)
+}
 
 # more comments!
 # more comments!

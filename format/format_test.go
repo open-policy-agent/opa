@@ -6,6 +6,7 @@ package format
 
 import (
 	"bytes"
+	"fmt"
 	"io/ioutil"
 	"path/filepath"
 	"strings"
@@ -71,7 +72,7 @@ func TestFormatSource(t *testing.T) {
 			}
 
 			if ln, at := differsAt(formatted, expected); ln != 0 {
-				t.Fatalf("Expected formatted bytes to equal expected bytes but differed near line %d / byte %d:\n%s", ln, at, formatted)
+				t.Fatalf("Expected formatted bytes to equal expected bytes but differed near line %d / byte %d (got: %q, expected: %q):\n%s", ln, at, formatted[at], expected[at], prefixWithLineNumbers(formatted))
 			}
 
 			if _, err := ast.ParseModule(rego+".tmp", string(formatted)); err != nil {
@@ -84,7 +85,7 @@ func TestFormatSource(t *testing.T) {
 			}
 
 			if ln, at := differsAt(formatted, expected); ln != 0 {
-				t.Fatalf("Expected roundtripped bytes to equal expected bytes but differed near line %d / byte %d:\n%s", ln, at, formatted)
+				t.Fatalf("Expected roundtripped bytes to equal expected bytes but differed near line %d / byte %d:\n%s", ln, at, prefixWithLineNumbers(formatted))
 			}
 
 		})
@@ -109,4 +110,14 @@ func differsAt(a, b []byte) (int, int) {
 		}
 	}
 	return ln, minLen
+}
+
+func prefixWithLineNumbers(bs []byte) []byte {
+	raw := string(bs)
+	lines := strings.Split(raw, "\n")
+	format := fmt.Sprintf("%%%dd %%s", len(fmt.Sprint(len(lines)+1)))
+	for i, line := range lines {
+		lines[i] = fmt.Sprintf(format, i+1, line)
+	}
+	return []byte(strings.Join(lines, "\n"))
 }

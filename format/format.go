@@ -11,7 +11,6 @@ import (
 	"sort"
 
 	"github.com/open-policy-agent/opa/ast"
-	"github.com/open-policy-agent/opa/types"
 )
 
 // Bytes formats Rego source code. The bytes provided do not have to be an entire
@@ -332,37 +331,33 @@ func (w *writer) writeFunctionCall(expr *ast.Expr, comments []*ast.Comment) []*a
 
 	terms := expr.Terms.([]*ast.Term)
 
-	if expr.Infix {
-		name := terms[0].Value.String()
-		if bi, ok := ast.BuiltinMap[name]; ok {
-			if types.Compare(bi.Decl.Result(), types.T) == 0 {
-				// Handle relational operators (=, !=, >, etc.)
-				comments = w.writeTerm(terms[1], comments)
-				w.write(" " + string(bi.Infix) + " ")
-				return w.writeTerm(terms[2], comments)
-			} else if bi.Infix != "" {
-				// Handle arithmetic operators (+, *, &, etc.)
-				comments = w.writeTerm(terms[3], comments)
-				w.write(" = ")
-				comments = w.writeTerm(terms[1], comments)
-				w.write(" " + string(bi.Infix) + " ")
-				return w.writeTerm(terms[2], comments)
-			}
-		}
-		comments = w.writeTerm(terms[len(terms)-1], comments)
-		w.write(" = " + string(terms[0].String()) + "(")
-		for i := 1; ; i++ {
-			comments = w.writeTerm(terms[i], comments)
-			if i < len(terms)-2 {
-				w.write(", ")
-			} else {
-				w.write(")")
-				break
-			}
-		}
+	bi, ok := ast.BuiltinMap[terms[0].Value.String()]
+	if !ok || bi.Infix == "" {
+		return w.writeFunctionCallPlain(terms, comments)
+	}
+
+	numDeclArgs := len(bi.Decl.Args())
+	numCallArgs := len(terms) - 1
+
+	if numCallArgs == numDeclArgs {
+		// Print infix where result is unassigned (e.g., x != y)
+		comments = w.writeTerm(terms[1], comments)
+		w.write(" " + string(bi.Infix) + " ")
+		return w.writeTerm(terms[2], comments)
+	} else if numCallArgs == numDeclArgs+1 {
+		// Print infix where result is assigned (e.g., z = x + y)
+		comments = w.writeTerm(terms[3], comments)
+		w.write(" " + ast.Equality.Infix + " ")
+		comments = w.writeTerm(terms[1], comments)
+		w.write(" " + bi.Infix + " ")
+		comments = w.writeTerm(terms[2], comments)
 		return comments
 	}
 
+	return w.writeFunctionCallPlain(terms, comments)
+}
+
+func (w *writer) writeFunctionCallPlain(terms []*ast.Term, comments []*ast.Comment) []*ast.Comment {
 	w.write(string(terms[0].String()) + "(")
 	for _, v := range terms[1 : len(terms)-1] {
 		comments = w.writeTerm(v, comments)
@@ -382,6 +377,10 @@ func (w *writer) writeWith(with *ast.With, comments []*ast.Comment) []*ast.Comme
 }
 
 func (w *writer) writeTerm(term *ast.Term, comments []*ast.Comment) []*ast.Comment {
+	return w.writeTermParens(false, term, comments)
+}
+
+func (w *writer) writeTermParens(parens bool, term *ast.Term, comments []*ast.Comment) []*ast.Comment {
 	comments = w.insertComments(comments, term.Location)
 	if !w.inline {
 		w.startLine()
@@ -411,6 +410,8 @@ func (w *writer) writeTerm(term *ast.Term, comments []*ast.Comment) []*ast.Comme
 			// not what x.String() would give us.
 			w.write(string(term.Location.Text))
 		}
+	case ast.Call:
+		comments = w.writeCall(parens, x, term.Location, comments)
 	case fmt.Stringer:
 		w.write(x.String())
 	}
@@ -418,6 +419,27 @@ func (w *writer) writeTerm(term *ast.Term, comments []*ast.Comment) []*ast.Comme
 	if !w.inline {
 		w.startLine()
 	}
+	return comments
+}
+
+func (w *writer) writeCall(parens bool, x ast.Call, loc *ast.Location, comments []*ast.Comment) []*ast.Comment {
+
+	bi, ok := ast.BuiltinMap[x[0].String()]
+	if !ok || bi.Infix == "" {
+		return w.writeFunctionCallPlain([]*ast.Term(x), comments)
+	}
+
+	// TODO(tsandall): improve to consider precedence?
+	if parens {
+		w.write("(")
+	}
+	comments = w.writeTermParens(true, x[1], comments)
+	w.write(" " + bi.Infix + " ")
+	comments = w.writeTermParens(true, x[2], comments)
+	if parens {
+		w.write(")")
+	}
+
 	return comments
 }
 
