@@ -59,8 +59,8 @@ func TestTopDownPartialEval(t *testing.T) {
 		},
 		{
 			note:        "transitive",
-			query:       "input.x = y; y[0] = z; z = 1; z + 2 = 3",
-			wantQueries: []string{`input.x = y; y[0] = z; z = 1; z + 2 = 3`},
+			query:       "input.x = y; y[0] = z; z = 1; plus(z, 2, 3)",
+			wantQueries: []string{`input.x = y; y[0] = z; z = 1; plus(z, 2, 3)`},
 		},
 		{
 			note:  "vars",
@@ -277,7 +277,7 @@ func TestTopDownPartialEval(t *testing.T) {
 		},
 		{
 			note:  "ignore conflicts: functions",
-			query: "data.test.f(1) = x",
+			query: "data.test.f(1, x)",
 			modules: []string{
 				`package test
 				f(x) = true { input.x = x }

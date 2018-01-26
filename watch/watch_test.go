@@ -191,12 +191,12 @@ func TestWatchMigrateInvalidate(t *testing.T) {
 		panic(err)
 	}
 
-	handle, err := watcher.Query(`x = data.y.r["foo"]+1`)
+	handle, err := watcher.Query(`plus(data.y.r["foo"], 1, x)`)
 	if err != nil {
 		t.Fatalf("Unexpected error setting watch: %v", err)
 	}
 	first := <-handle.C
-	expQuery := `x = data.y.r["foo"]+1`
+	expQuery := `plus(data.y.r["foo"], 1, x)`
 	if first.Query != expQuery {
 		t.Fatalf("Unexpected query value in first event, expected `%s`, got `%s`", expQuery, first.Query)
 	}
@@ -231,7 +231,7 @@ func TestWatchMigrateInvalidate(t *testing.T) {
 
 	second := <-handle.C
 	expSecond := Event{
-		Query: `x = data.y.r["foo"]+1`,
+		Query: `plus(data.y.r["foo"], 1, x)`,
 		Error: errors.New(`watch invalidated: 1 error occurred: 1:1: rego_type_error: plus: invalid argument(s)
 	have: (string, number, ???)
 	want: (number, number, number)`),

@@ -153,6 +153,20 @@ y = x[_]
 }
 } # Comment on rule closing brace
 
+nested_infix {
+    x + 1
+    x = y + 2
+    plus(x, 1, 2)
+    plus(x, 1)
+    y = f(x)
+    f(x, y)
+    y = x + 1 + 2
+    x = y + # comment
+        z
+    x = (a + b) / 2
+    f((a+b)/2)
+}
+
 # more comments!
 # more comments!
 # more comments!
