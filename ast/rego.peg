@@ -79,7 +79,7 @@ LiteralExpr <- lhs:ExprTerm rest:( _ LiteralExprOperator _ ExprTerm)? {
     return makeLiteralExpr(currentLocation(c), lhs, rest)
 }
 
-LiteralExprOperator <- val:( "=" ) {
+LiteralExprOperator <- val:( ":=" / "=" ) {
     return makeInfixOperator(currentLocation(c), c.text)
 }
 

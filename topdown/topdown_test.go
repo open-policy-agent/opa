@@ -290,18 +290,20 @@ func TestTopDownUndos(t *testing.T) {
 	}
 }
 
-func TestTopDownIneqExpr(t *testing.T) {
+func TestTopDownComparisonExpr(t *testing.T) {
 
 	tests := []struct {
 		note     string
 		rule     string
 		expected interface{}
 	}{
+		{"equals", `p = true { 1 == 1; a[i] = x; x == 2 }`, "true"},
 		{"noteq", `p = true { 0 != 1; a[i] = x; x != 2 }`, "true"},
 		{"gt", `p = true { 1 > 0; a[i] = x; x > 2 }`, "true"},
 		{"gteq", `p = true { 1 >= 1; a[i] = x; x >= 4 }`, "true"},
 		{"lt", `p = true { -1 < 0; a[i] = x; x < 5 }`, "true"},
 		{"lteq", `p = true { -1 <= 0; a[i] = x; x <= 1 }`, "true"},
+		{"undefined: equals", `p = true { 0 == 1 }`, ""},
 		{"undefined: noteq", `p = true { 0 != 0 }`, ""},
 		{"undefined: gt", `p = true { 1 > 2 }`, ""},
 		{"undefined: gteq", `p = true { 1 >= 2 }`, ""},

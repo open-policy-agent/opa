@@ -27,11 +27,15 @@ func RegisterBuiltin(b *Builtin) {
 // by default. When adding a new built-in function to OPA, update this
 // list.
 var DefaultBuiltins = [...]*Builtin{
-	// =
+
+	// Unification/equality ("=")
 	Equality,
 
+	// Assignment (":=")
+	Assign,
+
 	// Comparisons
-	GreaterThan, GreaterThanEq, LessThan, LessThanEq, NotEqual,
+	GreaterThan, GreaterThanEq, LessThan, LessThanEq, NotEqual, Equal,
 
 	// Arithmetic
 	Plus, Minus, Multiply, Divide, Round, Abs,
@@ -49,9 +53,7 @@ var DefaultBuiltins = [...]*Builtin{
 	RegexMatch,
 
 	// Sets
-	SetDiff,
-	Intersection,
-	Union,
+	SetDiff, Intersection, Union,
 
 	// Strings
 	Concat, FormatInt, IndexOf, Substring, Lower, Upper, Contains, StartsWith, EndsWith, Split, Replace, Trim, Sprintf,
@@ -72,14 +74,7 @@ var DefaultBuiltins = [...]*Builtin{
 	Sort,
 
 	// Types
-	IsNumber,
-	IsString,
-	IsBoolean,
-	IsArray,
-	IsSet,
-	IsObject,
-	IsNull,
-	TypeNameBuiltin,
+	IsNumber, IsString, IsBoolean, IsArray, IsSet, IsObject, IsNull, TypeNameBuiltin,
 
 	// HTTP
 	HTTPSend,
@@ -97,6 +92,20 @@ var BuiltinMap map[string]*Builtin
 var Equality = &Builtin{
 	Name:  "eq",
 	Infix: "=",
+	Decl: types.NewFunction(
+		types.Args(types.A, types.A),
+		types.T,
+	),
+}
+
+/**
+ * Assignment
+ */
+
+// Assign represents the assignment (":=") operator.
+var Assign = &Builtin{
+	Name:  "assign",
+	Infix: ":=",
 	Decl: types.NewFunction(
 		types.Args(types.A, types.A),
 		types.T,
@@ -151,6 +160,16 @@ var LessThanEq = &Builtin{
 var NotEqual = &Builtin{
 	Name:  "neq",
 	Infix: "!=",
+	Decl: types.NewFunction(
+		types.Args(types.A, types.A),
+		types.T,
+	),
+}
+
+// Equal represents the "==" comparison operator.
+var Equal = &Builtin{
+	Name:  "equal",
+	Infix: "==",
 	Decl: types.NewFunction(
 		types.Args(types.A, types.A),
 		types.T,

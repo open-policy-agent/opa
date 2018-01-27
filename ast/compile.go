@@ -184,6 +184,7 @@ func NewCompiler() *Compiler {
 	c.TypeEnv = checker.checkLanguageBuiltins()
 
 	c.stages = []func(){
+		c.rewriteLocalAssignments,
 		c.rewriteExprTerms,
 		c.resolveAllRefs,
 		c.setModuleTree,
@@ -762,6 +763,48 @@ func (c *Compiler) rewriteDynamicTerms() {
 	}
 }
 
+func (c *Compiler) rewriteLocalAssignments() {
+
+	for _, mod := range c.Modules {
+		gen := newLocalVarGenerator(mod)
+
+		WalkRules(mod, func(rule *Rule) bool {
+
+			body, declared, errs := rewriteLocalAssignments(gen, rule.Body)
+			for _, err := range errs {
+				c.err(err)
+			}
+
+			rule.Body = body
+
+			vis := NewGenericVisitor(func(x interface{}) bool {
+				switch x := x.(type) {
+				case *Term:
+					if v, ok := x.Value.(Var); ok {
+						if gv, ok := declared[v]; ok {
+							x.Value = gv
+							return true
+						}
+					}
+				}
+				return false
+			})
+
+			Walk(vis, rule.Head.Args)
+
+			if rule.Head.Key != nil {
+				Walk(vis, rule.Head.Key)
+			}
+
+			if rule.Head.Value != nil {
+				Walk(vis, rule.Head.Value)
+			}
+
+			return false
+		})
+	}
+}
+
 func (c *Compiler) setModuleTree() {
 	c.ModuleTree = NewModuleTree(c.Modules)
 }
@@ -796,6 +839,7 @@ func (qc *queryCompiler) WithContext(qctx *QueryContext) QueryCompiler {
 func (qc *queryCompiler) Compile(query Body) (Body, error) {
 
 	stages := []func(*QueryContext, Body) (Body, error){
+		qc.rewriteLocalAssignments,
 		qc.rewriteExprTerms,
 		qc.resolveRefs,
 		qc.rewriteComprehensionTerms,
@@ -863,6 +907,15 @@ func (qc *queryCompiler) rewriteDynamicTerms(_ *QueryContext, body Body) (Body, 
 func (qc *queryCompiler) rewriteExprTerms(_ *QueryContext, body Body) (Body, error) {
 	gen := newLocalVarGenerator(body)
 	return rewriteExprTermsInBody(gen, body), nil
+}
+
+func (qc *queryCompiler) rewriteLocalAssignments(_ *QueryContext, body Body) (Body, error) {
+	gen := newLocalVarGenerator(body)
+	body, _, err := rewriteLocalAssignments(gen, body)
+	if len(err) != 0 {
+		return nil, err
+	}
+	return body, nil
 }
 
 func (qc *queryCompiler) checkSafety(_ *QueryContext, body Body) (Body, error) {
@@ -1978,5 +2031,187 @@ func expandExprTermSlice(gen *localVarGenerator, v []*Term) (support []*Expr) {
 		extras, v[i] = expandExprTerm(gen, v[i])
 		support = append(support, extras...)
 	}
+	return
+}
+
+type localDeclaredVars []map[Var]Var
+
+func newLocalDeclaredVars() *localDeclaredVars {
+	return &localDeclaredVars{map[Var]Var{}}
+}
+
+func (s *localDeclaredVars) Push() {
+	*s = append(*s, map[Var]Var{})
+}
+
+func (s *localDeclaredVars) Pop() map[Var]Var {
+	sl := *s
+	curr := sl[len(sl)-1]
+	*s = sl[:len(sl)-1]
+	return curr
+}
+
+func (s localDeclaredVars) Insert(x, y Var) {
+	s[len(s)-1][x] = y
+}
+
+func (s localDeclaredVars) Declared(x Var) (y Var, ok bool) {
+	for i := len(s) - 1; i >= 0; i-- {
+		if y, ok = s[i][x]; ok {
+			return
+		}
+	}
+	return
+}
+
+func (s localDeclaredVars) Seen(x Var) bool {
+	_, ok := s[len(s)-1][x]
+	return ok
+}
+
+// rewriteLocalAssignments rewrites bodies to remove assignment/declaration
+// expressions. For example:
+//
+// a := 1; p[a]
+//
+// Is rewritten to:
+//
+// __local0__ = 1; p[__local0__]
+//
+// During rewriting, assignees are validated to prevent use before declaration.
+func rewriteLocalAssignments(g *localVarGenerator, body Body) (Body, map[Var]Var, Errors) {
+	stack := newLocalDeclaredVars()
+	var errs Errors
+	errs = rewriteDeclaredVarsInBody(g, stack, body, errs)
+	return body, stack.Pop(), errs
+}
+
+func rewriteDeclaredVarsInBody(g *localVarGenerator, stack *localDeclaredVars, body Body, errs Errors) Errors {
+	vis := NewGenericVisitor(func(x interface{}) bool {
+		var stop bool
+		switch x := x.(type) {
+		case *Term:
+			stop, errs = rewriteDeclaredVarsInTerm(g, stack, x, errs)
+		case *With:
+			_, errs = rewriteDeclaredVarsInTerm(g, stack, x.Value, errs)
+			stop = true
+		}
+		return stop
+	})
+	for _, expr := range body {
+		if expr.IsAssignment() {
+			errs = rewriteDeclaredAssignment(g, stack, expr, errs)
+		} else {
+			Walk(vis, expr)
+		}
+	}
+	return errs
+}
+
+func rewriteDeclaredAssignment(g *localVarGenerator, stack *localDeclaredVars, expr *Expr, errs Errors) Errors {
+
+	if expr.Negated {
+		errs = append(errs, NewError(CompileErr, expr.Location, "cannot assign vars inside negated %v", ExprTypeName))
+		return errs
+	}
+
+	numErrsBefore := len(errs)
+
+	// Rewrite terms on right hand side capture seen vars and recursively
+	// process comprehensions before left hand side is processed.
+	WalkTerms(expr.Operand(1), func(term *Term) bool {
+		_, errs = rewriteDeclaredVarsInTerm(g, stack, term, errs)
+		return false
+	})
+
+	// Rewrite vars on right hand side with unique names. Catch redeclaration
+	// and invalid term types here.
+	var vis func(t *Term) bool
+
+	vis = func(t *Term) bool {
+		switch v := t.Value.(type) {
+		case Var:
+			if gv, err := rewriteDeclaredVar(g, stack, v); err != nil {
+				errs = append(errs, NewError(CompileErr, t.Location, err.Error()))
+			} else {
+				t.Value = gv
+			}
+			return true
+		case Array:
+			return false
+		case Object:
+			v.Foreach(func(_, v *Term) {
+				WalkTerms(v, vis)
+			})
+			return true
+		case Ref:
+			if RootDocumentRefs.Contains(t) {
+				if gv, err := rewriteDeclaredVar(g, stack, v[0].Value.(Var)); err != nil {
+					errs = append(errs, NewError(CompileErr, t.Location, err.Error()))
+				} else {
+					t.Value = gv
+				}
+				return true
+			}
+		}
+		errs = append(errs, NewError(CompileErr, t.Location, "cannot assign to %v", TypeName(t.Value)))
+		return true
+	}
+
+	WalkTerms(expr.Operand(0), vis)
+
+	if len(errs) == numErrsBefore {
+		loc := expr.Operator()[0].Location
+		expr.SetOperator(RefTerm(VarTerm(Equality.Name).SetLocation(loc)).SetLocation(loc))
+	}
+
+	return errs
+}
+
+func rewriteDeclaredVarsInTerm(g *localVarGenerator, stack *localDeclaredVars, term *Term, errs Errors) (bool, Errors) {
+	switch v := term.Value.(type) {
+	case Var:
+		if gv, ok := stack.Declared(v); ok {
+			term.Value = gv
+		} else if !stack.Seen(v) {
+			stack.Insert(v, v)
+		}
+	case Ref:
+		if RootDocumentRefs.Contains(term) {
+			if gv, ok := stack.Declared(v[0].Value.(Var)); ok {
+				term.Value = gv
+			}
+			return true, errs
+		}
+		return false, errs
+	case *ArrayComprehension:
+		stack.Push()
+		errs = rewriteDeclaredVarsInBody(g, stack, v.Body, errs)
+		_, errs = rewriteDeclaredVarsInTerm(g, stack, v.Term, errs)
+		stack.Pop()
+	case *SetComprehension:
+		stack.Push()
+		errs = rewriteDeclaredVarsInBody(g, stack, v.Body, errs)
+		_, errs = rewriteDeclaredVarsInTerm(g, stack, v.Term, errs)
+		stack.Pop()
+	case *ObjectComprehension:
+		stack.Push()
+		errs = rewriteDeclaredVarsInBody(g, stack, v.Body, errs)
+		_, errs = rewriteDeclaredVarsInTerm(g, stack, v.Key, errs)
+		_, errs = rewriteDeclaredVarsInTerm(g, stack, v.Value, errs)
+		stack.Pop()
+	default:
+		return false, errs
+	}
+	return true, errs
+}
+
+func rewriteDeclaredVar(g *localVarGenerator, stack *localDeclaredVars, v Var) (gv Var, err error) {
+	if stack.Seen(v) {
+		err = fmt.Errorf("%v %v assigned or referenced above", VarTypeName, v)
+		return
+	}
+	gv = g.Generate()
+	stack.Insert(v, gv)
 	return
 }

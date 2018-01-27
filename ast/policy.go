@@ -874,6 +874,15 @@ func (expr *Expr) IsEquality() bool {
 	return terms[0].Value.Compare(Equality.Ref()) == 0
 }
 
+// IsAssignment returns true if this an assignment expression.
+func (expr *Expr) IsAssignment() bool {
+	terms, ok := expr.Terms.([]*Term)
+	if !ok {
+		return false
+	}
+	return terms[0].Value.Compare(Assign.Ref()) == 0
+}
+
 // IsCall returns true if this expression calls a function.
 func (expr *Expr) IsCall() bool {
 	_, ok := expr.Terms.([]*Term)
@@ -955,6 +964,13 @@ func (expr *Expr) OutputVars(safe VarSet) VarSet {
 		}
 	}
 	return VarSet{}
+}
+
+// SetOperator sets the expr's operator and returns the expr itself. If expr is
+// not a call expr, this function will panic.
+func (expr *Expr) SetOperator(term *Term) *Expr {
+	expr.Terms.([]*Term)[0] = term
+	return expr
 }
 
 // SetLocation sets the expr's location and returns the expr itself.

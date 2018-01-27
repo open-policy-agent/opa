@@ -28,6 +28,10 @@ func compareNotEq(a, b ast.Value) bool {
 	return ast.Compare(a, b) != 0
 }
 
+func compareEq(a, b ast.Value) bool {
+	return ast.Compare(a, b) == 0
+}
+
 func builtinCompare(cmp compareFunc) FunctionalBuiltin2 {
 	return func(a, b ast.Value) (ast.Value, error) {
 		if !cmp(a, b) {
@@ -43,4 +47,5 @@ func init() {
 	RegisterFunctionalBuiltin2(ast.LessThan.Name, builtinCompare(compareLessThan))
 	RegisterFunctionalBuiltin2(ast.LessThanEq.Name, builtinCompare(compareLessThanEq))
 	RegisterFunctionalBuiltin2(ast.NotEqual.Name, builtinCompare(compareNotEq))
+	RegisterFunctionalBuiltin2(ast.Equal.Name, builtinCompare(compareEq))
 }

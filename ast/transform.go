@@ -255,6 +255,17 @@ func TransformRefs(x interface{}, f func(Ref) (Value, error)) (interface{}, erro
 	return Transform(t, x)
 }
 
+// TransformVars calls the function f on all vars under x.
+func TransformVars(x interface{}, f func(Var) (Value, error)) (interface{}, error) {
+	t := &GenericTransformer{func(x interface{}) (interface{}, error) {
+		if v, ok := x.(Var); ok {
+			return f(v)
+		}
+		return x, nil
+	}}
+	return Transform(t, x)
+}
+
 // TransformComprehensions calls the functio nf on all comprehensions under x.
 func TransformComprehensions(x interface{}, f func(interface{}) (Value, error)) (interface{}, error) {
 	t := &GenericTransformer{func(x interface{}) (interface{}, error) {
