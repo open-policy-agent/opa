@@ -110,6 +110,18 @@ func Walk(v Visitor, x interface{}) {
 	}
 }
 
+// WalkVars calls the function f on all vars under x. If the function f
+// returns true, AST nodes under the last node will not be visited.
+func WalkVars(x interface{}, f func(Var) bool) {
+	vis := &GenericVisitor{func(x interface{}) bool {
+		if v, ok := x.(Var); ok {
+			return f(v)
+		}
+		return false
+	}}
+	Walk(vis, x)
+}
+
 // WalkClosures calls the function f on all closures under x. If the function f
 // returns true, AST nodes under the last node will not be visited.
 func WalkClosures(x interface{}, f func(interface{}) bool) {
@@ -117,18 +129,6 @@ func WalkClosures(x interface{}, f func(interface{}) bool) {
 		switch x.(type) {
 		case *ArrayComprehension, *ObjectComprehension, *SetComprehension:
 			return f(x)
-		}
-		return false
-	}}
-	Walk(vis, x)
-}
-
-// WalkExprs calls the function f on all expressions under x. If the function f
-// returns true, AST nodes under the last node will not be visited.
-func WalkExprs(x interface{}, f func(*Expr) bool) {
-	vis := &GenericVisitor{func(x interface{}) bool {
-		if r, ok := x.(*Expr); ok {
-			return f(r)
 		}
 		return false
 	}}
@@ -147,24 +147,12 @@ func WalkRefs(x interface{}, f func(Ref) bool) {
 	Walk(vis, x)
 }
 
-// WalkRules calls the function f on all rules under x. If the function f
+// WalkTerms calls the function f on all terms under x. If the function f
 // returns true, AST nodes under the last node will not be visited.
-func WalkRules(x interface{}, f func(*Rule) bool) {
+func WalkTerms(x interface{}, f func(*Term) bool) {
 	vis := &GenericVisitor{func(x interface{}) bool {
-		if r, ok := x.(*Rule); ok {
-			return f(r)
-		}
-		return false
-	}}
-	Walk(vis, x)
-}
-
-// WalkVars calls the function f on all vars under x. If the function f
-// returns true, AST nodes under the last node will not be visited.
-func WalkVars(x interface{}, f func(Var) bool) {
-	vis := &GenericVisitor{func(x interface{}) bool {
-		if v, ok := x.(Var); ok {
-			return f(v)
+		if term, ok := x.(*Term); ok {
+			return f(term)
 		}
 		return false
 	}}
@@ -183,12 +171,36 @@ func WalkWiths(x interface{}, f func(*With) bool) {
 	Walk(vis, x)
 }
 
+// WalkExprs calls the function f on all expressions under x. If the function f
+// returns true, AST nodes under the last node will not be visited.
+func WalkExprs(x interface{}, f func(*Expr) bool) {
+	vis := &GenericVisitor{func(x interface{}) bool {
+		if r, ok := x.(*Expr); ok {
+			return f(r)
+		}
+		return false
+	}}
+	Walk(vis, x)
+}
+
 // WalkBodies calls the function f on all bodies under x. If the function f
 // returns true, AST nodes under the last node will not be visited.
 func WalkBodies(x interface{}, f func(Body) bool) {
 	vis := &GenericVisitor{func(x interface{}) bool {
 		if b, ok := x.(Body); ok {
 			return f(b)
+		}
+		return false
+	}}
+	Walk(vis, x)
+}
+
+// WalkRules calls the function f on all rules under x. If the function f
+// returns true, AST nodes under the last node will not be visited.
+func WalkRules(x interface{}, f func(*Rule) bool) {
+	vis := &GenericVisitor{func(x interface{}) bool {
+		if r, ok := x.(*Rule); ok {
+			return f(r)
 		}
 		return false
 	}}

@@ -1007,7 +1007,194 @@ f(0, [baz], 2) = true { true }
 	assertRulesEqual(t, rule6, expected6)
 }
 
-func TestRewriteComprehensionTerm(t *testing.T) {
+func TestCompilerRewriteLocalAssignments(t *testing.T) {
+
+	c := NewCompiler()
+
+	c.Modules["test1"] = MustParseModule(`package test
+
+	body { a := 1; a > 0 }
+	head_vars(a) = b { a := 1; b := a }
+	head_key[a] { a := 1 }
+	nested {
+		a := [1,2,3]
+		x := [true | a[i] > 1]
+	}
+
+	x = 2
+	shadow_globals[x] { x := 1 }
+	shadow_rule[shadow_rule] { shadow_rule := 1 }
+	shadow_roots_1 { data := 1; input := 2; input > data }
+	shadow_roots_2 { input := {"a": 1}; input.a > 0  }
+
+	skip_with_target { a := 1; input := 2; data.p with input as a }
+
+	shadow_comprehensions {
+		a := 1
+		[true | a := 2; b := 1]
+		b := 2
+	}
+
+	scoping {
+		[true | a := 1]
+		[true | a := 2]
+	}
+
+	object_keys {
+		{k: v1, "k2": v2} := {"foo": 1, "k2": 2}
+	}
+	`)
+
+	c.Modules["test2"] = MustParseModule(`package test
+
+	f(x) = y {
+		x := 1
+		y := 2
+	} else = y {
+		x := 3
+		y := 4
+	}
+	`)
+
+	compileStages(c, c.rewriteLocalAssignments)
+	assertNotFailed(t, c)
+	if t.Failed() {
+		return
+	}
+
+	module1 := c.Modules["test1"]
+
+	expectedModule := MustParseModule(`package test
+
+	body { __local0__ = 1; __local0__ > 0 }
+	head_vars(__local1__) = __local2__ { __local1__ = 1; __local2__ = __local1__ }
+	head_key[__local3__] { __local3__ = 1 }
+	nested {
+		__local4__ = [1,2,3]
+		__local5__ = [true  | __local4__[i] > 1]
+	}
+
+	x = 2 { true }
+	shadow_globals[__local6__] { __local6__ = 1 }
+	shadow_rule[__local7__] { __local7__ = 1 }
+	shadow_roots_1 { __local8__ = 1; __local9__ = 2; __local9__ > __local8__ }
+	shadow_roots_2 { __local10__ = {"a": 1}; __local10__.a > 0 }
+
+	skip_with_target { __local11__ = 1; __local12__ = 2; data.p with input as __local11__ }
+
+	shadow_comprehensions {
+		__local13__ = 1
+		[true | __local14__ = 2; __local15__ = 1]
+		__local16__ = 2
+	}
+
+	scoping {
+		[true | __local17__ = 1]
+		[true | __local18__ = 2]
+	}
+
+	object_keys {
+		{k: __local19__, "k2": __local20__} = {"foo": 1, "k2": 2}
+	}
+	`)
+
+	if len(module1.Rules) != len(expectedModule.Rules) {
+		t.Fatalf("Expected %d rules but got %d. Expected:\n\n%v\n\nGot:\n\n%v", len(expectedModule.Rules), len(module1.Rules), expectedModule, module1)
+	}
+
+	for i := range module1.Rules {
+		a := expectedModule.Rules[i]
+		b := module1.Rules[i]
+		if !a.Equal(b) {
+			t.Errorf("Expected rule %d to be:\n\n%v\n\nGot:\n\n%v", i, a, b)
+		}
+	}
+
+	module2 := c.Modules["test2"]
+
+	resultElse := module2.Rules[0].Else
+	expectedElse := MustParseRule(`f(__local2__) = __local3__ { __local2__ = 3; __local3__ = 4 } `)
+
+	if !resultElse.Equal(expectedElse) {
+		t.Errorf("Expected else rule:\n\n%v\n\nGot:\n\n%v", expectedElse, resultElse)
+	}
+
+}
+
+func TestRewriteLocalVarDeclarationErrors(t *testing.T) {
+
+	c := NewCompiler()
+
+	c.Modules["test"] = MustParseModule(`package test
+
+	redeclaration {
+		r1 = 1
+		r1 := 2
+		r2 := 1
+		[b, r2] := [1, 2]
+		input.path == 1
+		input := "foo"
+	}
+
+	negation {
+		not a := 1
+	}
+
+	bad_assign {
+		null := x
+		true := x
+		4.5 := x
+		"foo" := x
+		[true | true] := []
+		{true | true} := set()
+		{"foo": true | true} := {}
+		x + 1 := 2
+		data.foo := 1
+		[z, 1] := [1, 2]
+	}
+	`)
+
+	compileStages(c, c.rewriteLocalAssignments)
+
+	expectedErrors := []string{
+		"var r1 assigned or referenced above",
+		"var r2 assigned or referenced above",
+		"var input assigned or referenced above",
+		"cannot assign vars inside negated expr",
+		"cannot assign to ref",
+		"cannot assign to arraycomprehension",
+		"cannot assign to setcomprehension",
+		"cannot assign to objectcomprehension",
+		"cannot assign to call",
+		"cannot assign to number",
+		"cannot assign to number",
+		"cannot assign to boolean",
+		"cannot assign to string",
+		"cannot assign to null",
+	}
+
+	sort.Strings(expectedErrors)
+
+	result := []string{}
+
+	for i := range c.Errors {
+		result = append(result, c.Errors[i].Message)
+	}
+
+	sort.Strings(result)
+
+	if len(expectedErrors) != len(result) {
+		t.Fatalf("Expected %d errors but got %d:\n\n%v\n\nGot:\n\n%v", len(expectedErrors), len(result), strings.Join(expectedErrors, "\n"), strings.Join(result, "\n"))
+	}
+
+	for i := range result {
+		if result[i] != expectedErrors[i] {
+			t.Fatalf("Expected:\n\n%v\n\nGot:\n\n%v", strings.Join(expectedErrors, "\n"), strings.Join(result, "\n"))
+		}
+	}
+}
+
+func TestCompilerRewriteComprehensionTerm(t *testing.T) {
 
 	c := NewCompiler()
 	c.Modules["head"] = MustParseModule(`package head
@@ -1034,7 +1221,7 @@ func TestRewriteComprehensionTerm(t *testing.T) {
 	assertRulesEqual(t, objCompRule, exp3)
 }
 
-func TestRewriteDynamicTerms(t *testing.T) {
+func TestCompilerRewriteDynamicTerms(t *testing.T) {
 
 	fixture := `
 		package test
@@ -1740,6 +1927,7 @@ func TestQueryCompiler(t *testing.T) {
 		input    string
 		expected interface{}
 	}{
+		{"rewrite assignment", "a := 1; [b, c] := data.foo", "", nil, "", "__local0__ = 1; [__local1__, __local2__] = data.foo"},
 		{"exports resolved", "z", `package a.b.c`, nil, "", "data.a.b.c.z"},
 		{"imports resolved", "z", `package a.b.c.d`, []string{"import data.a.b.c.z"}, "", "data.a.b.c.z"},
 		{"rewrite comprehensions", "[x[i] | a = [[1], [2]]; x = a[j]]", "", nil, "", "[__local0__ | a = [[1], [2]]; x = a[j]; __local0__ = x[i]]"},
