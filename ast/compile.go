@@ -770,6 +770,41 @@ func (c *Compiler) rewriteLocalAssignments() {
 
 		WalkRules(mod, func(rule *Rule) bool {
 
+			var errs Errors
+
+			// Rewrite assignments contained in head of rule. Assignments can
+			// occur in rule head if they're inside a comprehension. Note,
+			// assigned vars in comprehensions in the head will be rewritten
+			// first to preserve scoping rules. For example:
+			//
+			// p = [x | x := 1] { x := 2 } becomes p = [__local0__ | __local0__ = 1] { __local1__ = 2 }
+			//
+			// This behaviour is consistent scoping inside the body. For example:
+			//
+			// p = xs { x := 2; xs = [x | x := 1] } becomes p = xs { __local0__ = 2; xs = [__local1__ | __local1__ = 1] }
+			WalkTerms(rule.Head, func(term *Term) bool {
+				switch v := term.Value.(type) {
+				case *ArrayComprehension:
+					stack := newLocalDeclaredVars()
+					errs = rewriteDeclaredVarsInArrayComprehension(gen, stack, v, errs)
+					return true
+				case *SetComprehension:
+					stack := newLocalDeclaredVars()
+					errs = rewriteDeclaredVarsInSetComprehension(gen, stack, v, errs)
+					return true
+				case *ObjectComprehension:
+					stack := newLocalDeclaredVars()
+					errs = rewriteDeclaredVarsInObjectComprehension(gen, stack, v, errs)
+					return true
+				}
+				return false
+			})
+
+			for _, err := range errs {
+				c.err(err)
+			}
+
+			// Rewrite assignments in body.
 			body, declared, errs := rewriteLocalAssignments(gen, rule.Body)
 			for _, err := range errs {
 				c.err(err)
@@ -777,6 +812,7 @@ func (c *Compiler) rewriteLocalAssignments() {
 
 			rule.Body = body
 
+			// Rewrite vars in head that refer to locally declared vars in the body.
 			vis := NewGenericVisitor(func(x interface{}) bool {
 				switch x := x.(type) {
 				case *Term:
@@ -2185,25 +2221,40 @@ func rewriteDeclaredVarsInTerm(g *localVarGenerator, stack *localDeclaredVars, t
 		}
 		return false, errs
 	case *ArrayComprehension:
-		stack.Push()
-		errs = rewriteDeclaredVarsInBody(g, stack, v.Body, errs)
-		_, errs = rewriteDeclaredVarsInTerm(g, stack, v.Term, errs)
-		stack.Pop()
+		errs = rewriteDeclaredVarsInArrayComprehension(g, stack, v, errs)
 	case *SetComprehension:
-		stack.Push()
-		errs = rewriteDeclaredVarsInBody(g, stack, v.Body, errs)
-		_, errs = rewriteDeclaredVarsInTerm(g, stack, v.Term, errs)
-		stack.Pop()
+		errs = rewriteDeclaredVarsInSetComprehension(g, stack, v, errs)
 	case *ObjectComprehension:
-		stack.Push()
-		errs = rewriteDeclaredVarsInBody(g, stack, v.Body, errs)
-		_, errs = rewriteDeclaredVarsInTerm(g, stack, v.Key, errs)
-		_, errs = rewriteDeclaredVarsInTerm(g, stack, v.Value, errs)
-		stack.Pop()
+		errs = rewriteDeclaredVarsInObjectComprehension(g, stack, v, errs)
 	default:
 		return false, errs
 	}
 	return true, errs
+}
+
+func rewriteDeclaredVarsInArrayComprehension(g *localVarGenerator, stack *localDeclaredVars, v *ArrayComprehension, errs Errors) Errors {
+	stack.Push()
+	errs = rewriteDeclaredVarsInBody(g, stack, v.Body, errs)
+	_, errs = rewriteDeclaredVarsInTerm(g, stack, v.Term, errs)
+	stack.Pop()
+	return errs
+}
+
+func rewriteDeclaredVarsInSetComprehension(g *localVarGenerator, stack *localDeclaredVars, v *SetComprehension, errs Errors) Errors {
+	stack.Push()
+	errs = rewriteDeclaredVarsInBody(g, stack, v.Body, errs)
+	_, errs = rewriteDeclaredVarsInTerm(g, stack, v.Term, errs)
+	stack.Pop()
+	return errs
+}
+
+func rewriteDeclaredVarsInObjectComprehension(g *localVarGenerator, stack *localDeclaredVars, v *ObjectComprehension, errs Errors) Errors {
+	stack.Push()
+	errs = rewriteDeclaredVarsInBody(g, stack, v.Body, errs)
+	_, errs = rewriteDeclaredVarsInTerm(g, stack, v.Key, errs)
+	_, errs = rewriteDeclaredVarsInTerm(g, stack, v.Value, errs)
+	stack.Pop()
+	return errs
 }
 
 func rewriteDeclaredVar(g *localVarGenerator, stack *localDeclaredVars, v Var) (gv Var, err error) {
