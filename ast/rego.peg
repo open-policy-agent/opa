@@ -28,7 +28,7 @@ NormalRules <- head:RuleHead _ rest:(NonEmptyBraceEnclosedBody ( _ RuleExt)* ) {
     return makeRule(currentLocation(c), head, rest)
 }
 
-RuleHead <- name:Var args:( _ "(" _ Args _ ")" _ )? key:( _ "[" _ Term _ "]" _ )? value:( _ "=" _ Term )? {
+RuleHead <- name:Var args:( _ "(" _ Args _ ")" _ )? key:( _ "[" _ ExprTerm _ "]" _ )? value:( _ "=" _ ExprTerm )? {
     return makeRuleHead(currentLocation(c), name, args, key, value)
 }
 
