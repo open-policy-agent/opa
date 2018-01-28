@@ -264,25 +264,13 @@ cpu_exceeded[node_id] {
     total >= alloc
 }
 
-cpu_total[node_id] = cpu_t {
-    cpu_requested := sum([cpu | cpu := req_cpu[_]])
-    cpu_t := cpu_requested + used_cpu[node_id]
-}
+cpu_total[node_id] = sum([cpu | cpu := req_cpu[_]]) + used_cpu[node_id]
 
-mem_total[node_id] = mem_t {
-    mem_requested := sum([mem | mem := req_mem[_]])
-    mem_t := mem_requested + used_mem[node_id]
-}
+mem_total[node_id] = sum([mem | mem := req_mem[_]]) + used_mem[node_id]
 
-cpu_nonzero_total[node_id] = cpu_t {
-    cpu_requested := sum([cpu | cpu := req_cpu[_]])
-    cpu_t := cpu_requested + used_nonzero_cpu[node_id]
-}
+cpu_nonzero_total[node_id] = sum([cpu | cpu := req_cpu[_]]) + used_nonzero_cpu[node_id]
 
-mem_nonzero_total[node_id] = mem_t {
-    mem_requested := sum([mem | mem := req_mem[_]])
-    mem_t := mem_requested + used_nonzero_mem[node_id]
-}
+mem_nonzero_total[node_id] = sum([mem | mem := req_mem[_]]) + used_nonzero_mem[node_id]
 
 req_cpu[name] = cpu {
     container := req.spec.containers[_]

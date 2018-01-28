@@ -1043,6 +1043,10 @@ func TestCompilerRewriteLocalAssignments(t *testing.T) {
 	object_keys {
 		{k: v1, "k2": v2} := {"foo": 1, "k2": 2}
 	}
+
+	head_array_comprehensions = [x | x := 1]
+	head_set_comprehensions = {x | x := 1}
+	head_object_comprehensions = {k: v | k := "foo"; v := 1}
 	`)
 
 	c.Modules["test2"] = MustParseModule(`package test
@@ -1096,6 +1100,10 @@ func TestCompilerRewriteLocalAssignments(t *testing.T) {
 	object_keys {
 		{k: __local19__, "k2": __local20__} = {"foo": 1, "k2": 2}
 	}
+
+	head_array_comprehensions = [__local21__ | __local21__ = 1]
+	head_set_comprehensions = {__local22__ | __local22__ = 1}
+	head_object_comprehensions = {__local23__: __local24__ | __local23__ = "foo"; __local24__ = 1}
 	`)
 
 	if len(module1.Rules) != len(expectedModule.Rules) {
