@@ -810,6 +810,42 @@ func TestRule(t *testing.T) {
 		),
 	})
 
+	assertParseRule(t, "expr terms: key", `p[f(x) + g(x)] { true }`, &Rule{
+		Head: &Head{
+			Name: Var("p"),
+			Key: Plus.Call(
+				CallTerm(RefTerm(VarTerm("f")), VarTerm("x")),
+				CallTerm(RefTerm(VarTerm("g")), VarTerm("x")),
+			),
+		},
+		Body: NewBody(NewExpr(BooleanTerm(true))),
+	})
+
+	assertParseRule(t, "expr terms: value", `p = f(x) + g(x) { true }`, &Rule{
+		Head: &Head{
+			Name: Var("p"),
+			Value: Plus.Call(
+				CallTerm(RefTerm(VarTerm("f")), VarTerm("x")),
+				CallTerm(RefTerm(VarTerm("g")), VarTerm("x")),
+			),
+		},
+		Body: NewBody(NewExpr(BooleanTerm(true))),
+	})
+
+	assertParseRule(t, "expr terms: args", `p(f(x) + g(x)) { true }`, &Rule{
+		Head: &Head{
+			Name: Var("p"),
+			Args: Args{
+				Plus.Call(
+					CallTerm(RefTerm(VarTerm("f")), VarTerm("x")),
+					CallTerm(RefTerm(VarTerm("g")), VarTerm("x")),
+				),
+			},
+			Value: BooleanTerm(true),
+		},
+		Body: NewBody(NewExpr(BooleanTerm(true))),
+	})
+
 	assertParseErrorEquals(t, "empty body", `f(_) = y {}`, "rego_parse_error: body must be non-empty")
 	assertParseErrorEquals(t, "object composite key", "p[[x,y]] = z { true }", "rego_parse_error: object key must be one of string, var, ref not array")
 	assertParseErrorEquals(t, "default ref value", "default p = [data.foo]", "rego_parse_error: default rule value cannot contain ref")
