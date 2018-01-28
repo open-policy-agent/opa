@@ -12,9 +12,29 @@ type Visitor interface {
 	Visit(v interface{}) (w Visitor)
 }
 
+// BeforeAndAfterVisitor wraps Visitor to provie hooks for being called before
+// and after the AST has been visited.
+type BeforeAndAfterVisitor interface {
+	Visitor
+	Before(x interface{})
+	After(x interface{})
+}
+
 // Walk iterates the AST by calling the Visit function on the Visitor
 // v for x before recursing.
 func Walk(v Visitor, x interface{}) {
+	wrapped, ok := v.(BeforeAndAfterVisitor)
+	if !ok {
+		wrapped = noopBeforeAndAfterVisitor{v}
+	}
+	WalkBeforeAndAfter(wrapped, x)
+}
+
+// WalkBeforeAndAfter iterates the AST by calling the Visit function on the
+// Visitor v for x before recursing.
+func WalkBeforeAndAfter(v BeforeAndAfterVisitor, x interface{}) {
+	v.Before(x)
+	defer v.After(x)
 	w := v.Visit(x)
 	if w == nil {
 		return
@@ -321,3 +341,10 @@ func (vis *VarVisitor) Visit(v interface{}) Visitor {
 	}
 	return vis
 }
+
+type noopBeforeAndAfterVisitor struct {
+	Visitor
+}
+
+func (noopBeforeAndAfterVisitor) Before(interface{}) {}
+func (noopBeforeAndAfterVisitor) After(interface{})  {}
