@@ -893,9 +893,20 @@ func (r *REPL) evalPartial(ctx context.Context, compiler *ast.Compiler, input as
 		q = q.WithMetrics(r.metrics)
 	}
 
+	var buf *topdown.BufferTracer
+
+	if r.explain != explainOff {
+		buf = topdown.NewBufferTracer()
+		q = q.WithTracer(buf)
+	}
+
 	queries, support, err := q.PartialRun(ctx)
 	if err != nil {
 		return err
+	}
+
+	if buf != nil {
+		r.printTrace(ctx, compiler, *buf)
 	}
 
 	for i := range queries {
