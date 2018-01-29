@@ -767,11 +767,20 @@ func TestCompilerExprExpansion(t *testing.T) {
 			},
 		},
 		{
-			note:  "with",
+			note:  "with: term expr",
 			input: "f[x+1] with input as q",
 			expected: []*Expr{
 				MustParseExpr("plus(x, 1, __local0__) with input as q"),
 				MustParseExpr("f[__local0__] with input as q"),
+			},
+		},
+		{
+			note:  "with: call expr",
+			input: `f(x) = g(x) with input as p`,
+			expected: []*Expr{
+				MustParseExpr("f(x, __local0__) with input as p"),
+				MustParseExpr("g(x, __local1__) with input as p"),
+				MustParseExpr("__local0__ = __local1__ with input as p"),
 			},
 		},
 		{
