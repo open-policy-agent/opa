@@ -1997,12 +1997,12 @@ func expandExpr(gen *localVarGenerator, expr *Expr) (result []*Expr) {
 	case []*Term:
 		for i := 1; i < len(terms); i++ {
 			var extras []*Expr
+			extras, terms[i] = expandExprTerm(gen, terms[i])
 			if len(expr.With) > 0 {
 				for i := range extras {
 					extras[i].With = expr.With
 				}
 			}
-			extras, terms[i] = expandExprTerm(gen, terms[i])
 			result = append(result, extras...)
 		}
 		result = append(result, expr)
