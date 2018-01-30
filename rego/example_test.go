@@ -394,7 +394,7 @@ q = {1, 2, 3} { true }`,
 	// filename: example_error.rego
 }
 
-func ExampleRego_Partial() {
+func ExampleRego_PartialEval() {
 
 	ctx := context.Background()
 
