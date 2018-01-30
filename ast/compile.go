@@ -184,9 +184,14 @@ func NewCompiler() *Compiler {
 	c.TypeEnv = checker.checkLanguageBuiltins()
 
 	c.stages = []func(){
+
+		// Reference resolution should run first as it may be used to lazily
+		// load additional modules. If any stages run before resolution, they
+		// need to be re-run after resolution.
+		c.resolveAllRefs,
+
 		c.rewriteLocalAssignments,
 		c.rewriteExprTerms,
-		c.resolveAllRefs,
 		c.setModuleTree,
 		c.setRuleTree,
 		c.setGraph,
@@ -875,9 +880,9 @@ func (qc *queryCompiler) WithContext(qctx *QueryContext) QueryCompiler {
 func (qc *queryCompiler) Compile(query Body) (Body, error) {
 
 	stages := []func(*QueryContext, Body) (Body, error){
+		qc.resolveRefs,
 		qc.rewriteLocalAssignments,
 		qc.rewriteExprTerms,
-		qc.resolveRefs,
 		qc.rewriteComprehensionTerms,
 		qc.rewriteDynamicTerms,
 		qc.checkWithModifiers,
@@ -921,7 +926,9 @@ func (qc *queryCompiler) resolveRefs(qctx *QueryContext, body Body) (Body, error
 		qctx.Imports = nil
 	}
 
-	return resolveRefsInBody(globals, body), nil
+	ignore := &assignedVarStack{assignedVars(body)}
+
+	return resolveRefsInBody(globals, ignore, body), nil
 }
 
 func (qc *queryCompiler) rewriteComprehensionTerms(_ *QueryContext, body Body) (Body, error) {
@@ -1646,7 +1653,7 @@ func requiresEval(x *Term) bool {
 	return ContainsRefs(x) || ContainsComprehensions(x)
 }
 
-func resolveRef(globals map[Var]Ref, ref Ref) Ref {
+func resolveRef(globals map[Var]Ref, ignore *assignedVarStack, ref Ref) Ref {
 
 	r := Ref{}
 	for i, x := range ref {
@@ -1666,7 +1673,7 @@ func resolveRef(globals map[Var]Ref, ref Ref) Ref {
 				r = append(r, x)
 			}
 		case Ref, Array, Object, Set:
-			r = append(r, resolveRefsInTerm(globals, x))
+			r = append(r, resolveRefsInTerm(globals, ignore, x))
 		default:
 			r = append(r, x)
 		}
@@ -1676,49 +1683,51 @@ func resolveRef(globals map[Var]Ref, ref Ref) Ref {
 }
 
 func resolveRefsInRule(globals map[Var]Ref, rule *Rule) {
+	ignore := &assignedVarStack{}
+	ignore.Push(assignedVars(rule.Body))
 	for i := range rule.Head.Args {
-		rule.Head.Args[i] = resolveRefsInTerm(globals, rule.Head.Args[i])
+		rule.Head.Args[i] = resolveRefsInTerm(globals, ignore, rule.Head.Args[i])
 	}
 	if rule.Head.Key != nil {
-		rule.Head.Key = resolveRefsInTerm(globals, rule.Head.Key)
+		rule.Head.Key = resolveRefsInTerm(globals, ignore, rule.Head.Key)
 	}
 	if rule.Head.Value != nil {
-		rule.Head.Value = resolveRefsInTerm(globals, rule.Head.Value)
+		rule.Head.Value = resolveRefsInTerm(globals, ignore, rule.Head.Value)
 	}
-	rule.Body = resolveRefsInBody(globals, rule.Body)
+	rule.Body = resolveRefsInBody(globals, ignore, rule.Body)
 }
 
-func resolveRefsInBody(globals map[Var]Ref, body Body) Body {
+func resolveRefsInBody(globals map[Var]Ref, ignore *assignedVarStack, body Body) Body {
 	r := Body{}
 	for _, expr := range body {
-		r = append(r, resolveRefsInExpr(globals, expr))
+		r = append(r, resolveRefsInExpr(globals, ignore, expr))
 	}
 	return r
 }
 
-func resolveRefsInExpr(globals map[Var]Ref, expr *Expr) *Expr {
+func resolveRefsInExpr(globals map[Var]Ref, ignore *assignedVarStack, expr *Expr) *Expr {
 	cpy := *expr
 	switch ts := expr.Terms.(type) {
 	case *Term:
-		cpy.Terms = resolveRefsInTerm(globals, ts)
+		cpy.Terms = resolveRefsInTerm(globals, ignore, ts)
 	case []*Term:
 		buf := make([]*Term, len(ts))
 		for i := 0; i < len(ts); i++ {
-			buf[i] = resolveRefsInTerm(globals, ts[i])
+			buf[i] = resolveRefsInTerm(globals, ignore, ts[i])
 		}
 		cpy.Terms = buf
 	}
 	for _, w := range cpy.With {
-		w.Target = resolveRefsInTerm(globals, w.Target)
-		w.Value = resolveRefsInTerm(globals, w.Value)
+		w.Target = resolveRefsInTerm(globals, ignore, w.Target)
+		w.Value = resolveRefsInTerm(globals, ignore, w.Value)
 	}
 	return &cpy
 }
 
-func resolveRefsInTerm(globals map[Var]Ref, term *Term) *Term {
+func resolveRefsInTerm(globals map[Var]Ref, ignore *assignedVarStack, term *Term) *Term {
 	switch v := term.Value.(type) {
 	case Var:
-		if g, ok := globals[v]; ok {
+		if g, ok := globals[v]; ok && !ignore.Assigned(v) {
 			cpy := g.Copy()
 			for i := range cpy {
 				cpy[i].SetLocation(term.Location)
@@ -1727,59 +1736,115 @@ func resolveRefsInTerm(globals map[Var]Ref, term *Term) *Term {
 		}
 		return term
 	case Ref:
-		fqn := resolveRef(globals, v)
+		fqn := resolveRef(globals, ignore, v)
 		cpy := *term
 		cpy.Value = fqn
 		return &cpy
 	case Object:
 		cpy := *term
 		cpy.Value, _ = v.Map(func(k, v *Term) (*Term, *Term, error) {
-			k = resolveRefsInTerm(globals, k)
-			v = resolveRefsInTerm(globals, v)
+			k = resolveRefsInTerm(globals, ignore, k)
+			v = resolveRefsInTerm(globals, ignore, v)
 			return k, v, nil
 		})
 		return &cpy
 	case Array:
-		a := Array{}
-		for _, e := range v {
-			x := resolveRefsInTerm(globals, e)
-			a = append(a, x)
-		}
 		cpy := *term
-		cpy.Value = a
+		cpy.Value = Array(resolveRefsInTermSlice(globals, ignore, v))
+		return &cpy
+	case Call:
+		cpy := *term
+		cpy.Value = Call(resolveRefsInTermSlice(globals, ignore, v))
 		return &cpy
 	case Set:
 		s, _ := v.Map(func(e *Term) (*Term, error) {
-			return resolveRefsInTerm(globals, e), nil
+			return resolveRefsInTerm(globals, ignore, e), nil
 		})
 		cpy := *term
 		cpy.Value = s
 		return &cpy
 	case *ArrayComprehension:
 		ac := &ArrayComprehension{}
-		ac.Term = resolveRefsInTerm(globals, v.Term)
-		ac.Body = resolveRefsInBody(globals, v.Body)
+		ignore.Push(assignedVars(v.Body))
+		defer ignore.Pop()
+		ac.Term = resolveRefsInTerm(globals, ignore, v.Term)
+		ac.Body = resolveRefsInBody(globals, ignore, v.Body)
 		cpy := *term
 		cpy.Value = ac
 		return &cpy
 	case *ObjectComprehension:
 		oc := &ObjectComprehension{}
-		oc.Key = resolveRefsInTerm(globals, v.Key)
-		oc.Value = resolveRefsInTerm(globals, v.Value)
-		oc.Body = resolveRefsInBody(globals, v.Body)
+		ignore.Push(assignedVars(v.Body))
+		defer ignore.Pop()
+		oc.Key = resolveRefsInTerm(globals, ignore, v.Key)
+		oc.Value = resolveRefsInTerm(globals, ignore, v.Value)
+		oc.Body = resolveRefsInBody(globals, ignore, v.Body)
 		cpy := *term
 		cpy.Value = oc
 		return &cpy
 	case *SetComprehension:
 		sc := &SetComprehension{}
-		sc.Term = resolveRefsInTerm(globals, v.Term)
-		sc.Body = resolveRefsInBody(globals, v.Body)
+		ignore.Push(assignedVars(v.Body))
+		defer ignore.Pop()
+		sc.Term = resolveRefsInTerm(globals, ignore, v.Term)
+		sc.Body = resolveRefsInBody(globals, ignore, v.Body)
 		cpy := *term
 		cpy.Value = sc
 		return &cpy
 	default:
 		return term
 	}
+}
+
+func resolveRefsInTermSlice(globals map[Var]Ref, ignore *assignedVarStack, terms []*Term) []*Term {
+	cpy := make([]*Term, len(terms))
+	for i := 0; i < len(terms); i++ {
+		cpy[i] = resolveRefsInTerm(globals, ignore, terms[i])
+	}
+	return cpy
+}
+
+type assignedVarStack []VarSet
+
+func (s assignedVarStack) Assigned(v Var) bool {
+	for i := len(s) - 1; i >= 0; i-- {
+		if _, ok := s[i][v]; ok {
+			return ok
+		}
+	}
+	return false
+}
+
+func (s assignedVarStack) Add(v Var) {
+	s[len(s)-1].Add(v)
+}
+
+func (s *assignedVarStack) Push(vs VarSet) {
+	*s = append(*s, vs)
+}
+
+func (s *assignedVarStack) Pop() {
+	curr := *s
+	*s = curr[:len(curr)-1]
+}
+func assignedVars(x interface{}) VarSet {
+	vars := NewVarSet()
+	vis := NewGenericVisitor(func(x interface{}) bool {
+		switch x := x.(type) {
+		case *Expr:
+			if x.IsAssignment() {
+				WalkVars(x.Operand(0), func(v Var) bool {
+					vars.Add(v)
+					return false
+				})
+			}
+		case *ArrayComprehension, *SetComprehension, *ObjectComprehension:
+			return true
+		}
+		return false
+	})
+	Walk(vis, x)
+	return vars
 }
 
 // rewriteComprehensionTerms will rewrite comprehensions so that the term part
