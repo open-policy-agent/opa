@@ -817,11 +817,11 @@ func TestCompilerRewriteExprTerms(t *testing.T) {
 
 		p { x = a + b * y }
 
-		q[[f(x)]] { x = 1 }
+		q[[data.test.f(x)]] { x = 1 }
 
-		r = [f(x)] { x = 1 }
+		r = [data.test.f(x)] { x = 1 }
 
-		f(x) = g(x)
+		f(x) = data.test.g(x)
 
 		pi = 3 + .14
 	`
@@ -838,11 +838,11 @@ func TestCompilerRewriteExprTerms(t *testing.T) {
 
 		p { mul(b, y, __local0__); plus(a, __local0__, __local1__); eq(x, __local1__) }
 
-		q[[__local2__]] { x = 1; f(x, __local2__) }
+		q[[__local2__]] { x = 1; data.test.f(x, __local2__) }
 
-		r = [__local3__] { x = 1; f(x, __local3__) }
+		r = [__local3__] { x = 1; data.test.f(x, __local3__) }
 
-		f(x) = __local4__ { true; g(x, __local4__) }
+		f(x) = __local4__ { true; data.test.g(x, __local4__) }
 
 		pi = __local5__ { true; plus(3, 0.14, __local5__) }
 	`)
@@ -877,6 +877,24 @@ p[foo[bar[i]]] = {"baz": baz} { true }`)
 		true
 	}
 	`)
+
+	c.Modules["nestedexprs"] = MustParseModule(`package nestedexprs
+
+		x = 1
+
+		p {
+			f(g(x))
+		}`)
+
+	c.Modules["assign"] = MustParseModule(`package assign
+
+		x = 1
+		y = 1
+
+		p {
+			x := y
+			[true | x := y]
+		}`)
 
 	compileStages(c, c.resolveAllRefs)
 	assertNotFailed(t, c)
@@ -956,6 +974,18 @@ p[foo[bar[i]]] = {"baz": baz} { true }`)
 	assertTermEqual(t, mod8.Rules[0].Else.Head.Value, MustParseTerm("input.x.y.foo"))
 	assertTermEqual(t, mod8.Rules[0].Else.Body[0].Terms.(*Term), MustParseTerm("data.doc1"))
 	assertTermEqual(t, mod8.Rules[0].Else.Else.Head.Value, MustParseTerm("input.baz"))
+
+	// Refs in calls.
+	mod9 := c.Modules["nestedexprs"]
+	assertTermEqual(t, mod9.Rules[1].Body[0].Terms.([]*Term)[1], CallTerm(RefTerm(VarTerm("g")), MustParseTerm("data.nestedexprs.x")))
+
+	// Ignore assigned vars.
+	mod10 := c.Modules["assign"]
+	assertTermEqual(t, mod10.Rules[2].Body[0].Terms.([]*Term)[1], VarTerm("x"))
+	assertTermEqual(t, mod10.Rules[2].Body[0].Terms.([]*Term)[2], MustParseTerm("data.assign.y"))
+	assignCompr := mod10.Rules[2].Body[1].Terms.(*Term).Value.(*ArrayComprehension)
+	assertTermEqual(t, assignCompr.Body[0].Terms.([]*Term)[1], VarTerm("x"))
+	assertTermEqual(t, assignCompr.Body[0].Terms.([]*Term)[2], MustParseTerm("data.assign.y"))
 
 	// Locations.
 	parsedLoc := getCompilerTestModules()["mod1"].Rules[0].Body[0].Terms.(*Term).Value.(Ref)[0].Location
@@ -1055,7 +1085,7 @@ func TestCompilerRewriteLocalAssignments(t *testing.T) {
 
 	head_array_comprehensions = [x | x := 1]
 	head_set_comprehensions = {x | x := 1}
-	head_object_comprehensions = {k: v | k := "foo"; v := 1}
+	head_object_comprehensions = {k: x | k := "foo"; x := 1}
 	`)
 
 	c.Modules["test2"] = MustParseModule(`package test
