@@ -25,7 +25,7 @@ Generate ASCII table on the fly ...  Installation is simple as
 - Set custom footer support
 - Optional identical cells merging
 - Set custom caption
-
+- Optional reflowing of paragrpahs in multi-line cells.
 
 #### Example   1 - Basic
 ```go
@@ -272,8 +272,6 @@ Movie ratings.
 - ~~Support for `SetFooter`~~  - `done`
 - ~~Support for `SetBorder`~~  - `done`
 - ~~Support table with uneven rows~~ - `done`
-- Support custom alignment
+- ~~Support custom alignment~~
 - General Improvement & Optimisation
 - `NewHTML` Parse table from HTML
-
-
