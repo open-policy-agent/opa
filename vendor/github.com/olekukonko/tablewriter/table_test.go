@@ -460,38 +460,264 @@ solved.
 	}
 }
 
-func TestPrintTableWithAndWithoutAutoWrap(t *testing.T) {
-	var buf bytes.Buffer
+func Example_autowrap() {
 	var multiline = `A multiline
 string with some lines being really long.`
 
-	with := NewWriter(&buf)
-	with.Append([]string{multiline})
-	with.Render()
-	want := `+--------------------------------+
-| A multiline string with some   |
-| lines being really long.       |
-+--------------------------------+
-`
-	got := buf.String()
-	if got != want {
-		t.Errorf("multiline text rendering with wrapping failed\ngot:\n%s\nwant:\n%s\n", got, want)
+	const (
+		testRow = iota
+		testHeader
+		testFooter
+		testFooter2
+	)
+	for mode := testRow; mode <= testFooter2; mode++ {
+		for _, autoFmt := range []bool{false, true} {
+			if mode == testRow && autoFmt {
+				// Nothing special to test, skip
+				continue
+			}
+			for _, autoWrap := range []bool{false, true} {
+				for _, reflow := range []bool{false, true} {
+					if !autoWrap && reflow {
+						// Invalid configuration, skip
+						continue
+					}
+					fmt.Println("mode", mode, "autoFmt", autoFmt, "autoWrap", autoWrap, "reflow", reflow)
+					t := NewWriter(os.Stdout)
+					t.SetAutoFormatHeaders(autoFmt)
+					t.SetAutoWrapText(autoWrap)
+					t.SetReflowDuringAutoWrap(reflow)
+					if mode == testHeader {
+						t.SetHeader([]string{"woo", multiline})
+					} else {
+						t.SetHeader([]string{"woo", "waa"})
+					}
+					if mode == testRow {
+						t.Append([]string{"woo", multiline})
+					} else {
+						t.Append([]string{"woo", "waa"})
+					}
+					if mode == testFooter {
+						t.SetFooter([]string{"woo", multiline})
+					} else if mode == testFooter2 {
+						t.SetFooter([]string{"", multiline})
+					} else {
+						t.SetFooter([]string{"woo", "waa"})
+					}
+					t.Render()
+				}
+			}
+		}
+		fmt.Println()
 	}
 
-	buf.Truncate(0)
-	without := NewWriter(&buf)
-	without.SetAutoWrapText(false)
-	without.Append([]string{multiline})
-	without.Render()
-	want = `+-------------------------------------------+
-| A multiline                               |
-| string with some lines being really long. |
-+-------------------------------------------+
-`
-	got = buf.String()
-	if got != want {
-		t.Errorf("multiline text rendering without wrapping rendering failed\ngot:\n%s\nwant:\n%s\n", got, want)
-	}
+	// Output:
+	// mode 0 autoFmt false autoWrap false reflow false
+	// +-----+-------------------------------------------+
+	// | woo |                    waa                    |
+	// +-----+-------------------------------------------+
+	// | woo | A multiline                               |
+	// |     | string with some lines being really long. |
+	// +-----+-------------------------------------------+
+	// | woo |                    waa                    |
+	// +-----+-------------------------------------------+
+	// mode 0 autoFmt false autoWrap true reflow false
+	// +-----+--------------------------------+
+	// | woo |              waa               |
+	// +-----+--------------------------------+
+	// | woo | A multiline                    |
+	// |     |                                |
+	// |     | string with some lines being   |
+	// |     | really long.                   |
+	// +-----+--------------------------------+
+	// | woo |              waa               |
+	// +-----+--------------------------------+
+	// mode 0 autoFmt false autoWrap true reflow true
+	// +-----+--------------------------------+
+	// | woo |              waa               |
+	// +-----+--------------------------------+
+	// | woo | A multiline string with some   |
+	// |     | lines being really long.       |
+	// +-----+--------------------------------+
+	// | woo |              waa               |
+	// +-----+--------------------------------+
+	//
+	// mode 1 autoFmt false autoWrap false reflow false
+	// +-----+-------------------------------------------+
+	// | woo |                A multiline                |
+	// |     | string with some lines being really long. |
+	// +-----+-------------------------------------------+
+	// | woo | waa                                       |
+	// +-----+-------------------------------------------+
+	// | woo |                    waa                    |
+	// +-----+-------------------------------------------+
+	// mode 1 autoFmt false autoWrap true reflow false
+	// +-----+--------------------------------+
+	// | woo |          A multiline           |
+	// |     |                                |
+	// |     |  string with some lines being  |
+	// |     |          really long.          |
+	// +-----+--------------------------------+
+	// | woo | waa                            |
+	// +-----+--------------------------------+
+	// | woo |              waa               |
+	// +-----+--------------------------------+
+	// mode 1 autoFmt false autoWrap true reflow true
+	// +-----+--------------------------------+
+	// | woo |  A multiline string with some  |
+	// |     |    lines being really long.    |
+	// +-----+--------------------------------+
+	// | woo | waa                            |
+	// +-----+--------------------------------+
+	// | woo |              waa               |
+	// +-----+--------------------------------+
+	// mode 1 autoFmt true autoWrap false reflow false
+	// +-----+-------------------------------------------+
+	// | WOO |                A MULTILINE                |
+	// |     | STRING WITH SOME LINES BEING REALLY LONG  |
+	// +-----+-------------------------------------------+
+	// | woo | waa                                       |
+	// +-----+-------------------------------------------+
+	// | WOO |                    WAA                    |
+	// +-----+-------------------------------------------+
+	// mode 1 autoFmt true autoWrap true reflow false
+	// +-----+--------------------------------+
+	// | WOO |          A MULTILINE           |
+	// |     |                                |
+	// |     |  STRING WITH SOME LINES BEING  |
+	// |     |          REALLY LONG           |
+	// +-----+--------------------------------+
+	// | woo | waa                            |
+	// +-----+--------------------------------+
+	// | WOO |              WAA               |
+	// +-----+--------------------------------+
+	// mode 1 autoFmt true autoWrap true reflow true
+	// +-----+--------------------------------+
+	// | WOO |  A MULTILINE STRING WITH SOME  |
+	// |     |    LINES BEING REALLY LONG     |
+	// +-----+--------------------------------+
+	// | woo | waa                            |
+	// +-----+--------------------------------+
+	// | WOO |              WAA               |
+	// +-----+--------------------------------+
+	//
+	// mode 2 autoFmt false autoWrap false reflow false
+	// +-----+-------------------------------------------+
+	// | woo |                    waa                    |
+	// +-----+-------------------------------------------+
+	// | woo | waa                                       |
+	// +-----+-------------------------------------------+
+	// | woo |                A multiline                |
+	// |     | string with some lines being really long. |
+	// +-----+-------------------------------------------+
+	// mode 2 autoFmt false autoWrap true reflow false
+	// +-----+--------------------------------+
+	// | woo |              waa               |
+	// +-----+--------------------------------+
+	// | woo | waa                            |
+	// +-----+--------------------------------+
+	// | woo |          A multiline           |
+	// |     |                                |
+	// |     |  string with some lines being  |
+	// |     |          really long.          |
+	// +-----+--------------------------------+
+	// mode 2 autoFmt false autoWrap true reflow true
+	// +-----+--------------------------------+
+	// | woo |              waa               |
+	// +-----+--------------------------------+
+	// | woo | waa                            |
+	// +-----+--------------------------------+
+	// | woo |  A multiline string with some  |
+	// |     |    lines being really long.    |
+	// +-----+--------------------------------+
+	// mode 2 autoFmt true autoWrap false reflow false
+	// +-----+-------------------------------------------+
+	// | WOO |                    WAA                    |
+	// +-----+-------------------------------------------+
+	// | woo | waa                                       |
+	// +-----+-------------------------------------------+
+	// | WOO |                A MULTILINE                |
+	// |     | STRING WITH SOME LINES BEING REALLY LONG  |
+	// +-----+-------------------------------------------+
+	// mode 2 autoFmt true autoWrap true reflow false
+	// +-----+--------------------------------+
+	// | WOO |              WAA               |
+	// +-----+--------------------------------+
+	// | woo | waa                            |
+	// +-----+--------------------------------+
+	// | WOO |          A MULTILINE           |
+	// |     |                                |
+	// |     |  STRING WITH SOME LINES BEING  |
+	// |     |          REALLY LONG           |
+	// +-----+--------------------------------+
+	// mode 2 autoFmt true autoWrap true reflow true
+	// +-----+--------------------------------+
+	// | WOO |              WAA               |
+	// +-----+--------------------------------+
+	// | woo | waa                            |
+	// +-----+--------------------------------+
+	// | WOO |  A MULTILINE STRING WITH SOME  |
+	// |     |    LINES BEING REALLY LONG     |
+	// +-----+--------------------------------+
+	//
+	// mode 3 autoFmt false autoWrap false reflow false
+	// +-----+-------------------------------------------+
+	// | woo |                    waa                    |
+	// +-----+-------------------------------------------+
+	// | woo | waa                                       |
+	// +-----+-------------------------------------------+
+	// |                      A multiline                |
+	// |       string with some lines being really long. |
+	// +-----+-------------------------------------------+
+	// mode 3 autoFmt false autoWrap true reflow false
+	// +-----+--------------------------------+
+	// | woo |              waa               |
+	// +-----+--------------------------------+
+	// | woo | waa                            |
+	// +-----+--------------------------------+
+	// |                A multiline           |
+	// |                                      |
+	// |        string with some lines being  |
+	// |                really long.          |
+	// +-----+--------------------------------+
+	// mode 3 autoFmt false autoWrap true reflow true
+	// +-----+--------------------------------+
+	// | woo |              waa               |
+	// +-----+--------------------------------+
+	// | woo | waa                            |
+	// +-----+--------------------------------+
+	// |        A multiline string with some  |
+	// |          lines being really long.    |
+	// +-----+--------------------------------+
+	// mode 3 autoFmt true autoWrap false reflow false
+	// +-----+-------------------------------------------+
+	// | WOO |                    WAA                    |
+	// +-----+-------------------------------------------+
+	// | woo | waa                                       |
+	// +-----+-------------------------------------------+
+	// |                      A MULTILINE                |
+	// |       STRING WITH SOME LINES BEING REALLY LONG  |
+	// +-----+-------------------------------------------+
+	// mode 3 autoFmt true autoWrap true reflow false
+	// +-----+--------------------------------+
+	// | WOO |              WAA               |
+	// +-----+--------------------------------+
+	// | woo | waa                            |
+	// +-----+--------------------------------+
+	// |                A MULTILINE           |
+	// |                                      |
+	// |        STRING WITH SOME LINES BEING  |
+	// |                REALLY LONG           |
+	// +-----+--------------------------------+
+	// mode 3 autoFmt true autoWrap true reflow true
+	// +-----+--------------------------------+
+	// | WOO |              WAA               |
+	// +-----+--------------------------------+
+	// | woo | waa                            |
+	// +-----+--------------------------------+
+	// |        A MULTILINE STRING WITH SOME  |
+	// |          LINES BEING REALLY LONG     |
+	// +-----+--------------------------------+
 }
 
 func TestPrintLine(t *testing.T) {
