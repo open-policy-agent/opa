@@ -2230,10 +2230,7 @@ func rewriteDeclaredAssignment(g *localVarGenerator, stack *localDeclaredVars, e
 
 	// Rewrite terms on right hand side capture seen vars and recursively
 	// process comprehensions before left hand side is processed.
-	WalkTerms(expr.Operand(1), func(term *Term) bool {
-		_, errs = rewriteDeclaredVarsInTerm(g, stack, term, errs)
-		return false
-	})
+	rewriteDeclaredVarsInTermRecursive(g, stack, expr.Operand(1), errs)
 
 	// Rewrite vars on right hand side with unique names. Catch redeclaration
 	// and invalid term types here.
@@ -2307,10 +2304,18 @@ func rewriteDeclaredVarsInTerm(g *localVarGenerator, stack *localDeclaredVars, t
 	return true, errs
 }
 
+func rewriteDeclaredVarsInTermRecursive(g *localVarGenerator, stack *localDeclaredVars, term *Term, errs Errors) Errors {
+	WalkTerms(term, func(term *Term) bool {
+		_, errs = rewriteDeclaredVarsInTerm(g, stack, term, errs)
+		return false
+	})
+	return errs
+}
+
 func rewriteDeclaredVarsInArrayComprehension(g *localVarGenerator, stack *localDeclaredVars, v *ArrayComprehension, errs Errors) Errors {
 	stack.Push()
 	errs = rewriteDeclaredVarsInBody(g, stack, v.Body, errs)
-	_, errs = rewriteDeclaredVarsInTerm(g, stack, v.Term, errs)
+	errs = rewriteDeclaredVarsInTermRecursive(g, stack, v.Term, errs)
 	stack.Pop()
 	return errs
 }
@@ -2318,7 +2323,7 @@ func rewriteDeclaredVarsInArrayComprehension(g *localVarGenerator, stack *localD
 func rewriteDeclaredVarsInSetComprehension(g *localVarGenerator, stack *localDeclaredVars, v *SetComprehension, errs Errors) Errors {
 	stack.Push()
 	errs = rewriteDeclaredVarsInBody(g, stack, v.Body, errs)
-	_, errs = rewriteDeclaredVarsInTerm(g, stack, v.Term, errs)
+	errs = rewriteDeclaredVarsInTermRecursive(g, stack, v.Term, errs)
 	stack.Pop()
 	return errs
 }
@@ -2326,8 +2331,8 @@ func rewriteDeclaredVarsInSetComprehension(g *localVarGenerator, stack *localDec
 func rewriteDeclaredVarsInObjectComprehension(g *localVarGenerator, stack *localDeclaredVars, v *ObjectComprehension, errs Errors) Errors {
 	stack.Push()
 	errs = rewriteDeclaredVarsInBody(g, stack, v.Body, errs)
-	_, errs = rewriteDeclaredVarsInTerm(g, stack, v.Key, errs)
-	_, errs = rewriteDeclaredVarsInTerm(g, stack, v.Value, errs)
+	errs = rewriteDeclaredVarsInTermRecursive(g, stack, v.Key, errs)
+	errs = rewriteDeclaredVarsInTermRecursive(g, stack, v.Value, errs)
 	stack.Pop()
 	return errs
 }
