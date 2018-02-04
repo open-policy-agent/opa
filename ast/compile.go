@@ -657,7 +657,10 @@ func (c *Compiler) resolveAllRefs() {
 		globals := getGlobals(mod.Package, ruleExports, mod.Imports)
 
 		WalkRules(mod, func(rule *Rule) bool {
-			resolveRefsInRule(globals, rule)
+			err := resolveRefsInRule(globals, rule)
+			if err != nil {
+				c.err(NewError(CompileErr, rule.Location, err.Error()))
+			}
 			return false
 		})
 
@@ -1682,19 +1685,67 @@ func resolveRef(globals map[Var]Ref, ignore *assignedVarStack, ref Ref) Ref {
 	return r
 }
 
-func resolveRefsInRule(globals map[Var]Ref, rule *Rule) {
+func resolveRefsInRule(globals map[Var]Ref, rule *Rule) error {
 	ignore := &assignedVarStack{}
-	ignore.Push(assignedVars(rule.Body))
-	for i := range rule.Head.Args {
-		rule.Head.Args[i] = resolveRefsInTerm(globals, ignore, rule.Head.Args[i])
+
+	vars := NewVarSet()
+	var vis Visitor
+	var err error
+
+	// Walk args to collect vars and transform body so that callers can shadow
+	// root documents.
+	vis = NewGenericVisitor(func(x interface{}) bool {
+		if err != nil {
+			return true
+		}
+		switch x := x.(type) {
+		case Var:
+			vars.Add(x)
+
+		// Object keys cannot be pattern matched so only walk values.
+		case Object:
+			x.Foreach(func(_, v *Term) {
+				Walk(vis, v)
+			})
+
+		// Skip terms that could contain vars that cannot be pattern matched.
+		case Set, *ArrayComprehension, *SetComprehension, *ObjectComprehension, Call:
+			return true
+
+		case *Term:
+			if _, ok := x.Value.(Ref); ok {
+				if RootDocumentRefs.Contains(x) {
+					// We could support args named input, data, etc. however
+					// this would require rewriting terms in the head and body.
+					// Preventing root document shadowing is simpler, and
+					// arguably, will prevent confusing names from being used.
+					err = fmt.Errorf("args must not shadow %v (use a different variable name)", x)
+					return true
+				}
+			}
+		}
+		return false
+	})
+
+	Walk(vis, rule.Head.Args)
+
+	if err != nil {
+		return err
 	}
+
+	ignore.Push(vars)
+	ignore.Push(assignedVars(rule.Body))
+
 	if rule.Head.Key != nil {
 		rule.Head.Key = resolveRefsInTerm(globals, ignore, rule.Head.Key)
 	}
+
 	if rule.Head.Value != nil {
 		rule.Head.Value = resolveRefsInTerm(globals, ignore, rule.Head.Value)
 	}
+
 	rule.Body = resolveRefsInBody(globals, ignore, rule.Body)
+	return nil
 }
 
 func resolveRefsInBody(globals map[Var]Ref, ignore *assignedVarStack, body Body) Body {
