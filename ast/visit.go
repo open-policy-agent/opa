@@ -264,7 +264,6 @@ type VarVisitorParams struct {
 	SkipClosures    bool
 	SkipWithTarget  bool
 	SkipSets        bool
-	SkipFuncVars    bool
 }
 
 // NewVarVisitor returns a new VarVisitor object.

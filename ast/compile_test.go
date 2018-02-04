@@ -896,6 +896,15 @@ p[foo[bar[i]]] = {"baz": baz} { true }`)
 			[true | x := y]
 		}`)
 
+	c.Modules["donotresolve"] = MustParseModule(`package donotresolve
+
+		x = 1
+
+		f(x) {
+			x = 2
+		}
+		`)
+
 	compileStages(c, c.resolveAllRefs)
 	assertNotFailed(t, c)
 
@@ -987,12 +996,37 @@ p[foo[bar[i]]] = {"baz": baz} { true }`)
 	assertTermEqual(t, assignCompr.Body[0].Terms.([]*Term)[1], VarTerm("x"))
 	assertTermEqual(t, assignCompr.Body[0].Terms.([]*Term)[2], MustParseTerm("data.assign.y"))
 
+	// Args
+	mod11 := c.Modules["donotresolve"]
+	assertTermEqual(t, mod11.Rules[1].Head.Args[0], VarTerm("x"))
+	assertExprEqual(t, mod11.Rules[1].Body[0], MustParseExpr("x = 2"))
+
 	// Locations.
 	parsedLoc := getCompilerTestModules()["mod1"].Rules[0].Body[0].Terms.(*Term).Value.(Ref)[0].Location
 	compiledLoc := c.Modules["mod1"].Rules[0].Body[0].Terms.(*Term).Value.(Ref)[0].Location
 	if parsedLoc.Row != compiledLoc.Row {
 		t.Fatalf("Expected parsed location (%v) and compiled location (%v) to be equal", parsedLoc.Row, compiledLoc.Row)
 	}
+}
+
+func TestCompilerResolveErrors(t *testing.T) {
+
+	c := NewCompiler()
+	c.Modules = map[string]*Module{
+		"shadow-globals": MustParseModule(`
+			package shadow_globals
+
+			f([input]) { true }
+		`),
+	}
+
+	compileStages(c, c.resolveAllRefs)
+
+	expected := []string{
+		`args must not shadow input`,
+	}
+
+	assertCompilerErrorStrings(t, c, expected)
 }
 
 func TestCompilerRewriteTermsInHead(t *testing.T) {
@@ -1014,8 +1048,6 @@ elsekw {
 } else = baz {
 	true
 }
-
-f(0, [baz], 2) = true { true }
 `)
 
 	compileStages(c, c.rewriteRefsInHead)
@@ -1040,10 +1072,6 @@ f(0, [baz], 2) = true { true }
 	rule5 := c.Modules["head"].Rules[4]
 	expected5 := MustParseRule(`elsekw { false } else = __local5__ { true; __local5__ = input.qux }`)
 	assertRulesEqual(t, rule5, expected5)
-
-	rule6 := c.Modules["head"].Rules[5]
-	expected6 := MustParseRule(`f(0, __local6__, 2) = true { true; __local6__ = [input.qux] }`)
-	assertRulesEqual(t, rule6, expected6)
 }
 
 func TestCompilerRewriteLocalAssignments(t *testing.T) {
