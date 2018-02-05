@@ -1,5 +1,5 @@
-hash: d04eafa0c28103667a6c0cee8fe50087b23c8033aa8ec4562235bf37d46836a1
-updated: 2018-02-02T15:22:23.4524057-08:00
+hash: 3538d9e9b30d64dd92df31a1384868a9bf6a6e39a28b31cfd473236270ea4bb6
+updated: 2018-02-05T17:03:30.06832304-08:00
 imports:
 - name: github.com/beorn7/perks
   version: 4c0e84591b9aa9e6dcfdf3e020114cd81f89d5f9
@@ -36,7 +36,7 @@ imports:
 - name: github.com/pkg/errors
   version: 30136e27e2ac8d167177e8a583aa4c3fea5be833
 - name: github.com/prometheus/client_golang
-  version: ebe4271dac176ba2e74e0915c82992beee51e0d6
+  version: 9bb6ab929dcbe1c8393cd9ef70387cb69811bd1c
   subpackages:
   - prometheus
   - prometheus/promhttp
@@ -59,9 +59,11 @@ imports:
 - name: github.com/sirupsen/logrus
   version: f006c2ac4710855cf0f916dd6b77acf6b048dc6e
 - name: github.com/spf13/cobra
-  version: 3a7eb146bae5ebf9be598570234cde56c82d16cc
+  version: 93959269ad99e80983c9ba742a7e01203a4c0e4f
 - name: github.com/spf13/pflag
   version: 4c012f6dcd9546820e378d0bdda4d8fc772cdfea
+- name: github.com/yashtewari/glob-intersection
+  version: 7af743e8ec8480fee1932a737a406f7ec817f910
 - name: golang.org/x/crypto
   version: 1875d0a70c90e57f11972aefd42276df65e895b9
   subpackages:
