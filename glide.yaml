@@ -20,3 +20,4 @@ import:
 - package: github.com/prometheus/client_golang
   subpackages:
   - prometheus
+- package: github.com/yashtewari/glob-intersection
