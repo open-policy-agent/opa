@@ -1150,7 +1150,7 @@ func TestTopDownTypeNameBuiltin(t *testing.T) {
 
 }
 
-func TestTopDownRegex(t *testing.T) {
+func TestTopDownRegexMatch(t *testing.T) {
 	tests := []struct {
 		note     string
 		rules    []string
@@ -1163,6 +1163,28 @@ func TestTopDownRegex(t *testing.T) {
 
 		{"re_match: raw", []string{fmt.Sprintf(`p = true { re_match(%s, "foo[1]") }`, "`^[a-z]+\\[[0-9]+\\]$`")}, "true"},
 		{"re_match: raw: undefined", []string{fmt.Sprintf(`p = true { re_match(%s, "foo[\"bar\"]") }`, "`^[a-z]+\\[[0-9]+\\]$`")}, ""},
+	}
+
+	data := loadSmallTestData()
+
+	for _, tc := range tests {
+		runTopDownTestCase(t, data, tc.note, tc.rules, tc.expected)
+	}
+}
+
+func TestTopDownGlobsMatch(t *testing.T) {
+	tests := []struct {
+		note     string
+		rules    []string
+		expected interface{}
+	}{
+		{"regex.globs_match", []string{`p = true { regex.globs_match("a.a.[0-9]+z", ".b.b2359825792*594823z") }`}, "true"},
+		{"regex.globs_match", []string{`p = true { regex.globs_match("[a-z]+", "[0-9]*") }`}, ""},
+		{"regex.globs_match: bad pattern err", []string{`p = true { regex.globs_match("pqrs]", "[a-b]+") }`}, fmt.Errorf("input:pqrs], pos:5, set-close ']' with no preceding '[': the input provided is invalid")},
+		{"regex.globs_match: ref", []string{`p[x] { regex.globs_match("b.*", d.e[x]) }`}, "[0,1]"},
+
+		{"regex.globs_match: raw", []string{fmt.Sprintf(`p = true { regex.globs_match(%s, "foo\\[1\\]") }`, "`[a-z]+\\[[0-9]+\\]`")}, "true"},
+		{"regex.globs_match: raw: undefined", []string{fmt.Sprintf(`p = true { regex.globs_match(%s, "foo[\"bar\"]") }`, "`[a-z]+\\[[0-9]+\\]`")}, ""},
 	}
 
 	data := loadSmallTestData()

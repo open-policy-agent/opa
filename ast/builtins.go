@@ -51,6 +51,7 @@ var DefaultBuiltins = [...]*Builtin{
 
 	// Regular Expressions
 	RegexMatch,
+	GlobsMatch,
 
 	// Sets
 	SetDiff, Intersection, Union,
@@ -380,6 +381,22 @@ var ToNumber = &Builtin{
 // position matches the pattern in the first position.
 var RegexMatch = &Builtin{
 	Name: "re_match",
+	Decl: types.NewFunction(
+		types.Args(
+			types.S,
+			types.S,
+		),
+		types.T,
+	),
+}
+
+// GlobsMatch takes two strings regexp-style strings and evaluates to true if their
+// intersection matches a non-empty set of non-empty strings.
+// Examples:
+//  - "a.a." and ".b.b" -> true.
+//  - "[a-z]*" and [0-9]+" -> not true.
+var GlobsMatch = &Builtin{
+	Name: "regex.globs_match",
 	Decl: types.NewFunction(
 		types.Args(
 			types.S,
