@@ -51,6 +51,25 @@ func TestRegoCaptureTermsRewrite(t *testing.T) {
 	}
 }
 
+func TestRegoRewrittenVarsCapture(t *testing.T) {
+
+	ctx := context.Background()
+
+	r := New(
+		Query("a := 1; a != 0; a"),
+	)
+
+	rs, err := r.Eval(ctx)
+	if err != nil || len(rs) != 1 {
+		t.Fatalf("Unexpected result: %v (err: %v)", rs, err)
+	}
+
+	if !reflect.DeepEqual(rs[0].Bindings["a"], json.Number("1")) {
+		t.Fatal("Expected a to be 1 but got:", rs[0].Bindings["a"])
+	}
+
+}
+
 func TestRegoCancellation(t *testing.T) {
 
 	ast.RegisterBuiltin(&ast.Builtin{

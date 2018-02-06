@@ -265,7 +265,7 @@ func (r *Rego) Eval(ctx context.Context) (ResultSet, error) {
 
 	query = r.captureTerms(query)
 
-	compiled, err := r.compile(parsed, query)
+	qc, compiled, err := r.compile(parsed, query)
 	if err != nil {
 		return nil, err
 	}
@@ -280,7 +280,7 @@ func (r *Rego) Eval(ctx context.Context) (ResultSet, error) {
 		defer r.store.Abort(ctx, txn)
 	}
 
-	return r.eval(ctx, compiled, txn)
+	return r.eval(ctx, qc, compiled, txn)
 }
 
 // PartialEval partially evaluates this Rego object and returns a PartialResult.
@@ -300,7 +300,7 @@ func (r *Rego) PartialEval(ctx context.Context) (PartialResult, error) {
 		return PartialResult{}, err
 	}
 
-	compiled, err := r.compile(parsed, query)
+	_, compiled, err := r.compile(parsed, query)
 	if err != nil {
 		return PartialResult{}, err
 	}
@@ -352,7 +352,7 @@ func (r *Rego) parse() (map[string]*ast.Module, ast.Body, error) {
 	return parsed, query, nil
 }
 
-func (r *Rego) compile(modules map[string]*ast.Module, query ast.Body) (ast.Body, error) {
+func (r *Rego) compile(modules map[string]*ast.Module, query ast.Body) (ast.QueryCompiler, ast.Body, error) {
 
 	r.metrics.Timer(metrics.RegoQueryCompile).Start()
 	defer r.metrics.Timer(metrics.RegoQueryCompile).Stop()
@@ -365,7 +365,7 @@ func (r *Rego) compile(modules map[string]*ast.Module, query ast.Body) (ast.Body
 			for _, err := range r.compiler.Errors {
 				errs = append(errs, err)
 			}
-			return nil, errs
+			return nil, nil, errs
 		}
 	}
 
@@ -374,7 +374,7 @@ func (r *Rego) compile(modules map[string]*ast.Module, query ast.Body) (ast.Body
 	if r.pkg != "" {
 		pkg, err := ast.ParsePackage(fmt.Sprintf("package %v", r.pkg))
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		qctx = qctx.WithPackage(pkg)
 	}
@@ -386,7 +386,7 @@ func (r *Rego) compile(modules map[string]*ast.Module, query ast.Body) (ast.Body
 		}
 		imports, err := ast.ParseImports(strings.Join(s, "\n"))
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		qctx = qctx.WithImports(imports)
 	}
@@ -394,16 +394,18 @@ func (r *Rego) compile(modules map[string]*ast.Module, query ast.Body) (ast.Body
 	if r.rawInput != nil {
 		val, err := ast.InterfaceToValue(*r.rawInput)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		qctx = qctx.WithInput(val)
 		r.input = val
 	}
 
-	return r.compiler.QueryCompiler().WithContext(qctx).Compile(query)
+	qc := r.compiler.QueryCompiler().WithContext(qctx)
+	compiled, err := qc.Compile(query)
+	return qc, compiled, err
 }
 
-func (r *Rego) eval(ctx context.Context, compiled ast.Body, txn storage.Transaction) (rs ResultSet, err error) {
+func (r *Rego) eval(ctx context.Context, qc ast.QueryCompiler, compiled ast.Body, txn storage.Transaction) (rs ResultSet, err error) {
 
 	q := topdown.NewQuery(compiled).
 		WithCompiler(r.compiler).
@@ -429,6 +431,7 @@ func (r *Rego) eval(ctx context.Context, compiled ast.Body, txn storage.Transact
 	})
 
 	exprs := map[*ast.Expr]struct{}{}
+	rewritten := qc.RewrittenVars()
 
 	err = q.Iter(ctx, func(qr topdown.QueryResult) error {
 		result := newResult()
@@ -438,6 +441,9 @@ func (r *Rego) eval(ctx context.Context, compiled ast.Body, txn storage.Transact
 				return err
 			}
 			if !isTermVar(key) {
+				if r, ok := rewritten[key]; ok {
+					key = r
+				}
 				if !key.IsWildcard() && !key.IsGenerated() {
 					result.Bindings[string(key)] = val
 				}

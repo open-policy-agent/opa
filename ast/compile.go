@@ -159,6 +159,11 @@ type QueryCompiler interface {
 	// WithContext sets the QueryContext on the QueryCompiler. Subsequent calls
 	// to Compile will take the QueryContext into account.
 	WithContext(qctx *QueryContext) QueryCompiler
+
+	// RewrittenVars maps generated vars in the compiled query to vars from the
+	// parsed query. For example, given the query "input := 1" the rewritten
+	// query would be "__local0__ = 1". The mapping would then be {__local0__: input}.
+	RewrittenVars() map[Var]Var
 }
 
 // NewCompiler returns a new empty compiler.
@@ -862,9 +867,10 @@ func (c *Compiler) setGraph() {
 }
 
 type queryCompiler struct {
-	compiler *Compiler
-	qctx     *QueryContext
-	typeEnv  *TypeEnv
+	compiler  *Compiler
+	qctx      *QueryContext
+	typeEnv   *TypeEnv
+	rewritten map[Var]Var
 }
 
 func newQueryCompiler(compiler *Compiler) QueryCompiler {
@@ -878,6 +884,10 @@ func newQueryCompiler(compiler *Compiler) QueryCompiler {
 func (qc *queryCompiler) WithContext(qctx *QueryContext) QueryCompiler {
 	qc.qctx = qctx
 	return qc
+}
+
+func (qc *queryCompiler) RewrittenVars() map[Var]Var {
+	return qc.rewritten
 }
 
 func (qc *queryCompiler) Compile(query Body) (Body, error) {
@@ -957,9 +967,13 @@ func (qc *queryCompiler) rewriteExprTerms(_ *QueryContext, body Body) (Body, err
 
 func (qc *queryCompiler) rewriteLocalAssignments(_ *QueryContext, body Body) (Body, error) {
 	gen := newLocalVarGenerator(body)
-	body, _, err := rewriteLocalAssignments(gen, body)
+	body, declared, err := rewriteLocalAssignments(gen, body)
 	if len(err) != 0 {
 		return nil, err
+	}
+	qc.rewritten = make(map[Var]Var, len(declared))
+	for k, v := range declared {
+		qc.rewritten[v] = k
 	}
 	return body, nil
 }
