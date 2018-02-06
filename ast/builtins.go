@@ -66,7 +66,7 @@ var DefaultBuiltins = [...]*Builtin{
 	JWTDecode,
 
 	// Time
-	NowNanos, ParseNanos, ParseRFC3339Nanos, ParseDurationNanos,
+	NowNanos, ParseNanos, ParseRFC3339Nanos, ParseDurationNanos, Date,
 
 	// Graphs
 	WalkBuiltin,
@@ -684,6 +684,15 @@ var ParseDurationNanos = &Builtin{
 	Decl: types.NewFunction(
 		types.Args(types.S),
 		types.N,
+	),
+}
+
+// Date returns the [year, month, day] for the nanoseconds since epoch.
+var Date = &Builtin{
+	Name: "time.date",
+	Decl: types.NewFunction(
+		types.Args(types.N),
+		types.NewArray([]types.Type{types.N, types.N, types.N}, nil),
 	),
 }
 

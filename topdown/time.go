@@ -6,6 +6,8 @@ package topdown
 
 import (
 	"encoding/json"
+	"fmt"
+	"math/big"
 	"strconv"
 	"time"
 
@@ -80,6 +82,25 @@ func builtinParseDurationNanos(a ast.Value) (ast.Value, error) {
 	return ast.Number(int64ToJSONNumber(int64(value))), nil
 }
 
+func builtinDate(a ast.Value) (ast.Value, error) {
+
+	value, err := builtins.NumberOperand(a, 1)
+	if err != nil {
+		return nil, err
+	}
+
+	f := builtins.NumberToFloat(value)
+	i64, acc := f.Int64()
+	if acc != big.Exact {
+		return nil, fmt.Errorf("timestamp too big")
+	}
+
+	t := time.Unix(0, i64)
+	year, month, day := t.Date()
+	result := ast.Array{ast.IntNumberTerm(year), ast.IntNumberTerm(int(month)), ast.IntNumberTerm(day)}
+	return result, nil
+}
+
 func int64ToJSONNumber(i int64) json.Number {
 	return json.Number(strconv.FormatInt(i, 10))
 }
@@ -89,4 +110,5 @@ func init() {
 	RegisterFunctionalBuiltin1(ast.ParseRFC3339Nanos.Name, builtinTimeParseRFC3339Nanos)
 	RegisterFunctionalBuiltin2(ast.ParseNanos.Name, builtinTimeParseNanos)
 	RegisterFunctionalBuiltin1(ast.ParseDurationNanos.Name, builtinParseDurationNanos)
+	RegisterFunctionalBuiltin1(ast.Date.Name, builtinDate)
 }

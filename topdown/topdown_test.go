@@ -1492,6 +1492,15 @@ func TestTopDownTime(t *testing.T) {
 	runTopDownTestCase(t, data, "parse duration nanos", []string{`
 		p = ns { time.parse_duration_ns("100ms", ns) }
 	`}, "100000000")
+
+	runTopDownTestCase(t, data, "date", []string{`
+		p = [year, month, day] { [year, month, day] := time.date(1517832000*1000*1000*1000) }`}, "[2018, 2, 5]")
+
+	runTopDownTestCase(t, data, "date leap day", []string{`
+		p = [year, month, day] { [year, month, day] := time.date(1582977600*1000*1000*1000) }`}, "[2020, 2, 29]")
+
+	runTopDownTestCase(t, data, "date too big", []string{`
+		p = [year, month, day] { [year, month, day] := time.date(1582977600*1000*1000*1000*1000) }`}, fmt.Errorf("timestamp too big"))
 }
 
 func TestTopDownWalkBuiltin(t *testing.T) {
