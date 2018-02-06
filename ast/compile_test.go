@@ -2018,6 +2018,41 @@ func TestQueryCompiler(t *testing.T) {
 	}
 }
 
+func TestQueryCompilerRewrittenVars(t *testing.T) {
+	tests := []struct {
+		note string
+		q    string
+		vars map[string]string
+	}{
+		{"assign", "a := 1", map[string]string{"__local0__": "a"}},
+	}
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			c := NewCompiler()
+			c.Compile(nil)
+			assertNotFailed(t, c)
+			qc := c.QueryCompiler()
+			body, err := ParseBody(tc.q)
+			if err != nil {
+				t.Fatal(err)
+			}
+			_, err = qc.Compile(body)
+			if err != nil {
+				t.Fatal(err)
+			}
+			vars := qc.RewrittenVars()
+			if len(tc.vars) != len(vars) {
+				t.Fatalf("Expected %v but got: %v", tc.vars, vars)
+			}
+			for k := range vars {
+				if vars[k] != Var(tc.vars[string(k)]) {
+					t.Fatalf("Expected %v but got: %v", tc.vars, vars)
+				}
+			}
+		})
+	}
+}
+
 func assertCompilerErrorStrings(t *testing.T, compiler *Compiler, expected []string) {
 	result := compilerErrsToStringSlice(compiler.Errors)
 	if len(result) != len(expected) {
