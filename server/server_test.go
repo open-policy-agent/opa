@@ -1638,6 +1638,47 @@ func TestDiagnostics(t *testing.T) {
 	}
 }
 
+func TestMetricsEndpoint(t *testing.T) {
+
+	f := newFixture(t)
+
+	module := `package test
+
+	p = true`
+
+	err := f.v1TestRequests([]tr{
+		{"PUT", "/policies/test", module, http.StatusOK, "{}"},
+		{"POST", "/data/test/p", "", http.StatusOK, `{"result": true}`},
+	})
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	f.reset()
+
+	metricsRequest, err := http.NewRequest("GET", "/metrics", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	f.server.Handler.ServeHTTP(f.recorder, metricsRequest)
+
+	resp := f.recorder.Body.String()
+
+	expected := []string{
+		`http_request_duration_seconds_count{code="200",handler="v1/policies",method="put"} 1`,
+		`http_request_duration_seconds_count{code="200",handler="v1/data",method="post"} 1`,
+	}
+
+	for _, exp := range expected {
+		if !strings.Contains(resp, exp) {
+			t.Fatalf("Expected to find %q but got:\n\n%v", exp, resp)
+		}
+	}
+
+}
+
 func TestDecisionIDs(t *testing.T) {
 	f := newFixture(t)
 	f.server = f.server.WithDiagnosticsBuffer(NewBoundedBuffer(4))
