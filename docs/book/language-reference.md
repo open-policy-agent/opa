@@ -39,6 +39,7 @@ complex types.
 | <span class="opa-keep-it-together">``product(array_or_set, output)``</span> | 1 | ``output`` is the product of the numbers in ``array_or_set`` |
 | <span class="opa-keep-it-together">``max(array_or_set, output)``</span> | 1 | ``output`` is the maximum value in ``array_or_set`` |
 | <span class="opa-keep-it-together">``min(array_or_set, output)``</span> | 1 | ``output`` is the minimum value in ``array_or_set`` |
+| <span class="opa-keep-it-together">``sort(array_or_set, output)``</span> | 1 | ``output`` is the sorted ``array`` containing elements from ``array_or_set``. |
 
 ### <a name="sets"/>Sets
 
