@@ -8,7 +8,7 @@ import (
 	"regexp"
 	"sync"
 
-	gintersect "github.com/yashtewari/glob-intersection"
+	"github.com/yashtewari/glob-intersection"
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/topdown/builtins"
