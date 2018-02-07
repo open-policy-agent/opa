@@ -17,7 +17,6 @@
       * [The `data` Document](how-does-opa-work.md#the-data-document)
       * [The `input` Document](how-does-opa-work.md#the-input-document)
     * [Putting It All Together](how-does-opa-work.md#putting-it-all-together)
-    * [Future Features](how-does-opa-work.md#future-features)
   * [How Do I Write Policies?](how-do-i-write-policies.md)
     * [What is Rego?](how-do-i-write-policies.md#what-is-rego)
     * [Why use Rego?](how-do-i-write-policies.md#why-use-rego)
