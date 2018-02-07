@@ -1529,7 +1529,11 @@ restarts, a **Redo** Trace Event is emitted.
 
 ## <a name="performance-metrics"></a> Performance Metrics
 
-OPA can report detailed performance metrics at runtime. Currently, performance metrics can be requested on individual API calls and are returned inline with the API response. To enable performance metric collection on an API call, specify the `metrics=true` query parameter when executing the API call. Performance metrics are currently supported for the following APIs:
+OPA can report detailed performance metrics at runtime. Performance metrics can
+be requested on individual API calls and are returned inline with the API
+response. To enable performance metric collection on an API call, specify the
+`metrics=true` query parameter when executing the API call. Performance metrics
+are currently supported for the following APIs:
 
 - Data API GET
 - Data API POST
@@ -1571,109 +1575,6 @@ OPA currently supports the following query performance metrics:
 - **timer_rego_query_eval_ns**: time taken (in nanonseconds) to evaluate the query.
 - **timer_rego_module_parse_ns**: time taken (in nanoseconds) to parse the input policy module.
 - **timer_rego_module_compile_ns**: time taken (in nanoseconds) to compile the loaded policy modules.
-
-## <a name="diagnostics"></a> Diagnostics
-
-The OPA server has the capability to log and return diagnostics on past requests to the user. By default, the server will not log any diagnostics at all. In order to have the server start logging diagnostic information, the document located at `data.system.diagnostics.config` (referred to as config below) must be defined. The config must evaluate to an object that is structured as follows:
-
-```
-{
-    "mode": <"all"/"on"/"off">,
-}
-```
-
-An example of a policy that defines a simple diagnostics config that only logs GET requests:
-
-```
-package system.diagnostics
-
-default config = {"mode": "off"}
-
-config = {"mode": "on"} {
-    input.method = "GET"
-}
-```
-
-If the config document does not conform to the structure above, then diagnostics are automatically disabled.
-
-Whenever a data GET/POST, a POST to `/` or query GET request is received by the server, it evaluates the config document to determine whether or not diagnostics should be logged. The table below describes the behavior of diagnostics depending on the values of the config fields.
-
-| Field | Value | Behavior |
-| --- | --- | --- |
-| `mode`    | "off" | No diagnostics are recorded. |
-| `mode`    | "on"  | Enables collection of inexpensive values. This includes the query, input, result, and performance metrics. |
-| `mode`    | "all" | All diagnostics are collected. This includes a full trace of the query evaluation. |
-
-In order to allow the config document to make dynamic decisions about whether or not to record diagnostics for a given request, the server will provide a special input document when evaluating it. The input document will contain information from the HTTP request that was issued to the server, of the form:
-
-```
-{
-    "method": <HTTP request method>,
-    "path": <Full HTTP request path>,
-    "body": <HTTP request body (null if not present or invalid JSON)>,
-
-    # The query parameters in the HTTP request.
-    "params": {
-        "param0": ["value0", "value1", ...],
-        "param1": [...],
-        ...
-    },
-
-    # The header fields in the HTTP request.
-    "header": {
-        "field0": ["value0", "value1", ...],
-        "field1": [...],
-        ...
-    }
-}
-```
-
-As an example, the request `GET /v1/data/servers?watch&pretty=true HTTP/1.1` would result in the input document below (the headers will likely depend on the client used to send the request):
-
-```
-{
-    "method": "GET",
-    "path": "/v1/data/servers",
-    "body": null,
-    "params": {
-      "watch": [""],
-      "pretty": ["true"],
-    },
-
-    "header": { ... }
-}
-```
-
-Diagnostics may be fetched from the server using the Data GET endpoint. When the server sees a GET request to `/v1/data/system/diagnostics`, it will not evaluate the document located there, but instead return a list of the diagnostics stored on the server (ordered from oldest to newest). The server will honor the `explainMode` and `pretty` parameters from the GET request, but the others will be ignored. The response is of the form:
-
-```
-{
-  "result": [
-    {
-      "timestamp": ...,
-      "query": ...,
-      "input": ...,
-      "result": ...,
-      "error": ...,
-      "explanation": ...,
-      "metrics": ...
-    },
-    ...
-  ]
-}
-```
-
-| Field         | Always Present | Description                                                                                                                                                                                                |
-| ------------  | -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `timestamp`   | Yes            | Nanoseconds since the Unix Epoch time                                                                                                                                                                      |
-| `query`       | Yes            | The query, if the request for the record was a query request. Otherwise the data path from the original request.                                                                                           |
-| `input`       | No             | Input provided to the `query` at evaluation time.                                                                                                                                                          |
-| `result`      | No             | Result of evaluating `query`. See the [Data](#data-api) and [Query](#query-api) APIs for detailed descriptions of formats.                                                                                 |
-| `error`       | No             | [Error](#errors) encountered while evaluating `query`.                                                                                                                                                     |
-| `metrics`     | No             | [Performance Metrics](#performance-metrics) for `query`.                                                                                                                                                   |
-| `explanation` | No             | [Explanation](#explanations) of how `result` was found. |
-
-The server will only store a finite number of diagnostics. If the server's diagnostics storage becomes full, it will delete the oldest diagnostic to make room for the new one. The size of the storage may be configured when the server is started.
 
 ## <a name="watches"></a> Watches
 
