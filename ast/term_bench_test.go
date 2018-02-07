@@ -5,6 +5,7 @@ package ast
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 )
 
@@ -63,6 +64,19 @@ func BenchmarkSetMembership(b *testing.B) {
 				if !setA.Contains(key) {
 					b.Fatal("expected hit")
 				}
+			}
+		})
+	}
+}
+
+func BenchmarkTermHashing(b *testing.B) {
+	sizes := []int{10, 100, 1000}
+	for _, n := range sizes {
+		b.Run(fmt.Sprint(n), func(b *testing.B) {
+			s := String(strings.Repeat("a", n))
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				_ = s.Hash()
 			}
 		})
 	}

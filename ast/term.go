@@ -12,7 +12,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"unsafe"
 
 	"github.com/dchest/siphash"
 	"github.com/open-policy-agent/opa/util"
@@ -583,8 +582,9 @@ func (num Number) Find(path Ref) (Value, error) {
 func (num Number) Hash() int {
 	f, err := json.Number(num).Float64()
 	if err != nil {
-		s := string(num)
-		return hashString(&s)
+		bs := []byte(num)
+		h := siphash.Hash(hashSeed0, hashSeed1, bs)
+		return int(h)
 	}
 	return int(f)
 }
@@ -667,8 +667,9 @@ func (str String) String() string {
 
 // Hash returns the hash code for the Value.
 func (str String) Hash() int {
-	s := string(str)
-	return hashString(&s)
+	bs := []byte(str)
+	h := siphash.Hash(hashSeed0, hashSeed1, bs)
+	return int(h)
 }
 
 // Var represents a variable as defined by the language.
@@ -706,7 +707,8 @@ func (v Var) Find(path Ref) (Value, error) {
 
 // Hash returns the hash code for the Value.
 func (v Var) Hash() int {
-	h := siphash.Hash(hashSeed0, hashSeed1, *(*[]byte)(unsafe.Pointer(&v)))
+	bs := []byte(v)
+	h := siphash.Hash(hashSeed0, hashSeed1, bs)
 	return int(h)
 }
 
@@ -2135,9 +2137,4 @@ func unmarshalValue(d map[string]interface{}) (Value, error) {
 	}
 unmarshal_error:
 	return nil, fmt.Errorf("ast: unable to unmarshal term")
-}
-
-func hashString(ptr *string) int {
-	h := siphash.Hash(hashSeed0, hashSeed1, *(*[]byte)(unsafe.Pointer(ptr)))
-	return int(h)
 }
