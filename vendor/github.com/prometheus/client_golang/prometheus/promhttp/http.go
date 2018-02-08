@@ -67,19 +67,32 @@ func giveBuf(buf *bytes.Buffer) {
 	bufPool.Put(buf)
 }
 
-// Handler returns an HTTP handler for the prometheus.DefaultGatherer. The
-// Handler uses the default HandlerOpts, i.e. report the first error as an HTTP
-// error, no error logging, and compression if requested by the client.
+// Handler returns an http.Handler for the prometheus.DefaultGatherer, using
+// default HandlerOpts, i.e. it reports the first error as an HTTP error, it has
+// no error logging, and it applies compression if requested by the client.
 //
-// If you want to create a Handler for the DefaultGatherer with different
-// HandlerOpts, create it with HandlerFor with prometheus.DefaultGatherer and
-// your desired HandlerOpts.
+// The returned http.Handler is already instrumented using the
+// InstrumentMetricHandler function and the prometheus.DefaultRegisterer. If you
+// create multiple http.Handlers by separate calls of the Handler function, the
+// metrics used for instrumentation will be shared between them, providing
+// global scrape counts.
+//
+// This function is meant to cover the bulk of basic use cases. If you are doing
+// anything that requires more customization (including using a non-default
+// Gatherer, different instrumentation, and non-default HandlerOpts), use the
+// HandlerFor function. See there for details.
 func Handler() http.Handler {
-	return HandlerFor(prometheus.DefaultGatherer, HandlerOpts{})
+	return InstrumentMetricHandler(
+		prometheus.DefaultRegisterer, HandlerFor(prometheus.DefaultGatherer, HandlerOpts{}),
+	)
 }
 
-// HandlerFor returns an http.Handler for the provided Gatherer. The behavior
-// of the Handler is defined by the provided HandlerOpts.
+// HandlerFor returns an uninstrumented http.Handler for the provided
+// Gatherer. The behavior of the Handler is defined by the provided
+// HandlerOpts. Thus, HandlerFor is useful to create http.Handlers for custom
+// Gatherers, with non-default HandlerOpts, and/or with custom (or no)
+// instrumentation. Use the InstrumentMetricHandler function to apply the same
+// kind of instrumentation as it is used by the Handler function.
 func HandlerFor(reg prometheus.Gatherer, opts HandlerOpts) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		mfs, err := reg.Gather()
@@ -140,6 +153,56 @@ func HandlerFor(reg prometheus.Gatherer, opts HandlerOpts) http.Handler {
 		w.Write(buf.Bytes())
 		// TODO(beorn7): Consider streaming serving of metrics.
 	})
+}
+
+// InstrumentMetricHandler is usually used with an http.Handler returned by the
+// HandlerFor function. It instruments the provided http.Handler with two
+// metrics: A counter vector "promhttp_metric_handler_requests_total" to count
+// scrapes partitioned by HTTP status code, and a gauge
+// "promhttp_metric_handler_requests_in_flight" to track the number of
+// simultaneous scrapes. This function idempotently registers collectors for
+// both metrics with the provided Registerer. It panics if the registration
+// fails. The provided metrics are useful to see how many scrapes hit the
+// monitored target (which could be from different Prometheus servers or other
+// scrapers), and how often they overlap (which would result in more than one
+// scrape in flight at the same time). Note that the scrapes-in-flight gauge
+// will contain the scrape by which it is exposed, while the scrape counter will
+// only get incremented after the scrape is complete (as only then the status
+// code is known). For tracking scrape durations, use the
+// "scrape_duration_seconds" gauge created by the Prometheus server upon each
+// scrape.
+func InstrumentMetricHandler(reg prometheus.Registerer, handler http.Handler) http.Handler {
+	cnt := prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "promhttp_metric_handler_requests_total",
+			Help: "Total number of scrapes by HTTP status code.",
+		},
+		[]string{"code"},
+	)
+	// Initialize the most likely HTTP status codes.
+	cnt.WithLabelValues("200")
+	cnt.WithLabelValues("500")
+	if err := reg.Register(cnt); err != nil {
+		if are, ok := err.(prometheus.AlreadyRegisteredError); ok {
+			cnt = are.ExistingCollector.(*prometheus.CounterVec)
+		} else {
+			panic(err)
+		}
+	}
+
+	gge := prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: "promhttp_metric_handler_requests_in_flight",
+		Help: "Current number of scrapes being served.",
+	})
+	if err := reg.Register(gge); err != nil {
+		if are, ok := err.(prometheus.AlreadyRegisteredError); ok {
+			gge = are.ExistingCollector.(prometheus.Gauge)
+		} else {
+			panic(err)
+		}
+	}
+
+	return InstrumentHandlerCounter(cnt, InstrumentHandlerInFlight(gge, handler))
 }
 
 // HandlerErrorHandling defines how a Handler serving metrics will handle

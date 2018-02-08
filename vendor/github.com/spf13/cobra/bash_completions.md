@@ -173,9 +173,9 @@ hello.yml                     test.json
 
 So while there are many other files in the CWD it only shows me subdirs and those with valid extensions.
 
-# Specify custom flag completion
+# Specifiy custom flag completion
 
-Similar to the filename completion and filtering using cobra.BashCompFilenameExt, you can specify
+Similar to the filename completion and filtering using cobra.BashCompFilenameExt, you can specifiy
 a custom flag completion function with cobra.BashCompCustom:
 
 ```go

@@ -19,6 +19,7 @@ import (
 	"log"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -128,4 +129,43 @@ the_count 0
 		}
 	}()
 	panicHandler.ServeHTTP(writer, request)
+}
+
+func TestInstrumentMetricHandler(t *testing.T) {
+	reg := prometheus.NewRegistry()
+	handler := InstrumentMetricHandler(reg, HandlerFor(reg, HandlerOpts{}))
+	// Do it again to test idempotency.
+	InstrumentMetricHandler(reg, HandlerFor(reg, HandlerOpts{}))
+	writer := httptest.NewRecorder()
+	request, _ := http.NewRequest("GET", "/", nil)
+	request.Header.Add("Accept", "test/plain")
+
+	handler.ServeHTTP(writer, request)
+	if got, want := writer.Code, http.StatusOK; got != want {
+		t.Errorf("got HTTP status code %d, want %d", got, want)
+	}
+
+	want := "promhttp_metric_handler_requests_in_flight 1\n"
+	if got := writer.Body.String(); !strings.Contains(got, want) {
+		t.Errorf("got body %q, does not contain %q", got, want)
+	}
+	want = "promhttp_metric_handler_requests_total{code=\"200\"} 0\n"
+	if got := writer.Body.String(); !strings.Contains(got, want) {
+		t.Errorf("got body %q, does not contain %q", got, want)
+	}
+
+	writer.Body.Reset()
+	handler.ServeHTTP(writer, request)
+	if got, want := writer.Code, http.StatusOK; got != want {
+		t.Errorf("got HTTP status code %d, want %d", got, want)
+	}
+
+	want = "promhttp_metric_handler_requests_in_flight 1\n"
+	if got := writer.Body.String(); !strings.Contains(got, want) {
+		t.Errorf("got body %q, does not contain %q", got, want)
+	}
+	want = "promhttp_metric_handler_requests_total{code=\"200\"} 1\n"
+	if got := writer.Body.String(); !strings.Contains(got, want) {
+		t.Errorf("got body %q, does not contain %q", got, want)
+	}
 }

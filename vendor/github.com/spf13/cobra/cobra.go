@@ -47,15 +47,6 @@ var EnablePrefixMatching = false
 // To disable sorting, set it to false.
 var EnableCommandSorting = true
 
-// MousetrapHelpText enables an information splash screen on Windows
-// if the CLI is started from explorer.exe.
-// To disable the mousetrap, just set this variable to blank string ("").
-// Works only on Microsoft Windows.
-var MousetrapHelpText string = `This is a command line tool.
-
-You need to open cmd.exe and run it from there.
-`
-
 // AddTemplateFunc adds a template function that's available to Usage and Help
 // template generation.
 func AddTemplateFunc(name string, tmplFunc interface{}) {
@@ -70,8 +61,7 @@ func AddTemplateFuncs(tmplFuncs template.FuncMap) {
 	}
 }
 
-// OnInitialize sets the passed functions to be run when each command's
-// Execute method is called.
+// OnInitialize takes a series of func() arguments and appends them to a slice of func().
 func OnInitialize(y ...func()) {
 	initializers = append(initializers, y...)
 }
@@ -188,13 +178,4 @@ func ld(s, t string, ignoreCase bool) int {
 
 	}
 	return d[len(s)][len(t)]
-}
-
-func stringInSlice(a string, list []string) bool {
-	for _, b := range list {
-		if b == a {
-			return true
-		}
-	}
-	return false
 }

@@ -5,42 +5,92 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/spf13/cobra"
 )
 
 func TestGenYamlDoc(t *testing.T) {
+	c := initializeWithRootCmd()
+	// Need two commands to run the command alphabetical sort
+	cmdEcho.AddCommand(cmdTimes, cmdEchoSub, cmdDeprecated)
+	c.AddCommand(cmdPrint, cmdEcho)
+	cmdRootWithRun.PersistentFlags().StringVarP(&flags2a, "rootflag", "r", "two", strtwoParentHelp)
+
+	out := new(bytes.Buffer)
+
 	// We generate on s subcommand so we have both subcommands and parents
-	buf := new(bytes.Buffer)
-	if err := GenYaml(echoCmd, buf); err != nil {
+	if err := GenYaml(cmdEcho, out); err != nil {
 		t.Fatal(err)
 	}
-	output := buf.String()
+	found := out.String()
 
-	checkStringContains(t, output, echoCmd.Long)
-	checkStringContains(t, output, echoCmd.Example)
-	checkStringContains(t, output, "boolone")
-	checkStringContains(t, output, "rootflag")
-	checkStringContains(t, output, rootCmd.Short)
-	checkStringContains(t, output, echoSubCmd.Short)
+	// Our description
+	expected := cmdEcho.Long
+	if !strings.Contains(found, expected) {
+		t.Errorf("Unexpected response.\nExpecting to contain: \n %q\nGot:\n %q\n", expected, found)
+	}
+
+	// Better have our example
+	expected = cmdEcho.Example
+	if !strings.Contains(found, expected) {
+		t.Errorf("Unexpected response.\nExpecting to contain: \n %q\nGot:\n %q\n", expected, found)
+	}
+
+	// A local flag
+	expected = "boolone"
+	if !strings.Contains(found, expected) {
+		t.Errorf("Unexpected response.\nExpecting to contain: \n %q\nGot:\n %q\n", expected, found)
+	}
+
+	// persistent flag on parent
+	expected = "rootflag"
+	if !strings.Contains(found, expected) {
+		t.Errorf("Unexpected response.\nExpecting to contain: \n %q\nGot:\n %q\n", expected, found)
+	}
+
+	// We better output info about our parent
+	expected = cmdRootWithRun.Short
+	if !strings.Contains(found, expected) {
+		t.Errorf("Unexpected response.\nExpecting to contain: \n %q\nGot:\n %q\n", expected, found)
+	}
+
+	// And about subcommands
+	expected = cmdEchoSub.Short
+	if !strings.Contains(found, expected) {
+		t.Errorf("Unexpected response.\nExpecting to contain: \n %q\nGot:\n %q\n", expected, found)
+	}
+
+	unexpected := cmdDeprecated.Short
+	if strings.Contains(found, unexpected) {
+		t.Errorf("Unexpected response.\nFound: %v\nBut should not have!!\n", unexpected)
+	}
 }
 
 func TestGenYamlNoTag(t *testing.T) {
-	rootCmd.DisableAutoGenTag = true
-	defer func() { rootCmd.DisableAutoGenTag = false }()
+	c := initializeWithRootCmd()
+	// Need two commands to run the command alphabetical sort
+	cmdEcho.AddCommand(cmdTimes, cmdEchoSub, cmdDeprecated)
+	c.AddCommand(cmdPrint, cmdEcho)
+	c.DisableAutoGenTag = true
+	cmdRootWithRun.PersistentFlags().StringVarP(&flags2a, "rootflag", "r", "two", strtwoParentHelp)
+	out := new(bytes.Buffer)
 
-	buf := new(bytes.Buffer)
-	if err := GenYaml(rootCmd, buf); err != nil {
+	if err := GenYaml(c, out); err != nil {
 		t.Fatal(err)
 	}
-	output := buf.String()
+	found := out.String()
 
-	checkStringOmits(t, output, "Auto generated")
+	unexpected := "Auto generated"
+	checkStringOmits(t, found, unexpected)
+
 }
 
 func TestGenYamlTree(t *testing.T) {
-	c := &cobra.Command{Use: "do [OPTIONS] arg1 arg2"}
+	cmd := &cobra.Command{
+		Use: "do [OPTIONS] arg1 arg2",
+	}
 
 	tmpdir, err := ioutil.TempDir("", "test-gen-yaml-tree")
 	if err != nil {
@@ -48,7 +98,7 @@ func TestGenYamlTree(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpdir)
 
-	if err := GenYamlTree(c, tmpdir); err != nil {
+	if err := GenYamlTree(cmd, tmpdir); err != nil {
 		t.Fatalf("GenYamlTree failed: %s", err.Error())
 	}
 
@@ -58,6 +108,7 @@ func TestGenYamlTree(t *testing.T) {
 }
 
 func BenchmarkGenYamlToFile(b *testing.B) {
+	c := initializeWithRootCmd()
 	file, err := ioutil.TempFile("", "")
 	if err != nil {
 		b.Fatal(err)
@@ -67,7 +118,7 @@ func BenchmarkGenYamlToFile(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		if err := GenYaml(rootCmd, file); err != nil {
+		if err := GenYaml(c, file); err != nil {
 			b.Fatal(err)
 		}
 	}

@@ -63,7 +63,7 @@ func getLicense() License {
 	// If user wants to have custom license, use that.
 	if viper.IsSet("license.header") || viper.IsSet("license.text") {
 		return License{Header: viper.GetString("license.header"),
-			Text: viper.GetString("license.text")}
+			Text: "license.text"}
 	}
 
 	// If user wants to have built-in license, use that.
@@ -77,11 +77,7 @@ func getLicense() License {
 
 func copyrightLine() string {
 	author := viper.GetString("author")
-
-	year := viper.GetString("year") // For tests.
-	if year == "" {
-		year = time.Now().Format("2006")
-	}
+	year := time.Now().Format("2006")
 
 	return "Copyright © " + year + " " + author
 }
