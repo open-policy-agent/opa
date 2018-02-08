@@ -312,24 +312,10 @@ p = true { false }`
 				"message": "write conflict: /a/b"
 			}`},
 		}},
-		{"put virtual write conflict", []tr{
-			tr{http.MethodPut, "/policies/test", testMod2, 200, ""},
-			tr{http.MethodPut, "/data/testmod/q/x", "0", 404, `{
-				"code": "resource_conflict",
-				"message": "write conflict: /testmod/q"
-			}`},
-		}},
 		{"get virtual", []tr{
 			tr{http.MethodPut, "/policies/test", testMod1, 200, ""},
 			tr{http.MethodPatch, "/data/x", `[{"op": "add", "path": "/", "value": {"y": [1,2,3,4], "z": [3,4,5,6]}}]`, 204, ""},
 			tr{http.MethodGet, "/data/testmod/p", "", 200, `{"result": [1,2]}`},
-		}},
-		{"patch virtual error", []tr{
-			tr{http.MethodPut, "/policies/test", testMod1, 200, ""},
-			tr{http.MethodPatch, "/data/testmod/p", `[{"op": "add", "path": "-", "value": 1}]`, 404, `{
-                "code": "resource_conflict",
-                "message": "write conflict: /testmod/p"
-            }`},
 		}},
 		{"get with input", []tr{
 			tr{http.MethodPut, "/policies/test", testMod1, 200, ""},

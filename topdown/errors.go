@@ -86,6 +86,14 @@ func objectDocKeyConflictErr(loc *ast.Location) error {
 	}
 }
 
+func documentConflictErr(loc *ast.Location) error {
+	return &Error{
+		Code:     ConflictErr,
+		Location: loc,
+		Message:  "base and virtual document keys must be disjoint",
+	}
+}
+
 func unsupportedBuiltinErr(loc *ast.Location) error {
 	return &Error{
 		Code:     InternalErr,

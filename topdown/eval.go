@@ -62,7 +62,6 @@ func (e *eval) child(query ast.Body) *eval {
 	return &cpy
 }
 
-// partial returns true if the evaluator is performing partial evaluation.
 func (e *eval) partial() bool {
 	return e.saveSet != nil
 }
@@ -997,9 +996,15 @@ func (e evalTree) extent() (*ast.Term, error) {
 		}
 		return ast.NewTerm(base), nil
 	}
-
 	if base != nil {
-		merged, _ := base.(ast.Object).Merge(virtual)
+		merged, ok := base.(ast.Object).Merge(virtual)
+		if !ok {
+			// TODO(tsandall): the location used in this error could be
+			// improved to reference the containing expression. We should
+			// update the eval struct to keep track of the currently evaluation
+			// expression.
+			return nil, documentConflictErr(e.ref[0].Location)
+		}
 		return ast.NewTerm(merged), nil
 	}
 

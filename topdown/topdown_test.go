@@ -534,6 +534,9 @@ func TestTopDownBaseAndVirtualDocs(t *testing.T) {
 			},
 			"set": {
 				"u": [1,2,3,4]
+			},
+			"conflicts": {
+				"k": "foo"
 			}
 		}
 	}
@@ -603,6 +606,9 @@ w = data.topdown.set { true }
 
 iterate_ground[x] { data.topdown.virtual.constants[x] = 1 }
 `,
+		`package topdown.conflicts
+
+		k = "bar"`,
 	})
 
 	store := inmem.NewFromObject(data)
@@ -651,6 +657,7 @@ iterate_ground[x] { data.topdown.virtual.constants[x] = 1 }
 	assertTopDownWithPath(t, compiler, store, "base/virtual: undefined-2", []string{"topdown", "v"}, "{}", `{"h": {"k": [1,2,3]}}`)
 	assertTopDownWithPath(t, compiler, store, "base/virtual: missing input value", []string{"topdown", "u"}, "{}", "{}")
 	assertTopDownWithPath(t, compiler, store, "iterate ground", []string{"topdown", "iterate_ground"}, "{}", `["p", "r"]`)
+	assertTopDownWithPath(t, compiler, store, "base/virtual: conflicts", []string{"topdown.conflicts"}, "{}", fmt.Errorf("base and virtual document keys must be disjoint"))
 }
 
 func TestTopDownNestedReferences(t *testing.T) {
