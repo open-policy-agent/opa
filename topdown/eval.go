@@ -4,10 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/open-policy-agent/opa/topdown/builtins"
-
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/storage"
+	"github.com/open-policy-agent/opa/topdown/builtins"
 )
 
 type evalIterator func(*eval) error
@@ -26,6 +25,7 @@ type eval struct {
 	compiler      *ast.Compiler
 	input         *ast.Term
 	tracer        Tracer
+	instr         *Instrumentation
 	builtinCache  builtins.Cache
 	virtualCache  *virtualCache
 	saveSet       *saveSet
@@ -57,7 +57,7 @@ func (e *eval) child(query ast.Body) *eval {
 	cpy := *e
 	cpy.queryID++
 	cpy.query = query
-	cpy.bindings = newBindings(cpy.queryID)
+	cpy.bindings = newBindings(cpy.queryID, e.instr)
 	cpy.parent = e
 	return &cpy
 }
@@ -121,7 +121,6 @@ func (e *eval) traceEvent(op Op, x interface{}) {
 func (e *eval) traceEnabled() bool {
 	return e.tracer != nil && e.tracer.Enabled()
 }
-
 func (e *eval) eval(iter evalIterator) error {
 	return e.evalExpr(0, iter)
 }
@@ -637,12 +636,17 @@ func (e *eval) saveCall(operator *ast.Term, args []*ast.Term, result *ast.Term, 
 }
 
 func (e *eval) getRules(ref ast.Ref) (*ast.IndexResult, error) {
+
+	e.instr.startTimer(evalOpRuleIndex)
+	defer e.instr.stopTimer(evalOpRuleIndex)
+
 	// If partial evaluation is being performed, the rule index cannot be used
 	// because the input may not be known and want to partially evaluate all
 	// rules.
 	if e.partial() {
 		return e.getAllRules(ref), nil
 	}
+
 	return e.getRulesIndexed(ref)
 }
 
@@ -673,6 +677,9 @@ func (e *eval) getRulesIndexed(ref ast.Ref) (*ast.IndexResult, error) {
 }
 
 func (e *eval) Resolve(ref ast.Ref) (ast.Value, error) {
+
+	e.instr.startTimer(evalOpResolve)
+	defer e.instr.stopTimer(evalOpResolve)
 
 	if ref[0].Equal(ast.InputRootDocument) {
 		if e.input != nil {
@@ -759,7 +766,14 @@ func (e evalBuiltin) eval(iter unifyIterator) error {
 
 	numDeclArgs := len(e.bi.Decl.Args())
 
+	e.e.instr.startTimer(evalOpBuiltinCall)
+	defer e.e.instr.stopTimer(evalOpBuiltinCall)
+
 	return e.f(e.bctx, operands, func(output *ast.Term) error {
+
+		e.e.instr.stopTimer(evalOpBuiltinCall)
+		defer e.e.instr.startTimer(evalOpBuiltinCall)
+
 		if len(operands) == numDeclArgs {
 			return iter()
 		}
@@ -1154,9 +1168,11 @@ func (e evalVirtualPartial) eval(iter unifyIterator) error {
 			cached := e.e.virtualCache.Get(path)
 
 			if cached != nil {
+				e.e.instr.counterIncr(evalOpVirtualCacheHit)
 				return e.evalTerm(iter, cached, e.bindings)
 			}
 
+			e.e.instr.counterIncr(evalOpVirtualCacheMiss)
 			cacheKey = path
 		}
 	}
@@ -1310,11 +1326,13 @@ func (e evalVirtualComplete) eval(iter unifyIterator) error {
 }
 
 func (e evalVirtualComplete) evalValue(iter unifyIterator) error {
-
 	cached := e.e.virtualCache.Get(e.plugged[:e.pos+1])
 	if cached != nil {
+		e.e.instr.counterIncr(evalOpVirtualCacheHit)
 		return e.evalTerm(iter, cached, e.bindings)
 	}
+
+	e.e.instr.counterIncr(evalOpVirtualCacheMiss)
 
 	var prev *ast.Term
 

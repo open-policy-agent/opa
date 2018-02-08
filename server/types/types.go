@@ -372,6 +372,11 @@ const (
 	// result.
 	ParamMetricsV1 = "metrics"
 
+	// ParamInstrumentV1 defines the name of the HTTP URL parameter that
+	// indicates the client wants to receive instrumentation data for
+	// diagnosing performance issues.
+	ParamInstrumentV1 = "instrument"
+
 	// ParamPartialV1 defines the name of the HTTP URL parameter that indicates
 	// the client wants the partial evaluation optimization to be used during
 	// query evaluation.

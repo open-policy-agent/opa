@@ -45,6 +45,7 @@ type REPL struct {
 	// inside the default module.
 	outputFormat      string
 	explain           explainMode
+	instrument        bool
 	historyPath       string
 	initPrompt        string
 	bufferPrompt      string
@@ -255,6 +256,8 @@ func (r *REPL) OneShot(ctx context.Context, line string) error {
 				return r.cmdTrace()
 			case "metrics":
 				return r.cmdMetrics()
+			case "instrument":
+				return r.cmdInstrument()
 			case "types":
 				return r.cmdTypes()
 			case "partial":
@@ -426,6 +429,18 @@ func (r *REPL) cmdMetrics() error {
 		r.metrics = metrics.New()
 	} else {
 		r.metrics = nil
+	}
+	r.instrument = false
+	return nil
+}
+
+func (r *REPL) cmdInstrument() error {
+	if r.instrument {
+		r.metrics = nil
+		r.instrument = false
+	} else {
+		r.metrics = metrics.New()
+		r.instrument = true
 	}
 	return nil
 }
@@ -799,6 +814,10 @@ func (r *REPL) evalBody(ctx context.Context, compiler *ast.Compiler, input ast.V
 		q = q.WithMetrics(r.metrics)
 	}
 
+	if r.instrument {
+		q = q.WithInstrumentation(topdown.NewInstrumentation(r.metrics))
+	}
+
 	var buf *topdown.BufferTracer
 
 	if r.explain != explainOff {
@@ -891,6 +910,10 @@ func (r *REPL) evalPartial(ctx context.Context, compiler *ast.Compiler, input as
 
 	if r.metrics != nil {
 		q = q.WithMetrics(r.metrics)
+	}
+
+	if r.instrument {
+		q = q.WithInstrumentation(topdown.NewInstrumentation(r.metrics))
 	}
 
 	var buf *topdown.BufferTracer
@@ -1135,6 +1158,7 @@ var builtin = [...]commandDesc{
 	{"pretty-limit", []string{}, "set pretty value output limit"},
 	{"trace", []string{}, "toggle full trace"},
 	{"metrics", []string{}, "toggle metrics"},
+	{"instrument", []string{}, "toggle instrumentation"},
 	{"types", []string{}, "toggle type information"},
 	{"partial", []string{"[ref-1 [ref-2 [...]]]"}, "toggle partial evaluation mode"},
 	{"dump", []string{"[path]"}, "dump raw data in storage"},
