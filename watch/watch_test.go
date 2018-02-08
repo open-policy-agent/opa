@@ -98,11 +98,10 @@ func TestWatchSimple(t *testing.T) {
 				t.Errorf("Expected result set length 1, got %d", len(e.Value))
 			}
 
-			for s, v := range e.Metrics.All() {
-				if d := v.(int64); d == 0 {
-					t.Errorf("Expected non-zero metrics, got %s:%d", s, d)
-				}
+			if len(e.Metrics.All()) == 0 {
+				t.Errorf("Expected non-empty metrics")
 			}
+
 			e.Metrics = nil
 
 			if len(e.Tracer) != 5 {

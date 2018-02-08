@@ -122,8 +122,9 @@ type Rego struct {
 	txn              storage.Transaction
 	metrics          metrics.Metrics
 	tracer           topdown.Tracer
-
-	termVarID int
+	instrumentation  *topdown.Instrumentation
+	instrument       bool
+	termVarID        int
 }
 
 // Query returns an argument that sets the Rego query.
@@ -212,10 +213,18 @@ func Transaction(txn storage.Transaction) func(r *Rego) {
 	}
 }
 
-// Metrics returns an argument that sets the metrics collection and enables instrumentation.
+// Metrics returns an argument that sets the metrics collection.
 func Metrics(m metrics.Metrics) func(r *Rego) {
 	return func(r *Rego) {
 		r.metrics = m
+	}
+}
+
+// Instrument returns an argument that enables instrumentation for diagnosing
+// performance issues.
+func Instrument(yes bool) func(r *Rego) {
+	return func(r *Rego) {
+		r.instrument = yes
 	}
 }
 
@@ -246,6 +255,10 @@ func New(options ...func(*Rego)) *Rego {
 
 	if r.metrics == nil {
 		r.metrics = metrics.New()
+	}
+
+	if r.instrument {
+		r.instrumentation = topdown.NewInstrumentation(r.metrics)
 	}
 
 	return r
@@ -411,7 +424,8 @@ func (r *Rego) eval(ctx context.Context, qc ast.QueryCompiler, compiled ast.Body
 		WithCompiler(r.compiler).
 		WithStore(r.store).
 		WithTransaction(txn).
-		WithMetrics(r.metrics)
+		WithMetrics(r.metrics).
+		WithInstrumentation(r.instrumentation)
 
 	if r.tracer != nil {
 		q = q.WithTracer(r.tracer)
@@ -510,6 +524,7 @@ func (r *Rego) partialEval(ctx context.Context, compiled ast.Body, txn storage.T
 		WithStore(r.store).
 		WithTransaction(txn).
 		WithMetrics(r.metrics).
+		WithInstrumentation(r.instrumentation).
 		WithUnknowns(unknowns).
 		WithPartialNamespace(partialNamespace)
 

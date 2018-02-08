@@ -1514,6 +1514,7 @@ func TestDiagnostics(t *testing.T) {
 		input      interface{}
 		result     *interface{}
 		metrics    bool
+		instrument bool
 		explainLen int
 	}{
 		{
@@ -1537,18 +1538,21 @@ func TestDiagnostics(t *testing.T) {
 			query:      "data.x",
 			result:     &expList,
 			metrics:    true,
+			instrument: true,
 			explainLen: 5,
 		},
 		{
 			query:      "data.z",
 			result:     nil,
 			metrics:    true,
+			instrument: true,
 			explainLen: 3,
 		},
 		{
 			query:      "a=data.x",
 			result:     &expMap1,
 			metrics:    true,
+			instrument: true,
 			explainLen: 5,
 		},
 		{
@@ -1594,19 +1598,18 @@ func TestDiagnostics(t *testing.T) {
 				if len(d.Metrics) == 0 {
 					t.Fatal("Expected metrics")
 				}
+			}
 
-				for key, value := range d.Metrics {
-					v, ok := value.(json.Number)
-					if !ok {
-						t.Fatalf("Metrics for %v was not a number", key)
+			if e.instrument {
+				found := false
+				for k := range d.Metrics {
+					if strings.Contains(k, "eval_op_plug") {
+						found = true
+						break
 					}
-
-					n, err := v.Int64()
-					if err != nil {
-						t.Fatal(err)
-					} else if n <= 0 {
-						t.Fatalf("Expected non-zero metric for %v but got: %v", key, n)
-					}
+				}
+				if !found {
+					t.Fatalf("Expected to find instrumentation result: %v", d.Metrics)
 				}
 			}
 

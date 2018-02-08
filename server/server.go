@@ -297,13 +297,19 @@ func (s *Server) Listeners() (func() error, func() error) {
 	return loop2, loop1
 }
 
-func (s *Server) execQuery(ctx context.Context, r *http.Request, query string, input ast.Value, explainMode types.ExplainModeV1, includeMetrics, pretty bool) (results types.QueryResponseV1, err error) {
+func (s *Server) execQuery(ctx context.Context, r *http.Request, query string, input ast.Value, explainMode types.ExplainModeV1, includeMetrics, includeInstrumentation, pretty bool) (results types.QueryResponseV1, err error) {
 
 	diagLogger := s.evalDiagnosticPolicy(r)
 
 	var buf *topdown.BufferTracer
 	if explainMode != types.ExplainOffV1 || diagLogger.Explain() {
 		buf = topdown.NewBufferTracer()
+	}
+
+	var instrument bool
+
+	if includeInstrumentation || diagLogger.Instrument() {
+		instrument = true
 	}
 
 	m := metrics.New()
@@ -315,6 +321,7 @@ func (s *Server) execQuery(ctx context.Context, r *http.Request, query string, i
 		rego.Query(query),
 		rego.Input(input),
 		rego.Metrics(m),
+		rego.Instrument(instrument),
 		rego.Tracer(buf),
 	)
 
@@ -328,7 +335,7 @@ func (s *Server) execQuery(ctx context.Context, r *http.Request, query string, i
 		results.Result = append(results.Result, result.Bindings.WithoutWildcards())
 	}
 
-	if includeMetrics {
+	if includeMetrics || includeInstrumentation {
 		results.Metrics = m.All()
 	}
 
@@ -374,7 +381,7 @@ func (s *Server) indexGet(w http.ResponseWriter, r *http.Request) {
 		input = t.Value
 	}
 
-	results, err := s.execQuery(ctx, r, qStr, input, explainMode, false, true)
+	results, err := s.execQuery(ctx, r, qStr, input, explainMode, false, false, true)
 	if err != nil {
 		renderQueryResult(w, nil, err, t0)
 		return
@@ -476,6 +483,7 @@ func (s *Server) v0QueryPath(w http.ResponseWriter, r *http.Request, path ast.Re
 		rego.Input(goInput),
 		rego.Query(path.String()),
 		rego.Metrics(m),
+		rego.Instrument(diagLogger.Instrument()),
 		rego.Tracer(buf),
 	)
 
@@ -544,6 +552,7 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 	pretty := getBoolParam(r.URL, types.ParamPrettyV1, true)
 	explainMode := getExplain(r.URL.Query()["explain"], types.ExplainOffV1)
 	includeMetrics := getBoolParam(r.URL, types.ParamMetricsV1, true)
+	includeInstrumentation := getBoolParam(r.URL, types.ParamInstrumentV1, true)
 
 	m := metrics.New()
 	m.Timer(metrics.RegoQueryParse).Start()
@@ -586,6 +595,12 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 		buf = topdown.NewBufferTracer()
 	}
 
+	var instrument bool
+
+	if includeInstrumentation || diagLogger.Instrument() {
+		instrument = true
+	}
+
 	rego := rego.New(
 		rego.Compiler(s.getCompiler()),
 		rego.Store(s.store),
@@ -594,6 +609,7 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 		rego.Query(path.String()),
 		rego.Metrics(m),
 		rego.Tracer(buf),
+		rego.Instrument(instrument),
 	)
 
 	rs, err := rego.Eval(ctx)
@@ -611,7 +627,7 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 		DecisionID: decisionID,
 	}
 
-	if includeMetrics {
+	if includeMetrics || includeInstrumentation {
 		result.Metrics = m.All()
 	}
 
@@ -689,6 +705,7 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 	pretty := getBoolParam(r.URL, types.ParamPrettyV1, true)
 	explainMode := getExplain(r.URL.Query()[types.ParamExplainV1], types.ExplainOffV1)
 	includeMetrics := getBoolParam(r.URL, types.ParamMetricsV1, true)
+	includeInstrumentation := getBoolParam(r.URL, types.ParamInstrumentV1, true)
 	partial := getBoolParam(r.URL, types.ParamPartialV1, true)
 
 	m := metrics.New()
@@ -730,7 +747,13 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 		buf = topdown.NewBufferTracer()
 	}
 
-	rego, err := s.makeRego(ctx, partial, txn, goInput, path.String(), m, buf, opts)
+	var instrument bool
+
+	if includeInstrumentation || diagLogger.Instrument() {
+		instrument = true
+	}
+
+	rego, err := s.makeRego(ctx, partial, txn, goInput, path.String(), m, instrument, buf, opts)
 
 	if err != nil {
 		diagLogger.Log("", r.RemoteAddr, path.String(), goInput, nil, err, m, nil)
@@ -753,7 +776,7 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 		DecisionID: decisionID,
 	}
 
-	if includeMetrics {
+	if includeMetrics || includeInstrumentation {
 		result.Metrics = m.All()
 	}
 
@@ -1059,8 +1082,9 @@ func (s *Server) v1QueryGet(w http.ResponseWriter, r *http.Request) {
 	pretty := getBoolParam(r.URL, types.ParamPrettyV1, true)
 	explainMode := getExplain(r.URL.Query()["explain"], types.ExplainOffV1)
 	includeMetrics := getBoolParam(r.URL, types.ParamMetricsV1, true)
+	includeInstrumentation := getBoolParam(r.URL, types.ParamInstrumentV1, true)
 
-	results, err := s.execQuery(ctx, r, qStr, nil, explainMode, includeMetrics, pretty)
+	results, err := s.execQuery(ctx, r, qStr, nil, explainMode, includeMetrics, includeInstrumentation, pretty)
 	if err != nil {
 		switch err := err.(type) {
 		case ast.Errors:
@@ -1078,12 +1102,16 @@ func (s *Server) watchQuery(query string, w http.ResponseWriter, r *http.Request
 	pretty := getBoolParam(r.URL, types.ParamPrettyV1, true)
 	explainMode := getExplain(r.URL.Query()["explain"], types.ExplainOffV1)
 	includeMetrics := getBoolParam(r.URL, types.ParamMetricsV1, true)
+	includeInstrumentation := getBoolParam(r.URL, types.ParamInstrumentV1, true)
 
-	watch, err := s.watcher.Query(query)
+	watch := s.watcher.NewQuery(query).WithInstrumentation(includeInstrumentation)
+	err := watch.Start()
+
 	if err != nil {
 		writer.ErrorAuto(w, err)
 		return
 	}
+
 	defer watch.Stop()
 
 	h, ok := w.(http.Hijacker)
@@ -1122,13 +1150,14 @@ func (s *Server) watchQuery(query string, w http.ResponseWriter, r *http.Request
 			}
 
 			r := types.WatchResponseV1{Result: e.Value}
+
 			if e.Error != nil {
 				r.Error = types.NewErrorV1(types.CodeEvaluation, e.Error.Error())
 			} else if data && len(e.Value) > 0 && len(e.Value[0].Expressions) > 0 {
 				r.Result = e.Value[0].Expressions[0].Value
 			}
 
-			if includeMetrics {
+			if includeMetrics || includeInstrumentation {
 				r.Metrics = e.Metrics.All()
 			}
 
@@ -1180,8 +1209,9 @@ func (s *Server) evalDiagnosticPolicy(r *http.Request) diagnosticsLogger {
 				}
 			case "all":
 				return diagnosticsLogger{
-					buffer:  s.diagnostics,
-					explain: true,
+					buffer:     s.diagnostics,
+					instrument: true,
+					explain:    true,
 				}
 			}
 		}
@@ -1279,14 +1309,14 @@ func (s *Server) makeDir(ctx context.Context, txn storage.Transaction, path stor
 	return s.store.Write(ctx, txn, storage.AddOp, path, map[string]interface{}{})
 }
 
-func (s *Server) makeRego(ctx context.Context, partial bool, txn storage.Transaction, input interface{}, path string, m metrics.Metrics, tracer topdown.Tracer, opts []func(*rego.Rego)) (*rego.Rego, error) {
+func (s *Server) makeRego(ctx context.Context, partial bool, txn storage.Transaction, input interface{}, path string, m metrics.Metrics, instrument bool, tracer topdown.Tracer, opts []func(*rego.Rego)) (*rego.Rego, error) {
 
 	if partial {
 		s.mtx.Lock()
 		defer s.mtx.Unlock()
 		pr, ok := s.partials[path]
 		if !ok {
-			opts = append(opts, rego.Transaction(txn), rego.Query(path), rego.Metrics(m))
+			opts = append(opts, rego.Transaction(txn), rego.Query(path), rego.Metrics(m), rego.Instrument(instrument))
 			r := rego.New(opts...)
 			var err error
 			pr, err = r.PartialEval(ctx)
@@ -1299,12 +1329,13 @@ func (s *Server) makeRego(ctx context.Context, partial bool, txn storage.Transac
 			rego.Input(input),
 			rego.Transaction(txn),
 			rego.Metrics(m),
+			rego.Instrument(instrument),
 			rego.Tracer(tracer),
 		}
 		return pr.Rego(opts...), nil
 	}
 
-	opts = append(opts, rego.Transaction(txn), rego.Query(path), rego.Input(input), rego.Metrics(m), rego.Tracer(tracer))
+	opts = append(opts, rego.Transaction(txn), rego.Query(path), rego.Input(input), rego.Metrics(m), rego.Tracer(tracer), rego.Instrument(instrument))
 	return rego.New(opts...), nil
 }
 
@@ -1628,12 +1659,17 @@ func renderVersion(w http.ResponseWriter) {
 }
 
 type diagnosticsLogger struct {
-	explain bool
-	buffer  Buffer
+	explain    bool
+	instrument bool
+	buffer     Buffer
 }
 
 func (l diagnosticsLogger) Explain() bool {
 	return l.explain
+}
+
+func (l diagnosticsLogger) Instrument() bool {
+	return l.instrument
 }
 
 func (l diagnosticsLogger) Log(decisionID, remoteAddr, query string, input interface{}, results *interface{}, err error, m metrics.Metrics, tracer *topdown.BufferTracer) {

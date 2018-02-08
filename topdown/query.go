@@ -29,6 +29,7 @@ type Query struct {
 	unknowns         []*ast.Term
 	partialNamespace string
 	metrics          metrics.Metrics
+	instr            *Instrumentation
 	genvarprefix     string
 }
 
@@ -81,8 +82,15 @@ func (q *Query) WithTracer(tracer Tracer) *Query {
 
 // WithMetrics sets the metrics collection to add evaluation metrics to. This
 // is optional.
-func (q *Query) WithMetrics(metrics metrics.Metrics) *Query {
-	q.metrics = metrics
+func (q *Query) WithMetrics(m metrics.Metrics) *Query {
+	q.metrics = m
+	return q
+}
+
+// WithInstrumentation sets the instrumentation configuration to enable on the
+// evaluation process. By default, instrumentation is turned off.
+func (q *Query) WithInstrumentation(instr *Instrumentation) *Query {
+	q.instr = instr
 	return q
 }
 
@@ -116,12 +124,13 @@ func (q *Query) PartialRun(ctx context.Context) (partials []ast.Body, support []
 		ctx:           ctx,
 		cancel:        q.cancel,
 		query:         q.query,
-		bindings:      newBindings(0),
+		bindings:      newBindings(0, q.instr),
 		compiler:      q.compiler,
 		store:         q.store,
 		txn:           q.txn,
 		input:         q.input,
 		tracer:        q.tracer,
+		instr:         q.instr,
 		builtinCache:  builtins.Cache{},
 		virtualCache:  newVirtualCache(),
 		saveSet:       newSaveSet(q.unknowns),
@@ -175,12 +184,13 @@ func (q *Query) Iter(ctx context.Context, iter func(QueryResult) error) error {
 		ctx:          ctx,
 		cancel:       q.cancel,
 		query:        q.query,
-		bindings:     newBindings(0),
+		bindings:     newBindings(0, q.instr),
 		compiler:     q.compiler,
 		store:        q.store,
 		txn:          q.txn,
 		input:        q.input,
 		tracer:       q.tracer,
+		instr:        q.instr,
 		builtinCache: builtins.Cache{},
 		virtualCache: newVirtualCache(),
 		genvarprefix: q.genvarprefix,

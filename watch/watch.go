@@ -37,7 +37,8 @@ type Watcher struct {
 type Handle struct {
 	C <-chan Event
 
-	query string // the original query, used for migration
+	instrument bool   // whether this query should be instrumented
+	query      string // the original query, used for migration
 
 	out    chan Event // out is the same channel as C, but without directional constraints
 	notify signal     // channel to recieve new data change alerts on.
@@ -75,16 +76,12 @@ func New(ctx context.Context, s storage.Store, c *ast.Compiler, txn storage.Tran
 	return w, err
 }
 
-// Query registers a watch on the provided Rego query. Whenever changes are made to a
-// base or virtual document that the query depends on, an Event describing the new result
-// of the query will be sent through the Handle.
-//
-// Query will return an error if registering the watch fails for any reason.
-func (w *Watcher) Query(query string) (*Handle, error) {
+// NewQuery returns a new watch Handle that can be run. Callers must invoke the
+// Run function on the handle to start the watch.
+func (w *Watcher) NewQuery(query string) *Handle {
 	out := make(chan Event)
 	h := &Handle{
-		C: out,
-
+		C:       out,
 		query:   query,
 		out:     out,
 		notify:  make(signal, 1),
@@ -92,13 +89,33 @@ func (w *Watcher) Query(query string) (*Handle, error) {
 		ack:     make(signal),
 		watcher: w,
 	}
+	return h
+}
 
-	if err := w.registerHandle(h); err != nil {
-		return nil, err
+// Query registers a watch on the provided Rego query. Whenever changes are made to a
+// base or virtual document that the query depends on, an Event describing the new result
+// of the query will be sent through the Handle.
+//
+// Query will return an error if registering the watch fails for any reason.
+func (w *Watcher) Query(query string) (*Handle, error) {
+	h := w.NewQuery(query)
+	return h, h.Start()
+}
+
+// WithInstrumentation enables instrumentation on the query to diagnose
+// performance issues.
+func (h *Handle) WithInstrumentation(yes bool) *Handle {
+	h.instrument = yes
+	return h
+}
+
+// Start registers and starts the watch.
+func (h *Handle) Start() error {
+	if err := h.watcher.registerHandle(h); err != nil {
+		return err
 	}
-
 	go h.deliver()
-	return h, nil
+	return nil
 }
 
 // Stop ends the watch on the query associated with the Handle. It will close the channel
@@ -233,6 +250,7 @@ func (h *Handle) deliver() {
 				rego.Query(h.query),
 				rego.Metrics(m),
 				rego.Tracer(t),
+				rego.Instrument(h.instrument),
 			)
 			ctx := h.watcher.ctx
 			h.l.Unlock()

@@ -14,7 +14,6 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
-	"regexp"
 	"sort"
 	"strings"
 	"testing"
@@ -1112,37 +1111,26 @@ func TestMetrics(t *testing.T) {
 	ctx := context.Background()
 	store := newTestStore()
 	var buffer bytes.Buffer
-	expected := `{
-  "timer_rego_query_compile_ns": [1-9]\d*,
-  "timer_rego_query_eval_ns": [1-9]\d*,
-  "timer_rego_query_parse_ns": [1-9]\d*
-}
-\[
-  \[
-    1,
-    2
-  \],
-  \[
-    3,
-    4
-  \]
-\]`
 
 	repl := newRepl(store, &buffer)
 	repl.OneShot(ctx, "a = {[1,2], [3,4]}")
 	repl.OneShot(ctx, "metrics")
 	repl.OneShot(ctx, `[x | a[x]]`)
-	if exp := regexp.MustCompile(expected); !exp.MatchString(buffer.String()) {
-		t.Fatalf("Expected output to match:\n%v\n\nGot:\n\n%v\n", expected, buffer.String())
+	if !strings.Contains(buffer.String(), "timer_rego_query_compile_ns") {
+		t.Fatal("Expected output to contain well known metric key but got:", buffer.String())
 	}
 
 	buffer.Reset()
 	repl.OneShot(ctx, `[x | a[x]]`)
-	if exp := regexp.MustCompile(expected); !exp.MatchString(buffer.String()) {
-		t.Fatalf("Expected output to match:\n%v\n\nGot:\n\n%v\n", expected, buffer.String())
+	if !strings.Contains(buffer.String(), "timer_rego_query_compile_ns") {
+		t.Fatal("Expected output to contain well known metric key but got:", buffer.String())
 	}
 
-	expected = `[
+	buffer.Reset()
+	repl.OneShot(ctx, "metrics")
+	repl.OneShot(ctx, `[x | a[x]]`)
+
+	expected := `[
   [
     1,
     2
@@ -1154,12 +1142,71 @@ func TestMetrics(t *testing.T) {
 ]
 `
 
-	buffer.Reset()
-	repl.OneShot(ctx, "metrics")
-	repl.OneShot(ctx, `[x | a[x]]`)
 	if expected != buffer.String() {
 		t.Fatalf("Expected output to be exactly:\n%v\n\nGot:\n\n%v\n", expected, buffer.String())
 	}
+}
+
+func TestInstrument(t *testing.T) {
+	ctx := context.Background()
+	store := newTestStore()
+	var buffer bytes.Buffer
+
+	repl := newRepl(store, &buffer)
+
+	// Turn on instrumentation w/o turning on metrics.
+	repl.OneShot(ctx, "instrument")
+	repl.OneShot(ctx, "true")
+
+	result := buffer.String()
+
+	if !strings.Contains(result, "histogram_eval_op_plug") {
+		t.Fatal("Expected plug histogram in output but got:", result)
+	}
+
+	buffer.Reset()
+
+	// Turn off instrumentation.
+	repl.OneShot(ctx, "instrument")
+	repl.OneShot(ctx, "true")
+
+	result = buffer.String()
+
+	if strings.Contains(result, "histogram_eval_op_plug") {
+		t.Fatal("Expected instrumentation to be turned off but got:", result)
+	}
+
+	buffer.Reset()
+
+	// Turn on metrics and then turn on instrumentation.
+	repl.OneShot(ctx, "metrics")
+	repl.OneShot(ctx, "true")
+
+	result = buffer.String()
+
+	if strings.Contains(result, "histogram_eval_op_plug") {
+		t.Fatal("Expected instrumentation to be turned off but got:", result)
+	}
+
+	if !strings.Contains(result, "timer_rego_query_eval_ns") {
+		t.Fatal("Expected metrics to be turned on but got:", result)
+	}
+
+	buffer.Reset()
+
+	repl.OneShot(ctx, "instrument")
+	repl.OneShot(ctx, "true")
+
+	result = buffer.String()
+
+	if !strings.Contains(result, "histogram_eval_op_plug") {
+		t.Fatal("Expected instrumentation to be turned on but got:", result)
+	}
+
+	if !strings.Contains(result, "timer_rego_query_eval_ns") {
+		t.Fatal("Expected metrics to be turned on but got:", result)
+	}
+
 }
 
 func TestEvalTrace(t *testing.T) {

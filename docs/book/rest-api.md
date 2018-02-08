@@ -981,6 +981,7 @@ Transfer-Encoding: chunked
 - **pretty** - If parameter is `true`, response will formatted for humans.
 - **explain** - Return query explanation in addition to result. Values: **full**.
 - **metrics** - Return query performance metrics in addition to result. See [Performance Metrics](#performance-metrics) for more detail.
+- **instrument** - Instrument query evaluation and return a superset of performance metrics in addition to result. See [Performance Metrics](#performance-metrics) for more detail.
 - **watch** - Set a watch on the data reference if the parameter is present. See [Watches](#watches) for more detail.
 
 #### Status Codes
@@ -1089,6 +1090,8 @@ HTTP/1.1 200 OK
 - **pretty** - If parameter is `true`, response will formatted for humans.
 - **explain** - Return query explanation in addition to result. Values: **full**.
 - **metrics** - Return query performance metrics in addition to result. See [Performance Metrics](#performance-metrics) for more detail.
+- **instrument** - Instrument query evaluation and return a superset of performance metrics in addition to result. See [Performance Metrics](#performance-metrics) for more detail.
+- **watch** - Set a watch on the data reference if the parameter is present. See [Watches](#watches) for more detail.
 
 #### Status Codes
 
@@ -1535,9 +1538,9 @@ response. To enable performance metric collection on an API call, specify the
 `metrics=true` query parameter when executing the API call. Performance metrics
 are currently supported for the following APIs:
 
-- Data API GET
-- Data API POST
-- Query API
+- Data API (GET and POST)
+- Policy API (all methods)
+- Query API (all methods)
 
 For example:
 
@@ -1575,6 +1578,12 @@ OPA currently supports the following query performance metrics:
 - **timer_rego_query_eval_ns**: time taken (in nanonseconds) to evaluate the query.
 - **timer_rego_module_parse_ns**: time taken (in nanoseconds) to parse the input policy module.
 - **timer_rego_module_compile_ns**: time taken (in nanoseconds) to compile the loaded policy modules.
+
+OPA also supports query instrumentation. To enable query instrumentation,
+specify the `instrument=true` query parameter when executing the API call.
+Query instrumentation can help diagnose performance problems, however, it can
+add significant overhead to query evaluation. We recommend leaving query
+instrumentation off unless you are debugging a performance problem.
 
 ## <a name="watches"></a> Watches
 
