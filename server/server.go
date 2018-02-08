@@ -1276,10 +1276,6 @@ func (s *Server) makeDir(ctx context.Context, txn storage.Transaction, path stor
 		return err
 	}
 
-	if err := s.writeConflict(storage.AddOp, path); err != nil {
-		return err
-	}
-
 	return s.store.Write(ctx, txn, storage.AddOp, path, map[string]interface{}{})
 }
 
@@ -1352,32 +1348,10 @@ func (s *Server) prepareV1PatchSlice(root string, ops []types.PatchV1) (result [
 			return nil, types.BadPatchPathErr(op.Path)
 		}
 
-		if err := s.writeConflict(impl.op, impl.path); err != nil {
-			return nil, err
-		}
-
 		result = append(result, impl)
 	}
 
 	return result, nil
-}
-
-// TODO(tsandall): this ought to be enforced by the storage layer.
-func (s *Server) writeConflict(op storage.PatchOp, path storage.Path) error {
-
-	if op == storage.AddOp && len(path) > 0 && path[len(path)-1] == "-" {
-		path = path[:len(path)-1]
-	}
-
-	ref := path.Ref(ast.DefaultRootDocument)
-
-	if rs := s.getCompiler().GetRulesForVirtualDocument(ref); rs != nil {
-		return types.WriteConflictErr{
-			Path: path,
-		}
-	}
-
-	return nil
 }
 
 func (s *Server) generateDecisionID() string {
