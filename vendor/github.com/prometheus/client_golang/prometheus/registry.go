@@ -37,13 +37,13 @@ const (
 // DefaultRegisterer and DefaultGatherer are the implementations of the
 // Registerer and Gatherer interface a number of convenience functions in this
 // package act on. Initially, both variables point to the same Registry, which
-// has a process collector (see NewProcessCollector) and a Go collector (see
-// NewGoCollector) already registered. This approach to keep default instances
-// as global state mirrors the approach of other packages in the Go standard
-// library. Note that there are caveats. Change the variables with caution and
-// only if you understand the consequences. Users who want to avoid global state
-// altogether should not use the convenience function and act on custom
-// instances instead.
+// has a process collector (currently on Linux only, see NewProcessCollector)
+// and a Go collector (see NewGoCollector) already registered. This approach to
+// keep default instances as global state mirrors the approach of other packages
+// in the Go standard library. Note that there are caveats. Change the variables
+// with caution and only if you understand the consequences. Users who want to
+// avoid global state altogether should not use the convenience functions and
+// act on custom instances instead.
 var (
 	defaultRegistry              = NewRegistry()
 	DefaultRegisterer Registerer = defaultRegistry

@@ -92,7 +92,7 @@ __handle_reply()
                     cur="${cur#*=}"
                     ${flags_completion[${index}]}
                     if [ -n "${ZSH_VERSION}" ]; then
-                        # zsh completion needs --flag= prefix
+                        # zfs completion needs --flag= prefix
                         eval "COMPREPLY=( \"\${COMPREPLY[@]/#/${flag}=}\" )"
                     fi
                 fi
@@ -175,15 +175,12 @@ __handle_flag()
     fi
 
     # keep flag value with flagname as flaghash
-    # flaghash variable is an associative array which is only supported in bash > 3.
-    if [[ -z "${BASH_VERSION}" || "${BASH_VERSINFO[0]}" -gt 3 ]]; then
-        if [ -n "${flagvalue}" ] ; then
-            flaghash[${flagname}]=${flagvalue}
-        elif [ -n "${words[ $((c+1)) ]}" ] ; then
-            flaghash[${flagname}]=${words[ $((c+1)) ]}
-        else
-            flaghash[${flagname}]="true" # pad "true" for bool flag
-        fi
+    if [ -n "${flagvalue}" ] ; then
+        flaghash[${flagname}]=${flagvalue}
+    elif [ -n "${words[ $((c+1)) ]}" ] ; then
+        flaghash[${flagname}]=${words[ $((c+1)) ]}
+    else
+        flaghash[${flagname}]="true" # pad "true" for bool flag
     fi
 
     # skip the argument to a two word flag
@@ -466,14 +463,14 @@ func gen(buf *bytes.Buffer, cmd *Command) {
 }
 
 // GenBashCompletion generates bash completion file and writes to the passed writer.
-func (c *Command) GenBashCompletion(w io.Writer) error {
+func (cmd *Command) GenBashCompletion(w io.Writer) error {
 	buf := new(bytes.Buffer)
-	writePreamble(buf, c.Name())
-	if len(c.BashCompletionFunction) > 0 {
-		buf.WriteString(c.BashCompletionFunction + "\n")
+	writePreamble(buf, cmd.Name())
+	if len(cmd.BashCompletionFunction) > 0 {
+		buf.WriteString(cmd.BashCompletionFunction + "\n")
 	}
-	gen(buf, c)
-	writePostscript(buf, c.Name())
+	gen(buf, cmd)
+	writePostscript(buf, cmd.Name())
 
 	_, err := buf.WriteTo(w)
 	return err
@@ -484,50 +481,47 @@ func nonCompletableFlag(flag *pflag.Flag) bool {
 }
 
 // GenBashCompletionFile generates bash completion file.
-func (c *Command) GenBashCompletionFile(filename string) error {
+func (cmd *Command) GenBashCompletionFile(filename string) error {
 	outFile, err := os.Create(filename)
 	if err != nil {
 		return err
 	}
 	defer outFile.Close()
 
-	return c.GenBashCompletion(outFile)
+	return cmd.GenBashCompletion(outFile)
 }
 
-// MarkFlagRequired adds the BashCompOneRequiredFlag annotation to the named flag if it exists,
-// and causes your command to report an error if invoked without the flag.
-func (c *Command) MarkFlagRequired(name string) error {
-	return MarkFlagRequired(c.Flags(), name)
+// MarkFlagRequired adds the BashCompOneRequiredFlag annotation to the named flag, if it exists.
+func (cmd *Command) MarkFlagRequired(name string) error {
+	return MarkFlagRequired(cmd.Flags(), name)
 }
 
-// MarkPersistentFlagRequired adds the BashCompOneRequiredFlag annotation to the named persistent flag if it exists,
-// and causes your command to report an error if invoked without the flag.
-func (c *Command) MarkPersistentFlagRequired(name string) error {
-	return MarkFlagRequired(c.PersistentFlags(), name)
+// MarkPersistentFlagRequired adds the BashCompOneRequiredFlag annotation to the named persistent flag, if it exists.
+func (cmd *Command) MarkPersistentFlagRequired(name string) error {
+	return MarkFlagRequired(cmd.PersistentFlags(), name)
 }
 
-// MarkFlagRequired adds the BashCompOneRequiredFlag annotation to the named flag if it exists,
-// and causes your command to report an error if invoked without the flag.
+// MarkFlagRequired adds the BashCompOneRequiredFlag annotation to the named flag in the flag set, if it exists.
 func MarkFlagRequired(flags *pflag.FlagSet, name string) error {
 	return flags.SetAnnotation(name, BashCompOneRequiredFlag, []string{"true"})
 }
 
 // MarkFlagFilename adds the BashCompFilenameExt annotation to the named flag, if it exists.
 // Generated bash autocompletion will select filenames for the flag, limiting to named extensions if provided.
-func (c *Command) MarkFlagFilename(name string, extensions ...string) error {
-	return MarkFlagFilename(c.Flags(), name, extensions...)
+func (cmd *Command) MarkFlagFilename(name string, extensions ...string) error {
+	return MarkFlagFilename(cmd.Flags(), name, extensions...)
 }
 
 // MarkFlagCustom adds the BashCompCustom annotation to the named flag, if it exists.
 // Generated bash autocompletion will call the bash function f for the flag.
-func (c *Command) MarkFlagCustom(name string, f string) error {
-	return MarkFlagCustom(c.Flags(), name, f)
+func (cmd *Command) MarkFlagCustom(name string, f string) error {
+	return MarkFlagCustom(cmd.Flags(), name, f)
 }
 
 // MarkPersistentFlagFilename adds the BashCompFilenameExt annotation to the named persistent flag, if it exists.
 // Generated bash autocompletion will select filenames for the flag, limiting to named extensions if provided.
-func (c *Command) MarkPersistentFlagFilename(name string, extensions ...string) error {
-	return MarkFlagFilename(c.PersistentFlags(), name, extensions...)
+func (cmd *Command) MarkPersistentFlagFilename(name string, extensions ...string) error {
+	return MarkFlagFilename(cmd.PersistentFlags(), name, extensions...)
 }
 
 // MarkFlagFilename adds the BashCompFilenameExt annotation to the named flag in the flag set, if it exists.

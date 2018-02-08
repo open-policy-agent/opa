@@ -17,7 +17,7 @@ package cmd
 
 func initMit() {
 	Licenses["mit"] = License{
-		Name:            "MIT License",
+		Name:            "Mit",
 		PossibleMatches: []string{"mit"},
 		Header: `
 Permission is hereby granted, free of charge, to any person obtaining a copy

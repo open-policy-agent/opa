@@ -1,5 +1,5 @@
-hash: 3538d9e9b30d64dd92df31a1384868a9bf6a6e39a28b31cfd473236270ea4bb6
-updated: 2018-02-05T17:03:30.06832304-08:00
+hash: 32c4c14ef39157361558daa1a240887efafedb5bf1502f36bd8f9682b2182e1a
+updated: 2018-02-08T14:15:59.859585-08:00
 imports:
 - name: github.com/beorn7/perks
   version: 4c0e84591b9aa9e6dcfdf3e020114cd81f89d5f9
@@ -8,11 +8,11 @@ imports:
 - name: github.com/dchest/siphash
   version: 4ebf1de738443ea7f45f02dc394c4df1942a126d
 - name: github.com/ghodss/yaml
-  version: 0ca9ea5df5451ffdf184b4428c902747c2c11cd7
+  version: 73d445a93680fa1a78ae23a5839bad48f32ba1ee
 - name: github.com/golang/lint
   version: e14d9b0f1d332b1420c1ffa32562ad2dc84d645d
 - name: github.com/golang/protobuf
-  version: bbd03ef6da3a115852eaf24c8a1c46aeb39aa175
+  version: 4bd1920723d7b7c925de087aa32e2187708897f7
   subpackages:
   - proto
 - name: github.com/gorilla/context
@@ -36,7 +36,7 @@ imports:
 - name: github.com/pkg/errors
   version: 30136e27e2ac8d167177e8a583aa4c3fea5be833
 - name: github.com/prometheus/client_golang
-  version: 9bb6ab929dcbe1c8393cd9ef70387cb69811bd1c
+  version: a85074fc8513d71c9c2b6c241b8a265a33751dac
   subpackages:
   - prometheus
   - prometheus/promhttp
@@ -56,16 +56,18 @@ imports:
   - internal/util
   - nfs
   - xfs
+- name: github.com/rcrowley/go-metrics
+  version: 8732c616f52954686704c8645fe1a9d59e9df7c1
 - name: github.com/sirupsen/logrus
   version: f006c2ac4710855cf0f916dd6b77acf6b048dc6e
 - name: github.com/spf13/cobra
-  version: 93959269ad99e80983c9ba742a7e01203a4c0e4f
+  version: b4dbd37a01839e0653eec12aa4bbb2a2ce7b2a37
 - name: github.com/spf13/pflag
-  version: 4c012f6dcd9546820e378d0bdda4d8fc772cdfea
+  version: e57e3eeb33f795204c1ca35f56c44f83227c6e66
 - name: github.com/yashtewari/glob-intersection
   version: 7af743e8ec8480fee1932a737a406f7ec817f910
 - name: golang.org/x/crypto
-  version: 1875d0a70c90e57f11972aefd42276df65e895b9
+  version: 5119cf507ed5294cc409c092980c7497ee5d6fd2
   subpackages:
   - ssh/terminal
 - name: golang.org/x/sys
