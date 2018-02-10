@@ -442,21 +442,21 @@ func (c *Compiler) checkRecursion() {
 	c.RuleTree.DepthFirst(func(node *TreeNode) bool {
 		for _, rule := range node.Values {
 			for node := rule.(*Rule); node != nil; node = node.Else {
-				c.checkSelfPath(RuleTypeName, node.Loc(), eq, node, node)
+				c.checkSelfPath(node.Loc(), eq, node, node)
 			}
 		}
 		return false
 	})
 }
 
-func (c *Compiler) checkSelfPath(t string, loc *Location, eq func(a, b util.T) bool, a, b util.T) {
+func (c *Compiler) checkSelfPath(loc *Location, eq func(a, b util.T) bool, a, b util.T) {
 	tr := newgraphTraversal(c.Graph)
 	if p := util.DFSPath(tr, eq, a, b); len(p) > 0 {
 		n := []string{}
 		for _, x := range p {
 			n = append(n, astNodeToString(x))
 		}
-		c.err(NewError(RecursionErr, loc, "%v %v is recursive: %v", t, astNodeToString(a), strings.Join(n, " -> ")))
+		c.err(NewError(RecursionErr, loc, "rule %v is recursive: %v", astNodeToString(a), strings.Join(n, " -> ")))
 	}
 }
 
@@ -536,7 +536,7 @@ func (c *Compiler) checkBodySafety(safe VarSet, m *Module, b Body, l *Location) 
 	if len(unsafe) != 0 {
 		for v := range unsafe.Vars() {
 			if !c.generatedVars[m].Contains(v) {
-				c.err(NewError(UnsafeVarErr, l, "%v %v is unsafe", VarTypeName, v))
+				c.err(NewError(UnsafeVarErr, l, "var %v is unsafe", v))
 			}
 		}
 		return b
@@ -559,7 +559,7 @@ func (c *Compiler) checkSafetyRuleHeads() {
 			unsafe := r.Head.Vars().Diff(safe)
 			for v := range unsafe {
 				if !c.generatedVars[m].Contains(v) {
-					c.err(NewError(UnsafeVarErr, r.Loc(), "%v %v is unsafe", VarTypeName, v))
+					c.err(NewError(UnsafeVarErr, r.Loc(), "var %v is unsafe", v))
 				}
 			}
 			return false
@@ -986,7 +986,7 @@ func (qc *queryCompiler) checkSafety(_ *QueryContext, body Body) (Body, error) {
 	if len(unsafe) != 0 {
 		var err Errors
 		for v := range unsafe.Vars() {
-			err = append(err, NewError(UnsafeVarErr, body.Loc(), "%v %v is unsafe", VarTypeName, v))
+			err = append(err, NewError(UnsafeVarErr, body.Loc(), "var %v is unsafe", v))
 		}
 		return nil, err
 	}
@@ -1196,7 +1196,7 @@ func (wc *withModifierChecker) checkValue(w *With) {
 	}
 
 	WalkRefs(w.Value, func(r Ref) bool {
-		wc.err(TypeErr, w.Location, "with keyword value must not contain %vs", RefTypeName)
+		wc.err(TypeErr, w.Location, "with keyword value must not contain refs")
 		return true
 	})
 }
@@ -2287,7 +2287,7 @@ func rewriteDeclaredVarsInBody(g *localVarGenerator, stack *localDeclaredVars, b
 func rewriteDeclaredAssignment(g *localVarGenerator, stack *localDeclaredVars, expr *Expr, errs Errors) Errors {
 
 	if expr.Negated {
-		errs = append(errs, NewError(CompileErr, expr.Location, "cannot assign vars inside negated %v", ExprTypeName))
+		errs = append(errs, NewError(CompileErr, expr.Location, "cannot assign vars inside negated expression"))
 		return errs
 	}
 
@@ -2404,7 +2404,7 @@ func rewriteDeclaredVarsInObjectComprehension(g *localVarGenerator, stack *local
 
 func rewriteDeclaredVar(g *localVarGenerator, stack *localDeclaredVars, v Var) (gv Var, err error) {
 	if stack.Seen(v) {
-		err = fmt.Errorf("%v %v assigned or referenced above", VarTypeName, v)
+		err = fmt.Errorf("var %v assigned or referenced above", v)
 		return
 	}
 	gv = g.Generate()

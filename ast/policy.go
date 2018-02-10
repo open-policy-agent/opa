@@ -314,11 +314,11 @@ func IsValidImportPath(v Value) (err error) {
 		}
 		for _, e := range v[1:] {
 			if _, ok := e.Value.(String); !ok {
-				return fmt.Errorf("invalid path %v: path elements must be %vs", v, StringTypeName)
+				return fmt.Errorf("invalid path %v: path elements must be strings", v)
 			}
 		}
 	default:
-		return fmt.Errorf("invalid path %v: path must be %v or %v", v, RefTypeName, VarTypeName)
+		return fmt.Errorf("invalid path %v: path must be ref or var", v)
 	}
 	return nil
 }

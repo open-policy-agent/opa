@@ -81,7 +81,7 @@ func NewOperandEnumErr(pos int, expected ...string) error {
 func IntOperand(x ast.Value, pos int) (int, error) {
 	n, ok := x.(ast.Number)
 	if !ok {
-		return 0, NewOperandTypeErr(pos, x, ast.NumberTypeName)
+		return 0, NewOperandTypeErr(pos, x, "number")
 	}
 
 	i, ok := n.Int()
@@ -97,7 +97,7 @@ func IntOperand(x ast.Value, pos int) (int, error) {
 func NumberOperand(x ast.Value, pos int) (ast.Number, error) {
 	n, ok := x.(ast.Number)
 	if !ok {
-		return ast.Number(""), NewOperandTypeErr(pos, x, ast.NumberTypeName)
+		return ast.Number(""), NewOperandTypeErr(pos, x, "number")
 	}
 	return n, nil
 }
@@ -107,7 +107,7 @@ func NumberOperand(x ast.Value, pos int) (ast.Number, error) {
 func SetOperand(x ast.Value, pos int) (ast.Set, error) {
 	s, ok := x.(ast.Set)
 	if !ok {
-		return nil, NewOperandTypeErr(pos, x, ast.SetTypeName)
+		return nil, NewOperandTypeErr(pos, x, "set")
 	}
 	return s, nil
 }
@@ -117,7 +117,7 @@ func SetOperand(x ast.Value, pos int) (ast.Set, error) {
 func StringOperand(x ast.Value, pos int) (ast.String, error) {
 	s, ok := x.(ast.String)
 	if !ok {
-		return ast.String(""), NewOperandTypeErr(pos, x, ast.StringTypeName)
+		return ast.String(""), NewOperandTypeErr(pos, x, "string")
 	}
 	return s, nil
 }
@@ -127,7 +127,7 @@ func StringOperand(x ast.Value, pos int) (ast.String, error) {
 func ObjectOperand(x ast.Value, pos int) (ast.Object, error) {
 	o, ok := x.(ast.Object)
 	if !ok {
-		return nil, NewOperandTypeErr(pos, x, ast.ObjectTypeName)
+		return nil, NewOperandTypeErr(pos, x, "object")
 	}
 	return o, nil
 }

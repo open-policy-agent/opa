@@ -121,7 +121,7 @@ func MustParseTerm(input string) *Term {
 func ParseRuleFromBody(module *Module, body Body) (*Rule, error) {
 
 	if len(body) != 1 {
-		return nil, fmt.Errorf("multiple %vs cannot be used for %v", ExprTypeName, HeadTypeName)
+		return nil, fmt.Errorf("multiple expressions cannot be used for rule head")
 	}
 
 	return ParseRuleFromExpr(module, body[0])
@@ -132,11 +132,11 @@ func ParseRuleFromBody(module *Module, body Body) (*Rule, error) {
 func ParseRuleFromExpr(module *Module, expr *Expr) (*Rule, error) {
 
 	if len(expr.With) > 0 {
-		return nil, fmt.Errorf("%vs using %v cannot be used for %v", ExprTypeName, WithTypeName, HeadTypeName)
+		return nil, fmt.Errorf("expressions using with keyword cannot be used for rule head")
 	}
 
 	if expr.Negated {
-		return nil, fmt.Errorf("negated %v cannot be used for %v", TypeName(expr), RuleTypeName)
+		return nil, fmt.Errorf("negated expressions cannot be used for rule head")
 	}
 
 	if term, ok := expr.Terms.(*Term); ok {
@@ -144,13 +144,13 @@ func ParseRuleFromExpr(module *Module, expr *Expr) (*Rule, error) {
 		case Ref:
 			return ParsePartialSetDocRuleFromTerm(module, term)
 		default:
-			return nil, fmt.Errorf("%v cannot be used for name of %v", TypeName(v), RuleTypeName)
+			return nil, fmt.Errorf("%v cannot be used for rule name", TypeName(v))
 		}
 	}
 
 	if !expr.IsEquality() && expr.IsCall() {
 		if _, ok := BuiltinMap[expr.Operator().String()]; ok {
-			return nil, fmt.Errorf("%v name conflicts with built-in function", RuleTypeName)
+			return nil, fmt.Errorf("rule name conflicts with built-in function")
 		}
 		return ParseRuleFromCallExpr(module, expr.Terms.([]*Term))
 	}
@@ -181,7 +181,7 @@ func ParseCompleteDocRuleFromEqExpr(module *Module, lhs, rhs *Term) (*Rule, erro
 	} else if v, ok := lhs.Value.(Var); ok {
 		name = v
 	} else {
-		return nil, fmt.Errorf("%v cannot be used for name of %v", TypeName(lhs.Value), RuleTypeName)
+		return nil, fmt.Errorf("%v cannot be used for rule name", TypeName(lhs.Value))
 	}
 
 	rule := &Rule{
@@ -206,7 +206,7 @@ func ParsePartialObjectDocRuleFromEqExpr(module *Module, lhs, rhs *Term) (*Rule,
 
 	ref, ok := lhs.Value.(Ref)
 	if !ok || len(ref) != 2 {
-		return nil, fmt.Errorf("%v cannot be used for name of %v", TypeName(lhs.Value), RuleTypeName)
+		return nil, fmt.Errorf("%v cannot be used for rule name", TypeName(lhs.Value))
 	}
 
 	name := ref[0].Value.(Var)
@@ -235,11 +235,11 @@ func ParsePartialSetDocRuleFromTerm(module *Module, term *Term) (*Rule, error) {
 
 	ref, ok := term.Value.(Ref)
 	if !ok {
-		return nil, fmt.Errorf("%vs cannot be used for %v", TypeName(term.Value), HeadTypeName)
+		return nil, fmt.Errorf("%vs cannot be used for rule head", TypeName(term.Value))
 	}
 
 	if len(ref) != 2 {
-		return nil, fmt.Errorf("%v cannot be used for %v", RefTypeName, RuleTypeName)
+		return nil, fmt.Errorf("refs cannot be used for rule")
 	}
 
 	rule := &Rule{
@@ -287,7 +287,7 @@ func ParseRuleFromCallEqExpr(module *Module, lhs, rhs *Term) (*Rule, error) {
 func ParseRuleFromCallExpr(module *Module, terms []*Term) (*Rule, error) {
 
 	if len(terms) <= 1 {
-		return nil, fmt.Errorf("%ss with %v must take at least one argument", RuleTypeName, ArgsTypeName)
+		return nil, fmt.Errorf("rule argument list must take at least one argument")
 	}
 
 	loc := terms[0].Location
@@ -525,7 +525,7 @@ func parseModule(stmts []Statement, comments []*Comment) (*Module, error) {
 	_package, ok := stmts[0].(*Package)
 	if !ok {
 		loc := stmts[0].(Statement).Loc()
-		errs = append(errs, NewError(ParseErr, loc, "expected %v", PackageTypeName))
+		errs = append(errs, NewError(ParseErr, loc, "package expected"))
 	}
 
 	mod := &Module{
@@ -550,7 +550,7 @@ func parseModule(stmts []Statement, comments []*Comment) (*Module, error) {
 				mod.Rules = append(mod.Rules, rule)
 			}
 		case *Package:
-			errs = append(errs, NewError(ParseErr, stmt.Loc(), "unexpected "+PackageTypeName))
+			errs = append(errs, NewError(ParseErr, stmt.Loc(), "unexpected package"))
 		case *Comment: // Ignore comments, they're handled above.
 		default:
 			panic("illegal value") // Indicates grammar is out-of-sync with code.

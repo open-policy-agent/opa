@@ -646,21 +646,21 @@ func waitForDone(ctx context.Context, exit chan struct{}, f func()) {
 
 func rewriteQueryForPartialEval(query ast.Body) (ast.Body, *ast.Term, error) {
 	if len(query) != 1 {
-		return nil, nil, fmt.Errorf("partial evaluation requires single %v (not multiple %v)", ast.RefTypeName, ast.ExprTypeName)
+		return nil, nil, fmt.Errorf("partial evaluation requires single ref (not multiple expressions)")
 	}
 
 	term, ok := query[0].Terms.(*ast.Term)
 	if !ok {
-		return nil, nil, fmt.Errorf("partial evaluation requires %v (not call %v)", ast.RefTypeName, ast.TypeName(query[0]))
+		return nil, nil, fmt.Errorf("partial evaluation requires ref (not expression)")
 	}
 
 	ref, ok := term.Value.(ast.Ref)
 	if !ok {
-		return nil, nil, fmt.Errorf("partial evaluation requires %v (not %v)", ast.RefTypeName, ast.TypeName(term))
+		return nil, nil, fmt.Errorf("partial evaluation requires ref (not %v)", ast.TypeName(term.Value))
 	}
 
 	if !ref.IsGround() {
-		return nil, nil, fmt.Errorf("partial evaluation requires ground %v", ast.RefTypeName)
+		return nil, nil, fmt.Errorf("partial evaluation requires ground ref")
 	}
 
 	return ast.NewBody(ast.Equality.Expr(ast.Wildcard, term)), ast.Wildcard, nil

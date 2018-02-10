@@ -1235,7 +1235,7 @@ func TestRewriteLocalVarDeclarationErrors(t *testing.T) {
 		"var r1 assigned or referenced above",
 		"var r2 assigned or referenced above",
 		"var input assigned or referenced above",
-		"cannot assign vars inside negated expr",
+		"cannot assign vars inside negated expression",
 		"cannot assign to ref",
 		"cannot assign to arraycomprehension",
 		"cannot assign to setcomprehension",
