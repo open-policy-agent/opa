@@ -30,7 +30,7 @@ func builtinToNumber(a ast.Value) (ast.Value, error) {
 		}
 		return ast.Number(json.Number(a)), nil
 	}
-	return nil, builtins.NewOperandTypeErr(1, a, ast.NullTypeName, ast.BooleanTypeName, ast.NumberTypeName, ast.StringTypeName)
+	return nil, builtins.NewOperandTypeErr(1, a, "null", "boolean", "number", "string")
 }
 
 func init() {

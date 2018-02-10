@@ -1994,7 +1994,7 @@ func unmarshalTermSliceValue(d map[string]interface{}) ([]*Term, error) {
 	if s, ok := d["value"].([]interface{}); ok {
 		return unmarshalTermSlice(s)
 	}
-	return nil, fmt.Errorf(`ast: unable to unmarshal term (expected {"value": [...], "type": ...} where type is one of: %v, %v, %v)`, ArrayTypeName, SetTypeName, RefTypeName)
+	return nil, fmt.Errorf(`ast: unable to unmarshal term (expected {"value": [...], "type": ...} where type is one of: ref, array, or set)`)
 }
 
 func unmarshalWith(i interface{}) (*With, error) {

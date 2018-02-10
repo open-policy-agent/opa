@@ -22,7 +22,7 @@ func builtinCount(a ast.Value) (ast.Value, error) {
 	case ast.String:
 		return ast.IntNumberTerm(len(a)).Value, nil
 	}
-	return nil, builtins.NewOperandTypeErr(1, a, ast.ArrayTypeName, ast.ObjectTypeName, ast.SetTypeName)
+	return nil, builtins.NewOperandTypeErr(1, a, "array", "object", "set")
 }
 
 func builtinSum(a ast.Value) (ast.Value, error) {
@@ -32,7 +32,7 @@ func builtinSum(a ast.Value) (ast.Value, error) {
 		for _, x := range a {
 			n, ok := x.Value.(ast.Number)
 			if !ok {
-				return nil, builtins.NewOperandElementErr(1, a, x.Value, ast.NumberTypeName)
+				return nil, builtins.NewOperandElementErr(1, a, x.Value, "number")
 			}
 			sum = new(big.Float).Add(sum, builtins.NumberToFloat(n))
 		}
@@ -42,14 +42,14 @@ func builtinSum(a ast.Value) (ast.Value, error) {
 		err := a.Iter(func(x *ast.Term) error {
 			n, ok := x.Value.(ast.Number)
 			if !ok {
-				return builtins.NewOperandElementErr(1, a, x.Value, ast.NumberTypeName)
+				return builtins.NewOperandElementErr(1, a, x.Value, "number")
 			}
 			sum = new(big.Float).Add(sum, builtins.NumberToFloat(n))
 			return nil
 		})
 		return builtins.FloatToNumber(sum), err
 	}
-	return nil, builtins.NewOperandTypeErr(1, a, ast.SetTypeName, ast.ArrayTypeName)
+	return nil, builtins.NewOperandTypeErr(1, a, "set", "array")
 }
 
 func builtinProduct(a ast.Value) (ast.Value, error) {
@@ -59,7 +59,7 @@ func builtinProduct(a ast.Value) (ast.Value, error) {
 		for _, x := range a {
 			n, ok := x.Value.(ast.Number)
 			if !ok {
-				return nil, builtins.NewOperandElementErr(1, a, x.Value, ast.NumberTypeName)
+				return nil, builtins.NewOperandElementErr(1, a, x.Value, "number")
 			}
 			product = new(big.Float).Mul(product, builtins.NumberToFloat(n))
 		}
@@ -69,14 +69,14 @@ func builtinProduct(a ast.Value) (ast.Value, error) {
 		err := a.Iter(func(x *ast.Term) error {
 			n, ok := x.Value.(ast.Number)
 			if !ok {
-				return builtins.NewOperandElementErr(1, a, x.Value, ast.NumberTypeName)
+				return builtins.NewOperandElementErr(1, a, x.Value, "number")
 			}
 			product = new(big.Float).Mul(product, builtins.NumberToFloat(n))
 			return nil
 		})
 		return builtins.FloatToNumber(product), err
 	}
-	return nil, builtins.NewOperandTypeErr(1, a, ast.SetTypeName, ast.ArrayTypeName)
+	return nil, builtins.NewOperandTypeErr(1, a, "set", "array")
 }
 
 func builtinMax(a ast.Value) (ast.Value, error) {
@@ -105,7 +105,7 @@ func builtinMax(a ast.Value) (ast.Value, error) {
 		return max.Value, err
 	}
 
-	return nil, builtins.NewOperandTypeErr(1, a, ast.SetTypeName, ast.ArrayTypeName)
+	return nil, builtins.NewOperandTypeErr(1, a, "set", "array")
 }
 
 func builtinMin(a ast.Value) (ast.Value, error) {
@@ -141,7 +141,7 @@ func builtinMin(a ast.Value) (ast.Value, error) {
 		return min.Value, err
 	}
 
-	return nil, builtins.NewOperandTypeErr(1, a, ast.SetTypeName, ast.ArrayTypeName)
+	return nil, builtins.NewOperandTypeErr(1, a, "set", "array")
 }
 
 func builtinSort(a ast.Value) (ast.Value, error) {
@@ -151,7 +151,7 @@ func builtinSort(a ast.Value) (ast.Value, error) {
 	case ast.Set:
 		return a.Sorted(), nil
 	}
-	return nil, builtins.NewOperandTypeErr(1, a, ast.SetTypeName, ast.ArrayTypeName)
+	return nil, builtins.NewOperandTypeErr(1, a, "set", "array")
 }
 
 func init() {

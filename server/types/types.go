@@ -305,19 +305,19 @@ func (te *TraceEventV1) UnmarshalJSON(bs []byte) error {
 	}
 
 	switch te.Type {
-	case ast.BodyTypeName:
+	case "body":
 		var body ast.Body
 		if err := util.UnmarshalJSON(keys["node"], &body); err != nil {
 			return err
 		}
 		te.Node = body
-	case ast.ExprTypeName:
+	case "expr":
 		var expr ast.Expr
 		if err := util.UnmarshalJSON(keys["node"], &expr); err != nil {
 			return err
 		}
 		te.Node = &expr
-	case ast.RuleTypeName:
+	case "rule":
 		var rule ast.Rule
 		if err := util.UnmarshalJSON(keys["node"], &rule); err != nil {
 			return err

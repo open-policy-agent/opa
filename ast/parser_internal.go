@@ -206,7 +206,7 @@ func makeRuleHead(loc *Location, name, args, key, value interface{}) (interface{
 	head.Name = name.(*Term).Value.(Var)
 
 	if args != nil && key != nil {
-		return nil, fmt.Errorf("partial %v/%v %vs cannot take arguments", SetTypeName, ObjectTypeName, RuleTypeName)
+		return nil, fmt.Errorf("partial rules cannot take arguments")
 	}
 
 	if args != nil {
@@ -234,7 +234,7 @@ func makeRuleHead(loc *Location, name, args, key, value interface{}) (interface{
 		switch head.Key.Value.(type) {
 		case Var, String, Ref: // nop
 		default:
-			return nil, fmt.Errorf("object key must be one of %v, %v, %v not %v", StringTypeName, VarTypeName, RefTypeName, TypeName(head.Key.Value))
+			return nil, fmt.Errorf("object key must be string, var, or ref, not %v", TypeName(head.Key.Value))
 		}
 	}
 

@@ -13,28 +13,3 @@ import (
 func TypeName(x interface{}) string {
 	return strings.ToLower(reflect.Indirect(reflect.ValueOf(x)).Type().Name())
 }
-
-// The type names provide consistent strings for types in error messages.
-const (
-	NullTypeName                = "null"
-	BooleanTypeName             = "boolean"
-	StringTypeName              = "string"
-	NumberTypeName              = "number"
-	VarTypeName                 = "var"
-	RefTypeName                 = "ref"
-	ArrayTypeName               = "array"
-	ObjectTypeName              = "object"
-	SetTypeName                 = "set"
-	ArrayComprehensionTypeName  = "arraycomprehension"
-	SetComprehensionTypeName    = "setcomprehension"
-	ObjectComprehensionTypeName = "objectcomprehension"
-	CallTypeName                = "call"
-	ExprTypeName                = "expr"
-	WithTypeName                = "with"
-	BodyTypeName                = "body"
-	HeadTypeName                = "head"
-	RuleTypeName                = "rule"
-	ArgsTypeName                = "args"
-	ImportTypeName              = "import"
-	PackageTypeName             = "package"
-)

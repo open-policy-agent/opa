@@ -847,7 +847,7 @@ func TestRule(t *testing.T) {
 	})
 
 	assertParseErrorEquals(t, "empty body", `f(_) = y {}`, "rego_parse_error: body must be non-empty")
-	assertParseErrorEquals(t, "object composite key", "p[[x,y]] = z { true }", "rego_parse_error: object key must be one of string, var, ref not array")
+	assertParseErrorEquals(t, "object composite key", "p[[x,y]] = z { true }", "rego_parse_error: object key must be string, var, or ref, not array")
 	assertParseErrorEquals(t, "default ref value", "default p = [data.foo]", "rego_parse_error: default rule value cannot contain ref")
 	assertParseErrorEquals(t, "default var value", "default p = [x]", "rego_parse_error: default rule value cannot contain var")
 	assertParseErrorEquals(t, "empty rule body", "p {}", "rego_parse_error: body must be non-empty")

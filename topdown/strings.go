@@ -58,7 +58,7 @@ func builtinConcat(a, b ast.Value) (ast.Value, error) {
 		for i := range b {
 			s, ok := b[i].Value.(ast.String)
 			if !ok {
-				return nil, builtins.NewOperandElementErr(2, b, b[i].Value, ast.StringTypeName)
+				return nil, builtins.NewOperandElementErr(2, b, b[i].Value, "string")
 			}
 			strs = append(strs, string(s))
 		}
@@ -66,7 +66,7 @@ func builtinConcat(a, b ast.Value) (ast.Value, error) {
 		err := b.Iter(func(x *ast.Term) error {
 			s, ok := x.Value.(ast.String)
 			if !ok {
-				return builtins.NewOperandElementErr(2, b, x.Value, ast.StringTypeName)
+				return builtins.NewOperandElementErr(2, b, x.Value, "string")
 			}
 			strs = append(strs, string(s))
 			return nil
@@ -75,7 +75,7 @@ func builtinConcat(a, b ast.Value) (ast.Value, error) {
 			return nil, err
 		}
 	default:
-		return nil, builtins.NewOperandTypeErr(2, b, ast.SetTypeName, ast.ArrayTypeName)
+		return nil, builtins.NewOperandTypeErr(2, b, "set", "array")
 	}
 
 	return ast.String(strings.Join(strs, string(join))), nil
@@ -250,7 +250,7 @@ func builtinSprintf(a, b ast.Value) (ast.Value, error) {
 
 	astArr, ok := b.(ast.Array)
 	if !ok {
-		return nil, builtins.NewOperandTypeErr(2, b, ast.ArrayTypeName)
+		return nil, builtins.NewOperandTypeErr(2, b, "array")
 	}
 
 	strArr := []interface{}{}

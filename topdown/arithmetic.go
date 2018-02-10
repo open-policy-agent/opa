@@ -105,10 +105,10 @@ func builtinMinus(a, b ast.Value) (ast.Value, error) {
 	}
 
 	if !ok1 && !ok3 {
-		return nil, builtins.NewOperandTypeErr(1, a, ast.NumberTypeName, ast.SetTypeName)
+		return nil, builtins.NewOperandTypeErr(1, a, "number", "set")
 	}
 
-	return nil, builtins.NewOperandTypeErr(2, b, ast.NumberTypeName, ast.SetTypeName)
+	return nil, builtins.NewOperandTypeErr(2, b, "number", "set")
 }
 
 func init() {
