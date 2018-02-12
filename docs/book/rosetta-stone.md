@@ -19,21 +19,27 @@ all those permissions assigned to any of the roles she is assigned to.
 
 For example, we might have the following assignments
 
-**User-role assignments**
-* alice --> engineering
-* alice --> webdev
-* bob --> hr
+| User | Role |
+| --- | --- |
+| ``alice`` | ``engineering`` |
+| ``alice`` | ``webdev`` |
+| ``bob`` | ``hr`` |
 
-**Role-permission assignments**
-* engineering --> read on server123
-* webdev --> write on server123
-* webdev --> read on server123
-* hr --> read on database456
+| Role | Permission | Resource |
+| --- | --- | --- |
+| ``engineering`` | ``read`` | ``server123`` |
+| ``webdev`` | ``write`` | ``server123`` |
+| ``webdev`` | ``read`` | ``server123`` |
+| ``hr`` | ``write`` | ``database456`` |
 
-In this example, RBAC makes the following authorization decisions.
-* alice --> read on server123   # because she is in engineering
-* alice --> write on server123  # because she is in webdev
-* bob --> read on database456   # because he is in hr
+In this example, RBAC makes the following authorization decisions:
+
+| User | Operation | Resource | Decision |
+| --- | --- | --- | --- |
+| ``alice`` | ``read`` | ``server123`` | ``allow`` because ``alice`` is in ``engineering`` |
+| ``alice`` | ``write`` | ``server123`` | ``allow`` because ``alice`` is in ``webdev`` |
+| ``bob`` | ``read`` | ``database456`` | ``allow`` because ``bob`` is in ``hr`` |
+| ``bob`` | ``read`` | ``server123`` | ``deny`` because ``bob`` is not in ``engineering`` or ``webdev`` |
 
 With OPA, you can write the following snippets to implement the
 example RBAC policy shown above.
