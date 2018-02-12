@@ -17,7 +17,7 @@ Once you provide RBAC with both those assignments, RBAC tells you
 how to make an authorization decision.  A user is authorized for
 all those permissions assigned to any of the roles she is assigned to.
 
-For example, we might have the following assignments
+For example, we might have the following assignments:
 
 | User | Role |
 | --- | --- |
@@ -118,7 +118,7 @@ sod_violation[user] {
     # grab another role for that same user
     role2 = user_role[user][_]
     # check if those roles are forbidden by SOD
-	sod_roles[_] = [role1, role2]
+    sod_roles[_] = [role1, role2]
 }
 ```
 
@@ -174,20 +174,20 @@ package abac
 
 # User attributes
 user_attributes = {
-	"alice": {"tenure": 15, "title": "trader"},
+    "alice": {"tenure": 15, "title": "trader"},
     "bob": {"tenure": 5, "title": "analyst"}
 }
 
 # Stock attributes
 ticker_attributes = {
-	"MSFT": {"exchange": "NASDAQ", "price": 59.20},
-	"AMZN": {"exchange": "NASDAQ", "price": 813.64}
+    "MSFT": {"exchange": "NASDAQ", "price": 59.20},
+    "AMZN": {"exchange": "NASDAQ", "price": 813.64}
 }
 
 # all traders may buy NASDAQ under $2M
 allow {
     # lookup the user's attributes
-	user = user_attributes[input.user]
+    user = user_attributes[input.user]
     # check that the user is a trader
     user.title = "trader"
     # check that the stock being purchased is sold on the NASDAQ
@@ -199,7 +199,7 @@ allow {
 # traders with 10+ years experience may buy NASDAQ under $5M
 allow {
     # lookup the user's attributes
-	user = user_attributes[input.user]
+    user = user_attributes[input.user]
     # check that the user is a trader
     user.title = "trader"
     # check that the stock being purchased is sold on the NASDAQ
@@ -207,7 +207,7 @@ allow {
     # check that the user has at least 10 years of experience
     user.tenure > 10
     # check that the purchase amount is under $5M
-	input.amount <= 5000000
+    input.amount <= 5000000
 }
 ```
 
