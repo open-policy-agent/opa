@@ -290,7 +290,8 @@ allow {
 # actions_match is true if input.action matches one in the list
 actions_match {
     # iterate over the actions in the list
-    action = ["s3:List*","s3:Get*"][_]
+    actions = ["s3:List*","s3:Get*"]
+    action = actions[_]
     # check if input.action matches an action
     regex.globs_match(input.action, action)
 }
@@ -298,7 +299,8 @@ actions_match {
 # resources_match is true if input.resource matches one in the list
 resources_match {
     # iterate over the resources in the list
-    resource = ["arn:aws:s3:::confidential-data","arn:aws:s3:::confidential-data/*"][_]
+    resources = ["arn:aws:s3:::confidential-data","arn:aws:s3:::confidential-data/*"]
+    resource = resources[_]
     # check if input.resource matches a resource
     regex.globs_match(input.resource, resource)
 }
