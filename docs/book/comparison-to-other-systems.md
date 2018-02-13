@@ -17,13 +17,15 @@ Once you provide RBAC with both those assignments, RBAC tells you
 how to make an authorization decision.  A user is authorized for
 all those permissions assigned to any of the roles she is assigned to.
 
-For example, we might have the following assignments:
+For example, we might have the following user/role assignments:
 
 | User | Role |
 | --- | --- |
 | ``alice`` | ``engineering`` |
 | ``alice`` | ``webdev`` |
 | ``bob`` | ``hr`` |
+
+And the following role/permission assignments:
 
 | Role | Permission | Resource |
 | --- | --- | --- |
@@ -217,7 +219,7 @@ and have attributes on attributes on attributes.  Because OPA was designed to wo
 with arbitrarily nested JSON data, it supports incredibly rich ABAC policies.
 
 
-## Amazon Web Services (AWS)
+## Amazon Web Services IAM
 
 Amazon Web Services (AWS) lets you create policies that you attach to users, roles, groups,
 and resources.  You write `allow` and `deny` statements to decide which users can
