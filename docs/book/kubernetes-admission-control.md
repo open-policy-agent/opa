@@ -1,323 +1,274 @@
 # Kubernetes Admission Control
 
-Kubernetes [Admission Controllers](https://kubernetes.io/docs/admin/admission-controllers/) perform *semantic validation* of resources during create, update, and delete operations. In Kubernetes 1.7, you can use OPA to enforce custom policies without recompiling or reconfiguring the Kubernetes API server by leveraging [External Admission Webhooks](https://kubernetes.io/docs/admin/extensible-admission-controllers/#external-admission-webhooks).
+In Kubernetes, [Admission Controllers](https://kubernetes.io/docs/admin/admission-controllers/) enforce semantic validation of objects during create, update, and delete operations. With OPA you can enforce custom policies on Kubernetes objects without recompiling or reconfiguring the Kubernetes API server.
 
 ## Goals
 
-This tutorial shows how to use OPA to enforce custom policies on resources in
-Kubernetes. For the purpose of this tutorial, you will define a policy that
-prevents users from running `kubectl exec` on "privileged" containers in the
-"production" namespace.
+This tutorial shows how to enforce custom policies on Kubernetes objects using OPA. In this tutorial, you will define admission control rules that prevent users from creating Kubernetes Ingress objects that violate the following organization policy:
+
+- Ingress hostnames must be whitelisted on the Namespace containing the Ingress.
+- Two ingresses in different namespaces must not have the same hostname.
 
 ## Prerequisites
 
-This tutorial requires a Kubernetes 1.7 (or later) cluster. To test Kubernetes locally, we recommend using [minikube](https://kubernetes.io/docs/getting-started-guides/minikube/). Keep in mind that External Admission Webhook support in Kubernetes is currently in **alpha**.
+This tutorial requires Kubernetes 1.9 or later. To run the tutorial locally, we recommend using [minikube](https://kubernetes.io/docs/getting-started-guides/minikube).
 
 ## Steps
 
-### 1. Start Kubernetes with External Admission Webhooks enabled
+### 1. Start Kubernetes recommended Admisson Controllers enabled
 
-External Admission Controllers must be secured with TLS. See [Generating TLS Certificates](https://github.com/open-policy-agent/kube-mgmt#generating-tls-certificates) for steps to generate a CA and client/server credentials for test purposes.
-
-Start minikube with the `GenericAdmissionWebhook` enabled and include the
-client-side credentials via command line arguments.
+To implement admission control rules that validate Kubernetes resources during create, update, and delete operations, you must enable the `ValidatingAdmissionWebhook` when the Kubernetes API server is started. The [recommended set of admission controllers to enable](https://kubernetes.io/docs/admin/admission-controllers/#is-there-a-recommended-set-of-admission-controllers-to-use) is defined below.
 
 ```bash
-# Set to directory containing generated TLS certificates.
-CERT_DIR=<path/to/directory/containing/certificates>
-
-# Set to admission controllers to include. This example uses the default set of
-# admission controllers enabled in the Kubernetes API server plus the
-# GenericAdmissionWebhook admission controller.
-ADMISSION_CONTROLLERS=NamespaceLifecycle,LimitRanger,ServiceAccount,PersistentVolumeLabel,DefaultStorageClass,GenericAdmissionWebhook,ResourceQuota,DefaultTolerationSeconds
-
-minikube start --kubernetes-version v1.7.0 \
-    --extra-config=apiserver.Admission.PluginNames=$ADMISSION_CONTROLLERS
-    --extra-config=apiserver.ProxyClientCertFile=$CERT_DIR/client.crt
-    --extra-config=apiserver.ProxyClientKeyFile=$CERT_DIR/client.key
+ADMISSION_CONTROLLERS=NamespaceLifecycle,LimitRanger,ServiceAccount,PersistentVolumeLabel,DefaultStorageClass,DefaultTolerationSeconds,MutatingAdmissionWebhook,ValidatingAdmissionWebhook,ResourceQuota
 ```
 
-> `minikube` automatically mounts your home directory into the VM. Storing the
-> TLS certificates under your home directory makes them easy to reference in the
-> `--extra-config` arguments.
+Start minikube with these admission controllers enabled:
 
-### 1. Deploy OPA on top of Kubernetes
+```bash
+minikube start --kubernetes-version v1.9.0 \
+  --extra-config=apiserver.Admission.PluginNames=$ADMISSION_CONTROLLERS
+```
 
-First, create a namespace to deploy OPA into.
+Make sure that the minikube ingress addon is enabled:
+
+```bash
+minikube addons enable ingress
+```
+
+### 2. Create a new Namespace to deploy OPA into
+
+When OPA is deployed on top of Kubernetes, policies are automatically loaded out of ConfigMaps in the `opa` namespace.
 
 ```bash
 kubectl create namespace opa
 ```
 
-Create a `kubectl` context for this namespace.
+Configure `kubectl` to use this namespace:
 
 ```bash
 kubectl config set-context opa-tutorial --user minikube --cluster minikube --namespace opa
 kubectl config use-context opa-tutorial
 ```
 
-Create a Service to expose the OPA API. The Kubernetes API server will lookup
-the Service and execute webhook requests against it.
+### 3. Deploy OPA on top of Kubernetes
 
-**opa-admission-controller-service.yaml**:
+Communication between Kubernetes and OPA must be secured using TLS. To configure TLS, use `openssl` to create a certificate authority (CA) and certificate/key pair for OPA:
 
-```yaml
-kind: Service
-apiVersion: v1
-metadata:
-  name: opa
-spec:
-  clusterIP: 10.0.0.222
-  selector:
-    app: opa
-  ports:
-  - name: https
-    protocol: TCP
-    port: 443
-    targetPort: 443
+```bash
+openssl genrsa -out ca.key 2048
+openssl req -x509 -new -nodes -key ca.key -days 100000 -out ca.crt -subj "/CN=admission_ca"
+```
+
+Generate the TLS key and certificate for OPA:
+
+```bash
+cat >server.conf <<EOF
+[req]
+req_extensions = v3_req
+distinguished_name = req_distinguished_name
+[req_distinguished_name]
+[ v3_req ]
+basicConstraints = CA:FALSE
+keyUsage = nonRepudiation, digitalSignature, keyEncipherment
+extendedKeyUsage = clientAuth, serverAuth
+EOF
 ```
 
 ```bash
-kubectl create -f opa-admission-controller-service.yaml
+openssl genrsa -out server.key 2048
+openssl req -new -key server.key -out server.csr -subj "/CN=opa.opa.svc" -config server.conf
+openssl x509 -req -in server.csr -CA ca.crt -CAkey ca.key -CAcreateserial -out server.crt -days 100000 -extensions v3_req -extfile server.conf
 ```
 
-The Service's `clusterIP` must match the subjectAltName in the server-side TLS
-credentials.
+> Note: the Common Name value you give to openssl MUST match the name of the OPA service created below.
 
-Next, create Secrets containing the TLS credentials for OPA:
+Create a Secret to store the TLS credentials for OPA:
 
 ```bash
-kubectl create secret generic opa-ca --from-file=ca.crt
 kubectl create secret tls opa-server --cert=server.crt --key=server.key
 ```
 
-Finally, create the Deployment to run OPA as an Admission Controller.
+Next, use the file below to deploy OPA as an admission controller.
 
-**opa-admission-controller-deployment.yaml**:
+**[admission-controller.yaml](https://github.com/open-policy-agent/opa/docs/book/tutorials/kubernetes-admission-control-validation/admission-controller.yaml)**:
+<pre><code class="lang-yaml">{% include "./tutorials/kubernetes-admission-control-validation/admission-controller.yaml" %}</code></pre>
 
-```yaml
-apiVersion: extensions/v1beta1
-kind: Deployment
+```bash
+kubectl apply -f admission-controller.yaml
+```
+
+When OPA starts, the `kube-mgmt` container will load Kubernetes Namespace and Ingress objects into OPA. You can configure the sidecar to load any kind of Kubernetes object into OPA. The sidecar establishes watches on the Kubernetes API server so that OPA has access to an eventually consistent cache of Kubernetes objects.
+
+Next, generate the manifest that will be used to register OPA as an admission controller:
+
+```bash
+cat > webhook-configuration.yaml <<EOF
+kind: ValidatingWebhookConfiguration
+apiVersion: admissionregistration.k8s.io/v1beta1
 metadata:
-  labels:
-    app: opa
-  name: opa
-spec:
-  replicas: 1
-  template:
-    metadata:
-      labels:
-        app: opa
-      name: opa
-    spec:
-      containers:
-        - name: opa
-          image: openpolicyagent/opa:0.6.0
-          args:
-            - "run"
-            - "--server"
-            - "--tls-cert-file=/certs/tls.crt"
-            - "--tls-private-key-file=/certs/tls.key"
-            - "--addr=0.0.0.0:443"
-            - "--insecure-addr=127.0.0.1:8181"
-          volumeMounts:
-            - readOnly: true
-              mountPath: /certs
-              name: opa-server
-        - name: kube-mgmt
-          image: openpolicyagent/kube-mgmt:0.4
-          args:
-            - "--replicate=v1/pods"
-            - "--register-admission-controller"
-            - "--admission-controller-ca-cert-file=/certs/ca.crt"
-            - "--admission-controller-service-name=opa"
-            - "--admission-controller-service-namespace=$(MY_POD_NAMESPACE)"
-          volumeMounts:
-            - readOnly: true
-              mountPath: /certs
-              name: opa-ca
-          env:
-            - name: MY_POD_NAMESPACE
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.namespace
-      volumes:
-        - name: opa-server
-          secret:
-            secretName: opa-server
-        - name: opa-ca
-          secret:
-            secretName: opa-ca
+  name: opa-validating-webhook
+webhooks:
+  - name: validating-webhook.openpolicyagent.org
+    rules:
+      - operations: ["*"]
+        apiGroups: ["*"]
+        apiVersions: ["*"]
+        resources: ["*"]
+    clientConfig:
+      caBundle: $(base64 ca.crt)
+      service:
+        namespace: opa
+        name: opa
+EOF
 ```
+
+The generated configuration file inclues a base64 encoded representation of the CA certificate so that TLS connections can be established between the Kubernetes API server and OPA.
+
+Finally, register OPA as and admission controller:
 
 ```bash
-kubectl create -f opa-admission-controller-deployment.yaml
+kubectl apply -f webhook-configuration.yaml
 ```
 
-When OPA starts, the sidecar (`kube-mgmt`) will register it as an External
-Admission Controller. To verify that registration succeeded, run `kubectl proxy`
-in another terminal and then query the Kubernetes API for the list of External
-Admission Controllers.
-
-```bash
-curl localhost:8001/apis/admissionregistration.k8s.io/v1alpha1/externaladmissionhookconfigurations
-```
-
-Finally, you can follow the OPA logs to see the webhook requests being issued
-by the Kubernetes API server:
+You can follow the OPA logs to see the webhook requests being issued by the Kubernetes API server:
 
 ```
 kubectl logs -l app=opa -c opa
 ```
 
-### 2. Define a policy and load it into OPA via Kubernetes
+### 4. Define a policy and load it into OPA via Kubernetes
 
-To test admission control, create a policy that restricts exec access on
-privileged pods:
+To test admission control, create a policy that restricts the hostnames that an ingress can use ([ingress-whitelist.rego](https://github.com/open-policy-agent/opa/docs/book/tutorials/kubernetes-admission-control-validation/ingress-whitelist.rego)):
 
-**privileged-exec.rego**:
-
-```ruby
-package system
-
-import data.kubernetes.break_glass
-
-main = {
-    "apiVersion": "admission.k8s.io/v1alpha1",
-    "kind": "AdmissionReview",
-    "status": status,
-}
-
-default status = {"allowed": true}
-
-status = {
-	"allowed": false,
-	"status": {
-		"reason": reason,
-	},
-} {
-    concat(", ", blacklist, reason)
-    reason != ""
-}
-
-blacklist["cannot exec into privileged container in production namespace"] {
-    input.spec.operation = "CONNECT"
-    input.spec.namespace = "production"
-    is_privileged(input.spec.namespace, input.spec.name, true)
-	not break_glass
-}
-
-is_privileged(namespace, name) {
-    pod = data.kubernetes.pods[namespace][name]
-    container = pod.spec.containers[_]
-    container.securityContext.privileged
-}
-```
+<pre><code class="lang-ruby">{% include "./tutorials/kubernetes-admission-control-validation/ingress-whitelist.rego" %}</code></pre>
 
 Store the policy in Kubernetes as a ConfigMap.
 
 ```bash
-kubectl create configmap privileged-exec --from-file=privileged-exec.rego
+kubectl create configmap ingress-whitelist --from-file=ingress-whitelist.rego
 ```
 
-The OPA sidecar will notice the ConfigMap and automatically load the contained
-policy into OPA.
+The OPA sidecar will notice the ConfigMap and automatically load the policy into OPA.
 
-### 3. Exercise the policy
+### 5. Exercise the policy
 
-To verify that your policy is working, create separate test Pods in the `production` namespace.
+Create two new namespaces to test the Ingress policy.
 
-**nginx-pod.yaml**:
+**qa-namespace.yaml**:
 
 ```yaml
-kind: Pod
-version: v1
+apiVersion: v1
+kind: Namespace
 metadata:
-  name: nginx
-  labels:
-    app: nginx
-spec:
-  containers:
-  - image: nginx
-    name: nginx
+  annotations:
+    ingress-whitelist: "*.qa.acmecorp.com,*.internal.acmecorp.com"
+  name: qa
 ```
 
-**nginx-privileged-pod.yaml**:
+**production-namespace**:
 
 ```yaml
-kind: Pod
-version: v1
+apiVersion: v1
+kind: Namespace
 metadata:
-  name: nginx-privileged
-  labels:
-    app: nginx
-spec:
-  containers:
-  - image: nginx
-    name: nginx
-    securityContext:
-      privileged: true
+  annotations:
+    ingress-whitelist: "*.acmecorp.com"
+  name: production
 ```
 
 ```bash
-kubectl create namespace production
-kubectl -n production create -f nginx-pod.yaml
-kubectl -n production create -f nginx-privileged-pod.yaml
+kubectl create -f qa-namespace.yaml
+kubectl create -f production-namespace.yaml
 ```
 
-Verify that you can exec into non-privileged container:
+Next, define two Ingress objects. One of the Ingress objects will be permitted
+and the other will be rejected.
 
+**ingress-ok.yaml**:
+
+```yaml
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: ingress-ok
+spec:
+  rules:
+  - host: signin.acmecorp.com
+    http:
+      paths:
+      - backend:
+          serviceName: nginx
+          servicePort: 80
 ```
-kubectl -n production exec -i -t nginx bash
+
+**ingress-bad.yaml**:
+
+```yaml
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: ingress-bad
+spec:
+  rules:
+  - host: acmecorp.com
+    http:
+      paths:
+      - backend:
+          serviceName: nginx
+          servicePort: 80
 ```
 
-Verify that you cannot exec into the privileged container:
-
-```
-kubectl -n production exec -i -t nginx-privileged bash
-```
-
-### 4. Modify the policy and exercise the changes
-
-OPA allows you to modify policies on-the-fly without recompiling any of the
-services that offload policy decisions to it.
-
-The original policy you created denies `kubectl exec` access unless the
-`data.kubernetes.break_glass` value is *defined* (and not false). If you create
-a new policy that defines this value, `kubectl exec` access will be granted.
-
-**break-glass.rego**:
-
-```ruby
-package kubernetes
-
-break_glass = true
-```
+Finally, try to create both Ingress objects:
 
 ```bash
-kubectl create configmap break-glass --from-file=break-glass.rego
+kubectl create -f ingress-ok.yaml -n production
+kubectl create -f ingress-bad.yaml -n qa
+```
+
+The second Ingress is rejected because it's hostname does not match the whitelist in the `qa` namespace.
+
+### 6. Modify the policy and exercise the changes
+
+OPA allows you to modify policies on-the-fly without recompiling any of the services that offload policy decisions to it.
+
+To enforce the second half of the policy from the start of this tutorial you can load another policy into OPA that rejects Ingress objects in different namespaces from sharing the same hostname.
+
+[ingress-conflicts.rego](https://github.com/open-policy-agent/opa/docs/book/tutorials/kubernetes-admission-control-validation/ingress-conflicts.rego):
+
+<pre><code class="lang-ruby">{% include "./tutorials/kubernetes-admission-control-validation/ingress-conflicts.rego" %}</code></pre>
+
+```bash
+kubectl create configmap ingress-conflicts --from-file=ingress-conflicts.rego
 ```
 
 The OPA sidecar annotates ConfigMaps containing policies to indicate if they
 were installed successfully. Verify the ConfigMap was installed successfully.
 
 ```
-kubectl get configmap break-glass -o yaml
+kubectl get configmap ingress-conflicts -o yaml
 ```
 
-Test that `kubectl exec` access has been granted.
+Test that you cannot create an Ingress in another namespace with the same hostname as the one created earlier.
+
+**staging-namespace.yaml**:
+
+```
+apiVersion: v1
+kind: Namespace
+metadata:
+  annotations:
+    ingress-whitelist: "*.acmecorp.com"
+  name: staging
+ ```
 
 ```bash
-kubectl -n production exec -i -t nginx-privileged bash
+kubectl create -f staging-namespace.yaml
 ```
-
-Finally, delete the `break-glass` policy now that calm has been restored.
 
 ```bash
-kubectl delete configmap break-glass
+kubectl create -f ingress-ok.yaml -n staging
 ```
-
-`kubectl exec` will no longer be able to access the privileged Pod in the production.
 
 ## Wrap Up
 
