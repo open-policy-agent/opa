@@ -97,16 +97,15 @@ func Test405StatusCodev1(t *testing.T) {
 		{"v1 data one level 405", []tr{
 			tr{http.MethodHead, "/data/lvl1", "", 405, ""},
 			tr{http.MethodConnect, "/data/lvl1", "", 405, ""},
-			tr{http.MethodDelete, "/data/lvl1", "", 405, ""},
 			tr{http.MethodOptions, "/data/lvl1", "", 405, ""},
 			tr{http.MethodTrace, "/data/lvl1", "", 405, ""},
 		}},
 		{"v1 data 405", []tr{
 			tr{http.MethodHead, "/data", "", 405, ""},
 			tr{http.MethodConnect, "/data", "", 405, ""},
-			tr{http.MethodDelete, "/data", "", 405, ""},
 			tr{http.MethodOptions, "/data", "", 405, ""},
 			tr{http.MethodTrace, "/data", "", 405, ""},
+			tr{http.MethodDelete, "/data", "", 405, ""},
 		}},
 		{"v1 policies 405", []tr{
 			tr{http.MethodHead, "/policies", "", 405, ""},
@@ -422,6 +421,15 @@ p = true { false }`
 			tr{http.MethodGet, "/query?q=x", "", 400, ""},
 			// Subsequent query should not fail.
 			tr{http.MethodGet, "/query?q=x=1", "", 200, `{"result": [{"x": 1}]}`},
+		}},
+		{"delete and check", []tr{
+			tr{http.MethodDelete, "/data/a/b", "", 404, ""},
+			tr{http.MethodPut, "/data/a/b/c/d", `1`, 204, ""},
+			tr{http.MethodGet, "/data/a/b/c", "", 200, `{"result": {"d": 1}}`},
+			tr{http.MethodDelete, "/data/a/b", "", 204, ""},
+			tr{http.MethodGet, "/data/a/b/c/d", "", 200, `{}`},
+			tr{http.MethodGet, "/data/a", "", 200, `{"result": {}}`},
+			tr{http.MethodGet, "/data/a/b/c", "", 200, `{}`},
 		}},
 	}
 

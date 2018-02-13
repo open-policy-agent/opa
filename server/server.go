@@ -123,6 +123,7 @@ func New() *Server {
 	s.registerHandler(router, 0, "/data/{path:.+}", http.MethodPost, promhttp.InstrumentHandlerDuration(v0DataDur, http.HandlerFunc(s.v0DataPost)))
 	s.registerHandler(router, 0, "/data", http.MethodPost, promhttp.InstrumentHandlerDuration(v0DataDur, http.HandlerFunc(s.v0DataPost)))
 	s.registerHandler(router, 1, "/data/system/diagnostics", http.MethodGet, promhttp.InstrumentHandlerDuration(v1DataDur, http.HandlerFunc(s.v1DiagnosticsGet)))
+	s.registerHandler(router, 1, "/data/{path:.+}", http.MethodDelete, promhttp.InstrumentHandlerDuration(v1DataDur, http.HandlerFunc(s.v1DataDelete)))
 	s.registerHandler(router, 1, "/data/{path:.+}", http.MethodPut, promhttp.InstrumentHandlerDuration(v1DataDur, http.HandlerFunc(s.v1DataPut)))
 	s.registerHandler(router, 1, "/data", http.MethodPut, promhttp.InstrumentHandlerDuration(v1DataDur, http.HandlerFunc(s.v1DataPut)))
 	s.registerHandler(router, 1, "/data/{path:.+}", http.MethodGet, promhttp.InstrumentHandlerDuration(v1DataDur, http.HandlerFunc(s.v1DataGet)))
@@ -146,7 +147,7 @@ func New() *Server {
 		http.MethodTrace)
 	// v1 Data catch all
 	router.HandleFunc("/v1/data/{path:.*}", promhttp.InstrumentHandlerDuration(catchAllDur, http.HandlerFunc(writer.HTTPStatus(405)))).Methods(http.MethodHead,
-		http.MethodConnect, http.MethodDelete, http.MethodOptions, http.MethodTrace)
+		http.MethodConnect, http.MethodOptions, http.MethodTrace)
 	router.HandleFunc("/v1/data", promhttp.InstrumentHandlerDuration(catchAllDur, http.HandlerFunc(writer.HTTPStatus(405)))).Methods(http.MethodHead,
 		http.MethodConnect, http.MethodDelete, http.MethodOptions, http.MethodTrace)
 	// Policies catch all
@@ -842,6 +843,36 @@ func (s *Server) v1DataPut(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := s.store.Write(ctx, txn, storage.AddOp, path, value); err != nil {
+		s.abortAuto(ctx, txn, w, err)
+		return
+	}
+
+	if err := s.store.Commit(ctx, txn); err != nil {
+		writer.ErrorAuto(w, err)
+	} else {
+		writer.Bytes(w, 204, nil)
+	}
+}
+
+func (s *Server) v1DataDelete(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	vars := mux.Vars(r)
+
+	path, ok := storage.ParsePath("/" + strings.Trim(vars["path"], "/"))
+	if !ok {
+		writer.Error(w, http.StatusBadRequest, types.NewErrorV1(types.CodeInvalidParameter, "bad path: %v", vars["path"]))
+		return
+	}
+
+	txn, err := s.store.NewTransaction(ctx, storage.WriteParams)
+	if err != nil {
+		writer.ErrorAuto(w, err)
+		return
+	}
+
+	_, err = s.store.Read(ctx, txn, path)
+
+	if err := s.store.Write(ctx, txn, storage.RemoveOp, path, nil); err != nil {
 		s.abortAuto(ctx, txn, w, err)
 		return
 	}
