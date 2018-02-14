@@ -702,16 +702,6 @@ func (body Body) Loc() *Location {
 	return body[0].Location
 }
 
-// OutputVars returns a VarSet containing the variables that would be bound by evaluating
-// the body.
-func (body Body) OutputVars(safe VarSet) VarSet {
-	o := safe.Copy()
-	for _, e := range body {
-		o.Update(e.OutputVars(o))
-	}
-	return o.Diff(safe)
-}
-
 func (body Body) String() string {
 	var buf []string
 	for _, v := range body {
@@ -937,35 +927,6 @@ func (expr *Expr) IsGround() bool {
 	return true
 }
 
-// OutputVars returns a VarSet containing variables that would be bound by evaluating
-// this expression.
-func (expr *Expr) OutputVars(safe VarSet) VarSet {
-	if !expr.Negated {
-
-		// Currently the with modifier does not produce any outputs. Any
-		// variables in the value must be safe before the expression can be
-		// evaluated.
-		if !expr.withModifierSafe(safe) {
-			return VarSet{}
-		}
-
-		switch terms := expr.Terms.(type) {
-		case *Term:
-			return expr.outputVarsRefs(safe)
-		case []*Term:
-			name := terms[0].String()
-			if b := BuiltinMap[name]; b != nil {
-				if b.Name == Equality.Name {
-					return expr.outputVarsEquality(safe)
-				}
-				return expr.outputVarsBuiltins(b, safe)
-			}
-			return expr.outputVarsFunc(safe, terms)
-		}
-	}
-	return VarSet{}
-}
-
 // SetOperator sets the expr's operator and returns the expr itself. If expr is
 // not a call expr, this function will panic.
 func (expr *Expr) SetOperator(term *Term) *Expr {
@@ -1017,120 +978,6 @@ func (expr *Expr) Vars(params VarVisitorParams) VarSet {
 	vis := NewVarVisitor().WithParams(params)
 	Walk(vis, expr)
 	return vis.Vars()
-}
-
-func (expr *Expr) outputVarsBuiltins(b *Builtin, safe VarSet) VarSet {
-
-	o := expr.outputVarsRefs(safe)
-	terms := expr.Terms.([]*Term)
-
-	// Check that all input terms are ground or safe.
-	for i, t := range terms[1:] {
-		if b.IsTargetPos(i) {
-			continue
-		}
-		if t.Value.IsGround() {
-			continue
-		}
-		vis := NewVarVisitor().WithParams(VarVisitorParams{
-			SkipClosures:   true,
-			SkipObjectKeys: true,
-			SkipRefHead:    true,
-		})
-		Walk(vis, t)
-		unsafe := vis.Vars().Diff(o).Diff(safe)
-		if len(unsafe) > 0 {
-			return VarSet{}
-		}
-	}
-
-	// Add vars in target positions to result.
-	for i, t := range terms[1:] {
-		if b.IsTargetPos(i) {
-			vis := NewVarVisitor().WithParams(VarVisitorParams{
-				SkipRefHead:    true,
-				SkipSets:       true,
-				SkipObjectKeys: true,
-				SkipClosures:   true,
-			})
-			Walk(vis, t)
-			o.Update(vis.vars)
-		}
-	}
-
-	return o
-}
-
-func (expr *Expr) outputVarsEquality(safe VarSet) VarSet {
-	ts := expr.Terms.([]*Term)
-	o := expr.outputVarsRefs(safe)
-	o.Update(safe)
-	o.Update(Unify(o, ts[1], ts[2]))
-	return o.Diff(safe)
-}
-
-func (expr *Expr) outputVarsFunc(safe VarSet, terms []*Term) VarSet {
-
-	// Functions called with 0 or 1 args cannot produce output vars.
-	if len(expr.Operands()) < 2 {
-		return VarSet{}
-	}
-
-	o := expr.outputVarsRefs(safe)
-
-	// Find unsafe input vars.
-	args := Args(terms[:len(terms)-1])
-	vis := NewVarVisitor().WithParams(VarVisitorParams{
-		SkipClosures:   true,
-		SkipObjectKeys: true,
-		SkipRefHead:    true,
-	})
-	Walk(vis, args)
-	unsafe := vis.Vars().Diff(o).Diff(safe)
-	if len(unsafe) > 0 {
-		return VarSet{}
-	}
-
-	// Find safe output vars.
-	vis = NewVarVisitor().WithParams(VarVisitorParams{
-		SkipRefHead:    true,
-		SkipSets:       true,
-		SkipObjectKeys: true,
-		SkipClosures:   true,
-	})
-	Walk(vis, terms[len(terms)-1])
-	o.Update(vis.vars)
-
-	return o
-}
-
-func (expr *Expr) outputVarsRefs(safe VarSet) VarSet {
-	o := VarSet{}
-	WalkRefs(expr, func(r Ref) bool {
-		if safe.Contains(r[0].Value.(Var)) {
-			o.Update(r.OutputVars())
-			return false
-		}
-		return true
-	})
-	return o
-}
-
-func (expr *Expr) withModifierSafe(safe VarSet) bool {
-	for _, with := range expr.With {
-		unsafe := false
-		WalkVars(with, func(v Var) bool {
-			if !safe.Contains(v) {
-				unsafe = true
-				return true
-			}
-			return false
-		})
-		if unsafe {
-			return false
-		}
-	}
-	return true
 }
 
 // NewBuiltinExpr creates a new Expr object with the supplied terms.

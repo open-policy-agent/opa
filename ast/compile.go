@@ -532,7 +532,7 @@ func (c *Compiler) checkSafetyRuleBodies() {
 }
 
 func (c *Compiler) checkBodySafety(safe VarSet, m *Module, b Body, l *Location) Body {
-	reordered, unsafe := reorderBodyForSafety(safe, b)
+	reordered, unsafe := reorderBodyForSafety(getRuleArgArity(c), safe, b)
 	if len(unsafe) != 0 {
 		for v := range unsafe.Vars() {
 			if !c.generatedVars[m].Contains(v) {
@@ -981,7 +981,7 @@ func (qc *queryCompiler) rewriteLocalAssignments(_ *QueryContext, body Body) (Bo
 func (qc *queryCompiler) checkSafety(_ *QueryContext, body Body) (Body, error) {
 
 	safe := ReservedVars.Copy()
-	reordered, unsafe := reorderBodyForSafety(safe, body)
+	reordered, unsafe := reorderBodyForSafety(getRuleArgArity(qc.compiler), safe, body)
 
 	if len(unsafe) != 0 {
 		var err Errors
@@ -1401,6 +1401,19 @@ func (vs unsafeVars) Vars() VarSet {
 	return r
 }
 
+// getArity defines a function to return the arity of the rule referred to by a ref.
+type getArity func(Ref) int
+
+func getRuleArgArity(c *Compiler) getArity {
+	return func(ref Ref) int {
+		rules := c.GetRulesExact(ref)
+		if len(rules) == 0 {
+			return 0
+		}
+		return len(rules[0].Head.Args)
+	}
+}
+
 // reorderBodyForSafety returns a copy of the body ordered such that
 // left to right evaluation of the body will not encounter unbound variables
 // in input positions or negated expressions.
@@ -1411,9 +1424,9 @@ func (vs unsafeVars) Vars() VarSet {
 //
 // If the body cannot be reordered to ensure safety, the second return value
 // contains a mapping of expressions to unsafe variables in those expressions.
-func reorderBodyForSafety(globals VarSet, body Body) (Body, unsafeVars) {
+func reorderBodyForSafety(arity getArity, globals VarSet, body Body) (Body, unsafeVars) {
 
-	body, unsafe := reorderBodyForClosures(globals, body)
+	body, unsafe := reorderBodyForClosures(arity, globals, body)
 	if len(unsafe) != 0 {
 		return nil, unsafe
 	}
@@ -1439,7 +1452,7 @@ func reorderBodyForSafety(globals VarSet, body Body) (Body, unsafeVars) {
 				continue
 			}
 
-			safe.Update(e.OutputVars(safe))
+			safe.Update(outputVarsForExpr(e, arity, safe))
 
 			for v := range unsafe[e] {
 				if safe.Contains(v) {
@@ -1467,6 +1480,7 @@ func reorderBodyForSafety(globals VarSet, body Body) (Body, unsafeVars) {
 			g.Update(reordered[i-1].Vars(safetyCheckVarVisitorParams))
 		}
 		vis := &bodySafetyVisitor{
+			arity:   arity,
 			current: e,
 			globals: g,
 			unsafe:  unsafe,
@@ -1482,6 +1496,7 @@ func reorderBodyForSafety(globals VarSet, body Body) (Body, unsafeVars) {
 }
 
 type bodySafetyVisitor struct {
+	arity   getArity
 	current *Expr
 	globals VarSet
 	unsafe  unsafeVars
@@ -1516,7 +1531,7 @@ func (vis *bodySafetyVisitor) checkComprehensionSafety(tv VarSet, body Body) Bod
 	}
 
 	// Check body for safety, reordering as necessary.
-	r, u := reorderBodyForSafety(vis.globals, body)
+	r, u := reorderBodyForSafety(vis.arity, vis.globals, body)
 	if len(u) == 0 {
 		return r
 	}
@@ -1542,7 +1557,7 @@ func (vis *bodySafetyVisitor) checkSetComprehensionSafety(sc *SetComprehension) 
 // reorderBodyForClosures returns a copy of the body ordered such that
 // expressions (such as array comprehensions) that close over variables are ordered
 // after other expressions that contain the same variable in an output position.
-func reorderBodyForClosures(globals VarSet, body Body) (Body, unsafeVars) {
+func reorderBodyForClosures(arity getArity, globals VarSet, body Body) (Body, unsafeVars) {
 
 	reordered := Body{}
 	unsafe := unsafeVars{}
@@ -1568,7 +1583,7 @@ func reorderBodyForClosures(globals VarSet, body Body) (Body, unsafeVars) {
 			// contained in the output position of an expression in the reordered
 			// body. These vars are considered unsafe.
 			cv := vs.Intersect(body.Vars(safetyCheckVarVisitorParams)).Diff(globals)
-			uv := cv.Diff(reordered.OutputVars(globals))
+			uv := cv.Diff(outputVarsForBody(reordered, arity, globals))
 
 			if len(uv) == 0 {
 				reordered = append(reordered, e)
@@ -1584,6 +1599,159 @@ func reorderBodyForClosures(globals VarSet, body Body) (Body, unsafeVars) {
 	}
 
 	return reordered, unsafe
+}
+
+func outputVarsForBody(body Body, arity getArity, safe VarSet) VarSet {
+	o := safe.Copy()
+	for _, e := range body {
+		o.Update(outputVarsForExpr(e, arity, o))
+	}
+	return o.Diff(safe)
+}
+
+func outputVarsForExpr(expr *Expr, arity getArity, safe VarSet) VarSet {
+
+	// Negated expressions must be safe.
+	if expr.Negated {
+		return VarSet{}
+	}
+
+	// With modifier inputs must be safe.
+	for _, with := range expr.With {
+		unsafe := false
+		WalkVars(with, func(v Var) bool {
+			if !safe.Contains(v) {
+				unsafe = true
+				return true
+			}
+			return false
+		})
+		if unsafe {
+			return VarSet{}
+		}
+	}
+
+	if !expr.IsCall() {
+		return outputVarsForExprRefs(expr, safe)
+	}
+
+	terms := expr.Terms.([]*Term)
+	name := terms[0].String()
+
+	if b := BuiltinMap[name]; b != nil {
+		if b.Name == Equality.Name {
+			return outputVarsForExprEq(expr, safe)
+		}
+		return outputVarsForExprBuiltin(expr, b, safe)
+	}
+
+	return outputVarsForExprCall(expr, arity, safe, terms)
+}
+
+func outputVarsForExprBuiltin(expr *Expr, b *Builtin, safe VarSet) VarSet {
+
+	output := outputVarsForExprRefs(expr, safe)
+	terms := expr.Terms.([]*Term)
+
+	// Check that all input terms are safe.
+	for i, t := range terms[1:] {
+		if b.IsTargetPos(i) {
+			continue
+		}
+		vis := NewVarVisitor().WithParams(VarVisitorParams{
+			SkipClosures:   true,
+			SkipSets:       true,
+			SkipObjectKeys: true,
+			SkipRefHead:    true,
+		})
+		Walk(vis, t)
+		unsafe := vis.Vars().Diff(output).Diff(safe)
+		if len(unsafe) > 0 {
+			return VarSet{}
+		}
+	}
+
+	// Add vars in target positions to result.
+	for i, t := range terms[1:] {
+		if b.IsTargetPos(i) {
+			vis := NewVarVisitor().WithParams(VarVisitorParams{
+				SkipRefHead:    true,
+				SkipSets:       true,
+				SkipObjectKeys: true,
+				SkipClosures:   true,
+			})
+			Walk(vis, t)
+			output.Update(vis.vars)
+		}
+	}
+
+	return output
+}
+
+func outputVarsForExprEq(expr *Expr, safe VarSet) VarSet {
+	ts := expr.Terms.([]*Term)
+	output := outputVarsForExprRefs(expr, safe)
+	output.Update(safe)
+	output.Update(Unify(output, ts[1], ts[2]))
+	return output.Diff(safe)
+}
+
+func outputVarsForExprCall(expr *Expr, arity getArity, safe VarSet, terms []*Term) VarSet {
+
+	output := outputVarsForExprRefs(expr, safe)
+
+	ref, ok := terms[0].Value.(Ref)
+	if !ok {
+		return VarSet{}
+	}
+
+	numArgs := arity(ref)
+	if numArgs == 0 {
+		return VarSet{}
+	}
+
+	numInputTerms := numArgs + 1
+
+	if numInputTerms >= len(terms) {
+		return VarSet{}
+	}
+
+	vis := NewVarVisitor().WithParams(VarVisitorParams{
+		SkipClosures:   true,
+		SkipSets:       true,
+		SkipObjectKeys: true,
+		SkipRefHead:    true,
+	})
+
+	Walk(vis, Args(terms[:numInputTerms]))
+	unsafe := vis.Vars().Diff(output).Diff(safe)
+
+	if len(unsafe) > 0 {
+		return VarSet{}
+	}
+
+	vis = NewVarVisitor().WithParams(VarVisitorParams{
+		SkipRefHead:    true,
+		SkipSets:       true,
+		SkipObjectKeys: true,
+		SkipClosures:   true,
+	})
+
+	Walk(vis, Args(terms[numInputTerms:]))
+	output.Update(vis.vars)
+	return output
+}
+
+func outputVarsForExprRefs(expr *Expr, safe VarSet) VarSet {
+	output := VarSet{}
+	WalkRefs(expr, func(r Ref) bool {
+		if safe.Contains(r[0].Value.(Var)) {
+			output.Update(r.OutputVars())
+			return false
+		}
+		return true
+	})
+	return output
 }
 
 type equalityFactory struct {
