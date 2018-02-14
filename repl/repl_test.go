@@ -681,6 +681,29 @@ func TestEvalConstantRule(t *testing.T) {
 	}
 }
 
+func TestEvalConstantRuleAssignment(t *testing.T) {
+	ctx := context.Background()
+	store := newTestStore()
+	var buffer bytes.Buffer
+
+	repl := newRepl(store, &buffer)
+	repl.OneShot(ctx, "x = 1")
+	repl.OneShot(ctx, "x := 2")
+	repl.OneShot(ctx, "x := 3")
+	repl.OneShot(ctx, "x")
+	result := buffer.String()
+	if result != "3\n" {
+		t.Fatalf("Expected 3 but got: %v", result)
+	}
+
+	buffer.Reset()
+	repl.OneShot(ctx, "x = 3")
+	result = buffer.String()
+	if result != "true\n" {
+		t.Fatalf("Expected true but got: %v", result)
+	}
+}
+
 func TestEvalSingleTermMultiValue(t *testing.T) {
 	ctx := context.Background()
 	store := newTestStore()

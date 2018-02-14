@@ -485,10 +485,17 @@ func (r *REPL) cmdUnset(ctx context.Context, args []string) error {
 		v = ref[0].Value.(ast.Var)
 	}
 
-	return r.unsetRule(ctx, v)
+	unset, err := r.unsetRule(ctx, v)
+	if err != nil {
+		return err
+	} else if !unset {
+		fmt.Fprintln(r.output, "warning: no matching rules in current module")
+	}
+
+	return nil
 }
 
-func (r *REPL) unsetRule(ctx context.Context, v ast.Var) error {
+func (r *REPL) unsetRule(ctx context.Context, v ast.Var) (bool, error) {
 	mod := r.modules[r.currentModuleID]
 	rules := []*ast.Rule{}
 
@@ -499,13 +506,17 @@ func (r *REPL) unsetRule(ctx context.Context, v ast.Var) error {
 	}
 
 	if len(rules) == len(mod.Rules) {
-		fmt.Fprintln(r.output, "warning: no matching rules in current module")
-		return nil
+		return false, nil
 	}
 
 	cpy := mod.Copy()
 	cpy.Rules = rules
-	return r.recompile(ctx, cpy)
+	err := r.recompile(ctx, cpy)
+	if err != nil {
+		return false, err
+	}
+
+	return true, nil
 }
 
 func (r *REPL) timerStart(msg string) {
@@ -716,6 +727,19 @@ func (r *REPL) evalStatement(ctx context.Context, stmt interface{}) error {
 		input, err := r.loadInput(ctx)
 		if err != nil {
 			return err
+		}
+
+		body := s
+
+		if len(body) == 1 && body[0].IsAssignment() {
+			expr := body[0]
+			rule, err := ast.ParseCompleteDocRuleFromEqExpr(r.modules[r.currentModuleID], expr.Operand(0), expr.Operand(1))
+			if err == nil {
+				if _, err := r.unsetRule(ctx, expr.Operand(0).Value.(ast.Var)); err != nil {
+					return err
+				}
+				return r.compileRule(ctx, rule)
+			}
 		}
 
 		body, typeEnv, err := r.compileBody(ctx, s, input)
