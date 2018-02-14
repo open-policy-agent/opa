@@ -237,9 +237,9 @@ func TestCompilerFunctions(t *testing.T) {
 				import data.x
 				import data.x.f as g
 
-				p { g(1, _) }
-				p { x.f(1, _) }
-				p { data.x.f(1, _) }
+				p { g(1, a) }
+				p { x.f(1, b) }
+				p { data.x.f(1, c) }
 				`,
 			},
 		},
@@ -499,6 +499,8 @@ func TestCompilerCheckSafetyBodyErrors(t *testing.T) {
 		{"builtin-input", `p { count([1, 2, x], x) }`, `{x,}`},
 		{"builtin-input-name", `p { count(eq, 1) }`, `{eq,}`},
 		{"builtin-multiple", `p { x > 0; x <= 3; x != 2 }`, `{x,}`},
+		{"unordered-object-keys", `p { x = "a"; [{x: y, z: a}] = [{"a": 1, "b": 2}]}`, `{a,y,z}`},
+		{"unordered-sets", `p { x = "a"; [{x, y}] = [{1, 2}]}`, `{y,}`},
 		{"array-compr", `p { _ = [x | x = data.a[_]; y > 1] }`, `{y,}`},
 		{"array-compr-nested", `p { _ = [x | x = a[_]; a = [y | y = data.a[_]; z > 1]] }`, `{z,}`},
 		{"array-compr-closure", `p { _ = [v | v = [x | x = data.a[_]]; x > 1] }`, `{x,}`},
@@ -514,10 +516,11 @@ func TestCompilerCheckSafetyBodyErrors(t *testing.T) {
 		{"with-value", `p { data.a.b.d.t with input as x }`, `{x,}`},
 		{"with-value-2", `p { x = data.a.b.d.t with input as x }`, `{x,}`},
 		{"else-kw", "p { false } else { count(x, 1) }", `{x,}`},
-		{"userfunc", "foo(x) = [y, z] { split(x, y, z) }", `{y,z}`},
+		{"function", "foo(x) = [y, z] { split(x, y, z) }", `{y,z}`},
 		{"call-vars", "p { f[i].g[j](1) }", `{i, j}`},
 		{"call-vars-input", "p { f(x, x) } f(x) = x { true }", `{x,}`},
 		{"call-no-output", "p { f(x) } f(x) = x { true }", `{x,}`},
+		{"call-too-few", "p { f(1,x) } f(x,y) { true }", "{x,}"},
 	}
 
 	makeErrMsg := func(varName string) string {

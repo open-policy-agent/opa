@@ -10,7 +10,6 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/open-policy-agent/opa/types"
 	"github.com/open-policy-agent/opa/util"
 )
 
@@ -214,71 +213,6 @@ func TestExprEquals(t *testing.T) {
 func TestBodyIsGround(t *testing.T) {
 	if MustParseBody(`a.b[0] = 1; a = [1, 2, x]`).IsGround() {
 		t.Errorf("Expected body to be non-ground")
-	}
-}
-
-func TestExprOutputVars(t *testing.T) {
-
-	RegisterBuiltin(&Builtin{
-		Name: "test_out_array",
-		Decl: types.NewFunction(
-			nil, types.NewArray(nil, types.N),
-		),
-	})
-
-	RegisterBuiltin(&Builtin{
-		Name: "test_out_set",
-		Decl: types.NewFunction(
-			nil, types.NewArray(nil, types.N),
-		),
-	})
-
-	RegisterBuiltin(&Builtin{
-		Name: "foo",
-		Decl: types.NewFunction(
-			types.Args(types.A),
-			types.A,
-		),
-	})
-
-	tests := []struct {
-		note     string
-		expr     string
-		safe     string
-		expected string
-	}{
-		{"ref 1", "a[i].b[j]", "[a]", "[i, j]"},
-		{"ref 2", "[1,2,a[i]]", "[a]", "[i]"},
-		{"simple unify", `{"a": [{x: y}, b[z]]} = c[i]`, "[b, c]", "[y, z, i]"},
-		{"built-in", "count([], x)", "[]", "[x]"},
-		{"built-in-array", "test_out_array([x])", "[]", "[x]"},
-		{"built-in-set", "test_out_set({x})", "[]", "[]"},
-		{"with", "data.foo[x] with input as bar", "[bar]", "[x]"},
-		{"with unsafe", "data.foo[x] with input as x", "[]", "[]"},
-		{"userfunc", "foo(x, y)", "[x]", "[y]"},
-	}
-
-	for i, tc := range tests {
-
-		expr := MustParseBody(tc.expr)[0]
-		safe := ReservedVars.Copy()
-
-		for _, x := range MustParseTerm(tc.safe).Value.(Array) {
-			safe.Add(x.Value.(Var))
-		}
-
-		result := expr.OutputVars(safe)
-
-		expected := VarSet{}
-		for _, x := range MustParseTerm(tc.expected).Value.(Array) {
-			expected.Add(x.Value.(Var))
-		}
-
-		missing := expected.Diff(result)
-		extra := result.Diff(expected)
-		if len(missing) != 0 || len(extra) != 0 {
-			t.Errorf("%s (%d): Missing output vars: %v, extra output vars: %v", tc.note, i, missing, extra)
-		}
 	}
 }
 
