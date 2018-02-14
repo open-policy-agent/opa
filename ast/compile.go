@@ -75,11 +75,10 @@ type Compiler struct {
 	// TypeEnv holds type information for values inferred by the compiler.
 	TypeEnv *TypeEnv
 
-	generatedVars map[*Module]VarSet
-	moduleLoader  ModuleLoader
-	ruleIndices   *util.HashMap
-	stages        []func()
-	maxErrs       int
+	moduleLoader ModuleLoader
+	ruleIndices  *util.HashMap
+	stages       []func()
+	maxErrs      int
 }
 
 // QueryContext contains contextual information for running an ad-hoc query.
@@ -170,9 +169,8 @@ type QueryCompiler interface {
 func NewCompiler() *Compiler {
 
 	c := &Compiler{
-		Modules:       map[string]*Module{},
-		TypeEnv:       NewTypeEnv(),
-		generatedVars: map[*Module]VarSet{},
+		Modules: map[string]*Module{},
+		TypeEnv: NewTypeEnv(),
 		ruleIndices: util.NewHashMap(func(a, b util.T) bool {
 			r1, r2 := a.(Ref), b.(Ref)
 			return r1.Equal(r2)
@@ -535,7 +533,7 @@ func (c *Compiler) checkBodySafety(safe VarSet, m *Module, b Body, l *Location) 
 	reordered, unsafe := reorderBodyForSafety(getRuleArgArity(c), safe, b)
 	if len(unsafe) != 0 {
 		for v := range unsafe.Vars() {
-			if !c.generatedVars[m].Contains(v) {
+			if !v.IsGenerated() {
 				c.err(NewError(UnsafeVarErr, l, "var %v is unsafe", v))
 			}
 		}
@@ -558,7 +556,7 @@ func (c *Compiler) checkSafetyRuleHeads() {
 			safe.Update(r.Head.Args.Vars())
 			unsafe := r.Head.Vars().Diff(safe)
 			for v := range unsafe {
-				if !c.generatedVars[m].Contains(v) {
+				if !v.IsGenerated() {
 					c.err(NewError(UnsafeVarErr, r.Loc(), "var %v is unsafe", v))
 				}
 			}
@@ -697,11 +695,6 @@ func (c *Compiler) rewriteComprehensionTerms() {
 	for _, mod := range c.Modules {
 		f := newEqualityFactory(newLocalVarGenerator(mod))
 		rewriteComprehensionTerms(f, mod)
-		if vs, ok := c.generatedVars[mod]; !ok {
-			c.generatedVars[mod] = f.gen.Generated()
-		} else {
-			vs.Update(f.gen.Generated())
-		}
 	}
 }
 
@@ -753,11 +746,6 @@ func (c *Compiler) rewriteRefsInHead() {
 			}
 			return false
 		})
-		if vs, ok := c.generatedVars[mod]; !ok {
-			c.generatedVars[mod] = f.gen.Generated()
-		} else {
-			vs.Update(f.gen.Generated())
-		}
 	}
 }
 
@@ -768,11 +756,6 @@ func (c *Compiler) rewriteDynamicTerms() {
 			rule.Body = rewriteDynamics(f, rule.Body)
 			return false
 		})
-		if vs, ok := c.generatedVars[mod]; !ok {
-			c.generatedVars[mod] = f.gen.Generated()
-		} else {
-			vs.Update(f.gen.Generated())
-		}
 	}
 }
 
@@ -986,7 +969,9 @@ func (qc *queryCompiler) checkSafety(_ *QueryContext, body Body) (Body, error) {
 	if len(unsafe) != 0 {
 		var err Errors
 		for v := range unsafe.Vars() {
-			err = append(err, NewError(UnsafeVarErr, body.Loc(), "var %v is unsafe", v))
+			if !v.IsGenerated() {
+				err = append(err, NewError(UnsafeVarErr, body.Loc(), "var %v is unsafe", v))
+			}
 		}
 		return nil, err
 	}
