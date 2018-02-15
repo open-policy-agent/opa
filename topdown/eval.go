@@ -775,7 +775,10 @@ func (e evalBuiltin) eval(iter unifyIterator) error {
 		defer e.e.instr.startTimer(evalOpBuiltinCall)
 
 		if len(operands) == numDeclArgs {
-			return iter()
+			if output.Value.Compare(ast.Boolean(false)) != 0 {
+				return iter()
+			}
+			return nil
 		}
 		return e.e.unify(e.terms[len(e.terms)-1], output, iter)
 	})
@@ -828,23 +831,30 @@ func (e evalFunc) evalOneRule(iter unifyIterator, rule *ast.Rule, prev *ast.Term
 
 	child := e.e.child(rule.Body)
 
-	b := make(ast.Array, len(e.terms))
+	args := make(ast.Array, len(e.terms))
+
 	for i := range rule.Head.Args {
-		b[i] = rule.Head.Args[i]
+		args[i] = rule.Head.Args[i]
 	}
 
-	if len(b) == len(rule.Head.Args)+1 {
-		b[len(b)-1] = rule.Head.Value
+	if len(args) == len(rule.Head.Args)+1 {
+		args[len(args)-1] = rule.Head.Value
 	}
 
 	var result *ast.Term
 
 	child.traceEnter(rule)
 
-	err := child.biunifyArrays(e.terms, b, e.e.bindings, child.bindings, func() error {
+	err := child.biunifyArrays(e.terms, args, e.e.bindings, child.bindings, func() error {
 		return child.eval(func(child *eval) error {
 			child.traceExit(rule)
 			result = child.bindings.Plug(rule.Head.Value)
+
+			if len(e.terms) == len(rule.Head.Args) {
+				if result.Value.Compare(ast.Boolean(false)) == 0 {
+					return nil
+				}
+			}
 
 			// Partial evaluation should explore all rules and may not produce
 			// a ground result so we do not perform conflict detection or

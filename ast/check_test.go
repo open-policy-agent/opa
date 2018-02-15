@@ -70,7 +70,7 @@ func TestCheckInference(t *testing.T) {
 			Var("z"): types.N,
 		}},
 		{"array-nested", "[x, 1] = [true, y]", map[Var]types.Type{
-			Var("x"): types.T,
+			Var("x"): types.B,
 			Var("y"): types.N,
 		}},
 		{"array-transitive", "y = [[2], 1]; [[x], 1] = y", map[Var]types.Type{
@@ -159,7 +159,7 @@ func TestCheckInference(t *testing.T) {
 				3];
 
 			x = a[1].foo[_].bar`, map[Var]types.Type{
-			Var("x"): types.NewAny(types.NewNull(), types.T),
+			Var("x"): types.NewAny(types.NewNull(), types.B),
 		}},
 		{"local-reference-var", `
 
@@ -191,8 +191,8 @@ func TestCheckInference(t *testing.T) {
 			`, map[Var]types.Type{
 			Var("i"): types.N,
 			Var("j"): types.S,
-			Var("k"): types.NewAny(types.S, types.N, types.T),
-			Var("x"): types.NewAny(types.S, types.N, types.T),
+			Var("k"): types.NewAny(types.S, types.N, types.B),
+			Var("x"): types.NewAny(types.S, types.N, types.B),
 		}},
 		{"local-reference-var-any", `
 			a = [[], {}];
@@ -331,7 +331,7 @@ func TestCheckInferenceRules(t *testing.T) {
 		ref      string
 		expected types.Type
 	}{
-		{"trivial", ruleset1, `data.a.trivial`, types.T},
+		{"trivial", ruleset1, `data.a.trivial`, types.B},
 
 		{"complete-doc", ruleset1, `data.a.complete`, types.NewArray(
 			[]types.Type{types.NewObject(
@@ -374,7 +374,7 @@ func TestCheckInferenceRules(t *testing.T) {
 			types.NewAny(
 				types.S,
 				types.N,
-				types.T),
+				types.B),
 		)},
 
 		{"iteration-keys", ruleset1, "data.iteration.keys", types.NewSet(
@@ -400,11 +400,11 @@ func TestCheckInferenceRules(t *testing.T) {
 			types.NewDynamicProperty(types.S, types.NewAny(types.S, types.N)),
 		)},
 
-		{"ref", ruleset1, "data.b.trivial_ref", types.T},
+		{"ref", ruleset1, "data.b.trivial_ref", types.B},
 
 		{"ref-transitive", ruleset1, "data.b.transitive_ref", types.NewArray(
 			[]types.Type{
-				types.T,
+				types.B,
 			},
 			nil,
 		)},
@@ -412,7 +412,7 @@ func TestCheckInferenceRules(t *testing.T) {
 		{"prefix", ruleset1, `data.prefix.a.b`, types.NewObject(
 			[]*types.StaticProperty{{
 				"c", types.NewObject(
-					[]*types.StaticProperty{{"d", types.T}},
+					[]*types.StaticProperty{{"d", types.B}},
 					types.NewDynamicProperty(types.S, types.A),
 				),
 			}},

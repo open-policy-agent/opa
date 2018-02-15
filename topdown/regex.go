@@ -30,10 +30,7 @@ func builtinRegexMatch(a, b ast.Value) (ast.Value, error) {
 	if err != nil {
 		return nil, err
 	}
-	if re.Match([]byte(s2)) {
-		return ast.Boolean(true), nil
-	}
-	return nil, BuiltinEmpty{}
+	return ast.Boolean(re.Match([]byte(s2))), nil
 }
 
 func getRegexp(pat string) (*regexp.Regexp, error) {
@@ -64,12 +61,7 @@ func builtinGlobsMatch(a, b ast.Value) (ast.Value, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	if ne {
-		return ast.Boolean(true), nil
-	}
-
-	return nil, BuiltinEmpty{}
+	return ast.Boolean(ne), nil
 }
 
 func init() {
