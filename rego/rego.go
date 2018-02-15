@@ -111,7 +111,9 @@ type Rego struct {
 	query            string
 	parsedQuery      ast.Body
 	pkg              string
+	parsedPackage    *ast.Package
 	imports          []string
+	parsedImports    []*ast.Import
 	rawInput         *interface{}
 	input            ast.Value
 	unknowns         []string
@@ -124,6 +126,7 @@ type Rego struct {
 	tracer           topdown.Tracer
 	instrumentation  *topdown.Instrumentation
 	instrument       bool
+	capture          map[*ast.Expr]ast.Var // map exprs to generated capture vars
 	termVarID        int
 }
 
@@ -149,10 +152,26 @@ func Package(p string) func(r *Rego) {
 	}
 }
 
+// ParsedPackage returns an argument that sets the Rego package on the query's
+// context.
+func ParsedPackage(pkg *ast.Package) func(r *Rego) {
+	return func(r *Rego) {
+		r.parsedPackage = pkg
+	}
+}
+
 // Imports returns an argument that adds a Rego import to the query's context.
 func Imports(p []string) func(r *Rego) {
 	return func(r *Rego) {
 		r.imports = append(r.imports, p...)
+	}
+}
+
+// ParsedImports returns an argument that adds Rego imports to the query's
+// context.
+func ParsedImports(imp []*ast.Import) func(r *Rego) {
+	return func(r *Rego) {
+		r.parsedImports = append(r.parsedImports, imp...)
 	}
 }
 
@@ -161,6 +180,13 @@ func Imports(p []string) func(r *Rego) {
 func Input(x interface{}) func(r *Rego) {
 	return func(r *Rego) {
 		r.rawInput = &x
+	}
+}
+
+// ParsedInput returns an argument that set sthe Rego input document.
+func ParsedInput(x ast.Value) func(r *Rego) {
+	return func(r *Rego) {
+		r.input = x
 	}
 }
 
@@ -239,7 +265,10 @@ func Tracer(t topdown.Tracer) func(r *Rego) {
 
 // New returns a new Rego object.
 func New(options ...func(*Rego)) *Rego {
-	r := &Rego{}
+
+	r := &Rego{
+		capture: map[*ast.Expr]ast.Var{},
+	}
 
 	for _, option := range options {
 		option(r)
@@ -276,9 +305,18 @@ func (r *Rego) Eval(ctx context.Context) (ResultSet, error) {
 		return nil, err
 	}
 
-	query = r.captureTerms(query)
+	err = r.compileModules(parsed)
+	if err != nil {
+		return nil, err
+	}
 
-	qc, compiled, err := r.compile(parsed, query)
+	qc, compiled, err := r.compileQuery([]extraStage{
+		{
+			after: "ResolveRefs",
+			stage: r.rewriteQueryToCaptureValue,
+		},
+	}, query)
+
 	if err != nil {
 		return nil, err
 	}
@@ -308,12 +346,18 @@ func (r *Rego) PartialEval(ctx context.Context) (PartialResult, error) {
 		return PartialResult{}, err
 	}
 
-	query, outputVar, err := rewriteQueryForPartialEval(query)
+	err = r.compileModules(parsed)
 	if err != nil {
 		return PartialResult{}, err
 	}
 
-	_, compiled, err := r.compile(parsed, query)
+	_, compiled, err := r.compileQuery([]extraStage{
+		{
+			after: "ResolveRefs",
+			stage: r.rewriteQueryForPartialEval,
+		},
+	}, query)
+
 	if err != nil {
 		return PartialResult{}, err
 	}
@@ -328,7 +372,7 @@ func (r *Rego) PartialEval(ctx context.Context) (PartialResult, error) {
 		defer r.store.Abort(ctx, txn)
 	}
 
-	return r.partialEval(ctx, compiled, txn, outputVar)
+	return r.partialEval(ctx, compiled, txn, ast.Wildcard)
 }
 
 func (r *Rego) parse() (map[string]*ast.Module, ast.Body, error) {
@@ -365,57 +409,83 @@ func (r *Rego) parse() (map[string]*ast.Module, ast.Body, error) {
 	return parsed, query, nil
 }
 
-func (r *Rego) compile(modules map[string]*ast.Module, query ast.Body) (ast.QueryCompiler, ast.Body, error) {
+func (r *Rego) compileModules(modules map[string]*ast.Module) error {
 
-	r.metrics.Timer(metrics.RegoQueryCompile).Start()
-	defer r.metrics.Timer(metrics.RegoQueryCompile).Stop()
+	r.metrics.Timer(metrics.RegoModuleCompile).Start()
+	defer r.metrics.Timer(metrics.RegoModuleCompile).Stop()
 
 	if len(modules) > 0 {
 		r.compiler.Compile(modules)
-
 		if r.compiler.Failed() {
 			var errs Errors
 			for _, err := range r.compiler.Errors {
 				errs = append(errs, err)
 			}
-			return nil, nil, errs
+			return errs
 		}
 	}
 
-	var qctx *ast.QueryContext
+	return nil
+}
+
+func (r *Rego) compileQuery(extras []extraStage, query ast.Body) (ast.QueryCompiler, ast.Body, error) {
+
+	r.metrics.Timer(metrics.RegoQueryCompile).Start()
+	defer r.metrics.Timer(metrics.RegoQueryCompile).Stop()
+
+	var pkg *ast.Package
 
 	if r.pkg != "" {
-		pkg, err := ast.ParsePackage(fmt.Sprintf("package %v", r.pkg))
+		var err error
+		pkg, err = ast.ParsePackage(fmt.Sprintf("package %v", r.pkg))
 		if err != nil {
 			return nil, nil, err
 		}
-		qctx = qctx.WithPackage(pkg)
+	} else {
+		pkg = r.parsedPackage
 	}
+
+	imports := r.parsedImports
 
 	if len(r.imports) > 0 {
 		s := make([]string, len(r.imports))
 		for i := range r.imports {
 			s[i] = fmt.Sprintf("import %v", r.imports[i])
 		}
-		imports, err := ast.ParseImports(strings.Join(s, "\n"))
+		parsed, err := ast.ParseImports(strings.Join(s, "\n"))
 		if err != nil {
 			return nil, nil, err
 		}
-		qctx = qctx.WithImports(imports)
+		imports = append(imports, parsed...)
 	}
+
+	var input ast.Value
 
 	if r.rawInput != nil {
 		val, err := ast.InterfaceToValue(*r.rawInput)
 		if err != nil {
 			return nil, nil, err
 		}
-		qctx = qctx.WithInput(val)
+		input = val
 		r.input = val
+	} else {
+		input = r.input
 	}
 
+	qctx := ast.NewQueryContext().
+		WithPackage(pkg).
+		WithImports(imports).
+		WithInput(input)
+
 	qc := r.compiler.QueryCompiler().WithContext(qctx)
+
+	for _, extra := range extras {
+		qc = qc.WithStageAfter(extra.after, extra.stage)
+	}
+
 	compiled, err := qc.Compile(query)
 	return qc, compiled, err
+
 }
 
 func (r *Rego) eval(ctx context.Context, qc ast.QueryCompiler, compiled ast.Body, txn storage.Transaction) (rs ResultSet, err error) {
@@ -444,33 +514,34 @@ func (r *Rego) eval(ctx context.Context, qc ast.QueryCompiler, compiled ast.Body
 		c.Cancel()
 	})
 
-	exprs := map[*ast.Expr]struct{}{}
 	rewritten := qc.RewrittenVars()
 
 	err = q.Iter(ctx, func(qr topdown.QueryResult) error {
 		result := newResult()
-		for key, value := range qr {
-			val, err := ast.JSON(value.Value)
+		for k := range qr {
+			v, err := ast.JSON(qr[k].Value)
 			if err != nil {
 				return err
 			}
-			if !isTermVar(key) {
-				if r, ok := rewritten[key]; ok {
-					key = r
-				}
-				if !key.IsWildcard() && !key.IsGenerated() {
-					result.Bindings[string(key)] = val
-				}
-			} else if expr := findExprForTermVar(compiled, key); expr != nil {
-				result.Expressions = append(result.Expressions, newExpressionValue(expr, val))
-				exprs[expr] = struct{}{}
+			if rw, ok := rewritten[k]; ok {
+				k = rw
 			}
+			if isTermVar(k) || k.IsGenerated() || k.IsWildcard() {
+				continue
+			}
+			result.Bindings[string(k)] = v
 		}
 		for _, expr := range compiled {
-			// Don't include expressions without locations. Lack of location
-			// indicates it was not parsed and so the caller should not be
-			// shown it.
-			if _, ok := exprs[expr]; !ok && expr.Location != nil && !expr.Generated {
+			if expr.Generated {
+				continue
+			}
+			if k, ok := r.capture[expr]; ok {
+				v, err := ast.JSON(qr[k].Value)
+				if err != nil {
+					return err
+				}
+				result.Expressions = append(result.Expressions, newExpressionValue(expr, v))
+			} else {
 				result.Expressions = append(result.Expressions, newExpressionValue(expr, true))
 			}
 		}
@@ -581,37 +652,68 @@ func (r *Rego) partialEval(ctx context.Context, compiled ast.Body, txn storage.T
 	return result, nil
 }
 
-func (r *Rego) captureTerms(query ast.Body) ast.Body {
+func (r *Rego) rewriteQueryToCaptureValue(qc ast.QueryCompiler, query ast.Body) (ast.Body, error) {
 
-	// If the query contains expressions that consist of a single term, rewrite
-	// those expressions so that we capture the value of the term in a variable
-	// that can be included in the result.
-	extras := map[*ast.Expr]struct{}{}
+	hasIteration := iteration(query)
 
-	for i := range query {
-		if !query[i].Negated {
-			if term, ok := query[i].Terms.(*ast.Term); ok {
+	for _, expr := range query {
 
-				// If len(query) > 1 we must still test that evaluated value is
-				// not false.
-				if len(query) > 1 {
-					cpy := query[i].Copy()
-					// Unset location so that this expression is not included
-					// in the results.
-					cpy.Location = nil
-					extras[cpy] = struct{}{}
-				}
+		if expr.Negated {
+			continue
+		}
 
-				query[i].Terms = ast.Equality.Expr(term, r.generateTermVar()).Terms
+		if expr.IsAssignment() || expr.IsEquality() {
+			continue
+		}
+
+		var capture *ast.Term
+
+		// If the expression can be evaluated as a function, rewrite it to
+		// capture the return value. E.g., neq(1,2) but not plus(1,2,x).
+		switch terms := expr.Terms.(type) {
+		case *ast.Term:
+			capture = r.generateTermVar()
+			expr.Terms = ast.Equality.Expr(terms, capture).Terms
+			r.capture[expr] = capture.Value.(ast.Var)
+		case []*ast.Term:
+			if r.compiler.GetArity(expr.Operator()) == len(terms)-1 {
+				capture = r.generateTermVar()
+				expr.Terms = append(terms, capture)
+				r.capture[expr] = capture.Value.(ast.Var)
 			}
+		}
+
+		if capture != nil && hasIteration {
+			cpy := expr.Copy()
+			cpy.Terms = capture
+			cpy.Generated = true
+			query.Append(cpy)
 		}
 	}
 
-	for expr := range extras {
-		query.Append(expr)
+	return query, nil
+}
+
+func (r *Rego) rewriteQueryForPartialEval(_ ast.QueryCompiler, query ast.Body) (ast.Body, error) {
+	if len(query) != 1 {
+		return nil, fmt.Errorf("partial evaluation requires single ref (not multiple expressions)")
 	}
 
-	return query
+	term, ok := query[0].Terms.(*ast.Term)
+	if !ok {
+		return nil, fmt.Errorf("partial evaluation requires ref (not expression)")
+	}
+
+	ref, ok := term.Value.(ast.Ref)
+	if !ok {
+		return nil, fmt.Errorf("partial evaluation requires ref (not %v)", ast.TypeName(term.Value))
+	}
+
+	if !ref.IsGround() {
+		return nil, fmt.Errorf("partial evaluation requires ground ref")
+	}
+
+	return ast.NewBody(ast.Equality.Expr(ast.Wildcard, term)), nil
 }
 
 func (r *Rego) generateTermVar() *ast.Term {
@@ -644,28 +746,6 @@ func waitForDone(ctx context.Context, exit chan struct{}, f func()) {
 	}
 }
 
-func rewriteQueryForPartialEval(query ast.Body) (ast.Body, *ast.Term, error) {
-	if len(query) != 1 {
-		return nil, nil, fmt.Errorf("partial evaluation requires single ref (not multiple expressions)")
-	}
-
-	term, ok := query[0].Terms.(*ast.Term)
-	if !ok {
-		return nil, nil, fmt.Errorf("partial evaluation requires ref (not expression)")
-	}
-
-	ref, ok := term.Value.(ast.Ref)
-	if !ok {
-		return nil, nil, fmt.Errorf("partial evaluation requires ref (not %v)", ast.TypeName(term.Value))
-	}
-
-	if !ref.IsGround() {
-		return nil, nil, fmt.Errorf("partial evaluation requires ground ref")
-	}
-
-	return ast.NewBody(ast.Equality.Expr(ast.Wildcard, term)), ast.Wildcard, nil
-}
-
 type rawModule struct {
 	filename string
 	module   string
@@ -673,4 +753,44 @@ type rawModule struct {
 
 func (m rawModule) Parse() (*ast.Module, error) {
 	return ast.ParseModule(m.filename, m.module)
+}
+
+type extraStage struct {
+	after string
+	stage ast.QueryCompilerStage
+}
+
+func iteration(x interface{}) bool {
+
+	var stopped bool
+
+	vis := ast.NewGenericVisitor(func(x interface{}) bool {
+		switch x := x.(type) {
+		case *ast.Term:
+			if ast.IsComprehension(x.Value) {
+				return true
+			}
+		case ast.Ref:
+			if !stopped {
+				if bi := ast.BuiltinMap[x.String()]; bi != nil {
+					if bi.Relation {
+						stopped = true
+						return stopped
+					}
+				}
+				for i := 1; i < len(x); i++ {
+					if _, ok := x[i].Value.(ast.Var); ok {
+						stopped = true
+						return stopped
+					}
+				}
+			}
+			return stopped
+		}
+		return stopped
+	})
+
+	ast.Walk(vis, x)
+
+	return stopped
 }

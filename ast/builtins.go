@@ -758,7 +758,8 @@ var Clock = &Builtin{
 // WalkBuiltin generates [path, value] tuples for all nested documents
 // (recursively).
 var WalkBuiltin = &Builtin{
-	Name: "walk",
+	Name:     "walk",
+	Relation: true,
 	Decl: types.NewFunction(
 		types.Args(types.A),
 		types.NewArray(
@@ -947,9 +948,10 @@ var SetDiff = &Builtin{
 // Builtin represents a built-in function supported by OPA. Every built-in
 // function is uniquely identified by a name.
 type Builtin struct {
-	Name  string          // Unique name of built-in function, e.g., <name>(arg1,arg2,...,argN)
-	Infix string          // Unique name of infix operator. Default should be unset.
-	Decl  *types.Function // Built-in function type declaration.
+	Name     string          // Unique name of built-in function, e.g., <name>(arg1,arg2,...,argN)
+	Infix    string          // Unique name of infix operator. Default should be unset.
+	Decl     *types.Function // Built-in function type declaration.
+	Relation bool            // Indicates if the built-in acts as a relation.
 }
 
 // Expr creates a new expression for the built-in with the given operands.

@@ -1465,27 +1465,10 @@ func TestTopDownJWTBuiltins(t *testing.T) {
 
 func TestTopDownTime(t *testing.T) {
 
-	ast.RegisterBuiltin(&ast.Builtin{
-		Name: "test_sleep",
-		Decl: types.NewFunction(
-			types.Args(types.S),
-			nil,
-		),
-	})
-
-	RegisterFunctionalBuiltinVoid1("test_sleep", func(a ast.Value) error {
-		duration, err := time.ParseDuration(string(a.(ast.String)))
-		if err != nil {
-			panic(err)
-		}
-		time.Sleep(duration)
-		return nil
-	})
-
 	data := loadSmallTestData()
 
 	runTopDownTestCase(t, data, "time caching", []string{`
-		p { time.now_ns(t0); test_sleep("10ms"); time.now_ns(t1); t1 = t2 }
+		p { time.now_ns(t0); test.sleep("10ms"); time.now_ns(t1); t1 = t2 }
 	`}, "true")
 
 	runTopDownTestCase(t, data, "parse nanos", []string{`
@@ -2282,19 +2265,6 @@ func TestTopDownUnsupportedBuiltin(t *testing.T) {
 }
 
 func TestTopDownQueryCancellation(t *testing.T) {
-	ast.RegisterBuiltin(&ast.Builtin{
-		Name: "test.sleep",
-		Decl: types.NewFunction(
-			types.Args(types.S),
-			nil,
-		),
-	})
-
-	RegisterFunctionalBuiltinVoid1("test.sleep", func(a ast.Value) error {
-		d, _ := time.ParseDuration(string(a.(ast.String)))
-		time.Sleep(d)
-		return nil
-	})
 
 	ctx := context.Background()
 
@@ -2702,4 +2672,22 @@ func (rs resultSet) Swap(i, j int) {
 
 func (rs resultSet) Len() int {
 	return len(rs)
+}
+
+func init() {
+
+	ast.RegisterBuiltin(&ast.Builtin{
+		Name: "test.sleep",
+		Decl: types.NewFunction(
+			types.Args(types.S),
+			types.NewNull(),
+		),
+	})
+
+	RegisterFunctionalBuiltin1("test.sleep", func(a ast.Value) (ast.Value, error) {
+		d, _ := time.ParseDuration(string(a.(ast.String)))
+		time.Sleep(d)
+		return ast.Null{}, nil
+	})
+
 }

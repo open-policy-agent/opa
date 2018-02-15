@@ -19,13 +19,14 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/open-policy-agent/opa/rego"
+
 	"github.com/olekukonko/tablewriter"
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/format"
 	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/topdown"
-	"github.com/open-policy-agent/opa/types"
 	"github.com/open-policy-agent/opa/version"
 	"github.com/peterh/liner"
 )
@@ -729,10 +730,10 @@ func (r *REPL) evalStatement(ctx context.Context, stmt interface{}) error {
 			return err
 		}
 
-		body := s
+		parsedBody := s
 
-		if len(body) == 1 && body[0].IsAssignment() {
-			expr := body[0]
+		if len(parsedBody) == 1 && parsedBody[0].IsAssignment() {
+			expr := parsedBody[0]
 			rule, err := ast.ParseCompleteDocRuleFromEqExpr(r.modules[r.currentModuleID], expr.Operand(0), expr.Operand(1))
 			if err == nil {
 				if _, err := r.unsetRule(ctx, expr.Operand(0).Value.(ast.Var)); err != nil {
@@ -742,13 +743,13 @@ func (r *REPL) evalStatement(ctx context.Context, stmt interface{}) error {
 			}
 		}
 
-		body, typeEnv, err := r.compileBody(ctx, s, input)
+		compiledBody, typeEnv, err := r.compileBody(ctx, s, input)
 		if err != nil {
 			return err
 		}
 
-		if len(body) == 1 && body[0].IsEquality() {
-			expr := body[0]
+		if len(compiledBody) == 1 && compiledBody[0].IsEquality() {
+			expr := compiledBody[0]
 			rule, err := ast.ParseCompleteDocRuleFromEqExpr(r.modules[r.currentModuleID], expr.Operand(0), expr.Operand(1))
 			if err == nil {
 				return r.compileRule(ctx, rule)
@@ -761,11 +762,11 @@ func (r *REPL) evalStatement(ctx context.Context, stmt interface{}) error {
 		}
 
 		if len(r.unknowns) > 0 {
-			err = r.evalPartial(ctx, compiler, input, body)
+			err = r.evalPartial(ctx, compiler, input, compiledBody)
 		} else {
-			err = r.evalBody(ctx, compiler, input, body)
+			err = r.evalBody(ctx, compiler, input, parsedBody)
 			if r.types {
-				r.printTypes(ctx, typeEnv, body)
+				r.printTypes(ctx, typeEnv, compiledBody)
 			}
 		}
 
@@ -782,99 +783,26 @@ func (r *REPL) evalStatement(ctx context.Context, stmt interface{}) error {
 
 func (r *REPL) evalBody(ctx context.Context, compiler *ast.Compiler, input ast.Value, body ast.Body) error {
 
-	// Define value to print if query is undefined. For most queries, false is
-	// the preferred value. For queries consisting of a single ref, use
-	// undefined instead.
-	undefinedResult := "false"
-
-	if len(body) == 1 {
-		if term, ok := body[0].Terms.(*ast.Term); ok {
-			if _, ok := term.Value.(ast.Ref); ok {
-				undefinedResult = "undefined"
-			}
-		}
-	}
-
-	// Build set of vars to capture and display.
-	vis := ast.NewVarVisitor().WithParams(ast.VarVisitorParams{
-		SkipRefHead:  true,
-		SkipClosures: true,
-	})
-
-	ast.Walk(vis, body)
-
-	capture := map[ast.Var]string{}
-	for k := range vis.Vars() {
-		if !k.IsWildcard() && !k.IsGenerated() {
-			capture[k] = k.String()
-		}
-	}
-
-	// Rewrite query to capture the value of single term expressions. Do not
-	// capture refs that refer to set elements.
-	for i := range body {
-		if term, ok := body[i].Terms.(*ast.Term); ok {
-			if !body[i].Negated {
-				replVar := newREPLVar(i)
-				body[i].Terms = ast.Equality.Expr(term, ast.NewTerm(replVar)).Terms
-				if !r.isSetReference(compiler, term) || term.IsGround() {
-					capture[replVar] = body[i].Location.String()
-				}
-			}
-		}
-	}
-
-	// Prepare query.
-	q := topdown.NewQuery(body).
-		WithCompiler(compiler).
-		WithStore(r.store).
-		WithTransaction(r.txn)
-
-	if input != nil {
-		q = q.WithInput(ast.NewTerm(input))
-	}
-
-	if r.metrics != nil {
-		q = q.WithMetrics(r.metrics)
-	}
-
-	if r.instrument {
-		q = q.WithInstrumentation(topdown.NewInstrumentation(r.metrics))
-	}
-
 	var buf *topdown.BufferTracer
 
 	if r.explain != explainOff {
 		buf = topdown.NewBufferTracer()
-		q = q.WithTracer(buf)
 	}
 
-	results := []map[string]interface{}{}
-	isDefined := false
+	eval := rego.New(
+		rego.Compiler(compiler),
+		rego.Store(r.store),
+		rego.Transaction(r.txn),
+		rego.ParsedImports(r.modules[r.currentModuleID].Imports),
+		rego.ParsedPackage(r.modules[r.currentModuleID].Package),
+		rego.ParsedQuery(body),
+		rego.ParsedInput(input),
+		rego.Metrics(r.metrics),
+		rego.Tracer(buf),
+		rego.Instrument(r.instrument),
+	)
 
-	// Run query.
-	err := q.Iter(ctx, func(qr topdown.QueryResult) error {
-
-		row := map[string]interface{}{}
-
-		for k, v := range qr {
-			if c, ok := capture[k]; ok {
-				x, err := ast.JSON(v.Value)
-				if err != nil {
-					return err
-				}
-				row[c] = x
-			}
-		}
-
-		isDefined = true
-
-		if len(row) > 0 {
-			results = append(results, row)
-		}
-
-		return nil
-	})
+	rs, err := eval.Eval(ctx)
 
 	if buf != nil {
 		r.printTrace(ctx, compiler, *buf)
@@ -888,34 +816,40 @@ func (r *REPL) evalBody(ctx context.Context, compiler *ast.Compiler, input ast.V
 		return err
 	}
 
-	// Handle query results.
-	if len(results) == 0 {
-		if isDefined {
-			fmt.Fprintln(r.output, "true")
-			return nil
-		}
-		fmt.Fprintln(r.output, undefinedResult)
+	if len(rs) == 0 {
+		fmt.Fprintln(r.output, "undefined")
 		return nil
 	}
 
-	if len(results) == 1 && len(results[0]) == 1 {
-		for k, v := range results[0] {
-			for varName, c := range capture {
-				if isREPLVar(varName) && c == k {
-					r.printJSON(v)
-					return nil
-				}
-			}
+	if len(rs) == 1 {
+		if len(rs[0].Bindings) == 0 && len(rs[0].Expressions) == 1 {
+			r.printJSON(rs[0].Expressions[0].Value)
+			return nil
 		}
 	}
 
-	keys := []string{}
-	for _, v := range capture {
-		keys = append(keys, v)
+	keys := []resultKey{}
+
+	for k := range rs[0].Bindings {
+		keys = append(keys, resultKey{
+			varName: k,
+		})
 	}
 
-	sort.Strings(keys)
-	r.printResults(keys, results)
+	for i, expr := range rs[0].Expressions {
+		if _, ok := expr.Value.(bool); !ok {
+			keys = append(keys, resultKey{
+				exprIndex: i,
+				exprText:  expr.Text,
+			})
+		}
+	}
+
+	sort.Slice(keys, func(i, j int) bool {
+		return resultKeyLess(keys[i], keys[j])
+	})
+
+	r.printResults(keys, rs)
 
 	return nil
 }
@@ -1007,17 +941,6 @@ func (r *REPL) getPrompt() string {
 	return r.initPrompt
 }
 
-func (r *REPL) isSetReference(compiler *ast.Compiler, term *ast.Term) bool {
-	if ref, ok := term.Value.(ast.Ref); ok {
-		if tpe := compiler.TypeEnv.Get(ref.ConstantPrefix()); tpe != nil {
-			if _, ok := tpe.(*types.Set); ok {
-				return true
-			}
-		}
-	}
-	return false
-}
-
 func (r *REPL) loadHistory(prompt *liner.State) {
 	if f, err := os.Open(r.historyPath); err == nil {
 		prompt.ReadHistory(f)
@@ -1051,10 +974,14 @@ func (r *REPL) loadModules(ctx context.Context, txn storage.Transaction) (map[st
 	return modules, nil
 }
 
-func (r *REPL) printResults(keys []string, results []map[string]interface{}) {
+func (r *REPL) printResults(keys []resultKey, results rego.ResultSet) {
 	switch r.outputFormat {
 	case "json":
-		r.printJSON(results)
+		output := make([]map[string]interface{}, len(results))
+		for i := range output {
+			output[i] = results[i].Bindings
+		}
+		r.printJSON(output)
 	default:
 		r.printPretty(keys, results)
 	}
@@ -1069,34 +996,38 @@ func (r *REPL) printJSON(x interface{}) {
 	fmt.Fprintln(r.output, string(buf))
 }
 
-func (r *REPL) printPretty(keys []string, results []map[string]interface{}) {
+func (r *REPL) printPretty(keys []resultKey, results rego.ResultSet) {
 	table := tablewriter.NewWriter(r.output)
 	table.SetAlignment(tablewriter.ALIGN_LEFT)
 	table.SetAutoFormatHeaders(false)
-	table.SetHeader(keys)
+	header := make([]string, len(keys))
+	for i := range header {
+		header[i] = keys[i].String()
+	}
+	table.SetHeader(header)
 	for _, row := range results {
 		r.printPrettyRow(table, keys, row)
 	}
 	table.Render()
 }
 
-func (r *REPL) printPrettyRow(table *tablewriter.Table, keys []string, row map[string]interface{}) {
-
+func (r *REPL) printPrettyRow(table *tablewriter.Table, keys []resultKey, result rego.Result) {
 	buf := []string{}
 	for _, k := range keys {
-		js, err := json.Marshal(row[k])
-		if err != nil {
-			buf = append(buf, err.Error())
-		} else {
-			s := string(js)
-			if r.prettyLimit > 0 && len(s) > r.prettyLimit {
-				s = s[:r.prettyLimit] + "..."
+		v, ok := k.Select(result)
+		if ok {
+			js, err := json.Marshal(v)
+			if err != nil {
+				buf = append(buf, err.Error())
+			} else {
+				s := string(js)
+				if r.prettyLimit > 0 && len(s) > r.prettyLimit {
+					s = s[:r.prettyLimit] + "..."
+				}
+				buf = append(buf, s)
 			}
-			buf = append(buf, s)
 		}
 	}
-
-	// Add fields to table in sorted order.
 	table.Append(buf)
 }
 
@@ -1133,15 +1064,45 @@ func (r *REPL) printTypes(ctx context.Context, typeEnv *ast.TypeEnv, body ast.Bo
 	}
 }
 
-func (r *REPL) printUndefined() {
-	fmt.Fprintln(r.output, "undefined")
-}
-
 func (r *REPL) saveHistory(prompt *liner.State) {
 	if f, err := os.Create(r.historyPath); err == nil {
 		prompt.WriteHistory(f)
 		f.Close()
 	}
+}
+
+type resultKey struct {
+	varName   string
+	exprIndex int
+	exprText  string
+}
+
+func resultKeyLess(a, b resultKey) bool {
+	if a.varName != "" {
+		if b.varName == "" {
+			return true
+		}
+		return a.varName < b.varName
+	}
+	return a.exprIndex < b.exprIndex
+}
+
+func (rk resultKey) String() string {
+	if rk.varName != "" {
+		return rk.varName
+	}
+	return rk.exprText
+}
+
+func (rk resultKey) Select(result rego.Result) (interface{}, bool) {
+	if rk.varName != "" {
+		return result.Bindings[rk.varName], true
+	}
+	val := result.Expressions[rk.exprIndex].Value
+	if _, ok := val.(bool); ok {
+		return nil, false
+	}
+	return val, true
 }
 
 type commandDesc struct {
@@ -1220,14 +1181,6 @@ func newCommand(line string) *command {
 		}
 	}
 	return nil
-}
-
-func isREPLVar(x ast.Var) bool {
-	return strings.HasPrefix(string(x), "__repl")
-}
-
-func newREPLVar(i int) ast.Var {
-	return ast.Var(fmt.Sprintf("__repl%d__", i))
 }
 
 func dumpStorage(ctx context.Context, store storage.Store, txn storage.Transaction, w io.Writer) error {

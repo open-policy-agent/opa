@@ -476,7 +476,7 @@ func TestOneShotEmptyBufferOneExpr(t *testing.T) {
 	expectOutput(t, buffer.String(), "+---+---+\n| i | j |\n+---+---+\n| 0 | 1 |\n+---+---+\n")
 	buffer.Reset()
 	repl.OneShot(ctx, "data.a[i].b.c[j] = \"deadbeef\"")
-	expectOutput(t, buffer.String(), "false\n")
+	expectOutput(t, buffer.String(), "undefined\n")
 }
 
 func TestOneShotEmptyBufferOneRule(t *testing.T) {
@@ -714,27 +714,15 @@ func TestEvalSingleTermMultiValue(t *testing.T) {
 	input := `
 	[
 		{
-			"data.a[i].b.c[_]": true,
 			"i": 0
 		},
 		{
-			"data.a[i].b.c[_]": 2,
 			"i": 0
 		},
 		{
-			"data.a[i].b.c[_]": false,
-			"i": 0
-		},
-		{
-			"data.a[i].b.c[_]": false,
 			"i": 1
 		},
 		{
-			"data.a[i].b.c[_]": true,
-			"i": 1
-		},
-		{
-			"data.a[i].b.c[_]": 1,
 			"i": 1
 		}
 	]`
@@ -835,7 +823,7 @@ func TestEvalSingleTermMultiValueSetRef(t *testing.T) {
 	// acceptable, as it should be an edge case.
 	buffer.Reset()
 	repl.OneShot(ctx, "r[_][x]")
-	expected = parseJSON(`[{"x": 5, "r[_][x]": 5}, {"x": 6, "r[_][x]": 6}, {"x": 0, "r[_][x]": 7}, {"x": 1, "r[_][x]": 8}]`)
+	expected = parseJSON(`[{"x": 5}, {"x": 6}, {"x": 0}, {"x": 1}]`)
 	result = parseJSON(buffer.String())
 	if !reflect.DeepEqual(result, expected) {
 		t.Fatalf("Expected %v but got: %v", expected, result)
@@ -1002,8 +990,8 @@ func TestEvalBodyInputComplete(t *testing.T) {
 	buffer.Reset()
 	repl.OneShot(ctx, `input.p = false`)
 	result = buffer.String()
-	if result != "false\n" {
-		t.Fatalf("Expected false but got: %v", result)
+	if result != "undefined\n" {
+		t.Fatalf("Expected undefined but got: %v", result)
 	}
 
 }

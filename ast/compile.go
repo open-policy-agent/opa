@@ -159,11 +159,18 @@ type QueryCompiler interface {
 	// to Compile will take the QueryContext into account.
 	WithContext(qctx *QueryContext) QueryCompiler
 
+	// WithStageAfter registers a stage to run during query compilation after
+	// the named stage.
+	WithStageAfter(after string, stage QueryCompilerStage) QueryCompiler
+
 	// RewrittenVars maps generated vars in the compiled query to vars from the
 	// parsed query. For example, given the query "input := 1" the rewritten
 	// query would be "__local0__ = 1". The mapping would then be {__local0__: input}.
 	RewrittenVars() map[Var]Var
 }
+
+// QueryCompilerStage defines the interface for stages in the query compiler.
+type QueryCompilerStage func(QueryCompiler, Body) (Body, error)
 
 // NewCompiler returns a new empty compiler.
 func NewCompiler() *Compiler {
@@ -240,6 +247,20 @@ func (c *Compiler) Compile(modules map[string]*Module) {
 // Failed returns true if a compilation error has been encountered.
 func (c *Compiler) Failed() bool {
 	return len(c.Errors) > 0
+}
+
+// GetArity returns the number of args a function referred to by ref takes. If
+// ref refers to built-in function, the built-in declaration is consulted,
+// otherwise, the ref is used to perform a ruleset lookup.
+func (c *Compiler) GetArity(ref Ref) int {
+	if bi := BuiltinMap[ref.String()]; bi != nil {
+		return len(bi.Decl.Args())
+	}
+	rules := c.GetRulesExact(ref)
+	if len(rules) == 0 {
+		return -1
+	}
+	return len(rules[0].Head.Args)
 }
 
 // GetRulesExact returns a slice of rules referred to by the reference.
@@ -530,7 +551,7 @@ func (c *Compiler) checkSafetyRuleBodies() {
 }
 
 func (c *Compiler) checkBodySafety(safe VarSet, m *Module, b Body, l *Location) Body {
-	reordered, unsafe := reorderBodyForSafety(getRuleArgArity(c), safe, b)
+	reordered, unsafe := reorderBodyForSafety(c.GetArity, safe, b)
 	if len(unsafe) != 0 {
 		for v := range unsafe.Vars() {
 			if !v.IsGenerated() {
@@ -854,12 +875,14 @@ type queryCompiler struct {
 	qctx      *QueryContext
 	typeEnv   *TypeEnv
 	rewritten map[Var]Var
+	after     map[string][]QueryCompilerStage
 }
 
 func newQueryCompiler(compiler *Compiler) QueryCompiler {
 	qc := &queryCompiler{
 		compiler: compiler,
 		qctx:     nil,
+		after:    map[string][]QueryCompilerStage{},
 	}
 	return qc
 }
@@ -869,34 +892,43 @@ func (qc *queryCompiler) WithContext(qctx *QueryContext) QueryCompiler {
 	return qc
 }
 
+func (qc *queryCompiler) WithStageAfter(after string, stage QueryCompilerStage) QueryCompiler {
+	qc.after[after] = append(qc.after[after], stage)
+	return qc
+}
+
 func (qc *queryCompiler) RewrittenVars() map[Var]Var {
 	return qc.rewritten
 }
 
 func (qc *queryCompiler) Compile(query Body) (Body, error) {
 
-	stages := []func(*QueryContext, Body) (Body, error){
-		qc.resolveRefs,
-		qc.rewriteLocalAssignments,
-		qc.rewriteExprTerms,
-		qc.rewriteComprehensionTerms,
-		qc.rewriteDynamicTerms,
-		qc.checkWithModifiers,
-		qc.checkSafety,
-		qc.checkTypes,
+	stages := []struct {
+		name string
+		f    func(*QueryContext, Body) (Body, error)
+	}{
+		{"ResolveRefs", qc.resolveRefs},
+		{"RewriteAssignments", qc.rewriteLocalAssignments},
+		{"RewriteExprTerms", qc.rewriteExprTerms},
+		{"RewriteComprehensionTerms", qc.rewriteComprehensionTerms},
+		{"RewriteDynamicTerms", qc.rewriteDynamicTerms},
+		{"CheckWithModifiers", qc.checkWithModifiers},
+		{"CheckSafety", qc.checkSafety},
+		{"CheckTypes", qc.checkTypes},
 	}
 
 	qctx := qc.qctx.Copy()
 
 	for _, s := range stages {
 		var err error
-		if query, err = s(qctx, query); err != nil {
-			if errs, ok := err.(Errors); ok {
-				if qc.compiler.maxErrs > 0 && len(errs) > qc.compiler.maxErrs {
-					err = append(errs[:qc.compiler.maxErrs], errLimitReached)
-				}
+		if query, err = s.f(qctx, query); err != nil {
+			return nil, qc.applyErrorLimit(err)
+		}
+		for _, s := range qc.after[s.name] {
+			var err error
+			if query, err = s(qc, query); err != nil {
+				return nil, qc.applyErrorLimit(err)
 			}
-			return nil, err
 		}
 	}
 
@@ -905,6 +937,15 @@ func (qc *queryCompiler) Compile(query Body) (Body, error) {
 
 func (qc *queryCompiler) TypeEnv() *TypeEnv {
 	return qc.typeEnv
+}
+
+func (qc *queryCompiler) applyErrorLimit(err error) error {
+	if errs, ok := err.(Errors); ok {
+		if qc.compiler.maxErrs > 0 && len(errs) > qc.compiler.maxErrs {
+			err = append(errs[:qc.compiler.maxErrs], errLimitReached)
+		}
+	}
+	return err
 }
 
 func (qc *queryCompiler) resolveRefs(qctx *QueryContext, body Body) (Body, error) {
@@ -964,7 +1005,7 @@ func (qc *queryCompiler) rewriteLocalAssignments(_ *QueryContext, body Body) (Bo
 func (qc *queryCompiler) checkSafety(_ *QueryContext, body Body) (Body, error) {
 
 	safe := ReservedVars.Copy()
-	reordered, unsafe := reorderBodyForSafety(getRuleArgArity(qc.compiler), safe, body)
+	reordered, unsafe := reorderBodyForSafety(qc.compiler.GetArity, safe, body)
 
 	if len(unsafe) != 0 {
 		var err Errors
@@ -1386,19 +1427,6 @@ func (vs unsafeVars) Vars() VarSet {
 	return r
 }
 
-// getArity defines a function to return the arity of the rule referred to by a ref.
-type getArity func(Ref) int
-
-func getRuleArgArity(c *Compiler) getArity {
-	return func(ref Ref) int {
-		rules := c.GetRulesExact(ref)
-		if len(rules) == 0 {
-			return 0
-		}
-		return len(rules[0].Head.Args)
-	}
-}
-
 // reorderBodyForSafety returns a copy of the body ordered such that
 // left to right evaluation of the body will not encounter unbound variables
 // in input positions or negated expressions.
@@ -1409,7 +1437,7 @@ func getRuleArgArity(c *Compiler) getArity {
 //
 // If the body cannot be reordered to ensure safety, the second return value
 // contains a mapping of expressions to unsafe variables in those expressions.
-func reorderBodyForSafety(arity getArity, globals VarSet, body Body) (Body, unsafeVars) {
+func reorderBodyForSafety(arity func(Ref) int, globals VarSet, body Body) (Body, unsafeVars) {
 
 	body, unsafe := reorderBodyForClosures(arity, globals, body)
 	if len(unsafe) != 0 {
@@ -1481,7 +1509,7 @@ func reorderBodyForSafety(arity getArity, globals VarSet, body Body) (Body, unsa
 }
 
 type bodySafetyVisitor struct {
-	arity   getArity
+	arity   func(Ref) int
 	current *Expr
 	globals VarSet
 	unsafe  unsafeVars
@@ -1542,7 +1570,7 @@ func (vis *bodySafetyVisitor) checkSetComprehensionSafety(sc *SetComprehension) 
 // reorderBodyForClosures returns a copy of the body ordered such that
 // expressions (such as array comprehensions) that close over variables are ordered
 // after other expressions that contain the same variable in an output position.
-func reorderBodyForClosures(arity getArity, globals VarSet, body Body) (Body, unsafeVars) {
+func reorderBodyForClosures(arity func(Ref) int, globals VarSet, body Body) (Body, unsafeVars) {
 
 	reordered := Body{}
 	unsafe := unsafeVars{}
@@ -1586,7 +1614,7 @@ func reorderBodyForClosures(arity getArity, globals VarSet, body Body) (Body, un
 	return reordered, unsafe
 }
 
-func outputVarsForBody(body Body, arity getArity, safe VarSet) VarSet {
+func outputVarsForBody(body Body, arity func(Ref) int, safe VarSet) VarSet {
 	o := safe.Copy()
 	for _, e := range body {
 		o.Update(outputVarsForExpr(e, arity, o))
@@ -1594,7 +1622,7 @@ func outputVarsForBody(body Body, arity getArity, safe VarSet) VarSet {
 	return o.Diff(safe)
 }
 
-func outputVarsForExpr(expr *Expr, arity getArity, safe VarSet) VarSet {
+func outputVarsForExpr(expr *Expr, arity func(Ref) int, safe VarSet) VarSet {
 
 	// Negated expressions must be safe.
 	if expr.Negated {
@@ -1681,7 +1709,7 @@ func outputVarsForExprEq(expr *Expr, safe VarSet) VarSet {
 	return output.Diff(safe)
 }
 
-func outputVarsForExprCall(expr *Expr, arity getArity, safe VarSet, terms []*Term) VarSet {
+func outputVarsForExprCall(expr *Expr, arity func(Ref) int, safe VarSet, terms []*Term) VarSet {
 
 	output := outputVarsForExprRefs(expr, safe)
 
@@ -1691,7 +1719,7 @@ func outputVarsForExprCall(expr *Expr, arity getArity, safe VarSet, terms []*Ter
 	}
 
 	numArgs := arity(ref)
-	if numArgs == 0 {
+	if numArgs == -1 {
 		return VarSet{}
 	}
 
@@ -2303,7 +2331,9 @@ func expandExprTerm(gen *localVarGenerator, term *Term) (support []*Expr, output
 			support = append(support, extras...)
 		}
 		output = NewTerm(gen.Generate()).SetLocation(term.Location)
-		support = append(support, v.MakeExpr(output).SetLocation(term.Location))
+		expr := v.MakeExpr(output).SetLocation(term.Location)
+		expr.Generated = true
+		support = append(support, expr)
 	case Ref:
 		support = expandExprTermSlice(gen, v)
 	case Array:
