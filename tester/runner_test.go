@@ -74,14 +74,14 @@ func TestRunnerCancel(t *testing.T) {
 		Name: "test.sleep",
 		Decl: types.NewFunction(
 			types.Args(types.S),
-			nil,
+			types.NewNull(),
 		),
 	})
 
-	topdown.RegisterFunctionalBuiltinVoid1("test.sleep", func(a ast.Value) error {
+	topdown.RegisterFunctionalBuiltin1("test.sleep", func(a ast.Value) (ast.Value, error) {
 		d, _ := time.ParseDuration(string(a.(ast.String)))
 		time.Sleep(d)
-		return nil
+		return ast.Null{}, nil
 	})
 
 	ctx, cancel := context.WithCancel(context.Background())
