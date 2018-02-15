@@ -60,21 +60,10 @@ func (t Null) String() string {
 }
 
 // Boolean represents the boolean type.
-type Boolean struct {
-	v *bool
-}
+type Boolean struct{}
 
 // B represents an instance of the boolean type.
 var B = NewBoolean()
-
-var t = true
-var f = false
-
-// T represents an instance of the value true.
-var T = Boolean{v: &t}
-
-// F represents an instance of the value false.
-var F = Boolean{v: &f}
 
 // NewBoolean returns a new Boolean type.
 func NewBoolean() Boolean {
@@ -86,20 +75,11 @@ func (t Boolean) MarshalJSON() ([]byte, error) {
 	repr := map[string]interface{}{
 		"type": t.typeMarker(),
 	}
-	if t.v != nil {
-		repr["value"] = *t.v
-	}
 	return json.Marshal(repr)
 }
 
 func (t Boolean) String() string {
-	if t.v == nil {
-		return "boolean"
-	} else if *t.v {
-		return "true"
-	} else {
-		return "false"
-	}
+	return t.typeMarker()
 }
 
 // String represents the string type.
@@ -537,26 +517,7 @@ func Compare(a, b Type) int {
 		return -1
 	}
 	switch a.(type) {
-	case nil:
-		return 0
-	case Boolean:
-		bA := a.(Boolean)
-		bB := b.(Boolean)
-		if bA.v == nil && bB.v == nil {
-			return 0
-		} else if bA.v != nil && bB.v != nil {
-			if *bA.v == *bB.v {
-				return 0
-			} else if *bA.v {
-				return 1
-			} else {
-				return -1
-			}
-		} else if bA.v != nil {
-			return 1
-		}
-		return -1
-	case Null, Number, String:
+	case nil, Null, Boolean, Number, String:
 		return 0
 	case *Array:
 		arrA := a.(*Array)

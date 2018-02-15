@@ -141,7 +141,7 @@ var Equality = &Builtin{
 	Infix: "=",
 	Decl: types.NewFunction(
 		types.Args(types.A, types.A),
-		types.T,
+		types.B,
 	),
 }
 
@@ -155,7 +155,7 @@ var Assign = &Builtin{
 	Infix: ":=",
 	Decl: types.NewFunction(
 		types.Args(types.A, types.A),
-		types.T,
+		types.B,
 	),
 }
 
@@ -169,7 +169,7 @@ var GreaterThan = &Builtin{
 	Infix: ">",
 	Decl: types.NewFunction(
 		types.Args(types.A, types.A),
-		types.T,
+		types.B,
 	),
 }
 
@@ -179,7 +179,7 @@ var GreaterThanEq = &Builtin{
 	Infix: ">=",
 	Decl: types.NewFunction(
 		types.Args(types.A, types.A),
-		types.T,
+		types.B,
 	),
 }
 
@@ -189,7 +189,7 @@ var LessThan = &Builtin{
 	Infix: "<",
 	Decl: types.NewFunction(
 		types.Args(types.A, types.A),
-		types.T,
+		types.B,
 	),
 }
 
@@ -199,7 +199,7 @@ var LessThanEq = &Builtin{
 	Infix: "<=",
 	Decl: types.NewFunction(
 		types.Args(types.A, types.A),
-		types.T,
+		types.B,
 	),
 }
 
@@ -209,7 +209,7 @@ var NotEqual = &Builtin{
 	Infix: "!=",
 	Decl: types.NewFunction(
 		types.Args(types.A, types.A),
-		types.T,
+		types.B,
 	),
 }
 
@@ -219,7 +219,7 @@ var Equal = &Builtin{
 	Infix: "==",
 	Decl: types.NewFunction(
 		types.Args(types.A, types.A),
-		types.T,
+		types.B,
 	),
 }
 
@@ -432,7 +432,7 @@ var RegexMatch = &Builtin{
 			types.S,
 			types.S,
 		),
-		types.T,
+		types.B,
 	),
 }
 
@@ -448,7 +448,7 @@ var GlobsMatch = &Builtin{
 			types.S,
 			types.S,
 		),
-		types.T,
+		types.B,
 	),
 }
 
@@ -517,7 +517,7 @@ var Contains = &Builtin{
 			types.S,
 			types.S,
 		),
-		types.T,
+		types.B,
 	),
 }
 
@@ -529,7 +529,7 @@ var StartsWith = &Builtin{
 			types.S,
 			types.S,
 		),
-		types.T,
+		types.B,
 	),
 }
 
@@ -541,7 +541,7 @@ var EndsWith = &Builtin{
 			types.S,
 			types.S,
 		),
-		types.T,
+		types.B,
 	),
 }
 

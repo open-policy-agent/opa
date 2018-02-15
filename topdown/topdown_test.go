@@ -1787,6 +1787,28 @@ func TestTopDownFunctions(t *testing.T) {
 			data.test.foo(y[2], a)
 		}
 
+		falsy_func(x) = false
+
+		falsy_func_else(x) = true { x = 1 } else = false { true }
+
+		falsy_undefined {
+			falsy_func(1)
+		}
+
+		falsy_negation {
+			not falsy_func(1)
+		}
+
+		falsy_else_value = falsy_func_else(2)
+
+		falsy_else_undefined {
+			falsy_func_else(2)
+		}
+
+		falsy_else_negation {
+			not falsy_func_else(2)
+		}
+
 		arrays([x, y]) = [a, b] {
 			foo(x, a)
 			foo(y, b)
@@ -1918,6 +1940,11 @@ func TestTopDownFunctions(t *testing.T) {
 	defer store.Abort(ctx, txn)
 
 	assertTopDownWithPath(t, compiler, store, "basic call", []string{"ex", "bar", "alice"}, "", `["al", "ce"]`)
+	assertTopDownWithPath(t, compiler, store, "false result", []string{"ex", "falsy_undefined"}, "", ``)
+	assertTopDownWithPath(t, compiler, store, "false result negation", []string{"ex", "falsy_negation"}, "", `true`)
+	assertTopDownWithPath(t, compiler, store, "false else value", []string{"ex", "falsy_else_value"}, "", `false`)
+	assertTopDownWithPath(t, compiler, store, "false else undefined", []string{"ex", "falsy_else_undefined"}, "", ``)
+	assertTopDownWithPath(t, compiler, store, "false else negation", []string{"ex", "falsy_else_negation"}, "", `true`)
 	assertTopDownWithPath(t, compiler, store, "chained", []string{"ex", "chain2"}, "", `["foo", "bar"]`)
 	assertTopDownWithPath(t, compiler, store, "cross package", []string{"test", "cross"}, "", `["s f", [", my name "]]`)
 	assertTopDownWithPath(t, compiler, store, "array params", []string{"ex", "arraysrule"}, "", `[["h", "h"], ["foo"]]`)

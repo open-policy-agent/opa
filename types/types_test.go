@@ -58,14 +58,6 @@ func TestCompare(t *testing.T) {
 		{NewBoolean(), NewNull(), 1},
 		{NewBoolean(), NewBoolean(), 0},
 		{NewBoolean(), NewNumber(), -1},
-		{T, B, 1},
-		{B, T, -1},
-		{T, T, 0},
-		{F, B, 1},
-		{B, F, -1},
-		{F, F, 0},
-		{T, F, 1},
-		{F, T, -1},
 		{NewNumber(), NewNumber(), 0},
 		{NewNumber(), NewString(), -1},
 		{NewString(), NewString(), 0},
@@ -177,7 +169,7 @@ func TestOr(t *testing.T) {
 		{NewAny(NewNull(), NewNumber()), NewAny(), NewAny()},
 		{NewAny(NewNumber(), NewString()), NewAny(NewNull(), NewBoolean()), NewAny(NewNull(), NewBoolean(), NewString(), NewNumber())},
 		{NewAny(NewNull(), NewNumber()), NewNull(), NewAny(NewNull(), NewNumber())},
-		{NewFunction([]Type{S}, T), NewFunction([]Type{N}, T), NewFunction([]Type{NewAny(S, N)}, T)},
+		{NewFunction([]Type{S}, B), NewFunction([]Type{N}, B), NewFunction([]Type{NewAny(S, N)}, B)},
 	}
 
 	for _, tc := range tests {

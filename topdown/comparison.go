@@ -34,10 +34,7 @@ func compareEq(a, b ast.Value) bool {
 
 func builtinCompare(cmp compareFunc) FunctionalBuiltin2 {
 	return func(a, b ast.Value) (ast.Value, error) {
-		if !cmp(a, b) {
-			return nil, BuiltinEmpty{}
-		}
-		return ast.Boolean(true), nil
+		return ast.Boolean(cmp(a, b)), nil
 	}
 }
 

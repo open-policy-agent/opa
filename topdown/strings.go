@@ -134,11 +134,7 @@ func builtinContains(a, b ast.Value) (ast.Value, error) {
 		return nil, err
 	}
 
-	if !strings.Contains(string(s), string(substr)) {
-		return nil, BuiltinEmpty{}
-	}
-
-	return ast.Boolean(true), nil
+	return ast.Boolean(strings.Contains(string(s), string(substr))), nil
 }
 
 func builtinStartsWith(a, b ast.Value) (ast.Value, error) {
@@ -152,11 +148,7 @@ func builtinStartsWith(a, b ast.Value) (ast.Value, error) {
 		return nil, err
 	}
 
-	if !strings.HasPrefix(string(s), string(prefix)) {
-		return nil, BuiltinEmpty{}
-	}
-
-	return ast.Boolean(true), nil
+	return ast.Boolean(strings.HasPrefix(string(s), string(prefix))), nil
 }
 
 func builtinEndsWith(a, b ast.Value) (ast.Value, error) {
@@ -170,11 +162,7 @@ func builtinEndsWith(a, b ast.Value) (ast.Value, error) {
 		return nil, err
 	}
 
-	if !strings.HasSuffix(string(s), string(suffix)) {
-		return nil, BuiltinEmpty{}
-	}
-
-	return ast.Boolean(true), nil
+	return ast.Boolean(strings.HasSuffix(string(s), string(suffix))), nil
 }
 
 func builtinLower(a ast.Value) (ast.Value, error) {

@@ -35,10 +35,7 @@ func (env *TypeEnv) Get(x interface{}) types.Type {
 	case Null:
 		return types.NewNull()
 	case Boolean:
-		if x.Compare(Boolean(true)) == 0 {
-			return types.T
-		}
-		return types.F
+		return types.NewBoolean()
 	case Number:
 		return types.NewNumber()
 	case String:
