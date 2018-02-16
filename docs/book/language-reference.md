@@ -117,6 +117,7 @@ The input `string` is a JSON Web Token encoded with JWS Compact Serialization. J
 | <span class="opa-keep-it-together">``time.parse_rfc3339_ns(value, output)``</span> | 1 | ``output`` is ``number`` representing the time ``value`` in nanoseconds since epoch. |
 | <span class="opa-keep-it-together">``time.parse_duration_ns(duration, output)``</span> | 1 | ``output`` is ``number`` representing the duration ``duration`` in nanoseconds. See the [Go `time` package documentation](https://golang.org/pkg/time/#ParseDuration) for more details on ``duration``. |
 | <span class="opa-keep-it-together">``time.date(ns, [year, month, day])``</span> | 1 | outputs the ``year``, ``month`` (0-12), and ``day`` (0-31) as ``number``s representing the date from the nanoseconds since epoch (``ns``). |
+| <span class="opa-keep-it-together">``time.clock(ns, [hour, minute, second])``</span> | 1 | outputs the ``hour``, ``minute`` (0-59), and ``second`` (0-59) as ``number``s representing the time of day for the nanoseconds since epoch (``ns``). |
 
 > Multiple calls to the `time.now_ns` built-in function within a single policy
 evaluation query will always return the same value.
