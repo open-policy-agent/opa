@@ -1508,6 +1508,15 @@ func TestTopDownTime(t *testing.T) {
 
 	runTopDownTestCase(t, data, "date too big", []string{`
 		p = [year, month, day] { [year, month, day] := time.date(1582977600*1000*1000*1000*1000) }`}, fmt.Errorf("timestamp too big"))
+
+	runTopDownTestCase(t, data, "clock", []string{`
+		p = [hour, minute, second] { [hour, minute, second] := time.clock(1517832000*1000*1000*1000) }`}, "[12, 0, 0]")
+
+	runTopDownTestCase(t, data, "clock leap day", []string{`
+		p = [hour, minute, second] { [hour, minute, second] := time.clock(1582977600*1000*1000*1000) }`}, "[12, 0, 0]")
+
+	runTopDownTestCase(t, data, "clock too big", []string{`
+		p = [hour, minute, second] { [hour, minute, second] := time.clock(1582977600*1000*1000*1000*1000) }`}, fmt.Errorf("timestamp too big"))
 }
 
 func TestTopDownWalkBuiltin(t *testing.T) {

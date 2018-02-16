@@ -35,16 +35,31 @@ var DefaultBuiltins = [...]*Builtin{
 	Assign,
 
 	// Comparisons
-	GreaterThan, GreaterThanEq, LessThan, LessThanEq, NotEqual, Equal,
+	GreaterThan,
+	GreaterThanEq,
+	LessThan,
+	LessThanEq,
+	NotEqual,
+	Equal,
 
 	// Arithmetic
-	Plus, Minus, Multiply, Divide, Round, Abs,
+	Plus,
+	Minus,
+	Multiply,
+	Divide,
+	Round,
+	Abs,
 
 	// Binary
-	And, Or,
+	And,
+	Or,
 
 	// Aggregates
-	Count, Sum, Product, Max, Min,
+	Count,
+	Sum,
+	Product,
+	Max,
+	Min,
 
 	// Casting
 	ToNumber,
@@ -54,19 +69,43 @@ var DefaultBuiltins = [...]*Builtin{
 	GlobsMatch,
 
 	// Sets
-	SetDiff, Intersection, Union,
+	SetDiff,
+	Intersection,
+	Union,
 
 	// Strings
-	Concat, FormatInt, IndexOf, Substring, Lower, Upper, Contains, StartsWith, EndsWith, Split, Replace, Trim, Sprintf,
+	Concat,
+	FormatInt,
+	IndexOf,
+	Substring,
+	Lower,
+	Upper,
+	Contains,
+	StartsWith,
+	EndsWith,
+	Split,
+	Replace,
+	Trim,
+	Sprintf,
 
 	// Encoding
-	JSONMarshal, JSONUnmarshal, Base64UrlEncode, Base64UrlDecode, YAMLMarshal, YAMLUnmarshal,
+	JSONMarshal,
+	JSONUnmarshal,
+	Base64UrlEncode,
+	Base64UrlDecode,
+	YAMLMarshal,
+	YAMLUnmarshal,
 
 	// Tokens
 	JWTDecode,
 
 	// Time
-	NowNanos, ParseNanos, ParseRFC3339Nanos, ParseDurationNanos, Date,
+	NowNanos,
+	ParseNanos,
+	ParseRFC3339Nanos,
+	ParseDurationNanos,
+	Date,
+	Clock,
 
 	// Graphs
 	WalkBuiltin,
@@ -75,7 +114,14 @@ var DefaultBuiltins = [...]*Builtin{
 	Sort,
 
 	// Types
-	IsNumber, IsString, IsBoolean, IsArray, IsSet, IsObject, IsNull, TypeNameBuiltin,
+	IsNumber,
+	IsString,
+	IsBoolean,
+	IsArray,
+	IsSet,
+	IsObject,
+	IsNull,
+	TypeNameBuiltin,
 
 	// HTTP
 	HTTPSend,
@@ -690,6 +736,15 @@ var ParseDurationNanos = &Builtin{
 // Date returns the [year, month, day] for the nanoseconds since epoch.
 var Date = &Builtin{
 	Name: "time.date",
+	Decl: types.NewFunction(
+		types.Args(types.N),
+		types.NewArray([]types.Type{types.N, types.N, types.N}, nil),
+	),
+}
+
+// Clock returns the [hour, minute, second] of the day for the nanoseconds since epoch.
+var Clock = &Builtin{
+	Name: "time.clock",
 	Decl: types.NewFunction(
 		types.Args(types.N),
 		types.NewArray([]types.Type{types.N, types.N, types.N}, nil),

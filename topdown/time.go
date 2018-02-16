@@ -95,9 +95,28 @@ func builtinDate(a ast.Value) (ast.Value, error) {
 		return nil, fmt.Errorf("timestamp too big")
 	}
 
-	t := time.Unix(0, i64)
+	t := time.Unix(0, i64).UTC()
 	year, month, day := t.Date()
 	result := ast.Array{ast.IntNumberTerm(year), ast.IntNumberTerm(int(month)), ast.IntNumberTerm(day)}
+	return result, nil
+}
+
+func builtinClock(a ast.Value) (ast.Value, error) {
+
+	value, err := builtins.NumberOperand(a, 1)
+	if err != nil {
+		return nil, err
+	}
+
+	f := builtins.NumberToFloat(value)
+	i64, acc := f.Int64()
+	if acc != big.Exact {
+		return nil, fmt.Errorf("timestamp too big")
+	}
+
+	t := time.Unix(0, i64).UTC()
+	hour, minute, second := t.Clock()
+	result := ast.Array{ast.IntNumberTerm(hour), ast.IntNumberTerm(minute), ast.IntNumberTerm(second)}
 	return result, nil
 }
 
@@ -111,4 +130,5 @@ func init() {
 	RegisterFunctionalBuiltin2(ast.ParseNanos.Name, builtinTimeParseNanos)
 	RegisterFunctionalBuiltin1(ast.ParseDurationNanos.Name, builtinParseDurationNanos)
 	RegisterFunctionalBuiltin1(ast.Date.Name, builtinDate)
+	RegisterFunctionalBuiltin1(ast.Clock.Name, builtinClock)
 }
