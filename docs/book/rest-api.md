@@ -1265,6 +1265,36 @@ HTTP/1.1 204 No Content
 
 The effective path of the JSON Patch operation is obtained by joining the path portion of the URL with the path value from the operation(s) contained in the message body. In all cases, the parent of the effective path MUST refer to an existing document, otherwise the server returns 404. In the case of **remove** and **replace** operations, the effective path MUST refer to an existing document, otherwise the server returns 404.
 
+### <a name="delete-a-document"/>Delete a Document
+
+```
+DELETE /v1/data/{path:.+}
+```
+
+Delete a document.
+
+The server processes the DELETE method as if the client had sent a PATCH request containing a single remove operation.
+
+#### Example Request
+
+```http
+DELETE /v1/data/servers HTTP/1.1
+```
+
+#### Example Response
+
+```http
+HTTP/1.1 204 No Content
+```
+
+#### Status Codes
+
+- **204** - no content (success)
+- **404** - not found
+- **500** - server error
+
+If the path refers to a non-existent document, the server returns 404.
+
 ## <a name="query-api"></a> Query API
 
 ### <a name="execute-a-simple-query"/>Execute a Simple Query
