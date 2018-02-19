@@ -1,4 +1,4 @@
-# Comparison to Other Policy Systems
+# Comparison to Other Systems
 
 Often the easiest way to understand a new language is by comparing
 it to languages you already know.  Here we show how policies from
