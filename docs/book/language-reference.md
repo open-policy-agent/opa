@@ -9,10 +9,11 @@ The built-in functions for the language provide basic operations to manipulate
 scalar values (e.g. numbers and strings), and aggregate functions that summarize
 complex types.
 
-### <a name="inequality"/>Inequality
+### <a name="comparison"/>Comparison
 
 | Built-in | Inputs | Description |
 | ------- |--------|-------------|
+| <span class="opa-keep-it-together">``x == y``</span>   |  2     | ``x`` is equal to ``y`` |
 | <span class="opa-keep-it-together">``x != y``</span>   |  2     | ``x`` is not equal to ``y`` |
 | <span class="opa-keep-it-together">``x < y``</span>   |  2     | ``x`` is less than ``y`` |
 | <span class="opa-keep-it-together">``x <= y``</span>   |  2     | ``x`` is less than or equal to ``y`` |
