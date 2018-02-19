@@ -1263,15 +1263,57 @@ limit imposed on the number of `else` clauses on a rule.
 
 ### <a name="equality"></a> Equality
 
-The equality operator (`=`) is used to define expressions that assert that two values are the same. If the expression is defined in terms of one or more variables then the expression will evaluate to true if one of the variables is unbound. If the neither operand is an unbound variable, the expression is evaluated by comparing the *values* referenced by the operands.
+The equality operator (`=`) is used to define expressions that assert that
+two values are the same. If the expression is defined in terms of one or more
+variables then the expression will evaluate to true if one of the variables
+is unbound. If the neither operand is an unbound variable, the expression is
+evaluated by comparing the *values* referenced by the operands.
 
-OPA attempts to *bind* variables to values when it encounters unbound variables in equality expressions. Binding a variable affects subsequent evaluation of expressions such that the variable will be treated as a constant (with the bound value) instead of a variable.
+OPA attempts to *bind* variables to values when it encounters unbound
+variables in equality expressions. Binding a variable affects subsequent
+evaluation of expressions such that the variable will be treated as a
+constant (with the bound value) instead of a variable.
 
-### <a name="inequality"></a> Inequality
+### <a name="assignment"></a> Assignment
 
-The following inequality operators are supported:
+The assignment operator (`:=`) is used to define local variables. Unlike
+equality (`=`), assigned variables are locally scoped and shadow global
+symbols.
 
 ```ruby
+package example
+
+x = 100
+
+p {
+    x := 1     # declare local variable 'x'
+    x != 100   # true because 'x' refers to local variable
+}
+```
+
+Assigned variables are not allowed to appear before the assignment in the
+query. For example, the following policy will not compile:
+
+```ruby
+package example
+
+p {
+    x != 100
+    x := 1     # error because x appears earlier in the query.
+}
+
+q {
+    x := 1
+    x := 2     # error because x is assigned twice.
+}
+```
+
+### <a name="comparison"></a> Comparison
+
+The following comparison operators are supported:
+
+```ruby
+a  ==  b  #  `a` is equal to `b`.
 a  !=  b  #  `a` is not equal to `b`.
 a  <   b  #  `a` is less than `b`.
 a  <=  b  #  `a` is less than or equal to `b`.
@@ -1279,7 +1321,11 @@ a  >   b  #  `a` is greater than `b`.
 a  >=  b  #  `a` is greater than or equal to `b`.
 ```
 
-Unlike the equality operator, these operators do not bind variables contained in the expression. As a result, if either operand is a variable, the variable must appear in another expression in the same rule that would cause the variable to be bound, i.e., an equality expression or the target position of a built-in function.
+Unlike the equality operator, these operators do not bind variables contained
+in the expression. As a result, if either operand is a variable, the variable
+must appear in another expression in the same rule that would cause the
+variable to be bound, i.e., an equality expression or the target position of
+a built-in function.
 
 ## <a name="built-in-functions"></a> Built-in Functions
 
