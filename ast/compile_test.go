@@ -277,6 +277,17 @@ func TestCompilerFunctions(t *testing.T) {
 			},
 			wantErr: true,
 		},
+		{
+			note: "call argument ref output vars",
+			modules: []string{
+				`package x
+
+				f(x)
+
+				p { f(data.foo[i]) }`,
+			},
+			wantErr: false,
+		},
 	}
 	for _, tc := range tests {
 		test.Subtest(t, tc.note, func(t *testing.T) {
@@ -415,7 +426,7 @@ func TestCompilerCheckSafetyBodyReordering(t *testing.T) {
 			c.Modules = getCompilerTestModules()
 			c.Modules["reordering"] = MustParseModule(fmt.Sprintf(
 				`package test
-			 p { %s }`, tc.body))
+				p { %s }`, tc.body))
 
 			compileStages(c, c.checkSafetyRuleBodies)
 
