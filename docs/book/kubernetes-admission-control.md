@@ -111,7 +111,7 @@ metadata:
 webhooks:
   - name: validating-webhook.openpolicyagent.org
     rules:
-      - operations: ["*"]
+      - operations: ["CREATE", "UPDATE"]
         apiGroups: ["*"]
         apiVersions: ["*"]
         resources: ["*"]
@@ -166,7 +166,7 @@ metadata:
   name: qa
 ```
 
-**production-namespace**:
+**production-namespace.yaml**:
 
 ```yaml
 apiVersion: v1
