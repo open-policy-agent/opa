@@ -1726,7 +1726,7 @@ func outputVarsForExprCall(expr *Expr, arity func(Ref) int, safe VarSet, terms [
 	numInputTerms := numArgs + 1
 
 	if numInputTerms >= len(terms) {
-		return VarSet{}
+		return output
 	}
 
 	vis := NewVarVisitor().WithParams(VarVisitorParams{
