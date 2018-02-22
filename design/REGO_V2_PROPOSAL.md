@@ -1,15 +1,15 @@
 Rego v2 - Proposal
 
-Authors: Tristan Swadell, Tim Hinrichs, Torin Sandall 
-Last-Modified: 2017-12-15
+Authors: Tristan Swadell, Tim Hinrichs, Torin Sandall
+Last-Modified: 2018-02-22
 
 # Goals
 
 This document serves to facilitate collaborative development of the design of
 a general-purpose policy language. _General-purpose_ means that the language
-should be applicable to any domain, any layer of the stack, and any enforcement
-point. Different implementations of the language runtime may be better suited
-to different applications.
+should be applicable to any domain, layer of the stack, or enforcement point.
+Different implementations of the language runtime may be better suited to
+different applications.
 
 # Concepts
 
@@ -17,39 +17,25 @@ The user-experience for policy enforcement depends heavily on the policy
 language and what concepts the user must understand to use that language. The
 proposed concepts thus far are:
 
-* **Rule**
-    * Functions or constants that provide a typed decision, e.g. boolean,
-      list, map, etc.
-    * Determine which sub-rules are relevant and their computational complexity.
-    * May be packaged into modules to support logic reuse and the construction
-      of libraries for specific domains (K8s, service meshes, cloud APIs).
+* **Rule** - An identifier with optional parameters that conditionally produces
+             a decision.
+    * May refer to other rules, constants, and functions.
+    * Declared within modules.
+    * May be overloaded.
 
-* **Trigger**
-    * Functions that produce side-effects which run after rules.
-    * May inspect rule context.
-    * Side-effects may be one of:
-        * Obligation - guaranteed to execute if the request succeeds, may be
-          synchronous (precondition) or asynchronous (promise).`
-        * Advice - best-effect asynchronous execution on request success.
-
-* **Context** 
-    * Provided at evaluation time, or through calls to external data-sources. 
-    * Datasources may be either JSON, Protobuf, Relational, or Graph databases.
+* **Context** - Data provided at evaluation time or through calls to external
+                data-sources.
+    * Rules may declare a signature with the expected context.
+    * External datasources may be a file, database, or API.
 
 The proposed language has the following properties:
 
-* Rules are packaged into modules
-* The absence of qualified package name indicates the default package.
-* Rules are evaluated by name or using the `main()` entry point if no name is
-  specified.
-* Conditions determine applicable decisions.
-* Conditions may be **hierarchical**.
-* Conditions may invoke other rules.
-* Decisions are **evaluated in order, first decision wins**. 
-* A rule must always make a decision.
-* Conditions, decisions, local declarations, and triggers may invoke functions.
-* Functions are **side-effect free**.
-* Triggers run after rules and may be cross-cutting.
+* **Side-effect free** and non-Turing complete.
+* Rules, functions, and constants are declared within modules.
+* Rules are evaluated by name or by module.
+* Decisions are qualified by the module name where they are declared.
+* Conflicts must be decided by a decision resolver or by the actor calling the
+  engine.
 
 # Rules
 
@@ -57,45 +43,49 @@ The rule declaration provides a named entry point for evaluation and
 composition. The signature of the rule declares the context to be provided
 upon evaluation, and the body is a collection of conditions and decisions.
 
-The general form of rule is effectively a decorated function or constant with
-the relevant portion of the grammar defined in the Language section presented
-below. Please note that the definition of `expr` and `literal` are taken from
+Please note that the definition of `expr` and `literal` are taken from
 the [Common Expression Language](http://github.com/google/cel-spec) (CEL):
 
 ```
-function_decl 
-    := decorator? 'function' id '(' arg_list? ')' ('{' statement+ '}')?
+rule_decl
+    := 'rule' id assign_expr (if_expr else_expr*)?
+    |  'rule' function_signature '{' statement+ '}'
     ;
-decorator 
-    := '@' id decorator_arg_list?
-    ;
-decorator_arg_list
-    := '(' id '=' literal (',' id '=' literal)* ')'
-    ;
-arg_list 
-    := id (',' id)*
-    ;
-statement 
-    := condition_expr 
-    |  const_decl 
-    |  return_expr 
-    |  comprehension_expr
-    |  block_expr
-    ;
-condition_expr
-    := filter_expr '{' statement+ '}'
-    ;
-filter_expr
-    := 'if' expr
-    ;
-const_decl 
-    :=  decorator? id assign_expr? ';'
+const_decl
+    :=  decorator? id assign_expr
     ;
 assign_expr
     := '=' (expr | comprehension_expr)
     ;
+function_decl
+    := decorator? 'function' function_signature ('{' statement+ '}')?
+    ;
+function_signature
+    : id '(' arg_list? ')'
+    ;
+arg_list
+    := id (',' id)*
+    ;
+decorator:
+    : '@' id
+    ;
+statement
+    := condition_expr
+    |  const_decl
+    |  return_expr
+    |  comprehension_expr
+    ;
+condition_expr
+    := if_expr '{' statement+ '}'
+    ;
+if_expr
+    := 'if' expr
+    ;
+else_expr
+    := 'else' (expr | if_expr)
+    ;
 return_expr
-    : 'return' (expr | comprehension_expr) ';'
+    : 'return' (expr | comprehension_expr)
     ;
 comprehension_expr
     := iter_expr
@@ -103,25 +93,21 @@ comprehension_expr
     |  '[' (expr '|')? iter_expr ']'
     ;
 iter_expr
-    := 'for' id (',' id)? 'in' expr filter_expr? statement?;
-    |  'for' id (',' id)? 'in' expr filter_expr? ('{' statement+ '}')?
+    := 'for' id (',' id)? 'in' expr if_expr? statement?
+    |  'for' id (',' id)? 'in' expr if_expr? ('{' statement+ '}')?
     ;
-block_expr
-    := decorator? '{' statement+ '}';
 ```
 
-Rules represents a decision and are marked with the `@rule` decorator. A rule
-may either be a constant or a function. A rule may be a constant when the
-decision may be derived entirely from module or system provided context. For
-function rules, the signature of the function indicates the context required
-from the caller. The body of the rule may contain any number of conditions,
-decisions, and local declarations. The decorator indicates that the function
-or value is intended to be used for decisions rather than simply being an
-intermediate piece of logic.
+Rules represents a decision and are declared distinctly from constants and
+functions. Rules may be constant-like or function-like. Constant-like rules
+yield decisions derived from module or system provided context. Function-like
+rules declare a function signature that indicates the context required from the
+caller. The body of the rule may contain any number of conditions, decisions,
+and local declarations.
 
 ```
-@rule function userSalary(resource, user) {
-  match_result = resource.match('users/{target_user}/salary');
+rule userSalary(resource, user) {
+  match_result = resource.match('users/{target_user}/salary');
   return user == match_result.group.target_user;
 }
 ```
@@ -134,16 +120,18 @@ resolution.
 package acme;
 import acme.hr;
 
-@rule function readUserSalary(request, resource, user) {
-  match_result = resource.match('users/{target_user}/salary');
-  if (match_result.matches() && request.method == 'get') {   
-    target_user = match_result.groups.target_user;
-    return (hr.isManager(user, target_user)
-         || hr.isAdmin(user)
-         || user == target_user);
-  }
-  return false;
+rule readUserSalary(request, resource, user) {
+  match_result = resource.match('users/{target_user}/salary');
+  if (match_result.matches() && request.method == 'get') {
+    target_user = match_result.groups.target_user
+    return (hr.isManager(user, target_user)
+         || hr.isAdmin(user)
+         || user == target_user)
+  }
+  return false;
 }
+
+// outputs -> {'rule': 'acme.readUserSalary', 'result': bool}
 ```
 
 Rules may have multiple return statements in order to enforce allow / deny
@@ -152,59 +140,83 @@ an affirmative rule decision, such as whether to return a list of honey-pot
 servers versus a valid list of servers.
 
 ```
-@rule function readUserSalary(request, resource, user) {
-  match_result = resource.match('users/{target_user}/salary'); 
-  if (match_result.matches() && request.method == 'get') {   
-    target_user = match_result.groups.target_user;
+rule readUserSalary(request, resource, user) {
+  match_result = resource.match('users/{target_user}/salary')
+  if (match_result.matches() && request.method == 'get') {
+    target_user = match_result.groups.target_user
     // Deny requests outside of business hours.
-    if (request.time.hour() < 9 || request.time.hour() > 17) {
-       return false;
-    }
-    return (hr.isManager(user, target_user)
-         || hr.isAdmin(user)
-         || user == target_user);
-  }
-  return false;
+    if (request.time.hour() < 9 || request.time.hour() > 17) {
+       return false
+    }
+    return (hr.isManager(user, target_user)
+         || hr.isAdmin(user)
+         || user == target_user)
+  }
+  return false
 }
 ```
 
-Rules may be composed. The example below indicates how reading and listing a
-salary are lumped into a single decision.
+Rules may be composed from other rules and functions. The example below
+groups reading and listing salaries into a single decision.
 
 ```
 // Rules may be composed.
-@rule function viewSalary(request, resource, user) {
-  return queryDepartmentSalaries(request, resource, user)
+rule viewSalary(request, resource, user) {
+  return queryDepartmentSalaries(request, resource, user)
       || readUserSalary(request, resource, user);
 }
 
-@rule function queryDepartmentSalaries(request, resource, user) {
-  match_result = resource.match('departments/{department}/salaries')
-  if match_result.matches() && request.method == 'list' {
-    department = match_result.groups.department;
-    return !('user' in request.params.fields)
-        && hr.department(department).manager == user;
-  }
-  return false;
+rule queryDepartmentSalaries(request, resource, user) {
+  match_result = resource.match('departments/{department}/salaries')
+  if match_result.matches() && request.method == 'list' {
+    department = match_result.groups.department;
+    return !('user' in request.params.fields)
+        && hr.department(department).manager == user;
+  }
+  return false;
 }
 
-// ... readUserSalary ...
+// Evaluating of the 'acme' module produces:
+// [{'rule': 'acme.viewSalary', 'result': bool},
+//  {'rule': 'acme.viewUserSalary', 'result': bool},
+//  {'rule': 'acme.queryDepartmentSalaries', 'result': bool}]
+//
+// Evaluation of just acme.viewSalary would yield only the first decision.
 ```
 
-Rules may also be written as assignments or as anonymous blocks:
+Rules may also be written in a constant style where overloading occurs on
+the name. Developers may choose to write logically ORed statements together
+or provide overloads as a means of augmenting the decision set that can be
+attached to a rule.
 
 ```
-// Assignment style rule which supports named evaluation.
-@rule authenticated = request.auth != null ? allow : defer;
+// Constant-like rule which supports named evaluation.
+//
+// The authorized value is optionally assigned to the identifier 'allow'
+// depending on the request.auth condition.
+//
+// Note, if the condition evaluates false, authenticated is not assigned and
+// not included in the decision set.
+rule authorized = allow if request.auth != null
 
-// Block style rules are useful when all @rule statements will be evaluated
-// together. The last statement in the block is treated as the rule decision.
-@rule {
-  // Note: the authenticated rule included by name.
-  // This rule allows requests for resources marked public, otherwise denies.
-  return !authenticated && resource.name.contains('/public/') 
-       ? allow : deny; 
-}
+// Overloads the authorized grant to also permit access to public resources.
+//
+// When the request is both authenticated and against a public resource, the
+// decision set will include two authorized results.
+//
+// A conflict resolution strategy of 'anyAllow' would ensure a single result
+// for the authorized decision. The default conflict resolution behavior could
+// be to aggregate overloaded decisions if the type supports aggregation:
+// e.g. sets, lists, boolean
+// Conflict resolution requires further discussion.
+rule authorized = allow if resource.name.contains('/public/')
+
+// Rules may also be as a conditional assignment with if-else conditions rather
+// than as overloads if the developer would like to control the overload
+// behavior.
+rule rateLimit = 100 if 'admin' in request.auth.claims
+            else 50 if 'owner' in request.auth.claims
+            else 10
 ```
 
 ## Conditions
@@ -221,61 +233,72 @@ cannot be reassigned.
 
 ## Decisions
 
-A decision is a return statement within an `@rule`. The decision types across
-`@rule` declarations *should* agree. In the case of multiple `@rule`s being
-evaluated where the outputs of each do not agree, the decision is considered
-dynamically typed. For authorization rules, decisions are often boolean or
-three-valued. In the three-value case the decision may be one of: `allow`,
-`deny`, and `defer` where the last decision type defers the `allow` or `deny`
-decision to subsequent `@rule`s.
+A rule represents a conditional decision which may depend on other rule
+decisions. The types of overloaded rule declarations *should* agree. In the
+case of multiple `rule`s being evaluated where the output types do not agree,
+the decision is dynamically typed. Rule decisions are _maybe_ values, in the
+sense that the result may be a valued type or undefined. This is a crucial
+feature in support of rule overloading and evaluation with partial state.
 
-The decision semantics when multiple `@rule`s are evaluated depends on the
-conflict resolution algorithm used when executing rules.
+The decision semantics when multiple `rule`s are evaluated depends on the
+conflict resolution algorithm declared within the policy or on the caller.
 
-Note: decision resolution across `@rule`s are as yet undefined, but will be
+Note: conflict resolution across `rule`s are as yet undefined, but will be
 addressed in a future update to the proposal.
 
-# Triggers
+### Triggers
 
-Triggers are functions that emit obligations and advice to be performed based
-on the decision. The functions emit contextual information about the operation
-to be performed and the impact on the overall request behavior. The terms
-obligations and advice align with the concepts introduced within
-[XACML](xacml.org).  Although XACML does not specify the order of execution or
-conflict resolution behavior among obligations, this can radically affect
-request behavior. Future revisions of this spec should address the different
-kinds of obligations that may be emitted and conflict resolution strategies to
-be employed during execution, but for now they are broken down into two
-categories: synchronous and asynchronous. Synchronous obligations may include
+Triggers are not a separate concept, but rather a core consideration of how
+the `rule` declarations are designed. Since each rule emits at most one
+decision, this makes it feasible to write rules which go beyond request and
+config validation, and apply to the conditional execution of additional
+compute coordinated by the policy engine.
+
+Conceptually, triggers align with the concepts of obligations and advice
+introduced within [XACML](xacml.org). The difference between whether something
+is an obligation or advice typically boils down to whether the action to
+perform is synchronous or asynchronous. Synchronous obligations may include
 preconditions, whereas async obligations would be considered promises. Advice,
 on the other hand, should always be considered asynchronous and best-effort.
 
-In the rule examples, the decision is binary, so the first argument to the
-trigger has been labelled allow although it could be any type of decision. The
-second argument is a dynamic object representing context supplied to the
-rules responsible for the decision.
+The following is an example of a rule that acts as a trigger to log request
+behavior and check quota.
 
 ```
-// Triggers are evaluated after rule decisions and have a void return.
-@trigger function onSalaryRequest(decision, ctx) {
-  // Triggers may invoke rules without affecting the rule outcome.
-  if (ctx.request.method == 'list'
-      && !queryDepartmentSalaries(ctx.request, ctx.resource, ctx.user)) {
-    logger.log(ctx.user + " denied view salary request " + ctx.resource);
-  }
-
-  // Alternatively, triggers may simply inspect context to make a decision.
-  match_result = ctx.resource.match('users/{target_user}/**');
-  target_user = match_result.groups.target_user;
-  if (ctx.user != target_user && decision == allow) {
-    logger.log(ctx.user + " perform a salary action on " + target_user);
-  }
+// This rule conditionally produces metadata indicating that a quota
+// check should be performed. The evaluation engine will support the
+// registration of decision handlers whose behavior will affect the
+// overall request handling.
+rule hasQuota(request) {
+  if authenticated == allow {
+    // Should return a payload flagged as an obligation, that can be
+    // processed by a decision handler registered with the evaluator
+    // for the <package-name>.hasQuota decision.
+    return quota.check('perMethodPerUser',
+        [{name: 'method', value: request.method},
+         {name: 'user', value: request.auth.principal}])
+  }
 }
-```
 
-Triggers are the only functions that can and must have a void return type. They
-must not be referenced within non-trigger functions, though they may invoke other
-non-rule functions including other triggers.
+// The payload for a log statement could be as simple as a string.
+rule log = logger.log(request.auth.principal
+                      + " denied request on "
+                      + resource.name)
+           if authenticated != allow
+
+// Module-based evaluation of these rules would output the following
+// decisions:
+// [{'rule': 'hasQuota',
+//   'result': {
+//     'type': 'obligation',
+//     'handler': 'quota.check',
+//     'metadata' : { 'metric': 'perMethodPerUser', args:[ ... ]}}},
+//  {'rule': 'log',
+//   'result': {
+//     'type': 'promise',
+//     'handler': 'logger.log',
+//     'metadata': {'message': ...}}}]
+```
 
 # Tests
 
@@ -285,12 +308,12 @@ end we include `@test` as supported decorator and introduce the `with-as` clause
 to assist with partial state bindings required for both adhoc queries and for
 function mocking.
 
-Note: the following is under review and not yet reflected in the grammar. 
+Note: the following is under review and not yet reflected in the grammar.
 
 ```
-@rule function user_owned_action(auth, resource) {
+rule user_owned_action(auth, resource) {
   result = resource.matches('documents/{owner}/**')
-  return (result.owner == auth.uid
+  return (result.owner == auth.principal
        || resource.owner in user_groups(auth.principal));
 }
 
@@ -327,7 +350,7 @@ ctx = {resource: resource().name,
        resource_owner: resource().owner};
 
 // Allow user-owned reads, with user and request provided as a rule argument. 
-@rule function allow_user_reads(user, request) {
+rule allow_user_reads(user, request) {
   if (request.method in ['get', 'list']) {
       return (request.auth.claims.email == user
       || ctx.resource_owner == user
@@ -357,7 +380,7 @@ ctx = {'resource': db.resource().name,
        'resource_owner': db.resource().owner};
 
 // Allow user-owned reads, with user and request provided as a rule argument. 
-@rule function allow_user_reads(user, request) {
+rule allow_user_reads(user, request) {
   if (request.method in ['get', 'list']) {
       return (request.auth.claims.email == user
       || ctx.resource_owner == user
@@ -368,10 +391,10 @@ ctx = {'resource': db.resource().name,
 ```
 
 The example below shows how `acme.db` provides a library of context and
-functions for use with @rule statements. The `@extern` decorator is equivalent
-to a forward declaration, both to serve as documentation for what exists, but
+functions for use with rules. The `@extern` decorator is equivalent to a
+forward declaration, both to serve as documentation for what exists, but
 also to be consumed during type-checking to ensure the system context and
-function hooks are being used correctly within @rule statements.
+function hooks are being used correctly within rules.
 
 ```
 package acme.db;
@@ -402,8 +425,8 @@ import acme.db;
 syntax = 'rego.v2';
 
 // Allow user-owned reads, with context information provided by functions and
-// constants provided by acme.db in the form of module or extern declarations. 
-@rule {
+// constants provided by acme.db in the form of module or extern declarations.
+rule authorized() {
   target_user = db.resourceMatch('users/{target_user}/salary').target_user;
   return db.permission.read
     && (db.input.user == target_user
@@ -423,53 +446,58 @@ semantics of CEL.
 
 ```
 module
-    := package? import* syntax decls
-    ; 
+    := package? import* decls
+    ;
 package
-    := 'package' qualified_id ';' 
+    := 'package' qualified_id ';'
     ;
 import
-    := 'import' qualified_id ('as' id)? ';' 
-    ;
-syntax
-    := 'syntax' '=' STRING ';' 
+    := 'import' qualified_id ('as' id)? ';'
     ;
 decls
-    := (function_decl | const_decl)*
+    := (rule_decl | function_decl | const_decl)*
     ;
-function_decl 
-    := decorator? 'function' id '(' arg_list? ')' ('{' statement+ '}')?
+rule_decl
+    := 'rule' id assign_expr (if_expr else_expr*)?
+    |  'rule' function_signature '{' statement+ '}'
     ;
-decorator 
-    := '@' id decorator_arg_list?
-    ;
-decorator_arg_list
-    := '(' id '=' literal (',' id '=' literal)* ')'
-    ;
-arg_list 
-    := id (',' id)*
-    ;
-statement 
-    := condition_expr 
-    |  const_decl 
-    |  return_expr 
-    |  comprehension_expr
-    |  block_expr
-    ;
-condition_expr
-    := filter_expr '{' statement+ '}'
-    ;
-filter_expr
-    := 'if' expr
-    ;
-const_decl 
-    :=  decorator? id assign_expr? ';'
+const_decl
+    :=  id assign_expr
+    |   decorator id
     ;
 assign_expr
     := '=' (expr | comprehension_expr)
     ;
+function_decl
+    := decorator? 'function' function_signature ('{' statement+ '}')?
+    ;
+function_signature
+    : id '(' arg_list? ')'
+    ;
+arg_list
+    := id (',' id)*
+    ;
+decorator:
+    : '@' id
+    ;
+statement
+    := condition_expr
+    |  const_decl
+    |  return_expr
+    |  comprehension_expr
+    |  with_block
+    ;
+condition_expr
+    := if_expr '{' statement+ '}'
+    ;
+if_expr
+    := 'if' expr
+    ;
+else_expr
+    := 'else' (expr | if_expr)
+    ;
 return_expr
-    : 'return' (expr | comprehension_expr) ';'
+    : 'return' (expr | comprehension_expr)
     ;
 comprehension_expr
     := iter_expr
@@ -477,13 +505,13 @@ comprehension_expr
     |  '[' (expr '|')? iter_expr ']'
     ;
 iter_expr
-    := 'for' id (',' id)? 'in' expr filter_expr? statement?
-    |  'for' id (',' id)? 'in' expr filter_expr? ('{' statement+ '}')?
+    := 'for' id (',' id)? 'in' expr if_expr? statement?
+    |  'for' id (',' id)? 'in' expr if_expr? ('{' statement+ '}')?
     ;
-block_expr
-    := decorator? '{' statement+ '}'
+with_block
+    : 'with' qualified_id 'as' id '{' statement+ '}'
     ;
-conditional_expr
+expr
     := or_expr ('?' or_expr ':' expr)?
     ;
 or_expr
@@ -502,15 +530,15 @@ calc_expr
     |  calc_expr ('+'|'-') calc_expr
     ;
 unary_expr
-    := compound_expr
-    |  '!'+ compound_expr
-    |  '-'+ compound_expr
+    := member_expr
+    |  '!'+ member_expr
+    |  '-'+ member_expr
     ;
-compound_expr
+member_expr
     := primary_expr
-    |  compound_expr '.' id
-    |  compound_expr '.' id '(' expr_list? ')'
-    |  compound_expr '[' expr ']'
+    |  member_expr '.' id
+    |  member_expr '.' id '(' expr_list? ')'
+    |  member_expr '[' expr ']'
     |  qualified_id '{' field_inits? '}'
     ;
 primary_expr
@@ -519,7 +547,7 @@ primary_expr
     |  '(' expr ')'
     |  '[' expr_list? ']'
     |  '{' map_inits? '}'
-    |  literal 
+    |  literal
     ;
 expr_list
     := expr (',' expr)*
@@ -549,35 +577,33 @@ though they were written inline into the statement.
 ## Functions
 
 Functions are simply collections of logical statements. Functions decorated
-with `@trigger` must have a void return. All other functions, whether decorated
-as a `@rule` or not, must have a return value. A function body consists of
-any number of assignments and a single return expression. Argument and return
-types are inferred based on usage.
+with `@extern` must only declare a signature as the implementation is provided
+by the calling environment. Functions decorated with `@test` may incorporate
+`with` blocks and cannot be directly or indirectly referenced by `rule`
+declarations.
 
 Functions are idempotent. Given the same input, the functions must return
-the same output (or in the case of triggers emit the same output). The is true
-for both local and extern functions. At present functions do not support
-overloads, though this may change in future iterations of this proposal.
+the same output. Idempotency must hold for both local and extern functions.
+At present functions do not support overloads, though this may change in
+future iterations of this proposal.
 
 The general form of a function is as follows:
 
 ```
-function_decl 
+function_decl
     := decorator? 'function' id '(' arg_list? ')' ('{' statement+ '}')?
     ;
-decorator 
-    := '@' id decorator_arg_list?
-    ;
-decorator_arg_list
-    := '(' id '=' literal (',' id '=' literal)* ')'
+decorator
+    := '@' id
     ;
 ```
 
-The set of supported decorators is limited to `@extern`, `@rule`, `@trigger`,
-and `@test`. When a function may is annotated with @extern, it must be supplied
-at runtime as part of the rule evaluation context. For example:
+The set of supported decorators is limited to `@extern` and `@test`. When a
+function is annotated with `@extern`, it must be supplied at runtime as part of
+the rule evaluation context. For example:
 
 ```
+// Environment must bind a handler for 'db.get' function calls from the policy.
 package db;
 @extern function get(document_name);
 ```
@@ -604,8 +630,8 @@ iter_expr
     |  'for' id (',' id)? 'in' expr iter_op_expr? ('{' statement+ '}')?
     ;
 iter_op_expr
-    := filter_expr
-    |  'all' expr 
+    := if_expr
+    |  'all' expr
     |  'any' expr
     ;
 filter_expr
@@ -631,7 +657,7 @@ list. The same is true for maps, structs, and messages.
 for u in users if u.clearance in ['secret', 'top secret'] // list of users
 ```
 
-Filters may be chained as well. 
+Filters may be chained as well.
 
 ```
 { user: [doc] |
@@ -661,7 +687,7 @@ inferences about the elements within an aggregate type, `all` and `any`. The
 primary difference between these operators and the filter expressions (or
 even standard comprehensions) is that they are accumulator functions with
 the same semantics as the logical `&&` and `||`, meaning these operators
-can absorb errors. 
+can absorb errors.
 
 ```
 // Any element exists in this list
@@ -681,13 +707,13 @@ order to compose the desired format best suited for the task at hand.
 
 ```
 // Set of unique image names
-{ image.name | for release_name, image in release_images } 
+{ image.name | for release_name, image in release_images }
 
 // Map of image name to release names
 // Collisions on the image.name will overwrite the existing value.
 // Note: Consider adding syntactic sugar to deal with object construction
 // during list comprehensions.
-{ image.name : release_name | for release_name, image in release_images } 
+{ image.name : release_name | for release_name, image in release_images }
 
 // List (of pairs) comprehension.
 // There is an implicit single-statement block after a for-in if no
@@ -704,7 +730,7 @@ order to compose the desired format best suited for the task at hand.
   for file in files {
     for user in file.viewers + [file.owner]
     if user.matches("@{domain}.{tld}$").groups.domain in ["styra", "google"] ]
-  } 
+  }
 }
 ```
 
@@ -721,7 +747,7 @@ A module represents a collection of functions and constants. Modules are in
 the root package unless otherwise indicated by a package declaration. Multiple
 modules may share the same package. Functions in modules within the same
 package are accessible within other modules without specifying the qualified
-function name, e.g. `module.name.func()`.
+function name, e.g. `module.func()`.
 
 Importing a module makes all symbols within that module accessible by either
 the fully qualified module name, or the simple module name (the last fragment
