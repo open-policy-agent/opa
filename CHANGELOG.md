@@ -3,7 +3,43 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## 0.7.0
+
+### Major Features
+
+- Nested expressions: now you can write expressions like `(temp_f - 32)*5/9`!
+
+- Assignment/comparison operators: now you can write `x := <expression>` to
+  declare local variables and `x == y` when you strictly want to compare two
+  values (and not bind any variables like with `=`).
+
+- Prometheus support: now you can hook up Prometheus to OPA and collect
+  performance metrics on the different APIs. (thanks @rlguarino)
+
+### New Built-in Functions
+
+This release adds and improves a bunch of new built-in functions. See the [Language Reference](http://www.openpolicyagent.org/docs/language-reference.html) for details.
+
+- Add globs_match built-in function (thanks @yashtewari)
+- Add HTTP request built-in function
+- Add time.clock and time.date built-in functions
+- Add n-way set union and intersection built-in functions
+- Improve walk built-in function performance for partially ground paths
+
+### Fixes
+
+- Fix REPL assignment support ([#615](https://github.com/open-policy-agent/opa/issues/615))
+- Fix panic due to nil term value ([#601](https://github.com/open-policy-agent/opa/issues/601))
+- Fix safety check bug for call args ([#625](https://github.com/open-policy-agent/opa/issues/625))
+- Update Kubernetes Admission Control tutorial ([#567](https://github.com/open-policy-agent/opa/issues/567))
+- Update release script to build for Windows ([#573](https://github.com/open-policy-agent/opa/issues/573))
+
+### Miscellaneous
+
+- Add support for DELETE method in Data API ([#609](https://github.com/open-policy-agent/opa/issues/609)) (thanks @repenno)
+- Add basic query performance instrumentation
+- Add documentation covering how OPA compares to other systems
+- Remove use of unsafe.Pointer for string hashing
 
 ## 0.6.0
 
