@@ -654,7 +654,7 @@ func (r *Rego) partialEval(ctx context.Context, compiled ast.Body, txn storage.T
 
 func (r *Rego) rewriteQueryToCaptureValue(qc ast.QueryCompiler, query ast.Body) (ast.Body, error) {
 
-	hasIteration := iteration(query)
+	checkCapture := iteration(query) || len(query) > 1
 
 	for _, expr := range query {
 
@@ -669,7 +669,8 @@ func (r *Rego) rewriteQueryToCaptureValue(qc ast.QueryCompiler, query ast.Body) 
 		var capture *ast.Term
 
 		// If the expression can be evaluated as a function, rewrite it to
-		// capture the return value. E.g., neq(1,2) but not plus(1,2,x).
+		// capture the return value. E.g., neq(1,2) becomes neq(1,2,x) but
+		// plus(1,2,x) does not get rewritten.
 		switch terms := expr.Terms.(type) {
 		case *ast.Term:
 			capture = r.generateTermVar()
@@ -683,7 +684,7 @@ func (r *Rego) rewriteQueryToCaptureValue(qc ast.QueryCompiler, query ast.Body) 
 			}
 		}
 
-		if capture != nil && hasIteration {
+		if capture != nil && checkCapture {
 			cpy := expr.Copy()
 			cpy.Terms = capture
 			cpy.Generated = true

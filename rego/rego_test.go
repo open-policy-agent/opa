@@ -90,6 +90,10 @@ func TestRegoEvalExpressionValue(t *testing.T) {
 			query:    "[x | data.test.arr[_] = x]",
 			expected: "[[[1, false, true]]]",
 		},
+		{
+			query:    "a = 1; b = 2; a > b",
+			expected: `[]`,
+		},
 	}
 
 	ctx := context.Background()
