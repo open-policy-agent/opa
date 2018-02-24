@@ -702,6 +702,15 @@ func TestEvalConstantRuleAssignment(t *testing.T) {
 	if result != "true\n" {
 		t.Fatalf("Expected true but got: %v", result)
 	}
+
+	buffer.Reset()
+	repl.OneShot(ctx, "input = 0")
+	repl.OneShot(ctx, "input := 1")
+	repl.OneShot(ctx, "input")
+	result = buffer.String()
+	if result != "1\n" {
+		t.Fatalf("Expected 1 but got: %v", result)
+	}
 }
 
 func TestEvalSingleTermMultiValue(t *testing.T) {

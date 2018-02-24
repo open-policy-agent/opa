@@ -496,12 +496,13 @@ func (r *REPL) cmdUnset(ctx context.Context, args []string) error {
 	return nil
 }
 
-func (r *REPL) unsetRule(ctx context.Context, v ast.Var) (bool, error) {
+func (r *REPL) unsetRule(ctx context.Context, name ast.Var) (bool, error) {
+
 	mod := r.modules[r.currentModuleID]
 	rules := []*ast.Rule{}
 
 	for _, r := range mod.Rules {
-		if !r.Head.Name.Equal(v) {
+		if !r.Head.Name.Equal(name) {
 			rules = append(rules, r)
 		}
 	}
@@ -736,7 +737,7 @@ func (r *REPL) evalStatement(ctx context.Context, stmt interface{}) error {
 			expr := parsedBody[0]
 			rule, err := ast.ParseCompleteDocRuleFromEqExpr(r.modules[r.currentModuleID], expr.Operand(0), expr.Operand(1))
 			if err == nil {
-				if _, err := r.unsetRule(ctx, expr.Operand(0).Value.(ast.Var)); err != nil {
+				if _, err := r.unsetRule(ctx, rule.Head.Name); err != nil {
 					return err
 				}
 				return r.compileRule(ctx, rule)
