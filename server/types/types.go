@@ -156,14 +156,14 @@ type MetricsV1 map[string]interface{}
 type QueryResponseV1 struct {
 	Explanation TraceV1               `json:"explanation,omitempty"`
 	Metrics     MetricsV1             `json:"metrics,omitempty"`
-	Result      AdhocQueryResultSetV1 `json:"result"`
+	Result      AdhocQueryResultSetV1 `json:"result,omitempty"`
 }
 
 // WatchResponseV1 models a message in the response stream for a watch.
 type WatchResponseV1 struct {
 	Explanation TraceV1     `json:"explanation,omitempty"`
 	Metrics     MetricsV1   `json:"metrics,omitempty"`
-	Result      interface{} `json:"result"`
+	Result      interface{} `json:"result,omitempty"`
 
 	// The Error needs to be in the response since we've hijacked the connection
 	// when writing WatchResponseV1 streams.
