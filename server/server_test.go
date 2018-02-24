@@ -417,6 +417,9 @@ p = true { false }`
 			tr{http.MethodPatch, "/data/x", `[{"op": "add", "path": "/", "value": [1,2,3,4]}]`, 204, ""},
 			tr{http.MethodGet, "/query?q=data.x[_]%20=%20x", "", 200, `{"result": [{"x": 1}, {"x": 2}, {"x": 3}, {"x": 4}]}`},
 		}},
+		{"query undefined", []tr{
+			tr{http.MethodGet, "/query?q=a=1%3Bb=2%3Ba=b", "", 200, `{}`},
+		}},
 		{"query compiler error", []tr{
 			tr{http.MethodGet, "/query?q=x", "", 400, ""},
 			// Subsequent query should not fail.
