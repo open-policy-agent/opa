@@ -320,7 +320,7 @@ func (s *Server) execQuery(ctx context.Context, r *http.Request, query string, i
 		rego.Store(s.store),
 		rego.Compiler(compiler),
 		rego.Query(query),
-		rego.Input(input),
+		rego.ParsedInput(input),
 		rego.Metrics(m),
 		rego.Instrument(instrument),
 		rego.Tracer(buf),
