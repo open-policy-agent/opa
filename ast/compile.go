@@ -903,6 +903,8 @@ func (qc *queryCompiler) RewrittenVars() map[Var]Var {
 
 func (qc *queryCompiler) Compile(query Body) (Body, error) {
 
+	query = query.Copy()
+
 	stages := []struct {
 		name string
 		f    func(*QueryContext, Body) (Body, error)
