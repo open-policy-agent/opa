@@ -2067,6 +2067,33 @@ func TestQueryCompilerRewrittenVars(t *testing.T) {
 	}
 }
 
+func TestQueryCompilerRecompile(t *testing.T) {
+
+	// Query which contains terms that will be rewritten.
+	parsed := MustParseBody(`a := [1]; data.bar == data.foo[a[0]]`)
+	parsed0 := parsed
+
+	qc := NewCompiler().QueryCompiler()
+	compiled, err := qc.Compile(parsed)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	compiled2, err := qc.Compile(parsed)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !compiled2.Equal(compiled) {
+		t.Fatalf("Expected same compiled query. Expected: %v, Got: %v", compiled, compiled2)
+	}
+
+	if !parsed0.Equal(parsed) {
+		t.Fatalf("Expected parsed query to be unmodified. Expected %v, Got: %v", parsed0, parsed)
+	}
+
+}
+
 func assertCompilerErrorStrings(t *testing.T, compiler *Compiler, expected []string) {
 	result := compilerErrsToStringSlice(compiler.Errors)
 	if len(result) != len(expected) {

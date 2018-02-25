@@ -744,7 +744,7 @@ func (r *REPL) evalStatement(ctx context.Context, stmt interface{}) error {
 			}
 		}
 
-		compiledBody, typeEnv, err := r.compileBody(ctx, s, input)
+		compiledBody, typeEnv, err := r.compileBody(ctx, parsedBody, input)
 		if err != nil {
 			return err
 		}
