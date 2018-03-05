@@ -42,9 +42,23 @@ func (n *saveSet) Contains(x *ast.Term) bool {
 	return false
 }
 
-func (n *saveSet) ContainsAny(xs []*ast.Term) bool {
+func (n *saveSet) ContainsRecursive(x *ast.Term) bool {
+	stop := false
+	ast.WalkTerms(x, func(t *ast.Term) bool {
+		if stop {
+			return true
+		}
+		if n.Contains(t) {
+			stop = true
+		}
+		return stop
+	})
+	return stop
+}
+
+func (n *saveSet) ContainsRecursiveAny(xs []*ast.Term) bool {
 	for i := range xs {
-		if n.Contains(xs[i]) {
+		if n.ContainsRecursive(xs[i]) {
 			return true
 		}
 	}
