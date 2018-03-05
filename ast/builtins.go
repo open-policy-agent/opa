@@ -109,6 +109,9 @@ var DefaultBuiltins = [...]*Builtin{
 	Date,
 	Clock,
 
+	// Crypto
+	CryptoX509ParseCertificates,
+
 	// Graphs
 	WalkBuiltin,
 
@@ -768,6 +771,21 @@ var Clock = &Builtin{
 	Decl: types.NewFunction(
 		types.Args(types.N),
 		types.NewArray([]types.Type{types.N, types.N, types.N}, nil),
+	),
+}
+
+/**
+ * Crypto.
+ */
+
+// CryptoX509ParseCertificates returns one or more certificates from the given
+// base64 encoded string containing DER encoded certificates that have been
+// concatenated.
+var CryptoX509ParseCertificates = &Builtin{
+	Name: "crypto.x509.parse_certificates",
+	Decl: types.NewFunction(
+		types.Args(types.S),
+		types.NewArray(nil, types.NewObject(nil, types.NewDynamicProperty(types.S, types.A))),
 	),
 }
 

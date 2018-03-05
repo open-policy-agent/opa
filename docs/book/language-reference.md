@@ -125,6 +125,12 @@ The input `string` is a JSON Web Token encoded with JWS Compact Serialization. J
 > Multiple calls to the `time.now_ns` built-in function within a single policy
 evaluation query will always return the same value.
 
+### <a name="Cryptography"/>Cryptography
+
+| Built-in | Inputs | Description |
+| -------- | ------ | ----------- |
+| <span class="opa-keep-it-together">``crypto.x509.parse_certificates(string, array[object])``</span> | 1 | ``output`` is an array of X.509 certificates represented as JSON objects. |
+
 ### <a name="graphs"/>Graphs
 
 | Built-in | Inputs | Description |
