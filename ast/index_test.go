@@ -88,6 +88,14 @@ func TestBaseDocEqIndexing(t *testing.T) {
 		input.y = {"foo": "bar", "bar": x}
 	}
 
+	equal {
+		input.x == 1
+	} {
+		input.x == 2
+	} {
+		input.y == 3
+	}
+
 	# filtering ruleset contains rules that cannot be indexed (for different reasons).
 	filtering {
 		count([], x)
@@ -244,6 +252,21 @@ func TestBaseDocEqIndexing(t *testing.T) {
 			expectedRS: []string{
 				`composite_obj { input.y = {"foo": "bar", "bar": x} }`,
 			},
+		},
+		{
+			note:    "match ==",
+			ruleset: "equal",
+			input:   `{"x": 2, "y": 3}`,
+			expectedRS: []string{
+				"equal { input.y == 3 }",
+				"equal { input.x == 2 }",
+			},
+		},
+		{
+			note:       "miss ==",
+			ruleset:    "equal",
+			input:      `{"x": 1000, "y": 1000}`,
+			expectedRS: []string{},
 		},
 		{
 			note:       "default rule only",
