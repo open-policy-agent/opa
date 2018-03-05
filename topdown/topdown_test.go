@@ -1300,6 +1300,27 @@ func TestTopDownJSONBuiltins(t *testing.T) {
 
 }
 
+func TestTopDownBase64Builtins(t *testing.T) {
+	tests := []struct {
+		note     string
+		rules    []string
+		expected interface{}
+	}{
+		{"encode-1", []string{`p = x { base64.encode("hello", x) }`}, `"aGVsbG8="`},
+		{"encode-2", []string{`p = x { base64.encode("there", x) }`}, `"dGhlcmU="`},
+		{"decode-1", []string{`p = x { base64.decode("aGVsbG8=", x) }`}, `"hello"`},
+		{"decode-2", []string{`p = x { base64.decode("dGhlcmU=", x) }`}, `"there"`},
+		{"encode-slash", []string{`p = x { base64.encode("subjects?_d", x) }`}, `"c3ViamVjdHM/X2Q="`},
+		{"decode-slash", []string{`p = x { base64.decode("c3ViamVjdHM/X2Q=", x) }`}, `"subjects?_d"`},
+	}
+
+	data := loadSmallTestData()
+
+	for _, tc := range tests {
+		runTopDownTestCase(t, data, tc.note, tc.rules, tc.expected)
+	}
+}
+
 func TestTopDownBase64UrlBuiltins(t *testing.T) {
 	tests := []struct {
 		note     string
