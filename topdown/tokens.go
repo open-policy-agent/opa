@@ -5,10 +5,17 @@
 package topdown
 
 import (
+	"crypto"
+	"crypto/rsa"
+	"crypto/sha256"
+	"crypto/x509"
+	"encoding/base64"
 	"encoding/hex"
-	"errors"
+	"encoding/pem"
 	"fmt"
 	"strings"
+
+	"github.com/pkg/errors"
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/topdown/builtins"
@@ -89,6 +96,62 @@ func builtinJWTDecode(a ast.Value) (ast.Value, error) {
 	return arr, nil
 }
 
+// Implements RS256 JWT signature verification
+func builtinJWTVerifyRS256(a ast.Value, b ast.Value) (ast.Value, error) {
+
+	// Process the token
+	astToken, err := builtins.StringOperand(a, 1)
+	if err != nil {
+		return nil, err
+	}
+	token := string(astToken)
+	parts := strings.Split(token, ".")
+	if len(parts) != 3 {
+		return nil, fmt.Errorf("encoded JWT must have 3 sections, found %d", len(parts))
+	}
+
+	result := make([][]byte, len(parts))
+	for i, part := range parts {
+		temp, err := builtinBase64UrlDecode(ast.String(part))
+		if err != nil {
+			return nil, err
+		}
+		result[i] = []byte(temp.(ast.String))
+	}
+
+	header, payload, signature := result[0], result[1], result[2]
+	headerPayload := []byte(serialize(header, payload))
+
+	// Process PEM encoded certificate input
+	astCertificate, err := builtins.StringOperand(b, 2)
+	if err != nil {
+		return nil, err
+	}
+	certificate := string(astCertificate)
+
+	block, rest := pem.Decode([]byte(certificate))
+
+	if block == nil || block.Type != "CERTIFICATE" || len(rest) > 0 {
+		return nil, fmt.Errorf("failed to decode PEM block containing certificate")
+	}
+
+	cert, err := x509.ParseCertificate(block.Bytes)
+	if err != nil {
+		return nil, errors.Wrap(err, "PEM parse error")
+	}
+
+	// Get public key
+	publicKey := cert.PublicKey.(*rsa.PublicKey)
+
+	// Validate the JWT signature
+	err = rsa.VerifyPKCS1v15(publicKey, crypto.SHA256, getInputSHA(headerPayload), []byte(signature))
+
+	if err != nil {
+		return ast.Boolean(false), nil
+	}
+	return ast.Boolean(true), nil
+}
+
 // Extract, validate and return the JWT header as an ast.Object.
 func validateJWTHeader(h string) (ast.Object, error) {
 	header, err := extractJSONObject(h)
@@ -129,6 +192,24 @@ func extractJSONObject(s string) (ast.Object, error) {
 	return o, nil
 }
 
+// getInputSha returns the SHA256 checksum of the input
+func getInputSHA(input []byte) (hash []byte) {
+	hasher := sha256.New()
+	hasher.Write(input)
+	return hasher.Sum(nil)
+}
+
+// serialize converts given parts into compact serialization format
+func serialize(parts ...[]byte) string {
+	result := make([]string, len(parts))
+
+	for i, part := range parts {
+		result[i] = base64.URLEncoding.EncodeToString(part)
+	}
+	return strings.Join(result, ".")
+}
+
 func init() {
 	RegisterFunctionalBuiltin1(ast.JWTDecode.Name, builtinJWTDecode)
+	RegisterFunctionalBuiltin2(ast.JWTVerifyRS256.Name, builtinJWTVerifyRS256)
 }
