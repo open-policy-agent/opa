@@ -91,6 +91,8 @@ var DefaultBuiltins = [...]*Builtin{
 	// Encoding
 	JSONMarshal,
 	JSONUnmarshal,
+	Base64Encode,
+	Base64Decode,
 	Base64UrlEncode,
 	Base64UrlDecode,
 	YAMLMarshal,
@@ -633,6 +635,24 @@ var JSONUnmarshal = &Builtin{
 	Decl: types.NewFunction(
 		types.Args(types.S),
 		types.A,
+	),
+}
+
+// Base64Encode serializes the input string into base64 encoding.
+var Base64Encode = &Builtin{
+	Name: "base64.encode",
+	Decl: types.NewFunction(
+		types.Args(types.S),
+		types.S,
+	),
+}
+
+// Base64Decode deserializes the base64 encoded input string.
+var Base64Decode = &Builtin{
+	Name: "base64.decode",
+	Decl: types.NewFunction(
+		types.Args(types.S),
+		types.S,
 	),
 }
 

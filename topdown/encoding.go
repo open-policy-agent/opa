@@ -49,6 +49,25 @@ func builtinJSONUnmarshal(a ast.Value) (ast.Value, error) {
 	return ast.InterfaceToValue(x)
 }
 
+func builtinBase64Encode(a ast.Value) (ast.Value, error) {
+	str, err := builtins.StringOperand(a, 1)
+	if err != nil {
+		return nil, err
+	}
+
+	return ast.String(base64.StdEncoding.EncodeToString([]byte(str))), nil
+}
+
+func builtinBase64Decode(a ast.Value) (ast.Value, error) {
+	str, err := builtins.StringOperand(a, 1)
+	if err != nil {
+		return nil, err
+	}
+
+	result, err := base64.StdEncoding.DecodeString(string(str))
+	return ast.String(result), err
+}
+
 func builtinBase64UrlEncode(a ast.Value) (ast.Value, error) {
 	str, err := builtins.StringOperand(a, 1)
 	if err != nil {
@@ -130,6 +149,8 @@ func builtinYAMLUnmarshal(a ast.Value) (ast.Value, error) {
 func init() {
 	RegisterFunctionalBuiltin1(ast.JSONMarshal.Name, builtinJSONMarshal)
 	RegisterFunctionalBuiltin1(ast.JSONUnmarshal.Name, builtinJSONUnmarshal)
+	RegisterFunctionalBuiltin1(ast.Base64Encode.Name, builtinBase64Encode)
+	RegisterFunctionalBuiltin1(ast.Base64Decode.Name, builtinBase64Decode)
 	RegisterFunctionalBuiltin1(ast.Base64UrlEncode.Name, builtinBase64UrlEncode)
 	RegisterFunctionalBuiltin1(ast.Base64UrlDecode.Name, builtinBase64UrlDecode)
 	RegisterFunctionalBuiltin1(ast.YAMLMarshal.Name, builtinYAMLMarshal)
