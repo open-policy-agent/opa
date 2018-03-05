@@ -178,7 +178,7 @@ func (e *eval) evalStep(index int, iter evalIterator) error {
 				e.traceRedo(expr)
 				return err
 			})
-		} else if e.saveSet.ContainsAny(terms[1:]) {
+		} else if e.saveSet.ContainsRecursiveAny(plugSlice(terms[1:], e.bindings)) {
 			return e.saveCall(terms[0], terms[1:len(terms)-1], terms[len(terms)-1], func() error {
 				return e.evalExpr(index+1, iter)
 			})
@@ -1633,4 +1633,12 @@ func plugKeys(a ast.Object, b *bindings) ast.Object {
 		return b.Plug(k), v, nil
 	})
 	return plugged
+}
+
+func plugSlice(xs []*ast.Term, b *bindings) []*ast.Term {
+	cpy := make([]*ast.Term, len(xs))
+	for i := range cpy {
+		cpy[i] = b.Plug(xs[i])
+	}
+	return cpy
 }

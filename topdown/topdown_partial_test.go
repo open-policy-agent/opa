@@ -368,6 +368,13 @@ func TestTopDownPartialEval(t *testing.T) {
 			},
 		},
 		{
+			note:  "save: call embedded",
+			query: "x = input; a = [x]; count([a], n)",
+			wantQueries: []string{
+				`x = input; count([[x]], n); a = [x]`,
+			},
+		},
+		{
 			note:  "save: negation",
 			query: "data.test.p = true",
 			modules: []string{
