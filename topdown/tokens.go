@@ -9,7 +9,6 @@ import (
 	"crypto/rsa"
 	"crypto/sha256"
 	"crypto/x509"
-	"encoding/base64"
 	"encoding/hex"
 	"encoding/pem"
 	"fmt"
@@ -110,17 +109,12 @@ func builtinJWTVerifyRS256(a ast.Value, b ast.Value) (ast.Value, error) {
 		return nil, fmt.Errorf("encoded JWT must have 3 sections, found %d", len(parts))
 	}
 
-	result := make([][]byte, len(parts))
-	for i, part := range parts {
-		temp, err := builtinBase64UrlDecode(ast.String(part))
-		if err != nil {
-			return nil, err
-		}
-		result[i] = []byte(temp.(ast.String))
+	headerPayload := []byte(strings.Join(parts[:2], "."))
+	sign, err := builtinBase64UrlDecode(ast.String(parts[2]))
+	if err != nil {
+		return nil, err
 	}
-
-	header, payload, signature := result[0], result[1], result[2]
-	headerPayload := []byte(serialize(header, payload))
+	signature := []byte(sign.(ast.String))
 
 	// Process PEM encoded certificate input
 	astCertificate, err := builtins.StringOperand(b, 2)
@@ -144,7 +138,7 @@ func builtinJWTVerifyRS256(a ast.Value, b ast.Value) (ast.Value, error) {
 	publicKey := cert.PublicKey.(*rsa.PublicKey)
 
 	// Validate the JWT signature
-	err = rsa.VerifyPKCS1v15(publicKey, crypto.SHA256, getInputSHA(headerPayload), []byte(signature))
+	err = rsa.VerifyPKCS1v15(publicKey, crypto.SHA256, getInputSHA(headerPayload), signature)
 
 	if err != nil {
 		return ast.Boolean(false), nil
@@ -197,16 +191,6 @@ func getInputSHA(input []byte) (hash []byte) {
 	hasher := sha256.New()
 	hasher.Write(input)
 	return hasher.Sum(nil)
-}
-
-// serialize converts given parts into compact serialization format
-func serialize(parts ...[]byte) string {
-	result := make([]string, len(parts))
-
-	for i, part := range parts {
-		result[i] = base64.URLEncoding.EncodeToString(part)
-	}
-	return strings.Join(result, ".")
 }
 
 func init() {
