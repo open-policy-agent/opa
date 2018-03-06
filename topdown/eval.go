@@ -178,11 +178,26 @@ func (e *eval) evalStep(index int, iter evalIterator) error {
 				e.traceRedo(expr)
 				return err
 			})
-		} else if e.saveSet.ContainsRecursiveAny(plugSlice(terms[1:], e.bindings)) {
-			return e.saveCall(terms[0], terms[1:len(terms)-1], terms[len(terms)-1], func() error {
-				return e.evalExpr(index+1, iter)
-			})
 		} else {
+
+			if e.saveSet != nil {
+				// Check if call can be evaluated during partial eval. Some
+				// calls, such as time.now_ns() should not be evaluated during
+				// partial evaluation.
+				mustSave := false
+				for _, bi := range ast.IgnoreDuringPartialEval {
+					if bi.Ref().Equal(terms[0].Value) {
+						mustSave = true
+						break
+					}
+				}
+				if mustSave || e.saveSet.ContainsRecursiveAny(plugSlice(terms[1:], e.bindings)) {
+					return e.saveCall(terms[0], terms[1:len(terms)-1], terms[len(terms)-1], func() error {
+						return e.evalExpr(index+1, iter)
+					})
+				}
+			}
+
 			err = e.evalCall(index, terms[0], terms[1:], func() error {
 				defined = true
 				err := e.evalExpr(index+1, iter)
