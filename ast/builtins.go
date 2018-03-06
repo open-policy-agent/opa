@@ -136,6 +136,14 @@ var DefaultBuiltins = [...]*Builtin{
 // built-in definitions.
 var BuiltinMap map[string]*Builtin
 
+// IgnoreDuringPartialEval is a set of built-in functions that should not be
+// evaluated during partial evaluation. These functions are not partially
+// evaluated because they are not pure.
+var IgnoreDuringPartialEval = []*Builtin{
+	NowNanos,
+	HTTPSend,
+}
+
 /**
  * Unification
  */

@@ -411,6 +411,13 @@ func TestTopDownPartialEval(t *testing.T) {
 			},
 		},
 		{
+			note:  "save: ignore ast",
+			query: "time.now_ns(x)",
+			wantQueries: []string{
+				`time.now_ns(x)`,
+			},
+		},
+		{
 			note:  "support: default trivial",
 			query: "data.test.p = x",
 			modules: []string{
