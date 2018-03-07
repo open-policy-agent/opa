@@ -375,18 +375,6 @@ func TestTopDownPartialEval(t *testing.T) {
 			},
 		},
 		{
-			note:  "save: negation",
-			query: "data.test.p = true",
-			modules: []string{
-				`package test
-				p { input.x = 1; not q }
-				q { input.y = 2 }`,
-			},
-			wantQueries: []string{
-				`input.x = 1; not data.test.q`,
-			},
-		},
-		{
 			note:  "save: with",
 			query: "data.test.p = true",
 			modules: []string{
@@ -566,9 +554,13 @@ func TestTopDownPartialEval(t *testing.T) {
 			wantSupport: []string{
 				`package partial.test
 
-				p = true { input.x = 1; not data.test.r[1] }
-				p = true { input.y = 2; not data.test.r[2] }
+				p = true { input.x = 1; not data.partial.__not1_1__ }
+				p = true { input.y = 2 }
 				default p = false
+				`,
+				`package partial
+
+				__not1_1__ { input.z = 3 }
 				`,
 			},
 		},
@@ -612,6 +604,24 @@ func TestTopDownPartialEval(t *testing.T) {
 
 				p = true { input.x = 1 }
 				default p = false`,
+			},
+		},
+		{
+			note:  "support: negation",
+			query: "data.test.p = true",
+			modules: []string{
+				`package test
+				p { input.x = 1; not q; not r }
+				q { input.y = 2 }
+				r { false }`,
+			},
+			wantQueries: []string{
+				`input.x = 1; not data.partial.__not1_1__`,
+			},
+			wantSupport: []string{
+				`package partial
+
+				__not1_1__ { input.y = 2 }`,
 			},
 		},
 	}
