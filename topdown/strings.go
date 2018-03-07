@@ -117,7 +117,11 @@ func builtinSubstring(a, b, c ast.Value) (ast.Value, error) {
 	if length < 0 {
 		s = ast.String(base[startIndex:])
 	} else {
-		s = ast.String(base[startIndex : startIndex+length])
+		upto := startIndex + length
+		if len(base) < upto {
+			upto = len(base)
+		}
+		s = ast.String(base[startIndex:upto])
 	}
 
 	return s, nil
