@@ -1242,6 +1242,7 @@ func TestTopDownStrings(t *testing.T) {
 		{"indexof: not found", []string{`p = x { indexof("abcdefgh", "xyz", x) }`}, "-1"},
 		{"substring", []string{`p = x { substring("abcdefgh", 2, 3, x) }`}, `"cde"`},
 		{"substring: remainder", []string{`p = x { substring("abcdefgh", 2, -1, x) }`}, `"cdefgh"`},
+		{"substring: too long", []string{`p = x { substring("abcdefgh", 2, 10000, x) }`}, `"cdefgh"`},
 		{"contains", []string{`p = true { contains("abcdefgh", "defg") }`}, "true"},
 		{"contains: undefined", []string{`p = true { contains("abcdefgh", "ac") }`}, ""},
 		{"startswith", []string{`p = true { startswith("abcdefgh", "abcd") }`}, "true"},
