@@ -158,11 +158,6 @@ func (e *eval) evalStep(index int, iter evalIterator) error {
 	expr := e.query[index]
 
 	if expr.Negated {
-		if e.partial() {
-			return e.saveExpr(expr, e.bindings, func() error {
-				return e.evalExpr(index+1, iter)
-			})
-		}
 		return e.evalNot(index, iter)
 	}
 
@@ -241,6 +236,43 @@ func (e *eval) evalNot(index int, iter evalIterator) error {
 	expr := e.query[index]
 	negation := expr.Complement().NoWith()
 	child := e.closure(ast.NewBody(negation))
+
+	if e.partial() {
+
+		// During partial evaluation, negated expressions may generate support
+		// rules where the evaluation of the complemented expression is inlined
+		// into the support rule. If the complemented expression is undefined
+		// then the negated expression can be omitted completely.
+		e.saveStack.PushQuery(nil)
+		supportName := fmt.Sprintf("__not%d_%d__", e.queryID, index)
+		term := ast.RefTerm(ast.DefaultRootDocument, e.saveNamespace, ast.StringTerm(supportName))
+		path := term.Value.(ast.Ref)
+		defined := false
+
+		child.eval(func(*eval) error {
+			defined = true
+			current := e.saveStack.PopQuery()
+			e.saveStack.PushQuery(current)
+			plugged := current.Plug(child.bindings)
+			e.saveSupport.Insert(path, &ast.Rule{
+				Head: ast.NewHead(ast.Var(supportName), nil, ast.BooleanTerm(true)),
+				Body: plugged,
+			})
+			return nil
+		})
+
+		e.saveStack.PopQuery()
+
+		if defined {
+			expr = expr.Copy()
+			expr.Terms = term
+			return e.saveExpr(expr, e.bindings, func() error {
+				return e.evalExpr(index+1, iter)
+			})
+		}
+
+		return e.evalExpr(index+1, iter)
+	}
 
 	var defined bool
 
