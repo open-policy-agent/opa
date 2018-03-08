@@ -130,6 +130,29 @@ func TestTopDownPartialEval(t *testing.T) {
 			},
 		},
 		{
+			note:  "iterate keys: sets",
+			query: `input = x; s = {1,2}; s[x] = y`,
+			wantQueries: []string{
+				`input = x; 1 = x; s = {1, 2}; y = 1`,
+				`input = x; 2 = x; s = {1, 2}; y = 2`,
+			},
+		},
+		{
+			note:  "iterate keys: objects",
+			query: `input = x; o = {"a": 1, "b": 2}; o[x] = y`,
+			wantQueries: []string{
+				`input = x; "a" = x; o = {"a": 1, "b": 2}; y = 1`,
+				`input = x; "b" = x; o = {"a": 1, "b": 2}; y = 2`,
+			},
+		},
+		{
+			note:  "iterate keys: saved",
+			query: `x = input; y = [x]; z = y[i][j] `,
+			wantQueries: []string{
+				`x = input; x[j] = z; i = 0; y = [x]`,
+			},
+		},
+		{
 			note:  "single term: save",
 			query: `input.x = x; data.test.p[x]`,
 			modules: []string{

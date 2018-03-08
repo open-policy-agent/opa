@@ -1549,7 +1549,6 @@ func (e evalVirtualComplete) evalTerm(iter unifyIterator, term *ast.Term, termbi
 type evalTerm struct {
 	e            *eval
 	ref          ast.Ref
-	plugged      ast.Ref
 	pos          int
 	bindings     *bindings
 	term         *ast.Term
@@ -1561,9 +1560,11 @@ type evalTerm struct {
 func (e evalTerm) eval(iter unifyIterator) error {
 
 	if len(e.ref) == e.pos {
-		return e.e.biunify(e.term, e.rterm, e.termbindings, e.rbindings, func() error {
-			return iter()
-		})
+		return e.e.biunify(e.term, e.rterm, e.termbindings, e.rbindings, iter)
+	}
+
+	if e.e.saveSet.Contains(e.term) {
+		return e.save(iter)
 	}
 
 	plugged := e.bindings.Plug(e.ref[e.pos])
@@ -1605,13 +1606,13 @@ func (e evalTerm) enumerate(iter unifyIterator) error {
 	case ast.Object:
 		return v.Iter(func(k, _ *ast.Term) error {
 			return e.e.biunify(k, e.ref[e.pos], e.termbindings, e.bindings, func() error {
-				return e.next(iter, e.bindings.Plug(e.ref[e.pos]))
+				return e.next(iter, e.termbindings.Plug(k))
 			})
 		})
 	case ast.Set:
 		return v.Iter(func(elem *ast.Term) error {
 			return e.e.biunify(elem, e.ref[e.pos], e.termbindings, e.bindings, func() error {
-				return e.next(iter, e.bindings.Plug(e.ref[e.pos]))
+				return e.next(iter, e.termbindings.Plug(elem))
 			})
 		})
 	}
@@ -1667,6 +1668,19 @@ func (e evalTerm) get(plugged *ast.Term) (*ast.Term, *bindings) {
 		}
 	}
 	return nil, nil
+}
+
+func (e evalTerm) save(iter unifyIterator) error {
+
+	suffix := e.ref[e.pos:]
+	ref := make(ast.Ref, len(suffix)+1)
+	ref[0] = e.term
+
+	for i := 0; i < len(suffix); i++ {
+		ref[i+1] = suffix[i]
+	}
+
+	return e.e.biunify(ast.NewTerm(ref), e.rterm, e.termbindings, e.rbindings, iter)
 }
 
 func nonGroundKeys(a ast.Object) bool {
