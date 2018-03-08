@@ -386,6 +386,7 @@ func TestCalls(t *testing.T) {
 	assertParseOneExpr(t, "minus", "1 - 2", Minus.Expr(IntNumberTerm(1), IntNumberTerm(2)))
 	assertParseOneExpr(t, "mul", "1 * 2", Multiply.Expr(IntNumberTerm(1), IntNumberTerm(2)))
 	assertParseOneExpr(t, "div", "1 / 2", Divide.Expr(IntNumberTerm(1), IntNumberTerm(2)))
+	assertParseOneExpr(t, "rem", "3 % 2", Rem.Expr(IntNumberTerm(3), IntNumberTerm(2)))
 	assertParseOneExpr(t, "and", "{1,2,3} & {2,3,4}", And.Expr(SetTerm(IntNumberTerm(1), IntNumberTerm(2), IntNumberTerm(3)), SetTerm(IntNumberTerm(2), IntNumberTerm(3), IntNumberTerm(4))))
 	assertParseOneExpr(t, "or", "{1,2,3} | {3,4,5}", Or.Expr(SetTerm(IntNumberTerm(1), IntNumberTerm(2), IntNumberTerm(3)), SetTerm(IntNumberTerm(3), IntNumberTerm(4), IntNumberTerm(5))))
 
