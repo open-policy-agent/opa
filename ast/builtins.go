@@ -49,6 +49,7 @@ var DefaultBuiltins = [...]*Builtin{
 	Divide,
 	Round,
 	Abs,
+	Rem,
 
 	// Binary
 	And,
@@ -300,6 +301,19 @@ var Abs = &Builtin{
 	Decl: types.NewFunction(
 		types.Args(types.N),
 		types.N,
+	),
+}
+
+// Rem returns the remainder for x%y for y != 0.
+var Rem = &Builtin{
+	Name:  "rem",
+	Infix: "%",
+	Decl: types.NewFunction(
+		types.Args(
+			types.NewAny(types.N, types.NewSet(types.A)),
+			types.NewAny(types.N, types.NewSet(types.A)),
+		),
+		types.NewAny(types.N, types.NewSet(types.A)),
 	),
 }
 
