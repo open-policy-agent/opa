@@ -15,6 +15,7 @@ import (
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/storage/inmem"
 	"github.com/open-policy-agent/opa/topdown"
+	"github.com/open-policy-agent/opa/util"
 )
 
 const defaultPartialNamespace = "partial"
@@ -462,6 +463,11 @@ func (r *Rego) compileQuery(extras []extraStage, query ast.Body) (ast.QueryCompi
 	var input ast.Value
 
 	if r.rawInput != nil {
+		// roundtrip through json: this turns slices (e.g. []string, []bool) into
+		// []interface{}, the only array type ast.InterfaceToValue can work with
+		if err := util.RoundTrip(r.rawInput); err != nil {
+			return nil, nil, err
+		}
 		val, err := ast.InterfaceToValue(*r.rawInput)
 		if err != nil {
 			return nil, nil, err
