@@ -309,11 +309,8 @@ var Rem = &Builtin{
 	Name:  "rem",
 	Infix: "%",
 	Decl: types.NewFunction(
-		types.Args(
-			types.NewAny(types.N, types.NewSet(types.A)),
-			types.NewAny(types.N, types.NewSet(types.A)),
-		),
-		types.NewAny(types.N, types.NewSet(types.A)),
+		types.Args(types.N, types.N),
+		types.N,
 	),
 }
 
