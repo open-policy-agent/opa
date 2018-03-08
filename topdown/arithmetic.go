@@ -54,7 +54,7 @@ func arithDivide(a, b *big.Float) (*big.Float, error) {
 
 func arithRem(a, b *big.Int) (*big.Int, error) {
 	if b.Int64() == 0 {
-		return nil, fmt.Errorf("divide by zero")
+		return nil, fmt.Errorf("modulo by zero")
 	}
 	return new(big.Int).Rem(a, b), nil
 }

@@ -998,6 +998,8 @@ func TestTopDownArithmetic(t *testing.T) {
 		{"divide+round", []string{`p[z] { a[i] = x; y = i / x; round(y, z) }`}, "[0, 1]"},
 		{"divide+error", []string{`p[y] { a[i] = x; y = x / i }`}, fmt.Errorf("divide by zero")},
 		{"abs", []string{`p = true { abs(-10, x); x = 10 }`}, "true"},
+		{"remainder", []string{`p = x { x = 7 % 4 }`}, "3"},
+		{"remainder+error", []string{`p = x { x = 7 % 0 }`}, fmt.Errorf("modulo by zero")},
 		{"arity 1 ref dest", []string{`p = true { abs(-4, a[3]) }`}, "true"},
 		{"arity 1 ref dest (2)", []string{`p = true { not abs(-5, a[3]) }`}, "true"},
 		{"arity 2 ref dest", []string{`p = true { a[2] = 1 + 2 }`}, "true"},
