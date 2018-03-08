@@ -160,6 +160,9 @@ func (db *store) Read(ctx context.Context, txn storage.Transaction, path storage
 
 func (db *store) Write(ctx context.Context, txn storage.Transaction, op storage.PatchOp, path storage.Path, value interface{}) error {
 	underlying := txn.(*transaction)
+	if err := util.RoundTrip(&value); err != nil {
+		return err
+	}
 	return underlying.Write(op, path, value)
 }
 
