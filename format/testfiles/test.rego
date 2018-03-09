@@ -165,6 +165,7 @@ nested_infix {
         z
     x = (a + b) / 2
     f((a+b)/2)
+    y = q()
 }
 
 # more comments!

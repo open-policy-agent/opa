@@ -359,11 +359,13 @@ func (w *writer) writeFunctionCall(expr *ast.Expr, comments []*ast.Comment) []*a
 
 func (w *writer) writeFunctionCallPlain(terms []*ast.Term, comments []*ast.Comment) []*ast.Comment {
 	w.write(string(terms[0].String()) + "(")
-	for _, v := range terms[1 : len(terms)-1] {
-		comments = w.writeTerm(v, comments)
-		w.write(", ")
+	if len(terms) > 1 {
+		for _, v := range terms[1 : len(terms)-1] {
+			comments = w.writeTerm(v, comments)
+			w.write(", ")
+		}
+		comments = w.writeTerm(terms[len(terms)-1], comments)
 	}
-	comments = w.writeTerm(terms[len(terms)-1], comments)
 	w.write(")")
 	return comments
 }
