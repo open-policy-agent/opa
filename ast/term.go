@@ -910,7 +910,7 @@ func (ref Ref) String() string {
 		switch p := p.Value.(type) {
 		case String:
 			str := string(p)
-			if varRegexp.MatchString(str) && len(buf) > 0 {
+			if varRegexp.MatchString(str) && len(buf) > 0 && !IsKeyword(str) {
 				buf = append(buf, "."+str)
 			} else {
 				buf = append(buf, "["+p.String()+"]")
