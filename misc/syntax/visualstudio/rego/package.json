@@ -3,7 +3,7 @@
     "displayName": "rego",
     "description": "Syntax highlighter for Rego, the open-policy-agent (OPA) policy language",
     "version": "1.0.0",
-    "publisher": "Styra",
+    "publisher": "Open Policy Agent",
     "engines": {
         "vscode": "^1.5.0"
     },
