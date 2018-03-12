@@ -159,7 +159,7 @@ func TestRuntimeProcessWatchEvents(t *testing.T) {
 		}
 
 		t0 := time.Now()
-		path := storage.MustParsePath("/" + path.Base(rootDir) + "/some")
+		path := storage.MustParsePath("/some")
 
 		// In practice, reload takes ~100us on development machine.
 		maxWaitTime := time.Second * 1

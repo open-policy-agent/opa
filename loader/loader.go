@@ -152,7 +152,7 @@ func all(paths []string, f func(*Result, string) error) (*Result, error) {
 		}
 
 		if info.IsDir() {
-			loadDirRecursive(&errors, path, loaded.withParent(info.Name()))
+			loadDirRecursive(&errors, path, loaded)
 		} else {
 			err := f(loaded, path)
 			if err != nil {

@@ -108,7 +108,7 @@ func TestLoadGuessYAML(t *testing.T) {
 
 func TestLoadDirRecursive(t *testing.T) {
 	files := map[string]string{
-		"/a/data1.json": `[1,2,3]`,
+		"/a/data1.json": `{"a": [1,2,3]}`,
 		"/a/e.rego":     `package q`,
 		"/b/data2.yaml": `{"aaa": {"bbb": 1}}`,
 		"/b/data3.yaml": `{"aaa": {"ccc": 2}}`,
@@ -127,13 +127,11 @@ func TestLoadDirRecursive(t *testing.T) {
 		{
 			"zzz": "b",
 			"a": [1,2,3],
-			"b": {
-				"aaa": {
-					"bbb": 1,
-					"ccc": 2
-				},
-				"d": null
-			}
+			"aaa": {
+				"bbb": 1,
+				"ccc": 2
+			},
+			"d": null
 		}
 		`)
 		if !reflect.DeepEqual(loaded.Documents, expectedDocuments) {
@@ -154,9 +152,9 @@ func TestLoadDirRecursive(t *testing.T) {
 
 func TestLoadRooted(t *testing.T) {
 	files := map[string]string{
-		"/foo.json":     "[1,2,3]",
-		"/bar.yaml":     "abc",
-		"/baz/qux.json": "null",
+		"/foo.json":         "[1,2,3]",
+		"/bar/bar.yaml":     "abc",
+		"/baz/qux/qux.json": "null",
 	}
 
 	test.WithTempFS(files, func(rootDir string) {
@@ -170,7 +168,7 @@ func TestLoadRooted(t *testing.T) {
 			t.Fatalf("Unexpected error: %v", err)
 		}
 		expected := parseJSON(`
-		{"four": [1,2,3], "one": {"two": "abc"}, "three": {"baz": null}}
+		{"four": [1,2,3], "one": {"two": "abc"}, "three": {"qux": null}}
 		`)
 		if !reflect.DeepEqual(loaded.Documents, expected) {
 			t.Fatalf("Expected %v but got: %v", expected, loaded.Documents)
