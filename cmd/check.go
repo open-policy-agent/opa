@@ -20,13 +20,21 @@ var checkParams = struct {
 var errLimit int
 
 var checkCommand = &cobra.Command{
-	Use:   "check",
+	Use:   "check <path> [path [...]]",
 	Short: "Check Rego source files",
 	Long: `Check Rego source files for parse and compilation errors.
 
 If the 'check' command succeeds in parsing and compiling the source file(s), no output
 is produced. If the parsing or compiling fails, 'check' will output the errors
 and exit with a non-zero exit code.`,
+
+	PreRunE: func(Cmd *cobra.Command, args []string) error {
+		if len(args) == 0 {
+			return fmt.Errorf("specify at least one file")
+		}
+		return nil
+	},
+
 	Run: func(cmd *cobra.Command, args []string) {
 		os.Exit(checkModules(args))
 	},
