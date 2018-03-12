@@ -46,9 +46,6 @@ type Params struct {
 	// is nil, the server will NOT use TLS.
 	Certificate *tls.Certificate
 
-	// Eval is a string to evaluate in the REPL.
-	Eval string
-
 	// HistoryPath is the filename to store the interactive shell user
 	// input history.
 	HistoryPath string
@@ -206,18 +203,7 @@ func (rt *Runtime) StartREPL(ctx context.Context) {
 		}
 	}
 
-	if rt.Params.Eval == "" {
-		repl.Loop(ctx)
-	} else {
-		repl.DisableUndefinedOutput(true)
-		repl.DisableMultiLineBuffering(true)
-
-		if err := repl.OneShot(ctx, rt.Params.Eval); err != nil {
-			fmt.Fprintln(rt.Params.Output, "error:", err)
-			os.Exit(1)
-		}
-	}
-
+	repl.Loop(ctx)
 }
 
 func (rt *Runtime) startWatcher(ctx context.Context, paths []string, onReload func(time.Duration, error)) error {
