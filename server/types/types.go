@@ -245,6 +245,7 @@ func newRawTraceV1(trace []*topdown.Event) (TraceV1, error) {
 			Type:     ast.TypeName(trace[i].Node),
 			Node:     trace[i].Node,
 			Locals:   NewBindingsV1(trace[i].Locals),
+			Message:  trace[i].Message,
 		}
 	}
 
@@ -275,6 +276,7 @@ type TraceEventV1 struct {
 	Type     string      `json:"type"`
 	Node     interface{} `json:"node"`
 	Locals   BindingsV1  `json:"locals"`
+	Message  ast.String  `json:"message"`
 }
 
 // UnmarshalJSON deserializes a TraceEventV1 object. The Node field is

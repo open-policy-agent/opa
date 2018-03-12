@@ -47,6 +47,7 @@ type Event struct {
 	QueryID  uint64        // Identifies the query this event belongs to.
 	ParentID uint64        // Identifies the parent query this event belongs to.
 	Locals   *ast.ValueMap // Contains local variable bindings from the query context.
+	Message  ast.String
 }
 
 // HasRule returns true if the Event contains an ast.Rule.
@@ -147,6 +148,9 @@ func PrettyTrace(w io.Writer, trace []*Event) {
 
 func formatEvent(event *Event, depth int) string {
 	padding := formatEventPadding(event, depth)
+	if event.Op == NoteOp {
+		return fmt.Sprintf("%v%v %v", padding, event.Op, event.Message)
+	}
 	return fmt.Sprintf("%v%v %v", padding, event.Op, event.Node)
 }
 
@@ -193,11 +197,15 @@ func builtinTrace(bctx BuiltinContext, args []*ast.Term, iter func(*ast.Term) er
 		return handleBuiltinErr(ast.Trace.Name, bctx.Location, err)
 	}
 
+	if bctx.Tracer == nil || !bctx.Tracer.Enabled() {
+		return iter(ast.BooleanTerm(true))
+	}
+
 	evt := &Event{
 		Op:       NoteOp,
-		Node:     str,
 		QueryID:  bctx.QueryID,
 		ParentID: bctx.ParentID,
+		Message:  str,
 	}
 	bctx.Tracer.Trace(evt)
 
