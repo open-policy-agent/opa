@@ -195,7 +195,7 @@ func builtinTrace(bctx BuiltinContext, args []*ast.Term, iter func(*ast.Term) er
 
 	evt := &Event{
 		Op:       NoteOp,
-		Node:	  str,
+		Node:     str,
 		QueryID:  bctx.QueryID,
 		ParentID: bctx.ParentID,
 	}

@@ -47,8 +47,8 @@ type (
 	BuiltinContext struct {
 		Cache    builtins.Cache
 		Location *ast.Location
-		Tracer	 Tracer
-		QueryID	 uint64
+		Tracer   Tracer
+		QueryID  uint64
 		ParentID uint64
 	}
 
