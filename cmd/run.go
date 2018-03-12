@@ -63,10 +63,6 @@ To run the server:
 
 	$ opa run -s
 
-To evaluate a query from the command line:
-
-	$ opa run -e 'data.repl.version[key] = value'
-
 The 'run' command starts an instance of the OPA runtime. The OPA runtime can be
 started as an interactive shell or a server.
 
@@ -89,18 +85,6 @@ Data file and directory paths can be prefixed with the desired destination in
 the data document with the following syntax:
 
 	<dotted-path>:<file-path>
-
-For example:
-
-	$ echo "[1,2,3]" > example.json
-	$ opa run -e 'data.foo' foo.bar:./example.json
-	{
-	  "bar": [
-	    1,
-	    2,
-	    3
-	  ]
-	}
 `,
 		Run: func(cmd *cobra.Command, args []string) {
 
@@ -137,7 +121,6 @@ For example:
 	}
 
 	runCommand.Flags().BoolVarP(&serverMode, "server", "s", false, "start the runtime in server mode")
-	runCommand.Flags().StringVarP(&params.Eval, "eval", "e", "", "evaluate, print, exit")
 	runCommand.Flags().StringVarP(&params.HistoryPath, "history", "H", historyPath(), "set path of history file")
 	runCommand.Flags().StringVarP(&params.Addr, "addr", "a", defaultAddr, "set listening address of the server")
 	runCommand.Flags().StringVarP(&params.InsecureAddr, "insecure-addr", "", "", "set insecure listening address of the server")

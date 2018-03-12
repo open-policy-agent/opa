@@ -21,25 +21,6 @@ import (
 	"github.com/open-policy-agent/opa/util/test"
 )
 
-func TestEval(t *testing.T) {
-	ctx := context.Background()
-	params := NewParams()
-	var buffer bytes.Buffer
-	params.Output = &buffer
-	params.OutputFormat = "json"
-	params.Eval = `a = b; a = 1; c = 2; c > b`
-	rt, err := NewRuntime(ctx, params)
-	if err != nil {
-		t.Fatal(err)
-	}
-	rt.StartREPL(ctx)
-	expected := util.MustUnmarshalJSON([]byte(`[{"a": 1, "b": 1, "c": 2}]`))
-	result := util.MustUnmarshalJSON(buffer.Bytes())
-	if !reflect.DeepEqual(expected, result) {
-		t.Fatalf("Expected %v but got: %v", expected, result)
-	}
-}
-
 func TestInit(t *testing.T) {
 	ctx := context.Background()
 
