@@ -344,9 +344,17 @@ func (e *eval) evalCall(index int, operator *ast.Term, terms []*ast.Term, iter u
 		return unsupportedBuiltinErr(e.query[index].Location)
 	}
 
+	var parentID uint64
+	if e.parent != nil {
+		parentID = e.parent.queryID
+	}
+
 	bctx := BuiltinContext{
 		Cache:    e.builtinCache,
 		Location: e.query[index].Location,
+		Tracer:   e.tracer,
+		QueryID:  e.queryID,
+		ParentID: parentID,
 	}
 
 	eval := evalBuiltin{
