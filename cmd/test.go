@@ -12,17 +12,26 @@ import (
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/tester"
+	"github.com/open-policy-agent/opa/util"
 	"github.com/spf13/cobra"
 )
 
+const (
+	testPrettyOutput = "pretty"
+	testJSONOutput   = "json"
+)
+
 var testParams = struct {
-	verbose  bool
-	errLimit int
-	timeout  time.Duration
-}{}
+	verbose      bool
+	errLimit     int
+	outputFormat *util.EnumFlag
+	timeout      time.Duration
+}{
+	outputFormat: util.NewEnumFlag(testPrettyOutput, []string{testPrettyOutput, testJSONOutput}),
+}
 
 var testCommand = &cobra.Command{
-	Use:   "test",
+	Use:   "test <path> [path [...]]",
 	Short: "Execute Rego test cases",
 	Long: `Execute Rego test cases.
 
@@ -68,6 +77,13 @@ Example test run:
 
 	$ opa test ./example/
 `,
+	PreRunE: func(Cmd *cobra.Command, args []string) error {
+		if len(args) == 0 {
+			return fmt.Errorf("specify at least one file")
+		}
+		return nil
+	},
+
 	Run: func(cmd *cobra.Command, args []string) {
 		os.Exit(opaTest(args))
 	},
@@ -96,9 +112,18 @@ func opaTest(args []string) int {
 		return 1
 	}
 
-	reporter := tester.PrettyReporter{
-		Verbose: testParams.verbose,
-		Output:  os.Stdout,
+	var reporter tester.Reporter
+
+	switch testParams.outputFormat.String() {
+	case testJSONOutput:
+		reporter = tester.JSONReporter{
+			Output: os.Stdout,
+		}
+	default:
+		reporter = tester.PrettyReporter{
+			Verbose: testParams.verbose,
+			Output:  os.Stdout,
+		}
 	}
 
 	exitCode := 0
@@ -108,7 +133,7 @@ func opaTest(args []string) int {
 		defer close(dup)
 		for tr := range ch {
 			if !tr.Pass() {
-				exitCode = 1
+				exitCode = 2
 			}
 			dup <- tr
 		}
@@ -125,6 +150,7 @@ func opaTest(args []string) int {
 func init() {
 	testCommand.Flags().BoolVarP(&testParams.verbose, "verbose", "v", false, "set verbose reporting mode")
 	testCommand.Flags().DurationVarP(&testParams.timeout, "timeout", "t", time.Second*5, "set test timeout")
+	testCommand.Flags().VarP(testParams.outputFormat, "format", "f", "set output format")
 	setMaxErrors(testCommand.Flags(), &testParams.errLimit)
 	RootCommand.AddCommand(testCommand)
 }

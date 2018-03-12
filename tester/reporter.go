@@ -5,10 +5,18 @@
 package tester
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"strings"
 )
+
+// Reporter defines the interface for reporting test results.
+type Reporter interface {
+
+	// Report is called with a channel that will contain test results.
+	Report(ch chan *Result) error
+}
 
 // PrettyReporter reports test results in a simple human readable format.
 type PrettyReporter struct {
@@ -59,5 +67,24 @@ func (r PrettyReporter) Report(ch chan *Result) error {
 		fmt.Fprintln(r.Output, "ERROR:", fmt.Sprintf("%d/%d", errs, total))
 	}
 
+	return nil
+}
+
+// JSONReporter reports test results as array of JSON objects.
+type JSONReporter struct {
+	Output io.Writer
+}
+
+// Report prints the test report to the reporter's output.
+func (r JSONReporter) Report(ch chan *Result) error {
+	results := make([]*Result, 0)
+	for tr := range ch {
+		results = append(results, tr)
+	}
+	bs, err := json.MarshalIndent(results, "", "  ")
+	if err != nil {
+		return err
+	}
+	fmt.Fprintln(r.Output, string(bs))
 	return nil
 }
