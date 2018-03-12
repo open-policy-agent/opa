@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/topdown/builtins"
 )
 
 // Op defines the types of tracing events.
@@ -34,6 +35,9 @@ const (
 
 	// FailOp is emitted when an expression evaluates to false.
 	FailOp Op = "Fail"
+
+	//NoteOp is emitted when trace is requested
+	NoteOp Op = "Note"
 )
 
 // Event contains state associated with a tracing event.
@@ -180,4 +184,26 @@ func (ds depths) GetOrSet(qid uint64, pqid uint64) int {
 		ds[qid] = depth
 	}
 	return depth
+}
+
+func builtinTrace(bctx BuiltinContext, args []*ast.Term, iter func(*ast.Term) error) error {
+
+	str, err := builtins.StringOperand(args[0].Value, 1)
+	if err != nil {
+		return handleBuiltinErr(ast.Trace.Name, bctx.Location, err)
+	}
+
+	evt := &Event{
+		Op:       NoteOp,
+		Node:	  str,
+		QueryID:  bctx.QueryID,
+		ParentID: bctx.ParentID,
+	}
+	bctx.Tracer.Trace(evt)
+
+	return iter(ast.BooleanTerm(true))
+}
+
+func init() {
+	RegisterBuiltinFunc(ast.Trace.Name, builtinTrace)
 }

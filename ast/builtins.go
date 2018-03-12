@@ -132,6 +132,9 @@ var DefaultBuiltins = [...]*Builtin{
 
 	// HTTP
 	HTTPSend,
+
+	//Trace
+	Trace,
 }
 
 // BuiltinMap provides a convenient mapping of built-in names to
@@ -972,6 +975,22 @@ var HTTPSend = &Builtin{
 		types.NewObject(nil, types.NewDynamicProperty(types.A, types.A)),
 	),
 }
+
+/**
+ * Trace
+ */
+
+// Trace built-in for supporting debug messages
+var Trace = &Builtin{
+	Name: "trace",
+	Decl: types.NewFunction(
+		types.Args(
+			types.S,
+		),
+		types.B,
+	),
+}
+
 
 /**
  * Set
