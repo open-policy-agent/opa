@@ -144,10 +144,10 @@ evaluation query will always return the same value.
 | ------- |--------|-------------|
 | <span class="opa-keep-it-together">``http.send(request, output)``</span> | 1 | ``http.send`` executes a HTTP request and returns the response.``request`` is an object containing keys ``method``, ``url`` and  optionally ``body``. For example, ``http.send({"method": "get", "url": "http://www.openpolicyagent.org/"}, output)``. ``output`` is an object containing keys ``status``, ``status_code`` and ``body`` which represent the HTTP status, status code and response body respectively. Sample output, ``{"status": "200 OK", "status_code": 200, "body": null``}|
 
-### <a name="trace"/>Debug Trace
+### <a name="debugging"/>Debugging
 | Built-in | Inputs | Description |
 | ------- |--------|-------------|
-| <span class="opa-keep-it-together">``trace("debug message")``</span> | 1 | ``trace`` outputs the debug message in the ``Note`` if tracing is enabled. For example, ``trace("Hello There!")`` includes ``Note "Hello There!"`` in the trace. To print variable values, include sprintf in the trace message. For example, ``person = "Bob" trace(sprintf("Hello There! %v", [person]))`` will return ``Note "Hello There! Bob"``|
+| <span class="opa-keep-it-together">``trace(string)``</span> | 1 | ``trace`` outputs the debug message ``string`` as a ``Note`` event in the query explanation. For example, ``trace("Hello There!")`` includes ``Note "Hello There!"`` in the query explanation. To print variables, use sprintf. For example, ``person = "Bob"; trace(sprintf("Hello There! %v", [person]))`` will emit ``Note "Hello There! Bob"``. |
 
 ## <a name="reserved-names"></a> Reserved Names
 
