@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/cover"
 	"github.com/open-policy-agent/opa/tester"
 	"github.com/open-policy-agent/opa/util"
 	"github.com/spf13/cobra"
@@ -25,6 +26,7 @@ var testParams = struct {
 	verbose      bool
 	errLimit     int
 	outputFormat *util.EnumFlag
+	coverage     bool
 	timeout      time.Duration
 }{
 	outputFormat: util.NewEnumFlag(testPrettyOutput, []string{testPrettyOutput, testJSONOutput}),
@@ -106,6 +108,13 @@ func opaTest(args []string) int {
 		SetCompiler(compiler).
 		SetStore(store)
 
+	var coverTracer *cover.Cover
+
+	if testParams.coverage {
+		coverTracer = cover.New()
+		runner = runner.SetTracer(coverTracer)
+	}
+
 	ch, err := runner.Run(ctx, modules)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
@@ -114,14 +123,22 @@ func opaTest(args []string) int {
 
 	var reporter tester.Reporter
 
-	switch testParams.outputFormat.String() {
-	case testJSONOutput:
-		reporter = tester.JSONReporter{
-			Output: os.Stdout,
+	if !testParams.coverage {
+		switch testParams.outputFormat.String() {
+		case testJSONOutput:
+			reporter = tester.JSONReporter{
+				Output: os.Stdout,
+			}
+		default:
+			reporter = tester.PrettyReporter{
+				Verbose: testParams.verbose,
+				Output:  os.Stdout,
+			}
 		}
-	default:
-		reporter = tester.PrettyReporter{
-			Verbose: testParams.verbose,
+	} else {
+		reporter = tester.JSONCoverageReporter{
+			Cover:   coverTracer,
+			Modules: modules,
 			Output:  os.Stdout,
 		}
 	}
@@ -151,6 +168,7 @@ func init() {
 	testCommand.Flags().BoolVarP(&testParams.verbose, "verbose", "v", false, "set verbose reporting mode")
 	testCommand.Flags().DurationVarP(&testParams.timeout, "timeout", "t", time.Second*5, "set test timeout")
 	testCommand.Flags().VarP(testParams.outputFormat, "format", "f", "set output format")
+	testCommand.Flags().BoolVarP(&testParams.coverage, "coverage", "c", false, "report coverage")
 	setMaxErrors(testCommand.Flags(), &testParams.errLimit)
 	RootCommand.AddCommand(testCommand)
 }

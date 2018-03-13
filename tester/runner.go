@@ -86,6 +86,7 @@ func (r *Result) setFail(fail interface{}) {
 type Runner struct {
 	compiler *ast.Compiler
 	store    storage.Store
+	tracer   topdown.Tracer
 }
 
 // NewRunner returns a new runner.
@@ -102,6 +103,12 @@ func (r *Runner) SetCompiler(compiler *ast.Compiler) *Runner {
 // SetStore sets the store to execute tests over.
 func (r *Runner) SetStore(store storage.Store) *Runner {
 	r.store = store
+	return r
+}
+
+// SetTracer sets the tracer to use during test execution.
+func (r *Runner) SetTracer(tracer topdown.Tracer) *Runner {
+	r.tracer = tracer
 	return r
 }
 
@@ -155,6 +162,7 @@ func (r *Runner) runTest(ctx context.Context, mod *ast.Module, rule *ast.Rule) (
 		rego.Store(r.store),
 		rego.Compiler(r.compiler),
 		rego.Query(rule.Path().String()),
+		rego.Tracer(r.tracer),
 	)
 
 	t0 := time.Now()

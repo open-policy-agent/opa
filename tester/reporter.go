@@ -6,9 +6,13 @@ package tester
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"strings"
+
+	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/cover"
 )
 
 // Reporter defines the interface for reporting test results.
@@ -87,4 +91,28 @@ func (r JSONReporter) Report(ch chan *Result) error {
 	}
 	fmt.Fprintln(r.Output, string(bs))
 	return nil
+}
+
+// JSONCoverageReporter reports coverage as a JSON structure.
+type JSONCoverageReporter struct {
+	Cover   *cover.Cover
+	Modules map[string]*ast.Module
+	Output  io.Writer
+}
+
+// Report prints the test report to the reporter's output. If any tests fail or
+// encounter errors, this function returns an error.
+func (r JSONCoverageReporter) Report(ch chan *Result) error {
+	for tr := range ch {
+		if !tr.Pass() {
+			if tr.Error != nil {
+				return tr.Error
+			}
+			return errors.New(tr.String())
+		}
+	}
+	report := r.Cover.Report(r.Modules)
+	encoder := json.NewEncoder(r.Output)
+	encoder.SetIndent("", "  ")
+	return encoder.Encode(report)
 }
