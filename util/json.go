@@ -65,5 +65,5 @@ func RoundTrip(x *interface{}) error {
 	if err != nil {
 		return err
 	}
-	return json.Unmarshal(bs, x)
+	return UnmarshalJSON(bs, x)
 }
