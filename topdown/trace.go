@@ -36,7 +36,7 @@ const (
 	// FailOp is emitted when an expression evaluates to false.
 	FailOp Op = "Fail"
 
-	//NoteOp is emitted when trace is requested
+	// NoteOp is emitted when an expression invokes a tracing built-in function.
 	NoteOp Op = "Note"
 )
 
@@ -47,7 +47,7 @@ type Event struct {
 	QueryID  uint64        // Identifies the query this event belongs to.
 	ParentID uint64        // Identifies the parent query this event belongs to.
 	Locals   *ast.ValueMap // Contains local variable bindings from the query context.
-	Message  ast.String
+	Message  string        // Contains message for Note events.
 }
 
 // HasRule returns true if the Event contains an ast.Rule.
@@ -149,7 +149,7 @@ func PrettyTrace(w io.Writer, trace []*Event) {
 func formatEvent(event *Event, depth int) string {
 	padding := formatEventPadding(event, depth)
 	if event.Op == NoteOp {
-		return fmt.Sprintf("%v%v %v", padding, event.Op, event.Message)
+		return fmt.Sprintf("%v%v %q", padding, event.Op, event.Message)
 	}
 	return fmt.Sprintf("%v%v %v", padding, event.Op, event.Node)
 }
@@ -205,7 +205,7 @@ func builtinTrace(bctx BuiltinContext, args []*ast.Term, iter func(*ast.Term) er
 		Op:       NoteOp,
 		QueryID:  bctx.QueryID,
 		ParentID: bctx.ParentID,
-		Message:  str,
+		Message:  string(str),
 	}
 	bctx.Tracer.Trace(evt)
 

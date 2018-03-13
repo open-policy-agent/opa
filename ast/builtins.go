@@ -133,7 +133,7 @@ var DefaultBuiltins = [...]*Builtin{
 	// HTTP
 	HTTPSend,
 
-	//Trace
+	// Tracing
 	Trace,
 }
 
@@ -980,7 +980,7 @@ var HTTPSend = &Builtin{
  * Trace
  */
 
-// Trace built-in for supporting debug messages
+// Trace prints a note that is included in the query explanation.
 var Trace = &Builtin{
 	Name: "trace",
 	Decl: types.NewFunction(
