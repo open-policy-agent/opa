@@ -15,12 +15,10 @@ import (
 
 	"github.com/ghodss/yaml"
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/bundle"
 	"github.com/open-policy-agent/opa/util"
 	"github.com/pkg/errors"
 )
-
-// RegoExt declares the standard extension for Rego source files.
-const RegoExt = ".rego"
 
 // Result represents the result of successfully loading zero or more files.
 type Result struct {
@@ -51,7 +49,7 @@ func All(paths []string) (*Result, error) {
 // files from the specified paths.
 func AllRegos(paths []string) (*Result, error) {
 	return all(paths, func(curr *Result, path string) error {
-		if !strings.HasSuffix(path, RegoExt) {
+		if !strings.HasSuffix(path, bundle.RegoExt) {
 			return nil
 		}
 		result, err := Rego(path)

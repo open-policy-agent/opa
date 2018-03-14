@@ -8,6 +8,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"io"
+
+	"github.com/ghodss/yaml"
 )
 
 // UnmarshalJSON parses the JSON encoded data and stores the result in the value
@@ -66,4 +68,13 @@ func RoundTrip(x *interface{}) error {
 		return err
 	}
 	return UnmarshalJSON(bs, x)
+}
+
+// Unmarshal decodes a YAML or JSON value into the specified type.
+func Unmarshal(bs []byte, v interface{}) error {
+	bs, err := yaml.YAMLToJSON(bs)
+	if err != nil {
+		return err
+	}
+	return UnmarshalJSON(bs, v)
 }
