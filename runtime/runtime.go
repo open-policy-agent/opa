@@ -8,8 +8,10 @@ import (
 	"bytes"
 	"context"
 	"crypto/tls"
+	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"time"
 
@@ -17,10 +19,13 @@ import (
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/loader"
+	"github.com/open-policy-agent/opa/plugins"
+	"github.com/open-policy-agent/opa/plugins/bundle"
 	"github.com/open-policy-agent/opa/repl"
 	"github.com/open-policy-agent/opa/server"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/storage/inmem"
+	"github.com/open-policy-agent/opa/util"
 	"github.com/open-policy-agent/opa/version"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -79,6 +84,9 @@ type Params struct {
 	// Logging configures the logging behaviour.
 	Logging LoggingConfig
 
+	// ConfigFile refers to the OPA configuration to load on startup.
+	ConfigFile string
+
 	// Output is the output stream used when run as an interactive shell. This
 	// is mostly for test purposes.
 	Output io.Writer
@@ -99,8 +107,9 @@ func NewParams() Params {
 
 // Runtime represents a single OPA instance.
 type Runtime struct {
-	Params Params
-	Store  storage.Store
+	Params  Params
+	Store   storage.Store
+	Manager *plugins.Manager
 }
 
 // NewRuntime returns a new Runtime object initialized with params.
@@ -132,9 +141,15 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		return nil, errors.Wrapf(err, "storage error")
 	}
 
+	m, err := initPlugins(store, params.ConfigFile)
+	if err != nil {
+		return nil, err
+	}
+
 	rt := &Runtime{
-		Store:  store,
-		Params: params,
+		Store:   store,
+		Manager: m,
+		Params:  params,
 	}
 
 	return rt, nil
@@ -149,6 +164,10 @@ func (rt *Runtime) StartServer(ctx context.Context) {
 		"addr":          rt.Params.Addr,
 		"insecure_addr": rt.Params.InsecureAddr,
 	}).Infof("First line of log stream.")
+
+	if err := rt.Manager.Start(ctx); err != nil {
+		logrus.WithField("err", err).Fatalf("Unable to initialize plugins.")
+	}
 
 	s, err := server.New().
 		WithStore(rt.Store).
@@ -192,6 +211,11 @@ func (rt *Runtime) StartServer(ctx context.Context) {
 
 // StartREPL starts the runtime in REPL mode. This function will block the calling goroutine.
 func (rt *Runtime) StartREPL(ctx context.Context) {
+
+	if err := rt.Manager.Start(ctx); err != nil {
+		fmt.Fprintln(rt.Params.Output, "error starting plugins:", err)
+		os.Exit(1)
+	}
 
 	banner := rt.getBanner()
 	repl := repl.New(rt.Store, rt.Params.HistoryPath, rt.Params.Output, rt.Params.OutputFormat, rt.Params.ErrorLimit, banner)
@@ -390,4 +414,52 @@ func setupLogging(config LoggingConfig) {
 	}
 
 	logrus.SetLevel(lvl)
+}
+
+// TODO(tsandall): revisit how plugins are wired up to the manager and how
+// everything is started and stopped. We could introduce a package-scoped
+// plugin registry that allows for (dynamic) init-time plugin registration.
+
+func initPlugins(store storage.Store, configFile string) (*plugins.Manager, error) {
+
+	if configFile == "" {
+		return nil, nil
+	}
+
+	bs, err := ioutil.ReadFile(configFile)
+	if err != nil {
+		return nil, err
+	}
+
+	m, err := plugins.New(bs, store)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := initBundlePlugins(m, bs); err != nil {
+		return nil, err
+	}
+
+	return m, nil
+}
+
+func initBundlePlugins(m *plugins.Manager, bs []byte) error {
+
+	var config struct {
+		Bundles []json.RawMessage `json:"bundles"`
+	}
+
+	if err := util.Unmarshal(bs, &config); err != nil {
+		return err
+	}
+
+	for _, bs := range config.Bundles {
+		p, err := bundle.New(bs, m)
+		if err != nil {
+			return err
+		}
+		m.Register(p)
+	}
+
+	return nil
 }
