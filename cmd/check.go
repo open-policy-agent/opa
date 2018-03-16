@@ -5,17 +5,29 @@
 package cmd
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/loader"
+	"github.com/open-policy-agent/opa/util"
 	"github.com/spf13/cobra"
 )
 
 var checkParams = struct {
+	format   *util.EnumFlag
 	errLimit int
-}{}
+}{
+	format: util.NewEnumFlag(checkFormatPretty, []string{
+		checkFormatPretty, checkFormatJSON,
+	}),
+}
+
+const (
+	checkFormatPretty = "pretty"
+	checkFormatJSON   = "json"
+)
 
 var errLimit int
 
@@ -56,17 +68,32 @@ func checkModules(args []string) int {
 
 	compiler := ast.NewCompiler().SetErrorLimit(checkParams.errLimit)
 
-	if compiler.Compile(modules); compiler.Failed() {
-		for _, err := range compiler.Errors {
-			fmt.Fprintln(os.Stderr, err)
-		}
-		return 1
+	compiler.Compile(modules)
+
+	if !compiler.Failed() {
+		return 0
 	}
 
-	return 0
+	switch checkParams.format.String() {
+	case checkFormatJSON:
+		result := map[string]error{
+			"errors": compiler.Errors,
+		}
+		bs, err := json.MarshalIndent(result, "", "  ")
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+		} else {
+			fmt.Fprintln(os.Stdout, string(bs))
+		}
+	default:
+		fmt.Fprintln(os.Stdout, compiler.Errors)
+	}
+
+	return 1
 }
 
 func init() {
 	setMaxErrors(checkCommand.Flags(), &checkParams.errLimit)
+	checkCommand.Flags().VarP(checkParams.format, "format", "f", "set output format")
 	RootCommand.AddCommand(checkCommand)
 }
