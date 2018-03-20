@@ -544,8 +544,7 @@ func NumberTerm(n json.Number) *Term {
 
 // IntNumberTerm creates a new Term with an integer Number value.
 func IntNumberTerm(i int) *Term {
-	num := Number(json.Number(fmt.Sprintf("%d", i)))
-	return &Term{Value: num}
+	return &Term{Value: Number(strconv.Itoa(i))}
 }
 
 // FloatNumberTerm creates a new Term with a floating point Number value.
@@ -613,11 +612,11 @@ func (num Number) String() string {
 }
 
 func intNumber(i int) Number {
-	return Number(json.Number(fmt.Sprintf("%d", i)))
+	return Number(strconv.Itoa(i))
 }
 
 func int64Number(i int64) Number {
-	return Number(json.Number(fmt.Sprintf("%d", i)))
+	return Number(strconv.FormatInt(i, 10))
 }
 
 func floatNumber(f float64) Number {
