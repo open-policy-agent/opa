@@ -71,6 +71,32 @@ func (loc *Location) String() string {
 	return fmt.Sprintf("%v:%v", loc.Row, loc.Col)
 }
 
+// Compare returns -1, 0, or 1 to indicate if this loc is less than, equal to,
+// or greater than the other. Comparison is performed on the file, row, and
+// column of the Location (but not on the text.)
+func (loc *Location) Compare(other *Location) int {
+	if loc == nil && other == nil {
+		return 0
+	} else if loc == nil {
+		return 1
+	} else if other == nil {
+		return -1
+	} else if loc.File < other.File {
+		return -1
+	} else if loc.File > other.File {
+		return 1
+	} else if loc.Row < other.Row {
+		return -1
+	} else if loc.Row > other.Row {
+		return 1
+	} else if loc.Col < other.Col {
+		return -1
+	} else if loc.Col > other.Col {
+		return 1
+	}
+	return 0
+}
+
 // Value declares the common interface for all Term values. Every kind of Term value
 // in the language is represented as a type that implements this interface:
 //
