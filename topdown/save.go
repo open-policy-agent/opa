@@ -73,6 +73,21 @@ func (n *saveSet) Pop() {
 	n.s = n.s[:len(n.s)-1]
 }
 
+func (n *saveSet) Vars() ast.VarSet {
+	if n == nil {
+		return nil
+	}
+	result := ast.NewVarSet()
+	for i := 0; i < len(n.s); i++ {
+		for k := range n.s[i].children {
+			if v, ok := k.(ast.Var); ok {
+				result.Add(v)
+			}
+		}
+	}
+	return result
+}
+
 type saveSetElem struct {
 	children map[ast.Value]*saveSetElem
 }
