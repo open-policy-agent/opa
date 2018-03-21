@@ -6,6 +6,7 @@ package ast
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/open-policy-agent/opa/util"
@@ -552,11 +553,9 @@ func (c *Compiler) checkSafetyRuleBodies() {
 
 func (c *Compiler) checkBodySafety(safe VarSet, m *Module, b Body, l *Location) Body {
 	reordered, unsafe := reorderBodyForSafety(c.GetArity, safe, b)
-	if len(unsafe) != 0 {
-		for v := range unsafe.Vars() {
-			if !v.IsGenerated() {
-				c.err(NewError(UnsafeVarErr, l, "var %v is unsafe", v))
-			}
+	if errs := safetyErrorSlice(l, unsafe); len(errs) > 0 {
+		for _, err := range errs {
+			c.err(err)
 		}
 		return b
 	}
@@ -1005,20 +1004,11 @@ func (qc *queryCompiler) rewriteLocalAssignments(_ *QueryContext, body Body) (Bo
 }
 
 func (qc *queryCompiler) checkSafety(_ *QueryContext, body Body) (Body, error) {
-
 	safe := ReservedVars.Copy()
 	reordered, unsafe := reorderBodyForSafety(qc.compiler.GetArity, safe, body)
-
-	if len(unsafe) != 0 {
-		var err Errors
-		for v := range unsafe.Vars() {
-			if !v.IsGenerated() {
-				err = append(err, NewError(UnsafeVarErr, body.Loc(), "var %v is unsafe", v))
-			}
-		}
-		return nil, err
+	if errs := safetyErrorSlice(body.Loc(), unsafe); len(errs) > 0 {
+		return nil, errs
 	}
-
 	return reordered, nil
 }
 
@@ -1398,6 +1388,11 @@ func (g *graphTraversal) Visited(u util.T) bool {
 	return ok
 }
 
+type unsafePair struct {
+	Expr *Expr
+	Vars VarSet
+}
+
 type unsafeVars map[*Expr]VarSet
 
 func (vs unsafeVars) Add(e *Expr, v Var) {
@@ -1427,6 +1422,16 @@ func (vs unsafeVars) Vars() VarSet {
 		r.Update(s)
 	}
 	return r
+}
+
+func (vs unsafeVars) Slice() (result []unsafePair) {
+	for expr, vs := range vs {
+		result = append(result, unsafePair{
+			Expr: expr,
+			Vars: vs,
+		})
+	}
+	return
 }
 
 // reorderBodyForSafety returns a copy of the body ordered such that
@@ -2594,5 +2599,48 @@ func rewriteDeclaredVar(g *localVarGenerator, stack *localDeclaredVars, v Var) (
 	}
 	gv = g.Generate()
 	stack.Insert(v, gv)
+	return
+}
+
+func safetyErrorSlice(l *Location, unsafe unsafeVars) (result Errors) {
+
+	if len(unsafe) == 0 {
+		return
+	}
+
+	for v := range unsafe.Vars() {
+		if !v.IsGenerated() {
+			result = append(result, NewError(UnsafeVarErr, l, "var %v is unsafe", v))
+		}
+	}
+
+	if len(result) > 0 {
+		return
+	}
+
+	// If the expression contains unsafe generated variables, report which
+	// expressions are unsafe instead of the variables that are unsafe (since
+	// the latter are not meaningful to the user.)
+	pairs := unsafe.Slice()
+
+	sort.Slice(pairs, func(i, j int) bool {
+		return pairs[i].Expr.Location.Compare(pairs[j].Expr.Location) < 0
+	})
+
+	// Report at most one error per generated variable.
+	seen := NewVarSet()
+
+	for _, expr := range pairs {
+		before := len(seen)
+		for v := range expr.Vars {
+			if v.IsGenerated() {
+				seen.Add(v)
+			}
+		}
+		if len(seen) > before {
+			result = append(result, NewError(UnsafeVarErr, expr.Expr.Location, "expression is unsafe"))
+		}
+	}
+
 	return
 }
