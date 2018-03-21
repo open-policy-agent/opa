@@ -16,7 +16,7 @@ Requirements:
 
 - Git
 - GitHub account (if you are contributing)
-- Go (version 1.8.x is supported)
+- Go (version 1.10 is supported though older versiosn are likely to work)
 - GNU Make
 
 ## Getting Started
@@ -76,7 +76,7 @@ with `make check`.
 1. Commit changes and push to your fork.
 
     ```
-    git commit
+    git commit -s
     git push origin somefeature
     ```
 
