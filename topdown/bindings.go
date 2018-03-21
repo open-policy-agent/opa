@@ -130,8 +130,60 @@ func (u *bindings) plugNamespaced(a *ast.Term, caller *bindings) *ast.Term {
 		}
 		cpy.Value = ref
 		return &cpy
+
+	// NOTE(tsandall): comprehensions are plugged when they're contained in
+	// partial evaluation results. If comprehensions are partially evaluated at
+	// some point, then they will not need to be plugged and these branches can
+	// go away.
+	case *ast.ArrayComprehension:
+		ac := *v
+		ac.Body = u.plugBody(v.Body, caller)
+		ac.Term = u.plugNamespaced(v.Term, caller)
+		cpy := *a
+		cpy.Value = &ac
+		return &cpy
+	case *ast.SetComprehension:
+		sc := *v
+		sc.Body = u.plugBody(v.Body, caller)
+		sc.Term = u.plugNamespaced(v.Term, caller)
+		cpy := *a
+		cpy.Value = &sc
+		return &cpy
+	case *ast.ObjectComprehension:
+		oc := *v
+		oc.Body = u.plugBody(v.Body, caller)
+		oc.Key = u.plugNamespaced(v.Key, caller)
+		oc.Value = u.plugNamespaced(v.Value, caller)
+		cpy := *a
+		cpy.Value = &oc
+		return &cpy
+
 	}
 	return a
+}
+
+// NOTE(tsandall): see note in plugNamespaced about comprehensions.
+func (u *bindings) plugBody(body ast.Body, caller *bindings) ast.Body {
+	cpy := make(ast.Body, len(body))
+	for i := range body {
+		cpy[i] = u.plugExpr(body[i], caller)
+	}
+	return cpy
+}
+
+func (u *bindings) plugExpr(expr *ast.Expr, caller *bindings) *ast.Expr {
+	cpy := *expr
+	switch terms := expr.Terms.(type) {
+	case *ast.Term:
+		cpy.Terms = u.plugNamespaced(terms, caller)
+	case []*ast.Term:
+		sl := make([]*ast.Term, len(terms))
+		for i := 0; i < len(sl); i++ {
+			sl[i] = u.plugNamespaced(terms[i], caller)
+		}
+		cpy.Terms = sl
+	}
+	return &cpy
 }
 
 func (u *bindings) bind(a *ast.Term, b *ast.Term, other *bindings) *undo {
