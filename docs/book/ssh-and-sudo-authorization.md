@@ -12,7 +12,7 @@ host-level access controls over SSH and sudo.
 Linux-PAM can be configured to delegate authorization decisions to plugins
 (shared libraries). In this case, we have created an OPA-based plugin that can
 be configured to authorize SSH and sudo access. The OPA-based Linux-PAM plugin
-used in this tutorial can be found at [open-policy-agent/contrib](https://github.com/open-policy-agent/contrib).
+used in this tutorial can be found at [open-policy-agent/contrib](https://github.com/open-policy-agent/contrib/tree/b36d68cda0df764cdbf37262f3cf636aba9e23a6).
 
 For this tutorial, our desired policy is:
 
