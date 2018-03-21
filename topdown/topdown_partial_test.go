@@ -317,6 +317,11 @@ func TestTopDownPartialEval(t *testing.T) {
 			wantQueries: []string{`x = [true | true]; y = {true | true}; z = {a: true | a = "foo"}`},
 		},
 		{
+			note:        "comprehensions: closure",
+			query:       `i = 1; xs = [x | x = data.foo[i]]`,
+			wantQueries: []string{`xs = [x | x = data.foo[1]]; i = 1`},
+		},
+		{
 			note:  "save: sub path",
 			query: "input.x = 1; input.y = 2; input.z.a = 3; input.z.b = x",
 			input: `{"x": 1, "z": {"b": 4}}`,
