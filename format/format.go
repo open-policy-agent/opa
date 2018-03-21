@@ -92,7 +92,7 @@ func Ast(x interface{}) (formatted []byte, err error) {
 	case *ast.Rule:
 		w.writeRule(x, false, nil)
 	case *ast.Head:
-		w.writeHead(x, nil)
+		w.writeHead(x, false, nil)
 	case ast.Body:
 		w.writeBody(x, nil)
 	case *ast.Expr:
@@ -205,13 +205,14 @@ func (w *writer) writeRule(rule *ast.Rule, isElse bool, comments []*ast.Comment)
 	if rule.Default {
 		w.write("default ")
 	}
-	comments = w.writeHead(rule.Head, comments)
 
 	// OPA transforms lone bodies like `foo = {"a": "b"}` into rules of the form
 	// `foo = {"a": "b"} { true }` in the AST. We want to preserve that notation
 	// in the formatted code instead of expanding the bodies into rules, so we
 	// pretend that the rule has no body in this case.
 	isExpandedConst := rule.Body.Equal(ast.NewBody(ast.NewExpr(ast.BooleanTerm(true)))) && rule.Else == nil
+
+	comments = w.writeHead(rule.Head, isExpandedConst, comments)
 
 	if (len(rule.Body) == 0 || isExpandedConst) && !isElse {
 		w.endLine()
@@ -247,7 +248,7 @@ func (w *writer) writeRule(rule *ast.Rule, isElse bool, comments []*ast.Comment)
 	return comments
 }
 
-func (w *writer) writeHead(head *ast.Head, comments []*ast.Comment) []*ast.Comment {
+func (w *writer) writeHead(head *ast.Head, isExpandedConst bool, comments []*ast.Comment) []*ast.Comment {
 	w.write(head.Name.String())
 	if len(head.Args) > 0 {
 		w.write("(")
@@ -263,7 +264,7 @@ func (w *writer) writeHead(head *ast.Head, comments []*ast.Comment) []*ast.Comme
 		comments = w.writeTerm(head.Key, comments)
 		w.write("]")
 	}
-	if head.Value != nil && ast.Compare(head.Value, ast.BooleanTerm(true)) != 0 {
+	if head.Value != nil && (head.Key != nil || ast.Compare(head.Value, ast.BooleanTerm(true)) != 0 || isExpandedConst) {
 		w.write(" = ")
 		comments = w.writeTerm(head.Value, comments)
 	}
