@@ -3,6 +3,7 @@ package topdown
 import (
 	"context"
 	"fmt"
+	"sort"
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/storage"
@@ -233,46 +234,13 @@ func (e *eval) evalStep(index int, iter evalIterator) error {
 
 func (e *eval) evalNot(index int, iter evalIterator) error {
 
+	if e.partial() {
+		return e.evalNotPartial(index, iter)
+	}
+
 	expr := e.query[index]
 	negation := expr.Complement().NoWith()
 	child := e.closure(ast.NewBody(negation))
-
-	if e.partial() {
-
-		// During partial evaluation, negated expressions may generate support
-		// rules where the evaluation of the complemented expression is inlined
-		// into the support rule. If the complemented expression is undefined
-		// then the negated expression can be omitted completely.
-		e.saveStack.PushQuery(nil)
-		supportName := fmt.Sprintf("__not%d_%d__", e.queryID, index)
-		term := ast.RefTerm(ast.DefaultRootDocument, e.saveNamespace, ast.StringTerm(supportName))
-		path := term.Value.(ast.Ref)
-		defined := false
-
-		child.eval(func(*eval) error {
-			defined = true
-			current := e.saveStack.PopQuery()
-			e.saveStack.PushQuery(current)
-			plugged := current.Plug(child.bindings)
-			e.saveSupport.Insert(path, &ast.Rule{
-				Head: ast.NewHead(ast.Var(supportName), nil, ast.BooleanTerm(true)),
-				Body: plugged,
-			})
-			return nil
-		})
-
-		e.saveStack.PopQuery()
-
-		if defined {
-			expr = expr.Copy()
-			expr.Terms = term
-			return e.saveExpr(expr, e.bindings, func() error {
-				return e.evalExpr(index+1, iter)
-			})
-		}
-
-		return e.evalExpr(index+1, iter)
-	}
 
 	var defined bool
 
@@ -319,6 +287,75 @@ func (e *eval) evalWith(index int, iter evalIterator) error {
 	e.virtualCache.Pop()
 	e.input = old
 	return err
+}
+
+func (e *eval) evalNotPartial(index int, iter evalIterator) error {
+
+	expr := e.query[index]
+	negation := expr.Complement().NoWith()
+	child := e.closure(ast.NewBody(negation))
+
+	// During partial evaluation, negated expressions may generate support
+	// rules where the evaluation of the complemented expression is inlined
+	// into the support rule. If the complemented expression is undefined
+	// then the negated expression can be omitted completely.
+	e.saveStack.PushQuery(nil)
+	supportName := fmt.Sprintf("__not%d_%d__", e.queryID, index)
+	term := ast.RefTerm(ast.DefaultRootDocument, e.saveNamespace, ast.StringTerm(supportName))
+	path := term.Value.(ast.Ref)
+	defined := false
+
+	// If the expression contains variables that are marked as unknown, the
+	// support rule has to include arguments. The arguments are sorted to
+	// ensure they're passed consistently.
+	vis := ast.NewVarVisitor()
+	ast.Walk(vis, negation)
+	unknownVars := e.saveSet.Vars().Intersect(vis.Vars())
+	callVars := make([]*ast.Term, 0, len(unknownVars))
+	for v := range unknownVars {
+		callVars = append(callVars, ast.NewTerm(v))
+	}
+
+	sort.Slice(callVars, func(i, j int) bool {
+		return callVars[i].Value.Compare(callVars[j].Value) < 0
+	})
+
+	child.eval(func(*eval) error {
+		defined = true
+		current := e.saveStack.PopQuery()
+		e.saveStack.PushQuery(current)
+		plugged := current.Plug(child.bindings)
+		head := ast.NewHead(ast.Var(supportName), nil, ast.BooleanTerm(true))
+		if len(callVars) > 0 {
+			head.Args = ast.Args(callVars)
+		}
+		e.saveSupport.Insert(path, &ast.Rule{
+			Head: head,
+			Body: plugged,
+		})
+		return nil
+	})
+
+	e.saveStack.PopQuery()
+
+	if defined {
+		expr = expr.Copy()
+		if len(callVars) > 0 {
+			terms := make([]*ast.Term, len(callVars)+1)
+			terms[0] = term
+			for i := 0; i < len(callVars); i++ {
+				terms[i+1] = callVars[i]
+			}
+			expr.Terms = terms
+		} else {
+			expr.Terms = term
+		}
+		return e.saveExpr(expr, e.bindings, func() error {
+			return e.evalExpr(index+1, iter)
+		})
+	}
+
+	return e.evalExpr(index+1, iter)
 }
 
 func (e *eval) evalCall(index int, operator *ast.Term, terms []*ast.Term, iter unifyIterator) error {

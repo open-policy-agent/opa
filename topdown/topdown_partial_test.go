@@ -647,6 +647,25 @@ func TestTopDownPartialEval(t *testing.T) {
 				__not1_1__ { input.y = 2 }`,
 			},
 		},
+		{
+			note:  "support: negation with input",
+			query: "input.x = x; input.y = y; not data.test.p[[x,y]]",
+			modules: []string{
+				`package test
+
+				p[[0, 1]]
+				p[[2, 3]]`,
+			},
+			wantQueries: []string{
+				`input.x = x; input.y = y; not data.partial.__not0_2__(x, y)`,
+			},
+			wantSupport: []string{
+				`package partial
+
+				__not0_2__(x, y) { 0 = x; 1 = y }
+				__not0_2__(x, y) { 2 = x; 3 = y }`,
+			},
+		},
 	}
 
 	ctx := context.Background()
