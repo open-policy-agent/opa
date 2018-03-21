@@ -193,6 +193,12 @@ nested_infix {
 	y = q()
 }
 
+expanded_const = true
+
+partial_obj["why"] = true {
+	false
+}
+
 # more comments!
 # more comments!
 # more comments!
