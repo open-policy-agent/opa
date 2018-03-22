@@ -2,13 +2,13 @@
 
 This document is the authoritative specification of the OPA REST API.
 
-## <a name="policy-api"/> Policy API
+##  Policy API
 
 The Policy API exposes CRUD endpoints for managing policy modules. Policy modules can be added, removed, and modified at any time.
 
 The identifiers given to policy modules are only used for management purposes. They are not used outside of the Policy API.
 
-### <a name="list-policies"/>List Policies
+### List Policies
 
 ```
 GET /v1/policies
@@ -366,7 +366,7 @@ Content-Type: application/json
 - **200** - no error
 - **500** - server error
 
-### <a name="get-a-policy"/>Get a Policy
+### Get a Policy
 
 ```
 GET /v1/policies/<id>
@@ -603,7 +603,7 @@ Content-Type: application/json
 - **404** - not found
 - **500** - server error
 
-### <a name="create-or-update-a-policy"/>Create or Update a Policy
+### Create or Update a Policy
 
 ```
 PUT /v1/policies/<id>
@@ -663,7 +663,7 @@ Content-Type: application/json
 
 Before accepting the request, the server will parse, compile, and install the policy module. If the policy module is invalid, one of these steps will fail and the server will respond with 400. The error message in the response will be set to indicate the source of the error.
 
-### <a name="delete-a-policy"/>Delete a Policy
+### Delete a Policy
 
 ```
 DELETE /v1/policies/<id>
@@ -702,11 +702,11 @@ Content-Type: application/json
 
 If other policy modules in the same package depend on rules in the policy module to be deleted, the server will return 400.
 
-## <a name="data-api"></a> Data API
+## Data API
 
 The Data API exposes endpoints for reading and writing documents in OPA. For an introduction to the different types of documents in OPA see [How Does OPA Work?](/how-does-opa-work.md).
 
-### <a name="get-a-document"/>Get a Document
+### Get a Document
 
 ```
 GET /v1/data/{path:.+}
@@ -998,7 +998,7 @@ The server returns 400 if either:
 The server returns 200 if the path refers to an undefined document. In this
 case, the response will not contain a `result` property.
 
-### <a name="get-a-document-with-input"></a> Get a Document (with Input)
+### Get a Document (with Input)
 
 ```
 POST /v1/data/{path:.+}
@@ -1107,7 +1107,7 @@ The server returns 400 if either:
 The server returns 200 if the path refers to an undefined document. In this
 case, the response will not contain a `result` property.
 
-### <a name="get-a-document-webhook"/>Get a Document (Webhook)
+### Get a Document (Webhook)
 
 ```
 POST /v0/data/{path:.+}
@@ -1173,7 +1173,7 @@ true
 
 If the requested document is missing or undefined, the server will return 404 and the message body will contain an error object.
 
-### <a name="create-or-overwrite a document"/>Create or Overwrite a Document
+### Create or Overwrite a Document
 
 ```
 PUT /v1/data/{path:.+}
@@ -1218,7 +1218,7 @@ HTTP/1.1 204 No Content
 
 If the path refers to a virtual document or a conflicting base document the server will respond with 404. A base document conflict will occur if the parent portion of the path refers to a non-object document.
 
-### <a name="patch-a-document"/>Patch a Document
+### Patch a Document
 
 ```
 PATCH /v1/data/{path:.+}
@@ -1265,7 +1265,7 @@ HTTP/1.1 204 No Content
 
 The effective path of the JSON Patch operation is obtained by joining the path portion of the URL with the path value from the operation(s) contained in the message body. In all cases, the parent of the effective path MUST refer to an existing document, otherwise the server returns 404. In the case of **remove** and **replace** operations, the effective path MUST refer to an existing document, otherwise the server returns 404.
 
-### <a name="delete-a-document"/>Delete a Document
+### Delete a Document
 
 ```
 DELETE /v1/data/{path:.+}
@@ -1295,9 +1295,9 @@ HTTP/1.1 204 No Content
 
 If the path refers to a non-existent document, the server returns 404.
 
-## <a name="query-api"></a> Query API
+## Query API
 
-### <a name="execute-a-simple-query"/>Execute a Simple Query
+### Execute a Simple Query
 
 ```
 POST /
@@ -1358,7 +1358,7 @@ Content-Type: application/json
 
 If the `/data/system/main` document is undefined (e.g., because the administrator has not defined one) the server returns 404.
 
-### <a name="execute-an-ad-hoc-query"/>Execute an Ad-hoc Query
+### Execute an Ad-hoc Query
 
 ```
 GET /v1/query
@@ -1410,12 +1410,12 @@ Content-Type: application/json
 - **500** - server error
 - **501** - streaming not implemented
 
-## <a name="authentication"></a> Authentication
+## Authentication
 
 The API is secured via [HTTPS, Authentication, and
 Authorization](/documentation/references/security).
 
-### <a name="bearer-tokens"/> Bearer Tokens
+###  Bearer Tokens
 
 When OPA is started with the ``--authentication=token`` command line flag,
 clients MUST provide a Bearer token in the HTTP Authorization header:
@@ -1433,7 +1433,7 @@ above) and provide it to the authorization component inside OPA that will (i)
 validate the token and (ii) execute the authorization policy configured by the
 admin.
 
-## <a name="errors"></a> Errors
+## Errors
 
 All of the API endpoints use standard HTTP status codes to indicate success or
 failure of an API call. If an API call fails, the response will contain a JSON
@@ -1458,7 +1458,7 @@ optional:
 }
 ```
 
-## <a name="explanations"></a> Explanations
+## Explanations
 
 OPA supports query explanations that describe (in detail) the steps taken to
 produce query results.
@@ -1476,7 +1476,7 @@ the following values:
 By default, explanations are represented in a machine-friendly format. Set the
 `pretty` parameter to request a human-friendly format for debugging purposes.
 
-### <a name="trace-events"/>Trace Events
+### Trace Events
 
 When the `explain` query parameter is set to **full** , the response contains an array of Trace Event objects.
 
@@ -1560,7 +1560,7 @@ restarts, a **Redo** Trace Event is emitted.
 }
 ```
 
-## <a name="performance-metrics"></a> Performance Metrics
+## Performance Metrics
 
 OPA can report detailed performance metrics at runtime. Performance metrics can
 be requested on individual API calls and are returned inline with the API
@@ -1615,7 +1615,7 @@ Query instrumentation can help diagnose performance problems, however, it can
 add significant overhead to query evaluation. We recommend leaving query
 instrumentation off unless you are debugging a performance problem.
 
-## <a name="watches"></a> Watches
+## Watches
 
 OPA can set watches on queries and report whenever the result of evaluating the query has changed. When a watch is set on a query, the requesting connection will be maintained as the query results are streamed back in HTTP Chunked Encoding format. A notification reflecting a certain change to the query results will be delivered _at most once_. That is, if a watch is set on `data.x`, and then multiple writes are made to `data.x`, say `1`, `2` and `3`, only the notification reflecting `data.x=3` is always seen eventually (assuming the watch is not ended, there are no connection problems, etc). The notifications reflecting `data.x=1` and `data.x=2` _might_ be seen. However, the notifications sent are guaranteed to be in order (`data.x=2` will always come after `data.x=1`, if it comes).
 

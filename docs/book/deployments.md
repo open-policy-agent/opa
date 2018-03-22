@@ -3,7 +3,7 @@
 This document helps you get OPA up and running in different deployment
 environments. You should read this document if you are planning to deploy OPA.
 
-## <a name="docker"/>Docker
+## Docker
 
 Docker makes OPA easy to deploy in different types of environments.
 
@@ -15,7 +15,7 @@ OPA releases are available as images on Docker Hub.
 
 * [openpolicyagent/opa:0.7.1](https://hub.docker.com/r/openpolicyagent/opa/)
 
-### <a name="running-with-docker"/>Running with Docker
+### Running with Docker
 
 If you start OPA outside of Docker without any arguments, it prints a list of
 available commands. By default, the official OPA Docker image executes the `run`
@@ -99,7 +99,7 @@ For more information on OPA's command line, see `--help`:
 docker run openpolicyagent/opa run --help
 ```
 
-### <a name="tagging"/>Tagging
+### Tagging
 
 The Docker Hub repository contains tags for every release of OPA. For more
 information on each release see the [GitHub
@@ -119,9 +119,9 @@ the version with the following command:
 docker run openpolicyagent/opa version
 ```
 
-## <a name="kubernetes"/>Kubernetes
+## Kubernetes
 
-### <a name="kicking-the-tires"/>Kicking the Tires
+### Kicking the Tires
 
 This section shows how to quickly deploy OPA on top of Kubernetes to try it out.
 

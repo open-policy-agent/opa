@@ -6,7 +6,7 @@ needing specialized development or operational expertise. When your users can
 implement policies without recompiling your source code, then your service is
 policy enabled.
 
-## <a name="what-is-policy"/>What is Policy?
+## What is Policy?
 
 All organizations have policies. Policies are essential to the long-term
 success of organizations because they encode important knowledge about how to
@@ -18,7 +18,7 @@ are written down or conventions that are unspoken but permeate an
 organization’s culture. Policies may also be enforced with application logic or
 statically configured at deploy time.
 
-## <a name="what-is-policy-enablement"/>What is Policy Enablement?
+## What is Policy Enablement?
 
 Policy-enabled services allow policies to be specified declaratively, updated
 at any time without recompiling or redeploying, and enforced automatically
@@ -36,7 +36,7 @@ example, a cloud computing service could answer questions such as:
 * In what regions can I add compute capacity?
 * Which instances are currently running in the wrong region?
 
-## <a name="what-is-opa"/>What is OPA?
+## What is OPA?
 
 OPA is a lightweight general-purpose policy engine that can be co-located with
 your service. You can integrate OPA as a sidecar, host-level daemon, or
@@ -47,6 +47,6 @@ policies and data to produce query results (which are sent back to the client).
 Policies are written in a high-level declarative language and can be loaded
 into OPA via the filesystem or well-defined APIs.
 
-## <a name="why-use-opa"/>Why use OPA?
+## Why use OPA?
 
 ![benefits](images/benefits.svg "benefits")

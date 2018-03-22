@@ -69,7 +69,7 @@ $ docker run -d --restart=always \
     -policy-file /policies/example.rego
 ```
 
-### <a name="reconfigure-docker"></a> 3. Reconfigure Docker.
+### 3. Reconfigure Docker.
 
 Docker must include the following command-line argument:
 
