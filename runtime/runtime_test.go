@@ -205,25 +205,42 @@ func TestRuntimeProcessWatchEventPolicyError(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		result := <-ch
+		// Wait for up to 1 second before considering test failed. On Linux we
+		// observe multiple events on write (e.g., create -> write) which
+		// triggers two errors instead of one, whereas on Darwin only a single
+		// event (e.g., create) is sent. Same as below.
+		maxWait := time.Second
+		timer := time.NewTimer(maxWait)
 
-		if errs, ok := result.(ast.Errors); !ok {
-			t.Fatal("Expected error but got:", result)
-		} else if errs[0].Code != ast.TypeErr {
-			t.Fatal("Expected type error but got:", result)
+		// Expect type error.
+		func() {
+			for {
+				select {
+				case result := <-ch:
+					if errs, ok := result.(ast.Errors); ok {
+						if errs[0].Code == ast.TypeErr {
+							err = nil
+							return
+						}
+					}
+					err = result
+				case <-timer.C:
+					return
+				}
+			}
+		}()
+
+		if err != nil {
+			t.Fatalf("Expected specific failure before %v. Last error: %v", maxWait, err)
 		}
 
 		if err := os.Remove(path.Join(rootDir, "x.rego")); err != nil {
 			t.Fatal(err)
 		}
 
-		// Wait for up to 1 second before considering test failed. On Linux we
-		// observe multiple events on write (e.g., create -> write) which
-		// triggers two errors instead of one, whereas on Darwin only a single
-		// event (e.g., create) is sent.
-		maxWait := time.Second
-		timer := time.NewTimer(maxWait)
+		timer = time.NewTimer(maxWait)
 
+		// Expect no error.
 		func() {
 			for {
 				select {
