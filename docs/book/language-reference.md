@@ -3,13 +3,13 @@
 This document is the authoritative specification of the Rego policy language
 (V1). All policies in OPA are written in Rego.
 
-## <a name="built-in-functions"/>Built-in Functions
+## Built-in Functions
 
 The built-in functions for the language provide basic operations to manipulate
 scalar values (e.g. numbers and strings), and aggregate functions that summarize
 complex types.
 
-### <a name="comparison"/>Comparison
+### Comparison
 
 | Built-in | Inputs | Description |
 | ------- |--------|-------------|
@@ -20,7 +20,7 @@ complex types.
 | <span class="opa-keep-it-together">``x > y``</span>   |  2     | ``x`` is greater than ``y`` |
 | <span class="opa-keep-it-together">``x >= y``</span>   |  2     | ``x`` is greater than or equal to ``y`` |
 
-### <a name="numbers"/>Numbers
+### Numbers
 
 | Built-in | Inputs | Description |
 | ------- |--------|-------------|
@@ -32,7 +32,7 @@ complex types.
 | <span class="opa-keep-it-together">``round(x, output)``</span>    |  1     | ``output`` is ``x`` rounded to the nearest integer |
 | <span class="opa-keep-it-together">``abs(x, output)``</span>    |  1     | ``output`` is the absolute value of ``x`` |
 
-### <a name="aggregates"/>Aggregates
+### Aggregates
 
 | Built-in | Inputs | Description |
 | ------- |--------|-------------|
@@ -43,7 +43,7 @@ complex types.
 | <span class="opa-keep-it-together">``min(array_or_set, output)``</span> | 1 | ``output`` is the minimum value in ``array_or_set`` |
 | <span class="opa-keep-it-together">``sort(array_or_set, output)``</span> | 1 | ``output`` is the sorted ``array`` containing elements from ``array_or_set``. |
 
-### <a name="sets"/>Sets
+### Sets
 
 | Built-in | Inputs | Description |
 | -------- | ------ | ----------- |
@@ -53,7 +53,7 @@ complex types.
 | <span class="opa-keep-it-together">``intersection(set[set], output)``</span> | 1 | ``output`` is the intersection of the sets in the input set  |
 | <span class="opa-keep-it-together">``union(set[set], output)``</span> | 1 | ``output`` is the union of the sets in the input set  |
 
-### <a name="strings"/>Strings
+### Strings
 
 | Built-in | Inputs | Description |
 | ------- |--------|-------------|
@@ -71,13 +71,13 @@ complex types.
 | <span class="opa-keep-it-together">``trim(string, cutset, output)``</span> | 2 | ``output`` is a ``string`` representing ``string`` with all leading and trailing instances of the characters in ``cutset`` removed. |
 | <span class="opa-keep-it-together">``upper(string, output)``</span> | 1 | ``output`` is ``string`` after converting to upper case |
 
-### <a name="regex"/>Regex
+### Regex
 | Built-in | Inputs | Description |
 | ------- |--------|-------------|
 | <span class="opa-keep-it-together">``re_match(pattern, value)``</span> | 2 | true if the ``value`` matches the regex ``pattern`` |
 | <span class="opa-keep-it-together">``regex.globs_match(glob1, glob2)``</span> | 2 | true if the intersection of regex-style globs ``glob1`` and ``glob2`` matches a non-empty set of non-empty strings. The set of regex symbols is limited for this builtin: only ``.``, ``*``, ``+``, ``[``, ``-``, ``]`` and ``\`` are treated as special symbols. |
 
-### <a name="types"/>Types
+### Types
 
 | Built-in | Inputs | Description |
 | ------- |--------|-------------|
@@ -91,7 +91,7 @@ complex types.
 | <span class="opa-keep-it-together">``is_null(x, output)``</span> | 1 | ``output`` is ``true`` if ``x`` is null |
 | <span class="opa-keep-it-together">``type_name(x, output)``</span> | 1 | ``output`` is the type of ``x`` |
 
-### <a name="encoding"/>Encoding
+### Encoding
 
 | Built-in | Inputs | Description |
 | ------- |--------|-------------|
@@ -104,7 +104,7 @@ complex types.
 | <span class="opa-keep-it-together">``yaml.marshal(x, output)``</span> | 1 | ``output`` is ``x`` serialized to a YAML string |
 | <span class="opa-keep-it-together">``yaml.unmarshal(string, output)``</span> | 1 | ``output`` is ``string`` deserialized to a term from YAML encoded string |
 
-### <a name="tokens"/>Tokens
+### Tokens
 
 | Built-in | Inputs | Description |
 | ------- |--------|-------------|
@@ -113,7 +113,7 @@ complex types.
 
 The input `string` is a JSON Web Token encoded with JWS Compact Serialization. JWE and JWS JSON Serialization are not supported. If nested signing was used, the ``header``, ``payload`` and ``signature`` will represent the most deeply nested token.
 
-### <a name="time"/>Time
+### Time
 
 | Built-in | Inputs | Description |
 | -------- | ------ | ----------- |
@@ -127,29 +127,29 @@ The input `string` is a JSON Web Token encoded with JWS Compact Serialization. J
 > Multiple calls to the `time.now_ns` built-in function within a single policy
 evaluation query will always return the same value.
 
-### <a name="Cryptography"/>Cryptography
+### Cryptography
 
 | Built-in | Inputs | Description |
 | -------- | ------ | ----------- |
 | <span class="opa-keep-it-together">``crypto.x509.parse_certificates(string, array[object])``</span> | 1 | ``output`` is an array of X.509 certificates represented as JSON objects. |
 
-### <a name="graphs"/>Graphs
+### Graphs
 
 | Built-in | Inputs | Description |
 | --- | --- | --- |
 | <span class="opa-keep-it-together">``walk(x, [path, value])``</span> | 0 | ``walk`` is a relation that produces ``path`` and ``value`` pairs for documents under ``x``. ``path`` is ``array`` representing a pointer to ``value`` in ``x``.  Queries can use ``walk`` to traverse documents nested under ``x`` (recursively). |
 
-### <a name="http"/>HTTP
+### HTTP
 | Built-in | Inputs | Description |
 | ------- |--------|-------------|
 | <span class="opa-keep-it-together">``http.send(request, output)``</span> | 1 | ``http.send`` executes a HTTP request and returns the response.``request`` is an object containing keys ``method``, ``url`` and  optionally ``body``. For example, ``http.send({"method": "get", "url": "http://www.openpolicyagent.org/"}, output)``. ``output`` is an object containing keys ``status``, ``status_code`` and ``body`` which represent the HTTP status, status code and response body respectively. Sample output, ``{"status": "200 OK", "status_code": 200, "body": null``}|
 
-### <a name="debugging"/>Debugging
+### Debugging
 | Built-in | Inputs | Description |
 | ------- |--------|-------------|
 | <span class="opa-keep-it-together">``trace(string)``</span> | 1 | ``trace`` outputs the debug message ``string`` as a ``Note`` event in the query explanation. For example, ``trace("Hello There!")`` includes ``Note "Hello There!"`` in the query explanation. To print variables, use sprintf. For example, ``person = "Bob"; trace(sprintf("Hello There! %v", [person]))`` will emit ``Note "Hello There! Bob"``. |
 
-## <a name="reserved-names"></a> Reserved Names
+## Reserved Names
 
 The following words are reserved and cannot be used as variable names, rule
 names, or dot-access style reference arguments:
@@ -167,7 +167,7 @@ true
 with
 ```
 
-## <a name="grammar"></a> Grammar
+## Grammar
 
 Rego’s syntax is defined by the following grammar:
 

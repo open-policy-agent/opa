@@ -3,7 +3,7 @@
 This document explains how to monitor OPA and use the diagnostics capabilities
 exposed by the server.
 
-## <a name="prometheus"/> Prometheus
+## Prometheus
 
 OPA exposes an HTTP endpoint that can be used to collect performance metrics
 for all API calls. The Prometheus endpoint is enabled by default when you run
@@ -22,7 +22,7 @@ scrape_configs:
       - "localhost:8181"
 ```
 
-## <a name="diagnostics"/> Diagnostics
+## Diagnostics
 
 The OPA server can record diagnostics on policy queries for debugging purposes.
 The diagnostic configuration is controlled by the

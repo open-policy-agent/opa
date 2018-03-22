@@ -2,7 +2,7 @@
 
 OPA is a full-featured policy engine that offloads policy decisions from your service. You can think of it as a concierge for your service who can answer detailed questions on behalf of your users to meet their specific needs.
 
-## <a name="overview"/>Overview
+## Overview
 
 OPA’s RESTful APIs use JSON over HTTP so you and your users can integrate OPA with any programming language. At a high level, integrating OPA into your service involves:
 
@@ -16,19 +16,19 @@ When your service is integrated with OPA, your users will be able author and dep
 
 In the future, both your service and its users will be able to register for, and react to, notifications triggered when OPA detects a policy-relevant change.
 
-## <a name="deployment"/>Deployment
+## Deployment
 
 Unless you embed OPA as a Go library, you will deploy it alongside your service – either directly as an operating system daemon or inside a container. In this way, transactions will have low latency and availability will be determined through shared fate with your service.
 
 When OPA starts for the first time, it will not contain any policies or data. Policies and data can be added, removed, and modified at any time. For example: by deployment automation software or your service as it is deployed, by your service during an upgrade, or by administrators as needed.
 
-## <a name="data-and-policies"/>Data and Policies
+## Data and Policies
 
 The primary unit of data in OPA is a document, which is similar to a JSON value. Documents typically correspond to single, self-contained objects and are capable of representing both primitive types (strings, numbers, booleans, and null) as well as structured types (objects, and arrays). Documents are created, read, updated, and deleted via OPA’s RESTful HTTP APIs.
 
 ![data model dependencies](images/data-model-dependencies.svg "data model dependencies")
 
-### <a name="base-documents"/>Base Documents
+### Base Documents
 
 So-called base documents contain static, structured data stored in memory and optionally saved to disk for resiliency. Your service will publish and update base documents in order to describe its current state, and your users can do the same to include relevant data about the state of their own deployment context.
 
@@ -107,7 +107,7 @@ Content-Type: application/json-patch+json
 ]
 ```
 
-### <a name="policies"/>Policies
+### Policies
 
 Policies are written using OPA’s purpose-built, declarative language Rego. Rego includes rich support for traversing nested documents and transforming data using syntax inspired by dictionary and array access in languages like Python and JSONPath. For detailed information about using Rego, see [How Do I Write Policies?](/how-do-i-write-policies.md).
 
@@ -141,11 +141,11 @@ public_servers[server] {
 
 A policy file must contain a single package declaration, which defines the path to the policy module and its rules (for example, data.opa.examples.violations – see The data Document for more information about accessing nested documents). The policy name itself (in this case, “exempli-gratia”) is only used to identify policies for file management purposes; it is not used otherwise.
 
-### <a name="virtual-documents"/> Rules and Virtual Documents
+### Rules and Virtual Documents
 
 In contrast to base documents, virtual documents embody the results of evaluating the rules included in policy modules. Virtual documents are computed when users publish new policy modules, update existing modules, run queries, and when any relevant base document is published or updated. Rules allow policy authors to write questions with yes-no answers (that is, predicates) and to generate structured values from raw data found in base documents as well as from intermediate data found in other virtual documents.
 
-### <a name="the-data-document"/> The `data` Document
+### The `data` Document
 
 All documents pushed into OPA or computed by rules are nested under a built-in root document named data.
 
@@ -184,7 +184,7 @@ GET https://example.com/v1/data/servers HTTP/1.1
 GET https://example.com/v1/data/opa/examples/violations HTTP/1.1
 ```
 
-### <a name="the-input-document"/> The `input` Document
+### The `input` Document
 
 In some cases, to evaluate a policy, the query must specify additional documents
 as arguments.
@@ -223,7 +223,7 @@ allow { user = "bob"; method = "GET" }
 allow { user = "alice" }
 ```
 
-## <a name="putting-it-all-together"/>Putting It All Together
+## Putting It All Together
 
 Let’s take a look at some documents representing the state of a hypothetical service and a policy module that uses this data. The following documents describe a set of servers, the protocols they use, the ports they open, and the networks those ports are connected to.
 

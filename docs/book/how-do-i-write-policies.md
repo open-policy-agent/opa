@@ -4,7 +4,7 @@ OPA is purpose built for reasoning about information represented in structured
 documents. The data that your service and its users publish can be inspected and
 transformed using OPA’s native query language Rego.
 
-## <a name="what-is-rego"/>What is Rego?
+## What is Rego?
 
 Rego was inspired by [Datalog](https://en.wikipedia.org/wiki/Datalog), which is
 a well understood, decades old query language. Rego extends Datalog to support
@@ -14,7 +14,7 @@ Rego queries are assertions on data stored in OPA. These queries can be used to
 define policies that enumerate instances of data that violate the expected state
 of the system.
 
-## <a name="why-use-rego"/>Why use Rego?
+## Why use Rego?
 
 Use Rego for defining policy that is easy to read and write.
 
@@ -28,7 +28,7 @@ concise than the equivalent in an imperative language.
 Like other applications which support declarative query languages, OPA is able
 to optimize queries to improve performance.
 
-## <a name="the-basics"/>The Basics
+## The Basics
 
 This section introduces the main aspects of Rego.
 
@@ -211,7 +211,7 @@ walks through each part of the language in more detail.
 For a concise reference, see the [Language
 Reference](/language-reference.md) document.
 
-## <a name="scalar-values"></a> Scalar Values
+## Scalar Values
 
 Scalar values are the simplest type of term in Rego. Scalar values can be [Strings](#strings), numbers, booleans, or null.
 
@@ -240,7 +240,7 @@ true
 null
 ```
 
-## <a name="strings"></a> Strings
+## Strings
 
 Rego supports two different types of syntax for declaring strings. The first is likely to be the most familiar: characters surrounded by double quotes.
 In such strings, certain characters must be escaped to appear in the string, such as double quotes themselves, backslashes, etc. See the [Language
@@ -254,7 +254,7 @@ escape special characters.
 
 A simple example is a regex to match a valid Rego variable. With a regular string, the regex is `"[a-zA-Z_]\\w*"`, but with raw strings, it becomes `` `[a-zA-Z_]\w*` ``.
 
-## <a name="composite-values"></a> Composite Values
+## Composite Values
 
 Composite values define collections. In simple cases, composite values can be treated as constants like [Scalar Values](#scalar-values):
 
@@ -282,7 +282,7 @@ Composite values can also be defined in terms of [Variables](#variables) or [Ref
 
 By defining composite values in terms of variables and references, rules can define abstractions over raw data and other rules.
 
-### <a name="sets"/>Sets
+### Sets
 
 In addition to arrays and objects, Rego supports set values. Sets are unordered
 collections of unique values. Just like other composite values, sets can be
@@ -332,7 +332,7 @@ defined with `{}`, an empty set has to be constructed with a different syntax:
 +---+
 ```
 
-## <a name="variables"></a> Variables
+## Variables
 
 Variables are another kind of term in Rego. They appear in both the head and body of rules.
 
@@ -374,7 +374,7 @@ true
 
 Variables appearing in the head of a rule must also appear in a non-negated equality expression within the same rule. This property ensures that if the rule is evaluated and all of the expressions evaluate to true for some set of variable bindings, the variable in the head of the rule will be defined.
 
-## <a name="references"></a> References
+## References
 
 References are used to access nested documents.
 
@@ -409,7 +409,7 @@ document. In the example above this is `p`. The root document may be:
   * a document stored in OPA.
   * a documented temporarily provided to OPA as part of a transaction.
 
-### <a name="variable-keys"/>Variable Keys
+### Variable Keys
 
 References can include variables as keys. References written this way are used to select a value from every element in a collection.
 
@@ -465,7 +465,7 @@ The underscore is special because it cannot be referred to by other parts of the
 
 > Under the hood, OPA translates the `_` character to a unique variable name that does not conflict with variables and rules that are in scope.
 
-### <a name="composite-keys"/>Composite Keys
+### Composite Keys
 
 References can include [Composite Values](#composite-values) as keys if the key is being used to refer into a set. Composite keys may not be used in refs
 for base data documents, they are only valid for references into virtual documents.
@@ -489,7 +489,7 @@ For example:
 +---+
 ```
 
-### <a name="multiple-expressions"/>Multiple Expressions
+### Multiple Expressions
 
 Rules are often written in terms of multiple expressions that contain references to documents. In the following example, the rule defines a set of arrays where each array contains an application name and a hostname of a server where the application is deployed.
 
@@ -525,7 +525,7 @@ Don’t worry about understanding everything in this example right now. There ar
   1. Several variables appear more than once in the body. When a variable is used in multiple locations, OPA will only produce documents for the rule with the variable bound to the same value in all expressions.
   2. The rule is joining the `apps` and `sites` documents implicitly. In Rego (and other languages based on Datalog), joins are implicit.
 
-### <a name="self-joins"/>Self-Joins
+### Self-Joins
 
 Using a different key on the same array or object provides the equivalent of self-join in SQL. For example, the following rule defines a document containing apps deployed on the same site as `"mysql"`:
 
@@ -554,7 +554,7 @@ The result:
 +-------+
 ```
 
-## <a name="comprehensions"></a> Comprehensions
+## Comprehensions
 
 Comprehensions provide a concise way of building [Composite Values](#composite-values) from sub-queries.
 
@@ -584,7 +584,7 @@ names = [site.name for site in sites if site.region == "west"]
 
 Comprehensions are often used to group elements by some key. A common use case for comprehensions is to assist in computing aggregate values (e.g., the number of containers running on a host).
 
-### <a name="array-comprehensions"></a> Array Comprehensions
+### Array Comprehensions
 
 Array Comprehensions build array values out of sub-queries. Array Comprehensions have the form:
 
@@ -618,7 +618,7 @@ The result:
 +-----------+------------------------------------------------------+
 ```
 
-### <a name="object-comprehensions"></a> Object Comprehensions
+### Object Comprehensions
 
 Object Comprehensions build object values out of sub-queries. Object Comprehensions have the form:
 
@@ -659,7 +659,7 @@ Object comprehensions are not allowed to have conflicting entries, similar to ru
 {"foo": y | y = z[_]; z = [1, 2, 3]}: eval_conflict_error: object comprehension produces conflicting outputs
 ```
 
-### <a name="set-comprehensions"></a> Set Comprehensions
+### Set Comprehensions
 
 Set Comprehensions build set values out of sub-queries. Set Comprehensions have the form:
 
@@ -681,7 +681,7 @@ For example, to construct a set from an array:
 ]
 ```
 
-## <a name="rules"></a> Rules
+## Rules
 
 Rules define the content of [Virtual Documents](/how-does-opa-work.md#virtual-documents) in
 OPA. When OPA evaluates a rule, we say OPA *generates* the content of the
@@ -689,7 +689,7 @@ document that is defined by the rule.
 
 The sample code in this section make use of the data defined in [Examples](#examples).
 
-### <a name="generating-sets"></a> Generating Sets
+### Generating Sets
 
 The following rule defines a set containing the hostnames of all servers:
 
@@ -729,7 +729,7 @@ Second, the `sites[_].servers[_].hostname` fragment selects the `hostname` attri
 
 Third, the `sites[_].servers[_].hostname = name` expression binds the value of the `hostname` attribute to the variable `name`, which is also declared in the head of the rule.
 
-### <a name="generating-objects"></a> Generating Objects
+### Generating Objects
 
 Rules that define objects are very similar to rules that define sets.
 
@@ -755,7 +755,7 @@ The result:
 +-------+
 ```
 
-### <a name="incremental-definitions"></a> Incremental Definitions
+### Incremental Definitions
 
 A rule may be defined multiple times with the same name. When a rule is defined
 this way, we refer to the rule definition as *incremental* because each
@@ -812,7 +812,7 @@ The result:
 +-----------------------------------------------+
 ```
 
-### <a name="complete-definitions"></a> Complete Definitions
+### Complete Definitions
 
 In addition to rules that *partially* define sets and objects, Rego also
 supports so-called *complete* definitions of any type of document. Rules provide
@@ -868,7 +868,7 @@ undefined
 
 In some cases, having an undefined result for a document is not desirable. In those cases, policies can use the [Default Keyword](#default-keyword) to provide a fallback value.
 
-### <a name="functions"></a> Functions
+### Functions
 
 Rego supports user-defined functions that can be called with the same semantics as [Built-in Functions](#built-in-functions). They have access to both the [the data Document](/how-does-opa-work.md#the-data-document) and [the input Document](/how-does-opa-work.md#the-input-document).
 
@@ -985,7 +985,7 @@ On the other hand, if a call matches no functions, then the result is undefined,
 false
 ```
 
-## <a name="negation"></a> Negation
+## Negation
 
 To generate the content of a [Virtual Document](/how-does-opa-work.md#virtual-documents), OPA attempts to bind variables in the body of the rule such that all expressions in the rule evaluate to True.
 
@@ -1046,7 +1046,7 @@ The result:
 +-----------+
 ```
 
-## <a name="modules"></a> Modules
+## Modules
 
 In Rego, policies are defined inside *modules*. Modules consist of:
 
@@ -1056,11 +1056,11 @@ In Rego, policies are defined inside *modules*. Modules consist of:
 
 Modules are typically represented in Unicode text and encoded in UTF-8.
 
-### <a name="comments"></a> Comments
+### Comments
 
 Comments begin with the `#` character and continue until the end of the line.
 
-### <a name="packages"></a> Packages
+### Packages
 
 Packages group the rules defined in one or more modules into a particular namespace. Because rules are namespaced they can be safely shared across projects.
 
@@ -1080,7 +1080,7 @@ The `pi` document can be queried via the Data API:
 GET https://example.com/v1/data/opa/examples/pi HTTP/1.1
 ```
 
-### <a name="imports"></a> Imports
+### Imports
 
 Import statements declare dependencies that modules have on documents defined outside the package. By importing a document, the identifiers exported by that document can be referenced within the current module.
 
@@ -1130,7 +1130,7 @@ http_servers[server] {
 }
 ```
 
-## <a name="with-keyword"></a> With Keyword
+## With Keyword
 
 The `with` keyword allows queries to programmatically specify values nested
 under [The input Document](../how-does-opa-work#the-input-document).
@@ -1161,7 +1161,7 @@ The `<target>`s must be references to values in the input document (or the input
 document itself). The `<value>`s may be Scalar Values, Variables, or Composite
 Values that do not contain References or Comprehensions.
 
-## <a name="default-keyword"></a> Default Keyword
+## Default Keyword
 
 The `default` keyword allows policies to define a default value for documents
 produced by rules with [Complete Definitions](#complete-definitions). The
@@ -1201,7 +1201,7 @@ The term may be any scalar, composite, or comprehension value but it may not be
 a variable or reference. If the value is a composite then it may not contain
 variables or references.
 
-## <a name="else-keyword"></a> Else Keyword
+## Else Keyword
 
 The ``else``  keyword is a basic control flow construct that gives you control
 over rule evaluation order.
@@ -1259,9 +1259,9 @@ evaluation continues to the second rule before stopping.
 The `else` keyword may be used repeatedly on the same rule and there is no
 limit imposed on the number of `else` clauses on a rule.
 
-## <a name="operators"></a> Operators
+## Operators
 
-### <a name="equality"></a> Equality
+### Equality
 
 The equality operator (`=`) is used to define expressions that assert that
 two values are the same. If the expression is defined in terms of one or more
@@ -1274,7 +1274,7 @@ variables in equality expressions. Binding a variable affects subsequent
 evaluation of expressions such that the variable will be treated as a
 constant (with the bound value) instead of a variable.
 
-### <a name="assignment"></a> Assignment
+### Assignment
 
 The assignment operator (`:=`) is used to define local variables. Unlike
 equality (`=`), assigned variables are locally scoped and shadow global
@@ -1308,7 +1308,7 @@ q {
 }
 ```
 
-### <a name="comparison"></a> Comparison
+### Comparison
 
 The following comparison operators are supported:
 
@@ -1327,7 +1327,7 @@ must appear in another expression in the same rule that would cause the
 variable to be bound, i.e., an equality expression or the target position of
 a built-in function.
 
-## <a name="built-in-functions"></a> Built-in Functions
+## Built-in Functions
 
 In some cases, rules must perform simple arithmetic, aggregation, and so on.
 Rego provides a number of built-in functions (or “built-ins”) for performing
@@ -1351,7 +1351,7 @@ them to avoid naming conflicts, e.g., `org.example.special_func`.
 See the [Language Reference](/language-reference.md#built-in-functions) document for
 details on each built-in function.
 
-## <a name="example-data"></a> Example Data
+## Example Data
 
 The rules below define the content of documents describing a simplistic deployment environment. These documents are referenced in other sections above.
 
