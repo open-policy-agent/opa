@@ -1,6 +1,5 @@
 .key-features-section{
   &--section-title{
-    font-family: adobeGothicStd;
     font-size: ms(1);
     color: #fff;
 
@@ -35,7 +34,6 @@
 
   &--key-feature-title{
     font-size: ms(1);
-    font-family: "adobe-fan-heiti-std";
 
     @include breakpoint(1200px){
       font-size: ms(2);

@@ -9,37 +9,32 @@
   src: url(Roboto/Roboto-Regular.ttf);
 }
 
-@font-face {
-  font-family: adobeGothicStd;
-  src: url(AdobeGothic/AdobeGothicStd-Bold.otf);
-}
-
 body{
   font-family: Roboto !important;
 }
 
 h1{
-  font-family: "adobe-fan-heiti-std" !important;
+  font-family: "Roboto" !important;
 }
 
 h2{
-  font-family: "adobe-fan-heiti-std" !important;
+  font-family: "Roboto" !important;
 }
 
 h3{
-  font-family: "adobe-fan-heiti-std" !important;
+  font-family: "Roboto" !important;
 }
 
 h4{
-  font-family: "adobe-fan-heiti-std" !important;
+  font-family: "Roboto" !important;
 }
 
 h5{
-  font-family: "adobe-fan-heiti-std" !important;
+  font-family: "Roboto" !important;
 }
 
 h6{
-  font-family: "adobe-fan-heiti-std" !important;
+  font-family: "Roboto" !important;
 }
 
 .opa-keep-it-together{
@@ -95,7 +90,7 @@ h6{
   line-height: 36px;
   margin: 0;
 
-  font-family: "adobe-fan-heiti-std" !important;
+  font-family: "Roboto" !important;
   color: #121212;
 
 }

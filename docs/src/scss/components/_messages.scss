@@ -1,7 +1,6 @@
 .messages{
   &--main{
     font-size: ms(5);
-    font-family: adobeGothicStd;
 
     @include breakpoint(700px){
       font-size: ms(6);

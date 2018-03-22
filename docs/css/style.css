@@ -367,8 +367,7 @@ body {
       border: 1px solid #aeaeae;
       border-radius: 50%;
       content: '';
-      -webkit-transform: translateY(-0.125em);
-              transform: translateY(-0.125em); }
+      transform: translateY(-0.125em); }
   .base--radio:checked + label:before {
     background: radial-gradient(#323232 40%, transparent 40%); }
 
@@ -444,8 +443,7 @@ body {
       vertical-align: middle;
       border: 1px solid #aeaeae;
       content: '';
-      -webkit-transform: translateY(-0.125em);
-              transform: translateY(-0.125em); }
+      transform: translateY(-0.125em); }
   .base--checkbox:checked + label:before {
     background: #323232;
     box-shadow: inset 0 0 0 0.66667px #fff; }
@@ -611,7 +609,6 @@ body {
 
 .header--logo-txt {
   display: inline-block;
-  font-family: "adobe-fan-heiti-std";
   color: #000; }
   @media (min-width: 900px) {
     .header--logo-txt {
@@ -660,8 +657,7 @@ body {
   height: 3px; }
 
 .messages--main {
-  font-size: 1.95312em;
-  font-family: adobeGothicStd; }
+  font-size: 1.95312em; }
   @media (min-width: 700px) {
     .messages--main {
       font-size: 2.36859em; } }
@@ -749,8 +745,7 @@ body {
         margin-right: 0rem; } }
 
 .value-section--value-title {
-  font-size: 1.25em;
-  font-family: "adobe-fan-heiti-std"; }
+  font-size: 1.25em; }
   @media (min-width: 1200px) {
     .value-section--value-title {
       font-size: 1.333em; } }
@@ -851,7 +846,6 @@ body {
   height: 156px; }
 
 .use-case-section--use-case-section-title {
-  font-family: adobeGothicStd;
   font-size: 1.25em; }
   @media (min-width: 1200px) {
     .use-case-section--use-case-section-title {
@@ -927,8 +921,7 @@ body {
       margin-top: 6rem; } }
 
 .use-case-section--use-case-title {
-  font-size: 1.25em;
-  font-family: "adobe-fan-heiti-std"; }
+  font-size: 1.25em; }
   @media (min-width: 1200px) {
     .use-case-section--use-case-title {
       font-size: 1.333em; } }
@@ -960,7 +953,6 @@ body {
       width: 280px; } }
 
 .key-features-section--section-title {
-  font-family: adobeGothicStd;
   font-size: 1.25em;
   color: #fff; }
   @media (min-width: 1200px) {
@@ -1001,8 +993,7 @@ body {
         margin-right: 0rem; } }
 
 .key-features-section--key-feature-title {
-  font-size: 1.25em;
-  font-family: "adobe-fan-heiti-std"; }
+  font-size: 1.25em; }
   @media (min-width: 1200px) {
     .key-features-section--key-feature-title {
       font-size: 1.333em; } }
@@ -1065,10 +1056,6 @@ body {
 
 .footer--link {
   color: #FF9512; }
-
-@font-face {
-  font-family: adobeGothicStd;
-  src: url(/fonts/AdobeGothicStd-Bold.otf); }
 
 ._homepage--container {
   margin: 0 1rem; }

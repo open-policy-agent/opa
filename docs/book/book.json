@@ -11,9 +11,6 @@
     "layout": {
       "headerPath" : "layouts/header.html"
     },
-    "addcssjs": {
-      "js": ["js/custom.js"]
-    },
     "favicon": "images/favicon.png",
     "ga": {
       "token": "UA-84550302-1"
