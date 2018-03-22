@@ -1,6 +1,5 @@
 .use-case-section{
   &--use-case-section-title{
-    font-family: adobeGothicStd;
     font-size: ms(1);
 
     @include breakpoint(1200px){
@@ -82,7 +81,6 @@
 
   &--use-case-title{
     font-size: ms(1);
-    font-family: "adobe-fan-heiti-std";
 
     @include breakpoint(1200px){
       font-size: ms(2);
