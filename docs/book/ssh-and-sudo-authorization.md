@@ -12,13 +12,12 @@ host-level access controls over SSH and sudo.
 Linux-PAM can be configured to delegate authorization decisions to plugins
 (shared libraries). In this case, we have created an OPA-based plugin that can
 be configured to authorize SSH and sudo access. The OPA-based Linux-PAM plugin
-used in this tutorial can be found at [open-policy-agent/contrib](https://github.com/open-policy-agent/contrib).
+used in this tutorial can be found at [open-policy-agent/contrib](https://github.com/open-policy-agent/contrib/tree/master/pam_authz).
 
 For this tutorial, our desired policy is:
 
 * Admins can SSH into any host and run sudo commands.
-* Normal users can SSH into hosts that they have *contributed* to.
-* Normal users cannot run sudo commands.
+* Normal users can SSH into hosts that they have *contributed* to and run sudo commands.
 
 Furthermore, we'll assume we have the following set of users and hosts:
 
@@ -42,11 +41,11 @@ with OPA. The dummy SSH hosts are just containers running sshd inside.
 
 ### 1. Bootstrap the tutorial environment using Docker Compose.
 
-First, create a docker-compose.yml file that runs OPA and the containers that
+First, create a `tutorial-docker-compose.yaml` file that runs OPA and the containers that
 represent our backend and frontend hosts.
 
 ```shell
-cat > docker-compose.yml <<EOF
+cat > tutorial-docker-compose.yaml <<EOF
 version: '2'
 services:
   opa:
@@ -72,13 +71,13 @@ services:
 EOF
 ```
 
-The docker-compose.yml file requires two other local files:
+The `tutorial-docker-compose.yaml` file requires two other local files:
 `frontend_host_id.json` and `backend_host_id.json`. These files are mounted
 into the containers representing our hosts. The content of the file provides
 *context* that the PAM module provides as input when executing queries
 against OPA.
 
-Create the extra files required by docker-compose.yml:
+Create the extra files required by tutorial-docker-compose.yaml:
 
 ```shell
 echo '{"host_id": "frontend"}' > frontend_host_id.json
@@ -90,47 +89,96 @@ echo '{"host_id": "backend"}' > backend_host_id.json
 Finally, run `docker-compose` to pull and run the containers.
 
 ```shell
-docker-compose -f docker-compose.yml up
+docker-compose -f tutorial-docker-compose.yaml up
 ```
+This tutorial uses a special Docker image named `openpolicyagent/demo-pam` to simulate an SSH server.
+This image contains pre-created Linux accounts for our users, and the required PAM module is
+pre-configured inside the `sudo` and `sshd` files in `/etc/pam.d/`.
 
 ### 2. Load policies and data into OPA.
 
 In another terminal, load the policies and data into OPA that will control access to the hosts.
 
-First, create the policy that will control SSH access to hosts.
+First, create a policy that will tell the PAM module to collect context that is required for authorization.
+For more details on what this policy should look like, see
+[this documentation](https://github.com/open-policy-agent/contrib/tree/master/pam_authz/pam#pull).
 
 ```shell
-cat >ssh_authz.rego <<EOF
-package ssh.authz
+cat >pull.rego <<EOF
+package pull
+
+# Which files should be loaded into the context?
+files = ["/etc/host_identity.json"]
+
+# Which environment variables should be loaded into the context?
+env_vars = []
+
+EOF
+```
+Load this policy into OPA.
+
+```shell
+curl -X PUT --data-binary @pull.rego \
+  localhost:8181/v1/policies/pull
+```
+
+Next, create the policies that will authorize SSH and sudo requests.
+The `input` which makes up the authorization context in the policy below will also
+include some default values, such as the username making the request. See
+[this documentation](https://github.com/open-policy-agent/contrib/tree/master/pam_authz/pam#authz)
+to get a better understanding of what the `input` to the authorization policy will look like.
+
+Unlike the *pull* policy, we'll create separate *authz* policies
+for SSH and `sudo` for more fine-grained control.
+In production, it makes more sense to have this separation for *display* and *pull* as well.
+
+Create the SSH authorization policy. It should allow admins to SSH into all hosts,
+and non-admins to only SSH into hosts that they contributed code to.
+
+```shell
+cat >sshd_authz.rego <<EOF
+package sshd.authz
+
+import input.pull_responses
+import input.sysinfo
+
+import data.hosts
 
 # By default, users are not authorized.
 default allow = false
 
 # Allow access to any user that has the "admin" role.
 allow {
-    data.roles["admin"][_] = input.user
+    data.roles["admin"][_] = input.sysinfo.pam_username
 }
 
 # Allow access to any user who contributed to the code running on the host.
+#
+# This rule gets the `host_id` value from the file `/etc/host_identity.json`.
+# It is available in the input under `pull_responses` because we
+# asked for it in our pull policy above.
+#
+# It then compares all the contributors for that host against the username
+# that is asking for authorization.
 allow {
-    data.hosts[input.host_identity.host_id].contributors[_] = input.user
+    hosts[pull_responses.files["/etc/host_identity.json"].host_id].contributors[_] = sysinfo.pam_username
 }
 
+
 # If the user is not authorized, then include an error message in the response.
-errors["request denied by administrative policy"] {
+errors["Request denied by administrative policy"] {
     not allow
 }
 EOF
 ```
-
-Push this policy into OPA:
+Load this policy into OPA.
 
 ```shell
-curl -X PUT --data-binary @ssh_authz.rego \
-  localhost:8181/v1/policies/ssh_authz
+curl -X PUT --data-binary @sshd_authz.rego \
+  localhost:8181/v1/policies/sshd/authz
 ```
 
-Next, create the policy that will control sudo access on the hosts.
+Create the `sudo` authorization policy. It should allow only admins to use `sudo`.
 
 ```shell
 cat >sudo_authz.rego <<EOF
@@ -139,23 +187,23 @@ package sudo.authz
 # By default, users are not authorized.
 default allow = false
 
-# Allow sudo access to any user that has the "admin" role.
+# Allow access to any user that has the "admin" role.
 allow {
-    data.roles["admin"][_] = input.user
+    data.roles["admin"][_] = input.sysinfo.pam_username
 }
 
-# If the user is not authorized, include this error message in the response.
-errors["user does not have role admin"] {
+# If the user is not authorized, then include an error message in the response.
+errors["Request denied by administrative policy"] {
     not allow
 }
 EOF
 ```
 
-Push this policy into OPA:
+Load this policy into OPA.
 
 ```shell
 curl -X PUT --data-binary @sudo_authz.rego \
-  localhost:8181/v1/policies/sudo_authz
+  localhost:8181/v1/policies/sudo/authz
 ```
 
 Finally, load the data that represents our roles and contributors into OPA.
@@ -183,55 +231,7 @@ curl -X PUT localhost:8181/v1/data/hosts -d \
 }'
 ```
 
-### 3. Prepare SSH key to login to hosts.
-
-This tutorial uses a special Docker image named `openpolicyagent/demo-pam` to simulate an SSH server. This image contains:
-
-1. Pre-created Linux accounts for our users.
-2. Pre-populated authorized_keys files for our users.
-
-You must have the correct private key to SSH into the containers. Run the
-following command to write the private key to a local file:
-
-```shell
-cat >ssh_authz.key <<EOF
------BEGIN RSA PRIVATE KEY-----
-MIIEowIBAAKCAQEA5o4tuzLqNq8ZASzVuDxlzop/Odn2JKn48i8q7Yr2pl9gBUcx
-cfpBIAoCh+v9GY3dBPSyyx6XSYyA+7ajSm8hQn167jX0WLItcz7r5vRYB3+aGfeo
-sys8OXaloG+aaTPvK711HS7FxQLX9EHBzCHgVKW0438HT7vuPFmB5KRKRG5b6s9K
-CUx4lig/J+gFYF3bxviBoL95y3PEY174pzqXVrnEpjCQqNCcytOSBYjEsu8Tq/72
-KDL8EcUl4Q++lfN9ksPa5SsxlvQB+z/cJ1fEwMsdSN9RrxBeNtG8wLpk15S+Guki
-UNqCYb60IOKm0nFSag5O0zhxePX0zyN+ar7NzwIDAQABAoIBAQCZ9Y/sVk+5PKxB
-8KK3aP3DMxFKnJaWXTr03zKXdhjHeSEx5RzLtAYRUx3ljl1x1x4k1RMgOMlmQAFS
-FeBtMFDRieGxeS42nKVlNDtr+vdd6oQJmyx4mQKajPSFcoF2h0vLtbSjTDydFw0G
-+3Ji0qxvWki1Mnq7cA/jFRJ8kIlXr+XLUMrmM6aeOtQKGMZa9Tu0Jfd+2eaiajfm
-3UdN6j5dHp5svtQHfrE1u9P7r9Tk+RE7jfUYLUPgCsl6OoReWyS9o583APSlDxxm
-SsksDGSetCh96MugaxAN3+hI9wzr6nnZs2CK3Vff2/Nm2szh2PimNwl/ik/i0uKt
-fCyxKijBAoGBAP0frr/RZh0Mt1EgUmGXdbuHlj7J5jmQuqEvARr3JISNYySkEA+V
-IcHJbH6q9dnMjT+f0xXR2b9V8RC9ucd5OIan4T9MHltanPaBWBPRUHxExOOhqPbW
-7rrLODH2vAkgGbHI6HFPyU/K7x2HavJ3XEVtx/FgvMKy/kT64HJndup3AoGBAOks
-2KvG/QyOjo/kpW5SR7cudQdPM3E/L/Cuc6MUep0q1UJHWuDVDa8zlfSigEoITE/7
-/AvqbBKP/O1O7T423ncEqvw3mHTFMpryJ1XU+mMF+cg024+NqZpKHfyjw8gOepHg
-Wa9mZNSLar8J4hkI2ZrIkQ3I2NuZANmjvZ4UgjVpAoGAfAurwtsmtLPHnp09YhAs
-pTNEIQ8moS1ZGKaFXyagocj8Pjecm1ZVTbedUNINW6gPzI9Rjc7ibA787VxdD/FL
-D0p0a2WtNs3IQFGQzV11mQDGkFtoB1e7dJUku++TpNEzZlnz95vHJzBnUExNz/dI
-o8myA4uJ1cyMKVfc6JPlxe8CgYB8QMyZBOmVhmXLodDR8ACNSbFNGtRT1ZMLUzsF
-vQT1uXx43CM+SeoH4ZpYCTwJt1BLEwElrF64qYfjQTrE+2Ii1Bb1Xf7cwrSLwtxZ
-LavblrSbDiet4JRvRm2iUfYjJiwEjiPchtjWNhDFClQ0ePXUOGqriMqegnLkhw+l
-LFKSeQKBgDs/Vs5AXmj4VAdupEpUS+dJJ4y6wi8lPQtMwNfY/1/DNsoTNibA9u66
-cLtyaoaL64UV8TsEPqdbt0Kbj1bqeOyheN0qiCNA5pufvj219a/i9qZW3zHJkwDc
-ed4qCYnDpcfRhi+PyFrjFdtw072BdndRlosukmiBSvVguJJYEoTP
------END RSA PRIVATE KEY-----
-EOF
-```
-
-Set the file permissions on the private key.
-
-```shell
-chmod 600 ssh_authz.key
-```
-
-### 4. SSH and sudo as a user with the `admin` role.
+### 3. SSH and sudo as a user with the `admin` role.
 
 First, let's try to access the hosts as the `ops` user. Recall, the `ops` user
 has been granted the `admin` role (via the `PUT /data/roles` request above) and
@@ -241,12 +241,19 @@ Login to the `frontend` host (which has SSH listening on port 2222) and run a co
 
 ```shell
 ssh -p 2222 ops@localhost \
-  -i ssh_authz.key -o StrictHostKeyChecking=no
+  -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null
+
 sudo ls /
 exit
 ```
 
-### 5. SSH as a user without the `admin` role.
+You will see a lot of verbose logs from `sudo` as the PAM module goes through the motions.
+This is intended so you can study how the PAM module works.
+You can disable verbose logging by changing the `log_level` argument in the PAM
+configuration. For more details see
+[this documentation](https://github.com/open-policy-agent/contrib/tree/master/pam_authz/pam#configuration).
+
+### 4. SSH as a user without the `admin` role.
 
 Let's try a user without the admin role. Recall, that a non-admin user can SSH
 into any host that they have *contributed to*.
@@ -256,40 +263,79 @@ able to login.
 
 ```shell
 ssh -p 2222 frontend-dev@localhost \
-  -i ssh_authz.key -o StrictHostKeyChecking=no
+  -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null
 ```
 
-However, since `frontend-dev` is not an admin, they cannot run sudo commands.
+Only admins can use `sudo`, so you shouldn't be able to run `sudo ls /`.
 
-```shell
-sudo ls /
-exit
-```
-
-Furthermore, since `frontend-dev` did not contribute to the code running on the
+Since `frontend-dev` did not contribute to the code running on the
 `backend` host (which has SSH listening on port 2223), they should not be able
 to login.
 
 ```shell
 ssh -p 2223 frontend-dev@localhost \
-  -i ssh_authz.key -o StrictHostKeyChecking=no
+  -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null
 ```
 
-### 6. Elevate a user's rights through policy.
+### 5. Elevate a user's rights through policy.
 
-Suppose a user needs to be temporarily granted extra privileges. E.g., the user
-may need to debug an issue on a specific production host. In this case, we can
-add an another policy to temporarily allow this.
+Suppose you have a ticketing system for elevation, where you generate tickets for users
+that need elevated rights, send the ticket to ther user, and expire those tickets when
+their rights should be removed.
 
-Let's allow the `frontend-dev` user to run sudo commands on the `frontend` host.
+Let's mock the current state of this simple ticketing system's API with some data.
 
 ```shell
-cat >sudo_authz_special.rego <<EOF
+curl -X PUT localhost:8181/v1/data/elevate -d \
+'{
+  "tickets": {
+    "frontend-dev": "1234"
+  }
+}'
+```
+This means that for now, if the `frontend-dev` user can provide ticket number `1234`,
+they should be able to SSH into all servers.
+
+Let's write policy to ensure that this happens.
+
+First, we need to make the PAM module take input from the user.
+```shell
+cat >display.rego <<EOF
+package display
+
+# What should be prompted to the user?
+display_spec = [
+  {
+    "message": "Please enter an elevation ticket if you have one:",
+    "style": "prompt_echo_on",
+    "key": "ticket"
+  }
+]
+
+EOF
+```
+Load this policy into OPA.
+
+```shell
+curl -X PUT --data-binary @display.rego \
+  localhost:8181/v1/policies/display
+```
+
+Then we need to make sure that the authorization takes this input into account.
+
+```shell
+cat >sudo_authz_elevated.rego <<EOF
+# A package can be defined across multiple files.
 package sudo.authz
 
+import data.elevate
+import input.sysinfo
+import input.display_responses
+
+# Allow this user if the elevation ticket they provided matches our mock API
+# of an internal elevation system.
 allow {
-  input.host_identity.host_id = "frontend"
-  input.user = "frontend-dev"
+  elevate.tickets[sysinfo.pam_username] = display_responses.ticket
 }
 EOF
 ```
@@ -297,31 +343,44 @@ EOF
 Load this policy into OPA.
 
 ```shell
-curl -X PUT --data-binary @sudo_authz_special.rego \
-  localhost:8181/v1/policies/sudo_authz_special
+curl -X PUT --data-binary @sudo_authz_elevated.rego \
+  localhost:8181/v1/policies/sudo_authz_elevated
 ```
 
-Confirm that the user `frontend-dev` can login to the `frontend` host and run sudo commands.
+Confirm that the user `frontend-dev` can indeed use `sudo`.
 
 ```shell
 ssh -p 2222 frontend-dev@localhost \
-  -i ssh_authz.key -o StrictHostKeyChecking=no
-sudo ls /
-exit
-```
+  -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null
 
-Lastly, remove the policy from OPA and confirm the user's original rights are restored.
+sudo ls /
+```
+You should be prompted with the message that we defined in our *display* policy
+for both the SSH and `sudo` authorization cycles.
+This happens because the *display* policy is shared by the PAM configurations of SSH and `sudo`.
+In production, it is more practical to use separate policy packages for each PAM configuration.
+
+
+We have not defined the SSH *authz* policy to work with elevation, so you can enter any value
+into the prompt that comes up for for SSH.
+
+For `sudo`, enter the ticket number `1234` to get access.
+
+Lastly, update the mocked elevation API and confirm the user's original rights are restored.
 
 ```shell
-curl -i -X DELETE localhost:8181/v1/policies/sudo_authz_special
+curl -X PUT localhost:8181/v1/data/elevate -d \
+'{
+  "tickets": {}
+}'
 ```
 
-```shell
-ssh -p 2222 frontend-dev@localhost \
-  -i ssh_authz.key -o StrictHostKeyChecking=no
-sudo ls /
-exit
-```
+You will find that running `sudo ls /` as the `frontend-dev` user is disallowed again.
+
+It is possible to configure the *display* policy to only make the PAM module prompt for the
+elevation ticket when our mock API has a non-empty `tickets` object. So when there are no
+elevated users, there will be no prompt for a ticket. This can be done using the Rego
+[`count` aggregate](http://www.openpolicyagent.org/docs/language-reference.html#aggregates).
 
 ## Wrap Up
 
@@ -329,12 +388,12 @@ Congratulations for finishing the tutorial!
 
  You learned a number of things about SSH with OPA:
 
-* OPA gives you fine-grained policy control over SSH and sudo on any host where you've
-  installed OPA and its PAM module.
-* You write allow/deny policies to control who has access to what.
-* You can import external data into OPA and write policies that depend on.
-  that data.
+* OPA gives you fine-grained access control over SSH, `sudo`, and any other application that uses PAM.
+  Although this tutorial used the some of the same policies for both
+  SSH and sudo, you should use separate, fine-grained policies for each application that supports PAM.
+* Writing allow/deny policies to control who has access to what using context from the user and host. 
+* Importing external data into OPA and writing policies that depend on that data.
 
-The code for this tutorial can be found in the
+The code for the PAM module used in this tutorial can be found in the
 [open-policy-agent/contrib](https://github.com/open-policy-agent/contrib)
 repository.
