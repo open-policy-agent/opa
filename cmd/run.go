@@ -11,10 +11,10 @@ import (
 func init() {
 
 	// initial setup
-	setupRuntimeDefaults()
+	SetupRuntimeDefaults()
 
 	// parse OPA's command line options
-	parseOpaCliOptions(runCommand)
+	ParseOpaCliOptions(runCommand)
 
 	usageTemplate := `Usage:
   {{.UseLine}} [flags] [files]

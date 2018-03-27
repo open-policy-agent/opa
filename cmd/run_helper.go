@@ -75,7 +75,7 @@ func setDefaultLogFormatFlag() {
 	logFormat = util.NewEnumFlag("text", []string{"text", "json"})
 }
 
-func setupRuntimeDefaults() {
+func SetupRuntimeDefaults() {
 
 	// set default authentication schemes
 	setAuthnSchemesMap()
@@ -93,19 +93,19 @@ func setupRuntimeDefaults() {
 	params = runtime.NewParams()
 }
 
-func getOpaRuntime(ctx context.Context, params runtime.Params) (*runtime.Runtime, error) {
+func GetOpaRuntime(ctx context.Context, params runtime.Params) (*runtime.Runtime, error) {
 	return runtime.NewRuntime(ctx, params)
 }
 
-func startOPAInServerMode(ctx context.Context, rt *runtime.Runtime) {
+func StartOPAInServerMode(ctx context.Context, rt *runtime.Runtime) {
 	rt.StartServer(ctx)
 }
 
-func startOPAInReplMode(ctx context.Context, rt *runtime.Runtime) {
+func StartOPAInReplMode(ctx context.Context, rt *runtime.Runtime) {
 	rt.StartREPL(ctx)
 }
 
-func parseOpaCliOptions(runCommand *cobra.Command) {
+func ParseOpaCliOptions(runCommand *cobra.Command) {
 
 	runCommand.Flags().StringVarP(&params.ConfigFile, "config-file", "c", "", "set path of configuration file")
 	runCommand.Flags().BoolVarP(&serverMode, "server", "s", false, "start the runtime in server mode")
@@ -138,22 +138,21 @@ func run(cmd *cobra.Command, args []string) {
 		Level:  logLevel.String(),
 		Format: logFormat.String(),
 	}
-	fmt.Println("XXXX", logFormat.String())
 	params.DiagnosticsBuffer = server.NewBoundedBuffer(serverDiagnosticsBufferSize)
 	params.Paths = args
 
 	ctx := context.Background()
 
-	rt, err := getOpaRuntime(ctx, params)
+	rt, err := GetOpaRuntime(ctx, params)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "error:", err)
 		os.Exit(1)
 	}
 
 	if serverMode {
-		startOPAInServerMode(ctx, rt)
+		StartOPAInServerMode(ctx, rt)
 	} else {
-		startOPAInReplMode(ctx, rt)
+		StartOPAInReplMode(ctx, rt)
 	}
 }
 
