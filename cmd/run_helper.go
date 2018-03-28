@@ -75,10 +75,6 @@ func setDefaultLogFormatFlag() {
 	logFormat = util.NewEnumFlag("text", []string{"text", "json"})
 }
 
-func GetOpaParams() runtime.Params {
-	return params
-}
-
 func SetupRuntimeDefaults() {
 
 	// set default authentication schemes
