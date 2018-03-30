@@ -2,8 +2,9 @@
 
 [![Slack Status](http://slack.openpolicyagent.org/badge.svg)](http://slack.openpolicyagent.org) [![Build Status](https://travis-ci.org/open-policy-agent/opa.svg?branch=master)](https://travis-ci.org/open-policy-agent/opa) [![Go Report Card](https://goreportcard.com/badge/open-policy-agent/opa)](https://goreportcard.com/report/open-policy-agent/opa)
 
-The Open Policy Agent (OPA) is an open source, general-purpose policy engine
-that enables unified, context-aware policy enforcement across the entire stack.
+The Open Policy Agent (OPA) is an open source, general-purpose policy engine that enables unified, context-aware policy enforcement across the entire stack.
+
+OPA is hosted by the [Cloud Native Computing Foundation](https://cncf.io) (CNCF) as a sandbox level project. If you are an organization that wants to help shape the evolution of technologies that are container-packaged, dynamically-scheduled and microservices-oriented, consider joining the CNCF. For details read the CNCF [announcement](https://www.cncf.io/blog/2018/03/29/cncf-to-host-open-policy-agent-opa/).
 
 ## Want to learn more about OPA?
 
