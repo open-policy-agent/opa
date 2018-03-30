@@ -1,6 +1,6 @@
 # ![logo](./logo/logo.png) Open Policy Agent
 
-[![Slack Status](http://slack.openpolicyagent.org/badge.svg)](http://slack.openpolicyagent.org) [![Build Status](https://travis-ci.org/open-policy-agent/opa.svg?branch=master)](https://travis-ci.org/open-policy-agent/opa) [![Go Report Card](https://goreportcard.com/badge/open-policy-agent/opa)](https://goreportcard.com/report/open-policy-agent/opa)
+[![Slack Status](http://slack.openpolicyagent.org/badge.svg)](http://slack.openpolicyagent.org) [![Build Status](https://travis-ci.org/open-policy-agent/opa.svg?branch=master)](https://travis-ci.org/open-policy-agent/opa) [![Go Report Card](https://goreportcard.com/badge/open-policy-agent/opa)](https://goreportcard.com/report/open-policy-agent/opa) [![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Fopen-policy-agent%2Fopa.svg?type=shield)](https://app.fossa.io/projects/git%2Bgithub.com%2Fopen-policy-agent%2Fopa?ref=badge_shield)
 
 The Open Policy Agent (OPA) is an open source, general-purpose policy engine
 that enables unified, context-aware policy enforcement across the entire stack.
