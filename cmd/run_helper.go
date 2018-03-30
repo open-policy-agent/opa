@@ -97,6 +97,25 @@ func GetOpaParams() runtime.Params {
 	return params
 }
 
+func SetOpaParams(parameters *runtime.Params, args []string) {
+
+	cert, err := loadCertificate(tlsCertFile, tlsPrivateKeyFile)
+	if err != nil {
+		fmt.Println("error:", err)
+		os.Exit(1)
+	}
+
+	parameters.Authentication = getAuthnSchemesMap()[authentication.String()]
+	parameters.Authorization = getAuthzSchemesMap()[authorization.String()]
+	parameters.Certificate = cert
+	parameters.Logging = runtime.LoggingConfig{
+		Level:  logLevel.String(),
+		Format: logFormat.String(),
+	}
+	parameters.DiagnosticsBuffer = server.NewBoundedBuffer(serverDiagnosticsBufferSize)
+	parameters.Paths = args
+}
+
 func GetOpaRuntime(ctx context.Context, params runtime.Params) (*runtime.Runtime, error) {
 	return runtime.NewRuntime(ctx, params)
 }
@@ -129,21 +148,7 @@ func ParseOpaCliOptions(runCommand *cobra.Command) {
 }
 
 func run(cmd *cobra.Command, args []string) {
-	cert, err := loadCertificate(tlsCertFile, tlsPrivateKeyFile)
-	if err != nil {
-		fmt.Println("error:", err)
-		os.Exit(1)
-	}
-
-	params.Authentication = getAuthnSchemesMap()[authentication.String()]
-	params.Authorization = getAuthzSchemesMap()[authorization.String()]
-	params.Certificate = cert
-	params.Logging = runtime.LoggingConfig{
-		Level:  logLevel.String(),
-		Format: logFormat.String(),
-	}
-	params.DiagnosticsBuffer = server.NewBoundedBuffer(serverDiagnosticsBufferSize)
-	params.Paths = args
+	SetOpaParams(&params, args)
 
 	ctx := context.Background()
 
