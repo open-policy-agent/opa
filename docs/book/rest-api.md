@@ -1308,10 +1308,15 @@ Execute a simple query.
 
 OPA serves POST requests without a URL path by querying for the document at
 path `/data/system/main`. The content of that document defines the response
-entirely. The example below shows how to define a rule that will produce a
+entirely. The policy example below shows how to define a rule that will produce a
 value for the `/data/system/main` document.
 
 The request message body is mapped to the [Input Document](/how-does-opa-work.md#the-input-document).
+
+```http
+PUT /v1/policies/example1 HTTP/1.1
+Content-Type: text/plain
+```
 
 ```ruby
 package system
@@ -1330,7 +1335,7 @@ Content-Type: application/json
 
 ```json
 {
-  "user": "alice"
+  "user": ["alice"]
 }
 ```
 
