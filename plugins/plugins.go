@@ -100,10 +100,15 @@ func (m *Manager) Start(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+
+	// load policies from storage
 	compiler, err := loadCompilerFromStore(m.Store, txn, ctx)
 	if err != nil {
+		m.Store.Abort(ctx, txn)
 		return err
 	}
+
+	m.Store.Commit(ctx, txn)
 
 	// set compiler on manager
 	m.setCompiler(compiler)
