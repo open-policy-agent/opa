@@ -7,6 +7,7 @@ package runtime
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
@@ -33,6 +34,10 @@ import (
 
 // Params stores the configuration for an OPA instance.
 type Params struct {
+
+	// Globally unique identifier for this OPA instance. If an ID is not specified,
+	// the runtime will generate one.
+	ID string
 
 	// Addr is the listening address that the OPA server will bind to.
 	Addr string
@@ -115,6 +120,14 @@ type Runtime struct {
 // NewRuntime returns a new Runtime object initialized with params.
 func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 
+	if params.ID == "" {
+		var err error
+		params.ID, err = generateInstanceID()
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	loaded, err := loader.All(params.Paths)
 	if err != nil {
 		return nil, err
@@ -141,7 +154,7 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		return nil, errors.Wrapf(err, "storage error")
 	}
 
-	m, err := initPlugins(store, params.ConfigFile)
+	m, err := initPlugins(params.ID, store, params.ConfigFile)
 	if err != nil {
 		return nil, err
 	}
@@ -420,7 +433,7 @@ func setupLogging(config LoggingConfig) {
 // everything is started and stopped. We could introduce a package-scoped
 // plugin registry that allows for (dynamic) init-time plugin registration.
 
-func initPlugins(store storage.Store, configFile string) (*plugins.Manager, error) {
+func initPlugins(id string, store storage.Store, configFile string) (*plugins.Manager, error) {
 
 	if configFile == "" {
 		return nil, nil
@@ -431,7 +444,7 @@ func initPlugins(store storage.Store, configFile string) (*plugins.Manager, erro
 		return nil, err
 	}
 
-	m, err := plugins.New(bs, store)
+	m, err := plugins.New(bs, id, store)
 	if err != nil {
 		return nil, err
 	}
@@ -461,4 +474,15 @@ func initBundlePlugin(m *plugins.Manager, bs []byte) error {
 	m.Register(p)
 
 	return nil
+}
+
+func generateInstanceID() (string, error) {
+	bs := make([]byte, 16)
+	n, err := io.ReadFull(rand.Reader, bs)
+	if n != len(bs) || err != nil {
+		return "", err
+	}
+	bs[8] = bs[8]&^0xc0 | 0x80
+	bs[6] = bs[6]&^0xf0 | 0x40
+	return fmt.Sprintf("%x-%x-%x-%x-%x", bs[0:4], bs[4:6], bs[6:8], bs[8:10], bs[10:]), nil
 }

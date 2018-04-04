@@ -23,20 +23,26 @@ type Plugin interface {
 // Manager implements lifecycle management of plugins and gives plugins access
 // to engine-wide components like storage.
 type Manager struct {
+	Labels   map[string]string
 	Store    storage.Store
 	services map[string]rest.Client
 	plugins  []Plugin
 }
 
 // New creates a new Manager using config.
-func New(config []byte, store storage.Store) (*Manager, error) {
+func New(config []byte, id string, store storage.Store) (*Manager, error) {
 
 	var parsedConfig struct {
 		Services []json.RawMessage
+		Labels   map[string]string
 	}
 
 	if err := util.Unmarshal(config, &parsedConfig); err != nil {
 		return nil, err
+	}
+
+	if parsedConfig.Labels == nil {
+		parsedConfig.Labels = map[string]string{}
 	}
 
 	services := map[string]rest.Client{}
@@ -49,7 +55,10 @@ func New(config []byte, store storage.Store) (*Manager, error) {
 		services[client.Service()] = client
 	}
 
+	parsedConfig.Labels["id"] = id
+
 	m := &Manager{
+		Labels:   parsedConfig.Labels,
 		Store:    store,
 		services: services,
 	}

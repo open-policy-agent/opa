@@ -34,7 +34,7 @@ func TestNew(t *testing.T) {
 				"name": "foo"
 			}
 		]
-	}`), store)
+	}`), "test-instance-id", store)
 
 	if err != nil {
 		t.Fatal(err)
@@ -289,7 +289,7 @@ func TestPluginActivatationRemovesOld(t *testing.T) {
 		]
 	}`)
 	store := inmem.New()
-	manager, err := plugins.New(managerConfig, store)
+	manager, err := plugins.New(managerConfig, "test-instance-id", store)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -477,7 +477,7 @@ func newTestFixture(t *testing.T) testFixture {
 
 	store := inmem.New()
 
-	manager, err := plugins.New(managerConfig, store)
+	manager, err := plugins.New(managerConfig, "test-instance-id", store)
 	if err != nil {
 		t.Fatal(err)
 	}
