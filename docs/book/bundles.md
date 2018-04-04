@@ -29,12 +29,12 @@ services:
     credentials:
       bearer:
         token: "Bearer <base64 encoded string>"
-bundles:
-  - name: http/example/authz
-    service: acmecorp
-    polling:
-      min_delay_seconds: 60
-      max_delay_seconds: 120
+bundle:
+  name: http/example/authz
+  service: acmecorp
+  polling:
+    min_delay_seconds: 60
+    max_delay_seconds: 120
 ```
 
 With this configuration OPA will attempt to download a bundle named
@@ -52,12 +52,12 @@ services:
     credentials:
       bearer:
         token: string
-bundles:
-  - name: string
-    service: string
-    polling:
-      min_delay_seconds: number
-      max_delay_seconds: number
+bundle:
+  name: string
+  service: string
+  polling:
+    min_delay_seconds: number
+    max_delay_seconds: number
 ```
 
 Most fields in the configuration are optional, however, to enable bundle
@@ -67,8 +67,8 @@ downloading, you must set the following fields:
 | --- | --- |
 | `services[_].name` | Unique name for the service. Referred to by plugins. |
 | `services[_].url` | Base URL to contact the service with. |
-| `bundles[_].name` | Name of the bundle to download. |
-| `bundles[_].service` | Name of service to use to contact remote server. |
+| `bundle.name` | Name of the bundle to download. |
+| `bundle.service` | Name of service to use to contact remote server. |
 
 ## Bundle Service API
 

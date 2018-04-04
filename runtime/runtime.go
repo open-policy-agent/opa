@@ -436,30 +436,29 @@ func initPlugins(store storage.Store, configFile string) (*plugins.Manager, erro
 		return nil, err
 	}
 
-	if err := initBundlePlugins(m, bs); err != nil {
+	if err := initBundlePlugin(m, bs); err != nil {
 		return nil, err
 	}
 
 	return m, nil
 }
 
-func initBundlePlugins(m *plugins.Manager, bs []byte) error {
+func initBundlePlugin(m *plugins.Manager, bs []byte) error {
 
 	var config struct {
-		Bundles []json.RawMessage `json:"bundles"`
+		Bundle json.RawMessage `json:"bundle"`
 	}
 
 	if err := util.Unmarshal(bs, &config); err != nil {
 		return err
 	}
 
-	for _, bs := range config.Bundles {
-		p, err := bundle.New(bs, m)
-		if err != nil {
-			return err
-		}
-		m.Register(p)
+	p, err := bundle.New(config.Bundle, m)
+	if err != nil {
+		return err
 	}
+
+	m.Register(p)
 
 	return nil
 }
