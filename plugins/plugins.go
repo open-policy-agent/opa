@@ -8,7 +8,9 @@ package plugins
 import (
 	"context"
 	"encoding/json"
+	"sync"
 
+	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/plugins/rest"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/util"
@@ -25,8 +27,10 @@ type Plugin interface {
 type Manager struct {
 	Labels   map[string]string
 	Store    storage.Store
+	Compiler *ast.Compiler
 	services map[string]rest.Client
 	plugins  []Plugin
+	mtx      sync.RWMutex
 }
 
 // New creates a new Manager using config.
@@ -72,17 +76,80 @@ func (m *Manager) Register(plugin Plugin) {
 	m.plugins = append(m.plugins, plugin)
 }
 
+// GetCompiler returns the compiler instance
+func (m *Manager) GetCompiler() *ast.Compiler {
+	m.mtx.RLock()
+	defer m.mtx.RUnlock()
+	return m.Compiler
+}
+
+func (m *Manager) setCompiler(compiler *ast.Compiler) {
+	m.mtx.Lock()
+	defer m.mtx.Unlock()
+	m.Compiler = compiler
+}
+
 // Start starts the manager.
 func (m *Manager) Start(ctx context.Context) error {
 	if m == nil {
 		return nil
 	}
+
+	err := storage.Txn(ctx, m.Store, storage.TransactionParams{}, func(txn storage.Transaction) error {
+		// load policies from storage
+		compiler, err := loadCompilerFromStore(ctx, m.Store, txn)
+		if err != nil {
+			return err
+		}
+		// set compiler on manager
+		m.setCompiler(compiler)
+		return nil
+	})
+
+	if err != nil {
+		return err
+	}
+
+	// start plugins
 	for _, p := range m.plugins {
 		if err := p.Start(ctx); err != nil {
 			return err
 		}
 	}
-	return nil
+
+	return storage.Txn(ctx, m.Store, storage.WriteParams, func(txn storage.Transaction) error {
+		_, err := m.Store.Register(ctx, txn, storage.TriggerConfig{OnCommit: func(ctx context.Context, txn storage.Transaction, event storage.TriggerEvent) {
+			if event.PolicyChanged() {
+				compiler, _ := loadCompilerFromStore(ctx, m.Store, txn)
+				m.setCompiler(compiler)
+			}
+		}})
+		return err
+	})
+}
+
+func loadCompilerFromStore(ctx context.Context, store storage.Store, txn storage.Transaction) (*ast.Compiler, error) {
+	policies, err := store.ListPolicies(ctx, txn)
+	if err != nil {
+		return nil, err
+	}
+	modules := map[string]*ast.Module{}
+
+	for _, policy := range policies {
+		bs, err := store.GetPolicy(ctx, txn, policy)
+		if err != nil {
+			return nil, err
+		}
+		module, err := ast.ParseModule(policy, string(bs))
+		if err != nil {
+			return nil, err
+		}
+		modules[policy] = module
+	}
+
+	compiler := ast.NewCompiler()
+	compiler.Compile(modules)
+	return compiler, nil
 }
 
 // Client returns a client for communicating with a remote service.
