@@ -53,6 +53,20 @@ func TestRead(t *testing.T) {
 	}
 }
 
+func TestReadWithManifest(t *testing.T) {
+	files := [][2]string{
+		{"/.manifest", `{"revision": "quickbrownfaux"}`},
+	}
+	buf := writeTarGz(files)
+	bundle, err := Read(buf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bundle.Manifest.Revision != "quickbrownfaux" {
+		t.Fatalf("Unexpected manifest.revision value: %v", bundle.Manifest.Revision)
+	}
+}
+
 func TestReadErrorBadGzip(t *testing.T) {
 	buf := bytes.NewBufferString("bad gzip bytes")
 	_, err := Read(buf)
@@ -110,6 +124,9 @@ func TestRoundtrip(t *testing.T) {
 				Parsed: ast.MustParseModule(`package foo.corge`),
 				Raw:    []byte(`package foo.corge`),
 			},
+		},
+		Manifest: Manifest{
+			Revision: "quickbrownfaux",
 		},
 	}
 

@@ -17,7 +17,7 @@ You can configure OPA to periodically download policies by starting OPA with a
 configuration file (both YAML and JSON files are supported):
 
 ```bash
-opa run --server --config config.yaml
+opa run --server --config-file config.yaml
 ```
 
 **config.yaml**:
@@ -93,6 +93,8 @@ Content-Type: application/gzip
 
 OPA currently supports Bearer token authentication for external services.
 
+See the following section for details on the bundle file format.
+
 ## Bundle File Format
 
 Bundle files are gzipped tarballs that contain policies and data. The data
@@ -106,6 +108,7 @@ You can list the content of a bundle with `tar`.
 
 ```bash
 $ tar tzf bundle.tar.gz
+.manifest
 roles
 roles/bindings
 roles/bindings/data.json
@@ -119,3 +122,10 @@ http/example/authz/authz.rego
 
 In this example, the bundle contains one policy file (`authz.rego`) and two
 data files (`bindings/data.json` and `permissions/data.json`).
+
+Bundle files may contain an optional `.manifest` file that stores bundle
+metadata. The file should contain a JSON serialized object.
+
+* If the bundle service is capable of serving different revisions of the same
+  bundle, the service should include a top-level `revision` field containing a
+  `string` value that identifies the bundle revision.
