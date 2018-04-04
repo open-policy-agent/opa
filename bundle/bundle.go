@@ -24,13 +24,21 @@ import (
 const (
 	RegoExt     = ".rego"
 	JSONExt     = ".json"
+	ManifestExt = ".manifest"
 	DataFileExt = "/data.json"
 )
 
 // Bundle represents a loaded bundle. The bundle can contain data and policies.
 type Bundle struct {
-	Data    map[string]interface{}
-	Modules []ModuleFile
+	Manifest Manifest
+	Data     map[string]interface{}
+	Modules  []ModuleFile
+}
+
+// Manifest represents the manifest from a bundle. The manifest may contain
+// metadata such as the bundle revision.
+type Manifest struct {
+	Revision string `json:"revision"`
 }
 
 // ModuleFile represents a single module contained a bundle.
@@ -61,11 +69,26 @@ func Write(w io.Writer, bundle Bundle) error {
 		}
 	}
 
+	if err := writeManifest(tw, bundle); err != nil {
+		return err
+	}
+
 	if err := tw.Close(); err != nil {
 		return err
 	}
 
 	return gw.Close()
+}
+
+func writeManifest(tw *tar.Writer, bundle Bundle) error {
+
+	var buf bytes.Buffer
+
+	if err := json.NewEncoder(&buf).Encode(bundle.Manifest); err != nil {
+		return err
+	}
+
+	return writeFile(tw, ManifestExt, buf.Bytes())
 }
 
 // Read returns a new Bundle loaded from the reader.
@@ -122,6 +145,11 @@ func Read(r io.Reader) (Bundle, error) {
 			}
 			if err := bundle.insert(key, value); err != nil {
 				return bundle, errors.Wrapf(err, "bundle load failed on %v", path)
+			}
+
+		} else if strings.HasSuffix(path, ManifestExt) {
+			if err := util.NewJSONDecoder(&buf).Decode(&bundle.Manifest); err != nil {
+				return bundle, errors.Wrapf(err, "bundle load failed on manifest")
 			}
 		}
 	}
