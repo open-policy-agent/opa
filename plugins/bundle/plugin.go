@@ -10,11 +10,13 @@ import (
 	"fmt"
 	"math/rand"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/bundle"
 	"github.com/open-policy-agent/opa/plugins"
+	"github.com/open-policy-agent/opa/server/types"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/util"
 	"github.com/pkg/errors"
@@ -86,12 +88,30 @@ func (c *Config) validateAndInjectDefaults(services []string) error {
 	return nil
 }
 
+const (
+	errCode = "bundle_error"
+)
+
+// Status represents the status of the plugin.
+type Status struct {
+	Name                     string    `json:"name"`
+	ActiveRevision           string    `json:"active_revision,omitempty"`
+	LastSuccessfulActivation time.Time `json:"last_successful_activation,omitempty"`
+	LastSuccessfulDownload   time.Time `json:"last_successful_download,omitempty"`
+	Code                     string    `json:"code,omitempty"`
+	Message                  string    `json:"message,omitempty"`
+	Errors                   []error   `json:"errors,omitempty"`
+}
+
 // Plugin implements bundle downloading and activation.
 type Plugin struct {
-	manager *plugins.Manager   // plugin manager for storage and service clients
-	config  Config             // plugin config
-	stop    chan chan struct{} // used to signal plugin to stop running
-	etag    string             // last ETag header for caching purposes
+	manager   *plugins.Manager             // plugin manager for storage and service clients
+	config    Config                       // plugin config
+	stop      chan chan struct{}           // used to signal plugin to stop running
+	etag      string                       // last ETag header for caching purposes
+	status    *Status                      // current plugin status
+	listeners map[interface{}]func(Status) // listeners to send status updates to
+	mtx       sync.Mutex
 }
 
 // New returns a new Plugin with the given config.
@@ -111,6 +131,10 @@ func New(config []byte, manager *plugins.Manager) (*Plugin, error) {
 		manager: manager,
 		config:  parsedConfig,
 		stop:    make(chan chan struct{}),
+		status: &Status{
+			Name: parsedConfig.Name,
+		},
+		listeners: map[interface{}]func(Status){},
 	}
 
 	return plugin, nil
@@ -129,6 +153,20 @@ func (p *Plugin) Stop(ctx context.Context) {
 	done := make(chan struct{})
 	p.stop <- done
 	_ = <-done
+}
+
+// Register a lisetner to receive status updates. The name must be comparable.
+func (p *Plugin) Register(name interface{}, listener func(Status)) {
+	p.mtx.Lock()
+	defer p.mtx.Unlock()
+	p.listeners[name] = listener
+}
+
+// Unregister a listener to stop receiving status updates.
+func (p *Plugin) Unregister(name interface{}) {
+	p.mtx.Lock()
+	defer p.mtx.Unlock()
+	delete(p.listeners, name)
 }
 
 func (p *Plugin) loop() {
@@ -179,7 +217,19 @@ func (p *Plugin) loop() {
 
 }
 
-func (p *Plugin) oneShot(ctx context.Context) (bool, error) {
+func (p *Plugin) oneShot(ctx context.Context) (updated bool, err error) {
+
+	defer func() {
+		if err != nil || updated {
+			p.setErrorStatus(err)
+		}
+
+		status := *p.status
+
+		for _, listener := range p.listeners {
+			listener(status)
+		}
+	}()
 
 	p.logDebug("Download starting.")
 
@@ -219,12 +269,14 @@ func (p *Plugin) process(ctx context.Context, resp *http.Response) error {
 		return errors.Wrap(err, "Bundle download failed")
 	}
 
+	p.status.LastSuccessfulDownload = time.Now().UTC()
 	p.logDebug("Bundle activation in progress.")
 
 	if err := p.activate(ctx, b); err != nil {
 		return errors.Wrap(err, "Bundle activation failed")
 	}
 
+	p.status.ActiveRevision = b.Manifest.Revision
 	p.etag = resp.Header.Get("ETag")
 	return nil
 }
@@ -272,6 +324,8 @@ func (p *Plugin) activate(ctx context.Context, b bundle.Bundle) error {
 			}
 		}
 
+		p.status.LastSuccessfulActivation = time.Now().UTC()
+
 		return nil
 	})
 }
@@ -293,4 +347,33 @@ func (p *Plugin) logrusFields() logrus.Fields {
 		"plugin": "bundle",
 		"name":   p.config.Name,
 	}
+}
+
+func (p *Plugin) setErrorStatus(err error) {
+
+	if err == nil {
+		p.status.Code = ""
+		p.status.Message = ""
+		p.status.Errors = nil
+		return
+	}
+
+	cause := errors.Cause(err)
+
+	if astErr, ok := cause.(ast.Errors); ok {
+		p.status.Code = errCode
+		p.status.Message = types.MsgCompileModuleError
+		p.status.Errors = make([]error, len(astErr))
+		for i := range astErr {
+			p.status.Errors[i] = astErr[i]
+		}
+	} else {
+		p.status.Code = errCode
+		p.status.Message = err.Error()
+		p.status.Errors = nil
+	}
+}
+
+func now() string {
+	return time.Now().UTC().Format(time.RFC3339Nano)
 }

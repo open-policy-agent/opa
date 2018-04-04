@@ -61,7 +61,7 @@ func TestNew(t *testing.T) {
 		{
 			input: `{
 				"name": "bad/delays",
-				"service": "foo",
+			"service": "foo",
 				"polling": {
 					"min_delay_seconds": 10,
 					"max_delay_seconds": 1
@@ -364,6 +364,68 @@ func TestPluginActivatationRemovesOld(t *testing.T) {
 	}
 }
 
+func TestPluginListener(t *testing.T) {
+
+	ctx := context.Background()
+	fixture := newTestFixture(t)
+	defer fixture.server.stop()
+
+	b := fixture.server.bundles["test/bundle1"]
+	ch := make(chan Status, 1)
+
+	fixture.plugin.Register("test", func(status Status) {
+		ch <- status
+	})
+
+	// Test that initial bundle is ok.
+	fixture.plugin.oneShot(ctx)
+	s1 := <-ch
+
+	if s1.ActiveRevision != "quickbrownfaux" || s1.Code != "" {
+		t.Fatal("Unexpected status update, got:", s1)
+	}
+
+	// Test that next update is failed.
+	b.Manifest.Revision = "slowgreenburd"
+	b.Modules[0] = bundle.ModuleFile{
+		Path: "/foo.rego",
+		Raw:  []byte("package gork\np[x]"),
+	}
+	fixture.server.bundles["test/bundle1"] = b
+
+	fixture.plugin.oneShot(ctx)
+	s2 := <-ch
+
+	if s2.ActiveRevision != "quickbrownfaux" || s2.Code == "" || s2.Message == "" || len(s2.Errors) == 0 {
+		t.Fatal("Unexpected status update, got:", s2)
+	}
+
+	// Test that new update is successful.
+	b.Manifest.Revision = "fancybluederg"
+	b.Modules[0] = bundle.ModuleFile{
+		Path: "/foo.rego",
+		Raw:  []byte("package gork\np[1]"),
+	}
+	fixture.server.bundles["test/bundle1"] = b
+	fixture.server.expEtag = "etagvalue"
+
+	fixture.plugin.oneShot(ctx)
+	s3 := <-ch
+
+	if s3.ActiveRevision != "fancybluederg" || s3.Code != "" || s3.Message != "" || len(s3.Errors) != 0 {
+		t.Fatal("Unexpected status update, got:", s3)
+	}
+
+	// Test that 304 results in status update.
+	fixture.plugin.oneShot(ctx)
+	s4 := <-ch
+
+	if !reflect.DeepEqual(s3, s4) {
+		t.Fatalf("Expected: %v but got: %v", s3, s4)
+	}
+
+}
+
 type testFixture struct {
 	store   storage.Store
 	manager *plugins.Manager
@@ -378,6 +440,9 @@ func newTestFixture(t *testing.T) testFixture {
 		expAuth: "Bearer secret",
 		bundles: map[string]bundle.Bundle{
 			"test/bundle1": {
+				Manifest: bundle.Manifest{
+					Revision: "quickbrownfaux",
+				},
 				Data: map[string]interface{}{
 					"foo": map[string]interface{}{
 						"bar": json.Number("1"),
