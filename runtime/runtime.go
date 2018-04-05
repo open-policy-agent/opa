@@ -22,6 +22,7 @@ import (
 	"github.com/open-policy-agent/opa/loader"
 	"github.com/open-policy-agent/opa/plugins"
 	"github.com/open-policy-agent/opa/plugins/bundle"
+	"github.com/open-policy-agent/opa/plugins/status"
 	"github.com/open-policy-agent/opa/repl"
 	"github.com/open-policy-agent/opa/server"
 	"github.com/open-policy-agent/opa/storage"
@@ -449,31 +450,61 @@ func initPlugins(id string, store storage.Store, configFile string) (*plugins.Ma
 		return nil, err
 	}
 
-	if err := initBundlePlugin(m, bs); err != nil {
+	bundlePlugin, err := initBundlePlugin(m, bs)
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = initStatusPlugin(m, bs, bundlePlugin)
+	if err != nil {
 		return nil, err
 	}
 
 	return m, nil
 }
 
-func initBundlePlugin(m *plugins.Manager, bs []byte) error {
+func initBundlePlugin(m *plugins.Manager, bs []byte) (*bundle.Plugin, error) {
 
 	var config struct {
 		Bundle json.RawMessage `json:"bundle"`
 	}
 
 	if err := util.Unmarshal(bs, &config); err != nil {
-		return err
+		return nil, err
 	}
 
 	p, err := bundle.New(config.Bundle, m)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	m.Register(p)
 
-	return nil
+	return p, nil
+}
+
+func initStatusPlugin(m *plugins.Manager, bs []byte, bundlePlugin *bundle.Plugin) (*status.Plugin, error) {
+
+	var config struct {
+		Status json.RawMessage `json:"status"`
+	}
+
+	if err := util.Unmarshal(bs, &config); err != nil {
+		return nil, err
+	}
+
+	p, err := status.New(config.Status, m)
+	if err != nil {
+		return nil, err
+	}
+
+	m.Register(p)
+
+	bundlePlugin.Register(bundlePluginListener("status-plugin"), func(s bundle.Status) {
+		p.Update(s)
+	})
+
+	return p, nil
 }
 
 func generateInstanceID() (string, error) {
@@ -486,3 +517,5 @@ func generateInstanceID() (string, error) {
 	bs[6] = bs[6]&^0xf0 | 0x40
 	return fmt.Sprintf("%x-%x-%x-%x-%x", bs[0:4], bs[4:6], bs[6:8], bs[8:10], bs[10:]), nil
 }
+
+type bundlePluginListener string
