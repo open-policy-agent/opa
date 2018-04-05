@@ -6,8 +6,11 @@
 package rest
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"strings"
@@ -44,6 +47,7 @@ func (c *Config) validateAndInjectDefaults() error {
 // services.
 type Client struct {
 	Client  http.Client
+	json    *interface{}
 	config  Config
 	headers map[string]string
 }
@@ -77,13 +81,32 @@ func (c Client) WithHeader(k, v string) Client {
 	return c
 }
 
+// WithJSON returns a shallow copy of the client with the JSON value set as the
+// message body to include the requests. This function sets the Content-Type
+// header.
+func (c Client) WithJSON(body interface{}) Client {
+	c = c.WithHeader("Content-Type", "application/json")
+	c.json = &body
+	return c
+}
+
 // Do executes a request using the client.
 func (c Client) Do(ctx context.Context, method, path string) (*http.Response, error) {
 
 	path = strings.Trim(path, "/")
 
+	var body io.Reader
+
+	if c.json != nil {
+		var buf bytes.Buffer
+		if err := json.NewEncoder(&buf).Encode(*c.json); err != nil {
+			return nil, err
+		}
+		body = &buf
+	}
+
 	url := c.config.URL + "/" + path
-	req, err := http.NewRequest(method, url, nil)
+	req, err := http.NewRequest(method, url, body)
 	if err != nil {
 		return nil, err
 	}
