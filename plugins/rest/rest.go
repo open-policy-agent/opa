@@ -47,6 +47,7 @@ func (c *Config) validateAndInjectDefaults() error {
 // services.
 type Client struct {
 	Client  http.Client
+	bytes   *[]byte
 	json    *interface{}
 	config  Config
 	headers map[string]string
@@ -90,6 +91,13 @@ func (c Client) WithJSON(body interface{}) Client {
 	return c
 }
 
+// WithBytes returns a shallow copy of the client with the bytes set as the
+// message body to include in the requests.
+func (c Client) WithBytes(body []byte) Client {
+	c.bytes = &body
+	return c
+}
+
 // Do executes a request using the client.
 func (c Client) Do(ctx context.Context, method, path string) (*http.Response, error) {
 
@@ -97,7 +105,10 @@ func (c Client) Do(ctx context.Context, method, path string) (*http.Response, er
 
 	var body io.Reader
 
-	if c.json != nil {
+	if c.bytes != nil {
+		buf := bytes.NewBuffer(*c.bytes)
+		body = buf
+	} else if c.json != nil {
 		var buf bytes.Buffer
 		if err := json.NewEncoder(&buf).Encode(*c.json); err != nil {
 			return nil, err
