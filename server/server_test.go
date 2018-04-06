@@ -1731,6 +1731,44 @@ func TestDecisionIDs(t *testing.T) {
 	}
 }
 
+func TestDecisonLogging(t *testing.T) {
+	f := newFixture(t)
+	decisions := []*Info{}
+	f.server = f.server.WithDecisionLogger(func(_ context.Context, info *Info) {
+		decisions = append(decisions, info)
+	})
+
+	if err := f.v1("PUT", "/policies/test", "package system\nmain=true", 200, "{}"); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := f.v1("POST", "/data", "", 200, `{"result": {}}`); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := f.v1("GET", "/data", "", 200, `{"result": {}}`); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := f.v0("POST", "/data", "", 200, `{}`); err != nil {
+		t.Fatal(err)
+	}
+
+	req := newReqUnversioned("POST", "/", "")
+
+	if err := f.executeRequest(req, 200, "true"); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := f.v1("GET", "/query?q=data=x", "", 200, `{"result": [{"x": {}}]}`); err != nil {
+		t.Fatal(err)
+	}
+
+	if len(decisions) != 5 {
+		t.Fatalf("Expected exactly 5 decisions but got: %d", len(decisions))
+	}
+}
+
 func TestWatchParams(t *testing.T) {
 	f := newFixture(t)
 	r1 := newMockConn()
