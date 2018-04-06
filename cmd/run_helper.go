@@ -75,7 +75,7 @@ func setDefaultLogFormatFlag() {
 	logFormat = util.NewEnumFlag("text", []string{"text", "json"})
 }
 
-func SetupRuntimeDefaults() {
+func setupRuntimeDefaults() {
 
 	// set default authentication schemes
 	setAuthnSchemesMap()
@@ -97,7 +97,7 @@ func GetOpaParams() runtime.Params {
 	return params
 }
 
-func SetOpaParams(parameters *runtime.Params, args []string) {
+func setOpaParams(parameters *runtime.Params, args []string) {
 
 	cert, err := loadCertificate(tlsCertFile, tlsPrivateKeyFile)
 	if err != nil {
@@ -116,7 +116,7 @@ func SetOpaParams(parameters *runtime.Params, args []string) {
 	parameters.Paths = args
 }
 
-func GetOpaRuntime(ctx context.Context, params runtime.Params) (*runtime.Runtime, error) {
+func getOpaRuntime(ctx context.Context, params runtime.Params) (*runtime.Runtime, error) {
 	return runtime.NewRuntime(ctx, params)
 }
 
@@ -128,7 +128,25 @@ func StartOPAInReplMode(ctx context.Context, rt *runtime.Runtime) {
 	rt.StartREPL(ctx)
 }
 
-func ParseOpaCliOptions(runCommand *cobra.Command) {
+// New returns a new instance of the OPA runtime
+func New(ctx context.Context, args []string, runCommand *cobra.Command) (*runtime.Runtime, error) {
+
+	// initial OPA setup
+	setupRuntimeDefaults()
+
+	// parse OPA's command line options
+	parseOpaCliOptions(runCommand)
+
+	// get OPA's runtime config
+	opaParams := GetOpaParams()
+
+	// set OPA's runtime config after parsing command line
+	setOpaParams(&opaParams, args)
+
+	return getOpaRuntime(ctx, opaParams)
+}
+
+func parseOpaCliOptions(runCommand *cobra.Command) {
 
 	runCommand.Flags().StringVarP(&params.ConfigFile, "config-file", "c", "", "set path of configuration file")
 	runCommand.Flags().BoolVarP(&serverMode, "server", "s", false, "start the runtime in server mode")
@@ -148,11 +166,11 @@ func ParseOpaCliOptions(runCommand *cobra.Command) {
 }
 
 func run(cmd *cobra.Command, args []string) {
-	SetOpaParams(&params, args)
+	setOpaParams(&params, args)
 
 	ctx := context.Background()
 
-	rt, err := GetOpaRuntime(ctx, params)
+	rt, err := getOpaRuntime(ctx, params)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "error:", err)
 		os.Exit(1)
