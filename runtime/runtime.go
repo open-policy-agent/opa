@@ -116,6 +116,8 @@ type Runtime struct {
 	Params  Params
 	Store   storage.Store
 	Manager *plugins.Manager
+
+	decisionLogger func(context.Context, *server.Info)
 }
 
 // NewRuntime returns a new Runtime object initialized with params.
@@ -193,6 +195,7 @@ func (rt *Runtime) StartServer(ctx context.Context) {
 		WithAuthorization(rt.Params.Authorization).
 		WithDiagnosticsBuffer(rt.Params.DiagnosticsBuffer).
 		WithDecisionIDFactory(rt.Params.DecisionIDFactory).
+		WithDecisionLogger(rt.decisionLogger).
 		Init(ctx)
 
 	if err != nil {
