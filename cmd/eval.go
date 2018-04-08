@@ -56,7 +56,33 @@ func init() {
 		Short: "Evaluate a Rego query",
 		Long: `Evaluate a Rego query and print the result.
 
-		TODO show how to use eval command`,
+To evaluate a simple query:
+
+	$ opa eval 'x = 1; y = 2; x < y'
+
+To evaluate a query against JSON data:
+
+	$ opa eval --data data.json 'data.names[_] = name'
+
+The --data flag will recursively load data files and Rego files contained in
+sub-directories under the path. For example, given /some/path:
+
+	$ opa eval --data /some/path 'data'
+
+Where /some/path contains:
+
+	foo/
+	  |
+	  +-- bar/
+	  |     |
+	  |     +-- data.json
+	  |
+	  +-- baz.rego
+
+The JSON file 'foo/bar/data.json' would be loaded and rooted under
+'data.foo.bar' and the 'foo/baz.rego' would be loaded and rooted under the
+package path contained inside the file.`,
+
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) > 0 && params.stdin {
 				return errors.New("specify query argument or --stdin but not both")
