@@ -7,6 +7,8 @@ package loader
 import (
 	"fmt"
 	"strings"
+
+	"github.com/open-policy-agent/opa/ast"
 )
 
 type loaderErrors []error
@@ -26,7 +28,13 @@ func (e loaderErrors) Error() string {
 }
 
 func (e *loaderErrors) Add(err error) {
-	*e = append(*e, err)
+	if errs, ok := err.(ast.Errors); ok {
+		for i := range errs {
+			*e = append(*e, errs[i])
+		}
+	} else {
+		*e = append(*e, err)
+	}
 }
 
 func newResult() *Result {

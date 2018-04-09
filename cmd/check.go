@@ -56,7 +56,7 @@ func checkModules(args []string) int {
 
 	result, err := loader.AllRegos(args)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		outputErrors(err)
 		return 1
 	}
 
@@ -74,10 +74,16 @@ func checkModules(args []string) int {
 		return 0
 	}
 
+	outputErrors(compiler.Errors)
+
+	return 1
+}
+
+func outputErrors(err error) {
 	switch checkParams.format.String() {
 	case checkFormatJSON:
 		result := map[string]error{
-			"errors": compiler.Errors,
+			"errors": err,
 		}
 		bs, err := json.MarshalIndent(result, "", "  ")
 		if err != nil {
@@ -86,10 +92,8 @@ func checkModules(args []string) int {
 			fmt.Fprintln(os.Stdout, string(bs))
 		}
 	default:
-		fmt.Fprintln(os.Stdout, compiler.Errors)
+		fmt.Fprintln(os.Stdout, err)
 	}
-
-	return 1
 }
 
 func init() {
