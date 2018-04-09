@@ -129,21 +129,19 @@ func StartOPAInReplMode(ctx context.Context, rt *runtime.Runtime) {
 }
 
 // New returns a new instance of the OPA runtime
-func New(ctx context.Context, args []string, runCommand *cobra.Command) (*runtime.Runtime, error) {
+func New(ctx context.Context, args []string) (*runtime.Runtime, error) {
+	// set OPA's runtime config after parsing command line
+	setOpaParams(&params, args)
+	return getOpaRuntime(ctx, params)
+}
 
+// Init performs OPA's initial setup
+func Init(runCommand *cobra.Command) {
 	// initial OPA setup
 	setupRuntimeDefaults()
 
 	// parse OPA's command line options
 	parseOpaCliOptions(runCommand)
-
-	// get OPA's runtime config
-	opaParams := GetOpaParams()
-
-	// set OPA's runtime config after parsing command line
-	setOpaParams(&opaParams, args)
-
-	return getOpaRuntime(ctx, opaParams)
 }
 
 func parseOpaCliOptions(runCommand *cobra.Command) {
