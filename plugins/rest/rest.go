@@ -151,5 +151,17 @@ func (c Client) Do(ctx context.Context, method, path string) (*http.Response, er
 		"headers": req.Header,
 	}).Debug("Sending request.")
 
-	return c.Client.Do(req)
+	resp, err := c.Client.Do(req)
+	if resp != nil {
+		// Only log for debug purposes. If an error occurred, the caller should handle
+		// that. In the non-error case, the caller may not do anything.
+		logrus.WithFields(logrus.Fields{
+			"method":  method,
+			"url":     url,
+			"status":  resp.Status,
+			"headers": resp.Header,
+		}).Debug("Received response.")
+	}
+
+	return resp, err
 }
