@@ -455,9 +455,11 @@ func initPlugins(id string, store storage.Store, configFile string) (*plugins.Ma
 		return nil, err
 	}
 
-	_, err = initStatusPlugin(m, bs, bundlePlugin)
-	if err != nil {
-		return nil, err
+	if bundlePlugin != nil {
+		_, err = initStatusPlugin(m, bs, bundlePlugin)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return m, nil
@@ -471,6 +473,10 @@ func initBundlePlugin(m *plugins.Manager, bs []byte) (*bundle.Plugin, error) {
 
 	if err := util.Unmarshal(bs, &config); err != nil {
 		return nil, err
+	}
+
+	if config.Bundle == nil {
+		return nil, nil
 	}
 
 	p, err := bundle.New(config.Bundle, m)
@@ -491,6 +497,10 @@ func initStatusPlugin(m *plugins.Manager, bs []byte, bundlePlugin *bundle.Plugin
 
 	if err := util.Unmarshal(bs, &config); err != nil {
 		return nil, err
+	}
+
+	if config.Status == nil {
+		return nil, nil
 	}
 
 	p, err := status.New(config.Status, m)
