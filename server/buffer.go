@@ -72,6 +72,7 @@ func (b *buffer) Iter(fn func(*Info)) {
 
 // Info contains information describing a policy decision.
 type Info struct {
+	Revision   string
 	DecisionID string
 	RemoteAddr string
 	Query      string

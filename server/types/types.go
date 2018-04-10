@@ -137,6 +137,7 @@ type DiagnosticsResponseV1 struct {
 // DiagnosticsResponseElementV1 models an element in the response message for the
 // Diagnostics API.
 type DiagnosticsResponseElementV1 struct {
+	Revision    string       `json:"revision,omitempty"`
 	DecisionID  string       `json:"decision_id,omitempty"`
 	RemoteAddr  string       `json:"remote_addr"`
 	Query       string       `json:"query"`

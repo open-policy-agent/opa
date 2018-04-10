@@ -88,6 +88,7 @@ type Server struct {
 	watcher           *watch.Watcher
 	decisionIDFactory func() string
 	diagnostics       Buffer
+	revision          string
 	logger            func(context.Context, *Info)
 	errLimit          int
 }
@@ -405,12 +406,24 @@ func (s *Server) registerHandler(router *mux.Router, version int, path string, m
 
 func (s *Server) reload(ctx context.Context, txn storage.Transaction, event storage.TriggerEvent) {
 
+	value, err := s.store.Read(ctx, txn, storage.MustParsePath("/system/bundle/manifest/revision"))
+	if err == nil {
+		revision, ok := value.(string)
+		if !ok {
+			panic("bad revision value")
+		}
+		s.revision = revision
+	} else if err != nil {
+		if !storage.IsNotFound(err) {
+			panic(err)
+		}
+	}
+
 	if !event.PolicyChanged() {
 		return
 	}
 
-	err := s.reloadCompiler(ctx, txn)
-	if err != nil {
+	if err := s.reloadCompiler(ctx, txn); err != nil {
 		panic(err)
 	}
 
@@ -525,6 +538,7 @@ func (s *Server) v1DiagnosticsGet(w http.ResponseWriter, r *http.Request) {
 	}
 	s.diagnostics.Iter(func(i *Info) {
 		item := types.DiagnosticsResponseElementV1{
+			Revision:   i.Revision,
 			DecisionID: i.DecisionID,
 			RemoteAddr: i.RemoteAddr,
 			Timestamp:  i.Timestamp.UTC().Format(time.RFC3339Nano),
@@ -1220,6 +1234,7 @@ func (s *Server) evalDiagnosticPolicy(r *http.Request) (logger diagnosticsLogger
 	// logger will make sure to call the decision logger regardless of whether a
 	// diagnostic policy is configured. In the future, we can refactor this.
 	defer func() {
+		logger.revision = s.revision
 		logger.logger = s.logger
 	}()
 
@@ -1683,6 +1698,7 @@ func renderVersion(w http.ResponseWriter) {
 
 type diagnosticsLogger struct {
 	logger     func(context.Context, *Info)
+	revision   string
 	explain    bool
 	instrument bool
 	buffer     Buffer
@@ -1699,6 +1715,7 @@ func (l diagnosticsLogger) Instrument() bool {
 func (l diagnosticsLogger) Log(ctx context.Context, decisionID, remoteAddr, query string, input interface{}, results *interface{}, err error, m metrics.Metrics, tracer *topdown.BufferTracer) {
 
 	info := &Info{
+		Revision:   l.revision,
 		Timestamp:  time.Now(),
 		DecisionID: decisionID,
 		RemoteAddr: remoteAddr,
