@@ -839,7 +839,7 @@ func (s *Server) v1DataPut(w http.ResponseWriter, r *http.Request) {
 			s.abortAuto(ctx, txn, w, err)
 			return
 		}
-		if err := s.makeDir(ctx, txn, path[:len(path)-1]); err != nil {
+		if err := storage.MakeDir(ctx, s.store, txn, path[:len(path)-1]); err != nil {
 			s.abortAuto(ctx, txn, w, err)
 			return
 		}
@@ -1330,29 +1330,6 @@ func (s *Server) resetCompilers(compiler *ast.Compiler) {
 	defer s.mtx.Unlock()
 	s.compiler = compiler
 	s.partials = map[string]rego.PartialResult{}
-}
-
-func (s *Server) makeDir(ctx context.Context, txn storage.Transaction, path storage.Path) error {
-
-	node, err := s.store.Read(ctx, txn, path)
-	if err == nil {
-		if _, ok := node.(map[string]interface{}); ok {
-			return nil
-		}
-		return types.WriteConflictErr{
-			Path: path,
-		}
-	}
-
-	if !storage.IsNotFound(err) {
-		return err
-	}
-
-	if err := s.makeDir(ctx, txn, path[:len(path)-1]); err != nil {
-		return err
-	}
-
-	return s.store.Write(ctx, txn, storage.AddOp, path, map[string]interface{}{})
 }
 
 func (s *Server) makeRego(ctx context.Context, partial bool, txn storage.Transaction, input interface{}, path string, m metrics.Metrics, instrument bool, tracer topdown.Tracer, opts []func(*rego.Rego)) (*rego.Rego, error) {

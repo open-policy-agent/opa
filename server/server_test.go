@@ -308,7 +308,7 @@ p = true { false }`
 			tr{http.MethodPut, "/data/a/b", `[1,2,3,4]`, 204, ""},
 			tr{http.MethodPut, "/data/a/b/c/d", "0", 404, `{
 				"code": "resource_conflict",
-				"message": "write conflict: /a/b"
+				"message": "storage_write_conflict_error: /a/b"
 			}`},
 		}},
 		{"get virtual", []tr{

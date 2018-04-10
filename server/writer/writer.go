@@ -30,7 +30,7 @@ func ErrorAuto(w http.ResponseWriter, err error) {
 		return
 	}
 
-	if types.IsWriteConflict(err) {
+	if storage.IsWriteConflictError(err) {
 		ErrorString(w, http.StatusNotFound, types.CodeResourceConflict, err)
 		return
 	}

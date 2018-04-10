@@ -12,7 +12,6 @@ import (
 	"strings"
 
 	"github.com/open-policy-agent/opa/ast"
-	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/topdown"
 	"github.com/open-policy-agent/opa/util"
 )
@@ -390,23 +389,6 @@ const (
 	// the client wants to set a watch on the current query or data reference.
 	ParamWatchV1 = "watch"
 )
-
-// WriteConflictErr represents an error condition raised if the caller attempts
-// to modify a virtual document or create a document at a path that conflicts
-// with an existing document.
-type WriteConflictErr struct {
-	Path storage.Path
-}
-
-func (err WriteConflictErr) Error() string {
-	return fmt.Sprintf("write conflict: %v", err.Path)
-}
-
-// IsWriteConflict returns true if err is a WriteConflictErr.
-func IsWriteConflict(err error) bool {
-	_, ok := err.(WriteConflictErr)
-	return ok
-}
 
 // BadRequestErr represents an error condition raised if the caller passes
 // invalid parameters.
