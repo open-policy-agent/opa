@@ -22,6 +22,7 @@ import (
 	"github.com/open-policy-agent/opa/loader"
 	"github.com/open-policy-agent/opa/plugins"
 	"github.com/open-policy-agent/opa/plugins/bundle"
+	"github.com/open-policy-agent/opa/plugins/logs"
 	"github.com/open-policy-agent/opa/plugins/status"
 	"github.com/open-policy-agent/opa/repl"
 	"github.com/open-policy-agent/opa/server"
@@ -157,15 +158,26 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		return nil, errors.Wrapf(err, "storage error")
 	}
 
-	m, err := initPlugins(params.ID, store, params.ConfigFile)
+	m, plugins, err := initPlugins(params.ID, store, params.ConfigFile)
 	if err != nil {
 		return nil, err
 	}
 
+	var decisionLogger func(context.Context, *server.Info)
+
+	if p, ok := plugins["decision_logs"]; ok {
+		decisionLogger = p.(*logs.Plugin).Log
+
+		if params.DecisionIDFactory == nil {
+			params.DecisionIDFactory = generateDecisionID
+		}
+	}
+
 	rt := &Runtime{
-		Store:   store,
-		Manager: m,
-		Params:  params,
+		Store:          store,
+		Manager:        m,
+		Params:         params,
+		decisionLogger: decisionLogger,
 	}
 
 	return rt, nil
@@ -437,35 +449,48 @@ func setupLogging(config LoggingConfig) {
 // everything is started and stopped. We could introduce a package-scoped
 // plugin registry that allows for (dynamic) init-time plugin registration.
 
-func initPlugins(id string, store storage.Store, configFile string) (*plugins.Manager, error) {
+func initPlugins(id string, store storage.Store, configFile string) (*plugins.Manager, map[string]plugins.Plugin, error) {
 
 	if configFile == "" {
-		return nil, nil
+		return nil, nil, nil
 	}
 
 	bs, err := ioutil.ReadFile(configFile)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	m, err := plugins.New(bs, id, store)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
+
+	plugins := map[string]plugins.Plugin{}
 
 	bundlePlugin, err := initBundlePlugin(m, bs)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
+	} else if bundlePlugin != nil {
+		plugins["bundle"] = bundlePlugin
 	}
 
 	if bundlePlugin != nil {
-		_, err = initStatusPlugin(m, bs, bundlePlugin)
+		statusPlugin, err := initStatusPlugin(m, bs, bundlePlugin)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
+		} else if statusPlugin != nil {
+			plugins["status"] = statusPlugin
 		}
 	}
 
-	return m, nil
+	decisionLogsPlugin, err := initDecisionLogsPlugin(m, bs)
+	if err != nil {
+		return nil, nil, err
+	} else if decisionLogsPlugin != nil {
+		plugins["decision_logs"] = decisionLogsPlugin
+	}
+
+	return m, plugins, nil
 }
 
 func initBundlePlugin(m *plugins.Manager, bs []byte) (*bundle.Plugin, error) {
@@ -483,6 +508,30 @@ func initBundlePlugin(m *plugins.Manager, bs []byte) (*bundle.Plugin, error) {
 	}
 
 	p, err := bundle.New(config.Bundle, m)
+	if err != nil {
+		return nil, err
+	}
+
+	m.Register(p)
+
+	return p, nil
+}
+
+func initDecisionLogsPlugin(m *plugins.Manager, bs []byte) (*logs.Plugin, error) {
+
+	var config struct {
+		DecisionLogs json.RawMessage `json:"decision_logs"`
+	}
+
+	if err := util.Unmarshal(bs, &config); err != nil {
+		return nil, err
+	}
+
+	if config.DecisionLogs == nil {
+		return nil, nil
+	}
+
+	p, err := logs.New(config.DecisionLogs, m)
 	if err != nil {
 		return nil, err
 	}
@@ -521,6 +570,18 @@ func initStatusPlugin(m *plugins.Manager, bs []byte, bundlePlugin *bundle.Plugin
 }
 
 func generateInstanceID() (string, error) {
+	return uuid4()
+}
+
+func generateDecisionID() string {
+	id, err := uuid4()
+	if err != nil {
+		return ""
+	}
+	return id
+}
+
+func uuid4() (string, error) {
 	bs := make([]byte, 16)
 	n, err := io.ReadFull(rand.Reader, bs)
 	if n != len(bs) || err != nil {
