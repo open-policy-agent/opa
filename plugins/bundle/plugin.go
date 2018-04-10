@@ -293,6 +293,11 @@ func (p *Plugin) activate(ctx context.Context, b bundle.Bundle) error {
 			return err
 		}
 
+		if err := p.writeManifest(ctx, txn, b.Manifest); err != nil {
+			fmt.Println("manifest write err:", err)
+			return err
+		}
+
 		// load existing policy ids from store and delete
 		ids, err := p.manager.Store.ListPolicies(ctx, txn)
 		if err != nil {
@@ -374,6 +379,26 @@ func (p *Plugin) setErrorStatus(err error) {
 	}
 }
 
+func (p *Plugin) writeManifest(ctx context.Context, txn storage.Transaction, m bundle.Manifest) error {
+
+	var value interface{} = m
+
+	if err := util.RoundTrip(&value); err != nil {
+		return err
+	}
+
+	if err := storage.MakeDir(ctx, p.manager.Store, txn, bundlePath); err != nil {
+		return err
+	}
+
+	return p.manager.Store.Write(ctx, txn, storage.AddOp, manifestPath, value)
+}
+
 func now() string {
 	return time.Now().UTC().Format(time.RFC3339Nano)
 }
+
+var (
+	bundlePath   = storage.MustParsePath("/system/bundle")
+	manifestPath = storage.MustParsePath("/system/bundle/manifest")
+)

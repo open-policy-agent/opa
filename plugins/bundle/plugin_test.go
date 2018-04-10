@@ -159,7 +159,7 @@ func TestPluginStart(t *testing.T) {
 				t.Fatalf("Bad policy content. Exp:\n%v\n\nGot:\n\n%v", string(exp), string(bs))
 			}
 			data, err := fixture.store.Read(ctx, txn, storage.Path{})
-			expData := util.MustUnmarshalJSON([]byte(`{"foo": {"bar": 1, "baz": "qux"}}`))
+			expData := util.MustUnmarshalJSON([]byte(`{"foo": {"bar": 1, "baz": "qux"}, "system": {"bundle": {"manifest": {"revision": "quickbrownfaux"}}}}`))
 			if err != nil {
 				t.Fatal(err)
 			} else if !reflect.DeepEqual(data, expData) {
@@ -351,6 +351,8 @@ func TestPluginActivatationRemovesOld(t *testing.T) {
 			return fmt.Errorf("expected updated policy ids")
 		}
 		data, err := store.Read(ctx, txn, storage.Path{})
+		// remove system key to make comparison simpler
+		delete(data.(map[string]interface{}), "system")
 		if err != nil {
 			return err
 		} else if !reflect.DeepEqual(data, map[string]interface{}{"baz": "qux"}) {
