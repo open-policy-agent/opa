@@ -1716,7 +1716,7 @@ func (l diagnosticsLogger) Log(ctx context.Context, decisionID, remoteAddr, quer
 
 	info := &Info{
 		Revision:   l.revision,
-		Timestamp:  time.Now(),
+		Timestamp:  time.Now().UTC(),
 		DecisionID: decisionID,
 		RemoteAddr: remoteAddr,
 		Query:      query,
