@@ -14,6 +14,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"sync"
 	"time"
 
 	fsnotify "gopkg.in/fsnotify.v1"
@@ -33,6 +34,26 @@ import (
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
+
+var (
+	registeredPlugins    []pluginFactory
+	registeredPluginsMux sync.Mutex
+)
+
+func RegisterPlugin(name string, factory func(m *plugins.Manager, config []byte) (plugins.Plugin, error)) {
+	registeredPluginsMux.Lock()
+	defer registeredPluginsMux.Unlock()
+
+	registeredPlugins = append(registeredPlugins, pluginFactory{
+		name:    name,
+		factory: factory,
+	})
+}
+
+type pluginFactory struct {
+	name    string
+	factory func(m *plugins.Manager, config []byte) (plugins.Plugin, error)
+}
 
 // Params stores the configuration for an OPA instance.
 type Params struct {
@@ -490,6 +511,11 @@ func initPlugins(id string, store storage.Store, configFile string) (*plugins.Ma
 		plugins["decision_logs"] = decisionLogsPlugin
 	}
 
+	err = initRegisteredPlugins(m, bs)
+	if err != nil {
+		return nil, nil, err
+	}
+
 	return m, plugins, nil
 }
 
@@ -539,6 +565,33 @@ func initDecisionLogsPlugin(m *plugins.Manager, bs []byte) (*logs.Plugin, error)
 	m.Register(p)
 
 	return p, nil
+
+}
+
+func initRegisteredPlugins(m *plugins.Manager, bs []byte) error {
+
+	var config struct {
+		Plugins map[string]json.RawMessage `json:"plugins"`
+	}
+
+	if err := util.Unmarshal(bs, &config); err != nil {
+		return err
+	}
+
+	for _, reg := range registeredPlugins {
+		pc, ok := config.Plugins[reg.name]
+		if !ok {
+			continue
+		}
+		plugin, err := reg.factory(m, pc)
+		if err != nil {
+			return err
+		}
+		m.Register(plugin)
+	}
+
+	return nil
+
 }
 
 func initStatusPlugin(m *plugins.Manager, bs []byte, bundlePlugin *bundle.Plugin) (*status.Plugin, error) {
