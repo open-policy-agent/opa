@@ -93,7 +93,7 @@ func setupRuntimeDefaults() {
 	params = runtime.NewParams()
 }
 
-func GetOpaParams() runtime.Params {
+func getOpaParams() runtime.Params {
 	return params
 }
 
@@ -120,28 +120,26 @@ func getOpaRuntime(ctx context.Context, params runtime.Params) (*runtime.Runtime
 	return runtime.NewRuntime(ctx, params)
 }
 
-func StartOPAInServerMode(ctx context.Context, rt *runtime.Runtime) {
+func startOPAInServerMode(ctx context.Context, rt *runtime.Runtime) {
 	rt.StartServer(ctx)
 }
 
-func StartOPAInReplMode(ctx context.Context, rt *runtime.Runtime) {
+func startOPAInReplMode(ctx context.Context, rt *runtime.Runtime) {
 	rt.StartREPL(ctx)
 }
 
-// New returns a new instance of the OPA runtime
-func New(ctx context.Context, args []string) (*runtime.Runtime, error) {
-	// set OPA's runtime config after parsing command line
-	setOpaParams(&params, args)
-	return getOpaRuntime(ctx, params)
-}
+// new returns a new instance of the OPA runtime
+func new(ctx context.Context, args []string, runCommand *cobra.Command) (*runtime.Runtime, error) {
 
-// Init performs OPA's initial setup
-func Init(runCommand *cobra.Command) {
 	// initial OPA setup
 	setupRuntimeDefaults()
 
 	// parse OPA's command line options
 	parseOpaCliOptions(runCommand)
+
+	// set OPA's runtime config after parsing command line
+	setOpaParams(&params, args)
+	return getOpaRuntime(ctx, params)
 }
 
 func parseOpaCliOptions(runCommand *cobra.Command) {
@@ -175,9 +173,9 @@ func run(cmd *cobra.Command, args []string) {
 	}
 
 	if serverMode {
-		StartOPAInServerMode(ctx, rt)
+		startOPAInServerMode(ctx, rt)
 	} else {
-		StartOPAInReplMode(ctx, rt)
+		startOPAInReplMode(ctx, rt)
 	}
 }
 
