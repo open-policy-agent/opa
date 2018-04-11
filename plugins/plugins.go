@@ -16,6 +16,11 @@ import (
 	"github.com/open-policy-agent/opa/util"
 )
 
+var (
+	registeredTriggers    []CompilerTriggerConfig // registered triggers
+	registeredTriggersMux sync.Mutex
+)
+
 // Plugin defines the interface for OPA plugins.
 type Plugin interface {
 	Start(ctx context.Context) error
@@ -31,6 +36,14 @@ type Manager struct {
 	services map[string]rest.Client
 	plugins  []Plugin
 	mtx      sync.RWMutex
+}
+
+// CompilerTriggerConfig contains the trigger registration configuration for
+// compiler changes
+type CompilerTriggerConfig struct {
+
+	// OnCompilerChange is invoked on a compiler change.
+	OnCompilerChange func(txn storage.Transaction)
 }
 
 // New creates a new Manager using config.
@@ -89,6 +102,14 @@ func (m *Manager) setCompiler(compiler *ast.Compiler) {
 	m.Compiler = compiler
 }
 
+// RegisterCompilerTrigger registers for change notifications
+// when the compiler is changed.
+func RegisterCompilerTrigger(config CompilerTriggerConfig) {
+	registeredTriggersMux.Lock()
+	defer registeredTriggersMux.Unlock()
+	registeredTriggers = append(registeredTriggers, config)
+}
+
 // Start starts the manager.
 func (m *Manager) Start(ctx context.Context) error {
 	if m == nil {
@@ -122,6 +143,11 @@ func (m *Manager) Start(ctx context.Context) error {
 			if event.PolicyChanged() {
 				compiler, _ := loadCompilerFromStore(ctx, m.Store, txn)
 				m.setCompiler(compiler)
+
+				// invoke registered triggers
+				for _, reg := range registeredTriggers {
+					reg.OnCompilerChange(txn)
+				}
 			}
 		}})
 		return err

@@ -199,6 +199,7 @@ func (rt *Runtime) StartServer(ctx context.Context) {
 
 	s, err := server.New().
 		WithStore(rt.Store).
+		WithManager(rt.Manager).
 		WithCompilerErrorLimit(rt.Params.ErrorLimit).
 		WithAddress(rt.Params.Addr).
 		WithInsecureAddress(rt.Params.InsecureAddr).
@@ -451,13 +452,14 @@ func setupLogging(config LoggingConfig) {
 
 func initPlugins(id string, store storage.Store, configFile string) (*plugins.Manager, map[string]plugins.Plugin, error) {
 
-	if configFile == "" {
-		return nil, nil, nil
-	}
+	var bs []byte
+	var err error
 
-	bs, err := ioutil.ReadFile(configFile)
-	if err != nil {
-		return nil, nil, err
+	if configFile != "" {
+		bs, err = ioutil.ReadFile(configFile)
+		if err != nil {
+			return nil, nil, err
+		}
 	}
 
 	m, err := plugins.New(bs, id, store)
