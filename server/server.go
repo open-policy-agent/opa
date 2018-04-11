@@ -25,6 +25,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/metrics"
+	"github.com/open-policy-agent/opa/plugins"
 	"github.com/open-policy-agent/opa/rego"
 	"github.com/open-policy-agent/opa/server/authorizer"
 	"github.com/open-policy-agent/opa/server/identifier"
@@ -82,9 +83,9 @@ type Server struct {
 	authorization     AuthorizationScheme
 	cert              *tls.Certificate
 	mtx               sync.RWMutex
-	compiler          *ast.Compiler
 	partials          map[string]rego.PartialResult
 	store             storage.Store
+	manager           *plugins.Manager
 	watcher           *watch.Watcher
 	decisionIDFactory func() string
 	diagnostics       Buffer
@@ -190,12 +191,6 @@ func (s *Server) Init(ctx context.Context) (*Server, error) {
 		return nil, err
 	}
 
-	// Load policies from storage and initialize server's cached compiler.
-	if err := s.reloadCompiler(ctx, txn); err != nil {
-		s.store.Abort(ctx, txn)
-		return nil, err
-	}
-
 	// Register triggers so that if runtime reloads the policies, the
 	// server sees the change.
 	config := storage.TriggerConfig{
@@ -205,10 +200,19 @@ func (s *Server) Init(ctx context.Context) (*Server, error) {
 		s.store.Abort(ctx, txn)
 		return nil, err
 	}
+
+	// Register trigger for compiler change
+	compilerChangeConfig := plugins.CompilerTriggerConfig{
+		OnCompilerChange: s.migrateWatcher,
+	}
+	plugins.RegisterCompilerTrigger(compilerChangeConfig)
+
 	s.watcher, err = watch.New(ctx, s.store, s.getCompiler(), txn)
 	if err != nil {
 		return nil, err
 	}
+
+	s.partials = map[string]rego.PartialResult{}
 
 	return s, s.store.Commit(ctx, txn)
 }
@@ -246,6 +250,12 @@ func (s *Server) WithCertificate(cert *tls.Certificate) *Server {
 // WithStore sets the storage used by the server.
 func (s *Server) WithStore(store storage.Store) *Server {
 	s.store = store
+	return s
+}
+
+// WithManager sets the plugins manager used by the server.
+func (s *Server) WithManager(manager *plugins.Manager) *Server {
+	s.manager = manager
 	return s
 }
 
@@ -423,12 +433,12 @@ func (s *Server) reload(ctx context.Context, txn storage.Transaction, event stor
 	if !event.PolicyChanged() {
 		return
 	}
+	s.partials = map[string]rego.PartialResult{}
+}
 
-	if err := s.reloadCompiler(ctx, txn); err != nil {
-		panic(err)
-	}
-
-	s.watcher, err = s.watcher.Migrate(s.getCompiler(), txn)
+func (s *Server) migrateWatcher(txn storage.Transaction) {
+	var err error
+	s.watcher, err = s.watcher.Migrate(s.manager.Compiler, txn)
 	if err != nil {
 		// The only way migration can fail is if the old watcher is closed or if
 		// the new one cannot register a trigger with the store. Since we're
@@ -436,24 +446,6 @@ func (s *Server) reload(ctx context.Context, txn storage.Transaction, event stor
 		// be possible.
 		panic(err)
 	}
-}
-
-func (s *Server) reloadCompiler(ctx context.Context, txn storage.Transaction) error {
-
-	modules, err := s.loadModules(ctx, txn)
-	if err != nil {
-		return err
-	}
-
-	compiler := ast.NewCompiler().SetErrorLimit(s.errLimit)
-
-	if compiler.Compile(modules); compiler.Failed() {
-		return compiler.Errors
-	}
-
-	s.resetCompilers(compiler)
-
-	return nil
 }
 
 func (s *Server) unversionedPost(w http.ResponseWriter, r *http.Request) {
@@ -1332,20 +1324,7 @@ func (s *Server) loadModules(ctx context.Context, txn storage.Transaction) (map[
 func (s *Server) getCompiler() *ast.Compiler {
 	s.mtx.RLock()
 	defer s.mtx.RUnlock()
-	return s.compiler
-}
-
-func (s *Server) setCompiler(compiler *ast.Compiler) {
-	s.mtx.Lock()
-	defer s.mtx.Unlock()
-	s.compiler = compiler
-}
-
-func (s *Server) resetCompilers(compiler *ast.Compiler) {
-	s.mtx.Lock()
-	defer s.mtx.Unlock()
-	s.compiler = compiler
-	s.partials = map[string]rego.PartialResult{}
+	return s.manager.Compiler
 }
 
 func (s *Server) makeRego(ctx context.Context, partial bool, txn storage.Transaction, input interface{}, path string, m metrics.Metrics, instrument bool, tracer topdown.Tracer, opts []func(*rego.Rego)) (*rego.Rego, error) {
