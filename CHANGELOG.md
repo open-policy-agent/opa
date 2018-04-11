@@ -3,7 +3,80 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## 0.8.0
+
+### Major Features
+
+This release includes a few major features that improve OPA's management
+capabilities.
+
+- Bundles: OPA can be configured to download bundles of policy and data from
+  remote HTTP servers. This allows administrators to configure OPA to pull down
+  all of the policy and data required at the enforcement point. When OPA boots
+  it will download the bundle and active it. OPA will periodically check in with
+  the server to download new revisions of the bundle.
+
+- Status: OPA can be configured to report its status to remote HTTP servers. The
+  status includes a description of the active bundle. This allows administrators
+  to monitor the status of OPA in a central place.
+
+- Decision Logs: OPA can be configured to report _decision logs_ to remote HTTP
+  servers. This allows administrators to audit and debug decisions in a central
+  place.
+
+### File Loading Convention
+
+The command line file loading convention has been changed slightly. If you were
+previously loading files with `opa run *` you should use `opa run .` now. OPA
+will not namespace data under top-level directory names anymore. The problem
+with the old approach was that data layout was dependent on the root directory
+name. For example `opa run /some/path1` and `opa run /some/path2` would yield
+different results even if both paths contained identical data.
+
+### Tracing Improvements
+
+Thanks to @jyoverna for adding a `trace` built-in function that allows policy
+authors to include notes in the trace. For example, authors can now embed
+`trace` calls in their policies. When OPA encounters a `trace` call it will
+include a "note" in the trace. Callers can filter the trace results to show only
+notes. This helps diagnose incorrect decisions in large policies. For example:
+
+```
+package example
+
+allow {
+  input.method = allows_methods[_]
+  trace(sprintf("input method is %v", [input.method]))
+}
+
+allowed_methods = ["GET", "HEAD"]
+```
+
+### Fixes
+
+- Add RS256 JWT signature verification built-in function ([#421](https://github.com/open-policy-agent/opa/issues/421))
+- Add X.509 certificate parsing built-in function ([#635](https://github.com/open-policy-agent/opa/issues/635))
+- Fix substring built-in bounds checking ([#465](https://github.com/open-policy-agent/opa/issues/465))
+- Generate support rules for negated expressions ([#623](https://github.com/open-policy-agent/opa/issues/623))
+- Ignore some built-in calls during partial eval ([#622](https://github.com/open-policy-agent/opa/issues/622))
+- Plug comprehensions in partial eval results ([#656](https://github.com/open-policy-agent/opa/issues/656))
+- Report safety errors for generated vars ([#661](https://github.com/open-policy-agent/opa/issues/661))
+- Update partial eval to check call args recursively ([#621](https://github.com/open-policy-agent/opa/issues/621))
+
+### Other Notable Changes
+
+- Add base64 encoding built-in functions
+- Add JSON format to test and check subcommands
+- Add coverage package and update test subcommand to report coverage
+- Add eval subcommand to run queries from the command line (deprecates opa run --eval)
+- Add parse subcommand to parse Rego modules and print AST
+- Add reminder/reminder (%) operator
+- Update rule index to support ==
+- Update to Go 1.10
+- Various fixes to fmt subcommand and format package
+- Fix input and data loading to roundtrip values. Allows loading of []string, []int, etc.
+
+As well as many other smaller improvements, refactoring, and fixes.
 
 ## 0.7.1
 
