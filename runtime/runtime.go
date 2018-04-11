@@ -40,6 +40,7 @@ var (
 	registeredPluginsMux sync.Mutex
 )
 
+// RegisterPlugin registers a plugin
 func RegisterPlugin(name string, factory func(m *plugins.Manager, config []byte) (plugins.Plugin, error)) {
 	registeredPluginsMux.Lock()
 	defer registeredPluginsMux.Unlock()
