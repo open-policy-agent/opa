@@ -68,6 +68,38 @@ func TestNewPathForRef(t *testing.T) {
 	}
 }
 
+func TestNewPathForStringEscaped(t *testing.T) {
+
+	tests := []struct {
+		input  string
+		result Path
+		ok     bool
+	}{
+		{
+			input:  "/foo/bar", // no escaping
+			result: Path{"foo", "bar"},
+			ok:     true,
+		},
+		{
+			input:  "/foo%2Fbar/baz", // single escape
+			result: Path{"foo/bar", "baz"},
+			ok:     true,
+		},
+		{
+			input:  "/foo%2F%2Fbar/baz", // double escape
+			result: Path{"foo//bar", "baz"},
+			ok:     true,
+		},
+	}
+
+	for _, tc := range tests {
+		result, ok := ParsePathEscaped(tc.input)
+		if (tc.ok != ok) || !tc.result.Equal(result) {
+			t.Errorf("For %v wanted (%v, %v) but got (%v, %v)", tc.input, tc.result, tc.ok, result, ok)
+		}
+	}
+}
+
 func TestPathCompare(t *testing.T) {
 	tests := []struct {
 		a      Path
