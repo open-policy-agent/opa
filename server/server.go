@@ -121,6 +121,7 @@ func New() *Server {
 
 	// Initialize HTTP handlers.
 	router := mux.NewRouter()
+	router.UseEncodedPath()
 	router.Handle("/metrics", promhttp.HandlerFor(promRegistry, promhttp.HandlerOpts{})).Methods(http.MethodGet)
 	s.registerHandler(router, 0, "/data/{path:.+}", http.MethodPost, promhttp.InstrumentHandlerDuration(v0DataDur, http.HandlerFunc(s.v0DataPost)))
 	s.registerHandler(router, 0, "/data", http.MethodPost, promhttp.InstrumentHandlerDuration(v0DataDur, http.HandlerFunc(s.v0DataPost)))
@@ -1453,6 +1454,9 @@ func stringPathToRef(s string) (r ast.Ref) {
 	for _, x := range p {
 		if x == "" {
 			continue
+		}
+		if y, err := url.PathUnescape(x); err == nil {
+			x = y
 		}
 		i, err := strconv.Atoi(x)
 		if err != nil {
