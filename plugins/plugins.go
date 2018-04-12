@@ -16,11 +16,6 @@ import (
 	"github.com/open-policy-agent/opa/util"
 )
 
-var (
-	registeredTriggers    []CompilerTriggerConfig // registered triggers
-	registeredTriggersMux sync.Mutex
-)
-
 // Plugin defines the interface for OPA plugins.
 type Plugin interface {
 	Start(ctx context.Context) error
@@ -30,20 +25,14 @@ type Plugin interface {
 // Manager implements lifecycle management of plugins and gives plugins access
 // to engine-wide components like storage.
 type Manager struct {
-	Labels   map[string]string
-	Store    storage.Store
-	Compiler *ast.Compiler
-	services map[string]rest.Client
-	plugins  []Plugin
-	mtx      sync.RWMutex
-}
-
-// CompilerTriggerConfig contains the trigger registration configuration for
-// compiler changes
-type CompilerTriggerConfig struct {
-
-	// OnCompilerChange is invoked on a compiler change.
-	OnCompilerChange func(txn storage.Transaction)
+	Labels                map[string]string
+	Store                 storage.Store
+	compiler              *ast.Compiler
+	services              map[string]rest.Client
+	plugins               []Plugin
+	registeredTriggers    []func(txn storage.Transaction) // registered triggers
+	registeredTriggersMux sync.Mutex
+	compilerMux           sync.RWMutex
 }
 
 // New creates a new Manager using config.
@@ -91,23 +80,23 @@ func (m *Manager) Register(plugin Plugin) {
 
 // GetCompiler returns the compiler instance
 func (m *Manager) GetCompiler() *ast.Compiler {
-	m.mtx.RLock()
-	defer m.mtx.RUnlock()
-	return m.Compiler
+	m.compilerMux.RLock()
+	defer m.compilerMux.RUnlock()
+	return m.compiler
 }
 
 func (m *Manager) setCompiler(compiler *ast.Compiler) {
-	m.mtx.Lock()
-	defer m.mtx.Unlock()
-	m.Compiler = compiler
+	m.compilerMux.Lock()
+	defer m.compilerMux.Unlock()
+	m.compiler = compiler
 }
 
 // RegisterCompilerTrigger registers for change notifications
 // when the compiler is changed.
-func RegisterCompilerTrigger(config CompilerTriggerConfig) {
-	registeredTriggersMux.Lock()
-	defer registeredTriggersMux.Unlock()
-	registeredTriggers = append(registeredTriggers, config)
+func (m *Manager) RegisterCompilerTrigger(f func(txn storage.Transaction)) {
+	m.registeredTriggersMux.Lock()
+	defer m.registeredTriggersMux.Unlock()
+	m.registeredTriggers = append(m.registeredTriggers, f)
 }
 
 // Start starts the manager.
@@ -138,20 +127,23 @@ func (m *Manager) Start(ctx context.Context) error {
 		}
 	}
 
+	config := storage.TriggerConfig{OnCommit: m.onCommit}
 	return storage.Txn(ctx, m.Store, storage.WriteParams, func(txn storage.Transaction) error {
-		_, err := m.Store.Register(ctx, txn, storage.TriggerConfig{OnCommit: func(ctx context.Context, txn storage.Transaction, event storage.TriggerEvent) {
-			if event.PolicyChanged() {
-				compiler, _ := loadCompilerFromStore(ctx, m.Store, txn)
-				m.setCompiler(compiler)
-
-				// invoke registered triggers
-				for _, reg := range registeredTriggers {
-					reg.OnCompilerChange(txn)
-				}
-			}
-		}})
+		_, err := m.Store.Register(ctx, txn, config)
 		return err
 	})
+}
+
+func (m *Manager) onCommit(ctx context.Context, txn storage.Transaction, event storage.TriggerEvent) {
+	if event.PolicyChanged() {
+		compiler, _ := loadCompilerFromStore(ctx, m.Store, txn)
+		m.setCompiler(compiler)
+
+		// invoke registered triggers
+		for _, f := range m.registeredTriggers {
+			f(txn)
+		}
+	}
 }
 
 func loadCompilerFromStore(ctx context.Context, store storage.Store, txn storage.Transaction) (*ast.Compiler, error) {

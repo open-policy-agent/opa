@@ -202,10 +202,7 @@ func (s *Server) Init(ctx context.Context) (*Server, error) {
 	}
 
 	// Register trigger for compiler change
-	compilerChangeConfig := plugins.CompilerTriggerConfig{
-		OnCompilerChange: s.migrateWatcher,
-	}
-	plugins.RegisterCompilerTrigger(compilerChangeConfig)
+	s.manager.RegisterCompilerTrigger(s.migrateWatcher)
 
 	s.watcher, err = watch.New(ctx, s.store, s.getCompiler(), txn)
 	if err != nil {
@@ -438,7 +435,7 @@ func (s *Server) reload(ctx context.Context, txn storage.Transaction, event stor
 
 func (s *Server) migrateWatcher(txn storage.Transaction) {
 	var err error
-	s.watcher, err = s.watcher.Migrate(s.manager.Compiler, txn)
+	s.watcher, err = s.watcher.Migrate(s.manager.GetCompiler(), txn)
 	if err != nil {
 		// The only way migration can fail is if the old watcher is closed or if
 		// the new one cannot register a trigger with the store. Since we're
@@ -1322,9 +1319,7 @@ func (s *Server) loadModules(ctx context.Context, txn storage.Transaction) (map[
 }
 
 func (s *Server) getCompiler() *ast.Compiler {
-	s.mtx.RLock()
-	defer s.mtx.RUnlock()
-	return s.manager.Compiler
+	return s.manager.GetCompiler()
 }
 
 func (s *Server) makeRego(ctx context.Context, partial bool, txn storage.Transaction, input interface{}, path string, m metrics.Metrics, instrument bool, tracer topdown.Tracer, opts []func(*rego.Rego)) (*rego.Rego, error) {
