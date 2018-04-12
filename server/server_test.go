@@ -434,6 +434,16 @@ p = true { false }`
 			tr{http.MethodGet, "/data/a", "", 200, `{"result": {}}`},
 			tr{http.MethodGet, "/data/a/b/c", "", 200, `{}`},
 		}},
+		{"escaped paths", []tr{
+			tr{http.MethodPut, "/data/a%2Fb", `{"c/d": 1}`, 204, ""},
+			tr{http.MethodGet, "/data", "", 200, `{"result": {"a/b": {"c/d": 1}}}`},
+			tr{http.MethodGet, "/data/a%2Fb/c%2Fd", "", 200, `{"result": 1}`},
+			tr{http.MethodGet, "/data/a/b", "", 200, `{}`},
+			tr{http.MethodPost, "/data/a%2Fb/c%2Fd", "", 200, `{"result": 1}`},
+			tr{http.MethodPost, "/data/a/b", "", 200, `{}`},
+			tr{http.MethodPatch, "/data/a%2Fb", `[{"op": "add", "path": "/e%2Ff", "value": 2}]`, 204, ""},
+			tr{http.MethodPost, "/data", "", 200, `{"result": {"a/b": {"c/d": 1, "e/f": 2}}}`},
+		}},
 	}
 
 	for _, tc := range tests {
