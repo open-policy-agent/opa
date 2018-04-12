@@ -49,7 +49,7 @@ func (h *LoggingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			"client_addr": r.RemoteAddr,
 			"req_id":      requestID,
 			"req_method":  r.Method,
-			"req_path":    r.URL.Path,
+			"req_path":    r.URL.EscapedPath(),
 			"req_params":  r.URL.Query(),
 		}
 
@@ -88,7 +88,7 @@ func (h *LoggingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			"client_addr":   r.RemoteAddr,
 			"req_id":        requestID,
 			"req_method":    r.Method,
-			"req_path":      r.URL.Path,
+			"req_path":      r.URL.EscapedPath(),
 			"resp_status":   statusCode,
 			"resp_bytes":    recorder.bytesWritten,
 			"resp_duration": float64(dt.Nanoseconds()) / 1e6,
@@ -157,7 +157,7 @@ func (r *recorder) Hijack() (net.Conn, *bufio.ReadWriter, error) {
 		"client_addr": r.req.RemoteAddr,
 		"req_id":      r.id,
 		"req_method":  r.req.Method,
-		"req_path":    r.req.URL.Path,
+		"req_path":    r.req.URL.EscapedPath(),
 	}
 
 	queries := r.req.URL.Query()[types.ParamQueryV1]
