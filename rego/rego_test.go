@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/storage/inmem"
 	"github.com/open-policy-agent/opa/topdown"
 	"github.com/open-policy-agent/opa/types"
 	"github.com/open-policy-agent/opa/util"
@@ -172,5 +173,74 @@ func TestRegoCancellation(t *testing.T) {
 		t.Fatalf("Expected cancellation error but got: %v", rs)
 	} else if topdownErr, ok := err.(*topdown.Error); !ok || topdownErr.Code != topdown.CancelErr {
 		t.Fatalf("Got unexpected error: %v", err)
+	}
+}
+
+func TestRegoPartialEval(t *testing.T) {
+	ctx := context.Background()
+
+	module := `
+  package authz
+
+  import data.policies
+
+  default authorized = false
+
+  has_subject[pol_id] {
+    policies[pol_id] = pol
+    pol.subjects[_] = pol_sub
+    not wildcard(pol_sub)     # given the data, this is FALSE for all policies
+    input.subject = pol_sub
+  } {
+    policies[pol_id] = pol
+    pol.subjects[_] = pol_sub
+    # wildcard(pol_sub) # (would make sense, but doesn't matter here)
+    wildcard_match(input.subject, pol_sub)
+  }
+
+  wildcard_match(a, b) {
+    startswith(a, trim(b, "*"))
+  }
+
+  wildcard(a) {
+    endswith(a, ":*")
+  }
+
+  allow {
+    policies[pol_id] = pol
+    has_subject[pol_id]
+    "allow" = pol.effect
+  }
+
+  deny {
+    policies[pol_id] = pol
+    has_subject[pol_id]
+    "deny" = pol.effect
+  }
+
+  authorized {
+    allow
+    not deny
+  }
+ `
+
+	store := inmem.NewFromObject(map[string]interface{}{
+		"policies": map[string]interface{}{
+			"0": map[string]interface{}{
+				"subjects": []string{"user:*"}, // cannot make it simpler: if this is now array, it works
+				"effect":   "allow",
+			},
+		},
+	})
+
+	r := New(
+		Query("data.authz.authorized"),
+		Module("authz.rego", module),
+		Store(store),
+	)
+
+	_, err := r.PartialEval(ctx)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
 	}
 }
