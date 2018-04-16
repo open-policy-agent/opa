@@ -40,7 +40,8 @@ var (
 	registeredPluginsMux sync.Mutex
 )
 
-// RegisterPlugin registers a plugin
+// RegisterPlugin registers a plugin with the runtime package. When a Runtime
+// is created, the factory functions will be called.
 func RegisterPlugin(name string, factory func(m *plugins.Manager, config []byte) (plugins.Plugin, error)) {
 	registeredPluginsMux.Lock()
 	defer registeredPluginsMux.Unlock()

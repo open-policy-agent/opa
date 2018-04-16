@@ -201,7 +201,6 @@ func (s *Server) Init(ctx context.Context) (*Server, error) {
 		return nil, err
 	}
 
-	// Register trigger for compiler change
 	s.manager.RegisterCompilerTrigger(s.migrateWatcher)
 
 	s.watcher, err = watch.New(ctx, s.store, s.getCompiler(), txn)
