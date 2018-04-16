@@ -30,7 +30,7 @@ type Manager struct {
 	compiler              *ast.Compiler
 	services              map[string]rest.Client
 	plugins               []Plugin
-	registeredTriggers    []func(txn storage.Transaction) // registered triggers
+	registeredTriggers    []func(txn storage.Transaction)
 	registeredTriggersMux sync.Mutex
 	compilerMux           sync.RWMutex
 }
@@ -78,7 +78,7 @@ func (m *Manager) Register(plugin Plugin) {
 	m.plugins = append(m.plugins, plugin)
 }
 
-// GetCompiler returns the compiler instance
+// GetCompiler returns the manager's compiler.
 func (m *Manager) GetCompiler() *ast.Compiler {
 	m.compilerMux.RLock()
 	defer m.compilerMux.RUnlock()
@@ -91,8 +91,8 @@ func (m *Manager) setCompiler(compiler *ast.Compiler) {
 	m.compiler = compiler
 }
 
-// RegisterCompilerTrigger registers for change notifications
-// when the compiler is changed.
+// RegisterCompilerTrigger registers for change notifications when the compiler
+// is changed.
 func (m *Manager) RegisterCompilerTrigger(f func(txn storage.Transaction)) {
 	m.registeredTriggersMux.Lock()
 	defer m.registeredTriggersMux.Unlock()
@@ -106,12 +106,10 @@ func (m *Manager) Start(ctx context.Context) error {
 	}
 
 	err := storage.Txn(ctx, m.Store, storage.TransactionParams{}, func(txn storage.Transaction) error {
-		// load policies from storage
 		compiler, err := loadCompilerFromStore(ctx, m.Store, txn)
 		if err != nil {
 			return err
 		}
-		// set compiler on manager
 		m.setCompiler(compiler)
 		return nil
 	})
@@ -120,7 +118,6 @@ func (m *Manager) Start(ctx context.Context) error {
 		return err
 	}
 
-	// start plugins
 	for _, p := range m.plugins {
 		if err := p.Start(ctx); err != nil {
 			return err
@@ -128,6 +125,7 @@ func (m *Manager) Start(ctx context.Context) error {
 	}
 
 	config := storage.TriggerConfig{OnCommit: m.onCommit}
+
 	return storage.Txn(ctx, m.Store, storage.WriteParams, func(txn storage.Transaction) error {
 		_, err := m.Store.Register(ctx, txn, config)
 		return err
@@ -138,8 +136,6 @@ func (m *Manager) onCommit(ctx context.Context, txn storage.Transaction, event s
 	if event.PolicyChanged() {
 		compiler, _ := loadCompilerFromStore(ctx, m.Store, txn)
 		m.setCompiler(compiler)
-
-		// invoke registered triggers
 		for _, f := range m.registeredTriggers {
 			f(txn)
 		}
