@@ -14,9 +14,20 @@ type evalIterator func(*eval) error
 
 type unifyIterator func() error
 
+type queryIDFactory struct {
+	curr uint64
+}
+
+// Note: The first call to Next() returns 0.
+func (f *queryIDFactory) Next() uint64 {
+	defer func() { f.curr++ }()
+	return f.curr
+}
+
 type eval struct {
 	ctx           context.Context
 	queryID       uint64
+	queryIDFact   *queryIDFactory
 	parent        *eval
 	cancel        Cancel
 	query         ast.Body
@@ -49,15 +60,15 @@ func (e *eval) Run(iter evalIterator) error {
 func (e *eval) closure(query ast.Body) *eval {
 	cpy := *e
 	cpy.query = query
-	cpy.queryID++
+	cpy.queryID = cpy.queryIDFact.Next()
 	cpy.parent = e
 	return &cpy
 }
 
 func (e *eval) child(query ast.Body) *eval {
 	cpy := *e
-	cpy.queryID++
 	cpy.query = query
+	cpy.queryID = cpy.queryIDFact.Next()
 	cpy.bindings = newBindings(cpy.queryID, e.instr)
 	cpy.parent = e
 	return &cpy

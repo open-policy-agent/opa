@@ -162,7 +162,7 @@ func TestTopDownPartialEval(t *testing.T) {
 			},
 			wantQueries: []string{
 				`input.x = x; y1 = x; y1 = "foo"; y1 = x_term_0_1; x_term_0_1 != false`,
-				`input.x = x; z1 = x; z1 = "bar"; z1 = x_term_0_1; x_term_0_1 != false`,
+				`input.x = x; z2 = x; z2 = "bar"; z2 = x_term_0_1; x_term_0_1 != false`,
 			},
 		},
 		{
