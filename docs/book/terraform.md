@@ -254,14 +254,14 @@ To evaluate the policy against that plan, you hand OPA the policy, the Terraform
 ask it to evaluate `data.terraform.analysis.authz`.
 
 ```shell
-opa run terraform.rego repl.input:tfplan.json -e "data.terraform.analysis.authz"
+opa eval --data terraform.rego --input tfplan.json "data.terraform.analysis.authz"
 ```
 
 If you're curious, you can ask for the score that the policy used to make the authorization decision.
 In our example, it is 11 (10 for the creation of the auto-scaling group and 1 for the creation of the server).
 
 ```shell
-opa run terraform.rego repl.input:tfplan.json -e "data.terraform.analysis.score"
+opa eval --data terraform.rego --input tfplan.json "data.terraform.analysis.score"
 ```
 
 If as suggested in the previous step, you want to modify your policy to make an authorization decision
@@ -335,8 +335,8 @@ tfjson tfplan_large.binary > tfplan_large.json
 Evaluate the policy to see that it fails the policy tests and check the score.
 
 ```shell
-opa run terraform.rego repl.input:tfplan_large.json -e "data.terraform.analysis.authz"
-opa run terraform.rego repl.input:tfplan_large.json -e "data.terraform.analysis.score"
+opa eval --data terraform.rego --input tfplan_large.json "data.terraform.analysis.authz"
+opa eval --data terraform.rego --input tfplan_large.json "data.terraform.analysis.score"
 ```
 
 
