@@ -583,32 +583,6 @@ func TestCompilerCheckSafetyBodyErrors(t *testing.T) {
 	}
 }
 
-func TestCompilerCheckWithModifiers(t *testing.T) {
-
-	c := NewCompiler()
-	c.Modules = getCompilerTestModules()
-	c.Modules["with-modifiers"] = MustParseModule(`package badwith
-
-import data.a.b.d.t as req_dep
-
-p = true { true }
-ref_in_value = true { req_dep with input as p }
-closure_in_value = true { req_dep with input as [null | null] }
-data_target = true { req_dep with data.p as "foo" }`,
-	)
-
-	compileStages(c, c.checkWithModifiers)
-
-	expected := []string{
-		"rego_type_error: closure_in_value: with keyword value must not contain closures",
-		"rego_type_error: data_target: with keyword target must be input",
-		"rego_type_error: ref_in_value: with keyword value must not contain refs",
-	}
-
-	assertCompilerErrorStrings(t, c, expected)
-
-}
-
 func TestCompilerCheckTypes(t *testing.T) {
 	c := NewCompiler()
 	modules := getCompilerTestModules()
@@ -1360,6 +1334,81 @@ func TestCompilerRewriteDynamicTerms(t *testing.T) {
 	}
 }
 
+func TestCompilerRewriteWithValue(t *testing.T) {
+	fixture := `package test
+
+	arr = ["hello", "goodbye"]
+
+	`
+
+	tests := []struct {
+		note     string
+		input    string
+		expected string
+		wantErr  error
+	}{
+		{
+			note:     "nop",
+			input:    `p { true with input as 1 }`,
+			expected: `p { true with input as 1 }`,
+		},
+		{
+			note:     "refs",
+			input:    `p { true with input as arr }`,
+			expected: `p { __local0__ = data.test.arr; true with input as __local0__ }`,
+		},
+		{
+			note:     "array comprehension",
+			input:    `p { true with input as [true | true] }`,
+			expected: `p { __local0__ = [true | true]; true with input as __local0__ }`,
+		},
+		{
+			note:     "set comprehension",
+			input:    `p { true with input as {true | true} }`,
+			expected: `p { __local0__ = {true | true}; true with input as __local0__ }`,
+		},
+		{
+			note:     "object comprehension",
+			input:    `p { true with input as {"k": true | true} }`,
+			expected: `p { __local0__ = {"k": true | true}; true with input as __local0__ }`,
+		},
+		{
+			note:     "comprehension nested",
+			input:    `p { true with input as [true | true with input as arr] }`,
+			expected: `p { __local0__ = [true | __local1__ = data.test.arr; true with input as __local1__]; true with input as __local0__ }`,
+		},
+		{
+			note:     "multiple",
+			input:    `p { true with input.a as arr[0] with input.b as arr[1] }`,
+			expected: `p { __local0__ = data.test.arr[0]; __local1__ = data.test.arr[1]; true with input.a as __local0__ with input.b as __local1__ }`,
+		},
+		{
+			note:    "data target",
+			input:   `p { true with data.q as 1 }`,
+			wantErr: fmt.Errorf("rego_type_error: with keyword target must be input"),
+		},
+	}
+
+	for _, tc := range tests {
+		test.Subtest(t, tc.note, func(t *testing.T) {
+			c := NewCompiler()
+			module := fixture + tc.input
+			c.Modules["test"] = MustParseModule(module)
+			compileStages(c, c.rewriteWithModifiers)
+			if tc.wantErr == nil {
+				assertNotFailed(t, c)
+				expected := MustParseRule(tc.expected)
+				result := c.Modules["test"].Rules[1]
+				if result.Compare(expected) != 0 {
+					t.Fatalf("\nExp: %v\nGot: %v", expected, result)
+				}
+			} else {
+				assertCompilerErrorStrings(t, c, []string{tc.wantErr.Error()})
+			}
+		})
+	}
+}
+
 func TestCompilerSetGraph(t *testing.T) {
 	c := NewCompiler()
 	c.Modules = getCompilerTestModules()
@@ -2023,7 +2072,7 @@ func TestQueryCompiler(t *testing.T) {
 		{"unsafe vars", "z", "", nil, "", fmt.Errorf("1 error occurred: 1:1: rego_unsafe_var_error: var z is unsafe")},
 		{"safe vars", `data; abc`, `package ex`, []string{"import input.xyz as abc"}, `{}`, `data; input.xyz`},
 		{"reorder", `x != 1; x = 0`, "", nil, "", `x = 0; x != 1`},
-		{"bad with target", "x = 1 with data.p as null", "", nil, "", fmt.Errorf("1 error occurred: 1:7: rego_type_error: with keyword target must be input")},
+		{"bad with target", "x = 1 with data.p as null", "", nil, "", fmt.Errorf("1 error occurred: 1:12: rego_type_error: with keyword target must be input")},
 		{"unsafe exprs", "count(sum())", "", nil, "", fmt.Errorf("1 error occurred: 1:1: rego_unsafe_var_error: expression is unsafe")},
 		{"check types", "x = data.a.b.c.z; y = null; x = y", "", nil, "", fmt.Errorf("match error\n\tleft  : number\n\tright : null")},
 	}

@@ -208,7 +208,7 @@ func NewCompiler() *Compiler {
 		c.setGraph,
 		c.rewriteComprehensionTerms,
 		c.rewriteRefsInHead,
-		c.checkWithModifiers,
+		c.rewriteWithModifiers,
 		c.checkRuleConflicts,
 		c.checkSafetyRuleHeads,
 		c.checkSafetyRuleBodies,
@@ -598,17 +598,6 @@ func (c *Compiler) checkTypes() {
 	c.TypeEnv = env
 }
 
-// checkWithModifiers ensures that with modifier values do not contain
-// references or closures.
-func (c *Compiler) checkWithModifiers() {
-	for _, m := range c.Modules {
-		wc := newWithModifierChecker()
-		for _, err := range wc.Check(m) {
-			c.err(err)
-		}
-	}
-}
-
 func (c *Compiler) compile() {
 	defer func() {
 		if r := recover(); r != nil && r != errLimitReached {
@@ -857,6 +846,24 @@ func (c *Compiler) rewriteLocalAssignments() {
 	}
 }
 
+func (c *Compiler) rewriteWithModifiers() {
+	for _, mod := range c.Modules {
+		f := newEqualityFactory(newLocalVarGenerator(mod))
+		t := NewGenericTransformer(func(x interface{}) (interface{}, error) {
+			body, ok := x.(Body)
+			if !ok {
+				return x, nil
+			}
+			body, err := rewriteWithModifiersInBody(f, body)
+			if err != nil {
+				c.err(err)
+			}
+			return body, nil
+		})
+		Transform(t, mod)
+	}
+}
+
 func (c *Compiler) setModuleTree() {
 	c.ModuleTree = NewModuleTree(c.Modules)
 }
@@ -913,7 +920,7 @@ func (qc *queryCompiler) Compile(query Body) (Body, error) {
 		{"RewriteExprTerms", qc.rewriteExprTerms},
 		{"RewriteComprehensionTerms", qc.rewriteComprehensionTerms},
 		{"RewriteDynamicTerms", qc.rewriteDynamicTerms},
-		{"CheckWithModifiers", qc.checkWithModifiers},
+		{"RewriteWithValues", qc.rewriteWithModifiers},
 		{"CheckSafety", qc.checkSafety},
 		{"CheckTypes", qc.checkTypes},
 	}
@@ -1022,10 +1029,11 @@ func (qc *queryCompiler) checkTypes(qctx *QueryContext, body Body) (Body, error)
 	return body, nil
 }
 
-func (qc *queryCompiler) checkWithModifiers(qctx *QueryContext, body Body) (Body, error) {
-	wc := newWithModifierChecker()
-	if errs := wc.Check(body); len(errs) != 0 {
-		return nil, errs
+func (qc *queryCompiler) rewriteWithModifiers(qctx *QueryContext, body Body) (Body, error) {
+	f := newEqualityFactory(newLocalVarGenerator(body))
+	body, err := rewriteWithModifiersInBody(f, body)
+	if err != nil {
+		return nil, Errors{err}
 	}
 	return body, nil
 }
@@ -1160,70 +1168,6 @@ func (n *TreeNode) DepthFirst(f func(node *TreeNode) bool) {
 			node.DepthFirst(f)
 		}
 	}
-}
-
-type withModifierChecker struct {
-	errors Errors
-	expr   *Expr
-	prefix string
-}
-
-func newWithModifierChecker() *withModifierChecker {
-	return &withModifierChecker{}
-}
-
-func (wc *withModifierChecker) Check(x interface{}) Errors {
-	Walk(wc, x)
-	return wc.errors
-}
-
-func (wc *withModifierChecker) Visit(x interface{}) Visitor {
-	switch x := x.(type) {
-	case *Rule:
-		wc.prefix = string(x.Head.Name)
-	case *Expr:
-		wc.expr = x
-	case *With:
-		wc.checkTarget(x)
-		wc.checkValue(x)
-		return nil
-	}
-	return wc
-}
-
-func (wc *withModifierChecker) checkTarget(w *With) {
-
-	if ref, ok := w.Target.Value.(Ref); ok {
-		if !ref.HasPrefix(InputRootRef) {
-			wc.err(TypeErr, w.Location, "with keyword target must be %v", InputRootDocument)
-		}
-	}
-
-	// TODO(tsandall): could validate that target is in fact referred to by
-	// evaluation of the expression.
-}
-
-func (wc *withModifierChecker) checkValue(w *With) {
-	WalkClosures(w.Value, func(c interface{}) bool {
-		wc.err(TypeErr, w.Location, "with keyword value must not contain closures")
-		return true
-	})
-
-	if len(wc.errors) > 0 {
-		return
-	}
-
-	WalkRefs(w.Value, func(r Ref) bool {
-		wc.err(TypeErr, w.Location, "with keyword value must not contain refs")
-		return true
-	})
-}
-
-func (wc *withModifierChecker) err(code string, loc *Location, f string, a ...interface{}) {
-	if wc.prefix != "" {
-		f = wc.prefix + ": " + f
-	}
-	wc.errors = append(wc.errors, NewError(code, loc, f, a...))
 }
 
 // Graph represents the graph of dependencies between rules.
@@ -2600,6 +2544,61 @@ func rewriteDeclaredVar(g *localVarGenerator, stack *localDeclaredVars, v Var) (
 	gv = g.Generate()
 	stack.Insert(v, gv)
 	return
+}
+
+// rewriteWithModifiersInBody will rewrite the body so that with modifiers do
+// not contain terms that require evaluation as values. If this function
+// encounters an invalid with modifier target then it will raise an error.
+func rewriteWithModifiersInBody(f *equalityFactory, body Body) (Body, *Error) {
+	var result Body
+	for i := range body {
+		exprs, err := rewriteWithModifier(f, body[i])
+		if err != nil {
+			return nil, err
+		}
+		if len(exprs) > 0 {
+			for _, expr := range exprs {
+				result.Append(expr)
+			}
+		} else {
+			result.Append(body[i])
+		}
+	}
+	return result, nil
+}
+
+func rewriteWithModifier(f *equalityFactory, expr *Expr) ([]*Expr, *Error) {
+
+	var result []*Expr
+
+	for i := range expr.With {
+		if !isInputRef(expr.With[i].Target) {
+			return nil, NewError(TypeErr, expr.With[i].Target.Location, "with keyword target must be %v", InputRootDocument)
+		}
+		if requiresEval(expr.With[i].Value) {
+			eq := f.Generate(expr.With[i].Value)
+			result = append(result, eq)
+			expr.With[i].Value = eq.Operand(0)
+		}
+	}
+
+	// If any of the with modifiers in this expression were rewritten then result
+	// will be non-empty. In this case, the expression will have been modified and
+	// it should also be added to th result.
+	if len(result) > 0 {
+		result = append(result, expr)
+	}
+
+	return result, nil
+}
+
+func isInputRef(term *Term) bool {
+	if ref, ok := term.Value.(Ref); ok {
+		if ref.HasPrefix(InputRootRef) {
+			return true
+		}
+	}
+	return false
 }
 
 func safetyErrorSlice(l *Location, unsafe unsafeVars) (result Errors) {
