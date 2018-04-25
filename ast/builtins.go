@@ -96,6 +96,8 @@ var DefaultBuiltins = [...]*Builtin{
 	Base64Decode,
 	Base64UrlEncode,
 	Base64UrlDecode,
+	URLQueryDecode,
+	URLQueryEncode,
 	YAMLMarshal,
 	YAMLUnmarshal,
 
@@ -694,6 +696,24 @@ var Base64UrlEncode = &Builtin{
 // Base64UrlDecode deserializes the base64url encoded input string.
 var Base64UrlDecode = &Builtin{
 	Name: "base64url.decode",
+	Decl: types.NewFunction(
+		types.Args(types.S),
+		types.S,
+	),
+}
+
+// URLQueryDecode decodes a URL encoded input string.
+var URLQueryDecode = &Builtin{
+	Name: "urlquery.decode",
+	Decl: types.NewFunction(
+		types.Args(types.S),
+		types.S,
+	),
+}
+
+// URLQueryEncode encodes the input string into a URL encoded string.
+var URLQueryEncode = &Builtin{
+	Name: "urlquery.encode",
 	Decl: types.NewFunction(
 		types.Args(types.S),
 		types.S,

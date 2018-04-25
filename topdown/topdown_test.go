@@ -1381,6 +1381,23 @@ func TestTopDownBase64UrlBuiltins(t *testing.T) {
 	}
 }
 
+func TestTopDownURLBuiltins(t *testing.T) {
+	tests := []struct {
+		note     string
+		rules    []string
+		expected interface{}
+	}{
+		{"encode", []string{`p = x { urlquery.encode("a=b+1", x) }`}, `"a%3Db%2B1"`},
+		{"decode", []string{`p = x { urlquery.decode("a%3Db%2B1", x) }`}, `"a=b+1"`},
+	}
+
+	data := loadSmallTestData()
+
+	for _, tc := range tests {
+		runTopDownTestCase(t, data, tc.note, tc.rules, tc.expected)
+	}
+}
+
 func TestTopDownJWTBuiltins(t *testing.T) {
 	params := []struct {
 		note      string
