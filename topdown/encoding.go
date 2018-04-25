@@ -9,6 +9,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"strings"
 
 	ghodss "github.com/ghodss/yaml"
@@ -102,6 +103,26 @@ func builtinBase64UrlDecode(a ast.Value) (ast.Value, error) {
 	return ast.String(result), err
 }
 
+func builtinURLQueryEncode(a ast.Value) (ast.Value, error) {
+	str, err := builtins.StringOperand(a, 1)
+	if err != nil {
+		return nil, err
+	}
+	return ast.String(url.QueryEscape(string(str))), nil
+}
+
+func builtinURLQueryDecode(a ast.Value) (ast.Value, error) {
+	str, err := builtins.StringOperand(a, 1)
+	if err != nil {
+		return nil, err
+	}
+	s, err := url.QueryUnescape(string(str))
+	if err != nil {
+		return nil, err
+	}
+	return ast.String(s), nil
+}
+
 func builtinYAMLMarshal(a ast.Value) (ast.Value, error) {
 
 	asJSON, err := ast.JSON(a)
@@ -153,6 +174,8 @@ func init() {
 	RegisterFunctionalBuiltin1(ast.Base64Decode.Name, builtinBase64Decode)
 	RegisterFunctionalBuiltin1(ast.Base64UrlEncode.Name, builtinBase64UrlEncode)
 	RegisterFunctionalBuiltin1(ast.Base64UrlDecode.Name, builtinBase64UrlDecode)
+	RegisterFunctionalBuiltin1(ast.URLQueryDecode.Name, builtinURLQueryDecode)
+	RegisterFunctionalBuiltin1(ast.URLQueryEncode.Name, builtinURLQueryEncode)
 	RegisterFunctionalBuiltin1(ast.YAMLMarshal.Name, builtinYAMLMarshal)
 	RegisterFunctionalBuiltin1(ast.YAMLUnmarshal.Name, builtinYAMLUnmarshal)
 }

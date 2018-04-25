@@ -99,6 +99,8 @@ complex types.
 | <span class="opa-keep-it-together">``base64.decode(string, output)``</span> | 1 | ``output`` is ``x`` deserialized from a base64 encoding string |
 | <span class="opa-keep-it-together">``base64url.encode(x, output)``</span> | 1 | ``output`` is ``x`` serialized to a base64url encoded string |
 | <span class="opa-keep-it-together">``base64url.decode(string, output)``</span> | 1 | ``output`` is ``string`` deserialized from a base64url encoding string |
+| <span class="opa-keep-it-together">``urlquery.encode(x, output)``</span> | 1 | ``output`` is ``x`` serialized to a URL query parameter encoded string |
+| <span class="opa-keep-it-together">``urlquery.decode(string, output)``</span> | 1 | ``output`` is ``string`` deserialized from a URL query parameter encoded string |
 | <span class="opa-keep-it-together">``json.marshal(x, output)``</span> | 1 | ``output`` is ``x`` serialized to a JSON string |
 | <span class="opa-keep-it-together">``json.unmarshal(string, output)``</span> | 1 | ``output`` is ``string`` deserialized to a term from a JSON encoded string |
 | <span class="opa-keep-it-together">``yaml.marshal(x, output)``</span> | 1 | ``output`` is ``x`` serialized to a YAML string |
