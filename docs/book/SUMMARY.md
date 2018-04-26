@@ -121,5 +121,6 @@
   * [Docker Authorization](docker-authorization.md)
   * [HTTP API Authorization](http-api-authorization.md)
   * [SSH and sudo Authorization](ssh-and-sudo-authorization.md)
+  * [Kafka Authorization](kafka-authorization.md)
   * [Kubernetes Admission Control](kubernetes-admission-control.md)
   * [Terraform Testing](terraform.md)
