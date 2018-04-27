@@ -41,7 +41,7 @@ func TestRoundTrip(t *testing.T) {
 			case nil, bool, json.Number, int64, float64, int, string, []interface{},
 				[]string, map[string]interface{}, map[string]string:
 			default:
-				t.Error("unexpected type %T", x)
+				t.Errorf("unexpected type %T", x)
 			}
 		})
 	}
