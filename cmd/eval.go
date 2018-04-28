@@ -25,7 +25,7 @@ import (
 )
 
 type evalCommandParams struct {
-	dataPath  string
+	dataPaths repeatedStringFlag
 	inputPath string
 	imports   repeatedStringFlag
 	pkg       string
@@ -101,7 +101,7 @@ package path contained inside the file.`,
 		},
 	}
 
-	evalCommand.Flags().StringVarP(&params.dataPath, "data", "d", "", "set data file or directory path")
+	evalCommand.Flags().VarP(&params.dataPaths, "data", "d", "set data file(s) or directory path(s)")
 	evalCommand.Flags().StringVarP(&params.inputPath, "input", "i", "", "set input file path")
 	evalCommand.Flags().VarP(&params.imports, "import", "", "set query import(s)")
 	evalCommand.Flags().StringVarP(&params.pkg, "package", "", "", "set query package")
@@ -136,8 +136,8 @@ func eval(args []string, params evalCommandParams) (err error) {
 		regoArgs = append(regoArgs, rego.Package(params.pkg))
 	}
 
-	if params.dataPath != "" {
-		loadResult, err := loader.All([]string{params.dataPath})
+	if len(params.dataPaths.v) > 0 {
+		loadResult, err := loader.All(params.dataPaths.v)
 		if err != nil {
 			return err
 		}
