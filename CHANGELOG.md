@@ -3,7 +3,21 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## 0.8.1
+
+### Fixes
+
+- Handle escaped paths in data writes ([#695](https://github.com/open-policy-agent/opa/issues/695))
+- Rewrite with modifiers to allow refs as values ([#701](https://github.com/open-policy-agent/opa/issues/701))
+
+### Miscellaneous
+
+- Add Kafka authorization tutorial
+- Add URL query encoding built-ins
+- Add runtime API to register plugins
+- Update eval subcommand to support multiple files or directories (thanks @devenney)
+- Update Terraform tutorial for OPA v0.8
+- Fix bug in topdown query ID generation
 
 ## 0.8.0
 

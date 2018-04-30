@@ -48,7 +48,7 @@ version: "2"
 services:
   opa:
     hostname: opa
-    image: openpolicyagent/opa:0.8.1-dev
+    image: openpolicyagent/opa:0.8.1
     ports:
       - 8181:8181
     command: "run --server --watch /policies"
