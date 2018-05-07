@@ -124,3 +124,6 @@
   * [Kafka Authorization](kafka-authorization.md)
   * [Kubernetes Admission Control](kubernetes-admission-control.md)
   * [Terraform Testing](terraform.md)
+
+### Best Practices
+  * [Identity and User attributes](best-practice-identity.md)
