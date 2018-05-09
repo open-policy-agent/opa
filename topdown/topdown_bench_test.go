@@ -18,6 +18,65 @@ import (
 	"github.com/open-policy-agent/opa/util"
 )
 
+func BenchmarkLargeJSON(b *testing.B) {
+	data := generateLargeJSONBenchmarkData()
+	ctx := context.Background()
+	store := inmem.NewFromObject(data)
+	compiler := ast.NewCompiler()
+
+	if compiler.Compile(nil); compiler.Failed() {
+		b.Fatal(compiler.Errors)
+	}
+
+	b.ResetTimer()
+
+	// Read data.values N times inside query.
+	query := ast.MustParseBody("data.keys[_] = x; data.values = y")
+
+	for i := 0; i < b.N; i++ {
+
+		err := storage.Txn(ctx, store, storage.TransactionParams{}, func(txn storage.Transaction) error {
+
+			q := NewQuery(query).
+				WithCompiler(compiler).
+				WithStore(store).
+				WithTransaction(txn)
+
+			_, err := q.Run(ctx)
+			if err != nil {
+				return err
+			}
+
+			return nil
+		})
+
+		if err != nil {
+			b.Fatal(err)
+		}
+
+	}
+}
+
+func generateLargeJSONBenchmarkData() map[string]interface{} {
+
+	// create array of null values that can be iterated over
+	keys := make([]interface{}, 100)
+	for i := range keys {
+		keys[i] = nil
+	}
+
+	// create large JSON object value (100,000 entries is about 2MB on disk)
+	values := map[string]interface{}{}
+	for i := 0; i < 100*1000; i++ {
+		values[fmt.Sprintf("key%d", i)] = fmt.Sprintf("value%d", i)
+	}
+
+	return map[string]interface{}{
+		"keys":   keys,
+		"values": values,
+	}
+}
+
 func BenchmarkConcurrency1(b *testing.B) {
 	benchmarkConcurrency(b, getParams(1, 0))
 }
