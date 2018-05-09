@@ -48,7 +48,7 @@ CHANGELOG.md snippet and uploading the binaries from the build phase.
 1. Commit the changes and push to remote repository.
 
 	```
-	git commit -a -m “Prepare v<version> release”
+	git commit -a -s -m "Prepare v<version> release"
 	git push origin master
 	```
 
@@ -77,7 +77,7 @@ CHANGELOG.md snippet and uploading the binaries from the build phase.
 1. Commit the changes and push to remote repository.
 
 	```
-	git commit -a -m “Prepare v<next_semvar> development”
+	git commit -a -s -m "Prepare v<next_semvar> development"
 	git push origin master
 	```
 
