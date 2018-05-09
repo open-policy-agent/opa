@@ -110,6 +110,9 @@ func (u *bindings) plugNamespaced(a *ast.Term, caller *bindings) *ast.Term {
 		cpy.Value = arr
 		return &cpy
 	case ast.Object:
+		if a.IsGround() {
+			return a
+		}
 		cpy := *a
 		cpy.Value, _ = v.Map(func(k, v *ast.Term) (*ast.Term, *ast.Term, error) {
 			return u.plugNamespaced(k, caller), u.plugNamespaced(v, caller), nil

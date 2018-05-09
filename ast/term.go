@@ -1348,9 +1348,7 @@ type Object interface {
 
 // NewObject creates a new Object with t.
 func NewObject(t ...[2]*Term) Object {
-	obj := &object{
-		elems: map[int]*objectElem{},
-	}
+	obj := newobject(len(t))
 	for i := range t {
 		obj.Insert(t[i][0], t[i][1])
 	}
@@ -1363,8 +1361,16 @@ func ObjectTerm(o ...[2]*Term) *Term {
 }
 
 type object struct {
-	elems map[int]*objectElem
-	keys  []*Term
+	elems  map[int]*objectElem
+	keys   []*Term
+	ground bool
+}
+
+func newobject(n int) *object {
+	return &object{
+		elems:  make(map[int]*objectElem, n),
+		ground: true,
+	}
 }
 
 type objectElem struct {
@@ -1459,9 +1465,7 @@ func (obj *object) Hash() int {
 
 // IsGround returns true if all of the Object key/value pairs are ground.
 func (obj *object) IsGround() bool {
-	return !obj.Until(func(k, v *Term) bool {
-		return !k.IsGround() || !v.IsGround()
-	})
+	return obj.ground
 }
 
 // Copy returns a deep copy of obj.
@@ -1535,9 +1539,7 @@ func (obj *object) Foreach(f func(*Term, *Term)) {
 // Map returns a new Object constructed by mapping each element in the object
 // using the function f.
 func (obj *object) Map(f func(*Term, *Term) (*Term, *Term, error)) (Object, error) {
-	cpy := &object{
-		elems: make(map[int]*objectElem, obj.Len()),
-	}
+	cpy := newobject(obj.Len())
 	err := obj.Iter(func(k, v *Term) error {
 		var err error
 		k, v, err = f(k, v)
@@ -1640,6 +1642,7 @@ func (obj *object) insert(k, v *Term) {
 		next:  head,
 	}
 	obj.keys = append(obj.keys, k)
+	obj.ground = obj.ground && k.IsGround() && v.IsGround()
 }
 
 // ArrayComprehension represents an array comprehension as defined in the language.
