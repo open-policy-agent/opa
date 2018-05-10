@@ -789,9 +789,226 @@ type ArgErrDetail struct {
 // Lines returns the string representation of the detail.
 func (d *ArgErrDetail) Lines() []string {
 	lines := make([]string, 2)
-	lines[0] = fmt.Sprint("have: ", formatArgs(d.Have))
-	lines[1] = fmt.Sprint("want: ", formatArgs(d.Want))
+
+	minLen := len(d.Have)
+	if len(d.Want) < minLen {
+		minLen = len(d.Want)
+	}
+
+	buf1 := []string{}
+	buf2 := []string{}
+
+	for i := 0; i < minLen; i++ {
+		result1, result2 := types.CompareTypeDiff(d.Have[i], d.Want[i])
+
+		if len(result1) == 1 && len(result2) == 1 {
+			processSingleDiff(result1, result2, &buf1, &buf2)
+		} else {
+			// process actual arguments
+			processArgs(result1, &buf1)
+
+			// process expected arguments
+			processArgs(result2, &buf2)
+		}
+	}
+
+	// process remaining Wants
+	if minLen != len(d.Want) {
+		for i := minLen; i < len(d.Want); i++ {
+			buf2 = append(buf2, formatTypeKey(d.Want[i]))
+		}
+	}
+
+	lines[0] = fmt.Sprint("have: ", "("+strings.Join(buf1, ", ")+")")
+	lines[1] = fmt.Sprint("want: ", "("+strings.Join(buf2, ", ")+")")
+
 	return lines
+}
+
+func processSingleDiff(input1 []types.Type, input2 []types.Type, buf1 *[]string, buf2 *[]string) {
+
+	if input1[0] == nil && input2[0] == nil {
+		return
+	}
+
+	// Check for top-level type difference
+	type1 := getTypePrefix(input1[0])
+	type2 := getTypePrefix(input2[0])
+
+	if type1 != type2 {
+
+		//handle Any type
+		if type1 == "any" {
+			anyType, _ := input1[0].(types.Any)
+
+			if len(anyType) == 0 {
+				processArgs(input1, buf1)
+				processArgs(input2, buf2)
+				return
+			}
+
+			if anyType.Contains(input2[0]) {
+				return
+			}
+
+			for i := range anyType {
+				if getTypePrefix(anyType[i]) == getTypePrefix(input2[0]) {
+					processSingleDiff([]types.Type{anyType[i]}, input2, buf1, buf2)
+					return
+				}
+			}
+
+			temp := []string{}
+			for i := range anyType {
+				temp = append(temp, formatTypeKey(anyType[i]))
+			}
+
+			term := type1 + "[" + strings.Join(temp, ", ") + "]"
+			*buf1 = append(*buf1, term)
+
+			processArgs(input2, buf2)
+
+		} else if type2 == "any" {
+			anyType, _ := input2[0].(types.Any)
+
+			if len(anyType) == 0 {
+				processArgs(input1, buf1)
+				processArgs(input2, buf2)
+				return
+			}
+
+			if anyType.Contains(input1[0]) {
+				return
+			}
+
+			for i := range anyType {
+				if getTypePrefix(anyType[i]) == getTypePrefix(input1[0]) {
+					processSingleDiff(input1, []types.Type{anyType[i]}, buf1, buf2)
+					return
+				}
+			}
+
+			temp := []string{}
+			for i := range anyType {
+				temp = append(temp, formatTypeKey(anyType[i]))
+			}
+
+			term := type2 + "[" + strings.Join(temp, ", ") + "]"
+			*buf2 = append(*buf2, term)
+
+			processArgs(input1, buf1)
+		} else {
+			processArgs(input1, buf1)
+			processArgs(input2, buf2)
+		}
+	} else {
+
+		// Handle string, number and boolean types
+		if type1 == "string" || type1 == "number" || type1 == "boolean" {
+			processArgs(input1, buf1)
+			processArgs(input2, buf2)
+		}
+
+		var term1, term2 string
+
+		// Check keys and values
+		key1 := getTypePrefix(types.Keys(input1[0]))
+		key2 := getTypePrefix(types.Keys(input2[0]))
+		value1 := types.Values(input1[0])
+		value2 := types.Values(input2[0])
+
+		if key1 != key2 {
+			term1 = type1 + "[" + key1 + "..." + "]"
+			term2 = type2 + "[" + key2 + "..." + "]"
+
+		} else if getTypePrefix(value1) != getTypePrefix(value2) {
+			term1, term2 = formatTerms(type1, key1, key2, formatTypeKey(value1), formatTypeKey(value2))
+
+		} else {
+			temp1 := []string{}
+			temp2 := []string{}
+			processSingleDiff([]types.Type{value1}, []types.Type{value2}, &temp1, &temp2)
+
+			if type1 == "object" {
+				if len(temp1) != 0 {
+					term1 = type1 + "[" + key1 + ":" + temp1[0] + "]"
+				}
+				if len(temp2) != 0 {
+					term2 = type2 + "[" + key2 + ":" + temp2[0] + "]"
+				}
+			} else {
+				if len(temp1) != 0 {
+					term1 = type1 + "[" + temp1[0] + "]"
+				}
+				if len(temp2) != 0 {
+					term2 = type2 + "[" + temp2[0] + "]"
+				}
+			}
+		}
+
+		if term1 != "" {
+			*buf1 = append(*buf1, term1)
+		}
+
+		if term2 != "" {
+			*buf2 = append(*buf2, term2)
+		}
+	}
+}
+
+func formatTerms(parentType, key1, key2, value1, value2 string) (string, string) {
+
+	var term1, term2 string
+
+	if parentType == "object" {
+		term1 = parentType + "[" + key1 + ":" + value1 + "]"
+		term2 = parentType + "[" + key2 + ":" + value2 + "]"
+	} else {
+		term1 = parentType + "[" + value1 + "]"
+		term2 = parentType + "[" + value2 + "]"
+	}
+
+	return term1, term2
+}
+
+func processArgs(input []types.Type, buf *[]string) {
+	term := formatTypeKey(input[len(input)-1])
+	for j := len(input) - 2; j >= 0; j-- {
+		prefix := getTypePrefix(input[j])
+		temp := prefix + "[" + term + "]"
+		term = temp
+	}
+	*buf = append(*buf, term)
+}
+
+func formatTypeKey(key types.Type) string {
+	switch key.(type) {
+	case *types.Object:
+		return "object<...>"
+	case *types.Array:
+		return "array[...]"
+	case *types.Set:
+		return "set[...]"
+	case types.Any:
+		return "any<...>"
+	default:
+		return types.Sprint(key)
+	}
+}
+
+func getTypePrefix(key types.Type) string {
+	switch key.(type) {
+	case *types.Object:
+		return "object"
+	case *types.Array:
+		return "array"
+	case *types.Set:
+		return "set"
+	case types.Any:
+		return "any"
+	default:
+		return types.Sprint(key)
+	}
 }
 
 func (d *ArgErrDetail) nilType() bool {
@@ -868,14 +1085,6 @@ func (r *RefErrInvalidDetail) Lines() []string {
 		lines = append(lines, fmt.Sprintf("%swant (type): %v", pad, r.Want))
 	}
 	return lines
-}
-
-func formatArgs(args []types.Type) string {
-	buf := make([]string, len(args))
-	for i := range args {
-		buf[i] = types.Sprint(args[i])
-	}
-	return "(" + strings.Join(buf, ", ") + ")"
 }
 
 func newRefErrInvalid(loc *Location, ref Ref, idx int, have, want types.Type, oneOf []Value) *Error {
