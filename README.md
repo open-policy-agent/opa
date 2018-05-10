@@ -287,6 +287,13 @@ true
 - Istio's Mixer: Policy Enforcement with Custom Adapters @ CloudNativeCon US 2017: [video](https://www.youtube.com/watch?v=czZLXUqzd24), [slides](https://www.slideshare.net/TorinSandall/istios-mixer-policy-enforcement-with-custom-adapters-cloud-nativecon-17).
 - The Open Policy Agent Project @ Netflix OSS Meetup Season 5 Episode 1 (2017): [video](https://www.youtube.com/watch?v=SfpsnlQf5bY&feature=youtu.be&t=33m45s), [slides](https://www.slideshare.net/aspyker/netflix-oss-meetup-season-5-episode-1).
 
+## Reporting Security Vulnerabilities
+
+Please report vulnerabilities by email to [open-policy-agent-security](mailto:open-policy-agent-security@googlegroups.com).
+We will send a confirmation message to acknowledge that we have received the
+report and then we will send additional messages to follow up once the issue
+has been investigated.
 
 ## License
+
 [![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Fopen-policy-agent%2Fopa.svg?type=large)](https://app.fossa.io/projects/git%2Bgithub.com%2Fopen-policy-agent%2Fopa?ref=badge_large)
