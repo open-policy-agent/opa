@@ -1,5 +1,9 @@
 # Frequently Asked Questions
 
+## How do I make user attributes stored in LDAP/AD available to OPA for making decisions?
+
+[This best-practice guide] (best-practice-identity.md) explains three options: JSON Web Tokens, synchronization with LDAP/AD, and calling into LDAP/AD during policy evaluation.
+
 ## How does OPA do conflict resolution?
 
 In Rego (OPA's policy language), you can write statements that both allow and
