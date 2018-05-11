@@ -10,7 +10,7 @@ Below we detail different ways to make LDAP/AD information available to OPA.  Yo
 
 ## 1. JWT Tokens
 
-[JSON Web Tokens (JWTs)](https://tools.ietf.org/html/rfc7519) allow you to security transmit JSON data between software systems and are often produced during the authentication process.  You can set up authentication so that when the user logs in you create a JWT with that user's LDAP/AD data.  Then you hand that JWT to OPA and use OPA's specialized support for JWTs to extract the information you need to make a policy decision.
+[JSON Web Tokens (JWTs)](https://tools.ietf.org/html/rfc7519) allow you to securely transmit JSON data between software systems and are often produced during the authentication process.  You can set up authentication so that when the user logs in you create a JWT with that user's LDAP/AD data.  Then you hand that JWT to OPA and use OPA's specialized support for JWTs to extract the information you need to make a policy decision.
 
 ### Flow
 The following diagram shows this process in more detail.
@@ -37,7 +37,9 @@ JWTs have a limited size in practice, so if your organization has too many user 
 
 ## 2. Downloading LDAP/AD data as part of a policy bundle
 
-JWTs may not be available to you.  Or perhaps your policies require information about a user other than the one performing the action that OPA is authorizing.  For example, the policy you want to enforce says that either the owner of a resource or anyone in that owner's group may modify that resource.  So if Alice tries to modify a resource and she is not the owner, OPA would need to find the owner of the resource (say Bob) and look up all of his groups from LDAP/AD in order to check if Alice is in the same group as Bob.  OPA only has a JWT token for Alice, so it does not have group information for Bob.
+JWTs may not be available to you.  Or perhaps your policies require information about a user other than the one performing the action that OPA is authorizing.
+
+For example, suppose your policy says a resource's owner or anyone in the owner's group may modify that resource.  When Alice tries to modify a resource she doesn't own, OPA would need to find the owner and check if Alice belongs to the same group as the owner.  But if OPA only has Alice's JWT token, it does not know what groups the resource's owner belong to.
 
 In any case, another option is to replicate LDAP/AD data in bulk into OPA.  One way to do that is through OPA's bundle feature, which periodically downloads policy bundles from a centralized server.  Those bundles can include data as well as policy.  If you implement the centralized server, you can include LDAP/AD data within the bundle.  Then every time OPA gets updated policies, it gets updated LDAP/AD data too.
 
@@ -60,7 +62,7 @@ Unlike the JWT case, where OPA only stores 1 user's LDAP/AD data at a time, when
 
 ## 3. Pushing LDAP/AD into OPA
 
-Another way to replicate LDAP/AD data into OPA is to use OPA's API for injecting arbitrary JSON data.  You can build a synchronizer that pulls information out of LDAP/AD and pushes that information in OPA through its API.
+Another way to replicate LDAP/AD data into OPA is to use OPA's API for injecting arbitrary JSON data.  You can build a synchronizer that pulls information out of LDAP/AD and pushes that information in OPA through its API.  This approach would be useful if you are not using the bundle API, or you need to optimize for update latency.
 
 ### Flow
 
@@ -89,6 +91,11 @@ OPA has experimental capabilities for reaching out to external servers during ev
 
 That functionality is implemented as [OPA builtins](https://openpolicyagent.org/docs/).  Check the docs for the latest instructions.
 
+### Current limitations
+* Unit test framework does not allow you to mock out the results of builtin functions
+* Any credentials that are needed for the external service must be hardcoded into the policy.
+  * There has been discussion around adding a builtin that pulls information out of the environment so that OPA can be configured with credentials.
+
 ### Flow
 The key difference here is that every decision requires contacting LDAP/AD.  If that service or the network connection is slow or unavailable, OPA may not be able to return a decision.
 1. OPA-enabled service asks OPA for a decision
@@ -105,10 +112,6 @@ Only the data actually needed by the policy is pulled from LDAP/AD.  There is no
 ### Performance and Availability
 Latency and availability of decision-making are dependent on the network.  This approach may still be superior to running OPA on a remote server entirely because a local OPA can make some decisions without going over the network--those decisions that do not require information from the remote LDAP/AD server.
 
-### Current limitations
-* Unit test framework does not allow you to mock out the results of builtin functions
-* Any credentials that are needed for the external service must be hardcoded into the policy.
-  * There has been discussion around adding a builtin that pulls information out of the environment so that OPA can be configured with credentials.
 
 ## 5. Summary
 
