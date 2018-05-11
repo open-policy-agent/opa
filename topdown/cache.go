@@ -28,7 +28,7 @@ func (c *virtualCache) Push() {
 }
 
 func (c *virtualCache) Pop() {
-	c.stack = c.stack[:len(c.stack)]
+	c.stack = c.stack[:len(c.stack)-1]
 }
 
 func (c *virtualCache) Get(ref ast.Ref) *ast.Term {
