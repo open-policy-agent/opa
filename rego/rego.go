@@ -463,12 +463,13 @@ func (r *Rego) compileQuery(extras []extraStage, query ast.Body) (ast.QueryCompi
 	var input ast.Value
 
 	if r.rawInput != nil {
+		rawPtr := util.Reference(r.rawInput)
 		// roundtrip through json: this turns slices (e.g. []string, []bool) into
 		// []interface{}, the only array type ast.InterfaceToValue can work with
-		if err := util.RoundTrip(r.rawInput); err != nil {
+		if err := util.RoundTrip(rawPtr); err != nil {
 			return nil, nil, err
 		}
-		val, err := ast.InterfaceToValue(*r.rawInput)
+		val, err := ast.InterfaceToValue(*rawPtr)
 		if err != nil {
 			return nil, nil, err
 		}
