@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"io"
+	"reflect"
 
 	"github.com/ghodss/yaml"
 )
@@ -68,6 +69,24 @@ func RoundTrip(x *interface{}) error {
 		return err
 	}
 	return UnmarshalJSON(bs, x)
+}
+
+// Reference returns a pointer to its argument unless the argument already is
+// a pointer. If the argument is **t, or ***t, etc, it will return *t.
+//
+// Used for preparing Go types (including pointers to structs) into values to be
+// put through util.RoundTrip().
+func Reference(x interface{}) *interface{} {
+	var y interface{}
+	rv := reflect.ValueOf(x)
+	if rv.Kind() == reflect.Ptr {
+		return Reference(rv.Elem().Interface())
+	}
+	if rv.Kind() != reflect.Invalid {
+		y = rv.Interface()
+		return &y
+	}
+	return &x
 }
 
 // Unmarshal decodes a YAML or JSON value into the specified type.

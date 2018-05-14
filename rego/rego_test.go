@@ -128,6 +128,60 @@ func TestRegoEvalExpressionValue(t *testing.T) {
 	}
 }
 
+func TestRegoInputs(t *testing.T) {
+	tests := map[string]struct {
+		input    interface{}
+		expected string
+	}{
+		"map":  {map[string]bool{"foo": true}, `[[{"foo": true}]]`},
+		"int":  {1, `[[1]]`},
+		"bool": {false, `[[false]]`},
+		"struct": {struct {
+			Foo string `json:"baz"`
+		}{"bar"}, `[[{"baz":"bar"}]]`},
+		"pointer to struct": {&struct {
+			Foo string `json:"baz"`
+		}{"bar"}, `[[{"baz":"bar"}]]`},
+		"pointer to pointer to struct": {
+			func() interface{} {
+				a := &struct {
+					Foo string `json:"baz"`
+				}{"bar"}
+				return &a
+			}(), `[[{"baz":"bar"}]]`},
+		"slice":              {[]string{"a", "b"}, `[[["a", "b"]]]`},
+		"nil":                {nil, `[[null]]`},
+		"slice of interface": {[]interface{}{"a", 2, true}, `[[["a", 2, true]]]`},
+	}
+	ctx := context.Background()
+
+	for desc, tc := range tests {
+		t.Run(desc, func(t *testing.T) {
+			r := New(
+				Query("input"),
+				Input(tc.input),
+			)
+			rs, err := r.Eval(ctx)
+			if err != nil {
+				t.Fatalf("Unexpected error: %v", err)
+			}
+
+			result := []interface{}{}
+			for i := range rs {
+				values := []interface{}{}
+				for j := range rs[i].Expressions {
+					values = append(values, rs[i].Expressions[j].Value)
+				}
+				result = append(result, values)
+			}
+
+			if !reflect.DeepEqual(result, util.MustUnmarshalJSON([]byte(tc.expected))) {
+				t.Fatalf("Expected:\n\n%v\n\nGot:\n\n%v", tc.expected, result)
+			}
+		})
+	}
+}
+
 func TestRegoRewrittenVarsCapture(t *testing.T) {
 
 	ctx := context.Background()

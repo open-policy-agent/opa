@@ -191,6 +191,51 @@ func TestInMemoryWrite(t *testing.T) {
 
 }
 
+func TestInMemoryWriteOfStruct(t *testing.T) {
+	type B struct {
+		Bar int `json:"bar"`
+	}
+
+	type A struct {
+		Foo *B `json:"foo"`
+	}
+
+	cases := map[string]struct {
+		value    interface{}
+		expected string
+	}{
+		"nested struct":            {A{&B{10}}, `{"foo": {"bar": 10 } }`},
+		"pointer to nested struct": {&A{&B{10}}, `{"foo": {"bar": 10 } }`},
+		"pointer to pointer to nested struct": {
+			func() interface{} {
+				a := &A{&B{10}}
+				return &a
+			}(), `{"foo": {"bar": 10 } }`},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			store := New()
+			ctx := context.Background()
+
+			err := storage.WriteOne(ctx, store, storage.AddOp, storage.MustParsePath("/x"), tc.value)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			actual, err := storage.ReadOne(ctx, store, storage.MustParsePath("/x"))
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			expected := loadExpectedSortedResult(tc.expected)
+			if !reflect.DeepEqual(expected, actual) {
+				t.Errorf("expected %v, got %v", tc.expected, actual)
+			}
+		})
+	}
+}
+
 func TestInMemoryTxnMultipleWrites(t *testing.T) {
 
 	ctx := context.Background()
