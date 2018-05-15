@@ -78,7 +78,7 @@ true
 You can also test simple boolean expressions:
 
 ```ruby
-> true = false
+> true == false
 false
 > 3.14 > 3
 true
