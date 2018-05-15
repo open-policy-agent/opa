@@ -781,6 +781,37 @@ func TypeOf(x interface{}) Type {
 	panic("unreachable")
 }
 
+// FormatTypeKeyElide returns a string represenation of the given type
+// with the fields elided
+func FormatTypeKeyElide(t Type) string {
+	switch t := t.(type) {
+	case *Object:
+		prefix := "object"
+		if len(t.static) > 0 {
+			prefix += "<...>"
+		}
+		if t.dynamic != nil {
+			prefix += "[...]"
+		}
+		return prefix
+	case *Array:
+		prefix := "array"
+		if len(t.static) > 0 {
+			prefix += "<...>"
+		}
+		if t.dynamic != nil {
+			prefix += "[...]"
+		}
+		return prefix
+	case *Set:
+		return "set[...]"
+	case Any:
+		return "any<...>"
+	default:
+		return Sprint(t)
+	}
+}
+
 type typeSlice []Type
 
 func (s typeSlice) Less(i, j int) bool { return Compare(s[i], s[j]) < 0 }

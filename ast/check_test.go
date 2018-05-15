@@ -770,7 +770,7 @@ func TestErrorElide(t *testing.T) {
 		{
 			note:  "my_fake_builtin_1",
 			query: "my_fake_builtin_1({\"test\": [1,2,3]}, x)",
-			exp:   []string{"have: (object[string:array[...]], ???)", "want: (object[string:string], set[...])"},
+			exp:   []string{"have: (object[string:array<...>], ???)", "want: (object[string:string], set[...])"},
 		},
 
 		{
@@ -812,19 +812,19 @@ func TestErrorElide(t *testing.T) {
 		{
 			note:  "my_fake_builtin_4_test4",
 			query: "my_fake_builtin_4({\"test\": [1,2,3]}, x)",
-			exp:   []string{"have: (object[string:array[...]], ???)", "want: (object[string:set[...]], set[...])"},
+			exp:   []string{"have: (object[string:array<...>], ???)", "want: (object[string:set[...]], set[...])"},
 		},
 
 		{
 			note:  "my_fake_builtin_5_test1",
 			query: "my_fake_builtin_5({\"level1\": {\"level2\": {\"level3\": [1,2,3]}}}, x)",
-			exp:   []string{"have: (object[string:object[string:object[string:array[...]]]], ???)", "want: (object[string:object[string:object[string:set[...]]]], set[...])"},
+			exp:   []string{"have: (object[string:object[string:object[string:array<...>]]], ???)", "want: (object[string:object[string:object[string:set[...]]]], set[...])"},
 		},
 
 		{
 			note:  "my_fake_builtin_5_test2",
 			query: "my_fake_builtin_5({\"level1\": {\"level2\": {1,2,3}}}, x)",
-			exp:   []string{"have: (object[string:object[string:set[...]]], ???)", "want: (object[string:object[string:object<...>]], set[...])"},
+			exp:   []string{"have: (object[string:object[string:set[...]]], ???)", "want: (object[string:object[string:object[...]]], set[...])"},
 		},
 
 		{

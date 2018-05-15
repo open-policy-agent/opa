@@ -815,7 +815,7 @@ func (d *ArgErrDetail) Lines() []string {
 	// process remaining Wants
 	if minLen != len(d.Want) {
 		for i := minLen; i < len(d.Want); i++ {
-			buf2 = append(buf2, formatTypeKey(d.Want[i]))
+			buf2 = append(buf2, types.FormatTypeKeyElide(d.Want[i]))
 		}
 	}
 
@@ -860,7 +860,7 @@ func processSingleDiff(input1 []types.Type, input2 []types.Type, buf1 *[]string,
 
 			temp := []string{}
 			for i := range anyType {
-				temp = append(temp, formatTypeKey(anyType[i]))
+				temp = append(temp, types.FormatTypeKeyElide(anyType[i]))
 			}
 
 			term := type1 + "[" + strings.Join(temp, ", ") + "]"
@@ -890,7 +890,7 @@ func processSingleDiff(input1 []types.Type, input2 []types.Type, buf1 *[]string,
 
 			temp := []string{}
 			for i := range anyType {
-				temp = append(temp, formatTypeKey(anyType[i]))
+				temp = append(temp, types.FormatTypeKeyElide(anyType[i]))
 			}
 
 			term := type2 + "[" + strings.Join(temp, ", ") + "]"
@@ -922,7 +922,7 @@ func processSingleDiff(input1 []types.Type, input2 []types.Type, buf1 *[]string,
 			term2 = type2 + "[" + key2 + "..." + "]"
 
 		} else if getTypePrefix(value1) != getTypePrefix(value2) {
-			term1, term2 = formatTerms(type1, key1, key2, formatTypeKey(value1), formatTypeKey(value2))
+			term1, term2 = formatTerms(type1, key1, key2, types.FormatTypeKeyElide(value1), types.FormatTypeKeyElide(value2))
 
 		} else {
 			temp1 := []string{}
@@ -972,28 +972,13 @@ func formatTerms(parentType, key1, key2, value1, value2 string) (string, string)
 }
 
 func processArgs(input []types.Type, buf *[]string) {
-	term := formatTypeKey(input[len(input)-1])
+	term := types.FormatTypeKeyElide(input[len(input)-1])
 	for j := len(input) - 2; j >= 0; j-- {
 		prefix := getTypePrefix(input[j])
 		temp := prefix + "[" + term + "]"
 		term = temp
 	}
 	*buf = append(*buf, term)
-}
-
-func formatTypeKey(key types.Type) string {
-	switch key.(type) {
-	case *types.Object:
-		return "object<...>"
-	case *types.Array:
-		return "array[...]"
-	case *types.Set:
-		return "set[...]"
-	case types.Any:
-		return "any<...>"
-	default:
-		return types.Sprint(key)
-	}
 }
 
 func getTypePrefix(key types.Type) string {
