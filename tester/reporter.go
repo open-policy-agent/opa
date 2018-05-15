@@ -81,7 +81,7 @@ type JSONReporter struct {
 
 // Report prints the test report to the reporter's output.
 func (r JSONReporter) Report(ch chan *Result) error {
-	results := make([]*Result, 0)
+	var results []*Result
 	for tr := range ch {
 		results = append(results, tr)
 	}
