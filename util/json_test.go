@@ -7,6 +7,7 @@ package util_test
 import (
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"testing"
 
 	"github.com/open-policy-agent/opa/util"
@@ -42,6 +43,57 @@ func TestRoundTrip(t *testing.T) {
 				[]string, map[string]interface{}, map[string]string:
 			default:
 				t.Errorf("unexpected type %T", x)
+			}
+		})
+	}
+}
+
+func TestReference(t *testing.T) {
+	cases := []interface{}{
+		nil,
+		func() interface{} { f := interface{}(nil); return &f }(),
+		1,
+		func() interface{} { f := 1; return &f }(),
+		1.1,
+		func() interface{} { f := 1.1; return &f }(),
+		false,
+		func() interface{} { f := false; return &f }(),
+		[]int{1},
+		&[]int{1},
+		func() interface{} { f := &[]int{1}; return &f }(),
+		[]bool{true},
+		&[]bool{true},
+		func() interface{} { f := &[]bool{true}; return &f }(),
+		[]string{"foo"},
+		&[]string{"foo"},
+		func() interface{} { f := &[]string{"foo"}; return &f }(),
+		map[string]string{"foo": "bar"},
+		&map[string]string{"foo": "bar"},
+		func() interface{} { f := &map[string]string{"foo": "bar"}; return &f }(),
+		struct {
+			F string `json:"foo"`
+			B int    `json:"bar"`
+		}{"x", 32},
+		&struct {
+			F string `json:"foo"`
+			B int    `json:"bar"`
+		}{"x", 32},
+		map[string][]int{
+			"ones": {1, 1, 1},
+		},
+		&map[string][]int{
+			"ones": {1, 1, 1},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(fmt.Sprintf("input %v", tc), func(t *testing.T) {
+			ref := util.Reference(tc)
+			rv := reflect.ValueOf(ref)
+			if rv.Kind() != reflect.Ptr {
+				t.Fatalf("expected pointer, got %v", rv.Kind())
+			}
+			if rv.Elem().Kind() == reflect.Ptr {
+				t.Error("expected non-pointer element")
 			}
 		})
 	}
