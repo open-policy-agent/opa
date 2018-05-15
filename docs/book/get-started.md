@@ -105,7 +105,7 @@ One thing to watch out for in the REPL is that `=` is used both for assigning va
 
 ```ruby
 > pi = 3
-false
+undefined
 > unset pi
 > pi = 3
 > pi
