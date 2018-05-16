@@ -856,9 +856,9 @@ p = [1, 2, 3, 4] { true }`, 200, "")
 	}
 
 	explain := mustUnmarshalTrace(result.Explanation)
-	nexpect := 10
+	nexpect := 11
 
-	if len(explain) != 10 {
+	if len(explain) != nexpect {
 		t.Fatalf("Expected exactly %d events but got %d", nexpect, len(explain))
 	}
 

@@ -78,8 +78,10 @@ func TestPrettyTrace(t *testing.T) {
 
 	expected := `Enter data.test.p = _
 | Eval data.test.p = _
+| Index data.test.p = _ (matched 1 rule)
 | Enter p = true { data.test.q[x]; plus(x, 1, n) }
 | | Eval data.test.q[x]
+| | Index data.test.q[x] (matched 1 rule)
 | | Enter q[x] { x = data.a[_] }
 | | | Eval x = data.a[_]
 | | | Exit q[x] { x = data.a[_] }
@@ -169,8 +171,10 @@ func TestTraceNote(t *testing.T) {
 
 	expected := `Enter data.test.p = _
 | Eval data.test.p = _
+| Index data.test.p = _ (matched 1 rule)
 | Enter p = true { data.test.q[x]; plus(x, 1, n); sprintf("n= %v", [n], __local0__); trace(__local0__) }
 | | Eval data.test.q[x]
+| | Index data.test.q[x] (matched 1 rule)
 | | Enter q[x] { x = data.a[_] }
 | | | Eval x = data.a[_]
 | | | Exit q[x] { x = data.a[_] }
