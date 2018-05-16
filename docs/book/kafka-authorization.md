@@ -95,12 +95,54 @@ Once you have created the file, launch the containers for this tutorial.
 docker-compose --project-name opa-kafka-tutorial up
 ```
 
-The docker-compose.yaml file starts three containers. The Kafka container is started from a Docker image (`openpolicyagent/demo-kafka`) based on the [confluentinc/cp-kafka image on Docker Hub](https://hub.docker.com/r/confluentinc/cp-kafka/). The `openpolicyagent/demo-kafka` image contains a few extra files that simplify the bootstrap process in this tutorial:
-
-* [kafka-authorizer-opa JAR file](https://github.com/open-policy-agent/contrib/tree/master/kafka_authorizer) that implements the [Kafka Authorizer](https://kafka.apache.org/documentation/#security_authz) interface using OPA.
-* Pre-generated TLS certificates that Kafka will use to authenticate clients. These certificates are purely for convenience in the context of this tutorial. For production deployments you must design, implement, and manage _client authentication_ yourself.
-
 Now that the tutorial environment is running, we can define an authorization policy using OPA and test it.
+
+#### Authentication
+
+The Docker Compose file defined above requires **SSL client authentication**
+for clients that connect to the broker. Enabling SSL client authentication
+allows for service identities to be provided as input to your policy. The
+example below shows the input structure.
+
+```json
+{
+  "operation": {
+    "name": "Write",
+  },
+  "resource": {
+    "resourceType": {
+      "name": "Topic",
+    },
+    "name": "credit-scores"
+  },
+  "session": {
+    "principal": {
+      "principalType": "User",
+    },
+    "clientAddress": "172.21.0.5",
+    "sanitizedUser": "CN%3Danon_producer.tutorial.openpolicyagent.org%2COU%3DTUTORIAL%2CO%3DOPA%2CL%3DSF%2CST%3DCA%2CC%3DUS"
+  }
+}
+```
+
+The client identity is extracted from the SSL certificates that clients
+present when they connect to the broker. The client identity information is
+encoded in the `input.session.sanitizedUser` field. This field can be decoded
+inside the policy.
+
+Generating SSL certificates and JKS files required for SSL client
+authentication is outside the scope of this tutorial. To simplify the steps
+below, the Docker Compose file uses an extended version of the
+[confluentinc/cp-kafka](https://hub.docker.com/r/confluentinc/cp-kafka/)
+image from Docker Hub. The extended image includes **pre-generated SSL
+certificates** that the broker and clients use to identify themselves.
+
+Do not rely on these pre-generated SSL certificates in real-world scenarios.
+They are only provided for convenience/test purposes.
+
+#### Kafka Authorizer JAR File
+
+The Kafka image used in this tutorial includes a pre-installed JAR file that implements the [Kafka Authorizer](https://kafka.apache.org/documentation/#security_authz) interface. For more information on the authorizer see [open-policy-agent/contrib/kafka_authorizer](https://github.com/open-policy-agent/contrib/tree/master/kafka_authorizer).
 
 ### 2. Define a policy to restrict consumer access to topics containing Personally Identifiable Information (PII).
 
@@ -200,6 +242,9 @@ others are not.
 
 First, run `kafka-console-producer` to generate some data on the
 `credit-scores` topic.
+
+> This tutorial uses the `kafka-console-producer` and `kafka-console-consumer` scripts to generate and display Kafka messages. These scripts read from STDIN and write to STDOUT and are frequently used to send and receive data via Kafka over the command line. If you are not familiar with these scripts you can learn more in Kafka's [Quick Start](https://kafka.apache.org/documentation/#quickstart) documentation.
+
 
 ```bash
 docker run --rm --network opakafkatutorial_default \
