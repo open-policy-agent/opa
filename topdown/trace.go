@@ -38,6 +38,10 @@ const (
 
 	// NoteOp is emitted when an expression invokes a tracing built-in function.
 	NoteOp Op = "Note"
+
+	// IndexOp is emitted during an expression evaluation to represent lookup
+	// matches.
+	IndexOp Op = "Index"
 )
 
 // Event contains state associated with a tracing event.

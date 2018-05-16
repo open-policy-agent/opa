@@ -103,6 +103,10 @@ func (e *eval) traceSave(x interface{}) {
 	e.traceEvent(SaveOp, x)
 }
 
+func (e *eval) traceIndex(x interface{}) {
+	e.traceEvent(IndexOp, x)
+}
+
 func (e *eval) traceEvent(op Op, x interface{}) {
 
 	if e.tracer == nil || !e.tracer.Enabled() {
@@ -777,7 +781,17 @@ func (e *eval) getRulesIndexed(ref ast.Ref) (*ast.IndexResult, error) {
 	if index == nil {
 		return nil, nil
 	}
-	return index.Lookup(e)
+
+	result, err := index.Lookup(e)
+
+	var msg string
+	if len(result.Rules) == 1 {
+		msg = fmt.Sprintf("%v (matched 1 rule)", e.query[0])
+	} else {
+		msg = fmt.Sprintf("%v (matched %v rules)", e.query[0], len(result.Rules))
+	}
+	e.traceIndex(msg)
+	return result, err
 }
 
 func (e *eval) Resolve(ref ast.Ref) (ast.Value, error) {
