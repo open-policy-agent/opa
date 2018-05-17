@@ -1449,7 +1449,7 @@ func TestQueryWatchMigrateInvalidate(t *testing.T) {
 		t.Fatalf("Expected -200 but got: %v", stream[0].Result[0].Bindings["a"])
 	}
 
-	expMsg := "watch invalidated: 1 error occurred: 1:3: rego_type_error: plus: invalid argument(s)\n\thave: (string, any, ???)\n\twant: (number, number, number)"
+	expMsg := "watch invalidated: 1 error occurred: 1:3: rego_type_error: plus: invalid argument(s)\n\thave: (string, any<...>, ???)\n\twant: (number, number, number)"
 
 	if stream[1].Error.Message != expMsg {
 		t.Fatalf("Unexpected error: %v", stream[1])

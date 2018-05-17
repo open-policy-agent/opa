@@ -643,6 +643,253 @@ func TestCheckBuiltinErrors(t *testing.T) {
 	}
 }
 
+func TestErrorElide(t *testing.T) {
+	RegisterBuiltin(&Builtin{
+		Name: "fake_union_2_sets",
+		Decl: types.NewFunction(
+			types.Args(
+				types.NewSet(types.A),
+				types.NewSet(types.A),
+			),
+			types.NewSet(types.A),
+		),
+	})
+
+	RegisterBuiltin(&Builtin{
+		Name: "fake_union_N_sets",
+		Decl: types.NewFunction(
+			types.Args(
+				types.NewSet(types.NewSet(types.A)),
+			),
+			types.NewSet(types.A),
+		),
+	})
+
+	RegisterBuiltin(&Builtin{
+		Name: "my_fake_builtin_1",
+		Decl: types.NewFunction(
+			types.Args(
+				types.NewObject(nil, types.NewDynamicProperty(types.S, types.S)),
+			),
+			types.NewSet(types.A),
+		),
+	})
+
+	RegisterBuiltin(&Builtin{
+		Name: "my_fake_builtin_2",
+		Decl: types.NewFunction(
+			types.Args(
+				types.NewObject(nil, types.NewDynamicProperty(types.S, types.NewSet(types.S))),
+			),
+			types.NewSet(types.A),
+		),
+	})
+
+	RegisterBuiltin(&Builtin{
+		Name: "my_fake_builtin_3",
+		Decl: types.NewFunction(
+			types.Args(
+				types.NewObject(nil, types.NewDynamicProperty(types.S, types.NewSet(types.NewArray(nil, types.S)))),
+			),
+			types.NewArray(nil, types.A),
+		),
+	})
+
+	RegisterBuiltin(&Builtin{
+		Name: "my_fake_builtin_4",
+		Decl: types.NewFunction(
+			types.Args(
+				types.NewObject(nil, types.NewDynamicProperty(types.S, types.NewSet(types.NewSet(types.NewSet(types.S))))),
+			),
+			types.NewSet(types.A),
+		),
+	})
+
+	RegisterBuiltin(&Builtin{
+		Name: "my_fake_builtin_5",
+		Decl: types.NewFunction(
+			types.Args(
+				types.NewObject(nil, types.NewDynamicProperty(types.S, types.NewObject(nil, types.NewDynamicProperty(types.S, types.NewObject(nil, types.NewDynamicProperty(types.S, types.NewSet(types.S))))))),
+			),
+			types.NewSet(types.A),
+		),
+	})
+
+	RegisterBuiltin(&Builtin{
+		Name: "my_fake_builtin_6",
+		Decl: types.NewFunction(
+			types.Args(
+				types.NewAny(
+					types.NewSet(types.N),
+					types.NewArray(nil, types.N),
+				),
+			),
+			types.NewArray(nil, types.A),
+		),
+	})
+
+	RegisterBuiltin(&Builtin{
+		Name: "my_fake_builtin_7",
+		Decl: types.NewFunction(
+			types.Args(types.N, types.N),
+			types.N,
+		),
+	})
+
+	RegisterBuiltin(&Builtin{
+		Name: "my_fake_builtin_8",
+		Decl: types.NewFunction(
+			types.Args(
+				types.NewAny(
+					types.NewSet(types.N),
+					types.NewArray(nil, types.N),
+					types.NewObject(nil, types.NewDynamicProperty(types.S, types.NewSet(types.NewSet(types.NewSet(types.S))))),
+				),
+			),
+			types.NewArray(nil, types.A),
+		),
+	})
+
+	tests := []struct {
+		note  string
+		query string
+		exp   []string
+	}{
+		{
+			note:  "2-set union",
+			query: "fake_union_2_sets({1, 2}, {\"a\": {3, 4}, \"b\": \"blah\"}, x)",
+			exp:   []string{"have: (set[number], object<...>, ???)", "want: (set[any<...>], set[...], set[...])"},
+		},
+
+		{
+			note:  "N-set union",
+			query: "fake_union_N_sets({1,2, {3,4}}, x)",
+			exp:   []string{"have: (set[any<...>], ???)", "want: (set[set[...]], set[...])"},
+		},
+
+		{
+			note:  "my_fake_builtin_1",
+			query: "my_fake_builtin_1({\"test\": [1,2,3]}, x)",
+			exp:   []string{"have: (object[string:array<...>], ???)", "want: (object[string:string], set[...])"},
+		},
+
+		{
+			note:  "my_fake_builtin_2",
+			query: "my_fake_builtin_2({\"test\": {1,2,3}}, x)",
+			exp:   []string{"have: (object[string:set[number...]], ???)", "want: (object[string:set[string...]], set[...])"},
+		},
+
+		{
+			note:  "my_fake_builtin_3_test1",
+			query: "my_fake_builtin_3({\"test\": {[1,2,3]}}, x)",
+			exp:   []string{"have: (object[string:set[array[number]]], ???)", "want: (object[string:set[array[string]]], array[...])"},
+		},
+
+		{
+			note:  "my_fake_builtin_3_test2",
+			query: "my_fake_builtin_3({\"test\": {1,2,3}}, x)",
+			exp:   []string{"have: (object[string:set[number...]], ???)", "want: (object[string:set[array...]], array[...])"},
+		},
+
+		{
+			note:  "my_fake_builtin_4_test1",
+			query: "my_fake_builtin_4({\"test\": {{{1,2,3}}}}, x)",
+			exp:   []string{"have: (object[string:set[set[set[number...]]]], ???)", "want: (object[string:set[set[set[string...]]]], set[...])"},
+		},
+
+		{
+			note:  "my_fake_builtin_4_test2",
+			query: "my_fake_builtin_4({\"test\": {{1,2,3}}}, x)",
+			exp:   []string{"have: (object[string:set[set[number...]]], ???)", "want: (object[string:set[set[set...]]], set[...])"},
+		},
+
+		{
+			note:  "my_fake_builtin_4_test3",
+			query: "my_fake_builtin_4({\"test\": {1,2,3}}, x)",
+			exp:   []string{"have: (object[string:set[number...]], ???)", "want: (object[string:set[set...]], set[...])"},
+		},
+
+		{
+			note:  "my_fake_builtin_4_test4",
+			query: "my_fake_builtin_4({\"test\": [1,2,3]}, x)",
+			exp:   []string{"have: (object[string:array<...>], ???)", "want: (object[string:set[...]], set[...])"},
+		},
+
+		{
+			note:  "my_fake_builtin_5_test1",
+			query: "my_fake_builtin_5({\"level1\": {\"level2\": {\"level3\": [1,2,3]}}}, x)",
+			exp:   []string{"have: (object[string:object[string:object[string:array<...>]]], ???)", "want: (object[string:object[string:object[string:set[...]]]], set[...])"},
+		},
+
+		{
+			note:  "my_fake_builtin_5_test2",
+			query: "my_fake_builtin_5({\"level1\": {\"level2\": {1,2,3}}}, x)",
+			exp:   []string{"have: (object[string:object[string:set[...]]], ???)", "want: (object[string:object[string:object[...]]], set[...])"},
+		},
+
+		{
+			note:  "my_fake_builtin_5_test3",
+			query: "my_fake_builtin_5({\"level1\": {\"level2\": {\"level3\": {1,2,3}}}}, x)",
+			exp:   []string{"have: (object[string:object[string:object[string:set[number...]]]], ???)", "want: (object[string:object[string:object[string:set[string...]]]], set[...])"},
+		},
+
+		{
+			note:  "my_fake_builtin_6_test1",
+			query: "my_fake_builtin_6({\"test\": {1,2,3}}, x)",
+			exp:   []string{"have: (object<...>, ???)", "want: (any[array[...], set[...]], array[...])"},
+		},
+
+		{
+			note:  "my_fake_builtin_6_test2",
+			query: "my_fake_builtin_6({\"a\"}, x)",
+			exp:   []string{"have: (set[string...], ???)", "want: (set[number...], array[...])"},
+		},
+
+		{
+			note:  "my_fake_builtin_7",
+			query: "my_fake_builtin_7(\"a\", types.A, x)",
+			exp:   []string{"have: (string, any<...>, ???)", "want: (number, number, number)"},
+		},
+
+		{
+			note:  "my_fake_builtin_8_test1",
+			query: "my_fake_builtin_8({\"level1\": {\"level2\": {1,2,3}}}, x)",
+			exp:   []string{"have: (object[string:object<...>], ???)", "want: (object[string:set[...]], array[...])"},
+		},
+
+		{
+			note:  "my_fake_builtin_8_test2",
+			query: "my_fake_builtin_8({\"level1\": {1,2,3}}, x)",
+			exp:   []string{"have: (object[string:set[number...]], ???)", "want: (object[string:set[set...]], array[...])"},
+		},
+
+		{
+			note:  "my_fake_builtin_8_test3",
+			query: "my_fake_builtin_8({\"level1\": {{{1,2,3}}}}, x)",
+			exp:   []string{"have: (object[string:set[set[set[number...]]]], ???)", "want: (object[string:set[set[set[string...]]]], array[...])"},
+		},
+	}
+
+	for _, test := range tests {
+		body := MustParseBody(test.query)
+		tc := newTypeChecker()
+		env := tc.checkLanguageBuiltins()
+		_, err := tc.CheckBody(env, body)
+		if len(err) != 1 || err[0].Code != TypeErr {
+			t.Fatalf("Expected 1 type error from %v but got: %v", body, err)
+		}
+		detail, ok := err[0].Details.(*ArgErrDetail)
+		if !ok {
+			t.Fatalf("Expected argument error details but got: %v", err)
+		}
+
+		if !reflect.DeepEqual(detail.Lines(), test.exp) {
+			t.Fatalf("Expected error details: %v\nActual error details: %v", test.exp, detail.Lines())
+		}
+	}
+
+}
+
 func TestVoidBuiltins(t *testing.T) {
 
 	// Void builtins are used in test cases.

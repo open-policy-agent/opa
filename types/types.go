@@ -520,91 +520,56 @@ func Compare(a, b Type) int {
 	case nil, Null, Boolean, Number, String:
 		return 0
 	case *Array:
-		arrA := a.(*Array)
-		arrB := b.(*Array)
-		if arrA.dynamic != nil && arrB.dynamic == nil {
-			return 1
-		} else if arrB.dynamic != nil && arrA.dynamic == nil {
-			return -1
-		}
-		if arrB.dynamic != nil && arrA.dynamic != nil {
-			if cmp := Compare(arrA.dynamic, arrB.dynamic); cmp != 0 {
-				return cmp
-			}
-		}
-		return typeSliceCompare(arrA.static, arrB.static)
+		return typeArrayCompare(a, b)
 	case *Object:
-		objA := a.(*Object)
-		objB := b.(*Object)
-		if objA.dynamic != nil && objB.dynamic == nil {
-			return 1
-		} else if objB.dynamic != nil && objA.dynamic == nil {
-			return -1
-		}
-		if objA.dynamic != nil && objB.dynamic != nil {
-			if cmp := Compare(objA.dynamic.Key, objB.dynamic.Key); cmp != 0 {
-				return cmp
-			}
-			if cmp := Compare(objA.dynamic.Value, objB.dynamic.Value); cmp != 0 {
-				return cmp
-			}
-		}
-
-		lenStaticA := len(objA.static)
-		lenStaticB := len(objB.static)
-
-		minLen := lenStaticA
-		if lenStaticB < minLen {
-			minLen = lenStaticB
-		}
-
-		for i := 0; i < minLen; i++ {
-			if cmp := util.Compare(objA.static[i].Key, objB.static[i].Key); cmp != 0 {
-				return cmp
-			}
-			if cmp := Compare(objA.static[i].Value, objB.static[i].Value); cmp != 0 {
-				return cmp
-			}
-		}
-
-		if lenStaticA < lenStaticB {
-			return -1
-		} else if lenStaticB < lenStaticA {
-			return 1
-		}
-
-		return 0
+		return typeObjectCompare(a, b)
 	case *Set:
-		setA := a.(*Set)
-		setB := b.(*Set)
-		if setA.of == nil && setB.of == nil {
-			return 0
-		} else if setA.of == nil {
-			return -1
-		} else if setB.of == nil {
-			return 1
-		}
-		return Compare(setA.of, setB.of)
+		return typeSetCompare(a, b)
 	case Any:
-		sl1 := typeSlice(a.(Any))
-		sl2 := typeSlice(b.(Any))
-		sort.Sort(sl1)
-		sort.Sort(sl2)
-		return typeSliceCompare(sl1, sl2)
+		return typeAnyCompare(a, b)
 	case *Function:
-		fA := a.(*Function)
-		fB := b.(*Function)
-		if len(fA.args) < len(fB.args) {
-			return -1
-		} else if len(fA.args) > len(fB.args) {
-			return 1
-		}
-		for i := 0; i < len(fA.args); i++ {
-			if cmp := Compare(fA.args[i], fB.args[i]); cmp != 0 {
-				return cmp
-			}
-		}
-		return Compare(fA.result, fB.result)
+		return typeFunctionCompare(a, b)
+	default:
+		panic("unreachable")
+	}
+}
+
+// CompareTypeDiff compares the given inputs and returns the topmost
+// differing types between the inputs
+func CompareTypeDiff(a, b Type) ([]Type, []Type) {
+
+	result1 := []Type{}
+	result2 := []Type{}
+	compareHelper(a, b, &result1, &result2)
+	return result1, result2
+}
+
+func compareHelper(a, b Type, haves *[]Type, wants *[]Type) int {
+	x := typeOrder(a)
+	y := typeOrder(b)
+
+	*haves = append(*haves, a)
+	*wants = append(*wants, b)
+
+	if x > y {
+		return 1
+	} else if x < y {
+		return -1
+	}
+
+	switch a.(type) {
+	case nil, Null, Boolean, Number, String:
+		return 0
+	case *Array:
+		return typeArrayCompare(a, b, haves, wants)
+	case *Object:
+		return typeObjectCompare(a, b, haves, wants)
+	case *Set:
+		return typeSetCompare(a, b, haves, wants)
+	case Any:
+		return typeAnyCompare(a, b, haves, wants)
+	case *Function:
+		return typeFunctionCompare(a, b, haves, wants)
 	default:
 		panic("unreachable")
 	}
@@ -816,22 +781,203 @@ func TypeOf(x interface{}) Type {
 	panic("unreachable")
 }
 
+// FormatTypeKeyElide returns a string represenation of the given type
+// with the fields elided
+func FormatTypeKeyElide(t Type) string {
+	switch t := t.(type) {
+	case *Object:
+		prefix := "object"
+		if len(t.static) > 0 {
+			prefix += "<...>"
+		}
+		if t.dynamic != nil {
+			prefix += "[...]"
+		}
+		return prefix
+	case *Array:
+		prefix := "array"
+		if len(t.static) > 0 {
+			prefix += "<...>"
+		}
+		if t.dynamic != nil {
+			prefix += "[...]"
+		}
+		return prefix
+	case *Set:
+		return "set[...]"
+	case Any:
+		return "any<...>"
+	default:
+		return Sprint(t)
+	}
+}
+
 type typeSlice []Type
 
 func (s typeSlice) Less(i, j int) bool { return Compare(s[i], s[j]) < 0 }
 func (s typeSlice) Swap(i, j int)      { x := s[i]; s[i] = s[j]; s[j] = x }
 func (s typeSlice) Len() int           { return len(s) }
 
-func typeSliceCompare(a, b []Type) int {
+func typeArrayCompare(a, b Type, args ...*[]Type) int {
+	arrA := a.(*Array)
+	arrB := b.(*Array)
+	if arrA.dynamic != nil && arrB.dynamic == nil {
+		return 1
+	} else if arrB.dynamic != nil && arrA.dynamic == nil {
+		return -1
+	}
+	if arrB.dynamic != nil && arrA.dynamic != nil {
+		if len(args) > 0 {
+			if cmp := compareHelper(arrA.dynamic, arrB.dynamic, args[0], args[1]); cmp != 0 {
+				return cmp
+			}
+		} else {
+			if cmp := Compare(arrA.dynamic, arrB.dynamic); cmp != 0 {
+				return cmp
+			}
+		}
+	}
+
+	if len(args) > 0 {
+		return typeSliceCompare(arrA.static, arrB.static, args[0], args[1])
+	}
+	return typeSliceCompare(arrA.static, arrB.static)
+
+}
+
+func typeSetCompare(a, b Type, args ...*[]Type) int {
+	setA := a.(*Set)
+	setB := b.(*Set)
+	if setA.of == nil && setB.of == nil {
+		return 0
+	} else if setA.of == nil {
+		return -1
+	} else if setB.of == nil {
+		return 1
+	}
+
+	if len(args) > 0 {
+		return compareHelper(setA.of, setB.of, args[0], args[1])
+	}
+	return Compare(setA.of, setB.of)
+}
+
+func typeAnyCompare(a, b Type, args ...*[]Type) int {
+	sl1 := typeSlice(a.(Any))
+	sl2 := typeSlice(b.(Any))
+	sort.Sort(sl1)
+	sort.Sort(sl2)
+
+	if len(args) > 0 {
+		return typeSliceCompare(sl1, sl2, args[0], args[1])
+	}
+	return typeSliceCompare(sl1, sl2)
+}
+
+func typeObjectCompare(a, b Type, args ...*[]Type) int {
+	objA := a.(*Object)
+	objB := b.(*Object)
+	if objA.dynamic != nil && objB.dynamic == nil {
+		return 1
+	} else if objB.dynamic != nil && objA.dynamic == nil {
+		return -1
+	}
+	if objA.dynamic != nil && objB.dynamic != nil {
+		if len(args) > 0 {
+			if cmp := compareHelper(objA.dynamic.Key, objB.dynamic.Key, args[0], args[1]); cmp != 0 {
+				return cmp
+			}
+			if cmp := compareHelper(objA.dynamic.Value, objB.dynamic.Value, args[0], args[1]); cmp != 0 {
+				return cmp
+			}
+		} else {
+			if cmp := Compare(objA.dynamic.Key, objB.dynamic.Key); cmp != 0 {
+				return cmp
+			}
+			if cmp := Compare(objA.dynamic.Value, objB.dynamic.Value); cmp != 0 {
+				return cmp
+			}
+		}
+	}
+
+	lenStaticA := len(objA.static)
+	lenStaticB := len(objB.static)
+
+	minLen := lenStaticA
+	if lenStaticB < minLen {
+		minLen = lenStaticB
+	}
+
+	for i := 0; i < minLen; i++ {
+		if cmp := util.Compare(objA.static[i].Key, objB.static[i].Key); cmp != 0 {
+			return cmp
+		}
+
+		if len(args) > 0 {
+			if cmp := compareHelper(objA.static[i].Value, objB.static[i].Value, args[0], args[1]); cmp != 0 {
+				return cmp
+			}
+		} else {
+			if cmp := Compare(objA.static[i].Value, objB.static[i].Value); cmp != 0 {
+				return cmp
+			}
+		}
+
+	}
+
+	if lenStaticA < lenStaticB {
+		return -1
+	} else if lenStaticB < lenStaticA {
+		return 1
+	}
+
+	return 0
+}
+
+func typeFunctionCompare(a, b Type, args ...*[]Type) int {
+	fA := a.(*Function)
+	fB := b.(*Function)
+	if len(fA.args) < len(fB.args) {
+		return -1
+	} else if len(fA.args) > len(fB.args) {
+		return 1
+	}
+	for i := 0; i < len(fA.args); i++ {
+		if len(args) > 0 {
+			if cmp := compareHelper(fA.args[i], fB.args[i], args[0], args[1]); cmp != 0 {
+				return cmp
+			}
+		} else {
+			if cmp := Compare(fA.args[i], fB.args[i]); cmp != 0 {
+				return cmp
+			}
+		}
+	}
+
+	if len(args) > 0 {
+		return compareHelper(fA.result, fB.result, args[0], args[1])
+	}
+	return Compare(fA.result, fB.result)
+}
+
+func typeSliceCompare(a, b []Type, args ...*[]Type) int {
 	minLen := len(a)
 	if len(b) < minLen {
 		minLen = len(b)
 	}
+
 	for i := 0; i < minLen; i++ {
-		if cmp := Compare(a[i], b[i]); cmp != 0 {
-			return cmp
+		if len(args) > 0 {
+			if cmp := compareHelper(a[i], b[i], args[0], args[1]); cmp != 0 {
+				return cmp
+			}
+		} else {
+			if cmp := Compare(a[i], b[i]); cmp != 0 {
+				return cmp
+			}
 		}
 	}
+
 	if len(a) < len(b) {
 		return -1
 	} else if len(b) < len(a) {
