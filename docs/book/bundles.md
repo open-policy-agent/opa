@@ -28,7 +28,7 @@ services:
     url: https://example.com/
     credentials:
       bearer:
-        token: "Bearer <base64 encoded string>"
+        token: "bearer token secret value (e.g., a base64 encoded string)"
 bundle:
   name: http/example/authz
   service: acmecorp
@@ -51,6 +51,7 @@ services:
     headers: object
     credentials:
       bearer:
+        scheme: string
         token: string
 bundle:
   name: string
@@ -60,15 +61,15 @@ bundle:
     max_delay_seconds: number
 ```
 
-Most fields in the configuration are optional, however, to enable bundle
-downloading, you must set the following fields:
-
-| Field | Description |
-| --- | --- |
-| `services[_].name` | Unique name for the service. Referred to by plugins. |
-| `services[_].url` | Base URL to contact the service with. |
-| `bundle.name` | Name of the bundle to download. |
-| `bundle.service` | Name of service to use to contact remote server. |
+| Field | Required | Description |
+| --- | --- | --- |
+| `services[_].name` | Yes | Unique name for the service. Referred to by plugins. |
+| `services[_].url` | Yes | Base URL to contact the service with. |
+| `services[_].headers` | No | HTTP headers to include in requests to the service. |
+| `services[_].credentials.bearer.token` | No | Enables token-based authentication and supplies the bearer token to authenticate with. |
+| `services[_].credentials.bearer.scheme` | No (default: `"Bearer"`) | Bearer token scheme to specify. |
+| `bundle.name` | Yes | Name of the bundle to download. |
+| `bundle.service` | Yes | Name of service to use to contact remote server. |
 
 ## Bundle Service API
 
