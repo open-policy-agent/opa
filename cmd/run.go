@@ -123,7 +123,7 @@ the data document with the following syntax:
 	runCommand.Flags().StringVarP(&params.ConfigFile, "config-file", "c", "", "set path of configuration file")
 	runCommand.Flags().BoolVarP(&serverMode, "server", "s", false, "start the runtime in server mode")
 	runCommand.Flags().StringVarP(&params.HistoryPath, "history", "H", historyPath(), "set path of history file")
-	runCommand.Flags().StringVarP(&params.Addr, "addr", "a", defaultAddr, "set listening address of the server")
+	runCommand.Flags().StringVarP(&params.Addr, "addr", "a", defaultAddr, "set listening address of the server. Takes either the <IP>:<Port> format, or a URL such as unix:///path/to/domain/socket for UNIX domain sockets")
 	runCommand.Flags().StringVarP(&params.InsecureAddr, "insecure-addr", "", "", "set insecure listening address of the server")
 	runCommand.Flags().StringVarP(&params.OutputFormat, "format", "f", "pretty", "set shell output format, i.e, pretty, json")
 	runCommand.Flags().BoolVarP(&params.Watch, "watch", "w", false, "watch command line files for changes")
