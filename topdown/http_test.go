@@ -72,11 +72,6 @@ func TestHTTPGetRequest(t *testing.T) {
 // TestHTTPostRequest adds a new person
 func TestHTTPostRequest(t *testing.T) {
 
-	var people []Person
-
-	// test data
-	people = append(people, Person{ID: "1", Firstname: "John"})
-
 	// test server
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
@@ -91,26 +86,18 @@ func TestHTTPostRequest(t *testing.T) {
 			return
 		}
 
-		// create new person
-		people = append(people, Person{ID: person.ID, Firstname: person.Firstname})
-
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(people)
+		json.NewEncoder(w).Encode(person)
 	}))
 
 	defer ts.Close()
 
 	// expected result
-	expectedResult := make(map[string]interface{})
-	expectedResult["status"] = "200 OK"
-	expectedResult["status_code"] = http.StatusOK
-
-	var body []interface{}
-	bodyMap1 := map[string]string{"id": "1", "firstname": "John"}
-	bodyMap2 := map[string]string{"id": "2", "firstname": "Joe"}
-	body = append(body, bodyMap1)
-	body = append(body, bodyMap2)
-	expectedResult["body"] = body
+	expectedResult := map[string]interface{}{
+		"status":      "200 OK",
+		"status_code": http.StatusOK,
+		"body":        map[string]string{"id": "2", "firstname": "Joe"},
+	}
 
 	resultObj, err := ast.InterfaceToValue(expectedResult)
 	if err != nil {

@@ -2738,8 +2738,9 @@ func assertTopDownWithPath(t *testing.T, compiler *ast.Compiler, store storage.S
 	}
 
 	rhs := ast.VarTerm(ast.WildcardPrefix + "result")
+	body := ast.NewBody(ast.Equality.Expr(lhs, rhs))
 
-	query := NewQuery(ast.NewBody(ast.Equality.Expr(lhs, rhs))).
+	query := NewQuery(body).
 		WithCompiler(compiler).
 		WithStore(store).
 		WithTransaction(txn).
@@ -2791,9 +2792,15 @@ func assertTopDownWithPath(t *testing.T, compiler *ast.Compiler, store storage.S
 				t.Fatal(err)
 			}
 
-			expected := util.MustUnmarshalJSON([]byte(e))
+			var requiresSort bool
 
 			if rules := compiler.GetRulesExact(lhs.Value.(ast.Ref)); len(rules) > 0 && rules[0].Head.DocKind() == ast.PartialSetDoc {
+				requiresSort = true
+			}
+
+			expected := util.MustUnmarshalJSON([]byte(e))
+
+			if requiresSort {
 				sort.Sort(resultSet(result.([]interface{})))
 				if sl, ok := expected.([]interface{}); ok {
 					sort.Sort(resultSet(sl))
@@ -2803,8 +2810,83 @@ func assertTopDownWithPath(t *testing.T, compiler *ast.Compiler, store storage.S
 			if util.Compare(expected, result) != 0 {
 				t.Fatalf("Unexpected result:\nGot: %v\nExp:\n%v", result, expected)
 			}
+
+			// If the test case involved the input document, re-run it with partial
+			// evaluation enabled and input marked as unknown. Then replay the query and
+			// verify the partial evaluation result is the same. Note, we cannot evaluate
+			// the result of a query against `data` because the queries need to be
+			// converted into rules (which would result in recursion.)
+			if len(path) > 0 {
+				runTopDownPartialTestCase(ctx, t, compiler, store, txn, inputTerm, rhs, body, requiresSort, expected)
+			}
 		}
 	})
+}
+
+func runTopDownPartialTestCase(ctx context.Context, t *testing.T, compiler *ast.Compiler, store storage.Store, txn storage.Transaction, input *ast.Term, output *ast.Term, body ast.Body, requiresSort bool, expected interface{}) {
+
+	partialQuery := NewQuery(body).
+		WithCompiler(compiler).
+		WithStore(store).
+		WithUnknowns([]*ast.Term{ast.MustParseTerm("input")}).
+		WithTransaction(txn)
+
+	partials, support, err := partialQuery.PartialRun(ctx)
+
+	if err != nil {
+		t.Fatal("Unexpected error on partial evaluation comparison:", err)
+	}
+
+	module := ast.MustParseModule("package topdown_test_partial")
+	module.Rules = make([]*ast.Rule, len(partials))
+	for i, body := range partials {
+		module.Rules[i] = &ast.Rule{
+			Head:   ast.NewHead(ast.Var("__result__"), nil, output),
+			Body:   body,
+			Module: module,
+		}
+	}
+
+	compiler.Modules["topdown_test_partial"] = module
+	for i, module := range support {
+		compiler.Modules[fmt.Sprintf("topdown_test_support_%d", i)] = module
+	}
+
+	compiler.Compile(compiler.Modules)
+	if compiler.Failed() {
+		t.Fatal("Unexpected error on partial evaluation result compile:", compiler.Errors)
+	}
+
+	query := NewQuery(ast.MustParseBody("data.topdown_test_partial.__result__ = x")).
+		WithCompiler(compiler).
+		WithStore(store).
+		WithTransaction(txn).
+		WithInput(input)
+
+	qrs, err := query.Run(ctx)
+	if err != nil {
+		t.Fatal("Unexpected error on query after partial evaluation:", err)
+	}
+
+	if len(qrs) == 0 {
+		t.Fatalf("Expected %v but got undefined from query after partial evaluation", expected)
+	}
+
+	result, err := ast.JSON(qrs[0][ast.Var("x")].Value)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if requiresSort {
+		sort.Sort(resultSet(result.([]interface{})))
+		if sl, ok := expected.([]interface{}); ok {
+			sort.Sort(resultSet(sl))
+		}
+	}
+
+	if util.Compare(expected, result) != 0 {
+		t.Fatalf("Unexpected result after partial evaluation:\nGot:\n%v\nExp:\n%v", result, expected)
+	}
 }
 
 type resultSet []interface{}
