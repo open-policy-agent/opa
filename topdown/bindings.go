@@ -95,12 +95,7 @@ func (u *bindings) plugNamespaced(a *ast.Term, caller *bindings) *ast.Term {
 		if a != b || u != next {
 			return next.plugNamespaced(b, caller)
 		}
-		if caller != nil && caller != u {
-			if name, ok := b.Value.(ast.Var); ok {
-				return ast.NewTerm(ast.Var(string(name) + fmt.Sprint(u.id)))
-			}
-		}
-		return b
+		return u.namespaceVar(b, caller)
 	case ast.Array:
 		cpy := *a
 		arr := make(ast.Array, len(v))
@@ -127,7 +122,7 @@ func (u *bindings) plugNamespaced(a *ast.Term, caller *bindings) *ast.Term {
 	case ast.Ref:
 		cpy := *a
 		ref := make(ast.Ref, len(v))
-		ref[0] = v[0]
+		ref[0] = u.namespaceVar(v[0], caller)
 		for i := 1; i < len(ref); i++ {
 			ref[i] = u.plugNamespaced(v[i], caller)
 		}
@@ -181,7 +176,8 @@ func (u *bindings) plugExpr(expr *ast.Expr, caller *bindings) *ast.Expr {
 		cpy.Terms = u.plugNamespaced(terms, caller)
 	case []*ast.Term:
 		sl := make([]*ast.Term, len(terms))
-		for i := 0; i < len(sl); i++ {
+		sl[0] = terms[0]
+		for i := 1; i < len(sl); i++ {
 			sl[i] = u.plugNamespaced(terms[i], caller)
 		}
 		cpy.Terms = sl
@@ -243,6 +239,21 @@ func (u *bindings) String() string {
 		return false
 	})
 	return fmt.Sprintf("({%v}, %v)", strings.Join(buf, ", "), u.id)
+}
+
+func (u *bindings) namespaceVar(v *ast.Term, caller *bindings) *ast.Term {
+	name, ok := v.Value.(ast.Var)
+	if !ok {
+		panic("illegal value")
+	}
+	if caller != nil && caller != u {
+		// Root documents (i.e., data, input) should never be namespaced because they
+		// are globally unique.
+		if !ast.RootDocumentNames.Contains(v) {
+			return ast.NewTerm(ast.Var(string(name) + fmt.Sprint(u.id)))
+		}
+	}
+	return v
 }
 
 type value struct {
