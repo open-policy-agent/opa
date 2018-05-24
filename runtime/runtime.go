@@ -247,7 +247,12 @@ func (rt *Runtime) StartServer(ctx context.Context) {
 
 	s.Handler = NewLoggingHandler(s.Handler)
 
-	loop1, loop2 := s.Listeners()
+	loop1, loop2, err := s.Listeners()
+	if err != nil {
+		fmt.Println(rt.Params.Output, "error creating listener:", err)
+		os.Exit(1)
+	}
+
 	if loop2 != nil {
 		go func() {
 			if err := loop2(); err != nil {
