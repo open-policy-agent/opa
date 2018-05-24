@@ -14,6 +14,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httputil"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -282,7 +283,7 @@ func (s *Server) WithDecisionIDFactory(f func() string) *Server {
 }
 
 // Listeners returns functions that listen and serve connections.
-func (s *Server) Listeners() (func() error, func() error) {
+func (s *Server) Listeners() (func() error, func() error, error) {
 	parsedURL, err := url.Parse(s.addr)
 
 	// url.Parse won't necessarily return an error if there isn't a scheme
@@ -298,7 +299,7 @@ func (s *Server) Listeners() (func() error, func() error) {
 	loop1 := func() error { return server1.ListenAndServe() }
 
 	if s.cert == nil {
-		return loop1, nil
+		return loop1, nil, nil
 	}
 
 	server2 := http.Server{
@@ -312,36 +313,34 @@ func (s *Server) Listeners() (func() error, func() error) {
 	loop2 := func() error { return server2.ListenAndServeTLS("", "") }
 
 	if s.insecureAddr == "" {
-		return loop2, nil
+		return loop2, nil, nil
 	}
 
 	server1.Addr = s.insecureAddr
 
-	return loop2, loop1
+	return loop2, loop1, nil
 }
 
-// Listeners returns functions that listen and serve connections.
-func (s *Server) getListenerFromURL(u *url.URL) (func() error, func() error) {
+func (s *Server) getListenerFromURL(u *url.URL) (func() error, func() error, error) {
 	// Right now only unix is supported. When more schemes are supported this
 	// function will need to be refactored.
 	if u.Scheme != "unix" {
-		panic(fmt.Sprintf("The scheme \"%s\" in the provided URL isn't usable for the \"--addr\" option", u.Scheme))
+		return nil, nil, fmt.Errorf("invalid url scheme %q", u.Scheme)
 	}
 
-	domainSocketServer := http.Server{
-		Handler: s.Handler,
-	}
+	// Remove domain socket file in case it already exists.
+	os.Remove(u.Path)
 
+	domainSocketServer := http.Server{Handler: s.Handler}
 	socketPath := u.Host + u.Path
 	unixListener, err := net.Listen("unix", socketPath)
-
 	if err != nil {
-		panic(err)
+		return nil, nil, err
 	}
 
 	domainSocketLoop := func() error { return domainSocketServer.Serve(unixListener) }
 
-	return domainSocketLoop, nil
+	return domainSocketLoop, nil, nil
 }
 
 func (s *Server) execQuery(ctx context.Context, r *http.Request, query string, input ast.Value, explainMode types.ExplainModeV1, includeMetrics, includeInstrumentation, pretty bool) (results types.QueryResponseV1, err error) {
