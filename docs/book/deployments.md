@@ -80,9 +80,7 @@ file system as command line arguments. When running inside Docker, you can
 provide files via volume mounts.
 
 ```bash
-docker run -v $PWD/example:/example openpolicyagent/opa \
-    run -e 'data.example.greeting' \
-    /example
+docker run -v $PWD:/example openpolicyagent/opa eval --data /example 'data.example.greeting'
 ```
 
 **$PWD/example/[data.json](https://github.com/open-policy-agent/opa/docs/book/tutorials/deployments-docker/example/data.json)**:
