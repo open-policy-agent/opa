@@ -247,24 +247,24 @@ func (rt *Runtime) StartServer(ctx context.Context) {
 
 	s.Handler = NewLoggingHandler(s.Handler)
 
-	loop1, loop2, err := s.Listeners()
+	loops, err := s.Listeners()
 	if err != nil {
 		fmt.Println(rt.Params.Output, "error creating listener:", err)
 		os.Exit(1)
 	}
 
-	if loop2 != nil {
-		go func() {
-			if err := loop2(); err != nil {
-				logrus.WithField("err", err).Fatalf("Server exiting.")
-			}
-		}()
+	errc := make(chan error)
+	for _, loop := range loops {
+		go func(serverLoop func() error) {
+			errc <- serverLoop()
+		}(loop)
 	}
-
-	if err := loop1(); err != nil {
-		logrus.WithField("err", err).Fatalf("Server exiting.")
+	for {
+		select {
+		case err := <-errc:
+			logrus.WithField("err", err).Fatal("Listener failed")
+		}
 	}
-
 }
 
 // StartREPL starts the runtime in REPL mode. This function will block the calling goroutine.
