@@ -331,11 +331,12 @@ func (s *Server) getListenerFromURL(u *url.URL) ([]Loop, error) {
 		return nil, fmt.Errorf("invalid url scheme %q", u.Scheme)
 	}
 
+	socketPath := u.Host + u.Path
+
 	// Remove domain socket file in case it already exists.
-	os.Remove(u.Path)
+	os.Remove(socketPath)
 
 	domainSocketServer := http.Server{Handler: s.Handler}
-	socketPath := u.Host + u.Path
 	unixListener, err := net.Listen("unix", socketPath)
 	if err != nil {
 		return nil, err
