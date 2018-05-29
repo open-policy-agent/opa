@@ -262,7 +262,7 @@ func (rt *Runtime) StartServer(ctx context.Context) {
 	for {
 		select {
 		case err := <-errc:
-			logrus.WithField("err", err).Fatal("Listener failed")
+			logrus.WithField("err", err).Fatal("Listener failed.")
 		}
 	}
 }
