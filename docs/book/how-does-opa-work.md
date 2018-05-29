@@ -393,7 +393,7 @@ violations[server] {
     # ...and any of the server’s protocols is HTTP
     server.protocols[_] = "http"
     # ...and the server is public.
-    public_servers[server] = true
+    public_servers[server]
 }
 
 # A server exists in the public_servers set if...
