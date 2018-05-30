@@ -98,6 +98,8 @@ var DefaultBuiltins = [...]*Builtin{
 	Base64UrlDecode,
 	URLQueryDecode,
 	URLQueryEncode,
+	URLQueryFromJSON,
+	URLGenerate,
 	YAMLMarshal,
 	YAMLUnmarshal,
 
@@ -716,6 +718,28 @@ var URLQueryEncode = &Builtin{
 	Name: "urlquery.encode",
 	Decl: types.NewFunction(
 		types.Args(types.S),
+		types.S,
+	),
+}
+
+// URLQueryFromJSON encodes the given JSON into a URL encoded query string
+var URLQueryFromJSON = &Builtin{
+	Name: "urlquery.fromjson",
+	Decl: types.NewFunction(
+		types.Args(types.A),
+		types.S,
+	),
+}
+
+// URLQueryFromJSON takes a host and a path and a list of query arguments in JSON format and encodes it into a string
+var URLGenerate = &Builtin{
+	Name: "url.generate",
+	Decl: types.NewFunction(
+		types.Args(
+			types.S,
+			types.S,
+			types.A,
+		),
 		types.S,
 	),
 }
