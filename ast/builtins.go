@@ -731,7 +731,7 @@ var URLQueryFromJSON = &Builtin{
 	),
 }
 
-// URLQueryFromJSON takes a host and a path and a list of query arguments in JSON format and encodes it into a string
+// URLGenerate takes a host and a path and a list of query arguments in JSON format and encodes it into a string
 var URLGenerate = &Builtin{
 	Name: "url.generate",
 	Decl: types.NewFunction(
