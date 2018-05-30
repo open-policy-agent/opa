@@ -1459,7 +1459,7 @@ func TestQueryWatchMigrateInvalidate(t *testing.T) {
 func TestDiagnostics(t *testing.T) {
 	f := newFixture(t)
 	f.server, _ = New().
-		WithAddress(":8182").
+		WithAddresses([]string{":8182"}).
 		WithStore(f.server.store).
 		WithManager(f.server.manager).
 		WithDiagnosticsBuffer(NewBoundedBuffer(8)).
@@ -2080,7 +2080,7 @@ func TestAuthorization(t *testing.T) {
 	}
 
 	server, err := New().
-		WithAddress(":8182").
+		WithAddresses([]string{":8182"}).
 		WithStore(store).
 		WithManager(m).
 		WithAuthorization(AuthorizationBasic).
@@ -2222,7 +2222,7 @@ func TestQueryBindingIterationError(t *testing.T) {
 		panic(err)
 	}
 
-	server, err := New().WithStore(mock).WithManager(m).WithAddress(":8182").Init(ctx)
+	server, err := New().WithStore(mock).WithManager(m).WithAddresses([]string{":8182"}).Init(ctx)
 	if err != nil {
 		panic(err)
 	}
@@ -2271,7 +2271,7 @@ func newFixture(t *testing.T) *fixture {
 	}
 
 	server, err := New().
-		WithAddress(":8182").
+		WithAddresses([]string{":8182"}).
 		WithStore(store).
 		WithManager(m).
 		Init(ctx)

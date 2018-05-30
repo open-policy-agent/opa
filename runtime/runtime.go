@@ -64,8 +64,8 @@ type Params struct {
 	// the runtime will generate one.
 	ID string
 
-	// Addr is the listening address that the OPA server will bind to.
-	Addr string
+	// Addrs are the listening addresses that the OPA server will bind to.
+	Addrs *[]string
 
 	// InsecureAddr is the listening address that the OPA server will bind to
 	// in addition to Addr if TLS is enabled.
@@ -212,7 +212,7 @@ func (rt *Runtime) StartServer(ctx context.Context) {
 	setupLogging(rt.Params.Logging)
 
 	logrus.WithFields(logrus.Fields{
-		"addr":          rt.Params.Addr,
+		"addrs":         *rt.Params.Addrs,
 		"insecure_addr": rt.Params.InsecureAddr,
 	}).Infof("First line of log stream.")
 
@@ -224,7 +224,7 @@ func (rt *Runtime) StartServer(ctx context.Context) {
 		WithStore(rt.Store).
 		WithManager(rt.Manager).
 		WithCompilerErrorLimit(rt.Params.ErrorLimit).
-		WithAddress(rt.Params.Addr).
+		WithAddresses(*rt.Params.Addrs).
 		WithInsecureAddress(rt.Params.InsecureAddr).
 		WithCertificate(rt.Params.Certificate).
 		WithAuthentication(rt.Params.Authentication).

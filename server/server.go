@@ -79,7 +79,7 @@ var systemMainPath = ast.MustParseRef("data.system.main")
 type Server struct {
 	Handler http.Handler
 
-	addr              string
+	addrs             []string
 	insecureAddr      string
 	authentication    AuthenticationScheme
 	authorization     AuthorizationScheme
@@ -218,9 +218,9 @@ func (s *Server) Init(ctx context.Context) (*Server, error) {
 	return s, s.store.Commit(ctx, txn)
 }
 
-// WithAddress sets the listening address that the server will bind to.
-func (s *Server) WithAddress(addr string) *Server {
-	s.addr = addr
+// WithAddresses sets the listening addresses that the server will bind to.
+func (s *Server) WithAddresses(addrs []string) *Server {
+	s.addrs = addrs
 	return s
 }
 
@@ -287,26 +287,36 @@ func (s *Server) WithDecisionIDFactory(f func() string) *Server {
 
 // Listeners returns functions that listen and serve connections.
 func (s *Server) Listeners() ([]Loop, error) {
-	if !strings.Contains(s.addr, "://") {
-		scheme := "http://"
-		if s.cert != nil {
-			scheme = "https://"
+	loops := []Loop{}
+	for _, addr := range s.addrs {
+		if !strings.Contains(addr, "://") {
+			scheme := "http://"
+			if s.cert != nil {
+				scheme = "https://"
+			}
+			addr = scheme + addr
 		}
-		s.addr = scheme + s.addr
-	}
-	parsedURL, err := url.Parse(s.addr)
+		parsedURL, err := url.Parse(addr)
 
-	if err != nil {
-		return nil, err
-	}
-	switch parsedURL.Scheme {
-	case "unix":
-		return s.getListenerForUNIXSocket(parsedURL)
-	case "http", "https":
-		return s.getListenerForHTTPServer(parsedURL)
-	}
+		if err != nil {
+			return nil, err
+		}
+		returnedLoops := []Loop{}
+		switch parsedURL.Scheme {
+		case "unix":
+			returnedLoops, err = s.getListenerForUNIXSocket(parsedURL)
+		case "http", "https":
+			returnedLoops, err = s.getListenerForHTTPServer(parsedURL)
+		default:
+			return nil, fmt.Errorf("invalid url scheme %q", parsedURL.Scheme)
+		}
 
-	return nil, fmt.Errorf("invalid url scheme %q", parsedURL.Scheme)
+		if err != nil {
+			return nil, err
+		}
+		loops = append(loops, returnedLoops...)
+	}
+	return loops, nil
 }
 
 func (s *Server) getListenerForHTTPServer(u *url.URL) ([]Loop, error) {
