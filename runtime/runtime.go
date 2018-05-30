@@ -240,8 +240,7 @@ func (rt *Runtime) StartServer(ctx context.Context) {
 
 	if rt.Params.Watch {
 		if err := rt.startWatcher(ctx, rt.Params.Paths, onReloadLogger); err != nil {
-			fmt.Fprintln(rt.Params.Output, "error opening watch:", err)
-			os.Exit(1)
+			logrus.WithField("err", err).Fatalf("Unable to open watch.")
 		}
 	}
 
@@ -249,8 +248,7 @@ func (rt *Runtime) StartServer(ctx context.Context) {
 
 	loops, err := s.Listeners()
 	if err != nil {
-		fmt.Println(rt.Params.Output, "error creating listener:", err)
-		os.Exit(1)
+		logrus.WithField("err", err).Fatalf("Unable to create listeners.")
 	}
 
 	errc := make(chan error)

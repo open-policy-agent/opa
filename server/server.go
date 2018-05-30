@@ -289,37 +289,43 @@ func (s *Server) WithDecisionIDFactory(f func() string) *Server {
 func (s *Server) Listeners() ([]Loop, error) {
 	loops := []Loop{}
 	for _, addr := range s.addrs {
-		if !strings.Contains(addr, "://") {
-			scheme := "http://"
-			if s.cert != nil {
-				scheme = "https://"
-			}
-			addr = scheme + addr
-		}
-		parsedURL, err := url.Parse(addr)
-
+		parsedURL, err := parseURL(addr, s.cert != nil)
 		if err != nil {
 			return nil, err
 		}
-		returnedLoops := []Loop{}
+		var loop Loop
 		switch parsedURL.Scheme {
 		case "unix":
-			returnedLoops, err = s.getListenerForUNIXSocket(parsedURL)
-		case "http", "https":
-			returnedLoops, err = s.getListenerForHTTPServer(parsedURL)
+			loop, err = s.getListenerForUNIXSocket(parsedURL)
+		case "http":
+			loop, err = s.getListenerForHTTPServer(parsedURL)
+		case "https":
+			loop, err = s.getListenerForHTTPSServer(parsedURL)
 		default:
-			return nil, fmt.Errorf("invalid url scheme %q", parsedURL.Scheme)
+			err = fmt.Errorf("invalid url scheme %q", parsedURL.Scheme)
 		}
-
 		if err != nil {
 			return nil, err
 		}
-		loops = append(loops, returnedLoops...)
+		loops = append(loops, loop)
 	}
+
+	if s.insecureAddr != "" {
+		parsedURL, err := parseURL(s.insecureAddr, false)
+		if err != nil {
+			return nil, err
+		}
+		loop, err := s.getListenerForHTTPServer(parsedURL)
+		if err != nil {
+			return nil, err
+		}
+		loops = append(loops, loop)
+	}
+
 	return loops, nil
 }
 
-func (s *Server) getListenerForHTTPServer(u *url.URL) ([]Loop, error) {
+func (s *Server) getListenerForHTTPServer(u *url.URL) (Loop, error) {
 	httpServer := http.Server{
 		Addr:    u.Host,
 		Handler: s.Handler,
@@ -327,8 +333,13 @@ func (s *Server) getListenerForHTTPServer(u *url.URL) ([]Loop, error) {
 
 	httpLoop := func() error { return httpServer.ListenAndServe() }
 
+	return httpLoop, nil
+}
+
+func (s *Server) getListenerForHTTPSServer(u *url.URL) (Loop, error) {
+
 	if s.cert == nil {
-		return []Loop{httpLoop}, nil
+		return nil, fmt.Errorf("TLS certificate required but not supplied")
 	}
 
 	httpsServer := http.Server{
@@ -341,16 +352,10 @@ func (s *Server) getListenerForHTTPServer(u *url.URL) ([]Loop, error) {
 
 	httpsLoop := func() error { return httpsServer.ListenAndServeTLS("", "") }
 
-	if s.insecureAddr == "" {
-		return []Loop{httpsLoop}, nil
-	}
-
-	httpServer.Addr = s.insecureAddr
-
-	return []Loop{httpLoop, httpsLoop}, nil
+	return httpsLoop, nil
 }
 
-func (s *Server) getListenerForUNIXSocket(u *url.URL) ([]Loop, error) {
+func (s *Server) getListenerForUNIXSocket(u *url.URL) (Loop, error) {
 	socketPath := u.Host + u.Path
 
 	// Remove domain socket file in case it already exists.
@@ -363,7 +368,7 @@ func (s *Server) getListenerForUNIXSocket(u *url.URL) ([]Loop, error) {
 	}
 
 	domainSocketLoop := func() error { return domainSocketServer.Serve(unixListener) }
-	return []Loop{domainSocketLoop}, nil
+	return domainSocketLoop, nil
 }
 
 func (s *Server) execQuery(ctx context.Context, r *http.Request, query string, input ast.Value, explainMode types.ExplainModeV1, includeMetrics, includeInstrumentation, pretty bool) (results types.QueryResponseV1, err error) {
@@ -1775,4 +1780,15 @@ type patchImpl struct {
 	path  storage.Path
 	op    storage.PatchOp
 	value interface{}
+}
+
+func parseURL(s string, useHTTPSByDefault bool) (*url.URL, error) {
+	if !strings.Contains(s, "://") {
+		scheme := "http://"
+		if useHTTPSByDefault {
+			scheme = "https://"
+		}
+		s = scheme + s
+	}
+	return url.Parse(s)
 }
