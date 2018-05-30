@@ -287,50 +287,60 @@ func (s *Server) WithDecisionIDFactory(f func() string) *Server {
 
 // Listeners returns functions that listen and serve connections.
 func (s *Server) Listeners() ([]Loop, error) {
+	if !strings.Contains(s.addr, "://") {
+		scheme := "http://"
+		if s.cert != nil {
+			scheme = "https://"
+		}
+		s.addr = scheme + s.addr
+	}
 	parsedURL, err := url.Parse(s.addr)
 
-	// url.Parse won't necessarily return an error if there isn't a scheme
-	if err == nil && parsedURL.Scheme != "" {
-		return s.getListenerFromURL(parsedURL)
+	if err != nil {
+		return nil, err
+	}
+	switch parsedURL.Scheme {
+	case "unix":
+		return s.getListenerForUNIXSocket(parsedURL)
+	case "http", "https":
+		return s.getListenerForHTTPServer(parsedURL)
 	}
 
-	server1 := http.Server{
-		Addr:    s.addr,
+	return nil, fmt.Errorf("invalid url scheme %q", parsedURL.Scheme)
+}
+
+func (s *Server) getListenerForHTTPServer(u *url.URL) ([]Loop, error) {
+	httpServer := http.Server{
+		Addr:    u.Host,
 		Handler: s.Handler,
 	}
 
-	loop1 := func() error { return server1.ListenAndServe() }
+	httpLoop := func() error { return httpServer.ListenAndServe() }
 
 	if s.cert == nil {
-		return []Loop{loop1}, nil
+		return []Loop{httpLoop}, nil
 	}
 
-	server2 := http.Server{
-		Addr:    s.addr,
+	httpsServer := http.Server{
+		Addr:    u.Host,
 		Handler: s.Handler,
 		TLSConfig: &tls.Config{
 			Certificates: []tls.Certificate{*s.cert},
 		},
 	}
 
-	loop2 := func() error { return server2.ListenAndServeTLS("", "") }
+	httpsLoop := func() error { return httpsServer.ListenAndServeTLS("", "") }
 
 	if s.insecureAddr == "" {
-		return []Loop{loop2}, nil
+		return []Loop{httpsLoop}, nil
 	}
 
-	server1.Addr = s.insecureAddr
+	httpServer.Addr = s.insecureAddr
 
-	return []Loop{loop2, loop1}, nil
+	return []Loop{httpLoop, httpsLoop}, nil
 }
 
-func (s *Server) getListenerFromURL(u *url.URL) ([]Loop, error) {
-	// Right now only unix is supported. When more schemes are supported this
-	// function will need to be refactored.
-	if u.Scheme != "unix" {
-		return nil, fmt.Errorf("invalid url scheme %q", u.Scheme)
-	}
-
+func (s *Server) getListenerForUNIXSocket(u *url.URL) ([]Loop, error) {
 	socketPath := u.Host + u.Path
 
 	// Remove domain socket file in case it already exists.
