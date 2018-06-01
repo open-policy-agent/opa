@@ -104,6 +104,7 @@ var DefaultBuiltins = [...]*Builtin{
 	// Tokens
 	JWTDecode,
 	JWTVerifyRS256,
+	JWTVerifyHS256,
 
 	// Time
 	NowNanos,
@@ -758,6 +759,18 @@ var JWTDecode = &Builtin{
 // JWTVerifyRS256 verifies if a RS256 JWT signature is valid or not.
 var JWTVerifyRS256 = &Builtin{
 	Name: "io.jwt.verify_rs256",
+	Decl: types.NewFunction(
+		types.Args(
+			types.S,
+			types.S,
+		),
+		types.B,
+	),
+}
+
+// JWTVerifyHS256 verifies if a HS256 (secret) JWT signature is valid or not.
+var JWTVerifyHS256 = &Builtin{
+	Name: "io.jwt.verify_hs256",
 	Decl: types.NewFunction(
 		types.Args(
 			types.S,
