@@ -1614,6 +1614,65 @@ func TestTopDownJWTVerifyRS256(t *testing.T) {
 	}
 }
 
+func TestTopDownJWTVerifyHS256(t *testing.T) {
+	params := []struct {
+		note   string
+		input1 string
+		input2 string
+		result bool
+		err    string
+	}{
+		{
+			"success",
+			`eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyIjoiYWxpY2UiLCJhenAiOiJhbGljZSIsInN1Ym9yZGluYXRlcyI6W10sImhyIjpmYWxzZX0.rz3jTY033z-NrKfwrK89_dcLF7TN4gwCMj-fVBDyLoM`,
+			"secret",
+			true,
+			"",
+		},
+		{
+			"failure-bad token",
+			`eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyIjoiYWxpY2UiLCJhenAiOiJhbGljZSIsInN1Ym9yZGluYXRlcyI6W10sImhyIjpmYWxzZX0.R0NDxM1gHTucWQKwayMDre2PbMNR9K9efmOfygDZWcE`,
+			"secret",
+			false,
+			"",
+		},
+		{
+			"failure-invalid token",
+			`eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyIjoiYWxpY2UiLCJhenAiOiJhbGljZSIsInN1Ym9yZGluYXRlcyI6W10sImhyIjpmYWxzZX0`,
+			"secret",
+			false,
+			"encoded JWT must have 3 sections, found 2",
+		},
+	}
+
+	type test struct {
+		note     string
+		rules    []string
+		expected interface{}
+	}
+	tests := []test{}
+
+	for _, p := range params {
+		var exp interface{}
+		exp = fmt.Sprintf(`%t`, p.result)
+		if p.err != "" {
+			exp = errors.New(p.err)
+		}
+
+		tests = append(tests, test{
+			p.note,
+			[]string{fmt.Sprintf(`p = x { io.jwt.verify_hs256("%s", "%s", x) }`, p.input1, p.input2)},
+			exp,
+		})
+	}
+
+	data := loadSmallTestData()
+
+	for _, tc := range tests {
+		runTopDownTestCase(t, data, tc.note, tc.rules, tc.expected)
+	}
+}
+
 func TestTopDownTime(t *testing.T) {
 
 	data := loadSmallTestData()
