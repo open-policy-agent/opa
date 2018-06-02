@@ -623,6 +623,15 @@ func (num Number) Int() (int, bool) {
 	return int(i), true
 }
 
+// Float64 returns the float64 representation of num if possible.
+func (num Number) Float64() (float64, bool) {
+	f, err := json.Number(num).Float64()
+	if err != nil {
+		return 0, false
+	}
+	return f, true
+}
+
 // IsGround always returns true.
 func (num Number) IsGround() bool {
 	return true
