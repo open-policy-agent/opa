@@ -228,6 +228,23 @@ p = true { false }`
 	q[2] { input.y = 2 }
 	r[1] { input.z = 3 }`
 
+	testMod7Modified := `package testmod
+
+	default p = false
+
+	p { q[x]; not r[x] }
+
+	q[1] { input.x = 1 }
+	q[2] { input.y = 2 }
+	r[1] { input.z = 3 }
+	r[2] { input.z = 3 }`
+
+	testMod8 := `package testmod
+
+	p {
+		data.x = 1
+	}`
+
 	tests := []struct {
 		note string
 		reqs []tr
@@ -395,6 +412,18 @@ p = true { false }`
 			tr{http.MethodPost, "/data/testmod/p?partial", `{"input": {"x": 1, "z": 3}}`, 200, `{"result": false}`},
 			tr{http.MethodPost, "/data/testmod/p", `{"input": {"x": 1, "y": 2, "z": 9999}}`, 200, `{"result": true}`},
 			tr{http.MethodPost, "/data/testmod/p", `{"input": {"x": 1, "z": 3}}`, 200, `{"result": false}`},
+		}},
+		{"partial invalidate policy", []tr{
+			tr{http.MethodPut, "/policies/test", testMod7, 200, ""},
+			tr{http.MethodPost, "/data/testmod/p?partial", `{"input": {"x": 1, "y": 2, "z": 3}}`, 200, `{"result": true}`},
+			tr{http.MethodPut, "/policies/test", testMod7Modified, 200, ""},
+			tr{http.MethodPost, "/data/testmod/p?partial", `{"input": {"x": 1, "y": 2, "z": 3}}`, 200, `{"result": false}`},
+		}},
+		{"partial invalidate data", []tr{
+			tr{http.MethodPut, "/policies/test", testMod8, 200, ""},
+			tr{http.MethodPost, "/data/testmod/p?partial", "", 200, `{}`},
+			tr{http.MethodPut, "/data/x", `1`, 204, ""},
+			tr{http.MethodPost, "/data/testmod/p?partial", "", 200, `{"result": true}`},
 		}},
 		{"evaluation conflict", []tr{
 			tr{http.MethodPut, "/policies/test", testMod4, 200, ""},
