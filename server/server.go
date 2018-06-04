@@ -484,9 +484,6 @@ func (s *Server) reload(ctx context.Context, txn storage.Transaction, event stor
 		}
 	}
 
-	if !event.PolicyChanged() {
-		return
-	}
 	s.partials = map[string]rego.PartialResult{}
 }
 
