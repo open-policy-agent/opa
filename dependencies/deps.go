@@ -42,7 +42,7 @@ func All(x interface{}) (resolved []ast.Ref, err error) {
 			}
 
 			// The analysis will discard variables that are not used in
-			// direct comparisions or in the output. Since lone Bodies are
+			// direct comparisons or in the output. Since lone Bodies are
 			// often queries, we want all the variables to be in the output.
 			r := &ast.Rule{
 				Head: &ast.Head{Name: ast.Var("_"), Value: ast.NewTerm(arr)},

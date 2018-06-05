@@ -68,7 +68,7 @@ func TestDataV0(t *testing.T) {
 	}
 
 	if err := f.v0(http.MethodPost, "/data/test/q/foo", `{"flag": true}`, 200, `[1,2,3,4]`); err != nil {
-		t.Fatalf("Exepcted response [1,2,3,4] but got: %v", err)
+		t.Fatalf("Expected response [1,2,3,4] but got: %v", err)
 	}
 
 	req := newReqV0(http.MethodPost, "/data/test/q", "")
@@ -1972,7 +1972,7 @@ func TestWatchParams(t *testing.T) {
 		}
 		explain := expl.([]interface{})
 		if len(explain) != exp.explainLength {
-			t.Fatalf("Expection %d explanations, got %d", exp.explainLength, len(explain))
+			t.Fatalf("Expected %d explanations, got %d", exp.explainLength, len(explain))
 		}
 
 		result, ok := m["result"].([]interface{})[0].(map[string]interface{})["bindings"]

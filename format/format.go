@@ -24,7 +24,7 @@ func Bytes(src []byte) ([]byte, error) {
 	return Ast(astElem)
 }
 
-// Source formats a Rego source file. The bytes provided must decribe a complete
+// Source formats a Rego source file. The bytes provided must describe a complete
 // Rego module. If they don't, Source will return an error resulting from the attempt
 // to parse the bytes.
 func Source(filename string, src []byte) ([]byte, error) {

@@ -171,7 +171,7 @@ func extractJSONObject(s string) (ast.Object, error) {
 	// Object. If duplicate keys are present in a JWT, the last must be
 	// used or the token rejected. Since detecting duplicates is tantamount
 	// to parsing it ourselves, we're relying on the Go implementation
-	// using the last occuring instance of the key, which is the behavior
+	// using the last occurring instance of the key, which is the behavior
 	// as of Go 1.8.1.
 	v, err := builtinJSONUnmarshal(ast.String(s))
 	if err != nil {

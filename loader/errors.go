@@ -24,7 +24,7 @@ func (e loaderErrors) Error() string {
 	for i := range buf {
 		buf[i] = e[i].Error()
 	}
-	return fmt.Sprintf("%v errors occured during loading:\n", len(e)) + strings.Join(buf, "\n")
+	return fmt.Sprintf("%v errors occurred during loading:\n", len(e)) + strings.Join(buf, "\n")
 }
 
 func (e *loaderErrors) Add(err error) {

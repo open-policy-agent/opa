@@ -422,7 +422,7 @@ func TestCheckInferenceRules(t *testing.T) {
 		// Check that prefixes that iterate fallback to any.
 		{"prefix-iter", ruleset1, `data.prefix.i.j[k]`, types.A},
 
-		// Check that iteration targetting a rule (but nonetheless prefixed) falls back to any.
+		// Check that iteration targeting a rule (but nonetheless prefixed) falls back to any.
 		{"prefix-iter-2", ruleset1, `data.prefix.i.j[k].p`, types.A},
 
 		{"default-rule", ruleset1, "data.default_rule.x", types.NewAny(
