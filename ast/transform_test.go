@@ -32,7 +32,7 @@ foo(x) = y { split(x, "this", y) }
 	}, module)
 
 	if err != nil {
-		t.Fatalf("Unexpected error during transfom: %v", err)
+		t.Fatalf("Unexpected error during transform: %v", err)
 	}
 
 	resultMod, ok := result.(*Module)

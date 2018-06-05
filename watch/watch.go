@@ -18,7 +18,7 @@ import (
 	"github.com/open-policy-agent/opa/topdown"
 )
 
-// Watcher allows for watches to be registed on queries.
+// Watcher allows for watches to be registered on queries.
 type Watcher struct {
 	store    storage.Store
 	compiler *ast.Compiler
@@ -41,7 +41,7 @@ type Handle struct {
 	query      string // the original query, used for migration
 
 	out    chan Event // out is the same channel as C, but without directional constraints
-	notify signal     // channel to recieve new data change alerts on.
+	notify signal     // channel to receive new data change alerts on.
 
 	done signal // closed by the watcher to signal the sending goroutine to stop sending query results.
 	ack  signal // closed by the sending goroutine to tell the watcher it has stopped sending query results.

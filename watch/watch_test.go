@@ -420,7 +420,7 @@ func testWatchRandom(t *testing.T, watcher *Watcher, zero, one, two, three *Hand
 			// all the queries results are linearly dependent on the
 			// data they watch, the result should never increase. It
 			// may stay the same or skip values due to multiple store
-			// writes occuring after a notification is acted upon,
+			// writes occurring after a notification is acted upon,
 			// but while or before the new result is computed.
 			if i < last {
 				t.Errorf("query result decreased, last=%d, cur=%d", last, i)

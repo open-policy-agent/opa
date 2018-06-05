@@ -230,7 +230,7 @@ func TestDumpPath(t *testing.T) {
 
 	var result map[string]interface{}
 	if err := util.UnmarshalJSON(bs, &result); err != nil {
-		t.Fatalf("Expected json unmarhsal to suceed but got: %v", err)
+		t.Fatalf("Expected json unmarshal to succeed but got: %v", err)
 	}
 
 	if !reflect.DeepEqual(data, result) {
