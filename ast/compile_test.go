@@ -1441,8 +1441,8 @@ func TestCompilerSetGraph(t *testing.T) {
 	r := mod2.Rules[0]
 
 	edges := map[util.T]struct{}{
-		q: struct{}{},
-		r: struct{}{},
+		q: {},
+		r: {},
 	}
 
 	if !reflect.DeepEqual(edges, c.Graph.Dependencies(p)) {

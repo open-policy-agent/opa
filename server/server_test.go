@@ -96,54 +96,54 @@ func Test405StatusCodev1(t *testing.T) {
 		reqs []tr
 	}{
 		{"v1 data one level 405", []tr{
-			tr{http.MethodHead, "/data/lvl1", "", 405, ""},
-			tr{http.MethodConnect, "/data/lvl1", "", 405, ""},
-			tr{http.MethodOptions, "/data/lvl1", "", 405, ""},
-			tr{http.MethodTrace, "/data/lvl1", "", 405, ""},
+			{http.MethodHead, "/data/lvl1", "", 405, ""},
+			{http.MethodConnect, "/data/lvl1", "", 405, ""},
+			{http.MethodOptions, "/data/lvl1", "", 405, ""},
+			{http.MethodTrace, "/data/lvl1", "", 405, ""},
 		}},
 		{"v1 data 405", []tr{
-			tr{http.MethodHead, "/data", "", 405, ""},
-			tr{http.MethodConnect, "/data", "", 405, ""},
-			tr{http.MethodOptions, "/data", "", 405, ""},
-			tr{http.MethodTrace, "/data", "", 405, ""},
-			tr{http.MethodDelete, "/data", "", 405, ""},
+			{http.MethodHead, "/data", "", 405, ""},
+			{http.MethodConnect, "/data", "", 405, ""},
+			{http.MethodOptions, "/data", "", 405, ""},
+			{http.MethodTrace, "/data", "", 405, ""},
+			{http.MethodDelete, "/data", "", 405, ""},
 		}},
 		{"v1 policies 405", []tr{
-			tr{http.MethodHead, "/policies", "", 405, ""},
-			tr{http.MethodConnect, "/policies", "", 405, ""},
-			tr{http.MethodDelete, "/policies", "", 405, ""},
-			tr{http.MethodOptions, "/policies", "", 405, ""},
-			tr{http.MethodTrace, "/policies", "", 405, ""},
-			tr{http.MethodPost, "/policies", "", 405, ""},
-			tr{http.MethodPut, "/policies", "", 405, ""},
-			tr{http.MethodPatch, "/policies", "", 405, ""},
+			{http.MethodHead, "/policies", "", 405, ""},
+			{http.MethodConnect, "/policies", "", 405, ""},
+			{http.MethodDelete, "/policies", "", 405, ""},
+			{http.MethodOptions, "/policies", "", 405, ""},
+			{http.MethodTrace, "/policies", "", 405, ""},
+			{http.MethodPost, "/policies", "", 405, ""},
+			{http.MethodPut, "/policies", "", 405, ""},
+			{http.MethodPatch, "/policies", "", 405, ""},
 		}},
 		{"v1 policies one level 405", []tr{
-			tr{http.MethodHead, "/policies/lvl1", "", 405, ""},
-			tr{http.MethodConnect, "/policies/lvl1", "", 405, ""},
-			tr{http.MethodOptions, "/policies/lvl1", "", 405, ""},
-			tr{http.MethodTrace, "/policies/lvl1", "", 405, ""},
-			tr{http.MethodPost, "/policies/lvl1", "", 405, ""},
+			{http.MethodHead, "/policies/lvl1", "", 405, ""},
+			{http.MethodConnect, "/policies/lvl1", "", 405, ""},
+			{http.MethodOptions, "/policies/lvl1", "", 405, ""},
+			{http.MethodTrace, "/policies/lvl1", "", 405, ""},
+			{http.MethodPost, "/policies/lvl1", "", 405, ""},
 		}},
 		{"v1 query one level 405", []tr{
-			tr{http.MethodHead, "/query/lvl1", "", 405, ""},
-			tr{http.MethodConnect, "/query/lvl1", "", 405, ""},
-			tr{http.MethodDelete, "/query/lvl1", "", 405, ""},
-			tr{http.MethodOptions, "/query/lvl1", "", 405, ""},
-			tr{http.MethodTrace, "/query/lvl1", "", 405, ""},
-			tr{http.MethodPost, "/query/lvl1", "", 405, ""},
-			tr{http.MethodPut, "/query/lvl1", "", 405, ""},
-			tr{http.MethodPatch, "/query/lvl1", "", 405, ""},
+			{http.MethodHead, "/query/lvl1", "", 405, ""},
+			{http.MethodConnect, "/query/lvl1", "", 405, ""},
+			{http.MethodDelete, "/query/lvl1", "", 405, ""},
+			{http.MethodOptions, "/query/lvl1", "", 405, ""},
+			{http.MethodTrace, "/query/lvl1", "", 405, ""},
+			{http.MethodPost, "/query/lvl1", "", 405, ""},
+			{http.MethodPut, "/query/lvl1", "", 405, ""},
+			{http.MethodPatch, "/query/lvl1", "", 405, ""},
 		}},
 		{"v1 query 405", []tr{
-			tr{http.MethodHead, "/query", "", 405, ""},
-			tr{http.MethodConnect, "/query", "", 405, ""},
-			tr{http.MethodDelete, "/query", "", 405, ""},
-			tr{http.MethodOptions, "/query", "", 405, ""},
-			tr{http.MethodTrace, "/query", "", 405, ""},
-			tr{http.MethodPost, "/query", "", 405, ""},
-			tr{http.MethodPut, "/query", "", 405, ""},
-			tr{http.MethodPatch, "/query", "", 405, ""},
+			{http.MethodHead, "/query", "", 405, ""},
+			{http.MethodConnect, "/query", "", 405, ""},
+			{http.MethodDelete, "/query", "", 405, ""},
+			{http.MethodOptions, "/query", "", 405, ""},
+			{http.MethodTrace, "/query", "", 405, ""},
+			{http.MethodPost, "/query", "", 405, ""},
+			{http.MethodPut, "/query", "", 405, ""},
+			{http.MethodPatch, "/query", "", 405, ""},
 		}},
 	}
 	for _, tc := range tests {
@@ -160,24 +160,24 @@ func Test405StatusCodev0(t *testing.T) {
 		reqs []tr
 	}{
 		{"v0 data one levels 405", []tr{
-			tr{http.MethodHead, "/data/lvl2", "", 405, ""},
-			tr{http.MethodConnect, "/data/lvl2", "", 405, ""},
-			tr{http.MethodDelete, "/data/lvl2", "", 405, ""},
-			tr{http.MethodOptions, "/data/lvl2", "", 405, ""},
-			tr{http.MethodTrace, "/data/lvl2", "", 405, ""},
-			tr{http.MethodGet, "/data/lvl2", "", 405, ""},
-			tr{http.MethodPatch, "/data/lvl2", "", 405, ""},
-			tr{http.MethodPut, "/data/lvl2", "", 405, ""},
+			{http.MethodHead, "/data/lvl2", "", 405, ""},
+			{http.MethodConnect, "/data/lvl2", "", 405, ""},
+			{http.MethodDelete, "/data/lvl2", "", 405, ""},
+			{http.MethodOptions, "/data/lvl2", "", 405, ""},
+			{http.MethodTrace, "/data/lvl2", "", 405, ""},
+			{http.MethodGet, "/data/lvl2", "", 405, ""},
+			{http.MethodPatch, "/data/lvl2", "", 405, ""},
+			{http.MethodPut, "/data/lvl2", "", 405, ""},
 		}},
 		{"v0 data 405", []tr{
-			tr{http.MethodHead, "/data", "", 405, ""},
-			tr{http.MethodConnect, "/data", "", 405, ""},
-			tr{http.MethodDelete, "/data", "", 405, ""},
-			tr{http.MethodOptions, "/data", "", 405, ""},
-			tr{http.MethodTrace, "/data", "", 405, ""},
-			tr{http.MethodGet, "/data", "", 405, ""},
-			tr{http.MethodPatch, "/data", "", 405, ""},
-			tr{http.MethodPut, "/data", "", 405, ""},
+			{http.MethodHead, "/data", "", 405, ""},
+			{http.MethodConnect, "/data", "", 405, ""},
+			{http.MethodDelete, "/data", "", 405, ""},
+			{http.MethodOptions, "/data", "", 405, ""},
+			{http.MethodTrace, "/data", "", 405, ""},
+			{http.MethodGet, "/data", "", 405, ""},
+			{http.MethodPatch, "/data", "", 405, ""},
+			{http.MethodPut, "/data", "", 405, ""},
 		}},
 	}
 	for _, tc := range tests {
@@ -250,46 +250,46 @@ p = true { false }`
 		reqs []tr
 	}{
 		{"add root", []tr{
-			tr{http.MethodPatch, "/data/x", `[{"op": "add", "path": "/", "value": {"a": 1}}]`, 204, ""},
-			tr{http.MethodGet, "/data/x/a", "", 200, `{"result": 1}`},
+			{http.MethodPatch, "/data/x", `[{"op": "add", "path": "/", "value": {"a": 1}}]`, 204, ""},
+			{http.MethodGet, "/data/x/a", "", 200, `{"result": 1}`},
 		}},
 		{"append array", []tr{
-			tr{http.MethodPatch, "/data/x", `[{"op": "add", "path": "/", "value": []}]`, 204, ""},
-			tr{http.MethodPatch, "/data/x", `[{"op": "add", "path": "-", "value": {"a": 1}}]`, 204, ""},
-			tr{http.MethodPatch, "/data/x", `[{"op": "add", "path": "-", "value": {"a": 2}}]`, 204, ""},
-			tr{http.MethodGet, "/data/x/0/a", "", 200, `{"result": 1}`},
-			tr{http.MethodGet, "/data/x/1/a", "", 200, `{"result": 2}`},
+			{http.MethodPatch, "/data/x", `[{"op": "add", "path": "/", "value": []}]`, 204, ""},
+			{http.MethodPatch, "/data/x", `[{"op": "add", "path": "-", "value": {"a": 1}}]`, 204, ""},
+			{http.MethodPatch, "/data/x", `[{"op": "add", "path": "-", "value": {"a": 2}}]`, 204, ""},
+			{http.MethodGet, "/data/x/0/a", "", 200, `{"result": 1}`},
+			{http.MethodGet, "/data/x/1/a", "", 200, `{"result": 2}`},
 		}},
 		{"append array one-shot", []tr{
-			tr{http.MethodPatch, "/data/x", `[
+			{http.MethodPatch, "/data/x", `[
                 {"op": "add", "path": "/", "value": []},
                 {"op": "add", "path": "-", "value": {"a": 1}},
                 {"op": "add", "path": "-", "value": {"a": 2}}
             ]`, 204, ""},
-			tr{http.MethodGet, "/data/x/1/a", "", 200, `{"result": 2}`},
+			{http.MethodGet, "/data/x/1/a", "", 200, `{"result": 2}`},
 		}},
 		{"insert array", []tr{
-			tr{http.MethodPatch, "/data/x", `[{"op": "add", "path": "/", "value": {
+			{http.MethodPatch, "/data/x", `[{"op": "add", "path": "/", "value": {
                 "y": [
                     {"z": [1,2,3]},
                     {"z": [4,5,6]}
                 ]
             }}]`, 204, ""},
-			tr{http.MethodGet, "/data/x/y/1/z/2", "", 200, `{"result": 6}`},
-			tr{http.MethodPatch, "/data/x/y/1", `[{"op": "add", "path": "/z/1", "value": 100}]`, 204, ""},
-			tr{http.MethodGet, "/data/x/y/1/z", "", 200, `{"result": [4, 100, 5, 6]}`},
+			{http.MethodGet, "/data/x/y/1/z/2", "", 200, `{"result": 6}`},
+			{http.MethodPatch, "/data/x/y/1", `[{"op": "add", "path": "/z/1", "value": 100}]`, 204, ""},
+			{http.MethodGet, "/data/x/y/1/z", "", 200, `{"result": [4, 100, 5, 6]}`},
 		}},
 		{"patch root", []tr{
-			tr{http.MethodPatch, "/data", `[
+			{http.MethodPatch, "/data", `[
 				{"op": "add",
 				 "path": "/",
 				 "value": {"a": 1, "b": 2}
 				}
 			]`, 204, ""},
-			tr{http.MethodGet, "/data", "", 200, `{"result": {"a": 1, "b": 2}}`},
+			{http.MethodGet, "/data", "", 200, `{"result": {"a": 1, "b": 2}}`},
 		}},
 		{"patch invalid", []tr{
-			tr{http.MethodPatch, "/data", `[
+			{http.MethodPatch, "/data", `[
 				{
 					"op": "remove",
 					"path": "/"
@@ -297,137 +297,137 @@ p = true { false }`
 			]`, 400, ""},
 		}},
 		{"patch abort", []tr{
-			tr{http.MethodPatch, "/data", `[
+			{http.MethodPatch, "/data", `[
 				{"op": "add", "path": "/foo", "value": "hello"},
 				{"op": "add", "path": "/bar", "value": "world"},
 				{"op": "add", "path": "/foo/bad", "value": "deadbeef"}
 			]`, 404, ""},
-			tr{http.MethodGet, "/data", "", 200, `{"result": {}}`},
+			{http.MethodGet, "/data", "", 200, `{"result": {}}`},
 		}},
 		{"put root", []tr{
-			tr{http.MethodPut, "/data", `{"foo": [1,2,3]}`, 204, ""},
-			tr{http.MethodGet, "/data", "", 200, `{"result": {"foo": [1,2,3]}}`},
+			{http.MethodPut, "/data", `{"foo": [1,2,3]}`, 204, ""},
+			{http.MethodGet, "/data", "", 200, `{"result": {"foo": [1,2,3]}}`},
 		}},
 		{"put deep makedir", []tr{
-			tr{http.MethodPut, "/data/a/b/c/d", `1`, 204, ""},
-			tr{http.MethodGet, "/data/a/b/c", "", 200, `{"result": {"d": 1}}`},
+			{http.MethodPut, "/data/a/b/c/d", `1`, 204, ""},
+			{http.MethodGet, "/data/a/b/c", "", 200, `{"result": {"d": 1}}`},
 		}},
 		{"put deep makedir partial", []tr{
-			tr{http.MethodPut, "/data/a/b", `{}`, 204, ""},
-			tr{http.MethodPut, "/data/a/b/c/d", `0`, 204, ""},
-			tr{http.MethodGet, "/data/a/b/c", "", 200, `{"result": {"d": 0}}`},
+			{http.MethodPut, "/data/a/b", `{}`, 204, ""},
+			{http.MethodPut, "/data/a/b/c/d", `0`, 204, ""},
+			{http.MethodGet, "/data/a/b/c", "", 200, `{"result": {"d": 0}}`},
 		}},
 		{"put exists overwrite", []tr{
-			tr{http.MethodPut, "/data/a/b/c", `"hello"`, 204, ""},
-			tr{http.MethodPut, "/data/a/b", `"goodbye"`, 204, ""},
-			tr{http.MethodGet, "/data/a", "", 200, `{"result": {"b": "goodbye"}}`},
+			{http.MethodPut, "/data/a/b/c", `"hello"`, 204, ""},
+			{http.MethodPut, "/data/a/b", `"goodbye"`, 204, ""},
+			{http.MethodGet, "/data/a", "", 200, `{"result": {"b": "goodbye"}}`},
 		}},
 		{"put base write conflict", []tr{
-			tr{http.MethodPut, "/data/a/b", `[1,2,3,4]`, 204, ""},
-			tr{http.MethodPut, "/data/a/b/c/d", "0", 404, `{
+			{http.MethodPut, "/data/a/b", `[1,2,3,4]`, 204, ""},
+			{http.MethodPut, "/data/a/b/c/d", "0", 404, `{
 				"code": "resource_conflict",
 				"message": "storage_write_conflict_error: /a/b"
 			}`},
 		}},
 		{"get virtual", []tr{
-			tr{http.MethodPut, "/policies/test", testMod1, 200, ""},
-			tr{http.MethodPatch, "/data/x", `[{"op": "add", "path": "/", "value": {"y": [1,2,3,4], "z": [3,4,5,6]}}]`, 204, ""},
-			tr{http.MethodGet, "/data/testmod/p", "", 200, `{"result": [1,2]}`},
+			{http.MethodPut, "/policies/test", testMod1, 200, ""},
+			{http.MethodPatch, "/data/x", `[{"op": "add", "path": "/", "value": {"y": [1,2,3,4], "z": [3,4,5,6]}}]`, 204, ""},
+			{http.MethodGet, "/data/testmod/p", "", 200, `{"result": [1,2]}`},
 		}},
 		{"get with input", []tr{
-			tr{http.MethodPut, "/policies/test", testMod1, 200, ""},
-			tr{http.MethodGet, "/data/testmod/g?input=%7B%22req1%22%3A%7B%22a%22%3A%5B1%5D%7D%2C+%22req2%22%3A%7B%22b%22%3A%5B0%2C1%5D%7D%7D", "", 200, `{"result": true}`},
+			{http.MethodPut, "/policies/test", testMod1, 200, ""},
+			{http.MethodGet, "/data/testmod/g?input=%7B%22req1%22%3A%7B%22a%22%3A%5B1%5D%7D%2C+%22req2%22%3A%7B%22b%22%3A%5B0%2C1%5D%7D%7D", "", 200, `{"result": true}`},
 		}},
 		{"get with input (missing input value)", []tr{
-			tr{http.MethodPut, "/policies/test", testMod1, 200, ""},
-			tr{http.MethodGet, "/data/testmod/g?input=%7B%22req1%22%3A%7B%22a%22%3A%5B1%5D%7D%7D", "", 200, "{}"}, // req2 not specified
+			{http.MethodPut, "/policies/test", testMod1, 200, ""},
+			{http.MethodGet, "/data/testmod/g?input=%7B%22req1%22%3A%7B%22a%22%3A%5B1%5D%7D%7D", "", 200, "{}"}, // req2 not specified
 		}},
 		{"get with input (namespaced)", []tr{
-			tr{http.MethodPut, "/policies/test", testMod1, 200, ""},
-			tr{http.MethodGet, "/data/testmod/h?input=%7B%22req3%22%3A%7B%22attr1%22%3A%5B4%2C3%2C2%2C1%5D%7D%7D", "", 200, `{"result": true}`},
+			{http.MethodPut, "/policies/test", testMod1, 200, ""},
+			{http.MethodGet, "/data/testmod/h?input=%7B%22req3%22%3A%7B%22attr1%22%3A%5B4%2C3%2C2%2C1%5D%7D%7D", "", 200, `{"result": true}`},
 		}},
 		{"get with input (root)", []tr{
-			tr{http.MethodPut, "/policies/test", testMod1, 200, ""},
-			tr{http.MethodGet, `/data/testmod/gt1?input={"req1":2}`, "", 200, `{"result": true}`},
+			{http.MethodPut, "/policies/test", testMod1, 200, ""},
+			{http.MethodGet, `/data/testmod/gt1?input={"req1":2}`, "", 200, `{"result": true}`},
 		}},
 		{"get with input (bad format)", []tr{
-			tr{http.MethodGet, "/data/deadbeef?input", "", 400, `{
+			{http.MethodGet, "/data/deadbeef?input", "", 400, `{
 				"code": "invalid_parameter",
 				"message": "parameter contains malformed input document: EOF"
 			}`},
-			tr{http.MethodGet, "/data/deadbeef?input=", "", 400, `{
+			{http.MethodGet, "/data/deadbeef?input=", "", 400, `{
 				"code": "invalid_parameter",
 				"message": "parameter contains malformed input document: EOF"
 			}`},
-			tr{http.MethodGet, `/data/deadbeef?input="foo`, "", 400, `{
+			{http.MethodGet, `/data/deadbeef?input="foo`, "", 400, `{
 				"code": "invalid_parameter",
 				"message": "parameter contains malformed input document: unexpected EOF"
 			}`},
 		}},
 		{"get with input (path error)", []tr{
-			tr{http.MethodGet, `/data/deadbeef?input={"foo:1}`, "", 400, `{
+			{http.MethodGet, `/data/deadbeef?input={"foo:1}`, "", 400, `{
 				"code": "invalid_parameter",
 				"message": "parameter contains malformed input document: unexpected EOF"
 			}`},
 		}},
 		{"get empty and undefined", []tr{
-			tr{http.MethodPut, "/policies/test", testMod1, 200, ""},
-			tr{http.MethodPut, "/policies/test2", testMod5, 200, ""},
-			tr{http.MethodPut, "/policies/test3", testMod6, 200, ""},
-			tr{http.MethodGet, "/data/testmod/undef", "", 200, "{}"},
-			tr{http.MethodGet, "/data/doesnot/exist", "", 200, "{}"},
-			tr{http.MethodGet, "/data/testmod/empty/mod", "", 200, `{
+			{http.MethodPut, "/policies/test", testMod1, 200, ""},
+			{http.MethodPut, "/policies/test2", testMod5, 200, ""},
+			{http.MethodPut, "/policies/test3", testMod6, 200, ""},
+			{http.MethodGet, "/data/testmod/undef", "", 200, "{}"},
+			{http.MethodGet, "/data/doesnot/exist", "", 200, "{}"},
+			{http.MethodGet, "/data/testmod/empty/mod", "", 200, `{
 				"result": {}
 			}`},
-			tr{http.MethodGet, "/data/testmod/all/undefined", "", 200, `{
+			{http.MethodGet, "/data/testmod/all/undefined", "", 200, `{
 				"result": {}
 			}`},
 		}},
 		{"get root", []tr{
-			tr{http.MethodPut, "/policies/test", testMod2, 200, ""},
-			tr{http.MethodPatch, "/data/x", `[{"op": "add", "path": "/", "value": [1,2,3,4]}]`, 204, ""},
-			tr{http.MethodGet, "/data", "", 200, `{"result": {"testmod": {"p": [1,2,3,4], "q": {"a":1, "b": 2}}, "x": [1,2,3,4]}}`},
+			{http.MethodPut, "/policies/test", testMod2, 200, ""},
+			{http.MethodPatch, "/data/x", `[{"op": "add", "path": "/", "value": [1,2,3,4]}]`, 204, ""},
+			{http.MethodGet, "/data", "", 200, `{"result": {"testmod": {"p": [1,2,3,4], "q": {"a":1, "b": 2}}, "x": [1,2,3,4]}}`},
 		}},
 		{"post root", []tr{
-			tr{http.MethodPost, "/data", "", 200, `{"result": {}}`},
-			tr{http.MethodPut, "/policies/test", testMod2, 200, ""},
-			tr{http.MethodPost, "/data", "", 200, `{"result": {"testmod": {"p": [1,2,3,4], "q": {"b": 2, "a": 1}}}}`},
+			{http.MethodPost, "/data", "", 200, `{"result": {}}`},
+			{http.MethodPut, "/policies/test", testMod2, 200, ""},
+			{http.MethodPost, "/data", "", 200, `{"result": {"testmod": {"p": [1,2,3,4], "q": {"b": 2, "a": 1}}}}`},
 		}},
 		{"post input", []tr{
-			tr{http.MethodPut, "/policies/test", testMod1, 200, ""},
-			tr{http.MethodPost, "/data/testmod/gt1", `{"input": {"req1": 2}}`, 200, `{"result": true}`},
+			{http.MethodPut, "/policies/test", testMod1, 200, ""},
+			{http.MethodPost, "/data/testmod/gt1", `{"input": {"req1": 2}}`, 200, `{"result": true}`},
 		}},
 		{"post malformed input", []tr{
-			tr{http.MethodPost, "/data/deadbeef", `{"input": @}`, 400, `{
+			{http.MethodPost, "/data/deadbeef", `{"input": @}`, 400, `{
 				"code": "invalid_parameter",
 				"message": "body contains malformed input document: invalid character '@' looking for beginning of value"
 			}`},
 		}},
 		{"post empty object", []tr{
-			tr{http.MethodPost, "/data", `{}`, 200, `{"result": {}}`},
+			{http.MethodPost, "/data", `{}`, 200, `{"result": {}}`},
 		}},
 		{"post partial", []tr{
-			tr{http.MethodPut, "/policies/test", testMod7, 200, ""},
-			tr{http.MethodPost, "/data/testmod/p?partial", `{"input": {"x": 1, "y": 2, "z": 9999}}`, 200, `{"result": true}`},
-			tr{http.MethodPost, "/data/testmod/p?partial", `{"input": {"x": 1, "z": 3}}`, 200, `{"result": false}`},
-			tr{http.MethodPost, "/data/testmod/p", `{"input": {"x": 1, "y": 2, "z": 9999}}`, 200, `{"result": true}`},
-			tr{http.MethodPost, "/data/testmod/p", `{"input": {"x": 1, "z": 3}}`, 200, `{"result": false}`},
+			{http.MethodPut, "/policies/test", testMod7, 200, ""},
+			{http.MethodPost, "/data/testmod/p?partial", `{"input": {"x": 1, "y": 2, "z": 9999}}`, 200, `{"result": true}`},
+			{http.MethodPost, "/data/testmod/p?partial", `{"input": {"x": 1, "z": 3}}`, 200, `{"result": false}`},
+			{http.MethodPost, "/data/testmod/p", `{"input": {"x": 1, "y": 2, "z": 9999}}`, 200, `{"result": true}`},
+			{http.MethodPost, "/data/testmod/p", `{"input": {"x": 1, "z": 3}}`, 200, `{"result": false}`},
 		}},
 		{"partial invalidate policy", []tr{
-			tr{http.MethodPut, "/policies/test", testMod7, 200, ""},
-			tr{http.MethodPost, "/data/testmod/p?partial", `{"input": {"x": 1, "y": 2, "z": 3}}`, 200, `{"result": true}`},
-			tr{http.MethodPut, "/policies/test", testMod7Modified, 200, ""},
-			tr{http.MethodPost, "/data/testmod/p?partial", `{"input": {"x": 1, "y": 2, "z": 3}}`, 200, `{"result": false}`},
+			{http.MethodPut, "/policies/test", testMod7, 200, ""},
+			{http.MethodPost, "/data/testmod/p?partial", `{"input": {"x": 1, "y": 2, "z": 3}}`, 200, `{"result": true}`},
+			{http.MethodPut, "/policies/test", testMod7Modified, 200, ""},
+			{http.MethodPost, "/data/testmod/p?partial", `{"input": {"x": 1, "y": 2, "z": 3}}`, 200, `{"result": false}`},
 		}},
 		{"partial invalidate data", []tr{
-			tr{http.MethodPut, "/policies/test", testMod8, 200, ""},
-			tr{http.MethodPost, "/data/testmod/p?partial", "", 200, `{}`},
-			tr{http.MethodPut, "/data/x", `1`, 204, ""},
-			tr{http.MethodPost, "/data/testmod/p?partial", "", 200, `{"result": true}`},
+			{http.MethodPut, "/policies/test", testMod8, 200, ""},
+			{http.MethodPost, "/data/testmod/p?partial", "", 200, `{}`},
+			{http.MethodPut, "/data/x", `1`, 204, ""},
+			{http.MethodPost, "/data/testmod/p?partial", "", 200, `{"result": true}`},
 		}},
 		{"evaluation conflict", []tr{
-			tr{http.MethodPut, "/policies/test", testMod4, 200, ""},
-			tr{http.MethodPost, "/data/testmod/p", "", 500, `{
+			{http.MethodPut, "/policies/test", testMod4, 200, ""},
+			{http.MethodPost, "/data/testmod/p", "", 500, `{
     		  "code": "internal_error",
     		  "errors": [
     		    {
@@ -444,35 +444,35 @@ p = true { false }`
     		}`},
 		}},
 		{"query wildcards omitted", []tr{
-			tr{http.MethodPatch, "/data/x", `[{"op": "add", "path": "/", "value": [1,2,3,4]}]`, 204, ""},
-			tr{http.MethodGet, "/query?q=data.x[_]%20=%20x", "", 200, `{"result": [{"x": 1}, {"x": 2}, {"x": 3}, {"x": 4}]}`},
+			{http.MethodPatch, "/data/x", `[{"op": "add", "path": "/", "value": [1,2,3,4]}]`, 204, ""},
+			{http.MethodGet, "/query?q=data.x[_]%20=%20x", "", 200, `{"result": [{"x": 1}, {"x": 2}, {"x": 3}, {"x": 4}]}`},
 		}},
 		{"query undefined", []tr{
-			tr{http.MethodGet, "/query?q=a=1%3Bb=2%3Ba=b", "", 200, `{}`},
+			{http.MethodGet, "/query?q=a=1%3Bb=2%3Ba=b", "", 200, `{}`},
 		}},
 		{"query compiler error", []tr{
-			tr{http.MethodGet, "/query?q=x", "", 400, ""},
+			{http.MethodGet, "/query?q=x", "", 400, ""},
 			// Subsequent query should not fail.
-			tr{http.MethodGet, "/query?q=x=1", "", 200, `{"result": [{"x": 1}]}`},
+			{http.MethodGet, "/query?q=x=1", "", 200, `{"result": [{"x": 1}]}`},
 		}},
 		{"delete and check", []tr{
-			tr{http.MethodDelete, "/data/a/b", "", 404, ""},
-			tr{http.MethodPut, "/data/a/b/c/d", `1`, 204, ""},
-			tr{http.MethodGet, "/data/a/b/c", "", 200, `{"result": {"d": 1}}`},
-			tr{http.MethodDelete, "/data/a/b", "", 204, ""},
-			tr{http.MethodGet, "/data/a/b/c/d", "", 200, `{}`},
-			tr{http.MethodGet, "/data/a", "", 200, `{"result": {}}`},
-			tr{http.MethodGet, "/data/a/b/c", "", 200, `{}`},
+			{http.MethodDelete, "/data/a/b", "", 404, ""},
+			{http.MethodPut, "/data/a/b/c/d", `1`, 204, ""},
+			{http.MethodGet, "/data/a/b/c", "", 200, `{"result": {"d": 1}}`},
+			{http.MethodDelete, "/data/a/b", "", 204, ""},
+			{http.MethodGet, "/data/a/b/c/d", "", 200, `{}`},
+			{http.MethodGet, "/data/a", "", 200, `{"result": {}}`},
+			{http.MethodGet, "/data/a/b/c", "", 200, `{}`},
 		}},
 		{"escaped paths", []tr{
-			tr{http.MethodPut, "/data/a%2Fb", `{"c/d": 1}`, 204, ""},
-			tr{http.MethodGet, "/data", "", 200, `{"result": {"a/b": {"c/d": 1}}}`},
-			tr{http.MethodGet, "/data/a%2Fb/c%2Fd", "", 200, `{"result": 1}`},
-			tr{http.MethodGet, "/data/a/b", "", 200, `{}`},
-			tr{http.MethodPost, "/data/a%2Fb/c%2Fd", "", 200, `{"result": 1}`},
-			tr{http.MethodPost, "/data/a/b", "", 200, `{}`},
-			tr{http.MethodPatch, "/data/a%2Fb", `[{"op": "add", "path": "/e%2Ff", "value": 2}]`, 204, ""},
-			tr{http.MethodPost, "/data", "", 200, `{"result": {"a/b": {"c/d": 1, "e/f": 2}}}`},
+			{http.MethodPut, "/data/a%2Fb", `{"c/d": 1}`, 204, ""},
+			{http.MethodGet, "/data", "", 200, `{"result": {"a/b": {"c/d": 1}}}`},
+			{http.MethodGet, "/data/a%2Fb/c%2Fd", "", 200, `{"result": 1}`},
+			{http.MethodGet, "/data/a/b", "", 200, `{}`},
+			{http.MethodPost, "/data/a%2Fb/c%2Fd", "", 200, `{"result": 1}`},
+			{http.MethodPost, "/data/a/b", "", 200, `{}`},
+			{http.MethodPatch, "/data/a%2Fb", `[{"op": "add", "path": "/e%2Ff", "value": 2}]`, 204, ""},
+			{http.MethodPost, "/data", "", 200, `{"result": {"a/b": {"c/d": 1, "e/f": 2}}}`},
 		}},
 	}
 
