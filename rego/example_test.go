@@ -275,6 +275,9 @@ func ExampleRego_Eval_storage() {
 
 	// Run evaluation.
 	rs, err := rego.Eval(ctx)
+	if err != nil {
+		// Handle error.
+	}
 
 	// Inspect the result.
 	fmt.Println("value:", rs[0].Expressions[0].Value)
