@@ -193,6 +193,9 @@ func builtinSplit(a, b ast.Value) (ast.Value, error) {
 		return nil, err
 	}
 	d, err := builtins.StringOperand(b, 2)
+	if err != nil {
+		return nil, err
+	}
 	elems := strings.Split(string(s), string(d))
 	arr := make(ast.Array, len(elems))
 	for i := range arr {
