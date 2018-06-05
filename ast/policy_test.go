@@ -179,7 +179,7 @@ func TestExprEquals(t *testing.T) {
 	expr30 := &Expr{
 		Terms: MustParseTerm("data.foo.bar"),
 		With: []*With{
-			&With{
+			{
 				Target: MustParseTerm("input"),
 				Value:  MustParseTerm("bar"),
 			},
@@ -189,7 +189,7 @@ func TestExprEquals(t *testing.T) {
 	expr31 := &Expr{
 		Terms: MustParseTerm("data.foo.bar"),
 		With: []*With{
-			&With{
+			{
 				Target: MustParseTerm("input"),
 				Value:  MustParseTerm("bar"),
 			},
@@ -199,7 +199,7 @@ func TestExprEquals(t *testing.T) {
 	expr32 := &Expr{
 		Terms: MustParseTerm("data.foo.bar"),
 		With: []*With{
-			&With{
+			{
 				Target: MustParseTerm("input.foo"),
 				Value:  MustParseTerm("baz"),
 			},
