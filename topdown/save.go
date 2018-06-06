@@ -171,7 +171,7 @@ type saveStack struct {
 func newSaveStack() *saveStack {
 	return &saveStack{
 		Stack: []saveStackQuery{
-			saveStackQuery{},
+			{},
 		},
 	}
 }
