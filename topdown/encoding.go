@@ -123,8 +123,7 @@ func builtinURLQueryDecode(a ast.Value) (ast.Value, error) {
 	return ast.String(s), nil
 }
 
-// new builtin that generates query arguments from a JSON object
-func builtinURLQueryFromJSON(a ast.Value) (ast.Value, error) {
+func builtinURLQueryEncodeObject(a ast.Value) (ast.Value, error) {
 	asJSON, err := ast.JSON(a)
 	if err != nil {
 		return nil, err
@@ -160,37 +159,6 @@ func builtinURLQueryFromJSON(a ast.Value) (ast.Value, error) {
 	// encoded version of these values
 	str := fmt.Sprintf("%v", query.Encode())
 	return ast.String(str), nil
-}
-
-// Generates a url from host, path, and input query string
-func builtinURLGenerate(a, b, c ast.Value) (ast.Value, error) {
-	// convert host to ast.string
-	host, err := builtins.StringOperand(a, 1)
-	if err != nil {
-		return nil, err
-	}
-	// convert path to ast.string
-	path, err := builtins.StringOperand(b, 2)
-	if err != nil {
-		return nil, err
-	}
-	// call builtinURL function and convert the result to string
-	query, err := builtinURLQueryFromJSON(c)
-	if err != nil {
-		return nil, err
-	}
-	queryStr, err := builtins.StringOperand(query, 3)
-	if err != nil {
-		return nil, err
-	}
-
-	x := url.URL{}
-	x.Scheme = "http"
-	x.Host = string(host)
-	x.Path = string(path)
-	x.RawQuery = string(queryStr)
-
-	return ast.String(x.String()), nil
 }
 
 func builtinYAMLMarshal(a ast.Value) (ast.Value, error) {
@@ -246,8 +214,7 @@ func init() {
 	RegisterFunctionalBuiltin1(ast.Base64UrlDecode.Name, builtinBase64UrlDecode)
 	RegisterFunctionalBuiltin1(ast.URLQueryDecode.Name, builtinURLQueryDecode)
 	RegisterFunctionalBuiltin1(ast.URLQueryEncode.Name, builtinURLQueryEncode)
-	RegisterFunctionalBuiltin1(ast.URLQueryFromJSON.Name, builtinURLQueryFromJSON)
-	RegisterFunctionalBuiltin3(ast.URLGenerate.Name, builtinURLGenerate)
+	RegisterFunctionalBuiltin1(ast.URLQueryEncodeObject.Name, builtinURLQueryEncodeObject)
 	RegisterFunctionalBuiltin1(ast.YAMLMarshal.Name, builtinYAMLMarshal)
 	RegisterFunctionalBuiltin1(ast.YAMLUnmarshal.Name, builtinYAMLUnmarshal)
 }
