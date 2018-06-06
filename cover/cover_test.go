@@ -67,16 +67,16 @@ baz {     # expect no exit
 	}
 
 	expectedCovered := []Position{
-		Position{5},              // foo head
-		Position{6}, Position{7}, // foo body
-		Position{10},                             // bar head
-		Position{11}, Position{12}, Position{13}, // bar body
-		Position{17}, // baz body hits
+		{5},      // foo head
+		{6}, {7}, // foo body
+		{10},             // bar head
+		{11}, {12}, {13}, // bar body
+		{17}, // baz body hits
 	}
 
 	expectedNotCovered := []Position{
-		Position{16}, // baz head
-		Position{19}, // baz body miss
+		{16}, // baz head
+		{19}, // baz body miss
 	}
 
 	for _, exp := range expectedCovered {
