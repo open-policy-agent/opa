@@ -936,6 +936,10 @@ func (s *Server) v1DataDelete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	_, err = s.store.Read(ctx, txn, path)
+	if err != nil {
+		s.abortAuto(ctx, txn, w, err)
+		return
+	}
 
 	if err := s.store.Write(ctx, txn, storage.RemoveOp, path, nil); err != nil {
 		s.abortAuto(ctx, txn, w, err)
