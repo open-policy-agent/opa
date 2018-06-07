@@ -722,11 +722,19 @@ var URLQueryEncode = &Builtin{
 	),
 }
 
-// URLQueryEncodeObject encodes the given JSON into a URL encoded query string
+// URLQueryEncodeObject encodes the given JSON into a URL encoded query string.
 var URLQueryEncodeObject = &Builtin{
 	Name: "urlquery.encode_object",
 	Decl: types.NewFunction(
-		types.Args(types.A),
+		types.Args(
+			types.NewObject(
+				nil,
+				types.NewDynamicProperty(
+					types.S,
+					types.NewAny(
+						types.S,
+						types.NewArray(nil, types.S),
+						types.NewSet(types.S))))),
 		types.S,
 	),
 }

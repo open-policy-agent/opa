@@ -1390,7 +1390,13 @@ func TestTopDownURLBuiltins(t *testing.T) {
 		expected interface{}
 	}{
 		{"encode", []string{`p = x { urlquery.encode("a=b+1", x) }`}, `"a%3Db%2B1"`},
+		{"encode empty", []string{`p = x { urlquery.encode("", x) }`}, `""`},
 		{"decode", []string{`p = x { urlquery.decode("a%3Db%2B1", x) }`}, `"a=b+1"`},
+		{"encode_object empty", []string{`p = x { urlquery.encode_object({}, x) }`}, `""`},
+		{"encode_object strings", []string{`p = x { urlquery.encode_object({"a": "b", "c": "d"}, x) }`}, `"a=b&c=d"`},
+		{"encode_object escape", []string{`p = x { urlquery.encode_object({"a": "c=b+1"}, x) }`}, `"a=c%3Db%2B1"`},
+		{"encode_object array", []string{`p = x { urlquery.encode_object({"a": ["b+1","c+2"]}, x) }`}, `"a=b%2B1&a=c%2B2"`},
+		{"encode_object set", []string{`p = x { urlquery.encode_object({"a": {"b+1"}}, x) }`}, `"a=b%2B1"`},
 	}
 
 	data := loadSmallTestData()
