@@ -123,6 +123,44 @@ func builtinURLQueryDecode(a ast.Value) (ast.Value, error) {
 	return ast.String(s), nil
 }
 
+func builtinURLQueryEncodeObject(a ast.Value) (ast.Value, error) {
+	asJSON, err := ast.JSON(a)
+	if err != nil {
+		return nil, err
+	}
+
+	// type assert on underlying structure
+	inputs, ok := asJSON.(map[string]interface{})
+	if !ok {
+		return nil, fmt.Errorf("invalid JSON format")
+	}
+
+	query := url.Values{}
+
+	// loop over the inner items of the map, understanding what type they are
+	for k, v := range inputs {
+		switch vv := v.(type) {
+		case string:
+			// single value for a key
+			query.Set(k, vv)
+		case []interface{}:
+			// multiple values for the key, add all of them
+			for _, val := range vv {
+				strVal, ok := val.(string)
+				if !ok {
+					return nil, fmt.Errorf("only arrays of strings are permitted as values")
+				}
+				query.Add(k, strVal)
+			}
+		default:
+		}
+	}
+
+	// encoded version of these values
+	str := fmt.Sprintf("%v", query.Encode())
+	return ast.String(str), nil
+}
+
 func builtinYAMLMarshal(a ast.Value) (ast.Value, error) {
 
 	asJSON, err := ast.JSON(a)
@@ -176,6 +214,7 @@ func init() {
 	RegisterFunctionalBuiltin1(ast.Base64UrlDecode.Name, builtinBase64UrlDecode)
 	RegisterFunctionalBuiltin1(ast.URLQueryDecode.Name, builtinURLQueryDecode)
 	RegisterFunctionalBuiltin1(ast.URLQueryEncode.Name, builtinURLQueryEncode)
+	RegisterFunctionalBuiltin1(ast.URLQueryEncodeObject.Name, builtinURLQueryEncodeObject)
 	RegisterFunctionalBuiltin1(ast.YAMLMarshal.Name, builtinYAMLMarshal)
 	RegisterFunctionalBuiltin1(ast.YAMLUnmarshal.Name, builtinYAMLUnmarshal)
 }

@@ -98,6 +98,7 @@ var DefaultBuiltins = [...]*Builtin{
 	Base64UrlDecode,
 	URLQueryDecode,
 	URLQueryEncode,
+	URLQueryEncodeObject,
 	YAMLMarshal,
 	YAMLUnmarshal,
 
@@ -717,6 +718,15 @@ var URLQueryEncode = &Builtin{
 	Name: "urlquery.encode",
 	Decl: types.NewFunction(
 		types.Args(types.S),
+		types.S,
+	),
+}
+
+// URLQueryEncodeObject encodes the given JSON into a URL encoded query string
+var URLQueryEncodeObject = &Builtin{
+	Name: "urlquery.encode_object",
+	Decl: types.NewFunction(
+		types.Args(types.A),
 		types.S,
 	),
 }
