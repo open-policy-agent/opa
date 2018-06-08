@@ -20,13 +20,13 @@ import (
 	"github.com/open-policy-agent/opa/storage/inmem"
 )
 
-func TestPluginStart(t *testing.T) {
+func TestPluginStartSameInput(t *testing.T) {
 	ctx := context.Background()
 
 	fixture := newTestFixture(t)
 	defer fixture.server.stop()
 
-	fixture.server.ch = make(chan []EventV1, 2)
+	fixture.server.ch = make(chan []EventV1, 4)
 	var result interface{} = false
 
 	ts, err := time.Parse(time.RFC3339Nano, "2018-01-01T12:00:00.123456Z")
@@ -34,9 +34,9 @@ func TestPluginStart(t *testing.T) {
 		panic(err)
 	}
 
-	for i := 0; i < 154; i++ { // first chunk fits exactly n-1 events
+	for i := 0; i < 500; i++ {
 		fixture.plugin.Log(ctx, &server.Info{
-			Revision:   "a",
+			Revision:   fmt.Sprint(i),
 			DecisionID: fmt.Sprint(i),
 			Query:      "data.tda.bar",
 			Input:      map[string]interface{}{"method": "GET"},
@@ -53,11 +53,15 @@ func TestPluginStart(t *testing.T) {
 
 	chunk1 := <-fixture.server.ch
 	chunk2 := <-fixture.server.ch
-	expLen1 := 153
-	expLen2 := 1
+	chunk3 := <-fixture.server.ch
+	chunk4 := <-fixture.server.ch
+	expLen1 := 152
+	expLen2 := 151
+	expLen3 := 151
+	expLen4 := 46
 
-	if len(chunk1) != expLen1 || len(chunk2) != expLen2 {
-		t.Fatalf("Expected chunk lens %v and %v but got: %v and %v", expLen1, expLen2, len(chunk1), len(chunk2))
+	if len(chunk1) != expLen1 || len(chunk2) != expLen2 || len((chunk3)) != expLen3 || len(chunk4) != expLen4 {
+		t.Fatalf("Expected chunk lens %v, %v, %v and %v but got: %v, %v, %v and %v", expLen1, expLen2, expLen3, expLen4, len(chunk1), len(chunk2), len(chunk3), len(chunk4))
 	}
 
 	var expInput interface{} = map[string]interface{}{"method": "GET"}
@@ -67,8 +71,8 @@ func TestPluginStart(t *testing.T) {
 			"id":  "test-instance-id",
 			"app": "example-app",
 		},
-		Revision:    "a",
-		DecisionID:  "153",
+		Revision:    "499",
+		DecisionID:  "499",
 		Path:        "tda/bar",
 		Input:       &expInput,
 		Result:      &result,
@@ -76,8 +80,136 @@ func TestPluginStart(t *testing.T) {
 		Timestamp:   ts,
 	}
 
-	if !reflect.DeepEqual(chunk2[0], exp) {
-		t.Fatalf("Expected %v but got %v", exp, chunk2[0])
+	if !reflect.DeepEqual(chunk4[expLen4-1], exp) {
+		t.Fatalf("Expected %+v but got %+v", exp, chunk4[expLen4-1])
+	}
+}
+
+func TestPluginStartChangingInputValues(t *testing.T) {
+	ctx := context.Background()
+
+	fixture := newTestFixture(t)
+	defer fixture.server.stop()
+
+	fixture.server.ch = make(chan []EventV1, 4)
+	var result interface{} = false
+
+	ts, err := time.Parse(time.RFC3339Nano, "2018-01-01T12:00:00.123456Z")
+	if err != nil {
+		panic(err)
+	}
+
+	var input map[string]interface{}
+
+	for i := 0; i < 500; i++ {
+		input = map[string]interface{}{"method": getValueForMethod(i), "path": getValueForPath(i), "user": getValueForUser(i)}
+
+		fixture.plugin.Log(ctx, &server.Info{
+			Revision:   fmt.Sprint(i),
+			DecisionID: fmt.Sprint(i),
+			Query:      "data.foo.bar",
+			Input:      input,
+			Results:    &result,
+			RemoteAddr: "test",
+			Timestamp:  ts,
+		})
+	}
+
+	_, err = fixture.plugin.oneShot(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	chunk1 := <-fixture.server.ch
+	chunk2 := <-fixture.server.ch
+	chunk3 := <-fixture.server.ch
+	chunk4 := <-fixture.server.ch
+	expLen1 := 133
+	expLen2 := 132
+	expLen3 := 132
+	expLen4 := 103
+
+	if len(chunk1) != expLen1 || len(chunk2) != expLen2 || len((chunk3)) != expLen3 || len(chunk4) != expLen4 {
+		t.Fatalf("Expected chunk lens %v, %v, %v and %v but got: %v, %v, %v and %v", expLen1, expLen2, expLen3, expLen4, len(chunk1), len(chunk2), len(chunk3), len(chunk4))
+	}
+
+	var expInput interface{} = input
+
+	exp := EventV1{
+		Labels: map[string]string{
+			"id":  "test-instance-id",
+			"app": "example-app",
+		},
+		Revision:    "499",
+		DecisionID:  "499",
+		Path:        "foo/bar",
+		Input:       &expInput,
+		Result:      &result,
+		RequestedBy: "test",
+		Timestamp:   ts,
+	}
+
+	if !reflect.DeepEqual(chunk4[expLen4-1], exp) {
+		t.Fatalf("Expected %+v but got %+v", exp, chunk4[expLen4-1])
+	}
+}
+
+func TestPluginStartChangingInputKeysAndValues(t *testing.T) {
+	ctx := context.Background()
+
+	fixture := newTestFixture(t)
+	defer fixture.server.stop()
+
+	fixture.server.ch = make(chan []EventV1, 5)
+	var result interface{} = false
+
+	ts, err := time.Parse(time.RFC3339Nano, "2018-01-01T12:00:00.123456Z")
+	if err != nil {
+		panic(err)
+	}
+
+	var input map[string]interface{}
+
+	for i := 0; i < 250; i++ {
+		input = generateInputMap(i)
+
+		fixture.plugin.Log(ctx, &server.Info{
+			Revision:   fmt.Sprint(i),
+			DecisionID: fmt.Sprint(i),
+			Query:      "data.foo.bar",
+			Input:      input,
+			Results:    &result,
+			RemoteAddr: "test",
+			Timestamp:  ts,
+		})
+	}
+
+	_, err = fixture.plugin.oneShot(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	<-fixture.server.ch
+	chunk2 := <-fixture.server.ch
+
+	var expInput interface{} = input
+
+	exp := EventV1{
+		Labels: map[string]string{
+			"id":  "test-instance-id",
+			"app": "example-app",
+		},
+		Revision:    "249",
+		DecisionID:  "249",
+		Path:        "foo/bar",
+		Input:       &expInput,
+		Result:      &result,
+		RequestedBy: "test",
+		Timestamp:   ts,
+	}
+
+	if !reflect.DeepEqual(chunk2[len(chunk2)-1], exp) {
+		t.Fatalf("Expected %+v but got %+v", exp, chunk2[len(chunk2)-1])
 	}
 }
 
@@ -210,4 +342,32 @@ func (t *testServer) start() {
 
 func (t *testServer) stop() {
 	t.server.Close()
+}
+
+func getValueForMethod(idx int) string {
+	methods := []string{"GET", "POST", "PUT", "DELETE", "PATCH"}
+	return methods[idx%len(methods)]
+}
+
+func getValueForPath(idx int) string {
+	paths := []string{"/blah1", "/blah2", "/blah3", "/blah4"}
+	return paths[idx%len(paths)]
+}
+
+func getValueForUser(idx int) string {
+	users := []string{"Alice", "Bob", "Charlie", "David", "Ed"}
+	return users[idx%len(users)]
+}
+
+func generateInputMap(idx int) map[string]interface{} {
+	var letters = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
+	result := make(map[string]interface{})
+
+	for i := 0; i < 20; i++ {
+		n := idx % len(letters)
+		key := string(letters[n])
+		result[key] = fmt.Sprint(idx)
+	}
+	return result
+
 }

@@ -18,8 +18,7 @@ type logBuffer struct {
 }
 
 type logBufferElem struct {
-	bs      []byte
-	isChunk bool
+	bs []byte
 }
 
 func newLogBuffer(limit int64) *logBuffer {
@@ -30,7 +29,7 @@ func newLogBuffer(limit int64) *logBuffer {
 	}
 }
 
-func (lb *logBuffer) Push(bs []byte, isChunk bool) (dropped int) {
+func (lb *logBuffer) Push(bs []byte) (dropped int) {
 	size := int64(len(bs))
 
 	for elem := lb.l.Front(); elem != nil && (lb.usage+size > lb.limit); elem = elem.Next() {
@@ -40,20 +39,24 @@ func (lb *logBuffer) Push(bs []byte, isChunk bool) (dropped int) {
 		dropped++
 	}
 
-	elem := logBufferElem{bs, isChunk}
+	elem := logBufferElem{bs}
 
 	lb.l.PushBack(elem)
 	lb.usage += size
 	return dropped
 }
 
-func (lb *logBuffer) Pop() ([]byte, bool) {
+func (lb *logBuffer) Pop() []byte {
 	elem := lb.l.Front()
 	if elem != nil {
 		e := elem.Value.(logBufferElem)
 		lb.usage -= int64(len(e.bs))
 		lb.l.Remove(elem)
-		return e.bs, e.isChunk
+		return e.bs
 	}
-	return nil, false
+	return nil
+}
+
+func (lb *logBuffer) Len() int {
+	return lb.l.Len()
 }
