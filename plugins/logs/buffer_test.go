@@ -13,44 +13,40 @@ func TestLogBuffer(t *testing.T) {
 
 	buffer := newLogBuffer(int64(20)) // 20 byte limit for test purposes
 
-	dropped := buffer.Push(make([]byte, 20), false)
+	dropped := buffer.Push(make([]byte, 20))
 	if dropped != 0 {
 		t.Fatal("Expected dropped to be zero")
 	}
 
-	bs, chunk := buffer.Pop()
+	bs := buffer.Pop()
 	if len(bs) != 20 {
 		t.Fatal("Expected buffer size to be 20")
-	} else if chunk {
-		t.Fatal("Expected !chunk")
 	}
 
-	bs, _ = buffer.Pop()
+	bs = buffer.Pop()
 	if bs != nil {
 		t.Fatal("Expected buffer to be nil")
 	}
 
-	dropped = buffer.Push(bytes.Repeat([]byte(`1`), 10), false)
+	dropped = buffer.Push(bytes.Repeat([]byte(`1`), 10))
 	if dropped != 0 {
 		t.Fatal("Expected dropped to be zero")
 	}
 
-	dropped = buffer.Push(bytes.Repeat([]byte(`2`), 10), true)
+	dropped = buffer.Push(bytes.Repeat([]byte(`2`), 10))
 	if dropped != 0 {
 		t.Fatal("Expected dropped to be zero")
 	}
 
-	dropped = buffer.Push(bytes.Repeat([]byte(`3`), 10), false)
+	dropped = buffer.Push(bytes.Repeat([]byte(`3`), 10))
 	if dropped != 1 {
 		t.Fatal("Expected dropped to be 1")
 	}
 
-	bs, chunk = buffer.Pop()
+	bs = buffer.Pop()
 	exp := bytes.Repeat([]byte(`2`), 10)
 	if !bytes.Equal(bs, exp) {
 		t.Fatalf("Expected %v but got %v", exp, bs)
-	} else if !chunk {
-		t.Fatal("Expected chunk to be true")
 	}
 
 	if buffer.usage != 10 {

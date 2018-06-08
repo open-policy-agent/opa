@@ -6,9 +6,7 @@
 package logs
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
 	"math/rand"
 	"net/http"
@@ -17,6 +15,7 @@ import (
 	"time"
 
 	"github.com/open-policy-agent/opa/plugins"
+	"github.com/open-policy-agent/opa/plugins/rest"
 	"github.com/open-policy-agent/opa/server"
 	"github.com/open-policy-agent/opa/util"
 	"github.com/pkg/errors"
@@ -40,8 +39,8 @@ const (
 	minRetryDelay               = time.Millisecond * 100
 	defaultMinDelaySeconds      = int64(300)
 	defaultMaxDelaySeconds      = int64(600)
-	defaultUploadSizeLimitBytes = int64(32768)   // 32KB limit
-	defaultBufferSizeLimitBytes = int64(1048576) // 1MB limit
+	defaultUploadSizeLimitBytes = int64(32768)     // 32KB limit
+	defaultBufferSizeLimitBytes = int64(104857600) // 100MB limit
 )
 
 // ReportingConfig represents configuration for the plugin's reporting behaviour.
@@ -121,6 +120,7 @@ type Plugin struct {
 	manager *plugins.Manager
 	config  Config
 	buffer  *logBuffer
+	enc     *chunkEncoder
 	mtx     sync.Mutex
 	stop    chan chan struct{}
 }
@@ -143,6 +143,7 @@ func New(config []byte, manager *plugins.Manager) (*Plugin, error) {
 		config:  parsedConfig,
 		stop:    make(chan chan struct{}),
 		buffer:  newLogBuffer(*parsedConfig.Reporting.BufferSizeLimitBytes),
+		enc:     newChunkEncoder(*parsedConfig.Reporting.UploadSizeLimitBytes),
 	}
 
 	return plugin, nil
@@ -163,9 +164,6 @@ func (p *Plugin) Stop(ctx context.Context) {
 
 // Log appends a decision log event to the buffer for uploading.
 func (p *Plugin) Log(ctx context.Context, decision *server.Info) {
-
-	var buf bytes.Buffer
-
 	path := strings.Replace(strings.TrimPrefix(decision.Query, "data."), ".", "/", -1)
 
 	event := EventV1{
@@ -179,16 +177,17 @@ func (p *Plugin) Log(ctx context.Context, decision *server.Info) {
 		Timestamp:   decision.Timestamp,
 	}
 
-	if err := json.NewEncoder(&buf).Encode(event); err != nil {
-		p.logError("Log serialization failed: %v.", err)
+	p.mtx.Lock()
+	defer p.mtx.Unlock()
+
+	result, err := p.enc.Write(event)
+	if err != nil {
+		p.logError("Log encoding failed: %v.", err)
 		return
 	}
 
-	p.mtx.Lock()
-	defer p.mtx.Unlock()
-	dropped := p.buffer.Push(buf.Bytes(), false)
-	if dropped > 0 {
-		p.logInfo("Dropped %v events from buffer. Reduce reporting interval or increase buffer size.")
+	if result != nil {
+		p.bufferChunk(p.buffer, result)
 	}
 }
 
@@ -238,67 +237,75 @@ func (p *Plugin) loop() {
 }
 
 func (p *Plugin) oneShot(ctx context.Context) (ok bool, err error) {
+	// Make a local copy of the plugins's encoder and buffer and create
+	// a new encoder and buffer. This is needed as locking the buffer for
+	// the upload duration will block policy evaluation and result in
+	// increased latency for OPA clients
+	p.mtx.Lock()
+	oldChunkEnc := p.enc
+	oldBuffer := p.buffer
+	p.buffer = newLogBuffer(*p.config.Reporting.BufferSizeLimitBytes)
+	p.enc = newChunkEncoder(*p.config.Reporting.UploadSizeLimitBytes)
+	p.mtx.Unlock()
 
-	chunks, err := p.chunkBuffer()
+	// Along with uploading the compressed events in the buffer
+	// to the remote server, flush any pending compressed data to the
+	// underlying writer and add to the buffer.
+	chunk, err := oldChunkEnc.Flush()
 	if err != nil {
-		return false, errors.Wrap(err, "Log processing failed")
+		return false, err
+	} else if chunk != nil {
+		p.bufferChunk(oldBuffer, chunk)
 	}
 
-	var chunkIndex int
+	if oldBuffer.Len() == 0 {
+		return false, nil
+	}
 
-	defer func() {
+	for bs := oldBuffer.Pop(); bs != nil; bs = oldBuffer.Pop() {
+		err := uploadChunk(ctx, p.manager.Client(p.config.Service), p.config.PartitionName, bs)
 		if err != nil {
-			p.requeueChunks(chunks, chunkIndex)
-		}
-	}()
-
-	for chunkIndex = range chunks {
-
-		resp, err := p.manager.Client(p.config.Service).
-			WithHeader("Content-Type", "application/json").
-			WithHeader("Content-Encoding", "gzip").
-			WithBytes(chunks[chunkIndex]).
-			Do(ctx, "POST", fmt.Sprintf("/logs/%v", p.config.PartitionName))
-
-		if err != nil {
-			return false, errors.Wrap(err, "Log upload failed")
-		}
-
-		defer util.Close(resp)
-
-		switch resp.StatusCode {
-		case http.StatusOK:
-			break
-		case http.StatusNotFound:
-			return false, fmt.Errorf("Log upload failed, server replied with not found")
-		case http.StatusUnauthorized:
-			return false, fmt.Errorf("Log upload failed, server replied with not authorized")
-		default:
-			return false, fmt.Errorf("Log upload failed, server replied with HTTP %v", resp.StatusCode)
+			// requeue the chunk
+			p.mtx.Lock()
+			p.bufferChunk(p.buffer, bs)
+			p.mtx.Unlock()
+			return false, err
 		}
 	}
 
-	return len(chunks) > 0, nil
+	return true, nil
 }
 
-func (p *Plugin) chunkBuffer() ([][]byte, error) {
-	p.mtx.Lock()
-	defer p.mtx.Unlock()
-	return chunk(*p.config.Reporting.UploadSizeLimitBytes, p.buffer)
-}
-
-func (p *Plugin) requeueChunks(chunks [][]byte, idx int) {
-	p.mtx.Lock()
-	defer p.mtx.Unlock()
-
-	var dropped int
-
-	for ; idx < len(chunks); idx++ {
-		dropped += p.buffer.Push(chunks[idx], true)
-	}
-
+func (p *Plugin) bufferChunk(buffer *logBuffer, bs []byte) {
+	dropped := buffer.Push(bs)
 	if dropped > 0 {
-		p.logInfo("Dropped %v events from buffer. Reduce reporting interval or increase buffer size.")
+		p.logError("Dropped %v chunks from buffer. Reduce reporting interval or increase buffer size.", dropped)
+	}
+}
+
+func uploadChunk(ctx context.Context, client rest.Client, partitionName string, data []byte) error {
+
+	resp, err := client.
+		WithHeader("Content-Type", "application/json").
+		WithHeader("Content-Encoding", "gzip").
+		WithBytes(data).
+		Do(ctx, "POST", fmt.Sprintf("/logs/%v", partitionName))
+
+	if err != nil {
+		return errors.Wrap(err, "Log upload failed")
+	}
+
+	defer util.Close(resp)
+
+	switch resp.StatusCode {
+	case http.StatusOK:
+		return nil
+	case http.StatusNotFound:
+		return fmt.Errorf("Log upload failed, server replied with not found")
+	case http.StatusUnauthorized:
+		return fmt.Errorf("Log upload failed, server replied with not authorized")
+	default:
+		return fmt.Errorf("Log upload failed, server replied with HTTP %v", resp.StatusCode)
 	}
 }
 
@@ -318,32 +325,4 @@ func (p *Plugin) logrusFields() logrus.Fields {
 	return logrus.Fields{
 		"plugin": "decision_logs",
 	}
-}
-
-func chunk(limit int64, buffer *logBuffer) ([][]byte, error) {
-
-	enc := newChunkEncoder(limit)
-	chunks := [][]byte{}
-
-	for bs, isChunk := buffer.Pop(); bs != nil; bs, isChunk = buffer.Pop() {
-		if !isChunk {
-			chunk, err := enc.Write(bs)
-			if err != nil {
-				return nil, err
-			} else if chunk != nil {
-				chunks = append(chunks, chunk)
-			}
-		} else {
-			chunks = append(chunks, bs)
-		}
-	}
-
-	chunk, err := enc.Flush()
-	if err != nil {
-		return nil, err
-	} else if chunk != nil {
-		chunks = append(chunks, chunk)
-	}
-
-	return chunks, nil
 }

@@ -7,6 +7,7 @@ package logs
 import (
 	"bytes"
 	"compress/gzip"
+	"encoding/json"
 	"fmt"
 )
 
@@ -25,10 +26,17 @@ func newChunkEncoder(limit int64) *chunkEncoder {
 		limit: limit,
 	}
 	enc.reset()
+
 	return enc
 }
 
-func (enc *chunkEncoder) Write(bs []byte) (result []byte, err error) {
+func (enc *chunkEncoder) Write(event EventV1) (result []byte, err error) {
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(event); err != nil {
+		return nil, err
+	}
+
+	bs := buf.Bytes()
 
 	if len(bs) == 0 {
 		return nil, nil
@@ -40,6 +48,7 @@ func (enc *chunkEncoder) Write(bs []byte) (result []byte, err error) {
 		if err := enc.writeClose(); err != nil {
 			return nil, err
 		}
+
 		result = enc.reset()
 	}
 

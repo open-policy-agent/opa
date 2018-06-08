@@ -5,30 +5,35 @@
 package logs
 
 import (
-	"bytes"
 	"testing"
+	"time"
 )
 
 func TestChunkEncoder(t *testing.T) {
 
 	enc := newChunkEncoder(1000)
-
-	bs, err := enc.Write(bytes.Repeat([]byte(`1`), 500))
-	if bs != nil || err != nil {
-		t.Fatalf("Unexpected error or chunk produced: err: %v", err)
+	var result interface{} = false
+	var expInput interface{} = map[string]interface{}{"method": "GET"}
+	ts, err := time.Parse(time.RFC3339Nano, "2018-01-01T12:00:00.123456Z")
+	if err != nil {
+		panic(err)
 	}
 
-	bs, err = enc.Write(bytes.Repeat([]byte(`1`), 498))
-	if bs != nil || err != nil {
-		t.Fatalf("Unexpected error or chunk produced: err: %v", err)
+	event := EventV1{
+		Labels: map[string]string{
+			"id":  "test-instance-id",
+			"app": "example-app",
+		},
+		Revision:    "a",
+		DecisionID:  "a",
+		Path:        "foo/bar",
+		Input:       &expInput,
+		Result:      &result,
+		RequestedBy: "test",
+		Timestamp:   ts,
 	}
 
-	bs, err = enc.Write(bytes.Repeat([]byte(`1`), 1))
-	if bs == nil || err != nil {
-		t.Fatalf("Unexpected error or NO chunk produced: err: %v", err)
-	}
-
-	bs, err = enc.Write(bytes.Repeat([]byte(`1`), 1))
+	bs, err := enc.Write(event)
 	if bs != nil || err != nil {
 		t.Fatalf("Unexpected error or chunk produced: err: %v", err)
 	}
@@ -41,11 +46,6 @@ func TestChunkEncoder(t *testing.T) {
 	bs, err = enc.Flush()
 	if bs != nil || err != nil {
 		t.Fatalf("Unexpected error chunk produced: err: %v", err)
-	}
-
-	bs, err = enc.Write(nil)
-	if bs != nil || err != nil || enc.bytesWritten != 0 {
-		t.Fatalf("Unexpected error chunk produced or bytesWritten != 0: err: %v, bytesWritten: %v", err, enc.bytesWritten)
 	}
 
 }
