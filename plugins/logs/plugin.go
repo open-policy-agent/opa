@@ -166,7 +166,7 @@ func (p *Plugin) Log(ctx context.Context, decision *server.Info) {
 
 	var buf bytes.Buffer
 
-	path := strings.Replace(strings.TrimLeft(decision.Query, "data."), ".", "/", -1)
+	path := strings.Replace(strings.TrimPrefix(decision.Query, "data."), ".", "/", -1)
 
 	event := EventV1{
 		Labels:      p.manager.Labels,

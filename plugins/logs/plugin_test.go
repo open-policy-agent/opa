@@ -38,7 +38,7 @@ func TestPluginStart(t *testing.T) {
 		fixture.plugin.Log(ctx, &server.Info{
 			Revision:   "a",
 			DecisionID: fmt.Sprint(i),
-			Query:      "data.foo.bar",
+			Query:      "data.tda.bar",
 			Input:      map[string]interface{}{"method": "GET"},
 			Results:    &result,
 			RemoteAddr: "test",
@@ -69,7 +69,7 @@ func TestPluginStart(t *testing.T) {
 		},
 		Revision:    "a",
 		DecisionID:  "153",
-		Path:        "foo/bar",
+		Path:        "tda/bar",
 		Input:       &expInput,
 		Result:      &result,
 		RequestedBy: "test",
