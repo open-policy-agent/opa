@@ -54,7 +54,7 @@ func TestCryptoX509ParseCertificates(t *testing.T) {
 			`),
 			tc.rule,
 		}
-		runTopDownTestCase(t, data, tc.note, rules, tc.expected)
+		RunTopDownTestCase(t, data, tc.note, rules, tc.expected)
 	}
 
 }
