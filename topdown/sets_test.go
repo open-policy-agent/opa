@@ -25,7 +25,7 @@ func TestIntersection(t *testing.T) {
 	data := loadSmallTestData()
 
 	for _, tc := range tests {
-		runTopDownTestCase(t, data, tc.note, tc.rules, tc.expected)
+		RunTopDownTestCase(t, data, tc.note, tc.rules, tc.expected)
 	}
 }
 
@@ -46,6 +46,6 @@ func TestUnion(t *testing.T) {
 	data := loadSmallTestData()
 
 	for _, tc := range tests {
-		runTopDownTestCase(t, data, tc.note, tc.rules, tc.expected)
+		RunTopDownTestCase(t, data, tc.note, tc.rules, tc.expected)
 	}
 }

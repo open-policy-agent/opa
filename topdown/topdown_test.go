@@ -53,7 +53,7 @@ func TestTopDownCompleteDoc(t *testing.T) {
 	data := loadSmallTestData()
 
 	for _, tc := range tests {
-		runTopDownTestCase(t, data, tc.note, []string{tc.rule}, tc.expected)
+		RunTopDownTestCase(t, data, tc.note, []string{tc.rule}, tc.expected)
 	}
 }
 
@@ -115,7 +115,7 @@ func TestTopDownPartialSetDoc(t *testing.T) {
 	data := loadSmallTestData()
 
 	for _, tc := range tests {
-		runTopDownTestCase(t, data, tc.note, []string{tc.rule}, tc.expected)
+		RunTopDownTestCase(t, data, tc.note, []string{tc.rule}, tc.expected)
 	}
 }
 
@@ -139,7 +139,7 @@ func TestTopDownPartialObjectDoc(t *testing.T) {
 	data := loadSmallTestData()
 
 	for _, tc := range tests {
-		runTopDownTestCase(t, data, tc.note, []string{tc.rule}, tc.expected)
+		RunTopDownTestCase(t, data, tc.note, []string{tc.rule}, tc.expected)
 	}
 }
 
@@ -175,7 +175,7 @@ func TestTopDownEvalTermExpr(t *testing.T) {
 	data := loadSmallTestData()
 
 	for _, tc := range tests {
-		runTopDownTestCase(t, data, tc.note, []string{tc.rule}, tc.expected)
+		RunTopDownTestCase(t, data, tc.note, []string{tc.rule}, tc.expected)
 	}
 }
 
@@ -258,7 +258,7 @@ func TestTopDownEqExpr(t *testing.T) {
 	data := loadSmallTestData()
 
 	for _, tc := range tests {
-		runTopDownTestCase(t, data, tc.note, []string{tc.rule}, tc.expected)
+		RunTopDownTestCase(t, data, tc.note, []string{tc.rule}, tc.expected)
 	}
 }
 
@@ -324,7 +324,7 @@ func TestTopDownUndos(t *testing.T) {
 		`)).(map[string]interface{})
 
 	for _, tc := range tests {
-		runTopDownTestCase(t, data, tc.note, []string{tc.rule}, tc.expected)
+		RunTopDownTestCase(t, data, tc.note, []string{tc.rule}, tc.expected)
 	}
 }
 
@@ -351,7 +351,7 @@ func TestTopDownComparisonExpr(t *testing.T) {
 
 	data := loadSmallTestData()
 	for _, tc := range tests {
-		runTopDownTestCase(t, data, tc.note, []string{tc.rule}, tc.expected)
+		RunTopDownTestCase(t, data, tc.note, []string{tc.rule}, tc.expected)
 	}
 }
 
@@ -542,7 +542,7 @@ func TestTopDownVirtualDocs(t *testing.T) {
 	data := loadSmallTestData()
 
 	for _, tc := range tests {
-		runTopDownTestCase(t, data, tc.note, tc.rules, tc.expected)
+		RunTopDownTestCase(t, data, tc.note, tc.rules, tc.expected)
 	}
 }
 
@@ -748,7 +748,7 @@ func TestTopDownNestedReferences(t *testing.T) {
 	data := loadSmallTestData()
 
 	for _, tc := range tests {
-		runTopDownTestCase(t, data, tc.note, tc.rules, tc.expected)
+		RunTopDownTestCase(t, data, tc.note, tc.rules, tc.expected)
 	}
 }
 
@@ -781,7 +781,7 @@ func TestTopDownVarReferences(t *testing.T) {
 	data := loadSmallTestData()
 
 	for _, tc := range tests {
-		runTopDownTestCase(t, data, tc.note, tc.rules, tc.expected)
+		RunTopDownTestCase(t, data, tc.note, tc.rules, tc.expected)
 	}
 }
 
@@ -885,7 +885,7 @@ func TestTopDownDisjunction(t *testing.T) {
 	data := loadSmallTestData()
 
 	for _, tc := range tests {
-		runTopDownTestCase(t, data, tc.note, tc.rules, tc.expected)
+		RunTopDownTestCase(t, data, tc.note, tc.rules, tc.expected)
 	}
 }
 
@@ -904,7 +904,7 @@ func TestTopDownNegation(t *testing.T) {
 	data := loadSmallTestData()
 
 	for _, tc := range tests {
-		runTopDownTestCase(t, data, tc.note, tc.rules, tc.expected)
+		RunTopDownTestCase(t, data, tc.note, tc.rules, tc.expected)
 	}
 }
 
@@ -957,7 +957,7 @@ func TestTopDownComprehensions(t *testing.T) {
 	data := loadSmallTestData()
 
 	for _, tc := range tests {
-		runTopDownTestCase(t, data, tc.note, tc.rules, tc.expected)
+		RunTopDownTestCase(t, data, tc.note, tc.rules, tc.expected)
 	}
 }
 
@@ -979,7 +979,7 @@ func TestTopDownDefaultKeyword(t *testing.T) {
 	data := loadSmallTestData()
 
 	for _, tc := range tests {
-		runTopDownTestCase(t, data, tc.note, tc.rules, tc.expected)
+		RunTopDownTestCase(t, data, tc.note, tc.rules, tc.expected)
 	}
 }
 
@@ -1020,7 +1020,7 @@ func TestTopDownAggregates(t *testing.T) {
 	data := loadSmallTestData()
 
 	for _, tc := range tests {
-		runTopDownTestCase(t, data, tc.note, tc.rules, tc.expected)
+		RunTopDownTestCase(t, data, tc.note, tc.rules, tc.expected)
 	}
 }
 
@@ -1047,7 +1047,7 @@ func TestTopDownArithmetic(t *testing.T) {
 	data := loadSmallTestData()
 
 	for _, tc := range tests {
-		runTopDownTestCase(t, data, tc.note, tc.rules, tc.expected)
+		RunTopDownTestCase(t, data, tc.note, tc.rules, tc.expected)
 	}
 }
 
@@ -1069,7 +1069,7 @@ func TestTopDownCasts(t *testing.T) {
 	data := loadSmallTestData()
 
 	for _, tc := range tests {
-		runTopDownTestCase(t, data, tc.note, tc.rules, tc.expected)
+		RunTopDownTestCase(t, data, tc.note, tc.rules, tc.expected)
 	}
 }
 
@@ -1163,7 +1163,7 @@ func TestTopDownTypeBuiltin(t *testing.T) {
 	data := loadSmallTestData()
 
 	for _, tc := range tests {
-		runTopDownTestCase(t, data, tc.note, tc.rules, tc.expected)
+		RunTopDownTestCase(t, data, tc.note, tc.rules, tc.expected)
 	}
 }
 
@@ -1192,7 +1192,7 @@ func TestTopDownTypeNameBuiltin(t *testing.T) {
 	data := loadSmallTestData()
 
 	for _, tc := range tests {
-		runTopDownTestCase(t, data, tc.note, tc.rules, tc.expected)
+		RunTopDownTestCase(t, data, tc.note, tc.rules, tc.expected)
 	}
 
 }
@@ -1215,7 +1215,7 @@ func TestTopDownRegexMatch(t *testing.T) {
 	data := loadSmallTestData()
 
 	for _, tc := range tests {
-		runTopDownTestCase(t, data, tc.note, tc.rules, tc.expected)
+		RunTopDownTestCase(t, data, tc.note, tc.rules, tc.expected)
 	}
 }
 
@@ -1237,7 +1237,7 @@ func TestTopDownGlobsMatch(t *testing.T) {
 	data := loadSmallTestData()
 
 	for _, tc := range tests {
-		runTopDownTestCase(t, data, tc.note, tc.rules, tc.expected)
+		RunTopDownTestCase(t, data, tc.note, tc.rules, tc.expected)
 	}
 }
 
@@ -1258,7 +1258,7 @@ func TestTopDownSets(t *testing.T) {
 	data := loadSmallTestData()
 
 	for _, tc := range tests {
-		runTopDownTestCase(t, data, tc.note, tc.rules, tc.expected)
+		RunTopDownTestCase(t, data, tc.note, tc.rules, tc.expected)
 	}
 }
 
@@ -1317,7 +1317,7 @@ func TestTopDownStrings(t *testing.T) {
 	data := loadSmallTestData()
 
 	for _, tc := range tests {
-		runTopDownTestCase(t, data, tc.note, tc.rules, tc.expected)
+		RunTopDownTestCase(t, data, tc.note, tc.rules, tc.expected)
 	}
 }
 
@@ -1338,7 +1338,7 @@ func TestTopDownJSONBuiltins(t *testing.T) {
 	data := loadSmallTestData()
 
 	for _, tc := range tests {
-		runTopDownTestCase(t, data, tc.note, tc.rules, tc.expected)
+		RunTopDownTestCase(t, data, tc.note, tc.rules, tc.expected)
 	}
 
 }
@@ -1360,7 +1360,7 @@ func TestTopDownBase64Builtins(t *testing.T) {
 	data := loadSmallTestData()
 
 	for _, tc := range tests {
-		runTopDownTestCase(t, data, tc.note, tc.rules, tc.expected)
+		RunTopDownTestCase(t, data, tc.note, tc.rules, tc.expected)
 	}
 }
 
@@ -1379,7 +1379,7 @@ func TestTopDownBase64UrlBuiltins(t *testing.T) {
 	data := loadSmallTestData()
 
 	for _, tc := range tests {
-		runTopDownTestCase(t, data, tc.note, tc.rules, tc.expected)
+		RunTopDownTestCase(t, data, tc.note, tc.rules, tc.expected)
 	}
 }
 
@@ -1402,7 +1402,7 @@ func TestTopDownURLBuiltins(t *testing.T) {
 	data := loadSmallTestData()
 
 	for _, tc := range tests {
-		runTopDownTestCase(t, data, tc.note, tc.rules, tc.expected)
+		RunTopDownTestCase(t, data, tc.note, tc.rules, tc.expected)
 	}
 }
 
@@ -1546,7 +1546,7 @@ func TestTopDownJWTBuiltins(t *testing.T) {
 	data := loadSmallTestData()
 
 	for _, tc := range tests {
-		runTopDownTestCase(t, data, tc.note, tc.rules, tc.expected)
+		RunTopDownTestCase(t, data, tc.note, tc.rules, tc.expected)
 	}
 }
 
@@ -1616,7 +1616,7 @@ func TestTopDownJWTVerifyRS256(t *testing.T) {
 	data := loadSmallTestData()
 
 	for _, tc := range tests {
-		runTopDownTestCase(t, data, tc.note, tc.rules, tc.expected)
+		RunTopDownTestCase(t, data, tc.note, tc.rules, tc.expected)
 	}
 }
 
@@ -1675,7 +1675,7 @@ func TestTopDownJWTVerifyHS256(t *testing.T) {
 	data := loadSmallTestData()
 
 	for _, tc := range tests {
-		runTopDownTestCase(t, data, tc.note, tc.rules, tc.expected)
+		RunTopDownTestCase(t, data, tc.note, tc.rules, tc.expected)
 	}
 }
 
@@ -1683,38 +1683,38 @@ func TestTopDownTime(t *testing.T) {
 
 	data := loadSmallTestData()
 
-	runTopDownTestCase(t, data, "time caching", []string{`
+	RunTopDownTestCase(t, data, "time caching", []string{`
 		p { time.now_ns(t0); test.sleep("10ms"); time.now_ns(t1); t1 = t2 }
 	`}, "true")
 
-	runTopDownTestCase(t, data, "parse nanos", []string{`
+	RunTopDownTestCase(t, data, "parse nanos", []string{`
 		p = ns { time.parse_ns("2006-01-02T15:04:05Z07:00", "2017-06-02T19:00:00-07:00", ns) }
 	`}, "1496455200000000000")
 
-	runTopDownTestCase(t, data, "parse rfc3339 nanos", []string{`
+	RunTopDownTestCase(t, data, "parse rfc3339 nanos", []string{`
 		p = ns { time.parse_rfc3339_ns("2017-06-02T19:00:00-07:00", ns) }
 		`}, "1496455200000000000")
 
-	runTopDownTestCase(t, data, "parse duration nanos", []string{`
+	RunTopDownTestCase(t, data, "parse duration nanos", []string{`
 		p = ns { time.parse_duration_ns("100ms", ns) }
 	`}, "100000000")
 
-	runTopDownTestCase(t, data, "date", []string{`
+	RunTopDownTestCase(t, data, "date", []string{`
 		p = [year, month, day] { [year, month, day] := time.date(1517832000*1000*1000*1000) }`}, "[2018, 2, 5]")
 
-	runTopDownTestCase(t, data, "date leap day", []string{`
+	RunTopDownTestCase(t, data, "date leap day", []string{`
 		p = [year, month, day] { [year, month, day] := time.date(1582977600*1000*1000*1000) }`}, "[2020, 2, 29]")
 
-	runTopDownTestCase(t, data, "date too big", []string{`
+	RunTopDownTestCase(t, data, "date too big", []string{`
 		p = [year, month, day] { [year, month, day] := time.date(1582977600*1000*1000*1000*1000) }`}, fmt.Errorf("timestamp too big"))
 
-	runTopDownTestCase(t, data, "clock", []string{`
+	RunTopDownTestCase(t, data, "clock", []string{`
 		p = [hour, minute, second] { [hour, minute, second] := time.clock(1517832000*1000*1000*1000) }`}, "[12, 0, 0]")
 
-	runTopDownTestCase(t, data, "clock leap day", []string{`
+	RunTopDownTestCase(t, data, "clock leap day", []string{`
 		p = [hour, minute, second] { [hour, minute, second] := time.clock(1582977600*1000*1000*1000) }`}, "[12, 0, 0]")
 
-	runTopDownTestCase(t, data, "clock too big", []string{`
+	RunTopDownTestCase(t, data, "clock too big", []string{`
 		p = [hour, minute, second] { [hour, minute, second] := time.clock(1582977600*1000*1000*1000*1000) }`}, fmt.Errorf("timestamp too big"))
 }
 
@@ -1811,7 +1811,7 @@ func TestTopDownWalkBuiltin(t *testing.T) {
 	data := loadSmallTestData()
 
 	for _, tc := range tests {
-		runTopDownTestCase(t, data, tc.note, tc.rules, tc.expected)
+		RunTopDownTestCase(t, data, tc.note, tc.rules, tc.expected)
 	}
 
 }
@@ -2767,7 +2767,7 @@ func loadSmallTestData() map[string]interface{} {
 	return data
 }
 
-func runTopDownTestCase(t *testing.T, data map[string]interface{}, note string, rules []string, expected interface{}) {
+func RunTopDownTestCase(t *testing.T, data map[string]interface{}, note string, rules []string, expected interface{}) {
 	imports := []string{}
 	for k := range data {
 		imports = append(imports, "data."+k)
