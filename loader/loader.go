@@ -36,11 +36,27 @@ type RegoFile struct {
 
 // All returns a Result object loaded (recursively) from the specified paths.
 func All(paths []string) (*Result, error) {
-	return all(paths, func(curr *Result, path string) error {
-		result, err := loadFile(path)
+	return all(paths, func(curr *Result, path string, depth int) error {
+
+		bs, err := ioutil.ReadFile(path)
 		if err != nil {
 			return err
 		}
+
+		result, err := loadKnownTypes(path, bs)
+		if err != nil {
+			if !isUnrecognizedFile(err) {
+				return err
+			}
+			if depth > 0 {
+				return nil
+			}
+			result, err = loadFileForAnyType(path, bs)
+			if err != nil {
+				return err
+			}
+		}
+
 		return curr.merge(path, result)
 	})
 }
@@ -48,7 +64,7 @@ func All(paths []string) (*Result, error) {
 // AllRegos returns a Result object loaded (recursively) with all Rego source
 // files from the specified paths.
 func AllRegos(paths []string) (*Result, error) {
-	return all(paths, func(curr *Result, path string) error {
+	return all(paths, func(curr *Result, path string, _ int) error {
 		if !strings.HasSuffix(path, bundle.RegoExt) {
 			return nil
 		}
@@ -129,12 +145,15 @@ func (l *Result) withParent(p string) *Result {
 	}
 }
 
-func all(paths []string, f func(*Result, string) error) (*Result, error) {
+func all(paths []string, f func(*Result, string, int) error) (*Result, error) {
 	errors := loaderErrors{}
 	root := newResult()
 
 	for _, path := range paths {
 
+		// Paths can be prefixed with a string that specifies where content should be
+		// loaded under data. E.g., foo.bar:/path/to/some.json will load the content
+		// of some.json under {"foo": {"bar": ...}}.
 		loaded := root
 		prefix, path := SplitPrefix(path)
 		if len(prefix) > 0 {
@@ -143,21 +162,7 @@ func all(paths []string, f func(*Result, string) error) (*Result, error) {
 			}
 		}
 
-		info, err := os.Stat(path)
-		if err != nil {
-			errors.Add(err)
-			continue
-		}
-
-		if info.IsDir() {
-			loadDirRecursive(&errors, path, loaded)
-		} else {
-			err := f(loaded, path)
-			if err != nil {
-				errors.Add(err)
-			}
-		}
-
+		allRec(path, &errors, loaded, 0, f)
 	}
 
 	if len(errors) > 0 {
@@ -166,39 +171,35 @@ func all(paths []string, f func(*Result, string) error) (*Result, error) {
 
 	return root, nil
 }
-func loadDirRecursive(errors *loaderErrors, dirPath string, loaded *Result) {
-	files, err := ioutil.ReadDir(dirPath)
+
+func allRec(path string, errors *loaderErrors, loaded *Result, depth int, f func(*Result, string, int) error) {
+	info, err := os.Stat(path)
 	if err != nil {
 		errors.Add(err)
 		return
 	}
-	for _, file := range files {
-		filePath := filepath.Join(dirPath, file.Name())
-		info, err := os.Stat(filePath)
-		if err != nil {
-			errors.Add(err)
-		} else {
-			if info.IsDir() {
-				loadDirRecursive(errors, filePath, loaded.withParent(info.Name()))
-			} else {
-				bs, err := ioutil.ReadFile(filePath)
-				if err != nil {
-					errors.Add(err)
-				} else {
-					result, err := loadKnownTypes(filePath, bs)
-					if err != nil {
-						if _, ok := err.(unrecognizedFile); !ok {
-							errors.Add(err)
-						}
-					} else {
-						if err := loaded.merge(filePath, result); err != nil {
-							errors.Add(err)
-						}
-					}
 
-				}
-			}
+	if !info.IsDir() {
+		if err := f(loaded, path, depth); err != nil {
+			errors.Add(err)
 		}
+		return
+	}
+
+	// If we are recursing on directories then content must be loaded under path
+	// speciifed by directory hierarchy.
+	if depth > 0 {
+		loaded = loaded.withParent(info.Name())
+	}
+
+	files, err := ioutil.ReadDir(path)
+	if err != nil {
+		errors.Add(err)
+		return
+	}
+
+	for _, file := range files {
+		allRec(filepath.Join(path, file.Name()), errors, loaded, depth+1, f)
 	}
 }
 
@@ -228,21 +229,6 @@ func loadFileForAnyType(path string, bs []byte) (interface{}, error) {
 		return doc, nil
 	}
 	return nil, unrecognizedFile(path)
-}
-
-func loadFile(path string) (interface{}, error) {
-	bs, err := ioutil.ReadFile(path)
-	if err != nil {
-		return nil, err
-	}
-	result, err := loadKnownTypes(path, bs)
-	if err != nil {
-		if isUnrecognizedFile(err) {
-			return loadFileForAnyType(path, bs)
-		}
-		return nil, err
-	}
-	return result, nil
 }
 
 func loadRego(path string, bs []byte) (*RegoFile, error) {
