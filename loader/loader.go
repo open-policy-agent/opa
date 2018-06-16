@@ -34,9 +34,37 @@ type RegoFile struct {
 	Raw    []byte
 }
 
+// Filter defines the interface for filtering files during loading. If the
+// filter returns true, the file should be excluded from the result.
+type Filter func(abspath string, info os.FileInfo, depth int) bool
+
+// GlobExcludeName excludes files and directories whose names do not match the
+// shell style pattern at minDepth or greater.
+func GlobExcludeName(pattern string, minDepth int) Filter {
+	return func(abspath string, info os.FileInfo, depth int) bool {
+		match, _ := filepath.Match(pattern, info.Name())
+		return match && depth >= minDepth
+	}
+}
+
 // All returns a Result object loaded (recursively) from the specified paths.
 func All(paths []string) (*Result, error) {
-	return all(paths, func(curr *Result, path string, depth int) error {
+	return Filtered(paths, nil)
+}
+
+// AllRegos returns a Result object loaded (recursively) with all Rego source
+// files from the specified paths.
+func AllRegos(paths []string) (*Result, error) {
+	return Filtered(paths, func(_ string, info os.FileInfo, depth int) bool {
+		return !info.IsDir() && !strings.HasSuffix(info.Name(), bundle.RegoExt)
+	})
+}
+
+// Filtered returns a Result object loaded (recursively) from the specified
+// paths while applying the given filters. If any filter returns true, the
+// file/directory is excluded.
+func Filtered(paths []string, filter Filter) (*Result, error) {
+	return all(paths, filter, func(curr *Result, path string, depth int) error {
 
 		bs, err := ioutil.ReadFile(path)
 		if err != nil {
@@ -57,21 +85,6 @@ func All(paths []string) (*Result, error) {
 			}
 		}
 
-		return curr.merge(path, result)
-	})
-}
-
-// AllRegos returns a Result object loaded (recursively) with all Rego source
-// files from the specified paths.
-func AllRegos(paths []string) (*Result, error) {
-	return all(paths, func(curr *Result, path string, _ int) error {
-		if !strings.HasSuffix(path, bundle.RegoExt) {
-			return nil
-		}
-		result, err := Rego(path)
-		if err != nil {
-			return err
-		}
 		return curr.merge(path, result)
 	})
 }
@@ -145,7 +158,7 @@ func (l *Result) withParent(p string) *Result {
 	}
 }
 
-func all(paths []string, f func(*Result, string, int) error) (*Result, error) {
+func all(paths []string, filter Filter, f func(*Result, string, int) error) (*Result, error) {
 	errors := loaderErrors{}
 	root := newResult()
 
@@ -162,7 +175,7 @@ func all(paths []string, f func(*Result, string, int) error) (*Result, error) {
 			}
 		}
 
-		allRec(path, &errors, loaded, 0, f)
+		allRec(path, filter, &errors, loaded, 0, f)
 	}
 
 	if len(errors) > 0 {
@@ -172,10 +185,14 @@ func all(paths []string, f func(*Result, string, int) error) (*Result, error) {
 	return root, nil
 }
 
-func allRec(path string, errors *loaderErrors, loaded *Result, depth int, f func(*Result, string, int) error) {
+func allRec(path string, filter Filter, errors *loaderErrors, loaded *Result, depth int, f func(*Result, string, int) error) {
 	info, err := os.Stat(path)
 	if err != nil {
 		errors.Add(err)
+		return
+	}
+
+	if filter != nil && filter(path, info, depth) {
 		return
 	}
 
@@ -199,8 +216,17 @@ func allRec(path string, errors *loaderErrors, loaded *Result, depth int, f func
 	}
 
 	for _, file := range files {
-		allRec(filepath.Join(path, file.Name()), errors, loaded, depth+1, f)
+		allRec(filepath.Join(path, file.Name()), filter, errors, loaded, depth+1, f)
 	}
+}
+
+func exclude(filters []Filter, path string, info os.FileInfo, depth int) bool {
+	for _, f := range filters {
+		if f(path, info, depth) {
+			return true
+		}
+	}
+	return false
 }
 
 func loadKnownTypes(path string, bs []byte) (interface{}, error) {
