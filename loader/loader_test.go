@@ -176,6 +176,34 @@ func TestLoadRooted(t *testing.T) {
 	})
 }
 
+func TestGlobExcludeName(t *testing.T) {
+
+	files := map[string]string{
+		"/.data.json":          `{"x":1}`,
+		"/.y/data.json":        `{"y": 2}`,
+		"/.y/z/data.json":      `3`,
+		"/z/.hidden/data.json": `"donotinclude"`,
+		"/z/a/.hidden.json":    `"donotinclude"`,
+	}
+
+	test.WithTempFS(files, func(rootDir string) {
+		paths := mustListPaths(rootDir, false)[1:]
+		sort.Strings(paths)
+		result, err := Filtered(paths, GlobExcludeName(".*", 1))
+		if err != nil {
+			t.Fatal(err)
+		}
+		exp := parseJSON(`{
+			"x": 1,
+			"y": 2,
+			"z": 3
+		}`)
+		if !reflect.DeepEqual(exp, result.Documents) {
+			t.Fatalf("Expected %v but got %v", exp, result.Documents)
+		}
+	})
+}
+
 func TestLoadErrors(t *testing.T) {
 	files := map[string]string{
 		"/x1.json":    `{"x": [1,2,3]}`,
@@ -222,7 +250,7 @@ func TestLoadRegos(t *testing.T) {
 			package x
 			p = true { # syntax error missing }
 		`,
-		"/z.rego": `
+		"/subdir/z.rego": `
 			package x
 			q = true
 		`,
