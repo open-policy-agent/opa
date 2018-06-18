@@ -7,6 +7,7 @@ package authorizer
 import (
 	"encoding/json"
 	"net/http"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -225,4 +226,40 @@ func TestBasicEscapeError(t *testing.T) {
 		!strings.Contains(response.Message, "invalid URL") {
 		t.Fatalf("Expected invalid parameter and URL parse error but got: %v", recorder)
 	}
+}
+
+func TestMakeInput(t *testing.T) {
+	path := "/foo/bar?pretty=true&explain=\"full\""
+	req, err := http.NewRequest(http.MethodGet, "http://localhost:8181"+path, nil)
+	if err != nil {
+		panic(err)
+	}
+
+	query := req.URL.Query()
+
+	// set query parameters
+	query.Set("pretty", "true")
+	query.Set("explain", "full")
+	req.URL.RawQuery = query.Encode()
+
+	req = identifier.SetIdentity(req, "bob")
+
+	result, err := makeInput(req)
+	if err != nil {
+		panic(err)
+	}
+
+	expectedResult := util.MustUnmarshalJSON([]byte(`
+		{
+		  "path": ["foo","bar"],
+		  "method": "GET",
+		  "identity": "bob",
+		  "params": {"explain": ["full"], "pretty": ["true"]}
+		}
+	`))
+
+	if !reflect.DeepEqual(util.MustMarshalJSON(expectedResult), util.MustMarshalJSON(result)) {
+		t.Fatalf("Expected %+v but got %+v", expectedResult, result)
+	}
+
 }
