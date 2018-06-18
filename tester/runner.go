@@ -25,7 +25,13 @@ const TestPrefix = "test_"
 
 // Run executes all test cases found under files in path.
 func Run(ctx context.Context, paths ...string) ([]*Result, error) {
-	modules, store, err := Load(paths)
+	return RunWithFilter(ctx, nil, paths...)
+}
+
+// RunWithFilter executes all test cases found under files in path. The filter
+// will be applied to exclude files that should not be included.
+func RunWithFilter(ctx context.Context, filter loader.Filter, paths ...string) ([]*Result, error) {
+	modules, store, err := Load(paths, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -187,8 +193,8 @@ func (r *Runner) runTest(ctx context.Context, mod *ast.Module, rule *ast.Rule) (
 }
 
 // Load returns modules and an in-memory store for running tests.
-func Load(args []string) (map[string]*ast.Module, storage.Store, error) {
-	loaded, err := loader.All(args)
+func Load(args []string, filter loader.Filter) (map[string]*ast.Module, storage.Store, error) {
+	loaded, err := loader.Filtered(args, filter)
 	if err != nil {
 		return nil, nil, err
 	}

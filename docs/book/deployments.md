@@ -128,10 +128,10 @@ This section shows how to quickly deploy OPA on top of Kubernetes to try it out.
 Kubernetes provider, the steps should be similar. You may need to use a
 different Service configuration at the end.
 
-First, create a ConfigMap containing a test policy. The policy will inspect
-"pod" objects provided as input. If the pod is missing a "customer" label or the
-pod includes containers that refer to images outside the acmecorp registry,
-"allow" will be false.
+First, create a ConfigMap containing a test policy. The test policy will define a blacklist that rejects:
+
+* Objects missing a 'customer' label.
+* Pods referring to images outside the corporate registry.
 
 In this case, the policy file does not contain sensitive information so it's
 fine to store as a ConfigMap. If the file contained sensitive information, then
@@ -141,30 +141,29 @@ we recommend you store it as a Secret.
 <pre><code class="lang-ruby">{% include "./tutorials/deployments-kubernetes/example.rego" %}</code></pre>
 
 ```bash
-kubectl create configmap example-policy \
-    --from-file example.rego
+kubectl create configmap example-policy --from-file example.rego
 ```
 
-Next, create a ReplicationController to deploy OPA. The ConfigMap containing the
-policy is volume mounted into the container. This allows OPA to load the policy
-from the file system.
+Next, create a Deployment to run OPA. The ConfigMap containing the policy is
+volume mounted into the container. This allows OPA to load the policy from
+the file system.
 
-**[rc_opa.yaml](https://github.com/open-policy-agent/opa/docs/book/tutorials/deployments-kubernetes/rc_opa.yaml)**
-<pre><code class="lang-yaml">{% include "./tutorials/deployments-kubernetes/rc_opa.yaml" %}</code></pre>
+**[deployment-opa.yaml](https://github.com/open-policy-agent/opa/docs/book/tutorials/deployments-kubernetes/deployment-opa.yaml)**
+<pre><code class="lang-yaml">{% include "./tutorials/deployments-kubernetes/deployment-opa.yaml" %}</code></pre>
 
 ```bash
-kubectl create -f rc_opa.yaml
+kubectl create -f deployment-opa.yaml
 ```
 
 At this point OPA is up and running. Create a Service to expose the OPA API so
 that you can query it:
 
-**[svc_opa.yaml](https://github.com/open-policy-agent/opa/docs/book/tutorials/deployments-kubernetes/svc_opa.yaml)**
-<pre><code class="lang-yaml">{% include "./tutorials/deployments-kubernetes/svc_opa.yaml" %}</code></pre>
+**[service-opa.yaml](https://github.com/open-policy-agent/opa/docs/book/tutorials/deployments-kubernetes/service-opa.yaml)**
+<pre><code class="lang-yaml">{% include "./tutorials/deployments-kubernetes/service-opa.yaml" %}</code></pre>
 
 
 ```bash
-kubectl create -f svc_opa.yaml
+kubectl create -f service-opa.yaml
 ```
 
 Get the URL of OPA using `minikube`:
@@ -173,12 +172,15 @@ Get the URL of OPA using `minikube`:
 OPA_URL=$(minikube service opa --url)
 ```
 
-Exercise the OPA API. Note that the container below references an image outside
-our hypothetical repository:
+Now you can query OPA's API. If you use the Pod below, `deny` will be `true`
+because the Pod refers to image outside the corporate registry.
 
-**[example_pod.json](https://github.com/open-policy-agent/opa/docs/book/tutorials/deployments-kubernetes/example_pod.json)**
-<pre><code class="lang-json">{% include "./tutorials/deployments-kubernetes/example_pod.json" %}</code></pre>
+**[example-pod.json](https://github.com/open-policy-agent/opa/docs/book/tutorials/deployments-kubernetes/example-pod.json)**
+<pre><code class="lang-json">{% include "./tutorials/deployments-kubernetes/example-pod.json" %}</code></pre>
 
 ```bash
-curl $OPA_URL/v1/data -d @example_pod.json
+curl $OPA_URL/v1/data -d @example-pod.json
 ```
+
+If you update the image to refer to the corporate registry, `deny` will be
+`false`.

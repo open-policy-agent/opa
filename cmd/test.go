@@ -28,6 +28,7 @@ var testParams = struct {
 	outputFormat *util.EnumFlag
 	coverage     bool
 	timeout      time.Duration
+	ignore       []string
 }{
 	outputFormat: util.NewEnumFlag(testPrettyOutput, []string{testPrettyOutput, testJSONOutput}),
 }
@@ -98,7 +99,11 @@ func opaTest(args []string) int {
 	compiler := ast.NewCompiler().
 		SetErrorLimit(testParams.errLimit)
 
-	modules, store, err := tester.Load(args)
+	filter := loaderFilter{
+		Ignore: testParams.ignore,
+	}
+
+	modules, store, err := tester.Load(args, filter.Apply)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return 1
@@ -170,5 +175,6 @@ func init() {
 	testCommand.Flags().VarP(testParams.outputFormat, "format", "f", "set output format")
 	testCommand.Flags().BoolVarP(&testParams.coverage, "coverage", "c", false, "report coverage")
 	setMaxErrors(testCommand.Flags(), &testParams.errLimit)
+	setIgnore(testCommand.Flags(), &testParams.ignore)
 	RootCommand.AddCommand(testCommand)
 }

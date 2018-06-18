@@ -28,6 +28,7 @@ func init() {
 	var serverMode bool
 	var tlsCertFile string
 	var tlsPrivateKeyFile string
+	var ignore []string
 
 	authentication := util.NewEnumFlag("off", []string{"token", "off"})
 
@@ -103,6 +104,9 @@ the data document with the following syntax:
 			}
 			params.DiagnosticsBuffer = server.NewBoundedBuffer(serverDiagnosticsBufferSize)
 			params.Paths = args
+			params.Filter = loaderFilter{
+				Ignore: ignore,
+			}.Apply
 
 			ctx := context.Background()
 
@@ -135,6 +139,7 @@ the data document with the following syntax:
 	runCommand.Flags().VarP(authorization, "authorization", "", "set authorization scheme")
 	runCommand.Flags().VarP(logLevel, "log-level", "l", "set log level")
 	runCommand.Flags().VarP(logFormat, "log-format", "", "set log format")
+	setIgnore(runCommand.Flags(), &ignore)
 
 	usageTemplate := `Usage:
   {{.UseLine}} [flags] [files]
