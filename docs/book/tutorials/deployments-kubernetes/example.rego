@@ -1,14 +1,15 @@
 package example
 
-import input.pod
+default deny = false
 
-default allow = true
-
-allow = false {
-    not pod.metadata.labels.customer
+# Reject objects without a customer label.
+deny {
+    not input.metadata.labels.customer
 }
 
-allow = false {
-    container = pod.spec.containers[_]
+# Reject pods referring to images outside the corporate registry.
+deny {
+    input.kind = "Pod"
+    container = input.spec.containers[_]
     not re_match("^registry.acmecorp.com/.+$", container.image)
 }

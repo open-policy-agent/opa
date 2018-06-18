@@ -18,6 +18,7 @@ import (
 var checkParams = struct {
 	format   *util.EnumFlag
 	errLimit int
+	ignore   []string
 }{
 	format: util.NewEnumFlag(checkFormatPretty, []string{
 		checkFormatPretty, checkFormatJSON,
@@ -54,7 +55,11 @@ and exit with a non-zero exit code.`,
 
 func checkModules(args []string) int {
 
-	result, err := loader.AllRegos(args)
+	f := loaderFilter{
+		Ignore: checkParams.ignore,
+	}
+
+	result, err := loader.Filtered(args, f.Apply)
 	if err != nil {
 		outputErrors(err)
 		return 1
@@ -98,6 +103,7 @@ func outputErrors(err error) {
 
 func init() {
 	setMaxErrors(checkCommand.Flags(), &checkParams.errLimit)
+	setIgnore(checkCommand.Flags(), &checkParams.ignore)
 	checkCommand.Flags().VarP(checkParams.format, "format", "f", "set output format")
 	RootCommand.AddCommand(checkCommand)
 }

@@ -1,31 +1,33 @@
-kind: ReplicationController
-apiVersion: v1
+apiVersion: extensions/v1beta1
+kind: Deployment
 metadata:
   name: opa
+  labels:
+    app: opa
 spec:
   replicas: 1
-  selector:
-    app: opa
   template:
     metadata:
       labels:
         app: opa
+      name: opa
     spec:
-      volumes:
-      - name: example-policy
-        configMap:
-          name: example-policy
       containers:
       - name: opa
-        image: openpolicyagent/opa
+        image: openpolicyagent/opa:0.8.1
         ports:
         - name: http
           containerPort: 8181
         args:
         - "run"
+        - "--ignore=.*"  # exclude hidden dirs created by Kubernetes
         - "--server"
-        - "/policies/example.rego"
+        - "/policies"
         volumeMounts:
         - readOnly: true
           mountPath: /policies
+          name: example-policy
+      volumes:
+      - name: example-policy
+        configMap:
           name: example-policy

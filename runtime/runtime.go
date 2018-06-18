@@ -94,6 +94,9 @@ type Params struct {
 	// where the contained document should be loaded.
 	Paths []string
 
+	// Optional filter that will be passed to the file loader.
+	Filter loader.Filter
+
 	// Watch flag controls whether OPA will watch the Paths files for changes.
 	// If this flag is true, OPA will watch the Paths files for changes and
 	// reload the storage layer each time they change. This is useful for
@@ -155,7 +158,7 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		}
 	}
 
-	loaded, err := loader.All(params.Paths)
+	loaded, err := loader.Filtered(params.Paths, params.Filter)
 	if err != nil {
 		return nil, err
 	}
@@ -316,7 +319,7 @@ func (rt *Runtime) readWatcher(ctx context.Context, watcher *fsnotify.Watcher, p
 
 func (rt *Runtime) processWatcherUpdate(ctx context.Context, paths []string, removed string) error {
 
-	loaded, err := loader.All(paths)
+	loaded, err := loader.Filtered(paths, rt.Params.Filter)
 	if err != nil {
 		return err
 	}
@@ -340,7 +343,7 @@ func (rt *Runtime) processWatcherUpdate(ctx context.Context, paths []string, rem
 				// This branch get hit in two cases.
 				// 1. Another piece of code has access to the store and inserts
 				//    a policy out-of-band.
-				// 2. In between FS notification and loader.All() call above, a
+				// 2. In between FS notification and loader.Filtered() call above, a
 				//    policy is removed from disk.
 				bs, err := rt.Store.GetPolicy(ctx, txn, id)
 				if err != nil {

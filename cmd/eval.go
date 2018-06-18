@@ -32,6 +32,7 @@ type evalCommandParams struct {
 	stdin     bool
 	explain   *util.EnumFlag
 	metrics   bool
+	ignore    []string
 }
 
 const (
@@ -108,6 +109,7 @@ package path contained inside the file.`,
 	evalCommand.Flags().BoolVarP(&params.stdin, "stdin", "", false, "read query from stdin")
 	evalCommand.Flags().BoolVarP(&params.metrics, "metrics", "", false, "report query performance metrics")
 	evalCommand.Flags().VarP(params.explain, "explain", "", "enable query explainations")
+	setIgnore(evalCommand.Flags(), &params.ignore)
 
 	RootCommand.AddCommand(evalCommand)
 }
@@ -137,7 +139,12 @@ func eval(args []string, params evalCommandParams) (err error) {
 	}
 
 	if len(params.dataPaths.v) > 0 {
-		loadResult, err := loader.All(params.dataPaths.v)
+
+		f := loaderFilter{
+			Ignore: checkParams.ignore,
+		}
+
+		loadResult, err := loader.Filtered(params.dataPaths.v, f.Apply)
 		if err != nil {
 			return err
 		}
