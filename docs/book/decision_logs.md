@@ -59,7 +59,7 @@ decision_logs:
 | `labels` | No |  Set of key-value pairs that uniquely identify the OPA instance. |
 | `decision_logs.service` | Yes | Name of the service to use to contact remote server. |
 | `decision_logs.partition_name` | No | Path segment to include in status updates. |
-| `decision_logs.reporting.buffer_size_limit_bytes` | No | Decision log buffer size limit in bytes. OPA will drop old events from the log if this limit is exceeded. |
+| `decision_logs.reporting.buffer_size_limit_bytes` | No | Decision log buffer size limit in bytes. OPA will drop old events from the log if this limit is exceeded. By default, no limit is set. |
 | `decision_logs.reporting.upload_size_limit_bytes` | No | Decision log upload size limit in bytes. OPA will chunk uploads to cap message body to this limit. |
 | `decision_logs.reporting.min_delay_seconds` | No | Minimum amount of time to wait between uploads. |
 | `decision_logs.reporting.max_delay_seconds` | No | Maximum amount of time to wait between uploads. |
