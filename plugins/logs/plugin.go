@@ -39,8 +39,8 @@ const (
 	minRetryDelay               = time.Millisecond * 100
 	defaultMinDelaySeconds      = int64(300)
 	defaultMaxDelaySeconds      = int64(600)
-	defaultUploadSizeLimitBytes = int64(32768)     // 32KB limit
-	defaultBufferSizeLimitBytes = int64(104857600) // 100MB limit
+	defaultUploadSizeLimitBytes = int64(32768) // 32KB limit
+	defaultBufferSizeLimitBytes = int64(0)     // unlimited
 )
 
 // ReportingConfig represents configuration for the plugin's reporting behaviour.
