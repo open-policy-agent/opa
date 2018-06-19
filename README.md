@@ -32,10 +32,10 @@ OPA is hosted by the [Cloud Native Computing Foundation](https://cncf.io) (CNCF)
 * See [DEVELOPMENT.md](./docs/devel/DEVELOPMENT.md) to build and test OPA itself.
 * See [CONTRIBUTING.md](./CONTRIBUTING.md) to get started.
 * Use [GitHub Issues](https://github.com/open-policy-agent/opa/issues) to request features or file bugs.
-* Join weekly meetings every Tuesday at 10:00 (Pacific Timezone):
+* Join bi-weekly meetings every other Tuesday at 10:00 (Pacific Timezone):
     * [Meeting Notes](https://docs.google.com/document/d/1v6l2gmkRKAn5UIg3V2QdeeCcXMElxsNzEzDkVlWDVg8/edit?usp=sharing)
     * [Google Hangouts](https://plus.google.com/hangouts/_/styra.com/opa-weekly)
-    * [Calendar Invite](https://calendar.google.com/event?action=TEMPLATE&tmeid=N3AzamxzYWY2MG9wa2J0cmFjODNzaXI3MDhfMjAxODAxMTZUMTgwMDAwWiB0b3JpbkBzdHlyYS5jb20&tmsrc=torin%40styra.com&scp=ALL)
+    * [Calendar Invite](https://calendar.google.com/event?action=TEMPLATE&tmeid=NHY2YmpnYjVwcjU3Y21mNHE0dWFodHU5czRfMjAxODA2MjZUMTcwMDAwWiB0b3JpbkBzdHlyYS5jb20&tmsrc=torin%40styra.com&scp=ALL)
 
 ## How does OPA work?
 
