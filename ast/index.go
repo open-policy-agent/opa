@@ -456,6 +456,9 @@ func (node *trieNode) traverse(resolver ValueResolver, tr *trieTraversalResult) 
 
 	v, err := resolver.Resolve(node.ref)
 	if err != nil {
+		if IsUnknownValueErr(err) {
+			return node.traverseUnknown(resolver, tr)
+		}
 		return err
 	}
 
@@ -497,10 +500,7 @@ func (node *trieNode) traverseValue(resolver ValueResolver, tr *trieTraversalRes
 func (node *trieNode) traverseArray(resolver ValueResolver, tr *trieTraversalResult, arr Array) error {
 
 	if len(arr) == 0 {
-		if node.next != nil || len(node.rules) > 0 {
-			return node.Traverse(resolver, tr)
-		}
-		return nil
+		return node.Traverse(resolver, tr)
 	}
 
 	head := arr[0].Value
@@ -519,6 +519,37 @@ func (node *trieNode) traverseArray(resolver ValueResolver, tr *trieTraversalRes
 	}
 
 	return child.traverseArray(resolver, tr, arr[1:])
+}
+
+func (node *trieNode) traverseUnknown(resolver ValueResolver, tr *trieTraversalResult) error {
+
+	if node == nil {
+		return nil
+	}
+
+	if err := node.Traverse(resolver, tr); err != nil {
+		return err
+	}
+
+	if err := node.undefined.traverseUnknown(resolver, tr); err != nil {
+		return err
+	}
+
+	if err := node.any.traverseUnknown(resolver, tr); err != nil {
+		return err
+	}
+
+	if err := node.array.traverseUnknown(resolver, tr); err != nil {
+		return err
+	}
+
+	for _, child := range node.scalars {
+		if err := child.traverseUnknown(resolver, tr); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 type triePrinter struct {

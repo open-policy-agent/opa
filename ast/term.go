@@ -183,6 +183,20 @@ type ValueResolver interface {
 	Resolve(ref Ref) (value Value, err error)
 }
 
+// UnknownValueErr indicates a ValueResolver was unable to resolve a reference
+// because the reference refers to an unknown value.
+type UnknownValueErr struct{}
+
+func (UnknownValueErr) Error() string {
+	return "unknown value"
+}
+
+// IsUnknownValueErr returns true if the err is an UnknownValueErr.
+func IsUnknownValueErr(err error) bool {
+	_, ok := err.(UnknownValueErr)
+	return ok
+}
+
 type illegalResolver struct{}
 
 func (illegalResolver) Resolve(ref Ref) (interface{}, error) {

@@ -12,11 +12,15 @@ import (
 )
 
 type testResolver struct {
-	input   *Term
-	failRef Ref
+	input       *Term
+	failRef     Ref
+	unknownRefs Set
 }
 
 func (r testResolver) Resolve(ref Ref) (Value, error) {
+	if r.unknownRefs != nil && r.unknownRefs.Contains(NewTerm(ref)) {
+		return nil, UnknownValueErr{}
+	}
 	if ref.Equal(r.failRef) {
 		return nil, fmt.Errorf("some error")
 	}
@@ -127,6 +131,7 @@ func TestBaseDocEqIndexing(t *testing.T) {
 		note       string
 		ruleset    string
 		input      string
+		unknowns   []string
 		expectedRS interface{}
 		expectedDR *Rule
 	}{
@@ -294,6 +299,23 @@ func TestBaseDocEqIndexing(t *testing.T) {
 			input:      `{}`,
 			expectedRS: module.RuleSet(Var("filtering")).Diff(NewRuleSet(MustParseRule(`filtering { input.x = 1 }`))),
 		},
+		{
+			note:       "unknown: all",
+			ruleset:    "composite_arr",
+			unknowns:   []string{`input.x`, `input.y`, `input.z`},
+			expectedRS: module.RuleSet(Var("composite_arr")),
+		},
+		{
+			note:     "unknown: partial",
+			ruleset:  "composite_arr",
+			unknowns: []string{`input.x`, `input.y`},
+			input:    `{"z": 3}`,
+			expectedRS: module.RuleSet(Var("composite_arr")).Diff(NewRuleSet(MustParseRule(`composite_arr {
+				input.x = 1
+				input.y = [1,2,3]
+				input.z = 1
+			}`))),
+		},
 	}
 
 	for _, tc := range tests {
@@ -306,7 +328,11 @@ func TestBaseDocEqIndexing(t *testing.T) {
 				}
 			}
 
-			input := MustParseTerm(tc.input)
+			var input *Term
+			if tc.input != "" {
+				input = MustParseTerm(tc.input)
+			}
+
 			var expectedRS RuleSet
 
 			switch e := tc.expectedRS.(type) {
@@ -328,7 +354,16 @@ func TestBaseDocEqIndexing(t *testing.T) {
 				t.Fatalf("Expected index build to succeed")
 			}
 
-			result, err := index.Lookup(testResolver{input, nil})
+			var unknownRefs Set
+
+			if len(tc.unknowns) > 0 {
+				unknownRefs = NewSet()
+				for _, s := range tc.unknowns {
+					unknownRefs.Add(MustParseTerm(s))
+				}
+			}
+
+			result, err := index.Lookup(testResolver{input: input, unknownRefs: unknownRefs})
 			if err != nil {
 				t.Fatalf("Unexpected error during index lookup: %v", err)
 			}
@@ -383,7 +418,7 @@ func TestBaseDocEqIndexingPriorities(t *testing.T) {
 
 	input := MustParseTerm(`{"x": "x1", "y": "y1", "z": "z1"}`)
 
-	result, err := index.Lookup(testResolver{input, nil})
+	result, err := index.Lookup(testResolver{input: input})
 	if err != nil {
 		t.Fatalf("Unexpected error during index lookup: %v", err)
 	}
@@ -429,7 +464,9 @@ func TestBaseDocEqIndexingErrors(t *testing.T) {
 		t.Fatalf("Expected index to build")
 	}
 
-	_, err := index.Lookup(testResolver{MustParseTerm(`{}`), MustParseRef("input.raise_error")})
+	_, err := index.Lookup(testResolver{
+		input:   MustParseTerm(`{}`),
+		failRef: MustParseRef("input.raise_error")})
 
 	if err == nil || err.Error() != "some error" {
 		t.Fatalf("Expected error but got: %v", err)
