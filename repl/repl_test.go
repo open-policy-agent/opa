@@ -341,7 +341,7 @@ func TestTypes(t *testing.T) {
 
 }
 
-func TestPartial(t *testing.T) {
+func TestUnknown(t *testing.T) {
 	ctx := context.Background()
 	store := inmem.New()
 	var buffer bytes.Buffer
@@ -349,7 +349,7 @@ func TestPartial(t *testing.T) {
 
 	repl.OneShot(ctx, "xs = [1,2,3]")
 
-	err := repl.OneShot(ctx, "partial input")
+	err := repl.OneShot(ctx, "unknown input")
 	if err != nil {
 		t.Fatal("Unexpected command error:", err)
 	}
