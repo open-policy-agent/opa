@@ -878,8 +878,12 @@ func (s moduleSet) String() string {
 
 func (s moduleSet) Contains(b *ast.Module) bool {
 	for i := range s {
-		if s[i].Equal(b) {
-			return true
+		if s[i].Package.Equal(b.Package) {
+			rs1 := ast.NewRuleSet(s[i].Rules...)
+			rs2 := ast.NewRuleSet(b.Rules...)
+			if rs1.Equal(rs2) {
+				return true
+			}
 		}
 	}
 	return false

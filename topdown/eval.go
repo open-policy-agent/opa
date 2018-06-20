@@ -744,39 +744,9 @@ func (e *eval) saveCall(operator *ast.Term, args []*ast.Term, result *ast.Term, 
 }
 
 func (e *eval) getRules(ref ast.Ref) (*ast.IndexResult, error) {
-
 	e.instr.startTimer(evalOpRuleIndex)
 	defer e.instr.stopTimer(evalOpRuleIndex)
 
-	// If partial evaluation is being performed, the rule index cannot be used
-	// because the input may not be known and want to partially evaluate all
-	// rules.
-	if e.partial() {
-		return e.getAllRules(ref), nil
-	}
-
-	return e.getRulesIndexed(ref)
-}
-
-func (e *eval) getAllRules(ref ast.Ref) *ast.IndexResult {
-	var ir *ast.IndexResult
-	for _, rule := range e.compiler.GetRulesExact(ref) {
-		if ir == nil {
-			ir = ast.NewIndexResult(rule.Head.DocKind())
-		}
-		if rule.Default {
-			ir.Default = rule
-		} else {
-			ir.Rules = append(ir.Rules, rule)
-			for els := rule.Else; els != nil; els = els.Else {
-				ir.Else[rule] = append(ir.Else[rule], els)
-			}
-		}
-	}
-	return ir
-}
-
-func (e *eval) getRulesIndexed(ref ast.Ref) (*ast.IndexResult, error) {
 	index := e.compiler.RuleIndex(ref)
 	if index == nil {
 		return nil, nil
@@ -798,6 +768,10 @@ func (e *eval) Resolve(ref ast.Ref) (ast.Value, error) {
 
 	e.instr.startTimer(evalOpResolve)
 	defer e.instr.stopTimer(evalOpResolve)
+
+	if e.saveSet.Contains(ast.NewTerm(ref)) {
+		return nil, ast.UnknownValueErr{}
+	}
 
 	if ref[0].Equal(ast.InputRootDocument) {
 		if e.input != nil {
