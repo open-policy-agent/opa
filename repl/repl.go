@@ -261,8 +261,8 @@ func (r *REPL) OneShot(ctx context.Context, line string) error {
 				return r.cmdInstrument()
 			case "types":
 				return r.cmdTypes()
-			case "partial":
-				return r.cmdPartial(cmd.args)
+			case "unknown":
+				return r.cmdUnknown(cmd.args)
 			case "help":
 				return r.cmdHelp(cmd.args)
 			case "exit":
@@ -451,9 +451,9 @@ func (r *REPL) cmdTypes() error {
 	return nil
 }
 
-func (r *REPL) cmdPartial(s []string) error {
+func (r *REPL) cmdUnknown(s []string) error {
 	if len(s) == 0 && len(r.unknowns) == 0 {
-		return fmt.Errorf("usage: partial <unknown-1> [<unknown-2> [...]] (hint: try just 'input')")
+		return fmt.Errorf("usage: unknown <unknown-1> [<unknown-2> [...]] (hint: try just 'input')")
 	}
 	r.unknowns = make([]*ast.Term, len(s))
 	for i := range r.unknowns {
@@ -1146,7 +1146,7 @@ var builtin = [...]commandDesc{
 	{"metrics", []string{}, "toggle metrics"},
 	{"instrument", []string{}, "toggle instrumentation"},
 	{"types", []string{}, "toggle type information"},
-	{"partial", []string{"[ref-1 [ref-2 [...]]]"}, "toggle partial evaluation mode"},
+	{"unknown", []string{"[ref-1 [ref-2 [...]]]"}, "toggle partial evaluation mode"},
 	{"dump", []string{"[path]"}, "dump raw data in storage"},
 	{"help", []string{"[topic]"}, "print this message"},
 	{"exit", []string{}, "exit out of shell (or ctrl+d)"},
@@ -1354,27 +1354,27 @@ For example:
 
 func printHelpPartial(output io.Writer) error {
 
-	printHelpTitle(output, "Partial")
+	printHelpTitle(output, "Partial Evaluation")
 
 	txt := strings.TrimSpace(`
-Rego queries can be partially evaluated with respect to the specific variables,
-inputs, or any document rooted under data. The result of partial evaluation is
-a new set of queries that can be evaluated later.
+Rego queries can be partially evaluated with respect to the specific unknown
+variables, inputs, or any document rooted under data. The result of partial
+evaluation is a new set of queries that can be evaluated later.
 
 For example:
 
 	> allowed_methods = ["GET", "HEAD"]
 
 	# Enable partial evaluation. Treat input document as unknown.
-	> partial input
+	> unknown input
 
 	# Partially evaluate a query.
 	> method = allowed_methods[i]; input.method = method
 	input.method = "GET"; i = 0; method = "GET"
 	input.method = "HEAD"; i = 1; method = "HEAD"
 
-	# Turn off partial evaluation by running the 'partial' command with no arguments.
-	> partial`) + "\n"
+	# Turn off partial evaluation by running the 'unknown' command with no arguments.
+	> unknown`) + "\n"
 
 	fmt.Fprintln(output, txt)
 	return nil
@@ -1383,6 +1383,6 @@ For example:
 func printHelpTitle(output io.Writer, title string) {
 	fmt.Fprintln(output, "")
 	fmt.Fprintln(output, title)
-	fmt.Fprintln(output, "=======")
+	fmt.Fprintln(output, strings.Repeat("=", len(title)))
 	fmt.Fprintln(output, "")
 }
