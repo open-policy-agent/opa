@@ -306,6 +306,38 @@ type trieNode struct {
 	rules     []*ruleNode
 }
 
+func (node *trieNode) String() string {
+	var flags []string
+	flags = append(flags, fmt.Sprintf("self:%p", node))
+	if len(node.ref) > 0 {
+		flags = append(flags, node.ref.String())
+	}
+	if node.next != nil {
+		flags = append(flags, fmt.Sprintf("next:%p", node.next))
+	}
+	if node.any != nil {
+		flags = append(flags, fmt.Sprintf("any:%p", node.any))
+	}
+	if node.undefined != nil {
+		flags = append(flags, fmt.Sprintf("undefined:%p", node.undefined))
+	}
+	if node.array != nil {
+		flags = append(flags, fmt.Sprintf("array:%p", node.array))
+	}
+	if len(node.scalars) > 0 {
+		buf := []string{}
+		for k, v := range node.scalars {
+			buf = append(buf, fmt.Sprintf("scalar(%v):%p", k, v))
+		}
+		sort.Strings(buf)
+		flags = append(flags, strings.Join(buf, " "))
+	}
+	if len(node.rules) > 0 {
+		flags = append(flags, fmt.Sprintf("%d rule(s)", len(node.rules)))
+	}
+	return strings.Join(flags, " ")
+}
+
 type ruleNode struct {
 	prio [2]int
 	rule *Rule
@@ -322,10 +354,6 @@ func (node *trieNode) Do(walker trieWalker) {
 	if next == nil {
 		return
 	}
-	if node.next != nil {
-		node.next.Do(next)
-		return
-	}
 	if node.any != nil {
 		node.any.Do(next)
 	}
@@ -337,6 +365,9 @@ func (node *trieNode) Do(walker trieWalker) {
 	}
 	if node.array != nil {
 		node.array.Do(next)
+	}
+	if node.next != nil {
+		node.next.Do(next)
 	}
 }
 
