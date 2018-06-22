@@ -220,10 +220,7 @@ func (p *Plugin) loop() {
 func (p *Plugin) oneShot(ctx context.Context) (updated bool, err error) {
 
 	defer func() {
-		if err != nil || updated {
-			p.setErrorStatus(err)
-		}
-
+		p.setErrorStatus(err)
 		status := *p.status
 
 		for _, listener := range p.listeners {
@@ -262,27 +259,33 @@ func (p *Plugin) oneShot(ctx context.Context) (updated bool, err error) {
 
 func (p *Plugin) process(ctx context.Context, resp *http.Response) error {
 
-	p.logDebug("Bundle download in progress.")
-
-	b, err := bundle.Read(resp.Body)
+	b, err := p.download(ctx, resp)
 	if err != nil {
 		return errors.Wrap(err, "Bundle download failed")
 	}
 
-	p.status.LastSuccessfulDownload = time.Now().UTC()
-	p.logDebug("Bundle activation in progress.")
-
-	if err := p.activate(ctx, b); err != nil {
+	if err := p.activate(ctx, resp.Header.Get("ETag"), *b); err != nil {
 		return errors.Wrap(err, "Bundle activation failed")
 	}
 
-	p.status.ActiveRevision = b.Manifest.Revision
-	p.etag = resp.Header.Get("ETag")
 	return nil
 }
 
-func (p *Plugin) activate(ctx context.Context, b bundle.Bundle) error {
-	p.logDebug("Opening storage transaction.")
+func (p *Plugin) download(ctx context.Context, resp *http.Response) (*bundle.Bundle, error) {
+
+	p.logDebug("Bundle download in progress.")
+
+	b, err := bundle.Read(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	p.status.LastSuccessfulDownload = time.Now().UTC()
+	return &b, nil
+}
+
+func (p *Plugin) activate(ctx context.Context, etag string, b bundle.Bundle) error {
+	p.logDebug("Bundle activation in progress. Opening storage transaction.")
 
 	return storage.Txn(ctx, p.manager.Store, storage.WriteParams, func(txn storage.Transaction) error {
 		p.logDebug("Opened storage transaction (%v).", txn.ID())
@@ -329,6 +332,8 @@ func (p *Plugin) activate(ctx context.Context, b bundle.Bundle) error {
 		}
 
 		p.status.LastSuccessfulActivation = time.Now().UTC()
+		p.status.ActiveRevision = b.Manifest.Revision
+		p.etag = etag
 
 		return nil
 	})
