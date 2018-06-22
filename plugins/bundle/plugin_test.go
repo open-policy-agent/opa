@@ -318,7 +318,7 @@ func TestPluginActivatationRemovesOld(t *testing.T) {
 		},
 	}
 
-	if err := p.activate(ctx, b); err != nil {
+	if err := p.activate(ctx, "firstetag", b); err != nil {
 		t.Fatal("Unexpected:", err)
 	}
 
@@ -339,7 +339,7 @@ func TestPluginActivatationRemovesOld(t *testing.T) {
 		},
 	}
 
-	if err := p.activate(ctx, b2); err != nil {
+	if err := p.activate(ctx, "secondetag", b2); err != nil {
 		t.Fatal("Unexpected:", err)
 	}
 
@@ -426,6 +426,46 @@ func TestPluginListener(t *testing.T) {
 		t.Fatalf("Expected: %v but got: %v", s3, s4)
 	}
 
+}
+
+func TestPluginListenerErrorClearedOn304(t *testing.T) {
+	ctx := context.Background()
+	fixture := newTestFixture(t)
+	defer fixture.server.stop()
+
+	// b := fixture.server.bundles["test/bundle1"]
+	ch := make(chan Status, 1)
+
+	fixture.plugin.Register("test", func(status Status) {
+		ch <- status
+	})
+
+	// Test that initial bundle is ok.
+	fixture.server.expEtag = "etagvalue"
+	fixture.plugin.oneShot(ctx)
+	s1 := <-ch
+
+	if s1.ActiveRevision != "quickbrownfaux" || s1.Code != "" {
+		t.Fatal("Unexpected status update, got:", s1)
+	}
+
+	// Test that service error triggers failure notification.
+	fixture.server.expCode = 500
+	fixture.plugin.oneShot(ctx)
+	s2 := <-ch
+
+	if s2.ActiveRevision != "quickbrownfaux" || s2.Code == "" {
+		t.Fatal("Unexpected status update, got:", s2)
+	}
+
+	// Test that service recovery triggers healthy notification.
+	fixture.server.expCode = 304
+	fixture.plugin.oneShot(ctx)
+	s3 := <-ch
+
+	if s3.ActiveRevision != "quickbrownfaux" || s3.Code != "" {
+		t.Fatal("Unexpected status update, got:", s3)
+	}
 }
 
 type testFixture struct {
