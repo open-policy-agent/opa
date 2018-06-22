@@ -294,7 +294,6 @@ func (p *Plugin) activate(ctx context.Context, b bundle.Bundle) error {
 		}
 
 		if err := p.writeManifest(ctx, txn, b.Manifest); err != nil {
-			fmt.Println("manifest write err:", err)
 			return err
 		}
 
