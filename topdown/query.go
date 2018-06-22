@@ -145,6 +145,9 @@ func (q *Query) PartialRun(ctx context.Context) (partials []ast.Body, support []
 	}
 	q.startTimer(metrics.RegoPartialEval)
 	defer q.stopTimer(metrics.RegoPartialEval)
+
+	p := newCopyPropagator(q.query)
+
 	err = e.Run(func(e *eval) error {
 		// Build output from saved expressions.
 		body := ast.NewBody()
@@ -165,6 +168,7 @@ func (q *Query) PartialRun(ctx context.Context) (partials []ast.Body, support []
 		for i := range bindingExprs {
 			body.Append(bindingExprs[i])
 		}
+		body = p.Apply(body)
 		partials = append(partials, body)
 		return nil
 	})
