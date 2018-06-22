@@ -2,7 +2,7 @@
 # Use of this source code is governed by an Apache2
 # license that can be found in the LICENSE file.
 
-VERSION := 0.8.2
+VERSION := 0.8.3-dev
 
 PACKAGES := $(shell go list ./.../ | grep -v 'vendor')
 
