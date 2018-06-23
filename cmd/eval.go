@@ -25,14 +25,15 @@ import (
 )
 
 type evalCommandParams struct {
-	dataPaths repeatedStringFlag
-	inputPath string
-	imports   repeatedStringFlag
-	pkg       string
-	stdin     bool
-	explain   *util.EnumFlag
-	metrics   bool
-	ignore    []string
+	dataPaths  repeatedStringFlag
+	inputPath  string
+	imports    repeatedStringFlag
+	pkg        string
+	stdin      bool
+	stdinInput bool
+	explain    *util.EnumFlag
+	metrics    bool
+	ignore     []string
 }
 
 const (
@@ -92,6 +93,12 @@ package path contained inside the file.`,
 			} else if len(args) > 1 {
 				return errors.New("specify at most one query argument")
 			}
+			if params.stdin && params.stdinInput {
+				return errors.New("specify --stdin or --stdin-input but not both")
+			}
+			if params.stdinInput && params.inputPath != "" {
+				return errors.New("specify --stdin-input or --input but not both")
+			}
 			return nil
 		},
 		Run: func(cmd *cobra.Command, args []string) {
@@ -107,6 +114,7 @@ package path contained inside the file.`,
 	evalCommand.Flags().VarP(&params.imports, "import", "", "set query import(s)")
 	evalCommand.Flags().StringVarP(&params.pkg, "package", "", "", "set query package")
 	evalCommand.Flags().BoolVarP(&params.stdin, "stdin", "", false, "read query from stdin")
+	evalCommand.Flags().BoolVarP(&params.stdinInput, "stdin-input", "I", false, "read input document from stdin")
 	evalCommand.Flags().BoolVarP(&params.metrics, "metrics", "", false, "report query performance metrics")
 	evalCommand.Flags().VarP(params.explain, "explain", "", "enable query explainations")
 	setIgnore(evalCommand.Flags(), &params.ignore)
@@ -154,11 +162,10 @@ func eval(args []string, params evalCommandParams) (err error) {
 		}
 	}
 
-	if params.inputPath != "" {
-		bs, err := ioutil.ReadFile(params.inputPath)
-		if err != nil {
-			return err
-		}
+	bs, err := readInputBytes(params)
+	if err != nil {
+		return err
+	} else if bs != nil {
 		term, err := ast.ParseTerm(string(bs))
 		if err != nil {
 			return err
@@ -203,13 +210,22 @@ func eval(args []string, params evalCommandParams) (err error) {
 		result.Metrics = m.All()
 	}
 
-	bs, err := json.MarshalIndent(result, "", "  ")
+	bs, err = json.MarshalIndent(result, "", "  ")
 	if err != nil {
 		return err
 	}
 
 	fmt.Println(string(bs))
 	return nil
+}
+
+func readInputBytes(params evalCommandParams) ([]byte, error) {
+	if params.stdinInput {
+		return ioutil.ReadAll(os.Stdin)
+	} else if params.inputPath != "" {
+		return ioutil.ReadFile(params.inputPath)
+	}
+	return nil, nil
 }
 
 type repeatedStringFlag struct {
