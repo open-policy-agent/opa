@@ -25,20 +25,24 @@ import (
 )
 
 type evalCommandParams struct {
-	dataPaths  repeatedStringFlag
-	inputPath  string
-	imports    repeatedStringFlag
-	pkg        string
-	stdin      bool
-	stdinInput bool
-	explain    *util.EnumFlag
-	metrics    bool
-	ignore     []string
+	dataPaths    repeatedStringFlag
+	inputPath    string
+	imports      repeatedStringFlag
+	pkg          string
+	stdin        bool
+	stdinInput   bool
+	explain      *util.EnumFlag
+	metrics      bool
+	ignore       []string
+	outputFormat *util.EnumFlag
 }
 
 const (
-	explainModeOff  = ""
-	explainModeFull = "full"
+	explainModeOff     = ""
+	explainModeFull    = "full"
+	evalJSONOutput     = "json"
+	evalValuesOutput   = "values"
+	evalBindingsOutput = "bindings"
 )
 
 type evalResult struct {
@@ -51,12 +55,20 @@ func init() {
 
 	var params evalCommandParams
 
+	params.outputFormat = util.NewEnumFlag(evalJSONOutput, []string{
+		evalJSONOutput,
+		evalValuesOutput,
+		evalBindingsOutput,
+	})
 	params.explain = util.NewEnumFlag(explainModeOff, []string{explainModeFull})
 
 	evalCommand := &cobra.Command{
 		Use:   "eval <query>",
 		Short: "Evaluate a Rego query",
 		Long: `Evaluate a Rego query and print the result.
+
+Examples
+--------
 
 To evaluate a simple query:
 
@@ -65,6 +77,9 @@ To evaluate a simple query:
 To evaluate a query against JSON data:
 
 	$ opa eval --data data.json 'data.names[_] = name'
+
+File Loading
+------------
 
 The --data flag will recursively load data files and Rego files contained in
 sub-directories under the path. For example, given /some/path:
@@ -83,7 +98,17 @@ Where /some/path contains:
 
 The JSON file 'foo/bar/data.json' would be loaded and rooted under
 'data.foo.bar' and the 'foo/baz.rego' would be loaded and rooted under the
-package path contained inside the file.`,
+package path contained inside the file.
+
+Output Formats
+--------------
+
+Set the output format with the --format flag.
+
+	--format=json 		: output raw query results as JSON
+	--format=values 	: output line separated JSON arrays containing expression values
+	--format=bindings 	: output line separated JSON objects containing variable bindings
+`,
 
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) > 0 && params.stdin {
@@ -117,6 +142,7 @@ package path contained inside the file.`,
 	evalCommand.Flags().BoolVarP(&params.stdinInput, "stdin-input", "I", false, "read input document from stdin")
 	evalCommand.Flags().BoolVarP(&params.metrics, "metrics", "", false, "report query performance metrics")
 	evalCommand.Flags().VarP(params.explain, "explain", "", "enable query explainations")
+	evalCommand.Flags().VarP(params.outputFormat, "format", "f", "set output format")
 	setIgnore(evalCommand.Flags(), &params.ignore)
 
 	RootCommand.AddCommand(evalCommand)
@@ -210,12 +236,35 @@ func eval(args []string, params evalCommandParams) (err error) {
 		result.Metrics = m.All()
 	}
 
-	bs, err = json.MarshalIndent(result, "", "  ")
-	if err != nil {
-		return err
+	switch params.outputFormat.String() {
+	case evalBindingsOutput:
+		for _, rs := range result.Result {
+			bs, err := json.MarshalIndent(rs.Bindings, "", "  ")
+			if err != nil {
+				return err
+			}
+			fmt.Println(string(bs))
+		}
+	case evalValuesOutput:
+		for _, rs := range result.Result {
+			line := make([]interface{}, len(rs.Expressions))
+			for i := range line {
+				line[i] = rs.Expressions[i].Value
+			}
+			bs, err := json.MarshalIndent(line, "", "  ")
+			if err != nil {
+				return err
+			}
+			fmt.Println(string(bs))
+		}
+	default:
+		bs, err = json.MarshalIndent(result, "", "  ")
+		if err != nil {
+			return err
+		}
+		fmt.Println(string(bs))
 	}
 
-	fmt.Println(string(bs))
 	return nil
 }
 
