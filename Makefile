@@ -28,56 +28,63 @@ LDFLAGS := "-X github.com/open-policy-agent/opa/version.Version=$(VERSION) \
 GO15VENDOREXPERIMENT := 1
 export GO15VENDOREXPERIMENT
 
-.PHONY: all build check check-fmt check-lint check-vet \
-	clean cover deps docs fmt generate install perf perf-regression \
-	push push-latest push-release-builder release release-builder \
-	release-patch tag-latest test version
-
 ######################################################
 #
 # Development targets
 #
 ######################################################
 
+.PHONY: all
 all: deps build test check
 
+.PHONY: version
 version:
 	@echo $(VERSION)
 
+.PHONY: deps
 deps:
 	@./build/install-deps.sh
 
+.PHONY: generate
 generate:
 	$(GO) generate
 
+.PHONY: build
 build: generate
 	$(DISABLE_CGO) $(GO) build -o $(BIN) -ldflags $(LDFLAGS)
 
+.PHONY: image
 image:
 	@$(MAKE) build GOOS=linux
 	@$(MAKE) image-quick
 
+.PHONY: image-quick
 image-quick:
 	sed -e 's/GOARCH/$(GOARCH)/g' Dockerfile.in > .Dockerfile_$(GOARCH)
 	sed -e 's/GOARCH/$(GOARCH)/g' Dockerfile_alpine.in > .Dockerfile_alpine_$(GOARCH)
 	docker build -t $(IMAGE):$(VERSION)	-f .Dockerfile_$(GOARCH) .
 	docker build -t $(IMAGE):$(VERSION)-alpine -f .Dockerfile_alpine_$(GOARCH) .
 
+.PHONY: push
 push:
 	docker push $(IMAGE):$(VERSION)
 	docker push $(IMAGE):$(VERSION)-alpine
 
+.PHONY: tag-latest
 tag-latest:
 	docker tag $(IMAGE):$(VERSION) $(IMAGE):latest
 	docker tag $(IMAGE):$(VERSION)-alpine $(IMAGE):latest-alpine
 
+.PHONY: push-latest
 push-latest:
 	docker push $(IMAGE):latest
 	docker push $(IMAGE):latest-alpine
 
+.PHONY: install
 install: generate
 	$(DISABLE_CGO) $(GO) install -ldflags $(LDFLAGS)
 
+.PHONY: test
 test: generate
 	$(DISABLE_CGO) $(GO) test $(PACKAGES)
 
@@ -87,33 +94,43 @@ $(COVER_PACKAGES):
 	$(DISABLE_CGO) $(GO) test -covermode=count -coverprofile=coverage/$(shell dirname $@)/coverage.out $@
 	$(GO) tool cover -html=coverage/$(shell dirname $@)/coverage.out || true
 
+.PHONY: perf
 perf: generate
 	$(DISABLE_CGO) $(GO) test -v -run=donotruntests -bench=. $(PACKAGES) | grep "^Benchmark"
 
+.PHONY: perf-regression
 perf-regression:
 	./build/run-perf-regression.sh
 
+.PHONY: cover
 cover: $(COVER_PACKAGES)
 
+.PHONY: check
 check: check-fmt check-vet check-lint
 
+.PHONY: check-fmt
 check-fmt:
 	./build/check-fmt.sh
 
+.PHONY: check-vet
 check-vet:
 	./build/check-vet.sh
 
+.PHONY: check-lint
 check-lint:
 	./build/check-lint.sh
 
+.PHONY: fmt
 fmt:
 	$(GO) fmt $(PACKAGES)
 
+.PHONY: clean
 clean:
 	rm -f .Dockerfile_*
 	rm -f opa_*_*
 	rm -fr site.tar.gz docs/_site docs/node_modules docs/book/_book docs/book/node_modules
 
+.PHONY: docs
 docs:
 	docker run -it --rm \
 		-v $(PWD):/go/src/github.com/open-policy-agent/opa \
@@ -128,13 +145,16 @@ docs:
 #
 ######################################################
 
+.PHONY: release-builder
 release-builder:
 	sed -e s/GOVERSION/$(shell python -c 'import yaml; print yaml.load(open("./.travis.yml"))["go"][0]')/g Dockerfile_release-builder.in > .Dockerfile_release-builder
 	docker build -f .Dockerfile_release-builder -t $(REPOSITORY)/release-builder .
 
+.PHONY: push-release-builder
 push-release-builder:
 	docker push $(REPOSITORY)/release-builder
 
+.PHONY: release
 release:
 	docker run -it --rm \
 		-v $(PWD)/_release/$(VERSION):/_release/$(VERSION) \
@@ -142,6 +162,7 @@ release:
 		$(REPOSITORY)/release-builder:latest \
 		/_src/build/build-release.sh --version=$(VERSION) --output-dir=/_release/$(VERSION) --source-url=/_src
 
+.PHONY: release-local
 release-local:
 	docker run -it --rm \
 		-v $(PWD)/_release/$(VERSION):/_release/$(VERSION) \
@@ -149,12 +170,14 @@ release-local:
 		$(REPOSITORY)/release-builder:latest \
 		/_src/build/build-release.sh --output-dir=/_release/$(VERSION) --source-url=/_src
 
+.PHONY: release-patch
 release-patch:
 	@docker run -it --rm \
 		-v $(PWD):/_src \
 		python:2.7 \
 		/_src/build/gen-release-patch.sh --version=$(VERSION) --source-url=/_src
 
+.PHONY: dev-patch
 dev-patch:
 	@docker run -it --rm \
 		-v $(PWD):/_src \
