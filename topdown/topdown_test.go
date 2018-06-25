@@ -1716,6 +1716,15 @@ func TestTopDownTime(t *testing.T) {
 
 	runTopDownTestCase(t, data, "clock too big", []string{`
 		p = [hour, minute, second] { [hour, minute, second] := time.clock(1582977600*1000*1000*1000*1000) }`}, fmt.Errorf("timestamp too big"))
+
+	for i, day := range []string{"Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"} {
+		ts := 1517832000*1000*1000*1000 + i*24*int(time.Hour)
+		runTopDownTestCase(t, data, "weekday", []string{fmt.Sprintf(`p = weekday { weekday := time.weekday(%d)}`, ts)},
+			fmt.Sprintf("%q", day))
+	}
+
+	runTopDownTestCase(t, data, "weekday too big", []string{`
+		p = weekday { weekday := time.weekday(1582977600*1000*1000*1000*1000) }`}, fmt.Errorf("timestamp too big"))
 }
 
 func TestTopDownWalkBuiltin(t *testing.T) {
