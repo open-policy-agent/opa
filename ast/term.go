@@ -845,6 +845,21 @@ func (ref Ref) Extend(other Ref) Ref {
 	return dst
 }
 
+// Concat returns a ref with the terms appended.
+func (ref Ref) Concat(terms []*Term) Ref {
+	if len(terms) == 0 {
+		return ref
+	}
+	cpy := make(Ref, len(ref)+len(terms))
+	for i := range ref {
+		cpy[i] = ref[i]
+	}
+	for i := range terms {
+		cpy[len(ref)+i] = terms[i]
+	}
+	return cpy
+}
+
 // Dynamic returns the offset of the first non-constant operand of ref.
 func (ref Ref) Dynamic() int {
 	for i := 1; i < len(ref); i++ {
