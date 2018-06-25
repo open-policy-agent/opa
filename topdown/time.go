@@ -120,6 +120,24 @@ func builtinClock(a ast.Value) (ast.Value, error) {
 	return result, nil
 }
 
+func builtinWeekday(a ast.Value) (ast.Value, error) {
+
+	value, err := builtins.NumberOperand(a, 1)
+	if err != nil {
+		return nil, err
+	}
+
+	f := builtins.NumberToFloat(value)
+	i64, acc := f.Int64()
+	if acc != big.Exact {
+		return nil, fmt.Errorf("timestamp too big")
+	}
+
+	t := time.Unix(0, i64).UTC()
+	weekday := t.Weekday().String()
+	return ast.String(weekday), nil
+}
+
 func int64ToJSONNumber(i int64) json.Number {
 	return json.Number(strconv.FormatInt(i, 10))
 }
@@ -131,4 +149,5 @@ func init() {
 	RegisterFunctionalBuiltin1(ast.ParseDurationNanos.Name, builtinParseDurationNanos)
 	RegisterFunctionalBuiltin1(ast.Date.Name, builtinDate)
 	RegisterFunctionalBuiltin1(ast.Clock.Name, builtinClock)
+	RegisterFunctionalBuiltin1(ast.Weekday.Name, builtinWeekday)
 }

@@ -114,6 +114,7 @@ var DefaultBuiltins = [...]*Builtin{
 	ParseDurationNanos,
 	Date,
 	Clock,
+	Weekday,
 
 	// Crypto
 	CryptoX509ParseCertificates,
@@ -857,6 +858,15 @@ var Clock = &Builtin{
 	Decl: types.NewFunction(
 		types.Args(types.N),
 		types.NewArray([]types.Type{types.N, types.N, types.N}, nil),
+	),
+}
+
+// Weekday returns the day of the week (Monday, Tuesday, ...) for the nanoseconds since epoch.
+var Weekday = &Builtin{
+	Name: "time.weekday",
+	Decl: types.NewFunction(
+		types.Args(types.N),
+		types.S,
 	),
 }
 
