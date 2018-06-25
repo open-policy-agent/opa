@@ -394,6 +394,30 @@ func TestRefExtend(t *testing.T) {
 	}
 }
 
+func TestRefConcat(t *testing.T) {
+	a := MustParseRef("foo.bar.baz")
+	terms := []*Term{}
+	if !a.Concat(terms).Equal(a) {
+		t.Fatal("Expected no change")
+	}
+	terms = append(terms, StringTerm("qux"))
+	exp := MustParseTerm("foo.bar.baz.qux")
+	result := a.Concat(terms)
+	if !result.Equal(exp.Value) {
+		t.Fatalf("Expected %v but got %v", exp, result)
+	}
+	exp = MustParseTerm("foo.bar.baz.qux[0]")
+	terms = append(terms, IntNumberTerm(0))
+	result = a.Concat(terms)
+	if !result.Equal(exp.Value) {
+		t.Fatalf("Expected %v but got %v", exp, result)
+	}
+	exp = MustParseTerm("foo.bar.baz")
+	if !a.Equal(exp.Value) {
+		t.Fatalf("Expected %v but got %v (want a to be unchanged)", exp, a)
+	}
+}
+
 func TestSetEqual(t *testing.T) {
 	tests := []struct {
 		a        string
