@@ -83,59 +83,47 @@ func builtinParseDurationNanos(a ast.Value) (ast.Value, error) {
 }
 
 func builtinDate(a ast.Value) (ast.Value, error) {
-
-	value, err := builtins.NumberOperand(a, 1)
+	t, err := utcTime(a)
 	if err != nil {
 		return nil, err
 	}
-
-	f := builtins.NumberToFloat(value)
-	i64, acc := f.Int64()
-	if acc != big.Exact {
-		return nil, fmt.Errorf("timestamp too big")
-	}
-
-	t := time.Unix(0, i64).UTC()
 	year, month, day := t.Date()
 	result := ast.Array{ast.IntNumberTerm(year), ast.IntNumberTerm(int(month)), ast.IntNumberTerm(day)}
 	return result, nil
 }
 
 func builtinClock(a ast.Value) (ast.Value, error) {
-
-	value, err := builtins.NumberOperand(a, 1)
+	t, err := utcTime(a)
 	if err != nil {
 		return nil, err
 	}
-
-	f := builtins.NumberToFloat(value)
-	i64, acc := f.Int64()
-	if acc != big.Exact {
-		return nil, fmt.Errorf("timestamp too big")
-	}
-
-	t := time.Unix(0, i64).UTC()
 	hour, minute, second := t.Clock()
 	result := ast.Array{ast.IntNumberTerm(hour), ast.IntNumberTerm(minute), ast.IntNumberTerm(second)}
 	return result, nil
 }
 
 func builtinWeekday(a ast.Value) (ast.Value, error) {
-
-	value, err := builtins.NumberOperand(a, 1)
+	t, err := utcTime(a)
 	if err != nil {
 		return nil, err
+	}
+	weekday := t.Weekday().String()
+	return ast.String(weekday), nil
+}
+
+func utcTime(a ast.Value) (time.Time, error) {
+	value, err := builtins.NumberOperand(a, 1)
+	if err != nil {
+		return time.Time{}, err
 	}
 
 	f := builtins.NumberToFloat(value)
 	i64, acc := f.Int64()
 	if acc != big.Exact {
-		return nil, fmt.Errorf("timestamp too big")
+		return time.Time{}, fmt.Errorf("timestamp too big")
 	}
 
-	t := time.Unix(0, i64).UTC()
-	weekday := t.Weekday().String()
-	return ast.String(weekday), nil
+	return time.Unix(0, i64).UTC(), nil
 }
 
 func int64ToJSONNumber(i int64) json.Number {
