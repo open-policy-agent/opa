@@ -397,7 +397,7 @@ q = {1, 2, 3} { true }`,
 	// filename: example_error.rego
 }
 
-func ExampleRego_PartialEval() {
+func ExampleRego_PartialResult() {
 
 	ctx := context.Background()
 
@@ -529,4 +529,43 @@ func ExampleRego_PartialEval() {
 	// input 1 allowed: true
 	// input 2 allowed: false
 	// input 3 allowed: true
+}
+
+func ExampleRego_Partial() {
+
+	ctx := context.Background()
+
+	// Define a simple policy for example purposes.
+	module := `package test
+
+	allow {
+		input.method = read_methods[_]
+		input.path = ["reviews", user]
+		input.user = user
+	}
+
+	allow {
+		input.method = read_methods[_]
+		input.path = ["reviews", _]
+		input.is_admin
+	}
+
+	read_methods = ["GET"]
+	`
+
+	r := rego.New(rego.Query("data.test.allow == true"), rego.Module("example.rego", module))
+	pq, err := r.Partial(ctx)
+	if err != nil {
+		// Handle error.
+	}
+
+	// Inspect result.
+	for i := range pq.Queries {
+		fmt.Printf("Query #%d: %v\n", i+1, pq.Queries[i])
+	}
+
+	// Output:
+	//
+	// Query #1: "GET" = input.method; input.path = ["reviews", _]; neq(input.is_admin, false)
+	// Query #2: "GET" = input.method; input.path = ["reviews", user3]; user3 = input.user
 }
