@@ -1390,7 +1390,7 @@ func (s *Server) makeRego(ctx context.Context, partial bool, txn storage.Transac
 			opts = append(opts, rego.Transaction(txn), rego.Query(path), rego.Metrics(m), rego.Instrument(instrument))
 			r := rego.New(opts...)
 			var err error
-			pr, err = r.PartialEval(ctx)
+			pr, err = r.PartialResult(ctx)
 			if err != nil {
 				return nil, err
 			}
