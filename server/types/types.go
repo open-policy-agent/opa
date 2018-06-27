@@ -69,6 +69,7 @@ func (e *ErrorV1) Bytes() []byte {
 // Messages included in error responses.
 const (
 	MsgCompileModuleError         = "error(s) occurred while compiling module(s)"
+	MsgParseQueryError            = "error(s) occurred while parsing query"
 	MsgCompileQueryError          = "error(s) occurred while compiling query"
 	MsgEvaluationError            = "error(s) occurred while evaluating query"
 	MsgUnauthorizedUndefinedError = "authorization policy missing or undefined"
@@ -352,6 +353,27 @@ func NewBindingsV1(locals *ast.ValueMap) (result []*BindingV1) {
 		return false
 	})
 	return result
+}
+
+// CompileRequestV1 models the request message for Compile API operations.
+type CompileRequestV1 struct {
+	Input    *interface{} `json:"input"`
+	Query    string       `json:"query"`
+	Unknowns *[]string    `json:"unknowns"`
+}
+
+// CompileResponseV1 models the response messaage for Compile API operations.
+type CompileResponseV1 struct {
+	Result      *interface{} `json:"result,omitempty"`
+	Explanation TraceV1      `json:"explanation,omitempty"`
+	Metrics     MetricsV1    `json:"metrics,omitempty"`
+}
+
+// PartialEvaluationResultV1 represents the output of partial evaluation and is
+// included in Compile API responses.
+type PartialEvaluationResultV1 struct {
+	Queries []ast.Body    `json:"queries,omitempty"`
+	Support []*ast.Module `json:"support,omitempty"`
 }
 
 const (
