@@ -64,6 +64,13 @@ var DefaultBuiltins = [...]*Builtin{
 
 	// Casting
 	ToNumber,
+	ToObject,
+	ToNull,
+	ToBoolean,
+	ToString,
+	ToSet,
+	ToArray,
+	ToNumber,
 
 	// Regular Expressions
 	RegexMatch,
@@ -449,6 +456,65 @@ var ToNumber = &Builtin{
 			),
 		),
 		types.N,
+	),
+}
+
+// ToArray checks the underlying type of the input. If it is array or set, an array
+// containing the values is returned. If it is not an array, an error is thrown.
+var ToArray = &Builtin{
+	Name: "to_array",
+	Decl: types.NewFunction(
+		types.Args(types.A),
+		types.NewArray(nil, types.A),
+	),
+}
+
+// ToSet checks the underlying type of the input.
+// If it is a set, the set is returned.
+// If it is an array, the array is returned in set form (all duplicates removed)
+// If neither, an error is thrown
+var ToSet = &Builtin{
+	Name: "to_set",
+	Decl: types.NewFunction(
+		types.Args(types.A),
+		types.NewSet(types.A),
+	),
+}
+
+// ToString returns input if it is a string; if not returns error.
+// For formatting variables, see sprintf
+var ToString = &Builtin{
+	Name: "to_string",
+	Decl: types.NewFunction(
+		types.Args(types.A),
+		types.S,
+	),
+}
+
+// ToBoolean returns input if it is a boolean; if not returns error.
+var ToBoolean = &Builtin{
+	Name: "to_boolean",
+	Decl: types.NewFunction(
+		types.Args(types.A),
+		types.B,
+	),
+}
+
+// ToNull returns null if input is null; if not returns error.
+var ToNull = &Builtin{
+	Name: "to_null",
+	Decl: types.NewFunction(
+		types.Args(types.A),
+		types.NewNull(),
+	),
+}
+
+// ToObject returns the given object if it is null; throws an error otherwise
+var ToObject = &Builtin{
+	Name: "to_object",
+	Decl: types.NewFunction(
+		types.Args(types.A),
+		types.NewObject(nil, types.NewDynamicProperty(types.A, types.A)),
 	),
 }
 

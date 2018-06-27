@@ -32,6 +32,76 @@ func builtinToNumber(a ast.Value) (ast.Value, error) {
 	return nil, builtins.NewOperandTypeErr(1, a, "null", "boolean", "number", "string")
 }
 
+func builtinToArray(a ast.Value) (ast.Value, error) {
+	switch val := a.(type) {
+	case ast.Array:
+		return val, nil
+	case ast.Set:
+		arr := make(ast.Array, val.Len())
+		i := 0
+		val.Foreach(func(term *ast.Term) {
+			arr[i] = term
+			i++
+		})
+		return arr, nil
+	default:
+		return nil, builtins.NewOperandTypeErr(1, a, "array", "set")
+	}
+}
+
+func builtinToSet(a ast.Value) (ast.Value, error) {
+	switch val := a.(type) {
+	case ast.Array:
+		return ast.NewSet(val...), nil
+	case ast.Set:
+		return val, nil
+	default:
+		return nil, builtins.NewOperandTypeErr(1, a, "array", "set")
+	}
+}
+
+func builtinToString(a ast.Value) (ast.Value, error) {
+	switch val := a.(type) {
+	case ast.String:
+		return val, nil
+	default:
+		return nil, builtins.NewOperandTypeErr(1, a, "string")
+	}
+}
+
+func builtinToBoolean(a ast.Value) (ast.Value, error) {
+	switch val := a.(type) {
+	case ast.Boolean:
+		return val, nil
+	default:
+		return nil, builtins.NewOperandTypeErr(1, a, "boolean")
+	}
+}
+
+func builtinToNull(a ast.Value) (ast.Value, error) {
+	switch val := a.(type) {
+	case ast.Null:
+		return val, nil
+	default:
+		return nil, builtins.NewOperandTypeErr(1, a, "null")
+	}
+}
+
+func builtinToObject(a ast.Value) (ast.Value, error) {
+	switch val := a.(type) {
+	case ast.Object:
+		return val, nil
+	default:
+		return nil, builtins.NewOperandTypeErr(1, a, "object")
+	}
+}
+
 func init() {
 	RegisterFunctionalBuiltin1(ast.ToNumber.Name, builtinToNumber)
+	RegisterFunctionalBuiltin1(ast.ToArray.Name, builtinToArray)
+	RegisterFunctionalBuiltin1(ast.ToSet.Name, builtinToSet)
+	RegisterFunctionalBuiltin1(ast.ToString.Name, builtinToString)
+	RegisterFunctionalBuiltin1(ast.ToBoolean.Name, builtinToBoolean)
+	RegisterFunctionalBuiltin1(ast.ToNull.Name, builtinToNull)
+	RegisterFunctionalBuiltin1(ast.ToObject.Name, builtinToObject)
 }
