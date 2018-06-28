@@ -16,6 +16,7 @@ import (
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/loader"
 	"github.com/open-policy-agent/opa/metrics"
+	"github.com/open-policy-agent/opa/profiler"
 	"github.com/open-policy-agent/opa/rego"
 	"github.com/open-policy-agent/opa/storage/inmem"
 	"github.com/open-policy-agent/opa/topdown"
@@ -35,6 +36,7 @@ type evalCommandParams struct {
 	metrics      bool
 	ignore       []string
 	outputFormat *util.EnumFlag
+	profile      bool
 }
 
 const (
@@ -49,6 +51,7 @@ type evalResult struct {
 	Result      rego.ResultSet         `json:"result,omitempty"`
 	Explanation []string               `json:"explanation,omitempty"`
 	Metrics     map[string]interface{} `json:"metrics,omitempty"`
+	Profile     profiler.Report        `json:"profile,omitempty"`
 }
 
 func init() {
@@ -143,6 +146,7 @@ Set the output format with the --format flag.
 	evalCommand.Flags().BoolVarP(&params.metrics, "metrics", "", false, "report query performance metrics")
 	evalCommand.Flags().VarP(params.explain, "explain", "", "enable query explainations")
 	evalCommand.Flags().VarP(params.outputFormat, "format", "f", "set output format")
+	evalCommand.Flags().BoolVarP(&params.profile, "profile", "", false, "perform expression profiling")
 	setIgnore(evalCommand.Flags(), &params.ignore)
 
 	RootCommand.AddCommand(evalCommand)
@@ -214,6 +218,13 @@ func eval(args []string, params evalCommandParams) (err error) {
 		regoArgs = append(regoArgs, rego.Metrics(m))
 	}
 
+	var p *profiler.Profiler
+
+	if params.profile {
+		p = profiler.New()
+		regoArgs = append(regoArgs, rego.Tracer(p))
+	}
+
 	eval := rego.New(regoArgs...)
 	ctx := context.Background()
 
@@ -234,6 +245,10 @@ func eval(args []string, params evalCommandParams) (err error) {
 
 	if params.metrics {
 		result.Metrics = m.All()
+	}
+
+	if params.profile {
+		result.Profile = p.Report()
 	}
 
 	switch params.outputFormat.String() {
