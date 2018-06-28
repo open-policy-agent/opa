@@ -104,7 +104,7 @@ type Position struct {
 	Row int `json:"row"`
 }
 
-// PositionSlice is a collection of positison that can be sorted.
+// PositionSlice is a collection of position that can be sorted.
 type PositionSlice []Position
 
 // Sort sorts the slice by line number.
@@ -159,7 +159,7 @@ func (fr *FileReport) IsNotCovered(row int) bool {
 	return false
 }
 
-// Report repreesents a coverage report for a set of files.
+// Report represents a coverage report for a set of files.
 type Report struct {
 	Files map[string]*FileReport `json:"files"`
 }
