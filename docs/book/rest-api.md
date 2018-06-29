@@ -1559,7 +1559,7 @@ allow {
 }
 ```
 
-In this case, if `data.break_glass` is `true` then the query `data.example.allow == true` will _always_ be true. When your query is always true, OPA responds with an empty set of queries:
+In this case, if `data.break_glass` is `true` then the query `data.example.allow == true` will _always_ be true. When your query is always true, OPA responds with an empty query in the query set:
 
 ```http
 HTTP/1.1 200 OK
@@ -1568,7 +1568,7 @@ Content-Type: application/json
 
 ```json
 {
-  "queries": []
+  "queries": [[]]
 }
 ```
 
@@ -1609,7 +1609,7 @@ The following table summarizes the behavior for partial evaluation results.
 | `input.x > 0` | `["input"]` | `{"queries": [[input.x > 0]]}` | The query is partially evaluated and remaining conditions are returned. |
 | `input.x > 0` | Not specified. | `{"queries": [[input.x > 0]]}` | If the set of unknowns is not specified, it defaults to `["input"]`. |
 | `input.x > 0` | `[]` | `{}` | The query is false/undefined because there are no unknowns. |
-| `1 > 0` | N/A | `{"queries": []}` | The query is always true. |
+| `1 > 0` | N/A | `{"queries": [[]]}` | The query is always true. |
 | `1 < 0` | N/A | `{}` | The query is always false. |
 
 > The partially evaluated queries are represented as strings in the table above. The actual API response contains the JSON AST representation.

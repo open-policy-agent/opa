@@ -276,6 +276,18 @@ func TestCompileV1(t *testing.T) {
 			},
 		},
 		{
+			note: "never defined",
+			trs: []tr{
+				{http.MethodPost, "/compile", `{"query": "1 = 2"}`, 200, `{"result": {}}`},
+			},
+		},
+		{
+			note: "always defined",
+			trs: []tr{
+				{http.MethodPost, "/compile", `{"query": "1 = 1"}`, 200, `{"result": {"queries": [[]]}}`},
+			},
+		},
+		{
 			note: "error: bad request",
 			trs:  []tr{{http.MethodPost, "/compile", `{"input": [{]}`, 400, ``}},
 		},
