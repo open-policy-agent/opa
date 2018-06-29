@@ -5,6 +5,7 @@
 package ast
 
 import (
+	"encoding/json"
 	"fmt"
 	"math/rand"
 	"strings"
@@ -618,6 +619,16 @@ func NewBody(exprs ...*Expr) Body {
 		expr.Index = i
 	}
 	return Body(exprs)
+}
+
+// MarshalJSON returns JSON encoded bytes representing body.
+func (body Body) MarshalJSON() ([]byte, error) {
+	// Serialize empty Body to empty array. This handles both the empty case and the
+	// nil case (whereas by default the result would be null if body was nil.)
+	if len(body) == 0 {
+		return []byte(`[]`), nil
+	}
+	return json.Marshal([]*Expr(body))
 }
 
 // Append adds the expr to the body and updates the expr's index accordingly.
