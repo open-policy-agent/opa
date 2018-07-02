@@ -538,6 +538,8 @@ func ExampleRego_Partial() {
 	// Define a simple policy for example purposes.
 	module := `package test
 
+	default allow = false
+
 	allow {
 		input.method = read_methods[_]
 		input.path = ["reviews", user]
