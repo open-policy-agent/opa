@@ -23,6 +23,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
+	"golang.org/x/tools/go/ast/astutil"
 	"golang.org/x/tools/go/gcexportdata"
 )
 
@@ -199,7 +200,6 @@ func (f *file) lint() {
 	f.lintNames()
 	f.lintVarDecls()
 	f.lintElses()
-	f.lintIfError()
 	f.lintRanges()
 	f.lintErrorf()
 	f.lintErrors()
@@ -527,7 +527,10 @@ func (f *file) lintExported() {
 	})
 }
 
-var allCapsRE = regexp.MustCompile(`^[A-Z0-9_]+$`)
+var (
+	allCapsRE = regexp.MustCompile(`^[A-Z0-9_]+$`)
+	anyCapsRE = regexp.MustCompile(`[A-Z]`)
+)
 
 // knownNameExceptions is a set of names that are known to be exempt from naming checks.
 // This is usually because they are constrained by having to match names in the
@@ -543,6 +546,9 @@ func (f *file) lintNames() {
 	// Package names need slightly different handling than other names.
 	if strings.Contains(f.f.Name.Name, "_") && !strings.HasSuffix(f.f.Name.Name, "_test") {
 		f.errorf(f.f, 1, link("http://golang.org/doc/effective_go.html#package-names"), category("naming"), "don't use an underscore in package name")
+	}
+	if anyCapsRE.MatchString(f.f.Name.Name) {
+		f.errorf(f.f, 1, link("http://golang.org/doc/effective_go.html#package-names"), category("mixed-caps"), "don't use MixedCaps in package name; %s should be %s", f.f.Name.Name, strings.ToLower(f.f.Name.Name))
 	}
 
 	check := func(id *ast.Ident, thing string) {
@@ -1039,11 +1045,11 @@ func (f *file) lintElses() {
 		if !ok || ifStmt.Else == nil {
 			return true
 		}
-		if ignore[ifStmt] {
-			return true
-		}
 		if elseif, ok := ifStmt.Else.(*ast.IfStmt); ok {
 			ignore[elseif] = true
+			return true
+		}
+		if ignore[ifStmt] {
 			return true
 		}
 		if _, ok := ifStmt.Else.(*ast.BlockStmt); !ok {
@@ -1078,20 +1084,25 @@ func (f *file) lintRanges() {
 		if !ok {
 			return true
 		}
-		if rs.Value == nil {
-			// for x = range m { ... }
-			return true // single var form
-		}
-		if !isIdent(rs.Value, "_") {
-			// for ?, y = range m { ... }
+
+		if isIdent(rs.Key, "_") && (rs.Value == nil || isIdent(rs.Value, "_")) {
+			p := f.errorf(rs.Key, 1, category("range-loop"), "should omit values from range; this loop is equivalent to `for range ...`")
+
+			newRS := *rs // shallow copy
+			newRS.Value = nil
+			newRS.Key = nil
+			p.ReplacementLine = f.firstLineOf(&newRS, rs)
+
 			return true
 		}
 
-		p := f.errorf(rs.Value, 1, category("range-loop"), "should omit 2nd value from range; this loop is equivalent to `for %s %s range ...`", f.render(rs.Key), rs.Tok)
+		if isIdent(rs.Value, "_") {
+			p := f.errorf(rs.Value, 1, category("range-loop"), "should omit 2nd value from range; this loop is equivalent to `for %s %s range ...`", f.render(rs.Key), rs.Tok)
 
-		newRS := *rs // shallow copy
-		newRS.Value = nil
-		p.ReplacementLine = f.firstLineOf(&newRS, rs)
+			newRS := *rs // shallow copy
+			newRS.Value = nil
+			p.ReplacementLine = f.firstLineOf(&newRS, rs)
+		}
 
 		return true
 	})
@@ -1113,6 +1124,9 @@ func (f *file) lintErrorf() {
 			}
 		}
 		if !isErrorsNew && !isTestingError {
+			return true
+		}
+		if !f.imports("errors") {
 			return true
 		}
 		arg := ce.Args[0]
@@ -1293,6 +1307,9 @@ func (f *file) lintErrorReturn() {
 		}
 		ret := fn.Type.Results.List
 		if len(ret) <= 1 {
+			return true
+		}
+		if isIdent(ret[len(ret)-1].Type, "error") {
 			return true
 		}
 		// An error return parameter should be the last parameter.
@@ -1489,63 +1506,6 @@ func (f *file) containsComments(start, end token.Pos) bool {
 	return false
 }
 
-func (f *file) lintIfError() {
-	f.walk(func(node ast.Node) bool {
-		switch v := node.(type) {
-		case *ast.BlockStmt:
-			for i := 0; i < len(v.List)-1; i++ {
-				// if var := whatever; var != nil { return var }
-				s, ok := v.List[i].(*ast.IfStmt)
-				if !ok || s.Body == nil || len(s.Body.List) != 1 || s.Else != nil {
-					continue
-				}
-				assign, ok := s.Init.(*ast.AssignStmt)
-				if !ok || len(assign.Lhs) != 1 || !(assign.Tok == token.DEFINE || assign.Tok == token.ASSIGN) {
-					continue
-				}
-				id, ok := assign.Lhs[0].(*ast.Ident)
-				if !ok {
-					continue
-				}
-				expr, ok := s.Cond.(*ast.BinaryExpr)
-				if !ok || expr.Op != token.NEQ {
-					continue
-				}
-				if lhs, ok := expr.X.(*ast.Ident); !ok || lhs.Name != id.Name {
-					continue
-				}
-				if rhs, ok := expr.Y.(*ast.Ident); !ok || rhs.Name != "nil" {
-					continue
-				}
-				r, ok := s.Body.List[0].(*ast.ReturnStmt)
-				if !ok || len(r.Results) != 1 {
-					continue
-				}
-				if r, ok := r.Results[0].(*ast.Ident); !ok || r.Name != id.Name {
-					continue
-				}
-
-				// return nil
-				r, ok = v.List[i+1].(*ast.ReturnStmt)
-				if !ok || len(r.Results) != 1 {
-					continue
-				}
-				if r, ok := r.Results[0].(*ast.Ident); !ok || r.Name != "nil" {
-					continue
-				}
-
-				// check if there are any comments explaining the construct, don't emit an error if there are some.
-				if f.containsComments(s.Pos(), r.Pos()) {
-					continue
-				}
-
-				f.errorf(v.List[i], 0.9, "redundant if ...; err != nil check, just return error instead.")
-			}
-		}
-		return true
-	})
-}
-
 // receiverType returns the named type of the method receiver, sans "*",
 // or "invalid-type" if fn.Recv is ill formed.
 func receiverType(fn *ast.FuncDecl) string {
@@ -1681,6 +1641,20 @@ func (f *file) srcLineWithMatch(node ast.Node, pattern string) (m []string) {
 	line = strings.TrimSuffix(line, "\n")
 	rx := regexp.MustCompile(pattern)
 	return rx.FindStringSubmatch(line)
+}
+
+// imports returns true if the current file imports the specified package path.
+func (f *file) imports(importPath string) bool {
+	all := astutil.Imports(f.fset, f.f)
+	for _, p := range all {
+		for _, i := range p {
+			uq, err := strconv.Unquote(i.Path.Value)
+			if err == nil && importPath == uq {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // srcLine returns the complete line at p, including the terminating newline.

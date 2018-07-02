@@ -71,9 +71,12 @@ var DefaultBuiltins = [...]*Builtin{
 	CastSet,
 	CastArray,
 
-	// Regular Expressions
+	// Pattern Matching
+	RegexMatchDeprecated,
+	GlobsMatchDeprecated,
 	RegexMatch,
-	GlobsMatch,
+	GlobMatch,
+	GlobIntersect,
 
 	// Sets
 	SetDiff,
@@ -518,12 +521,11 @@ var CastObject = &Builtin{
 }
 
 /**
- * Regular Expressions
+ * Pattern Matching
  */
 
-// RegexMatch takes two strings and evaluates to true if the string in the second
-// position matches the pattern in the first position.
-var RegexMatch = &Builtin{
+// RegexMatchDeprecated DEPRECATED -- see RegexMatch
+var RegexMatchDeprecated = &Builtin{
 	Name: "re_match",
 	Decl: types.NewFunction(
 		types.Args(
@@ -534,13 +536,51 @@ var RegexMatch = &Builtin{
 	),
 }
 
-// GlobsMatch takes two strings regexp-style strings and evaluates to true if their
+// GlobsMatchDeprecated DEPRECATED -- see GlobIntersect
+var GlobsMatchDeprecated = &Builtin{
+	Name: "regex.globs_match",
+	Decl: types.NewFunction(
+		types.Args(
+			types.S,
+			types.S,
+		),
+		types.B,
+	),
+}
+
+// RegexMatch takes two strings and evaluates to true if the string in the second
+// position matches the pattern in the first position.
+var RegexMatch = &Builtin{
+	Name: "regex.match",
+	Decl: types.NewFunction(
+		types.Args(
+			types.S,
+			types.S,
+		),
+		types.B,
+	),
+}
+
+// GlobMatch takes two strings and evaluates to true if the string in the second
+// position matches the pattern in the first position.
+var GlobMatch = &Builtin{
+	Name: "glob.match",
+	Decl: types.NewFunction(
+		types.Args(
+			types.S,
+			types.S,
+		),
+		types.B,
+	),
+}
+
+// GlobIntersect takes two strings regexp-style strings and evaluates to true if their
 // intersection matches a non-empty set of non-empty strings.
 // Examples:
 //  - "a.a." and ".b.b" -> true.
 //  - "[a-z]*" and [0-9]+" -> not true.
-var GlobsMatch = &Builtin{
-	Name: "regex.globs_match",
+var GlobIntersect = &Builtin{
+	Name: "glob.intersect",
 	Decl: types.NewFunction(
 		types.Args(
 			types.S,

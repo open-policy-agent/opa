@@ -33,6 +33,7 @@ type Presentation struct {
 	ImplementsHTML,
 	MethodSetHTML,
 	PackageHTML,
+	PackageRootHTML,
 	PackageText,
 	SearchHTML,
 	SearchDocHTML,
@@ -53,6 +54,8 @@ type Presentation struct {
 	SrcMode bool
 	// HTMLMode outputs HTML instead of plain text in command-line mode.
 	HTMLMode bool
+	// AllMode includes unexported identifiers in the output in command-line mode.
+	AllMode bool
 
 	// NotesRx optionally specifies a regexp to match
 	// notes to render in the output.

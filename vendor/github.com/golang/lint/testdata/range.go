@@ -16,6 +16,12 @@ func f() {
 	for y, _ = range m { // MATCH /should omit 2nd value.*range.*equivalent.*for y = range/
 	}
 
+	for _ = range m { // MATCH /should omit values.*range.*equivalent.*for range/
+	}
+
+	for _, _ = range m { // MATCH /should omit values.*range.*equivalent.*for range/
+	}
+
 	// all OK:
 	for x := range m {
 		_ = x

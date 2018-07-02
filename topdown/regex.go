@@ -5,17 +5,19 @@
 package topdown
 
 import (
-	"regexp"
-	"sync"
-
-	"github.com/yashtewari/glob-intersection"
-
+	"github.com/gobwas/glob"
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/topdown/builtins"
+	"github.com/yashtewari/glob-intersection"
+	"regexp"
+	"sync"
 )
 
 var regexpCacheLock = sync.Mutex{}
 var regexpCache map[string]*regexp.Regexp
+
+var globCacheLock = sync.Mutex{}
+var globCache map[string]glob.Glob
 
 func builtinRegexMatch(a, b ast.Value) (ast.Value, error) {
 	s1, err := builtins.StringOperand(a, 1)
@@ -48,7 +50,38 @@ func getRegexp(pat string) (*regexp.Regexp, error) {
 	return re, nil
 }
 
-func builtinGlobsMatch(a, b ast.Value) (ast.Value, error) {
+func builtinGlobMatch(a, b ast.Value) (ast.Value, error) {
+	pattern, err := builtins.StringOperand(a, 1)
+	if err != nil {
+		return nil, err
+	}
+	input, err := builtins.StringOperand(b, 2)
+	if err != nil {
+		return nil, err
+	}
+	glb, err := getGlob(string(pattern))
+	if err != nil {
+		return nil, err
+	}
+	return ast.Boolean(glb.Match(string(input))), nil
+}
+
+func getGlob(pat string) (glob.Glob, error) {
+	globCacheLock.Lock()
+	defer globCacheLock.Unlock()
+	glb, ok := globCache[pat]
+	if !ok {
+		var err error
+		glb, err = glob.Compile(pat)
+		if err != nil {
+			return nil, err
+		}
+		globCache[pat] = glb
+	}
+	return glb, nil
+}
+
+func builtinGlobIntersect(a, b ast.Value) (ast.Value, error) {
 	s1, err := builtins.StringOperand(a, 1)
 	if err != nil {
 		return nil, err
@@ -66,6 +99,12 @@ func builtinGlobsMatch(a, b ast.Value) (ast.Value, error) {
 
 func init() {
 	regexpCache = map[string]*regexp.Regexp{}
+	globCache = map[string]glob.Glob{}
+	// Backwards compatibility
+	RegisterFunctionalBuiltin2(ast.RegexMatchDeprecated.Name, builtinRegexMatch)
+	RegisterFunctionalBuiltin2(ast.GlobsMatchDeprecated.Name, builtinGlobIntersect)
+	// New functions
 	RegisterFunctionalBuiltin2(ast.RegexMatch.Name, builtinRegexMatch)
-	RegisterFunctionalBuiltin2(ast.GlobsMatch.Name, builtinGlobsMatch)
+	RegisterFunctionalBuiltin2(ast.GlobMatch.Name, builtinGlobMatch)
+	RegisterFunctionalBuiltin2(ast.GlobIntersect.Name, builtinGlobIntersect)
 }

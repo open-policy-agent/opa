@@ -154,19 +154,32 @@ func waitForServerReady(t *testing.T, addr string) {
 	waitForServer(t,
 		fmt.Sprintf("http://%v/", addr),
 		"The Go Programming Language",
-		15*time.Second)
+		15*time.Second,
+		false)
 }
 
 func waitForSearchReady(t *testing.T, addr string) {
 	waitForServer(t,
 		fmt.Sprintf("http://%v/search?q=FALLTHROUGH", addr),
 		"The list of tokens.",
-		2*time.Minute)
+		2*time.Minute,
+		false)
+}
+
+func waitUntilScanComplete(t *testing.T, addr string) {
+	waitForServer(t,
+		fmt.Sprintf("http://%v/pkg", addr),
+		"Scan is not yet complete",
+		2*time.Minute,
+		true,
+	)
+	// setting reverse as true, which means this waits
+	// until the string is not returned in the response anymore
 }
 
 const pollInterval = 200 * time.Millisecond
 
-func waitForServer(t *testing.T, url, match string, timeout time.Duration) {
+func waitForServer(t *testing.T, url, match string, timeout time.Duration, reverse bool) {
 	// "health check" duplicated from x/tools/cmd/tipgodoc/tip.go
 	deadline := time.Now().Add(timeout)
 	for time.Now().Before(deadline) {
@@ -177,9 +190,13 @@ func waitForServer(t *testing.T, url, match string, timeout time.Duration) {
 		}
 		rbody, err := ioutil.ReadAll(res.Body)
 		res.Body.Close()
-		if err == nil && res.StatusCode == http.StatusOK &&
-			bytes.Contains(rbody, []byte(match)) {
-			return
+		if err == nil && res.StatusCode == http.StatusOK {
+			if bytes.Contains(rbody, []byte(match)) && !reverse {
+				return
+			}
+			if !bytes.Contains(rbody, []byte(match)) && reverse {
+				return
+			}
 		}
 	}
 	t.Fatalf("Server failed to respond in %v", timeout)
@@ -219,7 +236,12 @@ func testWeb(t *testing.T, withIndex bool) {
 	cmd.Stdout = os.Stderr
 	cmd.Stderr = os.Stderr
 	cmd.Args[0] = "godoc"
-	cmd.Env = godocEnv()
+
+	// Set GOPATH variable to non-existing path.
+	// We cannot just unset GOPATH variable because godoc would default it to ~/go.
+	// (We don't want the indexer looking at the local workspace during tests.)
+	cmd.Env = append(os.Environ(), "GOPATH=does_not_exist")
+
 	if err := cmd.Start(); err != nil {
 		t.Fatalf("failed to start godoc: %s", err)
 	}
@@ -229,6 +251,7 @@ func testWeb(t *testing.T, withIndex bool) {
 		waitForSearchReady(t, addr)
 	} else {
 		waitForServerReady(t, addr)
+		waitUntilScanComplete(t, addr)
 	}
 
 	tests := []struct {
@@ -372,14 +395,9 @@ func main() { print(lib.V) }
 	defer cleanup()
 	addr := serverAddress(t)
 	cmd := exec.Command(bin, fmt.Sprintf("-http=%s", addr), "-analysis=type")
+	cmd.Env = os.Environ()
 	cmd.Env = append(cmd.Env, fmt.Sprintf("GOROOT=%s", filepath.Join(tmpdir, "goroot")))
 	cmd.Env = append(cmd.Env, fmt.Sprintf("GOPATH=%s", filepath.Join(tmpdir, "gopath")))
-	for _, e := range os.Environ() {
-		if strings.HasPrefix(e, "GOROOT=") || strings.HasPrefix(e, "GOPATH=") {
-			continue
-		}
-		cmd.Env = append(cmd.Env, e)
-	}
 	cmd.Stdout = os.Stderr
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
@@ -456,16 +474,4 @@ tryagain:
 				url, test.pattern, string(body))
 		}
 	}
-}
-
-// godocEnv returns the process environment without the GOPATH variable.
-// (We don't want the indexer looking at the local workspace during tests.)
-func godocEnv() (env []string) {
-	for _, v := range os.Environ() {
-		if strings.HasPrefix(v, "GOPATH=") {
-			continue
-		}
-		env = append(env, v)
-	}
-	return
 }

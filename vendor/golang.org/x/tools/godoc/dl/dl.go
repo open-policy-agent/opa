@@ -27,7 +27,6 @@ import (
 	"time"
 
 	"golang.org/x/net/context"
-
 	"google.golang.org/appengine"
 	"google.golang.org/appengine/datastore"
 	"google.golang.org/appengine/log"
@@ -47,16 +46,18 @@ func RegisterHandlers(mux *http.ServeMux) {
 	mux.HandleFunc("/dl/init", initHandler)
 }
 
+// File represents a file on the golang.org downloads page.
+// It should be kept in sync with the upload code in x/build/cmd/release.
 type File struct {
-	Filename       string
-	OS             string
-	Arch           string
-	Version        string
-	Checksum       string `datastore:",noindex"` // SHA1; deprecated
-	ChecksumSHA256 string `datastore:",noindex"`
-	Size           int64  `datastore:",noindex"`
-	Kind           string // "archive", "installer", "source"
-	Uploaded       time.Time
+	Filename       string    `json:"filename"`
+	OS             string    `json:"os"`
+	Arch           string    `json:"arch"`
+	Version        string    `json:"version"`
+	Checksum       string    `json:"-" datastore:",noindex"` // SHA1; deprecated
+	ChecksumSHA256 string    `json:"sha256" datastore:",noindex"`
+	Size           int64     `json:"size" datastore:",noindex"`
+	Kind           string    `json:"kind"` // "archive", "installer", "source"
+	Uploaded       time.Time `json:"-"`
 }
 
 func (f File) ChecksumType() string {
@@ -137,11 +138,11 @@ func (f File) URL() string {
 }
 
 type Release struct {
-	Version        string
-	Stable         bool
-	Files          []File
-	Visible        bool // show files on page load
-	SplitPortTable bool // whether files should be split by primary/other ports.
+	Version        string `json:"version"`
+	Stable         bool   `json:"stable"`
+	Files          []File `json:"files"`
+	Visible        bool   `json:"-"` // show files on page load
+	SplitPortTable bool   `json:"-"` // whether files should be split by primary/other ports.
 }
 
 type Feature struct {
@@ -221,6 +222,17 @@ func listHandler(w http.ResponseWriter, r *http.Request) {
 			log.Errorf(c, "cache set error: %v", err)
 		}
 	}
+
+	if r.URL.Query().Get("mode") == "json" {
+		w.Header().Set("Content-Type", "application/json")
+		enc := json.NewEncoder(w)
+		enc.SetIndent("", " ")
+		if err := enc.Encode(d.Stable); err != nil {
+			log.Errorf(c, "failed rendering JSON for releases: %v", err)
+		}
+		return
+	}
+
 	if err := listTemplate.ExecuteTemplate(w, "root", d); err != nil {
 		log.Errorf(c, "error executing template: %v", err)
 	}
@@ -429,7 +441,7 @@ func getHandler(w http.ResponseWriter, r *http.Request) {
 
 func validUser(user string) bool {
 	switch user {
-	case "adg", "bradfitz", "cbro", "andybons":
+	case "adg", "bradfitz", "cbro", "andybons", "valsorda":
 		return true
 	}
 	return false

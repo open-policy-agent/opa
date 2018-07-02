@@ -11,5 +11,5 @@ deny {
 deny {
     input.kind = "Pod"
     container = input.spec.containers[_]
-    not re_match("^registry.acmecorp.com/.+$", container.image)
+    not regex.match("^registry.acmecorp.com/.+$", container.image)
 }

@@ -22,18 +22,14 @@ func TestWrap(t *testing.T) {
 		"jumps", "over", "the", "lazy", "dog."}
 
 	got, _ := WrapString(text, 6)
-	if len(exp) != len(got) {
-		t.Fail()
-	}
+	checkEqual(t, len(got), len(exp))
 }
 
 func TestWrapOneLine(t *testing.T) {
 	exp := "The quick brown fox jumps over the lazy dog."
 	words, _ := WrapString(text, 500)
-	got := strings.Join(words, string(sp))
-	if exp != got {
-		t.Errorf("expected: %q, got: %q", exp, got)
-	}
+	checkEqual(t, strings.Join(words, string(sp)), exp)
+
 }
 
 func TestUnicode(t *testing.T) {
@@ -45,9 +41,7 @@ func TestUnicode(t *testing.T) {
 		wordsUnicode, _ = WrapString(input, 13)
 	}
 	// input contains 13 (or 14 for CJK) runes, so it fits on one line.
-	if len(wordsUnicode) != 1 {
-		t.Fail()
-	}
+	checkEqual(t, len(wordsUnicode), 1)
 }
 
 func TestDisplayWidth(t *testing.T) {
@@ -60,7 +54,5 @@ func TestDisplayWidth(t *testing.T) {
 		t.Errorf("Wants: %d Got: %d", want, n)
 	}
 	input = "\033[43;30m" + input + "\033[00m"
-	if n := DisplayWidth(input); n != want {
-		t.Errorf("Wants: %d Got: %d", want, n)
-	}
+	checkEqual(t, DisplayWidth(input), want)
 }
