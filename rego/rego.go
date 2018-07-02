@@ -811,17 +811,6 @@ func isTermVar(v ast.Var) bool {
 	return strings.HasPrefix(string(v), ast.WildcardPrefix+"term")
 }
 
-func findExprForTermVar(query ast.Body, v ast.Var) *ast.Expr {
-	for i := range query {
-		vis := ast.NewVarVisitor()
-		ast.Walk(vis, query[i])
-		if vis.Vars().Contains(v) {
-			return query[i]
-		}
-	}
-	return nil
-}
-
 func waitForDone(ctx context.Context, exit chan struct{}, f func()) {
 	select {
 	case <-exit:

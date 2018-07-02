@@ -28,14 +28,6 @@ func BenchmarkScheduler10x30(b *testing.B) {
 	runSchedulerBenchmark(b, 10, 30)
 }
 
-func benchmarkScheduler100x300(b *testing.B) {
-	runSchedulerBenchmark(b, 100, 300)
-}
-
-func benchmarkScheduler1000x3000(b *testing.B) {
-	runSchedulerBenchmark(b, 1000, 3000)
-}
-
 type benchmarkParams struct {
 	store    storage.Store
 	compiler *ast.Compiler
@@ -111,10 +103,6 @@ type nodeTemplateInput struct {
 type podTemplateInput struct {
 	Name     string
 	NodeName string
-}
-
-type rcTemplateInput struct {
-	Name string
 }
 
 func setupNodes(ctx context.Context, store storage.Store, txn storage.Transaction, n int) {
@@ -365,69 +353,5 @@ const (
         "uid": "{{ .Name }}"
       }
     }
-    `
-
-	rcTemplate = `
-    {
-      "status": {
-        "observedGeneration": 1,
-        "fullyLabeledReplicas": 30,
-        "replicas": 30
-      },
-      "kind": "ReplicationController",
-      "spec": {
-        "selector": {
-          "app": "nginx30"
-        },
-        "template": {
-          "spec": {
-            "terminationGracePeriodSeconds": 30,
-            "dnsPolicy": "ClusterFirst",
-            "securityContext": {},
-            "restartPolicy": "Always",
-            "containers": [
-              {
-                "terminationMessagePath": "/dev/termination-log",
-                "name": "nginx",
-                "image": "nginx",
-                "imagePullPolicy": "Always",
-                "ports": [
-                  {
-                    "protocol": "TCP",
-                    "containerPort": 80
-                  }
-                ],
-                "resources": {}
-              }
-            ]
-          },
-          "metadata": {
-            "labels": {
-              "app": "nginx30"
-            },
-            "creationTimestamp": null,
-            "annotations": {
-              "scheduler.alpha.kubernetes.io/name": "experimental"
-            },
-            "name": "nginx30"
-          }
-        },
-        "replicas": 30
-      },
-      "apiVersion": "v1",
-      "metadata": {
-        "name": {{ .Name }},
-        "generation": 1,
-        "labels": {
-          "app": "nginx30"
-        },
-        "namespace": "kubemark",
-        "resourceVersion": "96796",
-        "creationTimestamp": "2016-07-09T20:37:03Z",
-        "selfLink": "/api/v1/namespaces/kubemark/replicationcontrollers/nginx30",
-        "uid": {{ .Name }}
-      }
-    }
-  }
     `
 )

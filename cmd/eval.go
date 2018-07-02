@@ -281,11 +281,6 @@ type repeatedStringFlag struct {
 	v []string
 }
 
-func newRepeatedStringFlag() *repeatedStringFlag {
-	f := &repeatedStringFlag{}
-	return f
-}
-
 func (f *repeatedStringFlag) Type() string {
 	return "string"
 }

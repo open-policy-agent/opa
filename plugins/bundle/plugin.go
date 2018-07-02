@@ -398,10 +398,6 @@ func (p *Plugin) writeManifest(ctx context.Context, txn storage.Transaction, m b
 	return p.manager.Store.Write(ctx, txn, storage.AddOp, manifestPath, value)
 }
 
-func now() string {
-	return time.Now().UTC().Format(time.RFC3339Nano)
-}
-
 var (
 	bundlePath   = storage.MustParsePath("/system/bundle")
 	manifestPath = storage.MustParsePath("/system/bundle/manifest")

@@ -1906,14 +1906,6 @@ func (c Call) String() string {
 	return fmt.Sprintf("%v(%v)", c[0], strings.Join(args, ", "))
 }
 
-func formatString(s String) string {
-	str := string(s)
-	if varRegexp.MatchString(str) {
-		return str
-	}
-	return s.String()
-}
-
 func termSliceCopy(a []*Term) []*Term {
 	cpy := make([]*Term, len(a))
 	for i := range a {

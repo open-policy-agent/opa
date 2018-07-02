@@ -195,17 +195,8 @@ func (db *store) runOnCommitTriggers(ctx context.Context, txn storage.Transactio
 var doesNotExistMsg = "document does not exist"
 var rootMustBeObjectMsg = "root must be object"
 var rootCannotBeRemovedMsg = "root cannot be removed"
-var conflictMsg = "value conflict"
 var outOfRangeMsg = "array index out of range"
 var arrayIndexTypeMsg = "array index must be integer"
-var corruptPolicyMsg = "corrupt policy found"
-
-func internalError(f string, a ...interface{}) *storage.Error {
-	return &storage.Error{
-		Code:    storage.InternalErr,
-		Message: fmt.Sprintf(f, a...),
-	}
-}
 
 func invalidPatchError(f string, a ...interface{}) *storage.Error {
 	return &storage.Error{

@@ -83,14 +83,3 @@ type Info struct {
 	Metrics    metrics.Metrics
 	Trace      []*topdown.Event
 }
-
-type diagSettings struct {
-	on      bool
-	explain bool
-}
-
-var (
-	diagsOff = diagSettings{}
-	diagsOn  = diagSettings{on: true}
-	diagsAll = diagSettings{on: true, explain: true}
-)

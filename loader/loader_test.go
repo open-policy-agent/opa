@@ -11,7 +11,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ghodss/yaml"
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/util"
 	"github.com/open-policy-agent/opa/util/test"
@@ -267,14 +266,6 @@ func TestLoadRegos(t *testing.T) {
 			t.Fatalf("Expected exactly two modules but found: %v", result)
 		}
 	})
-}
-
-func parseYAML(s string) interface{} {
-	var x interface{}
-	if err := yaml.Unmarshal([]byte(s), &x); err != nil {
-		panic(err)
-	}
-	return x
 }
 
 func parseJSON(x string) interface{} {

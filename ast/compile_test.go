@@ -2161,12 +2161,6 @@ func assertNotFailed(t *testing.T, c *Compiler) {
 	}
 }
 
-func assertFailed(t *testing.T, c *Compiler) {
-	if !c.Failed() {
-		t.Error("Expected compilation error.")
-	}
-}
-
 func getCompilerWithParsedModules(mods map[string]string) *Compiler {
 
 	parsed := map[string]*Module{}
