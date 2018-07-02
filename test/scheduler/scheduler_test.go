@@ -6,9 +6,9 @@ package scheduler
 
 import (
 	"fmt"
+	"go/build"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"context"
@@ -76,18 +76,7 @@ func loadDataStore(filename string) storage.Store {
 }
 
 func getFilename(filename string) string {
-	gopath := getGOPATH()
-	return filepath.Join(gopath, path, filename)
-}
-
-func getGOPATH() string {
-	for _, s := range os.Environ() {
-		vs := strings.SplitN(s, "=", 2)
-		if vs[0] == "GOPATH" {
-			return vs[1]
-		}
-	}
-	panic("cannot find GOPATH in environment")
+	return filepath.Join(build.Default.GOPATH, path, filename)
 }
 
 const (
