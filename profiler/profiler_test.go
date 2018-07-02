@@ -62,7 +62,7 @@ baz {
 		t.Fatal(err)
 	}
 
-	report := profiler.Report()
+	report := profiler.ReportByFile()
 
 	fr, ok := report.Files["test.rego"]
 	if !ok {
@@ -72,9 +72,28 @@ baz {
 	if len(fr.Result) != 11 {
 		t.Fatalf("Expected file report length to be 11 instead got %v", len(fr.Result))
 	}
+
+	expectedNumEval := []int{1, 2, 1, 1, 1, 1633, 1, 1, 1, 1, 1}
+	expectedNumRedo := []int{1, 0, 0, 1, 1633, 0, 1, 1, 1, 1, 0}
+	expectedRow := []int{4, 5, 6, 10, 11, 12, 16, 17, 18, 22, 23}
+
+	for idx, actualExprStat := range fr.Result {
+		if actualExprStat.NumEval != expectedNumEval[idx] {
+			t.Fatalf("Index %v: Expected number of evals %v but got %v", idx, expectedNumEval[idx], actualExprStat.NumEval)
+		}
+
+		if actualExprStat.NumRedo != expectedNumRedo[idx] {
+			t.Fatalf("Index %v: Expected number of redos %v but got %v", idx, expectedNumRedo[idx], actualExprStat.NumRedo)
+		}
+
+		if actualExprStat.Location.Row != expectedRow[idx] {
+			t.Fatalf("Index %v: Expected row %v but got %v", idx, expectedRow[idx], actualExprStat.Location.Row)
+		}
+
+	}
 }
 
-func TestProfileSleepCmd(t *testing.T) {
+func TestProfileCheckExprDuration(t *testing.T) {
 	profiler := New()
 
 	ast.RegisterBuiltin(&ast.Builtin{
@@ -93,8 +112,8 @@ func TestProfileSleepCmd(t *testing.T) {
 
 	module := `package test
 
-	foo { 
-	  test.sleep("1s") 
+	foo {
+	  test.sleep("100ms")
 	}`
 
 	_, err := ast.ParseModule("test.rego", module)
@@ -115,7 +134,7 @@ func TestProfileSleepCmd(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	report := profiler.Report()
+	report := profiler.ReportByFile()
 
 	fr, ok := report.Files["test.rego"]
 	if !ok {
@@ -126,32 +145,268 @@ func TestProfileSleepCmd(t *testing.T) {
 		t.Fatalf("Expected file report length to be 1 instead got %v", len(fr.Result))
 	}
 
-	if fr.Result[0].Index != 0 {
-		t.Fatalf("Expected Index is 0 but got %v", fr.Result[0].Index)
+	if string(fr.Result[0].Location.Text) != "test.sleep(\"100ms\")" {
+		t.Fatalf("Expected text is test.sleep(\"100ms\") but got %v", string(fr.Result[0].Location.Text))
 	}
 
-	if fr.Result[0].NumEval != 1 {
-		t.Fatalf("Expected number of evals is 1 but got %v", fr.Result[0].NumEval)
+	if fr.Result[0].ExprTimeNs <= time.Duration(50*time.Millisecond).Nanoseconds() {
+		t.Fatalf("Expected eval time is atleast 100 msec but got %v", fr.Result[0].ExprTimeNs)
 	}
 
-	if fr.Result[0].NumRedo != 1 {
-		t.Fatalf("Expected number of redo is 1 but got %v", fr.Result[0].NumRedo)
+}
+
+func TestProfilerReportTopNResultsNoCriteria(t *testing.T) {
+	profiler := New()
+	module := `package test
+
+foo {
+	bar
+	not baz
+	bee
+}
+
+bee {
+	nums = ["a", "b", "c", "d"]
+	num = nums[_]
+	contains(num, "test")
+}
+
+bar {
+	a := 1
+	b := 2
+	a != b
+}
+
+baz {
+	true
+	false
+	true
+}`
+
+	_, err := ast.ParseModule("test.rego", module)
+	if err != nil {
+		t.Fatal(err)
 	}
 
-	if fr.Result[0].Row != 4 {
-		t.Fatalf("Expected row is 4 but got %v", fr.Result[0].Row)
+	eval := rego.New(
+		rego.Module("test.rego", module),
+		rego.Query("data.test.foo"),
+		rego.Tracer(profiler),
+	)
+
+	ctx := context.Background()
+	_, err = eval.Eval(ctx)
+
+	if err != nil {
+		t.Fatal(err)
 	}
 
-	if fr.Result[0].Col != 4 {
-		t.Fatalf("Expected col is 4 but got %v", fr.Result[0].Col)
+	stats := profiler.ReportTopNResults(0, []string{})
+
+	expectedResLen := 12
+	if len(stats) != expectedResLen {
+		t.Fatalf("Expected %v stats instead got %v", expectedResLen, len(stats))
+	}
+}
+
+func TestProfilerReportTopNResultsOneCriteria(t *testing.T) {
+	profiler := New()
+	module := `package test
+
+foo {
+	bar
+	not baz
+	bee
+}
+
+bee {
+	nums = ["a", "b", "c", "d"]
+	num = nums[_]
+	contains(num, "test")
+}
+
+bar {
+	a := 1
+	b := 2
+	a != b
+}
+
+baz {
+	true
+	false
+	true
+}`
+
+	_, err := ast.ParseModule("test.rego", module)
+	if err != nil {
+		t.Fatal(err)
 	}
 
-	if fr.Result[0].Text != "test.sleep(\"1s\")" {
-		t.Fatalf("Expected text is test.sleep(\"1s\") but got %v", fr.Result[0].Text)
+	eval := rego.New(
+		rego.Module("test.rego", module),
+		rego.Query("data.test.foo"),
+		rego.Tracer(profiler),
+	)
+
+	ctx := context.Background()
+	_, err = eval.Eval(ctx)
+
+	if err != nil {
+		t.Fatal(err)
 	}
 
-	if fr.Result[0].TotalTimeNs <= time.Duration(1*time.Second).Nanoseconds() {
-		t.Fatalf("Expected eval time is atleast 1 sec but got %v", fr.Result[0].TotalTimeNs)
+	stats := profiler.ReportTopNResults(5, []string{"EvalTime"})
+
+	expectedResLen := 5
+	if len(stats) != expectedResLen {
+		t.Fatalf("Expected %v stats instead got %v", expectedResLen, len(stats))
 	}
 
+	var i int
+	for i = 0; i < len(stats)-1; i++ {
+		if stats[i].ExprTimeNs < stats[i+1].ExprTimeNs {
+			t.Fatalf("Results not sorted in decreasing order of evaluation times")
+		}
+	}
+}
+
+func TestProfilerReportTopNResultsTwoCriteria(t *testing.T) {
+	profiler := New()
+	module := `package test
+
+foo {
+	bar
+	not baz
+	bee
+}
+
+bee {
+	nums = ["a", "b", "c", "d"]
+	num = nums[_]
+	contains(num, "test")
+}
+
+bar {
+	a := 1
+	b := 2
+	a != b
+}
+
+baz {
+	true
+	false
+	true
+}`
+
+	_, err := ast.ParseModule("test.rego", module)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	eval := rego.New(
+		rego.Module("test.rego", module),
+		rego.Query("data.test.foo"),
+		rego.Tracer(profiler),
+	)
+
+	ctx := context.Background()
+	_, err = eval.Eval(ctx)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	stats := profiler.ReportTopNResults(5, []string{"NumEval", "EvalTime"})
+
+	expectedResLen := 5
+	if len(stats) != expectedResLen {
+		t.Fatalf("Expected %v stats instead got %v", expectedResLen, len(stats))
+	}
+
+	var i int
+	for i = 0; i < len(stats)-1; i++ {
+		if stats[i].NumEval < stats[i+1].NumEval {
+			t.Fatalf("Results not sorted in decreasing order of number of evaluations")
+		}
+
+		if stats[i].NumEval == stats[i+1].NumEval {
+			if stats[i].ExprTimeNs < stats[i+1].ExprTimeNs {
+				t.Fatalf("Results not sorted in decreasing order of evaluation times")
+			}
+		}
+	}
+}
+
+func TestProfilerReportTopNResultsThreeCriteria(t *testing.T) {
+	profiler := New()
+	module := `package test
+
+foo {
+	bar
+	not baz
+	bee
+}
+
+bee {
+	nums = ["a", "b", "c", "d"]
+	num = nums[_]
+	contains(num, "test")
+}
+
+bar {
+	a := 1
+	b := 2
+	a != b
+}
+
+baz {
+	true
+	false
+	true
+}`
+
+	_, err := ast.ParseModule("test.rego", module)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	eval := rego.New(
+		rego.Module("test.rego", module),
+		rego.Query("data.test.foo"),
+		rego.Tracer(profiler),
+	)
+
+	ctx := context.Background()
+	_, err = eval.Eval(ctx)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	stats := profiler.ReportTopNResults(10, []string{"NumEval", "NumRedo", "EvalTime"})
+
+	expectedResLen := 10
+	if len(stats) != expectedResLen {
+		t.Fatalf("Expected %v stats instead got %v", expectedResLen, len(stats))
+	}
+
+	var i int
+	for i = 0; i < len(stats)-1; i++ {
+		if stats[i].NumEval < stats[i+1].NumEval {
+			t.Fatalf("Results not sorted in decreasing order of number of evaluations")
+		}
+
+		if stats[i].NumEval == stats[i+1].NumEval {
+
+			if stats[i].NumRedo < stats[i+1].NumRedo {
+				t.Fatalf("Results not sorted in decreasing order of number of redos")
+			}
+
+			if stats[i].NumRedo == stats[i+1].NumRedo {
+				if stats[i].ExprTimeNs < stats[i+1].ExprTimeNs {
+					t.Fatalf("Results not sorted in decreasing order of evaluation times")
+				}
+			}
+		}
+	}
 }
