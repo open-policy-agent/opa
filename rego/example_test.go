@@ -574,3 +574,57 @@ func ExampleRego_Partial() {
 	// Query #1: "GET" = input.method; input.path = ["reviews", _]; neq(input.is_admin, false)
 	// Query #2: "GET" = input.method; input.path = ["reviews", user3]; user3 = input.user
 }
+
+func ExampleRego_PartialWithOtherUnknowns() {
+
+	ctx := context.Background()
+
+	// Define a simple policy for example purposes.
+	module := `package test
+
+  default allow = false
+
+	allow {
+		input.method = read_methods[_]
+		input.path = ["reviews", user]
+		input.user = user
+	}
+
+	allow {
+		input.method = read_methods[_]
+		input.path = ["reviews", _]
+		input.is_admin
+	}
+
+	read_methods = ["GET"]
+  `
+	input := map[string]interface{}{
+		"method": "GET",
+		"user":   "alice",
+	}
+	input["path"] = []string{"reviews", "alice"}
+
+	r := rego.New(
+		rego.Query("data.test.allow"),
+		rego.Module("example.rego", module),
+		rego.Input(input),
+		rego.Unknowns([]string{}), // we know the input
+	)
+	pq, err := r.Partial(ctx)
+	if err != nil {
+		fmt.Printf("err: %v\n", err)
+		return
+	}
+
+	// Inspect result.
+	for i := range pq.Queries {
+		fmt.Printf("Query #%d: %v\n", i+1, pq.Queries[i])
+	}
+	for i := range pq.Support {
+		fmt.Printf("Support #%d: %v\n", i+1, pq.Support[i])
+	}
+
+	// Output:
+	//
+	// (go, please just show the output)
+}
