@@ -1203,13 +1203,13 @@ func TestTopDownRegexMatch(t *testing.T) {
 		rules    []string
 		expected interface{}
 	}{
-		{"re_match", []string{`p = true { re_match("^[a-z]+\\[[0-9]+\\]$", "foo[1]") }`}, "true"},
-		{"re_match: undefined", []string{`p = true { re_match("^[a-z]+\\[[0-9]+\\]$", "foo[\"bar\"]") }`}, ""},
-		{"re_match: bad pattern err", []string{`p = true { re_match("][", "foo[\"bar\"]") }`}, fmt.Errorf("re_match: error parsing regexp: missing closing ]: `[`")},
-		{"re_match: ref", []string{`p[x] { re_match("^b.*$", d.e[x]) }`}, "[0,1]"},
+		{"regex.match", []string{`p = true { regex.match("^[a-z]+\\[[0-9]+\\]$", "foo[1]") }`}, "true"},
+		{"regex.match: undefined", []string{`p = true { regex.match("^[a-z]+\\[[0-9]+\\]$", "foo[\"bar\"]") }`}, ""},
+		{"regex.match: bad pattern err", []string{`p = true { regex.match("][", "foo[\"bar\"]") }`}, fmt.Errorf("regex.match: error parsing regexp: missing closing ]: `[`")},
+		{"regex.match: ref", []string{`p[x] { regex.match("^b.*$", d.e[x]) }`}, "[0,1]"},
 
-		{"re_match: raw", []string{fmt.Sprintf(`p = true { re_match(%s, "foo[1]") }`, "`^[a-z]+\\[[0-9]+\\]$`")}, "true"},
-		{"re_match: raw: undefined", []string{fmt.Sprintf(`p = true { re_match(%s, "foo[\"bar\"]") }`, "`^[a-z]+\\[[0-9]+\\]$`")}, ""},
+		{"regex.match: raw", []string{fmt.Sprintf(`p = true { regex.match(%s, "foo[1]") }`, "`^[a-z]+\\[[0-9]+\\]$`")}, "true"},
+		{"regex.match: raw: undefined", []string{fmt.Sprintf(`p = true { regex.match(%s, "foo[\"bar\"]") }`, "`^[a-z]+\\[[0-9]+\\]$`")}, ""},
 	}
 
 	data := loadSmallTestData()
@@ -1225,13 +1225,13 @@ func TestTopDownGlobsMatch(t *testing.T) {
 		rules    []string
 		expected interface{}
 	}{
-		{"regex.globs_match", []string{`p = true { regex.globs_match("a.a.[0-9]+z", ".b.b2359825792*594823z") }`}, "true"},
-		{"regex.globs_match", []string{`p = true { regex.globs_match("[a-z]+", "[0-9]*") }`}, ""},
-		{"regex.globs_match: bad pattern err", []string{`p = true { regex.globs_match("pqrs]", "[a-b]+") }`}, fmt.Errorf("input:pqrs], pos:5, set-close ']' with no preceding '[': the input provided is invalid")},
-		{"regex.globs_match: ref", []string{`p[x] { regex.globs_match("b.*", d.e[x]) }`}, "[0,1]"},
+		{"glob.intersect", []string{`p = true { glob.intersect("a.a.[0-9]+z", ".b.b2359825792*594823z") }`}, "true"},
+		{"glob.intersect", []string{`p = true { glob.intersect("[a-z]+", "[0-9]*") }`}, ""},
+		{"glob.intersect: bad pattern err", []string{`p = true { glob.intersect("pqrs]", "[a-b]+") }`}, fmt.Errorf("input:pqrs], pos:5, set-close ']' with no preceding '[': the input provided is invalid")},
+		{"glob.intersect: ref", []string{`p[x] { glob.intersect("b.*", d.e[x]) }`}, "[0,1]"},
 
-		{"regex.globs_match: raw", []string{fmt.Sprintf(`p = true { regex.globs_match(%s, "foo\\[1\\]") }`, "`[a-z]+\\[[0-9]+\\]`")}, "true"},
-		{"regex.globs_match: raw: undefined", []string{fmt.Sprintf(`p = true { regex.globs_match(%s, "foo[\"bar\"]") }`, "`[a-z]+\\[[0-9]+\\]`")}, ""},
+		{"glob.intersect: raw", []string{fmt.Sprintf(`p = true { glob.intersect(%s, "foo\\[1\\]") }`, "`[a-z]+\\[[0-9]+\\]`")}, "true"},
+		{"glob.intersect: raw: undefined", []string{fmt.Sprintf(`p = true { glob.intersect(%s, "foo[\"bar\"]") }`, "`[a-z]+\\[[0-9]+\\]`")}, ""},
 	}
 
 	data := loadSmallTestData()
