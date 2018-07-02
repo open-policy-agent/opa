@@ -563,6 +563,9 @@ func ExampleRego_Partial() {
 	for i := range pq.Queries {
 		fmt.Printf("Query #%d: %v\n", i+1, pq.Queries[i])
 	}
+	for i := range pq.Support {
+		fmt.Printf("Support #%d: %v\n", i+1, pq.Support[i])
+	}
 
 	// Output:
 	//
