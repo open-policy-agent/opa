@@ -97,11 +97,6 @@ type Server struct {
 	errLimit          int
 }
 
-type cachedCompiler struct {
-	queryPath string
-	compiler  *ast.Compiler
-}
-
 // Loop will contain all the calls from the server that we'll be listening on.
 type Loop func() error
 
@@ -1541,15 +1536,6 @@ func (s *Server) generateDecisionID() string {
 	return ""
 }
 
-func handleCompileError(w http.ResponseWriter, err error) {
-	switch err := err.(type) {
-	case ast.Errors:
-		writer.Error(w, http.StatusBadRequest, types.NewErrorV1(types.CodeInvalidParameter, types.MsgCompileQueryError).WithASTErrors(err))
-	default:
-		writer.ErrorString(w, http.StatusBadRequest, types.CodeInvalidParameter, err)
-	}
-}
-
 func stringPathToDataRef(s string) (r ast.Ref) {
 	result := ast.Ref{ast.DefaultRootDocument}
 	result = append(result, stringPathToRef(s)...)
@@ -1598,28 +1584,6 @@ func getBoolParam(url *url.URL, name string, ifEmpty bool) bool {
 	}
 
 	return false
-}
-
-func getBooleanVar(bindings rego.Vars, name string) (bool, error) {
-	if v, ok := bindings[name]; ok {
-		t, ok := v.(bool)
-		if !ok {
-			return false, fmt.Errorf("non-boolean '%s' field: %v (%T)", name, v, v)
-		}
-		return t, nil
-	}
-	return false, nil
-}
-
-func getStringVar(bindings rego.Vars, name string) (string, error) {
-	if v, ok := bindings[name]; ok {
-		t, ok := v.(string)
-		if !ok {
-			return "", fmt.Errorf("non-string '%s' field: %v (%T)", name, v, v)
-		}
-		return t, nil
-	}
-	return "", nil
 }
 
 func getWatch(p []string) (watch bool) {

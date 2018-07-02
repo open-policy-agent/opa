@@ -30,8 +30,6 @@ import (
 	"github.com/pkg/errors"
 )
 
-var policyDir string
-
 type tr struct {
 	method string
 	path   string

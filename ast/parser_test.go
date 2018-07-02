@@ -1444,15 +1444,6 @@ func TestNamespacedBuiltins(t *testing.T) {
 	}
 }
 
-func assertParse(t *testing.T, msg string, input string, correct func([]Statement)) {
-	p, _, err := ParseStatements("", input)
-	if err != nil {
-		t.Errorf("Error on test %s: parse error on %s: %s", msg, input, err)
-		return
-	}
-	correct(p)
-}
-
 func assertParseError(t *testing.T, msg string, input string) {
 	assertParseErrorFunc(t, msg, input, func(string) {})
 }

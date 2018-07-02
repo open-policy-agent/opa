@@ -30,8 +30,6 @@ const (
 	checkFormatJSON   = "json"
 )
 
-var errLimit int
-
 var checkCommand = &cobra.Command{
 	Use:   "check <path> [path [...]]",
 	Short: "Check Rego source files",
