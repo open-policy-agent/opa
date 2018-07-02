@@ -2,7 +2,7 @@
 // Use of this source code is governed by an Apache2
 // license that can be found in the LICENSE file.
 
-// Package profiler computes and reports on the time spent on expressions
+// Package profiler computes and reports on the time spent on expressions.
 package profiler
 
 import (
@@ -13,27 +13,23 @@ import (
 	"github.com/open-policy-agent/opa/topdown"
 )
 
-// Profiler computes and reports on the time spent on expressions
+// Profiler computes and reports on the time spent on expressions.
 type Profiler struct {
-	hits        map[string]map[Position]ExprStats
+	hits        map[string]map[int]ExprStats
 	activeTimer time.Time
-	prevExpr    ExprInfo
+	prevExpr    exprInfo
 }
 
-// ExprInfo stores information about an expression
-type ExprInfo struct {
-	index int
-	file  string
-	row   int
-	col   int
-	text  []byte
-	op    string
+// exprInfo stores information about an expression.
+type exprInfo struct {
+	location *ast.Location
+	op       topdown.Op
 }
 
-// New returns a new Profiler object
+// New returns a new Profiler object.
 func New() *Profiler {
 	return &Profiler{
-		hits: map[string]map[Position]ExprStats{},
+		hits: map[string]map[int]ExprStats{},
 	}
 }
 
@@ -42,8 +38,9 @@ func (p *Profiler) Enabled() bool {
 	return true
 }
 
-// Report returns a profiler report
-func (p *Profiler) Report() (report Report) {
+// ReportByFile returns a profiler report for expressions grouped by the
+// file name. For each file the results are sorted by increasing row number.
+func (p *Profiler) ReportByFile() (report Report) {
 	p.processLastExpr()
 	report.Files = map[string]*FileReport{}
 	for file, hits := range p.hits {
@@ -63,115 +60,146 @@ func (p *Profiler) Report() (report Report) {
 	return report
 }
 
-// Trace updates the profiler state
+// ReportTopNResults returns the top N results based on the given
+// criteria. If N <= 0, all the results based on the criteria are returned.
+func (p *Profiler) ReportTopNResults(numResults int, criteria []string) []ExprStats {
+	p.processLastExpr()
+	stats := []ExprStats{}
+
+	for _, hits := range p.hits {
+		for _, stat := range hits {
+			stats = append(stats, stat)
+		}
+	}
+
+	// allowed criteria for sorting results
+	allowedCriteria := map[string]lessFunc{}
+	allowedCriteria["EvalTime"] = func(stat1, stat2 *ExprStats) bool {
+		return stat1.ExprTimeNs > stat2.ExprTimeNs
+	}
+	allowedCriteria["NumEval"] = func(stat1, stat2 *ExprStats) bool {
+		return stat1.NumEval > stat2.NumEval
+	}
+	allowedCriteria["NumRedo"] = func(stat1, stat2 *ExprStats) bool {
+		return stat1.NumRedo > stat2.NumRedo
+	}
+
+	sortFuncs := []lessFunc{}
+
+	for _, cr := range criteria {
+		if fn, ok := allowedCriteria[cr]; ok {
+			sortFuncs = append(sortFuncs, fn)
+		}
+	}
+
+	// if no criteria return all the stats
+	if len(sortFuncs) == 0 {
+		return stats
+	}
+
+	orderedBy(sortFuncs).Sort(stats)
+
+	// if desired number of results to be returned is less than or
+	// equal to 0 or exceed total available results,
+	// return all the stats
+	if numResults <= 0 || numResults > len(stats) {
+		return stats
+	}
+	return stats[:numResults]
+
+}
+
+// Trace updates the profiler state.
 func (p *Profiler) Trace(event *topdown.Event) {
 	switch event.Op {
 	case topdown.EvalOp:
 		if expr, ok := event.Node.(*ast.Expr); ok && expr != nil {
-			p.processExpr(expr, "Eval")
+			p.processExpr(expr, event.Op)
 		}
 	case topdown.RedoOp:
 		if expr, ok := event.Node.(*ast.Expr); ok && expr != nil {
-			p.processExpr(expr, "Redo")
+			p.processExpr(expr, event.Op)
 		}
 	}
 }
 
-func (p *Profiler) processExpr(expr *ast.Expr, op string) {
+func (p *Profiler) processExpr(expr *ast.Expr, eventType topdown.Op) {
 
 	// set the active timer on the first expression
 	if p.activeTimer.IsZero() {
 		p.activeTimer = time.Now()
-		p.prevExpr = ExprInfo{
-			index: expr.Index,
-			file:  expr.Location.File,
-			row:   expr.Location.Row,
-			col:   expr.Location.Col,
-			op:    op,
-			text:  expr.Location.Text,
+		p.prevExpr = exprInfo{
+			op:       eventType,
+			location: expr.Location,
 		}
 		return
 	}
 
 	// record the profiler results for the previous expression
-	hits, ok := p.hits[p.prevExpr.file]
+	file := p.prevExpr.location.File
+	hits, ok := p.hits[file]
 	if !ok {
-		hits = map[Position]ExprStats{}
-		hits[Position{p.prevExpr.row}] = getProfilerStats(p.prevExpr, p.activeTimer)
-		p.hits[p.prevExpr.file] = hits
+		hits = map[int]ExprStats{}
+		hits[p.prevExpr.location.Row] = getProfilerStats(p.prevExpr, p.activeTimer)
+		p.hits[file] = hits
 	} else {
-		pStats, ok := hits[Position{p.prevExpr.row}]
+		pos := p.prevExpr.location.Row
+		pStats, ok := hits[pos]
 		if !ok {
-			hits[Position{p.prevExpr.row}] = getProfilerStats(p.prevExpr, p.activeTimer)
+			hits[pos] = getProfilerStats(p.prevExpr, p.activeTimer)
 		} else {
-			pStats.TotalTimeNs += time.Since(p.activeTimer).Nanoseconds()
-			if p.prevExpr.op == "Eval" {
+			pStats.ExprTimeNs += time.Since(p.activeTimer).Nanoseconds()
+
+			switch p.prevExpr.op {
+			case topdown.EvalOp:
 				pStats.NumEval++
-			} else {
+			case topdown.RedoOp:
 				pStats.NumRedo++
 			}
-			hits[Position{p.prevExpr.row}] = pStats
+			hits[pos] = pStats
 		}
 	}
 
 	// reset active timer and expression
 	p.activeTimer = time.Now()
-	p.prevExpr = ExprInfo{
-		index: expr.Index,
-		file:  expr.Location.File,
-		row:   expr.Location.Row,
-		col:   expr.Location.Col,
-		op:    op,
-		text:  expr.Location.Text,
+	p.prevExpr = exprInfo{
+		op:       eventType,
+		location: expr.Location,
 	}
 }
 
 func (p *Profiler) processLastExpr() {
-	loc := ast.NewLocation(p.prevExpr.text, p.prevExpr.file, p.prevExpr.row, p.prevExpr.col)
 	expr := ast.Expr{
-		Location: loc,
-		Index:    p.prevExpr.index,
+		Location: p.prevExpr.location,
 	}
 	p.processExpr(&expr, p.prevExpr.op)
 }
 
-// Position represents a file location.
-type Position struct {
-	Row int `json:"row"`
-}
-
-func getProfilerStats(expr ExprInfo, timer time.Time) ExprStats {
+func getProfilerStats(expr exprInfo, timer time.Time) ExprStats {
 	profilerStats := ExprStats{}
-	profilerStats.TotalTimeNs = time.Since(timer).Nanoseconds()
-	profilerStats.Index = expr.index
+	profilerStats.ExprTimeNs = time.Since(timer).Nanoseconds()
+	profilerStats.Location = expr.location
 
-	profilerStats.Row = expr.row
-	profilerStats.Col = expr.col
-	profilerStats.Text = string(expr.text)
-
-	if expr.op == "Eval" {
+	switch expr.op {
+	case topdown.EvalOp:
 		profilerStats.NumEval = 1
-	} else {
+	case topdown.RedoOp:
 		profilerStats.NumRedo = 1
 	}
-
 	return profilerStats
 }
 
-// ExprStats represents the result of profiling an expression
+// ExprStats represents the result of profiling an expression.
 type ExprStats struct {
-	Index       int    `json:"index"`
-	TotalTimeNs int64  `json:"totalTimeNs"`
-	NumEval     int    `json:"numEval"`
-	NumRedo     int    `json:"numRedo"`
-	Row         int    `json:"row"`
-	Col         int    `json:"col"`
-	Text        string `json:"text"`
+	ExprTimeNs int64         `json:"total_time_ns"`
+	NumEval    int           `json:"num_eval"`
+	NumRedo    int           `json:"num_redo"`
+	Location   *ast.Location `json:"location"`
 }
 
 func sortStatsByRow(ps []ExprStats) {
 	sort.Slice(ps, func(i, j int) bool {
-		return ps[i].Row < ps[j].Row
+		return ps[i].Location.Row < ps[j].Location.Row
 	})
 }
 
@@ -180,7 +208,61 @@ type Report struct {
 	Files map[string]*FileReport `json:"files"`
 }
 
-// FileReport represents a profiler report for a single file
+// FileReport represents a profiler report for a single file.
 type FileReport struct {
 	Result []ExprStats `json:"result"`
+}
+
+// Helper interfaces and methods for sorting a slice of ExprStats structs
+// based on multiple fields.
+
+type lessFunc func(p1, p2 *ExprStats) bool
+
+// multiSorter implements the Sort interface, sorting the changes within.
+type multiSorter struct {
+	stats []ExprStats
+	less  []lessFunc
+}
+
+// Sort sorts the argument slice according to the less functions passed to OrderedBy.
+func (ms *multiSorter) Sort(stats []ExprStats) {
+	ms.stats = stats
+	sort.Sort(ms)
+}
+
+// orderedBy returns a Sorter that sorts using the less functions, in order.
+func orderedBy(less []lessFunc) *multiSorter {
+	return &multiSorter{
+		less: less,
+	}
+}
+
+// Len is part of sort.Interface.
+func (ms *multiSorter) Len() int {
+	return len(ms.stats)
+}
+
+// Swap is part of sort.Interface.
+func (ms *multiSorter) Swap(i, j int) {
+	ms.stats[i], ms.stats[j] = ms.stats[j], ms.stats[i]
+}
+
+// Less is part of sort.Interface. It is implemented by looping along the
+// less functions until it finds a comparison that discriminates between
+// the two items.
+func (ms *multiSorter) Less(i, j int) bool {
+	p, q := &ms.stats[i], &ms.stats[j]
+	// Try all but the last comparison.
+	var k int
+	for k = 0; k < len(ms.less)-1; k++ {
+		less := ms.less[k]
+		switch {
+		case less(p, q):
+			return true
+		case less(q, p):
+			return false
+		}
+		// p == q; try the next comparison.
+	}
+	return ms.less[k](p, q)
 }

@@ -248,7 +248,7 @@ func eval(args []string, params evalCommandParams) (err error) {
 	}
 
 	if params.profile {
-		result.Profile = p.Report()
+		result.Profile = p.ReportByFile()
 	}
 
 	switch params.outputFormat.String() {
