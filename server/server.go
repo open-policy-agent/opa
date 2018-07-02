@@ -69,6 +69,7 @@ const (
 	PromHandlerV1Data     = "v1/data"
 	PromHandlerV1Query    = "v1/query"
 	PromHandlerV1Policies = "v1/policies"
+	PromHandlerV1Compile  = "v1/compile"
 	PromHandlerIndex      = "index"
 	PromHandlerCatch      = "catchall"
 )
@@ -96,11 +97,6 @@ type Server struct {
 	errLimit          int
 }
 
-type cachedCompiler struct {
-	queryPath string
-	compiler  *ast.Compiler
-}
-
 // Loop will contain all the calls from the server that we'll be listening on.
 type Loop func() error
 
@@ -121,6 +117,7 @@ func New() *Server {
 	v1DataDur := duration.MustCurryWith(prometheus.Labels{"handler": PromHandlerV1Data})
 	v1PoliciesDur := duration.MustCurryWith(prometheus.Labels{"handler": PromHandlerV1Policies})
 	v1QueryDur := duration.MustCurryWith(prometheus.Labels{"handler": PromHandlerV1Query})
+	v1CompileDur := duration.MustCurryWith(prometheus.Labels{"handler": PromHandlerV1Compile})
 	indexDur := duration.MustCurryWith(prometheus.Labels{"handler": PromHandlerIndex})
 	catchAllDur := duration.MustCurryWith(prometheus.Labels{"handler": PromHandlerCatch})
 	promRegistry.MustRegister(duration)
@@ -146,6 +143,7 @@ func New() *Server {
 	s.registerHandler(router, 1, "/policies/{path:.+}", http.MethodGet, promhttp.InstrumentHandlerDuration(v1PoliciesDur, http.HandlerFunc(s.v1PoliciesGet)))
 	s.registerHandler(router, 1, "/policies/{path:.+}", http.MethodPut, promhttp.InstrumentHandlerDuration(v1PoliciesDur, http.HandlerFunc(s.v1PoliciesPut)))
 	s.registerHandler(router, 1, "/query", http.MethodGet, promhttp.InstrumentHandlerDuration(v1QueryDur, http.HandlerFunc(s.v1QueryGet)))
+	s.registerHandler(router, 1, "/compile", http.MethodPost, promhttp.InstrumentHandlerDuration(v1CompileDur, http.HandlerFunc(s.v1CompilePost)))
 	router.HandleFunc("/", promhttp.InstrumentHandlerDuration(indexDur, http.HandlerFunc(s.unversionedPost))).Methods(http.MethodPost)
 	router.HandleFunc("/", promhttp.InstrumentHandlerDuration(indexDur, http.HandlerFunc(s.indexGet))).Methods(http.MethodGet)
 	// These are catch all handlers that respond 405 for resources that exist but the method is not allowed
@@ -601,6 +599,81 @@ func (s *Server) v1DiagnosticsGet(w http.ResponseWriter, r *http.Request) {
 		resp.Result = append(resp.Result, item)
 	})
 	writer.JSON(w, 200, resp, pretty)
+}
+
+func (s *Server) v1CompilePost(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	pretty := getBoolParam(r.URL, types.ParamPrettyV1, true)
+	explainMode := getExplain(r.URL.Query()[types.ParamExplainV1], types.ExplainOffV1)
+	includeMetrics := getBoolParam(r.URL, types.ParamMetricsV1, true)
+	includeInstrumentation := getBoolParam(r.URL, types.ParamInstrumentV1, true)
+
+	m := metrics.New()
+
+	m.Timer(metrics.RegoQueryParse).Start()
+
+	request, reqErr := readInputCompilePostV1(r.Body)
+	if reqErr != nil {
+		writer.Error(w, http.StatusBadRequest, reqErr)
+		return
+	}
+
+	m.Timer(metrics.RegoQueryParse).Stop()
+
+	txn, err := s.store.NewTransaction(ctx)
+	if err != nil {
+		writer.ErrorAuto(w, err)
+		return
+	}
+
+	defer s.store.Abort(ctx, txn)
+
+	var buf *topdown.BufferTracer
+	if explainMode != types.ExplainOffV1 {
+		buf = topdown.NewBufferTracer()
+	}
+
+	var instrument bool
+	if includeInstrumentation {
+		instrument = true
+	}
+
+	eval := rego.New(
+		rego.Compiler(s.getCompiler()),
+		rego.Store(s.store),
+		rego.Transaction(txn),
+		rego.ParsedQuery(request.Query),
+		rego.ParsedInput(request.Input),
+		rego.ParsedUnknowns(request.Unknowns),
+		rego.Tracer(buf),
+		rego.Instrument(instrument),
+		rego.Metrics(m),
+	)
+
+	pq, err := eval.Partial(ctx)
+	if err != nil {
+		writer.ErrorAuto(w, err)
+		return
+	}
+
+	result := types.CompileResponseV1{}
+
+	if includeMetrics || includeInstrumentation {
+		result.Metrics = m.All()
+	}
+
+	if explainMode != types.ExplainOffV1 {
+		result.Explanation = s.getExplainResponse(explainMode, *buf, pretty)
+	}
+
+	var i interface{} = types.PartialEvaluationResultV1{
+		Queries: pq.Queries,
+		Support: pq.Support,
+	}
+
+	result.Result = &i
+
+	writer.JSON(w, 200, result, pretty)
 }
 
 func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
@@ -1390,7 +1463,7 @@ func (s *Server) makeRego(ctx context.Context, partial bool, txn storage.Transac
 			opts = append(opts, rego.Transaction(txn), rego.Query(path), rego.Metrics(m), rego.Instrument(instrument))
 			r := rego.New(opts...)
 			var err error
-			pr, err = r.PartialEval(ctx)
+			pr, err = r.PartialResult(ctx)
 			if err != nil {
 				return nil, err
 			}
@@ -1463,15 +1536,6 @@ func (s *Server) generateDecisionID() string {
 	return ""
 }
 
-func handleCompileError(w http.ResponseWriter, err error) {
-	switch err := err.(type) {
-	case ast.Errors:
-		writer.Error(w, http.StatusBadRequest, types.NewErrorV1(types.CodeInvalidParameter, types.MsgCompileQueryError).WithASTErrors(err))
-	default:
-		writer.ErrorString(w, http.StatusBadRequest, types.CodeInvalidParameter, err)
-	}
-}
-
 func stringPathToDataRef(s string) (r ast.Ref) {
 	result := ast.Ref{ast.DefaultRootDocument}
 	result = append(result, stringPathToRef(s)...)
@@ -1520,28 +1584,6 @@ func getBoolParam(url *url.URL, name string, ifEmpty bool) bool {
 	}
 
 	return false
-}
-
-func getBooleanVar(bindings rego.Vars, name string) (bool, error) {
-	if v, ok := bindings[name]; ok {
-		t, ok := v.(bool)
-		if !ok {
-			return false, fmt.Errorf("non-boolean '%s' field: %v (%T)", name, v, v)
-		}
-		return t, nil
-	}
-	return false, nil
-}
-
-func getStringVar(bindings rego.Vars, name string) (string, error) {
-	if v, ok := bindings[name]; ok {
-		t, ok := v.(string)
-		if !ok {
-			return "", fmt.Errorf("non-string '%s' field: %v (%T)", name, v, v)
-		}
-		return t, nil
-	}
-	return "", nil
 }
 
 func getWatch(p []string) (watch bool) {
@@ -1650,6 +1692,61 @@ func readInputPostV1(r io.ReadCloser) (ast.Value, error) {
 	}
 
 	return nil, nil
+}
+
+type compileRequest struct {
+	Query    ast.Body
+	Input    ast.Value
+	Unknowns []*ast.Term
+}
+
+func readInputCompilePostV1(r io.ReadCloser) (*compileRequest, *types.ErrorV1) {
+
+	var request types.CompileRequestV1
+
+	err := util.NewJSONDecoder(r).Decode(&request)
+	if err != nil {
+		return nil, types.NewErrorV1(types.CodeInvalidParameter, "error(s) occurred while decoding request: %v", err.Error())
+	}
+
+	query, err := ast.ParseBody(request.Query)
+	if err != nil {
+		switch err := err.(type) {
+		case ast.Errors:
+			return nil, types.NewErrorV1(types.CodeInvalidParameter, types.MsgParseQueryError).WithASTErrors(err)
+		default:
+			return nil, types.NewErrorV1(types.CodeInvalidParameter, "%v: %v", types.MsgParseQueryError, err)
+		}
+	} else if len(query) == 0 {
+		return nil, types.NewErrorV1(types.CodeInvalidParameter, "missing required 'query' value")
+	}
+
+	var input ast.Value
+	if request.Input != nil {
+		input, err = ast.InterfaceToValue(*request.Input)
+		if err != nil {
+			return nil, types.NewErrorV1(types.CodeInvalidParameter, "error(s) occurred while converting input: %v", err)
+		}
+	}
+
+	var unknowns []*ast.Term
+	if request.Unknowns != nil {
+		unknowns = make([]*ast.Term, len(*request.Unknowns))
+		for i, s := range *request.Unknowns {
+			unknowns[i], err = ast.ParseTerm(s)
+			if err != nil {
+				return nil, types.NewErrorV1(types.CodeInvalidParameter, "error(s) occurred while parsing unknowns: %v", err)
+			}
+		}
+	}
+
+	result := &compileRequest{
+		Query:    query,
+		Input:    input,
+		Unknowns: unknowns,
+	}
+
+	return result, nil
 }
 
 func renderBanner(w http.ResponseWriter) {

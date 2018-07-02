@@ -30,8 +30,6 @@ import (
 	"github.com/pkg/errors"
 )
 
-var policyDir string
-
 type tr struct {
 	method string
 	path   string
@@ -184,6 +182,160 @@ func Test405StatusCodev0(t *testing.T) {
 		test.Subtest(t, tc.note, func(t *testing.T) {
 			executeRequestsv0(t, tc.reqs)
 		})
+	}
+}
+
+func TestCompileV1(t *testing.T) {
+
+	mod := `package test
+
+	p {
+		input.x = 1
+	}
+
+	q {
+		data.a[i] = input.x
+	}
+
+	default r = false
+	`
+
+	expQuery := func(s string) string {
+		return fmt.Sprintf(`{"result": {"queries": [%v]}}`, string(util.MustMarshalJSON(ast.MustParseBody(s))))
+	}
+
+	expQueryAndSupport := func(q string, m string) string {
+		return fmt.Sprintf(`{"result": {"queries": [%v], "support": [%v]}}`, string(util.MustMarshalJSON(ast.MustParseBody(q))), string(util.MustMarshalJSON(ast.MustParseModule(m))))
+	}
+
+	tests := []struct {
+		note string
+		trs  []tr
+	}{
+		{
+			note: "basic",
+			trs: []tr{
+				{http.MethodPut, "/policies/test", mod, 200, ""},
+				{http.MethodPost, "/compile", `{
+					"unknowns": ["input"],
+					"query": "data.test.p = true"
+				}`, 200, expQuery("input.x = 1")},
+			},
+		},
+		{
+			note: "subtree",
+			trs: []tr{
+				{http.MethodPost, "/compile", `{
+					"unknowns": ["input.x"],
+					"input": {"y": 1},
+					"query": "input.x > input.y"
+				}`, 200, expQuery("input.x > 1")},
+			},
+		},
+		{
+			note: "data",
+			trs: []tr{
+				{http.MethodPut, "/policies/test", mod, 200, ""},
+				{http.MethodPost, "/compile", `{
+					"unknowns": ["data.a"],
+					"input": {
+						"x": 1
+					},
+					"query": "data.test.q = true"
+				}`, 200, expQuery("1 = data.a[i1]")},
+			},
+		},
+		{
+			note: "escaped string",
+			trs: []tr{
+				{http.MethodPost, "/compile", `{
+					"query": "input[\"x\"] = 1"
+				}`, 200, expQuery("input.x = 1")},
+			},
+		},
+		{
+			note: "support",
+			trs: []tr{
+				{http.MethodPut, "/policies/test", mod, 200, ""},
+				{http.MethodPost, "/compile", `{
+					"query": "data.test.r = true"
+				}`, 200, expQueryAndSupport(
+					`data.partial.test.r = true`,
+					`package partial.test
+
+					default r = false
+					`)},
+			},
+		},
+		{
+			note: "empty unknowns",
+			trs: []tr{
+				{http.MethodPost, "/compile", `{"query": "input.x > 1", "unknowns": []}`, 200, `{"result": {}}`},
+			},
+		},
+		{
+			note: "never defined",
+			trs: []tr{
+				{http.MethodPost, "/compile", `{"query": "1 = 2"}`, 200, `{"result": {}}`},
+			},
+		},
+		{
+			note: "always defined",
+			trs: []tr{
+				{http.MethodPost, "/compile", `{"query": "1 = 1"}`, 200, `{"result": {"queries": [[]]}}`},
+			},
+		},
+		{
+			note: "error: bad request",
+			trs:  []tr{{http.MethodPost, "/compile", `{"input": [{]}`, 400, ``}},
+		},
+		{
+			note: "error: empty query",
+			trs:  []tr{{http.MethodPost, "/compile", `{}`, 400, ""}},
+		},
+		{
+			note: "error: bad query",
+			trs:  []tr{{http.MethodPost, "/compile", `{"query": "x %!> 9"}`, 400, ""}},
+		},
+		{
+			note: "error: bad unknown",
+			trs:  []tr{{http.MethodPost, "/compile", `{"unknowns": ["input."], "query": "true"}`, 400, ""}},
+		},
+	}
+
+	for _, tc := range tests {
+		test.Subtest(t, tc.note, func(t *testing.T) {
+			executeRequests(t, tc.trs)
+		})
+	}
+}
+
+func TestCompileV1Observability(t *testing.T) {
+
+	f := newFixture(t)
+
+	f.v1(http.MethodPut, "/policies/test", `package test
+
+	p { input.x = 1 }`, 200, "")
+
+	compileReq := newReqV1(http.MethodPost, "/compile?metrics&explain=full", `{
+		"query": "data.test.p = true"
+	}`)
+
+	f.reset()
+	f.server.Handler.ServeHTTP(f.recorder, compileReq)
+
+	var response types.CompileResponseV1
+	if err := json.NewDecoder(f.recorder.Body).Decode(&response); err != nil {
+		t.Fatal(err)
+	}
+
+	if len(response.Explanation) == 0 {
+		t.Fatal("Expected non-empty explanation")
+	}
+
+	if _, ok := response.Metrics["timer_rego_partial_eval_ns"]; !ok {
+		t.Fatal("Expected partial evaluation latency")
 	}
 }
 

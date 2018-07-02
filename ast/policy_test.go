@@ -58,6 +58,19 @@ call_values { f(x) != g(x) }
 
 }
 
+func TestBodyEmptyJSON(t *testing.T) {
+	var body Body
+	bs := util.MustMarshalJSON(body)
+	if string(bs) != "[]" {
+		t.Fatalf("Unexpected JSON value for empty body")
+	}
+	body = Body{}
+	bs = util.MustMarshalJSON(body)
+	if string(bs) != "[]" {
+		t.Fatalf("Unexpected JSON value for empty body")
+	}
+}
+
 func TestPackageEquals(t *testing.T) {
 	pkg1 := &Package{Path: RefTerm(VarTerm("foo"), StringTerm("bar"), StringTerm("baz")).Value.(Ref)}
 	pkg2 := &Package{Path: RefTerm(VarTerm("foo"), StringTerm("bar"), StringTerm("baz")).Value.(Ref)}

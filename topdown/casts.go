@@ -1,4 +1,4 @@
-// Copyright 2016 The OPA Authors.  All rights reserved.
+// Copyright 2018 The OPA Authors.  All rights reserved.
 // Use of this source code is governed by an Apache2
 // license that can be found in the LICENSE file.
 
@@ -98,10 +98,10 @@ func builtinToObject(a ast.Value) (ast.Value, error) {
 
 func init() {
 	RegisterFunctionalBuiltin1(ast.ToNumber.Name, builtinToNumber)
-	RegisterFunctionalBuiltin1(ast.ToArray.Name, builtinToArray)
-	RegisterFunctionalBuiltin1(ast.ToSet.Name, builtinToSet)
-	RegisterFunctionalBuiltin1(ast.ToString.Name, builtinToString)
-	RegisterFunctionalBuiltin1(ast.ToBoolean.Name, builtinToBoolean)
-	RegisterFunctionalBuiltin1(ast.ToNull.Name, builtinToNull)
-	RegisterFunctionalBuiltin1(ast.ToObject.Name, builtinToObject)
+	RegisterFunctionalBuiltin1(ast.CastArray.Name, builtinToArray)
+	RegisterFunctionalBuiltin1(ast.CastSet.Name, builtinToSet)
+	RegisterFunctionalBuiltin1(ast.CastString.Name, builtinToString)
+	RegisterFunctionalBuiltin1(ast.CastBoolean.Name, builtinToBoolean)
+	RegisterFunctionalBuiltin1(ast.CastNull.Name, builtinToNull)
+	RegisterFunctionalBuiltin1(ast.CastObject.Name, builtinToObject)
 }

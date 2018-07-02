@@ -553,13 +553,3 @@ func makeComments(c *current, text interface{}) (interface{}, error) {
 
 	return comment, nil
 }
-
-func ifacesToBody(i interface{}, a ...interface{}) Body {
-	var buf Body
-	buf = append(buf, i.(*Expr))
-	for _, s := range a {
-		expr := s.([]interface{})[3].(*Expr)
-		buf = append(buf, expr)
-	}
-	return buf
-}

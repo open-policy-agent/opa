@@ -52,6 +52,12 @@
       * [Comparison](how-do-i-write-policies.md#comparison)
     * [Built-in Functions](how-do-i-write-policies.md#built-in-functions)
     * [Example Data](how-do-i-write-policies.md#example-data)
+  * [How Do I Test Policies?](how-do-i-test-policies.md)
+    * [Getting Started](how-do-i-test-policies.md#getting-started)
+    * [Test Format](how-do-i-test-policies.md#getting-started)
+    * [Test Discovery](how-do-i-test-policies.md#getting-started)
+    * [Test Results](how-do-i-test-policies.md#getting-started)
+    * [Coverage](how-do-i-test-policies.md#getting-started)
   * [Language Reference](language-reference.md)
     * [Built-in Functions](language-reference.md#built-in-functions)
       * [Comparison](language-reference.md#comparison)
@@ -80,6 +86,8 @@
     * [Query API](rest-api.md#query-api)
       * [Execute a Simple Query](rest-api.md#execute-a-simple-query)
       * [Execute an Ad-hoc Query](rest-api.md#execute-an-ad-hoc-query)
+    * [Compile API](rest-api.md#compile-api)
+      * [Partially Evaluate a Query](rest-api.md#partially-evaluate-a-query)
     * [Authentication](rest-api.md#authentication)
       * [Bearer Tokens](rest-api.md#bearer-tokens)
     * [Errors](rest-api.md#errors)
@@ -126,4 +134,5 @@
   * [Terraform Testing](terraform.md)
 
 ### Best Practices
+
   * [Identity and User attributes](best-practice-identity.md)

@@ -8,6 +8,7 @@ import (
 	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/topdown/builtins"
+	"github.com/open-policy-agent/opa/topdown/copypropagation"
 )
 
 // QueryResultSet represents a collection of results returned by a query.
@@ -145,6 +146,18 @@ func (q *Query) PartialRun(ctx context.Context) (partials []ast.Body, support []
 	}
 	q.startTimer(metrics.RegoPartialEval)
 	defer q.stopTimer(metrics.RegoPartialEval)
+
+	livevars := ast.NewVarSet()
+
+	ast.WalkVars(q.query, func(x ast.Var) bool {
+		if !x.IsGenerated() {
+			livevars.Add(x)
+		}
+		return false
+	})
+
+	p := copypropagation.New(livevars)
+
 	err = e.Run(func(e *eval) error {
 		// Build output from saved expressions.
 		body := ast.NewBody()
@@ -165,6 +178,7 @@ func (q *Query) PartialRun(ctx context.Context) (partials []ast.Body, support []
 		for i := range bindingExprs {
 			body.Append(bindingExprs[i])
 		}
+		body = p.Apply(body)
 		partials = append(partials, body)
 		return nil
 	})

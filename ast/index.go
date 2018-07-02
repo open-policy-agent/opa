@@ -563,8 +563,3 @@ func (p triePrinter) Do(x interface{}) trieWalker {
 	p.depth++
 	return p
 }
-
-func printTrie(w io.Writer, trie *trieNode) {
-	pp := triePrinter{0, w}
-	trie.Do(pp)
-}

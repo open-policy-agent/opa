@@ -33,7 +33,8 @@ This tutorial illustrates two key concepts:
 
 This tutorial requires:
 
-  * Docker Engine 1.11 or newer
+  * Docker Engine 18.03.0-ce or newer
+  * Docker API version 1.30 or newer
   * `root` or `sudo` access
 
 The tutorial has been tested on the following platforms:
@@ -84,7 +85,7 @@ $ sudo mkdir -p /etc/systemd/system/docker.service.d
 $ sudo tee -a /etc/systemd/system/docker.service.d/override.conf > /dev/null <<EOF
 [Service]
 ExecStart=
-ExecStart=/usr/bin/docker daemon -H fd:// --authorization-plugin=opa-docker-authz
+ExecStart=/usr/bin/dockerd -H fd:// --authorization-plugin=opa-docker-authz
 EOF
 $ sudo systemctl daemon-reload
 $ sudo service docker restart

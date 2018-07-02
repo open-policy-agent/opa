@@ -120,10 +120,6 @@ func (ind *indices) String() string {
 	return "{" + strings.Join(buf, ", ") + "}"
 }
 
-const (
-	triggerID = "org.openpolicyagent/index-maintenance"
-)
-
 // bindingIndex contains a mapping of values to bindings.
 type bindingIndex struct {
 	table map[int]*indexNode
