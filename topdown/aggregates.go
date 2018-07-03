@@ -13,33 +13,19 @@ import (
 
 func builtinCount(a ast.Value) (ast.Value, error) {
 	switch a := a.(type) {
-	case ast.Array:
-		return ast.IntNumberTerm(len(a)).Value, nil
-	case ast.Object:
-		return ast.IntNumberTerm(a.Len()).Value, nil
-	case ast.Set:
+	case ast.Collection:
 		return ast.IntNumberTerm(a.Len()).Value, nil
 	case ast.String:
 		return ast.IntNumberTerm(len(a)).Value, nil
 	}
-	return nil, builtins.NewOperandTypeErr(1, a, "array", "object", "set")
+	return nil, builtins.NewOperandTypeErr(1, a, "array", "object", "set", "string")
 }
 
 func builtinSum(a ast.Value) (ast.Value, error) {
-	switch a := a.(type) {
-	case ast.Array:
+	switch val := a.(type) {
+	case ast.Iterable:
 		sum := big.NewFloat(0)
-		for _, x := range a {
-			n, ok := x.Value.(ast.Number)
-			if !ok {
-				return nil, builtins.NewOperandElementErr(1, a, x.Value, "number")
-			}
-			sum = new(big.Float).Add(sum, builtins.NumberToFloat(n))
-		}
-		return builtins.FloatToNumber(sum), nil
-	case ast.Set:
-		sum := big.NewFloat(0)
-		err := a.Iter(func(x *ast.Term) error {
+		err := val.Iter(func(x *ast.Term) error {
 			n, ok := x.Value.(ast.Number)
 			if !ok {
 				return builtins.NewOperandElementErr(1, a, x.Value, "number")
@@ -53,20 +39,10 @@ func builtinSum(a ast.Value) (ast.Value, error) {
 }
 
 func builtinProduct(a ast.Value) (ast.Value, error) {
-	switch a := a.(type) {
-	case ast.Array:
+	switch val := a.(type) {
+	case ast.Iterable:
 		product := big.NewFloat(1)
-		for _, x := range a {
-			n, ok := x.Value.(ast.Number)
-			if !ok {
-				return nil, builtins.NewOperandElementErr(1, a, x.Value, "number")
-			}
-			product = new(big.Float).Mul(product, builtins.NumberToFloat(n))
-		}
-		return builtins.FloatToNumber(product), nil
-	case ast.Set:
-		product := big.NewFloat(1)
-		err := a.Iter(func(x *ast.Term) error {
+		err := val.Iter(func(x *ast.Term) error {
 			n, ok := x.Value.(ast.Number)
 			if !ok {
 				return builtins.NewOperandElementErr(1, a, x.Value, "number")
@@ -81,18 +57,7 @@ func builtinProduct(a ast.Value) (ast.Value, error) {
 
 func builtinMax(a ast.Value) (ast.Value, error) {
 	switch a := a.(type) {
-	case ast.Array:
-		if len(a) == 0 {
-			return nil, BuiltinEmpty{}
-		}
-		var max = ast.Value(ast.Null{})
-		for i := range a {
-			if ast.Compare(max, a[i].Value) <= 0 {
-				max = a[i].Value
-			}
-		}
-		return max, nil
-	case ast.Set:
+	case ast.Iterable:
 		if a.Len() == 0 {
 			return nil, BuiltinEmpty{}
 		}
@@ -110,18 +75,7 @@ func builtinMax(a ast.Value) (ast.Value, error) {
 
 func builtinMin(a ast.Value) (ast.Value, error) {
 	switch a := a.(type) {
-	case ast.Array:
-		if len(a) == 0 {
-			return nil, BuiltinEmpty{}
-		}
-		min := a[0].Value
-		for i := range a {
-			if ast.Compare(min, a[i].Value) >= 0 {
-				min = a[i].Value
-			}
-		}
-		return min, nil
-	case ast.Set:
+	case ast.Iterable:
 		if a.Len() == 0 {
 			return nil, BuiltinEmpty{}
 		}
@@ -140,18 +94,47 @@ func builtinMin(a ast.Value) (ast.Value, error) {
 		})
 		return min.Value, err
 	}
-
 	return nil, builtins.NewOperandTypeErr(1, a, "set", "array")
 }
 
 func builtinSort(a ast.Value) (ast.Value, error) {
 	switch a := a.(type) {
-	case ast.Array:
-		return a.Sorted(), nil
-	case ast.Set:
+	case ast.Iterable:
 		return a.Sorted(), nil
 	}
 	return nil, builtins.NewOperandTypeErr(1, a, "set", "array")
+}
+
+func builtinAll(a ast.Value) (ast.Value, error) {
+	switch val := a.(type) {
+	case ast.Iterable:
+		res := true
+		match := ast.BooleanTerm(true)
+		val.Foreach(func(term *ast.Term) {
+			if !term.Equal(match) {
+				res = false
+			}
+		})
+		return ast.Boolean(res), nil
+	default:
+		return nil, builtins.NewOperandTypeErr(1, a, "array", "set")
+	}
+}
+
+func builtinAny(a ast.Value) (ast.Value, error) {
+	switch val := a.(type) {
+	case ast.Iterable:
+		res := false
+		match := ast.BooleanTerm(true)
+		val.Foreach(func(term *ast.Term) {
+			if term.Equal(match) {
+				res = true
+			}
+		})
+		return ast.Boolean(res), nil
+	default:
+		return nil, builtins.NewOperandTypeErr(1, a, "array", "set")
+	}
 }
 
 func init() {
@@ -161,4 +144,6 @@ func init() {
 	RegisterFunctionalBuiltin1(ast.Max.Name, builtinMax)
 	RegisterFunctionalBuiltin1(ast.Min.Name, builtinMin)
 	RegisterFunctionalBuiltin1(ast.Sort.Name, builtinSort)
+	RegisterFunctionalBuiltin1(ast.All.Name, builtinAll)
+	RegisterFunctionalBuiltin1(ast.Any.Name, builtinAny)
 }
