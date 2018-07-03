@@ -63,7 +63,7 @@ func (p *CopyPropagator) Apply(query ast.Body) (result ast.Body) {
 		if v, ok := x[0].Value.(ast.Var); ok {
 			headvars.Add(v)
 			if root, ok := uf.Find(v); ok {
-				root.SetConstant(nil)
+				root.constant = nil
 			}
 		}
 		return false
@@ -128,14 +128,16 @@ func (p *CopyPropagator) makeDisjointSets(query ast.Body) (*unionFind, bool) {
 				}
 			} else if ok1 && ast.IsConstant(b.Value) {
 				root := uf.MakeSet(varA)
-				if !root.SetConstant(b) {
+				if root.constant != nil && !root.constant.Equal(b) {
 					return nil, false
 				}
+				root.constant = b
 			} else if ok2 && ast.IsConstant(a.Value) {
 				root := uf.MakeSet(varB)
-				if !root.SetConstant(a) {
+				if root.constant != nil && !root.constant.Equal(a) {
 					return nil, false
 				}
+				root.constant = a
 			}
 		}
 	}
@@ -148,9 +150,14 @@ func (p *CopyPropagator) makeDisjointSets(query ast.Body) (*unionFind, bool) {
 func (p *CopyPropagator) plugBindings(bindings map[ast.Var]*binding, uf *unionFind, x interface{}) {
 	ast.WalkTerms(x, func(t *ast.Term) bool {
 		// Apply union-find to remove redundant variables from input.
-		if v, ok := t.Value.(ast.Var); ok {
+		switch v := t.Value.(type) {
+		case ast.Var:
 			if root, ok := uf.Find(v); ok {
 				t.Value = root.Value()
+			}
+		case ast.Ref:
+			if root, ok := uf.Find(v[0].Value.(ast.Var)); ok {
+				v[0].Value = root.Value()
 			}
 		}
 		// Apply binding list to substitute remaining vars.
@@ -179,7 +186,8 @@ func (p *CopyPropagator) plugBindings(bindings map[ast.Var]*binding, uf *unionFi
 	})
 }
 
-// TODO
+// updateBindings returns false if the expression can be killed. If the
+// expression is killed, the binding list is updated to map a var to value.
 func (p *CopyPropagator) updateBindings(bindings map[ast.Var]*binding, uf *unionFind, headvars ast.VarSet, expr *ast.Expr) bool {
 	if expr.IsEquality() {
 		a, b := expr.Operand(0), expr.Operand(1)
@@ -317,14 +325,6 @@ func newUnionFindRoot(key ast.Var) *unionFindRoot {
 	return &unionFindRoot{
 		key: key,
 	}
-}
-
-func (r *unionFindRoot) SetConstant(x *ast.Term) (ok bool) {
-	if r.constant != nil && !r.constant.Equal(x) {
-		return false
-	}
-	r.constant = x
-	return true
 }
 
 func (r *unionFindRoot) Value() ast.Value {
