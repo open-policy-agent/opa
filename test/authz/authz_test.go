@@ -197,6 +197,6 @@ default allow = false
 allow {
 	tokens[input.token_id] = token
 	token.authz_profiles[_] = authz
-	re_match(authz.path, input.path)
+	regex.match(authz.path, input.path)
 	authz.methods[_] = input.method
 }`

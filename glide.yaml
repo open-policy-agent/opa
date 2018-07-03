@@ -22,3 +22,4 @@ import:
   - prometheus
 - package: github.com/yashtewari/glob-intersection
 - package: github.com/rcrowley/go-metrics
+- package: github.com/gobwas/glob

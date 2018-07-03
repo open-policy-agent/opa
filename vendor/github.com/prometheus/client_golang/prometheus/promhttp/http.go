@@ -39,6 +39,7 @@ import (
 	"net/http"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/prometheus/common/expfmt"
 
@@ -94,7 +95,24 @@ func Handler() http.Handler {
 // instrumentation. Use the InstrumentMetricHandler function to apply the same
 // kind of instrumentation as it is used by the Handler function.
 func HandlerFor(reg prometheus.Gatherer, opts HandlerOpts) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+	var inFlightSem chan struct{}
+	if opts.MaxRequestsInFlight > 0 {
+		inFlightSem = make(chan struct{}, opts.MaxRequestsInFlight)
+	}
+
+	h := http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		if inFlightSem != nil {
+			select {
+			case inFlightSem <- struct{}{}: // All good, carry on.
+				defer func() { <-inFlightSem }()
+			default:
+				http.Error(w, fmt.Sprintf(
+					"Limit of concurrent requests reached (%d), try again later.", opts.MaxRequestsInFlight,
+				), http.StatusServiceUnavailable)
+				return
+			}
+		}
+
 		mfs, err := reg.Gather()
 		if err != nil {
 			if opts.ErrorLog != nil {
@@ -150,9 +168,19 @@ func HandlerFor(reg prometheus.Gatherer, opts HandlerOpts) http.Handler {
 		if encoding != "" {
 			header.Set(contentEncodingHeader, encoding)
 		}
-		w.Write(buf.Bytes())
+		if _, err := w.Write(buf.Bytes()); err != nil && opts.ErrorLog != nil {
+			opts.ErrorLog.Println("error while sending encoded metrics:", err)
+		}
 		// TODO(beorn7): Consider streaming serving of metrics.
 	})
+
+	if opts.Timeout <= 0 {
+		return h
+	}
+	return http.TimeoutHandler(h, opts.Timeout, fmt.Sprintf(
+		"Exceeded configured timeout of %v.\n",
+		opts.Timeout,
+	))
 }
 
 // InstrumentMetricHandler is usually used with an http.Handler returned by the
@@ -182,6 +210,7 @@ func InstrumentMetricHandler(reg prometheus.Registerer, handler http.Handler) ht
 	// Initialize the most likely HTTP status codes.
 	cnt.WithLabelValues("200")
 	cnt.WithLabelValues("500")
+	cnt.WithLabelValues("503")
 	if err := reg.Register(cnt); err != nil {
 		if are, ok := err.(prometheus.AlreadyRegisteredError); ok {
 			cnt = are.ExistingCollector.(*prometheus.CounterVec)
@@ -246,6 +275,21 @@ type HandlerOpts struct {
 	// If DisableCompression is true, the handler will never compress the
 	// response, even if requested by the client.
 	DisableCompression bool
+	// The number of concurrent HTTP requests is limited to
+	// MaxRequestsInFlight. Additional requests are responded to with 503
+	// Service Unavailable and a suitable message in the body. If
+	// MaxRequestsInFlight is 0 or negative, no limit is applied.
+	MaxRequestsInFlight int
+	// If handling a request takes longer than Timeout, it is responded to
+	// with 503 ServiceUnavailable and a suitable Message. No timeout is
+	// applied if Timeout is 0 or negative. Note that with the current
+	// implementation, reaching the timeout simply ends the HTTP requests as
+	// described above (and even that only if sending of the body hasn't
+	// started yet), while the bulk work of gathering all the metrics keeps
+	// running in the background (with the eventual result to be thrown
+	// away). Until the implementation is improved, it is recommended to
+	// implement a separate timeout in potentially slow Collectors.
+	Timeout time.Duration
 }
 
 // decorateWriter wraps a writer to handle gzip compression if requested.  It
@@ -258,7 +302,7 @@ func decorateWriter(request *http.Request, writer io.Writer, compressionDisabled
 	header := request.Header.Get(acceptEncodingHeader)
 	parts := strings.Split(header, ",")
 	for _, part := range parts {
-		part := strings.TrimSpace(part)
+		part = strings.TrimSpace(part)
 		if part == "gzip" || strings.HasPrefix(part, "gzip;") {
 			return gzip.NewWriter(writer), "gzip"
 		}

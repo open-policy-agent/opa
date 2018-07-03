@@ -29,6 +29,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// +build go1.7
+
 package proto_test
 
 import (
@@ -39,10 +41,7 @@ import (
 	tpb "github.com/golang/protobuf/proto/proto3_proto"
 )
 
-var (
-	bytesBlackhole []byte
-	msgBlackhole   = new(tpb.Message)
-)
+var msgBlackhole = new(tpb.Message)
 
 // BenchmarkVarint32ArraySmall shows the performance on an array of small int32 fields (1 and
 // 2 bytes long).

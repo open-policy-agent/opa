@@ -1,7 +1,7 @@
 ASCII Table Writer
 =========
 
-[![Build Status](https://travis-ci.org/olekukonko/tablewriter.png?branch=master)](https://travis-ci.org/olekukonko/tablewriter) 
+[![Build Status](https://travis-ci.org/olekukonko/tablewriter.png?branch=master)](https://travis-ci.org/olekukonko/tablewriter)
 [![Total views](https://img.shields.io/sourcegraph/rrc/github.com/olekukonko/tablewriter.svg)](https://sourcegraph.com/github.com/olekukonko/tablewriter)
 [![Godoc](https://godoc.org/github.com/olekukonko/tablewriter?status.svg)](https://godoc.org/github.com/olekukonko/tablewriter)
 
@@ -92,7 +92,7 @@ table.Render()
 
 #### Example 3 - CSV
 ```go
-table, _ := tablewriter.NewCSV(os.Stdout, "test_info.csv", true)
+table, _ := tablewriter.NewCSV(os.Stdout, "testdata/test_info.csv", true)
 table.SetAlignment(tablewriter.ALIGN_LEFT)   // Set Alignment
 table.Render()
 ```
@@ -110,7 +110,7 @@ table.Render()
 
 #### Example 4  - Custom Separator
 ```go
-table, _ := tablewriter.NewCSV(os.Stdout, "test.csv", true)
+table, _ := tablewriter.NewCSV(os.Stdout, "testdata/test.csv", true)
 table.SetRowLine(true)         // Enable row line
 
 // Change table lines

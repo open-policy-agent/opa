@@ -88,10 +88,26 @@ func TestUnmarshal(t *testing.T) {
 	s4 := UnmarshalStringMap{}
 	e4 := UnmarshalStringMap{map[string]string{"b": "1"}}
 	unmarshal(t, y, &s4, &e4)
+
+	y = []byte(`
+a:
+  name: TestA
+b:
+  name: TestB
+`)
+	type NamedThing struct {
+		Name string `json:"name"`
+	}
+	s5 := map[string]*NamedThing{}
+	e5 := map[string]*NamedThing{
+		"a": &NamedThing{Name: "TestA"},
+		"b": &NamedThing{Name: "TestB"},
+	}
+	unmarshal(t, y, &s5, &e5)
 }
 
-func unmarshal(t *testing.T, y []byte, s, e interface{}) {
-	err := Unmarshal(y, s)
+func unmarshal(t *testing.T, y []byte, s, e interface{}, opts ...JSONOpt) {
+	err := Unmarshal(y, s, opts...)
 	if err != nil {
 		t.Errorf("error unmarshaling YAML: %v", err)
 	}

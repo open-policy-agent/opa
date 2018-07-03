@@ -12,6 +12,18 @@ import (
 	"os"
 )
 
+// RootType indicates the type of files contained within a directory.
+//
+// It is used to indicate whether a directory is the root
+// of a GOROOT, a GOPATH, or neither.
+// An empty string represents the case when a directory is neither.
+type RootType string
+
+const (
+	RootTypeGoRoot RootType = "GOROOT"
+	RootTypeGoPath RootType = "GOPATH"
+)
+
 // The FileSystem interface specifies the methods godoc is using
 // to access the file system for which it serves documentation.
 type FileSystem interface {
@@ -19,6 +31,7 @@ type FileSystem interface {
 	Lstat(path string) (os.FileInfo, error)
 	Stat(path string) (os.FileInfo, error)
 	ReadDir(path string) ([]os.FileInfo, error)
+	RootType(path string) RootType
 	String() string
 }
 
