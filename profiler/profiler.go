@@ -74,14 +74,20 @@ func (p *Profiler) ReportTopNResults(numResults int, criteria []string) []ExprSt
 
 	// allowed criteria for sorting results
 	allowedCriteria := map[string]lessFunc{}
-	allowedCriteria["EvalTime"] = func(stat1, stat2 *ExprStats) bool {
+	allowedCriteria["total_time_ns"] = func(stat1, stat2 *ExprStats) bool {
 		return stat1.ExprTimeNs > stat2.ExprTimeNs
 	}
-	allowedCriteria["NumEval"] = func(stat1, stat2 *ExprStats) bool {
+	allowedCriteria["num_eval"] = func(stat1, stat2 *ExprStats) bool {
 		return stat1.NumEval > stat2.NumEval
 	}
-	allowedCriteria["NumRedo"] = func(stat1, stat2 *ExprStats) bool {
+	allowedCriteria["num_redo"] = func(stat1, stat2 *ExprStats) bool {
 		return stat1.NumRedo > stat2.NumRedo
+	}
+	allowedCriteria["file"] = func(stat1, stat2 *ExprStats) bool {
+		return stat1.Location.File > stat2.Location.File
+	}
+	allowedCriteria["line"] = func(stat1, stat2 *ExprStats) bool {
+		return stat1.Location.Row > stat2.Location.Row
 	}
 
 	sortFuncs := []lessFunc{}

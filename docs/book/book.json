@@ -5,7 +5,8 @@
     "collapsible-menu",
     "custom-favicon",
     "ga",
-    "-fontsettings"
+    "-fontsettings",
+    "ace"
   ],
   "pluginsConfig": {
     "layout": {
