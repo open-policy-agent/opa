@@ -886,6 +886,10 @@ func (r *REPL) evalPartial(ctx context.Context, compiler *ast.Compiler, input as
 		r.printTrace(ctx, compiler, *buf)
 	}
 
+	if r.metrics != nil {
+		r.printMetrics(r.metrics)
+	}
+
 	for i := range pq.Queries {
 		fmt.Fprintln(r.output, pq.Queries[i])
 	}
