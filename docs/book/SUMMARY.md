@@ -110,6 +110,7 @@
   * [Decision Logs](decision_logs.md)
     * [Configuration](decision_logs.md#decision-log-configuration)
     * [Service API](decision_logs.md#decision-log-service-api)
+  * [Profiler](profiler.md)
   * [Monitoring & Diagnostics](monitoring-diagnostics.md)
     * [Prometheus](monitoring-diagnostics.md#prometheus)
     * [Diagnostics](monitoring-diagnostics.md#prometheus)

@@ -255,7 +255,7 @@ baz {
 		t.Fatal(err)
 	}
 
-	stats := profiler.ReportTopNResults(5, []string{"EvalTime"})
+	stats := profiler.ReportTopNResults(5, []string{"total_time_ns"})
 
 	expectedResLen := 5
 	if len(stats) != expectedResLen {
@@ -316,7 +316,7 @@ baz {
 		t.Fatal(err)
 	}
 
-	stats := profiler.ReportTopNResults(5, []string{"NumEval", "EvalTime"})
+	stats := profiler.ReportTopNResults(5, []string{"num_eval", "total_time_ns"})
 
 	expectedResLen := 5
 	if len(stats) != expectedResLen {
@@ -383,7 +383,7 @@ baz {
 		t.Fatal(err)
 	}
 
-	stats := profiler.ReportTopNResults(10, []string{"NumEval", "NumRedo", "EvalTime"})
+	stats := profiler.ReportTopNResults(10, []string{"num_eval", "num_redo", "total_time_ns"})
 
 	expectedResLen := 10
 	if len(stats) != expectedResLen {

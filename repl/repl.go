@@ -15,13 +15,12 @@ import (
 	"html/template"
 	"io"
 	"os"
-	"sort"
 	"strconv"
 	"strings"
 
+	pr "github.com/open-policy-agent/opa/presentation"
 	"github.com/open-policy-agent/opa/rego"
 
-	"github.com/olekukonko/tablewriter"
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/format"
 	"github.com/open-policy-agent/opa/metrics"
@@ -805,53 +804,45 @@ func (r *REPL) evalBody(ctx context.Context, compiler *ast.Compiler, input ast.V
 
 	rs, err := eval.Eval(ctx)
 
+	result := pr.EvalResult{
+		Result: rs,
+	}
+
 	if buf != nil {
 		r.printTrace(ctx, compiler, *buf)
 	}
 
 	if r.metrics != nil {
-		r.printMetrics(r.metrics)
+		result.Metrics = r.metrics.All()
 	}
 
 	if err != nil {
+		if r.metrics != nil {
+			r.printMetrics(r.metrics, result)
+		}
 		return err
 	}
 
 	if len(rs) == 0 {
+		if r.metrics != nil {
+			r.printMetrics(r.metrics, result)
+		}
 		fmt.Fprintln(r.output, "undefined")
 		return nil
 	}
 
 	if len(rs) == 1 {
 		if len(rs[0].Bindings) == 0 && len(rs[0].Expressions) == 1 {
+			if r.metrics != nil {
+				r.printMetrics(r.metrics, result)
+			}
+
 			r.printJSON(rs[0].Expressions[0].Value)
 			return nil
 		}
 	}
 
-	keys := []resultKey{}
-
-	for k := range rs[0].Bindings {
-		keys = append(keys, resultKey{
-			varName: k,
-		})
-	}
-
-	for i, expr := range rs[0].Expressions {
-		if _, ok := expr.Value.(bool); !ok {
-			keys = append(keys, resultKey{
-				exprIndex: i,
-				exprText:  expr.Text,
-			})
-		}
-	}
-
-	sort.Slice(keys, func(i, j int) bool {
-		return resultKeyLess(keys[i], keys[j])
-	})
-
-	r.printResults(keys, rs)
-
+	r.printResults(result)
 	return nil
 }
 
@@ -887,7 +878,7 @@ func (r *REPL) evalPartial(ctx context.Context, compiler *ast.Compiler, input as
 	}
 
 	if r.metrics != nil {
-		r.printMetrics(r.metrics)
+		r.printMetricsJSON(r.metrics)
 	}
 
 	r.printPartialResults(pq)
@@ -966,16 +957,20 @@ func (r *REPL) loadModules(ctx context.Context, txn storage.Transaction) (map[st
 	return modules, nil
 }
 
-func (r *REPL) printResults(keys []resultKey, results rego.ResultSet) {
+func (r *REPL) printResults(result pr.EvalResult) {
 	switch r.outputFormat {
 	case "json":
-		output := make([]map[string]interface{}, len(results))
+		if r.metrics != nil {
+			r.printMetrics(r.metrics, result)
+		}
+
+		output := make([]map[string]interface{}, len(result.Result))
 		for i := range output {
-			output[i] = results[i].Bindings
+			output[i] = result.Result[i].Bindings
 		}
 		r.printJSON(output)
 	default:
-		r.printPretty(keys, results)
+		r.printPretty(result)
 	}
 }
 
@@ -1003,47 +998,15 @@ func (r *REPL) printPartialPretty(pq *rego.PartialQueries) {
 }
 
 func (r *REPL) printJSON(x interface{}) {
-	buf, err := json.MarshalIndent(x, "", "  ")
+	err := pr.PrintJSON(r.output, x)
 	if err != nil {
 		fmt.Fprintln(r.output, err)
 		return
 	}
-	fmt.Fprintln(r.output, string(buf))
 }
 
-func (r *REPL) printPretty(keys []resultKey, results rego.ResultSet) {
-	table := tablewriter.NewWriter(r.output)
-	table.SetAlignment(tablewriter.ALIGN_LEFT)
-	table.SetAutoFormatHeaders(false)
-	header := make([]string, len(keys))
-	for i := range header {
-		header[i] = keys[i].String()
-	}
-	table.SetHeader(header)
-	for _, row := range results {
-		r.printPrettyRow(table, keys, row)
-	}
-	table.Render()
-}
-
-func (r *REPL) printPrettyRow(table *tablewriter.Table, keys []resultKey, result rego.Result) {
-	buf := []string{}
-	for _, k := range keys {
-		v, ok := k.Select(result)
-		if ok {
-			js, err := json.Marshal(v)
-			if err != nil {
-				buf = append(buf, err.Error())
-			} else {
-				s := string(js)
-				if r.prettyLimit > 0 && len(s) > r.prettyLimit {
-					s = s[:r.prettyLimit] + "..."
-				}
-				buf = append(buf, s)
-			}
-		}
-	}
-	table.Append(buf)
+func (r *REPL) printPretty(result pr.EvalResult) {
+	pr.PrintPretty(r.output, result, r.prettyLimit)
 }
 
 func (r *REPL) printTrace(ctx context.Context, compiler *ast.Compiler, trace []*topdown.Event) {
@@ -1051,7 +1014,16 @@ func (r *REPL) printTrace(ctx context.Context, compiler *ast.Compiler, trace []*
 	topdown.PrettyTrace(r.output, trace)
 }
 
-func (r *REPL) printMetrics(metrics metrics.Metrics) {
+func (r *REPL) printMetrics(metrics metrics.Metrics, result pr.EvalResult) {
+	switch r.outputFormat {
+	case "json":
+		r.printMetricsJSON(metrics)
+	default:
+		pr.PrintPrettyMetrics(r.output, result, r.prettyLimit)
+	}
+}
+
+func (r *REPL) printMetricsJSON(metrics metrics.Metrics) {
 	buf, err := json.MarshalIndent(metrics.All(), "", "  ")
 	if err != nil {
 		panic("not reached")
@@ -1084,40 +1056,6 @@ func (r *REPL) saveHistory(prompt *liner.State) {
 		prompt.WriteHistory(f)
 		f.Close()
 	}
-}
-
-type resultKey struct {
-	varName   string
-	exprIndex int
-	exprText  string
-}
-
-func resultKeyLess(a, b resultKey) bool {
-	if a.varName != "" {
-		if b.varName == "" {
-			return true
-		}
-		return a.varName < b.varName
-	}
-	return a.exprIndex < b.exprIndex
-}
-
-func (rk resultKey) String() string {
-	if rk.varName != "" {
-		return rk.varName
-	}
-	return rk.exprText
-}
-
-func (rk resultKey) Select(result rego.Result) (interface{}, bool) {
-	if rk.varName != "" {
-		return result.Bindings[rk.varName], true
-	}
-	val := result.Expressions[rk.exprIndex].Value
-	if _, ok := val.(bool); ok {
-		return nil, false
-	}
-	return val, true
 }
 
 type commandDesc struct {
