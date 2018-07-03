@@ -605,7 +605,7 @@ func ExampleRego_PartialWithOtherUnknowns() {
 	input["path"] = []string{"reviews", "alice"}
 
 	r := rego.New(
-		rego.Query("data.test.allow"),
+		rego.Query("data.test.allow == true"),
 		rego.Module("example.rego", module),
 		rego.Input(input),
 		rego.Unknowns([]string{}), // we know the input
