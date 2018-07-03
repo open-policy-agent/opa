@@ -785,6 +785,35 @@ func TestTopDownPartialEval(t *testing.T) {
 				`input.x = ["foo", a1]; a1 = input.y`,
 			},
 		},
+		{
+			note:  "copy propagation: union-find replace head",
+			query: "data.test.p = true",
+			modules: []string{
+				`package test
+
+				p {
+					input = y
+					x = y
+					x.foo = 1
+				}`,
+			},
+			wantQueries: []string{`input.foo = 1`},
+		},
+		{
+			note:  "copy propagation: union-find skip ref head",
+			query: "data.test.p = true",
+			modules: []string{
+				`package test
+
+				p {
+					input = y
+					x = y
+					x.foo = 1
+					x = {"foo": 1}
+				}`,
+			},
+			wantQueries: []string{`input.foo = 1; input = {"foo": 1}`},
+		},
 	}
 
 	ctx := context.Background()
