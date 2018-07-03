@@ -19,6 +19,7 @@ import (
 	"testing"
 
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/rego"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/storage/inmem"
 	"github.com/open-policy-agent/opa/util"
@@ -397,6 +398,33 @@ input.x = 3; i = 2; x = 3
 
 	if !strings.Contains(output, "timer_rego_partial_eval_ns") {
 		t.Fatal("Expected timer_rego_partial_eval_ns but got:\n\n", output)
+	}
+}
+
+func TestUnknownJSON(t *testing.T) {
+	ctx := context.Background()
+	store := inmem.New()
+	var buffer bytes.Buffer
+	repl := newRepl(store, &buffer)
+
+	repl.OneShot(ctx, "xs = [1,2,3]")
+
+	err := repl.OneShot(ctx, "unknown input")
+	if err != nil {
+		t.Fatal("Unexpected command error:", err)
+	}
+
+	repl.OneShot(ctx, "json")
+	repl.OneShot(ctx, "data.repl.xs[i] = x; input.x = x")
+
+	var result rego.PartialQueries
+
+	if err := json.NewDecoder(&buffer).Decode(&result); err != nil {
+		t.Fatal(err)
+	}
+
+	if len(result.Queries) != 3 {
+		t.Fatalf("Expected exactly 3 queries in partial evaluation output but got: %v", result)
 	}
 }
 

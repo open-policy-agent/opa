@@ -890,15 +890,7 @@ func (r *REPL) evalPartial(ctx context.Context, compiler *ast.Compiler, input as
 		r.printMetrics(r.metrics)
 	}
 
-	for i := range pq.Queries {
-		fmt.Fprintln(r.output, pq.Queries[i])
-	}
-
-	for i := range pq.Support {
-		fmt.Fprintln(r.output)
-		fmt.Fprintf(r.output, "# support module %d\n", i+1)
-		fmt.Fprintln(r.output, pq.Support[i])
-	}
+	r.printPartialResults(pq)
 
 	return nil
 }
@@ -984,6 +976,29 @@ func (r *REPL) printResults(keys []resultKey, results rego.ResultSet) {
 		r.printJSON(output)
 	default:
 		r.printPretty(keys, results)
+	}
+}
+
+func (r *REPL) printPartialResults(pq *rego.PartialQueries) {
+
+	switch r.outputFormat {
+	case "json":
+		r.printJSON(pq)
+	default:
+		r.printPartialPretty(pq)
+	}
+}
+
+func (r *REPL) printPartialPretty(pq *rego.PartialQueries) {
+
+	for i := range pq.Queries {
+		fmt.Fprintln(r.output, pq.Queries[i])
+	}
+
+	for i := range pq.Support {
+		fmt.Fprintln(r.output)
+		fmt.Fprintf(r.output, "# support module %d\n", i+1)
+		fmt.Fprintln(r.output, pq.Support[i])
 	}
 }
 
