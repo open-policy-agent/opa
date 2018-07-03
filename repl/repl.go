@@ -857,32 +857,27 @@ func (r *REPL) evalBody(ctx context.Context, compiler *ast.Compiler, input ast.V
 
 func (r *REPL) evalPartial(ctx context.Context, compiler *ast.Compiler, input ast.Value, body ast.Body) error {
 
-	q := topdown.NewQuery(body).
-		WithCompiler(compiler).
-		WithStore(r.store).
-		WithTransaction(r.txn).
-		WithUnknowns(r.unknowns)
-
-	if input != nil {
-		q = q.WithInput(ast.NewTerm(input))
-	}
-
-	if r.metrics != nil {
-		q = q.WithMetrics(r.metrics)
-	}
-
-	if r.instrument {
-		q = q.WithInstrumentation(topdown.NewInstrumentation(r.metrics))
-	}
-
 	var buf *topdown.BufferTracer
 
 	if r.explain != explainOff {
 		buf = topdown.NewBufferTracer()
-		q = q.WithTracer(buf)
 	}
 
-	queries, support, err := q.PartialRun(ctx)
+	eval := rego.New(
+		rego.Compiler(compiler),
+		rego.Store(r.store),
+		rego.Transaction(r.txn),
+		rego.ParsedImports(r.modules[r.currentModuleID].Imports),
+		rego.ParsedPackage(r.modules[r.currentModuleID].Package),
+		rego.ParsedQuery(body),
+		rego.ParsedInput(input),
+		rego.Metrics(r.metrics),
+		rego.Tracer(buf),
+		rego.Instrument(r.instrument),
+		rego.ParsedUnknowns(r.unknowns),
+	)
+
+	pq, err := eval.Partial(ctx)
 	if err != nil {
 		return err
 	}
@@ -891,14 +886,14 @@ func (r *REPL) evalPartial(ctx context.Context, compiler *ast.Compiler, input as
 		r.printTrace(ctx, compiler, *buf)
 	}
 
-	for i := range queries {
-		fmt.Fprintln(r.output, queries[i])
+	for i := range pq.Queries {
+		fmt.Fprintln(r.output, pq.Queries[i])
 	}
 
-	for i := range support {
+	for i := range pq.Support {
 		fmt.Fprintln(r.output)
 		fmt.Fprintf(r.output, "# support module %d\n", i+1)
-		fmt.Fprintln(r.output, support[i])
+		fmt.Fprintln(r.output, pq.Support[i])
 	}
 
 	return nil
