@@ -11,13 +11,14 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
+	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
+	"gopkg.in/fsnotify.v1"
 	"io"
 	"io/ioutil"
 	"os"
 	"sync"
 	"time"
-
-	fsnotify "gopkg.in/fsnotify.v1"
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/loader"
@@ -29,10 +30,9 @@ import (
 	"github.com/open-policy-agent/opa/server"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/storage/inmem"
+	"github.com/open-policy-agent/opa/topdown"
 	"github.com/open-policy-agent/opa/util"
 	"github.com/open-policy-agent/opa/version"
-	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 var (
@@ -89,7 +89,7 @@ type Params struct {
 	// Default: "pretty".
 	OutputFormat string
 
-	// Paths contains filenames of base documents and policy modules to load on
+	// Paths contains filenames of base documents, policy modules and custom builtin functions to load on
 	// startup. Data files may be prefixed with "<dotted-path>:" to indicate
 	// where the contained document should be loaded.
 	Paths []string
@@ -174,6 +174,9 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		store.Abort(ctx, txn)
 		return nil, errors.Wrapf(err, "storage error")
 	}
+
+	// register builtins before compiling inputs
+	registerBuiltins(loaded.BuiltinFuncs)
 
 	if err := compileAndStoreInputs(ctx, store, txn, loaded.Modules, params.ErrorLimit); err != nil {
 		store.Abort(ctx, txn)
@@ -372,6 +375,28 @@ func (rt *Runtime) getBanner() string {
 	fmt.Fprintf(&buf, "\n")
 	fmt.Fprintf(&buf, "Run 'help' to see a list of commands.\n")
 	return buf.String()
+}
+
+// registerBuiltins registers all the builtins in builtins
+// These need to be pre-built using "go build -buildmode=plugin"
+// and should have the extension ".builtin.so"
+func registerBuiltins(builtins map[string]*loader.CustomBuiltin) {
+	for _, custom := range builtins {
+		ast.RegisterBuiltin(custom.Builtin)
+		switch fnc := custom.Function.(type) {
+		case *topdown.BuiltinFunc:
+			topdown.RegisterBuiltinFunc(custom.Builtin.Name, *fnc)
+		case *topdown.FunctionalBuiltin1:
+			topdown.RegisterFunctionalBuiltin1(custom.Builtin.Name, *fnc)
+		case *topdown.FunctionalBuiltin2:
+			topdown.RegisterFunctionalBuiltin2(custom.Builtin.Name, *fnc)
+		case *topdown.FunctionalBuiltin3:
+			topdown.RegisterFunctionalBuiltin3(custom.Builtin.Name, *fnc)
+		default:
+			// this should never get hit
+			panic("symbol Function was of an unrecognized type")
+		}
+	}
 }
 
 func compileAndStoreInputs(ctx context.Context, store storage.Store, txn storage.Transaction, modules map[string]*loader.RegoFile, errorLimit int) error {

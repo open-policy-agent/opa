@@ -167,7 +167,7 @@ func TestExprEquals(t *testing.T) {
 	assertExprEqual(t, expr10, expr11)
 	assertExprNotEqual(t, expr10, expr12)
 
-	// Builtins and negation
+	// BuiltinFuncs and negation
 	expr20 := &Expr{
 		Negated: true,
 		Terms:   []*Term{StringTerm("="), VarTerm("x"), ref1},
