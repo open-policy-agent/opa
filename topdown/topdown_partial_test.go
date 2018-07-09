@@ -202,6 +202,22 @@ func TestTopDownPartialEval(t *testing.T) {
 			},
 		},
 		{
+			note:  "reference: head: from query",
+			query: "data.test.p[y] = 1",
+			modules: []string{
+				`package test
+
+				p[x] = 1 {
+					input.foo[x] = z
+					x.bar = 1
+				}
+				`,
+			},
+			wantQueries: []string{
+				`y.bar = 1; z1 = input.foo[y]`,
+			},
+		},
+		{
 			note:  "namespace: complete",
 			query: "data.test.p = x",
 			modules: []string{
@@ -298,6 +314,22 @@ func TestTopDownPartialEval(t *testing.T) {
 			},
 			wantQueries: []string{
 				`input.foo = true; x = true`,
+			},
+		},
+		{
+			note:  "namespace: reference head: from caller",
+			query: "data.test.p[x] = 1",
+			modules: []string{
+				`package test
+
+				p[x] = 1 {
+					x = input
+					x[0] = 1
+				}
+				`,
+			},
+			wantQueries: []string{
+				`x = input; x[0] = 1`,
 			},
 		},
 		{

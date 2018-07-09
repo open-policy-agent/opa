@@ -122,8 +122,7 @@ func (u *bindings) plugNamespaced(a *ast.Term, caller *bindings) *ast.Term {
 	case ast.Ref:
 		cpy := *a
 		ref := make(ast.Ref, len(v))
-		ref[0] = u.namespaceVar(v[0], caller)
-		for i := 1; i < len(ref); i++ {
+		for i := 0; i < len(ref); i++ {
 			ref[i] = u.plugNamespaced(v[i], caller)
 		}
 		cpy.Value = ref

@@ -610,11 +610,13 @@ func (e *eval) biunifyRef(a, b *ast.Term, b1, b2 *bindings, iter unifyIterator) 
 	}
 
 	var term *ast.Term
+	var termbindings *bindings
 
 	if ref[0].Equal(ast.InputRootDocument) {
 		term = e.input
+		termbindings = b1
 	} else {
-		term = b1.Plug(ref[0])
+		term, termbindings = b1.apply(ref[0])
 		if term == ref[0] {
 			term = nil
 		}
@@ -630,7 +632,7 @@ func (e *eval) biunifyRef(a, b *ast.Term, b1, b2 *bindings, iter unifyIterator) 
 		pos:          1,
 		bindings:     b1,
 		term:         term,
-		termbindings: b1,
+		termbindings: termbindings,
 		rterm:        b,
 		rbindings:    b2,
 	}
