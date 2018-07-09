@@ -178,6 +178,25 @@ type Resolver interface {
 	Resolve(ref Ref) (value interface{}, err error)
 }
 
+// Collection defines the interface for AST types that contain multiple values
+// These are: object, array, set
+type Collection interface {
+	Value
+	Len() int // Len returns the number of elements in the collection
+}
+
+// Iterable defines the interface for AST types that contain lists of values
+// These are: array, set
+type Iterable interface {
+	Collection
+	Iter(func(*Term) error) error                                   // Iter calls f on each element. If f returns an error, iteration stops and the return value is the error.
+	Sorted() Array                                                  // Sorted returns an array of all the sorted items in the collection
+	Until(func(*Term) bool) bool                                    // Until calls f on each element in s. If f returns true, iteration stops.
+	Foreach(func(*Term))                                            // Foreach calls f on each element in s.
+	Contains(*Term) bool                                            // Contains returns true if arr contains t
+	Reduce(*Term, func(*Term, *Term) (*Term, error)) (*Term, error) // Reduce returns a Term produced by applying f to each value in s. The first argument to f is the reduced value (starting with i) and the second argument to f is the element in s.
+}
+
 // ValueResolver defines the interface for resolving references to AST values.
 type ValueResolver interface {
 	Resolve(ref Ref) (value Value, err error)
@@ -1060,6 +1079,66 @@ func (arr Array) Get(pos *Term) *Term {
 	return nil
 }
 
+// Iter calls f on each element in s. If f returns an error, iteration stops
+// and the return value is the error.
+func (arr Array) Iter(f func(*Term) error) error {
+	for i := range arr {
+		if err := f(arr[i]); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// Len returns the number of elements in arr
+func (arr Array) Len() int {
+	return len(arr)
+}
+
+// Until calls f on each element in s. If f returns true, iteration stops.
+func (arr Array) Until(f func(*Term) bool) bool {
+	err := arr.Iter(func(t *Term) error {
+		if f(t) {
+			return errStop
+		}
+		return nil
+	})
+	return err != nil
+}
+
+// Foreach calls f on each element in s.
+func (arr Array) Foreach(f func(*Term)) {
+	arr.Iter(func(t *Term) error {
+		f(t)
+		return nil
+	})
+}
+
+// Contains returns true if arr contains t
+func (arr Array) Contains(t *Term) bool {
+	for i := range arr {
+		if t.Equal(arr[i]) {
+			return true
+		}
+	}
+	return false
+}
+
+// Reduce returns a Term produced by applying f to each value in s. The first
+// argument to f is the reduced value (starting with i) and the second argument
+// to f is the element in s.
+func (arr Array) Reduce(i *Term, f func(*Term, *Term) (*Term, error)) (*Term, error) {
+	err := arr.Iter(func(x *Term) error {
+		var err error
+		i, err = f(i, x)
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+	return i, err
+}
+
 // Sorted returns a new Array that contains the sorted elements of arr.
 func (arr Array) Sorted() Array {
 	cpy := make(Array, len(arr))
@@ -1098,20 +1177,13 @@ func (arr Array) String() string {
 
 // Set represents a set as defined by the language.
 type Set interface {
-	Value
-	Len() int
+	Iterable
 	Copy() Set
 	Diff(Set) Set
 	Intersect(Set) Set
 	Union(Set) Set
 	Add(*Term)
-	Iter(func(*Term) error) error
-	Until(func(*Term) bool) bool
-	Foreach(func(*Term))
-	Contains(*Term) bool
 	Map(func(*Term) (*Term, error)) (Set, error)
-	Reduce(*Term, func(*Term, *Term) (*Term, error)) (*Term, error)
-	Sorted() Array
 }
 
 // NewSet returns a new Set containing t.
@@ -1369,8 +1441,7 @@ func (s *set) get(x *Term) *setElem {
 
 // Object represents an object as defined by the language.
 type Object interface {
-	Value
-	Len() int
+	Collection
 	Get(*Term) *Term
 	Copy() Object
 	Insert(*Term, *Term)
