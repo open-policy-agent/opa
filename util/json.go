@@ -97,3 +97,11 @@ func Unmarshal(bs []byte, v interface{}) error {
 	}
 	return UnmarshalJSON(bs, v)
 }
+
+// AreEqualJSON returns true if arg1 and arg2 represent equivalent JSON objects. This function
+// will panic if arg1/arg2 are not correct JSON values and is meant for test purposes.
+func AreEqualJSON(arg1, arg2 interface{}) bool {
+	a := MustMarshalJSON(arg1)
+	b := MustMarshalJSON(arg2)
+	return reflect.DeepEqual(MustUnmarshalJSON(a), MustUnmarshalJSON(b))
+}

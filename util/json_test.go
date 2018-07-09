@@ -98,3 +98,34 @@ func TestReference(t *testing.T) {
 		})
 	}
 }
+
+func TestAreEqualJSON(t *testing.T) {
+	cases := []struct {
+		note     string
+		arg1     interface{}
+		arg2     interface{}
+		expected bool
+	}{
+		{"integer success", 1, 1, true},
+		{"int fail", 1, 2, false},
+		{"string success", "hi", "hi", true},
+		{"string fail", "hi", "bye", false},
+		{"map success", map[string]interface{}{
+			"order":     4,
+			"different": 1,
+		}, map[string]interface{}{
+			"different": 1,
+			"order":     4,
+		}, true},
+		{"array order preserved", []int{1, 2, 3}, []int{3, 2, 1}, false},
+	}
+
+	for _, c := range cases {
+		t.Run(c.note, func(t *testing.T) {
+			if res := util.AreEqualJSON(c.arg1, c.arg2); res != c.expected {
+				t.Fatalf("Expected: %v\nGot: %v", c.expected, res)
+			}
+		})
+	}
+
+}
