@@ -8,6 +8,7 @@ package tester
 import (
 	"context"
 	"fmt"
+	"math"
 	"sort"
 	"strings"
 	"time"
@@ -18,10 +19,14 @@ import (
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/storage/inmem"
 	"github.com/open-policy-agent/opa/topdown"
+	"github.com/open-policy-agent/opa/util"
 )
 
 // TestPrefix declares the prefix for all rules.
 const TestPrefix = "test_"
+
+// Undefined declares the constant used to identify undefined results in TestFile
+const Undefined = math.MaxInt32
 
 // Run executes all test cases found under files in path.
 func Run(ctx context.Context, paths ...string) ([]*Result, error) {
@@ -204,4 +209,75 @@ func Load(args []string, filter loader.Filter) (map[string]*ast.Module, storage.
 		modules[loadedModule.Name] = loadedModule.Parsed
 	}
 	return modules, store, nil
+}
+
+// TestFile loads all the data in paths, runs query with inputs and ctx and checks that the result equals expected.
+// Returns err if this is not the case.
+// The expected value can be of 3 types:
+// 1) tracer.Undefined -- this will only match the result if the query returns undefined
+// 2) any JSON type -- this will match the result if they are equivalent JSON objects
+// 3) any error -- will match result if an error was produced during evaluation that contains the expected error as a substring
+// If the expected value does not fall into one of these three types (a channel, for instance) this function will panic.
+// This is for testing purposes only.
+func TestFile(ctx context.Context, query string, expected interface{}, inputs map[string]interface{}, paths ...string) error {
+
+	modules, store, err := Load(paths, nil)
+	if err != nil {
+		return isExpectedError(err, expected)
+	}
+
+	cmp := ast.NewCompiler()
+	if cmp.Compile(modules); cmp.Failed() {
+		return isExpectedError(err, expected)
+	}
+
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	rg := rego.New(
+		rego.Query(query),
+		rego.Compiler(cmp),
+		rego.Store(store),
+		rego.Input(inputs),
+	)
+
+	rs, err := rg.Eval(ctx)
+	if err != nil {
+		return isExpectedError(err, expected)
+	}
+
+	if expected == Undefined {
+		if len(rs) != 0 {
+			return fmt.Errorf("Expected: %v\nGot: %v", "undefined", rs)
+		}
+		return nil
+	}
+
+	if len(rs) == 0 {
+		return fmt.Errorf("Expected: %v\nGot: %v", expected, "undefined")
+	}
+
+	// compare the two
+	if len(rs[0].Expressions) == 0 {
+		return fmt.Errorf("no expressions found upon evaluation")
+	}
+
+	result := rs[0].Expressions[0].Value
+	if !util.AreEqualJSON(expected, result) {
+		return fmt.Errorf("Expected: %v\nGot: %v", expected, result)
+	}
+	return nil
+}
+
+// returns nil if err was anticipated by expected, error otherwise.
+// expects that err is non-nil
+func isExpectedError(err error, expected interface{}) error {
+	if exp, ok := expected.(error); ok {
+		if !strings.Contains(err.Error(), exp.Error()) {
+			return fmt.Errorf("expected error %v but got: %v", exp.Error(), err.Error())
+		}
+		return nil
+	}
+	return fmt.Errorf("unexpected error: %v", err.Error())
 }

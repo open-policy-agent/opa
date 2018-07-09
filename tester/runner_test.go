@@ -6,6 +6,8 @@ package tester
 
 import (
 	"context"
+	"fmt"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -106,4 +108,86 @@ func TestRunnerCancel(t *testing.T) {
 		}
 	})
 
+}
+
+func TestTestFile(t *testing.T) {
+
+	t.Run("unexpected undefined", func(t *testing.T) {
+		files := map[string]string{
+			"/foo.rego": `package ex
+p = true { true }`,
+		}
+		test.WithTempFS(files, func(rootDir string) {
+			err := TestFile(nil, "data.ex.hello", 4, nil, filepath.Join(rootDir, "foo.rego"))
+			expected := fmt.Errorf("undefined")
+			if err == nil {
+				t.Fatalf("no error produced")
+			}
+			err = isExpectedError(err, expected)
+			if err != nil {
+				t.Fatalf(err.Error())
+			}
+		})
+	})
+
+	t.Run("expected undefined", func(t *testing.T) {
+		files := map[string]string{
+			"/foo.rego": `package ex
+p = true { true }`,
+		}
+		test.WithTempFS(files, func(rootDir string) {
+			err := TestFile(nil, "data.ex.hello", Undefined, nil, filepath.Join(rootDir, "foo.rego"))
+			if err != nil {
+				t.Fatalf(err.Error())
+			}
+		})
+	})
+
+	t.Run("expected error", func(t *testing.T) {
+		files := map[string]string{
+			"/foo.rego": `package test
+t { x := http.send({}) }`,
+		}
+		test.WithTempFS(files, func(rootDir string) {
+			err := TestFile(nil, "data.test.t", fmt.Errorf("operand"), nil, filepath.Join(rootDir, "foo.rego"))
+			if err != nil {
+				t.Fatalf(err.Error())
+			}
+		})
+	})
+
+	t.Run("unexpected error", func(t *testing.T) {
+		files := map[string]string{
+			"/foo.rego": `package test
+t { x := http.send({}) }`,
+		}
+		test.WithTempFS(files, func(rootDir string) {
+			err := TestFile(nil, "data.test.t", 12837, nil, filepath.Join(rootDir, "foo.rego"))
+			expected := fmt.Errorf("operand")
+			if err == nil {
+				t.Fatalf("no error produced")
+			}
+			err = isExpectedError(err, expected)
+			if err != nil {
+				t.Fatalf(err.Error())
+			}
+		})
+	})
+
+	t.Run("inputs", func(t *testing.T) {
+		files := map[string]string{
+			"/foo.rego": `package test
+t { input.a == input.b }`,
+		}
+		test.WithTempFS(files, func(rootDir string) {
+			inputs := map[string]interface{}{
+				"a": 1,
+				"b": 1,
+			}
+			err := TestFile(nil, "data.test.t", true, inputs, filepath.Join(rootDir, "foo.rego"))
+			if err != nil {
+				t.Fatalf(err.Error())
+			}
+		})
+	})
 }
