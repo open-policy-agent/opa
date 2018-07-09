@@ -10,7 +10,6 @@ GO := go
 GOVERSION := 1.10
 GOARCH := $(shell go env GOARCH)
 GOOS := $(shell go env GOOS)
-DISABLE_CGO := CGO_ENABLED=0
 
 BIN := opa_$(GOOS)_$(GOARCH)
 
@@ -54,7 +53,7 @@ generate:
 
 .PHONY: build
 build: generate
-	$(DISABLE_CGO) $(GO) build -o $(BIN) -ldflags $(LDFLAGS)
+	$(GO) build -o $(BIN) -ldflags $(LDFLAGS)
 
 .PHONY: image
 image:
@@ -64,42 +63,42 @@ image:
 .PHONY: image-quick
 image-quick:
 	sed -e 's/GOARCH/$(GOARCH)/g' Dockerfile.in > .Dockerfile_$(GOARCH)
-	sed -e 's/GOARCH/$(GOARCH)/g' Dockerfile_alpine.in > .Dockerfile_alpine_$(GOARCH)
+	sed -e 's/GOARCH/$(GOARCH)/g' Dockerfile_debug.in > .Dockerfile_debug_$(GOARCH)
 	docker build -t $(IMAGE):$(VERSION)	-f .Dockerfile_$(GOARCH) .
-	docker build -t $(IMAGE):$(VERSION)-alpine -f .Dockerfile_alpine_$(GOARCH) .
+	docker build -t $(IMAGE):$(VERSION)-debug -f .Dockerfile_debug_$(GOARCH) .
 
 .PHONY: push
 push:
 	docker push $(IMAGE):$(VERSION)
-	docker push $(IMAGE):$(VERSION)-alpine
+	docker push $(IMAGE):$(VERSION)-debug
 
 .PHONY: tag-latest
 tag-latest:
 	docker tag $(IMAGE):$(VERSION) $(IMAGE):latest
-	docker tag $(IMAGE):$(VERSION)-alpine $(IMAGE):latest-alpine
+	docker tag $(IMAGE):$(VERSION)-debug $(IMAGE):latest-debug
 
 .PHONY: push-latest
 push-latest:
 	docker push $(IMAGE):latest
-	docker push $(IMAGE):latest-alpine
+	docker push $(IMAGE):latest-debug
 
 .PHONY: install
 install: generate
-	$(DISABLE_CGO) $(GO) install -ldflags $(LDFLAGS)
+	$(GO) install -ldflags $(LDFLAGS)
 
 .PHONY: test
 test: generate
-	$(DISABLE_CGO) $(GO) test $(PACKAGES)
+	$(GO) test $(PACKAGES)
 
 COVER_PACKAGES=$(PACKAGES)
 $(COVER_PACKAGES):
 	@mkdir -p coverage/$(shell dirname $@)
-	$(DISABLE_CGO) $(GO) test -covermode=count -coverprofile=coverage/$(shell dirname $@)/coverage.out $@
+	$(GO) test -covermode=count -coverprofile=coverage/$(shell dirname $@)/coverage.out $@
 	$(GO) tool cover -html=coverage/$(shell dirname $@)/coverage.out || true
 
 .PHONY: perf
 perf: generate
-	$(DISABLE_CGO) $(GO) test -v -run=donotruntests -bench=. $(PACKAGES) | grep "^Benchmark"
+	$(GO) test -v -run=donotruntests -bench=. $(PACKAGES) | grep "^Benchmark"
 
 .PHONY: perf-regression
 perf-regression:
