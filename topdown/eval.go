@@ -221,9 +221,7 @@ func (e *eval) evalStep(index int, iter evalIterator) error {
 		rterm := e.generateVar(fmt.Sprintf("term_%d_%d", e.queryID, index))
 		err = e.unify(terms, rterm, func() error {
 			if e.saveSet.Contains(rterm) {
-				operator := ast.NewTerm(ast.NotEqual.Ref())
-				args := []*ast.Term{rterm, ast.BooleanTerm(false)}
-				return e.saveVoidCall(operator, args, func() error {
+				return e.saveTerm(rterm, func() error {
 					return e.evalExpr(index+1, iter)
 				})
 			}
@@ -729,13 +727,11 @@ func (e *eval) saveUnify(a, b *ast.Term, b1, b2 *bindings, iter unifyIterator) e
 	return iter()
 }
 
-func (e *eval) saveVoidCall(operator *ast.Term, args []*ast.Term, iter unifyIterator) error {
-	terms := make([]*ast.Term, len(args)+1)
-	terms[0] = operator
-	for i := 1; i < len(terms); i++ {
-		terms[i] = args[i-1]
-	}
-	expr := ast.NewExpr(terms)
+func (e *eval) saveTerm(x *ast.Term, iter unifyIterator) error {
+	expr := ast.NewExpr(x)
+	elem := newSaveSetElem(nil)
+	e.saveSet.Push(elem)
+	defer e.saveSet.Pop()
 	e.saveStack.Push(expr, e.bindings, nil)
 	defer e.saveStack.Pop()
 	e.traceSave(expr)

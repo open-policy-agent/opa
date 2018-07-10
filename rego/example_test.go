@@ -566,6 +566,6 @@ func ExampleRego_Partial() {
 
 	// Output:
 	//
-	// Query #1: "GET" = input.method; input.path = ["reviews", _]; neq(input.is_admin, false)
+	// Query #1: "GET" = input.method; input.path = ["reviews", _]; input.is_admin
 	// Query #2: "GET" = input.method; input.path = ["reviews", user3]; user3 = input.user
 }

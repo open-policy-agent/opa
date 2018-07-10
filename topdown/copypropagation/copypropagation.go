@@ -208,6 +208,9 @@ func (p *CopyPropagator) updateBindings(bindings map[ast.Var]*binding, uf *union
 			bindings[k] = newbinding(k, ast.CallTerm(terms[:len(terms)-1]...).Value)
 			return false
 		}
+	} else {
+		term := expr.Terms.(*ast.Term)
+		return !ast.IsConstant(term.Value) || ast.BooleanTerm(false).Equal(term)
 	}
 	return true
 }
