@@ -13,7 +13,7 @@ import (
 // WithTempFS creates a temporary directory structure and invokes f with the
 // root directory path.
 func WithTempFS(files map[string]string, f func(string)) {
-	rootDir, cleanup, err := MakeTempFS(files)
+	rootDir, cleanup, err := MakeTempFS("", "loader_test", files)
 	if err != nil {
 		panic(err)
 	}
@@ -21,12 +21,13 @@ func WithTempFS(files map[string]string, f func(string)) {
 	f(rootDir)
 }
 
-// MakeTempFS creates a temporary directory structure for test purposes. If the
-// creation fails, cleanup is nil and the caller does not have to invoke it. If
+// MakeTempFS creates a temporary directory structure for test purposes rooted at root.
+// If root is empty, the dir is created in the default system temp location.
+// If the creation fails, cleanup is nil and the caller does not have to invoke it. If
 // creation succeeds, the caller should invoke cleanup when they are done.
-func MakeTempFS(files map[string]string) (rootDir string, cleanup func(), err error) {
+func MakeTempFS(root, prefix string, files map[string]string) (rootDir string, cleanup func(), err error) {
 
-	rootDir, err = ioutil.TempDir("", "loader_test")
+	rootDir, err = ioutil.TempDir(root, prefix)
 
 	if err != nil {
 		return "", nil, err

@@ -39,8 +39,9 @@ func (e *loaderErrors) Add(err error) {
 
 func newResult() *Result {
 	return &Result{
-		Documents: map[string]interface{}{},
-		Modules:   map[string]*RegoFile{},
+		Documents:    map[string]interface{}{},
+		Modules:      map[string]*RegoFile{},
+		BuiltinFuncs: map[string]*CustomBuiltin{},
 	}
 }
 

@@ -14,17 +14,19 @@ import (
 	"strings"
 
 	"github.com/ghodss/yaml"
+	"github.com/pkg/errors"
+
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/bundle"
 	"github.com/open-policy-agent/opa/util"
-	"github.com/pkg/errors"
 )
 
 // Result represents the result of successfully loading zero or more files.
 type Result struct {
-	Documents map[string]interface{}
-	Modules   map[string]*RegoFile
-	path      []string
+	Documents    map[string]interface{}
+	Modules      map[string]*RegoFile
+	BuiltinFuncs map[string]*CustomBuiltin
+	path         []string
 }
 
 // RegoFile represents the result of loading a single Rego source file.
@@ -32,6 +34,12 @@ type RegoFile struct {
 	Name   string
 	Parsed *ast.Module
 	Raw    []byte
+}
+
+// CustomBuiltin represents the result of loading a single builtin function
+type CustomBuiltin struct {
+	Builtin  *ast.Builtin
+	Function interface{}
 }
 
 // Filter defines the interface for filtering files during loading. If the
@@ -133,6 +141,8 @@ func (l *Result) merge(path string, result interface{}) error {
 	switch result := result.(type) {
 	case *RegoFile:
 		l.Modules[CleanPath(path)] = result
+	case *CustomBuiltin:
+		l.BuiltinFuncs[CleanPath(path)] = result
 	default:
 		obj, ok := makeDir(l.path, result)
 		if !ok {
@@ -152,9 +162,10 @@ func (l *Result) merge(path string, result interface{}) error {
 func (l *Result) withParent(p string) *Result {
 	path := append(l.path, p)
 	return &Result{
-		Documents: l.Documents,
-		Modules:   l.Modules,
-		path:      path,
+		Documents:    l.Documents,
+		Modules:      l.Modules,
+		BuiltinFuncs: l.BuiltinFuncs,
+		path:         path,
 	}
 }
 
@@ -227,34 +238,6 @@ func exclude(filters []Filter, path string, info os.FileInfo, depth int) bool {
 		}
 	}
 	return false
-}
-
-func loadKnownTypes(path string, bs []byte) (interface{}, error) {
-	switch filepath.Ext(path) {
-	case ".json":
-		return loadJSON(path, bs)
-	case ".rego":
-		return Rego(path)
-	case ".yaml", ".yml":
-		return loadYAML(path, bs)
-	}
-	return nil, unrecognizedFile(path)
-}
-
-func loadFileForAnyType(path string, bs []byte) (interface{}, error) {
-	module, err := loadRego(path, bs)
-	if err == nil {
-		return module, nil
-	}
-	doc, err := loadJSON(path, bs)
-	if err == nil {
-		return doc, nil
-	}
-	doc, err = loadYAML(path, bs)
-	if err == nil {
-		return doc, nil
-	}
-	return nil, unrecognizedFile(path)
 }
 
 func loadRego(path string, bs []byte) (*RegoFile, error) {
