@@ -110,6 +110,7 @@ the data document with the following syntax:
 
 			ctx := context.Background()
 
+			// we do not need to set params.BuiltinDir since the flag will process everything
 			rt, err := runtime.NewRuntime(ctx, params)
 			if err != nil {
 				fmt.Fprintln(os.Stderr, "error:", err)
