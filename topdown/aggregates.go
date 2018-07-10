@@ -154,6 +154,56 @@ func builtinSort(a ast.Value) (ast.Value, error) {
 	return nil, builtins.NewOperandTypeErr(1, a, "set", "array")
 }
 
+func builtinAll(a ast.Value) (ast.Value, error) {
+	switch val := a.(type) {
+	case ast.Set:
+		res := true
+		match := ast.BooleanTerm(true)
+		val.Foreach(func(term *ast.Term) {
+			if !term.Equal(match) {
+				res = false
+			}
+		})
+		return ast.Boolean(res), nil
+	case ast.Array:
+		res := true
+		match := ast.BooleanTerm(true)
+		for _, term := range val {
+			if !term.Equal(match) {
+				res = false
+			}
+		}
+		return ast.Boolean(res), nil
+	default:
+		return nil, builtins.NewOperandTypeErr(1, a, "array", "set")
+	}
+}
+
+func builtinAny(a ast.Value) (ast.Value, error) {
+	switch val := a.(type) {
+	case ast.Set:
+		res := false
+		match := ast.BooleanTerm(true)
+		val.Foreach(func(term *ast.Term) {
+			if term.Equal(match) {
+				res = true
+			}
+		})
+		return ast.Boolean(res), nil
+	case ast.Array:
+		res := false
+		match := ast.BooleanTerm(true)
+		for _, term := range val {
+			if term.Equal(match) {
+				res = true
+			}
+		}
+		return ast.Boolean(res), nil
+	default:
+		return nil, builtins.NewOperandTypeErr(1, a, "array", "set")
+	}
+}
+
 func init() {
 	RegisterFunctionalBuiltin1(ast.Count.Name, builtinCount)
 	RegisterFunctionalBuiltin1(ast.Sum.Name, builtinSum)
@@ -161,4 +211,6 @@ func init() {
 	RegisterFunctionalBuiltin1(ast.Max.Name, builtinMax)
 	RegisterFunctionalBuiltin1(ast.Min.Name, builtinMin)
 	RegisterFunctionalBuiltin1(ast.Sort.Name, builtinSort)
+	RegisterFunctionalBuiltin1(ast.Any.Name, builtinAny)
+	RegisterFunctionalBuiltin1(ast.All.Name, builtinAll)
 }

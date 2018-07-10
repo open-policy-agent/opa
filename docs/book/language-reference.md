@@ -42,6 +42,8 @@ complex types.
 | <span class="opa-keep-it-together">``max(array_or_set, output)``</span> | 1 | ``output`` is the maximum value in ``array_or_set`` |
 | <span class="opa-keep-it-together">``min(array_or_set, output)``</span> | 1 | ``output`` is the minimum value in ``array_or_set`` |
 | <span class="opa-keep-it-together">``sort(array_or_set, output)``</span> | 1 | ``output`` is the sorted ``array`` containing elements from ``array_or_set``. |
+| <span class="opa-keep-it-together">``all(array_or_set, output)``</span> | 1 | ``output`` is ``true`` if all of the values in ``array_or_set`` are ``true``. A collection of length 0 returns ``true``.|
+| <span class="opa-keep-it-together">``any(array_or_set, output)``</span> | 1 | ``output`` is ``true`` if any of the values in ``array_or_set`` is ``true``. A collection of length 0 returns ``false``.|
 
 ### Sets
 

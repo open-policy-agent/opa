@@ -61,6 +61,8 @@ var DefaultBuiltins = [...]*Builtin{
 	Product,
 	Max,
 	Min,
+	Any,
+	All,
 
 	// Casting
 	ToNumber,
@@ -433,6 +435,36 @@ var Min = &Builtin{
 			),
 		),
 		types.A,
+	),
+}
+
+// All takes a list and returns true if all of the items
+// are true. A collection of length 0 returns true.
+var All = &Builtin{
+	Name: "all",
+	Decl: types.NewFunction(
+		types.Args(
+			types.NewAny(
+				types.NewSet(types.A),
+				types.NewArray(nil, types.A),
+			),
+		),
+		types.B,
+	),
+}
+
+// Any takes a collection and returns true if any of the items
+// is true. A collection of length 0 returns false.
+var Any = &Builtin{
+	Name: "any",
+	Decl: types.NewFunction(
+		types.Args(
+			types.NewAny(
+				types.NewSet(types.A),
+				types.NewArray(nil, types.A),
+			),
+		),
+		types.B,
 	),
 }
 
