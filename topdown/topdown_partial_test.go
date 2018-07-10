@@ -161,8 +161,15 @@ func TestTopDownPartialEval(t *testing.T) {
 				p[z] { z = "bar" }`,
 			},
 			wantQueries: []string{
-				`input.x = "foo"; neq("foo", false); x = "foo"`,
-				`input.x = "bar"; neq("bar", false); x = "bar"`,
+				`input.x = "foo"; x = "foo"`,
+				`input.x = "bar"; x = "bar"`,
+			},
+		},
+		{
+			note:  "single term: false save",
+			query: `input = x; x = false; x`, // last expression must be preserved
+			wantQueries: []string{
+				`input = false; false; x = false`,
 			},
 		},
 		{
