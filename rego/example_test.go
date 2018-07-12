@@ -569,3 +569,76 @@ func ExampleRego_Partial() {
 	// Query #1: "GET" = input.method; input.path = ["reviews", _]; neq(input.is_admin, false)
 	// Query #2: "GET" = input.method; input.path = ["reviews", user3]; user3 = input.user
 }
+
+var module = `
+		package example
+
+		default allow = false
+
+		allow {
+			startswith(username, "a")
+		}
+
+		username = u {
+			split(input.email, "@", [u, _])
+		}
+  `
+var examples = []map[string]interface{}{
+	{"email": "alice@aol.com"}, {"email": "bob@aol.com"},
+}
+
+func ExampleRego_PartialResultWithVariables() {
+	ctx := context.Background()
+
+	r := rego.New(
+		rego.Query("data.example.allow"),
+		rego.Module("example.rego", module),
+	)
+
+	pr, err := r.PartialEval(ctx)
+	if err != nil {
+		fmt.Printf("error: %s\n", err.Error())
+		return
+	}
+
+	for i, inp := range examples {
+
+		r := pr.Rego(rego.Input(inp))
+
+		rs, err := r.Eval(ctx)
+		if err != nil || len(rs) != 1 || len(rs[0].Expressions) != 1 {
+			fmt.Printf("error: %s\n", err.Error())
+		} else {
+			fmt.Printf("input %d allowed: %v\n", i+1, rs[0].Expressions[0].Value)
+		}
+	}
+
+	// Output:
+	//
+	// input 1 allowed: true
+	// input 2 allowed: false
+}
+
+func ExampleRego_EvalWithVariables() {
+	ctx := context.Background()
+
+	for i, inp := range examples {
+		r := rego.New(
+			rego.Query("data.example.allow"),
+			rego.Module("example.rego", module),
+			rego.Input(inp),
+		)
+
+		rs, err := r.Eval(ctx)
+		if err != nil || len(rs) != 1 || len(rs[0].Expressions) != 1 {
+			fmt.Printf("error: %s\n", err.Error())
+		} else {
+			fmt.Printf("input %d allowed: %v\n", i+1, rs[0].Expressions[0].Value)
+		}
+	}
+
+	// Output:
+	//
+	// input 1 allowed: true
+	// input 2 allowed: false
+}
