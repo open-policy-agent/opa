@@ -125,6 +125,7 @@ the data document with the following syntax:
 		},
 	}
 
+	runCommand.Flags().StringVarP(&params.PluginDir, "plugin-dir", "p", "", "set path to plugin directory")
 	runCommand.Flags().StringVarP(&params.ConfigFile, "config-file", "c", "", "set path of configuration file")
 	runCommand.Flags().BoolVarP(&serverMode, "server", "s", false, "start the runtime in server mode")
 	runCommand.Flags().StringVarP(&params.HistoryPath, "history", "H", historyPath(), "set path of history file")

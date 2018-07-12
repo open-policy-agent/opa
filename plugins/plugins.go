@@ -22,6 +22,10 @@ type Plugin interface {
 	Stop(ctx context.Context)
 }
 
+// PluginInitFunc is a function that will initialize a plugin given configuration document config
+// The function should return the plugin if successful and and error if unsuccessful
+type PluginInitFunc func(m *Manager, config []byte) (Plugin, error)
+
 // Manager implements lifecycle management of plugins and gives plugins access
 // to engine-wide components like storage.
 type Manager struct {
@@ -130,6 +134,13 @@ func (m *Manager) Start(ctx context.Context) error {
 		_, err := m.Store.Register(ctx, txn, config)
 		return err
 	})
+}
+
+// Stop stops the manager, stopping all the plugins registered with it
+func (m *Manager) Stop(ctx context.Context) {
+	for _, p := range m.plugins {
+		p.Stop(ctx)
+	}
 }
 
 func (m *Manager) onCommit(ctx context.Context, txn storage.Transaction, event storage.TriggerEvent) {

@@ -13,17 +13,17 @@ import (
 )
 
 func init() {
-	var pluginDir string
+	var builtinDir string
 
 	// flag is persistent (can be loaded on all children commands)
-	RootCommand.PersistentFlags().StringVar(&pluginDir, "plugin-dir", "", `set path to directory containing
-shared object files to dynamically load plugins and builtins`)
+	RootCommand.PersistentFlags().StringVar(&builtinDir, "builtin-dir", "", `set path to directory containing
+shared object files to dynamically load builtins`)
 
 	// Runs before *all* children commands
 	RootCommand.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
 		// only register custom plugins if directory specified
-		if pluginDir != "" {
-			err := runtime.RegisterBuiltinsFromDir(pluginDir)
+		if builtinDir != "" {
+			err := runtime.RegisterBuiltinsFromDir(builtinDir)
 			if err != nil {
 				return err
 			}

@@ -35,25 +35,26 @@ import (
 )
 
 var (
-	registeredPlugins    []pluginFactory
+	registeredPlugins    map[string]pluginFactory
 	registeredPluginsMux sync.Mutex
 )
 
 // RegisterPlugin registers a plugin with the runtime package. When a Runtime
-// is created, the factory functions will be called.
-func RegisterPlugin(name string, factory func(m *plugins.Manager, config []byte) (plugins.Plugin, error)) {
+// is created, the factory functions will be called. This function is idempotent.
+func RegisterPlugin(name string, factory plugins.PluginInitFunc) {
 	registeredPluginsMux.Lock()
 	defer registeredPluginsMux.Unlock()
 
-	registeredPlugins = append(registeredPlugins, pluginFactory{
+	registeredPlugins[name] = pluginFactory{
 		name:    name,
 		factory: factory,
-	})
+	}
 }
 
+// pluginFactory contains everything required to load a plugin into OPA
 type pluginFactory struct {
 	name    string
-	factory func(m *plugins.Manager, config []byte) (plugins.Plugin, error)
+	factory plugins.PluginInitFunc
 }
 
 // Params stores the configuration for an OPA instance.
@@ -96,6 +97,10 @@ type Params struct {
 	// BuiltinDir is the path to a directory containing .builtin.so shared object files that
 	// OPA can load dynamically to create custom builtins.
 	BuiltinDir string
+
+	// PluginDir is the path to a directory containing .plugin.so shared object files that
+	// OPA can load dynamically to create custom builtins.
+	PluginDir string
 
 	// Optional filter that will be passed to the file loader.
 	Filter loader.Filter
@@ -163,6 +168,7 @@ func (rt *Runtime) StartServer(ctx context.Context) {
 	if err := rt.Manager.Start(ctx); err != nil {
 		logrus.WithField("err", err).Fatalf("Unable to initialize plugins.")
 	}
+	defer rt.Manager.Stop(ctx)
 
 	s, err := server.New().
 		WithStore(rt.Store).
@@ -216,6 +222,7 @@ func (rt *Runtime) StartREPL(ctx context.Context) {
 		fmt.Fprintln(rt.Params.Output, "error starting plugins:", err)
 		os.Exit(1)
 	}
+	defer rt.Manager.Stop(ctx)
 
 	banner := rt.getBanner()
 	repl := repl.New(rt.Store, rt.Params.HistoryPath, rt.Params.Output, rt.Params.OutputFormat, rt.Params.ErrorLimit, banner)
@@ -596,3 +603,7 @@ func uuid4() (string, error) {
 }
 
 type bundlePluginListener string
+
+func init() {
+	registeredPlugins = make(map[string]pluginFactory)
+}
