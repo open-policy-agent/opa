@@ -192,7 +192,7 @@ func (e *eval) evalStep(index int, iter evalIterator) error {
 			})
 		} else {
 
-			if e.saveSet != nil {
+			if e.partial() {
 				// Check if call can be evaluated during partial eval. Some
 				// calls, such as time.now_ns() should not be evaluated during
 				// partial evaluation.
@@ -734,9 +734,13 @@ func (e *eval) saveCall(operator *ast.Term, args []*ast.Term, result *ast.Term, 
 	}
 	terms[len(terms)-1] = result
 	expr := ast.NewExpr(terms)
-	elem := newSaveSetElem([]*ast.Term{result})
-	e.saveSet.Push(elem)
-	defer e.saveSet.Pop()
+
+	// result might be composite (object/array)
+	if ts := nonGroundedValues(result); len(ts) > 0 {
+		elem := newSaveSetElem(ts)
+		e.saveSet.Push(elem)
+		defer e.saveSet.Pop()
+	}
 	e.saveStack.Push(expr, e.bindings, nil)
 	defer e.saveStack.Pop()
 	e.traceSave(expr)
@@ -1769,4 +1773,25 @@ func plugSlice(xs []*ast.Term, b *bindings) []*ast.Term {
 		cpy[i] = b.Plug(xs[i])
 	}
 	return cpy
+}
+
+// Note: this needs to be recursive, as both Arrays and Objects may have nested
+// non-grounded values
+func nonGroundedValues(result *ast.Term) []*ast.Term {
+	res := []*ast.Term{}
+	switch xs := result.Value.(type) {
+	case ast.Array:
+		for _, x := range xs {
+			res = append(res, nonGroundedValues(x)...)
+		}
+	case ast.Object:
+		xs.Foreach(func(_, val *ast.Term) {
+			res = append(res, nonGroundedValues(val)...)
+		})
+	default:
+		if !result.IsGround() {
+			res = append(res, result)
+		}
+	}
+	return res
 }
