@@ -418,6 +418,65 @@ func TestTopDownPartialEval(t *testing.T) {
 			},
 		},
 		{
+			note:  "save: function with call composite result (array)",
+			query: `split(input, "@", [x]); startswith(x, "foo")`,
+			wantQueries: []string{
+				`split(input, "@", [x]); startswith(x, "foo")`,
+			},
+		},
+		{
+			note:  "save: function with call composite result (array, nested)",
+			query: `data.test.foo(input, [[x, _]]); startswith(x, "foo")`,
+			modules: []string{
+				`package test
+				foo(a) = o {
+				  o := [[a.x, a.y]]
+				}
+				`},
+			wantQueries: []string{
+				`data.test.foo(input, [[x, _]]); startswith(x, "foo")`,
+			},
+		},
+		{
+			note:  "save: function with call composite result (object)",
+			query: `data.test.foo(input, {"x": y}); startswith(y, "foo")`,
+			modules: []string{
+				`package test
+				foo(a) = o {
+				  o := { "x": a.y }
+				}
+				`},
+			wantQueries: []string{
+				`data.test.foo(input, {"x": y}); startswith(y, "foo")`,
+			},
+		},
+		{
+			note:  "save: function with call composite result (object, nested)",
+			query: `data.test.foo(input, {"x": [y, z]}); startswith(y, "foo")`,
+			modules: []string{
+				`package test
+				foo(a) = o {
+				  o := { "x": [a.y, a.z] }
+				}
+				`},
+			wantQueries: []string{
+				`data.test.foo(input, {"x": [y, z]}); startswith(y, "foo")`,
+			},
+		},
+		{
+			note:  "save: function with call composite result (array/object, mixed)",
+			query: `data.test.foo(input, {"x": [ { "a": y }, _]}); startswith(y, "foo")`,
+			modules: []string{
+				`package test
+				foo(a) = o {
+				  o := { "x": [ {"a": a.y }, a.z] }
+				}
+				`},
+			wantQueries: []string{
+				`data.test.foo(input, {"x": [{"a": y}, _]}); startswith(y, "foo")`,
+			},
+		},
+		{
 			note:  "save: with",
 			query: "data.test.p = true",
 			modules: []string{
