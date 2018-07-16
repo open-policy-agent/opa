@@ -97,12 +97,8 @@ type Params struct {
 	// where the contained document should be loaded.
 	Paths []string
 
-	// BuiltinDir is the path to a directory containing .builtin.so shared object files that
-	// OPA can load dynamically to create custom builtins.
-	BuiltinDir string
-
-	// PluginDir is the path to a directory containing .plugin.so shared object files that
-	// OPA can load dynamically to create custom builtins.
+	// PluginDir is the path to a directory containing .builtin.so and .plugin.so shared object files that
+	// OPA can load dynamically to create custom builtins and plugins.
 	PluginDir string
 
 	// Optional filter that will be passed to the file loader.
@@ -181,9 +177,8 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		return nil, err
 	}
 
-	// only register custom plugins if directory specified
-	if params.BuiltinDir != "" {
-		err = RegisterBuiltinsFromDir(params.BuiltinDir)
+	if params.PluginDir != "" {
+		err = RegisterSharedObjectsFromDir(params.PluginDir)
 		if err != nil {
 			return nil, err
 		}
@@ -201,14 +196,6 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 
 	if err := store.Commit(ctx, txn); err != nil {
 		return nil, errors.Wrapf(err, "storage error")
-	}
-
-	// register before init
-	if params.PluginDir != "" {
-		err = RegisterPluginsFromDir(params.PluginDir)
-		if err != nil {
-			return nil, err
-		}
 	}
 
 	m, plugins, err := initPlugins(params.ID, store, params.ConfigFile)

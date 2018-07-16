@@ -19,19 +19,14 @@ import (
 	"github.com/open-policy-agent/opa/topdown"
 )
 
-// RegisterBuiltinsFromDir recursively loads all custom builtins into OPA from dir. This function is idempotent.
-func RegisterBuiltinsFromDir(dir string) error {
-	return filepath.Walk(dir, walker("*.builtin.so", registerBuiltinFromFile))
+// RegisterSharedObjectsFromDir registers all .builtin.so and .plugin.so files recursively stored in dir into OPA.
+func RegisterSharedObjectsFromDir(dir string) error {
+	return filepath.Walk(dir, loadSharedObjectWalker())
 }
 
-// RegisterPluginsFromDir recursively loads all custom plugins into OPA from dir. This function is idempotent
-func RegisterPluginsFromDir(dir string) error {
-	return filepath.Walk(dir, walker("*.plugin.so", registerPluginFromFile))
-}
-
-// walker returns a walkfunc that performs handler on every file that matches the file glob pattern.
-// it skips all files that do not match pattern TODO: is this what we want?
-func walker(pattern string, handler func(string) error) filepath.WalkFunc {
+// loadSharedObjectWalker returns a walkfunc that registers every .builtin.so file and every .plugin.so file into OPA.
+// Ignores all other file types.
+func loadSharedObjectWalker() filepath.WalkFunc {
 	walk := func(path string, f os.FileInfo, err error) error {
 		// if error occurs during traversal to path, exit and crash
 		if err != nil {
@@ -42,13 +37,18 @@ func walker(pattern string, handler func(string) error) filepath.WalkFunc {
 			return nil
 		}
 
-		if ok, err := filepath.Match(pattern, filepath.Base(path)); err != nil {
-			return err
-		} else if !ok {
-			return nil
+		// call builtin function if is builtin
+		if isBuiltin, _ := filepath.Match("*.builtin.so", filepath.Base(path)); isBuiltin {
+			return registerBuiltinFromFile(path)
 		}
 
-		return handler(path)
+		// call plugin function if is plugin
+		if isPlugin, _ := filepath.Match("*.plugin.so", filepath.Base(path)); isPlugin {
+			return registerPluginFromFile(path)
+		}
+
+		// ignore anything else
+		return nil
 	}
 	return walk
 }
@@ -97,6 +97,7 @@ func registerBuiltinFromFile(path string) error {
 	return nil
 }
 
+// loads a plugin from a file path
 func registerPluginFromFile(path string) error {
 	mod, err := plugin.Open(path)
 	if err != nil {

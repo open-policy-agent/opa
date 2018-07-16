@@ -87,7 +87,7 @@ func TestRegisterBuiltinSingle(t *testing.T) {
 	defer cleanup()
 
 	builtinDir := filepath.Join(root, "/dir")
-	err := RegisterBuiltinsFromDir(builtinDir)
+	err := RegisterSharedObjectsFromDir(builtinDir)
 	if err != nil {
 		t.Fatalf(err.Error())
 	}
@@ -123,7 +123,7 @@ func TestRegisterBuiltinRecursive(t *testing.T) {
 	defer cleanup()
 
 	builtinDir := filepath.Join(root, "/dir")
-	err := RegisterBuiltinsFromDir(builtinDir)
+	err := RegisterSharedObjectsFromDir(builtinDir)
 	if err != nil {
 		t.Fatalf(err.Error())
 	}

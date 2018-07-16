@@ -8,12 +8,7 @@ package runtime
 
 // Contains parts of the runtime package that do not use the plugin package.
 
-// RegisterBuiltinsFromDir is a no-op. Plugin loading is limited to linux/darwin + cgo platforms for the time being.
-func RegisterBuiltinsFromDir(dir string) error {
-	return nil
-}
-
-// RegisterPluginsFromDir is a no-op. Plugin loading is limited to linux/darwin + cgo platforms for the time being.
-func RegisterPluginsFromDir(dir string) error {
+// RegisterSharedObjectsFromDir is a no-op. Dynamically loading shared objects is limited to linux/darwin + cgo platforms.
+func RegisterSharedObjectsFromDir(dir string) error {
 	return nil
 }
