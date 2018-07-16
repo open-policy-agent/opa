@@ -92,7 +92,6 @@ func registerBuiltinFromFile(path string) error {
 		return fmt.Errorf("symbol Function was of an unrecognized type")
 	}
 
-	// TODO: replace with logging
 	fmt.Printf("Registered builtin %v from %v\n", builtin.Name, path)
 	return nil
 }
@@ -124,7 +123,6 @@ func registerPluginFromFile(path string) error {
 		return fmt.Errorf("symbol Builtin must be of type runtime.PluginInitFunc")
 	}
 
-	//TODO: replace this with appropriate logging method
 	fmt.Printf("Registered plugin %v from %v\n", name, path)
 	RegisterPlugin(*name, *initFunc)
 	return nil
