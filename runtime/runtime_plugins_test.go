@@ -16,6 +16,7 @@ import (
 	"testing"
 
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/plugins"
 	"github.com/open-policy-agent/opa/types"
 	"github.com/open-policy-agent/opa/util/test"
 	"net/http"
@@ -32,7 +33,7 @@ import (
 	"github.com/open-policy-agent/opa/topdown"
 )
 
-var Builtin = ast.Builtin{
+var TruthfulBuiltin = &ast.Builtin{
 	Name: "%v",
 	Decl: types.NewFunction(
 		types.Args(types.N, types.N),
@@ -40,8 +41,14 @@ var Builtin = ast.Builtin{
 	),
 }
 
-var Function topdown.FunctionalBuiltin2 = func(a, b ast.Value) (ast.Value, error) {
+func Truthful(a, b ast.Value) (ast.Value, error) {
 	return ast.Boolean(true), nil
+}
+
+func Init() error {
+	ast.RegisterBuiltin(TruthfulBuiltin)
+	topdown.RegisterFunctionalBuiltin2(TruthfulBuiltin.Name, Truthful)
+	return nil
 }
 `, name)
 }
@@ -54,16 +61,14 @@ package main
 
 import (
 	"context"
-    "net/http"
 	"github.com/open-policy-agent/opa/plugins"
+	"net/http"
 )
 
-var Name = "%v"
-
-type Tester struct {}
+type Tester struct{}
 
 func (t *Tester) Start(ctx context.Context) error {
-    _, err := http.Get("%v")
+	_, err := http.Get("%v")
 	return err
 }
 
@@ -71,9 +76,15 @@ func (t *Tester) Stop(ctx context.Context) {
 	return
 }
 
-var Initializer plugins.PluginInitFunc = func(m *plugins.Manager, config []byte) (plugins.Plugin, error) {
+func InitTester(m *plugins.Manager, config []byte) (plugins.Plugin, error) {
 	return &Tester{}, nil
-}`, name, url)
+}
+
+func Init() error {
+	plugins.RegisterPlugin("%v", InitTester)
+	return nil
+}
+`, url, name)
 }
 
 func TestRegisterBuiltinSingle(t *testing.T) {
@@ -191,7 +202,7 @@ plugins:
 	}
 
 	// make sure plugin loaded correctly
-	_, ok := registeredPlugins[name]
+	_, ok := plugins.GetRegisteredPlugins()[name]
 	if !ok {
 		t.Fatalf("plugin not present in registeredPlugins map")
 	}
@@ -235,7 +246,7 @@ func TestRegisterPluginsNoConfig(t *testing.T) {
 	}
 
 	// make sure plugin loaded correctly
-	_, ok := registeredPlugins[name]
+	_, ok := plugins.GetRegisteredPlugins()[name]
 	if !ok {
 		t.Fatalf("plugin not present in registeredPlugins map")
 	}
@@ -292,6 +303,11 @@ var Initializer plugins.PluginInitFunc = func(m *plugins.Manager, config []byte)
     }
 
 	return &Tester{}, nil
+}
+
+func Init() error {
+	plugins.RegisterPlugin(Name, Initializer)
+	return nil
 }`
 
 	config := `
@@ -318,7 +334,7 @@ plugins:
 	}
 
 	// make sure plugin loaded correctly
-	_, ok := registeredPlugins["test"]
+	_, ok := plugins.GetRegisteredPlugins()["test"]
 	if !ok {
 		t.Fatalf("plugin not present in registeredPlugins map")
 	}

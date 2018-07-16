@@ -14,9 +14,7 @@ import (
 	"path/filepath"
 	"plugin"
 
-	"github.com/open-policy-agent/opa/ast"
-	"github.com/open-policy-agent/opa/plugins"
-	"github.com/open-policy-agent/opa/topdown"
+	"reflect"
 )
 
 // RegisterSharedObjectsFromDir registers all .builtin.so and .plugin.so files recursively stored in dir into OPA.
@@ -37,14 +35,8 @@ func loadSharedObjectWalker() filepath.WalkFunc {
 			return nil
 		}
 
-		// call builtin function if is builtin
-		if isBuiltin, _ := filepath.Match("*.builtin.so", filepath.Base(path)); isBuiltin {
-			return registerBuiltinFromFile(path)
-		}
-
-		// call plugin function if is plugin
-		if isPlugin, _ := filepath.Match("*.plugin.so", filepath.Base(path)); isPlugin {
-			return registerPluginFromFile(path)
+		if filepath.Ext(path) == ".so" {
+			return registerSharedObjectFromFile(path)
 		}
 
 		// ignore anything else
@@ -54,76 +46,23 @@ func loadSharedObjectWalker() filepath.WalkFunc {
 }
 
 // loads the builtin from a file path
-func registerBuiltinFromFile(path string) error {
+func registerSharedObjectFromFile(path string) error {
 	mod, err := plugin.Open(path)
 	if err != nil {
 		return err
 	}
-	builtinSym, err := mod.Lookup("Builtin")
-	if err != nil {
-		return err
-	}
-	functionSym, err := mod.Lookup("Function")
+	initSym, err := mod.Lookup("Init")
 	if err != nil {
 		return err
 	}
 
-	// type assert builtin symbol
-	builtin, ok := builtinSym.(*ast.Builtin)
+	// type assert init symbol
+	init, ok := initSym.(func() error)
+	fmt.Println(reflect.TypeOf(initSym).String())
 	if !ok {
-		return fmt.Errorf("symbol Builtin must be of type ast.Builtin")
+		return fmt.Errorf("symbol Init must be of type func() error")
 	}
 
-	// type assert function symbol
-	switch fnc := functionSym.(type) {
-	case *topdown.BuiltinFunc:
-		ast.RegisterBuiltin(builtin)
-		topdown.RegisterBuiltinFunc(builtin.Name, *fnc)
-	case *topdown.FunctionalBuiltin1:
-		ast.RegisterBuiltin(builtin)
-		topdown.RegisterFunctionalBuiltin1(builtin.Name, *fnc)
-	case *topdown.FunctionalBuiltin2:
-		ast.RegisterBuiltin(builtin)
-		topdown.RegisterFunctionalBuiltin2(builtin.Name, *fnc)
-	case *topdown.FunctionalBuiltin3:
-		ast.RegisterBuiltin(builtin)
-		topdown.RegisterFunctionalBuiltin3(builtin.Name, *fnc)
-	default:
-		return fmt.Errorf("symbol Function was of an unrecognized type")
-	}
-
-	fmt.Printf("Registered builtin %v from %v\n", builtin.Name, path)
-	return nil
-}
-
-// loads a plugin from a file path
-func registerPluginFromFile(path string) error {
-	mod, err := plugin.Open(path)
-	if err != nil {
-		return err
-	}
-
-	nameSym, err := mod.Lookup("Name")
-	if err != nil {
-		return err
-	}
-	name, ok := nameSym.(*string)
-	if !ok {
-		return fmt.Errorf("symbol Name must be of type string")
-	}
-
-	pluginSym, err := mod.Lookup("Initializer")
-	if err != nil {
-		return err
-	}
-
-	// type assert initializer function
-	initFunc, ok := pluginSym.(*plugins.PluginInitFunc)
-	if !ok {
-		return fmt.Errorf("symbol Builtin must be of type runtime.PluginInitFunc")
-	}
-
-	fmt.Printf("Registered plugin %v from %v\n", name, path)
-	RegisterPlugin(*name, *initFunc)
-	return nil
+	// execute init
+	return init()
 }

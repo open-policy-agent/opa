@@ -18,7 +18,6 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
-	"sync"
 	"time"
 
 	"github.com/pkg/errors"
@@ -36,29 +35,6 @@ import (
 	"github.com/open-policy-agent/opa/util"
 	"github.com/open-policy-agent/opa/version"
 )
-
-var (
-	registeredPlugins    map[string]pluginFactory
-	registeredPluginsMux sync.Mutex
-)
-
-// RegisterPlugin registers a plugin with the runtime package. When a Runtime
-// is created, the factory functions will be called. This function is idempotent.
-func RegisterPlugin(name string, factory plugins.PluginInitFunc) {
-	registeredPluginsMux.Lock()
-	defer registeredPluginsMux.Unlock()
-
-	registeredPlugins[name] = pluginFactory{
-		name:    name,
-		factory: factory,
-	}
-}
-
-// pluginFactory contains everything required to load a plugin into OPA
-type pluginFactory struct {
-	name    string
-	factory plugins.PluginInitFunc
-}
 
 // Params stores the configuration for an OPA instance.
 type Params struct {
@@ -603,12 +579,12 @@ func initRegisteredPlugins(m *plugins.Manager, bs []byte) error {
 		return err
 	}
 
-	for _, reg := range registeredPlugins {
-		pc, ok := config.Plugins[reg.name]
+	for name, factory := range plugins.GetRegisteredPlugins() {
+		pc, ok := config.Plugins[name]
 		if !ok {
 			continue
 		}
-		plugin, err := reg.factory(m, pc)
+		plugin, err := factory(m, pc)
 		if err != nil {
 			return err
 		}
@@ -671,7 +647,3 @@ func uuid4() (string, error) {
 }
 
 type bundlePluginListener string
-
-func init() {
-	registeredPlugins = make(map[string]pluginFactory)
-}

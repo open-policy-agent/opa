@@ -26,6 +26,26 @@ type Plugin interface {
 // The function should return the plugin if successful and and error if unsuccessful
 type PluginInitFunc func(m *Manager, config []byte) (Plugin, error)
 
+var (
+	registeredPlugins    map[string]PluginInitFunc
+	registeredPluginsMux sync.Mutex
+)
+
+// RegisterPlugin registers a plugin with the plugins package. When a Runtime
+// is created, the factory functions will be called. This function is idempotent.
+func RegisterPlugin(name string, factory PluginInitFunc) {
+	registeredPluginsMux.Lock()
+	defer registeredPluginsMux.Unlock()
+	registeredPlugins[name] = factory
+}
+
+// GetRegisteredPlugins returns all the plugins that are currently registered with the plugins package.
+func GetRegisteredPlugins() map[string]PluginInitFunc {
+	registeredPluginsMux.Lock()
+	defer registeredPluginsMux.Unlock()
+	return registeredPlugins
+}
+
 // Manager implements lifecycle management of plugins and gives plugins access
 // to engine-wide components like storage.
 type Manager struct {
@@ -189,4 +209,8 @@ func (m *Manager) Services() []string {
 		s = append(s, name)
 	}
 	return s
+}
+
+func init() {
+	registeredPlugins = make(map[string]PluginInitFunc)
 }
