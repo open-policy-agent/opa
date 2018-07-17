@@ -695,6 +695,18 @@ func (e *eval) biunifyComprehensionObject(x *ast.ObjectComprehension, b *ast.Ter
 	return e.biunify(ast.NewTerm(result), b, b1, b2, iter)
 }
 
+func (e *eval) getSaveTerms(x interface{}) (result []*ast.Term) {
+	vis := ast.NewVarVisitor().WithParams(ast.VarVisitorParams{
+		SkipClosures: true,
+		SkipRefHead:  true,
+	})
+	ast.Walk(vis, x)
+	for v := range vis.Vars() {
+		result = append(result, ast.NewTerm(v))
+	}
+	return
+}
+
 func (e *eval) saveExpr(expr *ast.Expr, b *bindings, iter unifyIterator) error {
 	e.saveStack.Push(expr, b, nil)
 	defer e.saveStack.Pop()
@@ -704,9 +716,11 @@ func (e *eval) saveExpr(expr *ast.Expr, b *bindings, iter unifyIterator) error {
 
 func (e *eval) saveUnify(a, b *ast.Term, b1, b2 *bindings, iter unifyIterator) error {
 	expr := ast.Equality.Expr(a, b)
-	elem := newSaveSetElem(e.getUnifyOutputs(expr))
-	e.saveSet.Push(elem)
-	defer e.saveSet.Pop()
+	if ts := e.getSaveTerms(expr); len(ts) > 0 {
+		elem := newSaveSetElem(ts)
+		e.saveSet.Push(elem)
+		defer e.saveSet.Pop()
+	}
 	e.saveStack.Push(expr, b1, b2)
 	defer e.saveStack.Pop()
 	e.traceSave(expr)
@@ -734,9 +748,7 @@ func (e *eval) saveCall(operator *ast.Term, args []*ast.Term, result *ast.Term, 
 	}
 	terms[len(terms)-1] = result
 	expr := ast.NewExpr(terms)
-
-	// result might be composite (object/array)
-	if ts := nonGroundedValues(result); len(ts) > 0 {
+	if ts := e.getSaveTerms(result); len(ts) > 0 {
 		elem := newSaveSetElem(ts)
 		e.saveSet.Push(elem)
 		defer e.saveSet.Pop()
@@ -845,21 +857,6 @@ func (e *eval) Resolve(ref ast.Ref) (ast.Value, error) {
 	}
 
 	return nil, fmt.Errorf("illegal ref")
-}
-
-func (e *eval) getUnifyOutputs(expr *ast.Expr) []*ast.Term {
-	vars := expr.Vars(ast.VarVisitorParams{
-		SkipClosures: true,
-		SkipRefHead:  true,
-	})
-	outputs := make([]*ast.Term, 0, len(vars))
-	for v := range vars {
-		term := e.bindings.Plug(ast.NewTerm(v))
-		if !term.IsGround() {
-			outputs = append(outputs, term)
-		}
-	}
-	return outputs
 }
 
 func (e *eval) generateVar(suffix string) *ast.Term {
@@ -1773,25 +1770,4 @@ func plugSlice(xs []*ast.Term, b *bindings) []*ast.Term {
 		cpy[i] = b.Plug(xs[i])
 	}
 	return cpy
-}
-
-// Note: this needs to be recursive, as both Arrays and Objects may have nested
-// non-grounded values
-func nonGroundedValues(result *ast.Term) []*ast.Term {
-	res := []*ast.Term{}
-	switch xs := result.Value.(type) {
-	case ast.Array:
-		for _, x := range xs {
-			res = append(res, nonGroundedValues(x)...)
-		}
-	case ast.Object:
-		xs.Foreach(func(_, val *ast.Term) {
-			res = append(res, nonGroundedValues(val)...)
-		})
-	default:
-		if !result.IsGround() {
-			res = append(res, result)
-		}
-	}
-	return res
 }
