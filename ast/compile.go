@@ -212,6 +212,7 @@ func NewCompiler() *Compiler {
 		c.checkRuleConflicts,
 		c.checkSafetyRuleHeads,
 		c.checkSafetyRuleBodies,
+		c.rewriteEquals,
 		c.rewriteDynamicTerms,
 		c.checkRecursion,
 		c.checkTypes,
@@ -758,6 +759,12 @@ func (c *Compiler) rewriteRefsInHead() {
 	}
 }
 
+func (c *Compiler) rewriteEquals() {
+	for _, mod := range c.Modules {
+		rewriteEquals(mod)
+	}
+}
+
 func (c *Compiler) rewriteDynamicTerms() {
 	for _, mod := range c.Modules {
 		f := newEqualityFactory(newLocalVarGenerator(mod))
@@ -919,9 +926,9 @@ func (qc *queryCompiler) Compile(query Body) (Body, error) {
 		{"RewriteAssignments", qc.rewriteLocalAssignments},
 		{"RewriteExprTerms", qc.rewriteExprTerms},
 		{"RewriteComprehensionTerms", qc.rewriteComprehensionTerms},
-		{"RewriteDynamicTerms", qc.rewriteDynamicTerms},
 		{"RewriteWithValues", qc.rewriteWithModifiers},
 		{"CheckSafety", qc.checkSafety},
+		{"RewriteDynamicTerms", qc.rewriteDynamicTerms},
 		{"CheckTypes", qc.checkTypes},
 	}
 
@@ -2086,6 +2093,31 @@ func rewriteComprehensionTerms(f *equalityFactory, node interface{}) (interface{
 			return x, nil
 		}
 		panic("illegal type")
+	})
+}
+
+// rewriteEquals will rewrite exprs under x as unification calls instead of ==
+// calls. For example:
+//
+// data.foo == data.bar is rewritten as data.foo = data.bar
+//
+// This stage should only run the safety check (since == is a built-in with no
+// outputs, so the inputs must not be marked as safe.)
+//
+// This stage is not executed by the query compiler because when callers specify
+// == instead of = they expect to receive a true/false/undefined result back
+// whereas with = the result is only ever true/undefined.
+func rewriteEquals(x interface{}) {
+	doubleEq := Equal.Ref()
+	unifyOp := Equality.Ref()
+	WalkExprs(x, func(x *Expr) bool {
+		if x.IsCall() {
+			operator := x.Operator()
+			if operator.Equal(doubleEq) {
+				x.SetOperator(NewTerm(unifyOp))
+			}
+		}
+		return false
 	})
 }
 
