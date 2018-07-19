@@ -1284,6 +1284,54 @@ func TestCompilerRewriteComprehensionTerm(t *testing.T) {
 	assertRulesEqual(t, objCompRule, exp3)
 }
 
+func TestCompilerRewriteDoubleEq(t *testing.T) {
+	tests := []struct {
+		note  string
+		input string
+		exp   string
+	}{
+		{
+			note:  "vars and constants",
+			input: "p { x = 1; x == 1; y = [1,2,3]; y == [1,2,3] }",
+			exp:   `x = 1; x = 1; y = [1,2,3]; y = [1,2,3]`,
+		},
+		{
+			note:  "refs",
+			input: "p { input.x == data.y }",
+			exp:   `input.x = data.y`,
+		},
+		{
+			note:  "comprehensions",
+			input: "p { [1|true] == [2|true] }",
+			exp:   `[1|true] = [2|true]`,
+		},
+		// TODO(tsandall): improve support for calls so that extra unification step is
+		// not required. This requires more changes to the compiler as the initial
+		// stages that rewrite term exprs needs to be updated to handle == differently
+		// and then other stages need to be reviewed to make sure they can deal with
+		// nested calls. Alternatively, the compiler could keep track of == exprs that
+		// have been converted into = and then the safety check would need to be updated.
+		{
+			note:  "calls",
+			input: "p { count([1,2]) == 2 }",
+			exp:   `count([1,2], __local0__); __local0__ = 2`,
+		},
+	}
+	for _, tc := range tests {
+		test.Subtest(t, tc.note, func(t *testing.T) {
+			c := NewCompiler()
+			c.Modules["test"] = MustParseModule("package test\n" + tc.input)
+			compileStages(c, c.rewriteEquals)
+			assertNotFailed(t, c)
+			exp := MustParseBody(tc.exp)
+			result := c.Modules["test"].Rules[0].Body
+			if result.Compare(exp) != 0 {
+				t.Fatalf("\nExp: %v\nGot: %v", exp, result)
+			}
+		})
+	}
+}
+
 func TestCompilerRewriteDynamicTerms(t *testing.T) {
 
 	fixture := `
