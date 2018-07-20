@@ -18,7 +18,7 @@ import (
 	"strconv"
 	"strings"
 
-	pr "github.com/open-policy-agent/opa/presentation"
+	pr "github.com/open-policy-agent/opa/internal/presentation"
 	"github.com/open-policy-agent/opa/rego"
 
 	"github.com/open-policy-agent/opa/ast"
