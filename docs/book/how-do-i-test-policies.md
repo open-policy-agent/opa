@@ -288,3 +288,204 @@ opa test --cover --format=json example.rego example_test.rego
   }
 }
 ```
+
+## Profiling
+
+In addition to testing and coverage reporting, you can also _profile_ your
+policies using `opa eval`. The profiler is useful if you need to understand
+why policy evaluation is slow.
+
+The `opa eval` command provides the following profiler options:
+
+| Option | Detail | Default |
+| --- | --- | --- |
+| <span class="opa-keep-it-together">`--profile`</span> | Enables expression profiling and outputs profiler results. | off |
+| <span class="opa-keep-it-together">`--profile-sort`</span> | Criteria to sort the expression profiling results. This options implies `--profile`. | total_time_ns => num_eval => num_redo => file => line |
+| <span class="opa-keep-it-together">`--profile-limit`</span> | Desired number of profiling results sorted on the given criteria. This options implies `--profile`. | 10 |
+
+### Sort criteria for the profile results
+
+  * `total_time_ns` - Results are displayed is decreasing order of _expression evaluation time_
+  * `num_eval`  - Results are displayed is decreasing order of _number of times an expression is evaluated_
+  * `num_redo`  - Results are displayed is decreasing order of _number of times an expression is re-evaluated(redo)_
+  * `file`  - Results are sorted in reverse alphabetical order based on the _rego source filename_
+  * `line`  - Results are displayed is decreasing order of _expression line number_ in the source file
+
+When the sort criteria is not provided `total_time_ns` has the **highest** priority
+while `line` has the **lowest**.
+
+### Example Policy
+
+The different profiling examples shown later on this page use the below
+sample policy.
+
+{%ace lang='python'%}
+package rbac
+
+# Example input request.
+input = {
+	"subject": "bob",
+	"resource": "foo123",
+	"action": "write",
+}
+
+# Example RBAC configuration.
+bindings = [
+	{
+		"user": "alice",
+		"roles": ["dev", "test"],
+	},
+	{
+		"user": "bob",
+		"roles": ["test"],
+	},
+]
+
+roles = [
+	{
+		"name": "dev",
+		"permissions": [
+			{"resource": "foo123", "action": "write"},
+			{"resource": "foo123", "action": "read"},
+		],
+	},
+	{
+		"name": "test",
+		"permissions": [{"resource": "foo123", "action": "read"}],
+	},
+]
+
+# Example RBAC policy implementation.
+
+default allow = false
+
+allow {
+	user_has_role[role_name]
+	role_has_permission[role_name]
+}
+
+user_has_role[role_name] {
+	binding := bindings[_]
+	binding.user = input.subject
+	role_name := binding.roles[_]
+}
+
+role_has_permission[role_name] {
+	role := roles[_]
+	role_name := role.name
+	perm := role.permissions[_]
+	perm.resource = input.resource
+	perm.action = input.action
+}
+{%endace%}
+
+### Example: Display `ALL` profile results with `default` ordering criteria
+
+```bash
+opa eval --data rbac.rego --profile --format=pretty 'data.rbac.allow'
+```
+
+**Sample Output**
+```ruby
+false
+
++----------+----------+----------+-----------------+
+|   TIME   | NUM EVAL | NUM REDO |    LOCATION     |
++----------+----------+----------+-----------------+
+| 47.148µs | 1        | 1        | data.rbac.allow |
+| 28.965µs | 1        | 1        | rbac.rego:11    |
+| 24.384µs | 1        | 1        | rbac.rego:41    |
+| 23.064µs | 2        | 1        | rbac.rego:47    |
+| 15.525µs | 1        | 1        | rbac.rego:38    |
+| 14.137µs | 1        | 2        | rbac.rego:46    |
+| 13.927µs | 1        | 0        | rbac.rego:42    |
+| 13.568µs | 1        | 1        | rbac.rego:55    |
+| 12.982µs | 1        | 0        | rbac.rego:56    |
+| 12.763µs | 1        | 2        | rbac.rego:52    |
++----------+----------+----------+-----------------+
+
++------------------------------+----------+
+|            METRIC            |  VALUE   |
++------------------------------+----------+
+| timer_rego_module_compile_ns | 1871613  |
+| timer_rego_query_compile_ns  | 82290    |
+| timer_rego_query_eval_ns     | 257952   |
+| timer_rego_query_parse_ns    | 12337169 |
++------------------------------+----------+
+```
+As seen from the above table, all results are dislayed. The profile results are
+sorted on the default sort criteria.
+
+#### Example: Display top `5` profile results
+
+```bash
+opa eval --data rbac.rego --profile-limit 5 --format=pretty 'data.rbac.allow'
+```
+
+**Sample Output**
+```ruby
++----------+----------+----------+-----------------+
+|   TIME   | NUM EVAL | NUM REDO |    LOCATION     |
++----------+----------+----------+-----------------+
+| 46.329µs | 1        | 1        | data.rbac.allow |
+| 26.656µs | 1        | 1        | rbac.rego:11    |
+| 24.206µs | 2        | 1        | rbac.rego:47    |
+| 23.235µs | 1        | 1        | rbac.rego:41    |
+| 18.242µs | 1        | 1        | rbac.rego:38    |
++----------+----------+----------+-----------------+
+```
+The profile results are sorted on the default sort criteria.
+Also `--profile` option is implied and does not need to be provided.
+
+#### Example: Display top `5` profile results based on the `number of times an expression is evaluated`
+
+```bash
+opa  eval --data rbac.rego --profile-limit 5 --profile-sort num_eval --format=pretty 'data.rbac.allow'
+```
+
+**Sample Profile Output**
+```ruby
++----------+----------+----------+-----------------+
+|   TIME   | NUM EVAL | NUM REDO |    LOCATION     |
++----------+----------+----------+-----------------+
+| 26.675µs | 2        | 1        | rbac.rego:47    |
+| 9.274µs  | 2        | 1        | rbac.rego:53    |
+| 43.356µs | 1        | 1        | data.rbac.allow |
+| 22.467µs | 1        | 1        | rbac.rego:41    |
+| 22.425µs | 1        | 1        | rbac.rego:11    |
++----------+----------+----------+-----------------+
+```
+As seen from the above table, the results are arranged first in decreasing
+order of number of evaluations and if two expressions have been evaluated
+the same number of times, the default criteria is used since no other sort criteria is provided.
+In this case, total_time_ns => num_redo => file => line.
+Also `--profile` option is implied and does not need to be provided.
+
+#### Example: Display top `5` profile results based on the `number of times an expression is evaluated` and `number of times an expression is re-evaluated`
+
+```bash
+opa eval --data rbac.rego --profile-limit 5 --profile-sort num_eval,num_redo --format=pretty 'data.rbac.allow'
+```
+
+**Sample Profile Output**
+```ruby
++----------+----------+----------+-----------------+
+|   TIME   | NUM EVAL | NUM REDO |    LOCATION     |
++----------+----------+----------+-----------------+
+| 22.892µs | 2        | 1        | rbac.rego:47    |
+| 8.831µs  | 2        | 1        | rbac.rego:53    |
+| 13.767µs | 1        | 2        | rbac.rego:46    |
+| 10.78µs  | 1        | 2        | rbac.rego:52    |
+| 42.338µs | 1        | 1        | data.rbac.allow |
++----------+----------+----------+-----------------+
+```
+As seen from the above table, result are first arranged based on _number of evaluations_,
+then _number of re-evaluations_ and finally the default criteria is used.
+In this case, total_time_ns => file => line.
+The `--profile-sort` options accepts repeated or comma-separated values for the criteria.
+The order of the criteria on the command line determine their priority.
+
+Another way to get the same output as above would be the following:
+```bash
+opa eval --data rbac.rego --profile-limit 5 --profile-sort num_eval --profile-sort num_redo --format=pretty 'data.rbac.allow'
+```

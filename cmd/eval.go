@@ -14,9 +14,9 @@ import (
 	"strings"
 
 	"github.com/open-policy-agent/opa/ast"
+	pr "github.com/open-policy-agent/opa/internal/presentation"
 	"github.com/open-policy-agent/opa/loader"
 	"github.com/open-policy-agent/opa/metrics"
-	pr "github.com/open-policy-agent/opa/presentation"
 	"github.com/open-policy-agent/opa/profiler"
 	"github.com/open-policy-agent/opa/rego"
 	"github.com/open-policy-agent/opa/storage/inmem"
@@ -251,10 +251,6 @@ func eval(args []string, params evalCommandParams) (err error) {
 	rs, err := eval.Eval(ctx)
 	if err != nil {
 		return err
-	}
-
-	if len(rs) == 0 {
-		fmt.Println("undefined")
 	}
 
 	result := pr.EvalResult{

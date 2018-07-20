@@ -40,14 +40,8 @@ func PrintJSON(writer io.Writer, x interface{}) error {
 // PrintPretty prints expressions, bindings, metrics and profiling output
 // in a tabular format.
 func PrintPretty(writer io.Writer, result EvalResult, prettyLimit int) {
-
-	// Bindings Table
 	PrintPrettyBinding(writer, result, prettyLimit)
-
-	// Metrics Table
 	PrintPrettyMetrics(writer, result, prettyLimit)
-
-	// Profile Table
 	PrintPrettyProfile(writer, result)
 }
 
@@ -57,7 +51,6 @@ func PrintPrettyBinding(writer io.Writer, result EvalResult, prettyLimit int) {
 	tableBindings := generateTableBindings(writer, keys, result, prettyLimit)
 
 	if tableBindings.NumLines() > 0 {
-		fmt.Println()
 		tableBindings.Render()
 	}
 }
@@ -67,7 +60,6 @@ func PrintPrettyMetrics(writer io.Writer, result EvalResult, prettyLimit int) {
 	tableMetrics := generateTableMetrics(writer)
 	populateTableMetrics(result.Metrics, tableMetrics, prettyLimit)
 	if tableMetrics.NumLines() > 0 {
-		fmt.Println()
 		tableMetrics.Render()
 	}
 }
@@ -86,7 +78,6 @@ func PrintPrettyProfile(writer io.Writer, result EvalResult) {
 		tableProfile.Append(line)
 	}
 	if tableProfile.NumLines() > 0 {
-		fmt.Println()
 		tableProfile.Render()
 	}
 }
@@ -139,7 +130,7 @@ func printPrettyRow(table *tablewriter.Table, keys []resultKey, result rego.Resu
 
 func generateTableMetrics(writer io.Writer) *tablewriter.Table {
 	table := tablewriter.NewWriter(writer)
-	table.SetHeader([]string{"Name", "Value"})
+	table.SetHeader([]string{"Metric", "Value"})
 	table.SetAlignment(tablewriter.ALIGN_CENTER)
 	table.SetColumnAlignment([]int{tablewriter.ALIGN_LEFT, tablewriter.ALIGN_LEFT})
 	return table

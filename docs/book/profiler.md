@@ -30,7 +30,7 @@ while `line` has the **lowest**.
 The different profiling examples shown later on this page use the below
 sample policy.
 
-{%ace edit=true, lang='python'%}
+{%ace edit=false, lang='python'%}
 package rbac
 
 # Example input request.
@@ -91,121 +91,6 @@ role_has_permission[role_name] {
 {%endace%}
 
 #### Example: Display `ALL` profile results with `default` ordering criteria
-
-```bash
-opa eval --data foo --profile 'data.rbac.allow'
-```
-
-**Sample Profile Output**
-```json
-{
-  "profile": [
-    {
-      "total_time_ns": 38588,
-      "num_eval": 1,
-      "num_redo": 1,
-      "location": {
-        "file": "foo/rbac.rego",
-        "row": 41,
-        "col": 2
-      }
-    },
-    {
-      "total_time_ns": 32783,
-      "num_eval": 1,
-      "num_redo": 1,
-      "location": {
-        "file": "",
-        "row": 1,
-        "col": 1
-      }
-    },
-    {
-      "total_time_ns": 26262,
-      "num_eval": 1,
-      "num_redo": 1,
-      "location": {
-        "file": "foo/rbac.rego",
-        "row": 11,
-        "col": 12
-      }
-    },
-    {
-      "total_time_ns": 19181,
-      "num_eval": 2,
-      "num_redo": 1,
-      "location": {
-        "file": "foo/rbac.rego",
-        "row": 47,
-        "col": 2
-      }
-    },
-    {
-      "total_time_ns": 16817,
-      "num_eval": 1,
-      "num_redo": 1,
-      "location": {
-        "file": "foo/rbac.rego",
-        "row": 38,
-        "col": 1
-      }
-    },
-    {
-      "total_time_ns": 12827,
-      "num_eval": 1,
-      "num_redo": 2,
-      "location": {
-        "file": "foo/rbac.rego",
-        "row": 46,
-        "col": 2
-      }
-    },
-    {
-      "total_time_ns": 11176,
-      "num_eval": 1,
-      "num_redo": 1,
-      "location": {
-        "file": "foo/rbac.rego",
-        "row": 55,
-        "col": 2
-      }
-    },
-    {
-      "total_time_ns": 10275,
-      "num_eval": 1,
-      "num_redo": 0,
-      "location": {
-        "file": "foo/rbac.rego",
-        "row": 56,
-        "col": 2
-      }
-    },
-    {
-      "total_time_ns": 10274,
-      "num_eval": 1,
-      "num_redo": 2,
-      "location": {
-        "file": "foo/rbac.rego",
-        "row": 52,
-        "col": 2
-      }
-    },
-    {
-      "total_time_ns": 9304,
-      "num_eval": 1,
-      "num_redo": 1,
-      "location": {
-        "file": "foo/rbac.rego",
-        "row": 4,
-        "col": 9
-      }
-    }
-  ]
-}
-```
-The above output shows the profile results sorted on the default sort criteria.
-
-#### Example: Display `ALL` profile results with `default` ordering criteria with `pretty` formatter
 ```bash
 opa eval --data foo --profile --format=pretty 'data.rbac.allow'
 ```
@@ -291,7 +176,7 @@ opa  eval --data foo --profile-limit 5 --profile-sort num_eval --format=pretty '
 ```
 As seen from the above table, the results are arranged first in decreasing
 order of number of evaluations and if two expressions have been evaluated
-the same number of times, the default criteria is used since no other sort criteria is provided. 
+the same number of times, the default criteria is used since no other sort criteria is provided.
 In this case, total_time_ns => num_redo => file => line.
 Also `--profile` option is implied and does not need to be provided.
 
