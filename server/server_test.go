@@ -197,7 +197,7 @@ func TestCompileV1(t *testing.T) {
 		data.a[i] = input.x
 	}
 
-	default r = false
+	default r = true
 	`
 
 	expQuery := func(s string) string {
@@ -263,7 +263,7 @@ func TestCompileV1(t *testing.T) {
 					`data.partial.test.r = true`,
 					`package partial.test
 
-					default r = false
+					default r = true
 					`)},
 			},
 		},

@@ -224,7 +224,7 @@ func ExampleQuery_PartialRun() {
 		WithTransaction(txn)
 
 	// Execute partial evaluation.
-	partial, support, err := q.PartialRun(ctx)
+	partial, _, err := q.PartialRun(ctx)
 	if err != nil {
 		// Handle error.
 	}
@@ -235,13 +235,6 @@ func ExampleQuery_PartialRun() {
 
 	for i := range partial {
 		fmt.Println(partial[i])
-	}
-
-	fmt.Println()
-	fmt.Println("# partial evaluation support:")
-
-	for i := range support {
-		fmt.Println(support[i])
 	}
 
 	// Construct a new policy to contain the result of partial evaluation.
@@ -261,10 +254,6 @@ func ExampleQuery_PartialRun() {
 
 	// Compile the partially evaluated policy with the original policy.
 	modules["partial"] = module
-
-	for i, v := range support {
-		modules[fmt.Sprintf("partial_support_%d", i)] = v
-	}
 
 	if compiler.Compile(modules); compiler.Failed() {
 		// Handle error.
@@ -303,17 +292,11 @@ func ExampleQuery_PartialRun() {
 	// Output:
 	//
 	// # partial evaluation result:
-	// data.partial.example.allow = true
-	//
-	// # partial evaluation support:
-	// package partial.example
-	//
-	// allow = true { "dev" = input.group; "read_bucket" = input.permission }
-	// allow = true { "test" = input.group; "read_bucket" = input.permission }
-	// allow = true { "sre" = input.group; "read_bucket" = input.permission }
-	// allow = true { "sre" = input.group; "write_bucket" = input.permission }
-	// allow = true { "sre" = input.group; "delete_bucket" = input.permission }
-	// default allow = false
+	// "dev" = input.group; "read_bucket" = input.permission
+	// "test" = input.group; "read_bucket" = input.permission
+	// "sre" = input.group; "read_bucket" = input.permission
+	// "sre" = input.group; "write_bucket" = input.permission
+	// "sre" = input.group; "delete_bucket" = input.permission
 	//
 	// # evaluation results:
 	// input 1 allowed: true

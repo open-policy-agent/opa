@@ -225,6 +225,19 @@ func TestTopDownPartialEval(t *testing.T) {
 			},
 		},
 		{
+			note:  "reference: default not required",
+			query: "data.test.p = true",
+			modules: []string{
+				`package test
+
+				default p = false
+				p {
+					input.x = 1
+				}`,
+			},
+			wantQueries: []string{`input.x = 1`},
+		},
+		{
 			note:  "namespace: complete",
 			query: "data.test.p = x",
 			modules: []string{
@@ -659,7 +672,7 @@ func TestTopDownPartialEval(t *testing.T) {
 				`package test
 				default p = false
 				p { q = true; s } # using q = true syntax to avoid dealing with implicit != false expr
-				default q = false
+				default q = true  # same value as expr above so default must be kept
 				q { r }
 				r { input.x = 1 }
 				r { input.y = 2 }
@@ -672,7 +685,7 @@ func TestTopDownPartialEval(t *testing.T) {
 				`package partial.test
 				q = true { input.x = 1 }
 				q = true { input.y = 2 }
-				default q = false
+				default q = true
 				p = true { data.partial.test.q = true; input.z = 3 }
 				default p = false
 				`,
