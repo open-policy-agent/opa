@@ -912,6 +912,21 @@ func TestTopDownPartialEval(t *testing.T) {
 			},
 			wantQueries: []string{`input.foo = 1; input = {"foo": 1}`},
 		},
+		{
+			note:  "copy propagation: remove equal(A,A) nop",
+			query: "data.test.p == 100",
+			modules: []string{
+				`package test
+
+				p = x {
+					input = x
+					x = 100
+				}`,
+			},
+			wantQueries: []string{
+				"input = 100",
+			},
+		},
 	}
 
 	ctx := context.Background()

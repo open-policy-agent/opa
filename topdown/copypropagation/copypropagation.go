@@ -208,11 +208,8 @@ func (p *CopyPropagator) updateBindings(bindings map[ast.Var]*binding, uf *union
 			bindings[k] = newbinding(k, ast.CallTerm(terms[:len(terms)-1]...).Value)
 			return false
 		}
-	} else {
-		term := expr.Terms.(*ast.Term)
-		return !ast.IsConstant(term.Value) || ast.BooleanTerm(false).Equal(term)
 	}
-	return true
+	return !isNoop(expr)
 }
 
 func (p *CopyPropagator) updateBindingsEq(a, b *ast.Term) (ast.Var, ast.Value, bool) {
@@ -335,4 +332,22 @@ func (r *unionFindRoot) Value() ast.Value {
 		return r.constant.Value
 	}
 	return r.key
+}
+
+func isNoop(expr *ast.Expr) bool {
+
+	if !expr.IsCall() {
+		term := expr.Terms.(*ast.Term)
+		if !ast.IsConstant(term.Value) {
+			return false
+		}
+		return !ast.Boolean(false).Equal(term.Value)
+	}
+
+	// A==A can be ignored
+	if expr.Operator().Equal(ast.Equal.Ref()) {
+		return expr.Operand(0).Equal(expr.Operand(1))
+	}
+
+	return false
 }
