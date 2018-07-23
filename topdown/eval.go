@@ -1441,11 +1441,20 @@ func (e evalVirtualComplete) eval(iter unifyIterator) error {
 		return e.evalValue(iter)
 	}
 
-	if e.ir.Default == nil {
-		return e.partialEval(iter)
+	if e.ir.Default != nil {
+		rterm := e.rbindings.Plug(e.rterm)
+
+		// If the other term is not constant OR it's equal to the default value, then
+		// a support rule must be produced as the default value _may_ be required. On
+		// the other hand, if the other term is constant (i.e., it does not require
+		// evaluation) and it differs from the default value then the default value is
+		// _not_ required, so partially evaluate the rule normally.
+		if !ast.IsConstant(rterm.Value) || e.ir.Default.Head.Value.Equal(rterm) {
+			return e.partialEvalDefault(iter)
+		}
 	}
 
-	return e.partialEvalDefault(iter)
+	return e.partialEval(iter)
 }
 
 func (e evalVirtualComplete) evalValue(iter unifyIterator) error {
