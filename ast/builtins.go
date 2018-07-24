@@ -146,6 +146,9 @@ var DefaultBuiltins = [...]*Builtin{
 	// HTTP
 	HTTPSend,
 
+	// Rego
+	RegoParseModule,
+
 	// Tracing
 	Trace,
 }
@@ -1131,6 +1134,23 @@ var HTTPSend = &Builtin{
 			types.NewObject(nil, types.NewDynamicProperty(types.S, types.A)),
 		),
 		types.NewObject(nil, types.NewDynamicProperty(types.A, types.A)),
+	),
+}
+
+/**
+ * Rego
+ */
+
+// RegoParseModule parses the input Rego file and returns a JSON representation
+// of the AST.
+var RegoParseModule = &Builtin{
+	Name: "rego.parse_module",
+	Decl: types.NewFunction(
+		types.Args(
+			types.S,
+			types.S,
+		),
+		types.NewObject(nil, types.NewDynamicProperty(types.S, types.A)), // TODO(tsandall): import AST schema
 	),
 }
 
