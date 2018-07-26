@@ -38,5 +38,20 @@ func ExampleREPL_OneShot() {
 	fmt.Println(buf.String())
 
 	// Output:
-	// true
+	// {
+	//   "result": [
+	//     {
+	//       "expressions": [
+	//         {
+	//           "value": true,
+	//           "text": "p",
+	//           "location": {
+	//             "row": 1,
+	//             "col": 1
+	//           }
+	//         }
+	//       ]
+	//     }
+	//   ]
+	// }
 }
