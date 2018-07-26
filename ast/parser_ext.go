@@ -467,12 +467,7 @@ func ParseStatements(filename, input string) ([]Statement, []*Comment, error) {
 
 	parsed, err := Parse(filename, bs, GlobalStore(filenameKey, filename), CommentsOption())
 	if err != nil {
-		switch err := err.(type) {
-		case errList:
-			return nil, nil, convertErrList(filename, bs, err)
-		default:
-			return nil, nil, err
-		}
+		return nil, nil, formatParserErrors(filename, bs, err)
 	}
 
 	var comments []*Comment
@@ -500,15 +495,14 @@ func ParseStatements(filename, input string) ([]Statement, []*Comment, error) {
 	return stmts, comments, postProcess(filename, stmts)
 }
 
-func convertErrList(filename string, bs []byte, errs errList) error {
+func formatParserErrors(filename string, bs []byte, err error) error {
+	// Errors returned by the parser are always of type errList and the errList
+	// always contains *parserError.
+	// https://godoc.org/github.com/mna/pigeon#hdr-Error_reporting.
+	errs := err.(errList)
 	r := make(Errors, len(errs))
 	for i, e := range errs {
-		switch e := e.(type) {
-		case *parserError:
-			r[i] = formatParserError(filename, bs, e)
-		default:
-			r[i] = NewError(ParseErr, nil, e.Error())
-		}
+		r[i] = formatParserError(filename, bs, e.(*parserError))
 	}
 	return r
 }
