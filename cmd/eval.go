@@ -139,6 +139,12 @@ Set the output format with the --format flag.
 			if params.stdinInput && params.inputPath != "" {
 				return errors.New("specify --stdin-input or --input but not both")
 			}
+			if params.profileLimit.isFlagSet() || params.profileCriteria.isFlagSet() {
+				params.profile = true
+			}
+			if params.profile {
+				params.metrics = true
+			}
 			return nil
 		},
 		Run: func(cmd *cobra.Command, args []string) {
@@ -191,11 +197,6 @@ func eval(args []string, params evalCommandParams) (err error) {
 		regoArgs = append(regoArgs, rego.Package(params.pkg))
 	}
 
-	// include metrics as part of the profiler result
-	if isProfilingEnabled(params) {
-		params.metrics = true
-	}
-
 	if len(params.dataPaths.v) > 0 {
 
 		f := loaderFilter{
@@ -239,7 +240,7 @@ func eval(args []string, params evalCommandParams) (err error) {
 	}
 
 	var p *profiler.Profiler
-	if isProfilingEnabled(params) {
+	if params.profile {
 		p = profiler.New()
 		regoArgs = append(regoArgs, rego.Tracer(p))
 	}
@@ -261,7 +262,7 @@ func eval(args []string, params evalCommandParams) (err error) {
 		result.Metrics = m
 	}
 
-	if isProfilingEnabled(params) {
+	if params.profile {
 		var sortOrder = defaultSortOrder
 
 		if len(params.profileCriteria.v) != 0 {
@@ -298,13 +299,6 @@ func getProfileSortOrder(sortOrder []string) []string {
 		}
 	}
 	return sortOrder
-}
-
-func isProfilingEnabled(params evalCommandParams) bool {
-	if params.profile || params.profileCriteria.isFlagSet() || params.profileLimit.isFlagSet() {
-		return true
-	}
-	return false
 }
 
 func readInputBytes(params evalCommandParams) ([]byte, error) {
