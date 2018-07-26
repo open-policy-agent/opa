@@ -6,6 +6,7 @@
 package metrics
 
 import (
+	"encoding/json"
 	"time"
 
 	go_metrics "github.com/rcrowley/go-metrics"
@@ -29,6 +30,7 @@ type Metrics interface {
 	Counter(name string) Counter
 	All() map[string]interface{}
 	Clear()
+	json.Marshaler
 }
 
 type metrics struct {
@@ -42,6 +44,10 @@ func New() Metrics {
 	m := &metrics{}
 	m.Clear()
 	return m
+}
+
+func (m *metrics) MarshalJSON() ([]byte, error) {
+	return json.Marshal(m.All())
 }
 
 func (m *metrics) Timer(name string) Timer {
