@@ -524,6 +524,10 @@ func makeRawString(loc *Location, text interface{}) (interface{}, error) {
 	return StringTerm(s).SetLocation(loc), nil
 }
 
+func makeNonterminatedString(loc *Location, s string) (interface{}, error) {
+	return StringTerm(s).SetLocation(loc), fmt.Errorf("found non-terminated string literal")
+}
+
 func makeBool(loc *Location, text interface{}) (interface{}, error) {
 	var term *Term
 	if string(text.([]byte)) == "true" {

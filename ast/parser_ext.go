@@ -12,6 +12,8 @@ package ast
 
 import (
 	"fmt"
+	"strings"
+	"unicode"
 
 	"github.com/pkg/errors"
 )
@@ -461,11 +463,13 @@ func CommentsOption() Option {
 // This is the default return value from the parser.
 func ParseStatements(filename, input string) ([]Statement, []*Comment, error) {
 
-	parsed, err := Parse(filename, []byte(input), GlobalStore(filenameKey, filename), CommentsOption())
+	bs := []byte(input)
+
+	parsed, err := Parse(filename, bs, GlobalStore(filenameKey, filename), CommentsOption())
 	if err != nil {
 		switch err := err.(type) {
 		case errList:
-			return nil, nil, convertErrList(filename, err)
+			return nil, nil, convertErrList(filename, bs, err)
 		default:
 			return nil, nil, err
 		}
@@ -496,12 +500,12 @@ func ParseStatements(filename, input string) ([]Statement, []*Comment, error) {
 	return stmts, comments, postProcess(filename, stmts)
 }
 
-func convertErrList(filename string, errs errList) error {
+func convertErrList(filename string, bs []byte, errs errList) error {
 	r := make(Errors, len(errs))
 	for i, e := range errs {
 		switch e := e.(type) {
 		case *parserError:
-			r[i] = formatParserError(filename, e)
+			r[i] = formatParserError(filename, bs, e)
 		default:
 			r[i] = NewError(ParseErr, nil, e.Error())
 		}
@@ -509,9 +513,19 @@ func convertErrList(filename string, errs errList) error {
 	return r
 }
 
-func formatParserError(filename string, e *parserError) *Error {
+func formatParserError(filename string, bs []byte, e *parserError) *Error {
 	loc := NewLocation(nil, filename, e.pos.line, e.pos.col)
-	return NewError(ParseErr, loc, e.Inner.Error())
+	inner := e.Inner.Error()
+	idx := strings.Index(inner, "no match found")
+	if idx >= 0 {
+		// Match errors end with "no match found, expected: ...". We do not want to
+		// include ", expected: ..." as it does not provide any value, so truncate the
+		// string here.
+		inner = inner[:idx+14]
+	}
+	err := NewError(ParseErr, loc, inner)
+	err.Details = newParserErrorDetail(bs, e.pos)
+	return err
 }
 
 func parseModule(stmts []Statement, comments []*Comment) (*Module, error) {
@@ -686,4 +700,26 @@ func (vt *varToRefTransformer) Transform(x interface{}) (interface{}, error) {
 		}
 	}
 	return x, nil
+}
+
+type parserErrorDetail struct {
+	line string
+	idx  int
+}
+
+func newParserErrorDetail(bs []byte, pos position) *parserErrorDetail {
+	lines := strings.Split(string(bs), "\n")
+	line := lines[pos.line-1]
+	idx := pos.col - 1
+	for (idx >= len(line) || unicode.IsSpace(rune(line[idx]))) && idx > 0 {
+		idx--
+	}
+	return &parserErrorDetail{
+		line: lines[pos.line-1],
+		idx:  idx,
+	}
+}
+
+func (d parserErrorDetail) Lines() []string {
+	return []string{d.line, strings.Repeat(" ", d.idx) + "^"}
 }

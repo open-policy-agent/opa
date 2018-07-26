@@ -643,9 +643,9 @@ func TestImport(t *testing.T) {
 	assertParseImport(t, "single alias", "import input.foo as bar", &Import{Path: foo, Alias: Var("bar")})
 	assertParseImport(t, "multiple alias", "import input.foo.bar.baz as qux", &Import{Path: foobarbaz, Alias: Var("qux")})
 	assertParseImport(t, "white space", "import input.foo.bar[\"white space\"]", &Import{Path: whitespace})
-	assertParseErrorEquals(t, "non-ground ref", "import data.foo[x]", "rego_parse_error: invalid path data.foo[x]: path elements must be strings")
-	assertParseErrorEquals(t, "non-string", "import input.foo[0]", "rego_parse_error: invalid path input.foo[0]: path elements must be strings")
-	assertParseErrorEquals(t, "unknown root", "import foo.bar", "rego_parse_error: invalid path foo.bar: path must begin with input or data")
+	assertParseErrorContains(t, "non-ground ref", "import data.foo[x]", "rego_parse_error: invalid path data.foo[x]: path elements must be strings")
+	assertParseErrorContains(t, "non-string", "import input.foo[0]", "rego_parse_error: invalid path input.foo[0]: path elements must be strings")
+	assertParseErrorContains(t, "unknown root", "import foo.bar", "rego_parse_error: invalid path foo.bar: path must begin with input or data")
 }
 
 func TestIsValidImportPath(t *testing.T) {
@@ -847,11 +847,11 @@ func TestRule(t *testing.T) {
 		Body: NewBody(NewExpr(BooleanTerm(true))),
 	})
 
-	assertParseErrorEquals(t, "empty body", `f(_) = y {}`, "rego_parse_error: body must be non-empty")
-	assertParseErrorEquals(t, "object composite key", "p[[x,y]] = z { true }", "rego_parse_error: object key must be string, var, or ref, not array")
-	assertParseErrorEquals(t, "default ref value", "default p = [data.foo]", "rego_parse_error: default rule value cannot contain ref")
-	assertParseErrorEquals(t, "default var value", "default p = [x]", "rego_parse_error: default rule value cannot contain var")
-	assertParseErrorEquals(t, "empty rule body", "p {}", "rego_parse_error: body must be non-empty")
+	assertParseErrorContains(t, "empty body", `f(_) = y {}`, "rego_parse_error: found empty body")
+	assertParseErrorContains(t, "object composite key", "p[[x,y]] = z { true }", "rego_parse_error: object key must be string, var, or ref, not array")
+	assertParseErrorContains(t, "default ref value", "default p = [data.foo]", "rego_parse_error: default rule value cannot contain ref")
+	assertParseErrorContains(t, "default var value", "default p = [x]", "rego_parse_error: default rule value cannot contain var")
+	assertParseErrorContains(t, "empty rule body", "p {}", "rego_parse_error: found empty body")
 
 	assertParseErrorContains(t, "no output", `f(_) = { "foo" = "bar" }`, "rego_parse_error: no match found")
 	assertParseErrorContains(t, "unmatched braces", `f(x) = y { trim(x, ".", y) `, "rego_parse_error: no match found")
@@ -1407,8 +1407,74 @@ func TestNoMatchError(t *testing.T) {
 
 	loc := NewLocation(nil, "foo.rego", 3, 12)
 
-	if err.(Errors)[0].Location.File != "foo.rego" || err.(Errors)[0].Location.Row != 3 {
+	if !loc.Equal(err.(Errors)[0].Location) {
 		t.Fatalf("Expected %v but got: %v", loc, err)
+	}
+}
+
+func TestParseErrorDetails(t *testing.T) {
+
+	tests := []struct {
+		note  string
+		exp   *parserErrorDetail
+		input string
+	}{
+		{
+			note: "no match: bad termination for comprehension",
+			exp: &parserErrorDetail{
+				line: "p = [true | true}",
+				idx:  16,
+			},
+			input: `
+package test
+p = [true | true}`},
+		{
+			note: "no match: non-terminated comprehension",
+			exp: &parserErrorDetail{
+				line: "p = [true | true",
+				idx:  15,
+			},
+			input: `
+package test
+p = [true | true`},
+		{
+			note: "no match: expected expression",
+			exp: &parserErrorDetail{
+				line: "p { true; }",
+				idx:  10,
+			},
+			input: `
+package test
+p { true; }`},
+		{
+			note: "empty body",
+			exp: &parserErrorDetail{
+				line: "p { }",
+				idx:  2,
+			},
+			input: `
+package test
+p { }`},
+		{
+			note: "non-terminated string",
+			exp: &parserErrorDetail{
+				line: `p = "foo`,
+				idx:  4,
+			},
+			input: `
+package test
+p = "foo`},
+	}
+
+	for _, tc := range tests {
+		_, err := ParseModule("test.rego", tc.input)
+		if err == nil {
+			t.Fatal("Expected error")
+		}
+		detail := err.(Errors)[0].Details
+		if !reflect.DeepEqual(detail, tc.exp) {
+			t.Fatalf("Expected %v but got: %v", tc.exp, detail)
+		}
 	}
 }
 
