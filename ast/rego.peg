@@ -12,7 +12,7 @@ Stmt <- val:(Package / Import / Rules / Body / Comment) {
 
 Package <- "package" ws val:(Ref / Var) {
     return makePackage(currentLocation(c), val)
-        }
+}
 
 Import <- "import" ws path:(Ref / Var) alias:(ws "as" ws Var)? {
     return makeImport(currentLocation(c), path, alias)
@@ -50,7 +50,7 @@ Body <- NonWhitespaceBody / BraceEnclosedBody
 
 NonEmptyBraceEnclosedBody <- "{" _ val:WhitespaceBody? _ "}" {
     if val == nil {
-        panic("body must be non-empty")
+        return NewBody(), fmt.Errorf("found empty body")
     }
     return val, nil
 }
@@ -248,6 +248,8 @@ String <- QuotedString / RawString
 
 QuotedString <- '"' Char* '"' {
     return makeString(currentLocation(c), c.text)
+} / '"' Char* !'"' {
+    return makeNonterminatedString(currentLocation(c), string(c.text))
 }
 
 RawString <- '`' [^`]* '`' {
