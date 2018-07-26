@@ -10,64 +10,139 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"os"
 	"sort"
 	"strconv"
 	"time"
 
 	"github.com/olekukonko/tablewriter"
+	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/profiler"
 	"github.com/open-policy-agent/opa/rego"
+	"github.com/open-policy-agent/opa/topdown"
 )
 
-// EvalResult holds the results from evaluation, profiling and metrics.
-type EvalResult struct {
-	Result      rego.ResultSet         `json:"result,omitempty"`
-	Explanation []string               `json:"explanation,omitempty"`
-	Metrics     map[string]interface{} `json:"metrics,omitempty"`
-	Profile     []profiler.ExprStats   `json:"profile,omitempty"`
+// Output contains the result of evaluation to be presented.
+type Output struct {
+	Error       error                `json:"error,omitempty"`
+	Result      rego.ResultSet       `json:"result,omitempty"`
+	Metrics     metrics.Metrics      `json:"metrics,omitempty"`
+	Explanation []*topdown.Event     `json:"explanation,omitempty"`
+	Profile     []profiler.ExprStats `json:"profile,omitempty"`
+	limit       int
 }
 
-// PrintJSON prints indented json output.
-func PrintJSON(writer io.Writer, x interface{}) error {
-	buf, err := json.MarshalIndent(x, "", "  ")
-	if err != nil {
-		return err
+// WithLimit sets the output limit to set on stringified values.
+func (e Output) WithLimit(n int) Output {
+	e.limit = n
+	return e
+}
+
+// JSON writes x to w with indentation.
+func JSON(w io.Writer, x interface{}) error {
+	encoder := json.NewEncoder(w)
+	encoder.SetIndent("", "  ")
+	return encoder.Encode(x)
+}
+
+// Bindings prints the bindings from r to w.
+func Bindings(w io.Writer, r Output) error {
+	if r.Error != nil {
+		return prettyError(w, r.Error)
 	}
-	fmt.Fprintln(writer, string(buf))
+	for _, rs := range r.Result {
+		if err := JSON(w, rs.Bindings); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
-// PrintPretty prints expressions, bindings, metrics and profiling output
-// in a tabular format.
-func PrintPretty(writer io.Writer, result EvalResult, prettyLimit int) {
-	PrintPrettyBinding(writer, result, prettyLimit)
-	PrintPrettyMetrics(writer, result, prettyLimit)
-	PrintPrettyProfile(writer, result)
+// Values prints the values from r to w.
+func Values(w io.Writer, r Output) error {
+	if r.Error != nil {
+		return prettyError(w, r.Error)
+	}
+	for _, rs := range r.Result {
+		line := make([]interface{}, len(rs.Expressions))
+		for i := range line {
+			line[i] = rs.Expressions[i].Value
+		}
+		if err := JSON(os.Stdout, line); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
-// PrintPrettyBinding prints bindings in a tabular format
-func PrintPrettyBinding(writer io.Writer, result EvalResult, prettyLimit int) {
-	keys := generateResultKeys(result.Result)
-	tableBindings := generateTableBindings(writer, keys, result, prettyLimit)
+// Pretty prints all of r to w in a human-readable format.
+func Pretty(w io.Writer, r Output) error {
+	if len(r.Explanation) > 0 {
+		if err := prettyExplanation(w, r.Explanation); err != nil {
+			return err
+		}
+	}
+	if r.Error != nil {
+		if err := prettyError(w, r.Error); err != nil {
+			return err
+		}
+	} else {
+		if err := prettyResult(w, r.Result, r.limit); err != nil {
+			return err
+		}
+	}
+	if r.Metrics != nil {
+		if err := prettyMetrics(w, r.Metrics, r.limit); err != nil {
+			return err
+		}
+	}
+	if len(r.Profile) > 0 {
+		if err := prettyProfile(w, r.Profile); err != nil {
+			return err
+		}
+	}
+	return nil
+}
 
+func prettyError(w io.Writer, err error) error {
+	_, err = fmt.Fprintln(w, err)
+	return err
+}
+
+func prettyResult(w io.Writer, rs rego.ResultSet, limit int) error {
+
+	if len(rs) == 0 {
+		fmt.Fprintln(w, "undefined")
+		return nil
+	}
+
+	if len(rs) == 1 {
+		if len(rs[0].Bindings) == 0 && len(rs[0].Expressions) == 1 {
+			return JSON(w, rs[0].Expressions[0].Value)
+		}
+	}
+
+	keys := generateResultKeys(rs)
+	tableBindings := generateTableBindings(w, keys, rs, limit)
 	if tableBindings.NumLines() > 0 {
 		tableBindings.Render()
 	}
+
+	return nil
 }
 
-// PrintPrettyMetrics prints metrics in a tabular format
-func PrintPrettyMetrics(writer io.Writer, result EvalResult, prettyLimit int) {
-	tableMetrics := generateTableMetrics(writer)
-	populateTableMetrics(result.Metrics, tableMetrics, prettyLimit)
+func prettyMetrics(w io.Writer, m metrics.Metrics, limit int) error {
+	tableMetrics := generateTableMetrics(w)
+	populateTableMetrics(m, tableMetrics, limit)
 	if tableMetrics.NumLines() > 0 {
 		tableMetrics.Render()
 	}
+	return nil
 }
 
-// PrintPrettyProfile prints profiling stats in a tabular format
-func PrintPrettyProfile(writer io.Writer, result EvalResult) {
-	tableProfile := generateTableProfile(writer)
-	for _, rs := range result.Profile {
+func prettyProfile(w io.Writer, profile []profiler.ExprStats) error {
+	tableProfile := generateTableProfile(w)
+	for _, rs := range profile {
 		line := []string{}
 		timeNs := time.Duration(rs.ExprTimeNs) * time.Nanosecond
 		timeNsStr := timeNs.String()
@@ -80,6 +155,12 @@ func PrintPrettyProfile(writer io.Writer, result EvalResult) {
 	if tableProfile.NumLines() > 0 {
 		tableProfile.Render()
 	}
+	return nil
+}
+
+func prettyExplanation(w io.Writer, explanation []*topdown.Event) error {
+	topdown.PrettyTrace(w, explanation)
+	return nil
 }
 
 func checkStrLimit(input string, limit int) string {
@@ -90,7 +171,7 @@ func checkStrLimit(input string, limit int) string {
 	return input
 }
 
-func generateTableBindings(writer io.Writer, keys []resultKey, result EvalResult, prettyLimit int) *tablewriter.Table {
+func generateTableBindings(writer io.Writer, keys []resultKey, rs rego.ResultSet, prettyLimit int) *tablewriter.Table {
 	table := tablewriter.NewWriter(writer)
 	table.SetAlignment(tablewriter.ALIGN_CENTER)
 	table.SetAutoFormatHeaders(false)
@@ -105,7 +186,7 @@ func generateTableBindings(writer io.Writer, keys []resultKey, result EvalResult
 	}
 	table.SetColumnAlignment(alignment)
 
-	for _, row := range result.Result {
+	for _, row := range rs {
 		printPrettyRow(table, keys, row, prettyLimit)
 	}
 	return table
@@ -145,9 +226,9 @@ func generateTableProfile(writer io.Writer) *tablewriter.Table {
 	return table
 }
 
-func populateTableMetrics(data map[string]interface{}, table *tablewriter.Table, prettyLimit int) {
+func populateTableMetrics(m metrics.Metrics, table *tablewriter.Table, prettyLimit int) {
 	lines := [][]string{}
-	for varName, varValueInterface := range data {
+	for varName, varValueInterface := range m.All() {
 		val, ok := varValueInterface.(map[string]interface{})
 		if !ok {
 			line := []string{}

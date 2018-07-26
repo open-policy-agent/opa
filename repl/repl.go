@@ -804,46 +804,27 @@ func (r *REPL) evalBody(ctx context.Context, compiler *ast.Compiler, input ast.V
 
 	rs, err := eval.Eval(ctx)
 
-	result := pr.EvalResult{
-		Result: rs,
+	output := pr.Output{
+		Error:   err,
+		Result:  rs,
+		Metrics: r.metrics,
 	}
+
+	output = output.WithLimit(r.prettyLimit)
 
 	if buf != nil {
-		r.printTrace(ctx, compiler, *buf)
+		mangleTrace(ctx, r.store, r.txn, *buf)
+		output.Explanation = *buf
 	}
 
-	if r.metrics != nil {
-		result.Metrics = r.metrics.All()
+	// TODO(tsandall): add profiler output
+
+	switch r.outputFormat {
+	case "json":
+		return pr.JSON(r.output, output)
+	default:
+		return pr.Pretty(r.output, output)
 	}
-
-	if err != nil {
-		if r.metrics != nil {
-			r.printMetrics(r.metrics, result)
-		}
-		return err
-	}
-
-	if len(rs) == 0 {
-		if r.metrics != nil {
-			r.printMetrics(r.metrics, result)
-		}
-		fmt.Fprintln(r.output, "undefined")
-		return nil
-	}
-
-	if len(rs) == 1 {
-		if len(rs[0].Bindings) == 0 && len(rs[0].Expressions) == 1 {
-			if r.metrics != nil {
-				r.printMetrics(r.metrics, result)
-			}
-
-			r.printJSON(rs[0].Expressions[0].Value)
-			return nil
-		}
-	}
-
-	r.printResults(result)
-	return nil
 }
 
 func (r *REPL) evalPartial(ctx context.Context, compiler *ast.Compiler, input ast.Value, body ast.Body) error {
@@ -957,28 +938,10 @@ func (r *REPL) loadModules(ctx context.Context, txn storage.Transaction) (map[st
 	return modules, nil
 }
 
-func (r *REPL) printResults(result pr.EvalResult) {
-	switch r.outputFormat {
-	case "json":
-		if r.metrics != nil {
-			r.printMetrics(r.metrics, result)
-		}
-
-		output := make([]map[string]interface{}, len(result.Result))
-		for i := range output {
-			output[i] = result.Result[i].Bindings
-		}
-		r.printJSON(output)
-	default:
-		r.printPretty(result)
-	}
-}
-
 func (r *REPL) printPartialResults(pq *rego.PartialQueries) {
-
 	switch r.outputFormat {
 	case "json":
-		r.printJSON(pq)
+		pr.JSON(r.output, pq)
 	default:
 		r.printPartialPretty(pq)
 	}
@@ -997,30 +960,8 @@ func (r *REPL) printPartialPretty(pq *rego.PartialQueries) {
 	}
 }
 
-func (r *REPL) printJSON(x interface{}) {
-	err := pr.PrintJSON(r.output, x)
-	if err != nil {
-		fmt.Fprintln(r.output, err)
-		return
-	}
-}
-
-func (r *REPL) printPretty(result pr.EvalResult) {
-	pr.PrintPretty(r.output, result, r.prettyLimit)
-}
-
 func (r *REPL) printTrace(ctx context.Context, compiler *ast.Compiler, trace []*topdown.Event) {
-	mangleTrace(ctx, r.store, r.txn, trace)
 	topdown.PrettyTrace(r.output, trace)
-}
-
-func (r *REPL) printMetrics(metrics metrics.Metrics, result pr.EvalResult) {
-	switch r.outputFormat {
-	case "json":
-		r.printMetricsJSON(metrics)
-	default:
-		pr.PrintPrettyMetrics(r.output, result, r.prettyLimit)
-	}
 }
 
 func (r *REPL) printMetricsJSON(metrics metrics.Metrics) {

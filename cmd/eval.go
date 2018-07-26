@@ -5,7 +5,6 @@
 package cmd
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"io/ioutil"
@@ -247,24 +246,19 @@ func eval(args []string, params evalCommandParams) (err error) {
 
 	eval := rego.New(regoArgs...)
 	ctx := context.Background()
-
 	rs, err := eval.Eval(ctx)
-	if err != nil {
-		return err
-	}
 
-	result := pr.EvalResult{
+	result := pr.Output{
+		Error:  err,
 		Result: rs,
 	}
 
-	if params.explain.String() != explainModeOff {
-		var traceBuffer bytes.Buffer
-		topdown.PrettyTrace(&traceBuffer, *tracer)
-		result.Explanation = strings.Split(traceBuffer.String(), "\n")
+	if tracer != nil {
+		result.Explanation = *tracer
 	}
 
-	if params.metrics {
-		result.Metrics = m.All()
+	if m != nil {
+		result.Metrics = m
 	}
 
 	if isProfilingEnabled(params) {
@@ -279,35 +273,14 @@ func eval(args []string, params evalCommandParams) (err error) {
 
 	switch params.outputFormat.String() {
 	case evalBindingsOutput:
-		for _, rs := range result.Result {
-			err := pr.PrintJSON(os.Stdout, rs.Bindings)
-			if err != nil {
-				return err
-			}
-		}
+		return pr.Bindings(os.Stdout, result)
 	case evalValuesOutput:
-		for _, rs := range result.Result {
-			line := make([]interface{}, len(rs.Expressions))
-			for i := range line {
-				line[i] = rs.Expressions[i].Value
-			}
-			err := pr.PrintJSON(os.Stdout, line)
-			if err != nil {
-				return err
-			}
-		}
+		return pr.Values(os.Stdout, result)
 	case evalPrettyOutput:
-		err := generateResultTable(result, params)
-		if err != nil {
-			return err
-		}
+		return pr.Pretty(os.Stdout, result)
 	default:
-		err := pr.PrintJSON(os.Stdout, result)
-		if err != nil {
-			return err
-		}
+		return pr.JSON(os.Stdout, result)
 	}
-	return nil
 }
 
 func getProfileSortOrder(sortOrder []string) []string {
@@ -332,26 +305,6 @@ func isProfilingEnabled(params evalCommandParams) bool {
 		return true
 	}
 	return false
-}
-
-func generateResultTable(result pr.EvalResult, params evalCommandParams) error {
-
-	if len(result.Result) == 1 {
-		if len(result.Result[0].Bindings) == 0 && len(result.Result[0].Expressions) == 1 {
-			err := pr.PrintJSON(os.Stdout, result.Result[0].Expressions[0].Value)
-			if err != nil {
-				return err
-			}
-
-			if isProfilingEnabled(params) {
-				pr.PrintPrettyProfile(os.Stdout, result)
-				pr.PrintPrettyMetrics(os.Stdout, result, params.prettyLimit.v)
-			}
-			return nil
-		}
-	}
-	pr.PrintPretty(os.Stdout, result, params.prettyLimit.v)
-	return nil
 }
 
 func readInputBytes(params evalCommandParams) ([]byte, error) {
