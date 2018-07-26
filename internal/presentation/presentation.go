@@ -116,8 +116,8 @@ func prettyResult(w io.Writer, rs rego.ResultSet, limit int) error {
 		return nil
 	}
 
-	if len(rs) == 1 {
-		if len(rs[0].Bindings) == 0 && len(rs[0].Expressions) == 1 {
+	if len(rs) == 1 && len(rs[0].Bindings) == 0 {
+		if len(rs[0].Expressions) == 1 || allBoolean(rs[0].Expressions) {
 			return JSON(w, rs[0].Expressions[0].Value)
 		}
 	}
@@ -312,4 +312,13 @@ func generateResultKeys(rs rego.ResultSet) []resultKey {
 		})
 	}
 	return keys
+}
+
+func allBoolean(ev []*rego.ExpressionValue) bool {
+	for i := range ev {
+		if _, ok := ev[i].Value.(bool); !ok {
+			return false
+		}
+	}
+	return true
 }
