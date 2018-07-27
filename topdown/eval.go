@@ -191,26 +191,7 @@ func (e *eval) evalStep(index int, iter evalIterator) error {
 				return err
 			})
 		} else {
-
-			if e.partial() {
-				// Check if call can be evaluated during partial eval. Some
-				// calls, such as time.now_ns() should not be evaluated during
-				// partial evaluation.
-				mustSave := false
-				for _, bi := range ast.IgnoreDuringPartialEval {
-					if bi.Ref().Equal(terms[0].Value) {
-						mustSave = true
-						break
-					}
-				}
-				if mustSave || e.saveSet.ContainsRecursiveAny(plugSlice(terms[1:], e.bindings)) {
-					return e.saveCall(terms[0], terms[1:len(terms)-1], terms[len(terms)-1], func() error {
-						return e.evalExpr(index+1, iter)
-					})
-				}
-			}
-
-			err = e.evalCall(index, terms[0], terms[1:], func() error {
+			err = e.evalCall(index, terms, func() error {
 				defined = true
 				err := e.evalExpr(index+1, iter)
 				e.traceRedo(expr)
@@ -372,9 +353,9 @@ func (e *eval) evalNotPartial(index int, iter evalIterator) error {
 	return e.evalExpr(index+1, iter)
 }
 
-func (e *eval) evalCall(index int, operator *ast.Term, terms []*ast.Term, iter unifyIterator) error {
+func (e *eval) evalCall(index int, terms []*ast.Term, iter unifyIterator) error {
 
-	ref := operator.Value.(ast.Ref)
+	ref := terms[0].Value.(ast.Ref)
 
 	if ref[0].Equal(ast.DefaultRootDocument) {
 		eval := evalFunc{
@@ -388,6 +369,23 @@ func (e *eval) evalCall(index int, operator *ast.Term, terms []*ast.Term, iter u
 	bi := ast.BuiltinMap[ref.String()]
 	if bi == nil {
 		return unsupportedBuiltinErr(e.query[index].Location)
+	}
+
+	if e.partial() {
+		// Check if call can be evaluated during partial eval. Some
+		// calls, such as time.now_ns() should not be evaluated during
+		// partial evaluation.
+		mustSave := false
+		for _, ignore := range ast.IgnoreDuringPartialEval {
+			if bi == ignore {
+				mustSave = true
+				break
+			}
+		}
+		if mustSave || e.saveSet.ContainsRecursiveAny(plugSlice(terms[1:], e.bindings)) {
+			return e.saveCall(len(bi.Decl.Args()), terms, iter)
+
+		}
 	}
 
 	f := builtinFunctions[bi.Name]
@@ -413,7 +411,7 @@ func (e *eval) evalCall(index int, operator *ast.Term, terms []*ast.Term, iter u
 		bi:    bi,
 		bctx:  bctx,
 		f:     f,
-		terms: terms,
+		terms: terms[1:],
 	}
 	return eval.eval(iter)
 }
@@ -738,18 +736,16 @@ func (e *eval) saveTerm(x *ast.Term, iter unifyIterator) error {
 	return iter()
 }
 
-func (e *eval) saveCall(operator *ast.Term, args []*ast.Term, result *ast.Term, iter unifyIterator) error {
-	terms := make([]*ast.Term, len(args)+2)
-	terms[0] = operator
-	for i := 1; i < len(terms)-1; i++ {
-		terms[i] = args[i-1]
-	}
-	terms[len(terms)-1] = result
+func (e *eval) saveCall(declArgsLen int, terms []*ast.Term, iter unifyIterator) error {
 	expr := ast.NewExpr(terms)
-	if ts := e.getSaveTerms(result); len(ts) > 0 {
-		elem := newSaveSetElem(ts)
-		e.saveSet.Push(elem)
-		defer e.saveSet.Pop()
+	// If call-site includes output value then partial eval must add vars in output
+	// position to the save set.
+	if declArgsLen == len(terms)-2 {
+		if ts := e.getSaveTerms(terms[len(terms)-1]); len(ts) > 0 {
+			elem := newSaveSetElem(ts)
+			e.saveSet.Push(elem)
+			defer e.saveSet.Pop()
+		}
 	}
 	e.saveStack.Push(expr, e.bindings, nil)
 	defer e.saveStack.Pop()
@@ -914,6 +910,12 @@ func (e evalFunc) eval(iter unifyIterator) error {
 		return nil
 	}
 
+	// Partial evaluation of ordered rules is not supported currently. Save the
+	// expression and continue. This could be revisited in the future.
+	if e.e.partial() && len(ir.Else) > 0 {
+		return e.e.saveCall(len(ir.Rules[0].Head.Args), e.terms, iter)
+	}
+
 	var prev *ast.Term
 
 	for i := range ir.Rules {
@@ -944,7 +946,7 @@ func (e evalFunc) evalOneRule(iter unifyIterator, rule *ast.Rule, prev *ast.Term
 
 	child := e.e.child(rule.Body)
 
-	args := make(ast.Array, len(e.terms))
+	args := make(ast.Array, len(e.terms)-1)
 
 	for i := range rule.Head.Args {
 		args[i] = rule.Head.Args[i]
@@ -958,12 +960,12 @@ func (e evalFunc) evalOneRule(iter unifyIterator, rule *ast.Rule, prev *ast.Term
 
 	child.traceEnter(rule)
 
-	err := child.biunifyArrays(e.terms, args, e.e.bindings, child.bindings, func() error {
+	err := child.biunifyArrays(e.terms[1:], args, e.e.bindings, child.bindings, func() error {
 		return child.eval(func(child *eval) error {
 			child.traceExit(rule)
 			result = child.bindings.Plug(rule.Head.Value)
 
-			if len(e.terms) == len(rule.Head.Args) {
+			if len(rule.Head.Args) == len(e.terms)-1 {
 				if result.Value.Compare(ast.Boolean(false)) == 0 {
 					return nil
 				}
