@@ -3,7 +3,45 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## 0.9.0
+
+### Major Features
+
+This release adds two major features to OPA itself.
+
+- Query Profiler: the `opa eval` subcommand now supports a `--profiler` option
+  to help policy authors understand the performance profile of their policies.
+  Give it a shot and let us know if you find it helpful or if you find cases
+  that could be improved!
+
+- Compile API: OPA now exposes Partial Evaluation with first-class interfaces.
+  In prior releases, Partial Evaluation was only used for optimizations
+  purposes. As of v0.9, callers can use Partial Evaluation via HTTP or Golang to
+  obtain conditional decisions that can be evaluated on the client-side.
+
+### Fixes
+
+- Add ADOPTERS.md file ([#691](https://github.com/open-policy-agent/opa/issues/691))
+- Add time.weekday builtin ([#789](https://github.com/open-policy-agent/opa/issues/789))
+- Fix REPL output for multiple bool exprs ([#850](https://github.com/open-policy-agent/opa/issues/850))
+- Remove support rule if default value is not needed ([#820](https://github.com/open-policy-agent/opa/issues/820))
+
+### Miscellaneous
+
+Here is a shortlist of notable miscellaenous improvements.
+
+- Add any/all built-in functions (thanks @vrnmthr)
+- Add built-in function to parse Rego modules
+- Add copy propagation optimization to partial evaluation output
+- Add docs for exercising policies with test framework
+- Add extra output formats to eval subcommand
+- Add support for providing input to eval via stdin
+- Improve parser error readability
+- Improve rule index to support unknown values
+- Rewrite == with = in compiler
+- Update build to enable CGO
+
+...along with 30+ other fixes and improvements.
 
 ## 0.8.2
 
