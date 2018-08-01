@@ -386,16 +386,26 @@ func runPartialEvalBenchmark(b *testing.B, numRoles int) {
 		b.Fatal(err)
 	}
 
-	if len(partials) != 1 {
+	if len(partials) != numRoles {
 		b.Fatal("Expected exactly one partial query result but got:", partials)
-	} else if len(support) != 1 {
-		b.Fatal("Expected exactly one partial support result but got:", support)
+	} else if len(support) != 0 {
+		b.Fatal("Expected no partial support results but got:", support)
+	}
+
+	module := ast.MustParseModule(`package partial.authz`)
+
+	for _, query := range partials {
+		rule := &ast.Rule{
+			Head:   ast.NewHead(ast.Var("allow"), nil, ast.BooleanTerm(true)),
+			Body:   query,
+			Module: module,
+		}
+		module.Rules = append(module.Rules, rule)
 	}
 
 	compiler = ast.NewCompiler()
 	compiler.Compile(map[string]*ast.Module{
-		"authz":   ast.MustParseModule(partialEvalBenchmarkPolicy),
-		"partial": support[0],
+		"partial": module,
 	})
 	if compiler.Failed() {
 		b.Fatal(compiler.Errors)
@@ -457,18 +467,29 @@ func runPartialEvalCompileBenchmark(b *testing.B, numRoles int) {
 				return err
 			}
 
-			if len(partials) != 1 {
+			if len(partials) != numRoles {
 				b.Fatal("Expected exactly one partial query result but got:", partials)
-			} else if len(support) != 1 {
-				b.Fatal("Expected exactly one partial support result but got:", support)
+			} else if len(support) != 0 {
+				b.Fatal("Expected no partial support results but got:", support)
 			}
 
 			// recompile output
+			module := ast.MustParseModule(`package partial.authz`)
+
+			for _, query := range partials {
+				rule := &ast.Rule{
+					Head:   ast.NewHead(ast.Var("allow"), nil, ast.BooleanTerm(true)),
+					Body:   query,
+					Module: module,
+				}
+				module.Rules = append(module.Rules, rule)
+			}
+
 			compiler = ast.NewCompiler()
 			compiler.Compile(map[string]*ast.Module{
-				"authz":   ast.MustParseModule(partialEvalBenchmarkPolicy),
-				"partial": support[0],
+				"test": module,
 			})
+
 			if compiler.Failed() {
 				b.Fatal(compiler.Errors)
 			}
