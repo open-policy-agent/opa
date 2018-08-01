@@ -37,7 +37,7 @@ export GO15VENDOREXPERIMENT
 ######################################################
 
 .PHONY: all
-all: deps build test check
+all: deps build test perf check
 
 .PHONY: version
 version:
