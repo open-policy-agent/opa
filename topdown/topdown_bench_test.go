@@ -374,7 +374,7 @@ func runPartialEvalBenchmark(b *testing.B, numRoles int) {
 
 	err := storage.Txn(ctx, store, storage.TransactionParams{}, func(txn storage.Transaction) error {
 		query := NewQuery(ast.MustParseBody("data.authz.allow = true")).
-			WithUnknowns([]*ast.Term{ast.InputRootDocument}).
+			WithUnknowns([]*ast.Term{ast.MustParseTerm("input")}).
 			WithCompiler(compiler).
 			WithStore(store).
 			WithTransaction(txn)
@@ -457,7 +457,7 @@ func runPartialEvalCompileBenchmark(b *testing.B, numRoles int) {
 			var partials []ast.Body
 			var support []*ast.Module
 			query := NewQuery(ast.MustParseBody("data.authz.allow = true")).
-				WithUnknowns([]*ast.Term{ast.InputRootDocument}).
+				WithUnknowns([]*ast.Term{ast.MustParseTerm("input")}).
 				WithCompiler(compiler).
 				WithStore(store).
 				WithTransaction(txn)

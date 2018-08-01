@@ -122,13 +122,14 @@ func (q *Query) PartialRun(ctx context.Context) (partials []ast.Body, support []
 		q.partialNamespace = "partial" // lazily initialize partial namespace
 	}
 	f := &queryIDFactory{}
+	b := newBindings(0, q.instr)
 	e := &eval{
 		ctx:           ctx,
 		cancel:        q.cancel,
 		query:         q.query,
 		queryIDFact:   f,
 		queryID:       f.Next(),
-		bindings:      newBindings(0, q.instr),
+		bindings:      b,
 		compiler:      q.compiler,
 		store:         q.store,
 		baseCache:     newBaseCache(),
@@ -138,7 +139,7 @@ func (q *Query) PartialRun(ctx context.Context) (partials []ast.Body, support []
 		instr:         q.instr,
 		builtinCache:  builtins.Cache{},
 		virtualCache:  newVirtualCache(),
-		saveSet:       newSaveSet(q.unknowns),
+		saveSet:       newSaveSet(q.unknowns, b),
 		saveStack:     newSaveStack(),
 		saveSupport:   newSaveSupport(),
 		saveNamespace: ast.StringTerm(q.partialNamespace),
