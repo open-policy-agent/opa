@@ -98,7 +98,7 @@ $(COVER_PACKAGES):
 
 .PHONY: perf
 perf: generate
-	$(GO) test -v -run=donotruntests -bench=. $(PACKAGES) | grep "^Benchmark"
+	$(GO) test -v -run=donotruntests -bench=. $(PACKAGES)
 
 .PHONY: perf-regression
 perf-regression:
