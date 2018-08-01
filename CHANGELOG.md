@@ -30,7 +30,7 @@ This release adds two major features to OPA itself.
 
 ### Miscellaneous
 
-Here is a shortlist of notable miscellaenous improvements.
+Here is a short list of notable miscellaneous improvements.
 
 - Add any/all built-in functions (thanks @vrnmthr)
 - Add built-in function to parse Rego modules
