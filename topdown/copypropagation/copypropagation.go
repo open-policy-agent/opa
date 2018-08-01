@@ -102,8 +102,14 @@ func (p *CopyPropagator) Apply(query ast.Body) (result ast.Body) {
 	// in the result. The plugging that happens above substitutes all vars in the
 	// same set with the root.
 	for _, v := range p.sorted {
-		if root, ok := uf.Find(v); ok && root.Value().Compare(v) != 0 {
-			result.Append(ast.Equality.Expr(ast.NewTerm(v), ast.NewTerm(root.Value())))
+		if root, ok := uf.Find(v); ok {
+			if root.constant != nil {
+				result.Append(ast.Equality.Expr(ast.NewTerm(v), root.constant))
+			} else if b, ok := bindings[root.key]; ok {
+				result.Append(ast.Equality.Expr(ast.NewTerm(v), ast.NewTerm(b.v)))
+			} else if root.key != v {
+				result.Append(ast.Equality.Expr(ast.NewTerm(v), ast.NewTerm(root.key)))
+			}
 		}
 	}
 

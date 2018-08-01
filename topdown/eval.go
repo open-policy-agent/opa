@@ -201,7 +201,7 @@ func (e *eval) evalStep(index int, iter evalIterator) error {
 	case *ast.Term:
 		rterm := e.generateVar(fmt.Sprintf("term_%d_%d", e.queryID, index))
 		err = e.unify(terms, rterm, func() error {
-			if e.saveSet.Contains(rterm) {
+			if e.saveSet.Contains(rterm, e.bindings) {
 				return e.saveTerm(rterm, func() error {
 					return e.evalExpr(index+1, iter)
 				})
@@ -305,7 +305,12 @@ func (e *eval) evalNotPartial(index int, iter evalIterator) error {
 	// ensure they're passed consistently.
 	vis := ast.NewVarVisitor()
 	ast.Walk(vis, negation)
-	unknownVars := e.saveSet.Vars().Intersect(vis.Vars())
+	unknownVars := ast.NewVarSet()
+	for v := range vis.Vars() {
+		if e.saveSet.Contains(ast.NewTerm(v), e.bindings) {
+			unknownVars.Add(v)
+		}
+	}
 	callVars := make([]*ast.Term, 0, len(unknownVars))
 	for v := range unknownVars {
 		callVars = append(callVars, ast.NewTerm(v))
@@ -382,9 +387,16 @@ func (e *eval) evalCall(index int, terms []*ast.Term, iter unifyIterator) error 
 				break
 			}
 		}
-		if mustSave || e.saveSet.ContainsRecursiveAny(plugSlice(terms[1:], e.bindings)) {
+		if !mustSave {
+			for i := 1; i < len(terms); i++ {
+				if e.saveSet.ContainsRecursive(terms[i], e.bindings) {
+					mustSave = true
+					break
+				}
+			}
+		}
+		if mustSave {
 			return e.saveCall(len(bi.Decl.Args()), terms, iter)
-
 		}
 	}
 
@@ -516,8 +528,8 @@ func (e *eval) biunifyObjectsRec(a, b ast.Object, b1, b2 *bindings, iter unifyIt
 
 func (e *eval) biunifyValues(a, b *ast.Term, b1, b2 *bindings, iter unifyIterator) error {
 
-	saveA := e.saveSet.Contains(a)
-	saveB := e.saveSet.Contains(b)
+	saveA := e.saveSet.Contains(a, b1)
+	saveB := e.saveSet.Contains(b, b2)
 	_, refA := a.Value.(ast.Ref)
 	_, refB := b.Value.(ast.Ref)
 
@@ -693,16 +705,17 @@ func (e *eval) biunifyComprehensionObject(x *ast.ObjectComprehension, b *ast.Ter
 	return e.biunify(ast.NewTerm(result), b, b1, b2, iter)
 }
 
-func (e *eval) getSaveTerms(x interface{}) (result []*ast.Term) {
+func (e *eval) getSaveTerms(x *ast.Term) []*ast.Term {
 	vis := ast.NewVarVisitor().WithParams(ast.VarVisitorParams{
 		SkipClosures: true,
 		SkipRefHead:  true,
 	})
 	ast.Walk(vis, x)
+	var result []*ast.Term
 	for v := range vis.Vars() {
 		result = append(result, ast.NewTerm(v))
 	}
-	return
+	return result
 }
 
 func (e *eval) saveExpr(expr *ast.Expr, b *bindings, iter unifyIterator) error {
@@ -714,9 +727,12 @@ func (e *eval) saveExpr(expr *ast.Expr, b *bindings, iter unifyIterator) error {
 
 func (e *eval) saveUnify(a, b *ast.Term, b1, b2 *bindings, iter unifyIterator) error {
 	expr := ast.Equality.Expr(a, b)
-	if ts := e.getSaveTerms(expr); len(ts) > 0 {
-		elem := newSaveSetElem(ts)
-		e.saveSet.Push(elem)
+	if ts := e.getSaveTerms(a); len(ts) > 0 {
+		e.saveSet.Push(ts, b1)
+		defer e.saveSet.Pop()
+	}
+	if ts := e.getSaveTerms(b); len(ts) > 0 {
+		e.saveSet.Push(ts, b2)
 		defer e.saveSet.Pop()
 	}
 	e.saveStack.Push(expr, b1, b2)
@@ -727,9 +743,6 @@ func (e *eval) saveUnify(a, b *ast.Term, b1, b2 *bindings, iter unifyIterator) e
 
 func (e *eval) saveTerm(x *ast.Term, iter unifyIterator) error {
 	expr := ast.NewExpr(x)
-	elem := newSaveSetElem(nil)
-	e.saveSet.Push(elem)
-	defer e.saveSet.Pop()
 	e.saveStack.Push(expr, e.bindings, nil)
 	defer e.saveStack.Pop()
 	e.traceSave(expr)
@@ -742,8 +755,7 @@ func (e *eval) saveCall(declArgsLen int, terms []*ast.Term, iter unifyIterator) 
 	// position to the save set.
 	if declArgsLen == len(terms)-2 {
 		if ts := e.getSaveTerms(terms[len(terms)-1]); len(ts) > 0 {
-			elem := newSaveSetElem(ts)
-			e.saveSet.Push(elem)
+			e.saveSet.Push(ts, e.bindings)
 			defer e.saveSet.Pop()
 		}
 	}
@@ -779,7 +791,7 @@ func (e *eval) Resolve(ref ast.Ref) (ast.Value, error) {
 	e.instr.startTimer(evalOpResolve)
 	defer e.instr.stopTimer(evalOpResolve)
 
-	if e.saveSet.Contains(ast.NewTerm(ref)) {
+	if e.saveSet.Contains(ast.NewTerm(ref), nil) {
 		return nil, ast.UnknownValueErr{}
 	}
 
@@ -1640,7 +1652,7 @@ func (e evalTerm) eval(iter unifyIterator) error {
 		return e.e.biunify(e.term, e.rterm, e.termbindings, e.rbindings, iter)
 	}
 
-	if e.e.saveSet.Contains(e.term) {
+	if e.e.saveSet.Contains(e.term, e.termbindings) {
 		return e.save(iter)
 	}
 

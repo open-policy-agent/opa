@@ -301,7 +301,7 @@ func TestTopDownPartialEval(t *testing.T) {
 				q = x { input.y = y; x =  y }`,
 			},
 			wantQueries: []string{
-				`[input.x, input.y] = x`,
+				`x = [input.x, input.y]`,
 			},
 		},
 		{
@@ -362,7 +362,7 @@ func TestTopDownPartialEval(t *testing.T) {
 				}
 				`},
 			wantQueries: []string{
-				`[[x, _]] = __local0__1; __local0__1 = [[input.x, input.y]]; startswith(x, "foo")`,
+				`startswith(input.x, "foo"); _ = input.y; x = input.x`,
 			},
 		},
 		{
@@ -375,7 +375,7 @@ func TestTopDownPartialEval(t *testing.T) {
 				}
 				`},
 			wantQueries: []string{
-				`{"x": x} = __local0__1; __local0__1 = {"x": input.y}; startswith(x, "foo")`,
+				`startswith(input.y, "foo"); x = input.y`,
 			},
 		},
 		{
@@ -388,7 +388,7 @@ func TestTopDownPartialEval(t *testing.T) {
 				}
 				`},
 			wantQueries: []string{
-				`{"x": [y, z]} = __local0__1; __local0__1 = {"x": [input.y, input.z]}; startswith(y, "foo")`,
+				`startswith(input.y, "foo"); y = input.y; z = input.z`,
 			},
 		},
 		{
@@ -401,7 +401,7 @@ func TestTopDownPartialEval(t *testing.T) {
 				}
 				`},
 			wantQueries: []string{
-				`{"x": [{"a": y}, _]} = __local0__1; __local0__1 = {"x": [{"a": input.y}, input.z]}; startswith(y, "foo")`,
+				`startswith(input.y, "foo"); _ = input.z; y = input.y`,
 			},
 		},
 		{
@@ -963,6 +963,18 @@ func TestTopDownPartialEval(t *testing.T) {
 			},
 			wantQueries: []string{
 				"input = 100",
+			},
+		},
+		{
+			note:  "save set vars are namespaced",
+			query: "input = x; data.test.f(1)",
+			modules: []string{
+				`package test
+
+				f(x) { x >= x }`,
+			},
+			wantQueries: []string{
+				`input = x`,
 			},
 		},
 	}

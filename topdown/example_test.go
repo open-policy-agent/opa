@@ -218,7 +218,7 @@ func ExampleQuery_PartialRun() {
 	q := topdown.NewQuery(ast.MustParseBody("data.example.allow = true")).
 		WithCompiler(compiler).
 		WithUnknowns([]*ast.Term{
-			ast.InputRootDocument,
+			ast.MustParseTerm("input"),
 		}).
 		WithStore(store).
 		WithTransaction(txn)
@@ -230,9 +230,7 @@ func ExampleQuery_PartialRun() {
 	}
 
 	// Show result of partially evaluating the policy.
-
-	fmt.Println("# partial evaluation result:")
-
+	fmt.Printf("# partial evaluation result (%d items):\n", len(partial))
 	for i := range partial {
 		fmt.Println(partial[i])
 	}
@@ -291,7 +289,7 @@ func ExampleQuery_PartialRun() {
 
 	// Output:
 	//
-	// # partial evaluation result:
+	// # partial evaluation result (5 items):
 	// "dev" = input.group; "read_bucket" = input.permission
 	// "test" = input.group; "read_bucket" = input.permission
 	// "sre" = input.group; "read_bucket" = input.permission

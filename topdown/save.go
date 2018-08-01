@@ -1,40 +1,43 @@
 package topdown
 
 import (
+	"container/list"
+
 	"github.com/open-policy-agent/opa/ast"
 )
 
-// saveSet contains a set of terms that are treated as unknown. The set is
-// implemented as a tree so that we can partially evaluate data/input that is
-// only partially known. E.g., policies expressed over input.x and input.y may
-// be partially evaluated assuming input.x is known and input.y is unknown.
-//
-// Any time a variable is unified with an element in the set (an unknown), the
-// variable is added to the set so that subsequent references to the variable
-// are also treated as unknown.
+// saveSet contains a stack of terms that are considered 'unknown' during
+// partial evaluation. Only var and ref terms (rooted at one of the root
+// documents) can be added to the save set. Vars added to the save set are
+// namespaced by the binding list they are added with. This means the save set
+// can be shared across queries.
 type saveSet struct {
-	s []*saveSetElem
+	l *list.List
 }
 
-func newSaveSet(terms []*ast.Term) *saveSet {
-	return &saveSet{[]*saveSetElem{newSaveSetElem(terms)}}
-}
-
-func (n *saveSet) Empty() bool {
-	if n != nil {
-		for i := range n.s {
-			if len(n.s[i].children) != 0 {
-				return false
-			}
-		}
+func newSaveSet(ts []*ast.Term, b *bindings) *saveSet {
+	ss := &saveSet{
+		l: list.New(),
 	}
-	return true
+	ss.Push(ts, b)
+	return ss
 }
 
-func (n *saveSet) Contains(x *ast.Term) bool {
-	if n != nil {
-		for i := len(n.s) - 1; i >= 0; i-- {
-			if n.s[i].Contains(x) {
+func (ss *saveSet) Push(ts []*ast.Term, b *bindings) {
+	ss.l.PushBack(newSaveSetElem(ts, b))
+}
+
+func (ss *saveSet) Pop() {
+	ss.l.Remove(ss.l.Back())
+}
+
+// Contains returns true if the term t is contained in the save set. Non-var and
+// non-ref terms are never contained. Ref terms are contained if they share a
+// prefix with a ref that was added (in either direction).
+func (ss *saveSet) Contains(t *ast.Term, b *bindings) bool {
+	if ss != nil {
+		for el := ss.l.Back(); el != nil; el = el.Prev() {
+			if el.Value.(*saveSetElem).Contains(t, b) {
 				return true
 			}
 		}
@@ -42,116 +45,80 @@ func (n *saveSet) Contains(x *ast.Term) bool {
 	return false
 }
 
-func (n *saveSet) ContainsRecursive(x *ast.Term) bool {
-	stop := false
-	ast.WalkTerms(x, func(t *ast.Term) bool {
-		if stop {
-			return true
-		}
-		if n.Contains(t) {
-			stop = true
-		}
-		return stop
-	})
-	return stop
-}
-
-func (n *saveSet) ContainsRecursiveAny(xs []*ast.Term) bool {
-	for i := range xs {
-		if n.ContainsRecursive(xs[i]) {
-			return true
-		}
-	}
-	return false
-}
-
-func (n *saveSet) Push(x *saveSetElem) {
-	n.s = append(n.s, x)
-}
-
-func (n *saveSet) Pop() {
-	n.s = n.s[:len(n.s)-1]
-}
-
-func (n *saveSet) Vars() ast.VarSet {
-	if n == nil {
-		return nil
-	}
-	result := ast.NewVarSet()
-	for i := 0; i < len(n.s); i++ {
-		for k := range n.s[i].children {
-			if v, ok := k.(ast.Var); ok {
-				result.Add(v)
+// ContainsRecursive retruns true if the term t is or contains a term that is
+// contained in the save set. This function will close over the binding list
+// when it encounters vars.
+func (ss *saveSet) ContainsRecursive(t *ast.Term, b *bindings) bool {
+	found := false
+	ast.WalkTerms(t, func(x *ast.Term) bool {
+		if _, ok := x.Value.(ast.Var); ok {
+			x1, b1 := b.apply(x)
+			if x1 != x || b1 != b {
+				if ss.ContainsRecursive(x1, b1) {
+					found = true
+				}
+			} else if ss.Contains(x1, b1) {
+				found = true
 			}
 		}
-	}
-	return result
+		return found
+	})
+	return found
 }
 
 type saveSetElem struct {
-	children map[ast.Value]*saveSetElem
+	refs []ast.Ref
+	vars []*ast.Term
+	b    *bindings
 }
 
-func newSaveSetElem(terms []*ast.Term) *saveSetElem {
-	elem := &saveSetElem{
-		children: map[ast.Value]*saveSetElem{},
+func newSaveSetElem(ts []*ast.Term, b *bindings) *saveSetElem {
+
+	var refs []ast.Ref
+	var vars []*ast.Term
+
+	for _, t := range ts {
+		switch v := t.Value.(type) {
+		case ast.Var:
+			vars = append(vars, t)
+		case ast.Ref:
+			refs = append(refs, v)
+		default:
+			panic("illegal value")
+		}
 	}
-	for i := range terms {
-		elem.Insert(terms[i])
+
+	return &saveSetElem{
+		b:    b,
+		vars: vars,
+		refs: refs,
 	}
-	return elem
 }
 
-func (n *saveSetElem) Empty() bool {
-	return n == nil || len(n.children) == 0
-}
-
-func (n *saveSetElem) Contains(x *ast.Term) bool {
-	switch x := x.Value.(type) {
+func (sse *saveSetElem) Contains(t *ast.Term, b *bindings) bool {
+	switch other := t.Value.(type) {
+	case ast.Var:
+		return sse.containsVar(t, b)
 	case ast.Ref:
-		curr := n
-		for i := 0; i < len(x); i++ {
-			if curr = curr.child(x[i].Value); curr == nil {
-				return false
-			} else if curr.Empty() {
+		for _, ref := range sse.refs {
+			if ref.HasPrefix(other) || other.HasPrefix(ref) {
 				return true
 			}
 		}
-		return true
-	case ast.Var, ast.String:
-		return n.child(x) != nil
-	default:
-		return false
+		return sse.containsVar(other[0], b)
 	}
+	return false
 }
 
-func (n *saveSetElem) Insert(x *ast.Term) *saveSetElem {
-	if n == nil {
-		return nil
-	}
-	switch v := x.Value.(type) {
-	case ast.Ref:
-		curr := n
-		for i := 0; i < len(v); i++ {
-			curr = curr.Insert(v[i])
+func (sse *saveSetElem) containsVar(t *ast.Term, b *bindings) bool {
+	if b == sse.b {
+		for _, v := range sse.vars {
+			if v.Equal(t) {
+				return true
+			}
 		}
-		return curr
-	case ast.Var, ast.String:
-		child := n.children[v]
-		if child == nil {
-			child = newSaveSetElem(nil)
-			n.children[v] = child
-		}
-		return child
 	}
-	return nil
-}
-
-func (n *saveSetElem) child(v ast.Value) *saveSetElem {
-	if n == nil {
-		return nil
-	}
-	return n.children[v]
+	return false
 }
 
 // saveStack contains a stack of queries that represent the result of partial

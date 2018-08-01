@@ -688,7 +688,7 @@ func (r *Rego) partial(ctx context.Context, compiled ast.Body, txn storage.Trans
 		}
 	} else {
 		// Use input document as unknown if caller has not specified any.
-		unknowns = []*ast.Term{ast.InputRootDocument}
+		unknowns = []*ast.Term{ast.NewTerm(ast.InputRootRef)}
 	}
 
 	// Check partial namespace to ensure it's valid.
