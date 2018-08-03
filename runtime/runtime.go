@@ -4,6 +4,8 @@
 
 package runtime
 
+// Contains parts of the runtime package common to all platforms
+
 import (
 	"bytes"
 	"context"
@@ -11,13 +13,14 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
+	"github.com/sirupsen/logrus"
+	"gopkg.in/fsnotify.v1"
 	"io"
 	"io/ioutil"
 	"os"
-	"sync"
 	"time"
 
-	fsnotify "gopkg.in/fsnotify.v1"
+	"github.com/pkg/errors"
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/loader"
@@ -31,31 +34,7 @@ import (
 	"github.com/open-policy-agent/opa/storage/inmem"
 	"github.com/open-policy-agent/opa/util"
 	"github.com/open-policy-agent/opa/version"
-	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
-
-var (
-	registeredPlugins    []pluginFactory
-	registeredPluginsMux sync.Mutex
-)
-
-// RegisterPlugin registers a plugin with the runtime package. When a Runtime
-// is created, the factory functions will be called.
-func RegisterPlugin(name string, factory func(m *plugins.Manager, config []byte) (plugins.Plugin, error)) {
-	registeredPluginsMux.Lock()
-	defer registeredPluginsMux.Unlock()
-
-	registeredPlugins = append(registeredPlugins, pluginFactory{
-		name:    name,
-		factory: factory,
-	})
-}
-
-type pluginFactory struct {
-	name    string
-	factory func(m *plugins.Manager, config []byte) (plugins.Plugin, error)
-}
 
 // Params stores the configuration for an OPA instance.
 type Params struct {
@@ -93,6 +72,10 @@ type Params struct {
 	// startup. Data files may be prefixed with "<dotted-path>:" to indicate
 	// where the contained document should be loaded.
 	Paths []string
+
+	// PluginDir is the path to a directory containing .builtin.so and .plugin.so shared object files that
+	// OPA can load dynamically to create custom builtins and plugins.
+	PluginDir string
 
 	// Optional filter that will be passed to the file loader.
 	Filter loader.Filter
@@ -170,6 +153,13 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		return nil, err
 	}
 
+	if params.PluginDir != "" {
+		err = RegisterSharedObjectsFromDir(params.PluginDir)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	if err := store.Write(ctx, txn, storage.AddOp, storage.Path{}, loaded.Documents); err != nil {
 		store.Abort(ctx, txn)
 		return nil, errors.Wrapf(err, "storage error")
@@ -222,6 +212,7 @@ func (rt *Runtime) StartServer(ctx context.Context) {
 	if err := rt.Manager.Start(ctx); err != nil {
 		logrus.WithField("err", err).Fatalf("Unable to initialize plugins.")
 	}
+	defer rt.Manager.Stop(ctx)
 
 	s, err := server.New().
 		WithStore(rt.Store).
@@ -275,6 +266,7 @@ func (rt *Runtime) StartREPL(ctx context.Context) {
 		fmt.Fprintln(rt.Params.Output, "error starting plugins:", err)
 		os.Exit(1)
 	}
+	defer rt.Manager.Stop(ctx)
 
 	banner := rt.getBanner()
 	repl := repl.New(rt.Store, rt.Params.HistoryPath, rt.Params.Output, rt.Params.OutputFormat, rt.Params.ErrorLimit, banner)
@@ -587,12 +579,12 @@ func initRegisteredPlugins(m *plugins.Manager, bs []byte) error {
 		return err
 	}
 
-	for _, reg := range registeredPlugins {
-		pc, ok := config.Plugins[reg.name]
+	for name, factory := range plugins.GetRegisteredPlugins() {
+		pc, ok := config.Plugins[name]
 		if !ok {
 			continue
 		}
-		plugin, err := reg.factory(m, pc)
+		plugin, err := factory(m, pc)
 		if err != nil {
 			return err
 		}

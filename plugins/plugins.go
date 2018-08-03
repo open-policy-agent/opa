@@ -22,6 +22,30 @@ type Plugin interface {
 	Stop(ctx context.Context)
 }
 
+// PluginInitFunc is a function that will initialize a plugin given configuration document config
+// The function should return the plugin if successful and and error if unsuccessful
+type PluginInitFunc func(m *Manager, config []byte) (Plugin, error)
+
+var (
+	registeredPlugins    map[string]PluginInitFunc
+	registeredPluginsMux sync.Mutex
+)
+
+// RegisterPlugin registers a plugin with the plugins package. When a Runtime
+// is created, the factory functions will be called. This function is idempotent.
+func RegisterPlugin(name string, factory PluginInitFunc) {
+	registeredPluginsMux.Lock()
+	defer registeredPluginsMux.Unlock()
+	registeredPlugins[name] = factory
+}
+
+// GetRegisteredPlugins returns all the plugins that are currently registered with the plugins package.
+func GetRegisteredPlugins() map[string]PluginInitFunc {
+	registeredPluginsMux.Lock()
+	defer registeredPluginsMux.Unlock()
+	return registeredPlugins
+}
+
 // Manager implements lifecycle management of plugins and gives plugins access
 // to engine-wide components like storage.
 type Manager struct {
@@ -132,6 +156,13 @@ func (m *Manager) Start(ctx context.Context) error {
 	})
 }
 
+// Stop stops the manager, stopping all the plugins registered with it
+func (m *Manager) Stop(ctx context.Context) {
+	for _, p := range m.plugins {
+		p.Stop(ctx)
+	}
+}
+
 func (m *Manager) onCommit(ctx context.Context, txn storage.Transaction, event storage.TriggerEvent) {
 	if event.PolicyChanged() {
 		compiler, _ := loadCompilerFromStore(ctx, m.Store, txn)
@@ -178,4 +209,8 @@ func (m *Manager) Services() []string {
 		s = append(s, name)
 	}
 	return s
+}
+
+func init() {
+	registeredPlugins = make(map[string]PluginInitFunc)
 }
