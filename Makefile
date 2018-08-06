@@ -90,11 +90,14 @@ test: generate
 
 .PHONY: perf
 perf: generate
-	$(GO) test -v -run=donotruntests -bench=. ./...
+	$(GO) test -run=- -bench=. -benchmem ./...
 
-.PHONY: perf-regression
-perf-regression:
-	./build/run-perf-regression.sh
+.PHONY: gen-perf-diff-travis
+gen-perf-diff-travis:
+	$(GO) test -count=5 -run=- -bench=. -benchmem ./... | tee .bench_tip.out
+	git checkout ${TRAVIS_BRANCH}
+	$(GO) test -count=5 -run=- -bench=. -benchmem ./... | tee .bench_target.out
+	benchstat .bench_target.out .bench_tip.out
 
 .PHONY: check
 check: check-fmt check-vet check-lint
