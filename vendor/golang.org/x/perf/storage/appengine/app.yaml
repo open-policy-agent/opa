@@ -1,0 +1,24 @@
+# Update with
+#	google_appengine/appcfg.py [-V dev-test] update .
+#
+# Using -V dev-test will run as dev-test.perfdata.golang.org.
+
+application: golang-org
+module: perfdata
+version: main
+runtime: go
+api_version: go1
+
+handlers:
+- url: /_ah/remote_api
+  script: _go_app
+- url: /.*
+  script: _go_app
+  secure: always
+env_variables:
+  CLOUDSQL_CONNECTION_NAME: "golang-org:us-central1:golang-org"
+  CLOUDSQL_USER: "root"
+  CLOUDSQL_PASSWORD: ""
+  CLOUDSQL_DATABASE: "perfdata"
+  GCS_BUCKET: "golang-perfdata"
+  PERFDATA_VIEW_URL_BASE: "https://perf.golang.org/search?q=upload:"

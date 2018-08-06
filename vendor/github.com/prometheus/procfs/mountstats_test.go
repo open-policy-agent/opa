@@ -1,3 +1,16 @@
+// Copyright 2018 The Prometheus Authors
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+// http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package procfs
 
 import (
@@ -90,7 +103,12 @@ func TestMountStats(t *testing.T) {
 			invalid: true,
 		},
 		{
-			name: "NFSv3 device with transport stats version 1.0 OK",
+			name:    "NFSv3 device with bad transport protocol",
+			s:       "device 192.168.1.1:/srv mounted on /mnt/nfs with fstype nfs4 statvers=1.1\nxprt: tcpx 0 0 0 0 0 0 0 0 0 0",
+			invalid: true,
+		},
+		{
+			name: "NFSv3 device using TCP with transport stats version 1.0 OK",
 			s:    "device 192.168.1.1:/srv mounted on /mnt/nfs with fstype nfs statvers=1.0\nxprt: tcp 1 2 3 4 5 6 7 8 9 10",
 			mounts: []*Mount{{
 				Device: "192.168.1.1:/srv",
@@ -99,6 +117,7 @@ func TestMountStats(t *testing.T) {
 				Stats: &MountStatsNFS{
 					StatVersion: "1.0",
 					Transport: NFSTransportStats{
+						Protocol:                 "tcp",
 						Port:                     1,
 						Bind:                     2,
 						Connect:                  3,
@@ -109,6 +128,93 @@ func TestMountStats(t *testing.T) {
 						BadTransactionIDs:        8,
 						CumulativeActiveRequests: 9,
 						CumulativeBacklog:        10,
+						MaximumRPCSlotsUsed:      0, // these three are not
+						CumulativeSendingQueue:   0, // present in statvers=1.0
+						CumulativePendingQueue:   0, //
+					},
+				},
+			}},
+		},
+		{
+			name: "NFSv3 device using UDP with transport stats version 1.0 OK",
+			s:    "device 192.168.1.1:/srv mounted on /mnt/nfs with fstype nfs statvers=1.0\nxprt: udp 1 2 3 4 5 6 7",
+			mounts: []*Mount{{
+				Device: "192.168.1.1:/srv",
+				Mount:  "/mnt/nfs",
+				Type:   "nfs",
+				Stats: &MountStatsNFS{
+					StatVersion: "1.0",
+					Transport: NFSTransportStats{
+						Protocol:                 "udp",
+						Port:                     1,
+						Bind:                     2,
+						Connect:                  0,
+						ConnectIdleTime:          0,
+						IdleTime:                 0,
+						Sends:                    3,
+						Receives:                 4,
+						BadTransactionIDs:        5,
+						CumulativeActiveRequests: 6,
+						CumulativeBacklog:        7,
+						MaximumRPCSlotsUsed:      0, // these three are not
+						CumulativeSendingQueue:   0, // present in statvers=1.0
+						CumulativePendingQueue:   0, //
+					},
+				},
+			}},
+		},
+		{
+			name: "NFSv3 device using TCP with transport stats version 1.1 OK",
+			s:    "device 192.168.1.1:/srv mounted on /mnt/nfs with fstype nfs statvers=1.1\nxprt: tcp 1 2 3 4 5 6 7 8 9 10 11 12 13",
+			mounts: []*Mount{{
+				Device: "192.168.1.1:/srv",
+				Mount:  "/mnt/nfs",
+				Type:   "nfs",
+				Stats: &MountStatsNFS{
+					StatVersion: "1.1",
+					Transport: NFSTransportStats{
+						Protocol:                 "tcp",
+						Port:                     1,
+						Bind:                     2,
+						Connect:                  3,
+						ConnectIdleTime:          4,
+						IdleTime:                 5 * time.Second,
+						Sends:                    6,
+						Receives:                 7,
+						BadTransactionIDs:        8,
+						CumulativeActiveRequests: 9,
+						CumulativeBacklog:        10,
+						MaximumRPCSlotsUsed:      11,
+						CumulativeSendingQueue:   12,
+						CumulativePendingQueue:   13,
+					},
+				},
+			}},
+		},
+		{
+			name: "NFSv3 device using UDP with transport stats version 1.1 OK",
+			s:    "device 192.168.1.1:/srv mounted on /mnt/nfs with fstype nfs statvers=1.1\nxprt: udp 1 2 3 4 5 6 7 8 9 10",
+			mounts: []*Mount{{
+				Device: "192.168.1.1:/srv",
+				Mount:  "/mnt/nfs",
+				Type:   "nfs",
+				Stats: &MountStatsNFS{
+					StatVersion: "1.1",
+					Transport: NFSTransportStats{
+						Protocol:                 "udp",
+						Port:                     1,
+						Bind:                     2,
+						Connect:                  0, // these three are not
+						ConnectIdleTime:          0, // present for UDP
+						IdleTime:                 0, //
+						Sends:                    3,
+						Receives:                 4,
+						BadTransactionIDs:        5,
+						CumulativeActiveRequests: 6,
+						CumulativeBacklog:        7,
+						MaximumRPCSlotsUsed:      8,
+						CumulativeSendingQueue:   9,
+						CumulativePendingQueue:   10,
 					},
 				},
 			}},
@@ -199,6 +305,7 @@ func TestMountStats(t *testing.T) {
 							},
 						},
 						Transport: NFSTransportStats{
+							Protocol:                 "tcp",
 							Port:                     832,
 							Connect:                  1,
 							IdleTime:                 11 * time.Second,

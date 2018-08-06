@@ -5,7 +5,9 @@ import:
   subpackages:
   - cmd/goimports
 - package: github.com/spf13/cobra
-- package: github.com/golang/lint
+- package: golang.org/x/lint
+  subpackages:
+  - golint
 - package: github.com/peterh/liner
   version: bf27d3ba8e1d9899d45a457ffac16c953eb2d647
 - package: github.com/pkg/errors
@@ -22,3 +24,6 @@ import:
   - prometheus
 - package: github.com/yashtewari/glob-intersection
 - package: github.com/rcrowley/go-metrics
+- package: golang.org/x/perf
+  subpackages:
+  - cmd/benchstat

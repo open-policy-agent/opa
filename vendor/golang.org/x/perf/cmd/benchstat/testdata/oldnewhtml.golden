@@ -1,0 +1,106 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Performance Result Comparison</title>
+<style>
+.benchstat { border-collapse: collapse; }
+.benchstat th:nth-child(1) { text-align: left; }
+.benchstat tbody td:nth-child(1n+2):not(.note) { text-align: right; padding: 0em 1em; }
+.benchstat tr:not(.configs) th { border-top: 1px solid #666; border-bottom: 1px solid #ccc; }
+.benchstat .nodelta { text-align: center !important; }
+.benchstat .better td.delta { font-weight: bold; }
+.benchstat .worse td.delta { font-weight: bold; color: #c00; }
+</style>
+</head>
+<body>
+
+<table class='benchstat oldnew'>
+<tr class='configs'><th><th>old.txt<th>new.txt
+
+
+<tbody>
+<tr><th><th colspan='2' class='metric'>time/op<th>delta
+<tr class='better'><td>CRC32/poly=IEEE/size=15/align=0-8<td>46.9ns ± 8%<td>44.5ns ± 3%<td class='delta'>−5.01%<td class='note'>(p=0.008 n=10&#43;10)
+<tr class='unchanged'><td>CRC32/poly=IEEE/size=15/align=1-8<td>44.7ns ± 5%<td>44.5ns ± 4%<td class='nodelta'>~<td class='note'>(p=0.539 n=10&#43;10)
+<tr class='worse'><td>CRC32/poly=IEEE/size=40/align=0-8<td>41.0ns ± 1%<td>42.5ns ± 6%<td class='delta'>&#43;3.56%<td class='note'>(p=0.000 n=8&#43;10)
+<tr class='worse'><td>CRC32/poly=IEEE/size=40/align=1-8<td>41.1ns ± 1%<td>42.0ns ± 3%<td class='delta'>&#43;2.34%<td class='note'>(p=0.000 n=9&#43;10)
+<tr class='better'><td>CRC32/poly=IEEE/size=512/align=0-8<td>238ns ± 5%<td>57ns ± 3%<td class='delta'>−76.00%<td class='note'>(p=0.000 n=10&#43;10)
+<tr class='better'><td>CRC32/poly=IEEE/size=512/align=1-8<td>236ns ± 3%<td>57ns ± 3%<td class='delta'>−75.72%<td class='note'>(p=0.000 n=10&#43;10)
+<tr class='better'><td>CRC32/poly=IEEE/size=1kB/align=0-8<td>452ns ± 4%<td>94ns ± 2%<td class='delta'>−79.20%<td class='note'>(p=0.000 n=10&#43;8)
+<tr class='better'><td>CRC32/poly=IEEE/size=1kB/align=1-8<td>444ns ± 2%<td>93ns ± 2%<td class='delta'>−78.97%<td class='note'>(p=0.000 n=10&#43;8)
+<tr class='better'><td>CRC32/poly=IEEE/size=4kB/align=0-8<td>1.74µs ± 8%<td>0.30µs ± 1%<td class='delta'>−82.87%<td class='note'>(p=0.000 n=10&#43;9)
+<tr class='better'><td>CRC32/poly=IEEE/size=4kB/align=1-8<td>1.76µs ± 6%<td>0.30µs ± 3%<td class='delta'>−83.05%<td class='note'>(p=0.000 n=10&#43;10)
+<tr class='better'><td>CRC32/poly=IEEE/size=32kB/align=0-8<td>15.0µs ± 7%<td>2.2µs ± 3%<td class='delta'>−85.57%<td class='note'>(p=0.000 n=10&#43;10)
+<tr class='better'><td>CRC32/poly=IEEE/size=32kB/align=1-8<td>14.2µs ± 7%<td>2.2µs ± 3%<td class='delta'>−84.65%<td class='note'>(p=0.000 n=10&#43;10)
+<tr class='unchanged'><td>CRC32/poly=Castagnoli/size=15/align=0-8<td>16.4ns ± 3%<td>16.3ns ± 2%<td class='nodelta'>~<td class='note'>(p=0.615 n=9&#43;9)
+<tr class='unchanged'><td>CRC32/poly=Castagnoli/size=15/align=1-8<td>17.2ns ± 2%<td>17.3ns ± 2%<td class='nodelta'>~<td class='note'>(p=0.650 n=9&#43;10)
+<tr class='unchanged'><td>CRC32/poly=Castagnoli/size=40/align=0-8<td>17.4ns ± 2%<td>17.5ns ± 4%<td class='nodelta'>~<td class='note'>(p=0.694 n=10&#43;10)
+<tr class='better'><td>CRC32/poly=Castagnoli/size=40/align=1-8<td>19.7ns ± 3%<td>19.4ns ± 2%<td class='delta'>−1.62%<td class='note'>(p=0.036 n=10&#43;10)
+<tr class='unchanged'><td>CRC32/poly=Castagnoli/size=512/align=0-8<td>40.2ns ± 2%<td>40.1ns ± 4%<td class='nodelta'>~<td class='note'>(p=0.614 n=10&#43;10)
+<tr class='unchanged'><td>CRC32/poly=Castagnoli/size=512/align=1-8<td>42.1ns ± 3%<td>41.9ns ± 2%<td class='nodelta'>~<td class='note'>(p=0.952 n=10&#43;9)
+<tr class='worse'><td>CRC32/poly=Castagnoli/size=1kB/align=0-8<td>65.5ns ± 1%<td>66.2ns ± 1%<td class='delta'>&#43;1.01%<td class='note'>(p=0.003 n=9&#43;8)
+<tr class='unchanged'><td>CRC32/poly=Castagnoli/size=1kB/align=1-8<td>70.1ns ± 6%<td>68.5ns ± 2%<td class='nodelta'>~<td class='note'>(p=0.190 n=10&#43;9)
+<tr class='better'><td>CRC32/poly=Castagnoli/size=4kB/align=0-8<td>163ns ± 5%<td>159ns ± 3%<td class='delta'>−2.46%<td class='note'>(p=0.032 n=10&#43;10)
+<tr class='better'><td>CRC32/poly=Castagnoli/size=4kB/align=1-8<td>169ns ± 6%<td>162ns ± 3%<td class='delta'>−4.60%<td class='note'>(p=0.005 n=10&#43;10)
+<tr class='unchanged'><td>CRC32/poly=Castagnoli/size=32kB/align=0-8<td>1.22µs ± 4%<td>1.21µs ± 3%<td class='nodelta'>~<td class='note'>(p=0.882 n=9&#43;9)
+<tr class='better'><td>CRC32/poly=Castagnoli/size=32kB/align=1-8<td>1.26µs ± 3%<td>1.22µs ± 4%<td class='delta'>−3.48%<td class='note'>(p=0.002 n=9&#43;10)
+<tr class='unchanged'><td>CRC32/poly=Koopman/size=15/align=0-8<td>36.5ns ±11%<td>35.6ns ± 3%<td class='nodelta'>~<td class='note'>(p=0.216 n=10&#43;10)
+<tr class='unchanged'><td>CRC32/poly=Koopman/size=15/align=1-8<td>35.1ns ± 5%<td>35.5ns ± 1%<td class='nodelta'>~<td class='note'>(p=0.508 n=10&#43;9)
+<tr class='better'><td>CRC32/poly=Koopman/size=40/align=0-8<td>91.6ns ± 9%<td>87.6ns ± 2%<td class='delta'>−4.35%<td class='note'>(p=0.002 n=10&#43;10)
+<tr class='unchanged'><td>CRC32/poly=Koopman/size=40/align=1-8<td>91.1ns ± 6%<td>88.0ns ± 3%<td class='nodelta'>~<td class='note'>(p=0.055 n=10&#43;10)
+<tr class='better'><td>CRC32/poly=Koopman/size=512/align=0-8<td>1.13µs ± 5%<td>1.08µs ± 3%<td class='delta'>−4.93%<td class='note'>(p=0.000 n=10&#43;10)
+<tr class='unchanged'><td>CRC32/poly=Koopman/size=512/align=1-8<td>1.13µs ± 6%<td>1.17µs ± 8%<td class='nodelta'>~<td class='note'>(p=0.143 n=10&#43;10)
+<tr class='worse'><td>CRC32/poly=Koopman/size=1kB/align=0-8<td>2.24µs ± 6%<td>2.34µs ± 4%<td class='delta'>&#43;4.34%<td class='note'>(p=0.010 n=9&#43;10)
+<tr class='worse'><td>CRC32/poly=Koopman/size=1kB/align=1-8<td>2.15µs ± 2%<td>2.36µs ± 5%<td class='delta'>&#43;9.84%<td class='note'>(p=0.000 n=9&#43;10)
+<tr class='unchanged'><td>CRC32/poly=Koopman/size=4kB/align=0-8<td>9.03µs ± 6%<td>9.00µs ± 6%<td class='nodelta'>~<td class='note'>(p=0.971 n=10&#43;10)
+<tr class='unchanged'><td>CRC32/poly=Koopman/size=4kB/align=1-8<td>8.94µs ±10%<td>9.05µs ±12%<td class='nodelta'>~<td class='note'>(p=0.754 n=10&#43;10)
+<tr class='unchanged'><td>CRC32/poly=Koopman/size=32kB/align=0-8<td>72.4µs ± 9%<td>72.9µs ± 4%<td class='nodelta'>~<td class='note'>(p=0.684 n=10&#43;10)
+<tr class='worse'><td>CRC32/poly=Koopman/size=32kB/align=1-8<td>69.6µs ± 3%<td>74.3µs ± 3%<td class='delta'>&#43;6.70%<td class='note'>(p=0.000 n=8&#43;10)
+<tr><td>&nbsp;
+</tbody>
+
+<tbody>
+<tr><th><th colspan='2' class='metric'>speed<th>delta
+<tr class='better'><td>CRC32/poly=IEEE/size=15/align=0-8<td>321MB/s ± 8%<td>337MB/s ± 3%<td class='delta'>&#43;5.06%<td class='note'>(p=0.009 n=10&#43;10)
+<tr class='unchanged'><td>CRC32/poly=IEEE/size=15/align=1-8<td>336MB/s ± 4%<td>337MB/s ± 4%<td class='nodelta'>~<td class='note'>(p=0.579 n=10&#43;10)
+<tr class='worse'><td>CRC32/poly=IEEE/size=40/align=0-8<td>975MB/s ± 1%<td>942MB/s ± 5%<td class='delta'>−3.37%<td class='note'>(p=0.001 n=8&#43;10)
+<tr class='worse'><td>CRC32/poly=IEEE/size=40/align=1-8<td>974MB/s ± 1%<td>952MB/s ± 3%<td class='delta'>−2.25%<td class='note'>(p=0.000 n=9&#43;10)
+<tr class='better'><td>CRC32/poly=IEEE/size=512/align=0-8<td>2.15GB/s ± 4%<td>8.97GB/s ± 3%<td class='delta'>&#43;317.65%<td class='note'>(p=0.000 n=10&#43;10)
+<tr class='better'><td>CRC32/poly=IEEE/size=512/align=1-8<td>2.17GB/s ± 3%<td>8.96GB/s ± 3%<td class='delta'>&#43;312.89%<td class='note'>(p=0.000 n=10&#43;10)
+<tr class='better'><td>CRC32/poly=IEEE/size=1kB/align=0-8<td>2.26GB/s ± 4%<td>10.88GB/s ± 2%<td class='delta'>&#43;381.12%<td class='note'>(p=0.000 n=10&#43;8)
+<tr class='better'><td>CRC32/poly=IEEE/size=1kB/align=1-8<td>2.31GB/s ± 2%<td>10.98GB/s ± 2%<td class='delta'>&#43;375.97%<td class='note'>(p=0.000 n=10&#43;8)
+<tr class='better'><td>CRC32/poly=IEEE/size=4kB/align=0-8<td>2.36GB/s ± 7%<td>13.73GB/s ± 1%<td class='delta'>&#43;482.26%<td class='note'>(p=0.000 n=10&#43;9)
+<tr class='better'><td>CRC32/poly=IEEE/size=4kB/align=1-8<td>2.33GB/s ± 6%<td>13.68GB/s ± 3%<td class='delta'>&#43;488.23%<td class='note'>(p=0.000 n=10&#43;10)
+<tr class='better'><td>CRC32/poly=IEEE/size=32kB/align=0-8<td>2.19GB/s ± 7%<td>15.19GB/s ± 3%<td class='delta'>&#43;591.99%<td class='note'>(p=0.000 n=10&#43;10)
+<tr class='better'><td>CRC32/poly=IEEE/size=32kB/align=1-8<td>2.31GB/s ± 8%<td>15.04GB/s ± 3%<td class='delta'>&#43;550.07%<td class='note'>(p=0.000 n=10&#43;10)
+<tr class='unchanged'><td>CRC32/poly=Castagnoli/size=15/align=0-8<td>916MB/s ± 2%<td>920MB/s ± 2%<td class='nodelta'>~<td class='note'>(p=0.489 n=9&#43;9)
+<tr class='unchanged'><td>CRC32/poly=Castagnoli/size=15/align=1-8<td>870MB/s ± 2%<td>867MB/s ± 2%<td class='nodelta'>~<td class='note'>(p=0.661 n=9&#43;10)
+<tr class='unchanged'><td>CRC32/poly=Castagnoli/size=40/align=0-8<td>2.30GB/s ± 2%<td>2.28GB/s ± 4%<td class='nodelta'>~<td class='note'>(p=0.684 n=10&#43;10)
+<tr class='unchanged'><td>CRC32/poly=Castagnoli/size=40/align=1-8<td>2.03GB/s ± 3%<td>2.06GB/s ± 2%<td class='nodelta'>~<td class='note'>(p=0.063 n=10&#43;10)
+<tr class='unchanged'><td>CRC32/poly=Castagnoli/size=512/align=0-8<td>12.7GB/s ± 2%<td>12.8GB/s ± 4%<td class='nodelta'>~<td class='note'>(p=0.529 n=10&#43;10)
+<tr class='unchanged'><td>CRC32/poly=Castagnoli/size=512/align=1-8<td>12.1GB/s ± 3%<td>12.2GB/s ± 1%<td class='nodelta'>~<td class='note'>(p=0.780 n=10&#43;9)
+<tr class='worse'><td>CRC32/poly=Castagnoli/size=1kB/align=0-8<td>15.6GB/s ± 1%<td>15.5GB/s ± 1%<td class='delta'>−1.02%<td class='note'>(p=0.002 n=9&#43;8)
+<tr class='unchanged'><td>CRC32/poly=Castagnoli/size=1kB/align=1-8<td>14.6GB/s ± 6%<td>15.0GB/s ± 2%<td class='nodelta'>~<td class='note'>(p=0.211 n=10&#43;9)
+<tr class='unchanged'><td>CRC32/poly=Castagnoli/size=4kB/align=0-8<td>25.1GB/s ± 5%<td>25.7GB/s ± 3%<td class='nodelta'>~<td class='note'>(p=0.052 n=10&#43;10)
+<tr class='better'><td>CRC32/poly=Castagnoli/size=4kB/align=1-8<td>24.1GB/s ± 6%<td>25.3GB/s ± 3%<td class='delta'>&#43;4.71%<td class='note'>(p=0.005 n=10&#43;10)
+<tr class='unchanged'><td>CRC32/poly=Castagnoli/size=32kB/align=0-8<td>26.9GB/s ± 4%<td>26.8GB/s ± 5%<td class='nodelta'>~<td class='note'>(p=0.842 n=9&#43;10)
+<tr class='better'><td>CRC32/poly=Castagnoli/size=32kB/align=1-8<td>25.9GB/s ± 3%<td>26.8GB/s ± 4%<td class='delta'>&#43;3.62%<td class='note'>(p=0.002 n=9&#43;10)
+<tr class='unchanged'><td>CRC32/poly=Koopman/size=15/align=0-8<td>412MB/s ±10%<td>421MB/s ± 3%<td class='nodelta'>~<td class='note'>(p=0.218 n=10&#43;10)
+<tr class='unchanged'><td>CRC32/poly=Koopman/size=15/align=1-8<td>427MB/s ± 5%<td>422MB/s ± 1%<td class='nodelta'>~<td class='note'>(p=0.497 n=10&#43;9)
+<tr class='better'><td>CRC32/poly=Koopman/size=40/align=0-8<td>437MB/s ± 9%<td>456MB/s ± 2%<td class='delta'>&#43;4.50%<td class='note'>(p=0.002 n=10&#43;10)
+<tr class='unchanged'><td>CRC32/poly=Koopman/size=40/align=1-8<td>440MB/s ± 6%<td>455MB/s ± 3%<td class='nodelta'>~<td class='note'>(p=0.052 n=10&#43;10)
+<tr class='better'><td>CRC32/poly=Koopman/size=512/align=0-8<td>453MB/s ± 5%<td>476MB/s ± 3%<td class='delta'>&#43;5.09%<td class='note'>(p=0.000 n=10&#43;10)
+<tr class='unchanged'><td>CRC32/poly=Koopman/size=512/align=1-8<td>455MB/s ± 6%<td>440MB/s ± 8%<td class='nodelta'>~<td class='note'>(p=0.143 n=10&#43;10)
+<tr class='unchanged'><td>CRC32/poly=Koopman/size=1kB/align=0-8<td>452MB/s ± 9%<td>438MB/s ± 4%<td class='nodelta'>~<td class='note'>(p=0.052 n=10&#43;10)
+<tr class='worse'><td>CRC32/poly=Koopman/size=1kB/align=1-8<td>477MB/s ± 2%<td>434MB/s ± 5%<td class='delta'>−8.92%<td class='note'>(p=0.000 n=9&#43;10)
+<tr class='unchanged'><td>CRC32/poly=Koopman/size=4kB/align=0-8<td>454MB/s ± 5%<td>455MB/s ± 6%<td class='nodelta'>~<td class='note'>(p=0.971 n=10&#43;10)
+<tr class='unchanged'><td>CRC32/poly=Koopman/size=4kB/align=1-8<td>459MB/s ± 9%<td>455MB/s ±11%<td class='nodelta'>~<td class='note'>(p=0.739 n=10&#43;10)
+<tr class='unchanged'><td>CRC32/poly=Koopman/size=32kB/align=0-8<td>453MB/s ± 8%<td>450MB/s ± 4%<td class='nodelta'>~<td class='note'>(p=0.684 n=10&#43;10)
+<tr class='worse'><td>CRC32/poly=Koopman/size=32kB/align=1-8<td>471MB/s ± 3%<td>441MB/s ± 3%<td class='delta'>−6.25%<td class='note'>(p=0.000 n=8&#43;10)
+<tr><td>&nbsp;
+</tbody>
+
+</table>
+</body>
+</html>

@@ -1,0 +1,75 @@
+name \ time/op                             new.txt        old.txt        slashslash4.txt  x386.txt
+CRC32/poly=IEEE/size=15/align=0-8            44.5ns ± 3%    46.9ns ± 8%                     62.4ns ± 9%
+CRC32/poly=IEEE/size=15/align=1-8            44.5ns ± 4%    44.7ns ± 5%                     63.5ns ± 8%
+CRC32/poly=IEEE/size=40/align=0-8            42.5ns ± 6%    41.0ns ± 1%      42.1ns ± 3%    57.4ns ± 3%
+CRC32/poly=IEEE/size=40/align=1-8            42.0ns ± 3%    41.1ns ± 1%      41.7ns ± 5%    57.3ns ± 3%
+CRC32/poly=IEEE/size=512/align=0-8           57.1ns ± 3%   238.0ns ± 5%                    332.3ns ± 2%
+CRC32/poly=IEEE/size=512/align=1-8           57.2ns ± 3%   235.5ns ± 3%                    335.3ns ± 3%
+CRC32/poly=IEEE/size=1kB/align=0-8           94.1ns ± 2%   452.5ns ± 4%                    626.3ns ± 2%
+CRC32/poly=IEEE/size=1kB/align=1-8           93.3ns ± 2%   443.6ns ± 2%                    635.3ns ± 6%
+CRC32/poly=IEEE/size=4kB/align=0-8            298ns ± 1%    1740ns ± 8%      1682ns ± 2%    2457ns ± 7%
+CRC32/poly=IEEE/size=4kB/align=1-8            299ns ± 3%    1764ns ± 6%      1690ns ± 4%    2434ns ± 5%
+CRC32/poly=IEEE/size=32kB/align=0-8          2.16µs ± 3%   14.95µs ± 7%                    19.15µs ± 4%
+CRC32/poly=IEEE/size=32kB/align=1-8          2.18µs ± 3%   14.19µs ± 7%                    19.42µs ± 5%
+CRC32/poly=Castagnoli/size=15/align=0-8      16.3ns ± 2%    16.4ns ± 3%                     59.4ns ± 1%
+CRC32/poly=Castagnoli/size=15/align=1-8      17.3ns ± 2%    17.2ns ± 2%                     59.4ns ± 2%
+CRC32/poly=Castagnoli/size=40/align=0-8      17.5ns ± 4%    17.4ns ± 2%      18.6ns ±11%    59.7ns ± 6%
+CRC32/poly=Castagnoli/size=40/align=1-8      19.4ns ± 2%    19.7ns ± 3%      19.6ns ± 2%    58.1ns ± 7%
+CRC32/poly=Castagnoli/size=512/align=0-8     40.1ns ± 4%    40.2ns ± 2%                    350.8ns ± 5%
+CRC32/poly=Castagnoli/size=512/align=1-8     41.9ns ± 2%    42.1ns ± 3%                    349.8ns ± 7%
+CRC32/poly=Castagnoli/size=1kB/align=0-8     66.2ns ± 1%    65.5ns ± 1%                    656.7ns ± 4%
+CRC32/poly=Castagnoli/size=1kB/align=1-8     68.5ns ± 2%    70.1ns ± 6%                    656.8ns ± 6%
+CRC32/poly=Castagnoli/size=4kB/align=0-8      159ns ± 3%     163ns ± 5%       161ns ± 8%    2452ns ± 4%
+CRC32/poly=Castagnoli/size=4kB/align=1-8      162ns ± 3%     169ns ± 6%       170ns ± 8%    2448ns ± 5%
+CRC32/poly=Castagnoli/size=32kB/align=0-8    1.21µs ± 3%    1.22µs ± 4%                    20.53µs ± 5%
+CRC32/poly=Castagnoli/size=32kB/align=1-8    1.22µs ± 4%    1.26µs ± 3%                    20.18µs ± 9%
+CRC32/poly=Koopman/size=15/align=0-8         35.6ns ± 3%    36.5ns ±11%                     58.2ns ± 4%
+CRC32/poly=Koopman/size=15/align=1-8         35.5ns ± 1%    35.1ns ± 5%                     56.4ns ± 7%
+CRC32/poly=Koopman/size=40/align=0-8         87.6ns ± 2%    91.6ns ± 9%      93.8ns ±13%   142.3ns ± 8%
+CRC32/poly=Koopman/size=40/align=1-8         88.0ns ± 3%    91.1ns ± 6%      86.9ns ± 3%   136.2ns ± 5%
+CRC32/poly=Koopman/size=512/align=0-8        1.08µs ± 3%    1.13µs ± 5%                     1.68µs ± 5%
+CRC32/poly=Koopman/size=512/align=1-8        1.17µs ± 8%    1.13µs ± 6%                     1.64µs ± 4%
+CRC32/poly=Koopman/size=1kB/align=0-8        2.34µs ± 4%    2.24µs ± 6%                     3.31µs ± 4%
+CRC32/poly=Koopman/size=1kB/align=1-8        2.36µs ± 5%    2.15µs ± 2%                     3.28µs ± 3%
+CRC32/poly=Koopman/size=4kB/align=0-8        9.00µs ± 6%    9.03µs ± 6%      9.08µs ± 8%   13.32µs ± 3%
+CRC32/poly=Koopman/size=4kB/align=1-8        9.05µs ±12%    8.94µs ±10%      9.46µs ± 8%   13.16µs ± 3%
+CRC32/poly=Koopman/size=32kB/align=0-8       72.9µs ± 4%    72.4µs ± 9%                    106.9µs ± 6%
+CRC32/poly=Koopman/size=32kB/align=1-8       74.3µs ± 3%    69.6µs ± 3%                    106.1µs ± 4%
+
+name \ speed                               new.txt        old.txt        slashslash4.txt  x386.txt
+CRC32/poly=IEEE/size=15/align=0-8           337MB/s ± 3%   321MB/s ± 8%                    241MB/s ± 8%
+CRC32/poly=IEEE/size=15/align=1-8           337MB/s ± 4%   336MB/s ± 4%                    237MB/s ± 8%
+CRC32/poly=IEEE/size=40/align=0-8           942MB/s ± 5%   975MB/s ± 1%     951MB/s ± 3%   696MB/s ± 3%
+CRC32/poly=IEEE/size=40/align=1-8           952MB/s ± 3%   974MB/s ± 1%     960MB/s ± 4%   698MB/s ± 3%
+CRC32/poly=IEEE/size=512/align=0-8         8.97GB/s ± 3%  2.15GB/s ± 4%                   1.54GB/s ± 2%
+CRC32/poly=IEEE/size=512/align=1-8         8.96GB/s ± 3%  2.17GB/s ± 3%                   1.52GB/s ± 3%
+CRC32/poly=IEEE/size=1kB/align=0-8         10.9GB/s ± 2%   2.3GB/s ± 4%                    1.6GB/s ± 2%
+CRC32/poly=IEEE/size=1kB/align=1-8         11.0GB/s ± 2%   2.3GB/s ± 2%                    1.6GB/s ± 6%
+CRC32/poly=IEEE/size=4kB/align=0-8         13.7GB/s ± 1%   2.4GB/s ± 7%     2.4GB/s ± 2%   1.7GB/s ± 7%
+CRC32/poly=IEEE/size=4kB/align=1-8         13.7GB/s ± 3%   2.3GB/s ± 6%     2.4GB/s ± 4%   1.7GB/s ± 5%
+CRC32/poly=IEEE/size=32kB/align=0-8        15.2GB/s ± 3%   2.2GB/s ± 7%                    1.7GB/s ± 4%
+CRC32/poly=IEEE/size=32kB/align=1-8        15.0GB/s ± 3%   2.3GB/s ± 8%                    1.7GB/s ± 5%
+CRC32/poly=Castagnoli/size=15/align=0-8     920MB/s ± 2%   916MB/s ± 2%                    253MB/s ± 1%
+CRC32/poly=Castagnoli/size=15/align=1-8     867MB/s ± 2%   870MB/s ± 2%                    253MB/s ± 2%
+CRC32/poly=Castagnoli/size=40/align=0-8    2.28GB/s ± 4%  2.30GB/s ± 2%    2.16GB/s ±11%  0.67GB/s ± 6%
+CRC32/poly=Castagnoli/size=40/align=1-8    2.06GB/s ± 2%  2.03GB/s ± 3%    2.04GB/s ± 2%  0.69GB/s ± 6%
+CRC32/poly=Castagnoli/size=512/align=0-8   12.8GB/s ± 4%  12.7GB/s ± 2%                    1.5GB/s ± 5%
+CRC32/poly=Castagnoli/size=512/align=1-8   12.2GB/s ± 1%  12.1GB/s ± 3%                    1.5GB/s ± 7%
+CRC32/poly=Castagnoli/size=1kB/align=0-8   15.5GB/s ± 1%  15.6GB/s ± 1%                    1.6GB/s ± 4%
+CRC32/poly=Castagnoli/size=1kB/align=1-8   15.0GB/s ± 2%  14.6GB/s ± 6%                    1.6GB/s ± 5%
+CRC32/poly=Castagnoli/size=4kB/align=0-8   25.7GB/s ± 3%  25.1GB/s ± 5%    25.4GB/s ± 7%   1.7GB/s ± 4%
+CRC32/poly=Castagnoli/size=4kB/align=1-8   25.3GB/s ± 3%  24.1GB/s ± 6%    24.1GB/s ± 8%   1.7GB/s ± 5%
+CRC32/poly=Castagnoli/size=32kB/align=0-8  26.8GB/s ± 5%  26.9GB/s ± 4%                    1.6GB/s ± 5%
+CRC32/poly=Castagnoli/size=32kB/align=1-8  26.8GB/s ± 4%  25.9GB/s ± 3%                    1.6GB/s ± 8%
+CRC32/poly=Koopman/size=15/align=0-8        421MB/s ± 3%   412MB/s ±10%                    258MB/s ± 5%
+CRC32/poly=Koopman/size=15/align=1-8        422MB/s ± 1%   427MB/s ± 5%                    266MB/s ± 6%
+CRC32/poly=Koopman/size=40/align=0-8        456MB/s ± 2%   437MB/s ± 9%     428MB/s ±12%   281MB/s ± 7%
+CRC32/poly=Koopman/size=40/align=1-8        455MB/s ± 3%   440MB/s ± 6%     461MB/s ± 3%   290MB/s ± 8%
+CRC32/poly=Koopman/size=512/align=0-8       476MB/s ± 3%   453MB/s ± 5%                    304MB/s ± 5%
+CRC32/poly=Koopman/size=512/align=1-8       440MB/s ± 8%   455MB/s ± 6%                    312MB/s ± 3%
+CRC32/poly=Koopman/size=1kB/align=0-8       438MB/s ± 4%   452MB/s ± 9%                    310MB/s ± 4%
+CRC32/poly=Koopman/size=1kB/align=1-8       434MB/s ± 5%   477MB/s ± 2%                    312MB/s ± 3%
+CRC32/poly=Koopman/size=4kB/align=0-8       455MB/s ± 6%   454MB/s ± 5%     452MB/s ± 8%   308MB/s ± 3%
+CRC32/poly=Koopman/size=4kB/align=1-8       455MB/s ±11%   459MB/s ± 9%     434MB/s ± 9%   311MB/s ± 3%
+CRC32/poly=Koopman/size=32kB/align=0-8      450MB/s ± 4%   453MB/s ± 8%                    307MB/s ± 6%
+CRC32/poly=Koopman/size=32kB/align=1-8      441MB/s ± 3%   471MB/s ± 3%                    309MB/s ± 4%

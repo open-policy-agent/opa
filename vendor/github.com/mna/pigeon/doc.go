@@ -35,6 +35,9 @@ The following options can be specified:
 
 	-debug : boolean, print debugging info to stdout (default: false).
 
+	-nolint: add '// nolint: ...' comments for generated parser to suppress
+	warnings by gometalinter (https://github.com/alecthomas/gometalinter).
+
 	-no-recover : boolean, if set, do not recover from a panic. Useful
 	to access the panic stack when debugging, otherwise the panic
 	is converted to an error (default: false).
@@ -417,7 +420,7 @@ the recovery expression is not successful, the parsing fails and the parser star
 to backtrack.
 
 If throw and recover expressions are used together with global state, it is the
-responsibility of the author of the grammar to reset the global state to a valid 
+responsibility of the author of the grammar to reset the global state to a valid
 state during the recovery operation.
 
 	[7]: https://arxiv.org/pdf/1405.6646v3.pdf

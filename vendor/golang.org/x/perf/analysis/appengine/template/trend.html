@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Performance Result Comparison</title>
+    <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+    <style type="text/css">
+#header h1 {
+  display: inline;
+}
+#search {
+  padding: 1em .5em;
+  width: 100%;
+}
+input[type="text"] {
+  font-size: 100%;
+}
+#results {
+  border-top: 1px solid black;
+}
+    </style>
+  </head>
+  <body>
+    <div id="header">
+      <h1>Go Performance Dashboard</h1>
+      <a href="/">about</a>
+    </div>
+    <div id="search">
+      <form action="/trend">
+        <input type="text" name="q" value="{{.Q}}" size="120">
+        <input type="submit" value="Search">
+      </form>
+    </div>
+    <div id="results">
+      {{if not .Q}}
+        <h2>Recent Uploads</h2>
+        <table>
+          <tr><th>Upload ID</th><th>trend</th></tr>
+          {{range .TrendUploads}}
+          <tr><td><a href="/trend?q=upload:{{.UploadID}}">{{.UploadID}}</a></td><td>{{.LabelValues.trend}}</td></tr>
+          {{end}}
+        </table>
+      {{else}}
+        {{with .Error}}
+        <p>{{.}}</p>
+        {{else}}
+          <div id="chart" style="height: 600px"></div>
+          <script type="text/javascript">
+            google.charts.load('current', {'packages':['corechart']});
+            google.charts.setOnLoadCallback(draw);
+            function draw() {
+              var dt = new google.visualization.DataTable({{.PlotData}});
+              var options = {
+                title: 'Benchmark Trend',
+                hAxis: {
+                  title: 'commit index',
+                },
+                vAxis: {
+                  title: 'normalized ns/op',
+                },
+                explorer: {
+                  actions: ['dragToZoom', 'rightClickToReset'],
+                  maxZoomIn: 0.05,
+                },
+              };
+              var chart = new google.visualization.{{.PlotType}}(document.getElementById('chart'));
+              chart.draw(dt, options);
+            }
+          </script>
+        {{end}}
+      {{end}}
+    </div>
+  </body>
+</html>

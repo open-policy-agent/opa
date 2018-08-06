@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Performance Result Comparison</title>
+    <style type="text/css">
+#header h1 {
+  display: inline;
+}
+#search {
+  padding: 1em .5em;
+  width: 100%;
+}
+input[type="text"] {
+  font-size: 100%;
+}
+#results {
+  border-top: 1px solid black;
+}
+tr.diff td {
+  font-size: 80%;
+  font-family: sans-serif;
+  vertical-align: top;
+}
+th.label {
+  text-align: left;
+  vertical-align: top;
+}
+td.count {
+  text-align: right;
+}
+#labels {
+  float: left;
+  margin-right: 1em;
+  border-right: 1px solid black;
+  border-collapse: collapse;
+  vertical-align: top;
+}
+#labels tbody {
+  border-collapse: collapse;
+  border-bottom: 1px solid black;
+}
+#labels > tbody > tr:last-child > th, #labels > tbody > tr:last-child > td {
+  padding-bottom: 1em;
+}
+#labels tbody tr:first-child th, #benchstat {
+  padding-top: 1em;
+}
+#labels tbody.diff tr:first-child th {
+  padding-top: 1em;
+  border-collapse: collapse;
+  border-top: 1px solid black;
+}
+#labels .diff {
+  padding-bottom: 1em;
+}
+#labels .diff table td, #labels .diff .query {
+  max-width: 20em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.benchstat tr.configs th {
+  max-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.benchstat { border-collapse: collapse; }
+.benchstat th:nth-child(1) { text-align: left; }
+.benchstat tbody td:nth-child(1n+2):not(.note) { text-align: right; padding: 0em 1em; }
+.benchstat tr:not(.configs) th { border-top: 1px solid #666; border-bottom: 1px solid #ccc; }
+.benchstat .nodelta { text-align: center !important; }
+.benchstat .better td.delta { font-weight: bold; }
+.benchstat .worse td.delta { font-weight: bold; color: #c00; }
+
+    </style>
+  </head>
+  <body>
+    <div id="header">
+      <h1>Go Performance Dashboard</h1>
+      <a href="/">about</a>
+    </div>
+    <div id="search">
+      <form action="/search">
+        <input type="text" name="q" value="{{.Q}}" size="120">
+        <input type="submit" value="Search">
+      </form>
+    </div>
+    <div id="results">
+      {{if not .Q}}
+        <p>The Go Performance Dashboard provides a centralized
+          resource for sharing and analyzing benchmark results. To get
+          started, upload benchmark results using
+          <code>go get -u golang.org/x/perf/cmd/benchsave</code>
+          and
+          <code>benchsave old.txt new.txt</code>
+          or upload via the web at
+          <a href="https://perfdata-dot-golang-org.appspot.com/upload">https://perfdata-dot-golang-org.appspot.com/upload</a>.</p>
+      {{else}}
+        {{with .Error}}
+        <p>{{.}}</p>
+        {{else}}
+          <table id="labels">
+            {{with $cl := .CommonLabels}}
+              <tbody>
+                <tr>
+                  <th>label</th><th>common value</th>
+                </tr>
+                {{range $label, $value := .}}
+                  <tr>
+                    <th class="label">{{$label}}</th><td>{{with $href := linkify $cl $label}}<a href="{{$href}}" rel="nofollow">{{$value}}</a>{{else}}{{$value}}{{end}}</td>
+                  </tr>
+                {{end}}
+              </tbody>
+            {{end}}
+            <tbody class="diff">
+              <tr>
+                <th>label</th>
+                <th>values</th>
+              </tr>
+              {{range $label, $exists := .Labels}}
+              <tr class="diff">
+                <th class="label">{{$label}}</th>
+                <td>
+                  {{range $index, $group := $.Groups}}
+                  <div class="query">{{$group.Q}}:</div>
+                  <table>
+                    {{with index $group.LabelValues $label}}
+                      {{range .TopN 4}}
+                        <tr>
+                          <td class="count">
+                            {{.Count}}
+                          </td>
+                          <td>
+                            {{if eq .Value ""}}
+                              missing
+                            {{else if eq .Value "…"}}
+                              {{.Value}}
+                            {{else}}
+                              <a href="/search?q={{addToQuery $.Q (printf "%s:%s" $label .Value)}}">
+                                {{printf "%q" .Value}}
+                              </a>
+                            {{end}}
+                          </td>
+                        </tr>
+                      {{end}}
+                    {{end}}
+                  </table>
+                {{end}}
+                </td>
+              </tr>
+              {{end}}
+              </tbody>
+          </table>
+          <div id="benchstat">
+            {{.Benchstat}}
+          </div>
+        {{end}}
+      {{end}}
+    </div>
+  </body>
+</html>

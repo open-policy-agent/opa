@@ -7,6 +7,17 @@ function is_travis_push_env() {
     return 1
 }
 
+
+# Travis-CI sets TRAVIS_PULL_REQUEST=false when the build is triggered for
+# changes pushed into github.com/open-policy-agent/opa.
+function is_travis_pr_env() {
+    if [ "$TRAVIS_PULL_REQUEST" = "false" ]; then
+        return 1
+    fi
+    return 0
+}
+
+
 # Travis-CI sets TRAVIS_TAG=<tag> when the build is triggered for a tag.
 # If the tag matches the source version then we can assume this is build is
 # for a release.

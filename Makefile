@@ -4,8 +4,6 @@
 
 VERSION := 0.9.1-dev
 
-PACKAGES := $(shell go list ./.../ | grep -v 'vendor')
-
 GO := go
 GOVERSION := 1.10
 GOARCH := $(shell go env GOARCH)
@@ -88,24 +86,18 @@ install: generate
 
 .PHONY: test
 test: generate
-	$(GO) test $(PACKAGES)
-
-COVER_PACKAGES=$(PACKAGES)
-$(COVER_PACKAGES):
-	@mkdir -p coverage/$(shell dirname $@)
-	$(GO) test -covermode=count -coverprofile=coverage/$(shell dirname $@)/coverage.out $@
-	$(GO) tool cover -html=coverage/$(shell dirname $@)/coverage.out || true
+	$(GO) test ./...
 
 .PHONY: perf
 perf: generate
-	$(GO) test -v -run=donotruntests -bench=. $(PACKAGES)
+	$(GO) test -run=- -bench=. -benchmem ./...
 
-.PHONY: perf-regression
-perf-regression:
-	./build/run-perf-regression.sh
-
-.PHONY: cover
-cover: $(COVER_PACKAGES)
+.PHONY: gen-perf-diff-travis
+gen-perf-diff-travis:
+	$(GO) test -count=5 -run=- -bench=. -benchmem ./... | tee .bench_tip.out
+	git checkout ${TRAVIS_BRANCH}
+	$(GO) test -count=5 -run=- -bench=. -benchmem ./... | tee .bench_target.out
+	benchstat .bench_target.out .bench_tip.out
 
 .PHONY: check
 check: check-fmt check-vet check-lint
@@ -124,7 +116,7 @@ check-lint:
 
 .PHONY: fmt
 fmt:
-	$(GO) fmt $(PACKAGES)
+	$(GO) fmt ./...
 
 .PHONY: clean
 clean:

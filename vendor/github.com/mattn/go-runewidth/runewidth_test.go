@@ -1,11 +1,18 @@
+// +build !windows,!js
+
 package runewidth
 
 import (
+	"os"
 	"sort"
 	"testing"
 )
 
 var _ sort.Interface = (*table)(nil)
+
+func init() {
+	os.Setenv("RUNEWIDTH_EASTASIAN", "")
+}
 
 func (t table) Len() int {
 	return len(t)
@@ -275,5 +282,16 @@ func TestFillRightFit(t *testing.T) {
 
 	if out := FillRight(s, 10); out != expected {
 		t.Errorf("FillRight(%q) = %q, want %q", s, out, expected)
+	}
+}
+
+func TestEnv(t *testing.T) {
+	old := os.Getenv("RUNEWIDTH_EASTASIAN")
+	defer os.Setenv("RUNEWIDTH_EASTASIAN", old)
+
+	os.Setenv("RUNEWIDTH_EASTASIAN", "1")
+
+	if w := RuneWidth('│'); w != 1 {
+		t.Errorf("RuneWidth('│') = %d, want %d", w, 1)
 	}
 }

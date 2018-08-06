@@ -1,0 +1,8 @@
+BenchmarkGobEncode   	100	  13552735 ns/op	  56.63 MB/s
+BenchmarkJSONEncode  	 50	  32395067 ns/op	  59.90 MB/s
+BenchmarkGobEncode   	100	  13553943 ns/op	  56.63 MB/s
+BenchmarkJSONEncode  	 50	  32334214 ns/op	  60.01 MB/s
+BenchmarkGobEncode   	100	  13606356 ns/op	  56.41 MB/s
+BenchmarkJSONEncode  	 50	  31992891 ns/op	  60.65 MB/s
+BenchmarkGobEncode   	100	  13683198 ns/op	  56.09 MB/s
+BenchmarkJSONEncode  	 50	  31735022 ns/op	  61.15 MB/s

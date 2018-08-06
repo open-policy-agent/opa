@@ -1,0 +1,7 @@
+name        old time/op    new time/op    delta
+GobEncode     13.6ms ± 1%    11.8ms ± 1%  -13.31%  (p=0.016 n=4+5)
+JSONEncode    32.1ms ± 1%    31.8ms ± 1%     ~     (p=0.286 n=4+5)
+
+name        old speed      new speed      delta
+GobEncode   56.4MB/s ± 1%  65.1MB/s ± 1%  +15.36%  (p=0.016 n=4+5)
+JSONEncode  60.4MB/s ± 1%  61.1MB/s ± 2%     ~     (p=0.286 n=4+5)

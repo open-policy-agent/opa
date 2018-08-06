@@ -1,0 +1,7 @@
+name        time/op
+GobEncode     13.6ms ± 1%
+JSONEncode    32.1ms ± 1%
+
+name        speed
+GobEncode   56.4MB/s ± 1%
+JSONEncode  60.4MB/s ± 1%
