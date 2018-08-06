@@ -413,7 +413,7 @@ false
 | timer_rego_query_parse_ns    | 12337169 |
 +------------------------------+----------+
 ```
-As seen from the above table, all results are dislayed. The profile results are
+As seen from the above table, all results are displayed. The profile results are
 sorted on the default sort criteria.
 
 #### Example: Display top `5` profile results
