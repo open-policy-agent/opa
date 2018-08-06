@@ -15,4 +15,3 @@ after_success:
 - if is_travis_push_env; then make push; fi
 - if is_travis_release_env; then make tag-latest; fi
 - if is_travis_release_env; then make push-latest; fi
-- if is_travis_push_env; then make perf-regression; fi
