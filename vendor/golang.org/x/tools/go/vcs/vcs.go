@@ -2,6 +2,16 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// Package vcs exposes functions for resolving import paths
+// and using version control systems, which can be used to
+// implement behavior similar to the standard "go get" command.
+//
+// This package is a copy of internal code in package cmd/go/internal/get,
+// modified to make the identifiers exported. It's provided here
+// for developers who want to write tools with similar semantics.
+// It needs to be manually kept in sync with upstream when changes are
+// made to cmd/go/internal/get; see https://golang.org/issues/11490.
+//
 package vcs // import "golang.org/x/tools/go/vcs"
 
 import (
@@ -10,6 +20,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -556,8 +567,8 @@ func RepoRootForImportDynamic(importPath string, verbose bool) (*RepoRoot, error
 		}
 	}
 
-	if !strings.Contains(metaImport.RepoRoot, "://") {
-		return nil, fmt.Errorf("%s: invalid repo root %q; no scheme", urlStr, metaImport.RepoRoot)
+	if err := validateRepoRoot(metaImport.RepoRoot); err != nil {
+		return nil, fmt.Errorf("%s: invalid repo root %q: %v", urlStr, metaImport.RepoRoot, err)
 	}
 	rr := &RepoRoot{
 		VCS:  ByCmd(metaImport.VCS),
@@ -570,6 +581,19 @@ func RepoRootForImportDynamic(importPath string, verbose bool) (*RepoRoot, error
 	return rr, nil
 }
 
+// validateRepoRoot returns an error if repoRoot does not seem to be
+// a valid URL with scheme.
+func validateRepoRoot(repoRoot string) error {
+	url, err := url.Parse(repoRoot)
+	if err != nil {
+		return err
+	}
+	if url.Scheme == "" {
+		return errors.New("no scheme")
+	}
+	return nil
+}
+
 // metaImport represents the parsed <meta name="go-import"
 // content="prefix vcs reporoot" /> tags from HTML files.
 type metaImport struct {
@@ -579,15 +603,28 @@ type metaImport struct {
 // errNoMatch is returned from matchGoImport when there's no applicable match.
 var errNoMatch = errors.New("no import match")
 
+// pathPrefix reports whether sub is a prefix of s,
+// only considering entire path components.
+func pathPrefix(s, sub string) bool {
+	// strings.HasPrefix is necessary but not sufficient.
+	if !strings.HasPrefix(s, sub) {
+		return false
+	}
+	// The remainder after the prefix must either be empty or start with a slash.
+	rem := s[len(sub):]
+	return rem == "" || rem[0] == '/'
+}
+
 // matchGoImport returns the metaImport from imports matching importPath.
 // An error is returned if there are multiple matches.
 // errNoMatch is returned if none match.
 func matchGoImport(imports []metaImport, importPath string) (_ metaImport, err error) {
 	match := -1
 	for i, im := range imports {
-		if !strings.HasPrefix(importPath, im.Prefix) {
+		if !pathPrefix(importPath, im.Prefix) {
 			continue
 		}
+
 		if match != -1 {
 			err = fmt.Errorf("multiple meta tags match import path %q", importPath)
 			return

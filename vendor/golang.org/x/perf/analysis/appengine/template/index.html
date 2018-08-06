@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Go Performance Result Dashboard</title>
+    <style type="text/css">
+#header h1 {
+  display: inline;
+}
+#search {
+  padding: 1em .5em;
+  width: 100%;
+}
+input[type="text"] {
+  font-size: 100%;
+}
+#results {
+  border-top: 1px solid black;
+}
+    </style>
+  </head>
+  <body>
+    <div id="header">
+      <h1>Go Performance Dashboard</h1>
+      <a href="/">about</a>
+    </div>
+    <div id="search">
+      <form action="/search">
+        <input type="text" name="q" size="120">
+        <input type="submit" value="Search">
+      </form>
+    </div>
+    <div id="results">
+      <p>The Go Performance Dashboard provides a centralized
+        resource for sharing and analyzing benchmark results. To get
+        started, upload benchmark results using
+        <code>go get -u golang.org/x/perf/cmd/benchsave</code>
+        and
+        <code>benchsave old.txt new.txt</code>
+        or upload via the web at
+        <a href="https://perfdata-dot-golang-org.appspot.com/upload">https://perfdata-dot-golang-org.appspot.com/upload</a>.</p>
+      {{with .RecentUploads}}
+        <h2>Recent Uploads</h2>
+        <table>
+          <thead>
+            <tr><th>Records</th><th>Upload</th><th>By</th></tr>
+          </thead>
+          <tbody>
+            {{range .}}
+              <tr>
+                <td>{{.Count}}</td>
+                <td><a href="/search?q=upload:{{.UploadID}}">{{index .LabelValues "upload-time"}}</a></td>
+                <td>{{.LabelValues.by}}</td>
+              </tr>
+            {{end}}
+          </tbody>
+        </table>
+      {{end}}
+    </div>
+  </body>
+</html>

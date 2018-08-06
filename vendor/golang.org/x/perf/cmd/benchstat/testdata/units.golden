@@ -1,0 +1,11 @@
+name             old time/op       new time/op       delta
+TwoHourMarathon        7200s ± 0%        7200s ± 0%   ~     (all equal)
+
+name             old user-time/op  new user-time/op  delta
+TwoHourMarathon       14400s ± 1%       14380s ± 3%   ~     (p=0.881 n=5+5)
+
+name             old time/GC       new time/GC       delta
+TwoHourMarathon       5.00ns ± 0%       5.00ns ± 0%   ~     (all equal)
+
+name             old quick-bytes   new quick-bytes   delta
+TwoHourMarathon        13.6B ±18%        13.6B ±18%   ~     (p=1.000 n=5+5)

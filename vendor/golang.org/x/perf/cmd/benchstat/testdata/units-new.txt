@@ -1,0 +1,8 @@
+pkg: synthetic
+note: test benchstat printing of units
+
+BenchmarkTwoHourMarathon 1 7200000000000 ns/op 14100000000000 user-ns/op 5 ns/GC 12 quick-bytes
+BenchmarkTwoHourMarathon 1 7200000000000 ns/op 14700000000000 user-ns/op 5 ns/GC 16 quick-bytes
+BenchmarkTwoHourMarathon 1 7200000000000 ns/op 14800000000000 user-ns/op 5 ns/GC 12 quick-bytes
+BenchmarkTwoHourMarathon 1 7200000000000 ns/op 14300000000000 user-ns/op 5 ns/GC 16 quick-bytes
+BenchmarkTwoHourMarathon 1 7200000000000 ns/op 14000000000000 user-ns/op 5 ns/GC 12 quick-bytes

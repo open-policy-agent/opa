@@ -1,0 +1,11 @@
+name        time/op
+pkg:encoding/gob
+GobEncode     13.6ms ± 1%
+pkg:encoding/json
+JSONEncode    32.1ms ± 1%
+
+name        speed
+pkg:encoding/gob
+GobEncode   56.4MB/s ± 1%
+pkg:encoding/json
+JSONEncode  60.4MB/s ± 1%

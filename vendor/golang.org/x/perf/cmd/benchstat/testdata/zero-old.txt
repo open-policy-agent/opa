@@ -1,0 +1,4 @@
+pkg: synthetic
+note: test benchstat printing of zeros
+
+BenchmarkImperceptible 1 1234567890 a-bytes 171717171717 b-bytes 99999929 c-bytes

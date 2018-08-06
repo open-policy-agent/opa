@@ -55,7 +55,7 @@ func (h hostEnforcerHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, r.URL.String(), http.StatusFound)
 		return
 	}
-	w.Header().Set("Strict-Transport-Security", "max-age=31536000; preload")
+	w.Header().Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload")
 	h.h.ServeHTTP(w, r)
 }
 
@@ -120,6 +120,7 @@ func readTemplates(p *godoc.Presentation, html bool) {
 		p.ImplementsHTML = readTemplate("implements.html")
 		p.MethodSetHTML = readTemplate("methodset.html")
 		p.PackageHTML = readTemplate("package.html")
+		p.PackageRootHTML = readTemplate("packageroot.html")
 		p.SearchHTML = readTemplate("search.html")
 		p.SearchDocHTML = readTemplate("searchdoc.html")
 		p.SearchCodeHTML = readTemplate("searchcode.html")

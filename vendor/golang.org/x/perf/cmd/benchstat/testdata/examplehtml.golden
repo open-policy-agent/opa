@@ -1,0 +1,38 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Performance Result Comparison</title>
+<style>
+.benchstat { border-collapse: collapse; }
+.benchstat th:nth-child(1) { text-align: left; }
+.benchstat tbody td:nth-child(1n+2):not(.note) { text-align: right; padding: 0em 1em; }
+.benchstat tr:not(.configs) th { border-top: 1px solid #666; border-bottom: 1px solid #ccc; }
+.benchstat .nodelta { text-align: center !important; }
+.benchstat .better td.delta { font-weight: bold; }
+.benchstat .worse td.delta { font-weight: bold; color: #c00; }
+</style>
+</head>
+<body>
+
+<table class='benchstat oldnew'>
+<tr class='configs'><th><th>exampleold.txt<th>examplenew.txt
+
+
+<tbody>
+<tr><th><th colspan='2' class='metric'>time/op<th>delta
+<tr class='better'><td>GobEncode<td>13.6ms ± 1%<td>11.8ms ± 1%<td class='delta'>−13.31%<td class='note'>(p=0.016 n=4&#43;5)
+<tr class='unchanged'><td>JSONEncode<td>32.1ms ± 1%<td>31.8ms ± 1%<td class='nodelta'>~<td class='note'>(p=0.286 n=4&#43;5)
+<tr><td>&nbsp;
+</tbody>
+
+<tbody>
+<tr><th><th colspan='2' class='metric'>speed<th>delta
+<tr class='better'><td>GobEncode<td>56.4MB/s ± 1%<td>65.1MB/s ± 1%<td class='delta'>&#43;15.36%<td class='note'>(p=0.016 n=4&#43;5)
+<tr class='unchanged'><td>JSONEncode<td>60.4MB/s ± 1%<td>61.1MB/s ± 2%<td class='nodelta'>~<td class='note'>(p=0.286 n=4&#43;5)
+<tr><td>&nbsp;
+</tbody>
+
+</table>
+</body>
+</html>

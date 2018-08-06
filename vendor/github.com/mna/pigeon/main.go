@@ -43,6 +43,7 @@ func main() {
 		dbgFlag                = fs.Bool("debug", false, "set debug mode")
 		shortHelpFlag          = fs.Bool("h", false, "show help page")
 		longHelpFlag           = fs.Bool("help", false, "show help page")
+		nolint                 = fs.Bool("nolint", false, "add '// nolint: ...' comments to suppress warnings by gometalinter")
 		noRecoverFlag          = fs.Bool("no-recover", false, "do not recover from panic")
 		outputFlag             = fs.String("o", "", "output file, defaults to stdout")
 		optimizeBasicLatinFlag = fs.Bool("optimize-basic-latin", false, "generate optimized parser for Unicode Basic Latin character sets")
@@ -134,7 +135,8 @@ func main() {
 		curNmOpt := builder.ReceiverName(*recvrNmFlag)
 		optimizeParser := builder.Optimize(*optimizeParserFlag)
 		basicLatinOptimize := builder.BasicLatinLookupTable(*optimizeBasicLatinFlag)
-		if err := builder.BuildParser(outBuf, grammar, curNmOpt, optimizeParser, basicLatinOptimize); err != nil {
+		nolintOpt := builder.Nolint(*nolint)
+		if err := builder.BuildParser(outBuf, grammar, curNmOpt, optimizeParser, basicLatinOptimize, nolintOpt); err != nil {
 			fmt.Fprintln(os.Stderr, "build error: ", err)
 			exit(5)
 		}
@@ -181,6 +183,9 @@ the generated code is written to this file instead.
 		output debugging information while parsing the grammar.
 	-h -help
 		display this help message.
+	-nolint
+		add '// nolint: ...' comments for generated parser to suppress
+		warnings by gometalinter (https://github.com/alecthomas/gometalinter).
 	-no-recover
 		do not recover from a panic. Useful to access the panic stack
 		when debugging, otherwise the panic is converted to an error.

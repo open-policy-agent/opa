@@ -59,9 +59,10 @@ func TestCamelCase(t *testing.T) {
 
 func TestGoPackageOption(t *testing.T) {
 	tests := []struct {
-		in           string
-		impPath, pkg string
-		ok           bool
+		in      string
+		impPath GoImportPath
+		pkg     GoPackageName
+		ok      bool
 	}{
 		{"", "", "", false},
 		{"foo", "", "foo", true},
@@ -80,6 +81,35 @@ func TestGoPackageOption(t *testing.T) {
 		if impPath != tc.impPath || pkg != tc.pkg || ok != tc.ok {
 			t.Errorf("go_package = %q => (%q, %q, %t), want (%q, %q, %t)", tc.in,
 				impPath, pkg, ok, tc.impPath, tc.pkg, tc.ok)
+		}
+	}
+}
+
+func TestUnescape(t *testing.T) {
+	tests := []struct {
+		in  string
+		out string
+	}{
+		// successful cases, including all kinds of escapes
+		{"", ""},
+		{"foo bar baz frob nitz", "foo bar baz frob nitz"},
+		{`\000\001\002\003\004\005\006\007`, string([]byte{0, 1, 2, 3, 4, 5, 6, 7})},
+		{`\a\b\f\n\r\t\v\\\?\'\"`, string([]byte{'\a', '\b', '\f', '\n', '\r', '\t', '\v', '\\', '?', '\'', '"'})},
+		{`\x10\x20\x30\x40\x50\x60\x70\x80`, string([]byte{16, 32, 48, 64, 80, 96, 112, 128})},
+		// variable length octal escapes
+		{`\0\018\222\377\3\04\005\6\07`, string([]byte{0, 1, '8', 0222, 255, 3, 4, 5, 6, 7})},
+		// malformed escape sequences left as is
+		{"foo \\g bar", "foo \\g bar"},
+		{"foo \\xg0 bar", "foo \\xg0 bar"},
+		{"\\", "\\"},
+		{"\\x", "\\x"},
+		{"\\xf", "\\xf"},
+		{"\\777", "\\777"}, // overflows byte
+	}
+	for _, tc := range tests {
+		s := unescape(tc.in)
+		if s != tc.out {
+			t.Errorf("doUnescape(%q) = %q; should have been %q", tc.in, s, tc.out)
 		}
 	}
 }
