@@ -124,7 +124,7 @@ sod_violation[user] {
 }
 ```
 
-(For those familar with SOD, this is the static version since SOD violations
+(For those familiar with SOD, this is the static version since SOD violations
 happen whenever a user is assigned two conflicting roles.  The dynamic version of SOD allows
 a single user to be assigned two conflicting roles but requires that the same user not
 utilize those roles on the same transaction, which is out of scope for this document.)

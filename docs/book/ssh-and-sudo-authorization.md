@@ -280,7 +280,7 @@ ssh -p 2223 frontend-dev@localhost \
 ### 5. Elevate a user's rights through policy.
 
 Suppose you have a ticketing system for elevation, where you generate tickets for users
-that need elevated rights, send the ticket to ther user, and expire those tickets when
+that need elevated rights, send the ticket to the user, and expire those tickets when
 their rights should be removed.
 
 Let's mock the current state of this simple ticketing system's API with some data.
@@ -391,7 +391,7 @@ Congratulations for finishing the tutorial!
 * OPA gives you fine-grained access control over SSH, `sudo`, and any other application that uses PAM.
   Although this tutorial used the some of the same policies for both
   SSH and sudo, you should use separate, fine-grained policies for each application that supports PAM.
-* Writing allow/deny policies to control who has access to what using context from the user and host. 
+* Writing allow/deny policies to control who has access to what using context from the user and host.
 * Importing external data into OPA and writing policies that depend on that data.
 
 The code for the PAM module used in this tutorial can be found in the

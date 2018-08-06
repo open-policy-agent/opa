@@ -115,7 +115,7 @@ body true. The rule body can be understood intuitively as:
 expression-1 AND expression-2 AND ... AND expression-N
 ```
 
-The rule itself can be understood intuitvely as:
+The rule itself can be understood intuitively as:
 
 ```
 rule-name IS value IF body
