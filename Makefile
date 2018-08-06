@@ -4,8 +4,6 @@
 
 VERSION := 0.9.1-dev
 
-PACKAGES := $(shell go list ./.../ | grep -v 'vendor')
-
 GO := go
 GOVERSION := 1.10
 GOARCH := $(shell go env GOARCH)
@@ -88,24 +86,15 @@ install: generate
 
 .PHONY: test
 test: generate
-	$(GO) test $(PACKAGES)
-
-COVER_PACKAGES=$(PACKAGES)
-$(COVER_PACKAGES):
-	@mkdir -p coverage/$(shell dirname $@)
-	$(GO) test -covermode=count -coverprofile=coverage/$(shell dirname $@)/coverage.out $@
-	$(GO) tool cover -html=coverage/$(shell dirname $@)/coverage.out || true
+	$(GO) test ./...
 
 .PHONY: perf
 perf: generate
-	$(GO) test -v -run=donotruntests -bench=. $(PACKAGES)
+	$(GO) test -v -run=donotruntests -bench=. ./...
 
 .PHONY: perf-regression
 perf-regression:
 	./build/run-perf-regression.sh
-
-.PHONY: cover
-cover: $(COVER_PACKAGES)
 
 .PHONY: check
 check: check-fmt check-vet check-lint
@@ -124,7 +113,7 @@ check-lint:
 
 .PHONY: fmt
 fmt:
-	$(GO) fmt $(PACKAGES)
+	$(GO) fmt ./...
 
 .PHONY: clean
 clean:
