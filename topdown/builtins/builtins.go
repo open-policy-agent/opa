@@ -132,6 +132,16 @@ func ObjectOperand(x ast.Value, pos int) (ast.Object, error) {
 	return o, nil
 }
 
+// ArrayOperand converts x to an array. If the cast fails, a descriptive
+// error is returned.
+func ArrayOperand(x ast.Value, pos int) (ast.Array, error) {
+	a, ok := x.(ast.Array)
+	if !ok {
+		return nil, NewOperandTypeErr(pos, x, "array")
+	}
+	return a, nil
+}
+
 // NumberToFloat converts n to a big float.
 func NumberToFloat(n ast.Number) *big.Float {
 	r, ok := new(big.Float).SetString(string(n))

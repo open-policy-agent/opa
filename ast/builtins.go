@@ -64,6 +64,9 @@ var DefaultBuiltins = [...]*Builtin{
 	Any,
 	All,
 
+	// Arrays
+	ArrayConcat,
+
 	// Casting
 	ToNumber,
 	CastObject,
@@ -468,6 +471,22 @@ var Any = &Builtin{
 			),
 		),
 		types.B,
+	),
+}
+
+/**
+ * Arrays
+ */
+
+// ArrayConcat returns the result of concatenating two arrays together.
+var ArrayConcat = &Builtin{
+	Name: "array.concat",
+	Decl: types.NewFunction(
+		types.Args(
+			types.NewArray(nil, types.A),
+			types.NewArray(nil, types.A),
+		),
+		types.NewArray(nil, types.A),
 	),
 }
 
