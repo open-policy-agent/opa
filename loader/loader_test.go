@@ -5,6 +5,8 @@
 package loader
 
 import (
+	"bytes"
+	"os"
 	"path/filepath"
 	"reflect"
 	"sort"
@@ -12,6 +14,7 @@ import (
 	"testing"
 
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/bundle"
 	"github.com/open-policy-agent/opa/util"
 	"github.com/open-policy-agent/opa/util/test"
 )
@@ -145,6 +148,84 @@ func TestLoadDirRecursive(t *testing.T) {
 		}
 		if !mod2.Equal(expectedMod2) {
 			t.Fatalf("Expected:\n%v\n\nGot:\n%v", expectedMod2, mod2)
+		}
+	})
+}
+
+var testBundle = bundle.Bundle{
+	Modules: []bundle.ModuleFile{
+		{
+			Path: "x.rego",
+			Raw: []byte(`
+				package baz
+
+				p = 1`),
+		},
+	},
+	Data: map[string]interface{}{
+		"foo": "bar",
+	},
+}
+
+func TestLoadBundle(t *testing.T) {
+
+	test.WithTempFS(nil, func(rootDir string) {
+
+		f, err := os.Create(filepath.Join(rootDir, "bundle.tar.gz"))
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if err := bundle.Write(f, testBundle); err != nil {
+			t.Fatal(err)
+		}
+
+		paths := mustListPaths(rootDir, false)[1:]
+		loaded, err := All(paths)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if !reflect.DeepEqual(testBundle.Data, loaded.Documents) {
+			t.Fatalf("Expected %v but got: %v", testBundle.Data, loaded.Documents)
+		}
+
+		if !bytes.Equal(testBundle.Modules[0].Raw, loaded.Modules["/x.rego"].Raw) {
+			t.Fatalf("Expected %v but got: %v", string(testBundle.Modules[0].Raw), loaded.Modules["x.rego"].Raw)
+		}
+	})
+
+}
+
+func TestLoadBundleSubDir(t *testing.T) {
+
+	test.WithTempFS(nil, func(rootDir string) {
+
+		if err := os.MkdirAll(filepath.Join(rootDir, "a", "b"), 0777); err != nil {
+			t.Fatal(err)
+		}
+
+		f, err := os.Create(filepath.Join(rootDir, "a", "b", "bundle.tar.gz"))
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if err := bundle.Write(f, testBundle); err != nil {
+			t.Fatal(err)
+		}
+
+		paths := mustListPaths(rootDir, false)[1:]
+		loaded, err := All(paths)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if !reflect.DeepEqual(map[string]interface{}{"b": testBundle.Data}, loaded.Documents) {
+			t.Fatalf("Expected %v but got: %v", testBundle.Data, loaded.Documents)
+		}
+
+		if !bytes.Equal(testBundle.Modules[0].Raw, loaded.Modules["/x.rego"].Raw) {
+			t.Fatalf("Expected %v but got: %v", string(testBundle.Modules[0].Raw), loaded.Modules["x.rego"].Raw)
 		}
 	})
 }

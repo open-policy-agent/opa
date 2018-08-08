@@ -4,9 +4,9 @@
 
 package loader
 
-// mergeDocs returns the result of merging a and b. If a and b cannot be merged
-// because of conflicting key-value pairs, ok is false.
-func mergeDocs(a map[string]interface{}, b map[string]interface{}) (c map[string]interface{}, ok bool) {
+// mergeInterfaces returns the result of merging a and b. If a and b cannot be
+// merged because of conflicting key-value pairs, ok is false.
+func mergeInterfaces(a map[string]interface{}, b map[string]interface{}) (c map[string]interface{}, ok bool) {
 
 	c = map[string]interface{}{}
 	for k := range a {
@@ -28,7 +28,7 @@ func mergeDocs(a map[string]interface{}, b map[string]interface{}) (c map[string
 			return nil, false
 		}
 
-		c[k], ok = mergeDocs(existObj, addObj)
+		c[k], ok = mergeInterfaces(existObj, addObj)
 		if !ok {
 			return nil, false
 		}

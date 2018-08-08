@@ -131,20 +131,34 @@ func SplitPrefix(path string) ([]string, string) {
 
 func (l *Result) merge(path string, result interface{}) error {
 	switch result := result.(type) {
+	case bundle.Bundle:
+		for _, module := range result.Modules {
+			l.Modules[module.Path] = &RegoFile{
+				Name:   module.Path,
+				Parsed: module.Parsed,
+				Raw:    module.Raw,
+			}
+		}
+		return l.mergeDocument(path, result.Data)
 	case *RegoFile:
 		l.Modules[CleanPath(path)] = result
+		return nil
 	default:
-		obj, ok := makeDir(l.path, result)
-		if !ok {
-			return unsupportedDocumentType(path)
-		}
-		merged, ok := mergeDocs(l.Documents, obj)
-		if !ok {
-			return mergeError(path)
-		}
-		for k := range merged {
-			l.Documents[k] = merged[k]
-		}
+		return l.mergeDocument(path, result)
+	}
+}
+
+func (l *Result) mergeDocument(path string, doc interface{}) error {
+	obj, ok := makeDir(l.path, doc)
+	if !ok {
+		return unsupportedDocumentType(path)
+	}
+	merged, ok := mergeInterfaces(l.Documents, obj)
+	if !ok {
+		return mergeError(path)
+	}
+	for k := range merged {
+		l.Documents[k] = merged[k]
 	}
 	return nil
 }
@@ -237,6 +251,10 @@ func loadKnownTypes(path string, bs []byte) (interface{}, error) {
 		return Rego(path)
 	case ".yaml", ".yml":
 		return loadYAML(path, bs)
+	default:
+		if strings.HasSuffix(path, ".tar.gz") {
+			return loadBundle(bs)
+		}
 	}
 	return nil, unrecognizedFile(path)
 }
@@ -255,6 +273,10 @@ func loadFileForAnyType(path string, bs []byte) (interface{}, error) {
 		return doc, nil
 	}
 	return nil, unrecognizedFile(path)
+}
+
+func loadBundle(bs []byte) (bundle.Bundle, error) {
+	return bundle.Read(bytes.NewBuffer(bs))
 }
 
 func loadRego(path string, bs []byte) (*RegoFile, error) {

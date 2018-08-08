@@ -130,3 +130,17 @@ metadata. The file should contain a JSON serialized object.
 * If the bundle service is capable of serving different revisions of the same
   bundle, the service should include a top-level `revision` field containing a
   `string` value that identifies the bundle revision.
+
+OPA will only load data files named `data.json`, i.e., you MUST name files
+that contain data (which you want loaded into OPA) `data.json` -- otherwise
+they will be ignored.
+
+## Debugging Your Bundles
+
+When you run OPA, you can provide bundle files over the command line. This
+allows you to manually check that your bundles include all of the files that
+you intended and that they are structured correctly. For example:
+
+```bash
+opa run bundle.tar.gz
+```
