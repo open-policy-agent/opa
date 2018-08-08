@@ -38,7 +38,7 @@ func TestMergeDocs(t *testing.T) {
 
 		if len(tc.c) == 0 {
 
-			c, ok := mergeDocs(a, b)
+			c, ok := mergeInterfaces(a, b)
 			if ok {
 				t.Errorf("Expected merge(%v,%v) == false but got: %v", a, b, c)
 			}
@@ -50,7 +50,7 @@ func TestMergeDocs(t *testing.T) {
 				panic(err)
 			}
 
-			c, ok := mergeDocs(a, b)
+			c, ok := mergeInterfaces(a, b)
 			if !ok || !reflect.DeepEqual(c, expected) {
 				t.Errorf("Expected merge(%v, %v) == %v but got: %v (ok: %v)", a, b, expected, c, ok)
 			}
