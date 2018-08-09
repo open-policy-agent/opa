@@ -4,55 +4,15 @@ OPA can periodically report status updates to remote HTTP servers. The
 updates contain status information for OPA itself as well as the
 [Bundles](bundles.md) that have been downloaded and activated.
 
-## Status Configuration
-
-You can configure OPA to periodically report status with a configuration file
-(both YAML and JSON files are supported):
-
-```bash
-opa run --server --config-file config.yaml
-```
-
-**config.yaml**:
-
-```yaml
-services:
-  - name: acmecorp
-    url: https://example.com/
-bundle:
-  name: http/example/authz
-  service: acmecorp
-labels:
-  app: my-example-app
-status:
-  service: acmecorp
-```
-
-With this configuration OPA will report status updates to
-`https://example.com`.
+OPA sends status reports whenever bundles are downloaded and activated. If
+the bundle download or activation fails for any reason, the status update
+will include error information describing the failure.
 
 The status updates will include a set of labels that uniquely identify the
 OPA instance. OPA automatically includes an `id` value in the label set that
 provides a globally unique identifier or the running OPA instance.
 
-OPA sends status reports whenever bundles are downloaded and activated. If
-the bundle download or activation fails for any reason, the status update
-will include error information describing the failure.
-
-### Configuration Format
-
-```yaml
-labels: object
-status:
-  service: string
-  partition_name: string
-```
-
-| Field | Required | Description |
-| --- | --- | --- |
-| `status.service` | Yes | Name of service to use to contact remote server. |
-| `status.partition_name` | No | Path segment to include in status updates. |
-| `labels` | Yes | Set of key-value pairs that uniquely identify the OPA instance. |
+See the [Configuration Reference](configuration.md) for configuration details.
 
 ## Status Service API
 
