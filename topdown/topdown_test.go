@@ -95,6 +95,50 @@ func TestTopDownQueryIDsUnique(t *testing.T) {
 	}
 }
 
+func TestTopDownIndexExpr(t *testing.T) {
+	ctx := context.Background()
+	store := inmem.New()
+	inputTerm := &ast.Term{}
+	txn := storage.NewTransactionOrDie(ctx, store)
+	defer store.Abort(ctx, txn)
+
+	compiler := compileModules([]string{
+		`package test
+
+		p = true {
+		     1 > 0
+		     q
+		}
+
+		q = true { true }`})
+
+	tr := []*Event{}
+
+	query := NewQuery(ast.MustParseBody("data.test.p")).
+		WithCompiler(compiler).
+		WithStore(store).
+		WithTransaction(txn).
+		WithTracer((*BufferTracer)(&tr)).
+		WithInput(inputTerm)
+
+	_, err := query.Run(ctx)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	var expectedQueryID uint64
+	for _, evt := range tr {
+		if evt.Op != IndexOp {
+			continue
+		}
+
+		if evt.QueryID != expectedQueryID {
+			t.Errorf("Unexpected queryID: %v", evt.QueryID)
+		}
+		expectedQueryID++
+	}
+}
+
 func TestTopDownPartialSetDoc(t *testing.T) {
 
 	tests := []struct {

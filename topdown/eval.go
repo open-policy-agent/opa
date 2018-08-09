@@ -31,6 +31,7 @@ type eval struct {
 	parent        *eval
 	cancel        Cancel
 	query         ast.Body
+	index         int
 	bindings      *bindings
 	store         storage.Store
 	baseCache     *baseCache
@@ -60,6 +61,7 @@ func (e *eval) Run(iter evalIterator) error {
 
 func (e *eval) closure(query ast.Body) *eval {
 	cpy := *e
+	cpy.index = 0
 	cpy.query = query
 	cpy.queryID = cpy.queryIDFact.Next()
 	cpy.parent = e
@@ -68,11 +70,19 @@ func (e *eval) closure(query ast.Body) *eval {
 
 func (e *eval) child(query ast.Body) *eval {
 	cpy := *e
+	cpy.index = 0
 	cpy.query = query
 	cpy.queryID = cpy.queryIDFact.Next()
 	cpy.bindings = newBindings(cpy.queryID, e.instr)
 	cpy.parent = e
 	return &cpy
+}
+
+func (e *eval) next(iter evalIterator) error {
+	e.index++
+	err := e.evalExpr(iter)
+	e.index--
+	return err
 }
 
 func (e *eval) partial() bool {
@@ -139,10 +149,10 @@ func (e *eval) traceEnabled() bool {
 	return e.tracer != nil && e.tracer.Enabled()
 }
 func (e *eval) eval(iter evalIterator) error {
-	return e.evalExpr(0, iter)
+	return e.evalExpr(iter)
 }
 
-func (e *eval) evalExpr(index int, iter evalIterator) error {
+func (e *eval) evalExpr(iter evalIterator) error {
 
 	if e.cancel != nil && e.cancel.Cancelled() {
 		return &Error{
@@ -151,31 +161,31 @@ func (e *eval) evalExpr(index int, iter evalIterator) error {
 		}
 	}
 
-	if index >= len(e.query) {
+	if e.index >= len(e.query) {
 		return iter(e)
 	}
 
-	expr := e.query[index]
+	expr := e.query[e.index]
 	e.traceEval(expr)
 
 	if len(expr.With) > 0 {
 		if e.partial() {
 			return e.saveExpr(expr, e.bindings, func() error {
-				return e.evalExpr(index+1, iter)
+				return e.next(iter)
 			})
 		}
-		return e.evalWith(index, iter)
+		return e.evalWith(iter)
 	}
 
-	return e.evalStep(index, iter)
+	return e.evalStep(iter)
 }
 
-func (e *eval) evalStep(index int, iter evalIterator) error {
+func (e *eval) evalStep(iter evalIterator) error {
 
-	expr := e.query[index]
+	expr := e.query[e.index]
 
 	if expr.Negated {
-		return e.evalNot(index, iter)
+		return e.evalNot(iter)
 	}
 
 	var defined bool
@@ -186,29 +196,29 @@ func (e *eval) evalStep(index int, iter evalIterator) error {
 		if expr.IsEquality() {
 			err = e.unify(terms[1], terms[2], func() error {
 				defined = true
-				err := e.evalExpr(index+1, iter)
+				err := e.next(iter)
 				e.traceRedo(expr)
 				return err
 			})
 		} else {
-			err = e.evalCall(index, terms, func() error {
+			err = e.evalCall(terms, func() error {
 				defined = true
-				err := e.evalExpr(index+1, iter)
+				err := e.next(iter)
 				e.traceRedo(expr)
 				return err
 			})
 		}
 	case *ast.Term:
-		rterm := e.generateVar(fmt.Sprintf("term_%d_%d", e.queryID, index))
+		rterm := e.generateVar(fmt.Sprintf("term_%d_%d", e.queryID, e.index))
 		err = e.unify(terms, rterm, func() error {
 			if e.saveSet.Contains(rterm, e.bindings) {
 				return e.saveTerm(rterm, func() error {
-					return e.evalExpr(index+1, iter)
+					return e.next(iter)
 				})
 			}
 			if !e.bindings.Plug(rterm).Equal(ast.BooleanTerm(false)) {
 				defined = true
-				err := e.evalExpr(index+1, iter)
+				err := e.next(iter)
 				e.traceRedo(expr)
 				return err
 			}
@@ -227,13 +237,13 @@ func (e *eval) evalStep(index int, iter evalIterator) error {
 	return nil
 }
 
-func (e *eval) evalNot(index int, iter evalIterator) error {
+func (e *eval) evalNot(iter evalIterator) error {
 
 	if e.partial() {
-		return e.evalNotPartial(index, iter)
+		return e.evalNotPartial(iter)
 	}
 
-	expr := e.query[index]
+	expr := e.query[e.index]
 	negation := expr.Complement().NoWith()
 	child := e.closure(ast.NewBody(negation))
 
@@ -249,16 +259,16 @@ func (e *eval) evalNot(index int, iter evalIterator) error {
 	}
 
 	if !defined {
-		return e.evalExpr(index+1, iter)
+		return e.next(iter)
 	}
 
 	e.traceFail(expr)
 	return nil
 }
 
-func (e *eval) evalWith(index int, iter evalIterator) error {
+func (e *eval) evalWith(iter evalIterator) error {
 
-	expr := e.query[index]
+	expr := e.query[e.index]
 	pairs := make([][2]*ast.Term, len(expr.With))
 
 	for i := range expr.With {
@@ -278,15 +288,15 @@ func (e *eval) evalWith(index int, iter evalIterator) error {
 	old := e.input
 	e.input = ast.NewTerm(input)
 	e.virtualCache.Push()
-	err = e.evalStep(index, iter)
+	err = e.evalStep(iter)
 	e.virtualCache.Pop()
 	e.input = old
 	return err
 }
 
-func (e *eval) evalNotPartial(index int, iter evalIterator) error {
+func (e *eval) evalNotPartial(iter evalIterator) error {
 
-	expr := e.query[index]
+	expr := e.query[e.index]
 	negation := expr.Complement().NoWith()
 	child := e.closure(ast.NewBody(negation))
 
@@ -295,7 +305,7 @@ func (e *eval) evalNotPartial(index int, iter evalIterator) error {
 	// into the support rule. If the complemented expression is undefined
 	// then the negated expression can be omitted completely.
 	e.saveStack.PushQuery(nil)
-	supportName := fmt.Sprintf("__not%d_%d__", e.queryID, index)
+	supportName := fmt.Sprintf("__not%d_%d__", e.queryID, e.index)
 	term := ast.RefTerm(ast.DefaultRootDocument, e.saveNamespace, ast.StringTerm(supportName))
 	path := term.Value.(ast.Ref)
 	defined := false
@@ -351,14 +361,14 @@ func (e *eval) evalNotPartial(index int, iter evalIterator) error {
 			expr.Terms = term
 		}
 		return e.saveExpr(expr, e.bindings, func() error {
-			return e.evalExpr(index+1, iter)
+			return e.next(iter)
 		})
 	}
 
-	return e.evalExpr(index+1, iter)
+	return e.next(iter)
 }
 
-func (e *eval) evalCall(index int, terms []*ast.Term, iter unifyIterator) error {
+func (e *eval) evalCall(terms []*ast.Term, iter unifyIterator) error {
 
 	ref := terms[0].Value.(ast.Ref)
 
@@ -373,7 +383,7 @@ func (e *eval) evalCall(index int, terms []*ast.Term, iter unifyIterator) error 
 
 	bi := ast.BuiltinMap[ref.String()]
 	if bi == nil {
-		return unsupportedBuiltinErr(e.query[index].Location)
+		return unsupportedBuiltinErr(e.query[e.index].Location)
 	}
 
 	if e.partial() {
@@ -402,7 +412,7 @@ func (e *eval) evalCall(index int, terms []*ast.Term, iter unifyIterator) error 
 
 	f := builtinFunctions[bi.Name]
 	if f == nil {
-		return unsupportedBuiltinErr(e.query[index].Location)
+		return unsupportedBuiltinErr(e.query[e.index].Location)
 	}
 
 	var parentID uint64
@@ -412,7 +422,7 @@ func (e *eval) evalCall(index int, terms []*ast.Term, iter unifyIterator) error 
 
 	bctx := BuiltinContext{
 		Cache:    e.builtinCache,
-		Location: e.query[index].Location,
+		Location: e.query[e.index].Location,
 		Tracer:   e.tracer,
 		QueryID:  e.queryID,
 		ParentID: parentID,
@@ -778,9 +788,9 @@ func (e *eval) getRules(ref ast.Ref) (*ast.IndexResult, error) {
 
 	var msg string
 	if len(result.Rules) == 1 {
-		msg = fmt.Sprintf("%v (matched 1 rule)", e.query[0])
+		msg = fmt.Sprintf("%v (matched 1 rule)", e.query[e.index])
 	} else {
-		msg = fmt.Sprintf("%v (matched %v rules)", e.query[0], len(result.Rules))
+		msg = fmt.Sprintf("%v (matched %v rules)", e.query[e.index], len(result.Rules))
 	}
 	e.traceIndex(msg)
 	return result, err

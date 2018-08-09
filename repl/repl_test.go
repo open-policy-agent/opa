@@ -1777,6 +1777,79 @@ Redo data.a[i].b.c[j] = x; data.a[k].b.c[x] = 1
 	}
 }
 
+func TestEvalTraceIndex(t *testing.T) {
+	store := newTestStore()
+	ctx := context.Background()
+	txn := storage.NewTransactionOrDie(ctx, store, storage.WriteParams)
+
+	mod := []byte(`package test
+
+	p {
+		false
+	} else {
+		input.x = "x1"
+		input.y = "y1"
+	} else {
+		input.z = "z1"
+	}
+
+	p {
+		input.x = "x1"
+	}
+
+	p {
+		input.z = "z2"
+	} else {
+		input.z = "z1"
+	}
+`)
+
+	if err := store.UpsertPolicy(ctx, txn, "mod", mod); err != nil {
+		panic(err)
+	}
+
+	if err := store.Commit(ctx, txn); err != nil {
+		panic(err)
+	}
+
+	var buf bytes.Buffer
+	repl := newRepl(store, &buf)
+	repl.OneShot(ctx, "trace")
+	repl.OneShot(ctx, `data.test.p with input as  {"x": "x1", "y": "y1", "z": "z1"}`)
+	expected := strings.TrimSpace(`
+Enter data.test.p = _ with input as {"x": "x1", "y": "y1", "z": "z1"}
+| Eval data.test.p = _ with input as {"x": "x1", "y": "y1", "z": "z1"}
+| Index data.test.p = _ with input as {"x": "x1", "y": "y1", "z": "z1"} (matched 3 rules)
+| Enter p = true
+| | Eval false
+| | Fail false
+| Enter p = true
+| | Eval input.x = "x1"
+| | Eval input.y = "y1"
+| | Exit p = true
+| Exit data.test.p = _ with input as {"x": "x1", "y": "y1", "z": "z1"}
+Redo data.test.p = _ with input as {"x": "x1", "y": "y1", "z": "z1"}
+| Redo data.test.p = _ with input as {"x": "x1", "y": "y1", "z": "z1"}
+| Redo p = true
+| | Redo input.y = "y1"
+| | Redo input.x = "x1"
+| Enter p = true
+| | Eval input.x = "x1"
+| | Exit p = true
+| Redo p = true
+| | Redo input.x = "x1"
+| Enter p = true
+| | Eval input.z = "z1"
+| | Exit p = true
+| Redo p = true
+| | Redo input.z = "z1"
+true`)
+	expected += "\n"
+	if expected != buf.String() {
+		t.Fatalf("Expected output to be exactly:\n%v\n\nGot:\n\n%v\n", expected, buf.String())
+	}
+}
+
 func TestTruncatePrettyOutput(t *testing.T) {
 	ctx := context.Background()
 	store := inmem.New()
