@@ -31,6 +31,7 @@ type eval struct {
 	parent        *eval
 	cancel        Cancel
 	query         ast.Body
+	currExpr      *ast.Expr
 	bindings      *bindings
 	store         storage.Store
 	baseCache     *baseCache
@@ -155,12 +156,12 @@ func (e *eval) evalExpr(index int, iter evalIterator) error {
 		return iter(e)
 	}
 
-	expr := e.query[index]
-	e.traceEval(expr)
+	e.currExpr = e.query[index]
+	e.traceEval(e.currExpr)
 
-	if len(expr.With) > 0 {
+	if len(e.currExpr.With) > 0 {
 		if e.partial() {
-			return e.saveExpr(expr, e.bindings, func() error {
+			return e.saveExpr(e.currExpr, e.bindings, func() error {
 				return e.evalExpr(index+1, iter)
 			})
 		}
@@ -778,9 +779,9 @@ func (e *eval) getRules(ref ast.Ref) (*ast.IndexResult, error) {
 
 	var msg string
 	if len(result.Rules) == 1 {
-		msg = fmt.Sprintf("%v (matched 1 rule)", e.query[0])
+		msg = fmt.Sprintf("%v (matched 1 rule)", e.currExpr)
 	} else {
-		msg = fmt.Sprintf("%v (matched %v rules)", e.query[0], len(result.Rules))
+		msg = fmt.Sprintf("%v (matched %v rules)", e.currExpr, len(result.Rules))
 	}
 	e.traceIndex(msg)
 	return result, err
