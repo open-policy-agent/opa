@@ -120,6 +120,7 @@ complex types.
 | Built-in | Inputs | Description |
 | ------- |--------|-------------|
 | <span class="opa-keep-it-together">``io.jwt.verify_rs256(string, certificate, output)``</span> | 1 | ``output`` is ``true`` if the RS256 signature of the input token is valid. ``certificate`` is the PEM encoded certificate used to verify the RS256 signature|
+| <span class="opa-keep-it-together">``io.jwt.verify_ps256(string, certificate, output)``</span> | 1 | ``output`` is ``true`` if the PS256 signature of the input token is valid. ``certificate`` is the PEM encoded certificate used to verify the PS256 signature|
 | <span class="opa-keep-it-together">``io.jwt.verify_hs256(string, secret, output)``</span> | 1 | ``output`` is ``true`` if the Secret signature of the input token is valid. ``secret`` is a plain text secret used to verify the HS256 signature|
 | <span class="opa-keep-it-together">``io.jwt.decode(string, [header, payload, sig])``</span> | 1 | ``header`` and ``payload`` are ``object``. ``signature`` is the hexadecimal representation of the signature on the token. |
 

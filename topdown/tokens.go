@@ -100,6 +100,29 @@ func builtinJWTDecode(a ast.Value) (ast.Value, error) {
 
 // Implements RS256 JWT signature verification
 func builtinJWTVerifyRS256(a ast.Value, b ast.Value) (ast.Value, error) {
+	return builtinJWTVerifyRSA(a, b, func(publicKey *rsa.PublicKey, digest []byte, signature []byte) error {
+		return rsa.VerifyPKCS1v15(
+			publicKey,
+			crypto.SHA256,
+			digest,
+			signature)
+	})
+}
+
+// Implements PS256 JWT signature verification
+func builtinJWTVerifyPS256(a ast.Value, b ast.Value) (ast.Value, error) {
+	return builtinJWTVerifyRSA(a, b, func(publicKey *rsa.PublicKey, digest []byte, signature []byte) error {
+		return rsa.VerifyPSS(
+			publicKey,
+			crypto.SHA256,
+			digest,
+			signature,
+			nil)
+	})
+}
+
+// Implements RSA JWT signature verification.
+func builtinJWTVerifyRSA(a ast.Value, b ast.Value, verify func(publicKey *rsa.PublicKey, digest []byte, signature []byte) error) (ast.Value, error) {
 	// Decode the JSON Web Token
 	token, err := decodeJWT(a)
 	if err != nil {
@@ -133,9 +156,7 @@ func builtinJWTVerifyRS256(a ast.Value, b ast.Value) (ast.Value, error) {
 	}
 
 	// Validate the JWT signature
-	err = rsa.VerifyPKCS1v15(
-		publicKey,
-		crypto.SHA256,
+	err = verify(publicKey,
 		getInputSHA([]byte(token.header+"."+token.payload)),
 		[]byte(signature))
 
@@ -257,5 +278,6 @@ func getInputSHA(input []byte) (hash []byte) {
 func init() {
 	RegisterFunctionalBuiltin1(ast.JWTDecode.Name, builtinJWTDecode)
 	RegisterFunctionalBuiltin2(ast.JWTVerifyRS256.Name, builtinJWTVerifyRS256)
+	RegisterFunctionalBuiltin2(ast.JWTVerifyPS256.Name, builtinJWTVerifyPS256)
 	RegisterFunctionalBuiltin2(ast.JWTVerifyHS256.Name, builtinJWTVerifyHS256)
 }
