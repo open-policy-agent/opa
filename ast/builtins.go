@@ -78,6 +78,7 @@ var DefaultBuiltins = [...]*Builtin{
 
 	// Regular Expressions
 	RegexMatch,
+	RegexSplit,
 	GlobsMatch,
 
 	// Sets
@@ -585,6 +586,18 @@ var RegexMatch = &Builtin{
 			types.S,
 		),
 		types.B,
+	),
+}
+
+// RegexSplit splits the input string by the occurences of the given pattern.
+var RegexSplit = &Builtin{
+	Name: "regex.split",
+	Decl: types.NewFunction(
+		types.Args(
+			types.S,
+			types.S,
+		),
+		types.NewArray(nil, types.S),
 	),
 }
 

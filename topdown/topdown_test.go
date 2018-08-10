@@ -1178,6 +1178,24 @@ func TestTopDownRegexMatch(t *testing.T) {
 	}
 }
 
+func TestTopDownRegexSplit(t *testing.T) {
+	tests := []struct {
+		note     string
+		rules    []string
+		expected interface{}
+	}{
+		{"regex.split: empty string", []string{`p = x { regex.split("^[a-z]+\\[[0-9]+\\]$", "", [x]) }`}, `""`},
+		{"regex.split: non-repeat pattern", []string{`p = [v,w,x,y] { regex.split("a", "banana", [v,w,x,y]) }`}, `["b","n","n",""]`},
+		{"regex.split: repeat pattern", []string{`p = [v,w] { regex.split("z+", "pizza", [v,w]) }`}, `["pi","a"]`},
+	}
+
+	data := loadSmallTestData()
+
+	for _, tc := range tests {
+		runTopDownTestCase(t, data, tc.note, tc.rules, tc.expected)
+	}
+}
+
 func TestTopDownGlobsMatch(t *testing.T) {
 	tests := []struct {
 		note     string
