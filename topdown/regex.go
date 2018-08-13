@@ -33,6 +33,28 @@ func builtinRegexMatch(a, b ast.Value) (ast.Value, error) {
 	return ast.Boolean(re.Match([]byte(s2))), nil
 }
 
+func builtinRegexSplit(a, b ast.Value) (ast.Value, error) {
+	s1, err := builtins.StringOperand(a, 1)
+	if err != nil {
+		return nil, err
+	}
+	s2, err := builtins.StringOperand(b, 2)
+	if err != nil {
+		return nil, err
+	}
+	re, err := getRegexp(string(s1))
+	if err != nil {
+		return nil, err
+	}
+
+	elems := re.Split(string(s2), -1)
+	arr := make(ast.Array, len(elems))
+	for i := range arr {
+		arr[i] = ast.StringTerm(elems[i])
+	}
+	return arr, nil
+}
+
 func getRegexp(pat string) (*regexp.Regexp, error) {
 	regexpCacheLock.Lock()
 	defer regexpCacheLock.Unlock()
@@ -67,5 +89,6 @@ func builtinGlobsMatch(a, b ast.Value) (ast.Value, error) {
 func init() {
 	regexpCache = map[string]*regexp.Regexp{}
 	RegisterFunctionalBuiltin2(ast.RegexMatch.Name, builtinRegexMatch)
+	RegisterFunctionalBuiltin2(ast.RegexSplit.Name, builtinRegexSplit)
 	RegisterFunctionalBuiltin2(ast.GlobsMatch.Name, builtinGlobsMatch)
 }
