@@ -44,8 +44,28 @@ If you are contributing code, please consider the following:
         and describe how the changes address the issue. Feel free to use multiple
         paragraphs but please keep each line under 72 characters or so.
 
+- All commits must be signed off (see next section).
 - Related commits must be squashed before they are merged.
 - All tests must pass and there must be no warnings from the `make check` target.
+
+## Developer Certificate Of Origin
+
+The OPA project requires that contributors sign off on changes submitted to OPA repositories.
+The [Developer Certificate of Origin (DCO)](https://developercertificate.org/) is a simple way to certify that you wrote or have the right to submit the code you are contributing to the project.
+
+The DCO is a standard requirement for Linux Foundation and CNCF projects.
+
+You sign-off by adding the following to your commit messages:
+
+    This is my commit message
+
+    Signed-off-by: Random J Developer <random@developer.example.org>
+
+Git has a `-s` command line option to do this automatically.
+
+    git commit -s -m 'This is my commit message'
+
+You can find the full text of the DCO here: https://developercertificate.org/
 
 ## Code Review
 
