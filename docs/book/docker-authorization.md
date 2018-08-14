@@ -159,7 +159,7 @@ deny {
 seccomp_unconfined {
     # This expression asserts that the string on the right-hand side is equal
     # to an element in the array SecurityOpt referenced on the left-hand side.
-    input.Body.HostConfig.SecurityOpt[_] = "seccomp:unconfined"
+    input.Body.HostConfig.SecurityOpt[_] == "seccomp:unconfined"
 }
 EOF
 ```
@@ -221,15 +221,16 @@ default allow = false
 
 # allow if the user is granted read/write access.
 allow {
-    user_id = input.Headers["Authz-User"]
-    not users[user_id].readOnly
+    user_id := input.Headers["Authz-User"]
+    user := users[user_id]
+    not user.readOnly
 }
 
 # allow if the user is granted read-only access and the request is a GET.
 allow {
-    user_id = input.Headers["Authz-User"]
+    user_id := input.Headers["Authz-User"]
     users[user_id].readOnly
-    input.Method = "GET"
+    input.Method == "GET"
 }
 
 # users defines permissions for the user. In this case, we define a single
