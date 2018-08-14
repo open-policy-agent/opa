@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/server"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/util"
 	"github.com/open-policy-agent/opa/util/test"
@@ -261,4 +262,31 @@ func TestRuntimeProcessWatchEventPolicyError(t *testing.T) {
 		}
 
 	})
+}
+
+func TestRuntimeConfigParsing(t *testing.T) {
+
+	empty := []byte("")
+	c1, err := newRuntimeConfig(empty)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if c1.DefaultDecision.Compare(server.DefaultDecision) != 0 {
+		t.Fatal("Expected default decision to be set to data.system.main but got:", c1.DefaultDecision)
+	}
+
+	example := []byte(`{
+		"default_decision": "/foo/bar",
+	}`)
+
+	c2, err := newRuntimeConfig(example)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if c2.DefaultDecision.Compare(ast.MustParseRef("data.foo.bar")) != 0 {
+		t.Fatal("Expected default decision to be set to data.foo.bar but got:", c2.DefaultDecision)
+	}
+
 }

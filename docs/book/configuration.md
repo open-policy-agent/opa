@@ -56,6 +56,7 @@ multiple services.
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
 | `labels` | `object` | Yes | Set of key-value pairs that uniquely identify the OPA instance. Labels are included when OPA uploads decision logs and status information. |
+| `default_decision` | `string` | No (default: `system/main`) | Path of policy decision to query for if client does not specify one. The actual policy query is constructed by converting the path into a reference (e.g., `system/main` becomes `data.system.main`.) |
 
 ## Bundles
 

@@ -74,7 +74,9 @@ const (
 	PromHandlerCatch      = "catchall"
 )
 
-var systemMainPath = ast.MustParseRef("data.system.main")
+// DefaultDecision defines the default decision to query for. This is used when
+// the server receives an unversioned POST against /.
+var DefaultDecision = ast.MustParseRef("data.system.main")
 
 // Server represents an instance of OPA running in server mode.
 type Server struct {
@@ -91,6 +93,7 @@ type Server struct {
 	manager           *plugins.Manager
 	watcher           *watch.Watcher
 	decisionIDFactory func() string
+	defaultDecision   ast.Ref
 	diagnostics       Buffer
 	revision          string
 	logger            func(context.Context, *Info)
@@ -103,7 +106,9 @@ type Loop func() error
 // New returns a new Server.
 func New() *Server {
 
-	s := Server{}
+	s := Server{
+		defaultDecision: DefaultDecision,
+	}
 
 	promRegistry := prometheus.NewRegistry()
 	duration := prometheus.NewHistogramVec(
@@ -280,6 +285,13 @@ func (s *Server) WithDecisionLogger(logger func(context.Context, *Info)) *Server
 // WithDecisionIDFactory sets a function on the server to generate decision IDs.
 func (s *Server) WithDecisionIDFactory(f func() string) *Server {
 	s.decisionIDFactory = f
+	return s
+}
+
+// WithDefaultDecision sets the decision to use for answering unversioned POST
+// requests.
+func (s *Server) WithDefaultDecision(ref ast.Ref) *Server {
+	s.defaultDecision = ref
 	return s
 }
 
@@ -498,7 +510,7 @@ func (s *Server) migrateWatcher(txn storage.Transaction) {
 }
 
 func (s *Server) unversionedPost(w http.ResponseWriter, r *http.Request) {
-	s.v0QueryPath(w, r, systemMainPath)
+	s.v0QueryPath(w, r, s.defaultDecision)
 }
 
 func (s *Server) v0DataPost(w http.ResponseWriter, r *http.Request) {
