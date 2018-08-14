@@ -98,7 +98,6 @@ func TestTopDownQueryIDsUnique(t *testing.T) {
 func TestTopDownIndexExpr(t *testing.T) {
 	ctx := context.Background()
 	store := inmem.New()
-	inputTerm := &ast.Term{}
 	txn := storage.NewTransactionOrDie(ctx, store)
 	defer store.Abort(ctx, txn)
 
@@ -118,24 +117,34 @@ func TestTopDownIndexExpr(t *testing.T) {
 		WithCompiler(compiler).
 		WithStore(store).
 		WithTransaction(txn).
-		WithTracer((*BufferTracer)(&tr)).
-		WithInput(inputTerm)
+		WithTracer((*BufferTracer)(&tr))
 
 	_, err := query.Run(ctx)
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
 
-	var expectedQueryID uint64
+	exp := []*ast.Expr{
+		ast.MustParseExpr("data.test.p"),
+		ast.MustParseExpr("data.test.q"),
+	}
+
+	i := 0
 	for _, evt := range tr {
 		if evt.Op != IndexOp {
 			continue
 		}
 
-		if evt.QueryID != expectedQueryID {
-			t.Errorf("Unexpected queryID: %v", evt.QueryID)
+		expr, ok := evt.Node.(*ast.Expr)
+		if !ok {
+			t.Fatal("Expected expr node but got:", evt.Node)
 		}
-		expectedQueryID++
+
+		exp[i].Index = i
+		if ast.Compare(expr, exp[i]) != 0 {
+			t.Fatalf("Expected %v but got: %v", exp[i], expr)
+		}
+		i++
 	}
 }
 

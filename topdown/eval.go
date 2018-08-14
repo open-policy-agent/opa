@@ -90,34 +90,34 @@ func (e *eval) partial() bool {
 }
 
 func (e *eval) traceEnter(x interface{}) {
-	e.traceEvent(EnterOp, x)
+	e.traceEvent(EnterOp, x, "")
 }
 
 func (e *eval) traceExit(x interface{}) {
-	e.traceEvent(ExitOp, x)
+	e.traceEvent(ExitOp, x, "")
 }
 
 func (e *eval) traceEval(x interface{}) {
-	e.traceEvent(EvalOp, x)
+	e.traceEvent(EvalOp, x, "")
 }
 
 func (e *eval) traceFail(x interface{}) {
-	e.traceEvent(FailOp, x)
+	e.traceEvent(FailOp, x, "")
 }
 
 func (e *eval) traceRedo(x interface{}) {
-	e.traceEvent(RedoOp, x)
+	e.traceEvent(RedoOp, x, "")
 }
 
 func (e *eval) traceSave(x interface{}) {
-	e.traceEvent(SaveOp, x)
+	e.traceEvent(SaveOp, x, "")
 }
 
-func (e *eval) traceIndex(x interface{}) {
-	e.traceEvent(IndexOp, x)
+func (e *eval) traceIndex(x interface{}, msg string) {
+	e.traceEvent(IndexOp, x, msg)
 }
 
-func (e *eval) traceEvent(op Op, x interface{}) {
+func (e *eval) traceEvent(op Op, x interface{}, msg string) {
 
 	if e.tracer == nil || !e.tracer.Enabled() {
 		return
@@ -140,6 +140,7 @@ func (e *eval) traceEvent(op Op, x interface{}) {
 		Op:       op,
 		Node:     x,
 		Locals:   locals,
+		Message:  msg,
 	}
 
 	e.tracer.Trace(evt)
@@ -788,11 +789,11 @@ func (e *eval) getRules(ref ast.Ref) (*ast.IndexResult, error) {
 
 	var msg string
 	if len(result.Rules) == 1 {
-		msg = fmt.Sprintf("%v (matched 1 rule)", e.query[e.index])
+		msg = "(matched 1 rule)"
 	} else {
-		msg = fmt.Sprintf("%v (matched %v rules)", e.query[e.index], len(result.Rules))
+		msg = fmt.Sprintf("(matched %v rules)", len(result.Rules))
 	}
-	e.traceIndex(msg)
+	e.traceIndex(e.query[e.index], msg)
 	return result, err
 }
 
