@@ -14,6 +14,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -144,7 +145,40 @@ type Runtime struct {
 	Store   storage.Store
 	Manager *plugins.Manager
 
+	config         *runtimeConfig
 	decisionLogger func(context.Context, *server.Info)
+}
+
+type runtimeConfig struct {
+	DefaultDecision ast.Ref
+}
+
+func newRuntimeConfig(bs []byte) (*runtimeConfig, error) {
+
+	var result runtimeConfig
+
+	var rawRuntimeConfig struct {
+		DefaultDecision string `json:"default_decision"`
+	}
+
+	if len(bs) > 0 {
+		err := util.Unmarshal(bs, &rawRuntimeConfig)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if rawRuntimeConfig.DefaultDecision != "" {
+		var err error
+		result.DefaultDecision, err = ast.ParseRef("data." + strings.Replace(strings.Trim(rawRuntimeConfig.DefaultDecision, "/"), "/", ".", -1))
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		result.DefaultDecision = server.DefaultDecision
+	}
+
+	return &result, nil
 }
 
 // NewRuntime returns a new Runtime object initialized with params.
@@ -184,7 +218,22 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		return nil, errors.Wrapf(err, "storage error")
 	}
 
-	m, plugins, err := initPlugins(params.ID, store, params.ConfigFile)
+	var bs []byte
+
+	if params.ConfigFile != "" {
+		var err error
+		bs, err = ioutil.ReadFile(params.ConfigFile)
+		if err != nil {
+			return nil, errors.Wrapf(err, "config error")
+		}
+	}
+
+	config, err := newRuntimeConfig(bs)
+	if err != nil {
+		return nil, errors.Wrapf(err, "config error")
+	}
+
+	m, plugins, err := initPlugins(params.ID, store, bs)
 	if err != nil {
 		return nil, err
 	}
@@ -203,6 +252,7 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		Store:          store,
 		Manager:        m,
 		Params:         params,
+		config:         config,
 		decisionLogger: decisionLogger,
 	}
 
@@ -235,6 +285,7 @@ func (rt *Runtime) StartServer(ctx context.Context) {
 		WithDiagnosticsBuffer(rt.Params.DiagnosticsBuffer).
 		WithDecisionIDFactory(rt.Params.DecisionIDFactory).
 		WithDecisionLogger(rt.decisionLogger).
+		WithDefaultDecision(rt.config.DefaultDecision).
 		Init(ctx)
 
 	if err != nil {
@@ -479,17 +530,7 @@ func setupLogging(config LoggingConfig) {
 // everything is started and stopped. We could introduce a package-scoped
 // plugin registry that allows for (dynamic) init-time plugin registration.
 
-func initPlugins(id string, store storage.Store, configFile string) (*plugins.Manager, map[string]plugins.Plugin, error) {
-
-	var bs []byte
-	var err error
-
-	if configFile != "" {
-		bs, err = ioutil.ReadFile(configFile)
-		if err != nil {
-			return nil, nil, err
-		}
-	}
+func initPlugins(id string, store storage.Store, bs []byte) (*plugins.Manager, map[string]plugins.Plugin, error) {
 
 	m, err := plugins.New(bs, id, store)
 	if err != nil {
