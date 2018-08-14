@@ -12,7 +12,7 @@ authorization so that:
 - OPA verifies client identities.
 - Clients are only granted access to specific APIs or sections of [The `data` Document](/how-does-opa-work.md#the-data-document).
 
-## TLS & HTTPS
+## TLS and HTTPS
 
 HTTPS is configured by specifying TLS credentials via command line flags at
 startup:
@@ -61,7 +61,7 @@ curl -k https://localhost:8181/v1/data
 > We have to use cURL's `-k/--insecure` flag because we are using a
 > self-signed certificate.
 
-## Authentication & Authorization
+## Authentication and Authorization
 
 This section shows how to configure OPA to authenticate and authorize client
 requests. Client-side authentication of the OPA API endpoint should be handled

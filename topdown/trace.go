@@ -154,8 +154,11 @@ func formatEvent(event *Event, depth int) string {
 	padding := formatEventPadding(event, depth)
 	if event.Op == NoteOp {
 		return fmt.Sprintf("%v%v %q", padding, event.Op, event.Message)
+	} else if event.Message != "" {
+		return fmt.Sprintf("%v%v %v %v", padding, event.Op, event.Node, event.Message)
+	} else {
+		return fmt.Sprintf("%v%v %v", padding, event.Op, event.Node)
 	}
-	return fmt.Sprintf("%v%v %v", padding, event.Op, event.Node)
 }
 
 func formatEventPadding(event *Event, depth int) string {
