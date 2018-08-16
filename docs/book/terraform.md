@@ -22,14 +22,14 @@ This tutorial requires
 * [OPA](https://github.com/open-policy-agent/opa/releases)
 * [tfjson](https://github.com/palantir/tfjson) (`go get github.com/palantir/tfjson`): a Go utility that converts Terraform plans into JSON
 
-(This tutorial *should* also work with the [latest version of Terraform](https://www.terraform.io/downloads.html) 
+(This tutorial *should* also work with the [latest version of Terraform](https://www.terraform.io/downloads.html)
 and the [latest version of tfjson](https://github.com/philips/tfjson), but it is untested.  Contributions welcome!)
 
 ## Steps
 
 ### 1. Create and save a Terraform plan
 
-Create a [Terraform](https://www.terraform.io/docs/index.html) file that includes an 
+Create a [Terraform](https://www.terraform.io/docs/index.html) file that includes an
 auto-scaling group and a server on AWS.  (You will need to modify the `shared_credentials_file`
 to point to your AWS credentials.)
 
@@ -156,8 +156,9 @@ and there are no changes made to any IAM resources.
 (For simplicity, the threshold in this tutorial is the same for everyone, but in
 practice you would vary the threshold depending on the user.)
 
-```shell
-cat >terraform.rego <<EOF
+**terraform.rego**:
+
+```ruby
 package terraform.analysis
 
 import input as tfplan
@@ -191,22 +192,20 @@ authz {
 
 # Compute the score for a Terraform plan as the weighted sum of deletions, creations, modifications
 score = s {
-    all = [ x | 
-            weights[resource_type] = crud;
-            del = crud["delete"] * num_deletes[resource_type];
-            new = crud["create"] * num_creates[resource_type];
-            mod = crud["modify"] * num_modifies[resource_type];
-            x1 = del + new
-            x = x1 + mod
+    all := [ x |
+            crud := weights[resource_type];
+            del := crud["delete"] * num_deletes[resource_type];
+            new := crud["create"] * num_creates[resource_type];
+            mod := crud["modify"] * num_modifies[resource_type];
+            x := del + new + mod
     ]
-    sum(all, s)
+    s := sum(all)
 }
 
 # Whether there is any change to IAM
 touches_iam {
-    all = instance_names["aws_iam"]
-    count(all, c)
-    c > 0
+    all := instance_names["aws_iam"]
+    count(all) > 0
 }
 
 ####################
@@ -216,7 +215,7 @@ touches_iam {
 # list of all resources of a given type
 instance_names[resource_type] = all {
     resource_types[resource_type]
-    all = [name |
+    all := [name |
         tfplan[name] = _
         startswith(name, resource_type)
     ]
@@ -225,27 +224,26 @@ instance_names[resource_type] = all {
 # number of deletions of resources of a given type
 num_deletes[resource_type] = num {
     resource_types[resource_type]
-    all = instance_names[resource_type]
-    deletions = [name | all[_] = name; tfplan[name]["destroy"] = true]
-    count(deletions, num)
+    all := instance_names[resource_type]
+    deletions = [name | name := all[_]; tfplan[name]["destroy"] = true]
+    num := count(deletions)
 }
 
 # number of creations of resources of a given type
 num_creates[resource_type] = num {
     resource_types[resource_type]
-    all = instance_names[resource_type]
+    all := instance_names[resource_type]
     creates = [name | all[_] = name; tfplan[name]["id"] = ""]
-    count(creates, num)
+    num := count(creates)
 }
 
 # number of modifications to resources of a given type
 num_modifies[resource_type] = num {
     resource_types[resource_type]
-    all = instance_names[resource_type]
-    modifies = [name | all[_] = name; obj = tfplan[name]; obj["destroy"] = false; not obj["id"]]
-    count(modifies, num)
+    all := instance_names[resource_type]
+    modifies := [name | name := all[_]; obj := tfplan[name]; obj["destroy"] = false; not obj["id"]]
+    num := count(modifies)
 }
-EOF
 ```
 
 ### 4. Evaluate the OPA policy on the Terraform plan
@@ -273,7 +271,7 @@ EC2 data to OPA and write policy using all of that context.
 ### 5. Create a Large Terraform plan and Evaluate it
 
 Create a Terraform plan that creates enough resources to exceed the blast-radius permitted
-by policy.  
+by policy.
 
 ```shell
 cat >main.tf <<EOF
@@ -340,7 +338,7 @@ opa eval --data terraform.rego --input tfplan_large.json "data.terraform.analysi
 ```
 
 
-### 6. (Optional) Run OPA as a daemon and evaluate policy 
+### 6. (Optional) Run OPA as a daemon and evaluate policy
 
 In addition to running OPA from the command-line, you can run it as a daemon loaded with the Terraform policy and
 then interact with it using its HTTP API.  First, start the daemon:
