@@ -3,7 +3,18 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## 0.9.1
+
+### Fixes
+
+- Add io.jwt.verify_es256 and io.jwt.verify_ps256 built-in functions (@optnfast)
+- Add array.concat built-in function ([#851](https://github.com/open-policy-agent/opa/issues/851))
+- Add support for command line bundle loading ([#870](https://github.com/open-policy-agent/opa/issues/870))
+- Add regex split built-in function
+- Fix incorrect AST node in Index events ([#859](https://github.com/open-policy-agent/opa/issues/859))
+- Fix terraform tutorial type check errors ([#888](https://github.com/open-policy-agent/opa/issues/888))
+- Fix CONTRIBUTING.md to include sign-off step (@optnfast)
+- Improve save set performance ([#860](https://github.com/open-policy-agent/opa/issues/860))
 
 ## 0.9.0
 

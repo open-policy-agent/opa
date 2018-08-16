@@ -49,7 +49,7 @@ cat > tutorial-docker-compose.yaml <<EOF
 version: '2'
 services:
   opa:
-    image: openpolicyagent/opa:0.9.0
+    image: openpolicyagent/opa:0.9.1
     ports:
       - 8181:8181
     command:
