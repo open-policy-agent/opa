@@ -13,9 +13,12 @@ import (
 	"os"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/olekukonko/tablewriter"
+	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/format"
 	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/profiler"
 	"github.com/open-policy-agent/opa/rego"
@@ -26,6 +29,7 @@ import (
 type Output struct {
 	Error       error                `json:"error,omitempty"`
 	Result      rego.ResultSet       `json:"result,omitempty"`
+	Partial     *rego.PartialQueries `json:"partial,omitempty"`
 	Metrics     metrics.Metrics      `json:"metrics,omitempty"`
 	Explanation []*topdown.Event     `json:"explanation,omitempty"`
 	Profile     []profiler.ExprStats `json:"profile,omitempty"`
@@ -36,6 +40,10 @@ type Output struct {
 func (e Output) WithLimit(n int) Output {
 	e.limit = n
 	return e
+}
+
+func (e Output) undefined() bool {
+	return len(e.Result) == 0 && (e.Partial == nil || len(e.Partial.Queries) == 0)
 }
 
 // JSON writes x to w with indentation.
@@ -86,8 +94,14 @@ func Pretty(w io.Writer, r Output) error {
 		if err := prettyError(w, r.Error); err != nil {
 			return err
 		}
-	} else {
+	} else if r.undefined() {
+		fmt.Fprintln(w, "undefined")
+	} else if r.Result != nil {
 		if err := prettyResult(w, r.Result, r.limit); err != nil {
+			return err
+		}
+	} else if r.Partial != nil {
+		if err := prettyPartial(w, r.Partial); err != nil {
 			return err
 		}
 	}
@@ -111,11 +125,6 @@ func prettyError(w io.Writer, err error) error {
 
 func prettyResult(w io.Writer, rs rego.ResultSet, limit int) error {
 
-	if len(rs) == 0 {
-		fmt.Fprintln(w, "undefined")
-		return nil
-	}
-
 	if len(rs) == 1 && len(rs[0].Bindings) == 0 {
 		if len(rs[0].Expressions) == 1 || allBoolean(rs[0].Expressions) {
 			return JSON(w, rs[0].Expressions[0].Value)
@@ -129,6 +138,58 @@ func prettyResult(w io.Writer, rs rego.ResultSet, limit int) error {
 	}
 
 	return nil
+}
+
+func prettyPartial(w io.Writer, pq *rego.PartialQueries) error {
+
+	table := tablewriter.NewWriter(w)
+	table.SetRowLine(true)
+	table.SetAutoWrapText(false)
+	var maxWidth int
+
+	for i := range pq.Queries {
+		s, width, err := prettyASTNode(pq.Queries[i])
+		if err != nil {
+			return err
+		}
+		if width > maxWidth {
+			maxWidth = width
+		}
+		table.Append([]string{fmt.Sprintf("Query %d", i+1), s})
+	}
+
+	for i := range pq.Support {
+		s, width, err := prettyASTNode(pq.Support[i])
+		if err != nil {
+			return err
+		}
+		if width > maxWidth {
+			maxWidth = width
+		}
+		table.Append([]string{fmt.Sprintf("Support %d", i+1), s})
+	}
+
+	table.SetColMinWidth(1, maxWidth)
+	table.Render()
+
+	return nil
+}
+
+func prettyASTNode(x interface{}) (string, int, error) {
+	setLocationRecursive(x)
+	bs, err := format.Ast(x)
+	if err != nil {
+		return "", 0, err
+	}
+	var maxLineWidth int
+	s := strings.Trim(strings.Replace(string(bs), "\t", "  ", -1), "\n")
+	for _, line := range strings.Split(s, "\n") {
+		width := tablewriter.DisplayWidth(line)
+		if width > maxLineWidth {
+			maxLineWidth = width
+		}
+	}
+	return s, maxLineWidth, nil
 }
 
 func prettyMetrics(w io.Writer, m metrics.Metrics, limit int) error {
@@ -247,6 +308,37 @@ func populateTableMetrics(m metrics.Metrics, table *tablewriter.Table, prettyLim
 	}
 	sortMetricRows(lines)
 	table.AppendBulk(lines)
+}
+
+// setLocationRecursive walks the AST nodes under x and sets the location field
+// using the string representation of the node. The format package requires
+// that all AST nodes have a Location set. If any of the nodes under x are
+// missing a Location, the format package returns an error.
+func setLocationRecursive(x interface{}) {
+	vis := ast.NewGenericVisitor(func(x interface{}) bool {
+		switch x := x.(type) {
+		case *ast.Package:
+			x.Location = setLocation(x)
+		case *ast.Import:
+			x.Location = setLocation(x)
+		case *ast.Rule:
+			x.Location = setLocation(x)
+		case *ast.Head:
+			x.Location = setLocation(x)
+		case *ast.Expr:
+			x.Location = setLocation(x)
+		case *ast.Term:
+			x.Location = setLocation(x)
+		case *ast.Comment:
+			x.Location = setLocation(x)
+		}
+		return false
+	})
+	ast.Walk(vis, x)
+}
+
+func setLocation(x interface{}) *ast.Location {
+	return ast.NewLocation([]byte(fmt.Sprint(x)), "", 1, 1)
 }
 
 func sortMetricRows(data [][]string) {

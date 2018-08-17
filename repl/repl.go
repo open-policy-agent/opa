@@ -850,21 +850,23 @@ func (r *REPL) evalPartial(ctx context.Context, compiler *ast.Compiler, input as
 	)
 
 	pq, err := eval.Partial(ctx)
-	if err != nil {
-		return err
+
+	output := pr.Output{
+		Metrics: r.metrics,
+		Partial: pq,
+		Error:   err,
 	}
 
 	if buf != nil {
-		r.printTrace(ctx, compiler, *buf)
+		output.Explanation = *buf
 	}
 
-	if r.metrics != nil {
-		r.printMetricsJSON(r.metrics)
+	switch r.outputFormat {
+	case "json":
+		return pr.JSON(r.output, output)
+	default:
+		return pr.Pretty(r.output, output)
 	}
-
-	r.printPartialResults(pq)
-
-	return nil
 }
 
 func (r *REPL) evalImport(i *ast.Import) error {
@@ -936,42 +938,6 @@ func (r *REPL) loadModules(ctx context.Context, txn storage.Transaction) (map[st
 	}
 
 	return modules, nil
-}
-
-func (r *REPL) printPartialResults(pq *rego.PartialQueries) {
-	switch r.outputFormat {
-	case "json":
-		pr.JSON(r.output, pq)
-	default:
-		r.printPartialPretty(pq)
-	}
-}
-
-func (r *REPL) printPartialPretty(pq *rego.PartialQueries) {
-
-	for i := range pq.Queries {
-		fmt.Fprintln(r.output, pq.Queries[i])
-	}
-
-	for i := range pq.Support {
-		fmt.Fprintln(r.output)
-		fmt.Fprintf(r.output, "# support module %d\n", i+1)
-		fmt.Fprintln(r.output, pq.Support[i])
-	}
-}
-
-func (r *REPL) printTrace(ctx context.Context, compiler *ast.Compiler, trace []*topdown.Event) {
-	topdown.PrettyTrace(r.output, trace)
-}
-
-func (r *REPL) printMetricsJSON(metrics metrics.Metrics) {
-	buf, err := json.MarshalIndent(metrics.All(), "", "  ")
-	if err != nil {
-		panic("not reached")
-	}
-
-	r.output.Write(buf)
-	fmt.Fprintln(r.output)
 }
 
 func (r *REPL) printTypes(ctx context.Context, typeEnv *ast.TypeEnv, body ast.Body) {
