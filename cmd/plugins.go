@@ -9,10 +9,11 @@ package cmd
 
 import (
 	"fmt"
-	"github.com/spf13/cobra"
 	"os"
 	"path/filepath"
 	"plugin"
+
+	"github.com/spf13/cobra"
 )
 
 // registerSharedObjectsFromDir recursively loads all .so files in dir into OPA.
@@ -68,7 +69,7 @@ func init() {
 	var pluginDir string
 
 	// flag is persistent (can be loaded on all children commands)
-	RootCommand.PersistentFlags().StringVarP(&pluginDir, "plugin-dir", "p", "", `set directory path to load built-in and plugin shared object files from`)
+	RootCommand.PersistentFlags().StringVarP(&pluginDir, "plugin-dir", "", "", `set directory path to load built-in and plugin shared object files from`)
 
 	// Runs before *all* children commands
 	RootCommand.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
