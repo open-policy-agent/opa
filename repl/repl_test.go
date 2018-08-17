@@ -19,7 +19,7 @@ import (
 	"testing"
 
 	"github.com/open-policy-agent/opa/ast"
-	"github.com/open-policy-agent/opa/rego"
+	"github.com/open-policy-agent/opa/internal/presentation"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/storage/inmem"
 	"github.com/open-policy-agent/opa/util"
@@ -413,9 +413,19 @@ func TestUnknown(t *testing.T) {
 
 	output := strings.TrimSpace(buffer.String())
 	expected := strings.TrimSpace(`
-input.x = 1; i = 0; x = 1
-input.x = 2; i = 1; x = 2
-input.x = 3; i = 2; x = 3
++---------+-------------+
+| Query 1 | input.x = 1 |
+|         | i = 0       |
+|         | x = 1       |
++---------+-------------+
+| Query 2 | input.x = 2 |
+|         | i = 1       |
+|         | x = 2       |
++---------+-------------+
+| Query 3 | input.x = 3 |
+|         | i = 2       |
+|         | x = 3       |
++---------+-------------+
 `)
 
 	if output != expected {
@@ -441,12 +451,22 @@ func TestUnknownMetrics(t *testing.T) {
 
 	output := strings.TrimSpace(buffer.String())
 	expected := strings.TrimSpace(`
-input.x = 1; i = 0; x = 1
-input.x = 2; i = 1; x = 2
-input.x = 3; i = 2; x = 3
++---------+-------------+
+| Query 1 | input.x = 1 |
+|         | i = 0       |
+|         | x = 1       |
++---------+-------------+
+| Query 2 | input.x = 2 |
+|         | i = 1       |
+|         | x = 2       |
++---------+-------------+
+| Query 3 | input.x = 3 |
+|         | i = 2       |
+|         | x = 3       |
++---------+-------------+
 `)
 
-	if !strings.HasSuffix(output, expected) {
+	if !strings.HasPrefix(output, expected) {
 		t.Fatalf("Unexpected partial eval results. Expected:\n\n%v\n\nGot:\n\n%v", expected, output)
 	}
 
@@ -471,13 +491,13 @@ func TestUnknownJSON(t *testing.T) {
 	repl.OneShot(ctx, "json")
 	repl.OneShot(ctx, "data.repl.xs[i] = x; input.x = x")
 
-	var result rego.PartialQueries
+	var result presentation.Output
 
 	if err := json.NewDecoder(&buffer).Decode(&result); err != nil {
 		t.Fatal(err)
 	}
 
-	if len(result.Queries) != 3 {
+	if len(result.Partial.Queries) != 3 {
 		t.Fatalf("Expected exactly 3 queries in partial evaluation output but got: %v", result)
 	}
 }

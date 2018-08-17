@@ -26,6 +26,8 @@ import (
 )
 
 type evalCommandParams struct {
+	partial           bool
+	unknowns          []string
 	dataPaths         repeatedStringFlag
 	inputPath         string
 	imports           repeatedStringFlag
@@ -139,6 +141,10 @@ Set the output format with the --format flag.
 			if params.stdinInput && params.inputPath != "" {
 				return errors.New("specify --stdin-input or --input but not both")
 			}
+			of := params.outputFormat.String()
+			if params.partial && of != evalPrettyOutput && of != evalJSONOutput {
+				return errors.New("invalid output format for partial evaluation")
+			}
 			if params.profileLimit.isFlagSet() || params.profileCriteria.isFlagSet() {
 				params.profile = true
 			}
@@ -155,6 +161,8 @@ Set the output format with the --format flag.
 		},
 	}
 
+	evalCommand.Flags().BoolVarP(&params.partial, "partial", "p", false, "perform partial evaluation")
+	evalCommand.Flags().StringSliceVarP(&params.unknowns, "unknowns", "u", []string{"input"}, "set paths to treat as unknown during partial evaluation")
 	evalCommand.Flags().VarP(&params.dataPaths, "data", "d", "set data file(s) or directory path(s)")
 	evalCommand.Flags().StringVarP(&params.inputPath, "input", "i", "", "set input file path")
 	evalCommand.Flags().VarP(&params.imports, "import", "", "set query import(s)")
@@ -245,13 +253,19 @@ func eval(args []string, params evalCommandParams) (err error) {
 		regoArgs = append(regoArgs, rego.Tracer(p))
 	}
 
+	if params.partial {
+		regoArgs = append(regoArgs, rego.Unknowns(params.unknowns))
+	}
+
 	eval := rego.New(regoArgs...)
 	ctx := context.Background()
-	rs, err := eval.Eval(ctx)
 
-	result := pr.Output{
-		Error:  err,
-		Result: rs,
+	var result pr.Output
+
+	if !params.partial {
+		result.Result, result.Error = eval.Eval(ctx)
+	} else {
+		result.Partial, result.Error = eval.Partial(ctx)
 	}
 
 	if tracer != nil {
