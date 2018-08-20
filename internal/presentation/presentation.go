@@ -25,6 +25,81 @@ import (
 	"github.com/open-policy-agent/opa/topdown"
 )
 
+// DepAnalysisOutput contains the result of dependency analysis to be presented.
+type DepAnalysisOutput struct {
+	Base    []ast.Ref `json:"base,omitempty"`
+	Virtual []ast.Ref `json:"virtual,omitempty"`
+}
+
+// JSON outputs o to w as JSON.
+func (o DepAnalysisOutput) JSON(w io.Writer) error {
+	o.sort()
+	return JSON(w, o)
+}
+
+// Pretty outputs o to w in a human-readable format.
+func (o DepAnalysisOutput) Pretty(w io.Writer) error {
+
+	var headers []string
+	var rows [][]string
+
+	// Fill two columns if results have base and virtual docs. Else fill one column.
+	if len(o.Base) > 0 && len(o.Virtual) > 0 {
+		maxLen := len(o.Base)
+		if len(o.Virtual) > maxLen {
+			maxLen = len(o.Virtual)
+		}
+		headers = []string{"Base Documents", "Virtual Documents"}
+		rows = make([][]string, maxLen)
+		for i := range rows {
+			rows[i] = make([]string, 2)
+			if i < len(o.Base) {
+				rows[i][0] = o.Base[i].String()
+			}
+			if i < len(o.Virtual) {
+				rows[i][1] = o.Virtual[i].String()
+			}
+		}
+	} else if len(o.Base) > 0 {
+		headers = []string{"Base Documents"}
+		rows = make([][]string, len(o.Base))
+		for i := range rows {
+			rows[i] = []string{o.Base[i].String()}
+		}
+	} else if len(o.Virtual) > 0 {
+		headers = []string{"Virtual Documents"}
+		rows = make([][]string, len(o.Base))
+		for i := range rows {
+			rows[i] = []string{o.Virtual[i].String()}
+		}
+	}
+
+	if len(rows) == 0 {
+		return nil
+	}
+
+	table := tablewriter.NewWriter(w)
+	table.SetHeader(headers)
+	table.SetAutoWrapText(false)
+	for i := range rows {
+		table.Append(rows[i])
+	}
+
+	table.Render()
+
+	return nil
+}
+
+func (o DepAnalysisOutput) sort() {
+	sort.Slice(o.Base, func(i, j int) bool {
+		return o.Base[i].Compare(o.Base[j]) < 0
+	})
+
+	sort.Slice(o.Virtual, func(i, j int) bool {
+		return o.Virtual[i].Compare(o.Virtual[j]) < 0
+	})
+}
+
 // Output contains the result of evaluation to be presented.
 type Output struct {
 	Error       error                `json:"error,omitempty"`
