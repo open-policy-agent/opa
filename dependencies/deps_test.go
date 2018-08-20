@@ -440,6 +440,53 @@ func TestBaseAndVirtual(t *testing.T) {
 	}
 }
 
+func TestBase(t *testing.T) {
+	modules := map[string]*ast.Module{
+		"test": ast.MustParseModule(`
+			package test
+
+			p {
+				input = x
+				x = y
+				y.z = "foo"
+			}
+
+			q {
+				input.a = "bar"
+			}
+		`),
+	}
+
+	compiler := ast.NewCompiler()
+	compiler.Compile(modules)
+	if compiler.Failed() {
+		t.Fatal(compiler.Errors)
+	}
+
+	body := ast.MustParseBody("data.test.p")
+
+	refs, err := Base(compiler, body)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// TODO(tsandall): dependency analysis should be able to identify that full
+	// extent of input is not required here (only input.z and input.a are
+	// needed)
+	exp := []ast.Ref{ast.MustParseRef("input")}
+
+	if len(exp) != 1 {
+		t.Fatalf("Expected %v but got %v", exp, refs)
+	}
+
+	for i := range refs {
+		if refs[i].Compare(exp[i]) != 0 {
+			t.Fatalf("Expected %v but got: %v", exp, refs)
+		}
+	}
+
+}
+
 func runDeps(t *testing.T, x interface{}) (min, full []ast.Ref) {
 	min, err := Minimal(x)
 	if err != nil {
