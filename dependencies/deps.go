@@ -286,7 +286,7 @@ func extractEq(exprs ast.Body) (vars map[ast.Var][]ast.Ref, others []*ast.Expr) 
 
 func expandRef(r ast.Ref, vars map[ast.Var]*util.HashMap) []ast.Ref {
 	head, rest := r[0], r[1:]
-	if ast.DefaultRootDocument.Equal(head) {
+	if ast.RootDocumentNames.Contains(head) {
 		return []ast.Ref{r}
 	}
 
@@ -317,7 +317,7 @@ func joinVarRefs(vars map[ast.Var][]ast.Ref) map[ast.Var]*util.HashMap {
 		for v, rs := range vars {
 			for _, r := range rs {
 				head, rest := r[0], r[1:]
-				if ast.DefaultRootDocument.Equal(head) {
+				if ast.RootDocumentNames.Contains(head) {
 					if _, ok := joined[v].Get(r); !ok {
 						joined[v].Put(r, struct{}{})
 						done = false
