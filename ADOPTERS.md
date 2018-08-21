@@ -4,7 +4,7 @@ others are at various stages of testing.
 * [Netflix](https://www.netflix.com)
 * [Chef](https://www.chef.io/)
 * [Medallia](https://www.medallia.com/)
-* [Solarwinds](https://www.solarwinds.com/)
+* [SolarWinds](https://www.solarwinds.com/) via [Lee Calcote](https://github.com/leecalcote)
 * [Cisco](https://www.cisco.com/)
 * [Cloudflare](https://www.cloudflare.com/)
 * [Pinterest](https://www.pinterest.com/)
