@@ -31,9 +31,22 @@ var (
 // JSONWebToken represent the 3 parts (header, payload & signature) of
 //              a JWT in Base64.
 type JSONWebToken struct {
-	header    string
-	payload   string
-	signature string
+	header        string
+	payload       string
+	signature     string
+	decodedHeader ast.Object
+}
+
+// decodeHeader populates the decodedHeader field.
+func (token *JSONWebToken) decodeHeader() (err error) {
+	var h ast.Value
+	if h, err = builtinBase64UrlDecode(ast.String(token.header)); err != nil {
+		return fmt.Errorf("JWT header had invalid encoding: %v", err)
+	}
+	if token.decodedHeader, err = validateJWTHeader(string(h.(ast.String))); err != nil {
+		return err
+	}
+	return
 }
 
 // Implements JWT decoding/validation based on RFC 7519 Section 7.2:
@@ -47,13 +60,7 @@ func builtinJWTDecode(a ast.Value) (ast.Value, error) {
 		return nil, err
 	}
 
-	h, err := builtinBase64UrlDecode(ast.String(token.header))
-	if err != nil {
-		return nil, fmt.Errorf("JWT header had invalid encoding: %v", err)
-	}
-
-	header, err := validateJWTHeader(string(h.(ast.String)))
-	if err != nil {
+	if err = token.decodeHeader(); err != nil {
 		return nil, err
 	}
 
@@ -62,7 +69,7 @@ func builtinJWTDecode(a ast.Value) (ast.Value, error) {
 		return nil, fmt.Errorf("JWT payload had invalid encoding: %v", err)
 	}
 
-	if cty := header.Get(jwtCtyKey); cty != nil {
+	if cty := token.decodedHeader.Get(jwtCtyKey); cty != nil {
 		ctyVal := string(cty.Value.(ast.String))
 		// It is possible for the contents of a token to be another
 		// token as a result of nested signing or encryption. To handle
@@ -93,7 +100,7 @@ func builtinJWTDecode(a ast.Value) (ast.Value, error) {
 	sign := hex.EncodeToString([]byte(s.(ast.String)))
 
 	arr := make(ast.Array, 3)
-	arr[0] = ast.NewTerm(header)
+	arr[0] = ast.NewTerm(token.decodedHeader)
 	arr[1] = ast.NewTerm(payload)
 	arr[2] = ast.StringTerm(sign)
 
