@@ -120,6 +120,7 @@ var DefaultBuiltins = [...]*Builtin{
 	JWTVerifyPS256,
 	JWTVerifyES256,
 	JWTVerifyHS256,
+	JWTDecodeVerify,
 
 	// Time
 	NowNanos,
@@ -957,6 +958,22 @@ var JWTVerifyHS256 = &Builtin{
 			types.S,
 		),
 		types.B,
+	),
+}
+
+// JWTDecodeVerify verifies a JWT signature under parameterized constraints and decodes the claims if it is valid.
+var JWTDecodeVerify = &Builtin{
+	Name: "io.jwt.decode_verify",
+	Decl: types.NewFunction(
+		types.Args(
+			types.S,
+			types.NewObject(nil, types.NewDynamicProperty(types.S, types.A)),
+		),
+		types.NewArray([]types.Type{
+			types.B,
+			types.NewObject(nil, types.NewDynamicProperty(types.A, types.A)),
+			types.NewObject(nil, types.NewDynamicProperty(types.A, types.A)),
+		}, nil),
 	),
 }
 

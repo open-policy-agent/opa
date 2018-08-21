@@ -1748,6 +1748,235 @@ func TestTopDownJWTVerifyHS256(t *testing.T) {
 	}
 }
 
+func TestTopDownJWTDecodeVerify(t *testing.T) {
+	params := []struct {
+		note        string // test name
+		token       string // JWT
+		constraints string // constraints argument
+		valid       bool   // expected validity value
+		header      string // expected header
+		payload     string // expected claims
+		err         string // expected error or "" for succes
+	}{
+		{
+			"ps256-unconstrained", // no constraints at all (apart from supplying a key)
+			"eyJhbGciOiAiUFMyNTYiLCAidHlwIjogIkpXVCJ9.eyJpc3MiOiAieHh4In0.iCePYnD1U13oBe_6ylhmojmkY_VZNYXqVszAej8RImMGv51OEqARmYFkRZYTiYCiVFober7vcDq_stOj1uAJCuttygGW_dpHiN-3EWsU2E2vCnXlygWe0ud38pOC-OVyEFbXxO9-m51vnS-3VmBjEO8G1UE8bLFXTeFOGkUIj9dqlefJSWh5wa8XA3g9mj0jqpuJi-7QgEIeVHk-JzhGpoFqI2f-Df_agVvc2x4V-6fJmj7wV2IsaFPRi36mVQmg8S-dkxu4AlaeCILhyNZl8ewjBHHBjJFRwzcy88L00mzdO51ZxEYsBdQav3ux2sc6vjT9PvvjAwzcthQxEoEaNA",
+			fmt.Sprintf(`{"cert": "%s"}`, certPemPs),
+			true,
+			`{"alg": "PS256", "typ": "JWT"}`,
+			`{"iss": "xxx"}`,
+			"",
+		},
+		{
+			"ps256-key-wrong", // wrong key for signature
+			"eyJhbGciOiAiUFMyNTYiLCAidHlwIjogIkpXVCJ9.eyJpc3MiOiAieHh4In0.iCePYnD1U13oBe_6ylhmojmkY_VZNYXqVszAej8RImMGv51OEqARmYFkRZYTiYCiVFober7vcDq_stOj1uAJCuttygGW_dpHiN-3EWsU2E2vCnXlygWe0ud38pOC-OVyEFbXxO9-m51vnS-3VmBjEO8G1UE8bLFXTeFOGkUIj9dqlefJSWh5wa8XA3g9mj0jqpuJi-7QgEIeVHk-JzhGpoFqI2f-Df_agVvc2x4V-6fJmj7wV2IsaFPRi36mVQmg8S-dkxu4AlaeCILhyNZl8ewjBHHBjJFRwzcy88L00mzdO51ZxEYsBdQav3ux2sc6vjT9PvvjAwzcthQxEoEaNA",
+			fmt.Sprintf(`{"cert": "%s"}`, certPem),
+			false,
+			`{}`,
+			`{}`,
+			"",
+		},
+		{
+			"rs256-key-wrong", // wrong key for signature
+			"eyJhbGciOiAiUlMyNTYiLCAidHlwIjogIkpXVCJ9.eyJpc3MiOiAieHh4IiwgImV4cCI6IDMwMDB9.hqDP3AzshNhUZMI02U3nLPrj93QFrgs-74XFrF1Vry2bplrz-NKpdVdfTu8iY_bhmkWf2Om5DdwRZj2ZgpGahtnshnHaRq0RyqF-m3Y7oNj6JL_YMwgxsFIIHtBlagBqDU-gZK99iqSOSGqVhvxqX6gCqFgE7vnEGHeeDedtRM53coAJuwzy8rQV9m3TewoofPdPasGv-dBLQZ3qgmnibkSgb7SmFpjXBy8zL3xJXOZhAHYlgcmcEoFVaWlBguIcWA87WZlpCLYcdYTJzSZweC3QLUhZ4RLJW84-LMKp6xWLLPrp3OgnsduB2G9PYMmYw_qCkuY1KGwfH4PvCQbAzQ",
+			fmt.Sprintf(`{"cert": "%s"}`, certPem),
+			false,
+			`{}`,
+			`{}`,
+			"",
+		},
+		{
+			"ps256-iss-ok", // enforce issuer
+			"eyJhbGciOiAiUFMyNTYiLCAidHlwIjogIkpXVCJ9.eyJpc3MiOiAieHh4In0.iCePYnD1U13oBe_6ylhmojmkY_VZNYXqVszAej8RImMGv51OEqARmYFkRZYTiYCiVFober7vcDq_stOj1uAJCuttygGW_dpHiN-3EWsU2E2vCnXlygWe0ud38pOC-OVyEFbXxO9-m51vnS-3VmBjEO8G1UE8bLFXTeFOGkUIj9dqlefJSWh5wa8XA3g9mj0jqpuJi-7QgEIeVHk-JzhGpoFqI2f-Df_agVvc2x4V-6fJmj7wV2IsaFPRi36mVQmg8S-dkxu4AlaeCILhyNZl8ewjBHHBjJFRwzcy88L00mzdO51ZxEYsBdQav3ux2sc6vjT9PvvjAwzcthQxEoEaNA",
+			fmt.Sprintf(`{"cert": "%s", "iss": "xxx"}`, certPemPs),
+			true,
+			`{"alg": "PS256", "typ": "JWT"}`,
+			`{"iss": "xxx"}`,
+			"",
+		},
+		{
+			"ps256-iss-wrong", // wrong issuer
+			"eyJhbGciOiAiUFMyNTYiLCAidHlwIjogIkpXVCJ9.eyJpc3MiOiAieHh4In0.iCePYnD1U13oBe_6ylhmojmkY_VZNYXqVszAej8RImMGv51OEqARmYFkRZYTiYCiVFober7vcDq_stOj1uAJCuttygGW_dpHiN-3EWsU2E2vCnXlygWe0ud38pOC-OVyEFbXxO9-m51vnS-3VmBjEO8G1UE8bLFXTeFOGkUIj9dqlefJSWh5wa8XA3g9mj0jqpuJi-7QgEIeVHk-JzhGpoFqI2f-Df_agVvc2x4V-6fJmj7wV2IsaFPRi36mVQmg8S-dkxu4AlaeCILhyNZl8ewjBHHBjJFRwzcy88L00mzdO51ZxEYsBdQav3ux2sc6vjT9PvvjAwzcthQxEoEaNA",
+			fmt.Sprintf(`{"cert": "%s", "iss": "yyy"}`, certPemPs),
+			false,
+			`{}`,
+			`{}`,
+			"",
+		},
+		{
+			"ps256-alg-ok", // constrained algorithm
+			"eyJhbGciOiAiUFMyNTYiLCAidHlwIjogIkpXVCJ9.eyJpc3MiOiAieHh4In0.iCePYnD1U13oBe_6ylhmojmkY_VZNYXqVszAej8RImMGv51OEqARmYFkRZYTiYCiVFober7vcDq_stOj1uAJCuttygGW_dpHiN-3EWsU2E2vCnXlygWe0ud38pOC-OVyEFbXxO9-m51vnS-3VmBjEO8G1UE8bLFXTeFOGkUIj9dqlefJSWh5wa8XA3g9mj0jqpuJi-7QgEIeVHk-JzhGpoFqI2f-Df_agVvc2x4V-6fJmj7wV2IsaFPRi36mVQmg8S-dkxu4AlaeCILhyNZl8ewjBHHBjJFRwzcy88L00mzdO51ZxEYsBdQav3ux2sc6vjT9PvvjAwzcthQxEoEaNA",
+			fmt.Sprintf(`{"cert": "%s", "alg": "PS256"}`, certPemPs),
+			true,
+			`{"alg": "PS256", "typ": "JWT"}`,
+			`{"iss": "xxx"}`,
+			"",
+		},
+		{
+			"ps256-alg-wrong", // constrained algorithm, and it's wrong
+			"eyJhbGciOiAiUFMyNTYiLCAidHlwIjogIkpXVCJ9.eyJpc3MiOiAieHh4In0.iCePYnD1U13oBe_6ylhmojmkY_VZNYXqVszAej8RImMGv51OEqARmYFkRZYTiYCiVFober7vcDq_stOj1uAJCuttygGW_dpHiN-3EWsU2E2vCnXlygWe0ud38pOC-OVyEFbXxO9-m51vnS-3VmBjEO8G1UE8bLFXTeFOGkUIj9dqlefJSWh5wa8XA3g9mj0jqpuJi-7QgEIeVHk-JzhGpoFqI2f-Df_agVvc2x4V-6fJmj7wV2IsaFPRi36mVQmg8S-dkxu4AlaeCILhyNZl8ewjBHHBjJFRwzcy88L00mzdO51ZxEYsBdQav3ux2sc6vjT9PvvjAwzcthQxEoEaNA",
+			fmt.Sprintf(`{"cert": "%s", "alg": "RS256"}`, certPemPs),
+			false,
+			`{}`,
+			`{}`,
+			"",
+		},
+		{
+			"rs256-exp-ok", // token expires, and it's still valid
+			"eyJhbGciOiAiUlMyNTYiLCAidHlwIjogIkpXVCJ9.eyJpc3MiOiAieHh4IiwgImV4cCI6IDMwMDB9.hqDP3AzshNhUZMI02U3nLPrj93QFrgs-74XFrF1Vry2bplrz-NKpdVdfTu8iY_bhmkWf2Om5DdwRZj2ZgpGahtnshnHaRq0RyqF-m3Y7oNj6JL_YMwgxsFIIHtBlagBqDU-gZK99iqSOSGqVhvxqX6gCqFgE7vnEGHeeDedtRM53coAJuwzy8rQV9m3TewoofPdPasGv-dBLQZ3qgmnibkSgb7SmFpjXBy8zL3xJXOZhAHYlgcmcEoFVaWlBguIcWA87WZlpCLYcdYTJzSZweC3QLUhZ4RLJW84-LMKp6xWLLPrp3OgnsduB2G9PYMmYw_qCkuY1KGwfH4PvCQbAzQ",
+			fmt.Sprintf(`{"cert": "%s", "time": 2000000000000}`, certPemPs),
+			true,
+			`{"alg": "RS256", "typ": "JWT"}`,
+			`{"iss": "xxx", "exp": 3000}`,
+			"",
+		},
+		{
+			"rs256-exp-expired", // token expires, and it's stale at a chosen time
+			"eyJhbGciOiAiUlMyNTYiLCAidHlwIjogIkpXVCJ9.eyJpc3MiOiAieHh4IiwgImV4cCI6IDMwMDB9.hqDP3AzshNhUZMI02U3nLPrj93QFrgs-74XFrF1Vry2bplrz-NKpdVdfTu8iY_bhmkWf2Om5DdwRZj2ZgpGahtnshnHaRq0RyqF-m3Y7oNj6JL_YMwgxsFIIHtBlagBqDU-gZK99iqSOSGqVhvxqX6gCqFgE7vnEGHeeDedtRM53coAJuwzy8rQV9m3TewoofPdPasGv-dBLQZ3qgmnibkSgb7SmFpjXBy8zL3xJXOZhAHYlgcmcEoFVaWlBguIcWA87WZlpCLYcdYTJzSZweC3QLUhZ4RLJW84-LMKp6xWLLPrp3OgnsduB2G9PYMmYw_qCkuY1KGwfH4PvCQbAzQ",
+			fmt.Sprintf(`{"cert": "%s", "time": 4000000000000}`, certPemPs),
+			false,
+			`{}`,
+			`{}`,
+			"",
+		},
+		{
+			"rs256-exp-now-expired", // token expires, and it's stale at the current implicitly specified real time
+			"eyJhbGciOiAiUlMyNTYiLCAidHlwIjogIkpXVCJ9.eyJpc3MiOiAieHh4IiwgImV4cCI6IDMwMDB9.hqDP3AzshNhUZMI02U3nLPrj93QFrgs-74XFrF1Vry2bplrz-NKpdVdfTu8iY_bhmkWf2Om5DdwRZj2ZgpGahtnshnHaRq0RyqF-m3Y7oNj6JL_YMwgxsFIIHtBlagBqDU-gZK99iqSOSGqVhvxqX6gCqFgE7vnEGHeeDedtRM53coAJuwzy8rQV9m3TewoofPdPasGv-dBLQZ3qgmnibkSgb7SmFpjXBy8zL3xJXOZhAHYlgcmcEoFVaWlBguIcWA87WZlpCLYcdYTJzSZweC3QLUhZ4RLJW84-LMKp6xWLLPrp3OgnsduB2G9PYMmYw_qCkuY1KGwfH4PvCQbAzQ",
+			fmt.Sprintf(`{"cert": "%s"}`, certPemPs),
+			false,
+			`{}`,
+			`{}`,
+			"",
+		},
+		{
+			"rs256-exp-now-explicit-expired", // token expires, and it's stale at the current explicitly specified real time
+			"eyJhbGciOiAiUlMyNTYiLCAidHlwIjogIkpXVCJ9.eyJpc3MiOiAieHh4IiwgImV4cCI6IDMwMDB9.hqDP3AzshNhUZMI02U3nLPrj93QFrgs-74XFrF1Vry2bplrz-NKpdVdfTu8iY_bhmkWf2Om5DdwRZj2ZgpGahtnshnHaRq0RyqF-m3Y7oNj6JL_YMwgxsFIIHtBlagBqDU-gZK99iqSOSGqVhvxqX6gCqFgE7vnEGHeeDedtRM53coAJuwzy8rQV9m3TewoofPdPasGv-dBLQZ3qgmnibkSgb7SmFpjXBy8zL3xJXOZhAHYlgcmcEoFVaWlBguIcWA87WZlpCLYcdYTJzSZweC3QLUhZ4RLJW84-LMKp6xWLLPrp3OgnsduB2G9PYMmYw_qCkuY1KGwfH4PvCQbAzQ",
+			fmt.Sprintf(`{"cert": "%s", "time": now}`, certPemPs),
+			false,
+			`{}`,
+			`{}`,
+			"",
+		},
+		{
+			"rs256-nbf-ok", // token has a commencement time, and it's commenced at a chosen time
+			"eyJhbGciOiAiUlMyNTYiLCAidHlwIjogIkpXVCJ9.eyJuYmYiOiAxMDAwLCAiaXNzIjogInh4eCJ9.cwwYDfJhU_ambPIpwBJwDek05miffoudprr41IAYsl0IKekb1ii2uEgwkNM-LJtVXHe9hsK3gANFyfqoJuCZIBvaNMx_3Z0BUdeBs4k1UwBiZCpuud0ofgHKURwvehNgqDvRfchq_-K_Agi2iRdl0oShgLjN-gVbBl8pRwUbQrvASlcsCpZIKUyOzXNtaIZEFh1z6ISDy8UHHOdoieKpN23swya7QAcEb0wXEEKMkkhiRd5QHgWLk37Lnw2K89mKcq4Om0CtV9nHrxxmpYGSMPojCy16Gjdg5-xKyJWvxCfb3YUBUVM4RWa7ICOPRJWPuHxu9pPYG63hb_qDU6NLsw",
+			fmt.Sprintf(`{"cert": "%s", "time": 2000000000000}`, certPemPs),
+			true,
+			`{"alg": "RS256", "typ": "JWT"}`,
+			`{"iss": "xxx", "nbf": 1000}`,
+			"",
+		},
+		{
+			"rs256-nbf-now-ok", // token has a commencement time, and it's commenced at the current implicitly specified time
+			"eyJhbGciOiAiUlMyNTYiLCAidHlwIjogIkpXVCJ9.eyJuYmYiOiAxMDAwLCAiaXNzIjogInh4eCJ9.cwwYDfJhU_ambPIpwBJwDek05miffoudprr41IAYsl0IKekb1ii2uEgwkNM-LJtVXHe9hsK3gANFyfqoJuCZIBvaNMx_3Z0BUdeBs4k1UwBiZCpuud0ofgHKURwvehNgqDvRfchq_-K_Agi2iRdl0oShgLjN-gVbBl8pRwUbQrvASlcsCpZIKUyOzXNtaIZEFh1z6ISDy8UHHOdoieKpN23swya7QAcEb0wXEEKMkkhiRd5QHgWLk37Lnw2K89mKcq4Om0CtV9nHrxxmpYGSMPojCy16Gjdg5-xKyJWvxCfb3YUBUVM4RWa7ICOPRJWPuHxu9pPYG63hb_qDU6NLsw",
+			fmt.Sprintf(`{"cert": "%s"}`, certPemPs),
+			true,
+			`{"alg": "RS256", "typ": "JWT"}`,
+			`{"iss": "xxx", "nbf": 1000}`,
+			"",
+		},
+		{
+			"rs256-nbf-toosoon", // token has a commencement time, and the chosen time is too early
+			"eyJhbGciOiAiUlMyNTYiLCAidHlwIjogIkpXVCJ9.eyJuYmYiOiAxMDAwLCAiaXNzIjogInh4eCJ9.cwwYDfJhU_ambPIpwBJwDek05miffoudprr41IAYsl0IKekb1ii2uEgwkNM-LJtVXHe9hsK3gANFyfqoJuCZIBvaNMx_3Z0BUdeBs4k1UwBiZCpuud0ofgHKURwvehNgqDvRfchq_-K_Agi2iRdl0oShgLjN-gVbBl8pRwUbQrvASlcsCpZIKUyOzXNtaIZEFh1z6ISDy8UHHOdoieKpN23swya7QAcEb0wXEEKMkkhiRd5QHgWLk37Lnw2K89mKcq4Om0CtV9nHrxxmpYGSMPojCy16Gjdg5-xKyJWvxCfb3YUBUVM4RWa7ICOPRJWPuHxu9pPYG63hb_qDU6NLsw",
+			fmt.Sprintf(`{"cert": "%s", "time": 500000000000}`, certPemPs),
+			false,
+			`{}`,
+			`{}`,
+			"",
+		},
+		{
+			"rs256-alg-missing", // alg is missing from the JOSE header
+			"eyJ0eXAiOiAiSldUIiwgImtpZCI6ICJrMSJ9.eyJpc3MiOiAieHh4IiwgInN1YiI6ICJmcmVkIn0.J4J4FgUD_P5fviVVjgvQWJDg-5XYTP_tHCwB3kSlYVKv8vmnZRNh4ke68OxfMP96iM-LZswG2fNqe-_piGIMepF5rCe1iIWAuz3qqkxfS9YVF3hvwoXhjJT0yIgrDMl1lfW5_XipNshZoxddWK3B7dnVW74MFazEEFuefiQm3PdMUX8jWGsmfgPnqBIZTizErNhoIMuRvYaVM1wA2nfrpVGONxMTaw8T0NRwYIuZwubbnNQ1yLhI0y3dsZvQ_lrh9Khtk9fS1V3SRh7aa9AvferJ4T-48qn_V1m3sINPgoA-uLGyyu3k_GkXRYW1yGNC-MH4T2cwhj89WITbIhusgQ",
+			fmt.Sprintf(`{"cert": "%s"}`, certPemPs),
+			false,
+			`{}`,
+			`{}`,
+			"",
+		},
+		{
+			"rs256-crit-junk", // the JOSE header contains an unrecognized critical parameter
+			"eyJjcml0IjogWyJqdW5rIl0sICJraWQiOiAiazEiLCAiYWxnIjogIlJTMjU2IiwgInR5cCI6ICJKV1QiLCAianVuayI6ICJ4eHgifQ.eyJpc3MiOiAieHh4IiwgInN1YiI6ICJmcmVkIn0.YfoUpW5CgDBtxtBuOix3cdYJGT8cX9Mq7wOhIbjDK7eRQUsAmMY_0EQPh7bd7Yi1gLI3e11BKzguf2EHqAa1kbkHWwFniBO-RIi8q42v2uxC4lpEpIjfaaXB5XmsLfAXtYRqh0AObvbSho6VDXBP_Kn81nhIiE2yFbH14_jhRMSxDBs5ToSkXV-XJHw5bONP8NxPqEk9KF3ZJGzN7J_KoD6LjqfYai5K0eLNEIZh4C1WjTdmCKMR4K6ieZRQWZiSsnhSqLSQERir4n22G3QsdY7dOnCp-SS4VYu3V-PfsOSFMvQ-TTAN1geqMZ9A7k1CCLW0wxKBs-KCiYzmRTzwxA",
+			fmt.Sprintf(`{"cert": "%s"}`, certPemPs),
+			false,
+			`{}`,
+			`{}`,
+			"",
+		},
+		{
+			"rsa256-nested", // one nesting level
+			"eyJhbGciOiAiUlMyNTYiLCAidHlwIjogIkpXVCIsICJjdHkiOiAiSldUIn0.ZXlKaGJHY2lPaUFpVWxNeU5UWWlMQ0FpZEhsd0lqb2dJa3BYVkNKOS5leUpwYzNNaU9pQWllSGg0SW4wLnJSUnJlUU9DYW9ZLW1Nazcyak5GZVk1YVlFUWhJZ0lFdFZkUTlYblltUUwyTHdfaDdNbkk0U0VPMVBwa0JIVEpyZnljbEplTHpfalJ2UGdJMlcxaDFCNGNaVDhDZ21pVXdxQXI5c0puZHlVQ1FtSWRrbm53WkI5cXAtX3BTdGRHWEo5WnAzeEo4NXotVEJpWlN0QUNUZFdlUklGSUU3VkxPa20tRmxZdzh5OTdnaUN4TmxUdWl3amxlTjMwZDhnWHUxNkZGQzJTSlhtRjZKbXYtNjJHbERhLW1CWFZ0bGJVSTVlWVUwaTdueTNyQjBYUVQxRkt4ZUZ3OF85N09FdV9jY3VLcl82ZHlHZVFHdnQ5Y3JJeEFBMWFZbDdmbVBrNkVhcjllTTNKaGVYMi00Wkx0d1FOY1RDT01YV0dIck1DaG5MWVc4WEFrTHJEbl9yRmxUaVMtZw.Xicc2sWCZ_Nithucsw9XD7YOKrirUdEnH3MyiPM-Ck3vEU2RsTBsfU2JPhfjp3phc0VOgsAXCzwU5PwyNyUo1490q8YSym-liMyO2Lk-hjH5fAxoizg9yD4II_lK6Wz_Tnpc0bBGDLdbuUhvgvO7yqo-leBQlsfRXOvw4VSPSEy8QPtbURtbnLpWY2jGBKz7vGI_o4qDJ3PicG0kyEiWZNh3wjeeCYRCWvXN8qh7Uk5EA-8J5vX651GqV-7gmaX1n-8DXamhaCQcE-p1cjSj04-X-_bJlQtmb-TT3bSyUPxgHVncvxNUby8jkUTzfi5MMbmIzWWkxI5YtJTdtmCkPQ",
+			fmt.Sprintf(`{"cert": "%s"}`, certPemPs),
+			true,
+			`{"alg": "RS256", "typ": "JWT"}`,
+			`{"iss": "xxx"}`,
+			"",
+		},
+		{
+			"rsa256-nested2", // two nesting levels
+			"eyJhbGciOiAiUlMyNTYiLCAidHlwIjogIkpXVCIsICJjdHkiOiAiSldUIn0.ZXlKaGJHY2lPaUFpVWxNeU5UWWlMQ0FpZEhsd0lqb2dJa3BYVkNJc0lDSmpkSGtpT2lBaVNsZFVJbjAuWlhsS2FHSkhZMmxQYVVGcFZXeE5lVTVVV1dsTVEwRnBaRWhzZDBscWIyZEphM0JZVmtOS09TNWxlVXB3WXpOTmFVOXBRV2xsU0dnMFNXNHdMbkpTVW5KbFVVOURZVzlaTFcxTmF6Y3lhazVHWlZrMVlWbEZVV2hKWjBsRmRGWmtVVGxZYmxsdFVVd3lUSGRmYURkTmJrazBVMFZQTVZCd2EwSklWRXB5Wm5samJFcGxUSHBmYWxKMlVHZEpNbGN4YURGQ05HTmFWRGhEWjIxcFZYZHhRWEk1YzBwdVpIbFZRMUZ0U1dScmJtNTNXa0k1Y1hBdFgzQlRkR1JIV0VvNVduQXplRW80TlhvdFZFSnBXbE4wUVVOVVpGZGxVa2xHU1VVM1ZreFBhMjB0Um14WmR6aDVPVGRuYVVONFRteFVkV2wzYW14bFRqTXdaRGhuV0hVeE5rWkdRekpUU2xodFJqWktiWFl0TmpKSGJFUmhMVzFDV0ZaMGJHSlZTVFZsV1ZVd2FUZHVlVE55UWpCWVVWUXhSa3Q0WlVaM09GODVOMDlGZFY5alkzVkxjbDgyWkhsSFpWRkhkblE1WTNKSmVFRkJNV0ZaYkRkbWJWQnJOa1ZoY2psbFRUTkthR1ZZTWkwMFdreDBkMUZPWTFSRFQwMVlWMGRJY2sxRGFHNU1XVmM0V0VGclRISkVibDl5Um14VWFWTXRady5YaWNjMnNXQ1pfTml0aHVjc3c5WEQ3WU9LcmlyVWRFbkgzTXlpUE0tQ2szdkVVMlJzVEJzZlUySlBoZmpwM3BoYzBWT2dzQVhDendVNVB3eU55VW8xNDkwcThZU3ltLWxpTXlPMkxrLWhqSDVmQXhvaXpnOXlENElJX2xLNld6X1RucGMwYkJHRExkYnVVaHZndk83eXFvLWxlQlFsc2ZSWE92dzRWU1BTRXk4UVB0YlVSdGJuTHBXWTJqR0JLejd2R0lfbzRxREozUGljRzBreUVpV1pOaDN3amVlQ1lSQ1d2WE44cWg3VWs1RUEtOEo1dlg2NTFHcVYtN2dtYVgxbi04RFhhbWhhQ1FjRS1wMWNqU2owNC1YLV9iSmxRdG1iLVRUM2JTeVVQeGdIVm5jdnhOVWJ5OGprVVR6Zmk1TU1ibUl6V1dreEk1WXRKVGR0bUNrUFE.ODBVH_gooCLJxtPVr1MjJC1syG4MnVUFP9LkI9pSaj0QABV4vpfqrBshHn8zOPgUTDeHwbc01Qy96cQlTMQQb94YANmZyL1nzwmdR4piiGXMGSlcCNfDg1o8DK4msMSR-X-j2IkxBDB8rfeFSfLRMgDCjAF0JolW7qWmMD9tBmFNYAjly4vMwToOXosDmFLl5eqyohXDf-3Ohljm5kIjtyMWkt5S9EVuwlIXh2owK5l59c4-TH29gkuaZ3uU4LFPjD7XKUrlOQnEMuu2QD8LAqTyxbnY4JyzUWEvyTM1dVmGnFpLKCg9QBly__y1u2ffhvDsHyuCmEKAbhPE98YvFA",
+			fmt.Sprintf(`{"cert": "%s"}`, certPemPs),
+			true,
+			`{"alg": "RS256", "typ": "JWT"}`,
+			`{"iss": "xxx"}`,
+			"",
+		},
+		{
+			"es256-unconstrained", // ECC key, no constraints
+			"eyJhbGciOiAiRVMyNTYiLCAidHlwIjogIkpXVCJ9.eyJpc3MiOiAieHh4In0.JvbTLBF06FR70gb7lCbx_ojhp4bk9--B_aULgNlYM0fYf9OSawaqBQp2lwW6FADFtRJ2WFUk5g0zwVOUlnrlzw",
+			fmt.Sprintf(`{"cert": "%s"}`, certPemEs256),
+			true,
+			`{"alg": "ES256", "typ": "JWT"}`,
+			`{"iss": "xxx"}`,
+			"",
+		},
+		{
+			"hs256-unconstrained", // HMAC key, no constraints
+			`eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyIjoiYWxpY2UiLCJhenAiOiJhbGljZSIsInN1Ym9yZGluYXRlcyI6W10sImhyIjpmYWxzZX0.rz3jTY033z-NrKfwrK89_dcLF7TN4gwCMj-fVBDyLoM`,
+			`{"secret": "secret"}`,
+			true,
+			`{"alg": "HS256", "typ": "JWT"}`,
+			`{"user": "alice", "azp": "alice", "subordinates": [], "hr": false}`,
+			"",
+		},
+		{
+			"hs256-key-wrong", // HMAC with wrong key
+			`eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyIjoiYWxpY2UiLCJhenAiOiJhbGljZSIsInN1Ym9yZGluYXRlcyI6W10sImhyIjpmYWxzZX0.rz3jTY033z-NrKfwrK89_dcLF7TN4gwCMj-fVBDyLoM`,
+			`{"secret": "the wrong key"}`,
+			false,
+			`{}`,
+			`{}`,
+			"",
+		},
+	}
+
+	type test struct {
+		note     string
+		rules    []string
+		expected interface{}
+	}
+	tests := []test{}
+
+	for _, p := range params {
+		var exp interface{}
+		exp = fmt.Sprintf(`[%#v, %s, %s]`, p.valid, p.header, p.payload)
+		if p.err != "" {
+			exp = errors.New(p.err)
+		}
+
+		tests = append(tests, test{
+			p.note,
+			[]string{fmt.Sprintf(`p = [x, y, z] { time.now_ns(now); io.jwt.decode_verify("%s", %s, [x, y, z]) }`, p.token, p.constraints)},
+			exp,
+		})
+	}
+
+	data := loadSmallTestData()
+
+	for _, tc := range tests {
+		runTopDownTestCase(t, data, tc.note, tc.rules, tc.expected)
+	}
+}
+
 func TestTopDownTime(t *testing.T) {
 
 	data := loadSmallTestData()
