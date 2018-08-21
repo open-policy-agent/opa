@@ -159,6 +159,21 @@ func builtinJWTVerifyES256(a ast.Value, b ast.Value) (ast.Value, error) {
 	})
 }
 
+// getKeyFromCert returns the public key found in a X.509 certificate.
+func getKeyFromCert(certificate string) (key interface{}, err error) {
+	block, rest := pem.Decode([]byte(certificate))
+	if block == nil || block.Type != "CERTIFICATE" || len(rest) > 0 {
+		return nil, fmt.Errorf("failed to decode PEM block containing certificate")
+	}
+
+	cert, err := x509.ParseCertificate(block.Bytes)
+	if err != nil {
+		return nil, errors.Wrap(err, "PEM parse error")
+	}
+	key = cert.PublicKey
+	return
+}
+
 // Implements JWT signature verification.
 func builtinJWTVerify(a ast.Value, b ast.Value, verify func(publicKey interface{}, digest []byte, signature []byte) error) (ast.Value, error) {
 	// Decode the JSON Web Token
@@ -172,17 +187,9 @@ func builtinJWTVerify(a ast.Value, b ast.Value, verify func(publicKey interface{
 	if err != nil {
 		return nil, err
 	}
-	certificate := string(astCertificate)
-
-	block, rest := pem.Decode([]byte(certificate))
-
-	if block == nil || block.Type != "CERTIFICATE" || len(rest) > 0 {
-		return nil, fmt.Errorf("failed to decode PEM block containing certificate")
-	}
-
-	cert, err := x509.ParseCertificate(block.Bytes)
+	key, err := getKeyFromCert(string(astCertificate))
 	if err != nil {
-		return nil, errors.Wrap(err, "PEM parse error")
+		return nil, err
 	}
 
 	signature, err := token.decodeSignature()
@@ -191,7 +198,7 @@ func builtinJWTVerify(a ast.Value, b ast.Value, verify func(publicKey interface{
 	}
 
 	// Validate the JWT signature
-	err = verify(cert.PublicKey,
+	err = verify(key,
 		getInputSHA([]byte(token.header+"."+token.payload)),
 		[]byte(signature))
 
