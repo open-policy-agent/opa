@@ -143,7 +143,7 @@ To test admission control, create a policy that restricts the hostnames that an 
 
 <pre><code class="lang-ruby">{% include "./tutorials/kubernetes-admission-control-validation/ingress-whitelist.rego" %}</code></pre>
 
-Store the policy in Kubernetes as a ConfigMap.
+Store the policy in Kubernetes as a ConfigMap. By default kube-mgmt will try to load policies out of configmaps in the opa namespace OR configmaps in other namespaces labelled openpolicyagent.org/policy=rego.
 
 ```bash
 kubectl create configmap ingress-whitelist --from-file=ingress-whitelist.rego
