@@ -138,6 +138,7 @@ For ``io.jwt.decode_verify``, ``constraints`` is an object with the following me
 | ``alg`` | The JWA algorithm name to use. Optional. If it is absent then any algorithm that is compatible with the key is accepted. |
 | ``iss`` | The issuer string. Optional. If it is present the only tokens with this issuer are accepted. If it is absent then any issuer is accepted. |
 |``time`` | The time in nanoseconds to verify the token at. Optional. If this is present then the ``exp`` and ``nbf`` claims are compared against this value. If it is absent then they are compared against the current time. |
+|``aud`` | The audience that the verifier identifies with. Optional. If this is present then the ``aud`` claim is checked against it. If if it is absent then the ``aud`` claim must be absent too. |
 
 Exactly one of ``cert`` and ``secret`` must be present.
 If there are any unrecognized constraints then the token is considered invalid.

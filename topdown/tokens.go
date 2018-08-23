@@ -32,6 +32,7 @@ var (
 	jwtIssKey = ast.StringTerm("iss")
 	jwtExpKey = ast.StringTerm("exp")
 	jwtNbfKey = ast.StringTerm("nbf")
+	jwtAudKey = ast.StringTerm("aud")
 )
 
 // JSONWebToken represent the 3 parts (header, payload & signature) of
@@ -263,6 +264,10 @@ type tokenConstraints struct {
 	// If "", any issuer is acceptable.
 	iss string
 
+	// The required audience.
+	// If "", no audience is acceptable.
+	aud string
+
 	// The time to validate against, or -1 if no constraint set.
 	// (If unset, the current time will be used.)
 	time int64
@@ -282,6 +287,9 @@ var tokenConstraintTypes = map[string]tokenConstraintHandler{
 	},
 	"iss": func(value ast.Value, constraints *tokenConstraints) (err error) {
 		return tokenConstraintString("iss", value, &constraints.iss)
+	},
+	"aud": func(value ast.Value, constraints *tokenConstraints) (err error) {
+		return tokenConstraintString("aud", value, &constraints.aud)
 	},
 	"time": tokenConstraintTime,
 }
@@ -406,6 +414,30 @@ func (constraints *tokenConstraints) verify(kid, alg, header, payload, signature
 	// (*tokenConstraints)validate() should prevent this happening
 	err = errors.New("unexpectedly found no keys to trust")
 	return
+}
+
+// validAudience checks the audience of the JWT.
+// It returns true if it meets the constraints and false otherwise.
+func (constraints *tokenConstraints) validAudience(aud ast.Value) (valid bool) {
+	var ok bool
+	var s ast.String
+	if s, ok = aud.(ast.String); ok {
+		return string(s) == constraints.aud
+	}
+	var a ast.Array
+	if a, ok = aud.(ast.Array); ok {
+		for _, t := range a {
+			if s, ok = t.Value.(ast.String); ok {
+				if string(s) == constraints.aud {
+					return true
+				}
+			} else {
+				// Ill-formed aud claim
+				return false
+			}
+		}
+	}
+	return false
 }
 
 // JWT algorithms
@@ -688,7 +720,15 @@ func builtinJWTDecodeVerify(a ast.Value, b ast.Value) (v ast.Value, err error) {
 		}
 	}
 	// RFC7159 4.1.3 aud
-	//TODO
+	if aud := payload.Get(jwtAudKey); aud != nil {
+		if !constraints.validAudience(aud.Value) {
+			return arr, nil
+		}
+	} else {
+		if constraints.aud != "" {
+			return arr, nil
+		}
+	}
 	// RFC7159 4.1.4 exp
 	if exp := payload.Get(jwtExpKey); exp != nil {
 		var expVal int64

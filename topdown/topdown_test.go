@@ -1947,6 +1947,60 @@ func TestTopDownJWTDecodeVerify(t *testing.T) {
 			`{}`,
 			"",
 		},
+		{
+			"rs256-aud", // constraint requires an audience, found right one in JWT
+			"eyJhbGciOiAiUlMyNTYiLCAidHlwIjogIkpXVCJ9.eyJpc3MiOiAieHh4IiwgImF1ZCI6ICJmcmVkIn0.F-9m2Tx8r1tuQFirazsI4FK05bXX3uP4ut8M2FryJ07k3bQhy262fdwNDmuFcGx0NfL-c80agcwGoTzMWXkVEgZ2KTz0QSAdcdGk3ZWtUy-Mj2IilZ1dzkVvW8LsithYFTGcUtkelFDrJwtMQ0Kum7SXJpC_HCBk4PbftY0XD6jRgHLnQdeT9_J11L4sd19vCdpxxxm3_m_yvUV3ZynzB4vhQbS3CET4EClAVhi-m_gMh9mj85gY1ycIz6-FxWv8xM2Igm2SMeIdyJwAvEGnIauRS928P_OqVCZgCH2Pafnxtzy77Llpxy8XS0xu5PtPw3_azhg33GaXDCFsfz6GpA",
+			fmt.Sprintf(`{"cert": "%s", "aud": "fred"}`, certPemPs),
+			true,
+			`{"alg": "RS256", "typ": "JWT"}`,
+			`{"aud": "fred", "iss": "xxx"}`,
+			"",
+		},
+		{
+			"rs256-aud-list", // constraint requires an audience, found list including right one in JWT
+			"eyJhbGciOiAiUlMyNTYiLCAidHlwIjogIkpXVCJ9.eyJpc3MiOiAieHh4IiwgImF1ZCI6IFsiZnJlZCIsICJib2IiXX0.k8jW7PUiMkQCKCjnSFBFFKPDO0RXwZgVkLUwUfi8sMdrrcKi12LC8wd5fLBn0YraFtMXWKdMweKf9ZC-K33h5TK7kkTVKOXctF50mleMlUn0Up_XjtdP1v-2WOfivUXcexN1o-hu0kH7sSQnielXIjC2EAleG6A54YUOZFBdzvd1PKHlsxA7x2iiL73uGeFlyxoaMki8E5tx7FY6JGF1RdhWCoIV5A5J8QnwI5EetduJQ505U65Pk7UApWYWu4l2DT7KCCJa5dJaBvCBemVxWaBhCQWtJKU2ZgOEkpiK7b_HsdeRBmpG9Oi1o5mt5ybC09VxSD-lEda_iJO_7i042A",
+			fmt.Sprintf(`{"cert": "%s", "aud": "bob"}`, certPemPs),
+			true,
+			`{"alg": "RS256", "typ": "JWT"}`,
+			`{"aud": ["fred", "bob"], "iss": "xxx"}`,
+			"",
+		},
+		{
+			"ps256-no-aud", // constraint requires an audience, none in JWT
+			"eyJhbGciOiAiUFMyNTYiLCAidHlwIjogIkpXVCJ9.eyJpc3MiOiAieHh4In0.iCePYnD1U13oBe_6ylhmojmkY_VZNYXqVszAej8RImMGv51OEqARmYFkRZYTiYCiVFober7vcDq_stOj1uAJCuttygGW_dpHiN-3EWsU2E2vCnXlygWe0ud38pOC-OVyEFbXxO9-m51vnS-3VmBjEO8G1UE8bLFXTeFOGkUIj9dqlefJSWh5wa8XA3g9mj0jqpuJi-7QgEIeVHk-JzhGpoFqI2f-Df_agVvc2x4V-6fJmj7wV2IsaFPRi36mVQmg8S-dkxu4AlaeCILhyNZl8ewjBHHBjJFRwzcy88L00mzdO51ZxEYsBdQav3ux2sc6vjT9PvvjAwzcthQxEoEaNA",
+			fmt.Sprintf(`{"cert": "%s", "aud": "cath"}`, certPemPs),
+			false,
+			`{}`,
+			`{}`,
+			"",
+		},
+		{
+			"rs256-missing-aud", // constraint requires no audience, found one in JWT
+			"eyJhbGciOiAiUlMyNTYiLCAidHlwIjogIkpXVCJ9.eyJpc3MiOiAieHh4IiwgImF1ZCI6ICJmcmVkIn0.F-9m2Tx8r1tuQFirazsI4FK05bXX3uP4ut8M2FryJ07k3bQhy262fdwNDmuFcGx0NfL-c80agcwGoTzMWXkVEgZ2KTz0QSAdcdGk3ZWtUy-Mj2IilZ1dzkVvW8LsithYFTGcUtkelFDrJwtMQ0Kum7SXJpC_HCBk4PbftY0XD6jRgHLnQdeT9_J11L4sd19vCdpxxxm3_m_yvUV3ZynzB4vhQbS3CET4EClAVhi-m_gMh9mj85gY1ycIz6-FxWv8xM2Igm2SMeIdyJwAvEGnIauRS928P_OqVCZgCH2Pafnxtzy77Llpxy8XS0xu5PtPw3_azhg33GaXDCFsfz6GpA",
+			fmt.Sprintf(`{"cert": "%s"}`, certPemPs),
+			false,
+			`{}`,
+			`{}`,
+			"",
+		},
+		{
+			"rs256-wrong-aud", // constraint requires an audience, found wrong one in JWT
+			"eyJhbGciOiAiUlMyNTYiLCAidHlwIjogIkpXVCJ9.eyJpc3MiOiAieHh4IiwgImF1ZCI6ICJmcmVkIn0.F-9m2Tx8r1tuQFirazsI4FK05bXX3uP4ut8M2FryJ07k3bQhy262fdwNDmuFcGx0NfL-c80agcwGoTzMWXkVEgZ2KTz0QSAdcdGk3ZWtUy-Mj2IilZ1dzkVvW8LsithYFTGcUtkelFDrJwtMQ0Kum7SXJpC_HCBk4PbftY0XD6jRgHLnQdeT9_J11L4sd19vCdpxxxm3_m_yvUV3ZynzB4vhQbS3CET4EClAVhi-m_gMh9mj85gY1ycIz6-FxWv8xM2Igm2SMeIdyJwAvEGnIauRS928P_OqVCZgCH2Pafnxtzy77Llpxy8XS0xu5PtPw3_azhg33GaXDCFsfz6GpA",
+			fmt.Sprintf(`{"cert": "%s", "aud": "cath"}`, certPemPs),
+			false,
+			`{}`,
+			`{}`,
+			"",
+		},
+		{
+			"rs256-wrong-aud-list", // constraint requires an audience, found list of wrong ones in JWT
+			"eyJhbGciOiAiUlMyNTYiLCAidHlwIjogIkpXVCJ9.eyJpc3MiOiAieHh4IiwgImF1ZCI6IFsiZnJlZCIsICJib2IiXX0.k8jW7PUiMkQCKCjnSFBFFKPDO0RXwZgVkLUwUfi8sMdrrcKi12LC8wd5fLBn0YraFtMXWKdMweKf9ZC-K33h5TK7kkTVKOXctF50mleMlUn0Up_XjtdP1v-2WOfivUXcexN1o-hu0kH7sSQnielXIjC2EAleG6A54YUOZFBdzvd1PKHlsxA7x2iiL73uGeFlyxoaMki8E5tx7FY6JGF1RdhWCoIV5A5J8QnwI5EetduJQ505U65Pk7UApWYWu4l2DT7KCCJa5dJaBvCBemVxWaBhCQWtJKU2ZgOEkpiK7b_HsdeRBmpG9Oi1o5mt5ybC09VxSD-lEda_iJO_7i042A",
+			fmt.Sprintf(`{"cert": "%s", "aud": "cath"}`, certPemPs),
+			false,
+			`{}`,
+			`{}`,
+			"",
+		},
 	}
 
 	type test struct {
