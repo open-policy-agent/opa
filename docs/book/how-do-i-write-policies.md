@@ -174,13 +174,13 @@ When we query for `q` we obtain a set of names:
 
 ```ruby
 > q[x]
-+----------+
-|    x     |
-+----------+
-| "prod"   |
-| "smoke1" |
-| "dev"    |
-+----------+
++----------+----------+
+|    x     |   q[x]   |
++----------+----------+
+| "prod"   | "prod"   |
+| "smoke1" | "smoke1" |
+| "dev"    | "dev"    |
++----------+----------+
 ```
 
 We can re-write the rule `r` from above to make use of `q`. We will call the new rule `p`:
@@ -201,7 +201,8 @@ Rules which have arguments can be queried with input values:
 ```ruby
 > q["smoke2"]
 undefined
-> q["dev"]
+> r {q["dev"]}
+> r
 true
 ```
 
