@@ -201,8 +201,8 @@ Rules which have arguments can be queried with input values:
 ```ruby
 > q["smoke2"]
 undefined
-> r {q["dev"]}
-> r
+> s { q["dev"] }
+> s
 true
 ```
 
