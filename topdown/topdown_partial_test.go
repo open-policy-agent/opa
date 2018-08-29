@@ -818,8 +818,8 @@ func TestTopDownPartialEval(t *testing.T) {
 			wantSupport: []string{
 				`package partial
 
-				__not0_2__(x, y) { 0 = x; 1 = y }
-				__not0_2__(x, y) { 2 = x; 3 = y }`,
+				__not0_2__(x, y) { x = 0; y = 1 }
+				__not0_2__(x, y) { x = 2; y = 3 }`,
 			},
 		},
 		{
@@ -979,6 +979,52 @@ func TestTopDownPartialEval(t *testing.T) {
 			},
 			wantQueries: []string{
 				"input = 100",
+			},
+		},
+		{
+			note:  "copy propagation: apply to support rules",
+			query: `data.test.p = true`,
+			modules: []string{`
+				package test
+
+				p {
+					not q
+				}
+
+				q {
+					input.x = x
+					x = y
+					y = 1
+				}
+			`},
+			wantQueries: []string{`not data.partial.__not1_0__`},
+			wantSupport: []string{`
+				package partial
+
+				__not1_0__ = true { input.x = 1 }`,
+			},
+		},
+		{
+			note:  "copy propagation: apply to support rules: head vars are live",
+			query: `data.test.p = true`,
+			modules: []string{`
+				package test
+
+				p {
+					input.x = z; not q[z]
+				}
+
+				q[y] {
+					x = 1
+					x = a
+					a = y
+				}
+			`},
+			wantQueries: []string{`not data.partial.__not1_1__(input.x)`},
+			wantSupport: []string{`
+				package partial
+
+				__not1_1__(z) = true { z = 1 }`,
 			},
 		},
 		{

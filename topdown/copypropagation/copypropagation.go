@@ -27,8 +27,9 @@ import (
 // propagation cannot replace x[0] == 1 with sort(input, x)[0] == 1 as this is
 // not legal.
 type CopyPropagator struct {
-	livevars ast.VarSet // vars that must be preserved in the resulting query
-	sorted   []ast.Var  // sorted copy of vars to ensure deterministic result
+	livevars           ast.VarSet // vars that must be preserved in the resulting query
+	sorted             []ast.Var  // sorted copy of vars to ensure deterministic result
+	ensureNonEmptyBody bool
 }
 
 // New returns a new CopyPropagator that optimizes queries while preserving vars
@@ -45,6 +46,12 @@ func New(livevars ast.VarSet) *CopyPropagator {
 	})
 
 	return &CopyPropagator{livevars: livevars, sorted: sorted}
+}
+
+// WithEnsureNonEmptyBody configures p to ensure that results are always non-empty.
+func (p *CopyPropagator) WithEnsureNonEmptyBody(yes bool) *CopyPropagator {
+	p.ensureNonEmptyBody = yes
+	return p
 }
 
 // Apply executes the copy propagation optimization and returns a new query.
@@ -113,6 +120,10 @@ func (p *CopyPropagator) Apply(query ast.Body) (result ast.Body) {
 				result.Append(ast.Equality.Expr(ast.NewTerm(v), ast.NewTerm(root.key)))
 			}
 		}
+	}
+
+	if p.ensureNonEmptyBody && len(result) == 0 {
+		result = append(result, ast.NewExpr(ast.BooleanTerm(true)))
 	}
 
 	return result

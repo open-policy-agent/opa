@@ -183,7 +183,18 @@ func (q *Query) PartialRun(ctx context.Context) (partials []ast.Body, support []
 		partials = append(partials, body)
 		return nil
 	})
-	return partials, e.saveSupport.List(), err
+
+	support = e.saveSupport.List()
+
+	for _, m := range support {
+		ast.WalkRules(m, func(r *ast.Rule) bool {
+			p := copypropagation.New(r.Head.Vars()).WithEnsureNonEmptyBody(true)
+			r.Body = p.Apply(r.Body)
+			return false
+		})
+	}
+
+	return partials, support, err
 }
 
 // Run is a wrapper around Iter that accumulates query results and returns them
