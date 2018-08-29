@@ -61,9 +61,11 @@ func (p *CopyPropagator) Apply(query ast.Body) (result ast.Body) {
 	headvars := ast.NewVarSet()
 	ast.WalkRefs(query, func(x ast.Ref) bool {
 		if v, ok := x[0].Value.(ast.Var); ok {
-			headvars.Add(v)
 			if root, ok := uf.Find(v); ok {
 				root.constant = nil
+				headvars.Add(root.key)
+			} else {
+				headvars.Add(v)
 			}
 		}
 		return false
