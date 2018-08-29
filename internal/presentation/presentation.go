@@ -254,7 +254,7 @@ func prettyASTNode(x interface{}) (string, int, error) {
 	setLocationRecursive(x)
 	bs, err := format.Ast(x)
 	if err != nil {
-		return "", 0, err
+		return "", 0, fmt.Errorf("format error: %v", err)
 	}
 	var maxLineWidth int
 	s := strings.Trim(strings.Replace(string(bs), "\t", "  ", -1), "\n")

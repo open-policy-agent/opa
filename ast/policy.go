@@ -713,6 +713,9 @@ func (body Body) IsGround() bool {
 
 // Loc returns the location of the Body in the definition.
 func (body Body) Loc() *Location {
+	if len(body) == 0 {
+		return nil
+	}
 	return body[0].Location
 }
 

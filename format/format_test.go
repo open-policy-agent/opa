@@ -29,6 +29,14 @@ func TestFormatNilLocation(t *testing.T) {
 	}
 }
 
+func TestFormatNilLocationEmptyBody(t *testing.T) {
+	b := ast.NewBody()
+	x, err := Ast(b)
+	if len(x) != 0 || err != nil {
+		t.Fatalf("Expected empty result but got: %q, err: %v", string(x), err)
+	}
+}
+
 func TestFormatSourceError(t *testing.T) {
 	rego := "testfiles/test.rego.error"
 	contents, err := ioutil.ReadFile(rego)
