@@ -900,6 +900,22 @@ func TestTopDownPartialEval(t *testing.T) {
 			},
 		},
 		{
+			note:  "copy propagation: reference head: call transitive with union-find",
+			query: "data.test.p = true",
+			modules: []string{
+				`package test
+
+				p {
+					split(input, ":", x)
+					y = x
+					y[0]
+				}`,
+			},
+			wantQueries: []string{
+				`split(input, ":", x1); x1[0]`,
+			},
+		},
+		{
 			note:  "copy propagation: live built-in output",
 			query: "plus(input, 1, x); x = y",
 			wantQueries: []string{
