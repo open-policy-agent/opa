@@ -62,6 +62,12 @@ func Ast(x interface{}) (formatted []byte, err error) {
 	ast.Walk(ast.NewGenericVisitor(func(x interface{}) bool {
 		switch x := x.(type) {
 		case *ast.Module, ast.Value: // Pass, they don't have locations.
+		case ast.Body:
+			// Empty bodies do not have a location. The body formatting implementation must
+			// handle this.
+			if len(x) > 0 {
+				assertHasLocation(x)
+			}
 		case *ast.Term:
 			switch v := x.Value.(type) {
 			case ast.Ref:
@@ -75,7 +81,7 @@ func Ast(x interface{}) (formatted []byte, err error) {
 			default:
 				assertHasLocation(x)
 			}
-		case *ast.Package, *ast.Import, *ast.Rule, *ast.Head, ast.Body, *ast.Expr, *ast.With, *ast.Comment:
+		case *ast.Package, *ast.Import, *ast.Rule, *ast.Head, *ast.Expr, *ast.With, *ast.Comment:
 			assertHasLocation(x)
 		}
 		return false
@@ -933,15 +939,15 @@ func (w *writer) down() {
 func assertHasLocation(xs ...interface{}) {
 	for _, x := range xs {
 		if getLoc(x) == nil {
-			panic(nilLocationErr{fmt.Errorf("nil location: %v", x)})
+			panic(nilLocationErr{x})
 		}
 	}
 }
 
 type nilLocationErr struct {
-	err error
+	x interface{}
 }
 
 func (err nilLocationErr) Error() string {
-	return err.err.Error()
+	return fmt.Sprintf("nil location on %T", err.x)
 }
