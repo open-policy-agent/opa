@@ -287,7 +287,13 @@ true
 - Enforcing Bespoke Policies In Kubernetes @ KubeCon US 2017: [video](https://www.youtube.com/watch?v=llDI8VvkUj8), [slides](https://www.slideshare.net/TorinSandall/enforcing-bespoke-policies-in-kubernetes).
 - Istio's Mixer: Policy Enforcement with Custom Adapters @ CloudNativeCon US 2017: [video](https://www.youtube.com/watch?v=czZLXUqzd24), [slides](https://www.slideshare.net/TorinSandall/istios-mixer-policy-enforcement-with-custom-adapters-cloud-nativecon-17).
 
-## Reporting Security Vulnerabilities
+## Security
+
+### Security Audit
+
+A third party security audit was performed by Cure53, you can see the full report [here](SECURITY_AUDIT.pdf)
+
+### Reporting Security Vulnerabilities
 
 Please report vulnerabilities by email to [open-policy-agent-security](mailto:open-policy-agent-security@googlegroups.com).
 We will send a confirmation message to acknowledge that we have received the
