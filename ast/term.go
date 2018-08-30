@@ -305,6 +305,19 @@ func (term *Term) SetLocation(loc *Location) *Term {
 	return term
 }
 
+// Loc returns the Location of term.
+func (term *Term) Loc() *Location {
+	if term == nil {
+		return nil
+	}
+	return term.Location
+}
+
+// SetLoc sets the location on term.
+func (term *Term) SetLoc(loc *Location) {
+	term.SetLocation(loc)
+}
+
 // Copy returns a deep copy of term.
 func (term *Term) Copy() *Term {
 

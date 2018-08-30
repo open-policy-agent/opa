@@ -227,6 +227,18 @@ func WalkRules(x interface{}, f func(*Rule) bool) {
 	Walk(vis, x)
 }
 
+// WalkNodes calls the function f on all nodes under x. If the function f
+// returns true, AST nodes under the last node will not be visited.
+func WalkNodes(x interface{}, f func(Node) bool) {
+	vis := &GenericVisitor{func(x interface{}) bool {
+		if n, ok := x.(Node); ok {
+			return f(n)
+		}
+		return false
+	}}
+	Walk(vis, x)
+}
+
 // GenericVisitor implements the Visitor interface to provide
 // a utility to walk over AST nodes using a closure. If the closure
 // returns true, the visitor will not walk over AST nodes under x.
