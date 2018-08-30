@@ -36,8 +36,8 @@ func TestCheckInference(t *testing.T) {
 			nil,
 			types.NewObject(
 				[]*types.StaticProperty{
-					{"a", types.S},
-					{"b", types.S},
+					{Key: "a", Value: types.S},
+					{Key: "b", Value: types.S},
 				}, nil,
 			),
 		),
@@ -96,7 +96,7 @@ func TestCheckInference(t *testing.T) {
 			Var("x"): types.A,
 		}},
 		{"object-numeric-key", `x = {1: 2}; y = 1; x[y]`, map[Var]types.Type{
-			Var("x"): types.NewObject([]*types.StaticProperty{{json.Number("1"), types.N}}, nil),
+			Var("x"): types.NewObject([]*types.StaticProperty{{Key: json.Number("1"), Value: types.N}}, nil),
 			Var("y"): types.N,
 		}},
 		{"sets", `x = {1, 2}; y = {{"foo", 1}, x}`, map[Var]types.Type{
@@ -336,7 +336,7 @@ func TestCheckInferenceRules(t *testing.T) {
 		{"complete-doc", ruleset1, `data.a.complete`, types.NewArray(
 			[]types.Type{types.NewObject(
 				[]*types.StaticProperty{{
-					"foo", types.N,
+					Key: "foo", Value: types.N,
 				}},
 				nil,
 			)},
@@ -350,7 +350,7 @@ func TestCheckInferenceRules(t *testing.T) {
 		{"partial-set-doc", ruleset1, `data.a.partialset`, types.NewSet(
 			types.NewObject(
 				[]*types.StaticProperty{{
-					"foo", types.S,
+					Key: "foo", Value: types.S,
 				}},
 				nil,
 			),
@@ -360,7 +360,7 @@ func TestCheckInferenceRules(t *testing.T) {
 			nil,
 			types.NewDynamicProperty(types.S, types.NewObject(
 				[]*types.StaticProperty{{
-					"foo", types.S,
+					Key: "foo", Value: types.S,
 				}},
 				nil,
 			)),
@@ -411,8 +411,8 @@ func TestCheckInferenceRules(t *testing.T) {
 
 		{"prefix", ruleset1, `data.prefix.a.b`, types.NewObject(
 			[]*types.StaticProperty{{
-				"c", types.NewObject(
-					[]*types.StaticProperty{{"d", types.B}},
+				Key: "c", Value: types.NewObject(
+					[]*types.StaticProperty{{Key: "d", Value: types.B}},
 					types.NewDynamicProperty(types.S, types.A),
 				),
 			}},
@@ -596,15 +596,15 @@ func TestCheckBuiltinErrors(t *testing.T) {
 			types.Args(
 				types.NewAny(types.NewObject(
 					[]*types.StaticProperty{
-						{"a", types.S},
-						{"b", types.S},
+						{Key: "a", Value: types.S},
+						{Key: "b", Value: types.S},
 					}, nil),
 				),
 			),
 			types.NewObject(
 				[]*types.StaticProperty{
-					{"b", types.S},
-					{"c", types.S},
+					{Key: "b", Value: types.S},
+					{Key: "c", Value: types.S},
 				}, nil,
 			),
 		),
