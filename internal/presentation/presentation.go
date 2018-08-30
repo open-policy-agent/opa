@@ -251,7 +251,6 @@ func prettyPartial(w io.Writer, pq *rego.PartialQueries) error {
 }
 
 func prettyASTNode(x interface{}) (string, int, error) {
-	setLocationRecursive(x)
 	bs, err := format.Ast(x)
 	if err != nil {
 		return "", 0, fmt.Errorf("format error: %v", err)
@@ -383,37 +382,6 @@ func populateTableMetrics(m metrics.Metrics, table *tablewriter.Table, prettyLim
 	}
 	sortMetricRows(lines)
 	table.AppendBulk(lines)
-}
-
-// setLocationRecursive walks the AST nodes under x and sets the location field
-// using the string representation of the node. The format package requires
-// that all AST nodes have a Location set. If any of the nodes under x are
-// missing a Location, the format package returns an error.
-func setLocationRecursive(x interface{}) {
-	vis := ast.NewGenericVisitor(func(x interface{}) bool {
-		switch x := x.(type) {
-		case *ast.Package:
-			x.Location = setLocation(x)
-		case *ast.Import:
-			x.Location = setLocation(x)
-		case *ast.Rule:
-			x.Location = setLocation(x)
-		case *ast.Head:
-			x.Location = setLocation(x)
-		case *ast.Expr:
-			x.Location = setLocation(x)
-		case *ast.Term:
-			x.Location = setLocation(x)
-		case *ast.Comment:
-			x.Location = setLocation(x)
-		}
-		return false
-	})
-	ast.Walk(vis, x)
-}
-
-func setLocation(x interface{}) *ast.Location {
-	return ast.NewLocation([]byte(fmt.Sprint(x)), "", 1, 1)
 }
 
 func sortMetricRows(data [][]string) {
