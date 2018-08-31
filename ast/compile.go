@@ -2277,6 +2277,11 @@ func rewriteExprTermsInBody(gen *localVarGenerator, body Body) Body {
 }
 
 func expandExpr(gen *localVarGenerator, expr *Expr) (result []*Expr) {
+	for i := range expr.With {
+		extras, value := expandExprTerm(gen, expr.With[i].Value)
+		expr.With[i].Value = value
+		result = append(result, extras...)
+	}
 	switch terms := expr.Terms.(type) {
 	case *Term:
 		extras, term := expandExprTerm(gen, terms)
