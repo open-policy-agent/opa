@@ -33,23 +33,28 @@ This tutorial illustrates two key concepts:
 
 This tutorial requires:
 
-  * Docker Engine 18.03.0-ce or newer
-  * Docker API version 1.30 or newer
+  * Docker Engine 18.06.0-ce or newer
+  * Docker API version 1.38 or newer
   * `root` or `sudo` access
 
 The tutorial has been tested on the following platforms:
 
-  * Ubuntu 16.04 (64-bit)
+  * Ubuntu 18.04 (64-bit)
 
 If you are using a different distro, OS, or architecture, the steps will be the
 same. However, there may be slight differences in the commands you need to run.
 
 ## Steps
 
+Several of the steps below require `root` or `sudo` access. When you are
+modifying files under `/etc/docker` or signalling the Docker daemon to
+restart, you will need root access.
+
 ### 1. Create an empty policy definition that will allow all requests.
 
 ```shell
-$ mkdir policies && cat >policies/example.rego <<EOF
+mkdir -p /etc/docker/policies
+cat >/etc/docker/policies/authz.rego <<EOF
 package docker.authz
 
 allow = true
@@ -60,44 +65,32 @@ This policy defines a single rule named `allow` that always produces the
 decision `true`. Once all of the components are running, we will come back to
 the policy.
 
-### 2. Run the opa-docker-authz plugin and then open another terminal.
+### 2. Install the opa-docker-authz plugin.
 
 ```shell
-$ docker run -d --restart=always \
-    -v $PWD/policies:/policies \
-    -v /run/docker/plugins:/run/docker/plugins \
-    openpolicyagent/opa-docker-authz:0.2 \
-    -policy-file /policies/example.rego
+docker plugin install openpolicyagent/opa-docker-authz-v2:0.4 opa-args="-policy-file /opa/policies/authz.rego"
 ```
 
-### 3. Reconfigure Docker.
-
-Docker must include the following command-line argument:
+You need to configure the Docker daemon to use the plugin for authorization.
 
 ```shell
---authorization-plugin=opa-docker-authz
-```
-
-On Ubuntu 16.04 with systemd, this can be done as follows (requires root):
-
-```shell
-$ sudo mkdir -p /etc/systemd/system/docker.service.d
-$ sudo tee -a /etc/systemd/system/docker.service.d/override.conf > /dev/null <<EOF
-[Service]
-ExecStart=
-ExecStart=/usr/bin/dockerd -H fd:// --authorization-plugin=opa-docker-authz
+cat > /etc/docker/daemon.json <<EOF
+{
+    "authorization-plugins": ["openpolicyagent/opa-docker-authz-v2:0.4"]
+}
 EOF
-$ sudo systemctl daemon-reload
-$ sudo service docker restart
 ```
 
-If you are using a different Linux distribution or you are not running systemd,
-the process will be slightly different.
+Signal the Docker daemon to reload the configuration file.
+
+```shell
+kill -HUP $(pidof dockerd)
+```
 
 ### 4. Run a simple Docker command to make sure everything is still working.
 
 ```shell
-$ docker ps
+docker ps
 ```
 
 If everything is setup correctly, the command should exit successfully. You can
@@ -108,7 +101,7 @@ expect to see log messages from OPA and the plugin.
 Let’s modify our policy to **deny** all requests:
 
 ```shell
-$ cat >policies/example.rego <<EOF
+cat >/etc/docker/policies/authz.rego <<EOF
 package docker.authz
 
 allow = false
@@ -123,12 +116,12 @@ In the example above we modified the policy to always return `false` so that
 requests will be rejected.
 
 ```shell
-$ docker ps
+docker ps
 ```
 
 The output should be:
 
-```
+```shell
 Error response from daemon: authorization denied by plugin opa-docker-authz: request rejected by administrative policy
 ```
 
@@ -143,7 +136,7 @@ Now let's change the policy so that it's a bit more useful.
 ### 6. Update the policy to reject requests with the unconfined [seccomp](https://en.wikipedia.org/wiki/Seccomp) profile:
 
 ```shell
-$ cat >policies/example.rego <<EOF
+cat >/etc/docker/policies/authz.rego <<EOF
 package docker.authz
 
 default allow = false
@@ -167,14 +160,14 @@ EOF
 ### 7. Test the policy is working by running a simple container:
 
 ```shell
-$ docker run hello-world
+docker run hello-world
 ```
 
 Now try running the same container but disable seccomp (which should be
 prevented by the policy):
 
 ```shell
-$ docker run --security-opt seccomp:unconfined hello-world
+docker run --security-opt seccomp:unconfined hello-world
 ```
 
 Congratulations! You have successfully prevented containers from running without
@@ -189,15 +182,15 @@ clients.
 > original configuration after you are done with the tutorial.
 
 ```shell
-$ mkdir -p ~/.docker
-$ cp ~/.docker/config.json ~/.docker/config.json~
+mkdir -p ~/.docker
+cp ~/.docker/config.json ~/.docker/config.json~
 ```
 
 To identify the user, include an HTTP header in all of the requests sent to the
 Docker daemon:
 
 ```shell
-$ cat >~/.docker/config.json <<EOF
+cat >~/.docker/config.json <<EOF
 {
     "HttpHeaders": {
         "Authz-User": "bob"
@@ -214,7 +207,7 @@ EOF
 ### 9. Update the policy to include basic user access controls.
 
 ```shell
-$ cat >policies/example.rego <<EOF
+cat >/etc/docker/policies/authz.rego <<EOF
 package docker.authz
 
 default allow = false
@@ -247,13 +240,13 @@ EOF
 Because the configured user is `"bob"`, the request is rejected:
 
 ```shell
-$ docker run hello-world
+docker run hello-world
 ```
 
 ### 11. Change the user to "alice" and re-run the container.
 
 ```shell
-$ cat > ~/.docker/config.json <<EOF
+cat > ~/.docker/config.json <<EOF
 {
     "HttpHeaders": {
         "Authz-User": "alice"
@@ -265,11 +258,7 @@ EOF
 Because the configured user is `"alice"`, the request will succeed:
 
 ```shell
-$ docker run hello-world
+docker run hello-world
 ```
-
-### 12. Restore your original configuration.
-
-See: “[Reconfigure Docker.](#reconfigure-docker)” and “[Identify the user in Docker requests.](#identify-user)”.
 
 That's it!
