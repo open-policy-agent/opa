@@ -7,6 +7,8 @@ package topdown
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
+	"strconv"
 
 	"net/http"
 	"os"
@@ -19,7 +21,7 @@ import (
 
 const defaultHTTPRequestTimeout = time.Second * 5
 
-var allowedKeys = ast.NewSet(ast.StringTerm("method"), ast.StringTerm("url"), ast.StringTerm("body"))
+var allowedKeys = ast.NewSet(ast.StringTerm("method"), ast.StringTerm("url"), ast.StringTerm("body"), ast.StringTerm("enable_redirect"))
 var requiredKeys = ast.NewSet(ast.StringTerm("method"), ast.StringTerm("url"))
 
 var client *http.Client
@@ -50,8 +52,13 @@ func createHTTPClient() {
 	if timeoutDuration != "" {
 		timeout, _ = time.ParseDuration(timeoutDuration)
 	}
+
+	// create a http client with redirects disabled
 	client = &http.Client{
 		Timeout: timeout,
+		CheckRedirect: func(*http.Request, []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
 	}
 }
 
@@ -82,6 +89,7 @@ func executeHTTPRequest(bctx BuiltinContext, obj ast.Object) (ast.Value, error) 
 	var url string
 	var method string
 	var body *bytes.Buffer
+	var enableRedirect bool
 	for _, val := range obj.Keys() {
 		key, err := ast.JSON(val.Value)
 		if err != nil {
@@ -89,13 +97,19 @@ func executeHTTPRequest(bctx BuiltinContext, obj ast.Object) (ast.Value, error) 
 		}
 		key = key.(string)
 
-		if key == "method" {
+		switch key {
+		case "method":
 			method = obj.Get(val).String()
 			method = strings.Trim(method, "\"")
-		} else if key == "url" {
+		case "url":
 			url = obj.Get(val).String()
 			url = strings.Trim(url, "\"")
-		} else {
+		case "enable_redirect":
+			enableRedirect, err = strconv.ParseBool(obj.Get(val).String())
+			if err != nil {
+				return nil, err
+			}
+		case "body":
 			bodyVal := obj.Get(val).Value
 			bodyValInterface, err := ast.JSON(bodyVal)
 			if err != nil {
@@ -107,7 +121,14 @@ func executeHTTPRequest(bctx BuiltinContext, obj ast.Object) (ast.Value, error) 
 				return nil, err
 			}
 			body = bytes.NewBuffer(bodyValBytes)
+		default:
+			return nil, fmt.Errorf("Invalid Key %v", key)
 		}
+	}
+
+	// check if redirects are enabled
+	if enableRedirect {
+		client.CheckRedirect = nil
 	}
 
 	if body == nil {
