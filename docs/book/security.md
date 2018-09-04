@@ -82,7 +82,13 @@ default to `off`.
 
 For authentication, OPA supports:
 
-- [Bearer tokens](/rest-api.md#bearer-tokens): Bearer tokens are enabled by starting OPA with ``--authentication=token``.
+- [Bearer tokens](/rest-api.md#bearer-tokens): Bearer tokens are enabled by
+starting OPA with ``--authentication=token``. When the `token` authentication
+mode is enabled, OPA will extract the Bearer token from incoming API requests
+and provide to the authorization handler. When you use the `token`
+authentication, you must configure an authorization policy that checks the
+tokens. If the client does not supply a Bearer token, the `input.identity`
+value will be undefined when the authorization policy is evaluated.
 
 For authorization, OPA relies on policy written in Rego. Authorization is
 enabled by starting OPA with ``--authorization=basic``.

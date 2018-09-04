@@ -11,10 +11,11 @@ import (
 
 type mockHandler struct {
 	identity string
+	defined  bool
 }
 
 func (h *mockHandler) ServeHTTP(_ http.ResponseWriter, r *http.Request) {
-	h.identity = Identity(r)
+	h.identity, h.defined = Identity(r)
 }
 
 func TestTokenBased(t *testing.T) {
@@ -30,10 +31,11 @@ func TestTokenBased(t *testing.T) {
 	tests := []struct {
 		value    string
 		expected string
+		defined  bool
 	}{
-		{"", ""},
-		{"Bearer this-is-the-token", "this-is-the-token"},
-		{"Bearer    this-is-the-token-with-spaces", "this-is-the-token-with-spaces"},
+		{"", "", false},
+		{"Bearer this-is-the-token", "this-is-the-token", true},
+		{"Bearer    this-is-the-token-with-spaces", "this-is-the-token-with-spaces", true},
 	}
 
 	for _, tc := range tests {
@@ -43,6 +45,10 @@ func TestTokenBased(t *testing.T) {
 		}
 
 		handler.ServeHTTP(nil, req)
+
+		if mock.defined != tc.defined {
+			t.Fatalf("Expected defined to be %v but got: %v", tc.defined, mock.defined)
+		}
 
 		if mock.identity != tc.expected {
 			t.Fatalf("Expected identity to be %s but got: %s", tc.expected, mock.identity)

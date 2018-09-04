@@ -12,13 +12,13 @@ import (
 )
 
 // Identity returns the identity of the caller associated with ctx.
-func Identity(r *http.Request) string {
+func Identity(r *http.Request) (string, bool) {
 	ctx := r.Context()
 	v, ok := ctx.Value(identity).(string)
 	if ok {
-		return v
+		return v, true
 	}
-	return ""
+	return "", false
 }
 
 // SetIdentity returns a new http.Request with the identity set to v.
