@@ -1132,6 +1132,25 @@ func TestV1Pretty(t *testing.T) {
 	}
 }
 
+func TestIndexGetEscaped(t *testing.T) {
+	f := newFixture(t)
+	get, err := http.NewRequest(http.MethodGet, `/?q=</textarea><script>alert(1)</script>`, strings.NewReader(""))
+	if err != nil {
+		panic(err)
+	}
+	f.server.Handler.ServeHTTP(f.recorder, get)
+	if f.recorder.Code != 200 {
+		t.Errorf("Expected success but got: %v", f.recorder)
+		return
+	}
+	page := f.recorder.Body.String()
+	exp := "&lt;/textarea&gt;&lt;script&gt;alert(1)&lt;/script&gt;"
+	if !strings.Contains(page, exp) {
+		t.Fatalf("Expected page to contain escaped URL parameter but got: %v", page)
+	}
+
+}
+
 func TestIndexGet(t *testing.T) {
 	f := newFixture(t)
 	get, err := http.NewRequest(http.MethodGet, `/?q=foo = 1&input=`, strings.NewReader(""))
