@@ -85,14 +85,17 @@ func makeInput(r *http.Request) (interface{}, error) {
 	}
 
 	method := strings.ToUpper(r.Method)
-	identity := identifier.Identity(r)
 	query := r.URL.Query()
 
 	input := map[string]interface{}{
-		"path":     path,
-		"method":   method,
-		"identity": identity,
-		"params":   query,
+		"path":   path,
+		"method": method,
+		"params": query,
+	}
+
+	identity, ok := identifier.Identity(r)
+	if ok {
+		input["identity"] = identity
 	}
 
 	return input, nil
