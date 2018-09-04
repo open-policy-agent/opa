@@ -220,3 +220,50 @@ func TestInvalidKeyError(t *testing.T) {
 		runTopDownTestCase(t, data, tc.note, tc.rules, tc.expected)
 	}
 }
+
+// TestHTTPRedirectDisable tests redirects are not enabled by default
+func TestHTTPRedirectDisable(t *testing.T) {
+
+	// expected result
+	expectedResult := make(map[string]interface{})
+	expectedResult["status"] = "301 Moved Permanently"
+	expectedResult["status_code"] = http.StatusMovedPermanently
+	expectedResult["body"] = nil
+
+	resultObj, err := ast.InterfaceToValue(expectedResult)
+	if err != nil {
+		panic(err)
+	}
+
+	var testURL = "http://google.com"
+	data := loadSmallTestData()
+	rule := []string{fmt.Sprintf(
+		`p = x { http.send({"method": "get", "url": "%s"}, x) }`, testURL)}
+
+	// run the test
+	runTopDownTestCase(t, data, "http.send", rule, resultObj.String())
+
+}
+
+// TestHTTPRedirectEnable tests redirects are enabled
+func TestHTTPRedirectEnable(t *testing.T) {
+
+	// expected result
+	expectedResult := make(map[string]interface{})
+	expectedResult["status"] = "200 OK"
+	expectedResult["status_code"] = http.StatusOK
+	expectedResult["body"] = nil
+
+	resultObj, err := ast.InterfaceToValue(expectedResult)
+	if err != nil {
+		panic(err)
+	}
+
+	var testURL = "http://google.com"
+	data := loadSmallTestData()
+	rule := []string{fmt.Sprintf(
+		`p = x { http.send({"method": "get", "url": "%s", "enable_redirect": true}, x) }`, testURL)}
+
+	// run the test
+	runTopDownTestCase(t, data, "http.send", rule, resultObj.String())
+}
