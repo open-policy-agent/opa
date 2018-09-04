@@ -9,6 +9,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"html/template"
 	"io"
 	"io/ioutil"
 	"net"
@@ -1803,7 +1804,7 @@ func renderQueryForm(w http.ResponseWriter, qStrs []string, inputStrs []string, 
 	<br><input type="submit" value="Submit"> Explain:
 	<input type="radio" name="explain" value="off" %v>Off
 	<input type="radio" name="explain" value="full" %v>Full
-	</form>`, query, input, explainRadioCheck[0], explainRadioCheck[1])
+	</form>`, template.HTMLEscapeString(query), template.HTMLEscapeString(input), explainRadioCheck[0], explainRadioCheck[1])
 }
 
 func renderQueryResult(w io.Writer, results interface{}, err error, t0 time.Time) {
@@ -1812,12 +1813,12 @@ func renderQueryResult(w io.Writer, results interface{}, err error, t0 time.Time
 	d := time.Since(t0)
 
 	if err != nil {
-		fmt.Fprintf(w, "Query error (took %v): <pre>%v</pre>", d, err)
+		fmt.Fprintf(w, "Query error (took %v): <pre>%v</pre>", d, template.HTMLEscapeString(err.Error()))
 	} else if err2 != nil {
-		fmt.Fprintf(w, "JSON marshal error: <pre>%v</pre>", err2)
+		fmt.Fprintf(w, "JSON marshal error: <pre>%v</pre>", template.HTMLEscapeString(err.Error()))
 	} else {
 		fmt.Fprintf(w, "Query results (took %v):<br>", d)
-		fmt.Fprintf(w, "<pre>%s</pre>", string(buf))
+		fmt.Fprintf(w, "<pre>%s</pre>", template.HTMLEscapeString(string(buf)))
 	}
 }
 
