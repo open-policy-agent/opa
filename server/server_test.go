@@ -339,6 +339,25 @@ func TestCompileV1Observability(t *testing.T) {
 	}
 }
 
+func TestCompileV1UnsafeBuiltin(t *testing.T) {
+	f := newFixture(t)
+	get := newReqV1(http.MethodPost, `/compile`, `{"query": "http.send({\"method\": \"get\", \"url\": \"foo.com\"}, x)"}`)
+	f.server.Handler.ServeHTTP(f.recorder, get)
+
+	if f.recorder.Code != 400 {
+		t.Fatalf("Expected bad request but got %v", f.recorder)
+	}
+
+	expected := `{
+  "code": "invalid_parameter",
+  "message": "unsafe built-in function calls in query: http.send"
+}`
+
+	if f.recorder.Body.String() != expected {
+		t.Fatalf(`Expected %v but got: %v`, expected, f.recorder.Body.String())
+	}
+}
+
 func TestDataV1(t *testing.T) {
 	testMod1 := `package testmod
 
@@ -2181,6 +2200,25 @@ func TestQueryV1(t *testing.T) {
 
 	if !reflect.DeepEqual(result, expected) {
 		t.Fatalf("Expected %v but got: %v", expected, result)
+	}
+}
+
+func TestQueryV1UnsafeBuiltin(t *testing.T) {
+	f := newFixture(t)
+	get := newReqV1(http.MethodGet, `/query?q=http.send({"method": "get", "url": "foo.com"}, x)`, "")
+	f.server.Handler.ServeHTTP(f.recorder, get)
+
+	if f.recorder.Code != 400 {
+		t.Fatalf("Expected bad request but got %v", f.recorder)
+	}
+
+	expected := `{
+  "code": "invalid_parameter",
+  "message": "unsafe built-in function calls in query: http.send"
+}`
+
+	if f.recorder.Body.String() != expected {
+		t.Fatalf(`Expected %v but got: %v`, expected, f.recorder.Body.String())
 	}
 }
 

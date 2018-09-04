@@ -77,6 +77,9 @@ const (
 
 var systemMainPath = ast.MustParseRef("data.system.main")
 
+// map of unsafe buitins
+var unsafeBuiltinsMap = map[string]bool{ast.HTTPSend.Name: true}
+
 // Server represents an instance of OPA running in server mode.
 type Server struct {
 	Handler http.Handler
@@ -616,6 +619,15 @@ func (s *Server) v1CompilePost(w http.ResponseWriter, r *http.Request) {
 	request, reqErr := readInputCompilePostV1(r.Body)
 	if reqErr != nil {
 		writer.Error(w, http.StatusBadRequest, reqErr)
+		return
+	}
+
+	unsafeBuiltins, err := validateParsedQuery(request.Query)
+	if err != nil {
+		writer.ErrorAuto(w, err)
+		return
+	} else if len(unsafeBuiltins) > 0 {
+		writer.Error(w, http.StatusBadRequest, types.NewErrorV1(types.CodeInvalidParameter, "unsafe built-in function calls in query: %v", strings.Join(unsafeBuiltins, ",")))
 		return
 	}
 
@@ -1247,6 +1259,15 @@ func (s *Server) v1QueryGet(w http.ResponseWriter, r *http.Request) {
 	}
 	qStr := qStrs[len(qStrs)-1]
 
+	unsafeBuiltins, err := validateQuery(qStr)
+	if err != nil {
+		writer.ErrorAuto(w, err)
+		return
+	} else if len(unsafeBuiltins) > 0 {
+		writer.Error(w, http.StatusBadRequest, types.NewErrorV1(types.CodeInvalidParameter, "unsafe built-in function calls in query: %v", strings.Join(unsafeBuiltins, ",")))
+		return
+	}
+
 	watch := getWatch(r.URL.Query()[types.ParamWatchV1])
 	if watch {
 		s.watchQuery(qStr, w, r, false)
@@ -1563,6 +1584,31 @@ func stringPathToRef(s string) (r ast.Ref) {
 		}
 	}
 	return r
+}
+
+func validateQuery(query string) ([]string, error) {
+
+	var body ast.Body
+	body, err := ast.ParseBody(query)
+	if err != nil {
+		return []string{}, err
+	}
+
+	return validateParsedQuery(body)
+}
+
+func validateParsedQuery(body ast.Body) ([]string, error) {
+	unsafeOperators := []string{}
+	ast.WalkExprs(body, func(x *ast.Expr) bool {
+		if x.IsCall() {
+			operator := x.Operator().String()
+			if _, ok := unsafeBuiltinsMap[operator]; ok {
+				unsafeOperators = append(unsafeOperators, operator)
+			}
+		}
+		return false
+	})
+	return unsafeOperators, nil
 }
 
 func getBoolParam(url *url.URL, name string, ifEmpty bool) bool {
