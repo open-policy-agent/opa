@@ -28,6 +28,8 @@ const (
 	DataFileExt = "/data.json"
 )
 
+const bundleLimitBytes = (1024 * 1024 * 1024) + 1 // limit bundle reads to 1GB to protect against gzip bombs
+
 // Bundle represents a loaded bundle. The bundle can contain data and policies.
 type Bundle struct {
 	Manifest Manifest
@@ -118,7 +120,13 @@ func Read(r io.Reader) (Bundle, error) {
 		}
 
 		var buf bytes.Buffer
-		io.Copy(&buf, tr)
+		n, err := io.CopyN(&buf, tr, bundleLimitBytes)
+		if err != nil && err != io.EOF {
+			return bundle, err
+		} else if err == nil && n >= bundleLimitBytes {
+			return bundle, fmt.Errorf("bundle exceeded max size (%v bytes)", bundleLimitBytes-1)
+		}
+
 		path := header.Name
 
 		if strings.HasSuffix(path, RegoExt) {
