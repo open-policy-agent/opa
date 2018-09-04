@@ -51,6 +51,11 @@ services:
     image: openpolicyagent/opa:0.9.1
     ports:
       - 8181:8181
+    # WARNING: OPA is NOT running with an authorization policy configured. This
+    # means that clients can read and write policies in OPA. If you are deploying
+    # OPA in an insecure environment, you should configure authentication and
+    # authorization on the daemon. See the Security page for details:
+    # https://www.openpolicyagent.org/docs/security.html.
     command: "run --server --watch /policies"
     volumes:
       - ./policies:/policies

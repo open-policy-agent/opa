@@ -21,16 +21,22 @@ This tutorial requires [Docker Compose](https://docs.docker.com/compose/install/
 
 ### 1. Bootstrap the tutorial environment using Docker Compose.
 
-First, create a docker-compose.yml file that runs OPA and the demo web server.
+First, create a `docker-compose.yml` file that runs OPA and the demo web server.
 
-```shell
-cat >docker-compose.yml <<EOF
+**docker-compose.yml**:
+
+```yaml
 version: '2'
 services:
   opa:
     image: openpolicyagent/opa:0.9.1
     ports:
       - 8181:8181
+    # WARNING: OPA is NOT running with an authorization policy configured. This
+    # means that clients can read and write policies in OPA. If you are
+    # deploying OPA in an insecure environment, be sure to configure
+    # authentication and authorization on the daemon. See the Security page for
+    # details: https://www.openpolicyagent.org/docs/security.html.
     command:
       - "run"
       - "--server"
@@ -42,7 +48,6 @@ services:
     environment:
       - OPA_ADDR=http://opa:8181
       - POLICY_PATH=/v1/data/httpapi/authz
-EOF
 ```
 
 Then run `docker-compose` to pull and run the containers.
