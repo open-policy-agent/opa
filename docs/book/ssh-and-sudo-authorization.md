@@ -44,14 +44,20 @@ with OPA. The dummy SSH hosts are just containers running sshd inside.
 First, create a `tutorial-docker-compose.yaml` file that runs OPA and the containers that
 represent our backend and frontend hosts.
 
-```shell
-cat > tutorial-docker-compose.yaml <<EOF
+**tutorial-docker-compose.yaml**:
+
+```yaml
 version: '2'
 services:
   opa:
     image: openpolicyagent/opa:0.9.1
     ports:
       - 8181:8181
+    # WARNING: OPA is NOT running with an authorization policy configured. This
+    # means that clients can read and write policies in OPA. If you are
+    # deploying OPA in an insecure environment, be sure to configure
+    # authentication and authorization on the daemon. See the Security page for
+    # details: https://www.openpolicyagent.org/docs/security.html.
     command:
       - "run"
       - "--server"
@@ -68,7 +74,6 @@ services:
       - "2223:22"
     volumes:
       - ./backend_host_id.json:/etc/host_identity.json
-EOF
 ```
 
 The `tutorial-docker-compose.yaml` file requires two other local files:

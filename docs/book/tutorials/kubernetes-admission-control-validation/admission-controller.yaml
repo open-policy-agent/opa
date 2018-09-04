@@ -69,6 +69,11 @@ spec:
       name: opa
     spec:
       containers:
+        # WARNING: OPA is NOT running with an authorization policy configured. This
+        # means that clients can read and write policies in OPA. If you are
+        # deploying OPA in an insecure environment, be sure to configure
+        # authentication and authorization on the daemon. See the Security page for
+        # details: https://www.openpolicyagent.org/docs/security.html.
         - name: opa
           image: openpolicyagent/opa:0.9.1
           args:
