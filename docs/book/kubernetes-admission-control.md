@@ -11,23 +11,18 @@ This tutorial shows how to enforce custom policies on Kubernetes objects using O
 
 ## Prerequisites
 
-This tutorial requires Kubernetes 1.9 or later. To run the tutorial locally, we recommend using [minikube](https://kubernetes.io/docs/getting-started-guides/minikube).
+This tutorial requires Kubernetes 1.9 or later. To run the tutorial locally, we recommend using [minikube](https://kubernetes.io/docs/getting-started-guides/minikube) in version `v0.28+` with Kubernetes 1.10 (which is the default).
 
 ## Steps
 
 ### 1. Start Kubernetes recommended Admisson Controllers enabled
 
-To implement admission control rules that validate Kubernetes resources during create, update, and delete operations, you must enable the `ValidatingAdmissionWebhook` when the Kubernetes API server is started. The [recommended set of admission controllers to enable](https://kubernetes.io/docs/admin/admission-controllers/#is-there-a-recommended-set-of-admission-controllers-to-use) is defined below.
+To implement admission control rules that validate Kubernetes resources during create, update, and delete operations, you must enable the [ValidatingAdmissionWebhook](https://kubernetes.io/docs/reference/access-authn-authz/admission-controllers/#validatingadmissionwebhook) when the Kubernetes API server is started. the admission controller is included in the [recommended set of admission controllers to enable](https://kubernetes.io/docs/admin/admission-controllers/#is-there-a-recommended-set-of-admission-controllers-to-use)
+
+Start minikube:
 
 ```bash
-ADMISSION_CONTROLLERS=NamespaceLifecycle,LimitRanger,ServiceAccount,PersistentVolumeLabel,DefaultStorageClass,DefaultTolerationSeconds,MutatingAdmissionWebhook,ValidatingAdmissionWebhook,ResourceQuota
-```
-
-Start minikube with these admission controllers enabled:
-
-```bash
-minikube start --kubernetes-version v1.9.0 \
-  --extra-config=apiserver.admission-control=$ADMISSION_CONTROLLERS
+minikube start
 ```
 
 Make sure that the minikube ingress addon is enabled:
