@@ -62,6 +62,9 @@ metadata:
   name: opa
 spec:
   replicas: 1
+  selector:
+    matchLabels:
+      app: opa
   template:
     metadata:
       labels:
