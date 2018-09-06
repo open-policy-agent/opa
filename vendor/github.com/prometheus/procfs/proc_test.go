@@ -1,3 +1,16 @@
+// Copyright 2018 The Prometheus Authors
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+// http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package procfs
 
 import (
@@ -43,6 +56,7 @@ func TestCmdLine(t *testing.T) {
 	}{
 		{process: 26231, want: []string{"vim", "test.go", "+10"}},
 		{process: 26232, want: []string{}},
+		{process: 26233, want: []string{"com.github.uiautomator"}},
 	} {
 		p1, err := FS("fixtures").NewProc(tt.process)
 		if err != nil {
@@ -97,7 +111,63 @@ func TestExecutable(t *testing.T) {
 			t.Fatal(err)
 		}
 		if !reflect.DeepEqual(tt.want, exe) {
-			t.Errorf("want absolute path to cmdline %v, have %v", tt.want, exe)
+			t.Errorf("want absolute path to exe %v, have %v", tt.want, exe)
+		}
+	}
+}
+
+func TestCwd(t *testing.T) {
+	for _, tt := range []struct {
+		process    int
+		want       string
+		brokenLink bool
+	}{
+		{process: 26231, want: "/usr/bin"},
+		{process: 26232, want: "/does/not/exist", brokenLink: true},
+		{process: 26233, want: ""},
+	} {
+		p, err := FS("fixtures").NewProc(tt.process)
+		if err != nil {
+			t.Fatal(err)
+		}
+		wd, err := p.Cwd()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !reflect.DeepEqual(tt.want, wd) {
+			if wd == "" && tt.brokenLink {
+				// Allow the result to be empty when can't os.Readlink broken links
+				continue
+			}
+			t.Errorf("want absolute path to cwd %v, have %v", tt.want, wd)
+		}
+	}
+}
+
+func TestRoot(t *testing.T) {
+	for _, tt := range []struct {
+		process    int
+		want       string
+		brokenLink bool
+	}{
+		{process: 26231, want: "/"},
+		{process: 26232, want: "/does/not/exist", brokenLink: true},
+		{process: 26233, want: ""},
+	} {
+		p, err := FS("fixtures").NewProc(tt.process)
+		if err != nil {
+			t.Fatal(err)
+		}
+		rdir, err := p.RootDir()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !reflect.DeepEqual(tt.want, rdir) {
+			if rdir == "" && tt.brokenLink {
+				// Allow the result to be empty when can't os.Readlink broken links
+				continue
+			}
+			t.Errorf("want absolute path to rootdir %v, have %v", tt.want, rdir)
 		}
 	}
 }

@@ -12,8 +12,43 @@ import (
 	"go/types"
 
 	"golang.org/x/tools/go/loader"
+	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/go/ssa"
 )
+
+// Packages creates an SSA program for a set of packages loaded from
+// source syntax using the golang.org/x/tools/go/packages.Load function.
+// It creates and returns an SSA package for each well-typed package in
+// the initial list. The resulting list of packages has the same length
+// as initial, and contains a nil if SSA could not be constructed for
+// the corresponding initial package.
+//
+// Code for bodies of functions is not built until Build is called
+// on the resulting Program.
+//
+// The mode parameter controls diagnostics and checking during SSA construction.
+//
+func Packages(initial []*packages.Package, mode ssa.BuilderMode) (*ssa.Program, []*ssa.Package) {
+	var fset *token.FileSet
+	if len(initial) > 0 {
+		fset = initial[0].Fset
+	}
+
+	prog := ssa.NewProgram(fset, mode)
+
+	ssamap := make(map[*packages.Package]*ssa.Package)
+	packages.Visit(initial, nil, func(p *packages.Package) {
+		if p.Types != nil && !p.IllTyped {
+			ssamap[p] = prog.CreatePackage(p.Types, p.Syntax, p.TypesInfo, true)
+		}
+	})
+
+	var ssapkgs []*ssa.Package
+	for _, p := range initial {
+		ssapkgs = append(ssapkgs, ssamap[p]) // may be nil
+	}
+	return prog, ssapkgs
+}
 
 // CreateProgram returns a new program in SSA form, given a program
 // loaded from source.  An SSA package is created for each transitively
@@ -22,7 +57,10 @@ import (
 // Code for bodies of functions is not built until Build is called
 // on the result.
 //
-// mode controls diagnostics and checking during SSA construction.
+// The mode parameter controls diagnostics and checking during SSA construction.
+//
+// Deprecated: use golang.org/x/tools/go/packages and the Packages
+// function instead; see ssa.ExampleLoadPackages.
 //
 func CreateProgram(lprog *loader.Program, mode ssa.BuilderMode) *ssa.Program {
 	prog := ssa.NewProgram(lprog.Fset, mode)

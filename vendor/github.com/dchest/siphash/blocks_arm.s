@@ -1,5 +1,5 @@
 #include "textflag.h"
-#define R10 g
+
 #define ROUND()\
 	ADD.S	R2,R0,R0;\
 	ADC	R3,R1,R1;\
@@ -48,7 +48,7 @@
 	EOR	R8<<17,R5,R2;\
 	EOR	R11>>15,R2,R2;\
 	EOR	R8>>15,R4,R3;\
-	EOR	R11<<17,R3,R3;\
+	EOR	R11<<17,R3,R3;
 
 // once(d *digest)
 TEXT ·once(SB),NOSPLIT,$4-4
@@ -91,54 +91,54 @@ TEXT ·finalize(SB),NOSPLIT,$4-12
 
 // blocks(d *digest, data []uint8)
 TEXT ·blocks(SB),NOSPLIT,$8-16
-	MOVW	R10,sav-8(SP)
+	MOVW	R9,sav-8(SP)
 	MOVW	d+0(FP),R8
 	MOVM.IA	(R8),[R0,R1,R2,R3,R4,R5,R6,R7]
-	MOVW	p+4(FP),R10
+	MOVW	p+4(FP),R9
 	MOVW	p_len+8(FP),R11
-	ADD	R10,R11,R11
+	ADD	R9,R11,R11
 	MOVW	R11,endp-4(SP)
-	AND.S	$3,R10,R8
-	BNE	blocksunaligned
+	AND.S   $3,R9,R8
+	BNE     blocksunaligned
 blocksloop:
-	MOVM.IA.W (R10),[R12,R14]
+	MOVM.IA.W (R9),[R12,R14]
 	EOR	R12,R6,R6
 	EOR	R14,R7,R7
 	ROUND()
 	EOR	R12,R0,R0
 	EOR	R14,R1,R1
 	MOVW	endp-4(SP),R11
-	CMP	R11,R10
+	CMP	R11,R9
 	BLO	blocksloop
 	MOVW	d+0(FP),R8
 	MOVM.IA [R0,R1,R2,R3,R4,R5,R6,R7],(R8)
-	MOVW	sav-8(SP),R10
+	MOVW	sav-8(SP),R9
 	RET
 blocksunaligned:
-	MOVB	(R10),R12
-	MOVB	1(R10),R11
-	ORR	R11<<8,R12,R12
-	MOVB	2(R10),R11
-	ORR	R11<<16,R12,R12
-	MOVB	3(R10),R11
-	ORR	R11<<24,R12,R12
-	MOVB	4(R10),R14
-	MOVB	5(R10),R11
-	ORR	R11<<8,R14,R14
-	MOVB	6(R10),R11
-	ORR	R11<<16,R14,R14
-	MOVB	7(R10),R11
-	ORR	R11<<24,R14,R14
-	ADD	$8,R10,R10
-	EOR	R12,R6,R6
-	EOR	R14,R7,R7
+	MOVBU    (R9),R12
+	MOVBU    1(R9),R11
+	ORR     R11<<8,R12,R12
+	MOVBU    2(R9),R11
+	ORR     R11<<16,R12,R12
+	MOVBU    3(R9),R11
+	ORR     R11<<24,R12,R12
+	MOVBU    4(R9),R14
+	MOVBU    5(R9),R11
+	ORR     R11<<8,R14,R14
+	MOVBU    6(R9),R11
+	ORR     R11<<16,R14,R14
+	MOVBU    7(R9),R11
+	ORR     R11<<24,R14,R14
+	ADD     $8,R9,R9
+	EOR     R12,R6,R6
+	EOR     R14,R7,R7
 	ROUND()
-	EOR	R12,R0,R0
-	EOR	R14,R1,R1
-	MOVW	endp-4(SP),R11
-	CMP	R11,R10
-	BLO	blocksunaligned
-	MOVW	d+0(FP),R8
+	EOR     R12,R0,R0
+	EOR     R14,R1,R1
+	MOVW    endp-4(SP),R11
+	CMP     R11,R9
+	BLO     blocksunaligned
+	MOVW    d+0(FP),R8
 	MOVM.IA [R0,R1,R2,R3,R4,R5,R6,R7],(R8)
-	MOVW	sav-8(SP),R10
+	MOVW    sav-8(SP),R9
 	RET

@@ -13,7 +13,11 @@ import (
 	"log"
 	"os"
 	pathpkg "path"
+	"runtime"
+	"sort"
 	"strings"
+
+	"golang.org/x/tools/godoc/vfs"
 )
 
 // Conventional name for directories containing test data.
@@ -27,6 +31,7 @@ type Directory struct {
 	Name     string       // directory name
 	HasPkg   bool         // true if the directory contains at least one package
 	Synopsis string       // package documentation, if any
+	RootType vfs.RootType // root type of the filesystem containing the directory
 	Dirs     []*Directory // subdirectories
 }
 
@@ -55,7 +60,13 @@ type treeBuilder struct {
 
 // ioGate is a semaphore controlling VFS activity (ReadDir, parseFile, etc).
 // Send before an operation and receive after.
-var ioGate = make(chan bool, 20)
+var ioGate = make(chan struct{}, 20)
+
+// workGate controls the number of concurrent workers. Too many concurrent
+// workers and performance degrades and the race detector gets overwhelmed. If
+// we cannot check out a concurrent worker, work is performed by the main thread
+// instead of spinning up another goroutine.
+var workGate = make(chan struct{}, runtime.NumCPU()*4)
 
 func (b *treeBuilder) newDirTree(fset *token.FileSet, path, name string, depth int) *Directory {
 	if name == testdataDirName {
@@ -88,7 +99,7 @@ func (b *treeBuilder) newDirTree(fset *token.FileSet, path, name string, depth i
 		}
 	}
 
-	ioGate <- true
+	ioGate <- struct{}{}
 	list, err := b.c.fs.ReadDir(path)
 	<-ioGate
 	if err != nil {
@@ -101,23 +112,34 @@ func (b *treeBuilder) newDirTree(fset *token.FileSet, path, name string, depth i
 
 	// determine number of subdirectories and if there are package files
 	var dirchs []chan *Directory
+	var dirs []*Directory
 
 	for _, d := range list {
 		filename := pathpkg.Join(path, d.Name())
 		switch {
 		case isPkgDir(d):
-			ch := make(chan *Directory, 1)
-			dirchs = append(dirchs, ch)
 			name := d.Name()
-			go func() {
-				ch <- b.newDirTree(fset, filename, name, depth+1)
-			}()
+			select {
+			case workGate <- struct{}{}:
+				ch := make(chan *Directory, 1)
+				dirchs = append(dirchs, ch)
+				go func() {
+					ch <- b.newDirTree(fset, filename, name, depth+1)
+					<-workGate
+				}()
+			default:
+				// no free workers, do work synchronously
+				dir := b.newDirTree(fset, filename, name, depth+1)
+				if dir != nil {
+					dirs = append(dirs, dir)
+				}
+			}
 		case !haveSummary && isPkgFile(d):
 			// looks like a package file, but may just be a file ending in ".go";
 			// don't just count it yet (otherwise we may end up with hasPkgFiles even
 			// though the directory doesn't contain any real package files - was bug)
 			// no "optimal" package synopsis yet; continue to collect synopses
-			ioGate <- true
+			ioGate <- struct{}{}
 			const flags = parser.ParseComments | parser.PackageClauseOnly
 			file, err := b.c.parseFile(fset, filename, flags)
 			<-ioGate
@@ -149,12 +171,17 @@ func (b *treeBuilder) newDirTree(fset *token.FileSet, path, name string, depth i
 	}
 
 	// create subdirectory tree
-	var dirs []*Directory
 	for _, ch := range dirchs {
 		if d := <-ch; d != nil {
 			dirs = append(dirs, d)
 		}
 	}
+
+	// We need to sort the dirs slice because
+	// it is appended again after reading from dirchs.
+	sort.Slice(dirs, func(i, j int) bool {
+		return dirs[i].Name < dirs[j].Name
+	})
 
 	// if there are no package files and no subdirectories
 	// containing package files, ignore the directory
@@ -176,6 +203,7 @@ func (b *treeBuilder) newDirTree(fset *token.FileSet, path, name string, depth i
 		Name:     name,
 		HasPkg:   hasPkgFiles && show, // TODO(bradfitz): add proper Hide field?
 		Synopsis: synopsis,
+		RootType: b.c.fs.RootType(path),
 		Dirs:     dirs,
 	}
 }
@@ -274,17 +302,29 @@ func (dir *Directory) lookup(path string) *Directory {
 // are useful for presenting an entry in an indented fashion.
 //
 type DirEntry struct {
-	Depth    int    // >= 0
-	Height   int    // = DirList.MaxHeight - Depth, > 0
-	Path     string // directory path; includes Name, relative to DirList root
-	Name     string // directory name
-	HasPkg   bool   // true if the directory contains at least one package
-	Synopsis string // package documentation, if any
+	Depth    int          // >= 0
+	Height   int          // = DirList.MaxHeight - Depth, > 0
+	Path     string       // directory path; includes Name, relative to DirList root
+	Name     string       // directory name
+	HasPkg   bool         // true if the directory contains at least one package
+	Synopsis string       // package documentation, if any
+	RootType vfs.RootType // root type of the filesystem containing the direntry
 }
 
 type DirList struct {
 	MaxHeight int // directory tree height, > 0
 	List      []DirEntry
+}
+
+// hasThirdParty checks whether a list of directory entries has packages outside
+// the standard library or not.
+func hasThirdParty(list []DirEntry) bool {
+	for _, entry := range list {
+		if entry.RootType == vfs.RootTypeGoPath {
+			return true
+		}
+	}
+	return false
 }
 
 // listing creates a (linear) directory listing from a directory tree.
@@ -335,6 +375,7 @@ func (root *Directory) listing(skipRoot bool, filter func(string) bool) *DirList
 		p.Name = d.Name
 		p.HasPkg = d.HasPkg
 		p.Synopsis = d.Synopsis
+		p.RootType = d.RootType
 		list = append(list, p)
 	}
 

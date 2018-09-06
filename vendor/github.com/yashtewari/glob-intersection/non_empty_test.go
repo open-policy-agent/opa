@@ -15,6 +15,7 @@ func TestNonEmptyIntersections(t *testing.T) {
 		".*\\\\":      []string{".*", "asdfasdf\\\\"}, // Escaped \ character.
 		".a.a":        []string{"b.b.", "c.c.", "d.d.", "e.e."},
 		".*.*.*.*.*.*.*.*.*.*.*.*.*.*.*": []string{".*.*.*.*.*.*.*.*.*.*.*"},
+		"foo.*bar":                       []string{"foobar", "fooalkdsjfbar"},
 	}
 
 	for lhs, rhss := range tests {
@@ -41,6 +42,7 @@ func TestEmptyIntersections(t *testing.T) {
 		".xyz.":     []string{"paaap", ".*pqr.*"},
 		"ab+":       []string{"a", "b", "abc"},
 		".*.*.*.*f": []string{".*.*.*.*g"},
+		".*":        []string{""},
 	}
 
 	for lhs, rhss := range tests {

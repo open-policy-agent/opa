@@ -1,86 +1,93 @@
-hash: 32c4c14ef39157361558daa1a240887efafedb5bf1502f36bd8f9682b2182e1a
-updated: 2018-02-08T14:15:59.859585-08:00
+hash: af81fe139f8bc3f0036d6bf9e2db1bf27154a57714edfdfd5d8032228f954cc1
+updated: 2018-09-24T10:21:28.514997-07:00
 imports:
 - name: github.com/beorn7/perks
-  version: 4c0e84591b9aa9e6dcfdf3e020114cd81f89d5f9
+  version: 3a771d992973f24aa725d07868b467d1ddfceafb
   subpackages:
   - quantile
 - name: github.com/dchest/siphash
-  version: 4ebf1de738443ea7f45f02dc394c4df1942a126d
+  version: 34f201214d993633bb24f418ba11736ab8b55aa7
 - name: github.com/ghodss/yaml
-  version: 73d445a93680fa1a78ae23a5839bad48f32ba1ee
+  version: c7ce16629ff4cd059ed96ed06419dd3856fd3577
 - name: github.com/golang/lint
-  version: e14d9b0f1d332b1420c1ffa32562ad2dc84d645d
+  version: 06c8688daad7faa9da5a0c2f163a3d14aac986ca
 - name: github.com/golang/protobuf
-  version: 4bd1920723d7b7c925de087aa32e2187708897f7
+  version: 7716a980bceefe9a0213654823d9ea62d23b87a2
   subpackages:
   - proto
 - name: github.com/gorilla/context
   version: 08b5f424b9271eedf6f9f0ce86cb9396ed337a42
 - name: github.com/gorilla/mux
-  version: c0091a029979286890368b4c7b301261e448e242
+  version: 9e1f5955c0d22b55d9e20d6faa28589f83b2faca
 - name: github.com/inconshreveable/mousetrap
   version: 76626ae9c91c4f2a10f34cad8ce83ea42c93bb75
 - name: github.com/mattn/go-runewidth
-  version: 97311d9f7767e3d6f422ea06661bc2c7a19e8a5d
+  version: ce7b0b5c7b45a81508558cd1dba6bb1e4ddb51bb
 - name: github.com/matttproud/golang_protobuf_extensions
   version: c12348ce28de40eed0136aa2b644d0ee0650e56c
   subpackages:
   - pbutil
 - name: github.com/mna/pigeon
-  version: 61fd2ae665b512d5c60e81c41c353b4c181a3be8
+  version: bb0192cfc2ae6ff30b9726618594b42ef2562da5
 - name: github.com/olekukonko/tablewriter
-  version: b8a9be070da40449e501c3c4730a889e42d87a9e
+  version: be2c049b30ccd4d3fd795d6bf7dce74e42eeedaa
+- name: github.com/OneOfOne/xxhash
+  version: 74ace4fe5525ef62ce28d5093d6b0faaa6a575f3
 - name: github.com/peterh/liner
   version: bf27d3ba8e1d9899d45a457ffac16c953eb2d647
 - name: github.com/pkg/errors
-  version: 30136e27e2ac8d167177e8a583aa4c3fea5be833
+  version: c059e472caf75dbe73903f6521a20abac245b17f
 - name: github.com/prometheus/client_golang
-  version: a85074fc8513d71c9c2b6c241b8a265a33751dac
+  version: f69c853d21c15596929fa9126ba211247e7dca95
   subpackages:
   - prometheus
+  - prometheus/internal
   - prometheus/promhttp
 - name: github.com/prometheus/client_model
-  version: 99fa1f4be8e564e8a6b613da7fa6f46c9edafc6c
+  version: 5c3871d89910bfb32f5fcab2aa4b9ec68e65a99f
   subpackages:
   - go
 - name: github.com/prometheus/common
-  version: 89604d197083d4781071d3c65855d24ecfb0a563
+  version: c7de2306084e37d54b8be01f3541a8464345e9a5
   subpackages:
   - expfmt
   - internal/bitbucket.org/ww/goautoneg
   - model
 - name: github.com/prometheus/procfs
-  version: cb4147076ac75738c9a7d279075a253c0cc5acbd
+  version: 418d78d0b9a7b7de3a6bbc8a23def624cc977bb2
   subpackages:
   - internal/util
   - nfs
   - xfs
 - name: github.com/rcrowley/go-metrics
-  version: 8732c616f52954686704c8645fe1a9d59e9df7c1
+  version: e2704e165165ec55d062f5919b4b29494e9fa790
 - name: github.com/sirupsen/logrus
   version: f006c2ac4710855cf0f916dd6b77acf6b048dc6e
 - name: github.com/spf13/cobra
-  version: b4dbd37a01839e0653eec12aa4bbb2a2ce7b2a37
+  version: 8d114be902bc9f08717804830a55c48378108a28
 - name: github.com/spf13/pflag
-  version: e57e3eeb33f795204c1ca35f56c44f83227c6e66
+  version: 298182f68c66c05229eb03ac171abe6e309ee79a
 - name: github.com/yashtewari/glob-intersection
-  version: 7af743e8ec8480fee1932a737a406f7ec817f910
+  version: 5c77d914dd0ba7bedca923f97232d37137e038f3
 - name: golang.org/x/crypto
-  version: 5119cf507ed5294cc409c092980c7497ee5d6fd2
+  version: 0e37d006457bf46f9e6692014ba72ef82c33022c
   subpackages:
   - ssh/terminal
+- name: golang.org/x/lint
+  version: 06c8688daad7faa9da5a0c2f163a3d14aac986ca
+  subpackages:
+  - golint
 - name: golang.org/x/sys
-  version: 37707fdb30a5b38865cfb95e5aab41707daec7fd
+  version: f02c79500a9c629cd7cf2f3abadbbf2f5a9161d3
   subpackages:
   - unix
   - windows
 - name: golang.org/x/tools
-  version: 66487607e2081c7c2af2281c62c14ee000d5024b
+  version: 90fa682c2a6e6a37b3a1364ce2fe1d5e41af9d6d
   subpackages:
   - cmd/goimports
 - name: gopkg.in/fsnotify.v1
   version: c2828203cd70a50dcccfb2761f8b1f8ceef9a8e9
 - name: gopkg.in/yaml.v2
-  version: d670f9405373e636a5a2765eea47fac0c9bc91a4
+  version: 5420a8b6744d3b0345ab293f6fcba19c978f1183
 testImports: []

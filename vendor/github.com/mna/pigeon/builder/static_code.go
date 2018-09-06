@@ -185,7 +185,7 @@ func InitState(key string, value interface{}) Option {
 // {{ end }} ==template==
 
 // ParseFile parses the file identified by filename.
-func ParseFile(filename string, opts ...Option) (i interface{}, err error) {
+func ParseFile(filename string, opts ...Option) (i interface{}, err error) { //{{ if .Nolint }} nolint: deadcode {{else}} ==template== {{ end }}
 	f, err := os.Open(filename)
 	if err != nil {
 		return nil, err
@@ -200,7 +200,7 @@ func ParseFile(filename string, opts ...Option) (i interface{}, err error) {
 
 // ParseReader parses the data from r using filename as information in the
 // error messages.
-func ParseReader(filename string, r io.Reader, opts ...Option) (interface{}, error) {
+func ParseReader(filename string, r io.Reader, opts ...Option) (interface{}, error) { //{{ if .Nolint }} nolint: deadcode {{else}} ==template== {{ end }}
 	b, err := ioutil.ReadAll(r)
 	if err != nil {
 		return nil, err
@@ -257,11 +257,13 @@ type storeDict map[string]interface{}
 
 // the AST types...
 
+//{{ if .Nolint }} nolint: structcheck {{else}} ==template== {{ end }}
 type grammar struct {
 	pos   position
 	rules []*rule
 }
 
+//{{ if .Nolint }} nolint: structcheck {{else}} ==template== {{ end }}
 type rule struct {
 	pos         position
 	name        string
@@ -269,17 +271,20 @@ type rule struct {
 	expr        interface{}
 }
 
+//{{ if .Nolint }} nolint: structcheck {{else}} ==template== {{ end }}
 type choiceExpr struct {
 	pos          position
 	alternatives []interface{}
 }
 
+//{{ if .Nolint }} nolint: structcheck {{else}} ==template== {{ end }}
 type actionExpr struct {
 	pos  position
 	expr interface{}
 	run  func(*parser) (interface{}, error)
 }
 
+//{{ if .Nolint }} nolint: structcheck {{else}} ==template== {{ end }}
 type recoveryExpr struct {
 	pos          position
 	expr         interface{}
@@ -287,33 +292,38 @@ type recoveryExpr struct {
 	failureLabel []string
 }
 
+//{{ if .Nolint }} nolint: structcheck {{else}} ==template== {{ end }}
 type seqExpr struct {
 	pos   position
 	exprs []interface{}
 }
 
+//{{ if .Nolint }} nolint: structcheck {{else}} ==template== {{ end }}
 type throwExpr struct {
 	pos   position
 	label string
 }
 
+//{{ if .Nolint }} nolint: structcheck {{else}} ==template== {{ end }}
 type labeledExpr struct {
 	pos   position
 	label string
 	expr  interface{}
 }
 
+//{{ if .Nolint }} nolint: structcheck {{else}} ==template== {{ end }}
 type expr struct {
 	pos  position
 	expr interface{}
 }
 
-type andExpr expr
-type notExpr expr
-type zeroOrOneExpr expr
-type zeroOrMoreExpr expr
-type oneOrMoreExpr expr
+type andExpr expr        //{{ if .Nolint }} nolint: structcheck {{else}} ==template== {{ end }}
+type notExpr expr        //{{ if .Nolint }} nolint: structcheck {{else}} ==template== {{ end }}
+type zeroOrOneExpr expr  //{{ if .Nolint }} nolint: structcheck {{else}} ==template== {{ end }}
+type zeroOrMoreExpr expr //{{ if .Nolint }} nolint: structcheck {{else}} ==template== {{ end }}
+type oneOrMoreExpr expr  //{{ if .Nolint }} nolint: structcheck {{else}} ==template== {{ end }}
 
+//{{ if .Nolint }} nolint: structcheck {{else}} ==template== {{ end }}
 type ruleRefExpr struct {
 	pos  position
 	name string
@@ -321,6 +331,7 @@ type ruleRefExpr struct {
 
 // ==template== {{ if or .GlobalState (not .Optimize) }}
 
+//{{ if .Nolint }} nolint: structcheck {{else}} ==template== {{ end }}
 type stateCodeExpr struct {
 	pos position
 	run func(*parser) error
@@ -328,22 +339,26 @@ type stateCodeExpr struct {
 
 // {{ end }} ==template==
 
+//{{ if .Nolint }} nolint: structcheck {{else}} ==template== {{ end }}
 type andCodeExpr struct {
 	pos position
 	run func(*parser) (bool, error)
 }
 
+//{{ if .Nolint }} nolint: structcheck {{else}} ==template== {{ end }}
 type notCodeExpr struct {
 	pos position
 	run func(*parser) (bool, error)
 }
 
+//{{ if .Nolint }} nolint: structcheck {{else}} ==template== {{ end }}
 type litMatcher struct {
 	pos        position
 	val        string
 	ignoreCase bool
 }
 
+//{{ if .Nolint }} nolint: structcheck {{else}} ==template== {{ end }}
 type charClassMatcher struct {
 	pos             position
 	val             string
@@ -355,7 +370,7 @@ type charClassMatcher struct {
 	inverted        bool
 }
 
-type anyMatcher position
+type anyMatcher position //{{ if .Nolint }} nolint: structcheck {{else}} ==template== {{ end }}
 
 // errList cumulates the errors found by the parser.
 type errList []error
@@ -440,9 +455,6 @@ func newParser(filename string, b []byte, opts ...Option) *parser {
 		Stats:           &stats,
 		// start rule is rule [0] unless an alternate entrypoint is specified
 		entrypoint: g.rules[0].name,
-		// ==template== {{ if or .GlobalState (not .Optimize) }}
-		emptyState: make(storeDict),
-		// {{ end }} ==template==
 	}
 	p.setOptions(opts)
 
@@ -460,12 +472,14 @@ func (p *parser) setOptions(opts []Option) {
 	}
 }
 
+//{{ if .Nolint }} nolint: structcheck,deadcode {{else}} ==template== {{ end }}
 type resultTuple struct {
 	v   interface{}
 	b   bool
 	end savepoint
 }
 
+//{{ if .Nolint }} nolint: varcheck {{else}} ==template== {{ end }}
 const choiceNoMatch = -1
 
 // Stats stores some statistics, gathered during parsing
@@ -490,6 +504,7 @@ type Stats struct {
 	ChoiceAltCnt map[string]map[string]int
 }
 
+//{{ if .Nolint }} nolint: structcheck,maligned {{else}} ==template== {{ end }}
 type parser struct {
 	filename string
 	pt       savepoint
@@ -533,9 +548,6 @@ type parser struct {
 	choiceNoMatch string
 	// recovery expression stack, keeps track of the currently available recovery expression, these are traversed in reverse
 	recoveryStack []map[string]interface{}
-
-	// emptyState contains an empty storeDict, which is used to optimize cloneState if global "state" store is not used.
-	emptyState storeDict
 }
 
 // push a variable set on the vstack.
@@ -718,13 +730,6 @@ func (p *parser) cloneState() storeDict {
 	}
 	// {{ end }} ==template==
 
-	if len(p.cur.state) == 0 {
-		if len(p.emptyState) > 0 {
-			p.emptyState = make(storeDict)
-		}
-		return p.emptyState
-	}
-
 	state := make(storeDict, len(p.cur.state))
 	for k, v := range p.cur.state {
 		if c, ok := v.(Cloner); ok {
@@ -788,6 +793,7 @@ func (p *parser) buildRulesTable(g *grammar) {
 	}
 }
 
+//{{ if .Nolint }} nolint: gocyclo {{else}} ==template== {{ end }}
 func (p *parser) parse(g *grammar) (val interface{}, err error) {
 	if len(g.rules) == 0 {
 		p.addErr(errNoRule)
@@ -900,6 +906,7 @@ func (p *parser) parseRule(rule *rule) (interface{}, bool) {
 	return val, ok
 }
 
+//{{ if .Nolint }} nolint: gocyclo {{else}} ==template== {{ end }}
 func (p *parser) parseExpr(expr interface{}) (interface{}, bool) {
 	// ==template== {{ if not .Optimize }}
 	var pt savepoint
@@ -1067,6 +1074,7 @@ func (p *parser) parseAnyMatcher(any *anyMatcher) (interface{}, bool) {
 	return p.sliceFrom(start), true
 }
 
+//{{ if .Nolint }} nolint: gocyclo {{else}} ==template== {{ end }}
 func (p *parser) parseCharClassMatcher(chr *charClassMatcher) (interface{}, bool) {
 	// ==template== {{ if not .Optimize }}
 	if p.debug {

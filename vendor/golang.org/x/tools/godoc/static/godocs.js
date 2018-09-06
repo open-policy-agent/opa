@@ -253,13 +253,13 @@ function personalizeInstallInstructions() {
 
   var filename = s.substr(prefix.length);
   var filenameRE = /^go1\.\d+(\.\d+)?([a-z0-9]+)?\.([a-z0-9]+)(-[a-z0-9]+)?(-osx10\.[68])?\.([a-z.]+)$/;
-  $('.downloadFilename').text(filename);
-  $('.hideFromDownload').hide();
   var m = filenameRE.exec(filename);
   if (!m) {
     // Can't interpret file name; bail.
     return;
   }
+  $('.downloadFilename').text(filename);
+  $('.hideFromDownload').hide();
 
   var os = m[3];
   var ext = m[6];
@@ -326,6 +326,28 @@ function addPermalinks() {
     var el = $(this);
     // Add the anchor to the "dt" element.
     addPermalink(el, el.find("> dt").first());
+  });
+}
+
+$(".js-expandAll").click(function() {
+  if ($(this).hasClass("collapsed")) {
+    toggleExamples('toggle');
+    $(this).text("(Collapse All)");
+  } else {
+    toggleExamples('toggleVisible');
+    $(this).text("(Expand All)");
+  }
+  $(this).toggleClass("collapsed")
+});
+
+function toggleExamples(className) {
+  // We need to explicitly iterate through divs starting with "example_"
+  // to avoid toggling Overview and Index collapsibles.
+  $("[id^='example_']").each(function() {
+    // Check for state and click it only if required.
+    if ($(this).hasClass(className)) {
+      $(this).find('.toggleButton').first().click();
+    }
   });
 }
 

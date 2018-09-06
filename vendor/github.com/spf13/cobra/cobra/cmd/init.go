@@ -65,7 +65,7 @@ Init will not use an existing directory with contents.`,
 		initializeProject(project)
 
 		fmt.Fprintln(cmd.OutOrStdout(), `Your Cobra application is ready at
-`+project.AbsPath()+`.
+`+project.AbsPath()+`
 
 Give it a try by going there and running `+"`go run main.go`."+`
 Add commands to it by running `+"`cobra add [cmdname]`.")
@@ -150,8 +150,8 @@ import (
 
 var cfgFile string{{end}}
 
-// RootCmd represents the base command when called without any subcommands
-var RootCmd = &cobra.Command{
+// rootCmd represents the base command when called without any subcommands
+var rootCmd = &cobra.Command{
 	Use:   "{{.appName}}",
 	Short: "A brief description of your application",
 	Long: ` + "`" + `A longer description that spans multiple lines and likely contains
@@ -165,27 +165,27 @@ to quickly create a Cobra application.` + "`" + `,
 	//	Run: func(cmd *cobra.Command, args []string) { },
 }
 
-// Execute adds all child commands to the root command sets flags appropriately.
+// Execute adds all child commands to the root command and sets flags appropriately.
 // This is called by main.main(). It only needs to happen once to the rootCmd.
 func Execute() {
-	if err := RootCmd.Execute(); err != nil {
+	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}
 }
 
-func init() { {{if .viper}}
+func init() { {{- if .viper}}
 	cobra.OnInitialize(initConfig)
 {{end}}
 	// Here you will define your flags and configuration settings.
 	// Cobra supports persistent flags, which, if defined here,
 	// will be global for your application.{{ if .viper }}
-	RootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.{{ .appName }}.yaml)"){{ else }}
-	// RootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.{{ .appName }}.yaml)"){{ end }}
+	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.{{ .appName }}.yaml)"){{ else }}
+	// rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.{{ .appName }}.yaml)"){{ end }}
 
 	// Cobra also supports local flags, which will only run
 	// when this action is called directly.
-	RootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 }{{ if .viper }}
 
 // initConfig reads in config file and ENV variables if set.

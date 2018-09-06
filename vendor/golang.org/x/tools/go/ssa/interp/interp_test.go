@@ -156,6 +156,9 @@ var testdataTests = []string{
 type successPredicate func(exitcode int, output string) error
 
 func run(t *testing.T, dir, input string, success successPredicate) bool {
+	if testing.Short() {
+		t.Skip("test breaks regularly; skipping in short mode so a failure doesn't affect trybots or build.golang.org; golang.org/issue/27292")
+	}
 	if runtime.GOOS == "darwin" {
 		t.Skip("skipping on darwin until golang.org/issue/23166 is fixed")
 	}
@@ -192,7 +195,7 @@ func run(t *testing.T, dir, input string, success successPredicate) bool {
 		interp.CapturedOutput = nil
 	}()
 
-	hint = fmt.Sprintf("To dump SSA representation, run:\n%% go build golang.org/x/tools/cmd/ssadump && ./ssadump -test -build=CFP %s\n", input)
+	hint = fmt.Sprintf("To dump SSA representation, run:\n%% go build golang.org/x/tools/cmd/ssadump && ./ssadump -test -build=CFP %s\n", strings.Join(inputs, " "))
 
 	iprog, err := conf.Load()
 	if err != nil {
@@ -227,7 +230,7 @@ func run(t *testing.T, dir, input string, success successPredicate) bool {
 	var out bytes.Buffer
 	interp.CapturedOutput = &out
 
-	hint = fmt.Sprintf("To trace execution, run:\n%% go build golang.org/x/tools/cmd/ssadump && ./ssadump -build=C -test -run --interp=T %s\n", input)
+	hint = fmt.Sprintf("To trace execution, run:\n%% go build golang.org/x/tools/cmd/ssadump && ./ssadump -build=C -test -run --interp=T %s\n", strings.Join(inputs, " "))
 	exitCode := interp.Interpret(mainPkg, 0, &types.StdSizes{WordSize: 8, MaxAlign: 8}, inputs[0], []string{})
 
 	// The definition of success varies with each file.
