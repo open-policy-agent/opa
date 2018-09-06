@@ -91,7 +91,7 @@ kubectl create secret tls opa-server --cert=server.crt --key=server.key
 
 Next, use the file below to deploy OPA as an admission controller.
 
-**[admission-controller.yaml](https://github.com/open-policy-agent/opa/docs/book/tutorials/kubernetes-admission-control-validation/admission-controller.yaml)**:
+**[admission-controller.yaml](https://github.com/open-policy-agent/opa/blob/master/docs/book/tutorials/kubernetes-admission-control-validation/admission-controller.yaml)**:
 <pre><code class="lang-yaml">{% include "./tutorials/kubernetes-admission-control-validation/admission-controller.yaml" %}</code></pre>
 
 ```bash
