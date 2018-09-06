@@ -13,7 +13,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/dchest/siphash"
+	"github.com/OneOfOne/xxhash"
 	"github.com/open-policy-agent/opa/util"
 	"github.com/pkg/errors"
 )
@@ -635,7 +635,7 @@ func (num Number) Hash() int {
 	f, err := json.Number(num).Float64()
 	if err != nil {
 		bs := []byte(num)
-		h := siphash.Hash(hashSeed0, hashSeed1, bs)
+		h := xxhash.Checksum64(bs)
 		return int(h)
 	}
 	return int(f)
@@ -728,8 +728,7 @@ func (str String) String() string {
 
 // Hash returns the hash code for the Value.
 func (str String) Hash() int {
-	bs := []byte(str)
-	h := siphash.Hash(hashSeed0, hashSeed1, bs)
+	h := xxhash.ChecksumString64S(string(str), hashSeed0)
 	return int(h)
 }
 
@@ -768,8 +767,7 @@ func (v Var) Find(path Ref) (Value, error) {
 
 // Hash returns the hash code for the Value.
 func (v Var) Hash() int {
-	bs := []byte(v)
-	h := siphash.Hash(hashSeed0, hashSeed1, bs)
+	h := xxhash.ChecksumString64S(string(v), hashSeed0)
 	return int(h)
 }
 
