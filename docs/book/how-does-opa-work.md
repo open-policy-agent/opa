@@ -128,7 +128,7 @@ import data.ports
 violations[server] {
     server = servers[_]
     server.protocols[_] = "http"
-    public_servers[server] = true
+    public_servers[server]
 }
 
 public_servers[server] {
