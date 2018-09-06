@@ -29,6 +29,10 @@ type mapFS map[string]string
 
 func (fs mapFS) String() string { return "mapfs" }
 
+func (fs mapFS) RootType(p string) vfs.RootType {
+	return ""
+}
+
 func (fs mapFS) Close() error { return nil }
 
 func filename(p string) string {

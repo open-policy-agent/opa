@@ -10,6 +10,7 @@ package siphash
 import (
 	"bytes"
 	"encoding/binary"
+	"encoding/hex"
 	"testing"
 )
 
@@ -338,6 +339,67 @@ func TestHash128(t *testing.T) {
 		ref1 := binary.LittleEndian.Uint64(goldenRef128[i][8:])
 		if sum0, sum1 := Hash128(k0, k1, in[:i]); sum0 != ref0 || sum1 != ref1 {
 			t.Errorf(`%d: expected "%x, %x", got "%x, %x"`, i, ref0, ref1, sum0, sum1)
+		}
+	}
+}
+
+func TestAlign(t *testing.T) {
+	data := "0076a9143219adce9b6f0a21fd53cb17e2fd9b2b4fac40b388ac"
+	k0 := uint64(316665572293978160)
+	k1 := uint64(8573005253291875333)
+
+	want := []uint64{
+		16380727507974277821,
+		16770526497674945769,
+		11373998677292870540,
+		10374222295991299613,
+	}
+	want128 := []uint64{
+		14802151199638645495,
+		13251497035884452880,
+		7034723853391616289,
+		16742813562040528752,
+		10468120447644272532,
+		10941274532208162335,
+		11293904790559355408,
+		15432350433573653068,
+	}
+
+	d, err := hex.DecodeString(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var k [16]byte
+	binary.LittleEndian.PutUint64(k[0:], k0)
+	binary.LittleEndian.PutUint64(k[8:], k1)
+
+	for i := range want {
+		res := Hash(k0, k1, d[i:])
+		if res != want[i] {
+			t.Fatalf("Expected %v got %v", want[i], res)
+		}
+		reslo, reshi := Hash128(k0, k1, d[i:])
+		if reslo != want128[i*2] {
+			t.Fatalf("Expected %v got %v", want128[i*2], reslo)
+		}
+		if reshi != want128[i*2+1] {
+			t.Fatalf("Expected %v got %v", want128[i*2+1], reshi)
+		}
+		dig := newDigest(Size, k[:])
+		dig.Write(d[i:])
+		res = dig.Sum64()
+		if res != want[i] {
+			t.Fatalf("Expected %v got %v", want[i], res)
+		}
+		dig128 := newDigest(Size128, k[:])
+		dig128.Write(d[i:])
+		reslo, reshi = dig128.sum128()
+		if reslo != want128[i*2] {
+			t.Fatalf("Expected %v got %v", want128[i*2], reslo)
+		}
+		if reshi != want128[i*2+1] {
+			t.Fatalf("Expected %v got %v", want128[i*2+1], reshi)
 		}
 	}
 }

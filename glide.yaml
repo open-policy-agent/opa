@@ -22,3 +22,6 @@ import:
   - prometheus
 - package: github.com/yashtewari/glob-intersection
 - package: github.com/rcrowley/go-metrics
+- package: golang.org/x/lint
+  subpackages:
+  - golint

@@ -22,3 +22,19 @@ func TestState(t *testing.T) {
 		}
 	}
 }
+
+func TestStateCloneRestore(t *testing.T) {
+	var p parser
+	p.cur.state = make(storeDict)
+	p.restoreState(p.cloneState())
+	c := &p.cur
+
+	backup := p.cloneState()
+
+	c.state["foo"] = true
+
+	p.restoreState(backup)
+	if len(p.cur.state) > 0 {
+		t.Fatalf("leaking state! %#v", p.cur.state)
+	}
+}

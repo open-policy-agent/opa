@@ -6,11 +6,21 @@ package vfs
 
 import (
 	"fmt"
+	"go/build"
 	"io/ioutil"
 	"os"
 	pathpkg "path"
 	"path/filepath"
+	"runtime"
 )
+
+// We expose a new variable because otherwise we need to copy the findGOROOT logic again
+// from cmd/godoc which is already copied twice from the standard library.
+
+// GOROOT is the GOROOT path under which the godoc binary is running.
+// It is needed to check whether a filesystem root is under GOROOT or not.
+// This is set from cmd/godoc/main.go.
+var GOROOT = runtime.GOROOT()
 
 // OS returns an implementation of FileSystem reading from the
 // tree rooted at root.  Recording a root is convenient everywhere
@@ -18,12 +28,42 @@ import (
 // passed to Open has no way to specify a drive letter.  Using a root
 // lets code refer to OS(`c:\`), OS(`d:\`) and so on.
 func OS(root string) FileSystem {
-	return osFS(root)
+	var t RootType
+	switch {
+	case root == GOROOT:
+		t = RootTypeGoRoot
+	case isGoPath(root):
+		t = RootTypeGoPath
+	}
+	return osFS{rootPath: root, rootType: t}
 }
 
-type osFS string
+type osFS struct {
+	rootPath string
+	rootType RootType
+}
 
-func (root osFS) String() string { return "os(" + string(root) + ")" }
+func isGoPath(path string) bool {
+	for _, bp := range filepath.SplitList(build.Default.GOPATH) {
+		for _, gp := range filepath.SplitList(path) {
+			if bp == gp {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func (root osFS) String() string { return "os(" + root.rootPath + ")" }
+
+// RootType returns the root type for the filesystem.
+//
+// Note that we ignore the path argument because roottype is a property of
+// this filesystem. But for other filesystems, the roottype might need to be
+// dynamically deduced at call time.
+func (root osFS) RootType(path string) RootType {
+	return root.rootType
+}
 
 func (root osFS) resolve(path string) string {
 	// Clean the path so that it cannot possibly begin with ../.
@@ -32,7 +72,7 @@ func (root osFS) resolve(path string) string {
 	// with .. in it, but be safe anyway.
 	path = pathpkg.Clean("/" + path)
 
-	return filepath.Join(string(root), path)
+	return filepath.Join(root.rootPath, path)
 }
 
 func (root osFS) Open(path string) (ReadSeekCloser, error) {

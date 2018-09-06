@@ -20,9 +20,11 @@ package zipfs // import "golang.org/x/tools/godoc/vfs/zipfs"
 import (
 	"archive/zip"
 	"fmt"
+	"go/build"
 	"io"
 	"os"
 	"path"
+	"path/filepath"
 	"sort"
 	"strings"
 	"time"
@@ -79,6 +81,26 @@ type zipFS struct {
 
 func (fs *zipFS) String() string {
 	return "zip(" + fs.name + ")"
+}
+
+func (fs *zipFS) RootType(abspath string) vfs.RootType {
+	var t vfs.RootType
+	switch {
+	case abspath == vfs.GOROOT:
+		t = vfs.RootTypeGoRoot
+	case isGoPath(abspath):
+		t = vfs.RootTypeGoPath
+	}
+	return t
+}
+
+func isGoPath(path string) bool {
+	for _, p := range filepath.SplitList(build.Default.GOPATH) {
+		if p == path {
+			return true
+		}
+	}
+	return false
 }
 
 func (fs *zipFS) Close() error {

@@ -64,7 +64,7 @@ import (
 	"fmt"
 	"go/ast"
 	"go/build"
-	exact "go/constant"
+	"go/constant"
 	"go/format"
 	"go/parser"
 	"go/token"
@@ -82,6 +82,7 @@ var (
 	output      = flag.String("output", "", "output file name; default srcdir/<type>_string.go")
 	trimprefix  = flag.String("trimprefix", "", "trim the `prefix` from the generated constant names")
 	linecomment = flag.Bool("linecomment", false, "use line comment text as printed text when present")
+	buildTags   = flag.String("tags", "", "comma-separated list of build tags to apply")
 )
 
 // Usage is a replacement usage function for the flags package.
@@ -105,6 +106,10 @@ func main() {
 		os.Exit(2)
 	}
 	types := strings.Split(*typeNames, ",")
+	var tags []string
+	if len(*buildTags) > 0 {
+		tags = strings.Split(*buildTags, ",")
+	}
 
 	// We accept either one directory or a list of files. Which do we have?
 	args := flag.Args()
@@ -121,8 +126,11 @@ func main() {
 	}
 	if len(args) == 1 && isDirectory(args[0]) {
 		dir = args[0]
-		g.parsePackageDir(args[0])
+		g.parsePackageDir(args[0], tags)
 	} else {
+		if len(tags) != 0 {
+			log.Fatal("-tags option applies only to directories, not when files are specified")
+		}
 		dir = filepath.Dir(args[0])
 		g.parsePackageFiles(args)
 	}
@@ -197,9 +205,15 @@ type Package struct {
 	typesPkg *types.Package
 }
 
+func buildContext(tags []string) *build.Context {
+	ctx := build.Default
+	ctx.BuildTags = tags
+	return &ctx
+}
+
 // parsePackageDir parses the package residing in the directory.
-func (g *Generator) parsePackageDir(directory string) {
-	pkg, err := build.Default.ImportDir(directory, 0)
+func (g *Generator) parsePackageDir(directory string, tags []string) {
+	pkg, err := buildContext(tags).ImportDir(directory, 0)
 	if err != nil {
 		log.Fatalf("cannot process directory %s: %s", directory, err)
 	}
@@ -261,14 +275,17 @@ func (g *Generator) parsePackage(directory string, names []string, text interfac
 	g.pkg.name = astFiles[0].Name.Name
 	g.pkg.files = files
 	g.pkg.dir = directory
-	// Type check the package.
-	g.pkg.check(fs, astFiles)
+	g.pkg.typeCheck(fs, astFiles)
 }
 
-// check type-checks the package. The package must be OK to proceed.
-func (pkg *Package) check(fs *token.FileSet, astFiles []*ast.File) {
+// check type-checks the package so we can evaluate contants whose values we are printing.
+func (pkg *Package) typeCheck(fs *token.FileSet, astFiles []*ast.File) {
 	pkg.defs = make(map[*ast.Ident]types.Object)
-	config := types.Config{Importer: defaultImporter(), FakeImportC: true}
+	config := types.Config{
+		IgnoreFuncBodies: true, // We only need to evaluate constants.
+		Importer:         defaultImporter(),
+		FakeImportC:      true,
+	}
 	info := &types.Info{
 		Defs: pkg.defs,
 	}
@@ -373,7 +390,7 @@ type Value struct {
 	// by Value.String.
 	value  uint64 // Will be converted to int64 when needed.
 	signed bool   // Whether the constant is a signed type.
-	str    string // The string representation given by the "go/exact" package.
+	str    string // The string representation given by the "go/constant" package.
 }
 
 func (v *Value) String() string {
@@ -447,11 +464,11 @@ func (f *File) genDecl(node ast.Node) bool {
 				log.Fatalf("can't handle non-integer constant type %s", typ)
 			}
 			value := obj.(*types.Const).Val() // Guaranteed to succeed as this is CONST.
-			if value.Kind() != exact.Int {
+			if value.Kind() != constant.Int {
 				log.Fatalf("can't happen: constant is not an integer %s", name)
 			}
-			i64, isInt := exact.Int64Val(value)
-			u64, isUint := exact.Uint64Val(value)
+			i64, isInt := constant.Int64Val(value)
+			u64, isUint := constant.Uint64Val(value)
 			if !isInt && !isUint {
 				log.Fatalf("internal error: value of %s is not an integer: %s", name, value.String())
 			}

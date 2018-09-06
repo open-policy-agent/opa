@@ -16,6 +16,7 @@ import (
 	"crypto/md5"
 	"encoding/json"
 	"fmt"
+	"html"
 	"html/template"
 	"io"
 	"net/http"
@@ -27,7 +28,6 @@ import (
 	"time"
 
 	"golang.org/x/net/context"
-
 	"google.golang.org/appengine"
 	"google.golang.org/appengine/datastore"
 	"google.golang.org/appengine/log"
@@ -41,22 +41,24 @@ const (
 )
 
 func RegisterHandlers(mux *http.ServeMux) {
-	mux.Handle("/dl", http.RedirectHandler("/dl/", http.StatusFound))
+	mux.HandleFunc("/dl", getHandler)
 	mux.HandleFunc("/dl/", getHandler) // also serves listHandler
 	mux.HandleFunc("/dl/upload", uploadHandler)
 	mux.HandleFunc("/dl/init", initHandler)
 }
 
+// File represents a file on the golang.org downloads page.
+// It should be kept in sync with the upload code in x/build/cmd/release.
 type File struct {
-	Filename       string
-	OS             string
-	Arch           string
-	Version        string
-	Checksum       string `datastore:",noindex"` // SHA1; deprecated
-	ChecksumSHA256 string `datastore:",noindex"`
-	Size           int64  `datastore:",noindex"`
-	Kind           string // "archive", "installer", "source"
-	Uploaded       time.Time
+	Filename       string    `json:"filename"`
+	OS             string    `json:"os"`
+	Arch           string    `json:"arch"`
+	Version        string    `json:"version"`
+	Checksum       string    `json:"-" datastore:",noindex"` // SHA1; deprecated
+	ChecksumSHA256 string    `json:"sha256" datastore:",noindex"`
+	Size           int64     `json:"size" datastore:",noindex"`
+	Kind           string    `json:"kind"` // "archive", "installer", "source"
+	Uploaded       time.Time `json:"-"`
 }
 
 func (f File) ChecksumType() string {
@@ -137,11 +139,11 @@ func (f File) URL() string {
 }
 
 type Release struct {
-	Version        string
-	Stable         bool
-	Files          []File
-	Visible        bool // show files on page load
-	SplitPortTable bool // whether files should be split by primary/other ports.
+	Version        string `json:"version"`
+	Stable         bool   `json:"stable"`
+	Files          []File `json:"files"`
+	Visible        bool   `json:"-"` // show files on page load
+	SplitPortTable bool   `json:"-"` // whether files should be split by primary/other ports.
 }
 
 type Feature struct {
@@ -159,12 +161,12 @@ type Feature struct {
 var featuredFiles = []Feature{
 	{
 		Platform:     "Microsoft Windows",
-		Requirements: "Windows XP SP3 or later, Intel 64-bit processor",
+		Requirements: "Windows 7 or later, Intel 64-bit processor",
 		fileRE:       regexp.MustCompile(`\.windows-amd64\.msi$`),
 	},
 	{
 		Platform:     "Apple macOS",
-		Requirements: "macOS 10.8 or later, Intel 64-bit processor",
+		Requirements: "macOS 10.10 or later, Intel 64-bit processor",
 		fileRE:       regexp.MustCompile(`\.darwin-amd64(-osx10\.8)?\.pkg$`),
 	},
 	{
@@ -221,6 +223,17 @@ func listHandler(w http.ResponseWriter, r *http.Request) {
 			log.Errorf(c, "cache set error: %v", err)
 		}
 	}
+
+	if r.URL.Query().Get("mode") == "json" {
+		w.Header().Set("Content-Type", "application/json")
+		enc := json.NewEncoder(w)
+		enc.SetIndent("", " ")
+		if err := enc.Encode(d.Stable); err != nil {
+			log.Errorf(c, "failed rendering JSON for releases: %v", err)
+		}
+		return
+	}
+
 	if err := listTemplate.ExecuteTemplate(w, "root", d); err != nil {
 		log.Errorf(c, "error executing template: %v", err)
 	}
@@ -415,21 +428,59 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func getHandler(w http.ResponseWriter, r *http.Request) {
+	// For go get golang.org/dl/go1.x.y, we need to serve the
+	// same meta tags at /dl for cmd/go to validate against /dl/go1.x.y:
+	if r.URL.Path == "/dl" && (r.Method == "GET" || r.Method == "HEAD") && r.FormValue("go-get") == "1" {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		fmt.Fprintf(w, `<!DOCTYPE html><html><head>
+<meta name="go-import" content="golang.org/dl git https://go.googlesource.com/dl">
+</head></html>`)
+		return
+	}
+	if r.URL.Path == "/dl" {
+		http.Redirect(w, r, "/dl/", http.StatusFound)
+		return
+	}
+
 	name := strings.TrimPrefix(r.URL.Path, "/dl/")
 	if name == "" {
 		listHandler(w, r)
 		return
 	}
-	if !fileRe.MatchString(name) {
-		http.NotFound(w, r)
+	if fileRe.MatchString(name) {
+		http.Redirect(w, r, downloadBaseURL+name, http.StatusFound)
 		return
 	}
-	http.Redirect(w, r, downloadBaseURL+name, http.StatusFound)
+	if goGetRe.MatchString(name) {
+		var isGoGet bool
+		if r.Method == "GET" || r.Method == "HEAD" {
+			w.Header().Set("Content-Type", "text/html; charset=utf-8")
+			isGoGet = r.FormValue("go-get") == "1"
+		}
+		if !isGoGet {
+			w.Header().Set("Location", "https://golang.org/dl/#"+name)
+			w.WriteHeader(http.StatusFound)
+		}
+		fmt.Fprintf(w, `<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+<meta name="go-import" content="golang.org/dl git https://go.googlesource.com/dl">
+<meta http-equiv="refresh" content="0; url=https://golang.org/dl/#%s">
+</head>
+<body>
+Nothing to see here; <a href="https://golang.org/dl/#%s">move along</a>.
+</body>
+</html>
+`, html.EscapeString(name), html.EscapeString(name))
+		return
+	}
+	http.NotFound(w, r)
 }
 
 func validUser(user string) bool {
 	switch user {
-	case "adg", "bradfitz", "cbro", "andybons":
+	case "adg", "bradfitz", "cbro", "andybons", "valsorda":
 		return true
 	}
 	return false
@@ -441,7 +492,10 @@ func userKey(c context.Context, user string) string {
 	return fmt.Sprintf("%x", h.Sum(nil))
 }
 
-var fileRe = regexp.MustCompile(`^go[0-9a-z.]+\.[0-9a-z.-]+\.(tar\.gz|pkg|msi|zip)$`)
+var (
+	fileRe  = regexp.MustCompile(`^go[0-9a-z.]+\.[0-9a-z.-]+\.(tar\.gz|pkg|msi|zip)$`)
+	goGetRe = regexp.MustCompile(`^go[0-9a-z.]+\.[0-9a-z.-]+$`)
+)
 
 func initHandler(w http.ResponseWriter, r *http.Request) {
 	var fileRoot struct {

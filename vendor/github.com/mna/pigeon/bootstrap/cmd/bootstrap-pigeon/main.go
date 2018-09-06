@@ -74,7 +74,8 @@ func main() {
 
 		outBuf := bytes.NewBuffer([]byte{})
 
-		if err := builder.BuildParser(outBuf, g.(*ast.Grammar)); err != nil {
+		nolintOpt := builder.Nolint(true)
+		if err := builder.BuildParser(outBuf, g.(*ast.Grammar), nolintOpt); err != nil {
 			fmt.Fprintln(os.Stderr, "build error: ", err)
 			os.Exit(5)
 		}

@@ -1323,6 +1323,15 @@ func TestNamedRoutes(t *testing.T) {
 	}
 }
 
+func TestNameMultipleCalls(t *testing.T) {
+	r1 := NewRouter()
+	rt := r1.NewRoute().Name("foo").Name("bar")
+	err := rt.GetError()
+	if err == nil {
+		t.Errorf("Expected an error")
+	}
+}
+
 func TestStrictSlash(t *testing.T) {
 	r := NewRouter()
 	r.StrictSlash(true)
@@ -2313,6 +2322,14 @@ func stringMapEqual(m1, m2 map[string]string) bool {
 		}
 	}
 	return true
+}
+
+// stringHandler returns a handler func that writes a message 's' to the
+// http.ResponseWriter.
+func stringHandler(s string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte(s))
+	}
 }
 
 // newRequest is a helper function to create a new request with a method and url.

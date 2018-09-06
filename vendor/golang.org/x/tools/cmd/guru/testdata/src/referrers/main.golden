@@ -33,7 +33,7 @@ type _ lib.T
 var _ lib.Var // @what pkg "lib"
 
 -------- @referrers ref-method --------
-references to func (Type).Method(x *int) *int
+references to func (lib.Type).Method(x *int) *int
 	_ = (lib.Type).Method // ref from external test package
 	_ = (lib.Type).Method // ref from internal test package
 	_ = v.Method
@@ -53,6 +53,10 @@ references to var v lib.Type
 references to field f int
 	_ = s{}.f // @referrers ref-field "f"
 	s2.f = 1
+
+-------- @referrers unexported-from-test --------
+references to var notexported int
+	_ = notexported
 
 -------- @referrers ref-type-U --------
 references to type U int

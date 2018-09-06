@@ -88,6 +88,14 @@ func (h *handlerServer) GetPageInfo(abspath, relpath string, mode PageInfoMode, 
 		return ioutil.NopCloser(bytes.NewReader(data)), nil
 	}
 
+	// Make the syscall/js package always visible by default.
+	// It defaults to the host's GOOS/GOARCH, and golang.org's
+	// linux/amd64 means the wasm syscall/js package was blank.
+	// And you can't run godoc on js/wasm anyway, so host defaults
+	// don't make sense here.
+	if goos == "" && goarch == "" && relpath == "syscall/js" {
+		goos, goarch = "js", "wasm"
+	}
 	if goos != "" {
 		ctxt.GOOS = goos
 	}
@@ -200,11 +208,12 @@ func (h *handlerServer) GetPageInfo(abspath, relpath string, mode PageInfoMode, 
 		timestamp = ts
 	}
 	if dir == nil {
-		// no directory tree present (too early after startup or
-		// command-line mode); compute one level for this page
+		// no directory tree present (happens in command-line mode);
+		// compute 2 levels for this page. The second level is to
+		// get the synopses of sub-directories.
 		// note: cannot use path filter here because in general
-		//       it doesn't contain the FSTree path
-		dir = h.c.newDirectory(abspath, 1)
+		// it doesn't contain the FSTree path
+		dir = h.c.newDirectory(abspath, 2)
 		timestamp = time.Now()
 	}
 	info.Dirs = dir.listing(true, func(path string) bool { return h.includePath(path, mode) })
@@ -320,11 +329,17 @@ func (h *handlerServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	info.GoogleCN = googleCN(r)
+	var body []byte
+	if info.Dirname == "/src" {
+		body = applyTemplate(h.p.PackageRootHTML, "packageRootHTML", info)
+	} else {
+		body = applyTemplate(h.p.PackageHTML, "packageHTML", info)
+	}
 	h.p.ServePage(w, Page{
 		Title:    title,
 		Tabtitle: tabtitle,
 		Subtitle: subtitle,
-		Body:     applyTemplate(h.p.PackageHTML, "packageHTML", info),
+		Body:     body,
 		GoogleCN: info.GoogleCN,
 	})
 }
@@ -643,8 +658,16 @@ func formatGoSource(buf *bytes.Buffer, text []byte, links []analysis.Link, patte
 		//
 		// The first tab for the code snippet needs to start in column 9, so
 		// it indents a full 8 spaces, hence the two nbsp's. Otherwise the tab
-		// character only indents about two spaces.
-		fmt.Fprintf(saved, `<span id="L%d" class="ln" data-content="%6d">&nbsp;&nbsp;</span>`, n, n)
+		// character only indents a short amount.
+		//
+		// Due to rounding and font width Firefox might not treat 8 rendered
+		// characters as 8 characters wide, and subsequently may treat the tab
+		// character in the 9th position as moving the width from (7.5 or so) up
+		// to 8. See
+		// https://github.com/webcompat/web-bugs/issues/17530#issuecomment-402675091
+		// for a fuller explanation. The solution is to add a CSS class to
+		// explicitly declare the width to be 8 characters.
+		fmt.Fprintf(saved, `<span id="L%d" class="ln">%6d&nbsp;&nbsp;</span>`, n, n)
 		n++
 		saved.Write(line)
 		saved.WriteByte('\n')
