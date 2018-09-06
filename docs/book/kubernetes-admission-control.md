@@ -27,7 +27,7 @@ Start minikube with these admission controllers enabled:
 
 ```bash
 minikube start --kubernetes-version v1.9.0 \
-  --extra-config=apiserver.Admission.PluginNames=$ADMISSION_CONTROLLERS
+  --extra-config=apiserver.admission-control=$ADMISSION_CONTROLLERS
 ```
 
 Make sure that the minikube ingress addon is enabled:
