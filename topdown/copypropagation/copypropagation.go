@@ -86,9 +86,16 @@ func (p *CopyPropagator) Apply(query ast.Body) (result ast.Body) {
 		// copy propagation may hold references to the expr.
 		expr = expr.Copy()
 
-		p.plugBindings(bindings, uf, expr)
+		pctx := &plugContext{
+			bindings: bindings,
+			uf:       uf,
+			negated:  expr.Negated,
+			headvars: headvars,
+		}
 
-		if keep := p.updateBindings(bindings, uf, headvars, expr); keep {
+		p.plugBindings(pctx, expr)
+
+		if keep := p.updateBindings(pctx, expr); keep {
 			result.Append(expr)
 		}
 	}
@@ -144,24 +151,26 @@ func (p *CopyPropagator) Apply(query ast.Body) (result ast.Body) {
 
 // plugBindings applies the binding list and union-find to x. This process
 // removes as many variables as possible.
-func (p *CopyPropagator) plugBindings(bindings map[ast.Var]*binding, uf *unionFind, x interface{}) {
+func (p *CopyPropagator) plugBindings(pctx *plugContext, x interface{}) {
 	ast.WalkTerms(x, func(t *ast.Term) bool {
 		// Apply union-find to remove redundant variables from input.
 		switch v := t.Value.(type) {
 		case ast.Var:
-			if root, ok := uf.Find(v); ok {
+			if root, ok := pctx.uf.Find(v); ok {
 				t.Value = root.Value()
 			}
 		case ast.Ref:
-			if root, ok := uf.Find(v[0].Value.(ast.Var)); ok {
+			if root, ok := pctx.uf.Find(v[0].Value.(ast.Var)); ok {
 				v[0].Value = root.Value()
 			}
 		}
 		// Apply binding list to substitute remaining vars.
 		switch v := t.Value.(type) {
 		case ast.Var:
-			if b, ok := bindings[v]; ok {
-				t.Value = b.v
+			if b, ok := pctx.bindings[v]; ok {
+				if !pctx.negated || b.v.IsGround() {
+					t.Value = b.v
+				}
 				return true
 			}
 		case ast.Ref:
@@ -169,11 +178,13 @@ func (p *CopyPropagator) plugBindings(bindings map[ast.Var]*binding, uf *unionFi
 			// rest of the ref must be concatenated with the new base.
 			//
 			// Invariant: ref heads can only be replaced by refs (not calls).
-			if b, ok := bindings[v[0].Value.(ast.Var)]; ok {
-				t.Value = b.v.(ast.Ref).Concat(v[1:])
+			if b, ok := pctx.bindings[v[0].Value.(ast.Var)]; ok {
+				if !pctx.negated || b.v.IsGround() {
+					t.Value = b.v.(ast.Ref).Concat(v[1:])
+				}
 			}
 			for i := 1; i < len(v); i++ {
-				p.plugBindings(bindings, uf, v[i])
+				p.plugBindings(pctx, v[i])
 			}
 			return true
 		}
@@ -183,7 +194,10 @@ func (p *CopyPropagator) plugBindings(bindings map[ast.Var]*binding, uf *unionFi
 
 // updateBindings returns false if the expression can be killed. If the
 // expression is killed, the binding list is updated to map a var to value.
-func (p *CopyPropagator) updateBindings(bindings map[ast.Var]*binding, uf *unionFind, headvars ast.VarSet, expr *ast.Expr) bool {
+func (p *CopyPropagator) updateBindings(pctx *plugContext, expr *ast.Expr) bool {
+	if pctx.negated {
+		return true
+	}
 	if expr.IsEquality() {
 		a, b := expr.Operand(0), expr.Operand(1)
 		if a.Equal(b) {
@@ -192,15 +206,15 @@ func (p *CopyPropagator) updateBindings(bindings map[ast.Var]*binding, uf *union
 		k, v, keep := p.updateBindingsEq(a, b)
 		if !keep {
 			if v != nil {
-				bindings[k] = newbinding(k, v)
+				pctx.bindings[k] = newbinding(k, v)
 			}
 			return false
 		}
 	} else if expr.IsCall() {
 		terms := expr.Terms.([]*ast.Term)
 		output := terms[len(terms)-1]
-		if k, ok := output.Value.(ast.Var); ok && !p.livevars.Contains(k) && !headvars.Contains(k) {
-			bindings[k] = newbinding(k, ast.CallTerm(terms[:len(terms)-1]...).Value)
+		if k, ok := output.Value.(ast.Var); ok && !p.livevars.Contains(k) && !pctx.headvars.Contains(k) {
+			pctx.bindings[k] = newbinding(k, ast.CallTerm(terms[:len(terms)-1]...).Value)
 			return false
 		}
 	}
@@ -227,6 +241,13 @@ func (p *CopyPropagator) updateBindingsEqAsymmetric(a, b *ast.Term) (ast.Var, as
 	}
 
 	return "", nil, true
+}
+
+type plugContext struct {
+	bindings map[ast.Var]*binding
+	uf       *unionFind
+	headvars ast.VarSet
+	negated  bool
 }
 
 type binding struct {

@@ -1028,6 +1028,32 @@ func TestTopDownPartialEval(t *testing.T) {
 			},
 		},
 		{
+			note:  "copy propagation: negation safety",
+			query: `data.test.p = true`,
+			modules: []string{
+				`package test
+
+				p {
+					input.x[i] = x
+					not f(x)
+				}
+
+				f(x) {
+					input.y = x
+				}`,
+			},
+			wantQueries: []string{
+				"not data.partial.__not1_1__(x1); x1 = input.x[i1]",
+			},
+			wantSupport: []string{`
+				package partial
+
+				__not1_1__(x) {
+					x = input.y
+				}
+			`},
+		},
+		{
 			note:  "save set vars are namespaced",
 			query: "input = x; data.test.f(1)",
 			modules: []string{
