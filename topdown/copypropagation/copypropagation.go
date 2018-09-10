@@ -93,23 +93,22 @@ func (p *CopyPropagator) Apply(query ast.Body) (result ast.Body) {
 		}
 	}
 
-	// Run post-processing step on query to ensure that all killed exprs are
-	// accounted for. If an expr is killed but the binding is never used, the query
-	// must still include the expr. For example, given the query 'input.x = a' and
-	// an empty livevar set, the result must include the ref input.x otherwise the
-	// query could be satisfied without input.x being defined. When exprs are
-	// killed we initialize the binding counter to zero and then increment it each
-	// time the binding is substituted. if the binding was never substituted it
-	// means the binding value must be added back into the query.
-	for _, b := range sortbindings(bindings) {
-		if b.n == 0 {
-			result.Append(ast.Equality.Expr(ast.NewTerm(b.k), ast.NewTerm(b.v)))
-		}
-	}
-
 	// Run post-processing step on the query to ensure that all live vars are bound
 	// in the result. The plugging that happens above substitutes all vars in the
 	// same set with the root.
+	//
+	// This step should run before the next step to prevent unnecessary bindings
+	// from being added to the result. For example:
+	//
+	// - Given the following result: <empty>
+	// - Given the following bindings: x/input.x and y/input
+	// - Given the following liveset: {x}
+	//
+	// If this step were to run AFTER the following step, the output would be:
+	//
+	//	x = input.x; y = input
+	//
+	// Even though y = input is not required.
 	for _, v := range p.sorted {
 		if root, ok := uf.Find(v); ok {
 			if root.constant != nil {
@@ -119,6 +118,20 @@ func (p *CopyPropagator) Apply(query ast.Body) (result ast.Body) {
 			} else if root.key != v {
 				result.Append(ast.Equality.Expr(ast.NewTerm(v), ast.NewTerm(root.key)))
 			}
+		}
+	}
+
+	// Run post-processing step on query to ensure that all killed exprs are
+	// accounted for. If an expr is killed but the binding is never used, the query
+	// must still include the expr. For example, given the query 'input.x = a' and
+	// an empty livevar set, the result must include the ref input.x otherwise the
+	// query could be satisfied without input.x being defined. When exprs are
+	// killed we initialize the binding counter to zero and then increment it each
+	// time the binding is substituted. if the binding was never substituted it
+	// means the binding value must be added back into the query.
+	for _, b := range sortbindings(bindings) {
+		if !b.containedIn(result) {
+			result.Append(ast.Equality.Expr(ast.NewTerm(b.k), ast.NewTerm(b.v)))
 		}
 	}
 
@@ -149,7 +162,6 @@ func (p *CopyPropagator) plugBindings(bindings map[ast.Var]*binding, uf *unionFi
 		case ast.Var:
 			if b, ok := bindings[v]; ok {
 				t.Value = b.v
-				b.n++
 				return true
 			}
 		case ast.Ref:
@@ -159,7 +171,6 @@ func (p *CopyPropagator) plugBindings(bindings map[ast.Var]*binding, uf *unionFi
 			// Invariant: ref heads can only be replaced by refs (not calls).
 			if b, ok := bindings[v[0].Value.(ast.Var)]; ok {
 				t.Value = b.v.(ast.Ref).Concat(v[1:])
-				b.n++
 			}
 			for i := 1; i < len(v); i++ {
 				p.plugBindings(bindings, uf, v[i])
@@ -221,11 +232,33 @@ func (p *CopyPropagator) updateBindingsEqAsymmetric(a, b *ast.Term) (ast.Var, as
 type binding struct {
 	k ast.Var
 	v ast.Value
-	n int // number of times the binding was substituted
 }
 
 func newbinding(k ast.Var, v ast.Value) *binding {
 	return &binding{k: k, v: v}
+}
+
+func (b *binding) containedIn(query ast.Body) bool {
+	var stop bool
+	switch v := b.v.(type) {
+	case ast.Ref:
+		ast.WalkRefs(query, func(other ast.Ref) bool {
+			if stop || other.HasPrefix(v) {
+				stop = true
+				return stop
+			}
+			return false
+		})
+	default:
+		ast.WalkTerms(query, func(other *ast.Term) bool {
+			if stop || other.Value.Compare(v) == 0 {
+				stop = true
+				return stop
+			}
+			return false
+		})
+	}
+	return stop
 }
 
 func sortbindings(bindings map[ast.Var]*binding) []*binding {
