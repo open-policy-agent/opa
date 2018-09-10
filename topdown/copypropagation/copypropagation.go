@@ -57,7 +57,7 @@ func (p *CopyPropagator) WithEnsureNonEmptyBody(yes bool) *CopyPropagator {
 // Apply executes the copy propagation optimization and returns a new query.
 func (p *CopyPropagator) Apply(query ast.Body) (result ast.Body) {
 
-	uf, ok := p.makeDisjointSets(query)
+	uf, ok := makeDisjointSets(query)
 	if !ok {
 		return query
 	}
@@ -127,41 +127,6 @@ func (p *CopyPropagator) Apply(query ast.Body) (result ast.Body) {
 	}
 
 	return result
-}
-
-// makeDisjointSets builds the union-find structure for the query. The structure
-// is built by processing all of the equality exprs in the query. Sets represent
-// vars that must be equal to each other. In addition to vars, each can have at
-// most one more . If the query contains expressions that cannot be satisfied
-// (e.g., because a set has multiple constants) this function returns false.
-func (p *CopyPropagator) makeDisjointSets(query ast.Body) (*unionFind, bool) {
-	uf := newUnionFind()
-	for _, expr := range query {
-		if expr.IsEquality() {
-			a, b := expr.Operand(0), expr.Operand(1)
-			varA, ok1 := a.Value.(ast.Var)
-			varB, ok2 := b.Value.(ast.Var)
-			if ok1 && ok2 {
-				if _, ok := uf.Merge(varA, varB); !ok {
-					return nil, false
-				}
-			} else if ok1 && ast.IsConstant(b.Value) {
-				root := uf.MakeSet(varA)
-				if root.constant != nil && !root.constant.Equal(b) {
-					return nil, false
-				}
-				root.constant = b
-			} else if ok2 && ast.IsConstant(a.Value) {
-				root := uf.MakeSet(varB)
-				if root.constant != nil && !root.constant.Equal(a) {
-					return nil, false
-				}
-				root.constant = a
-			}
-		}
-	}
-
-	return uf, true
 }
 
 // plugBindings applies the binding list and union-find to x. This process
@@ -277,6 +242,42 @@ func sortbindings(bindings map[ast.Var]*binding) []*binding {
 type unionFind struct {
 	roots   map[ast.Var]*unionFindRoot
 	parents map[ast.Var]ast.Var
+}
+
+// makeDisjointSets builds the union-find structure for the query. The structure
+// is built by processing all of the equality exprs in the query. Sets represent
+// vars that must be equal to each other. In addition to vars, each set can have
+// at most one constant. If the query contains expressions that cannot be
+// satisfied (e.g., because a set has multiple constants) this function returns
+// false.
+func makeDisjointSets(query ast.Body) (*unionFind, bool) {
+	uf := newUnionFind()
+	for _, expr := range query {
+		if expr.IsEquality() {
+			a, b := expr.Operand(0), expr.Operand(1)
+			varA, ok1 := a.Value.(ast.Var)
+			varB, ok2 := b.Value.(ast.Var)
+			if ok1 && ok2 {
+				if _, ok := uf.Merge(varA, varB); !ok {
+					return nil, false
+				}
+			} else if ok1 && ast.IsConstant(b.Value) {
+				root := uf.MakeSet(varA)
+				if root.constant != nil && !root.constant.Equal(b) {
+					return nil, false
+				}
+				root.constant = b
+			} else if ok2 && ast.IsConstant(a.Value) {
+				root := uf.MakeSet(varB)
+				if root.constant != nil && !root.constant.Equal(a) {
+					return nil, false
+				}
+				root.constant = a
+			}
+		}
+	}
+
+	return uf, true
 }
 
 func newUnionFind() *unionFind {
