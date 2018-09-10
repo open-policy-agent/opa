@@ -900,6 +900,24 @@ func TestTopDownPartialEval(t *testing.T) {
 			},
 		},
 		{
+			note:  "copy propagation: var vs dot vs set",
+			query: `data.test.p = true`,
+			modules: []string{
+				`package test
+
+				p {
+					input.x[i] = a; a.foo = 1	# same semantics as next line
+					input.y[j].bar = 2;
+					input.z[k]; k.baz = 3		# different semantics from previous two lines
+				}`,
+			},
+			wantQueries: []string{`
+				input.x[i1].foo = 1;
+				input.y[j1].bar = 2;
+				input.z[k1]; k1.baz = 3`,
+			},
+		},
+		{
 			note:  "copy propagation: reference head: call transitive with union-find",
 			query: "data.test.p = true",
 			modules: []string{
@@ -908,11 +926,11 @@ func TestTopDownPartialEval(t *testing.T) {
 				p {
 					split(input, ":", x)
 					y = x
-					y[0]
+					y[0] = "a"
 				}`,
 			},
 			wantQueries: []string{
-				`split(input, ":", x1); x1[0]`,
+				`split(input, ":", x1); x1[0] = "a"`,
 			},
 		},
 		{
