@@ -93,10 +93,10 @@ func (p *CopyPropagator) Apply(query ast.Body) (result ast.Body) {
 			headvars: headvars,
 		}
 
-		p.plugBindings(pctx, expr)
-
-		if keep := p.updateBindings(pctx, expr); keep {
-			result.Append(expr)
+		if p.plugBindings(pctx, expr) {
+			if p.updateBindings(pctx, expr) {
+				result.Append(expr)
+			}
 		}
 	}
 
@@ -151,7 +151,22 @@ func (p *CopyPropagator) Apply(query ast.Body) (result ast.Body) {
 
 // plugBindings applies the binding list and union-find to x. This process
 // removes as many variables as possible.
-func (p *CopyPropagator) plugBindings(pctx *plugContext, x interface{}) {
+func (p *CopyPropagator) plugBindings(pctx *plugContext, x interface{}) bool {
+
+	// Kill single term expressions that are in the binding list. They will be
+	// re-added during post-processing if needed.
+	if expr, ok := x.(*ast.Expr); ok {
+		if term, ok := expr.Terms.(*ast.Term); ok {
+			if v, ok := term.Value.(ast.Var); ok {
+				if root, ok := pctx.uf.Find(v); ok {
+					if _, ok := pctx.bindings[root.key]; ok {
+						return false
+					}
+				}
+			}
+		}
+	}
+
 	ast.WalkTerms(x, func(t *ast.Term) bool {
 		// Apply union-find to remove redundant variables from input.
 		switch v := t.Value.(type) {
@@ -190,6 +205,8 @@ func (p *CopyPropagator) plugBindings(pctx *plugContext, x interface{}) {
 		}
 		return false
 	})
+
+	return true
 }
 
 // updateBindings returns false if the expression can be killed. If the
