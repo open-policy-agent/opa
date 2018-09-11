@@ -57,7 +57,7 @@ func (p *CopyPropagator) WithEnsureNonEmptyBody(yes bool) *CopyPropagator {
 // Apply executes the copy propagation optimization and returns a new query.
 func (p *CopyPropagator) Apply(query ast.Body) (result ast.Body) {
 
-	uf, ok := makeDisjointSets(query)
+	uf, ok := makeDisjointSets(p.livevars, query)
 	if !ok {
 		return query
 	}
@@ -313,6 +313,7 @@ func sortbindings(bindings map[ast.Var]*binding) []*binding {
 type unionFind struct {
 	roots   map[ast.Var]*unionFindRoot
 	parents map[ast.Var]ast.Var
+	rank    rankFunc
 }
 
 // makeDisjointSets builds the union-find structure for the query. The structure
@@ -321,10 +322,15 @@ type unionFind struct {
 // at most one constant. If the query contains expressions that cannot be
 // satisfied (e.g., because a set has multiple constants) this function returns
 // false.
-func makeDisjointSets(query ast.Body) (*unionFind, bool) {
-	uf := newUnionFind()
+func makeDisjointSets(livevars ast.VarSet, query ast.Body) (*unionFind, bool) {
+	uf := newUnionFind(func(r1, r2 *unionFindRoot) (*unionFindRoot, *unionFindRoot) {
+		if livevars.Contains(r1.key) {
+			return r1, r2
+		}
+		return r2, r1
+	})
 	for _, expr := range query {
-		if expr.IsEquality() {
+		if expr.IsEquality() && !expr.Negated {
 			a, b := expr.Operand(0), expr.Operand(1)
 			varA, ok1 := a.Value.(ast.Var)
 			varB, ok2 := b.Value.(ast.Var)
@@ -351,10 +357,13 @@ func makeDisjointSets(query ast.Body) (*unionFind, bool) {
 	return uf, true
 }
 
-func newUnionFind() *unionFind {
+type rankFunc func(*unionFindRoot, *unionFindRoot) (*unionFindRoot, *unionFindRoot)
+
+func newUnionFind(rank rankFunc) *unionFind {
 	return &unionFind{
 		roots:   map[ast.Var]*unionFindRoot{},
 		parents: map[ast.Var]ast.Var{},
+		rank:    rank,
 	}
 }
 
@@ -391,20 +400,23 @@ func (uf *unionFind) Merge(a, b ast.Var) (*unionFindRoot, bool) {
 	r2 := uf.MakeSet(b)
 
 	if r1 != r2 {
-		uf.parents[r1.key] = r2.key
-		delete(uf.roots, r1.key)
+
+		r1, r2 = uf.rank(r1, r2)
+
+		uf.parents[r2.key] = r1.key
+		delete(uf.roots, r2.key)
 
 		// Sets can have at most one constant value associated with them. When
 		// unioning, we must preserve this invariant. If a set has two constants,
 		// there will be no way to prove the query.
 		if r1.constant != nil && r2.constant != nil && !r1.constant.Equal(r2.constant) {
 			return nil, false
-		} else if r2.constant == nil {
-			r2.constant = r1.constant
+		} else if r1.constant == nil {
+			r1.constant = r2.constant
 		}
 	}
 
-	return r2, true
+	return r1, true
 }
 
 type unionFindRoot struct {

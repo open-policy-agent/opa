@@ -8,6 +8,7 @@ import (
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/topdown/builtins"
+	"github.com/open-policy-agent/opa/topdown/copypropagation"
 )
 
 type evalIterator func(*eval) error
@@ -213,7 +214,7 @@ func (e *eval) evalStep(iter evalIterator) error {
 		rterm := e.generateVar(fmt.Sprintf("term_%d_%d", e.queryID, e.index))
 		err = e.unify(terms, rterm, func() error {
 			if e.saveSet.Contains(rterm, e.bindings) {
-				return e.saveTerm(rterm, func() error {
+				return e.saveExpr(ast.NewExpr(rterm), e.bindings, func() error {
 					return e.next(iter)
 				})
 			}
@@ -297,76 +298,127 @@ func (e *eval) evalWith(iter evalIterator) error {
 
 func (e *eval) evalNotPartial(iter evalIterator) error {
 
+	// Prepare query normally.
 	expr := e.query[e.index]
 	negation := expr.Complement().NoWith()
 	child := e.closure(ast.NewBody(negation))
 
-	// During partial evaluation, negated expressions may generate support
-	// rules where the evaluation of the complemented expression is inlined
-	// into the support rule. If the complemented expression is undefined
-	// then the negated expression can be omitted completely.
+	var caller *bindings
+
+	if e.parent == nil {
+		// The top-level query is being evaluated. Do not namespace variables from this
+		// query.
+		caller = e.bindings
+	} else {
+		// The top-level query is NOT being evaluated. All variables in the queries
+		// that are emitted by partial evaluation of this query MUST be namespaced. A
+		// sentinel is used because the plug operations do not namespace if the caller
+		// is nil.
+		caller = sentinel
+	}
+
+	// Unknowns is the set of variables that are marked as unknown. The variables
+	// are namespaced with the query ID that they originate in. This ensures that
+	// variables across two or more queries are identified uniquely.
+	//
+	// NOTE(tsandall): this is greedy in the sense that we only need variable
+	// dependencies of the negation.
+	unknowns := e.saveSet.Vars(caller)
+
+	// Run partial evaluation, plugging the result and applying copy propagation to
+	// each result. Since the result may require support, push a new query onto the
+	// save stack to avoid mutating the current save query.
+	p := copypropagation.New(unknowns).WithEnsureNonEmptyBody(true)
+	var savedQueries []ast.Body
 	e.saveStack.PushQuery(nil)
-	supportName := fmt.Sprintf("__not%d_%d__", e.queryID, e.index)
-	term := ast.RefTerm(ast.DefaultRootDocument, e.saveNamespace, ast.StringTerm(supportName))
-	path := term.Value.(ast.Ref)
-	defined := false
-
-	// If the expression contains variables that are marked as unknown, the
-	// support rule has to include arguments. The arguments are sorted to
-	// ensure they're passed consistently.
-	vis := ast.NewVarVisitor()
-	ast.Walk(vis, negation)
-	unknownVars := ast.NewVarSet()
-	for v := range vis.Vars() {
-		if e.saveSet.Contains(ast.NewTerm(v), e.bindings) {
-			unknownVars.Add(v)
-		}
-	}
-	callVars := make([]*ast.Term, 0, len(unknownVars))
-	for v := range unknownVars {
-		callVars = append(callVars, ast.NewTerm(v))
-	}
-
-	sort.Slice(callVars, func(i, j int) bool {
-		return callVars[i].Value.Compare(callVars[j].Value) < 0
-	})
 
 	child.eval(func(*eval) error {
-		defined = true
-		current := e.saveStack.PopQuery()
-		e.saveStack.PushQuery(current)
-		plugged := current.Plug(child.bindings)
-		head := ast.NewHead(ast.Var(supportName), nil, ast.BooleanTerm(true))
-		if len(callVars) > 0 {
-			head.Args = ast.Args(callVars)
-		}
-		e.saveSupport.Insert(path, &ast.Rule{
-			Head: head,
-			Body: plugged,
-		})
+		query := e.saveStack.Peek()
+		plugged := query.Plug(caller)
+		result := p.Apply(plugged)
+		savedQueries = append(savedQueries, result)
 		return nil
 	})
 
 	e.saveStack.PopQuery()
 
-	if defined {
-		expr = expr.Copy()
-		if len(callVars) > 0 {
-			terms := make([]*ast.Term, len(callVars)+1)
-			terms[0] = term
-			for i := 0; i < len(callVars); i++ {
-				terms[i+1] = callVars[i]
-			}
-			expr.Terms = terms
-		} else {
-			expr.Terms = term
-		}
-		return e.saveExpr(expr, e.bindings, func() error {
+	// If partial evaluation produced no results, the expression is always undefined
+	// so it does not have to be saved.
+	if len(savedQueries) == 0 {
+		return e.next(iter)
+	}
+
+	// Check if the partial evaluation result can be inlined in this query. If not,
+	// generate support rules for the result. Depending on the size of the partial
+	// evaluation result and the contents, it may or may not be inlinable. We treat
+	// the unknowns as safe because vars in the save set will either be known to
+	// the caller or made safe by an expression on the save stack.
+	if !canInlineNegation(unknowns, savedQueries) {
+		return e.evalNotPartialSupport(expr, unknowns, savedQueries, iter)
+	}
+
+	// If we can inline the result, we have to generate the cross product of the
+	// queries. For example:
+	//
+	//	(A && B) || (C && D)
+	//
+	// Becomes:
+	//
+	//	(!A && !C) || (!A && !D) || (!B && !C) || (!B && !D)
+	return complementedCartesianProduct(savedQueries, 0, nil, func(q ast.Body) error {
+		return e.savePluggedExprs(q, func() error {
 			return e.next(iter)
+		})
+	})
+}
+
+func (e *eval) evalNotPartialSupport(expr *ast.Expr, unknowns ast.VarSet, queries []ast.Body, iter evalIterator) error {
+
+	// Prepare support rule head.
+	supportName := fmt.Sprintf("__not%d_%d__", e.queryID, e.index)
+	term := ast.RefTerm(ast.DefaultRootDocument, e.saveNamespace, ast.StringTerm(supportName))
+	path := term.Value.(ast.Ref)
+	head := ast.NewHead(ast.Var(supportName), nil, ast.BooleanTerm(true))
+
+	// Make rule args. Sort them to ensure order is deterministic.
+	args := make([]*ast.Term, 0, len(unknowns))
+
+	for v := range unknowns {
+		args = append(args, ast.NewTerm(v))
+	}
+
+	sort.Slice(args, func(i, j int) bool {
+		return args[i].Value.Compare(args[j].Value) < 0
+	})
+
+	if len(args) > 0 {
+		head.Args = ast.Args(args)
+	}
+
+	// Save support rules.
+	for _, query := range queries {
+		e.saveSupport.Insert(path, &ast.Rule{
+			Head: head,
+			Body: query,
 		})
 	}
 
-	return e.next(iter)
+	// Save expression that refers to support rule set.
+	expr = expr.Copy()
+	if len(args) > 0 {
+		terms := make([]*ast.Term, len(args)+1)
+		terms[0] = term
+		for i := 0; i < len(args); i++ {
+			terms[i+1] = args[i]
+		}
+		expr.Terms = terms
+	} else {
+		expr.Terms = term
+	}
+
+	return e.savePluggedExprs([]*ast.Expr{expr}, func() error {
+		return e.next(iter)
+	})
 }
 
 func (e *eval) evalCall(terms []*ast.Term, iter unifyIterator) error {
@@ -730,9 +782,18 @@ func (e *eval) getSaveTerms(x *ast.Term) []*ast.Term {
 }
 
 func (e *eval) saveExpr(expr *ast.Expr, b *bindings, iter unifyIterator) error {
-	e.saveStack.Push(expr, b, nil)
+	e.saveStack.Push(expr, b, b)
 	defer e.saveStack.Pop()
 	e.traceSave(expr)
+	return iter()
+}
+
+func (e *eval) savePluggedExprs(exprs []*ast.Expr, iter unifyIterator) error {
+	for _, expr := range exprs {
+		e.saveStack.Push(expr, nil, nil)
+		defer e.saveStack.Pop()
+		e.traceSave(expr)
+	}
 	return iter()
 }
 
@@ -747,14 +808,6 @@ func (e *eval) saveUnify(a, b *ast.Term, b1, b2 *bindings, iter unifyIterator) e
 		defer e.saveSet.Pop()
 	}
 	e.saveStack.Push(expr, b1, b2)
-	defer e.saveStack.Pop()
-	e.traceSave(expr)
-	return iter()
-}
-
-func (e *eval) saveTerm(x *ast.Term, iter unifyIterator) error {
-	expr := ast.NewExpr(x)
-	e.saveStack.Push(expr, e.bindings, nil)
 	defer e.saveStack.Pop()
 	e.traceSave(expr)
 	return iter()
@@ -1621,9 +1674,12 @@ func (e evalVirtualComplete) partialEvalDefaultRule(iter unifyIterator, rule *as
 		defer e.e.saveStack.PushQuery(current)
 		plugged := current.Plug(child.bindings)
 
+		head := ast.NewHead(rule.Head.Name, nil, child.bindings.PlugNamespaced(rule.Head.Value, child.bindings))
+		p := copypropagation.New(head.Vars()).WithEnsureNonEmptyBody(true)
+
 		e.e.saveSupport.Insert(path, &ast.Rule{
-			Head:    ast.NewHead(rule.Head.Name, nil, child.bindings.PlugNamespaced(rule.Head.Value, child.bindings)),
-			Body:    plugged,
+			Head:    head,
+			Body:    p.Apply(plugged),
 			Default: rule.Default,
 		})
 
@@ -1802,4 +1858,52 @@ func plugSlice(xs []*ast.Term, b *bindings) []*ast.Term {
 		cpy[i] = b.Plug(xs[i])
 	}
 	return cpy
+}
+
+func canInlineNegation(safe ast.VarSet, queries []ast.Body) bool {
+
+	size := 1
+
+	for _, query := range queries {
+		size *= len(query)
+		for _, expr := range query {
+			if !expr.Negated {
+				// Positive expressions containing variables cannot be trivially negated
+				// because they become unsafe (e.g., "x = 1" negated is "not x = 1" making x
+				// unsafe.) We check if the vars in the expr are already safe.
+				vis := ast.NewVarVisitor().WithParams(ast.VarVisitorParams{
+					SkipRefCallHead: true,
+					SkipClosures:    true,
+				})
+				ast.Walk(vis, expr)
+				unsafe := vis.Vars().Diff(safe).Diff(ast.ReservedVars)
+				if len(unsafe) > 0 {
+					return false
+				}
+			}
+		}
+	}
+
+	// NOTE(tsandall): this limit is arbitrary–it's only in place to prevent the
+	// partial evaluation result from blowing up. In the future, we could make this
+	// configurable or do something more clever.
+	if size > 16 {
+		return false
+	}
+
+	return true
+}
+
+func complementedCartesianProduct(queries []ast.Body, idx int, curr ast.Body, iter func(ast.Body) error) error {
+	if idx == len(queries) {
+		return iter(curr)
+	}
+	for _, expr := range queries[idx] {
+		curr = append(curr, expr.Complement())
+		if err := complementedCartesianProduct(queries, idx+1, curr, iter); err != nil {
+			return err
+		}
+		curr = curr[:len(curr)-1]
+	}
+	return nil
 }

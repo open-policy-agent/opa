@@ -332,19 +332,29 @@ func (vis *VarVisitor) Visit(v interface{}) Visitor {
 		}
 	}
 	if vis.params.SkipRefCallHead {
-		if expr, ok := v.(*Expr); ok {
-			if terms, ok := expr.Terms.([]*Term); ok {
+		switch v := v.(type) {
+		case *Expr:
+			if terms, ok := v.Terms.([]*Term); ok {
 				for _, t := range terms[0].Value.(Ref)[1:] {
 					Walk(vis, t)
 				}
 				for i := 1; i < len(terms); i++ {
 					Walk(vis, terms[i])
 				}
-				for _, w := range expr.With {
+				for _, w := range v.With {
 					Walk(vis, w)
 				}
 				return nil
 			}
+		case Call:
+			operator := v[0].Value.(Ref)
+			for i := 1; i < len(operator); i++ {
+				Walk(vis, operator[i])
+			}
+			for i := 1; i < len(v); i++ {
+				Walk(vis, v[i])
+			}
+			return nil
 		}
 	}
 	if v, ok := v.(Var); ok {
