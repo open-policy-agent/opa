@@ -66,6 +66,19 @@ func (ss *saveSet) ContainsRecursive(t *ast.Term, b *bindings) bool {
 	return found
 }
 
+func (ss *saveSet) Vars(caller *bindings) ast.VarSet {
+	result := ast.NewVarSet()
+	for x := ss.l.Front(); x != nil; x = x.Next() {
+		elem := x.Value.(*saveSetElem)
+		for _, v := range elem.vars {
+			if v, ok := elem.b.PlugNamespaced(v, caller).Value.(ast.Var); ok {
+				result.Add(v)
+			}
+		}
+	}
+	return result
+}
+
 type saveSetElem struct {
 	refs []ast.Ref
 	vars []*ast.Term
@@ -153,6 +166,10 @@ func (s *saveStack) PopQuery() saveStackQuery {
 	return last
 }
 
+func (s *saveStack) Peek() saveStackQuery {
+	return s.Stack[len(s.Stack)-1]
+}
+
 func (s *saveStack) Push(expr *ast.Expr, b1 *bindings, b2 *bindings) {
 	idx := len(s.Stack) - 1
 	s.Stack[idx] = append(s.Stack[idx], saveStackElem{expr, b1, b2})
@@ -185,6 +202,9 @@ type saveStackElem struct {
 }
 
 func (e saveStackElem) Plug(caller *bindings) *ast.Expr {
+	if e.B1 == nil && e.B2 == nil {
+		return e.Expr
+	}
 	expr := e.Expr.Copy()
 	switch terms := expr.Terms.(type) {
 	case []*ast.Term:

@@ -186,14 +186,6 @@ func (q *Query) PartialRun(ctx context.Context) (partials []ast.Body, support []
 
 	support = e.saveSupport.List()
 
-	for _, m := range support {
-		ast.WalkRules(m, func(r *ast.Rule) bool {
-			p := copypropagation.New(r.Head.Vars()).WithEnsureNonEmptyBody(true)
-			r.Body = p.Apply(r.Body)
-			return false
-		})
-	}
-
 	return partials, support, err
 }
 

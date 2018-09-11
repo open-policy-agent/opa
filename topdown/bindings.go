@@ -6,6 +6,7 @@ package topdown
 
 import (
 	"fmt"
+	"math"
 	"strings"
 
 	"github.com/open-policy-agent/opa/ast"
@@ -30,6 +31,10 @@ func (u *undo) Undo() {
 	u.u.delete(u.k)
 	u.next.Undo()
 }
+
+// sentinel is a binding list that will never be used. The binding list
+// identifier increments from zero.
+var sentinel = newBindings(math.MaxUint64, nil)
 
 type bindings struct {
 	id     uint64
