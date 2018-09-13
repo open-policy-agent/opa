@@ -318,6 +318,11 @@ func (pkg *Package) SetLoc(loc *Location) {
 }
 
 func (pkg *Package) String() string {
+	if pkg == nil {
+		return "<illegal nil package>"
+	} else if len(pkg.Path) <= 1 {
+		return fmt.Sprintf("package <illegal path %q>", pkg.Path)
+	}
 	// Omit head as all packages have the DefaultRootDocument prepended at parse time.
 	path := make(Ref, len(pkg.Path)-1)
 	path[0] = VarTerm(string(pkg.Path[1].Value.(String)))
