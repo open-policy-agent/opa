@@ -88,6 +88,23 @@ func TestPackageString(t *testing.T) {
 	if result1 != expected1 {
 		t.Errorf("Expected %v but got %v", expected1, result1)
 	}
+
+	var nilPkg *Package
+
+	expNil := "<illegal nil package>"
+	if nilPkg.String() != expNil {
+		t.Fatal("Unexpected package repr:", nilPkg.String())
+	}
+
+	badPathPkg := &Package{
+		Path: RefTerm(VarTerm("x")).Value.(Ref),
+	}
+
+	expBadPath := "package <illegal path \"x\">"
+	if badPathPkg.String() != expBadPath {
+		t.Fatal("Unexpected package repr:", badPathPkg.String())
+	}
+
 }
 
 func TestImportEquals(t *testing.T) {
