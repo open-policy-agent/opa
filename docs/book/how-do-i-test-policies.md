@@ -221,7 +221,7 @@ If we run the coverage report on the original **example.rego** file without
 that line 8 is not covered.
 
 ```bash
-opa test --cover --format=json example.rego example_test.rego
+opa test --coverage --format=json example.rego example_test.rego
 ```
 
 ```json
