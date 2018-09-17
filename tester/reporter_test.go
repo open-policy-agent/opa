@@ -8,12 +8,10 @@ import (
 
 func TestPrettyReporter(t *testing.T) {
 
-	var badResult interface{} = "fail"
-
 	ts := []*Result{
-		{nil, "data.foo.bar", "test_baz", nil, nil, 0},
-		{nil, "data.foo.bar", "test_qux", nil, fmt.Errorf("some err"), 0},
-		{nil, "data.foo.bar", "test_corge", &badResult, nil, 0},
+		{nil, "data.foo.bar", "test_baz", false, nil, 0},
+		{nil, "data.foo.bar", "test_qux", false, fmt.Errorf("some err"), 0},
+		{nil, "data.foo.bar", "test_corge", true, nil, 0},
 	}
 
 	var buf bytes.Buffer

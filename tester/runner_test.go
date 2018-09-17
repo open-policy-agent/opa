@@ -56,7 +56,7 @@ func TestRun(t *testing.T) {
 			exp, ok := tests[k]
 			if !ok {
 				t.Errorf("Unexpected result for %v", k)
-			} else if exp.wantErr != (rs[i].Error != nil) || exp.wantFail != (rs[i].Fail != nil) {
+			} else if exp.wantErr != (rs[i].Error != nil) || exp.wantFail != rs[i].Fail {
 				t.Errorf("Expected %v for %v but got: %v", exp, k, rs[i])
 			}
 		}

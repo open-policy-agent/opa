@@ -169,7 +169,7 @@ $ opa test --format=json pass_fail_error_test.rego
     },
     "package": "data.example",
     "name": "test_ok",
-    "duration": 610111
+    "duration": 618515
   },
   {
     "location": {
@@ -179,8 +179,8 @@ $ opa test --format=json pass_fail_error_test.rego
     },
     "package": "data.example",
     "name": "test_failure",
-    "fail": false,
-    "duration": 325989
+    "fail": true,
+    "duration": 322177
   },
   {
     "location": {
@@ -199,7 +199,7 @@ $ opa test --format=json pass_fail_error_test.rego
         "col": 5
       }
     },
-    "duration": 325903
+    "duration": 345148
   }
 ]
 ```

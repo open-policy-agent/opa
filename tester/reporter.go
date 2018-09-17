@@ -40,7 +40,7 @@ func (r PrettyReporter) Report(ch chan *Result) error {
 			pass++
 		} else if tr.Error != nil {
 			errs++
-		} else if tr.Fail != nil {
+		} else if tr.Fail {
 			fail++
 		}
 		if !tr.Pass() || r.Verbose {
