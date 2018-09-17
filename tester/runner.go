@@ -51,7 +51,7 @@ type Result struct {
 	Location *ast.Location `json:"location"`
 	Package  string        `json:"package"`
 	Name     string        `json:"name"`
-	Fail     *interface{}  `json:"fail,omitempty"`
+	Fail     bool          `json:"fail,omitempty"`
 	Error    error         `json:"error,omitempty"`
 	Duration time.Duration `json:"duration"`
 }
@@ -67,7 +67,7 @@ func newResult(loc *ast.Location, pkg, name string, duration time.Duration) *Res
 
 // Pass returns true if the test case passed.
 func (r Result) Pass() bool {
-	return r.Fail == nil && r.Error == nil
+	return !r.Fail && r.Error == nil
 }
 
 func (r *Result) String() string {
@@ -78,14 +78,10 @@ func (r *Result) outcome() string {
 	if r.Pass() {
 		return "PASS"
 	}
-	if r.Fail != nil {
+	if r.Fail {
 		return "FAIL"
 	}
 	return "ERROR"
-}
-
-func (r *Result) setFail(fail interface{}) {
-	r.Fail = &fail
 }
 
 // Runner implements simple test discovery and execution.
@@ -184,9 +180,9 @@ func (r *Runner) runTest(ctx context.Context, mod *ast.Module, rule *ast.Rule) (
 			stop = true
 		}
 	} else if len(rs) == 0 {
-		tr.setFail(false)
+		tr.Fail = true
 	} else if b, ok := rs[0].Expressions[0].Value.(bool); !ok || !b {
-		tr.setFail(rs[0].Expressions[0].Value)
+		tr.Fail = true
 	}
 
 	return tr, stop
