@@ -702,18 +702,56 @@ type parserErrorDetail struct {
 }
 
 func newParserErrorDetail(bs []byte, pos position) *parserErrorDetail {
-	lines := strings.Split(string(bs), "\n")
-	line := lines[pos.line-1]
-	idx := pos.col - 1
-	for (idx >= len(line) || unicode.IsSpace(rune(line[idx]))) && idx > 0 {
-		idx--
+
+	offset := pos.offset
+
+	// Find first non-space character at or before offset position.
+	if offset >= len(bs) {
+		offset = len(bs) - 1
+	} else if offset < 0 {
+		offset = 0
 	}
+
+	for offset > 0 && unicode.IsSpace(rune(bs[offset])) {
+		offset--
+	}
+
+	// Find beginning of line containing offset.
+	begin := offset
+
+	for begin > 0 && !isNewLineChar(bs[begin]) {
+		begin--
+	}
+
+	if isNewLineChar(bs[begin]) {
+		begin++
+	}
+
+	// Find end of line containing offset.
+	end := offset
+
+	for end < len(bs) && !isNewLineChar(bs[end]) {
+		end++
+	}
+
+	if begin > end {
+		begin = end
+	}
+
+	// Extract line and compute index of offset byte in line.
+	line := bs[begin:end]
+	index := offset - begin
+
 	return &parserErrorDetail{
-		line: lines[pos.line-1],
-		idx:  idx,
+		line: string(line),
+		idx:  index,
 	}
 }
 
 func (d parserErrorDetail) Lines() []string {
 	return []string{d.line, strings.Repeat(" ", d.idx) + "^"}
+}
+
+func isNewLineChar(b byte) bool {
+	return b == '\r' || b == '\n'
 }
