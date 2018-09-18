@@ -1420,6 +1420,16 @@ func TestParseErrorDetails(t *testing.T) {
 		input string
 	}{
 		{
+			note: "no match: bad rule name",
+			exp: &parserErrorDetail{
+				line: ".",
+				idx:  0,
+			},
+			input: `
+package test
+.`,
+		},
+		{
 			note: "no match: bad termination for comprehension",
 			exp: &parserErrorDetail{
 				line: "p = [true | true}",
