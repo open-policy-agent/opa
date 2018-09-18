@@ -570,7 +570,7 @@ func (r *REPL) compileBody(ctx context.Context, compiler *ast.Compiler, body ast
 	return body, qc.TypeEnv(), err
 }
 
-func (r *REPL) compileRule(ctx context.Context, rule *ast.Rule) error {
+func (r *REPL) compileRule(ctx context.Context, rule *ast.Rule, unset bool) error {
 	r.timerStart(metrics.RegoModuleCompile)
 	defer r.timerStop(metrics.RegoModuleCompile)
 
@@ -596,6 +596,18 @@ func (r *REPL) compileRule(ctx context.Context, rule *ast.Rule) error {
 	if compiler.Compile(policies); compiler.Failed() {
 		mod.Rules = prev
 		return compiler.Errors
+	}
+
+	switch r.outputFormat {
+	case "json":
+	default:
+		var msg string
+		if unset {
+			msg = "re-defined"
+		} else {
+			msg = "defined"
+		}
+		fmt.Fprintf(r.output, "Rule '%v' %v in %v. Type 'show' to see rules.\n", rule.Head.Name, msg, mod.Package)
 	}
 
 	return nil
@@ -724,10 +736,11 @@ func (r *REPL) evalStatement(ctx context.Context, stmt interface{}) error {
 			expr := parsedBody[0]
 			rule, err := ast.ParseCompleteDocRuleFromEqExpr(r.modules[r.currentModuleID], expr.Operand(0), expr.Operand(1))
 			if err == nil {
-				if _, err := r.unsetRule(ctx, rule.Head.Name); err != nil {
+				ok, err := r.unsetRule(ctx, rule.Head.Name)
+				if err != nil {
 					return err
 				}
-				return r.compileRule(ctx, rule)
+				return r.compileRule(ctx, rule, ok)
 			}
 		}
 
@@ -740,7 +753,7 @@ func (r *REPL) evalStatement(ctx context.Context, stmt interface{}) error {
 			expr := compiledBody[0]
 			rule, err := ast.ParseCompleteDocRuleFromEqExpr(r.modules[r.currentModuleID], expr.Operand(0), expr.Operand(1))
 			if err == nil {
-				return r.compileRule(ctx, rule)
+				return r.compileRule(ctx, rule, false)
 			}
 		}
 
@@ -755,7 +768,7 @@ func (r *REPL) evalStatement(ctx context.Context, stmt interface{}) error {
 
 		return err
 	case *ast.Rule:
-		return r.compileRule(ctx, s)
+		return r.compileRule(ctx, s, false)
 	case *ast.Import:
 		return r.evalImport(s)
 	case *ast.Package:
