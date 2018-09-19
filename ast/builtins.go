@@ -157,6 +157,9 @@ var DefaultBuiltins = [...]*Builtin{
 
 	// Tracing
 	Trace,
+
+	// CIDR
+	NetCIDROverlap,
 }
 
 // BuiltinMap provides a convenient mapping of built-in names to
@@ -1250,6 +1253,22 @@ var Union = &Builtin{
 			types.NewSet(types.NewSet(types.A)),
 		),
 		types.NewSet(types.A),
+	),
+}
+
+/**
+ * Net CIDR
+ */
+
+// NetCIDROverlap checks if an ip overlaps with cidr and returns true or false
+var NetCIDROverlap = &Builtin{
+	Name: "net.cidr_overlap",
+	Decl: types.NewFunction(
+		types.Args(
+			types.S,
+			types.S,
+		),
+		types.B,
 	),
 }
 
