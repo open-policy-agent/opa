@@ -80,6 +80,7 @@ var DefaultBuiltins = [...]*Builtin{
 	RegexMatch,
 	RegexSplit,
 	GlobsMatch,
+	RegexTemplateMatch,
 
 	// Sets
 	SetDiff,
@@ -587,6 +588,21 @@ var RegexMatch = &Builtin{
 	Name: "re_match",
 	Decl: types.NewFunction(
 		types.Args(
+			types.S,
+			types.S,
+		),
+		types.B,
+	),
+}
+
+// RegexTemplateMatch takes two strings and evaluates to true if the string in the second
+// position matches the pattern in the first position.
+var RegexTemplateMatch = &Builtin{
+	Name: "regex.template_match",
+	Decl: types.NewFunction(
+		types.Args(
+			types.S,
+			types.S,
 			types.S,
 			types.S,
 		),
