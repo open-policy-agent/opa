@@ -1092,6 +1092,59 @@ func TestTopDownPartialEval(t *testing.T) {
 			},
 		},
 		{
+			note:  "negation: support safety without args",
+			query: "data.test.p = true",
+			modules: []string{
+				`package test
+
+				p {
+					q
+					not r
+				}
+
+				q {
+					input.x[i] = a
+					startswith(a, "foo")
+				}
+
+				r {
+					input.y[i] = 1
+				}`,
+			},
+			wantQueries: []string{`startswith(input.x[i2], "foo"); not data.partial.__not1_1__`},
+			wantSupport: []string{
+				`package partial
+
+				__not1_1__ { input.y[i4] = 1 }`,
+			},
+		},
+		{
+			note:  "negation: support safety with args",
+			query: "data.test.p = true",
+			modules: []string{
+				`package test
+
+				p {
+					input.x = x; not f(x)
+				}
+
+				f(x) {
+					input.y[i] = a
+					sort(x, z)
+					z[a] = 1
+				}`,
+			},
+			wantQueries: []string{`not data.partial.__not1_1__(input.x)`},
+			wantSupport: []string{`
+				package partial
+
+				__not1_1__(x1) {
+					sort(x1, z3)
+					z3[input.y[i3]] = 1
+				}
+			`},
+		},
+		{
 			note:  "negation: inline safety with live var",
 			query: "input = x; not data.test.f(x)",
 			modules: []string{

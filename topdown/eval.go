@@ -380,6 +380,14 @@ func (e *eval) evalNotPartialSupport(expr *ast.Expr, unknowns ast.VarSet, querie
 	path := term.Value.(ast.Ref)
 	head := ast.NewHead(ast.Var(supportName), nil, ast.BooleanTerm(true))
 
+	bodyVars := ast.NewVarSet()
+
+	for _, q := range queries {
+		bodyVars.Update(q.Vars(ast.VarVisitorParams{}))
+	}
+
+	unknowns = unknowns.Intersect(bodyVars)
+
 	// Make rule args. Sort them to ensure order is deterministic.
 	args := make([]*ast.Term, 0, len(unknowns))
 
