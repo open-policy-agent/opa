@@ -45,6 +45,12 @@ complex types.
 | <span class="opa-keep-it-together">``all(array_or_set, output)``</span> | 1 | ``output`` is ``true`` if all of the values in ``array_or_set`` are ``true``. A collection of length 0 returns ``true``.|
 | <span class="opa-keep-it-together">``any(array_or_set, output)``</span> | 1 | ``output`` is ``true`` if any of the values in ``array_or_set`` is ``true``. A collection of length 0 returns ``false``.|
 
+### Arrays
+
+| Built-in | Inputs | Description |
+| ------- |--------|-------------|
+| <span class="opa-keep-it-together">``array.concat(array, array, output)``</span> | 2 | ``output`` is the result of concatenating the two input arrays together. |
+
 ### Sets
 
 | Built-in | Inputs | Description |
