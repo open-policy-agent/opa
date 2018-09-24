@@ -131,14 +131,14 @@ The input `string` is a JSON Web Token encoded with JWS Compact Serialization. J
 
 For ``io.jwt.decode_verify``, ``constraints`` is an object with the following members:
 
-| Name | Meaning |
-| ----- | ------- |
-| ``cert`` | A PEM encoded certificate containing an RSA or ECDSA public key. |
-| ``secret`` | The secret key for HS256, HS384 and HS512 verification. |
-| ``alg`` | The JWA algorithm name to use. Optional. If it is absent then any algorithm that is compatible with the key is accepted. |
-| ``iss`` | The issuer string. Optional. If it is present the only tokens with this issuer are accepted. If it is absent then any issuer is accepted. |
-|``time`` | The time in nanoseconds to verify the token at. Optional. If this is present then the ``exp`` and ``nbf`` claims are compared against this value. If it is absent then they are compared against the current time. |
-|``aud`` | The audience that the verifier identifies with. Optional. If this is present then the ``aud`` claim is checked against it. If it is absent then the ``aud`` claim must be absent too. |
+| Name | Meaning | Required |
+| ---- | ------- | -------- |
+| ``cert`` | A PEM encoded certificate containing an RSA or ECDSA public key. | See below |
+| ``secret`` | The secret key for HS256, HS384 and HS512 verification. | See below |
+| ``alg`` | The JWA algorithm name to use. If it is absent then any algorithm that is compatible with the key is accepted. | Optional |
+| ``iss`` | The issuer string. If it is present the only tokens with this issuer are accepted. If it is absent then any issuer is accepted. | Optional |
+|``time`` | The time in nanoseconds to verify the token at. If this is present then the ``exp`` and ``nbf`` claims are compared against this value. If it is absent then they are compared against the current time. | Optional |
+|``aud`` | The audience that the verifier identifies with.  If this is present then the ``aud`` claim is checked against it. If it is absent then the ``aud`` claim must be absent too. | Optional |
 
 Exactly one of ``cert`` and ``secret`` must be present.
 If there are any unrecognized constraints then the token is considered invalid.
