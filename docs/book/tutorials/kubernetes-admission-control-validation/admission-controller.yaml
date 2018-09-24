@@ -78,7 +78,7 @@ spec:
         # authentication and authorization on the daemon. See the Security page for
         # details: https://www.openpolicyagent.org/docs/security.html.
         - name: opa
-          image: openpolicyagent/opa:0.9.1
+          image: openpolicyagent/opa:0.9.2
           args:
             - "run"
             - "--server"
