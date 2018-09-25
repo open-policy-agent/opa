@@ -132,8 +132,23 @@ complex types.
 | <span class="opa-keep-it-together">``io.jwt.verify_es256(string, certificate, output)``</span> | 1 | ``output`` is ``true`` if the ES256 signature of the input token is valid. ``certificate`` is the PEM encoded certificate used to verify the ES256 signature|
 | <span class="opa-keep-it-together">``io.jwt.verify_hs256(string, secret, output)``</span> | 1 | ``output`` is ``true`` if the Secret signature of the input token is valid. ``secret`` is a plain text secret used to verify the HS256 signature|
 | <span class="opa-keep-it-together">``io.jwt.decode(string, [header, payload, sig])``</span> | 1 | ``header`` and ``payload`` are ``object``. ``signature`` is the hexadecimal representation of the signature on the token. |
+| <span class="opa-keep-it-together">``io.jwt.decode_verify(string, constraints, [valid, header, payload])``</span> | 2 | If the input token verifies and meets the requirements of ``constraints`` then ``valid`` is ``true`` and ``header`` and ``payload`` are objects containing the JOSE header and the JWT claim set. Otherwise, ``valid`` is ``false`` and ``header`` and ``payload`` are ``{}``. |
 
 The input `string` is a JSON Web Token encoded with JWS Compact Serialization. JWE and JWS JSON Serialization are not supported. If nested signing was used, the ``header``, ``payload`` and ``signature`` will represent the most deeply nested token.
+
+For ``io.jwt.decode_verify``, ``constraints`` is an object with the following members:
+
+| Name | Meaning | Required |
+| ---- | ------- | -------- |
+| ``cert`` | A PEM encoded certificate containing an RSA or ECDSA public key. | See below |
+| ``secret`` | The secret key for HS256, HS384 and HS512 verification. | See below |
+| ``alg`` | The JWA algorithm name to use. If it is absent then any algorithm that is compatible with the key is accepted. | Optional |
+| ``iss`` | The issuer string. If it is present the only tokens with this issuer are accepted. If it is absent then any issuer is accepted. | Optional |
+|``time`` | The time in nanoseconds to verify the token at. If this is present then the ``exp`` and ``nbf`` claims are compared against this value. If it is absent then they are compared against the current time. | Optional |
+|``aud`` | The audience that the verifier identifies with.  If this is present then the ``aud`` claim is checked against it. If it is absent then the ``aud`` claim must be absent too. | Optional |
+
+Exactly one of ``cert`` and ``secret`` must be present.
+If there are any unrecognized constraints then the token is considered invalid.
 
 ### Time
 
