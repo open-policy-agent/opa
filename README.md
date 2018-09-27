@@ -77,7 +77,33 @@ This example shows how you can enforce access controls over salary information
 served by a simple HTTP API. In this example, users are allowed to access their
 own salary as well as the salary of anyone who reports to them.
 
+The management chain is represented in JSON and stored in a file (`data.json`):
+
+```json
+{
+    "management_chain": {
+        "bob": [
+            "ken",
+            "janet"
+        ],
+        "alice": [
+            "janet"
+        ]
+    }
+}
+```
+
+Start OPA and load the `data.json` file:
+
+```bash
+opa run data.json
+```
+
+Inside the REPL you can define rules and execute queries. Paste the following rules into the REPL.
+
 ```ruby
+default allow = false
+
 allow {
     input.method = "GET"
     input.path = ["salary", id]
@@ -88,7 +114,7 @@ allow {
     input.method = "GET"
     input.path = ["salary", id]
     managers = data.management_chain[id]
-    id = managers[_]
+    input.user_id = managers[_]
 }
 ```
 
@@ -97,7 +123,7 @@ allow {
 **Is someone allowed to access their own salary?**
 
 ```ruby
-> input = {"method": "GET", "path": ["salary", "bob"], "user_id": "bob"}
+> input := {"method": "GET", "path": ["salary", "bob"], "user_id": "bob"}
 > allow
 true
 ```
@@ -115,7 +141,7 @@ true
 **Is Alice allowed to access Bob's salary?**
 
 ```ruby
-> input = {"method": "GET", "path": ["salary", "bob"], "user_id": "alice"}
+> input := {"method": "GET", "path": ["salary", "bob"], "user_id": "alice"}
 > allow
 false
 ```
@@ -123,7 +149,7 @@ false
 **Is Janet allowed to access Bob's salary?**
 
 ```ruby
-> input = {"method": "GET", "path": ["salary", "alice"], "user_id": "janet"}
+> input := {"method": "GET", "path": ["salary", "bob"], "user_id": "janet"}
 > allow
 true
 ```
@@ -165,7 +191,7 @@ satisfies_pci(app, cluster) {
 **Where will this app be deployed?**
 
 ```ruby
-> input = {"app": {"tags": {"requires-pci-level": "3", "requires-eu": "true"}}}
+> input := {"app": {"tags": {"requires-pci-level": "3", "requires-eu": "true"}}}
 > app_placement
 [
     "prod-eu"
