@@ -16,6 +16,8 @@ import (
 	"github.com/ghodss/yaml"
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/bundle"
+	"github.com/open-policy-agent/opa/storage"
+	"github.com/open-policy-agent/opa/storage/inmem"
 	"github.com/open-policy-agent/opa/util"
 	"github.com/pkg/errors"
 )
@@ -25,6 +27,31 @@ type Result struct {
 	Documents map[string]interface{}
 	Modules   map[string]*RegoFile
 	path      []string
+}
+
+// ParsedModules returns the parsed modules stored on the result.
+func (l *Result) ParsedModules() map[string]*ast.Module {
+	modules := make(map[string]*ast.Module)
+	for _, module := range l.Modules {
+		modules[module.Name] = module.Parsed
+	}
+	return modules
+}
+
+// Compiler returns a Compiler object with the compiled modules from this loader
+// result.
+func (l *Result) Compiler() (*ast.Compiler, error) {
+	compiler := ast.NewCompiler()
+	compiler.Compile(l.ParsedModules())
+	if compiler.Failed() {
+		return nil, compiler.Errors
+	}
+	return compiler, nil
+}
+
+// Store returns a Store object with the documents from this loader result.
+func (l *Result) Store() (storage.Store, error) {
+	return inmem.NewFromObject(l.Documents), nil
 }
 
 // RegoFile represents the result of loading a single Rego source file.
