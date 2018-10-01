@@ -6,6 +6,7 @@
 package tester
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"sort"
@@ -54,14 +55,16 @@ type Result struct {
 	Fail     bool          `json:"fail,omitempty"`
 	Error    error         `json:"error,omitempty"`
 	Duration time.Duration `json:"duration"`
+	Trace    string        `json:"trace,omitempty"`
 }
 
-func newResult(loc *ast.Location, pkg, name string, duration time.Duration) *Result {
+func newResult(loc *ast.Location, pkg, name string, duration time.Duration, trace string) *Result {
 	return &Result{
 		Location: loc,
 		Package:  pkg,
 		Name:     name,
 		Duration: duration,
+		Trace:    trace,
 	}
 }
 
@@ -171,7 +174,17 @@ func (r *Runner) runTest(ctx context.Context, mod *ast.Module, rule *ast.Rule) (
 	rs, err := rego.Eval(ctx)
 	dt := time.Since(t0)
 
-	tr := newResult(rule.Loc(), mod.Package.Path.String(), string(rule.Head.Name), dt)
+	var trace string
+	if btr, ok := r.tracer.(*topdown.BufferTracer); ok {
+		buf := bytes.Buffer{}
+		topdown.PrettyTrace(&buf, *btr)
+		trace = buf.String()
+
+		// "reset" tracer
+		r.tracer = topdown.NewBufferTracer()
+	}
+
+	tr := newResult(rule.Loc(), mod.Package.Path.String(), string(rule.Head.Name), dt, trace)
 	var stop bool
 
 	if err != nil {

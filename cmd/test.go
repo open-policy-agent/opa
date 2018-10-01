@@ -13,6 +13,7 @@ import (
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/cover"
 	"github.com/open-policy-agent/opa/tester"
+	"github.com/open-policy-agent/opa/topdown"
 	"github.com/open-policy-agent/opa/util"
 	"github.com/spf13/cobra"
 )
@@ -118,6 +119,9 @@ func opaTest(args []string) int {
 	if testParams.coverage {
 		coverTracer = cover.New()
 		runner = runner.SetTracer(coverTracer)
+	} else if testParams.verbose ||
+		testParams.outputFormat.String() == testJSONOutput {
+		runner = runner.SetTracer(topdown.NewBufferTracer())
 	}
 
 	ch, err := runner.Run(ctx, modules)
