@@ -6,7 +6,6 @@
 package tester
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"sort"
@@ -49,16 +48,16 @@ func RunWithFilter(ctx context.Context, filter loader.Filter, paths ...string) (
 
 // Result represents a single test case result.
 type Result struct {
-	Location *ast.Location `json:"location"`
-	Package  string        `json:"package"`
-	Name     string        `json:"name"`
-	Fail     bool          `json:"fail,omitempty"`
-	Error    error         `json:"error,omitempty"`
-	Duration time.Duration `json:"duration"`
-	Trace    string        `json:"trace,omitempty"`
+	Location *ast.Location    `json:"location"`
+	Package  string           `json:"package"`
+	Name     string           `json:"name"`
+	Fail     bool             `json:"fail,omitempty"`
+	Error    error            `json:"error,omitempty"`
+	Duration time.Duration    `json:"duration"`
+	Trace    []*topdown.Event `json:"trace,omitempty"`
 }
 
-func newResult(loc *ast.Location, pkg, name string, duration time.Duration, trace string) *Result {
+func newResult(loc *ast.Location, pkg, name string, duration time.Duration, trace []*topdown.Event) *Result {
 	return &Result{
 		Location: loc,
 		Package:  pkg,
@@ -174,14 +173,11 @@ func (r *Runner) runTest(ctx context.Context, mod *ast.Module, rule *ast.Rule) (
 	rs, err := rego.Eval(ctx)
 	dt := time.Since(t0)
 
-	var trace string
-	if btr, ok := r.tracer.(*topdown.BufferTracer); ok {
-		buf := bytes.Buffer{}
-		topdown.PrettyTrace(&buf, *btr)
-		trace = buf.String()
+	var trace []*topdown.Event
 
-		// "reset" tracer
-		r.tracer = topdown.NewBufferTracer()
+	if buf, ok := r.tracer.(*topdown.BufferTracer); ok {
+		trace = *buf
+		r.tracer = topdown.NewBufferTracer() // reset the tracer for each run
 	}
 
 	tr := newResult(rule.Loc(), mod.Package.Path.String(), string(rule.Head.Name), dt, trace)
