@@ -28,7 +28,7 @@ func TestPrettyReporterVerbose(t *testing.T) {
 --------------------------------------------------------------------------------
 data.foo.bar.test_corge: FAIL (0s)
 
-trace test_corge
+  trace test_corge
 
 SUMMARY
 --------------------------------------------------------------------------------

@@ -54,7 +54,7 @@ func (r PrettyReporter) Report(ch chan *Result) error {
 		for _, failure := range failures {
 			fmt.Fprintln(r.Output, failure)
 			fmt.Fprintln(r.Output)
-			fmt.Fprintln(r.Output, failure.Trace) // TODO: indent
+			fmt.Fprintln(newIndentingWriter(r.Output), failure.Trace)
 		}
 
 		fmt.Fprintln(r.Output, "\nSUMMARY")
@@ -140,4 +140,37 @@ func (r JSONCoverageReporter) Report(ch chan *Result) error {
 	encoder := json.NewEncoder(r.Output)
 	encoder.SetIndent("", "  ")
 	return encoder.Encode(report)
+}
+
+type indentingWriter struct {
+	w io.Writer
+}
+
+func newIndentingWriter(w io.Writer) indentingWriter {
+	return indentingWriter{
+		w: w,
+	}
+}
+
+func (w indentingWriter) Write(bs []byte) (int, error) {
+	var written int
+	// insert indentation at the start of every line.
+	indent := true
+	for _, b := range bs {
+		if indent {
+			wrote, err := w.w.Write([]byte("  "))
+			if err != nil {
+				return written, err
+			}
+			written += wrote
+			indent = false
+		}
+		wrote, err := w.w.Write([]byte{b})
+		if err != nil {
+			return written, err
+		}
+		written += wrote
+		indent = b == '\n'
+	}
+	return written, nil
 }
