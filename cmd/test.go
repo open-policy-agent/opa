@@ -110,19 +110,19 @@ func opaTest(args []string) int {
 		return 1
 	}
 
-	runner := tester.NewRunner().
-		SetCompiler(compiler).
-		SetStore(store)
-
-	var coverTracer *cover.Cover
+	var cov *cover.Cover
+	var coverTracer topdown.Tracer
 
 	if testParams.coverage {
-		coverTracer = cover.New()
-		runner = runner.SetTracer(coverTracer)
-	} else if testParams.verbose ||
-		testParams.outputFormat.String() == testJSONOutput {
-		runner = runner.SetTracer(topdown.NewBufferTracer())
+		cov = cover.New()
+		coverTracer = cov
 	}
+
+	runner := tester.NewRunner().
+		SetCompiler(compiler).
+		SetStore(store).
+		EnableTracing(testParams.verbose).
+		SetCoverageTracer(coverTracer)
 
 	ch, err := runner.Run(ctx, modules)
 	if err != nil {
@@ -146,7 +146,7 @@ func opaTest(args []string) int {
 		}
 	} else {
 		reporter = tester.JSONCoverageReporter{
-			Cover:   coverTracer,
+			Cover:   cov,
 			Modules: modules,
 			Output:  os.Stdout,
 		}
@@ -177,7 +177,7 @@ func init() {
 	testCommand.Flags().BoolVarP(&testParams.verbose, "verbose", "v", false, "set verbose reporting mode")
 	testCommand.Flags().DurationVarP(&testParams.timeout, "timeout", "t", time.Second*5, "set test timeout")
 	testCommand.Flags().VarP(testParams.outputFormat, "format", "f", "set output format")
-	testCommand.Flags().BoolVarP(&testParams.coverage, "coverage", "c", false, "report coverage")
+	testCommand.Flags().BoolVarP(&testParams.coverage, "coverage", "c", false, "report coverage (overrides debug tracing)")
 	setMaxErrors(testCommand.Flags(), &testParams.errLimit)
 	setIgnore(testCommand.Flags(), &testParams.ignore)
 	RootCommand.AddCommand(testCommand)
