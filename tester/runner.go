@@ -90,7 +90,8 @@ func (r *Result) outcome() string {
 type Runner struct {
 	compiler *ast.Compiler
 	store    storage.Store
-	tracer   topdown.Tracer
+	cover    topdown.Tracer
+	trace    bool
 }
 
 // NewRunner returns a new runner.
@@ -110,9 +111,22 @@ func (r *Runner) SetStore(store storage.Store) *Runner {
 	return r
 }
 
-// SetTracer sets the tracer to use during test execution.
-func (r *Runner) SetTracer(tracer topdown.Tracer) *Runner {
-	r.tracer = tracer
+// SetCoverageTracer sets the tracer to use to compute coverage.
+func (r *Runner) SetCoverageTracer(tracer topdown.Tracer) *Runner {
+	r.cover = tracer
+	if r.cover != nil {
+		r.trace = false
+	}
+	return r
+}
+
+// EnableTracing enables tracing of evaluatation and includes traces in results.
+// Tracing is currently mutually exclusive with coverage.
+func (r *Runner) EnableTracing(yes bool) *Runner {
+	r.trace = yes
+	if r.trace {
+		r.cover = nil
+	}
 	return r
 }
 
@@ -162,11 +176,21 @@ func (r *Runner) Run(ctx context.Context, modules map[string]*ast.Module) (ch ch
 
 func (r *Runner) runTest(ctx context.Context, mod *ast.Module, rule *ast.Rule) (*Result, bool) {
 
+	var bufferTracer *topdown.BufferTracer
+	var tracer topdown.Tracer
+
+	if r.cover != nil {
+		tracer = r.cover
+	} else if r.trace {
+		bufferTracer = topdown.NewBufferTracer()
+		tracer = bufferTracer
+	}
+
 	rego := rego.New(
 		rego.Store(r.store),
 		rego.Compiler(r.compiler),
 		rego.Query(rule.Path().String()),
-		rego.Tracer(r.tracer),
+		rego.Tracer(tracer),
 	)
 
 	t0 := time.Now()
@@ -175,9 +199,8 @@ func (r *Runner) runTest(ctx context.Context, mod *ast.Module, rule *ast.Rule) (
 
 	var trace []*topdown.Event
 
-	if buf, ok := r.tracer.(*topdown.BufferTracer); ok {
-		trace = *buf
-		r.tracer = topdown.NewBufferTracer() // reset the tracer for each run
+	if bufferTracer != nil {
+		trace = *bufferTracer
 	}
 
 	tr := newResult(rule.Loc(), mod.Package.Path.String(), string(rule.Head.Name), dt, trace)
