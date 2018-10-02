@@ -11,6 +11,8 @@ import (
 	"io"
 	"strings"
 
+	"github.com/open-policy-agent/opa/topdown"
+
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/cover"
 )
@@ -54,10 +56,11 @@ func (r PrettyReporter) Report(ch chan *Result) error {
 		for _, failure := range failures {
 			fmt.Fprintln(r.Output, failure)
 			fmt.Fprintln(r.Output)
-			fmt.Fprintln(newIndentingWriter(r.Output), failure.Trace)
+			topdown.PrettyTrace(newIndentingWriter(r.Output), failure.Trace)
+			fmt.Fprintln(r.Output)
 		}
 
-		fmt.Fprintln(r.Output, "\nSUMMARY")
+		fmt.Fprintln(r.Output, "SUMMARY")
 		r.hl()
 	}
 
