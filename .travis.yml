@@ -11,6 +11,7 @@ services:
 - docker
 deploy:
   - provider: script
+    skip_cleanup: true
     script: make deploy-travis
     on:
       repo: open-policy-agent/opa
