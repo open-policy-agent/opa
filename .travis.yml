@@ -10,13 +10,25 @@ env:
 services:
 - docker
 deploy:
+
+
+  # This deployment is mutually exclusive with the next deployment. This
+  # deployment builds and publishes the docker image whenever changes are
+  # committed to master. The latest tag is not updated.
   - provider: script
-    skip_cleanup: true
+    skip_cleanup: true  # do not delete artifacts because linux executable is needed
     script: make deploy-travis
     on:
       repo: open-policy-agent/opa
       branch: master
+      tags: false
+
+  # This deployment is mutually exclusive with the previous deployment. This
+  # deployment builds and publishes the docker image whenver a new tag is
+  # created. The latest tag is updated to point to the image produced by this
+  # deployment.
   - provider: script
+    skip_cleanup: true  # do not delete artifacts because linux executable is needed
     script: make release-travis
     on:
       repo: open-policy-agent/opa

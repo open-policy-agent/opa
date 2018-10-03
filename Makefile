@@ -88,7 +88,7 @@ docker-login:
 deploy-travis: docker-login image-quick push
 
 .PHONY: release-travis
-release-travis: docker-login tag-latest push-latest
+release-travis: deploy-travis tag-latest push-latest
 
 .PHONY: install
 install: generate
