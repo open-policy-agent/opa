@@ -32,6 +32,9 @@ func TestRun(t *testing.T) {
 			test_err { conflict }
 			conflict = true
 			conflict = false
+			test_duplicate { false }
+			test_duplicate { true }
+			test_duplicate { true }
 			`,
 	}
 
@@ -42,6 +45,9 @@ func TestRun(t *testing.T) {
 		{"data.foo", "test_pass"}:          {false, false},
 		{"data.foo", "test_fail"}:          {false, true},
 		{"data.foo", "test_fail_non_bool"}: {false, true},
+		{"data.foo", "test_duplicate"}:     {false, true},
+		{"data.foo", "test_duplicate#01"}:  {false, false},
+		{"data.foo", "test_duplicate#02"}:  {false, false},
 		{"data.foo", "test_err"}:           {true, false},
 	}
 
