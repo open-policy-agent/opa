@@ -133,6 +133,21 @@ func (r *Runner) EnableTracing(yes bool) *Runner {
 // Run executes all tests contained in supplied modules.
 func (r *Runner) Run(ctx context.Context, modules map[string]*ast.Module) (ch chan *Result, err error) {
 
+	// rewrite duplicate test_* rule names
+	count := map[string]int{}
+	for _, mod := range modules {
+		for _, rule := range mod.Rules {
+			name := rule.Head.Name.String()
+			if !strings.HasPrefix(name, TestPrefix) {
+				continue
+			}
+			if k, ok := count[name]; ok {
+				rule.Head.Name = ast.Var(fmt.Sprintf("%s#%02d", name, k))
+			}
+			count[name]++
+		}
+	}
+
 	if r.compiler == nil {
 		r.compiler = ast.NewCompiler()
 	}
