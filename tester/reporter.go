@@ -166,7 +166,6 @@ func (w indentingWriter) Write(bs []byte) (int, error) {
 				return written, err
 			}
 			written += wrote
-			indent = false
 		}
 		wrote, err := w.w.Write([]byte{b})
 		if err != nil {
