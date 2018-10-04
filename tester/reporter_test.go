@@ -1,4 +1,4 @@
-package tester
+package tester_test
 
 import (
 	"bytes"
@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/tester"
 	"github.com/open-policy-agent/opa/topdown"
 	"github.com/open-policy-agent/opa/util"
 )
@@ -27,13 +28,13 @@ func TestPrettyReporterVerbose(t *testing.T) {
 
 	// supply fake trace events for each kind of event to ensure that only failures
 	// report traces.
-	ts := []*Result{
+	ts := []*tester.Result{
 		{nil, "data.foo.bar", "test_baz", false, nil, 0, getFakeTraceEvents()},
 		{nil, "data.foo.bar", "test_qux", false, fmt.Errorf("some err"), 0, getFakeTraceEvents()},
 		{nil, "data.foo.bar", "test_corge", true, nil, 0, getFakeTraceEvents()},
 	}
 
-	r := PrettyReporter{
+	r := tester.PrettyReporter{
 		Output:  &buf,
 		Verbose: true,
 	}
@@ -71,13 +72,13 @@ func TestPrettyReporter(t *testing.T) {
 
 	// supply fake trace events to verify that traces are suppressed without verbose
 	// flag.
-	ts := []*Result{
+	ts := []*tester.Result{
 		{nil, "data.foo.bar", "test_baz", false, nil, 0, getFakeTraceEvents()},
 		{nil, "data.foo.bar", "test_qux", false, fmt.Errorf("some err"), 0, getFakeTraceEvents()},
 		{nil, "data.foo.bar", "test_corge", true, nil, 0, getFakeTraceEvents()},
 	}
 
-	r := PrettyReporter{
+	r := tester.PrettyReporter{
 		Output:  &buf,
 		Verbose: false,
 	}
@@ -102,13 +103,13 @@ ERROR: 1/3
 
 func TestJSONReporter(t *testing.T) {
 	var buf bytes.Buffer
-	ts := []*Result{
+	ts := []*tester.Result{
 		{nil, "data.foo.bar", "test_baz", false, nil, 0, getFakeTraceEvents()},
 		{nil, "data.foo.bar", "test_qux", false, fmt.Errorf("some err"), 0, getFakeTraceEvents()},
 		{nil, "data.foo.bar", "test_corge", true, nil, 0, getFakeTraceEvents()},
 	}
 
-	r := JSONReporter{
+	r := tester.JSONReporter{
 		Output: &buf,
 	}
 
@@ -241,8 +242,8 @@ func TestJSONReporter(t *testing.T) {
 	}
 }
 
-func resultsChan(ts []*Result) chan *Result {
-	ch := make(chan *Result)
+func resultsChan(ts []*tester.Result) chan *tester.Result {
+	ch := make(chan *tester.Result)
 	go func() {
 		for _, tr := range ts {
 			ch <- tr
