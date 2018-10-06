@@ -6,9 +6,14 @@
 package rego
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"strings"
+
+	"github.com/open-policy-agent/opa/internal/compiler/wasm"
+	"github.com/open-policy-agent/opa/internal/planner"
+	"github.com/open-policy-agent/opa/internal/wasm/encoding"
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/metrics"
@@ -19,6 +24,12 @@ import (
 )
 
 const defaultPartialNamespace = "partial"
+
+// CompileResult represents sthe result of compiling a Rego query, zero or more
+// Rego modules, and arbitrary contextual data into an executable.
+type CompileResult struct {
+	Bytes []byte `json:"bytes"`
+}
 
 // PartialQueries contains the queries and support modules produced by partial
 // evaluation.
@@ -440,6 +451,41 @@ func (r *Rego) Partial(ctx context.Context) (*PartialQueries, error) {
 	}
 
 	return r.partial(ctx, compiled, txn, partialNamespace)
+}
+
+// Compile returnss a compiled policy query.
+func (r *Rego) Compile(ctx context.Context) (*CompileResult, error) {
+
+	pq, err := r.Partial(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(pq.Support) > 0 {
+		return nil, fmt.Errorf("modules not supported")
+	}
+
+	policy, err := planner.New().WithQueries(pq.Queries).Plan()
+	if err != nil {
+		return nil, err
+	}
+
+	m, err := wasm.New().WithPolicy(policy).Compile()
+	if err != nil {
+		return nil, err
+	}
+
+	var out bytes.Buffer
+
+	if err := encoding.WriteModule(&out, m); err != nil {
+		return nil, err
+	}
+
+	result := &CompileResult{
+		Bytes: out.Bytes(),
+	}
+
+	return result, nil
 }
 
 func (r *Rego) parse() (map[string]*ast.Module, ast.Body, error) {
