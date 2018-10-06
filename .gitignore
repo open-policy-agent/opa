@@ -9,6 +9,7 @@ opa_*
 .Dockerfile_*
 _release
 site.tar.gz
+policy.wasm
 
 # runtime artifacts
 policies
