@@ -8,6 +8,7 @@ coverage
 opa_*
 .Dockerfile_*
 _release
+wasm/_obj
 site.tar.gz
 policy.wasm
 
