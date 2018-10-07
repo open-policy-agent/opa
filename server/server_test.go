@@ -1170,6 +1170,32 @@ func TestIndexGetEscaped(t *testing.T) {
 
 }
 
+func TestVersionGet(t *testing.T) {
+
+	/*
+		Example of GET version:
+
+	    Version: 0.9.3-dev
+		Build Commit: c5171ed5-dirty
+		Build Timestamp: 2018-10-07T02:12:58Z
+		Build Hostname: JOHNDOE-M-9130
+	*/
+
+	f := newFixture(t)
+
+	get := newReqV1(http.MethodGet, "/data/system/version", "")
+	f.server.Handler.ServeHTTP(f.recorder, get)
+	if f.recorder.Code != 200 {
+		t.Fatalf("Expected OK but got %v", f.recorder)
+	}
+
+	page := f.recorder.Body.String()
+	if !strings.Contains(page, "Version: ") {
+		t.Errorf("Expected page to contain 'Version' but got: %v", page)
+		return
+	}
+}
+
 func TestIndexGet(t *testing.T) {
 	f := newFixture(t)
 	get, err := http.NewRequest(http.MethodGet, `/?q=foo = 1&input=`, strings.NewReader(""))

@@ -132,6 +132,7 @@ func New() *Server {
 	router.Handle("/metrics", promhttp.HandlerFor(promRegistry, promhttp.HandlerOpts{})).Methods(http.MethodGet)
 	s.registerHandler(router, 0, "/data/{path:.+}", http.MethodPost, promhttp.InstrumentHandlerDuration(v0DataDur, http.HandlerFunc(s.v0DataPost)))
 	s.registerHandler(router, 0, "/data", http.MethodPost, promhttp.InstrumentHandlerDuration(v0DataDur, http.HandlerFunc(s.v0DataPost)))
+	s.registerHandler(router, 1, "/data/system/version", http.MethodGet, promhttp.InstrumentHandlerDuration(v1DataDur, http.HandlerFunc(s.v1VersionGet)))
 	s.registerHandler(router, 1, "/data/system/diagnostics", http.MethodGet, promhttp.InstrumentHandlerDuration(v1DataDur, http.HandlerFunc(s.v1DiagnosticsGet)))
 	s.registerHandler(router, 1, "/data/{path:.+}", http.MethodDelete, promhttp.InstrumentHandlerDuration(v1DataDur, http.HandlerFunc(s.v1DataDelete)))
 	s.registerHandler(router, 1, "/data/{path:.+}", http.MethodPut, promhttp.InstrumentHandlerDuration(v1DataDur, http.HandlerFunc(s.v1DataPut)))
@@ -603,6 +604,17 @@ func (s *Server) v1DiagnosticsGet(w http.ResponseWriter, r *http.Request) {
 		resp.Result = append(resp.Result, item)
 	})
 	writer.JSON(w, 200, resp, pretty)
+}
+
+func (s *Server) v1VersionGet(w http.ResponseWriter, r *http.Request) {
+
+	renderHeader(w)
+	renderBanner(w)
+	renderVersion(w)
+	defer renderFooter(w)
+
+	writer.Bytes(w, 200, nil)
+
 }
 
 func (s *Server) v1CompilePost(w http.ResponseWriter, r *http.Request) {
