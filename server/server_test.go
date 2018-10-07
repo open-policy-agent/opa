@@ -1175,7 +1175,7 @@ func TestVersionGet(t *testing.T) {
 	/*
 		Example of GET version:
 
-	    Version: 0.9.3-dev
+		Version: 0.9.3-dev
 		Build Commit: c5171ed5-dirty
 		Build Timestamp: 2018-10-07T02:12:58Z
 		Build Hostname: JOHNDOE-M-9130
