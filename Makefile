@@ -96,11 +96,11 @@ install: generate
 
 .PHONY: test
 test: generate
-	$(GO) test ./...
+	$(GO) test -ldflags $(LDFLAGS) ./...
 
 .PHONY: perf
 perf: generate
-	$(GO) test -run=- -bench=. -benchmem ./...
+	$(GO) test -ldflags $(LDFLAGS) -run=- -bench=. -benchmem ./...
 
 .PHONY: check
 check: check-fmt check-vet check-lint
