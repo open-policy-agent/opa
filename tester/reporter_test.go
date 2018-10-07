@@ -29,9 +29,23 @@ func TestPrettyReporterVerbose(t *testing.T) {
 	// supply fake trace events for each kind of event to ensure that only failures
 	// report traces.
 	ts := []*tester.Result{
-		{nil, "data.foo.bar", "test_baz", false, nil, 0, getFakeTraceEvents()},
-		{nil, "data.foo.bar", "test_qux", false, fmt.Errorf("some err"), 0, getFakeTraceEvents()},
-		{nil, "data.foo.bar", "test_corge", true, nil, 0, getFakeTraceEvents()},
+		{
+			Package: "data.foo.bar",
+			Name:    "test_baz",
+			Trace:   getFakeTraceEvents(),
+		},
+		{
+			Package: "data.foo.bar",
+			Name:    "test_qux",
+			Error:   fmt.Errorf("some err"),
+			Trace:   getFakeTraceEvents(),
+		},
+		{
+			Package: "data.foo.bar",
+			Name:    "test_corge",
+			Fail:    true,
+			Trace:   getFakeTraceEvents(),
+		},
 	}
 
 	r := tester.PrettyReporter{
@@ -73,9 +87,23 @@ func TestPrettyReporter(t *testing.T) {
 	// supply fake trace events to verify that traces are suppressed without verbose
 	// flag.
 	ts := []*tester.Result{
-		{nil, "data.foo.bar", "test_baz", false, nil, 0, getFakeTraceEvents()},
-		{nil, "data.foo.bar", "test_qux", false, fmt.Errorf("some err"), 0, getFakeTraceEvents()},
-		{nil, "data.foo.bar", "test_corge", true, nil, 0, getFakeTraceEvents()},
+		{
+			Package: "data.foo.bar",
+			Name:    "test_baz",
+			Trace:   getFakeTraceEvents(),
+		},
+		{
+			Package: "data.foo.bar",
+			Name:    "test_qux",
+			Error:   fmt.Errorf("some err"),
+			Trace:   getFakeTraceEvents(),
+		},
+		{
+			Package: "data.foo.bar",
+			Name:    "test_corge",
+			Fail:    true,
+			Trace:   getFakeTraceEvents(),
+		},
 	}
 
 	r := tester.PrettyReporter{
@@ -104,9 +132,23 @@ ERROR: 1/3
 func TestJSONReporter(t *testing.T) {
 	var buf bytes.Buffer
 	ts := []*tester.Result{
-		{nil, "data.foo.bar", "test_baz", false, nil, 0, getFakeTraceEvents()},
-		{nil, "data.foo.bar", "test_qux", false, fmt.Errorf("some err"), 0, getFakeTraceEvents()},
-		{nil, "data.foo.bar", "test_corge", true, nil, 0, getFakeTraceEvents()},
+		{
+			Package: "data.foo.bar",
+			Name:    "test_baz",
+			Trace:   getFakeTraceEvents(),
+		},
+		{
+			Package: "data.foo.bar",
+			Name:    "test_qux",
+			Error:   fmt.Errorf("some err"),
+			Trace:   getFakeTraceEvents(),
+		},
+		{
+			Package: "data.foo.bar",
+			Name:    "test_corge",
+			Fail:    true,
+			Trace:   getFakeTraceEvents(),
+		},
 	}
 
 	r := tester.JSONReporter{
