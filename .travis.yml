@@ -1,5 +1,6 @@
 sudo: required
 language: go
+go_import_path: github.com/open-policy-agent/opa
 go:
 - "1.10"
 env:
@@ -8,10 +9,28 @@ env:
   - secure: Oi8pwShwTKnBVQtb9WoCrZSUZbDWXwO4383S6F8/USUASE/r06Zxws0XombEsy7dlG1YBS/3aLLGe5/5umrYu8XlKa0C5f1k+1ABroxQIDaiOoHJLmCTlCW0mDcbAH+THiKriPnULBnCk9qGCVofWDObPqGIIgeE5tHGm8kdfgx0hmuX5XxbZEDStSTh0eag3MFC0AdLqm4LYMaqHs56om976DmxKiO9FvkDhTSUhXsOjcgXnKoneBbzbf+1RnAr2QvuRaHS8nSZEcFnHiWNjGD/ag6Cvd2T4Aa8r5LasdYr9sx93GDteaZiyJmT4zTce4ote2kzddcEdAfK93ERUPiNXBvf0jMrqaVzbx6yI9EdcNvHRA5LARSxkT7CrOA/BjYeP+HuCjW6BJVmstDR9kFL2GoQSZJtrlI2KvHM6H3WWAMYpOCekaYKlxNa6KFoi/4RZbptJj0X5999G3qccBocfs133YQVgSNLrlBQ0KhXw4yMaO7UU8p1m063ls8VWFupWynagWGCrzWGl5w7S0r1YRVUB9kXrUmkRwqtW0niZfM1fX6BKo5PPfql7n0knhjqwo73n3kBuWxfQzYjOACYN3DFPgj0/qaNWR+AvZpqBAE5PyfxccEfpcWUvp2yrfZGuUWV628qPZLA/vQ33iN0lIndK/bCtoz6oqQq9iw=
 services:
 - docker
-after_success:
-- source ./build/travis-utils.sh
-- if is_travis_push_env; then docker login -u $DOCKER_USER -p $DOCKER_PASSWORD; fi
-- if is_travis_push_env; then make image-quick; fi
-- if is_travis_push_env; then make push; fi
-- if is_travis_release_env; then make tag-latest; fi
-- if is_travis_release_env; then make push-latest; fi
+deploy:
+
+
+  # This deployment is mutually exclusive with the next deployment. This
+  # deployment builds and publishes the docker image whenever changes are
+  # committed to master. The latest tag is not updated.
+  - provider: script
+    skip_cleanup: true  # do not delete artifacts because linux executable is needed
+    script: make deploy-travis
+    on:
+      repo: open-policy-agent/opa
+      branch: master
+      tags: false
+
+  # This deployment is mutually exclusive with the previous deployment. This
+  # deployment builds and publishes the docker image whenver a new tag is
+  # created. The latest tag is updated to point to the image produced by this
+  # deployment.
+  - provider: script
+    skip_cleanup: true  # do not delete artifacts because linux executable is needed
+    script: make release-travis
+    on:
+      repo: open-policy-agent/opa
+      branch: master
+      tags: true

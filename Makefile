@@ -80,6 +80,16 @@ push-latest:
 	docker push $(IMAGE):latest
 	docker push $(IMAGE):latest-debug
 
+.PHONY: docker-login
+docker-login:
+	@docker login -u ${DOCKER_USER} -p ${DOCKER_PASSWORD}
+
+.PHONY: deploy-travis
+deploy-travis: docker-login image-quick push
+
+.PHONY: release-travis
+release-travis: deploy-travis tag-latest push-latest
+
 .PHONY: install
 install: generate
 	$(GO) install -ldflags $(LDFLAGS)

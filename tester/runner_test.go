@@ -2,7 +2,7 @@
 // Use of this source code is governed by an Apache2
 // license that can be found in the LICENSE file.
 
-package tester
+package tester_test
 
 import (
 	"context"
@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/tester"
 	"github.com/open-policy-agent/opa/topdown"
 	"github.com/open-policy-agent/opa/types"
 	"github.com/open-policy-agent/opa/util/test"
@@ -31,6 +32,9 @@ func TestRun(t *testing.T) {
 			test_err { conflict }
 			conflict = true
 			conflict = false
+			test_duplicate { false }
+			test_duplicate { true }
+			test_duplicate { true }
 			`,
 	}
 
@@ -41,11 +45,14 @@ func TestRun(t *testing.T) {
 		{"data.foo", "test_pass"}:          {false, false},
 		{"data.foo", "test_fail"}:          {false, true},
 		{"data.foo", "test_fail_non_bool"}: {false, true},
+		{"data.foo", "test_duplicate"}:     {false, true},
+		{"data.foo", "test_duplicate#01"}:  {false, false},
+		{"data.foo", "test_duplicate#02"}:  {false, false},
 		{"data.foo", "test_err"}:           {true, false},
 	}
 
 	test.WithTempFS(files, func(d string) {
-		rs, err := Run(ctx, d)
+		rs, err := tester.Run(ctx, d)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -97,7 +104,7 @@ func TestRunnerCancel(t *testing.T) {
 	}
 
 	test.WithTempFS(files, func(d string) {
-		results, err := Run(ctx, d)
+		results, err := tester.Run(ctx, d)
 		if err != nil {
 			t.Fatal(err)
 		}
