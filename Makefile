@@ -9,6 +9,9 @@ GOVERSION := 1.10
 GOARCH := $(shell go env GOARCH)
 GOOS := $(shell go env GOOS)
 
+DOCKER_INSTALLED := $(shell hash docker 2>/dev/null && echo 1 || echo 0)
+DOCKER := docker
+
 BIN := opa_$(GOOS)_$(GOARCH)
 
 REPOSITORY := openpolicyagent
@@ -45,12 +48,24 @@ version:
 deps:
 	@./build/install-deps.sh
 
+.PHONY: wasm-build
+wasm-build:
+ifeq ($(DOCKER_INSTALLED), 1)
+	@$(MAKE) -C wasm build
+	cp wasm/_obj/opa.wasm internal/compiler/wasm/opa/opa.wasm
+else
+	@echo "Docker not installed. Skipping OPA-WASM library build."
+endif
+
 .PHONY: generate
-generate:
+generate: wasm-build
 	$(GO) generate
 
 .PHONY: build
-build: generate
+build: go-build
+
+.PHONY: go-build
+go-build: generate
 	$(GO) build -o $(BIN) -ldflags $(LDFLAGS)
 
 .PHONY: image
@@ -95,8 +110,26 @@ install: generate
 	$(GO) install -ldflags $(LDFLAGS)
 
 .PHONY: test
-test: generate
+test: opa-wasm-test go-test wasm-test
+
+.PHONY: opa-wasm-test
+opa-wasm-test:
+ifeq ($(DOCKER_INSTALLED), 1)
+	@$(MAKE)  -C wasm test
+else
+	@echo "Docker not installed. Skipping OPA-WASM library test."
+endif
+
+.PHONY: go-test
+go-test: generate
 	$(GO) test ./...
+
+.PHONY: wasm-test
+wasm-test:
+ifeq ($(DOCKER_INSTALLED), 1)
+else
+	@echo "Docker not installed. Skipping WASM-based test execution."
+endif
 
 .PHONY: perf
 perf: generate
@@ -121,8 +154,12 @@ check-lint:
 fmt:
 	$(GO) fmt ./...
 
+.PHONY: wasm-clean
+wasm-clean:
+	@$(MAKE) -C wasm clean
+
 .PHONY: clean
-clean:
+clean: wasm-clean
 	rm -f .Dockerfile_*
 	rm -f opa_*_*
 	rm -fr site.tar.gz docs/_site docs/node_modules docs/book/_book docs/book/node_modules
