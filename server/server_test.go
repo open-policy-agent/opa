@@ -1186,7 +1186,8 @@ func TestVersionGet(t *testing.T) {
 	get := newReqV1(http.MethodGet, "/data/system/version", "")
 	f.server.Handler.ServeHTTP(f.recorder, get)
 	if f.recorder.Code != 200 {
-		t.Fatalf("Expected OK but got %v", f.recorder)
+		t.Fatalf("Expected 200 OK but got %v", f.recorder)
+		return
 	}
 
 	page := f.recorder.Body.String()

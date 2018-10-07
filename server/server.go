@@ -611,7 +611,7 @@ func (s *Server) v1VersionGet(w http.ResponseWriter, r *http.Request) {
 	renderHeader(w)
 	renderBanner(w)
 	renderVersion(w)
-	defer renderFooter(w)
+	renderFooter(w)
 
 	writer.Bytes(w, 200, nil)
 
