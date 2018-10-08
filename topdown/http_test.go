@@ -73,7 +73,6 @@ func TestHTTPGetRequest(t *testing.T) {
 func echoCustomHeaders (w http.ResponseWriter, r *http.Request) {
 
 	headers := make(map[string][]string)
-	// w.WriteHeader(http.StatusOK)
 	w.Header().Set("Content-Type", "application/json")
 	for k, v := range r.Header {
 		if strings.HasPrefix(k, "X-") {
