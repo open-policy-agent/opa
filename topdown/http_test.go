@@ -95,7 +95,7 @@ func TestHTTPCustomHeaders(t *testing.T) {
 	expectedResult["status"] = "200 OK"
 	expectedResult["status_code"] = http.StatusOK
 
-	bodyMap := map[string][]string{"X-Foo": {"ISO-8859-1,utf-8;q=0.7,*;q=0.7"}, "X-Opa": {"rules"}}
+	bodyMap := map[string][]string{"X-Foo": {"ISO-8859-1,utf-8;q=0.7,*;q=0.7"}, "X-Opa": {"server"}}
 	expectedResult["body"] = bodyMap
 
 	jsonString, err := json.Marshal(expectedResult)
@@ -111,7 +111,7 @@ func TestHTTPCustomHeaders(t *testing.T) {
 		expected interface{}
 	}{
 		{"http.send", []string{fmt.Sprintf(
-			`p = x { http.send({"method": "get", "url": "%s", "headers": {"X-Foo":"ISO-8859-1,utf-8;q=0.7,*;q=0.7", "X-Opa": "rules"}}, x) }`, ts.URL)}, s},
+			`p = x { http.send({"method": "get", "url": "%s", "headers": {"X-Foo":"ISO-8859-1,utf-8;q=0.7,*;q=0.7", "X-Opa": "server"}}, x) }`, ts.URL)}, s},
 	}
 
 	data := loadSmallTestData()

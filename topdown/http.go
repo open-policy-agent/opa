@@ -86,14 +86,17 @@ func validateHTTPRequestOperand(term *ast.Term, pos int) (ast.Object, error) {
 }
 
 // Adds custom headers to a new HTTP request.
-func addHeaders(req *http.Request, headers map[string]interface{}) {
+func addHeaders(req *http.Request, headers map[string]interface{}) (bool, error) {
 	for k, v := range headers {
 		// Type assertion
 		header, ok := v.(string)
 		if ok {
 			req.Header.Add(k, header)
+		} else {
+			return false, fmt.Errorf("invalid type for headers value")
 		}
 	}
+	return true, nil
 }
 
 func executeHTTPRequest(bctx BuiltinContext, obj ast.Object) (ast.Value, error) {
@@ -173,7 +176,9 @@ func executeHTTPRequest(bctx BuiltinContext, obj ast.Object) (ast.Value, error) 
 	// Add custom headers passed from CLI
 
 	if len(customHeaders) != 0 {
-		addHeaders(req, customHeaders)
+		if ok, err := addHeaders(req, customHeaders); !ok {
+			return nil, err
+		}
 	}
 
 	// execute the http request
