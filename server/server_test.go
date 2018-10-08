@@ -15,6 +15,7 @@ import (
 	"net/http/httptest"
 	"net/http/httputil"
 	"reflect"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -1175,10 +1176,11 @@ func TestVersionGet(t *testing.T) {
 	/*
 		Example of GET version:
 
-		Version: 0.9.3-dev
-		Build Commit: c5171ed5-dirty
-		Build Timestamp: 2018-10-07T02:12:58Z
-		Build Hostname: JOHNDOE-M-9130
+		version: 0.9.3-dev
+		build_commit: c5171ed5-dirty
+		build_timestamp: 2018-10-07T02:12:58Z
+		build_hostname: JOHNDOE-M-9130
+
 	*/
 
 	f := newFixture(t)
@@ -1191,8 +1193,10 @@ func TestVersionGet(t *testing.T) {
 	}
 
 	page := f.recorder.Body.String()
-	if !strings.Contains(page, "Version: ") {
-		t.Errorf("Expected page to contain 'Version' but got: %v", page)
+	fmt.Println(page)
+	var re = regexp.MustCompile(`[\s\S]*Version\b[\s\S]*BuildCommit\b[\s\S]*BuildTimestamp\b[\s\S]*BuildHostname\b`)
+	if !re.MatchString(page) {
+		t.Errorf("Expected page to contain 'version' but got: %v", page)
 		return
 	}
 }

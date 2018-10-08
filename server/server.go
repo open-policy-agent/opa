@@ -7,6 +7,7 @@ package server
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"html/template"
@@ -20,8 +21,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-
-	"crypto/tls"
 
 	"net/url"
 
@@ -608,13 +607,42 @@ func (s *Server) v1DiagnosticsGet(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) v1VersionGet(w http.ResponseWriter, r *http.Request) {
 
-	renderHeader(w)
-	renderBanner(w)
-	renderVersion(w)
-	renderFooter(w)
+	code := 200
 
-	writer.Bytes(w, 200, nil)
+	opaVersion := `
+{
+  "result": {
+    "Version": "{{.Version}}",
+    "BuildCommit": "{{.BuildCommit}}",
+    "BuildTimestamp": "{{.BuildTimestamp}}",
+    "BuildHostname": "{{.BuildHostname}}"
+  }
+}
+	`
+	tmpl, err := template.New("").Parse(opaVersion)
+	if err != nil {
+		panic(err)
+	}
 
+	var buf bytes.Buffer
+
+	err = tmpl.Execute(&buf, struct {
+		Version        string
+		BuildCommit    string
+		BuildTimestamp string
+		BuildHostname  string
+	}{
+		Version:        version.Version,
+		BuildCommit:    version.Vcs,
+		BuildTimestamp: version.Timestamp,
+		BuildHostname:  version.Hostname,
+	})
+
+	jsonBytes := buf.Bytes()
+
+	headers := w.Header()
+	headers.Add("Content-Type", "application/json")
+	writer.Bytes(w, code, jsonBytes)
 }
 
 func (s *Server) v1CompilePost(w http.ResponseWriter, r *http.Request) {
