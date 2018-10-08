@@ -1,0 +1,17 @@
+cases:
+  - note: eq/number
+    query: "input.x = 1"
+    input: {"x": 1}
+    return_code: 1
+  - note: eq/number (negative)
+    query: "input.x = 1"
+    input: {"x": 2}
+    return_code: 0
+  - note: eq/string
+    query: input.x = "hello"
+    input: {"x": "hello"}
+    return_code: 1
+  - note: eq/string (negative)
+    query: input.x = "hello"
+    input: {"x": "world"}
+    return_code: 0

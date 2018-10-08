@@ -127,6 +127,9 @@ go-test: generate
 .PHONY: wasm-test
 wasm-test:
 ifeq ($(DOCKER_INSTALLED), 1)
+	@mkdir -p _test
+	@$(GO) run test/wasm/cmd/testgen.go --input-dir test/wasm/assets --output _test/testcases.tar.gz
+	@$(DOCKER) run -it --rm -e VERBOSE=$(VERBOSE) -v $(PWD):/src -w /src node:8 ./build/test-wasm.sh
 else
 	@echo "Docker not installed. Skipping WASM-based test execution."
 endif
@@ -163,6 +166,7 @@ clean: wasm-clean
 	rm -f .Dockerfile_*
 	rm -f opa_*_*
 	rm -fr site.tar.gz docs/_site docs/node_modules docs/book/_book docs/book/node_modules
+	rm -fr _test
 
 .PHONY: docs
 docs:
