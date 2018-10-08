@@ -1171,35 +1171,6 @@ func TestIndexGetEscaped(t *testing.T) {
 
 }
 
-func TestVersionGet(t *testing.T) {
-
-	/*
-		Example of GET version:
-
-		version: 0.9.3-dev
-		build_commit: c5171ed5-dirty
-		build_timestamp: 2018-10-07T02:12:58Z
-		build_hostname: JOHNDOE-M-9130
-
-	*/
-
-	f := newFixture(t)
-
-	get := newReqV1(http.MethodGet, "/data/system/version", "")
-	f.server.Handler.ServeHTTP(f.recorder, get)
-	if f.recorder.Code != 200 {
-		t.Fatalf("Expected 200 OK but got %v", f.recorder)
-		return
-	}
-
-	page := f.recorder.Body.String()
-	fmt.Println(page)
-	var re = regexp.MustCompile(`[\s\S]*Version\b[\s\S]*BuildCommit\b[\s\S]*BuildTimestamp\b[\s\S]*BuildHostname\b`)
-	if !re.MatchString(page) {
-		t.Errorf("Expected page to contain 'version' but got: %v", page)
-		return
-	}
-}
 
 func TestIndexGet(t *testing.T) {
 	f := newFixture(t)
@@ -1234,6 +1205,25 @@ func TestIndexGetCompileError(t *testing.T) {
 	page := f.recorder.Body.String()
 	if !strings.Contains(page, "foo is unsafe") {
 		t.Errorf("Expected page to contain 'foo is unsafe' but got: %v", page)
+		return
+	}
+}
+
+func TestVersionGet(t *testing.T) {
+
+	f := newFixture(t)
+
+	get := newReqV1(http.MethodGet, "/data/system/version", "")
+	f.server.Handler.ServeHTTP(f.recorder, get)
+	if f.recorder.Code != 200 {
+		t.Fatalf("Expected 200 OK but got %v", f.recorder)
+		return
+	}
+
+	page := f.recorder.Body.String()
+	var re = regexp.MustCompile(`[\s\S]*Version\b[\s\S]*BuildCommit\b[\s\S]*BuildTimestamp\b[\s\S]*BuildHostname\b`)
+	if !re.MatchString(page) {
+		t.Errorf("Expected page to contain 'version' but got: %v", page)
 		return
 	}
 }
