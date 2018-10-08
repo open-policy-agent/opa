@@ -9,6 +9,7 @@ opa_*
 .Dockerfile_*
 _release
 wasm/_obj
+_test
 site.tar.gz
 policy.wasm
 
