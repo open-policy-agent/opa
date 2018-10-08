@@ -21,7 +21,7 @@ import (
 
 const defaultHTTPRequestTimeout = time.Second * 5
 
-var allowedKeys = ast.NewSet(ast.StringTerm("method"), ast.StringTerm("url"), ast.StringTerm("body"), ast.StringTerm("enable_redirect"))
+var allowedKeys = ast.NewSet(ast.StringTerm("method"), ast.StringTerm("url"), ast.StringTerm("body"), ast.StringTerm("enable_redirect"), ast.StringTerm("headers"))
 var requiredKeys = ast.NewSet(ast.StringTerm("method"), ast.StringTerm("url"))
 
 var client *http.Client
@@ -85,11 +85,19 @@ func validateHTTPRequestOperand(term *ast.Term, pos int) (ast.Object, error) {
 
 }
 
+// Adds custom headers to a new HTTP request.
+func addHeaders(req *http.Request, headers map[string]interface{})  {
+	for k, v := range headers {
+		req.Header.Add(k, v.(string))
+	}
+}
+
 func executeHTTPRequest(bctx BuiltinContext, obj ast.Object) (ast.Value, error) {
 	var url string
 	var method string
 	var body *bytes.Buffer
 	var enableRedirect bool
+	var customHeaders map[string]interface{}
 	for _, val := range obj.Keys() {
 		key, err := ast.JSON(val.Value)
 		if err != nil {
@@ -121,6 +129,13 @@ func executeHTTPRequest(bctx BuiltinContext, obj ast.Object) (ast.Value, error) 
 				return nil, err
 			}
 			body = bytes.NewBuffer(bodyValBytes)
+		case "headers":
+			headersVal := obj.Get(val).Value
+			headersValInterface, err := ast.JSON(headersVal)
+			if err != nil {
+				return nil, err
+			}
+			customHeaders = headersValInterface.(map[string]interface {})
 		default:
 			return nil, fmt.Errorf("Invalid Key %v", key)
 		}
@@ -145,6 +160,12 @@ func executeHTTPRequest(bctx BuiltinContext, obj ast.Object) (ast.Value, error) 
 	req, err := http.NewRequest(strings.ToUpper(method), url, body)
 	if err != nil {
 		return nil, err
+	}
+
+	// Add custom headers passed from CLI
+
+	if len(customHeaders) != 0 {
+		addHeaders(req, customHeaders)
 	}
 
 	// execute the http request
