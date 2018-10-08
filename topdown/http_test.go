@@ -70,7 +70,7 @@ func TestHTTPGetRequest(t *testing.T) {
 	}
 }
 
-func echoCustomHeaders (w http.ResponseWriter, r *http.Request) {
+func echoCustomHeaders(w http.ResponseWriter, r *http.Request) {
 
 	headers := make(map[string][]string)
 	w.Header().Set("Content-Type", "application/json")
@@ -84,7 +84,7 @@ func echoCustomHeaders (w http.ResponseWriter, r *http.Request) {
 }
 
 // TestHTTPCustomHeaders adds custom headers to request
-func TestHTTPCustomHeaders (t *testing.T) {
+func TestHTTPCustomHeaders(t *testing.T) {
 
 	// test server
 	ts := httptest.NewServer(http.HandlerFunc(echoCustomHeaders))
@@ -95,7 +95,7 @@ func TestHTTPCustomHeaders (t *testing.T) {
 	expectedResult["status"] = "200 OK"
 	expectedResult["status_code"] = http.StatusOK
 
-	bodyMap := map[string][]string{"X-Foo":{"bar"}, "X-Opa": {"rules"},}
+	bodyMap := map[string][]string{"X-Foo": {"bar"}, "X-Opa": {"rules"}}
 	expectedResult["body"] = bodyMap
 
 	jsonString, err := json.Marshal(expectedResult)
@@ -120,7 +120,6 @@ func TestHTTPCustomHeaders (t *testing.T) {
 		runTopDownTestCase(t, data, tc.note, tc.rules, tc.expected)
 	}
 }
-
 
 // TestHTTPostRequest adds a new person
 func TestHTTPostRequest(t *testing.T) {

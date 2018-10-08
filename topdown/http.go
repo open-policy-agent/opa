@@ -86,7 +86,7 @@ func validateHTTPRequestOperand(term *ast.Term, pos int) (ast.Object, error) {
 }
 
 // Adds custom headers to a new HTTP request.
-func addHeaders(req *http.Request, headers map[string]interface{})  {
+func addHeaders(req *http.Request, headers map[string]interface{}) {
 	for k, v := range headers {
 		req.Header.Add(k, v.(string))
 	}
@@ -135,7 +135,7 @@ func executeHTTPRequest(bctx BuiltinContext, obj ast.Object) (ast.Value, error) 
 			if err != nil {
 				return nil, err
 			}
-			customHeaders = headersValInterface.(map[string]interface {})
+			customHeaders = headersValInterface.(map[string]interface{})
 		default:
 			return nil, fmt.Errorf("Invalid Key %v", key)
 		}
