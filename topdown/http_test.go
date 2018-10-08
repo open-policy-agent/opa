@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/open-policy-agent/opa/ast"
@@ -60,6 +61,57 @@ func TestHTTPGetRequest(t *testing.T) {
 	}{
 		{"http.send", []string{fmt.Sprintf(
 			`p = x { http.send({"method": "get", "url": "%s"}, x) }`, ts.URL)}, resultObj.String()},
+	}
+
+	data := loadSmallTestData()
+
+	for _, tc := range tests {
+		runTopDownTestCase(t, data, tc.note, tc.rules, tc.expected)
+	}
+}
+
+func echoCustomHeaders(w http.ResponseWriter, r *http.Request) {
+
+	headers := make(map[string][]string)
+	w.Header().Set("Content-Type", "application/json")
+	for k, v := range r.Header {
+		if strings.HasPrefix(k, "X-") {
+			headers[k] = v
+		}
+	}
+	json.NewEncoder(w).Encode(headers)
+	return
+}
+
+// TestHTTPCustomHeaders adds custom headers to request
+func TestHTTPCustomHeaders(t *testing.T) {
+
+	// test server
+	ts := httptest.NewServer(http.HandlerFunc(echoCustomHeaders))
+	defer ts.Close()
+
+	// expected result
+	expectedResult := make(map[string]interface{})
+	expectedResult["status"] = "200 OK"
+	expectedResult["status_code"] = http.StatusOK
+
+	bodyMap := map[string][]string{"X-Foo": {"ISO-8859-1,utf-8;q=0.7,*;q=0.7"}, "X-Opa": {"server"}}
+	expectedResult["body"] = bodyMap
+
+	jsonString, err := json.Marshal(expectedResult)
+	if err != nil {
+		panic(err)
+	}
+	s := string(jsonString[:])
+
+	// run the test
+	tests := []struct {
+		note     string
+		rules    []string
+		expected interface{}
+	}{
+		{"http.send", []string{fmt.Sprintf(
+			`p = x { http.send({"method": "get", "url": "%s", "headers": {"X-Foo":"ISO-8859-1,utf-8;q=0.7,*;q=0.7", "X-Opa": "server"}}, x) }`, ts.URL)}, s},
 	}
 
 	data := loadSmallTestData()
