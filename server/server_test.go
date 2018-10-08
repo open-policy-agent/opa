@@ -1171,7 +1171,6 @@ func TestIndexGetEscaped(t *testing.T) {
 
 }
 
-
 func TestIndexGet(t *testing.T) {
 	f := newFixture(t)
 	get, err := http.NewRequest(http.MethodGet, `/?q=foo = 1&input=`, strings.NewReader(""))
