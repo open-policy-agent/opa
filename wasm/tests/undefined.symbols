@@ -1,0 +1,4 @@
+opa_test_pass
+opa_test_fail
+opa_abort
+opa_println

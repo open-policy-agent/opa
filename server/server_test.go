@@ -15,6 +15,7 @@ import (
 	"net/http/httptest"
 	"net/http/httputil"
 	"reflect"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -1203,6 +1204,25 @@ func TestIndexGetCompileError(t *testing.T) {
 	page := f.recorder.Body.String()
 	if !strings.Contains(page, "foo is unsafe") {
 		t.Errorf("Expected page to contain 'foo is unsafe' but got: %v", page)
+		return
+	}
+}
+
+func TestVersionGet(t *testing.T) {
+
+	f := newFixture(t)
+
+	get := newReqV1(http.MethodGet, "/data/system/version", "")
+	f.server.Handler.ServeHTTP(f.recorder, get)
+	if f.recorder.Code != 200 {
+		t.Fatalf("Expected 200 OK but got %v", f.recorder)
+		return
+	}
+
+	page := f.recorder.Body.String()
+	var re = regexp.MustCompile(`[\s\S]*Version\b[\s\S]*BuildCommit\b[\s\S]*BuildTimestamp\b[\s\S]*BuildHostname\b`)
+	if !re.MatchString(page) {
+		t.Errorf("Expected page to contain 'version' but got: %v", page)
 		return
 	}
 }
