@@ -102,6 +102,8 @@ opa_value *opa_array();
 opa_value *opa_array_with_cap(size_t cap);
 opa_value *opa_object();
 
+void opa_value_boolean_set(opa_value *v, int b);
+
 void opa_array_free(opa_array_t *arr);
 void opa_array_append(opa_array_t *arr, opa_value *v);
 void opa_array_sort(opa_array_t *arr, opa_compare_fn cmp_fn);

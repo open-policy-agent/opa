@@ -20,8 +20,10 @@ const (
 	opaBoolean
 	opaStringTerminated
 	opaNumberInt
+	opaValueBooleanSet
 	opaValueNotEqual
 	opaValueGet
+	opaValueIter
 )
 
 var externs = [...]module.Import{
@@ -50,6 +52,12 @@ var externs = [...]module.Import{
 		},
 	},
 	{
+		Name: "opa_value_boolean_set",
+		Descriptor: module.FunctionImport{
+			Func: funcInt32Int32retVoid,
+		},
+	},
+	{
 		Name: "opa_value_not_equal",
 		Descriptor: module.FunctionImport{
 			Func: funcInt32Int32retInt32,
@@ -57,6 +65,12 @@ var externs = [...]module.Import{
 	},
 	{
 		Name: "opa_value_get",
+		Descriptor: module.FunctionImport{
+			Func: funcInt32Int32retInt32,
+		},
+	},
+	{
+		Name: "opa_value_iter",
 		Descriptor: module.FunctionImport{
 			Func: funcInt32Int32retInt32,
 		},

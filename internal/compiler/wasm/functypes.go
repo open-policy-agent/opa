@@ -10,12 +10,16 @@ import (
 )
 
 const (
-	funcInt32Int32retInt32 uint32 = iota
+	funcInt32Int32retVoid  uint32 = iota
+	funcInt32Int32retInt32        = iota
 	funcInt32retInt32             = iota
 	funcInt64retInt32             = iota
 )
 
 var functypes = [...]module.FunctionType{
+	{
+		Params: []types.ValueType{types.I32, types.I32},
+	},
 	{
 		Params:  []types.ValueType{types.I32, types.I32},
 		Results: []types.ValueType{types.I32},

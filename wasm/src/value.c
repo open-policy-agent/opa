@@ -549,6 +549,12 @@ opa_value *opa_object()
     return &ret->hdr;
 }
 
+void opa_value_boolean_set(opa_value *v, int b)
+{
+    opa_boolean_t *ret = opa_cast_boolean(v);
+    ret->v = b;
+}
+
 void opa_array_free(opa_array_t *arr)
 {
     if (arr->elems != NULL)

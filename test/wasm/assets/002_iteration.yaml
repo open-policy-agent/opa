@@ -1,0 +1,17 @@
+cases:
+  - note: iteration
+    query: input.x[i] = 1
+    input: {"x": [3,2,1]}
+    return_code: 1
+  - note: iteration (negative)
+    query: input.x[i] = 1
+    input: {"x": [3,2,0]}
+    return_code: 0
+  - note: iteration nested
+    query: input.x[i] = 1; input.y[j] = "world"
+    input: {"x": [3,2,1], "y": ["hello", "world"]}
+    return_code: 1
+  - note: iteration nested (negative)
+    query: input.x[i] = 1; input.y[j] = "world"
+    input: {"x": [3,2,0], "y": ["hello", "universe"]}
+    return_code: 0

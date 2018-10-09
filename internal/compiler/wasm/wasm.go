@@ -14,6 +14,7 @@ import (
 	"github.com/open-policy-agent/opa/internal/wasm/instruction"
 	"github.com/open-policy-agent/opa/internal/wasm/module"
 	"github.com/open-policy-agent/opa/internal/wasm/types"
+	"github.com/pkg/errors"
 )
 
 // Compiler implements an IR->WASM compiler backend.
@@ -103,7 +104,7 @@ func (c *Compiler) compilePlan() error {
 
 		instrs, err := c.compileBlock(c.policy.Plan.Blocks[i])
 		if err != nil {
-			return err
+			return errors.Wrapf(err, "block %d", i)
 		}
 
 		if i < len(c.policy.Plan.Blocks)-1 {
@@ -125,6 +126,25 @@ func (c *Compiler) compileBlock(block ir.Block) ([]instruction.Instruction, erro
 		case ir.ReturnStmt:
 			instrs = append(instrs, instruction.I32Const{Value: int32(stmt.Code)})
 			instrs = append(instrs, instruction.Return{})
+		case ir.AssignStmt:
+			switch value := stmt.Value.(type) {
+			case ir.BooleanConst:
+				instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.Target)})
+				if value.Value {
+					instrs = append(instrs, instruction.I32Const{Value: 1})
+				} else {
+					instrs = append(instrs, instruction.I32Const{Value: 0})
+				}
+				instrs = append(instrs, instruction.Call{Index: opaValueBooleanSet})
+			default:
+				var buf bytes.Buffer
+				ir.Pretty(&buf, stmt)
+				return nil, fmt.Errorf("illegal assignment: %v", buf.String())
+			}
+		case ir.LoopStmt:
+			if err := c.compileLoop(stmt, &instrs); err != nil {
+				return nil, err
+			}
 		case ir.DotStmt:
 			instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.Source)})
 			instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.Key)})
@@ -154,10 +174,56 @@ func (c *Compiler) compileBlock(block ir.Block) ([]instruction.Instruction, erro
 			instrs = append(instrs, instruction.Call{Index: opaStringTerminated})
 			instrs = append(instrs, instruction.SetLocal{Index: c.local(stmt.Target)})
 		default:
-			return instrs, fmt.Errorf("unsupported IR statement %v", stmt)
+			var buf bytes.Buffer
+			ir.Pretty(&buf, stmt)
+			return instrs, fmt.Errorf("illegal statement: %v", buf.String())
 		}
 
 	}
+
+	return instrs, nil
+}
+
+func (c *Compiler) compileLoop(loop ir.LoopStmt, result *[]instruction.Instruction) error {
+	var instrs = *result
+	instrs = append(instrs, instruction.I32Const{Value: 0})
+	instrs = append(instrs, instruction.SetLocal{Index: c.local(loop.Key)})
+	body, err := c.compileLoopBody(loop)
+	if err != nil {
+		return err
+	}
+	instrs = append(instrs, instruction.Loop{Instrs: body})
+	*result = instrs
+	return nil
+}
+
+func (c *Compiler) compileLoopBody(loop ir.LoopStmt) ([]instruction.Instruction, error) {
+	var instrs []instruction.Instruction
+
+	// Execute iterator.
+	instrs = append(instrs, instruction.GetLocal{Index: c.local(loop.Source)})
+	instrs = append(instrs, instruction.GetLocal{Index: c.local(loop.Key)})
+	instrs = append(instrs, instruction.Call{Index: opaValueIter})
+
+	// Check for emptiness.
+	instrs = append(instrs, instruction.SetLocal{Index: c.local(loop.Key)})
+	instrs = append(instrs, instruction.GetLocal{Index: c.local(loop.Key)})
+	instrs = append(instrs, instruction.I32Eqz{})
+	instrs = append(instrs, instruction.BrIf{Index: 1})
+
+	// Load value.
+	instrs = append(instrs, instruction.GetLocal{Index: c.local(loop.Source)})
+	instrs = append(instrs, instruction.GetLocal{Index: c.local(loop.Key)})
+	instrs = append(instrs, instruction.Call{Index: opaValueGet})
+	instrs = append(instrs, instruction.SetLocal{Index: c.local(loop.Value)})
+
+	// Loop body.
+	nested, err := c.compileBlock(loop.Block)
+	if err != nil {
+		return nil, err
+	}
+
+	instrs = append(instrs, nested...)
 
 	return instrs, nil
 }
