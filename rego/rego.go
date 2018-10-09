@@ -9,13 +9,15 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"strings"
 
+	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/internal/compiler/wasm"
+	"github.com/open-policy-agent/opa/internal/ir"
 	"github.com/open-policy-agent/opa/internal/planner"
 	"github.com/open-policy-agent/opa/internal/wasm/encoding"
-
-	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/internal/wasm/module"
 	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/storage/inmem"
@@ -148,6 +150,14 @@ type Rego struct {
 	instrument       bool
 	capture          map[*ast.Expr]ast.Var // map exprs to generated capture vars
 	termVarID        int
+	dump             io.Writer
+}
+
+// Dump returns an argument that sets the writer to dump debugging information to.
+func Dump(w io.Writer) func(r *Rego) {
+	return func(r *Rego) {
+		r.dump = w
+	}
 }
 
 // Query returns an argument that sets the Rego query.
@@ -470,6 +480,13 @@ func (r *Rego) Compile(ctx context.Context) (*CompileResult, error) {
 		return nil, err
 	}
 
+	if r.dump != nil {
+		fmt.Fprintln(r.dump, "PLAN:")
+		fmt.Fprintln(r.dump, "-----")
+		ir.Pretty(r.dump, policy)
+		fmt.Fprintln(r.dump)
+	}
+
 	m, err := wasm.New().WithPolicy(policy).Compile()
 	if err != nil {
 		return nil, err
@@ -479,6 +496,13 @@ func (r *Rego) Compile(ctx context.Context) (*CompileResult, error) {
 
 	if err := encoding.WriteModule(&out, m); err != nil {
 		return nil, err
+	}
+
+	if r.dump != nil {
+		fmt.Fprintln(r.dump, "MODULE:")
+		fmt.Fprintln(r.dump, "-------")
+		module.Pretty(r.dump, m, module.PrettyOption{Contents: true})
+		fmt.Fprintln(r.dump)
 	}
 
 	result := &CompileResult{
