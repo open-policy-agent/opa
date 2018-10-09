@@ -19,6 +19,8 @@ type (
 		Type     TypeSection
 		Import   ImportSection
 		Function FunctionSection
+		Table    TableSection
+		Global   GlobalSection
 		Export   ExportSection
 		Code     RawCodeSection
 		Data     DataSection
@@ -37,6 +39,16 @@ type (
 	// FunctionSection represents a WASM function section.
 	FunctionSection struct {
 		TypeIndices []uint32
+	}
+
+	// TableSection represents a WASM table section.
+	TableSection struct {
+		Tables []Table
+	}
+
+	// GlobalSection represents a WASM global section.
+	GlobalSection struct {
+		Globals []Global
 	}
 
 	// ExportSection represents a WASM export section.
@@ -108,6 +120,19 @@ type (
 	Limit struct {
 		Min uint32
 		Max *uint32
+	}
+
+	// Table represents a WASM table statement.
+	Table struct {
+		Type types.ElementType
+		Lim  Limit
+	}
+
+	// Global represents a WASM global statement.
+	Global struct {
+		Type    types.ValueType
+		Mutable bool
+		Init    Expr
 	}
 
 	// Export represents a WASM export statement.
