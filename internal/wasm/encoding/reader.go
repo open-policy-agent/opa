@@ -141,7 +141,7 @@ func readSections(r io.Reader, m *module.Module) error {
 		bufr := bytes.NewReader(buf)
 
 		switch id {
-		case constant.CustomSectionID, constant.GlobalSectionID, constant.TableSectionID, constant.ElementSectionID, constant.StartSectionID, constant.MemorySectionID:
+		case constant.CustomSectionID, constant.ElementSectionID, constant.StartSectionID, constant.MemorySectionID:
 			break
 		case constant.TypeSectionID:
 			if err := readTypeSection(bufr, &m.Type); err != nil {
@@ -150,6 +150,14 @@ func readSections(r io.Reader, m *module.Module) error {
 		case constant.ImportSectionID:
 			if err := readImportSection(bufr, &m.Import); err != nil {
 				return errors.Wrap(err, "import section")
+			}
+		case constant.GlobalSectionID:
+			if err := readGlobalSection(bufr, &m.Global); err != nil {
+				return errors.Wrap(err, "global section")
+			}
+		case constant.TableSectionID:
+			if err := readTableSection(bufr, &m.Table); err != nil {
+				return errors.Wrap(err, "table section")
 			}
 		case constant.FunctionSectionID:
 			if err := readFunctionSection(bufr, &m.Function); err != nil {
@@ -209,6 +217,56 @@ func readImportSection(r io.Reader, s *module.ImportSection) error {
 		}
 
 		s.Imports = append(s.Imports, imp)
+	}
+
+	return nil
+}
+
+func readTableSection(r io.Reader, s *module.TableSection) error {
+
+	n, err := leb128.ReadVarUint32(r)
+	if err != nil {
+		return err
+	}
+
+	for i := uint32(0); i < n; i++ {
+
+		var table module.Table
+
+		if elem, err := readByte(r); err != nil {
+			return err
+		} else if elem != constant.ElementTypeAnyFunc {
+			return fmt.Errorf("illegal element type")
+		} else {
+			table.Type = types.Anyfunc
+		}
+
+		if err := readLimits(r, &table.Lim); err != nil {
+			return err
+		}
+
+		s.Tables = append(s.Tables, table)
+	}
+
+	return nil
+}
+
+func readGlobalSection(r io.Reader, s *module.GlobalSection) error {
+
+	n, err := leb128.ReadVarUint32(r)
+	if err != nil {
+		return err
+	}
+
+	for i := uint32(0); i < n; i++ {
+
+		var global module.Global
+
+		if err := readGlobal(r, &global); err != nil {
+			return err
+		}
+
+		s.Globals = append(s.Globals, global)
 	}
 
 	return nil
@@ -293,6 +351,30 @@ func readFunctionType(r io.Reader, ftype *module.FunctionType) error {
 	}
 
 	return readValueTypeVector(r, &ftype.Results)
+}
+
+func readGlobal(r io.Reader, global *module.Global) error {
+
+	if err := readValueType(r, &global.Type); err != nil {
+		return err
+	}
+
+	b, err := readByte(r)
+	if err != nil {
+		return err
+	}
+
+	if b == 1 {
+		global.Mutable = true
+	} else if b != 0 {
+		return fmt.Errorf("illegal mutability flag")
+	}
+
+	if err := readConstantExpr(r, &global.Init); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func readImport(r io.Reader, imp *module.Import) error {

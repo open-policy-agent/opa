@@ -46,6 +46,14 @@ func WriteModule(w io.Writer, module *module.Module) error {
 		return err
 	}
 
+	if err := writeTableSection(w, module.Table); err != nil {
+		return err
+	}
+
+	if err := writeGlobalSection(w, module.Global); err != nil {
+		return err
+	}
+
 	if err := writeExportSection(w, module.Export); err != nil {
 		return err
 	}
@@ -140,6 +148,31 @@ func writeImportSection(w io.Writer, s module.ImportSection) error {
 	return writeRawSection(w, &buf)
 }
 
+func writeGlobalSection(w io.Writer, s module.GlobalSection) error {
+
+	if len(s.Globals) == 0 {
+		return nil
+	}
+
+	if err := writeByte(w, constant.GlobalSectionID); err != nil {
+		return err
+	}
+
+	var buf bytes.Buffer
+
+	if err := leb128.WriteVarUint32(&buf, uint32(len(s.Globals))); err != nil {
+		return err
+	}
+
+	for _, global := range s.Globals {
+		if err := writeGlobal(&buf, global); err != nil {
+			return err
+		}
+	}
+
+	return writeRawSection(w, &buf)
+}
+
 func writeFunctionSection(w io.Writer, s module.FunctionSection) error {
 
 	if len(s.TypeIndices) == 0 {
@@ -163,6 +196,40 @@ func writeFunctionSection(w io.Writer, s module.FunctionSection) error {
 	}
 
 	return writeRawSection(w, &buf)
+}
+
+func writeTableSection(w io.Writer, s module.TableSection) error {
+
+	if len(s.Tables) == 0 {
+		return nil
+	}
+
+	if err := writeByte(w, constant.TableSectionID); err != nil {
+		return err
+	}
+
+	var buf bytes.Buffer
+
+	if err := leb128.WriteVarUint32(&buf, uint32(len(s.Tables))); err != nil {
+		return err
+	}
+
+	for _, table := range s.Tables {
+		switch table.Type {
+		case types.Anyfunc:
+			if err := writeByte(&buf, constant.ElementTypeAnyFunc); err != nil {
+				return err
+			}
+		default:
+			return fmt.Errorf("illegal table element type")
+		}
+		if err := writeLimits(&buf, table.Lim); err != nil {
+			return err
+		}
+	}
+
+	return writeRawSection(w, &buf)
+
 }
 
 func writeExportSection(w io.Writer, s module.ExportSection) error {
@@ -324,6 +391,31 @@ func writeImport(w io.Writer, imp module.Import) error {
 	default:
 		return fmt.Errorf("illegal import descriptor type")
 	}
+}
+
+func writeGlobal(w io.Writer, global module.Global) error {
+
+	if err := writeValueType(w, global.Type); err != nil {
+		return err
+	}
+
+	var err error
+
+	if global.Mutable {
+		err = writeByte(w, constant.Mutable)
+	} else {
+		err = writeByte(w, constant.Const)
+	}
+
+	if err != nil {
+		return err
+	}
+
+	if err := writeInstructions(w, global.Init.Instrs); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func writeInstructions(w io.Writer, instrs []instruction.Instruction) error {
