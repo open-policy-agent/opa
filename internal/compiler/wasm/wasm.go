@@ -8,6 +8,9 @@ package wasm
 import (
 	"bytes"
 	"fmt"
+	"strings"
+
+	"github.com/open-policy-agent/opa/internal/compiler/wasm/opa"
 
 	"github.com/open-policy-agent/opa/internal/ir"
 	"github.com/open-policy-agent/opa/internal/wasm/encoding"
@@ -15,6 +18,18 @@ import (
 	"github.com/open-policy-agent/opa/internal/wasm/module"
 	"github.com/open-policy-agent/opa/internal/wasm/types"
 	"github.com/pkg/errors"
+)
+
+const (
+	opaFuncPrefix       = "opa_"
+	opaJSONParse        = "opa_json_parse"
+	opaBoolean          = "opa_boolean"
+	opaStringTerminated = "opa_string_terminated"
+	opaNumberInt        = "opa_number_int"
+	opaValueBooleanSet  = "opa_value_boolean_set"
+	opaValueNotEqual    = "opa_value_not_equal"
+	opaValueGet         = "opa_value_get"
+	opaValueIter        = "opa_value_iter"
 )
 
 // Compiler implements an IR->WASM compiler backend.
@@ -26,9 +41,11 @@ type Compiler struct {
 	module *module.Module    // output WASM module
 	code   *module.CodeEntry // output WASM code
 
-	stringOffset int32    // null-terminated string data base offset
-	stringAddrs  []uint32 // null-terminated string constant addresses
-	stringData   []byte   // null-terminated strings to write into data section
+	stringOffset int32             // null-terminated string data base offset
+	stringAddrs  []uint32          // null-terminated string constant addresses
+	stringData   []byte            // null-terminated strings to write into data section
+	funcs        map[string]uint32 // maps exported function names to function indices
+	evalIndex    uint32            // function section index of eval func
 
 	localMax uint32
 }
@@ -36,18 +53,16 @@ type Compiler struct {
 // New returns a new compiler object.
 func New() *Compiler {
 	c := &Compiler{
-		module:       &module.Module{},
 		code:         &module.CodeEntry{},
-		stringOffset: 1024,
+		stringOffset: 2048,
 		localMax:     2, // assume that locals start at 0..2 then increment monotonically
 	}
 	c.stages = []func() error{
+		c.initModule,
 		c.compileStrings,
 		c.emitEntry,
 		c.compilePlan,
 		c.emitLocals,
-		c.emitImportSection,
-		c.emitTypeSection,
 		c.emitFunctionSection,
 		c.emitExportSection,
 		c.emitCodeSection,
@@ -74,6 +89,29 @@ func (c *Compiler) Compile() (*module.Module, error) {
 	return c.module, nil
 }
 
+func (c *Compiler) initModule() error {
+
+	bs, err := opa.Bytes()
+	if err != nil {
+		return err
+	}
+
+	c.module, err = encoding.ReadModule(bytes.NewReader(bs))
+	if err != nil {
+		return err
+	}
+
+	c.funcs = make(map[string]uint32)
+
+	for _, exp := range c.module.Export.Exports {
+		if exp.Descriptor.Type == module.FunctionExportType && strings.HasPrefix(exp.Name, opaFuncPrefix) {
+			c.funcs[exp.Name] = exp.Descriptor.Index
+		}
+	}
+
+	return nil
+}
+
 func (c *Compiler) compileStrings() error {
 
 	c.stringAddrs = make([]uint32, len(c.policy.Static.Strings))
@@ -93,7 +131,7 @@ func (c *Compiler) compileStrings() error {
 func (c *Compiler) emitEntry() error {
 	c.appendInstr(instruction.GetLocal{Index: c.local(ir.InputRaw)})
 	c.appendInstr(instruction.GetLocal{Index: c.local(ir.InputLen)})
-	c.appendInstr(instruction.Call{Index: opaParseJSON})
+	c.appendInstr(instruction.Call{Index: c.function(opaJSONParse)})
 	c.appendInstr(instruction.SetLocal{Index: c.local(ir.Input)})
 	return nil
 }
@@ -135,7 +173,7 @@ func (c *Compiler) compileBlock(block ir.Block) ([]instruction.Instruction, erro
 				} else {
 					instrs = append(instrs, instruction.I32Const{Value: 0})
 				}
-				instrs = append(instrs, instruction.Call{Index: opaValueBooleanSet})
+				instrs = append(instrs, instruction.Call{Index: c.function(opaValueBooleanSet)})
 			default:
 				var buf bytes.Buffer
 				ir.Pretty(&buf, stmt)
@@ -148,12 +186,12 @@ func (c *Compiler) compileBlock(block ir.Block) ([]instruction.Instruction, erro
 		case ir.DotStmt:
 			instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.Source)})
 			instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.Key)})
-			instrs = append(instrs, instruction.Call{Index: opaValueGet})
+			instrs = append(instrs, instruction.Call{Index: c.function(opaValueGet)})
 			instrs = append(instrs, instruction.SetLocal{Index: c.local(stmt.Target)})
 		case ir.EqualStmt:
 			instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.A)})
 			instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.B)})
-			instrs = append(instrs, instruction.Call{Index: opaValueNotEqual})
+			instrs = append(instrs, instruction.Call{Index: c.function(opaValueNotEqual)})
 			instrs = append(instrs, instruction.BrIf{Index: 0})
 		case ir.MakeBooleanStmt:
 			instr := instruction.I32Const{}
@@ -163,15 +201,15 @@ func (c *Compiler) compileBlock(block ir.Block) ([]instruction.Instruction, erro
 				instr.Value = 0
 			}
 			instrs = append(instrs, instr)
-			instrs = append(instrs, instruction.Call{Index: opaBoolean})
+			instrs = append(instrs, instruction.Call{Index: c.function(opaBoolean)})
 			instrs = append(instrs, instruction.SetLocal{Index: c.local(stmt.Target)})
 		case ir.MakeNumberIntStmt:
 			instrs = append(instrs, instruction.I64Const{Value: stmt.Value})
-			instrs = append(instrs, instruction.Call{Index: opaNumberInt})
+			instrs = append(instrs, instruction.Call{Index: c.function(opaNumberInt)})
 			instrs = append(instrs, instruction.SetLocal{Index: c.local(stmt.Target)})
 		case ir.MakeStringStmt:
 			instrs = append(instrs, instruction.I32Const{Value: c.stringAddr(stmt.Index)})
-			instrs = append(instrs, instruction.Call{Index: opaStringTerminated})
+			instrs = append(instrs, instruction.Call{Index: c.function(opaStringTerminated)})
 			instrs = append(instrs, instruction.SetLocal{Index: c.local(stmt.Target)})
 		default:
 			var buf bytes.Buffer
@@ -203,7 +241,7 @@ func (c *Compiler) compileLoopBody(loop ir.LoopStmt) ([]instruction.Instruction,
 	// Execute iterator.
 	instrs = append(instrs, instruction.GetLocal{Index: c.local(loop.Source)})
 	instrs = append(instrs, instruction.GetLocal{Index: c.local(loop.Key)})
-	instrs = append(instrs, instruction.Call{Index: opaValueIter})
+	instrs = append(instrs, instruction.Call{Index: c.function(opaValueIter)})
 
 	// Check for emptiness.
 	instrs = append(instrs, instruction.SetLocal{Index: c.local(loop.Key)})
@@ -214,7 +252,7 @@ func (c *Compiler) compileLoopBody(loop ir.LoopStmt) ([]instruction.Instruction,
 	// Load value.
 	instrs = append(instrs, instruction.GetLocal{Index: c.local(loop.Source)})
 	instrs = append(instrs, instruction.GetLocal{Index: c.local(loop.Key)})
-	instrs = append(instrs, instruction.Call{Index: opaValueGet})
+	instrs = append(instrs, instruction.Call{Index: c.function(opaValueGet)})
 	instrs = append(instrs, instruction.SetLocal{Index: c.local(loop.Value)})
 
 	// Loop body.
@@ -238,52 +276,48 @@ func (c *Compiler) emitLocals() error {
 	return nil
 }
 
-func (c *Compiler) emitTypeSection() error {
-	c.module.Type.Functions = functypes[:]
-	return nil
-}
+func (c *Compiler) emitFunctionSection() error {
 
-func (c *Compiler) emitImportSection() error {
+	var found bool
+	var index uint32
 
-	imps := make([]module.Import, len(externs)+1)
-
-	for i, ext := range externs {
-		imps[i] = ext
-		if imps[i].Module == "" {
-			imps[i].Module = "opa"
+	for i, tpe := range c.module.Type.Functions {
+		if len(tpe.Params) == 2 && tpe.Params[0] == types.I32 && tpe.Params[1] == types.I32 {
+			if len(tpe.Results) == 1 && tpe.Results[0] == types.I32 {
+				index = uint32(i)
+				found = true
+				break
+			}
 		}
 	}
 
-	imps[len(imps)-1] = module.Import{
-		Module: "env",
-		Name:   "memory",
-		Descriptor: module.MemoryImport{
-			Mem: module.MemType{
-				Lim: module.Limit{
-					Min: 5,
-				},
-			},
-		},
+	if !found {
+		return fmt.Errorf("expected to find (int32, int32) -> int32 in type section")
 	}
 
-	c.module.Import.Imports = imps
+	c.module.Function.TypeIndices = append(c.module.Function.TypeIndices, index)
 
-	return nil
-}
+	var numFuncs int
 
-func (c *Compiler) emitFunctionSection() error {
-	c.module.Function.TypeIndices = make([]uint32, 1)
-	c.module.Function.TypeIndices[0] = funcInt32Int32retInt32
+	for _, imp := range c.module.Import.Imports {
+		if imp.Descriptor.Kind() == module.FunctionImportType {
+			numFuncs++
+		}
+	}
+
+	c.evalIndex = uint32(numFuncs + len(c.module.Function.TypeIndices) - 1)
+
 	return nil
 }
 
 func (c *Compiler) emitExportSection() error {
-	c.module.Export.Exports = make([]module.Export, 1)
-	c.module.Export.Exports[0].Name = "eval"
-	c.module.Export.Exports[0].Descriptor = module.ExportDescriptor{
-		Type:  module.FunctionExportType,
-		Index: uint32(len(externs)),
-	}
+	c.module.Export.Exports = append(c.module.Export.Exports, module.Export{
+		Name: "eval",
+		Descriptor: module.ExportDescriptor{
+			Type:  module.FunctionExportType,
+			Index: c.evalIndex,
+		},
+	})
 	return nil
 }
 
@@ -323,6 +357,14 @@ func (c *Compiler) local(l ir.Local) uint32 {
 		c.localMax = u32
 	}
 	return u32
+}
+
+func (c *Compiler) function(name string) uint32 {
+	index, ok := c.funcs[name]
+	if !ok {
+		panic(fmt.Sprintf("illegal function name %q", name))
+	}
+	return index
 }
 
 func (c *Compiler) appendInstr(instr instruction.Instruction) {
