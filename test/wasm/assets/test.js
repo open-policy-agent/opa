@@ -54,10 +54,10 @@ function formatMicros(us) {
     }
 }
 
-function evaluate(mem, opa, policy, input) {
+function evaluate(mem, policy, input) {
 
     const str = JSON.stringify(input)
-    const addr = opa.instance.exports.opa_malloc(str.length);
+    const addr = policy.instance.exports.opa_malloc(str.length);
     const buf = new Uint8Array(mem.buffer);
 
     for(let i = 0; i < str.length; i++) {
@@ -70,24 +70,12 @@ function evaluate(mem, opa, policy, input) {
     return {returnCode: returnCode};
 }
 
-async function test(executable) {
+async function test() {
 
     const mem = new WebAssembly.Memory({initial: 5});
     const addr2string = stringDecoder(mem);
 
     const t0 = now();
-
-    const opa = await WebAssembly.instantiate(readFileSync(executable), {
-        env: {
-            memory: mem,
-            opa_abort: (msg) => {
-                throw 'abort: ' + addr2string(msg);
-            },
-        },
-    });
-
-    const t_opa = now();
-    const dt_opa = t_opa - t0;
 
     var testCases = [];
     const files = readdirSync('.');
@@ -105,7 +93,7 @@ async function test(executable) {
     })
 
     const t_load = now();
-    const dt_load = t_load - t_opa;
+    const dt_load = t_load - t0;
     console.log('Found ' + testCases.length + ' WASM test cases in ' + numFiles + ' file(s). Took ' + formatMicros(dt_load) + '. Running now.');
     console.log();
 
@@ -117,15 +105,19 @@ async function test(executable) {
     for(let i = 0; i < testCases.length; i++) {
 
         const policy = await WebAssembly.instantiate(testCases[i].wasmBytes, {
-            env: {memory: mem},
-            opa: opa.instance.exports,
+            env: {
+                memory: mem,
+                opa_abort: function(addr) {
+                    throw addr2string(addr);
+                },
+            },
         });
 
         let passed = false;
         let error = undefined;
 
         try {
-            const result = evaluate(mem, opa, policy, testCases[i].input);
+            const result = evaluate(mem, policy, testCases[i].input);
             passed = result.returnCode === testCases[i].return_code;
         } catch(e) {
             passed = false;
@@ -170,9 +162,4 @@ async function test(executable) {
     }
 }
 
-if (process.argv.length != 3) {
-    console.log(process.argv[1] + " <opa executable path>");
-    process.exit(1);
-}
-
-test(process.argv[2]);
+test();

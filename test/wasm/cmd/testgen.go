@@ -16,7 +16,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/open-policy-agent/opa/internal/compiler/wasm/opa"
 	"github.com/open-policy-agent/opa/rego"
 	"github.com/open-policy-agent/opa/util"
 	"github.com/spf13/cobra"
@@ -110,15 +109,6 @@ func run(params params, args []string) error {
 				return err
 			}
 		}
-	}
-
-	bs, err := opa.Bytes()
-	if err != nil {
-		return err
-	}
-
-	if err := writeFile(tw, "opa.wasm", bs); err != nil {
-		return err
 	}
 
 	return copyFile(tw, "test.js", filepath.Join(params.InputDir, "test.js"))
