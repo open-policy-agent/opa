@@ -1228,13 +1228,17 @@ func (s *set) Diff(other Set) Set {
 func (s *set) Intersect(other Set) Set {
 	o := other.(*set)
 	n, m := s.Len(), o.Len()
+	ss := s
+	so := o
 	if m < n {
+		ss = o
+		so = s
 		n = m
 	}
 
 	r := newset(n)
-	s.Foreach(func(x *Term) {
-		if o.Contains(x) {
+	ss.Foreach(func(x *Term) {
+		if so.Contains(x) {
 			r.Add(x)
 		}
 	})

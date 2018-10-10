@@ -50,6 +50,28 @@ func BenchmarkSetIntersection(b *testing.B) {
 	}
 }
 
+func BenchmarkSetIntersectionDifferentSize(b *testing.B) {
+	sizes := []int{4, 50, 500, 5000}
+	for _, n := range sizes {
+		b.Run(fmt.Sprint(n), func(b *testing.B) {
+			setA := NewSet()
+			setB := NewSet()
+			for i := 0; i < n; i++ {
+				setA.Add(IntNumberTerm(i))
+				setA.Add(IntNumberTerm(i + n))
+				setB.Add(IntNumberTerm(i))
+			}
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				setC := setA.Intersect(setB)
+				if setC.Len() != n/2 {
+					b.Fatal("expected size to be equal")
+				}
+			}
+		})
+	}
+}
+
 func BenchmarkSetMembership(b *testing.B) {
 	sizes := []int{5, 50, 500, 5000}
 	for _, n := range sizes {
