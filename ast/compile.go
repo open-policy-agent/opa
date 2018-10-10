@@ -2113,7 +2113,7 @@ func rewriteEquals(x interface{}) {
 	WalkExprs(x, func(x *Expr) bool {
 		if x.IsCall() {
 			operator := x.Operator()
-			if operator.Equal(doubleEq) {
+			if operator.Equal(doubleEq) && len(x.Operands()) == 2 {
 				x.SetOperator(NewTerm(unifyOp))
 			}
 		}
