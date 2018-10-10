@@ -204,6 +204,115 @@ $ opa test --format=json pass_fail_error_test.rego
 ]
 ```
 
+## Data Mocking
+
+OPA's `with` keyword can be used to replace the data document. Both base and virtual documents can be replaced. Below is a simple policy that depends on the data document.
+
+**authz.rego**:
+
+```ruby
+package authz
+
+allow {
+    x := data.policies[_]
+    x.name = "test_policy"
+    matches_role(input.role)
+}
+
+matches_role(my_role) {
+    data.roles[my_role][_] = input.user
+}
+```
+
+Below is the Rego file to test the above policy.
+
+**authz_test.rego**:
+
+```ruby
+package authz
+
+policies = [{"name": "test_policy"}]
+roles = {"admin": ["alice"]}
+
+test_allow_with_data {
+    allow with input as {"user": "alice", "role": "admin"}  with data.policies as policies  with data.roles as roles
+}
+```
+
+To exercise the policy, run the `opa test` command.
+
+```bash
+$ opa test -v authz.rego authz_test.rego
+data.authz.test_allow_with_data: PASS (697ns)
+--------------------------------------------------------------------------------
+PASS: 1/1
+```
+
+Below is an example to replace a rule without arguments.
+
+**authz.rego**:
+
+```ruby
+package authz
+
+allow1 {
+    allow2
+}
+
+allow2 {
+    2 = 1
+}
+```
+
+**authz_test.rego**:
+
+```ruby
+package authz
+
+test_replace_rule {
+    allow1 with allow2 as true
+}
+```
+
+```bash
+$  opa test -v authz.rego authz_test.rego
+data.authz.test_replace_rule: PASS (328ns)
+--------------------------------------------------------------------------------
+PASS: 1/1
+```
+
+Functions with arguments cannot be replaced by the `with` keyword. For example, in the below policy the function `cannot_replace` cannot be replaced.
+
+**authz.rego**:
+
+```ruby
+package authz
+
+invalid_replace {
+    cannot_replace(input.label)
+}
+
+cannot_replace(label) {
+    label = "test_label"
+}
+```
+
+**authz_test.rego**:
+
+```ruby
+package authz
+
+test_invalid_replace {
+    invalid_replace with input as {"label": "test_label"} with cannot_replace as true
+}
+```
+
+```bash
+$ opa test -v authz.rego authz_test.rego
+1 error occurred: authz_test.rego:4: rego_compile_error: with keyword cannot replace rules with arguments
+```
+
+
 ## Coverage
 
 In addition to reporting pass, fail, and error results for tests, `opa test`

@@ -861,10 +861,11 @@ func (c *Compiler) rewriteWithModifiers() {
 			if !ok {
 				return x, nil
 			}
-			body, err := rewriteWithModifiersInBody(f, body)
+			body, err := rewriteWithModifiersInBody(f, body, c.GetRules)
 			if err != nil {
 				c.err(err)
 			}
+
 			return body, nil
 		})
 		Transform(t, mod)
@@ -1038,7 +1039,7 @@ func (qc *queryCompiler) checkTypes(qctx *QueryContext, body Body) (Body, error)
 
 func (qc *queryCompiler) rewriteWithModifiers(qctx *QueryContext, body Body) (Body, error) {
 	f := newEqualityFactory(newLocalVarGenerator(body))
-	body, err := rewriteWithModifiersInBody(f, body)
+	body, err := rewriteWithModifiersInBody(f, body, qc.compiler.GetRules)
 	if err != nil {
 		return nil, Errors{err}
 	}
@@ -2586,10 +2587,10 @@ func rewriteDeclaredVar(g *localVarGenerator, stack *localDeclaredVars, v Var) (
 // rewriteWithModifiersInBody will rewrite the body so that with modifiers do
 // not contain terms that require evaluation as values. If this function
 // encounters an invalid with modifier target then it will raise an error.
-func rewriteWithModifiersInBody(f *equalityFactory, body Body) (Body, *Error) {
+func rewriteWithModifiersInBody(f *equalityFactory, body Body, getRules func(ref Ref) []*Rule) (Body, *Error) {
 	var result Body
 	for i := range body {
-		exprs, err := rewriteWithModifier(f, body[i])
+		exprs, err := rewriteWithModifier(f, body[i], getRules)
 		if err != nil {
 			return nil, err
 		}
@@ -2604,14 +2605,15 @@ func rewriteWithModifiersInBody(f *equalityFactory, body Body) (Body, *Error) {
 	return result, nil
 }
 
-func rewriteWithModifier(f *equalityFactory, expr *Expr) ([]*Expr, *Error) {
+func rewriteWithModifier(f *equalityFactory, expr *Expr, getRules func(ref Ref) []*Rule) ([]*Expr, *Error) {
 
 	var result []*Expr
-
 	for i := range expr.With {
-		if !isInputRef(expr.With[i].Target) {
-			return nil, NewError(TypeErr, expr.With[i].Target.Location, "with keyword target must be %v is %v", InputRootDocument, expr.With[i].Target)
+		err := validateTarget(expr.With[i].Target, getRules)
+		if err != nil {
+			return nil, err
 		}
+
 		if requiresEval(expr.With[i].Value) {
 			eq := f.Generate(expr.With[i].Value)
 			result = append(result, eq)
@@ -2621,17 +2623,43 @@ func rewriteWithModifier(f *equalityFactory, expr *Expr) ([]*Expr, *Error) {
 
 	// If any of the with modifiers in this expression were rewritten then result
 	// will be non-empty. In this case, the expression will have been modified and
-	// it should also be added to th result.
+	// it should also be added to the result.
 	if len(result) > 0 {
 		result = append(result, expr)
 	}
-
 	return result, nil
+}
+
+func validateTarget(term *Term, getRules func(ref Ref) []*Rule) *Error {
+	if !isInputRef(term) && !isDataRef(term) {
+		return NewError(TypeErr, term.Location, "with keyword target must start with %v or %v", InputRootDocument, DefaultRootDocument)
+	}
+
+	if isDataRef(term) {
+		if ref, ok := term.Value.(Ref); ok {
+			rules := getRules(ref)
+			for _, rule := range rules {
+				if len(rule.Head.Args) > 0 {
+					return NewError(CompileErr, term.Location, "with keyword cannot replace rules with arguments")
+				}
+			}
+		}
+	}
+	return nil
 }
 
 func isInputRef(term *Term) bool {
 	if ref, ok := term.Value.(Ref); ok {
 		if ref.HasPrefix(InputRootRef) {
+			return true
+		}
+	}
+	return false
+}
+
+func isDataRef(term *Term) bool {
+	if ref, ok := term.Value.(Ref); ok {
+		if ref.HasPrefix(DefaultRootRef) {
 			return true
 		}
 	}

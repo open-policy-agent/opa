@@ -748,7 +748,7 @@ iterate_ground[x] { data.topdown.virtual.constants[x] = 1 }
 	assertTopDownWithPath(t, compiler, store, "base/virtual: undefined-2", []string{"topdown", "v"}, "{}", `{"h": {"k": [1,2,3]}}`)
 	assertTopDownWithPath(t, compiler, store, "base/virtual: missing input value", []string{"topdown", "u"}, "{}", "{}")
 	assertTopDownWithPath(t, compiler, store, "iterate ground", []string{"topdown", "iterate_ground"}, "{}", `["p", "r"]`)
-	assertTopDownWithPath(t, compiler, store, "base/virtual: conflicts", []string{"topdown.conflicts"}, "{}", fmt.Errorf("base and virtual document keys must be disjoint"))
+	assertTopDownWithPath(t, compiler, store, "base/virtual: conflicts", []string{"topdown.conflicts"}, "{}", `{"k": "foo"}`)
 }
 
 func TestTopDownNestedReferences(t *testing.T) {
@@ -2588,6 +2588,35 @@ loopback = input { true }
 composite[x] { input.foo[_] = x; x > 2 }
 vars = {"foo": input.foo, "bar": input.bar} { true }
 input_eq { input.x = 1 }
+allow_basic = true {data.a = "testdata"}
+allow_merge_1 = true {data.b = {"v1": "hello", "v2": "world"}}
+allow_merge_2 = true {data.b = {"v1": "hello", "v2": "world", "v3": "again"}}
+virtual[x] { data.a.b[x] = 1 }
+mock_var = {"a": 0, "b": 0}
+mock_rule = false {1 = 2}
+
+allow1 {
+	data.label.b.c = [1,2,3]
+}
+
+allow2 {
+	data.label.b.c[x] = 2
+}
+
+allow3 {
+	data.label.b[x] = 1
+}
+
+allow4 {
+	data.label.b.c.d[x] = 1
+}
+
+allow {
+	allow1
+	allow2
+	not allow3
+	not allow4
+}
 `,
 
 		`package test
@@ -2600,6 +2629,21 @@ composite[x] { ex.composite[x] with input.foo as [1, 2, 3, 4] }
 vars = x { foo = "hello"; bar = "world"; x = ex.vars with input.foo as foo with input.bar as bar }
 conflict = true { ex.loopback with input.foo as "x" with input.foo.bar as "y" }
 negation_invalidate[x] { data.a[_] = x; not data.ex.input_eq with input.x as x }
+basic_data = true {ex.allow_basic = true with data.a as "testdata"}
+map_data_1 = true {ex.allow_merge_1 = true with data.b.v2 as "world"}
+map_data_2 = true {ex.allow_merge_2 = true with data.b.v2 as "world" with data.b.v3 as "again"}
+data_conflict = true {ex.allow_basic = true with data.a.b as 5}
+base_doc_exact_value[x] { data.a.b[x] = 1 with data.a.b as {"c": 1, "d": 2, "e": 1} }
+base_doc_any_index[x] { data.a.b[x] with data.a.b as {"c": 1, "d": 2, "e": 1} }
+undefined_1 { data.a.b.c with data.a.b as 1 }
+undefined_2 { data.l.a with data.l as 1 }
+virtual_doc_exact_value[x] { ex.virtual = x with data.a.b as {"c": 1, "d": 2, "e": 1} }
+virtual_doc_any_index[x] { ex.virtual[x] with data.a.b as {"c": 1, "d": 2, "e": 1} }
+virtual_doc_specific_index = y { y = ex.virtual["c"] with data.a.b as {"c": 1, "d": 2, "e": 1} }
+virtual_doc_not_specific_index = true { not ex.virtual["d"] with data.a.b as {"c": 1, "d": 2, "e": 1} }
+test_mock_var = y {y = ex.mock_var with ex.mock_var as {"c": 1, "d": 2}}
+test_mock_rule {ex.mock_rule with ex.mock_rule as true}
+test_rule_chain {ex.allow with data.label.b.c as [1,2,3]}
 `,
 	})
 
@@ -2611,6 +2655,22 @@ negation_invalidate[x] { data.a[_] = x; not data.ex.input_eq with input.x as x }
 	assertTopDownWithPath(t, compiler, store, "with vars", []string{"test", "vars"}, "", `{"foo": "hello", "bar": "world"}`)
 	assertTopDownWithPath(t, compiler, store, "with conflict", []string{"test", "conflict"}, "", fmt.Errorf("conflicting input documents"))
 	assertTopDownWithPath(t, compiler, store, "With invalidate", []string{"test", "negation_invalidate"}, "", "[2,3,4]")
+	assertTopDownWithPath(t, compiler, store, "with basic data", []string{"test", "basic_data"}, "", "true")
+	assertTopDownWithPath(t, compiler, store, "with map data overwrite", []string{"test", "map_data_1"}, "", "true")
+	assertTopDownWithPath(t, compiler, store, "with map data new key", []string{"test", "map_data_2"}, "", "true")
+	assertTopDownWithPath(t, compiler, store, "with data conflict", []string{"test", "data_conflict"}, "", fmt.Errorf("eval_with_merge_error"))
+	assertTopDownWithPath(t, compiler, store, "with base doc exact value", []string{"test", "base_doc_exact_value"}, "", `["c", "e"]`)
+	assertTopDownWithPath(t, compiler, store, "with base doc any index", []string{"test", "base_doc_any_index"}, "", `["c", "d", "e"]`)
+	assertTopDownWithPath(t, compiler, store, "undefined_1", []string{"test", "undefined_1"}, "", "")
+	assertTopDownWithPath(t, compiler, store, "undefined_2", []string{"test", "undefined_2"}, "", "")
+	assertTopDownWithPath(t, compiler, store, "with virtual doc exact value", []string{"test", "virtual_doc_exact_value"}, "", `[["c", "e"]]`)
+	assertTopDownWithPath(t, compiler, store, "with virtual doc any index", []string{"test", "virtual_doc_any_index"}, "", `["c", "e"]`)
+	assertTopDownWithPath(t, compiler, store, "with virtual doc specific index", []string{"test", "virtual_doc_specific_index"}, "", `"c"`)
+	assertTopDownWithPath(t, compiler, store, "with virtual doc not specific index", []string{"test", "virtual_doc_not_specific_index"}, "", "true")
+	assertTopDownWithPath(t, compiler, store, "with mock var", []string{"test", "test_mock_var"}, "", `{"c": 1, "d": 2}`)
+	assertTopDownWithPath(t, compiler, store, "with mock rule", []string{"test", "test_mock_rule"}, "", "true")
+	assertTopDownWithPath(t, compiler, store, "with rule chain", []string{"test", "test_rule_chain"}, "", "true")
+
 }
 
 func TestTopDownElseKeyword(t *testing.T) {

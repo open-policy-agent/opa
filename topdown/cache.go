@@ -78,21 +78,43 @@ func newBaseCache() *baseCache {
 	}
 }
 
-func (c *baseCache) Get(ref ast.Ref) ast.Value {
+func (c *baseCache) Get(ref ast.Ref) (ast.Value, bool) {
 	node := c.root
 	for i := 0; i < len(ref); i++ {
 		node = node.children[ref[i].Value]
 		if node == nil {
-			return nil
+			return nil, false
 		} else if node.value != nil {
 			result, err := node.value.Find(ref[i+1:])
 			if err != nil {
-				return nil
+				return nil, false
 			}
-			return result
+			return result, true
 		}
 	}
-	return nil
+
+	// exact match for ref not found
+	val, err := c.getAllChildren(node)
+	if err != nil {
+		return nil, false
+	}
+	return val, false
+}
+
+func (c *baseCache) getAllChildren(node *baseCacheElem) (ast.Value, error) {
+	res := ast.NewObject()
+	for val, elem := range node.children {
+		if elem.value != nil {
+			res.Insert(ast.NewTerm(val), ast.NewTerm(elem.value))
+		} else {
+			children, err := c.getAllChildren(elem)
+			if err != nil {
+				return nil, err
+			}
+			res.Insert(ast.NewTerm(val), ast.NewTerm(children))
+		}
+	}
+	return res, nil
 }
 
 func (c *baseCache) Put(ref ast.Ref, value ast.Value) {
@@ -107,6 +129,31 @@ func (c *baseCache) Put(ref ast.Ref, value ast.Value) {
 		}
 	}
 	node.set(value)
+}
+
+func (c *baseCache) Remove(ref ast.Ref) {
+	c.remove(c.root, ref, 0)
+}
+
+func (c *baseCache) remove(current *baseCacheElem, ref ast.Ref, index int) bool {
+
+	if index == len(ref) {
+		current.set(nil)
+		return len(current.children) == 0
+	}
+
+	node := current.children[ref[index].Value]
+	if node == nil {
+		return false
+	}
+
+	removeCurrentNode := c.remove(node, ref, index+1)
+
+	if removeCurrentNode {
+		delete(current.children, ref[index].Value)
+		return len(current.children) == 0
+	}
+	return false
 }
 
 type baseCacheElem struct {
