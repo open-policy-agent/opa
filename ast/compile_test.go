@@ -1320,6 +1320,16 @@ func TestCompilerRewriteDoubleEq(t *testing.T) {
 			input: "p { count([1,2]) == 2 }",
 			exp:   `count([1,2], __local0__); __local0__ = 2`,
 		},
+		{
+			note:  "embedded",
+			input: "p { x = 1; y = [x == 0] }",
+			exp:   `x = 1; equal(x, 0, __local0__); y = [__local0__]`,
+		},
+		{
+			note:  "embedded in call",
+			input: `p { x = 0; neq(true, x == 1) }`,
+			exp:   `x = 0; equal(x, 1, __local0__); neq(true, __local0__)`,
+		},
 	}
 	for _, tc := range tests {
 		test.Subtest(t, tc.note, func(t *testing.T) {
