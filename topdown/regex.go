@@ -132,10 +132,37 @@ func builtinGlobsMatch(a, b ast.Value) (ast.Value, error) {
 	return ast.Boolean(ne), nil
 }
 
+func builtinRegexFind(a, b, c ast.Value) (ast.Value, error) {
+	s1, err := builtins.StringOperand(a, 1)
+	if err != nil {
+		return nil, err
+	}
+	s2, err := builtins.StringOperand(b, 2)
+	if err != nil {
+		return nil, err
+	}
+	n, err := builtins.IntOperand(c, 3)
+	if err != nil {
+		return nil, err
+	}
+	re, err := getRegexp(string(s1))
+	if err != nil {
+		return nil, err
+	}
+
+	elems := re.FindAllString(string(s2), n)
+	arr := make(ast.Array, len(elems))
+	for i := range arr {
+		arr[i] = ast.StringTerm(elems[i])
+	}
+	return arr, nil
+}
+
 func init() {
 	regexpCache = map[string]*regexp.Regexp{}
 	RegisterFunctionalBuiltin2(ast.RegexMatch.Name, builtinRegexMatch)
 	RegisterFunctionalBuiltin2(ast.RegexSplit.Name, builtinRegexSplit)
 	RegisterFunctionalBuiltin2(ast.GlobsMatch.Name, builtinGlobsMatch)
 	RegisterFunctionalBuiltin4(ast.RegexTemplateMatch.Name, builtinRegexMatchTemplate)
+	RegisterFunctionalBuiltin3(ast.RegexFind.Name, builtinRegexFind)
 }

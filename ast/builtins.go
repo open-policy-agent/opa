@@ -81,6 +81,7 @@ var DefaultBuiltins = [...]*Builtin{
 	RegexSplit,
 	GlobsMatch,
 	RegexTemplateMatch,
+	RegexFind,
 
 	// Sets
 	SetDiff,
@@ -618,6 +619,20 @@ var RegexSplit = &Builtin{
 		types.Args(
 			types.S,
 			types.S,
+		),
+		types.NewArray(nil, types.S),
+	),
+}
+
+// RegexFind takes two strings and a number, the pattern, the value and number of match values to
+// return, -1 means all match values.
+var RegexFind = &Builtin{
+	Name: "regex.find_n",
+	Decl: types.NewFunction(
+		types.Args(
+			types.S,
+			types.S,
+			types.N,
 		),
 		types.NewArray(nil, types.S),
 	),
