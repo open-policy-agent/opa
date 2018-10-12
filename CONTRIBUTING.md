@@ -36,17 +36,28 @@ OPA slack or submit an issue on GitHub.
 If you are contributing code, please consider the following:
 
 - Most changes should be accompanied with tests.
-- Commit messages should explain *why* the changes were made and should probably look like this:
-
-        Description of the change in 50 characters or less
-
-        More detail on what was changed. Provide some background on the issue
-        and describe how the changes address the issue. Feel free to use multiple
-        paragraphs but please keep each line under 72 characters or so.
-
 - All commits must be signed off (see next section).
 - Related commits must be squashed before they are merged.
 - All tests must pass and there must be no warnings from the `make check` target.
+
+## Commit Messages
+
+Commit messages should explain *why* the changes were made and should probably look like this:
+
+```
+Description of the change in 50 characters or less
+
+More detail on what was changed. Provide some background on the issue
+and describe how the changes address the issue. Feel free to use multiple
+paragraphs but please keep each line under 72 characters or so.
+```
+
+If your changes are related to an open issue (bug or feature), please include
+the following line at the end of your commit message:
+
+```
+Fixes #<ISSUE_NUMBER>
+```
 
 ## Developer Certificate Of Origin
 
