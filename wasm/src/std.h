@@ -1,5 +1,5 @@
-#ifndef OPA_TYPES_H
-#define OPA_TYPES_H
+#ifndef OPA_STD_H
+#define OPA_STD_H
 
 #define NULL (0)
 #define TRUE (1)
