@@ -28,6 +28,7 @@ const (
 	opaNumberInt        = "opa_number_int"
 	opaValueBooleanSet  = "opa_value_boolean_set"
 	opaValueNotEqual    = "opa_value_not_equal"
+	opaValueCompare     = "opa_value_compare"
 	opaValueGet         = "opa_value_get"
 	opaValueIter        = "opa_value_iter"
 )
@@ -192,6 +193,40 @@ func (c *Compiler) compileBlock(block ir.Block) ([]instruction.Instruction, erro
 			instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.A)})
 			instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.B)})
 			instrs = append(instrs, instruction.Call{Index: c.function(opaValueNotEqual)})
+			instrs = append(instrs, instruction.BrIf{Index: 0})
+		case ir.LessThanStmt:
+			instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.A)})
+			instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.B)})
+			instrs = append(instrs, instruction.Call{Index: c.function(opaValueCompare)})
+			instrs = append(instrs, instruction.I32Const{Value: 0})
+			instrs = append(instrs, instruction.I32GeS{})
+			instrs = append(instrs, instruction.BrIf{Index: 0})
+		case ir.LessThanEqualStmt:
+			instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.A)})
+			instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.B)})
+			instrs = append(instrs, instruction.Call{Index: c.function(opaValueCompare)})
+			instrs = append(instrs, instruction.I32Const{Value: 0})
+			instrs = append(instrs, instruction.I32GtS{})
+			instrs = append(instrs, instruction.BrIf{Index: 0})
+		case ir.GreaterThanStmt:
+			instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.A)})
+			instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.B)})
+			instrs = append(instrs, instruction.Call{Index: c.function(opaValueCompare)})
+			instrs = append(instrs, instruction.I32Const{Value: 0})
+			instrs = append(instrs, instruction.I32LeS{})
+			instrs = append(instrs, instruction.BrIf{Index: 0})
+		case ir.GreaterThanEqualStmt:
+			instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.A)})
+			instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.B)})
+			instrs = append(instrs, instruction.Call{Index: c.function(opaValueCompare)})
+			instrs = append(instrs, instruction.I32Const{Value: 0})
+			instrs = append(instrs, instruction.I32LtS{})
+			instrs = append(instrs, instruction.BrIf{Index: 0})
+		case ir.NotEqualStmt:
+			instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.A)})
+			instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.B)})
+			instrs = append(instrs, instruction.Call{Index: c.function(opaValueCompare)})
+			instrs = append(instrs, instruction.I32Eqz{})
 			instrs = append(instrs, instruction.BrIf{Index: 0})
 		case ir.MakeBooleanStmt:
 			instr := instruction.I32Const{}

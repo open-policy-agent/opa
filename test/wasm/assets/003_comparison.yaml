@@ -1,0 +1,57 @@
+cases:
+  - note: lt/number
+    query: "input.x < 2"
+    input: {"x": 1}
+    return_code: 1
+  - note: lt/number (negative)
+    query: "input.x < 0"
+    input: {"x": 1}
+    return_code: 0
+  - note: lt/number (negative)
+    query: "input.x < 1"
+    input: {"x": 1}
+    return_code: 0
+  - note: lte/number
+    query: "input.x <= 2"
+    input: {"x": 1}
+    return_code: 1
+  - note: lte/number
+    query: "input.x <= 1"
+    input: {"x": 1}
+    return_code: 1
+  - note: lte/number (negative)
+    query: "input.x <= 0"
+    input: {"x": 1}
+    retutrn_code: 0
+  - note: gt/number
+    query: "input.x > 0"
+    input: {"x": 1}
+    return_code: 1
+  - note: gt/number (negative)
+    query: "input.x > 1"
+    input: {"x": 1}
+    return_code: 0
+  - note: gt/number (negative)
+    query: "input.x > 2"
+    input: {"x": 1}
+    return_code: 0
+  - note: gte/number
+    query: "input.x >= 0"
+    input: {"x": 1}
+    return_code: 1
+  - note: gte/number
+    query: "input.x >= 1"
+    input: {"x": 1}
+    return_code: 1
+  - note: gte/number (negative)
+    query: "input.x >= 2"
+    input: {"x": 1}
+    return_code: 0
+  - note: neq/number
+    query: "input.x != 1"
+    input: {"x": 0}
+    return_code: 1
+  - note: neq/number (negative)
+    query: "input.x != 1"
+    input: {"x": 1}
+    return_code: 0

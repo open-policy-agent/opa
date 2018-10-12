@@ -70,6 +70,16 @@ function evaluate(mem, policy, input) {
     return {returnCode: returnCode};
 }
 
+function namespace(cache, key) {
+    if (key in cache) {
+        cache[key] += 1;
+        return key + ' (' + cache[key] + ')'
+    } else {
+        cache[key] = 0;
+        return key;
+    }
+}
+
 async function test() {
 
     const mem = new WebAssembly.Memory({initial: 5});
@@ -101,6 +111,7 @@ async function test() {
     let numFailed = 0;
     let numErrors = 0;
     let dirty = false;
+    let cache = {};
 
     for(let i = 0; i < testCases.length; i++) {
 
@@ -132,7 +143,7 @@ async function test() {
             numErrors++;
         }
 
-        dirty = dirty || report(passed, error, testCases[i].note);
+        dirty = report(passed, error, namespace(cache, testCases[i].note)) || dirty;
     }
 
     const t_end = now();
