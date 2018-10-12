@@ -263,6 +263,7 @@ func (p *Planner) planLoop(ref ast.Ref, index int, iter planiter) error {
 
 		prev := p.curr
 		p.curr = &loop.Block
+		p.ltarget = value
 
 		if err := iter(); err != nil {
 			return err

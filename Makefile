@@ -125,7 +125,7 @@ go-test: generate
 	$(GO) test ./...
 
 .PHONY: wasm-test
-wasm-test:
+wasm-test: generate
 ifeq ($(DOCKER_INSTALLED), 1)
 	@mkdir -p _test
 	@$(GO) run test/wasm/cmd/testgen.go --input-dir test/wasm/assets --output _test/testcases.tar.gz

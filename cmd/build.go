@@ -68,6 +68,10 @@ func build(args []string) error {
 		regoArgs = append(regoArgs, rego.Module(file.Name, string(file.Raw)))
 	}
 
+	if buildParams.debug {
+		regoArgs = append(regoArgs, rego.Dump(os.Stderr))
+	}
+
 	r := rego.New(regoArgs...)
 	cr, err := r.Compile(ctx)
 	if err != nil {
