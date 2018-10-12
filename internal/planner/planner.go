@@ -13,6 +13,7 @@ import (
 )
 
 type planiter func() error
+type binaryiter func(ir.Local, ir.Local) error
 
 // Planner implements a query planner for Rego queries.
 type Planner struct {
@@ -115,22 +116,64 @@ func (p *Planner) planExprCall(e *ast.Expr, iter planiter) error {
 
 	switch e.Operator().String() {
 	case ast.Equality.Name:
-		return p.planExprEquality(e, iter)
-	default:
-		return fmt.Errorf("%v operator not implemented", e.Operator())
-	}
-}
-
-func (p *Planner) planExprEquality(e *ast.Expr, iter planiter) error {
-	return p.planTerm(e.Operand(0), func() error {
-		a := p.ltarget
-		return p.planTerm(e.Operand(1), func() error {
-			b := p.ltarget
+		return p.planBinaryExpr(e, func(a, b ir.Local) error {
 			p.appendStmt(ir.EqualStmt{
 				A: a,
 				B: b,
 			})
 			return iter()
+		})
+	case ast.LessThan.Name:
+		return p.planBinaryExpr(e, func(a, b ir.Local) error {
+			p.appendStmt(ir.LessThanStmt{
+				A: a,
+				B: b,
+			})
+			return iter()
+		})
+	case ast.LessThanEq.Name:
+		return p.planBinaryExpr(e, func(a, b ir.Local) error {
+			p.appendStmt(ir.LessThanEqualStmt{
+				A: a,
+				B: b,
+			})
+			return iter()
+		})
+	case ast.GreaterThan.Name:
+		return p.planBinaryExpr(e, func(a, b ir.Local) error {
+			p.appendStmt(ir.GreaterThanStmt{
+				A: a,
+				B: b,
+			})
+			return iter()
+		})
+	case ast.GreaterThanEq.Name:
+		return p.planBinaryExpr(e, func(a, b ir.Local) error {
+			p.appendStmt(ir.GreaterThanEqualStmt{
+				A: a,
+				B: b,
+			})
+			return iter()
+		})
+	case ast.NotEqual.Name:
+		return p.planBinaryExpr(e, func(a, b ir.Local) error {
+			p.appendStmt(ir.NotEqualStmt{
+				A: a,
+				B: b,
+			})
+			return iter()
+		})
+	default:
+		return fmt.Errorf("%v operator not implemented", e.Operator())
+	}
+}
+
+func (p *Planner) planBinaryExpr(e *ast.Expr, iter binaryiter) error {
+	return p.planTerm(e.Operand(0), func() error {
+		a := p.ltarget
+		return p.planTerm(e.Operand(1), func() error {
+			b := p.ltarget
+			return iter(a, b)
 		})
 	})
 }

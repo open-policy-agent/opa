@@ -165,3 +165,33 @@ type EqualStmt struct {
 	A Local
 	B Local
 }
+
+// LessThanStmt represents a < check of two local variables.
+type LessThanStmt struct {
+	A Local
+	B Local
+}
+
+// LessThanEqualStmt represents a <= check of two local variables.
+type LessThanEqualStmt struct {
+	A Local
+	B Local
+}
+
+// GreaterThanStmt represents a > check of two local variables.
+type GreaterThanStmt struct {
+	A Local
+	B Local
+}
+
+// GreaterThanEqualStmt represents a >= check of two local variables.
+type GreaterThanEqualStmt struct {
+	A Local
+	B Local
+}
+
+// NotEqualStmt represents a != check of two local variables.
+type NotEqualStmt struct {
+	A Local
+	B Local
+}

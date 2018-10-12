@@ -47,3 +47,43 @@ type I32Eqz struct {
 func (I32Eqz) Op() opcode.Opcode {
 	return opcode.I32Eqz
 }
+
+// I32GtS represents the WASM i32.gt_s instruction.
+type I32GtS struct {
+	NoImmediateArgs
+}
+
+// Op returns the opcode of the instruction.
+func (I32GtS) Op() opcode.Opcode {
+	return opcode.I32GtS
+}
+
+// I32GeS represents the WASM i32.ge_s instruction.
+type I32GeS struct {
+	NoImmediateArgs
+}
+
+// Op returns the opcode of the instruction.
+func (I32GeS) Op() opcode.Opcode {
+	return opcode.I32GeS
+}
+
+// I32LtS represents the WASM i32.lt_s instruction.
+type I32LtS struct {
+	NoImmediateArgs
+}
+
+// Op returns the opcode of the instruction.
+func (I32LtS) Op() opcode.Opcode {
+	return opcode.I32LtS
+}
+
+// I32LeS represents the WASM i32.le_s instruction.
+type I32LeS struct {
+	NoImmediateArgs
+}
+
+// Op returns the opcode of the instruction.
+func (I32LeS) Op() opcode.Opcode {
+	return opcode.I32LeS
+}
