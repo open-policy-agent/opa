@@ -44,6 +44,7 @@ type evalCommandParams struct {
 	profileCriteria   repeatedStringFlag
 	profileLimit      intFlag
 	prettyLimit       intFlag
+	fail              bool
 }
 
 const (
@@ -155,9 +156,15 @@ Set the output format with the --format flag.
 			return nil
 		},
 		Run: func(cmd *cobra.Command, args []string) {
-			if err := eval(args, params); err != nil {
+			if code, err := eval(args, params); err != nil {
 				fmt.Fprintln(os.Stderr, err)
-				os.Exit(1)
+				if params.fail {
+					os.Exit(code)
+				} else {
+					os.Exit(1)
+				}
+			} else if params.fail {
+				os.Exit(code)
 			}
 		},
 	}
@@ -177,19 +184,20 @@ Set the output format with the --format flag.
 	evalCommand.Flags().VarP(&params.profileCriteria, "profile-sort", "", "set sort order of expression profiler results")
 	evalCommand.Flags().VarP(&params.profileLimit, "profile-limit", "", "set number of profiling results to show")
 	evalCommand.Flags().VarP(&params.prettyLimit, "pretty-limit", "", "set limit after which pretty output gets truncated")
+	evalCommand.Flags().BoolVarP(&params.fail, "fail", "", false, "exits with non-zero exit code on undefined result and errors")
 	setIgnore(evalCommand.Flags(), &params.ignore)
 
 	RootCommand.AddCommand(evalCommand)
 }
 
-func eval(args []string, params evalCommandParams) (err error) {
+func eval(args []string, params evalCommandParams) (exitCode int, err error) {
 
 	var query string
 
 	if params.stdin {
 		bs, err := ioutil.ReadAll(os.Stdin)
 		if err != nil {
-			return err
+			return 0, err
 		}
 		query = string(bs)
 	} else {
@@ -219,7 +227,7 @@ func eval(args []string, params evalCommandParams) (err error) {
 
 		loadResult, err := loader.Filtered(params.dataPaths.v, f.Apply)
 		if err != nil {
-			return err
+			return 0, err
 		}
 		regoArgs = append(regoArgs, rego.Store(inmem.NewFromObject(loadResult.Documents)))
 		for _, file := range loadResult.Modules {
@@ -229,11 +237,11 @@ func eval(args []string, params evalCommandParams) (err error) {
 
 	bs, err := readInputBytes(params)
 	if err != nil {
-		return err
+		return 2, err
 	} else if bs != nil {
 		term, err := ast.ParseTerm(string(bs))
 		if err != nil {
-			return err
+			return 2, err
 		}
 		regoArgs = append(regoArgs, rego.ParsedInput(term.Value))
 	}
@@ -292,15 +300,23 @@ func eval(args []string, params evalCommandParams) (err error) {
 		result.Profile = p.ReportTopNResults(params.profileLimit.v, sortOrder)
 	}
 
+	err = nil
 	switch params.outputFormat.String() {
 	case evalBindingsOutput:
-		return pr.Bindings(os.Stdout, result)
+		err = pr.Bindings(os.Stdout, result)
 	case evalValuesOutput:
-		return pr.Values(os.Stdout, result)
+		err = pr.Values(os.Stdout, result)
 	case evalPrettyOutput:
-		return pr.Pretty(os.Stdout, result)
+		err = pr.Pretty(os.Stdout, result)
 	default:
-		return pr.JSON(os.Stdout, result)
+		err = pr.JSON(os.Stdout, result)
+	}
+	if err != nil || result.Error != nil {
+		return 2, err
+	} else if len(result.Result) == 0 {
+		return 1, nil
+	} else {
+		return 0, nil
 	}
 }
 
