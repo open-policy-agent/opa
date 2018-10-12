@@ -2610,7 +2610,7 @@ func rewriteWithModifier(f *equalityFactory, expr *Expr) ([]*Expr, *Error) {
 
 	for i := range expr.With {
 		if !isInputRef(expr.With[i].Target) {
-			return nil, NewError(TypeErr, expr.With[i].Target.Location, "with keyword target must be %v", InputRootDocument)
+			return nil, NewError(TypeErr, expr.With[i].Target.Location, "with keyword target must be %v is %v", InputRootDocument, expr.With[i].Target)
 		}
 		if requiresEval(expr.With[i].Value) {
 			eq := f.Generate(expr.With[i].Value)

@@ -1447,7 +1447,7 @@ func TestCompilerRewriteWithValue(t *testing.T) {
 		{
 			note:    "data target",
 			input:   `p { true with data.q as 1 }`,
-			wantErr: fmt.Errorf("rego_type_error: with keyword target must be input"),
+			wantErr: fmt.Errorf("rego_type_error: with keyword target must be input is data"),
 		},
 	}
 
@@ -2134,7 +2134,7 @@ func TestQueryCompiler(t *testing.T) {
 		{"unsafe vars", "z", "", nil, "", fmt.Errorf("1 error occurred: 1:1: rego_unsafe_var_error: var z is unsafe")},
 		{"safe vars", `data; abc`, `package ex`, []string{"import input.xyz as abc"}, `{}`, `data; input.xyz`},
 		{"reorder", `x != 1; x = 0`, "", nil, "", `x = 0; x != 1`},
-		{"bad with target", "x = 1 with data.p as null", "", nil, "", fmt.Errorf("1 error occurred: 1:12: rego_type_error: with keyword target must be input")},
+		{"bad with target", "x = 1 with data.p as null", "", nil, "", fmt.Errorf("1 error occurred: 1:12: rego_type_error: with keyword target must be input is data")},
 		{"rewrite with value", `1 with input as [z]`, "package a.b.c", nil, "", `__local1__ = data.a.b.c.z; __local0__ = [__local1__]; 1 with input as __local0__`},
 		{"unsafe exprs", "count(sum())", "", nil, "", fmt.Errorf("1 error occurred: 1:1: rego_unsafe_var_error: expression is unsafe")},
 		{"check types", "x = data.a.b.c.z; y = null; x = y", "", nil, "", fmt.Errorf("match error\n\tleft  : number\n\tright : null")},
