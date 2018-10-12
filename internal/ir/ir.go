@@ -111,13 +111,9 @@ func (a Block) String() string {
 	return fmt.Sprintf("Block (%d statements)", len(a.Stmts))
 }
 
-// Void is a marker indicating that a statement does not produce any output.
-type Void struct{}
-
 // ReturnStmt represents a return statement. Return statements halt execution of
 // a plan with the given code.
 type ReturnStmt struct {
-	Void
 	Code int32 // 32-bit integer for compatibility with languages like JavaScript.
 }
 
@@ -133,7 +129,6 @@ type DotStmt struct {
 // LoopStmt represents a loop operation on a composite value. The source of a
 // LoopStmt may be a scalar in which case the statement will be undefined.
 type LoopStmt struct {
-	Void
 	Source Local
 	Key    Local
 	Value  Local
@@ -143,7 +138,6 @@ type LoopStmt struct {
 
 // AssignStmt represents an assignment of a local variable.
 type AssignStmt struct {
-	Void
 	Value  interface{}
 	Target Local
 }
@@ -168,7 +162,6 @@ type MakeNumberIntStmt struct {
 
 // EqualStmt represents an value-equality check of two local variables.
 type EqualStmt struct {
-	Void
 	A Local
 	B Local
 }
