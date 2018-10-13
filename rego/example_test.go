@@ -9,11 +9,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/rego"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/storage/inmem"
+	"github.com/open-policy-agent/opa/topdown"
 	"github.com/open-policy-agent/opa/util"
 )
 
@@ -568,4 +570,31 @@ func ExampleRego_Partial() {
 	//
 	// Query #1: "GET" = input.method; input.path = ["reviews", _]; input.is_admin
 	// Query #2: "GET" = input.method; input.path = ["reviews", user3]; user3 = input.user
+}
+
+func ExampleRego_Eval_tracer() {
+
+	ctx := context.Background()
+
+	buf := topdown.NewBufferTracer()
+
+	// Create very simple query that binds a single variable, and enables tracing.
+	rego := rego.New(
+		rego.Query("x = 1"),
+		rego.Tracer(buf),
+	)
+
+	// Run evaluation.
+	rego.Eval(ctx)
+
+	// Inspect results.
+	topdown.PrettyTrace(os.Stdout, *buf)
+
+	// Output:
+	//
+	// Enter x = 1
+	// | Eval x = 1
+	// | Exit x = 1
+	// Redo x = 1
+	// | Redo x = 1
 }
