@@ -119,7 +119,7 @@ func (p PolicyV1) Equal(other PolicyV1) bool {
 
 // DataRequestV1 models the request message for Data API POST operations.
 type DataRequestV1 struct {
-	Input *interface{} `json:"input"`
+	Input *interface{} `json:"input" yaml:"input"`
 }
 
 // DataResponseV1 models the response message for Data API read operations.

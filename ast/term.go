@@ -154,6 +154,20 @@ func InterfaceToValue(x interface{}) (Value, error) {
 			r.Insert(NewTerm(k), NewTerm(v))
 		}
 		return r, nil
+	case map[interface{}]interface{}:
+		r := NewObject()
+		for k, v := range x {
+			k, err := InterfaceToValue(k)
+			if err != nil {
+				return nil, err
+			}
+			v, err := InterfaceToValue(v)
+			if err != nil {
+				return nil, err
+			}
+			r.Insert(NewTerm(k), NewTerm(v))
+		}
+		return r, nil
 	case map[string]string:
 		r := NewObject()
 		for k, v := range x {
