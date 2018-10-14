@@ -5,6 +5,11 @@
 package rest
 
 import (
+	"context"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -70,4 +75,97 @@ func TestNew(t *testing.T) {
 		t.Fatalf("Expected custom token but got: %v", results[3].config.Credentials.Bearer.Scheme)
 	}
 
+}
+
+func TestValidUrl(t *testing.T) {
+	ts := testServer{
+		t:         t,
+		expMethod: "GET",
+		expPath:   "/test",
+	}
+	ts.start()
+	defer ts.stop()
+	config := fmt.Sprintf(`{
+		"name": "foo",
+		"url": %q,
+	}`, ts.server.URL)
+	client, err := New([]byte(config))
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	ctx := context.Background()
+	if _, err := client.Do(ctx, "GET", "test"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+}
+
+func TestBearerToken(t *testing.T) {
+	ts := testServer{
+		t:               t,
+		expBearerScheme: "Acmecorp-Token",
+		expBearerToken:  "secret",
+	}
+	ts.start()
+	defer ts.stop()
+	config := fmt.Sprintf(`{
+		"name": "foo",
+		"url": %q,
+		"credentials": {
+			"bearer": {
+				"scheme": "Acmecorp-Token",
+				"token": "secret"
+			}
+		}
+	}`, ts.server.URL)
+	client, err := New([]byte(config))
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	ctx := context.Background()
+	if _, err := client.Do(ctx, "GET", "test"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+}
+
+type testServer struct {
+	t               *testing.T
+	server          *httptest.Server
+	expPath         string
+	expMethod       string
+	expBearerToken  string
+	expBearerScheme string
+	tls             bool
+}
+
+func (t *testServer) handle(w http.ResponseWriter, r *http.Request) {
+	if t.expMethod != "" && t.expMethod != r.Method {
+		t.t.Fatalf("Expected method %v, got %v", t.expMethod, r.Method)
+	}
+	if t.expPath != "" && t.expPath != r.URL.Path {
+		t.t.Fatalf("Expected path %q, got %q", t.expPath, r.URL.Path)
+	}
+	if (t.expBearerToken != "" || t.expBearerScheme != "") && len(r.Header["Authorization"]) == 0 {
+		t.t.Fatal("Expected bearer token, but didn't get any")
+	}
+	auth := r.Header["Authorization"][0]
+	if t.expBearerScheme != "" && !strings.HasPrefix(auth, t.expBearerScheme) {
+		t.t.Fatalf("Expected bearer scheme %q, got authorization header %q", t.expBearerScheme, auth)
+	}
+	if t.expBearerToken != "" && !strings.HasSuffix(auth, t.expBearerToken) {
+		t.t.Fatalf("Expected bearer token %q, got authorization header %q", t.expBearerToken, auth)
+	}
+	w.WriteHeader(200)
+}
+
+func (t *testServer) start() {
+	t.server = httptest.NewUnstartedServer(http.HandlerFunc(t.handle))
+	if t.tls {
+		t.server.StartTLS()
+	} else {
+		t.server.Start()
+	}
+}
+
+func (t *testServer) stop() {
+	t.server.Close()
 }
