@@ -905,7 +905,7 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 
 	m.Timer(metrics.RegoQueryParse).Start()
 
-	input, err := readInputPostV1(r.Body)
+	input, err := readInputPostV1(r)
 	if err != nil {
 		writer.ErrorString(w, http.StatusBadRequest, types.CodeInvalidParameter, err)
 		return
@@ -1756,9 +1756,9 @@ func readInputGetV1(str string) (ast.Value, error) {
 	return ast.InterfaceToValue(input)
 }
 
-func readInputPostV1(r io.ReadCloser) (ast.Value, error) {
+func readInputPostV1(r *http.Request) (ast.Value, error) {
 
-	bs, err := ioutil.ReadAll(r)
+	bs, err := ioutil.ReadAll(r.Body)
 
 	if err != nil {
 		return nil, err
@@ -1766,9 +1766,17 @@ func readInputPostV1(r io.ReadCloser) (ast.Value, error) {
 
 	if len(bs) > 0 {
 
+		ct := r.Header.Get("Content-Type")
+
 		var request types.DataRequestV1
 
-		if err := util.UnmarshalJSON(bs, &request); err != nil {
+		// There is no standard for yaml mime-type so we just look for
+		// anything related
+		if strings.Contains(ct, "yaml") {
+			if err := util.Unmarshal(bs, &request); err != nil {
+				return nil, errors.Wrapf(err, "body contains malformed input document")
+			}
+		} else if err := util.UnmarshalJSON(bs, &request); err != nil {
 			return nil, errors.Wrapf(err, "body contains malformed input document")
 		}
 
