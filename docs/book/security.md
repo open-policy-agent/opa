@@ -28,7 +28,12 @@ insecure HTTP connections in addition to HTTPS connections, provide another
 listening address with `--addr`. For example:
 
 ```bash
-opa run --server --log-level debug --tls-cert-file public.crt --tls-private-key-file private.key --addr https://0.0.0.0:8181 --addr http://localhost:8282
+opa run --server \
+  --log-level debug \
+  --tls-cert-file public.crt \
+  --tls-private-key-file private.key \
+  --addr https://0.0.0.0:8181 \
+  --addr http://localhost:8282
 ```
 
 ### 1. Generate the TLS credentials for OPA (Example)

@@ -206,8 +206,8 @@ func (rt *Runtime) StartServer(ctx context.Context) {
 	setupLogging(rt.Params.Logging)
 
 	logrus.WithFields(logrus.Fields{
-		"addrs":                      *rt.Params.Addrs,
-		"insecure_addr (deprecated)": rt.Params.InsecureAddr,
+		"addrs":         *rt.Params.Addrs,
+		"insecure_addr": rt.Params.InsecureAddr,
 	}).Infof("First line of log stream.")
 
 	if err := rt.Manager.Start(ctx); err != nil {
