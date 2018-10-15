@@ -190,7 +190,7 @@ Set the output format with the --format flag.
 	RootCommand.AddCommand(evalCommand)
 }
 
-func eval(args []string, params evalCommandParams) (exitCode int, err error) {
+func eval(args []string, params evalCommandParams) (int, error) {
 
 	var query string
 
