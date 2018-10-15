@@ -515,7 +515,7 @@ func (s *Server) v0QueryPath(w http.ResponseWriter, r *http.Request, path ast.Re
 	ctx := r.Context()
 	m := metrics.New()
 	diagLogger := s.evalDiagnosticPolicy(r)
-	input, err := readInputV0(r.Body)
+	input, err := readInputV0(r)
 	if err != nil {
 		writer.ErrorString(w, http.StatusBadRequest, types.CodeInvalidParameter, errors.Wrapf(err, "unexpected parse error for input"))
 		return
@@ -1732,8 +1732,8 @@ func makeDiagnosticsInput(r *http.Request) (map[string]interface{}, error) {
 	return input, nil
 }
 
-func readInputV0(r io.ReadCloser) (ast.Value, error) {
-	bs, err := ioutil.ReadAll(r)
+func readInputV0(r *http.Request) (ast.Value, error) {
+	bs, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		return nil, err
 	}
@@ -1742,9 +1742,15 @@ func readInputV0(r io.ReadCloser) (ast.Value, error) {
 		return nil, nil
 	}
 	var x interface{}
-	if err := util.UnmarshalJSON(bs, &x); err != nil {
+
+	if strings.Contains(r.Header.Get("Content-Type"), "yaml") {
+		if err := util.Unmarshal(bs, &x); err != nil {
+			return nil, err
+		}
+	} else if err := util.UnmarshalJSON(bs, &x); err != nil {
 		return nil, err
 	}
+
 	return ast.InterfaceToValue(x)
 }
 
