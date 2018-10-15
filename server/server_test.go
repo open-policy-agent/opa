@@ -152,7 +152,7 @@ func Test405StatusCodev1(t *testing.T) {
 	}
 }
 
-// Tests that the responses for (theoretically) valid resources but with forbidden mewthods return the proper status code
+// Tests that the responses for (theoretically) valid resources but with forbidden methods return the proper status code
 func Test405StatusCodev0(t *testing.T) {
 	tests := []struct {
 		note string
@@ -356,6 +356,42 @@ func TestCompileV1UnsafeBuiltin(t *testing.T) {
 
 	if f.recorder.Body.String() != expected {
 		t.Fatalf(`Expected %v but got: %v`, expected, f.recorder.Body.String())
+	}
+}
+
+func TestDataV1Redirection(t *testing.T) {
+	f := newFixture(t)
+	// Testing redirect at the root level
+	if err := f.v1(http.MethodPut, "/data/", `{"foo": [1,2,3]}`, 301, ""); err != nil {
+		t.Fatalf("Unexpected error from PUT: %v", err)
+	}
+	locHdr := f.recorder.Header().Get("Location")
+	if strings.Compare(locHdr, "/v1/data") != 0 {
+		t.Fatalf("Unexpected error Location header value: %v", locHdr)
+	}
+	RedirectedPath := strings.SplitAfter(locHdr, "/v1")[1]
+	fmt.Println(RedirectedPath)
+	if err := f.v1(http.MethodPut, RedirectedPath, `{"foo": [1,2,3]}`, 204, ""); err != nil {
+		t.Fatalf("Unexpected error from PUT: %v", err)
+	}
+	if err := f.v1(http.MethodGet, RedirectedPath, "", 200, `{"result": {"foo": [1,2,3]}}`); err != nil {
+		t.Fatalf("Unexpected error from GET: %v", err)
+	}
+	// Now we test redirection a few levels down
+	if err := f.v1(http.MethodPut, "/data/a/b/c/", `{"foo": [1,2,3]}`, 301, ""); err != nil {
+		t.Fatalf("Unexpected error from PUT: %v", err)
+	}
+	locHdrLv := f.recorder.Header().Get("Location")
+	if strings.Compare(locHdrLv, "/v1/data/a/b/c") != 0 {
+		t.Fatalf("Unexpected error Location header value: %v", locHdrLv)
+	}
+	RedirectedPathLvl := strings.SplitAfter(locHdrLv, "/v1")[1]
+	fmt.Println(RedirectedPathLvl)
+	if err := f.v1(http.MethodPut, RedirectedPathLvl, `{"foo": [1,2,3]}`, 204, ""); err != nil {
+		t.Fatalf("Unexpected error from PUT: %v", err)
+	}
+	if err := f.v1(http.MethodGet, RedirectedPathLvl, "", 200, `{"result": {"foo": [1,2,3]}}`); err != nil {
+		t.Fatalf("Unexpected error from GET: %v", err)
 	}
 }
 
