@@ -10,7 +10,6 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
-	"gopkg.in/yaml.v2"
 	"html/template"
 	"io"
 	"io/ioutil"
@@ -1773,7 +1772,7 @@ func readInputPostV1(r *http.Request) (ast.Value, error) {
 		// There is no standard for yaml mime-type so we just look for
 		// anything related
 		if strings.Contains(ct, "yaml") {
-			if err := yaml.Unmarshal(bs, &request); err != nil {
+			if err := util.Unmarshal(bs, &request); err != nil {
 				return nil, errors.Wrapf(err, "body contains malformed input document")
 			}
 		} else if err := util.UnmarshalJSON(bs, &request); err != nil {
