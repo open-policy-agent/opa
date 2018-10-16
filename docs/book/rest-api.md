@@ -1084,6 +1084,10 @@ HTTP/1.1 200 OK
 {}
 ```
 
+#### Request Headers
+
+- **Content-Type: application/x-yaml**: Indicates the request body is a YAML encoded object.
+
 #### Query Parameters
 
 - **partial** - Use the partial evaluation (optimization) when evaluating the query.
@@ -1159,6 +1163,10 @@ Content-Type: application/json
 ```json
 true
 ```
+
+#### Request Headers
+
+- **Content-Type: application/x-yaml**: Indicates the request body is a YAML encoded object.
 
 #### Query Parameters
 
@@ -1349,6 +1357,10 @@ Content-Type: application/json
 ```json
 "hello, alice"
 ```
+
+#### Request Headers
+
+- **Content-Type: application/x-yaml**: Indicates the request body is a YAML encoded object.
 
 #### Query Parameters
 
