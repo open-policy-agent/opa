@@ -98,6 +98,7 @@ type Server struct {
 	revision          string
 	logger            func(context.Context, *Info)
 	errLimit          int
+	runtime           *ast.Term
 }
 
 // Loop will contain all the calls from the server that we'll be listening on.
@@ -186,7 +187,7 @@ func (s *Server) Init(ctx context.Context) (*Server, error) {
 	// so that the latter can run first.
 	switch s.authorization {
 	case AuthorizationBasic:
-		s.Handler = authorizer.NewBasic(s.Handler, s.getCompiler, s.store)
+		s.Handler = authorizer.NewBasic(s.Handler, s.getCompiler, s.store, authorizer.Runtime(s.runtime))
 	}
 
 	switch s.authentication {
@@ -285,6 +286,12 @@ func (s *Server) WithDecisionLogger(logger func(context.Context, *Info)) *Server
 // WithDecisionIDFactory sets a function on the server to generate decision IDs.
 func (s *Server) WithDecisionIDFactory(f func() string) *Server {
 	s.decisionIDFactory = f
+	return s
+}
+
+// WithRuntime sets the runtime data to provide to the evaluation engine.
+func (s *Server) WithRuntime(term *ast.Term) *Server {
+	s.runtime = term
 	return s
 }
 
@@ -400,6 +407,7 @@ func (s *Server) execQuery(ctx context.Context, r *http.Request, query string, i
 		rego.Metrics(m),
 		rego.Instrument(instrument),
 		rego.Tracer(buf),
+		rego.Runtime(s.runtime),
 	)
 
 	output, err := rego.Eval(ctx)
@@ -553,6 +561,7 @@ func (s *Server) v0QueryPath(w http.ResponseWriter, r *http.Request, path ast.Re
 		rego.Metrics(m),
 		rego.Instrument(diagLogger.Instrument()),
 		rego.Tracer(buf),
+		rego.Runtime(s.runtime),
 	)
 
 	rs, err := rego.Eval(ctx)
@@ -702,6 +711,7 @@ func (s *Server) v1CompilePost(w http.ResponseWriter, r *http.Request) {
 		rego.Tracer(buf),
 		rego.Instrument(instrument),
 		rego.Metrics(m),
+		rego.Runtime(s.runtime),
 	)
 
 	pq, err := eval.Partial(ctx)
@@ -803,6 +813,7 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 		rego.Metrics(m),
 		rego.Tracer(buf),
 		rego.Instrument(instrument),
+		rego.Runtime(s.runtime),
 	)
 
 	rs, err := rego.Eval(ctx)
@@ -1340,7 +1351,7 @@ func (s *Server) watchQuery(query string, w http.ResponseWriter, r *http.Request
 	includeMetrics := getBoolParam(r.URL, types.ParamMetricsV1, true)
 	includeInstrumentation := getBoolParam(r.URL, types.ParamInstrumentV1, true)
 
-	watch := s.watcher.NewQuery(query).WithInstrumentation(includeInstrumentation)
+	watch := s.watcher.NewQuery(query).WithInstrumentation(includeInstrumentation).WithRuntime(s.runtime)
 	err := watch.Start()
 
 	if err != nil {
@@ -1438,6 +1449,7 @@ func (s *Server) evalDiagnosticPolicy(r *http.Request) (logger diagnosticsLogger
 		rego.Compiler(compiler),
 		rego.Query(`data.system.diagnostics.config`),
 		rego.Input(input),
+		rego.Runtime(s.runtime),
 	)
 
 	output, err := rego.Eval(r.Context())
@@ -1523,7 +1535,7 @@ func (s *Server) makeRego(ctx context.Context, partial bool, txn storage.Transac
 		defer s.mtx.Unlock()
 		pr, ok := s.partials[path]
 		if !ok {
-			opts = append(opts, rego.Transaction(txn), rego.Query(path), rego.Metrics(m), rego.Instrument(instrument))
+			opts = append(opts, rego.Transaction(txn), rego.Query(path), rego.Metrics(m), rego.Instrument(instrument), rego.Runtime(s.runtime))
 			r := rego.New(opts...)
 			var err error
 			pr, err = r.PartialResult(ctx)
@@ -1542,7 +1554,7 @@ func (s *Server) makeRego(ctx context.Context, partial bool, txn storage.Transac
 		return pr.Rego(opts...), nil
 	}
 
-	opts = append(opts, rego.Transaction(txn), rego.Query(path), rego.Input(input), rego.Metrics(m), rego.Tracer(tracer), rego.Instrument(instrument))
+	opts = append(opts, rego.Transaction(txn), rego.Query(path), rego.Input(input), rego.Metrics(m), rego.Tracer(tracer), rego.Instrument(instrument), rego.Runtime(s.runtime))
 	return rego.New(opts...), nil
 }
 

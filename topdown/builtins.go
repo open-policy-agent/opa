@@ -55,11 +55,12 @@ type (
 	// BuiltinContext contains context from the evaluator that may be used by
 	// built-in functions.
 	BuiltinContext struct {
-		Cache    builtins.Cache
-		Location *ast.Location
-		Tracer   Tracer
-		QueryID  uint64
-		ParentID uint64
+		Runtime  *ast.Term      // runtime information on the OPA instance
+		Cache    builtins.Cache // built-in function state cache
+		Location *ast.Location  // location of built-in call
+		Tracer   Tracer         // tracer object for trace() built-in function
+		QueryID  uint64         // identifies query being evaluated
+		ParentID uint64         // identifies parent of query being evaluated
 	}
 
 	// BuiltinFunc defines an interface for implementing built-in functions.

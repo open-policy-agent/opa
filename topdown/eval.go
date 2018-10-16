@@ -48,6 +48,7 @@ type eval struct {
 	saveSupport   *saveSupport
 	saveNamespace *ast.Term
 	genvarprefix  string
+	runtime       *ast.Term
 }
 
 func (e *eval) Run(iter evalIterator) error {
@@ -482,6 +483,7 @@ func (e *eval) evalCall(terms []*ast.Term, iter unifyIterator) error {
 	}
 
 	bctx := BuiltinContext{
+		Runtime:  e.runtime,
 		Cache:    e.builtinCache,
 		Location: e.query[e.index].Location,
 		Tracer:   e.tracer,

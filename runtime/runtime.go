@@ -11,16 +11,14 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
-	"github.com/sirupsen/logrus"
-	"gopkg.in/fsnotify.v1"
 	"io"
 	"io/ioutil"
 	"os"
+	"sync"
 	"time"
 
-	"github.com/pkg/errors"
-
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/internal/runtime"
 	"github.com/open-policy-agent/opa/loader"
 	"github.com/open-policy-agent/opa/plugins"
 	"github.com/open-policy-agent/opa/plugins/bundle"
@@ -32,7 +30,9 @@ import (
 	"github.com/open-policy-agent/opa/storage/inmem"
 	"github.com/open-policy-agent/opa/util"
 	"github.com/open-policy-agent/opa/version"
-	"sync"
+	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
+	"gopkg.in/fsnotify.v1"
 )
 
 var (
@@ -135,6 +135,7 @@ type Runtime struct {
 	Store   storage.Store
 	Manager *plugins.Manager
 
+	info           *ast.Term // runtime information provided to evaluation engine
 	decisionLogger func(context.Context, *server.Info)
 }
 
@@ -190,10 +191,16 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		}
 	}
 
+	info, err := runtime.Term(runtime.Params{ConfigFile: params.ConfigFile})
+	if err != nil {
+		return nil, err
+	}
+
 	rt := &Runtime{
 		Store:          store,
 		Manager:        m,
 		Params:         params,
+		info:           info,
 		decisionLogger: decisionLogger,
 	}
 
@@ -227,6 +234,7 @@ func (rt *Runtime) StartServer(ctx context.Context) {
 		WithDiagnosticsBuffer(rt.Params.DiagnosticsBuffer).
 		WithDecisionIDFactory(rt.Params.DecisionIDFactory).
 		WithDecisionLogger(rt.decisionLogger).
+		WithRuntime(rt.info).
 		Init(ctx)
 
 	if err != nil {
@@ -270,7 +278,7 @@ func (rt *Runtime) StartREPL(ctx context.Context) {
 	defer rt.Manager.Stop(ctx)
 
 	banner := rt.getBanner()
-	repl := repl.New(rt.Store, rt.Params.HistoryPath, rt.Params.Output, rt.Params.OutputFormat, rt.Params.ErrorLimit, banner)
+	repl := repl.New(rt.Store, rt.Params.HistoryPath, rt.Params.Output, rt.Params.OutputFormat, rt.Params.ErrorLimit, banner).WithRuntime(rt.info)
 
 	if rt.Params.Watch {
 		if err := rt.startWatcher(ctx, rt.Params.Paths, onReloadPrinter(rt.Params.Output)); err != nil {
