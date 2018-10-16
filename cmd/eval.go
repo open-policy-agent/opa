@@ -14,6 +14,7 @@ import (
 
 	"github.com/open-policy-agent/opa/ast"
 	pr "github.com/open-policy-agent/opa/internal/presentation"
+	"github.com/open-policy-agent/opa/internal/runtime"
 	"github.com/open-policy-agent/opa/loader"
 	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/profiler"
@@ -195,7 +196,12 @@ func eval(args []string, params evalCommandParams) (err error) {
 		query = args[0]
 	}
 
-	regoArgs := []func(*rego.Rego){rego.Query(query)}
+	info, err := runtime.Term(runtime.Params{})
+	if err != nil {
+		return err
+	}
+
+	regoArgs := []func(*rego.Rego){rego.Query(query), rego.Runtime(info)}
 
 	if len(params.imports.v) > 0 {
 		regoArgs = append(regoArgs, rego.Imports(params.imports.v))

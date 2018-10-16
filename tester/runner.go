@@ -92,6 +92,7 @@ type Runner struct {
 	store    storage.Store
 	cover    topdown.Tracer
 	trace    bool
+	runtime  *ast.Term
 }
 
 // NewRunner returns a new runner.
@@ -127,6 +128,12 @@ func (r *Runner) EnableTracing(yes bool) *Runner {
 	if r.trace {
 		r.cover = nil
 	}
+	return r
+}
+
+// SetRuntime sets runtime information to expose to the evaluation engine.
+func (r *Runner) SetRuntime(term *ast.Term) *Runner {
+	r.runtime = term
 	return r
 }
 
@@ -206,6 +213,7 @@ func (r *Runner) runTest(ctx context.Context, mod *ast.Module, rule *ast.Rule) (
 		rego.Compiler(r.compiler),
 		rego.Query(rule.Path().String()),
 		rego.Tracer(tracer),
+		rego.Runtime(r.runtime),
 	)
 
 	t0 := time.Now()

@@ -28,15 +28,29 @@ type Basic struct {
 	inner    http.Handler
 	compiler func() *ast.Compiler
 	store    storage.Store
+	runtime  *ast.Term
+}
+
+// Runtime returns an argument that sets the runtime on the authorizer.
+func Runtime(term *ast.Term) func(*Basic) {
+	return func(b *Basic) {
+		b.runtime = term
+	}
 }
 
 // NewBasic returns a new Basic object.
-func NewBasic(inner http.Handler, compiler func() *ast.Compiler, store storage.Store) http.Handler {
-	return &Basic{
+func NewBasic(inner http.Handler, compiler func() *ast.Compiler, store storage.Store, opts ...func(*Basic)) http.Handler {
+	b := &Basic{
 		inner:    inner,
 		compiler: compiler,
 		store:    store,
 	}
+
+	for _, opt := range opts {
+		opt(b)
+	}
+
+	return b
 }
 
 func (h *Basic) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -52,6 +66,7 @@ func (h *Basic) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		rego.Compiler(h.compiler()),
 		rego.Store(h.store),
 		rego.Input(input),
+		rego.Runtime(h.runtime),
 	)
 
 	rs, err := rego.Eval(r.Context())

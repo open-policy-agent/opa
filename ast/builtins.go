@@ -158,6 +158,9 @@ var DefaultBuiltins = [...]*Builtin{
 	// Rego
 	RegoParseModule,
 
+	// OPA
+	OPARuntime,
+
 	// Tracing
 	Trace,
 
@@ -1260,6 +1263,20 @@ var RegoParseModule = &Builtin{
 			types.S,
 		),
 		types.NewObject(nil, types.NewDynamicProperty(types.S, types.A)), // TODO(tsandall): import AST schema
+	),
+}
+
+/**
+ * OPA
+ */
+
+// OPARuntime returns an object containing OPA runtime information such as the
+// configuration that OPA was booted with.
+var OPARuntime = &Builtin{
+	Name: "opa.runtime",
+	Decl: types.NewFunction(
+		nil,
+		types.NewObject(nil, types.NewDynamicProperty(types.S, types.A)),
 	),
 }
 

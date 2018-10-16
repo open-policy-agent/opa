@@ -37,8 +37,9 @@ type Watcher struct {
 type Handle struct {
 	C <-chan Event
 
-	instrument bool   // whether this query should be instrumented
-	query      string // the original query, used for migration
+	instrument bool      // whether this query should be instrumented
+	query      string    // the original query, used for migration
+	runtime    *ast.Term // runtime info to provide to evaluation engine
 
 	out    chan Event // out is the same channel as C, but without directional constraints
 	notify signal     // channel to receive new data change alerts on.
@@ -106,6 +107,12 @@ func (w *Watcher) Query(query string) (*Handle, error) {
 // performance issues.
 func (h *Handle) WithInstrumentation(yes bool) *Handle {
 	h.instrument = yes
+	return h
+}
+
+// WithRuntime sets the runtime data to provide to the evaluation engine.
+func (h *Handle) WithRuntime(term *ast.Term) *Handle {
+	h.runtime = term
 	return h
 }
 
@@ -251,6 +258,7 @@ func (h *Handle) deliver() {
 				rego.Metrics(m),
 				rego.Tracer(t),
 				rego.Instrument(h.instrument),
+				rego.Runtime(h.runtime),
 			)
 			ctx := h.watcher.ctx
 			h.l.Unlock()
