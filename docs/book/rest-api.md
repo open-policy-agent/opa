@@ -1316,8 +1316,10 @@ Execute a simple query.
 
 OPA serves POST requests without a URL path by querying for the document at
 path `/data/system/main`. The content of that document defines the response
-entirely. The policy example below shows how to define a rule that will produce a
-value for the `/data/system/main` document.
+entirely. The policy example below shows how to define a rule that will
+produce a value for the `/data/system/main` document. You can configure OPA
+to use a different URL path to serve these queries. See the [Configuration Reference](configuration.md)
+for more information.
 
 The request message body is mapped to the [Input Document](/how-does-opa-work.md#the-input-document).
 
@@ -1373,7 +1375,7 @@ Content-Type: application/json
 - **404** - not found
 - **500** - server error
 
-If the `/data/system/main` document is undefined (e.g., because the administrator has not defined one) the server returns 404.
+If the default decision (defaulting to `/system/main`) is undefined, the server returns 404.
 
 ### Execute an Ad-hoc Query
 

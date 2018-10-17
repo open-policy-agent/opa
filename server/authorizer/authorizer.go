@@ -7,9 +7,8 @@ package authorizer
 
 import (
 	"net/http"
-	"strings"
-
 	"net/url"
+	"strings"
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/rego"
@@ -19,22 +18,27 @@ import (
 	"github.com/open-policy-agent/opa/storage"
 )
 
-// SystemAuthzPath is the path of the document that defines auth/z decisions for
-// OPA itself.
-const SystemAuthzPath = "data.system.authz.allow"
-
 // Basic provides policy-based authorization over incoming requests.
 type Basic struct {
 	inner    http.Handler
 	compiler func() *ast.Compiler
 	store    storage.Store
 	runtime  *ast.Term
+	decision string
 }
 
 // Runtime returns an argument that sets the runtime on the authorizer.
 func Runtime(term *ast.Term) func(*Basic) {
 	return func(b *Basic) {
 		b.runtime = term
+	}
+}
+
+// Decision returns an argument that sets the path of the authorization decision
+// to query.
+func Decision(ref ast.Ref) func(*Basic) {
+	return func(b *Basic) {
+		b.decision = ref.String()
 	}
 }
 
@@ -62,7 +66,7 @@ func (h *Basic) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	rego := rego.New(
-		rego.Query(SystemAuthzPath),
+		rego.Query(h.decision),
 		rego.Compiler(h.compiler()),
 		rego.Store(h.store),
 		rego.Input(input),
