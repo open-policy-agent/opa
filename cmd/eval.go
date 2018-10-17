@@ -7,6 +7,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"strconv"
@@ -156,7 +157,7 @@ Set the output format with the --format flag.
 			return nil
 		},
 		Run: func(cmd *cobra.Command, args []string) {
-			code, err := eval(args, params)
+			code, err := eval(args, params, os.Stdout)
 			if err != nil {
 				fmt.Fprintln(os.Stderr, err)
 				os.Exit(2)
@@ -188,7 +189,7 @@ Set the output format with the --format flag.
 	RootCommand.AddCommand(evalCommand)
 }
 
-func eval(args []string, params evalCommandParams) (int, error) {
+func eval(args []string, params evalCommandParams, w io.Writer) (int, error) {
 
 	var query string
 
@@ -301,13 +302,13 @@ func eval(args []string, params evalCommandParams) (int, error) {
 	err = nil
 	switch params.outputFormat.String() {
 	case evalBindingsOutput:
-		err = pr.Bindings(os.Stdout, result)
+		err = pr.Bindings(w, result)
 	case evalValuesOutput:
-		err = pr.Values(os.Stdout, result)
+		err = pr.Values(w, result)
 	case evalPrettyOutput:
-		err = pr.Pretty(os.Stdout, result)
+		err = pr.Pretty(w, result)
 	default:
-		err = pr.JSON(os.Stdout, result)
+		err = pr.JSON(w, result)
 	}
 	if err != nil || result.Error != nil {
 		return 2, err
