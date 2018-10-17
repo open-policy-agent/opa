@@ -35,6 +35,9 @@ const (
 	// TypeErr indicates evaluation stopped because an expression was applied to
 	// a value of an inappropriate type.
 	TypeErr string = "eval_type_error"
+
+	// WithMergeErr indicates that the real and replacement data could not be merged.
+	WithMergeErr string = "eval_with_merge_error"
 )
 
 // IsError returns true if the err is an Error.
@@ -99,5 +102,13 @@ func unsupportedBuiltinErr(loc *ast.Location) error {
 		Code:     InternalErr,
 		Location: loc,
 		Message:  "unsupported built-in",
+	}
+}
+
+func mergeConflictErr(loc *ast.Location) error {
+	return &Error{
+		Code:     WithMergeErr,
+		Location: loc,
+		Message:  "real and replacement data could not be merged",
 	}
 }

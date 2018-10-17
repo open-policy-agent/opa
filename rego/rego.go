@@ -853,6 +853,7 @@ func (r *Rego) rewriteQueryToCaptureValue(qc ast.QueryCompiler, query ast.Body) 
 			cpy := expr.Copy()
 			cpy.Terms = capture
 			cpy.Generated = true
+			cpy.With = nil
 			query.Append(cpy)
 		}
 	}

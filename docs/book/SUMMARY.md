@@ -57,6 +57,7 @@
   * [Test Format](how-do-i-test-policies.md#test-format)
   * [Test Discovery](how-do-i-test-policies.md#test-discovery)
   * [Test Results](how-do-i-test-policies.md#test-results)
+  * [Data Mocking](how-do-i-test-policies.md#data-mocking)
   * [Coverage](how-do-i-test-policies.md#coverage)
   * [Profiling](how-do-i-test-policies.md#profiling)
 * [Language Reference](language-reference.md)
