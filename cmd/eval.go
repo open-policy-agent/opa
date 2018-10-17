@@ -156,14 +156,12 @@ Set the output format with the --format flag.
 			return nil
 		},
 		Run: func(cmd *cobra.Command, args []string) {
-			if code, err := eval(args, params); err != nil {
+			code, err := eval(args, params)
+			if err != nil {
 				fmt.Fprintln(os.Stderr, err)
-				if params.fail {
-					os.Exit(code)
-				} else {
-					os.Exit(1)
-				}
-			} else if params.fail {
+				os.Exit(2)
+			}
+			if params.fail {
 				os.Exit(code)
 			}
 		},
