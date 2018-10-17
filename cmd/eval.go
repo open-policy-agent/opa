@@ -205,7 +205,7 @@ func eval(args []string, params evalCommandParams, w io.Writer) (int, error) {
 
 	info, err := runtime.Term(runtime.Params{})
 	if err != nil {
-		return err
+		return 2, err
 	}
 
 	regoArgs := []func(*rego.Rego){rego.Query(query), rego.Runtime(info)}
