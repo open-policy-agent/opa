@@ -35,6 +35,8 @@ decision_logs:
 
 status:
   service: acmecorp
+
+default_decision: /http/example/authz/allow
 ```
 
 ## Services
@@ -56,6 +58,8 @@ multiple services.
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
 | `labels` | `object` | Yes | Set of key-value pairs that uniquely identify the OPA instance. Labels are included when OPA uploads decision logs and status information. |
+| `default_decision` | `string` | No (default: `/system/main`) | Set path of default policy decision used to serve queries against OPA's base URL. |
+| `default_authorization_decision` | `string` | No (default: `/system/authz/allow`) | Set path of default authorization decision for OPA's API. |
 
 ## Bundles
 

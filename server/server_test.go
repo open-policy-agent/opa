@@ -1787,6 +1787,8 @@ func TestDiagnostics(t *testing.T) {
 		WithStore(f.server.store).
 		WithManager(f.server.manager).
 		WithDiagnosticsBuffer(NewBoundedBuffer(8)).
+		WithDefaultDecision(ast.MustParseRef("data.system.main")).
+		WithDefaultAuthorizationDecision(ast.MustParseRef("data.system.authz.allow")).
 		Init(context.Background())
 
 	queriesOnly := `package system.diagnostics
@@ -2427,6 +2429,8 @@ func TestAuthorization(t *testing.T) {
 		WithStore(store).
 		WithManager(m).
 		WithAuthorization(AuthorizationBasic).
+		WithDefaultDecision(ast.MustParseRef("data.system.main")).
+		WithDefaultAuthorizationDecision(ast.MustParseRef("data.system.authz.allow")).
 		Init(ctx)
 
 	if err != nil {
@@ -2617,6 +2621,8 @@ func newFixture(t *testing.T) *fixture {
 		WithAddresses([]string{":8182"}).
 		WithStore(store).
 		WithManager(m).
+		WithDefaultDecision(ast.MustParseRef("data.system.main")).
+		WithDefaultAuthorizationDecision(ast.MustParseRef("data.system.authz.allow")).
 		Init(ctx)
 	if err != nil {
 		panic(err)
