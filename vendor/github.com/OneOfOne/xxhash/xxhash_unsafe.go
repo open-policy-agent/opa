@@ -3,7 +3,7 @@
 // +build !ppc64le
 // +build !mipsle
 // +build !ppc64be
-// +build !mips
+// +build !mipsbe
 
 package xxhash
 
