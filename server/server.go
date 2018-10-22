@@ -385,6 +385,7 @@ func (s *Server) initRouter() {
 	s.registerHandler(router, 1, "/policies/{path:.+}", http.MethodGet, promhttp.InstrumentHandlerDuration(v1PoliciesDur, http.HandlerFunc(s.v1PoliciesGet)))
 	s.registerHandler(router, 1, "/policies/{path:.+}", http.MethodPut, promhttp.InstrumentHandlerDuration(v1PoliciesDur, http.HandlerFunc(s.v1PoliciesPut)))
 	s.registerHandler(router, 1, "/query", http.MethodGet, promhttp.InstrumentHandlerDuration(v1QueryDur, http.HandlerFunc(s.v1QueryGet)))
+	s.registerHandler(router, 1, "/query", http.MethodPost, promhttp.InstrumentHandlerDuration(v1QueryDur, http.HandlerFunc(s.v1QueryPost)))
 	s.registerHandler(router, 1, "/compile", http.MethodPost, promhttp.InstrumentHandlerDuration(v1CompileDur, http.HandlerFunc(s.v1CompilePost)))
 	router.HandleFunc("/", promhttp.InstrumentHandlerDuration(indexDur, http.HandlerFunc(s.unversionedPost))).Methods(http.MethodPost)
 	router.HandleFunc("/", promhttp.InstrumentHandlerDuration(indexDur, http.HandlerFunc(s.indexGet))).Methods(http.MethodGet)
@@ -410,7 +411,7 @@ func (s *Server) initRouter() {
 	router.HandleFunc("/v1/query/{path:.*}", promhttp.InstrumentHandlerDuration(catchAllDur, http.HandlerFunc(writer.HTTPStatus(405)))).Methods(http.MethodHead,
 		http.MethodConnect, http.MethodDelete, http.MethodOptions, http.MethodTrace, http.MethodPost, http.MethodPut, http.MethodPatch)
 	router.HandleFunc("/v1/query", promhttp.InstrumentHandlerDuration(catchAllDur, http.HandlerFunc(writer.HTTPStatus(405)))).Methods(http.MethodHead,
-		http.MethodConnect, http.MethodDelete, http.MethodOptions, http.MethodTrace, http.MethodPost, http.MethodPut, http.MethodPatch)
+		http.MethodConnect, http.MethodDelete, http.MethodOptions, http.MethodTrace, http.MethodPut, http.MethodPatch)
 
 	s.Handler = router
 }
@@ -1345,6 +1346,51 @@ func (s *Server) v1QueryGet(w http.ResponseWriter, r *http.Request) {
 	}
 	qStr := qStrs[len(qStrs)-1]
 
+	unsafeBuiltins, err := validateQuery(qStr)
+	if err != nil {
+		writer.ErrorAuto(w, err)
+		return
+	} else if len(unsafeBuiltins) > 0 {
+		writer.Error(w, http.StatusBadRequest, types.NewErrorV1(types.CodeInvalidParameter, "unsafe built-in function calls in query: %v", strings.Join(unsafeBuiltins, ",")))
+		return
+	}
+
+	watch := getWatch(r.URL.Query()[types.ParamWatchV1])
+	if watch {
+		s.watchQuery(qStr, w, r, false)
+		return
+	}
+
+	pretty := getBoolParam(r.URL, types.ParamPrettyV1, true)
+	explainMode := getExplain(r.URL.Query()["explain"], types.ExplainOffV1)
+	includeMetrics := getBoolParam(r.URL, types.ParamMetricsV1, true)
+	includeInstrumentation := getBoolParam(r.URL, types.ParamInstrumentV1, true)
+
+	results, err := s.execQuery(ctx, r, qStr, nil, explainMode, includeMetrics, includeInstrumentation, pretty)
+	if err != nil {
+		switch err := err.(type) {
+		case ast.Errors:
+			writer.Error(w, http.StatusBadRequest, types.NewErrorV1(types.CodeInvalidParameter, types.MsgCompileQueryError).WithASTErrors(err))
+		default:
+			writer.ErrorAuto(w, err)
+		}
+		return
+	}
+
+	writer.JSON(w, 200, results, pretty)
+}
+
+func (s *Server) v1QueryPost(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	//	panic(fmt.Errorf("%s", r.Body))
+	var request types.QueryRequestV1
+	err := util.NewJSONDecoder(r.Body).Decode(&request)
+	if err != nil {
+		writer.Error(w, http.StatusBadRequest, types.NewErrorV1(types.CodeInvalidParameter, "error(s) occurred while decoding request: %v", err.Error()))
+		return
+	}
+	qStr := request.Query
 	unsafeBuiltins, err := validateQuery(qStr)
 	if err != nil {
 		writer.ErrorAuto(w, err)
