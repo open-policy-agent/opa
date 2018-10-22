@@ -1118,6 +1118,12 @@ allow {
     user = "bob"
     method = "GET"
 }
+
+# allows users assigned a "dev" role to perform read-only operations.
+allow {
+    method = "GET"
+    data.roles["dev"][_] = input.user
+}
 ```
 
 Imports can include an optional `as` keyword to handle namespacing issues:
@@ -1136,7 +1142,7 @@ http_servers[server] {
 ## With Keyword
 
 The `with` keyword allows queries to programmatically specify values nested
-under [The input Document](../how-does-opa-work#the-input-document).
+under the [input Document](../how-does-opa-work#the-input-document) and the [data Document](../how-does-opa-work#the-data-document).
 
 For example, given the simple authorization policy in the [Imports](#imports)
 section, we can write a query that checks whether a particular request would be
@@ -1150,6 +1156,10 @@ true
 true
 > not allow with input as {"user": "bob", "method": "DELETE"}
 true
+> allow with input as {"user": "charlie", "method": "GET"} with data.roles as {"dev": ["charlie"]}
+true
+> not allow with input as {"user": "charlie", "method": "GET"} with data.roles as {"dev": ["bob"]}
+true
 ```
 
 The `with` keyword acts as a modifier on expressions. A single expression is
@@ -1161,8 +1171,7 @@ following syntax:
 ```
 
 The `<target>`s must be references to values in the input document (or the input
-document itself). The `<value>`s may be Scalar Values, Variables, or Composite
-Values that do not contain References or Comprehensions.
+document itself) or data document.
 
 ## Default Keyword
 
