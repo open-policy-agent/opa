@@ -34,7 +34,6 @@ func TestEventEqual(t *testing.T) {
 		{&Event{Node: ast.MustParseBody("true")}, &Event{Node: ast.MustParseBody("false")}, false},
 		{&Event{Node: ast.MustParseBody("true")[0]}, &Event{Node: ast.MustParseBody("false")[0]}, false},
 		{&Event{Node: ast.MustParseRule(`p = true { true }`)}, &Event{Node: ast.MustParseRule(`p = true { false }`)}, false},
-		{&Event{Node: "foo"}, &Event{Node: "foo"}, false}, // test some unsupported node type
 	}
 
 	for _, tc := range tests {

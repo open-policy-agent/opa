@@ -47,7 +47,7 @@ const (
 // Event contains state associated with a tracing event.
 type Event struct {
 	Op       Op            // Identifies type of event.
-	Node     interface{}   // Contains AST node relevant to the event.
+	Node     ast.Node      // Contains AST node relevant to the event.
 	QueryID  uint64        // Identifies the query this event belongs to.
 	ParentID uint64        // Identifies the parent query this event belongs to.
 	Locals   *ast.ValueMap // Contains local variable bindings from the query context.

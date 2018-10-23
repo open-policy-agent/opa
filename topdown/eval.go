@@ -92,35 +92,35 @@ func (e *eval) partial() bool {
 	return e.saveSet != nil
 }
 
-func (e *eval) traceEnter(x interface{}) {
+func (e *eval) traceEnter(x ast.Node) {
 	e.traceEvent(EnterOp, x, "")
 }
 
-func (e *eval) traceExit(x interface{}) {
+func (e *eval) traceExit(x ast.Node) {
 	e.traceEvent(ExitOp, x, "")
 }
 
-func (e *eval) traceEval(x interface{}) {
+func (e *eval) traceEval(x ast.Node) {
 	e.traceEvent(EvalOp, x, "")
 }
 
-func (e *eval) traceFail(x interface{}) {
+func (e *eval) traceFail(x ast.Node) {
 	e.traceEvent(FailOp, x, "")
 }
 
-func (e *eval) traceRedo(x interface{}) {
+func (e *eval) traceRedo(x ast.Node) {
 	e.traceEvent(RedoOp, x, "")
 }
 
-func (e *eval) traceSave(x interface{}) {
+func (e *eval) traceSave(x ast.Node) {
 	e.traceEvent(SaveOp, x, "")
 }
 
-func (e *eval) traceIndex(x interface{}, msg string) {
+func (e *eval) traceIndex(x ast.Node, msg string) {
 	e.traceEvent(IndexOp, x, msg)
 }
 
-func (e *eval) traceEvent(op Op, x interface{}, msg string) {
+func (e *eval) traceEvent(op Op, x ast.Node, msg string) {
 
 	if e.tracer == nil || !e.tracer.Enabled() {
 		return
