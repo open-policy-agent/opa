@@ -46,7 +46,7 @@ type Config struct {
 
 func (c *Config) validateAndInjectDefaults() (*tls.Config, error) {
 	c.URL = strings.TrimRight(c.URL, "/")
-	_, err := url.Parse(c.URL)
+	url, err := url.Parse(c.URL)
 	if err != nil {
 		return nil, err
 	}
@@ -55,8 +55,9 @@ func (c *Config) validateAndInjectDefaults() (*tls.Config, error) {
 			c.Credentials.Bearer.Scheme = "Bearer"
 		}
 	}
-	tlsConfig := &tls.Config{
-		InsecureSkipVerify: c.AllowInsureTLS,
+	tlsConfig := &tls.Config{}
+	if url.Scheme == "https" {
+		tlsConfig.InsecureSkipVerify = c.AllowInsureTLS
 	}
 	if c.Credentials.ClientTLS != nil {
 		if err := c.readCertificate(tlsConfig); err != nil {
