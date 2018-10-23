@@ -140,7 +140,6 @@ func Test405StatusCodev1(t *testing.T) {
 			{http.MethodDelete, "/query", "", 405, ""},
 			{http.MethodOptions, "/query", "", 405, ""},
 			{http.MethodTrace, "/query", "", 405, ""},
-			{http.MethodPost, "/query", "", 405, ""},
 			{http.MethodPut, "/query", "", 405, ""},
 			{http.MethodPatch, "/query", "", 405, ""},
 		}},
@@ -1538,7 +1537,6 @@ func TestQueryPostBasic(t *testing.T) {
 
 	setup := []tr{
 		{http.MethodPost, "/query", `{"query": "a=data.k.x with data.k as {\"x\" : 7}"}`, 200, `{"result":[{"a":7}]}`},
-		{http.MethodPost, "/query?watch", `{"query": "a=data.k.x with data.k as {\"x\" : 7}"}`, 200, `{"result":[{"a":7}]}`},
 	}
 
 	for _, tr := range setup {
