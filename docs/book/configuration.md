@@ -50,8 +50,12 @@ multiple services.
 | `services[_].name` | `string` | Yes | Unique name for the service. Referred to by plugins. |
 | `services[_].url` | `string` | Yes | Base URL to contact the service with. |
 | `services[_].headers` | `object` | No | HTTP headers to include in requests to the service. |
+| `services[_].allow_insecure_tls` | `bool` | No | Allow insecure TLS. |
 | `services[_].credentials.bearer.token` | `string` | No | Enables token-based authentication and supplies the bearer token to authenticate with. |
-| `services[_].credentials.bearer.scheme` | `string` | No (default: `"Bearer"`) | Bearer token scheme to specify. |
+| `services[_].credentials.bearer.scheme` | `string` | No | Bearer token scheme to specify. |
+| `services[_].credentials.client_tls.cert` | `string` | No | The path to the client certificate to authenticate with. |
+| `services[_].credentials.client_tls.private_key` | `string` | No | The path to the private key of the client certificate. |
+| `services[_].credentials.client_tls.private_key_passphrase` | `string` | No | The passphrase to use for the private key. |
 
 ## Miscellaenous
 
