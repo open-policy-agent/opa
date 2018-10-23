@@ -80,6 +80,7 @@
   * [Bundles](configuration.md#bundles)
   * [Status](configuration.md#status)
   * [Decision Logs](configuration.md#decision-logs)
+  * [Discovery](configuration.md#discovery)
 * [REST API](rest-api.md)
   * [Policy API](rest-api.md#policy-api)
     * [List Policies](rest-api.md#list-policies)

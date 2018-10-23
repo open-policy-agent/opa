@@ -13,18 +13,21 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net/http"
 	"os"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/open-policy-agent/opa/ast"
+	bundleApi "github.com/open-policy-agent/opa/bundle"
 	"github.com/open-policy-agent/opa/internal/runtime"
 	"github.com/open-policy-agent/opa/loader"
 	"github.com/open-policy-agent/opa/plugins"
 	"github.com/open-policy-agent/opa/plugins/bundle"
 	"github.com/open-policy-agent/opa/plugins/logs"
 	"github.com/open-policy-agent/opa/plugins/status"
+	"github.com/open-policy-agent/opa/rego"
 	"github.com/open-policy-agent/opa/repl"
 	"github.com/open-policy-agent/opa/server"
 	"github.com/open-policy-agent/opa/storage"
@@ -33,7 +36,7 @@ import (
 	"github.com/open-policy-agent/opa/version"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
-	"gopkg.in/fsnotify.v1"
+	fsnotify "gopkg.in/fsnotify.v1"
 )
 
 var (
@@ -179,7 +182,7 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		return nil, errors.Wrapf(err, "storage error")
 	}
 
-	cfg, err := loadConfig(params.ID, store, params.ConfigFile)
+	cfg, err := loadConfig(ctx, params.ID, store, params.ConfigFile)
 	if err != nil {
 		return nil, err
 	}
@@ -518,7 +521,7 @@ const (
 // everything is started and stopped. We could introduce a package-scoped
 // plugin registry that allows for (dynamic) init-time plugin registration.
 
-func loadConfig(id string, store storage.Store, configFile string) (*loadedConfig, error) {
+func loadConfig(ctx context.Context, id string, store storage.Store, configFile string) (*loadedConfig, error) {
 
 	var bs []byte
 	var err error
@@ -536,6 +539,28 @@ func loadConfig(id string, store storage.Store, configFile string) (*loadedConfi
 	}
 
 	plugins := map[string]plugins.Plugin{}
+
+	// If discovery is enabled, get the new configuration from the remote server.
+	if isDiscoveryEnabled(bs) {
+		bs, err = discoveryHandler(ctx, bs, m)
+		if err != nil {
+			return nil, err
+		}
+
+		// Add labels to the plugin manager
+		var parsedConfig struct {
+			Labels map[string]string
+		}
+
+		if err := util.Unmarshal(bs, &parsedConfig); err != nil {
+			return nil, err
+		}
+
+		if parsedConfig.Labels != nil {
+			parsedConfig.Labels["id"] = m.Labels["id"]
+			m.Labels = parsedConfig.Labels
+		}
+	}
 
 	bundlePlugin, err := initBundlePlugin(m, bs)
 	if err != nil {
@@ -597,6 +622,118 @@ func loadConfig(id string, store storage.Store, configFile string) (*loadedConfi
 	}
 
 	return c, nil
+}
+
+func isDiscoveryEnabled(bs []byte) bool {
+	var config struct {
+		Discovery json.RawMessage `json:"discovery"`
+	}
+
+	if err := util.Unmarshal(bs, &config); err != nil {
+		return false
+	}
+
+	if config.Discovery == nil {
+		return false
+	}
+	return true
+}
+
+func discoveryHandler(ctx context.Context, bs []byte, manager *plugins.Manager) ([]byte, error) {
+	var config struct {
+		Discovery json.RawMessage `json:"discovery"`
+		Services  []json.RawMessage
+	}
+
+	if err := util.Unmarshal(bs, &config); err != nil {
+		return nil, err
+	}
+
+	if config.Discovery == nil {
+		return bs, nil
+	}
+
+	var discoveryConfig struct {
+		Path string `json:"path"`
+	}
+
+	if err := util.Unmarshal(config.Discovery, &discoveryConfig); err != nil {
+		return nil, err
+	}
+
+	if config.Services == nil {
+		return nil, fmt.Errorf("endpoint to fetch discovery configuration from not provided")
+	}
+
+	var serviceConfig struct {
+		Name string `json:"name"`
+	}
+
+	if err := util.Unmarshal(config.Services[0], &serviceConfig); err != nil {
+		return nil, err
+	}
+
+	resp, err := manager.Client(serviceConfig.Name).
+		Do(ctx, "GET", discoveryConfig.Path)
+
+	if err != nil {
+		return nil, errors.Wrap(err, "Download request failed")
+	}
+
+	defer util.Close(resp)
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("Discovery configuration download failed, server replied with HTTP %v", resp.StatusCode)
+	}
+
+	b, err := bundleApi.Read(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	query := "data"
+	if discoveryConfig.Path != "" {
+		query = fmt.Sprintf("data%v", strings.Replace(discoveryConfig.Path, "/", ".", -1))
+	}
+
+	return processBundle(ctx, b, query)
+}
+
+func processBundle(ctx context.Context, bundle bundleApi.Bundle, query string) ([]byte, error) {
+	modules := map[string]*ast.Module{}
+
+	for _, file := range bundle.Modules {
+		modules[file.Path] = file.Parsed
+	}
+
+	compiler := ast.NewCompiler()
+	if compiler.Compile(modules); compiler.Failed() {
+		return nil, compiler.Errors
+	}
+
+	store := inmem.NewFromObject(bundle.Data)
+
+	rego := rego.New(
+		rego.Query(query),
+		rego.Compiler(compiler),
+		rego.Store(store),
+	)
+
+	rs, err := rego.Eval(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	var newConfig []byte
+	if len(rs) == 0 {
+		return newConfig, nil
+	}
+
+	newConfig, err = json.Marshal(rs[0].Expressions[0].Value)
+	if err != nil {
+		return nil, err
+	}
+	return newConfig, nil
 }
 
 func initBundlePlugin(m *plugins.Manager, bs []byte) (*bundle.Plugin, error) {

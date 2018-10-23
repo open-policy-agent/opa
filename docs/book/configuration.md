@@ -101,3 +101,59 @@ multiple services.
 | `decision_logs.reporting.upload_size_limit_bytes` | `int64` | No (default: `32768`) | Decision log upload size limit in bytes. OPA will chunk uploads to cap message body to this limit. |
 | `decision_logs.reporting.min_delay_seconds` | `int64` | No (default: `300`) | Minimum amount of time to wait between uploads. |
 | `decision_logs.reporting.max_delay_seconds` | `int64` | No (default: `600`) | Maximum amount of time to wait between uploads. |
+
+## Discovery
+
+OPA's configuration files contain the configuration for management functionality such as `bundles`, `status`, `decision logs` . As OPA gains more management functionality, it's configuration would have to be extended and could get difficult to manage. To simplify deployment of OPA and enable better centralized management, OPA can discover it's configuration from a remote endpoint.
+
+Discovery can be enabled using the below configuration:
+
+```yaml
+services:
+  - name: acmecorp
+    url: https://example.com/control-plane-api/v1
+    credentials:
+      bearer:
+        token: "bGFza2RqZmxha3NkamZsa2Fqc2Rsa2ZqYWtsc2RqZmtramRmYWxkc2tm"
+
+discovery:
+  path: /foo/bar
+```
+
+OPA will fetch it's configuration from `https://example.com/control-plane-api/v1/foo/bar` and use that to initialize the other plugins like `bundles`, `status`, `decision logs`. If `discovery` is enabled,  `bundles`, `status`, `decision logs` cannot be configured manually.
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `discovery.path` | `string` | Yes | Path to use to download configuration from remote server. |
+
+The remote server can include OPA's configuration in a policy or data file and package it inside a bundle.
+
+Below is an example of how configuration for `decision logs` can be included inside a policy file.
+
+**example.rego**
+
+```ruby
+package foo
+
+bar = {
+  "decision_logs": {
+    "service": "acmecorp"
+  }
+}
+```
+
+The same configuration can also  be provided as data.
+
+**data.json**
+
+```json
+"foo": {
+  "bar": {
+    "decision_logs": {
+      "service": "acmecorp"
+    }
+  }
+}
+```
+
+In both cases, OPA's configuration is hierarchically organized under the `discovery.path` value.
