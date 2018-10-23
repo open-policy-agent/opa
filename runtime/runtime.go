@@ -11,16 +11,15 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
-	"github.com/sirupsen/logrus"
-	"gopkg.in/fsnotify.v1"
 	"io"
 	"io/ioutil"
 	"os"
+	"strings"
+	"sync"
 	"time"
 
-	"github.com/pkg/errors"
-
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/internal/runtime"
 	"github.com/open-policy-agent/opa/loader"
 	"github.com/open-policy-agent/opa/plugins"
 	"github.com/open-policy-agent/opa/plugins/bundle"
@@ -32,7 +31,9 @@ import (
 	"github.com/open-policy-agent/opa/storage/inmem"
 	"github.com/open-policy-agent/opa/util"
 	"github.com/open-policy-agent/opa/version"
-	"sync"
+	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
+	"gopkg.in/fsnotify.v1"
 )
 
 var (
@@ -135,7 +136,10 @@ type Runtime struct {
 	Store   storage.Store
 	Manager *plugins.Manager
 
-	decisionLogger func(context.Context, *server.Info)
+	info                         *ast.Term // runtime information provided to evaluation engine
+	defaultDecision              ast.Ref
+	defaultAuthorizationDecision ast.Ref
+	decisionLogger               func(context.Context, *server.Info)
 }
 
 // NewRuntime returns a new Runtime object initialized with params.
@@ -175,14 +179,14 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		return nil, errors.Wrapf(err, "storage error")
 	}
 
-	m, plugins, err := initPlugins(params.ID, store, params.ConfigFile)
+	cfg, err := loadConfig(params.ID, store, params.ConfigFile)
 	if err != nil {
 		return nil, err
 	}
 
 	var decisionLogger func(context.Context, *server.Info)
 
-	if p, ok := plugins["decision_logs"]; ok {
+	if p, ok := cfg.Plugins["decision_logs"]; ok {
 		decisionLogger = p.(*logs.Plugin).Log
 
 		if params.DecisionIDFactory == nil {
@@ -190,11 +194,19 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		}
 	}
 
+	info, err := runtime.Term(runtime.Params{ConfigFile: params.ConfigFile})
+	if err != nil {
+		return nil, err
+	}
+
 	rt := &Runtime{
-		Store:          store,
-		Manager:        m,
-		Params:         params,
-		decisionLogger: decisionLogger,
+		Store:                        store,
+		Manager:                      cfg.Manager,
+		Params:                       params,
+		info:                         info,
+		defaultDecision:              cfg.DefaultDecision,
+		defaultAuthorizationDecision: cfg.DefaultAuthorizationDecision,
+		decisionLogger:               decisionLogger,
 	}
 
 	return rt, nil
@@ -227,6 +239,9 @@ func (rt *Runtime) StartServer(ctx context.Context) {
 		WithDiagnosticsBuffer(rt.Params.DiagnosticsBuffer).
 		WithDecisionIDFactory(rt.Params.DecisionIDFactory).
 		WithDecisionLogger(rt.decisionLogger).
+		WithRuntime(rt.info).
+		WithDefaultDecision(rt.defaultDecision).
+		WithDefaultAuthorizationDecision(rt.defaultAuthorizationDecision).
 		Init(ctx)
 
 	if err != nil {
@@ -270,7 +285,7 @@ func (rt *Runtime) StartREPL(ctx context.Context) {
 	defer rt.Manager.Stop(ctx)
 
 	banner := rt.getBanner()
-	repl := repl.New(rt.Store, rt.Params.HistoryPath, rt.Params.Output, rt.Params.OutputFormat, rt.Params.ErrorLimit, banner)
+	repl := repl.New(rt.Store, rt.Params.HistoryPath, rt.Params.Output, rt.Params.OutputFormat, rt.Params.ErrorLimit, banner).WithRuntime(rt.info)
 
 	if rt.Params.Watch {
 		if err := rt.startWatcher(ctx, rt.Params.Paths, onReloadPrinter(rt.Params.Output)); err != nil {
@@ -468,11 +483,33 @@ func setupLogging(config LoggingConfig) {
 	logrus.SetLevel(lvl)
 }
 
+type loadedConfig struct {
+	Manager                      *plugins.Manager
+	Plugins                      map[string]plugins.Plugin
+	DefaultDecision              ast.Ref
+	DefaultAuthorizationDecision ast.Ref
+}
+
+type rawConfig struct {
+	DefaultDecision              string `json:"default_decision"`
+	DefaultAuthorizationDecision string `json:"default_authorization_decision"`
+}
+
+func parsePathToRef(s string) (ast.Ref, error) {
+	s = strings.Replace(strings.Trim(s, "/"), "/", ".", -1)
+	return ast.ParseRef("data." + s)
+}
+
+const (
+	defaultDecisionPath              = "/system/main"
+	defaultAuthorizationDecisionPath = "/system/authz/allow"
+)
+
 // TODO(tsandall): revisit how plugins are wired up to the manager and how
 // everything is started and stopped. We could introduce a package-scoped
 // plugin registry that allows for (dynamic) init-time plugin registration.
 
-func initPlugins(id string, store storage.Store, configFile string) (*plugins.Manager, map[string]plugins.Plugin, error) {
+func loadConfig(id string, store storage.Store, configFile string) (*loadedConfig, error) {
 
 	var bs []byte
 	var err error
@@ -480,20 +517,20 @@ func initPlugins(id string, store storage.Store, configFile string) (*plugins.Ma
 	if configFile != "" {
 		bs, err = ioutil.ReadFile(configFile)
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
 	}
 
 	m, err := plugins.New(bs, id, store)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	plugins := map[string]plugins.Plugin{}
 
 	bundlePlugin, err := initBundlePlugin(m, bs)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	} else if bundlePlugin != nil {
 		plugins["bundle"] = bundlePlugin
 	}
@@ -501,7 +538,7 @@ func initPlugins(id string, store storage.Store, configFile string) (*plugins.Ma
 	if bundlePlugin != nil {
 		statusPlugin, err := initStatusPlugin(m, bs, bundlePlugin)
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		} else if statusPlugin != nil {
 			plugins["status"] = statusPlugin
 		}
@@ -509,17 +546,48 @@ func initPlugins(id string, store storage.Store, configFile string) (*plugins.Ma
 
 	decisionLogsPlugin, err := initDecisionLogsPlugin(m, bs)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	} else if decisionLogsPlugin != nil {
 		plugins["decision_logs"] = decisionLogsPlugin
 	}
 
 	err = initRegisteredPlugins(m, bs)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
-	return m, plugins, nil
+	var raw rawConfig
+
+	if err := util.Unmarshal(bs, &raw); err != nil {
+		return nil, err
+	}
+
+	if raw.DefaultDecision == "" {
+		raw.DefaultDecision = defaultDecisionPath
+	}
+
+	if raw.DefaultAuthorizationDecision == "" {
+		raw.DefaultAuthorizationDecision = defaultAuthorizationDecisionPath
+	}
+
+	defaultDecision, err := parsePathToRef(raw.DefaultDecision)
+	if err != nil {
+		return nil, err
+	}
+
+	defaultAuthorizationDecision, err := parsePathToRef(raw.DefaultAuthorizationDecision)
+	if err != nil {
+		return nil, err
+	}
+
+	c := &loadedConfig{
+		Manager:                      m,
+		Plugins:                      plugins,
+		DefaultDecision:              defaultDecision,
+		DefaultAuthorizationDecision: defaultAuthorizationDecision,
+	}
+
+	return c, nil
 }
 
 func initBundlePlugin(m *plugins.Manager, bs []byte) (*bundle.Plugin, error) {

@@ -36,6 +36,7 @@ type eval struct {
 	bindings      *bindings
 	store         storage.Store
 	baseCache     *baseCache
+	withCache     *baseCache
 	txn           storage.Transaction
 	compiler      *ast.Compiler
 	input         *ast.Term
@@ -48,6 +49,7 @@ type eval struct {
 	saveSupport   *saveSupport
 	saveNamespace *ast.Term
 	genvarprefix  string
+	runtime       *ast.Term
 }
 
 func (e *eval) Run(iter evalIterator) error {
@@ -90,35 +92,35 @@ func (e *eval) partial() bool {
 	return e.saveSet != nil
 }
 
-func (e *eval) traceEnter(x interface{}) {
+func (e *eval) traceEnter(x ast.Node) {
 	e.traceEvent(EnterOp, x, "")
 }
 
-func (e *eval) traceExit(x interface{}) {
+func (e *eval) traceExit(x ast.Node) {
 	e.traceEvent(ExitOp, x, "")
 }
 
-func (e *eval) traceEval(x interface{}) {
+func (e *eval) traceEval(x ast.Node) {
 	e.traceEvent(EvalOp, x, "")
 }
 
-func (e *eval) traceFail(x interface{}) {
+func (e *eval) traceFail(x ast.Node) {
 	e.traceEvent(FailOp, x, "")
 }
 
-func (e *eval) traceRedo(x interface{}) {
+func (e *eval) traceRedo(x ast.Node) {
 	e.traceEvent(RedoOp, x, "")
 }
 
-func (e *eval) traceSave(x interface{}) {
+func (e *eval) traceSave(x ast.Node) {
 	e.traceEvent(SaveOp, x, "")
 }
 
-func (e *eval) traceIndex(x interface{}, msg string) {
+func (e *eval) traceIndex(x ast.Node, msg string) {
 	e.traceEvent(IndexOp, x, msg)
 }
 
-func (e *eval) traceEvent(op Op, x interface{}, msg string) {
+func (e *eval) traceEvent(op Op, x ast.Node, msg string) {
 
 	if e.tracer == nil || !e.tracer.Enabled() {
 		return
@@ -150,6 +152,7 @@ func (e *eval) traceEvent(op Op, x interface{}, msg string) {
 func (e *eval) traceEnabled() bool {
 	return e.tracer != nil && e.tracer.Enabled()
 }
+
 func (e *eval) eval(iter evalIterator) error {
 	return e.evalExpr(iter)
 }
@@ -269,16 +272,20 @@ func (e *eval) evalNot(iter evalIterator) error {
 }
 
 func (e *eval) evalWith(iter evalIterator) error {
-
 	expr := e.query[e.index]
-	pairs := make([][2]*ast.Term, len(expr.With))
+	pairsInput := [][2]*ast.Term{}
+	pairsData := [][2]*ast.Term{}
 
 	for i := range expr.With {
 		plugged := e.bindings.Plug(expr.With[i].Value)
-		pairs[i] = [...]*ast.Term{expr.With[i].Target, plugged}
+		if isInputRef(expr.With[i].Target) {
+			pairsInput = append(pairsInput, [...]*ast.Term{expr.With[i].Target, plugged})
+		} else if isDataRef(expr.With[i].Target) {
+			pairsData = append(pairsData, [...]*ast.Term{expr.With[i].Target, plugged})
+		}
 	}
 
-	input, err := makeInput(pairs)
+	input, err := makeInput(pairsInput)
 	if err != nil {
 		return &Error{
 			Code:     ConflictErr,
@@ -287,12 +294,23 @@ func (e *eval) evalWith(iter evalIterator) error {
 		}
 	}
 
+	for _, pair := range pairsData {
+		ref := pair[0].Value.(ast.Ref)
+		e.withCache.Put(ref, pair[1].Value)
+	}
+
 	old := e.input
 	e.input = ast.NewTerm(input)
 	e.virtualCache.Push()
 	err = e.evalStep(iter)
 	e.virtualCache.Pop()
 	e.input = old
+
+	for _, pair := range pairsData {
+		ref := pair[0].Value.(ast.Ref)
+		e.withCache.Remove(ref)
+	}
+
 	return err
 }
 
@@ -482,6 +500,7 @@ func (e *eval) evalCall(terms []*ast.Term, iter unifyIterator) error {
 	}
 
 	bctx := BuiltinContext{
+		Runtime:  e.runtime,
 		Cache:    e.builtinCache,
 		Location: e.query[e.index].Location,
 		Tracer:   e.tracer,
@@ -675,6 +694,7 @@ func (e *eval) biunifyRef(a, b *ast.Term, b1, b2 *bindings, iter unifyIterator) 
 
 	if ref[0].Equal(ast.DefaultRootDocument) {
 		node := e.compiler.RuleTree.Child(ref[0].Value)
+
 		eval := evalTree{
 			e:         e,
 			ref:       ref,
@@ -847,6 +867,9 @@ func (e *eval) getRules(ref ast.Ref) (*ast.IndexResult, error) {
 	}
 
 	result, err := index.Lookup(e)
+	if err != nil {
+		return nil, err
+	}
 
 	var msg string
 	if len(result.Rules) == 1 {
@@ -859,7 +882,6 @@ func (e *eval) getRules(ref ast.Ref) (*ast.IndexResult, error) {
 }
 
 func (e *eval) Resolve(ref ast.Ref) (ast.Value, error) {
-
 	e.instr.startTimer(evalOpResolve)
 	defer e.instr.stopTimer(evalOpResolve)
 
@@ -880,61 +902,142 @@ func (e *eval) Resolve(ref ast.Ref) (ast.Value, error) {
 
 	if ref[0].Equal(ast.DefaultRootDocument) {
 
+		// Check cache with replacement data
+		repValue, ok := e.withCache.Get(ref)
+		if ok {
+			return repValue, nil
+		}
+
+		expr := e.query[e.index]
+		if len(expr.With) > 0 && repValue == nil {
+			return nil, nil
+		}
+
+		var merged ast.Value
+		var err error
+
+		// Check cache with real data
+
 		// Converting large JSON values into AST values can be fairly expensive. For
 		// example, a 2MB JSON value can take upwards of 30 millisceonds to convert.
 		// We cache the result of conversion here in case the same base document is
 		// being read multiple times during evaluation.
-		//
-		// NOTE(tsandall): If we introduce data mocking the cache will need to be
-		// invalidated.
-		if value := e.baseCache.Get(ref); value != nil {
+		realValue, ok := e.baseCache.Get(ref)
+		if ok {
 			e.instr.counterIncr(evalOpBaseCacheHit)
-			return value, nil
-		}
-
-		e.instr.counterIncr(evalOpBaseCacheMiss)
-
-		path, err := storage.NewPathForRef(ref)
-		if err != nil {
-			if !storage.IsNotFound(err) {
+			if repValue == nil {
+				return realValue, nil
+			}
+			merged, ok = merge(repValue, realValue)
+			if !ok {
+				return nil, mergeConflictErr(ref[0].Location)
+			}
+		} else {
+			e.instr.counterIncr(evalOpBaseCacheMiss)
+			merged, err = e.resolveReadFromStorage(ref, repValue)
+			if err != nil {
 				return nil, err
 			}
-			return nil, nil
 		}
+		return merged, nil
+	}
+	return nil, fmt.Errorf("illegal ref")
+}
 
-		blob, err := e.store.Read(e.ctx, e.txn, path)
-		if err != nil {
-			if !storage.IsNotFound(err) {
-				return nil, err
-			}
-			return nil, nil
-		}
-
-		if len(path) == 0 {
-			obj := blob.(map[string]interface{})
-			if len(obj) > 0 {
-				cpy := make(map[string]interface{}, len(obj)-1)
-				for k, v := range obj {
-					if string(ast.SystemDocumentKey) == k {
-						continue
-					}
-					cpy[k] = v
-				}
-				blob = cpy
-			}
-		}
-
-		v, err := ast.InterfaceToValue(blob)
-		if err != nil {
+func (e *eval) resolveReadFromStorage(ref ast.Ref, a ast.Value) (ast.Value, error) {
+	path, err := storage.NewPathForRef(ref)
+	if err != nil {
+		if !storage.IsNotFound(err) {
 			return nil, err
 		}
+		return a, nil
+	}
 
-		e.baseCache.Put(ref, v)
+	blob, err := e.store.Read(e.ctx, e.txn, path)
+	if err != nil {
+		if !storage.IsNotFound(err) {
+			return nil, err
+		}
+		return a, nil
+	}
 
+	if len(path) == 0 {
+		obj := blob.(map[string]interface{})
+		if len(obj) > 0 {
+			cpy := make(map[string]interface{}, len(obj)-1)
+			for k, v := range obj {
+				if string(ast.SystemDocumentKey) == k {
+					continue
+				}
+				cpy[k] = v
+			}
+			blob = cpy
+		}
+	}
+
+	v, err := ast.InterfaceToValue(blob)
+	if err != nil {
+		return nil, err
+	}
+
+	e.baseCache.Put(ref, v)
+
+	if a == nil {
 		return v, nil
 	}
 
-	return nil, fmt.Errorf("illegal ref")
+	merged, ok := merge(a, v)
+	if !ok {
+		return nil, mergeConflictErr(ref[0].Location)
+	}
+	return merged, nil
+}
+
+func merge(a, b ast.Value) (ast.Value, bool) {
+	aObj, ok1 := a.(ast.Object)
+	bObj, ok2 := b.(ast.Object)
+
+	if ok1 && ok2 {
+		return mergeObjects(aObj, bObj)
+	}
+	return nil, false
+}
+
+// mergeObjects returns a new Object containing the non-overlapping keys of
+// the objA and objB. If there are overlapping keys between objA and objB,
+// the values of associated with the keys are merged. Only
+// objects can be merged with other objects. If the values cannot be merged,
+// objB value will be overwritten by objA value.
+func mergeObjects(objA, objB ast.Object) (result ast.Object, ok bool) {
+	result = ast.NewObject()
+	stop := objA.Until(func(k, v *ast.Term) bool {
+		if v2 := objB.Get(k); v2 == nil {
+			result.Insert(k, v)
+		} else {
+			obj1, ok1 := v.Value.(ast.Object)
+			obj2, ok2 := v2.Value.(ast.Object)
+
+			if !ok1 || !ok2 {
+				result.Insert(k, v)
+				return false
+			}
+			obj3, ok := mergeObjects(obj1, obj2)
+			if !ok {
+				return true
+			}
+			result.Insert(k, ast.NewTerm(obj3))
+		}
+		return false
+	})
+	if stop {
+		return nil, false
+	}
+	objB.Foreach(func(k, v *ast.Term) {
+		if v2 := objA.Get(k); v2 == nil {
+			result.Insert(k, v)
+		}
+	})
+	return result, true
 }
 
 func (e *eval) generateVar(suffix string) *ast.Term {
@@ -1132,20 +1235,24 @@ func (e evalTree) next(iter unifyIterator, plugged *ast.Term) error {
 
 	var node *ast.TreeNode
 
-	if e.node != nil {
-		node = e.node.Child(plugged.Value)
-		if node != nil && len(node.Values) > 0 {
-			r := evalVirtual{
-				e:         e.e,
-				ref:       e.ref,
-				plugged:   e.plugged,
-				pos:       e.pos,
-				bindings:  e.bindings,
-				rterm:     e.rterm,
-				rbindings: e.rbindings,
+	_, found := e.e.withCache.Get(e.ref)
+
+	if !found {
+		if e.node != nil {
+			node = e.node.Child(plugged.Value)
+			if node != nil && len(node.Values) > 0 {
+				r := evalVirtual{
+					e:         e.e,
+					ref:       e.ref,
+					plugged:   e.plugged,
+					pos:       e.pos,
+					bindings:  e.bindings,
+					rterm:     e.rterm,
+					rbindings: e.rbindings,
+				}
+				r.plugged[e.pos] = plugged
+				return r.eval(iter)
 			}
-			r.plugged[e.pos] = plugged
-			return r.eval(iter)
 		}
 	}
 
@@ -1157,7 +1264,6 @@ func (e evalTree) next(iter unifyIterator, plugged *ast.Term) error {
 }
 
 func (e evalTree) enumerate(iter unifyIterator) error {
-
 	doc, err := e.e.Resolve(e.plugged[:e.pos])
 	if err != nil {
 		return err
@@ -1202,7 +1308,6 @@ func (e evalTree) enumerate(iter unifyIterator) error {
 }
 
 func (e evalTree) extent() (*ast.Term, error) {
-
 	base, err := e.e.Resolve(e.plugged)
 	if err != nil {
 		return nil, err
@@ -1219,14 +1324,11 @@ func (e evalTree) extent() (*ast.Term, error) {
 		}
 		return ast.NewTerm(base), nil
 	}
+
 	if base != nil {
-		merged, ok := base.(ast.Object).Merge(virtual)
+		merged, ok := merge(base, virtual)
 		if !ok {
-			// TODO(tsandall): the location used in this error could be
-			// improved to reference the containing expression. We should
-			// update the eval struct to keep track of the currently evaluation
-			// expression.
-			return nil, documentConflictErr(e.ref[0].Location)
+			return nil, mergeConflictErr(e.plugged[0].Location)
 		}
 		return ast.NewTerm(merged), nil
 	}
@@ -1914,4 +2016,22 @@ func complementedCartesianProduct(queries []ast.Body, idx int, curr ast.Body, it
 		curr = curr[:len(curr)-1]
 	}
 	return nil
+}
+
+func isInputRef(term *ast.Term) bool {
+	if ref, ok := term.Value.(ast.Ref); ok {
+		if ref.HasPrefix(ast.InputRootRef) {
+			return true
+		}
+	}
+	return false
+}
+
+func isDataRef(term *ast.Term) bool {
+	if ref, ok := term.Value.(ast.Ref); ok {
+		if ref.HasPrefix(ast.DefaultRootRef) {
+			return true
+		}
+	}
+	return false
 }

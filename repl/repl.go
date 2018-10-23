@@ -32,8 +32,9 @@ import (
 
 // REPL represents an instance of the interactive shell.
 type REPL struct {
-	output io.Writer
-	store  storage.Store
+	output  io.Writer
+	store   storage.Store
+	runtime *ast.Term
 
 	modules         map[string]*ast.Module
 	currentModuleID string
@@ -292,6 +293,12 @@ func (r *REPL) DisableMultiLineBuffering(yes bool) *REPL {
 // is undefined.
 func (r *REPL) DisableUndefinedOutput(yes bool) *REPL {
 	r.undefinedDisabled = yes
+	return r
+}
+
+// WithRuntime sets the runtime data to provide to the evaluation engine.
+func (r *REPL) WithRuntime(term *ast.Term) *REPL {
+	r.runtime = term
 	return r
 }
 
@@ -796,6 +803,7 @@ func (r *REPL) evalBody(ctx context.Context, compiler *ast.Compiler, input ast.V
 		rego.Metrics(r.metrics),
 		rego.Tracer(buf),
 		rego.Instrument(r.instrument),
+		rego.Runtime(r.runtime),
 	)
 
 	rs, err := eval.Eval(ctx)
@@ -843,6 +851,7 @@ func (r *REPL) evalPartial(ctx context.Context, compiler *ast.Compiler, input as
 		rego.Tracer(buf),
 		rego.Instrument(r.instrument),
 		rego.ParsedUnknowns(r.unknowns),
+		rego.Runtime(r.runtime),
 	)
 
 	pq, err := eval.Partial(ctx)

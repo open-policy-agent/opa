@@ -1,12 +1,10 @@
-hash: af81fe139f8bc3f0036d6bf9e2db1bf27154a57714edfdfd5d8032228f954cc1
-updated: 2018-09-24T10:21:28.514997-07:00
+hash: 6c5fd2fe2184fa76a75a8f47a43a9b3eb0c431171fc2bec174f0bb5bb97ff677
+updated: 2018-10-18T10:46:40.18077041+02:00
 imports:
 - name: github.com/beorn7/perks
   version: 3a771d992973f24aa725d07868b467d1ddfceafb
   subpackages:
   - quantile
-- name: github.com/dchest/siphash
-  version: 34f201214d993633bb24f418ba11736ab8b55aa7
 - name: github.com/ghodss/yaml
   version: c7ce16629ff4cd059ed96ed06419dd3856fd3577
 - name: github.com/golang/lint
@@ -32,7 +30,7 @@ imports:
 - name: github.com/olekukonko/tablewriter
   version: be2c049b30ccd4d3fd795d6bf7dce74e42eeedaa
 - name: github.com/OneOfOne/xxhash
-  version: 74ace4fe5525ef62ce28d5093d6b0faaa6a575f3
+  version: 6def279d2ce6c81a79dd1c1be580f03bb216fb8a
 - name: github.com/peterh/liner
   version: bf27d3ba8e1d9899d45a457ffac16c953eb2d647
 - name: github.com/pkg/errors

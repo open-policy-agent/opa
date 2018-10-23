@@ -1445,9 +1445,9 @@ func TestCompilerRewriteWithValue(t *testing.T) {
 			expected: `p { __local0__ = data.test.arr[0]; __local1__ = data.test.arr[1]; true with input.a as __local0__ with input.b as __local1__ }`,
 		},
 		{
-			note:    "data target",
-			input:   `p { true with data.q as 1 }`,
-			wantErr: fmt.Errorf("rego_type_error: with keyword target must be input is data"),
+			note:    "invalid target",
+			input:   `p { true with foo.q as 1 }`,
+			wantErr: fmt.Errorf("rego_type_error: with keyword target must start with input or data"),
 		},
 	}
 
@@ -1469,6 +1469,23 @@ func TestCompilerRewriteWithValue(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestCompilerMockFunction(t *testing.T) {
+	c := NewCompiler()
+	c.Modules["test"] = MustParseModule(`
+	package test
+
+	is_allowed(label) {
+	    label == "test_label"
+	}
+
+	p {true with data.test.is_allowed as "blah" }
+	`)
+	compileStages(c, c.rewriteWithModifiers)
+
+	expectedError := fmt.Errorf("rego_compile_error: with keyword cannot replace rules with arguments")
+	assertCompilerErrorStrings(t, c, []string{expectedError.Error()})
 }
 
 func TestCompilerSetGraph(t *testing.T) {
@@ -2134,7 +2151,7 @@ func TestQueryCompiler(t *testing.T) {
 		{"unsafe vars", "z", "", nil, "", fmt.Errorf("1 error occurred: 1:1: rego_unsafe_var_error: var z is unsafe")},
 		{"safe vars", `data; abc`, `package ex`, []string{"import input.xyz as abc"}, `{}`, `data; input.xyz`},
 		{"reorder", `x != 1; x = 0`, "", nil, "", `x = 0; x != 1`},
-		{"bad with target", "x = 1 with data.p as null", "", nil, "", fmt.Errorf("1 error occurred: 1:12: rego_type_error: with keyword target must be input is data")},
+		{"bad with target", "x = 1 with foo.p as null", "", nil, "", fmt.Errorf("1 error occurred: 1:12: rego_type_error: with keyword target must start with input or data")},
 		{"rewrite with value", `1 with input as [z]`, "package a.b.c", nil, "", `__local1__ = data.a.b.c.z; __local0__ = [__local1__]; 1 with input as __local0__`},
 		{"unsafe exprs", "count(sum())", "", nil, "", fmt.Errorf("1 error occurred: 1:1: rego_unsafe_var_error: expression is unsafe")},
 		{"check types", "x = data.a.b.c.z; y = null; x = y", "", nil, "", fmt.Errorf("match error\n\tleft  : number\n\tright : null")},
@@ -2208,6 +2225,7 @@ func TestQueryCompilerRecompile(t *testing.T) {
 
 func assertCompilerErrorStrings(t *testing.T, compiler *Compiler, expected []string) {
 	result := compilerErrsToStringSlice(compiler.Errors)
+
 	if len(result) != len(expected) {
 		t.Fatalf("Expected %d:\n%v\nBut got %d:\n%v", len(expected), strings.Join(expected, "\n"), len(result), strings.Join(result, "\n"))
 	}

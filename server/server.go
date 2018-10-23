@@ -16,13 +16,12 @@ import (
 	"net"
 	"net/http"
 	"net/http/httputil"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
-
-	"net/url"
 
 	"github.com/gorilla/mux"
 	"github.com/open-policy-agent/opa/ast"
@@ -74,8 +73,6 @@ const (
 	PromHandlerCatch      = "catchall"
 )
 
-var systemMainPath = ast.MustParseRef("data.system.main")
-
 // map of unsafe buitins
 var unsafeBuiltinsMap = map[string]bool{ast.HTTPSend.Name: true}
 
@@ -83,21 +80,25 @@ var unsafeBuiltinsMap = map[string]bool{ast.HTTPSend.Name: true}
 type Server struct {
 	Handler http.Handler
 
-	addrs             []string
-	insecureAddr      string
-	authentication    AuthenticationScheme
-	authorization     AuthorizationScheme
-	cert              *tls.Certificate
-	mtx               sync.RWMutex
-	partials          map[string]rego.PartialResult
-	store             storage.Store
-	manager           *plugins.Manager
-	watcher           *watch.Watcher
-	decisionIDFactory func() string
-	diagnostics       Buffer
-	revision          string
-	logger            func(context.Context, *Info)
-	errLimit          int
+	router                       *mux.Router
+	addrs                        []string
+	insecureAddr                 string
+	authentication               AuthenticationScheme
+	authorization                AuthorizationScheme
+	cert                         *tls.Certificate
+	mtx                          sync.RWMutex
+	partials                     map[string]rego.PartialResult
+	store                        storage.Store
+	manager                      *plugins.Manager
+	watcher                      *watch.Watcher
+	decisionIDFactory            func() string
+	diagnostics                  Buffer
+	revision                     string
+	logger                       func(context.Context, *Info)
+	errLimit                     int
+	runtime                      *ast.Term
+	defaultDecision              ast.Ref
+	defaultAuthorizationDecision ast.Ref
 }
 
 // Loop will contain all the calls from the server that we'll be listening on.
@@ -105,88 +106,25 @@ type Loop func() error
 
 // New returns a new Server.
 func New() *Server {
-
 	s := Server{}
-
-	promRegistry := prometheus.NewRegistry()
-	duration := prometheus.NewHistogramVec(
-		prometheus.HistogramOpts{
-			Name: "http_request_duration_seconds",
-			Help: "A histogram of duration for requests.",
-		},
-		[]string{"code", "handler", "method"},
-	)
-	v0DataDur := duration.MustCurryWith(prometheus.Labels{"handler": PromHandlerV0Data})
-	v1DataDur := duration.MustCurryWith(prometheus.Labels{"handler": PromHandlerV1Data})
-	v1PoliciesDur := duration.MustCurryWith(prometheus.Labels{"handler": PromHandlerV1Policies})
-	v1QueryDur := duration.MustCurryWith(prometheus.Labels{"handler": PromHandlerV1Query})
-	v1CompileDur := duration.MustCurryWith(prometheus.Labels{"handler": PromHandlerV1Compile})
-	indexDur := duration.MustCurryWith(prometheus.Labels{"handler": PromHandlerIndex})
-	catchAllDur := duration.MustCurryWith(prometheus.Labels{"handler": PromHandlerCatch})
-	promRegistry.MustRegister(duration)
-
-	// Initialize HTTP handlers.
-	router := mux.NewRouter()
-	router.UseEncodedPath()
-	router.StrictSlash(true)
-	router.Handle("/metrics", promhttp.HandlerFor(promRegistry, promhttp.HandlerOpts{})).Methods(http.MethodGet)
-	s.registerHandler(router, 0, "/data/{path:.+}", http.MethodPost, promhttp.InstrumentHandlerDuration(v0DataDur, http.HandlerFunc(s.v0DataPost)))
-	s.registerHandler(router, 0, "/data", http.MethodPost, promhttp.InstrumentHandlerDuration(v0DataDur, http.HandlerFunc(s.v0DataPost)))
-	s.registerHandler(router, 1, "/data/system/version", http.MethodGet, promhttp.InstrumentHandlerDuration(v1DataDur, http.HandlerFunc(s.v1VersionGet)))
-	s.registerHandler(router, 1, "/data/system/diagnostics", http.MethodGet, promhttp.InstrumentHandlerDuration(v1DataDur, http.HandlerFunc(s.v1DiagnosticsGet)))
-	s.registerHandler(router, 1, "/data/{path:.+}", http.MethodDelete, promhttp.InstrumentHandlerDuration(v1DataDur, http.HandlerFunc(s.v1DataDelete)))
-	s.registerHandler(router, 1, "/data/{path:.+}", http.MethodPut, promhttp.InstrumentHandlerDuration(v1DataDur, http.HandlerFunc(s.v1DataPut)))
-	s.registerHandler(router, 1, "/data", http.MethodPut, promhttp.InstrumentHandlerDuration(v1DataDur, http.HandlerFunc(s.v1DataPut)))
-	s.registerHandler(router, 1, "/data/{path:.+}", http.MethodGet, promhttp.InstrumentHandlerDuration(v1DataDur, http.HandlerFunc(s.v1DataGet)))
-	s.registerHandler(router, 1, "/data", http.MethodGet, promhttp.InstrumentHandlerDuration(v1DataDur, http.HandlerFunc(s.v1DataGet)))
-	s.registerHandler(router, 1, "/data/{path:.+}", http.MethodPatch, promhttp.InstrumentHandlerDuration(v1DataDur, http.HandlerFunc(s.v1DataPatch)))
-	s.registerHandler(router, 1, "/data", http.MethodPatch, promhttp.InstrumentHandlerDuration(v1DataDur, http.HandlerFunc(s.v1DataPatch)))
-	s.registerHandler(router, 1, "/data/{path:.+}", http.MethodPost, promhttp.InstrumentHandlerDuration(v1DataDur, http.HandlerFunc(s.v1DataPost)))
-	s.registerHandler(router, 1, "/data", http.MethodPost, promhttp.InstrumentHandlerDuration(v1DataDur, http.HandlerFunc(s.v1DataPost)))
-	s.registerHandler(router, 1, "/policies", http.MethodGet, promhttp.InstrumentHandlerDuration(v1PoliciesDur, http.HandlerFunc(s.v1PoliciesList)))
-	s.registerHandler(router, 1, "/policies/{path:.+}", http.MethodDelete, promhttp.InstrumentHandlerDuration(v1PoliciesDur, http.HandlerFunc(s.v1PoliciesDelete)))
-	s.registerHandler(router, 1, "/policies/{path:.+}", http.MethodGet, promhttp.InstrumentHandlerDuration(v1PoliciesDur, http.HandlerFunc(s.v1PoliciesGet)))
-	s.registerHandler(router, 1, "/policies/{path:.+}", http.MethodPut, promhttp.InstrumentHandlerDuration(v1PoliciesDur, http.HandlerFunc(s.v1PoliciesPut)))
-	s.registerHandler(router, 1, "/query", http.MethodGet, promhttp.InstrumentHandlerDuration(v1QueryDur, http.HandlerFunc(s.v1QueryGet)))
-	s.registerHandler(router, 1, "/compile", http.MethodPost, promhttp.InstrumentHandlerDuration(v1CompileDur, http.HandlerFunc(s.v1CompilePost)))
-	router.HandleFunc("/", promhttp.InstrumentHandlerDuration(indexDur, http.HandlerFunc(s.unversionedPost))).Methods(http.MethodPost)
-	router.HandleFunc("/", promhttp.InstrumentHandlerDuration(indexDur, http.HandlerFunc(s.indexGet))).Methods(http.MethodGet)
-	// These are catch all handlers that respond 405 for resources that exist but the method is not allowed
-	router.HandleFunc("/v0/data/{path:.*}", promhttp.InstrumentHandlerDuration(catchAllDur, http.HandlerFunc(writer.HTTPStatus(405)))).Methods(http.MethodGet, http.MethodHead,
-		http.MethodConnect, http.MethodDelete, http.MethodOptions, http.MethodPatch, http.MethodPut, http.MethodTrace)
-	router.HandleFunc("/v0/data", promhttp.InstrumentHandlerDuration(catchAllDur, http.HandlerFunc(writer.HTTPStatus(405)))).Methods(http.MethodGet, http.MethodHead,
-		http.MethodConnect, http.MethodDelete, http.MethodOptions, http.MethodPatch, http.MethodPut,
-		http.MethodTrace)
-	// v1 Data catch all
-	router.HandleFunc("/v1/data/{path:.*}", promhttp.InstrumentHandlerDuration(catchAllDur, http.HandlerFunc(writer.HTTPStatus(405)))).Methods(http.MethodHead,
-		http.MethodConnect, http.MethodOptions, http.MethodTrace)
-	router.HandleFunc("/v1/data", promhttp.InstrumentHandlerDuration(catchAllDur, http.HandlerFunc(writer.HTTPStatus(405)))).Methods(http.MethodHead,
-		http.MethodConnect, http.MethodDelete, http.MethodOptions, http.MethodTrace)
-	// Policies catch all
-	router.HandleFunc("/v1/policies", promhttp.InstrumentHandlerDuration(catchAllDur, http.HandlerFunc(writer.HTTPStatus(405)))).Methods(http.MethodHead,
-		http.MethodConnect, http.MethodDelete, http.MethodOptions, http.MethodTrace, http.MethodPost, http.MethodPut,
-		http.MethodPatch)
-	// Policies (/policies/{path.+} catch all
-	router.HandleFunc("/v1/policies/{path:.*}", promhttp.InstrumentHandlerDuration(catchAllDur, http.HandlerFunc(writer.HTTPStatus(405)))).Methods(http.MethodHead,
-		http.MethodConnect, http.MethodOptions, http.MethodTrace, http.MethodPost)
-	// Query catch all
-	router.HandleFunc("/v1/query/{path:.*}", promhttp.InstrumentHandlerDuration(catchAllDur, http.HandlerFunc(writer.HTTPStatus(405)))).Methods(http.MethodHead,
-		http.MethodConnect, http.MethodDelete, http.MethodOptions, http.MethodTrace, http.MethodPost, http.MethodPut, http.MethodPatch)
-	router.HandleFunc("/v1/query", promhttp.InstrumentHandlerDuration(catchAllDur, http.HandlerFunc(writer.HTTPStatus(405)))).Methods(http.MethodHead,
-		http.MethodConnect, http.MethodDelete, http.MethodOptions, http.MethodTrace, http.MethodPost, http.MethodPut, http.MethodPatch)
-
-	s.Handler = router
 	return &s
 }
 
 // Init initializes the server. This function MUST be called before Loop.
 func (s *Server) Init(ctx context.Context) (*Server, error) {
 
+	s.initRouter()
+
 	// Add authorization handler. This must come BEFORE authentication handler
 	// so that the latter can run first.
 	switch s.authorization {
 	case AuthorizationBasic:
-		s.Handler = authorizer.NewBasic(s.Handler, s.getCompiler, s.store)
+		s.Handler = authorizer.NewBasic(
+			s.Handler,
+			s.getCompiler,
+			s.store,
+			authorizer.Runtime(s.runtime),
+			authorizer.Decision(s.defaultAuthorizationDecision))
 	}
 
 	switch s.authentication {
@@ -288,6 +226,33 @@ func (s *Server) WithDecisionIDFactory(f func() string) *Server {
 	return s
 }
 
+// WithRuntime sets the runtime data to provide to the evaluation engine.
+func (s *Server) WithRuntime(term *ast.Term) *Server {
+	s.runtime = term
+	return s
+}
+
+// WithDefaultDecision sets path of the policy decision to query to serve
+// requests with an empty URL path.
+func (s *Server) WithDefaultDecision(ref ast.Ref) *Server {
+	s.defaultDecision = ref
+	return s
+}
+
+// WithDefaultAuthorizationDecision sets path of the policy decision to query to
+// authorize requests to OPA itself.
+func (s *Server) WithDefaultAuthorizationDecision(ref ast.Ref) *Server {
+	s.defaultAuthorizationDecision = ref
+	return s
+}
+
+// WithRouter sets the mux.Router to attach OPA's HTTP API routes onto. If a
+// router is not supplied, the server will create it's own.
+func (s *Server) WithRouter(router *mux.Router) *Server {
+	s.router = router
+	return s
+}
+
 // Listeners returns functions that listen and serve connections.
 func (s *Server) Listeners() ([]Loop, error) {
 	loops := []Loop{}
@@ -374,6 +339,82 @@ func (s *Server) getListenerForUNIXSocket(u *url.URL) (Loop, error) {
 	return domainSocketLoop, nil
 }
 
+func (s *Server) initRouter() {
+
+	promRegistry := prometheus.NewRegistry()
+	duration := prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name: "http_request_duration_seconds",
+			Help: "A histogram of duration for requests.",
+		},
+		[]string{"code", "handler", "method"},
+	)
+	v0DataDur := duration.MustCurryWith(prometheus.Labels{"handler": PromHandlerV0Data})
+	v1DataDur := duration.MustCurryWith(prometheus.Labels{"handler": PromHandlerV1Data})
+	v1PoliciesDur := duration.MustCurryWith(prometheus.Labels{"handler": PromHandlerV1Policies})
+	v1QueryDur := duration.MustCurryWith(prometheus.Labels{"handler": PromHandlerV1Query})
+	v1CompileDur := duration.MustCurryWith(prometheus.Labels{"handler": PromHandlerV1Compile})
+	indexDur := duration.MustCurryWith(prometheus.Labels{"handler": PromHandlerIndex})
+	catchAllDur := duration.MustCurryWith(prometheus.Labels{"handler": PromHandlerCatch})
+	promRegistry.MustRegister(duration)
+
+	router := s.router
+
+	if router == nil {
+		router = mux.NewRouter()
+	}
+
+	router.UseEncodedPath()
+	router.StrictSlash(true)
+	router.Handle("/metrics", promhttp.HandlerFor(promRegistry, promhttp.HandlerOpts{})).Methods(http.MethodGet)
+	s.registerHandler(router, 0, "/data/{path:.+}", http.MethodPost, promhttp.InstrumentHandlerDuration(v0DataDur, http.HandlerFunc(s.v0DataPost)))
+	s.registerHandler(router, 0, "/data", http.MethodPost, promhttp.InstrumentHandlerDuration(v0DataDur, http.HandlerFunc(s.v0DataPost)))
+	s.registerHandler(router, 1, "/data/system/version", http.MethodGet, promhttp.InstrumentHandlerDuration(v1DataDur, http.HandlerFunc(s.v1VersionGet)))
+	s.registerHandler(router, 1, "/data/system/diagnostics", http.MethodGet, promhttp.InstrumentHandlerDuration(v1DataDur, http.HandlerFunc(s.v1DiagnosticsGet)))
+	s.registerHandler(router, 1, "/data/{path:.+}", http.MethodDelete, promhttp.InstrumentHandlerDuration(v1DataDur, http.HandlerFunc(s.v1DataDelete)))
+	s.registerHandler(router, 1, "/data/{path:.+}", http.MethodPut, promhttp.InstrumentHandlerDuration(v1DataDur, http.HandlerFunc(s.v1DataPut)))
+	s.registerHandler(router, 1, "/data", http.MethodPut, promhttp.InstrumentHandlerDuration(v1DataDur, http.HandlerFunc(s.v1DataPut)))
+	s.registerHandler(router, 1, "/data/{path:.+}", http.MethodGet, promhttp.InstrumentHandlerDuration(v1DataDur, http.HandlerFunc(s.v1DataGet)))
+	s.registerHandler(router, 1, "/data", http.MethodGet, promhttp.InstrumentHandlerDuration(v1DataDur, http.HandlerFunc(s.v1DataGet)))
+	s.registerHandler(router, 1, "/data/{path:.+}", http.MethodPatch, promhttp.InstrumentHandlerDuration(v1DataDur, http.HandlerFunc(s.v1DataPatch)))
+	s.registerHandler(router, 1, "/data", http.MethodPatch, promhttp.InstrumentHandlerDuration(v1DataDur, http.HandlerFunc(s.v1DataPatch)))
+	s.registerHandler(router, 1, "/data/{path:.+}", http.MethodPost, promhttp.InstrumentHandlerDuration(v1DataDur, http.HandlerFunc(s.v1DataPost)))
+	s.registerHandler(router, 1, "/data", http.MethodPost, promhttp.InstrumentHandlerDuration(v1DataDur, http.HandlerFunc(s.v1DataPost)))
+	s.registerHandler(router, 1, "/policies", http.MethodGet, promhttp.InstrumentHandlerDuration(v1PoliciesDur, http.HandlerFunc(s.v1PoliciesList)))
+	s.registerHandler(router, 1, "/policies/{path:.+}", http.MethodDelete, promhttp.InstrumentHandlerDuration(v1PoliciesDur, http.HandlerFunc(s.v1PoliciesDelete)))
+	s.registerHandler(router, 1, "/policies/{path:.+}", http.MethodGet, promhttp.InstrumentHandlerDuration(v1PoliciesDur, http.HandlerFunc(s.v1PoliciesGet)))
+	s.registerHandler(router, 1, "/policies/{path:.+}", http.MethodPut, promhttp.InstrumentHandlerDuration(v1PoliciesDur, http.HandlerFunc(s.v1PoliciesPut)))
+	s.registerHandler(router, 1, "/query", http.MethodGet, promhttp.InstrumentHandlerDuration(v1QueryDur, http.HandlerFunc(s.v1QueryGet)))
+	s.registerHandler(router, 1, "/compile", http.MethodPost, promhttp.InstrumentHandlerDuration(v1CompileDur, http.HandlerFunc(s.v1CompilePost)))
+	router.HandleFunc("/", promhttp.InstrumentHandlerDuration(indexDur, http.HandlerFunc(s.unversionedPost))).Methods(http.MethodPost)
+	router.HandleFunc("/", promhttp.InstrumentHandlerDuration(indexDur, http.HandlerFunc(s.indexGet))).Methods(http.MethodGet)
+	// These are catch all handlers that respond 405 for resources that exist but the method is not allowed
+	router.HandleFunc("/v0/data/{path:.*}", promhttp.InstrumentHandlerDuration(catchAllDur, http.HandlerFunc(writer.HTTPStatus(405)))).Methods(http.MethodGet, http.MethodHead,
+		http.MethodConnect, http.MethodDelete, http.MethodOptions, http.MethodPatch, http.MethodPut, http.MethodTrace)
+	router.HandleFunc("/v0/data", promhttp.InstrumentHandlerDuration(catchAllDur, http.HandlerFunc(writer.HTTPStatus(405)))).Methods(http.MethodGet, http.MethodHead,
+		http.MethodConnect, http.MethodDelete, http.MethodOptions, http.MethodPatch, http.MethodPut,
+		http.MethodTrace)
+	// v1 Data catch all
+	router.HandleFunc("/v1/data/{path:.*}", promhttp.InstrumentHandlerDuration(catchAllDur, http.HandlerFunc(writer.HTTPStatus(405)))).Methods(http.MethodHead,
+		http.MethodConnect, http.MethodOptions, http.MethodTrace)
+	router.HandleFunc("/v1/data", promhttp.InstrumentHandlerDuration(catchAllDur, http.HandlerFunc(writer.HTTPStatus(405)))).Methods(http.MethodHead,
+		http.MethodConnect, http.MethodDelete, http.MethodOptions, http.MethodTrace)
+	// Policies catch all
+	router.HandleFunc("/v1/policies", promhttp.InstrumentHandlerDuration(catchAllDur, http.HandlerFunc(writer.HTTPStatus(405)))).Methods(http.MethodHead,
+		http.MethodConnect, http.MethodDelete, http.MethodOptions, http.MethodTrace, http.MethodPost, http.MethodPut,
+		http.MethodPatch)
+	// Policies (/policies/{path.+} catch all
+	router.HandleFunc("/v1/policies/{path:.*}", promhttp.InstrumentHandlerDuration(catchAllDur, http.HandlerFunc(writer.HTTPStatus(405)))).Methods(http.MethodHead,
+		http.MethodConnect, http.MethodOptions, http.MethodTrace, http.MethodPost)
+	// Query catch all
+	router.HandleFunc("/v1/query/{path:.*}", promhttp.InstrumentHandlerDuration(catchAllDur, http.HandlerFunc(writer.HTTPStatus(405)))).Methods(http.MethodHead,
+		http.MethodConnect, http.MethodDelete, http.MethodOptions, http.MethodTrace, http.MethodPost, http.MethodPut, http.MethodPatch)
+	router.HandleFunc("/v1/query", promhttp.InstrumentHandlerDuration(catchAllDur, http.HandlerFunc(writer.HTTPStatus(405)))).Methods(http.MethodHead,
+		http.MethodConnect, http.MethodDelete, http.MethodOptions, http.MethodTrace, http.MethodPost, http.MethodPut, http.MethodPatch)
+
+	s.Handler = router
+}
+
 func (s *Server) execQuery(ctx context.Context, r *http.Request, query string, input ast.Value, explainMode types.ExplainModeV1, includeMetrics, includeInstrumentation, pretty bool) (results types.QueryResponseV1, err error) {
 
 	diagLogger := s.evalDiagnosticPolicy(r)
@@ -400,6 +441,7 @@ func (s *Server) execQuery(ctx context.Context, r *http.Request, query string, i
 		rego.Metrics(m),
 		rego.Instrument(instrument),
 		rego.Tracer(buf),
+		rego.Runtime(s.runtime),
 	)
 
 	output, err := rego.Eval(ctx)
@@ -503,7 +545,7 @@ func (s *Server) migrateWatcher(txn storage.Transaction) {
 }
 
 func (s *Server) unversionedPost(w http.ResponseWriter, r *http.Request) {
-	s.v0QueryPath(w, r, systemMainPath)
+	s.v0QueryPath(w, r, s.defaultDecision)
 }
 
 func (s *Server) v0DataPost(w http.ResponseWriter, r *http.Request) {
@@ -515,7 +557,7 @@ func (s *Server) v0QueryPath(w http.ResponseWriter, r *http.Request, path ast.Re
 	ctx := r.Context()
 	m := metrics.New()
 	diagLogger := s.evalDiagnosticPolicy(r)
-	input, err := readInputV0(r.Body)
+	input, err := readInputV0(r)
 	if err != nil {
 		writer.ErrorString(w, http.StatusBadRequest, types.CodeInvalidParameter, errors.Wrapf(err, "unexpected parse error for input"))
 		return
@@ -553,6 +595,7 @@ func (s *Server) v0QueryPath(w http.ResponseWriter, r *http.Request, path ast.Re
 		rego.Metrics(m),
 		rego.Instrument(diagLogger.Instrument()),
 		rego.Tracer(buf),
+		rego.Runtime(s.runtime),
 	)
 
 	rs, err := rego.Eval(ctx)
@@ -702,6 +745,7 @@ func (s *Server) v1CompilePost(w http.ResponseWriter, r *http.Request) {
 		rego.Tracer(buf),
 		rego.Instrument(instrument),
 		rego.Metrics(m),
+		rego.Runtime(s.runtime),
 	)
 
 	pq, err := eval.Partial(ctx)
@@ -803,6 +847,7 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 		rego.Metrics(m),
 		rego.Tracer(buf),
 		rego.Instrument(instrument),
+		rego.Runtime(s.runtime),
 	)
 
 	rs, err := rego.Eval(ctx)
@@ -1340,7 +1385,7 @@ func (s *Server) watchQuery(query string, w http.ResponseWriter, r *http.Request
 	includeMetrics := getBoolParam(r.URL, types.ParamMetricsV1, true)
 	includeInstrumentation := getBoolParam(r.URL, types.ParamInstrumentV1, true)
 
-	watch := s.watcher.NewQuery(query).WithInstrumentation(includeInstrumentation)
+	watch := s.watcher.NewQuery(query).WithInstrumentation(includeInstrumentation).WithRuntime(s.runtime)
 	err := watch.Start()
 
 	if err != nil {
@@ -1438,6 +1483,7 @@ func (s *Server) evalDiagnosticPolicy(r *http.Request) (logger diagnosticsLogger
 		rego.Compiler(compiler),
 		rego.Query(`data.system.diagnostics.config`),
 		rego.Input(input),
+		rego.Runtime(s.runtime),
 	)
 
 	output, err := rego.Eval(r.Context())
@@ -1523,7 +1569,7 @@ func (s *Server) makeRego(ctx context.Context, partial bool, txn storage.Transac
 		defer s.mtx.Unlock()
 		pr, ok := s.partials[path]
 		if !ok {
-			opts = append(opts, rego.Transaction(txn), rego.Query(path), rego.Metrics(m), rego.Instrument(instrument))
+			opts = append(opts, rego.Transaction(txn), rego.Query(path), rego.Metrics(m), rego.Instrument(instrument), rego.Runtime(s.runtime))
 			r := rego.New(opts...)
 			var err error
 			pr, err = r.PartialResult(ctx)
@@ -1542,7 +1588,7 @@ func (s *Server) makeRego(ctx context.Context, partial bool, txn storage.Transac
 		return pr.Rego(opts...), nil
 	}
 
-	opts = append(opts, rego.Transaction(txn), rego.Query(path), rego.Input(input), rego.Metrics(m), rego.Tracer(tracer), rego.Instrument(instrument))
+	opts = append(opts, rego.Transaction(txn), rego.Query(path), rego.Input(input), rego.Metrics(m), rego.Tracer(tracer), rego.Instrument(instrument), rego.Runtime(s.runtime))
 	return rego.New(opts...), nil
 }
 
@@ -1732,8 +1778,8 @@ func makeDiagnosticsInput(r *http.Request) (map[string]interface{}, error) {
 	return input, nil
 }
 
-func readInputV0(r io.ReadCloser) (ast.Value, error) {
-	bs, err := ioutil.ReadAll(r)
+func readInputV0(r *http.Request) (ast.Value, error) {
+	bs, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		return nil, err
 	}
@@ -1742,9 +1788,15 @@ func readInputV0(r io.ReadCloser) (ast.Value, error) {
 		return nil, nil
 	}
 	var x interface{}
-	if err := util.UnmarshalJSON(bs, &x); err != nil {
+
+	if strings.Contains(r.Header.Get("Content-Type"), "yaml") {
+		if err := util.Unmarshal(bs, &x); err != nil {
+			return nil, err
+		}
+	} else if err := util.UnmarshalJSON(bs, &x); err != nil {
 		return nil, err
 	}
+
 	return ast.InterfaceToValue(x)
 }
 

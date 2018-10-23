@@ -10,6 +10,8 @@ import (
 	"os"
 	"time"
 
+	"github.com/open-policy-agent/opa/internal/runtime"
+
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/cover"
 	"github.com/open-policy-agent/opa/tester"
@@ -110,6 +112,12 @@ func opaTest(args []string) int {
 		return 1
 	}
 
+	info, err := runtime.Term(runtime.Params{})
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 1
+	}
+
 	var cov *cover.Cover
 	var coverTracer topdown.Tracer
 
@@ -122,7 +130,8 @@ func opaTest(args []string) int {
 		SetCompiler(compiler).
 		SetStore(store).
 		EnableTracing(testParams.verbose).
-		SetCoverageTracer(coverTracer)
+		SetCoverageTracer(coverTracer).
+		SetRuntime(info)
 
 	ch, err := runner.Run(ctx, modules)
 	if err != nil {

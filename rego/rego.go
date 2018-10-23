@@ -151,6 +151,7 @@ type Rego struct {
 	capture          map[*ast.Expr]ast.Var // map exprs to generated capture vars
 	termVarID        int
 	dump             io.Writer
+	runtime          *ast.Term
 }
 
 // Dump returns an argument that sets the writer to dump debugging information to.
@@ -298,6 +299,14 @@ func Tracer(t topdown.Tracer) func(r *Rego) {
 		if t != nil {
 			r.tracer = t
 		}
+	}
+}
+
+// Runtime returns an argument that sets the runtime data to provide to the
+// evaluation engine.
+func Runtime(term *ast.Term) func(r *Rego) {
+	return func(r *Rego) {
+		r.runtime = term
 	}
 }
 
@@ -638,7 +647,8 @@ func (r *Rego) eval(ctx context.Context, qc ast.QueryCompiler, compiled ast.Body
 		WithStore(r.store).
 		WithTransaction(txn).
 		WithMetrics(r.metrics).
-		WithInstrumentation(r.instrumentation)
+		WithInstrumentation(r.instrumentation).
+		WithRuntime(r.runtime)
 
 	if r.tracer != nil {
 		q = q.WithTracer(r.tracer)
@@ -775,7 +785,7 @@ func (r *Rego) partial(ctx context.Context, compiled ast.Body, txn storage.Trans
 		WithMetrics(r.metrics).
 		WithInstrumentation(r.instrumentation).
 		WithUnknowns(unknowns).
-		WithPartialNamespace(partialNamespace)
+		WithRuntime(r.runtime)
 
 	if r.tracer != nil {
 		q = q.WithTracer(r.tracer)
@@ -843,6 +853,7 @@ func (r *Rego) rewriteQueryToCaptureValue(qc ast.QueryCompiler, query ast.Body) 
 			cpy := expr.Copy()
 			cpy.Terms = capture
 			cpy.Generated = true
+			cpy.With = nil
 			query.Append(cpy)
 		}
 	}

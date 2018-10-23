@@ -370,7 +370,6 @@ func TestDataV1Redirection(t *testing.T) {
 		t.Fatalf("Unexpected error Location header value: %v", locHdr)
 	}
 	RedirectedPath := strings.SplitAfter(locHdr, "/v1")[1]
-	fmt.Println(RedirectedPath)
 	if err := f.v1(http.MethodPut, RedirectedPath, `{"foo": [1,2,3]}`, 204, ""); err != nil {
 		t.Fatalf("Unexpected error from PUT: %v", err)
 	}
@@ -386,7 +385,6 @@ func TestDataV1Redirection(t *testing.T) {
 		t.Fatalf("Unexpected error Location header value: %v", locHdrLv)
 	}
 	RedirectedPathLvl := strings.SplitAfter(locHdrLv, "/v1")[1]
-	fmt.Println(RedirectedPathLvl)
 	if err := f.v1(http.MethodPut, RedirectedPathLvl, `{"foo": [1,2,3]}`, 204, ""); err != nil {
 		t.Fatalf("Unexpected error from PUT: %v", err)
 	}
@@ -691,42 +689,55 @@ p = true { false }`
 	}
 }
 
-func TestDataPostInputV1Yaml(t *testing.T) {
+func TestDataYAML(t *testing.T) {
 
 	testMod1 := `package testmod
-
 import input.req1
-import input.req2 as reqx
-import input.req3.attr1
+gt1 = true { req1 > 1 }`
 
-p[x] { q[x]; not r[x] }
-q[x] { data.x.y[i] = x }
-r[x] { data.x.z[i] = x }
-g = true { req1.a[0] = 1; reqx.b[i] = 1 }
-h = true { attr1[i] > 1 }
-gt1 = true { req1 > 1 }
-arr = [1, 2, 3, 4] { true }
-undef = true { false }`
-
-	inputYaml := `
+	inputYaml1 := `
 ---
 input:
   req1: 2`
 
+	inputYaml2 := `
+---
+req1: 2`
+
 	f := newFixture(t)
+
 	if err := f.v1(http.MethodPut, "/policies/test", testMod1, 200, ""); err != nil {
 		t.Fatalf("Unexpected error from PUT /policies/test: %v", err)
 	}
+
 	// First JSON and then later yaml to make sure both work
 	if err := f.v1(http.MethodPost, "/data/testmod/gt1", `{"input": {"req1": 2}}`, 200, `{"result": true}`); err != nil {
 		t.Fatalf("Unexpected error from PUT /policies/test: %v", err)
 	}
-	req := newReqV1(http.MethodPost, "/data/testmod/gt1", inputYaml)
-	// There is no standard for yaml mime-type
+
+	req := newReqV1(http.MethodPost, "/data/testmod/gt1", inputYaml1)
 	req.Header.Set("Content-Type", "application/x-yaml")
 	if err := f.executeRequest(req, 200, `{"result": true}`); err != nil {
 		t.Fatalf("Unexpected error from POST with yaml: %v", err)
 	}
+
+	req = newReqV0(http.MethodPost, "/data/testmod/gt1", inputYaml2)
+	req.Header.Set("Content-Type", "application/x-yaml")
+	if err := f.executeRequest(req, 200, `true`); err != nil {
+		t.Fatalf("Unexpected error from POST with yaml: %v", err)
+	}
+
+	if err := f.v1(http.MethodPut, "/policies/test2", `package system
+main = data.testmod.gt1`, 200, ""); err != nil {
+		t.Fatalf("Unexpected error from PUT /policies/test: %v", err)
+	}
+
+	req = newReqUnversioned(http.MethodPost, "/", inputYaml2)
+	req.Header.Set("Content-Type", "application/x-yaml")
+	if err := f.executeRequest(req, 200, `true`); err != nil {
+		t.Fatalf("Unexpected error from POST with yaml: %v", err)
+	}
+
 }
 
 func TestDataPutV1IfNoneMatch(t *testing.T) {
@@ -1776,6 +1787,8 @@ func TestDiagnostics(t *testing.T) {
 		WithStore(f.server.store).
 		WithManager(f.server.manager).
 		WithDiagnosticsBuffer(NewBoundedBuffer(8)).
+		WithDefaultDecision(ast.MustParseRef("data.system.main")).
+		WithDefaultAuthorizationDecision(ast.MustParseRef("data.system.authz.allow")).
 		Init(context.Background())
 
 	queriesOnly := `package system.diagnostics
@@ -2416,6 +2429,8 @@ func TestAuthorization(t *testing.T) {
 		WithStore(store).
 		WithManager(m).
 		WithAuthorization(AuthorizationBasic).
+		WithDefaultDecision(ast.MustParseRef("data.system.main")).
+		WithDefaultAuthorizationDecision(ast.MustParseRef("data.system.authz.allow")).
 		Init(ctx)
 
 	if err != nil {
@@ -2606,6 +2621,8 @@ func newFixture(t *testing.T) *fixture {
 		WithAddresses([]string{":8182"}).
 		WithStore(store).
 		WithManager(m).
+		WithDefaultDecision(ast.MustParseRef("data.system.main")).
+		WithDefaultAuthorizationDecision(ast.MustParseRef("data.system.authz.allow")).
 		Init(ctx)
 	if err != nil {
 		panic(err)

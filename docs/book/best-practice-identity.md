@@ -89,7 +89,7 @@ Unlike the JWT case, where OPA only stores 1 user's LDAP/AD data at a time, when
 
 OPA has experimental capabilities for reaching out to external servers during evaluation.  This functionality handles those cases where there is too much data to synchronize into OPA, JWTs are ineffective, or policy requires information that must be as up to date as possible.
 
-That functionality is implemented as [OPA builtins](https://openpolicyagent.org/docs/).  Check the docs for the latest instructions.
+That functionality is implemented as [OPA builtins](https://www.openpolicyagent.org/docs/).  Check the docs for the latest instructions.
 
 ### Current limitations
 * Unit test framework does not allow you to mock out the results of builtin functions
