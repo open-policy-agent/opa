@@ -376,6 +376,11 @@ type PartialEvaluationResultV1 struct {
 	Support []*ast.Module `json:"support,omitempty"`
 }
 
+// QueryRequestV1 models the request message for Query API operations.
+type QueryRequestV1 struct {
+	Query string `json:"query"`
+}
+
 const (
 	// ParamQueryV1 defines the name of the HTTP URL parameter that specifies
 	// values for the request query.
