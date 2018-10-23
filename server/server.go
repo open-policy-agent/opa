@@ -1383,7 +1383,6 @@ func (s *Server) v1QueryGet(w http.ResponseWriter, r *http.Request) {
 func (s *Server) v1QueryPost(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	//	panic(fmt.Errorf("%s", r.Body))
 	var request types.QueryRequestV1
 	err := util.NewJSONDecoder(r.Body).Decode(&request)
 	if err != nil {
