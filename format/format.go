@@ -153,8 +153,11 @@ func (w *writer) writeModule(module *ast.Module) {
 		comments = w.writeRules(rules, comments)
 	}
 
-	for _, c := range comments {
+	for i, c := range comments {
 		w.writeLine(c.String())
+		if i == len(comments)-1 {
+			w.write("\n")
+		}
 	}
 }
 
@@ -837,6 +840,9 @@ func (w *writer) startLine() {
 		panic("currently in a line")
 	}
 	w.inline = true
+	if w.buf.Len() > 0 {
+		w.write("\n")
+	}
 	for i := 0; i < w.level; i++ {
 		w.write(w.indent)
 	}
@@ -853,7 +859,6 @@ func (w *writer) endLine() {
 		w.beforeEnd = nil
 	}
 	w.delay = false
-	w.write("\n")
 }
 
 // beforeLineEnd registers a comment to be printed at the end of the current line.
