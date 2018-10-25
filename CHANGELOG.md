@@ -3,7 +3,61 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## 0.10.0
+
+### Major Features
+
+- **Wasm compiler**. This release adds initial/experimental support for
+  compiling Rego policies into Wasm executables. Wasm executables can be loaded
+  and executed in compatible Wasm runtimes like V8 (nodejs). You can try this
+  out by running `opa build`.
+
+- **Data mocking**. This release adds support for replacing/mocking the `data`
+  document using the `with` keyword. In the past, `with` only supported the
+  `input` document. This made it tricky to test context-dependent policies. With
+  the new `with` keyword support, it's easier to write tests against contextual
+  policies.
+
+- **Negation Optimization**. This release includes an optimization in partial
+  evaluation for dealing with negated statements (`not` keyword). In the past,
+  OPA would generate a support rule for negated statements. This is harder for
+  clients to consume and not readily optimized. The optimization computes the
+  necessary cross-product of the negated query and inlines it into the caller.
+  This leads to simpler partial evaluation results that are readily optimized,
+  translated into other query languages (e.g., [SQL and Elasticsearch](https://blog.openpolicyagent.org/write-policy-in-opa-enforce-policy-in-sql-d9d24db93bf4)),
+  or compiled into Wasm.
+
+### Fixes
+
+- Add builtin to verify and decode JWT ([#884](https://github.com/open-policy-agent/opa/issues/884))
+- Add GoDoc sample for using rego.Tracer ([#1002](https://github.com/open-policy-agent/opa/issues/1002))
+- Add built-in function to get runtime info ([#420](https://github.com/open-policy-agent/opa/issues/420))
+- Add support for YAML encoded input values ([#290](https://github.com/open-policy-agent/opa/issues/290))
+- Add support for client certificates ([#684](https://github.com/open-policy-agent/opa/issues/684))
+- Add support for non-zero exit code in eval subcommand ([#981](https://github.com/open-policy-agent/opa/issues/981))
+- Fix == rewriting on embedded terms ([#995](https://github.com/open-policy-agent/opa/issues/995))
+- Fix copy propagation panic in comprehensions ([#1012](https://github.com/open-policy-agent/opa/issues/1012))
+- Implement regex.find_n (#1001) ([#747](https://github.com/open-policy-agent/opa/issues/747))
+- Improve with modifier target error ([#343](https://github.com/open-policy-agent/opa/issues/343))
+- Iterate over smaller set when intersecting ([#531](https://github.com/open-policy-agent/opa/issues/531))
+- Only write one trailing newline at end of file ([#1032](https://github.com/open-policy-agent/opa/issues/1032))
+- Redirect HTTP requests with trailing slashes ([#972](https://github.com/open-policy-agent/opa/issues/972))
+- Update bundle reader to allow relative data.json ([#1019](https://github.com/open-policy-agent/opa/issues/1019))
+- Expose version information via REST API ([#277](https://github.com/open-policy-agent/opa/issues/277))
+
+### Miscellaneous
+
+- Add default decision configuration
+- Add extra helpers to loader result
+- Add indentation to trace in failure output
+- Add router option to the HTTP server
+- Add support for headers in http.send (thanks @repenno)
+- Deprecating --insecure-addr flag (thanks @repenno)
+- Add POST v1/query API for large inputs (thanks @rite2nikhil)
+- Remove heap allocations from AST set with open addressing
+- Replace siphash with xxhash in AST
+- Output traces on failures in verbose mode (thanks @srenatus)
+- Rewrite duplicate test rule names (thanks @srenatus)
 
 ## 0.9.2
 
