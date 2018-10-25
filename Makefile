@@ -212,6 +212,7 @@ release-local:
 .PHONY: release-patch
 release-patch:
 	@docker run -it --rm \
+		-e LAST_VERSION=$(LAST_VERSION) \
 		-v $(PWD):/_src \
 		python:2.7 \
 		/_src/build/gen-release-patch.sh --version=$(VERSION) --source-url=/_src
