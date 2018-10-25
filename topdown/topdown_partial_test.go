@@ -448,12 +448,12 @@ func TestTopDownPartialEval(t *testing.T) {
 		{
 			note:        "comprehensions: save",
 			query:       `x = [true | true]; y = {true | true}; z = {a: true | a = "foo"}`,
-			wantQueries: []string{`x = [true | true]; y = {true | true}; z = {a: true | a = "foo"}`},
+			wantQueries: []string{`x = [true | true]; y = {true | true}; z = {a0: true | a0 = "foo"}`},
 		},
 		{
 			note:        "comprehensions: closure",
 			query:       `i = 1; xs = [x | x = data.foo[i]]`,
-			wantQueries: []string{`xs = [x | x = data.foo[1]]; i = 1`},
+			wantQueries: []string{`xs = [x0 | x0 = data.foo[i0]; i0 = 1]; i = 1`},
 		},
 		{
 			note:  "save: sub path",
@@ -1345,6 +1345,23 @@ func TestTopDownPartialEval(t *testing.T) {
 				__not1_0__ { input.x = 3; input.y = 3; input.z = 0 }
 				`,
 			},
+		},
+		{
+			note:  "comprehensions: ref heads (with namespacing)",
+			query: "data.test.p = true; input.x = x",
+			modules: []string{
+				`package test
+
+				p {
+					x = [0]; y = {true | x[0]}
+				}
+			`},
+			wantQueries: []string{`y1 = {true | x1[0]; x1 = [0]}; input.x = x`},
+		},
+		{
+			note:        "comprehensions: ref heads (with live vars)",
+			query:       "x = [0]; y = {true | x[0]}",
+			wantQueries: []string{`y = {true | x0[0]; x0 = [0]}; x = [0]`},
 		},
 	}
 

@@ -172,9 +172,11 @@ func (q *Query) PartialRun(ctx context.Context) (partials []ast.Body, support []
 	err = e.Run(func(e *eval) error {
 		// Build output from saved expressions.
 		body := ast.NewBody()
+
 		for _, elem := range e.saveStack.Stack[len(e.saveStack.Stack)-1] {
 			body.Append(elem.Plug(e.bindings))
 		}
+
 		// Include bindings as exprs so that when caller evals the result, they
 		// can obtain values for the vars in their query.
 		bindingExprs := []*ast.Expr{}
@@ -182,13 +184,16 @@ func (q *Query) PartialRun(ctx context.Context) (partials []ast.Body, support []
 			bindingExprs = append(bindingExprs, ast.Equality.Expr(a, b))
 			return nil
 		})
+
 		// Sort binding expressions so that results are deterministic.
 		sort.Slice(bindingExprs, func(i, j int) bool {
 			return bindingExprs[i].Compare(bindingExprs[j]) < 0
 		})
+
 		for i := range bindingExprs {
 			body.Append(bindingExprs[i])
 		}
+
 		body = p.Apply(body)
 		partials = append(partials, body)
 		return nil
