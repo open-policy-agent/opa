@@ -10,6 +10,7 @@ import (
 	"go/build"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -27,20 +28,32 @@ import (
 // in Q1 2019.
 
 func golistDriverFallback(cfg *Config, words ...string) (*driverResponse, error) {
+	// Turn absolute paths into GOROOT and GOPATH-relative paths to provide to go list.
+	// This will have surprising behavior if GOROOT or GOPATH contain multiple packages with the same
+	// path and a user provides an absolute path to a directory that's shadowed by an earlier
+	// directory in GOROOT or GOPATH with the same package path.
+	words = cleanAbsPaths(cfg, words)
+
 	original, deps, err := getDeps(cfg, words...)
 	if err != nil {
 		return nil, err
 	}
 
 	var tmpdir string // used for generated cgo files
+	var needsTestVariant []struct {
+		pkg, xtestPkg *Package
+	}
 
 	var response driverResponse
+	allPkgs := make(map[string]bool)
 	addPackage := func(p *jsonPackage) {
-		if p.Name == "" {
+		id := p.ImportPath
+
+		if allPkgs[id] {
 			return
 		}
+		allPkgs[id] = true
 
-		id := p.ImportPath
 		isRoot := original[id] != nil
 		pkgpath := id
 
@@ -110,7 +123,7 @@ func golistDriverFallback(cfg *Config, words ...string) (*driverResponse, error)
 		if isRoot {
 			response.Roots = append(response.Roots, id)
 		}
-		response.Packages = append(response.Packages, &Package{
+		pkg := &Package{
 			ID:              id,
 			Name:            p.Name,
 			GoFiles:         absJoin(p.Dir, p.GoFiles, p.CgoFiles),
@@ -119,13 +132,18 @@ func golistDriverFallback(cfg *Config, words ...string) (*driverResponse, error)
 			PkgPath:         pkgpath,
 			Imports:         importMap(p.Imports),
 			// TODO(matloob): set errors on the Package to cgoErrors
-		})
-		if cfg.Tests {
+		}
+		if p.Error != nil {
+			pkg.Errors = append(pkg.Errors, Error{
+				Pos: p.Error.Pos,
+				Msg: p.Error.Err,
+			})
+		}
+		response.Packages = append(response.Packages, pkg)
+		if cfg.Tests && isRoot {
 			testID := fmt.Sprintf("%s [%s.test]", id, id)
 			if len(p.TestGoFiles) > 0 || len(p.XTestGoFiles) > 0 {
-				if isRoot {
-					response.Roots = append(response.Roots, testID)
-				}
+				response.Roots = append(response.Roots, testID)
 				testPkg := &Package{
 					ID:              testID,
 					Name:            p.Name,
@@ -140,32 +158,28 @@ func golistDriverFallback(cfg *Config, words ...string) (*driverResponse, error)
 				var xtestPkg *Package
 				if len(p.XTestGoFiles) > 0 {
 					xtestID := fmt.Sprintf("%s_test [%s.test]", id, id)
-					if isRoot {
-						response.Roots = append(response.Roots, xtestID)
-					}
-					// Rewrite import to package under test to refer to test variant.
-					imports := importMap(p.XTestImports)
-					for imp := range imports {
-						if imp == p.ImportPath {
-							imports[imp] = &Package{ID: testID}
-							break
-						}
-					}
+					response.Roots = append(response.Roots, xtestID)
+					// Generate test variants for all packages q where a path exists
+					// such that xtestPkg -> ... -> q -> ... -> p (where p is the package under test)
+					// and rewrite all import map entries of p to point to testPkg (the test variant of
+					// p), and of each q  to point to the test variant of that q.
 					xtestPkg = &Package{
 						ID:              xtestID,
 						Name:            p.Name + "_test",
 						GoFiles:         absJoin(p.Dir, p.XTestGoFiles),
 						CompiledGoFiles: absJoin(p.Dir, p.XTestGoFiles),
 						PkgPath:         pkgpath + "_test",
-						Imports:         imports,
+						Imports:         importMap(p.XTestImports),
 					}
+					// Add to list of packages we need to rewrite imports for to refer to test variants.
+					// We may need to create a test variant of a package that hasn't been loaded yet, so
+					// the test variants need to be created later.
+					needsTestVariant = append(needsTestVariant, struct{ pkg, xtestPkg *Package }{pkg, xtestPkg})
 					response.Packages = append(response.Packages, xtestPkg)
 				}
 				// testmain package
 				testmainID := id + ".test"
-				if isRoot {
-					response.Roots = append(response.Roots, testmainID)
-				}
+				response.Roots = append(response.Roots, testmainID)
 				imports := map[string]*Package{}
 				imports[testPkg.PkgPath] = &Package{ID: testPkg.ID}
 				if xtestPkg != nil {
@@ -180,18 +194,24 @@ func golistDriverFallback(cfg *Config, words ...string) (*driverResponse, error)
 				response.Packages = append(response.Packages, testmainPkg)
 				outdir, err := getOutdir()
 				if err != nil {
-					testmainPkg.Errors = append(testmainPkg.Errors,
-						Error{"-", fmt.Sprintf("failed to generate testmain: %v", err)})
+					testmainPkg.Errors = append(testmainPkg.Errors, Error{
+						Pos:  "-",
+						Msg:  fmt.Sprintf("failed to generate testmain: %v", err),
+						Kind: ListError,
+					})
 					return
 				}
 				testmain := filepath.Join(outdir, "testmain.go")
-				extradeps, err := generateTestmain(testmain, testPkg, xtestPkg)
+				extraimports, extradeps, err := generateTestmain(testmain, testPkg, xtestPkg)
 				if err != nil {
-					testmainPkg.Errors = append(testmainPkg.Errors,
-						Error{"-", fmt.Sprintf("failed to generate testmain: %v", err)})
+					testmainPkg.Errors = append(testmainPkg.Errors, Error{
+						Pos:  "-",
+						Msg:  fmt.Sprintf("failed to generate testmain: %v", err),
+						Kind: ListError,
+					})
 				}
 				deps = append(deps, extradeps...)
-				for _, imp := range extradeps { // testing, testing/internal/testdeps, and maybe os
+				for _, imp := range extraimports { // testing, testing/internal/testdeps, and maybe os
 					imports[imp] = &Package{ID: imp}
 				}
 				testmainPkg.GoFiles = []string{testmain}
@@ -207,7 +227,7 @@ func golistDriverFallback(cfg *Config, words ...string) (*driverResponse, error)
 		return &response, nil
 	}
 
-	buf, err := golist(cfg, golistArgsFallback(cfg, deps))
+	buf, err := invokeGo(cfg, golistArgsFallback(cfg, deps)...)
 	if err != nil {
 		return nil, err
 	}
@@ -222,12 +242,108 @@ func golistDriverFallback(cfg *Config, words ...string) (*driverResponse, error)
 		addPackage(p)
 	}
 
+	for _, v := range needsTestVariant {
+		createTestVariants(&response, v.pkg, v.xtestPkg)
+	}
+
 	// TODO(matloob): Is this the right ordering?
 	sort.SliceStable(response.Packages, func(i, j int) bool {
 		return response.Packages[i].PkgPath < response.Packages[j].PkgPath
 	})
 
 	return &response, nil
+}
+
+func createTestVariants(response *driverResponse, pkgUnderTest, xtestPkg *Package) {
+	allPkgs := make(map[string]*Package)
+	for _, pkg := range response.Packages {
+		allPkgs[pkg.ID] = pkg
+	}
+	needsTestVariant := make(map[string]bool)
+	needsTestVariant[pkgUnderTest.ID] = true
+	var needsVariantRec func(p *Package) bool
+	needsVariantRec = func(p *Package) bool {
+		if needsTestVariant[p.ID] {
+			return true
+		}
+		for _, imp := range p.Imports {
+			if needsVariantRec(allPkgs[imp.ID]) {
+				// Don't break because we want to make sure all dependencies
+				// have been processed, and all required test variants of our dependencies
+				// exist.
+				needsTestVariant[p.ID] = true
+			}
+		}
+		if !needsTestVariant[p.ID] {
+			return false
+		}
+		// Create a clone of the package. It will share the same strings and lists of source files,
+		// but that's okay. It's only necessary for the Imports map to have a separate identity.
+		testVariant := *p
+		testVariant.ID = fmt.Sprintf("%s [%s.test]", p.ID, pkgUnderTest.ID)
+		testVariant.Imports = make(map[string]*Package)
+		for imp, pkg := range p.Imports {
+			testVariant.Imports[imp] = pkg
+			if needsTestVariant[pkg.ID] {
+				testVariant.Imports[imp] = &Package{ID: fmt.Sprintf("%s [%s.test]", pkg.ID, pkgUnderTest.ID)}
+			}
+		}
+		response.Packages = append(response.Packages, &testVariant)
+		return needsTestVariant[p.ID]
+	}
+	// finally, update the xtest package's imports
+	for imp, pkg := range xtestPkg.Imports {
+		if allPkgs[pkg.ID] == nil {
+			fmt.Printf("for %s: package %s doesn't exist\n", xtestPkg.ID, pkg.ID)
+		}
+		if needsVariantRec(allPkgs[pkg.ID]) {
+			xtestPkg.Imports[imp] = &Package{ID: fmt.Sprintf("%s [%s.test]", pkg.ID, pkgUnderTest.ID)}
+		}
+	}
+}
+
+// cleanAbsPaths replaces all absolute paths with GOPATH- and GOROOT-relative
+// paths. If an absolute path is not GOPATH- or GOROOT- relative, it is left as an
+// absolute path so an error can be returned later.
+func cleanAbsPaths(cfg *Config, words []string) []string {
+	var searchpaths []string
+	var cleaned = make([]string, len(words))
+	for i := range cleaned {
+		cleaned[i] = words[i]
+		// Ignore relative directory paths (they must already be goroot-relative) and Go source files
+		// (absolute source files are already allowed for ad-hoc packages).
+		// TODO(matloob): Can there be non-.go files in ad-hoc packages.
+		if !filepath.IsAbs(cleaned[i]) || strings.HasSuffix(cleaned[i], ".go") {
+			continue
+		}
+		// otherwise, it's an absolute path. Search GOPATH and GOROOT to find it.
+		if searchpaths == nil {
+			cmd := exec.Command("go", "env", "GOPATH", "GOROOT")
+			cmd.Env = cfg.Env
+			out, err := cmd.Output()
+			if err != nil {
+				searchpaths = []string{}
+				continue // suppress the error, it will show up again when running go list
+			}
+			lines := strings.Split(string(out), "\n")
+			if len(lines) != 3 || lines[0] == "" || lines[1] == "" || lines[2] != "" {
+				continue // suppress error
+			}
+			// first line is GOPATH
+			for _, path := range filepath.SplitList(lines[0]) {
+				searchpaths = append(searchpaths, filepath.Join(path, "src"))
+			}
+			// second line is GOROOT
+			searchpaths = append(searchpaths, filepath.Join(lines[1], "src"))
+		}
+		for _, sp := range searchpaths {
+			if strings.HasPrefix(cleaned[i], sp) {
+				cleaned[i] = strings.TrimPrefix(cleaned[i], sp)
+				cleaned[i] = strings.TrimLeft(cleaned[i], string(filepath.Separator))
+			}
+		}
+	}
+	return cleaned
 }
 
 // vendorlessPath returns the devendorized version of the import path ipath.
@@ -246,7 +362,7 @@ func vendorlessPath(ipath string) string {
 
 // getDeps runs an initial go list to determine all the dependency packages.
 func getDeps(cfg *Config, words ...string) (originalSet map[string]*jsonPackage, deps []string, err error) {
-	buf, err := golist(cfg, golistArgsFallback(cfg, words))
+	buf, err := invokeGo(cfg, golistArgsFallback(cfg, words)...)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -280,7 +396,7 @@ func getDeps(cfg *Config, words ...string) (originalSet map[string]*jsonPackage,
 	}
 	// Get the deps of the packages imported by tests.
 	if len(testImports) > 0 {
-		buf, err = golist(cfg, golistArgsFallback(cfg, testImports))
+		buf, err = invokeGo(cfg, golistArgsFallback(cfg, testImports)...)
 		if err != nil {
 			return nil, nil, err
 		}

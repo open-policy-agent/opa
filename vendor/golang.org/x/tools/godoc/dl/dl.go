@@ -2,8 +2,6 @@
 // Use of this source code is governed by the Apache 2.0
 // license that can be found in the LICENSE file.
 
-// +build appengine
-
 // Package dl implements a simple downloads frontend server.
 //
 // It accepts HTTP POST requests to create a new download metadata entity, and
@@ -12,26 +10,13 @@
 package dl
 
 import (
-	"crypto/hmac"
-	"crypto/md5"
-	"encoding/json"
 	"fmt"
-	"html"
 	"html/template"
-	"io"
-	"net/http"
 	"regexp"
 	"sort"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
-
-	"golang.org/x/net/context"
-	"google.golang.org/appengine"
-	"google.golang.org/appengine/datastore"
-	"google.golang.org/appengine/log"
-	"google.golang.org/appengine/memcache"
 )
 
 const (
@@ -39,13 +24,6 @@ const (
 	cacheKey        = "download_list_3" // increment if listTemplateData changes
 	cacheDuration   = time.Hour
 )
-
-func RegisterHandlers(mux *http.ServeMux) {
-	mux.HandleFunc("/dl", getHandler)
-	mux.HandleFunc("/dl/", getHandler) // also serves listHandler
-	mux.HandleFunc("/dl/upload", uploadHandler)
-	mux.HandleFunc("/dl/init", initHandler)
-}
 
 // File represents a file on the golang.org downloads page.
 // It should be kept in sync with the upload code in x/build/cmd/release.
@@ -191,54 +169,6 @@ var (
 	templateFuncs = template.FuncMap{"pretty": pretty}
 )
 
-func listHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "GET" {
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-	var (
-		c = appengine.NewContext(r)
-		d listTemplateData
-	)
-	if _, err := memcache.Gob.Get(c, cacheKey, &d); err != nil {
-		if err == memcache.ErrCacheMiss {
-			log.Debugf(c, "cache miss")
-		} else {
-			log.Errorf(c, "cache get error: %v", err)
-		}
-
-		var fs []File
-		_, err := datastore.NewQuery("File").Ancestor(rootKey(c)).GetAll(c, &fs)
-		if err != nil {
-			log.Errorf(c, "error listing: %v", err)
-			return
-		}
-		d.Stable, d.Unstable, d.Archive = filesToReleases(fs)
-		if len(d.Stable) > 0 {
-			d.Featured = filesToFeatured(d.Stable[0].Files)
-		}
-
-		item := &memcache.Item{Key: cacheKey, Object: &d, Expiration: cacheDuration}
-		if err := memcache.Gob.Set(c, item); err != nil {
-			log.Errorf(c, "cache set error: %v", err)
-		}
-	}
-
-	if r.URL.Query().Get("mode") == "json" {
-		w.Header().Set("Content-Type", "application/json")
-		enc := json.NewEncoder(w)
-		enc.SetIndent("", " ")
-		if err := enc.Encode(d.Stable); err != nil {
-			log.Errorf(c, "failed rendering JSON for releases: %v", err)
-		}
-		return
-	}
-
-	if err := listTemplate.ExecuteTemplate(w, "root", d); err != nil {
-		log.Errorf(c, "error executing template: %v", err)
-	}
-}
-
 func filesToFeatured(fs []File) (featured []Feature) {
 	for _, feature := range featuredFiles {
 		for _, file := range fs {
@@ -383,145 +313,18 @@ func parseVersion(v string) (maj, min int, tail string) {
 	return
 }
 
-func uploadHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "POST" {
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-	c := appengine.NewContext(r)
-
-	// Authenticate using a user token (same as gomote).
-	user := r.FormValue("user")
-	if !validUser(user) {
-		http.Error(w, "bad user", http.StatusForbidden)
-		return
-	}
-	if r.FormValue("key") != userKey(c, user) {
-		http.Error(w, "bad key", http.StatusForbidden)
-		return
-	}
-
-	var f File
-	defer r.Body.Close()
-	if err := json.NewDecoder(r.Body).Decode(&f); err != nil {
-		log.Errorf(c, "error decoding upload JSON: %v", err)
-		http.Error(w, "Something broke", http.StatusInternalServerError)
-		return
-	}
-	if f.Filename == "" {
-		http.Error(w, "Must provide Filename", http.StatusBadRequest)
-		return
-	}
-	if f.Uploaded.IsZero() {
-		f.Uploaded = time.Now()
-	}
-	k := datastore.NewKey(c, "File", f.Filename, 0, rootKey(c))
-	if _, err := datastore.Put(c, k, &f); err != nil {
-		log.Errorf(c, "putting File entity: %v", err)
-		http.Error(w, "could not put File entity", http.StatusInternalServerError)
-		return
-	}
-	if err := memcache.Delete(c, cacheKey); err != nil {
-		log.Errorf(c, "cache delete error: %v", err)
-	}
-	io.WriteString(w, "OK")
-}
-
-func getHandler(w http.ResponseWriter, r *http.Request) {
-	// For go get golang.org/dl/go1.x.y, we need to serve the
-	// same meta tags at /dl for cmd/go to validate against /dl/go1.x.y:
-	if r.URL.Path == "/dl" && (r.Method == "GET" || r.Method == "HEAD") && r.FormValue("go-get") == "1" {
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		fmt.Fprintf(w, `<!DOCTYPE html><html><head>
-<meta name="go-import" content="golang.org/dl git https://go.googlesource.com/dl">
-</head></html>`)
-		return
-	}
-	if r.URL.Path == "/dl" {
-		http.Redirect(w, r, "/dl/", http.StatusFound)
-		return
-	}
-
-	name := strings.TrimPrefix(r.URL.Path, "/dl/")
-	if name == "" {
-		listHandler(w, r)
-		return
-	}
-	if fileRe.MatchString(name) {
-		http.Redirect(w, r, downloadBaseURL+name, http.StatusFound)
-		return
-	}
-	if goGetRe.MatchString(name) {
-		var isGoGet bool
-		if r.Method == "GET" || r.Method == "HEAD" {
-			w.Header().Set("Content-Type", "text/html; charset=utf-8")
-			isGoGet = r.FormValue("go-get") == "1"
-		}
-		if !isGoGet {
-			w.Header().Set("Location", "https://golang.org/dl/#"+name)
-			w.WriteHeader(http.StatusFound)
-		}
-		fmt.Fprintf(w, `<!DOCTYPE html>
-<html>
-<head>
-<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
-<meta name="go-import" content="golang.org/dl git https://go.googlesource.com/dl">
-<meta http-equiv="refresh" content="0; url=https://golang.org/dl/#%s">
-</head>
-<body>
-Nothing to see here; <a href="https://golang.org/dl/#%s">move along</a>.
-</body>
-</html>
-`, html.EscapeString(name), html.EscapeString(name))
-		return
-	}
-	http.NotFound(w, r)
-}
-
 func validUser(user string) bool {
 	switch user {
-	case "adg", "bradfitz", "cbro", "andybons", "valsorda":
+	case "adg", "bradfitz", "cbro", "andybons", "valsorda", "dmitshur", "katiehockman":
 		return true
 	}
 	return false
-}
-
-func userKey(c context.Context, user string) string {
-	h := hmac.New(md5.New, []byte(secret(c)))
-	h.Write([]byte("user-" + user))
-	return fmt.Sprintf("%x", h.Sum(nil))
 }
 
 var (
 	fileRe  = regexp.MustCompile(`^go[0-9a-z.]+\.[0-9a-z.-]+\.(tar\.gz|pkg|msi|zip)$`)
 	goGetRe = regexp.MustCompile(`^go[0-9a-z.]+\.[0-9a-z.-]+$`)
 )
-
-func initHandler(w http.ResponseWriter, r *http.Request) {
-	var fileRoot struct {
-		Root string
-	}
-	c := appengine.NewContext(r)
-	k := rootKey(c)
-	err := datastore.RunInTransaction(c, func(c context.Context) error {
-		err := datastore.Get(c, k, &fileRoot)
-		if err != nil && err != datastore.ErrNoSuchEntity {
-			return err
-		}
-		_, err = datastore.Put(c, k, &fileRoot)
-		return err
-	}, nil)
-	if err != nil {
-		http.Error(w, err.Error(), 500)
-		return
-	}
-	io.WriteString(w, "OK")
-}
-
-// rootKey is the ancestor of all File entities.
-func rootKey(c context.Context) *datastore.Key {
-	return datastore.NewKey(c, "FileRoot", "root", 0, nil)
-}
 
 // pretty returns a human-readable version of the given OS, Arch, or Kind.
 func pretty(s string) string {
@@ -546,56 +349,4 @@ var prettyStrings = map[string]string{
 	"archive":   "Archive",
 	"installer": "Installer",
 	"source":    "Source",
-}
-
-// Code below copied from x/build/app/key
-
-var theKey struct {
-	sync.RWMutex
-	builderKey
-}
-
-type builderKey struct {
-	Secret string
-}
-
-func (k *builderKey) Key(c context.Context) *datastore.Key {
-	return datastore.NewKey(c, "BuilderKey", "root", 0, nil)
-}
-
-func secret(c context.Context) string {
-	// check with rlock
-	theKey.RLock()
-	k := theKey.Secret
-	theKey.RUnlock()
-	if k != "" {
-		return k
-	}
-
-	// prepare to fill; check with lock and keep lock
-	theKey.Lock()
-	defer theKey.Unlock()
-	if theKey.Secret != "" {
-		return theKey.Secret
-	}
-
-	// fill
-	if err := datastore.Get(c, theKey.Key(c), &theKey.builderKey); err != nil {
-		if err == datastore.ErrNoSuchEntity {
-			// If the key is not stored in datastore, write it.
-			// This only happens at the beginning of a new deployment.
-			// The code is left here for SDK use and in case a fresh
-			// deployment is ever needed.  "gophers rule" is not the
-			// real key.
-			if !appengine.IsDevAppServer() {
-				panic("lost key from datastore")
-			}
-			theKey.Secret = "gophers rule"
-			datastore.Put(c, theKey.Key(c), &theKey.builderKey)
-			return theKey.Secret
-		}
-		panic("cannot load builder key: " + err.Error())
-	}
-
-	return theKey.Secret
 }

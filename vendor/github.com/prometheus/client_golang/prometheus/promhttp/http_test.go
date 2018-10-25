@@ -103,7 +103,7 @@ func TestHandlerErrorHandling(t *testing.T) {
 	})
 	wantMsg := `error gathering metrics: error collecting metric Desc{fqName: "invalid_metric", help: "not helpful", constLabels: {}, variableLabels: []}: collect error
 `
-	wantErrorBody := `An error has occurred during metrics gathering:
+	wantErrorBody := `An error has occurred while serving metrics:
 
 error collecting metric Desc{fqName: "invalid_metric", help: "not helpful", constLabels: {}, variableLabels: []}: collect error
 `

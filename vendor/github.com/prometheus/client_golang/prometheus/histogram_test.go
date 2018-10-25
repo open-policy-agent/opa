@@ -344,7 +344,7 @@ func TestBuckets(t *testing.T) {
 	got = ExponentialBuckets(100, 1.2, 3)
 	want = []float64{100, 120, 144}
 	if !reflect.DeepEqual(got, want) {
-		t.Errorf("linear buckets: got %v, want %v", got, want)
+		t.Errorf("exponential buckets: got %v, want %v", got, want)
 	}
 }
 
