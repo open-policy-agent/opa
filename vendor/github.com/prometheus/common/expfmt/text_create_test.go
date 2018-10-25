@@ -24,7 +24,7 @@ import (
 	dto "github.com/prometheus/client_model/go"
 )
 
-func testCreate(t testing.TB) {
+func TestCreate(t *testing.T) {
 	var scenarios = []struct {
 		in  *dto.MetricFamily
 		out string
@@ -357,17 +357,145 @@ name -Inf
 
 }
 
-func TestCreate(t *testing.T) {
-	testCreate(t)
-}
-
 func BenchmarkCreate(b *testing.B) {
+	mf := &dto.MetricFamily{
+		Name: proto.String("request_duration_microseconds"),
+		Help: proto.String("The response latency."),
+		Type: dto.MetricType_HISTOGRAM.Enum(),
+		Metric: []*dto.Metric{
+			&dto.Metric{
+				Label: []*dto.LabelPair{
+					&dto.LabelPair{
+						Name:  proto.String("name_1"),
+						Value: proto.String("val with\nnew line"),
+					},
+					&dto.LabelPair{
+						Name:  proto.String("name_2"),
+						Value: proto.String("val with \\backslash and \"quotes\""),
+					},
+					&dto.LabelPair{
+						Name:  proto.String("name_3"),
+						Value: proto.String("Just a quite long label value to test performance."),
+					},
+				},
+				Histogram: &dto.Histogram{
+					SampleCount: proto.Uint64(2693),
+					SampleSum:   proto.Float64(1756047.3),
+					Bucket: []*dto.Bucket{
+						&dto.Bucket{
+							UpperBound:      proto.Float64(100),
+							CumulativeCount: proto.Uint64(123),
+						},
+						&dto.Bucket{
+							UpperBound:      proto.Float64(120),
+							CumulativeCount: proto.Uint64(412),
+						},
+						&dto.Bucket{
+							UpperBound:      proto.Float64(144),
+							CumulativeCount: proto.Uint64(592),
+						},
+						&dto.Bucket{
+							UpperBound:      proto.Float64(172.8),
+							CumulativeCount: proto.Uint64(1524),
+						},
+						&dto.Bucket{
+							UpperBound:      proto.Float64(math.Inf(+1)),
+							CumulativeCount: proto.Uint64(2693),
+						},
+					},
+				},
+			},
+			&dto.Metric{
+				Label: []*dto.LabelPair{
+					&dto.LabelPair{
+						Name:  proto.String("name_1"),
+						Value: proto.String("Björn"),
+					},
+					&dto.LabelPair{
+						Name:  proto.String("name_2"),
+						Value: proto.String("佖佥"),
+					},
+					&dto.LabelPair{
+						Name:  proto.String("name_3"),
+						Value: proto.String("Just a quite long label value to test performance."),
+					},
+				},
+				Histogram: &dto.Histogram{
+					SampleCount: proto.Uint64(5699),
+					SampleSum:   proto.Float64(49484343543.4343),
+					Bucket: []*dto.Bucket{
+						&dto.Bucket{
+							UpperBound:      proto.Float64(100),
+							CumulativeCount: proto.Uint64(120),
+						},
+						&dto.Bucket{
+							UpperBound:      proto.Float64(120),
+							CumulativeCount: proto.Uint64(412),
+						},
+						&dto.Bucket{
+							UpperBound:      proto.Float64(144),
+							CumulativeCount: proto.Uint64(596),
+						},
+						&dto.Bucket{
+							UpperBound:      proto.Float64(172.8),
+							CumulativeCount: proto.Uint64(1535),
+						},
+					},
+				},
+				TimestampMs: proto.Int64(1234567890),
+			},
+		},
+	}
+	out := bytes.NewBuffer(make([]byte, 0, 1024))
+
 	for i := 0; i < b.N; i++ {
-		testCreate(b)
+		_, err := MetricFamilyToText(out, mf)
+		if err != nil {
+			b.Fatal(err)
+		}
+		out.Reset()
 	}
 }
 
-func testCreateError(t testing.TB) {
+func BenchmarkCreateBuildInfo(b *testing.B) {
+	mf := &dto.MetricFamily{
+		Name: proto.String("benchmark_build_info"),
+		Help: proto.String("Test the creation of constant 1-value build_info metric."),
+		Type: dto.MetricType_GAUGE.Enum(),
+		Metric: []*dto.Metric{
+			&dto.Metric{
+				Label: []*dto.LabelPair{
+					&dto.LabelPair{
+						Name:  proto.String("version"),
+						Value: proto.String("1.2.3"),
+					},
+					&dto.LabelPair{
+						Name:  proto.String("revision"),
+						Value: proto.String("2e84f5e4eacdffb574035810305191ff390360fe"),
+					},
+					&dto.LabelPair{
+						Name:  proto.String("go_version"),
+						Value: proto.String("1.11.1"),
+					},
+				},
+				Gauge: &dto.Gauge{
+					Value: proto.Float64(1),
+				},
+			},
+		},
+	}
+	out := bytes.NewBuffer(make([]byte, 0, 1024))
+
+	for i := 0; i < b.N; i++ {
+		_, err := MetricFamilyToText(out, mf)
+		if err != nil {
+			b.Fatal(err)
+		}
+		out.Reset()
+	}
+}
+
+func TestCreateError(t *testing.T) {
 	var scenarios = []struct {
 		in  *dto.MetricFamily
 		err string
@@ -430,14 +558,4 @@ func testCreateError(t testing.TB) {
 		}
 	}
 
-}
-
-func TestCreateError(t *testing.T) {
-	testCreateError(t)
-}
-
-func BenchmarkCreateError(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		testCreateError(b)
-	}
 }

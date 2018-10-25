@@ -6,65 +6,62 @@ import (
 	"unicode"
 )
 
-// Validate reports an error if any of the analyses are misconfigured.
+// Validate reports an error if any of the analyzers are misconfigured.
 // Checks include:
-// - that the name is a valid identifier;
-// - that analysis names are unique;
-// - that the Requires graph is acylic;
-// - that analyses' lemma and output types are unique.
-// - that each lemma type is a pointer.
-func Validate(analyses []*Analysis) error {
+// that the name is a valid identifier;
+// that analyzer names are unique;
+// that the Requires graph is acylic;
+// that analyzer fact types are unique;
+// that each fact type is a pointer.
+func Validate(analyzers []*Analyzer) error {
 	names := make(map[string]bool)
 
-	// Map each lemma/output type to its sole generating analysis.
-	lemmaTypes := make(map[reflect.Type]*Analysis)
-	outputTypes := make(map[reflect.Type]*Analysis)
+	// Map each fact type to its sole generating analyzer.
+	factTypes := make(map[reflect.Type]*Analyzer)
 
 	// Traverse the Requires graph, depth first.
-	color := make(map[*Analysis]uint8) // 0=white 1=grey 2=black
-	var visit func(a *Analysis) error
-	visit = func(a *Analysis) error {
+	const (
+		white = iota
+		grey
+		black
+		finished
+	)
+	color := make(map[*Analyzer]uint8)
+	var visit func(a *Analyzer) error
+	visit = func(a *Analyzer) error {
 		if a == nil {
-			return fmt.Errorf("nil *Analysis")
+			return fmt.Errorf("nil *Analyzer")
 		}
-		if color[a] == 0 { // white
-			color[a] = 1 // grey
+		if color[a] == white {
+			color[a] = grey
 
 			// names
 			if !validIdent(a.Name) {
-				return fmt.Errorf("invalid analysis name %q", a)
+				return fmt.Errorf("invalid analyzer name %q", a)
 			}
 			if names[a.Name] {
-				return fmt.Errorf("duplicate analysis name %q", a)
+				return fmt.Errorf("duplicate analyzer name %q", a)
 			}
 			names[a.Name] = true
 
 			if a.Doc == "" {
-				return fmt.Errorf("analysis %q is undocumented", a)
+				return fmt.Errorf("analyzer %q is undocumented", a)
 			}
 
-			// lemma types
-			for _, t := range a.LemmaTypes {
-				if t == nil {
-					return fmt.Errorf("analysis %s has nil LemmaType", a)
+			// fact types
+			for _, f := range a.FactTypes {
+				if f == nil {
+					return fmt.Errorf("analyzer %s has nil FactType", a)
 				}
-				if prev := lemmaTypes[t]; prev != nil {
-					return fmt.Errorf("lemma type %s registered by two analyses: %v, %v",
+				t := reflect.TypeOf(f)
+				if prev := factTypes[t]; prev != nil {
+					return fmt.Errorf("fact type %s registered by two analyzers: %v, %v",
 						t, a, prev)
 				}
 				if t.Kind() != reflect.Ptr {
-					return fmt.Errorf("%s: lemma type %s is not a pointer", a, t)
+					return fmt.Errorf("%s: fact type %s is not a pointer", a, t)
 				}
-				lemmaTypes[t] = a
-			}
-
-			// output types
-			if a.OutputType != nil {
-				if prev := outputTypes[a.OutputType]; prev != nil {
-					return fmt.Errorf("output type %s registered by two analyses: %v, %v",
-						a.OutputType, a, prev)
-				}
-				outputTypes[a.OutputType] = a
+				factTypes[t] = a
 			}
 
 			// recursion
@@ -73,15 +70,25 @@ func Validate(analyses []*Analysis) error {
 					return fmt.Errorf("%s.Requires[%d]: %v", a.Name, i, err)
 				}
 			}
-			color[a] = 2 // black
+			color[a] = black
 		}
 
 		return nil
 	}
-	for _, a := range analyses {
+	for _, a := range analyzers {
 		if err := visit(a); err != nil {
 			return err
 		}
+	}
+
+	// Reject duplicates among analyzers.
+	// Precondition:  color[a] == black.
+	// Postcondition: color[a] == finished.
+	for _, a := range analyzers {
+		if color[a] == finished {
+			return fmt.Errorf("duplicate analyzer: %s", a.Name)
+		}
+		color[a] = finished
 	}
 
 	return nil

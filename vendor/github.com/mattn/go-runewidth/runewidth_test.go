@@ -3,9 +3,12 @@
 package runewidth
 
 import (
+	"crypto/sha256"
+	"fmt"
 	"os"
 	"sort"
 	"testing"
+	"unicode/utf8"
 )
 
 var _ sort.Interface = (*table)(nil)
@@ -37,10 +40,85 @@ var tables = []table{
 	neutral,
 }
 
+func TestTableChecksums(t *testing.T) {
+	check := func(tbl table, wantN int, wantSHA string) {
+		gotN := 0
+		buf := make([]byte, utf8.MaxRune+1)
+		for r := rune(0); r <= utf8.MaxRune; r++ {
+			if inTable(r, tbl) {
+				gotN++
+				buf[r] = 1
+			}
+		}
+		gotSHA := fmt.Sprintf("%x", sha256.Sum256(buf))
+		if gotN != wantN || gotSHA != wantSHA {
+			t.Errorf("n = %d want %d, sha256 = %s want %s", gotN, wantN, gotSHA, wantSHA)
+		}
+	}
+
+	check(private, 137468, "a4a641206dc8c5de80bd9f03515a54a706a5a4904c7684dc6a33d65c967a51b2")
+	check(nonprint, 2143, "288904683eb225e7c4c0bd3ee481b53e8dace404ec31d443afdbc4d13729fe95")
+	check(combining, 2097, "b1dabe5f35b7ccf868999bf6df6134f346ae14a4eb16f22e1dc8a98240ba1b53")
+	check(doublewidth, 180993, "06f5d5d5ebb8b9ee74fdf6003ecfbb313f9c042eb3cb4fce2a9e06089eb68dda")
+	check(ambiguous, 138739, "d05e339a10f296de6547ff3d6c5aee32f627f6555477afebd4a3b7e3cf74c9e3")
+	check(emoji, 119, "f27639895919692c22e46d710792cc3b5210359afb6c51acb9ec1a6588c55edd")
+	check(notassigned, 846357, "b06b7acc03725de394d92b09306aa7a9c0c0b53f36884db4c835cbb04971e421")
+	check(neutral, 25561, "87fffca79a3a6d413d23adf1c591bdcc1ea5d906d0d466b12a76357bbbb74607")
+}
+
+func isCompact(t *testing.T, tbl table) bool {
+	for i := range tbl {
+		if tbl[i].last < tbl[i].first { // sanity check
+			t.Errorf("table invalid: %v", tbl[i])
+			return false
+		}
+		if i+1 < len(tbl) && tbl[i].last+1 >= tbl[i+1].first { // can be combined into one entry
+			t.Errorf("table not compact: %v %v", tbl[i-1], tbl[i])
+			return false
+		}
+	}
+	return true
+}
+
+// This is a utility function in case that a table has changed.
+func printCompactTable(tbl table) {
+	counter := 0
+	printEntry := func(first, last rune) {
+		if counter%3 == 0 {
+			fmt.Printf("\t")
+		}
+		fmt.Printf("{0x%04X, 0x%04X},", first, last)
+		if (counter+1)%3 == 0 {
+			fmt.Printf("\n")
+		} else {
+			fmt.Printf(" ")
+		}
+		counter++
+	}
+
+	sort.Sort(&tbl) // just in case
+	first := rune(-1)
+	for i := range tbl {
+		if first < 0 {
+			first = tbl[i].first
+		}
+		if i+1 < len(tbl) && tbl[i].last+1 >= tbl[i+1].first { // can be combined into one entry
+			continue
+		}
+		printEntry(first, tbl[i].last)
+		first = -1
+	}
+	fmt.Printf("\n\n")
+}
+
 func TestSorted(t *testing.T) {
 	for _, tbl := range tables {
 		if !sort.IsSorted(&tbl) {
-			t.Errorf("not sorted")
+			t.Errorf("table not sorted")
+		}
+		if !isCompact(t, tbl) {
+			t.Errorf("table not compact")
+			// printCompactTable(tbl)
 		}
 	}
 }

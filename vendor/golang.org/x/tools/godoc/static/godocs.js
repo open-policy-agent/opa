@@ -34,6 +34,13 @@ function generateTOC() {
     return;
   }
 
+  // For search, we send the toc precomputed from server-side.
+  // TODO: Ideally, this should always be precomputed for all pages, but then
+  // we need to do HTML parsing on the server-side.
+  if (location.pathname === '/search') {
+    return;
+  }
+
   var nav = $('#nav');
   if (nav.length === 0) {
     return;
@@ -57,7 +64,6 @@ function generateTOC() {
   if (toc_items.length <= 1) {
     return;
   }
-
   var dl1 = $('<dl/>');
   var dl2 = $('<dl/>');
 
@@ -149,8 +155,16 @@ function setupDropdownPlayground() {
     button.removeClass('active');
     div.hide();
   });
-  button.show();
   $('#menu').css('min-width', '+=60');
+
+  // Hide inline playground if we click somewhere on the page.
+  // This is needed in mobile devices, where the "Play" button
+  // is not clickable once the playground opens up.
+  $("#page").click(function() {
+    if (button.hasClass('active')) {
+      button.click();
+    }
+  });
 }
 
 function setupInlinePlayground() {

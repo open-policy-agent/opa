@@ -14,6 +14,8 @@ import:
 - package: github.com/OneOfOne/xxhash
 - package: github.com/olekukonko/tablewriter
 - package: gopkg.in/fsnotify.v1
+- package: github.com/gobwas/glob
+  version: v0.2.3
 - package: github.com/ghodss/yaml
 - package: github.com/sirupsen/logrus
   version: v1.0.3
