@@ -37,7 +37,9 @@ fi
 git clone $SOURCE_URL $OPA_DIR
 cd $OPA_DIR
 
-LAST_VERSION=$(git describe --abbrev=0 --tags)
+if [ -z "$LAST_VERSION" ]; then
+    LAST_VERSION=$(git describe --abbrev=0 --tags)
+fi
 
 update_makefile() {
     sed -i='' -e "s/^VERSION[ \t]*:=[ \t]*.\+$/VERSION := $VERSION/" Makefile
