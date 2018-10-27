@@ -30,6 +30,7 @@ var testParams = struct {
 	errLimit     int
 	outputFormat *util.EnumFlag
 	coverage     bool
+	threshold    float64
 	timeout      time.Duration
 	ignore       []string
 	failureLine  bool
@@ -119,6 +120,10 @@ func opaTest(args []string) int {
 		return 1
 	}
 
+	if testParams.threshold > 0 && !testParams.coverage {
+		testParams.coverage = true
+	}
+
 	var cov *cover.Cover
 	var coverTracer topdown.Tracer
 
@@ -158,9 +163,10 @@ func opaTest(args []string) int {
 		}
 	} else {
 		reporter = tester.JSONCoverageReporter{
-			Cover:   cov,
-			Modules: modules,
-			Output:  os.Stdout,
+			Cover:     cov,
+			Modules:   modules,
+			Output:    os.Stdout,
+			Threshold: testParams.threshold,
 		}
 	}
 
@@ -179,6 +185,9 @@ func opaTest(args []string) int {
 
 	if err := reporter.Report(dup); err != nil {
 		fmt.Fprintln(os.Stderr, err)
+		if _, ok := err.(*cover.CoverageThresholdError); ok {
+			return 2
+		}
 		return 1
 	}
 
@@ -193,6 +202,7 @@ func init() {
 	testCommand.Flags().DurationVarP(&testParams.timeout, "timeout", "t", time.Second*5, "set test timeout")
 	testCommand.Flags().VarP(testParams.outputFormat, "format", "f", "set output format")
 	testCommand.Flags().BoolVarP(&testParams.coverage, "coverage", "c", false, "report coverage (overrides debug tracing)")
+	testCommand.Flags().Float64VarP(&testParams.threshold, "threshold", "", 0, "set coverage threshold and exit with non-zero status if coverage is less than threshold %")
 	setMaxErrors(testCommand.Flags(), &testParams.errLimit)
 	setIgnore(testCommand.Flags(), &testParams.ignore)
 	RootCommand.AddCommand(testCommand)
