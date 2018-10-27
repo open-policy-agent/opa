@@ -12,6 +12,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"path/filepath"
 	"reflect"
 	"strings"
 
@@ -23,9 +24,9 @@ import (
 // Common file extensions and file names.
 const (
 	RegoExt     = ".rego"
-	JSONExt     = ".json"
-	ManifestExt = ".manifest"
-	DataFileExt = "/data.json"
+	jsonExt     = ".json"
+	manifestExt = ".manifest"
+	dataFile    = "data.json"
 )
 
 const bundleLimitBytes = (1024 * 1024 * 1024) + 1 // limit bundle reads to 1GB to protect against gzip bombs
@@ -90,7 +91,7 @@ func writeManifest(tw *tar.Writer, bundle Bundle) error {
 		return err
 	}
 
-	return writeFile(tw, ManifestExt, buf.Bytes())
+	return writeFile(tw, manifestExt, buf.Bytes())
 }
 
 // Read returns a new Bundle loaded from the reader.
@@ -141,12 +142,15 @@ func Read(r io.Reader) (Bundle, error) {
 			}
 			bundle.Modules = append(bundle.Modules, file)
 
-		} else if strings.HasSuffix(path, DataFileExt) {
+		} else if filepath.Base(path) == dataFile {
 			var value interface{}
 			if err := util.NewJSONDecoder(&buf).Decode(&value); err != nil {
 				return bundle, errors.Wrapf(err, "bundle load failed on %v", path)
 			}
-			dirpath := strings.Trim(strings.TrimSuffix(path, DataFileExt), "/")
+			// Remove leading / and . characters from the directory path. If the bundle
+			// was written with OPA then the paths will contain a leading slash. On the
+			// other hand, if the path is empty, filepath.Dir will return '.'.
+			dirpath := strings.TrimLeft(filepath.Dir(path), "/.")
 			var key []string
 			if dirpath != "" {
 				key = strings.Split(dirpath, "/")
@@ -155,7 +159,7 @@ func Read(r io.Reader) (Bundle, error) {
 				return bundle, errors.Wrapf(err, "bundle load failed on %v", path)
 			}
 
-		} else if strings.HasSuffix(path, ManifestExt) {
+		} else if strings.HasSuffix(path, manifestExt) {
 			if err := util.NewJSONDecoder(&buf).Decode(&bundle.Manifest); err != nil {
 				return bundle, errors.Wrapf(err, "bundle load failed on manifest")
 			}

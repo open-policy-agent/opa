@@ -140,7 +140,6 @@ func Test405StatusCodev1(t *testing.T) {
 			{http.MethodDelete, "/query", "", 405, ""},
 			{http.MethodOptions, "/query", "", 405, ""},
 			{http.MethodTrace, "/query", "", 405, ""},
-			{http.MethodPost, "/query", "", 405, ""},
 			{http.MethodPut, "/query", "", 405, ""},
 			{http.MethodPatch, "/query", "", 405, ""},
 		}},
@@ -1527,9 +1526,30 @@ func TestPoliciesPathSlashes(t *testing.T) {
 	}
 }
 
-func TestQueryWatchBasic(t *testing.T) {
+func TestQueryPostBasic(t *testing.T) {
 	f := newFixture(t)
+	f.server, _ = New().
+		WithAddresses([]string{":8182"}).
+		WithStore(f.server.store).
+		WithManager(f.server.manager).
+		WithDiagnosticsBuffer(NewBoundedBuffer(8)).
+		Init(context.Background())
 
+	setup := []tr{
+		{http.MethodPost, "/query", `{"query": "a=data.k.x with data.k as {\"x\" : 7}"}`, 200, `{"result":[{"a":7}]}`},
+	}
+
+	for _, tr := range setup {
+		req := newReqV1(tr.method, tr.path, tr.body)
+		req.RemoteAddr = "testaddr"
+
+		if err := f.executeRequest(req, tr.code, tr.resp); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
+func TestQueryWatchBasic(t *testing.T) {
 	// Test basic watch results.
 	exp := strings.Join([]string{
 		"HTTP/1.1 200 OK\nContent-Type: application/json\nTransfer-Encoding: chunked\n\n10",
@@ -1546,32 +1566,39 @@ func TestQueryWatchBasic(t *testing.T) {
 `,
 		``,
 	}, "\r\n")
-	recorder := newMockConn()
 
-	get := newReqV1(http.MethodGet, `/query?q=a=data.x&watch`, "")
-	go f.server.Handler.ServeHTTP(recorder, get)
-	<-recorder.hijacked
-	<-recorder.write
-
-	tests := []trw{
-		{tr{http.MethodPut, "/data/x", `{"a":1,"b":2}`, 204, ""}, recorder.write},
-		{tr{http.MethodPut, "/data/x", `"foo"`, 204, ""}, recorder.write},
-		{tr{http.MethodPut, "/data/x", `7`, 204, ""}, recorder.write},
+	requests := []*http.Request{
+		newReqV1(http.MethodGet, `/query?q=a=data.x&watch`, ""),
+		newReqV1(http.MethodPost, `/query?&watch`, `{"query": "a=data.x"}`),
 	}
 
-	for _, test := range tests {
-		tr := test.tr
-		if err := f.v1(tr.method, tr.path, tr.body, tr.code, tr.resp); err != nil {
-			t.Fatal(err)
-		}
-		if test.wait != nil {
-			<-test.wait
-		}
-	}
-	recorder.Close()
+	for _, get := range requests {
+		f := newFixture(t)
+		recorder := newMockConn()
+		go f.server.Handler.ServeHTTP(recorder, get)
+		<-recorder.hijacked
+		<-recorder.write
 
-	if result := recorder.buf.String(); result != exp {
-		t.Fatalf("Expected stream to equal %s, got %s", exp, result)
+		tests := []trw{
+			{tr{http.MethodPut, "/data/x", `{"a":1,"b":2}`, 204, ""}, recorder.write},
+			{tr{http.MethodPut, "/data/x", `"foo"`, 204, ""}, recorder.write},
+			{tr{http.MethodPut, "/data/x", `7`, 204, ""}, recorder.write},
+		}
+
+		for _, test := range tests {
+			tr := test.tr
+			if err := f.v1(tr.method, tr.path, tr.body, tr.code, tr.resp); err != nil {
+				t.Fatal(err)
+			}
+			if test.wait != nil {
+				<-test.wait
+			}
+		}
+		recorder.Close()
+
+		if result := recorder.buf.String(); result != exp {
+			t.Fatalf("Expected stream to equal %s, got %s", exp, result)
+		}
 	}
 }
 

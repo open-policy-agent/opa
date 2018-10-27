@@ -19,4 +19,4 @@ func main() {
 //
 //go:generate pigeon -o ast/parser.go ast/rego.peg
 //go:generate goimports -w ast/parser.go
-//go:generate go run internal/cmd/genopawasm/main.go -o internal/compiler/wasm/opa/opa.go internal/compiler/wasm/opa/opa.wasm
+//go:generate build/gen-opa-wasm.sh internal/cmd/genopawasm/main.go -o internal/compiler/wasm/opa/opa.go internal/compiler/wasm/opa/opa.wasm

@@ -2,7 +2,7 @@
 # Use of this source code is governed by an Apache2
 # license that can be found in the LICENSE file.
 
-VERSION := 0.9.3-dev
+VERSION := 0.10.1-dev
 
 GO := go
 GOVERSION := 1.10
@@ -212,6 +212,7 @@ release-local:
 .PHONY: release-patch
 release-patch:
 	@docker run -it --rm \
+		-e LAST_VERSION=$(LAST_VERSION) \
 		-v $(PWD):/_src \
 		python:2.7 \
 		/_src/build/gen-release-patch.sh --version=$(VERSION) --source-url=/_src
