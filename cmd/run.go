@@ -53,7 +53,7 @@ func init() {
 
 	runCommand := &cobra.Command{
 		Use:   "run",
-		Short: "Start OPA in interative or server mode",
+		Short: "Start OPA in interactive or server mode",
 		Long: `Start an instance of the Open Policy Agent (OPA).
 
 To run the interactive shell:
