@@ -321,9 +321,9 @@ func TestShowDebug(t *testing.T) {
 	repl := newRepl(store, &buffer)
 	repl.OneShot(ctx, "show debug")
 	expected := `{
-	"Trace": false,
-	"Metrics": false,
-	"Instrument": false
+	"trace": false,
+	"metrics": false,
+	"instrument": false
 }
 `
 	assertREPLText(t, buffer, expected)
@@ -333,9 +333,9 @@ func TestShowDebug(t *testing.T) {
 	repl.OneShot(ctx, "instrument")
 	repl.OneShot(ctx, "show debug")
 	expected = `{
-	"Trace": true,
-	"Metrics": true,
-	"Instrument": true
+	"trace": true,
+	"metrics": true,
+	"instrument": true
 }
 `
 	assertREPLText(t, buffer, expected)
