@@ -314,6 +314,34 @@ func TestHelp(t *testing.T) {
 	}
 }
 
+func TestShowDebug(t *testing.T) {
+	ctx := context.Background()
+	store := inmem.New()
+	var buffer bytes.Buffer
+	repl := newRepl(store, &buffer)
+	repl.OneShot(ctx, "show debug")
+	expected := `{
+	"Trace": false,
+	"Metrics": false,
+	"Instrument": false
+}
+`
+	assertREPLText(t, buffer, expected)
+	buffer.Reset()
+	repl.OneShot(ctx, "trace")
+	repl.OneShot(ctx, "metrics")
+	repl.OneShot(ctx, "instrument")
+	repl.OneShot(ctx, "show debug")
+	expected = `{
+	"Trace": true,
+	"Metrics": true,
+	"Instrument": true
+}
+`
+	assertREPLText(t, buffer, expected)
+	buffer.Reset()
+}
+
 func TestShow(t *testing.T) {
 	ctx := context.Background()
 	store := inmem.New()
