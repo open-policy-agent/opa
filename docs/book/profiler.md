@@ -28,19 +28,23 @@ while `line` has the **lowest**.
 
 #### Example Policy
 The different profiling examples shown later on this page use the below
-sample policy.
+sample policy. In order to run this example, create a directory called `foo` and inside a file called baz.rego. Copy and paste the entire contents of the example below to the file and save it.
 
-{%ace edit=false, lang='python'%}
+```
 package rbac
+```
 
 # Example input request.
+```
 input = {
 	"subject": "bob",
 	"resource": "foo123",
 	"action": "write",
 }
+```
 
 # Example RBAC configuration.
+```
 bindings = [
 	{
 		"user": "alice",
@@ -65,9 +69,10 @@ roles = [
 		"permissions": [{"resource": "foo123", "action": "read"}],
 	},
 ]
+```
 
 # Example RBAC policy implementation.
-
+```
 default allow = false
 
 allow {
@@ -88,7 +93,7 @@ role_has_permission[role_name] {
 	perm.resource = input.resource
 	perm.action = input.action
 }
-{%endace%}
+```
 
 #### Example: Display `ALL` profile results with `default` ordering criteria
 ```bash
