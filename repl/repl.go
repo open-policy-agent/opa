@@ -246,7 +246,7 @@ func (r *REPL) OneShot(ctx context.Context, line string) error {
 			case "json":
 				return r.cmdFormat("json")
 			case "show":
-				return r.cmdShow()
+				return r.cmdShow(cmd.args)
 			case "unset":
 				return r.cmdUnset(ctx, cmd.args)
 			case "pretty":
@@ -410,16 +410,46 @@ func (r *REPL) cmdHelp(args []string) error {
 	return nil
 }
 
-func (r *REPL) cmdShow() error {
-	module := r.modules[r.currentModuleID]
+func (r *REPL) cmdShow(args []string) error {
 
-	bs, err := format.Ast(module)
-	if err != nil {
-		return err
+	if len(args) == 0 {
+		module := r.modules[r.currentModuleID]
+
+		bs, err := format.Ast(module)
+		if err != nil {
+			return err
+		}
+		fmt.Fprint(r.output, string(bs))
+		return nil
+	} else if strings.Compare(args[0], "debug") == 0 {
+		debug := replDebug{
+			Trace:      r.traceEnabled(),
+			Metrics:    r.metricsEnabled(),
+			Instrument: r.instrument,
+		}
+		b, err := json.MarshalIndent(debug, "", "\t")
+		if err != nil {
+			return fmt.Errorf("error: %v", err)
+		}
+		fmt.Fprintln(r.output, string(b))
+		return nil
+	} else {
+		return fmt.Errorf("unknown option '%v'", args[0])
 	}
+}
 
-	fmt.Fprint(r.output, string(bs))
-	return nil
+// We use this struct to print REPL debug information in JSON string format.
+type replDebug struct {
+	Trace      bool `json:"trace"`
+	Metrics    bool `json:"metrics"`
+	Instrument bool `json:"instrument"`
+}
+
+func (r *REPL) traceEnabled() bool {
+	if r.explain == explainTrace {
+		return true
+	}
+	return false
 }
 
 func (r *REPL) cmdTrace() error {
@@ -429,6 +459,13 @@ func (r *REPL) cmdTrace() error {
 		r.explain = explainTrace
 	}
 	return nil
+}
+
+func (r *REPL) metricsEnabled() bool {
+	if r.metrics != nil {
+		return true
+	}
+	return false
 }
 
 func (r *REPL) cmdMetrics() error {
@@ -1001,7 +1038,8 @@ var extra = [...]commandDesc{
 }
 
 var builtin = [...]commandDesc{
-	{"show", []string{}, "show active module definition"},
+	{"show", []string{""}, "show active module definition"},
+	{"show debug", []string{""}, "show REPL settings"},
 	{"unset", []string{"<var>"}, "undefine rules in currently active module"},
 	{"json", []string{}, "set output format to JSON"},
 	{"pretty", []string{}, "set output format to pretty"},
