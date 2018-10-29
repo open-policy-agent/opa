@@ -108,15 +108,15 @@ false
 |   TIME   | NUM EVAL | NUM REDO |     LOCATION     |
 +----------+----------+----------+------------------+
 | 70.945µs | 1        | 1        | data.rbac.allow  |
-| 32.02µs  | 1        | 1        | foo/rbac.rego:41 |
-| 24.175µs | 1        | 1        | foo/rbac.rego:11 |
-| 18.263µs | 2        | 1        | foo/rbac.rego:47 |
-| 15.763µs | 1        | 1        | foo/rbac.rego:38 |
-| 11.645µs | 1        | 2        | foo/rbac.rego:46 |
-| 11.023µs | 1        | 1        | foo/rbac.rego:55 |
-| 10.267µs | 1        | 0        | foo/rbac.rego:56 |
-| 9.84µs   | 1        | 1        | foo/rbac.rego:48 |
-| 9.441µs  | 1        | 2        | foo/rbac.rego:52 |
+| 32.02µs  | 1        | 1        | foo/baz.rego:41 |
+| 24.175µs | 1        | 1        | foo/baz.rego:11 |
+| 18.263µs | 2        | 1        | foo/baz.rego:47 |
+| 15.763µs | 1        | 1        | foo/baz.rego:38 |
+| 11.645µs | 1        | 2        | foo/baz.rego:46 |
+| 11.023µs | 1        | 1        | foo/baz.rego:55 |
+| 10.267µs | 1        | 0        | foo/baz.rego:56 |
+| 9.84µs   | 1        | 1        | foo/baz.rego:48 |
+| 9.441µs  | 1        | 2        | foo/baz.rego:52 |
 +----------+----------+----------+------------------+
 
 +------------------------------+-----------+
@@ -143,11 +143,11 @@ false
 +----------+----------+----------+------------------+
 |   TIME   | NUM EVAL | NUM REDO |     LOCATION     |
 +----------+----------+----------+------------------+
-| 56.298µs | 1        | 1        | foo/rbac.rego:41 |
+| 56.298µs | 1        | 1        | foo/baz.rego:41 |
 | 52.851µs | 1        | 1        | data.rbac.allow  |
-| 41.498µs | 2        | 1        | foo/rbac.rego:47 |
-| 38.146µs | 1        | 1        | foo/rbac.rego:4  |
-| 24.714µs | 1        | 1        | foo/rbac.rego:38 |
+| 41.498µs | 2        | 1        | foo/baz.rego:47 |
+| 38.146µs | 1        | 1        | foo/baz.rego:4  |
+| 24.714µs | 1        | 1        | foo/baz.rego:38 |
 +----------+----------+----------+------------------+
 
 +------------------------------+-----------+
@@ -172,11 +172,11 @@ opa  eval --data foo --profile-limit 5 --profile-sort num_eval --format=pretty '
 +----------+----------+----------+------------------+
 |   TIME   | NUM EVAL | NUM REDO |     LOCATION     |
 +----------+----------+----------+------------------+
-| 20.036µs | 2        | 1        | foo/rbac.rego:47 |
-| 9.295µs  | 2        | 1        | foo/rbac.rego:53 |
-| 37.609µs | 1        | 1        | foo/rbac.rego:41 |
+| 20.036µs | 2        | 1        | foo/baz.rego:47 |
+| 9.295µs  | 2        | 1        | foo/baz.rego:53 |
+| 37.609µs | 1        | 1        | foo/baz.rego:41 |
 | 33.43µs  | 1        | 1        | data.rbac.allow  |
-| 24.19µs  | 1        | 1        | foo/rbac.rego:11 |
+| 24.19µs  | 1        | 1        | foo/baz.rego:11 |
 +----------+----------+----------+------------------+
 ```
 As seen from the above table, the results are arranged first in decreasing
@@ -195,11 +195,11 @@ opa eval --data foo --profile-limit 5 --profile-sort num_eval,num_redo --format=
 +----------+----------+----------+------------------+
 |   TIME   | NUM EVAL | NUM REDO |     LOCATION     |
 +----------+----------+----------+------------------+
-| 19.158µs | 2        | 1        | foo/rbac.rego:47 |
-| 7.86µs   | 2        | 1        | foo/rbac.rego:53 |
-| 11.526µs | 1        | 2        | foo/rbac.rego:46 |
-| 9.435µs  | 1        | 2        | foo/rbac.rego:52 |
-| 37.436µs | 1        | 1        | foo/rbac.rego:41 |
+| 19.158µs | 2        | 1        | foo/baz.rego:47 |
+| 7.86µs   | 2        | 1        | foo/baz.rego:53 |
+| 11.526µs | 1        | 2        | foo/baz.rego:46 |
+| 9.435µs  | 1        | 2        | foo/baz.rego:52 |
+| 37.436µs | 1        | 1        | foo/baz.rego:41 |
 +----------+----------+----------+------------------+
 ```
 As seen from the above table, result are first arranged based on _number of evaluations_,
