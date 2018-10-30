@@ -14,8 +14,10 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"os/signal"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/open-policy-agent/opa/ast"
@@ -212,9 +214,18 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 	return rt, nil
 }
 
+func setupSignalHandling(rt *Runtime, ctx context.Context) {
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+
+	go func() {
+		<-sigs
+		rt.Manager.Stop(ctx)
+	}()
+}
+
 // StartServer starts the runtime in server mode. This function will block the calling goroutine.
 func (rt *Runtime) StartServer(ctx context.Context) {
-
 	setupLogging(rt.Params.Logging)
 
 	logrus.WithFields(logrus.Fields{
@@ -226,6 +237,7 @@ func (rt *Runtime) StartServer(ctx context.Context) {
 		logrus.WithField("err", err).Fatalf("Unable to initialize plugins.")
 	}
 	defer rt.Manager.Stop(ctx)
+	setupSignalHandling(rt, ctx)
 
 	s, err := server.New().
 		WithStore(rt.Store).
