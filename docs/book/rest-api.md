@@ -637,7 +637,6 @@ public_servers[server] {
 ```
 
 > cURL's `-d/--data` flag removes newline characters from input files. Use the `--data-binary` flag instead.
-{: .opa-tip}
 
 #### Example Response
 
