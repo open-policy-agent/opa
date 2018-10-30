@@ -3,7 +3,16 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## 0.10.1
+
+### Fixes
+
+- Add show debug command to REPL ([#750](https://github.com/open-policy-agent/opa/issues/750))
+
+### Miscellaneous
+
+- Add `glob` built-ins for easier path matching (thanks @aeneasr)
+- Add support for specifying services as object
 
 ## 0.10.0
 
