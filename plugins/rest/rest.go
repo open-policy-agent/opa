@@ -139,8 +139,15 @@ type Client struct {
 	headers map[string]string
 }
 
+// Name returns an option that overrides the service name on the client.
+func Name(s string) func(*Client) {
+	return func(c *Client) {
+		c.config.Name = s
+	}
+}
+
 // New returns a new Client for config.
-func New(config []byte) (Client, error) {
+func New(config []byte, opts ...func(*Client)) (Client, error) {
 	var parsedConfig Config
 
 	if err := util.Unmarshal(config, &parsedConfig); err != nil {
@@ -152,12 +159,18 @@ func New(config []byte) (Client, error) {
 		return Client{}, err
 	}
 
-	return Client{
+	client := Client{
 		config: parsedConfig,
 		Client: http.Client{
 			Transport: &http.Transport{TLSClientConfig: tlsConfig},
 		},
-	}, nil
+	}
+
+	for _, f := range opts {
+		f(&client)
+	}
+
+	return client, nil
 }
 
 // Service returns the name of the service this Client is configured for.

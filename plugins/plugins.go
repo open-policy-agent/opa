@@ -43,8 +43,8 @@ type Manager struct {
 func New(config []byte, id string, store storage.Store) (*Manager, error) {
 
 	var parsedConfig struct {
-		Services []json.RawMessage
-		Labels   map[string]string
+		Services json.RawMessage   `json:"services"`
+		Labels   map[string]string `json:"labels"`
 	}
 
 	if err := util.Unmarshal(config, &parsedConfig); err != nil {
@@ -55,14 +55,9 @@ func New(config []byte, id string, store storage.Store) (*Manager, error) {
 		parsedConfig.Labels = map[string]string{}
 	}
 
-	services := map[string]rest.Client{}
-
-	for _, s := range parsedConfig.Services {
-		client, err := rest.New(s)
-		if err != nil {
-			return nil, err
-		}
-		services[client.Service()] = client
+	services, err := parseServicesConfig(parsedConfig.Services)
+	if err != nil {
+		return nil, err
 	}
 
 	parsedConfig.Labels["id"] = id
@@ -189,4 +184,39 @@ func (m *Manager) Services() []string {
 		s = append(s, name)
 	}
 	return s
+}
+
+// parseServicesConfig returns a set of named service clients. The service
+// clients can be specified either as an array or as a map. Some systems (e.g.,
+// Helm) do not have proper support for configuration values nested under
+// arrays, so just support both here.
+func parseServicesConfig(raw json.RawMessage) (map[string]rest.Client, error) {
+
+	services := map[string]rest.Client{}
+
+	var arr []json.RawMessage
+	var obj map[string]json.RawMessage
+
+	if err := util.Unmarshal(raw, &arr); err == nil {
+		for _, s := range arr {
+			client, err := rest.New(s)
+			if err != nil {
+				return nil, err
+			}
+			services[client.Service()] = client
+		}
+	} else if util.Unmarshal(raw, &obj) == nil {
+		for k := range obj {
+			client, err := rest.New(obj[k], rest.Name(k))
+			if err != nil {
+				return nil, err
+			}
+			services[client.Service()] = client
+		}
+	} else {
+		// Return error from array decode as that is the default format.
+		return nil, err
+	}
+
+	return services, nil
 }

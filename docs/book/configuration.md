@@ -57,6 +57,9 @@ multiple services.
 | `services[_].credentials.client_tls.private_key` | `string` | No | The path to the private key of the client certificate. |
 | `services[_].credentials.client_tls.private_key_passphrase` | `string` | No | The passphrase to use for the private key. |
 
+> Services can be defined as an array or object. When defined as an object, the
+> object keys override the `services[_].name` fields.
+
 ## Miscellaenous
 
 | Field | Type | Required | Description |
