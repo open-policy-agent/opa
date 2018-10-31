@@ -106,10 +106,8 @@ baz {     # expect no exit
 	}
 
 	expectedCoveragePercentage := round(100.0*float64(len(expectedCovered))/float64(len(expectedCovered)+len(expectedNotCovered)), 2)
-	if expectedCoveragePercentage != fr.ComputeCoveragePercentage() {
-		t.Errorf("Expected coverage %f != %f",
-			expectedCoveragePercentage,
-			fr.ComputeCoveragePercentage())
+	if expectedCoveragePercentage != fr.Coverage {
+		t.Errorf("Expected coverage %f != %f", expectedCoveragePercentage, fr.Coverage)
 	}
 
 	// there's just one file, hence the overall coverage is equal to the
