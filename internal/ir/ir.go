@@ -46,6 +46,11 @@ type (
 	// Local represents a plan-scoped variable.
 	Local int
 
+	// Const represents a constant value from the policy.
+	Const interface {
+		typeMarker()
+	}
+
 	// NullConst represents a null value.
 	NullConst struct{}
 
@@ -111,6 +116,12 @@ func (a Block) String() string {
 	return fmt.Sprintf("Block (%d statements)", len(a.Stmts))
 }
 
+func (a BooleanConst) typeMarker() {}
+func (a NullConst) typeMarker()    {}
+func (a IntConst) typeMarker()     {}
+func (a FloatConst) typeMarker()   {}
+func (a StringConst) typeMarker()  {}
+
 // ReturnStmt represents a return statement. Return statements halt execution of
 // a plan with the given code.
 type ReturnStmt struct {
@@ -138,7 +149,7 @@ type LoopStmt struct {
 
 // AssignStmt represents an assignment of a local variable.
 type AssignStmt struct {
-	Value  interface{}
+	Value  Const
 	Target Local
 }
 
