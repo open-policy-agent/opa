@@ -78,7 +78,7 @@ func (c *Cover) Report(modules map[string]*ast.Module) (report Report) {
 	var overallCoverage float64
 
 	for _, fr := range report.Files {
-		fr.Coverage = fr.ComputeCoveragePercentage()
+		fr.Coverage = fr.computeCoveragePercentage()
 		coveredLoc += fr.locCovered()
 		notCoveredLoc += fr.locNotCovered()
 	}
@@ -194,8 +194,8 @@ func (fr *FileReport) locNotCovered() (loc int) {
 	return
 }
 
-// ComputeCoveragePercentage returns the code coverage percentage of the file
-func (fr *FileReport) ComputeCoveragePercentage() float64 {
+// computeCoveragePercentage returns the code coverage percentage of the file
+func (fr *FileReport) computeCoveragePercentage() float64 {
 	coveredLoc := fr.locCovered()
 	notCoveredLoc := fr.locNotCovered()
 	totalLoc := coveredLoc + notCoveredLoc
