@@ -44,6 +44,114 @@ func TestConfigDiscoveryDisabled(t *testing.T) {
 	}
 }
 
+func TestGetDiscoveryServicePath(t *testing.T) {
+
+	prefix := "/bundles"
+	path := "/foo/bar/"
+	config := discoveryPathConfig{
+		Prefix: &prefix,
+		Path:   &path,
+	}
+
+	expected := "bundles/foo/bar"
+	result := getDiscoveryServicePath(config)
+	if result != expected {
+		t.Fatalf("Expected discovery service path %v, but got %v", expected, result)
+	}
+
+	prefix = ""
+	path = "/foo/bar/"
+	config = discoveryPathConfig{
+		Prefix: &prefix,
+		Path:   &path,
+	}
+
+	expected = "/foo/bar"
+	result = getDiscoveryServicePath(config)
+	if result != expected {
+		t.Fatalf("Expected discovery service path %v, but got %v", expected, result)
+	}
+
+	prefix = "bundles/v1"
+	path = ""
+	config = discoveryPathConfig{
+		Prefix: &prefix,
+		Path:   &path,
+	}
+
+	expected = "bundles/v1/"
+	result = getDiscoveryServicePath(config)
+	if result != expected {
+		t.Fatalf("Expected discovery service path %v, but got %v", expected, result)
+	}
+
+	prefix = ""
+	path = ""
+	config = discoveryPathConfig{
+		Prefix: &prefix,
+		Path:   &path,
+	}
+
+	expected = "/"
+	result = getDiscoveryServicePath(config)
+	if result != expected {
+		t.Fatalf("Expected discovery service path %v, but got %v", expected, result)
+	}
+
+	prefix = "/bundles"
+	config = discoveryPathConfig{
+		Prefix: &prefix,
+	}
+
+	expected = "bundles/"
+	result = getDiscoveryServicePath(config)
+	if result != expected {
+		t.Fatalf("Expected discovery service path %v, but got %v", expected, result)
+	}
+
+	prefix = ""
+	config = discoveryPathConfig{
+		Prefix: &prefix,
+	}
+
+	expected = "/"
+	result = getDiscoveryServicePath(config)
+	if result != expected {
+		t.Fatalf("Expected discovery service path %v, but got %v", expected, result)
+	}
+
+	path = "/foo/bar/"
+	config = discoveryPathConfig{
+		Path: &path,
+	}
+
+	expected = "bundles/foo/bar"
+	result = getDiscoveryServicePath(config)
+	if result != expected {
+		t.Fatalf("Expected discovery service path %v, but got %v", expected, result)
+	}
+
+	path = ""
+	config = discoveryPathConfig{
+		Path: &path,
+	}
+
+	expected = "bundles/"
+	result = getDiscoveryServicePath(config)
+	if result != expected {
+		t.Fatalf("Expected discovery service path %v, but got %v", expected, result)
+	}
+
+	config = discoveryPathConfig{}
+
+	expected = "bundles/"
+	result = getDiscoveryServicePath(config)
+	if result != expected {
+		t.Fatalf("Expected discovery service path %v, but got %v", expected, result)
+	}
+
+}
+
 func TestConfigDiscoveryHandlerWithModule(t *testing.T) {
 	fixture := newTestFixtureWithModule(t)
 	defer fixture.server.stop()
@@ -54,6 +162,59 @@ func TestConfigDiscoveryHandlerWithData(t *testing.T) {
 	fixture := newTestFixtureWithData(t)
 	defer fixture.server.stop()
 	testConfigDiscoveryHandler(t, fixture)
+}
+
+func TestConfigDiscoveryHandlerWithBadConfig(t *testing.T) {
+	fixture := newTestFixtureWithBadConfig(t)
+	defer fixture.server.stop()
+
+	discConfig, err := getDiscoveryConfig(fixture.managerConfig)
+	if err != nil {
+		t.Fatal("Unexpected error:", err)
+	}
+
+	_, err = discoveryHandler(context.Background(), discConfig, fixture.manager)
+
+	if err == nil {
+		t.Fatal("Expected error but got nil")
+	}
+}
+
+func TestConfigDiscoveryHandler404Status(t *testing.T) {
+	fixture := newTestFixtureWithData(t)
+	defer fixture.server.stop()
+
+	fixture.managerConfig = []byte(fmt.Sprintf(`{
+			"services": [
+				{
+					"name": "example",
+					"url": %q,
+					"credentials": {
+						"bearer": {
+							"scheme": "Bearer",
+							"token": "secret"
+						}
+					}
+				}
+			],
+			"discovery": {
+				"path": "/foo"
+			}}`, fixture.server.server.URL))
+
+	discConfig, err := getDiscoveryConfig(fixture.managerConfig)
+	if err != nil {
+		t.Fatal("Unexpected error:", err)
+	}
+
+	_, err = discoveryHandler(context.Background(), discConfig, fixture.manager)
+	if err == nil {
+		t.Fatal("Expected error but got nil")
+	}
+
+	expected := "Discovery configuration download failed, server replied with not found"
+	if err.Error() != expected {
+		t.Fatalf("Expected error: %v but got %v", expected, err.Error())
+	}
 }
 
 func testConfigDiscoveryHandler(t *testing.T, fixture testFixture) {
@@ -110,7 +271,7 @@ func newTestFixtureWithData(t *testing.T) testFixture {
 		t:       t,
 		expAuth: "Bearer secret",
 		bundles: map[string]bundleApi.Bundle{
-			"foo/bar": {
+			"bundles/foo/bar": {
 				Manifest: bundleApi.Manifest{
 					Revision: "quickbrownfaux",
 				},
@@ -145,7 +306,47 @@ func newTestFixtureWithModule(t *testing.T) testFixture {
 		t:       t,
 		expAuth: "Bearer secret",
 		bundles: map[string]bundleApi.Bundle{
-			"foo/bar": {
+			"bundles/foo/bar": {
+				Manifest: bundleApi.Manifest{
+					Revision: "quickbrownfaux",
+				},
+				Data: map[string]interface{}{
+					"baz": "qux",
+				},
+				Modules: []bundleApi.ModuleFile{
+					{
+						Path:   `/example.rego`,
+						Raw:    []byte(sampleModule),
+						Parsed: ast.MustParseModule(sampleModule),
+					},
+				},
+			},
+		},
+	}
+
+	ts.start()
+	return getFixture(t, ts)
+
+}
+
+func newTestFixtureWithBadConfig(t *testing.T) testFixture {
+
+	sampleModule := `
+		package foo
+
+		bar = [{
+			"bundle": {
+				"name": "test/bundle1",
+				"service": "example"
+			}
+		}]
+	`
+
+	ts := testServer{
+		t:       t,
+		expAuth: "Bearer secret",
+		bundles: map[string]bundleApi.Bundle{
+			"bundles/foo/bar": {
 				Manifest: bundleApi.Manifest{
 					Revision: "quickbrownfaux",
 				},

@@ -45,6 +45,11 @@ type discoveryConfig struct {
 	Services  []json.RawMessage
 }
 
+type discoveryPathConfig struct {
+	Path   *string `json:"path"`
+	Prefix *string `json:"prefix"`
+}
+
 func parsePathToRef(s string) (ast.Ref, error) {
 	s = strings.Replace(strings.Trim(s, "/"), "/", ".", -1)
 	return ast.ParseRef("data." + s)
@@ -53,6 +58,8 @@ func parsePathToRef(s string) (ast.Ref, error) {
 const (
 	defaultDecisionPath              = "/system/main"
 	defaultAuthorizationDecisionPath = "/system/authz/allow"
+	defaultDiscoveryPathPrefix       = "bundles"
+	defaultDiscoveryQueryPrefix      = "data"
 )
 
 // TODO(tsandall): revisit how plugins are wired up to the manager and how
@@ -90,6 +97,10 @@ func ConfigHandler(ctx context.Context, opaID string, store storage.Store, confi
 		bs, err = discoveryHandler(ctx, config, m)
 		if err != nil {
 			return nil, err
+		}
+
+		if bs == nil {
+			return nil, nil
 		}
 
 		// Add labels to the plugin manager
@@ -203,9 +214,7 @@ func isDiscoveryEnabled(bs []byte) (*discoveryConfig, bool) {
 }
 
 func discoveryHandler(ctx context.Context, config *discoveryConfig, manager *plugins.Manager) ([]byte, error) {
-	var discoveryConfig struct {
-		Path string `json:"path"`
-	}
+	var discoveryConfig discoveryPathConfig
 
 	if err := util.Unmarshal(config.Discovery, &discoveryConfig); err != nil {
 		return nil, err
@@ -223,8 +232,10 @@ func discoveryHandler(ctx context.Context, config *discoveryConfig, manager *plu
 		return nil, err
 	}
 
+	discoveryServicePath := getDiscoveryServicePath(discoveryConfig)
+
 	resp, err := manager.Client(serviceConfig.Name).
-		Do(ctx, "GET", discoveryConfig.Path)
+		Do(ctx, "GET", discoveryServicePath)
 
 	if err != nil {
 		return nil, errors.Wrap(err, "Download request failed")
@@ -232,18 +243,45 @@ func discoveryHandler(ctx context.Context, config *discoveryConfig, manager *plu
 
 	defer util.Close(resp)
 
-	if resp.StatusCode != http.StatusOK {
+	switch resp.StatusCode {
+	case http.StatusOK:
+		return process(ctx, resp, discoveryConfig.Path)
+	case http.StatusNotModified:
+		return nil, nil
+	case http.StatusNotFound:
+		return nil, fmt.Errorf("Discovery configuration download failed, server replied with not found")
+	case http.StatusUnauthorized:
+		return nil, fmt.Errorf("Discovery configuration download failed, server replied with not authorized")
+	default:
 		return nil, fmt.Errorf("Discovery configuration download failed, server replied with HTTP %v", resp.StatusCode)
 	}
+}
 
+func getDiscoveryServicePath(config discoveryPathConfig) string {
+	prefix := defaultDiscoveryPathPrefix
+	path := ""
+
+	if config.Prefix != nil {
+		prefix = *config.Prefix
+	}
+
+	if config.Path != nil {
+		path = *config.Path
+	}
+
+	return fmt.Sprintf("%v/%v", strings.Trim(prefix, "/"), strings.Trim(path, "/"))
+}
+
+func process(ctx context.Context, resp *http.Response, path *string) ([]byte, error) {
 	b, err := bundleApi.Read(resp.Body)
 	if err != nil {
 		return nil, err
 	}
 
-	query := "data"
-	if discoveryConfig.Path != "" {
-		query = fmt.Sprintf("data%v", strings.Replace(discoveryConfig.Path, "/", ".", -1))
+	query := defaultDiscoveryQueryPrefix
+	if path != nil && *path != "" {
+		*path = strings.Trim(*path, "/")
+		query = fmt.Sprintf("%v.%v", query, strings.Replace(*path, "/", ".", -1))
 	}
 
 	return processBundle(ctx, b, query)
@@ -278,11 +316,18 @@ func processBundle(ctx context.Context, b bundleApi.Bundle, query string) ([]byt
 		return nil, fmt.Errorf("undefined configuration")
 	}
 
-	newConfig, err := json.Marshal(rs[0].Expressions[0].Value)
-	if err != nil {
-		return nil, err
+	result := rs[0].Expressions[0].Value
+
+	switch result.(type) {
+	case map[string]interface{}:
+		newConfig, err := json.Marshal(result)
+		if err != nil {
+			return nil, err
+		}
+		return newConfig, nil
+	default:
+		return nil, fmt.Errorf("expected discovery rule to generate an object but got %T", result)
 	}
-	return newConfig, nil
 }
 
 func initBundlePlugin(m *plugins.Manager, bs []byte) (*bundle.Plugin, error) {
