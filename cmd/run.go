@@ -134,6 +134,7 @@ the data document with the following syntax:
 	runCommand.Flags().BoolVarP(&params.Watch, "watch", "w", false, "watch command line files for changes")
 	setMaxErrors(runCommand.Flags(), &params.ErrorLimit)
 	runCommand.Flags().IntVarP(&serverDiagnosticsBufferSize, "server-diagnostics-buffer-size", "", defaultServerDiagnosticsBufferSize, "set the size of the server's diagnostics buffer")
+	runCommand.Flags().MarkDeprecated("server-diagnostics-buffer-size", "use decision logging instead")
 	runCommand.Flags().StringVarP(&tlsCertFile, "tls-cert-file", "", "", "set path of TLS certificate file")
 	runCommand.Flags().StringVarP(&tlsPrivateKeyFile, "tls-private-key-file", "", "", "set path of TLS private key file")
 	runCommand.Flags().VarP(authentication, "authentication", "", "set authentication scheme")
