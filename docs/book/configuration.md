@@ -5,6 +5,13 @@ required must be specified if the parent is defined. For example, when the
 configuration contains a `status` key, the `status.service` field must be
 defined.
 
+The configuration file path is specified with the `-c` or `--config-file`
+command line argument:
+
+```bash
+opa run -s -c config.yaml
+```
+
 ## Example
 
 ```yaml
