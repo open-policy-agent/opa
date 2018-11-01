@@ -402,7 +402,16 @@ func compileAndStoreInputs(ctx context.Context, store storage.Store, txn storage
 		}
 	}
 
+	warnDiagnosticPolicyDeprecated(c)
+
 	return nil
+}
+
+func warnDiagnosticPolicyDeprecated(c *ast.Compiler) {
+	rules := c.GetRules(ast.MustParseRef("data.system.diagnostics"))
+	if len(rules) > 0 {
+		logrus.Warn("The diagnostics feature has been deprecated and will be removed. Use the Decision Logging feature. See https://www.openpolicyagent.org/docs/decision_logs.html for information.")
+	}
 }
 
 func getWatcher(rootPaths []string) (*fsnotify.Watcher, error) {
