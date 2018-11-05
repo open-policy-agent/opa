@@ -231,8 +231,7 @@ evaluation query will always return the same value.
 ### Debugging
 | Built-in | Inputs | Description |
 | ------- |--------|-------------|
-| <span class="opa-keep-it-together">``trace(string)``</span> | 1 | ``trace`` outputs the debug message ``string`` as a ``Note`` event in the query explanation. For example, ``trace("Hello There!")`` includes ``Note "Hello There!"`` in the query explanation. To print variables, use sprintf. For example, ``person = "Bob"; trace(sprintf("Hello There! %v", [person]))`` will emit ``Note "Hello There! Bob"``. Enabling tracing will disable profile and vice-versa|
-| <span class="opa-keep-it-together">``profile``</span> | 0 | ``profile`` enables expression profiling and outputs profiler results with default ordering "total_time_ns", "num_eval", "num_redo", "file", "line" .  Enabling profile will disable tracing and vice-versa|
+| <span class="opa-keep-it-together">``trace(string)``</span> | 1 | ``trace`` outputs the debug message ``string`` as a ``Note`` event in the query explanation. For example, ``trace("Hello There!")`` includes ``Note "Hello There!"`` in the query explanation. To print variables, use sprintf. For example, ``person = "Bob"; trace(sprintf("Hello There! %v", [person]))`` will emit ``Note "Hello There! Bob"``. |
 
 ## Reserved Names
 
