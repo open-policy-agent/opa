@@ -55,6 +55,7 @@ type Result struct {
 	Error    error            `json:"error,omitempty"`
 	Duration time.Duration    `json:"duration"`
 	Trace    []*topdown.Event `json:"trace,omitempty"`
+	FailedAt *ast.Expr        `json:"failedat,omitempty"`
 }
 
 func newResult(loc *ast.Location, pkg, name string, duration time.Duration, trace []*topdown.Event) *Result {
@@ -88,11 +89,12 @@ func (r *Result) outcome() string {
 
 // Runner implements simple test discovery and execution.
 type Runner struct {
-	compiler *ast.Compiler
-	store    storage.Store
-	cover    topdown.Tracer
-	trace    bool
-	runtime  *ast.Term
+	compiler    *ast.Compiler
+	store       storage.Store
+	cover       topdown.Tracer
+	trace       bool
+	runtime     *ast.Term
+	failureLine bool
 }
 
 // NewRunner returns a new runner.
@@ -121,13 +123,18 @@ func (r *Runner) SetCoverageTracer(tracer topdown.Tracer) *Runner {
 	return r
 }
 
-// EnableTracing enables tracing of evaluatation and includes traces in results.
+// EnableTracing enables tracing of evaluation and includes traces in results.
 // Tracing is currently mutually exclusive with coverage.
 func (r *Runner) EnableTracing(yes bool) *Runner {
 	r.trace = yes
 	if r.trace {
 		r.cover = nil
 	}
+	return r
+}
+
+func (r *Runner) EnableFailureLine(yes bool) *Runner {
+	r.failureLine = yes
 	return r
 }
 

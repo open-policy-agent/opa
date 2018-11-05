@@ -32,6 +32,7 @@ var testParams = struct {
 	coverage     bool
 	timeout      time.Duration
 	ignore       []string
+	failureLine  bool
 }{
 	outputFormat: util.NewEnumFlag(testPrettyOutput, []string{testPrettyOutput, testJSONOutput}),
 }
@@ -131,6 +132,7 @@ func opaTest(args []string) int {
 		SetStore(store).
 		EnableTracing(testParams.verbose).
 		SetCoverageTracer(coverTracer).
+		EnableFailureLine(testParams.failureLine).
 		SetRuntime(info)
 
 	ch, err := runner.Run(ctx, modules)
@@ -182,8 +184,11 @@ func opaTest(args []string) int {
 	return exitCode
 }
 
+// --show-failure-line / -l
+
 func init() {
 	testCommand.Flags().BoolVarP(&testParams.verbose, "verbose", "v", false, "set verbose reporting mode")
+	testCommand.Flags().BoolVarP(&testParams.failureLine, "show-failure-line", "l", false, "show test failure line")
 	testCommand.Flags().DurationVarP(&testParams.timeout, "timeout", "t", time.Second*5, "set test timeout")
 	testCommand.Flags().VarP(testParams.outputFormat, "format", "f", "set output format")
 	testCommand.Flags().BoolVarP(&testParams.coverage, "coverage", "c", false, "report coverage (overrides debug tracing)")
