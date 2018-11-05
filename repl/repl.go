@@ -500,17 +500,6 @@ func (r *REPL) profilerEnabled() bool {
 	return r.profiler
 }
 
-//// This function cmdProfile will turn tracing (explain) off if profile is turned on
-//func (r *REPL) cmdProfile() error {
-//	if r.profiler == nil {
-//		r.profiler = profiler.New()
-//		r.explain = explainOff
-//	} else {
-//		r.profiler = nil
-//	}
-//	return nil
-//}
-
 // This function cmdProfile will turn tracing (explain) off if profile is turned on
 func (r *REPL) cmdProfile() error {
 	if r.profiler {
