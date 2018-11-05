@@ -324,7 +324,7 @@ func TestShowDebug(t *testing.T) {
 	"trace": false,
 	"metrics": false,
 	"instrument": false,
-	"profiler": false
+	"profile": false
 }
 `
 	assertREPLText(t, buffer, expected)
@@ -338,7 +338,7 @@ func TestShowDebug(t *testing.T) {
 	"trace": false,
 	"metrics": true,
 	"instrument": true,
-	"profiler": true
+	"profile": true
 }
 `
 	assertREPLText(t, buffer, expected)
@@ -352,7 +352,7 @@ func TestShowDebug(t *testing.T) {
 	"trace": true,
 	"metrics": true,
 	"instrument": true,
-	"profiler": false
+	"profile": false
 }
 `
 	buffer.Reset()
