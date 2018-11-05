@@ -42,7 +42,7 @@ type REPL struct {
 	buffer          []string
 	txn             storage.Transaction
 	metrics         metrics.Metrics
-	profiler        *profiler.Profiler
+	profiler        bool
 
 	// TODO(tsandall): replace this state with rule definitions
 	// inside the default module.
@@ -463,7 +463,7 @@ func (r *REPL) cmdTrace() error {
 		r.explain = explainOff
 	} else {
 		r.explain = explainTrace
-		r.profiler = nil
+		r.profiler = false
 	}
 	return nil
 }
@@ -497,19 +497,27 @@ func (r *REPL) cmdInstrument() error {
 }
 
 func (r *REPL) profilerEnabled() bool {
-	if r.profiler != nil {
-		return true
-	}
-	return false
+	return r.profiler
 }
+
+//// This function cmdProfile will turn tracing (explain) off if profile is turned on
+//func (r *REPL) cmdProfile() error {
+//	if r.profiler == nil {
+//		r.profiler = profiler.New()
+//		r.explain = explainOff
+//	} else {
+//		r.profiler = nil
+//	}
+//	return nil
+//}
 
 // This function cmdProfile will turn tracing (explain) off if profile is turned on
 func (r *REPL) cmdProfile() error {
-	if r.profiler == nil {
-		r.profiler = profiler.New()
-		r.explain = explainOff
+	if r.profiler {
+		r.profiler = false
 	} else {
-		r.profiler = nil
+		r.profiler = true
+		r.explain = explainOff
 	}
 	return nil
 }
@@ -849,13 +857,15 @@ func (r *REPL) evalStatement(ctx context.Context, stmt interface{}) error {
 func (r *REPL) evalBody(ctx context.Context, compiler *ast.Compiler, input ast.Value, body ast.Body) error {
 
 	var buf *topdown.BufferTracer
+	var bufProfiler *profiler.Profiler
 	var tracer topdown.Tracer
 
 	if r.explain != explainOff {
 		buf = topdown.NewBufferTracer()
 		tracer = buf
-	} else if r.profiler != nil {
-		tracer = r.profiler
+	} else if r.profiler {
+		bufProfiler = profiler.New()
+		tracer = bufProfiler
 	}
 
 	eval := rego.New(
@@ -880,8 +890,8 @@ func (r *REPL) evalBody(ctx context.Context, compiler *ast.Compiler, input ast.V
 		Metrics: r.metrics,
 	}
 
-	if r.profiler != nil {
-		output.Profile = r.profiler.ReportTopNResults(-1, pr.DefaultProfileSortOrder)
+	if r.profiler {
+		output.Profile = bufProfiler.ReportTopNResults(-1, pr.DefaultProfileSortOrder)
 	}
 	output = output.WithLimit(r.prettyLimit)
 
@@ -889,8 +899,6 @@ func (r *REPL) evalBody(ctx context.Context, compiler *ast.Compiler, input ast.V
 		mangleTrace(ctx, r.store, r.txn, *buf)
 		output.Explanation = *buf
 	}
-
-	// TODO(tsandall): add profiler output
 
 	switch r.outputFormat {
 	case "json":
