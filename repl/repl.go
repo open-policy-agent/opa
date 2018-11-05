@@ -430,7 +430,7 @@ func (r *REPL) cmdShow(args []string) error {
 			Trace:      r.traceEnabled(),
 			Metrics:    r.metricsEnabled(),
 			Instrument: r.instrument,
-			Profiler:   r.profilerEnabled(),
+			Profile:    r.profilerEnabled(),
 		}
 		b, err := json.MarshalIndent(debug, "", "\t")
 		if err != nil {
@@ -448,7 +448,7 @@ type replDebug struct {
 	Trace      bool `json:"trace"`
 	Metrics    bool `json:"metrics"`
 	Instrument bool `json:"instrument"`
-	Profiler   bool `json:"profiler"`
+	Profile    bool `json:"profile"`
 }
 
 func (r *REPL) traceEnabled() bool {
@@ -849,13 +849,13 @@ func (r *REPL) evalStatement(ctx context.Context, stmt interface{}) error {
 func (r *REPL) evalBody(ctx context.Context, compiler *ast.Compiler, input ast.Value, body ast.Body) error {
 
 	var buf *topdown.BufferTracer
-	var bufInterface topdown.Tracer
+	var tracer topdown.Tracer
 
 	if r.explain != explainOff {
 		buf = topdown.NewBufferTracer()
-		bufInterface = buf
+		tracer = buf
 	} else if r.profiler != nil {
-		bufInterface = r.profiler
+		tracer = r.profiler
 	}
 
 	eval := rego.New(
@@ -867,7 +867,7 @@ func (r *REPL) evalBody(ctx context.Context, compiler *ast.Compiler, input ast.V
 		rego.ParsedQuery(body),
 		rego.ParsedInput(input),
 		rego.Metrics(r.metrics),
-		rego.Tracer(bufInterface),
+		rego.Tracer(tracer),
 		rego.Instrument(r.instrument),
 		rego.Runtime(r.runtime),
 	)
@@ -881,10 +881,8 @@ func (r *REPL) evalBody(ctx context.Context, compiler *ast.Compiler, input ast.V
 	}
 
 	if r.profiler != nil {
-		output.Profile = r.profiler.ReportTopNResults(-1, []string{"total_time_ns", "num_eval", "num_redo", "file", "line"})
+		output.Profile = r.profiler.ReportTopNResults(-1, pr.DefaultProfileSortOrder)
 	}
-	//[]string{"num_eval", "num_redo", "total_time_ns"}
-	//
 	output = output.WithLimit(r.prettyLimit)
 
 	if r.explain != explainOff {
