@@ -25,6 +25,9 @@ import (
 	"github.com/open-policy-agent/opa/topdown"
 )
 
+// DefaultProfileSortOrder is the default ordering unless something is specified in the CLI
+var DefaultProfileSortOrder = []string{"total_time_ns", "num_eval", "num_redo", "file", "line"}
+
 // DepAnalysisOutput contains the result of dependency analysis to be presented.
 type DepAnalysisOutput struct {
 	Base    []ast.Ref `json:"base,omitempty"`
