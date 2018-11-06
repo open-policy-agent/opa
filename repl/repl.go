@@ -12,6 +12,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/open-policy-agent/opa/profiler"
 	"html/template"
 	"io"
 	"os"
@@ -41,6 +42,7 @@ type REPL struct {
 	buffer          []string
 	txn             storage.Transaction
 	metrics         metrics.Metrics
+	profiler        bool
 
 	// TODO(tsandall): replace this state with rule definitions
 	// inside the default module.
@@ -259,6 +261,8 @@ func (r *REPL) OneShot(ctx context.Context, line string) error {
 				return r.cmdMetrics()
 			case "instrument":
 				return r.cmdInstrument()
+			case "profile":
+				return r.cmdProfile()
 			case "types":
 				return r.cmdTypes()
 			case "unknown":
@@ -426,6 +430,7 @@ func (r *REPL) cmdShow(args []string) error {
 			Trace:      r.traceEnabled(),
 			Metrics:    r.metricsEnabled(),
 			Instrument: r.instrument,
+			Profile:    r.profilerEnabled(),
 		}
 		b, err := json.MarshalIndent(debug, "", "\t")
 		if err != nil {
@@ -443,6 +448,7 @@ type replDebug struct {
 	Trace      bool `json:"trace"`
 	Metrics    bool `json:"metrics"`
 	Instrument bool `json:"instrument"`
+	Profile    bool `json:"profile"`
 }
 
 func (r *REPL) traceEnabled() bool {
@@ -457,6 +463,7 @@ func (r *REPL) cmdTrace() error {
 		r.explain = explainOff
 	} else {
 		r.explain = explainTrace
+		r.profiler = false
 	}
 	return nil
 }
@@ -485,6 +492,21 @@ func (r *REPL) cmdInstrument() error {
 	} else {
 		r.metrics = metrics.New()
 		r.instrument = true
+	}
+	return nil
+}
+
+func (r *REPL) profilerEnabled() bool {
+	return r.profiler
+}
+
+// This function cmdProfile will turn tracing (explain) off if profile is turned on
+func (r *REPL) cmdProfile() error {
+	if r.profiler {
+		r.profiler = false
+	} else {
+		r.profiler = true
+		r.explain = explainOff
 	}
 	return nil
 }
@@ -824,9 +846,15 @@ func (r *REPL) evalStatement(ctx context.Context, stmt interface{}) error {
 func (r *REPL) evalBody(ctx context.Context, compiler *ast.Compiler, input ast.Value, body ast.Body) error {
 
 	var buf *topdown.BufferTracer
+	var bufProfiler *profiler.Profiler
+	var tracer topdown.Tracer
 
 	if r.explain != explainOff {
 		buf = topdown.NewBufferTracer()
+		tracer = buf
+	} else if r.profiler {
+		bufProfiler = profiler.New()
+		tracer = bufProfiler
 	}
 
 	eval := rego.New(
@@ -838,7 +866,7 @@ func (r *REPL) evalBody(ctx context.Context, compiler *ast.Compiler, input ast.V
 		rego.ParsedQuery(body),
 		rego.ParsedInput(input),
 		rego.Metrics(r.metrics),
-		rego.Tracer(buf),
+		rego.Tracer(tracer),
 		rego.Instrument(r.instrument),
 		rego.Runtime(r.runtime),
 	)
@@ -851,14 +879,15 @@ func (r *REPL) evalBody(ctx context.Context, compiler *ast.Compiler, input ast.V
 		Metrics: r.metrics,
 	}
 
+	if r.profiler {
+		output.Profile = bufProfiler.ReportTopNResults(-1, pr.DefaultProfileSortOrder)
+	}
 	output = output.WithLimit(r.prettyLimit)
 
-	if buf != nil {
+	if r.explain != explainOff {
 		mangleTrace(ctx, r.store, r.txn, *buf)
 		output.Explanation = *buf
 	}
-
-	// TODO(tsandall): add profiler output
 
 	switch r.outputFormat {
 	case "json":
@@ -1044,9 +1073,10 @@ var builtin = [...]commandDesc{
 	{"json", []string{}, "set output format to JSON"},
 	{"pretty", []string{}, "set output format to pretty"},
 	{"pretty-limit", []string{}, "set pretty value output limit"},
-	{"trace", []string{}, "toggle full trace"},
+	{"trace", []string{}, "toggle full trace and turns off profiler"},
 	{"metrics", []string{}, "toggle metrics"},
 	{"instrument", []string{}, "toggle instrumentation"},
+	{"profile", []string{}, "toggle profiler and turns off trace"},
 	{"types", []string{}, "toggle type information"},
 	{"unknown", []string{"[ref-1 [ref-2 [...]]]"}, "toggle partial evaluation mode"},
 	{"dump", []string{"[path]"}, "dump raw data in storage"},
