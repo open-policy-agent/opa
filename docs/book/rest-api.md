@@ -997,6 +997,17 @@ The server returns 400 if either:
 The server returns 200 if the path refers to an undefined document. In this
 case, the response will not contain a `result` property.
 
+#### Response Message
+
+- **result** - The base or virtual document referred to by the URL path. If the
+  path is undefined, this key will be omitted.
+- **metrics** - If query metrics are enabled, this field contains query
+  performance metrics collected during the parse, compile, and evaluation steps.
+* **decision_id** - If decision logging is enabled, this field contains a string
+  that uniquely identifies the decision. The identifier will be included in the
+  decision log event for this decision. Callers can use the identifier for
+  correlation purposes.
+
 ### Get a Document (with Input)
 
 ```
@@ -1109,6 +1120,17 @@ The server returns 400 if either:
 
 The server returns 200 if the path refers to an undefined document. In this
 case, the response will not contain a `result` property.
+
+#### Response Message
+
+- **result** - The base or virtual document referred to by the URL path. If the
+  path is undefined, this key will be omitted.
+- **metrics** - If query metrics are enabled, this field contains query
+  performance metrics collected during the parse, compile, and evaluation steps.
+* **decision_id** - If decision logging is enabled, this field contains a string
+  that uniquely identifies the decision. The identifier will be included in the
+  decision log event for this decision. Callers can use the identifier for
+  correlation purposes.
 
 ### Get a Document (Webhook)
 
