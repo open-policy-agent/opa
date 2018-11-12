@@ -193,23 +193,10 @@ func ExampleRego_Eval_compiler() {
 		}
 	`
 
-	// Parse the module. The first argument is used as an identifier in error messages.
-	parsed, err := ast.ParseModule("example.rego", module)
-	if err != nil {
-		// Handle error.
-	}
-
-	// Create a new compiler and compile the module. The keys are used as
-	// identifiers in error messages.
-	compiler := ast.NewCompiler()
-	compiler.Compile(map[string]*ast.Module{
-		"example.rego": parsed,
+	// Compile the module. The keys are used as identifiers in error messages.
+	compiler, err := ast.CompileModules(map[string]string{
+		"example.rego": module,
 	})
-
-	if compiler.Failed() {
-		// Handle error. Compilation errors are stored on the compiler.
-		panic(compiler.Errors)
-	}
 
 	// Create a new query that uses the compiled policy from above.
 	rego := rego.New(
