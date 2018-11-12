@@ -550,8 +550,7 @@ func (r *Rego) Compile(ctx context.Context) (*CompileResult, error) {
 
 func (r *Rego) parse() (map[string]*ast.Module, ast.Body, error) {
 
-	r.metrics.Timer(metrics.RegoQueryParse).Start()
-	defer r.metrics.Timer(metrics.RegoQueryParse).Stop()
+	r.metrics.Timer(metrics.RegoModuleParse).Start()
 
 	var errs Errors
 	parsed := map[string]*ast.Module{}
@@ -563,6 +562,10 @@ func (r *Rego) parse() (map[string]*ast.Module, ast.Body, error) {
 		}
 		parsed[module.filename] = p
 	}
+
+	r.metrics.Timer(metrics.RegoModuleParse).Stop()
+	r.metrics.Timer(metrics.RegoQueryParse).Start()
+	defer r.metrics.Timer(metrics.RegoQueryParse).Stop()
 
 	var query ast.Body
 
