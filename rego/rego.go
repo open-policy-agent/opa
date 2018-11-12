@@ -90,6 +90,10 @@ func newExpressionValue(expr *ast.Expr, value interface{}) *ExpressionValue {
 	}
 }
 
+func (ev *ExpressionValue) String() string {
+	return fmt.Sprint(ev.Value)
+}
+
 // ResultSet represents a collection of output from Rego evaluation. An empty
 // result set represents an undefined query.
 type ResultSet []Result
