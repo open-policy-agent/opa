@@ -150,6 +150,8 @@ type Rego struct {
 	txn              storage.Transaction
 	metrics          metrics.Metrics
 	tracer           topdown.Tracer
+	tracebuf         *topdown.BufferTracer
+	trace            bool
 	instrumentation  *topdown.Instrumentation
 	instrument       bool
 	capture          map[*ast.Expr]ast.Var // map exprs to generated capture vars
@@ -297,6 +299,13 @@ func Instrument(yes bool) func(r *Rego) {
 	}
 }
 
+// Trace returns an argument that enables tracing on r.
+func Trace(yes bool) func(r *Rego) {
+	return func(r *Rego) {
+		r.trace = yes
+	}
+}
+
 // Tracer returns an argument that sets the topdown Tracer.
 func Tracer(t topdown.Tracer) func(r *Rego) {
 	return func(r *Rego) {
@@ -312,6 +321,15 @@ func Runtime(term *ast.Term) func(r *Rego) {
 	return func(r *Rego) {
 		r.runtime = term
 	}
+}
+
+// PrintTrace is a helper fnuction to write a human-readable version of the
+// trace to the writer w.
+func PrintTrace(w io.Writer, r *Rego) {
+	if r == nil || r.tracebuf == nil {
+		return
+	}
+	topdown.PrettyTrace(w, *r.tracebuf)
 }
 
 // New returns a new Rego object.
@@ -339,6 +357,11 @@ func New(options ...func(*Rego)) *Rego {
 
 	if r.instrument {
 		r.instrumentation = topdown.NewInstrumentation(r.metrics)
+	}
+
+	if r.trace {
+		r.tracebuf = topdown.NewBufferTracer()
+		r.tracer = r.tracebuf
 	}
 
 	return r
