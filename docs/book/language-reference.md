@@ -300,7 +300,7 @@ The grammar defined above makes use of the following syntax. See [the Wikipedia 
 ```
 []     optional (zero or one instances)
 {}     repetition (zero or more instances)
-|      alteration (one of the instances)
+|      alternation (one of the instances)
 ()     grouping (order of expansion)
 STRING JSON string
 NUMBER JSON number
