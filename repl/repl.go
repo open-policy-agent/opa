@@ -12,7 +12,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/open-policy-agent/opa/profiler"
 	"html/template"
 	"io"
 	"os"
@@ -20,6 +19,7 @@ import (
 	"strings"
 
 	pr "github.com/open-policy-agent/opa/internal/presentation"
+	"github.com/open-policy-agent/opa/profiler"
 	"github.com/open-policy-agent/opa/rego"
 
 	"github.com/open-policy-agent/opa/ast"
@@ -452,10 +452,7 @@ type replDebug struct {
 }
 
 func (r *REPL) traceEnabled() bool {
-	if r.explain == explainTrace {
-		return true
-	}
-	return false
+	return r.explain == explainTrace
 }
 
 func (r *REPL) cmdTrace() error {
@@ -463,7 +460,6 @@ func (r *REPL) cmdTrace() error {
 		r.explain = explainOff
 	} else {
 		r.explain = explainTrace
-		r.profiler = false
 	}
 	return nil
 }
@@ -506,7 +502,6 @@ func (r *REPL) cmdProfile() error {
 		r.profiler = false
 	} else {
 		r.profiler = true
-		r.explain = explainOff
 	}
 	return nil
 }
@@ -845,19 +840,10 @@ func (r *REPL) evalStatement(ctx context.Context, stmt interface{}) error {
 
 func (r *REPL) evalBody(ctx context.Context, compiler *ast.Compiler, input ast.Value, body ast.Body) error {
 
-	var buf *topdown.BufferTracer
-	var bufProfiler *profiler.Profiler
-	var tracer topdown.Tracer
+	var tracebuf *topdown.BufferTracer
+	var prof *profiler.Profiler
 
-	if r.explain != explainOff {
-		buf = topdown.NewBufferTracer()
-		tracer = buf
-	} else if r.profiler {
-		bufProfiler = profiler.New()
-		tracer = bufProfiler
-	}
-
-	eval := rego.New(
+	args := []func(*rego.Rego){
 		rego.Compiler(compiler),
 		rego.Store(r.store),
 		rego.Transaction(r.txn),
@@ -866,11 +852,21 @@ func (r *REPL) evalBody(ctx context.Context, compiler *ast.Compiler, input ast.V
 		rego.ParsedQuery(body),
 		rego.ParsedInput(input),
 		rego.Metrics(r.metrics),
-		rego.Tracer(tracer),
 		rego.Instrument(r.instrument),
 		rego.Runtime(r.runtime),
-	)
+	}
 
+	if r.explain == explainTrace {
+		tracebuf = topdown.NewBufferTracer()
+		args = append(args, rego.Tracer(tracebuf))
+	}
+
+	if r.profiler {
+		prof = profiler.New()
+		args = append(args, rego.Tracer(prof))
+	}
+
+	eval := rego.New(args...)
 	rs, err := eval.Eval(ctx)
 
 	output := pr.Output{
@@ -880,13 +876,13 @@ func (r *REPL) evalBody(ctx context.Context, compiler *ast.Compiler, input ast.V
 	}
 
 	if r.profiler {
-		output.Profile = bufProfiler.ReportTopNResults(-1, pr.DefaultProfileSortOrder)
+		output.Profile = prof.ReportTopNResults(-1, pr.DefaultProfileSortOrder)
 	}
 	output = output.WithLimit(r.prettyLimit)
 
 	if r.explain != explainOff {
-		mangleTrace(ctx, r.store, r.txn, *buf)
-		output.Explanation = *buf
+		mangleTrace(ctx, r.store, r.txn, *tracebuf)
+		output.Explanation = *tracebuf
 	}
 
 	switch r.outputFormat {

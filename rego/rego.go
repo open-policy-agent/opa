@@ -149,7 +149,7 @@ type Rego struct {
 	store            storage.Store
 	txn              storage.Transaction
 	metrics          metrics.Metrics
-	tracer           topdown.Tracer
+	tracers          []topdown.Tracer
 	tracebuf         *topdown.BufferTracer
 	trace            bool
 	instrumentation  *topdown.Instrumentation
@@ -306,11 +306,11 @@ func Trace(yes bool) func(r *Rego) {
 	}
 }
 
-// Tracer returns an argument that sets the topdown Tracer.
+// Tracer returns an argument that adds a query tracer to r.
 func Tracer(t topdown.Tracer) func(r *Rego) {
 	return func(r *Rego) {
 		if t != nil {
-			r.tracer = t
+			r.tracers = append(r.tracers, t)
 		}
 	}
 }
@@ -361,7 +361,7 @@ func New(options ...func(*Rego)) *Rego {
 
 	if r.trace {
 		r.tracebuf = topdown.NewBufferTracer()
-		r.tracer = r.tracebuf
+		r.tracers = append(r.tracers, r.tracebuf)
 	}
 
 	return r
@@ -680,8 +680,8 @@ func (r *Rego) eval(ctx context.Context, qc ast.QueryCompiler, compiled ast.Body
 		WithInstrumentation(r.instrumentation).
 		WithRuntime(r.runtime)
 
-	if r.tracer != nil {
-		q = q.WithTracer(r.tracer)
+	for i := range r.tracers {
+		q = q.WithTracer(r.tracers[i])
 	}
 
 	if r.input != nil {
@@ -817,8 +817,8 @@ func (r *Rego) partial(ctx context.Context, compiled ast.Body, txn storage.Trans
 		WithUnknowns(unknowns).
 		WithRuntime(r.runtime)
 
-	if r.tracer != nil {
-		q = q.WithTracer(r.tracer)
+	for i := range r.tracers {
+		q = q.WithTracer(r.tracers[i])
 	}
 
 	if r.input != nil {

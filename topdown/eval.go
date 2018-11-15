@@ -40,7 +40,7 @@ type eval struct {
 	txn           storage.Transaction
 	compiler      *ast.Compiler
 	input         *ast.Term
-	tracer        Tracer
+	tracers       []Tracer
 	instr         *Instrumentation
 	builtinCache  builtins.Cache
 	virtualCache  *virtualCache
@@ -122,7 +122,7 @@ func (e *eval) traceIndex(x ast.Node, msg string) {
 
 func (e *eval) traceEvent(op Op, x ast.Node, msg string) {
 
-	if e.tracer == nil || !e.tracer.Enabled() {
+	if !traceIsEnabled(e.tracers) {
 		return
 	}
 
@@ -146,11 +146,11 @@ func (e *eval) traceEvent(op Op, x ast.Node, msg string) {
 		Message:  msg,
 	}
 
-	e.tracer.Trace(evt)
-}
-
-func (e *eval) traceEnabled() bool {
-	return e.tracer != nil && e.tracer.Enabled()
+	for i := range e.tracers {
+		if e.tracers[i].Enabled() {
+			e.tracers[i].Trace(evt)
+		}
+	}
 }
 
 func (e *eval) eval(iter evalIterator) error {
@@ -503,7 +503,7 @@ func (e *eval) evalCall(terms []*ast.Term, iter unifyIterator) error {
 		Runtime:  e.runtime,
 		Cache:    e.builtinCache,
 		Location: e.query[e.index].Location,
-		Tracer:   e.tracer,
+		Tracers:  e.tracers,
 		QueryID:  e.queryID,
 		ParentID: parentID,
 	}

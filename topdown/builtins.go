@@ -58,7 +58,7 @@ type (
 		Runtime  *ast.Term      // runtime information on the OPA instance
 		Cache    builtins.Cache // built-in function state cache
 		Location *ast.Location  // location of built-in call
-		Tracer   Tracer         // tracer object for trace() built-in function
+		Tracers  []Tracer       // tracer objects for trace() built-in function
 		QueryID  uint64         // identifies query being evaluated
 		ParentID uint64         // identifies parent of query being evaluated
 	}
