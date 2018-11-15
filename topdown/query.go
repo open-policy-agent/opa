@@ -26,7 +26,7 @@ type Query struct {
 	store            storage.Store
 	txn              storage.Transaction
 	input            *ast.Term
-	tracer           Tracer
+	tracers          []Tracer
 	unknowns         []*ast.Term
 	partialNamespace string
 	metrics          metrics.Metrics
@@ -76,9 +76,9 @@ func (q *Query) WithInput(input *ast.Term) *Query {
 	return q
 }
 
-// WithTracer sets the query tracer to use during evaluation. This is optional.
+// WithTracer adds a query tracer to use during evaluation. This is optional.
 func (q *Query) WithTracer(tracer Tracer) *Query {
-	q.tracer = tracer
+	q.tracers = append(q.tracers, tracer)
 	return q
 }
 
@@ -144,7 +144,7 @@ func (q *Query) PartialRun(ctx context.Context) (partials []ast.Body, support []
 		withCache:     newBaseCache(),
 		txn:           q.txn,
 		input:         q.input,
-		tracer:        q.tracer,
+		tracers:       q.tracers,
 		instr:         q.instr,
 		builtinCache:  builtins.Cache{},
 		virtualCache:  newVirtualCache(),
@@ -231,7 +231,7 @@ func (q *Query) Iter(ctx context.Context, iter func(QueryResult) error) error {
 		withCache:    newBaseCache(),
 		txn:          q.txn,
 		input:        q.input,
-		tracer:       q.tracer,
+		tracers:      q.tracers,
 		instr:        q.instr,
 		builtinCache: builtins.Cache{},
 		virtualCache: newVirtualCache(),

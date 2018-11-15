@@ -335,27 +335,12 @@ func TestShowDebug(t *testing.T) {
 	repl.OneShot(ctx, "profile")
 	repl.OneShot(ctx, "show debug")
 	expected = `{
-	"trace": false,
+	"trace": true,
 	"metrics": true,
 	"instrument": true,
 	"profile": true
 }
 `
-	assertREPLText(t, buffer, expected)
-	buffer.Reset()
-	repl.OneShot(ctx, "metrics")
-	repl.OneShot(ctx, "instrument")
-	repl.OneShot(ctx, "profile")
-	repl.OneShot(ctx, "trace")
-	repl.OneShot(ctx, "show debug")
-	expected = `{
-	"trace": true,
-	"metrics": true,
-	"instrument": true,
-	"profile": false
-}
-`
-	buffer.Reset()
 }
 
 func TestShow(t *testing.T) {
@@ -1798,7 +1783,7 @@ func TestProfile(t *testing.T) {
 		"permissions": [{"resource": "foo123", "action": "read"}],
 	},
 ]
-	
+
 default allow = false
 
 	allow {
