@@ -133,6 +133,7 @@ func (r *Runner) EnableTracing(yes bool) *Runner {
 	return r
 }
 
+// EnableFailureLine if set will provide the exact failure line
 func (r *Runner) EnableFailureLine(yes bool) *Runner {
 	r.failureLine = yes
 	return r
@@ -206,13 +207,18 @@ func (r *Runner) Run(ctx context.Context, modules map[string]*ast.Module) (ch ch
 func (r *Runner) runTest(ctx context.Context, mod *ast.Module, rule *ast.Rule) (*Result, bool) {
 
 	var bufferTracer *topdown.BufferTracer
+	var bufFailureLineTracer *topdown.BufferTracer
 	var tracer topdown.Tracer
+	const SecondToLast = 2
 
 	if r.cover != nil {
 		tracer = r.cover
 	} else if r.trace {
 		bufferTracer = topdown.NewBufferTracer()
 		tracer = bufferTracer
+	} else if r.failureLine {
+		bufFailureLineTracer = topdown.NewBufferTracer()
+		tracer = bufFailureLineTracer
 	}
 
 	rego := rego.New(
@@ -243,6 +249,19 @@ func (r *Runner) runTest(ctx context.Context, mod *ast.Module, rule *ast.Rule) (
 		}
 	} else if len(rs) == 0 {
 		tr.Fail = true
+		if bufFailureLineTracer != nil {
+			events := *bufFailureLineTracer
+			eventsLen := len(events)
+			for i, opFail := eventsLen-1, 0; i >= 0; i-- {
+				if strings.Compare(string(events[i].Op), "Fail") == 0 {
+					opFail++
+				}
+				if opFail == SecondToLast {
+					tr.FailedAt = events[i].Node.(*ast.Expr)
+					break
+				}
+			}
+		}
 	} else if b, ok := rs[0].Expressions[0].Value.(bool); !ok || !b {
 		tr.Fail = true
 	}

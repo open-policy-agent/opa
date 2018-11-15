@@ -151,8 +151,9 @@ func opaTest(args []string) int {
 			}
 		default:
 			reporter = tester.PrettyReporter{
-				Verbose: testParams.verbose,
-				Output:  os.Stdout,
+				Verbose:     testParams.verbose,
+				FailureLine: testParams.failureLine,
+				Output:      os.Stdout,
 			}
 		}
 	} else {

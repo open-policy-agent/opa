@@ -21,34 +21,24 @@ func TestRunner_EnableFailureLine(t *testing.T) {
 	ctx := context.Background()
 
 	files := map[string]string{
-		"/a.rego": `package foo
-			allow { true }
-			`,
 		"/a_test.rego": `package foo
-			test_pass { allow }
-			non_test { true }
-			test_fail { not allow }
-			test_fail_non_bool = 100
-			test_err { conflict }
-			conflict = true
-			conflict = false
-			test_duplicate { false }
-			test_duplicate { true }
-			test_duplicate { true }
-			`,
+			test_a { 
+				true
+				false
+				true
+			}
+			test_b { 
+				false
+				true
+			}`,
 	}
 
 	tests := map[[2]string]struct {
 		wantErr  bool
 		wantFail bool
 	}{
-		{"data.foo", "test_pass"}:          {false, false},
-		{"data.foo", "test_fail"}:          {false, true},
-		{"data.foo", "test_fail_non_bool"}: {false, true},
-		{"data.foo", "test_duplicate"}:     {false, true},
-		{"data.foo", "test_duplicate#01"}:  {false, false},
-		{"data.foo", "test_duplicate#02"}:  {false, false},
-		{"data.foo", "test_err"}:           {true, false},
+		{"data.foo", "test_a"}: {false, true},
+		{"data.foo", "test_b"}: {false, true},
 	}
 
 	test.WithTempFS(files, func(d string) {
@@ -74,8 +64,11 @@ func TestRunner_EnableFailureLine(t *testing.T) {
 				t.Errorf("Unexpected result for %v", k)
 			} else if exp.wantErr != (rs[i].Error != nil) || exp.wantFail != rs[i].Fail {
 				t.Errorf("Expected %v for %v but got: %v", exp, k, rs[i])
+			} else if rs[i].FailedAt == nil {
+				t.Errorf("Expected Failed Line but got: %v", rs[i].FailedAt)
 			}
 		}
+		// This makes sure all tests were executed
 		for k := range tests {
 			if _, ok := seen[k]; !ok {
 				t.Errorf("Expected result for %v", k)

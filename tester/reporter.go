@@ -26,8 +26,9 @@ type Reporter interface {
 
 // PrettyReporter reports test results in a simple human readable format.
 type PrettyReporter struct {
-	Output  io.Writer
-	Verbose bool
+	Output      io.Writer
+	Verbose     bool
+	FailureLine bool
 }
 
 // Report prints the test report to the reporter's output.
@@ -66,9 +67,16 @@ func (r PrettyReporter) Report(ch chan *Result) error {
 
 	// Report individual tests.
 	for _, tr := range results {
-		if !tr.Pass() || r.Verbose {
-			fmt.Fprintln(r.Output, tr)
+		if r.Verbose {
 			dirty = true
+			fmt.Fprintln(r.Output, tr)
+		} else if !tr.Pass() {
+			dirty = true
+			if r.FailureLine {
+				fmt.Fprintf(r.Output, "%v (%s:%d) \n", tr, tr.FailedAt.Location.File, tr.FailedAt.Location.Row)
+			} else {
+				fmt.Fprintln(r.Output, tr)
+			}
 		}
 		if tr.Error != nil {
 			fmt.Fprintf(r.Output, "  %v\n", tr.Error)
