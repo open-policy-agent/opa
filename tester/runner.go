@@ -148,10 +148,11 @@ func (r *Runner) Run(ctx context.Context, modules map[string]*ast.Module) (ch ch
 			if !strings.HasPrefix(name, TestPrefix) {
 				continue
 			}
-			if k, ok := count[name]; ok {
+			key := rule.Path().String()
+			if k, ok := count[key]; ok {
 				rule.Head.Name = ast.Var(fmt.Sprintf("%s#%02d", name, k))
 			}
-			count[name]++
+			count[key]++
 		}
 	}
 
