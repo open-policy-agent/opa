@@ -108,6 +108,9 @@ func TestRun(t *testing.T) {
 			test_duplicate { true }
 			test_duplicate { true }
 			`,
+		"/b_test.rego": `package bar
+
+		test_duplicate { true }`,
 	}
 
 	tests := map[[2]string]struct {
@@ -121,6 +124,7 @@ func TestRun(t *testing.T) {
 		{"data.foo", "test_duplicate#01"}:  {false, false},
 		{"data.foo", "test_duplicate#02"}:  {false, false},
 		{"data.foo", "test_err"}:           {true, false},
+		{"data.bar", "test_duplicate"}:     {false, false},
 	}
 
 	test.WithTempFS(files, func(d string) {
