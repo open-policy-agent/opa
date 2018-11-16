@@ -36,9 +36,10 @@ func TestRunner_EnableFailureLine(t *testing.T) {
 	tests := map[[2]string]struct {
 		wantErr  bool
 		wantFail bool
+		FailRow  int
 	}{
-		{"data.foo", "test_a"}: {false, true},
-		{"data.foo", "test_b"}: {false, true},
+		{"data.foo", "test_a"}: {false, true, 4},
+		{"data.foo", "test_b"}: {false, true, 8},
 	}
 
 	test.WithTempFS(files, func(d string) {
@@ -64,8 +65,10 @@ func TestRunner_EnableFailureLine(t *testing.T) {
 				t.Errorf("Unexpected result for %v", k)
 			} else if exp.wantErr != (rs[i].Error != nil) || exp.wantFail != rs[i].Fail {
 				t.Errorf("Expected %v for %v but got: %v", exp, k, rs[i])
-			} else if rs[i].FailedAt == nil {
-				t.Errorf("Expected Failed Line but got: %v", rs[i].FailedAt)
+			} else if rs[i].FailedAt == nil || rs[i].FailedAt.Location == nil {
+				t.Errorf("Failed line not set")
+			} else if rs[i].FailedAt.Location.Row != exp.FailRow {
+				t.Errorf("Expected Failed Line %v but got: %v", exp.FailRow, rs[i].FailedAt.Location.Row)
 			}
 		}
 		// This makes sure all tests were executed
