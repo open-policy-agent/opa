@@ -2263,12 +2263,21 @@ func getCompilerWithParsedModules(mods map[string]string) *Compiler {
 // helper function to run compiler upto given stage. If nil is provided, a
 // normal compile run is performed.
 func compileStages(c *Compiler, upto func()) {
+
+	for name := range c.Modules {
+		c.sorted = append(c.sorted, name)
+	}
+
+	sort.Strings(c.sorted)
 	c.SetErrorLimit(0)
+
 	if upto == nil {
 		c.compile()
 		return
 	}
+
 	target := reflect.ValueOf(upto)
+
 	for _, fn := range c.stages {
 		if fn(); c.Failed() {
 			return
