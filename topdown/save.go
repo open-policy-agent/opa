@@ -2,6 +2,8 @@ package topdown
 
 import (
 	"container/list"
+	"fmt"
+	"strings"
 
 	"github.com/open-policy-agent/opa/ast"
 )
@@ -79,6 +81,16 @@ func (ss *saveSet) Vars(caller *bindings) ast.VarSet {
 	return result
 }
 
+func (ss *saveSet) String() string {
+	var buf []string
+
+	for x := ss.l.Front(); x != nil; x = x.Next() {
+		buf = append(buf, x.Value.(*saveSetElem).String())
+	}
+
+	return "(" + strings.Join(buf, " ") + ")"
+}
+
 type saveSetElem struct {
 	refs []ast.Ref
 	vars []*ast.Term
@@ -121,6 +133,10 @@ func (sse *saveSetElem) Contains(t *ast.Term, b *bindings) bool {
 		return sse.containsVar(other[0], b)
 	}
 	return false
+}
+
+func (sse *saveSetElem) String() string {
+	return fmt.Sprintf("(refs: %v, vars: %v, b: %v)", sse.refs, sse.vars, sse.b)
 }
 
 func (sse *saveSetElem) containsVar(t *ast.Term, b *bindings) bool {
