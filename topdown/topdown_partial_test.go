@@ -226,6 +226,29 @@ func TestTopDownPartialEval(t *testing.T) {
 			},
 		},
 		{
+			note:  "reference: head: applied",
+			query: "data.test.p = true",
+			modules: []string{
+				`package test
+
+				p {
+					q[x]
+					x.a = 1
+				}
+
+				q[x] {
+					input[x]
+					x.b = 2
+				}`,
+			},
+			wantQueries: []string{`
+				input[x_term_1_01]
+				x_term_1_01.b = 2
+				x_term_1_01
+				x_term_1_01.a = 1
+			`},
+		},
+		{
 			note:  "reference: default not required",
 			query: "data.test.p = true",
 			modules: []string{
