@@ -850,15 +850,24 @@ func (e *eval) biunifyComprehensionObject(x *ast.ObjectComprehension, b *ast.Ter
 	return e.biunify(ast.NewTerm(result), b, b1, b2, iter)
 }
 
-func (e *eval) getSaveTerms(x *ast.Term) []*ast.Term {
+type savePair struct {
+	term *ast.Term
+	b    *bindings
+}
+
+func getSavePairs(x *ast.Term, b *bindings, result []savePair) []savePair {
+	if _, ok := x.Value.(ast.Var); ok {
+		result = append(result, savePair{x, b})
+		return result
+	}
 	vis := ast.NewVarVisitor().WithParams(ast.VarVisitorParams{
 		SkipClosures: true,
 		SkipRefHead:  true,
 	})
 	ast.Walk(vis, x)
-	var result []*ast.Term
 	for v := range vis.Vars() {
-		result = append(result, ast.NewTerm(v))
+		y, next := b.apply(ast.NewTerm(v))
+		result = getSavePairs(y, next, result)
 	}
 	return result
 }
@@ -881,13 +890,17 @@ func (e *eval) savePluggedExprs(exprs []*ast.Expr, iter unifyIterator) error {
 
 func (e *eval) saveUnify(a, b *ast.Term, b1, b2 *bindings, iter unifyIterator) error {
 	expr := ast.Equality.Expr(a, b)
-	if ts := e.getSaveTerms(a); len(ts) > 0 {
-		e.saveSet.Push(ts, b1)
-		defer e.saveSet.Pop()
+	if pairs := getSavePairs(a, b1, nil); len(pairs) > 0 {
+		for _, p := range pairs {
+			e.saveSet.Push([]*ast.Term{p.term}, p.b)
+			defer e.saveSet.Pop()
+		}
 	}
-	if ts := e.getSaveTerms(b); len(ts) > 0 {
-		e.saveSet.Push(ts, b2)
-		defer e.saveSet.Pop()
+	if pairs := getSavePairs(b, b2, nil); len(pairs) > 0 {
+		for _, p := range pairs {
+			e.saveSet.Push([]*ast.Term{p.term}, p.b)
+			defer e.saveSet.Pop()
+		}
 	}
 	e.saveStack.Push(expr, b1, b2)
 	defer e.saveStack.Pop()
@@ -900,9 +913,11 @@ func (e *eval) saveCall(declArgsLen int, terms []*ast.Term, iter unifyIterator) 
 	// If call-site includes output value then partial eval must add vars in output
 	// position to the save set.
 	if declArgsLen == len(terms)-2 {
-		if ts := e.getSaveTerms(terms[len(terms)-1]); len(ts) > 0 {
-			e.saveSet.Push(ts, e.bindings)
-			defer e.saveSet.Pop()
+		if pairs := getSavePairs(terms[len(terms)-1], e.bindings, nil); len(pairs) > 0 {
+			for _, p := range pairs {
+				e.saveSet.Push([]*ast.Term{p.term}, p.b)
+				defer e.saveSet.Pop()
+			}
 		}
 	}
 	e.saveStack.Push(expr, e.bindings, nil)
@@ -1603,7 +1618,6 @@ func (e evalVirtualPartial) evalOneRule(iter unifyIterator, rule *ast.Rule, cach
 			}
 
 			term, termbindings := child.bindings.apply(term)
-
 			err := e.evalTerm(iter, term, termbindings)
 			if err != nil {
 				return err
