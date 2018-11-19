@@ -122,7 +122,7 @@ func differsAt(a, b []byte) (int, int) {
 			return ln, i
 		}
 	}
-	return ln, minLen
+	return ln, minLen - 1
 }
 
 func prefixWithLineNumbers(bs []byte) []byte {
