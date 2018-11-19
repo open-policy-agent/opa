@@ -109,6 +109,7 @@ p[x] = y { y = x
                     "b":    "c"   ,   "c": "d",   # comment on object entry line
                     # Comment inside object 2
 "d": "e",
+# Comment before closing object brace.
 } # Comment on closing object brace.
 a = {"a": "b", "c": "d"}
 b = [1, 2, 3, 4]
@@ -117,6 +118,13 @@ c = [1, 2,
 3, 4,
 5, 6, 7,
 8,
+# Comment before nested composite.
+[
+["foo"], # Comment inside nested composite.
+["bar"], # Comment after last element in nested composite.
+# Comment before nested composite closing bracket.
+], # Comment on nested composite closing bracket.
+# Comment before closing array bracket.
 ] # Comment on closing array bracket.
 
 d = [1 | b[_]]
