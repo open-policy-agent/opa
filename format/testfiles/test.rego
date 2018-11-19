@@ -180,6 +180,11 @@ expanded_const = true
 
 partial_obj["why"] = true { false }
 
+empty_sets {
+    set()
+    set() # comment at end of set
+}
+
 # more comments!
 # more comments!
 # more comments!
