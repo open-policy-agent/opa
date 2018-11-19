@@ -470,6 +470,12 @@ func (w *writer) writeArray(arr ast.Array, loc *ast.Location, comments []*ast.Co
 }
 
 func (w *writer) writeSet(set ast.Set, loc *ast.Location, comments []*ast.Comment) []*ast.Comment {
+
+	if set.Len() == 0 {
+		w.write("set()")
+		return w.insertComments(comments, closingLoc(0, 0, '(', ')', loc))
+	}
+
 	w.write("{")
 	defer w.write("}")
 
