@@ -1,7 +1,0 @@
-%base--code {
-  @extend %font--mono;
-  padding: .2em .5em;
-  font-size: .8em;
-  color: get('secondary color');
-  outline: 1px solid rgba(color('gray', 50), .25);
-}
