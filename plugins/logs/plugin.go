@@ -117,12 +117,13 @@ func (c *Config) validateAndInjectDefaults(services []string) error {
 
 // Plugin implements decision log buffering and uploading.
 type Plugin struct {
-	manager *plugins.Manager
-	config  Config
-	buffer  *logBuffer
-	enc     *chunkEncoder
-	mtx     sync.Mutex
-	stop    chan chan struct{}
+	manager  *plugins.Manager
+	config   Config
+	buffer   *logBuffer
+	enc      *chunkEncoder
+	mtx      sync.Mutex
+	stop     chan chan struct{}
+	reconfig chan plugins.ReconfigData
 }
 
 // New returns a new Plugin with the given config.
@@ -139,11 +140,12 @@ func New(config []byte, manager *plugins.Manager) (*Plugin, error) {
 	}
 
 	plugin := &Plugin{
-		manager: manager,
-		config:  parsedConfig,
-		stop:    make(chan chan struct{}),
-		buffer:  newLogBuffer(*parsedConfig.Reporting.BufferSizeLimitBytes),
-		enc:     newChunkEncoder(*parsedConfig.Reporting.UploadSizeLimitBytes),
+		manager:  manager,
+		config:   parsedConfig,
+		stop:     make(chan chan struct{}),
+		buffer:   newLogBuffer(*parsedConfig.Reporting.BufferSizeLimitBytes),
+		enc:      newChunkEncoder(*parsedConfig.Reporting.UploadSizeLimitBytes),
+		reconfig: make(chan plugins.ReconfigData),
 	}
 
 	return plugin, nil
@@ -191,6 +193,11 @@ func (p *Plugin) Log(ctx context.Context, decision *server.Info) {
 	}
 }
 
+// Reconfigure notifies the plugin with a new configuration.
+func (p *Plugin) Reconfigure(config plugins.ReconfigData) {
+	p.reconfig <- config
+}
+
 func (p *Plugin) loop() {
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -227,6 +234,13 @@ func (p *Plugin) loop() {
 				retry++
 			} else {
 				retry = 0
+			}
+		case newConfig := <-p.reconfig:
+			err := p.reconfigure(newConfig)
+			if err != nil {
+				p.logError("%v.", err)
+			} else {
+				p.logInfo("Decision Logs plugin reconfigured successfully.")
 			}
 		case done := <-p.stop:
 			cancel()
@@ -274,6 +288,22 @@ func (p *Plugin) oneShot(ctx context.Context) (ok bool, err error) {
 	}
 
 	return true, nil
+}
+
+func (p *Plugin) reconfigure(c plugins.ReconfigData) error {
+	var parsedConfig Config
+
+	if err := util.Unmarshal(c.Config, &parsedConfig); err != nil {
+		return err
+	}
+
+	p.manager = c.Manager
+
+	if err := parsedConfig.validateAndInjectDefaults(p.manager.Services()); err != nil {
+		return err
+	}
+	p.config = parsedConfig
+	return nil
 }
 
 func (p *Plugin) bufferChunk(buffer *logBuffer, bs []byte) {

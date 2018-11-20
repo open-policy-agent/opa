@@ -173,7 +173,12 @@ func TestConfigDiscoveryHandlerWithBadConfig(t *testing.T) {
 		t.Fatal("Unexpected error:", err)
 	}
 
-	_, err = discoveryHandler(context.Background(), discConfig, fixture.manager)
+	discPathConfig, err := validateAndInjectDefaults(discConfig, fixture.manager.Services())
+	if err != nil {
+		t.Fatal("Unexpected error:", err)
+	}
+
+	_, _, err = discoveryHandler(context.Background(), discPathConfig, fixture.manager)
 
 	if err == nil {
 		t.Fatal("Expected error but got nil")
@@ -206,7 +211,12 @@ func TestConfigDiscoveryHandler404Status(t *testing.T) {
 		t.Fatal("Unexpected error:", err)
 	}
 
-	_, err = discoveryHandler(context.Background(), discConfig, fixture.manager)
+	discPathConfig, err := validateAndInjectDefaults(discConfig, fixture.manager.Services())
+	if err != nil {
+		t.Fatal("Unexpected error:", err)
+	}
+
+	_, _, err = discoveryHandler(context.Background(), discPathConfig, fixture.manager)
 	if err == nil {
 		t.Fatal("Expected error but got nil")
 	}
@@ -225,7 +235,12 @@ func testConfigDiscoveryHandler(t *testing.T, fixture testFixture) {
 		t.Fatal("Unexpected error:", err)
 	}
 
-	newConfig, err := discoveryHandler(ctx, discConfig, fixture.manager)
+	discPathConfig, err := validateAndInjectDefaults(discConfig, fixture.manager.Services())
+	if err != nil {
+		t.Fatal("Unexpected error:", err)
+	}
+
+	newConfig, _, err := discoveryHandler(ctx, discPathConfig, fixture.manager)
 
 	if err != nil {
 		t.Fatal("Unexpected error:", err)

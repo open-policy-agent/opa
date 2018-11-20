@@ -108,6 +108,7 @@ type Plugin struct {
 	manager   *plugins.Manager             // plugin manager for storage and service clients
 	config    Config                       // plugin config
 	stop      chan chan struct{}           // used to signal plugin to stop running
+	reconfig  chan plugins.ReconfigData    // used to receive updated configuration from periodic discovery
 	etag      string                       // last ETag header for caching purposes
 	status    *Status                      // current plugin status
 	listeners map[interface{}]func(Status) // listeners to send status updates to
@@ -135,6 +136,7 @@ func New(config []byte, manager *plugins.Manager) (*Plugin, error) {
 			Name: parsedConfig.Name,
 		},
 		listeners: map[interface{}]func(Status){},
+		reconfig:  make(chan plugins.ReconfigData),
 	}
 
 	return plugin, nil
@@ -153,6 +155,11 @@ func (p *Plugin) Stop(ctx context.Context) {
 	done := make(chan struct{})
 	p.stop <- done
 	_ = <-done
+}
+
+// Reconfigure notifies the plugin with a new configuration.
+func (p *Plugin) Reconfigure(config plugins.ReconfigData) {
+	p.reconfig <- config
 }
 
 // Register a lisetner to receive status updates. The name must be comparable.
@@ -208,6 +215,13 @@ func (p *Plugin) loop() {
 			} else {
 				retry = 0
 			}
+		case newConfig := <-p.reconfig:
+			err := p.reconfigure(newConfig)
+			if err != nil {
+				p.logError("%v.", err)
+			} else {
+				p.logInfo("Bundle plugin reconfigured successfully.")
+			}
 		case done := <-p.stop:
 			cancel()
 			done <- struct{}{}
@@ -215,6 +229,22 @@ func (p *Plugin) loop() {
 		}
 	}
 
+}
+
+func (p *Plugin) reconfigure(c plugins.ReconfigData) error {
+	var parsedConfig Config
+
+	if err := util.Unmarshal(c.Config, &parsedConfig); err != nil {
+		return err
+	}
+
+	p.manager = c.Manager
+
+	if err := parsedConfig.validateAndInjectDefaults(p.manager.Services()); err != nil {
+		return err
+	}
+	p.config = parsedConfig
+	return nil
 }
 
 func (p *Plugin) oneShot(ctx context.Context) (updated bool, err error) {

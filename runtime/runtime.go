@@ -127,9 +127,9 @@ func NewParams() Params {
 
 // Runtime represents a single OPA instance.
 type Runtime struct {
-	Params  Params
-	Store   storage.Store
-	Manager *plugins.Manager
+	Params    Params
+	Store     storage.Store
+	Discovery *discovery.Discovery
 
 	info                         *ast.Term // runtime information provided to evaluation engine
 	defaultDecision              ast.Ref
@@ -176,7 +176,7 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 
 	cfg, err := loadConfig(ctx, params.ID, store, params.ConfigFile)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrapf(err, "discovery")
 	}
 
 	var decisionLogger func(context.Context, *server.Info)
@@ -196,12 +196,12 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 
 	rt := &Runtime{
 		Store:                        store,
-		Manager:                      cfg.Manager,
 		Params:                       params,
 		info:                         info,
 		defaultDecision:              cfg.DefaultDecision,
 		defaultAuthorizationDecision: cfg.DefaultAuthorizationDecision,
 		decisionLogger:               decisionLogger,
+		Discovery:                    cfg,
 	}
 
 	return rt, nil
@@ -217,14 +217,14 @@ func (rt *Runtime) StartServer(ctx context.Context) {
 		"insecure_addr": rt.Params.InsecureAddr,
 	}).Infof("First line of log stream.")
 
-	if err := rt.Manager.Start(ctx); err != nil {
+	if err := rt.Discovery.Start(ctx); err != nil {
 		logrus.WithField("err", err).Fatalf("Unable to initialize plugins.")
 	}
-	defer rt.Manager.Stop(ctx)
+	defer rt.Discovery.Stop(ctx)
 
 	s, err := server.New().
 		WithStore(rt.Store).
-		WithManager(rt.Manager).
+		WithManager(rt.Discovery.Manager).
 		WithCompilerErrorLimit(rt.Params.ErrorLimit).
 		WithAddresses(*rt.Params.Addrs).
 		WithInsecureAddress(rt.Params.InsecureAddr).
@@ -273,11 +273,11 @@ func (rt *Runtime) StartServer(ctx context.Context) {
 // StartREPL starts the runtime in REPL mode. This function will block the calling goroutine.
 func (rt *Runtime) StartREPL(ctx context.Context) {
 
-	if err := rt.Manager.Start(ctx); err != nil {
+	if err := rt.Discovery.Start(ctx); err != nil {
 		fmt.Fprintln(rt.Params.Output, "error starting plugins:", err)
 		os.Exit(1)
 	}
-	defer rt.Manager.Stop(ctx)
+	defer rt.Discovery.Stop(ctx)
 
 	banner := rt.getBanner()
 	repl := repl.New(rt.Store, rt.Params.HistoryPath, rt.Params.Output, rt.Params.OutputFormat, rt.Params.ErrorLimit, banner).WithRuntime(rt.info)
@@ -487,9 +487,9 @@ func setupLogging(config LoggingConfig) {
 	logrus.SetLevel(lvl)
 }
 
-func loadConfig(ctx context.Context, id string, store storage.Store, configFile string) (*discovery.DiscoveredConfig, error) {
+func loadConfig(ctx context.Context, id string, store storage.Store, configFile string) (*discovery.Discovery, error) {
 
-	discoveredConfig, err := discovery.ConfigHandler(ctx, id, store, configFile, registeredPlugins)
+	discoveredConfig, err := discovery.New(ctx, id, store, configFile, registeredPlugins)
 	if err != nil {
 		return nil, err
 	}

@@ -107,3 +107,6 @@ multiple services.
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
 | `discovery.path` | `string` | Yes | Path to use to download configuration from remote server. |
+| `discovery.prefix` | `string` | No (default: `bundles`) | Path prefix to use to download configuration from remote server. |
+| `discovery.polling.min_delay_seconds` | `int64` | No (default: `60`) | Minimum amount of time to wait between configuration downloads. |
+| `discovery.polling.max_delay_seconds` | `int64` | No (default: `120`) | Maximum amount of time to wait between configuration downloads. |

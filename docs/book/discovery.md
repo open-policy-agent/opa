@@ -20,7 +20,7 @@ See the [Configuration Reference](configuration.md) for configuration details.
 OPA expects the service to expose an API endpoint that serves bundles.
 
 ```http
-GET /<service_url>/<discovery_path> HTTP/1.1
+GET /<service_url>/<discovery_prefix>/<discovery_path> HTTP/1.1
 ```
 
 If the bundle exists, the server should respond with an HTTP 200 OK status
@@ -43,9 +43,10 @@ services:
 
 discovery:
   path: /example/discovery
+  prefix: configuration
 ```
 
-OPA will fetch it's configuration from `https://example.com/control-plane-api/v1/example/discovery` and use that to initialize the other plugins like `bundles`, `status`, `decision logs`. 
+OPA will fetch it's configuration from `https://example.com/control-plane-api/v1/configuration/example/discovery` and use that to initialize the other plugins like `bundles`, `status`, `decision logs`. The `prefix` field is optional and by default set to `bundles`. Hence if `prefix` is not provided, OPA will fetch it's configuration from `https://example.com/control-plane-api/v1/bundles/example/discovery`.
 
 Below is an example of how configuration for `decision logs` can be included inside a policy file.
 

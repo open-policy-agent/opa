@@ -259,6 +259,49 @@ func TestPluginRequeue(t *testing.T) {
 	}
 }
 
+func TestPluginReconfigure(t *testing.T) {
+	ctx := context.Background()
+	fixture := newTestFixture(t)
+	defer fixture.server.stop()
+
+	if err := fixture.plugin.Start(ctx); err != nil {
+		t.Fatal(err)
+	}
+
+	minDelay := 2
+	maxDelay := 3
+
+	pluginConfig := []byte(fmt.Sprintf(`{
+			"service": "example",
+			"reporting": {
+				"min_delay_seconds": %v,
+				"max_delay_seconds": %v
+			}
+		}`, minDelay, maxDelay))
+
+	config := plugins.ReconfigData{
+		Config:  pluginConfig,
+		Manager: fixture.manager,
+	}
+
+	fixture.plugin.Reconfigure(config)
+	fixture.plugin.Stop(ctx)
+
+	actualMin := time.Duration(*fixture.plugin.config.Reporting.MinDelaySeconds) / time.Nanosecond
+	expectedMin := time.Duration(minDelay) * time.Second
+
+	if actualMin != expectedMin {
+		t.Fatalf("Expected minimum polling interval: %v but got %v", expectedMin, actualMin)
+	}
+
+	actualMax := time.Duration(*fixture.plugin.config.Reporting.MaxDelaySeconds) / time.Nanosecond
+	expectedMax := time.Duration(maxDelay) * time.Second
+
+	if actualMax != expectedMax {
+		t.Fatalf("Expected maximum polling interval: %v but got %v", expectedMax, actualMax)
+	}
+}
+
 type testFixture struct {
 	manager *plugins.Manager
 	plugin  *Plugin

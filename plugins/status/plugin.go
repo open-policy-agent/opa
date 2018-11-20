@@ -26,10 +26,11 @@ type UpdateRequestV1 struct {
 
 // Plugin implements status reporting. Updates can be triggered by the caller.
 type Plugin struct {
-	manager *plugins.Manager
-	config  Config
-	update  chan bundle.Status
-	stop    chan chan struct{}
+	manager  *plugins.Manager
+	config   Config
+	update   chan bundle.Status
+	stop     chan chan struct{}
+	reconfig chan plugins.ReconfigData
 }
 
 // Config contains configuration for the plugin.
@@ -70,10 +71,11 @@ func New(config []byte, manager *plugins.Manager) (*Plugin, error) {
 	}
 
 	plugin := &Plugin{
-		manager: manager,
-		config:  parsedConfig,
-		update:  make(chan bundle.Status),
-		stop:    make(chan chan struct{}),
+		manager:  manager,
+		config:   parsedConfig,
+		update:   make(chan bundle.Status),
+		stop:     make(chan chan struct{}),
+		reconfig: make(chan plugins.ReconfigData),
 	}
 
 	return plugin, nil
@@ -97,6 +99,11 @@ func (p *Plugin) Update(status bundle.Status) {
 	p.update <- status
 }
 
+// Reconfigure notifies the plugin with a new configuration.
+func (p *Plugin) Reconfigure(config plugins.ReconfigData) {
+	p.reconfig <- config
+}
+
 func (p *Plugin) loop() {
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -109,6 +116,14 @@ func (p *Plugin) loop() {
 				p.logError("%v.", err)
 			} else {
 				p.logInfo("Status update sent successfully.")
+			}
+
+		case newConfig := <-p.reconfig:
+			err := p.reconfigure(newConfig)
+			if err != nil {
+				p.logError("%v.", err)
+			} else {
+				p.logInfo("Status plugin reconfigured successfully.")
 			}
 
 		case done := <-p.stop:
@@ -146,6 +161,22 @@ func (p *Plugin) oneShot(ctx context.Context, status bundle.Status) error {
 	default:
 		return fmt.Errorf("Status update failed, server replied with HTTP %v", resp.StatusCode)
 	}
+}
+
+func (p *Plugin) reconfigure(c plugins.ReconfigData) error {
+	var parsedConfig Config
+
+	if err := util.Unmarshal(c.Config, &parsedConfig); err != nil {
+		return err
+	}
+
+	p.manager = c.Manager
+
+	if err := parsedConfig.validateAndInjectDefaults(p.manager.Services()); err != nil {
+		return err
+	}
+	p.config = parsedConfig
+	return nil
 }
 
 func (p *Plugin) logError(fmt string, a ...interface{}) {

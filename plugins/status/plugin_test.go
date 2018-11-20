@@ -81,6 +81,33 @@ func TestPluginBadStatus(t *testing.T) {
 	}
 }
 
+func TestPluginReconfigure(t *testing.T) {
+	ctx := context.Background()
+	fixture := newTestFixture(t)
+	defer fixture.server.stop()
+
+	if err := fixture.plugin.Start(ctx); err != nil {
+		t.Fatal(err)
+	}
+
+	pluginConfig := []byte(fmt.Sprintf(`{
+			"service": "example",
+			"partition_name": "test"
+		}`))
+
+	config := plugins.ReconfigData{
+		Config:  pluginConfig,
+		Manager: fixture.manager,
+	}
+
+	fixture.plugin.Reconfigure(config)
+	fixture.plugin.Stop(ctx)
+
+	if fixture.plugin.config.PartitionName != "test" {
+		t.Fatalf("Expected partition name: test but got %v", fixture.plugin.config.PartitionName)
+	}
+}
+
 type testFixture struct {
 	manager *plugins.Manager
 	plugin  *Plugin
