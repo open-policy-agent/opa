@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"math/rand"
 	"net/http"
+	"reflect"
 	"sync"
 	"time"
 
@@ -49,17 +50,21 @@ func (c *Config) validateAndInjectDefaults(services []string) error {
 		return fmt.Errorf("invalid bundle name %q", c.Name)
 	}
 
-	found := false
+	if c.Service == "" && len(services) != 0 {
+		c.Service = services[0]
+	} else {
+		found := false
 
-	for _, svc := range services {
-		if svc == c.Service {
-			found = true
-			break
+		for _, svc := range services {
+			if svc == c.Service {
+				found = true
+				break
+			}
 		}
-	}
 
-	if !found {
-		return fmt.Errorf("invalid service name %q in bundle %q", c.Service, c.Name)
+		if !found {
+			return fmt.Errorf("invalid service name %q in bundle %q", c.Service, c.Name)
+		}
 	}
 
 	min := defaultMinDelaySeconds
@@ -216,11 +221,13 @@ func (p *Plugin) loop() {
 				retry = 0
 			}
 		case newConfig := <-p.reconfig:
-			err := p.reconfigure(newConfig)
+			updated, err := p.reconfigure(newConfig)
 			if err != nil {
 				p.logError("%v.", err)
-			} else {
+			} else if updated {
 				p.logInfo("Bundle plugin reconfigured successfully.")
+			} else {
+				p.logDebug("No updated configuration for bundle plugin.")
 			}
 		case done := <-p.stop:
 			cancel()
@@ -231,20 +238,24 @@ func (p *Plugin) loop() {
 
 }
 
-func (p *Plugin) reconfigure(c plugins.ReconfigData) error {
+func (p *Plugin) reconfigure(c plugins.ReconfigData) (bool, error) {
 	var parsedConfig Config
 
 	if err := util.Unmarshal(c.Config, &parsedConfig); err != nil {
-		return err
+		return false, err
+	}
+
+	if reflect.DeepEqual(p.config, parsedConfig) {
+		return false, nil
 	}
 
 	p.manager = c.Manager
 
 	if err := parsedConfig.validateAndInjectDefaults(p.manager.Services()); err != nil {
-		return err
+		return false, err
 	}
 	p.config = parsedConfig
-	return nil
+	return true, nil
 }
 
 func (p *Plugin) oneShot(ctx context.Context) (updated bool, err error) {

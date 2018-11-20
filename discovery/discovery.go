@@ -121,15 +121,6 @@ func New(ctx context.Context, opaID string, store storage.Store, configFile stri
 		if err != nil {
 			return nil, err
 		}
-
-		bs, _, err = discoveryHandler(ctx, discPathConfig, m)
-		if err != nil {
-			return nil, err
-		}
-
-		if bs != nil {
-			m.Update(bs)
-		}
 	}
 
 	plugins, err := configurePlugins(m, bs, registeredPlugins)
@@ -190,7 +181,7 @@ func (c *Discovery) loop() {
 		} else if !updated {
 			c.logDebug("Configuration download skipped, server replied with not modified.")
 		} else {
-			c.logInfo("New configuration successfully downloaded. Now re-configuring plugins.")
+			c.logInfo("New configuration successfully downloaded. Now updating plugins.")
 
 			if bs != nil {
 				c.Manager.Update(bs)
@@ -199,8 +190,6 @@ func (c *Discovery) loop() {
 			err = c.reconfigurePlugins(ctx, bs)
 			if err != nil {
 				c.logError("%v.", err)
-			} else {
-				c.logInfo("Plugins reconfigured successfully.")
 			}
 		}
 

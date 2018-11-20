@@ -23,7 +23,8 @@ type Plugin interface {
 	Reconfigure(config ReconfigData)
 }
 
-// ReconfigData contains a plugin's updated configuration
+// ReconfigData contains a plugin's updated configuration and an instance of
+// the plugin manager.
 type ReconfigData struct {
 	Config  []byte
 	Manager *Manager
