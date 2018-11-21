@@ -275,7 +275,7 @@ func (p *Plugin) download(ctx context.Context, resp *http.Response) (*bundle.Bun
 
 	p.logDebug("Bundle download in progress.")
 
-	b, err := bundle.Read(resp.Body)
+	b, err := bundle.NewReader(resp.Body).Read()
 	if err != nil {
 		return nil, err
 	}
