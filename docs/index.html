@@ -11,6 +11,7 @@
   </head>
   <body>
     <svg xmlns="http://www.w3.org/2000/svg" style="display:none">
+      <symbol id="icon--arrow-up" viewBox="0 0 24 24"><path d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z"/><path d="M0 0h24v24H0z" fill="none"/></symbol>
       <symbol id="social-icon--medium" viewBox="0 0 55 55"><path d="M27.5 0C12.3 0 0 12.3 0 27.5S12.3 55 27.5 55 55 42.7 55 27.5 42.7 0 27.5 0zm-6.2 40.6l-9.6-4.7c-.1-.1-.3-.3-.3-.5V13.6l9.8 4.9v22.1h.1zm1.2-10.4v-9.9l8.8 14.3-8.8-4.4zm3.9-5.8l6.8-10.9 9.9 5L32.9 35l-6.5-10.6zm17 16.2l-9.6-4.7 9.6-15.6v20.3z"/></symbol>
       <symbol id="social-icon--slack" viewBox="0 0 55 55"><path d="M23.45 25.382l6.066-2.04 2.01 5.97-6.067 2.04-2.01-5.97z"/><path d="M27.5 0C12.3 0 0 12.3 0 27.5S12.3 55 27.5 55 55 42.7 55 27.5 42.7 0 27.5 0zm14 31.9l-2.9 1 1 3c.5 1.5-.3 3-1.7 3.5-1.5.5-3-.3-3.5-1.7l-1-3-6.1 2 1 3c.5 1.5-.3 3-1.7 3.5-1.5.5-3-.3-3.5-1.7l-1-3-2.8.9c-1.5.5-3-.3-3.5-1.7-.5-1.5.3-3 1.7-3.5l2.8-.9-2-5.9-2.9 1c-1.5.5-3-.3-3.5-1.7-.5-1.5.3-3 1.7-3.5l2.9-1-1-2.8c-.5-1.5.3-3 1.7-3.5 1.5-.5 3 .3 3.5 1.7l1 2.8 6.1-2-1-2.9c-.5-1.5.3-3 1.7-3.5 1.5-.5 3 .3 3.5 1.7l1 2.9 2.9-1c1.5-.5 3 .3 3.5 1.7.5 1.5-.3 3-1.7 3.5l-2.9 1 2 5.9 2.9-1c1.5-.5 3 .3 3.5 1.7s-.3 3-1.7 3.5z"/></symbol>
       <symbol id="social-icon--twitter" viewBox="0 0 400 400"><path fill-rule="evenodd" clip-rule="evenodd" d="M400 200c0 110.457-89.543 200-200 200S0 310.457 0 200 89.543 0 200 0s200 89.543 200 200zm-99.4-31.7c0 63.7-48.5 137.2-137.2 137.2-27.2 0-52.6-8-73.7-21.8 3.8.5 7.6.7 11.5.7 22.6 0 43.4-7.7 59.9-20.6-21.1-.4-38.9-14.3-45-33.5 3 .6 6 .9 9.1.9 4.4 0 8.7-.6 12.7-1.7-22.1-4.5-38.7-23.9-38.7-47.3v-.6c6.5 3.6 13.9 5.8 21.8 6-13-8.6-21.5-23.4-21.5-40.1 0-8.8 2.4-17.1 6.5-24.2 23.8 29.2 59.3 48.4 99.4 50.4-.9-3.5-1.3-7.2-1.3-11 0-26.6 21.6-48.2 48.2-48.2 13.9 0 26.4 5.8 35.2 15.2 11-2.2 21.3-6.2 30.6-11.7-3.6 11.3-11.2 20.7-21.2 26.7 9.8-1.2 19.1-3.8 27.7-7.6-6.5 9.7-14.7 18.2-24.1 25 .1 2 .1 4.1.1 6.2z"/></symbol>
@@ -49,13 +50,50 @@
     </header>
 
     <main role="main">
-      <section>
+      <section class="traits">
+        <div class="content">
+          <h2 class="traits--title">Traits</h2>
+
+          <dl class="traits--list">
+            <div class="trait trait--unified">
+              <dt class="trait--title">Unified</dt>
+              <dd class="trait--body">Decouple policy decisions from your services to achieve unified control across the entire stack with any language or service.</dd>
+            </div>
+
+            <div class="trait trait--declarative">
+              <dt class="trait--title">Declarative</dt>
+              <dd class="trait--body">Express policies in a high-level declarative language that promotes safe, fine-grained logic and enables powerful features such as impact analysis, hot reloading, query optimization, and more.</dd>
+            </div>
+
+            <div class="trait trait--context-aware">
+              <dt class="trait--title">Context-Aware</dt>
+              <dd class="trait--body">Leverage arbitrary external document-oriented data (JSON) in policies to ensure that important requirements are enforced throughout the organization.</dd>
+            </div>
+          </dl>
+        </div>
+      </section>
+
+      <section id="use-cases">
         <div class="use-cases">
           <div class="use-cases--wave" role="presentation"></div>
           <div class="content">
             <div class="use-cases--content">
               <h2>Use Cases</h2>
-              <p>OPA is a general-purpose policy engine that helps solve use cases ranging from authorization and admission control to resource placement. OPA provides greater flexibility and expressiveness than hard-coded service logic or ad-hoc domain-specific languages and comes with powerful tooling to help you get started.</p>
+
+              <div class="use-cases--content--columns">
+                <p>Open Policy Agent (OPA) is a general-purpose policy engine with uses ranging from authorization and admission control to data filtering. OPA provides greater flexibility and expressiveness than hard-coded service logic or ad-hoc domain-specific languages. And it comes with powerful tooling to help you get started.</p>
+
+                <div>
+                  <p>Here are just a few examples of what you can do with OPA:</p>
+
+                  <ul class="use-cases--toc">
+                    <li class="use-cases--toc--item"><a href="#admission-control">Kubernetes Admission Control</a></li>
+                    <li class="use-cases--toc--item"><a href="#api-authorization">HTTP API Authorization</a></li>
+                    <li class="use-cases--toc--item"><a href="#remote-access">Remote Access</a></li>
+                    <li class="use-cases--toc--item"><a href="#partial-evaluation">Data Filtering with Partial Evaluation</a></li>
+                  </ul>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -66,7 +104,10 @@
           <section class="content">
             <h2 class="examples--title">Examples</h2>
 
-            <section class="example">
+
+            <section id="admission-control" class="example">
+              <a class="action--scroll-up" href="/"><svg class="action-icon"><title>Scroll back</title><use xlink:href="#icon--arrow-up"/></svg></a>
+
               <h3 class="example--title">Kubernetes Admission Control</h3>
 
               <img role="presentation" class="example--graphic" src="img/kubernetes-admission-control.svg">
@@ -116,9 +157,14 @@
     <span class="code--local">list</span>[<span class="code--operator">_</span>] <span class="code--operator">=</span> <span class="code--local">item</span>
 }</pre>
               </div>
+
+              <div class="example--wave--bg" role="presentation"></div>
+              <div class="example--wave--fg" role="presentation"></div>
             </section>
 
-            <section class="example">
+            <section  id="api-authorization" class="example">
+              <a class="action--scroll-up" href="/"><svg class="action-icon"><title>Scroll back</title><use xlink:href="#icon--arrow-up"/></svg></a>
+
               <h3 class="example--title">HTTP API Authorization</h3>
 
               <img role="presentation" class="example--graphic" src="img/api-authorization.svg">
@@ -150,9 +196,14 @@
     <span class="code--package">input</span>.user <span class="code--operator">=</span> <span class="code--package">data</span>.manager_of[<span class="code--local">employee_id</span>]
 }</pre>
               </div>
+
+              <div class="example--wave--bg" role="presentation"></div>
+              <div class="example--wave--fg" role="presentation"></div>
             </section>
 
-            <section class="example">
+            <section id="remote-access" class="example">
+              <a class="action--scroll-up" href="/"><svg class="action-icon"><title>Scroll back</title><use xlink:href="#icon--arrow-up"/></svg></a>
+
               <h3 class="example--title">Remote Access Authorization</h3>
 
               <img role="presentation" class="example--graphic" src="img/ssh-authorization.svg">
@@ -185,9 +236,14 @@
     <span class="code--builtin">time</span>.<span class="code--builtin">now_ns</span>() <span class="code--operator"><=</span> <span class="code--local">certs</span>[<span class="code--local">i</span>].NotAfter
 }</pre>
               </div>
+
+              <div class="example--wave--bg" role="presentation"></div>
+              <div class="example--wave--fg" role="presentation"></div>
             </section>
 
-            <section class="example">
+            <section id="partial-evaluation" class="example">
+              <a class="action--scroll-up" href="/"><svg class="action-icon"><title>Scroll back</title><use xlink:href="#icon--arrow-up"/></svg></a>
+
               <h3 class="example--title">Data Filtering and Partial Evaluation</h3>
 
               <img role="presentation" class="example--graphic" src="img/partial-evaluation.svg">
@@ -224,9 +280,9 @@
 <span class="code--comment"># Allow users to get specific posts.</span>
 <span class="code--rule">allow</span> {
     <span class="code--package">input</span>.method <span class="code--operator">=</span> <span class="code--string">"GET"</span>
-    <span class="code--package">input</span>.path <span class="code--operator">=</span> [<span class="code--string">"posts"</span>, post_id]
+    <span class="code--package">input</span>.path <span class="code--operator">=</span> [<span class="code--string">"posts"</span>, <span class="code--local">post_id</span>]
     <span class="code--rule">posts</span>[<span class="code--local">post</span>]
-    <span class="code--local">post</span>.id <span class="code--operator">=</span> post_id
+    <span class="code--local">post</span>.id <span class="code--operator">=</span> <span class="code--local">post_id</span>
 }
 
 <span class="code--comment"># Allow users to list posts.</span>
@@ -236,10 +292,12 @@
     <span class="code--rule">posts</span>[<span class="code--local">post</span>]
 }</pre>
               </div>
+
+              <div class="example--wave--bg" role="presentation"></div>
+              <div class="example--wave--fg" role="presentation"></div>
             </section>
           </section>
-        <div>
-      </section>
+      </div>
     </main>
 
     <footer role="contentinfo">
@@ -263,6 +321,104 @@
 
     <script>
       (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){(i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)})(window,document,'script','https://www.google-analytics.com/analytics.js','ga');ga('create', 'UA-84550302-1', 'auto');ga('send', 'pageview');
+    </script>
+    <script>
+      (function () {
+        var scrollIncrement = 4
+        var scrollTop = 0
+        var page
+
+        function clearSchedule(x) {
+          clearTimeout(x)
+        }
+
+        function setSchedule(x) {
+          setTimeout(x, 16)
+        }
+
+        function schedule(callback) {
+          var frameId
+
+          (function () {
+            clearSchedule(frameId)
+            frameId = setSchedule(callback)
+          }())
+        }
+
+        function calculateScrollTop(el) {
+          var y = 0
+          var node = el
+
+          while (node) {
+            y += node.offsetTop
+            node = node.offsetParent
+          }
+
+          return y
+        }
+
+        var scrollIncrement = 4
+
+        function animateScrollTop(top, n) {
+          var n = n || 1
+
+          schedule(function () {
+            var diff = top - page.scrollTop
+            var increment = scrollIncrement * n
+
+            if (diff) {
+              if (Math.abs(diff) < increment) {
+                page.scrollTop += diff
+              } else if (diff > 0) {
+                page.scrollTop += increment
+              } else {
+                page.scrollTop -= increment
+              }
+
+              animateScrollTop(top, ++n)
+            }
+          })
+        }
+
+        function scrollIntoView(event) {
+          var el = document.getElementById(event.currentTarget.getAttribute('href').substr(1))
+          animateScrollTop(calculateScrollTop(el) - 120)
+
+          // XXX: When Chrome 70.0.3538.77 navigates to an internal anchor (#),
+          // it breaks the page layout so we don’t want to do that.
+          event.preventDefault()
+        }
+
+        function scrollUp(event) {
+          animateScrollTop(calculateScrollTop(document.getElementById('use-cases')))
+          event.preventDefault()
+        }
+
+        function ready() {
+          page = document.documentElement
+
+          if (typeof requestAnimationFrame === 'function') {
+            clearFrame = cancelAnimationFrame
+            setFrame = requestAnimationFrame
+          }
+
+          var anchors = document.getElementsByTagName('a')
+
+          for (let i = 0, n = anchors.length; i < n; ++i) {
+            var anchor = anchors[i]
+            var href = anchor.getAttribute('href')
+            var classes = (anchor.className || '').split(/\s+/)
+
+            if (href && href[0] === '#') {
+              anchor.addEventListener('click', scrollIntoView)
+            } else if (classes.indexOf('action--scroll-up') > -1) {
+              anchor.addEventListener('click', scrollUp)
+            }
+          }
+        }
+
+        (function check() { /complete/.test(document.readyState) ? ready() : setTimeout(check) }())
+      }())
     </script>
   </body>
 </html>
