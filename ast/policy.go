@@ -1057,7 +1057,7 @@ func (expr *Expr) String() string {
 	}
 	switch t := expr.Terms.(type) {
 	case []*Term:
-		if expr.IsEquality() {
+		if expr.IsEquality() && validEqAssignArgCount(expr) {
 			buf = append(buf, fmt.Sprintf("%v %v %v", t[1], Equality.Infix, t[2]))
 		} else {
 			buf = append(buf, Call(t).String())
@@ -1227,3 +1227,9 @@ type ruleSlice []*Rule
 func (s ruleSlice) Less(i, j int) bool { return Compare(s[i], s[j]) < 0 }
 func (s ruleSlice) Swap(i, j int)      { x := s[i]; s[i] = s[j]; s[j] = x }
 func (s ruleSlice) Len() int           { return len(s) }
+
+// Returns true if the equality or assignment expression referred to by expr
+// has a valid number of arguments.
+func validEqAssignArgCount(expr *Expr) bool {
+	return len(expr.Operands()) == 2
+}
