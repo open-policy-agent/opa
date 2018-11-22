@@ -793,7 +793,7 @@ func (r *REPL) evalStatement(ctx context.Context, stmt interface{}) error {
 
 		parsedBody := s
 
-		if len(parsedBody) == 1 && parsedBody[0].IsAssignment() {
+		if len(parsedBody) == 1 && parsedBody[0].IsAssignment() && len(parsedBody[0].Operands()) == 2 {
 			expr := parsedBody[0]
 			rule, err := ast.ParseCompleteDocRuleFromEqExpr(r.modules[r.currentModuleID], expr.Operand(0), expr.Operand(1))
 			if err == nil {

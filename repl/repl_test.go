@@ -919,6 +919,12 @@ func TestEvalConstantRuleAssignment(t *testing.T) {
 	if result != "1\n" {
 		t.Fatalf("Expected 1 but got: %v", result)
 	}
+
+	buffer.Reset()
+	err := repl.OneShot(ctx, "assign()")
+	if err == nil || !strings.Contains(err.Error(), "too few arguments") {
+		t.Fatal("Expected type check error but got:", err)
+	}
 }
 
 func TestEvalSingleTermMultiValue(t *testing.T) {
