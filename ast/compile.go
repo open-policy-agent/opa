@@ -1677,10 +1677,12 @@ func outputVarsForExprBuiltin(expr *Expr, b *Builtin, safe VarSet) VarSet {
 }
 
 func outputVarsForExprEq(expr *Expr, safe VarSet) VarSet {
-	ts := expr.Terms.([]*Term)
+	if !validEqAssignArgCount(expr) {
+		return safe
+	}
 	output := outputVarsForExprRefs(expr, safe)
 	output.Update(safe)
-	output.Update(Unify(output, ts[1], ts[2]))
+	output.Update(Unify(output, expr.Operand(0), expr.Operand(1)))
 	return output.Diff(safe)
 }
 
@@ -2053,7 +2055,7 @@ func assignedVars(x interface{}) VarSet {
 	vis := NewGenericVisitor(func(x interface{}) bool {
 		switch x := x.(type) {
 		case *Expr:
-			if x.IsAssignment() {
+			if x.IsAssignment() && validEqAssignArgCount(x) {
 				WalkVars(x.Operand(0), func(v Var) bool {
 					vars.Add(v)
 					return false
@@ -2171,8 +2173,11 @@ func rewriteDynamics(f *equalityFactory, body Body) Body {
 }
 
 func rewriteDynamicsEqExpr(f *equalityFactory, expr *Expr) []*Expr {
-	terms := expr.Terms.([]*Term)
 	var extras []*Expr
+	if !validEqAssignArgCount(expr) {
+		return append(extras, expr)
+	}
+	terms := expr.Terms.([]*Term)
 	extras, terms[1] = rewriteDynamicsInTerm(expr, f, terms[1], nil)
 	extras, terms[2] = rewriteDynamicsInTerm(expr, f, terms[2], extras)
 	return append(extras, expr)
@@ -2480,6 +2485,10 @@ func rewriteDeclaredAssignment(g *localVarGenerator, stack *localDeclaredVars, e
 	}
 
 	numErrsBefore := len(errs)
+
+	if !validEqAssignArgCount(expr) {
+		return errs
+	}
 
 	// Rewrite terms on right hand side capture seen vars and recursively
 	// process comprehensions before left hand side is processed.
