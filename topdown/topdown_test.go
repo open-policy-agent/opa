@@ -2644,6 +2644,7 @@ virtual_doc_not_specific_index = true { not ex.virtual["d"] with data.a.b as {"c
 test_mock_var = y {y = ex.mock_var with ex.mock_var as {"c": 1, "d": 2}}
 test_mock_rule {ex.mock_rule with ex.mock_rule as true}
 test_rule_chain {ex.allow with data.label.b.c as [1,2,3]}
+only_with_data_no_with_input { ex.input_eq with data.foo as 1 }
 `,
 	})
 
@@ -2670,6 +2671,7 @@ test_rule_chain {ex.allow with data.label.b.c as [1,2,3]}
 	assertTopDownWithPath(t, compiler, store, "with mock var", []string{"test", "test_mock_var"}, "", `{"c": 1, "d": 2}`)
 	assertTopDownWithPath(t, compiler, store, "with mock rule", []string{"test", "test_mock_rule"}, "", "true")
 	assertTopDownWithPath(t, compiler, store, "with rule chain", []string{"test", "test_rule_chain"}, "", "true")
+	assertTopDownWithPath(t, compiler, store, "bug 1083", []string{"test", "only_with_data_no_with_input"}, "", "")
 
 }
 
