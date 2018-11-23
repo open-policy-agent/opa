@@ -299,12 +299,20 @@ func (e *eval) evalWith(iter evalIterator) error {
 		e.withCache.Put(ref, pair[1].Value)
 	}
 
-	old := e.input
-	e.input = ast.NewTerm(input)
+	var old *ast.Term
+
+	if input != nil {
+		old = e.input
+		e.input = ast.NewTerm(input)
+	}
+
 	e.virtualCache.Push()
 	err = e.evalStep(iter)
 	e.virtualCache.Pop()
-	e.input = old
+
+	if input != nil {
+		e.input = old
+	}
 
 	for _, pair := range pairsData {
 		ref := pair[0].Value.(ast.Ref)
