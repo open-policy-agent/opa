@@ -21,36 +21,18 @@ If you want to build and serve the site locally, you need the following packages
 installed on your system:
 
 - npm
-- [gulp](http://gulpjs.com/)
 - [gitbook](https://github.com/GitbookIO/gitbook)
 
 ### Build and preview the docs locally
 
 ```
 cd book
-gitbook install
 gitbook serve
 ```
 
 > This will build the docs under `./book/_book`.
 
-### Build and preview the entire site (front page and docs) locally
-
-```
-cd book; gitbook install; gitbook build; cd ..
-npm install
-gulp copy-book
-gulp serve
-```
-
-### Build and preview (only) the front page locally
-
-```
-npm install
-gulp
-```
-
-### Build site for release
+### Build site for release or preview locally
 
 From the root directory:
 
@@ -58,8 +40,8 @@ From the root directory:
 make docs
 ```
 
-This will also serve the site on port 4000. The site will be saved to
-`site.tar.gz` in the root directory.
+This will  serve the site on port 4000. The site will be saved to `site.tar.gz`
+in the root directory.
 
 ### Update the website
 

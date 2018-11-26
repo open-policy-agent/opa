@@ -32,19 +32,19 @@ if [ -z "$OUTPUT_DIR" ]; then
     exit 2
 fi
 
-# build docs
-cd $OPA_DIR/docs/book
-gitbook install
-gitbook build
+BOOK_DIR=$OPA_DIR/docs/book
+pushd $BOOK_DIR
+gitbook -v 3.2.3 build
+popd
 
-# build front page
-cd $OPA_DIR/docs
-npm install
-gulp build
-
-# save output
-tar czvf $OUTPUT_DIR/site.tar.gz -C $OPA_DIR/docs/_site/ .
+SITE_DIR=$OPA_DIR/docs/_site
+rm -fr $SITE_DIR && mkdir $SITE_DIR
+cp -r $BOOK_DIR/_book/ $SITE_DIR/docs
+cp $OPA_DIR/docs/index.html $SITE_DIR/
+cp $OPA_DIR/docs/style.css $SITE_DIR/
+cp -r $OPA_DIR/docs/img $SITE_DIR/
+tar czvf $OUTPUT_DIR/site.tar.gz -C $SITE_DIR .
 
 if [ -n "$PORT" ]; then
-    cd $OPA_DIR/docs/_site; python -m SimpleHTTPServer $PORT
+    cd $SITE_DIR; python -m SimpleHTTPServer $PORT
 fi
