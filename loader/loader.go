@@ -303,7 +303,8 @@ func loadFileForAnyType(path string, bs []byte) (interface{}, error) {
 }
 
 func loadBundle(bs []byte) (bundle.Bundle, error) {
-	return bundle.Read(bytes.NewBuffer(bs))
+	br := bundle.NewReader(bytes.NewBuffer(bs)).IncludeManifestInData(true)
+	return br.Read()
 }
 
 func loadRego(path string, bs []byte) (*RegoFile, error) {
