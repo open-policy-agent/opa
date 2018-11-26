@@ -262,35 +262,32 @@
 <span class="code--comment"># ---------------------------------------------------------------------
 # Data Filtering</span>
 
-<span class="code--comment"># Enumerate the set of posts the user is allowed to see.</span>
+<span class="code--comment"># Allow users to see their own posts.</span>
 <span class="code--rule">posts</span>[<span class="code--local">post</span>] {
     <span class="code--local">post</span> <span class="code--operator">:=</span> <span class="code--package">data</span>.posts[<span class="code--operator">_</span>]
+    <span class="code--local">post</span>.owner <span class="code--operator">=</span> <span class="code--package">input</span>.subject.name
+}
 
-    <span class="code--comment"># Users are allowed to see posts at (or below) their clearance
-    # level in their own department.</span>
+<span class="code--comment"># Allow users to see posts from their own department</span>
+<span class="code--comment"># that they have sufficient clearance for.</span>
+<span class="code--rule">posts</span>[<span class="code--local">post</span>] {
+    <span class="code--local">post</span> <span class="code--operator">:=</span> <span class="code--package">data</span>.posts[<span class="code--operator">_</span>]
     <span class="code--local">post</span>.department <span class="code--operator">=</span> <span class="code--package">input</span>.subject.department
-    <span class="code--local">post</span>.security_level <span class="code--operator"><=</span> <span class="code--package">input</span>.subject.clearance_level
+    <span class="code--local">post</span>.security_level <span class="code--operator">&lt;=</span> <span class="code--package">input</span>.subject.clearance_level
 }
 
-<span class="code--comment"># ---------------------------------------------------------------------
-# API Authorization</span>
+<span class="code--comment"># Example Output:</span>
+<span class="code--comment">#</span>
+<span class="code--comment">#  Conditions (1)</span>
+<span class="code--comment">#  --------------</span>
+<span class="code--comment">#  data.posts[x].owner = "bob"</span>
+<span class="code--comment">#</span>
+<span class="code--comment">#  Conditions (2)</span>
+<span class="code--comment">#  --------------</span>
+<span class="code--comment">#  data.posts[x].department = "ops"</span>
+<span class="code--comment">#  data.posts[x].clearance_level &lt;= 3</span>
 
-<span class="code--keyword">default</span> <span class="code--rule">allow</span> <span class="code--operator">=</span> <span class="code--primitive">false</span>
-
-<span class="code--comment"># Allow users to get specific posts.</span>
-<span class="code--rule">allow</span> {
-    <span class="code--package">input</span>.method <span class="code--operator">=</span> <span class="code--string">"GET"</span>
-    <span class="code--package">input</span>.path <span class="code--operator">=</span> [<span class="code--string">"posts"</span>, <span class="code--local">post_id</span>]
-    <span class="code--rule">posts</span>[<span class="code--local">post</span>]
-    <span class="code--local">post</span>.id <span class="code--operator">=</span> <span class="code--local">post_id</span>
-}
-
-<span class="code--comment"># Allow users to list posts.</span>
-<span class="code--rule">allow</span> {
-    <span class="code--package">input</span>.method <span class="code--operator">=</span> <span class="code--string">"GET"</span>
-    <span class="code--package">input</span>.path <span class="code--operator">=</span> [<span class="code--string">"posts"</span>]
-    <span class="code--rule">posts</span>[<span class="code--local">post</span>]
-}</pre>
+</pre>
               </div>
 
               <div class="example--wave--bg" role="presentation"></div>
