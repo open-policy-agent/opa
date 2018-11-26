@@ -174,8 +174,12 @@ docs:
 		-v $(PWD):/go/src/github.com/open-policy-agent/opa \
 		-w /go/src/github.com/open-policy-agent/opa \
 		-p 4000:4000 \
+		-u $(shell id -u $(USER)):$(shell id -g $(USER)) \
+		-e GITBOOK_DIR=/go/src/github.com/open-policy-agent/opa/.gitbook \
+		-e npm_config_cache=/go/src/github.com/open-policy-agent/opa/.npm \
 		$(REPOSITORY)/release-builder:$(RELEASE_BUILDER_VERSION) \
 		./build/build-docs.sh --output-dir=/go/src/github.com/open-policy-agent/opa --serve=4000
+
 
 ######################################################
 #
