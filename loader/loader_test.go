@@ -186,8 +186,11 @@ func TestLoadBundle(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		if !reflect.DeepEqual(testBundle.Data, loaded.Documents) {
-			t.Fatalf("Expected %v but got: %v", testBundle.Data, loaded.Documents)
+		actualData := testBundle.Data
+		actualData["system"] = map[string]interface{}{"bundle": map[string]interface{}{"manifest": map[string]interface{}{"revision": ""}}}
+
+		if !reflect.DeepEqual(actualData, loaded.Documents) {
+			t.Fatalf("Expected %v but got: %v", actualData, loaded.Documents)
 		}
 
 		if !bytes.Equal(testBundle.Modules[0].Raw, loaded.Modules["/x.rego"].Raw) {

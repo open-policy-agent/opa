@@ -31,6 +31,8 @@ const (
 
 const bundleLimitBytes = (1024 * 1024 * 1024) + 1 // limit bundle reads to 1GB to protect against gzip bombs
 
+var manifestPath = []string{"system", "bundle", "manifest"}
+
 // Bundle represents a loaded bundle. The bundle can contain data and policies.
 type Bundle struct {
 	Manifest Manifest
@@ -51,57 +53,34 @@ type ModuleFile struct {
 	Parsed *ast.Module
 }
 
-// Write serializes the Bundle and writes it to w.
-func Write(w io.Writer, bundle Bundle) error {
-	gw := gzip.NewWriter(w)
-	tw := tar.NewWriter(gw)
-
-	var buf bytes.Buffer
-
-	if err := json.NewEncoder(&buf).Encode(bundle.Data); err != nil {
-		return err
-	}
-
-	if err := writeFile(tw, "data.json", buf.Bytes()); err != nil {
-		return err
-	}
-
-	for _, module := range bundle.Modules {
-		if err := writeFile(tw, module.Path, module.Raw); err != nil {
-			return err
-		}
-	}
-
-	if err := writeManifest(tw, bundle); err != nil {
-		return err
-	}
-
-	if err := tw.Close(); err != nil {
-		return err
-	}
-
-	return gw.Close()
+// Reader contains the reader to load the bundle from.
+type Reader struct {
+	r                     io.Reader
+	includeManifestInData bool
 }
 
-func writeManifest(tw *tar.Writer, bundle Bundle) error {
+// NewReader returns a new Reader.
+func NewReader(r io.Reader) *Reader {
+	nr := Reader{}
+	nr.r = r
+	return &nr
+}
 
-	var buf bytes.Buffer
-
-	if err := json.NewEncoder(&buf).Encode(bundle.Manifest); err != nil {
-		return err
-	}
-
-	return writeFile(tw, manifestExt, buf.Bytes())
+// IncludeManifestInData sets whether the manifest metadata should be
+// included in the bundle's data.
+func (r *Reader) IncludeManifestInData(includeManifestInData bool) *Reader {
+	r.includeManifestInData = includeManifestInData
+	return r
 }
 
 // Read returns a new Bundle loaded from the reader.
-func Read(r io.Reader) (Bundle, error) {
+func (r *Reader) Read() (Bundle, error) {
 
 	var bundle Bundle
 
 	bundle.Data = map[string]interface{}{}
 
-	gr, err := gzip.NewReader(r)
+	gr, err := gzip.NewReader(r.r)
 	if err != nil {
 		return bundle, errors.Wrap(err, "bundle read failed")
 	}
@@ -161,12 +140,72 @@ func Read(r io.Reader) (Bundle, error) {
 
 		} else if strings.HasSuffix(path, manifestExt) {
 			if err := util.NewJSONDecoder(&buf).Decode(&bundle.Manifest); err != nil {
-				return bundle, errors.Wrapf(err, "bundle load failed on manifest")
+				return bundle, errors.Wrap(err, "bundle load failed on manifest decode")
+			}
+
+			if r.includeManifestInData {
+				var metadata map[string]interface{}
+				b, err := json.Marshal(&bundle.Manifest)
+				if err != nil {
+					return bundle, errors.Wrap(err, "bundle load failed on manifest marshal")
+				}
+
+				err = util.UnmarshalJSON(b, &metadata)
+				if err != nil {
+					return bundle, errors.Wrap(err, "bundle load failed on manifest unmarshal")
+				}
+
+				if err := bundle.insert(manifestPath, metadata); err != nil {
+					return bundle, errors.Wrapf(err, "bundle load failed on %v", manifestPath)
+				}
 			}
 		}
 	}
 
 	return bundle, nil
+}
+
+// Write serializes the Bundle and writes it to w.
+func Write(w io.Writer, bundle Bundle) error {
+	gw := gzip.NewWriter(w)
+	tw := tar.NewWriter(gw)
+
+	var buf bytes.Buffer
+
+	if err := json.NewEncoder(&buf).Encode(bundle.Data); err != nil {
+		return err
+	}
+
+	if err := writeFile(tw, "data.json", buf.Bytes()); err != nil {
+		return err
+	}
+
+	for _, module := range bundle.Modules {
+		if err := writeFile(tw, module.Path, module.Raw); err != nil {
+			return err
+		}
+	}
+
+	if err := writeManifest(tw, bundle); err != nil {
+		return err
+	}
+
+	if err := tw.Close(); err != nil {
+		return err
+	}
+
+	return gw.Close()
+}
+
+func writeManifest(tw *tar.Writer, bundle Bundle) error {
+
+	var buf bytes.Buffer
+
+	if err := json.NewEncoder(&buf).Encode(bundle.Manifest); err != nil {
+		return err
+	}
+
+	return writeFile(tw, manifestExt, buf.Bytes())
 }
 
 // Equal returns true if this bundle's contents equal the other bundle's
