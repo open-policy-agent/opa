@@ -9,6 +9,7 @@ import (
 	"context"
 	"encoding/json"
 	"sync"
+	"time"
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/plugins/rest"
@@ -26,8 +27,20 @@ type Plugin interface {
 // ReconfigData contains a plugin's updated configuration and an instance of
 // the plugin manager.
 type ReconfigData struct {
-	Config  []byte
+	Config  interface{}
 	Manager *Manager
+}
+
+// Status represents the status of a plugin.
+type Status struct {
+	Plugin                   string    `json:"plugin"`
+	Name                     string    `json:"name"`
+	ActiveRevision           string    `json:"active_revision,omitempty"`
+	LastSuccessfulActivation time.Time `json:"last_successful_activation,omitempty"`
+	LastSuccessfulDownload   time.Time `json:"last_successful_download,omitempty"`
+	Code                     string    `json:"code,omitempty"`
+	Message                  string    `json:"message,omitempty"`
+	Errors                   []error   `json:"errors,omitempty"`
 }
 
 // PluginInitFunc defines the interface for the constructing plugins from configuration.

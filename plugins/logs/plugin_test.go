@@ -279,8 +279,10 @@ func TestPluginReconfigure(t *testing.T) {
 			}
 		}`, minDelay, maxDelay))
 
+	c, _ := ParseConfig(pluginConfig, fixture.manager.Services())
+
 	config := plugins.ReconfigData{
-		Config:  pluginConfig,
+		Config:  c,
 		Manager: fixture.manager,
 	}
 
@@ -343,7 +345,9 @@ func newTestFixture(t *testing.T) testFixture {
 			"service": "example",
 		}`))
 
-	p, err := New(pluginConfig, manager)
+	config, _ := ParseConfig([]byte(pluginConfig), manager.Services())
+
+	p, err := New(config, manager)
 	if err != nil {
 		t.Fatal(err)
 	}

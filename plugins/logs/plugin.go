@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"math/rand"
 	"net/http"
-	"reflect"
 	"strings"
 	"sync"
 	"time"
@@ -120,6 +119,35 @@ func (c *Config) validateAndInjectDefaults(services []string) error {
 	return nil
 }
 
+func (c *Config) equal(other Config) bool {
+
+	if c.Service != other.Service {
+		return false
+	}
+
+	if c.PartitionName != other.PartitionName {
+		return false
+	}
+
+	if *c.Reporting.MaxDelaySeconds != *other.Reporting.MaxDelaySeconds {
+		return false
+	}
+
+	if *c.Reporting.MinDelaySeconds != *other.Reporting.MinDelaySeconds {
+		return false
+	}
+
+	if *c.Reporting.UploadSizeLimitBytes != *other.Reporting.UploadSizeLimitBytes {
+		return false
+	}
+
+	if *c.Reporting.BufferSizeLimitBytes != *other.Reporting.BufferSizeLimitBytes {
+		return false
+	}
+
+	return true
+}
+
 // Plugin implements decision log buffering and uploading.
 type Plugin struct {
 	manager  *plugins.Manager
@@ -131,22 +159,27 @@ type Plugin struct {
 	reconfig chan plugins.ReconfigData
 }
 
-// New returns a new Plugin with the given config.
-func New(config []byte, manager *plugins.Manager) (*Plugin, error) {
-
+// ParseConfig validates the config and injects default values.
+func ParseConfig(config []byte, services []string) (*Config, error) {
 	var parsedConfig Config
 
 	if err := util.Unmarshal(config, &parsedConfig); err != nil {
 		return nil, err
 	}
 
-	if err := parsedConfig.validateAndInjectDefaults(manager.Services()); err != nil {
+	if err := parsedConfig.validateAndInjectDefaults(services); err != nil {
 		return nil, err
 	}
 
+	return &parsedConfig, nil
+}
+
+// New returns a new Plugin with the given config.
+func New(parsedConfig *Config, manager *plugins.Manager) (*Plugin, error) {
+
 	plugin := &Plugin{
 		manager:  manager,
-		config:   parsedConfig,
+		config:   *parsedConfig,
 		stop:     make(chan chan struct{}),
 		buffer:   newLogBuffer(*parsedConfig.Reporting.BufferSizeLimitBytes),
 		enc:      newChunkEncoder(*parsedConfig.Reporting.UploadSizeLimitBytes),
@@ -203,6 +236,11 @@ func (p *Plugin) Reconfigure(config plugins.ReconfigData) {
 	p.reconfig <- config
 }
 
+// Equal checks if the current and provided input config are equal.
+func (p *Plugin) Equal(other *Config) bool {
+	return p.config.equal(*other)
+}
+
 func (p *Plugin) loop() {
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -241,14 +279,7 @@ func (p *Plugin) loop() {
 				retry = 0
 			}
 		case newConfig := <-p.reconfig:
-			updated, err := p.reconfigure(newConfig)
-			if err != nil {
-				p.logError("%v.", err)
-			} else if updated {
-				p.logInfo("Decision Logs plugin reconfigured successfully.")
-			} else {
-				p.logDebug("No updated configuration for decision logs plugin.")
-			}
+			p.reconfigure(newConfig)
 		case done := <-p.stop:
 			cancel()
 			done <- struct{}{}
@@ -297,24 +328,9 @@ func (p *Plugin) oneShot(ctx context.Context) (ok bool, err error) {
 	return true, nil
 }
 
-func (p *Plugin) reconfigure(c plugins.ReconfigData) (bool, error) {
-	var parsedConfig Config
-
-	if err := util.Unmarshal(c.Config, &parsedConfig); err != nil {
-		return false, err
-	}
-
-	if reflect.DeepEqual(p.config, parsedConfig) {
-		return false, nil
-	}
-
+func (p *Plugin) reconfigure(c plugins.ReconfigData) {
 	p.manager = c.Manager
-
-	if err := parsedConfig.validateAndInjectDefaults(p.manager.Services()); err != nil {
-		return false, err
-	}
-	p.config = parsedConfig
-	return true, nil
+	p.config = *c.Config.(*Config)
 }
 
 func (p *Plugin) bufferChunk(buffer *logBuffer, bs []byte) {

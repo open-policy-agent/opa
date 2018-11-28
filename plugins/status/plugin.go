@@ -9,10 +9,8 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"reflect"
 
 	"github.com/open-policy-agent/opa/plugins"
-	"github.com/open-policy-agent/opa/plugins/bundle"
 	"github.com/open-policy-agent/opa/util"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -21,15 +19,16 @@ import (
 // UpdateRequestV1 represents the status update message that OPA sends to
 // remote HTTP endpoints.
 type UpdateRequestV1 struct {
-	Labels map[string]string `json:"labels"`
-	Bundle bundle.Status     `json:"bundle"`
+	Labels    map[string]string `json:"labels"`
+	Bundle    plugins.Status    `json:"bundle"`
+	Discovery plugins.Status    `json:"discovery"`
 }
 
 // Plugin implements status reporting. Updates can be triggered by the caller.
 type Plugin struct {
 	manager  *plugins.Manager
 	config   Config
-	update   chan bundle.Status
+	update   chan plugins.Status
 	stop     chan chan struct{}
 	reconfig chan plugins.ReconfigData
 }
@@ -39,6 +38,11 @@ type Config struct {
 	Service       string `json:"service"`
 	PartitionName string `json:"partition_name,omitempty"`
 }
+
+const (
+	bundlePlugin    = "bundle"
+	discoveryPlugin = "discovery"
+)
 
 func (c *Config) validateAndInjectDefaults(services []string) error {
 
@@ -62,23 +66,41 @@ func (c *Config) validateAndInjectDefaults(services []string) error {
 	return nil
 }
 
-// New returns a new Plugin with the given config.
-func New(config []byte, manager *plugins.Manager) (*Plugin, error) {
+func (c *Config) equal(other Config) bool {
 
+	if c.Service != other.Service {
+		return false
+	}
+
+	if c.PartitionName != other.PartitionName {
+		return false
+	}
+
+	return true
+}
+
+// ParseConfig validates the config and injects default values.
+func ParseConfig(config []byte, services []string) (*Config, error) {
 	var parsedConfig Config
 
 	if err := util.Unmarshal(config, &parsedConfig); err != nil {
 		return nil, err
 	}
 
-	if err := parsedConfig.validateAndInjectDefaults(manager.Services()); err != nil {
+	if err := parsedConfig.validateAndInjectDefaults(services); err != nil {
 		return nil, err
 	}
 
+	return &parsedConfig, nil
+}
+
+// New returns a new Plugin with the given config.
+func New(parsedConfig *Config, manager *plugins.Manager) (*Plugin, error) {
+
 	plugin := &Plugin{
 		manager:  manager,
-		config:   parsedConfig,
-		update:   make(chan bundle.Status),
+		config:   *parsedConfig,
+		update:   make(chan plugins.Status),
 		stop:     make(chan chan struct{}),
 		reconfig: make(chan plugins.ReconfigData),
 	}
@@ -100,13 +122,18 @@ func (p *Plugin) Stop(ctx context.Context) {
 }
 
 // Update notifies the plugin with a new bundle.Status.
-func (p *Plugin) Update(status bundle.Status) {
+func (p *Plugin) Update(status plugins.Status) {
 	p.update <- status
 }
 
 // Reconfigure notifies the plugin with a new configuration.
 func (p *Plugin) Reconfigure(config plugins.ReconfigData) {
 	p.reconfig <- config
+}
+
+// Equal checks if the current and provided input config are equal.
+func (p *Plugin) Equal(other *Config) bool {
+	return p.config.equal(*other)
 }
 
 func (p *Plugin) loop() {
@@ -124,14 +151,7 @@ func (p *Plugin) loop() {
 			}
 
 		case newConfig := <-p.reconfig:
-			updated, err := p.reconfigure(newConfig)
-			if err != nil {
-				p.logError("%v.", err)
-			} else if updated {
-				p.logInfo("Status plugin reconfigured successfully.")
-			} else {
-				p.logDebug("No updated configuration for status plugin.")
-			}
+			p.reconfigure(newConfig)
 
 		case done := <-p.stop:
 			cancel()
@@ -141,11 +161,18 @@ func (p *Plugin) loop() {
 	}
 }
 
-func (p *Plugin) oneShot(ctx context.Context, status bundle.Status) error {
+func (p *Plugin) oneShot(ctx context.Context, status plugins.Status) error {
 
 	req := UpdateRequestV1{
 		Labels: p.manager.Labels,
-		Bundle: status,
+	}
+
+	if status.Plugin == bundlePlugin {
+		req.Bundle = status
+	}
+
+	if status.Plugin == discoveryPlugin {
+		req.Discovery = status
 	}
 
 	resp, err := p.manager.Client(p.config.Service).
@@ -170,24 +197,9 @@ func (p *Plugin) oneShot(ctx context.Context, status bundle.Status) error {
 	}
 }
 
-func (p *Plugin) reconfigure(c plugins.ReconfigData) (bool, error) {
-	var parsedConfig Config
-
-	if err := util.Unmarshal(c.Config, &parsedConfig); err != nil {
-		return false, err
-	}
-
-	if reflect.DeepEqual(p.config, parsedConfig) {
-		return false, nil
-	}
-
+func (p *Plugin) reconfigure(c plugins.ReconfigData) {
 	p.manager = c.Manager
-
-	if err := parsedConfig.validateAndInjectDefaults(p.manager.Services()); err != nil {
-		return false, err
-	}
-	p.config = parsedConfig
-	return true, nil
+	p.config = *c.Config.(*Config)
 }
 
 func (p *Plugin) logError(fmt string, a ...interface{}) {

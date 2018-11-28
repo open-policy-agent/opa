@@ -176,7 +176,7 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 
 	cfg, err := loadConfig(ctx, params.ID, store, params.ConfigFile)
 	if err != nil {
-		return nil, errors.Wrapf(err, "discovery")
+		return nil, err
 	}
 
 	var decisionLogger func(context.Context, *server.Info)

@@ -50,7 +50,7 @@ func TestGetDiscoveryServicePath(t *testing.T) {
 	path := "/foo/bar/"
 	config := discoveryPathConfig{
 		Prefix: &prefix,
-		Path:   &path,
+		Name:   &path,
 	}
 
 	expected := "bundles/foo/bar"
@@ -63,7 +63,7 @@ func TestGetDiscoveryServicePath(t *testing.T) {
 	path = "/foo/bar/"
 	config = discoveryPathConfig{
 		Prefix: &prefix,
-		Path:   &path,
+		Name:   &path,
 	}
 
 	expected = "/foo/bar"
@@ -76,7 +76,7 @@ func TestGetDiscoveryServicePath(t *testing.T) {
 	path = ""
 	config = discoveryPathConfig{
 		Prefix: &prefix,
-		Path:   &path,
+		Name:   &path,
 	}
 
 	expected = "bundles/v1/"
@@ -89,7 +89,7 @@ func TestGetDiscoveryServicePath(t *testing.T) {
 	path = ""
 	config = discoveryPathConfig{
 		Prefix: &prefix,
-		Path:   &path,
+		Name:   &path,
 	}
 
 	expected = "/"
@@ -122,7 +122,7 @@ func TestGetDiscoveryServicePath(t *testing.T) {
 
 	path = "/foo/bar/"
 	config = discoveryPathConfig{
-		Path: &path,
+		Name: &path,
 	}
 
 	expected = "bundles/foo/bar"
@@ -133,7 +133,7 @@ func TestGetDiscoveryServicePath(t *testing.T) {
 
 	path = ""
 	config = discoveryPathConfig{
-		Path: &path,
+		Name: &path,
 	}
 
 	expected = "bundles/"
@@ -203,7 +203,7 @@ func TestConfigDiscoveryHandler404Status(t *testing.T) {
 				}
 			],
 			"discovery": {
-				"path": "/foo"
+				"name": "/foo"
 			}}`, fixture.server.server.URL))
 
 	discConfig, err := getDiscoveryConfig(fixture.managerConfig)
@@ -399,7 +399,7 @@ func getFixture(t *testing.T, ts testServer) testFixture {
 				}
 			],
 			"discovery": {
-				"path": "/foo/bar"
+				"name": "/foo/bar"
 			}}`, ts.server.URL))
 
 	store := inmem.New()

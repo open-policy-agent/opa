@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"math/rand"
 	"net/http"
-	"reflect"
 	"sync"
 	"time"
 
@@ -93,54 +92,71 @@ func (c *Config) validateAndInjectDefaults(services []string) error {
 	return nil
 }
 
-const (
-	errCode = "bundle_error"
-)
+func (c *Config) equal(other Config) bool {
 
-// Status represents the status of the plugin.
-type Status struct {
-	Name                     string    `json:"name"`
-	ActiveRevision           string    `json:"active_revision,omitempty"`
-	LastSuccessfulActivation time.Time `json:"last_successful_activation,omitempty"`
-	LastSuccessfulDownload   time.Time `json:"last_successful_download,omitempty"`
-	Code                     string    `json:"code,omitempty"`
-	Message                  string    `json:"message,omitempty"`
-	Errors                   []error   `json:"errors,omitempty"`
+	if c.Name != other.Name {
+		return false
+	}
+
+	if c.Service != other.Service {
+		return false
+	}
+
+	if *c.Polling.MaxDelaySeconds != *other.Polling.MaxDelaySeconds {
+		return false
+	}
+
+	if *c.Polling.MinDelaySeconds != *other.Polling.MinDelaySeconds {
+		return false
+	}
+
+	return true
 }
+
+const (
+	errCode      = "bundle_error"
+	bundlePlugin = "bundle"
+)
 
 // Plugin implements bundle downloading and activation.
 type Plugin struct {
-	manager   *plugins.Manager             // plugin manager for storage and service clients
-	config    Config                       // plugin config
-	stop      chan chan struct{}           // used to signal plugin to stop running
-	reconfig  chan plugins.ReconfigData    // used to receive updated configuration from periodic discovery
-	etag      string                       // last ETag header for caching purposes
-	status    *Status                      // current plugin status
-	listeners map[interface{}]func(Status) // listeners to send status updates to
+	manager   *plugins.Manager                     // plugin manager for storage and service clients
+	config    Config                               // plugin config
+	stop      chan chan struct{}                   // used to signal plugin to stop running
+	reconfig  chan plugins.ReconfigData            // used to receive updated configuration from periodic discovery
+	etag      string                               // last ETag header for caching purposes
+	status    *plugins.Status                      // current plugin status
+	listeners map[interface{}]func(plugins.Status) // listeners to send status updates to
 	mtx       sync.Mutex
 }
 
-// New returns a new Plugin with the given config.
-func New(config []byte, manager *plugins.Manager) (*Plugin, error) {
-
+// ParseConfig validates the config and injects default values.
+func ParseConfig(config []byte, services []string) (*Config, error) {
 	var parsedConfig Config
 
 	if err := util.Unmarshal(config, &parsedConfig); err != nil {
 		return nil, err
 	}
 
-	if err := parsedConfig.validateAndInjectDefaults(manager.Services()); err != nil {
+	if err := parsedConfig.validateAndInjectDefaults(services); err != nil {
 		return nil, err
 	}
 
+	return &parsedConfig, nil
+}
+
+// New returns a new Plugin with the given config.
+func New(parsedConfig *Config, manager *plugins.Manager) (*Plugin, error) {
+
 	plugin := &Plugin{
 		manager: manager,
-		config:  parsedConfig,
+		config:  *parsedConfig,
 		stop:    make(chan chan struct{}),
-		status: &Status{
-			Name: parsedConfig.Name,
+		status: &plugins.Status{
+			Plugin: bundlePlugin,
+			Name:   parsedConfig.Name,
 		},
-		listeners: map[interface{}]func(Status){},
+		listeners: map[interface{}]func(plugins.Status){},
 		reconfig:  make(chan plugins.ReconfigData),
 	}
 
@@ -168,7 +184,7 @@ func (p *Plugin) Reconfigure(config plugins.ReconfigData) {
 }
 
 // Register a lisetner to receive status updates. The name must be comparable.
-func (p *Plugin) Register(name interface{}, listener func(Status)) {
+func (p *Plugin) Register(name interface{}, listener func(plugins.Status)) {
 	p.mtx.Lock()
 	defer p.mtx.Unlock()
 	p.listeners[name] = listener
@@ -179,6 +195,11 @@ func (p *Plugin) Unregister(name interface{}) {
 	p.mtx.Lock()
 	defer p.mtx.Unlock()
 	delete(p.listeners, name)
+}
+
+// Equal checks if the current and provided input config are equal.
+func (p *Plugin) Equal(other *Config) bool {
+	return p.config.equal(*other)
 }
 
 func (p *Plugin) loop() {
@@ -221,14 +242,7 @@ func (p *Plugin) loop() {
 				retry = 0
 			}
 		case newConfig := <-p.reconfig:
-			updated, err := p.reconfigure(newConfig)
-			if err != nil {
-				p.logError("%v.", err)
-			} else if updated {
-				p.logInfo("Bundle plugin reconfigured successfully.")
-			} else {
-				p.logDebug("No updated configuration for bundle plugin.")
-			}
+			p.reconfigure(newConfig)
 		case done := <-p.stop:
 			cancel()
 			done <- struct{}{}
@@ -238,24 +252,9 @@ func (p *Plugin) loop() {
 
 }
 
-func (p *Plugin) reconfigure(c plugins.ReconfigData) (bool, error) {
-	var parsedConfig Config
-
-	if err := util.Unmarshal(c.Config, &parsedConfig); err != nil {
-		return false, err
-	}
-
-	if reflect.DeepEqual(p.config, parsedConfig) {
-		return false, nil
-	}
-
+func (p *Plugin) reconfigure(c plugins.ReconfigData) {
 	p.manager = c.Manager
-
-	if err := parsedConfig.validateAndInjectDefaults(p.manager.Services()); err != nil {
-		return false, err
-	}
-	p.config = parsedConfig
-	return true, nil
+	p.config = *c.Config.(*Config)
 }
 
 func (p *Plugin) oneShot(ctx context.Context) (updated bool, err error) {

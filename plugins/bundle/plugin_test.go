@@ -112,7 +112,11 @@ func TestNew(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		p, err := New([]byte(test.input), manager)
+		config, _ := ParseConfig([]byte(test.input), manager.Services())
+		if config == nil {
+			continue
+		}
+		p, err := New(config, manager)
 		if err != nil && !test.wantErr {
 			t.Errorf("Unexpected error on: %v, err: %v", test.input, err)
 		}
@@ -299,8 +303,10 @@ func TestPluginReconfigure(t *testing.T) {
 			}
 		}`, minDelay, maxDelay))
 
+	c, _ := ParseConfig(pluginConfig, fixture.manager.Services())
+
 	config := plugins.ReconfigData{
-		Config:  pluginConfig,
+		Config:  c,
 		Manager: fixture.manager,
 	}
 
@@ -338,7 +344,8 @@ func TestPluginActivatationRemovesOld(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	p, err := New([]byte(`{"name": "test", "service": "example"}`), manager)
+	config, _ := ParseConfig([]byte(`{"name": "test", "service": "example"}`), manager.Services())
+	p, err := New(config, manager)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -417,9 +424,9 @@ func TestPluginListener(t *testing.T) {
 	defer fixture.server.stop()
 
 	b := fixture.server.bundles["test/bundle1"]
-	ch := make(chan Status, 1)
+	ch := make(chan plugins.Status, 1)
 
-	fixture.plugin.Register("test", func(status Status) {
+	fixture.plugin.Register("test", func(status plugins.Status) {
 		ch <- status
 	})
 
@@ -478,9 +485,9 @@ func TestPluginListenerErrorClearedOn304(t *testing.T) {
 	defer fixture.server.stop()
 
 	// b := fixture.server.bundles["test/bundle1"]
-	ch := make(chan Status, 1)
+	ch := make(chan plugins.Status, 1)
 
-	fixture.plugin.Register("test", func(status Status) {
+	fixture.plugin.Register("test", func(status plugins.Status) {
 		ch <- status
 	})
 
@@ -577,7 +584,8 @@ func newTestFixture(t *testing.T) testFixture {
 			}
 		}`))
 
-	p, err := New(pluginConfig, manager)
+	config, _ := ParseConfig(pluginConfig, manager.Services())
+	p, err := New(config, manager)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -42,7 +42,7 @@ services:
         token: "bGFza2RqZmxha3NkamZsa2Fqc2Rsa2ZqYWtsc2RqZmtramRmYWxkc2tm"
 
 discovery:
-  path: /example/discovery
+  name: /example/discovery
   prefix: configuration
 ```
 
@@ -76,4 +76,4 @@ The same configuration can also  be provided as data.
 }
 ```
 
-In both cases, OPA's configuration is hierarchically organized under the `discovery.path` value.
+In both cases, OPA's configuration is hierarchically organized under the `discovery.name` value. If discovery is enabled, the `service` field in the `bundles`, `status`, `decision logs` plugins is optional and will default to one of the services from the discovery configuration.

@@ -22,6 +22,7 @@ import (
 	"github.com/open-policy-agent/opa/plugins/logs"
 	"github.com/open-policy-agent/opa/plugins/status"
 	"github.com/open-policy-agent/opa/rego"
+	"github.com/open-policy-agent/opa/server/types"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/storage/inmem"
 	"github.com/open-policy-agent/opa/util"
@@ -42,6 +43,7 @@ type Discovery struct {
 	discoveryPathConfig *discoveryPathConfig
 	stop                chan chan struct{}
 	pluginsMux          sync.Mutex
+	status              *plugins.Status
 }
 
 // PollingConfig represents configuration for discovery's polling behaviour.
@@ -60,7 +62,7 @@ type discoveryConfig struct {
 }
 
 type discoveryPathConfig struct {
-	Path        *string       `json:"path"`
+	Name        *string       `json:"name"`
 	Prefix      *string       `json:"prefix"`
 	Polling     PollingConfig `json:"polling"`
 	serviceURL  string
@@ -82,6 +84,9 @@ const (
 	minRetryDelay          = time.Millisecond * 100
 	defaultMinDelaySeconds = int64(60)
 	defaultMaxDelaySeconds = int64(120)
+
+	errCode         = "discovery_error"
+	discoveryPlugin = "discovery"
 )
 
 // TODO(tsandall): revisit how plugins are wired up to the manager and how
@@ -109,8 +114,6 @@ func New(ctx context.Context, opaID string, store storage.Store, configFile stri
 		return nil, err
 	}
 
-	// If discovery is enabled, get the new configuration
-	// from the remote server.
 	var config *discoveryConfig
 	var discoveryEnabled bool
 	var discPathConfig *discoveryPathConfig
@@ -123,7 +126,7 @@ func New(ctx context.Context, opaID string, store storage.Store, configFile stri
 		}
 	}
 
-	plugins, err := configurePlugins(m, bs, registeredPlugins)
+	p, err := initPlugins(m, bs, registeredPlugins)
 	if err != nil {
 		return nil, err
 	}
@@ -135,11 +138,18 @@ func New(ctx context.Context, opaID string, store storage.Store, configFile stri
 
 	c := &Discovery{
 		Manager:                      m,
-		Plugins:                      plugins,
+		Plugins:                      p,
 		DefaultDecision:              defaultDecision,
 		DefaultAuthorizationDecision: defaultAuthorizationDecision,
 		discoveryPathConfig:          discPathConfig,
 		discoveryEnabled:             discoveryEnabled,
+	}
+
+	if discoveryEnabled {
+		c.status = &plugins.Status{
+			Plugin: discoveryPlugin,
+			Name:   *discPathConfig.Name,
+		}
 	}
 	return c, nil
 }
@@ -187,11 +197,13 @@ func (c *Discovery) loop() {
 				c.Manager.Update(bs)
 			}
 
-			err = c.reconfigurePlugins(ctx, bs)
+			err = c.validateAndConfigurePlugins(ctx, bs)
 			if err != nil {
 				c.logError("%v.", err)
 			}
 		}
+
+		c.status.LastSuccessfulDownload = time.Now().UTC()
 
 		var delay time.Duration
 
@@ -221,24 +233,101 @@ func (c *Discovery) loop() {
 	}
 }
 
-func (c *Discovery) reconfigurePlugins(ctx context.Context, bs []byte) error {
+func validateBundlePluginConfig(m *plugins.Manager, bs []byte) (*bundle.Config, error) {
+	var config struct {
+		Bundle json.RawMessage `json:"bundle"`
+	}
 
-	err := c.reconfigureBundlePlugin(ctx, bs)
+	if err := util.Unmarshal(bs, &config); err != nil {
+		return nil, err
+	}
+
+	if config.Bundle == nil {
+		return nil, nil
+	}
+
+	return bundle.ParseConfig(config.Bundle, m.Services())
+}
+
+func validateDecisionLogsPluginConfig(m *plugins.Manager, bs []byte) (*logs.Config, error) {
+	var config struct {
+		DecisionLogs json.RawMessage `json:"decision_logs"`
+	}
+
+	if err := util.Unmarshal(bs, &config); err != nil {
+		return nil, err
+	}
+
+	if config.DecisionLogs == nil {
+		return nil, nil
+	}
+
+	return logs.ParseConfig(config.DecisionLogs, m.Services())
+}
+
+func validateStatusPluginConfig(m *plugins.Manager, bs []byte) (*status.Config, error) {
+	var config struct {
+		Status json.RawMessage `json:"status"`
+	}
+
+	if err := util.Unmarshal(bs, &config); err != nil {
+		return nil, err
+	}
+
+	if config.Status == nil {
+		return nil, nil
+	}
+
+	return status.ParseConfig(config.Status, m.Services())
+}
+
+func (c *Discovery) validateAndConfigurePlugins(ctx context.Context, bs []byte) (err error) {
+
+	defer func() {
+		c.setErrorStatus(err)
+
+		if plugin, ok := c.Plugins["status"]; ok {
+			plugin.(*status.Plugin).Update(*c.status)
+		}
+	}()
+
+	bundleConfig, err := validateBundlePluginConfig(c.Manager, bs)
 	if err != nil {
 		return err
 	}
 
-	err = c.reconfigureStatusPlugin(ctx, bs)
+	decisionLogsConfig, err := validateDecisionLogsPluginConfig(c.Manager, bs)
 	if err != nil {
 		return err
 	}
 
-	err = c.reconfigureDecisionLogsPlugin(ctx, bs)
+	statusConfig, err := validateStatusPluginConfig(c.Manager, bs)
 	if err != nil {
 		return err
 	}
 
-	err = c.reconfigureRegisteredPlugins(bs)
+	if bundleConfig != nil {
+		err := c.configureBundlePlugin(ctx, bundleConfig)
+		if err != nil {
+			return err
+		}
+	}
+
+	if decisionLogsConfig != nil {
+		err = c.configureDecisionLogsPlugin(ctx, decisionLogsConfig)
+		if err != nil {
+			return err
+		}
+	}
+
+	if statusConfig != nil {
+		err = c.configureStatusPlugin(ctx, statusConfig)
+		if err != nil {
+			return err
+		}
+	}
+
+	err = c.configureRegisteredPlugins(bs)
 	if err != nil {
 		return err
 	}
@@ -246,22 +335,11 @@ func (c *Discovery) reconfigurePlugins(ctx context.Context, bs []byte) error {
 	return nil
 }
 
-func (c *Discovery) reconfigureBundlePlugin(ctx context.Context, bs []byte) error {
-	var config struct {
-		Bundle json.RawMessage `json:"bundle"`
-	}
-
-	if err := util.Unmarshal(bs, &config); err != nil {
-		return err
-	}
-
-	if config.Bundle == nil {
-		return nil
-	}
+func (c *Discovery) configureBundlePlugin(ctx context.Context, config *bundle.Config) error {
 
 	plugin, ok := c.Plugins["bundle"]
 	if !ok {
-		bundlePlugin, err := initBundlePlugin(c.Manager, bs)
+		bundlePlugin, err := createBundlePlugin(c.Manager, config)
 		if err != nil {
 			return err
 		} else if bundlePlugin != nil {
@@ -272,75 +350,29 @@ func (c *Discovery) reconfigureBundlePlugin(ctx context.Context, bs []byte) erro
 			if err != nil {
 				return err
 			}
+			c.logInfo("Bundle plugin configured successfully.")
 		}
 	} else {
-		reconfig := plugins.ReconfigData{
-			Manager: c.Manager,
-			Config:  config.Bundle,
-		}
-		plugin.(*bundle.Plugin).Reconfigure(reconfig)
-	}
-
-	return nil
-}
-
-func (c *Discovery) reconfigureStatusPlugin(ctx context.Context, bs []byte) error {
-	var config struct {
-		Status json.RawMessage `json:"status"`
-	}
-
-	if err := util.Unmarshal(bs, &config); err != nil {
-		return err
-	}
-
-	if config.Status == nil {
-		return nil
-	}
-
-	plugin, ok := c.Plugins["status"]
-	if !ok {
-		bundlePlugin := c.Plugins["bundle"]
-		if bundlePlugin != nil {
-			statusPlugin, err := initStatusPlugin(c.Manager, bs, bundlePlugin.(*bundle.Plugin))
-			if err != nil {
-				return err
-			} else if statusPlugin != nil {
-				c.pluginsMux.Lock()
-				c.Plugins["status"] = statusPlugin
-				c.pluginsMux.Unlock()
-				err = statusPlugin.Start(ctx)
-				if err != nil {
-					return err
-				}
+		if plugin.(*bundle.Plugin).Equal(config) {
+			c.logDebug("No updated configuration for bundle plugin.")
+		} else {
+			reconfig := plugins.ReconfigData{
+				Manager: c.Manager,
+				Config:  config,
 			}
+			plugin.(*bundle.Plugin).Reconfigure(reconfig)
+			c.logInfo("Bundle plugin reconfigured successfully.")
 		}
-	} else {
-		reconfig := plugins.ReconfigData{
-			Manager: c.Manager,
-			Config:  config.Status,
-		}
-		plugin.(*status.Plugin).Reconfigure(reconfig)
 	}
 
 	return nil
 }
 
-func (c *Discovery) reconfigureDecisionLogsPlugin(ctx context.Context, bs []byte) error {
-	var config struct {
-		DecisionLogs json.RawMessage `json:"decision_logs"`
-	}
-
-	if err := util.Unmarshal(bs, &config); err != nil {
-		return err
-	}
-
-	if config.DecisionLogs == nil {
-		return nil
-	}
+func (c *Discovery) configureDecisionLogsPlugin(ctx context.Context, config *logs.Config) error {
 
 	plugin, ok := c.Plugins["decision_logs"]
 	if !ok {
-		decisionLogsPlugin, err := initDecisionLogsPlugin(c.Manager, bs)
+		decisionLogsPlugin, err := createDecisionLogsPlugin(c.Manager, config)
 		if err != nil {
 			return err
 		} else if decisionLogsPlugin != nil {
@@ -351,19 +383,61 @@ func (c *Discovery) reconfigureDecisionLogsPlugin(ctx context.Context, bs []byte
 			if err != nil {
 				return err
 			}
+			c.logInfo("Decision logs plugin configured successfully.")
 		}
 	} else {
-		reconfig := plugins.ReconfigData{
-			Manager: c.Manager,
-			Config:  config.DecisionLogs,
+		if plugin.(*logs.Plugin).Equal(config) {
+			c.logDebug("No updated configuration for decision logs plugin.")
+		} else {
+			reconfig := plugins.ReconfigData{
+				Manager: c.Manager,
+				Config:  config,
+			}
+			plugin.(*logs.Plugin).Reconfigure(reconfig)
+			c.logInfo("Decision logs plugin reconfigured successfully.")
 		}
-		plugin.(*logs.Plugin).Reconfigure(reconfig)
 	}
 
 	return nil
 }
 
-func (c *Discovery) reconfigureRegisteredPlugins(bs []byte) error {
+func (c *Discovery) configureStatusPlugin(ctx context.Context, config *status.Config) error {
+
+	plugin, ok := c.Plugins["status"]
+	if !ok {
+		bundlePlugin := c.Plugins["bundle"]
+		if bundlePlugin != nil {
+			statusPlugin, err := createStatusPlugin(c.Manager, config, bundlePlugin.(*bundle.Plugin))
+			if err != nil {
+				return err
+			} else if statusPlugin != nil {
+				c.pluginsMux.Lock()
+				c.Plugins["status"] = statusPlugin
+				c.pluginsMux.Unlock()
+				err = statusPlugin.Start(ctx)
+				if err != nil {
+					return err
+				}
+				c.logInfo("Status plugin configured successfully.")
+			}
+		}
+	} else {
+		if plugin.(*status.Plugin).Equal(config) {
+			c.logDebug("No updated configuration for status plugin.")
+		} else {
+			reconfig := plugins.ReconfigData{
+				Manager: c.Manager,
+				Config:  config,
+			}
+			plugin.(*status.Plugin).Reconfigure(reconfig)
+			c.logInfo("Status plugin reconfigured successfully.")
+		}
+	}
+
+	return nil
+}
+
+func (c *Discovery) configureRegisteredPlugins(bs []byte) error {
 
 	var config struct {
 		Plugins map[string]json.RawMessage `json:"plugins"`
@@ -389,6 +463,149 @@ func (c *Discovery) reconfigureRegisteredPlugins(bs []byte) error {
 	return nil
 }
 
+func initPlugins(m *plugins.Manager, bs []byte, registeredPlugins map[string]plugins.PluginInitFunc) (map[string]plugins.Plugin, error) {
+
+	plugins := map[string]plugins.Plugin{}
+
+	bundlePlugin, err := initBundlePlugin(m, bs)
+	if err != nil {
+		return nil, err
+	} else if bundlePlugin != nil {
+		plugins["bundle"] = bundlePlugin
+	}
+
+	if bundlePlugin != nil {
+		statusPlugin, err := initStatusPlugin(m, bs, bundlePlugin)
+		if err != nil {
+			return nil, err
+		} else if statusPlugin != nil {
+			plugins["status"] = statusPlugin
+		}
+	}
+
+	decisionLogsPlugin, err := initDecisionLogsPlugin(m, bs)
+	if err != nil {
+		return nil, err
+	} else if decisionLogsPlugin != nil {
+		plugins["decision_logs"] = decisionLogsPlugin
+	}
+
+	err = initRegisteredPlugins(m, bs, registeredPlugins, plugins)
+	if err != nil {
+		return nil, err
+	}
+
+	return plugins, nil
+}
+
+func initBundlePlugin(m *plugins.Manager, bs []byte) (*bundle.Plugin, error) {
+
+	bundleConfig, err := validateBundlePluginConfig(m, bs)
+	if err != nil {
+		return nil, err
+	}
+
+	if bundleConfig == nil {
+		return nil, nil
+	}
+
+	return createBundlePlugin(m, bundleConfig)
+}
+
+func initDecisionLogsPlugin(m *plugins.Manager, bs []byte) (*logs.Plugin, error) {
+
+	decisionLogsConfig, err := validateDecisionLogsPluginConfig(m, bs)
+	if err != nil {
+		return nil, err
+	}
+
+	if decisionLogsConfig == nil {
+		return nil, nil
+	}
+
+	return createDecisionLogsPlugin(m, decisionLogsConfig)
+}
+
+func initStatusPlugin(m *plugins.Manager, bs []byte, bundlePlugin *bundle.Plugin) (*status.Plugin, error) {
+
+	statusConfig, err := validateStatusPluginConfig(m, bs)
+	if err != nil {
+		return nil, err
+	}
+
+	if statusConfig == nil {
+		return nil, nil
+	}
+
+	return createStatusPlugin(m, statusConfig, bundlePlugin)
+}
+
+func initRegisteredPlugins(m *plugins.Manager, bs []byte, registeredPlugins map[string]plugins.PluginInitFunc, allPlugins map[string]plugins.Plugin) error {
+
+	var config struct {
+		Plugins map[string]json.RawMessage `json:"plugins"`
+	}
+
+	if err := util.Unmarshal(bs, &config); err != nil {
+		return err
+	}
+
+	for name, factory := range registeredPlugins {
+		pc, ok := config.Plugins[name]
+		if !ok {
+			continue
+		}
+		plugin, err := factory(m, pc)
+		if err != nil {
+			return err
+		}
+		m.Register(plugin)
+		allPlugins[name] = plugin
+	}
+
+	return nil
+}
+
+func createBundlePlugin(m *plugins.Manager, config *bundle.Config) (*bundle.Plugin, error) {
+
+	p, err := bundle.New(config, m)
+	if err != nil {
+		return nil, err
+	}
+
+	m.Register(p)
+
+	return p, nil
+}
+
+func createDecisionLogsPlugin(m *plugins.Manager, config *logs.Config) (*logs.Plugin, error) {
+
+	p, err := logs.New(config, m)
+	if err != nil {
+		return nil, err
+	}
+
+	m.Register(p)
+
+	return p, nil
+}
+
+func createStatusPlugin(m *plugins.Manager, config *status.Config, bundlePlugin *bundle.Plugin) (*status.Plugin, error) {
+
+	p, err := status.New(config, m)
+	if err != nil {
+		return nil, err
+	}
+
+	m.Register(p)
+
+	bundlePlugin.Register(bundlePluginListener("status-plugin"), func(s plugins.Status) {
+		p.Update(s)
+	})
+
+	return p, nil
+}
+
 func validateAndInjectDefaults(config *discoveryConfig, services []string) (*discoveryPathConfig, error) {
 
 	var discoveryConfig discoveryPathConfig
@@ -399,6 +616,10 @@ func validateAndInjectDefaults(config *discoveryConfig, services []string) (*dis
 
 	if len(services) == 0 {
 		return nil, fmt.Errorf("endpoint to fetch discovery configuration from not provided")
+	}
+
+	if discoveryConfig.Name == nil {
+		return nil, fmt.Errorf("discovery plugin name not provided")
 	}
 
 	discoveryConfig.serviceHost = services[0]
@@ -459,41 +680,6 @@ func configureDefaultDecision(bs []byte) (ast.Ref, ast.Ref, error) {
 	return defaultDecision, defaultAuthorizationDecision, nil
 }
 
-func configurePlugins(m *plugins.Manager, bs []byte, registeredPlugins map[string]plugins.PluginInitFunc) (map[string]plugins.Plugin, error) {
-
-	plugins := map[string]plugins.Plugin{}
-
-	bundlePlugin, err := initBundlePlugin(m, bs)
-	if err != nil {
-		return nil, err
-	} else if bundlePlugin != nil {
-		plugins["bundle"] = bundlePlugin
-	}
-
-	if bundlePlugin != nil {
-		statusPlugin, err := initStatusPlugin(m, bs, bundlePlugin)
-		if err != nil {
-			return nil, err
-		} else if statusPlugin != nil {
-			plugins["status"] = statusPlugin
-		}
-	}
-
-	decisionLogsPlugin, err := initDecisionLogsPlugin(m, bs)
-	if err != nil {
-		return nil, err
-	} else if decisionLogsPlugin != nil {
-		plugins["decision_logs"] = decisionLogsPlugin
-	}
-
-	err = initRegisteredPlugins(m, bs, registeredPlugins, plugins)
-	if err != nil {
-		return nil, err
-	}
-
-	return plugins, nil
-}
-
 func getDiscoveryConfig(bs []byte) (*discoveryConfig, error) {
 	var config discoveryConfig
 
@@ -528,7 +714,7 @@ func discoveryHandler(ctx context.Context, discoveryConfig *discoveryPathConfig,
 
 	switch resp.StatusCode {
 	case http.StatusOK:
-		return process(ctx, resp, discoveryConfig.Path)
+		return process(ctx, resp, discoveryConfig.Name)
 	case http.StatusNotModified:
 		return nil, false, nil
 	case http.StatusNotFound:
@@ -548,8 +734,8 @@ func getDiscoveryServicePath(config discoveryPathConfig) string {
 		prefix = *config.Prefix
 	}
 
-	if config.Path != nil {
-		path = *config.Path
+	if config.Name != nil {
+		path = *config.Name
 	}
 
 	return fmt.Sprintf("%v/%v", strings.Trim(prefix, "/"), strings.Trim(path, "/"))
@@ -613,108 +799,6 @@ func processBundle(ctx context.Context, b bundleApi.Bundle, query string) ([]byt
 	}
 }
 
-func initBundlePlugin(m *plugins.Manager, bs []byte) (*bundle.Plugin, error) {
-
-	var config struct {
-		Bundle json.RawMessage `json:"bundle"`
-	}
-
-	if err := util.Unmarshal(bs, &config); err != nil {
-		return nil, err
-	}
-
-	if config.Bundle == nil {
-		return nil, nil
-	}
-
-	p, err := bundle.New(config.Bundle, m)
-	if err != nil {
-		return nil, err
-	}
-
-	m.Register(p)
-
-	return p, nil
-}
-
-func initStatusPlugin(m *plugins.Manager, bs []byte, bundlePlugin *bundle.Plugin) (*status.Plugin, error) {
-
-	var config struct {
-		Status json.RawMessage `json:"status"`
-	}
-
-	if err := util.Unmarshal(bs, &config); err != nil {
-		return nil, err
-	}
-
-	if config.Status == nil {
-		return nil, nil
-	}
-
-	p, err := status.New(config.Status, m)
-	if err != nil {
-		return nil, err
-	}
-
-	m.Register(p)
-
-	bundlePlugin.Register(bundlePluginListener("status-plugin"), func(s bundle.Status) {
-		p.Update(s)
-	})
-
-	return p, nil
-}
-
-func initDecisionLogsPlugin(m *plugins.Manager, bs []byte) (*logs.Plugin, error) {
-
-	var config struct {
-		DecisionLogs json.RawMessage `json:"decision_logs"`
-	}
-
-	if err := util.Unmarshal(bs, &config); err != nil {
-		return nil, err
-	}
-
-	if config.DecisionLogs == nil {
-		return nil, nil
-	}
-
-	p, err := logs.New(config.DecisionLogs, m)
-	if err != nil {
-		return nil, err
-	}
-
-	m.Register(p)
-
-	return p, nil
-}
-
-func initRegisteredPlugins(m *plugins.Manager, bs []byte, registeredPlugins map[string]plugins.PluginInitFunc, allPlugins map[string]plugins.Plugin) error {
-
-	var config struct {
-		Plugins map[string]json.RawMessage `json:"plugins"`
-	}
-
-	if err := util.Unmarshal(bs, &config); err != nil {
-		return err
-	}
-
-	for name, factory := range registeredPlugins {
-		pc, ok := config.Plugins[name]
-		if !ok {
-			continue
-		}
-		plugin, err := factory(m, pc)
-		if err != nil {
-			return err
-		}
-		m.Register(plugin)
-		allPlugins[name] = plugin
-	}
-
-	return nil
-}
-
 func (c *Discovery) logError(fmt string, a ...interface{}) {
 	logrus.WithFields(c.logrusFields()).Errorf(fmt, a...)
 }
@@ -729,6 +813,32 @@ func (c *Discovery) logDebug(fmt string, a ...interface{}) {
 
 func (c *Discovery) logrusFields() logrus.Fields {
 	return logrus.Fields{
-		"config": "discovery",
+		"plugin": "discovery",
+		"name":   *c.discoveryPathConfig.Name,
+	}
+}
+
+func (c *Discovery) setErrorStatus(err error) {
+
+	if err == nil {
+		c.status.Code = ""
+		c.status.Message = ""
+		c.status.Errors = nil
+		return
+	}
+
+	cause := errors.Cause(err)
+
+	if astErr, ok := cause.(ast.Errors); ok {
+		c.status.Code = errCode
+		c.status.Message = types.MsgPluginConfigError
+		c.status.Errors = make([]error, len(astErr))
+		for i := range astErr {
+			c.status.Errors[i] = astErr[i]
+		}
+	} else {
+		c.status.Code = errCode
+		c.status.Message = err.Error()
+		c.status.Errors = nil
 	}
 }
