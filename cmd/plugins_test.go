@@ -156,7 +156,7 @@ func (t *Tester) Stop(ctx context.Context) {
 	return
 }
 
-func (t *Tester) Reconfigure(config plugins.ReconfigData) {
+func (t *Tester) Reconfigure(config interface{}) {
 	return
 }
 

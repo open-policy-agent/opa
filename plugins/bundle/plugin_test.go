@@ -303,12 +303,7 @@ func TestPluginReconfigure(t *testing.T) {
 			}
 		}`, minDelay, maxDelay))
 
-	c, _ := ParseConfig(pluginConfig, fixture.manager.Services())
-
-	config := plugins.ReconfigData{
-		Config:  c,
-		Manager: fixture.manager,
-	}
+	config, _ := ParseConfig(pluginConfig, fixture.manager.Services())
 
 	fixture.plugin.Reconfigure(config)
 	fixture.plugin.Stop(ctx)
@@ -424,9 +419,9 @@ func TestPluginListener(t *testing.T) {
 	defer fixture.server.stop()
 
 	b := fixture.server.bundles["test/bundle1"]
-	ch := make(chan plugins.Status, 1)
+	ch := make(chan Status, 1)
 
-	fixture.plugin.Register("test", func(status plugins.Status) {
+	fixture.plugin.Register("test", func(status Status) {
 		ch <- status
 	})
 
@@ -485,9 +480,9 @@ func TestPluginListenerErrorClearedOn304(t *testing.T) {
 	defer fixture.server.stop()
 
 	// b := fixture.server.bundles["test/bundle1"]
-	ch := make(chan plugins.Status, 1)
+	ch := make(chan Status, 1)
 
-	fixture.plugin.Register("test", func(status plugins.Status) {
+	fixture.plugin.Register("test", func(status Status) {
 		ch <- status
 	})
 

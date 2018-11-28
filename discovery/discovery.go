@@ -43,7 +43,7 @@ type Discovery struct {
 	discoveryPathConfig *discoveryPathConfig
 	stop                chan chan struct{}
 	pluginsMux          sync.Mutex
-	status              *plugins.Status
+	status              *bundle.Status
 }
 
 // PollingConfig represents configuration for discovery's polling behaviour.
@@ -85,8 +85,7 @@ const (
 	defaultMinDelaySeconds = int64(60)
 	defaultMaxDelaySeconds = int64(120)
 
-	errCode         = "discovery_error"
-	discoveryPlugin = "discovery"
+	errCode = "discovery_error"
 )
 
 // TODO(tsandall): revisit how plugins are wired up to the manager and how
@@ -146,9 +145,8 @@ func New(ctx context.Context, opaID string, store storage.Store, configFile stri
 	}
 
 	if discoveryEnabled {
-		c.status = &plugins.Status{
-			Plugin: discoveryPlugin,
-			Name:   *discPathConfig.Name,
+		c.status = &bundle.Status{
+			Name: *discPathConfig.Name,
 		}
 	}
 	return c, nil
@@ -287,7 +285,7 @@ func (c *Discovery) validateAndConfigurePlugins(ctx context.Context, bs []byte) 
 		c.setErrorStatus(err)
 
 		if plugin, ok := c.Plugins["status"]; ok {
-			plugin.(*status.Plugin).Update(*c.status)
+			plugin.(*status.Plugin).UpdateDiscoveryStatus(*c.status)
 		}
 	}()
 
@@ -356,11 +354,7 @@ func (c *Discovery) configureBundlePlugin(ctx context.Context, config *bundle.Co
 		if plugin.(*bundle.Plugin).Equal(config) {
 			c.logDebug("No updated configuration for bundle plugin.")
 		} else {
-			reconfig := plugins.ReconfigData{
-				Manager: c.Manager,
-				Config:  config,
-			}
-			plugin.(*bundle.Plugin).Reconfigure(reconfig)
+			plugin.(*bundle.Plugin).Reconfigure(config)
 			c.logInfo("Bundle plugin reconfigured successfully.")
 		}
 	}
@@ -389,11 +383,7 @@ func (c *Discovery) configureDecisionLogsPlugin(ctx context.Context, config *log
 		if plugin.(*logs.Plugin).Equal(config) {
 			c.logDebug("No updated configuration for decision logs plugin.")
 		} else {
-			reconfig := plugins.ReconfigData{
-				Manager: c.Manager,
-				Config:  config,
-			}
-			plugin.(*logs.Plugin).Reconfigure(reconfig)
+			plugin.(*logs.Plugin).Reconfigure(config)
 			c.logInfo("Decision logs plugin reconfigured successfully.")
 		}
 	}
@@ -425,11 +415,7 @@ func (c *Discovery) configureStatusPlugin(ctx context.Context, config *status.Co
 		if plugin.(*status.Plugin).Equal(config) {
 			c.logDebug("No updated configuration for status plugin.")
 		} else {
-			reconfig := plugins.ReconfigData{
-				Manager: c.Manager,
-				Config:  config,
-			}
-			plugin.(*status.Plugin).Reconfigure(reconfig)
+			plugin.(*status.Plugin).Reconfigure(config)
 			c.logInfo("Status plugin reconfigured successfully.")
 		}
 	}
@@ -453,11 +439,7 @@ func (c *Discovery) configureRegisteredPlugins(bs []byte) error {
 			continue
 		}
 
-		reconfig := plugins.ReconfigData{
-			Manager: c.Manager,
-			Config:  pc,
-		}
-		plugin.Reconfigure(reconfig)
+		plugin.Reconfigure(pc)
 	}
 
 	return nil
@@ -599,8 +581,8 @@ func createStatusPlugin(m *plugins.Manager, config *status.Config, bundlePlugin 
 
 	m.Register(p)
 
-	bundlePlugin.Register(bundlePluginListener("status-plugin"), func(s plugins.Status) {
-		p.Update(s)
+	bundlePlugin.Register(bundlePluginListener("status-plugin"), func(s bundle.Status) {
+		p.UpdateBundleStatus(s)
 	})
 
 	return p, nil

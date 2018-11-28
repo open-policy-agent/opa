@@ -279,12 +279,7 @@ func TestPluginReconfigure(t *testing.T) {
 			}
 		}`, minDelay, maxDelay))
 
-	c, _ := ParseConfig(pluginConfig, fixture.manager.Services())
-
-	config := plugins.ReconfigData{
-		Config:  c,
-		Manager: fixture.manager,
-	}
+	config, _ := ParseConfig(pluginConfig, fixture.manager.Services())
 
 	fixture.plugin.Reconfigure(config)
 	fixture.plugin.Stop(ctx)

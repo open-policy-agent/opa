@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/open-policy-agent/opa/plugins"
+	"github.com/open-policy-agent/opa/plugins/bundle"
 	"github.com/open-policy-agent/opa/storage/inmem"
 	"github.com/open-policy-agent/opa/util"
 )
@@ -31,7 +32,7 @@ func TestPluginStart(t *testing.T) {
 
 	status := testStatus()
 
-	fixture.plugin.Update(status)
+	fixture.plugin.UpdateBundleStatus(status)
 	result := <-fixture.server.ch
 
 	exp := UpdateRequestV1{
@@ -47,12 +48,42 @@ func TestPluginStart(t *testing.T) {
 	}
 }
 
+func TestPluginStartDiscovery(t *testing.T) {
+
+	fixture := newTestFixture(t)
+	fixture.server.ch = make(chan UpdateRequestV1)
+	defer fixture.server.stop()
+
+	ctx := context.Background()
+
+	fixture.plugin.Start(ctx)
+	defer fixture.plugin.Stop(ctx)
+
+	status := testStatus()
+
+	fixture.plugin.UpdateDiscoveryStatus(status)
+	result := <-fixture.server.ch
+
+	status.DiscoveryStatus = true
+	exp := UpdateRequestV1{
+		Labels: map[string]string{
+			"id":  "test-instance-id",
+			"app": "example-app",
+		},
+		Discovery: status,
+	}
+
+	if !reflect.DeepEqual(result, exp) {
+		t.Fatalf("Expected: %+v but got: %+v", exp, result)
+	}
+}
+
 func TestPluginBadAuth(t *testing.T) {
 	fixture := newTestFixture(t)
 	ctx := context.Background()
 	fixture.server.expCode = 401
 	defer fixture.server.stop()
-	err := fixture.plugin.oneShot(ctx, plugins.Status{})
+	err := fixture.plugin.oneShot(ctx, bundle.Status{})
 	if err == nil {
 		t.Fatal("Expected error")
 	}
@@ -63,7 +94,7 @@ func TestPluginBadPath(t *testing.T) {
 	ctx := context.Background()
 	fixture.server.expCode = 404
 	defer fixture.server.stop()
-	err := fixture.plugin.oneShot(ctx, plugins.Status{})
+	err := fixture.plugin.oneShot(ctx, bundle.Status{})
 	if err == nil {
 		t.Fatal("Expected error")
 	}
@@ -74,7 +105,7 @@ func TestPluginBadStatus(t *testing.T) {
 	ctx := context.Background()
 	fixture.server.expCode = 500
 	defer fixture.server.stop()
-	err := fixture.plugin.oneShot(ctx, plugins.Status{})
+	err := fixture.plugin.oneShot(ctx, bundle.Status{})
 	if err == nil {
 		t.Fatal("Expected error")
 	}
@@ -94,12 +125,7 @@ func TestPluginReconfigure(t *testing.T) {
 			"partition_name": "test"
 		}`))
 
-	c, _ := ParseConfig(pluginConfig, fixture.manager.Services())
-
-	config := plugins.ReconfigData{
-		Config:  c,
-		Manager: fixture.manager,
-	}
+	config, _ := ParseConfig(pluginConfig, fixture.manager.Services())
 
 	fixture.plugin.Reconfigure(config)
 	fixture.plugin.Stop(ctx)
@@ -195,14 +221,13 @@ func (t *testServer) stop() {
 	t.server.Close()
 }
 
-func testStatus() plugins.Status {
+func testStatus() bundle.Status {
 
 	tDownload, _ := time.Parse("2018-01-01T00:00:00.0000000Z", time.RFC3339Nano)
 	tActivate, _ := time.Parse("2018-01-01T00:00:01.0000000Z", time.RFC3339Nano)
 
-	status := plugins.Status{
+	status := bundle.Status{
 		Name:                     "example/authz",
-		Plugin:                   bundlePlugin,
 		ActiveRevision:           "quickbrawnfaux",
 		LastSuccessfulDownload:   tDownload,
 		LastSuccessfulActivation: tActivate,

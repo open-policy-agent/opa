@@ -11,6 +11,7 @@ import (
 	"net/http"
 
 	"github.com/open-policy-agent/opa/plugins"
+	"github.com/open-policy-agent/opa/plugins/bundle"
 	"github.com/open-policy-agent/opa/util"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -20,17 +21,17 @@ import (
 // remote HTTP endpoints.
 type UpdateRequestV1 struct {
 	Labels    map[string]string `json:"labels"`
-	Bundle    plugins.Status    `json:"bundle"`
-	Discovery plugins.Status    `json:"discovery"`
+	Bundle    bundle.Status     `json:"bundle"`
+	Discovery bundle.Status     `json:"discovery"`
 }
 
 // Plugin implements status reporting. Updates can be triggered by the caller.
 type Plugin struct {
 	manager  *plugins.Manager
 	config   Config
-	update   chan plugins.Status
+	update   chan bundle.Status
 	stop     chan chan struct{}
-	reconfig chan plugins.ReconfigData
+	reconfig chan interface{}
 }
 
 // Config contains configuration for the plugin.
@@ -38,11 +39,6 @@ type Config struct {
 	Service       string `json:"service"`
 	PartitionName string `json:"partition_name,omitempty"`
 }
-
-const (
-	bundlePlugin    = "bundle"
-	discoveryPlugin = "discovery"
-)
 
 func (c *Config) validateAndInjectDefaults(services []string) error {
 
@@ -100,9 +96,9 @@ func New(parsedConfig *Config, manager *plugins.Manager) (*Plugin, error) {
 	plugin := &Plugin{
 		manager:  manager,
 		config:   *parsedConfig,
-		update:   make(chan plugins.Status),
+		update:   make(chan bundle.Status),
 		stop:     make(chan chan struct{}),
-		reconfig: make(chan plugins.ReconfigData),
+		reconfig: make(chan interface{}),
 	}
 
 	return plugin, nil
@@ -121,13 +117,19 @@ func (p *Plugin) Stop(ctx context.Context) {
 	_ = <-done
 }
 
-// Update notifies the plugin with a new bundle.Status.
-func (p *Plugin) Update(status plugins.Status) {
+// UpdateBundleStatus notifies the plugin with a new bundle plugin status.
+func (p *Plugin) UpdateBundleStatus(status bundle.Status) {
+	p.update <- status
+}
+
+// UpdateDiscoveryStatus notifies the plugin with a new discovery plugin status.
+func (p *Plugin) UpdateDiscoveryStatus(status bundle.Status) {
+	status.DiscoveryStatus = true
 	p.update <- status
 }
 
 // Reconfigure notifies the plugin with a new configuration.
-func (p *Plugin) Reconfigure(config plugins.ReconfigData) {
+func (p *Plugin) Reconfigure(config interface{}) {
 	p.reconfig <- config
 }
 
@@ -161,18 +163,16 @@ func (p *Plugin) loop() {
 	}
 }
 
-func (p *Plugin) oneShot(ctx context.Context, status plugins.Status) error {
+func (p *Plugin) oneShot(ctx context.Context, status bundle.Status) error {
 
 	req := UpdateRequestV1{
 		Labels: p.manager.Labels,
 	}
 
-	if status.Plugin == bundlePlugin {
-		req.Bundle = status
-	}
-
-	if status.Plugin == discoveryPlugin {
+	if status.DiscoveryStatus {
 		req.Discovery = status
+	} else {
+		req.Bundle = status
 	}
 
 	resp, err := p.manager.Client(p.config.Service).
@@ -197,9 +197,8 @@ func (p *Plugin) oneShot(ctx context.Context, status plugins.Status) error {
 	}
 }
 
-func (p *Plugin) reconfigure(c plugins.ReconfigData) {
-	p.manager = c.Manager
-	p.config = *c.Config.(*Config)
+func (p *Plugin) reconfigure(newConfig interface{}) {
+	p.config = *newConfig.(*Config)
 }
 
 func (p *Plugin) logError(fmt string, a ...interface{}) {

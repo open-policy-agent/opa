@@ -156,7 +156,7 @@ type Plugin struct {
 	enc      *chunkEncoder
 	mtx      sync.Mutex
 	stop     chan chan struct{}
-	reconfig chan plugins.ReconfigData
+	reconfig chan interface{}
 }
 
 // ParseConfig validates the config and injects default values.
@@ -183,7 +183,7 @@ func New(parsedConfig *Config, manager *plugins.Manager) (*Plugin, error) {
 		stop:     make(chan chan struct{}),
 		buffer:   newLogBuffer(*parsedConfig.Reporting.BufferSizeLimitBytes),
 		enc:      newChunkEncoder(*parsedConfig.Reporting.UploadSizeLimitBytes),
-		reconfig: make(chan plugins.ReconfigData),
+		reconfig: make(chan interface{}),
 	}
 
 	return plugin, nil
@@ -232,7 +232,7 @@ func (p *Plugin) Log(ctx context.Context, decision *server.Info) {
 }
 
 // Reconfigure notifies the plugin with a new configuration.
-func (p *Plugin) Reconfigure(config plugins.ReconfigData) {
+func (p *Plugin) Reconfigure(config interface{}) {
 	p.reconfig <- config
 }
 
@@ -328,9 +328,8 @@ func (p *Plugin) oneShot(ctx context.Context) (ok bool, err error) {
 	return true, nil
 }
 
-func (p *Plugin) reconfigure(c plugins.ReconfigData) {
-	p.manager = c.Manager
-	p.config = *c.Config.(*Config)
+func (p *Plugin) reconfigure(newConfig interface{}) {
+	p.config = *newConfig.(*Config)
 }
 
 func (p *Plugin) bufferChunk(buffer *logBuffer, bs []byte) {
