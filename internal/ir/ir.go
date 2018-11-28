@@ -147,6 +147,13 @@ type LoopStmt struct {
 	Block  Block
 }
 
+// NotStmt represents a negated statement. The last statement in the negation
+// block will set the condition to false.
+type NotStmt struct {
+	Cond  Local
+	Block Block
+}
+
 // AssignStmt represents an assignment of a local variable.
 type AssignStmt struct {
 	Value  Const

@@ -11,7 +11,6 @@ import (
 	"strings"
 
 	"github.com/open-policy-agent/opa/internal/compiler/wasm/opa"
-
 	"github.com/open-policy-agent/opa/internal/ir"
 	"github.com/open-policy-agent/opa/internal/wasm/encoding"
 	"github.com/open-policy-agent/opa/internal/wasm/instruction"
@@ -184,6 +183,10 @@ func (c *Compiler) compileBlock(block ir.Block) ([]instruction.Instruction, erro
 			if err := c.compileLoop(stmt, &instrs); err != nil {
 				return nil, err
 			}
+		case ir.NotStmt:
+			if err := c.compileNot(stmt, &instrs); err != nil {
+				return nil, err
+			}
 		case ir.DotStmt:
 			instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.Source)})
 			instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.Key)})
@@ -251,7 +254,6 @@ func (c *Compiler) compileBlock(block ir.Block) ([]instruction.Instruction, erro
 			ir.Pretty(&buf, stmt)
 			return instrs, fmt.Errorf("illegal statement: %v", buf.String())
 		}
-
 	}
 
 	return instrs, nil
@@ -299,6 +301,19 @@ func (c *Compiler) compileLoopBody(loop ir.LoopStmt) ([]instruction.Instruction,
 	instrs = append(instrs, nested...)
 
 	return instrs, nil
+}
+
+func (c *Compiler) compileNot(not ir.NotStmt, result *[]instruction.Instruction) error {
+	var instrs = *result
+
+	nested, err := c.compileBlock(not.Block)
+	if err != nil {
+		return err
+	}
+
+	instrs = append(instrs, instruction.Block{Instrs: nested})
+	*result = instrs
+	return nil
 }
 
 func (c *Compiler) emitLocals() error {

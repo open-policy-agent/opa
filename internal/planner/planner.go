@@ -90,11 +90,11 @@ func (p *Planner) planQuery(q ast.Body, index int) error {
 	})
 }
 
-// TODO(tsandall): improve errors to include locaiton information.
+// TODO(tsandall): improve errors to include location information.
 func (p *Planner) planExpr(e *ast.Expr, iter planiter) error {
 
 	if e.Negated {
-		return fmt.Errorf("not keyword not implemented")
+		return p.planNot(e, iter)
 	}
 
 	if len(e.With) > 0 {
@@ -106,6 +106,52 @@ func (p *Planner) planExpr(e *ast.Expr, iter planiter) error {
 	}
 
 	return p.planExprTerm(e, iter)
+}
+
+func (p *Planner) planNot(e *ast.Expr, iter planiter) error {
+
+	cond := p.newLocal()
+
+	p.appendStmt(ir.MakeBooleanStmt{
+		Value:  true,
+		Target: cond,
+	})
+
+	not := ir.NotStmt{
+		Cond: cond,
+	}
+
+	prev := p.curr
+	p.curr = &not.Block
+
+	if err := p.planExpr(e.Complement(), func() error {
+		p.appendStmt(ir.AssignStmt{
+			Value: ir.BooleanConst{
+				Value: false,
+			},
+			Target: cond,
+		})
+		return nil
+	}); err != nil {
+		return err
+	}
+
+	p.curr = prev
+	p.appendStmt(not)
+
+	truth := p.newLocal()
+
+	p.appendStmt(ir.MakeBooleanStmt{
+		Value:  true,
+		Target: truth,
+	})
+
+	p.appendStmt(ir.EqualStmt{
+		A: cond,
+		B: truth,
+	})
+
+	return nil
 }
 
 func (p *Planner) planExprTerm(e *ast.Expr, iter planiter) error {
