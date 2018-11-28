@@ -742,7 +742,8 @@ func getDiscoveryServicePath(config discoveryPathConfig) string {
 }
 
 func process(ctx context.Context, resp *http.Response, path *string) ([]byte, bool, error) {
-	b, err := bundleApi.Read(resp.Body)
+	br := bundleApi.NewReader(resp.Body)
+	b, err := br.Read()
 	if err != nil {
 		return nil, false, err
 	}
