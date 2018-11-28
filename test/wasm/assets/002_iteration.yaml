@@ -15,3 +15,11 @@ cases:
     query: input.x[i] = 1; input.y[j] = "world"
     input: {"x": [3,2,0], "y": ["hello", "universe"]}
     return_code: 0
+  - note: iteration chained
+    query: input.x[i].y[j] = 1
+    input: {"x": [{"y": []}, {"y": [0]}, {"y": [0, 1]}]}
+    return_code: 1
+  - note: iteration chained (negative)
+    query: input.x[i].y[j] = 1
+    input: {"x": [{"y": []}, {"y": [0]}, {"y": [0, 2]}]}
+    return_code: 0

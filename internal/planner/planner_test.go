@@ -46,6 +46,10 @@ func TestPlannerHelloWorld(t *testing.T) {
 			note:    "iteration: nested",
 			queries: []string{"input.a[i] = 1; input.b[j] = 2"},
 		},
+		{
+			note:    "iteration: chained",
+			queries: []string{"input.a[i][j] = 1"},
+		},
 	}
 
 	for _, tc := range tests {
