@@ -272,7 +272,9 @@ func (p *Planner) planRefRec(ref ast.Ref, index int, iter planiter) error {
 
 	case ast.Var:
 		if _, ok := p.vars[v]; !ok {
-			return p.planLoop(ref, index, iter)
+			return p.planLoop(ref, index, func() error {
+				return p.planRefRec(ref, index+1, iter)
+			})
 		}
 		p.ltarget = p.vars[v]
 		return p.planRefRec(ref, index+1, iter)
