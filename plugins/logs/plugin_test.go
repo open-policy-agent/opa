@@ -281,7 +281,7 @@ func TestPluginReconfigure(t *testing.T) {
 
 	config, _ := ParseConfig(pluginConfig, fixture.manager.Services())
 
-	fixture.plugin.Reconfigure(config)
+	fixture.plugin.Reconfigure(ctx, config)
 	fixture.plugin.Stop(ctx)
 
 	actualMin := time.Duration(*fixture.plugin.config.Reporting.MinDelaySeconds) / time.Nanosecond
@@ -342,10 +342,7 @@ func newTestFixture(t *testing.T) testFixture {
 
 	config, _ := ParseConfig([]byte(pluginConfig), manager.Services())
 
-	p, err := New(config, manager)
-	if err != nil {
-		t.Fatal(err)
-	}
+	p := New(config, manager)
 
 	return testFixture{
 		manager: manager,

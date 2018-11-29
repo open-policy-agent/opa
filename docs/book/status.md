@@ -52,6 +52,10 @@ Status updates contain the following fields:
 | `bundle.active_revision` | `string` | Opaque revision identifier of the last successful activation. |
 | `bundle.last_successful_download` | `string` | RFC3339 timestamp of last successful bundle download. |
 | `bundle.last_successful_activation` | `string` | RFC3339 timestamp of last successful bundle activation. |
+| `discovery.name` | `string` | Name of discovery bundle that the OPA instance is configured to download. |
+| `discovery.active_revision` | `string` | Opaque revision identifier of the last successful discovery activation. |
+| `discovery.last_successful_download` | `string` | RFC3339 timestamp of last successful discovery bundle download. |
+| `discovery.last_successful_activation` | `string` | RFC3339 timestamp of last successful discovery bundle activation. |
 
 If the bundle download or activation failed, the status update will contain
 the following additional fields.
@@ -61,6 +65,15 @@ the following additional fields.
 | `bundle.code` | `string` | If present, indicates error(s) occurred. |
 | `bundle.message` | `string` | Human readable messages describing the error(s). |
 | `bundle.errors` | `array` | Collection of detailed parse or compile errors that occurred during activation. |
+
+If the bundle download or activation failed, the status update will contain
+the following additional fields.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `discovery.code` | `string` | If present, indicates error(s) occurred. |
+| `discovery.message` | `string` | Human readable messages describing the error(s). |
+| `discovery.errors` | `array` | Collection of detailed parse or compile errors that occurred during activation. |
 
 Services should reply with HTTP status `200 OK` if the status update is
 processed successfully.

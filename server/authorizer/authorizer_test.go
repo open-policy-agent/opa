@@ -163,7 +163,9 @@ func TestBasic(t *testing.T) {
 				req = identifier.SetIdentity(req, tc.identity)
 			}
 
-			NewBasic(&mockHandler{}, compiler, store, Decision(ast.MustParseRef("data.system.authz.allow"))).ServeHTTP(recorder, req)
+			NewBasic(&mockHandler{}, compiler, store, Decision(func() ast.Ref {
+				return ast.MustParseRef("data.system.authz.allow")
+			})).ServeHTTP(recorder, req)
 
 			if recorder.Code != tc.expectedStatus {
 				t.Fatalf("Expected status code %v but got: %v", tc.expectedStatus, recorder)

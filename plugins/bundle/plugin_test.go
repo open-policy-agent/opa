@@ -7,351 +7,122 @@ package bundle
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
-	"net/http"
-	"net/http/httptest"
 	"reflect"
-	"strings"
 	"testing"
-	"time"
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/bundle"
+	"github.com/open-policy-agent/opa/download"
 	"github.com/open-policy-agent/opa/plugins"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/storage/inmem"
 	"github.com/open-policy-agent/opa/util"
 )
 
-func TestNew(t *testing.T) {
-
-	store := inmem.New()
-
-	manager, err := plugins.New([]byte(`{
-		"services": [
-			{
-				"name": "foo"
-			}
-		]
-	}`), "test-instance-id", store)
-
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	tests := []struct {
-		input   string
-		wantErr bool
-		expMin  time.Duration
-		expMax  time.Duration
-	}{
-		{
-			input: `{
-			}`,
-			wantErr: true,
-		},
-		{
-			input: `{
-				"name": "a/b/c",
-				"service": "missing service"
-			}`,
-			wantErr: true,
-		},
-		{
-			input: `{
-				"name": "bad/delays",
-			"service": "foo",
-				"polling": {
-					"min_delay_seconds": 10,
-					"max_delay_seconds": 1
-				}
-			}`,
-			wantErr: true,
-		},
-		{
-			input: `{
-				"name": "defaults",
-				"service": "foo"
-			}`,
-			expMin: time.Second * time.Duration(defaultMinDelaySeconds),
-			expMax: time.Second * time.Duration(defaultMaxDelaySeconds),
-		},
-		{
-			input: `{
-				"name": "missing/min",
-				"service": "foo",
-				"polling": {
-					"max_delay_seconds": 10
-				}
-			}`,
-			wantErr: true,
-		},
-		{
-			input: `{
-				"name": "missing/max",
-				"service": "foo",
-				"polling": {
-					"min_delay_seconds": 1
-				}
-			}`,
-			wantErr: true,
-		},
-		{
-			input: `{
-				"name": "user/min/max",
-				"service": "foo",
-				"polling": {
-					"min_delay_seconds": 10,
-					"max_delay_seconds": 30
-				}
-			}`,
-			expMin: time.Second * 10,
-			expMax: time.Second * 30,
-		},
-	}
-
-	for _, test := range tests {
-		config, _ := ParseConfig([]byte(test.input), manager.Services())
-		if config == nil {
-			continue
-		}
-		p, err := New(config, manager)
-		if err != nil && !test.wantErr {
-			t.Errorf("Unexpected error on: %v, err: %v", test.input, err)
-		}
-		if err == nil {
-			if time.Duration(*p.config.Polling.MinDelaySeconds) != test.expMin {
-				t.Errorf("For %q expected min %v but got %v", p.config.Name, test.expMin, time.Duration(*p.config.Polling.MinDelaySeconds))
-			}
-			if time.Duration(*p.config.Polling.MaxDelaySeconds) != test.expMax {
-				t.Errorf("For %q expected min %v but got %v", p.config.Name, test.expMax, time.Duration(*p.config.Polling.MaxDelaySeconds))
-			}
-		}
-	}
-}
-
-func TestPluginStart(t *testing.T) {
+func TestPluginOneShot(t *testing.T) {
 
 	ctx := context.Background()
-	fixture := newTestFixture(t)
-	defer fixture.server.stop()
+	manager := getTestManager()
+	plugin := Plugin{manager: manager, status: &Status{}}
 
-	if err := fixture.plugin.Start(ctx); err != nil {
-		t.Fatal(err)
-	}
+	module := "package foo\n\ncorge=1"
 
-	txn := storage.NewTransactionOrDie(ctx, fixture.store, storage.WriteParams)
-	done := make(chan struct{})
-
-	fixture.store.Register(ctx, txn, storage.TriggerConfig{
-		OnCommit: func(ctx context.Context, txn storage.Transaction, event storage.TriggerEvent) {
-			if !event.DataChanged() || !event.PolicyChanged() {
-				return
-			}
-			ids, err := fixture.store.ListPolicies(ctx, txn)
-			if err != nil {
-				t.Fatal(err)
-			} else if len(ids) != 1 {
-				t.Fatal("Expected 1 policy")
-			}
-			bs, err := fixture.store.GetPolicy(ctx, txn, ids[0])
-			exp := []byte("package foo\n\ncorge=1")
-			if err != nil {
-				t.Fatal(err)
-			} else if !bytes.Equal(bs, exp) {
-				t.Fatalf("Bad policy content. Exp:\n%v\n\nGot:\n\n%v", string(exp), string(bs))
-			}
-			data, err := fixture.store.Read(ctx, txn, storage.Path{})
-			expData := util.MustUnmarshalJSON([]byte(`{"foo": {"bar": 1, "baz": "qux"}, "system": {"bundle": {"manifest": {"revision": "quickbrownfaux"}}}}`))
-			if err != nil {
-				t.Fatal(err)
-			} else if !reflect.DeepEqual(data, expData) {
-				t.Fatalf("Bad data content. Exp:\n%v\n\nGot:\n\n%v", expData, data)
-			}
-			done <- struct{}{}
-		},
-	})
-
-	if err := fixture.store.Commit(ctx, txn); err != nil {
-		t.Fatal(err)
-	}
-
-	<-done
-	fixture.plugin.Stop(ctx)
-}
-
-func TestPluginEtagCaching(t *testing.T) {
-
-	ctx := context.Background()
-	fixture := newTestFixture(t)
-	fixture.server.expEtag = "some etag value"
-	defer fixture.server.stop()
-
-	updated, err := fixture.plugin.oneShot(ctx)
-	if err != nil {
-		t.Fatal("Unexpected:", err)
-	} else if !updated {
-		t.Fatal("expected update")
-	}
-
-	updated, err = fixture.plugin.oneShot(ctx)
-	if err != nil {
-		t.Fatal("Unexpected:", err)
-	} else if updated {
-		t.Fatal("expected not update")
-	}
-}
-
-func TestPluginFailureAuthn(t *testing.T) {
-
-	ctx := context.Background()
-	fixture := newTestFixture(t)
-	fixture.server.expAuth = "Bearer anothersecret"
-	defer fixture.server.stop()
-
-	_, err := fixture.plugin.oneShot(ctx)
-	if err == nil {
-		t.Fatal("expected error")
-	}
-}
-
-func TestPluginFailureNotFound(t *testing.T) {
-
-	ctx := context.Background()
-	fixture := newTestFixture(t)
-	delete(fixture.server.bundles, "test/bundle1")
-	defer fixture.server.stop()
-
-	_, err := fixture.plugin.oneShot(ctx)
-	if err == nil {
-		t.Fatal("expected error")
-	}
-}
-
-func TestPluginFailureUnexpected(t *testing.T) {
-
-	ctx := context.Background()
-	fixture := newTestFixture(t)
-	fixture.server.expCode = 500
-	defer fixture.server.stop()
-
-	_, err := fixture.plugin.oneShot(ctx)
-	if err == nil {
-		t.Fatal("expected error")
-	}
-}
-
-func TestPluginFailureCompile(t *testing.T) {
-
-	ctx := context.Background()
-	fixture := newTestFixture(t)
-	defer fixture.server.stop()
-
-	_, err := fixture.plugin.oneShot(ctx)
-	if err != nil {
-		t.Fatal("expected error")
-	}
-
-	fixture.server.bundles["test/bundle1"] = bundle.Bundle{
-		Data: map[string]interface{}{},
+	b := bundle.Bundle{
+		Manifest: bundle.Manifest{Revision: "quickbrownfaux"},
+		Data:     util.MustUnmarshalJSON([]byte(`{"foo": {"bar": 1, "baz": "qux"}}`)).(map[string]interface{}),
 		Modules: []bundle.ModuleFile{
-			{
-				Path: `/example.rego`,
-				Raw:  []byte("package foo\n\np[x]"),
+			bundle.ModuleFile{
+				Path:   "/foo/bar",
+				Parsed: ast.MustParseModule(module),
+				Raw:    []byte(module),
 			},
 		},
 	}
 
-	_, err = fixture.plugin.oneShot(ctx)
-	if err == nil {
-		t.Fatal("expected error")
+	plugin.oneShot(ctx, download.Update{Bundle: &b})
+
+	txn := storage.NewTransactionOrDie(ctx, manager.Store)
+	defer manager.Store.Abort(ctx, txn)
+
+	ids, err := manager.Store.ListPolicies(ctx, txn)
+	if err != nil {
+		t.Fatal(err)
+	} else if len(ids) != 1 {
+		t.Fatal("Expected 1 policy")
 	}
 
-	// ensure data/policy is intact
-	txn := storage.NewTransactionOrDie(ctx, fixture.store, storage.TransactionParams{})
+	bs, err := manager.Store.GetPolicy(ctx, txn, ids[0])
+	exp := []byte("package foo\n\ncorge=1")
+	if err != nil {
+		t.Fatal(err)
+	} else if !bytes.Equal(bs, exp) {
+		t.Fatalf("Bad policy content. Exp:\n%v\n\nGot:\n\n%v", string(exp), string(bs))
+	}
 
-	_, err = fixture.store.GetPolicy(ctx, txn, "/example.rego")
+	data, err := manager.Store.Read(ctx, txn, storage.Path{})
+	expData := util.MustUnmarshalJSON([]byte(`{"foo": {"bar": 1, "baz": "qux"}, "system": {"bundle": {"manifest": {"revision": "quickbrownfaux"}}}}`))
+	if err != nil {
+		t.Fatal(err)
+	} else if !reflect.DeepEqual(data, expData) {
+		t.Fatalf("Bad data content. Exp:\n%v\n\nGot:\n\n%v", expData, data)
+	}
+
+}
+
+func TestPluginOneShotCompileError(t *testing.T) {
+
+	ctx := context.Background()
+	manager := getTestManager()
+	plugin := Plugin{manager: manager, status: &Status{}}
+
+	b1 := &bundle.Bundle{
+		Data: map[string]interface{}{"a": "b"},
+		Modules: []bundle.ModuleFile{
+			{
+				Path:   "/example.rego",
+				Parsed: ast.MustParseModule("package foo\n\np[x] { x = 1 }"),
+			},
+		},
+	}
+
+	plugin.oneShot(ctx, download.Update{Bundle: b1})
+
+	b2 := &bundle.Bundle{
+		Modules: []bundle.ModuleFile{
+			{
+				Path:   "/example.rego",
+				Parsed: ast.MustParseModule("package foo\n\np[x]"),
+			},
+		},
+	}
+
+	plugin.oneShot(ctx, download.Update{Bundle: b2})
+
+	txn := storage.NewTransactionOrDie(ctx, manager.Store)
+
+	_, err := manager.Store.GetPolicy(ctx, txn, "/example.rego")
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
 
-	data, err := fixture.store.Read(ctx, txn, storage.Path{})
+	data, err := manager.Store.Read(ctx, txn, storage.Path{})
 	if err != nil || data == nil {
 		t.Fatalf("Expected data to be intact but got: %v, err: %v", data, err)
 	}
 }
 
-func TestPluginReconfigure(t *testing.T) {
-	ctx := context.Background()
-	fixture := newTestFixture(t)
-	defer fixture.server.stop()
-
-	if err := fixture.plugin.Start(ctx); err != nil {
-		t.Fatal(err)
-	}
-
-	minDelay := 2
-	maxDelay := 3
-
-	pluginConfig := []byte(fmt.Sprintf(`{
-			"name": "test/bundle1",
-			"service": "example",
-			"polling": {
-				"min_delay_seconds": %v,
-				"max_delay_seconds": %v
-			}
-		}`, minDelay, maxDelay))
-
-	config, _ := ParseConfig(pluginConfig, fixture.manager.Services())
-
-	fixture.plugin.Reconfigure(config)
-	fixture.plugin.Stop(ctx)
-
-	actualMin := time.Duration(*fixture.plugin.config.Polling.MinDelaySeconds) / time.Nanosecond
-	expectedMin := time.Duration(minDelay) * time.Second
-
-	if actualMin != expectedMin {
-		t.Fatalf("Expected minimum polling interval: %v but got %v", expectedMin, actualMin)
-	}
-
-	actualMax := time.Duration(*fixture.plugin.config.Polling.MaxDelaySeconds) / time.Nanosecond
-	expectedMax := time.Duration(maxDelay) * time.Second
-
-	if actualMax != expectedMax {
-		t.Fatalf("Expected maximum polling interval: %v but got %v", expectedMax, actualMax)
-	}
-}
-
-func TestPluginActivatationRemovesOld(t *testing.T) {
-
-	managerConfig := []byte(`{
-		"services": [
-			{
-				"name": "example",
-				"url": "http://localhost"
-			}
-		]
-	}`)
-	store := inmem.New()
-	manager, err := plugins.New(managerConfig, "test-instance-id", store)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	config, _ := ParseConfig([]byte(`{"name": "test", "service": "example"}`), manager.Services())
-	p, err := New(config, manager)
-	if err != nil {
-		t.Fatal(err)
-	}
+func TestPluginOneShotActivatationRemovesOld(t *testing.T) {
 
 	ctx := context.Background()
+	manager := getTestManager()
+	plugin := Plugin{manager: manager, status: &Status{}}
 
 	module1 := `package example
 
-	p = 1`
+		p = 1`
 
-	b := bundle.Bundle{
+	b1 := bundle.Bundle{
 		Data: map[string]interface{}{
 			"foo": "bar",
 		},
@@ -364,13 +135,11 @@ func TestPluginActivatationRemovesOld(t *testing.T) {
 		},
 	}
 
-	if err := p.activate(ctx, "firstetag", b); err != nil {
-		t.Fatal("Unexpected:", err)
-	}
+	plugin.oneShot(ctx, download.Update{Bundle: &b1})
 
 	module2 := `package example
 
-	p = 2`
+		p = 2`
 
 	b2 := bundle.Bundle{
 		Data: map[string]interface{}{
@@ -385,18 +154,16 @@ func TestPluginActivatationRemovesOld(t *testing.T) {
 		},
 	}
 
-	if err := p.activate(ctx, "secondetag", b2); err != nil {
-		t.Fatal("Unexpected:", err)
-	}
+	plugin.oneShot(ctx, download.Update{Bundle: &b2})
 
-	err = storage.Txn(ctx, store, storage.TransactionParams{}, func(txn storage.Transaction) error {
-		ids, err := store.ListPolicies(ctx, txn)
+	err := storage.Txn(ctx, manager.Store, storage.TransactionParams{}, func(txn storage.Transaction) error {
+		ids, err := manager.Store.ListPolicies(ctx, txn)
 		if err != nil {
 			return err
 		} else if !reflect.DeepEqual([]string{"/example2.rego"}, ids) {
 			return fmt.Errorf("expected updated policy ids")
 		}
-		data, err := store.Read(ctx, txn, storage.Path{})
+		data, err := manager.Store.Read(ctx, txn, storage.Path{})
 		// remove system key to make comparison simpler
 		delete(data.(map[string]interface{}), "system")
 		if err != nil {
@@ -415,57 +182,74 @@ func TestPluginActivatationRemovesOld(t *testing.T) {
 func TestPluginListener(t *testing.T) {
 
 	ctx := context.Background()
-	fixture := newTestFixture(t)
-	defer fixture.server.stop()
+	manager := getTestManager()
+	plugin := Plugin{manager: manager, status: &Status{}}
+	ch := make(chan Status)
 
-	b := fixture.server.bundles["test/bundle1"]
-	ch := make(chan Status, 1)
-
-	fixture.plugin.Register("test", func(status Status) {
+	plugin.Register("test", func(status Status) {
 		ch <- status
 	})
 
-	// Test that initial bundle is ok.
-	fixture.plugin.oneShot(ctx)
+	module := "package gork\np[x] { x = 1 }"
+
+	b := bundle.Bundle{
+		Manifest: bundle.Manifest{
+			Revision: "quickbrownfaux",
+		},
+		Data: map[string]interface{}{},
+		Modules: []bundle.ModuleFile{
+			{
+				Path:   "/foo.rego",
+				Parsed: ast.MustParseModule(module),
+				Raw:    []byte(module),
+			},
+		},
+	}
+
+	// Test that initial bundle is ok. Defer to separate goroutine so we can
+	// check result with channel.
+	go plugin.oneShot(ctx, download.Update{Bundle: &b})
 	s1 := <-ch
 
 	if s1.ActiveRevision != "quickbrownfaux" || s1.Code != "" {
 		t.Fatal("Unexpected status update, got:", s1)
 	}
 
-	// Test that next update is failed.
+	module = "package gork\np[x]"
+
 	b.Manifest.Revision = "slowgreenburd"
 	b.Modules[0] = bundle.ModuleFile{
-		Path: "/foo.rego",
-		Raw:  []byte("package gork\np[x]"),
+		Path:   "/foo.rego",
+		Raw:    []byte(module),
+		Parsed: ast.MustParseModule(module),
 	}
-	fixture.server.bundles["test/bundle1"] = b
 
-	fixture.plugin.oneShot(ctx)
+	// Test that next update is failed.
+	go plugin.oneShot(ctx, download.Update{Bundle: &b})
 	s2 := <-ch
 
 	if s2.ActiveRevision != "quickbrownfaux" || s2.Code == "" || s2.Message == "" || len(s2.Errors) == 0 {
 		t.Fatal("Unexpected status update, got:", s2)
 	}
 
-	// Test that new update is successful.
+	module = "package gork\np[1]"
 	b.Manifest.Revision = "fancybluederg"
 	b.Modules[0] = bundle.ModuleFile{
-		Path: "/foo.rego",
-		Raw:  []byte("package gork\np[1]"),
+		Path:   "/foo.rego",
+		Raw:    []byte(module),
+		Parsed: ast.MustParseModule(module),
 	}
-	fixture.server.bundles["test/bundle1"] = b
-	fixture.server.expEtag = "etagvalue"
 
-	fixture.plugin.oneShot(ctx)
+	// Test that new update is successful.
+	go plugin.oneShot(ctx, download.Update{Bundle: &b})
 	s3 := <-ch
 
 	if s3.ActiveRevision != "fancybluederg" || s3.Code != "" || s3.Message != "" || len(s3.Errors) != 0 {
 		t.Fatal("Unexpected status update, got:", s3)
 	}
 
-	// Test that 304 results in status update.
-	fixture.plugin.oneShot(ctx)
+	// Test that empty download update results in status update.
+	go plugin.oneShot(ctx, download.Update{})
 	s4 := <-ch
 
 	if !reflect.DeepEqual(s3, s4) {
@@ -476,19 +260,23 @@ func TestPluginListener(t *testing.T) {
 
 func TestPluginListenerErrorClearedOn304(t *testing.T) {
 	ctx := context.Background()
-	fixture := newTestFixture(t)
-	defer fixture.server.stop()
+	manager := getTestManager()
+	plugin := Plugin{manager: manager, status: &Status{}}
+	ch := make(chan Status)
 
-	// b := fixture.server.bundles["test/bundle1"]
-	ch := make(chan Status, 1)
-
-	fixture.plugin.Register("test", func(status Status) {
+	plugin.Register("test", func(status Status) {
 		ch <- status
 	})
 
+	b := bundle.Bundle{
+		Manifest: bundle.Manifest{
+			Revision: "quickbrownfaux",
+		},
+		Data: map[string]interface{}{"foo": "bar"},
+	}
+
 	// Test that initial bundle is ok.
-	fixture.server.expEtag = "etagvalue"
-	fixture.plugin.oneShot(ctx)
+	go plugin.oneShot(ctx, download.Update{Bundle: &b})
 	s1 := <-ch
 
 	if s1.ActiveRevision != "quickbrownfaux" || s1.Code != "" {
@@ -496,8 +284,7 @@ func TestPluginListenerErrorClearedOn304(t *testing.T) {
 	}
 
 	// Test that service error triggers failure notification.
-	fixture.server.expCode = 500
-	fixture.plugin.oneShot(ctx)
+	go plugin.oneShot(ctx, download.Update{Error: fmt.Errorf("some error")})
 	s2 := <-ch
 
 	if s2.ActiveRevision != "quickbrownfaux" || s2.Code == "" {
@@ -505,8 +292,7 @@ func TestPluginListenerErrorClearedOn304(t *testing.T) {
 	}
 
 	// Test that service recovery triggers healthy notification.
-	fixture.server.expCode = 304
-	fixture.plugin.oneShot(ctx)
+	go plugin.oneShot(ctx, download.Update{})
 	s3 := <-ch
 
 	if s3.ActiveRevision != "quickbrownfaux" || s3.Code != "" {
@@ -514,147 +300,11 @@ func TestPluginListenerErrorClearedOn304(t *testing.T) {
 	}
 }
 
-type testFixture struct {
-	store   storage.Store
-	manager *plugins.Manager
-	plugin  *Plugin
-	server  *testServer
-}
-
-func newTestFixture(t *testing.T) testFixture {
-
-	ts := testServer{
-		t:       t,
-		expAuth: "Bearer secret",
-		bundles: map[string]bundle.Bundle{
-			"test/bundle1": {
-				Manifest: bundle.Manifest{
-					Revision: "quickbrownfaux",
-				},
-				Data: map[string]interface{}{
-					"foo": map[string]interface{}{
-						"bar": json.Number("1"),
-						"baz": "qux",
-					},
-				},
-				Modules: []bundle.ModuleFile{
-					{
-						Path: `/example.rego`,
-						Raw:  []byte("package foo\n\ncorge=1"),
-					},
-				},
-			},
-		},
-	}
-
-	ts.start()
-
-	managerConfig := []byte(fmt.Sprintf(`{
-			"services": [
-				{
-					"name": "example",
-					"url": %q,
-					"credentials": {
-						"bearer": {
-							"scheme": "Bearer",
-							"token": "secret"
-						}
-					}
-				}
-			]}`, ts.server.URL))
-
+func getTestManager() *plugins.Manager {
 	store := inmem.New()
-
-	manager, err := plugins.New(managerConfig, "test-instance-id", store)
+	manager, err := plugins.New(nil, "test-instance-id", store)
 	if err != nil {
-		t.Fatal(err)
-	}
-
-	pluginConfig := []byte(fmt.Sprintf(`{
-			"name": "test/bundle1",
-			"service": "example",
-			"polling": {
-				"min_delay_seconds": 1,
-				"max_delay_seconds": 1
-			}
-		}`))
-
-	config, _ := ParseConfig(pluginConfig, manager.Services())
-	p, err := New(config, manager)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	return testFixture{
-		store:   store,
-		manager: manager,
-		plugin:  p,
-		server:  &ts,
-	}
-
-}
-
-type testServer struct {
-	t       *testing.T
-	expCode int
-	expEtag string
-	expAuth string
-	bundles map[string]bundle.Bundle
-	server  *httptest.Server
-}
-
-func (t *testServer) handle(w http.ResponseWriter, r *http.Request) {
-
-	if t.expCode != 0 {
-		w.WriteHeader(t.expCode)
-		return
-	}
-
-	if t.expAuth != "" {
-		if r.Header.Get("Authorization") != t.expAuth {
-			w.WriteHeader(401)
-			return
-		}
-	}
-
-	name := strings.TrimPrefix(r.URL.Path, "/bundles/")
-	b, ok := t.bundles[name]
-	if !ok {
-		w.WriteHeader(404)
-		return
-	}
-
-	if t.expEtag != "" {
-		etag := r.Header.Get("If-None-Match")
-		if etag == t.expEtag {
-			w.WriteHeader(304)
-			return
-		}
-	}
-
-	w.Header().Add("Content-Type", "application/gzip")
-
-	if t.expEtag != "" {
-		w.Header().Add("Etag", t.expEtag)
-	}
-
-	w.WriteHeader(200)
-
-	var buf bytes.Buffer
-
-	if err := bundle.Write(&buf, b); err != nil {
-		w.WriteHeader(500)
-	}
-
-	if _, err := w.Write(buf.Bytes()); err != nil {
 		panic(err)
 	}
-}
-
-func (t *testServer) start() {
-	t.server = httptest.NewServer(http.HandlerFunc(t.handle))
-}
-
-func (t *testServer) stop() {
-	t.server.Close()
+	return manager
 }

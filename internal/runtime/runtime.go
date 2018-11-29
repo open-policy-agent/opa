@@ -6,7 +6,6 @@
 package runtime
 
 import (
-	"io/ioutil"
 	"os"
 	"strings"
 
@@ -16,7 +15,7 @@ import (
 
 // Params controls the types of runtime information to return.
 type Params struct {
-	ConfigFile string
+	Config []byte
 }
 
 // Term returns the runtime information as an ast.Term object.
@@ -24,15 +23,10 @@ func Term(params Params) (*ast.Term, error) {
 
 	obj := ast.NewObject()
 
-	if params.ConfigFile != "" {
-
-		bs, err := ioutil.ReadFile(params.ConfigFile)
-		if err != nil {
-			return nil, err
-		}
+	if params.Config != nil {
 
 		var x interface{}
-		if err := util.Unmarshal(bs, &x); err != nil {
+		if err := util.Unmarshal(params.Config, &x); err != nil {
 			return nil, err
 		}
 
