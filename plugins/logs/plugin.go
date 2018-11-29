@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"math/rand"
 	"net/http"
+	"reflect"
 	"strings"
 	"sync"
 	"time"
@@ -119,35 +120,6 @@ func (c *Config) validateAndInjectDefaults(services []string) error {
 	return nil
 }
 
-func (c *Config) equal(other Config) bool {
-
-	if c.Service != other.Service {
-		return false
-	}
-
-	if c.PartitionName != other.PartitionName {
-		return false
-	}
-
-	if *c.Reporting.MaxDelaySeconds != *other.Reporting.MaxDelaySeconds {
-		return false
-	}
-
-	if *c.Reporting.MinDelaySeconds != *other.Reporting.MinDelaySeconds {
-		return false
-	}
-
-	if *c.Reporting.UploadSizeLimitBytes != *other.Reporting.UploadSizeLimitBytes {
-		return false
-	}
-
-	if *c.Reporting.BufferSizeLimitBytes != *other.Reporting.BufferSizeLimitBytes {
-		return false
-	}
-
-	return true
-}
-
 // Plugin implements decision log buffering and uploading.
 type Plugin struct {
 	manager  *plugins.Manager
@@ -161,6 +133,11 @@ type Plugin struct {
 
 // ParseConfig validates the config and injects default values.
 func ParseConfig(config []byte, services []string) (*Config, error) {
+
+	if config == nil {
+		return nil, nil
+	}
+
 	var parsedConfig Config
 
 	if err := util.Unmarshal(config, &parsedConfig); err != nil {
@@ -175,7 +152,7 @@ func ParseConfig(config []byte, services []string) (*Config, error) {
 }
 
 // New returns a new Plugin with the given config.
-func New(parsedConfig *Config, manager *plugins.Manager) (*Plugin, error) {
+func New(parsedConfig *Config, manager *plugins.Manager) *Plugin {
 
 	plugin := &Plugin{
 		manager:  manager,
@@ -186,17 +163,30 @@ func New(parsedConfig *Config, manager *plugins.Manager) (*Plugin, error) {
 		reconfig: make(chan interface{}),
 	}
 
-	return plugin, nil
+	return plugin
+}
+
+// Name identifies the plugin on manager.
+const Name = "decision_logs"
+
+// Lookup returns the decision logs plugin registered with the manager.
+func Lookup(manager *plugins.Manager) *Plugin {
+	if p := manager.Plugin(Name); p != nil {
+		return p.(*Plugin)
+	}
+	return nil
 }
 
 // Start starts the plugin.
 func (p *Plugin) Start(ctx context.Context) error {
+	p.logInfo("Starting decision log uploader.")
 	go p.loop()
 	return nil
 }
 
 // Stop stops the plugin.
 func (p *Plugin) Stop(ctx context.Context) {
+	p.logInfo("Stopping decision log uploader.")
 	done := make(chan struct{})
 	p.stop <- done
 	_ = <-done
@@ -207,7 +197,7 @@ func (p *Plugin) Log(ctx context.Context, decision *server.Info) {
 	path := strings.Replace(strings.TrimPrefix(decision.Query, "data."), ".", "/", -1)
 
 	event := EventV1{
-		Labels:      p.manager.Labels,
+		Labels:      p.manager.Labels(),
 		DecisionID:  decision.DecisionID,
 		Revision:    decision.Revision,
 		Path:        path,
@@ -232,13 +222,8 @@ func (p *Plugin) Log(ctx context.Context, decision *server.Info) {
 }
 
 // Reconfigure notifies the plugin with a new configuration.
-func (p *Plugin) Reconfigure(config interface{}) {
+func (p *Plugin) Reconfigure(_ context.Context, config interface{}) {
 	p.reconfig <- config
-}
-
-// Equal checks if the current and provided input config are equal.
-func (p *Plugin) Equal(other *Config) bool {
-	return p.config.equal(*other)
 }
 
 func (p *Plugin) loop() {
@@ -328,8 +313,17 @@ func (p *Plugin) oneShot(ctx context.Context) (ok bool, err error) {
 	return true, nil
 }
 
-func (p *Plugin) reconfigure(newConfig interface{}) {
-	p.config = *newConfig.(*Config)
+func (p *Plugin) reconfigure(config interface{}) {
+
+	newConfig := config.(*Config)
+
+	if reflect.DeepEqual(p.config, *newConfig) {
+		p.logDebug("Decision log uploader configuration unchanged.")
+		return
+	}
+
+	p.logInfo("Decision log uploader configuration changed.")
+	p.config = *newConfig
 }
 
 func (p *Plugin) bufferChunk(buffer *logBuffer, bs []byte) {
@@ -379,6 +373,6 @@ func (p *Plugin) logDebug(fmt string, a ...interface{}) {
 
 func (p *Plugin) logrusFields() logrus.Fields {
 	return logrus.Fields{
-		"plugin": "decision_logs",
+		"plugin": Name,
 	}
 }

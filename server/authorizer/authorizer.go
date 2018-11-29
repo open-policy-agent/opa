@@ -24,7 +24,7 @@ type Basic struct {
 	compiler func() *ast.Compiler
 	store    storage.Store
 	runtime  *ast.Term
-	decision string
+	decision func() ast.Ref
 }
 
 // Runtime returns an argument that sets the runtime on the authorizer.
@@ -36,9 +36,9 @@ func Runtime(term *ast.Term) func(*Basic) {
 
 // Decision returns an argument that sets the path of the authorization decision
 // to query.
-func Decision(ref ast.Ref) func(*Basic) {
+func Decision(ref func() ast.Ref) func(*Basic) {
 	return func(b *Basic) {
-		b.decision = ref.String()
+		b.decision = ref
 	}
 }
 
@@ -66,7 +66,7 @@ func (h *Basic) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	rego := rego.New(
-		rego.Query(h.decision),
+		rego.Query(h.decision().String()),
 		rego.Compiler(h.compiler()),
 		rego.Store(h.store),
 		rego.Input(input),

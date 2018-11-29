@@ -11,13 +11,12 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
-
-	"os"
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/runtime"
@@ -156,7 +155,7 @@ func (t *Tester) Stop(ctx context.Context) {
 	return
 }
 
-func (t *Tester) Reconfigure(config interface{}) {
+func (t *Tester) Reconfigure(ctx context.Context, config interface{}) {
 	return
 }
 
@@ -230,7 +229,7 @@ func TestRegisterPlugin(t *testing.T) {
 
 	// make sure starting the manager kicks the plugin in
 	emptyInitChan()
-	if err := rt.Discovery.Start(context.Background()); err != nil {
+	if err := rt.Manager.Start(context.Background()); err != nil {
 		t.Fatalf("Unable to initialize plugins: %v", err.Error())
 	}
 
@@ -257,7 +256,7 @@ func TestPluginDoesNotStartWithoutConfig(t *testing.T) {
 
 	// make sure starting the manager kicks the plugin in
 	emptyInitChan()
-	if err := rt.Discovery.Start(context.Background()); err != nil {
+	if err := rt.Manager.Start(context.Background()); err != nil {
 		t.Fatalf("Unable to initialize plugins: %v", err.Error())
 	}
 	if len(initChan) != 0 {
