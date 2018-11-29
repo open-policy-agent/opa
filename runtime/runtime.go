@@ -489,7 +489,13 @@ func setupLogging(config LoggingConfig) {
 
 func loadConfig(ctx context.Context, id string, store storage.Store, configFile string) (*discovery.Discovery, error) {
 
-	discoveredConfig, err := discovery.New(ctx, id, store, configFile, registeredPlugins)
+	params := discovery.Params{
+		ID:                id,
+		ConfigFile:        configFile,
+		Store:             store,
+		RegisteredPlugins: registeredPlugins,
+	}
+	discoveredConfig, err := discovery.New(ctx, params)
 	if err != nil {
 		return nil, err
 	}

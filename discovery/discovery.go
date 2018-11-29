@@ -17,6 +17,7 @@ import (
 
 	"github.com/open-policy-agent/opa/ast"
 	bundleApi "github.com/open-policy-agent/opa/bundle"
+	"github.com/open-policy-agent/opa/internal/runtime"
 	"github.com/open-policy-agent/opa/plugins"
 	"github.com/open-policy-agent/opa/plugins/bundle"
 	"github.com/open-policy-agent/opa/plugins/logs"
@@ -32,18 +33,27 @@ import (
 
 type bundlePluginListener string
 
-// Discovery contains the result of configuration discovery.
+// Discovery performs periodic configuration discovery and configures plugins.
 type Discovery struct {
 	Manager                      *plugins.Manager
 	Plugins                      map[string]plugins.Plugin
 	DefaultDecision              ast.Ref
 	DefaultAuthorizationDecision ast.Ref
 
-	discoveryEnabled    bool
-	discoveryPathConfig *discoveryPathConfig
-	stop                chan chan struct{}
-	pluginsMux          sync.Mutex
-	status              *bundle.Status
+	dynamic    bool
+	config     *discoveryPathConfig
+	stop       chan chan struct{}
+	pluginsMux sync.Mutex
+	status     *bundle.Status
+}
+
+// Params contains the input needed for creating an instance of
+// the discovery plugin.
+type Params struct {
+	ID                string
+	ConfigFile        string
+	Store             storage.Store
+	RegisteredPlugins map[string]plugins.PluginInitFunc
 }
 
 // PollingConfig represents configuration for discovery's polling behaviour.
@@ -62,11 +72,11 @@ type discoveryConfig struct {
 }
 
 type discoveryPathConfig struct {
-	Name        *string       `json:"name"`
-	Prefix      *string       `json:"prefix"`
-	Polling     PollingConfig `json:"polling"`
-	serviceURL  string
-	serviceHost string
+	Name    *string       `json:"name"`
+	Prefix  *string       `json:"prefix"`
+	Polling PollingConfig `json:"polling"`
+	urlPath string
+	service string
 }
 
 func parsePathToRef(s string) (ast.Ref, error) {
@@ -88,27 +98,21 @@ const (
 	errCode = "discovery_error"
 )
 
-// TODO(tsandall): revisit how plugins are wired up to the manager and how
-// everything is started and stopped. We could introduce a package-scoped
-// plugin registry that allows for (dynamic) init-time plugin registration.
-
-// New takes the provided configuration and if needed fetches
-// OPA's new configuration from a remote server. It then instantiates the
-// plugins using either the provided configuration or the one fetched from
-// the remote server.
-func New(ctx context.Context, opaID string, store storage.Store, configFile string, registeredPlugins map[string]plugins.PluginInitFunc) (*Discovery, error) {
+// New takes the provided configuration and instantiates the plugins. If
+// discovery is enabled, it validates the discovery configuration.
+func New(ctx context.Context, params Params) (*Discovery, error) {
 
 	var bs []byte
 	var err error
 
-	if configFile != "" {
-		bs, err = ioutil.ReadFile(configFile)
+	if params.ConfigFile != "" {
+		bs, err = ioutil.ReadFile(params.ConfigFile)
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	m, err := plugins.New(bs, opaID, store)
+	m, err := plugins.New(bs, params.ID, params.Store)
 	if err != nil {
 		return nil, err
 	}
@@ -119,29 +123,39 @@ func New(ctx context.Context, opaID string, store storage.Store, configFile stri
 
 	config, discoveryEnabled = isDiscoveryEnabled(bs)
 	if discoveryEnabled {
+
+		defined, err := pluginsDefinedOnBoot(bs)
+		if err != nil {
+			return nil, err
+		}
+
+		if defined {
+			return nil, fmt.Errorf("plugins cannot be specified in the bootstrap configuration when discovery enabled")
+		}
+
 		discPathConfig, err = validateAndInjectDefaults(config, m.Services())
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	p, err := initPlugins(m, bs, registeredPlugins)
+	p, err := initPlugins(m, bs, params.RegisteredPlugins)
 	if err != nil {
 		return nil, err
 	}
 
-	defaultDecision, defaultAuthorizationDecision, err := configureDefaultDecision(bs)
+	defaultDecision, defaultAuthorizationDecision, err := getDefaultDecisionRefs(bs)
 	if err != nil {
 		return nil, err
 	}
 
 	c := &Discovery{
+		config:                       discPathConfig,
+		dynamic:                      discoveryEnabled,
 		Manager:                      m,
 		Plugins:                      p,
 		DefaultDecision:              defaultDecision,
 		DefaultAuthorizationDecision: defaultAuthorizationDecision,
-		discoveryPathConfig:          discPathConfig,
-		discoveryEnabled:             discoveryEnabled,
 	}
 
 	if discoveryEnabled {
@@ -159,7 +173,7 @@ func (c *Discovery) Start(ctx context.Context) error {
 		return err
 	}
 
-	if c.discoveryEnabled {
+	if c.dynamic {
 		go c.loop()
 	}
 	return nil
@@ -169,7 +183,7 @@ func (c *Discovery) Start(ctx context.Context) error {
 func (c *Discovery) Stop(ctx context.Context) {
 	c.Manager.Stop(ctx)
 
-	if c.discoveryEnabled {
+	if c.dynamic {
 		done := make(chan struct{})
 		c.stop <- done
 		_ = <-done
@@ -183,7 +197,7 @@ func (c *Discovery) loop() {
 	var retry int
 
 	for {
-		bs, updated, err := discoveryHandler(ctx, c.discoveryPathConfig, c.Manager)
+		bs, updated, err := discoveryHandler(ctx, c.config, c.Manager)
 		if err != nil {
 			c.logError("%v.", err)
 		} else if !updated {
@@ -206,11 +220,11 @@ func (c *Discovery) loop() {
 		var delay time.Duration
 
 		if err == nil {
-			min := float64(*c.discoveryPathConfig.Polling.MinDelaySeconds)
-			max := float64(*c.discoveryPathConfig.Polling.MaxDelaySeconds)
+			min := float64(*c.config.Polling.MinDelaySeconds)
+			max := float64(*c.config.Polling.MaxDelaySeconds)
 			delay = time.Duration(((max - min) * rand.Float64()) + min)
 		} else {
-			delay = util.DefaultBackoff(float64(minRetryDelay), float64(*c.discoveryPathConfig.Polling.MaxDelaySeconds), retry)
+			delay = util.DefaultBackoff(float64(minRetryDelay), float64(*c.config.Polling.MaxDelaySeconds), retry)
 		}
 
 		c.logDebug("Waiting %v before next download/retry.", delay)
@@ -604,8 +618,8 @@ func validateAndInjectDefaults(config *discoveryConfig, services []string) (*dis
 		return nil, fmt.Errorf("discovery plugin name not provided")
 	}
 
-	discoveryConfig.serviceHost = services[0]
-	discoveryConfig.serviceURL = getDiscoveryServicePath(discoveryConfig)
+	discoveryConfig.service = services[0]
+	discoveryConfig.urlPath = getDiscoveryServicePath(discoveryConfig)
 
 	min := defaultMinDelaySeconds
 	max := defaultMaxDelaySeconds
@@ -633,7 +647,7 @@ func validateAndInjectDefaults(config *discoveryConfig, services []string) (*dis
 	return &discoveryConfig, nil
 }
 
-func configureDefaultDecision(bs []byte) (ast.Ref, ast.Ref, error) {
+func getDefaultDecisionRefs(bs []byte) (ast.Ref, ast.Ref, error) {
 
 	var raw rawConfig
 
@@ -683,10 +697,30 @@ func isDiscoveryEnabled(bs []byte) (*discoveryConfig, bool) {
 	return config, true
 }
 
+func pluginsDefinedOnBoot(bs []byte) (bool, error) {
+
+	var config struct {
+		Bundle       json.RawMessage            `json:"bundle"`
+		DecisionLogs json.RawMessage            `json:"decision_logs"`
+		Status       json.RawMessage            `json:"status"`
+		Plugins      map[string]json.RawMessage `json:"plugins"`
+	}
+
+	if err := util.Unmarshal(bs, &config); err != nil {
+		return false, err
+	}
+
+	if config.Bundle != nil || config.DecisionLogs != nil || config.Status != nil || config.Plugins != nil {
+		return true, nil
+	}
+
+	return false, nil
+}
+
 func discoveryHandler(ctx context.Context, discoveryConfig *discoveryPathConfig, manager *plugins.Manager) ([]byte, bool, error) {
 
-	resp, err := manager.Client(discoveryConfig.serviceHost).
-		Do(ctx, "GET", discoveryConfig.serviceURL)
+	resp, err := manager.Client(discoveryConfig.service).
+		Do(ctx, "GET", discoveryConfig.urlPath)
 
 	if err != nil {
 		return nil, false, errors.Wrap(err, "Download request failed")
@@ -753,10 +787,16 @@ func processBundle(ctx context.Context, b bundleApi.Bundle, query string) ([]byt
 
 	store := inmem.NewFromObject(b.Data)
 
+	info, err := runtime.Term(runtime.Params{})
+	if err != nil {
+		return nil, false, err
+	}
+
 	rego := rego.New(
 		rego.Query(query),
 		rego.Compiler(compiler),
 		rego.Store(store),
+		rego.Runtime(info),
 	)
 
 	rs, err := rego.Eval(ctx)
@@ -797,7 +837,7 @@ func (c *Discovery) logDebug(fmt string, a ...interface{}) {
 func (c *Discovery) logrusFields() logrus.Fields {
 	return logrus.Fields{
 		"plugin": "discovery",
-		"name":   *c.discoveryPathConfig.Name,
+		"name":   *c.config.Name,
 	}
 }
 
