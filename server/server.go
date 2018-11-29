@@ -80,25 +80,23 @@ var unsafeBuiltinsMap = map[string]bool{ast.HTTPSend.Name: true}
 type Server struct {
 	Handler http.Handler
 
-	router                       *mux.Router
-	addrs                        []string
-	insecureAddr                 string
-	authentication               AuthenticationScheme
-	authorization                AuthorizationScheme
-	cert                         *tls.Certificate
-	mtx                          sync.RWMutex
-	partials                     map[string]rego.PartialResult
-	store                        storage.Store
-	manager                      *plugins.Manager
-	watcher                      *watch.Watcher
-	decisionIDFactory            func() string
-	diagnostics                  Buffer
-	revision                     string
-	logger                       func(context.Context, *Info)
-	errLimit                     int
-	runtime                      *ast.Term
-	defaultDecision              ast.Ref
-	defaultAuthorizationDecision ast.Ref
+	router            *mux.Router
+	addrs             []string
+	insecureAddr      string
+	authentication    AuthenticationScheme
+	authorization     AuthorizationScheme
+	cert              *tls.Certificate
+	mtx               sync.RWMutex
+	partials          map[string]rego.PartialResult
+	store             storage.Store
+	manager           *plugins.Manager
+	watcher           *watch.Watcher
+	decisionIDFactory func() string
+	diagnostics       Buffer
+	revision          string
+	logger            func(context.Context, *Info)
+	errLimit          int
+	runtime           *ast.Term
 }
 
 // Loop will contain all the calls from the server that we'll be listening on.
@@ -124,7 +122,7 @@ func (s *Server) Init(ctx context.Context) (*Server, error) {
 			s.getCompiler,
 			s.store,
 			authorizer.Runtime(s.runtime),
-			authorizer.Decision(s.defaultAuthorizationDecision))
+			authorizer.Decision(s.manager.Config.DefaultAuthorizationDecisionRef))
 	}
 
 	switch s.authentication {
@@ -229,20 +227,6 @@ func (s *Server) WithDecisionIDFactory(f func() string) *Server {
 // WithRuntime sets the runtime data to provide to the evaluation engine.
 func (s *Server) WithRuntime(term *ast.Term) *Server {
 	s.runtime = term
-	return s
-}
-
-// WithDefaultDecision sets path of the policy decision to query to serve
-// requests with an empty URL path.
-func (s *Server) WithDefaultDecision(ref ast.Ref) *Server {
-	s.defaultDecision = ref
-	return s
-}
-
-// WithDefaultAuthorizationDecision sets path of the policy decision to query to
-// authorize requests to OPA itself.
-func (s *Server) WithDefaultAuthorizationDecision(ref ast.Ref) *Server {
-	s.defaultAuthorizationDecision = ref
 	return s
 }
 
@@ -546,7 +530,7 @@ func (s *Server) migrateWatcher(txn storage.Transaction) {
 }
 
 func (s *Server) unversionedPost(w http.ResponseWriter, r *http.Request) {
-	s.v0QueryPath(w, r, s.defaultDecision)
+	s.v0QueryPath(w, r, s.manager.Config.DefaultDecisionRef())
 }
 
 func (s *Server) v0DataPost(w http.ResponseWriter, r *http.Request) {

@@ -11,15 +11,16 @@ import (
 	"crypto/tls"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"sync"
 	"time"
 
 	"github.com/open-policy-agent/opa/ast"
-	"github.com/open-policy-agent/opa/discovery"
 	"github.com/open-policy-agent/opa/internal/runtime"
 	"github.com/open-policy-agent/opa/loader"
 	"github.com/open-policy-agent/opa/plugins"
+	"github.com/open-policy-agent/opa/plugins/discovery"
 	"github.com/open-policy-agent/opa/plugins/logs"
 	"github.com/open-policy-agent/opa/repl"
 	"github.com/open-policy-agent/opa/server"
@@ -127,14 +128,13 @@ func NewParams() Params {
 
 // Runtime represents a single OPA instance.
 type Runtime struct {
-	Params    Params
-	Store     storage.Store
-	Discovery *discovery.Discovery
+	Params  Params
+	Store   storage.Store
+	Manager *plugins.Manager
 
-	info                         *ast.Term // runtime information provided to evaluation engine
-	defaultDecision              ast.Ref
-	defaultAuthorizationDecision ast.Ref
-	decisionLogger               func(context.Context, *server.Info)
+	// TODO(tsandall): remove this field since it's available on the manager
+	// and doesn't have to duplicated here or on the server.
+	info *ast.Term // runtime information provided to evaluation engine
 }
 
 // NewRuntime returns a new Runtime object initialized with params.
@@ -174,34 +174,37 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		return nil, errors.Wrapf(err, "storage error")
 	}
 
-	cfg, err := loadConfig(ctx, params.ID, store, params.ConfigFile)
-	if err != nil {
-		return nil, err
-	}
+	var bs []byte
 
-	var decisionLogger func(context.Context, *server.Info)
-
-	if p, ok := cfg.Plugins["decision_logs"]; ok {
-		decisionLogger = p.(*logs.Plugin).Log
-
-		if params.DecisionIDFactory == nil {
-			params.DecisionIDFactory = generateDecisionID
+	if params.ConfigFile != "" {
+		bs, err = ioutil.ReadFile(params.ConfigFile)
+		if err != nil {
+			return nil, errors.Wrapf(err, "config error")
 		}
 	}
 
-	info, err := runtime.Term(runtime.Params{ConfigFile: params.ConfigFile})
+	info, err := runtime.Term(runtime.Params{Config: bs})
 	if err != nil {
 		return nil, err
 	}
 
+	manager, err := plugins.New(bs, params.ID, store, plugins.Info(info))
+	if err != nil {
+		return nil, errors.Wrapf(err, "config error")
+	}
+
+	disco, err := discovery.New(manager, discovery.CustomPlugins(registeredPlugins))
+	if err != nil {
+		return nil, errors.Wrapf(err, "config error")
+	}
+
+	manager.Register("discovery", disco)
+
 	rt := &Runtime{
-		Store:                        store,
-		Params:                       params,
-		info:                         info,
-		defaultDecision:              cfg.DefaultDecision,
-		defaultAuthorizationDecision: cfg.DefaultAuthorizationDecision,
-		decisionLogger:               decisionLogger,
-		Discovery:                    cfg,
+		Store:   store,
+		Params:  params,
+		Manager: manager,
+		info:    info,
 	}
 
 	return rt, nil
@@ -217,14 +220,15 @@ func (rt *Runtime) StartServer(ctx context.Context) {
 		"insecure_addr": rt.Params.InsecureAddr,
 	}).Infof("First line of log stream.")
 
-	if err := rt.Discovery.Start(ctx); err != nil {
-		logrus.WithField("err", err).Fatalf("Unable to initialize plugins.")
+	if err := rt.Manager.Start(ctx); err != nil {
+		logrus.WithField("err", err).Fatalf("Failed to start plugins.")
 	}
-	defer rt.Discovery.Stop(ctx)
+
+	defer rt.Manager.Stop(ctx)
 
 	s, err := server.New().
 		WithStore(rt.Store).
-		WithManager(rt.Discovery.Manager).
+		WithManager(rt.Manager).
 		WithCompilerErrorLimit(rt.Params.ErrorLimit).
 		WithAddresses(*rt.Params.Addrs).
 		WithInsecureAddress(rt.Params.InsecureAddr).
@@ -232,11 +236,9 @@ func (rt *Runtime) StartServer(ctx context.Context) {
 		WithAuthentication(rt.Params.Authentication).
 		WithAuthorization(rt.Params.Authorization).
 		WithDiagnosticsBuffer(rt.Params.DiagnosticsBuffer).
-		WithDecisionIDFactory(rt.Params.DecisionIDFactory).
+		WithDecisionIDFactory(rt.decisionIDFactory).
 		WithDecisionLogger(rt.decisionLogger).
 		WithRuntime(rt.info).
-		WithDefaultDecision(rt.defaultDecision).
-		WithDefaultAuthorizationDecision(rt.defaultAuthorizationDecision).
 		Init(ctx)
 
 	if err != nil {
@@ -273,11 +275,12 @@ func (rt *Runtime) StartServer(ctx context.Context) {
 // StartREPL starts the runtime in REPL mode. This function will block the calling goroutine.
 func (rt *Runtime) StartREPL(ctx context.Context) {
 
-	if err := rt.Discovery.Start(ctx); err != nil {
+	if err := rt.Manager.Start(ctx); err != nil {
 		fmt.Fprintln(rt.Params.Output, "error starting plugins:", err)
 		os.Exit(1)
 	}
-	defer rt.Discovery.Stop(ctx)
+
+	defer rt.Manager.Stop(ctx)
 
 	banner := rt.getBanner()
 	repl := repl.New(rt.Store, rt.Params.HistoryPath, rt.Params.Output, rt.Params.OutputFormat, rt.Params.ErrorLimit, banner).WithRuntime(rt.info)
@@ -290,6 +293,24 @@ func (rt *Runtime) StartREPL(ctx context.Context) {
 	}
 
 	repl.Loop(ctx)
+}
+
+func (rt *Runtime) decisionIDFactory() string {
+	if rt.Params.DecisionIDFactory != nil {
+		return rt.Params.DecisionIDFactory()
+	}
+	if logs.Lookup(rt.Manager) != nil {
+		return generateDecisionID()
+	}
+	return ""
+}
+
+func (rt *Runtime) decisionLogger(ctx context.Context, event *server.Info) {
+	plugin := logs.Lookup(rt.Manager)
+	if plugin == nil {
+		return
+	}
+	plugin.Log(ctx, event)
 }
 
 func (rt *Runtime) startWatcher(ctx context.Context, paths []string, onReload func(time.Duration, error)) error {
@@ -485,21 +506,6 @@ func setupLogging(config LoggingConfig) {
 	}
 
 	logrus.SetLevel(lvl)
-}
-
-func loadConfig(ctx context.Context, id string, store storage.Store, configFile string) (*discovery.Discovery, error) {
-
-	params := discovery.Params{
-		ID:                id,
-		ConfigFile:        configFile,
-		Store:             store,
-		RegisteredPlugins: registeredPlugins,
-	}
-	discoveredConfig, err := discovery.New(ctx, params)
-	if err != nil {
-		return nil, err
-	}
-	return discoveredConfig, nil
 }
 
 func generateInstanceID() (string, error) {

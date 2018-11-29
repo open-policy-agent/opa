@@ -9,6 +9,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"reflect"
 
 	"github.com/open-policy-agent/opa/plugins"
 	"github.com/open-policy-agent/opa/plugins/bundle"
@@ -21,17 +22,20 @@ import (
 // remote HTTP endpoints.
 type UpdateRequestV1 struct {
 	Labels    map[string]string `json:"labels"`
-	Bundle    bundle.Status     `json:"bundle"`
-	Discovery bundle.Status     `json:"discovery"`
+	Bundle    *bundle.Status    `json:"bundle,omitempty"`
+	Discovery *bundle.Status    `json:"discovery,omitempty"`
 }
 
 // Plugin implements status reporting. Updates can be triggered by the caller.
 type Plugin struct {
-	manager  *plugins.Manager
-	config   Config
-	update   chan bundle.Status
-	stop     chan chan struct{}
-	reconfig chan interface{}
+	manager          *plugins.Manager
+	config           Config
+	bundleCh         chan bundle.Status
+	lastBundleStatus *bundle.Status
+	discoCh          chan bundle.Status
+	lastDiscoStatus  *bundle.Status
+	stop             chan chan struct{}
+	reconfig         chan interface{}
 }
 
 // Config contains configuration for the plugin.
@@ -62,21 +66,13 @@ func (c *Config) validateAndInjectDefaults(services []string) error {
 	return nil
 }
 
-func (c *Config) equal(other Config) bool {
-
-	if c.Service != other.Service {
-		return false
-	}
-
-	if c.PartitionName != other.PartitionName {
-		return false
-	}
-
-	return true
-}
-
 // ParseConfig validates the config and injects default values.
 func ParseConfig(config []byte, services []string) (*Config, error) {
+
+	if config == nil {
+		return nil, nil
+	}
+
 	var parsedConfig Config
 
 	if err := util.Unmarshal(config, &parsedConfig); err != nil {
@@ -91,51 +87,59 @@ func ParseConfig(config []byte, services []string) (*Config, error) {
 }
 
 // New returns a new Plugin with the given config.
-func New(parsedConfig *Config, manager *plugins.Manager) (*Plugin, error) {
+func New(parsedConfig *Config, manager *plugins.Manager) *Plugin {
 
 	plugin := &Plugin{
 		manager:  manager,
 		config:   *parsedConfig,
-		update:   make(chan bundle.Status),
+		bundleCh: make(chan bundle.Status),
+		discoCh:  make(chan bundle.Status),
 		stop:     make(chan chan struct{}),
 		reconfig: make(chan interface{}),
 	}
 
-	return plugin, nil
+	return plugin
+}
+
+// Name identifies the plugin on manager.
+const Name = "status"
+
+// Lookup returns the status plugin registered with the manager.
+func Lookup(manager *plugins.Manager) *Plugin {
+	if p := manager.Plugin(Name); p != nil {
+		return p.(*Plugin)
+	}
+	return nil
 }
 
 // Start starts the plugin.
 func (p *Plugin) Start(ctx context.Context) error {
+	p.logInfo("Starting status reporter.")
 	go p.loop()
 	return nil
 }
 
 // Stop stops the plugin.
 func (p *Plugin) Stop(ctx context.Context) {
+	p.logInfo("Stopping status reporter.")
 	done := make(chan struct{})
 	p.stop <- done
 	_ = <-done
 }
 
-// UpdateBundleStatus notifies the plugin with a new bundle plugin status.
+// UpdateBundleStatus notifies the plugin that the policy bundle was updated.
 func (p *Plugin) UpdateBundleStatus(status bundle.Status) {
-	p.update <- status
+	p.bundleCh <- status
 }
 
-// UpdateDiscoveryStatus notifies the plugin with a new discovery plugin status.
+// UpdateDiscoveryStatus notifies the plugin that the discovery bundle was updated.
 func (p *Plugin) UpdateDiscoveryStatus(status bundle.Status) {
-	status.DiscoveryStatus = true
-	p.update <- status
+	p.discoCh <- status
 }
 
 // Reconfigure notifies the plugin with a new configuration.
-func (p *Plugin) Reconfigure(config interface{}) {
+func (p *Plugin) Reconfigure(_ context.Context, config interface{}) {
 	p.reconfig <- config
-}
-
-// Equal checks if the current and provided input config are equal.
-func (p *Plugin) Equal(other *Config) bool {
-	return p.config.equal(*other)
 }
 
 func (p *Plugin) loop() {
@@ -144,12 +148,19 @@ func (p *Plugin) loop() {
 
 	for {
 		select {
-		case status := <-p.update:
-			err := p.oneShot(ctx, status)
+		case status := <-p.bundleCh:
+			err := p.oneShot(ctx, false, status)
 			if err != nil {
 				p.logError("%v.", err)
 			} else {
-				p.logInfo("Status update sent successfully.")
+				p.logInfo("Status update sent successfully in response to bundle update.")
+			}
+		case status := <-p.discoCh:
+			err := p.oneShot(ctx, true, status)
+			if err != nil {
+				p.logError("%v.", err)
+			} else {
+				p.logInfo("Status update sent successfully in response to discovery update.")
 			}
 
 		case newConfig := <-p.reconfig:
@@ -163,16 +174,18 @@ func (p *Plugin) loop() {
 	}
 }
 
-func (p *Plugin) oneShot(ctx context.Context, status bundle.Status) error {
+func (p *Plugin) oneShot(ctx context.Context, disco bool, status bundle.Status) error {
 
-	req := UpdateRequestV1{
-		Labels: p.manager.Labels,
+	if disco {
+		p.lastDiscoStatus = &status
+	} else {
+		p.lastBundleStatus = &status
 	}
 
-	if status.DiscoveryStatus {
-		req.Discovery = status
-	} else {
-		req.Bundle = status
+	req := UpdateRequestV1{
+		Labels:    p.manager.Labels(),
+		Discovery: p.lastDiscoStatus,
+		Bundle:    p.lastBundleStatus,
 	}
 
 	resp, err := p.manager.Client(p.config.Service).
@@ -197,8 +210,16 @@ func (p *Plugin) oneShot(ctx context.Context, status bundle.Status) error {
 	}
 }
 
-func (p *Plugin) reconfigure(newConfig interface{}) {
-	p.config = *newConfig.(*Config)
+func (p *Plugin) reconfigure(config interface{}) {
+	newConfig := config.(*Config)
+
+	if reflect.DeepEqual(p.config, *newConfig) {
+		p.logDebug("Status reporter configuration unchanged.")
+		return
+	}
+
+	p.logInfo("Status reporter configuration changed.")
+	p.config = *newConfig
 }
 
 func (p *Plugin) logError(fmt string, a ...interface{}) {
@@ -215,6 +236,6 @@ func (p *Plugin) logDebug(fmt string, a ...interface{}) {
 
 func (p *Plugin) logrusFields() logrus.Fields {
 	return logrus.Fields{
-		"plugin": "status",
+		"plugin": Name,
 	}
 }
