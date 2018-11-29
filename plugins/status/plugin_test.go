@@ -32,7 +32,7 @@ func TestPluginStart(t *testing.T) {
 
 	status := testStatus()
 
-	fixture.plugin.Update(status)
+	fixture.plugin.UpdateBundleStatus(status)
 	result := <-fixture.server.ch
 
 	exp := UpdateRequestV1{
@@ -45,6 +45,36 @@ func TestPluginStart(t *testing.T) {
 
 	if !reflect.DeepEqual(result, exp) {
 		t.Fatalf("Expected: %v but got: %v", exp, result)
+	}
+}
+
+func TestPluginStartDiscovery(t *testing.T) {
+
+	fixture := newTestFixture(t)
+	fixture.server.ch = make(chan UpdateRequestV1)
+	defer fixture.server.stop()
+
+	ctx := context.Background()
+
+	fixture.plugin.Start(ctx)
+	defer fixture.plugin.Stop(ctx)
+
+	status := testStatus()
+
+	fixture.plugin.UpdateDiscoveryStatus(status)
+	result := <-fixture.server.ch
+
+	status.DiscoveryStatus = true
+	exp := UpdateRequestV1{
+		Labels: map[string]string{
+			"id":  "test-instance-id",
+			"app": "example-app",
+		},
+		Discovery: status,
+	}
+
+	if !reflect.DeepEqual(result, exp) {
+		t.Fatalf("Expected: %+v but got: %+v", exp, result)
 	}
 }
 
@@ -78,6 +108,30 @@ func TestPluginBadStatus(t *testing.T) {
 	err := fixture.plugin.oneShot(ctx, bundle.Status{})
 	if err == nil {
 		t.Fatal("Expected error")
+	}
+}
+
+func TestPluginReconfigure(t *testing.T) {
+	ctx := context.Background()
+	fixture := newTestFixture(t)
+	defer fixture.server.stop()
+
+	if err := fixture.plugin.Start(ctx); err != nil {
+		t.Fatal(err)
+	}
+
+	pluginConfig := []byte(fmt.Sprintf(`{
+			"service": "example",
+			"partition_name": "test"
+		}`))
+
+	config, _ := ParseConfig(pluginConfig, fixture.manager.Services())
+
+	fixture.plugin.Reconfigure(config)
+	fixture.plugin.Stop(ctx)
+
+	if fixture.plugin.config.PartitionName != "test" {
+		t.Fatalf("Expected partition name: test but got %v", fixture.plugin.config.PartitionName)
 	}
 }
 
@@ -122,7 +176,9 @@ func newTestFixture(t *testing.T) testFixture {
 			"service": "example",
 		}`))
 
-	p, err := New(pluginConfig, manager)
+	config, _ := ParseConfig([]byte(pluginConfig), manager.Services())
+
+	p, err := New(config, manager)
 	if err != nil {
 		t.Fatal(err)
 	}

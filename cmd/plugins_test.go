@@ -156,6 +156,10 @@ func (t *Tester) Stop(ctx context.Context) {
 	return
 }
 
+func (t *Tester) Reconfigure(config interface{}) {
+	return
+}
+
 var Initializer plugins.PluginInitFunc = func(m *plugins.Manager, config []byte) (plugins.Plugin, error) {
 	var test struct {
 		Key string
@@ -226,9 +230,10 @@ func TestRegisterPlugin(t *testing.T) {
 
 	// make sure starting the manager kicks the plugin in
 	emptyInitChan()
-	if err := rt.Manager.Start(context.Background()); err != nil {
+	if err := rt.Discovery.Start(context.Background()); err != nil {
 		t.Fatalf("Unable to initialize plugins: %v", err.Error())
 	}
+
 	if len(initChan) != 1 {
 		t.Fatalf("Plugin was started %v times", len(initChan))
 	}
@@ -252,7 +257,7 @@ func TestPluginDoesNotStartWithoutConfig(t *testing.T) {
 
 	// make sure starting the manager kicks the plugin in
 	emptyInitChan()
-	if err := rt.Manager.Start(context.Background()); err != nil {
+	if err := rt.Discovery.Start(context.Background()); err != nil {
 		t.Fatalf("Unable to initialize plugins: %v", err.Error())
 	}
 	if len(initChan) != 0 {

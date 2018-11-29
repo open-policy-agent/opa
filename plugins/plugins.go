@@ -20,6 +20,7 @@ import (
 type Plugin interface {
 	Start(ctx context.Context) error
 	Stop(ctx context.Context)
+	Reconfigure(config interface{})
 }
 
 // PluginInitFunc defines the interface for the constructing plugins from configuration.
@@ -37,6 +38,7 @@ type Manager struct {
 	registeredTriggers    []func(txn storage.Transaction)
 	registeredTriggersMux sync.Mutex
 	compilerMux           sync.RWMutex
+	labelSvcMux           sync.Mutex
 }
 
 // New creates a new Manager using config.
@@ -82,6 +84,38 @@ func (m *Manager) GetCompiler() *ast.Compiler {
 	m.compilerMux.RLock()
 	defer m.compilerMux.RUnlock()
 	return m.compiler
+}
+
+// Update updates the manager's services and labels.
+func (m *Manager) Update(config []byte) error {
+	m.labelSvcMux.Lock()
+	defer m.labelSvcMux.Unlock()
+
+	var parsedConfig struct {
+		Services json.RawMessage   `json:"services"`
+		Labels   map[string]string `json:"labels"`
+	}
+
+	if err := util.Unmarshal(config, &parsedConfig); err != nil {
+		return err
+	}
+
+	if parsedConfig.Labels != nil {
+		for k, v := range parsedConfig.Labels {
+			m.Labels[k] = v
+		}
+	}
+
+	services, err := parseServicesConfig(parsedConfig.Services)
+	if err != nil {
+		return err
+	}
+
+	for k, v := range services {
+		m.services[k] = v
+	}
+
+	return nil
 }
 
 func (m *Manager) setCompiler(compiler *ast.Compiler) {
