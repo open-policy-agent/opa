@@ -62,9 +62,6 @@ const (
 	defaultPrettyLimit = 80
 )
 
-// default sorting order for profiler results
-var defaultSortOrder = []string{"total_time_ns", "num_eval", "num_redo", "file", "line"}
-
 func init() {
 
 	var params evalCommandParams
@@ -290,7 +287,7 @@ func eval(args []string, params evalCommandParams, w io.Writer) (int, error) {
 	}
 
 	if params.profile {
-		var sortOrder = defaultSortOrder
+		var sortOrder = pr.DefaultProfileSortOrder
 
 		if len(params.profileCriteria.v) != 0 {
 			sortOrder = getProfileSortOrder(strings.Split(params.profileCriteria.String(), ","))
@@ -328,7 +325,7 @@ func getProfileSortOrder(sortOrder []string) []string {
 	}
 
 	// compare the given sort order and the default
-	for _, cr := range defaultSortOrder {
+	for _, cr := range pr.DefaultProfileSortOrder {
 		if _, ok := sortOrderMap[cr]; !ok {
 			sortOrder = append(sortOrder, cr)
 		}

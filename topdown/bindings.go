@@ -75,10 +75,18 @@ func (u *bindings) Iter(caller *bindings, iter func(*ast.Term, *ast.Term) error)
 		}
 		term := k.(*ast.Term)
 		err = iter(term, u.PlugNamespaced(term, caller))
+
 		return false
 	})
 
 	return err
+}
+
+func (u *bindings) Namespace(x ast.Node, caller *bindings) {
+	ast.Walk(namespacingVisitor{
+		b:      u,
+		caller: caller,
+	}, x)
 }
 
 func (u *bindings) Plug(a *ast.Term) *ast.Term {
@@ -132,61 +140,8 @@ func (u *bindings) plugNamespaced(a *ast.Term, caller *bindings) *ast.Term {
 		}
 		cpy.Value = ref
 		return &cpy
-
-	// NOTE(tsandall): comprehensions are plugged when they're contained in
-	// partial evaluation results. If comprehensions are partially evaluated at
-	// some point, then they will not need to be plugged and these branches can
-	// go away.
-	case *ast.ArrayComprehension:
-		ac := *v
-		ac.Body = u.plugBody(v.Body, caller)
-		ac.Term = u.plugNamespaced(v.Term, caller)
-		cpy := *a
-		cpy.Value = &ac
-		return &cpy
-	case *ast.SetComprehension:
-		sc := *v
-		sc.Body = u.plugBody(v.Body, caller)
-		sc.Term = u.plugNamespaced(v.Term, caller)
-		cpy := *a
-		cpy.Value = &sc
-		return &cpy
-	case *ast.ObjectComprehension:
-		oc := *v
-		oc.Body = u.plugBody(v.Body, caller)
-		oc.Key = u.plugNamespaced(v.Key, caller)
-		oc.Value = u.plugNamespaced(v.Value, caller)
-		cpy := *a
-		cpy.Value = &oc
-		return &cpy
-
 	}
 	return a
-}
-
-// NOTE(tsandall): see note in plugNamespaced about comprehensions.
-func (u *bindings) plugBody(body ast.Body, caller *bindings) ast.Body {
-	cpy := make(ast.Body, len(body))
-	for i := range body {
-		cpy[i] = u.plugExpr(body[i], caller)
-	}
-	return cpy
-}
-
-func (u *bindings) plugExpr(expr *ast.Expr, caller *bindings) *ast.Expr {
-	cpy := *expr
-	switch terms := expr.Terms.(type) {
-	case *ast.Term:
-		cpy.Terms = u.plugNamespaced(terms, caller)
-	case []*ast.Term:
-		sl := make([]*ast.Term, len(terms))
-		sl[0] = terms[0]
-		for i := 1; i < len(sl); i++ {
-			sl[i] = u.plugNamespaced(terms[i], caller)
-		}
-		cpy.Terms = sl
-	}
-	return &cpy
 }
 
 func (u *bindings) bind(a *ast.Term, b *ast.Term, other *bindings) *undo {
@@ -274,4 +229,80 @@ func (v value) equal(other *value) bool {
 		return v.v.Equal(other.v)
 	}
 	return false
+}
+
+type namespacingVisitor struct {
+	b      *bindings
+	caller *bindings
+}
+
+func (vis namespacingVisitor) Visit(x interface{}) ast.Visitor {
+	switch x := x.(type) {
+	case *ast.ArrayComprehension:
+		x.Term = vis.namespaceTerm(x.Term)
+		ast.Walk(vis, x.Body)
+		return nil
+	case *ast.SetComprehension:
+		x.Term = vis.namespaceTerm(x.Term)
+		ast.Walk(vis, x.Body)
+		return nil
+	case *ast.ObjectComprehension:
+		x.Key = vis.namespaceTerm(x.Key)
+		x.Value = vis.namespaceTerm(x.Value)
+		ast.Walk(vis, x.Body)
+		return nil
+	case *ast.Expr:
+		switch terms := x.Terms.(type) {
+		case []*ast.Term:
+			for i := 1; i < len(terms); i++ {
+				terms[i] = vis.namespaceTerm(terms[i])
+			}
+		case *ast.Term:
+			x.Terms = vis.namespaceTerm(terms)
+		}
+		for _, w := range x.With {
+			w.Target = vis.namespaceTerm(w.Target)
+			w.Value = vis.namespaceTerm(w.Value)
+		}
+	}
+	return vis
+}
+
+func (vis namespacingVisitor) namespaceTerm(a *ast.Term) *ast.Term {
+	switch v := a.Value.(type) {
+	case ast.Var:
+		return vis.b.namespaceVar(a, vis.caller)
+	case ast.Array:
+		cpy := *a
+		arr := make(ast.Array, len(v))
+		for i := 0; i < len(arr); i++ {
+			arr[i] = vis.namespaceTerm(v[i])
+		}
+		cpy.Value = arr
+		return &cpy
+	case ast.Object:
+		if a.IsGround() {
+			return a
+		}
+		cpy := *a
+		cpy.Value, _ = v.Map(func(k, v *ast.Term) (*ast.Term, *ast.Term, error) {
+			return vis.namespaceTerm(k), vis.namespaceTerm(v), nil
+		})
+		return &cpy
+	case ast.Set:
+		cpy := *a
+		cpy.Value, _ = v.Map(func(x *ast.Term) (*ast.Term, error) {
+			return vis.namespaceTerm(x), nil
+		})
+		return &cpy
+	case ast.Ref:
+		cpy := *a
+		ref := make(ast.Ref, len(v))
+		for i := 0; i < len(ref); i++ {
+			ref[i] = vis.namespaceTerm(v[i])
+		}
+		cpy.Value = ref
+		return &cpy
+	}
+	return a
 }

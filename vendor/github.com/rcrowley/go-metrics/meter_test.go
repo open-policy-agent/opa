@@ -43,6 +43,11 @@ func TestMeterConcurrency(t *testing.T) {
 			m.Mark(1)
 			wg.Done()
 		}(m, wg)
+		wg.Add(1)
+		go func(m Meter, wg *sync.WaitGroup) {
+			m.Stop()
+			wg.Done()
+		}(m, wg)
 	}
 	wg.Wait()
 }

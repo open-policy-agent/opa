@@ -94,7 +94,15 @@ func Ast(x interface{}) (formatted []byte, err error) {
 	default:
 		return nil, fmt.Errorf("not an ast element: %v", x)
 	}
-	return w.buf.Bytes(), nil
+
+	return squashTrailingNewlines(w.buf.Bytes()), nil
+}
+
+func squashTrailingNewlines(bs []byte) []byte {
+	if bytes.HasSuffix(bs, []byte("\n")) {
+		return append(bytes.TrimRight(bs, "\n"), '\n')
+	}
+	return bs
 }
 
 func defaultLocation(x ast.Node) *ast.Location {
@@ -153,8 +161,11 @@ func (w *writer) writeModule(module *ast.Module) {
 		comments = w.writeRules(rules, comments)
 	}
 
-	for _, c := range comments {
+	for i, c := range comments {
 		w.writeLine(c.String())
+		if i == len(comments)-1 {
+			w.write("\n")
+		}
 	}
 }
 
@@ -246,7 +257,7 @@ func (w *writer) writeHead(head *ast.Head, isExpandedConst bool, comments []*ast
 		for _, arg := range head.Args {
 			args = append(args, arg)
 		}
-		comments = w.writeIterable(args, head.Location, comments, w.listWriter())
+		comments = w.writeIterable(args, head.Location, closingLoc(0, 0, '(', ')', head.Location), comments, w.listWriter())
 		w.write(")")
 	}
 	if head.Key != nil {
@@ -444,8 +455,7 @@ func (w *writer) writeObject(obj ast.Object, loc *ast.Location, comments []*ast.
 	obj.Foreach(func(k, v *ast.Term) {
 		s = append(s, ast.Item(k, v))
 	})
-	comments = w.writeIterable(s, loc, comments, w.objectWriter())
-	return w.insertComments(comments, closingLoc(0, 0, '{', '}', loc))
+	return w.writeIterable(s, loc, closingLoc(0, 0, '{', '}', loc), comments, w.objectWriter())
 }
 
 func (w *writer) writeArray(arr ast.Array, loc *ast.Location, comments []*ast.Comment) []*ast.Comment {
@@ -456,11 +466,16 @@ func (w *writer) writeArray(arr ast.Array, loc *ast.Location, comments []*ast.Co
 	for _, t := range arr {
 		s = append(s, t)
 	}
-	comments = w.writeIterable(s, loc, comments, w.listWriter())
-	return w.insertComments(comments, closingLoc(0, 0, '[', ']', loc))
+	return w.writeIterable(s, loc, closingLoc(0, 0, '[', ']', loc), comments, w.listWriter())
 }
 
 func (w *writer) writeSet(set ast.Set, loc *ast.Location, comments []*ast.Comment) []*ast.Comment {
+
+	if set.Len() == 0 {
+		w.write("set()")
+		return w.insertComments(comments, closingLoc(0, 0, '(', ')', loc))
+	}
+
 	w.write("{")
 	defer w.write("}")
 
@@ -468,8 +483,7 @@ func (w *writer) writeSet(set ast.Set, loc *ast.Location, comments []*ast.Commen
 	set.Foreach(func(t *ast.Term) {
 		s = append(s, t)
 	})
-	comments = w.writeIterable(s, loc, comments, w.listWriter())
-	return w.insertComments(comments, closingLoc(0, 0, '{', '}', loc))
+	return w.writeIterable(s, loc, closingLoc(0, 0, '{', '}', loc), comments, w.listWriter())
 }
 
 func (w *writer) writeArrayComprehension(arr *ast.ArrayComprehension, loc *ast.Location, comments []*ast.Comment) []*ast.Comment {
@@ -569,12 +583,11 @@ func (w *writer) writeImports(imports []*ast.Import, comments []*ast.Comment) []
 
 type entryWriter func(interface{}, []*ast.Comment) []*ast.Comment
 
-func (w *writer) writeIterable(elements []interface{}, last *ast.Location, comments []*ast.Comment, fn entryWriter) []*ast.Comment {
+func (w *writer) writeIterable(elements []interface{}, last *ast.Location, close *ast.Location, comments []*ast.Comment, fn entryWriter) []*ast.Comment {
 	lines := groupIterable(elements, last)
 	if len(lines) > 1 {
 		w.delayBeforeEnd()
 		w.startMultilineSeq()
-		defer w.endMultilineSeq()
 	}
 
 	i := 0
@@ -585,7 +598,17 @@ func (w *writer) writeIterable(elements []interface{}, last *ast.Location, comme
 		w.endLine()
 		w.startLine()
 	}
+
 	comments = w.writeIterableLine(lines[i], comments, fn)
+
+	if len(lines) > 1 {
+		w.write(",")
+		w.endLine()
+		comments = w.insertComments(comments, close)
+		w.down()
+		w.startLine()
+	}
+
 	return comments
 }
 

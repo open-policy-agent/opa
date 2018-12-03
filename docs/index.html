@@ -1,330 +1,421 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
   <head>
     <meta charset="utf-8">
+    <meta name="description" content="Policy-based control for cloud native environments">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/3.5.2/animate.min.css">
-    <link href="https://fonts.googleapis.com/css?family=Roboto" rel="stylesheet">
-    <link rel="stylesheet" href="css/hamburgers.css" media="screen" charset="utf-8">
-    <link rel="stylesheet" href="css/style.css" media="screen" charset="utf-8">
-    <link rel="shortcut icon" href="images/favicon.png" type="image/x-icon"/>
+    <link rel="stylesheet" href="style.css" media="screen" charset="utf-8">
+    <link rel="shortcut icon" href="img/favicon.png" type="image/x-icon"/>
     <title>Open Policy Agent</title>
   </head>
-  <body class="_homepage--body">
-    <section class="_homepage--banner">
+  <body>
+    <svg xmlns="http://www.w3.org/2000/svg" style="display:none">
+      <symbol id="icon--arrow-up" viewBox="0 0 24 24"><path d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z"/><path d="M0 0h24v24H0z" fill="none"/></symbol>
+      <symbol id="social-icon--medium" viewBox="0 0 55 55"><path d="M27.5 0C12.3 0 0 12.3 0 27.5S12.3 55 27.5 55 55 42.7 55 27.5 42.7 0 27.5 0zm-6.2 40.6l-9.6-4.7c-.1-.1-.3-.3-.3-.5V13.6l9.8 4.9v22.1h.1zm1.2-10.4v-9.9l8.8 14.3-8.8-4.4zm3.9-5.8l6.8-10.9 9.9 5L32.9 35l-6.5-10.6zm17 16.2l-9.6-4.7 9.6-15.6v20.3z"/></symbol>
+      <symbol id="social-icon--slack" viewBox="0 0 55 55"><path d="M23.45 25.382l6.066-2.04 2.01 5.97-6.067 2.04-2.01-5.97z"/><path d="M27.5 0C12.3 0 0 12.3 0 27.5S12.3 55 27.5 55 55 42.7 55 27.5 42.7 0 27.5 0zm14 31.9l-2.9 1 1 3c.5 1.5-.3 3-1.7 3.5-1.5.5-3-.3-3.5-1.7l-1-3-6.1 2 1 3c.5 1.5-.3 3-1.7 3.5-1.5.5-3-.3-3.5-1.7l-1-3-2.8.9c-1.5.5-3-.3-3.5-1.7-.5-1.5.3-3 1.7-3.5l2.8-.9-2-5.9-2.9 1c-1.5.5-3-.3-3.5-1.7-.5-1.5.3-3 1.7-3.5l2.9-1-1-2.8c-.5-1.5.3-3 1.7-3.5 1.5-.5 3 .3 3.5 1.7l1 2.8 6.1-2-1-2.9c-.5-1.5.3-3 1.7-3.5 1.5-.5 3 .3 3.5 1.7l1 2.9 2.9-1c1.5-.5 3 .3 3.5 1.7.5 1.5-.3 3-1.7 3.5l-2.9 1 2 5.9 2.9-1c1.5-.5 3 .3 3.5 1.7s-.3 3-1.7 3.5z"/></symbol>
+      <symbol id="social-icon--twitter" viewBox="0 0 400 400"><path fill-rule="evenodd" clip-rule="evenodd" d="M400 200c0 110.457-89.543 200-200 200S0 310.457 0 200 89.543 0 200 0s200 89.543 200 200zm-99.4-31.7c0 63.7-48.5 137.2-137.2 137.2-27.2 0-52.6-8-73.7-21.8 3.8.5 7.6.7 11.5.7 22.6 0 43.4-7.7 59.9-20.6-21.1-.4-38.9-14.3-45-33.5 3 .6 6 .9 9.1.9 4.4 0 8.7-.6 12.7-1.7-22.1-4.5-38.7-23.9-38.7-47.3v-.6c6.5 3.6 13.9 5.8 21.8 6-13-8.6-21.5-23.4-21.5-40.1 0-8.8 2.4-17.1 6.5-24.2 23.8 29.2 59.3 48.4 99.4 50.4-.9-3.5-1.3-7.2-1.3-11 0-26.6 21.6-48.2 48.2-48.2 13.9 0 26.4 5.8 35.2 15.2 11-2.2 21.3-6.2 30.6-11.7-3.6 11.3-11.2 20.7-21.2 26.7 9.8-1.2 19.1-3.8 27.7-7.6-6.5 9.7-14.7 18.2-24.1 25 .1 2 .1 4.1.1 6.2z"/></symbol>
+      <symbol id="social-icon--github" viewBox="0 0 55.1 53.7"><g><path d="M27.5 0C12.3 0 0 12.3 0 27.5 0 39.7 7.9 50 18.8 53.6c1.4.3 1.9-.6 1.9-1.3v-5.1C13 48.9 11.4 44 11.4 44c-1.3-3.2-3.1-4-3.1-4-2.5-1.7.2-1.7.2-1.7 2.8.2 4.2 2.8 4.2 2.8 2.5 4.2 6.4 3 8 2.3.2-1.8 1-3 1.7-3.7-6.1-.7-12.5-3.1-12.5-13.6 0-3 1.1-5.5 2.8-7.4-.3-.7-1.2-3.5.3-7.3 0 0 2.3-.7 7.6 2.8 2.2-.6 4.5-.9 6.9-.9 2.3 0 4.7.3 6.9.9 5.2-3.6 7.6-2.8 7.6-2.8 1.5 3.8.6 6.6.3 7.3 1.8 1.9 2.8 4.4 2.8 7.4 0 10.6-6.4 12.9-12.6 13.6 1 .9 1.9 2.5 1.9 5.1v7.5c0 .7.5 1.6 1.9 1.3C47.2 50 55.1 39.7 55.1 27.5 55 12.3 42.7 0 27.5 0z"/><path d="M10.4 39.5c-.1.1-.3.2-.5.1s-.3-.3-.2-.4c.1-.1.3-.2.5-.1.2 0 .3.2.2.4z"/><path d="M11.5 40.7c-.1.1-.4.1-.6-.1-.2-.2-.2-.4-.1-.6.1-.1.4-.1.6.1.2.2.3.5.1.6z"/><path d="M12.6 42.3c-.2.1-.4 0-.6-.2-.2-.2-.2-.5 0-.7.2-.1.4 0 .6.2.2.3.2.6 0 .7z"/><path d="M14.1 43.8c-.2.2-.5.1-.7-.1s-.3-.5-.2-.7c.2-.2.5-.1.7.1.3.2.4.6.2.7z"/><path d="M16.1 44.7c-.1.2-.4.3-.7.2-.3-.1-.5-.3-.5-.6.1-.2.4-.3.7-.2.4.1.6.4.5.6z"/><path d="M18.4 44.9c0 .2-.3.4-.6.4s-.6-.2-.6-.4.3-.4.6-.4.6.1.6.4z"/><path d="M20.5 44.5c0 .2-.2.4-.5.5s-.6-.1-.7-.3c0-.2.2-.5.5-.5.4 0 .7.1.7.3z"/></g></symbol>
+    </svg>
 
-      <div class="_homepage--banner-cloud">
-        <img class="_homepage--banner-cloud-img" src="images/cloud.svg" alt="">
+    <header role="banner">
+      <nav class="nav--banner" role="navigation">
+        <ul class="nav--menu">
+          <li class="nav--menu-item nav--home"><a href="/">Open Policy Agent</a></li>
+          <li class="nav--menu-item nav--docs"><a href="/docs/" rel="help">Documentation</a></li>
+          <li class="nav--menu-item nav--docs"><a href="/docs/get-started.html" rel="help">Tutorials</a></li>
+        </ul>
+        <ul class="nav--menu">
+          <li class="nav--menu-item nav--social"><a href="https://blog.openpolicyagent.org/" rel="external"><svg class="nav--social-icon"><title>Medium</title><use xlink:href="#social-icon--medium"/></svg></a></li>
+          <li class="nav--menu-item nav--social"><a href="https://twitter.com/openpolicyagent" rel="external"><svg class="nav--social-icon"><title>Twitter</title><use xlink:href="#social-icon--twitter"/></svg></a></li>
+          <li class="nav--menu-item nav--social"><a href="http://slack.openpolicyagent.org/" rel="external"><svg class="nav--social-icon"><title>Slack</title><use xlink:href="#social-icon--slack"/></svg></a></li>
+          <li class="nav--menu-item nav--social"><a href="https://github.com/open-policy-agent/opa" rel="external"><svg class="nav--social-icon"><title>GitHub</title><use xlink:href="#social-icon--github"/></svg></a></li>
+        </ul>
+      </nav>
+
+      <div class="headline">
+        <div class="content">
+          <h1 class="headline--title">Policy-based control for cloud&nbsp;native environments</h1>
+          <p class="headline--subtitle">Empower your administrators with flexible, fine-grained control across your entire&nbsp;stack.</p>
+
+          <p class="headline--nav">
+            <a id="headline--get-started" href="/docs/get-started.html" rel="help">Get Started</a>
+            <a id="headline--learn-more" href="/docs/" rel="help">Learn More</a>
+          </p>
+        </div>
+
+        <div class="headline--wave--bg" role="presentation"></div>
+        <div class="headline--wave--fg" role="presentation"></div>
       </div>
+    </header>
 
-      <header class="_homepage--header">
-        <div class="header _homepage--container">
+    <main role="main">
+      <section class="traits">
+        <div class="content">
+          <h2 class="traits--title">Traits</h2>
 
-            <div class="_homepage--logo header--logo">
-              <a class="header--logo-link" href="/">
-                <img class="header--logo-image" src="images/opa-logo.svg"  alt="" />
-                <p class="header--logo-txt">
-                  Open Policy Agent
-                </p>
-              </a>
+          <dl class="traits--list">
+            <div class="trait trait--unified">
+              <dt class="trait--title">Unified</dt>
+              <dd class="trait--body">Decouple policy decisions from your services to achieve unified control across the entire stack with any language or service.</dd>
             </div>
 
-            <nav class="_homepage--menu-mobile">
-              <button class="hamburger hamburger--spring" type="button" style="outline: none;">
-                <span class=" hamburger-box">
-                  <span class="menu-mobile--hamburger-inner hamburger-inner"></span>
-                </span>
-              </button>
-            </nav>
+            <div class="trait trait--declarative">
+              <dt class="trait--title">Declarative</dt>
+              <dd class="trait--body">Express policies in a high-level declarative language that promotes safe, fine-grained logic and enables powerful features such as impact analysis, hot reloading, query optimization, and more.</dd>
+            </div>
 
-            <nav class="_homepage--menu-desktop header--menu">
-              <a class="header--link header--link_LONG" href="/docs">
-                <p class="header--menu-txt">
-                  Documentation
-                </p>
-              </a>
-              <a class="header--link header--link_LONG" href="/docs/get-started.html">
-                <p class="header--menu-txt">
-                  Tutorials
-                </p>
-              </a>
-              <a class="header--link header--link_LONG" href="https://blog.openpolicyagent.org/" target="_blank">
-                <img class="header--menu-image" src="images/Medium.svg" alt="" />
-              </a>
-              <a class="header--link header--link_SMALL" href="https://github.com/open-policy-agent/opa" target="_blank">
-                <img class="header--menu-image" src="images/Github.svg" alt="" />
-              </a>
-              <a class="header--link header--link_SMALL" href="http://slack.openpolicyagent.org/" target="_blank">
-                <img class="header--menu-image" src="images/Slack.svg" alt="" />
-              </a>
-            </nav>
-
+            <div class="trait trait--context-aware">
+              <dt class="trait--title">Context-Aware</dt>
+              <dd class="trait--body">Leverage arbitrary external document-oriented data (JSON) in policies to ensure that important requirements are enforced throughout the organization.</dd>
+            </div>
+          </dl>
         </div>
-      </header>
+      </section>
 
-      <div class="_homepage--messages">
-        <div class="_homepage--container">
+      <section id="use-cases">
+        <div class="use-cases">
+          <div class="use-cases--wave" role="presentation"></div>
+          <div class="content">
+            <div class="use-cases--content">
+              <h2>Use Cases</h2>
 
-          <h1 class="messages--main">
-            Policy-based control for cloud native environments
-          </h1>
-          <p class="messages--side">
-            Empower your administrators with flexible, fine-grained control across the entire stack.
-          </p>
+              <div class="use-cases--content--columns">
+                <p>Open Policy Agent (OPA) is a general-purpose policy engine with uses ranging from authorization and admission control to data filtering. OPA provides greater flexibility and expressiveness than hard-coded service logic or ad-hoc domain-specific languages. And it comes with powerful tooling to help you get started.</p>
 
-          <div class="messages--btns">
-            <a class="messages--btn-link" href="/docs/get-started.html">
-              <button class="messages--get-started-btn messages--btn base--button">
-                Get Started
-              </button>
-            </a>
-            <a class="messages--btn-link" href="/docs/">
-              <button class="messages--learn-more-btn messages--btn base--button">
-                Learn More
-              </button>
-            </a>
-          </div>
+                <div>
+                  <p>Here are just a few examples of what you can do with OPA:</p>
 
-        </div>
-      </div>
-
-    </section>
-
-
-    <section class="_homepage--value-section">
-      <div class="value-section--light-blue-wave-container">
-        <img class="value-section--light-blue-wave" src="/images/horizontal-light-blue-wave.svg" alt="">
-      </div>
-      <div class="value-section--boat-container">
-        <img class="value-section--boat" src="/images/boat.svg" alt="">
-      </div>
-      <div class="value-section--middle-blue-wave-container">
-        <img class="value-section--middle-blue-wave" src="/images/horizontal-dark-blue-wave.svg" alt="">
-      </div>
-      <div class="value-section--long-wave-container">
-        <img class="value-section--long-wave" src="/images/long-wave.svg" alt="">
-      </div>
-
-        <div class="value-section--values _homepage--container">
-          <div class="value-section--value-item-container">
-            <img class="value-section--value-img" src="/images/unified-icon.svg" alt="">
-            <h4 class="value-section--value-title">
-              Unified
-            </h4>
-            <p class="value-section--value-para">
-              Decouple policy decisions from your services to achieve unified control across the entire stack with any language or service.
-            </p>
-          </div>
-          <div class="value-section--value-item-container">
-            <img class="value-section--value-img" src="/images/declarative-icon.svg" alt="">
-            <h4 class="value-section--value-title">
-              Declarative
-            </h4>
-            <p class="value-section--value-para">
-              Express policies in a high-level declarative language that promotes safe, fine-grained logic and enables powerful features such as impact analysis, hot reloading, query optimization, and more.
-            </p>
-          </div>
-          <div class="value-section--value-item-container">
-            <img class="value-section--value-img" src="/images/context-icon.svg" alt="">
-            <h4 class="value-section--value-title">
-              Context-aware
-            </h4>
-            <p class="value-section--value-para">
-              Leverage arbitrary external document-oriented data (JSON) in policies to ensure that important requirements are enforced throughout the organization.
-            </p>
-          </div>
-        </div>
-    </section>
-
-    <section class="_homepage--use-case-section">
-      <div class="use-case-section--village-container">
-        <img class="use-case-section--village" src="/images/viking-village.svg" alt="">
-      </div>
-
-      <div class="use-case-section--use-case-title-container _homepage--container">
-        <div class="use-case-section--use-case-summary-container">
-          <h3 class="use-case-section--use-case-section-title">
-            Use Cases
-          </h3>
-          <p class="use-case-section--use-case-section-para">
-            OPA is a general-purpose policy engine that helps solve use cases ranging from authorization and admission control to resource placement. OPA provides greater flexibility and expressiveness than hard-coded service logic or ad-hoc domain-specific languages and comes with powerful tooling to help you get started.
-          </p>
-        </div>
-      </div>
-
-      <div class="use-case-section--use-cases _homepage--container">
-        <div class="use-case-section--use-case-container use-case-section--microservices">
-          <h4 class="use-case-section--use-case-title">
-            Microservices
-          </h4>
-          <p class="use-case-section--use-case-para">
-            Deliver fine-grained access control across your microservice fleet.
-          </p>
-          <a class="use-case-section--btn-link" href="/docs/http-api-authorization.html">
-            <button class="use-case-section--btn base--button" type="button" name="button">
-              Check out HTTP API authorization in Python
-            </button>
-          </a>
-        </div>
-        <div class="use-case-section--use-case-container use-case-section--containers">
-          <h4 class="use-case-section--use-case-title">
-            Containers
-          </h4>
-          <p class="use-case-section--use-case-para">
-            Enforce important cost, security, and performance requirements in your platform layer.
-          </p>
-          <a class="use-case-section--btn-link" href="/docs/docker-authorization.html">
-            <button class="use-case-section--btn base--button" type="button" name="button">
-              Check out Docker API authorization
-            </button>
-          </a>
-        </div>
-        <div class="use-case-section--use-case-container use-case-section--infrastructure">
-          <h4 class="use-case-section--use-case-title">
-            Infrastructure
-          </h4>
-          <p class="use-case-section--use-case-para">
-            Extend policy-based control down to your infrastructure components with OPA.
-          </p>
-          <a class="use-case-section--btn-link" href="/docs/ssh-and-sudo-authorization.html">
-            <button class="use-case-section--btn base--button" type="button" name="button">
-              Check out SSH and sudo authorization
-            </button>
-          </a>
-        </div>
-
-      </div>
-    </section>
-
-    <section class="_homepage--key-features-section">
-      <div class="key-features-section--dark-blue-long-wave-container">
-        <img class="key-features-section--dark-blue-long-wave" src="images/long-wave-dark-blue.svg" alt="">
-      </div>
-      <div class="key-features-section--sea-plants-container">
-        <img class="key-features-section--sea-plants" src="images/sea-plants.svg" alt="">
-      </div>
-      <h3 class="_homepage--container key-features-section--section-title">
-        Key Features
-      </h3>
-
-      <div class="_homepage--container key-features-section--key-features">
-        <div class="key-features-section--row-container">
-          <div class="key-features-section--key-feature-container">
-            <h4 class="key-features-section--key-feature-title">
-              Decoupled
-            </h4>
-            <p class="key-features-section--key-feature-para">
-              Administrators can manage policies dynamically without requiring changes to services.
-            </p>
-          </div>
-          <div class="key-features-section--key-feature-container">
-            <h4 class="key-features-section--key-feature-title">
-              Easy to Deploy
-            </h4>
-            <p class="key-features-section--key-feature-para">
-              OPA has zero deployment dependencies. It runs as a daemon side-by-side with your service and shares its fate for the purposes of high availabilty.
-            </p>
-          </div>
-        </div>
-        <div class="key-features-section--row-container">
-          <div class="key-features-section--key-feature-container">
-            <h4 class="key-features-section--key-feature-title">
-              Compatible
-            </h4>
-            <p class="key-features-section--key-feature-para">
-              OPA’s RESTful APIs use JSON over HTTP so you can integrate OPA with your service no matter which programming language you use.
-            </p>
-          </div>
-          <div class="key-features-section--key-feature-container">
-            <h4 class="key-features-section--key-feature-title">
-              Responsive
-            </h4>
-            <p class="key-features-section--key-feature-para">
-              OPA is designed from scratch with latency-sensitive applications in mind, enforcing policies with minimal performance impact.
-            </p>
-          </div>
-        </div>
-        <div class="key-features-section--row-container">
-          <div class="key-features-section--key-feature-container">
-            <h4 class="key-features-section--key-feature-title">
-              Interactive
-            </h4>
-            <p class="key-features-section--key-feature-para">
-              Anyone can use OPA’s interactive shell to quickly experiment with queries and data sets.
-            </p>
-          </div>
-          <div class="key-features-section--key-feature-container">
-            <h4 class="key-features-section--key-feature-title">
-              Embeddable
-            </h4>
-            <p class="key-features-section--key-feature-para">
-              Services written with Go can use OPA as a library and do not need to run a separate daemon.
-            </p>
+                  <ul class="use-cases--toc">
+                    <li class="use-cases--toc--item"><a href="#admission-control">Kubernetes Admission Control</a></li>
+                    <li class="use-cases--toc--item"><a href="#api-authorization">HTTP API Authorization</a></li>
+                    <li class="use-cases--toc--item"><a href="#remote-access">Remote Access</a></li>
+                    <li class="use-cases--toc--item"><a href="#partial-evaluation">Data Filtering with Partial Evaluation</a></li>
+                  </ul>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
-      </div>
-    </section>
+        <div class="examples">
+          <div class="examples--wave" role="presentation"></div>
 
-    <footer class="_homepage--footer">
-      <p class="footer--text">
-       © 2017 Open Policy Agent contributors. Licensed under the <a class="footer--link" href="http://www.apache.org/licenses/LICENSE-2.0" target="_blank">Apache License, Version 2.0</a>. For information about contributing, see <a class="footer--link" href="https://github.com/open-policy-agent/opa/blob/master/CONTRIBUTING.md" target="_blank">CONTRIBUTING.md</a>.
-      </p>
+          <section class="content">
+            <h2 class="examples--title">Examples</h2>
+
+
+            <section id="admission-control" class="example">
+              <a class="action--scroll-up" href="/"><svg class="action-icon"><title>Scroll back</title><use xlink:href="#icon--arrow-up"/></svg></a>
+
+              <h3 class="example--title">Kubernetes Admission Control</h3>
+
+              <img role="presentation" class="example--graphic" src="img/kubernetes-admission-control.svg">
+
+              <div class="example--editor">
+                <div class="example--editor--titlebar">
+                  <span class="example--editor--close-button" role="presentation"></span>
+                  <span class="example--editor--minimize-button" role="presentation"></span>
+                  <span class="example--editor--zoom-button" role="presentation"></span>
+                  <span class="example--editor--title">invariants.rego — ~/src/policies/admission-control/kubernetes</span>
+                </div>
+<pre class="example--editor--body"><span class="code--comment"># Kubernetes Admission Control Invariants</span>
+
+<span class="code--keyword">package</span> kubernetes.<span class="code--package">invariants</span>
+
+<span class="code--keyword">import</span> data.kubernetes.<span class="code--package">ingresses</span>
+<span class="code--keyword">import</span> data.kubernetes.<span class="code--package">namespaces</span>
+
+<span class="code--comment"># ---------------------------------------------------------------------
+# Ingress Invariants</span>
+
+<span class="code--comment"># Generates a list of non-compliant ingresses identified by `namespace`
+# and ingress specification `name`.</span>
+<span class="code--rule">violations</span>[{
+    <span class="code--string">"namespace"</span>: <span class="code--local">namespace</span>,
+    <span class="code--string">"name"</span>: <span class="code--local">name</span>,
+    <span class="code--string">"message"</span>: <span class="code--string">"ingress hostname must match whitelist"</span>
+}] {
+    <span class="code--local">ingress</span> <span class="code--operator">:=</span> <span class="code--package">ingresses</span>[<span class="code--local">namespace</span>][<span class="code--local">name</span>]
+    <span class="code--local">host</span> <span class="code--operator">:=</span> <span class="code--local">ingress</span>.spec.rules[<span class="code--operator">_</span>].host
+    <span class="code--keyword">not</span> <span class="code--rule">contains</span>(<span class="code--rule">whitelist</span>[<span class="code--local">namespace</span>], <span class="code--local">host</span>)
+}
+
+<span class="code--comment"># Generates a list of allowed hostnames per namespace.</span>
+<span class="code--rule">whitelist</span>[<span class="code--local">namespace</span>] = <span class="code--local">hosts</span> {
+    <span class="code--local">obj</span> <span class="code--operator">:=</span> <span class="code--package">namespaces</span>[<span class="code--local">namespace</span>]
+    <span class="code--local">annotations</span> <span class="code--operator">:=</span> <span class="code--local">obj</span>.metadata.annotations
+    <span class="code--local">annotation</span> <span class="code--operator">:=</span> <span class="code--local">annotations</span>[<span class="code--string">"acmecorp.com/hostname-whitelist"</span>]</span>
+    <span class="code--local">hosts</span> <span class="code--operator">:=</span> <span class="code--keyword">json</span>.<span class="code--builtin">unmarshal</span>(<span class="code--local">annotation</span>)
+}
+
+<span class="code--comment"># ---------------------------------------------------------------------
+# Helpers</span>
+
+<span class="code--comment"># Checks if `list` includes an element matching `item`.</span>
+<span class="code--rule">contains</span>(<span class="code--local">list</span>, <span class="code--local">item</span>) {
+    <span class="code--local">list</span>[<span class="code--operator">_</span>] <span class="code--operator">=</span> <span class="code--local">item</span>
+}</pre>
+              </div>
+
+              <div class="example--wave--bg" role="presentation"></div>
+              <div class="example--wave--fg" role="presentation"></div>
+            </section>
+
+            <section  id="api-authorization" class="example">
+              <a class="action--scroll-up" href="/"><svg class="action-icon"><title>Scroll back</title><use xlink:href="#icon--arrow-up"/></svg></a>
+
+              <h3 class="example--title">HTTP API Authorization</h3>
+
+              <img role="presentation" class="example--graphic" src="img/api-authorization.svg">
+
+              <div class="example--editor">
+                <div class="example--editor--titlebar">
+                  <span class="example--editor--close-button" role="presentation"></span>
+                  <span class="example--editor--minimize-button" role="presentation"></span>
+                  <span class="example--editor--zoom-button" role="presentation"></span>
+                  <span class="example--editor--title">authz.rego — ~/src/policies/httpapi/acmecorp</span>
+                </div>
+<pre class="example--editor--body"><span class="code--comment"># HTTP API Authorization</span>
+
+<span class="code--keyword">package</span> acmecorp.<span class="code--package">authz</span>
+
+<span class="code--keyword">default</span> <span class="code--rule">allow</span> <span class="code--operator">=</span> <span class="code--primitive">false</span>
+
+<span class="code--comment"># Allow people to read their own salaries.</span>
+<span class="code--rule">allow</span> {
+    <span class="code--package">input</span>.method <span class="code--operator">=</span> <span class="code--string">"GET"</span>
+    <span class="code--package">input</span>.path <span class="code--operator">=</span> [<span class="code--string">"salaries"</span>, <span class="code--local">employee_id</span>]
+    <span class="code--package">input</span>.user <span class="code--operator">=</span> <span class="code--local">employee_id</span>
+}
+
+<span class="code--comment"># Also allow managers to read the salaries of people they manage.</span>
+<span class="code--rule">allow</span> {
+    <span class="code--package">input</span>.method <span class="code--operator">=</span> <span class="code--string">"GET"</span>
+    <span class="code--package">input</span>.path <span class="code--operator">=</span> [<span class="code--string">"salaries"</span>, <span class="code--local">employee_id</span>]
+    <span class="code--package">input</span>.user <span class="code--operator">=</span> <span class="code--package">data</span>.manager_of[<span class="code--local">employee_id</span>]
+}</pre>
+              </div>
+
+              <div class="example--wave--bg" role="presentation"></div>
+              <div class="example--wave--fg" role="presentation"></div>
+            </section>
+
+            <section id="remote-access" class="example">
+              <a class="action--scroll-up" href="/"><svg class="action-icon"><title>Scroll back</title><use xlink:href="#icon--arrow-up"/></svg></a>
+
+              <h3 class="example--title">Remote Access Authorization</h3>
+
+              <img role="presentation" class="example--graphic" src="img/ssh-authorization.svg">
+
+              <div class="example--editor">
+                <div class="example--editor--titlebar">
+                  <span class="example--editor--close-button" role="presentation"></span>
+                  <span class="example--editor--minimize-button" role="presentation"></span>
+                  <span class="example--editor--zoom-button" role="presentation"></span>
+                  <span class="example--editor--title">invariants.rego — ~/src/policies/admission-control/kubernetes</span>
+                </div>
+<pre class="example--editor--body"><span class="code--comment"># Fine-Grained SSH Authorization</span>
+
+<span class="code--keyword">package</span> ssh.<span class="code--package">fine_grained</span>
+
+<span class="code--comment"># Allow users in the "dev" organization to SSH into hosts if they
+# possess a certificate proving they are assigned to an application
+# running on the host.</span>
+<span class="code--rule">allow</span> {
+    <span class="code--comment"># Extract the X.509 certificate provided in the policy query.</span>
+    <span class="code--local">certs</span> <span class="code--operator">:=</span> <span class="code--builtin">crypto</span>.<span class="code--builtin">x509</span>.<span class="code--builtin">parse_certificates</span>(<span class="code--package">input</span>.certificates)
+
+    <span class="code--comment"># Check that the user is part of the "dev" organization for an app
+    # running on this host.</span>
+    <span class="code--local">certs</span>[<span class="code--local">i</span>].Subject.Organization[<span class="code--local">j</span>] <span class="code--operator">==</span> <span class="code--package">data</span>.host_info.apps[<span class="code--operator">_</span>]
+    <span class="code--local">certs</span>[<span class="code--local">i</span>].Subject.OrganizationalUnit[<span class="code--local">j</span>] <span class="code--operator">==</span> <span class="code--string">"dev"</span>
+
+    <span class="code--comment"># Check the certificate's validity period at the time of login.</span>
+    <span class="code--builtin">time</span>.<span class="code--builtin">now_ns</span>() <span class="code--operator">>=</span> <span class="code--local">certs</span>[<span class="code--local">i</span>].NotBefore
+    <span class="code--builtin">time</span>.<span class="code--builtin">now_ns</span>() <span class="code--operator"><=</span> <span class="code--local">certs</span>[<span class="code--local">i</span>].NotAfter
+}</pre>
+              </div>
+
+              <div class="example--wave--bg" role="presentation"></div>
+              <div class="example--wave--fg" role="presentation"></div>
+            </section>
+
+            <section id="partial-evaluation" class="example">
+              <a class="action--scroll-up" href="/"><svg class="action-icon"><title>Scroll back</title><use xlink:href="#icon--arrow-up"/></svg></a>
+
+              <h3 class="example--title">Data Filtering and Partial Evaluation</h3>
+
+              <img role="presentation" class="example--graphic" src="img/partial-evaluation.svg">
+
+              <div class="example--editor">
+                <div class="example--editor--titlebar">
+                  <span class="example--editor--close-button" role="presentation"></span>
+                  <span class="example--editor--minimize-button" role="presentation"></span>
+                  <span class="example--editor--zoom-button" role="presentation"></span>
+                  <span class="example--editor--title">filtering.rego — ~/src/policies/partial-evaluation/app</span>
+                </div>
+<pre class="example--editor--body"><span class="code--comment"># Partial Evaluation</span>
+
+<span class="code--keyword">package</span> app.<span class="code--package">filtering</span>
+
+<span class="code--comment"># ---------------------------------------------------------------------
+# Data Filtering</span>
+
+<span class="code--comment"># Allow users to see their own posts.</span>
+<span class="code--rule">posts</span>[<span class="code--local">post</span>] {
+    <span class="code--local">post</span> <span class="code--operator">:=</span> <span class="code--package">data</span>.posts[<span class="code--operator">_</span>]
+    <span class="code--local">post</span>.owner <span class="code--operator">=</span> <span class="code--package">input</span>.subject.name
+}
+
+<span class="code--comment"># Allow users to see posts from their own department</span>
+<span class="code--comment"># that they have sufficient clearance for.</span>
+<span class="code--rule">posts</span>[<span class="code--local">post</span>] {
+    <span class="code--local">post</span> <span class="code--operator">:=</span> <span class="code--package">data</span>.posts[<span class="code--operator">_</span>]
+    <span class="code--local">post</span>.department <span class="code--operator">=</span> <span class="code--package">input</span>.subject.department
+    <span class="code--local">post</span>.security_level <span class="code--operator">&lt;=</span> <span class="code--package">input</span>.subject.clearance_level
+}
+
+<span class="code--comment"># Example Output:</span>
+<span class="code--comment">#</span>
+<span class="code--comment">#  Conditions (1)</span>
+<span class="code--comment">#  --------------</span>
+<span class="code--comment">#  data.posts[x].owner = "bob"</span>
+<span class="code--comment">#</span>
+<span class="code--comment">#  Conditions (2)</span>
+<span class="code--comment">#  --------------</span>
+<span class="code--comment">#  data.posts[x].department = "ops"</span>
+<span class="code--comment">#  data.posts[x].clearance_level &lt;= 3</span>
+
+</pre>
+              </div>
+
+              <div class="example--wave--bg" role="presentation"></div>
+              <div class="example--wave--fg" role="presentation"></div>
+            </section>
+          </section>
+      </div>
+    </main>
+
+    <footer role="contentinfo">
+      <div class="content">
+        <nav class="nav--footer" role="navigation">
+          <ul class="nav--menu">
+            <li class="nav--menu-item nav--docs"><a href="/docs/" rel="help">Documentation</a></li>
+            <li class="nav--menu-item nav--docs"><a href="/docs/get-started.html" rel="help">Tutorials</a></li>
+          </ul>
+          <ul class="nav--menu">
+            <li class="nav--menu-item nav--social"><a href="https://blog.openpolicyagent.org/" rel="external"><svg class="nav--social-icon"><title>Medium</title><use xlink:href="#social-icon--medium"/></svg></a></li>
+            <li class="nav--menu-item nav--social"><a href="https://twitter.com/openpolicyagent" rel="external"><svg class="nav--social-icon"><title>Twitter</title><use xlink:href="#social-icon--twitter"/></svg></a></li>
+            <li class="nav--menu-item nav--social"><a href="http://slack.openpolicyagent.org/" rel="external"><svg class="nav--social-icon"><title>Slack</title><use xlink:href="#social-icon--slack"/></svg></a></li>
+            <li class="nav--menu-item nav--social"><a href="https://github.com/open-policy-agent/opa" rel="external"><svg class="nav--social-icon"><title>GitHub</title><use xlink:href="#social-icon--github"/></svg></a></li>
+          </ul>
+        </nav>
+
+        <p class="copyright">© 2017 Open Policy Agent contributors. Licensed under the <a href="http://www.apache.org/licenses/LICENSE-2.0">Apache License, Version 2.0</a>. For information about contributing, see <a href="https://github.com/open-policy-agent/opa/blob/master/CONTRIBUTING.md">CONTRIBUTING.md</a>.</p>
+      </div>
     </footer>
 
-    <nav class="_homepage--hamburger-menu-container">
-
-      <a class="header--hamburger-menu-link" href="/docs">
-        <li class="header--hamburger-menu-item">
-          <p class="header--menu-txt">
-            Documentation
-          </p>
-        </li>
-      </a>
-
-      <a class="header--hamburger-menu-link" href="/docs/get-started.html">
-        <li class="header--hamburger-menu-item">
-          <p class="header--menu-txt">
-            Tutorials
-          </p>
-        </li>
-      </a>
-
-      <a class="header--hamburger-menu-link" href="https://blog.openpolicyagent.org/" target="_blank">
-        <li class="header--hamburger-menu-item">
-          <img class="header--menu-image" src="images/Medium.svg" alt="" />
-        </li>
-      </a>
-
-      <a class="header--hamburger-menu-link" href="https://github.com/open-policy-agent/opa" target="_blank">
-        <li class="header--hamburger-menu-item">
-          <img class="header--menu-image" src="images/Github.svg" alt="" />
-        </li>
-      </a>
-
-      <a class="header--hamburger-menu-link" href="http://slack.openpolicyagent.org/" target="_blank">
-        <li class="header--hamburger-menu-item">
-          <img class="header--menu-image" src="images/Slack.svg" alt="" />
-        </li>
-      </a>
-
-
-    </nav>
-
-    <script src="https://use.typekit.net/zni0cwi.js"></script>
-    <script>try{Typekit.load({ async: true });}catch(e){}</script>
-
-    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jquery/2.2.3/jquery.min.js"></script>
-    <script type="text/javascript" src="js/opa.js"></script>
-
     <script>
-    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
-    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
-    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
-    })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
-    ga('create', 'UA-84550302-1', 'auto');
-    ga('send', 'pageview');
+      (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){(i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)})(window,document,'script','https://www.google-analytics.com/analytics.js','ga');ga('create', 'UA-84550302-1', 'auto');ga('send', 'pageview');
+    </script>
+    <script>
+      (function () {
+        var scrollIncrement = 4
+        var scrollTop = 0
+        var page
+
+        function clearSchedule(x) {
+          clearTimeout(x)
+        }
+
+        function setSchedule(x) {
+          setTimeout(x, 16)
+        }
+
+        function schedule(callback) {
+          var frameId
+
+          (function () {
+            clearSchedule(frameId)
+            frameId = setSchedule(callback)
+          }())
+        }
+
+        function calculateScrollTop(el) {
+          var y = 0
+          var node = el
+
+          while (node) {
+            y += node.offsetTop
+            node = node.offsetParent
+          }
+
+          return y
+        }
+
+        var scrollIncrement = 4
+
+        function animateScrollTop(top, n) {
+          var n = n || 1
+
+          schedule(function () {
+            var diff = top - page.scrollTop
+            var increment = scrollIncrement * n
+
+            if (diff) {
+              if (Math.abs(diff) < increment) {
+                page.scrollTop += diff
+              } else if (diff > 0) {
+                page.scrollTop += increment
+              } else {
+                page.scrollTop -= increment
+              }
+
+              animateScrollTop(top, ++n)
+            }
+          })
+        }
+
+        function scrollIntoView(event) {
+          var el = document.getElementById(event.currentTarget.getAttribute('href').substr(1))
+          animateScrollTop(calculateScrollTop(el) - 120)
+
+          // XXX: When Chrome 70.0.3538.77 navigates to an internal anchor (#),
+          // it breaks the page layout so we don’t want to do that.
+          event.preventDefault()
+        }
+
+        function scrollUp(event) {
+          animateScrollTop(calculateScrollTop(document.getElementById('use-cases')))
+          event.preventDefault()
+        }
+
+        function ready() {
+          page = document.documentElement
+
+          if (typeof requestAnimationFrame === 'function') {
+            clearFrame = cancelAnimationFrame
+            setFrame = requestAnimationFrame
+          }
+
+          var anchors = document.getElementsByTagName('a')
+
+          for (let i = 0, n = anchors.length; i < n; ++i) {
+            var anchor = anchors[i]
+            var href = anchor.getAttribute('href')
+            var classes = (anchor.className || '').split(/\s+/)
+
+            if (href && href[0] === '#') {
+              anchor.addEventListener('click', scrollIntoView)
+            } else if (classes.indexOf('action--scroll-up') > -1) {
+              anchor.addEventListener('click', scrollUp)
+            }
+          }
+        }
+
+        (function check() { /complete/.test(document.readyState) ? ready() : setTimeout(check) }())
+      }())
     </script>
   </body>
 </html>

@@ -1024,6 +1024,34 @@ func TestWrapString(t *testing.T) {
 	checkEqual(t, got, want)
 }
 
+func TestNumberAlign(t *testing.T) {
+	var (
+		buf   = &bytes.Buffer{}
+		table = NewWriter(buf)
+		data  = [][]string{
+			{"AAAAAAAAAAAAA", "BBBBBBBBBBBBB", "CCCCCCCCCCCCCC"},
+			{"A", "B", "C"},
+			{"123456789", "2", "3"},
+			{"1", "2", "123,456,789"},
+			{"1", "123,456.789", "3"},
+			{"-123,456", "-2", "-3"},
+		}
+		want = `+---------------+---------------+----------------+
+| AAAAAAAAAAAAA | BBBBBBBBBBBBB | CCCCCCCCCCCCCC |
+| A             | B             | C              |
+|     123456789 |             2 |              3 |
+|             1 |             2 |    123,456,789 |
+|             1 |   123,456.789 |              3 |
+|      -123,456 |            -2 |             -3 |
++---------------+---------------+----------------+
+`
+	)
+	table.AppendBulk(data)
+	table.Render()
+
+	checkEqual(t, buf.String(), want)
+}
+
 func TestCustomAlign(t *testing.T) {
 	var (
 		buf    = &bytes.Buffer{}

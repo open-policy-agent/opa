@@ -47,6 +47,18 @@ pre .ln {
 	width: 8ch;
 }
 
+.search-nav{
+	margin-left: 1.25rem;
+	font-size: 0.875rem;
+	column-gap: 1.25rem;
+	column-fill: auto;
+	column-width: 14rem;
+}
+
+.search-nav .indent {
+	margin-left: 1.25rem;
+}
+
 a,
 .exampleHeading .text,
 .expandAll {
@@ -317,6 +329,9 @@ input#search {
 	flex-grow: 1;
 	max-width: 100%;
 	min-width: 5.625rem;
+}
+input#search:-webkit-search-decoration {
+	-webkit-appearance: none;
 }
 input#search:-moz-ui-invalid {
 	box-shadow: unset;
@@ -624,7 +639,6 @@ div.play .buttons a {
 }
 
 /* drop-down playground */
-#playgroundButton,
 div#playground {
 	/* start hidden; revealed by javascript */
 	display: none;
@@ -759,6 +773,11 @@ a.error {
 @media (max-width: 43.75em) {
 	body {
 		font-size: 0.9375rem;
+	}
+
+	div#playground {
+		left: 0;
+		right: 0;
 	}
 
 	pre,

@@ -169,3 +169,50 @@ func NumberToInt(n ast.Number) *big.Int {
 func IntToNumber(i *big.Int) ast.Number {
 	return ast.Number(i.String())
 }
+
+// StringSliceOperand converts x to a []string. If the cast fails, a descriptive error is
+// returned.
+func StringSliceOperand(x ast.Value, pos int) ([]string, error) {
+	a, err := ArrayOperand(x, pos)
+	if err != nil {
+		return nil, err
+	}
+
+	var f = make([]string, len(a))
+	for k, b := range a {
+		c, ok := b.Value.(ast.String)
+		if !ok {
+			return nil, NewOperandElementErr(pos, x, b.Value, "[]string")
+		}
+
+		f[k] = string(c)
+	}
+
+	return f, nil
+}
+
+// RuneSliceOperand converts x to a []rune. If the cast fails, a descriptive error is
+// returned.
+func RuneSliceOperand(x ast.Value, pos int) ([]rune, error) {
+	a, err := ArrayOperand(x, pos)
+	if err != nil {
+		return nil, err
+	}
+
+	var f = make([]rune, len(a))
+	for k, b := range a {
+		c, ok := b.Value.(ast.String)
+		if !ok {
+			return nil, NewOperandElementErr(pos, x, b.Value, "string")
+		}
+
+		d := []rune(string(c))
+		if len(d) != 1 {
+			return nil, NewOperandElementErr(pos, x, b.Value, "rune")
+		}
+
+		f[k] = d[0]
+	}
+
+	return f, nil
+}

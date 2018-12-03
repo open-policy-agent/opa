@@ -255,3 +255,30 @@ Redo data.test.p = _
 		t.Fatalf("Missing lines in trace:\n%v", strings.Join(a[min:], "\n"))
 	}
 }
+
+func TestMultipleTracers(t *testing.T) {
+
+	ctx := context.Background()
+
+	buf1 := NewBufferTracer()
+	buf2 := NewBufferTracer()
+	q := NewQuery(ast.MustParseBody("a = 1")).
+		WithTracer(buf1).
+		WithTracer(buf2)
+
+	_, err := q.Run(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(*buf1) != len(*buf2) {
+		t.Fatalf("Expected buffer lengths to be equal but got: %d and %d", len(*buf1), len(*buf2))
+	}
+
+	for i := range *buf1 {
+		if !(*buf1)[i].Equal((*buf2)[i]) {
+			t.Fatalf("Expected all events to be equal but at index %d got %v and %v", i, (*buf1)[i], (*buf2)[i])
+		}
+	}
+
+}

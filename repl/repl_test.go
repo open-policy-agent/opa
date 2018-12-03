@@ -314,6 +314,35 @@ func TestHelp(t *testing.T) {
 	}
 }
 
+func TestShowDebug(t *testing.T) {
+	ctx := context.Background()
+	store := inmem.New()
+	var buffer bytes.Buffer
+	repl := newRepl(store, &buffer)
+	repl.OneShot(ctx, "show debug")
+	expected := `{
+	"trace": false,
+	"metrics": false,
+	"instrument": false,
+	"profile": false
+}
+`
+	assertREPLText(t, buffer, expected)
+	buffer.Reset()
+	repl.OneShot(ctx, "trace")
+	repl.OneShot(ctx, "metrics")
+	repl.OneShot(ctx, "instrument")
+	repl.OneShot(ctx, "profile")
+	repl.OneShot(ctx, "show debug")
+	expected = `{
+	"trace": true,
+	"metrics": true,
+	"instrument": true,
+	"profile": true
+}
+`
+}
+
 func TestShow(t *testing.T) {
 	ctx := context.Background()
 	store := inmem.New()
@@ -322,7 +351,7 @@ func TestShow(t *testing.T) {
 
 	repl.OneShot(ctx, `package repl_test`)
 	repl.OneShot(ctx, "show")
-	assertREPLText(t, buffer, "package repl_test\n\n")
+	assertREPLText(t, buffer, "package repl_test\n")
 	buffer.Reset()
 
 	repl.OneShot(ctx, "import input.xyz")
@@ -330,7 +359,7 @@ func TestShow(t *testing.T) {
 
 	expected := `package repl_test
 
-import input.xyz` + "\n\n"
+import input.xyz` + "\n"
 	assertREPLText(t, buffer, expected)
 	buffer.Reset()
 
@@ -340,7 +369,7 @@ import input.xyz` + "\n\n"
 	expected = `package repl_test
 
 import data.foo as bar
-import input.xyz` + "\n\n"
+import input.xyz` + "\n"
 	assertREPLText(t, buffer, expected)
 	buffer.Reset()
 
@@ -357,14 +386,14 @@ import input.xyz
 
 p[1]
 
-p[2]` + "\n\n"
+p[2]` + "\n"
 	assertREPLText(t, buffer, expected)
 	buffer.Reset()
 
 	repl.OneShot(ctx, "package abc")
 	repl.OneShot(ctx, "show")
 
-	assertREPLText(t, buffer, "package abc\n\n")
+	assertREPLText(t, buffer, "package abc\n")
 	buffer.Reset()
 
 	repl.OneShot(ctx, "package repl_test")
@@ -889,6 +918,12 @@ func TestEvalConstantRuleAssignment(t *testing.T) {
 	result = buffer.String()
 	if result != "1\n" {
 		t.Fatalf("Expected 1 but got: %v", result)
+	}
+
+	buffer.Reset()
+	err := repl.OneShot(ctx, "assign()")
+	if err == nil || !strings.Contains(err.Error(), "too few arguments") {
+		t.Fatal("Expected type check error but got:", err)
 	}
 }
 
@@ -1715,6 +1750,84 @@ func TestMetrics(t *testing.T) {
 	if expected != buffer.String() {
 		t.Fatalf("Expected output to be exactly:\n%v\n\nGot:\n\n%v\n", expected, buffer.String())
 	}
+}
+
+func TestProfile(t *testing.T) {
+	store := newTestStore()
+	ctx := context.Background()
+	txn := storage.NewTransactionOrDie(ctx, store, storage.WriteParams)
+	const numLines = 21
+
+	mod2 := []byte(`package rbac
+
+		input = {
+		"subject": "bob",
+			"resource": "foo123",
+			"action": "write",
+	}
+		bindings = [
+	{
+		"user": "alice",
+		"roles": ["dev", "test"],
+	},
+	{
+		"user": "bob",
+		"roles": ["test"],
+	},
+]
+
+	roles = [
+	{
+		"name": "dev",
+		"permissions": [
+		{"resource": "foo123", "action": "write"},
+		{"resource": "foo123", "action": "read"},
+	],
+	},
+	{
+		"name": "test",
+		"permissions": [{"resource": "foo123", "action": "read"}],
+	},
+]
+
+default allow = false
+
+	allow {
+	user_has_role[role_name]
+	role_has_permission[role_name]
+	}
+
+	user_has_role[role_name] {
+	binding := bindings[_]
+	binding.user = input.subject
+	role_name := binding.roles[_]
+	}
+
+	role_has_permission[role_name] {
+	role := roles[_]
+	role_name := role.name
+	perm := role.permissions[_]
+	perm.resource = input.resource
+	perm.action = input.action
+	}`)
+
+	if err := store.UpsertPolicy(ctx, txn, "mod2", mod2); err != nil {
+		panic(err)
+	}
+	if err := store.Commit(ctx, txn); err != nil {
+		panic(err)
+	}
+
+	var buffer bytes.Buffer
+	repl := newRepl(store, &buffer)
+	repl.OneShot(ctx, "profile")
+	repl.OneShot(ctx, "data.rbac.allow")
+	result := buffer.String()
+	lines := strings.Split(result, "\n")
+	if len(lines) != numLines {
+		t.Fatal("Expected 21 lines, got :", len(lines))
+	}
+	buffer.Reset()
 }
 
 func TestInstrument(t *testing.T) {

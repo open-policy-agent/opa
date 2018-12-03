@@ -90,6 +90,10 @@ func newExpressionValue(expr *ast.Expr, value interface{}) *ExpressionValue {
 	}
 }
 
+func (ev *ExpressionValue) String() string {
+	return fmt.Sprint(ev.Value)
+}
+
 // ResultSet represents a collection of output from Rego evaluation. An empty
 // result set represents an undefined query.
 type ResultSet []Result
@@ -145,7 +149,9 @@ type Rego struct {
 	store            storage.Store
 	txn              storage.Transaction
 	metrics          metrics.Metrics
-	tracer           topdown.Tracer
+	tracers          []topdown.Tracer
+	tracebuf         *topdown.BufferTracer
+	trace            bool
 	instrumentation  *topdown.Instrumentation
 	instrument       bool
 	capture          map[*ast.Expr]ast.Var // map exprs to generated capture vars
@@ -293,11 +299,18 @@ func Instrument(yes bool) func(r *Rego) {
 	}
 }
 
-// Tracer returns an argument that sets the topdown Tracer.
+// Trace returns an argument that enables tracing on r.
+func Trace(yes bool) func(r *Rego) {
+	return func(r *Rego) {
+		r.trace = yes
+	}
+}
+
+// Tracer returns an argument that adds a query tracer to r.
 func Tracer(t topdown.Tracer) func(r *Rego) {
 	return func(r *Rego) {
 		if t != nil {
-			r.tracer = t
+			r.tracers = append(r.tracers, t)
 		}
 	}
 }
@@ -308,6 +321,15 @@ func Runtime(term *ast.Term) func(r *Rego) {
 	return func(r *Rego) {
 		r.runtime = term
 	}
+}
+
+// PrintTrace is a helper fnuction to write a human-readable version of the
+// trace to the writer w.
+func PrintTrace(w io.Writer, r *Rego) {
+	if r == nil || r.tracebuf == nil {
+		return
+	}
+	topdown.PrettyTrace(w, *r.tracebuf)
 }
 
 // New returns a new Rego object.
@@ -335,6 +357,11 @@ func New(options ...func(*Rego)) *Rego {
 
 	if r.instrument {
 		r.instrumentation = topdown.NewInstrumentation(r.metrics)
+	}
+
+	if r.trace {
+		r.tracebuf = topdown.NewBufferTracer()
+		r.tracers = append(r.tracers, r.tracebuf)
 	}
 
 	return r
@@ -523,8 +550,7 @@ func (r *Rego) Compile(ctx context.Context) (*CompileResult, error) {
 
 func (r *Rego) parse() (map[string]*ast.Module, ast.Body, error) {
 
-	r.metrics.Timer(metrics.RegoQueryParse).Start()
-	defer r.metrics.Timer(metrics.RegoQueryParse).Stop()
+	r.metrics.Timer(metrics.RegoModuleParse).Start()
 
 	var errs Errors
 	parsed := map[string]*ast.Module{}
@@ -536,6 +562,10 @@ func (r *Rego) parse() (map[string]*ast.Module, ast.Body, error) {
 		}
 		parsed[module.filename] = p
 	}
+
+	r.metrics.Timer(metrics.RegoModuleParse).Stop()
+	r.metrics.Timer(metrics.RegoQueryParse).Start()
+	defer r.metrics.Timer(metrics.RegoQueryParse).Stop()
 
 	var query ast.Body
 
@@ -650,8 +680,8 @@ func (r *Rego) eval(ctx context.Context, qc ast.QueryCompiler, compiled ast.Body
 		WithInstrumentation(r.instrumentation).
 		WithRuntime(r.runtime)
 
-	if r.tracer != nil {
-		q = q.WithTracer(r.tracer)
+	for i := range r.tracers {
+		q = q.WithTracer(r.tracers[i])
 	}
 
 	if r.input != nil {
@@ -787,8 +817,8 @@ func (r *Rego) partial(ctx context.Context, compiled ast.Body, txn storage.Trans
 		WithUnknowns(unknowns).
 		WithRuntime(r.runtime)
 
-	if r.tracer != nil {
-		q = q.WithTracer(r.tracer)
+	for i := range r.tracers {
+		q = q.WithTracer(r.tracers[i])
 	}
 
 	if r.input != nil {

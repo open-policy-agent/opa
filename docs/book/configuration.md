@@ -5,6 +5,13 @@ required must be specified if the parent is defined. For example, when the
 configuration contains a `status` key, the `status.service` field must be
 defined.
 
+The configuration file path is specified with the `-c` or `--config-file`
+command line argument:
+
+```bash
+opa run -s -c config.yaml
+```
+
 ## Example
 
 ```yaml
@@ -50,8 +57,15 @@ multiple services.
 | `services[_].name` | `string` | Yes | Unique name for the service. Referred to by plugins. |
 | `services[_].url` | `string` | Yes | Base URL to contact the service with. |
 | `services[_].headers` | `object` | No | HTTP headers to include in requests to the service. |
+| `services[_].allow_insecure_tls` | `bool` | No | Allow insecure TLS. |
 | `services[_].credentials.bearer.token` | `string` | No | Enables token-based authentication and supplies the bearer token to authenticate with. |
-| `services[_].credentials.bearer.scheme` | `string` | No (default: `"Bearer"`) | Bearer token scheme to specify. |
+| `services[_].credentials.bearer.scheme` | `string` | No | Bearer token scheme to specify. |
+| `services[_].credentials.client_tls.cert` | `string` | No | The path to the client certificate to authenticate with. |
+| `services[_].credentials.client_tls.private_key` | `string` | No | The path to the private key of the client certificate. |
+| `services[_].credentials.client_tls.private_key_passphrase` | `string` | No | The passphrase to use for the private key. |
+
+> Services can be defined as an array or object. When defined as an object, the
+> object keys override the `services[_].name` fields.
 
 ## Miscellaenous
 
@@ -87,3 +101,12 @@ multiple services.
 | `decision_logs.reporting.upload_size_limit_bytes` | `int64` | No (default: `32768`) | Decision log upload size limit in bytes. OPA will chunk uploads to cap message body to this limit. |
 | `decision_logs.reporting.min_delay_seconds` | `int64` | No (default: `300`) | Minimum amount of time to wait between uploads. |
 | `decision_logs.reporting.max_delay_seconds` | `int64` | No (default: `600`) | Maximum amount of time to wait between uploads. |
+
+## Discovery
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `discovery.name` | `string` | Yes | Name of the discovery configuration to download. |
+| `discovery.prefix` | `string` | No (default: `bundles`) | Path prefix to use to download configuration from remote server. |
+| `discovery.polling.min_delay_seconds` | `int64` | No (default: `60`) | Minimum amount of time to wait between configuration downloads. |
+| `discovery.polling.max_delay_seconds` | `int64` | No (default: `120`) | Maximum amount of time to wait between configuration downloads. |

@@ -7,6 +7,9 @@ package metrics
 
 import (
 	"encoding/json"
+	"fmt"
+	"sort"
+	"strings"
 	"time"
 
 	go_metrics "github.com/rcrowley/go-metrics"
@@ -44,6 +47,35 @@ func New() Metrics {
 	m := &metrics{}
 	m.Clear()
 	return m
+}
+
+type metric struct {
+	Key   string
+	Value interface{}
+}
+
+func (m *metrics) String() string {
+
+	all := m.All()
+	sorted := make([]metric, 0, len(all))
+
+	for key, value := range all {
+		sorted = append(sorted, metric{
+			Key:   key,
+			Value: value,
+		})
+	}
+
+	sort.Slice(sorted, func(i, j int) bool {
+		return sorted[i].Key < sorted[j].Key
+	})
+
+	buf := make([]string, len(sorted))
+	for i := range sorted {
+		buf[i] = fmt.Sprintf("%v:%v", sorted[i].Key, sorted[i].Value)
+	}
+
+	return strings.Join(buf, " ")
 }
 
 func (m *metrics) MarshalJSON() ([]byte, error) {

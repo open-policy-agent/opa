@@ -23,7 +23,7 @@ func TestRead(t *testing.T) {
 	}
 
 	buf := writeTarGz(files)
-	bundle, err := Read(buf)
+	bundle, err := NewReader(buf).Read()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -58,7 +58,7 @@ func TestReadWithManifest(t *testing.T) {
 		{"/.manifest", `{"revision": "quickbrownfaux"}`},
 	}
 	buf := writeTarGz(files)
-	bundle, err := Read(buf)
+	bundle, err := NewReader(buf).Read()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -67,9 +67,28 @@ func TestReadWithManifest(t *testing.T) {
 	}
 }
 
+func TestReadWithManifestInData(t *testing.T) {
+	files := [][2]string{
+		{"/.manifest", `{"revision": "quickbrownfaux"}`},
+	}
+	buf := writeTarGz(files)
+	bundle, err := NewReader(buf).IncludeManifestInData(true).Read()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	system := bundle.Data["system"].(map[string]interface{})
+	b := system["bundle"].(map[string]interface{})
+	m := b["manifest"].(map[string]interface{})
+
+	if m["revision"] != "quickbrownfaux" {
+		t.Fatalf("Unexpected manifest.revision value: %v. Expected: %v", m["revision"], "quickbrownfaux")
+	}
+}
+
 func TestReadErrorBadGzip(t *testing.T) {
 	buf := bytes.NewBufferString("bad gzip bytes")
-	_, err := Read(buf)
+	_, err := NewReader(buf).Read()
 	if err == nil {
 		t.Fatal("expected error")
 	}
@@ -80,7 +99,7 @@ func TestReadErrorBadTar(t *testing.T) {
 	gw := gzip.NewWriter(&buf)
 	gw.Write([]byte("bad tar bytes"))
 	gw.Close()
-	_, err := Read(&buf)
+	_, err := NewReader(&buf).Read()
 	if err == nil {
 		t.Fatal("expected error")
 	}
@@ -100,7 +119,7 @@ func TestReadErrorBadContents(t *testing.T) {
 	}
 	for _, test := range tests {
 		buf := writeTarGz(test.files)
-		_, err := Read(buf)
+		_, err := NewReader(buf).Read()
 		if err == nil {
 			t.Fatal("expected error")
 		}
@@ -136,7 +155,7 @@ func TestRoundtrip(t *testing.T) {
 		t.Fatal("Unexpected error:", err)
 	}
 
-	bundle2, err := Read(&buf)
+	bundle2, err := NewReader(&buf).Read()
 	if err != nil {
 		t.Fatal("Unexpected error:", err)
 	}

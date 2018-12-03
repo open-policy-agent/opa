@@ -76,6 +76,7 @@ const (
 	MsgUnauthorizedError          = "request rejected by administrative policy"
 	MsgUndefinedError             = "document missing or undefined"
 	MsgDiagnosticsDisabled        = "diagnostics are not enabled"
+	MsgPluginConfigError          = "error(s) occurred while configuring plugin(s)"
 )
 
 // PatchV1 models a single patch operation against a document.

@@ -1,9 +1,0 @@
-@mixin base--h1 {
-  font-size: ms(7);
-  font-weight: get('bold weight font');
-  color: get('primary color');
-
-  @include breakpoint(get('large typography breakpoint')) {
-    font-size: ms(9);
-  }
-}

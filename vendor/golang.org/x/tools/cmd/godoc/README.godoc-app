@@ -1,56 +1,94 @@
-godoc on appengine
-------------------
+godoc on Google App Engine
+==========================
 
 Prerequisites
 -------------
 
-* Go appengine SDK
-  https://developers.google.com/appengine/downloads#Google_App_Engine_SDK_for_Go
+* Google Cloud SDK
+  https://cloud.google.com/sdk/
 
-* Go sources at tip under $GOROOT
+* Redis
 
-* Godoc sources at tip inside $GOPATH
+* Go sources under $GOROOT
+
+* Godoc sources inside $GOPATH
   (go get -d golang.org/x/tools/cmd/godoc)
 
 
-Directory structure
--------------------
+Running locally, in production mode
+-----------------------------------
 
-* Let $APPDIR be the directory containing the app engine files.
-  (e.g., $APPDIR=$HOME/godoc-app)
+Build the app:
 
-* $APPDIR contains the following entries (this may change depending on
-  app-engine release and version of godoc):
+  go build -tags golangorg
 
-	app.yaml
-	golang.org/x/tools/cmd/godoc
-	godoc.zip
-	index.split.*
+Run the app:
 
-* The app.yaml file is set up per app engine documentation.
-  For instance:
+  ./godoc
 
-	application: godoc-app
-	version: 1
-	runtime: go
-	api_version: go1
+godoc should come up at http://localhost:8080
 
-	handlers:
-	- url: /.*
-	  script: _go_app
+Use the PORT environment variable to change the port:
+
+    PORT=8081 ./godoc
+
+Running locally, in production mode, using Docker
+-------------------------------------------------
+
+Build the app's Docker container:
+
+  make docker-build
+
+Make sure redis is running on port 6379:
+
+  $ echo PING | nc localhost 6379
+  +PONG
+  ^C
+
+Run the datastore emulator:
+
+  gcloud beta emulators datastore start --project golang-org
+
+In another terminal window, run the container:
+
+  $(gcloud beta emulators datastore env-init)
+
+  docker run --rm \
+    --net host \
+    --env GODOC_REDIS_ADDR=localhost:6379 \
+    --env DATASTORE_EMULATOR_HOST=$DATASTORE_EMULATOR_HOST \
+    --env DATASTORE_PROJECT_ID=$DATASTORE_PROJECT_ID \
+    gcr.io/golang-org/godoc
+
+godoc should come up at http://localhost:8080
 
 
-Configuring and running godoc
------------------------------
+Deploying to golang.org
+-----------------------
 
-To configure godoc, run
+Make sure you're signed in to gcloud:
 
-	bash setup-godoc-app.bash
+  gcloud auth login
 
-to prepare an $APPDIR as described above. See the script for details on usage.
+Build the image, push it to gcr.io, and deploy to Flex:
 
-To run godoc locally, using the App Engine development server, run
+  make cloud-build deploy
 
-	<path to go_appengine>/dev_appserver.py $APPDIR
+Point the load balancer to the newly deployed version:
+(This also runs regression tests)
 
-godoc should come up at http://localhost:8080 .
+  make publish
+
+Stop and/or delete down any very old versions. (Stopped versions can be re-started.)
+Keep at least one older verson to roll back to, just in case.
+You can also migrate traffic to the new version via this UI.
+
+  https://console.cloud.google.com/appengine/versions?project=golang-org&serviceId=default&versionssize=50
+
+
+Troubleshooting
+---------------
+
+Ensure the Cloud SDK is on your PATH and you have the app-engine-go component
+installed (gcloud components install app-engine-go) and your components are
+up-to-date (gcloud components update)

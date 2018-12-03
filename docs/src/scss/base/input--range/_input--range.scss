@@ -1,7 +1,0 @@
-@import 'settings';
-@import 'mixins';
-@import 'extends';
-
-.base--range-input {
-  @extend %base--range-input;
-}

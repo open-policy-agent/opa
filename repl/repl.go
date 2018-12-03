@@ -19,6 +19,7 @@ import (
 	"strings"
 
 	pr "github.com/open-policy-agent/opa/internal/presentation"
+	"github.com/open-policy-agent/opa/profiler"
 	"github.com/open-policy-agent/opa/rego"
 
 	"github.com/open-policy-agent/opa/ast"
@@ -41,6 +42,7 @@ type REPL struct {
 	buffer          []string
 	txn             storage.Transaction
 	metrics         metrics.Metrics
+	profiler        bool
 
 	// TODO(tsandall): replace this state with rule definitions
 	// inside the default module.
@@ -246,7 +248,7 @@ func (r *REPL) OneShot(ctx context.Context, line string) error {
 			case "json":
 				return r.cmdFormat("json")
 			case "show":
-				return r.cmdShow()
+				return r.cmdShow(cmd.args)
 			case "unset":
 				return r.cmdUnset(ctx, cmd.args)
 			case "pretty":
@@ -259,6 +261,8 @@ func (r *REPL) OneShot(ctx context.Context, line string) error {
 				return r.cmdMetrics()
 			case "instrument":
 				return r.cmdInstrument()
+			case "profile":
+				return r.cmdProfile()
 			case "types":
 				return r.cmdTypes()
 			case "unknown":
@@ -410,16 +414,45 @@ func (r *REPL) cmdHelp(args []string) error {
 	return nil
 }
 
-func (r *REPL) cmdShow() error {
-	module := r.modules[r.currentModuleID]
+func (r *REPL) cmdShow(args []string) error {
 
-	bs, err := format.Ast(module)
-	if err != nil {
-		return err
+	if len(args) == 0 {
+		module := r.modules[r.currentModuleID]
+
+		bs, err := format.Ast(module)
+		if err != nil {
+			return err
+		}
+		fmt.Fprint(r.output, string(bs))
+		return nil
+	} else if strings.Compare(args[0], "debug") == 0 {
+		debug := replDebug{
+			Trace:      r.traceEnabled(),
+			Metrics:    r.metricsEnabled(),
+			Instrument: r.instrument,
+			Profile:    r.profilerEnabled(),
+		}
+		b, err := json.MarshalIndent(debug, "", "\t")
+		if err != nil {
+			return fmt.Errorf("error: %v", err)
+		}
+		fmt.Fprintln(r.output, string(b))
+		return nil
+	} else {
+		return fmt.Errorf("unknown option '%v'", args[0])
 	}
+}
 
-	fmt.Fprint(r.output, string(bs))
-	return nil
+// We use this struct to print REPL debug information in JSON string format.
+type replDebug struct {
+	Trace      bool `json:"trace"`
+	Metrics    bool `json:"metrics"`
+	Instrument bool `json:"instrument"`
+	Profile    bool `json:"profile"`
+}
+
+func (r *REPL) traceEnabled() bool {
+	return r.explain == explainTrace
 }
 
 func (r *REPL) cmdTrace() error {
@@ -429,6 +462,13 @@ func (r *REPL) cmdTrace() error {
 		r.explain = explainTrace
 	}
 	return nil
+}
+
+func (r *REPL) metricsEnabled() bool {
+	if r.metrics != nil {
+		return true
+	}
+	return false
 }
 
 func (r *REPL) cmdMetrics() error {
@@ -448,6 +488,20 @@ func (r *REPL) cmdInstrument() error {
 	} else {
 		r.metrics = metrics.New()
 		r.instrument = true
+	}
+	return nil
+}
+
+func (r *REPL) profilerEnabled() bool {
+	return r.profiler
+}
+
+// This function cmdProfile will turn tracing (explain) off if profile is turned on
+func (r *REPL) cmdProfile() error {
+	if r.profiler {
+		r.profiler = false
+	} else {
+		r.profiler = true
 	}
 	return nil
 }
@@ -739,7 +793,7 @@ func (r *REPL) evalStatement(ctx context.Context, stmt interface{}) error {
 
 		parsedBody := s
 
-		if len(parsedBody) == 1 && parsedBody[0].IsAssignment() {
+		if len(parsedBody) == 1 && parsedBody[0].IsAssignment() && len(parsedBody[0].Operands()) == 2 {
 			expr := parsedBody[0]
 			rule, err := ast.ParseCompleteDocRuleFromEqExpr(r.modules[r.currentModuleID], expr.Operand(0), expr.Operand(1))
 			if err == nil {
@@ -786,13 +840,10 @@ func (r *REPL) evalStatement(ctx context.Context, stmt interface{}) error {
 
 func (r *REPL) evalBody(ctx context.Context, compiler *ast.Compiler, input ast.Value, body ast.Body) error {
 
-	var buf *topdown.BufferTracer
+	var tracebuf *topdown.BufferTracer
+	var prof *profiler.Profiler
 
-	if r.explain != explainOff {
-		buf = topdown.NewBufferTracer()
-	}
-
-	eval := rego.New(
+	args := []func(*rego.Rego){
 		rego.Compiler(compiler),
 		rego.Store(r.store),
 		rego.Transaction(r.txn),
@@ -801,11 +852,21 @@ func (r *REPL) evalBody(ctx context.Context, compiler *ast.Compiler, input ast.V
 		rego.ParsedQuery(body),
 		rego.ParsedInput(input),
 		rego.Metrics(r.metrics),
-		rego.Tracer(buf),
 		rego.Instrument(r.instrument),
 		rego.Runtime(r.runtime),
-	)
+	}
 
+	if r.explain == explainTrace {
+		tracebuf = topdown.NewBufferTracer()
+		args = append(args, rego.Tracer(tracebuf))
+	}
+
+	if r.profiler {
+		prof = profiler.New()
+		args = append(args, rego.Tracer(prof))
+	}
+
+	eval := rego.New(args...)
 	rs, err := eval.Eval(ctx)
 
 	output := pr.Output{
@@ -814,14 +875,15 @@ func (r *REPL) evalBody(ctx context.Context, compiler *ast.Compiler, input ast.V
 		Metrics: r.metrics,
 	}
 
+	if r.profiler {
+		output.Profile = prof.ReportTopNResults(-1, pr.DefaultProfileSortOrder)
+	}
 	output = output.WithLimit(r.prettyLimit)
 
-	if buf != nil {
-		mangleTrace(ctx, r.store, r.txn, *buf)
-		output.Explanation = *buf
+	if r.explain != explainOff {
+		mangleTrace(ctx, r.store, r.txn, *tracebuf)
+		output.Explanation = *tracebuf
 	}
-
-	// TODO(tsandall): add profiler output
 
 	switch r.outputFormat {
 	case "json":
@@ -1001,14 +1063,16 @@ var extra = [...]commandDesc{
 }
 
 var builtin = [...]commandDesc{
-	{"show", []string{}, "show active module definition"},
+	{"show", []string{""}, "show active module definition"},
+	{"show debug", []string{""}, "show REPL settings"},
 	{"unset", []string{"<var>"}, "undefine rules in currently active module"},
 	{"json", []string{}, "set output format to JSON"},
 	{"pretty", []string{}, "set output format to pretty"},
 	{"pretty-limit", []string{}, "set pretty value output limit"},
-	{"trace", []string{}, "toggle full trace"},
+	{"trace", []string{}, "toggle full trace and turns off profiler"},
 	{"metrics", []string{}, "toggle metrics"},
 	{"instrument", []string{}, "toggle instrumentation"},
+	{"profile", []string{}, "toggle profiler and turns off trace"},
 	{"types", []string{}, "toggle type information"},
 	{"unknown", []string{"[ref-1 [ref-2 [...]]]"}, "toggle partial evaluation mode"},
 	{"dump", []string{"[path]"}, "dump raw data in storage"},

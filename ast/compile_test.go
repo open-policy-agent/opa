@@ -1261,6 +1261,37 @@ func TestRewriteLocalVarDeclarationErrors(t *testing.T) {
 	}
 }
 
+func TestCompileInvalidEqAssignExpr(t *testing.T) {
+
+	c := NewCompiler()
+
+	c.Modules["error"] = MustParseModule(`package errors
+
+
+	p {
+		# Type checking runs at a later stage so these errors will not be #
+		# caught until then. The stages before type checking should be tolerant
+		# of invalid eq and assign calls.
+		assign()
+		assign(1)
+		eq()
+		eq(1)
+	}`)
+
+	var prev func()
+	checkRecursion := reflect.ValueOf(c.checkRecursion)
+
+	for _, stage := range c.stages {
+		if reflect.ValueOf(stage).Pointer() == checkRecursion.Pointer() {
+			break
+		}
+		prev = stage
+	}
+
+	compileStages(c, prev)
+	assertNotFailed(t, c)
+}
+
 func TestCompilerRewriteComprehensionTerm(t *testing.T) {
 
 	c := NewCompiler()
@@ -2144,6 +2175,16 @@ func TestQueryCompiler(t *testing.T) {
 		input    string
 		expected interface{}
 	}{
+		{
+			note:     "invalid eq",
+			q:        "eq()",
+			expected: fmt.Errorf("too few arguments"),
+		},
+		{
+			note:     "invalid eq",
+			q:        "eq(1)",
+			expected: fmt.Errorf("too few arguments"),
+		},
 		{"rewrite assignment", "a := 1; [b, c] := data.foo", "", nil, "", "__local0__ = 1; [__local1__, __local2__] = data.foo"},
 		{"exports resolved", "z", `package a.b.c`, nil, "", "data.a.b.c.z"},
 		{"imports resolved", "z", `package a.b.c.d`, []string{"import data.a.b.c.z"}, "", "data.a.b.c.z"},
@@ -2263,12 +2304,21 @@ func getCompilerWithParsedModules(mods map[string]string) *Compiler {
 // helper function to run compiler upto given stage. If nil is provided, a
 // normal compile run is performed.
 func compileStages(c *Compiler, upto func()) {
+
+	for name := range c.Modules {
+		c.sorted = append(c.sorted, name)
+	}
+
+	sort.Strings(c.sorted)
 	c.SetErrorLimit(0)
+
 	if upto == nil {
 		c.compile()
 		return
 	}
+
 	target := reflect.ValueOf(upto)
+
 	for _, fn := range c.stages {
 		if fn(); c.Failed() {
 			return

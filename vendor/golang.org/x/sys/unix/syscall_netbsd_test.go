@@ -4,6 +4,12 @@
 
 package unix_test
 
+import (
+	"testing"
+
+	"golang.org/x/sys/unix"
+)
+
 // stringsFromByteSlice converts a sequence of attributes to a []string.
 // On NetBSD, each entry consists of a single byte containing the length
 // of the attribute name, followed by the attribute name.
@@ -17,4 +23,13 @@ func stringsFromByteSlice(buf []byte) []string {
 		i = next
 	}
 	return result
+}
+
+func TestSysctlClockinfo(t *testing.T) {
+	ci, err := unix.SysctlClockinfo("kern.clockrate")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("tick = %v, tickadj = %v, hz = %v, profhz = %v, stathz = %v",
+		ci.Tick, ci.Tickadj, ci.Hz, ci.Profhz, ci.Stathz)
 }

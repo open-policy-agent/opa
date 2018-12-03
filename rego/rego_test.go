@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/topdown"
 	"github.com/open-policy-agent/opa/types"
 	"github.com/open-policy-agent/opa/util"
@@ -226,5 +227,31 @@ func TestRegoCancellation(t *testing.T) {
 		t.Fatalf("Expected cancellation error but got: %v", rs)
 	} else if topdownErr, ok := err.(*topdown.Error); !ok || topdownErr.Code != topdown.CancelErr {
 		t.Fatalf("Got unexpected error: %v", err)
+	}
+}
+
+func TestRegoMetrics(t *testing.T) {
+	m := metrics.New()
+	r := New(Query("foo = 1"), Module("foo.rego", "package x"), Metrics(m))
+	ctx := context.Background()
+	_, err := r.Eval(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	exp := []string{
+		"timer_rego_query_parse_ns",
+		"timer_rego_query_eval_ns",
+		"timer_rego_query_compile_ns",
+		"timer_rego_module_parse_ns",
+		"timer_rego_module_compile_ns",
+	}
+
+	all := m.All()
+
+	for _, name := range exp {
+		if _, ok := all[name]; !ok {
+			t.Errorf("expected to find %v but did not", name)
+		}
 	}
 }

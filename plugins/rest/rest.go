@@ -8,9 +8,15 @@ package rest
 import (
 	"bytes"
 	"context"
+	"crypto/rsa"
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
+	"encoding/pem"
+	"errors"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strings"
@@ -21,26 +27,106 @@ import (
 
 // Config represents configuration for a REST client.
 type Config struct {
-	Name        string            `json:"name"`
-	URL         string            `json:"url"`
-	Headers     map[string]string `json:"headers"`
-	Credentials struct {
+	Name           string            `json:"name"`
+	URL            string            `json:"url"`
+	Headers        map[string]string `json:"headers"`
+	AllowInsureTLS bool              `json:"allow_insecure_tls,omitempty"`
+	Credentials    struct {
 		Bearer *struct {
 			Scheme string `json:"scheme,omitempty"`
 			Token  string `json:"token"`
 		} `json:"bearer,omitempty"`
+		ClientTLS *struct {
+			Cert                 string `json:"cert"`
+			PrivateKey           string `json:"private_key"`
+			PrivateKeyPassphrase string `json:"private_key_passphrase,omitempty"`
+		} `json:"client_tls,omitempty"`
 	} `json:"credentials"`
 }
 
-func (c *Config) validateAndInjectDefaults() error {
+func (c *Config) validateAndInjectDefaults() (*tls.Config, error) {
 	c.URL = strings.TrimRight(c.URL, "/")
-	_, err := url.Parse(c.URL)
+	url, err := url.Parse(c.URL)
+	if err != nil {
+		return nil, err
+	}
 	if c.Credentials.Bearer != nil {
 		if c.Credentials.Bearer.Scheme == "" {
 			c.Credentials.Bearer.Scheme = "Bearer"
 		}
 	}
-	return err
+	tlsConfig := &tls.Config{}
+	if url.Scheme == "https" {
+		tlsConfig.InsecureSkipVerify = c.AllowInsureTLS
+	}
+	if c.Credentials.ClientTLS != nil {
+		if err := c.readCertificate(tlsConfig); err != nil {
+			return nil, err
+		}
+	}
+	return tlsConfig, err
+}
+
+func (c *Config) readCertificate(t *tls.Config) error {
+	if c.Credentials.ClientTLS.Cert == "" {
+		return errors.New("client certificate is needed when client TLS is enabled")
+	}
+	if c.Credentials.ClientTLS.PrivateKey == "" {
+		return errors.New("private key is needed when client TLS is enabled")
+	}
+
+	var keyPEMBlock []byte
+	data, err := ioutil.ReadFile(c.Credentials.ClientTLS.PrivateKey)
+	if err != nil {
+		return err
+	}
+
+	block, _ := pem.Decode(data)
+	if block == nil {
+		return errors.New("PEM data could not be found")
+	}
+
+	if x509.IsEncryptedPEMBlock(block) {
+		if c.Credentials.ClientTLS.PrivateKeyPassphrase == "" {
+			return errors.New("client certificate passphrase is need, because the certificate is password encrypted")
+		}
+		block, err := x509.DecryptPEMBlock(block, []byte(c.Credentials.ClientTLS.PrivateKeyPassphrase))
+		if err != nil {
+			return err
+		}
+		key, err := x509.ParsePKCS8PrivateKey(block)
+		if err != nil {
+			key, err = x509.ParsePKCS1PrivateKey(block)
+			if err != nil {
+				return fmt.Errorf("private key should be a PEM or plain PKCS1 or PKCS8; parse error: %v", err)
+			}
+		}
+		rsa, ok := key.(*rsa.PrivateKey)
+		if !ok {
+			return errors.New("private key is invalid")
+		}
+		keyPEMBlock = pem.EncodeToMemory(
+			&pem.Block{
+				Type:  "RSA PRIVATE KEY",
+				Bytes: x509.MarshalPKCS1PrivateKey(rsa),
+			},
+		)
+	} else {
+		keyPEMBlock = data
+	}
+
+	certPEMBlock, err := ioutil.ReadFile(c.Credentials.ClientTLS.Cert)
+	if err != nil {
+		return err
+	}
+
+	cert, err := tls.X509KeyPair(certPEMBlock, keyPEMBlock)
+	if err != nil {
+		return err
+	}
+
+	t.Certificates = []tls.Certificate{cert}
+	return nil
 }
 
 // Client implements an HTTP/REST client for communicating with remote
@@ -53,15 +139,38 @@ type Client struct {
 	headers map[string]string
 }
 
+// Name returns an option that overrides the service name on the client.
+func Name(s string) func(*Client) {
+	return func(c *Client) {
+		c.config.Name = s
+	}
+}
+
 // New returns a new Client for config.
-func New(config []byte) (Client, error) {
+func New(config []byte, opts ...func(*Client)) (Client, error) {
 	var parsedConfig Config
 
 	if err := util.Unmarshal(config, &parsedConfig); err != nil {
 		return Client{}, err
 	}
 
-	return Client{config: parsedConfig}, parsedConfig.validateAndInjectDefaults()
+	tlsConfig, err := parsedConfig.validateAndInjectDefaults()
+	if err != nil {
+		return Client{}, err
+	}
+
+	client := Client{
+		config: parsedConfig,
+		Client: http.Client{
+			Transport: &http.Transport{TLSClientConfig: tlsConfig},
+		},
+	}
+
+	for _, f := range opts {
+		f(&client)
+	}
+
+	return client, nil
 }
 
 // Service returns the name of the service this Client is configured for.

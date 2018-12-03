@@ -112,7 +112,11 @@ func TestNew(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		p, err := New([]byte(test.input), manager)
+		config, _ := ParseConfig([]byte(test.input), manager.Services())
+		if config == nil {
+			continue
+		}
+		p, err := New(config, manager)
 		if err != nil && !test.wantErr {
 			t.Errorf("Unexpected error on: %v, err: %v", test.input, err)
 		}
@@ -278,6 +282,47 @@ func TestPluginFailureCompile(t *testing.T) {
 	}
 }
 
+func TestPluginReconfigure(t *testing.T) {
+	ctx := context.Background()
+	fixture := newTestFixture(t)
+	defer fixture.server.stop()
+
+	if err := fixture.plugin.Start(ctx); err != nil {
+		t.Fatal(err)
+	}
+
+	minDelay := 2
+	maxDelay := 3
+
+	pluginConfig := []byte(fmt.Sprintf(`{
+			"name": "test/bundle1",
+			"service": "example",
+			"polling": {
+				"min_delay_seconds": %v,
+				"max_delay_seconds": %v
+			}
+		}`, minDelay, maxDelay))
+
+	config, _ := ParseConfig(pluginConfig, fixture.manager.Services())
+
+	fixture.plugin.Reconfigure(config)
+	fixture.plugin.Stop(ctx)
+
+	actualMin := time.Duration(*fixture.plugin.config.Polling.MinDelaySeconds) / time.Nanosecond
+	expectedMin := time.Duration(minDelay) * time.Second
+
+	if actualMin != expectedMin {
+		t.Fatalf("Expected minimum polling interval: %v but got %v", expectedMin, actualMin)
+	}
+
+	actualMax := time.Duration(*fixture.plugin.config.Polling.MaxDelaySeconds) / time.Nanosecond
+	expectedMax := time.Duration(maxDelay) * time.Second
+
+	if actualMax != expectedMax {
+		t.Fatalf("Expected maximum polling interval: %v but got %v", expectedMax, actualMax)
+	}
+}
+
 func TestPluginActivatationRemovesOld(t *testing.T) {
 
 	managerConfig := []byte(`{
@@ -294,7 +339,8 @@ func TestPluginActivatationRemovesOld(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	p, err := New([]byte(`{"name": "test", "service": "example"}`), manager)
+	config, _ := ParseConfig([]byte(`{"name": "test", "service": "example"}`), manager.Services())
+	p, err := New(config, manager)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -533,7 +579,8 @@ func newTestFixture(t *testing.T) testFixture {
 			}
 		}`))
 
-	p, err := New(pluginConfig, manager)
+	config, _ := ParseConfig(pluginConfig, manager.Services())
+	p, err := New(config, manager)
 	if err != nil {
 		t.Fatal(err)
 	}

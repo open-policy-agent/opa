@@ -71,7 +71,7 @@ baz {     # expect no exit
 		{6}, {7}, // foo body
 		{10},             // bar head
 		{11}, {12}, {13}, // bar body
-		{17}, // baz body hits
+		{17}, {18}, // baz body hits
 	}
 
 	expectedNotCovered := []Position{
@@ -91,6 +91,33 @@ baz {     # expect no exit
 		}
 	}
 
+	if len(expectedCovered) != fr.locCovered() {
+		t.Errorf(
+			"Expected %d loc to be covered, got %d instead",
+			len(expectedCovered),
+			fr.locCovered())
+	}
+
+	if len(expectedNotCovered) != fr.locNotCovered() {
+		t.Errorf(
+			"Expected %d loc to not be covered, got %d instead",
+			len(expectedNotCovered),
+			fr.locNotCovered())
+	}
+
+	expectedCoveragePercentage := round(100.0*float64(len(expectedCovered))/float64(len(expectedCovered)+len(expectedNotCovered)), 2)
+	if expectedCoveragePercentage != fr.Coverage {
+		t.Errorf("Expected coverage %f != %f", expectedCoveragePercentage, fr.Coverage)
+	}
+
+	// there's just one file, hence the overall coverage is equal to the
+	// one of the only file report we have
+	if expectedCoveragePercentage != report.Coverage {
+		t.Errorf("Expected report coverage %f != %f",
+			expectedCoveragePercentage,
+			report.Coverage)
+	}
+
 	if t.Failed() {
 		bs, err := json.MarshalIndent(fr, "", "  ")
 		if err != nil {
@@ -98,5 +125,4 @@ baz {     # expect no exit
 		}
 		fmt.Println(string(bs))
 	}
-
 }

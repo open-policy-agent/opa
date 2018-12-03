@@ -123,9 +123,10 @@ func (r JSONReporter) Report(ch chan *Result) error {
 
 // JSONCoverageReporter reports coverage as a JSON structure.
 type JSONCoverageReporter struct {
-	Cover   *cover.Cover
-	Modules map[string]*ast.Module
-	Output  io.Writer
+	Cover     *cover.Cover
+	Modules   map[string]*ast.Module
+	Output    io.Writer
+	Threshold float64
 }
 
 // Report prints the test report to the reporter's output. If any tests fail or
@@ -140,6 +141,14 @@ func (r JSONCoverageReporter) Report(ch chan *Result) error {
 		}
 	}
 	report := r.Cover.Report(r.Modules)
+
+	if report.Coverage < r.Threshold {
+		return &cover.CoverageThresholdError{
+			Coverage:  report.Coverage,
+			Threshold: r.Threshold,
+		}
+	}
+
 	encoder := json.NewEncoder(r.Output)
 	encoder.SetIndent("", "  ")
 	return encoder.Encode(report)

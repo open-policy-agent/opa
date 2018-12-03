@@ -6,6 +6,8 @@
 package cover
 
 import (
+	"fmt"
+	"math"
 	"sort"
 
 	"github.com/open-policy-agent/opa/ast"
@@ -71,6 +73,22 @@ func (c *Cover) Report(modules map[string]*ast.Module) (report Report) {
 		}
 		fr.NotCovered = sortedPositionSliceToRangeSlice(notCovered)
 	}
+
+	var coveredLoc, notCoveredLoc int
+	var overallCoverage float64
+
+	for _, fr := range report.Files {
+		fr.Coverage = fr.computeCoveragePercentage()
+		coveredLoc += fr.locCovered()
+		notCoveredLoc += fr.locNotCovered()
+	}
+	totalLoc := coveredLoc + notCoveredLoc
+
+	if totalLoc != 0 {
+		overallCoverage = 100.0 * float64(coveredLoc) / float64(totalLoc)
+	}
+	report.Coverage = round(overallCoverage, 2)
+
 	return
 }
 
@@ -129,6 +147,7 @@ func (r Range) In(row int) bool {
 type FileReport struct {
 	Covered    []Range `json:"covered,omitempty"`
 	NotCovered []Range `json:"not_covered,omitempty"`
+	Coverage   float64 `json:"coverage,omitempty"`
 }
 
 // IsCovered returns true if the row is marked as covered in the report.
@@ -159,14 +178,58 @@ func (fr *FileReport) IsNotCovered(row int) bool {
 	return false
 }
 
+// locCovered returns the number of lines of code covered by tests
+func (fr *FileReport) locCovered() (loc int) {
+	for _, r := range fr.Covered {
+		loc += r.End.Row - r.Start.Row + 1
+	}
+	return
+}
+
+// locNotCovered returns the number of lines of code not covered by tests
+func (fr *FileReport) locNotCovered() (loc int) {
+	for _, r := range fr.NotCovered {
+		loc += r.End.Row - r.Start.Row + 1
+	}
+	return
+}
+
+// computeCoveragePercentage returns the code coverage percentage of the file
+func (fr *FileReport) computeCoveragePercentage() float64 {
+	coveredLoc := fr.locCovered()
+	notCoveredLoc := fr.locNotCovered()
+	totalLoc := coveredLoc + notCoveredLoc
+
+	if totalLoc == 0 {
+		return 0.0
+	}
+
+	return round(100.0*float64(coveredLoc)/float64(totalLoc), 2)
+}
+
 // Report represents a coverage report for a set of files.
 type Report struct {
-	Files map[string]*FileReport `json:"files"`
+	Files    map[string]*FileReport `json:"files"`
+	Coverage float64                `json:"coverage"`
 }
 
 // IsCovered returns true if the row in the given file is covered.
 func (r Report) IsCovered(file string, row int) bool {
 	return r.Files[file].IsCovered(row)
+}
+
+// CoverageThresholdError represents an error raised when the global
+// code coverage percenta is lower than the specified threshold.
+type CoverageThresholdError struct {
+	Coverage  float64
+	Threshold float64
+}
+
+func (e *CoverageThresholdError) Error() string {
+	return fmt.Sprintf(
+		"Code coverage threshold not met: got %.2f instead of %.2f",
+		e.Coverage,
+		e.Threshold)
 }
 
 func sortedPositionSliceToRangeSlice(sorted []Position) (result []Range) {
@@ -189,4 +252,9 @@ func sortedPositionSliceToRangeSlice(sorted []Position) (result []Range) {
 
 func hasFileLocation(loc *ast.Location) bool {
 	return loc != nil && loc.File != ""
+}
+
+// round returns the number with the specified precision.
+func round(number float64, precision int) float64 {
+	return math.Round(number*10*float64(precision)) / (10.0 * float64(precision))
 }

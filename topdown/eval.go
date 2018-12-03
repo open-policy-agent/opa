@@ -40,7 +40,7 @@ type eval struct {
 	txn           storage.Transaction
 	compiler      *ast.Compiler
 	input         *ast.Term
-	tracer        Tracer
+	tracers       []Tracer
 	instr         *Instrumentation
 	builtinCache  builtins.Cache
 	virtualCache  *virtualCache
@@ -122,7 +122,7 @@ func (e *eval) traceIndex(x ast.Node, msg string) {
 
 func (e *eval) traceEvent(op Op, x ast.Node, msg string) {
 
-	if e.tracer == nil || !e.tracer.Enabled() {
+	if !traceIsEnabled(e.tracers) {
 		return
 	}
 
@@ -146,11 +146,11 @@ func (e *eval) traceEvent(op Op, x ast.Node, msg string) {
 		Message:  msg,
 	}
 
-	e.tracer.Trace(evt)
-}
-
-func (e *eval) traceEnabled() bool {
-	return e.tracer != nil && e.tracer.Enabled()
+	for i := range e.tracers {
+		if e.tracers[i].Enabled() {
+			e.tracers[i].Trace(evt)
+		}
+	}
 }
 
 func (e *eval) eval(iter evalIterator) error {
@@ -299,12 +299,20 @@ func (e *eval) evalWith(iter evalIterator) error {
 		e.withCache.Put(ref, pair[1].Value)
 	}
 
-	old := e.input
-	e.input = ast.NewTerm(input)
+	var old *ast.Term
+
+	if input != nil {
+		old = e.input
+		e.input = ast.NewTerm(input)
+	}
+
 	e.virtualCache.Push()
 	err = e.evalStep(iter)
 	e.virtualCache.Pop()
-	e.input = old
+
+	if input != nil {
+		e.input = old
+	}
 
 	for _, pair := range pairsData {
 		ref := pair[0].Value.(ast.Ref)
@@ -503,7 +511,7 @@ func (e *eval) evalCall(terms []*ast.Term, iter unifyIterator) error {
 		Runtime:  e.runtime,
 		Cache:    e.builtinCache,
 		Location: e.query[e.index].Location,
-		Tracer:   e.tracer,
+		Tracers:  e.tracers,
 		QueryID:  e.queryID,
 		ParentID: parentID,
 	}
@@ -636,14 +644,14 @@ func (e *eval) biunifyValues(a, b *ast.Term, b1, b2 *bindings, iter unifyIterato
 	compA := ast.IsComprehension(a.Value)
 	compB := ast.IsComprehension(b.Value)
 
-	if saveA || saveB || ((compA || compB) && e.partial()) {
+	if saveA || saveB {
 		return e.saveUnify(a, b, b1, b2, iter)
 	}
 
 	if compA {
-		return e.biunifyComprehension(a.Value, b, b1, b2, iter)
+		return e.biunifyComprehension(a, b, b1, b2, false, iter)
 	} else if compB {
-		return e.biunifyComprehension(b.Value, a, b2, b1, iter)
+		return e.biunifyComprehension(b, a, b2, b1, true, iter)
 	}
 
 	// Perform standard unification.
@@ -739,8 +747,13 @@ func (e *eval) biunifyRef(a, b *ast.Term, b1, b2 *bindings, iter unifyIterator) 
 	return eval.eval(iter)
 }
 
-func (e *eval) biunifyComprehension(a interface{}, b *ast.Term, b1, b2 *bindings, iter unifyIterator) error {
-	switch a := a.(type) {
+func (e *eval) biunifyComprehension(a, b *ast.Term, b1, b2 *bindings, swap bool, iter unifyIterator) error {
+
+	if e.partial() {
+		return e.biunifyComprehensionPartial(a, b, b1, b2, swap, iter)
+	}
+
+	switch a := a.Value.(type) {
 	case *ast.ArrayComprehension:
 		return e.biunifyComprehensionArray(a, b, b1, b2, iter)
 	case *ast.SetComprehension:
@@ -748,7 +761,56 @@ func (e *eval) biunifyComprehension(a interface{}, b *ast.Term, b1, b2 *bindings
 	case *ast.ObjectComprehension:
 		return e.biunifyComprehensionObject(a, b, b1, b2, iter)
 	}
+
 	return fmt.Errorf("illegal comprehension %T", a)
+}
+
+func (e *eval) biunifyComprehensionPartial(a, b *ast.Term, b1, b2 *bindings, swap bool, iter unifyIterator) error {
+
+	// Capture bindings available to the comprehension. We will add expressions
+	// to the comprehension body that ensure the comprehension body is safe.
+	// Currently this process adds _all_ bindings (even if they are not
+	// needed.) Eventually we may want to make the logic a bit smarter.
+	var extras []*ast.Expr
+
+	err := b1.Iter(sentinel, func(k, v *ast.Term) error {
+		extras = append(extras, ast.Equality.Expr(k, v))
+		return nil
+	})
+
+	if err != nil {
+		return err
+	}
+
+	// Namespace the variables in the body to avoid collision when the final
+	// queries returned by partial evaluation.
+	var body *ast.Body
+
+	switch a := a.Value.(type) {
+	case *ast.ArrayComprehension:
+		body = &a.Body
+	case *ast.SetComprehension:
+		body = &a.Body
+	case *ast.ObjectComprehension:
+		body = &a.Body
+	default:
+		return fmt.Errorf("illegal comprehension %T", a)
+	}
+
+	for _, e := range extras {
+		body.Append(e)
+	}
+
+	b1.Namespace(a, sentinel)
+
+	// The other term might need to be plugged so include the bindings. The
+	// bindings for the comprehension term are saved (for compatibility) but
+	// the eventual plug operation on the comprehension will be a no-op.
+	if !swap {
+		return e.saveUnify(a, b, b1, b2, iter)
+	}
+
+	return e.saveUnify(b, a, b2, b1, iter)
 }
 
 func (e *eval) biunifyComprehensionArray(x *ast.ArrayComprehension, b *ast.Term, b1, b2 *bindings, iter unifyIterator) error {
@@ -796,15 +858,24 @@ func (e *eval) biunifyComprehensionObject(x *ast.ObjectComprehension, b *ast.Ter
 	return e.biunify(ast.NewTerm(result), b, b1, b2, iter)
 }
 
-func (e *eval) getSaveTerms(x *ast.Term) []*ast.Term {
+type savePair struct {
+	term *ast.Term
+	b    *bindings
+}
+
+func getSavePairs(x *ast.Term, b *bindings, result []savePair) []savePair {
+	if _, ok := x.Value.(ast.Var); ok {
+		result = append(result, savePair{x, b})
+		return result
+	}
 	vis := ast.NewVarVisitor().WithParams(ast.VarVisitorParams{
 		SkipClosures: true,
 		SkipRefHead:  true,
 	})
 	ast.Walk(vis, x)
-	var result []*ast.Term
 	for v := range vis.Vars() {
-		result = append(result, ast.NewTerm(v))
+		y, next := b.apply(ast.NewTerm(v))
+		result = getSavePairs(y, next, result)
 	}
 	return result
 }
@@ -827,13 +898,17 @@ func (e *eval) savePluggedExprs(exprs []*ast.Expr, iter unifyIterator) error {
 
 func (e *eval) saveUnify(a, b *ast.Term, b1, b2 *bindings, iter unifyIterator) error {
 	expr := ast.Equality.Expr(a, b)
-	if ts := e.getSaveTerms(a); len(ts) > 0 {
-		e.saveSet.Push(ts, b1)
-		defer e.saveSet.Pop()
+	if pairs := getSavePairs(a, b1, nil); len(pairs) > 0 {
+		for _, p := range pairs {
+			e.saveSet.Push([]*ast.Term{p.term}, p.b)
+			defer e.saveSet.Pop()
+		}
 	}
-	if ts := e.getSaveTerms(b); len(ts) > 0 {
-		e.saveSet.Push(ts, b2)
-		defer e.saveSet.Pop()
+	if pairs := getSavePairs(b, b2, nil); len(pairs) > 0 {
+		for _, p := range pairs {
+			e.saveSet.Push([]*ast.Term{p.term}, p.b)
+			defer e.saveSet.Pop()
+		}
 	}
 	e.saveStack.Push(expr, b1, b2)
 	defer e.saveStack.Pop()
@@ -846,9 +921,11 @@ func (e *eval) saveCall(declArgsLen int, terms []*ast.Term, iter unifyIterator) 
 	// If call-site includes output value then partial eval must add vars in output
 	// position to the save set.
 	if declArgsLen == len(terms)-2 {
-		if ts := e.getSaveTerms(terms[len(terms)-1]); len(ts) > 0 {
-			e.saveSet.Push(ts, e.bindings)
-			defer e.saveSet.Pop()
+		if pairs := getSavePairs(terms[len(terms)-1], e.bindings, nil); len(pairs) > 0 {
+			for _, p := range pairs {
+				e.saveSet.Push([]*ast.Term{p.term}, p.b)
+				defer e.saveSet.Pop()
+			}
 		}
 	}
 	e.saveStack.Push(expr, e.bindings, nil)
@@ -1549,7 +1626,6 @@ func (e evalVirtualPartial) evalOneRule(iter unifyIterator, rule *ast.Rule, cach
 			}
 
 			term, termbindings := child.bindings.apply(term)
-
 			err := e.evalTerm(iter, term, termbindings)
 			if err != nil {
 				return err

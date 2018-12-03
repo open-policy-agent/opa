@@ -88,6 +88,36 @@ complex types.
 | <span class="opa-keep-it-together">``regex.template_match(patter, string, delimiter_start, delimiter_end, output)``</span> | 4 | ``output`` is true if ``string`` matches ``pattern``. ``pattern`` is a string containing ``0..n`` regular expressions delimited by ``delimiter_start`` and ``delimiter_end``. Example ``regex.template_match("urn:foo:{.*}", "urn:foo:bar:baz", "{", "}", x)`` returns ``true`` for ``x``. |
 | <span class="opa-keep-it-together">``regex.find_n(pattern, string, number)``</span> | 3 | returns an ``array[string]`` with the ``number`` of values matching the ``pattern``. A ``number`` of ``-1`` means all matches. |
 
+### Glob
+| Built-in | Inputs | Description |
+| ------- |--------|-------------|
+| <span class="opa-keep-it-together">``glob.match(pattern, delimiters, match, output)``</span> | 3 | ``output`` is true if ``match`` can be found in ``pattern`` which is separated by ``delimiters``. For valid patterns, check the table below. Argument ``delimiters`` is an array of single-characters (e.g. `[".", ":"]`). If ``delimiters`` is empty, it defaults to ``["."]``. |
+| <span class="opa-keep-it-together">``glob.quote_meta(pattern, output)``</span> | 1 | ``output`` is the escaped string of ``pattern``. Calling ``glob.quote_meta("*.github.com", output)`` returns ``\\*.github.com`` as ``output``. |
+
+The following table shows examples of how ``glob.match`` works:
+
+| ``call`` | ``output`` | Description |
+| -------- | ---------- | ----------- |
+| ``glob.match("*.github.com", [], "api.github.com", output)`` | ``true`` | A glob with the default ``["."]`` delimiter. |
+| ``glob.match("*:github:com", [":"], "api:github:com", output)`` | ``true`` | A glob with delimiters ``[":"]``. |
+| ``glob.match("api.**.com", [], "api.github.com", output)`` | ``true`` | A super glob. |
+| ``glob.match("api.**.com", [], "api.cdn.github.com", output)`` | ``true`` | A super glob. |
+| ``glob.match("?at", [], "cat", output)`` | ``true`` | A glob with a single character wildcard. |
+| ``glob.match("?at", [], "at", output)`` | ``false`` | A glob with a single character wildcard. |
+| ``glob.match("[abc]at", [], "bat", output)`` | ``true`` | A glob with character-list matchers. |
+| ``glob.match("[abc]at", [], "cat", output)`` | ``true`` | A glob with character-list matchers. |
+| ``glob.match("[abc]at", [], "lat", output)`` | ``false`` | A glob with character-list matchers. |
+| ``glob.match("[!abc]at", [], "cat", output)`` | ``false`` | A glob with negated character-list matchers. |
+| ``glob.match("[!abc]at", [], "lat", output)`` | ``true`` | A glob with negated character-list matchers. |
+| ``glob.match("[a-c]at", [], "cat", output)`` | ``true`` | A glob with character-range matchers. |
+| ``glob.match("[a-c]at", [], "lat", output)`` | ``false`` | A glob with character-range matchers. |
+| ``glob.match("[!a-c]at", [], "cat", output)`` | ``false`` | A glob with negated character-range matchers. |
+| ``glob.match("[!a-c]at", [], "lat", output)`` | ``true`` | A glob with negated character-range matchers. |
+| ``glob.match(""{cat,bat,[fr]at}", [], "cat", output)`` | ``true`` | A glob with pattern-alternatives matchers. |
+| ``glob.match(""{cat,bat,[fr]at}", [], "bat", output)`` | ``true`` | A glob with pattern-alternatives matchers. |
+| ``glob.match(""{cat,bat,[fr]at}", [], "rat", output)`` | ``true`` | A glob with pattern-alternatives matchers. |
+| ``glob.match(""{cat,bat,[fr]at}", [], "at", output)`` | ``false`` | A glob with pattern-alternatives matchers. |
+
 ### Types
 
 | Built-in | Inputs | Description |
@@ -270,7 +300,7 @@ The grammar defined above makes use of the following syntax. See [the Wikipedia 
 ```
 []     optional (zero or one instances)
 {}     repetition (zero or more instances)
-|      alteration (one of the instances)
+|      alternation (one of the instances)
 ()     grouping (order of expansion)
 STRING JSON string
 NUMBER JSON number

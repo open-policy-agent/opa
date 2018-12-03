@@ -80,6 +80,7 @@ type Compiler struct {
 	ruleIndices  *util.HashMap
 	stages       []func()
 	maxErrs      int
+	sorted       []string // list of sorted module names
 }
 
 // QueryContext contains contextual information for running an ad-hoc query.
@@ -242,7 +243,9 @@ func (c *Compiler) Compile(modules map[string]*Module) {
 	c.Modules = make(map[string]*Module, len(modules))
 	for k, v := range modules {
 		c.Modules[k] = v.Copy()
+		c.sorted = append(c.sorted, k)
 	}
+	sort.Strings(c.sorted)
 	c.compile()
 }
 
@@ -542,7 +545,8 @@ func (c *Compiler) checkRuleConflicts() {
 // positions of built-in expressions will be bound when evaluating the rule from left
 // to right, re-ordering as necessary.
 func (c *Compiler) checkSafetyRuleBodies() {
-	for _, m := range c.Modules {
+	for _, name := range c.sorted {
+		m := c.Modules[name]
 		WalkRules(m, func(r *Rule) bool {
 			safe := ReservedVars.Copy()
 			safe.Update(r.Head.Args.Vars())
@@ -571,7 +575,9 @@ var safetyCheckVarVisitorParams = VarVisitorParams{
 // checkSafetyRuleHeads ensures that variables appearing in the head of a
 // rule also appear in the body.
 func (c *Compiler) checkSafetyRuleHeads() {
-	for _, m := range c.Modules {
+
+	for _, name := range c.sorted {
+		m := c.Modules[name]
 		WalkRules(m, func(r *Rule) bool {
 			safe := r.Body.Vars(safetyCheckVarVisitorParams)
 			safe.Update(r.Head.Args.Vars())
@@ -631,7 +637,8 @@ func (c *Compiler) getExports() *util.HashMap {
 		return v.(Ref).Hash()
 	})
 
-	for _, mod := range c.Modules {
+	for _, name := range c.sorted {
+		mod := c.Modules[name]
 		rv, ok := rules.Get(mod.Package.Path)
 		if !ok {
 			rv = []Var{}
@@ -660,7 +667,8 @@ func (c *Compiler) resolveAllRefs() {
 
 	rules := c.getExports()
 
-	for _, mod := range c.Modules {
+	for _, name := range c.sorted {
+		mod := c.Modules[name]
 
 		var ruleExports []Var
 		if x, ok := rules.Get(mod.Package.Path); ok {
@@ -695,22 +703,25 @@ func (c *Compiler) resolveAllRefs() {
 
 		for id, module := range parsed {
 			c.Modules[id] = module
+			c.sorted = append(c.sorted, id)
 		}
 
+		sort.Strings(c.sorted)
 		c.resolveAllRefs()
 	}
 }
 
 func (c *Compiler) rewriteComprehensionTerms() {
-	for _, mod := range c.Modules {
+	for _, name := range c.sorted {
+		mod := c.Modules[name]
 		f := newEqualityFactory(newLocalVarGenerator(mod))
 		rewriteComprehensionTerms(f, mod)
 	}
 }
 
 func (c *Compiler) rewriteExprTerms() {
-	for k := range c.Modules {
-		mod := c.Modules[k]
+	for _, name := range c.sorted {
+		mod := c.Modules[name]
 		gen := newLocalVarGenerator(mod)
 		WalkRules(mod, func(rule *Rule) bool {
 			rewriteExprTermsInHead(gen, rule)
@@ -734,7 +745,8 @@ func (c *Compiler) rewriteExprTerms() {
 //
 // p[__local0__] { i < 100; __local0__ = {"foo": data.foo[i]} }
 func (c *Compiler) rewriteRefsInHead() {
-	for _, mod := range c.Modules {
+	for _, name := range c.sorted {
+		mod := c.Modules[name]
 		f := newEqualityFactory(newLocalVarGenerator(mod))
 		WalkRules(mod, func(rule *Rule) bool {
 			if requiresEval(rule.Head.Key) {
@@ -760,13 +772,15 @@ func (c *Compiler) rewriteRefsInHead() {
 }
 
 func (c *Compiler) rewriteEquals() {
-	for _, mod := range c.Modules {
+	for _, name := range c.sorted {
+		mod := c.Modules[name]
 		rewriteEquals(mod)
 	}
 }
 
 func (c *Compiler) rewriteDynamicTerms() {
-	for _, mod := range c.Modules {
+	for _, name := range c.sorted {
+		mod := c.Modules[name]
 		f := newEqualityFactory(newLocalVarGenerator(mod))
 		WalkRules(mod, func(rule *Rule) bool {
 			rule.Body = rewriteDynamics(f, rule.Body)
@@ -777,7 +791,8 @@ func (c *Compiler) rewriteDynamicTerms() {
 
 func (c *Compiler) rewriteLocalAssignments() {
 
-	for _, mod := range c.Modules {
+	for _, name := range c.sorted {
+		mod := c.Modules[name]
 		gen := newLocalVarGenerator(mod)
 
 		WalkRules(mod, func(rule *Rule) bool {
@@ -854,7 +869,8 @@ func (c *Compiler) rewriteLocalAssignments() {
 }
 
 func (c *Compiler) rewriteWithModifiers() {
-	for _, mod := range c.Modules {
+	for _, name := range c.sorted {
+		mod := c.Modules[name]
 		f := newEqualityFactory(newLocalVarGenerator(mod))
 		t := NewGenericTransformer(func(x interface{}) (interface{}, error) {
 			body, ok := x.(Body)
@@ -1661,10 +1677,12 @@ func outputVarsForExprBuiltin(expr *Expr, b *Builtin, safe VarSet) VarSet {
 }
 
 func outputVarsForExprEq(expr *Expr, safe VarSet) VarSet {
-	ts := expr.Terms.([]*Term)
+	if !validEqAssignArgCount(expr) {
+		return safe
+	}
 	output := outputVarsForExprRefs(expr, safe)
 	output.Update(safe)
-	output.Update(Unify(output, ts[1], ts[2]))
+	output.Update(Unify(output, expr.Operand(0), expr.Operand(1)))
 	return output.Diff(safe)
 }
 
@@ -2037,7 +2055,7 @@ func assignedVars(x interface{}) VarSet {
 	vis := NewGenericVisitor(func(x interface{}) bool {
 		switch x := x.(type) {
 		case *Expr:
-			if x.IsAssignment() {
+			if x.IsAssignment() && validEqAssignArgCount(x) {
 				WalkVars(x.Operand(0), func(v Var) bool {
 					vars.Add(v)
 					return false
@@ -2155,8 +2173,11 @@ func rewriteDynamics(f *equalityFactory, body Body) Body {
 }
 
 func rewriteDynamicsEqExpr(f *equalityFactory, expr *Expr) []*Expr {
-	terms := expr.Terms.([]*Term)
 	var extras []*Expr
+	if !validEqAssignArgCount(expr) {
+		return append(extras, expr)
+	}
+	terms := expr.Terms.([]*Term)
 	extras, terms[1] = rewriteDynamicsInTerm(expr, f, terms[1], nil)
 	extras, terms[2] = rewriteDynamicsInTerm(expr, f, terms[2], extras)
 	return append(extras, expr)
@@ -2464,6 +2485,10 @@ func rewriteDeclaredAssignment(g *localVarGenerator, stack *localDeclaredVars, e
 	}
 
 	numErrsBefore := len(errs)
+
+	if !validEqAssignArgCount(expr) {
+		return errs
+	}
 
 	// Rewrite terms on right hand side capture seen vars and recursively
 	// process comprehensions before left hand side is processed.

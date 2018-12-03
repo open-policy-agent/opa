@@ -27,7 +27,6 @@ func RegisterBuiltin(b *Builtin) {
 // by default. When adding a new built-in function to OPA, update this
 // list.
 var DefaultBuiltins = [...]*Builtin{
-
 	// Unification/equality ("=")
 	Equality,
 
@@ -166,6 +165,10 @@ var DefaultBuiltins = [...]*Builtin{
 
 	// CIDR
 	NetCIDROverlap,
+
+	// Glob
+	GlobMatch,
+	GlobQuoteMeta,
 }
 
 // BuiltinMap provides a convenient mapping of built-in names to
@@ -1318,6 +1321,34 @@ var Union = &Builtin{
 			types.NewSet(types.NewSet(types.A)),
 		),
 		types.NewSet(types.A),
+	),
+}
+
+/**
+ * Glob
+ */
+
+// GlobMatch - not to be confused with regex.globs_match - parses and matches strings against the glob notation.
+var GlobMatch = &Builtin{
+	Name: "glob.match",
+	Decl: types.NewFunction(
+		types.Args(
+			types.S,
+			types.NewArray(nil, types.S),
+			types.S,
+		),
+		types.B,
+	),
+}
+
+// GlobQuoteMeta returns a string which represents a version of the pattern where all asterisks have been escaped.
+var GlobQuoteMeta = &Builtin{
+	Name: "glob.quote_meta",
+	Decl: types.NewFunction(
+		types.Args(
+			types.S,
+		),
+		types.S,
 	),
 }
 

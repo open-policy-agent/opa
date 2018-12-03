@@ -9,31 +9,26 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/tls"
-	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
-	"strings"
 	"sync"
 	"time"
 
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/discovery"
 	"github.com/open-policy-agent/opa/internal/runtime"
 	"github.com/open-policy-agent/opa/loader"
 	"github.com/open-policy-agent/opa/plugins"
-	"github.com/open-policy-agent/opa/plugins/bundle"
 	"github.com/open-policy-agent/opa/plugins/logs"
-	"github.com/open-policy-agent/opa/plugins/status"
 	"github.com/open-policy-agent/opa/repl"
 	"github.com/open-policy-agent/opa/server"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/storage/inmem"
-	"github.com/open-policy-agent/opa/util"
 	"github.com/open-policy-agent/opa/version"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
-	"gopkg.in/fsnotify.v1"
+	fsnotify "gopkg.in/fsnotify.v1"
 )
 
 var (
@@ -132,9 +127,9 @@ func NewParams() Params {
 
 // Runtime represents a single OPA instance.
 type Runtime struct {
-	Params  Params
-	Store   storage.Store
-	Manager *plugins.Manager
+	Params    Params
+	Store     storage.Store
+	Discovery *discovery.Discovery
 
 	info                         *ast.Term // runtime information provided to evaluation engine
 	defaultDecision              ast.Ref
@@ -179,7 +174,7 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		return nil, errors.Wrapf(err, "storage error")
 	}
 
-	cfg, err := loadConfig(params.ID, store, params.ConfigFile)
+	cfg, err := loadConfig(ctx, params.ID, store, params.ConfigFile)
 	if err != nil {
 		return nil, err
 	}
@@ -201,12 +196,12 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 
 	rt := &Runtime{
 		Store:                        store,
-		Manager:                      cfg.Manager,
 		Params:                       params,
 		info:                         info,
 		defaultDecision:              cfg.DefaultDecision,
 		defaultAuthorizationDecision: cfg.DefaultAuthorizationDecision,
 		decisionLogger:               decisionLogger,
+		Discovery:                    cfg,
 	}
 
 	return rt, nil
@@ -222,14 +217,14 @@ func (rt *Runtime) StartServer(ctx context.Context) {
 		"insecure_addr": rt.Params.InsecureAddr,
 	}).Infof("First line of log stream.")
 
-	if err := rt.Manager.Start(ctx); err != nil {
+	if err := rt.Discovery.Start(ctx); err != nil {
 		logrus.WithField("err", err).Fatalf("Unable to initialize plugins.")
 	}
-	defer rt.Manager.Stop(ctx)
+	defer rt.Discovery.Stop(ctx)
 
 	s, err := server.New().
 		WithStore(rt.Store).
-		WithManager(rt.Manager).
+		WithManager(rt.Discovery.Manager).
 		WithCompilerErrorLimit(rt.Params.ErrorLimit).
 		WithAddresses(*rt.Params.Addrs).
 		WithInsecureAddress(rt.Params.InsecureAddr).
@@ -278,11 +273,11 @@ func (rt *Runtime) StartServer(ctx context.Context) {
 // StartREPL starts the runtime in REPL mode. This function will block the calling goroutine.
 func (rt *Runtime) StartREPL(ctx context.Context) {
 
-	if err := rt.Manager.Start(ctx); err != nil {
+	if err := rt.Discovery.Start(ctx); err != nil {
 		fmt.Fprintln(rt.Params.Output, "error starting plugins:", err)
 		os.Exit(1)
 	}
-	defer rt.Manager.Stop(ctx)
+	defer rt.Discovery.Stop(ctx)
 
 	banner := rt.getBanner()
 	repl := repl.New(rt.Store, rt.Params.HistoryPath, rt.Params.Output, rt.Params.OutputFormat, rt.Params.ErrorLimit, banner).WithRuntime(rt.info)
@@ -402,7 +397,16 @@ func compileAndStoreInputs(ctx context.Context, store storage.Store, txn storage
 		}
 	}
 
+	warnDiagnosticPolicyDeprecated(c)
+
 	return nil
+}
+
+func warnDiagnosticPolicyDeprecated(c *ast.Compiler) {
+	rules := c.GetRules(ast.MustParseRef("data.system.diagnostics"))
+	if len(rules) > 0 {
+		logrus.Warn("The diagnostics feature has been deprecated and will be removed. Use the Decision Logging feature. See https://www.openpolicyagent.org/docs/decision_logs.html for information.")
+	}
 }
 
 func getWatcher(rootPaths []string) (*fsnotify.Watcher, error) {
@@ -483,213 +487,19 @@ func setupLogging(config LoggingConfig) {
 	logrus.SetLevel(lvl)
 }
 
-type loadedConfig struct {
-	Manager                      *plugins.Manager
-	Plugins                      map[string]plugins.Plugin
-	DefaultDecision              ast.Ref
-	DefaultAuthorizationDecision ast.Ref
-}
+func loadConfig(ctx context.Context, id string, store storage.Store, configFile string) (*discovery.Discovery, error) {
 
-type rawConfig struct {
-	DefaultDecision              string `json:"default_decision"`
-	DefaultAuthorizationDecision string `json:"default_authorization_decision"`
-}
-
-func parsePathToRef(s string) (ast.Ref, error) {
-	s = strings.Replace(strings.Trim(s, "/"), "/", ".", -1)
-	return ast.ParseRef("data." + s)
-}
-
-const (
-	defaultDecisionPath              = "/system/main"
-	defaultAuthorizationDecisionPath = "/system/authz/allow"
-)
-
-// TODO(tsandall): revisit how plugins are wired up to the manager and how
-// everything is started and stopped. We could introduce a package-scoped
-// plugin registry that allows for (dynamic) init-time plugin registration.
-
-func loadConfig(id string, store storage.Store, configFile string) (*loadedConfig, error) {
-
-	var bs []byte
-	var err error
-
-	if configFile != "" {
-		bs, err = ioutil.ReadFile(configFile)
-		if err != nil {
-			return nil, err
-		}
+	params := discovery.Params{
+		ID:                id,
+		ConfigFile:        configFile,
+		Store:             store,
+		RegisteredPlugins: registeredPlugins,
 	}
-
-	m, err := plugins.New(bs, id, store)
+	discoveredConfig, err := discovery.New(ctx, params)
 	if err != nil {
 		return nil, err
 	}
-
-	plugins := map[string]plugins.Plugin{}
-
-	bundlePlugin, err := initBundlePlugin(m, bs)
-	if err != nil {
-		return nil, err
-	} else if bundlePlugin != nil {
-		plugins["bundle"] = bundlePlugin
-	}
-
-	if bundlePlugin != nil {
-		statusPlugin, err := initStatusPlugin(m, bs, bundlePlugin)
-		if err != nil {
-			return nil, err
-		} else if statusPlugin != nil {
-			plugins["status"] = statusPlugin
-		}
-	}
-
-	decisionLogsPlugin, err := initDecisionLogsPlugin(m, bs)
-	if err != nil {
-		return nil, err
-	} else if decisionLogsPlugin != nil {
-		plugins["decision_logs"] = decisionLogsPlugin
-	}
-
-	err = initRegisteredPlugins(m, bs)
-	if err != nil {
-		return nil, err
-	}
-
-	var raw rawConfig
-
-	if err := util.Unmarshal(bs, &raw); err != nil {
-		return nil, err
-	}
-
-	if raw.DefaultDecision == "" {
-		raw.DefaultDecision = defaultDecisionPath
-	}
-
-	if raw.DefaultAuthorizationDecision == "" {
-		raw.DefaultAuthorizationDecision = defaultAuthorizationDecisionPath
-	}
-
-	defaultDecision, err := parsePathToRef(raw.DefaultDecision)
-	if err != nil {
-		return nil, err
-	}
-
-	defaultAuthorizationDecision, err := parsePathToRef(raw.DefaultAuthorizationDecision)
-	if err != nil {
-		return nil, err
-	}
-
-	c := &loadedConfig{
-		Manager:                      m,
-		Plugins:                      plugins,
-		DefaultDecision:              defaultDecision,
-		DefaultAuthorizationDecision: defaultAuthorizationDecision,
-	}
-
-	return c, nil
-}
-
-func initBundlePlugin(m *plugins.Manager, bs []byte) (*bundle.Plugin, error) {
-
-	var config struct {
-		Bundle json.RawMessage `json:"bundle"`
-	}
-
-	if err := util.Unmarshal(bs, &config); err != nil {
-		return nil, err
-	}
-
-	if config.Bundle == nil {
-		return nil, nil
-	}
-
-	p, err := bundle.New(config.Bundle, m)
-	if err != nil {
-		return nil, err
-	}
-
-	m.Register(p)
-
-	return p, nil
-}
-
-func initDecisionLogsPlugin(m *plugins.Manager, bs []byte) (*logs.Plugin, error) {
-
-	var config struct {
-		DecisionLogs json.RawMessage `json:"decision_logs"`
-	}
-
-	if err := util.Unmarshal(bs, &config); err != nil {
-		return nil, err
-	}
-
-	if config.DecisionLogs == nil {
-		return nil, nil
-	}
-
-	p, err := logs.New(config.DecisionLogs, m)
-	if err != nil {
-		return nil, err
-	}
-
-	m.Register(p)
-
-	return p, nil
-}
-
-func initRegisteredPlugins(m *plugins.Manager, bs []byte) error {
-
-	var config struct {
-		Plugins map[string]json.RawMessage `json:"plugins"`
-	}
-
-	if err := util.Unmarshal(bs, &config); err != nil {
-		return err
-	}
-
-	for name, factory := range registeredPlugins {
-		pc, ok := config.Plugins[name]
-		if !ok {
-			continue
-		}
-		plugin, err := factory(m, pc)
-		if err != nil {
-			return err
-		}
-		m.Register(plugin)
-	}
-
-	return nil
-
-}
-
-func initStatusPlugin(m *plugins.Manager, bs []byte, bundlePlugin *bundle.Plugin) (*status.Plugin, error) {
-
-	var config struct {
-		Status json.RawMessage `json:"status"`
-	}
-
-	if err := util.Unmarshal(bs, &config); err != nil {
-		return nil, err
-	}
-
-	if config.Status == nil {
-		return nil, nil
-	}
-
-	p, err := status.New(config.Status, m)
-	if err != nil {
-		return nil, err
-	}
-
-	m.Register(p)
-
-	bundlePlugin.Register(bundlePluginListener("status-plugin"), func(s bundle.Status) {
-		p.Update(s)
-	})
-
-	return p, nil
+	return discoveredConfig, nil
 }
 
 func generateInstanceID() (string, error) {
@@ -714,8 +524,6 @@ func uuid4() (string, error) {
 	bs[6] = bs[6]&^0xf0 | 0x40
 	return fmt.Sprintf("%x-%x-%x-%x-%x", bs[0:4], bs[4:6], bs[6:8], bs[8:10], bs[10:]), nil
 }
-
-type bundlePluginListener string
 
 func init() {
 	registeredPlugins = make(map[string]plugins.PluginInitFunc)

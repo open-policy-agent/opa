@@ -2,7 +2,7 @@
 # Use of this source code is governed by an Apache2
 # license that can be found in the LICENSE file.
 
-VERSION := 0.9.3-dev
+VERSION := 0.10.2-dev
 
 GO := go
 GOVERSION := 1.10
@@ -174,8 +174,12 @@ docs:
 		-v $(PWD):/go/src/github.com/open-policy-agent/opa \
 		-w /go/src/github.com/open-policy-agent/opa \
 		-p 4000:4000 \
+		-u $(shell id -u $(USER)):$(shell id -g $(USER)) \
+		-e GITBOOK_DIR=/go/src/github.com/open-policy-agent/opa/.gitbook \
+		-e npm_config_cache=/go/src/github.com/open-policy-agent/opa/.npm \
 		$(REPOSITORY)/release-builder:$(RELEASE_BUILDER_VERSION) \
 		./build/build-docs.sh --output-dir=/go/src/github.com/open-policy-agent/opa --serve=4000
+
 
 ######################################################
 #
@@ -212,6 +216,7 @@ release-local:
 .PHONY: release-patch
 release-patch:
 	@docker run -it --rm \
+		-e LAST_VERSION=$(LAST_VERSION) \
 		-v $(PWD):/_src \
 		python:2.7 \
 		/_src/build/gen-release-patch.sh --version=$(VERSION) --source-url=/_src

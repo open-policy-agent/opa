@@ -273,6 +273,23 @@ func TestSchedSetaffinity(t *testing.T) {
 		t.Skip("skipping setaffinity tests on android")
 	}
 
+	// On a system like ppc64x where some cores can be disabled using ppc64_cpu,
+	// setaffinity should only be called with enabled cores. The valid cores
+	// are found from the oldMask, but if none are found then the setaffinity
+	// tests are skipped. Issue #27875.
+	if !oldMask.IsSet(cpu) {
+		newMask.Zero()
+		for i := 0; i < len(oldMask); i++ {
+			if oldMask.IsSet(i) {
+				newMask.Set(i)
+				break
+			}
+		}
+		if newMask.Count() == 0 {
+			t.Skip("skipping setaffinity tests if CPU not available")
+		}
+	}
+
 	err = unix.SchedSetaffinity(0, &newMask)
 	if err != nil {
 		t.Fatalf("SchedSetaffinity: %v", err)
