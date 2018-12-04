@@ -1651,8 +1651,7 @@ The following table summarizes the behavior for partial evaluation results.
 
 ## Authentication
 
-The API is secured via [HTTPS, Authentication, and
-Authorization](/documentation/references/security).
+The API is secured via [HTTPS, Authentication, and Authorization](security.md).
 
 ###  Bearer Tokens
 
