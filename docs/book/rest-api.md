@@ -1415,7 +1415,7 @@ Content-Type: application/json
 
 ```json
 {
-  "query": ...
+  "query": "data.servers[i].ports[_] = 'p2'; data.servers[i].name = name"
 }
 ```
 
