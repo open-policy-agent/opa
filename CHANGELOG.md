@@ -3,7 +3,37 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## 0.10.2
+
+### Fixes
+
+- Add manifest metadata to bundle data (#1079) ([#1062](https://github.com/open-policy-agent/opa/issues/1062))
+- Add profile command to REPL ([#838](https://github.com/open-policy-agent/opa/issues/838))
+- Add decision ID note in API docs ([#1061](https://github.com/open-policy-agent/opa/issues/1061))
+- Fix formatting of trailing comments in composites ([#1060](https://github.com/open-policy-agent/opa/issues/1060))
+- Fix panic caused by input being set incorrectly ([#1083](https://github.com/open-policy-agent/opa/issues/1083))
+- Fix partial eval to apply saved terms ([#1074](https://github.com/open-policy-agent/opa/issues/1074))
+
+### Miscellaneous
+
+- Add Stringer implementation for expr values
+- Add Stringer implementation on metrics object
+- Add helper function to compile strings
+- Add note to configuration reference about -c flag
+- Add support for configuration discovery
+- Add support for multiple tracers
+- Add trace helper to rego package
+- Add code coverage percentage
+- Fix REPL to check number of assignment operands
+- Fix bug in test runner rule name dedup
+- Fix security link in REST API reference
+- Fix formatting of empty sets
+- Fix incorrect reporting of module parse time
+- Fix out of range errors for eq/assign in compiler
+- Fix parser to limit size of exponents
+- Update compiler to iterate over modules in sort order
+- Update OPA front page
+- Mark diagnostics feature as deprecated
 
 ## 0.10.1
 
