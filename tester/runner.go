@@ -55,7 +55,7 @@ type Result struct {
 	Error    error            `json:"error,omitempty"`
 	Duration time.Duration    `json:"duration"`
 	Trace    []*topdown.Event `json:"trace,omitempty"`
-	FailedAt *ast.Expr        `json:"failedat,omitempty"`
+	FailedAt *ast.Expr        `json:"failed_at,omitempty"`
 }
 
 func newResult(loc *ast.Location, pkg, name string, duration time.Duration, trace []*topdown.Event) *Result {
@@ -145,6 +145,21 @@ func (r *Runner) SetRuntime(term *ast.Term) *Runner {
 	return r
 }
 
+func getFailedAtFromTrace(bufFailureLineTracer *topdown.BufferTracer) *ast.Expr {
+	events := *bufFailureLineTracer
+	const SecondToLast = 2
+	eventsLen := len(events)
+	for i, opFail := eventsLen-1, 0; i >= 0; i-- {
+		if strings.Compare(string(events[i].Op), "Fail") == 0 {
+			opFail++
+		}
+		if opFail == SecondToLast {
+			return events[i].Node.(*ast.Expr)
+		}
+	}
+	return nil
+}
+
 // Run executes all tests contained in supplied modules.
 func (r *Runner) Run(ctx context.Context, modules map[string]*ast.Module) (ch chan *Result, err error) {
 
@@ -209,7 +224,6 @@ func (r *Runner) runTest(ctx context.Context, mod *ast.Module, rule *ast.Rule) (
 	var bufferTracer *topdown.BufferTracer
 	var bufFailureLineTracer *topdown.BufferTracer
 	var tracer topdown.Tracer
-	const SecondToLast = 2
 
 	if r.cover != nil {
 		tracer = r.cover
@@ -250,17 +264,7 @@ func (r *Runner) runTest(ctx context.Context, mod *ast.Module, rule *ast.Rule) (
 	} else if len(rs) == 0 {
 		tr.Fail = true
 		if bufFailureLineTracer != nil {
-			events := *bufFailureLineTracer
-			eventsLen := len(events)
-			for i, opFail := eventsLen-1, 0; i >= 0; i-- {
-				if strings.Compare(string(events[i].Op), "Fail") == 0 {
-					opFail++
-				}
-				if opFail == SecondToLast {
-					tr.FailedAt = events[i].Node.(*ast.Expr)
-					break
-				}
-			}
+			tr.FailedAt = getFailedAtFromTrace(bufFailureLineTracer)
 		}
 	} else if b, ok := rs[0].Expressions[0].Value.(bool); !ok || !b {
 		tr.Fail = true
