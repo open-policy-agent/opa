@@ -415,7 +415,7 @@ func (s *Server) initRouter() {
 	s.Handler = router
 }
 
-func (s *Server) execQuery(ctx context.Context, r *http.Request, query string, input ast.Value, explainMode types.ExplainModeV1, includeMetrics, includeInstrumentation, pretty bool) (results types.QueryResponseV1, err error) {
+func (s *Server) execQuery(ctx context.Context, r *http.Request, parsedQuery ast.Body, input ast.Value, explainMode types.ExplainModeV1, includeMetrics, includeInstrumentation, pretty bool) (results types.QueryResponseV1, err error) {
 
 	diagLogger := s.evalDiagnosticPolicy(r)
 
@@ -436,7 +436,7 @@ func (s *Server) execQuery(ctx context.Context, r *http.Request, query string, i
 	rego := rego.New(
 		rego.Store(s.store),
 		rego.Compiler(compiler),
-		rego.Query(query),
+		rego.ParsedQuery(parsedQuery),
 		rego.ParsedInput(input),
 		rego.Metrics(m),
 		rego.Instrument(instrument),
@@ -446,7 +446,7 @@ func (s *Server) execQuery(ctx context.Context, r *http.Request, query string, i
 
 	output, err := rego.Eval(ctx)
 	if err != nil {
-		diagLogger.Log(ctx, "", r.RemoteAddr, query, input, nil, err, m, buf)
+		diagLogger.Log(ctx, "", r.RemoteAddr, parsedQuery.String(), input, nil, err, m, buf)
 		return results, err
 	}
 
@@ -463,7 +463,7 @@ func (s *Server) execQuery(ctx context.Context, r *http.Request, query string, i
 	}
 
 	var x interface{} = results.Result
-	diagLogger.Log(ctx, "", r.RemoteAddr, query, input, &x, nil, m, buf)
+	diagLogger.Log(ctx, "", r.RemoteAddr, parsedQuery.String(), input, &x, nil, m, buf)
 	return results, nil
 }
 
@@ -500,7 +500,9 @@ func (s *Server) indexGet(w http.ResponseWriter, r *http.Request) {
 		input = t.Value
 	}
 
-	results, err := s.execQuery(ctx, r, qStr, input, explainMode, false, false, true)
+	_, parsedQuery, _ := validateQuery(qStr)
+
+	results, err := s.execQuery(ctx, r, parsedQuery, input, explainMode, false, false, true)
 	if err != nil {
 		renderQueryResult(w, nil, err, t0)
 		return
@@ -1368,10 +1370,16 @@ func (s *Server) v1QueryGet(w http.ResponseWriter, r *http.Request) {
 	}
 	qStr := qStrs[len(qStrs)-1]
 
-	unsafeBuiltins, err := validateQuery(qStr)
+	unsafeBuiltins, parsedQuery, err := validateQuery(qStr)
 	if err != nil {
-		writer.ErrorAuto(w, err)
-		return
+		switch err := err.(type) {
+		case ast.Errors:
+			writer.Error(w, http.StatusBadRequest, types.NewErrorV1(types.CodeInvalidParameter, types.MsgParseQueryError).WithASTErrors(err))
+			return
+		default:
+			writer.ErrorAuto(w, err)
+			return
+		}
 	} else if len(unsafeBuiltins) > 0 {
 		writer.Error(w, http.StatusBadRequest, types.NewErrorV1(types.CodeInvalidParameter, "unsafe built-in function calls in query: %v", strings.Join(unsafeBuiltins, ",")))
 		return
@@ -1388,7 +1396,7 @@ func (s *Server) v1QueryGet(w http.ResponseWriter, r *http.Request) {
 	includeMetrics := getBoolParam(r.URL, types.ParamMetricsV1, true)
 	includeInstrumentation := getBoolParam(r.URL, types.ParamInstrumentV1, true)
 
-	results, err := s.execQuery(ctx, r, qStr, nil, explainMode, includeMetrics, includeInstrumentation, pretty)
+	results, err := s.execQuery(ctx, r, parsedQuery, nil, explainMode, includeMetrics, includeInstrumentation, pretty)
 	if err != nil {
 		switch err := err.(type) {
 		case ast.Errors:
@@ -1412,10 +1420,16 @@ func (s *Server) v1QueryPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	qStr := request.Query
-	unsafeBuiltins, err := validateQuery(qStr)
+	unsafeBuiltins, parsedQuery, err := validateQuery(qStr)
 	if err != nil {
-		writer.ErrorAuto(w, err)
-		return
+		switch err := err.(type) {
+		case ast.Errors:
+			writer.Error(w, http.StatusBadRequest, types.NewErrorV1(types.CodeInvalidParameter, types.MsgParseQueryError).WithASTErrors(err))
+			return
+		default:
+			writer.ErrorAuto(w, err)
+			return
+		}
 	} else if len(unsafeBuiltins) > 0 {
 		writer.Error(w, http.StatusBadRequest, types.NewErrorV1(types.CodeInvalidParameter, "unsafe built-in function calls in query: %v", strings.Join(unsafeBuiltins, ",")))
 		return
@@ -1432,7 +1446,7 @@ func (s *Server) v1QueryPost(w http.ResponseWriter, r *http.Request) {
 	includeMetrics := getBoolParam(r.URL, types.ParamMetricsV1, true)
 	includeInstrumentation := getBoolParam(r.URL, types.ParamInstrumentV1, true)
 
-	results, err := s.execQuery(ctx, r, qStr, nil, explainMode, includeMetrics, includeInstrumentation, pretty)
+	results, err := s.execQuery(ctx, r, parsedQuery, nil, explainMode, includeMetrics, includeInstrumentation, pretty)
 	if err != nil {
 		switch err := err.(type) {
 		case ast.Errors:
@@ -1740,15 +1754,16 @@ func stringPathToRef(s string) (r ast.Ref) {
 	return r
 }
 
-func validateQuery(query string) ([]string, error) {
+func validateQuery(query string) ([]string, ast.Body, error) {
 
 	var body ast.Body
 	body, err := ast.ParseBody(query)
 	if err != nil {
-		return []string{}, err
+		return []string{}, nil, err
 	}
 
-	return validateParsedQuery(body)
+	unsafeOperators, nil := validateParsedQuery(body)
+	return unsafeOperators, body, nil
 }
 
 func validateParsedQuery(body ast.Body) ([]string, error) {
