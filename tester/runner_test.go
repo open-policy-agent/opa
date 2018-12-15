@@ -122,10 +122,8 @@ func TestRunner_EnableFailureLine_NoRule(t *testing.T) {
 				t.Errorf("Unexpected result for %v", k)
 			} else if exp.wantErr != (rs[i].Error != nil) || exp.wantFail != rs[i].Fail {
 				t.Errorf("Expected %v for %v but got: %v", exp, k, rs[i])
-			} else if rs[i].FailedAt == nil || rs[i].FailedAt.Location == nil {
-				t.Errorf("Failed line not set")
-			} else if rs[i].FailedAt.Location.Row != exp.FailRow {
-				t.Errorf("Expected Failed Line %v but got: %v", exp.FailRow, rs[i].FailedAt.Location.Row)
+			} else if rs[i].FailedAt != nil {
+				t.Errorf("Failed line set, but expected not set.")
 			}
 		}
 		// This makes sure all tests were executed

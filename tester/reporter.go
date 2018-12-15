@@ -73,7 +73,11 @@ func (r PrettyReporter) Report(ch chan *Result) error {
 		} else if !tr.Pass() {
 			dirty = true
 			if r.FailureLine {
-				fmt.Fprintf(r.Output, "%v (%s:%d) \n", tr, tr.FailedAt.Location.File, tr.FailedAt.Location.Row)
+				if tr.FailedAt != nil {
+					fmt.Fprintf(r.Output, "%v (%s:%d) \n", tr, tr.FailedAt.Location.File, tr.FailedAt.Location.Row)
+				} else {
+					fmt.Fprintf(r.Output, "%v (Could not determine failure line) \n", tr)
+				}
 			} else {
 				fmt.Fprintln(r.Output, tr)
 			}
