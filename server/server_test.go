@@ -1904,7 +1904,7 @@ func TestDiagnostics(t *testing.T) {
 			metrics: true,
 		},
 		{
-			query:   "a=data.x",
+			query:   "a = data.x",
 			result:  &expMap1,
 			metrics: true,
 		},
@@ -1923,14 +1923,14 @@ func TestDiagnostics(t *testing.T) {
 			explainLen: 3,
 		},
 		{
-			query:      "a=data.x",
+			query:      "a = data.x",
 			result:     &expMap1,
 			metrics:    true,
 			instrument: true,
 			explainLen: 5,
 		},
 		{
-			query:  "a=data.y",
+			query:  "a = data.y",
 			result: &expMap2,
 		},
 		{
@@ -2332,6 +2332,39 @@ func TestQueryV1(t *testing.T) {
 
 	if !reflect.DeepEqual(result, expected) {
 		t.Fatalf("Expected %v but got: %v", expected, result)
+	}
+}
+
+func TestBadQueryV1(t *testing.T) {
+	f := newFixture(t)
+	get := newReqV1(http.MethodGet, `/query?q=^ -i`, "")
+	f.server.Handler.ServeHTTP(f.recorder, get)
+
+	if f.recorder.Code != 400 {
+		t.Fatalf("Expected success but got %v", f.recorder)
+	}
+
+	expectedErr := `{
+  "code": "invalid_parameter",
+  "message": "error(s) occurred while parsing query",
+  "errors": [
+    {
+      "code": "rego_parse_error",
+      "message": "no match found",
+      "location": {
+        "file": "",
+        "row": 1,
+        "col": 1
+      },
+      "details": {}
+    }
+  ]
+}`
+
+	recvErr := f.recorder.Body.String()
+
+	if recvErr != expectedErr {
+		t.Fatalf(`Expected %v but got: %v`, expectedErr, recvErr)
 	}
 }
 
