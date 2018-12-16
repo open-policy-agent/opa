@@ -71,6 +71,7 @@ const (
 	PromHandlerV1Compile  = "v1/compile"
 	PromHandlerIndex      = "index"
 	PromHandlerCatch      = "catchall"
+	PromHandlerHealth     = "health"
 )
 
 // map of unsafe buitins
@@ -340,6 +341,7 @@ func (s *Server) initRouter() {
 	v1CompileDur := duration.MustCurryWith(prometheus.Labels{"handler": PromHandlerV1Compile})
 	indexDur := duration.MustCurryWith(prometheus.Labels{"handler": PromHandlerIndex})
 	catchAllDur := duration.MustCurryWith(prometheus.Labels{"handler": PromHandlerCatch})
+	GetHealthDur := duration.MustCurryWith(prometheus.Labels{"handler": PromHandlerHealth})
 	promRegistry.MustRegister(duration)
 
 	router := s.router
@@ -351,6 +353,7 @@ func (s *Server) initRouter() {
 	router.UseEncodedPath()
 	router.StrictSlash(true)
 	router.Handle("/metrics", promhttp.HandlerFor(promRegistry, promhttp.HandlerOpts{})).Methods(http.MethodGet)
+	router.Handle("/health", promhttp.InstrumentHandlerDuration(GetHealthDur, http.HandlerFunc(s.unversionedGetHealth))).Methods(http.MethodGet)
 	s.registerHandler(router, 0, "/data/{path:.+}", http.MethodPost, promhttp.InstrumentHandlerDuration(v0DataDur, http.HandlerFunc(s.v0DataPost)))
 	s.registerHandler(router, 0, "/data", http.MethodPost, promhttp.InstrumentHandlerDuration(v0DataDur, http.HandlerFunc(s.v0DataPost)))
 	s.registerHandler(router, 1, "/data/system/version", http.MethodGet, promhttp.InstrumentHandlerDuration(v1DataDur, http.HandlerFunc(s.v1VersionGet)))
@@ -396,7 +399,6 @@ func (s *Server) initRouter() {
 		http.MethodConnect, http.MethodDelete, http.MethodOptions, http.MethodTrace, http.MethodPost, http.MethodPut, http.MethodPatch)
 	router.HandleFunc("/v1/query", promhttp.InstrumentHandlerDuration(catchAllDur, http.HandlerFunc(writer.HTTPStatus(405)))).Methods(http.MethodHead,
 		http.MethodConnect, http.MethodDelete, http.MethodOptions, http.MethodTrace, http.MethodPut, http.MethodPatch)
-
 	s.Handler = router
 }
 
@@ -632,6 +634,19 @@ func (s *Server) v1DiagnosticsGet(w http.ResponseWriter, r *http.Request) {
 		resp.Result = append(resp.Result, item)
 	})
 	writer.JSON(w, 200, resp, pretty)
+}
+
+func (s *Server) unversionedGetHealth(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	// Create very simple query that binds a single variable.
+	rego := rego.New(rego.Query("x = 1"))
+	// Run evaluation.
+	rs, err := rego.Eval(ctx)
+	if err != nil {
+		writer.ErrorAuto(w, err)
+		return
+	}
+	writer.JSON(w, http.StatusOK, rs[0].Bindings, false)
 }
 
 func (s *Server) v1VersionGet(w http.ResponseWriter, r *http.Request) {
