@@ -13,7 +13,6 @@ import (
 	"sort"
 	"strings"
 	"testing"
-
 	"time"
 
 	"github.com/open-policy-agent/opa/ast"
@@ -2588,6 +2587,7 @@ loopback = input { true }
 composite[x] { input.foo[_] = x; x > 2 }
 vars = {"foo": input.foo, "bar": input.bar} { true }
 input_eq { input.x = 1 }
+data_eq { data.a = x }
 allow_basic = true {data.a = "testdata"}
 allow_merge_1 = true {data.b = {"v1": "hello", "v2": "world"}}
 allow_merge_2 = true {data.b = {"v1": "hello", "v2": "world", "v3": "again"}}
@@ -2645,7 +2645,7 @@ test_mock_var = y {y = ex.mock_var with ex.mock_var as {"c": 1, "d": 2}}
 test_mock_rule {ex.mock_rule with ex.mock_rule as true}
 test_rule_chain {ex.allow with data.label.b.c as [1,2,3]}
 only_with_data_no_with_input { ex.input_eq with data.foo as 1 }
-`,
+only_with_input_no_with_data { ex.data_eq with input as {} }`,
 	})
 
 	store := inmem.NewFromObject(loadSmallTestData())
@@ -2672,7 +2672,7 @@ only_with_data_no_with_input { ex.input_eq with data.foo as 1 }
 	assertTopDownWithPath(t, compiler, store, "with mock rule", []string{"test", "test_mock_rule"}, "", "true")
 	assertTopDownWithPath(t, compiler, store, "with rule chain", []string{"test", "test_rule_chain"}, "", "true")
 	assertTopDownWithPath(t, compiler, store, "bug 1083", []string{"test", "only_with_data_no_with_input"}, "", "")
-
+	assertTopDownWithPath(t, compiler, store, "bug 1100", []string{"test", "only_with_input_no_with_data"}, "", "true")
 }
 
 func TestTopDownElseKeyword(t *testing.T) {
