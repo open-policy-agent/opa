@@ -979,21 +979,13 @@ func (e *eval) Resolve(ref ast.Ref) (ast.Value, error) {
 
 	if ref[0].Equal(ast.DefaultRootDocument) {
 
-		// Check cache with replacement data
 		repValue, ok := e.withCache.Get(ref)
 		if ok {
 			return repValue, nil
 		}
 
-		expr := e.query[e.index]
-		if len(expr.With) > 0 && repValue == nil {
-			return nil, nil
-		}
-
 		var merged ast.Value
 		var err error
-
-		// Check cache with real data
 
 		// Converting large JSON values into AST values can be fairly expensive. For
 		// example, a 2MB JSON value can take upwards of 30 millisceonds to convert.
