@@ -639,9 +639,10 @@ func (s *Server) v1DiagnosticsGet(w http.ResponseWriter, r *http.Request) {
 func (s *Server) unversionedGetHealth(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	// Create very simple query that binds a single variable.
-	rego := rego.New(rego.Query("x = 1"))
+	eval := rego.New(rego.Compiler(s.getCompiler()),
+		rego.Store(s.store), rego.Query("x = 1"))
 	// Run evaluation.
-	rs, err := rego.Eval(ctx)
+	rs, err := eval.Eval(ctx)
 	if err != nil {
 		writer.ErrorAuto(w, err)
 		return
