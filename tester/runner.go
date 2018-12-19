@@ -150,7 +150,7 @@ func getFailedAtFromTrace(bufFailureLineTracer *topdown.BufferTracer) *ast.Expr 
 	const SecondToLast = 2
 	eventsLen := len(events)
 	for i, opFail := eventsLen-1, 0; i >= 0; i-- {
-		if strings.Compare(string(events[i].Op), "Fail") == 0 {
+		if events[i].Op == topdown.FailOp {
 			opFail++
 		}
 		if opFail == SecondToLast {
