@@ -95,10 +95,12 @@ async function test() {
         if (file.endsWith('.json')) {
             numFiles++;
             const testFile = JSON.parse(readFileSync(file));
-            testFile.cases.forEach(testCase => {
-                testCase.wasmBytes = Buffer.from(testCase.wasm, 'base64');
-                testCases.push(testCase);
-            });
+            if (Array.isArray(testFile.cases)) {
+                testFile.cases.forEach(testCase => {
+                    testCase.wasmBytes = Buffer.from(testCase.wasm, 'base64');
+                    testCases.push(testCase);
+                });
+            }
         }
     })
 
