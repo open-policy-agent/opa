@@ -192,6 +192,9 @@ func (c *Compiler) compileBlock(block ir.Block) ([]instruction.Instruction, erro
 			instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.Key)})
 			instrs = append(instrs, instruction.Call{Index: c.function(opaValueGet)})
 			instrs = append(instrs, instruction.SetLocal{Index: c.local(stmt.Target)})
+			instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.Target)})
+			instrs = append(instrs, instruction.I32Eqz{})
+			instrs = append(instrs, instruction.BrIf{Index: 0})
 		case ir.EqualStmt:
 			instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.A)})
 			instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.B)})

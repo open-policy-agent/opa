@@ -7,3 +7,15 @@ cases:
     query: not input.x = 1
     input: {"x": 1}
     return_code: 0
+  - note: negate/undefined
+    query: not input.deadbeef
+    input: {}
+    return_code: 1
+  - note: negate/undefined (negative)
+    query: not input.x
+    input: {"x": 1}
+    return_code: 0
+  - note: negate/false
+    query: not input.x
+    input: {"x": false}
+    return_code: 1

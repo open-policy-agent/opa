@@ -155,7 +155,18 @@ func (p *Planner) planNot(e *ast.Expr, iter planiter) error {
 }
 
 func (p *Planner) planExprTerm(e *ast.Expr, iter planiter) error {
-	return p.planTerm(e.Terms.(*ast.Term), iter)
+	return p.planTerm(e.Terms.(*ast.Term), func() error {
+		falsy := p.newLocal()
+		p.appendStmt(ir.MakeBooleanStmt{
+			Value:  false,
+			Target: falsy,
+		})
+		p.appendStmt(ir.NotEqualStmt{
+			A: p.ltarget,
+			B: falsy,
+		})
+		return iter()
+	})
 }
 
 func (p *Planner) planExprCall(e *ast.Expr, iter planiter) error {
