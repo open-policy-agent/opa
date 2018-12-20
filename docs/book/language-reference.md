@@ -36,7 +36,7 @@ complex types.
 
 | Built-in | Inputs | Description |
 | ------- |--------|-------------|
-| <span class="opa-keep-it-together">``count(collection, output)``</span> | 1 | ``output`` is the length of the object, array, or set ``collection`` |
+| <span class="opa-keep-it-together">``count(collection_or_string, output)``</span> | 1 | ``output`` is the length of the object, array, set, or string provided as input |
 | <span class="opa-keep-it-together">``sum(array_or_set, output)``</span> | 1 | ``output`` is the sum of the numbers in ``array_or_set`` |
 | <span class="opa-keep-it-together">``product(array_or_set, output)``</span> | 1 | ``output`` is the product of the numbers in ``array_or_set`` |
 | <span class="opa-keep-it-together">``max(array_or_set, output)``</span> | 1 | ``output`` is the maximum value in ``array_or_set`` |
