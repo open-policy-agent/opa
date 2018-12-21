@@ -647,7 +647,15 @@ func (s *Server) unversionedGetHealth(w http.ResponseWriter, r *http.Request) {
 		writer.ErrorAuto(w, err)
 		return
 	}
-	writer.JSON(w, http.StatusOK, rs[0].Bindings, false)
+	v, ok := rs[0].Bindings["x"]
+	if ok {
+		jsonNumber, ok := v.(json.Number)
+		if ok && jsonNumber.String() == "1" {
+			writer.JSON(w, http.StatusOK, "{}", false)
+			return
+		}
+	}
+	writer.JSON(w, http.StatusInternalServerError, "{}", false)
 }
 
 func (s *Server) v1VersionGet(w http.ResponseWriter, r *http.Request) {
