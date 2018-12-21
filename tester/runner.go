@@ -55,6 +55,7 @@ type Result struct {
 	Error    error            `json:"error,omitempty"`
 	Duration time.Duration    `json:"duration"`
 	Trace    []*topdown.Event `json:"trace,omitempty"`
+	FailedAt *ast.Expr        `json:"failed_at,omitempty"`
 }
 
 func newResult(loc *ast.Location, pkg, name string, duration time.Duration, trace []*topdown.Event) *Result {
@@ -88,11 +89,12 @@ func (r *Result) outcome() string {
 
 // Runner implements simple test discovery and execution.
 type Runner struct {
-	compiler *ast.Compiler
-	store    storage.Store
-	cover    topdown.Tracer
-	trace    bool
-	runtime  *ast.Term
+	compiler    *ast.Compiler
+	store       storage.Store
+	cover       topdown.Tracer
+	trace       bool
+	runtime     *ast.Term
+	failureLine bool
 }
 
 // NewRunner returns a new runner.
@@ -121,7 +123,7 @@ func (r *Runner) SetCoverageTracer(tracer topdown.Tracer) *Runner {
 	return r
 }
 
-// EnableTracing enables tracing of evaluatation and includes traces in results.
+// EnableTracing enables tracing of evaluation and includes traces in results.
 // Tracing is currently mutually exclusive with coverage.
 func (r *Runner) EnableTracing(yes bool) *Runner {
 	r.trace = yes
@@ -131,10 +133,31 @@ func (r *Runner) EnableTracing(yes bool) *Runner {
 	return r
 }
 
+// EnableFailureLine if set will provide the exact failure line
+func (r *Runner) EnableFailureLine(yes bool) *Runner {
+	r.failureLine = yes
+	return r
+}
+
 // SetRuntime sets runtime information to expose to the evaluation engine.
 func (r *Runner) SetRuntime(term *ast.Term) *Runner {
 	r.runtime = term
 	return r
+}
+
+func getFailedAtFromTrace(bufFailureLineTracer *topdown.BufferTracer) *ast.Expr {
+	events := *bufFailureLineTracer
+	const SecondToLast = 2
+	eventsLen := len(events)
+	for i, opFail := eventsLen-1, 0; i >= 0; i-- {
+		if events[i].Op == topdown.FailOp {
+			opFail++
+		}
+		if opFail == SecondToLast {
+			return events[i].Node.(*ast.Expr)
+		}
+	}
+	return nil
 }
 
 // Run executes all tests contained in supplied modules.
@@ -200,6 +223,7 @@ func (r *Runner) Run(ctx context.Context, modules map[string]*ast.Module) (ch ch
 func (r *Runner) runTest(ctx context.Context, mod *ast.Module, rule *ast.Rule) (*Result, bool) {
 
 	var bufferTracer *topdown.BufferTracer
+	var bufFailureLineTracer *topdown.BufferTracer
 	var tracer topdown.Tracer
 
 	if r.cover != nil {
@@ -207,6 +231,9 @@ func (r *Runner) runTest(ctx context.Context, mod *ast.Module, rule *ast.Rule) (
 	} else if r.trace {
 		bufferTracer = topdown.NewBufferTracer()
 		tracer = bufferTracer
+	} else if r.failureLine {
+		bufFailureLineTracer = topdown.NewBufferTracer()
+		tracer = bufFailureLineTracer
 	}
 
 	rego := rego.New(
@@ -237,6 +264,9 @@ func (r *Runner) runTest(ctx context.Context, mod *ast.Module, rule *ast.Rule) (
 		}
 	} else if len(rs) == 0 {
 		tr.Fail = true
+		if bufFailureLineTracer != nil {
+			tr.FailedAt = getFailedAtFromTrace(bufFailureLineTracer)
+		}
 	} else if b, ok := rs[0].Expressions[0].Value.(bool); !ok || !b {
 		tr.Fail = true
 	}
