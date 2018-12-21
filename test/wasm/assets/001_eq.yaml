@@ -15,3 +15,27 @@ cases:
     query: input.x = "hello"
     input: {"x": "world"}
     return_code: 0
+  - note: eq/true
+    query: input.x = true
+    input: {"x": true}
+    return_code: 1
+  - note: eq/true (negative)
+    query: input.x = false
+    input: {"x": true}
+    return_code: 0
+  - note: eq/false
+    query: input.x = false
+    input: {"x": false}
+    return_code: 1
+  - note: eq/false (negative)
+    query: input.x = true
+    input: {"x": false}
+    return_code: 0
+  - note: eq/null
+    query: input.x = null
+    input: {"x": null}
+    return_code: 1
+  - note: eq/null (negative)
+    query: input.x = null
+    input: {"x": false}
+    return_code: 0
