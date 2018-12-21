@@ -166,6 +166,11 @@ type MakeStringStmt struct {
 	Target Local
 }
 
+// MakeNullStmt constructs a local variable that refers to a null value.
+type MakeNullStmt struct {
+	Target Local
+}
+
 // MakeBooleanStmt constructs a local variable that refers to a boolean value.
 type MakeBooleanStmt struct {
 	Value  bool

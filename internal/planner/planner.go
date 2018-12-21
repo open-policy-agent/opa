@@ -238,6 +238,10 @@ func (p *Planner) planBinaryExpr(e *ast.Expr, iter binaryiter) error {
 func (p *Planner) planTerm(t *ast.Term, iter planiter) error {
 
 	switch v := t.Value.(type) {
+	case ast.Null:
+		return p.planNull(v, iter)
+	case ast.Boolean:
+		return p.planBoolean(v, iter)
 	case ast.Number:
 		return p.planNumber(v, iter)
 	case ast.String:
@@ -249,6 +253,33 @@ func (p *Planner) planTerm(t *ast.Term, iter planiter) error {
 	default:
 		return fmt.Errorf("%v term not implemented", ast.TypeName(v))
 	}
+}
+
+func (p *Planner) planNull(null ast.Null, iter planiter) error {
+
+	target := p.newLocal()
+
+	p.appendStmt(ir.MakeNullStmt{
+		Target: target,
+	})
+
+	p.ltarget = target
+
+	return iter()
+}
+
+func (p *Planner) planBoolean(b ast.Boolean, iter planiter) error {
+
+	target := p.newLocal()
+
+	p.appendStmt(ir.MakeBooleanStmt{
+		Value:  bool(b),
+		Target: target,
+	})
+
+	p.ltarget = target
+
+	return iter()
 }
 
 func (p *Planner) planNumber(num ast.Number, iter planiter) error {

@@ -22,6 +22,7 @@ import (
 const (
 	opaFuncPrefix       = "opa_"
 	opaJSONParse        = "opa_json_parse"
+	opaNull             = "opa_null"
 	opaBoolean          = "opa_boolean"
 	opaStringTerminated = "opa_string_terminated"
 	opaNumberInt        = "opa_number_int"
@@ -234,6 +235,9 @@ func (c *Compiler) compileBlock(block ir.Block) ([]instruction.Instruction, erro
 			instrs = append(instrs, instruction.Call{Index: c.function(opaValueCompare)})
 			instrs = append(instrs, instruction.I32Eqz{})
 			instrs = append(instrs, instruction.BrIf{Index: 0})
+		case ir.MakeNullStmt:
+			instrs = append(instrs, instruction.Call{Index: c.function(opaNull)})
+			instrs = append(instrs, instruction.SetLocal{Index: c.local(stmt.Target)})
 		case ir.MakeBooleanStmt:
 			instr := instruction.I32Const{}
 			if stmt.Value {
