@@ -180,6 +180,14 @@ func (p *Planner) planExprCall(e *ast.Expr, iter planiter) error {
 			})
 			return iter()
 		})
+	case ast.Equal.Name:
+		return p.planBinaryExpr(e, func(a, b ir.Local) error {
+			p.appendStmt(ir.EqualStmt{
+				A: a,
+				B: b,
+			})
+			return iter()
+		})
 	case ast.LessThan.Name:
 		return p.planBinaryExpr(e, func(a, b ir.Local) error {
 			p.appendStmt(ir.LessThanStmt{

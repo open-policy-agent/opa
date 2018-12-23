@@ -55,3 +55,11 @@ cases:
     query: "input.x != 1"
     input: {"x": 1}
     return_code: 0
+  - note: deq/number
+    query: "input.x == 1"
+    input: {"x": 1}
+    return_code: 1
+  - note: deq/number
+    query: "input.x == 1"
+    input: {"x": 0}
+    return_code: 0
