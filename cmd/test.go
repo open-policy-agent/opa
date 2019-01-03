@@ -194,8 +194,6 @@ func opaTest(args []string) int {
 	return exitCode
 }
 
-// --show-failure-line / -l
-
 func init() {
 	testCommand.Flags().BoolVarP(&testParams.verbose, "verbose", "v", false, "set verbose reporting mode")
 	testCommand.Flags().BoolVarP(&testParams.failureLine, "show-failure-line", "l", false, "show test failure line")
