@@ -623,7 +623,6 @@ func TestCheckBuiltinErrors(t *testing.T) {
 		{"objects-bad-input", `sum({"a": 1, "b": 2}, x)`},
 		{"sets-any", `sum({1,2,"3",4}, x)`},
 		{"virtual-ref", `plus(data.test.p, data.deabeef, 0)`},
-		{"function-ref", `data.test.f(1, data.test.f)`},
 	}
 
 	env := newTestEnv([]string{
@@ -900,6 +899,18 @@ func TestUserFunctionsTypeInference(t *testing.T) {
 		{
 			`f(x) = y { {"k": x} = y }`,
 			false,
+		},
+		{
+			`p { [data.base.foo] }`,
+			true,
+		},
+		{
+			`p { x = data.base.foo }`,
+			true,
+		},
+		{
+			`p { data.base.foo(data.base.bar) }`,
+			true,
 		},
 	}
 
