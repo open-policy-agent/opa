@@ -472,9 +472,8 @@ func (tc *typeChecker) err(err *Error) {
 }
 
 type refChecker struct {
-	env       *TypeEnv
-	errs      Errors
-	checkTerm bool
+	env  *TypeEnv
+	errs Errors
 }
 
 func newRefChecker(env *TypeEnv) *refChecker {
@@ -496,17 +495,13 @@ func (rc *refChecker) Visit(x interface{}) Visitor {
 			}
 			return nil
 		case *Term:
-			rc.checkTerm = true
 			Walk(rc, terms)
-			rc.checkTerm = false
 			return nil
 		}
 	case Ref:
-		if rc.checkTerm {
-			if err := rc.checkApply(rc.env, x); err != nil {
-				rc.errs = append(rc.errs, err)
-				return nil
-			}
+		if err := rc.checkApply(rc.env, x); err != nil {
+			rc.errs = append(rc.errs, err)
+			return nil
 		}
 		if err := rc.checkRef(rc.env, rc.env.tree, x, 0); err != nil {
 			rc.errs = append(rc.errs, err)
