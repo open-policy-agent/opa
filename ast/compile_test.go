@@ -1119,6 +1119,11 @@ func TestCompilerRewriteLocalAssignments(t *testing.T) {
 	rewritten_object_key_head_value = [{k: 1}] {
 		k := "foo"
 	}
+
+	skip_with_target_in_assignment {
+		input := 1
+		a := [true | true with input as 2; true with input as 3]
+	}
 	`)
 
 	c.Modules["test2"] = MustParseModule(`package test
@@ -1180,6 +1185,11 @@ func TestCompilerRewriteLocalAssignments(t *testing.T) {
 	rewritten_object_key = true { __local25__ = "foo"; {__local25__: 1} }
 	rewritten_object_key_head[[{__local26__: 1}]] { __local26__ = "foo" }
 	rewritten_object_key_head_value = [{__local27__: 1}] { __local27__ = "foo" }
+
+	skip_with_target_in_assignment {
+		__local28__ = 1
+		__local29__ = [true | true with input as 2; true with input as 3]
+	}
 	`)
 
 	if len(module1.Rules) != len(expectedModule.Rules) {
