@@ -381,7 +381,7 @@ Variables appearing in the head of a rule must also appear in a non-negated equa
 
 References are used to access nested documents.
 
-The examples in this section use the data defined in the [Examples](#examples-data) section.
+The examples in this section use the data defined in the [Examples](how-do-i-write-policies.md#example-data) section.
 
 The simplest reference contains no variables. For example, the following reference returns the hostname of the second server in the first site document from our example data:
 
@@ -686,11 +686,11 @@ For example, to construct a set from an array:
 
 ## Rules
 
-Rules define the content of [Virtual Documents](/how-does-opa-work.md#virtual-documents) in
+Rules define the content of [Virtual Documents](/how-does-opa-work.md#rules-and-virtual-documents) in
 OPA. When OPA evaluates a rule, we say OPA *generates* the content of the
 document that is defined by the rule.
 
-The sample code in this section make use of the data defined in [Examples](#examples).
+The sample code in this section make use of the data defined in  [Examples](how-do-i-write-policies.md#example-data).
 
 ### Generating Sets
 
@@ -990,7 +990,7 @@ false
 
 ## Negation
 
-To generate the content of a [Virtual Document](/how-does-opa-work.md#virtual-documents), OPA attempts to bind variables in the body of the rule such that all expressions in the rule evaluate to True.
+To generate the content of a [Virtual Document](/how-does-opa-work.md#rules-and-virtual-documents), OPA attempts to bind variables in the body of the rule such that all expressions in the rule evaluate to True.
 
 This generates the correct result when the expressions represent assertions about what states should exist in the data stored in OPA. In some cases, you want to express that certain states *should not* exist in the data stored in OPA. In these cases, negation must be used.
 
@@ -1089,7 +1089,7 @@ Import statements declare dependencies that modules have on documents defined ou
 
 All modules contain implicit statements which import the `data` and `input` documents.
 
-Modules use the same syntax to declare dependencies on [Base Documents](../how-does-opa-work#base-documents) and [Virtual Documents](../how-does-opa-work#virtual-documents).
+Modules use the same syntax to declare dependencies on [Base Documents](/how-does-opa-work.md#base-documents) and [Virtual Documents](/how-does-opa-work.md#rules-and-virtual-documents).
 
 ```ruby
 package opa.examples
@@ -1142,7 +1142,7 @@ http_servers[server] {
 ## With Keyword
 
 The `with` keyword allows queries to programmatically specify values nested
-under the [input Document](../how-does-opa-work#the-input-document) and the [data Document](../how-does-opa-work#the-data-document).
+under the [input Document](/how-does-opa-work.md#the-input-document) and the [data Document](/how-does-opa-work.md#the-data-document).
 
 For example, given the simple authorization policy in the [Imports](#imports)
 section, we can write a query that checks whether a particular request would be
