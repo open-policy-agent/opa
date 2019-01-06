@@ -2597,8 +2597,15 @@ func rewriteDeclaredVarsInTerm(g *localVarGenerator, stack *localDeclaredVars, t
 }
 
 func rewriteDeclaredVarsInTermRecursive(g *localVarGenerator, stack *localDeclaredVars, term *Term, errs Errors) Errors {
-	WalkTerms(term, func(term *Term) bool {
-		_, errs = rewriteDeclaredVarsInTerm(g, stack, term, errs)
+	WalkNodes(term, func(n Node) bool {
+		switch n := n.(type) {
+		case *With:
+			_, errs = rewriteDeclaredVarsInTerm(g, stack, n.Value, errs)
+			return true
+		case *Term:
+			_, errs = rewriteDeclaredVarsInTerm(g, stack, n, errs)
+			return false
+		}
 		return false
 	})
 	return errs
