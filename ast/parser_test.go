@@ -1417,6 +1417,7 @@ func TestParseErrorDetails(t *testing.T) {
 	tests := []struct {
 		note  string
 		exp   *parserErrorDetail
+		err   string
 		input string
 	}{
 		{
@@ -1474,6 +1475,32 @@ p { }`},
 			input: `
 package test
 p = "foo`},
+		{
+			note: "rule with error begins with one tab",
+			exp: &parserErrorDetail{
+				line: "\tas",
+				idx:  2,
+			},
+			input: `
+package test
+	as`,
+			err: `1 error occurred: test.rego:3: rego_parse_error: no match found
+	as
+	 ^`},
+		{
+			note: "rule term with error begins with two tabs",
+			exp: &parserErrorDetail{
+				line: "\t\tas",
+				idx:  3,
+			},
+			input: `
+package test
+p = true {
+		as
+}`,
+			err: `1 error occurred: test.rego:5: rego_parse_error: no match found
+	as
+	 ^`},
 	}
 
 	for _, tc := range tests {
@@ -1484,6 +1511,9 @@ p = "foo`},
 		detail := err.(Errors)[0].Details
 		if !reflect.DeepEqual(detail, tc.exp) {
 			t.Fatalf("Expected %v but got: %v", tc.exp, detail)
+		}
+		if tc.err != "" && tc.err != err.Error() {
+			t.Fatalf("Expected error string %q but got: %q", tc.err, err.Error())
 		}
 	}
 }
