@@ -12,7 +12,7 @@ The Product Security Team (PST) is responsible for organizing the entire respons
 communication and external disclosure but will need help from relevant developers to successfully
 run this process.
 
-The initial Product Security Team will consist of all [maintainers](OWNERS.md) in the private
+The initial Product Security Team will consist of all [maintainers](MAINTAINERS.md) in the private
 [open-policy-agent-security](https://groups.google.com/forum/#!forum/open-policy-agent-security) list. In the future we may
 decide to have a subset of maintainers work on security response given that this process is time
 consuming.
