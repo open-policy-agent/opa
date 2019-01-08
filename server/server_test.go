@@ -44,6 +44,16 @@ type trw struct {
 	wait chan struct{}
 }
 
+func TestUnversionedGetHealth(t *testing.T) {
+
+	f := newFixture(t)
+
+	req := newReqUnversioned(http.MethodGet, "/health", "")
+	if err := f.executeRequest(req, 200, `{}`); err != nil {
+		t.Fatalf("Unexpected error while health check: %v", err)
+	}
+}
+
 func TestDataV0(t *testing.T) {
 	testMod1 := `package test
 
