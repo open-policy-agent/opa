@@ -165,7 +165,7 @@ wasm-clean:
 clean: wasm-clean
 	rm -f .Dockerfile_*
 	rm -f opa_*_*
-	rm -fr site.tar.gz docs/_site docs/node_modules docs/book/_book docs/book/node_modules
+	rm -fr site.tar.gz docs/_site docs/node_modules docs/book/_book
 	rm -fr _test
 
 .PHONY: docs
