@@ -9,7 +9,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/open-policy-agent/opa/version"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -20,12 +19,52 @@ import (
 	"github.com/open-policy-agent/opa/plugins"
 	"github.com/open-policy-agent/opa/server"
 	"github.com/open-policy-agent/opa/storage/inmem"
+	"github.com/open-policy-agent/opa/version"
 )
 
 func TestMain(m *testing.M) {
 	// call flag.Parse() here if TestMain uses flags
 	setVersion("XY.Z")
 	os.Exit(m.Run())
+}
+
+type testPlugin struct {
+	events []EventV1
+}
+
+func (p *testPlugin) Start(context.Context) error {
+	return nil
+}
+
+func (p *testPlugin) Stop(context.Context) {
+}
+
+func (p *testPlugin) Reconfigure(context.Context, interface{}) {
+}
+
+func (p *testPlugin) Log(_ context.Context, event EventV1) {
+	p.events = append(p.events, event)
+}
+
+func TestPluginCustomBackend(t *testing.T) {
+	ctx := context.Background()
+	manager, _ := plugins.New(nil, "test-instance-id", inmem.New())
+
+	backend := &testPlugin{}
+	manager.Register("test_plugin", backend)
+
+	config, err := ParseConfig([]byte(`{"plugin": "test_plugin"}`), nil, []string{"test_plugin"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	plugin := New(config, manager)
+	plugin.Log(ctx, &server.Info{Revision: "A"})
+	plugin.Log(ctx, &server.Info{Revision: "B"})
+
+	if len(backend.events) != 2 || backend.events[0].Revision != "A" || backend.events[1].Revision != "B" {
+		t.Fatal("Unexpected events:", backend.events)
+	}
 }
 
 func TestPluginStartSameInput(t *testing.T) {
@@ -295,7 +334,7 @@ func TestPluginReconfigure(t *testing.T) {
 			}
 		}`, minDelay, maxDelay))
 
-	config, _ := ParseConfig(pluginConfig, fixture.manager.Services())
+	config, _ := ParseConfig(pluginConfig, fixture.manager.Services(), nil)
 
 	fixture.plugin.Reconfigure(ctx, config)
 	fixture.plugin.Stop(ctx)
@@ -356,7 +395,7 @@ func newTestFixture(t *testing.T) testFixture {
 			"service": "example",
 		}`))
 
-	config, _ := ParseConfig([]byte(pluginConfig), manager.Services())
+	config, _ := ParseConfig([]byte(pluginConfig), manager.Services(), nil)
 
 	p := New(config, manager)
 
