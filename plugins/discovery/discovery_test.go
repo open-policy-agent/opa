@@ -153,6 +153,18 @@ func TestProcessBundle(t *testing.T) {
 
 }
 
+type testFactory struct {
+	p *reconfigureTestPlugin
+}
+
+func (f testFactory) Validate(*plugins.Manager, []byte) (interface{}, error) {
+	return nil, nil
+}
+
+func (f testFactory) New(*plugins.Manager, interface{}) plugins.Plugin {
+	return f.p
+}
+
 type reconfigureTestPlugin struct {
 	counts map[string]int
 }
@@ -185,12 +197,9 @@ func TestReconfigure(t *testing.T) {
 	}
 
 	testPlugin := &reconfigureTestPlugin{counts: map[string]int{}}
+	testFactory := testFactory{p: testPlugin}
 
-	disco, err := New(manager, CustomPlugins(map[string]plugins.PluginInitFunc{
-		"test_plugin": func(*plugins.Manager, []byte) (plugins.Plugin, error) {
-			return testPlugin, nil
-		},
-	}))
+	disco, err := New(manager, Factories(map[string]plugins.Factory{"test_plugin": testFactory}))
 	if err != nil {
 		t.Fatal(err)
 	}

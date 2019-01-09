@@ -17,18 +17,71 @@ import (
 	"github.com/open-policy-agent/opa/util"
 )
 
-// Plugin defines the interface for OPA plugins.
+// Factory defines the interface OPA uses to instantiate your plugin.
+//
+// When OPA processes it's configuration it looks for factories that
+// have been registered by calling runtime.RegisterPlugin. Factories
+// are registered to a name which is used to key into the
+// configuration blob. If your plugin has not been configured, your
+// factory will not be invoked.
+//
+//   plugins:
+//     my_plugin1:
+//       some_key: foo
+//     # my_plugin2:
+//     #   some_key2: bar
+//
+// If OPA was started with the configuration above and received two
+// calls to runtime.RegisterPlugins (one with NAME "my_plugin1" and
+// one with NAME "my_plugin2"), it would only invoke the factory for
+// for my_plugin1.
+//
+// OPA instantiates and reconfigures plugins in two steps. First, OPA
+// will call Validate to check the configuration. Assuming the
+// configuration is valid, your factory should return a configuration
+// value that can be used to construct your plugin. Second, OPA will
+// call New to instantiate your plugin providing the configuration
+// value returned from the Validate call.
+//
+// Validate receives a slice of bytes representing plugin
+// configuration and returns a configuration value that can be used to
+// instantiate your plugin. The manager is provided to give access to
+// the OPA's compiler, storage layer, adn global configuration. Your
+// Validate function will typically:
+//
+//  1. Deserialize the raw config bytes
+//  2. Validate the deserialized config for semantic errors
+//  3. Inject default values
+//  4. Return a deserialized/parsed config
+//
+// New receives a valid configuration for your plugin and returns a
+// plugin object. Your New function will typically:
+//
+//  1. Cast the config value to it's own type
+//  2. Instantiate a plugin object
+//  3. Return the plugin object
+type Factory interface {
+	Validate(manager *Manager, config []byte) (interface{}, error)
+	New(manager *Manager, config interface{}) Plugin
+}
+
+// Plugin defines the interface OPA uses to manage your plugin.
+//
+// When OPA starts it will start all of the plugins it was configured
+// to instantiate. Each time a new plugin is configured (via
+// discovery), OPA will start it. You can use the Start call to spawn
+// additional goroutines or perform initialization tasks.
+//
+// Currently OPA will not call Stop on plugins.
+//
+// When OPA receives new configuration for your plugin via discovery
+// it will first Validate the configuration using your factory and
+// then call Reconfigure.
 type Plugin interface {
 	Start(ctx context.Context) error
 	Stop(ctx context.Context)
 	Reconfigure(ctx context.Context, config interface{})
 }
-
-// PluginInitFunc defines the interface for the constructing plugins from
-// configuration.  The function will be called with the plugin manager (which
-// provides access to OPA's storage layer, compiler, and service clients) and
-// the configuration for the plugin itself.
-type PluginInitFunc func(m *Manager, config []byte) (Plugin, error)
 
 // Manager implements lifecycle management of plugins and gives plugins access
 // to engine-wide components like storage.
