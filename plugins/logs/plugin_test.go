@@ -9,8 +9,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/open-policy-agent/opa/version"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"reflect"
 	"testing"
 	"time"
@@ -20,7 +22,14 @@ import (
 	"github.com/open-policy-agent/opa/storage/inmem"
 )
 
+func TestMain(m *testing.M) {
+	// call flag.Parse() here if TestMain uses flags
+	setVersion("XY.Z")
+	os.Exit(m.Run())
+}
+
 func TestPluginStartSameInput(t *testing.T) {
+
 	ctx := context.Background()
 
 	fixture := newTestFixture(t)
@@ -55,10 +64,10 @@ func TestPluginStartSameInput(t *testing.T) {
 	chunk2 := <-fixture.server.ch
 	chunk3 := <-fixture.server.ch
 	chunk4 := <-fixture.server.ch
-	expLen1 := 152
-	expLen2 := 151
-	expLen3 := 151
-	expLen4 := 46
+	expLen1 := 141
+	expLen2 := 140
+	expLen3 := 140
+	expLen4 := 79
 
 	if len(chunk1) != expLen1 || len(chunk2) != expLen2 || len((chunk3)) != expLen3 || len(chunk4) != expLen4 {
 		t.Fatalf("Expected chunk lens %v, %v, %v and %v but got: %v, %v, %v and %v", expLen1, expLen2, expLen3, expLen4, len(chunk1), len(chunk2), len(chunk3), len(chunk4))
@@ -78,6 +87,7 @@ func TestPluginStartSameInput(t *testing.T) {
 		Result:      &result,
 		RequestedBy: "test",
 		Timestamp:   ts,
+		Version:     getVersion(),
 	}
 
 	if !reflect.DeepEqual(chunk4[expLen4-1], exp) {
@@ -86,6 +96,7 @@ func TestPluginStartSameInput(t *testing.T) {
 }
 
 func TestPluginStartChangingInputValues(t *testing.T) {
+
 	ctx := context.Background()
 
 	fixture := newTestFixture(t)
@@ -101,7 +112,7 @@ func TestPluginStartChangingInputValues(t *testing.T) {
 
 	var input map[string]interface{}
 
-	for i := 0; i < 500; i++ {
+	for i := 0; i < 400; i++ {
 		input = map[string]interface{}{"method": getValueForMethod(i), "path": getValueForPath(i), "user": getValueForUser(i)}
 
 		fixture.plugin.Log(ctx, &server.Info{
@@ -124,10 +135,10 @@ func TestPluginStartChangingInputValues(t *testing.T) {
 	chunk2 := <-fixture.server.ch
 	chunk3 := <-fixture.server.ch
 	chunk4 := <-fixture.server.ch
-	expLen1 := 133
-	expLen2 := 132
-	expLen3 := 132
-	expLen4 := 103
+	expLen1 := 124
+	expLen2 := 123
+	expLen3 := 123
+	expLen4 := 30
 
 	if len(chunk1) != expLen1 || len(chunk2) != expLen2 || len((chunk3)) != expLen3 || len(chunk4) != expLen4 {
 		t.Fatalf("Expected chunk lens %v, %v, %v and %v but got: %v, %v, %v and %v", expLen1, expLen2, expLen3, expLen4, len(chunk1), len(chunk2), len(chunk3), len(chunk4))
@@ -140,13 +151,14 @@ func TestPluginStartChangingInputValues(t *testing.T) {
 			"id":  "test-instance-id",
 			"app": "example-app",
 		},
-		Revision:    "499",
-		DecisionID:  "499",
+		Revision:    "399",
+		DecisionID:  "399",
 		Path:        "foo/bar",
 		Input:       &expInput,
 		Result:      &result,
 		RequestedBy: "test",
 		Timestamp:   ts,
+		Version:     getVersion(),
 	}
 
 	if !reflect.DeepEqual(chunk4[expLen4-1], exp) {
@@ -155,6 +167,7 @@ func TestPluginStartChangingInputValues(t *testing.T) {
 }
 
 func TestPluginStartChangingInputKeysAndValues(t *testing.T) {
+
 	ctx := context.Background()
 
 	fixture := newTestFixture(t)
@@ -206,6 +219,7 @@ func TestPluginStartChangingInputKeysAndValues(t *testing.T) {
 		Result:      &result,
 		RequestedBy: "test",
 		Timestamp:   ts,
+		Version:     getVersion(),
 	}
 
 	if !reflect.DeepEqual(chunk2[len(chunk2)-1], exp) {
@@ -214,6 +228,7 @@ func TestPluginStartChangingInputKeysAndValues(t *testing.T) {
 }
 
 func TestPluginRequeue(t *testing.T) {
+
 	ctx := context.Background()
 
 	fixture := newTestFixture(t)
@@ -260,6 +275,7 @@ func TestPluginRequeue(t *testing.T) {
 }
 
 func TestPluginReconfigure(t *testing.T) {
+
 	ctx := context.Background()
 	fixture := newTestFixture(t)
 	defer fixture.server.stop()
@@ -409,4 +425,14 @@ func generateInputMap(idx int) map[string]interface{} {
 	}
 	return result
 
+}
+
+func setVersion(opaVersion string) {
+	if version.Version == "" {
+		version.Version = opaVersion
+	}
+}
+
+func getVersion() string {
+	return version.Version
 }
