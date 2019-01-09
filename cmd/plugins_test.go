@@ -159,10 +159,12 @@ func (t *Tester) Reconfigure(ctx context.Context, config interface{}) {
 	return
 }
 
-var Initializer plugins.PluginInitFunc = func(m *plugins.Manager, config []byte) (plugins.Plugin, error) {
-	var test struct {
-		Key string
-	}
+type Config struct { Key string }
+
+type Factory struct {}
+
+func (f Factory) Validate(_ *plugins.Manager, config []byte) (interface{}, error) {
+	test := Config{}
 
 	if err := util.Unmarshal(config, &test); err != nil {
 		return nil, err
@@ -172,11 +174,15 @@ var Initializer plugins.PluginInitFunc = func(m *plugins.Manager, config []byte)
 		return nil, fmt.Errorf("got " + test.Key + ", expected secret")
 	}
 
-	return &Tester{}, nil
+    return test, nil
+}
+
+func (f Factory) New(_ *plugins.Manager, config interface{}) plugins.Plugin {
+	return &Tester{}
 }
 
 func Init() error {
-	runtime.RegisterPlugin(Name, Initializer)
+	runtime.RegisterPlugin(Name, Factory{})
 	return nil
 }
 `, name, url)

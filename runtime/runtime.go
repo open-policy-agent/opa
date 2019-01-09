@@ -33,13 +33,15 @@ import (
 )
 
 var (
-	registeredPlugins    map[string]plugins.PluginInitFunc
+	registeredPlugins    map[string]plugins.Factory
 	registeredPluginsMux sync.Mutex
 )
 
-// RegisterPlugin registers a plugin with the plugins package. When a Runtime
-// is created, the factory functions will be called. This function is idempotent.
-func RegisterPlugin(name string, factory plugins.PluginInitFunc) {
+// RegisterPlugin registers a plugin factory with the runtime
+// package. When the runtime is created, the factories are used to parse
+// plugin configuration and instantiate plugins. If no configuration is
+// provided, plugins are not instantiated. This function is idempotent.
+func RegisterPlugin(name string, factory plugins.Factory) {
 	registeredPluginsMux.Lock()
 	defer registeredPluginsMux.Unlock()
 	registeredPlugins[name] = factory
@@ -193,7 +195,7 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		return nil, errors.Wrapf(err, "config error")
 	}
 
-	disco, err := discovery.New(manager, discovery.CustomPlugins(registeredPlugins))
+	disco, err := discovery.New(manager, discovery.Factories(registeredPlugins))
 	if err != nil {
 		return nil, errors.Wrapf(err, "config error")
 	}
@@ -532,5 +534,5 @@ func uuid4() (string, error) {
 }
 
 func init() {
-	registeredPlugins = make(map[string]plugins.PluginInitFunc)
+	registeredPlugins = make(map[string]plugins.Factory)
 }

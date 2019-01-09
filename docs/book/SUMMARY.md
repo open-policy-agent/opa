@@ -124,6 +124,7 @@
 * [Security](security.md)
   * [TLS and HTTPS](security.md#tls-and-https)
   * [Authentication and Authorization](security.md#authentication-and-authorization)
+* [Plugins](plugins.md)
 * [FAQ](faq.md)
 * [Comparison to Other Systems](comparison-to-other-systems.md)
   * [RBAC](comparison-to-other-systems.md#role-based-access-control-rbac)

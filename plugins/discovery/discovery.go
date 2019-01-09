@@ -29,17 +29,17 @@ import (
 type Discovery struct {
 	manager    *plugins.Manager
 	config     *Config
-	initfuncs  map[string]plugins.PluginInitFunc // factory functions for custom plugins
-	downloader *download.Downloader              // discovery bundle downloader
-	status     *bundle.Status                    // discovery status
-	etag       string                            // discovery bundle etag for caching purposes
+	factories  map[string]plugins.Factory
+	downloader *download.Downloader // discovery bundle downloader
+	status     *bundle.Status       // discovery status
+	etag       string               // discovery bundle etag for caching purposes
 }
 
-// CustomPlugins provides a set of factory functions to use for instantiating
-// custom plugins.
-func CustomPlugins(funcs map[string]plugins.PluginInitFunc) func(*Discovery) {
+// Factories provides a set of factory functions to use for
+// instantiating custom plugins.
+func Factories(fs map[string]plugins.Factory) func(*Discovery) {
 	return func(d *Discovery) {
-		d.initfuncs = funcs
+		d.factories = fs
 	}
 }
 
@@ -59,7 +59,7 @@ func New(manager *plugins.Manager, opts ...func(*Discovery)) (*Discovery, error)
 	if err != nil {
 		return nil, err
 	} else if config == nil {
-		if _, err := getPluginSet(result.initfuncs, manager, manager.Config); err != nil {
+		if _, err := getPluginSet(result.factories, manager, manager.Config); err != nil {
 			return nil, err
 		}
 		return result, nil
@@ -144,7 +144,7 @@ func (c *Discovery) processUpdate(ctx context.Context, u download.Update) {
 
 func (c *Discovery) reconfigure(ctx context.Context, u download.Update) error {
 
-	config, ps, err := processBundle(ctx, c.manager, c.initfuncs, u.Bundle, c.config.query)
+	config, ps, err := processBundle(ctx, c.manager, c.factories, u.Bundle, c.config.query)
 	if err != nil {
 		return err
 	}
@@ -190,14 +190,14 @@ func (c *Discovery) logrusFields() logrus.Fields {
 	}
 }
 
-func processBundle(ctx context.Context, manager *plugins.Manager, initfuncs map[string]plugins.PluginInitFunc, b *bundleApi.Bundle, query string) (*config.Config, *pluginSet, error) {
+func processBundle(ctx context.Context, manager *plugins.Manager, factories map[string]plugins.Factory, b *bundleApi.Bundle, query string) (*config.Config, *pluginSet, error) {
 
 	config, err := evaluateBundle(ctx, manager.ID, manager.Info, b, query)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	ps, err := getPluginSet(initfuncs, manager, config)
+	ps, err := getPluginSet(factories, manager, config)
 	return config, ps, err
 }
 
@@ -251,8 +251,39 @@ type pluginreconfig struct {
 	Plugin plugins.Plugin
 }
 
-func getPluginSet(initfuncs map[string]plugins.PluginInitFunc, manager *plugins.Manager, config *config.Config) (*pluginSet, error) {
+type pluginfactory struct {
+	name    string
+	factory plugins.Factory
+	config  interface{}
+}
 
+func getPluginSet(factories map[string]plugins.Factory, manager *plugins.Manager, config *config.Config) (*pluginSet, error) {
+
+	// Parse and validate plugin configurations.
+	pluginNames := []string{}
+	pluginFactories := []pluginfactory{}
+
+	for k := range config.Plugins {
+		f, ok := factories[k]
+		if !ok {
+			return nil, fmt.Errorf("plugin %q not registered", k)
+		}
+
+		c, err := f.Validate(manager, config.Plugins[k])
+		if err != nil {
+			return nil, err
+		}
+
+		pluginFactories = append(pluginFactories, pluginfactory{
+			name:    k,
+			factory: f,
+			config:  c,
+		})
+
+		pluginNames = append(pluginNames, k)
+	}
+
+	// Parse and validate bundle/logs/status configurations.
 	bundleConfig, err := bundle.ParseConfig(config.Bundle, manager.Services())
 	if err != nil {
 		return nil, err
@@ -268,6 +299,7 @@ func getPluginSet(initfuncs map[string]plugins.PluginInitFunc, manager *plugins.
 		return nil, err
 	}
 
+	// Accumulate plugins to start or reconfigure.
 	starts := []plugins.Plugin{}
 	reconfigs := []pluginreconfig{}
 
@@ -300,7 +332,9 @@ func getPluginSet(initfuncs map[string]plugins.PluginInitFunc, manager *plugins.
 
 	result := &pluginSet{starts, reconfigs}
 
-	return result, getCustomPlugins(initfuncs, manager, config.Plugins, result)
+	getCustomPlugins(manager, pluginFactories, result)
+
+	return result, nil
 }
 
 func getBundlePlugin(m *plugins.Manager, config *bundle.Config) (plugin *bundle.Plugin, created bool) {
@@ -338,28 +372,16 @@ func getStatusPlugin(m *plugins.Manager, config *status.Config) (plugin *status.
 	return plugin, created
 }
 
-func getCustomPlugins(initfuncs map[string]plugins.PluginInitFunc, manager *plugins.Manager, configs map[string]json.RawMessage, result *pluginSet) error {
-
-	for name, config := range configs {
-		plugin := manager.Plugin(name)
-		if plugin == nil {
-			// TODO: report missing plugin initfunc to controller...
-			if f, ok := initfuncs[name]; ok {
-				plugin, err := f(manager, config)
-				if err != nil {
-					return err
-				} else if plugin == nil {
-					return fmt.Errorf("plugin %q returned nil object", name)
-				}
-				manager.Register(name, plugin)
-				result.Start = append(result.Start, plugin)
-			}
+func getCustomPlugins(manager *plugins.Manager, factories []pluginfactory, result *pluginSet) {
+	for _, pf := range factories {
+		if plugin := manager.Plugin(pf.name); plugin != nil {
+			result.Reconfig = append(result.Reconfig, pluginreconfig{pf.config, plugin})
 		} else {
-			result.Reconfig = append(result.Reconfig, pluginreconfig{config, plugin})
+			plugin := pf.factory.New(manager, pf.config)
+			manager.Register(pf.name, plugin)
+			result.Start = append(result.Start, plugin)
 		}
 	}
-
-	return nil
 }
 
 func registerBundleStatusUpdates(m *plugins.Manager) {
