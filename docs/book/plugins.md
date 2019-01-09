@@ -68,6 +68,7 @@ import (
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/types"
 	"github.com/open-policy-agent/opa/topdown"
+	"github.com/open-policy-agent/opa/topdown/builtins"
 )
 
 var HelloBuiltin = &ast.Builtin{
@@ -79,7 +80,7 @@ var HelloBuiltin = &ast.Builtin{
 }
 
 func HelloImpl(a ast.Value) (ast.Value, error) {
-	s, err := builtins.StringOperand(1, a)
+	s, err := builtins.StringOperand(a, 1)
 	if err != nil {
 		return nil, err
 	}

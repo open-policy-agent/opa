@@ -289,7 +289,7 @@ func getPluginSet(factories map[string]plugins.Factory, manager *plugins.Manager
 		return nil, err
 	}
 
-	decisionLogsConfig, err := logs.ParseConfig(config.DecisionLogs, manager.Services())
+	decisionLogsConfig, err := logs.ParseConfig(config.DecisionLogs, manager.Services(), pluginNames)
 	if err != nil {
 		return nil, err
 	}
