@@ -5,6 +5,7 @@
 package ast
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"math/rand"
@@ -284,6 +285,13 @@ func (c *Comment) SetLoc(loc *Location) {
 
 func (c *Comment) String() string {
 	return "#" + string(c.Text)
+}
+
+// Equal returns true if this comment equals the other comment.
+// Unlike other equality checks on AST nodes, comment equality
+// depends on location.
+func (c *Comment) Equal(other *Comment) bool {
+	return c.Location.Equal(other.Location) && bytes.Equal(c.Text, other.Text)
 }
 
 // Compare returns an integer indicating whether pkg is less than, equal to,

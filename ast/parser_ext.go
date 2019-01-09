@@ -12,6 +12,7 @@ package ast
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 	"unicode"
 
@@ -456,7 +457,30 @@ func ParseStatement(input string) (Statement, error) {
 // CommentsOption returns a parser option to initialize the comments store within
 // the parser.
 func CommentsOption() Option {
-	return GlobalStore(commentsKey, []*Comment{})
+	return GlobalStore(commentsKey, map[commentKey]*Comment{})
+}
+
+type commentKey struct {
+	File string
+	Row  int
+	Col  int
+}
+
+func (a commentKey) Compare(other commentKey) int {
+	if a.File < other.File {
+		return -1
+	} else if a.File > other.File {
+		return 1
+	} else if a.Row < other.Row {
+		return -1
+	} else if a.Row > other.Row {
+		return 1
+	} else if a.Col < other.Col {
+		return -1
+	} else if a.Col > other.Col {
+		return 1
+	}
+	return 0
 }
 
 // ParseStatements returns a slice of parsed statements.
@@ -474,7 +498,17 @@ func ParseStatements(filename, input string) ([]Statement, []*Comment, error) {
 	var sl []interface{}
 	if p, ok := parsed.(program); ok {
 		sl = p.buf
-		comments = p.comments.([]*Comment)
+		commentMap := p.comments.(map[commentKey]*Comment)
+		commentKeys := []commentKey{}
+		for k := range commentMap {
+			commentKeys = append(commentKeys, k)
+		}
+		sort.Slice(commentKeys, func(i, j int) bool {
+			return commentKeys[i].Compare(commentKeys[j]) < 0
+		})
+		for _, k := range commentKeys {
+			comments = append(comments, commentMap[k])
+		}
 	} else {
 		sl = parsed.([]interface{})
 	}

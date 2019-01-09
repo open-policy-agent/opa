@@ -564,9 +564,12 @@ func makeComments(c *current, text interface{}) (interface{}, error) {
 
 	comment := NewComment(buf.Bytes())
 	comment.Location = currentLocation(c)
-	comments := c.globalStore[commentsKey].([]*Comment)
-	comments = append(comments, comment)
-	c.globalStore[commentsKey] = comments
-
+	comments := c.globalStore[commentsKey].(map[commentKey]*Comment)
+	key := commentKey{
+		File: comment.Location.File,
+		Row:  comment.Location.Row,
+		Col:  comment.Location.Col,
+	}
+	comments[key] = comment
 	return comment, nil
 }
