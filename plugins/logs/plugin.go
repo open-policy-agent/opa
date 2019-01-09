@@ -8,6 +8,7 @@ package logs
 import (
 	"context"
 	"fmt"
+	"github.com/open-policy-agent/opa/version"
 	"math/rand"
 	"net/http"
 	"reflect"
@@ -33,6 +34,7 @@ type EventV1 struct {
 	Result      *interface{}      `json:"result,omitempty"`
 	RequestedBy string            `json:"requested_by"`
 	Timestamp   time.Time         `json:"timestamp"`
+	Version     string            `json:"version"`
 }
 
 const (
@@ -205,6 +207,7 @@ func (p *Plugin) Log(ctx context.Context, decision *server.Info) {
 		Result:      decision.Results,
 		RequestedBy: decision.RemoteAddr,
 		Timestamp:   decision.Timestamp,
+		Version:     version.Version,
 	}
 
 	p.mtx.Lock()
