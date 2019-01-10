@@ -368,7 +368,7 @@ func (p *Planner) planRefRec(ref ast.Ref, index int, iter planiter) error {
 
 	case ast.Var:
 		if _, ok := p.vars[v]; !ok {
-			return p.planLoop(ref, index, func() error {
+			return p.planScan(ref, index, func() error {
 				return p.planRefRec(ref, index+1, iter)
 			})
 		}
@@ -380,7 +380,7 @@ func (p *Planner) planRefRec(ref ast.Ref, index int, iter planiter) error {
 	}
 }
 
-func (p *Planner) planLoop(ref ast.Ref, index int, iter planiter) error {
+func (p *Planner) planScan(ref ast.Ref, index int, iter planiter) error {
 
 	source := p.ltarget
 
@@ -395,15 +395,14 @@ func (p *Planner) planLoop(ref ast.Ref, index int, iter planiter) error {
 			Target: cond,
 		})
 
-		loop := ir.LoopStmt{
+		scan := ir.ScanStmt{
 			Source: source,
 			Key:    key,
 			Value:  value,
-			Cond:   cond,
 		}
 
 		prev := p.curr
-		p.curr = &loop.Block
+		p.curr = &scan.Block
 		p.ltarget = value
 
 		if err := iter(); err != nil {
@@ -418,7 +417,7 @@ func (p *Planner) planLoop(ref ast.Ref, index int, iter planiter) error {
 		})
 
 		p.curr = prev
-		p.appendStmt(loop)
+		p.appendStmt(scan)
 
 		truth := p.newLocal()
 

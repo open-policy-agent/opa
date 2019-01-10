@@ -180,8 +180,8 @@ func (c *Compiler) compileBlock(block ir.Block) ([]instruction.Instruction, erro
 				ir.Pretty(&buf, stmt)
 				return nil, fmt.Errorf("illegal assignment: %v", buf.String())
 			}
-		case ir.LoopStmt:
-			if err := c.compileLoop(stmt, &instrs); err != nil {
+		case ir.ScanStmt:
+			if err := c.compileScan(stmt, &instrs); err != nil {
 				return nil, err
 			}
 		case ir.NotStmt:
@@ -266,11 +266,11 @@ func (c *Compiler) compileBlock(block ir.Block) ([]instruction.Instruction, erro
 	return instrs, nil
 }
 
-func (c *Compiler) compileLoop(loop ir.LoopStmt, result *[]instruction.Instruction) error {
+func (c *Compiler) compileScan(scan ir.ScanStmt, result *[]instruction.Instruction) error {
 	var instrs = *result
 	instrs = append(instrs, instruction.I32Const{Value: 0})
-	instrs = append(instrs, instruction.SetLocal{Index: c.local(loop.Key)})
-	body, err := c.compileLoopBody(loop)
+	instrs = append(instrs, instruction.SetLocal{Index: c.local(scan.Key)})
+	body, err := c.compileScanBlock(scan)
 	if err != nil {
 		return err
 	}
@@ -279,28 +279,28 @@ func (c *Compiler) compileLoop(loop ir.LoopStmt, result *[]instruction.Instructi
 	return nil
 }
 
-func (c *Compiler) compileLoopBody(loop ir.LoopStmt) ([]instruction.Instruction, error) {
+func (c *Compiler) compileScanBlock(scan ir.ScanStmt) ([]instruction.Instruction, error) {
 	var instrs []instruction.Instruction
 
 	// Execute iterator.
-	instrs = append(instrs, instruction.GetLocal{Index: c.local(loop.Source)})
-	instrs = append(instrs, instruction.GetLocal{Index: c.local(loop.Key)})
+	instrs = append(instrs, instruction.GetLocal{Index: c.local(scan.Source)})
+	instrs = append(instrs, instruction.GetLocal{Index: c.local(scan.Key)})
 	instrs = append(instrs, instruction.Call{Index: c.function(opaValueIter)})
 
 	// Check for emptiness.
-	instrs = append(instrs, instruction.SetLocal{Index: c.local(loop.Key)})
-	instrs = append(instrs, instruction.GetLocal{Index: c.local(loop.Key)})
+	instrs = append(instrs, instruction.SetLocal{Index: c.local(scan.Key)})
+	instrs = append(instrs, instruction.GetLocal{Index: c.local(scan.Key)})
 	instrs = append(instrs, instruction.I32Eqz{})
 	instrs = append(instrs, instruction.BrIf{Index: 1})
 
 	// Load value.
-	instrs = append(instrs, instruction.GetLocal{Index: c.local(loop.Source)})
-	instrs = append(instrs, instruction.GetLocal{Index: c.local(loop.Key)})
+	instrs = append(instrs, instruction.GetLocal{Index: c.local(scan.Source)})
+	instrs = append(instrs, instruction.GetLocal{Index: c.local(scan.Key)})
 	instrs = append(instrs, instruction.Call{Index: c.function(opaValueGet)})
-	instrs = append(instrs, instruction.SetLocal{Index: c.local(loop.Value)})
+	instrs = append(instrs, instruction.SetLocal{Index: c.local(scan.Value)})
 
 	// Loop body.
-	nested, err := c.compileBlock(loop.Block)
+	nested, err := c.compileBlock(scan.Block)
 	if err != nil {
 		return nil, err
 	}

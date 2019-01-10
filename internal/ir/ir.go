@@ -137,13 +137,12 @@ type DotStmt struct {
 	Target Local
 }
 
-// LoopStmt represents a loop operation on a composite value. The source of a
-// LoopStmt may be a scalar in which case the statement will be undefined.
-type LoopStmt struct {
+// ScanStmt represents a linear scan over a composite value. The
+// source may be a scalar in which case the block will never execute.
+type ScanStmt struct {
 	Source Local
 	Key    Local
 	Value  Local
-	Cond   Local
 	Block  Block
 }
 
