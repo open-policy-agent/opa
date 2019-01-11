@@ -9,6 +9,7 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/tls"
+	"crypto/x509"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -70,6 +71,9 @@ type Params struct {
 	// Certificate is the certificate to use in server-mode. If the certificate
 	// is nil, the server will NOT use TLS.
 	Certificate *tls.Certificate
+
+	// CertPool holds the CA certs trusted by the OPA server.
+	CertPool *x509.CertPool
 
 	// HistoryPath is the filename to store the interactive shell user
 	// input history.
@@ -235,6 +239,7 @@ func (rt *Runtime) StartServer(ctx context.Context) {
 		WithAddresses(*rt.Params.Addrs).
 		WithInsecureAddress(rt.Params.InsecureAddr).
 		WithCertificate(rt.Params.Certificate).
+		WithCertPool(rt.Params.CertPool).
 		WithAuthentication(rt.Params.Authentication).
 		WithAuthorization(rt.Params.Authorization).
 		WithDiagnosticsBuffer(rt.Params.DiagnosticsBuffer).

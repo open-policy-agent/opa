@@ -8,12 +8,16 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/http/httputil"
+	"net/url"
 	"reflect"
 	"regexp"
 	"strings"
@@ -2884,4 +2888,131 @@ func (m *mockResponseWriterConn) consumeQueryResultStream() ([]queryResultStream
 		}
 	}
 	return result, nil
+}
+
+func TestAuthenticationTLS(t *testing.T) {
+	ctx := context.Background()
+	store := inmem.New()
+	m, err := plugins.New([]byte{}, "test", store)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := m.Start(ctx); err != nil {
+		t.Fatal(err)
+	}
+
+	txn := storage.NewTransactionOrDie(ctx, store, storage.WriteParams)
+
+	authzPolicy := `package system.authz
+import input.identity
+default allow = false
+allow {
+	identity = "CN=my-client"
+}`
+
+	if err := store.UpsertPolicy(ctx, txn, "test", []byte(authzPolicy)); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := store.Commit(ctx, txn); err != nil {
+		t.Fatal(err)
+	}
+
+	caCertPEM, err := ioutil.ReadFile("testdata/ca.pem")
+	if err != nil {
+		t.Fatal(err)
+	}
+	pool := x509.NewCertPool()
+	if ok := pool.AppendCertsFromPEM(caCertPEM); !ok {
+		t.Fatal("failed to parse CA cert")
+	}
+	cert, err := tls.LoadX509KeyPair("testdata/server-cert.pem", "testdata/server-key.pem")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	server, err := New().
+		WithAddresses([]string{"https://127.0.0.1:8182"}).
+		WithStore(store).
+		WithManager(m).
+		WithCertificate(&cert).
+		WithCertPool(pool).
+		WithAuthentication(AuthenticationTLS).
+		WithAuthorization(AuthorizationBasic).
+		Init(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Replicating some of what happens in the server's HTTPS listener
+	s := httptest.NewUnstartedServer(server.Handler)
+	s.TLS = &tls.Config{
+		Certificates: []tls.Certificate{cert},
+		ClientAuth:   tls.RequireAndVerifyClientCert,
+		ClientCAs:    pool,
+	}
+	s.StartTLS()
+	defer s.Close()
+	endpoint := s.URL + "/v1/data/foo"
+
+	t.Run("happy path", func(t *testing.T) {
+		clientCert, err := tls.LoadX509KeyPair("testdata/client-cert.pem", "testdata/client-key.pem")
+		if err != nil {
+			t.Fatalf("read test client cert/key: %v", err)
+		}
+		c := http.DefaultClient
+		tr := http.DefaultTransport.(*http.Transport)
+		tr.TLSClientConfig = &tls.Config{
+			Certificates: []tls.Certificate{clientCert},
+			RootCAs:      pool,
+		}
+		c.Transport = tr
+
+		resp, err := c.Get(endpoint)
+		if err != nil {
+			t.Fatalf("GET: %v", err)
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode != http.StatusOK {
+			t.Errorf("expected status 200, got %s", resp.Status)
+		}
+	})
+
+	t.Run("authn successful, authz failed", func(t *testing.T) {
+		clientCert, err := tls.LoadX509KeyPair("testdata/client-cert-2.pem", "testdata/client-key-2.pem")
+		if err != nil {
+			t.Fatalf("read test client cert/key: %v", err)
+		}
+		c := http.DefaultClient
+		tr := http.DefaultTransport.(*http.Transport)
+		tr.TLSClientConfig = &tls.Config{
+			Certificates: []tls.Certificate{clientCert},
+			RootCAs:      pool,
+		}
+		c.Transport = tr
+
+		resp, err := c.Get(endpoint)
+		if err != nil {
+			t.Fatalf("GET: %v", err)
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode != http.StatusUnauthorized {
+			t.Errorf("expected status 401, got %s", resp.Status)
+		}
+	})
+
+	t.Run("client trusts server, but doesn't provide client cert", func(t *testing.T) {
+		c := http.DefaultClient
+		tr := http.DefaultTransport.(*http.Transport)
+		tr.TLSClientConfig = &tls.Config{
+			RootCAs: pool,
+		}
+		c.Transport = tr
+
+		_, err := c.Get(endpoint)
+		if _, ok := err.(*url.Error); !ok {
+			t.Errorf("expected *url.Error, got %T: %v", err, err)
+		}
+	})
 }

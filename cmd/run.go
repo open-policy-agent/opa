@@ -7,14 +7,17 @@ package cmd
 import (
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path"
+
+	"github.com/spf13/cobra"
 
 	"github.com/open-policy-agent/opa/runtime"
 	"github.com/open-policy-agent/opa/server"
 	"github.com/open-policy-agent/opa/util"
-	"github.com/spf13/cobra"
 )
 
 const (
@@ -26,14 +29,14 @@ const (
 func init() {
 
 	var serverMode bool
-	var tlsCertFile string
-	var tlsPrivateKeyFile string
+	var tlsCertFile, tlsPrivateKeyFile, tlsCACertFile string
 	var ignore []string
 
-	authentication := util.NewEnumFlag("off", []string{"token", "off"})
+	authentication := util.NewEnumFlag("off", []string{"token", "tls", "off"})
 
 	authenticationSchemes := map[string]server.AuthenticationScheme{
 		"token": server.AuthenticationToken,
+		"tls":   server.AuthenticationTLS,
 		"off":   server.AuthenticationOff,
 	}
 
@@ -95,6 +98,15 @@ the data document with the following syntax:
 				os.Exit(1)
 			}
 
+			if tlsCACertFile != "" {
+				pool, err := loadCertPool(tlsCACertFile)
+				if err != nil {
+					fmt.Println("error:", err)
+					os.Exit(1)
+				}
+				params.CertPool = pool
+			}
+
 			params.Authentication = authenticationSchemes[authentication.String()]
 			params.Authorization = authorizationScheme[authorization.String()]
 			params.Certificate = cert
@@ -137,6 +149,7 @@ the data document with the following syntax:
 	runCommand.Flags().MarkDeprecated("server-diagnostics-buffer-size", "use decision logging instead")
 	runCommand.Flags().StringVarP(&tlsCertFile, "tls-cert-file", "", "", "set path of TLS certificate file")
 	runCommand.Flags().StringVarP(&tlsPrivateKeyFile, "tls-private-key-file", "", "", "set path of TLS private key file")
+	runCommand.Flags().StringVarP(&tlsCACertFile, "tls-ca-cert-file", "", "", "set path of TLS CA cert file")
 	runCommand.Flags().VarP(authentication, "authentication", "", "set authentication scheme")
 	runCommand.Flags().VarP(authorization, "authorization", "", "set authorization scheme")
 	runCommand.Flags().VarP(logLevel, "log-level", "l", "set log level")
@@ -176,4 +189,16 @@ func loadCertificate(tlsCertFile, tlsPrivateKeyFile string) (*tls.Certificate, e
 	}
 
 	return nil, nil
+}
+
+func loadCertPool(tlsCACertFile string) (*x509.CertPool, error) {
+	caCertPEM, err := ioutil.ReadFile(tlsCACertFile)
+	if err != nil {
+		return nil, fmt.Errorf("read CA cert file: %v", err)
+	}
+	pool := x509.NewCertPool()
+	if ok := pool.AppendCertsFromPEM(caCertPEM); !ok {
+		return nil, fmt.Errorf("failed to parse CA cert %q", tlsCACertFile)
+	}
+	return pool, nil
 }
