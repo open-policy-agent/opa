@@ -2,7 +2,7 @@ sudo: required
 language: go
 go_import_path: github.com/open-policy-agent/opa
 go:
-- "1.10"
+- "1.11"
 env:
   global:
   - secure: RQIMmk6hPYwWUVIpplBJpoGtWqw80KU21DYkG3x57jBAHvoG58JiOc/0Tt6qmTJr7iSLPZLuivfxsJikTrFxMg6OYwlvpxzKB4Rr/unMFBP50+AP5rvUoZUtf1Swy+cVvovtgDn8Isik5gloNZ00dri73pKKn/a0d07YRz3PetdmwiXn3b/08HCAxoBrhchIECHCjg/b/XC+r9QA+WvSI0hfPnd3zL8/IMisgMFHvP/v8f9yH3NysyvJY6VMR/chrcXzm4RdUcLUNQ62wUliKQvBisa5Fuu5ReZ8y3KVhCXiANwocNlTrpEEe7QHa7dJlZHLqPv1RDKOfyZWY7mFsQDeapdGsXBR7r19uh1QTKEgLZqINVAFoxfZtH3jSG4UzYAZ1hrZVNkM2Ta0feRRH/q1kINxT2ovgn073immgC1v6yv9TYXLPmE7ADS14E/ab7ZRZnR+aiI6biZUP5+KTnaZBNKTf24a5SIAeP49UqPkIKCvterGFzVuPRF5z+8QBjYekkgNbVcM/rL20QdAUsWn8MRTEckaCSDUyJmj/kpUw76MruJwrSwshYfPkzPaPRqk99oUZucN47w3QJm65DkRNEB3oEKs3ZTH6OQXYedsv9P4wKmThngzWF9GHB0hc1twAc3tctDOfgcBxp+CDQnJ+xWH7n36tKfixp5QFVY=
