@@ -16,7 +16,7 @@ Requirements:
 
 - Git
 - GitHub account (if you are contributing)
-- Go (version 1.10 is supported though older versiosn are likely to work)
+- Go (version 1.11 is supported though older versions are likely to work)
 - GNU Make
 
 ## Getting Started
@@ -118,3 +118,12 @@ parser generation explicitly you can run `make generate`.
 If you are modifying the Rego syntax you must commit the parser source file
 (ast/parser.go) that `make generate` produces when you are done. The generated
 code is kept in the repository so that commands such as `go get` work.
+
+## Go
+
+If you need to update the version of Go that OPA's CI and release
+builder use, update the Go version in the Makefile and .travis.yml
+files. You will also need to bump the version of the release builder
+and re-build it using the `release-builder` target. Note, you will
+need push access on the openpolicyagent DockerHub account to release
+the new version of the `release-builder` as this is not automated yet.
