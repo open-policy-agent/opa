@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"fmt"
 	"html/template"
@@ -48,8 +49,9 @@ type AuthenticationScheme int
 
 // Set of supported authentication schemes.
 const (
-	AuthenticationOff   AuthenticationScheme = iota
-	AuthenticationToken                      = iota
+	AuthenticationOff AuthenticationScheme = iota
+	AuthenticationToken
+	AuthenticationTLS
 )
 
 // AuthorizationScheme enumerates the supported authorization schemes. The authorization
@@ -58,8 +60,8 @@ type AuthorizationScheme int
 
 // Set of supported authorization schemes.
 const (
-	AuthorizationOff   AuthorizationScheme = iota
-	AuthorizationBasic                     = iota
+	AuthorizationOff AuthorizationScheme = iota
+	AuthorizationBasic
 )
 
 // Set of handlers for use in the "handler" dimension of the duration metric.
@@ -87,6 +89,7 @@ type Server struct {
 	authentication    AuthenticationScheme
 	authorization     AuthorizationScheme
 	cert              *tls.Certificate
+	certPool          *x509.CertPool
 	mtx               sync.RWMutex
 	partials          map[string]rego.PartialResult
 	store             storage.Store
@@ -129,6 +132,8 @@ func (s *Server) Init(ctx context.Context) (*Server, error) {
 	switch s.authentication {
 	case AuthenticationToken:
 		s.Handler = identifier.NewTokenBased(s.Handler)
+	case AuthenticationTLS:
+		s.Handler = identifier.NewTLSBased(s.Handler)
 	}
 
 	txn, err := s.store.NewTransaction(ctx, storage.WriteParams)
@@ -185,6 +190,12 @@ func (s *Server) WithAuthorization(scheme AuthorizationScheme) *Server {
 // WithCertificate sets the server-side certificate that the server will use.
 func (s *Server) WithCertificate(cert *tls.Certificate) *Server {
 	s.cert = cert
+	return s
+}
+
+// WithCertPool sets the server-side cert pool that the server will use.
+func (s *Server) WithCertPool(pool *x509.CertPool) *Server {
+	s.certPool = pool
 	return s
 }
 
@@ -284,9 +295,7 @@ func (s *Server) getListenerForHTTPServer(u *url.URL) (Loop, error) {
 		Handler: s.Handler,
 	}
 
-	httpLoop := func() error { return httpServer.ListenAndServe() }
-
-	return httpLoop, nil
+	return httpServer.ListenAndServe, nil
 }
 
 func (s *Server) getListenerForHTTPSServer(u *url.URL) (Loop, error) {
@@ -300,7 +309,11 @@ func (s *Server) getListenerForHTTPSServer(u *url.URL) (Loop, error) {
 		Handler: s.Handler,
 		TLSConfig: &tls.Config{
 			Certificates: []tls.Certificate{*s.cert},
+			ClientCAs:    s.certPool,
 		},
+	}
+	if s.authentication == AuthenticationTLS {
+		httpsServer.TLSConfig.ClientAuth = tls.RequireAndVerifyClientCert
 	}
 
 	httpsLoop := func() error { return httpsServer.ListenAndServeTLS("", "") }

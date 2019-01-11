@@ -23,6 +23,13 @@ startup:
 OPA will exit immediately with a non-zero status code if only one of these flags
 is specified.
 
+Note that for using TLS-based authentication, a CA cert file can be provided:
+
+- ``--tls-ca-cert-file=<path>`` specifies the path of the file containing the CA cert.
+
+If provided, it will be used to validate clients' TLS certificates when using TLS
+authentication (see below).
+
 By default, OPA ignores insecure HTTP connections when TLS is enabled. To allow
 insecure HTTP connections in addition to HTTPS connections, provide another
 listening address with `--addr`. For example:
@@ -98,6 +105,17 @@ and provide to the authorization handler. When you use the `token`
 authentication, you must configure an authorization policy that checks the
 tokens. If the client does not supply a Bearer token, the `input.identity`
 value will be undefined when the authorization policy is evaluated.
+- Client TLS certificates: Client TLS authentication is enabled by starting
+OPA with ``--authentication=tls``. When this authentication mode is enabled,
+OPA will require all clients to provide a client certificate. It is verified
+against the CA certificate(s) provided via `--tls-ca-cert-path`. Upon successful
+verification, the `input.identity` value is set to the TLS certificate's
+subject.
+
+  Note that TLS authentication does not disable non-HTTPS listeners. To ensure
+  that all your communication is secured, it should be paired with an
+  authorization policy (see below) that at least requires the client identity
+  (`input.identity`) to _be set_.
 
 For authorization, OPA relies on policy written in Rego. Authorization is
 enabled by starting OPA with ``--authorization=basic``.
@@ -198,6 +216,8 @@ HTTP/1.1 200 OK
 Content-Type: application/json
 ```
 
+### Token-based Authentication Example
+
 When Bearer tokens are used for authentication, the policy should at minimum
 validate the identity:
 
@@ -276,3 +296,127 @@ identity_rights[right] {            # Right is in the identity_rights set if...
     right = rights[role]            # Role has rights defined.
 }
 ```
+
+### TLS-based Authentication Example
+
+To set up authentication based on TLS, we will need three certificates:
+
+1. the CA cert (self-signed),
+2. the server cert (signed by the CA), and
+3. the client cert (signed by the CA).
+
+These are example invocations using `openssl`.
+Don't use these in production, the key sizes are only good for demonstration purposes.
+
+Note that we're creating an extra client, which has a certificate signed by the proper
+CA, but will later be used to illustrate the authorization policy.
+
+```bash
+# CA
+openssl genrsa -out ca-key.pem 2048
+openssl req -x509 -new -nodes -key ca-key.pem -days 1000 -out ca.pem -subj "/CN=my-ca"
+
+# client 1
+openssl genrsa -out client-key.pem 2048
+openssl req -new -key client-key.pem -out csr.pem -subj "/CN=my-client"
+openssl x509 -req -in csr.pem -CA ca.pem -CAkey ca-key.pem -CAcreateserial -out client-cert.pem -days 1000
+
+# client 2
+openssl genrsa -out client-key-2.pem 2048
+openssl req -new -key client-key-2.pem -out csr.pem -subj "/CN=my-client-2"
+openssl x509 -req -in csr.pem -CA ca.pem -CAkey ca-key.pem -CAcreateserial -out client-cert-2.pem -days 1000
+
+# create server cert with IP and DNS SANs
+cat <<EOF >req.cnf
+[req]
+req_extensions = v3_req
+distinguished_name = req_distinguished_name
+
+[req_distinguished_name]
+
+[v3_req]
+basicConstraints = CA:FALSE
+keyUsage = nonRepudiation, digitalSignature, keyEncipherment
+subjectAltName = @alt_names
+
+[alt_names]
+DNS.1 = opa.example.com
+IP.1 = 127.0.0.1
+EOF
+openssl genrsa -out server-key.pem 2048
+openssl req -new -key server-key.pem -out csr.pem -subj "/CN=my-server" -config req.cnf
+openssl x509 -req -in csr.pem -CA ca.pem -CAkey ca-key.pem -CAcreateserial -out server-cert.pem -days 1000 -extensions v3_req -extfile req.cnf
+```
+
+We also create a simple authorization policy file, called `check.rego`:
+```ruby
+package system.authz
+
+# client_cns may defined in policy or pushed into OPA as data.
+client_cns = {
+	"my-client": true
+}
+
+default allow = false
+
+allow {                                        # Allow request if
+	split(input.identity, "=", ["CN", cn]) # the cert subject is a CN, and
+	client_cns[cn]                         # the name is a known client.
+}
+```
+
+Now, we're ready to starting the server with `-authentication=tls` and the
+certificate-related parameters:
+```console
+$ opa run -s \
+  --tls-cert-file server-cert.pem \
+  --tls-private-key-file server-key.pem \
+  --tls-ca-cert-file ca.pem \
+  --authentication=tls \
+  --authorization=basic \
+  -a https://127.0.0.1:8181 \
+  check.rego
+INFO[2019-01-14T10:24:52+01:00] First line of log stream.                     addrs="[https://127.0.0.1:8181]" insecure_addr=
+```
+
+We can use `curl` to validate our TLS-based authentication setup:
+
+First, we use the client certificate that was signed by the CA, and has a subject
+matching our authorization policy:
+
+```console
+$ curl --key client-key.pem \
+  --cert client-cert.pem \
+  --cacert ca.pem \
+  --resolve opa.example.com:8181:127.0.0.1 \
+  https://opa.example.com:8181/v1/data
+{"result":{}}
+```
+
+Note that we're passing the CA cert to curl -- this is done to have curl accept
+the server's certificate, which has been signed by our CA cert.
+
+Since we've setup an IP SAN, we may also `curl https://127.0.0.1:8181/v1/data`
+directly. (To keep our examples focused, we'll do that from here on.)
+
+Using a valid certificate whose subject will be declined by our authorization
+policy:
+
+```console
+$ curl --key client-key-2.pem \
+  --cert client-cert-2.pem \
+  --cacert ca.pem \
+  https://127.0.0.1:8181/v1/data
+{
+  "code": "unauthorized",
+  "message": "request rejected by administrative policy"
+}
+```
+
+Finally, we'll attempt to query without a client certificate:
+```console
+$ curl --cacert ca.pem https://127.0.0.1:8181/v1/data
+curl: (35) error:14094412:SSL routines:ssl3_read_bytes:sslv3 alert bad certificate
+```
+
+As you can see, TLS-based authentication disallows these request completely.

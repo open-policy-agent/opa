@@ -1,0 +1,4 @@
+*.srl
+*.cnf
+csr.pem
+ca-key.pem

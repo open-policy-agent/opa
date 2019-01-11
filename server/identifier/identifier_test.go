@@ -2,11 +2,13 @@
 // Use of this source code is governed by an Apache2
 // license that can be found in the LICENSE file.
 
-package identifier
+package identifier_test
 
 import (
 	"net/http"
 	"testing"
+
+	"github.com/open-policy-agent/opa/server/identifier"
 )
 
 type mockHandler struct {
@@ -15,13 +17,13 @@ type mockHandler struct {
 }
 
 func (h *mockHandler) ServeHTTP(_ http.ResponseWriter, r *http.Request) {
-	h.identity, h.defined = Identity(r)
+	h.identity, h.defined = identifier.Identity(r)
 }
 
 func TestTokenBased(t *testing.T) {
 
 	mock := &mockHandler{}
-	handler := NewTokenBased(mock)
+	handler := identifier.NewTokenBased(mock)
 
 	req, err := http.NewRequest(http.MethodGet, "/foo/bar/baz", nil)
 	if err != nil {
