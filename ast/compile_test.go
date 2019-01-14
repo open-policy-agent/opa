@@ -1129,6 +1129,13 @@ func TestCompilerRewriteLocalAssignments(t *testing.T) {
 		a := 1
 		b := 1 with input as [a]
 	}
+
+	global = {}
+
+	ref_shadowed {
+		global := {"a": 1}
+		global.a > 0
+	}
 	`)
 
 	c.Modules["test2"] = MustParseModule(`package test
@@ -1200,6 +1207,10 @@ func TestCompilerRewriteLocalAssignments(t *testing.T) {
 		__local30__ = 1
 		__local31__ = 1 with input as [__local30__]
 	}
+
+	global = {}
+
+	ref_shadowed { __local32__ = {"a": 1}; __local32__.a > 0 }
 	`)
 
 	if len(module1.Rules) != len(expectedModule.Rules) {
