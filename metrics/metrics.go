@@ -238,5 +238,5 @@ func (c *counter) Incr() {
 }
 
 func (c *counter) Value() interface{} {
-	return *c
+	return uint64(*c)
 }
