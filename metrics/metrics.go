@@ -33,6 +33,7 @@ type Metrics interface {
 	Counter(name string) Counter
 	All() map[string]interface{}
 	Clear()
+	GetTimer() map[string]Timer
 	json.Marshaler
 }
 
@@ -52,6 +53,10 @@ func New() Metrics {
 type metric struct {
 	Key   string
 	Value interface{}
+}
+
+func (m *metrics) GetTimer() map[string]Timer {
+	return m.timers
 }
 
 func (m *metrics) String() string {
@@ -150,6 +155,7 @@ type Timer interface {
 	Int64() int64
 	Start()
 	Stop() int64
+	Reset()
 }
 
 type timer struct {
@@ -157,6 +163,10 @@ type timer struct {
 	value int64
 }
 
+func (t *timer) Reset() {
+	t.start = time.Unix(0, 0)
+	t.value = 0
+}
 func (t *timer) Start() {
 	t.start = time.Now()
 }

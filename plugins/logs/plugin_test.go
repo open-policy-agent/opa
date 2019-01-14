@@ -16,7 +16,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/plugins"
+	"github.com/open-policy-agent/opa/rego"
 	"github.com/open-policy-agent/opa/server"
 	"github.com/open-policy-agent/opa/storage/inmem"
 	"github.com/open-policy-agent/opa/version"
@@ -70,6 +72,7 @@ func TestPluginCustomBackend(t *testing.T) {
 func TestPluginStartSameInput(t *testing.T) {
 
 	ctx := context.Background()
+	createdMetrics := CreateMetrics()
 
 	fixture := newTestFixture(t)
 	defer fixture.server.stop()
@@ -82,7 +85,7 @@ func TestPluginStartSameInput(t *testing.T) {
 		panic(err)
 	}
 
-	for i := 0; i < 500; i++ {
+	for i := 0; i < 300; i++ {
 		fixture.plugin.Log(ctx, &server.Info{
 			Revision:   fmt.Sprint(i),
 			DecisionID: fmt.Sprint(i),
@@ -91,6 +94,7 @@ func TestPluginStartSameInput(t *testing.T) {
 			Results:    &result,
 			RemoteAddr: "test",
 			Timestamp:  ts,
+			Metrics:    createdMetrics,
 		})
 	}
 
@@ -103,12 +107,12 @@ func TestPluginStartSameInput(t *testing.T) {
 	chunk2 := <-fixture.server.ch
 	chunk3 := <-fixture.server.ch
 	chunk4 := <-fixture.server.ch
-	expLen1 := 141
-	expLen2 := 140
-	expLen3 := 140
-	expLen4 := 79
+	expLen1 := 82
+	expLen2 := 82
+	expLen3 := 81
+	expLen4 := 55
 
-	if len(chunk1) != expLen1 || len(chunk2) != expLen2 || len((chunk3)) != expLen3 || len(chunk4) != expLen4 {
+	if len(chunk1) != expLen1 || len(chunk2) != expLen2 || len(chunk3) != expLen3 || len(chunk4) != expLen4 {
 		t.Fatalf("Expected chunk lens %v, %v, %v and %v but got: %v, %v, %v and %v", expLen1, expLen2, expLen3, expLen4, len(chunk1), len(chunk2), len(chunk3), len(chunk4))
 	}
 
@@ -119,14 +123,15 @@ func TestPluginStartSameInput(t *testing.T) {
 			"id":  "test-instance-id",
 			"app": "example-app",
 		},
-		Revision:    "499",
-		DecisionID:  "499",
+		Revision:    "299",
+		DecisionID:  "299",
 		Path:        "tda/bar",
 		Input:       &expInput,
 		Result:      &result,
 		RequestedBy: "test",
 		Timestamp:   ts,
 		Version:     getVersion(),
+		Metrics:     createdMetrics.All(),
 	}
 
 	if !reflect.DeepEqual(chunk4[expLen4-1], exp) {
@@ -474,4 +479,22 @@ func setVersion(opaVersion string) {
 
 func getVersion() string {
 	return version.Version
+}
+
+func CreateMetrics() metrics.Metrics {
+	m := metrics.New()
+	r := rego.New(rego.Query("foo = 1"), rego.Module("foo.rego", "package x"), rego.Metrics(m))
+	ctx := context.Background()
+	_, err := r.Eval(ctx)
+	if err != nil {
+		return nil
+	}
+
+	timers := m.GetTimer()
+	for k := range timers {
+		delete(timers, k)
+		//timers[k].Reset()
+	}
+
+	return m
 }
