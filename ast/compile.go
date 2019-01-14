@@ -2513,8 +2513,13 @@ func rewriteDeclaredAssignment(g *localVarGenerator, stack *localDeclaredVars, e
 	}
 
 	// Rewrite terms on right hand side capture seen vars and recursively
-	// process comprehensions before left hand side is processed.
-	rewriteDeclaredVarsInTermRecursive(g, stack, expr.Operand(1), errs)
+	// process comprehensions before left hand side is processed. Also
+	// rewrite with modifier.
+	errs = rewriteDeclaredVarsInTermRecursive(g, stack, expr.Operand(1), errs)
+
+	for _, w := range expr.With {
+		errs = rewriteDeclaredVarsInTermRecursive(g, stack, w.Value, errs)
+	}
 
 	// Rewrite vars on right hand side with unique names. Catch redeclaration
 	// and invalid term types here.
