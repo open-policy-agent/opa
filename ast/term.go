@@ -1205,12 +1205,15 @@ func (s *set) Compare(other Value) int {
 	return termSliceCompare(s.keys, t.keys)
 }
 
-// Find returns the current value or a not found error.
+// Find returns the set or dereferences the element itself.
 func (s *set) Find(path Ref) (Value, error) {
 	if len(path) == 0 {
 		return s, nil
 	}
-	return nil, fmt.Errorf("find: not found")
+	if !s.Contains(path[0]) {
+		return nil, fmt.Errorf("find: not found")
+	}
+	return path[0].Value.Find(path[1:])
 }
 
 // Diff returns elements in s that are not in other.
