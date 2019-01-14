@@ -16,6 +16,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/plugins"
 	"github.com/open-policy-agent/opa/server"
 	"github.com/open-policy-agent/opa/storage/inmem"
@@ -82,7 +83,9 @@ func TestPluginStartSameInput(t *testing.T) {
 		panic(err)
 	}
 
-	for i := 0; i < 500; i++ {
+	testMetrics := getWellKnownMetrics()
+
+	for i := 0; i < 400; i++ {
 		fixture.plugin.Log(ctx, &server.Info{
 			Revision:   fmt.Sprint(i),
 			DecisionID: fmt.Sprint(i),
@@ -91,6 +94,7 @@ func TestPluginStartSameInput(t *testing.T) {
 			Results:    &result,
 			RemoteAddr: "test",
 			Timestamp:  ts,
+			Metrics:    testMetrics,
 		})
 	}
 
@@ -103,30 +107,36 @@ func TestPluginStartSameInput(t *testing.T) {
 	chunk2 := <-fixture.server.ch
 	chunk3 := <-fixture.server.ch
 	chunk4 := <-fixture.server.ch
-	expLen1 := 141
-	expLen2 := 140
-	expLen3 := 140
-	expLen4 := 79
+	expLen1 := 122
+	expLen2 := 121
+	expLen3 := 121
+	expLen4 := 36
 
-	if len(chunk1) != expLen1 || len(chunk2) != expLen2 || len((chunk3)) != expLen3 || len(chunk4) != expLen4 {
+	if len(chunk1) != expLen1 || len(chunk2) != expLen2 || len(chunk3) != expLen3 || len(chunk4) != expLen4 {
 		t.Fatalf("Expected chunk lens %v, %v, %v and %v but got: %v, %v, %v and %v", expLen1, expLen2, expLen3, expLen4, len(chunk1), len(chunk2), len(chunk3), len(chunk4))
 	}
 
 	var expInput interface{} = map[string]interface{}{"method": "GET"}
+
+	msAsFloat64 := map[string]interface{}{}
+	for k, v := range testMetrics.All() {
+		msAsFloat64[k] = float64(v.(uint64))
+	}
 
 	exp := EventV1{
 		Labels: map[string]string{
 			"id":  "test-instance-id",
 			"app": "example-app",
 		},
-		Revision:    "499",
-		DecisionID:  "499",
+		Revision:    "399",
+		DecisionID:  "399",
 		Path:        "tda/bar",
 		Input:       &expInput,
 		Result:      &result,
 		RequestedBy: "test",
 		Timestamp:   ts,
 		Version:     getVersion(),
+		Metrics:     msAsFloat64,
 	}
 
 	if !reflect.DeepEqual(chunk4[expLen4-1], exp) {
@@ -426,6 +436,7 @@ func (t *testServer) handle(w http.ResponseWriter, r *http.Request) {
 	if err := gr.Close(); err != nil {
 		t.t.Fatal(err)
 	}
+	t.t.Logf("decision log test server received %d events", len(events))
 	t.ch <- events
 	w.WriteHeader(t.expCode)
 }
@@ -474,4 +485,10 @@ func setVersion(opaVersion string) {
 
 func getVersion() string {
 	return version.Version
+}
+
+func getWellKnownMetrics() metrics.Metrics {
+	m := metrics.New()
+	m.Counter("test_counter").Incr()
+	return m
 }

@@ -32,15 +32,16 @@ type Logger interface {
 
 // EventV1 represents a decision log event.
 type EventV1 struct {
-	Labels      map[string]string `json:"labels"`
-	DecisionID  string            `json:"decision_id"`
-	Revision    string            `json:"revision,omitempty"`
-	Path        string            `json:"path"`
-	Input       *interface{}      `json:"input,omitempty"`
-	Result      *interface{}      `json:"result,omitempty"`
-	RequestedBy string            `json:"requested_by"`
-	Timestamp   time.Time         `json:"timestamp"`
-	Version     string            `json:"version"`
+	Labels      map[string]string      `json:"labels"`
+	DecisionID  string                 `json:"decision_id"`
+	Revision    string                 `json:"revision,omitempty"`
+	Path        string                 `json:"path"`
+	Input       *interface{}           `json:"input,omitempty"`
+	Result      *interface{}           `json:"result,omitempty"`
+	RequestedBy string                 `json:"requested_by"`
+	Timestamp   time.Time              `json:"timestamp"`
+	Version     string                 `json:"version"`
+	Metrics     map[string]interface{} `json:"metrics,omitempty"`
 }
 
 const (
@@ -226,6 +227,10 @@ func (p *Plugin) Log(ctx context.Context, decision *server.Info) {
 		RequestedBy: decision.RemoteAddr,
 		Timestamp:   decision.Timestamp,
 		Version:     version.Version,
+	}
+
+	if decision.Metrics != nil {
+		event.Metrics = decision.Metrics.All()
 	}
 
 	if p.config.Plugin != nil {
