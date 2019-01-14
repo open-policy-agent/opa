@@ -1124,6 +1124,11 @@ func TestCompilerRewriteLocalAssignments(t *testing.T) {
 		input := 1
 		a := [true | true with input as 2; true with input as 3]
 	}
+
+	rewrite_value_in_assignment {
+		a := 1
+		b := 1 with input as [a]
+	}
 	`)
 
 	c.Modules["test2"] = MustParseModule(`package test
@@ -1190,6 +1195,11 @@ func TestCompilerRewriteLocalAssignments(t *testing.T) {
 		__local28__ = 1
 		__local29__ = [true | true with input as 2; true with input as 3]
 	}
+
+	rewrite_value_in_assignment {
+		__local30__ = 1
+		__local31__ = 1 with input as [__local30__]
+	}
 	`)
 
 	if len(module1.Rules) != len(expectedModule.Rules) {
@@ -1228,6 +1238,7 @@ func TestRewriteLocalVarDeclarationErrors(t *testing.T) {
 		[b, r2] := [1, 2]
 		input.path == 1
 		input := "foo"
+		_ := [1 | nested := 1; nested := 2]
 	}
 
 	negation {
@@ -1254,6 +1265,7 @@ func TestRewriteLocalVarDeclarationErrors(t *testing.T) {
 		"var r1 assigned or referenced above",
 		"var r2 assigned or referenced above",
 		"var input assigned or referenced above",
+		"var nested assigned or referenced above",
 		"cannot assign vars inside negated expression",
 		"cannot assign to ref",
 		"cannot assign to arraycomprehension",
