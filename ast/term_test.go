@@ -178,6 +178,7 @@ func TestFind(t *testing.T) {
 		expected interface{}
 	}{
 		{RefTerm(StringTerm("foo"), IntNumberTerm(1), StringTerm("bar")), MustParseTerm(`{2, 3, 4}`)},
+		{RefTerm(StringTerm("foo"), IntNumberTerm(1), StringTerm("bar"), IntNumberTerm(4)), MustParseTerm(`4`)},
 		{RefTerm(StringTerm("foo"), IntNumberTerm(2)), fmt.Errorf("not found")},
 		{RefTerm(StringTerm("baz"), StringTerm("qux"), IntNumberTerm(0)), MustParseTerm(`"hello"`)},
 	}

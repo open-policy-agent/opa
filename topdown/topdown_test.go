@@ -2211,7 +2211,8 @@ u[x] { b[_] = x; x > 1 }
 w = [[1, 2], [3, 4]] { true }
 gt1 = true { req1 > 1 }
 keys[x] = y { data.numbers[_] = x; to_number(x, y) }
-loopback = input { true }`})
+loopback = input { true }
+sets { input.foo[{1}][1] = 1 } `})
 
 	store := inmem.NewFromObject(loadSmallTestData())
 
@@ -2247,6 +2248,8 @@ loopback = input { true }`})
 			}
 		}
 	}`, "true")
+
+	assertTopDownWithPath(t, compiler, store, "input set", []string{"z", "sets"}, `{"foo": {{1}}}`, `true`)
 }
 
 func TestTopDownPartialDocConstants(t *testing.T) {
@@ -2594,6 +2597,7 @@ allow_merge_2 = true {data.b = {"v1": "hello", "v2": "world", "v3": "again"}}
 virtual[x] { data.a.b[x] = 1 }
 mock_var = {"a": 0, "b": 0}
 mock_rule = false {1 = 2}
+setl[x] { data.foo[x] }
 
 allow1 {
 	data.label.b.c = [1,2,3]
@@ -2645,7 +2649,8 @@ test_mock_var = y {y = ex.mock_var with ex.mock_var as {"c": 1, "d": 2}}
 test_mock_rule {ex.mock_rule with ex.mock_rule as true}
 test_rule_chain {ex.allow with data.label.b.c as [1,2,3]}
 only_with_data_no_with_input { ex.input_eq with data.foo as 1 }
-only_with_input_no_with_data { ex.data_eq with input as {} }`,
+only_with_input_no_with_data { ex.data_eq with input as {} }
+mock_data_set { ex.setl[1] with data.foo as {1} }`,
 	})
 
 	store := inmem.NewFromObject(loadSmallTestData())
@@ -2673,6 +2678,7 @@ only_with_input_no_with_data { ex.data_eq with input as {} }`,
 	assertTopDownWithPath(t, compiler, store, "with rule chain", []string{"test", "test_rule_chain"}, "", "true")
 	assertTopDownWithPath(t, compiler, store, "bug 1083", []string{"test", "only_with_data_no_with_input"}, "", "")
 	assertTopDownWithPath(t, compiler, store, "bug 1100", []string{"test", "only_with_input_no_with_data"}, "", "true")
+	assertTopDownWithPath(t, compiler, store, "set lookup", []string{"test", "mock_data_set"}, "", "true")
 }
 
 func TestTopDownElseKeyword(t *testing.T) {
