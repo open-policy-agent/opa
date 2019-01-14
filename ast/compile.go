@@ -1856,7 +1856,7 @@ func resolveRef(globals map[Var]Ref, ignore *assignedVarStack, ref Ref) Ref {
 	for i, x := range ref {
 		switch v := x.Value.(type) {
 		case Var:
-			if g, ok := globals[v]; ok {
+			if g, ok := globals[v]; ok && !ignore.Assigned(v) {
 				cpy := g.Copy()
 				for i := range cpy {
 					cpy[i].SetLocation(x.Location)
