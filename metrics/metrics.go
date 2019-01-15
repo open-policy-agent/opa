@@ -17,6 +17,7 @@ import (
 
 // Well-known metric names.
 const (
+	ServerHandler     = "server_handler"
 	RegoQueryCompile  = "rego_query_compile"
 	RegoQueryEval     = "rego_query_eval"
 	RegoQueryParse    = "rego_query_parse"

@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/plugins"
 	"github.com/open-policy-agent/opa/server/identifier"
 	"github.com/open-policy-agent/opa/server/types"
@@ -1192,6 +1193,7 @@ func TestDataMetrics(t *testing.T) {
 		"timer_rego_query_parse_ns",
 		"timer_rego_query_compile_ns",
 		"timer_rego_query_eval_ns",
+		"timer_server_handler_ns",
 	}
 
 	for _, key := range expected {
@@ -1216,6 +1218,7 @@ func TestDataMetrics(t *testing.T) {
 		"timer_rego_query_compile_ns",
 		"timer_rego_query_eval_ns",
 		"timer_rego_partial_eval_ns",
+		"timer_server_handler_ns",
 	}
 
 	for _, key := range expected {
@@ -2143,6 +2146,13 @@ func TestDecisonLogging(t *testing.T) {
 
 	if len(decisions) != 5 {
 		t.Fatalf("Expected exactly 5 decisions but got: %d", len(decisions))
+	}
+
+	// Verify decisions contain metrics.ServerHandler timer.
+	for i, d := range decisions {
+		if d.Metrics.Timer(metrics.ServerHandler).Value() == 0 {
+			t.Fatalf("Expected server handler timer to be started on decision %d but got %v", i, d)
+		}
 	}
 }
 
