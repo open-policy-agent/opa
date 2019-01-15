@@ -134,6 +134,14 @@ func TestPluginStartSameInput(t *testing.T) {
 		Metrics:     createdMetrics.All(),
 	}
 
+	chunkMetrics := chunk4[expLen4-1].Metrics
+	// Torin: The events are serialized to JSON and sent to the server
+	// The server deserializes them into EventV1 structs
+	// The deserialization constructs them as float64 (the default behaviour for JSON numbers) so
+	// we need to convert to int64 so DeepEqual works properly
+	for k := range chunkMetrics {
+		chunkMetrics[k] = int64(0)
+	}
 	if !reflect.DeepEqual(chunk4[expLen4-1], exp) {
 		t.Fatalf("Expected %+v but got %+v", exp, chunk4[expLen4-1])
 	}
@@ -142,6 +150,7 @@ func TestPluginStartSameInput(t *testing.T) {
 func TestPluginStartChangingInputValues(t *testing.T) {
 
 	ctx := context.Background()
+	createdMetrics := CreateMetrics()
 
 	fixture := newTestFixture(t)
 	defer fixture.server.stop()
@@ -156,7 +165,7 @@ func TestPluginStartChangingInputValues(t *testing.T) {
 
 	var input map[string]interface{}
 
-	for i := 0; i < 400; i++ {
+	for i := 0; i < 300; i++ {
 		input = map[string]interface{}{"method": getValueForMethod(i), "path": getValueForPath(i), "user": getValueForUser(i)}
 
 		fixture.plugin.Log(ctx, &server.Info{
@@ -167,6 +176,7 @@ func TestPluginStartChangingInputValues(t *testing.T) {
 			Results:    &result,
 			RemoteAddr: "test",
 			Timestamp:  ts,
+			Metrics:    createdMetrics,
 		})
 	}
 
@@ -179,10 +189,10 @@ func TestPluginStartChangingInputValues(t *testing.T) {
 	chunk2 := <-fixture.server.ch
 	chunk3 := <-fixture.server.ch
 	chunk4 := <-fixture.server.ch
-	expLen1 := 124
-	expLen2 := 123
-	expLen3 := 123
-	expLen4 := 30
+	expLen1 := 76
+	expLen2 := 76
+	expLen3 := 75
+	expLen4 := 73
 
 	if len(chunk1) != expLen1 || len(chunk2) != expLen2 || len((chunk3)) != expLen3 || len(chunk4) != expLen4 {
 		t.Fatalf("Expected chunk lens %v, %v, %v and %v but got: %v, %v, %v and %v", expLen1, expLen2, expLen3, expLen4, len(chunk1), len(chunk2), len(chunk3), len(chunk4))
@@ -195,16 +205,21 @@ func TestPluginStartChangingInputValues(t *testing.T) {
 			"id":  "test-instance-id",
 			"app": "example-app",
 		},
-		Revision:    "399",
-		DecisionID:  "399",
+		Revision:    "299",
+		DecisionID:  "299",
 		Path:        "foo/bar",
 		Input:       &expInput,
 		Result:      &result,
 		RequestedBy: "test",
 		Timestamp:   ts,
 		Version:     getVersion(),
+		Metrics:     createdMetrics.All(),
 	}
 
+	chunkMetrics := chunk4[expLen4-1].Metrics
+	for k := range chunkMetrics {
+		chunkMetrics[k] = int64(0)
+	}
 	if !reflect.DeepEqual(chunk4[expLen4-1], exp) {
 		t.Fatalf("Expected %+v but got %+v", exp, chunk4[expLen4-1])
 	}
@@ -213,6 +228,7 @@ func TestPluginStartChangingInputValues(t *testing.T) {
 func TestPluginStartChangingInputKeysAndValues(t *testing.T) {
 
 	ctx := context.Background()
+	createdMetrics := CreateMetrics()
 
 	fixture := newTestFixture(t)
 	defer fixture.server.stop()
@@ -238,6 +254,7 @@ func TestPluginStartChangingInputKeysAndValues(t *testing.T) {
 			Results:    &result,
 			RemoteAddr: "test",
 			Timestamp:  ts,
+			Metrics:    createdMetrics,
 		})
 	}
 
@@ -247,7 +264,9 @@ func TestPluginStartChangingInputKeysAndValues(t *testing.T) {
 	}
 
 	<-fixture.server.ch
-	chunk2 := <-fixture.server.ch
+	<-fixture.server.ch
+	<-fixture.server.ch
+	chunk4 := <-fixture.server.ch
 
 	var expInput interface{} = input
 
@@ -264,16 +283,22 @@ func TestPluginStartChangingInputKeysAndValues(t *testing.T) {
 		RequestedBy: "test",
 		Timestamp:   ts,
 		Version:     getVersion(),
+		Metrics:     createdMetrics.All(),
+	}
+	chunkMetrics := chunk4[len(chunk4)-1].Metrics
+	for k := range chunkMetrics {
+		chunkMetrics[k] = int64(0)
 	}
 
-	if !reflect.DeepEqual(chunk2[len(chunk2)-1], exp) {
-		t.Fatalf("Expected %+v but got %+v", exp, chunk2[len(chunk2)-1])
+	if !reflect.DeepEqual(chunk4[len(chunk4)-1], exp) {
+		t.Fatalf("Expected %+v but got %+v", exp, chunk4[len(chunk4)-1])
 	}
 }
 
 func TestPluginRequeue(t *testing.T) {
 
 	ctx := context.Background()
+	createdMetrics := CreateMetrics()
 
 	fixture := newTestFixture(t)
 	defer fixture.server.stop()
@@ -289,6 +314,7 @@ func TestPluginRequeue(t *testing.T) {
 		Results:    &result1,
 		RemoteAddr: "test",
 		Timestamp:  time.Now().UTC(),
+		Metrics:    createdMetrics,
 	})
 
 	fixture.server.expCode = 500
@@ -492,8 +518,8 @@ func CreateMetrics() metrics.Metrics {
 
 	timers := m.GetTimer()
 	for k := range timers {
-		delete(timers, k)
-		//timers[k].Reset()
+		//delete(timers, k)
+		timers[k].Reset()
 	}
 
 	return m

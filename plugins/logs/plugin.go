@@ -215,7 +215,12 @@ func (p *Plugin) Stop(ctx context.Context) {
 // Log appends a decision log event to the buffer for uploading.
 func (p *Plugin) Log(ctx context.Context, decision *server.Info) {
 
+	var serverMetrics map[string]interface{}
 	path := strings.Replace(strings.TrimPrefix(decision.Query, "data."), ".", "/", -1)
+
+	if decision.Metrics != nil {
+		serverMetrics = decision.Metrics.All()
+	}
 
 	event := EventV1{
 		Labels:      p.manager.Labels(),
@@ -227,7 +232,7 @@ func (p *Plugin) Log(ctx context.Context, decision *server.Info) {
 		RequestedBy: decision.RemoteAddr,
 		Timestamp:   decision.Timestamp,
 		Version:     version.Version,
-		Metrics:     decision.Metrics.All(),
+		Metrics:     serverMetrics,
 	}
 
 	if p.config.Plugin != nil {
