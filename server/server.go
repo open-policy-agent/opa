@@ -415,7 +415,7 @@ func (s *Server) initRouter() {
 	s.Handler = router
 }
 
-func (s *Server) execQuery(ctx context.Context, r *http.Request, parsedQuery ast.Body, input ast.Value, explainMode types.ExplainModeV1, includeMetrics, includeInstrumentation, pretty bool) (results types.QueryResponseV1, err error) {
+func (s *Server) execQuery(ctx context.Context, r *http.Request, parsedQuery ast.Body, input ast.Value, m metrics.Metrics, explainMode types.ExplainModeV1, includeMetrics, includeInstrumentation, pretty bool) (results types.QueryResponseV1, err error) {
 
 	diagLogger := s.evalDiagnosticPolicy(r)
 
@@ -430,9 +430,8 @@ func (s *Server) execQuery(ctx context.Context, r *http.Request, parsedQuery ast
 		instrument = true
 	}
 
-	m := metrics.New()
-
 	compiler := s.getCompiler()
+
 	rego := rego.New(
 		rego.Store(s.store),
 		rego.Compiler(compiler),
@@ -502,7 +501,7 @@ func (s *Server) indexGet(w http.ResponseWriter, r *http.Request) {
 
 	_, parsedQuery, _ := validateQuery(qStr)
 
-	results, err := s.execQuery(ctx, r, parsedQuery, input, explainMode, false, false, true)
+	results, err := s.execQuery(ctx, r, parsedQuery, input, nil, explainMode, false, false, true)
 	if err != nil {
 		renderQueryResult(w, nil, err, t0)
 		return
@@ -556,8 +555,9 @@ func (s *Server) v0DataPost(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) v0QueryPath(w http.ResponseWriter, r *http.Request, path ast.Ref) {
-	ctx := r.Context()
 	m := metrics.New()
+	m.Timer(metrics.ServerHandler).Start()
+	ctx := r.Context()
 	diagLogger := s.evalDiagnosticPolicy(r)
 	input, err := readInputV0(r)
 	if err != nil {
@@ -601,6 +601,8 @@ func (s *Server) v0QueryPath(w http.ResponseWriter, r *http.Request, path ast.Re
 	)
 
 	rs, err := rego.Eval(ctx)
+
+	m.Timer(metrics.ServerHandler).Stop()
 
 	// Handle results.
 	if err != nil {
@@ -800,6 +802,10 @@ func (s *Server) v1CompilePost(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
+	m := metrics.New()
+
+	m.Timer(metrics.ServerHandler).Start()
+
 	ctx := r.Context()
 	vars := mux.Vars(r)
 	path := stringPathToDataRef(vars["path"])
@@ -816,7 +822,6 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 	includeMetrics := getBoolParam(r.URL, types.ParamMetricsV1, true)
 	includeInstrumentation := getBoolParam(r.URL, types.ParamInstrumentV1, true)
 
-	m := metrics.New()
 	m.Timer(metrics.RegoQueryParse).Start()
 
 	inputs := r.URL.Query()[types.ParamInputV1]
@@ -890,6 +895,8 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 		DecisionID: decisionID,
 	}
 
+	m.Timer(metrics.ServerHandler).Stop()
+
 	if includeMetrics || includeInstrumentation {
 		result.Metrics = m.All()
 	}
@@ -954,6 +961,9 @@ func (s *Server) v1DataPatch(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
+	m := metrics.New()
+	m.Timer(metrics.ServerHandler).Start()
+
 	ctx := r.Context()
 	vars := mux.Vars(r)
 	path := stringPathToDataRef(vars["path"])
@@ -970,8 +980,6 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 	includeMetrics := getBoolParam(r.URL, types.ParamMetricsV1, true)
 	includeInstrumentation := getBoolParam(r.URL, types.ParamInstrumentV1, true)
 	partial := getBoolParam(r.URL, types.ParamPartialV1, true)
-
-	m := metrics.New()
 
 	m.Timer(metrics.RegoQueryParse).Start()
 
@@ -1025,6 +1033,8 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 	}
 
 	rs, err := rego.Eval(ctx)
+
+	m.Timer(metrics.ServerHandler).Stop()
 
 	// Handle results.
 	if err != nil {
@@ -1360,6 +1370,7 @@ func (s *Server) v1PoliciesPut(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) v1QueryGet(w http.ResponseWriter, r *http.Request) {
+	m := metrics.New()
 	ctx := r.Context()
 	values := r.URL.Query()
 
@@ -1396,7 +1407,7 @@ func (s *Server) v1QueryGet(w http.ResponseWriter, r *http.Request) {
 	includeMetrics := getBoolParam(r.URL, types.ParamMetricsV1, true)
 	includeInstrumentation := getBoolParam(r.URL, types.ParamInstrumentV1, true)
 
-	results, err := s.execQuery(ctx, r, parsedQuery, nil, explainMode, includeMetrics, includeInstrumentation, pretty)
+	results, err := s.execQuery(ctx, r, parsedQuery, nil, m, explainMode, includeMetrics, includeInstrumentation, pretty)
 	if err != nil {
 		switch err := err.(type) {
 		case ast.Errors:
@@ -1411,6 +1422,7 @@ func (s *Server) v1QueryGet(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) v1QueryPost(w http.ResponseWriter, r *http.Request) {
+	m := metrics.New()
 	ctx := r.Context()
 
 	var request types.QueryRequestV1
@@ -1446,7 +1458,7 @@ func (s *Server) v1QueryPost(w http.ResponseWriter, r *http.Request) {
 	includeMetrics := getBoolParam(r.URL, types.ParamMetricsV1, true)
 	includeInstrumentation := getBoolParam(r.URL, types.ParamInstrumentV1, true)
 
-	results, err := s.execQuery(ctx, r, parsedQuery, nil, explainMode, includeMetrics, includeInstrumentation, pretty)
+	results, err := s.execQuery(ctx, r, parsedQuery, nil, m, explainMode, includeMetrics, includeInstrumentation, pretty)
 	if err != nil {
 		switch err := err.(type) {
 		case ast.Errors:
