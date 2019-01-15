@@ -16,6 +16,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/plugins"
 	"github.com/open-policy-agent/opa/server"
@@ -64,6 +65,29 @@ func TestPluginCustomBackend(t *testing.T) {
 	plugin.Log(ctx, &server.Info{Revision: "B"})
 
 	if len(backend.events) != 2 || backend.events[0].Revision != "A" || backend.events[1].Revision != "B" {
+		t.Fatal("Unexpected events:", backend.events)
+	}
+}
+
+func TestPluginErrorNoResult(t *testing.T) {
+	ctx := context.Background()
+	manager, _ := plugins.New(nil, "test-instance-id", inmem.New())
+
+	backend := &testPlugin{}
+	manager.Register("test_plugin", backend)
+
+	config, err := ParseConfig([]byte(`{"plugin": "test_plugin"}`), nil, []string{"test_plugin"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	plugin := New(config, manager)
+	plugin.Log(ctx, &server.Info{Error: fmt.Errorf("some error")})
+	plugin.Log(ctx, &server.Info{Error: ast.Errors{&ast.Error{
+		Code: "some_error",
+	}}})
+
+	if len(backend.events) != 2 || backend.events[0].Error == nil || backend.events[1].Error == nil {
 		t.Fatal("Unexpected events:", backend.events)
 	}
 }

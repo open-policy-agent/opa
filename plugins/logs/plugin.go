@@ -38,6 +38,7 @@ type EventV1 struct {
 	Path        string                 `json:"path"`
 	Input       *interface{}           `json:"input,omitempty"`
 	Result      *interface{}           `json:"result,omitempty"`
+	Error       error                  `json:"error,omitempty"`
 	RequestedBy string                 `json:"requested_by"`
 	Timestamp   time.Time              `json:"timestamp"`
 	Version     string                 `json:"version"`
@@ -231,6 +232,10 @@ func (p *Plugin) Log(ctx context.Context, decision *server.Info) {
 
 	if decision.Metrics != nil {
 		event.Metrics = decision.Metrics.All()
+	}
+
+	if decision.Error != nil {
+		event.Error = decision.Error
 	}
 
 	if p.config.Plugin != nil {

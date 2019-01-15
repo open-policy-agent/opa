@@ -2111,7 +2111,7 @@ func TestDecisionIDs(t *testing.T) {
 	}
 }
 
-func TestDecisonLogging(t *testing.T) {
+func TestDecisionLogging(t *testing.T) {
 	f := newFixture(t)
 	decisions := []*Info{}
 	f.server = f.server.WithDecisionLogger(func(_ context.Context, info *Info) {
@@ -2154,6 +2154,39 @@ func TestDecisonLogging(t *testing.T) {
 			t.Fatalf("Expected server handler timer to be started on decision %d but got %v", i, d)
 		}
 	}
+
+	decisions = nil
+
+	if err := f.v1("PUT", "/policies/test", "package foo\np { 1/0 }", 200, "{}"); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := f.v1("PUT", "/policies/test2", "package system\nmain { data.foo.p }", 200, "{}"); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := f.v1("POST", "/data", "", 500, ""); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := f.v1("GET", "/data", "", 500, ""); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := f.executeRequest(req, 500, ""); err != nil {
+		t.Fatal(err)
+	}
+
+	if len(decisions) != 3 {
+		t.Fatalf("Expected 3 decisions, issing decisions, got: %v", decisions)
+	}
+
+	for i, d := range decisions {
+		if d.Error == nil {
+			t.Fatalf("Expected error on decision %d but got: %v", i, d)
+		}
+	}
+
 }
 
 func TestWatchParams(t *testing.T) {
