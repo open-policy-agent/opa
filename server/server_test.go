@@ -3117,18 +3117,7 @@ allow {
 	endpoint := s.URL + "/v1/data/foo"
 
 	t.Run("happy path", func(t *testing.T) {
-		clientCert, err := tls.LoadX509KeyPair("testdata/client-cert.pem", "testdata/client-key.pem")
-		if err != nil {
-			t.Fatalf("read test client cert/key: %v", err)
-		}
-		c := http.DefaultClient
-		tr := http.DefaultTransport.(*http.Transport)
-		tr.TLSClientConfig = &tls.Config{
-			Certificates: []tls.Certificate{clientCert},
-			RootCAs:      pool,
-		}
-		c.Transport = tr
-
+		c := newClient(t, pool, "testdata/client-cert.pem", "testdata/client-key.pem")
 		resp, err := c.Get(endpoint)
 		if err != nil {
 			t.Fatalf("GET: %v", err)
@@ -3140,18 +3129,7 @@ allow {
 	})
 
 	t.Run("authn successful, authz failed", func(t *testing.T) {
-		clientCert, err := tls.LoadX509KeyPair("testdata/client-cert-2.pem", "testdata/client-key-2.pem")
-		if err != nil {
-			t.Fatalf("read test client cert/key: %v", err)
-		}
-		c := http.DefaultClient
-		tr := http.DefaultTransport.(*http.Transport)
-		tr.TLSClientConfig = &tls.Config{
-			Certificates: []tls.Certificate{clientCert},
-			RootCAs:      pool,
-		}
-		c.Transport = tr
-
+		c := newClient(t, pool, "testdata/client-cert-2.pem", "testdata/client-key-2.pem")
 		resp, err := c.Get(endpoint)
 		if err != nil {
 			t.Fatalf("GET: %v", err)
@@ -3163,16 +3141,33 @@ allow {
 	})
 
 	t.Run("client trusts server, but doesn't provide client cert", func(t *testing.T) {
-		c := http.DefaultClient
-		tr := http.DefaultTransport.(*http.Transport)
-		tr.TLSClientConfig = &tls.Config{
-			RootCAs: pool,
-		}
-		c.Transport = tr
-
+		c := newClient(t, pool)
 		_, err := c.Get(endpoint)
 		if _, ok := err.(*url.Error); !ok {
 			t.Errorf("expected *url.Error, got %T: %v", err, err)
 		}
 	})
+}
+
+func newClient(t *testing.T, pool *x509.CertPool, clientKeyPair ...string) *http.Client {
+	t.Helper()
+	c := *http.DefaultClient
+	// Note: zero-values in http.Transport are bad settings -- they let the client
+	// leak connections -- but it's good enough for these tests. Don't instantiate
+	// http.Transport without providing non-zero values in non-test code, please.
+	// See https://github.com/golang/go/issues/19620 for details.
+	tr := &http.Transport{
+		TLSClientConfig: &tls.Config{
+			RootCAs: pool,
+		},
+	}
+	if len(clientKeyPair) == 2 {
+		clientCert, err := tls.LoadX509KeyPair(clientKeyPair[0], clientKeyPair[1])
+		if err != nil {
+			t.Fatalf("read test client cert/key: %v", err)
+		}
+		tr.TLSClientConfig.Certificates = []tls.Certificate{clientCert}
+	}
+	c.Transport = tr
+	return &c
 }
