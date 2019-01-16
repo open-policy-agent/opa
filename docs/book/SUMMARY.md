@@ -141,6 +141,7 @@
   * [Kafka Authorization](kafka-authorization.md)
   * [Kubernetes Admission Control](kubernetes-admission-control.md)
   * [Terraform Testing](terraform.md)
+  * [Ceph Authorization](ceph-authorization.md)
 
 ## Best Practices
 
