@@ -92,6 +92,48 @@ func TestPluginErrorNoResult(t *testing.T) {
 	}
 }
 
+func TestPluginQueriesAndPaths(t *testing.T) {
+	ctx := context.Background()
+	manager, _ := plugins.New(nil, "test-instance-id", inmem.New())
+
+	backend := &testPlugin{}
+	manager.Register("test_plugin", backend)
+
+	config, err := ParseConfig([]byte(`{"plugin": "test_plugin"}`), nil, []string{"test_plugin"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	plugin := New(config, manager)
+	plugin.Log(ctx, &server.Info{Path: "data.foo"})
+	plugin.Log(ctx, &server.Info{Path: "data.foo.bar"})
+	plugin.Log(ctx, &server.Info{Query: "a = data.foo"})
+
+	exp := []struct {
+		query string
+		path  string
+	}{
+		// TODO(tsandall): we need to fix how POST /v1/data (and
+		// friends) are represented here. Currently we can't tell the
+		// difference between /v1/data and /v1/data/data. The decision
+		// log event paths should be slash prefixed to avoid ambiguity.
+		//		{path: "data"},
+		{path: "foo"},
+		{path: "foo/bar"},
+		{query: "a = data.foo"},
+	}
+
+	if len(exp) != len(backend.events) {
+		t.Fatalf("Expected %d events but got %v", len(exp), len(backend.events))
+	}
+
+	for i, e := range exp {
+		if e.query != backend.events[i].Query || e.path != backend.events[i].Path {
+			t.Fatalf("Unexpected event %d, want %v but got %v", i, e, backend.events[i])
+		}
+	}
+}
+
 func TestPluginStartSameInput(t *testing.T) {
 
 	ctx := context.Background()
@@ -115,7 +157,7 @@ func TestPluginStartSameInput(t *testing.T) {
 		fixture.plugin.Log(ctx, &server.Info{
 			Revision:   fmt.Sprint(i),
 			DecisionID: fmt.Sprint(i),
-			Query:      "data.tda.bar",
+			Path:       "data.tda.bar",
 			Input:      &input,
 			Results:    &result,
 			RemoteAddr: "test",
@@ -193,7 +235,7 @@ func TestPluginStartChangingInputValues(t *testing.T) {
 		fixture.plugin.Log(ctx, &server.Info{
 			Revision:   fmt.Sprint(i),
 			DecisionID: fmt.Sprint(i),
-			Query:      "data.foo.bar",
+			Path:       "data.foo.bar",
 			Input:      &input,
 			Results:    &result,
 			RemoteAddr: "test",
@@ -264,7 +306,7 @@ func TestPluginStartChangingInputKeysAndValues(t *testing.T) {
 		fixture.plugin.Log(ctx, &server.Info{
 			Revision:   fmt.Sprint(i),
 			DecisionID: fmt.Sprint(i),
-			Query:      "data.foo.bar",
+			Path:       "data.foo.bar",
 			Input:      &input,
 			Results:    &result,
 			RemoteAddr: "test",
@@ -316,7 +358,7 @@ func TestPluginRequeue(t *testing.T) {
 
 	fixture.plugin.Log(ctx, &server.Info{
 		DecisionID: "abc",
-		Query:      "data.foo.bar",
+		Path:       "data.foo.bar",
 		Input:      &input,
 		Results:    &result1,
 		RemoteAddr: "test",

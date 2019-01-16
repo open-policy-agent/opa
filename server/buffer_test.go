@@ -14,7 +14,7 @@ import (
 func TestBufferAutoErase(t *testing.T) {
 	buf := NewBoundedBuffer(30)
 	for i := 0; i < 100; i++ {
-		buf.Push(&Info{Query: fmt.Sprint(i)})
+		buf.Push(&Info{Path: fmt.Sprint(i)})
 	}
 
 	var i uint64 = 70
@@ -23,8 +23,8 @@ func TestBufferAutoErase(t *testing.T) {
 			t.Fatal("Ran off the end of the buffer")
 		}
 
-		if in.Query != fmt.Sprint(i) {
-			t.Fatalf("Expected query to be %d, got %s", i, in.Query)
+		if in.Path != fmt.Sprint(i) {
+			t.Fatalf("Expected query to be %d, got %s", i, in.Path)
 		}
 		i++
 	})
@@ -53,7 +53,7 @@ func testBufferRandomSize(t *testing.T, cap int) {
 		switch r := rand.Intn(threshold + 1); {
 		case r < threshold:
 			pushes++
-			buf.Push(&Info{Query: fmt.Sprint(cur)})
+			buf.Push(&Info{Path: fmt.Sprint(cur)})
 
 			cur++
 			if size == cap {
@@ -74,8 +74,8 @@ func testBufferRandomSize(t *testing.T, cap int) {
 					t.Fatal("Ran off the end of the buffer")
 				}
 
-				if i.Query != fmt.Sprint(j) {
-					t.Fatalf("Expected query to be %d, got %s", j, i.Query)
+				if i.Path != fmt.Sprint(j) {
+					t.Fatalf("Expected query to be %d, got %s", j, i.Path)
 				}
 				j++
 			})
