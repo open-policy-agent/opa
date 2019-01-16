@@ -55,8 +55,11 @@ Decision log updates contain the following fields:
 | `[_].labels` | `object` | Set of key-value pairs that uniquely identify the OPA instance. |
 | `[_].decision_id` | `string` | Unique identifier generated for each decision for traceability. |
 | `[_].revision` | `string` | Bundle revision that contained the policy used to produce the decision. |
-| `[_].path` | `string` | Hierarchical policy decision path, e.g., `/http/example/authz/allow`. |
+| `[_].path` | `string` | Hierarchical policy decision path, e.g., `/http/example/authz/allow`. Receivers should tolerate slash-prefixed paths. |
+| `[_].query` | `string` | Ad-hoc Rego query received by Query API. |
 | `[_].input` | `any` | Input data provided in the policy query. |
 | `[_].result` | `any` | Policy decision returned to the client, e.g., `true` or `false`. |
 | `[_].requested_by` | `string` | Identifier for client that executed policy query, e.g., the client address. |
 | `[_].timestamp` | `string` | RFC3999 timestamp of policy decision. |
+| `[_].version` | `string` | Version of the OPA instance that generated the event. |
+| `[_].metrics` | `object` | Key-value pairs of [performance metrics](rest-api.md#performance-metrics). |

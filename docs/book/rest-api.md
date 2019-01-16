@@ -1859,6 +1859,7 @@ OPA currently supports the following query performance metrics:
 - **timer_rego_query_eval_ns**: time taken (in nanonseconds) to evaluate the query.
 - **timer_rego_module_parse_ns**: time taken (in nanoseconds) to parse the input policy module.
 - **timer_rego_module_compile_ns**: time taken (in nanoseconds) to compile the loaded policy modules.
+- **timer_server_handler_ns**: time take (in nanoseconds) to handle the API request.
 
 OPA also supports query instrumentation. To enable query instrumentation,
 specify the `instrument=true` query parameter when executing the API call.
