@@ -40,7 +40,7 @@ func NewLoggingHandler(inner http.Handler) http.Handler {
 func (h *LoggingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	requestID := atomic.AddUint64(&h.requestID, uint64(1))
 
-	recorder := newRecorder(w, r, requestID, loggingEnabled(logrus.DebugLevel))
+	recorder := newRecorder(w, r, requestID, loggingEnabled(logrus.InfoLevel))
 	t0 := time.Now()
 
 	if loggingEnabled(logrus.InfoLevel) {
@@ -94,10 +94,9 @@ func (h *LoggingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			"resp_duration": float64(dt.Nanoseconds()) / 1e6,
 		}
 
-		if loggingEnabled(logrus.DebugLevel) {
+		if loggingEnabled(logrus.DebugLevel) || statusCode == 500 {
 			fields["resp_body"] = recorder.buf.String()
 		}
-
 		logrus.WithFields(fields).Info("Sent response.")
 	}
 }
