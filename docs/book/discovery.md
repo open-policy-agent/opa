@@ -103,3 +103,101 @@ In both cases, OPA's configuration is hierarchically organized under the
 `discovery.name` value. If discovery is enabled, the `service` field in the
 `bundles`, `status`, `decision logs` plugins is optional and will default to one
 of the services from the discovery configuration.
+
+## Example
+
+Let's see an example of how the discovery feature can be used to dynamically configure an OPA to download one of two bundles based on a configuration label that the OPA was started with. Let's say the label `region` indicates the region in which the OPA is running and it's value will decide the bundle to download.
+
+Below is a policy file which includes the bundle congfiguration.
+
+**example.rego**
+
+{%ace lang='python'%}
+package example
+
+discovery = {
+  "bundle": {
+    "name": bundle_name
+  }
+}
+
+rt = opa.runtime()
+region = rt.config.labels.region
+bundle_name = region_bundle[region]
+
+# region-bundle information
+region_bundle = {
+  "US": "example/test1/p",
+  "UK": "example/test2/p"
+}
+{%endace%}
+
+The `bundle_name` variable in `line 5` of the above policy will be dynamically selected based on the value of the label `region`. So if an OPA was started with `region: "US"`, then the `bundle_name` will be `example/test1/p`.
+
+Start an OPA with a configuration as shown below:
+
+**config.yaml**
+
+```yaml
+services:
+  - name: acmecorp
+    url: https://example.com/control-plane-api/v1
+    credentials:
+      bearer:
+        token: "bGFza2RqZmxha3NkamZsa2Fqc2Rsa2ZqYWtsc2RqZmtramRmYWxkc2tm"
+
+discovery:
+  name: /example/discovery
+
+labels:
+  region: "US"
+```
+
+Run OPA:
+
+```bash
+opa run -s -c config.yaml
+```
+
+You should see a log like below, which shows the bundle being downloaded. In this case, the bundle name is `example/test1/p` as `region` is `US`.
+
+```raw
+INFO Bundle downloaded and activated successfully. name=example/test1/p plugin=bundle
+```
+
+Now start another OPA with a configuration as shown below. Notice the `region` is `UK`:
+
+**config.yaml**
+
+```yaml
+services:
+  - name: acmecorp
+    url: https://example.com/control-plane-api/v1
+    credentials:
+      bearer:
+        token: "bGFza2RqZmxha3NkamZsa2Fqc2Rsa2ZqYWtsc2RqZmtramRmYWxkc2tm"
+
+discovery:
+  name: /example/discovery
+
+labels:
+  region: "UK"
+```
+
+Run OPA:
+
+```bash
+opa run -s -c config.yaml
+```
+
+In this case, the bundle being downloaded is `example/test2/p` as `region` is `UK`.
+
+```raw
+INFO Bundle downloaded and activated successfully. name=example/test2/p plugin=bundle
+```
+
+This shows how the discovery feature can help in centrally managing the bundle to be downloaded by an OPA based on a configuration label. You can use the same strategy to dynamically configure other plugins based on the running OPA's configuration labels or environment variables.
+
+## Limitations
+
+The discovery feature cannot be used to dynamically modify `services`, `labels` and `discovery`. This means that these configuration settings should be included in the bootup configuration file provided to OPA.
