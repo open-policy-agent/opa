@@ -302,4 +302,6 @@ The REPL also understands the [Import and Package](/how-do-i-write-policies.md#m
 +-------------------------------------------------------------------+
 ```
 
-> The REPL accepts multi-line input and will change appearance when it detects multi-line input.
+> The REPL accepts multi-line input and will change appearance when it
+> detects multi-line input. You can end multi-line input by inserting
+> a blank line.
