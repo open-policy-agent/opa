@@ -430,6 +430,15 @@ func (s *Server) execQuery(ctx context.Context, r *http.Request, parsedQuery ast
 		instrument = true
 	}
 
+	var rawInput *interface{}
+	if input != nil {
+		x, err := ast.JSON(input)
+		if err != nil {
+			return results, err
+		}
+		rawInput = &x
+	}
+
 	compiler := s.getCompiler()
 
 	rego := rego.New(
@@ -445,7 +454,7 @@ func (s *Server) execQuery(ctx context.Context, r *http.Request, parsedQuery ast
 
 	output, err := rego.Eval(ctx)
 	if err != nil {
-		diagLogger.Log(ctx, "", r.RemoteAddr, parsedQuery.String(), input, nil, err, m, buf)
+		diagLogger.Log(ctx, "", r.RemoteAddr, parsedQuery.String(), rawInput, nil, err, m, buf)
 		return results, err
 	}
 
@@ -462,7 +471,8 @@ func (s *Server) execQuery(ctx context.Context, r *http.Request, parsedQuery ast
 	}
 
 	var x interface{} = results.Result
-	diagLogger.Log(ctx, "", r.RemoteAddr, parsedQuery.String(), input, &x, nil, m, buf)
+	diagLogger.Log(ctx, "", r.RemoteAddr, parsedQuery.String(), rawInput, &x, nil, m, buf)
+
 	return results, nil
 }
 
@@ -565,12 +575,14 @@ func (s *Server) v0QueryPath(w http.ResponseWriter, r *http.Request, path ast.Re
 		return
 	}
 
-	var goInput interface{}
+	var goInput *interface{}
 	if input != nil {
-		if goInput, err = ast.JSON(input); err != nil {
+		x, err := ast.JSON(input)
+		if err != nil {
 			writer.ErrorString(w, http.StatusInternalServerError, types.CodeInvalidParameter, errors.Wrapf(err, "could not marshal input"))
 			return
 		}
+		goInput = &x
 	}
 
 	// Prepare for query.
@@ -592,7 +604,7 @@ func (s *Server) v0QueryPath(w http.ResponseWriter, r *http.Request, path ast.Re
 		rego.Compiler(s.getCompiler()),
 		rego.Store(s.store),
 		rego.Transaction(txn),
-		rego.Input(goInput),
+		rego.ParsedInput(input),
 		rego.Query(path.String()),
 		rego.Metrics(m),
 		rego.Instrument(diagLogger.Instrument()),
@@ -827,6 +839,7 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 	inputs := r.URL.Query()[types.ParamInputV1]
 
 	var input ast.Value
+
 	if len(inputs) > 0 {
 		var err error
 		input, err = readInputGetV1(inputs[len(inputs)-1])
@@ -838,13 +851,14 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 
 	m.Timer(metrics.RegoQueryParse).Stop()
 
-	var goInput interface{}
+	var goInput *interface{}
 	if input != nil {
-		var err error
-		if goInput, err = ast.JSON(input); err != nil {
+		x, err := ast.JSON(input)
+		if err != nil {
 			writer.ErrorString(w, http.StatusInternalServerError, types.CodeInvalidParameter, errors.Wrapf(err, "could not marshal input"))
 			return
 		}
+		goInput = &x
 	}
 
 	// Prepare for query.
@@ -872,7 +886,7 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 		rego.Compiler(s.getCompiler()),
 		rego.Store(s.store),
 		rego.Transaction(txn),
-		rego.Input(goInput),
+		rego.ParsedInput(input),
 		rego.Query(path.String()),
 		rego.Metrics(m),
 		rego.Tracer(buf),
@@ -989,12 +1003,14 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var goInput interface{}
+	var goInput *interface{}
 	if input != nil {
-		if goInput, err = ast.JSON(input); err != nil {
+		x, err := ast.JSON(input)
+		if err != nil {
 			writer.ErrorString(w, http.StatusInternalServerError, types.CodeInvalidParameter, errors.Wrapf(err, "could not marshal input"))
 			return
 		}
+		goInput = &x
 	}
 
 	m.Timer(metrics.RegoQueryParse).Stop()
@@ -1024,7 +1040,7 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 		instrument = true
 	}
 
-	rego, err := s.makeRego(ctx, partial, txn, goInput, path.String(), m, instrument, buf, opts)
+	rego, err := s.makeRego(ctx, partial, txn, input, path.String(), m, instrument, buf, opts)
 
 	if err != nil {
 		diagLogger.Log(ctx, "", r.RemoteAddr, path.String(), goInput, nil, err, m, nil)
@@ -1655,7 +1671,7 @@ func (s *Server) getCompiler() *ast.Compiler {
 	return s.manager.GetCompiler()
 }
 
-func (s *Server) makeRego(ctx context.Context, partial bool, txn storage.Transaction, input interface{}, path string, m metrics.Metrics, instrument bool, tracer topdown.Tracer, opts []func(*rego.Rego)) (*rego.Rego, error) {
+func (s *Server) makeRego(ctx context.Context, partial bool, txn storage.Transaction, input ast.Value, path string, m metrics.Metrics, instrument bool, tracer topdown.Tracer, opts []func(*rego.Rego)) (*rego.Rego, error) {
 
 	if partial {
 		s.mtx.Lock()
@@ -1672,7 +1688,7 @@ func (s *Server) makeRego(ctx context.Context, partial bool, txn storage.Transac
 			s.partials[path] = pr
 		}
 		opts := []func(*rego.Rego){
-			rego.Input(input),
+			rego.ParsedInput(input),
 			rego.Transaction(txn),
 			rego.Metrics(m),
 			rego.Instrument(instrument),
@@ -1681,7 +1697,7 @@ func (s *Server) makeRego(ctx context.Context, partial bool, txn storage.Transac
 		return pr.Rego(opts...), nil
 	}
 
-	opts = append(opts, rego.Transaction(txn), rego.Query(path), rego.Input(input), rego.Metrics(m), rego.Tracer(tracer), rego.Instrument(instrument), rego.Runtime(s.runtime))
+	opts = append(opts, rego.Transaction(txn), rego.Query(path), rego.ParsedInput(input), rego.Metrics(m), rego.Tracer(tracer), rego.Instrument(instrument), rego.Runtime(s.runtime))
 	return rego.New(opts...), nil
 }
 
@@ -2087,7 +2103,7 @@ func (l diagnosticsLogger) Instrument() bool {
 	return l.instrument
 }
 
-func (l diagnosticsLogger) Log(ctx context.Context, decisionID, remoteAddr, query string, input interface{}, results *interface{}, err error, m metrics.Metrics, tracer *topdown.BufferTracer) {
+func (l diagnosticsLogger) Log(ctx context.Context, decisionID, remoteAddr, query string, input *interface{}, results *interface{}, err error, m metrics.Metrics, tracer *topdown.BufferTracer) {
 
 	info := &Info{
 		Revision:   l.revision,

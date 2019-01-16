@@ -77,7 +77,7 @@ type Info struct {
 	RemoteAddr string
 	Query      string
 	Timestamp  time.Time
-	Input      interface{}
+	Input      *interface{}
 	Results    *interface{}
 	Error      error
 	Metrics    metrics.Metrics

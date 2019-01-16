@@ -223,7 +223,7 @@ func (p *Plugin) Log(ctx context.Context, decision *server.Info) {
 		DecisionID:  decision.DecisionID,
 		Revision:    decision.Revision,
 		Path:        path,
-		Input:       &decision.Input,
+		Input:       decision.Input,
 		Result:      decision.Results,
 		RequestedBy: decision.RemoteAddr,
 		Timestamp:   decision.Timestamp,
