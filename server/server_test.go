@@ -1902,6 +1902,7 @@ func TestDiagnostics(t *testing.T) {
 	exp := []struct {
 		remoteAddr string
 		query      string
+		path       string
 		input      interface{}
 		result     *interface{}
 		metrics    bool
@@ -1910,12 +1911,12 @@ func TestDiagnostics(t *testing.T) {
 	}{
 		{
 			remoteAddr: "testaddr",
-			query:      "data.x",
+			path:       "data.x",
 			result:     &expList,
 			metrics:    true,
 		},
 		{
-			query:   "data.x",
+			path:    "data.x",
 			input:   map[string]interface{}{"test": "foo"},
 			result:  &expList,
 			metrics: true,
@@ -1926,14 +1927,14 @@ func TestDiagnostics(t *testing.T) {
 			metrics: true,
 		},
 		{
-			query:      "data.x",
+			path:       "data.x",
 			result:     &expList,
 			metrics:    true,
 			instrument: true,
 			explainLen: 5,
 		},
 		{
-			query:      "data.z",
+			path:       "data.z",
 			result:     nil,
 			metrics:    true,
 			instrument: true,
@@ -1951,7 +1952,7 @@ func TestDiagnostics(t *testing.T) {
 			result: &expMap2,
 		},
 		{
-			query:  "data.system.main",
+			path:   "data.system.main",
 			result: &expStr,
 		},
 	}
@@ -1974,6 +1975,8 @@ func TestDiagnostics(t *testing.T) {
 		test.Subtest(t, fmt.Sprint(i), func(t *testing.T) {
 			e := exp[i]
 			if e.query != d.Query {
+				t.Fatalf("Expected query to be %v, got %v", e.query, d.Query)
+			} else if e.path != d.Path {
 				t.Fatalf("Expected query to be %v, got %v", e.query, d.Query)
 			}
 
@@ -2125,85 +2128,146 @@ func TestDecisionLogging(t *testing.T) {
 		decisions = append(decisions, info)
 	})
 
-	if err := f.v1("PUT", "/policies/test", "package system\nmain=true", 200, "{}"); err != nil {
-		t.Fatal(err)
+	reqs := []struct {
+		raw      *http.Request
+		v0       bool
+		method   string
+		path     string
+		body     string
+		code     int
+		response string
+	}{
+		{
+			method:   "PUT",
+			path:     "/policies/test",
+			body:     "package system\nmain=true",
+			response: "{}",
+		},
+		{
+			method:   "POST",
+			path:     "/data",
+			response: `{"result": {}, "decision_id": "1"}`,
+		},
+		{
+			method:   "GET",
+			path:     "/data",
+			response: `{"result": {}, "decision_id": "2"}`,
+		},
+		{
+			method:   "POST",
+			path:     "/data/nonexistent",
+			body:     `{"input": {"foo": 1}}`,
+			response: `{"decision_id": "3"}`,
+		},
+		{
+			method:   "POST",
+			v0:       true,
+			path:     "/data",
+			response: `{}`,
+		},
+		{
+			raw:      newReqUnversioned("POST", "/", ""),
+			response: "true",
+		},
+		{
+			method:   "GET",
+			path:     "/query?q=data=x",
+			response: `{"result": [{"x": {}}]}`,
+		},
+		{
+			method:   "POST",
+			path:     "/query",
+			body:     `{"query": "data=x"}`,
+			response: `{"result": [{"x": {}}]}`,
+		},
+		{
+			method:   "PUT",
+			path:     "/policies/test2",
+			body:     "package foo\np { 1/0 }",
+			response: `{}`,
+		},
+		{
+			method:   "PUT",
+			path:     "/policies/test",
+			body:     "package system\nmain { data.foo.p }",
+			response: `{}`,
+		},
+		{
+			method: "POST",
+			path:   "/data",
+			code:   500,
+		},
+		{
+			method: "GET",
+			path:   "/data",
+			code:   500,
+		},
+		{
+			raw:  newReqUnversioned("POST", "/", ""),
+			code: 500,
+		},
 	}
 
-	if err := f.v1("POST", "/data", "", 200, `{"result": {}, "decision_id": "1"}`); err != nil {
-		t.Fatal(err)
+	for _, r := range reqs {
+		code := r.code
+		if code == 0 {
+			code = http.StatusOK
+		}
+		if r.raw != nil {
+			if err := f.executeRequest(r.raw, code, r.response); err != nil {
+				t.Fatal(err)
+			}
+		} else if r.v0 {
+			if err := f.v0(r.method, r.path, r.body, code, r.response); err != nil {
+				t.Fatal(err)
+			}
+		} else {
+			if err := f.v1(r.method, r.path, r.body, code, r.response); err != nil {
+				t.Fatal(err)
+			}
+		}
 	}
 
-	// Decision log event input should be nil because we didn't
-	// provide a body.
-	if decisions[0].Input != nil {
-		t.Fatalf("Expected nil input for decision but got: %v", decisions[0])
+	exp := []struct {
+		input   string
+		path    string
+		query   string
+		wantErr bool
+	}{
+		{path: "data"},
+		{path: "data"},
+		{path: "data.nonexistent", input: `{"foo": 1}`},
+		{path: "data"},
+		{path: "data.system.main"},
+		{query: "data = x"},
+		{query: "data = x"},
+		{path: "data", wantErr: true},
+		{path: "data", wantErr: true},
+		{path: "data.system.main", wantErr: true},
 	}
 
-	if err := f.v1("GET", "/data", "", 200, `{"result": {}, "decision_id": "2"}`); err != nil {
-		t.Fatal(err)
+	if len(decisions) != len(exp) {
+		t.Fatalf("Expected exactly %d decisions but got: %d", len(exp), len(decisions))
 	}
 
-	if err := f.v0("POST", "/data", "", 200, `{}`); err != nil {
-		t.Fatal(err)
-	}
-
-	req := newReqUnversioned("POST", "/", "")
-
-	if err := f.executeRequest(req, 200, "true"); err != nil {
-		t.Fatal(err)
-	}
-
-	if err := f.v1("GET", "/query?q=data=x", "", 200, `{"result": [{"x": {}}]}`); err != nil {
-		t.Fatal(err)
-	}
-
-	if err := f.v1("POST", "/query", `{"query": "data=x"}`, 200, `{"result": [{"x": {}}]}`); err != nil {
-		t.Fatal(err)
-	}
-
-	if len(decisions) != 6 {
-		t.Fatalf("Expected exactly 6 decisions but got: %d", len(decisions))
-	}
-
-	// Verify decisions contain metrics.ServerHandler timer.
 	for i, d := range decisions {
+		if d.DecisionID == "" {
+			t.Fatalf("Expected decision ID on decision %d but got: %v", i, d)
+		}
 		if d.Metrics.Timer(metrics.ServerHandler).Value() == 0 {
 			t.Fatalf("Expected server handler timer to be started on decision %d but got %v", i, d)
 		}
-	}
-
-	decisions = nil
-
-	if err := f.v1("PUT", "/policies/test", "package foo\np { 1/0 }", 200, "{}"); err != nil {
-		t.Fatal(err)
-	}
-
-	if err := f.v1("PUT", "/policies/test2", "package system\nmain { data.foo.p }", 200, "{}"); err != nil {
-		t.Fatal(err)
-	}
-
-	if err := f.v1("POST", "/data", "", 500, ""); err != nil {
-		t.Fatal(err)
-	}
-
-	if err := f.v1("GET", "/data", "", 500, ""); err != nil {
-		t.Fatal(err)
-	}
-
-	if err := f.executeRequest(req, 500, ""); err != nil {
-		t.Fatal(err)
-	}
-
-	if len(decisions) != 3 {
-		t.Fatalf("Expected 3 decisions, issing decisions, got: %v", decisions)
-	}
-
-	for i, d := range decisions {
-		if d.Error == nil {
-			t.Fatalf("Expected error on decision %d but got: %v", i, d)
+		if exp[i].path != d.Path || exp[i].query != d.Query {
+			t.Fatalf("Unexpected path or query on %d, want: %v but got: %v", i, exp[i], d)
 		}
-		if d.DecisionID == "" {
-			t.Fatalf("Expected decision ID on decision %d but got: %v", i, d)
+		if exp[i].wantErr && d.Error == nil || !exp[i].wantErr && d.Error != nil {
+			t.Fatalf("Unexpected error on %d, wantErr: %v, got: %v", i, exp[i].wantErr, d)
+		}
+		if exp[i].input != "" {
+			input := util.MustUnmarshalJSON([]byte(exp[i].input))
+			if d.Input == nil || !reflect.DeepEqual(input, *d.Input) {
+				t.Fatalf("Unexpected input on %d, want: %v, but got: %v", i, exp[i], d)
+			}
 		}
 	}
 

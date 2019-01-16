@@ -143,6 +143,7 @@ type DiagnosticsResponseElementV1 struct {
 	DecisionID  string       `json:"decision_id,omitempty"`
 	RemoteAddr  string       `json:"remote_addr"`
 	Query       string       `json:"query"`
+	Path        string       `json:"path"`
 	Timestamp   string       `json:"timestamp"`
 	Input       interface{}  `json:"input,omitempty"`
 	Result      *interface{} `json:"result,omitempty"`

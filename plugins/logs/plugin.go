@@ -35,7 +35,8 @@ type EventV1 struct {
 	Labels      map[string]string      `json:"labels"`
 	DecisionID  string                 `json:"decision_id"`
 	Revision    string                 `json:"revision,omitempty"`
-	Path        string                 `json:"path"`
+	Path        string                 `json:"path,omitempty"`
+	Query       string                 `json:"query,omitempty"`
 	Input       *interface{}           `json:"input,omitempty"`
 	Result      *interface{}           `json:"result,omitempty"`
 	Error       error                  `json:"error,omitempty"`
@@ -216,13 +217,14 @@ func (p *Plugin) Stop(ctx context.Context) {
 // Log appends a decision log event to the buffer for uploading.
 func (p *Plugin) Log(ctx context.Context, decision *server.Info) {
 
-	path := strings.Replace(strings.TrimPrefix(decision.Query, "data."), ".", "/", -1)
+	path := strings.Replace(strings.TrimPrefix(decision.Path, "data."), ".", "/", -1)
 
 	event := EventV1{
 		Labels:      p.manager.Labels(),
 		DecisionID:  decision.DecisionID,
 		Revision:    decision.Revision,
 		Path:        path,
+		Query:       decision.Query,
 		Input:       decision.Input,
 		Result:      decision.Results,
 		RequestedBy: decision.RemoteAddr,

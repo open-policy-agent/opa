@@ -454,7 +454,7 @@ func (s *Server) execQuery(ctx context.Context, r *http.Request, decisionID stri
 
 	output, err := rego.Eval(ctx)
 	if err != nil {
-		diagLogger.Log(ctx, decisionID, r.RemoteAddr, parsedQuery.String(), rawInput, nil, err, m, buf)
+		diagLogger.Log(ctx, decisionID, r.RemoteAddr, "", parsedQuery.String(), rawInput, nil, err, m, buf)
 		return results, err
 	}
 
@@ -471,7 +471,7 @@ func (s *Server) execQuery(ctx context.Context, r *http.Request, decisionID stri
 	}
 
 	var x interface{} = results.Result
-	diagLogger.Log(ctx, decisionID, r.RemoteAddr, parsedQuery.String(), rawInput, &x, nil, m, buf)
+	diagLogger.Log(ctx, decisionID, r.RemoteAddr, "", parsedQuery.String(), rawInput, &x, nil, m, buf)
 
 	return results, nil
 }
@@ -623,7 +623,7 @@ func (s *Server) v0QueryPath(w http.ResponseWriter, r *http.Request, path ast.Re
 
 	// Handle results.
 	if err != nil {
-		diagLogger.Log(ctx, decisionID, r.RemoteAddr, path.String(), goInput, nil, err, m, buf)
+		diagLogger.Log(ctx, decisionID, r.RemoteAddr, path.String(), "", goInput, nil, err, m, buf)
 		writer.ErrorAuto(w, err)
 		return
 	}
@@ -633,7 +633,7 @@ func (s *Server) v0QueryPath(w http.ResponseWriter, r *http.Request, path ast.Re
 		return
 	}
 
-	diagLogger.Log(ctx, decisionID, r.RemoteAddr, path.String(), goInput, &rs[0].Expressions[0].Value, nil, m, buf)
+	diagLogger.Log(ctx, decisionID, r.RemoteAddr, path.String(), "", goInput, &rs[0].Expressions[0].Value, nil, m, buf)
 	writer.JSON(w, 200, rs[0].Expressions[0].Value, false)
 }
 
@@ -654,6 +654,7 @@ func (s *Server) v1DiagnosticsGet(w http.ResponseWriter, r *http.Request) {
 			RemoteAddr: i.RemoteAddr,
 			Timestamp:  i.Timestamp.UTC().Format(time.RFC3339Nano),
 			Query:      i.Query,
+			Path:       i.Path,
 			Input:      i.Input,
 			Metrics:    i.Metrics.All(),
 		}
@@ -905,7 +906,7 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 
 	// Handle results.
 	if err != nil {
-		diagLogger.Log(ctx, decisionID, r.RemoteAddr, path.String(), goInput, nil, err, m, buf)
+		diagLogger.Log(ctx, decisionID, r.RemoteAddr, path.String(), "", goInput, nil, err, m, buf)
 		writer.ErrorAuto(w, err)
 		return
 	}
@@ -927,7 +928,7 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 				writer.ErrorAuto(w, err)
 			}
 		}
-		diagLogger.Log(ctx, decisionID, r.RemoteAddr, path.String(), goInput, nil, nil, m, buf)
+		diagLogger.Log(ctx, decisionID, r.RemoteAddr, path.String(), "", goInput, nil, nil, m, buf)
 		writer.JSON(w, 200, result, pretty)
 		return
 	}
@@ -938,7 +939,7 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 		result.Explanation = s.getExplainResponse(explainMode, *buf, pretty)
 	}
 
-	diagLogger.Log(ctx, decisionID, r.RemoteAddr, path.String(), goInput, result.Result, nil, m, buf)
+	diagLogger.Log(ctx, decisionID, r.RemoteAddr, path.String(), "", goInput, result.Result, nil, m, buf)
 	writer.JSON(w, 200, result, pretty)
 }
 
@@ -1050,7 +1051,7 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 	rego, err := s.makeRego(ctx, partial, txn, input, path.String(), m, instrument, buf, opts)
 
 	if err != nil {
-		diagLogger.Log(ctx, decisionID, r.RemoteAddr, path.String(), goInput, nil, err, m, nil)
+		diagLogger.Log(ctx, decisionID, r.RemoteAddr, path.String(), "", goInput, nil, err, m, nil)
 		writer.ErrorAuto(w, err)
 		return
 	}
@@ -1061,7 +1062,7 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 
 	// Handle results.
 	if err != nil {
-		diagLogger.Log(ctx, decisionID, r.RemoteAddr, path.String(), goInput, nil, err, m, buf)
+		diagLogger.Log(ctx, decisionID, r.RemoteAddr, path.String(), "", goInput, nil, err, m, buf)
 		writer.ErrorAuto(w, err)
 		return
 	}
@@ -1081,7 +1082,7 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 				writer.ErrorAuto(w, err)
 			}
 		}
-		diagLogger.Log(ctx, decisionID, r.RemoteAddr, path.String(), goInput, nil, nil, m, buf)
+		diagLogger.Log(ctx, decisionID, r.RemoteAddr, path.String(), "", goInput, nil, nil, m, buf)
 		writer.JSON(w, 200, result, pretty)
 		return
 	}
@@ -1092,7 +1093,7 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 		result.Explanation = s.getExplainResponse(explainMode, *buf, pretty)
 	}
 
-	diagLogger.Log(ctx, decisionID, r.RemoteAddr, path.String(), goInput, result.Result, nil, m, buf)
+	diagLogger.Log(ctx, decisionID, r.RemoteAddr, path.String(), "", goInput, result.Result, nil, m, buf)
 	writer.JSON(w, 200, result, pretty)
 }
 
@@ -2114,13 +2115,14 @@ func (l diagnosticsLogger) Instrument() bool {
 	return l.instrument
 }
 
-func (l diagnosticsLogger) Log(ctx context.Context, decisionID, remoteAddr, query string, input *interface{}, results *interface{}, err error, m metrics.Metrics, tracer *topdown.BufferTracer) {
+func (l diagnosticsLogger) Log(ctx context.Context, decisionID, remoteAddr, path string, query string, input *interface{}, results *interface{}, err error, m metrics.Metrics, tracer *topdown.BufferTracer) {
 
 	info := &Info{
 		Revision:   l.revision,
 		Timestamp:  time.Now().UTC(),
 		DecisionID: decisionID,
 		RemoteAddr: remoteAddr,
+		Path:       path,
 		Query:      query,
 		Input:      input,
 		Results:    results,
