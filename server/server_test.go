@@ -2126,6 +2126,12 @@ func TestDecisionLogging(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	// Decision log event input should be nil because we didn't
+	// provide a body.
+	if decisions[0].Input != nil {
+		t.Fatalf("Expected nil input for decision but got: %v", decisions[0])
+	}
+
 	if err := f.v1("GET", "/data", "", 200, `{"result": {}}`); err != nil {
 		t.Fatal(err)
 	}
@@ -2144,8 +2150,12 @@ func TestDecisionLogging(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if len(decisions) != 5 {
-		t.Fatalf("Expected exactly 5 decisions but got: %d", len(decisions))
+	if err := f.v1("POST", "/query", `{"query": "data=x"}`, 200, `{"result": [{"x": {}}]}`); err != nil {
+		t.Fatal(err)
+	}
+
+	if len(decisions) != 6 {
+		t.Fatalf("Expected exactly 6 decisions but got: %d", len(decisions))
 	}
 
 	// Verify decisions contain metrics.ServerHandler timer.

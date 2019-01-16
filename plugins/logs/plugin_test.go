@@ -109,12 +109,14 @@ func TestPluginStartSameInput(t *testing.T) {
 
 	testMetrics := getWellKnownMetrics()
 
+	var input interface{} = map[string]interface{}{"method": "GET"}
+
 	for i := 0; i < 400; i++ {
 		fixture.plugin.Log(ctx, &server.Info{
 			Revision:   fmt.Sprint(i),
 			DecisionID: fmt.Sprint(i),
 			Query:      "data.tda.bar",
-			Input:      map[string]interface{}{"method": "GET"},
+			Input:      &input,
 			Results:    &result,
 			RemoteAddr: "test",
 			Timestamp:  ts,
@@ -183,7 +185,7 @@ func TestPluginStartChangingInputValues(t *testing.T) {
 		panic(err)
 	}
 
-	var input map[string]interface{}
+	var input interface{}
 
 	for i := 0; i < 400; i++ {
 		input = map[string]interface{}{"method": getValueForMethod(i), "path": getValueForPath(i), "user": getValueForUser(i)}
@@ -192,7 +194,7 @@ func TestPluginStartChangingInputValues(t *testing.T) {
 			Revision:   fmt.Sprint(i),
 			DecisionID: fmt.Sprint(i),
 			Query:      "data.foo.bar",
-			Input:      input,
+			Input:      &input,
 			Results:    &result,
 			RemoteAddr: "test",
 			Timestamp:  ts,
@@ -254,7 +256,7 @@ func TestPluginStartChangingInputKeysAndValues(t *testing.T) {
 		panic(err)
 	}
 
-	var input map[string]interface{}
+	var input interface{}
 
 	for i := 0; i < 250; i++ {
 		input = generateInputMap(i)
@@ -263,7 +265,7 @@ func TestPluginStartChangingInputKeysAndValues(t *testing.T) {
 			Revision:   fmt.Sprint(i),
 			DecisionID: fmt.Sprint(i),
 			Query:      "data.foo.bar",
-			Input:      input,
+			Input:      &input,
 			Results:    &result,
 			RemoteAddr: "test",
 			Timestamp:  ts,
@@ -309,12 +311,13 @@ func TestPluginRequeue(t *testing.T) {
 
 	fixture.server.ch = make(chan []EventV1, 1)
 
+	var input interface{} = map[string]interface{}{"method": "GET"}
 	var result1 interface{} = false
 
 	fixture.plugin.Log(ctx, &server.Info{
 		DecisionID: "abc",
 		Query:      "data.foo.bar",
-		Input:      map[string]interface{}{"method": "GET"},
+		Input:      &input,
 		Results:    &result1,
 		RemoteAddr: "test",
 		Timestamp:  time.Now().UTC(),
