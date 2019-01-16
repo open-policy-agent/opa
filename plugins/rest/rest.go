@@ -17,12 +17,15 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
+
+	"github.com/sirupsen/logrus"
 
 	"github.com/open-policy-agent/opa/util"
-	"github.com/sirupsen/logrus"
 )
 
 // Config represents configuration for a REST client.
@@ -159,11 +162,38 @@ func New(config []byte, opts ...func(*Client)) (Client, error) {
 		return Client{}, err
 	}
 
+	// Ensure we use a http.Transport with proper settings: the zero values are not
+	// a good choice, as they cause leaking connections:
+	// https://github.com/golang/go/issues/19620
+	//
+	// Also, there's no simple way to copy the values from http.DefaultTransport,
+	// see https://github.com/golang/go/issues/26013. Hence, we copy the settings
+	// used in the golang sources,
+	// https://github.com/golang/go/blob/5fae09b7386de26db59a1184f62fc7b22ec7667b/src/net/http/transport.go#L42-L53
+	//   Copyright 2011 The Go Authors. All rights reserved.
+	//   Use of this source code is governed by a BSD-style
+	//   license that can be found in the LICENSE file.
+	var tr http.RoundTripper = &http.Transport{
+		Proxy: http.ProxyFromEnvironment,
+		DialContext: (&net.Dialer{
+			Timeout:   30 * time.Second,
+			KeepAlive: 30 * time.Second,
+			DualStack: true,
+		}).DialContext,
+		MaxIdleConns:          100,
+		IdleConnTimeout:       90 * time.Second,
+		TLSHandshakeTimeout:   10 * time.Second,
+		ExpectContinueTimeout: 1 * time.Second,
+		TLSClientConfig:       tlsConfig,
+	}
+
+	// copy, we don't want to alter the default client's Transport
+	c := *http.DefaultClient
+	c.Transport = tr
+
 	client := Client{
 		config: parsedConfig,
-		Client: http.Client{
-			Transport: &http.Transport{TLSClientConfig: tlsConfig},
-		},
+		Client: c,
 	}
 
 	for _, f := range opts {
