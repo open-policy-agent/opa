@@ -415,7 +415,7 @@ func (s *Server) initRouter() {
 	s.Handler = router
 }
 
-func (s *Server) execQuery(ctx context.Context, r *http.Request, parsedQuery ast.Body, input ast.Value, m metrics.Metrics, explainMode types.ExplainModeV1, includeMetrics, includeInstrumentation, pretty bool) (results types.QueryResponseV1, err error) {
+func (s *Server) execQuery(ctx context.Context, r *http.Request, decisionID string, parsedQuery ast.Body, input ast.Value, m metrics.Metrics, explainMode types.ExplainModeV1, includeMetrics, includeInstrumentation, pretty bool) (results types.QueryResponseV1, err error) {
 
 	diagLogger := s.evalDiagnosticPolicy(r)
 
@@ -454,7 +454,7 @@ func (s *Server) execQuery(ctx context.Context, r *http.Request, parsedQuery ast
 
 	output, err := rego.Eval(ctx)
 	if err != nil {
-		diagLogger.Log(ctx, "", r.RemoteAddr, parsedQuery.String(), rawInput, nil, err, m, buf)
+		diagLogger.Log(ctx, decisionID, r.RemoteAddr, parsedQuery.String(), rawInput, nil, err, m, buf)
 		return results, err
 	}
 
@@ -471,12 +471,14 @@ func (s *Server) execQuery(ctx context.Context, r *http.Request, parsedQuery ast
 	}
 
 	var x interface{} = results.Result
-	diagLogger.Log(ctx, "", r.RemoteAddr, parsedQuery.String(), rawInput, &x, nil, m, buf)
+	diagLogger.Log(ctx, decisionID, r.RemoteAddr, parsedQuery.String(), rawInput, &x, nil, m, buf)
 
 	return results, nil
 }
 
 func (s *Server) indexGet(w http.ResponseWriter, r *http.Request) {
+
+	decisionID := s.generateDecisionID()
 
 	renderHeader(w)
 	renderBanner(w)
@@ -511,7 +513,7 @@ func (s *Server) indexGet(w http.ResponseWriter, r *http.Request) {
 
 	_, parsedQuery, _ := validateQuery(qStr)
 
-	results, err := s.execQuery(ctx, r, parsedQuery, input, nil, explainMode, false, false, true)
+	results, err := s.execQuery(ctx, r, decisionID, parsedQuery, input, nil, explainMode, false, false, true)
 	if err != nil {
 		renderQueryResult(w, nil, err, t0)
 		return
@@ -567,6 +569,9 @@ func (s *Server) v0DataPost(w http.ResponseWriter, r *http.Request) {
 func (s *Server) v0QueryPath(w http.ResponseWriter, r *http.Request, path ast.Ref) {
 	m := metrics.New()
 	m.Timer(metrics.ServerHandler).Start()
+
+	decisionID := s.generateDecisionID()
+
 	ctx := r.Context()
 	diagLogger := s.evalDiagnosticPolicy(r)
 	input, err := readInputV0(r)
@@ -618,7 +623,7 @@ func (s *Server) v0QueryPath(w http.ResponseWriter, r *http.Request, path ast.Re
 
 	// Handle results.
 	if err != nil {
-		diagLogger.Log(ctx, "", r.RemoteAddr, path.String(), goInput, nil, err, m, buf)
+		diagLogger.Log(ctx, decisionID, r.RemoteAddr, path.String(), goInput, nil, err, m, buf)
 		writer.ErrorAuto(w, err)
 		return
 	}
@@ -628,7 +633,7 @@ func (s *Server) v0QueryPath(w http.ResponseWriter, r *http.Request, path ast.Re
 		return
 	}
 
-	diagLogger.Log(ctx, "", r.RemoteAddr, path.String(), goInput, &rs[0].Expressions[0].Value, nil, m, buf)
+	diagLogger.Log(ctx, decisionID, r.RemoteAddr, path.String(), goInput, &rs[0].Expressions[0].Value, nil, m, buf)
 	writer.JSON(w, 200, rs[0].Expressions[0].Value, false)
 }
 
@@ -818,6 +823,8 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 
 	m.Timer(metrics.ServerHandler).Start()
 
+	decisionID := s.generateDecisionID()
+
 	ctx := r.Context()
 	vars := mux.Vars(r)
 	path := stringPathToDataRef(vars["path"])
@@ -898,12 +905,10 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 
 	// Handle results.
 	if err != nil {
-		diagLogger.Log(ctx, "", r.RemoteAddr, path.String(), goInput, nil, err, m, buf)
+		diagLogger.Log(ctx, decisionID, r.RemoteAddr, path.String(), goInput, nil, err, m, buf)
 		writer.ErrorAuto(w, err)
 		return
 	}
-
-	decisionID := s.generateDecisionID()
 
 	result := types.DataResponseV1{
 		DecisionID: decisionID,
@@ -978,6 +983,8 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 	m := metrics.New()
 	m.Timer(metrics.ServerHandler).Start()
 
+	decisionID := s.generateDecisionID()
+
 	ctx := r.Context()
 	vars := mux.Vars(r)
 	path := stringPathToDataRef(vars["path"])
@@ -1043,7 +1050,7 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 	rego, err := s.makeRego(ctx, partial, txn, input, path.String(), m, instrument, buf, opts)
 
 	if err != nil {
-		diagLogger.Log(ctx, "", r.RemoteAddr, path.String(), goInput, nil, err, m, nil)
+		diagLogger.Log(ctx, decisionID, r.RemoteAddr, path.String(), goInput, nil, err, m, nil)
 		writer.ErrorAuto(w, err)
 		return
 	}
@@ -1054,12 +1061,10 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 
 	// Handle results.
 	if err != nil {
-		diagLogger.Log(ctx, "", r.RemoteAddr, path.String(), goInput, nil, err, m, buf)
+		diagLogger.Log(ctx, decisionID, r.RemoteAddr, path.String(), goInput, nil, err, m, buf)
 		writer.ErrorAuto(w, err)
 		return
 	}
-
-	decisionID := s.generateDecisionID()
 
 	result := types.DataResponseV1{
 		DecisionID: decisionID,
@@ -1387,6 +1392,9 @@ func (s *Server) v1PoliciesPut(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) v1QueryGet(w http.ResponseWriter, r *http.Request) {
 	m := metrics.New()
+
+	decisionID := s.generateDecisionID()
+
 	ctx := r.Context()
 	values := r.URL.Query()
 
@@ -1423,7 +1431,7 @@ func (s *Server) v1QueryGet(w http.ResponseWriter, r *http.Request) {
 	includeMetrics := getBoolParam(r.URL, types.ParamMetricsV1, true)
 	includeInstrumentation := getBoolParam(r.URL, types.ParamInstrumentV1, true)
 
-	results, err := s.execQuery(ctx, r, parsedQuery, nil, m, explainMode, includeMetrics, includeInstrumentation, pretty)
+	results, err := s.execQuery(ctx, r, decisionID, parsedQuery, nil, m, explainMode, includeMetrics, includeInstrumentation, pretty)
 	if err != nil {
 		switch err := err.(type) {
 		case ast.Errors:
@@ -1439,6 +1447,9 @@ func (s *Server) v1QueryGet(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) v1QueryPost(w http.ResponseWriter, r *http.Request) {
 	m := metrics.New()
+
+	decisionID := s.generateDecisionID()
+
 	ctx := r.Context()
 
 	var request types.QueryRequestV1
@@ -1474,7 +1485,7 @@ func (s *Server) v1QueryPost(w http.ResponseWriter, r *http.Request) {
 	includeMetrics := getBoolParam(r.URL, types.ParamMetricsV1, true)
 	includeInstrumentation := getBoolParam(r.URL, types.ParamInstrumentV1, true)
 
-	results, err := s.execQuery(ctx, r, parsedQuery, nil, m, explainMode, includeMetrics, includeInstrumentation, pretty)
+	results, err := s.execQuery(ctx, r, decisionID, parsedQuery, nil, m, explainMode, includeMetrics, includeInstrumentation, pretty)
 	if err != nil {
 		switch err := err.(type) {
 		case ast.Errors:

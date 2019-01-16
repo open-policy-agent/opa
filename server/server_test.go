@@ -2113,8 +2113,15 @@ func TestDecisionIDs(t *testing.T) {
 
 func TestDecisionLogging(t *testing.T) {
 	f := newFixture(t)
+
 	decisions := []*Info{}
-	f.server = f.server.WithDecisionLogger(func(_ context.Context, info *Info) {
+
+	var nextID int
+
+	f.server = f.server.WithDecisionIDFactory(func() string {
+		nextID++
+		return fmt.Sprint(nextID)
+	}).WithDecisionLogger(func(_ context.Context, info *Info) {
 		decisions = append(decisions, info)
 	})
 
@@ -2122,7 +2129,7 @@ func TestDecisionLogging(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := f.v1("POST", "/data", "", 200, `{"result": {}}`); err != nil {
+	if err := f.v1("POST", "/data", "", 200, `{"result": {}, "decision_id": "1"}`); err != nil {
 		t.Fatal(err)
 	}
 
@@ -2132,7 +2139,7 @@ func TestDecisionLogging(t *testing.T) {
 		t.Fatalf("Expected nil input for decision but got: %v", decisions[0])
 	}
 
-	if err := f.v1("GET", "/data", "", 200, `{"result": {}}`); err != nil {
+	if err := f.v1("GET", "/data", "", 200, `{"result": {}, "decision_id": "2"}`); err != nil {
 		t.Fatal(err)
 	}
 
@@ -2194,6 +2201,9 @@ func TestDecisionLogging(t *testing.T) {
 	for i, d := range decisions {
 		if d.Error == nil {
 			t.Fatalf("Expected error on decision %d but got: %v", i, d)
+		}
+		if d.DecisionID == "" {
+			t.Fatalf("Expected decision ID on decision %d but got: %v", i, d)
 		}
 	}
 
