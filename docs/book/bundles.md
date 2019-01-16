@@ -11,6 +11,11 @@ By configuring OPA to download bundles from a remote HTTP server, you can
 ensure that OPA has an up-to-date copy of policies and data required for
 enforcement at all times.
 
+OPA can only be configured to download one bundle at a time. You
+cannot configure OPA to download multiple bundles. If you need to
+provide OPA with data or policies from multiple sources, you should
+merge the data and policies within your bundle service.
+
 See the [Configuration Reference](configuration.md) for configuration details.
 
 ## Bundle Service API
