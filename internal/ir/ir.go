@@ -153,9 +153,9 @@ type NotStmt struct {
 	Block Block
 }
 
-// AssignStmt represents an assignment of a local variable.
-type AssignStmt struct {
-	Value  Const
+// AssignBooleanStmt represents an assignment of a boolean value to a local variable.
+type AssignBooleanStmt struct {
+	Value  bool
 	Target Local
 }
 
