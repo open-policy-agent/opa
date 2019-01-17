@@ -165,21 +165,14 @@ func (c *Compiler) compileBlock(block ir.Block) ([]instruction.Instruction, erro
 		case ir.ReturnStmt:
 			instrs = append(instrs, instruction.I32Const{Value: int32(stmt.Code)})
 			instrs = append(instrs, instruction.Return{})
-		case ir.AssignStmt:
-			switch value := stmt.Value.(type) {
-			case ir.BooleanConst:
-				instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.Target)})
-				if value.Value {
-					instrs = append(instrs, instruction.I32Const{Value: 1})
-				} else {
-					instrs = append(instrs, instruction.I32Const{Value: 0})
-				}
-				instrs = append(instrs, instruction.Call{Index: c.function(opaValueBooleanSet)})
-			default:
-				var buf bytes.Buffer
-				ir.Pretty(&buf, stmt)
-				return nil, fmt.Errorf("illegal assignment: %v", buf.String())
+		case ir.AssignBooleanStmt:
+			instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.Target)})
+			if stmt.Value {
+				instrs = append(instrs, instruction.I32Const{Value: 1})
+			} else {
+				instrs = append(instrs, instruction.I32Const{Value: 0})
 			}
+			instrs = append(instrs, instruction.Call{Index: c.function(opaValueBooleanSet)})
 		case ir.ScanStmt:
 			if err := c.compileScan(stmt, &instrs); err != nil {
 				return nil, err

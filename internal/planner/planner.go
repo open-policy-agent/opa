@@ -125,10 +125,8 @@ func (p *Planner) planNot(e *ast.Expr, iter planiter) error {
 	p.curr = &not.Block
 
 	if err := p.planExpr(e.Complement(), func() error {
-		p.appendStmt(ir.AssignStmt{
-			Value: ir.BooleanConst{
-				Value: false,
-			},
+		p.appendStmt(ir.AssignBooleanStmt{
+			Value:  false,
 			Target: cond,
 		})
 		return nil
@@ -409,10 +407,8 @@ func (p *Planner) planScan(ref ast.Ref, index int, iter planiter) error {
 			return err
 		}
 
-		p.appendStmt(ir.AssignStmt{
-			Value: ir.BooleanConst{
-				Value: true,
-			},
+		p.appendStmt(ir.AssignBooleanStmt{
+			Value:  true,
 			Target: cond,
 		})
 
