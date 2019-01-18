@@ -17,7 +17,6 @@ import (
 	"github.com/open-policy-agent/opa/internal/ir"
 	"github.com/open-policy-agent/opa/internal/planner"
 	"github.com/open-policy-agent/opa/internal/wasm/encoding"
-	"github.com/open-policy-agent/opa/internal/wasm/module"
 	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/storage/inmem"
@@ -532,13 +531,6 @@ func (r *Rego) Compile(ctx context.Context) (*CompileResult, error) {
 
 	if err := encoding.WriteModule(&out, m); err != nil {
 		return nil, err
-	}
-
-	if r.dump != nil {
-		fmt.Fprintln(r.dump, "MODULE:")
-		fmt.Fprintln(r.dump, "-------")
-		module.Pretty(r.dump, m, module.PrettyOption{Contents: true})
-		fmt.Fprintln(r.dump)
 	}
 
 	result := &CompileResult{
