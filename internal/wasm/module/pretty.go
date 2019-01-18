@@ -17,64 +17,64 @@ type PrettyOption struct {
 
 // Pretty writes a human-readable representation of m to w.
 func Pretty(w io.Writer, m *Module, opts ...PrettyOption) {
-	fmt.Println("version:", m.Version)
-	fmt.Println("types:")
+	fmt.Fprintln(w, "version:", m.Version)
+	fmt.Fprintln(w, "types:")
 	for _, fn := range m.Type.Functions {
-		fmt.Println("  -", fn)
+		fmt.Fprintln(w, "  -", fn)
 	}
-	fmt.Println("imports:")
+	fmt.Fprintln(w, "imports:")
 	for i, imp := range m.Import.Imports {
 		if imp.Descriptor.Kind() == FunctionImportType {
 			fmt.Printf("  - [%d] %v\n", i, imp)
 		} else {
-			fmt.Println("  -", imp)
+			fmt.Fprintln(w, "  -", imp)
 		}
 	}
-	fmt.Println("functions:")
+	fmt.Fprintln(w, "functions:")
 	for _, fn := range m.Function.TypeIndices {
 		if fn >= uint32(len(m.Type.Functions)) {
-			fmt.Println("  -", "???")
+			fmt.Fprintln(w, "  -", "???")
 		} else {
-			fmt.Println("  -", m.Type.Functions[fn])
+			fmt.Fprintln(w, "  -", m.Type.Functions[fn])
 		}
 	}
-	fmt.Println("exports:")
+	fmt.Fprintln(w, "exports:")
 	for _, exp := range m.Export.Exports {
-		fmt.Println("  -", exp)
+		fmt.Fprintln(w, "  -", exp)
 	}
-	fmt.Println("code:")
+	fmt.Fprintln(w, "code:")
 	for _, seg := range m.Code.Segments {
-		fmt.Println("  -", seg)
+		fmt.Fprintln(w, "  -", seg)
 	}
-	fmt.Println("data:")
+	fmt.Fprintln(w, "data:")
 	for _, seg := range m.Data.Segments {
-		fmt.Println("  -", seg)
+		fmt.Fprintln(w, "  -", seg)
 	}
 	if len(opts) == 0 {
 		return
 	}
-	fmt.Println()
+	fmt.Fprintln(w)
 	for _, opt := range opts {
 		if opt.Contents {
 			newline := false
 			if len(m.Data.Segments) > 0 {
-				fmt.Println("data section:")
+				fmt.Fprintln(w, "data section:")
 				for _, seg := range m.Data.Segments {
 					if newline {
-						fmt.Println()
+						fmt.Fprintln(w)
 					}
-					fmt.Println(hex.Dump(seg.Init))
+					fmt.Fprintln(w, hex.Dump(seg.Init))
 					newline = true
 				}
 				newline = false
 			}
 			if len(m.Code.Segments) > 0 {
-				fmt.Println("code section:")
+				fmt.Fprintln(w, "code section:")
 				for _, seg := range m.Code.Segments {
 					if newline {
-						fmt.Println()
+						fmt.Fprintln(w)
 					}
-					fmt.Println(hex.Dump(seg.Code))
+					fmt.Fprintln(w, hex.Dump(seg.Code))
 					newline = true
 				}
 				newline = false
