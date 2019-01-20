@@ -4,6 +4,11 @@
 
 #define OPA_ARRAY_INITIAL_CAP (10)
 
+int opa_value_type(opa_value *node)
+{
+	return node->type;
+}
+
 opa_value *opa_value_get_object(opa_object_t *obj, opa_value *key)
 {
     opa_object_elem_t *elem = opa_object_get(obj, key);
@@ -398,11 +403,6 @@ int opa_value_compare(opa_value *a, opa_value *b)
     }
 }
 
-int opa_value_not_equal(opa_value *a, opa_value *b)
-{
-    return opa_value_compare(a, b) != 0;
-}
-
 void opa_value_free(opa_value *node)
 {
     switch (node->type)
@@ -460,6 +460,15 @@ opa_value *opa_boolean(int v)
     opa_boolean_t *ret = (opa_boolean_t *)opa_malloc(sizeof(opa_boolean_t));
     ret->hdr.type = OPA_BOOLEAN;
     ret->v = v;
+    return &ret->hdr;
+}
+
+opa_value *opa_number_size(size_t v)
+{
+    opa_number_t *ret = (opa_number_t *)opa_malloc(sizeof(opa_number_t));
+    ret->hdr.type = OPA_NUMBER;
+    ret->is_float = 0;
+    ret->v.i = (long long)v;
     return &ret->hdr;
 }
 
@@ -553,6 +562,13 @@ void opa_value_boolean_set(opa_value *v, int b)
 {
     opa_boolean_t *ret = opa_cast_boolean(v);
     ret->v = b;
+}
+
+void opa_value_number_set_int(opa_value *v, long long i)
+{
+	opa_number_t *ret = opa_cast_number(v);
+	ret->is_float = 0;
+	ret->v.i = i;
 }
 
 void opa_array_free(opa_array_t *arr)

@@ -80,8 +80,8 @@ typedef int (*opa_compare_fn)(opa_value *, opa_value *t);
 #define opa_cast_array(v) container_of(v, opa_array_t, hdr)
 #define opa_cast_object(v) container_of(v, opa_object_t, hdr)
 
+int opa_value_type(opa_value *node);
 int opa_value_compare(opa_value *a, opa_value *b);
-int opa_value_not_equal(opa_value *a, opa_value *b);
 opa_value *opa_value_get(opa_value *node, opa_value *key);
 opa_value *opa_value_iter(opa_value *node, opa_value *prev);
 size_t opa_value_length(opa_value *node);
@@ -94,6 +94,7 @@ int opa_value_boolean(opa_value *node);
 
 opa_value *opa_null();
 opa_value *opa_boolean(int v);
+opa_value *opa_number_size(size_t v);
 opa_value *opa_number_int(long long v);
 opa_value *opa_number_float(double v);
 opa_value *opa_string(const char *v, size_t len);
@@ -103,6 +104,7 @@ opa_value *opa_array_with_cap(size_t cap);
 opa_value *opa_object();
 
 void opa_value_boolean_set(opa_value *v, int b);
+void opa_value_number_set_int(opa_value *v, long long i);
 
 void opa_array_free(opa_array_t *arr);
 void opa_array_append(opa_array_t *arr, opa_value *v);

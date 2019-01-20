@@ -46,17 +46,22 @@ func (p *Planner) WithQueries(queries []ast.Body) *Planner {
 func (p *Planner) Plan() (*ir.Policy, error) {
 
 	for _, q := range p.queries {
+		p.curr = &ir.Block{}
+		defined := false
 
-		p.blocks = append(p.blocks, ir.Block{})
-		p.curr = &p.blocks[len(p.blocks)-1]
-
-		if err := p.planQuery(q, 0); err != nil {
+		if err := p.planQuery(q, 0, func() error {
+			p.appendStmt(ir.ReturnStmt{
+				Code: ir.Defined,
+			})
+			defined = true
+			return nil
+		}); err != nil {
 			return nil, err
 		}
 
-		p.appendStmt(ir.ReturnStmt{
-			Code: ir.Defined,
-		})
+		if defined {
+			p.blocks = append(p.blocks, *p.curr)
+		}
 	}
 
 	p.blocks = append(p.blocks, ir.Block{
@@ -79,14 +84,14 @@ func (p *Planner) Plan() (*ir.Policy, error) {
 	return &policy, nil
 }
 
-func (p *Planner) planQuery(q ast.Body, index int) error {
+func (p *Planner) planQuery(q ast.Body, index int, iter planiter) error {
 
 	if index >= len(q) {
-		return nil
+		return iter()
 	}
 
 	return p.planExpr(q[index], func() error {
-		return p.planQuery(q, index+1)
+		return p.planQuery(q, index+1, iter)
 	})
 }
 
@@ -149,7 +154,7 @@ func (p *Planner) planNot(e *ast.Expr, iter planiter) error {
 		B: truth,
 	})
 
-	return nil
+	return iter()
 }
 
 func (p *Planner) planExprTerm(e *ast.Expr, iter planiter) error {
@@ -171,13 +176,7 @@ func (p *Planner) planExprCall(e *ast.Expr, iter planiter) error {
 
 	switch e.Operator().String() {
 	case ast.Equality.Name:
-		return p.planBinaryExpr(e, func(a, b ir.Local) error {
-			p.appendStmt(ir.EqualStmt{
-				A: a,
-				B: b,
-			})
-			return iter()
-		})
+		return p.planUnify(e.Operand(0), e.Operand(1), iter)
 	case ast.Equal.Name:
 		return p.planBinaryExpr(e, func(a, b ir.Local) error {
 			p.appendStmt(ir.EqualStmt{
@@ -229,6 +228,231 @@ func (p *Planner) planExprCall(e *ast.Expr, iter planiter) error {
 	default:
 		return fmt.Errorf("%v operator not implemented", e.Operator())
 	}
+}
+
+func (p *Planner) planUnify(a, b *ast.Term, iter planiter) error {
+
+	switch va := a.Value.(type) {
+	case ast.Null, ast.Boolean, ast.Number, ast.String, ast.Ref:
+		return p.planTerm(a, func() error {
+			return p.planUnifyLocal(p.ltarget, b, iter)
+		})
+	case ast.Var:
+		return p.planUnifyVar(va, b, iter)
+	case ast.Array:
+		switch vb := b.Value.(type) {
+		case ast.Var:
+			return p.planUnifyVar(vb, a, iter)
+		case ast.Ref:
+			return p.planTerm(b, func() error {
+				return p.planUnifyLocalArray(p.ltarget, va, iter)
+			})
+		case ast.Array:
+			if len(va) == len(vb) {
+				return p.planUnifyArraysRec(va, vb, 0, iter)
+			}
+			return nil
+		}
+	case ast.Object:
+		switch vb := b.Value.(type) {
+		case ast.Var:
+			return p.planUnifyVar(vb, a, iter)
+		case ast.Ref:
+			return p.planTerm(b, func() error {
+				return p.planUnifyLocalObject(p.ltarget, va, iter)
+			})
+		case ast.Object:
+			if va.Len() == vb.Len() {
+				return p.planUnifyObjectsRec(va, vb, va.Keys(), 0, iter)
+			}
+			return nil
+		}
+	}
+
+	return fmt.Errorf("not implemented: unify(%v, %v)", a, b)
+}
+
+func (p *Planner) planUnifyVar(a ast.Var, b *ast.Term, iter planiter) error {
+
+	if la, ok := p.vars[a]; ok {
+		return p.planUnifyLocal(la, b, iter)
+	}
+
+	return p.planTerm(b, func() error {
+		target := p.newLocal()
+		p.vars[a] = target
+		p.appendStmt(ir.AssignVarStmt{
+			Source: p.ltarget,
+			Target: target,
+		})
+		return iter()
+	})
+}
+
+func (p *Planner) planUnifyLocal(a ir.Local, b *ast.Term, iter planiter) error {
+	switch vb := b.Value.(type) {
+	case ast.Null, ast.Boolean, ast.Number, ast.String, ast.Ref:
+		return p.planTerm(b, func() error {
+			p.appendStmt(ir.EqualStmt{
+				A: a,
+				B: p.ltarget,
+			})
+			return iter()
+		})
+	case ast.Var:
+		if lv, ok := p.vars[vb]; ok {
+			p.appendStmt(ir.EqualStmt{
+				A: a,
+				B: lv,
+			})
+			return iter()
+		}
+		lv := p.newLocal()
+		p.vars[vb] = lv
+		p.appendStmt(ir.AssignVarStmt{
+			Source: a,
+			Target: lv,
+		})
+		return iter()
+	case ast.Array:
+		return p.planUnifyLocalArray(a, vb, iter)
+	case ast.Object:
+		return p.planUnifyLocalObject(a, vb, iter)
+	}
+
+	return fmt.Errorf("not implemented: unifyLocal(%v, %v)", a, b)
+}
+
+func (p *Planner) planUnifyLocalArray(a ir.Local, b ast.Array, iter planiter) error {
+	p.appendStmt(ir.IsArrayStmt{
+		Source: a,
+	})
+
+	blen := p.newLocal()
+	alen := p.newLocal()
+
+	p.appendStmt(ir.LenStmt{
+		Source: a,
+		Target: alen,
+	})
+
+	p.appendStmt(ir.MakeNumberIntStmt{
+		Value:  int64(len(b)),
+		Target: blen,
+	})
+
+	p.appendStmt(ir.EqualStmt{
+		A: alen,
+		B: blen,
+	})
+
+	lkey := p.newLocal()
+
+	p.appendStmt(ir.MakeNumberIntStmt{
+		Target: lkey,
+	})
+
+	lval := p.newLocal()
+
+	return p.planUnifyLocalArrayRec(a, 0, b, lkey, lval, iter)
+}
+
+func (p *Planner) planUnifyLocalArrayRec(a ir.Local, index int, b ast.Array, lkey, lval ir.Local, iter planiter) error {
+	if len(b) == index {
+		return iter()
+	}
+
+	p.appendStmt(ir.AssignIntStmt{
+		Value:  int64(index),
+		Target: lkey,
+	})
+
+	p.appendStmt(ir.DotStmt{
+		Source: a,
+		Key:    lkey,
+		Target: lval,
+	})
+
+	return p.planUnifyLocal(lval, b[index], func() error {
+		return p.planUnifyLocalArrayRec(a, index+1, b, lkey, lval, iter)
+	})
+}
+
+func (p *Planner) planUnifyLocalObject(a ir.Local, b ast.Object, iter planiter) error {
+	p.appendStmt(ir.IsObjectStmt{
+		Source: a,
+	})
+
+	blen := p.newLocal()
+	alen := p.newLocal()
+
+	p.appendStmt(ir.LenStmt{
+		Source: a,
+		Target: alen,
+	})
+
+	p.appendStmt(ir.MakeNumberIntStmt{
+		Value:  int64(b.Len()),
+		Target: blen,
+	})
+
+	p.appendStmt(ir.EqualStmt{
+		A: alen,
+		B: blen,
+	})
+
+	lkey := p.newLocal()
+	lval := p.newLocal()
+	bkeys := b.Keys()
+
+	return p.planUnifyLocalObjectRec(a, 0, bkeys, b, lkey, lval, iter)
+}
+
+func (p *Planner) planUnifyLocalObjectRec(a ir.Local, index int, keys []*ast.Term, b ast.Object, lkey, lval ir.Local, iter planiter) error {
+
+	if index == len(keys) {
+		return iter()
+	}
+
+	return p.planTerm(keys[index], func() error {
+		p.appendStmt(ir.AssignVarStmt{
+			Source: p.ltarget,
+			Target: lkey,
+		})
+		p.appendStmt(ir.DotStmt{
+			Source: a,
+			Key:    lkey,
+			Target: lval,
+		})
+		return p.planUnifyLocal(lval, b.Get(keys[index]), func() error {
+			return p.planUnifyLocalObjectRec(a, index+1, keys, b, lkey, lval, iter)
+		})
+	})
+}
+
+func (p *Planner) planUnifyArraysRec(a, b ast.Array, index int, iter planiter) error {
+	if index == len(a) {
+		return iter()
+	}
+	return p.planUnify(a[index], b[index], func() error {
+		return p.planUnifyArraysRec(a, b, index+1, iter)
+	})
+}
+
+func (p *Planner) planUnifyObjectsRec(a, b ast.Object, keys []*ast.Term, index int, iter planiter) error {
+	if index == len(keys) {
+		return iter()
+	}
+
+	aval := a.Get(keys[index])
+	bval := b.Get(keys[index])
+	if aval == nil || bval == nil {
+		return nil
+	}
+
+	return p.planUnify(aval, bval, func() error {
+		return p.planUnifyObjectsRec(a, b, keys, index+1, iter)
+	})
 }
 
 func (p *Planner) planBinaryExpr(e *ast.Expr, iter binaryiter) error {

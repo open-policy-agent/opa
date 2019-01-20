@@ -20,17 +20,29 @@ import (
 )
 
 const (
-	opaFuncPrefix       = "opa_"
-	opaJSONParse        = "opa_json_parse"
-	opaNull             = "opa_null"
-	opaBoolean          = "opa_boolean"
-	opaStringTerminated = "opa_string_terminated"
-	opaNumberInt        = "opa_number_int"
-	opaValueBooleanSet  = "opa_value_boolean_set"
-	opaValueNotEqual    = "opa_value_not_equal"
-	opaValueCompare     = "opa_value_compare"
-	opaValueGet         = "opa_value_get"
-	opaValueIter        = "opa_value_iter"
+	opaTypeNull int32 = iota + 1
+	opaTypeBoolean
+	opaTypeNumber
+	opaTypeString
+	opaTypeArray
+	opaTypeObject
+)
+
+const (
+	opaFuncPrefix        = "opa_"
+	opaJSONParse         = "opa_json_parse"
+	opaNull              = "opa_null"
+	opaBoolean           = "opa_boolean"
+	opaStringTerminated  = "opa_string_terminated"
+	opaNumberInt         = "opa_number_int"
+	opaNumberSize        = "opa_number_size"
+	opaValueBooleanSet   = "opa_value_boolean_set"
+	opaValueNumberSetInt = "opa_value_number_set_int"
+	opaValueCompare      = "opa_value_compare"
+	opaValueGet          = "opa_value_get"
+	opaValueIter         = "opa_value_iter"
+	opaValueLength       = "opa_value_length"
+	opaValueType         = "opa_value_type"
 )
 
 // Compiler implements an IR->WASM compiler backend.
@@ -165,6 +177,9 @@ func (c *Compiler) compileBlock(block ir.Block) ([]instruction.Instruction, erro
 		case ir.ReturnStmt:
 			instrs = append(instrs, instruction.I32Const{Value: int32(stmt.Code)})
 			instrs = append(instrs, instruction.Return{})
+		case ir.AssignVarStmt:
+			instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.Source)})
+			instrs = append(instrs, instruction.SetLocal{Index: c.local(stmt.Target)})
 		case ir.AssignBooleanStmt:
 			instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.Target)})
 			if stmt.Value {
@@ -173,6 +188,10 @@ func (c *Compiler) compileBlock(block ir.Block) ([]instruction.Instruction, erro
 				instrs = append(instrs, instruction.I32Const{Value: 0})
 			}
 			instrs = append(instrs, instruction.Call{Index: c.function(opaValueBooleanSet)})
+		case ir.AssignIntStmt:
+			instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.Target)})
+			instrs = append(instrs, instruction.I64Const{Value: stmt.Value})
+			instrs = append(instrs, instruction.Call{Index: c.function(opaValueNumberSetInt)})
 		case ir.ScanStmt:
 			if err := c.compileScan(stmt, &instrs); err != nil {
 				return nil, err
@@ -189,10 +208,15 @@ func (c *Compiler) compileBlock(block ir.Block) ([]instruction.Instruction, erro
 			instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.Target)})
 			instrs = append(instrs, instruction.I32Eqz{})
 			instrs = append(instrs, instruction.BrIf{Index: 0})
+		case ir.LenStmt:
+			instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.Source)})
+			instrs = append(instrs, instruction.Call{Index: c.function(opaValueLength)})
+			instrs = append(instrs, instruction.Call{Index: c.function(opaNumberSize)})
+			instrs = append(instrs, instruction.SetLocal{Index: c.local(stmt.Target)})
 		case ir.EqualStmt:
 			instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.A)})
 			instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.B)})
-			instrs = append(instrs, instruction.Call{Index: c.function(opaValueNotEqual)})
+			instrs = append(instrs, instruction.Call{Index: c.function(opaValueCompare)})
 			instrs = append(instrs, instruction.BrIf{Index: 0})
 		case ir.LessThanStmt:
 			instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.A)})
@@ -249,6 +273,18 @@ func (c *Compiler) compileBlock(block ir.Block) ([]instruction.Instruction, erro
 			instrs = append(instrs, instruction.I32Const{Value: c.stringAddr(stmt.Index)})
 			instrs = append(instrs, instruction.Call{Index: c.function(opaStringTerminated)})
 			instrs = append(instrs, instruction.SetLocal{Index: c.local(stmt.Target)})
+		case ir.IsArrayStmt:
+			instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.Source)})
+			instrs = append(instrs, instruction.Call{Index: c.function(opaValueType)})
+			instrs = append(instrs, instruction.I32Const{Value: opaTypeArray})
+			instrs = append(instrs, instruction.I32Ne{})
+			instrs = append(instrs, instruction.BrIf{Index: 0})
+		case ir.IsObjectStmt:
+			instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.Source)})
+			instrs = append(instrs, instruction.Call{Index: c.function(opaValueType)})
+			instrs = append(instrs, instruction.I32Const{Value: opaTypeObject})
+			instrs = append(instrs, instruction.I32Ne{})
+			instrs = append(instrs, instruction.BrIf{Index: 0})
 		default:
 			var buf bytes.Buffer
 			ir.Pretty(&buf, stmt)

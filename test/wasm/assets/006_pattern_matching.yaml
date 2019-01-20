@@ -1,0 +1,33 @@
+cases:
+  - note: match/array simple
+    query: "input.x = [y]; input.y = y"
+    input: {"x": [1], "y": 1}
+    return_code: 1
+  - note: match/array simple (negative)
+    query: "input.x = [y]; input.y = y"
+    input: {"x": [1], "y": 2}
+    return_code: 0
+  - note: match/array nested
+    query: "input.x = [[y], 1]; input.y = [y]"
+    input: {"x": [[0], 1], "y": [0]}
+    return_code: 1
+  - note: match/array nested (negative)
+    query: "input.x = [[y], 1]; input.y = [y]"
+    input: {"x": [[0], 1], "y": [1]}
+    return_code: 0
+  - note: match/object simple
+    query: 'input.x = {"a": y}; input.y = y'
+    input: {"x": {"a": 1}, "y": 1}
+    return_code: 1
+  - note: match/object simple (negative)
+    query: 'input.x = {"a": y}; input.y = y'
+    input: {"x": {"a": 1}, "y": 2}
+    return_code: 0
+  - note: match/object nested
+    query: 'input.x = {"a": {"b": y}, "c": 1}; input.y = {"a": y}'
+    input: {"x": {"a": {"b": 0}, "c": 1}, "y": {"a": 0}}
+    return_code: 1
+  - note: match/object nested (negative)
+    query: 'input.x = {"a": {"b": y}, "c": 1}; input.y = {"a": y}'
+    input: {"x": {"a": {"b": 0}, "c": 1}, "y": {"a": 1}}
+    return_code: 0
