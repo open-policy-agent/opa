@@ -137,6 +137,13 @@ type DotStmt struct {
 	Target Local
 }
 
+// LenStmt represents a length() operation on a local variable. The
+// result is stored in the target local variable.
+type LenStmt struct {
+	Source Local
+	Target Local
+}
+
 // ScanStmt represents a linear scan over a composite value. The
 // source may be a scalar in which case the block will never execute.
 type ScanStmt struct {
@@ -156,6 +163,19 @@ type NotStmt struct {
 // AssignBooleanStmt represents an assignment of a boolean value to a local variable.
 type AssignBooleanStmt struct {
 	Value  bool
+	Target Local
+}
+
+// AssignIntStmt represents an assignment of an integer value to a
+// local variable.
+type AssignIntStmt struct {
+	Value  int64
+	Target Local
+}
+
+// AssignVarStmt represents an assignment of one local variable to another.
+type AssignVarStmt struct {
+	Source Local
 	Target Local
 }
 
@@ -216,4 +236,14 @@ type GreaterThanEqualStmt struct {
 type NotEqualStmt struct {
 	A Local
 	B Local
+}
+
+// IsArrayStmt represents a dynamic type check on a local variable.
+type IsArrayStmt struct {
+	Source Local
+}
+
+// IsObjectStmt represents a dynamic type check on a local variable.
+type IsObjectStmt struct {
+	Source Local
 }

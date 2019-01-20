@@ -62,6 +62,14 @@ func TestPlannerHelloWorld(t *testing.T) {
 			note:    "negation",
 			queries: []string{"not input.x.y = 1"},
 		},
+		{
+			note:    "array ref pattern match",
+			queries: []string{"input.x = [1, [y]]"},
+		},
+		{
+			note:    "arrays pattern match",
+			queries: []string{"[x, 3, [2]] = [1, 3, [y]]"},
+		},
 	}
 
 	for _, tc := range tests {

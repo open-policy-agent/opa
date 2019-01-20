@@ -445,17 +445,17 @@ void test_opa_value_iter_object()
     opa_value *exp2 = opa_string_terminated("b");
     opa_value *exp3 = NULL;
 
-    if (opa_value_not_equal(k1, exp1))
+    if (opa_value_compare(k1, exp1) != 0)
     {
         test_fatal("object iter start did not return expected value");
     }
 
-    if (opa_value_not_equal(k2, exp2))
+    if (opa_value_compare(k2, exp2) != 0)
     {
         test_fatal("object iter second did not return expected value");
     }
 
-    if (opa_value_not_equal(k3, exp3))
+    if (opa_value_compare(k3, exp3) != 0)
     {
         test_fatal("object iter third did not return expected value");
     }
@@ -476,17 +476,17 @@ void test_opa_value_iter_array()
     opa_value *exp2 = opa_number_int(1);
     opa_value *exp3 = NULL;
 
-    if (opa_value_not_equal(k1, exp1))
+    if (opa_value_compare(k1, exp1) != 0)
     {
         test_fatal("array iter start did not return expected value");
     }
 
-    if (opa_value_not_equal(k2, exp2))
+    if (opa_value_compare(k2, exp2) != 0)
     {
         test_fatal("array iter second did not return expected value");
     }
 
-    if (opa_value_not_equal(k3, exp3))
+    if (opa_value_compare(k3, exp3) != 0)
     {
         test_fatal("array iter third did not return expected value");
     }
