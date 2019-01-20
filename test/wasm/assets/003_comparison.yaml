@@ -63,3 +63,27 @@ cases:
     query: "input.x == 1"
     input: {"x": 0}
     return_code: 0
+  - note: deq/array
+    query: "[input.x] == [1]"
+    input: {"x": 1}
+    return_code: 1
+  - note: deq/array (negative)
+    query: "[input.x] == [1]"
+    input: {"x": 2}
+    return_code: 0
+  - note: deq/array (undefined)
+    query: "[input.x] = [1]"
+    input: {}
+    return_code: 0
+  - note: deq/object
+    query: '{"a": input.x} == {"a": 1}'
+    input: {"x": 1}
+    return_code: 1
+  - note: deq/object (negative)
+    query: '{"a": input.x} == {"a": 1}'
+    input: {"x": 2}
+    return_code: 0
+  - note: deq/object (undefined)
+    query: '{"a": input.x} == {"a": 1}'
+    input: {}
+    return_code: 0

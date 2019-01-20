@@ -33,9 +33,13 @@ const (
 	opaJSONParse         = "opa_json_parse"
 	opaNull              = "opa_null"
 	opaBoolean           = "opa_boolean"
-	opaStringTerminated  = "opa_string_terminated"
 	opaNumberInt         = "opa_number_int"
 	opaNumberSize        = "opa_number_size"
+	opaArrayWithCap      = "opa_array_with_cap"
+	opaArrayAppend       = "opa_array_append"
+	opaObject            = "opa_object"
+	opaObjectInsert      = "opa_object_insert"
+	opaStringTerminated  = "opa_string_terminated"
 	opaValueBooleanSet   = "opa_value_boolean_set"
 	opaValueNumberSetInt = "opa_value_number_set_int"
 	opaValueCompare      = "opa_value_compare"
@@ -273,6 +277,13 @@ func (c *Compiler) compileBlock(block ir.Block) ([]instruction.Instruction, erro
 			instrs = append(instrs, instruction.I32Const{Value: c.stringAddr(stmt.Index)})
 			instrs = append(instrs, instruction.Call{Index: c.function(opaStringTerminated)})
 			instrs = append(instrs, instruction.SetLocal{Index: c.local(stmt.Target)})
+		case ir.MakeArrayStmt:
+			instrs = append(instrs, instruction.I32Const{Value: stmt.Capacity})
+			instrs = append(instrs, instruction.Call{Index: c.function(opaArrayWithCap)})
+			instrs = append(instrs, instruction.SetLocal{Index: c.local(stmt.Target)})
+		case ir.MakeObjectStmt:
+			instrs = append(instrs, instruction.Call{Index: c.function(opaObject)})
+			instrs = append(instrs, instruction.SetLocal{Index: c.local(stmt.Target)})
 		case ir.IsArrayStmt:
 			instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.Source)})
 			instrs = append(instrs, instruction.Call{Index: c.function(opaValueType)})
@@ -285,6 +296,15 @@ func (c *Compiler) compileBlock(block ir.Block) ([]instruction.Instruction, erro
 			instrs = append(instrs, instruction.I32Const{Value: opaTypeObject})
 			instrs = append(instrs, instruction.I32Ne{})
 			instrs = append(instrs, instruction.BrIf{Index: 0})
+		case ir.ArrayAppendStmt:
+			instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.Array)})
+			instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.Value)})
+			instrs = append(instrs, instruction.Call{Index: c.function(opaArrayAppend)})
+		case ir.ObjectInsertStmt:
+			instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.Object)})
+			instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.Key)})
+			instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.Value)})
+			instrs = append(instrs, instruction.Call{Index: c.function(opaObjectInsert)})
 		default:
 			var buf bytes.Buffer
 			ir.Pretty(&buf, stmt)

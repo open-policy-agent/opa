@@ -480,6 +480,10 @@ func (p *Planner) planTerm(t *ast.Term, iter planiter) error {
 		return p.planVar(v, iter)
 	case ast.Ref:
 		return p.planRef(v, iter)
+	case ast.Array:
+		return p.planArray(v, iter)
+	case ast.Object:
+		return p.planObject(v, iter)
 	default:
 		return fmt.Errorf("%v term not implemented", ast.TypeName(v))
 	}
@@ -553,6 +557,66 @@ func (p *Planner) planVar(v ast.Var, iter planiter) error {
 	}
 	p.ltarget = p.vars[v]
 	return iter()
+}
+
+func (p *Planner) planArray(arr ast.Array, iter planiter) error {
+
+	larr := p.newLocal()
+
+	p.appendStmt(ir.MakeArrayStmt{
+		Capacity: int32(len(arr)),
+		Target:   larr,
+	})
+
+	return p.planArrayRec(arr, 0, larr, iter)
+}
+
+func (p *Planner) planArrayRec(arr ast.Array, index int, larr ir.Local, iter planiter) error {
+	if index == len(arr) {
+		return iter()
+	}
+
+	return p.planTerm(arr[index], func() error {
+
+		p.appendStmt(ir.ArrayAppendStmt{
+			Value: p.ltarget,
+			Array: larr,
+		})
+
+		return p.planArrayRec(arr, index+1, larr, iter)
+	})
+}
+
+func (p *Planner) planObject(obj ast.Object, iter planiter) error {
+
+	lobj := p.newLocal()
+
+	p.appendStmt(ir.MakeObjectStmt{
+		Target: lobj,
+	})
+
+	return p.planObjectRec(obj, 0, obj.Keys(), lobj, iter)
+}
+
+func (p *Planner) planObjectRec(obj ast.Object, index int, keys []*ast.Term, lobj ir.Local, iter planiter) error {
+	if index == len(keys) {
+		return iter()
+	}
+
+	return p.planTerm(keys[index], func() error {
+		lkey := p.ltarget
+
+		return p.planTerm(obj.Get(keys[index]), func() error {
+			lval := p.ltarget
+			p.appendStmt(ir.ObjectInsertStmt{
+				Key:    lkey,
+				Value:  lval,
+				Object: lobj,
+			})
+
+			return p.planObjectRec(obj, index+1, keys, lobj, iter)
+		})
+	})
 }
 
 func (p *Planner) planRef(ref ast.Ref, iter planiter) error {
