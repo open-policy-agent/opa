@@ -202,6 +202,17 @@ type MakeNumberIntStmt struct {
 	Target Local
 }
 
+// MakeArrayStmt constructs a local variable that refers to an array value.
+type MakeArrayStmt struct {
+	Capacity int32
+	Target   Local
+}
+
+// MakeObjectStmt constructs a local variable that refers to an object value.
+type MakeObjectStmt struct {
+	Target Local
+}
+
 // EqualStmt represents an value-equality check of two local variables.
 type EqualStmt struct {
 	A Local
@@ -246,4 +257,19 @@ type IsArrayStmt struct {
 // IsObjectStmt represents a dynamic type check on a local variable.
 type IsObjectStmt struct {
 	Source Local
+}
+
+// ArrayAppendStmt represents a dynamic append operation of a value
+// onto an array.
+type ArrayAppendStmt struct {
+	Value Local
+	Array Local
+}
+
+// ObjectInsertStmt represents a dynamic insert operation of a
+// key/value pair into an object.
+type ObjectInsertStmt struct {
+	Key    Local
+	Value  Local
+	Object Local
 }
