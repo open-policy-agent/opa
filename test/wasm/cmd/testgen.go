@@ -18,6 +18,7 @@ import (
 
 	"github.com/open-policy-agent/opa/rego"
 	"github.com/open-policy-agent/opa/util"
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
 
@@ -84,29 +85,37 @@ func run(params params, args []string) error {
 
 	for i := range files {
 		if strings.HasSuffix(files[i].Name(), ".yaml") {
-			bs, err := ioutil.ReadFile(filepath.Join(params.InputDir, files[i].Name()))
+
+			err := func() error {
+				bs, err := ioutil.ReadFile(filepath.Join(params.InputDir, files[i].Name()))
+				if err != nil {
+					return err
+				}
+
+				var tcs testCaseSet
+				if err := util.Unmarshal(bs, &tcs); err != nil {
+					return err
+				}
+
+				ctcs, err := compileTestCases(ctx, tcs)
+				if err != nil {
+					return err
+				}
+
+				bs, err = json.Marshal(ctcs)
+				if err != nil {
+					return err
+				}
+
+				dst := strings.Replace(files[i].Name(), ".yaml", ".json", -1)
+				if err := writeFile(tw, dst, bs); err != nil {
+					return err
+				}
+				return nil
+			}()
+
 			if err != nil {
-				return err
-			}
-
-			var tcs testCaseSet
-			if err := util.Unmarshal(bs, &tcs); err != nil {
-				return err
-			}
-
-			ctcs, err := compileTestCases(ctx, tcs)
-			if err != nil {
-				return err
-			}
-
-			bs, err = json.Marshal(ctcs)
-			if err != nil {
-				return err
-			}
-
-			dst := strings.Replace(files[i].Name(), ".yaml", ".json", -1)
-			if err := writeFile(tw, dst, bs); err != nil {
-				return err
+				return errors.Wrap(err, files[i].Name())
 			}
 		}
 	}
