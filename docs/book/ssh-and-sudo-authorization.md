@@ -50,7 +50,7 @@ represent our backend and frontend hosts.
 version: '2'
 services:
   opa:
-    image: openpolicyagent/opa:0.10.2
+    image: openpolicyagent/opa:0.10.3
     ports:
       - 8181:8181
     # WARNING: OPA is NOT running with an authorization policy configured. This

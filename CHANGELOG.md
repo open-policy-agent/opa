@@ -3,7 +3,73 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## 0.10.3
+
+* This release includes support for authentication via client
+  certificates (thanks @srenatus!) For improvements to authentication
+  see [#1163](https://github.com/open-policy-agent/opa/issues/1163).
+
+* This release includes a backwards incompatible change to the
+  plugin interface. Specifically, when plugins are registered, callers
+  must provide a factory that can _validate_ configuration before
+  instantiating the plugin. This allows OPA to ensure that all
+  configuration is valid before activating changes. Since plugins were
+  undocumented prior to this release, this change should be low
+  impact. For details on plugin development see the new Plugins page
+  on the website.
+
+* This release includes a backwards incompatible change to the HTTP
+  decision logger event type. Specifically, "null" inputs are now
+  handled correctly and decision logs for ad-hoc queries now populate
+  the "query" field in the event instead of the "path" field. If you
+  are using consuming decision log events in Go, please switch to the
+  decision logger framework documented here: https://github.com/open-policy-agent/opa/blob/master/docs/book/plugins.md.
+
+### Fixes
+
+- Add OPA version to decision logs ([#1089](https://github.com/open-policy-agent/opa/issues/1089))
+- Add query metrics to decision logs ([#1033](https://github.com/open-policy-agent/opa/issues/1033))
+- Add health endpoint to HTTP server ([#1086](https://github.com/open-policy-agent/opa/issues/1086))
+- Add line of failure in `opa test` ([#961](https://github.com/open-policy-agent/opa/issues/961))
+- Fix panic caused by assignment rewriting ([#1125](https://github.com/open-policy-agent/opa/issues/1125))
+- Fix parser to avoid duplicate comments in AST ([#426](https://github.com/open-policy-agent/opa/issues/426))
+- Fix semantic check for function references ([#1132](https://github.com/open-policy-agent/opa/issues/1132))
+- Fix query API to return 4xx on bad request ([#1081](https://github.com/open-policy-agent/opa/issues/1081))
+- Fix incorrect early exit from ref resolver ([#1110](https://github.com/open-policy-agent/opa/issues/1110))
+- Fix rewriting of assignment values ([#1154](https://github.com/open-policy-agent/opa/issues/1154))
+- Fix resolution inside references ([#1155](https://github.com/open-policy-agent/opa/issues/1155))
+- Fix '^' location of lines starting with tabs ([#1129](https://github.com/open-policy-agent/opa/issues/1129))
+- docs: Update count function doc to mention strings (#1126) ([#1122](https://github.com/open-policy-agent/opa/issues/1122))
+
+### Miscellaneous
+
+- Add tutorial for OPA/Ceph integration using Rook
+- Add metrics timer for server handler
+- Add support for custom backends in decision logger
+- Fix find operation on sets for non-empty refs
+- Fix bug in local declaration rewriting
+- Fix discovery docs to show a realistic example
+- Update decision log event to include error
+- Update decision log events to model paths and queries
+- Update server and decision logger to represent input properly
+- Update server to include decision ID in error events
+- Avoid zero values in http.Transport{} in REST client
+
+### WebAssembly
+
+- wasm: Add support for composite terms ([#1113](https://github.com/open-policy-agent/opa/issues/1113))
+- wasm: Add support for not keyword ([#1112](https://github.com/open-policy-agent/opa/issues/1112))
+- wasm: Add == operator
+- wasm: Add checks on single term and dot stmts
+- wasm: Add support for boolean and null literals
+- wasm: Add support for pattern matching on composites
+- wasm: Fix planner for chained iteration
+- wasm: Fix pretty printer writer usage
+- wasm: Output filenames in testgen errors
+- wasm: Refactor assignment for better typing
+- wasm: Remove module dumping from build command
+- wasm: Rename ir.LoopStmt to ir.ScanStmt
+- wasm: Update tester to allow for missing cases
 
 ## 0.10.2
 
