@@ -85,7 +85,7 @@ complex types.
 | <span class="opa-keep-it-together">``re_match(pattern, value)``</span> | 2 | true if the ``value`` matches the regex ``pattern`` |
 | <span class="opa-keep-it-together">``regex.split(pattern, string, output)``</span> | 2 | ``output`` is ``array[string]`` representing elements of ``string`` separated by ``pattern`` |
 | <span class="opa-keep-it-together">``regex.globs_match(glob1, glob2)``</span> | 2 | true if the intersection of regex-style globs ``glob1`` and ``glob2`` matches a non-empty set of non-empty strings. The set of regex symbols is limited for this builtin: only ``.``, ``*``, ``+``, ``[``, ``-``, ``]`` and ``\`` are treated as special symbols. |
-| <span class="opa-keep-it-together">``regex.template_match(patter, string, delimiter_start, delimiter_end, output)``</span> | 4 | ``output`` is true if ``string`` matches ``pattern``. ``pattern`` is a string containing ``0..n`` regular expressions delimited by ``delimiter_start`` and ``delimiter_end``. Example ``regex.template_match("urn:foo:{.*}", "urn:foo:bar:baz", "{", "}", x)`` returns ``true`` for ``x``. |
+| <span class="opa-keep-it-normal">``regex.template_match(patter, string, delimiter_start, delimiter_end, output)``</span> | 4 | ``output`` is true if ``string`` matches ``pattern``. ``pattern`` is a string containing ``0..n`` regular expressions delimited by ``delimiter_start`` and ``delimiter_end``. Example ``regex.template_match("urn:foo:{.*}", "urn:foo:bar:baz", "{", "}", x)`` returns ``true`` for ``x``. |
 | <span class="opa-keep-it-together">``regex.find_n(pattern, string, number)``</span> | 3 | returns an ``array[string]`` with the ``number`` of values matching the ``pattern``. A ``number`` of ``-1`` means all matches. |
 
 ### Glob
