@@ -41,6 +41,10 @@ h6{
   white-space: nowrap;
 }
 
+.opa-keep-it-normal{
+  white-space: normal;
+}
+
 .chapter{
   font-family: Roboto !important;
 }
