@@ -31,18 +31,24 @@ func ParseConfig(config []byte, services []string) (*Config, error) {
 	return &parsedConfig, nil
 }
 
-// Config represents configuration the plguin.
+// Config represents the configuration of the plugin.
 type Config struct {
 	download.Config
 
-	Name    string `json:"name"`
-	Service string `json:"service"`
+	Name    string  `json:"name"`
+	Service string  `json:"service"`
+	Prefix  *string `json:"prefix"`
 }
 
 func (c *Config) validateAndInjectDefaults(services []string) error {
 
 	if c.Name == "" {
 		return fmt.Errorf("invalid bundle name %q", c.Name)
+	}
+
+	if c.Prefix == nil {
+		s := defaultBundlePathPrefix
+		c.Prefix = &s
 	}
 
 	if c.Service == "" && len(services) != 0 {
@@ -64,3 +70,7 @@ func (c *Config) validateAndInjectDefaults(services []string) error {
 
 	return c.ValidateAndInjectDefaults()
 }
+
+const (
+	defaultBundlePathPrefix = "bundles"
+)

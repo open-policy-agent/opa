@@ -308,3 +308,41 @@ func getTestManager() *plugins.Manager {
 	}
 	return manager
 }
+
+func TestInitDownloader(t *testing.T) {
+	plugin := Plugin{}
+
+	testCases := []struct {
+		prefix string
+		name   string
+		result string
+	}{
+		{
+			prefix: "/",
+			name:   "bundles/bundles.tar.gz",
+			result: "bundles/bundles.tar.gz",
+		},
+		{
+			prefix: "bundles",
+			name:   "bundles.tar.gz",
+			result: "bundles/bundles.tar.gz",
+		},
+		{
+			prefix: "",
+			name:   "bundles/bundles.tar.gz",
+			result: "bundles/bundles.tar.gz",
+		},
+		{
+			prefix: "",
+			name:   "/bundles.tar.gz",
+			result: "bundles.tar.gz",
+		},
+	}
+	for i, test := range testCases {
+		t.Run(fmt.Sprintf("case_%d", i), func(t *testing.T) {
+			if out := plugin.generateDownloadPath(test.prefix, test.name); out != test.result {
+				t.Fatalf("want %v got %v", test.result, out)
+			}
+		})
+	}
+}

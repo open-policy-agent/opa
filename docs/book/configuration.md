@@ -30,6 +30,7 @@ labels:
 bundle:
   name: http/example/authz
   service: acmecorp
+  prefix: bundles
   polling:
     min_delay_seconds: 60
     max_delay_seconds: 120
@@ -81,6 +82,7 @@ multiple services.
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
 | `bundle.name` | `string` | Yes | Name of the bundle to download. |
+| `bundle.prefix` | `string` | No (default: `bundles`) | Path prefix to use to download bundle from remote server. |
 | `bundle.service` | `string` | Yes | Name of service to use to contact remote server. |
 | `bundle.polling.min_delay_seconds` | `int64` | No (default: `60`) | Minimum amount of time to wait between bundle downloads. |
 | `bundle.polling.max_delay_seconds` | `int64` | No (default: `120`) | Maximum amount of time to wait between bundle downloads. |

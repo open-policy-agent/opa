@@ -24,12 +24,8 @@ OPA expects the service to expose an API endpoint that serves bundles. The
 bundle API should allow clients to download named bundles.
 
 ```http
-GET /bundles/<name> HTTP/1.1
+GET /<bundle_prefix>/<name> HTTP/1.1
 ```
-
-The bundle name is hierarchical and contains slashes. For example, with the
-configuration above, the client would execute an HTTP `GET` request against
-`https://example.com/bundles/http/example/authz`.
 
 If the bundle exists, the server should respond with an HTTP 200 OK status
 followed by a gzipped tarball in the message body.
@@ -38,6 +34,31 @@ followed by a gzipped tarball in the message body.
 HTTP/1.1 200 OK
 Content-Type: application/gzip
 ```
+
+bundle plugin can be enabled using the below configuration:
+
+```yaml
+services:
+  - name: acmecorp
+    url: https://example.com/service/v1
+    credentials:
+      bearer:
+        token: "bGFza2RqZmxha3NkamZsa2Fqc2Rsa2ZqYWtsc2RqZmtramRmYWxkc2tm"
+
+bundle:
+  name: authz/bundle.tar.gz
+  prefix: somedir
+  service: acmecorp
+  polling:
+      min_delay_seconds: 10
+      max_delay_seconds: 20
+```
+
+OPA will fetch it's bundle from `https://example.com/service/v1/somedir/authz/bundle.tar.gz`.
+
+The `prefix` field is optional and by default set to `bundles`. Hence if
+`prefix` is not provided, OPA will fetch it's configuration from
+`https://example.com/service/v1/bundles/authz/bundle.tar.gz`.
 
 OPA currently supports Bearer token authentication for external services.
 

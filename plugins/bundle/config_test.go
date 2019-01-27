@@ -4,7 +4,10 @@
 
 package bundle
 
-import "testing"
+import (
+	"fmt"
+	"testing"
+)
 
 func TestConfigValidation(t *testing.T) {
 
@@ -21,15 +24,68 @@ func TestConfigValidation(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			input:   `{"name": a/b/c", "service": "service2"}`,
+			input:   `{"name": "a/b/c", "service": "service2"}`,
+			wantErr: false,
+		},
+		{
+			input:   `{"name": "a/b/c", "service": "service2", "prefix": "mybundle"}`,
+			wantErr: false,
+		},
+		{
+			input:   `{"name": "a/b/c", "service": "service2", "prefix": "/"}`,
 			wantErr: false,
 		},
 	}
 
-	for _, test := range tests {
-		config, _ := ParseConfig([]byte(test.input), []string{"service1", "service2"})
-		if config == nil {
-			continue
-		}
+	for i, test := range tests {
+		t.Run(fmt.Sprintf("TestConfigValidation_case_%d", i), func(t *testing.T) {
+			_, err := ParseConfig([]byte(test.input), []string{"service1", "service2"})
+			if err != nil && !test.wantErr {
+				t.Fail()
+			}
+			if err == nil && test.wantErr {
+				t.Fail()
+			}
+		})
+	}
+}
+
+func TestConfigValid(t *testing.T) {
+
+	in := `{"name": "a/b/c", "service": "service2", "prefix": "mybundle"}`
+
+	config, err := ParseConfig([]byte(in), []string{"service1", "service2"})
+	if err != nil {
+		t.Fail()
+	}
+
+	if config.Name != "a/b/c" {
+		t.Fatalf("want %v got %v", "a/b/c", config.Name)
+	}
+	if config.Service != "service2" {
+		t.Fatalf("want %v got %v", "service2", config.Name)
+	}
+	if *(config.Prefix) != "mybundle" {
+		t.Fatalf("want %v got %v", "mybundle", *(config.Prefix))
+	}
+}
+
+func TestConfigCorrupted(t *testing.T) {
+
+	in := `{"name": "a/b/c", "service": "service2", "prefix: mybundle"}`
+
+	config, err := ParseConfig([]byte(in), []string{"service1", "service2"})
+	if err != nil {
+		t.Fail()
+	}
+
+	if config.Name != "a/b/c" {
+		t.Fatalf("want %v got %v", "a/b/c", config.Name)
+	}
+	if config.Service != "service2" {
+		t.Fatalf("want %v got %v", "service2", config.Name)
+	}
+	if *(config.Prefix) != "bundles" {
+		t.Fatalf("want %v got %v", "bundles", *(config.Prefix))
 	}
 }

@@ -7,8 +7,8 @@ package bundle
 
 import (
 	"context"
-	"fmt"
 	"reflect"
+	"strings"
 	"sync"
 
 	"github.com/open-policy-agent/opa/ast"
@@ -114,8 +114,20 @@ func (p *Plugin) Unregister(name interface{}) {
 
 func (p *Plugin) initDownloader() {
 	client := p.manager.Client(p.config.Service)
-	path := fmt.Sprintf("/bundles/%v", p.config.Name)
+	path := p.generateDownloadPath(*(p.config.Prefix), p.config.Name)
 	p.downloader = download.New(p.config.Config, client, path).WithCallback(p.oneShot)
+}
+
+func (p *Plugin) generateDownloadPath(prefix string, name string) string {
+	res := ""
+	trimmedPrefix := strings.Trim(prefix, "/")
+	if trimmedPrefix != "" {
+		res += trimmedPrefix + "/"
+	}
+
+	res += strings.Trim(name, "/")
+
+	return res
 }
 
 func (p *Plugin) oneShot(ctx context.Context, u download.Update) {
