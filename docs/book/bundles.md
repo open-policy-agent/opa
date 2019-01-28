@@ -35,7 +35,7 @@ HTTP/1.1 200 OK
 Content-Type: application/gzip
 ```
 
-bundle plugin can be enabled using the below configuration:
+Enable bundle downloading via configuration. For example:
 
 ```yaml
 services:
@@ -54,13 +54,18 @@ bundle:
       max_delay_seconds: 20
 ```
 
-OPA will fetch it's bundle from `https://example.com/service/v1/somedir/authz/bundle.tar.gz`.
+Using this configuration, OPA will fetch bundles from
+`https://example.com/service/v1/somedir/authz/bundle.tar.gz`.
 
-The `prefix` field is optional and by default set to `bundles`. Hence if
-`prefix` is not provided, OPA will fetch it's configuration from
-`https://example.com/service/v1/bundles/authz/bundle.tar.gz`.
+The URL is constructed as follows:
 
-OPA currently supports Bearer token authentication for external services.
+```
+https://example.com/service/v1/somedir/authz/bundle.tar.gz
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ ^^^^^^^ ^^^^^^^^^^^^^^^^^^^
+services[0].url                prefix  name
+```
+
+If the `bundle.prefix` field is not defined, the value defaults to `bundles`.
 
 See the following section for details on the bundle file format.
 
