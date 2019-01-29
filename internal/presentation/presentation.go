@@ -18,6 +18,7 @@ import (
 
 	"github.com/olekukonko/tablewriter"
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/cover"
 	"github.com/open-policy-agent/opa/format"
 	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/profiler"
@@ -111,6 +112,7 @@ type Output struct {
 	Metrics     metrics.Metrics      `json:"metrics,omitempty"`
 	Explanation []*topdown.Event     `json:"explanation,omitempty"`
 	Profile     []profiler.ExprStats `json:"profile,omitempty"`
+	Coverage    *cover.Report        `json:"coverage,omitempty"`
 	limit       int
 }
 
@@ -190,6 +192,11 @@ func Pretty(w io.Writer, r Output) error {
 	}
 	if len(r.Profile) > 0 {
 		if err := prettyProfile(w, r.Profile); err != nil {
+			return err
+		}
+	}
+	if r.Coverage != nil {
+		if err := prettyCoverage(w, r.Coverage); err != nil {
 			return err
 		}
 	}
@@ -298,6 +305,13 @@ func prettyProfile(w io.Writer, profile []profiler.ExprStats) error {
 
 func prettyExplanation(w io.Writer, explanation []*topdown.Event) error {
 	topdown.PrettyTrace(w, explanation)
+	return nil
+}
+
+func prettyCoverage(w io.Writer, report *cover.Report) error {
+	table := tablewriter.NewWriter(w)
+	table.Append([]string{"Overall Coverage", fmt.Sprintf("%.02f", report.Coverage)})
+	table.Render()
 	return nil
 }
 

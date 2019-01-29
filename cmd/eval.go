@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/cover"
 	pr "github.com/open-policy-agent/opa/internal/presentation"
 	"github.com/open-policy-agent/opa/internal/runtime"
 	"github.com/open-policy-agent/opa/loader"
@@ -28,6 +29,7 @@ import (
 )
 
 type evalCommandParams struct {
+	coverage          bool
 	partial           bool
 	unknowns          []string
 	dataPaths         repeatedStringFlag
@@ -48,6 +50,18 @@ type evalCommandParams struct {
 	fail              bool
 }
 
+func newEvalCommandParams() evalCommandParams {
+	return evalCommandParams{
+		outputFormat: util.NewEnumFlag(evalJSONOutput, []string{
+			evalJSONOutput,
+			evalValuesOutput,
+			evalBindingsOutput,
+			evalPrettyOutput,
+		}),
+		explain: util.NewEnumFlag(explainModeOff, []string{explainModeFull}),
+	}
+}
+
 const (
 	explainModeOff     = ""
 	explainModeFull    = "full"
@@ -64,16 +78,7 @@ const (
 
 func init() {
 
-	var params evalCommandParams
-
-	params.outputFormat = util.NewEnumFlag(evalJSONOutput, []string{
-		evalJSONOutput,
-		evalValuesOutput,
-		evalBindingsOutput,
-		evalPrettyOutput,
-	})
-	params.explain = util.NewEnumFlag(explainModeOff, []string{explainModeFull})
-
+	params := newEvalCommandParams()
 	params.profileCriteria = newrepeatedStringFlag([]string{})
 	params.profileLimit = newIntFlag(defaultProfileLimit)
 	params.prettyLimit = newIntFlag(defaultPrettyLimit)
@@ -165,6 +170,7 @@ Set the output format with the --format flag.
 		},
 	}
 
+	evalCommand.Flags().BoolVarP(&params.coverage, "coverage", "", false, "report coverage")
 	evalCommand.Flags().BoolVarP(&params.partial, "partial", "p", false, "perform partial evaluation")
 	evalCommand.Flags().StringSliceVarP(&params.unknowns, "unknowns", "u", []string{"input"}, "set paths to treat as unknown during partial evaluation")
 	evalCommand.Flags().VarP(&params.dataPaths, "data", "d", "set data file(s) or directory path(s)")
@@ -215,6 +221,8 @@ func eval(args []string, params evalCommandParams, w io.Writer) (int, error) {
 		regoArgs = append(regoArgs, rego.Package(params.pkg))
 	}
 
+	parsedModules := map[string]*ast.Module{}
+
 	if len(params.dataPaths.v) > 0 {
 
 		f := loaderFilter{
@@ -227,6 +235,7 @@ func eval(args []string, params evalCommandParams, w io.Writer) (int, error) {
 		}
 		regoArgs = append(regoArgs, rego.Store(inmem.NewFromObject(loadResult.Documents)))
 		for _, file := range loadResult.Modules {
+			parsedModules[file.Name] = file.Parsed
 			regoArgs = append(regoArgs, rego.Module(file.Name, string(file.Raw)))
 		}
 	}
@@ -267,6 +276,13 @@ func eval(args []string, params evalCommandParams, w io.Writer) (int, error) {
 		regoArgs = append(regoArgs, rego.Unknowns(params.unknowns))
 	}
 
+	var c *cover.Cover
+
+	if params.coverage {
+		c = cover.New()
+		regoArgs = append(regoArgs, rego.Tracer(c))
+	}
+
 	eval := rego.New(regoArgs...)
 	ctx := context.Background()
 
@@ -296,7 +312,11 @@ func eval(args []string, params evalCommandParams, w io.Writer) (int, error) {
 		result.Profile = p.ReportTopNResults(params.profileLimit.v, sortOrder)
 	}
 
-	err = nil
+	if params.coverage {
+		report := c.Report(parsedModules)
+		result.Coverage = &report
+	}
+
 	switch params.outputFormat.String() {
 	case evalBindingsOutput:
 		err = pr.Bindings(w, result)
