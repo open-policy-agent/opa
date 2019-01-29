@@ -6,6 +6,7 @@ package topdown
 
 import (
 	"bytes"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"strconv"
@@ -21,7 +22,22 @@ import (
 
 const defaultHTTPRequestTimeout = time.Second * 5
 
-var allowedKeys = ast.NewSet(ast.StringTerm("method"), ast.StringTerm("url"), ast.StringTerm("body"), ast.StringTerm("enable_redirect"), ast.StringTerm("headers"))
+var allowedKeyNames = [...]string{
+	"method",
+	"url",
+	"body",
+	"enable_redirect",
+	"headers",
+	"tls_use_system_certs",
+	"tls_ca_cert_file",
+	"tls_ca_cert_env_variable",
+	"tls_client_cert_env_variable",
+	"tls_client_key_env_variable",
+	"tls_client_cert_file",
+	"tls_client_key_file",
+}
+var allowedKeys = ast.NewSet()
+
 var requiredKeys = ast.NewSet(ast.StringTerm("method"), ast.StringTerm("url"))
 
 var client *http.Client
@@ -42,6 +58,7 @@ func builtinHTTPSend(bctx BuiltinContext, args []*ast.Term, iter func(*ast.Term)
 }
 
 func init() {
+	createAllowedKeys()
 	createHTTPClient()
 	RegisterBuiltinFunc(ast.HTTPSend.Name, builtinHTTPSend)
 }
@@ -102,8 +119,17 @@ func addHeaders(req *http.Request, headers map[string]interface{}) (bool, error)
 func executeHTTPRequest(bctx BuiltinContext, obj ast.Object) (ast.Value, error) {
 	var url string
 	var method string
+	var tlsCaCertEnvVar []byte
+	var tlsCaCertFile string
+	var tlsClientKeyEnvVar []byte
+	var tlsClientCertEnvVar []byte
+	var tlsClientCertFile string
+	var tlsClientKeyFile string
 	var body *bytes.Buffer
 	var enableRedirect bool
+	var tlsUseSystemCerts bool
+	var tlsConfig tls.Config
+	var clientCerts []tls.Certificate
 	var customHeaders map[string]interface{}
 	for _, val := range obj.Keys() {
 		key, err := ast.JSON(val.Value)
@@ -136,6 +162,32 @@ func executeHTTPRequest(bctx BuiltinContext, obj ast.Object) (ast.Value, error) 
 				return nil, err
 			}
 			body = bytes.NewBuffer(bodyValBytes)
+		case "tls_use_system_certs":
+			tlsUseSystemCerts, err = strconv.ParseBool(obj.Get(val).String())
+			if err != nil {
+				return nil, err
+			}
+		case "tls_ca_cert_file":
+			tlsCaCertFile = obj.Get(val).String()
+			tlsCaCertFile = strings.Trim(tlsCaCertFile, "\"")
+		case "tls_ca_cert_env_variable":
+			caCertEnv := obj.Get(val).String()
+			caCertEnv = strings.Trim(caCertEnv, "\"")
+			tlsCaCertEnvVar = []byte(os.Getenv(caCertEnv))
+		case "tls_client_cert_env_variable":
+			clientCertEnv := obj.Get(val).String()
+			clientCertEnv = strings.Trim(clientCertEnv, "\"")
+			tlsClientCertEnvVar = []byte(os.Getenv(clientCertEnv))
+		case "tls_client_key_env_variable":
+			clientKeyEnv := obj.Get(val).String()
+			clientKeyEnv = strings.Trim(clientKeyEnv, "\"")
+			tlsClientKeyEnvVar = []byte(os.Getenv(clientKeyEnv))
+		case "tls_client_cert_file":
+			tlsClientCertFile = obj.Get(val).String()
+			tlsClientCertFile = strings.Trim(tlsClientCertFile, "\"")
+		case "tls_client_key_file":
+			tlsClientKeyFile = obj.Get(val).String()
+			tlsClientKeyFile = strings.Trim(tlsClientKeyFile, "\"")
 		case "headers":
 			headersVal := obj.Get(val).Value
 			headersValInterface, err := ast.JSON(headersVal)
@@ -149,6 +201,35 @@ func executeHTTPRequest(bctx BuiltinContext, obj ast.Object) (ast.Value, error) 
 			}
 		default:
 			return nil, fmt.Errorf("Invalid Key %v", key)
+		}
+	}
+
+	if tlsClientCertFile != "" && tlsClientKeyFile != "" {
+		clientCertFromFile, err := tls.LoadX509KeyPair(tlsClientCertFile, tlsClientKeyFile)
+		if err != nil {
+			return nil, err
+		}
+		clientCerts = append(clientCerts, clientCertFromFile)
+	}
+
+	if len(tlsClientCertEnvVar) > 0 && len(tlsClientKeyEnvVar) > 0 {
+		clientCertFromEnv, err := tls.X509KeyPair(tlsClientCertEnvVar, tlsClientKeyEnvVar)
+		if err != nil {
+			return nil, err
+		}
+		clientCerts = append(clientCerts, clientCertFromEnv)
+	}
+
+	if len(clientCerts) > 0 {
+		// this is a TLS connection
+		connRootCAs, err := createRootCAs(tlsCaCertFile, tlsCaCertEnvVar, tlsUseSystemCerts)
+		if err != nil {
+			return nil, err
+		}
+		tlsConfig.Certificates = append(tlsConfig.Certificates, clientCerts...)
+		tlsConfig.RootCAs = connRootCAs
+		client.Transport = &http.Transport{
+			TLSClientConfig: &tlsConfig,
 		}
 	}
 
@@ -226,4 +307,10 @@ func checkCache(method string, url string, bctx BuiltinContext) ast.Value {
 		return val.(ast.Value)
 	}
 	return nil
+}
+
+func createAllowedKeys() {
+	for _, element := range allowedKeyNames {
+		allowedKeys.Add(ast.StringTerm(element))
+	}
 }
