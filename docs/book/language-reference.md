@@ -211,7 +211,36 @@ evaluation query will always return the same value.
 ### HTTP
 | Built-in | Inputs | Description |
 | ------- |--------|-------------|
-| <span class="opa-keep-it-together">``http.send(request, output)``</span> | 1 | ``http.send`` executes a HTTP request and returns the response.``request`` is an object containing keys ``method``, ``url`` and  optionally ``body``, ``enable_redirect`` and ``headers``. For example, ``http.send({"method": "get", "url": "http://www.openpolicyagent.org/", "headers": {"X-Foo":"bar", "X-Opa": "rules"}}, output)``. ``output`` is an object containing keys ``status``, ``status_code`` and ``body`` which represent the HTTP status, status code and response body respectively. Sample output, ``{"status": "200 OK", "status_code": 200, "body": null``}. By default, http redirects are not enabled. To enable, set ``enable_redirect`` to ``true``.|
+| <span class="opa-keep-it-together">``http.send(request, output)``</span> | 3+ | ``http.send`` executes a HTTP request and returns the response.``request`` is an object containing keys ``method``, ``url`` and  optionally ``body``, ``enable_redirect``, ``headers``, ``tls_use_system_certs``, ``tls_ca_cert_file``, ``tls_ca_cert_env_variable``, ``tls_client_cert_env_variable``, ``tls_client_key_env_variable`` or ``tls_client_cert_file``, ``tls_client_key_file`` . For example, ``http.send({"method": "get", "url": "http://www.openpolicyagent.org/", "headers": {"X-Foo":"bar", "X-Opa": "rules"}}, output)``. ``output`` is an object containing keys ``status``, ``status_code`` and ``body`` which represent the HTTP status, status code and response body respectively. Sample output, ``{"status": "200 OK", "status_code": 200, "body": null``}. By default, http redirects are not enabled. To enable, set ``enable_redirect`` to ``true``.|
+
+#### HTTPs Usage
+
+The following table explains the HTTPs objects
+
+| Object |  Definition | Value|
+| -------- |-----------|------|
+| tls_use_system_certs | Use system certificate pool | true or false
+| tls_ca_cert_file | Path to file containing a root certificate in PEM encoded format | double-quoted string
+| tls_ca_cert_env_variable | Environment variable containing a root certificate in PEM encoded format | double-quoted string
+| tls_client_cert_env_variable | Environment variable containing a client certificate in PEM encoded format | double-quoted string
+| tls_client_key_env_variable | Environment variable containing a client key in PEM encoded format | double-quoted string
+| tls_client_cert_file | Path to file containing a client certificate in PEM encoded format | double-quoted string
+| tls_client_key_file | Path to file containing a key  in PEM encoded format | double-quoted string
+
+In order to trigger the use of HTTPs the user must provide one of the following combinations:
+
+ * ``tls_client_cert_file``, ``tls_client_key_file``
+ * ``tls_client_cert_env_variable``, ``tls_client_key_env_variable``
+
+ The user must also provide a trusted root CA through tls_ca_cert_file or tls_ca_cert_env_variable. Alternatively the user could set tls_use_system_certs to ``true`` and the system certificate pool will be used.
+
+#### HTTPs Examples
+
+| Examples |  Comments |
+| -------- |-----------|
+| Files containing TLS material | ``http.send({"method": "get", "url": "https://127.0.0.1:65331", "tls_ca_cert_file": "testdata/ca.pem", "tls_client_cert_file": "testdata/client-cert.pem", "tls_client_key_file": "testdata/client-key.pem"}, output)``.
+|Environment variables containing TLS material | ``http.send({"method": "get", "url": "https://127.0.0.1:65360", "tls_ca_cert_env_variable": "CLIENT_CA_ENV", "tls_client_cert_env_variable": "CLIENT_CERT_ENV", "tls_client_key_env_variable": "CLIENT_KEY_ENV"}, output)``.|
+| Accessing Google using System Cert Pool | ``http.send({"method": "get", "url": "https://www.google.com", "tls_use_system_certs": true, "tls_client_cert_file": "testdata/client-cert.pem", "tls_client_key_file": "testdata/client-key.pem"}, output)``
 
 ### Net
 | Built-in | Inputs | Description |

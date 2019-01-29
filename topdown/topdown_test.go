@@ -3185,6 +3185,16 @@ func assertTopDownWithPath(t *testing.T, compiler *ast.Compiler, store storage.S
 
 	testutil.Subtest(t, note, func(t *testing.T) {
 		switch e := expected.(type) {
+		case Error:
+			result, err := query.Run(ctx)
+			if err == nil {
+				t.Errorf("Expected error but got: %v", result)
+				return
+			}
+			errString := err.Error()
+			if !strings.Contains(errString, e.Code) || !strings.Contains(errString, e.Message) {
+				t.Errorf("Expected error %v but got: %v", e, err)
+			}
 		case error:
 			result, err := query.Run(ctx)
 			if err == nil {
