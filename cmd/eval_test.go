@@ -9,15 +9,15 @@ import (
 	"bytes"
 	"testing"
 
+	"github.com/open-policy-agent/opa/internal/presentation"
 	"github.com/open-policy-agent/opa/util"
+	"github.com/open-policy-agent/opa/util/test"
 )
 
 func TestEvalExitCode(t *testing.T) {
-	params := evalCommandParams{
-		fail:         true,
-		explain:      util.NewEnumFlag(explainModeOff, []string{explainModeFull}),
-		outputFormat: util.NewEnumFlag(evalJSONOutput, []string{evalJSONOutput}),
-	}
+	params := newEvalCommandParams()
+	params.fail = true
+
 	tests := []struct {
 		note         string
 		query        string
@@ -39,4 +39,37 @@ func TestEvalExitCode(t *testing.T) {
 			t.Fatalf("%v: Expected code %v, got %v", tc.note, tc.expectedCode, code)
 		}
 	}
+}
+
+func TestEvalWithCoverage(t *testing.T) {
+
+	files := map[string]string{
+		"x.rego": `package x
+
+p = 1`,
+	}
+
+	test.WithTempFS(files, func(path string) {
+
+		params := newEvalCommandParams()
+		params.coverage = true
+		params.dataPaths = newrepeatedStringFlag([]string{path})
+
+		var buf bytes.Buffer
+
+		code, err := eval([]string{"data"}, params, &buf)
+		if code != 0 || err != nil {
+			t.Fatalf("Unexpected exit code (%d) or error: %v", code, err)
+		}
+
+		var output presentation.Output
+
+		if err := util.NewJSONDecoder(&buf).Decode(&output); err != nil {
+			t.Fatal(err)
+		}
+
+		if output.Coverage == nil || output.Coverage.Coverage != 100.0 {
+			t.Fatalf("Expected coverage in output but got: %v", buf.String())
+		}
+	})
 }
