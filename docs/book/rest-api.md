@@ -13,8 +13,13 @@ The identifiers given to policy modules are only used for management purposes. T
 ```
 GET /v1/policies
 ```
-
 List policy modules.
+
+
+#### Status Codes
+
+- **200** - no error
+- **500** - server error
 
 #### Example Request
 
@@ -361,11 +366,6 @@ Content-Type: application/json
 
 ```
 
-#### Status Codes
-
-- **200** - no error
-- **500** - server error
-
 ### Get a Policy
 
 ```
@@ -373,6 +373,16 @@ GET /v1/policies/<id>
 ```
 
 Get a policy module.
+
+#### Query Parameters
+
+- **pretty** - If parameter is `true`, response will formatted for humans.
+
+#### Status Codes
+
+- **200** - no error
+- **404** - not found
+- **500** - server error
 
 #### Example Request
 
@@ -593,16 +603,6 @@ Content-Type: application/json
 }
 ```
 
-#### Query Parameters
-
-- **pretty** - If parameter is `true`, response will formatted for humans.
-
-#### Status Codes
-
-- **200** - no error
-- **404** - not found
-- **500** - server error
-
 ### Create or Update a Policy
 
 ```
@@ -613,6 +613,19 @@ Content-Type: text/plain
 Create or update a policy module.
 
 If the policy module does not exist, it is created. If the policy module already exists, it is replaced.
+
+### Query Parameters
+
+- **pretty** - If parameter is `true`, response will formatted for humans.
+- **metrics** - Return compiler performance metrics in addition to result. See [Performance Metrics](#performance-metrics) for more detail.
+
+#### Status Codes
+
+- **200** - no error
+- **400** - bad request
+- **500** - server error
+
+Before accepting the request, the server will parse, compile, and install the policy module. If the policy module is invalid, one of these steps will fail and the server will respond with 400. The error message in the response will be set to indicate the source of the error.
 
 #### Example Request
 
@@ -649,7 +662,15 @@ Content-Type: application/json
 {}
 ```
 
-### Query Parameters
+### Delete a Policy
+
+```
+DELETE /v1/policies/<id>
+```
+
+Delete a policy module.
+
+#### Query Parameters
 
 - **pretty** - If parameter is `true`, response will formatted for humans.
 - **metrics** - Return compiler performance metrics in addition to result. See [Performance Metrics](#performance-metrics) for more detail.
@@ -658,17 +679,10 @@ Content-Type: application/json
 
 - **200** - no error
 - **400** - bad request
+- **404** - not found
 - **500** - server error
 
-Before accepting the request, the server will parse, compile, and install the policy module. If the policy module is invalid, one of these steps will fail and the server will respond with 400. The error message in the response will be set to indicate the source of the error.
-
-### Delete a Policy
-
-```
-DELETE /v1/policies/<id>
-```
-
-Delete a policy module.
+If other policy modules in the same package depend on rules in the policy module to be deleted, the server will return 400.
 
 #### Example Request
 
@@ -687,20 +701,6 @@ Content-Type: application/json
 {}
 ```
 
-#### Query Parameters
-
-- **pretty** - If parameter is `true`, response will formatted for humans.
-- **metrics** - Return compiler performance metrics in addition to result. See [Performance Metrics](#performance-metrics) for more detail.
-
-#### Status Codes
-
-- **204** - no content
-- **400** - bad request
-- **404** - not found
-- **500** - server error
-
-If other policy modules in the same package depend on rules in the policy module to be deleted, the server will return 400.
-
 ## Data API
 
 The Data API exposes endpoints for reading and writing documents in OPA. For an introduction to the different types of documents in OPA see [How Does OPA Work?](/how-does-opa-work.md).
@@ -714,6 +714,41 @@ GET /v1/data/{path:.+}
 Get a document.
 
 The path separator is used to access values inside object and array documents. If the path indexes into an array, the server will attempt to convert the array index to an integer. If the path element cannot be converted to an integer, the server will respond with 404.
+
+#### Query Parameters
+
+- **input** - Provide an input document. Format is a JSON value that will be used as the value for the input document.
+- **pretty** - If parameter is `true`, response will formatted for humans.
+- **explain** - Return query explanation in addition to result. Values: **full**.
+- **metrics** - Return query performance metrics in addition to result. See [Performance Metrics](#performance-metrics) for more detail.
+- **instrument** - Instrument query evaluation and return a superset of performance metrics in addition to result. See [Performance Metrics](#performance-metrics) for more detail.
+- **watch** - Set a watch on the data reference if the parameter is present. See [Watches](#watches) for more detail.
+
+#### Status Codes
+
+- **200** - no error
+- **400** - bad request
+- **404** - not found
+- **500** - server error
+
+The server returns 400 if either:
+
+- The query requires the input document and the caller does not provide it.
+- The caller provides the input document but the query already defines it programmatically.
+
+The server returns 200 if the path refers to an undefined document. In this
+case, the response will not contain a `result` property.
+
+#### Response Message
+
+- **result** - The base or virtual document referred to by the URL path. If the
+  path is undefined, this key will be omitted.
+- **metrics** - If query metrics are enabled, this field contains query
+  performance metrics collected during the parse, compile, and evaluation steps.
+* **decision_id** - If decision logging is enabled, this field contains a string
+  that uniquely identifies the decision. The identifier will be included in the
+  decision log event for this decision. Callers can use the identifier for
+  correlation purposes.
 
 #### Example Request
 
@@ -974,40 +1009,6 @@ Transfer-Encoding: chunked
 }
 ```
 
-#### Query Parameters
-
-- **input** - Provide an input document. Format is a JSON value that will be used as the value for the input document.
-- **pretty** - If parameter is `true`, response will formatted for humans.
-- **explain** - Return query explanation in addition to result. Values: **full**.
-- **metrics** - Return query performance metrics in addition to result. See [Performance Metrics](#performance-metrics) for more detail.
-- **instrument** - Instrument query evaluation and return a superset of performance metrics in addition to result. See [Performance Metrics](#performance-metrics) for more detail.
-- **watch** - Set a watch on the data reference if the parameter is present. See [Watches](#watches) for more detail.
-
-#### Status Codes
-
-- **200** - no error
-- **400** - bad request
-- **500** - server error
-
-The server returns 400 if either:
-
-- The query requires the input document and the caller does not provide it.
-- The caller provides the input document but the query already defines it programmatically.
-
-The server returns 200 if the path refers to an undefined document. In this
-case, the response will not contain a `result` property.
-
-#### Response Message
-
-- **result** - The base or virtual document referred to by the URL path. If the
-  path is undefined, this key will be omitted.
-- **metrics** - If query metrics are enabled, this field contains query
-  performance metrics collected during the parse, compile, and evaluation steps.
-* **decision_id** - If decision logging is enabled, this field contains a string
-  that uniquely identifies the decision. The identifier will be included in the
-  decision log event for this decision. Callers can use the identifier for
-  correlation purposes.
-
 ### Get a Document (with Input)
 
 ```
@@ -1026,6 +1027,44 @@ Get a document that requires input.
 The path separator is used to access values inside object and array documents. If the path indexes into an array, the server will attempt to convert the array index to an integer. If the path element cannot be converted to an integer, the server will respond with 404.
 
 The request body contains an object that specifies a value for [The input Document](/how-does-opa-work.md#the-input-document).
+
+#### Request Headers
+
+- **Content-Type: application/x-yaml**: Indicates the request body is a YAML encoded object.
+
+#### Query Parameters
+
+- **partial** - Use the partial evaluation (optimization) when evaluating the query.
+- **pretty** - If parameter is `true`, response will formatted for humans.
+- **explain** - Return query explanation in addition to result. Values: **full**.
+- **metrics** - Return query performance metrics in addition to result. See [Performance Metrics](#performance-metrics) for more detail.
+- **instrument** - Instrument query evaluation and return a superset of performance metrics in addition to result. See [Performance Metrics](#performance-metrics) for more detail.
+- **watch** - Set a watch on the data reference if the parameter is present. See [Watches](#watches) for more detail.
+
+#### Status Codes
+
+- **200** - no error
+- **400** - bad request
+- **500** - server error
+
+The server returns 400 if either:
+
+1. The query requires an input document and the client did not supply one.
+2. The query already defines an input document and the client did supply one.
+
+The server returns 200 if the path refers to an undefined document. In this
+case, the response will not contain a `result` property.
+
+#### Response Message
+
+- **result** - The base or virtual document referred to by the URL path. If the
+  path is undefined, this key will be omitted.
+- **metrics** - If query metrics are enabled, this field contains query
+  performance metrics collected during the parse, compile, and evaluation steps.
+* **decision_id** - If decision logging is enabled, this field contains a string
+  that uniquely identifies the decision. The identifier will be included in the
+  decision log event for this decision. Callers can use the identifier for
+  correlation purposes.
 
 The examples below assume the following policy:
 
@@ -1094,44 +1133,6 @@ HTTP/1.1 200 OK
 {}
 ```
 
-#### Request Headers
-
-- **Content-Type: application/x-yaml**: Indicates the request body is a YAML encoded object.
-
-#### Query Parameters
-
-- **partial** - Use the partial evaluation (optimization) when evaluating the query.
-- **pretty** - If parameter is `true`, response will formatted for humans.
-- **explain** - Return query explanation in addition to result. Values: **full**.
-- **metrics** - Return query performance metrics in addition to result. See [Performance Metrics](#performance-metrics) for more detail.
-- **instrument** - Instrument query evaluation and return a superset of performance metrics in addition to result. See [Performance Metrics](#performance-metrics) for more detail.
-- **watch** - Set a watch on the data reference if the parameter is present. See [Watches](#watches) for more detail.
-
-#### Status Codes
-
-- **200** - no error
-- **400** - bad request
-- **500** - server error
-
-The server returns 400 if either:
-
-1. The query requires an input document and the client did not supply one.
-2. The query already defines an input document and the client did supply one.
-
-The server returns 200 if the path refers to an undefined document. In this
-case, the response will not contain a `result` property.
-
-#### Response Message
-
-- **result** - The base or virtual document referred to by the URL path. If the
-  path is undefined, this key will be omitted.
-- **metrics** - If query metrics are enabled, this field contains query
-  performance metrics collected during the parse, compile, and evaluation steps.
-* **decision_id** - If decision logging is enabled, this field contains a string
-  that uniquely identifies the decision. The identifier will be included in the
-  decision log event for this decision. Callers can use the identifier for
-  correlation purposes.
-
 ### Get a Document (Webhook)
 
 ```
@@ -1148,6 +1149,23 @@ The request message body defines the content of the [The input
 Document](/how-does-opa-work.md#the-input-document). The request message body
 may be empty. The path separator is used to access values inside object and
 array documents.
+
+#### Request Headers
+
+- **Content-Type: application/x-yaml**: Indicates the request body is a YAML encoded object.
+
+#### Query Parameters
+
+- **pretty** - If parameter is `true`, response will formatted for humans.
+
+#### Status Codes
+
+- **200** - no error
+- **400** - bad request
+- **404** - not found
+- **500** - server error
+
+If the requested document is missing or undefined, the server will return 404 and the message body will contain an error object.
 
 The examples below assume the following policy:
 
@@ -1185,23 +1203,6 @@ Content-Type: application/json
 true
 ```
 
-#### Request Headers
-
-- **Content-Type: application/x-yaml**: Indicates the request body is a YAML encoded object.
-
-#### Query Parameters
-
-- **pretty** - If parameter is `true`, response will formatted for humans.
-
-#### Status Codes
-
-- **200** - no error
-- **400** - bad request
-- **404** - not found
-- **500** - server error
-
-If the requested document is missing or undefined, the server will return 404 and the message body will contain an error object.
-
 ### Create or Overwrite a Document
 
 ```
@@ -1214,6 +1215,16 @@ Create or overwrite a document.
 If the path does not refer to an existing document, the server will attempt to create all of the necessary containing documents. This behavior is similar in principle to the Unix command `mkdir -p`.
 
 The server will respect the `If-None-Match` header if it is set to `*`. In this case, the server will not overwrite an existing document located at the path.
+
+#### Status Codes
+
+- **204** - no content (success)
+- **304** - not modified
+- **400** - bad request
+- **404** - write conflict
+- **500** - server error
+
+If the path refers to a virtual document or a conflicting base document the server will respond with 404. A base document conflict will occur if the parent portion of the path refers to a non-object document.
 
 #### Example Request To Initialize Document With If-None-Match
 
@@ -1239,14 +1250,6 @@ HTTP/1.1 304 Not Modified
 HTTP/1.1 204 No Content
 ```
 
-#### Status Codes
-
-- **204** - no content (success)
-- **304** - not modified
-- **404** - write conflict
-
-If the path refers to a virtual document or a conflicting base document the server will respond with 404. A base document conflict will occur if the parent portion of the path refers to a non-object document.
-
 ### Patch a Document
 
 ```
@@ -1259,6 +1262,15 @@ Update a document.
 The path separator is used to access values inside object and array documents. If the path indexes into an array, the server will attempt to convert the array index to an integer. If the path element cannot be converted to an integer, the server will respond with 404.
 
 The server accepts updates encoded as JSON Patch operations. The message body of the request should contain a JSON encoded array containing one or more JSON Patch operations. Each operation specifies the operation type, path, and an optional value. For more information on JSON Patch, see [RFC 6902](https://tools.ietf.org/html/rfc6902).
+
+#### Status Codes
+
+- **204** - no content (success)
+- **400** - bad request
+- **404** - not found
+- **500** - server error
+
+The effective path of the JSON Patch operation is obtained by joining the path portion of the URL with the path value from the operation(s) contained in the message body. In all cases, the parent of the effective path MUST refer to an existing document, otherwise the server returns 404. In the case of **remove** and **replace** operations, the effective path MUST refer to an existing document, otherwise the server returns 404.
 
 #### Example Request
 
@@ -1286,14 +1298,6 @@ Content-Type: application/json-patch+json
 HTTP/1.1 204 No Content
 ```
 
-#### Status Codes
-
-- **204** - no content (success)
-- **404** - not found
-- **500** - server error
-
-The effective path of the JSON Patch operation is obtained by joining the path portion of the URL with the path value from the operation(s) contained in the message body. In all cases, the parent of the effective path MUST refer to an existing document, otherwise the server returns 404. In the case of **remove** and **replace** operations, the effective path MUST refer to an existing document, otherwise the server returns 404.
-
 ### Delete a Document
 
 ```
@@ -1303,6 +1307,14 @@ DELETE /v1/data/{path:.+}
 Delete a document.
 
 The server processes the DELETE method as if the client had sent a PATCH request containing a single remove operation.
+
+#### Status Codes
+
+- **204** - no content (success)
+- **404** - not found
+- **500** - server error
+
+If the path refers to a non-existent document, the server returns 404.
 
 #### Example Request
 
@@ -1315,14 +1327,6 @@ DELETE /v1/data/servers HTTP/1.1
 ```http
 HTTP/1.1 204 No Content
 ```
-
-#### Status Codes
-
-- **204** - no content (success)
-- **404** - not found
-- **500** - server error
-
-If the path refers to a non-existent document, the server returns 404.
 
 ## Query API
 
@@ -1337,7 +1341,26 @@ Execute a simple query.
 
 OPA serves POST requests without a URL path by querying for the document at
 path `/data/system/main`. The content of that document defines the response
-entirely. The policy example below shows how to define a rule that will
+entirely.
+
+#### Request Headers
+
+- **Content-Type: application/x-yaml**: Indicates the request body is a YAML encoded object.
+
+#### Query Parameters
+
+- **pretty** - If parameter is `true`, response will formatted for humans.
+
+#### Status Codes
+
+- **200** - no error
+- **400** - bad request
+- **404** - not found
+- **500** - server error
+
+If the default decision (defaulting to `/system/main`) is undefined, the server returns 404.
+
+The policy example below shows how to define a rule that will
 produce a value for the `/data/system/main` document. You can configure OPA
 to use a different URL path to serve these queries. See the [Configuration Reference](configuration.md)
 for more information.
@@ -1381,23 +1404,6 @@ Content-Type: application/json
 "hello, alice"
 ```
 
-#### Request Headers
-
-- **Content-Type: application/x-yaml**: Indicates the request body is a YAML encoded object.
-
-#### Query Parameters
-
-- **pretty** - If parameter is `true`, response will formatted for humans.
-
-#### Status Codes
-
-- **200** - no error
-- **400** - bad request
-- **404** - not found
-- **500** - server error
-
-If the default decision (defaulting to `/system/main`) is undefined, the server returns 404.
-
 ### Execute an Ad-hoc Query
 
 Execute an ad-hoc query and return bindings for variables found in the query.
@@ -1405,6 +1411,22 @@ Execute an ad-hoc query and return bindings for variables found in the query.
 ```
 GET /v1/query
 ```
+
+#### Query Parameters
+
+- **q** - The ad-hoc query to execute. OPA will parse, compile, and execute the query represented by the parameter value. The value MUST be URL encoded. Only used in GET method. For POST method the query is sent as part of the request body and this parameter is not used.
+- **pretty** - If parameter is `true`, response will formatted for humans.
+- **explain** - Return query explanation in addition to result. Values: **full**.
+- **metrics** - Return query performance metrics in addition to result. See [Performance Metrics](#performance-metrics) for more detail.
+- **watch** - Set a watch on the query if the parameter is present. See [Watches](#watches) for more detail.
+
+#### Status Codes
+
+- **200** - no error
+- **400** - bad request
+- **404** - watch ID not found
+- **500** - server error
+- **501** - streaming not implemented
 
 For queries that have large JSON values it is recommended to use the `POST` method with the query included as the `POST` body
 
@@ -1447,22 +1469,6 @@ Content-Type: application/json
 }
 ```
 
-#### Query Parameters
-
-- **q** - The ad-hoc query to execute. OPA will parse, compile, and execute the query represented by the parameter value. The value MUST be URL encoded. Only used in GET method. For POST method the query is sent as part of the request body and this parameter is not used. 
-- **pretty** - If parameter is `true`, response will formatted for humans.
-- **explain** - Return query explanation in addition to result. Values: **full**.
-- **metrics** - Return query performance metrics in addition to result. See [Performance Metrics](#performance-metrics) for more detail.
-- **watch** - Set a watch on the query if the parameter is present. See [Watches](#watches) for more detail.
-
-#### Status Codes
-
-- **200** - no error
-- **400** - bad request
-- **404** - watch ID not found
-- **500** - server error
-- **501** - streaming not implemented
-
 ## Compile API
 
 ### Partially Evaluate a Query
@@ -1477,6 +1483,29 @@ Partially evaluate a query.
 The [Compile API](#compile-api) allows you to partially evaluate Rego queries
 and obtain a simplified version of the policy. For more details on Partial
 Evaluation in OPA, see [this post on blog.openpolicyagent.org](https://blog.openpolicyagent.org/partial-evaluation-162750eaf422).
+
+#### Request Body
+
+Compile API requests contain the following fields:
+
+| Field | Type | Requried | Description |
+| --- | --- | --- | --- |
+| `query` | `string` | Yes | The query to partially evaluate and compile. |
+| `input` | `any` | No | The input document to use during partial evaluation (default: undefined). |
+| `unknowns` | `array[string]` | No | The terms to treat as unknown during partial evaluation (default: `["input"]`]). |
+
+#### Query Parameters
+
+- **pretty** - If parameter is `true`, response will formatted for humans.
+- **explain** - Return query explanation in addition to result. Values: **full**.
+- **metrics** - Return query performance metrics in addition to result. See [Performance Metrics](#performance-metrics) for more detail.
+- **instrument** - Instrument query evaluation and return a superset of performance metrics in addition to result. See [Performance Metrics](#performance-metrics) for more detail.
+
+#### Status Codes
+
+- **200** - no error
+- **400** - bad request
+- **500** - server error
 
 The example below assumes that OPA has been given the following policy:
 
@@ -1565,29 +1594,6 @@ Content-Type: application/json
   }
 }
 ```
-
-#### Request Body
-
-Compile API requests contain the following fields:
-
-| Field | Type | Requried | Description |
-| --- | --- | --- | --- |
-| `query` | `string` | Yes | The query to partially evaluate and compile. |
-| `input` | `any` | No | The input document to use during partial evaluation (default: undefined). |
-| `unknowns` | `array[string]` | No | The terms to treat as unknown during partial evaluation (default: `["input"]`]). |
-
-#### Query Parameters
-
-- **pretty** - If parameter is `true`, response will formatted for humans.
-- **explain** - Return query explanation in addition to result. Values: **full**.
-- **metrics** - Return query performance metrics in addition to result. See [Performance Metrics](#performance-metrics) for more detail.
-- **instrument** - Instrument query evaluation and return a superset of performance metrics in addition to result. See [Performance Metrics](#performance-metrics) for more detail.
-
-#### Status Codes
-
-- **200** - no error
-- **400** - bad request
-- **500** - server error
 
 #### Unconditional Results from Partial Evaluation
 
@@ -1909,3 +1915,8 @@ The `expressions` field is an array of the results of evaluating each of the exp
 The `bindings` field is a JSON object mapping `string`s to JSON values that describe the variable bindings resulting from evaluating the query.
 
 If the watch was set on a data reference instead of a query, the `result` field will simply be the value of the document requested, instead of an array of values.
+
+## Methods not Allowed
+
+OPA will respond with a 405 Error (Method Not Allowed) if the method used to access the URL is not supported. For example, if a client uses the *HEAD* method to access any path within "/v1/data/{path:.*}", a 405 will be returned.
+
