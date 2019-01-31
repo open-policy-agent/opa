@@ -1715,6 +1715,10 @@ optional:
 }
 ```
 
+### Method not Allowed
+
+OPA will respond with a 405 Error (Method Not Allowed) if the method used to access the URL is not supported. For example, if a client uses the *HEAD* method to access any path within "/v1/data/{path:.*}", a 405 will be returned.
+
 ## Explanations
 
 OPA supports query explanations that describe (in detail) the steps taken to
@@ -1916,7 +1920,4 @@ The `bindings` field is a JSON object mapping `string`s to JSON values that desc
 
 If the watch was set on a data reference instead of a query, the `result` field will simply be the value of the document requested, instead of an array of values.
 
-## Methods not Allowed
-
-OPA will respond with a 405 Error (Method Not Allowed) if the method used to access the URL is not supported. For example, if a client uses the *HEAD* method to access any path within "/v1/data/{path:.*}", a 405 will be returned.
 
