@@ -228,16 +228,16 @@ func ValueToInterface(v Value, resolver Resolver) (interface{}, error) {
 		return buf, nil
 	case Object:
 		buf := map[string]interface{}{}
-		err := v.Iter(func(k, v *Term) error {
+		err := v.Iter(func(k, value *Term) error {
 			ki, err := ValueToInterface(k.Value, resolver)
 			if err != nil {
 				return err
 			}
 			asStr, stringKey := ki.(string)
 			if !stringKey {
-				return fmt.Errorf("object value has non-string key (%T)", ki)
+				return fmt.Errorf("object value (%v) has non-string key of type (%T), value (%v)", v, ki, ki)
 			}
-			vi, err := ValueToInterface(v.Value, resolver)
+			vi, err := ValueToInterface(value.Value, resolver)
 			if err != nil {
 				return err
 			}

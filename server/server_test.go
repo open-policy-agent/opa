@@ -59,6 +59,28 @@ func TestUnversionedGetHealth(t *testing.T) {
 	}
 }
 
+func TestInvalidKeyV1(t *testing.T) {
+	testPolicy := `package foo
+
+	g[app] = zone {
+    	app = ["foo"]
+    	zone = 456
+	}
+	`
+	f := newFixture(t)
+
+	if err := f.v1(http.MethodPut, "/policies/foo", testPolicy, 200, ""); err != nil {
+		t.Fatalf("Unexpected error while creating policy: %v", err)
+	}
+
+	if err := f.v1(http.MethodGet, "/data/foo", "", 500, `{
+    "code": "internal_error",
+    "message": "object value ({[\"foo\"]: 456}) has non-string key of type ([]interface {}), value ([foo])"
+}`); err != nil {
+		t.Fatalf("Unexpected error from GET: %v", err)
+	}
+}
+
 func TestDataV0(t *testing.T) {
 	testMod1 := `package test
 
