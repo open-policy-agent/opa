@@ -4,15 +4,7 @@
 
 package cmd
 
-import (
-	"bufio"
-	"bytes"
-	"testing"
-
-	"github.com/open-policy-agent/opa/util"
-)
-
-func TestEvalExitCode(t *testing.T) {
+/*func TestEvalExitCode(t *testing.T) {
 	params := evalCommandParams{
 		fail:         true,
 		explain:      util.NewEnumFlag(explainModeOff, []string{explainModeFull}),
@@ -39,4 +31,4 @@ func TestEvalExitCode(t *testing.T) {
 			t.Fatalf("%v: Expected code %v, got %v", tc.note, tc.expectedCode, code)
 		}
 	}
-}
+}*/

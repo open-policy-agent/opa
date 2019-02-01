@@ -13,9 +13,11 @@ import (
 	"net/http/httptest"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path/filepath"
 	"reflect"
 	"strings"
+	"syscall"
 	"testing"
 
 	"github.com/open-policy-agent/opa/ast"
@@ -62,7 +64,7 @@ func emptyInitChan() {
 // Runs all tests with the filesystem given below. The plugins add an item to initChan upon activation.
 // This is a separate function in order to allow deferred calls to activate.
 // TestMain does not honor deferred calls as it uses os.Exit.
-func testMainInEnvironment(m *testing.M) int {
+func testMainInEnvironment() (root string, cleanup func()) {
 
 	// server sends item to channel upon request
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
@@ -88,11 +90,11 @@ plugins:
 		"/plugins/bad-config.yaml": badConfig,
 	}
 
-	root, cleanup := makeDirWithSharedObjects(files, ".so")
+	root, cleanup = makeDirWithSharedObjects(files, ".so")
 	testDirRoot = root
 	defer cleanup()
 
-	return m.Run()
+	return root, cleanup
 }
 
 // returns a builtin that always returns true with name name
@@ -189,7 +191,39 @@ func Init() error {
 }
 
 func TestMain(m *testing.M) {
-	os.Exit(testMainInEnvironment(m))
+	root, _ := testMainInEnvironment()
+	signalChan := make(chan os.Signal, 1)
+	signal.Notify(signalChan, syscall.SIGINT, syscall.SIGTERM)
+	exitChan := make(chan int)
+	go func() {
+		s := <-signalChan
+		switch s {
+		// kill -SIGHUP XXXX
+		case syscall.SIGHUP:
+			fmt.Println("hungup")
+
+		// kill -SIGINT XXXX or Ctrl+c
+		case syscall.SIGINT:
+			fmt.Println("Warikomi")
+
+		// kill -SIGTERM XXXX
+		case syscall.SIGTERM:
+			fmt.Println("force stop")
+			exitChan <- 0
+
+		// kill -SIGQUIT XXXX
+		case syscall.SIGQUIT:
+			fmt.Println("stop and core dump")
+			exitChan <- 0
+
+		default:
+			fmt.Println("Unknown signal.")
+			exitChan <- 1
+		}
+		fmt.Println("\nReceived an interrupt, cleaning...", root)
+		// os.RemoveAll(root)
+	}()
+	os.Exit(m.Run())
 }
 
 // Tests that a single builtin is loaded correctly
