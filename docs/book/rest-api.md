@@ -1613,7 +1613,11 @@ allow {
 }
 ```
 
-In this case, if `data.break_glass` is `true` then the query `data.example.allow == true` will _always_ be true. When your query is always true, OPA responds with an empty query in the query set:
+In this case, if `data.break_glass` is `true` then the query
+`data.example.allow == true` will _always_ be true. If the query is
+always true, the `"queries"` value in the result will contain an empty
+array. The empty array indicates that your query can be satisfied
+without any further evaluation.
 
 ```http
 HTTP/1.1 200 OK
@@ -1622,30 +1626,76 @@ Content-Type: application/json
 
 ```json
 {
-  "queries": [[]]
+  "result": {
+    "queries": [
+      [],
+      [
+        {
+          "index": 0,
+          "terms": [
+            {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "gte"
+                }
+              ]
+            },
+            {
+              "type": "number",
+              "value": 4
+            },
+            {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "data"
+                },
+                {
+                  "type": "string",
+                  "value": "reports"
+                },
+                {
+                  "type": "var",
+                  "value": "$02"
+                },
+                {
+                  "type": "string",
+                  "value": "clearance_level"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    ]
+  }
 }
+
 ```
 
-It is also possible for queries to _never_ be true. For example, the policy could be modified to deny all requests when the "break glass" condition is true.
+It is also possible for queries to _never_ be true. For example, the
+original policy could be extended to require that users be granted an
+exception:
 
 ```ruby
 package example
 
 allow {
-  permit
-  not deny
-}
-
-deny {
-  data.break_glass = true
-}
-
-permit {
   input.subject.clearance_level >= data.reports[_].clearance_level
+  exceptions[input.subject.name]
 }
+
+exceptions["bob"]
+exceptions["alice"]
 ```
 
-In this case, the OPA response will not contain a `queries` field.
+In this case, if we execute query on behalf of a user that does not
+have an exception (e.g., `"eve"`), the OPA response will not contain a
+`queries` field at all. This indicates there are NO conditions that
+could make the query true.
 
 ```http
 HTTP/1.1 200 OK
@@ -1653,18 +1703,20 @@ Content-Type: application/json
 ```
 
 ```json
-{}
+{
+  "result": {}
+}
 ```
 
 The following table summarizes the behavior for partial evaluation results.
 
 | Example Query | Unknowns | Result | Description |
 | --- | --- | --- | ---
-| `input.x > 0` | `["input"]` | `{"queries": [[input.x > 0]]}` | The query is partially evaluated and remaining conditions are returned. |
-| `input.x > 0` | Not specified. | `{"queries": [[input.x > 0]]}` | If the set of unknowns is not specified, it defaults to `["input"]`. |
-| `input.x > 0` | `[]` | `{}` | The query is false/undefined because there are no unknowns. |
-| `1 > 0` | N/A | `{"queries": [[]]}` | The query is always true. |
-| `1 < 0` | N/A | `{}` | The query is always false. |
+| `input.x > 0` | `["input"]` | `{"result": {"queries": [[input.x > 0]]}}` | The query is partially evaluated and remaining conditions are returned. |
+| `input.x > 0` | Not specified. | `{"result": {"queries": [[input.x > 0]]}}` | If the set of unknowns is not specified, it defaults to `["input"]`. |
+| `input.x > 0` | `[]` | `{"result": {}}` | The query is false/undefined because there are no unknowns. |
+| `1 > 0` | N/A | `{"result": {"queries": [[]]}}` | The query is always true. |
+| `1 < 0` | N/A | `{"result": {}}` | The query is always false. |
 
 > The partially evaluated queries are represented as strings in the table above. The actual API response contains the JSON AST representation.
 
