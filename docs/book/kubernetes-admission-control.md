@@ -118,9 +118,9 @@ webhooks:
 EOF
 ```
 
-The generated configuration file inclues a base64 encoded representation of the CA certificate so that TLS connections can be established between the Kubernetes API server and OPA.
+The generated configuration file includes a base64 encoded representation of the CA certificate so that TLS connections can be established between the Kubernetes API server and OPA.
 
-Finally, register OPA as and admission controller:
+Finally, register OPA as an admission controller:
 
 ```bash
 kubectl apply -f webhook-configuration.yaml
@@ -221,13 +221,13 @@ kubectl create -f ingress-ok.yaml -n production
 kubectl create -f ingress-bad.yaml -n qa
 ```
 
-The second Ingress is rejected because it's hostname does not match the whitelist in the `qa` namespace.
+The second Ingress is rejected because its hostname does not match the whitelist in the `qa` namespace.
 
 ### 6. Modify the policy and exercise the changes
 
 OPA allows you to modify policies on-the-fly without recompiling any of the services that offload policy decisions to it.
 
-To enforce the second half of the policy from the start of this tutorial you can load another policy into OPA that rejects Ingress objects in different namespaces from sharing the same hostname.
+To enforce the second half of the policy from the start of this tutorial you can load another policy into OPA that prevents Ingress objects in different namespaces from sharing the same hostname.
 
 [ingress-conflicts.rego](https://github.com/open-policy-agent/opa/blob/master/docs/book/tutorials/kubernetes-admission-control-validation/ingress-conflicts.rego):
 
@@ -238,7 +238,7 @@ kubectl create configmap ingress-conflicts --from-file=ingress-conflicts.rego
 ```
 
 The OPA sidecar annotates ConfigMaps containing policies to indicate if they
-were installed successfully. Verify the ConfigMap was installed successfully.
+were installed successfully. Verify that the ConfigMap was installed successfully:
 
 ```
 kubectl get configmap ingress-conflicts -o yaml
