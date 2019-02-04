@@ -41,11 +41,10 @@ func MakeTempFS(root, prefix string, files map[string]string) (rootDir string, c
 	}
 
 	cleanup = func() {
-		fmt.Println("Entering cleanup")
-		if err := os.RemoveAll(rootDir); err != nil {
-			fmt.Println("Failed to cleanup directory: ", rootDir)
+		err := os.RemoveAll(rootDir)
+		if err != nil {
+			fmt.Println("Failed to remove ", rootDir)
 		}
-		fmt.Println("Exiting cleanup")
 	}
 
 	skipCleanup := false
