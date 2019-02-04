@@ -40,8 +40,6 @@ const (
 // it compiles all .go files into shared object files with extension ext in the corresponding directory
 // It returns the root of the directory and a cleanup function.
 func makeDirWithSharedObjects(files map[string]string, ext string) (tempRootDir string, cleanup func()) {
-	test.FuncEnter()
-	defer test.FuncExit()
 
 	tempRootDir, err := ioutil.TempDir(rootDir, prefixDir)
 	if err != nil {
@@ -104,8 +102,6 @@ func emptyInitChan() {
 // TestMain does not honor deferred calls as it uses os.Exit.
 func testMainInEnvironment(m *testing.M) int {
 
-	test.FuncEnter()
-	defer test.FuncExit()
 	// server sends item to channel upon request
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		initChan <- struct{}{}
@@ -235,8 +231,6 @@ func TestMain(m *testing.M) {
 // Tests that a single builtin is loaded correctly
 func TestRegisterBuiltin(t *testing.T) {
 
-	test.FuncEnter()
-	defer test.FuncExit()
 	name := "true"
 	builtinDir := filepath.Join(testDirRoot, "/builtins")
 	err := registerSharedObjectsFromDir(builtinDir)
@@ -263,8 +257,6 @@ func TestRegisterBuiltin(t *testing.T) {
 func TestRegisterPlugin(t *testing.T) {
 
 	// load the plugins
-	test.FuncEnter()
-	defer test.FuncExit()
 	pluginDir := filepath.Join(testDirRoot, "/plugins")
 	if err := registerSharedObjectsFromDir(pluginDir); err != nil {
 		t.Fatalf(err.Error())
@@ -290,9 +282,8 @@ func TestRegisterPlugin(t *testing.T) {
 
 // Tests that a plugin does not start without a config file
 func TestPluginDoesNotStartWithoutConfig(t *testing.T) {
+
 	// load the plugins
-	test.FuncEnter()
-	defer test.FuncExit()
 	pluginDir := filepath.Join(testDirRoot, "/plugins")
 	if err := registerSharedObjectsFromDir(pluginDir); err != nil {
 		t.Fatalf(err.Error())
@@ -316,9 +307,8 @@ func TestPluginDoesNotStartWithoutConfig(t *testing.T) {
 
 // Tests that a plugin correctly runs its registration
 func TestPluginNoRegistrationWithWrongKey(t *testing.T) {
+
 	// load the plugins
-	test.FuncEnter()
-	defer test.FuncExit()
 	pluginDir := filepath.Join(testDirRoot, "/plugins")
 	if err := registerSharedObjectsFromDir(pluginDir); err != nil {
 		t.Fatalf(err.Error())
@@ -334,9 +324,6 @@ func TestPluginNoRegistrationWithWrongKey(t *testing.T) {
 
 // Tests that the recursive file walker works as expected
 func TestLambdaFileWalker(t *testing.T) {
-
-	test.FuncEnter()
-	defer test.FuncExit()
 
 	files := map[string]string{
 		"one.go":              "",
@@ -365,21 +352,14 @@ func TestLambdaFileWalker(t *testing.T) {
 func signalHandler(tempRootDir string, cleanup func()) {
 	signalChan := make(chan os.Signal, 1)
 	signal.Notify(signalChan, syscall.SIGINT, syscall.SIGTERM)
-	exitChan := make(chan int)
 	go func() {
 		s := <-signalChan
-		test.FuncEnter()
-		defer test.FuncExit()
 		switch s {
 
 		case syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT:
 			fmt.Println("Received an ", s.String(), "cleaning ", tempRootDir, "and exiting")
 			cleanup()
-			os.Exit(0)
-
-		default:
-			fmt.Println("Received an ", s.String(), "no action taken")
-			exitChan <- 1
+			os.Exit(1)
 		}
 	}()
 }
