@@ -9,6 +9,11 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/runtime"
+	"github.com/open-policy-agent/opa/types"
+	"github.com/open-policy-agent/opa/util/test"
+	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -19,35 +24,67 @@ import (
 	"strings"
 	"syscall"
 	"testing"
-
-	"github.com/open-policy-agent/opa/ast"
-	"github.com/open-policy-agent/opa/runtime"
-	"github.com/open-policy-agent/opa/types"
-	"github.com/open-policy-agent/opa/util/test"
 )
 
 // whenever a plugin is initialized it adds an item to this channel
 var initChan = make(chan struct{}, 256)
 var testDirRoot string
 
+const (
+	rootDir   string = "./"
+	prefixDir string = "plugin_test_tempdir"
+)
+
 // makeDirWithSharedObjects creates a new temporary directory containing files under the runtime directory
 // it compiles all .go files into shared object files with extension ext in the corresponding directory
 // It returns the root of the directory and a cleanup function.
-func makeDirWithSharedObjects(files map[string]string, ext string) (root string, cleanup func()) {
-	root, cleanup, err := test.MakeTempFS("./", "plugin_test_tempdir", files)
+func makeDirWithSharedObjects(files map[string]string, ext string) (tempRootDir string, cleanup func()) {
+	test.FuncEnter()
+	defer test.FuncExit()
+
+	tempRootDir, err := ioutil.TempDir(rootDir, prefixDir)
 	if err != nil {
 		panic(err)
 	}
+	cleanup = func() {
+		fmt.Println("Entering cleanup")
+		if err := os.RemoveAll(tempRootDir); err != nil {
+			fmt.Println("Failed to cleanup directory: ", tempRootDir)
+		}
+		fmt.Println("Exiting cleanup")
+	}
+	// We install the signal handler soon after the creation of the temp directory
+	signalHandler(tempRootDir, cleanup)
+
+	for path, content := range files {
+		dirname, filename := filepath.Split(path)
+		dirPath := filepath.Join(tempRootDir, dirname)
+		fmt.Println("dirpath", dirPath)
+		if err := os.MkdirAll(dirPath, 0777); err != nil {
+			fmt.Println("err", err)
+			panic(err)
+		}
+
+		f, err := os.Create(filepath.Join(dirPath, filename))
+		if err != nil {
+			panic(err)
+		}
+
+		if _, err := f.WriteString(content); err != nil {
+			panic(err)
+		}
+	}
+
 	for file := range files {
 		if filepath.Ext(file) == ".go" {
-			src := filepath.Join(root, file)
+			src := filepath.Join(tempRootDir, file)
 			so := strings.TrimSuffix(filepath.Base(src), ".go") + ext
 			out := filepath.Join(filepath.Dir(src), so)
 			// build latest version of shared object
 			cmd := exec.Command("go", "build", "-buildmode=plugin", "-o="+out, src)
-			res, err := cmd.Output()
+			stdoutStderr, err := cmd.CombinedOutput()
 			if err != nil {
-				panic(fmt.Sprintf("attempted to build %v to %v\n", src, out) + string(res) + err.Error())
+				panic(fmt.Sprintf("attempted to build %v to %v\n", src, out) + string(stdoutStderr))
 			}
 		}
 	}
@@ -64,8 +101,10 @@ func emptyInitChan() {
 // Runs all tests with the filesystem given below. The plugins add an item to initChan upon activation.
 // This is a separate function in order to allow deferred calls to activate.
 // TestMain does not honor deferred calls as it uses os.Exit.
-func testMainInEnvironment() (root string, cleanup func()) {
+func testMainInEnvironment(m *testing.M) int {
 
+	test.FuncEnter()
+	defer test.FuncExit()
 	// server sends item to channel upon request
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		initChan <- struct{}{}
@@ -89,12 +128,10 @@ plugins:
 		"/plugins/config.yaml":     config,
 		"/plugins/bad-config.yaml": badConfig,
 	}
-
-	root, cleanup = makeDirWithSharedObjects(files, ".so")
+	root, cleanup := makeDirWithSharedObjects(files, ".so")
 	testDirRoot = root
 	defer cleanup()
-
-	return root, cleanup
+	return m.Run()
 }
 
 // returns a builtin that always returns true with name name
@@ -191,44 +228,14 @@ func Init() error {
 }
 
 func TestMain(m *testing.M) {
-	root, _ := testMainInEnvironment()
-	signalChan := make(chan os.Signal, 1)
-	signal.Notify(signalChan, syscall.SIGINT, syscall.SIGTERM)
-	exitChan := make(chan int)
-	go func() {
-		s := <-signalChan
-		switch s {
-		// kill -SIGHUP XXXX
-		case syscall.SIGHUP:
-			fmt.Println("hungup")
-
-		// kill -SIGINT XXXX or Ctrl+c
-		case syscall.SIGINT:
-			fmt.Println("Warikomi")
-
-		// kill -SIGTERM XXXX
-		case syscall.SIGTERM:
-			fmt.Println("force stop")
-			exitChan <- 0
-
-		// kill -SIGQUIT XXXX
-		case syscall.SIGQUIT:
-			fmt.Println("stop and core dump")
-			exitChan <- 0
-
-		default:
-			fmt.Println("Unknown signal.")
-			exitChan <- 1
-		}
-		fmt.Println("\nReceived an interrupt, cleaning...", root)
-		// os.RemoveAll(root)
-	}()
-	os.Exit(m.Run())
+	os.Exit(testMainInEnvironment(m))
 }
 
 // Tests that a single builtin is loaded correctly
 func TestRegisterBuiltin(t *testing.T) {
 
+	test.FuncEnter()
+	defer test.FuncExit()
 	name := "true"
 	builtinDir := filepath.Join(testDirRoot, "/builtins")
 	err := registerSharedObjectsFromDir(builtinDir)
@@ -255,6 +262,8 @@ func TestRegisterBuiltin(t *testing.T) {
 func TestRegisterPlugin(t *testing.T) {
 
 	// load the plugins
+	test.FuncEnter()
+	defer test.FuncExit()
 	pluginDir := filepath.Join(testDirRoot, "/plugins")
 	if err := registerSharedObjectsFromDir(pluginDir); err != nil {
 		t.Fatalf(err.Error())
@@ -276,13 +285,13 @@ func TestRegisterPlugin(t *testing.T) {
 	if len(initChan) != 1 {
 		t.Fatalf("Plugin was started %v times", len(initChan))
 	}
-
-	return
 }
 
 // Tests that a plugin does not start without a config file
 func TestPluginDoesNotStartWithoutConfig(t *testing.T) {
 	// load the plugins
+	test.FuncEnter()
+	defer test.FuncExit()
 	pluginDir := filepath.Join(testDirRoot, "/plugins")
 	if err := registerSharedObjectsFromDir(pluginDir); err != nil {
 		t.Fatalf(err.Error())
@@ -302,13 +311,13 @@ func TestPluginDoesNotStartWithoutConfig(t *testing.T) {
 	if len(initChan) != 0 {
 		t.Fatalf("Plugin was started %v times", len(initChan))
 	}
-
-	return
 }
 
 // Tests that a plugin correctly runs its registration
 func TestPluginNoRegistrationWithWrongKey(t *testing.T) {
 	// load the plugins
+	test.FuncEnter()
+	defer test.FuncExit()
 	pluginDir := filepath.Join(testDirRoot, "/plugins")
 	if err := registerSharedObjectsFromDir(pluginDir); err != nil {
 		t.Fatalf(err.Error())
@@ -324,6 +333,10 @@ func TestPluginNoRegistrationWithWrongKey(t *testing.T) {
 
 // Tests that the recursive file walker works as expected
 func TestLambdaFileWalker(t *testing.T) {
+
+	test.FuncEnter()
+	defer test.FuncExit()
+
 	files := map[string]string{
 		"one.go":              "",
 		"two.go":              "",
@@ -346,4 +359,26 @@ func TestLambdaFileWalker(t *testing.T) {
 			t.Fatalf("Expected 4, got %v", count)
 		}
 	})
+}
+
+func signalHandler(tempRootDir string, cleanup func()) {
+	signalChan := make(chan os.Signal, 1)
+	signal.Notify(signalChan, syscall.SIGINT, syscall.SIGTERM)
+	exitChan := make(chan int)
+	go func() {
+		s := <-signalChan
+		test.FuncEnter()
+		defer test.FuncExit()
+		switch s {
+
+		case syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT:
+			fmt.Println("Received an ", s.String(), "cleaning ", tempRootDir, "and exiting")
+			cleanup()
+			os.Exit(0)
+
+		default:
+			fmt.Println("Received an ", s.String(), "no action taken")
+			exitChan <- 1
+		}
+	}()
 }

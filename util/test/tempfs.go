@@ -5,14 +5,19 @@
 package test
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"regexp"
+	"runtime"
 )
 
 // WithTempFS creates a temporary directory structure and invokes f with the
 // root directory path.
 func WithTempFS(files map[string]string, f func(string)) {
+	FuncEnter()
+	defer FuncExit()
 	rootDir, cleanup, err := MakeTempFS("", "loader_test", files)
 	if err != nil {
 		panic(err)
@@ -27,6 +32,8 @@ func WithTempFS(files map[string]string, f func(string)) {
 // creation succeeds, the caller should invoke cleanup when they are done.
 func MakeTempFS(root, prefix string, files map[string]string) (rootDir string, cleanup func(), err error) {
 
+	FuncEnter()
+	defer FuncExit()
 	rootDir, err = ioutil.TempDir(root, prefix)
 
 	if err != nil {
@@ -34,7 +41,11 @@ func MakeTempFS(root, prefix string, files map[string]string) (rootDir string, c
 	}
 
 	cleanup = func() {
-		os.RemoveAll(rootDir)
+		fmt.Println("Entering cleanup")
+		if err := os.RemoveAll(rootDir); err != nil {
+			fmt.Println("Failed to cleanup directory: ", rootDir)
+		}
+		fmt.Println("Exiting cleanup")
 	}
 
 	skipCleanup := false
@@ -49,7 +60,9 @@ func MakeTempFS(root, prefix string, files map[string]string) (rootDir string, c
 	for path, content := range files {
 		dirname, filename := filepath.Split(path)
 		dirPath := filepath.Join(rootDir, dirname)
+		fmt.Println("dirpath", dirPath)
 		if err := os.MkdirAll(dirPath, 0777); err != nil {
+			fmt.Println("err", err)
 			return "", nil, err
 		}
 
@@ -66,4 +79,28 @@ func MakeTempFS(root, prefix string, files map[string]string) (rootDir string, c
 	skipCleanup = true
 
 	return rootDir, cleanup, nil
+}
+
+// FuncEnter trace Functions
+func FuncEnter() {
+	// Skip this function, and fetch the PC and file for its parent
+	pc, _, _, _ := runtime.Caller(1)
+	// Retrieve a Function object this functions parent
+	functionObject := runtime.FuncForPC(pc)
+	// Regex to extract just the function name (and not the module path)
+	extractFnName := regexp.MustCompile(`^.*\.(.*)$`)
+	fnName := extractFnName.ReplaceAllString(functionObject.Name(), "$1")
+	fmt.Printf("Entering %s\n", fnName)
+}
+
+// FuncExit trace Functions
+func FuncExit() {
+	// Skip this function, and fetch the PC and file for its parent
+	pc, _, _, _ := runtime.Caller(1)
+	// Retrieve a Function object this functions parent
+	functionObject := runtime.FuncForPC(pc)
+	// Regex to extract just the function name (and not the module path)
+	extractFnName := regexp.MustCompile(`^.*\.(.*)$`)
+	fnName := extractFnName.ReplaceAllString(functionObject.Name(), "$1")
+	fmt.Printf("Exiting  %s\n", fnName)
 }
