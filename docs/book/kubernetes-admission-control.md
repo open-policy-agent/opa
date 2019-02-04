@@ -120,7 +120,7 @@ EOF
 
 The generated configuration file inclues a base64 encoded representation of the CA certificate so that TLS connections can be established between the Kubernetes API server and OPA.
 
-Finally, register OPA as and admission controller:
+Finally, register OPA as an admission controller:
 
 ```bash
 kubectl apply -f webhook-configuration.yaml
