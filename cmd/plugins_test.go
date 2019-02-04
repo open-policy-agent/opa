@@ -9,10 +9,6 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"github.com/open-policy-agent/opa/ast"
-	"github.com/open-policy-agent/opa/runtime"
-	"github.com/open-policy-agent/opa/types"
-	"github.com/open-policy-agent/opa/util/test"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -24,6 +20,11 @@ import (
 	"strings"
 	"syscall"
 	"testing"
+
+	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/runtime"
+	"github.com/open-policy-agent/opa/types"
+	"github.com/open-policy-agent/opa/util/test"
 )
 
 // whenever a plugin is initialized it adds an item to this channel

@@ -7,8 +7,9 @@ package cmd
 import (
 	"bufio"
 	"bytes"
-	"github.com/open-policy-agent/opa/util"
 	"testing"
+
+	"github.com/open-policy-agent/opa/util"
 )
 
 func TestEvalExitCode(t *testing.T) {
