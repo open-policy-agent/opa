@@ -9,13 +9,16 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path/filepath"
 	"reflect"
 	"strings"
+	"syscall"
 	"testing"
 
 	"github.com/open-policy-agent/opa/ast"
@@ -28,28 +31,62 @@ import (
 var initChan = make(chan struct{}, 256)
 var testDirRoot string
 
+const (
+	rootDir   = "./"
+	prefixDir = "plugin_test_tempdir"
+)
+
 // makeDirWithSharedObjects creates a new temporary directory containing files under the runtime directory
 // it compiles all .go files into shared object files with extension ext in the corresponding directory
 // It returns the root of the directory and a cleanup function.
-func makeDirWithSharedObjects(files map[string]string, ext string) (root string, cleanup func()) {
-	root, cleanup, err := test.MakeTempFS("./", "plugin_test_tempdir", files)
+//
+// Code is duplicated from MakeTempFS() due to https://github.com/open-policy-agent/opa/issues/1185
+func makeDirWithSharedObjects(files map[string]string, ext string) (string, func()) {
+
+	tempRootDir, err := ioutil.TempDir(rootDir, prefixDir)
 	if err != nil {
 		panic(err)
 	}
+	cleanup := func() {
+		if err := os.RemoveAll(tempRootDir); err != nil {
+			fmt.Printf("failed to cleanup directory %q: %v \n", tempRootDir, err)
+		}
+	}
+	// We install the signal handler soon after the creation of the temp directory
+	signalHandler(tempRootDir, cleanup)
+
+	for path, content := range files {
+		dirname, filename := filepath.Split(path)
+		dirPath := filepath.Join(tempRootDir, dirname)
+		if err := os.MkdirAll(dirPath, 0777); err != nil {
+			fmt.Printf("failed to create directory %q: %v \n", dirPath, err)
+			panic(err)
+		}
+
+		f, err := os.Create(filepath.Join(dirPath, filename))
+		if err != nil {
+			panic(err)
+		}
+
+		if _, err := f.WriteString(content); err != nil {
+			panic(err)
+		}
+	}
+
 	for file := range files {
 		if filepath.Ext(file) == ".go" {
-			src := filepath.Join(root, file)
+			src := filepath.Join(tempRootDir, file)
 			so := strings.TrimSuffix(filepath.Base(src), ".go") + ext
 			out := filepath.Join(filepath.Dir(src), so)
 			// build latest version of shared object
 			cmd := exec.Command("go", "build", "-buildmode=plugin", "-o="+out, src)
-			res, err := cmd.Output()
+			stdoutStderr, err := cmd.CombinedOutput()
 			if err != nil {
-				panic(fmt.Sprintf("attempted to build %v to %v\n", src, out) + string(res) + err.Error())
+				panic(fmt.Sprintf("attempted to build %v to %v \n", src, out) + string(stdoutStderr))
 			}
 		}
 	}
-	return
+	return tempRootDir, cleanup
 }
 
 // emptyInitChan removes all current items in initChan
@@ -87,11 +124,9 @@ plugins:
 		"/plugins/config.yaml":     config,
 		"/plugins/bad-config.yaml": badConfig,
 	}
-
 	root, cleanup := makeDirWithSharedObjects(files, ".so")
 	testDirRoot = root
 	defer cleanup()
-
 	return m.Run()
 }
 
@@ -242,12 +277,11 @@ func TestRegisterPlugin(t *testing.T) {
 	if len(initChan) != 1 {
 		t.Fatalf("Plugin was started %v times", len(initChan))
 	}
-
-	return
 }
 
 // Tests that a plugin does not start without a config file
 func TestPluginDoesNotStartWithoutConfig(t *testing.T) {
+
 	// load the plugins
 	pluginDir := filepath.Join(testDirRoot, "/plugins")
 	if err := registerSharedObjectsFromDir(pluginDir); err != nil {
@@ -268,12 +302,11 @@ func TestPluginDoesNotStartWithoutConfig(t *testing.T) {
 	if len(initChan) != 0 {
 		t.Fatalf("Plugin was started %v times", len(initChan))
 	}
-
-	return
 }
 
 // Tests that a plugin correctly runs its registration
 func TestPluginNoRegistrationWithWrongKey(t *testing.T) {
+
 	// load the plugins
 	pluginDir := filepath.Join(testDirRoot, "/plugins")
 	if err := registerSharedObjectsFromDir(pluginDir); err != nil {
@@ -290,6 +323,7 @@ func TestPluginNoRegistrationWithWrongKey(t *testing.T) {
 
 // Tests that the recursive file walker works as expected
 func TestLambdaFileWalker(t *testing.T) {
+
 	files := map[string]string{
 		"one.go":              "",
 		"two.go":              "",
@@ -312,4 +346,19 @@ func TestLambdaFileWalker(t *testing.T) {
 			t.Fatalf("Expected 4, got %v", count)
 		}
 	})
+}
+
+func signalHandler(tempRootDir string, cleanup func()) {
+	signalChan := make(chan os.Signal, 1)
+	signal.Notify(signalChan, syscall.SIGINT, syscall.SIGTERM)
+	go func() {
+		s := <-signalChan
+		switch s {
+
+		case syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT:
+			fmt.Printf("Received signal %s. Cleaning %q and exiting \n", s.String(), tempRootDir)
+			cleanup()
+			os.Exit(1)
+		}
+	}()
 }
