@@ -39,6 +39,8 @@ const (
 // makeDirWithSharedObjects creates a new temporary directory containing files under the runtime directory
 // it compiles all .go files into shared object files with extension ext in the corresponding directory
 // It returns the root of the directory and a cleanup function.
+//
+// Code is duplicated from MakeTempFS() due to https://github.com/open-policy-agent/opa/issues/1185
 func makeDirWithSharedObjects(files map[string]string, ext string) (tempRootDir string, cleanup func()) {
 
 	tempRootDir, err := ioutil.TempDir(rootDir, prefixDir)
@@ -46,11 +48,9 @@ func makeDirWithSharedObjects(files map[string]string, ext string) (tempRootDir 
 		panic(err)
 	}
 	cleanup = func() {
-		fmt.Println("Entering cleanup")
 		if err := os.RemoveAll(tempRootDir); err != nil {
 			fmt.Println("Failed to cleanup directory: ", tempRootDir)
 		}
-		fmt.Println("Exiting cleanup")
 	}
 	// We install the signal handler soon after the creation of the temp directory
 	signalHandler(tempRootDir, cleanup)
