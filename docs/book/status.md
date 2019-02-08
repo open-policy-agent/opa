@@ -10,7 +10,8 @@ will include error information describing the failure.
 
 The status updates will include a set of labels that uniquely identify the
 OPA instance. OPA automatically includes an `id` value in the label set that
-provides a globally unique identifier or the running OPA instance.
+provides a globally unique identifier or the running OPA instance and a
+`version` value that provides the version of OPA.
 
 See the [Configuration Reference](configuration.md) for configuration details.
 
@@ -32,7 +33,8 @@ on the agent, updates will be sent to `/status`.
 {
     "labels": {
         "app": "my-example-app",
-        "id": "1780d507-aea2-45cc-ae50-fa153c8e4a5a"
+        "id": "1780d507-aea2-45cc-ae50-fa153c8e4a5a",
+        "version": "v0.10.3"
     },
     "bundle": {
         "name": "http/example/authz",

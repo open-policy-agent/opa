@@ -19,7 +19,6 @@ import (
 	"github.com/open-policy-agent/opa/plugins/rest"
 	"github.com/open-policy-agent/opa/server"
 	"github.com/open-policy-agent/opa/util"
-	"github.com/open-policy-agent/opa/version"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
@@ -42,7 +41,6 @@ type EventV1 struct {
 	Error       error                  `json:"error,omitempty"`
 	RequestedBy string                 `json:"requested_by"`
 	Timestamp   time.Time              `json:"timestamp"`
-	Version     string                 `json:"version"`
 	Metrics     map[string]interface{} `json:"metrics,omitempty"`
 }
 
@@ -229,7 +227,6 @@ func (p *Plugin) Log(ctx context.Context, decision *server.Info) {
 		Result:      decision.Results,
 		RequestedBy: decision.RemoteAddr,
 		Timestamp:   decision.Timestamp,
-		Version:     version.Version,
 	}
 
 	if decision.Metrics != nil {

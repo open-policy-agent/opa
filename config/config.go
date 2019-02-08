@@ -9,6 +9,8 @@ import (
 	"encoding/json"
 	"strings"
 
+	"github.com/open-policy-agent/opa/version"
+
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/util"
 )
@@ -27,7 +29,7 @@ type Config struct {
 }
 
 // ParseConfig returns a valid Config object with defaults injected. The id
-// parameter will be set in the labels map.
+// and version parameters will be set in the labels map.
 func ParseConfig(raw []byte, id string) (*Config, error) {
 	var result Config
 	if err := util.Unmarshal(raw, &result); err != nil {
@@ -81,6 +83,7 @@ func (c *Config) validateAndInjectDefaults(id string) error {
 	}
 
 	c.Labels["id"] = id
+	c.Labels["version"] = version.Version
 
 	return nil
 }
