@@ -1,0 +1,37 @@
+$panel-header-logo-width: 40%
+
+=flex
+  display: flex
+
+=row
+  +flex
+  flex-direction: row
+
+=column
+  +flex
+  flex-direction: column
+
+.dashboard
+  +row
+  position: relative
+  overflow: hidden
+  height: 100vh
+
+  .is-scrollable
+    overflow-y: auto
+
+  &-panel
+    +column
+    padding-bottom: 4rem
+    flex: 0 0 20%
+
+    &-header
+      &-logo
+        width: $panel-header-logo-width
+        margin: 2rem auto
+
+    &-content
+      +desktop
+        margin: 0 2rem
+      +touch
+        margin: 0 1rem

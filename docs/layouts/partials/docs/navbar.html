@@ -1,0 +1,125 @@
+{{ $home      := site.BaseURL }}
+{{ $logo      := site.Params.logos.navbar }}
+{{ $social    := site.Params.social }}
+{{ $github    := $social.github }}
+{{ $twitter   := printf "https://twitter.com/%s" $social.twitter }}
+{{ $medium    := $social.medium }}
+{{ $slack     := $social.slack }}
+{{ $docsHome  := .CurrentSection }}
+{{ $allDocs   := where site.RegularPages "Section" "docs" }}
+{{ $docs      := where $allDocs ".Params.kind" "eq" "documentation" }}
+{{ $tutorials := where $allDocs ".Params.kind" "eq" "tutorial" }}
+{{ $bestPrac  := where $allDocs ".Params.kind" "eq" "best-practices" }}
+<nav class="navbar is-primary">
+  <div class="navbar-brand is-hidden-tablet">
+    <a class="navbar-item" href="{{ $home }}">
+      <img src="{{ $logo }}">
+    </a>
+
+    <a role="button" class="navbar-burger burger" aria-label="menu" aria-expanded="false" data-target="mobile-menu">
+      <span aria-hidden="true"></span>
+      <span aria-hidden="true"></span>
+      <span aria-hidden="true"></span>
+    </a>
+  </div>
+
+  <div class="navbar-menu is-hidden-tablet" id="mobile-menu">
+    <div class="navbar-start">
+      <span class="navbar-item is-size-5 has-text-weight-light is-uppercase">
+        Documentation
+      </span>
+
+      <a class="navbar-item" href="{{ $docsHome.URL }}">
+        {{ $docsHome.Name }}
+      </a>
+
+      {{ range $docs }}
+      <a class="navbar-item" href="{{ .URL }}">
+        {{ .Title }}
+      </a>
+      {{ end }}
+
+      <br />
+
+      <span class="navbar-item is-size-5 has-text-weight-light is-uppercase">
+        Tutorials
+      </span>
+
+      {{ range $tutorials }}
+      <a class="navbar-item" href="{{ .URL }}">
+        {{ .Title }}
+      </a>
+      {{ end }}
+
+      <br />
+
+      <span class="navbar-item is-size-5 has-text-weight-light is-uppercase">
+        Best Practices
+      </span>
+
+      {{ range $bestPrac }}
+      <a class="navbar-item" href="{{ .URL }}">
+        {{ .Title }}
+      </a>
+      {{ end }}
+    </div>
+
+    <div class="navbar-end">
+      <div class="navbar-item">
+        <div class="buttons">
+          <a class="button is-primary" href="{{ $github }}" target="_blank">
+            <span class="icon has-text-white-bis">
+              <i class="fab fa-github"></i>
+            </span>
+          </a>
+
+          <a class="button is-primary" href="{{ $twitter }}" target="_blank">
+            <span class="icon has-text-white-bis">
+              <i class="fab fa-twitter"></i>
+            </span>
+          </a>
+
+          <a class="button is-primary" href="{{ $medium }}" target="_blank">
+            <span class="icon has-text-white-bis">
+              <i class="fab fa-medium"></i>
+            </span>
+          </a>
+
+          <a class="button is-primary" href="{{ $slack }}" target="_blank">
+            <span class="icon has-text-white-bis">
+              <i class="fab fa-slack"></i>
+            </span>
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="navbar-menu">
+    <div class="navbar-end">
+      <a class="navbar-item" href="{{ $github }}" target="_blank">
+        <span class="icon has-text-white-bis">
+          <i class="fab fa-github"></i>
+        </span>
+      </a>
+
+      <a class="navbar-item" href="{{ $twitter }}" target="_blank">
+        <span class="icon has-text-white-bis">
+          <i class="fab fa-twitter"></i>
+        </span>
+      </a>
+
+      <a class="navbar-item" href="{{ $medium }}" target="_blank">
+        <span class="icon has-text-white-bis">
+          <i class="fab fa-medium"></i>
+        </span>
+      </a>
+
+      <a class="navbar-item" href="{{ $slack }}" target="_blank">
+        <span class="icon has-text-white-bis">
+          <i class="fab fa-slack"></i>
+        </span>
+      </a>
+    </div>
+  </div>
+</nav>

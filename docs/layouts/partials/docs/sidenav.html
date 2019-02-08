@@ -1,0 +1,73 @@
+{{ $docsHome   := .CurrentSection }}
+{{ $allDocs    := where site.RegularPages "Section" "docs" }}
+{{ $docs       := where $allDocs ".Params.kind" "eq" "documentation" }}
+{{ $tutorials  := where $allDocs ".Params.kind" "eq" "tutorial" }}
+{{ $bestPrac   := where $allDocs ".Params.kind" "eq" "best-practices" }}
+{{ $pageUrl    := .URL }}
+{{ $isDocsHome := eq .URL $docsHome.URL }}
+<div class="docs-nav">
+  <span class="docs-nav-title">
+    Documentation
+  </span>
+
+  <a class="docs-nav-item{{ if $isDocsHome }} is-active{{ end }}" href="{{ $docsHome.URL }}">
+    {{ $docsHome.Name }}
+  </a>
+
+  {{ if $isDocsHome }}
+  <div class="toc">
+    {{ .TableOfContents }}
+  </div>
+  {{ end }}
+
+  {{ range $docs }}
+  {{ $isThisPage := eq .URL $pageUrl }}
+  {{ $title      := cond (isset .Params "navtitle") (.Params.navtitle) .Title }}
+  <a class="docs-nav-item{{ if $isThisPage }} is-active{{ end }}" href="{{ .URL }}">
+    {{ $title }}
+  </a>
+  {{ if $isThisPage }}
+  <div class="toc">
+    {{ .TableOfContents }}
+  </div>
+  {{ end }}
+  {{ end }}
+
+  <hr class="docs-nav-hr" />
+
+  <span class="docs-nav-title">
+    Tutorials
+  </span>
+
+  {{ range $tutorials }}
+  {{ $isThisPage := eq .URL $pageUrl }}
+  {{ $title      := cond (isset .Params "navtitle") (.Params.navtitle) .Title }}
+  <a class="docs-nav-item{{ if $isThisPage }} is-active{{ end }}" href="{{ .URL }}">
+    {{ $title }}
+  </a>
+  {{ if $isThisPage }}
+  <div class="toc">
+    {{ .TableOfContents }}
+  </div>
+  {{ end }}
+  {{ end }}
+
+  <hr class="docs-nav-hr" />
+
+  <span class="docs-nav-title">
+    Best Practices
+  </span>
+
+  {{ range $bestPrac }}
+  {{ $isThisPage := eq .URL $pageUrl }}
+  {{ $title      := cond (isset .Params "navtitle") (.Params.navtitle) .Title }}
+  <a class="docs-nav-item{{ if $isThisPage }} is-active{{ end }}" href="{{ .URL }}">
+    {{ $title }}
+  </a>
+  {{ if $isThisPage }}
+  <div class="toc">
+    {{ .TableOfContents }}
+  </div>
+  {{ end }}
+  {{ end }}
+</div>

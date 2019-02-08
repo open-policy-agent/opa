@@ -9,7 +9,9 @@ Versioning involves maintaining the following files:
 
 - **CHANGELOG.md** - this file contains a list of all the important changes in each release.
 - **Makefile** - the Makefile contains a VERSION variable that defines the version of the project.
-- **docs/*** - there are a few files in the documentation that contain hardcoded versions.
+- **docs/config.toml*** - this file determines which version is displayed as latest
+  in the [documentation](https://openpolicyagent.org/docs) (using the `params.versions.latest`
+  variable)
 
 The steps below explain how to update these files. In addition, the repository
 should be tagged with the semantic version identifying the release.
@@ -102,9 +104,6 @@ CHANGELOG.md snippet and uploading the binaries from the build phase.
 1. Create a new release for the version.
 	- Copy the changelog content into the message.
 	- Upload the binaries.
-
-1. There may be documentation updates that should be released. See
-   [docs/README.md](../README.md) for steps to update the website.
 
 ## Notes
 

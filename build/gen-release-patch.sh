@@ -58,13 +58,8 @@ EOF
     mv _CHANGELOG.md CHANGELOG.md
 }
 
-update_docs() {
-    find ./docs/ \( -name "*.md" -o -name "*.yaml" \) -exec sed -i='' s/${LAST_VERSION:1}/$VERSION/g {} \;
-}
-
 main() {
     update_makefile
-    update_docs
     update_changelog
     git --no-pager diff --no-color
 }

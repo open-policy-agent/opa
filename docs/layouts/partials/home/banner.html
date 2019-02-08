@@ -1,0 +1,61 @@
+{{ $title       := site.Title }}
+{{ $description := site.Params.description }}
+{{ $tagline     := site.Params.tagline }}
+{{ $buttons     := site.Params.home.buttons }}
+{{ $mainMenu    := site.Menus.main }}
+{{ $socialMenu  := site.Menus.social }}
+<header role="banner">
+  <nav class="nav--banner" role="navigation">
+    <ul class="nav--menu">
+      <li class="nav--menu-item nav--home">
+        <a href="/">
+          {{ site.Title }}
+        </a>
+      </li>
+
+      {{ range $mainMenu }}
+      <li class="nav--menu-item nav--docs">
+        <a href="{{ .URL }}" rel="help">
+          {{ .Name }}
+        </a>
+      </li>
+      {{ end }}
+    </ul>
+    <ul class="nav--menu">
+      {{ range $socialMenu }}
+      <li class="nav--menu-item nav--social">
+        <a href="{{ .URL }}" rel="external">
+          <svg class="nav--social-icon">
+            <title>
+              {{ .Name }}
+            </title>
+            <use xlink:href="#social-icon--{{ lower .Name }}"/>
+          </svg>
+        </a>
+      </li>
+      {{ end }}
+    </ul>
+  </nav>
+
+  <div class="headline">
+    <div class="content">
+      <h1 class="headline--title">
+        {{ $description }}
+      </h1>
+      <p class="headline--subtitle">
+        {{ $tagline }}
+      </p>
+
+      <p class="headline--nav">
+        {{ range $buttons }}
+        <a id="headline--{{ urlize .title }}" href="{{ .url }}" rel="help">
+          {{ .title }}
+        </a>
+        {{ end }}
+      </p>
+    </div>
+
+    <div class="headline--wave--bg" role="presentation"></div>
+    <div class="headline--wave--fg" role="presentation"></div>
+  </div>
+</header>

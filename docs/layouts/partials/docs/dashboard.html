@@ -1,0 +1,23 @@
+{{ $home       := site.BaseURL }}
+{{ $logo       := site.Params.logos.sidebar | relURL }}
+<div class="dashboard">
+  <div class="dashboard-panel left has-background-white-bis is-hidden-mobile">
+    <div class="dashboard-panel-header">
+      <div class="dashboard-panel-header-logo">
+        <a href="{{ $home }}">
+          <img src="{{ $logo }}">
+        </a>
+      </div>
+    </div>
+
+    <div class="dashboard-panel-content is-scrollable">
+      {{ partial "docs/sidenav.html" . }}
+    </div>
+  </div>
+
+  <div class="dashboard-main is-scrollable">
+    {{ partial "docs/navbar.html" . }}
+    {{ partial "docs/hero.html" . }}
+    {{ partial "docs/article.html" . }}
+  </div>
+</div>

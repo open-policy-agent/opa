@@ -1,0 +1,13 @@
+{{ define "main" }}
+{{ partial "home/svg.html" . }}
+{{ partial "home/banner.html" . }}
+
+<main role="main">
+  {{ partial "home/traits.html" . }}
+  {{ partial "home/use-cases.html" . }}
+</main>
+
+{{ partial "home/footer.html" . }}
+
+<script type="text/javascript" src="/js/home.js"></script>
+{{ end }}

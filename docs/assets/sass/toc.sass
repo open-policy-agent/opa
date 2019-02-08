@@ -1,0 +1,26 @@
+.toc
+  a
+    color: $primary
+
+    &:hover
+      color: $dark
+
+  li
+    line-height: 110%
+
+  +desktop
+    margin: .5rem 0 1rem 1rem
+    font-size: .9rem
+
+    li + li
+      margin-top: .6rem
+
+  +touch
+    margin: .4rem 0 .75rem .8rem
+    font-size: .75rem
+
+    li + li
+      margin-top: .4rem
+
+  ul li ul li ul li
+    display: none
