@@ -1,49 +1,104 @@
-# Docs
+# The OPA Website and Documentation
 
-This directory contains all of the Markdown, HTML, CSS, and other assets needed
-to build the [openpolicyagent.org](http://openpolicyagent.org) site. See the
+This directory contains all of the Markdown, HTML, Sass/CSS, and other assets needed
+to build the [openpolicyagent.org](https://openpolicyagent.org) website. See the
 section below for steps to build the site and test documentation changes
 locally.
 
-The raw OPA documentation can be found under the [book](./book) directory.
+The raw OPA documentation can be found under the [content/docs](./content/docs)
+directory.
 
-For development documentation see the [devel](./devel) directory.
+> ### Developing OPA
+> For documentation on developing OPA, see the [devel](./devel) directory.
 
-## Site Updates
+## Run the site locally
 
-We use GitHub pages to host the website that includes all of the OPA
-documentation. In order to update the website, you need to have write permission
-on the open-policy-agent/opa repository.
+You can run the site locally [with Docker](#run-the-site-locally-using-docker) or
+[without Docker](#run-the-site-locally-without-docker). Regardless of your method,
+you'll need install [npm](https://www.npmjs.com/get-npm).
 
-### Prerequisites
+### Run the site locally using Docker
 
-If you want to build and serve the site locally, you need the following packages
-installed on your system:
+To run the site locally using [Docker](https://docker.com), first install the
+necessary static assets using npm:
 
-- npm
-- [gitbook](https://github.com/GitbookIO/gitbook)
-
-### Build and preview the docs locally
-
-```
-cd book
-gitbook serve
+```bash
+npm install
 ```
 
-> This will build the docs under `./book/_book`.
+Then, if [Docker is running](https://docs.docker.com/get-started/):
 
-### Build site for release or preview locally
+```bash
+docker run --rm -it \
+  -v $(PWD):/src \
+  -p 1313:1313 \
+  klakegg/hugo:0.53-ext server \
+    --buildDrafts \
+    --buildFuture
+```
 
-From the root directory:
+Open your browser to http://localhost:1313 to see the site running locally. The docs
+are available at http://localhost:1313/docs.
+
+### Run the site locally without Docker
+
+To build and serve the site locally without using Docker, install the following packages
+on your system:
+
+- [npm](https://npmjs.org)
+- The [Hugo](#installing-hugo) static site generator
+
+#### Installing Hugo
+
+Running the website locally requires installing the [Hugo](https://gohugo.io) static
+site generator. The required version of Hugo is listed in the
+[`netlify.toml`](./netlify.toml) configuration file (see the `HUGO_VERSION` variable).
+
+Installation instructions for Hugo can be found in the [official
+documentation](https://gohugo.io/getting-started/installing/).
+
+Please note that you need to install the "extended" version of Hugo (with built-in
+support) to run the site locally. If you get errors like this, it means that you're
+using the non-extended version:
 
 ```
-make docs
+error: failed to transform resource: TOCSS: failed to transform "sass/style.sass" (text/x-sass): this feature is not available in your current Hugo version
 ```
 
-This will  serve the site on port 4000. The site will be saved to `site.tar.gz`
-in the root directory.
+#### Installing static assets
 
-### Update the website
+The OPA website requires some static assets installable via npm:
 
-Unzip the `site.tar.gz` file produced by building the site into the `gh-pages`
-of this repository, add and commit the changes, and then push.
+```bash
+npm install
+```
+
+#### Serving the site
+
+From this directory:
+
+```shell
+make serve
+```
+
+Open your browser to http://localhost:1313 to see the site running locally. The docs
+are available at http://localhost:1313/docs.
+
+## Site updates
+
+The OPA site is automatically published using [Netlify](https://netlify.com). Whenever
+changes in this directory are pushed to `master`, the site will be re-built and
+re-deployed.
+
+### OPA version changes
+
+The current OPA version displayed in the documentation is set in the
+[`config.toml`](./config.toml) configuration file. Look for this in the file:
+
+```toml
+[params.versions]
+latest = "..."
+```
+
+Change the value of `latest` and commit that change to `master` to change the displayed
+version in the docs.

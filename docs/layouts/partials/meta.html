@@ -1,0 +1,45 @@
+{{ $isHome      := .IsHome }}
+{{ $isDoc       := eq .Section "docs" }}
+{{ $title       := cond $isHome site.Title .Title }}
+{{ $description := .Param "description" }}
+{{ $pageType    := cond $isHome "website" "article" }}
+{{ $imageUrl    := "/img/logos/opa-horizontal-color.png" | absURL }}
+{{ $twitter     := site.Params.social.twitter }}
+
+<!-- Basic metadata -->
+<meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no" />
+{{ with $description }}
+<meta name="description" content="{{ . }}">
+{{ end }}
+
+<!-- OpenGraph metadata -->
+<meta property="og:title" content="{{ $title }}">
+{{ if $isDoc }}
+<meta property="og:type" content="documentation">
+{{ end }}
+<meta property="og:url" content="{{ .Permalink }}">
+<meta property="og:locale" content="en_US">
+{{ if not $isHome }}
+<meta property="og:site_name" content="{{ site.Title }}">
+{{ end }}
+{{ with $description }}
+<meta property="og:description" content="{{ . }}">
+{{ end }}
+<meta name="og:type" content="{{ $pageType }}">
+<meta name="og:image" content="{{ $imageUrl }}">
+<meta name="og:image:alt" content="Open Policy Agent project logo">
+<meta name="og:image:type" content="image/png">
+
+<!-- TwitterCard metadata -->
+<meta name="twitter:card" content="summary">
+<meta name="twitter:site" content="@{{ $twitter }}">
+<meta name="twitter:creator" content="@{{ $twitter }}">
+
+<!-- Links -->
+<link rel="canonical" content="{{ .Permalink }}">
+<link rel="shortcut icon" href="/favicon.png" type="image/x-icon"/>
+
+<!-- Site generator -->
+{{ hugo.Generator }}

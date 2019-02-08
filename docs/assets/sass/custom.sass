@@ -1,0 +1,63 @@
+.docs-nav
+  overflow: hidden
+
+  &-title
+    +desktop
+      font-size: 1.2rem
+      margin-bottom: .5rem
+    +touch
+      font-size: 1rem
+      margin-bottom: .4rem
+
+    display: block
+    text-transform: uppercase
+    color: $primary
+    font-weight: 300
+
+  &-item
+    +desktop
+      font-size: 1rem
+      margin-left: .5rem
+      line-height: 130%
+    +touch
+      font-size: .8rem
+      margin-left: .4rem
+      line-height: 110%
+
+    display: block
+    color: $primary
+    font-weight: 400
+
+    &:hover
+      color: $dark
+
+    &.is-active
+      color: $opa-blue
+
+  &-item + &-item
+    +desktop
+      margin-top: .5rem
+    +touch
+      margin-top: .4rem
+
+  &-hr
+    background-color: $secondary
+    height: 1px
+
+.figure
+  img
+    margin-bottom: .5rem
+
+  figcaption
+    font-style: normal !important
+    font-size: 1.5rem
+    font-weight: 500
+
+.article
+  padding-bottom: 5rem
+
+  .content
+    width: 75%
+
+    +touch
+      width: 100%

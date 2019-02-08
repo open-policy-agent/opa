@@ -1,0 +1,35 @@
+{{ $mainMenu   := site.Menus.main }}
+{{ $socialMenu := site.Menus.social }}
+{{ $year       := now.Year }}
+<footer role="contentinfo">
+  <div class="content">
+    <nav class="nav--footer" role="navigation">
+      <ul class="nav--menu">
+        {{ range $mainMenu }}
+        <li class="nav--menu-item nav--docs">
+          <a href="{{ .URL }}" rel="help">
+            {{ .Name }}
+          </a>
+        </li>
+        {{ end }}
+      </ul>
+      <ul class="nav--menu">
+        {{ range $socialMenu }}
+        <li class="nav--menu-item nav--social">
+          <a href="{{ .URL }}" rel="external">
+            <svg class="nav--social-icon">
+              <title>
+                {{ .Name }}
+              </title>
+              <use xlink:href="#social-icon--{{ lower .Name }}"/>
+            </svg>
+          </a>
+        </li>
+        {{ end }}
+      </ul>
+    </nav>
+
+    <p class="copyright">
+      &copy; {{ $year }} Open Policy Agent contributors. Licensed under the <a href="http://www.apache.org/licenses/LICENSE-2.0">Apache License, Version 2.0</a>. For information about contributing, see <a href="https://github.com/open-policy-agent/opa/blob/master/CONTRIBUTING.md">CONTRIBUTING.md</a>.</p>
+  </div>
+</footer>

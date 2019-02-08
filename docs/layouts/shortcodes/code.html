@@ -1,0 +1,5 @@
+{{ $file     := .Get "file" }}
+{{ $lang     := .Get "lang" }}
+{{ $filepath := printf "code/%s" $file }}
+{{ $data     := readFile $filepath }}
+{{ highlight $data $lang "" }}

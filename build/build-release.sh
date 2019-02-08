@@ -61,7 +61,6 @@ clone_repo() {
 main() {
     clone_repo
     build_binaries
-    $BUILD_DIR/build-docs.sh --output-dir=$OUTPUT_DIR
     make test
 }
 

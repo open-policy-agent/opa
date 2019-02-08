@@ -1,0 +1,8 @@
+{
+  "private": true,
+  "devDependencies": {
+    "autoprefixer": "^9.4.10",
+    "bulma": "0.7.4",
+    "postcss-cli": "^6.1.2"
+  }
+}

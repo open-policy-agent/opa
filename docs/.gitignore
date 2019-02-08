@@ -1,2 +1,6 @@
-_book
-_site
+# Hugo-generated assets
+public/
+resources/
+
+# Node.js assets
+node_modules/

@@ -1,0 +1,19 @@
+{{ $isHome       := .IsHome }}
+{{ $inServerMode := site.IsServer }}
+{{ $sass         := "sass/style.sass" }}
+{{ $cssOutput    := "css/style.css" }}
+{{ $includePaths := (slice "node_modules") }}
+{{ $cssDevOpts   := (dict "targetPath" $cssOutput "includePaths" $includePaths "enableSourceMap" true) }}
+{{ $cssProdOpts  := (dict "targetPath" $cssOutput "includePaths" $includePaths "outputStyle" "compressed") }}
+{{ $cssOpts      := cond $inServerMode $cssDevOpts $cssProdOpts }}
+{{ $css          := resources.Get $sass | toCSS $cssOpts | resources.PostCSS }}
+{{ if $isHome }}
+<link media="screen" charset="utf-8" rel="stylesheet" href="/css/home.css">
+{{ else }}
+{{ if $inServerMode }}
+<link rel="stylesheet" href="{{ $css.RelPermalink }}">
+{{ else }}
+{{ $prodCss := $css | fingerprint }}
+<link rel="stylesheet" href="{{ $prodCss.RelPermalink }}" integrity="{{ $prodCss.Data.Integrity }}">
+{{ end }}
+{{ end }}

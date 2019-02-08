@@ -1,0 +1,13 @@
+{{ $src     := .Get "src" | relURL }}
+{{ $caption := .Get "caption" | markdownify }}
+{{ $width   := .Get "width" | default 50 }}
+{{ $alt     := cond (isset .Params "caption") $caption (.Get "alt" | markdownify) }}
+<figure class="figure">
+  <img src="{{ $src }}" width="{{ $width }}%">
+
+  {{ with $caption }}
+  <figcaption class="has-text-weight-light">
+    {{ $caption }}
+  </figcaption>
+  {{ end }}
+</figure>

@@ -1,0 +1,22 @@
+{{ $isDoc := eq .Section "docs" }}
+<!DOCTYPE html>
+<html lang="{{ site.LanguageCode }}">
+  <head>
+    {{ partial "google-analytics.html" . }}
+    {{ partial "meta.html" . }}
+
+    <title>
+      {{ block "title" . }}{{ site.Title }}{{ end }}
+    </title>
+
+    {{ partial "css.html" . }}
+  </head>
+  <body>
+    {{ block "main" . }}
+    {{ end }}
+
+    {{ if $isDoc }}
+    {{ partial "javascript.html" . }}
+    {{ end }}
+  </body>
+</html>

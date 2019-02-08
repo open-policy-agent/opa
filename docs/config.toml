@@ -1,0 +1,71 @@
+title = "Open Policy Agent"
+baseURL = "https://openpolicyagent.org"
+languageCode = "en"
+disableKinds = ["taxonomy", "taxonomyTerm"]
+googleAnalytics = "UA-84550302-1"
+
+pygmentsCodeFences = true
+pygmentsUseClasses = false
+pygmentsStyle = "tango"
+pygmentsGuessSyntax = true
+
+[params]
+description = "Policy-based control for cloud native environments"
+tagline = "Empower your administrators with flexible, fine-grained control across your entire stack."
+
+[params.social]
+twitter = "OpenPolicyAgent"
+medium = "https://blog.openpolicyagent.org"
+slack = "https://slack.openpolicyagent.org"
+github = "https://github.com/open-policy-agent/opa"
+
+[params.versions]
+latest = "0.10.5"
+
+[params.logos]
+sidebar = "/img/logos/opa-stacked-color.png"
+navbar = "/img/logos/opa-icon-white.png"
+
+[[params.home.buttons]]
+url = "/docs/get-started"
+title = "Get started"
+
+[[params.home.buttons]]
+url = "/docs"
+title = "Learn more"
+
+[menu]
+[[menu.main]]
+name = "Documentation"
+url = "/docs"
+weight = 1
+
+[[menu.main]]
+name = "Tutorials"
+url = "/docs/get-started"
+weight = 2
+
+[[menu.main]]
+name = "Playground"
+url = "https://play.openpolicyagent.org"
+weight = 3
+
+[[menu.social]]
+name = "Medium"
+url = "https://twitter.com/openpolicyagent"
+weight = 1
+
+[[menu.social]]
+name = "Twitter"
+url = "https://twitter.com/openpolicyagent"
+weight = 2
+
+[[menu.social]]
+name = "Slack"
+url = "https://slack.openpolicyagent.org/"
+weight = 3
+
+[[menu.social]]
+name = "GitHub"
+url = "https://github.com/open-policy-agent/opa"
+weight = 4
