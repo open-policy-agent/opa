@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"reflect"
 	"testing"
 	"time"
@@ -22,7 +23,15 @@ import (
 	"github.com/open-policy-agent/opa/plugins/status"
 	"github.com/open-policy-agent/opa/storage/inmem"
 	"github.com/open-policy-agent/opa/util"
+	"github.com/open-policy-agent/opa/version"
 )
+
+func TestMain(m *testing.M) {
+	if version.Version == "" {
+		version.Version = "unit-test"
+	}
+	os.Exit(m.Run())
+}
 
 func TestEvaluateBundle(t *testing.T) {
 
@@ -222,7 +231,7 @@ func TestReconfigure(t *testing.T) {
 	disco.oneShot(ctx, download.Update{Bundle: initialBundle})
 
 	// Verify labels are unchanged
-	exp := map[string]string{"x": "y", "id": "test-id"}
+	exp := map[string]string{"x": "y", "id": "test-id", "version": version.Version}
 	if !reflect.DeepEqual(manager.Labels(), exp) {
 		t.Errorf("Expected labels to be unchanged (%v) but got %v", exp, manager.Labels())
 	}

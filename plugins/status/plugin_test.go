@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"reflect"
 	"testing"
 	"time"
@@ -17,7 +18,15 @@ import (
 	"github.com/open-policy-agent/opa/plugins/bundle"
 	"github.com/open-policy-agent/opa/storage/inmem"
 	"github.com/open-policy-agent/opa/util"
+	"github.com/open-policy-agent/opa/version"
 )
+
+func TestMain(m *testing.M) {
+	if version.Version == "" {
+		version.Version = "unit-test"
+	}
+	os.Exit(m.Run())
+}
 
 func TestPluginStart(t *testing.T) {
 
@@ -37,8 +46,9 @@ func TestPluginStart(t *testing.T) {
 
 	exp := UpdateRequestV1{
 		Labels: map[string]string{
-			"id":  "test-instance-id",
-			"app": "example-app",
+			"id":      "test-instance-id",
+			"app":     "example-app",
+			"version": version.Version,
 		},
 		Bundle: status,
 	}
@@ -66,8 +76,9 @@ func TestPluginStartDiscovery(t *testing.T) {
 
 	exp := UpdateRequestV1{
 		Labels: map[string]string{
-			"id":  "test-instance-id",
-			"app": "example-app",
+			"id":      "test-instance-id",
+			"app":     "example-app",
+			"version": version.Version,
 		},
 		Discovery: status,
 	}

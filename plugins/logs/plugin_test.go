@@ -193,8 +193,9 @@ func TestPluginStartSameInput(t *testing.T) {
 
 	exp := EventV1{
 		Labels: map[string]string{
-			"id":  "test-instance-id",
-			"app": "example-app",
+			"id":      "test-instance-id",
+			"app":     "example-app",
+			"version": getVersion(),
 		},
 		Revision:    "399",
 		DecisionID:  "399",
@@ -203,7 +204,6 @@ func TestPluginStartSameInput(t *testing.T) {
 		Result:      &result,
 		RequestedBy: "test",
 		Timestamp:   ts,
-		Version:     getVersion(),
 		Metrics:     msAsFloat64,
 	}
 
@@ -265,8 +265,9 @@ func TestPluginStartChangingInputValues(t *testing.T) {
 
 	exp := EventV1{
 		Labels: map[string]string{
-			"id":  "test-instance-id",
-			"app": "example-app",
+			"id":      "test-instance-id",
+			"app":     "example-app",
+			"version": getVersion(),
 		},
 		Revision:    "399",
 		DecisionID:  "399",
@@ -275,7 +276,6 @@ func TestPluginStartChangingInputValues(t *testing.T) {
 		Result:      &result,
 		RequestedBy: "test",
 		Timestamp:   ts,
-		Version:     getVersion(),
 	}
 
 	if !reflect.DeepEqual(chunk4[expLen4-1], exp) {
@@ -326,8 +326,9 @@ func TestPluginStartChangingInputKeysAndValues(t *testing.T) {
 
 	exp := EventV1{
 		Labels: map[string]string{
-			"id":  "test-instance-id",
-			"app": "example-app",
+			"id":      "test-instance-id",
+			"app":     "example-app",
+			"version": getVersion(),
 		},
 		Revision:    "249",
 		DecisionID:  "249",
@@ -336,7 +337,6 @@ func TestPluginStartChangingInputKeysAndValues(t *testing.T) {
 		Result:      &result,
 		RequestedBy: "test",
 		Timestamp:   ts,
-		Version:     getVersion(),
 	}
 
 	if !reflect.DeepEqual(chunk2[len(chunk2)-1], exp) {

@@ -32,7 +32,8 @@ represents a policy decision returned by OPA.
   {
     "labels": {
       "app": "my-example-app",
-      "id": "1780d507-aea2-45cc-ae50-fa153c8e4a5a"
+      "id": "1780d507-aea2-45cc-ae50-fa153c8e4a5a",
+      "version": "v0.10.3"
     },
     "decision_id": "4ca636c1-55e4-417a-b1d8-4aceb67960d1",
     "revision": "W3sibCI6InN5cy9jYXRhbG9nIiwicyI6NDA3MX1d",
@@ -61,5 +62,4 @@ Decision log updates contain the following fields:
 | `[_].result` | `any` | Policy decision returned to the client, e.g., `true` or `false`. |
 | `[_].requested_by` | `string` | Identifier for client that executed policy query, e.g., the client address. |
 | `[_].timestamp` | `string` | RFC3999 timestamp of policy decision. |
-| `[_].version` | `string` | Version of the OPA instance that generated the event. |
 | `[_].metrics` | `object` | Key-value pairs of [performance metrics](rest-api.md#performance-metrics). |
