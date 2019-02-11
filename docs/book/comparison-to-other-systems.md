@@ -193,7 +193,7 @@ allow {
     # check that the user is a trader
     user.title = "trader"
     # check that the stock being purchased is sold on the NASDAQ
-    tickerAttributes[input.ticker].exchange = "NASDAQ"
+    ticker_attributes[input.ticker].exchange = "NASDAQ"
     # check that the purchase amount is under $2M
     input.amount <= 2000000
 }
@@ -205,7 +205,7 @@ allow {
     # check that the user is a trader
     user.title = "trader"
     # check that the stock being purchased is sold on the NASDAQ
-    tickerAttributes[input.ticker].exchange = "NASDAQ"
+    ticker_attributes[input.ticker].exchange = "NASDAQ"
     # check that the user has at least 10 years of experience
     user.tenure > 10
     # check that the purchase amount is under $5M
