@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/open-policy-agent/opa/internal/runtime"
+	"github.com/open-policy-agent/opa/storage"
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/cover"
@@ -101,9 +102,6 @@ func opaTest(args []string) int {
 	ctx, cancel := context.WithTimeout(context.Background(), testParams.timeout)
 	defer cancel()
 
-	compiler := ast.NewCompiler().
-		SetErrorLimit(testParams.errLimit)
-
 	filter := loaderFilter{
 		Ignore: testParams.ignore,
 	}
@@ -113,6 +111,18 @@ func opaTest(args []string) int {
 		fmt.Fprintln(os.Stderr, err)
 		return 1
 	}
+
+	txn, err := store.NewTransaction(ctx)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 1
+	}
+
+	defer store.Abort(ctx, txn)
+
+	compiler := ast.NewCompiler().
+		SetErrorLimit(testParams.errLimit).
+		WithPathConflictsCheck(storage.NonEmpty(ctx, store, txn))
 
 	info, err := runtime.Term(runtime.Params{})
 	if err != nil {

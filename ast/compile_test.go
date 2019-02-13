@@ -619,11 +619,28 @@ f { true }
 
 g(1) { true }
 g(1,2) { true }`,
+		"mod5.rego": `package badrules.dataoverlap
+
+p { true }`,
+		"mod6.rego": `package badrules.existserr
+
+p { true }`,
+	})
+
+	c.WithPathConflictsCheck(func(path []string) (bool, error) {
+		if reflect.DeepEqual(path, []string{"badrules", "dataoverlap", "p"}) {
+			return true, nil
+		} else if reflect.DeepEqual(path, []string{"badrules", "existserr", "p"}) {
+			return false, fmt.Errorf("unexpected error")
+		}
+		return false, nil
 	})
 
 	compileStages(c, c.checkRuleConflicts)
 
 	expected := []string{
+		"rego_compile_error: conflict check for data path badrules/existserr/p: unexpected error",
+		"rego_compile_error: conflicting rule for data path badrules/dataoverlap/p found",
 		"rego_type_error: conflicting rules named f found",
 		"rego_type_error: conflicting rules named g found",
 		"rego_type_error: conflicting rules named p found",

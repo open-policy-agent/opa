@@ -413,7 +413,7 @@ func compileAndStoreInputs(ctx context.Context, store storage.Store, txn storage
 		policies[id] = parsed.Parsed
 	}
 
-	c := ast.NewCompiler().SetErrorLimit(errorLimit)
+	c := ast.NewCompiler().SetErrorLimit(errorLimit).WithPathConflictsCheck(storage.NonEmpty(ctx, store, txn))
 
 	if c.Compile(policies); c.Failed() {
 		return c.Errors

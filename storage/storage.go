@@ -99,3 +99,28 @@ func Txn(ctx context.Context, store Store, params TransactionParams, f func(Tran
 
 	return store.Commit(ctx, txn)
 }
+
+// NonEmpty returns a function that tests if a path is non-empty. A
+// path is non-empty if a Read on the path returns a value or a Read
+// on any of the path prefixes returns a non-object value.
+func NonEmpty(ctx context.Context, store Store, txn Transaction) func([]string) (bool, error) {
+	return func(path []string) (bool, error) {
+		if _, err := store.Read(ctx, txn, Path(path)); err == nil {
+			return true, nil
+		} else if !IsNotFound(err) {
+			return false, err
+		}
+		for i := len(path) - 1; i > 0; i-- {
+			val, err := store.Read(ctx, txn, Path(path[:i]))
+			if err != nil && !IsNotFound(err) {
+				return false, err
+			} else if err == nil {
+				if _, ok := val.(map[string]interface{}); ok {
+					return false, nil
+				}
+				return true, nil
+			}
+		}
+		return false, nil
+	}
+}

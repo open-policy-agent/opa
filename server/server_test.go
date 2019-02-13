@@ -549,6 +549,33 @@ p = true { false }`
 				"message": "storage_write_conflict_error: /a/b"
 			}`},
 		}},
+		{"put base/virtual conflict", []tr{
+			{http.MethodPut, "/policies/testmod", "package x.y\np = 1\nq = 2", 200, ""},
+			{http.MethodPut, "/data/x", `{"y": {"p": "xxx"}}`, 400, `{
+              "code": "invalid_parameter",
+              "message": "1 error occurred: testmod:2: rego_compile_error: conflicting rule for data path x/y/p found"
+            }`},
+			{http.MethodPut, "/data/x/y", `{"p": "xxx"}`, 400, ``},
+			{http.MethodPut, "/data/x/y/p", `"xxx"`, 400, ``},
+			{http.MethodPut, "/data/x/y/p/a", `1`, 400, ``},
+			{http.MethodDelete, "/policies/testmod", "", 200, ""},
+			{http.MethodPut, "/data/x/y/p/a", `1`, 204, ``},
+			{http.MethodPut, "/policies/testmod", "package x.y\np = 1\nq = 2", 400, `{
+              "code": "invalid_parameter",
+              "message": "error(s) occurred while compiling module(s)",
+              "errors": [
+                {
+                  "code": "rego_compile_error",
+                  "message": "conflicting rule for data path x/y/p found",
+                  "location": {
+                    "file": "testmod",
+                    "row": 2,
+                    "col": 5
+                  }
+                }
+              ]
+            }`},
+		}},
 		{"get virtual", []tr{
 			{http.MethodPut, "/policies/test", testMod1, 200, ""},
 			{http.MethodPatch, "/data/x", `[{"op": "add", "path": "/", "value": {"y": [1,2,3,4], "z": [3,4,5,6]}}]`, 204, ""},

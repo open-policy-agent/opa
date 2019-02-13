@@ -212,7 +212,9 @@ func (p *Plugin) activate(ctx context.Context, b *bundle.Bundle) error {
 			modules[file.Path] = file.Parsed
 		}
 
-		compiler := ast.NewCompiler()
+		compiler := ast.NewCompiler().
+			WithPathConflictsCheck(storage.NonEmpty(ctx, p.manager.Store, txn))
+
 		if compiler.Compile(modules); compiler.Failed() {
 			return compiler.Errors
 		}

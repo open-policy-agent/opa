@@ -13,6 +13,7 @@ import (
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/metrics"
+	"github.com/open-policy-agent/opa/storage/inmem"
 	"github.com/open-policy-agent/opa/topdown"
 	"github.com/open-policy-agent/opa/types"
 	"github.com/open-policy-agent/opa/util"
@@ -253,5 +254,22 @@ func TestRegoMetrics(t *testing.T) {
 		if _, ok := all[name]; !ok {
 			t.Errorf("expected to find %v but did not", name)
 		}
+	}
+}
+
+func TestRegoCatchPathConflicts(t *testing.T) {
+	r := New(
+		Query("data"),
+		Module("test.rego", "package x\np=1"),
+		Store(inmem.NewFromObject(map[string]interface{}{
+			"x": map[string]interface{}{"p": 1},
+		})),
+	)
+
+	ctx := context.Background()
+	_, err := r.Eval(ctx)
+
+	if err == nil {
+		t.Fatal("expected error")
 	}
 }
