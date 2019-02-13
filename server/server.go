@@ -973,6 +973,12 @@ func (s *Server) v1DataPatch(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	if err := ast.CheckPathConflicts(s.getCompiler(), storage.NonEmpty(ctx, s.store, txn)); len(err) > 0 {
+		s.store.Abort(ctx, txn)
+		writer.ErrorString(w, http.StatusBadRequest, types.CodeInvalidParameter, err)
+		return
+	}
+
 	if err := s.store.Commit(ctx, txn); err != nil {
 		writer.ErrorAuto(w, err)
 	} else {
@@ -1138,6 +1144,12 @@ func (s *Server) v1DataPut(w http.ResponseWriter, r *http.Request) {
 
 	if err := s.store.Write(ctx, txn, storage.AddOp, path, value); err != nil {
 		s.abortAuto(ctx, txn, w, err)
+		return
+	}
+
+	if err := ast.CheckPathConflicts(s.getCompiler(), storage.NonEmpty(ctx, s.store, txn)); len(err) > 0 {
+		s.store.Abort(ctx, txn)
+		writer.ErrorString(w, http.StatusBadRequest, types.CodeInvalidParameter, err)
 		return
 	}
 
@@ -1359,7 +1371,7 @@ func (s *Server) v1PoliciesPut(w http.ResponseWriter, r *http.Request) {
 
 	modules[path] = parsedMod
 
-	c := ast.NewCompiler().SetErrorLimit(s.errLimit)
+	c := ast.NewCompiler().SetErrorLimit(s.errLimit).WithPathConflictsCheck(storage.NonEmpty(ctx, s.store, txn))
 
 	m.Timer(metrics.RegoModuleCompile).Start()
 

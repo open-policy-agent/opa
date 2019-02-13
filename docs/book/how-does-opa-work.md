@@ -184,6 +184,16 @@ GET https://example.com/v1/data/servers HTTP/1.1
 GET https://example.com/v1/data/opa/examples/violations HTTP/1.1
 ```
 
+> Since the `data` document includes both base and virtual documents,
+> it is possible to query for both at the same time. The easiest way
+> to illustrate this is to query for _all_ of `data` at once. Note,
+> OPA does NOT allow base and virtual documents to overlap. For
+> example, if you try to load a rule that defines a virtual document
+> at path a/b/c (which is already defined by a base document), OPA
+> will return an error. Similarly, if you try to load a base document
+> into a path that is already defined by a virtual document, OPA will
+> also return an error.
+
 ### The `input` Document
 
 In some cases, policies require input values. In addition to the built-in

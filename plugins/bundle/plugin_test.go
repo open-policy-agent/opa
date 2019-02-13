@@ -89,9 +89,10 @@ func TestPluginOneShotCompileError(t *testing.T) {
 	plugin.oneShot(ctx, download.Update{Bundle: b1})
 
 	b2 := &bundle.Bundle{
+		Data: map[string]interface{}{"a": "b"},
 		Modules: []bundle.ModuleFile{
 			{
-				Path:   "/example.rego",
+				Path:   "/example2.rego",
 				Parsed: ast.MustParseModule("package foo\n\np[x]"),
 			},
 		},
@@ -106,10 +107,37 @@ func TestPluginOneShotCompileError(t *testing.T) {
 		t.Fatalf("Unexpected error: %v", err)
 	}
 
-	data, err := manager.Store.Read(ctx, txn, storage.Path{})
-	if err != nil || data == nil {
+	data, err := manager.Store.Read(ctx, txn, storage.Path{"a"})
+	if err != nil || !reflect.DeepEqual("b", data) {
 		t.Fatalf("Expected data to be intact but got: %v, err: %v", data, err)
 	}
+
+	manager.Store.Abort(ctx, txn)
+
+	b3 := &bundle.Bundle{
+		Data: map[string]interface{}{"foo": map[string]interface{}{"p": "a"}},
+		Modules: []bundle.ModuleFile{
+			{
+				Path:   "/example3.rego",
+				Parsed: ast.MustParseModule("package foo\np=1"),
+			},
+		},
+	}
+
+	plugin.oneShot(ctx, download.Update{Bundle: b3})
+
+	txn = storage.NewTransactionOrDie(ctx, manager.Store)
+
+	_, err = manager.Store.GetPolicy(ctx, txn, "/example.rego")
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	data, err = manager.Store.Read(ctx, txn, storage.Path{"a"})
+	if err != nil || !reflect.DeepEqual("b", data) {
+		t.Fatalf("Expected data to be intact but got: %v, err: %v", data, err)
+	}
+
 }
 
 func TestPluginOneShotActivatationRemovesOld(t *testing.T) {

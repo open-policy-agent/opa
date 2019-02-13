@@ -81,6 +81,7 @@ type Compiler struct {
 	stages       []func()
 	maxErrs      int
 	sorted       []string // list of sorted module names
+	pathExists   func([]string) (bool, error)
 }
 
 // QueryContext contains contextual information for running an ad-hoc query.
@@ -227,6 +228,14 @@ func NewCompiler() *Compiler {
 // quits. Zero or a negative number indicates no limit.
 func (c *Compiler) SetErrorLimit(limit int) *Compiler {
 	c.maxErrs = limit
+	return c
+}
+
+// WithPathConflictsCheck enables base-virtual document conflict
+// detection. The compiler will check that rules don't overlap with
+// paths that exist as determined by the provided callable.
+func (c *Compiler) WithPathConflictsCheck(fn func([]string) (bool, error)) *Compiler {
+	c.pathExists = fn
 	return c
 }
 
@@ -525,6 +534,12 @@ func (c *Compiler) checkRuleConflicts() {
 
 		return false
 	})
+
+	if c.pathExists != nil {
+		for _, err := range CheckPathConflicts(c, c.pathExists) {
+			c.err(err)
+		}
+	}
 
 	c.ModuleTree.DepthFirst(func(node *ModuleTreeNode) bool {
 		for _, mod := range node.Modules {
