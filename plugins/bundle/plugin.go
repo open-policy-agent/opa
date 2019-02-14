@@ -7,6 +7,7 @@ package bundle
 
 import (
 	"context"
+	"fmt"
 	"reflect"
 	"strings"
 	"sync"
@@ -184,8 +185,35 @@ func (p *Plugin) activate(ctx context.Context, b *bundle.Bundle) error {
 		p.logDebug("Opened storage transaction (%v).", txn.ID())
 		defer p.logDebug("Closing storage transaction (%v).", txn.ID())
 
-		// write data from bundle into store, overwritting contents
-		if err := p.manager.Store.Write(ctx, txn, storage.AddOp, storage.Path{}, b.Data); err != nil {
+		// Build set of roots from old and new bundles. This set of
+		// roots should be erased.
+		erase := map[string]struct{}{}
+
+		if b.Manifest.Roots != nil {
+			for _, root := range *b.Manifest.Roots {
+				erase[root] = struct{}{}
+			}
+		}
+
+		if roots, err := p.readRoots(ctx, txn); err == nil {
+			for _, root := range roots {
+				erase[root] = struct{}{}
+			}
+		} else if !storage.IsNotFound(err) {
+			return err
+		}
+
+		if err := p.eraseData(ctx, txn, erase); err != nil {
+			return err
+		}
+
+		if err := p.erasePolicies(ctx, txn, erase); err != nil {
+			return err
+		}
+
+		// Write data from new bundle into store. Only write under the
+		// roots contained in the manifest.
+		if err := p.writeData(ctx, txn, *b.Manifest.Roots, b.Data); err != nil {
 			return err
 		}
 
@@ -193,41 +221,121 @@ func (p *Plugin) activate(ctx context.Context, b *bundle.Bundle) error {
 			return err
 		}
 
-		// load existing policy ids from store and delete
-		ids, err := p.manager.Store.ListPolicies(ctx, txn)
-		if err != nil {
+		if err := p.writeModules(ctx, txn, b.Modules); err != nil {
 			return err
-		}
-
-		for _, id := range ids {
-			if err := p.manager.Store.DeletePolicy(ctx, txn, id); err != nil {
-				return err
-			}
-		}
-
-		// ensure that policies compile.
-		modules := map[string]*ast.Module{}
-
-		for _, file := range b.Modules {
-			modules[file.Path] = file.Parsed
-		}
-
-		compiler := ast.NewCompiler().
-			WithPathConflictsCheck(storage.NonEmpty(ctx, p.manager.Store, txn))
-
-		if compiler.Compile(modules); compiler.Failed() {
-			return compiler.Errors
-		}
-
-		// write policies from bundle into store.
-		for _, file := range b.Modules {
-			if err := p.manager.Store.UpsertPolicy(ctx, txn, file.Path, file.Raw); err != nil {
-				return err
-			}
 		}
 
 		return nil
 	})
+}
+
+func (p *Plugin) eraseData(ctx context.Context, txn storage.Transaction, roots map[string]struct{}) error {
+	for root := range roots {
+		path, ok := storage.ParsePathEscaped("/" + root)
+		if !ok {
+			return fmt.Errorf("manifest root path invalid: %v", root)
+		}
+		if len(path) > 0 {
+			if err := p.manager.Store.Write(ctx, txn, storage.RemoveOp, path, nil); err != nil {
+				if !storage.IsNotFound(err) {
+					return err
+				}
+			}
+		}
+	}
+	return nil
+}
+
+func (p *Plugin) erasePolicies(ctx context.Context, txn storage.Transaction, roots map[string]struct{}) error {
+	ids, err := p.manager.Store.ListPolicies(ctx, txn)
+	if err != nil {
+		return err
+	}
+	for _, id := range ids {
+		bs, err := p.manager.Store.GetPolicy(ctx, txn, id)
+		if err != nil {
+			return err
+		}
+		module, err := ast.ParseModule(id, string(bs))
+		if err != nil {
+			return err
+		}
+		path, err := module.Package.Path.Ptr()
+		if err != nil {
+			return err
+		}
+		for root := range roots {
+			if strings.HasPrefix(path, root) {
+				if err := p.manager.Store.DeletePolicy(ctx, txn, id); err != nil {
+					return err
+				}
+				break
+			}
+		}
+	}
+	return nil
+}
+
+func (p *Plugin) writeData(ctx context.Context, txn storage.Transaction, roots []string, data map[string]interface{}) error {
+	for _, root := range roots {
+		path, ok := storage.ParsePathEscaped("/" + root)
+		if !ok {
+			return fmt.Errorf("manifest root path invalid: %v", root)
+		}
+		if value, ok := lookup(path, data); ok {
+			if len(path) > 0 {
+				if err := storage.MakeDir(ctx, p.manager.Store, txn, path[:len(path)-1]); err != nil {
+					return err
+				}
+			}
+			if err := p.manager.Store.Write(ctx, txn, storage.AddOp, path, value); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func (p *Plugin) writeModules(ctx context.Context, txn storage.Transaction, files []bundle.ModuleFile) error {
+	modules := map[string]*ast.Module{}
+	for _, file := range files {
+		modules[file.Path] = file.Parsed
+	}
+	compiler := ast.NewCompiler().
+		WithPathConflictsCheck(storage.NonEmpty(ctx, p.manager.Store, txn))
+	if compiler.Compile(modules); compiler.Failed() {
+		return compiler.Errors
+	}
+	for _, file := range files {
+		if err := p.manager.Store.UpsertPolicy(ctx, txn, file.Path, file.Raw); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (p *Plugin) readRoots(ctx context.Context, txn storage.Transaction) ([]string, error) {
+
+	value, err := p.manager.Store.Read(ctx, txn, rootsPath)
+	if err != nil {
+		return nil, err
+	}
+
+	sl, ok := value.([]interface{})
+	if !ok {
+		return nil, fmt.Errorf("corrupt manifest roots")
+	}
+
+	roots := make([]string, len(sl))
+
+	for i := range sl {
+		roots[i], ok = sl[i].(string)
+		if !ok {
+			return nil, fmt.Errorf("corrupt manifest root")
+		}
+	}
+
+	return roots, nil
 }
 
 func (p *Plugin) writeManifest(ctx context.Context, txn storage.Transaction, m bundle.Manifest) error {
@@ -267,4 +375,24 @@ func (p *Plugin) logrusFields() logrus.Fields {
 var (
 	bundlePath   = storage.MustParsePath("/system/bundle")
 	manifestPath = storage.MustParsePath("/system/bundle/manifest")
+	rootsPath    = storage.MustParsePath("/system/bundle/manifest/roots")
 )
+
+func lookup(path storage.Path, data map[string]interface{}) (interface{}, bool) {
+	if len(path) == 0 {
+		return data, true
+	}
+	for i := 0; i < len(path)-1; i++ {
+		value, ok := data[path[i]]
+		if !ok {
+			return nil, false
+		}
+		obj, ok := value.(map[string]interface{})
+		if !ok {
+			return nil, false
+		}
+		data = obj
+	}
+	value, ok := data[path[len(path)-1]]
+	return value, ok
+}

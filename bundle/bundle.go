@@ -43,7 +43,70 @@ type Bundle struct {
 // Manifest represents the manifest from a bundle. The manifest may contain
 // metadata such as the bundle revision.
 type Manifest struct {
-	Revision string `json:"revision"`
+	Revision string    `json:"revision"`
+	Roots    *[]string `json:"roots,omitempty"`
+}
+
+// Init initializes the manifest. If you instantiate a manifest
+// manually, call Init to ensure that the roots are set properly.
+func (m *Manifest) Init() {
+	if m.Roots == nil {
+		defaultRoots := []string{""}
+		m.Roots = &defaultRoots
+	}
+}
+
+func (m *Manifest) validateAndInjectDefaults(b Bundle) error {
+
+	m.Init()
+
+	// Validate roots in bundle.
+	roots := *m.Roots
+	for i := range roots {
+		roots[i] = strings.Trim(roots[i], "/")
+	}
+
+	for i := 0; i < len(roots)-1; i++ {
+		for j := i + 1; j < len(roots); j++ {
+			if strings.HasPrefix(roots[i], roots[j]) || strings.HasPrefix(roots[j], roots[i]) {
+				return fmt.Errorf("manifest has overlapped roots: %v and %v", roots[i], roots[j])
+			}
+		}
+	}
+
+	// Validate modules in bundle.
+	for _, module := range b.Modules {
+		found := false
+		if path, err := module.Parsed.Package.Path.Ptr(); err == nil {
+			for i := range roots {
+				if strings.HasPrefix(path, roots[i]) {
+					found = true
+					break
+				}
+			}
+		}
+		if !found {
+			return fmt.Errorf("manifest roots do not permit '%v' in %v", module.Parsed.Package, module.Path)
+		}
+	}
+
+	// Validate data in bundle.
+	return dfs(b.Data, "", func(path string, node interface{}) (bool, error) {
+		path = strings.Trim(path, "/")
+		for i := range roots {
+			if strings.HasPrefix(path, roots[i]) {
+				return true, nil
+			}
+		}
+		if _, ok := node.(map[string]interface{}); ok {
+			for i := range roots {
+				if strings.HasPrefix(roots[i], path) {
+					return false, nil
+				}
+			}
+		}
+		return false, fmt.Errorf("manifest roots do not permit data at path %v", path)
+	})
 }
 
 // ModuleFile represents a single module contained a bundle.
@@ -142,23 +205,28 @@ func (r *Reader) Read() (Bundle, error) {
 			if err := util.NewJSONDecoder(&buf).Decode(&bundle.Manifest); err != nil {
 				return bundle, errors.Wrap(err, "bundle load failed on manifest decode")
 			}
+		}
+	}
 
-			if r.includeManifestInData {
-				var metadata map[string]interface{}
-				b, err := json.Marshal(&bundle.Manifest)
-				if err != nil {
-					return bundle, errors.Wrap(err, "bundle load failed on manifest marshal")
-				}
+	if err := bundle.Manifest.validateAndInjectDefaults(bundle); err != nil {
+		return bundle, err
+	}
 
-				err = util.UnmarshalJSON(b, &metadata)
-				if err != nil {
-					return bundle, errors.Wrap(err, "bundle load failed on manifest unmarshal")
-				}
+	if r.includeManifestInData {
+		var metadata map[string]interface{}
 
-				if err := bundle.insert(manifestPath, metadata); err != nil {
-					return bundle, errors.Wrapf(err, "bundle load failed on %v", manifestPath)
-				}
-			}
+		b, err := json.Marshal(&bundle.Manifest)
+		if err != nil {
+			return bundle, errors.Wrap(err, "bundle load failed on manifest marshal")
+		}
+
+		err = util.UnmarshalJSON(b, &metadata)
+		if err != nil {
+			return bundle, errors.Wrap(err, "bundle load failed on manifest unmarshal")
+		}
+
+		if err := bundle.insert(manifestPath, metadata); err != nil {
+			return bundle, errors.Wrapf(err, "bundle load failed on %v", manifestPath)
 		}
 	}
 
@@ -281,4 +349,22 @@ func writeFile(tw *tar.Writer, path string, bs []byte) error {
 
 	_, err := tw.Write(bs)
 	return err
+}
+
+func dfs(value interface{}, path string, fn func(string, interface{}) (bool, error)) error {
+	if stop, err := fn(path, value); err != nil {
+		return err
+	} else if stop {
+		return nil
+	}
+	obj, ok := value.(map[string]interface{})
+	if !ok {
+		return nil
+	}
+	for key := range obj {
+		if err := dfs(obj[key], path+"/"+key, fn); err != nil {
+			return err
+		}
+	}
+	return nil
 }

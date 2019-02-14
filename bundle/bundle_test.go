@@ -9,6 +9,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"encoding/json"
+	"strings"
 	"testing"
 
 	"github.com/open-policy-agent/opa/ast"
@@ -84,6 +85,92 @@ func TestReadWithManifestInData(t *testing.T) {
 	if m["revision"] != "quickbrownfaux" {
 		t.Fatalf("Unexpected manifest.revision value: %v. Expected: %v", m["revision"], "quickbrownfaux")
 	}
+}
+
+func TestReadRootValidation(t *testing.T) {
+	cases := []struct {
+		note  string
+		files [][2]string
+		err   string
+	}{
+		{
+			note: "default: full extent",
+			files: [][2]string{
+				{"/.manifest", `{"revision": "abcd"}`},
+				{"/data.json", `{"a": 1}`},
+				{"/x.rego", `package foo`},
+			},
+			err: "",
+		},
+		{
+			note: "explicit: full extent",
+			files: [][2]string{
+				{"/.manifest", `{"revision": "abcd", "roots": [""]}`},
+				{"/data.json", `{"a": 1}`},
+				{"/x.rego", `package foo`},
+			},
+			err: "",
+		},
+		{
+			note: "implicit: prefixed",
+			files: [][2]string{
+				{"/.manifest", `{"revision": "abcd", "roots": ["a/b", "foo"]}`},
+				{"/data.json", `{"a": {"b": 1}}`},
+				{"/x.rego", `package foo.bar`},
+			},
+			err: "",
+		},
+		{
+			note: "err: empty",
+			files: [][2]string{
+				{"/.manifest", `{"revision": "abcd", "roots": []}`},
+				{"/x.rego", `package foo`},
+			},
+			err: "manifest roots do not permit 'package foo' in /x.rego",
+		},
+		{
+			note: "err: overlapped",
+			files: [][2]string{
+				{"/.manifest", `{"revision": "abcd", "roots": ["a/b", "a"]}`},
+			},
+			err: "manifest has overlapped roots: a/b and a",
+		},
+		{
+			note: "err: package outside scope",
+			files: [][2]string{
+				{"/.manifest", `{"revision": "abcd", "roots": ["a", "b", "c/d"]}`},
+				{"/a.rego", `package b.c`},
+				{"/x.rego", `package c.e`},
+			},
+			err: "manifest roots do not permit 'package c.e' in /x.rego",
+		},
+		{
+			note: "err: data outside scope",
+			files: [][2]string{
+				{"/.manifest", `{"revision": "abcd", "roots": ["a", "b", "c/d"]}`},
+				{"/data.json", `{"a": 1}`},
+				{"/c/e/data.json", `"bad bad bad"`},
+			},
+			err: "manifest roots do not permit data at path c/e",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.note, func(t *testing.T) {
+			buf := writeTarGz(tc.files)
+			_, err := NewReader(buf).IncludeManifestInData(true).Read()
+			if tc.err == "" && err != nil {
+				t.Fatal("Unexpected error occurred:", err)
+			} else if tc.err != "" && err == nil {
+				t.Fatal("Expected error but got success")
+			} else if tc.err != "" && err != nil {
+				if !strings.Contains(err.Error(), tc.err) {
+					t.Fatalf("Expected error to contain %q but got: %v", tc.err, err)
+				}
+			}
+		})
+	}
+
 }
 
 func TestReadErrorBadGzip(t *testing.T) {
