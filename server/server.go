@@ -26,6 +26,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/internal/manifest"
 	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/plugins"
 	"github.com/open-policy-agent/opa/rego"
@@ -529,17 +530,12 @@ func (s *Server) registerHandler(router *mux.Router, version int, path string, m
 
 func (s *Server) reload(ctx context.Context, txn storage.Transaction, event storage.TriggerEvent) {
 
-	value, err := s.store.Read(ctx, txn, storage.MustParsePath("/system/bundle/manifest/revision"))
-	if err == nil {
-		revision, ok := value.(string)
-		if !ok {
-			panic("bad revision value")
-		}
-		s.revision = revision
-	} else if err != nil {
+	if revision, err := manifest.ReadBundleRevision(ctx, s.store, txn); err != nil {
 		if !storage.IsNotFound(err) {
 			panic(err)
 		}
+	} else {
+		s.revision = revision
 	}
 
 	s.partials = map[string]rego.PartialResult{}
@@ -967,6 +963,11 @@ func (s *Server) v1DataPatch(w http.ResponseWriter, r *http.Request) {
 	}
 
 	for _, patch := range patches {
+		if err := s.checkPathScope(ctx, txn, patch.path); err != nil {
+			s.abortAuto(ctx, txn, w, err)
+			return
+		}
+
 		if err := s.store.Write(ctx, txn, patch.op, patch.path, patch.value); err != nil {
 			s.abortAuto(ctx, txn, w, err)
 			return
@@ -1125,6 +1126,11 @@ func (s *Server) v1DataPut(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if err := s.checkPathScope(ctx, txn, path); err != nil {
+		s.abortAuto(ctx, txn, w, err)
+		return
+	}
+
 	_, err = s.store.Read(ctx, txn, path)
 
 	if err != nil {
@@ -1176,6 +1182,11 @@ func (s *Server) v1DataDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if err := s.checkPathScope(ctx, txn, path); err != nil {
+		s.abortAuto(ctx, txn, w, err)
+		return
+	}
+
 	_, err = s.store.Read(ctx, txn, path)
 	if err != nil {
 		s.abortAuto(ctx, txn, w, err)
@@ -1205,6 +1216,11 @@ func (s *Server) v1PoliciesDelete(w http.ResponseWriter, r *http.Request) {
 	txn, err := s.store.NewTransaction(ctx, storage.WriteParams)
 	if err != nil {
 		writer.ErrorAuto(w, err)
+		return
+	}
+
+	if err := s.checkPolicyIDScope(ctx, txn, id); err != nil {
+		s.abortAuto(ctx, txn, w, err)
 		return
 	}
 
@@ -1360,6 +1376,11 @@ func (s *Server) v1PoliciesPut(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		writer.ErrorAuto(w, err)
+		return
+	}
+
+	if err := s.checkPolicyPackageScope(ctx, txn, parsedMod.Package); err != nil {
+		s.abortAuto(ctx, txn, w, err)
 		return
 	}
 
@@ -1587,6 +1608,57 @@ func (s *Server) watchQuery(query string, w http.ResponseWriter, r *http.Request
 			return
 		}
 	}
+}
+
+func (s *Server) checkPolicyIDScope(ctx context.Context, txn storage.Transaction, id string) error {
+
+	bs, err := s.store.GetPolicy(ctx, txn, id)
+	if err != nil {
+		return err
+	}
+
+	module, err := ast.ParseModule(id, string(bs))
+	if err != nil {
+		return err
+	}
+
+	return s.checkPolicyPackageScope(ctx, txn, module.Package)
+}
+
+func (s *Server) checkPolicyPackageScope(ctx context.Context, txn storage.Transaction, pkg *ast.Package) error {
+
+	path, err := pkg.Path.Ptr()
+	if err != nil {
+		return err
+	}
+
+	spath, ok := storage.ParsePathEscaped("/" + path)
+	if !ok {
+		return types.BadRequestErr("invalid package path: cannot determine scope")
+	}
+
+	return s.checkPathScope(ctx, txn, spath)
+}
+
+func (s *Server) checkPathScope(ctx context.Context, txn storage.Transaction, path storage.Path) error {
+
+	roots, err := manifest.ReadBundleRoots(ctx, s.store, txn)
+	if err != nil {
+		if !storage.IsNotFound(err) {
+			return err
+		}
+		return nil
+	}
+
+	spath := strings.Trim(path.String(), "/")
+
+	for i := range roots {
+		if strings.HasPrefix(spath, roots[i]) || strings.HasPrefix(roots[i], spath) {
+			return types.BadRequestErr(fmt.Sprintf("path %v is owned by bundle", spath))
+		}
+	}
+
+	return nil
 }
 
 func (s *Server) evalDiagnosticPolicy(r *http.Request) (logger diagnosticsLogger) {
