@@ -25,6 +25,8 @@ import (
 	"time"
 
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/bundle"
+	"github.com/open-policy-agent/opa/internal/manifest"
 	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/plugins"
 	"github.com/open-policy-agent/opa/server/identifier"
@@ -790,6 +792,90 @@ func TestDataPutV1IfNoneMatch(t *testing.T) {
 	req.Header.Set("If-None-Match", "*")
 	if err := f.executeRequest(req, 304, ""); err != nil {
 		t.Fatalf("Unexpected error from PUT with If-None-Match=*: %v", err)
+	}
+}
+
+func TestBundleScope(t *testing.T) {
+
+	ctx := context.Background()
+
+	f := newFixture(t)
+
+	txn := storage.NewTransactionOrDie(ctx, f.server.store, storage.WriteParams)
+
+	if err := manifest.Write(ctx, f.server.store, txn, bundle.Manifest{
+		Revision: "AAAAA",
+		Roots:    &[]string{"a/b/c", "x/y"},
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := f.server.store.UpsertPolicy(ctx, txn, "someid", []byte(`package x.y.z`)); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := f.server.store.Commit(ctx, txn); err != nil {
+		t.Fatal(err)
+	}
+
+	cases := []tr{
+		{
+			method: "PUT",
+			path:   "/data/a/b",
+			body:   "1",
+			code:   http.StatusBadRequest,
+			resp:   `{"code": "invalid_parameter", "message": "path a/b is owned by bundle"}`,
+		},
+		{
+			method: "PUT",
+			path:   "/data/a/b/c",
+			body:   "1",
+			code:   http.StatusBadRequest,
+			resp:   `{"code": "invalid_parameter", "message": "path a/b/c is owned by bundle"}`,
+		},
+		{
+			method: "PUT",
+			path:   "/data/a/b/c/d",
+			body:   "1",
+			code:   http.StatusBadRequest,
+			resp:   `{"code": "invalid_parameter", "message": "path a/b/c/d is owned by bundle"}`,
+		},
+		{
+			method: "PATCH",
+			path:   "/data/a",
+			body:   `[{"path": "/b/c", "op": "add", "value": 1}]`,
+			code:   http.StatusBadRequest,
+			resp:   `{"code": "invalid_parameter", "message": "path a/b/c is owned by bundle"}`,
+		},
+		{
+			method: "DELETE",
+			path:   "/data/a",
+			code:   http.StatusBadRequest,
+			resp:   `{"code": "invalid_parameter", "message": "path a is owned by bundle"}`,
+		},
+		{
+			method: "PUT",
+			path:   "/policies/test1",
+			body:   `package a.b`,
+			code:   http.StatusBadRequest,
+			resp:   `{"code": "invalid_parameter", "message": "path a/b is owned by bundle"}`,
+		},
+		{
+			method: "DELETE",
+			path:   "/policies/someid",
+			code:   http.StatusBadRequest,
+			resp:   `{"code": "invalid_parameter", "message": "path x/y/z is owned by bundle"}`,
+		},
+		{
+			method: "PUT",
+			path:   "/data/foo/bar",
+			body:   "1",
+			code:   http.StatusNoContent,
+		},
+	}
+
+	if err := f.v1TestRequests(cases); err != nil {
+		t.Fatal(err)
 	}
 }
 
