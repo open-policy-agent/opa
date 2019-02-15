@@ -113,6 +113,7 @@
 * [Bundles](bundles.md)
   * [Service API](bundles.md#bundle-service-api)
   * [File Format](bundles.md#bundle-file-format)
+  * [Multiple Sources](bundles.md#multiple-sources-of-policy-and-data)
 * [Status](status.md)
   * [Service API](status.md#status-service-api)
 * [Decision Logs](decision_logs.md)
