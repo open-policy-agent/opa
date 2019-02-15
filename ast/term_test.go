@@ -419,6 +419,49 @@ func TestRefConcat(t *testing.T) {
 	}
 }
 
+func TestRefPtr(t *testing.T) {
+	cases := []string{
+		"",
+		"a",
+		"a/b",
+		"/a/b",
+		"/a/b/",
+		"a%2Fb",
+	}
+
+	for _, tc := range cases {
+		ref, err := PtrRef(DefaultRootDocument.Copy(), tc)
+		if err != nil {
+			t.Fatal("Unexpected error:", err)
+		}
+
+		ptr, err := ref.Ptr()
+		if err != nil {
+			t.Fatal("Unexpected error:", err)
+		}
+
+		roundtrip, err := PtrRef(DefaultRootDocument.Copy(), ptr)
+		if err != nil {
+			t.Fatal("Unexpected error:", err)
+		}
+
+		if !ref.Equal(roundtrip) {
+			t.Fatalf("Expected roundtrip of %q to be equal but got %v and %v", tc, ref, roundtrip)
+		}
+	}
+
+	if _, err := PtrRef(DefaultRootDocument.Copy(), "2%"); err == nil {
+		t.Fatalf("Expected error from %q", "2%")
+	}
+
+	ref := Ref{VarTerm("x"), IntNumberTerm(1)}
+
+	if _, err := ref.Ptr(); err == nil {
+		t.Fatal("Expected error from x[1]")
+	}
+
+}
+
 func TestSetEqual(t *testing.T) {
 	tests := []struct {
 		a        string
