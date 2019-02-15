@@ -15,9 +15,9 @@ import (
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/bundle"
 	"github.com/open-policy-agent/opa/download"
+	"github.com/open-policy-agent/opa/internal/manifest"
 	"github.com/open-policy-agent/opa/plugins"
 	"github.com/open-policy-agent/opa/storage"
-	"github.com/open-policy-agent/opa/util"
 	"github.com/sirupsen/logrus"
 )
 
@@ -195,7 +195,7 @@ func (p *Plugin) activate(ctx context.Context, b *bundle.Bundle) error {
 			}
 		}
 
-		if roots, err := p.readRoots(ctx, txn); err == nil {
+		if roots, err := manifest.ReadBundleRoots(ctx, p.manager.Store, txn); err == nil {
 			for _, root := range roots {
 				erase[root] = struct{}{}
 			}
@@ -217,11 +217,11 @@ func (p *Plugin) activate(ctx context.Context, b *bundle.Bundle) error {
 			return err
 		}
 
-		if err := p.writeManifest(ctx, txn, b.Manifest); err != nil {
+		if err := p.writeModules(ctx, txn, b.Modules); err != nil {
 			return err
 		}
 
-		if err := p.writeModules(ctx, txn, b.Modules); err != nil {
+		if err := manifest.Write(ctx, p.manager.Store, txn, b.Manifest); err != nil {
 			return err
 		}
 
@@ -314,45 +314,6 @@ func (p *Plugin) writeModules(ctx context.Context, txn storage.Transaction, file
 	return nil
 }
 
-func (p *Plugin) readRoots(ctx context.Context, txn storage.Transaction) ([]string, error) {
-
-	value, err := p.manager.Store.Read(ctx, txn, rootsPath)
-	if err != nil {
-		return nil, err
-	}
-
-	sl, ok := value.([]interface{})
-	if !ok {
-		return nil, fmt.Errorf("corrupt manifest roots")
-	}
-
-	roots := make([]string, len(sl))
-
-	for i := range sl {
-		roots[i], ok = sl[i].(string)
-		if !ok {
-			return nil, fmt.Errorf("corrupt manifest root")
-		}
-	}
-
-	return roots, nil
-}
-
-func (p *Plugin) writeManifest(ctx context.Context, txn storage.Transaction, m bundle.Manifest) error {
-
-	var value interface{} = m
-
-	if err := util.RoundTrip(&value); err != nil {
-		return err
-	}
-
-	if err := storage.MakeDir(ctx, p.manager.Store, txn, bundlePath); err != nil {
-		return err
-	}
-
-	return p.manager.Store.Write(ctx, txn, storage.AddOp, manifestPath, value)
-}
-
 func (p *Plugin) logError(fmt string, a ...interface{}) {
 	logrus.WithFields(p.logrusFields()).Errorf(fmt, a...)
 }
@@ -371,12 +332,6 @@ func (p *Plugin) logrusFields() logrus.Fields {
 		"name":   p.config.Name,
 	}
 }
-
-var (
-	bundlePath   = storage.MustParsePath("/system/bundle")
-	manifestPath = storage.MustParsePath("/system/bundle/manifest")
-	rootsPath    = storage.MustParsePath("/system/bundle/manifest/roots")
-)
 
 func lookup(path storage.Path, data map[string]interface{}) (interface{}, bool) {
 	if len(path) == 0 {
