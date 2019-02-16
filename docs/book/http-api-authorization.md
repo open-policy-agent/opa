@@ -65,11 +65,10 @@ but the crux of the (Python) code is shown below.
 
 # Grab basic information. We assume user is passed on a form.
 http_api_user = request.form['user']
-orig_path_list = request.path.split("/")
 
-# Remove empty entries from list that are a result of the split
-# Example: "<some_prefix>/finance/salary/" will become ["", "finance", "salary", ""]
-http_api_path_list = [x for x in orig_path_list if x]
+# Get the path as a list (removing leading and trailing /)
+# Example: "/finance/salary/" will become ["finance", "salary"]
+http_api_path_list = request.path.strip("/").split("/")
 
 input_dict = {  # create input to hand to OPA
     "input": {
@@ -80,7 +79,7 @@ input_dict = {  # create input to hand to OPA
 }
 # ask OPA for a policy decision
 # (in reality OPA URL would be constructed from environment)
-rsp = requests.post("http://127.0.0.1:8181/v1/data/httpapi/authz", data=json.dumps(input_dict))
+rsp = requests.post("http://127.0.0.1:8181/v1/data/httpapi/authz", json=input_dict)
 if rsp.json()["allow"]:
   # HTTP API allowed
 else:
@@ -102,22 +101,22 @@ package httpapi.authz
 subordinates = {"alice": [], "charlie": [], "bob": ["alice"], "betty": ["charlie"]}
 
 # HTTP API request
-import input as http_api
+import input
 
 default allow = false
 
 # Allow users to get their own salaries.
 allow {
-  http_api.method = "GET"
-  http_api.path = ["finance", "salary", username]
-  username = http_api.user
+  input.method = "GET"
+  input.path = ["finance", "salary", username]
+  input.user = username 
 }
 
 # Allow managers to get their subordinates' salaries.
 allow {
-  http_api.method = "GET"
-  http_api.path = ["finance", "salary", username]
-  subordinates[http_api.user][_] = username
+  input.method = "GET"
+  input.path = ["finance", "salary", username]
+  subordinates[input.user][_] = username
 }
 EOF
 ```
@@ -161,13 +160,13 @@ this.
 cat >example-hr.rego <<EOF
 package httpapi.authz
 
-import input as http_api
+import input
 
 # Allow HR members to get anyone's salary.
 allow {
-  http_api.method = "GET"
-  http_api.path = ["finance", "salary", _]
-  hr[_] = http_api.user
+  input.method = "GET"
+  input.path = ["finance", "salary", _]
+  input.user = hr[_] 
 }
 
 # David is the only member of HR.
@@ -212,38 +211,38 @@ Then update the policy:
 cat >example.rego <<EOF
 package httpapi.authz
 
-import input as http_api
+import input
 
 # io.jwt.decode takes one argument (the encoded token) and has three outputs:
 # the decoded header, payload and signature, in that order. Our policy only
 # cares about the payload, so we ignore the others.
-token = {"payload": payload} { io.jwt.decode(http_api.token, [_, payload, _]) }
+token = {"payload": payload} { io.jwt.decode(input.token, [_, payload, _]) }
 
 # Ensure that the token was issued to the user supplying it.
-user_owns_token { http_api.user = token.payload.azp }
+user_owns_token { input.user = token.payload.azp }
 
 default allow = false
 
 # Allow users to get their own salaries.
 allow {
-  http_api.method = "GET"
-  http_api.path = ["finance", "salary", username]
-  username = token.payload.user
+  input.method = "GET"
+  input.path = ["finance", "salary", username]
+  token.payload.user = username
   user_owns_token
 }
 
 # Allow managers to get their subordinate' salaries.
 allow {
-  http_api.method = "GET"
-  http_api.path = ["finance", "salary", username]
+  input.method = "GET"
+  input.path = ["finance", "salary", username]
   token.payload.subordinates[_] = username
   user_owns_token
 }
 
 # Allow HR members to get anyone's salary.
 allow {
-  http_api.method = "GET"
-  http_api.path = ["finance", "salary", _]
+  input.method = "GET"
+  input.path = ["finance", "salary", _]
   token.payload.hr = true
   user_owns_token
 }
