@@ -1326,7 +1326,7 @@ q {
 
 Neither of those are true with `x = 7`.  The rule `x = 7` will assign `x` to 7 if `x` is unbound, and it will compare `x` to 7 if `x` is already bound. Also, if there is a global variable named `x`, `x = 7` will compare that global value of `x` to 7.
 
-In short, use `:=` if you want assignment inside a rule.  Much clearer for people reading the rule, and gives you what you want.
+In short, use `:=` if you want assignment inside a rule.
 
 ### Comparison
 
