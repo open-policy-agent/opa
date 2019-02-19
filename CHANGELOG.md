@@ -3,7 +3,26 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## 0.10.4
+
+* This release adds support for scoping bundles to specific roots
+  under `data`. This allows bundles to be used in conjunction with
+  sidecars like `kube-mgmt` that load local data and policy into
+  OPA. See the [Bundles](https://www.openpolicyagent.org/docs/bundles.html)
+  page for more details.
+
+* This release includes a small but backwards incompatible change to
+  the Decision Log event format. Instead of including the OPA version
+  as a top-level field, the OPA version is included in the labels. The
+  OPA version field was only added in v0.10.3 so this should not
+  impact many consumers.
+
+### Fixes
+
+- Add coverage support to `opa eval` sub-command
+- Fix path checking in server to prevent overlapping base and virtual docs ([#1207](https://github.com/open-policy-agent/opa/issues/1207))
+- Fix cmd integration tests to cleanup plugin directory ([#1185](https://github.com/open-policy-agent/opa/issues/1185))
+- Improve TLS support in `http.send` ([#1067](https://github.com/open-policy-agent/opa/issues/
 
 ## 0.10.3
 

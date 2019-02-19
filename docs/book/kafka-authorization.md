@@ -48,7 +48,7 @@ version: "2"
 services:
   opa:
     hostname: opa
-    image: openpolicyagent/opa:0.10.3
+    image: openpolicyagent/opa:0.10.4
     ports:
       - 8181:8181
     # WARNING: OPA is NOT running with an authorization policy configured. This
