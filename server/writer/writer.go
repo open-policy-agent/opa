@@ -89,13 +89,13 @@ func JSON(w http.ResponseWriter, code int, v interface{}, pretty bool) {
 }
 
 // Bytes writes a response with the specified status code and bytes.
-func Bytes(w http.ResponseWriter, code int, bs []byte, trailing_newline bool) {
+func Bytes(w http.ResponseWriter, code int, bs []byte, trailingNewline bool) {
 	w.WriteHeader(code)
 	if code == 204 {
 		return
 	}
 	w.Write(bs)
-	if trailing_newline {
+	if trailingNewline {
 		w.Write([]byte("\n"))
 	}
 }
