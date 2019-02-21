@@ -96,6 +96,6 @@ func Bytes(w http.ResponseWriter, code int, bs []byte, trailing_newline bool) {
 	}
 	w.Write(bs)
 	if trailing_newline {
-		w.Write("\n")
+		w.Write([]byte("\n"))
 	}
 }

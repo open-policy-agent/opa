@@ -727,7 +727,7 @@ func (s *Server) v1VersionGet(w http.ResponseWriter, r *http.Request) {
 
 	headers := w.Header()
 	headers.Add("Content-Type", "application/json")
-	writer.Bytes(w, code, jsonBytes)
+	writer.Bytes(w, code, jsonBytes, false)
 }
 
 func (s *Server) v1CompilePost(w http.ResponseWriter, r *http.Request) {
@@ -983,7 +983,7 @@ func (s *Server) v1DataPatch(w http.ResponseWriter, r *http.Request) {
 	if err := s.store.Commit(ctx, txn); err != nil {
 		writer.ErrorAuto(w, err)
 	} else {
-		writer.Bytes(w, 204, nil)
+		writer.Bytes(w, 204, nil, false)
 	}
 }
 
@@ -1144,7 +1144,7 @@ func (s *Server) v1DataPut(w http.ResponseWriter, r *http.Request) {
 		}
 	} else if r.Header.Get("If-None-Match") == "*" {
 		s.store.Abort(ctx, txn)
-		writer.Bytes(w, 304, nil)
+		writer.Bytes(w, 304, nil, false)
 		return
 	}
 
@@ -1162,7 +1162,7 @@ func (s *Server) v1DataPut(w http.ResponseWriter, r *http.Request) {
 	if err := s.store.Commit(ctx, txn); err != nil {
 		writer.ErrorAuto(w, err)
 	} else {
-		writer.Bytes(w, 204, nil)
+		writer.Bytes(w, 204, nil, false)
 	}
 }
 
@@ -1201,7 +1201,7 @@ func (s *Server) v1DataDelete(w http.ResponseWriter, r *http.Request) {
 	if err := s.store.Commit(ctx, txn); err != nil {
 		writer.ErrorAuto(w, err)
 	} else {
-		writer.Bytes(w, 204, nil)
+		writer.Bytes(w, 204, nil, false)
 	}
 }
 
