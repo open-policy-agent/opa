@@ -1320,6 +1320,14 @@ q {
 }
 ```
 
+### Difference between := and = 
+
+`x := 7` declares that `x` is a variable local to the rule. Furthermore, the compiler will stop you from writing two such assignments in the same rule, e.g. `x := 7; x := 8` creates a compile-time error.
+
+Neither of those are true with `x = 7`.  The rule `x = 7` will assign `x` to 7 if `x` is unbound, and it will compare `x` to 7 if `x` is already bound. Also, if there is a global variable named `x`, `x = 7` will compare that global value of `x` to 7.
+
+In short, use `:=` if you want assignment inside a rule.  
+
 ### Comparison
 
 The following comparison operators are supported:
