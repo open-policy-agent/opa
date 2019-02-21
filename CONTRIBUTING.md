@@ -38,7 +38,22 @@ If you are contributing code, please consider the following:
 - Most changes should be accompanied with tests.
 - All commits must be signed off (see next section).
 - Related commits must be squashed before they are merged.
-- All tests must pass and there must be no warnings from the `make check` target.
+- All tests must pass and there must be no warnings from the `make
+  check` target.
+
+If you are new to Go, consider reading [Effective
+Go](https://golang.org/doc/effective_go.html) and [Go Code Review
+Comments](https://github.com/golang/go/wiki/CodeReviewComments) for
+guidance on writing idiomatic Go code.
+
+When you implement new features in OPA, consider whether the
+types/functions you are adding need to be exported. Prefer
+unexported types and functions as much as possible.
+
+If you need to share logic across multiple OPA packages, consider
+implementing it inside of the
+`github.com/open-policy-agent/opa/internal` package. The `internal`
+package is not visible outside of OPA.
 
 ## Commit Messages
 
