@@ -63,7 +63,7 @@ func ErrorString(w http.ResponseWriter, status int, code string, err error) {
 func Error(w http.ResponseWriter, status int, err *types.ErrorV1) {
 	headers := w.Header()
 	headers.Add("Content-Type", "application/json")
-	Bytes(w, status, err.Bytes())
+	Bytes(w, status, err.Bytes(), true)
 }
 
 // JSON writes a response with the specified status code and object. The object
@@ -85,14 +85,17 @@ func JSON(w http.ResponseWriter, code int, v interface{}, pretty bool) {
 	}
 	headers := w.Header()
 	headers.Add("Content-Type", "application/json")
-	Bytes(w, code, bs)
+	Bytes(w, code, bs, pretty)
 }
 
 // Bytes writes a response with the specified status code and bytes.
-func Bytes(w http.ResponseWriter, code int, bs []byte) {
+func Bytes(w http.ResponseWriter, code int, bs []byte, trailing_newline bool) {
 	w.WriteHeader(code)
 	if code == 204 {
 		return
 	}
 	w.Write(bs)
+	if trailing_newline {
+		w.Write("\n")
+	}
 }
