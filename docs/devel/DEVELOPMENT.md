@@ -1,10 +1,3 @@
----
-layout: docs
-title: Development
-section: references
-sort_order: 100
----
-
 ## Development
 
 OPA is written in the [Go](https://golang.org) programming language.
@@ -27,6 +20,19 @@ After cloning the repository, just run `make`. This will:
 - Build the OPA binary.
 - Run all of the tests.
 - Run all of the static analysis checks.
+
+If `make` fails with `main.go:20: running "pigeon": exec: "pigeon":
+executable file not found in $PATH` make sure that `$GOPATH/bin` is
+in `$PATH`. If `$GOPATH` is undefined, it defaults to
+`$HOME/go/bin`:
+
+```
+export PATH=$PATH:$GOPATH/bin
+
+# OR
+
+export PATH=$PATH:$HOME/go/bin
+```
 
 If the build was successful, a binary will be produced in the top directory (`opa_<OS>_<ARCH>`).
 
