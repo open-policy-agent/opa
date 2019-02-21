@@ -358,15 +358,15 @@ func TestCompileV1Observability(t *testing.T) {
 
 // from https://stackoverflow.com/questions/32408890/how-to-compare-two-json-requests
 // JSONBytesEqual compares the JSON in two byte slices.
-func JSONBytesEqual(a, b []byte) (bool) {
-    var j, j2 interface{}
-    if err := json.Unmarshal(a, &j); err != nil {
-        return false
-    }
-    if err := json.Unmarshal(b, &j2); err != nil {
-        return false
-    }
-    return reflect.DeepEqual(j2, j)
+func JSONBytesEqual(a, b []byte) bool {
+	var j, j2 interface{}
+	if err := json.Unmarshal(a, &j); err != nil {
+		return false
+	}
+	if err := json.Unmarshal(b, &j2); err != nil {
+		return false
+	}
+	return reflect.DeepEqual(j2, j)
 }
 
 func TestCompileV1UnsafeBuiltin(t *testing.T) {
@@ -386,7 +386,6 @@ func TestCompileV1UnsafeBuiltin(t *testing.T) {
 }`)
 
 	if !JSONBytesEqual(expected, actual) {
-	// if actualJSON != expectedJSON {
 		t.Fatalf(`Expected %v but got: %v`, expected, actual)
 	}
 }
