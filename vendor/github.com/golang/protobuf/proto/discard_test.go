@@ -93,13 +93,13 @@ func TestDiscardUnknown(t *testing.T) {
 	}, {
 		desc: "Map",
 		in: &pb.MessageWithMap{MsgMapping: map[int64]*pb.FloatingPoint{
-			0x4002: {
+			0x4002: &pb.FloatingPoint{
 				Exact:            proto.Bool(true),
 				XXX_unrecognized: []byte("blah"),
 			},
 		}},
 		want: &pb.MessageWithMap{MsgMapping: map[int64]*pb.FloatingPoint{
-			0x4002: {Exact: proto.Bool(true)},
+			0x4002: &pb.FloatingPoint{Exact: proto.Bool(true)},
 		}},
 	}, {
 		desc: "Extension",

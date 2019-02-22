@@ -126,7 +126,7 @@ func TestProto3SetDefaults(t *testing.T) {
 		},
 		Proto2Field: &tpb.SubDefaults{N: proto.Int64(7)},
 		Proto2Value: map[string]*tpb.SubDefaults{
-			"badlands": {N: proto.Int64(7)},
+			"badlands": &tpb.SubDefaults{N: proto.Int64(7)},
 		},
 	}
 

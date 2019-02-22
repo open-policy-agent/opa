@@ -57,7 +57,7 @@ func TestGeneratedFiles(t *testing.T) {
 			// Test: variable not used in any cgo file -> no error
 			from: `"mytest"::f`, to: "g",
 			packages: map[string][]string{
-				"mytest": {`package mytest; func f() {}`,
+				"mytest": []string{`package mytest; func f() {}`,
 					`package mytest
 // #include <stdio.h>
 import "C"
@@ -70,7 +70,7 @@ func z() {C.puts(nil)}`},
 			// Test: to name used in cgo file -> rename error
 			from: `"mytest"::f`, to: "g",
 			packages: map[string][]string{
-				"mytest": {`package mytest; func f() {}`,
+				"mytest": []string{`package mytest; func f() {}`,
 					`package mytest
 // #include <stdio.h>
 import "C"
@@ -84,7 +84,7 @@ func g() {C.puts(nil)}`},
 			// Test: from name in package in cgo file -> error
 			from: `"mytest"::f`, to: "g",
 			packages: map[string][]string{
-				"mytest": {`package mytest
+				"mytest": []string{`package mytest
 
 // #include <stdio.h>
 import "C"
@@ -99,7 +99,7 @@ func f() { C.puts(nil); }
 			from: filepath.Join("mytest", "0.go") + `::f`, to: "g",
 			fileSpecified: true,
 			packages: map[string][]string{
-				"mytest": {`package mytest
+				"mytest": []string{`package mytest
 
 // #include <stdio.h>
 import "C"
@@ -133,7 +133,7 @@ func main() {
 			// Test: from identifier appears in cgo file in another package -> error
 			from: `"test"::Foo`, to: "Bar",
 			packages: map[string][]string{
-				"test": {
+				"test": []string{
 					`package test
 
 func Foo(x int) (int){
@@ -141,7 +141,7 @@ func Foo(x int) (int){
 }
 `,
 				},
-				"main": {
+				"main": []string{
 					`package main
 
 import "test"
@@ -163,7 +163,7 @@ func fun() {
 			// Test: from identifier doesn't appear in cgo file that includes modified package -> rename successful
 			from: `"test".Foo::x`, to: "y",
 			packages: map[string][]string{
-				"test": {
+				"test": []string{
 					`package test
 
 func Foo(x int) (int){
@@ -171,7 +171,7 @@ func Foo(x int) (int){
 }
 `,
 				},
-				"main": {
+				"main": []string{
 					`package main
 import "test"
 import "fmt"
@@ -192,7 +192,7 @@ func fun() {
 			// Test: from name appears in cgo file in same package -> error
 			from: `"mytest"::f`, to: "g",
 			packages: map[string][]string{
-				"mytest": {`package mytest; func f() {}`,
+				"mytest": []string{`package mytest; func f() {}`,
 					`package mytest
 // #include <stdio.h>
 import "C"
@@ -212,7 +212,7 @@ func foo() {C.close(3); f()}`,
 			from: filepath.Join("mytest", "0.go") + `::f`, to: "g",
 			fileSpecified: true,
 			packages: map[string][]string{
-				"mytest": {`package mytest; func f() {}`,
+				"mytest": []string{`package mytest; func f() {}`,
 					`package mytest
 // #include <stdio.h>
 import "C"
@@ -225,7 +225,7 @@ func z() {C.puts(nil)}`},
 			// Test: from identifier imported to another package but does not modify cgo file -> rename successful
 			from: `"test".Foo`, to: "Bar",
 			packages: map[string][]string{
-				"test": {
+				"test": []string{
 					`package test
 
 func Foo(x int) (int){
@@ -233,7 +233,7 @@ func Foo(x int) (int){
 }
 `,
 				},
-				"main": {
+				"main": []string{
 					`package main
 // #include <unistd.h>
 import "C"

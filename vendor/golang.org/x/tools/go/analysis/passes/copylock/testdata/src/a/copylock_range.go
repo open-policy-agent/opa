@@ -20,9 +20,9 @@ func rangeMutex() {
 	}
 	for i := range s {
 	}
-	for i = range s {
+	for i, _ = range s {
 	}
-	for i := range s {
+	for i, _ := range s {
 	}
 	for _, mu = range s { // want "range var mu copies lock: sync.Mutex"
 	}
@@ -40,9 +40,9 @@ func rangeMutex() {
 	var m map[sync.Mutex]sync.Mutex
 	for k := range m { // want "range var k copies lock: sync.Mutex"
 	}
-	for mu = range m { // want "range var mu copies lock: sync.Mutex"
+	for mu, _ = range m { // want "range var mu copies lock: sync.Mutex"
 	}
-	for k := range m { // want "range var k copies lock: sync.Mutex"
+	for k, _ := range m { // want "range var k copies lock: sync.Mutex"
 	}
 	for _, mu = range m { // want "range var mu copies lock: sync.Mutex"
 	}

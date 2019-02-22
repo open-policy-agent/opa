@@ -81,7 +81,7 @@ func TestUnmarshal(t *testing.T) {
 
 	y = []byte("a:\n  - b: abc\n    c: def\n  - b: 123\n    c: 456\n")
 	s3 := UnmarshalSlice{}
-	e3 := UnmarshalSlice{[]NestedSlice{{"abc", strPtr("def")}, {"123", strPtr("456")}}}
+	e3 := UnmarshalSlice{[]NestedSlice{NestedSlice{"abc", strPtr("def")}, NestedSlice{"123", strPtr("456")}}}
 	unmarshal(t, y, &s3, &e3)
 
 	y = []byte("a:\n  b: 1")
@@ -100,8 +100,8 @@ b:
 	}
 	s5 := map[string]*NamedThing{}
 	e5 := map[string]*NamedThing{
-		"a": {Name: "TestA"},
-		"b": {Name: "TestB"},
+		"a": &NamedThing{Name: "TestA"},
+		"b": &NamedThing{Name: "TestB"},
 	}
 	unmarshal(t, y, &s5, &e5)
 }

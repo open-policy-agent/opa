@@ -103,7 +103,7 @@ func testRecoveryActions(t *testing.T, s *mgr.Service, should []mgr.RecoveryActi
 	if len(should) != len(is) {
 		t.Errorf("recovery action mismatch: contains %v actions, but should have %v", len(is), len(should))
 	}
-	for i := range is {
+	for i, _ := range is {
 		if should[i].Type != is[i].Type {
 			t.Errorf("recovery action mismatch: Type is %v, but should have %v", is[i].Type, should[i].Type)
 		}
@@ -125,19 +125,19 @@ func testResetPeriod(t *testing.T, s *mgr.Service, should uint32) {
 
 func testSetRecoveryActions(t *testing.T, s *mgr.Service) {
 	r := []mgr.RecoveryAction{
-		{
+		mgr.RecoveryAction{
 			Type:  mgr.NoAction,
 			Delay: 60000 * time.Millisecond,
 		},
-		{
+		mgr.RecoveryAction{
 			Type:  mgr.ServiceRestart,
 			Delay: 4 * time.Minute,
 		},
-		{
+		mgr.RecoveryAction{
 			Type:  mgr.ServiceRestart,
 			Delay: time.Minute,
 		},
-		{
+		mgr.RecoveryAction{
 			Type:  mgr.RunCommand,
 			Delay: 4000 * time.Millisecond,
 		},

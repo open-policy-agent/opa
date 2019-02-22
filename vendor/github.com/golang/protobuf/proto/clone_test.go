@@ -194,8 +194,8 @@ var mergeTests = []struct {
 		src: &pb.MessageWithMap{
 			NameMapping: map[int32]string{6: "Nigel"},
 			MsgMapping: map[int64]*pb.FloatingPoint{
-				0x4001: {F: proto.Float64(2.0)},
-				0x4002: {
+				0x4001: &pb.FloatingPoint{F: proto.Float64(2.0)},
+				0x4002: &pb.FloatingPoint{
 					F: proto.Float64(2.0),
 				},
 			},
@@ -207,7 +207,7 @@ var mergeTests = []struct {
 				7: "Andrew",
 			},
 			MsgMapping: map[int64]*pb.FloatingPoint{
-				0x4002: {
+				0x4002: &pb.FloatingPoint{
 					F:     proto.Float64(3.0),
 					Exact: proto.Bool(true),
 				}, // the entire message should be overwritten
@@ -219,8 +219,8 @@ var mergeTests = []struct {
 				7: "Andrew",
 			},
 			MsgMapping: map[int64]*pb.FloatingPoint{
-				0x4001: {F: proto.Float64(2.0)},
-				0x4002: {
+				0x4001: &pb.FloatingPoint{F: proto.Float64(2.0)},
+				0x4002: &pb.FloatingPoint{
 					F: proto.Float64(2.0),
 				},
 			},
@@ -287,21 +287,21 @@ var mergeTests = []struct {
 	{
 		src: &proto3pb.Message{
 			Terrain: map[string]*proto3pb.Nested{
-				"kay_a": {Cute: true},      // replace
-				"kay_b": {Bunny: "rabbit"}, // insert
+				"kay_a": &proto3pb.Nested{Cute: true},      // replace
+				"kay_b": &proto3pb.Nested{Bunny: "rabbit"}, // insert
 			},
 		},
 		dst: &proto3pb.Message{
 			Terrain: map[string]*proto3pb.Nested{
-				"kay_a": {Bunny: "lost"},  // replaced
-				"kay_c": {Bunny: "bunny"}, // keep
+				"kay_a": &proto3pb.Nested{Bunny: "lost"},  // replaced
+				"kay_c": &proto3pb.Nested{Bunny: "bunny"}, // keep
 			},
 		},
 		want: &proto3pb.Message{
 			Terrain: map[string]*proto3pb.Nested{
-				"kay_a": {Cute: true},
-				"kay_b": {Bunny: "rabbit"},
-				"kay_c": {Bunny: "bunny"},
+				"kay_a": &proto3pb.Nested{Cute: true},
+				"kay_b": &proto3pb.Nested{Bunny: "rabbit"},
+				"kay_c": &proto3pb.Nested{Bunny: "bunny"},
 			},
 		},
 	},
@@ -357,11 +357,11 @@ var mergeTests = []struct {
 	},
 	{
 		src: &pb.GoTest{
-			F_BytesRepeated: [][]byte{nil, {}, {0}},
+			F_BytesRepeated: [][]byte{nil, []byte{}, []byte{0}},
 		},
 		dst: &pb.GoTest{},
 		want: &pb.GoTest{
-			F_BytesRepeated: [][]byte{nil, {}, {0}},
+			F_BytesRepeated: [][]byte{nil, []byte{}, []byte{0}},
 		},
 	},
 	{

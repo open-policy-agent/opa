@@ -417,7 +417,7 @@ func TestRepeatedNilText(t *testing.T) {
 	m := &pb.MessageList{
 		Message: []*pb.MessageList_Message{
 			nil,
-			{
+			&pb.MessageList_Message{
 				Name: proto.String("Horse"),
 			},
 			nil,

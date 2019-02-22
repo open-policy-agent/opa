@@ -115,7 +115,7 @@ var redirects = map[string]string{
 	"/tour":  "http://tour.golang.org",
 	"/wiki":  "https://github.com/golang/go/wiki",
 
-	"/doc/articles/c_go_cgo.html":                    "/blog/c-go-cgo",
+	"/doc/articles/c_go_cgo.html": "/blog/c-go-cgo",
 	"/doc/articles/concurrency_patterns.html":        "/blog/go-concurrency-patterns-timing-out-and",
 	"/doc/articles/defer_panic_recover.html":         "/blog/defer-panic-and-recover",
 	"/doc/articles/error_handling.html":              "/blog/error-handling-and-go",

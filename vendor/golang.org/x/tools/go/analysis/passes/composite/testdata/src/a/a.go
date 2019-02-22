@@ -113,9 +113,9 @@ var unknownPkgVar = unicode.NoSuchType{"foo", "bar"}
 // type.
 var goodNamedPointerSliceLiteral = []*unicode.CaseRange{
 	{Lo: 1, Hi: 2},
-	{Lo: 1, Hi: 2},
+	&unicode.CaseRange{Lo: 1, Hi: 2},
 }
 var badNamedPointerSliceLiteral = []*unicode.CaseRange{
-	{1, 2, delta}, // want "unkeyed fields"
-	{1, 2, delta}, // want "unkeyed fields"
+	{1, 2, delta},                   // want "unkeyed fields"
+	&unicode.CaseRange{1, 2, delta}, // want "unkeyed fields"
 }

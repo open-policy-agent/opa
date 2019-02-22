@@ -7,19 +7,19 @@ func f() {
 	var m map[string]int
 
 	// with :=
-	for x := range m { // MATCH /should omit 2nd value.*range.*equivalent.*for x := range/ -> `	for x := range m {`
+	for x, _ := range m { // MATCH /should omit 2nd value.*range.*equivalent.*for x := range/ -> `	for x := range m {`
 		_ = x
 	}
 	// with =
 	var y string
 	_ = y
-	for y = range m { // MATCH /should omit 2nd value.*range.*equivalent.*for y = range/
+	for y, _ = range m { // MATCH /should omit 2nd value.*range.*equivalent.*for y = range/
 	}
 
-	for range m { // MATCH /should omit values.*range.*equivalent.*for range/
+	for _ = range m { // MATCH /should omit values.*range.*equivalent.*for range/
 	}
 
-	for range m { // MATCH /should omit values.*range.*equivalent.*for range/
+	for _, _ = range m { // MATCH /should omit values.*range.*equivalent.*for range/
 	}
 
 	// all OK:

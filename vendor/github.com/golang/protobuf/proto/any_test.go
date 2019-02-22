@@ -115,8 +115,8 @@ func makeGolden() []golden {
 		ResultCount: 47,
 		Anything:    &anypb.Any{TypeUrl: "type.googleapis.com/" + proto.MessageName(any1), Value: any1b},
 		ManyThings: []*anypb.Any{
-			{TypeUrl: "type.googleapis.com/" + proto.MessageName(any2), Value: any2b},
-			{TypeUrl: "type.googleapis.com/" + proto.MessageName(any1), Value: any1b},
+			&anypb.Any{TypeUrl: "type.googleapis.com/" + proto.MessageName(any2), Value: any2b},
+			&anypb.Any{TypeUrl: "type.googleapis.com/" + proto.MessageName(any1), Value: any1b},
 		},
 	}
 

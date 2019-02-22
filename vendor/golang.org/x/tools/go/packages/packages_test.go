@@ -1326,19 +1326,19 @@ func testJSON(t *testing.T, exporter packagestest.Exporter) {
 		ID:   "golang.org/fake/b",
 		Name: "b",
 		Imports: map[string]*packages.Package{
-			"golang.org/fake/a": {ID: "golang.org/fake/a"},
+			"golang.org/fake/a": &packages.Package{ID: "golang.org/fake/a"},
 		},
 	}, {
 		ID:   "golang.org/fake/c",
 		Name: "c",
 		Imports: map[string]*packages.Package{
-			"golang.org/fake/b": {ID: "golang.org/fake/b"},
+			"golang.org/fake/b": &packages.Package{ID: "golang.org/fake/b"},
 		},
 	}, {
 		ID:   "golang.org/fake/d",
 		Name: "d",
 		Imports: map[string]*packages.Package{
-			"golang.org/fake/b": {ID: "golang.org/fake/b"},
+			"golang.org/fake/b": &packages.Package{ID: "golang.org/fake/b"},
 		},
 	}} {
 		got := decoded[i]

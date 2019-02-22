@@ -1677,8 +1677,8 @@ const _ = pkg.X
 
 	testConfig{
 		gopathFiles: map[string]string{
-			".goimportsignore":                                     "# comment line\n\n example.net", // tests comment, blank line, whitespace trimming
-			"example.net/pkg/pkg.go":                               "package pkg\nconst X = 1",
+			".goimportsignore":       "# comment line\n\n example.net", // tests comment, blank line, whitespace trimming
+			"example.net/pkg/pkg.go": "package pkg\nconst X = 1",
 			"otherwise-longer-so-worse.example.net/foo/pkg/pkg.go": "package pkg\nconst X = 1",
 			"x/x.go": input,
 		},

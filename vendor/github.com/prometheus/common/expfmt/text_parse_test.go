@@ -44,22 +44,22 @@ no_labels{} 3
 # HELP line for non-existing metric will be ignored.
 `,
 			out: []*dto.MetricFamily{
-				{
+				&dto.MetricFamily{
 					Name: proto.String("minimal_metric"),
 					Type: dto.MetricType_UNTYPED.Enum(),
 					Metric: []*dto.Metric{
-						{
+						&dto.Metric{
 							Untyped: &dto.Untyped{
 								Value: proto.Float64(1.234),
 							},
 						},
 					},
 				},
-				{
+				&dto.MetricFamily{
 					Name: proto.String("another_metric"),
 					Type: dto.MetricType_UNTYPED.Enum(),
 					Metric: []*dto.Metric{
-						{
+						&dto.Metric{
 							Untyped: &dto.Untyped{
 								Value: proto.Float64(-3e3),
 							},
@@ -67,11 +67,11 @@ no_labels{} 3
 						},
 					},
 				},
-				{
+				&dto.MetricFamily{
 					Name: proto.String("no_labels"),
 					Type: dto.MetricType_UNTYPED.Enum(),
 					Metric: []*dto.Metric{
-						{
+						&dto.Metric{
 							Untyped: &dto.Untyped{
 								Value: proto.Float64(3),
 							},
@@ -96,18 +96,18 @@ name2{labelname="val2"	,basename   =   "basevalue2"		} +Inf 54321
 name2{ labelname = "val1" , }-Inf
 `,
 			out: []*dto.MetricFamily{
-				{
+				&dto.MetricFamily{
 					Name: proto.String("name"),
 					Help: proto.String("two-line\n doc  str\\ing"),
 					Type: dto.MetricType_COUNTER.Enum(),
 					Metric: []*dto.Metric{
-						{
+						&dto.Metric{
 							Label: []*dto.LabelPair{
-								{
+								&dto.LabelPair{
 									Name:  proto.String("labelname"),
 									Value: proto.String("val1"),
 								},
-								{
+								&dto.LabelPair{
 									Name:  proto.String("basename"),
 									Value: proto.String("basevalue"),
 								},
@@ -116,13 +116,13 @@ name2{ labelname = "val1" , }-Inf
 								Value: proto.Float64(math.NaN()),
 							},
 						},
-						{
+						&dto.Metric{
 							Label: []*dto.LabelPair{
-								{
+								&dto.LabelPair{
 									Name:  proto.String("labelname"),
 									Value: proto.String("val2"),
 								},
-								{
+								&dto.LabelPair{
 									Name:  proto.String("basename"),
 									Value: proto.String("base\"v\\al\nue"),
 								},
@@ -134,18 +134,18 @@ name2{ labelname = "val1" , }-Inf
 						},
 					},
 				},
-				{
+				&dto.MetricFamily{
 					Name: proto.String("name2"),
 					Help: proto.String("doc str\"ing 2"),
 					Type: dto.MetricType_GAUGE.Enum(),
 					Metric: []*dto.Metric{
-						{
+						&dto.Metric{
 							Label: []*dto.LabelPair{
-								{
+								&dto.LabelPair{
 									Name:  proto.String("labelname"),
 									Value: proto.String("val2"),
 								},
-								{
+								&dto.LabelPair{
 									Name:  proto.String("basename"),
 									Value: proto.String("basevalue2"),
 								},
@@ -155,9 +155,9 @@ name2{ labelname = "val1" , }-Inf
 							},
 							TimestampMs: proto.Int64(54321),
 						},
-						{
+						&dto.Metric{
 							Label: []*dto.LabelPair{
-								{
+								&dto.LabelPair{
 									Name:  proto.String("labelname"),
 									Value: proto.String("val1"),
 								},
@@ -196,13 +196,13 @@ my_summary{n1="val3", quantile="0.2"} 4711
 # HELP my_summary 
 `,
 			out: []*dto.MetricFamily{
-				{
+				&dto.MetricFamily{
 					Name: proto.String("fake_sum"),
 					Type: dto.MetricType_UNTYPED.Enum(),
 					Metric: []*dto.Metric{
-						{
+						&dto.Metric{
 							Label: []*dto.LabelPair{
-								{
+								&dto.LabelPair{
 									Name:  proto.String("n1"),
 									Value: proto.String("val1"),
 								},
@@ -213,11 +213,11 @@ my_summary{n1="val3", quantile="0.2"} 4711
 						},
 					},
 				},
-				{
+				&dto.MetricFamily{
 					Name: proto.String("decoy"),
 					Type: dto.MetricType_UNTYPED.Enum(),
 					Metric: []*dto.Metric{
-						{
+						&dto.Metric{
 							Untyped: &dto.Untyped{
 								Value: proto.Float64(-1),
 							},
@@ -225,13 +225,13 @@ my_summary{n1="val3", quantile="0.2"} 4711
 						},
 					},
 				},
-				{
+				&dto.MetricFamily{
 					Name: proto.String("my_summary"),
 					Type: dto.MetricType_SUMMARY.Enum(),
 					Metric: []*dto.Metric{
-						{
+						&dto.Metric{
 							Label: []*dto.LabelPair{
-								{
+								&dto.LabelPair{
 									Name:  proto.String("n1"),
 									Value: proto.String("val1"),
 								},
@@ -240,11 +240,11 @@ my_summary{n1="val3", quantile="0.2"} 4711
 								SampleCount: proto.Uint64(42),
 								SampleSum:   proto.Float64(4711),
 								Quantile: []*dto.Quantile{
-									{
+									&dto.Quantile{
 										Quantile: proto.Float64(0.5),
 										Value:    proto.Float64(110),
 									},
-									{
+									&dto.Quantile{
 										Quantile: proto.Float64(0.9),
 										Value:    proto.Float64(140),
 									},
@@ -252,13 +252,13 @@ my_summary{n1="val3", quantile="0.2"} 4711
 							},
 							TimestampMs: proto.Int64(2),
 						},
-						{
+						&dto.Metric{
 							Label: []*dto.LabelPair{
-								{
+								&dto.LabelPair{
 									Name:  proto.String("n2"),
 									Value: proto.String("val2"),
 								},
-								{
+								&dto.LabelPair{
 									Name:  proto.String("n1"),
 									Value: proto.String("val1"),
 								},
@@ -266,7 +266,7 @@ my_summary{n1="val3", quantile="0.2"} 4711
 							Summary: &dto.Summary{
 								SampleCount: proto.Uint64(5),
 								Quantile: []*dto.Quantile{
-									{
+									&dto.Quantile{
 										Quantile: proto.Float64(-12.34),
 										Value:    proto.Float64(math.NaN()),
 									},
@@ -274,9 +274,9 @@ my_summary{n1="val3", quantile="0.2"} 4711
 							},
 							TimestampMs: proto.Int64(5),
 						},
-						{
+						&dto.Metric{
 							Label: []*dto.LabelPair{
-								{
+								&dto.LabelPair{
 									Name:  proto.String("n1"),
 									Value: proto.String("val2"),
 								},
@@ -286,16 +286,16 @@ my_summary{n1="val3", quantile="0.2"} 4711
 							},
 							TimestampMs: proto.Int64(15),
 						},
-						{
+						&dto.Metric{
 							Label: []*dto.LabelPair{
-								{
+								&dto.LabelPair{
 									Name:  proto.String("n1"),
 									Value: proto.String("val3"),
 								},
 							},
 							Summary: &dto.Summary{
 								Quantile: []*dto.Quantile{
-									{
+									&dto.Quantile{
 										Quantile: proto.Float64(0.2),
 										Value:    proto.Float64(4711),
 									},
@@ -304,17 +304,17 @@ my_summary{n1="val3", quantile="0.2"} 4711
 						},
 					},
 				},
-				{
+				&dto.MetricFamily{
 					Name: proto.String("another_summary"),
 					Type: dto.MetricType_SUMMARY.Enum(),
 					Metric: []*dto.Metric{
-						{
+						&dto.Metric{
 							Label: []*dto.LabelPair{
-								{
+								&dto.LabelPair{
 									Name:  proto.String("n2"),
 									Value: proto.String("val2"),
 								},
-								{
+								&dto.LabelPair{
 									Name:  proto.String("n1"),
 									Value: proto.String("val1"),
 								},
@@ -322,7 +322,7 @@ my_summary{n1="val3", quantile="0.2"} 4711
 							Summary: &dto.Summary{
 								SampleCount: proto.Uint64(20),
 								Quantile: []*dto.Quantile{
-									{
+									&dto.Quantile{
 										Quantile: proto.Float64(0.3),
 										Value:    proto.Float64(-1.2),
 									},
@@ -352,28 +352,28 @@ request_duration_microseconds_count 2693
 					Help: proto.String("The response latency."),
 					Type: dto.MetricType_HISTOGRAM.Enum(),
 					Metric: []*dto.Metric{
-						{
+						&dto.Metric{
 							Histogram: &dto.Histogram{
 								SampleCount: proto.Uint64(2693),
 								SampleSum:   proto.Float64(1756047.3),
 								Bucket: []*dto.Bucket{
-									{
+									&dto.Bucket{
 										UpperBound:      proto.Float64(100),
 										CumulativeCount: proto.Uint64(123),
 									},
-									{
+									&dto.Bucket{
 										UpperBound:      proto.Float64(120),
 										CumulativeCount: proto.Uint64(412),
 									},
-									{
+									&dto.Bucket{
 										UpperBound:      proto.Float64(144),
 										CumulativeCount: proto.Uint64(592),
 									},
-									{
+									&dto.Bucket{
 										UpperBound:      proto.Float64(172.8),
 										CumulativeCount: proto.Uint64(1524),
 									},
-									{
+									&dto.Bucket{
 										UpperBound:      proto.Float64(math.Inf(+1)),
 										CumulativeCount: proto.Uint64(2693),
 									},

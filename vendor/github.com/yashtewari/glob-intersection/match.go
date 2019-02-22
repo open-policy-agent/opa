@@ -81,7 +81,7 @@ func matchDotSet(a *dot, b *set) bool {
 }
 
 func matchSets(a *set, b *set) bool {
-	for k := range a.Runes() {
+	for k, _ := range a.Runes() {
 		if _, ok := b.Runes()[k]; ok {
 			return true
 		}
