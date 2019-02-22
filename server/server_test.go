@@ -356,37 +356,17 @@ func TestCompileV1Observability(t *testing.T) {
 	}
 }
 
-// from https://stackoverflow.com/questions/32408890/how-to-compare-two-json-requests
-// JSONBytesEqual compares the JSON in two byte slices.
-func JSONBytesEqual(a, b []byte) bool {
-	var j, j2 interface{}
-	if err := json.Unmarshal(a, &j); err != nil {
-		return false
-	}
-	if err := json.Unmarshal(b, &j2); err != nil {
-		return false
-	}
-	return reflect.DeepEqual(j2, j)
-}
-
 func TestCompileV1UnsafeBuiltin(t *testing.T) {
 	f := newFixture(t)
-	get := newReqV1(http.MethodPost, `/compile`, `{"query": "http.send({\"method\": \"get\", \"url\": \"foo.com\"}, x)"}`)
-	f.server.Handler.ServeHTTP(f.recorder, get)
 
-	if f.recorder.Code != 400 {
-		t.Fatalf("Expected bad request but got %v", f.recorder)
-	}
-
-	actual := []byte(f.recorder.Body.String())
-
-	expected := []byte(`{
+	var query string = `{"query": "http.send({\"method\": \"get\", \"url\": \"foo.com\"}, x)"}`
+	var expResp string = `{
   "code": "invalid_parameter",
   "message": "unsafe built-in function calls in query: http.send"
-}`)
+}`
 
-	if !JSONBytesEqual(expected, actual) {
-		t.Fatalf(`Expected %v but got: %v`, expected, actual)
+	if err := f.v1(http.MethodPost, `/compile`, query, 400, expResp); err != nil {
+		t.Fatalf("Expected bad request but got %v", f.recorder)		
 	}
 }
 
@@ -2606,14 +2586,8 @@ func TestQueryV1(t *testing.T) {
 
 func TestBadQueryV1(t *testing.T) {
 	f := newFixture(t)
-	get := newReqV1(http.MethodGet, `/query?q=^ -i`, "")
-	f.server.Handler.ServeHTTP(f.recorder, get)
 
-	if f.recorder.Code != 400 {
-		t.Fatalf("Expected success but got %v", f.recorder)
-	}
-
-	expectedErr := []byte(`{
+	var expectedErr string = `{
   "code": "invalid_parameter",
   "message": "error(s) occurred while parsing query",
   "errors": [
@@ -2628,30 +2602,25 @@ func TestBadQueryV1(t *testing.T) {
       "details": {}
     }
   ]
-}`)
+}`
 
-	recvErr := []byte(f.recorder.Body.String())
-
-	if !JSONBytesEqual(recvErr, expectedErr) {
-		t.Fatalf(`Expected %v but got: %v`, expectedErr, recvErr)
+	if err := f.v1(http.MethodGet, `/query?q=^ -i`, "", 400, expectedErr); err != nil{
+		recvErr := f.recorder.Body.String()
+		t.Fatalf(`Expected %v but got: %v`, expectedErr, recvErr)		
 	}
 }
 
 func TestQueryV1UnsafeBuiltin(t *testing.T) {
 	f := newFixture(t)
-	get := newReqV1(http.MethodGet, `/query?q=http.send({"method": "get", "url": "foo.com"}, x)`, "")
-	f.server.Handler.ServeHTTP(f.recorder, get)
 
-	if f.recorder.Code != 400 {
-		t.Fatalf("Expected bad request but got %v", f.recorder)
-	}
+	var query string = `/query?q=http.send({"method": "get", "url": "foo.com"}, x)`
 
-	expected := []byte(`{
+	var expected string = `{
   "code": "invalid_parameter",
   "message": "unsafe built-in function calls in query: http.send"
-}`)
+}`
 
-	if !JSONBytesEqual([]byte(f.recorder.Body.String()), expected) {
+	if err := f.v1(http.MethodGet, query, "", 400, expected); err != nil {
 		t.Fatalf(`Expected %v but got: %v`, expected, f.recorder.Body.String())
 	}
 }
