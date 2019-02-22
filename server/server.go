@@ -99,7 +99,7 @@ type Server struct {
 	decisionIDFactory func() string
 	diagnostics       Buffer
 	revision          string
-	logger            func(context.Context, *Info)
+	logger            func(context.Context, *Info) error
 	errLimit          int
 	runtime           *ast.Term
 }
@@ -225,8 +225,18 @@ func (s *Server) WithDiagnosticsBuffer(buf Buffer) *Server {
 	return s
 }
 
-// WithDecisionLogger sets the decision logger used by the server.
+// WithDecisionLogger sets the decision logger used by the
+// server. DEPRECATED. Use WithDecisionLoggerWithErr instead.
 func (s *Server) WithDecisionLogger(logger func(context.Context, *Info)) *Server {
+	s.logger = func(ctx context.Context, info *Info) error {
+		logger(ctx, info)
+		return nil
+	}
+	return s
+}
+
+// WithDecisionLoggerWithErr sets the decision logger used by the server.
+func (s *Server) WithDecisionLoggerWithErr(logger func(context.Context, *Info) error) *Server {
 	s.logger = logger
 	return s
 }
@@ -454,7 +464,7 @@ func (s *Server) execQuery(ctx context.Context, r *http.Request, decisionID stri
 
 	output, err := rego.Eval(ctx)
 	if err != nil {
-		diagLogger.Log(ctx, decisionID, r.RemoteAddr, "", parsedQuery.String(), rawInput, nil, err, m, buf)
+		_ = diagLogger.Log(ctx, decisionID, r.RemoteAddr, "", parsedQuery.String(), rawInput, nil, err, m, buf)
 		return results, err
 	}
 
@@ -471,9 +481,8 @@ func (s *Server) execQuery(ctx context.Context, r *http.Request, decisionID stri
 	}
 
 	var x interface{} = results.Result
-	diagLogger.Log(ctx, decisionID, r.RemoteAddr, "", parsedQuery.String(), rawInput, &x, nil, m, buf)
-
-	return results, nil
+	err = diagLogger.Log(ctx, decisionID, r.RemoteAddr, "", parsedQuery.String(), rawInput, &x, nil, m, buf)
+	return results, err
 }
 
 func (s *Server) indexGet(w http.ResponseWriter, r *http.Request) {
@@ -618,7 +627,7 @@ func (s *Server) v0QueryPath(w http.ResponseWriter, r *http.Request, path ast.Re
 
 	// Handle results.
 	if err != nil {
-		diagLogger.Log(ctx, decisionID, r.RemoteAddr, path.String(), "", goInput, nil, err, m, buf)
+		_ = diagLogger.Log(ctx, decisionID, r.RemoteAddr, path.String(), "", goInput, nil, err, m, buf)
 		writer.ErrorAuto(w, err)
 		return
 	}
@@ -628,7 +637,12 @@ func (s *Server) v0QueryPath(w http.ResponseWriter, r *http.Request, path ast.Re
 		return
 	}
 
-	diagLogger.Log(ctx, decisionID, r.RemoteAddr, path.String(), "", goInput, &rs[0].Expressions[0].Value, nil, m, buf)
+	err = diagLogger.Log(ctx, decisionID, r.RemoteAddr, path.String(), "", goInput, &rs[0].Expressions[0].Value, nil, m, buf)
+	if err != nil {
+		writer.ErrorAuto(w, err)
+		return
+	}
+
 	writer.JSON(w, 200, rs[0].Expressions[0].Value, false)
 }
 
@@ -861,7 +875,7 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 
 	// Handle results.
 	if err != nil {
-		diagLogger.Log(ctx, decisionID, r.RemoteAddr, path.String(), "", goInput, nil, err, m, buf)
+		_ = diagLogger.Log(ctx, decisionID, r.RemoteAddr, path.String(), "", goInput, nil, err, m, buf)
 		writer.ErrorAuto(w, err)
 		return
 	}
@@ -883,7 +897,11 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 				writer.ErrorAuto(w, err)
 			}
 		}
-		diagLogger.Log(ctx, decisionID, r.RemoteAddr, path.String(), "", goInput, nil, nil, m, buf)
+		err = diagLogger.Log(ctx, decisionID, r.RemoteAddr, path.String(), "", goInput, nil, nil, m, buf)
+		if err != nil {
+			writer.ErrorAuto(w, err)
+			return
+		}
 		writer.JSON(w, 200, result, pretty)
 		return
 	}
@@ -894,7 +912,11 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 		result.Explanation = s.getExplainResponse(explainMode, *buf, pretty)
 	}
 
-	diagLogger.Log(ctx, decisionID, r.RemoteAddr, path.String(), "", goInput, result.Result, nil, m, buf)
+	err = diagLogger.Log(ctx, decisionID, r.RemoteAddr, path.String(), "", goInput, result.Result, nil, m, buf)
+	if err != nil {
+		writer.ErrorAuto(w, err)
+		return
+	}
 	writer.JSON(w, 200, result, pretty)
 }
 
@@ -1017,7 +1039,7 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 	rego, err := s.makeRego(ctx, partial, txn, input, path.String(), m, instrument, buf, opts)
 
 	if err != nil {
-		diagLogger.Log(ctx, decisionID, r.RemoteAddr, path.String(), "", goInput, nil, err, m, nil)
+		_ = diagLogger.Log(ctx, decisionID, r.RemoteAddr, path.String(), "", goInput, nil, err, m, nil)
 		writer.ErrorAuto(w, err)
 		return
 	}
@@ -1028,7 +1050,7 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 
 	// Handle results.
 	if err != nil {
-		diagLogger.Log(ctx, decisionID, r.RemoteAddr, path.String(), "", goInput, nil, err, m, buf)
+		_ = diagLogger.Log(ctx, decisionID, r.RemoteAddr, path.String(), "", goInput, nil, err, m, buf)
 		writer.ErrorAuto(w, err)
 		return
 	}
@@ -1048,7 +1070,11 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 				writer.ErrorAuto(w, err)
 			}
 		}
-		diagLogger.Log(ctx, decisionID, r.RemoteAddr, path.String(), "", goInput, nil, nil, m, buf)
+		err = diagLogger.Log(ctx, decisionID, r.RemoteAddr, path.String(), "", goInput, nil, nil, m, buf)
+		if err != nil {
+			writer.ErrorAuto(w, err)
+			return
+		}
 		writer.JSON(w, 200, result, pretty)
 		return
 	}
@@ -1059,7 +1085,11 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 		result.Explanation = s.getExplainResponse(explainMode, *buf, pretty)
 	}
 
-	diagLogger.Log(ctx, decisionID, r.RemoteAddr, path.String(), "", goInput, result.Result, nil, m, buf)
+	err = diagLogger.Log(ctx, decisionID, r.RemoteAddr, path.String(), "", goInput, result.Result, nil, m, buf)
+	if err != nil {
+		writer.ErrorAuto(w, err)
+		return
+	}
 	writer.JSON(w, 200, result, pretty)
 }
 
@@ -2143,7 +2173,7 @@ func renderVersion(w http.ResponseWriter) {
 }
 
 type diagnosticsLogger struct {
-	logger     func(context.Context, *Info)
+	logger     func(context.Context, *Info) error
 	revision   string
 	explain    bool
 	instrument bool
@@ -2158,7 +2188,7 @@ func (l diagnosticsLogger) Instrument() bool {
 	return l.instrument
 }
 
-func (l diagnosticsLogger) Log(ctx context.Context, decisionID, remoteAddr, path string, query string, input *interface{}, results *interface{}, err error, m metrics.Metrics, tracer *topdown.BufferTracer) {
+func (l diagnosticsLogger) Log(ctx context.Context, decisionID, remoteAddr, path string, query string, input *interface{}, results *interface{}, err error, m metrics.Metrics, tracer *topdown.BufferTracer) error {
 
 	info := &Info{
 		Revision:   l.revision,
@@ -2178,14 +2208,17 @@ func (l diagnosticsLogger) Log(ctx context.Context, decisionID, remoteAddr, path
 	}
 
 	if l.logger != nil {
-		l.logger(ctx, info)
+		if err := l.logger(ctx, info); err != nil {
+			return err
+		}
 	}
 
 	if l.buffer == nil {
-		return
+		return nil
 	}
 
 	l.buffer.Push(info)
+	return nil
 }
 
 type patchImpl struct {

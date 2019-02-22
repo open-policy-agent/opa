@@ -250,7 +250,7 @@ func (rt *Runtime) StartServer(ctx context.Context) {
 		WithAuthorization(rt.Params.Authorization).
 		WithDiagnosticsBuffer(rt.Params.DiagnosticsBuffer).
 		WithDecisionIDFactory(rt.decisionIDFactory).
-		WithDecisionLogger(rt.decisionLogger).
+		WithDecisionLoggerWithErr(rt.decisionLogger).
 		WithRuntime(rt.info).
 		Init(ctx)
 
@@ -318,12 +318,12 @@ func (rt *Runtime) decisionIDFactory() string {
 	return ""
 }
 
-func (rt *Runtime) decisionLogger(ctx context.Context, event *server.Info) {
+func (rt *Runtime) decisionLogger(ctx context.Context, event *server.Info) error {
 	plugin := logs.Lookup(rt.Manager)
 	if plugin == nil {
-		return
+		return nil
 	}
-	plugin.Log(ctx, event)
+	return plugin.Log(ctx, event)
 }
 
 func (rt *Runtime) startWatcher(ctx context.Context, paths []string, onReload func(time.Duration, error)) error {

@@ -145,7 +145,7 @@ func (p *PrintlnLogger) Reconfigure(ctx context.Context, config interface{}) {
     p.config = config.(Config)
 }
 
-func (p *PrintlnLogger) Log(ctx context.Context, event logs.EventV1) {
+func (p *PrintlnLogger) Log(ctx context.Context, event logs.EventV1) error {
     p.mtx.Lock()
     defer p.mtx.Unlock()
     w := os.Stdout
@@ -153,6 +153,7 @@ func (p *PrintlnLogger) Log(ctx context.Context, event logs.EventV1) {
         w = os.Stderr
     }
     fmt.Fprintln(w, event) // ignoring errors!
+    return nil
 }
 ```
 
