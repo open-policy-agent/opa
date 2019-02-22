@@ -286,7 +286,7 @@ func TestAPIs(t *testing.T) {
 				"end":   []string{testTime.Format(time.RFC3339Nano)},
 			},
 			res: []model.LabelSet{
-				model.LabelSet{
+				{
 					"__name__": "up",
 					"job":      "prometheus",
 					"instance": "localhost:9090",

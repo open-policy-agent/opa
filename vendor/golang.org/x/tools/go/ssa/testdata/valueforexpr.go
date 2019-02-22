@@ -15,7 +15,8 @@ func f(spilled, unspilled int) {
 
 	f := func() (int, int) { return 0, 0 }
 
-	/*@Call*/ (print( /*@BinOp*/ (i + 1)))
+	/*@Call*/
+	(print( /*@BinOp*/ (i + 1)))
 	_, _ = /*@Call*/ (f())
 	ch := /*@MakeChan*/ (make(chan int))
 	/*@UnOp*/ (<-ch)

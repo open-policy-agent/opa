@@ -12,7 +12,7 @@ func fn() []t {
 	m := make(map[string]chan *int)
 	m[""] = make(chan *int, 1)
 	m[""] <- &a
-	return []t{t{a: &m}}
+	return []t{{a: &m}}
 }
 
 func main() {

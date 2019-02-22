@@ -39,7 +39,7 @@ func TestTopK(t *testing.T) {
 
 func TestQuery(t *testing.T) {
 	queryTests := []struct {
-		value string
+		value    string
 		expected int
 	}{
 		{"a", 1},

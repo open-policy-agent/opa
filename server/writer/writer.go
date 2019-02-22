@@ -88,7 +88,6 @@ func JSON(w http.ResponseWriter, code int, v interface{}, pretty bool) {
 	headers.Add("Content-Type", "application/json")
 	Bytes(w, code, bs)
 
-
 	if pretty {
 		w.Write([]byte("\n"))
 	}

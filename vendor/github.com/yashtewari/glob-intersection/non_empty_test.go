@@ -6,16 +6,16 @@ import (
 
 func TestNonEmptyIntersections(t *testing.T) {
 	tests := map[string][]string{
-		"abcd":        []string{"abcd", "....", "[a-d]*"},
-		"pqrs":        []string{".qrs", "p.rs", "pq.s", "pqr."},
-		".*":          []string{"asdklfj", "jasdfh", "asdhfajfh", "asdflkasdfjl"},
-		"d*":          []string{"[abcd][abcd]", "d[a-z]+", ".....", "[d]*"},
-		"[a-p]+":      []string{"[p-z]+", "apapapaapapapap", ".*", "abcdefgh*"},
-		"abcd[a-c]z+": []string{"abcd[b-d][yz]*", "abcdazzzz", "abcdbzzz", "abcdcz"},
-		".*\\\\":      []string{".*", "asdfasdf\\\\"}, // Escaped \ character.
-		".a.a":        []string{"b.b.", "c.c.", "d.d.", "e.e."},
-		".*.*.*.*.*.*.*.*.*.*.*.*.*.*.*": []string{".*.*.*.*.*.*.*.*.*.*.*"},
-		"foo.*bar":                       []string{"foobar", "fooalkdsjfbar"},
+		"abcd":        {"abcd", "....", "[a-d]*"},
+		"pqrs":        {".qrs", "p.rs", "pq.s", "pqr."},
+		".*":          {"asdklfj", "jasdfh", "asdhfajfh", "asdflkasdfjl"},
+		"d*":          {"[abcd][abcd]", "d[a-z]+", ".....", "[d]*"},
+		"[a-p]+":      {"[p-z]+", "apapapaapapapap", ".*", "abcdefgh*"},
+		"abcd[a-c]z+": {"abcd[b-d][yz]*", "abcdazzzz", "abcdbzzz", "abcdcz"},
+		".*\\\\":      {".*", "asdfasdf\\\\"}, // Escaped \ character.
+		".a.a":        {"b.b.", "c.c.", "d.d.", "e.e."},
+		".*.*.*.*.*.*.*.*.*.*.*.*.*.*.*": {".*.*.*.*.*.*.*.*.*.*.*"},
+		"foo.*bar":                       {"foobar", "fooalkdsjfbar"},
 	}
 
 	for lhs, rhss := range tests {
@@ -34,15 +34,15 @@ func TestNonEmptyIntersections(t *testing.T) {
 
 func TestEmptyIntersections(t *testing.T) {
 	tests := map[string][]string{
-		"abcd":      []string{"lsdfhda", "abcdla", "asdlfk", "ksdfj"},
-		"[a-d]+":    []string{"xyz", "p+", "[e-f]+"},
-		"[0-9]*":    []string{"[a-z]", ".\\*"},
-		"mamama.*":  []string{"dadada.*", "nanana.*"},
-		".*mamama":  []string{".*dadada", ".*nanana"},
-		".xyz.":     []string{"paaap", ".*pqr.*"},
-		"ab+":       []string{"a", "b", "abc"},
-		".*.*.*.*f": []string{".*.*.*.*g"},
-		".*":        []string{""},
+		"abcd":      {"lsdfhda", "abcdla", "asdlfk", "ksdfj"},
+		"[a-d]+":    {"xyz", "p+", "[e-f]+"},
+		"[0-9]*":    {"[a-z]", ".\\*"},
+		"mamama.*":  {"dadada.*", "nanana.*"},
+		".*mamama":  {".*dadada", ".*nanana"},
+		".xyz.":     {"paaap", ".*pqr.*"},
+		"ab+":       {"a", "b", "abc"},
+		".*.*.*.*f": {".*.*.*.*g"},
+		".*":        {""},
 	}
 
 	for lhs, rhss := range tests {

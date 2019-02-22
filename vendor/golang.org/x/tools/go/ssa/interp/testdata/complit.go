@@ -9,12 +9,12 @@ import "fmt"
 // until the interpreter supports (reflect.Value).MapRange.
 func _() {
 	type M map[int]int
-	m1 := []*M{{1: 1}, &M{2: 2}}
+	m1 := []*M{{1: 1}, {2: 2}}
 	want := "map[1:1] map[2:2]"
 	if got := fmt.Sprint(*m1[0], *m1[1]); got != want {
 		panic(got)
 	}
-	m2 := []M{{1: 1}, M{2: 2}}
+	m2 := []M{{1: 1}, {2: 2}}
 	if got := fmt.Sprint(m2[0], m2[1]); got != want {
 		panic(got)
 	}

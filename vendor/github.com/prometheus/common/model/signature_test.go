@@ -156,12 +156,12 @@ func TestSignatureWithoutLabels(t *testing.T) {
 		},
 		{
 			in:     Metric{"name": "garland, briggs", "fear": "love is not enough"},
-			labels: map[LabelName]struct{}{"fear": struct{}{}, "name": struct{}{}},
+			labels: map[LabelName]struct{}{"fear": {}, "name": {}},
 			out:    14695981039346656037,
 		},
 		{
 			in:     Metric{"name": "garland, briggs", "fear": "love is not enough", "foo": "bar"},
-			labels: map[LabelName]struct{}{"foo": struct{}{}},
+			labels: map[LabelName]struct{}{"foo": {}},
 			out:    5799056148416392346,
 		},
 		{

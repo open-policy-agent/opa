@@ -23,8 +23,8 @@ func OkFunc() {
 	}
 
 	yy := []Tlock{
-		Tlock{},
-		Tlock{
+		{},
+		{
 			once: sync.Once{},
 		},
 	}

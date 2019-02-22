@@ -366,7 +366,7 @@ func TestCompileV1UnsafeBuiltin(t *testing.T) {
 }`
 
 	if err := f.v1(http.MethodPost, `/compile`, query, 400, expResp); err != nil {
-		t.Fatalf("Expected bad request but got %v", f.recorder)		
+		t.Fatalf("Expected bad request but got %v", f.recorder)
 	}
 }
 
@@ -2604,9 +2604,9 @@ func TestBadQueryV1(t *testing.T) {
   ]
 }`
 
-	if err := f.v1(http.MethodGet, `/query?q=^ -i`, "", 400, expectedErr); err != nil{
+	if err := f.v1(http.MethodGet, `/query?q=^ -i`, "", 400, expectedErr); err != nil {
 		recvErr := f.recorder.Body.String()
-		t.Fatalf(`Expected %v but got: %v`, expectedErr, recvErr)		
+		t.Fatalf(`Expected %v but got: %v`, expectedErr, recvErr)
 	}
 }
 

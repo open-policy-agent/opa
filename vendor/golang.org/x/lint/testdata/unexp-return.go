@@ -3,8 +3,6 @@
 // Package foo ...
 package foo
 
-import ()
-
 type hidden struct{}
 
 // Exported returns a hidden type, which is annoying.

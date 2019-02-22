@@ -15,17 +15,17 @@ func init() {
 	initializeTestSamples()
 
 	validInputs = map[string][]Token{
-		"abcd":        []Token{testCharacters['a'], testCharacters['b'], testCharacters['c'], testCharacters['d']},
-		"ab+cd+":      []Token{testCharacters['a'], testCharactersPlus['b'], testCharacters['c'], testCharactersPlus['d']},
-		"a*b":         []Token{testCharactersStar['a'], testCharacters['b']},
-		"a\\*b":       []Token{testCharacters['a'], testCharacters['*'], testCharacters['b']},
-		"a.c.":        []Token{testCharacters['a'], testDot, testCharacters['c'], testDot},
-		".*x*y*":      []Token{testDotStar, testCharactersStar['x'], testCharactersStar['y']},
-		"\\.\\.\\.+":  []Token{testCharacters['.'], testCharacters['.'], testCharactersPlus['.']},
-		"[a-z]+":      []Token{testLowerAlphaSetPlus},
-		"[0-9]\\*":    []Token{testNumSet, testCharacters['*']},
-		"[A-Z]*[a-z]": []Token{testUpperAlphaSetStar, testLowerAlphaSet},
-		"[][][][]":    []Token{testEmptySet, testEmptySet, testEmptySet, testEmptySet},
+		"abcd":        {testCharacters['a'], testCharacters['b'], testCharacters['c'], testCharacters['d']},
+		"ab+cd+":      {testCharacters['a'], testCharactersPlus['b'], testCharacters['c'], testCharactersPlus['d']},
+		"a*b":         {testCharactersStar['a'], testCharacters['b']},
+		"a\\*b":       {testCharacters['a'], testCharacters['*'], testCharacters['b']},
+		"a.c.":        {testCharacters['a'], testDot, testCharacters['c'], testDot},
+		".*x*y*":      {testDotStar, testCharactersStar['x'], testCharactersStar['y']},
+		"\\.\\.\\.+":  {testCharacters['.'], testCharacters['.'], testCharactersPlus['.']},
+		"[a-z]+":      {testLowerAlphaSetPlus},
+		"[0-9]\\*":    {testNumSet, testCharacters['*']},
+		"[A-Z]*[a-z]": {testUpperAlphaSetStar, testLowerAlphaSet},
+		"[][][][]":    {testEmptySet, testEmptySet, testEmptySet, testEmptySet},
 	}
 
 	invalidInputs = []string{

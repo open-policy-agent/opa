@@ -66,7 +66,7 @@ func TestUnmarshalMessageSetWithDuplicate(t *testing.T) {
 }
 
 func TestMarshalMessageSetJSON_UnknownType(t *testing.T) {
-	extMap := map[int32]Extension{12345: Extension{}}
+	extMap := map[int32]Extension{12345: {}}
 	got, err := MarshalMessageSetJSON(extMap)
 	if err != nil {
 		t.Fatalf("MarshalMessageSetJSON: %v", err)

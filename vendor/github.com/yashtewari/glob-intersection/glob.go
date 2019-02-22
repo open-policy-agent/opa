@@ -160,7 +160,7 @@ func (s set) Equal(other Token) bool {
 		return false
 	}
 
-	for k, _ := range r1 {
+	for k := range r1 {
 		if _, ok := r2[k]; !ok {
 			return false
 		}
@@ -171,7 +171,7 @@ func (s set) Equal(other Token) bool {
 
 func (s set) String() string {
 	rs := make([]string, 0, 30)
-	for r, _ := range s.Runes() {
+	for r := range s.Runes() {
 		rs = append(rs, string(r))
 	}
 	return fmt.Sprintf("{set: %s flag: %s}", strings.Join(rs, ""), s.Flag().String())

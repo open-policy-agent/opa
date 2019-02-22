@@ -14,11 +14,11 @@ func init() {
 
 func TestMatching(t *testing.T) {
 	tests := map[Token][]Token{
-		testCharacters['a']: []Token{testCharacters['a'], testLowerAlphaSet, testLowerAlphaSetPlus, testDot},
-		testCharacters['P']: []Token{testUpperAlphaSetStar, testDot},
-		testDotPlus:         []Token{testDotStar, testSymbolSet, testNumSetPlus},
-		testSymbolSet:       []Token{testCharacters['.'], testCharacters['+'], NewSet([]rune{'.', 'x'})},
-		testNumSetPlus:      []Token{testCharacters['0'], testCharacters['9'], testDotStar, NewSet([]rune{'~', 'T', '4'})},
+		testCharacters['a']: {testCharacters['a'], testLowerAlphaSet, testLowerAlphaSetPlus, testDot},
+		testCharacters['P']: {testUpperAlphaSetStar, testDot},
+		testDotPlus:         {testDotStar, testSymbolSet, testNumSetPlus},
+		testSymbolSet:       {testCharacters['.'], testCharacters['+'], NewSet([]rune{'.', 'x'})},
+		testNumSetPlus:      {testCharacters['0'], testCharacters['9'], testDotStar, NewSet([]rune{'~', 'T', '4'})},
 	}
 
 	for t1, t2s := range tests {
@@ -32,9 +32,9 @@ func TestMatching(t *testing.T) {
 
 func TestNonMatching(t *testing.T) {
 	tests := map[Token][]Token{
-		testCharacters['d']: []Token{testCharacters['D'], testCharacters['b'], testNumSet},
-		testNumSetPlus:      []Token{testCharacters['.'], testCharacters['g'], testSymbolSetPlus, testLowerAlphaSet},
-		testUpperAlphaSet:   []Token{testCharacters['5'], testCharacters['j'], testSymbolSetStar, testLowerAlphaSetPlus},
+		testCharacters['d']: {testCharacters['D'], testCharacters['b'], testNumSet},
+		testNumSetPlus:      {testCharacters['.'], testCharacters['g'], testSymbolSetPlus, testLowerAlphaSet},
+		testUpperAlphaSet:   {testCharacters['5'], testCharacters['j'], testSymbolSetStar, testLowerAlphaSetPlus},
 	}
 
 	for t1, t2s := range tests {
