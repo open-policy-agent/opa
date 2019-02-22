@@ -19,6 +19,7 @@ import (
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/internal/runtime"
+	storedversion "github.com/open-policy-agent/opa/internal/version"
 	"github.com/open-policy-agent/opa/loader"
 	"github.com/open-policy-agent/opa/plugins"
 	"github.com/open-policy-agent/opa/plugins/discovery"
@@ -167,6 +168,11 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 	}
 
 	if err := store.Write(ctx, txn, storage.AddOp, storage.Path{}, loaded.Documents); err != nil {
+		store.Abort(ctx, txn)
+		return nil, errors.Wrapf(err, "storage error")
+	}
+
+	if err := storedversion.Write(ctx, store, txn); err != nil {
 		store.Abort(ctx, txn)
 		return nil, errors.Wrapf(err, "storage error")
 	}

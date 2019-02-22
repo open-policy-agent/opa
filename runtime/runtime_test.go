@@ -81,6 +81,11 @@ p = true { 1 = 2 }`
 	if err != nil || string(result) != mod1 {
 		t.Fatalf("Expected %v but got: %v (err: %v)", mod1, result, err)
 	}
+
+	_, err = rt.Store.Read(ctx, txn, storage.MustParsePath("/system/version"))
+	if err != nil {
+		t.Fatal(err)
+	}
 }
 
 func TestWatchPaths(t *testing.T) {
