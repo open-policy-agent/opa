@@ -26,7 +26,8 @@ import (
 // Logger defines the interface for decision logging plugins.
 type Logger interface {
 	plugins.Plugin
-	Log(context.Context, EventV1)
+
+	Log(context.Context, EventV1) error
 }
 
 // EventV1 represents a decision log event.
@@ -213,7 +214,7 @@ func (p *Plugin) Stop(ctx context.Context) {
 }
 
 // Log appends a decision log event to the buffer for uploading.
-func (p *Plugin) Log(ctx context.Context, decision *server.Info) {
+func (p *Plugin) Log(ctx context.Context, decision *server.Info) error {
 
 	path := strings.Replace(strings.TrimPrefix(decision.Path, "data."), ".", "/", -1)
 
@@ -240,11 +241,9 @@ func (p *Plugin) Log(ctx context.Context, decision *server.Info) {
 	if p.config.Plugin != nil {
 		proxy, ok := p.manager.Plugin(*p.config.Plugin).(Logger)
 		if !ok {
-			p.logError("Plugin does not implement Logger interface. Dropping event.")
-			return
+			return fmt.Errorf("plugin does not implement Logger interface")
 		}
-		proxy.Log(ctx, event)
-		return
+		return proxy.Log(ctx, event)
 	}
 
 	p.mtx.Lock()
@@ -252,13 +251,18 @@ func (p *Plugin) Log(ctx context.Context, decision *server.Info) {
 
 	result, err := p.enc.Write(event)
 	if err != nil {
+		// TODO(tsandall): revisit this now that we have an API that
+		// can return an error. Should the default behaviour be to
+		// fail-closed as we do for plugins?
 		p.logError("Log encoding failed: %v.", err)
-		return
+		return nil
 	}
 
 	if result != nil {
 		p.bufferChunk(p.buffer, result)
 	}
+
+	return nil
 }
 
 // Reconfigure notifies the plugin with a new configuration.

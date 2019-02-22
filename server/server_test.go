@@ -2212,8 +2212,12 @@ func TestDecisionLogging(t *testing.T) {
 	f.server = f.server.WithDecisionIDFactory(func() string {
 		nextID++
 		return fmt.Sprint(nextID)
-	}).WithDecisionLogger(func(_ context.Context, info *Info) {
+	}).WithDecisionLoggerWithErr(func(_ context.Context, info *Info) error {
+		if info.Path == "data.fail_closed.decision_logger_err" {
+			return fmt.Errorf("some error")
+		}
 		decisions = append(decisions, info)
+		return nil
 	})
 
 	reqs := []struct {
@@ -2293,6 +2297,11 @@ func TestDecisionLogging(t *testing.T) {
 		{
 			raw:  newReqUnversioned("POST", "/", ""),
 			code: 500,
+		},
+		{
+			method: "POST",
+			path:   "/data/fail_closed/decision_logger_err",
+			code:   500,
 		},
 	}
 

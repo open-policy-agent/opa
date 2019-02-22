@@ -44,8 +44,9 @@ func (p *testPlugin) Stop(context.Context) {
 func (p *testPlugin) Reconfigure(context.Context, interface{}) {
 }
 
-func (p *testPlugin) Log(_ context.Context, event EventV1) {
+func (p *testPlugin) Log(_ context.Context, event EventV1) error {
 	p.events = append(p.events, event)
+	return nil
 }
 
 func TestPluginCustomBackend(t *testing.T) {
