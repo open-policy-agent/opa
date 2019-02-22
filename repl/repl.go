@@ -8,11 +8,9 @@
 package repl
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
-	"html/template"
 	"io"
 	"os"
 	"strconv"
@@ -74,55 +72,41 @@ const exitPromptMessage = "Do you want to exit ([y]/n)? "
 // New returns a new instance of the REPL.
 func New(store storage.Store, historyPath string, output io.Writer, outputFormat string, errLimit int, banner string) *REPL {
 
-	module := defaultModule()
-	moduleID := module.Package.Path.String()
-
 	return &REPL{
-		output: output,
-		store:  store,
-		modules: map[string]*ast.Module{
-			moduleID: module,
-		},
-		currentModuleID: moduleID,
-		outputFormat:    outputFormat,
-		explain:         explainOff,
-		historyPath:     historyPath,
-		initPrompt:      "> ",
-		bufferPrompt:    "| ",
-		banner:          banner,
-		errLimit:        errLimit,
-		prettyLimit:     defaultPrettyLimit,
+		output:       output,
+		store:        store,
+		modules:      map[string]*ast.Module{},
+		outputFormat: outputFormat,
+		explain:      explainOff,
+		historyPath:  historyPath,
+		initPrompt:   "> ",
+		bufferPrompt: "| ",
+		banner:       banner,
+		errLimit:     errLimit,
+		prettyLimit:  defaultPrettyLimit,
 	}
 }
 
-const (
-	defaultREPLModuleID = "repl"
-)
-
 func defaultModule() *ast.Module {
+	return ast.MustParseModule(`package repl`)
+}
 
-	module := `
-	package {{.ModuleID}}
-	`
+func defaultPackage() *ast.Package {
+	return ast.MustParsePackage(`package repl`)
+}
 
-	tmpl, err := template.New("").Parse(module)
-	if err != nil {
-		panic(err)
+func (r *REPL) getCurrentOrDefaultModule() *ast.Module {
+	if r.currentModuleID == "" {
+		return defaultModule()
 	}
+	return r.modules[r.currentModuleID]
+}
 
-	var buf bytes.Buffer
-
-	err = tmpl.Execute(&buf, struct {
-		ModuleID string
-	}{
-		ModuleID: defaultREPLModuleID,
-	})
-
-	if err != nil {
-		panic(err)
+func (r *REPL) initModule(ctx context.Context) error {
+	if r.currentModuleID != "" {
+		return nil
 	}
-
-	return ast.MustParseModule(buf.String())
+	return r.evalStatement(ctx, defaultPackage())
 }
 
 // Loop will run until the user enters "exit", Ctrl+C, Ctrl+D, or an unexpected error occurs.
@@ -401,8 +385,11 @@ func (r *REPL) cmdHelp(args []string) error {
 func (r *REPL) cmdShow(args []string) error {
 
 	if len(args) == 0 {
+		if r.currentModuleID == "" {
+			fmt.Fprintln(r.output, "no rules defined")
+			return nil
+		}
 		module := r.modules[r.currentModuleID]
-
 		bs, err := format.Ast(module)
 		if err != nil {
 			return err
@@ -541,6 +528,9 @@ func (r *REPL) cmdUnset(ctx context.Context, args []string) error {
 }
 
 func (r *REPL) unsetRule(ctx context.Context, name ast.Var) (bool, error) {
+	if r.currentModuleID == "" {
+		return false, nil
+	}
 
 	mod := r.modules[r.currentModuleID]
 	rules := []*ast.Rule{}
@@ -605,10 +595,11 @@ func (r *REPL) compileBody(ctx context.Context, compiler *ast.Compiler, body ast
 	r.timerStart(metrics.RegoQueryCompile)
 	defer r.timerStop(metrics.RegoQueryCompile)
 
-	qctx := ast.NewQueryContext().
-		WithPackage(r.modules[r.currentModuleID].Package).
-		WithImports(r.modules[r.currentModuleID].Imports).
-		WithInput(input)
+	qctx := ast.NewQueryContext().WithInput(input)
+
+	if r.currentModuleID != "" {
+		qctx = qctx.WithPackage(r.modules[r.currentModuleID].Package).WithImports(r.modules[r.currentModuleID].Imports)
+	}
 
 	qc := compiler.QueryCompiler()
 	body, err := qc.WithContext(qctx).Compile(body)
@@ -618,6 +609,10 @@ func (r *REPL) compileBody(ctx context.Context, compiler *ast.Compiler, body ast
 func (r *REPL) compileRule(ctx context.Context, rule *ast.Rule, unset bool) error {
 	r.timerStart(metrics.RegoModuleCompile)
 	defer r.timerStop(metrics.RegoModuleCompile)
+
+	if err := r.initModule(ctx); err != nil {
+		return err
+	}
 
 	mod := r.modules[r.currentModuleID]
 	prev := mod.Rules
@@ -779,7 +774,7 @@ func (r *REPL) evalStatement(ctx context.Context, stmt interface{}) error {
 
 		if len(parsedBody) == 1 && parsedBody[0].IsAssignment() && len(parsedBody[0].Operands()) == 2 {
 			expr := parsedBody[0]
-			rule, err := ast.ParseCompleteDocRuleFromEqExpr(r.modules[r.currentModuleID], expr.Operand(0), expr.Operand(1))
+			rule, err := ast.ParseCompleteDocRuleFromEqExpr(r.getCurrentOrDefaultModule(), expr.Operand(0), expr.Operand(1))
 			if err == nil {
 				ok, err := r.unsetRule(ctx, rule.Head.Name)
 				if err != nil {
@@ -796,7 +791,7 @@ func (r *REPL) evalStatement(ctx context.Context, stmt interface{}) error {
 
 		if len(compiledBody) == 1 && compiledBody[0].IsEquality() {
 			expr := compiledBody[0]
-			rule, err := ast.ParseCompleteDocRuleFromEqExpr(r.modules[r.currentModuleID], expr.Operand(0), expr.Operand(1))
+			rule, err := ast.ParseCompleteDocRuleFromEqExpr(r.getCurrentOrDefaultModule(), expr.Operand(0), expr.Operand(1))
 			if err == nil {
 				return r.compileRule(ctx, rule, false)
 			}
@@ -815,7 +810,7 @@ func (r *REPL) evalStatement(ctx context.Context, stmt interface{}) error {
 	case *ast.Rule:
 		return r.compileRule(ctx, s, false)
 	case *ast.Import:
-		return r.evalImport(s)
+		return r.evalImport(ctx, s)
 	case *ast.Package:
 		return r.evalPackage(s)
 	}
@@ -831,8 +826,8 @@ func (r *REPL) evalBody(ctx context.Context, compiler *ast.Compiler, input ast.V
 		rego.Compiler(compiler),
 		rego.Store(r.store),
 		rego.Transaction(r.txn),
-		rego.ParsedImports(r.modules[r.currentModuleID].Imports),
-		rego.ParsedPackage(r.modules[r.currentModuleID].Package),
+		rego.ParsedImports(r.getCurrentOrDefaultModule().Imports),
+		rego.ParsedPackage(r.getCurrentOrDefaultModule().Package),
 		rego.ParsedQuery(body),
 		rego.ParsedInput(input),
 		rego.Metrics(r.metrics),
@@ -889,8 +884,8 @@ func (r *REPL) evalPartial(ctx context.Context, compiler *ast.Compiler, input as
 		rego.Compiler(compiler),
 		rego.Store(r.store),
 		rego.Transaction(r.txn),
-		rego.ParsedImports(r.modules[r.currentModuleID].Imports),
-		rego.ParsedPackage(r.modules[r.currentModuleID].Package),
+		rego.ParsedImports(r.getCurrentOrDefaultModule().Imports),
+		rego.ParsedPackage(r.getCurrentOrDefaultModule().Package),
 		rego.ParsedQuery(body),
 		rego.ParsedInput(input),
 		rego.Metrics(r.metrics),
@@ -920,7 +915,12 @@ func (r *REPL) evalPartial(ctx context.Context, compiler *ast.Compiler, input as
 	}
 }
 
-func (r *REPL) evalImport(i *ast.Import) error {
+func (r *REPL) evalImport(ctx context.Context, i *ast.Import) error {
+
+	if err := r.initModule(ctx); err != nil {
+		return err
+	}
+
 	mod := r.modules[r.currentModuleID]
 
 	for _, other := range mod.Imports {
