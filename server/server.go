@@ -701,7 +701,7 @@ func (s *Server) v1VersionGet(w http.ResponseWriter, r *http.Request) {
     "BuildCommit": "{{.BuildCommit}}",
     "BuildTimestamp": "{{.BuildTimestamp}}",
     "BuildHostname": "{{.BuildHostname}}"
-  }
+  } 
 }
 	`
 	tmpl, err := template.New("").Parse(opaVersion)
@@ -727,6 +727,7 @@ func (s *Server) v1VersionGet(w http.ResponseWriter, r *http.Request) {
 
 	headers := w.Header()
 	headers.Add("Content-Type", "application/json")
+
 	writer.Bytes(w, code, jsonBytes)
 }
 
