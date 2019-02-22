@@ -33,7 +33,7 @@ func TestPluginOneShot(t *testing.T) {
 		Manifest: bundle.Manifest{Revision: "quickbrownfaux"},
 		Data:     util.MustUnmarshalJSON([]byte(`{"foo": {"bar": 1, "baz": "qux"}}`)).(map[string]interface{}),
 		Modules: []bundle.ModuleFile{
-			{
+			bundle.ModuleFile{
 				Path:   "/foo/bar",
 				Parsed: ast.MustParseModule(module),
 				Raw:    []byte(module),
@@ -387,7 +387,7 @@ func TestPluginActivateScopedBundle(t *testing.T) {
 			},
 		},
 		Modules: []bundle.ModuleFile{
-			{
+			bundle.ModuleFile{
 				Path:   "bundle/id1",
 				Parsed: ast.MustParseModule(module),
 				Raw:    []byte(module),
@@ -441,7 +441,7 @@ func TestPluginActivateScopedBundle(t *testing.T) {
 			},
 		},
 		Modules: []bundle.ModuleFile{
-			{
+			bundle.ModuleFile{
 				Path:   "bundle/id2",
 				Parsed: ast.MustParseModule(module),
 				Raw:    []byte(module),
