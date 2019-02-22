@@ -194,7 +194,6 @@ r = 3 { true }`)
 		"data.a.b.c.q",
 		"data.a.b.d.r",
 		"data.repl.s",
-		"data.repl.version",
 	}
 
 	sort.Strings(result)
@@ -410,12 +409,13 @@ func TestTypes(t *testing.T) {
 	repl := newRepl(store, &buffer)
 
 	repl.OneShot(ctx, "types")
-	repl.OneShot(ctx, "data.repl.version[x]")
+	repl.OneShot(ctx, `p[x] = y { x := "a"; y := 1 }`)
+	repl.OneShot(ctx, `p[x]`)
 
 	output := strings.TrimSpace(buffer.String())
 
 	exp := []string{
-		"# data.repl.version[x]: string",
+		"# data.repl.p[x]: number",
 		"# x: string",
 	}
 

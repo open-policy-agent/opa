@@ -27,7 +27,6 @@ import (
 	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/topdown"
-	"github.com/open-policy-agent/opa/version"
 	"github.com/peterh/liner"
 )
 
@@ -104,13 +103,6 @@ func defaultModule() *ast.Module {
 
 	module := `
 	package {{.ModuleID}}
-
-	version = {
-		"Version": "{{.Version}}",
-		"BuildCommit": "{{.BuildCommit}}",
-		"BuildTimestamp": "{{.BuildTimestamp}}",
-		"BuildHostname": "{{.BuildHostname}}"
-	}
 	`
 
 	tmpl, err := template.New("").Parse(module)
@@ -121,17 +113,9 @@ func defaultModule() *ast.Module {
 	var buf bytes.Buffer
 
 	err = tmpl.Execute(&buf, struct {
-		ModuleID       string
-		Version        string
-		BuildCommit    string
-		BuildTimestamp string
-		BuildHostname  string
+		ModuleID string
 	}{
-		ModuleID:       defaultREPLModuleID,
-		Version:        version.Version,
-		BuildCommit:    version.Vcs,
-		BuildTimestamp: version.Timestamp,
-		BuildHostname:  version.Hostname,
+		ModuleID: defaultREPLModuleID,
 	})
 
 	if err != nil {
@@ -1053,7 +1037,7 @@ type exampleDesc struct {
 var examples = [...]exampleDesc{
 	{"data", "show all documents"},
 	{"data[x] = _", "show all top level keys"},
-	{"data.repl.version", "drill into specific document"},
+	{"data.system.version", "drill into specific document"},
 }
 
 var extra = [...]commandDesc{

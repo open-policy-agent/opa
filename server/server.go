@@ -370,7 +370,6 @@ func (s *Server) initRouter() {
 	router.Handle("/health", promhttp.InstrumentHandlerDuration(GetHealthDur, http.HandlerFunc(s.unversionedGetHealth))).Methods(http.MethodGet)
 	s.registerHandler(router, 0, "/data/{path:.+}", http.MethodPost, promhttp.InstrumentHandlerDuration(v0DataDur, http.HandlerFunc(s.v0DataPost)))
 	s.registerHandler(router, 0, "/data", http.MethodPost, promhttp.InstrumentHandlerDuration(v0DataDur, http.HandlerFunc(s.v0DataPost)))
-	s.registerHandler(router, 1, "/data/system/version", http.MethodGet, promhttp.InstrumentHandlerDuration(v1DataDur, http.HandlerFunc(s.v1VersionGet)))
 	s.registerHandler(router, 1, "/data/system/diagnostics", http.MethodGet, promhttp.InstrumentHandlerDuration(v1DataDur, http.HandlerFunc(s.v1DiagnosticsGet)))
 	s.registerHandler(router, 1, "/data/{path:.+}", http.MethodDelete, promhttp.InstrumentHandlerDuration(v1DataDur, http.HandlerFunc(s.v1DataDelete)))
 	s.registerHandler(router, 1, "/data/{path:.+}", http.MethodPut, promhttp.InstrumentHandlerDuration(v1DataDur, http.HandlerFunc(s.v1DataPut)))
@@ -688,47 +687,6 @@ func (s *Server) unversionedGetHealth(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	writer.JSON(w, http.StatusInternalServerError, emptyObject{}, false)
-}
-
-func (s *Server) v1VersionGet(w http.ResponseWriter, r *http.Request) {
-
-	code := 200
-
-	opaVersion := `
-{
-  "result": {
-    "Version": "{{.Version}}",
-    "BuildCommit": "{{.BuildCommit}}",
-    "BuildTimestamp": "{{.BuildTimestamp}}",
-    "BuildHostname": "{{.BuildHostname}}"
-  } 
-}
-	`
-	tmpl, err := template.New("").Parse(opaVersion)
-	if err != nil {
-		panic(err)
-	}
-
-	var buf bytes.Buffer
-
-	err = tmpl.Execute(&buf, struct {
-		Version        string
-		BuildCommit    string
-		BuildTimestamp string
-		BuildHostname  string
-	}{
-		Version:        version.Version,
-		BuildCommit:    version.Vcs,
-		BuildTimestamp: version.Timestamp,
-		BuildHostname:  version.Hostname,
-	})
-
-	jsonBytes := buf.Bytes()
-
-	headers := w.Header()
-	headers.Add("Content-Type", "application/json")
-
-	writer.Bytes(w, code, jsonBytes)
 }
 
 func (s *Server) v1CompilePost(w http.ResponseWriter, r *http.Request) {
