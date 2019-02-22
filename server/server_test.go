@@ -359,8 +359,8 @@ func TestCompileV1Observability(t *testing.T) {
 func TestCompileV1UnsafeBuiltin(t *testing.T) {
 	f := newFixture(t)
 
-	var query string = `{"query": "http.send({\"method\": \"get\", \"url\": \"foo.com\"}, x)"}`
-	var expResp string = `{
+	query := `{"query": "http.send({\"method\": \"get\", \"url\": \"foo.com\"}, x)"}`
+	expResp := `{
   "code": "invalid_parameter",
   "message": "unsafe built-in function calls in query: http.send"
 }`
@@ -2587,7 +2587,7 @@ func TestQueryV1(t *testing.T) {
 func TestBadQueryV1(t *testing.T) {
 	f := newFixture(t)
 
-	var expectedErr string = `{
+	expectedErr := `{
   "code": "invalid_parameter",
   "message": "error(s) occurred while parsing query",
   "errors": [
@@ -2613,9 +2613,9 @@ func TestBadQueryV1(t *testing.T) {
 func TestQueryV1UnsafeBuiltin(t *testing.T) {
 	f := newFixture(t)
 
-	var query string = `/query?q=http.send({"method": "get", "url": "foo.com"}, x)`
+	query := `/query?q=http.send({"method": "get", "url": "foo.com"}, x)`
 
-	var expected string = `{
+	expected := `{
   "code": "invalid_parameter",
   "message": "unsafe built-in function calls in query: http.send"
 }`
