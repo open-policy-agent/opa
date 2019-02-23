@@ -1,12 +1,14 @@
 # Best Practices: Identity and User Attributes
 
-A common question from OPA users is how to deal with identity and user attributes.  The first thing to keep in mind is that **OPA does not handle authentication**.  It does not help users prove they are who they say they are; it does not handle usernames and passwords, or issue TLS certificates.  OPA assumes you have authentication in place and helps you with the step after that: authorization and policy--controlling who can do what.
+A common question from OPA users is how to deal with identity and user attributes.  The first thing to keep in mind is that **OPA does not handle authentication**.  OPA does not help users prove they are who they say they are; it does not handle usernames and passwords, or issue TLS certificates.  OPA assumes you have authentication in place and helps you with the step after that: authorization and policy--controlling who can do what.
+
 
 Of course, identity and user attribute information is crucial to answering who can do what.  In fact, whenever possible you should write policy in terms of user attributes (e.g. group membership) instead of individual users.  Otherwise, policies become brittle and require updates every time an individual (or software system) joins or leaves the organization.  For example, you might grant higher privileges to people in engineering and currently on-call; then independently you can modify people's attributes without having to change policy.
 
 To evaluate policies written using user attributes, OPA needs a way to figure out what the appropriate user attributes for each decision it makes.  Often those user attributes are stored in LDAP or ActiveDirectory (AD).  This document describes best-practices for providing LDAP/AD information to OPA.
 
-Below we detail different ways to make LDAP/AD information available to OPA.  You should prefer earlier options in the list to later options, but in the end the right choice depends on your situation.
+Below we detail different ways to make LDAP/AD information available to OPA.  At the time of writing **OPA does not have an LDAP connector**, though check the [Builtins page](https://www.openpolicyagent.org/docs/language-reference.html) for the latest information.  The purpose of this document is to help you understand the options for you to integrate your user-attribute store with OPA.
+You should prefer earlier options in the list to later options, but in the end the right choice depends on your situation.
 
 ## 1. JWT Tokens
 
@@ -35,13 +37,13 @@ JWTs have a limited size in practice, so if your organization has too many user 
 
 
 
-## 2. Downloading LDAP/AD data as part of a policy bundle
+## 2. Downloading LDAP/AD data using the Bundle API
 
 JWTs may not be available to you.  Or perhaps your policies require information about a user other than the one performing the action that OPA is authorizing.
 
 For example, suppose your policy says a resource's owner or anyone in the owner's group may modify that resource.  When Alice tries to modify a resource she doesn't own, OPA would need to find the owner and check if Alice belongs to the same group as the owner.  But if OPA only has Alice's JWT token, it does not know what groups the resource's owner belong to.
 
-In any case, another option is to replicate LDAP/AD data in bulk into OPA.  One way to do that is through OPA's bundle feature, which periodically downloads policy bundles from a centralized server.  Those bundles can include data as well as policy.  If you implement the centralized server, you can include LDAP/AD data within the bundle.  Then every time OPA gets updated policies, it gets updated LDAP/AD data too.
+In any case, another option is to replicate LDAP/AD data in bulk into OPA.  One way to do that is through OPA's bundle feature, which periodically downloads policy bundles from a centralized server.  Those bundles can include data as well as policy.  If you implement the centralized server, you can include LDAP/AD data within the bundle.  Then every time OPA gets updated policies, it gets updated LDAP/AD data too.  You would need to integrate LDAP/AD into your bundle server--OPA does not help with that, but once it is done, OPA will pull the data out of your bundle server.
 
 ### Flow
 Two things happen independently with this kind of LDAP/AD integration.
