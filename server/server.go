@@ -367,6 +367,7 @@ func (s *Server) initRouter() {
 	catchAllDur := duration.MustCurryWith(prometheus.Labels{"handler": PromHandlerCatch})
 	GetHealthDur := duration.MustCurryWith(prometheus.Labels{"handler": PromHandlerHealth})
 	promRegistry.MustRegister(duration)
+	promRegistry.MustRegister(prometheus.NewGoCollector())
 
 	router := s.router
 
