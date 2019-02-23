@@ -17,6 +17,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httputil"
+	"net/http/pprof"
 	"net/url"
 	"os"
 	"strconv"
@@ -101,6 +102,7 @@ type Server struct {
 	revision          string
 	logger            func(context.Context, *Info) error
 	errLimit          int
+	pprofEnabled      bool
 	runtime           *ast.Term
 }
 
@@ -216,6 +218,12 @@ func (s *Server) WithManager(manager *plugins.Manager) *Server {
 // allow.
 func (s *Server) WithCompilerErrorLimit(limit int) *Server {
 	s.errLimit = limit
+	return s
+}
+
+// WithPprofEnabled sets whether pprof endpoints are enabled
+func (s *Server) WithPprofEnabled(pprofEnabled bool) *Server {
+	s.pprofEnabled = pprofEnabled
 	return s
 }
 
@@ -378,6 +386,17 @@ func (s *Server) initRouter() {
 	router.StrictSlash(true)
 	router.Handle("/metrics", promhttp.HandlerFor(promRegistry, promhttp.HandlerOpts{})).Methods(http.MethodGet)
 	router.Handle("/health", promhttp.InstrumentHandlerDuration(GetHealthDur, http.HandlerFunc(s.unversionedGetHealth))).Methods(http.MethodGet)
+	if s.pprofEnabled {
+		router.HandleFunc("/debug/pprof/", pprof.Index)
+		router.Handle("/debug/pprof/allocs", pprof.Handler("allocs"))
+		router.Handle("/debug/pprof/block", pprof.Handler("block"))
+		router.Handle("/debug/pprof/heap", pprof.Handler("heap"))
+		router.Handle("/debug/pprof/mutex", pprof.Handler("mutex"))
+		router.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
+		router.HandleFunc("/debug/pprof/profile", pprof.Profile)
+		router.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
+		router.HandleFunc("/debug/pprof/trace", pprof.Trace)
+	}
 	s.registerHandler(router, 0, "/data/{path:.+}", http.MethodPost, promhttp.InstrumentHandlerDuration(v0DataDur, http.HandlerFunc(s.v0DataPost)))
 	s.registerHandler(router, 0, "/data", http.MethodPost, promhttp.InstrumentHandlerDuration(v0DataDur, http.HandlerFunc(s.v0DataPost)))
 	s.registerHandler(router, 1, "/data/system/diagnostics", http.MethodGet, promhttp.InstrumentHandlerDuration(v1DataDur, http.HandlerFunc(s.v1DiagnosticsGet)))
