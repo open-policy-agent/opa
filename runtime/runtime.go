@@ -102,6 +102,9 @@ type Params struct {
 	// exiting early.
 	ErrorLimit int
 
+	// PprofEnabled flag controls whether pprof endpoints are enabled
+	PprofEnabled bool
+
 	// DecisionIDFactory generates decision IDs to include in API responses
 	// sent by the server (in response to Data API queries.)
 	DecisionIDFactory func() string
@@ -242,6 +245,7 @@ func (rt *Runtime) StartServer(ctx context.Context) {
 		WithStore(rt.Store).
 		WithManager(rt.Manager).
 		WithCompilerErrorLimit(rt.Params.ErrorLimit).
+		WithPprofEnabled(rt.Params.PprofEnabled).
 		WithAddresses(*rt.Params.Addrs).
 		WithInsecureAddress(rt.Params.InsecureAddr).
 		WithCertificate(rt.Params.Certificate).
