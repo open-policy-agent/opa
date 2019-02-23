@@ -106,6 +106,10 @@ func builtinSubstring(a, b, c ast.Value) (ast.Value, error) {
 	startIndex, err := builtins.IntOperand(b, 2)
 	if err != nil {
 		return nil, err
+	} else if startIndex >= len(base) {
+		return ast.String(""), nil
+	} else if startIndex < 0 {
+		return nil, fmt.Errorf("negative offset")
 	}
 
 	length, err := builtins.IntOperand(c, 3)
