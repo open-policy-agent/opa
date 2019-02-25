@@ -516,7 +516,7 @@ spec:
     spec:
       containers:
         - name: opa
-          image: openpolicyagent/opa:0.10.4
+          image: openpolicyagent/opa:0.10.5
           ports:
           - name: http
             containerPort: 8181

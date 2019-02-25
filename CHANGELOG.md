@@ -3,7 +3,18 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## 0.10.5
+
+* These release contians a small but backwards incompatible change to
+  the custom decision logger API. Custom decision loggers can now
+  return an error which will cause the OPA to fail-closed.
+
+### Fixes
+
+- Fix substring built-in bounds checking ([#1235](https://github.com/open-policy-agent/opa/issues/1235))
+- Add trailing newlines when pretty printing API responses
+- Add default Go metrics to Prometheus 
+- Add pprof endpoint to HTTP server
 
 ## 0.10.4
 
