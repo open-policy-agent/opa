@@ -10,6 +10,7 @@ OPA is hosted by the [Cloud Native Computing Foundation](https://cncf.io) (CNCF)
 
 - See [openpolicyagent.org](http://www.openpolicyagent.org) to get started with documentation and tutorials.
 - See [blog.openpolicyagent.org](https://blog.openpolicyagent.org) for blog posts about OPA and policy.
+- See [ADOPTERS.md](./ADOPTERS.md) for a list of adopters and use cases.
 - Join the conversation on [Slack](http://slack.openpolicyagent.org).
 
 ## Want to get OPA?
