@@ -20,6 +20,10 @@ This is a list of production adopters of OPA (in alphabetical order):
   Kubernetes clusters that host a mix of production and test
   workloads.
 
+* [Cyral](https://www.cyral.com/) is a venture-funded data security
+  company. Still in stealth mode but using OPA to manage and enforce
+  fine-grained authorization policies.
+
 * [Intuit](https://www.intuit.com/company/) uses OPA as a validating
   and mutating admission controller to implement various security,
   multi-tenancy, and risk management policies across approximately 50
