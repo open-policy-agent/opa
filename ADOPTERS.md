@@ -20,10 +20,6 @@ This is a list of production adopters of OPA (in alphabetical order):
   Kubernetes clusters that host a mix of production and test
   workloads.
 
-* [Cyral](https://www.cyral.com/) is a venture-funded data security
-  company. Still in stealth mode but using OPA to manage and enforce
-  fine-grained authorization policies.
-
 * [Intuit](https://www.intuit.com/company/) uses OPA as a validating
   and mutating admission controller to implement various security,
   multi-tenancy, and risk management policies across approximately 50
@@ -78,6 +74,20 @@ remain anonymous.
   control and fine-grained authorization policies on ~10 Kubernetes
   clusters with ~1,000 nodes. They also integrate OPA into their PKI
   as part of a Certificate RA that serves these clusters.
+
+This is a list of adopters in early stages of production or
+pre-production (in alphabetical order):
+
+* [Cyral](https://www.cyral.com/) is a venture-funded data security
+  company. Still in stealth mode but using OPA to manage and enforce
+  fine-grained authorization policies.
+
+* [ORY Keto](https://github.com/ory/keto) replaced their internal
+  decision engine with OPA. By leveraging OPA, ORY Keto was able to
+  simplify their access control server implementation while retaining
+  the ability to easily add high-level models like ACLs and RBAC. In
+  December 2018, ~850 ORY Keto instances were running in a mix of
+  pre-production and production environments.
 
 Other adopters that have gone into production or various stages of
 testing include:
