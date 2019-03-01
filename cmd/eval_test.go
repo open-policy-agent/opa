@@ -19,25 +19,29 @@ func TestEvalExitCode(t *testing.T) {
 	params.fail = true
 
 	tests := []struct {
-		note         string
-		query        string
-		expectedCode int
+		note        string
+		query       string
+		wantDefined bool
+		wantErr     bool
 	}{
-		{"defined result", "true=true", 0},
-		{"undefined result", "true = false", 1},
-		{"on error", "x = 1/0", 2},
+		{"defined result", "true=true", true, false},
+		{"undefined result", "true = false", false, false},
+		{"on error", "x = 1/0", false, true},
 	}
 
 	var b bytes.Buffer
 	writer := bufio.NewWriter(&b)
 	for _, tc := range tests {
-		code, err := eval([]string{tc.query}, params, writer)
-		if err != nil {
-			t.Fatalf("%v: Unexpected error %v", tc.note, err)
-		}
-		if code != tc.expectedCode {
-			t.Fatalf("%v: Expected code %v, got %v", tc.note, tc.expectedCode, code)
-		}
+		t.Run(tc.note, func(t *testing.T) {
+			defined, err := eval([]string{tc.query}, params, writer)
+			if tc.wantErr && err == nil {
+				t.Fatal("wanted error but got success")
+			} else if !tc.wantErr && err != nil {
+				t.Fatal("wanted success but got error:", err)
+			} else if (tc.wantDefined && !defined) || (!tc.wantDefined && defined) {
+				t.Fatalf("wanted defined %v but got defined %v", tc.wantDefined, defined)
+			}
+		})
 	}
 }
 
@@ -57,9 +61,9 @@ p = 1`,
 
 		var buf bytes.Buffer
 
-		code, err := eval([]string{"data"}, params, &buf)
-		if code != 0 || err != nil {
-			t.Fatalf("Unexpected exit code (%d) or error: %v", code, err)
+		defined, err := eval([]string{"data"}, params, &buf)
+		if !defined || err != nil {
+			t.Fatalf("Unexpected undefined or error: %v", err)
 		}
 
 		var output presentation.Output

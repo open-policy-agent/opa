@@ -48,6 +48,7 @@ type evalCommandParams struct {
 	profileLimit      intFlag
 	prettyLimit       intFlag
 	fail              bool
+	failDefined       bool
 }
 
 func newEvalCommandParams() evalCommandParams {
@@ -146,6 +147,9 @@ Set the output format with the --format flag.
 			if params.stdinInput && params.inputPath != "" {
 				return errors.New("specify --stdin-input or --input but not both")
 			}
+			if params.fail && params.failDefined {
+				return errors.New("specify --fail or --fail-defined but not both")
+			}
 			of := params.outputFormat.String()
 			if params.partial && of != evalPrettyOutput && of != evalJSONOutput {
 				return errors.New("invalid output format for partial evaluation")
@@ -159,13 +163,15 @@ Set the output format with the --format flag.
 			return nil
 		},
 		Run: func(cmd *cobra.Command, args []string) {
-			code, err := eval(args, params, os.Stdout)
+
+			defined, err := eval(args, params, os.Stdout)
 			if err != nil {
 				fmt.Fprintln(os.Stderr, err)
 				os.Exit(2)
 			}
-			if params.fail {
-				os.Exit(code)
+
+			if (params.fail && !defined) || (params.failDefined && defined) {
+				os.Exit(1)
 			}
 		},
 	}
@@ -186,20 +192,21 @@ Set the output format with the --format flag.
 	evalCommand.Flags().VarP(&params.profileCriteria, "profile-sort", "", "set sort order of expression profiler results")
 	evalCommand.Flags().VarP(&params.profileLimit, "profile-limit", "", "set number of profiling results to show")
 	evalCommand.Flags().VarP(&params.prettyLimit, "pretty-limit", "", "set limit after which pretty output gets truncated")
-	evalCommand.Flags().BoolVarP(&params.fail, "fail", "", false, "exits with non-zero exit code on undefined result and errors")
+	evalCommand.Flags().BoolVarP(&params.fail, "fail", "", false, "exits with non-zero exit code on undefined/empty result and errors")
+	evalCommand.Flags().BoolVarP(&params.failDefined, "fail-defined", "", false, "exits with non-zero exit code on defined/non-empty result and errors")
 	setIgnore(evalCommand.Flags(), &params.ignore)
 
 	RootCommand.AddCommand(evalCommand)
 }
 
-func eval(args []string, params evalCommandParams, w io.Writer) (int, error) {
+func eval(args []string, params evalCommandParams, w io.Writer) (bool, error) {
 
 	var query string
 
 	if params.stdin {
 		bs, err := ioutil.ReadAll(os.Stdin)
 		if err != nil {
-			return 0, err
+			return false, err
 		}
 		query = string(bs)
 	} else {
@@ -208,7 +215,7 @@ func eval(args []string, params evalCommandParams, w io.Writer) (int, error) {
 
 	info, err := runtime.Term(runtime.Params{})
 	if err != nil {
-		return 2, err
+		return false, err
 	}
 
 	regoArgs := []func(*rego.Rego){rego.Query(query), rego.Runtime(info)}
@@ -231,7 +238,7 @@ func eval(args []string, params evalCommandParams, w io.Writer) (int, error) {
 
 		loadResult, err := loader.Filtered(params.dataPaths.v, f.Apply)
 		if err != nil {
-			return 0, err
+			return false, err
 		}
 		regoArgs = append(regoArgs, rego.Store(inmem.NewFromObject(loadResult.Documents)))
 		for _, file := range loadResult.Modules {
@@ -242,11 +249,11 @@ func eval(args []string, params evalCommandParams, w io.Writer) (int, error) {
 
 	bs, err := readInputBytes(params)
 	if err != nil {
-		return 2, err
+		return false, err
 	} else if bs != nil {
 		term, err := ast.ParseTerm(string(bs))
 		if err != nil {
-			return 2, err
+			return false, err
 		}
 		regoArgs = append(regoArgs, rego.ParsedInput(term.Value))
 	}
@@ -327,12 +334,15 @@ func eval(args []string, params evalCommandParams, w io.Writer) (int, error) {
 	default:
 		err = pr.JSON(w, result)
 	}
-	if err != nil || result.Error != nil {
-		return 2, err
+
+	if err != nil {
+		return false, err
+	} else if result.Error != nil {
+		return false, result.Error
 	} else if len(result.Result) == 0 {
-		return 1, nil
+		return false, nil
 	} else {
-		return 0, nil
+		return true, nil
 	}
 }
 
