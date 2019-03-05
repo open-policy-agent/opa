@@ -1550,7 +1550,7 @@ func (obj *object) Get(k *Term) *Term {
 func (obj *object) Hash() int {
 	var hash int
 	obj.Foreach(func(k, v *Term) {
-		hash += v.Value.Hash()
+		hash += k.Value.Hash()
 		hash += v.Value.Hash()
 	})
 	return hash
