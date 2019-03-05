@@ -157,12 +157,13 @@ func FloatToNumber(f *big.Float) ast.Number {
 }
 
 // NumberToInt converts n to a big int.
-func NumberToInt(n ast.Number) *big.Int {
+// If n cannot be converted to an big int, an error is returned.
+func NumberToInt(n ast.Number) (*big.Int, error) {
 	r, ok := new(big.Int).SetString(string(n), 10)
 	if !ok {
-		panic("illegal value")
+		return nil, fmt.Errorf("illegal value")
 	}
-	return r
+	return r, nil
 }
 
 // IntToNumber converts i to a number.

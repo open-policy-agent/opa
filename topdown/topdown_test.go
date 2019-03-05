@@ -1049,6 +1049,7 @@ func TestTopDownArithmetic(t *testing.T) {
 		{"abs", []string{`p = true { abs(-10, x); x = 10 }`}, "true"},
 		{"remainder", []string{`p = x { x = 7 % 4 }`}, "3"},
 		{"remainder+error", []string{`p = x { x = 7 % 0 }`}, fmt.Errorf("modulo by zero")},
+		{"remainder+error+floating", []string{`p = x { x = 1.1 % 1 }`}, fmt.Errorf("modulo on floating-point number")},
 		{"arity 1 ref dest", []string{`p = true { abs(-4, a[3]) }`}, "true"},
 		{"arity 1 ref dest (2)", []string{`p = true { not abs(-5, a[3]) }`}, "true"},
 		{"arity 2 ref dest", []string{`p = true { a[2] = 1 + 2 }`}, "true"},
