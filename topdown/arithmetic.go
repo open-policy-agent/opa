@@ -123,7 +123,15 @@ func builtinRem(a, b ast.Value) (ast.Value, error) {
 	n2, ok2 := b.(ast.Number)
 
 	if ok1 && ok2 {
-		i, err := arithRem(builtins.NumberToInt(n1), builtins.NumberToInt(n2))
+
+		op1, err1 := builtins.NumberToInt(n1)
+		op2, err2 := builtins.NumberToInt(n2)
+
+		if err1 != nil || err2 != nil {
+			return nil, fmt.Errorf("modulo on floating-point number")
+		}
+
+		i, err := arithRem(op1, op2)
 		if err != nil {
 			return nil, err
 		}
