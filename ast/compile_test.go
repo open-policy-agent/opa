@@ -1349,10 +1349,10 @@ func TestCompileInvalidEqAssignExpr(t *testing.T) {
 	checkRecursion := reflect.ValueOf(c.checkRecursion)
 
 	for _, stage := range c.stages {
-		if reflect.ValueOf(stage).Pointer() == checkRecursion.Pointer() {
+		if reflect.ValueOf(stage.f).Pointer() == checkRecursion.Pointer() {
 			break
 		}
-		prev = stage
+		prev = stage.f
 	}
 
 	compileStages(c, prev)
@@ -2387,11 +2387,11 @@ func compileStages(c *Compiler, upto func()) {
 
 	target := reflect.ValueOf(upto)
 
-	for _, fn := range c.stages {
-		if fn(); c.Failed() {
+	for _, s := range c.stages {
+		if s.f(); c.Failed() {
 			return
 		}
-		if reflect.ValueOf(fn).Pointer() == target.Pointer() {
+		if reflect.ValueOf(s.f).Pointer() == target.Pointer() {
 			break
 		}
 	}

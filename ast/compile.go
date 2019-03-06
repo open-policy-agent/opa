@@ -78,10 +78,13 @@ type Compiler struct {
 
 	moduleLoader ModuleLoader
 	ruleIndices  *util.HashMap
-	stages       []func()
-	maxErrs      int
-	sorted       []string // list of sorted module names
-	pathExists   func([]string) (bool, error)
+	stages       []struct {
+		name string
+		f    func()
+	}
+	maxErrs    int
+	sorted     []string // list of sorted module names
+	pathExists func([]string) (bool, error)
 }
 
 // QueryContext contains contextual information for running an ad-hoc query.
@@ -196,29 +199,30 @@ func NewCompiler() *Compiler {
 	checker := newTypeChecker()
 	c.TypeEnv = checker.checkLanguageBuiltins()
 
-	c.stages = []func(){
-
+	c.stages = []struct {
+		name string
+		f    func()
+	}{
 		// Reference resolution should run first as it may be used to lazily
 		// load additional modules. If any stages run before resolution, they
 		// need to be re-run after resolution.
-		c.resolveAllRefs,
-
-		c.rewriteLocalAssignments,
-		c.rewriteExprTerms,
-		c.setModuleTree,
-		c.setRuleTree,
-		c.setGraph,
-		c.rewriteComprehensionTerms,
-		c.rewriteRefsInHead,
-		c.rewriteWithModifiers,
-		c.checkRuleConflicts,
-		c.checkSafetyRuleHeads,
-		c.checkSafetyRuleBodies,
-		c.rewriteEquals,
-		c.rewriteDynamicTerms,
-		c.checkRecursion,
-		c.checkTypes,
-		c.buildRuleIndices,
+		{"ResolveRefs", c.resolveAllRefs},
+		{"RewriteAssignments", c.rewriteLocalAssignments},
+		{"RewriteExprTerms", c.rewriteExprTerms},
+		{"SetModuleTree", c.setModuleTree},
+		{"SetRuleTree", c.setRuleTree},
+		{"SetGraph", c.setGraph},
+		{"RewriteComprehensionTerms", c.rewriteComprehensionTerms},
+		{"RewriteRefsInHead", c.rewriteRefsInHead},
+		{"RewriteWithValues", c.rewriteWithModifiers},
+		{"CheckRuleConflicts", c.checkRuleConflicts},
+		{"CheckSafetyRuleHeads", c.checkSafetyRuleHeads},
+		{"CheckSafetyRuleBodies", c.checkSafetyRuleBodies},
+		{"RewriteEquals", c.rewriteEquals},
+		{"RewriteDynamicTerms", c.rewriteDynamicTerms},
+		{"CheckRecursion", c.checkRecursion},
+		{"CheckTypes", c.checkTypes},
+		{"BuildRuleIndices", c.buildRuleIndices},
 	}
 
 	return c
@@ -627,11 +631,12 @@ func (c *Compiler) compile() {
 		}
 	}()
 
-	for _, fn := range c.stages {
-		if fn(); c.Failed() {
+	for _, s := range c.stages {
+		if s.f(); c.Failed() {
 			return
 		}
 	}
+
 }
 
 func (c *Compiler) err(err *Error) {
