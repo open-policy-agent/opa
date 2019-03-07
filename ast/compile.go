@@ -85,7 +85,11 @@ type Compiler struct {
 	maxErrs    int
 	sorted     []string // list of sorted module names
 	pathExists func([]string) (bool, error)
+	after      map[string][]CompilerStage
 }
+
+// CompilerStage defines the interface for stages in the compiler.
+type CompilerStage func(*Compiler) *Error
 
 // QueryContext contains contextual information for running an ad-hoc query.
 //
@@ -191,6 +195,7 @@ func NewCompiler() *Compiler {
 			return x.(Ref).Hash()
 		}),
 		maxErrs: CompileErrorLimitDefault,
+		after:   map[string][]CompilerStage{},
 	}
 
 	c.ModuleTree = NewModuleTree(nil)
@@ -240,6 +245,13 @@ func (c *Compiler) SetErrorLimit(limit int) *Compiler {
 // paths that exist as determined by the provided callable.
 func (c *Compiler) WithPathConflictsCheck(fn func([]string) (bool, error)) *Compiler {
 	c.pathExists = fn
+	return c
+}
+
+// WithStageAfter registers a stage to run during compilation after
+// the named stage.
+func (c *Compiler) WithStageAfter(after string, stage CompilerStage) *Compiler {
+	c.after[after] = append(c.after[after], stage)
 	return c
 }
 
@@ -635,8 +647,12 @@ func (c *Compiler) compile() {
 		if s.f(); c.Failed() {
 			return
 		}
+		for _, s := range c.after[s.name] {
+			if err := s(c); err != nil {
+				c.err(err)
+			}
+		}
 	}
-
 }
 
 func (c *Compiler) err(err *Error) {
