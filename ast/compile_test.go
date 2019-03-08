@@ -110,33 +110,13 @@ func TestCompilerExample(t *testing.T) {
 	assertNotFailed(t, c)
 }
 
-func TestCompilerWithStageAfterBad(t *testing.T) {
-	c := NewCompiler().WithStageAfter("CheckRecursion", checkUnsafeFunctionCall)
-	modules := map[string]*Module{
-		"test": MustParseModule(`package test
-	r = opa.runtime()
-	`),
-	}
-
-	c.Compile(modules)
+func TestCompilerWithStageAfter(t *testing.T) {
+	c := NewCompiler().WithStageAfter("CheckRecursion", mockStageFunctionCall)
+	m := MustParseModule(testModule)
+	c.Compile(map[string]*Module{"testMod": m})
 
 	if !c.Failed() {
 		t.Errorf("Expected compilation error")
-	}
-}
-
-func TestCompilerWithStageAfterGood(t *testing.T) {
-	c := NewCompiler().WithStageAfter("CheckRecursion", checkUnsafeFunctionCall)
-	modules := map[string]*Module{
-		"test": MustParseModule(`package test
-	r = 1
-	`),
-	}
-
-	c.Compile(modules)
-
-	if c.Failed() {
-		t.Errorf("Unexpected compilation error %v", c.Errors)
 	}
 }
 
@@ -2381,28 +2361,8 @@ func assertNotFailed(t *testing.T, c *Compiler) {
 	}
 }
 
-func checkUnsafeFunctionCall(c *Compiler) *Error {
-	var unsafeBuiltinsMap = map[string]bool{OPARuntime.Name: true}
-
-	x := c.Modules["test"]
-	unsafeOperators := []string{}
-	WalkNodes(x, func(x Node) bool {
-		if expr, ok := x.(*Expr); ok {
-			if expr.IsCall() {
-				operator := expr.Operator().String()
-				if _, ok := unsafeBuiltinsMap[operator]; ok {
-					unsafeOperators = append(unsafeOperators, operator)
-				}
-			}
-			return false
-		}
-		return false
-	})
-
-	if len(unsafeOperators) > 0 {
-		return NewError(CompileErr, &Location{}, "unsafe built-in function call in module: %v", strings.Join(unsafeOperators, ","))
-	}
-	return nil
+func mockStageFunctionCall(c *Compiler) *Error {
+	return NewError(CompileErr, &Location{}, "mock stage error")
 }
 
 func getCompilerWithParsedModules(mods map[string]string) *Compiler {
