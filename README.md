@@ -303,6 +303,14 @@ true
 +------------+------------+
 ```
 
+## Roadmap
+
+The project roadmap is kept in Google Slides and can be found
+[here](https://docs.google.com/presentation/d/16QV6gvLDOV3I0_guPC3_19g6jHkEg3X9xqMYgtoCKrs/edit?usp=sharing). Input
+on project direction, features, etc. is welcome. If you have ideas
+about how to improve OPA, please join the regular community
+meetings. See the the section above for meeting notes, invite, etc.
+
 ## Further Reading
 
 ### Presentations
