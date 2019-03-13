@@ -159,8 +159,8 @@ allow {
 
 # Allow access to any user who contributed to the code running on the host.
 #
-# This rule gets the `host_id` value from the file `/etc/host_identity.json`.
-# It is available in the input under `pull_responses` because we
+# This rule gets the "host_id" value from the file "/etc/host_identity.json".
+# It is available in the input under "pull_responses" because we
 # asked for it in our pull policy above.
 #
 # It then compares all the contributors for that host against the username
