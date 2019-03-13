@@ -642,10 +642,10 @@ import data.networks
 import data.ports
 
 public_servers[server] {
-	server = servers[_]
-	server.ports[_] = ports[k].id
-	ports[k].networks[_] = networks[m].id
-	networks[m].public = true
+	server := servers[_]
+	server.ports[_] == ports[k].id
+	ports[k].networks[_] == networks[m].id
+	networks[m].public == true
 }
 ```
 
@@ -1073,7 +1073,7 @@ package opa.examples
 
 import input.example.flag
 
-allow_request { flag = true }
+allow_request { flag == true }
 ```
 
 #### Example Request
@@ -1174,7 +1174,7 @@ package opa.examples
 
 import input.example.flag
 
-allow_request { flag = true }
+allow_request { flag == true }
 ```
 
 #### Example Request

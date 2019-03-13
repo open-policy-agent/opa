@@ -75,16 +75,15 @@ role_permissions = {
 default allow = false
 allow {
     # lookup the list of roles for the user
-    roles = user_roles[input.user]
+    roles := user_roles[input.user]
     # for each role in that list
-    r = roles[_]
+    r := roles[_]
     # lookup the permissions list for role r
-    permissions = role_permissions[r]
+    permissions := role_permissions[r]
     # for each permission
-    p = permissions[_]
+    p := permissions[_]
     # check if the permission granted to r matches the user's request
-    #    Note: equality (=) works for both assignment and comparison
-    {"action": input.action, "object": input.object} = p
+    p == {"action": input.action, "object": input.object}
 }
 ```
 
@@ -116,11 +115,11 @@ sod_roles = [
 # Find all users violating SOD
 sod_violation[user] {
     # grab one role for a user
-    role1 = user_role[user][_]
+    role1 := user_role[user][_]
     # grab another role for that same user
-    role2 = user_role[user][_]
+    role2 := user_role[user][_]
     # check if those roles are forbidden by SOD
-    sod_roles[_] = [role1, role2]
+    sod_roles[_] == [role1, role2]
 }
 ```
 
@@ -189,11 +188,11 @@ ticker_attributes = {
 # all traders may buy NASDAQ under $2M
 allow {
     # lookup the user's attributes
-    user = user_attributes[input.user]
+    user := user_attributes[input.user]
     # check that the user is a trader
-    user.title = "trader"
+    user.title == "trader"
     # check that the stock being purchased is sold on the NASDAQ
-    ticker_attributes[input.ticker].exchange = "NASDAQ"
+    ticker_attributes[input.ticker].exchange == "NASDAQ"
     # check that the purchase amount is under $2M
     input.amount <= 2000000
 }
@@ -201,11 +200,11 @@ allow {
 # traders with 10+ years experience may buy NASDAQ under $5M
 allow {
     # lookup the user's attributes
-    user = user_attributes[input.user]
+    user := user_attributes[input.user]
     # check that the user is a trader
-    user.title = "trader"
+    user.title == "trader"
     # check that the stock being purchased is sold on the NASDAQ
-    ticker_attributes[input.ticker].exchange = "NASDAQ"
+    ticker_attributes[input.ticker].exchange == "NASDAQ"
     # check that the user has at least 10 years of experience
     user.tenure > 10
     # check that the purchase amount is under $5M
@@ -273,12 +272,12 @@ package aws
 
 # FirstStatement
 allow {
-    input.action = "iam:ChangePassword"
+    input.action == "iam:ChangePassword"
 }
 
 # SecondStatement
 allow {
-    input.action = "s3:ListAllMyBuckets"
+    input.action == "s3:ListAllMyBuckets"
 }
 
 # ThirdStatement
@@ -292,8 +291,8 @@ allow {
 # actions_match is true if input.action matches one in the list
 actions_match {
     # iterate over the actions in the list
-    actions = ["s3:List*","s3:Get*"]
-    action = actions[_]
+    actions := ["s3:List*","s3:Get*"]
+    action := actions[_]
     # check if input.action matches an action
     regex.globs_match(input.action, action)
 }
@@ -301,8 +300,8 @@ actions_match {
 # resources_match is true if input.resource matches one in the list
 resources_match {
     # iterate over the resources in the list
-    resources = ["arn:aws:s3:::confidential-data","arn:aws:s3:::confidential-data/*"]
-    resource = resources[_]
+    resources := ["arn:aws:s3:::confidential-data","arn:aws:s3:::confidential-data/*"]
+    resource := resources[_]
     # check if input.resource matches a resource
     regex.globs_match(input.resource, resource)
 }
@@ -383,12 +382,12 @@ same as for XACML: attributes of users, actions, and resources.
 package xacml
 
 # input = {
-#    user = {"name": "alice",
+#    "user": {"name": "alice",
 #            "organization": "Packard",
 #            "nationality": "GB",
 #            "work_effort": "DetailedDesign"},
-#    resource = {"NavigationSystem": true},
-#    action = {"name": "read"}
+#    "resource": {"NavigationSystem": true},
+#    "action": {"name": "read"}
 # }
 
 permit {
@@ -396,16 +395,16 @@ permit {
     input.resource["NavigationSystem"]
 
     # Check that organization is one of the options (underscore implements "any")
-    org_options = ["Packard", "Curtiss"]
-    input.user.organization = org_options[_]
+    org_options := ["Packard", "Curtiss"]
+    input.user.organization == org_options[_]
 
     # Check that nationality is one of the options (underscore implements "any")
-    nationality_options = ["GB", "US"]
-    input.user.nationality = nationality_options[_]
+    nationality_options := ["GB", "US"]
+    input.user.nationality == nationality_options[_]
 
     # Check that work_effort is one of the options (underscore implements "any")
-    work_options = ["DetailedDesign", "Simulation"]
-    input.user.work_effort = work_options[_]
+    work_options := ["DetailedDesign", "Simulation"]
+    input.user.work_effort == work_options[_]
 }
 ```
 

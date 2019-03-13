@@ -21,14 +21,14 @@ profile.
 package authz
 
 allow {
-    input.path = ["users"]
-    input.method = "POST"
+    input.path == ["users"]
+    input.method == "POST"
 }
 
 allow {
     input.path = ["users", profile_id]
-    input.method = "GET"
-    profile_id = input.user_id
+    input.method == "GET"
+    profile_id == input.user_id
 }
 ```
 
@@ -129,7 +129,7 @@ test_ok {
 
 # This test will fail.
 test_failure {
-    1 = 2
+    1 == 2
 }
 
 # This test will error.
@@ -215,12 +215,12 @@ package authz
 
 allow {
     x := data.policies[_]
-    x.name = "test_policy"
+    x.name == "test_policy"
     matches_role(input.role)
 }
 
 matches_role(my_role) {
-    data.roles[my_role][_] = input.user
+    data.roles[my_role][_] == input.user
 }
 ```
 
@@ -260,7 +260,7 @@ allow1 {
 }
 
 allow2 {
-    2 = 1
+    2 == 1
 }
 ```
 
@@ -293,7 +293,7 @@ invalid_replace {
 }
 
 cannot_replace(label) {
-    label = "test_label"
+    label == "test_label"
 }
 ```
 
@@ -475,7 +475,7 @@ allow {
 
 user_has_role[role_name] {
 	binding := bindings[_]
-	binding.user = input.subject
+	binding.user == input.subject
 	role_name := binding.roles[_]
 }
 
@@ -483,8 +483,8 @@ role_has_permission[role_name] {
 	role := roles[_]
 	role_name := role.name
 	perm := role.permissions[_]
-	perm.resource = input.resource
-	perm.action = input.action
+	perm.resource == input.resource
+	perm.action == input.action
 }
 {%endace%}
 

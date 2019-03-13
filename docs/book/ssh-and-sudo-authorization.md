@@ -154,7 +154,7 @@ default allow = false
 
 # Allow access to any user that has the "admin" role.
 allow {
-    data.roles["admin"][_] = input.sysinfo.pam_username
+    data.roles["admin"][_] == input.sysinfo.pam_username
 }
 
 # Allow access to any user who contributed to the code running on the host.
@@ -166,7 +166,7 @@ allow {
 # It then compares all the contributors for that host against the username
 # that is asking for authorization.
 allow {
-    hosts[pull_responses.files["/etc/host_identity.json"].host_id].contributors[_] = sysinfo.pam_username
+    hosts[pull_responses.files["/etc/host_identity.json"].host_id].contributors[_] == sysinfo.pam_username
 }
 
 
@@ -194,7 +194,7 @@ default allow = false
 
 # Allow access to any user that has the "admin" role.
 allow {
-    data.roles["admin"][_] = input.sysinfo.pam_username
+    data.roles["admin"][_] == input.sysinfo.pam_username
 }
 
 # If the user is not authorized, then include an error message in the response.
@@ -340,7 +340,7 @@ import input.display_responses
 # Allow this user if the elevation ticket they provided matches our mock API
 # of an internal elevation system.
 allow {
-  elevate.tickets[sysinfo.pam_username] = display_responses.ticket
+  elevate.tickets[sysinfo.pam_username] == display_responses.ticket
 }
 EOF
 ```

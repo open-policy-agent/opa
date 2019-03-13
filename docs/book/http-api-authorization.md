@@ -107,16 +107,16 @@ default allow = false
 
 # Allow users to get their own salaries.
 allow {
-  input.method = "GET"
+  input.method == "GET"
   input.path = ["finance", "salary", username]
-  input.user = username 
+  input.user == username
 }
 
 # Allow managers to get their subordinates' salaries.
 allow {
-  input.method = "GET"
+  input.method == "GET"
   input.path = ["finance", "salary", username]
-  subordinates[input.user][_] = username
+  subordinates[input.user][_] == username
 }
 EOF
 ```
@@ -164,9 +164,9 @@ import input
 
 # Allow HR members to get anyone's salary.
 allow {
-  input.method = "GET"
+  input.method == "GET"
   input.path = ["finance", "salary", _]
-  input.user = hr[_] 
+  input.user == hr[_]
 }
 
 # David is the only member of HR.
@@ -219,31 +219,31 @@ import input
 token = {"payload": payload} { io.jwt.decode(input.token, [_, payload, _]) }
 
 # Ensure that the token was issued to the user supplying it.
-user_owns_token { input.user = token.payload.azp }
+user_owns_token { input.user == token.payload.azp }
 
 default allow = false
 
 # Allow users to get their own salaries.
 allow {
-  input.method = "GET"
+  input.method == "GET"
   input.path = ["finance", "salary", username]
-  token.payload.user = username
+  token.payload.user == username
   user_owns_token
 }
 
 # Allow managers to get their subordinate' salaries.
 allow {
-  input.method = "GET"
+  input.method == "GET"
   input.path = ["finance", "salary", username]
-  token.payload.subordinates[_] = username
+  token.payload.subordinates[_] == username
   user_owns_token
 }
 
 # Allow HR members to get anyone's salary.
 allow {
-  input.method = "GET"
+  input.method == "GET"
   input.path = ["finance", "salary", _]
-  token.payload.hr = true
+  token.payload.hr == true
   user_owns_token
 }
 EOF

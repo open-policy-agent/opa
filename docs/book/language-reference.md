@@ -11,159 +11,159 @@ complex types.
 
 ### Comparison
 
-| Built-in | Inputs | Description |
-| ------- |--------|-------------|
-| <span class="opa-keep-it-together">``x == y``</span>   |  2     | ``x`` is equal to ``y`` |
-| <span class="opa-keep-it-together">``x != y``</span>   |  2     | ``x`` is not equal to ``y`` |
-| <span class="opa-keep-it-together">``x < y``</span>   |  2     | ``x`` is less than ``y`` |
-| <span class="opa-keep-it-together">``x <= y``</span>   |  2     | ``x`` is less than or equal to ``y`` |
-| <span class="opa-keep-it-together">``x > y``</span>   |  2     | ``x`` is greater than ``y`` |
-| <span class="opa-keep-it-together">``x >= y``</span>   |  2     | ``x`` is greater than or equal to ``y`` |
+| Built-in | Description |
+| ------- |-------------|
+| <span class="opa-keep-it-together">``x == y``</span>   | ``x`` is equal to ``y`` |
+| <span class="opa-keep-it-together">``x != y``</span>   | ``x`` is not equal to ``y`` |
+| <span class="opa-keep-it-together">``x < y``</span>   | ``x`` is less than ``y`` |
+| <span class="opa-keep-it-together">``x <= y``</span>   | ``x`` is less than or equal to ``y`` |
+| <span class="opa-keep-it-together">``x > y``</span>   | ``x`` is greater than ``y`` |
+| <span class="opa-keep-it-together">``x >= y``</span>   | ``x`` is greater than or equal to ``y`` |
 
 ### Numbers
 
-| Built-in | Inputs | Description |
-| ------- |--------|-------------|
-| <span class="opa-keep-it-together">``z = x + y``</span>   |  2     | ``z`` is the sum of ``x`` and ``y`` |
-| <span class="opa-keep-it-together">``z = x - y``</span>  |  2     | ``z`` is the difference of ``x`` and ``y`` |
-| <span class="opa-keep-it-together">``z = x * y``</span>   |  2     | ``z`` is the product of ``x`` and ``y`` |
-| <span class="opa-keep-it-together">``z = x / y``</span>   |  2     | ``z`` is the quotient of ``x`` and ``y``  |
-| <span class="opa-keep-it-together">``z = x % y``</span>   |  2     | ``z`` is the remainder from the division of ``x`` and ``y``  |
-| <span class="opa-keep-it-together">``round(x, output)``</span>    |  1     | ``output`` is ``x`` rounded to the nearest integer |
-| <span class="opa-keep-it-together">``abs(x, output)``</span>    |  1     | ``output`` is the absolute value of ``x`` |
+| Built-in | Description |
+| ------- |-------------|
+| <span class="opa-keep-it-together">``z := x + y``</span>   | ``z`` is the sum of ``x`` and ``y`` |
+| <span class="opa-keep-it-together">``z := x - y``</span>  | ``z`` is the difference of ``x`` and ``y`` |
+| <span class="opa-keep-it-together">``z := x * y``</span>   | ``z`` is the product of ``x`` and ``y`` |
+| <span class="opa-keep-it-together">``z := x / y``</span>   | ``z`` is the quotient of ``x`` and ``y``  |
+| <span class="opa-keep-it-together">``z := x % y``</span>   | ``z`` is the remainder from the division of ``x`` and ``y``  |
+| <span class="opa-keep-it-together">``output := round(x)``</span>    | ``output`` is ``x`` rounded to the nearest integer |
+| <span class="opa-keep-it-together">``output := abs(x)``</span>    | ``output`` is the absolute value of ``x`` |
 
 ### Aggregates
 
-| Built-in | Inputs | Description |
-| ------- |--------|-------------|
-| <span class="opa-keep-it-together">``count(collection_or_string, output)``</span> | 1 | ``output`` is the length of the object, array, set, or string provided as input |
-| <span class="opa-keep-it-together">``sum(array_or_set, output)``</span> | 1 | ``output`` is the sum of the numbers in ``array_or_set`` |
-| <span class="opa-keep-it-together">``product(array_or_set, output)``</span> | 1 | ``output`` is the product of the numbers in ``array_or_set`` |
-| <span class="opa-keep-it-together">``max(array_or_set, output)``</span> | 1 | ``output`` is the maximum value in ``array_or_set`` |
-| <span class="opa-keep-it-together">``min(array_or_set, output)``</span> | 1 | ``output`` is the minimum value in ``array_or_set`` |
-| <span class="opa-keep-it-together">``sort(array_or_set, output)``</span> | 1 | ``output`` is the sorted ``array`` containing elements from ``array_or_set``. |
-| <span class="opa-keep-it-together">``all(array_or_set, output)``</span> | 1 | ``output`` is ``true`` if all of the values in ``array_or_set`` are ``true``. A collection of length 0 returns ``true``.|
-| <span class="opa-keep-it-together">``any(array_or_set, output)``</span> | 1 | ``output`` is ``true`` if any of the values in ``array_or_set`` is ``true``. A collection of length 0 returns ``false``.|
+| Built-in | Description |
+| ------- |-------------|
+| <span class="opa-keep-it-together">``output := count(collection_or_string)``</span> | ``output`` is the length of the object, array, set, or string provided as input |
+| <span class="opa-keep-it-together">``output := sum(array_or_set)``</span> | ``output`` is the sum of the numbers in ``array_or_set`` |
+| <span class="opa-keep-it-together">``output := product(array_or_set)``</span> | ``output`` is the product of the numbers in ``array_or_set`` |
+| <span class="opa-keep-it-together">``output := max(array_or_set)``</span> | ``output`` is the maximum value in ``array_or_set`` |
+| <span class="opa-keep-it-together">``output := min(array_or_set)``</span> | ``output`` is the minimum value in ``array_or_set`` |
+| <span class="opa-keep-it-together">``output := sort(array_or_set)``</span> | ``output`` is the sorted ``array`` containing elements from ``array_or_set``. |
+| <span class="opa-keep-it-together">``output := all(array_or_set)``</span> | ``output`` is ``true`` if all of the values in ``array_or_set`` are ``true``. A collection of length 0 returns ``true``.|
+| <span class="opa-keep-it-together">``output := any(array_or_set)``</span> | ``output`` is ``true`` if any of the values in ``array_or_set`` is ``true``. A collection of length 0 returns ``false``.|
 
 ### Arrays
 
-| Built-in | Inputs | Description |
-| ------- |--------|-------------|
-| <span class="opa-keep-it-together">``array.concat(array, array, output)``</span> | 2 | ``output`` is the result of concatenating the two input arrays together. |
+| Built-in | Description |
+| ------- |-------------|
+| <span class="opa-keep-it-together">``output := array.concat(array, array)``</span> | ``output`` is the result of concatenating the two input arrays together. |
 
 ### Sets
 
-| Built-in | Inputs | Description |
-| -------- | ------ | ----------- |
-| <span class="opa-keep-it-together">``s3 = s1 & s2``</span> | 2 | ``s3`` is the intersection of ``s1`` and ``s2``. |
-| <span class="opa-keep-it-together"><code>s3 = s1 &#124; s2</code></span> | 2 | ``s3`` is the union of ``s1`` and ``s2``. |
-| <span class="opa-keep-it-together">``s3 = s1 - s2``</span> | 2 | ``s3`` is the difference between ``s1`` and ``s2``, i.e., the elements in ``s1`` that are not in ``s2`` |
-| <span class="opa-keep-it-together">``intersection(set[set], output)``</span> | 1 | ``output`` is the intersection of the sets in the input set  |
-| <span class="opa-keep-it-together">``union(set[set], output)``</span> | 1 | ``output`` is the union of the sets in the input set  |
+| Built-in | Description |
+| -------- | ----------- |
+| <span class="opa-keep-it-together">``s3 := s1 & s2``</span> | ``s3`` is the intersection of ``s1`` and ``s2``. |
+| <span class="opa-keep-it-together"><code>s3 := s1 &#124; s2</code></span> | ``s3`` is the union of ``s1`` and ``s2``. |
+| <span class="opa-keep-it-together">``s3 := s1 - s2``</span> | ``s3`` is the difference between ``s1`` and ``s2``, i.e., the elements in ``s1`` that are not in ``s2`` |
+| <span class="opa-keep-it-together">``output := intersection(set[set])``</span> | ``output`` is the intersection of the sets in the input set  |
+| <span class="opa-keep-it-together">``output := union(set[set])``</span> | ``output`` is the union of the sets in the input set  |
 
 ### Strings
 
-| Built-in | Inputs | Description |
-| ------- |--------|-------------|
-| <span class="opa-keep-it-together">``concat(delimiter, array_or_set, output)``</span> | 2 | ``output`` is the result of joining together the elements of ``array_or_set`` with the  string ``delimiter`` |
-| <span class="opa-keep-it-together">``contains(string, search)``</span> | 2 | true if ``string`` contains ``search`` |
-| <span class="opa-keep-it-together">``endswith(string, search)``</span> | 2 | true if ``string`` ends with ``search`` |
-| <span class="opa-keep-it-together">``format_int(number, base, output)``</span> | 2 | ``output`` is string representation of ``number`` in the given ``base`` |
-| <span class="opa-keep-it-together">``indexof(string, search, output)``</span> | 2 | ``output`` is the index inside ``string`` where ``search`` first occurs, or -1 if ``search`` does not exist |
-| <span class="opa-keep-it-together">``lower(string, output)``</span> | 1 | ``output`` is ``string`` after converting to lower case |
-| <span class="opa-keep-it-together">``replace(string, old, new, output)``</span> | 3 | ``output`` is a ``string`` representing ``string`` with all instances of ``old`` replaced by ``new`` |
-| <span class="opa-keep-it-together">``split(string, delimiter, output)``</span> | 2 | ``output`` is ``array[string]`` representing elements of ``string`` separated by ``delimiter`` |
-| <span class="opa-keep-it-together">``sprintf(string, values, output)``</span> | 2 | ``output`` is a ``string`` representing ``string`` formatted by the values in the ``array`` ``values``. |
-| <span class="opa-keep-it-together">``startswith(string, search)``</span> | 2 | true if ``string`` begins with ``search`` |
-| <span class="opa-keep-it-together">``substring(string, start, length, output)``</span> | 2 | ``output`` is the portion of ``string`` from index ``start`` and having a length of ``length``.  If ``length`` is less than zero, ``length`` is the remainder of the ``string``. If ``start`` is greater than the length of the string, ``output`` is empty. It is invalid to pass a negative offset to this function. |
-| <span class="opa-keep-it-together">``trim(string, cutset, output)``</span> | 2 | ``output`` is a ``string`` representing ``string`` with all leading and trailing instances of the characters in ``cutset`` removed. |
-| <span class="opa-keep-it-together">``upper(string, output)``</span> | 1 | ``output`` is ``string`` after converting to upper case |
+| Built-in | Description |
+| ------- |-------------|
+| <span class="opa-keep-it-together">``output := concat(delimiter, array_or_set)``</span> | ``output`` is the result of joining together the elements of ``array_or_set`` with the  string ``delimiter`` |
+| <span class="opa-keep-it-together">``contains(string, search)``</span> | true if ``string`` contains ``search`` |
+| <span class="opa-keep-it-together">``endswith(string, search)``</span> | true if ``string`` ends with ``search`` |
+| <span class="opa-keep-it-together">``output := format_int(number, base)``</span> | ``output`` is string representation of ``number`` in the given ``base`` |
+| <span class="opa-keep-it-together">``output := indexof(string, search)``</span> | ``output`` is the index inside ``string`` where ``search`` first occurs, or -1 if ``search`` does not exist |
+| <span class="opa-keep-it-together">``output := lower(string)``</span> | ``output`` is ``string`` after converting to lower case |
+| <span class="opa-keep-it-together">``output := replace(string, old, new)``</span> | ``output`` is a ``string`` representing ``string`` with all instances of ``old`` replaced by ``new`` |
+| <span class="opa-keep-it-together">``output := split(string, delimiter)``</span> | ``output`` is ``array[string]`` representing elements of ``string`` separated by ``delimiter`` |
+| <span class="opa-keep-it-together">``output := sprintf(string, values)``</span> | ``output`` is a ``string`` representing ``string`` formatted by the values in the ``array`` ``values``. |
+| <span class="opa-keep-it-together">``startswith(string, search)``</span> | true if ``string`` begins with ``search`` |
+| <span class="opa-keep-it-together">``output := substring(string, start, length)``</span> | ``output`` is the portion of ``string`` from index ``start`` and having a length of ``length``.  If ``length`` is less than zero, ``length`` is the remainder of the ``string``. If ``start`` is greater than the length of the string, ``output`` is empty. It is invalid to pass a negative offset to this function. |
+| <span class="opa-keep-it-together">``output := trim(string, cutset)``</span> | ``output`` is a ``string`` representing ``string`` with all leading and trailing instances of the characters in ``cutset`` removed. |
+| <span class="opa-keep-it-together">``output := upper(string)``</span> | ``output`` is ``string`` after converting to upper case |
 
 ### Regex
-| Built-in | Inputs | Description |
-| ------- |--------|-------------|
-| <span class="opa-keep-it-together">``re_match(pattern, value)``</span> | 2 | true if the ``value`` matches the regex ``pattern`` |
-| <span class="opa-keep-it-together">``regex.split(pattern, string, output)``</span> | 2 | ``output`` is ``array[string]`` representing elements of ``string`` separated by ``pattern`` |
-| <span class="opa-keep-it-together">``regex.globs_match(glob1, glob2)``</span> | 2 | true if the intersection of regex-style globs ``glob1`` and ``glob2`` matches a non-empty set of non-empty strings. The set of regex symbols is limited for this builtin: only ``.``, ``*``, ``+``, ``[``, ``-``, ``]`` and ``\`` are treated as special symbols. |
-| <span class="opa-keep-it-normal">``regex.template_match(patter, string, delimiter_start, delimiter_end, output)``</span> | 4 | ``output`` is true if ``string`` matches ``pattern``. ``pattern`` is a string containing ``0..n`` regular expressions delimited by ``delimiter_start`` and ``delimiter_end``. Example ``regex.template_match("urn:foo:{.*}", "urn:foo:bar:baz", "{", "}", x)`` returns ``true`` for ``x``. |
-| <span class="opa-keep-it-together">``regex.find_n(pattern, string, number)``</span> | 3 | returns an ``array[string]`` with the ``number`` of values matching the ``pattern``. A ``number`` of ``-1`` means all matches. |
+| Built-in | Description |
+| ------- |-------------|
+| <span class="opa-keep-it-together">``re_match(pattern, value)``</span> | true if the ``value`` matches the regex ``pattern`` |
+| <span class="opa-keep-it-together">``output := regex.split(pattern, string)``</span> | ``output`` is ``array[string]`` representing elements of ``string`` separated by ``pattern`` |
+| <span class="opa-keep-it-together">``regex.globs_match(glob1, glob2)``</span> | true if the intersection of regex-style globs ``glob1`` and ``glob2`` matches a non-empty set of non-empty strings. The set of regex symbols is limited for this builtin: only ``.``, ``*``, ``+``, ``[``, ``-``, ``]`` and ``\`` are treated as special symbols. |
+| <span class="opa-keep-it-normal">``output := regex.template_match(patter, string, delimiter_start, delimiter_end)``</span> | ``output`` is true if ``string`` matches ``pattern``. ``pattern`` is a string containing ``0..n`` regular expressions delimited by ``delimiter_start`` and ``delimiter_end``. Example ``regex.template_match("urn:foo:{.*}", "urn:foo:bar:baz", "{", "}", x)`` returns ``true`` for ``x``. |
+| <span class="opa-keep-it-together">``output := regex.find_n(pattern, string, number)``</span> | ``output`` is an ``array[string]`` with the ``number`` of values matching the ``pattern``. A ``number`` of ``-1`` means all matches. |
 
 ### Glob
-| Built-in | Inputs | Description |
-| ------- |--------|-------------|
-| <span class="opa-keep-it-together">``glob.match(pattern, delimiters, match, output)``</span> | 3 | ``output`` is true if ``match`` can be found in ``pattern`` which is separated by ``delimiters``. For valid patterns, check the table below. Argument ``delimiters`` is an array of single-characters (e.g. `[".", ":"]`). If ``delimiters`` is empty, it defaults to ``["."]``. |
-| <span class="opa-keep-it-together">``glob.quote_meta(pattern, output)``</span> | 1 | ``output`` is the escaped string of ``pattern``. Calling ``glob.quote_meta("*.github.com", output)`` returns ``\\*.github.com`` as ``output``. |
+| Built-in | Description |
+| ------- |-------------|
+| <span class="opa-keep-it-together">``output := glob.match(pattern, delimiters, match)``</span> | ``output`` is true if ``match`` can be found in ``pattern`` which is separated by ``delimiters``. For valid patterns, check the table below. Argument ``delimiters`` is an array of single-characters (e.g. `[".", ":"]`). If ``delimiters`` is empty, it defaults to ``["."]``. |
+| <span class="opa-keep-it-together">``output := glob.quote_meta(pattern)``</span> | ``output`` is the escaped string of ``pattern``. Calling ``glob.quote_meta("*.github.com", output)`` returns ``\\*.github.com`` as ``output``. |
 
 The following table shows examples of how ``glob.match`` works:
 
 | ``call`` | ``output`` | Description |
 | -------- | ---------- | ----------- |
-| ``glob.match("*.github.com", [], "api.github.com", output)`` | ``true`` | A glob with the default ``["."]`` delimiter. |
-| ``glob.match("*:github:com", [":"], "api:github:com", output)`` | ``true`` | A glob with delimiters ``[":"]``. |
-| ``glob.match("api.**.com", [], "api.github.com", output)`` | ``true`` | A super glob. |
-| ``glob.match("api.**.com", [], "api.cdn.github.com", output)`` | ``true`` | A super glob. |
-| ``glob.match("?at", [], "cat", output)`` | ``true`` | A glob with a single character wildcard. |
-| ``glob.match("?at", [], "at", output)`` | ``false`` | A glob with a single character wildcard. |
-| ``glob.match("[abc]at", [], "bat", output)`` | ``true`` | A glob with character-list matchers. |
-| ``glob.match("[abc]at", [], "cat", output)`` | ``true`` | A glob with character-list matchers. |
-| ``glob.match("[abc]at", [], "lat", output)`` | ``false`` | A glob with character-list matchers. |
-| ``glob.match("[!abc]at", [], "cat", output)`` | ``false`` | A glob with negated character-list matchers. |
-| ``glob.match("[!abc]at", [], "lat", output)`` | ``true`` | A glob with negated character-list matchers. |
-| ``glob.match("[a-c]at", [], "cat", output)`` | ``true`` | A glob with character-range matchers. |
-| ``glob.match("[a-c]at", [], "lat", output)`` | ``false`` | A glob with character-range matchers. |
-| ``glob.match("[!a-c]at", [], "cat", output)`` | ``false`` | A glob with negated character-range matchers. |
-| ``glob.match("[!a-c]at", [], "lat", output)`` | ``true`` | A glob with negated character-range matchers. |
-| ``glob.match(""{cat,bat,[fr]at}", [], "cat", output)`` | ``true`` | A glob with pattern-alternatives matchers. |
-| ``glob.match(""{cat,bat,[fr]at}", [], "bat", output)`` | ``true`` | A glob with pattern-alternatives matchers. |
-| ``glob.match(""{cat,bat,[fr]at}", [], "rat", output)`` | ``true`` | A glob with pattern-alternatives matchers. |
-| ``glob.match(""{cat,bat,[fr]at}", [], "at", output)`` | ``false`` | A glob with pattern-alternatives matchers. |
+| ``output := glob.match("*.github.com", [], "api.github.com")`` | ``true`` | A glob with the default ``["."]`` delimiter. |
+| ``output := glob.match("*:github:com", [":"], "api:github:com")`` | ``true`` | A glob with delimiters ``[":"]``. |
+| ``output := glob.match("api.**.com", [], "api.github.com")`` | ``true`` | A super glob. |
+| ``output := glob.match("api.**.com", [], "api.cdn.github.com")`` | ``true`` | A super glob. |
+| ``output := glob.match("?at", [], "cat")`` | ``true`` | A glob with a single character wildcard. |
+| ``output := glob.match("?at", [], "at")`` | ``false`` | A glob with a single character wildcard. |
+| ``output := glob.match("[abc]at", [], "bat")`` | ``true`` | A glob with character-list matchers. |
+| ``output := glob.match("[abc]at", [], "cat")`` | ``true`` | A glob with character-list matchers. |
+| ``output := glob.match("[abc]at", [], "lat")`` | ``false`` | A glob with character-list matchers. |
+| ``output := glob.match("[!abc]at", [], "cat")`` | ``false`` | A glob with negated character-list matchers. |
+| ``output := glob.match("[!abc]at", [], "lat")`` | ``true`` | A glob with negated character-list matchers. |
+| ``output := glob.match("[a-c]at", [], "cat")`` | ``true`` | A glob with character-range matchers. |
+| ``output := glob.match("[a-c]at", [], "lat")`` | ``false`` | A glob with character-range matchers. |
+| ``output := glob.match("[!a-c]at", [], "cat")`` | ``false`` | A glob with negated character-range matchers. |
+| ``output := glob.match("[!a-c]at", [], "lat")`` | ``true`` | A glob with negated character-range matchers. |
+| ``output := glob.match(""{cat,bat,[fr]at}", [], "cat")`` | ``true`` | A glob with pattern-alternatives matchers. |
+| ``output := glob.match(""{cat,bat,[fr]at}", [], "bat")`` | ``true`` | A glob with pattern-alternatives matchers. |
+| ``output := glob.match(""{cat,bat,[fr]at}", [], "rat")`` | ``true`` | A glob with pattern-alternatives matchers. |
+| ``output := glob.match(""{cat,bat,[fr]at}", [], "at")`` | ``false`` | A glob with pattern-alternatives matchers. |
 
 ### Types
 
-| Built-in | Inputs | Description |
-| ------- |--------|-------------|
-| <span class="opa-keep-it-together">``to_number(x, output)``</span> | 1 | ``output`` is ``x`` converted to a number |
-| <span class="opa-keep-it-together">``is_number(x, output)``</span> | 1 | ``output`` is ``true`` if ``x`` is a number |
-| <span class="opa-keep-it-together">``is_string(x, output)``</span> | 1 | ``output`` is ``true`` if ``x`` is a string |
-| <span class="opa-keep-it-together">``cast_string(x, output)``</span> | 1 | ``output`` is ``x`` cast to a string |
-| <span class="opa-keep-it-together">``is_boolean(x, output)``</span> | 1 | ``output`` is ``true`` if ``x`` is a boolean |
-| <span class="opa-keep-it-together">``cast_boolean(x, output)``</span> | 1 | ``output`` is ``x`` cast to a boolean |
-| <span class="opa-keep-it-together">``is_array(x, output)``</span> | 1 | ``output`` is ``true`` if ``x`` is an array |
-| <span class="opa-keep-it-together">``cast_array(x, output)``</span> | 1 | ``output`` is ``x`` cast to an array |
-| <span class="opa-keep-it-together">``is_set(x, output)``</span> | 1 | ``output`` is ``true`` if ``x`` is a set |
-| <span class="opa-keep-it-together">``cast_set(x, output)``</span> | 1 | ``output`` is ``x`` cast to a set |
-| <span class="opa-keep-it-together">``is_object(x, output)``</span> | 1 | ``output`` is ``true`` if ``x`` is an object |
-| <span class="opa-keep-it-together">``cast_object(x, output)``</span> | 1 | ``output`` is ``x`` cast to an object |
-| <span class="opa-keep-it-together">``is_null(x, output)``</span> | 1 | ``output`` is ``true`` if ``x`` is null |
-| <span class="opa-keep-it-together">``cast_null(x, output)``</span> | 1 | ``output`` is ``x`` cast to null |
-| <span class="opa-keep-it-together">``type_name(x, output)``</span> | 1 | ``output`` is the type of ``x`` |
+| Built-in | Description |
+| ------- |-------------|
+| <span class="opa-keep-it-together">``output := to_number(x)``</span> | ``output`` is ``x`` converted to a number |
+| <span class="opa-keep-it-together">``output := is_number(x)``</span> | ``output`` is ``true`` if ``x`` is a number |
+| <span class="opa-keep-it-together">``output := is_string(x)``</span> | ``output`` is ``true`` if ``x`` is a string |
+| <span class="opa-keep-it-together">``output := cast_string(x)``</span> | ``output`` is ``x`` cast to a string |
+| <span class="opa-keep-it-together">``output := is_boolean(x)``</span> | ``output`` is ``true`` if ``x`` is a boolean |
+| <span class="opa-keep-it-together">``output := cast_boolean(x)``</span> | ``output`` is ``x`` cast to a boolean |
+| <span class="opa-keep-it-together">``output := is_array(x)``</span> | ``output`` is ``true`` if ``x`` is an array |
+| <span class="opa-keep-it-together">``output := cast_array(x)``</span> | ``output`` is ``x`` cast to an array |
+| <span class="opa-keep-it-together">``output := is_set(x)``</span> | ``output`` is ``true`` if ``x`` is a set |
+| <span class="opa-keep-it-together">``output := cast_set(x)``</span> | ``output`` is ``x`` cast to a set |
+| <span class="opa-keep-it-together">``output := is_object(x)``</span> | ``output`` is ``true`` if ``x`` is an object |
+| <span class="opa-keep-it-together">``output := cast_object(x)``</span> | ``output`` is ``x`` cast to an object |
+| <span class="opa-keep-it-together">``output := is_null(x)``</span> | ``output`` is ``true`` if ``x`` is null |
+| <span class="opa-keep-it-together">``output := cast_null(x)``</span> | ``output`` is ``x`` cast to null |
+| <span class="opa-keep-it-together">``output := type_name(x)``</span> | ``output`` is the type of ``x`` |
 
 ### Encoding
 
-| Built-in | Inputs | Description |
-| ------- |--------|-------------|
-| <span class="opa-keep-it-together">``base64.encode(x, output)``</span> | 1 | ``output`` is ``x`` serialized to a base64 encoded string |
-| <span class="opa-keep-it-together">``base64.decode(string, output)``</span> | 1 | ``output`` is ``x`` deserialized from a base64 encoding string |
-| <span class="opa-keep-it-together">``base64url.encode(x, output)``</span> | 1 | ``output`` is ``x`` serialized to a base64url encoded string |
-| <span class="opa-keep-it-together">``base64url.decode(string, output)``</span> | 1 | ``output`` is ``string`` deserialized from a base64url encoding string |
-| <span class="opa-keep-it-together">``urlquery.encode(string, output)``</span> | 1 | ``output`` is ``string`` serialized to a URL query parameter encoded string |
-| <span class="opa-keep-it-together">``urlquery.encode_object(object, output)``</span> | 1 | ``output`` is ``object`` serialized to a URL query parameter encoded string |
-| <span class="opa-keep-it-together">``urlquery.decode(string, output)``</span> | 1 | ``output`` is ``string`` deserialized from a URL query parameter encoded string |
-| <span class="opa-keep-it-together">``json.marshal(x, output)``</span> | 1 | ``output`` is ``x`` serialized to a JSON string |
-| <span class="opa-keep-it-together">``json.unmarshal(string, output)``</span> | 1 | ``output`` is ``string`` deserialized to a term from a JSON encoded string |
-| <span class="opa-keep-it-together">``yaml.marshal(x, output)``</span> | 1 | ``output`` is ``x`` serialized to a YAML string |
-| <span class="opa-keep-it-together">``yaml.unmarshal(string, output)``</span> | 1 | ``output`` is ``string`` deserialized to a term from YAML encoded string |
+| Built-in | Description |
+| ------- |-------------|
+| <span class="opa-keep-it-together">``output := base64.encode(x)``</span> | ``output`` is ``x`` serialized to a base64 encoded string |
+| <span class="opa-keep-it-together">``output := base64.decode(string)``</span> | ``output`` is ``x`` deserialized from a base64 encoding string |
+| <span class="opa-keep-it-together">``output := base64url.encode(x)``</span> | ``output`` is ``x`` serialized to a base64url encoded string |
+| <span class="opa-keep-it-together">``output := base64url.decode(string)``</span> | ``output`` is ``string`` deserialized from a base64url encoding string |
+| <span class="opa-keep-it-together">``output := urlquery.encode(string)``</span> | ``output`` is ``string`` serialized to a URL query parameter encoded string |
+| <span class="opa-keep-it-together">``output := urlquery.encode_object(object)``</span> | ``output`` is ``object`` serialized to a URL query parameter encoded string |
+| <span class="opa-keep-it-together">``output := urlquery.decode(string)``</span> | ``output`` is ``string`` deserialized from a URL query parameter encoded string |
+| <span class="opa-keep-it-together">``output := json.marshal(x)``</span> | ``output`` is ``x`` serialized to a JSON string |
+| <span class="opa-keep-it-together">``output := json.unmarshal(string)``</span> | ``output`` is ``string`` deserialized to a term from a JSON encoded string |
+| <span class="opa-keep-it-together">``output := yaml.marshal(x)``</span> | ``output`` is ``x`` serialized to a YAML string |
+| <span class="opa-keep-it-together">``output := yaml.unmarshal(string)``</span> | ``output`` is ``string`` deserialized to a term from YAML encoded string |
 
 ### Tokens
 
-| Built-in | Inputs | Description |
-| ------- |--------|-------------|
-| <span class="opa-keep-it-together">``io.jwt.verify_rs256(string, certificate, output)``</span> | 1 | ``output`` is ``true`` if the RS256 signature of the input token is valid. ``certificate`` is the PEM encoded certificate used to verify the RS256 signature|
-| <span class="opa-keep-it-together">``io.jwt.verify_ps256(string, certificate, output)``</span> | 1 | ``output`` is ``true`` if the PS256 signature of the input token is valid. ``certificate`` is the PEM encoded certificate used to verify the PS256 signature|
-| <span class="opa-keep-it-together">``io.jwt.verify_es256(string, certificate, output)``</span> | 1 | ``output`` is ``true`` if the ES256 signature of the input token is valid. ``certificate`` is the PEM encoded certificate used to verify the ES256 signature|
-| <span class="opa-keep-it-together">``io.jwt.verify_hs256(string, secret, output)``</span> | 1 | ``output`` is ``true`` if the Secret signature of the input token is valid. ``secret`` is a plain text secret used to verify the HS256 signature|
-| <span class="opa-keep-it-together">``io.jwt.decode(string, [header, payload, sig])``</span> | 1 | ``header`` and ``payload`` are ``object``. ``signature`` is the hexadecimal representation of the signature on the token. |
-| <span class="opa-keep-it-together">``io.jwt.decode_verify(string, constraints, [valid, header, payload])``</span> | 2 | If the input token verifies and meets the requirements of ``constraints`` then ``valid`` is ``true`` and ``header`` and ``payload`` are objects containing the JOSE header and the JWT claim set. Otherwise, ``valid`` is ``false`` and ``header`` and ``payload`` are ``{}``. |
+| Built-in | Description |
+| ------- |-------------|
+| <span class="opa-keep-it-together">``output := io.jwt.verify_rs256(string, certificate)``</span> | ``output`` is ``true`` if the RS256 signature of the input token is valid. ``certificate`` is the PEM encoded certificate used to verify the RS256 signature|
+| <span class="opa-keep-it-together">``output := io.jwt.verify_ps256(string, certificate)``</span> | ``output`` is ``true`` if the PS256 signature of the input token is valid. ``certificate`` is the PEM encoded certificate used to verify the PS256 signature|
+| <span class="opa-keep-it-together">``output := io.jwt.verify_es256(string, certificate)``</span> | ``output`` is ``true`` if the ES256 signature of the input token is valid. ``certificate`` is the PEM encoded certificate used to verify the ES256 signature|
+| <span class="opa-keep-it-together">``output := io.jwt.verify_hs256(string, secret)``</span> | ``output`` is ``true`` if the Secret signature of the input token is valid. ``secret`` is a plain text secret used to verify the HS256 signature|
+| <span class="opa-keep-it-together">``output := io.jwt.decode(string)``</span> | ``output`` is of the form ``[header, payload, sig]``.  ``header`` and ``payload`` are ``object``. ``sig`` is the hexadecimal representation of the signature on the token. |
+| <span class="opa-keep-it-together">``output := io.jwt.decode_verify(string, constraints)``</span> | ``output`` is of the form ``[valid, header, payload]``.  If the input token verifies and meets the requirements of ``constraints`` then ``valid`` is ``true`` and ``header`` and ``payload`` are objects containing the JOSE header and the JWT claim set. Otherwise, ``valid`` is ``false`` and ``header`` and ``payload`` are ``{}``. |
 
 The input `string` is a JSON Web Token encoded with JWS Compact Serialization. JWE and JWS JSON Serialization are not supported. If nested signing was used, the ``header``, ``payload`` and ``signature`` will represent the most deeply nested token.
 
@@ -183,35 +183,35 @@ If there are any unrecognized constraints then the token is considered invalid.
 
 ### Time
 
-| Built-in | Inputs | Description |
-| -------- | ------ | ----------- |
-| <span class="opa-keep-it-together">``time.now_ns(output)``</span> | 0 | ``output`` is ``number`` representing the current time since epoch in nanoseconds. |
-| <span class="opa-keep-it-together">``time.parse_ns(layout, value, output)``</span> | 2 | ``output`` is ``number`` representing the time ``value`` in nanoseconds since epoch. See the [Go `time` package documentation](https://golang.org/pkg/time/#Parse) for more details on ``layout``. |
-| <span class="opa-keep-it-together">``time.parse_rfc3339_ns(value, output)``</span> | 1 | ``output`` is ``number`` representing the time ``value`` in nanoseconds since epoch. |
-| <span class="opa-keep-it-together">``time.parse_duration_ns(duration, output)``</span> | 1 | ``output`` is ``number`` representing the duration ``duration`` in nanoseconds. See the [Go `time` package documentation](https://golang.org/pkg/time/#ParseDuration) for more details on ``duration``. |
-| <span class="opa-keep-it-together">``time.date(ns, [year, month, day])``</span> | 1 | outputs the ``year``, ``month`` (0-12), and ``day`` (0-31) as ``number``s representing the date from the nanoseconds since epoch (``ns``). |
-| <span class="opa-keep-it-together">``time.clock(ns, [hour, minute, second])``</span> | 1 | outputs the ``hour``, ``minute`` (0-59), and ``second`` (0-59) as ``number``s representing the time of day for the nanoseconds since epoch (``ns``). |
-| <span class="opa-keep-it-together">``time.weekday(ns, day)``</span> | 1 | outputs the ``day`` as ``string`` representing the day of the week for the nanoseconds since epoch (``ns``). |
+| Built-in | Description |
+| -------- | ----------- |
+| <span class="opa-keep-it-together">``output := time.now_ns()``</span> | ``output`` is ``number`` representing the current time since epoch in nanoseconds. |
+| <span class="opa-keep-it-together">``output := time.parse_ns(layout, value)``</span> | ``output`` is ``number`` representing the time ``value`` in nanoseconds since epoch. See the [Go `time` package documentation](https://golang.org/pkg/time/#Parse) for more details on ``layout``. |
+| <span class="opa-keep-it-together">``output := time.parse_rfc3339_ns(value)``</span> | ``output`` is ``number`` representing the time ``value`` in nanoseconds since epoch. |
+| <span class="opa-keep-it-together">``output := time.parse_duration_ns(duration)``</span> | ``output`` is ``number`` representing the duration ``duration`` in nanoseconds. See the [Go `time` package documentation](https://golang.org/pkg/time/#ParseDuration) for more details on ``duration``. |
+| <span class="opa-keep-it-together">``output := time.date(ns)``</span> | ``output`` is of the form ``[year, month, day]``, which includes the ``year``, ``month`` (0-12), and ``day`` (0-31) as ``number``s representing the date from the nanoseconds since epoch (``ns``). |
+| <span class="opa-keep-it-together">``output := time.clock(ns)``</span> | ``output`` is of the form ``[hour, minute, second]``, which outputs the ``hour``, ``minute`` (0-59), and ``second`` (0-59) as ``number``s representing the time of day for the nanoseconds since epoch (``ns``). |
+| <span class="opa-keep-it-together">``day := time.weekday(ns)``</span> | outputs the ``day`` as ``string`` representing the day of the week for the nanoseconds since epoch (``ns``). |
 
 > Multiple calls to the `time.now_ns` built-in function within a single policy
 evaluation query will always return the same value.
 
 ### Cryptography
 
-| Built-in | Inputs | Description |
-| -------- | ------ | ----------- |
-| <span class="opa-keep-it-together">``crypto.x509.parse_certificates(string, array[object])``</span> | 1 | ``output`` is an array of X.509 certificates represented as JSON objects. |
+| Built-in | Description |
+| -------- | ----------- |
+| <span class="opa-keep-it-together">``output := crypto.x509.parse_certificates(string)``</span> | ``output`` is an array of X.509 certificates represented as JSON objects. |
 
 ### Graphs
 
-| Built-in | Inputs | Description |
-| --- | --- | --- |
-| <span class="opa-keep-it-together">``walk(x, [path, value])``</span> | 0 | ``walk`` is a relation that produces ``path`` and ``value`` pairs for documents under ``x``. ``path`` is ``array`` representing a pointer to ``value`` in ``x``.  Queries can use ``walk`` to traverse documents nested under ``x`` (recursively). |
+| Built-in | Description |
+| --- | --- |
+| <span class="opa-keep-it-together">``walk(x, [path, value])``</span> | ``walk`` is a relation that produces ``path`` and ``value`` pairs for documents under ``x``. ``path`` is ``array`` representing a pointer to ``value`` in ``x``.  Queries can use ``walk`` to traverse documents nested under ``x`` (recursively). |
 
 ### HTTP
-| Built-in | Inputs | Description |
-| ------- |--------|-------------|
-| <span class="opa-keep-it-together">``http.send(request, output)``</span> | 3+ | ``http.send`` executes a HTTP request and returns the response.``request`` is an object containing keys ``method``, ``url`` and  optionally ``body``, ``enable_redirect``, ``headers``, ``tls_use_system_certs``, ``tls_ca_cert_file``, ``tls_ca_cert_env_variable``, ``tls_client_cert_env_variable``, ``tls_client_key_env_variable`` or ``tls_client_cert_file``, ``tls_client_key_file`` . For example, ``http.send({"method": "get", "url": "http://www.openpolicyagent.org/", "headers": {"X-Foo":"bar", "X-Opa": "rules"}}, output)``. ``output`` is an object containing keys ``status``, ``status_code`` and ``body`` which represent the HTTP status, status code and response body respectively. Sample output, ``{"status": "200 OK", "status_code": 200, "body": null``}. By default, http redirects are not enabled. To enable, set ``enable_redirect`` to ``true``.|
+| Built-in | Description |
+| ------- |-------------|
+| <span class="opa-keep-it-together">``output := http.send(request)``</span> | ``http.send`` executes a HTTP request and returns the response.``request`` is an object containing keys ``method``, ``url`` and  optionally ``body``, ``enable_redirect``, ``headers``, ``tls_use_system_certs``, ``tls_ca_cert_file``, ``tls_ca_cert_env_variable``, ``tls_client_cert_env_variable``, ``tls_client_key_env_variable`` or ``tls_client_cert_file``, ``tls_client_key_file`` . For example, ``http.send({"method": "get", "url": "http://www.openpolicyagent.org/", "headers": {"X-Foo":"bar", "X-Opa": "rules"}}, output)``. ``output`` is an object containing keys ``status``, ``status_code`` and ``body`` which represent the HTTP status, status code and response body respectively. Sample output, ``{"status": "200 OK", "status_code": 200, "body": null``}. By default, http redirects are not enabled. To enable, set ``enable_redirect`` to ``true``.|
 
 #### HTTPs Usage
 
@@ -243,24 +243,24 @@ In order to trigger the use of HTTPs the user must provide one of the following 
 | Accessing Google using System Cert Pool | ``http.send({"method": "get", "url": "https://www.google.com", "tls_use_system_certs": true, "tls_client_cert_file": "testdata/client-cert.pem", "tls_client_key_file": "testdata/client-key.pem"}, output)``
 
 ### Net
-| Built-in | Inputs | Description |
-| ------- |--------|-------------|
-| <span class="opa-keep-it-together">``net.cidr_overlap(cidr, ip, output)``</span> | 2 | `output` is `true` if `ip` (e.g. `127.0.0.1`) overlaps with `cidr` (e.g. `127.0.0.1/24`) and false otherwise. Supports both IPv4 and IPv6 notations.|
+| Built-in | Description |
+| ------- |-------------|
+| <span class="opa-keep-it-together">``output := net.cidr_overlap(cidr, ip)``</span> | `output` is `true` if `ip` (e.g. `127.0.0.1`) overlaps with `cidr` (e.g. `127.0.0.1/24`) and false otherwise. Supports both IPv4 and IPv6 notations.|
 
 ### Rego
-| Built-in | Inputs | Description |
-| ------- |--------|-------------|
-| <span class="opa-keep-it-together">``rego.parse_module(filename, string, output)``</span> | 2 | ``rego.parse_module`` parses the input ``string`` as a Rego module and returns the AST as a JSON object ``output``. |
+| Built-in | Description |
+| ------- |-------------|
+| <span class="opa-keep-it-together">``output := rego.parse_module(filename, string)``</span> | ``rego.parse_module`` parses the input ``string`` as a Rego module and returns the AST as a JSON object ``output``. |
 
 ### OPA
-| Built-in | Inputs | Description |
-| ------- |--------|-------------|
-| <span class="opa-keep-it-together">``opa.runtime(output)``</span> | 0 | ``opa.runtime`` returns a JSON object ``output`` that describes the runtime environment where OPA is deployed. **Caution**: Policies that depend on the output of ``opa.runtime`` may return different answers depending on how OPA was started. If possible, prefer using an explicit `input` or `data` value instead of `opa.runtime`. The ``output`` of ``opa.runtime`` will include a ``"config"`` key if OPA was started with a configuration file. The ``output`` of ``opa.runtime`` will include a ``"env"`` key containing the environment variables that the OPA process was started with. |
+| Built-in | Description |
+| ------- |-------------|
+| <span class="opa-keep-it-together">``output := opa.runtime()``</span> | ``opa.runtime`` returns a JSON object ``output`` that describes the runtime environment where OPA is deployed. **Caution**: Policies that depend on the output of ``opa.runtime`` may return different answers depending on how OPA was started. If possible, prefer using an explicit `input` or `data` value instead of `opa.runtime`. The ``output`` of ``opa.runtime`` will include a ``"config"`` key if OPA was started with a configuration file. The ``output`` of ``opa.runtime`` will include a ``"env"`` key containing the environment variables that the OPA process was started with. |
 
 ### Debugging
-| Built-in | Inputs | Description |
-| ------- |--------|-------------|
-| <span class="opa-keep-it-together">``trace(string)``</span> | 1 | ``trace`` outputs the debug message ``string`` as a ``Note`` event in the query explanation. For example, ``trace("Hello There!")`` includes ``Note "Hello There!"`` in the query explanation. To print variables, use sprintf. For example, ``person = "Bob"; trace(sprintf("Hello There! %v", [person]))`` will emit ``Note "Hello There! Bob"``. |
+| Built-in | Description |
+| ------- |-------------|
+| <span class="opa-keep-it-together">``trace(string)``</span> | ``trace`` outputs the debug message ``string`` as a ``Note`` event in the query explanation. For example, ``trace("Hello There!")`` includes ``Note "Hello There!"`` in the query explanation. To print variables, use sprintf. For example, ``person := "Bob"; trace(sprintf("Hello There! %v", [person]))`` will emit ``Note "Hello There! Bob"``. |
 
 ## Reserved Names
 

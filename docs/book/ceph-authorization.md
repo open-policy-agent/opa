@@ -565,22 +565,22 @@ data:
     }
 
     allow {
-        input.method = "HEAD"
+        input.method == "HEAD"
         is_user_in_bucket_location(input.user_info.user_id, input.bucket_info.bucket.name)
     }
 
     allow {
-        input.method = "GET"
+        input.method == "GET"
     }
 
     allow {
-        input.method = "PUT"
-        input.user_info.display_name = "Bob"
+        input.method == "PUT"
+        input.user_info.display_name == "Bob"
     }
 
     allow {
-        input.method = "DELETE"
-        input.user_info.display_name = "Bob"
+        input.method == "DELETE"
+        input.user_info.display_name == "Bob"
     }
 
     # Check if the user and the bucket being accessed belong to the same
@@ -984,22 +984,22 @@ bucket_location = {
 
 # Allow access to bucket in same location as user.
 allow {
-    input.method = "HEAD"
+    input.method == "HEAD"
     is_user_in_bucket_location(input.user_info.user_id, input.bucket_info.bucket.name)
 }
 
 allow {
-    input.method = "GET"
+    input.method == "GET"
 }
 
 allow {
-    input.method = "PUT"
-    input.user_info.display_name = "Bob"
+    input.method == "PUT"
+    input.user_info.display_name == "Bob"
 }
 
 allow {
-    input.method = "DELETE"
-    input.user_info.display_name = "Bob"
+    input.method == "DELETE"
+    input.user_info.display_name == "Bob"
 }
 
 # Check if the user and the bucket being accessed belong to the same
@@ -1015,7 +1015,7 @@ In the above policy, `Bob's` location is `USA` while `Alice's` is `UK`. Since th
 
 ### 9. Create the S3 access test script
 
-The below Python S3 access test script connects to the  `Ceph Object Store Gateway` to perform actions such as creating and deleting buckets. 
+The below Python S3 access test script connects to the  `Ceph Object Store Gateway` to perform actions such as creating and deleting buckets.
 
 > You will need to install the `python-boto` package to run the test script.
 
@@ -1167,7 +1167,7 @@ Now let's create a bucket and add some data to it.
     ```
 
 * Add some data to the bucket `supersecretbucket`
-  
+
     ```bash
     python s3test.py Bob upload_data supersecretbucket "This is some secret data"
     ```

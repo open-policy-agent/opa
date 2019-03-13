@@ -126,16 +126,16 @@ import data.networks
 import data.ports
 
 violations[server] {
-    server = servers[_]
-    server.protocols[_] = "http"
+    server := servers[_]
+    server.protocols[_] == "http"
     public_servers[server]
 }
 
 public_servers[server] {
-    server = servers[_]
-    server.ports[_] = ports[i].id
-    ports[i].networks[_] = networks[j].id
-    networks[j].public = true
+    server := servers[_]
+    server.ports[_] == ports[i].id
+    ports[i].networks[_] == networks[j].id
+    networks[j].public == true
 }
 ```
 
@@ -215,13 +215,13 @@ The `input` document can be referenced just like the `data` document.
 ```ruby
 # Let 'bob' perform read-only operations.
 allow {
-  input.user = "bob"
-  input.method = "GET"
+  input.user == "bob"
+  input.method == "GET"
 }
 
 # Let 'alice' perform any operation.
 allow {
-  input.user = "alice"
+  input.user == "alice"
 }
 ```
 
@@ -393,9 +393,9 @@ import data.ports
 # A server exists in the violations set if...
 violations[server] {
     # ...the server exists
-    server = servers[_]
+    server := servers[_]
     # ...and any of the server’s protocols is HTTP
-    server.protocols[_] = "http"
+    server.protocols[_] == "http"
     # ...and the server is public.
     public_servers[server]
 }
@@ -403,13 +403,13 @@ violations[server] {
 # A server exists in the public_servers set if...
 public_servers[server] {
     # ...the server exists
-    server = servers[_]
+    server := servers[_]
     # ...and the server is connected to a port
-    server.ports[_] = ports[i].id
+    server.ports[_] == ports[i].id
     # ...and the port is connected to a network
-    ports[i].networks[_] = networks[j].id
+    ports[i].networks[_] == networks[j].id
     # ...and the network is public.
-    networks[j].public = true
+    networks[j].public == true
 }
 ```
 
@@ -417,9 +417,9 @@ Note that:
 
   * Rules consist of assertions about data stored in OPA. In this case, the assertions test for equality with, and membership of, values in the servers, networks, and ports documents.
   * Expressions can reference elements in a collection using the `[_]` and `[<variable>]` syntax. OPA knows to evaluate such queries by iterating over each element in the corresponding collection.
-  * Assertions about elements in a collection are `true` if any of the elements match the expression, and are only `false` when none of the elements match. For example, `ports[i].networks[_] = networks[j].id` will be `true` whenever any element in `ports[i].networks` matches the id of any element in `networks`.
+  * Assertions about elements in a collection are `true` if any of the elements match the expression, and are only `false` when none of the elements match. For example, `ports[i].networks[_] == networks[j].id` will be `true` whenever any element in `ports[i].networks` matches the id of any element in `networks`.
   * Expressions can reference nested documents. For example, `ports[i].networks[_]` refers to each network ID listed in each port document.
-  * Expressions can reference virtual documents. For example, `public_servers[server] = true` matches only if `server` is in the list produced by the `public_servers` rule.
+  * Expressions can reference virtual documents. For example, `public_servers[server] == true` matches only if `server` is in the list produced by the `public_servers` rule.
 
 
 After publishing this policy module, the `data` document will include
