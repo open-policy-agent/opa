@@ -11,8 +11,8 @@ deny a request, such as
 
 ```
 package foo
-allow { input.name = "alice" }
-deny { input.name = "alice" }
+allow { input.name == "alice" }
+deny { input.name == "alice" }
 ```
 
 Neither `allow` nor `deny` are keywords in Rego so if you want to treat them
@@ -46,17 +46,17 @@ and the policy means exactly the same thing.  For example, the following two sta
 mean the same thing whichever order you write them in.
 
 ```
-ratelimit = 4 { input.name = "alice" }
-ratelimit = 5 { input.owner = "bob" }
+ratelimit = 4 { input.name == "alice" }
+ratelimit = 5 { input.owner == "bob" }
 ```
 
 Sometimes, though, you want the statement order to matter.  For example, you might put more specific statements before more general statements so that the more specific statements take precedence (e.g. for [conflict resolution](conflict-resolution)).  Rego lets you do that using the `else` keyword.  For example, if you want to make the first statement above take precedence, you would write the following Rego.
 
 ```
 ratelimit = 4 {
-    input.name = "alice"
+    input.name == "alice"
 } else = 5 {
-    input.owner = "bob"
+    input.owner == "bob"
 }
 ```
 

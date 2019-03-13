@@ -173,10 +173,10 @@ identity:
 ```ruby
 package system.authz
 
-default allow = false          # Reject requests by default.
+default allow = false           # Reject requests by default.
 
-allow {                        # Allow request if...
-    "secret" = input.identity  # Identity is the secret root key.
+allow {                         # Allow request if...
+    "secret" == input.identity  # Identity is the secret root key.
 }
 ```
 
@@ -237,10 +237,10 @@ tokens = {
     }
 }
 
-default allow = false          # Reject requests by default.
+default allow = false           # Reject requests by default.
 
-allow {                        # Allow request if...
-    input.identity = "secret"  # Identity is the secret root key.
+allow {                         # Allow request if...
+    input.identity == "secret"  # Identity is the secret root key.
 }
 
 allow {                        # Allow request if...
@@ -284,16 +284,16 @@ default allow = false               # Reject requests by default.
 
 allow {                             # Allow request if...
     identity_rights[right]          # Rights for identity exist, and...
-    right.path = "*"                # Right.path is '*'.
+    right.path == "*"               # Right.path is '*'.
 } {                                 # Or...
     identity_rights[right]          # Rights for identity exist, and...
-    right.path = input.path         # Right.path matches input.path.
+    right.path == input.path        # Right.path matches input.path.
 }
 
-identity_rights[right] {            # Right is in the identity_rights set if...
-    token = tokens[input.identity]  # Token exists for identity, and...
-    role = token.roles[_]           # Token has a role, and...
-    right = rights[role]            # Role has rights defined.
+identity_rights[right] {             # Right is in the identity_rights set if...
+    token := tokens[input.identity]  # Token exists for identity, and...
+    role := token.roles[_]           # Token has a role, and...
+    right := rights[role]            # Role has rights defined.
 }
 ```
 

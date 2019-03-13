@@ -9,7 +9,7 @@ deny {
 
 # Reject pods referring to images outside the corporate registry.
 deny {
-    input.kind = "Pod"
-    container = input.spec.containers[_]
+    input.kind == "Pod"
+    container := input.spec.containers[_]
     not re_match("^registry.acmecorp.com/.+$", container.image)
 }
