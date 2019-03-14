@@ -146,6 +146,7 @@
   * [Terraform Testing](terraform.md)
   * [Ceph Authorization](ceph-authorization.md)
 
-## Best Practices
+## Guides
 
   * [Identity and User attributes](best-practice-identity.md)
+  * [Cheatsheet](cheatsheet.md)
