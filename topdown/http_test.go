@@ -51,6 +51,7 @@ func TestHTTPGetRequest(t *testing.T) {
 	bodyMap := map[string]string{"id": "1", "firstname": "John"}
 	body = append(body, bodyMap)
 	expectedResult["body"] = body
+	expectedResult["raw_body"] = "[{\"id\":\"1\",\"firstname\":\"John\"}]\n"
 
 	resultObj, err := ast.InterfaceToValue(expectedResult)
 	if err != nil {
@@ -64,7 +65,46 @@ func TestHTTPGetRequest(t *testing.T) {
 		expected interface{}
 	}{
 		{"http.send", []string{fmt.Sprintf(
-			`p = x { http.send({"method": "get", "url": "%s"}, x) }`, ts.URL)}, resultObj.String()},
+			`p = x { http.send({"method": "get", "url": "%s", "force_json_decode": true}, x) }`, ts.URL)}, resultObj.String()},
+	}
+
+	data := loadSmallTestData()
+
+	for _, tc := range tests {
+		runTopDownTestCase(t, data, tc.note, tc.rules, tc.expected)
+	}
+}
+
+func TestHTTPEnableJSONDecode(t *testing.T) {
+
+	// test server
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body := "*Hello World®"
+		fmt.Fprint(w, body)
+	}))
+
+	defer ts.Close()
+
+	// expected result
+	expectedResult := make(map[string]interface{})
+	expectedResult["status"] = "200 OK"
+	expectedResult["status_code"] = http.StatusOK
+	expectedResult["body"] = nil
+	expectedResult["raw_body"] = "*Hello World®"
+
+	resultObj, err := ast.InterfaceToValue(expectedResult)
+	if err != nil {
+		panic(err)
+	}
+
+	// run the test
+	tests := []struct {
+		note     string
+		rules    []string
+		expected interface{}
+	}{
+		{"http.send", []string{fmt.Sprintf(
+			`p = x { http.send({"method": "get", "url": "%s", "force_json_decode": true}, x) }`, ts.URL)}, resultObj.String()},
 	}
 
 	data := loadSmallTestData()
@@ -101,6 +141,7 @@ func TestHTTPCustomHeaders(t *testing.T) {
 
 	bodyMap := map[string][]string{"X-Foo": {"ISO-8859-1,utf-8;q=0.7,*;q=0.7"}, "X-Opa": {"server"}}
 	expectedResult["body"] = bodyMap
+	expectedResult["raw_body"] = "{\"X-Foo\":[\"ISO-8859-1,utf-8;q=0.7,*;q=0.7\"],\"X-Opa\":[\"server\"]}\n"
 
 	jsonString, err := json.Marshal(expectedResult)
 	if err != nil {
@@ -142,6 +183,7 @@ func TestHTTPostRequest(t *testing.T) {
 			return
 		}
 
+		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		json.NewEncoder(w).Encode(person)
 	}))
@@ -153,6 +195,7 @@ func TestHTTPostRequest(t *testing.T) {
 		"status":      "200 OK",
 		"status_code": http.StatusOK,
 		"body":        map[string]string{"id": "2", "firstname": "Joe"},
+		"raw_body":    "{\"id\":\"2\",\"firstname\":\"Joe\"}\n",
 	}
 
 	resultObj, err := ast.InterfaceToValue(expectedResult)
@@ -213,6 +256,7 @@ func TestHTTDeleteRequest(t *testing.T) {
 			}
 		}
 
+		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		json.NewEncoder(w).Encode(people)
 	}))
@@ -228,6 +272,7 @@ func TestHTTDeleteRequest(t *testing.T) {
 	bodyMap := map[string]string{"id": "1", "firstname": "John"}
 	body = append(body, bodyMap)
 	expectedResult["body"] = body
+	expectedResult["raw_body"] = "[{\"id\":\"1\",\"firstname\":\"John\"}]\n"
 
 	resultObj, err := ast.InterfaceToValue(expectedResult)
 	if err != nil {
@@ -286,9 +331,10 @@ func TestHTTPRedirectDisable(t *testing.T) {
 
 	// expected result
 	expectedResult := make(map[string]interface{})
+	expectedResult["body"] = nil
+	expectedResult["raw_body"] = "<a href=\"/test\">Moved Permanently</a>.\n\n"
 	expectedResult["status"] = "301 Moved Permanently"
 	expectedResult["status_code"] = http.StatusMovedPermanently
-	expectedResult["body"] = nil
 
 	resultObj, err := ast.InterfaceToValue(expectedResult)
 	if err != nil {
@@ -316,6 +362,7 @@ func TestHTTPRedirectEnable(t *testing.T) {
 	expectedResult["status"] = "200 OK"
 	expectedResult["status_code"] = http.StatusOK
 	expectedResult["body"] = nil
+	expectedResult["raw_body"] = ""
 
 	resultObj, err := ast.InterfaceToValue(expectedResult)
 	if err != nil {
@@ -436,6 +483,7 @@ func TestHTTPSClient(t *testing.T) {
 		expectedResult := map[string]interface{}{
 			"status":      "200 OK",
 			"status_code": http.StatusOK,
+			"raw_body":    "{\"CommonName\":\"my-ca\"}",
 		}
 		expectedResult["body"] = bodyMap
 
@@ -458,6 +506,7 @@ func TestHTTPSClient(t *testing.T) {
 			"status":      "200 OK",
 			"status_code": http.StatusOK,
 			"body":        nil,
+			"raw_body":    "",
 		}
 
 		resultObj, err := ast.InterfaceToValue(expectedResult)
@@ -479,6 +528,7 @@ func TestHTTPSClient(t *testing.T) {
 			"status":      "200 OK",
 			"status_code": http.StatusOK,
 			"body":        nil,
+			"raw_body":    "",
 		}
 
 		resultObj, err := ast.InterfaceToValue(expectedResult)
@@ -500,6 +550,7 @@ func TestHTTPSClient(t *testing.T) {
 			"status":      "200 OK",
 			"status_code": http.StatusOK,
 			"body":        nil,
+			"raw_body":    "",
 		}
 
 		resultObj, err := ast.InterfaceToValue(expectedResult)
@@ -521,6 +572,7 @@ func TestHTTPSClient(t *testing.T) {
 			"status":      "200 OK",
 			"status_code": http.StatusOK,
 			"body":        nil,
+			"raw_body":    "",
 		}
 
 		resultObj, err := ast.InterfaceToValue(expectedResult)
