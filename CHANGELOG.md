@@ -5,6 +5,12 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+* `http.send` function takes an optional `force_json_decode` input. By default,
+  it is set to `false`. This backwards incompatible change will need users to
+  specify the `Content-type` as `application/json` in the HTTP server
+  response or set `force_json_decode` to `true` in order to json decode
+  the HTTP response body.
+
 ## 0.10.5
 
 * These release contians a small but backwards incompatible change to
