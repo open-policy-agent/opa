@@ -39,6 +39,11 @@ On macOS (64-bit):
 curl -L -o opa https://github.com/open-policy-agent/opa/releases/download/v0.10.5/opa_darwin_amd64
 ```
 
+Alternatively, if you have Homebrew installed, on macOS you can simply do:
+```shell
+brew install opa
+```
+
 On Linux (64-bit):
 
 ```shell
