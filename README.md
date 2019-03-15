@@ -1,6 +1,6 @@
 # ![logo](./logo/logo.png) Open Policy Agent
 
-[![Slack Status](http://slack.openpolicyagent.org/badge.svg)](http://slack.openpolicyagent.org) [![Build Status](https://travis-ci.org/open-policy-agent/opa.svg?branch=master)](https://travis-ci.org/open-policy-agent/opa) [![Go Report Card](https://goreportcard.com/badge/open-policy-agent/opa)](https://goreportcard.com/report/open-policy-agent/opa) [![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/1768/badge)](https://bestpractices.coreinfrastructure.org/projects/1768)
+[![Slack Status](http://slack.openpolicyagent.org/badge.svg)](https://slack.openpolicyagent.org) [![Build Status](https://travis-ci.org/open-policy-agent/opa.svg?branch=master)](https://travis-ci.org/open-policy-agent/opa) [![Go Report Card](https://goreportcard.com/badge/open-policy-agent/opa)](https://goreportcard.com/report/open-policy-agent/opa) [![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/1768/badge)](https://bestpractices.coreinfrastructure.org/projects/1768)
 
 The Open Policy Agent (OPA) is an open source, general-purpose policy engine that enables unified, context-aware policy enforcement across the entire stack.
 
@@ -8,10 +8,11 @@ OPA is hosted by the [Cloud Native Computing Foundation](https://cncf.io) (CNCF)
 
 ## Want to learn more about OPA?
 
-- See [openpolicyagent.org](http://www.openpolicyagent.org) to get started with documentation and tutorials.
+- See [openpolicyagent.org](https://www.openpolicyagent.org) to get started with documentation and tutorials.
+- Try [play.openpolicyagent.org](https://play.openpolicyagent.org) to experiment with OPA policies.
 - See [blog.openpolicyagent.org](https://blog.openpolicyagent.org) for blog posts about OPA and policy.
 - See [ADOPTERS.md](./ADOPTERS.md) for a list of adopters and use cases.
-- Join the conversation on [Slack](http://slack.openpolicyagent.org).
+- Join the conversation on [Slack](https://slack.openpolicyagent.org).
 
 ## Want to get OPA?
 
@@ -23,7 +24,7 @@ OPA is hosted by the [Cloud Native Computing Foundation](https://cncf.io) (CNCF)
 * See
   [![GoDoc](https://godoc.org/github.com/open-policy-agent/opa?status.svg)](https://godoc.org/github.com/open-policy-agent/opa/rego)
   to integrate OPA with services written in Go.
-* See [REST API](http://www.openpolicyagent.org/docs/rest-api.html) to
+* See [REST API](https://www.openpolicyagent.org/docs/rest-api.html) to
   integrate OPA with services written in other languages.
 
 
@@ -67,10 +68,10 @@ For example, in a simple API authorization use case:
 The examples below show different kinds of policies you can define with OPA as
 well as different kinds of queries your system can execute against OPA. The
 example queries are executed inside OPA's
-[REPL](http://www.openpolicyagent.org/docs/get-started.html) which was built to
+[REPL](https://www.openpolicyagent.org/docs/get-started.html) which was built to
 make it easy to develop and test policies.
 
-For concrete examples of how to integrate OPA with systems like [Kubernetes](http://www.openpolicyagent.org/docs/kubernetes-admission-control.html), [Terraform](http://www.openpolicyagent.org/docs/terraform.html), [Docker](http://www.openpolicyagent.org/docs/docker-authorization.html), [SSH](http://www.openpolicyagent.org/docs/ssh-and-sudo-authorization.html), and more, see [openpolicyagent.org](http://www.openpolicyagent.org).
+For concrete examples of how to integrate OPA with systems like [Kubernetes](https://www.openpolicyagent.org/docs/kubernetes-admission-control.html), [Terraform](https://www.openpolicyagent.org/docs/terraform.html), [Docker](https://www.openpolicyagent.org/docs/docker-authorization.html), [SSH](https://www.openpolicyagent.org/docs/ssh-and-sudo-authorization.html), and more, see [openpolicyagent.org](https://www.openpolicyagent.org).
 
 ### Example: API Authorization
 
