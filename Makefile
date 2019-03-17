@@ -77,23 +77,28 @@ image:
 image-quick:
 	sed -e 's/GOARCH/$(GOARCH)/g' Dockerfile.in > .Dockerfile_$(GOARCH)
 	sed -e 's/GOARCH/$(GOARCH)/g' Dockerfile_debug.in > .Dockerfile_debug_$(GOARCH)
+	sed -e 's/GOARCH/$(GOARCH)/g' Dockerfile_rootless.in > .Dockerfile_rootless_$(GOARCH)
 	docker build -t $(IMAGE):$(VERSION)	-f .Dockerfile_$(GOARCH) .
 	docker build -t $(IMAGE):$(VERSION)-debug -f .Dockerfile_debug_$(GOARCH) .
+	docker build -t $(IMAGE):$(VERSION)-rootless -f .Dockerfile_rootless_$(GOARCH) .
 
 .PHONY: push
 push:
 	docker push $(IMAGE):$(VERSION)
 	docker push $(IMAGE):$(VERSION)-debug
+	docker push $(IMAGE):$(VERSION)-rootless
 
 .PHONY: tag-latest
 tag-latest:
 	docker tag $(IMAGE):$(VERSION) $(IMAGE):latest
 	docker tag $(IMAGE):$(VERSION)-debug $(IMAGE):latest-debug
+	docker tag $(IMAGE):$(VERSION)-rootless $(IMAGE):latest-rootless
 
 .PHONY: push-latest
 push-latest:
 	docker push $(IMAGE):latest
 	docker push $(IMAGE):latest-debug
+	docker push $(IMAGE):latest-rootless
 
 .PHONY: docker-login
 docker-login:
