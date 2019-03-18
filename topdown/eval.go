@@ -1368,9 +1368,11 @@ func (e evalTree) enumerate(iter unifyIterator) error {
 
 	for k := range e.node.Children {
 		key := ast.NewTerm(k)
-		e.e.biunify(key, e.ref[e.pos], e.bindings, e.bindings, func() error {
+		if err := e.e.biunify(key, e.ref[e.pos], e.bindings, e.bindings, func() error {
 			return e.next(iter, key)
-		})
+		}); err != nil {
+			return err
+		}
 	}
 
 	return nil
