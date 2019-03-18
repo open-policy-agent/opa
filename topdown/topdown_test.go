@@ -699,6 +699,12 @@ iterate_ground[x] { data.topdown.virtual.constants[x] = 1 }
 		`package topdown.conflicts
 
 		k = "bar"`,
+		`package enum_errors.a.b.c
+
+p = x { x = 1/0 }`,
+		`package enum_errors.caller
+
+p[x] = y { data.enum_errors.a[x] = y }`,
 	})
 
 	store := inmem.NewFromObject(data)
@@ -748,6 +754,7 @@ iterate_ground[x] { data.topdown.virtual.constants[x] = 1 }
 	assertTopDownWithPath(t, compiler, store, "base/virtual: missing input value", []string{"topdown", "u"}, "{}", "{}")
 	assertTopDownWithPath(t, compiler, store, "iterate ground", []string{"topdown", "iterate_ground"}, "{}", `["p", "r"]`)
 	assertTopDownWithPath(t, compiler, store, "base/virtual: conflicts", []string{"topdown.conflicts"}, "{}", `{"k": "foo"}`)
+	assertTopDownWithPath(t, compiler, store, "enumerate virtual errors", []string{"enum_errors", "caller", "p"}, `{}`, fmt.Errorf("divide by zero"))
 }
 
 func TestTopDownNestedReferences(t *testing.T) {
