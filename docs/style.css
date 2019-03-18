@@ -406,7 +406,7 @@ main {
   height: 320px;
   position: relative;
   top: -170px;
-  width: 100%;
+  width: 98%;
 }
 
 @keyframes rock {
@@ -699,7 +699,7 @@ main {
   .headline--wave--bg::after {
     background-position: center 51%;
     background-size: 288px;
-    width: 100%;
+    width: 96%;
   }
 }
 
