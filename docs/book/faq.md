@@ -84,7 +84,7 @@ x = 7               # causes x to be assigned 7
 ```
 
 ## Collaboration Using Import
-OPA lets multiple teams each independent policies that you can then combine to make an overall decision.  Each team writes their policy in a separate `package`, then you write one more policy that imports all the teams policies and makes a decision.
+OPA lets multiple teams contribute independent policies that you can then combine to make an overall decision.  Each team writes their policy in a separate `package`, then you write one more policy that imports all the teams policies and makes a decision.
 
 For example, suppose there is a network team, a storage team, and a compute team.  Suppose they each write their own policy:
 
@@ -198,11 +198,11 @@ For high-performance use cases:
 
 * Write your policies to minimize iteration and search.
   * Use objects instead of arrays when you have a unique identifier for the elements of the array.
-  * Consider [partial-evaluation](https://blog.openpolicyagent.org/partial-evaluation-162750eaf422) to compile non-linear policies into linear policies.
+  * Consider [partial-evaluation](https://blog.openpolicyagent.org/partial-evaluation-162750eaf422) to compile non-linear policies to linear policies.
 * Write your policies with simple equality statements so that [rule-indexing](https://blog.openpolicyagent.org/optimizing-opa-rule-indexing-59f03f17caf3) is effective.
 
 ## Functions Versus Rules
-Rego lets you factor out common logic into 2 different and complementary ways.
+Rego lets you factor out common logic in 2 different and complementary ways.
 
 One is the *function*, which is conceptually identical to functions from most programming languages.  It takes any input and returns any output.  Importantly, a function can take infinitely many inputs, e.g. any string.
 
@@ -225,9 +225,10 @@ app_to_hostnames[app_name] = hostnames {
 }
 ```
 
-And then we can iterate over all the key/value pairs of that app-to-hostname mapping (just like we could iterate over all key/value pairs of a hardcoded JSON object).
+And then we can iterate over all the key/value pairs of that app-to-hostname mapping (just like we could iterate over all key/value pairs of a hardcoded JSON object).  You can also iterate over just the keys or just the values or you can look up the value for a key or lookup all the keys for a single value.
 
 ```ruby
+# iterate over all key/value pairs
 > app_to_hostnames[app]
 +-----------+------------------------------------------------------+
 |    app    |                app_to_hostnames[app]                 |
@@ -238,7 +239,65 @@ And then we can iterate over all the key/value pairs of that app-to-hostname map
 +-----------+------------------------------------------------------+
 ```
 
-Obviously with the `trim_and_split` function we cannot ask for all the inputs/outputs since there are infinitely many.  Functions allow you to factor out common logic that has infinitely-many input/output pairs; rules allow you to factor out common logic with finitely many input/outputs and allow you to iterate over them in the same way as native JSON objects.
+```ruby
+# iterate over all values
+> app_to_hostnames[_]
++------------------------------------------------------+
+|                 app_to_hostnames[_]                  |
++------------------------------------------------------+
+| ["hydrogen","helium","beryllium","boron","nitrogen"] |
+| ["lithium","carbon"]                                 |
+| ["oxygen"]                                           |
++------------------------------------------------------+
+```
+
+```ruby
+# iterate over all keys
+> app_to_hostnames[x] = _
++-----------+
+|     x     |
++-----------+
+| "web"     |
+| "mysql"   |
+| "mongodb" |
++-----------+
+```
+
+```ruby
+# lookup the value for key "web"
+> app_to_hostnames["web"]
+[
+  "hydrogen",
+  "helium",
+  "beryllium",
+  "boron",
+  "nitrogen"
+]
+```
+
+```ruby
+# lookup keys where value includes "lithium"
+> app_to_hostnames[k][_] == "lithium"
++---------+
+|    k    |
++---------+
+| "mysql" |
++---------+
+```
+
+
+Obviously with the `trim_and_split` function we cannot ask for all the inputs/outputs since there are infinitely many.  We can't provide 1 input and ask for all the other inputs that make the function return true, again, because there could be infinitely many.  The only thing we can do with a function is provide it all the inputs and ask for the output.
+
+```ruby
+> trim_and_split("   foo.bar.baz  ")
+[
+  "foo",
+  "bar",
+  "baz"
+]
+```
+
+Functions allow you to factor out common logic that has infinitely-many input/output pairs; rules allow you to factor out common logic with finitely many input/outputs and allow you to iterate over them in the same way as native JSON objects.
 
 To achieve automatic iteration, there is an additional syntactic requirement on a rule that is NOT present for a function: `safety`.  See the FAQ entry on safety for technical details.  Every rule must be `safe`, which guarantees that OPA can figure out a finite list of possible values for every variable in the body and head of a rule.
 
@@ -327,12 +386,3 @@ runtime.env
 # the env variable PROD_CERTIFICATE
 runtime.env.PROD_CERTIFICATE
 ```
-
-
-
-
-
-
-
-
-
