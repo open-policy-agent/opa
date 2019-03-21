@@ -59,7 +59,7 @@ EOF
 }
 
 update_docs() {
-    find ./docs/ \( -name "*.md" -o -name "*.yaml" \) -exec sed -i='' s/${LAST_VERSION:1}/$VERSION/g {} \;
+    find ./docs/ -not -path "./docs/book/node_modules/*" \( -name "*.md" -o -name "*.yaml" \) -exec sed -i='' s/${LAST_VERSION:1}/$VERSION/g {} \;
 }
 
 main() {
