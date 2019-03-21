@@ -113,7 +113,6 @@ webhooks:
     clientConfig:
       caBundle: $(cat ca.crt | base64 | tr -d '\n')
       service:
-        namespace: opa
         name: opa
 EOF
 ```
