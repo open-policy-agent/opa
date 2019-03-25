@@ -7,8 +7,7 @@ package ast
 import (
 	"encoding/json"
 	"fmt"
-
-	"github.com/open-policy-agent/opa/util"
+	"math/big"
 )
 
 // Compare returns an integer indicating whether two AST values are less than,
@@ -83,7 +82,15 @@ func Compare(a, b interface{}) int {
 		}
 		return 1
 	case Number:
-		return util.Compare(json.Number(a), json.Number(b.(Number)))
+		bigA, ok := new(big.Float).SetString(string(a))
+		if !ok {
+			panic("illegal value")
+		}
+		bigB, ok := new(big.Float).SetString(string(json.Number(b.(Number))))
+		if !ok {
+			panic("illegal value")
+		}
+		return bigA.Cmp(bigB)
 	case String:
 		b := b.(String)
 		if a.Equal(b) {
