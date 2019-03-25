@@ -1062,53 +1062,6 @@ func (e *eval) resolveReadFromStorage(ref ast.Ref, a ast.Value) (ast.Value, erro
 	return merged, nil
 }
 
-func merge(a, b ast.Value) (ast.Value, bool) {
-	aObj, ok1 := a.(ast.Object)
-	bObj, ok2 := b.(ast.Object)
-
-	if ok1 && ok2 {
-		return mergeObjects(aObj, bObj)
-	}
-	return nil, false
-}
-
-// mergeObjects returns a new Object containing the non-overlapping keys of
-// the objA and objB. If there are overlapping keys between objA and objB,
-// the values of associated with the keys are merged. Only
-// objects can be merged with other objects. If the values cannot be merged,
-// objB value will be overwritten by objA value.
-func mergeObjects(objA, objB ast.Object) (result ast.Object, ok bool) {
-	result = ast.NewObject()
-	stop := objA.Until(func(k, v *ast.Term) bool {
-		if v2 := objB.Get(k); v2 == nil {
-			result.Insert(k, v)
-		} else {
-			obj1, ok1 := v.Value.(ast.Object)
-			obj2, ok2 := v2.Value.(ast.Object)
-
-			if !ok1 || !ok2 {
-				result.Insert(k, v)
-				return false
-			}
-			obj3, ok := mergeObjects(obj1, obj2)
-			if !ok {
-				return true
-			}
-			result.Insert(k, ast.NewTerm(obj3))
-		}
-		return false
-	})
-	if stop {
-		return nil, false
-	}
-	objB.Foreach(func(k, v *ast.Term) {
-		if v2 := objA.Get(k); v2 == nil {
-			result.Insert(k, v)
-		}
-	})
-	return result, true
-}
-
 func (e *eval) generateVar(suffix string) *ast.Term {
 	return ast.VarTerm(fmt.Sprintf("%v_%v", e.genvarprefix, suffix))
 }
@@ -2104,4 +2057,51 @@ func isDataRef(term *ast.Term) bool {
 		}
 	}
 	return false
+}
+
+func merge(a, b ast.Value) (ast.Value, bool) {
+	aObj, ok1 := a.(ast.Object)
+	bObj, ok2 := b.(ast.Object)
+
+	if ok1 && ok2 {
+		return mergeObjects(aObj, bObj)
+	}
+	return nil, false
+}
+
+// mergeObjects returns a new Object containing the non-overlapping keys of
+// the objA and objB. If there are overlapping keys between objA and objB,
+// the values of associated with the keys are merged. Only
+// objects can be merged with other objects. If the values cannot be merged,
+// objB value will be overwritten by objA value.
+func mergeObjects(objA, objB ast.Object) (result ast.Object, ok bool) {
+	result = ast.NewObject()
+	stop := objA.Until(func(k, v *ast.Term) bool {
+		if v2 := objB.Get(k); v2 == nil {
+			result.Insert(k, v)
+		} else {
+			obj1, ok1 := v.Value.(ast.Object)
+			obj2, ok2 := v2.Value.(ast.Object)
+
+			if !ok1 || !ok2 {
+				result.Insert(k, v)
+				return false
+			}
+			obj3, ok := mergeObjects(obj1, obj2)
+			if !ok {
+				return true
+			}
+			result.Insert(k, ast.NewTerm(obj3))
+		}
+		return false
+	})
+	if stop {
+		return nil, false
+	}
+	objB.Foreach(func(k, v *ast.Term) {
+		if v2 := objA.Get(k); v2 == nil {
+			result.Insert(k, v)
+		}
+	})
+	return result, true
 }
