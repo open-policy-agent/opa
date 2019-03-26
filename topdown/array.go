@@ -5,6 +5,8 @@
 package topdown
 
 import (
+	"fmt"
+
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/topdown/builtins"
 )
@@ -33,6 +35,43 @@ func builtinArrayConcat(a, b ast.Value) (ast.Value, error) {
 	return arrC, nil
 }
 
+func builtinArraySlice(a, i, j ast.Value) (ast.Value, error) {
+	arrA, err := builtins.ArrayOperand(a, 1)
+	if err != nil {
+		return nil, err
+	}
+
+	startIndex, err := builtins.IntOperand(i, 1)
+	if err != nil {
+		return nil, err
+	}
+
+	stopIndex, err := builtins.IntOperand(j, 2)
+	if err != nil {
+		return nil, err
+	}
+
+	// Don't allow negative indices for slicing
+	if startIndex < 0 || stopIndex < 0 {
+		return nil, fmt.Errorf("Invalid slicing operation: negative indices not allowed")
+	}
+
+	// stopIndex can't be less than startIndex
+	if stopIndex < startIndex {
+		return nil, fmt.Errorf("Invalid slicing operation: stopIndex can't be less than startIndex")
+	}
+
+	arrB := make(ast.Array, 0, stopIndex-startIndex)
+
+	for i := startIndex; i < stopIndex; i++ {
+		arrB = append(arrB, arrA[i])
+	}
+
+	return arrB, nil
+
+}
+
 func init() {
 	RegisterFunctionalBuiltin2(ast.ArrayConcat.Name, builtinArrayConcat)
+	RegisterFunctionalBuiltin3(ast.ArraySlice.Name, builtinArraySlice)
 }
