@@ -165,6 +165,8 @@ var DefaultBuiltins = [...]*Builtin{
 
 	// CIDR
 	NetCIDROverlap,
+	NetCIDRIntersects,
+	NetCIDRContains,
 
 	// Glob
 	GlobMatch,
@@ -1356,9 +1358,21 @@ var GlobQuoteMeta = &Builtin{
  * Net CIDR
  */
 
-// NetCIDROverlap checks if an ip overlaps with cidr and returns true or false
-var NetCIDROverlap = &Builtin{
-	Name: "net.cidr_overlap",
+// NetCIDRIntersects checks if a cidr intersects with another cidr and returns true or false
+var NetCIDRIntersects = &Builtin{
+	Name: "net.cidr_intersects",
+	Decl: types.NewFunction(
+		types.Args(
+			types.S,
+			types.S,
+		),
+		types.B,
+	),
+}
+
+// NetCIDRContains checks if a cidr or ip is contained within another cidr and returns true or false
+var NetCIDRContains = &Builtin{
+	Name: "net.cidr_contains",
 	Decl: types.NewFunction(
 		types.Args(
 			types.S,
@@ -1381,6 +1395,18 @@ var SetDiff = &Builtin{
 			types.NewSet(types.A),
 		),
 		types.NewSet(types.A),
+	),
+}
+
+// NetCIDROverlap has been replaced by the `net.cidr_contains` built-in.
+var NetCIDROverlap = &Builtin{
+	Name: "net.cidr_overlap",
+	Decl: types.NewFunction(
+		types.Args(
+			types.S,
+			types.S,
+		),
+		types.B,
 	),
 }
 
