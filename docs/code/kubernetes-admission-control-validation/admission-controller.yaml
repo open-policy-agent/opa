@@ -91,7 +91,7 @@ spec:
               mountPath: /certs
               name: opa-server
         - name: kube-mgmt
-          image: openpolicyagent/kube-mgmt:0.6
+          image: openpolicyagent/kube-mgmt:0.8
           args:
             - "--replicate-cluster=v1/namespaces"
             - "--replicate=extensions/v1beta1/ingresses"
