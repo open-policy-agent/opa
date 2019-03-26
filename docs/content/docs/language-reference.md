@@ -251,7 +251,8 @@ In order to trigger the use of HTTPs the user must provide one of the following 
 ### Net
 | Built-in | Description |
 | ------- |-------------|
-| <span class="opa-keep-it-together">``output := net.cidr_overlap(cidr, ip)``</span> | `output` is `true` if `ip` (e.g. `127.0.0.1`) overlaps with `cidr` (e.g. `127.0.0.1/24`) and false otherwise. Supports both IPv4 and IPv6 notations.|
+| <span class="opa-keep-it-together">``net.cidr_contains(cidr, cidr_or_ip)``</span> | `output` is `true` if `cidr_or_ip` (e.g. `127.0.0.64/26` or `127.0.0.1`) is contained within `cidr` (e.g. `127.0.0.1/24`) and false otherwise. Supports both IPv4 and IPv6 notations.|
+| <span class="opa-keep-it-together">``net.cidr_intersects(cidr1, cidr2)``</span> | `output` is `true` if `cidr1` (e.g. `192.168.0.0/16`) overlaps with `cidr2` (e.g. `192.168.1.0/24`) and false otherwise. Supports both IPv4 and IPv6 notations.|
 
 ### Rego
 | Built-in | Description |
