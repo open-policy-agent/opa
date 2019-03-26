@@ -1,15 +1,18 @@
+load-docs:
+	scripts/load-docs.sh
+
 setup:
 	npm install
 
-serve:
+serve: load-docs
 	hugo server \
 		--buildDrafts \
 		--buildFuture
 
-production-build:
+production-build: load-docs
 	hugo --minify
 
-preview-build:
+preview-build: load-docs
 	hugo \
 		--baseURL $(DEPLOY_PRIME_URL) \
 		--buildDrafts \

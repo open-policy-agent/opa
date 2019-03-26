@@ -21,6 +21,8 @@
   {{ end }}
 
   {{ range $docs }}
+  {{ $isRoot     := eq (len (split .File.Path "/")) 2 }}
+  {{ if not $isRoot }}
   {{ $isThisPage := eq .URL $pageUrl }}
   {{ $title      := cond (isset .Params "navtitle") (.Params.navtitle) .Title }}
   <a class="docs-nav-item{{ if $isThisPage }} is-active{{ end }}" href="{{ .URL }}">
@@ -30,6 +32,7 @@
   <div class="toc">
     {{ .TableOfContents }}
   </div>
+  {{ end }}
   {{ end }}
   {{ end }}
 
@@ -40,6 +43,8 @@
   </span>
 
   {{ range $tutorials }}
+  {{ $isRoot     := eq (len (split .File.Path "/")) 2 }}
+  {{ if not $isRoot }}
   {{ $isThisPage := eq .URL $pageUrl }}
   {{ $title      := cond (isset .Params "navtitle") (.Params.navtitle) .Title }}
   <a class="docs-nav-item{{ if $isThisPage }} is-active{{ end }}" href="{{ .URL }}">
@@ -49,6 +54,7 @@
   <div class="toc">
     {{ .TableOfContents }}
   </div>
+  {{ end }}
   {{ end }}
   {{ end }}
 
@@ -59,6 +65,8 @@
   </span>
 
   {{ range $bestPrac }}
+  {{ $isRoot     := eq (len (split .File.Path "/")) 2 }}
+  {{ if not $isRoot }}
   {{ $isThisPage := eq .URL $pageUrl }}
   {{ $title      := cond (isset .Params "navtitle") (.Params.navtitle) .Title }}
   <a class="docs-nav-item{{ if $isThisPage }} is-active{{ end }}" href="{{ .URL }}">
@@ -68,6 +76,7 @@
   <div class="toc">
     {{ .TableOfContents }}
   </div>
+  {{ end }}
   {{ end }}
   {{ end }}
 </div>

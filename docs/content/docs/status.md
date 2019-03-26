@@ -38,7 +38,7 @@ on the agent, updates will be sent to `/status`.
     "labels": {
         "app": "my-example-app",
         "id": "1780d507-aea2-45cc-ae50-fa153c8e4a5a",
-        "version": "v0.10.5"
+        "version": "v{{< latest >}}"
     },
     "bundle": {
         "name": "http/example/authz",

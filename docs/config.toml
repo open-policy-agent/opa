@@ -19,9 +19,6 @@ medium = "https://blog.openpolicyagent.org"
 slack = "https://slack.openpolicyagent.org"
 github = "https://github.com/open-policy-agent/opa"
 
-[params.versions]
-latest = "0.10.5"
-
 [params.logos]
 sidebar = "/img/logos/opa-stacked-color.png"
 navbar = "/img/logos/opa-icon-white.png"
@@ -69,3 +66,13 @@ weight = 3
 name = "GitHub"
 url = "https://github.com/open-policy-agent/opa"
 weight = 4
+
+[mediaTypes."text/netlify"]
+delimiter = ""
+
+[outputFormats.REDIRECTS]
+mediaType = "text/netlify"
+baseName = "_redirects"
+
+[outputs]
+home = ["HTML", "REDIRECTS"]

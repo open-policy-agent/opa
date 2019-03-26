@@ -1,12 +1,28 @@
 {{ $home       := site.BaseURL }}
 {{ $logo       := site.Params.logos.sidebar | relURL }}
+{{ $latest     := index site.Data.releases 0 }}
 <div class="dashboard">
   <div class="dashboard-panel left has-background-white-bis is-hidden-mobile">
-    <div class="dashboard-panel-header">
+    <div class="dashboard-panel-header has-text-centered">
       <div class="dashboard-panel-header-logo">
         <a href="{{ $home }}">
           <img src="{{ $logo }}">
         </a>
+      </div>
+
+      <div class="dropdown is-left">
+        <div class="dropdown-trigger">
+          <span class="button is-primary">
+            <span>
+              <strong>
+                v{{ $latest }}
+              </strong>
+              <span class="tag latest-tag is-success is-small has-text-weight-bold">
+                latest
+              </span>
+            </span>
+          </span>
+        </div>
       </div>
     </div>
 

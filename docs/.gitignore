@@ -2,5 +2,9 @@
 public/
 resources/
 
+# Documentation versions
+content/docs/v*
+data/releases.yaml
+
 # Node.js assets
 node_modules/
