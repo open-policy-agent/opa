@@ -2745,6 +2745,33 @@ func TestTopDownWithKeyword(t *testing.T) {
 			rules: []string{`p = true { data.ex.allow with data.label.b.c as [1, 2, 3] }`},
 		},
 		{
+			note: "with mock iteration on sets",
+			exp:  `[3,4]`,
+			rules: []string{
+				`q[1] { true }`,
+				`q[2] { true }`,
+				`p[x] { q[x] with q as {3,4} }`,
+			},
+		},
+		{
+			note: "with mock iteration on objects",
+			exp:  `{"a": 3, "c": 4}`,
+			rules: []string{
+				`q["a"] = 1 { true }`,
+				`q["b"] = 2 { true }`,
+				`p[x] = y { q[x] = y with q as {"a": 3, "c": 4} }`,
+			},
+		},
+		{
+			note: "with mock iteration on arrays",
+			exp:  `[3, 4]`,
+			rules: []string{
+				`q[1] { true }`,
+				`q[2] { true }`,
+				`p[x] { q[_] = x with q as [3,4] }`,
+			},
+		},
+		{
 			note: "bug 1083",
 			exp:  ``,
 			modules: []string{`package ex

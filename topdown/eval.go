@@ -697,8 +697,7 @@ func (e *eval) biunifyValues(a, b *ast.Term, b1, b2 *bindings, iter unifyIterato
 func (e *eval) biunifyRef(a, b *ast.Term, b1, b2 *bindings, iter unifyIterator) error {
 
 	ref := a.Value.(ast.Ref)
-	plugged := make(ast.Ref, len(ref))
-	plugged[0] = ref[0]
+	plugged := ref.Copy()
 
 	if ref[0].Equal(ast.DefaultRootDocument) {
 		node := e.compiler.RuleTree.Child(ref[0].Value)
@@ -979,8 +978,8 @@ func (e *eval) Resolve(ref ast.Ref) (ast.Value, error) {
 
 	if ref[0].Equal(ast.DefaultRootDocument) {
 
-		repValue, ok := e.withCache.Get(ref)
-		if ok {
+		repValue, complete := e.withCache.Get(ref)
+		if complete {
 			return repValue, nil
 		}
 
@@ -1257,9 +1256,12 @@ func (e evalTree) next(iter unifyIterator, plugged *ast.Term) error {
 
 	var node *ast.TreeNode
 
-	_, found := e.e.withCache.Get(e.ref)
+	cpy := e
+	cpy.plugged[e.pos] = plugged
+	cpy.pos++
+	_, complete := e.e.withCache.Get(cpy.plugged[:cpy.pos])
 
-	if !found {
+	if !complete {
 		if e.node != nil {
 			node = e.node.Child(plugged.Value)
 			if node != nil && len(node.Values) > 0 {
@@ -1278,10 +1280,7 @@ func (e evalTree) next(iter unifyIterator, plugged *ast.Term) error {
 		}
 	}
 
-	cpy := e
-	cpy.plugged[e.pos] = plugged
 	cpy.node = node
-	cpy.pos++
 	return cpy.eval(iter)
 }
 
@@ -1307,6 +1306,15 @@ func (e evalTree) enumerate(iter unifyIterator) error {
 			err := doc.Iter(func(k, _ *ast.Term) error {
 				return e.e.biunify(k, e.ref[e.pos], e.bindings, e.bindings, func() error {
 					return e.next(iter, k)
+				})
+			})
+			if err != nil {
+				return err
+			}
+		case ast.Set:
+			err := doc.Iter(func(elem *ast.Term) error {
+				return e.e.biunify(elem, e.ref[e.pos], e.bindings, e.bindings, func() error {
+					return e.next(iter, elem)
 				})
 			})
 			if err != nil {
