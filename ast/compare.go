@@ -5,7 +5,6 @@
 package ast
 
 import (
-	"encoding/json"
 	"fmt"
 	"math/big"
 )
@@ -86,7 +85,7 @@ func Compare(a, b interface{}) int {
 		if !ok {
 			panic("illegal value")
 		}
-		bigB, ok := new(big.Float).SetString(string(json.Number(b.(Number))))
+		bigB, ok := new(big.Float).SetString(string(b.(Number)))
 		if !ok {
 			panic("illegal value")
 		}
