@@ -3,13 +3,39 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## 0.10.6
 
-* `http.send` function takes an optional `force_json_decode` input. By default,
-  it is set to `false`. This backwards incompatible change will need users to
-  specify the `Content-type` as `application/json` in the HTTP server
-  response or set `force_json_decode` to `true` in order to json decode
-  the HTTP response body.
+This release migrates the OPA documentation over to Hugo (from
+GitBook). Going forward the OPA documentation will be generated using
+Hugo and hosted on Netlify (instead of GitHub Pages). The Hugo/Netlify
+stack brings us inline with the goal for other CNCF projects and
+provides nice features like "preview before merge".
+
+This release includes a small but backwards incompatible change to the
+`http.send` built-in. Previously, `http.send` would _always_ decode
+responses as JSON even if the Content-Type was unset or explicitly not
+JSON. If you were previously relying on HTTP responses that did not
+set the Content-Type correctly, you will need to update your policy to
+pass `"force_json_decode": true` as in the `http.send` parameters.
+
+### Fixes
+
+- Fix panic in mod operation ([#1245](https://github.com/open-policy-agent/opa/issues/1245))
+- Fix eval tree enumeration to return errors ([#1272](https://github.com/open-policy-agent/opa/issues/1272))
+- Fix http.send to handle non-JSON responses ([#1258](https://github.com/open-policy-agent/opa/issues/1258))
+- Fix backticks in SSH example that were causing problems ([#1260](https://github.com/open-policy-agent/opa/issues/1260))
+- Fix IAM examples to use regex instead of glob syntax ([#1282](https://github.com/open-policy-agent/opa/issues/1282))
+
+### Miscellaneous
+
+- Add support to register custom stages in the compiler
+- Add rootless Docker image stream
+- Improve hash distribution on objects
+- Reduce number of allocs in set membership implementation
+- docs: Add homebrew install instruction to the Getting Started tutorial
+- docs: Many improvements around := vs ==, best practices, cheatsheet, etc.
+- cmd: Add --fail-defined flag to eval subcommand
+- server: Fix patch path escaping
 
 ## 0.10.5
 
