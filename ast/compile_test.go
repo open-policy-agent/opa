@@ -1591,9 +1591,20 @@ func TestCompilerMockFunction(t *testing.T) {
 	p {true with data.test.is_allowed as "blah" }
 	`)
 	compileStages(c, c.rewriteWithModifiers)
+	assertCompilerErrorStrings(t, c, []string{"rego_compile_error: with keyword cannot replace functions"})
+}
 
-	expectedError := fmt.Errorf("rego_compile_error: with keyword cannot replace rules with arguments")
-	assertCompilerErrorStrings(t, c, []string{expectedError.Error()})
+func TestCompilerMockVirtualDocumentPartially(t *testing.T) {
+	c := NewCompiler()
+
+	c.Modules["test"] = MustParseModule(`
+	package test
+	p = {"a": 1}
+	q = x { p = x with p.a as 2 }
+	`)
+
+	compileStages(c, c.rewriteWithModifiers)
+	assertCompilerErrorStrings(t, c, []string{"rego_compile_error: with keyword cannot partially replace virtual document(s)"})
 }
 
 func TestCompilerSetGraph(t *testing.T) {
