@@ -102,3 +102,10 @@ latest = "..."
 
 Change the value of `latest` and commit that change to `master` to change the displayed
 version in the docs.
+
+## Configuration tables
+
+The [Configuration Reference](https://openpolicyagent.org/docs/configuration) doc contains
+a series of tables that detail OPA's configuration parameters. Those tables are
+auto-generated from the [`configuration.yaml`](./data/configuration.yaml) file, which you
+should update if the configuration parameters change.
