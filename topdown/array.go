@@ -33,6 +33,36 @@ func builtinArrayConcat(a, b ast.Value) (ast.Value, error) {
 	return arrC, nil
 }
 
+func builtinArraySlice(a, i, j ast.Value) (ast.Value, error) {
+	arr, err := builtins.ArrayOperand(a, 1)
+	if err != nil {
+		return nil, err
+	}
+
+	startIndex, err := builtins.IntOperand(i, 2)
+	if err != nil {
+		return nil, err
+	}
+
+	stopIndex, err := builtins.IntOperand(j, 3)
+	if err != nil {
+		return nil, err
+	}
+
+	// If any of the provided indices are negative or stopIndex is less than startIndex
+	// then return a copy of the original array.
+	if startIndex < 0 || stopIndex < 0 || (stopIndex < startIndex) {
+		startIndex = 0
+		stopIndex = len(arr)
+	}
+
+	arrb := arr[startIndex:stopIndex]
+
+	return arrb, nil
+
+}
+
 func init() {
 	RegisterFunctionalBuiltin2(ast.ArrayConcat.Name, builtinArrayConcat)
+	RegisterFunctionalBuiltin3(ast.ArraySlice.Name, builtinArraySlice)
 }

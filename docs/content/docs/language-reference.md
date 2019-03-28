@@ -51,10 +51,10 @@ complex types.
 | <span class="opa-keep-it-together">``output := any(array_or_set)``</span> | ``output`` is ``true`` if any of the values in ``array_or_set`` is ``true``. A collection of length 0 returns ``false``.|
 
 ### Arrays
-
 | Built-in | Description |
 | ------- |-------------|
 | <span class="opa-keep-it-together">``output := array.concat(array, array)``</span> | ``output`` is the result of concatenating the two input arrays together. |
+  <span class="opa-keep-it-together">``output := array.slice(array, startIndex, stopIndex)``</span> | ``output`` is the part of the ``array`` from ``startIndex`` to ``stopIndex`` including the first but excluding the last. If any of the provided indices are negative or ``stopIndex`` is less than ``startIndex`` then the original array is returned. |
 
 ### Sets
 

@@ -19,6 +19,11 @@ func TestTopDownArray(t *testing.T) {
 		{"concat", []string{`p = x { x = array.concat([1,2], [3,4]) }`}, "[1,2,3,4]"},
 		{"concat: err", []string{`p = x { x = array.concat(data.b, [3,4]) }`}, fmt.Errorf("operand 1 must be array")},
 		{"concat: err rhs", []string{`p = x { x = array.concat([1,2], data.b) }`}, fmt.Errorf("operand 2 must be array")},
+
+		{"slice", []string{`p = x { x = array.slice([1,2,3,4,5], 1, 3) }`}, "[2,3]"},
+		{"slice: empty slice", []string{`p = x { x = array.slice([1,2,3], 0, 0) }`}, "[]"},
+		{"slice: negative indices", []string{`p = x { x = array.slice([1,2,3,4,5], -4, -1) }`}, "[1,2,3,4,5]"},
+		{"slice: stopIndex < startIndex", []string{`p = x { x = array.slice([1,2,3,4,5], 4, 1) }`}, "[1,2,3,4,5]"},
 	}
 
 	data := loadSmallTestData()
