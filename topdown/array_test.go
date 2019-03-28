@@ -21,9 +21,9 @@ func TestTopDownArray(t *testing.T) {
 		{"concat: err rhs", []string{`p = x { x = array.concat([1,2], data.b) }`}, fmt.Errorf("operand 2 must be array")},
 
 		{"slice", []string{`p = x { x = array.slice([1,2,3,4,5], 1, 3) }`}, "[2,3]"},
-		{"slice", []string{`p = x { x = array.slice([1,2,3], 0, 0) }`}, "[]"},
-		{"slice: err negative indices", []string{`p = x { x = array.slice([3,4], -1, 0) }`}, fmt.Errorf("Invalid slicing operation: negative indices not allowed")},
-		{"slice: err stopIndex < startIndex", []string{`p = x { x = array.slice([1,2,3], 2, 1) }`}, fmt.Errorf("Invalid slicing operation: stopIndex can't be less than startIndex")},
+		{"slice: empty slice", []string{`p = x { x = array.slice([1,2,3], 0, 0) }`}, "[]"},
+		{"slice: negative indices", []string{`p = x { x = array.slice([1,2,3,4,5], -4, -1) }`}, "[1,2,3,4,5]"},
+		{"slice: stopIndex < startIndex", []string{`p = x { x = array.slice([1,2,3,4,5], 4, 1) }`}, "[1,2,3,4,5]"},
 	}
 
 	data := loadSmallTestData()
