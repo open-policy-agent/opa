@@ -65,6 +65,7 @@ var DefaultBuiltins = [...]*Builtin{
 
 	// Arrays
 	ArrayConcat,
+	ArraySlice,
 
 	// Casting
 	ToNumber,
@@ -502,6 +503,19 @@ var ArrayConcat = &Builtin{
 		types.Args(
 			types.NewArray(nil, types.A),
 			types.NewArray(nil, types.A),
+		),
+		types.NewArray(nil, types.A),
+	),
+}
+
+// ArraySlice returns a slice of a given array
+var ArraySlice = &Builtin{
+	Name: "array.slice",
+	Decl: types.NewFunction(
+		types.Args(
+			types.NewArray(nil, types.A),
+			types.NewNumber(),
+			types.NewNumber(),
 		),
 		types.NewArray(nil, types.A),
 	),
