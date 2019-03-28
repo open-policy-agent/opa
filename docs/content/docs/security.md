@@ -14,7 +14,7 @@ authorization so that:
 - Traffic between OPA and clients is encrypted.
 - Clients verify the OPA API endpoint identity.
 - OPA verifies client identities.
-- Clients are only granted access to specific APIs or sections of [The `data` Document](/how-does-opa-work.md#the-data-document).
+- Clients are only granted access to specific APIs or sections of [The `data` Document](../how-does-opa-work#the-data-document).
 
 ## TLS and HTTPS
 
@@ -102,7 +102,7 @@ default to `off`.
 
 For authentication, OPA supports:
 
-- [Bearer tokens](/rest-api.md#bearer-tokens): Bearer tokens are enabled by
+- [Bearer tokens](../rest-api#bearer-tokens): Bearer tokens are enabled by
 starting OPA with ``--authentication=token``. When the `token` authentication
 mode is enabled, OPA will extract the Bearer token from incoming API requests
 and provide to the authorization handler. When you use the `token`

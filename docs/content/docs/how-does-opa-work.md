@@ -113,7 +113,7 @@ Content-Type: application/json-patch+json
 
 ### Policies
 
-Policies are written using OPA’s purpose-built, declarative language Rego. Rego includes rich support for traversing nested documents and transforming data using syntax inspired by dictionary and array access in languages like Python and JSONPath. For detailed information about using Rego, see [How Do I Write Policies?](/how-do-i-write-policies.md).
+Policies are written using OPA’s purpose-built, declarative language Rego. Rego includes rich support for traversing nested documents and transforming data using syntax inspired by dictionary and array access in languages like Python and JSONPath. For detailed information about using Rego, see [How Do I Write Policies?](../how-do-i-write-policies).
 
 Each Rego file defines a policy module using a collection of rules that describe the expected state of your service. Both your service and its users can publish and update policy modules using OPA’s Policy API. For example, the following request creates a policy with two rules (violations and public_servers) named “exempli-gratia”:
 

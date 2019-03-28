@@ -26,4 +26,4 @@ scrape_configs:
 ## Diagnostics (Deprecated)
 
 The diagnostics feature is deprecated. If you need to monitor OPA decisions, see
-the [Decision Log](./decision_logs.md) API.
+the [Decision Log](../decision-logs) API.

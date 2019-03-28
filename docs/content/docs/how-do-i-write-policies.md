@@ -227,7 +227,7 @@ This section introduced the main aspects of Rego. The rest of this document
 walks through each part of the language in more detail.
 
 For a concise reference, see the [Language
-Reference](/language-reference.md) document.
+Reference](../language-reference) document.
 
 
 ## Scalar Values
@@ -263,7 +263,7 @@ null
 
 Rego supports two different types of syntax for declaring strings. The first is likely to be the most familiar: characters surrounded by double quotes.
 In such strings, certain characters must be escaped to appear in the string, such as double quotes themselves, backslashes, etc. See the [Language
-Reference](/language-reference.md) for a formal definition.
+Reference](../language-reference) for a formal definition.
 
 The other type of string declaration is a raw string declaration. These are made of characters surrounded by backticks (`` ` ``), with the exception
 that raw strings may not contain backticks themselves. Raw strings are what they sound like: escape sequences are not interpreted, but instead taken
@@ -397,7 +397,7 @@ Variables appearing in the head of a rule must also appear in a non-negated equa
 
 References are used to access nested documents.
 
-The examples in this section use the data defined in the [Examples](how-do-i-write-policies.md#example-data) section.
+The examples in this section use the data defined in the [Examples](#example-data) section.
 
 The simplest reference contains no variables. For example, the following reference returns the hostname of the second server in the first site document from our example data:
 
@@ -703,11 +703,11 @@ For example, to construct a set from an array:
 
 ## Rules
 
-Rules define the content of [Virtual Documents](/how-does-opa-work.md#rules-and-virtual-documents) in
+Rules define the content of [Virtual Documents](../how-does-opa-work#rules-and-virtual-documents) in
 OPA. When OPA evaluates a rule, we say OPA *generates* the content of the
 document that is defined by the rule.
 
-The sample code in this section make use of the data defined in  [Examples](how-do-i-write-policies.md#example-data).
+The sample code in this section make use of the data defined in  [Examples](#example-data).
 
 ### Generating Sets
 
@@ -743,7 +743,7 @@ First, the rule defines a set document where the contents are defined by the var
 <name> <key>? <value>? <body>?
 ```
 
-For a more formal definition of the rule syntax, see the [Language Reference](/language-reference.md#grammar) document.
+For a more formal definition of the rule syntax, see the [Language Reference](../language-reference#grammar) document.
 
 Second, the `sites[_].servers[_].hostname` fragment selects the `hostname` attribute from all of the objects in the `servers` collection. From reading the fragment in isolation we cannot tell whether the fragment refers to arrays or objects. We only know that it refers to a collections of values.
 
@@ -886,7 +886,7 @@ In some cases, having an undefined result for a document is not desirable. In th
 
 ### Functions
 
-Rego supports user-defined functions that can be called with the same semantics as [Built-in Functions](#built-in-functions). They have access to both the [the data Document](/how-does-opa-work.md#the-data-document) and [the input Document](/how-does-opa-work.md#the-input-document).
+Rego supports user-defined functions that can be called with the same semantics as [Built-in Functions](#built-in-functions). They have access to both the [the data Document](../how-does-opa-work#the-data-document) and [the input Document](../how-does-opa-work#the-input-document).
 
 For example, the following function will return the result of trimming the spaces from a string and then splitting it by periods.
 
@@ -992,7 +992,7 @@ undefined
 
 ## Negation
 
-To generate the content of a [Virtual Document](/how-does-opa-work.md#rules-and-virtual-documents), OPA attempts to bind variables in the body of the rule such that all expressions in the rule evaluate to True.
+To generate the content of a [Virtual Document](../how-does-opa-work#rules-and-virtual-documents), OPA attempts to bind variables in the body of the rule such that all expressions in the rule evaluate to True.
 
 This generates the correct result when the expressions represent assertions about what states should exist in the data stored in OPA. In some cases, you want to express that certain states *should not* exist in the data stored in OPA. In these cases, negation must be used.
 
@@ -1071,7 +1071,7 @@ Packages group the rules defined in one or more modules into a particular namesp
 
 Modules contributing to the same package do not have to be located in the same directory.
 
-The rules defined in a module are automatically exported. That is, they can be queried under OPA’s [Data API](/rest-api.md#data-api) provided the appropriate package is given. For example, given the following module:
+The rules defined in a module are automatically exported. That is, they can be queried under OPA’s [Data API](../rest-api#data-api) provided the appropriate package is given. For example, given the following module:
 
 ```ruby
 package opa.examples
@@ -1091,7 +1091,7 @@ Import statements declare dependencies that modules have on documents defined ou
 
 All modules contain implicit statements which import the `data` and `input` documents.
 
-Modules use the same syntax to declare dependencies on [Base Documents](/how-does-opa-work.md#base-documents) and [Virtual Documents](/how-does-opa-work.md#rules-and-virtual-documents).
+Modules use the same syntax to declare dependencies on [Base Documents](../how-does-opa-work#base-documents) and [Virtual Documents](../how-does-opa-work#rules-and-virtual-documents).
 
 ```ruby
 package opa.examples
@@ -1144,7 +1144,7 @@ http_servers[server] {
 ## With Keyword
 
 The `with` keyword allows queries to programmatically specify values nested
-under the [input Document](/how-does-opa-work.md#the-input-document) and the [data Document](/how-does-opa-work.md#the-data-document).
+under the [input Document](../how-does-opa-work#the-input-document) and the [data Document](../how-does-opa-work#the-data-document).
 
 For example, given the simple authorization policy in the [Imports](#imports)
 section, we can write a query that checks whether a particular request would be
@@ -1428,7 +1428,7 @@ Built-ins can include "." characters in the name. This allows them to be
 namespaced. If you are adding custom built-ins to OPA, consider namespacing
 them to avoid naming conflicts, e.g., `org.example.special_func`.
 
-See the [Language Reference](/language-reference.md#built-in-functions) document for
+See the [Language Reference](../language-reference#built-in-functions) document for
 details on each built-in function.
 
 ## Example Data

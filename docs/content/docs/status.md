@@ -6,7 +6,7 @@ weight: 9
 
 OPA can periodically report status updates to remote HTTP servers. The
 updates contain status information for OPA itself as well as the
-[Bundles](bundles.md) that have been downloaded and activated.
+[Bundles](../bundles) that have been downloaded and activated.
 
 OPA sends status reports whenever bundles are downloaded and activated. If
 the bundle download or activation fails for any reason, the status update
@@ -17,7 +17,7 @@ OPA instance. OPA automatically includes an `id` value in the label set that
 provides a globally unique identifier or the running OPA instance and a
 `version` value that provides the version of OPA.
 
-See the [Configuration Reference](configuration.md) for configuration details.
+See the [Configuration Reference](../configuration) for configuration details.
 
 ### Status Service API
 

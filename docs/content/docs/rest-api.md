@@ -709,7 +709,7 @@ Content-Type: application/json
 
 ## Data API
 
-The Data API exposes endpoints for reading and writing documents in OPA. For an introduction to the different types of documents in OPA see [How Does OPA Work?](/how-does-opa-work.md).
+The Data API exposes endpoints for reading and writing documents in OPA. For an introduction to the different types of documents in OPA see [How Does OPA Work?](../how-does-opa-work).
 
 ### Get a Document
 
@@ -1032,7 +1032,7 @@ Get a document that requires input.
 
 The path separator is used to access values inside object and array documents. If the path indexes into an array, the server will attempt to convert the array index to an integer. If the path element cannot be converted to an integer, the server will respond with 404.
 
-The request body contains an object that specifies a value for [The input Document](/how-does-opa-work.md#the-input-document).
+The request body contains an object that specifies a value for [The input Document](../how-does-opa-work#the-input-document).
 
 #### Request Headers
 
@@ -1152,7 +1152,7 @@ Use this API if you are enforcing policy decisions via webhooks that have pre-de
 request/response formats. Note, the API path prefix is `/v0` instead of `/v1`.
 
 The request message body defines the content of the [The input
-Document](/how-does-opa-work.md#the-input-document). The request message body
+Document](../how-does-opa-work#the-input-document). The request message body
 may be empty. The path separator is used to access values inside object and
 array documents.
 
@@ -1368,10 +1368,10 @@ If the default decision (defaulting to `/system/main`) is undefined, the server 
 
 The policy example below shows how to define a rule that will
 produce a value for the `/data/system/main` document. You can configure OPA
-to use a different URL path to serve these queries. See the [Configuration Reference](configuration.md)
+to use a different URL path to serve these queries. See the [Configuration Reference](../configuration)
 for more information.
 
-The request message body is mapped to the [Input Document](/how-does-opa-work.md#the-input-document).
+The request message body is mapped to the [Input Document](../how-does-opa-work#the-input-document).
 
 ```http
 PUT /v1/policies/example1 HTTP/1.1
@@ -1728,7 +1728,7 @@ The following table summarizes the behavior for partial evaluation results.
 
 ## Authentication
 
-The API is secured via [HTTPS, Authentication, and Authorization](security.md).
+The API is secured via [HTTPS, Authentication, and Authorization](../security).
 
 ###  Bearer Tokens
 

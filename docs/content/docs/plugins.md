@@ -122,7 +122,7 @@ You can register your factory with OPA by calling [github.com/open-policy-agent/
 
 ### Putting It Together
 
-The example below shows how you can implement a custom [Decision Logger](decision_logs.md)
+The example below shows how you can implement a custom [Decision Logger](../decision-logs)
 that writes events to a stream (e.g., stdout/stderr).
 
 ```golang

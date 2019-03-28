@@ -27,3 +27,12 @@ preview-build: clean load-docs
 		--contentDir generated \
 		--ignoreCache \
 		--minify
+
+linkcheck-build:
+	hugo \
+		--baseURL "/" \
+		--buildDrafts \
+		--buildFuture
+
+linkcheck: clean linkcheck-build
+	htmlproofer ./public --empty-alt-ignore
