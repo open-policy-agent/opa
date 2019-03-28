@@ -5,8 +5,6 @@
 package topdown
 
 import (
-	"fmt"
-
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/topdown/builtins"
 )
@@ -36,7 +34,7 @@ func builtinArrayConcat(a, b ast.Value) (ast.Value, error) {
 }
 
 func builtinArraySlice(a, i, j ast.Value) (ast.Value, error) {
-	arrA, err := builtins.ArrayOperand(a, 1)
+	arr, err := builtins.ArrayOperand(a, 1)
 	if err != nil {
 		return nil, err
 	}
@@ -51,23 +49,16 @@ func builtinArraySlice(a, i, j ast.Value) (ast.Value, error) {
 		return nil, err
 	}
 
-	// Don't allow negative indices for slicing
-	if startIndex < 0 || stopIndex < 0 {
-		return nil, fmt.Errorf("Invalid slicing operation: negative indices not allowed")
+	// If any of the provided indices are negative or stopIndex is less than startIndex
+	// then return a copy of the original array.
+	if startIndex < 0 || stopIndex < 0 || (stopIndex < startIndex) {
+		startIndex = 0
+		stopIndex = len(arr)
 	}
 
-	// stopIndex can't be less than startIndex
-	if stopIndex < startIndex {
-		return nil, fmt.Errorf("Invalid slicing operation: stopIndex can't be less than startIndex")
-	}
+	arrb := arr[startIndex:stopIndex]
 
-	arrB := make(ast.Array, 0, stopIndex-startIndex)
-
-	for i := startIndex; i < stopIndex; i++ {
-		arrB = append(arrB, arrA[i])
-	}
-
-	return arrB, nil
+	return arrb, nil
 
 }
 
