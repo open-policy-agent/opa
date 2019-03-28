@@ -1,0 +1,138 @@
+Services:
+- field: services[_].name
+  type: string
+  required: true
+  description: Unique name for the service. Referred to by plugins.
+- field: services[_].url
+  type: string
+  required: true
+  description: Base URL to contact the service with.
+- field: services[_].headers
+  type: object
+  required: false
+  description: HTTP headers to include in requests to the service.
+- field: services[_].allow_insecure_tls
+  type: bool
+  required: false
+  description: Allow insecure TLS.
+- field: services[_].credentials.bearer.token
+  type: string
+  required: false
+  description: Enables token-based authentication and supplies the bearer token to authenticate with.
+- field: services[_].credentials.bearer.scheme
+  type: string
+  required: false
+  description: Bearer token scheme to specify.
+- field: services[_].credentials.client_tls.cert
+  type: string
+  required: false
+  description: The path to the client certificate to authenticate with.
+- field: services[_].credentials.client_tls.private_key
+  type: string
+  required: false
+  description: The path to the private key of the client certificate.
+Miscellaneous:
+- field: labels
+  type: object
+  required: true
+  description: Set of key-value pairs that uniquely identify the OPA instance. Labels are included when OPA uploads decision logs and status information.
+- field: default_decision
+  type: string
+  required: false
+  default: /system/main
+  description: Set path of default policy decision used to serve queries against OPA’s base URL.
+- field: default_authorization_decision
+  type: string
+  required: false
+  default: /system/authz/allow
+  description: Set path of default authorization decision for OPA’s API.
+- field: plugins
+  type: object
+  required: false
+  description: Location for custom plugin configuration. See [Plugins](../plugins) for details.
+  default: '{}'
+Bundles:
+- field: bundle.name
+  type: string
+  required: true
+  description: Name of the bundle to download.
+- field: bundle.prefix
+  type: string
+  required: false
+  default: bundles
+  description: Path prefix to use to download bundle from remote server.
+- field: bundle.service
+  type: string
+  required: true
+  description: Name of service to use to contact remote server.
+- field: bundle.polling.min_delay_seconds
+  type: int64
+  required: false
+  default: 60
+  description: Minimum amount of time to wait between bundle downloads.
+- field: bundle.polling.max_delay_seconds
+  type: int64
+  required: false
+  default: 120
+  description: Maximum amount of time to wait between bundle downloads.
+Status:
+- field: status.service
+  type: string
+  required: true
+  description: Name of service to use to contact remote server.
+- field: status.partition_name
+  type: string
+  required: false
+  description: Path segment to include in status updates.
+"Decision Logs":
+- field: decision_logs.service
+  type: string
+  required: true
+  description: Name of the service to use to contact remote server.
+- field: decision_logs.partition_name
+  type: string
+  required: false
+  description: Path segment to include in status updates.
+- field: decision_logs.reporting.buffer_size_limit_bytes
+  type: int64
+  required: false
+  description: Decision log buffer size limit in bytes. OPA will drop old events from the log if this limit is exceeded. By default, no limit is set.
+- field: decision_logs.reporting.upload_size_limit_bytes
+  type: int64
+  required: false
+  default: 32768
+  description: Decision log upload size limit in bytes. OPA will chunk uploads to cap message body to this limit.
+- field: decision_logs.reporting.min_delay_seconds
+  type: int64
+  required: false
+  default: 300
+  description: Minimum amount of time to wait between uploads.
+- field: decision_logs.reporting.max_delay_seconds
+  type: int64
+  required: false
+  default: 600
+  description: Maximum amount of time to wait between uploads.
+- field: decision_logs.plugin
+  type: string
+  required: false
+  description: Use the named plugin for decision logging. If this field exists, the other configuration fields are not required.
+Discovery:
+- field: discovery.name
+  type: string
+  required: true
+  description: Name of the discovery configuration to download.
+- field: discovery.prefix
+  type: string
+  required: false
+  default: bundles
+  description: Path prefix to use to download configuration from remote server.
+- field: discovery.polling.min_delay_seconds
+  type: int64
+  required: false
+  default: 0
+  description: Minimum amount of time to wait between configuration downloads.
+- field: discovery.polling.max_delay_seconds
+  type: int64
+  required: false
+  default: 120
+  description: Maximum amount of time to wait between configuration downloads.

@@ -1,0 +1,46 @@
+{{ $section := .Get 0 }}
+{{ $configs := index site.Data.configuration $section }}
+<table class="config-table">
+  <thead>
+    <tr>
+      <th>
+        Field
+      </th>
+      <th>
+        Type
+      </th>
+      <th>
+        Required
+      </th>
+      <th>
+        Description
+      </th>
+    </tr>
+  </thead>
+  <tbody>
+    {{ range $configs }}
+    {{ $required := cond (eq .required true) "Yes" "No" }}
+    <tr>
+      <td>
+        <code>
+          {{ .field }}
+        </code>
+      </td>
+      <td>
+        <code>
+          {{ .type }}
+        </code>
+      </td>
+      <td>
+        {{ $required }}{{ with .default }}
+        <br /><br />
+        Default: <code>{{ . }}</code>
+        {{ end }}
+      </td>
+      <td>
+        {{ .description | markdownify }}
+      </td>
+    </tr>
+    {{ end }}
+  </tbody>
+</table>
