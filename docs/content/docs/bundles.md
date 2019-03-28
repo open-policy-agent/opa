@@ -8,7 +8,7 @@ OPA can periodically download bundles of policy and data from remote HTTP
 servers. The policies and data are loaded on the fly without requiring a
 restart of OPA. Once the policies and data have been loaded, they are enforced
 immediately. Policies and data loaded from bundles are accessible via the
-standard OPA [REST API](rest-api.md).
+standard OPA [REST API](../rest-api).
 
 Bundles provide an alternative to pushing policies into OPA via the REST APIs.
 By configuring OPA to download bundles from a remote HTTP server, you can
@@ -21,7 +21,7 @@ REST APIs will prevent you from modifying policy and data loaded via
 bundles. If you need to load policy and data from multiple sources,
 see the section below.
 
-See the [Configuration Reference](configuration.md) for configuration details.
+See the [Configuration Reference](../configuration) for configuration details.
 
 ## Bundle Service API
 
@@ -81,7 +81,7 @@ files in the bundle must be organized hierarchically into directories inside
 the tarball.
 
 > The hierarchical organization indicates to OPA where to load the data files
-> into the [the `data` Document](how-does-opa-work.md#the-data-document).
+> into the [the `data` Document](../how-does-opa-work#the-data-document).
 
 You can list the content of a bundle with `tar`.
 

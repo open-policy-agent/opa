@@ -31,7 +31,7 @@ Inside the REPL, you will define rules that codify the policy stated above.
 Once you finish this tutorial, you will be familiar with:
 
   * Running OPA as an interactive shell/REPL.
-  * Writing ad-hoc queries in [Rego](/how-do-i-write-policies.md).
+  * Writing ad-hoc queries in [Rego](../how-do-i-write-policies).
 
 ## Prerequisites
 
@@ -266,7 +266,7 @@ That same expression `data.servers[i]` when `i` has no value defines a query tha
 
 ### 4. Import and export documents.
 
-The REPL also understands the [Import and Package](/how-do-i-write-policies.md#modules) directives.
+The REPL also understands the [Import and Package](../how-do-i-write-policies#modules) directives.
 
 ```ruby
 > import data.servers

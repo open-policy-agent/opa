@@ -7,9 +7,9 @@ weight: 16
 
 ## How do I make user attributes stored in LDAP/AD available to OPA for making decisions?
 
-[This best-practice guide](best-practice-identity.md) explains three options: JSON Web Tokens, synchronization with LDAP/AD, and calling into LDAP/AD during policy evaluation.
+[This best-practice guide](../best-practice-identity) explains three options: JSON Web Tokens, synchronization with LDAP/AD, and calling into LDAP/AD during policy evaluation.
 
-## How does OPA do conflict resolution?
+## How does OPA do conflict resolution? {#conflict-resolution}
 
 In Rego (OPA's policy language), you can write statements that both allow and
 deny a request, such as
@@ -44,7 +44,7 @@ the first statement applicable makes the decision), see the FAQ entry on
 [statement order](#statement-order).
 
 
-## Does Statement Order Matter?
+## Does Statement Order Matter? {#statement-order}
 
 The order in which statements occur does not matter in Rego.  Reorder any two statements
 and the policy means exactly the same thing.  For example, the following two statements
@@ -55,7 +55,7 @@ ratelimit = 4 { input.name = "alice" }
 ratelimit = 5 { input.owner = "bob" }
 ```
 
-Sometimes, though, you want the statement order to matter.  For example, you might put more specific statements before more general statements so that the more specific statements take precedence (e.g. for [conflict resolution](conflict-resolution)).  Rego lets you do that using the `else` keyword.  For example, if you want to make the first statement above take precedence, you would write the following Rego.
+Sometimes, though, you want the statement order to matter.  For example, you might put more specific statements before more general statements so that the more specific statements take precedence (e.g. for [conflict resolution](#conflict-resolution)).  Rego lets you do that using the `else` keyword.  For example, if you want to make the first statement above take precedence, you would write the following Rego.
 
 ```ruby
 ratelimit = 4 {

@@ -281,4 +281,4 @@ an External Admission Controller, policies can be modified on-the-fly to
 satisfy changing operational requirements.
 
 For more information about deploying OPA on top of Kubernetes, see
-[Deployments - Kubernetes](/deployments.md#kubernetes).
+[Deployments - Kubernetes](../deployments#kubernetes).

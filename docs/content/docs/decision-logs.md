@@ -12,7 +12,7 @@ that enables auditing and offline debugging of policy decisions.
 When decision logging is enabled the OPA server will include a `decision_id`
 field in API calls that return policy decisions.
 
-See the [Configuration Reference](configuration.md) for configuration details.
+See the [Configuration Reference](../configuration) for configuration details.
 
 ### Decision Log Service API
 
@@ -66,4 +66,4 @@ Decision log updates contain the following fields:
 | `[_].result` | `any` | Policy decision returned to the client, e.g., `true` or `false`. |
 | `[_].requested_by` | `string` | Identifier for client that executed policy query, e.g., the client address. |
 | `[_].timestamp` | `string` | RFC3999 timestamp of policy decision. |
-| `[_].metrics` | `object` | Key-value pairs of [performance metrics](rest-api.md#performance-metrics). |
+| `[_].metrics` | `object` | Key-value pairs of [performance metrics](../rest-api#performance-metrics). |

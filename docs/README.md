@@ -102,3 +102,17 @@ latest = "..."
 
 Change the value of `latest` and commit that change to `master` to change the displayed
 version in the docs.
+
+## Checking links
+
+To check the site's links, first install the [`htmlproofer`](https://github.com/gjtorikian/html-proofer) Ruby gem:
+
+```bash
+gem install htmlproofer
+```
+
+Then run:
+
+```bash
+make linkcheck
+```

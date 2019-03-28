@@ -34,7 +34,7 @@ reporting **cannot** be configured manually. Similarly, discovered configuration
 cannot override the original discovery settings in the configuration file that
 OPA was booted with.
 
-See the [Configuration Reference](configuration.md) for configuration details.
+See the [Configuration Reference](../configuration) for configuration details.
 
 ## Discovery Service API
 
