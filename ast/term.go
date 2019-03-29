@@ -1172,8 +1172,13 @@ func NewSet(t ...*Term) Set {
 }
 
 func newset(n int) *set {
+	var keys []*Term
+	if n > 0 {
+		keys = make([]*Term, 0, n)
+	}
 	return &set{
 		elems: make(map[int]*Term, n),
+		keys:  keys,
 	}
 }
 
@@ -1460,8 +1465,13 @@ type object struct {
 }
 
 func newobject(n int) *object {
+	var keys []*Term
+	if n > 0 {
+		keys = make([]*Term, 0, n)
+	}
 	return &object{
 		elems:  make(map[int]*objectElem, n),
+		keys:   keys,
 		ground: true,
 	}
 }
