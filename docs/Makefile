@@ -1,20 +1,29 @@
+clean:
+	rm -rf public
+
 load-docs:
 	scripts/load-docs.sh
 
 setup:
 	npm install
 
-serve: load-docs
+serve: clean load-docs
 	hugo server \
 		--buildDrafts \
-		--buildFuture
+		--buildFuture \
+		--contentDir generated
 
-production-build: load-docs
-	hugo --minify
+production-build: clean load-docs
+	hugo \
+		--contentDir generated \
+		--ignoreCache \
+		--minify
 
-preview-build: load-docs
+preview-build: clean load-docs
 	hugo \
 		--baseURL $(DEPLOY_PRIME_URL) \
 		--buildDrafts \
 		--buildFuture \
+		--contentDir generated \
+		--ignoreCache \
 		--minify

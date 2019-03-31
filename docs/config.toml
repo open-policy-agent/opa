@@ -23,30 +23,7 @@ github = "https://github.com/open-policy-agent/opa"
 sidebar = "/img/logos/opa-stacked-color.png"
 navbar = "/img/logos/opa-icon-white.png"
 
-[[params.home.buttons]]
-url = "/docs/get-started"
-title = "Get started"
-
-[[params.home.buttons]]
-url = "/docs"
-title = "Learn more"
-
 [menu]
-[[menu.main]]
-name = "Documentation"
-url = "/docs"
-weight = 1
-
-[[menu.main]]
-name = "Tutorials"
-url = "/docs/get-started"
-weight = 2
-
-[[menu.main]]
-name = "Playground"
-url = "https://play.openpolicyagent.org"
-weight = 3
-
 [[menu.social]]
 name = "Medium"
 url = "https://twitter.com/openpolicyagent"
