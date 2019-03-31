@@ -16,11 +16,13 @@ rm -f ${RELEASES_YAML_FILE}
 rm -rf ${ROOT_DIR}/docs/content/docs/v*
 
 for release in ${RELEASES}; do
+    version_docs_dir=${ROOT_DIR}/docs/generated/docs/v${release}
+    mkdir -p ${version_docs_dir}
+
     echo "Copying the documentation for release v${release}"
     echo "- ${release}" >> ${RELEASES_YAML_FILE}
 
-    mkdir ${ROOT_DIR}/docs/content/docs/v${LATEST}
-    cp ${ROOT_DIR}/docs/content/docs/* ${ROOT_DIR}/docs/content/docs/v${LATEST}/
+    cp ${ROOT_DIR}/docs/content/docs/* ${version_docs_dir}/
 done
 
 git checkout ${CURRENT_BRANCH}

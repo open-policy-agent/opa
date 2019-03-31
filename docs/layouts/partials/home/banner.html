@@ -1,9 +1,8 @@
 {{ $title       := site.Title }}
 {{ $description := site.Params.description }}
 {{ $tagline     := site.Params.tagline }}
-{{ $buttons     := site.Params.home.buttons }}
-{{ $mainMenu    := site.Menus.main }}
 {{ $socialMenu  := site.Menus.social }}
+{{ $latest      := index site.Data.releases 0 }}
 <header role="banner">
   <nav class="nav--banner" role="navigation">
     <ul class="nav--menu">
@@ -13,13 +12,23 @@
         </a>
       </li>
 
-      {{ range $mainMenu }}
       <li class="nav--menu-item nav--docs">
-        <a href="{{ .URL }}" rel="help">
-          {{ .Name }}
+        <a href="/docs/v{{ $latest }}" rel="help">
+          Documentation
         </a>
       </li>
-      {{ end }}
+
+      <li class="nav--menu-item nav--docs">
+        <a href="/docs/v{{ $latest }}/get-started" rel="help">
+          Tutorials
+        </a>
+      </li>
+
+      <li class="nav--menu-item nav--docs">
+        <a href="https://play.openpolicyagent.org" rel="help" target="_blank">
+          Playground
+        </a>
+      </li>
     </ul>
     <ul class="nav--menu">
       {{ range $socialMenu }}
@@ -47,11 +56,13 @@
       </p>
 
       <p class="headline--nav">
-        {{ range $buttons }}
-        <a id="headline--{{ urlize .title }}" href="{{ .url }}" rel="help">
-          {{ .title }}
+        <a id="headline--get-started" href="/docs/v{{ $latest }}/get-started" rel="help">
+          Get started
         </a>
-        {{ end }}
+
+        <a id="headline--learn-more" href="/docs/v{{ $latest }}" rel="help">
+            Learn more
+        </a>
       </p>
     </div>
 
