@@ -44,12 +44,12 @@ func getLastIP(cidr *net.IPNet) (net.IP, error) {
 		lastIPInt.Sub(lastIPInt, big.NewInt(1))
 		lastIPInt.Or(lastIPInt, firstIPInt)
 
-		ipBytes := firstIPInt.Bytes()
+		ipBytes := lastIPInt.Bytes()
 		lastIP = make([]byte, bits/8)
 
 		// Pack our IP bytes into the end of the return array,
 		// since big.Int.Bytes() removes front zero padding.
-		for i := 1; i <= len(firstIPInt.Bytes()); i++ {
+		for i := 1; i <= len(lastIPInt.Bytes()); i++ {
 			lastIP[len(lastIP)-i] = ipBytes[len(ipBytes)-i]
 		}
 	}
