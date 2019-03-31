@@ -22,6 +22,8 @@ for release in ${RELEASES}; do
     echo "Copying the documentation for release v${release}"
     echo "- ${release}" >> ${RELEASES_YAML_FILE}
 
+    git checkout v${release}
+
     cp ${ROOT_DIR}/docs/content/docs/* ${version_docs_dir}/
 done
 
