@@ -1,12 +1,5 @@
-{{- $latest  := index site.Data.releases 0 -}}
-{{- $allDocs := where site.RegularPages "Section" "docs" }}
+{{- $latest     := index site.Data.releases 0 -}}
+{{- $allDocs    := where site.RegularPages "Section" "docs" }}
 /docs     /docs/v{{ $latest }}
 /docs/latest     /docs/v{{ $latest }}
 /docs/latest/*     /docs/v{{ $latest }}/:splat
-
-{{- range $allDocs }}
-{{- $isRoot := eq (len (split .File.Path "/")) 2 }}
-{{- if $isRoot }}
-/docs/{{ .File }}     /docs/v{{ $latest }}/{{ .File }}
-{{- end -}}
-{{- end -}}
