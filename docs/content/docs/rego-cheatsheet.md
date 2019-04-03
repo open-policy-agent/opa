@@ -1,8 +1,8 @@
 ---
-title: Policy Cheatsheet
-navtitle: Cheatsheet
-kind: best-practices
-weight: 2
+title: Rego Cheatsheet
+navtitle: Rego Cheatsheet
+kind: documentation
+weight: 17
 ---
 
 ## Equality

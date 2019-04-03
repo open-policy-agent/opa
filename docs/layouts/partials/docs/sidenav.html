@@ -2,7 +2,7 @@
 {{ $allDocs    := where site.RegularPages "Section" "docs" }}
 {{ $docs       := where $allDocs ".Params.kind" "eq" "documentation" }}
 {{ $tutorials  := where $allDocs ".Params.kind" "eq" "tutorial" }}
-{{ $bestPrac   := where $allDocs ".Params.kind" "eq" "best-practices" }}
+{{ $guides     := where $allDocs ".Params.kind" "eq" "guides" }}
 {{ $pageUrl    := .URL }}
 {{ $isDocsHome := eq .URL $docsHome.URL }}
 <div class="docs-nav">
@@ -61,10 +61,10 @@
   <hr class="docs-nav-hr" />
 
   <span class="docs-nav-title">
-    Best Practices
+    Guides
   </span>
 
-  {{ range $bestPrac }}
+  {{ range $guides }}
   {{ $isRoot     := eq (len (split .File.Path "/")) 2 }}
   {{ if not $isRoot }}
   {{ $isThisPage := eq .URL $pageUrl }}
