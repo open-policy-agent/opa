@@ -9,7 +9,7 @@
 {{ $allDocs   := where site.RegularPages "Section" "docs" }}
 {{ $docs      := where $allDocs ".Params.kind" "eq" "documentation" }}
 {{ $tutorials := where $allDocs ".Params.kind" "eq" "tutorial" }}
-{{ $bestPrac  := where $allDocs ".Params.kind" "eq" "best-practices" }}
+{{ $guides    := where $allDocs ".Params.kind" "eq" "guides" }}
 <nav class="navbar is-primary">
   <div class="navbar-brand is-hidden-tablet">
     <a class="navbar-item" href="{{ $home }}">
@@ -60,10 +60,10 @@
       <br />
 
       <span class="navbar-item is-size-5 has-text-weight-light is-uppercase">
-        Best Practices
+        Guides
       </span>
 
-      {{ range $bestPrac }}
+      {{ range $guides }}
       {{ $isRoot := eq (len (split .File.Path "/")) 2 }}
       {{ if not $isRoot }}
       <a class="navbar-item" href="{{ .URL }}">

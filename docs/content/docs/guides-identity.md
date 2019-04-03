@@ -1,7 +1,7 @@
 ---
-title: "Best Practices: Identity and User Attributes"
+title: "Guides: Identity and User Attributes"
 navtitle: Identity and User Attributes
-kind: best-practices
+kind: guides
 weight: 1
 ---
 
