@@ -49,10 +49,17 @@ func builtinArraySlice(a, i, j ast.Value) (ast.Value, error) {
 		return nil, err
 	}
 
-	// If any of the provided indices are negative or stopIndex is less than startIndex
-	// then return a copy of the original array.
-	if startIndex < 0 || stopIndex < 0 || (stopIndex < startIndex) {
+	// Return empty array if bounds cannot be clamped sensibly.
+	if (startIndex >= stopIndex) || (startIndex <= 0 && stopIndex <= 0) {
+		return arr[0:0], nil
+	}
+
+	// Clamp bounds to avoid out-of-range errors.
+	if startIndex < 0 {
 		startIndex = 0
+	}
+
+	if stopIndex > len(arr) {
 		stopIndex = len(arr)
 	}
 
