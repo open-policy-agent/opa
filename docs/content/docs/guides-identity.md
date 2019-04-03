@@ -15,7 +15,7 @@ To evaluate policies written using user attributes, OPA needs a way to figure ou
 Below we detail different ways to make LDAP/AD information available to OPA.  At the time of writing **OPA does not have an LDAP connector**, though check the [Builtins page](https://www.openpolicyagent.org/docs/language-reference.html) for the latest information.  The purpose of this document is to help you understand the options for you to integrate your user-attribute store with OPA.
 You should prefer earlier options in the list to later options, but in the end the right choice depends on your situation.
 
-## 1. JWT Tokens
+## JWT Tokens
 
 [JSON Web Tokens (JWTs)](https://tools.ietf.org/html/rfc7519) allow you to securely transmit JSON data between software systems and are often produced during the authentication process.  You can set up authentication so that when the user logs in you create a JWT with that user's LDAP/AD data.  Then you hand that JWT to OPA and use OPA's specialized support for JWTs to extract the information you need to make a policy decision.
 
@@ -44,7 +44,7 @@ JWTs have a limited size in practice, so if your organization has too many user 
 
 
 
-## 2. Downloading LDAP/AD data using the Bundle API
+## Downloading LDAP/AD data using the Bundle API
 
 JWTs may not be available to you.  Or perhaps your policies require information about a user other than the one performing the action that OPA is authorizing.
 
@@ -70,7 +70,7 @@ Unlike the JWT case, where OPA only stores 1 user's LDAP/AD data at a time, when
 * Don't expose OPA's API except through localhost
 * Assuming LDAP/AD is the only context needed, use OPA's authentication/authorization to disable all of OPA's APIs except those needed by the OPA-enabled service. -->
 
-## 3. Pushing LDAP/AD into OPA
+## Pushing LDAP/AD into OPA
 
 Another way to replicate LDAP/AD data into OPA is to use OPA's API for injecting arbitrary JSON data.  You can build a synchronizer that pulls information out of LDAP/AD and pushes that information in OPA through its API.  This approach would be useful if you are not using the bundle API, or you need to optimize for update latency.
 
@@ -96,7 +96,7 @@ Unlike the JWT case, where OPA only stores 1 user's LDAP/AD data at a time, when
 * Ensure OPA's policy rejects requests without sufficient data so that an OPA restart that wipes out memory does not leave the OPA-enabled service vulnerable. -->
 
 
-## 4. Pull from LDAP/AD during evaluation
+## Pull from LDAP/AD during evaluation
 
 OPA has experimental capabilities for reaching out to external servers during evaluation.  This functionality handles those cases where there is too much data to synchronize into OPA, JWTs are ineffective, or policy requires information that must be as up to date as possible.
 
@@ -126,7 +126,7 @@ Only the data actually needed by the policy is pulled from LDAP/AD.  There is no
 Latency and availability of decision-making are dependent on the network.  This approach may still be superior to running OPA on a remote server entirely because a local OPA can make some decisions without going over the network--those decisions that do not require information from the remote LDAP/AD server.
 
 
-## 5. Summary
+## Summary
 
 | Approach | Perf/Avail | Notes |
 | -------- | ---------- | ----- |
