@@ -11,7 +11,7 @@ This primer assumes you, the Kubernetes administrator, have already installed OP
 
 OPA was designed to write policies over arbitrary JSON/YAML.  It does NOT have built-in concepts like pods, deployments, or services.  OPA just sees the JSON/YAML sent by Kubernetes API server and allows you to write whatever policy you want to make a decision.  You as the policy-author know the semantics--what that JSON/YAML represents.
 
-## 1. Your First Rule: Image Registry Safety
+## Example Policy: Image Registry Safety
 
 To get started, let's look at a common policy: ensure all images come from a trusted registry.
 
@@ -201,7 +201,7 @@ Builtins let you analyze and manipulate:
 
 
 
-## 2. Unit Testing: Image Registry Safety
+## Unit Testing Policies
 When you write policies, you should use the OPA unit-test framework *before* sending the policies out into the OPA that is running on your cluster.  The debugging process will be much quicker and effective.  Here's an example test for the policy from the last section.
 
 ```
@@ -238,7 +238,7 @@ $ opa test image-safety.rego test-image-safety.rego
 PASS: 1/1
 ```
 
-## 3. Existing K8s Resources: Ingress Conflicts
+## External Resources: Ingress Conflicts
 The image-repository example shows an example where you can make a policy decision using just the one JSON/YAML file describing the resource in question. But sometimes you need to know what other resources exist in the cluster to make an allow/deny decision.
 
 For example, it’s possible to accidentally configure two Kubernetes ingresses so that one steals traffic from the other. The policy that prevents conflicting ingresses needs to compare the ingress that’s being created/updated with all of the existing ingresses.  Just knowing the new/updated ingress isn't enough information to make an allow/deny decision.
