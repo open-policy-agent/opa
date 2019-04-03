@@ -343,11 +343,15 @@ request:
 
 <br>
 
-## Appendix: Admission Control Flow
+## Admission Control Flow
 
-Here is a sample of the flow of information from the user to the API server to OPA and back.
+Here is a sample of the flow of information from the user to the API server to
+OPA and back.
 
-It starts with someone running `kubectl create -f` on the following file (on a minikube cluster).
+It starts with someone (or something) running `kubectl` (or sending a request to
+the API server.) For example, a user might run `kubkectl create -f pod.yaml`:
+
+**pod.yaml**:
 
 ```yaml
 kind: Pod
@@ -362,7 +366,12 @@ spec:
     name: nginx
 ```
 
-OPA receives the following AdmissionReview object from the Kubernetes API server's Admission Control webhook.
+When the request reaches the API server it's authenticated and authorized and
+processed by the admission controllers. When the API server's Webhook admission
+controller executes, the API server sends a webhook request to OPA containing an
+**AdmissionReview** object.
+
+**AdmissionReview**:
 
 ```yaml
 apiVersion: admission.k8s.io/v1beta1
@@ -430,7 +439,68 @@ request:
     username: minikube-user
 ```
 
-OPA returns to the Admission Controller Webhook the following AdmissionReview response.  The `response.status.reason` is the error message the Kubernetes API server returns to the user.  It is the concatenation of all the messages in the `deny` set defined above.  In this case, the policy that OPA evaluated requires all images to come from the `hooli.com` registry.
+Typically the API server is configured (via `ValidatingWebhookConfiguration` or
+`MutatingWebhookConfiguration` objects) to query OPA without providing the name
+of a decision. For example:
+
+```http
+POST / HTTP/1.1
+Content-Type: application/json
+```
+
+```json
+{
+  "apiVersion": "admission.k8s.io/v1beta1",
+  "kind": "AdmissionReview",
+  "request": ...
+}
+```
+
+When OPA receives the webhook request, it binds the payload to the `input`
+document and generates the default decision: `system.main`. The `system.main`
+decision is defined by a rule that evaluates all of the admission control
+policies that have been loaded into OPA.
+
+As the administrator responsible for deploying OPA, you have full control over
+the `system.main` decision (i.e., it is just another Rego policy.) A basic
+implementation of the `system.main` policy simply evaluates all deny rules that
+have been loaded into OPA and unions the results:
+
+```ruby
+package system
+
+import data.kubernetes.admission
+
+main = {
+  "apiVersion": "admission.k8s.io/v1beta1",
+  "kind": "AdmissionReview",
+  "response": response,
+}
+
+default response = {"allowed": true}
+
+response = {
+    "allowed": false,
+    "status": {
+        "reason": reason,
+    },
+} {
+    reason = concat(", ", admission.deny)
+    reason != ""
+}
+```
+
+The `system.main` policy MUST generate an **AdmissionReview** object containing
+a response that the API server can interpret. If the request should be allowed,
+the `response.allowed` field should be true. Otherwise, the `response.allowed`
+field should be set to `false` and the `response.status.reason` field should be
+set to include an error message that indicates why the request is being
+rejected. The error message will be returned to the API server caller (e.g., the
+user running `kubectl`). Often the error message is the concatenation of all the
+messages in the `deny` set defined above.
+
+For example, with the input and Image Registry Safety examples above, the
+response from OPA would be:
 
 ```yaml
 apiVersion: admission.k8s.io/v1beta1
@@ -440,3 +510,7 @@ response:
   status:
     reason: "image fails to come from trusted registry: nginx"
 ```
+
+For more detail on how Kubernetes Admission Control works, see [this blog
+post](https://kubernetes.io/blog/2019/03/21/a-guide-to-kubernetes-admission-controllers/)
+on kubernetes.io.
