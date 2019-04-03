@@ -7,7 +7,7 @@ weight: 2
 
 In Kubernetes, Admission Controllers enforce semantic validation of objects during create, update, and delete operations. With OPA you can enforce custom policies on Kubernetes objects without recompiling or reconfiguring the Kubernetes API server or even Kubernetes Admission Controllers.
 
-This primer assumes you, the Kubernetes administrator, have already installed OPA as a validating admission controller on Kubernetes as described in the [OPA tutorial](https://www.openpolicyagent.org/docs/kubernetes-admission-control.html).  And now you are at the point where you want to write your own policies.
+This primer assumes you, the Kubernetes administrator, have already installed OPA as a validating admission controller on Kubernetes as described in the [Kubernetes Admission Control Tutorial](kubernetes-admission-control.md).  And now you are at the point where you want to write your own policies.
 
 OPA was designed to write policies over arbitrary JSON/YAML.  It does NOT have built-in concepts like pods, deployments, or services.  OPA just sees the JSON/YAML sent by Kubernetes API server and allows you to write whatever policy you want to make a decision.  You as the policy-author know the semantics--what that JSON/YAML represents.
 
@@ -283,11 +283,7 @@ The first part of the rule you already understand:
 * Line (3) checks if the `input` is an Ingress
 * Line (4) iterates over all the rules in the `input` ingress and looks up the `host` field for each of its rules.
 
-**Existing K8s Resources** Line (5) iterates over ingresses that already exist in Kubernetes. `data` is a global variable where (among other things) OPA has a record of the current resources inside Kubernetes.  The line
-
-```oldhost := data.kubernetes.ingresses[namespace][name].spec.rules[_].host```
-
-finds all ingresses in all namespaces, iterates over all the `rules` inside each of those and assigns the `host` field to the variable `oldhost`.  Whenever `newhost == oldhost`, there's a conflict, and the OPA rule includes an appropriate error message into the `deny` set.
+**Existing K8s Resources** Line (5) iterates over ingresses that already exist in Kubernetes. `data` is a global variable where (among other things) OPA has a record of the current resources inside Kubernetes.  The line `oldhost := data.kubernetes.ingresses[namespace][name].spec.rules[_].host` finds all ingresses in all namespaces, iterates over all the `rules` inside each of those and assigns the `host` field to the variable `oldhost`.  Whenever `newhost == oldhost`, there's a conflict, and the OPA rule includes an appropriate error message into the `deny` set.
 
 In this case the rule uses explicit variable names `namespace` and `name` for iteration so that it can use those variables again when constructing the error message in line 7.
 
@@ -346,8 +342,6 @@ request:
 
 
 <br>
-
-
 
 ## Appendix: Admission Control Flow
 
@@ -445,5 +439,4 @@ response:
   allowed: false
   status:
     reason: "image fails to come from trusted registry: nginx"
-]
 ```
