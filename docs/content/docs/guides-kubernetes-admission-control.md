@@ -294,10 +294,8 @@ In this case the rule uses explicit variable names `namespace` and `name` for it
 
 Here are two examples.
 
-<div>
-<div style="float: left; width: 49%; padding: 3px">
-<center><b>data.kubernetes.ingresses[namespace][name]</b></center>
-<pre><code>
+{{< code-panel >}}
+{{< pane lang="yaml" header="data.kubernetes.ingresses[namespace][name]" >}}
 apiVersion: extensions/v1beta1
 kind: Ingress
 metadata:
@@ -311,10 +309,8 @@ spec:
         backend:
           serviceName: banking
           servicePort: 443
-</code></pre></div>
-<div style="float: left; width: 49%; padding 3px;">
-<center><b>input</b></center>
-<pre><code>
+{{< /pane >}}
+{{< pane lang="yaml" header="input" >}}
 apiVersion: admission.k8s.io/v1beta1
 kind: AdmissionReview
 request:
@@ -338,10 +334,8 @@ request:
             backend:
               serviceName: banking
               servicePort: 443
-</code></pre></div>
-
-
-<br>
+{{< /pane >}}
+{{< /code-panel >}}
 
 ## Admission Control Flow
 

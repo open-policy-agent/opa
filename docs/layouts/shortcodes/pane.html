@@ -1,0 +1,11 @@
+{{ $lang   := .Get "lang" }}
+{{ $header := .Get "header" }}
+<div class="pane">
+  {{ with $header }}
+  <p class="pane-header">
+    {{ . }}
+  </p>
+  {{ end }}
+
+{{ highlight .Inner $lang "" }}
+</div>
