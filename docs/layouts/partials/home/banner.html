@@ -1,8 +1,11 @@
+{{ $localMode   := eq (getenv "ENV") "local" }}
 {{ $title       := site.Title }}
 {{ $description := site.Params.description }}
 {{ $tagline     := site.Params.tagline }}
 {{ $socialMenu  := site.Menus.social }}
 {{ $latest      := index site.Data.releases 0 }}
+{{ $docs        := cond $localMode "/docs" (printf "/docs/v%s" $latest) }}
+{{ $getStarted  := cond $localMode "/docs/get-started" (printf "/docs/v%s/get-started" $latest) }}
 <header role="banner">
   <nav class="nav--banner" role="navigation">
     <ul class="nav--menu">
@@ -13,13 +16,13 @@
       </li>
 
       <li class="nav--menu-item nav--docs">
-        <a href="/docs/v{{ $latest }}" rel="help">
+        <a href="{{ $docs }}" rel="help">
           Documentation
         </a>
       </li>
 
       <li class="nav--menu-item nav--docs">
-        <a href="/docs/v{{ $latest }}/get-started" rel="help">
+        <a href="{{ $getStarted }}" rel="help">
           Tutorials
         </a>
       </li>
@@ -56,11 +59,11 @@
       </p>
 
       <p class="headline--nav">
-        <a id="headline--get-started" href="/docs/v{{ $latest }}/get-started" rel="help">
+        <a id="headline--get-started" href="{{ $getStarted }}" rel="help">
           Get started
         </a>
 
-        <a id="headline--learn-more" href="/docs/v{{ $latest }}" rel="help">
+        <a id="headline--learn-more" href="{{ $docs }}" rel="help">
             Learn more
         </a>
       </p>
