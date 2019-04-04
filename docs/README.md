@@ -84,6 +84,14 @@ make serve
 Open your browser to http://localhost:1313 to see the site running locally. The docs
 are available at http://localhost:1313/docs.
 
+> The local version of the site is different from the production site at
+> https://openpolicyagent.org in important ways. When running the site locally,
+> the documentation you'll see is from the current branch, not from any past release.
+> Thus, there is no version selector or concept of documentation versions in the
+> "dev" site. The documentation that you see when running the site locally will be
+> visible on the production site only when that documentation has been included as
+> part of an OPA release.
+
 ## Site updates
 
 The OPA site is automatically published using [Netlify](https://netlify.com). Whenever
