@@ -1,0 +1,107 @@
+{{ $docsHome   := .CurrentSection }}
+{{ $allDocs    := where site.RegularPages "Section" "docs" }}
+{{ $docs       := where $allDocs ".Params.kind" "eq" "documentation" }}
+{{ $tutorials  := where $allDocs ".Params.kind" "eq" "tutorial" }}
+{{ $guides     := where $allDocs ".Params.kind" "eq" "guides" }}
+{{ $bestPrac   := where $allDocs ".Params.kind" "eq" "best-practices" }}
+{{ $pageUrl    := .URL }}
+{{ $isDocsHome := eq .URL $docsHome.URL }}
+<span class="docs-nav-title">
+  Documentation
+</span>
+
+<a class="docs-nav-item{{ if $isDocsHome }} is-active{{ end }}" href="{{ $docsHome.URL }}">
+  {{ $docsHome.Name }}
+</a>
+
+{{ if $isDocsHome }}
+<div class="toc">
+  {{ .TableOfContents }}
+</div>
+{{ end }}
+
+{{ range $docs }}
+{{ $isRoot     := eq (len (split .File.Path "/")) 2 }}
+{{ if not $isRoot }}
+{{ $isThisPage := eq .URL $pageUrl }}
+{{ $title      := cond (isset .Params "navtitle") (.Params.navtitle) .Title }}
+<a class="docs-nav-item{{ if $isThisPage }} is-active{{ end }}" href="{{ .URL }}">
+  {{ $title }}
+</a>
+{{ if $isThisPage }}
+<div class="toc">
+  {{ .TableOfContents }}
+</div>
+{{ end }}
+{{ end }}
+{{ end }}
+
+<hr class="docs-nav-hr" />
+
+<span class="docs-nav-title">
+  Tutorials
+</span>
+
+{{ range $tutorials }}
+{{ $isRoot     := eq (len (split .File.Path "/")) 2 }}
+{{ if not $isRoot }}
+{{ $isThisPage := eq .URL $pageUrl }}
+{{ $title      := cond (isset .Params "navtitle") (.Params.navtitle) .Title }}
+<a class="docs-nav-item{{ if $isThisPage }} is-active{{ end }}" href="{{ .URL }}">
+  {{ $title }}
+</a>
+{{ if $isThisPage }}
+<div class="toc">
+  {{ .TableOfContents }}
+</div>
+{{ end }}
+{{ end }}
+{{ end }}
+
+{{ with $guides }}
+<hr class="docs-nav-hr" />
+
+<span class="docs-nav-title">
+  Guides
+</span>
+
+{{ range . }}
+{{ $isRoot     := eq (len (split .File.Path "/")) 2 }}
+{{ if not $isRoot }}
+{{ $isThisPage := eq .URL $pageUrl }}
+{{ $title      := cond (isset .Params "navtitle") (.Params.navtitle) .Title }}
+<a class="docs-nav-item{{ if $isThisPage }} is-active{{ end }}" href="{{ .URL }}">
+  {{ $title }}
+</a>
+{{ if $isThisPage }}
+<div class="toc">
+  {{ .TableOfContents }}
+</div>
+{{ end }}
+{{ end }}
+{{ end }}
+{{ end }}
+
+{{ with $bestPrac }}
+<hr class="docs-nav-hr" />
+
+<span class="docs-nav-title">
+  Best practices
+</span>
+
+{{ range . }}
+{{ $isRoot     := eq (len (split .File.Path "/")) 2 }}
+{{ if not $isRoot }}
+{{ $isThisPage := eq .URL $pageUrl }}
+{{ $title      := cond (isset .Params "navtitle") (.Params.navtitle) .Title }}
+<a class="docs-nav-item{{ if $isThisPage }} is-active{{ end }}" href="{{ .URL }}">
+  {{ $title }}
+</a>
+{{ if $isThisPage }}
+<div class="toc">
+  {{ .TableOfContents }}
+</div>
+{{ end }}
+{{ end }}
+{{ end }}
+{{ end }}

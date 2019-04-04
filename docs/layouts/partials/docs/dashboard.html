@@ -1,3 +1,4 @@
+{{ $localMode  := site.IsServer }}
 {{ $home       := site.BaseURL }}
 {{ $logo       := site.Params.logos.sidebar | relURL }}
 {{ $latest     := index site.Data.releases 0 }}
@@ -10,6 +11,7 @@
         </a>
       </div>
 
+      {{ if not $localMode }}
       <div class="dropdown is-left">
         <div class="dropdown-trigger">
           <span class="button is-primary">
@@ -24,6 +26,7 @@
           </span>
         </div>
       </div>
+      {{ end }}
     </div>
 
     <div class="dashboard-panel-content is-scrollable">
