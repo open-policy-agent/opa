@@ -8,9 +8,18 @@ setup:
 	npm install
 
 serve:
-	hugo server \
+	ENV=local hugo server \
 		--buildDrafts \
 		--buildFuture
+
+docker-serve:
+	docker run --rm -it \
+		-v $(PWD):/src \
+		-p 1313:1313 \
+		-e ENV=local \
+		klakegg/hugo:0.53-ext server \
+			--buildDrafts \
+			--buildFuture
 
 production-build: clean load-docs
 	hugo \
@@ -19,11 +28,10 @@ production-build: clean load-docs
 		--minify
 
 preview-build: clean load-docs
-	hugo \
+	ENV=local hugo \
 		--baseURL $(DEPLOY_PRIME_URL) \
 		--buildDrafts \
 		--buildFuture \
-		--contentDir generated \
 		--ignoreCache \
 		--minify
 

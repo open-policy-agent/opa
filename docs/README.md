@@ -29,12 +29,7 @@ npm install
 Then, if [Docker is running](https://docs.docker.com/get-started/):
 
 ```bash
-docker run --rm -it \
-  -v $(PWD):/src \
-  -p 1313:1313 \
-  klakegg/hugo:0.53-ext server \
-    --buildDrafts \
-    --buildFuture
+make docker-server
 ```
 
 Open your browser to http://localhost:1313 to see the site running locally. The docs
@@ -97,19 +92,6 @@ are available at http://localhost:1313/docs.
 The OPA site is automatically published using [Netlify](https://netlify.com). Whenever
 changes in this directory are pushed to `master`, the site will be re-built and
 re-deployed.
-
-### OPA version changes
-
-The current OPA version displayed in the documentation is set in the
-[`config.toml`](./config.toml) configuration file. Look for this in the file:
-
-```toml
-[params.versions]
-latest = "..."
-```
-
-Change the value of `latest` and commit that change to `master` to change the displayed
-version in the docs.
 
 ## Checking links
 

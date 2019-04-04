@@ -1,4 +1,4 @@
-{{ $localMode  := site.IsServer }}
+{{ $localMode  := eq (getenv "ENV") "local" }}
 {{ $docsHome   := .CurrentSection }}
 {{ $allDocs    := where site.RegularPages "Section" "docs" }}
 {{ $docs       := where $allDocs ".Params.kind" "eq" "documentation" }}
