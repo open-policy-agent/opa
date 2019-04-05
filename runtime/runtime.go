@@ -12,7 +12,6 @@ import (
 	"crypto/x509"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/signal"
 	"sync"
@@ -120,6 +119,15 @@ type Params struct {
 	// ConfigFile refers to the OPA configuration to load on startup.
 	ConfigFile string
 
+	// ConfigOverrides are overrides for the OPA configuration that are applied
+	// over top the config file They are in a list of key=value syntax that
+	// conform to the syntax defined in the `strval` package
+	ConfigOverrides []string
+
+	// ConfigOverrideFiles Similar to `ConfigOverrides` execept they are in the
+	// form of `key=path/to/file`where the file contains the value to be used.
+	ConfigOverrideFiles []string
+
 	// Output is the output stream used when run as an interactive shell. This
 	// is mostly for test purposes.
 	Output io.Writer
@@ -195,13 +203,9 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		return nil, errors.Wrapf(err, "storage error")
 	}
 
-	var bs []byte
-
-	if params.ConfigFile != "" {
-		bs, err = ioutil.ReadFile(params.ConfigFile)
-		if err != nil {
-			return nil, errors.Wrapf(err, "config error")
-		}
+	bs, err := loadConfig(params)
+	if err != nil {
+		return nil, errors.Wrapf(err, "config error")
 	}
 
 	info, err := runtime.Term(runtime.Params{Config: bs})
