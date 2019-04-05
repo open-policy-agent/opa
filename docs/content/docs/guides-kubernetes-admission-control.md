@@ -7,7 +7,7 @@ weight: 2
 
 In Kubernetes, Admission Controllers enforce semantic validation of objects during create, update, and delete operations. With OPA you can enforce custom policies on Kubernetes objects without recompiling or reconfiguring the Kubernetes API server or even Kubernetes Admission Controllers.
 
-This primer assumes you, the Kubernetes administrator, have already installed OPA as a validating admission controller on Kubernetes as described in the [Kubernetes Admission Control Tutorial](kubernetes-admission-control.md).  And now you are at the point where you want to write your own policies.
+This primer assumes you, the Kubernetes administrator, have already installed OPA as a validating admission controller on Kubernetes as described in the [Kubernetes Admission Control Tutorial](../kubernetes-admission-control).  And now you are at the point where you want to write your own policies.
 
 OPA was designed to write policies over arbitrary JSON/YAML.  It does NOT have built-in concepts like pods, deployments, or services.  OPA just sees the JSON/YAML sent by Kubernetes API server and allows you to write whatever policy you want to make a decision.  You as the policy-author know the semantics--what that JSON/YAML represents.
 
@@ -190,7 +190,7 @@ In the REPL, OPA detects when there will be multiple answers and displays all th
 
 Often you don't want to invent new variable names for iteration.  OPA provides the special anonymous variable `_` for exactly that reason.  So in line (4) `image := input.request.object.spec.containers[_].image` finds all the images in the containers array and assigns each to the `image` variable one at a time.
 
-**Builtins**.  On line 5 the *builtin* `startswith` checks if one string is a prefix of the other.  The builtin `sprintf` on line 6 formats a string with arguments.  OPA has 50+ builtins detailed at [openpolicyagent.org/docs/language-reference.html](https://openpolicyagent.org/docs/language-reference.html).
+**Builtins**.  On line 5 the *builtin* `startswith` checks if one string is a prefix of the other.  The builtin `sprintf` on line 6 formats a string with arguments.  OPA has 50+ builtins detailed at [openpolicyagent.org/docs/language-reference](../language-reference).
 Builtins let you analyze and manipulate:
 
 * Numbers, Strings, Regexs, Networks

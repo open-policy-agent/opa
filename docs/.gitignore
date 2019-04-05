@@ -4,7 +4,6 @@ resources/
 
 # Documentation versions
 generated/docs/v*
-data/releases.yaml
 
 # Node.js assets
 node_modules/
