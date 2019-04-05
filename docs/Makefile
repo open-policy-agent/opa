@@ -7,11 +7,10 @@ load-docs:
 setup:
 	npm install
 
-serve: clean load-docs
+serve:
 	hugo server \
 		--buildDrafts \
-		--buildFuture \
-		--contentDir generated
+		--buildFuture
 
 production-build: clean load-docs
 	hugo \

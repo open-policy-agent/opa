@@ -191,8 +191,7 @@ In the REPL, OPA detects when there will be multiple answers and displays all th
 
 Often you don't want to invent new variable names for iteration.  OPA provides the special anonymous variable `_` for exactly that reason.  So in line (4) `image := input.request.object.spec.containers[_].image` finds all the images in the containers array and assigns each to the `image` variable one at a time.
 
-**Builtins**.  On line 5 the *builtin* `startswith` checks if one string is a prefix of the other.  The builtin `sprintf` on line 6 formats a string with arguments.  OPA has 50+ builtins detailed at [openpolicyagent.org/docs/language-reference](https://openpolicyagent.org/docs/language-reference).
-Builtins let you analyze and manipulate:
+**Builtins**.  On line 5 the *builtin* `startswith` checks if one string is a prefix of the other.  The builtin `sprintf` on line 6 formats a string with arguments.  OPA has 50+ builtins detailed at [openpolicyagent.org/docs/language-reference](../language-reference). Builtins let you analyze and manipulate:
 
 * Numbers, Strings, Regexs, Networks
 * Aggregates, Arrays, Sets
