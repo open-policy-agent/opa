@@ -1,0 +1,2 @@
+{{ $lang := .Get "lang" | default "" }}
+{{ highlight (trim .Inner "\n") $lang "linenos=table" }}

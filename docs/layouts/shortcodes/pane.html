@@ -2,10 +2,12 @@
 {{ $header := .Get "header" }}
 <div class="pane">
   {{ with $header }}
-  <p class="pane-header">
-    {{ . }}
-  </p>
+  <h5 class="pane-header has-text-centered">
+    <code>
+      {{ . }}
+    </code>
+  </h5>
   {{ end }}
 
-{{ highlight .Inner $lang "" }}
+{{- highlight (trim .Inner "\n") $lang "" -}}
 </div>

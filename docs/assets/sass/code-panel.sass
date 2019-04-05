@@ -2,5 +2,14 @@
   display: flex
   flex-direction: row
 
+  margin-bottom: 1.5rem
+
   .pane
     flex: 1
+    overflow: auto
+
+    .pane-header
+      min-height: 1.5rem
+
+    & + .pane
+      margin-left: 1rem
