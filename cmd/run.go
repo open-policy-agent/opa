@@ -156,6 +156,8 @@ the data document with the following syntax:
 	runCommand.Flags().VarP(logLevel, "log-level", "l", "set log level")
 	runCommand.Flags().VarP(logFormat, "log-format", "", "set log format")
 	runCommand.Flags().IntVar(&params.GracefulShutdownPeriod, "shutdown-grace-period", 10, "set the time (in seconds) that the server will wait to gracefully shut down")
+	runCommand.Flags().StringArrayVar(&params.ConfigOverrides, "set", []string{}, "override config values on the command line (use commas to specify multiple values)")
+	runCommand.Flags().StringArrayVar(&params.ConfigOverrideFiles, "set-file", []string{}, "override config values with files on the command line (use commas to specify multiple values)")
 	setIgnore(runCommand.Flags(), &ignore)
 
 	usageTemplate := `Usage:
