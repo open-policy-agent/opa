@@ -90,7 +90,7 @@ kubectl create secret tls opa-server --cert=server.crt --key=server.key
 
 Next, use the file below to deploy OPA as an admission controller.
 
-#### [`admission-controller.yaml`](https://github.com/open-policy-agent/opa/blob/master/docs/book/tutorials/kubernetes-admission-control-validation/admission-controller.yaml)
+#### [`admission-controller.yaml`](https://github.com/open-policy-agent/opa/blob/master/docs/code/kubernetes-admission-control-validation/admission-controller.yaml)
 
 {{< code file="kubernetes-admission-control-validation/admission-controller.yaml" lang="yaml" >}}
 
@@ -139,7 +139,7 @@ kubectl logs -l app=opa -c opa
 
 ### 4. Define a policy and load it into OPA via Kubernetes
 
-To test admission control, create a policy that restricts the hostnames that an ingress can use ([ingress-whitelist.rego](https://github.com/open-policy-agent/opa/blob/master/docs/book/tutorials/kubernetes-admission-control-validation/ingress-whitelist.rego)):
+To test admission control, create a policy that restricts the hostnames that an ingress can use ([ingress-whitelist.rego](https://github.com/open-policy-agent/opa/blob/master/docs/code/kubernetes-admission-control-validation/ingress-whitelist.rego)):
 
 {{< code file="kubernetes-admission-control-validation/ingress-whitelist.rego" lang="ruby" >}}
 
@@ -234,7 +234,7 @@ OPA allows you to modify policies on-the-fly without recompiling any of the serv
 
 To enforce the second half of the policy from the start of this tutorial you can load another policy into OPA that prevents Ingress objects in different namespaces from sharing the same hostname.
 
-[ingress-conflicts.rego](https://github.com/open-policy-agent/opa/blob/master/docs/book/tutorials/kubernetes-admission-control-validation/ingress-conflicts.rego):
+[ingress-conflicts.rego](https://github.com/open-policy-agent/opa/blob/master/docs/code/kubernetes-admission-control-validation/ingress-conflicts.rego):
 
 {{< code file="kubernetes-admission-control-validation/ingress-conflicts.rego" lang="ruby" >}}
 
@@ -253,14 +253,14 @@ Test that you cannot create an Ingress in another namespace with the same hostna
 
 **staging-namespace.yaml**:
 
-```
+```yaml
 apiVersion: v1
 kind: Namespace
 metadata:
   annotations:
     ingress-whitelist: "*.acmecorp.com"
   name: staging
- ```
+```
 
 ```bash
 kubectl create -f staging-namespace.yaml
