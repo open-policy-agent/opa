@@ -27,7 +27,7 @@ production-build: clean load-docs
 		--ignoreCache \
 		--minify
 
-preview-build: clean load-docs
+preview-build: clean
 	ENV=local hugo \
 		--baseURL $(DEPLOY_PRIME_URL) \
 		--buildDrafts \
