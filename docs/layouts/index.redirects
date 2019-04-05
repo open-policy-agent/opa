@@ -1,10 +1,13 @@
+{{- $localMode    := eq (getenv "ENV") "local" }}
 {{- $latest       := index site.Data.releases 0 -}}
 {{- $allDocs      := where site.RegularPages "Section" "docs" }}
 {{- $docRedirects := site.Data.redirects }}
+{{- if not $localMode }}
 /docs     /docs/v{{ $latest }}
 /docs/latest     /docs/v{{ $latest }}
 /docs/latest/*     /docs/v{{ $latest }}/:splat
 
 {{- range $docRedirects }}
 /docs/{{ . }}     /docs/v{{ $latest }}/{{ . }}
+{{- end }}
 {{- end }}

@@ -1,4 +1,4 @@
-{{ $localMode   := site.IsServer }}
+{{ $localMode   := eq (getenv "ENV") "local" }}
 {{ $title       := site.Title }}
 {{ $description := site.Params.description }}
 {{ $tagline     := site.Params.tagline }}
