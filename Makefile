@@ -172,6 +172,9 @@ clean: wasm-clean
 	rm -f opa_*_*
 	rm -fr _test
 
+.PHONY: site
+site:
+	$(MAKE) -C docs VERSION=$(VERSION)
 
 ######################################################
 #
