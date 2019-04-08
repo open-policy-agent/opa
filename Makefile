@@ -174,7 +174,7 @@ clean: wasm-clean
 
 .PHONY: site
 site:
-	$(MAKE) -C docs VERSION=$(VERSION)
+	$(MAKE) -C docs -f Makefile.ghpages VERSION=$(VERSION)
 
 ######################################################
 #
