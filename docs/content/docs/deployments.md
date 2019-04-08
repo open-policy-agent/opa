@@ -156,9 +156,43 @@ Next, create a Deployment to run OPA. The ConfigMap containing the policy is
 volume mounted into the container. This allows OPA to load the policy from
 the file system.
 
-#### [`deployment-opa.yaml`](https://github.com/open-policy-agent/opa/tree/master/docs/code/deployments-kubernetes/deployment-opa.yaml)
+**`deployment-opa.yaml`**:
 
-{{< code file="deployments-kubernetes/deployment-opa.yaml" lang="yaml" >}}
+```
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: opa
+  labels:
+    app: opa
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: opa
+      name: opa
+    spec:
+      containers:
+      - name: opa
+        image: openpolicyagent/opa:{{< latest >}}
+        ports:
+        - name: http
+          containerPort: 8181
+        args:
+        - "run"
+        - "--ignore=.*"  # exclude hidden dirs created by Kubernetes
+        - "--server"
+        - "/policies"
+        volumeMounts:
+        - readOnly: true
+          mountPath: /policies
+          name: example-policy
+      volumes:
+      - name: example-policy
+        configMap:
+          name: example-policy
+```
 
 ```bash
 kubectl create -f deployment-opa.yaml
