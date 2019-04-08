@@ -41,13 +41,15 @@ elif [ -z "$SOURCE_URL" ]; then
     exit 1
 fi
 
-build_binaries() {
+build_release() {
     make deps
     GOOS=darwin GOARCH=amd64 make build
     GOOS=linux GOARCH=amd64 make build
     GOOS=windows GOARCH=amd64 make build
+    make site
     mv opa_windows_amd64 opa_windows_amd64.exe
     mv opa_*_* $OUTPUT_DIR
+    mv docs/site.tar.gz $OUTPUT_DIR
 }
 
 clone_repo() {
@@ -60,7 +62,7 @@ clone_repo() {
 
 main() {
     clone_repo
-    build_binaries
+    build_release
     make test
 }
 
