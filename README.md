@@ -9,9 +9,10 @@ OPA is hosted by the [Cloud Native Computing Foundation](https://cncf.io) (CNCF)
 ## Want to learn more about OPA?
 
 - See [openpolicyagent.org](https://www.openpolicyagent.org) to get started with documentation and tutorials.
-- Try [play.openpolicyagent.org](https://play.openpolicyagent.org) to experiment with OPA policies.
 - See [blog.openpolicyagent.org](https://blog.openpolicyagent.org) for blog posts about OPA and policy.
-- See [ADOPTERS.md](./ADOPTERS.md) for a list of adopters and use cases.
+- See [ADOPTERS.md](./ADOPTERS.md) for a list of production OPA adopters and use cases.
+- See [the Roadmap slides](https://docs.google.com/presentation/d/16QV6gvLDOV3I0_guPC3_19g6jHkEg3X9xqMYgtoCKrs/edit?usp=sharing) for a snapshot of high-level OPA features in-progress and planned.
+- Try [play.openpolicyagent.org](https://play.openpolicyagent.org) to experiment with OPA policies.
 - Join the conversation on [Slack](https://slack.openpolicyagent.org).
 
 ## Want to get OPA?
@@ -303,14 +304,6 @@ true
 | "10.0.0.3" | "host-efg" |
 +------------+------------+
 ```
-
-## Roadmap
-
-The project roadmap is kept in Google Slides and can be found
-[here](https://docs.google.com/presentation/d/16QV6gvLDOV3I0_guPC3_19g6jHkEg3X9xqMYgtoCKrs/edit?usp=sharing). Input
-on project direction, features, etc. is welcome. If you have ideas
-about how to improve OPA, please join the regular community
-meetings. See the section above for meeting notes, invite, etc.
 
 ## Further Reading
 
