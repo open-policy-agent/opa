@@ -1,0 +1,62 @@
+@function mergeColorMaps($bulma-colors, $custom-colors)
+  // we return at least bulma hardcoded colors
+  $merged-colors: $bulma-colors
+
+  // we want a map as input
+  @if type-of($custom-colors) == 'map'
+    @each $name, $components in $custom-colors
+      // color name should be a string and colors pair a list with at least one element
+      @if type-of($name) == 'string' and (type-of($components) == 'list' or type-of($components) == 'color') and length($components) >= 1
+        $color-base: null
+
+        // the param can either be a single color
+        // or a list of 2 colors
+        @if type-of($components) == 'color'
+          $color-base: $components
+        @else if type-of($components) == 'list'
+          $color-base: nth($components, 1)
+
+        $color-invert: null
+        // is an inverted color provided in the list
+        @if length($components) > 1
+          $color-invert: nth($components, 2)
+
+        // we only want a color as base color
+        @if type-of($color-base) == 'color'
+          // if inverted color is not provided or is not a color we compute it
+          @if type-of($color-invert) != 'color'
+            $color-invert: findColorInvert($color-base)
+
+          // we merge this colors elements as map with bulma colors (we can override them this way, no multiple definition for the same name)
+          $merged-colors: map_merge($merged-colors, ($name: ($color-base, $color-invert)))
+
+  @return $merged-colors
+
+@function powerNumber($number, $exp)
+  $value: 1
+  @if $exp > 0
+    @for $i from 1 through $exp
+      $value: $value * $number
+  @else if $exp < 0
+    @for $i from 1 through -$exp
+      $value: $value / $number
+  @return $value
+
+@function colorLuminance($color)
+  $color-rgb: ('red': red($color),'green': green($color),'blue': blue($color))
+  @each $name, $value in $color-rgb
+    $adjusted: 0
+    $value: $value / 255
+    @if $value < 0.03928
+      $value: $value / 12.92
+    @else
+      $value: ($value + .055) / 1.055
+      $value: powerNumber($value, 2)
+    $color-rgb: map-merge($color-rgb, ($name: $value))
+  @return (map-get($color-rgb, 'red') * .2126) + (map-get($color-rgb, 'green') * .7152) + (map-get($color-rgb, 'blue') * .0722)
+
+@function findColorInvert($color)
+  @if (colorLuminance($color) > 0.55)
+    @return rgba(#000, 0.7)
+  @else
+    @return #fff
