@@ -1,3 +1,18 @@
+all:
+ifndef VERSION
+$(error VERSION is not set)
+endif
+	rm -fr public resources generated node_modules
+	echo "- $(VERSION)" > data/releases.yaml
+	mkdir -p generated/docs
+	cp -r content/docs generated/docs/v$(VERSION)
+	npm install
+	hugo \
+		--contentDir generated \
+		--ignoreCache \
+		--minify
+	tar czvf site.tar.gz -C public .
+
 clean:
 	rm -rf public
 
