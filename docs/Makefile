@@ -2,11 +2,10 @@ all:
 ifndef VERSION
 $(error VERSION is not set)
 endif
-	rm -fr public resources generated node_modules
+	rm -fr public resources generated
 	echo "- $(VERSION)" > data/releases.yaml
 	mkdir -p generated/docs
 	cp -r content/docs generated/docs/v$(VERSION)
-	npm install
 	hugo \
 		--contentDir generated \
 		--ignoreCache \
