@@ -3336,3 +3336,25 @@ func newClient(t *testing.T, pool *x509.CertPool, clientKeyPair ...string) *http
 	c.Transport = tr
 	return &c
 }
+
+func TestShutdown(t *testing.T) {
+	f := newFixture(t)
+	loops, err := f.server.Listeners()
+	if err != nil {
+		t.Errorf("unexpected error: %s", err.Error())
+	}
+
+	errc := make(chan error)
+	for _, loop := range loops {
+		go func(serverLoop func() error) {
+			errc <- serverLoop()
+		}(loop)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(5)*time.Second)
+	defer cancel()
+	err = f.server.Shutdown(ctx)
+	if err != nil {
+		t.Errorf("unexpected error shutting down server: %s", err.Error())
+	}
+}
