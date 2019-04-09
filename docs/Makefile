@@ -28,6 +28,7 @@ production-build: clean load-docs
 		--minify
 
 preview-build: clean
+	@echo "- latest" > ./data/releases.yaml
 	ENV=local hugo \
 		--baseURL $(DEPLOY_PRIME_URL) \
 		--buildDrafts \
