@@ -155,6 +155,7 @@ the data document with the following syntax:
 	runCommand.Flags().VarP(authorization, "authorization", "", "set authorization scheme")
 	runCommand.Flags().VarP(logLevel, "log-level", "l", "set log level")
 	runCommand.Flags().VarP(logFormat, "log-format", "", "set log format")
+	runCommand.Flags().IntVar(&params.GracefulShutdownPeriod, "shutdown-grace-period", 10, "set the time (in seconds) that the server will wait to gracefully shut down")
 	setIgnore(runCommand.Flags(), &ignore)
 
 	usageTemplate := `Usage:

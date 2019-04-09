@@ -14,7 +14,9 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"os/signal"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/open-policy-agent/opa/ast"
@@ -121,6 +123,10 @@ type Params struct {
 	// Output is the output stream used when run as an interactive shell. This
 	// is mostly for test purposes.
 	Output io.Writer
+
+	// GracefulShutdownPeriod is the time (in seconds) to wait for the http
+	// server to shutdown gracefully.
+	GracefulShutdownPeriod int
 }
 
 // LoggingConfig stores the configuration for OPA's logging behaviour.
@@ -281,8 +287,23 @@ func (rt *Runtime) StartServer(ctx context.Context) {
 			errc <- serverLoop()
 		}(loop)
 	}
+
+	stopc := make(chan os.Signal)
+	signal.Notify(stopc, syscall.SIGINT, syscall.SIGTERM)
+
 	for {
 		select {
+		case <-stopc:
+			logrus.Info("Shutting down...")
+			ctx, cancel := context.WithTimeout(context.Background(), time.Duration(rt.Params.GracefulShutdownPeriod)*time.Second)
+			defer cancel()
+			err = s.Shutdown(ctx)
+			if err != nil {
+				logrus.WithField("err", err).Error("Failed to shutdown server gracefully")
+			} else {
+				logrus.Info("Server shutdown")
+			}
+			os.Exit(1)
 		case err := <-errc:
 			logrus.WithField("err", err).Fatal("Listener failed.")
 		}
