@@ -3358,3 +3358,81 @@ func TestShutdown(t *testing.T) {
 		t.Errorf("unexpected error shutting down server: %s", err.Error())
 	}
 }
+
+func TestShutdownError(t *testing.T) {
+	f := newFixture(t)
+
+	errMsg := "failed to shutdown"
+
+	// Add a mock httpListener to the server
+	m := &mockHTTPListener{
+		ShutdownHook: func() error {
+			return errors.New(errMsg)
+		},
+	}
+	f.server.httpListeners = []httpListener{m}
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(5)*time.Second)
+	defer cancel()
+	err := f.server.Shutdown(ctx)
+	if err == nil {
+		t.Error("expected an error shutting down server but err==nil")
+	} else if !strings.Contains(err.Error(), errMsg) {
+		t.Errorf("unexpected error shutting down server: %s", err.Error())
+	}
+}
+
+func TestShutdownMultipleErrors(t *testing.T) {
+	f := newFixture(t)
+
+	shutdownErrs := []error{errors.New("err1"), nil, errors.New("err3")}
+
+	// Add mock httpListeners to the server
+	for _, err := range shutdownErrs {
+		m := &mockHTTPListener{}
+		if err != nil {
+			retVal := errors.New(err.Error())
+			m.ShutdownHook = func() error {
+				return retVal
+			}
+		}
+		f.server.httpListeners = append(f.server.httpListeners, m)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(5)*time.Second)
+	defer cancel()
+	err := f.server.Shutdown(ctx)
+	if err == nil {
+		t.Fatal("expected an error shutting down server but err==nil")
+	}
+
+	for _, expectedErr := range shutdownErrs {
+		if expectedErr != nil && !strings.Contains(err.Error(), expectedErr.Error()) {
+			t.Errorf("expected error message to contain '%s', full message: '%s'", expectedErr.Error(), err.Error())
+		}
+	}
+}
+
+type listenerHook func() error
+
+type mockHTTPListener struct {
+	ShutdownHook listenerHook
+}
+
+var _ httpListener = (*mockHTTPListener)(nil)
+
+func (m mockHTTPListener) ListenAndServe() error {
+	return errors.New("not implemented")
+}
+
+func (m mockHTTPListener) ListenAndServeTLS(certFile, keyFile string) error {
+	return errors.New("not implemented")
+}
+
+func (m mockHTTPListener) Shutdown(ctx context.Context) error {
+	var err error
+	if m.ShutdownHook != nil {
+		err = m.ShutdownHook()
+	}
+	return err
+}
