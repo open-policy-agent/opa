@@ -3,7 +3,24 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## 0.10.7
+
+This release publishes the Hugo-based documentation to GitHub Pages :tada:
+
+### Fixes
+
+- Add `array.slice` built-in function ([#1243](https://github.com/open-policy-agent/opa/issues/1243))
+- Add `net.cidr_contains` and `net.cidr_intersects` built-ins
+  ([#1289](https://github.com/open-policy-agent/opa/issues/1289)). This
+  change deprecates the old `net.cidr_overlap` built-in function. The
+  latter will be supported for backwards compatibility but new
+  policies should refer to `net.cidr_contains`.
+
+### Miscellaneous
+
+- Bump kube-mgmt container version to 0.8 in tutorial
+- Remove unnecessary resizing allocs from AST set and object
+- Add Kubernetes Admission Control guide
 
 ## 0.10.6
 
