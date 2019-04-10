@@ -2181,9 +2181,11 @@ func rewriteComprehensionTerms(f *equalityFactory, node interface{}) (interface{
 // This stage should only run the safety check (since == is a built-in with no
 // outputs, so the inputs must not be marked as safe.)
 //
-// This stage is not executed by the query compiler because when callers specify
-// == instead of = they expect to receive a true/false/undefined result back
-// whereas with = the result is only ever true/undefined.
+// This stage is not executed by the query compiler by default because when
+// callers specify == instead of = they expect to receive a true/false/undefined
+// result back whereas with = the result is only ever true/undefined. For
+// partial evaluation cases we do want to rewrite == to = to simplify the
+// result.
 func rewriteEquals(x interface{}) {
 	doubleEq := Equal.Ref()
 	unifyOp := Equality.Ref()
