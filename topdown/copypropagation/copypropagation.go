@@ -212,7 +212,7 @@ func (p *CopyPropagator) plugBindings(pctx *plugContext, x interface{}) bool {
 // updateBindings returns false if the expression can be killed. If the
 // expression is killed, the binding list is updated to map a var to value.
 func (p *CopyPropagator) updateBindings(pctx *plugContext, expr *ast.Expr) bool {
-	if pctx.negated {
+	if pctx.negated || len(expr.With) > 0 {
 		return true
 	}
 	if expr.IsEquality() {
@@ -330,7 +330,7 @@ func makeDisjointSets(livevars ast.VarSet, query ast.Body) (*unionFind, bool) {
 		return r2, r1
 	})
 	for _, expr := range query {
-		if expr.IsEquality() && !expr.Negated {
+		if expr.IsEquality() && !expr.Negated && len(expr.With) == 0 {
 			a, b := expr.Operand(0), expr.Operand(1)
 			varA, ok1 := a.Value.(ast.Var)
 			varB, ok2 := b.Value.(ast.Var)
