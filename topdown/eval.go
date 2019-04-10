@@ -171,6 +171,7 @@ func (e *eval) evalExpr(iter evalIterator) error {
 	}
 
 	expr := e.query[e.index]
+
 	e.traceEval(expr)
 
 	if len(expr.With) > 0 {
@@ -182,7 +183,9 @@ func (e *eval) evalExpr(iter evalIterator) error {
 		return e.evalWith(iter)
 	}
 
-	return e.evalStep(iter)
+	return e.evalStep(func(e *eval) error {
+		return e.next(iter)
+	})
 }
 
 func (e *eval) evalStep(iter evalIterator) error {
@@ -201,14 +204,14 @@ func (e *eval) evalStep(iter evalIterator) error {
 		if expr.IsEquality() {
 			err = e.unify(terms[1], terms[2], func() error {
 				defined = true
-				err := e.next(iter)
+				err := iter(e)
 				e.traceRedo(expr)
 				return err
 			})
 		} else {
 			err = e.evalCall(terms, func() error {
 				defined = true
-				err := e.next(iter)
+				err := iter(e)
 				e.traceRedo(expr)
 				return err
 			})
@@ -218,12 +221,12 @@ func (e *eval) evalStep(iter evalIterator) error {
 		err = e.unify(terms, rterm, func() error {
 			if e.saveSet.Contains(rterm, e.bindings) {
 				return e.saveExpr(ast.NewExpr(rterm), e.bindings, func() error {
-					return e.next(iter)
+					return iter(e)
 				})
 			}
 			if !e.bindings.Plug(rterm).Equal(ast.BooleanTerm(false)) {
 				defined = true
-				err := e.next(iter)
+				err := iter(e)
 				e.traceRedo(expr)
 				return err
 			}
@@ -272,7 +275,9 @@ func (e *eval) evalNot(iter evalIterator) error {
 }
 
 func (e *eval) evalWith(iter evalIterator) error {
+
 	expr := e.query[e.index]
+
 	pairsInput := [][2]*ast.Term{}
 	pairsData := [][2]*ast.Term{}
 
@@ -286,6 +291,7 @@ func (e *eval) evalWith(iter evalIterator) error {
 	}
 
 	input, err := makeInput(pairsInput)
+
 	if err != nil {
 		return &Error{
 			Code:     ConflictErr,
@@ -294,32 +300,49 @@ func (e *eval) evalWith(iter evalIterator) error {
 		}
 	}
 
-	for _, pair := range pairsData {
-		ref := pair[0].Value.(ast.Ref)
-		e.withCache.Put(ref, pair[1].Value)
-	}
+	old := e.evalWithPush(input, pairsData)
+
+	err = e.evalStep(func(e *eval) error {
+		e.evalWithPop(old, pairsData)
+		err := e.next(iter)
+		old = e.evalWithPush(input, pairsData)
+		return err
+	})
+
+	e.evalWithPop(old, pairsData)
+
+	return err
+}
+
+func (e *eval) evalWithPush(input *ast.Term, data [][2]*ast.Term) *ast.Term {
 
 	var old *ast.Term
 
 	if input != nil {
 		old = e.input
-		e.input = ast.NewTerm(input)
+		e.input = input
+	}
+
+	for _, pair := range data {
+		ref := pair[0].Value.(ast.Ref)
+		e.withCache.Put(ref, pair[1].Value)
 	}
 
 	e.virtualCache.Push()
-	err = e.evalStep(iter)
+
+	return old
+}
+
+func (e *eval) evalWithPop(input *ast.Term, data [][2]*ast.Term) {
+
 	e.virtualCache.Pop()
 
-	if input != nil {
-		e.input = old
-	}
-
-	for _, pair := range pairsData {
+	for _, pair := range data {
 		ref := pair[0].Value.(ast.Ref)
 		e.withCache.Remove(ref)
 	}
 
-	return err
+	e.input = input
 }
 
 func (e *eval) evalNotPartial(iter evalIterator) error {

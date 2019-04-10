@@ -2598,6 +2598,7 @@ func TestTopDownWithKeyword(t *testing.T) {
 		note    string
 		rules   []string
 		modules []string
+		input   string
 		exp     interface{}
 	}{
 
@@ -2637,11 +2638,65 @@ func TestTopDownWithKeyword(t *testing.T) {
 			rules: []string{`p = true { data.ex.loopback with input.foo as "x" with input.foo.bar as "y" }`},
 		},
 		{
-			note: "With invalidate",
+			note: "with invalidate",
 			exp:  `[2,3,4]`,
 			modules: []string{`package ex
 			input_eq = true { input.x = 1 }`},
 			rules: []string{`p[x] { data.a[_] = x; not data.ex.input_eq with input.x as x }`},
+		},
+		{
+			note:  "with invalidate input stack",
+			exp:   `["a", "b"]`,
+			input: `"b"`,
+			rules: []string{
+				`p = [x, y] { x = input with input as "a"; y = input }`,
+			},
+		},
+		{
+			note:  "with invalidate input stack iteration",
+			exp:   `[["a", "c"], ["b", "c"]]`,
+			input: `"c"`,
+			rules: []string{
+				`q[x] { input[_] = x }`,
+				`p[[x,y]] {
+					q[x] with input as ["a", "b"]
+					y = input
+				}`,
+			},
+		},
+		{
+			note:  "with invalidate virtual cache",
+			exp:   `["a", "b"]`,
+			input: "2",
+			rules: []string{
+				`q = "a" { input = x; x = 1 }`,
+				`q = "b" { input = x; x = 2 }`,
+				`p = [x, y] {
+					q = x with input as 1
+					q = y
+				}`},
+		},
+		{
+			note: "with invalidate data stack",
+			exp:  `["a", "b"]`,
+			rules: []string{
+				`q = "b" { true }`,
+				`p = [x ,y] {
+					q = x with q as "a"
+					q = y
+				}`,
+			},
+		},
+		{
+			note: "with invalidate data stack iteration",
+			exp:  `[["a", ["c"]], ["b", ["c"]]]`,
+			rules: []string{
+				`q["c"] { true }`,
+				`p[[x, y]] {
+					q[x] with q as {"a", "b"}
+					y = q
+				}`,
+			},
 		},
 		{
 			note: "with basic data",
@@ -2795,7 +2850,7 @@ func TestTopDownWithKeyword(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		runTopDownTestCaseWithModules(t, loadSmallTestData(), tc.note, tc.rules, tc.modules, tc.exp)
+		runTopDownTestCaseWithModules(t, loadSmallTestData(), tc.note, tc.rules, tc.modules, tc.input, tc.exp)
 	}
 }
 
@@ -3257,10 +3312,10 @@ func loadSmallTestData() map[string]interface{} {
 }
 
 func runTopDownTestCase(t *testing.T, data map[string]interface{}, note string, rules []string, expected interface{}) {
-	runTopDownTestCaseWithModules(t, data, note, rules, nil, expected)
+	runTopDownTestCaseWithModules(t, data, note, rules, nil, "", expected)
 }
 
-func runTopDownTestCaseWithModules(t *testing.T, data map[string]interface{}, note string, rules []string, modules []string, expected interface{}) {
+func runTopDownTestCaseWithModules(t *testing.T, data map[string]interface{}, note string, rules []string, modules []string, input string, expected interface{}) {
 	imports := []string{}
 	for k := range data {
 		imports = append(imports, "data."+k)
@@ -3274,7 +3329,7 @@ func runTopDownTestCaseWithModules(t *testing.T, data map[string]interface{}, no
 
 	store := inmem.NewFromObject(data)
 
-	assertTopDownWithPath(t, compiler, store, note, []string{"p"}, "", expected)
+	assertTopDownWithPath(t, compiler, store, note, []string{"p"}, input, expected)
 }
 
 func assertTopDownWithPath(t *testing.T, compiler *ast.Compiler, store storage.Store, note string, path []string, input string, expected interface{}) {
