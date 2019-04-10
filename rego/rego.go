@@ -498,7 +498,7 @@ func (r *Rego) Partial(ctx context.Context) (*PartialQueries, error) {
 	return r.partial(ctx, compiled, txn, partialNamespace)
 }
 
-// Compile returnss a compiled policy query.
+// Compile returns a compiled policy query.
 func (r *Rego) Compile(ctx context.Context) (*CompileResult, error) {
 
 	pq, err := r.Partial(ctx)
