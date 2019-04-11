@@ -290,7 +290,7 @@ func (e *eval) evalWith(iter evalIterator) error {
 		}
 	}
 
-	input, err := makeInput(pairsInput)
+	input, err := makeInput(e.input, pairsInput)
 
 	if err != nil {
 		return &Error{
