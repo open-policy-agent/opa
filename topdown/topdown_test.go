@@ -2638,6 +2638,25 @@ func TestTopDownWithKeyword(t *testing.T) {
 			rules: []string{`p = true { data.ex.loopback with input.foo as "x" with input.foo.bar as "y" }`},
 		},
 		{
+			note:  "with stack",
+			input: `{"a": {"d": 3}, "e": 4}`,
+			exp:   `{"a": {"b": 1, "c": 2, "d": 3}, "e": 4}`,
+			rules: []string{
+				`r = input { true }`,
+				`q = x { r = x with input.a.c as 2 }`,
+				`p = x { q = x with input.a.b as 1 }`,
+			},
+		},
+		{
+			note:  "with stack overwrites",
+			input: `{"a": {"b": 1, "c": 2}}`,
+			exp:   `{"a": {"d": 3}}`,
+			rules: []string{
+				`q = input { true }`,
+				`p = x { q = x with input.a as {"d": 3} }`,
+			},
+		},
+		{
 			note: "with invalidate",
 			exp:  `[2,3,4]`,
 			modules: []string{`package ex
