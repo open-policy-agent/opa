@@ -26,7 +26,7 @@ import (
 
 const defaultPartialNamespace = "partial"
 
-// CompileResult represents sthe result of compiling a Rego query, zero or more
+// CompileResult represents the result of compiling a Rego query, zero or more
 // Rego modules, and arbitrary contextual data into an executable.
 type CompileResult struct {
 	Bytes []byte `json:"bytes"`
@@ -219,7 +219,7 @@ func Input(x interface{}) func(r *Rego) {
 	}
 }
 
-// ParsedInput returns an argument that set sthe Rego input document.
+// ParsedInput returns an argument that sets the Rego input document.
 func ParsedInput(x ast.Value) func(r *Rego) {
 	return func(r *Rego) {
 		r.input = x
