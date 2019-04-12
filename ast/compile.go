@@ -98,17 +98,11 @@ type CompilerStage func(*Compiler) *Error
 type QueryContext struct {
 	Package *Package
 	Imports []*Import
-	Input   Value
 }
 
 // NewQueryContext returns a new QueryContext object.
 func NewQueryContext() *QueryContext {
 	return &QueryContext{}
-}
-
-// InputDefined returns true if the input document is defined in qc.
-func (qc *QueryContext) InputDefined() bool {
-	return qc != nil && qc.Input != nil
 }
 
 // WithPackage sets the pkg on qc.
@@ -126,15 +120,6 @@ func (qc *QueryContext) WithImports(imports []*Import) *QueryContext {
 		qc = NewQueryContext()
 	}
 	qc.Imports = imports
-	return qc
-}
-
-// WithInput sets the input on qc.
-func (qc *QueryContext) WithInput(input Value) *QueryContext {
-	if qc == nil {
-		qc = NewQueryContext()
-	}
-	qc.Input = input
 	return qc
 }
 

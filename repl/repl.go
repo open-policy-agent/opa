@@ -591,11 +591,11 @@ func (r *REPL) recompile(ctx context.Context, cpy *ast.Module) error {
 	return nil
 }
 
-func (r *REPL) compileBody(ctx context.Context, compiler *ast.Compiler, body ast.Body, input ast.Value) (ast.Body, *ast.TypeEnv, error) {
+func (r *REPL) compileBody(ctx context.Context, compiler *ast.Compiler, body ast.Body) (ast.Body, *ast.TypeEnv, error) {
 	r.timerStart(metrics.RegoQueryCompile)
 	defer r.timerStop(metrics.RegoQueryCompile)
 
-	qctx := ast.NewQueryContext().WithInput(input)
+	qctx := ast.NewQueryContext()
 
 	if r.currentModuleID != "" {
 		qctx = qctx.WithPackage(r.modules[r.currentModuleID].Package).WithImports(r.modules[r.currentModuleID].Imports)
@@ -784,7 +784,7 @@ func (r *REPL) evalStatement(ctx context.Context, stmt interface{}) error {
 			}
 		}
 
-		compiledBody, typeEnv, err := r.compileBody(ctx, compiler, parsedBody, input)
+		compiledBody, typeEnv, err := r.compileBody(ctx, compiler, parsedBody)
 		if err != nil {
 			return err
 		}
