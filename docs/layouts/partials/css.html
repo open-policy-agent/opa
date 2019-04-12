@@ -6,7 +6,7 @@
 {{ $cssDevOpts   := (dict "targetPath" $cssOutput "includePaths" $includePaths "enableSourceMap" true) }}
 {{ $cssProdOpts  := (dict "targetPath" $cssOutput "includePaths" $includePaths "outputStyle" "compressed") }}
 {{ $cssOpts      := cond $inServerMode $cssDevOpts $cssProdOpts }}
-{{ $css          := resources.Get $sass | toCSS $cssOpts | resources.PostCSS }}
+{{ $css          := resources.Get $sass | toCSS $cssOpts }}
 {{ if $isHome }}
 <link media="screen" charset="utf-8" rel="stylesheet" href="/css/home.css">
 {{ else }}
