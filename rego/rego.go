@@ -632,8 +632,6 @@ func (r *Rego) compileQuery(extras []extraStage, query ast.Body) (ast.QueryCompi
 		imports = append(imports, parsed...)
 	}
 
-	var input ast.Value
-
 	if r.rawInput != nil {
 		rawPtr := util.Reference(r.rawInput)
 		// roundtrip through json: this turns slices (e.g. []string, []bool) into
@@ -645,16 +643,12 @@ func (r *Rego) compileQuery(extras []extraStage, query ast.Body) (ast.QueryCompi
 		if err != nil {
 			return nil, nil, err
 		}
-		input = val
 		r.input = val
-	} else {
-		input = r.input
 	}
 
 	qctx := ast.NewQueryContext().
 		WithPackage(pkg).
-		WithImports(imports).
-		WithInput(input)
+		WithImports(imports)
 
 	qc := r.compiler.QueryCompiler().WithContext(qctx)
 

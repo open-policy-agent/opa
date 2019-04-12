@@ -91,8 +91,7 @@ min_x = 100 { true }`
 			// instead.
 			ast.NewQueryContext().
 				WithPackage(ast.MustParsePackage(`package opa.example`)).
-				WithImports(ast.MustParseImports("import input.query_arg")).
-				WithInput(ast.MustParseTerm(`{"query_arg": 1000, "bar": [1,2,3]}`).Value),
+				WithImports(ast.MustParseImports("import input.query_arg")),
 		)
 
 	// Parse the input query to obtain the AST representation.

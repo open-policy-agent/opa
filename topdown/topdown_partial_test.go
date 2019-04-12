@@ -1510,9 +1510,6 @@ func prepareTest(ctx context.Context, t *testing.T, params fixtureParams, f func
 			}
 
 			queryContext := ast.NewQueryContext()
-			if input != nil {
-				queryContext = queryContext.WithInput(input.Value)
-			}
 
 			queryCompiler := compiler.QueryCompiler().WithContext(queryContext)
 

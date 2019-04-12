@@ -2273,20 +2273,86 @@ func TestQueryCompiler(t *testing.T) {
 			q:        "eq(1)",
 			expected: fmt.Errorf("too few arguments"),
 		},
-		{"rewrite assignment", "a := 1; [b, c] := data.foo", "", nil, "", "__local0__ = 1; [__local1__, __local2__] = data.foo"},
-		{"exports resolved", "z", `package a.b.c`, nil, "", "data.a.b.c.z"},
-		{"imports resolved", "z", `package a.b.c.d`, []string{"import data.a.b.c.z"}, "", "data.a.b.c.z"},
-		{"rewrite comprehensions", "[x[i] | a = [[1], [2]]; x = a[j]]", "", nil, "", "[__local0__ | a = [[1], [2]]; x = a[j]; __local0__ = x[i]]"},
-		{"unsafe vars", "z", "", nil, "", fmt.Errorf("1 error occurred: 1:1: rego_unsafe_var_error: var z is unsafe")},
-		{"safe vars", `data; abc`, `package ex`, []string{"import input.xyz as abc"}, `{}`, `data; input.xyz`},
-		{"reorder", `x != 1; x = 0`, "", nil, "", `x = 0; x != 1`},
-		{"bad with target", "x = 1 with foo.p as null", "", nil, "", fmt.Errorf("1 error occurred: 1:12: rego_type_error: with keyword target must start with input or data")},
-		{"rewrite with value", `1 with input as [z]`, "package a.b.c", nil, "", `__local1__ = data.a.b.c.z; __local0__ = [__local1__]; 1 with input as __local0__`},
-		{"unsafe exprs", "count(sum())", "", nil, "", fmt.Errorf("1 error occurred: 1:1: rego_unsafe_var_error: expression is unsafe")},
-		{"check types", "x = data.a.b.c.z; y = null; x = y", "", nil, "", fmt.Errorf("match error\n\tleft  : number\n\tright : null")},
+		{
+			note:     "rewrite assignment",
+			q:        "a := 1; [b, c] := data.foo",
+			pkg:      "",
+			imports:  nil,
+			expected: "__local0__ = 1; [__local1__, __local2__] = data.foo",
+		},
+		{
+			note:     "exports resolved",
+			q:        "z",
+			pkg:      `package a.b.c`,
+			imports:  nil,
+			expected: "data.a.b.c.z",
+		},
+		{
+			note:     "imports resolved",
+			q:        "z",
+			pkg:      `package a.b.c.d`,
+			imports:  []string{"import data.a.b.c.z"},
+			expected: "data.a.b.c.z",
+		},
+		{
+			note:     "rewrite comprehensions",
+			q:        "[x[i] | a = [[1], [2]]; x = a[j]]",
+			pkg:      "",
+			imports:  nil,
+			expected: "[__local0__ | a = [[1], [2]]; x = a[j]; __local0__ = x[i]]",
+		},
+		{
+			note:     "unsafe vars",
+			q:        "z",
+			pkg:      "",
+			imports:  nil,
+			expected: fmt.Errorf("1 error occurred: 1:1: rego_unsafe_var_error: var z is unsafe"),
+		},
+		{
+			note:     "safe vars",
+			q:        `data; abc`,
+			pkg:      `package ex`,
+			imports:  []string{"import input.xyz as abc"},
+			expected: `data; input.xyz`,
+		},
+		{
+			note:     "reorder",
+			q:        `x != 1; x = 0`,
+			pkg:      "",
+			imports:  nil,
+			expected: `x = 0; x != 1`,
+		},
+		{
+			note:     "bad with target",
+			q:        "x = 1 with foo.p as null",
+			pkg:      "",
+			imports:  nil,
+			expected: fmt.Errorf("1 error occurred: 1:12: rego_type_error: with keyword target must start with input or data"),
+		},
+		{
+			note:     "rewrite with value",
+			q:        `1 with input as [z]`,
+			pkg:      "package a.b.c",
+			imports:  nil,
+			expected: `__local1__ = data.a.b.c.z; __local0__ = [__local1__]; 1 with input as __local0__`,
+		},
+		{
+			note:     "unsafe exprs",
+			q:        "count(sum())",
+			pkg:      "",
+			imports:  nil,
+			expected: fmt.Errorf("1 error occurred: 1:1: rego_unsafe_var_error: expression is unsafe"),
+		},
+		{
+			note:     "check types",
+			q:        "x = data.a.b.c.z; y = null; x = y",
+			pkg:      "",
+			imports:  nil,
+			expected: fmt.Errorf("match error\n\tleft  : number\n\tright : null"),
+		},
 	}
 	for _, tc := range tests {
-		runQueryCompilerTest(t, tc.note, tc.q, tc.pkg, tc.imports, tc.input, tc.expected)
+		runQueryCompilerTest(t, tc.note, tc.q, tc.pkg, tc.imports, tc.expected)
 	}
 }
 
@@ -2514,7 +2580,7 @@ func compilerErrsToStringSlice(errors []*Error) []string {
 	return result
 }
 
-func runQueryCompilerTest(t *testing.T, note, q, pkg string, imports []string, input string, expected interface{}) {
+func runQueryCompilerTest(t *testing.T, note, q, pkg string, imports []string, expected interface{}) {
 	test.Subtest(t, note, func(t *testing.T) {
 		c := NewCompiler()
 		c.Compile(getCompilerTestModules())
@@ -2528,9 +2594,6 @@ func runQueryCompilerTest(t *testing.T, note, q, pkg string, imports []string, i
 		}
 		if len(imports) != 0 {
 			qctx = qctx.WithImports(MustParseImports(strings.Join(imports, "\n")))
-		}
-		if input != "" {
-			qctx = qctx.WithInput(MustParseTerm(input).Value)
 		}
 
 		if qctx != nil {
