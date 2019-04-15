@@ -1175,6 +1175,31 @@ following syntax:
 The `<target>`s must be references to values in the input document (or the input
 document itself) or data document.
 
+> When applied to the `data` document, the `<target>` must not attempt to
+> partially define virtual documents. For example, given a virtual document at
+> path `data.foo.bar`, the compiler will generate an error if the policy
+> attempts to replace `data.foo.bar.baz`.
+
+The `with` keyword only affects the attached expression. Subsequent expressions
+will see the unmodified value. The exception to this rule is when multiple
+`with` keywords are in-scope like below:
+
+```ruby
+inner = [x, y] {
+    x := input.foo
+    y := input.bar
+}
+
+middle = [a, b] {
+    a := inner with input.foo as 100
+    b := input
+}
+
+outer = result {
+    result := middle with input as {"foo": 200, "bar": 300}
+}
+```
+
 ## Default Keyword
 
 The `default` keyword allows policies to define a default value for documents
