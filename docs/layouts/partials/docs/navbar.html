@@ -10,6 +10,7 @@
 {{ $docs      := where $allDocs ".Params.kind" "eq" "documentation" }}
 {{ $tutorials := where $allDocs ".Params.kind" "eq" "tutorial" }}
 {{ $guides    := where $allDocs ".Params.kind" "eq" "guides" }}
+{{ $version   := index (split .File.Path "/") 1 }}
 <nav class="navbar is-primary">
   <div class="navbar-brand is-hidden-tablet">
     <a class="navbar-item" href="{{ $home }}">
@@ -34,8 +35,9 @@
       </a>
 
       {{ range $docs }}
-      {{ $isRoot := eq (len (split .File.Path "/")) 2 }}
-      {{ if not $isRoot }}
+      {{ $isRoot           := eq (len (split .File.Path "/")) 2 }}
+      {{ $isCurrentVersion := eq $version (index (split .File.Path "/") 1) }}
+      {{ if and (not $isRoot) $isCurrentVersion }}
       <a class="navbar-item" href="{{ .URL }}">
         {{ .Title }}
       </a>
@@ -50,7 +52,8 @@
 
       {{ range $tutorials }}
       {{ $isRoot := eq (len (split .File.Path "/")) 2 }}
-      {{ if not $isRoot }}
+      {{ $isCurrentVersion := eq $version (index (split .File.Path "/") 1) }}
+      {{ if and (not $isRoot) $isCurrentVersion }}
       <a class="navbar-item" href="{{ .URL }}">
         {{ .Title }}
       </a>
@@ -65,7 +68,8 @@
 
       {{ range $guides }}
       {{ $isRoot := eq (len (split .File.Path "/")) 2 }}
-      {{ if not $isRoot }}
+      {{ $isCurrentVersion := eq $version (index (split .File.Path "/") 1) }}
+      {{ if and (not $isRoot) $isCurrentVersion }}
       <a class="navbar-item" href="{{ .URL }}">
         {{ .Title }}
       </a>
