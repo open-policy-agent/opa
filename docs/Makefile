@@ -21,6 +21,9 @@ docker-serve:
 			--buildDrafts \
 			--buildFuture
 
+local-production-serve: clean load-docs
+	hugo server --contentDir generated
+
 production-build: clean load-docs
 	hugo \
 		--contentDir generated \
