@@ -2632,7 +2632,7 @@ func TestTopDownWithKeyword(t *testing.T) {
 		},
 		{
 			note: "with conflict",
-			exp:  fmt.Errorf("conflicting input documents"),
+			exp:  fmt.Errorf("conflicting documents"),
 			modules: []string{`package ex
 			loopback = __local0__ { true; __local0__ = input }`},
 			rules: []string{`p = true { data.ex.loopback with input.foo as "x" with input.foo.bar as "y" }`},
@@ -2648,12 +2648,40 @@ func TestTopDownWithKeyword(t *testing.T) {
 			},
 		},
 		{
+			note: "with stack (data)",
+			exp:  `{"a": {"b": 1, "c": 2, "d": 3}, "e": 4}`,
+			modules: []string{
+				`package test.a
+				d = 3`,
+				`package test
+				e = 4`,
+			},
+			rules: []string{
+				`r = data.test { true }`,
+				`q = x { r = x with data.test.a.c as 2 }`,
+				`p = x { q = x with data.test.a.b as 1 }`,
+			},
+		},
+		{
 			note:  "with stack overwrites",
 			input: `{"a": {"b": 1, "c": 2}}`,
 			exp:   `{"a": {"d": 3}}`,
 			rules: []string{
 				`q = input { true }`,
 				`p = x { q = x with input.a as {"d": 3} }`,
+			},
+		},
+		{
+			note: "with stack overwrites (data)",
+			exp:  `{"a": {"d": 3}}`,
+			modules: []string{
+				`package test
+
+				a = {"b": 1, "c": 2}`,
+			},
+			rules: []string{
+				`q = data.test { true }`,
+				`p = x { q = x with data.test.a as {"d": 3} }`,
 			},
 		},
 		{

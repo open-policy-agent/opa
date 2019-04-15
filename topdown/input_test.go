@@ -10,7 +10,7 @@ import (
 	"github.com/open-policy-agent/opa/ast"
 )
 
-func TestMakeInput(t *testing.T) {
+func TestMergeTermWithValues(t *testing.T) {
 
 	tests := []struct {
 		note     string
@@ -46,12 +46,12 @@ func TestMakeInput(t *testing.T) {
 		{
 			note:     "conflicting value",
 			input:    [][2]string{{"input", "[1,2,3]"}, {"input.a.b", "true"}},
-			expected: errConflictingInputDoc,
+			expected: errConflictingDoc,
 		},
 		{
 			note:     "conflicting merge",
 			input:    [][2]string{{`input.a.b`, `"c"`}, {`input.a.b.d`, `"d"`}},
-			expected: errConflictingInputDoc,
+			expected: errConflictingDoc,
 		},
 		{
 			note:     "ordered roots",
@@ -61,7 +61,7 @@ func TestMakeInput(t *testing.T) {
 		{
 			note:     "bad import path",
 			input:    [][2]string{{`input.a[1]`, `1`}},
-			expected: errBadInputPath,
+			expected: errBadPath,
 		},
 		{
 			note:     "existing merge",
@@ -96,7 +96,7 @@ func TestMakeInput(t *testing.T) {
 				exist = ast.MustParseTerm(tc.exist)
 			}
 
-			input, err := makeInput(exist, pairs)
+			input, err := mergeTermWithValues(exist, pairs)
 
 			switch e := tc.expected.(type) {
 			case error:

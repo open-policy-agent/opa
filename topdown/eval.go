@@ -36,10 +36,11 @@ type eval struct {
 	bindings      *bindings
 	store         storage.Store
 	baseCache     *baseCache
-	withCache     *baseCache
 	txn           storage.Transaction
 	compiler      *ast.Compiler
 	input         *ast.Term
+	data          *ast.Term
+	targetStack   *refStack
 	tracers       []Tracer
 	instr         *Instrumentation
 	builtinCache  builtins.Cache
@@ -280,6 +281,7 @@ func (e *eval) evalWith(iter evalIterator) error {
 
 	pairsInput := [][2]*ast.Term{}
 	pairsData := [][2]*ast.Term{}
+	targets := []ast.Ref{}
 
 	for i := range expr.With {
 		plugged := e.bindings.Plug(expr.With[i].Value)
@@ -288,9 +290,10 @@ func (e *eval) evalWith(iter evalIterator) error {
 		} else if isDataRef(expr.With[i].Target) {
 			pairsData = append(pairsData, [...]*ast.Term{expr.With[i].Target, plugged})
 		}
+		targets = append(targets, expr.With[i].Target.Value.(ast.Ref))
 	}
 
-	input, err := makeInput(e.input, pairsInput)
+	input, err := mergeTermWithValues(e.input, pairsInput)
 
 	if err != nil {
 		return &Error{
@@ -300,48 +303,55 @@ func (e *eval) evalWith(iter evalIterator) error {
 		}
 	}
 
-	old := e.evalWithPush(input, pairsData)
+	data, err := mergeTermWithValues(e.data, pairsData)
+	if err != nil {
+		return &Error{
+			Code:     ConflictErr,
+			Location: expr.Location,
+			Message:  err.Error(),
+		}
+	}
+
+	oldInput, oldData := e.evalWithPush(input, data, targets)
 
 	err = e.evalStep(func(e *eval) error {
-		e.evalWithPop(old, pairsData)
+		e.evalWithPop(oldInput, oldData)
 		err := e.next(iter)
-		old = e.evalWithPush(input, pairsData)
+		oldInput, oldData = e.evalWithPush(input, data, targets)
 		return err
 	})
 
-	e.evalWithPop(old, pairsData)
+	e.evalWithPop(oldInput, oldData)
 
 	return err
 }
 
-func (e *eval) evalWithPush(input *ast.Term, data [][2]*ast.Term) *ast.Term {
+func (e *eval) evalWithPush(input *ast.Term, data *ast.Term, targets []ast.Ref) (*ast.Term, *ast.Term) {
 
-	var old *ast.Term
+	var oldInput *ast.Term
 
 	if input != nil {
-		old = e.input
+		oldInput = e.input
 		e.input = input
 	}
 
-	for _, pair := range data {
-		ref := pair[0].Value.(ast.Ref)
-		e.withCache.Put(ref, pair[1].Value)
+	var oldData *ast.Term
+
+	if data != nil {
+		oldData = e.data
+		e.data = data
 	}
 
 	e.virtualCache.Push()
+	e.targetStack.Push(targets)
 
-	return old
+	return oldInput, oldData
 }
 
-func (e *eval) evalWithPop(input *ast.Term, data [][2]*ast.Term) {
-
+func (e *eval) evalWithPop(input *ast.Term, data *ast.Term) {
+	e.targetStack.Pop()
 	e.virtualCache.Pop()
-
-	for _, pair := range data {
-		ref := pair[0].Value.(ast.Ref)
-		e.withCache.Remove(ref)
-	}
-
+	e.data = data
 	e.input = input
 }
 
@@ -1001,8 +1011,17 @@ func (e *eval) Resolve(ref ast.Ref) (ast.Value, error) {
 
 	if ref[0].Equal(ast.DefaultRootDocument) {
 
-		repValue, complete := e.withCache.Get(ref)
-		if complete {
+		var repValue ast.Value
+
+		if e.data != nil {
+			if v, err := e.data.Value.Find(ref[1:]); err == nil {
+				repValue = v
+			} else {
+				repValue = nil
+			}
+		}
+
+		if e.targetStack.Prefixed(ref) {
 			return repValue, nil
 		}
 
@@ -1282,9 +1301,8 @@ func (e evalTree) next(iter unifyIterator, plugged *ast.Term) error {
 	cpy := e
 	cpy.plugged[e.pos] = plugged
 	cpy.pos++
-	_, complete := e.e.withCache.Get(cpy.plugged[:cpy.pos])
 
-	if !complete {
+	if !e.e.targetStack.Prefixed(cpy.plugged[:cpy.pos]) {
 		if e.node != nil {
 			node = e.node.Child(plugged.Value)
 			if node != nil && len(node.Values) > 0 {

@@ -10,10 +10,10 @@ import (
 	"github.com/open-policy-agent/opa/ast"
 )
 
-var errConflictingInputDoc = fmt.Errorf("conflicting input documents")
-var errBadInputPath = fmt.Errorf("bad input document path")
+var errConflictingDoc = fmt.Errorf("conflicting documents")
+var errBadPath = fmt.Errorf("bad document path")
 
-func makeInput(exist *ast.Term, pairs [][2]*ast.Term) (*ast.Term, error) {
+func mergeTermWithValues(exist *ast.Term, pairs [][2]*ast.Term) (*ast.Term, error) {
 
 	var result *ast.Term
 
@@ -24,7 +24,7 @@ func makeInput(exist *ast.Term, pairs [][2]*ast.Term) (*ast.Term, error) {
 	for _, pair := range pairs {
 
 		if err := ast.IsValidImportPath(pair[0].Value); err != nil {
-			return nil, errBadInputPath
+			return nil, errBadPath
 		}
 
 		target := pair[0].Value.(ast.Ref)
@@ -40,7 +40,7 @@ func makeInput(exist *ast.Term, pairs [][2]*ast.Term) (*ast.Term, error) {
 				if child := node.Get(target[i]); child == nil {
 					obj, ok := node.Value.(ast.Object)
 					if !ok {
-						return nil, errConflictingInputDoc
+						return nil, errConflictingDoc
 					}
 					obj.Insert(target[i], ast.NewTerm(makeTree(target[i+1:], pair[1])))
 					done = true
@@ -51,7 +51,7 @@ func makeInput(exist *ast.Term, pairs [][2]*ast.Term) (*ast.Term, error) {
 			if !done {
 				obj, ok := node.Value.(ast.Object)
 				if !ok {
-					return nil, errConflictingInputDoc
+					return nil, errConflictingDoc
 				}
 				obj.Insert(target[len(target)-1], pair[1])
 			}

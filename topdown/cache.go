@@ -171,3 +171,36 @@ func (e *baseCacheElem) set(value ast.Value) {
 	e.value = value
 	e.children = map[ast.Value]*baseCacheElem{}
 }
+
+type refStack struct {
+	sl []refStackElem
+}
+
+type refStackElem struct {
+	refs []ast.Ref
+}
+
+func newRefStack() *refStack {
+	return &refStack{}
+}
+
+func (s *refStack) Push(refs []ast.Ref) {
+	s.sl = append(s.sl, refStackElem{refs: refs})
+}
+
+func (s *refStack) Pop() {
+	s.sl = s.sl[:len(s.sl)-1]
+}
+
+func (s *refStack) Prefixed(ref ast.Ref) bool {
+	if s != nil {
+		for i := len(s.sl) - 1; i >= 0; i-- {
+			for j := range s.sl[i].refs {
+				if ref.HasPrefix(s.sl[i].refs[j]) {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
