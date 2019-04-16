@@ -585,3 +585,123 @@ func ExampleRego_Eval_tracer() {
 	// Redo x = 1
 	// | Redo x = 1
 }
+
+func ExampleRego_PrepareForEval() {
+	ctx := context.Background()
+
+	// Create a simple query
+	r := rego.New(
+		rego.Query("input.x == 1"),
+	)
+
+	// Prepare for evaluation
+	pq, err := r.PrepareForEval(ctx)
+
+	if err != nil {
+		// Handle error.
+	}
+
+	// Raw input data that will be used in the first evaluation
+	input := map[string]interface{}{"x": 2}
+
+	// Run the evaluation
+	rs, err := pq.Eval(ctx, rego.EvalInput(input))
+
+	if err != nil {
+		// Handle error.
+	}
+
+	// Inspect results.
+	fmt.Println("initial result:", rs[0].Expressions[0])
+
+	// Update input
+	input["x"] = 1
+
+	// Run the evaluation with new input
+	rs, err = pq.Eval(ctx, rego.EvalInput(input))
+
+	if err != nil {
+		// Handle error.
+	}
+
+	// Inspect results.
+	fmt.Println("updated result:", rs[0].Expressions[0])
+
+	// Output:
+	//
+	// initial result: false
+	// updated result: true
+}
+
+func ExampleRego_PrepareForPartial() {
+
+	ctx := context.Background()
+
+	// Define a simple policy for example purposes.
+	module := `package test
+
+	allow {
+		input.method = read_methods[_]
+		input.path = ["reviews", user]
+		input.user = user
+	}
+
+	allow {
+		input.method = read_methods[_]
+		input.path = ["reviews", _]
+		input.is_admin
+	}
+
+	read_methods = ["GET"]
+	`
+
+	r := rego.New(
+		rego.Query("data.test.allow == true"),
+		rego.Module("example.rego", module),
+	)
+
+	pq, err := r.PrepareForPartial(ctx)
+	if err != nil {
+		// Handle error.
+	}
+
+	pqs, err := pq.Partial(ctx)
+	if err != nil {
+		// Handle error.
+	}
+
+	// Inspect result
+	fmt.Println("First evaluation")
+	for i := range pqs.Queries {
+		fmt.Printf("Query #%d: %v\n", i+1, pqs.Queries[i])
+	}
+
+	// Evaluate with specified input
+	exampleInput := map[string]string{
+		"method": "GET",
+	}
+
+	// Evaluate again with different input and unknowns
+	pqs, err = pq.Partial(ctx,
+		rego.EvalInput(exampleInput),
+		rego.EvalUnknowns([]string{"input.user", "input.is_admin", "input.path"}),
+	)
+	if err != nil {
+		// Handle error.
+	}
+
+	// Inspect result
+	fmt.Println("Second evaluation")
+	for i := range pqs.Queries {
+		fmt.Printf("Query #%d: %v\n", i+1, pqs.Queries[i])
+	}
+
+	// Output:
+	//
+	// First evaluation
+	// Query #1: "GET" = input.method; input.path = ["reviews", _]; input.is_admin
+	// Query #2: "GET" = input.method; input.path = ["reviews", user3]; user3 = input.user
+	// Second evaluation
+	// Query #1: input.path = ["reviews", _]; input.is_admin
+	// Query #2: input.path = ["reviews", user3]; user3 = input.user
+}
