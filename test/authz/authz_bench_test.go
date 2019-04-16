@@ -60,19 +60,23 @@ func runAuthzBenchmark(b *testing.B, mode inputMode, numPaths int) {
 
 	b.ResetTimer()
 
+	r := rego.New(
+		rego.Compiler(compiler),
+		rego.Store(store),
+		rego.Transaction(txn),
+		rego.Query("data.restauthz.allow"),
+	)
+
+	// Pre-process as much as we can
+	pq, err := r.PrepareForEval(ctx)
+	if err != nil {
+		b.Fatalf("Unexpected error(s): %v", err)
+	}
+
 	for i := 0; i < b.N; i++ {
 		input, expected := generateInput(profile, mode)
 
-		r := rego.New(
-			rego.Compiler(compiler),
-			rego.Store(store),
-			rego.Transaction(txn),
-			rego.Input(input),
-			rego.Query("data.restauthz.allow"),
-		)
-
-		rs, err := r.Eval(ctx)
-
+		rs, err := pq.Eval(ctx, rego.EvalInput(input))
 		if err != nil {
 			b.Fatalf("Unexpected error(s): %v", err)
 		}
