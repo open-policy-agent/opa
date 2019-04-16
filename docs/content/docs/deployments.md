@@ -129,15 +129,17 @@ docker run openpolicyagent/opa version
 
 This section shows how to quickly deploy OPA on top of Kubernetes to try it out.
 
+> If you are interested in using OPA to enforce admission control policies in
+> Kubernetes, see the [Kubernetes Admission Control
+> Tutorial](../kubernetes-admission-control) and [Kubernetes Admission Control
+> Guide](../guides-kubernetes-admission-control) pages.
+
 > These steps assume Kubernetes is deployed with
 [minikube](https://github.com/kubernetes/minikube). If you are using a different
 Kubernetes provider, the steps should be similar. You may need to use a
 different Service configuration at the end.
 
-First, create a ConfigMap containing a test policy. The test policy will define a blacklist that rejects:
-
-* Objects missing a 'customer' label.
-* Pods referring to images outside the corporate registry.
+First, create a ConfigMap containing a test policy.
 
 In this case, the policy file does not contain sensitive information so it's
 fine to store as a ConfigMap. If the file contained sensitive information, then
@@ -216,16 +218,20 @@ Get the URL of OPA using `minikube`:
 OPA_URL=$(minikube service opa --url)
 ```
 
-Now you can query OPA's API. If you use the Pod below, `deny` will be `true`
-because the Pod refers to image outside the corporate registry.
-
-#### [`example-pod.json`](https://github.com/open-policy-agent/opa/tree/master/docs/code/deployments-kubernetes/example-pod.json)
-
-{{< code file="deployments-kubernetes/example-pod.json" lang="json" >}}
+Now you can query OPA's API:
 
 ```bash
-curl $OPA_URL/v1/data -d @example-pod.json
+curl $OPA_URL/v1/data
 ```
 
-If you update the image to refer to the corporate registry, `deny` will be
-`false`.
+OPA will respond with the greeting from the policy (the pod hostname will differ):
+
+```json
+{
+  "result": {
+    "example": {
+      "greeting": "hello from pod \"opa-78ccdfddd-xplxr\"!"
+    }
+  }
+}
+```
