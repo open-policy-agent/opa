@@ -8,6 +8,7 @@ package rego
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -48,9 +49,205 @@ type PartialResult struct {
 }
 
 // Rego returns an object that can be evaluated to produce a query result.
+// If rego.Rego#Prepare was used to create the PartialResult this may lose
+// the pre-parsed/compiled parts of the original Rego object. In those cases
+// using rego.PartialResult#Eval is likely to be more performant.
 func (pr PartialResult) Rego(options ...func(*Rego)) *Rego {
 	options = append(options, Compiler(pr.compiler), Store(pr.store), ParsedQuery(pr.body))
 	return New(options...)
+}
+
+// preparedQuery is a wrapper around a Rego object which has pre-processed
+// state stored on it. Once prepared there are a more limited number of actions
+// that can be taken with it. It will, however, be able to evaluate faster since
+// it will not have to re-parse or compile as much.
+type preparedQuery struct {
+	r   *Rego
+	cfg *PrepareConfig
+}
+
+// EvalContext defines the set of options allowed to be set at evaluation
+// time. Any other options will need to be set on a new Rego object.
+type EvalContext struct {
+	hasInput         bool
+	rawInput         *interface{}
+	parsedInput      ast.Value
+	metrics          metrics.Metrics
+	txn              storage.Transaction
+	instrument       bool
+	instrumentation  *topdown.Instrumentation
+	partialNamespace string
+	tracers          []topdown.Tracer
+	compiledQuery    compiledQuery
+	unknowns         []string
+	parsedUnknowns   []*ast.Term
+}
+
+// EvalOption defines a function to set an option on an EvalConfig
+type EvalOption func(*EvalContext)
+
+// EvalInput configures the input for a Prepared Query's evaluation
+func EvalInput(input interface{}) EvalOption {
+	return func(e *EvalContext) {
+		e.rawInput = &input
+		e.hasInput = true
+	}
+}
+
+// EvalParsedInput configures the input for a Prepared Query's evaluation
+func EvalParsedInput(input ast.Value) EvalOption {
+	return func(e *EvalContext) {
+		e.parsedInput = input
+		e.hasInput = true
+	}
+}
+
+// EvalMetrics configures the metrics for a Prepared Query's evaluation
+func EvalMetrics(metric metrics.Metrics) EvalOption {
+	return func(e *EvalContext) {
+		e.metrics = metric
+	}
+}
+
+// EvalTransaction configures the Transaction for a Prepared Query's evaluation
+func EvalTransaction(txn storage.Transaction) EvalOption {
+	return func(e *EvalContext) {
+		e.txn = txn
+	}
+}
+
+// EvalInstrument enables or disables instrumenting for a Prepared Query's evaluation
+func EvalInstrument(instrument bool) EvalOption {
+	return func(e *EvalContext) {
+		e.instrument = instrument
+	}
+}
+
+// EvalTracer configures a tracer for a Prepared Query's evaluation
+func EvalTracer(tracer topdown.Tracer) EvalOption {
+	return func(e *EvalContext) {
+		if tracer != nil {
+			e.tracers = append(e.tracers, tracer)
+		}
+	}
+}
+
+// EvalPartialNamespace returns an argument that sets the namespace to use for
+// partial evaluation results. The namespace must be a valid package path
+// component.
+func EvalPartialNamespace(ns string) EvalOption {
+	return func(e *EvalContext) {
+		e.partialNamespace = ns
+	}
+}
+
+// EvalUnknowns returns an argument that sets the values to treat as
+// unknown during partial evaluation.
+func EvalUnknowns(unknowns []string) EvalOption {
+	return func(e *EvalContext) {
+		e.unknowns = unknowns
+	}
+}
+
+// EvalParsedUnknowns returns an argument that sets the values to treat
+// as unknown during partial evaluation.
+func EvalParsedUnknowns(unknowns []*ast.Term) EvalOption {
+	return func(e *EvalContext) {
+		e.parsedUnknowns = unknowns
+	}
+}
+
+func (pq preparedQuery) newEvalContext(ctx context.Context, options []EvalOption) (*EvalContext, error) {
+	ectx := &EvalContext{
+		hasInput:         false,
+		rawInput:         nil,
+		parsedInput:      nil,
+		metrics:          pq.r.metrics,
+		txn:              pq.r.txn,
+		instrument:       pq.r.instrument,
+		instrumentation:  pq.r.instrumentation,
+		partialNamespace: pq.r.partialNamespace,
+		tracers:          pq.r.tracers,
+		unknowns:         pq.r.unknowns,
+		parsedUnknowns:   pq.r.parsedUnknowns,
+		compiledQuery:    compiledQuery{},
+	}
+
+	for _, o := range options {
+		o(ectx)
+	}
+
+	if ectx.instrument {
+		ectx.instrumentation = topdown.NewInstrumentation(ectx.metrics)
+	}
+
+	var err error
+	if ectx.txn == nil {
+		ectx.txn, err = pq.r.store.NewTransaction(ctx)
+		if err != nil {
+			return nil, err
+		}
+		defer pq.r.store.Abort(ctx, ectx.txn)
+	}
+
+	// If we didn't get an input specified in the Eval options
+	// then fall back to the Rego object's input fields.
+	if !ectx.hasInput {
+		ectx.rawInput = pq.r.rawInput
+		ectx.parsedInput = pq.r.parsedInput
+	}
+
+	if ectx.parsedInput == nil {
+		if ectx.rawInput == nil {
+			// Fall back to the original Rego objects input if none was specified
+			// Note that it could still be nil
+			ectx.rawInput = pq.r.rawInput
+		}
+		ectx.parsedInput, err = pq.r.parseRawInput(ectx.rawInput, ectx.metrics)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return ectx, nil
+}
+
+// PreparedEvalQuery holds the prepared Rego state that has been pre-processed
+// for subsequent evaluations.
+type PreparedEvalQuery struct {
+	preparedQuery
+}
+
+// Eval evaluates this PartialResult's Rego object with additional eval options
+// and returns a ResultSet.
+// If options are provided they will override the original Rego options respective value.
+func (pq PreparedEvalQuery) Eval(ctx context.Context, options ...EvalOption) (ResultSet, error) {
+	ectx, err := pq.newEvalContext(ctx, options)
+	if err != nil {
+		return nil, err
+	}
+
+	ectx.compiledQuery = pq.r.compiledQueries[evalQueryType]
+
+	return pq.r.eval(ctx, ectx)
+}
+
+// PreparedPartialQuery holds the prepared Rego state that has been pre-processed
+// for partial evaluations.
+type PreparedPartialQuery struct {
+	preparedQuery
+}
+
+// Partial runs partial evaluation on the prepared query and returns the result.
+func (pq PreparedPartialQuery) Partial(ctx context.Context, options ...EvalOption) (*PartialQueries, error) {
+	ectx, err := pq.newEvalContext(ctx, options)
+	if err != nil {
+		return nil, err
+	}
+
+	ectx.compiledQuery = pq.r.compiledQueries[partialQueryType]
+
+	return pq.r.partial(ctx, ectx)
 }
 
 // Result defines the output of Rego evaluation.
@@ -130,20 +327,37 @@ func (errs Errors) Error() string {
 	return strings.Join(buf, "\n")
 }
 
+type compiledQuery struct {
+	query    ast.Body
+	compiler ast.QueryCompiler
+}
+
+type queryType int
+
+// Define a query type for each of the top level Rego
+// API's that compile queries differently.
+const (
+	evalQueryType          queryType = iota
+	partialResultQueryType queryType = iota
+	partialQueryType       queryType = iota
+)
+
 // Rego constructs a query and can be evaluated to obtain results.
 type Rego struct {
 	query            string
 	parsedQuery      ast.Body
+	compiledQueries  map[queryType]compiledQuery
 	pkg              string
 	parsedPackage    *ast.Package
 	imports          []string
 	parsedImports    []*ast.Import
 	rawInput         *interface{}
-	input            ast.Value
+	parsedInput      ast.Value
 	unknowns         []string
 	parsedUnknowns   []*ast.Term
 	partialNamespace string
 	modules          []rawModule
+	parsedModules    map[string]*ast.Module
 	compiler         *ast.Compiler
 	store            storage.Store
 	txn              storage.Transaction
@@ -222,7 +436,7 @@ func Input(x interface{}) func(r *Rego) {
 // ParsedInput returns an argument that sets the Rego input document.
 func ParsedInput(x ast.Value) func(r *Rego) {
 	return func(r *Rego) {
-		r.input = x
+		r.parsedInput = x
 	}
 }
 
@@ -322,7 +536,7 @@ func Runtime(term *ast.Term) func(r *Rego) {
 	}
 }
 
-// PrintTrace is a helper fnuction to write a human-readable version of the
+// PrintTrace is a helper function to write a human-readable version of the
 // trace to the writer w.
 func PrintTrace(w io.Writer, r *Rego) {
 	if r == nil || r.tracebuf == nil {
@@ -332,10 +546,11 @@ func PrintTrace(w io.Writer, r *Rego) {
 }
 
 // New returns a new Rego object.
-func New(options ...func(*Rego)) *Rego {
+func New(options ...func(r *Rego)) *Rego {
 
 	r := &Rego{
-		capture: map[*ast.Expr]ast.Var{},
+		capture:         map[*ast.Expr]ast.Var{},
+		compiledQueries: map[queryType]compiledQuery{},
 	}
 
 	for _, option := range options {
@@ -363,48 +578,30 @@ func New(options ...func(*Rego)) *Rego {
 		r.tracers = append(r.tracers, r.tracebuf)
 	}
 
+	if r.partialNamespace == "" {
+		r.partialNamespace = defaultPartialNamespace
+	}
+
 	return r
 }
 
 // Eval evaluates this Rego object and returns a ResultSet.
 func (r *Rego) Eval(ctx context.Context) (ResultSet, error) {
-
-	if len(r.query) == 0 && len(r.parsedQuery) == 0 {
-		return nil, fmt.Errorf("cannot evaluate empty query")
-	}
-
-	parsed, query, err := r.parse()
-	if err != nil {
-		return nil, err
-	}
-
-	txn := r.txn
-
-	if txn == nil {
-		txn, err = r.store.NewTransaction(ctx)
+	var err error
+	if r.txn == nil {
+		r.txn, err = r.store.NewTransaction(ctx)
 		if err != nil {
 			return nil, err
 		}
-		defer r.store.Abort(ctx, txn)
+		defer r.store.Abort(ctx, r.txn)
 	}
 
-	err = r.compileModules(ctx, txn, parsed)
+	pq, err := r.PrepareForEval(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	qc, compiled, err := r.compileQuery([]extraStage{
-		{
-			after: "ResolveRefs",
-			stage: r.rewriteQueryToCaptureValue,
-		},
-	}, query)
-
-	if err != nil {
-		return nil, err
-	}
-
-	return r.eval(ctx, qc, compiled, txn)
+	return pq.Eval(ctx)
 }
 
 // PartialEval has been deprecated and renamed to PartialResult.
@@ -414,93 +611,46 @@ func (r *Rego) PartialEval(ctx context.Context) (PartialResult, error) {
 
 // PartialResult partially evaluates this Rego object and returns a PartialResult.
 func (r *Rego) PartialResult(ctx context.Context) (PartialResult, error) {
-
-	if len(r.query) == 0 && len(r.parsedQuery) == 0 {
-		return PartialResult{}, fmt.Errorf("cannot evaluate empty query")
-	}
-
-	parsed, query, err := r.parse()
-	if err != nil {
-		return PartialResult{}, err
-	}
-
-	txn := r.txn
-
-	if txn == nil {
-		txn, err = r.store.NewTransaction(ctx)
+	var err error
+	if r.txn == nil {
+		r.txn, err = r.store.NewTransaction(ctx)
 		if err != nil {
 			return PartialResult{}, err
 		}
-		defer r.store.Abort(ctx, txn)
+		defer r.store.Abort(ctx, r.txn)
 	}
 
-	err = r.compileModules(ctx, txn, parsed)
+	pq, err := r.PrepareForEval(ctx, WithPartialEval())
 	if err != nil {
 		return PartialResult{}, err
 	}
 
-	_, compiled, err := r.compileQuery([]extraStage{
-		{
-			after: "ResolveRefs",
-			stage: r.rewriteQueryForPartialEval,
-		},
-	}, query)
-
-	if err != nil {
-		return PartialResult{}, err
+	pr := PartialResult{
+		compiler: pq.r.compiler,
+		store:    pq.r.store,
+		body:     pq.r.parsedQuery,
 	}
 
-	partialNamespace := r.partialNamespace
-	if partialNamespace == "" {
-		partialNamespace = defaultPartialNamespace
-	}
-
-	return r.partialResult(ctx, compiled, txn, partialNamespace, ast.Wildcard)
+	return pr, nil
 }
 
 // Partial runs partial evaluation on r and returns the result.
 func (r *Rego) Partial(ctx context.Context) (*PartialQueries, error) {
-
-	if len(r.query) == 0 && len(r.parsedQuery) == 0 {
-		return nil, fmt.Errorf("cannot evaluate empty query")
-	}
-
-	parsed, query, err := r.parse()
-	if err != nil {
-		return nil, err
-	}
-
-	txn := r.txn
-
-	if txn == nil {
-		txn, err = r.store.NewTransaction(ctx)
+	var err error
+	if r.txn == nil {
+		r.txn, err = r.store.NewTransaction(ctx)
 		if err != nil {
 			return nil, err
 		}
-		defer r.store.Abort(ctx, txn)
+		defer r.store.Abort(ctx, r.txn)
 	}
 
-	err = r.compileModules(ctx, txn, parsed)
+	pq, err := r.PrepareForPartial(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	_, compiled, err := r.compileQuery([]extraStage{
-		{
-			after: "CheckSafety",
-			stage: r.rewriteEqualsForPartialQueryCompile,
-		},
-	}, query)
-	if err != nil {
-		return nil, err
-	}
-
-	partialNamespace := r.partialNamespace
-	if partialNamespace == "" {
-		partialNamespace = defaultPartialNamespace
-	}
-
-	return r.partial(ctx, compiled, txn, partialNamespace)
+	return pq.Partial(ctx)
 }
 
 // Compile returns a compiled policy query.
@@ -545,24 +695,207 @@ func (r *Rego) Compile(ctx context.Context) (*CompileResult, error) {
 	return result, nil
 }
 
-func (r *Rego) parse() (map[string]*ast.Module, ast.Body, error) {
+// PrepareOption defines a function to set an option to control
+// the behavior of the Prepare call.
+type PrepareOption func(*PrepareConfig)
 
-	r.metrics.Timer(metrics.RegoModuleParse).Start()
+// PrepareConfig holds settings to control the behavior of the
+// Prepare call.
+type PrepareConfig struct {
+	doPartialEval bool
+}
 
-	var errs Errors
-	parsed := map[string]*ast.Module{}
+// WithPartialEval configures an option for PrepareForEval
+// which will have it perform partial evaluation while preparing
+// the query (similar to rego.Rego#PartialResult)
+func WithPartialEval() PrepareOption {
+	return func(p *PrepareConfig) {
+		p.doPartialEval = true
+	}
+}
 
-	for _, module := range r.modules {
-		p, err := module.Parse()
-		if err != nil {
-			errs = append(errs, err)
-		}
-		parsed[module.filename] = p
+// PrepareForEval will parse inputs, modules, and query arguments in preparation
+// of evaluating them.
+func (r *Rego) PrepareForEval(ctx context.Context, opts ...PrepareOption) (PreparedEvalQuery, error) {
+	if !r.hasQuery() {
+		return PreparedEvalQuery{}, fmt.Errorf("cannot evaluate empty query")
 	}
 
-	r.metrics.Timer(metrics.RegoModuleParse).Stop()
-	r.metrics.Timer(metrics.RegoQueryParse).Start()
-	defer r.metrics.Timer(metrics.RegoQueryParse).Stop()
+	pCfg := &PrepareConfig{}
+	for _, o := range opts {
+		o(pCfg)
+	}
+
+	txn := r.txn
+
+	var err error
+	if txn == nil {
+		txn, err = r.store.NewTransaction(ctx)
+		if err != nil {
+			return PreparedEvalQuery{}, err
+		}
+		defer r.store.Abort(ctx, txn)
+	}
+
+	// If the caller wanted to do partial evaluation as part of preparation
+	// do it now and use the new Rego object.
+	if pCfg.doPartialEval {
+		err := r.prepare(ctx, txn, partialResultQueryType, []extraStage{
+			{
+				after: "ResolveRefs",
+				stage: r.rewriteQueryForPartialEval,
+			},
+		})
+		if err != nil {
+			return PreparedEvalQuery{}, err
+		}
+
+		ectx := &EvalContext{
+			parsedInput:      r.parsedInput,
+			metrics:          r.metrics,
+			txn:              txn,
+			partialNamespace: r.partialNamespace,
+			tracers:          r.tracers,
+			compiledQuery:    r.compiledQueries[partialResultQueryType],
+		}
+
+		pr, err := r.partialResult(ctx, ectx, ast.Wildcard)
+		if err != nil {
+			return PreparedEvalQuery{}, err
+		}
+		// Prepare the new query
+		return pr.Rego().PrepareForEval(ctx)
+	}
+
+	err = r.prepare(ctx, txn, evalQueryType, []extraStage{
+		{
+			after: "ResolveRefs",
+			stage: r.rewriteQueryToCaptureValue,
+		},
+	})
+	if err != nil {
+		return PreparedEvalQuery{}, err
+	}
+
+	return PreparedEvalQuery{preparedQuery{r, pCfg}}, err
+}
+
+// PrepareForPartial will parse inputs, modules, and query arguments in preparation
+// of partially evaluating them.
+func (r *Rego) PrepareForPartial(ctx context.Context, opts ...PrepareOption) (PreparedPartialQuery, error) {
+	if !r.hasQuery() {
+		return PreparedPartialQuery{}, fmt.Errorf("cannot evaluate empty query")
+	}
+
+	pCfg := &PrepareConfig{}
+	for _, o := range opts {
+		o(pCfg)
+	}
+
+	txn := r.txn
+
+	var err error
+	if txn == nil {
+		txn, err = r.store.NewTransaction(ctx)
+		if err != nil {
+			return PreparedPartialQuery{}, err
+		}
+		defer r.store.Abort(ctx, txn)
+	}
+
+	err = r.prepare(ctx, txn, partialQueryType, []extraStage{
+		{
+			after: "CheckSafety",
+			stage: r.rewriteEqualsForPartialQueryCompile,
+		},
+	})
+
+	if err != nil {
+		return PreparedPartialQuery{}, err
+	}
+
+	return PreparedPartialQuery{preparedQuery{r, pCfg}}, err
+}
+
+func (r *Rego) prepare(ctx context.Context, txn storage.Transaction, qType queryType, extras []extraStage) error {
+	var err error
+	r.parsedInput, err = r.parseInput()
+	if err != nil {
+		return err
+	}
+
+	r.parsedModules, err = r.parseModules(r.metrics)
+	if err != nil {
+		return err
+	}
+
+	// Compile the modules *before* the query, else functions
+	// defined in the module won't be found...
+	err = r.compileModules(ctx, txn, r.parsedModules, r.metrics)
+	if err != nil {
+		return err
+	}
+
+	r.parsedQuery, err = r.parseQuery(r.metrics)
+	if err != nil {
+		return err
+	}
+
+	return r.compileAndCacheQuery(qType, r.parsedQuery, r.metrics, extras)
+}
+
+func (r *Rego) parseModules(m metrics.Metrics) (map[string]*ast.Module, error) {
+	m.Timer(metrics.RegoModuleParse).Start()
+	defer m.Timer(metrics.RegoModuleParse).Stop()
+	var errs Errors
+	parsed := map[string]*ast.Module{}
+	if r.parsedModules != nil {
+		parsed = r.parsedModules
+	} else {
+		for _, module := range r.modules {
+			p, err := module.Parse()
+			if err != nil {
+				errs = append(errs, err)
+			}
+			parsed[module.filename] = p
+		}
+		if len(errs) > 0 {
+			return nil, errors.New(errs.Error())
+		}
+	}
+	return parsed, nil
+}
+
+func (r *Rego) parseInput() (ast.Value, error) {
+	if r.parsedInput != nil {
+		return r.parsedInput, nil
+	}
+	return r.parseRawInput(r.rawInput, r.metrics)
+}
+
+func (r *Rego) parseRawInput(rawInput *interface{}, m metrics.Metrics) (ast.Value, error) {
+	m.Timer(metrics.RegoInputParse).Start()
+	defer m.Timer(metrics.RegoInputParse).Stop()
+	var input ast.Value
+	if rawInput != nil {
+		rawPtr := util.Reference(rawInput)
+		// roundtrip through json: this turns slices (e.g. []string, []bool) into
+		// []interface{}, the only array type ast.InterfaceToValue can work with
+		if err := util.RoundTrip(rawPtr); err != nil {
+			return nil, err
+		}
+		val, err := ast.InterfaceToValue(*rawPtr)
+		if err != nil {
+			return nil, err
+		}
+		input = val
+	}
+	return input, nil
+}
+
+func (r *Rego) parseQuery(m metrics.Metrics) (ast.Body, error) {
+	m.Timer(metrics.RegoQueryParse).Start()
+	defer m.Timer(metrics.RegoQueryParse).Stop()
 
 	var query ast.Body
 
@@ -572,20 +905,17 @@ func (r *Rego) parse() (map[string]*ast.Module, ast.Body, error) {
 		var err error
 		query, err = ast.ParseBody(r.query)
 		if err != nil {
-			errs = append(errs, err)
-		}
-		if len(errs) > 0 {
-			return nil, nil, errs
+			return nil, err
 		}
 	}
 
-	return parsed, query, nil
+	return query, nil
 }
 
-func (r *Rego) compileModules(ctx context.Context, txn storage.Transaction, modules map[string]*ast.Module) error {
+func (r *Rego) compileModules(ctx context.Context, txn storage.Transaction, modules map[string]*ast.Module, m metrics.Metrics) error {
 
-	r.metrics.Timer(metrics.RegoModuleCompile).Start()
-	defer r.metrics.Timer(metrics.RegoModuleCompile).Stop()
+	m.Timer(metrics.RegoModuleCompile).Start()
+	defer m.Timer(metrics.RegoModuleCompile).Stop()
 
 	if len(modules) > 0 {
 		r.compiler.WithPathConflictsCheck(storage.NonEmpty(ctx, r.store, txn)).Compile(modules)
@@ -601,11 +931,29 @@ func (r *Rego) compileModules(ctx context.Context, txn storage.Transaction, modu
 	return nil
 }
 
-func (r *Rego) compileQuery(extras []extraStage, query ast.Body) (ast.QueryCompiler, ast.Body, error) {
+func (r *Rego) compileAndCacheQuery(qType queryType, query ast.Body, m metrics.Metrics, extras []extraStage) error {
+	m.Timer(metrics.RegoQueryCompile).Start()
+	defer m.Timer(metrics.RegoQueryCompile).Stop()
 
-	r.metrics.Timer(metrics.RegoQueryCompile).Start()
-	defer r.metrics.Timer(metrics.RegoQueryCompile).Stop()
+	cachedQuery, ok := r.compiledQueries[qType]
+	if ok && cachedQuery.query != nil && cachedQuery.compiler != nil {
+		return nil
+	}
 
+	qc, compiled, err := r.compileQuery(query, m, extras)
+	if err != nil {
+		return err
+	}
+
+	// cache the query for future use
+	r.compiledQueries[qType] = compiledQuery{
+		query:    compiled,
+		compiler: qc,
+	}
+	return nil
+}
+
+func (r *Rego) compileQuery(query ast.Body, m metrics.Metrics, extras []extraStage) (ast.QueryCompiler, ast.Body, error) {
 	var pkg *ast.Package
 
 	if r.pkg != "" {
@@ -632,20 +980,6 @@ func (r *Rego) compileQuery(extras []extraStage, query ast.Body) (ast.QueryCompi
 		imports = append(imports, parsed...)
 	}
 
-	if r.rawInput != nil {
-		rawPtr := util.Reference(r.rawInput)
-		// roundtrip through json: this turns slices (e.g. []string, []bool) into
-		// []interface{}, the only array type ast.InterfaceToValue can work with
-		if err := util.RoundTrip(rawPtr); err != nil {
-			return nil, nil, err
-		}
-		val, err := ast.InterfaceToValue(*rawPtr)
-		if err != nil {
-			return nil, nil, err
-		}
-		r.input = val
-	}
-
 	qctx := ast.NewQueryContext().
 		WithPackage(pkg).
 		WithImports(imports)
@@ -657,26 +991,39 @@ func (r *Rego) compileQuery(extras []extraStage, query ast.Body) (ast.QueryCompi
 	}
 
 	compiled, err := qc.Compile(query)
+
 	return qc, compiled, err
 
 }
 
-func (r *Rego) eval(ctx context.Context, qc ast.QueryCompiler, compiled ast.Body, txn storage.Transaction) (rs ResultSet, err error) {
+func (r *Rego) evalContext(input ast.Value, txn storage.Transaction) EvalContext {
+	return EvalContext{
+		rawInput:        r.rawInput,
+		parsedInput:     input,
+		metrics:         r.metrics,
+		txn:             txn,
+		instrument:      r.instrument,
+		instrumentation: r.instrumentation,
+		tracers:         r.tracers,
+	}
+}
 
-	q := topdown.NewQuery(compiled).
+func (r *Rego) eval(ctx context.Context, ectx *EvalContext) (ResultSet, error) {
+
+	q := topdown.NewQuery(ectx.compiledQuery.query).
 		WithCompiler(r.compiler).
 		WithStore(r.store).
-		WithTransaction(txn).
-		WithMetrics(r.metrics).
-		WithInstrumentation(r.instrumentation).
+		WithTransaction(ectx.txn).
+		WithMetrics(ectx.metrics).
+		WithInstrumentation(ectx.instrumentation).
 		WithRuntime(r.runtime)
 
-	for i := range r.tracers {
-		q = q.WithTracer(r.tracers[i])
+	for i := range ectx.tracers {
+		q = q.WithTracer(ectx.tracers[i])
 	}
 
-	if r.input != nil {
-		q = q.WithInput(ast.NewTerm(r.input))
+	if ectx.parsedInput != nil {
+		q = q.WithInput(ast.NewTerm(ectx.parsedInput))
 	}
 
 	// Cancel query if context is cancelled or deadline is reached.
@@ -688,9 +1035,9 @@ func (r *Rego) eval(ctx context.Context, qc ast.QueryCompiler, compiled ast.Body
 		c.Cancel()
 	})
 
-	rewritten := qc.RewrittenVars()
-
-	err = q.Iter(ctx, func(qr topdown.QueryResult) error {
+	rewritten := ectx.compiledQuery.compiler.RewrittenVars()
+	var rs ResultSet
+	err := q.Iter(ctx, func(qr topdown.QueryResult) error {
 		result := newResult()
 		for k := range qr {
 			v, err := ast.JSON(qr[k].Value)
@@ -705,7 +1052,7 @@ func (r *Rego) eval(ctx context.Context, qc ast.QueryCompiler, compiled ast.Body
 			}
 			result.Bindings[string(k)] = v
 		}
-		for _, expr := range compiled {
+		for _, expr := range ectx.compiledQuery.query {
 			if expr.Generated {
 				continue
 			}
@@ -734,15 +1081,15 @@ func (r *Rego) eval(ctx context.Context, qc ast.QueryCompiler, compiled ast.Body
 	return rs, nil
 }
 
-func (r *Rego) partialResult(ctx context.Context, compiled ast.Body, txn storage.Transaction, partialNamespace string, output *ast.Term) (PartialResult, error) {
+func (r *Rego) partialResult(ctx context.Context, ectx *EvalContext, output *ast.Term) (PartialResult, error) {
 
-	pq, err := r.partial(ctx, compiled, txn, partialNamespace)
+	pq, err := r.partial(ctx, ectx)
 	if err != nil {
 		return PartialResult{}, err
 	}
 
 	// Construct module for queries.
-	module := ast.MustParseModule("package " + partialNamespace)
+	module := ast.MustParseModule("package " + ectx.partialNamespace)
 	module.Rules = make([]*ast.Rule, len(pq.Queries))
 	for i, body := range pq.Queries {
 		module.Rules[i] = &ast.Rule{
@@ -766,23 +1113,23 @@ func (r *Rego) partialResult(ctx context.Context, compiled ast.Body, txn storage
 	result := PartialResult{
 		compiler: r.compiler,
 		store:    r.store,
-		body:     ast.MustParseBody(fmt.Sprintf("data.%v.__result__", partialNamespace)),
+		body:     ast.MustParseBody(fmt.Sprintf("data.%v.__result__", ectx.partialNamespace)),
 	}
 
 	return result, nil
 }
 
-func (r *Rego) partial(ctx context.Context, compiled ast.Body, txn storage.Transaction, partialNamespace string) (*PartialQueries, error) {
+func (r *Rego) partial(ctx context.Context, ectx *EvalContext) (*PartialQueries, error) {
 
 	var unknowns []*ast.Term
 
-	if r.parsedUnknowns != nil {
-		unknowns = r.parsedUnknowns
-	} else if r.unknowns != nil {
-		unknowns = make([]*ast.Term, len(r.unknowns))
-		for i := range r.unknowns {
+	if ectx.parsedUnknowns != nil {
+		unknowns = ectx.parsedUnknowns
+	} else if ectx.unknowns != nil {
+		unknowns = make([]*ast.Term, len(ectx.unknowns))
+		for i := range ectx.unknowns {
 			var err error
-			unknowns[i], err = ast.ParseTerm(r.unknowns[i])
+			unknowns[i], err = ast.ParseTerm(ectx.unknowns[i])
 			if err != nil {
 				return nil, err
 			}
@@ -793,27 +1140,27 @@ func (r *Rego) partial(ctx context.Context, compiled ast.Body, txn storage.Trans
 	}
 
 	// Check partial namespace to ensure it's valid.
-	if term, err := ast.ParseTerm(partialNamespace); err != nil {
+	if term, err := ast.ParseTerm(ectx.partialNamespace); err != nil {
 		return nil, err
 	} else if _, ok := term.Value.(ast.Var); !ok {
 		return nil, fmt.Errorf("bad partial namespace")
 	}
 
-	q := topdown.NewQuery(compiled).
+	q := topdown.NewQuery(ectx.compiledQuery.query).
 		WithCompiler(r.compiler).
 		WithStore(r.store).
-		WithTransaction(txn).
-		WithMetrics(r.metrics).
-		WithInstrumentation(r.instrumentation).
+		WithTransaction(ectx.txn).
+		WithMetrics(ectx.metrics).
+		WithInstrumentation(ectx.instrumentation).
 		WithUnknowns(unknowns).
 		WithRuntime(r.runtime)
 
-	for i := range r.tracers {
+	for i := range ectx.tracers {
 		q = q.WithTracer(r.tracers[i])
 	}
 
-	if r.input != nil {
-		q = q.WithInput(ast.NewTerm(r.input))
+	if ectx.parsedInput != nil {
+		q = q.WithInput(ast.NewTerm(ectx.parsedInput))
 	}
 
 	// Cancel query if context is cancelled or deadline is reached.
@@ -926,6 +1273,10 @@ func (r *Rego) rewriteEqualsForPartialQueryCompile(_ ast.QueryCompiler, query as
 func (r *Rego) generateTermVar() *ast.Term {
 	r.termVarID++
 	return ast.VarTerm(ast.WildcardPrefix + fmt.Sprintf("term%v", r.termVarID))
+}
+
+func (r Rego) hasQuery() bool {
+	return len(r.query) != 0 || len(r.parsedQuery) != 0
 }
 
 func isTermVar(v ast.Var) bool {
