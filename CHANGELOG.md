@@ -5,6 +5,9 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+- Update topdown to return `eval_builtin_error` instead of
+  `eval_internal_error`.
+
 ## 0.10.7
 
 This release publishes the Hugo-based documentation to GitHub Pages :tada:
