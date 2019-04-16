@@ -1032,12 +1032,13 @@ func (e *eval) Resolve(ref ast.Ref) (ast.Value, error) {
 		// example, a 2MB JSON value can take upwards of 30 millisceonds to convert.
 		// We cache the result of conversion here in case the same base document is
 		// being read multiple times during evaluation.
-		realValue, ok := e.baseCache.Get(ref)
-		if ok {
+		realValue := e.baseCache.Get(ref)
+		if realValue != nil {
 			e.instr.counterIncr(evalOpBaseCacheHit)
 			if repValue == nil {
 				return realValue, nil
 			}
+			var ok bool
 			merged, ok = merge(repValue, realValue)
 			if !ok {
 				return nil, mergeConflictErr(ref[0].Location)
