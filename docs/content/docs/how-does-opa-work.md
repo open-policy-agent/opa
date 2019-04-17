@@ -234,6 +234,8 @@ To supply the input document, query OPA using the POST method.
 ```
 POST /v1/data/opa/examples/allow HTTP/1.1
 Content-Type: application/json
+```
+```
 {
   "input": {
     "method": "GET",
