@@ -1193,19 +1193,19 @@ func TestTopDownTypeNameBuiltin(t *testing.T) {
 		expected interface{}
 	}{
 		{"type_name", []string{
-			`p = x { type_name(null, x) }`}, ast.String("null")},
+			`p = x { type_name(null, x) }`}, `"null"`},
 		{"type_name", []string{
-			`p = x { type_name(true, x) }`}, ast.String("boolean")},
+			`p = x { type_name(true, x) }`}, `"boolean"`},
 		{"type_name", []string{
-			`p = x { type_name(100, x) }`}, ast.String("number")},
+			`p = x { type_name(100, x) }`}, `"number"`},
 		{"type_name", []string{
-			`p = x { type_name("Hello", x) }`}, ast.String("string")},
+			`p = x { type_name("Hello", x) }`}, `"string"`},
 		{"type_name", []string{
-			`p = x { type_name([1,2,3], x) }`}, ast.String("array")},
+			`p = x { type_name([1,2,3], x) }`}, `"array"`},
 		{"type_name", []string{
-			`p = x { type_name({1,2,3}, x) }`}, ast.String("set")},
+			`p = x { type_name({1,2,3}, x) }`}, `"set"`},
 		{"type_name", []string{
-			`p = x { type_name({"foo": yy | yy = 1}, x) }`}, ast.String("object")},
+			`p = x { type_name({"foo": yy | yy = 1}, x) }`}, `"object"`},
 	}
 
 	data := loadSmallTestData()
@@ -3491,6 +3491,8 @@ func assertTopDownWithPath(t *testing.T, compiler *ast.Compiler, store storage.S
 			if len(path) > 0 {
 				runTopDownPartialTestCase(ctx, t, compiler, store, txn, inputTerm, rhs, body, requiresSort, expected)
 			}
+		default:
+			t.Fatalf("Unexpected expected value type: %+v", e)
 		}
 	})
 }
