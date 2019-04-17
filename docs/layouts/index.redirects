@@ -9,5 +9,8 @@
 
 {{- range $docRedirects }}
 /docs/{{ . }}     /docs/v{{ $latest }}/{{ . }}
+
+# Legacy git book redirects
+/docs/{{ . }}.html /docs/v{{ $latest }}/{{ . }}
 {{- end }}
 {{- end }}
