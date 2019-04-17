@@ -26,10 +26,15 @@ necessary static assets using npm:
 npm install
 ```
 
+Generate some required files:
+```bash
+make load-docs
+```
+
 Then, if [Docker is running](https://docs.docker.com/get-started/):
 
 ```bash
-make docker-server
+make docker-serve
 ```
 
 Open your browser to http://localhost:1313 to see the site running locally. The docs
