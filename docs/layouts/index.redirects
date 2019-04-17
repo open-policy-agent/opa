@@ -3,9 +3,12 @@
 {{- $allDocs      := where site.RegularPages "Section" "docs" }}
 {{- $docRedirects := site.Data.redirects }}
 {{- if not $localMode }}
-/docs     /docs/v{{ $latest }}
-/docs/latest     /docs/v{{ $latest }}
-/docs/latest/*     /docs/v{{ $latest }}/:splat
+# Redirect to latest doc version by default
+/docs     /docs/latest
+
+# Rewrite "latest" to latest version of docs
+/docs/latest     /docs/v{{ $latest }}     200
+/docs/latest/*     /docs/v{{ $latest }}/:splat     200
 
 {{- range $docRedirects }}
 /docs/{{ . }}     /docs/v{{ $latest }}/{{ . }}
