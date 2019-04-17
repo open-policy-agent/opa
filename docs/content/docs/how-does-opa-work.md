@@ -231,11 +231,12 @@ allow {
 
 To supply the input document, query OPA using the POST method.
 
-```
+```http
 POST /v1/data/opa/examples/allow HTTP/1.1
 Content-Type: application/json
 ```
-```
+
+```json
 {
   "input": {
     "method": "GET",
