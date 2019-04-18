@@ -160,7 +160,7 @@ the file system.
 
 **`deployment-opa.yaml`**:
 
-```
+```yaml
 apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
@@ -235,3 +235,44 @@ OPA will respond with the greeting from the policy (the pod hostname will differ
   }
 }
 ```
+
+### Readiness and Liveness Probes
+
+OPA exposes a `/health` API endpoint that you can configure Kubernetes
+[Readiness and Liveness
+Probes](https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-probes/)
+to call. For example:
+
+```yaml
+containers:
+- name: opa
+  image: openpolicyagent/opa:{{< latest >}}
+  ports:
+  - name: http
+    containerPort: 8181
+  args:
+  - "run"
+  - "--ignore=.*"               # exclude hidden dirs created by Kubernetes
+  - "--server"
+  - "/policies"
+  volumeMounts:
+  - readOnly: true
+    mountPath: /policies
+    name: example-policy
+  livenessProbe:
+    httpGet:
+      path: /health
+      scheme: HTTP              # assumes OPA listens on localhost:8181
+      port: 8181
+    initialDelaySeconds: 5      # tune these periods for your environemnt
+    periodSeconds: 5
+  readinessProbe:
+    httpGet:
+      path: /health
+      scheme: HTTP
+      port: 8181
+    initialDelaySeconds: 5
+    periodSeconds: 5
+```
+
+See the [Monitoring](../monitoring) documentation for more detail on the `/health` API endpoint.
