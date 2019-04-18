@@ -1,4 +1,3 @@
-{{ $lang   := .Get "lang" }}
 {{ $header := .Get "header" }}
 <div class="pane">
   {{ with $header }}
@@ -9,5 +8,5 @@
   </h5>
   {{ end }}
 
-{{- highlight (trim .Inner "\n") $lang "" -}}
+{{ .Inner | markdownify }}
 </div>

@@ -298,7 +298,8 @@ In this case the rule uses explicit variable names `namespace` and `name` for it
 Here are two examples.
 
 {{< code-panel >}}
-{{< pane lang="yaml" header="data.kubernetes.ingresses[namespace][name]" >}}
+{{< pane header="data.kubernetes.ingresses[namespace][name]" >}}
+```yaml
 apiVersion: extensions/v1beta1
 kind: Ingress
 metadata:
@@ -312,8 +313,10 @@ spec:
         backend:
           serviceName: banking
           servicePort: 443
+```
 {{< /pane >}}
-{{< pane lang="yaml" header="input" >}}
+{{< pane header="input" >}}
+```yaml
 apiVersion: admission.k8s.io/v1beta1
 kind: AdmissionReview
 request:
@@ -337,6 +340,7 @@ request:
             backend:
               serviceName: banking
               servicePort: 443
+```
 {{< /pane >}}
 {{< /code-panel >}}
 
