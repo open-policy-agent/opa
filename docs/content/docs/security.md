@@ -424,3 +424,53 @@ curl: (35) error:14094412:SSL routines:ssl3_read_bytes:sslv3 alert bad certifica
 ```
 
 As you can see, TLS-based authentication disallows these request completely.
+
+
+## Hardened Configuration Example
+
+You can run a hardened OPA deployment with minimal configuration. There are a
+few things to keep in mind:
+
+* Limit API access to host-local clients executing policy queries.
+* Configure TLS (for localhost TCP) or a UNIX domain socket.
+* Do not pass credentials as command-line arguments.
+* Run OPA as a non-root user ideally inside it's own account.
+
+With OPA configured to fetch policies using the [Bundles](../bundles) feature
+you can configure OPA with a restrictive authorization policy that only grants
+clients access to the default policy decision, i.e., `POST /`:
+
+```ruby
+package system.authz
+
+# Deny access by default.
+default allow = false
+
+# Allow anonymous access to the default policy decision.
+allow {
+    input.method = "POST"
+    input.path = [""]
+}
+```
+
+The example below shows flags that tell OPA to:
+
+* Authorize all API requests (`--authorization=basic`)
+* Listen on localhost for HTTPS (not HTTP!) connections (`--addr`, `--tls-cert-file`, `--tls-private-key-file`)
+* Download bundles from a remote HTTPS endpoint (`--set` flags and `--set-file` flag)
+
+```bash
+opa run \
+    --server \
+    --authorization=basic \
+    --addr=https://localhost:8181 \
+    --tls-cert-file=/var/tmp/server.crt \
+    --tls-private-key-file=/var/tmp/server.key \
+    --set=bundle.service=default \
+    --set=bundle.name=myapp_authz_bundle \
+    --set=services.default.url=https://control.acmecorp.com \
+    --set-file=services.default.credentials.bearer.token=/var/tmp/secret-bearer-token
+```
+
+> The `/var/tmp/secret-bearer-token` will store the credential in plaintext. You
+> should make sure that file permission(s) are setup to limit access.
