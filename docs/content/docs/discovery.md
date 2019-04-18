@@ -23,12 +23,6 @@ ways to structure the discovery bundle:
 > environment variables like the region where OPA is running), use the second
 > option.
 
-If no discovery path is specified OPA will query the *data* document to produce
-the configuration. If a discovery path is specified, OPA will translate the path
-to a reference and evaluate it relative to the *data* document. For example, if
-the discovery path is */example/discovery* OPA will evaluate
-*data.example.discovery* to produce the configuration.
-
 If discovery is enabled, other features like bundle downloading and status
 reporting **cannot** be configured manually. Similarly, discovered configuration
 cannot override the original discovery settings in the configuration file that
@@ -41,7 +35,7 @@ See the [Configuration Reference](../configuration) for configuration details.
 OPA expects the service to expose an API endpoint that serves bundles.
 
 ```http
-GET /<service_url>/<discovery_prefix>/<discovery_path> HTTP/1.1
+GET /<service_url>/<discovery.prefix>/<discovery.name> HTTP/1.1
 ```
 
 If the bundle exists, the server should respond with an HTTP 200 OK status
@@ -52,7 +46,9 @@ HTTP/1.1 200 OK
 Content-Type: application/gzip
 ```
 
-Discovery can be enabled using the below configuration:
+You can enable discovery with an OPA configuration file similar to the example
+below. In some places in the documentation, the initial configuration provided
+to OPA is referred to as the "boot configuration".
 
 ```yaml
 services:
@@ -67,52 +63,85 @@ discovery:
   prefix: configuration
 ```
 
-OPA will fetch it's configuration from
-`https://example.com/control-plane-api/v1/configuration/example/discovery` and
-use that to initialize the other plugins like `bundles`, `status`, `decision
-logs`. The `prefix` field is optional and by default set to `bundles`. Hence if
-`prefix` is not provided, OPA will fetch it's configuration from
-`https://example.com/control-plane-api/v1/bundles/example/discovery`.
+Using the boot configuration above, OPA will fetch discovery bundles from:
 
-Below is an example of how configuration for `decision logs` can be included
-inside a policy file.
+```
+https://example.com/control-plane-api/v1/configuration/example/discovery
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ ^^^^^^^^^^^^^ ^^^^^^^^^^^^^^^^^
+services[0].url                          |                   |
+                                         + discovery.prefix  |
+                                                             + discovery.name
+```
 
-**example.rego**
+> The `discovery.prefix` field defaults to `bundles`. The default is convenient if
+you want to serve discovery bundles and normal bundles from the same API
+endpoint.
+
+OPA generates it's subsequent configuration by querying the Rego and JSON files
+contained inside the discovery bundle. The query is defined by the
+`discovery.name` field from the boot configuration: `data.<discovery.name>`. For
+example. with the boot configuration above, OPA executes the following query:
+
+```
+data.example.discovery
+```
+
+If the discovery bundle contained the following Rego file:
 
 ```ruby
 package example
 
 discovery = {
-  "decision_logs": {
-    "service": "acmecorp"
-  }
+  "bundle": {"name": bundle_name},
+  "default_decision": "acmecorp/httpauthz/allow"
+}
+
+bundle_name = "acmecorp/httpauthz"
+```
+
+The subsequent configuration would be:
+
+```json
+{
+  "bundle": {
+    "name": "acmecorp/httpauthz"
+  },
+  "default_decision": "acmecorp/httpauthz/allow"
 }
 ```
 
-The same configuration can also  be provided as data.
-
-**data.json**
+The discovery bundle contents above are essentially static. The same result
+could be achieved by constructing the discovery bundle with a static JSON file:
 
 ```json
-"example": {
-  "discovery": {
-    "decision_logs": {
-      "service": "acmecorp"
+{
+  "example": {
+    "discovery": {
+      "bundle": {
+        "name": "acmecorp/httpauthz"
+      },
+      "default_decision": "acmecorp/httpauthz/allow"
     }
   }
 }
 ```
 
-In both cases, OPA's configuration is hierarchically organized under the
-`discovery.name` value. If discovery is enabled, the `service` field in the
-`bundles`, `status`, `decision logs` plugins is optional and will default to one
-of the services from the discovery configuration.
+> For an example of how to configure OPA dynamically see the [Example](#example)
+> section below.
+
+The subsequent configuration does not have to specify `services` or include a
+reference to a service in the `bundle`, `status,` or `decision_log` sections. If
+the either the `services` or references to services are missing, OPA will
+default them to the value from the boot configuration.
 
 ## Example
 
-Let's see an example of how the discovery feature can be used to dynamically configure an OPA to download one of two bundles based on a configuration label that the OPA was started with. Let's say the label `region` indicates the region in which the OPA is running and it's value will decide the bundle to download.
+Let's see an example of how the discovery feature can be used to dynamically
+configure an OPA to download one of two bundles based on a label in the boot
+configuration. Let's say the label `region` indicates the region in which the
+OPA is running and it's value will decide the bundle to download.
 
-Below is a policy file which includes the bundle congfiguration.
+Below is a policy file which generates an OPA congfiguration.
 
 **example.rego**
 
@@ -121,7 +150,7 @@ package example
 
 discovery = {
   "bundle": {
-    "name": bundle_name
+    "name": bundle_name                # line 5
   }
 }
 
@@ -138,7 +167,7 @@ region_bundle = {
 
 The `bundle_name` variable in `line 5` of the above policy will be dynamically selected based on the value of the label `region`. So if an OPA was started with `region: "US"`, then the `bundle_name` will be `example/test1/p`.
 
-Start an OPA with a configuration as shown below:
+Start an OPA with a boot configuration as shown below:
 
 **config.yaml**
 
@@ -163,13 +192,15 @@ Run OPA:
 opa run -s -c config.yaml
 ```
 
-You should see a log like below, which shows the bundle being downloaded. In this case, the bundle name is `example/test1/p` as `region` is `US`.
+You should see a log like below, which shows the bundle being downloaded. In
+this case, the bundle name is `example/test1/p` as `region` is `US`.
 
 ```raw
 INFO Bundle downloaded and activated successfully. name=example/test1/p plugin=bundle
 ```
 
-Now start another OPA with a configuration as shown below. Notice the `region` is `UK`:
+Now start another OPA with a boot configuration as shown below. Notice the
+`region` is `UK`:
 
 **config.yaml**
 
@@ -194,14 +225,20 @@ Run OPA:
 opa run -s -c config.yaml
 ```
 
-In this case, the bundle being downloaded is `example/test2/p` as `region` is `UK`.
+In this case, the bundle being downloaded is `example/test2/p` as `region` is
+`UK`.
 
 ```raw
 INFO Bundle downloaded and activated successfully. name=example/test2/p plugin=bundle
 ```
 
-This shows how the discovery feature can help in centrally managing the bundle to be downloaded by an OPA based on a configuration label. You can use the same strategy to dynamically configure other plugins based on the running OPA's configuration labels or environment variables.
+This shows how the discovery feature can help in centrally managing the bundle
+to be downloaded by an OPA based on a configuration label. You can use the same
+strategy to dynamically configure other plugins based on the running OPA's
+configuration labels or environment variables.
 
 ## Limitations
 
-The discovery feature cannot be used to dynamically modify `services`, `labels` and `discovery`. This means that these configuration settings should be included in the bootup configuration file provided to OPA.
+The discovery feature cannot be used to dynamically modify `services`, `labels`
+and `discovery`. This means that these configuration settings should be included
+in the bootup configuration file provided to OPA.
