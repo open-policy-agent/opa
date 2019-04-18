@@ -1,6 +1,10 @@
 {{ $localMode  := eq (getenv "ENV") "local" }}
 {{ $home       := site.BaseURL }}
 {{ $logo       := site.Params.logos.sidebar | relURL }}
+{{ $releases   := site.Data.releases }}
+{{ $latest     := printf "v%s" (index $releases 0) }}
+{{ $version    := index (split .File.Path "/") 1 }}
+{{ $isLatest   := eq $version $latest }}
 <div class="dashboard">
   <div class="dashboard-panel left has-background-white-bis is-hidden-mobile">
     <div class="dashboard-panel-header has-text-centered">
@@ -14,16 +18,41 @@
       {{ $latest := index site.Data.releases 0 }}
       <div class="dropdown is-left">
         <div class="dropdown-trigger">
-          <span class="button is-primary">
+          <button class="button is-dark" aria-haspopup="true" aria-controls="dropdown-menu">
             <span>
               <strong>
-                v{{ $latest }}
+                {{ $version }}
               </strong>
-              <span class="tag latest-tag is-success is-small has-text-weight-bold">
-                latest
-              </span>
             </span>
-          </span>
+            {{ if $isLatest }}
+            <span class="tag latest-tag is-success is-small has-text-weight-bold">
+              latest
+            </span>
+            {{ else }}
+            <span class="tag latest-tag is-warning is-small has-text-weight-bold">
+              older
+            </span>
+            {{ end }}
+            <span class="icon is-small">
+              <i class="fas fa-angle-down" aria-hidden="true"></i>
+            </span>
+          </button>
+        </div>
+
+        <div class="dropdown-menu">
+          <div class="dropdown-content">
+            {{ range $releases }}
+            {{ $isLatest := eq . (index site.Data.releases 0) }}
+            <a href="/docs/v{{ . }}" class="dropdown-item">
+              v{{ . }}
+              {{ if $isLatest }}
+              <span class="tag latest-tag is-success is-small has-text-weight-bold">
+                  latest
+                </span>
+              {{ end }}
+            </a>
+            {{ end }}
+          </div>
         </div>
       </div>
       {{ end }}

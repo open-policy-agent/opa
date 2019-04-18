@@ -10,74 +10,111 @@ import (
 	"github.com/open-policy-agent/opa/ast"
 )
 
-func TestMakeInput(t *testing.T) {
+func TestMergeTermWithValues(t *testing.T) {
 
 	tests := []struct {
 		note     string
+		exist    string
 		input    [][2]string
 		expected interface{}
 	}{
-		{"var",
-			[][2]string{{`input.hello`, `"world"`}},
-			`{"hello": "world"}`},
-		{"multiple vars",
-			[][2]string{{`input.a`, `"a"`}, {`input.b`, `"b"`}},
-			`{"a": "a", "b": "b"}`},
-		{"multiple overlapping vars",
-			[][2]string{{`input.a.b.c`, `"c"`}, {`input.a.b.d`, `"d"`}, {`input.x.y`, `[]`}},
-			`{"a": {"b": {"c": "c", "d": "d"}}, "x": {"y": []}}`},
-		{"ref value",
-			[][2]string{{"input.foo.bar", "data.com.example.widgets[i]"}},
-			`{"foo": {"bar": data.com.example.widgets[i]}}`},
-		{"non-object",
-			[][2]string{{"input", "[1,2,3]"}},
-			"[1,2,3]"},
-		{"conflicting value",
-			[][2]string{{"input", "[1,2,3]"}, {"input.a.b", "true"}},
-			errConflictingInputDoc},
-		{"conflicting merge",
-			[][2]string{{`input.a.b`, `"c"`}, {`input.a.b.d`, `"d"`}},
-			errConflictingInputDoc},
-		{"conflicting roots",
-			[][2]string{{"input", `"a"`}, {"input", `"b"`}},
-			errConflictingInputDoc},
-		{"bad import path",
-			[][2]string{{`input.a[1]`, `1`}},
-			errBadInputPath,
+		{
+			note:     "var",
+			input:    [][2]string{{`input.hello`, `"world"`}},
+			expected: `{"hello": "world"}`,
+		},
+		{
+			note:     "multiple vars",
+			input:    [][2]string{{`input.a`, `"a"`}, {`input.b`, `"b"`}},
+			expected: `{"a": "a", "b": "b"}`,
+		},
+		{
+			note:     "multiple overlapping vars",
+			input:    [][2]string{{`input.a.b.c`, `"c"`}, {`input.a.b.d`, `"d"`}, {`input.x.y`, `[]`}},
+			expected: `{"a": {"b": {"c": "c", "d": "d"}}, "x": {"y": []}}`,
+		},
+		{
+			note:     "ref value",
+			input:    [][2]string{{"input.foo.bar", "data.com.example.widgets[i]"}},
+			expected: `{"foo": {"bar": data.com.example.widgets[i]}}`,
+		},
+		{
+			note:     "non-object",
+			input:    [][2]string{{"input", "[1,2,3]"}},
+			expected: "[1,2,3]",
+		},
+		{
+			note:     "conflicting value",
+			input:    [][2]string{{"input", "[1,2,3]"}, {"input.a.b", "true"}},
+			expected: errConflictingDoc,
+		},
+		{
+			note:     "conflicting merge",
+			input:    [][2]string{{`input.a.b`, `"c"`}, {`input.a.b.d`, `"d"`}},
+			expected: errConflictingDoc,
+		},
+		{
+			note:     "ordered roots",
+			input:    [][2]string{{"input", `"a"`}, {"input", `"b"`}},
+			expected: `"b"`,
+		},
+		{
+			note:     "bad import path",
+			input:    [][2]string{{`input.a[1]`, `1`}},
+			expected: errBadPath,
+		},
+		{
+			note:     "existing merge",
+			exist:    `{"foo": {"bar": 1}}`,
+			input:    [][2]string{{"input.foo.baz", "2"}},
+			expected: `{"foo": {"bar": 1, "baz": 2}}`,
+		},
+		{
+			note:     "existing overwrite",
+			exist:    `{"a": {"b": 1, "c": 2}}`,
+			input:    [][2]string{{"input.a", `{"d": 3}`}},
+			expected: `{"a": {"d": 3}}`,
 		},
 	}
 
 	for i, tc := range tests {
 
-		pairs := make([][2]*ast.Term, len(tc.input))
+		t.Run(tc.note, func(t *testing.T) {
 
-		for j := range tc.input {
-			var k *ast.Term
-			k = ast.MustParseTerm(tc.input[j][0])
-			v := ast.MustParseTerm(tc.input[j][1])
-			pairs[j] = [...]*ast.Term{k, v}
-		}
+			pairs := make([][2]*ast.Term, len(tc.input))
 
-		input, err := makeInput(pairs)
+			for j := range tc.input {
+				var k *ast.Term
+				k = ast.MustParseTerm(tc.input[j][0])
+				v := ast.MustParseTerm(tc.input[j][1])
+				pairs[j] = [...]*ast.Term{k, v}
+			}
 
-		switch e := tc.expected.(type) {
-		case error:
-			if err == nil {
-				t.Errorf("%v (#%d): Expected error %v but got: %v", tc.note, i+1, e, input)
-				continue
+			var exist *ast.Term
+
+			if tc.exist != "" {
+				exist = ast.MustParseTerm(tc.exist)
 			}
-			if err.Error() != e.Error() {
-				t.Errorf("%v (#%d): Expected error %v but got: %v", tc.note, i+1, e, err)
+
+			input, err := mergeTermWithValues(exist, pairs)
+
+			switch e := tc.expected.(type) {
+			case error:
+				if err == nil {
+					t.Fatalf("%v (#%d): Expected error %v but got: %v", tc.note, i+1, e, input)
+				}
+				if err.Error() != e.Error() {
+					t.Fatalf("%v (#%d): Expected error %v but got: %v", tc.note, i+1, e, err)
+				}
+			case string:
+				if err != nil {
+					t.Fatalf("%v (#%d): Unexpected error: %v", tc.note, i+1, err)
+				}
+				expected := ast.MustParseTerm(e)
+				if expected.Value.Compare(input.Value) != 0 {
+					t.Fatalf("%v (#%d): Expected input to equal %v but got: %v", tc.note, i+1, expected, input)
+				}
 			}
-		case string:
-			if err != nil {
-				t.Errorf("%v (#%d): Unexpected error: %v", tc.note, i+1, err)
-				continue
-			}
-			expected := ast.MustParseTerm(e)
-			if expected.Value.Compare(input) != 0 {
-				t.Errorf("%v (#%d): Expected input to equal %v but got: %v", tc.note, i+1, expected, input)
-			}
-		}
+		})
 	}
 }

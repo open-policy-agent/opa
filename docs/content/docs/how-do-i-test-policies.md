@@ -150,7 +150,7 @@ of the tests that failed or errored.
 $ opa test pass_fail_error_test.rego
 data.example.test_failure: FAIL (253ns)
 data.example.test_error: ERROR (289ns)
-  pass_fail_error_test.rego:15: eval_internal_error: div: divide by zero
+  pass_fail_error_test.rego:15: eval_builtin_error: div: divide by zero
 --------------------------------------------------------------------------------
 PASS: 1/3
 FAIL: 1/3
@@ -314,7 +314,7 @@ test_invalid_replace {
 
 ```bash
 $ opa test -v authz.rego authz_test.rego
-1 error occurred: authz_test.rego:4: rego_compile_error: with keyword cannot replace rules with arguments
+1 error occurred: authz_test.rego:4: rego_compile_error: with keyword cannot replace functions
 ```
 
 

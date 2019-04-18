@@ -12,9 +12,10 @@ import (
 	"crypto/x509"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
+	"os/signal"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/open-policy-agent/opa/ast"
@@ -118,9 +119,22 @@ type Params struct {
 	// ConfigFile refers to the OPA configuration to load on startup.
 	ConfigFile string
 
+	// ConfigOverrides are overrides for the OPA configuration that are applied
+	// over top the config file They are in a list of key=value syntax that
+	// conform to the syntax defined in the `strval` package
+	ConfigOverrides []string
+
+	// ConfigOverrideFiles Similar to `ConfigOverrides` execept they are in the
+	// form of `key=path/to/file`where the file contains the value to be used.
+	ConfigOverrideFiles []string
+
 	// Output is the output stream used when run as an interactive shell. This
 	// is mostly for test purposes.
 	Output io.Writer
+
+	// GracefulShutdownPeriod is the time (in seconds) to wait for the http
+	// server to shutdown gracefully.
+	GracefulShutdownPeriod int
 }
 
 // LoggingConfig stores the configuration for OPA's logging behaviour.
@@ -189,13 +203,9 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		return nil, errors.Wrapf(err, "storage error")
 	}
 
-	var bs []byte
-
-	if params.ConfigFile != "" {
-		bs, err = ioutil.ReadFile(params.ConfigFile)
-		if err != nil {
-			return nil, errors.Wrapf(err, "config error")
-		}
+	bs, err := loadConfig(params)
+	if err != nil {
+		return nil, errors.Wrapf(err, "config error")
 	}
 
 	info, err := runtime.Term(runtime.Params{Config: bs})
@@ -281,8 +291,23 @@ func (rt *Runtime) StartServer(ctx context.Context) {
 			errc <- serverLoop()
 		}(loop)
 	}
+
+	stopc := make(chan os.Signal)
+	signal.Notify(stopc, syscall.SIGINT, syscall.SIGTERM)
+
 	for {
 		select {
+		case <-stopc:
+			logrus.Info("Shutting down...")
+			ctx, cancel := context.WithTimeout(context.Background(), time.Duration(rt.Params.GracefulShutdownPeriod)*time.Second)
+			defer cancel()
+			err = s.Shutdown(ctx)
+			if err != nil {
+				logrus.WithField("err", err).Error("Failed to shutdown server gracefully")
+			} else {
+				logrus.Info("Server shutdown")
+			}
+			os.Exit(1)
 		case err := <-errc:
 			logrus.WithField("err", err).Fatal("Listener failed.")
 		}

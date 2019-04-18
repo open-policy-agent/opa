@@ -485,7 +485,12 @@ func (r *Rego) Partial(ctx context.Context) (*PartialQueries, error) {
 		return nil, err
 	}
 
-	_, compiled, err := r.compileQuery(nil, query)
+	_, compiled, err := r.compileQuery([]extraStage{
+		{
+			after: "CheckSafety",
+			stage: r.rewriteEqualsForPartialQueryCompile,
+		},
+	}, query)
 	if err != nil {
 		return nil, err
 	}
@@ -498,7 +503,7 @@ func (r *Rego) Partial(ctx context.Context) (*PartialQueries, error) {
 	return r.partial(ctx, compiled, txn, partialNamespace)
 }
 
-// Compile returnss a compiled policy query.
+// Compile returns a compiled policy query.
 func (r *Rego) Compile(ctx context.Context) (*CompileResult, error) {
 
 	pq, err := r.Partial(ctx)
@@ -903,6 +908,25 @@ func (r *Rego) rewriteQueryForPartialEval(_ ast.QueryCompiler, query ast.Body) (
 	}
 
 	return ast.NewBody(ast.Equality.Expr(ast.Wildcard, term)), nil
+}
+
+// rewriteEqualsForPartialQueryCompile will rewrite == to = in queries. Normally
+// this wouldn't be done, except for handling queries with the `Partial` API
+// where rewriting them can substantially simplify the result, and it is unlikely
+// that the caller would need expression values.
+func (r *Rego) rewriteEqualsForPartialQueryCompile(_ ast.QueryCompiler, query ast.Body) (ast.Body, error) {
+	doubleEq := ast.Equal.Ref()
+	unifyOp := ast.Equality.Ref()
+	ast.WalkExprs(query, func(x *ast.Expr) bool {
+		if x.IsCall() {
+			operator := x.Operator()
+			if operator.Equal(doubleEq) && len(x.Operands()) == 2 {
+				x.SetOperator(ast.NewTerm(unifyOp))
+			}
+		}
+		return false
+	})
+	return query, nil
 }
 
 func (r *Rego) generateTermVar() *ast.Term {

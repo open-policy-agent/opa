@@ -55,6 +55,11 @@ implementing it inside of the
 `github.com/open-policy-agent/opa/internal` package. The `internal`
 package is not visible outside of OPA.
 
+Avoid adding thirdparty dependencies (vendoring). OPA is designed to be minimal,
+lightweight, and easily embedded. Vendoring may make features _easier_ to
+implement however they come with their own cost for both OPA developers and
+OPA users (e.g., vendoring conflicts, security, debugging, etc.)
+
 ## Commit Messages
 
 Commit messages should explain *why* the changes were made and should probably look like this:

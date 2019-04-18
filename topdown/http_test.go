@@ -590,7 +590,7 @@ func TestHTTPSClient(t *testing.T) {
 
 	t.Run("Negative Test: No Root Ca", func(t *testing.T) {
 
-		expectedResult := Error{Code: InternalErr, Message: "x509: certificate signed by unknown authority", Location: nil}
+		expectedResult := Error{Code: BuiltinErr, Message: "x509: certificate signed by unknown authority", Location: nil}
 		data := loadSmallTestData()
 		rule := []string{fmt.Sprintf(
 			`p = x { http.send({"method": "get", "url": "%s", "tls_client_cert_file": "%s", "tls_client_key_file": "%s"}, x) }`, s.URL, localClientCertFile, localClientKeyFile)}
@@ -601,7 +601,7 @@ func TestHTTPSClient(t *testing.T) {
 
 	t.Run("Negative Test: Wrong Cert/Key Pair", func(t *testing.T) {
 
-		expectedResult := Error{Code: InternalErr, Message: "tls: private key does not match public key", Location: nil}
+		expectedResult := Error{Code: BuiltinErr, Message: "tls: private key does not match public key", Location: nil}
 		data := loadSmallTestData()
 		rule := []string{fmt.Sprintf(
 			`p = x { http.send({"method": "get", "url": "%s", "tls_ca_cert_file": "%s", "tls_client_cert_file": "%s", "tls_client_key_file": "%s"}, x) }`, s.URL, localCaFile, localClientCert2File, localClientKeyFile)}
@@ -612,7 +612,7 @@ func TestHTTPSClient(t *testing.T) {
 
 	t.Run("Negative Test: System Certs do not include local rootCA", func(t *testing.T) {
 
-		expectedResult := Error{Code: InternalErr, Message: "x509: certificate signed by unknown authority", Location: nil}
+		expectedResult := Error{Code: BuiltinErr, Message: "x509: certificate signed by unknown authority", Location: nil}
 		data := loadSmallTestData()
 		rule := []string{fmt.Sprintf(
 			`p = x { http.send({"method": "get", "url": "%s", "tls_client_cert_file": "%s", "tls_client_key_file": "%s", "tls_use_system_certs": true}, x) }`, s.URL, localClientCertFile, localClientKeyFile)}

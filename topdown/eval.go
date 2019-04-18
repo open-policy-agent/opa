@@ -36,10 +36,11 @@ type eval struct {
 	bindings      *bindings
 	store         storage.Store
 	baseCache     *baseCache
-	withCache     *baseCache
 	txn           storage.Transaction
 	compiler      *ast.Compiler
 	input         *ast.Term
+	data          *ast.Term
+	targetStack   *refStack
 	tracers       []Tracer
 	instr         *Instrumentation
 	builtinCache  builtins.Cache
@@ -171,6 +172,7 @@ func (e *eval) evalExpr(iter evalIterator) error {
 	}
 
 	expr := e.query[e.index]
+
 	e.traceEval(expr)
 
 	if len(expr.With) > 0 {
@@ -182,7 +184,9 @@ func (e *eval) evalExpr(iter evalIterator) error {
 		return e.evalWith(iter)
 	}
 
-	return e.evalStep(iter)
+	return e.evalStep(func(e *eval) error {
+		return e.next(iter)
+	})
 }
 
 func (e *eval) evalStep(iter evalIterator) error {
@@ -201,14 +205,14 @@ func (e *eval) evalStep(iter evalIterator) error {
 		if expr.IsEquality() {
 			err = e.unify(terms[1], terms[2], func() error {
 				defined = true
-				err := e.next(iter)
+				err := iter(e)
 				e.traceRedo(expr)
 				return err
 			})
 		} else {
 			err = e.evalCall(terms, func() error {
 				defined = true
-				err := e.next(iter)
+				err := iter(e)
 				e.traceRedo(expr)
 				return err
 			})
@@ -218,12 +222,12 @@ func (e *eval) evalStep(iter evalIterator) error {
 		err = e.unify(terms, rterm, func() error {
 			if e.saveSet.Contains(rterm, e.bindings) {
 				return e.saveExpr(ast.NewExpr(rterm), e.bindings, func() error {
-					return e.next(iter)
+					return iter(e)
 				})
 			}
 			if !e.bindings.Plug(rterm).Equal(ast.BooleanTerm(false)) {
 				defined = true
-				err := e.next(iter)
+				err := iter(e)
 				e.traceRedo(expr)
 				return err
 			}
@@ -272,9 +276,12 @@ func (e *eval) evalNot(iter evalIterator) error {
 }
 
 func (e *eval) evalWith(iter evalIterator) error {
+
 	expr := e.query[e.index]
+
 	pairsInput := [][2]*ast.Term{}
 	pairsData := [][2]*ast.Term{}
+	targets := []ast.Ref{}
 
 	for i := range expr.With {
 		plugged := e.bindings.Plug(expr.With[i].Value)
@@ -283,9 +290,11 @@ func (e *eval) evalWith(iter evalIterator) error {
 		} else if isDataRef(expr.With[i].Target) {
 			pairsData = append(pairsData, [...]*ast.Term{expr.With[i].Target, plugged})
 		}
+		targets = append(targets, expr.With[i].Target.Value.(ast.Ref))
 	}
 
-	input, err := makeInput(pairsInput)
+	input, err := mergeTermWithValues(e.input, pairsInput)
+
 	if err != nil {
 		return &Error{
 			Code:     ConflictErr,
@@ -294,32 +303,56 @@ func (e *eval) evalWith(iter evalIterator) error {
 		}
 	}
 
-	for _, pair := range pairsData {
-		ref := pair[0].Value.(ast.Ref)
-		e.withCache.Put(ref, pair[1].Value)
+	data, err := mergeTermWithValues(e.data, pairsData)
+	if err != nil {
+		return &Error{
+			Code:     ConflictErr,
+			Location: expr.Location,
+			Message:  err.Error(),
+		}
 	}
 
-	var old *ast.Term
+	oldInput, oldData := e.evalWithPush(input, data, targets)
+
+	err = e.evalStep(func(e *eval) error {
+		e.evalWithPop(oldInput, oldData)
+		err := e.next(iter)
+		oldInput, oldData = e.evalWithPush(input, data, targets)
+		return err
+	})
+
+	e.evalWithPop(oldInput, oldData)
+
+	return err
+}
+
+func (e *eval) evalWithPush(input *ast.Term, data *ast.Term, targets []ast.Ref) (*ast.Term, *ast.Term) {
+
+	var oldInput *ast.Term
 
 	if input != nil {
-		old = e.input
-		e.input = ast.NewTerm(input)
+		oldInput = e.input
+		e.input = input
+	}
+
+	var oldData *ast.Term
+
+	if data != nil {
+		oldData = e.data
+		e.data = data
 	}
 
 	e.virtualCache.Push()
-	err = e.evalStep(iter)
+	e.targetStack.Push(targets)
+
+	return oldInput, oldData
+}
+
+func (e *eval) evalWithPop(input *ast.Term, data *ast.Term) {
+	e.targetStack.Pop()
 	e.virtualCache.Pop()
-
-	if input != nil {
-		e.input = old
-	}
-
-	for _, pair := range pairsData {
-		ref := pair[0].Value.(ast.Ref)
-		e.withCache.Remove(ref)
-	}
-
-	return err
+	e.data = data
+	e.input = input
 }
 
 func (e *eval) evalNotPartial(iter evalIterator) error {
@@ -697,8 +730,7 @@ func (e *eval) biunifyValues(a, b *ast.Term, b1, b2 *bindings, iter unifyIterato
 func (e *eval) biunifyRef(a, b *ast.Term, b1, b2 *bindings, iter unifyIterator) error {
 
 	ref := a.Value.(ast.Ref)
-	plugged := make(ast.Ref, len(ref))
-	plugged[0] = ref[0]
+	plugged := ref.Copy()
 
 	if ref[0].Equal(ast.DefaultRootDocument) {
 		node := e.compiler.RuleTree.Child(ref[0].Value)
@@ -979,8 +1011,17 @@ func (e *eval) Resolve(ref ast.Ref) (ast.Value, error) {
 
 	if ref[0].Equal(ast.DefaultRootDocument) {
 
-		repValue, ok := e.withCache.Get(ref)
-		if ok {
+		var repValue ast.Value
+
+		if e.data != nil {
+			if v, err := e.data.Value.Find(ref[1:]); err == nil {
+				repValue = v
+			} else {
+				repValue = nil
+			}
+		}
+
+		if e.targetStack.Prefixed(ref) {
 			return repValue, nil
 		}
 
@@ -991,12 +1032,13 @@ func (e *eval) Resolve(ref ast.Ref) (ast.Value, error) {
 		// example, a 2MB JSON value can take upwards of 30 millisceonds to convert.
 		// We cache the result of conversion here in case the same base document is
 		// being read multiple times during evaluation.
-		realValue, ok := e.baseCache.Get(ref)
-		if ok {
+		realValue := e.baseCache.Get(ref)
+		if realValue != nil {
 			e.instr.counterIncr(evalOpBaseCacheHit)
 			if repValue == nil {
 				return realValue, nil
 			}
+			var ok bool
 			merged, ok = merge(repValue, realValue)
 			if !ok {
 				return nil, mergeConflictErr(ref[0].Location)
@@ -1060,53 +1102,6 @@ func (e *eval) resolveReadFromStorage(ref ast.Ref, a ast.Value) (ast.Value, erro
 		return nil, mergeConflictErr(ref[0].Location)
 	}
 	return merged, nil
-}
-
-func merge(a, b ast.Value) (ast.Value, bool) {
-	aObj, ok1 := a.(ast.Object)
-	bObj, ok2 := b.(ast.Object)
-
-	if ok1 && ok2 {
-		return mergeObjects(aObj, bObj)
-	}
-	return nil, false
-}
-
-// mergeObjects returns a new Object containing the non-overlapping keys of
-// the objA and objB. If there are overlapping keys between objA and objB,
-// the values of associated with the keys are merged. Only
-// objects can be merged with other objects. If the values cannot be merged,
-// objB value will be overwritten by objA value.
-func mergeObjects(objA, objB ast.Object) (result ast.Object, ok bool) {
-	result = ast.NewObject()
-	stop := objA.Until(func(k, v *ast.Term) bool {
-		if v2 := objB.Get(k); v2 == nil {
-			result.Insert(k, v)
-		} else {
-			obj1, ok1 := v.Value.(ast.Object)
-			obj2, ok2 := v2.Value.(ast.Object)
-
-			if !ok1 || !ok2 {
-				result.Insert(k, v)
-				return false
-			}
-			obj3, ok := mergeObjects(obj1, obj2)
-			if !ok {
-				return true
-			}
-			result.Insert(k, ast.NewTerm(obj3))
-		}
-		return false
-	})
-	if stop {
-		return nil, false
-	}
-	objB.Foreach(func(k, v *ast.Term) {
-		if v2 := objA.Get(k); v2 == nil {
-			result.Insert(k, v)
-		}
-	})
-	return result, true
 }
 
 func (e *eval) generateVar(suffix string) *ast.Term {
@@ -1304,9 +1299,11 @@ func (e evalTree) next(iter unifyIterator, plugged *ast.Term) error {
 
 	var node *ast.TreeNode
 
-	_, found := e.e.withCache.Get(e.ref)
+	cpy := e
+	cpy.plugged[e.pos] = plugged
+	cpy.pos++
 
-	if !found {
+	if !e.e.targetStack.Prefixed(cpy.plugged[:cpy.pos]) {
 		if e.node != nil {
 			node = e.node.Child(plugged.Value)
 			if node != nil && len(node.Values) > 0 {
@@ -1325,10 +1322,7 @@ func (e evalTree) next(iter unifyIterator, plugged *ast.Term) error {
 		}
 	}
 
-	cpy := e
-	cpy.plugged[e.pos] = plugged
 	cpy.node = node
-	cpy.pos++
 	return cpy.eval(iter)
 }
 
@@ -1354,6 +1348,15 @@ func (e evalTree) enumerate(iter unifyIterator) error {
 			err := doc.Iter(func(k, _ *ast.Term) error {
 				return e.e.biunify(k, e.ref[e.pos], e.bindings, e.bindings, func() error {
 					return e.next(iter, k)
+				})
+			})
+			if err != nil {
+				return err
+			}
+		case ast.Set:
+			err := doc.Iter(func(elem *ast.Term) error {
+				return e.e.biunify(elem, e.ref[e.pos], e.bindings, e.bindings, func() error {
+					return e.next(iter, elem)
 				})
 			})
 			if err != nil {
@@ -2104,4 +2107,51 @@ func isDataRef(term *ast.Term) bool {
 		}
 	}
 	return false
+}
+
+func merge(a, b ast.Value) (ast.Value, bool) {
+	aObj, ok1 := a.(ast.Object)
+	bObj, ok2 := b.(ast.Object)
+
+	if ok1 && ok2 {
+		return mergeObjects(aObj, bObj)
+	}
+	return nil, false
+}
+
+// mergeObjects returns a new Object containing the non-overlapping keys of
+// the objA and objB. If there are overlapping keys between objA and objB,
+// the values of associated with the keys are merged. Only
+// objects can be merged with other objects. If the values cannot be merged,
+// objB value will be overwritten by objA value.
+func mergeObjects(objA, objB ast.Object) (result ast.Object, ok bool) {
+	result = ast.NewObject()
+	stop := objA.Until(func(k, v *ast.Term) bool {
+		if v2 := objB.Get(k); v2 == nil {
+			result.Insert(k, v)
+		} else {
+			obj1, ok1 := v.Value.(ast.Object)
+			obj2, ok2 := v2.Value.(ast.Object)
+
+			if !ok1 || !ok2 {
+				result.Insert(k, v)
+				return false
+			}
+			obj3, ok := mergeObjects(obj1, obj2)
+			if !ok {
+				return true
+			}
+			result.Insert(k, ast.NewTerm(obj3))
+		}
+		return false
+	})
+	if stop {
+		return nil, false
+	}
+	objB.Foreach(func(k, v *ast.Term) {
+		if v2 := objA.Get(k); v2 == nil {
+			result.Insert(k, v)
+		}
+	})
+	return result, true
 }

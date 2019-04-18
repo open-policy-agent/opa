@@ -229,6 +229,23 @@ allow {
 }
 ```
 
+To supply the input document, query OPA using the POST method.
+
+```http
+POST /v1/data/opa/examples/allow HTTP/1.1
+Content-Type: application/json
+```
+
+```json
+{
+  "input": {
+    "method": "GET",
+    "path": "/servers/s2",
+    "user": "alice"
+  }
+}
+```
+
 ## Putting It All Together
 
 Let’s take a look at some documents representing the state of a hypothetical service and a policy module that uses this data. The following documents describe a set of servers, the protocols they use, the ports they open, and the networks those ports are connected to.

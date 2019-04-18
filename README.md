@@ -4,14 +4,15 @@
 
 The Open Policy Agent (OPA) is an open source, general-purpose policy engine that enables unified, context-aware policy enforcement across the entire stack.
 
-OPA is hosted by the [Cloud Native Computing Foundation](https://cncf.io) (CNCF) as a sandbox level project. If you are an organization that wants to help shape the evolution of technologies that are container-packaged, dynamically-scheduled and microservices-oriented, consider joining the CNCF. For details read the CNCF [announcement](https://www.cncf.io/blog/2018/03/29/cncf-to-host-open-policy-agent-opa/).
+OPA is hosted by the [Cloud Native Computing Foundation](https://cncf.io) (CNCF) as an incubating-level project. If you are an organization that wants to help shape the evolution of technologies that are container-packaged, dynamically-scheduled and microservices-oriented, consider joining the CNCF. For details read the CNCF [announcement](https://www.cncf.io/blog/2019/04/02/toc-votes-to-move-opa-into-cncf-incubator/).
 
 ## Want to learn more about OPA?
 
 - See [openpolicyagent.org](https://www.openpolicyagent.org) to get started with documentation and tutorials.
-- Try [play.openpolicyagent.org](https://play.openpolicyagent.org) to experiment with OPA policies.
 - See [blog.openpolicyagent.org](https://blog.openpolicyagent.org) for blog posts about OPA and policy.
-- See [ADOPTERS.md](./ADOPTERS.md) for a list of adopters and use cases.
+- See [ADOPTERS.md](./ADOPTERS.md) for a list of production OPA adopters and use cases.
+- See [the Roadmap slides](https://docs.google.com/presentation/d/16QV6gvLDOV3I0_guPC3_19g6jHkEg3X9xqMYgtoCKrs/edit?usp=sharing) for a snapshot of high-level OPA features in-progress and planned.
+- Try [play.openpolicyagent.org](https://play.openpolicyagent.org) to experiment with OPA policies.
 - Join the conversation on [Slack](https://slack.openpolicyagent.org).
 
 ## Want to get OPA?
@@ -303,14 +304,6 @@ true
 | "10.0.0.3" | "host-efg" |
 +------------+------------+
 ```
-
-## Roadmap
-
-The project roadmap is kept in Google Slides and can be found
-[here](https://docs.google.com/presentation/d/16QV6gvLDOV3I0_guPC3_19g6jHkEg3X9xqMYgtoCKrs/edit?usp=sharing). Input
-on project direction, features, etc. is welcome. If you have ideas
-about how to improve OPA, please join the regular community
-meetings. See the section above for meeting notes, invite, etc.
 
 ## Further Reading
 

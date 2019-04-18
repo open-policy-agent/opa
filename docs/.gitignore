@@ -3,7 +3,5 @@ public/
 resources/
 
 # Documentation versions
-generated/docs/v*
-
-# Node.js assets
-node_modules/
+generated/*
+data/releases.yaml

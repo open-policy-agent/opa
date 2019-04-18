@@ -930,7 +930,7 @@ func (c *Compiler) rewriteWithModifiers() {
 			if !ok {
 				return x, nil
 			}
-			body, err := rewriteWithModifiersInBody(f, body, c.GetRules)
+			body, err := rewriteWithModifiersInBody(c, f, body)
 			if err != nil {
 				c.err(err)
 			}
@@ -1113,7 +1113,7 @@ func (qc *queryCompiler) checkTypes(qctx *QueryContext, body Body) (Body, error)
 
 func (qc *queryCompiler) rewriteWithModifiers(qctx *QueryContext, body Body) (Body, error) {
 	f := newEqualityFactory(newLocalVarGenerator(body))
-	body, err := rewriteWithModifiersInBody(f, body, qc.compiler.GetRules)
+	body, err := rewriteWithModifiersInBody(qc.compiler, f, body)
 	if err != nil {
 		return nil, Errors{err}
 	}
@@ -2181,9 +2181,11 @@ func rewriteComprehensionTerms(f *equalityFactory, node interface{}) (interface{
 // This stage should only run the safety check (since == is a built-in with no
 // outputs, so the inputs must not be marked as safe.)
 //
-// This stage is not executed by the query compiler because when callers specify
-// == instead of = they expect to receive a true/false/undefined result back
-// whereas with = the result is only ever true/undefined.
+// This stage is not executed by the query compiler by default because when
+// callers specify == instead of = they expect to receive a true/false/undefined
+// result back whereas with = the result is only ever true/undefined. For
+// partial evaluation cases we do want to rewrite == to = to simplify the
+// result.
 func rewriteEquals(x interface{}) {
 	doubleEq := Equal.Ref()
 	unifyOp := Equality.Ref()
@@ -2690,10 +2692,10 @@ func rewriteDeclaredVar(g *localVarGenerator, stack *localDeclaredVars, v Var) (
 // rewriteWithModifiersInBody will rewrite the body so that with modifiers do
 // not contain terms that require evaluation as values. If this function
 // encounters an invalid with modifier target then it will raise an error.
-func rewriteWithModifiersInBody(f *equalityFactory, body Body, getRules func(ref Ref) []*Rule) (Body, *Error) {
+func rewriteWithModifiersInBody(c *Compiler, f *equalityFactory, body Body) (Body, *Error) {
 	var result Body
 	for i := range body {
-		exprs, err := rewriteWithModifier(f, body[i], getRules)
+		exprs, err := rewriteWithModifier(c, f, body[i])
 		if err != nil {
 			return nil, err
 		}
@@ -2708,11 +2710,11 @@ func rewriteWithModifiersInBody(f *equalityFactory, body Body, getRules func(ref
 	return result, nil
 }
 
-func rewriteWithModifier(f *equalityFactory, expr *Expr, getRules func(ref Ref) []*Rule) ([]*Expr, *Error) {
+func rewriteWithModifier(c *Compiler, f *equalityFactory, expr *Expr) ([]*Expr, *Error) {
 
 	var result []*Expr
 	for i := range expr.With {
-		err := validateTarget(expr.With[i].Target, getRules)
+		err := validateTarget(c, expr.With[i].Target)
 		if err != nil {
 			return nil, err
 		}
@@ -2733,20 +2735,34 @@ func rewriteWithModifier(f *equalityFactory, expr *Expr, getRules func(ref Ref) 
 	return result, nil
 }
 
-func validateTarget(term *Term, getRules func(ref Ref) []*Rule) *Error {
+func validateTarget(c *Compiler, term *Term) *Error {
 	if !isInputRef(term) && !isDataRef(term) {
 		return NewError(TypeErr, term.Location, "with keyword target must start with %v or %v", InputRootDocument, DefaultRootDocument)
 	}
 
 	if isDataRef(term) {
-		if ref, ok := term.Value.(Ref); ok {
-			rules := getRules(ref)
-			for _, rule := range rules {
-				if len(rule.Head.Args) > 0 {
-					return NewError(CompileErr, term.Location, "with keyword cannot replace rules with arguments")
+		ref := term.Value.(Ref)
+		node := c.RuleTree
+		for i := 0; i < len(ref)-1; i++ {
+			child := node.Child(ref[i].Value)
+			if child == nil {
+				break
+			} else if len(child.Values) > 0 {
+				return NewError(CompileErr, term.Loc(), "with keyword cannot partially replace virtual document(s)")
+			}
+			node = child
+		}
+
+		if node != nil {
+			if child := node.Child(ref[len(ref)-1].Value); child != nil {
+				for _, value := range child.Values {
+					if len(value.(*Rule).Head.Args) > 0 {
+						return NewError(CompileErr, term.Loc(), "with keyword cannot replace functions")
+					}
 				}
 			}
 		}
+
 	}
 	return nil
 }

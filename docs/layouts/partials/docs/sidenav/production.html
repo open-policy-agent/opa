@@ -6,6 +6,7 @@
 {{ $bestPrac   := where $allDocs ".Params.kind" "eq" "best-practices" }}
 {{ $pageUrl    := .URL }}
 {{ $isDocsHome := eq .URL $docsHome.URL }}
+{{ $version    := index (split .File.Path "/") 1 }}
 <span class="docs-nav-title">
   Documentation
 </span>
@@ -24,6 +25,7 @@
 {{ $isRoot     := eq (len (split .File.Path "/")) 2 }}
 {{ if not $isRoot }}
 {{ $isThisPage := eq .URL $pageUrl }}
+{{ if eq $version (index (split .File.Path "/") 1) }}
 {{ $title      := cond (isset .Params "navtitle") (.Params.navtitle) .Title }}
 <a class="docs-nav-item{{ if $isThisPage }} is-active{{ end }}" href="{{ .URL }}">
   {{ $title }}
@@ -32,6 +34,7 @@
 <div class="toc">
   {{ .TableOfContents }}
 </div>
+{{ end }}
 {{ end }}
 {{ end }}
 {{ end }}
@@ -46,6 +49,7 @@
 {{ $isRoot     := eq (len (split .File.Path "/")) 2 }}
 {{ if not $isRoot }}
 {{ $isThisPage := eq .URL $pageUrl }}
+{{ if eq $version (index (split .File.Path "/") 1) }}
 {{ $title      := cond (isset .Params "navtitle") (.Params.navtitle) .Title }}
 <a class="docs-nav-item{{ if $isThisPage }} is-active{{ end }}" href="{{ .URL }}">
   {{ $title }}
@@ -54,6 +58,7 @@
 <div class="toc">
   {{ .TableOfContents }}
 </div>
+{{ end }}
 {{ end }}
 {{ end }}
 {{ end }}
@@ -69,6 +74,7 @@
 {{ $isRoot     := eq (len (split .File.Path "/")) 2 }}
 {{ if not $isRoot }}
 {{ $isThisPage := eq .URL $pageUrl }}
+{{ if eq $version (index (split .File.Path "/") 1) }}
 {{ $title      := cond (isset .Params "navtitle") (.Params.navtitle) .Title }}
 <a class="docs-nav-item{{ if $isThisPage }} is-active{{ end }}" href="{{ .URL }}">
   {{ $title }}
@@ -77,6 +83,7 @@
 <div class="toc">
   {{ .TableOfContents }}
 </div>
+{{ end }}
 {{ end }}
 {{ end }}
 {{ end }}
@@ -93,6 +100,7 @@
 {{ $isRoot     := eq (len (split .File.Path "/")) 2 }}
 {{ if not $isRoot }}
 {{ $isThisPage := eq .URL $pageUrl }}
+{{ if eq $version (index (split .File.Path "/") 1) }}
 {{ $title      := cond (isset .Params "navtitle") (.Params.navtitle) .Title }}
 <a class="docs-nav-item{{ if $isThisPage }} is-active{{ end }}" href="{{ .URL }}">
   {{ $title }}
@@ -101,6 +109,7 @@
 <div class="toc">
   {{ .TableOfContents }}
 </div>
+{{ end }}
 {{ end }}
 {{ end }}
 {{ end }}

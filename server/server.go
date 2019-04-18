@@ -104,6 +104,7 @@ type Server struct {
 	errLimit          int
 	pprofEnabled      bool
 	runtime           *ast.Term
+	httpListeners     []httpListener
 }
 
 // Loop will contain all the calls from the server that we'll be listening on.
@@ -164,6 +165,35 @@ func (s *Server) Init(ctx context.Context) (*Server, error) {
 	s.partials = map[string]rego.PartialResult{}
 
 	return s, s.store.Commit(ctx, txn)
+}
+
+// Shutdown will attempt to gracefully shutdown each of the http servers
+// currently in use by the OPA Server. If any exceed the deadline specified
+// by the context an error will be returned.
+func (s *Server) Shutdown(ctx context.Context) error {
+	errChan := make(chan error)
+	for _, srvr := range s.httpListeners {
+		go func(s httpListener) {
+			errChan <- s.Shutdown(ctx)
+		}(srvr)
+	}
+	// wait until each server has finished shutting down
+	var errorList []error
+	for i := 0; i < len(s.httpListeners); i++ {
+		err := <-errChan
+		if err != nil {
+			errorList = append(errorList, err)
+		}
+	}
+
+	if len(errorList) > 0 {
+		errMsg := "error while shutting down: "
+		for i, err := range errorList {
+			errMsg += fmt.Sprintf("(%d) %s. ", i, err.Error())
+		}
+		return errors.New(errMsg)
+	}
+	return nil
 }
 
 // WithAddresses sets the listening addresses that the server will bind to.
@@ -277,19 +307,21 @@ func (s *Server) Listeners() ([]Loop, error) {
 			return nil, err
 		}
 		var loop Loop
+		var listener httpListener
 		switch parsedURL.Scheme {
 		case "unix":
-			loop, err = s.getListenerForUNIXSocket(parsedURL)
+			loop, listener, err = s.getListenerForUNIXSocket(parsedURL)
 		case "http":
-			loop, err = s.getListenerForHTTPServer(parsedURL)
+			loop, listener, err = s.getListenerForHTTPServer(parsedURL)
 		case "https":
-			loop, err = s.getListenerForHTTPSServer(parsedURL)
+			loop, listener, err = s.getListenerForHTTPSServer(parsedURL)
 		default:
 			err = fmt.Errorf("invalid url scheme %q", parsedURL.Scheme)
 		}
 		if err != nil {
 			return nil, err
 		}
+		s.httpListeners = append(s.httpListeners, listener)
 		loops = append(loops, loop)
 	}
 
@@ -298,29 +330,59 @@ func (s *Server) Listeners() ([]Loop, error) {
 		if err != nil {
 			return nil, err
 		}
-		loop, err := s.getListenerForHTTPServer(parsedURL)
+		loop, httpListener, err := s.getListenerForHTTPServer(parsedURL)
 		if err != nil {
 			return nil, err
 		}
+		s.httpListeners = append(s.httpListeners, httpListener)
 		loops = append(loops, loop)
 	}
 
 	return loops, nil
 }
 
-func (s *Server) getListenerForHTTPServer(u *url.URL) (Loop, error) {
+type httpListener interface {
+	ListenAndServe() error
+	ListenAndServeTLS(certFile, keyFile string) error
+	Shutdown(ctx context.Context) error
+}
+
+// baseHTTPListener is just a wrapper around http.Server
+type baseHTTPListener struct {
+	s *http.Server
+}
+
+var _ httpListener = (*baseHTTPListener)(nil)
+
+func newHTTPListener(srvr *http.Server) httpListener {
+	return &baseHTTPListener{srvr}
+}
+
+func (l *baseHTTPListener) ListenAndServe() error {
+	return l.s.ListenAndServe()
+}
+
+func (l *baseHTTPListener) ListenAndServeTLS(certFile, keyFile string) error {
+	return l.s.ListenAndServeTLS(certFile, keyFile)
+}
+
+func (l *baseHTTPListener) Shutdown(ctx context.Context) error {
+	return l.s.Shutdown(ctx)
+}
+
+func (s *Server) getListenerForHTTPServer(u *url.URL) (Loop, httpListener, error) {
 	httpServer := http.Server{
 		Addr:    u.Host,
 		Handler: s.Handler,
 	}
 
-	return httpServer.ListenAndServe, nil
+	return httpServer.ListenAndServe, newHTTPListener(&httpServer), nil
 }
 
-func (s *Server) getListenerForHTTPSServer(u *url.URL) (Loop, error) {
+func (s *Server) getListenerForHTTPSServer(u *url.URL) (Loop, httpListener, error) {
 
 	if s.cert == nil {
-		return nil, fmt.Errorf("TLS certificate required but not supplied")
+		return nil, nil, fmt.Errorf("TLS certificate required but not supplied")
 	}
 
 	httpsServer := http.Server{
@@ -337,10 +399,10 @@ func (s *Server) getListenerForHTTPSServer(u *url.URL) (Loop, error) {
 
 	httpsLoop := func() error { return httpsServer.ListenAndServeTLS("", "") }
 
-	return httpsLoop, nil
+	return httpsLoop, newHTTPListener(&httpsServer), nil
 }
 
-func (s *Server) getListenerForUNIXSocket(u *url.URL) (Loop, error) {
+func (s *Server) getListenerForUNIXSocket(u *url.URL) (Loop, httpListener, error) {
 	socketPath := u.Host + u.Path
 
 	// Remove domain socket file in case it already exists.
@@ -349,11 +411,11 @@ func (s *Server) getListenerForUNIXSocket(u *url.URL) (Loop, error) {
 	domainSocketServer := http.Server{Handler: s.Handler}
 	unixListener, err := net.Listen("unix", socketPath)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	domainSocketLoop := func() error { return domainSocketServer.Serve(unixListener) }
-	return domainSocketLoop, nil
+	return domainSocketLoop, newHTTPListener(&domainSocketServer), nil
 }
 
 func (s *Server) initRouter() {

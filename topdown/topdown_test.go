@@ -1193,19 +1193,19 @@ func TestTopDownTypeNameBuiltin(t *testing.T) {
 		expected interface{}
 	}{
 		{"type_name", []string{
-			`p = x { type_name(null, x) }`}, ast.String("null")},
+			`p = x { type_name(null, x) }`}, `"null"`},
 		{"type_name", []string{
-			`p = x { type_name(true, x) }`}, ast.String("boolean")},
+			`p = x { type_name(true, x) }`}, `"boolean"`},
 		{"type_name", []string{
-			`p = x { type_name(100, x) }`}, ast.String("number")},
+			`p = x { type_name(100, x) }`}, `"number"`},
 		{"type_name", []string{
-			`p = x { type_name("Hello", x) }`}, ast.String("string")},
+			`p = x { type_name("Hello", x) }`}, `"string"`},
 		{"type_name", []string{
-			`p = x { type_name([1,2,3], x) }`}, ast.String("array")},
+			`p = x { type_name([1,2,3], x) }`}, `"array"`},
 		{"type_name", []string{
-			`p = x { type_name({1,2,3}, x) }`}, ast.String("set")},
+			`p = x { type_name({1,2,3}, x) }`}, `"set"`},
 		{"type_name", []string{
-			`p = x { type_name({"foo": yy | yy = 1}, x) }`}, ast.String("object")},
+			`p = x { type_name({"foo": yy | yy = 1}, x) }`}, `"object"`},
 	}
 
 	data := loadSmallTestData()
@@ -2594,102 +2594,311 @@ func TestTopDownFunctionErrors(t *testing.T) {
 
 func TestTopDownWithKeyword(t *testing.T) {
 
-	compiler := compileModules([]string{
-		`package ex
+	tests := []struct {
+		note    string
+		rules   []string
+		modules []string
+		input   string
+		exp     interface{}
+	}{
 
-loopback = input { true }
-composite[x] { input.foo[_] = x; x > 2 }
-vars = {"foo": input.foo, "bar": input.bar} { true }
-input_eq { input.x = 1 }
-data_eq { data.a = x }
-allow_basic = true {data.a = "testdata"}
-allow_merge_1 = true {data.b = {"v1": "hello", "v2": "world"}}
-allow_merge_2 = true {data.b = {"v1": "hello", "v2": "world", "v3": "again"}}
-virtual[x] { data.a.b[x] = 1 }
-mock_var = {"a": 0, "b": 0}
-mock_rule = false {1 = 2}
-setl[x] { data.foo[x] }
+		{
+			note: "with",
+			exp:  `true`,
+			modules: []string{`package ex
+			loopback = input`},
+			rules: []string{`p { data.ex.loopback with input as true; data.ex.loopback = false with input as false }`},
+		},
+		{
+			note: "with not",
+			exp:  `true`,
+			modules: []string{`package ex
+			loopback = input`},
+			rules: []string{`p = true { not data.ex.loopback with input as false; data.ex.loopback with input as true }`},
+		},
+		{
+			note: "with composite",
+			exp:  `[3,4]`,
+			modules: []string{`package ex
+			composite[x] { input.foo[_] = x; gt(x, 2) }`},
+			rules: []string{`p[x] { data.ex.composite[x] with input.foo as [1, 2, 3, 4] }`},
+		},
+		{
+			note: "with vars",
+			exp:  `{"foo": "hello", "bar": "world"}`,
+			modules: []string{`package ex
+			vars = x { y = input.bar; z = input.foo; x = {"bar": y, "foo": z} }`},
+			rules: []string{`p = x { foo = "hello"; bar = "world"; x = data.ex.vars with input.foo as foo with input.bar as bar }`},
+		},
+		{
+			note: "with conflict",
+			exp:  fmt.Errorf("conflicting documents"),
+			modules: []string{`package ex
+			loopback = __local0__ { true; __local0__ = input }`},
+			rules: []string{`p = true { data.ex.loopback with input.foo as "x" with input.foo.bar as "y" }`},
+		},
+		{
+			note:  "with stack",
+			input: `{"a": {"d": 3}, "e": 4}`,
+			exp:   `{"a": {"b": 1, "c": 2, "d": 3}, "e": 4}`,
+			rules: []string{
+				`r = input { true }`,
+				`q = x { r = x with input.a.c as 2 }`,
+				`p = x { q = x with input.a.b as 1 }`,
+			},
+		},
+		{
+			note: "with stack (data)",
+			exp:  `{"a": {"b": 1, "c": 2, "d": 3}, "e": 4}`,
+			modules: []string{
+				`package test.a
+				d = 3`,
+				`package test
+				e = 4`,
+			},
+			rules: []string{
+				`r = data.test { true }`,
+				`q = x { r = x with data.test.a.c as 2 }`,
+				`p = x { q = x with data.test.a.b as 1 }`,
+			},
+		},
+		{
+			note:  "with stack overwrites",
+			input: `{"a": {"b": 1, "c": 2}}`,
+			exp:   `{"a": {"d": 3}}`,
+			rules: []string{
+				`q = input { true }`,
+				`p = x { q = x with input.a as {"d": 3} }`,
+			},
+		},
+		{
+			note: "with stack overwrites (data)",
+			exp:  `{"a": {"d": 3}}`,
+			modules: []string{
+				`package test
 
-allow1 {
-	data.label.b.c = [1,2,3]
-}
+				a = {"b": 1, "c": 2}`,
+			},
+			rules: []string{
+				`q = data.test { true }`,
+				`p = x { q = x with data.test.a as {"d": 3} }`,
+			},
+		},
+		{
+			note: "with invalidate",
+			exp:  `[2,3,4]`,
+			modules: []string{`package ex
+			input_eq = true { input.x = 1 }`},
+			rules: []string{`p[x] { data.a[_] = x; not data.ex.input_eq with input.x as x }`},
+		},
+		{
+			note:  "with invalidate input stack",
+			exp:   `["a", "b"]`,
+			input: `"b"`,
+			rules: []string{
+				`p = [x, y] { x = input with input as "a"; y = input }`,
+			},
+		},
+		{
+			note:  "with invalidate input stack iteration",
+			exp:   `[["a", "c"], ["b", "c"]]`,
+			input: `"c"`,
+			rules: []string{
+				`q[x] { input[_] = x }`,
+				`p[[x,y]] {
+					q[x] with input as ["a", "b"]
+					y = input
+				}`,
+			},
+		},
+		{
+			note:  "with invalidate virtual cache",
+			exp:   `["a", "b"]`,
+			input: "2",
+			rules: []string{
+				`q = "a" { input = x; x = 1 }`,
+				`q = "b" { input = x; x = 2 }`,
+				`p = [x, y] {
+					q = x with input as 1
+					q = y
+				}`},
+		},
+		{
+			note: "with invalidate data stack",
+			exp:  `["a", "b"]`,
+			rules: []string{
+				`q = "b" { true }`,
+				`p = [x ,y] {
+					q = x with q as "a"
+					q = y
+				}`,
+			},
+		},
+		{
+			note: "with invalidate data stack iteration",
+			exp:  `[["a", ["c"]], ["b", ["c"]]]`,
+			rules: []string{
+				`q["c"] { true }`,
+				`p[[x, y]] {
+					q[x] with q as {"a", "b"}
+					y = q
+				}`,
+			},
+		},
+		{
+			note: "with basic data",
+			exp:  `true`,
+			modules: []string{`package ex
+			allow_basic = true { data.a = "testdata" }`},
+			rules: []string{`p = true { data.ex.allow_basic = true with data.a as "testdata" }`},
+		},
+		{
+			note: "with map data overwrite",
+			exp:  `true`,
+			modules: []string{`package ex
+			allow_merge_1 = true { data.b = {"v1": "hello", "v2": "world"} }`},
+			rules: []string{`p = true { data.ex.allow_merge_1 = true with data.b.v2 as "world" }`},
+		},
+		{
+			note: "with map data new key",
+			exp:  `true`,
+			modules: []string{`package ex
+			allow_merge_2 = true { data.b = {"v1": "hello", "v2": "world", "v3": "again"} }`},
+			rules: []string{`p = true { data.ex.allow_merge_2 = true with data.b.v2 as "world" with data.b.v3 as "again" }`},
+		},
+		{
+			note: "with data conflict",
+			exp:  mergeConflictErr(nil),
+			modules: []string{`package ex
+			allow_basic = true { data.a = "testdata" }`},
+			rules: []string{`p = true { data.ex.allow_basic = true with data.a.b as 5 }`},
+		},
+		{
+			note:  "with base doc exact value",
+			exp:   `["c", "e"]`,
+			rules: []string{`p[x] { data.a.b[x] = 1 with data.a.b as {"c": 1, "d": 2, "e": 1} }`},
+		},
+		{
+			note:  "with base doc any index",
+			exp:   `["c", "d", "e"]`,
+			rules: []string{`p[x] { data.a.b[x] with data.a.b as {"c": 1, "d": 2, "e": 1} }`},
+		},
+		{
+			note:  "undefined_1",
+			exp:   "",
+			rules: []string{`p = true { data.a.b.c with data.a.b as 1 }`},
+		},
+		{
+			note:  "undefined_2",
+			exp:   "",
+			rules: []string{`p = true { data.l.a with data.l as 1 }`},
+		},
+		{
+			note: "with virtual doc exact value",
+			exp:  `[["c", "e"]]`,
+			modules: []string{`package ex
+			virtual[x] { data.a.b[x] = 1 }`},
+			rules: []string{`p[x] { data.ex.virtual = x with data.a.b as {"c": 1, "d": 2, "e": 1} }`},
+		},
+		{
+			note: "with virtual doc any index",
+			exp:  `["c", "e"]`,
+			modules: []string{`package ex
+			virtual[x] { data.a.b[x] = 1 }`},
+			rules: []string{`p[x] { data.ex.virtual[x] with data.a.b as {"c": 1, "d": 2, "e": 1} }`},
+		},
+		{
+			note: "with virtual doc specific index",
+			exp:  `"c"`,
+			modules: []string{`package ex
+			virtual[x] { data.a.b[x] = 1 }`},
+			rules: []string{`p = y { y = data.ex.virtual.c with data.a.b as {"c": 1, "d": 2, "e": 1} }`},
+		},
+		{
+			note: "with virtual doc not specific index",
+			exp:  `true`,
+			modules: []string{`package ex
+			virtual[x] { data.a.b[x] = 1 }`},
+			rules: []string{`p = true { not data.ex.virtual.d with data.a.b as {"c": 1, "d": 2, "e": 1} }`},
+		},
+		{
+			note: "with mock var",
+			exp:  `{"c": 1, "d": 2}`,
+			modules: []string{`package ex
+			mock_var = {"a": 0, "b": 0} { true }`},
+			rules: []string{`p = y { y = data.ex.mock_var with data.ex.mock_var as {"c": 1, "d": 2} }`},
+		},
+		{
+			note: "with mock rule",
+			exp:  `true`,
+			modules: []string{`package ex
+			mock_rule = false { 1 = 2 }`},
+			rules: []string{`p = true { data.ex.mock_rule with data.ex.mock_rule as true }`},
+		},
+		{
+			note: "with rule chain",
+			exp:  `true`,
+			modules: []string{`package ex
+			allow1 = true { data.label.b.c = [1, 2, 3] }
+			allow2 = true { data.label.b.c[x] = 2 }
+			allow3 = true { data.label.b[x] = 1 }
+			allow4 = true { data.label.b.c.d[x] = 1 }
+			allow = true { data.ex.allow1; data.ex.allow2; not data.ex.allow3; not data.ex.allow4 }`},
+			rules: []string{`p = true { data.ex.allow with data.label.b.c as [1, 2, 3] }`},
+		},
+		{
+			note: "with mock iteration on sets",
+			exp:  `[3,4]`,
+			rules: []string{
+				`q[1] { true }`,
+				`q[2] { true }`,
+				`p[x] { q[x] with q as {3,4} }`,
+			},
+		},
+		{
+			note: "with mock iteration on objects",
+			exp:  `{"a": 3, "c": 4}`,
+			rules: []string{
+				`q["a"] = 1 { true }`,
+				`q["b"] = 2 { true }`,
+				`p[x] = y { q[x] = y with q as {"a": 3, "c": 4} }`,
+			},
+		},
+		{
+			note: "with mock iteration on arrays",
+			exp:  `[3, 4]`,
+			rules: []string{
+				`q[1] { true }`,
+				`q[2] { true }`,
+				`p[x] { q[_] = x with q as [3,4] }`,
+			},
+		},
+		{
+			note: "bug 1083",
+			exp:  ``,
+			modules: []string{`package ex
+			input_eq = true { input.x = 1 }`},
+			rules: []string{`p = true { data.ex.input_eq with data.foo as 1 }`},
+		},
+		{
+			note: "bug 1100",
+			exp:  `true`,
+			modules: []string{`package ex
+			data_eq = true { data.a = x }`},
+			rules: []string{`p = true { data.ex.data_eq with input as {} }`},
+		},
+		{
+			note: "set lookup",
+			exp:  `true`,
+			modules: []string{`package ex
+			setl[x] { data.foo[x] }`},
+			rules: []string{`p = true { data.ex.setl[1] with data.foo as {1} }`},
+		},
+	}
 
-allow2 {
-	data.label.b.c[x] = 2
-}
-
-allow3 {
-	data.label.b[x] = 1
-}
-
-allow4 {
-	data.label.b.c.d[x] = 1
-}
-
-allow {
-	allow1
-	allow2
-	not allow3
-	not allow4
-}
-`,
-
-		`package test
-
-import data.ex
-
-basic = true { ex.loopback = true with input as true; ex.loopback = false with input as false }
-negation = true { not ex.loopback with input as false; ex.loopback with input as true }
-composite[x] { ex.composite[x] with input.foo as [1, 2, 3, 4] }
-vars = x { foo = "hello"; bar = "world"; x = ex.vars with input.foo as foo with input.bar as bar }
-conflict = true { ex.loopback with input.foo as "x" with input.foo.bar as "y" }
-negation_invalidate[x] { data.a[_] = x; not data.ex.input_eq with input.x as x }
-basic_data = true {ex.allow_basic = true with data.a as "testdata"}
-map_data_1 = true {ex.allow_merge_1 = true with data.b.v2 as "world"}
-map_data_2 = true {ex.allow_merge_2 = true with data.b.v2 as "world" with data.b.v3 as "again"}
-data_conflict = true {ex.allow_basic = true with data.a.b as 5}
-base_doc_exact_value[x] { data.a.b[x] = 1 with data.a.b as {"c": 1, "d": 2, "e": 1} }
-base_doc_any_index[x] { data.a.b[x] with data.a.b as {"c": 1, "d": 2, "e": 1} }
-undefined_1 { data.a.b.c with data.a.b as 1 }
-undefined_2 { data.l.a with data.l as 1 }
-virtual_doc_exact_value[x] { ex.virtual = x with data.a.b as {"c": 1, "d": 2, "e": 1} }
-virtual_doc_any_index[x] { ex.virtual[x] with data.a.b as {"c": 1, "d": 2, "e": 1} }
-virtual_doc_specific_index = y { y = ex.virtual["c"] with data.a.b as {"c": 1, "d": 2, "e": 1} }
-virtual_doc_not_specific_index = true { not ex.virtual["d"] with data.a.b as {"c": 1, "d": 2, "e": 1} }
-test_mock_var = y {y = ex.mock_var with ex.mock_var as {"c": 1, "d": 2}}
-test_mock_rule {ex.mock_rule with ex.mock_rule as true}
-test_rule_chain {ex.allow with data.label.b.c as [1,2,3]}
-only_with_data_no_with_input { ex.input_eq with data.foo as 1 }
-only_with_input_no_with_data { ex.data_eq with input as {} }
-mock_data_set { ex.setl[1] with data.foo as {1} }`,
-	})
-
-	store := inmem.NewFromObject(loadSmallTestData())
-
-	assertTopDownWithPath(t, compiler, store, "with", []string{"test", "basic"}, "", "true")
-	assertTopDownWithPath(t, compiler, store, "with not", []string{"test", "negation"}, "", "true")
-	assertTopDownWithPath(t, compiler, store, "with composite", []string{"test", "composite"}, "", "[3,4]")
-	assertTopDownWithPath(t, compiler, store, "with vars", []string{"test", "vars"}, "", `{"foo": "hello", "bar": "world"}`)
-	assertTopDownWithPath(t, compiler, store, "with conflict", []string{"test", "conflict"}, "", fmt.Errorf("conflicting input documents"))
-	assertTopDownWithPath(t, compiler, store, "With invalidate", []string{"test", "negation_invalidate"}, "", "[2,3,4]")
-	assertTopDownWithPath(t, compiler, store, "with basic data", []string{"test", "basic_data"}, "", "true")
-	assertTopDownWithPath(t, compiler, store, "with map data overwrite", []string{"test", "map_data_1"}, "", "true")
-	assertTopDownWithPath(t, compiler, store, "with map data new key", []string{"test", "map_data_2"}, "", "true")
-	assertTopDownWithPath(t, compiler, store, "with data conflict", []string{"test", "data_conflict"}, "", fmt.Errorf("eval_with_merge_error"))
-	assertTopDownWithPath(t, compiler, store, "with base doc exact value", []string{"test", "base_doc_exact_value"}, "", `["c", "e"]`)
-	assertTopDownWithPath(t, compiler, store, "with base doc any index", []string{"test", "base_doc_any_index"}, "", `["c", "d", "e"]`)
-	assertTopDownWithPath(t, compiler, store, "undefined_1", []string{"test", "undefined_1"}, "", "")
-	assertTopDownWithPath(t, compiler, store, "undefined_2", []string{"test", "undefined_2"}, "", "")
-	assertTopDownWithPath(t, compiler, store, "with virtual doc exact value", []string{"test", "virtual_doc_exact_value"}, "", `[["c", "e"]]`)
-	assertTopDownWithPath(t, compiler, store, "with virtual doc any index", []string{"test", "virtual_doc_any_index"}, "", `["c", "e"]`)
-	assertTopDownWithPath(t, compiler, store, "with virtual doc specific index", []string{"test", "virtual_doc_specific_index"}, "", `"c"`)
-	assertTopDownWithPath(t, compiler, store, "with virtual doc not specific index", []string{"test", "virtual_doc_not_specific_index"}, "", "true")
-	assertTopDownWithPath(t, compiler, store, "with mock var", []string{"test", "test_mock_var"}, "", `{"c": 1, "d": 2}`)
-	assertTopDownWithPath(t, compiler, store, "with mock rule", []string{"test", "test_mock_rule"}, "", "true")
-	assertTopDownWithPath(t, compiler, store, "with rule chain", []string{"test", "test_rule_chain"}, "", "true")
-	assertTopDownWithPath(t, compiler, store, "bug 1083", []string{"test", "only_with_data_no_with_input"}, "", "")
-	assertTopDownWithPath(t, compiler, store, "bug 1100", []string{"test", "only_with_input_no_with_data"}, "", "true")
-	assertTopDownWithPath(t, compiler, store, "set lookup", []string{"test", "mock_data_set"}, "", "true")
+	for _, tc := range tests {
+		runTopDownTestCaseWithModules(t, loadSmallTestData(), tc.note, tc.rules, tc.modules, tc.input, tc.exp)
+	}
 }
 
 func TestTopDownElseKeyword(t *testing.T) {
@@ -3036,7 +3245,7 @@ func compileModules(input []string) *ast.Compiler {
 	return c
 }
 
-func compileRules(imports []string, input []string) (*ast.Compiler, error) {
+func compileRules(imports []string, input []string, modules []string) (*ast.Compiler, error) {
 
 	p := ast.Ref{ast.DefaultRootDocument}
 
@@ -3066,8 +3275,15 @@ func compileRules(imports []string, input []string) (*ast.Compiler, error) {
 		rules[i].Module = m
 	}
 
+	mods := map[string]*ast.Module{"testMod": m}
+
+	for i, s := range modules {
+		mods[fmt.Sprintf("testMod%d", i)] = ast.MustParseModule(s)
+	}
+
 	c := ast.NewCompiler()
-	if c.Compile(map[string]*ast.Module{"testMod": m}); c.Failed() {
+
+	if c.Compile(mods); c.Failed() {
 		return nil, c.Errors
 	}
 
@@ -3143,12 +3359,16 @@ func loadSmallTestData() map[string]interface{} {
 }
 
 func runTopDownTestCase(t *testing.T, data map[string]interface{}, note string, rules []string, expected interface{}) {
+	runTopDownTestCaseWithModules(t, data, note, rules, nil, "", expected)
+}
+
+func runTopDownTestCaseWithModules(t *testing.T, data map[string]interface{}, note string, rules []string, modules []string, input string, expected interface{}) {
 	imports := []string{}
 	for k := range data {
 		imports = append(imports, "data."+k)
 	}
 
-	compiler, err := compileRules(imports, rules)
+	compiler, err := compileRules(imports, rules, modules)
 	if err != nil {
 		t.Errorf("%v: Compiler error: %v", note, err)
 		return
@@ -3156,7 +3376,7 @@ func runTopDownTestCase(t *testing.T, data map[string]interface{}, note string, 
 
 	store := inmem.NewFromObject(data)
 
-	assertTopDownWithPath(t, compiler, store, note, []string{"p"}, "", expected)
+	assertTopDownWithPath(t, compiler, store, note, []string{"p"}, input, expected)
 }
 
 func assertTopDownWithPath(t *testing.T, compiler *ast.Compiler, store storage.Store, note string, path []string, input string, expected interface{}) {
@@ -3271,6 +3491,8 @@ func assertTopDownWithPath(t *testing.T, compiler *ast.Compiler, store storage.S
 			if len(path) > 0 {
 				runTopDownPartialTestCase(ctx, t, compiler, store, txn, inputTerm, rhs, body, requiresSort, expected)
 			}
+		default:
+			t.Fatalf("Unexpected expected value type: %+v", e)
 		}
 	})
 }

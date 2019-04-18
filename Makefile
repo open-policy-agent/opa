@@ -2,7 +2,7 @@
 # Use of this source code is governed by an Apache2
 # license that can be found in the LICENSE file.
 
-VERSION := 0.10.7-dev
+VERSION := 0.10.8-dev
 
 GO := go
 GOVERSION := 1.11
@@ -21,7 +21,7 @@ BUILD_COMMIT := $(shell ./build/get-build-commit.sh)
 BUILD_TIMESTAMP := $(shell ./build/get-build-timestamp.sh)
 BUILD_HOSTNAME := $(shell ./build/get-build-hostname.sh)
 
-RELEASE_BUILDER_VERSION := 1.1
+RELEASE_BUILDER_VERSION := 1.2
 
 LDFLAGS := "-X github.com/open-policy-agent/opa/version.Version=$(VERSION) \
 	-X github.com/open-policy-agent/opa/version.Vcs=$(BUILD_COMMIT) \
@@ -172,6 +172,9 @@ clean: wasm-clean
 	rm -f opa_*_*
 	rm -fr _test
 
+.PHONY: site
+site:
+	$(MAKE) -C docs -f Makefile.ghpages VERSION=$(VERSION)
 
 ######################################################
 #

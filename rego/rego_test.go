@@ -273,3 +273,37 @@ func TestRegoCatchPathConflicts(t *testing.T) {
 		t.Fatal("expected error")
 	}
 }
+
+func TestPartialRewriteEquals(t *testing.T) {
+	mod := `
+	package test
+	default p = false
+	p {
+		input.x = 1
+	}
+	`
+	r := New(
+		Query("data.test.p == true"),
+		Module("test.rego", mod),
+	)
+
+	ctx := context.Background()
+	pq, err := r.Partial(ctx)
+
+	if err != nil {
+		t.Fatalf("unexpected error from Rego.Partial(): %s", err.Error())
+	}
+
+	// Expect to not have any "support" in the resulting queries
+	if len(pq.Support) > 0 {
+		t.Errorf("expected to not have any Support in PartialQueries: %+v", pq)
+	}
+
+	expectedQuery := "input.x = 1"
+	if len(pq.Queries) != 1 {
+		t.Errorf("expected 1 query but found %d: %+v", len(pq.Queries), pq)
+	}
+	if pq.Queries[0].String() != expectedQuery {
+		t.Errorf("unexpected query in result, expected='%s' found='%s'", expectedQuery, pq.Queries[0].String())
+	}
+}

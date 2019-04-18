@@ -10,55 +10,55 @@ import (
 	"github.com/open-policy-agent/opa/ast"
 )
 
-var errConflictingInputDoc = fmt.Errorf("conflicting input documents")
-var errBadInputPath = fmt.Errorf("bad input document path")
+var errConflictingDoc = fmt.Errorf("conflicting documents")
+var errBadPath = fmt.Errorf("bad document path")
 
-func makeInput(pairs [][2]*ast.Term) (ast.Value, error) {
+func mergeTermWithValues(exist *ast.Term, pairs [][2]*ast.Term) (*ast.Term, error) {
 
-	// Fast-path for empty case.
-	if len(pairs) == 0 {
-		return nil, nil
+	var result *ast.Term
+
+	if exist != nil {
+		result = exist.Copy()
 	}
-
-	// Fast-path for the root case.
-	if len(pairs) == 1 && pairs[0][0].Value.Compare(ast.InputRootRef) == 0 {
-		return pairs[0][1].Value, nil
-	}
-
-	var input ast.Value
 
 	for _, pair := range pairs {
 
 		if err := ast.IsValidImportPath(pair[0].Value); err != nil {
-			return nil, errBadInputPath
+			return nil, errBadPath
 		}
 
-		ref := pair[0].Value.(ast.Ref)
+		target := pair[0].Value.(ast.Ref)
 
-		if len(ref) == 1 {
-			if input != nil {
-				return nil, errConflictingInputDoc
-			}
-			input = pair[1].Value
+		if len(target) == 1 {
+			result = pair[1]
+		} else if result == nil {
+			result = ast.NewTerm(makeTree(target[1:], pair[1]))
 		} else {
-			obj := makeTree(ref[1:], pair[1])
-			if input == nil {
-				input = obj
-			} else {
-				reqObj, ok := input.(ast.Object)
-				if !ok {
-					return nil, errConflictingInputDoc
-				}
-				input, ok = reqObj.Merge(obj)
-				if !ok {
-					return nil, errConflictingInputDoc
+			node := result
+			done := false
+			for i := 1; i < len(target)-1 && !done; i++ {
+				if child := node.Get(target[i]); child == nil {
+					obj, ok := node.Value.(ast.Object)
+					if !ok {
+						return nil, errConflictingDoc
+					}
+					obj.Insert(target[i], ast.NewTerm(makeTree(target[i+1:], pair[1])))
+					done = true
+				} else {
+					node = child
 				}
 			}
-
+			if !done {
+				obj, ok := node.Value.(ast.Object)
+				if !ok {
+					return nil, errConflictingDoc
+				}
+				obj.Insert(target[len(target)-1], pair[1])
+			}
 		}
 	}
 
-	return input, nil
+	return result, nil
 }
 
 // makeTree returns an object that represents a document where the value v is

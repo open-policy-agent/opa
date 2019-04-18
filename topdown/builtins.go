@@ -174,7 +174,7 @@ func handleBuiltinErr(name string, loc *ast.Location, err error) error {
 		}
 	default:
 		return &Error{
-			Code:     InternalErr,
+			Code:     BuiltinErr,
 			Message:  fmt.Sprintf("%v: %v", string(name), err.Error()),
 			Location: loc,
 		}

@@ -78,43 +78,21 @@ func newBaseCache() *baseCache {
 	}
 }
 
-func (c *baseCache) Get(ref ast.Ref) (ast.Value, bool) {
+func (c *baseCache) Get(ref ast.Ref) ast.Value {
 	node := c.root
 	for i := 0; i < len(ref); i++ {
 		node = node.children[ref[i].Value]
 		if node == nil {
-			return nil, false
+			return nil
 		} else if node.value != nil {
 			result, err := node.value.Find(ref[i+1:])
 			if err != nil {
-				return nil, false
+				return nil
 			}
-			return result, true
+			return result
 		}
 	}
-
-	// exact match for ref not found
-	val, err := c.getAllChildren(node)
-	if err != nil {
-		return nil, false
-	}
-	return val, false
-}
-
-func (c *baseCache) getAllChildren(node *baseCacheElem) (ast.Value, error) {
-	res := ast.NewObject()
-	for val, elem := range node.children {
-		if elem.value != nil {
-			res.Insert(ast.NewTerm(val), ast.NewTerm(elem.value))
-		} else {
-			children, err := c.getAllChildren(elem)
-			if err != nil {
-				return nil, err
-			}
-			res.Insert(ast.NewTerm(val), ast.NewTerm(children))
-		}
-	}
-	return res, nil
+	return nil
 }
 
 func (c *baseCache) Put(ref ast.Ref, value ast.Value) {
@@ -131,31 +109,6 @@ func (c *baseCache) Put(ref ast.Ref, value ast.Value) {
 	node.set(value)
 }
 
-func (c *baseCache) Remove(ref ast.Ref) {
-	c.remove(c.root, ref, 0)
-}
-
-func (c *baseCache) remove(current *baseCacheElem, ref ast.Ref, index int) bool {
-
-	if index == len(ref) {
-		current.set(nil)
-		return len(current.children) == 0
-	}
-
-	node := current.children[ref[index].Value]
-	if node == nil {
-		return false
-	}
-
-	removeCurrentNode := c.remove(node, ref, index+1)
-
-	if removeCurrentNode {
-		delete(current.children, ref[index].Value)
-		return len(current.children) == 0
-	}
-	return false
-}
-
 type baseCacheElem struct {
 	value    ast.Value
 	children map[ast.Value]*baseCacheElem
@@ -170,4 +123,37 @@ func newBaseCacheElem() *baseCacheElem {
 func (e *baseCacheElem) set(value ast.Value) {
 	e.value = value
 	e.children = map[ast.Value]*baseCacheElem{}
+}
+
+type refStack struct {
+	sl []refStackElem
+}
+
+type refStackElem struct {
+	refs []ast.Ref
+}
+
+func newRefStack() *refStack {
+	return &refStack{}
+}
+
+func (s *refStack) Push(refs []ast.Ref) {
+	s.sl = append(s.sl, refStackElem{refs: refs})
+}
+
+func (s *refStack) Pop() {
+	s.sl = s.sl[:len(s.sl)-1]
+}
+
+func (s *refStack) Prefixed(ref ast.Ref) bool {
+	if s != nil {
+		for i := len(s.sl) - 1; i >= 0; i-- {
+			for j := range s.sl[i].refs {
+				if ref.HasPrefix(s.sl[i].refs[j]) {
+					return true
+				}
+			}
+		}
+	}
+	return false
 }
