@@ -8,6 +8,7 @@ setup:
 	npm install
 
 serve:
+	@echo "- latest" > ./data/releases.yaml
 	ENV=local hugo server \
 		--buildDrafts \
 		--buildFuture
