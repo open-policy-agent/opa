@@ -30,7 +30,7 @@
 //               |
 //               +--- Body
 //                     |
-//                     +--- Expression (Term | Terms)
+//                     +--- Expression (Term | Terms | Variable Declaration)
 //
 // At query time, the policy engine expects policies to have been compiled. The compilation stage takes one or more modules and compiles them into a format that the policy engine supports.
 package ast

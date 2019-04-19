@@ -484,6 +484,23 @@ func TestWithString(t *testing.T) {
 	}
 }
 
+func TestVarDeclString(t *testing.T) {
+
+	decl := &VarDecl{
+		Symbols: []*Term{
+			VarTerm("a"),
+			VarTerm("b"),
+		},
+	}
+
+	result := decl.String()
+	expected := "var a, b"
+
+	if result != expected {
+		t.Fatalf("Expected %v but got %v", expected, result)
+	}
+}
+
 func assertExprEqual(t *testing.T, a, b *Expr) {
 	if !a.Equal(b) {
 		t.Errorf("Expressions are not equal (expected equal): a=%v b=%v", a, b)
