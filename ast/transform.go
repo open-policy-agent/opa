@@ -142,6 +142,15 @@ func Transform(t Transformer, x interface{}) (interface{}, error) {
 		return y, nil
 	case *Expr:
 		switch ts := y.Terms.(type) {
+		case *VarDecl:
+			decl, err := Transform(t, ts)
+			if err != nil {
+				return nil, err
+			}
+			if y.Terms, ok = decl.(*VarDecl); !ok {
+				return nil, fmt.Errorf("illegal transform: %T != %T", y, decl)
+			}
+			return y, nil
 		case []*Term:
 			for i := range ts {
 				if ts[i], err = transformTerm(t, ts[i]); err != nil {
