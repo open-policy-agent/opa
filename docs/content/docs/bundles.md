@@ -74,6 +74,14 @@ If the `bundle.prefix` field is not defined, the value defaults to `bundles`.
 
 See the following section for details on the bundle file format.
 
+### Caching
+
+Services implementing the Bundle Service API should set the HTTP `Etag` header
+in bundle responses to identify the revision of the bundle. OPA will include the
+`Etag` value in the `If-None-Match` header of bundle requests. Services can
+check the `If-None-Match` header and reply with HTTP `304 Not Modified` if the
+bundle has not changed since the last update.
+
 ## Bundle File Format
 
 Bundle files are gzipped tarballs that contain policies and data. The data
