@@ -471,6 +471,65 @@ func TestExprWith(t *testing.T) {
 	})
 }
 
+func TestVarDeclExpr(t *testing.T) {
+
+	assertParseOneExpr(t, "one", "var x", &Expr{
+		Terms: &VarDecl{
+			Symbols: []*Term{
+				VarTerm("x"),
+			},
+		},
+	})
+
+	assertParseOneExpr(t, "multiple", "var x, y", &Expr{
+		Terms: &VarDecl{
+			Symbols: []*Term{
+				VarTerm("x"),
+				VarTerm("y"),
+			},
+		},
+	})
+
+	assertParseOneExpr(t, "multiple split across lines", `var x, y,
+		z`, &Expr{
+		Terms: &VarDecl{
+			Symbols: []*Term{
+				VarTerm("x"),
+				VarTerm("y"),
+				VarTerm("z"),
+			},
+		},
+	})
+
+	assertParseRule(t, "whitespace separated", `
+
+		p[x] {
+			var x
+			q[x]
+		}
+	`, &Rule{
+		Head: NewHead(Var("p"), VarTerm("x")),
+		Body: NewBody(
+			NewExpr(&VarDecl{Symbols: []*Term{VarTerm("x")}}),
+			NewExpr(RefTerm(VarTerm("q"), VarTerm("x"))),
+		),
+	})
+
+	assertParseRule(t, "whitespace terminated", `
+
+	p[x] {
+		var x
+		x
+	}
+`, &Rule{
+		Head: NewHead(Var("p"), VarTerm("x")),
+		Body: NewBody(
+			NewExpr(&VarDecl{Symbols: []*Term{VarTerm("x")}}),
+			NewExpr(VarTerm("x")),
+		),
+	})
+}
+
 func TestNestedExpressions(t *testing.T) {
 
 	n1 := IntNumberTerm(1)
