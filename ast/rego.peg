@@ -71,7 +71,17 @@ WhitespaceLiteralSeparator <- [ \t]* ((NonWhitespaceLiteralSeparator Comment?) /
 
 NonWhitespaceLiteralSeparator <- ";"
 
-Literal <- negated:NotKeyword? value:LiteralExpr with:WithKeywordList? {
+Literal <- TermExpr / VarDecl
+
+VarDecl <- "var" ws symbols:VarDeclList {
+    return makeVarDeclLiteral(currentLocation(c), symbols)
+}
+
+VarDeclList <- head:Var rest:( _ ',' _ Var)* {
+    return makeVarDeclSymbols(head, rest)
+}
+
+TermExpr <- negated:NotKeyword? value:LiteralExpr with:WithKeywordList? {
     return makeLiteral(negated, value, with)
 }
 

@@ -299,6 +299,28 @@ func makeLiteralExpr(loc *Location, lhs, rest interface{}) (interface{}, error) 
 	return expr, nil
 }
 
+func makeVarDeclLiteral(loc *Location, sl interface{}) (interface{}, error) {
+	symbols := sl.([]*Term)
+	return NewExpr(&VarDecl{Location: loc, Symbols: symbols}).SetLocation(loc), nil
+}
+
+func makeVarDeclSymbols(head interface{}, rest interface{}) (interface{}, error) {
+
+	var symbols []*Term
+
+	symbols = append(symbols, head.(*Term))
+
+	if sl1, ok := rest.([]interface{}); ok {
+		for i := range sl1 {
+			if sl2, ok := sl1[i].([]interface{}); ok {
+				symbols = append(symbols, sl2[3].(*Term))
+			}
+		}
+	}
+
+	return symbols, nil
+}
+
 func makeWithKeywordList(head, tail interface{}) (interface{}, error) {
 	var withs []*With
 
