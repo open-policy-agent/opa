@@ -1097,7 +1097,7 @@ func (qc *queryCompiler) resolveRefs(qctx *QueryContext, body Body) (Body, error
 		qctx.Imports = nil
 	}
 
-	ignore := &assignedVarStack{assignedVars(body)}
+	ignore := &declaredVarStack{declaredVars(body)}
 
 	return resolveRefsInBody(globals, ignore, body), nil
 }
@@ -1935,13 +1935,13 @@ func requiresEval(x *Term) bool {
 	return ContainsRefs(x) || ContainsComprehensions(x)
 }
 
-func resolveRef(globals map[Var]Ref, ignore *assignedVarStack, ref Ref) Ref {
+func resolveRef(globals map[Var]Ref, ignore *declaredVarStack, ref Ref) Ref {
 
 	r := Ref{}
 	for i, x := range ref {
 		switch v := x.Value.(type) {
 		case Var:
-			if g, ok := globals[v]; ok && !ignore.Assigned(v) {
+			if g, ok := globals[v]; ok && !ignore.Contains(v) {
 				cpy := g.Copy()
 				for i := range cpy {
 					cpy[i].SetLocation(x.Location)
@@ -1965,7 +1965,7 @@ func resolveRef(globals map[Var]Ref, ignore *assignedVarStack, ref Ref) Ref {
 }
 
 func resolveRefsInRule(globals map[Var]Ref, rule *Rule) error {
-	ignore := &assignedVarStack{}
+	ignore := &declaredVarStack{}
 
 	vars := NewVarSet()
 	var vis Visitor
@@ -2013,7 +2013,7 @@ func resolveRefsInRule(globals map[Var]Ref, rule *Rule) error {
 	}
 
 	ignore.Push(vars)
-	ignore.Push(assignedVars(rule.Body))
+	ignore.Push(declaredVars(rule.Body))
 
 	if rule.Head.Key != nil {
 		rule.Head.Key = resolveRefsInTerm(globals, ignore, rule.Head.Key)
@@ -2027,7 +2027,7 @@ func resolveRefsInRule(globals map[Var]Ref, rule *Rule) error {
 	return nil
 }
 
-func resolveRefsInBody(globals map[Var]Ref, ignore *assignedVarStack, body Body) Body {
+func resolveRefsInBody(globals map[Var]Ref, ignore *declaredVarStack, body Body) Body {
 	r := Body{}
 	for _, expr := range body {
 		r = append(r, resolveRefsInExpr(globals, ignore, expr))
@@ -2035,7 +2035,7 @@ func resolveRefsInBody(globals map[Var]Ref, ignore *assignedVarStack, body Body)
 	return r
 }
 
-func resolveRefsInExpr(globals map[Var]Ref, ignore *assignedVarStack, expr *Expr) *Expr {
+func resolveRefsInExpr(globals map[Var]Ref, ignore *declaredVarStack, expr *Expr) *Expr {
 	cpy := *expr
 	switch ts := expr.Terms.(type) {
 	case *Term:
@@ -2054,10 +2054,10 @@ func resolveRefsInExpr(globals map[Var]Ref, ignore *assignedVarStack, expr *Expr
 	return &cpy
 }
 
-func resolveRefsInTerm(globals map[Var]Ref, ignore *assignedVarStack, term *Term) *Term {
+func resolveRefsInTerm(globals map[Var]Ref, ignore *declaredVarStack, term *Term) *Term {
 	switch v := term.Value.(type) {
 	case Var:
-		if g, ok := globals[v]; ok && !ignore.Assigned(v) {
+		if g, ok := globals[v]; ok && !ignore.Contains(v) {
 			cpy := g.Copy()
 			for i := range cpy {
 				cpy[i].SetLocation(term.Location)
@@ -2095,7 +2095,7 @@ func resolveRefsInTerm(globals map[Var]Ref, ignore *assignedVarStack, term *Term
 		return &cpy
 	case *ArrayComprehension:
 		ac := &ArrayComprehension{}
-		ignore.Push(assignedVars(v.Body))
+		ignore.Push(declaredVars(v.Body))
 		defer ignore.Pop()
 		ac.Term = resolveRefsInTerm(globals, ignore, v.Term)
 		ac.Body = resolveRefsInBody(globals, ignore, v.Body)
@@ -2104,7 +2104,7 @@ func resolveRefsInTerm(globals map[Var]Ref, ignore *assignedVarStack, term *Term
 		return &cpy
 	case *ObjectComprehension:
 		oc := &ObjectComprehension{}
-		ignore.Push(assignedVars(v.Body))
+		ignore.Push(declaredVars(v.Body))
 		defer ignore.Pop()
 		oc.Key = resolveRefsInTerm(globals, ignore, v.Key)
 		oc.Value = resolveRefsInTerm(globals, ignore, v.Value)
@@ -2114,7 +2114,7 @@ func resolveRefsInTerm(globals map[Var]Ref, ignore *assignedVarStack, term *Term
 		return &cpy
 	case *SetComprehension:
 		sc := &SetComprehension{}
-		ignore.Push(assignedVars(v.Body))
+		ignore.Push(declaredVars(v.Body))
 		defer ignore.Pop()
 		sc.Term = resolveRefsInTerm(globals, ignore, v.Term)
 		sc.Body = resolveRefsInBody(globals, ignore, v.Body)
@@ -2126,7 +2126,7 @@ func resolveRefsInTerm(globals map[Var]Ref, ignore *assignedVarStack, term *Term
 	}
 }
 
-func resolveRefsInTermSlice(globals map[Var]Ref, ignore *assignedVarStack, terms []*Term) []*Term {
+func resolveRefsInTermSlice(globals map[Var]Ref, ignore *declaredVarStack, terms []*Term) []*Term {
 	cpy := make([]*Term, len(terms))
 	for i := 0; i < len(terms); i++ {
 		cpy[i] = resolveRefsInTerm(globals, ignore, terms[i])
@@ -2134,9 +2134,9 @@ func resolveRefsInTermSlice(globals map[Var]Ref, ignore *assignedVarStack, terms
 	return cpy
 }
 
-type assignedVarStack []VarSet
+type declaredVarStack []VarSet
 
-func (s assignedVarStack) Assigned(v Var) bool {
+func (s declaredVarStack) Contains(v Var) bool {
 	for i := len(s) - 1; i >= 0; i-- {
 		if _, ok := s[i][v]; ok {
 			return ok
@@ -2145,19 +2145,20 @@ func (s assignedVarStack) Assigned(v Var) bool {
 	return false
 }
 
-func (s assignedVarStack) Add(v Var) {
+func (s declaredVarStack) Add(v Var) {
 	s[len(s)-1].Add(v)
 }
 
-func (s *assignedVarStack) Push(vs VarSet) {
+func (s *declaredVarStack) Push(vs VarSet) {
 	*s = append(*s, vs)
 }
 
-func (s *assignedVarStack) Pop() {
+func (s *declaredVarStack) Pop() {
 	curr := *s
 	*s = curr[:len(curr)-1]
 }
-func assignedVars(x interface{}) VarSet {
+
+func declaredVars(x interface{}) VarSet {
 	vars := NewVarSet()
 	vis := NewGenericVisitor(func(x interface{}) bool {
 		switch x := x.(type) {
