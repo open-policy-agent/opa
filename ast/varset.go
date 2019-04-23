@@ -71,6 +71,18 @@ func (s VarSet) Intersect(vs VarSet) VarSet {
 	return r
 }
 
+// Sorted returns a sorted slice of vars from s.
+func (s VarSet) Sorted() []Var {
+	sorted := make([]Var, 0, len(s))
+	for v := range s {
+		sorted = append(sorted, v)
+	}
+	sort.Slice(sorted, func(i, j int) bool {
+		return sorted[i].Compare(sorted[j]) < 0
+	})
+	return sorted
+}
+
 // Update merges the other VarSet into this VarSet.
 func (s VarSet) Update(vs VarSet) {
 	for v := range vs {
