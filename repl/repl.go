@@ -16,16 +16,15 @@ import (
 	"strconv"
 	"strings"
 
-	pr "github.com/open-policy-agent/opa/internal/presentation"
-	"github.com/open-policy-agent/opa/profiler"
-	"github.com/open-policy-agent/opa/rego"
-	"github.com/open-policy-agent/opa/topdown/notes"
-
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/format"
+	pr "github.com/open-policy-agent/opa/internal/presentation"
 	"github.com/open-policy-agent/opa/metrics"
+	"github.com/open-policy-agent/opa/profiler"
+	"github.com/open-policy-agent/opa/rego"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/topdown"
+	"github.com/open-policy-agent/opa/topdown/notes"
 	"github.com/peterh/liner"
 )
 
@@ -621,6 +620,14 @@ func (r *REPL) compileBody(ctx context.Context, compiler *ast.Compiler, body ast
 }
 
 func (r *REPL) compileRule(ctx context.Context, rule *ast.Rule, unset bool) error {
+
+	if unset {
+		_, err := r.unsetRule(ctx, rule.Head.Name)
+		if err != nil {
+			return err
+		}
+	}
+
 	r.timerStart(metrics.RegoModuleCompile)
 	defer r.timerStop(metrics.RegoModuleCompile)
 
@@ -780,7 +787,7 @@ func (r *REPL) loadInput(ctx context.Context, compiler *ast.Compiler) (ast.Value
 }
 
 func (r *REPL) evalStatement(ctx context.Context, stmt interface{}) error {
-	switch s := stmt.(type) {
+	switch stmt := stmt.(type) {
 	case ast.Body:
 		compiler, err := r.loadCompiler(ctx)
 		if err != nil {
@@ -792,37 +799,19 @@ func (r *REPL) evalStatement(ctx context.Context, stmt interface{}) error {
 			return err
 		}
 
-		parsedBody := s
-
-		if len(parsedBody) == 1 && parsedBody[0].IsAssignment() && len(parsedBody[0].Operands()) == 2 {
-			expr := parsedBody[0]
-			rule, err := ast.ParseCompleteDocRuleFromEqExpr(r.getCurrentOrDefaultModule(), expr.Operand(0), expr.Operand(1))
-			if err == nil {
-				ok, err := r.unsetRule(ctx, rule.Head.Name)
-				if err != nil {
-					return err
-				}
-				return r.compileRule(ctx, rule, ok)
-			}
-		}
-
-		compiledBody, typeEnv, err := r.compileBody(ctx, compiler, parsedBody)
-		if err != nil {
+		if ok, err := r.interpretAsRule(ctx, compiler, stmt); ok || err != nil {
 			return err
 		}
 
-		if len(compiledBody) == 1 && compiledBody[0].IsEquality() {
-			expr := compiledBody[0]
-			rule, err := ast.ParseCompleteDocRuleFromEqExpr(r.getCurrentOrDefaultModule(), expr.Operand(0), expr.Operand(1))
-			if err == nil {
-				return r.compileRule(ctx, rule, false)
-			}
+		compiledBody, typeEnv, err := r.compileBody(ctx, compiler, stmt)
+		if err != nil {
+			return err
 		}
 
 		if len(r.unknowns) > 0 {
 			err = r.evalPartial(ctx, compiler, input, compiledBody)
 		} else {
-			err = r.evalBody(ctx, compiler, input, parsedBody)
+			err = r.evalBody(ctx, compiler, input, stmt)
 			if r.types {
 				r.printTypes(ctx, typeEnv, compiledBody)
 			}
@@ -830,11 +819,11 @@ func (r *REPL) evalStatement(ctx context.Context, stmt interface{}) error {
 
 		return err
 	case *ast.Rule:
-		return r.compileRule(ctx, s, false)
+		return r.compileRule(ctx, stmt, false)
 	case *ast.Import:
-		return r.evalImport(ctx, s)
+		return r.evalImport(ctx, stmt)
 	case *ast.Package:
-		return r.evalPackage(s)
+		return r.evalPackage(stmt)
 	}
 	return nil
 }
@@ -977,6 +966,61 @@ func (r *REPL) evalPackage(p *ast.Package) error {
 	r.currentModuleID = moduleID
 
 	return nil
+}
+
+// interpretAsRule attempts to interpret the supplied query as a rule
+// definition. If the query is a single := or = statement and it can be
+// converted into a rule and compiled, then it will be interpreted as such. This
+// allows users to define constants in the REPL. For example:
+//
+//	> a = 1
+//  > a
+//  1
+//
+// If the expression is a = statement, then an additional check on the left
+// hand side occurs. For example:
+//
+//	> b = 2
+//  > b = 2
+//  true      # not redefined!
+func (r *REPL) interpretAsRule(ctx context.Context, compiler *ast.Compiler, body ast.Body) (bool, error) {
+
+	if len(body) != 1 {
+		return false, nil
+	}
+
+	expr := body[0]
+
+	if len(expr.Operands()) != 2 {
+		return false, nil
+	}
+
+	if expr.IsAssignment() {
+		rule, err := ast.ParseCompleteDocRuleFromEqExpr(r.getCurrentOrDefaultModule(), expr.Operand(0), expr.Operand(1))
+		if err == nil {
+			if err := r.compileRule(ctx, rule, expr.IsAssignment()); err != nil {
+				return false, err
+			}
+		}
+		return rule != nil, nil
+	}
+
+	if !expr.IsEquality() {
+		return false, nil
+	}
+
+	if isGlobalInModule(compiler, r.getCurrentOrDefaultModule(), body[0].Operand(0)) {
+		return false, nil
+	}
+
+	rule, err := ast.ParseCompleteDocRuleFromEqExpr(r.getCurrentOrDefaultModule(), expr.Operand(0), expr.Operand(1))
+	if err == nil {
+		if err := r.compileRule(ctx, rule, expr.IsAssignment()); err != nil {
+			return false, err
+		}
+	}
+
+	return rule != nil, nil
 }
 
 func (r *REPL) getPrompt() string {
@@ -1132,6 +1176,32 @@ func dumpStorage(ctx context.Context, store storage.Store, txn storage.Transacti
 	}
 	e := json.NewEncoder(w)
 	return e.Encode(data)
+}
+
+func isGlobalInModule(compiler *ast.Compiler, module *ast.Module, term *ast.Term) bool {
+
+	v, ok := term.Value.(ast.Var)
+	if !ok {
+		return false
+	}
+
+	for _, imp := range module.Imports {
+		if imp.Name().Compare(v) == 0 {
+			return true
+		}
+	}
+
+	path := module.Package.Path.Copy().Append(ast.StringTerm(string(v)))
+	node := compiler.RuleTree
+
+	for _, elem := range path {
+		node = node.Child(elem.Value)
+		if node == nil {
+			return false
+		}
+	}
+
+	return len(node.Values) > 0
 }
 
 func printHelp(output io.Writer, initPrompt string) {
