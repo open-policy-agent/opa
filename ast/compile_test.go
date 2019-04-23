@@ -5,6 +5,7 @@
 package ast
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
 	"sort"
@@ -1098,9 +1099,10 @@ elsekw {
 }
 
 func TestCompilerRewriteLocalAssignments(t *testing.T) {
+
 	tests := []struct {
 		module string
-		exp    interface{}
+		exp    string
 	}{
 		{
 			module: `
@@ -1115,11 +1117,11 @@ func TestCompilerRewriteLocalAssignments(t *testing.T) {
 		{
 			module: `
 				package test
-				head_vars(a) = b { a := 1; b := a }
+				head_vars(a) = b { b := a }
 			`,
 			exp: `
 				package test
-				head_vars(__local0__) = __local1__ { __local0__ = 1; __local1__ = __local0__ }
+				head_vars(a) = __local0__ { __local0__ = a }
 			`,
 		},
 		{
@@ -1130,6 +1132,37 @@ func TestCompilerRewriteLocalAssignments(t *testing.T) {
 			exp: `
 				package test
 				head_key[__local0__] { __local0__ = 1 }
+			`,
+		},
+		{
+			module: `
+				package test
+				p = {1,2,3}
+				x = 4
+				head_nested[p[x]] {
+					var x
+				}`,
+			exp: `
+					package test
+					p = {1,2,3}
+					x = 4
+					head_nested[data.test.p[__local0__]]
+			`,
+		},
+		{
+			module: `
+				package test
+				p = {1,2}
+				head_closure_nested[p[x]] {
+					y = [true | var x; x = 1]
+				}
+			`,
+			exp: `
+				package test
+				p = {1,2}
+				head_closure_nested[data.test.p[x]] {
+					y = [true | __local0__ = 1]
+				}
 			`,
 		},
 		{
@@ -1332,28 +1365,18 @@ func TestCompilerRewriteLocalAssignments(t *testing.T) {
 			module: `
 				package test
 				f(x) = y {
-					x := 1
+					x == 1
 					y := 2
 				} else = y {
-					x := 3
+					x == 3
 					y := 4
 				}
 			`,
-			// NOTE(tsandall): using a function here because we can't declare
-			// function args in else block due to syntax. Need to construct the
-			// rule programmatically for the time being.
-			exp: func(t *testing.T, result *Module) {
-				els := result.Rules[0].Else
-				exp := MustParseRule(`
-					f(__local2__) = __local3__ {
-						__local2__ = 3
-						__local3__ = 4
-					}
-				`)
-				if els.Compare(exp) != 0 {
-					t.Fatalf("Expected %v but got %v", exp, els)
-				}
-			},
+			exp: `
+				package test
+
+				f(x) = __local0__ { x == 1; __local0__ = 2 } else = __local1__ { x == 3; __local1__ = 4 }
+			`,
 		},
 	}
 
@@ -1363,21 +1386,13 @@ func TestCompilerRewriteLocalAssignments(t *testing.T) {
 			c.Modules = map[string]*Module{
 				"test.rego": MustParseModule(tc.module),
 			}
-			compileStages(c, c.rewriteLocalAssignments)
+			compileStages(c, c.rewriteLocalVars)
 			assertNotFailed(t, c)
 			result := c.Modules["test.rego"]
-			switch e := tc.exp.(type) {
-			case string:
-				exp := MustParseModule(e)
-				if result.Compare(exp) != 0 {
-					t.Fatalf("Expected:\n\n%v\n\nGot:\n\n%v", exp, result)
-				}
-			case func(*testing.T, *Module):
-				e(t, result)
-			default:
-				t.Fatalf("Unexpected expected value: %+v", e)
+			exp := MustParseModule(tc.exp)
+			if result.Compare(exp) != 0 {
+				t.Fatalf("Expected:\n\n%v\n\nGot:\n\n%v", exp, result)
 			}
-
 		})
 	}
 
@@ -1414,15 +1429,20 @@ func TestRewriteLocalVarDeclarationErrors(t *testing.T) {
 		data.foo := 1
 		[z, 1] := [1, 2]
 	}
+
+	arg_redeclared(arg1) {
+		arg1 := 1
+	}
 	`)
 
-	compileStages(c, c.rewriteLocalAssignments)
+	compileStages(c, c.rewriteLocalVars)
 
 	expectedErrors := []string{
 		"var r1 referenced above",
 		"var r2 assigned above",
 		"var input referenced above",
 		"var nested assigned above",
+		"arg arg1 redeclared",
 		"cannot assign vars inside negated expression",
 		"cannot assign to ref",
 		"cannot assign to arraycomprehension",
@@ -1454,6 +1474,187 @@ func TestRewriteLocalVarDeclarationErrors(t *testing.T) {
 		if result[i] != expectedErrors[i] {
 			t.Fatalf("Expected:\n\n%v\n\nGot:\n\n%v", strings.Join(expectedErrors, "\n"), strings.Join(result, "\n"))
 		}
+	}
+}
+
+func TestRewriteDeclaredVars(t *testing.T) {
+	tests := []struct {
+		note    string
+		module  string
+		exp     string
+		wantErr error
+	}{
+		{
+			note: "rewrite unify",
+			module: `
+				package test
+				x = 1
+				y = 2
+				p { var x; input = [x, y] }
+			`,
+			exp: `
+				package test
+				x = 1
+				y = 2
+				p { __local1__ = data.test.y; input = [__local0__, __local1__] }
+			`,
+		},
+		{
+			note: "rewrite call",
+			module: `
+				package test
+				x = []
+				y = {}
+				p { var x; walk(y, [x, y]) }
+			`,
+			exp: `
+				package test
+				x = []
+				y = {}
+				p { __local1__ = data.test.y; __local2__ = data.test.y; walk(__local1__, [__local0__, __local2__]) }
+			`,
+		},
+		{
+			note: "rewrite term",
+			module: `
+				package test
+				x = "a"
+				y = 1
+				q[[2, "b"]]
+				p { var x; q[[y,x]] }
+			`,
+			exp: `
+				package test
+				x = "a"
+				y = 1
+				q[[2, "b"]]
+				p { __local1__ = data.test.y; data.test.q[[__local1__, __local0__]] }
+			`,
+		},
+		{
+			note: "rewrite closures",
+			module: `
+				package test
+				x = 1
+				y = 2
+				p {
+					var x, z
+					z = 3
+					[x | x = 2; y = 2; var z; z = 4]
+				}
+			`,
+			exp: `
+				package test
+				x = 1
+				y = 2
+				p {
+					__local1__ = 3
+					[__local0__ | __local0__ = 2; data.test.y = 2; __local2__ = 4]
+				}
+			`,
+		},
+		{
+			note: "rewrite head var",
+			module: `
+				package test
+				x = "a"
+				y = 1
+				z = 2
+				p[x] = [y, z] {
+					var x, z
+					x = "b"
+					z = 4
+				}`,
+			exp: `
+				package test
+				x = "a"
+				y = 1
+				z = 2
+				p[__local0__] = __local2__ {
+					__local0__ = "b"
+					__local1__ = 4;
+					__local3__ = data.test.y
+					__local2__ = [__local3__, __local1__]
+				}
+			`,
+		},
+		{
+			note: "redeclare err",
+			module: `
+				package test
+				p {
+					var x
+					var x
+				}
+			`,
+			wantErr: errors.New("var x declared above"),
+		},
+		{
+			note: "redeclare assigned err",
+			module: `
+				package test
+				p {
+					x := 1
+					var x
+				}
+			`,
+			wantErr: errors.New("var x assigned above"),
+		},
+		{
+			note: "redeclare reference err",
+			module: `
+				package test
+				p {
+					data.q[x]
+					var x
+				}
+			`,
+			wantErr: errors.New("var x referenced above"),
+		},
+		{
+			note: "declare unused err",
+			module: `
+				package test
+				p {
+					var x
+				}
+			`,
+			wantErr: errors.New("declared var x unused"),
+		},
+		{
+			note: "declare arg err",
+			module: `
+			package test
+
+			f([a]) {
+				var a
+				a = 1
+			}
+			`,
+			wantErr: errors.New("arg a redeclared"),
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			compiler, err := CompileModules(map[string]string{"test.rego": tc.module})
+			if tc.wantErr != nil {
+				if err == nil {
+					t.Fatal("Expected error but got success")
+				}
+				if !strings.Contains(err.Error(), tc.wantErr.Error()) {
+					t.Fatalf("Expected %v but got %v", tc.wantErr, err)
+				}
+			} else if err != nil {
+				t.Fatal(err)
+			} else {
+				exp := MustParseModule(tc.exp)
+				result := compiler.Modules["test.rego"]
+				if exp.Compare(result) != 0 {
+					t.Fatalf("Expected:\n\n%v\n\nGot:\n\n%v", exp, result)
+				}
+			}
+		})
 	}
 }
 
