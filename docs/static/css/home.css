@@ -369,6 +369,7 @@ main {
 }
 
 .headline {
+  overflow: hidden;
   position: relative;
   padding: 0 0 240px;
 }
