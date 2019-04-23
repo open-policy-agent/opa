@@ -1304,10 +1304,10 @@ func TestRewriteLocalVarDeclarationErrors(t *testing.T) {
 	compileStages(c, c.rewriteLocalAssignments)
 
 	expectedErrors := []string{
-		"var r1 assigned or referenced above",
-		"var r2 assigned or referenced above",
-		"var input assigned or referenced above",
-		"var nested assigned or referenced above",
+		"var r1 referenced above",
+		"var r2 assigned above",
+		"var input referenced above",
+		"var nested assigned above",
 		"cannot assign vars inside negated expression",
 		"cannot assign to ref",
 		"cannot assign to arraycomprehension",
