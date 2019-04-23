@@ -7,6 +7,13 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 - Update topdown to return `eval_builtin_error` instead of
   `eval_internal_error`.
+- Remove `ast.WithInput()` option for `ast.QueryCompiler` and the `Input` field from
+  the `QueryContext` struct.
+- Add `rego.Rego#PrepareForEval()` and `rego.Rego#PrepareForPartial()` function to
+  pre-process the `Rego` object for performance improvements on subsequent `Eval`
+  or `Partial` calls.
+- Add new metric `rego_input_parse` and no longer count input parsing as time spent
+  in the `rego_query_compile` step.
 
 ## 0.10.7
 
