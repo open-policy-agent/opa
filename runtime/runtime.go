@@ -303,9 +303,9 @@ func (rt *Runtime) StartServer(ctx context.Context) {
 			defer cancel()
 			err = s.Shutdown(ctx)
 			if err != nil {
-				logrus.WithField("err", err).Error("Failed to shutdown server gracefully")
+				logrus.WithField("err", err).Error("Failed to shutdown server gracefully.")
 			} else {
-				logrus.Info("Server shutdown")
+				logrus.Info("Server shutdown.")
 			}
 			os.Exit(1)
 		case err := <-errc:
