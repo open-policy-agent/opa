@@ -1098,175 +1098,290 @@ elsekw {
 }
 
 func TestCompilerRewriteLocalAssignments(t *testing.T) {
-
-	c := NewCompiler()
-
-	c.Modules["test1"] = MustParseModule(`package test
-
-	body { a := 1; a > 0 }
-	head_vars(a) = b { a := 1; b := a }
-	head_key[a] { a := 1 }
-	nested {
-		a := [1,2,3]
-		x := [true | a[i] > 1]
+	tests := []struct {
+		module string
+		exp    interface{}
+	}{
+		{
+			module: `
+				package test
+				body { a := 1; a > 0 }
+			`,
+			exp: `
+				package test
+				body = true { __local0__ = 1; gt(__local0__, 0) }
+			`,
+		},
+		{
+			module: `
+				package test
+				head_vars(a) = b { a := 1; b := a }
+			`,
+			exp: `
+				package test
+				head_vars(__local0__) = __local1__ { __local0__ = 1; __local1__ = __local0__ }
+			`,
+		},
+		{
+			module: `
+				package test
+				head_key[a] { a := 1 }
+			`,
+			exp: `
+				package test
+				head_key[__local0__] { __local0__ = 1 }
+			`,
+		},
+		{
+			module: `
+				package test
+				nested {
+					a := [1,2,3]
+					x := [true | a[i] > 1]
+				}
+			`,
+			exp: `
+				package test
+				nested = true { __local0__ = [1, 2, 3]; __local1__ = [true | gt(__local0__[i], 1)] }
+			`,
+		},
+		{
+			module: `
+				package test
+				x = 2
+				shadow_globals[x] { x := 1 }
+			`,
+			exp: `
+				package test
+				x = 2 { true }
+				shadow_globals[__local0__] { __local0__ = 1 }
+			`,
+		},
+		{
+			module: `
+				package test
+				shadow_rule[shadow_rule] { shadow_rule := 1 }
+			`,
+			exp: `
+				package test
+				shadow_rule[__local0__] { __local0__ = 1 }
+			`,
+		},
+		{
+			module: `
+				package test
+				shadow_roots_1 { data := 1; input := 2; input > data }
+			`,
+			exp: `
+				package test
+				shadow_roots_1 = true { __local0__ = 1; __local1__ = 2; gt(__local1__, __local0__) }
+			`,
+		},
+		{
+			module: `
+				package test
+				shadow_roots_2 { input := {"a": 1}; input.a > 0  }
+			`,
+			exp: `
+				package test
+				shadow_roots_2 = true { __local0__ = {"a": 1}; gt(__local0__.a, 0) }
+			`,
+		},
+		{
+			module: `
+				package test
+				skip_with_target { a := 1; input := 2; data.p with input as a }
+			`,
+			exp: `
+				package test
+				skip_with_target = true { __local0__ = 1; __local1__ = 2; data.p with input as __local0__ }
+			`,
+		},
+		{
+			module: `
+				package test
+				shadow_comprehensions {
+					a := 1
+					[true | a := 2; b := 1]
+					b := 2
+				}
+			`,
+			exp: `
+				package test
+				shadow_comprehensions = true { __local0__ = 1; [true | __local1__ = 2; __local2__ = 1]; __local3__ = 2 }
+			`,
+		},
+		{
+			module: `
+				package test
+					scoping {
+						[true | a := 1]
+						[true | a := 2]
+					}
+			`,
+			exp: `
+				package test
+				scoping = true { [true | __local0__ = 1]; [true | __local1__ = 2] }
+			`,
+		},
+		{
+			module: `
+				package test
+				object_keys {
+					{k: v1, "k2": v2} := {"foo": 1, "k2": 2}
+				}
+			`,
+			exp: `
+				package test
+				object_keys = true { {k: __local0__, "k2": __local1__} = {"foo": 1, "k2": 2} }
+			`,
+		},
+		{
+			module: `
+				package test
+				head_array_comprehensions = [[x] | x := 1]
+					head_set_comprehensions = {[x] | x := 1}
+					head_object_comprehensions = {k: [x] | k := "foo"; x := 1}
+			`,
+			exp: `
+				package test
+				head_array_comprehensions = [[__local0__] | __local0__ = 1] { true }
+				head_set_comprehensions = {[__local1__] | __local1__ = 1} { true }
+				head_object_comprehensions = {__local2__: [__local3__] | __local2__ = "foo"; __local3__ = 1} { true }
+			`,
+		},
+		{
+			module: `
+				package test
+				rewritten_object_key {
+					k := "foo"
+					{k: 1}
+				}
+			`,
+			exp: `
+				package test
+				rewritten_object_key = true { __local0__ = "foo"; {__local0__: 1} }
+			`,
+		},
+		{
+			module: `
+				package test
+				rewritten_object_key_head[[{k: 1}]] {
+					k := "foo"
+				}
+			`,
+			exp: `
+				package test
+				rewritten_object_key_head[[{__local0__: 1}]] { __local0__ = "foo" }
+			`,
+		},
+		{
+			module: `
+				package test
+				rewritten_object_key_head_value = [{k: 1}] {
+					k := "foo"
+				}
+			`,
+			exp: `
+				package test
+				rewritten_object_key_head_value = [{__local0__: 1}] { __local0__ = "foo" }
+			`,
+		},
+		{
+			module: `
+				package test
+				skip_with_target_in_assignment {
+					input := 1
+					a := [true | true with input as 2; true with input as 3]
+				}
+			`,
+			exp: `
+				package test
+				skip_with_target_in_assignment = true { __local0__ = 1; __local1__ = [true | true with input as 2; true with input as 3] }
+			`,
+		},
+		{
+			module: `
+				package test
+				rewrite_value_in_assignment {
+					a := 1
+					b := 1 with input as [a]
+				}
+			`,
+			exp: `
+				package test
+				rewrite_value_in_assignment = true { __local0__ = 1; __local1__ = 1 with input as [__local0__] }
+			`,
+		},
+		{
+			module: `
+				package test
+				global = {}
+				ref_shadowed {
+					global := {"a": 1}
+					global.a > 0
+				}
+			`,
+			exp: `
+				package test
+				global = {} { true }
+				ref_shadowed = true { __local0__ = {"a": 1}; gt(__local0__.a, 0) }
+			`,
+		},
+		{
+			module: `
+				package test
+				f(x) = y {
+					x := 1
+					y := 2
+				} else = y {
+					x := 3
+					y := 4
+				}
+			`,
+			// NOTE(tsandall): using a function here because we can't declare
+			// function args in else block due to syntax. Need to construct the
+			// rule programmatically for the time being.
+			exp: func(t *testing.T, result *Module) {
+				els := result.Rules[0].Else
+				exp := MustParseRule(`
+					f(__local2__) = __local3__ {
+						__local2__ = 3
+						__local3__ = 4
+					}
+				`)
+				if els.Compare(exp) != 0 {
+					t.Fatalf("Expected %v but got %v", exp, els)
+				}
+			},
+		},
 	}
 
-	x = 2
-	shadow_globals[x] { x := 1 }
-	shadow_rule[shadow_rule] { shadow_rule := 1 }
-	shadow_roots_1 { data := 1; input := 2; input > data }
-	shadow_roots_2 { input := {"a": 1}; input.a > 0  }
+	for i, tc := range tests {
+		t.Run(fmt.Sprint(i), func(t *testing.T) {
+			c := NewCompiler()
+			c.Modules = map[string]*Module{
+				"test.rego": MustParseModule(tc.module),
+			}
+			compileStages(c, c.rewriteLocalAssignments)
+			assertNotFailed(t, c)
+			result := c.Modules["test.rego"]
+			switch e := tc.exp.(type) {
+			case string:
+				exp := MustParseModule(e)
+				if result.Compare(exp) != 0 {
+					t.Fatalf("Expected:\n\n%v\n\nGot:\n\n%v", exp, result)
+				}
+			case func(*testing.T, *Module):
+				e(t, result)
+			default:
+				t.Fatalf("Unexpected expected value: %+v", e)
+			}
 
-	skip_with_target { a := 1; input := 2; data.p with input as a }
-
-	shadow_comprehensions {
-		a := 1
-		[true | a := 2; b := 1]
-		b := 2
-	}
-
-	scoping {
-		[true | a := 1]
-		[true | a := 2]
-	}
-
-	object_keys {
-		{k: v1, "k2": v2} := {"foo": 1, "k2": 2}
-	}
-
-	head_array_comprehensions = [[x] | x := 1]
-	head_set_comprehensions = {[x] | x := 1}
-	head_object_comprehensions = {k: [x] | k := "foo"; x := 1}
-
-	rewritten_object_key {
-		k := "foo"
-		{k: 1}
-	}
-
-	rewritten_object_key_head[[{k: 1}]] {
-		k := "foo"
-	}
-
-	rewritten_object_key_head_value = [{k: 1}] {
-		k := "foo"
-	}
-
-	skip_with_target_in_assignment {
-		input := 1
-		a := [true | true with input as 2; true with input as 3]
-	}
-
-	rewrite_value_in_assignment {
-		a := 1
-		b := 1 with input as [a]
-	}
-
-	global = {}
-
-	ref_shadowed {
-		global := {"a": 1}
-		global.a > 0
-	}
-	`)
-
-	c.Modules["test2"] = MustParseModule(`package test
-
-	f(x) = y {
-		x := 1
-		y := 2
-	} else = y {
-		x := 3
-		y := 4
-	}
-	`)
-
-	compileStages(c, c.rewriteLocalAssignments)
-	assertNotFailed(t, c)
-	if t.Failed() {
-		return
-	}
-
-	module1 := c.Modules["test1"]
-
-	expectedModule := MustParseModule(`package test
-
-	body { __local0__ = 1; __local0__ > 0 }
-	head_vars(__local1__) = __local2__ { __local1__ = 1; __local2__ = __local1__ }
-	head_key[__local3__] { __local3__ = 1 }
-	nested {
-		__local4__ = [1,2,3]
-		__local5__ = [true  | __local4__[i] > 1]
-	}
-
-	x = 2 { true }
-	shadow_globals[__local6__] { __local6__ = 1 }
-	shadow_rule[__local7__] { __local7__ = 1 }
-	shadow_roots_1 { __local8__ = 1; __local9__ = 2; __local9__ > __local8__ }
-	shadow_roots_2 { __local10__ = {"a": 1}; __local10__.a > 0 }
-
-	skip_with_target { __local11__ = 1; __local12__ = 2; data.p with input as __local11__ }
-
-	shadow_comprehensions {
-		__local13__ = 1
-		[true | __local14__ = 2; __local15__ = 1]
-		__local16__ = 2
-	}
-
-	scoping {
-		[true | __local17__ = 1]
-		[true | __local18__ = 2]
-	}
-
-	object_keys {
-		{k: __local19__, "k2": __local20__} = {"foo": 1, "k2": 2}
-	}
-
-	head_array_comprehensions = [[__local21__] | __local21__ = 1]
-	head_set_comprehensions = {[__local22__] | __local22__ = 1}
-	head_object_comprehensions = {__local23__: [__local24__] | __local23__ = "foo"; __local24__ = 1}
-
-	rewritten_object_key = true { __local25__ = "foo"; {__local25__: 1} }
-	rewritten_object_key_head[[{__local26__: 1}]] { __local26__ = "foo" }
-	rewritten_object_key_head_value = [{__local27__: 1}] { __local27__ = "foo" }
-
-	skip_with_target_in_assignment {
-		__local28__ = 1
-		__local29__ = [true | true with input as 2; true with input as 3]
-	}
-
-	rewrite_value_in_assignment {
-		__local30__ = 1
-		__local31__ = 1 with input as [__local30__]
-	}
-
-	global = {}
-
-	ref_shadowed { __local32__ = {"a": 1}; __local32__.a > 0 }
-	`)
-
-	if len(module1.Rules) != len(expectedModule.Rules) {
-		t.Fatalf("Expected %d rules but got %d. Expected:\n\n%v\n\nGot:\n\n%v", len(expectedModule.Rules), len(module1.Rules), expectedModule, module1)
-	}
-
-	for i := range module1.Rules {
-		a := expectedModule.Rules[i]
-		b := module1.Rules[i]
-		if !a.Equal(b) {
-			t.Errorf("Expected rule %d to be:\n\n%v\n\nGot:\n\n%v", i, a, b)
-		}
-	}
-
-	module2 := c.Modules["test2"]
-
-	resultElse := module2.Rules[0].Else
-	expectedElse := MustParseRule(`f(__local2__) = __local3__ { __local2__ = 3; __local3__ = 4 } `)
-
-	if !resultElse.Equal(expectedElse) {
-		t.Errorf("Expected else rule:\n\n%v\n\nGot:\n\n%v", expectedElse, resultElse)
+		})
 	}
 
 }
-
 func TestRewriteLocalVarDeclarationErrors(t *testing.T) {
 
 	c := NewCompiler()
