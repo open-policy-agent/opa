@@ -37,7 +37,7 @@ represents a policy decision returned by OPA.
     "labels": {
       "app": "my-example-app",
       "id": "1780d507-aea2-45cc-ae50-fa153c8e4a5a",
-      "version": "v{{< latest >}}"
+      "version": "{{< latest >}}"
     },
     "decision_id": "4ca636c1-55e4-417a-b1d8-4aceb67960d1",
     "revision": "W3sibCI6InN5cy9jYXRhbG9nIiwicyI6NDA3MX1d",
