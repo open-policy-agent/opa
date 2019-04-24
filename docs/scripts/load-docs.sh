@@ -4,7 +4,14 @@ set -x
 
 RELEASES=$(cat RELEASES)
 
-ORIGINAL_COMMIT=$(git rev-parse HEAD)
+ORIGINAL_COMMIT=$(git name-rev --name-only HEAD)
+# If no name can be found "git name-rev" returns
+# "undefined", in which case we'll just use the
+# current commit ID.
+if [[ "${ORIGINAL_COMMIT}" == "undefined" ]]; then
+    ORIGINAL_COMMIT=$(git rev-parse HEAD)
+fi
+
 ROOT_DIR=$(git rev-parse --show-toplevel)
 RELEASES_YAML_FILE=${ROOT_DIR}/docs/data/releases.yaml
 GIT_VERSION=$(git --version)
