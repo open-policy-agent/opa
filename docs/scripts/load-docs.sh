@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -x
+set -xe
 
 RELEASES=$(cat RELEASES)
 
@@ -21,6 +21,30 @@ echo "Git version: ${GIT_VERSION}"
 echo "Removing data/releases.yaml file"
 rm -f ${RELEASES_YAML_FILE}
 
+echo "Saving current workspace state"
+STASH_TOKEN=$(cat /dev/urandom | LC_CTYPE=C tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1)
+git stash push --include-untracked -m "${STASH_TOKEN}"
+
+function cleanup {
+    EXIT_CODE=$?
+    echo "Returning to commit ${ORIGINAL_COMMIT}"
+    git checkout ${ORIGINAL_COMMIT}
+
+    # Only pop from the stash if we had stashed something earlier
+    if [[ -n "$(git stash list | head -1 | grep ${STASH_TOKEN} || echo '')" ]]; then
+        git stash pop
+    fi
+
+    if [[ "${EXIT_CODE}" != "0" ]]; then 
+        echo "Error loading docs"
+        exit ${EXIT_CODE}
+    fi
+
+    echo "Docs loading complete"
+}
+
+trap cleanup EXIT
+
 echo "Removing any already-copied versioned docs from the generated folder"
 rm -rf ${ROOT_DIR}/docs/generated/docs/v*
 
@@ -38,7 +62,4 @@ for release in ${RELEASES}; do
     cp ${ROOT_DIR}/docs/content/docs/* ${version_docs_dir}/
 done
 
-echo "Returning to commit ${ORIGINAL_COMMIT}"
-git checkout ${ORIGINAL_COMMIT}
 
-echo "Docs loading complete"
