@@ -2,7 +2,7 @@
 {{ $home       := site.BaseURL }}
 {{ $logo       := site.Params.logos.sidebar | relURL }}
 {{ $releases   := site.Data.releases }}
-{{ $latest     := printf "v%s" (index $releases 0) }}
+{{ $latest     := index $releases 0 }}
 {{ $version    := index (split .File.Path "/") 1 }}
 {{ $isLatest   := eq $version $latest }}
 <div class="dashboard">
@@ -43,8 +43,8 @@
           <div class="dropdown-content">
             {{ range $releases }}
             {{ $isLatest := eq . (index site.Data.releases 0) }}
-            <a href="/docs/v{{ . }}" class="dropdown-item">
-              v{{ . }}
+            <a href="/docs/{{ . }}" class="dropdown-item">
+              {{ . }}
               {{ if $isLatest }}
               <span class="tag latest-tag is-success is-small has-text-weight-bold">
                   latest

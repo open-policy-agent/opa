@@ -4,8 +4,8 @@
 {{ $tagline     := site.Params.tagline }}
 {{ $socialMenu  := site.Menus.social }}
 {{ $latest      := index site.Data.releases 0 }}
-{{ $docs        := cond $localMode "/docs" (printf "/docs/v%s" $latest) }}
-{{ $getStarted  := cond $localMode "/docs/get-started" (printf "/docs/v%s/get-started" $latest) }}
+{{ $docs        := cond $localMode "/docs" (printf "/docs/%s" $latest) }}
+{{ $getStarted  := cond $localMode "/docs/get-started" (printf "/docs/%s/get-started" $latest) }}
 <header role="banner">
   <nav class="nav--banner" role="navigation">
     <ul class="nav--menu">

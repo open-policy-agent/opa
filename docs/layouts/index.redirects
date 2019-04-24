@@ -7,17 +7,17 @@
 /docs     /docs/latest
 
 # Rewrite "latest" to latest version of docs
-/docs/latest     /docs/v{{ $latest }}     200
-/docs/latest/*     /docs/v{{ $latest }}/:splat     200
+/docs/latest     /docs/{{ $latest }}     200
+/docs/latest/*     /docs/{{ $latest }}/:splat     200
 
 # Support for example bundles published on github
 /bundles     https://open-policy-agent.github.io/opa/bundles     200
 /bundles/*     https://open-policy-agent.github.io/opa/bundles/:splat     200
 
 {{- range $docRedirects }}
-/docs/{{ . }}     /docs/v{{ $latest }}/{{ . }}
+/docs/{{ . }}     /docs/{{ $latest }}/{{ . }}
 
 # Legacy git book redirects
-/docs/{{ . }}.html /docs/v{{ $latest }}/{{ . }}
+/docs/{{ . }}.html /docs/{{ $latest }}/{{ . }}
 {{- end }}
 {{- end }}
