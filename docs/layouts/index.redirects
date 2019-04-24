@@ -10,6 +10,10 @@
 /docs/latest     /docs/v{{ $latest }}     200
 /docs/latest/*     /docs/v{{ $latest }}/:splat     200
 
+# Support for example bundles published on github
+/bundles     https://open-policy-agent.github.io/opa/bundles     200
+/bundles/*     https://open-policy-agent.github.io/opa/bundles/:splat     200
+
 {{- range $docRedirects }}
 /docs/{{ . }}     /docs/v{{ $latest }}/{{ . }}
 
