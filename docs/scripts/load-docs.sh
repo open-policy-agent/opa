@@ -4,7 +4,7 @@ set -x
 
 RELEASES=$(cat RELEASES)
 
-ORIGINAL_COMMIT=$(git rev-parse HEAD)
+ORIGINAL_COMMIT=$(git rev-parse --abbrev-ref HEAD)
 ROOT_DIR=$(git rev-parse --show-toplevel)
 RELEASES_YAML_FILE=${ROOT_DIR}/docs/data/releases.yaml
 GIT_VERSION=$(git --version)
