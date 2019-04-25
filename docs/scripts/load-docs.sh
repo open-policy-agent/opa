@@ -78,4 +78,5 @@ echo 'Adding "edge" to releases.yaml'
 echo "- edge" >> ${RELEASES_YAML_FILE}
 
 # Link instead of copy so we don't need to re-generate each time.
-ln -s ${ROOT_DIR}/docs/content/ ${ROOT_DIR}/docs/generated/docs/edge
+# Use a relative link so it works in a container more easily.
+ln -s ../../content ${ROOT_DIR}/docs/generated/docs/edge
