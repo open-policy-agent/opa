@@ -9,6 +9,10 @@ pygmentsUseClasses = false
 pygmentsStyle = "tango"
 pygmentsGuessSyntax = true
 
+# Don't try and render the code snippets as html pages
+# the are loaded via shortcode helpers.
+ignorefiles = [ "/docs/v.*/code/.*" ]
+
 [params]
 description = "Policy-based control for cloud native environments"
 tagline = "Empower your administrators with flexible, fine-grained control across your entire stack."

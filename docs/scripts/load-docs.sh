@@ -51,16 +51,23 @@ rm -f ${RELEASES_YAML_FILE}
 
 for release in ${RELEASES}; do
     version_docs_dir=${ROOT_DIR}/docs/generated/docs/${release}
+
     mkdir -p ${version_docs_dir}
 
     echo "Adding ${release} to releases.yaml"
     echo "- ${release}" >> ${RELEASES_YAML_FILE}
 
-    echo "Checking out tag ${release}"
+    echo "Copying doc content from tag ${release}"
     git checkout ${release}
 
-    echo "Copying ${ROOT_DIR}/docs/content/docs/* to ${version_docs_dir}/"
-    cp ${ROOT_DIR}/docs/content/docs/* ${version_docs_dir}/
+    # TODO: Remove this check once we are no longer showing docs for v0.10.7 
+    # or older those releases have the docs content in a different location.
+    if [[ -d "${ROOT_DIR}/docs/content/code/" ]]; then
+        # new location
+        cp -r ${ROOT_DIR}/docs/content/* ${version_docs_dir}/
+    else
+        # old location
+        cp -r ${ROOT_DIR}/docs/content/docs/* ${version_docs_dir}/
+        cp -r ${ROOT_DIR}/docs/code ${version_docs_dir}/
+    fi
 done
-
-
