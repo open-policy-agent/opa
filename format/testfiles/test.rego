@@ -185,6 +185,12 @@ empty_sets {
     set() # comment at end of set
 }
 
+vardecls {
+    var v1,  v2,# c1
+        v3,v4, # c2
+        v5 # c3
+}
+
 # more comments!
 # more comments!
 # more comments!
