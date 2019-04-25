@@ -111,6 +111,7 @@ default allow = false
 
 # Allow users to get their own salaries.
 allow {
+  var username
   input.method == "GET"
   input.path = ["finance", "salary", username]
   input.user == username
@@ -118,6 +119,7 @@ allow {
 
 # Allow managers to get their subordinates' salaries.
 allow {
+  var username
   input.method == "GET"
   input.path = ["finance", "salary", username]
   subordinates[input.user][_] == username
@@ -229,6 +231,7 @@ default allow = false
 
 # Allow users to get their own salaries.
 allow {
+  var username
   input.method == "GET"
   input.path = ["finance", "salary", username]
   token.payload.user == username
@@ -237,6 +240,7 @@ allow {
 
 # Allow managers to get their subordinate' salaries.
 allow {
+  var username
   input.method == "GET"
   input.path = ["finance", "salary", username]
   token.payload.subordinates[_] == username

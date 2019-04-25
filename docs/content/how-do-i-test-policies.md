@@ -31,6 +31,7 @@ allow {
 }
 
 allow {
+    var profile_id
     input.path = ["users", profile_id]
     input.method == "GET"
     profile_id == input.user_id
@@ -475,22 +476,23 @@ roles = [
 default allow = false
 
 allow {
-	user_has_role[role_name]
-	role_has_permission[role_name]
+    var role_name
+    user_has_role[role_name]
+    role_has_permission[role_name]
 }
 
 user_has_role[role_name] {
-	binding := bindings[_]
-	binding.user == input.subject
-	role_name := binding.roles[_]
+    binding := bindings[_]
+    binding.user == input.subject
+    role_name := binding.roles[_]
 }
 
 role_has_permission[role_name] {
-	role := roles[_]
-	role_name := role.name
-	perm := role.permissions[_]
-	perm.resource == input.resource
-	perm.action == input.action
+    role := roles[_]
+    role_name := role.name
+    perm := role.permissions[_]
+    perm.resource == input.resource
+    perm.action == input.action
 }
 ```
 

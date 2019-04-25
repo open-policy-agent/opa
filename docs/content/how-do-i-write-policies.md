@@ -169,7 +169,7 @@ Rego [References](#references) help you refer to nested documents. For example:
 ```ruby
 sites := [{"name": "prod"}, {"name": "smoke1"}, {"name": "dev"}]
 
-r { sites[i].name == "prod" }
+r { sites[_].name == "prod" }
 ```
 
 The rule `r` above asserts that there exists (at least) one document within `sites` where the `name` attribute equals `"prod"`.
@@ -184,7 +184,7 @@ true
 We can generalize the example above with a rule that defines a set document instead of a boolean document:
 
 ```ruby
-q[name] { name := sites[i].name }
+q[name] { name := sites[_].name }
 ```
 
 The value of `q` is a set of names
@@ -309,7 +309,7 @@ defined in terms of scalars, variables, references, and other composite values.
 For example:
 
 ```ruby
-> s := {cube.width, cube.height, cube.depth}; count(s, n)
+> s := {cube.width, cube.height, cube.depth}; n := count(s)
 +---+---------+
 | n |    s    |
 +---+---------+
@@ -343,7 +343,7 @@ Because sets share curly-brace syntax with objects, and an empty object is
 defined with `{}`, an empty set has to be constructed with a different syntax:
 
 ```ruby
-> count(set(), n)
+> n := count(set())
 +---+
 | n |
 +---+
@@ -366,7 +366,7 @@ sites := [
     {"name": "dev"}
 ]
 
-q[name] { name := sites[i].name }
+q[name] { name := sites[_].name }
 ```
 
 In this case, we evaluate `q` with a variable `x` (which is not bound to a value). As as result, the query returns all of the values for `x` and all of the values for `q[x]`, which are always the same because `q` is a set.
@@ -514,6 +514,7 @@ Rules are often written in terms of multiple expressions that contain references
 
 ```ruby
 apps_and_hostnames[[name, hostname]] {
+    var i, j, k
     name := apps[i].name
     server := apps[i].servers[_]
     sites[j].servers[k].name == server
@@ -550,6 +551,7 @@ Using a different key on the same array or object provides the equivalent of sel
 
 ```ruby
 same_site[apps[k].name] {
+    var i, j, k
     apps[i].name == "mysql"
     server := apps[i].servers[_]
     server == sites[j].servers[_].name
@@ -755,6 +757,7 @@ Rules that define objects are very similar to rules that define sets.
 
 ```ruby
 apps_by_hostname[hostname] = app {
+    var i
     server := sites[_].servers[_]
     hostname := server.hostname
     apps[i].servers[_] = server.name
@@ -876,8 +879,7 @@ OPA returns an error in this case because the rule definitions are in *conflict*
 The documents produced by rules with complete definitions may still be undefined:
 
 ```ruby
-> unset user
-> user == "johnson"  # user is not in either of the sets defined earlier.
+> user := "johnson"  # user is not in either of the sets defined earlier.
 > max_memory
 undefined
 ```
@@ -1140,6 +1142,74 @@ http_servers[server] {
     server.protocols[_] == "http"
 }
 ```
+
+## Var Keyword
+
+The `var` keyword allows queries to explicitly declare local variables. Use the
+`var` keyword in rules that contain unification statements or references with
+variable operands **if** variables contained in those statements are not
+declared using `:=` .
+
+| Statement | Example | Variables |
+| --- | --- | --- |
+| Unification | `input.a = [["b", x], [y, "c"]]` | `x` and `y` |
+| Reference with variable operands | `data.foo[i].bar[j]` | `i` and `j` |
+
+For example, the following rule generates tuples of array indices for servers in
+the "west" region that contain "db" in their name. The first element in the
+tuple is the site index and the second element is the server index.
+
+```ruby
+tuples[[i, j]] {
+    var i, j
+    sites[i].region == "west"
+    server := sites[i].servers[j]    # note: 'server' is local because it's declared with :=
+    contains(server.name, "db")
+}
+```
+
+If we query for the tuples we get two results:
+
+```ruby
+> tuples
+[
+  [
+    1,
+    2
+  ],
+  [
+    2,
+    1
+  ]
+]
+```
+
+Since we have declared `i`, `j`, and `server` to be local, we can introduce
+rules in the same package without affecting the result:
+
+```ruby
+# Define a rule called 'i'
+> i := 1
+> tuples
+[
+  [
+    1,
+    2
+  ],
+  [
+    2,
+    1
+  ]
+]
+```
+
+If we had not declared `i` with the `var` keyword, introducing the `i` rule
+above would have changed the result of `tuples` because the `i` symbol in the
+body would capture the global value.
+
+The `var` keyword is not required but it's recommended to avoid situations like
+the one above where introduction of a rule inside a package could change
+behaviour of other rules.
 
 ## With Keyword
 

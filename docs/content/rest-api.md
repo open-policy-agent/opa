@@ -648,6 +648,7 @@ import data.networks
 import data.ports
 
 public_servers[server] {
+  var k, m
 	server := servers[_]
 	server.ports[_] == ports[k].id
 	ports[k].networks[_] == networks[m].id
@@ -1384,7 +1385,7 @@ Content-Type: text/plain
 package system
 
 main = msg {
-  sprintf("hello, %v", input.user, msg)
+  msg := sprintf("hello, %v", input.user)
 }
 ```
 
@@ -1521,7 +1522,7 @@ The example below assumes that OPA has been given the following policy:
 package example
 
 allow {
-  input.subject.clearance_level >= data.reports[i].clearance_level
+  input.subject.clearance_level >= data.reports[_].clearance_level
 }
 ```
 

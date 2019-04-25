@@ -3,6 +3,7 @@ package kubernetes.admission
 import data.kubernetes.ingresses
 
 deny[msg] {
+    var other_ns, other_ingress
     input.request.kind.kind == "Ingress"
     input.request.operation == "CREATE"
     host := input.request.object.spec.rules[_].host
