@@ -16,7 +16,7 @@ OPA’s RESTful APIs use JSON over HTTP so you and your users can integrate OPA 
 
 When your service is integrated with OPA, your users will be able author and deploy custom policies that control the behavior of your service’s policy-enabled features. Furthermore, users can publish data to OPA that is not available to your service about their own deployment context.
 
-{{< figure src="/img/request-response.svg" width="50" caption="OPA's query and decision model" >}}
+{{< figure src="request-response.svg" width="50" caption="OPA's query and decision model" >}}
 
 In the future, both your service and its users will be able to register for, and react to, notifications triggered when OPA detects a policy-relevant change.
 
@@ -30,7 +30,7 @@ When OPA starts for the first time, it will not contain any policies or data. Po
 
 The primary unit of data in OPA is a document, which is similar to a JSON value. Documents typically correspond to single, self-contained objects and are capable of representing both primitive types (strings, numbers, booleans, and null) as well as structured types (objects, and arrays). Documents are created, read, updated, and deleted via OPA’s [RESTful HTTP APIs](../rest-api).
 
-{{< figure src="/img/data-model-dependencies.svg" width="70" caption="OPA data model dependencies" >}}
+{{< figure src="data-model-dependencies.svg" width="70" caption="OPA data model dependencies" >}}
 
 ### Base Documents
 
@@ -153,7 +153,7 @@ In contrast to base documents, virtual documents embody the results of evaluatin
 
 All documents pushed into OPA or computed by rules are nested under a built-in root document named data.
 
-{{< figure src="/img/data-model-logical.svg" width="70" caption="OPA document structure" >}}
+{{< figure src="data-model-logical.svg" width="70" caption="OPA document structure" >}}
 
 Example `data` document:
 
