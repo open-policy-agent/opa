@@ -5,10 +5,17 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+Compatibility-related:
+
 - Update topdown to return `eval_builtin_error` instead of
   `eval_internal_error`.
 - Remove `ast.WithInput()` option for `ast.QueryCompiler` and the `Input` field from
   the `QueryContext` struct.
+- Update compiler to stop users from redeclaring function args.
+- Update Rego to include 'var' keyword.
+
+Miscellaneous:
+
 - Add `rego.Rego#PrepareForEval()` and `rego.Rego#PrepareForPartial()` function to
   pre-process the `Rego` object for performance improvements on subsequent `Eval`
   or `Partial` calls.
