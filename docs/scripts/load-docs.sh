@@ -22,9 +22,7 @@ echo "Saving current workspace state"
 STASH_TOKEN=$(cat /dev/urandom | LC_CTYPE=C tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1)
 git stash push --include-untracked -m "${STASH_TOKEN}"
 
-function cleanup {
-    EXIT_CODE=$?
-
+function restore_tree {
     echo "Returning to commit ${ORIGINAL_COMMIT}"
     git checkout ${ORIGINAL_COMMIT}
 
@@ -32,8 +30,15 @@ function cleanup {
     if [[ -n "$(git stash list | head -1 | grep ${STASH_TOKEN} || echo '')" ]]; then
         git stash pop
     fi
+}
+
+function cleanup {
+    EXIT_CODE=$?
 
     if [[ "${EXIT_CODE}" != "0" ]]; then 
+        # on errors attempt to restore the starting tree state
+        restore_tree
+
         echo "Error loading docs"
         exit ${EXIT_CODE}
     fi
@@ -71,3 +76,14 @@ for release in ${RELEASES}; do
         cp -r ${ROOT_DIR}/docs/code ${version_docs_dir}/
     fi
 done
+
+# Go back to the original tree state
+restore_tree
+
+# Create the "edge" version from current working tree
+echo 'Adding "edge" to releases.yaml'
+echo "- edge" >> ${RELEASES_YAML_FILE}
+
+# Link instead of copy so we don't need to re-generate each time.
+# Use a relative link so it works in a container more easily.
+ln -s ../../content ${ROOT_DIR}/docs/generated/docs/edge
