@@ -15,9 +15,7 @@ echo "Saving current workspace state"
 STASH_TOKEN=$(uuidgen)
 git stash push --include-untracked -m "${STASH_TOKEN}"
 
-function cleanup {
-    EXIT_CODE=$?
-
+function restore_tree {
     echo "Returning to commit ${ORIGINAL_COMMIT}"
     git checkout ${ORIGINAL_COMMIT}
 
@@ -25,8 +23,15 @@ function cleanup {
     if [[ -n "$(git stash list | head -1 | grep ${STASH_TOKEN} || echo '')" ]]; then
         git stash pop
     fi
+}
+
+function cleanup {
+    EXIT_CODE=$?
 
     if [[ "${EXIT_CODE}" != "0" ]]; then 
+        # on errors attempt to restore the starting tree state
+        restore_tree
+
         echo "Error loading docs"
         exit ${EXIT_CODE}
     fi
@@ -64,3 +69,13 @@ for release in ${RELEASES}; do
         cp -r ${ROOT_DIR}/docs/code ${version_docs_dir}/
     fi
 done
+
+# Go back to the original tree state
+restore_tree
+
+# Create the "edge" version from current working tree
+echo 'Adding "edge" to releases.yaml'
+echo "- edge" >> ${RELEASES_YAML_FILE}
+
+# Link instead of copy so we don't need to re-generate each time.
+ln -s ${ROOT_DIR}/docs/content/ ${ROOT_DIR}/docs/generated/docs/edge
