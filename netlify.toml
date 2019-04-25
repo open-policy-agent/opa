@@ -1,13 +1,21 @@
 [build]
-base = "docs"
 publish = "docs/public"
-command = "make production-build"
+command = "make docs-production-build"
 
 [build.environment]
 HUGO_VERSION = "0.53"
 
 [context.deploy-preview]
-command = "make preview-build"
+command = "make docs-preview-build"
 
 [context.branch-deploy]
-command = "make preview-build"
+command = "make docs-preview-build"
+
+[dev]
+# "netlify dev" will start the hugo dev server and act as a proxy
+# with all the redirects and other netlify specific rules in place.
+# NOTE: The command is from the root of the repo, not
+# the "base" directory.
+command = "make docs-hugo-serve"
+publish = "docs/public"
+port = 1313

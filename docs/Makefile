@@ -1,17 +1,32 @@
+.PHONY: clean
 clean:
 	rm -rf generated
 	rm -rf public
 	rm -rf resources
 
-load-docs:
+.PHONY: generate
+generate:
 	scripts/load-docs.sh
 
+.PHONY: setup
 setup:
 	npm install
 
-serve:
-	hugo server --contentDir generated
+.PHONY: hugo-serve
+hugo-serve:
+	hugo \
+		server \
+		--contentDir generated \
+		--buildDrafts \
+		--buildFuture
 
+.PHONY: serve
+serve:
+	# must be run from root of repo for
+	# the netlify.toml config to work
+	cd .. && netlify dev --offline
+
+.PHONY: docker-serve
 docker-serve:
 	docker run --rm -it \
 		-v $(PWD):/src \
@@ -19,13 +34,15 @@ docker-serve:
 		klakegg/hugo:0.53-ext server \
 			--contentDir /src/generated
 
-production-build: clean load-docs
+.PHONY: production-build
+production-build: clean generate
 	hugo \
 		--contentDir generated \
 		--ignoreCache \
 		--minify
 
-preview-build: clean load-docs
+.PHONY: preview-build
+preview-build: clean generate
 	hugo \
 		--contentDir generated \
 		--baseURL $(DEPLOY_PRIME_URL) \
@@ -34,6 +51,7 @@ preview-build: clean load-docs
 		--ignoreCache \
 		--minify
 
+.PHONY: linkcheck-build
 linkcheck-build:
 	hugo \
 		--contentDir generated \
@@ -41,5 +59,6 @@ linkcheck-build:
 		--buildDrafts \
 		--buildFuture
 
-linkcheck: clean load-docs linkcheck-build
+.PHONY: linkcheck
+linkcheck: clean generate linkcheck-build
 	htmlproofer ./public --empty-alt-ignore

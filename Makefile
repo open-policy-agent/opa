@@ -176,6 +176,12 @@ clean: wasm-clean
 site:
 	$(MAKE) -C docs -f Makefile.ghpages VERSION=$(VERSION)
 
+# The docs-% pattern target will shim to the
+# makefile in ./docs 
+.PHONY: docs-%
+docs-%:
+	$(MAKE) -C docs $*
+
 ######################################################
 #
 # Release targets
