@@ -53,4 +53,4 @@ into OPA via the filesystem or well-defined APIs.
 
 ## Why use OPA?
 
-{{< figure src="/img/benefits.svg" width="65" caption="Open Policy Agent: before and after" >}}
+{{< figure src="benefits.svg" width="65" caption="Open Policy Agent: before and after" >}}

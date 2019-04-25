@@ -28,7 +28,7 @@ The following diagram shows this process in more detail.
 1. The OPA-enabled software system includes that token as part of the usual `input` to OPA.
 1. OPA decodes the JWT token and uses the contents to make policy decisions.
 
-{{< figure src="/img/best-practice-identity-jwt.png" width="60" caption="JSON Web Token flow" >}}
+{{< figure src="best-practice-identity-jwt.png" width="60" caption="JSON Web Token flow" >}}
 
 ### Updates
 The JWT only gets refreshed when the user authenticates; how often that happens is up to the TTL included in the token.  When LDAP/AD information changes, those changes will not be seen by OPA until the user authenticates and gets a new JWT.
@@ -58,7 +58,7 @@ Two things happen independently with this kind of LDAP/AD integration.
 1. OPA downloads new policy bundles including LDAP/AD
 1. OPA-enabled software system asks OPA for policy decisions
 
-{{< figure src="/img/best-practice-identity-bundle.png" width="80" caption="Bundle flow" >}}
+{{< figure src="best-practice-identity-bundle.png" width="80" caption="Bundle flow" >}}
 
 ### Updates
 The lag between an LDAP/AD update and OPA having the update is the sum of the lag for an update between LDAP/AD and the central server and the lag for an update between the central server an OPA.  So if LDAP/AD updates every 5 minutes, and OPA pulls an update every 2 minutes, then the total maximum lag is 7 minutes.  Unlike the JWT case, it is feasible that a user could perform an action requiring authorization on the OPA-enabled service before OPA has the appropriate LDAP/AD policy, but you can account for that when writing policy and reject any request when there is insufficient data.
@@ -81,7 +81,7 @@ Two things happen independently with this kind of LDAP/AD integration.
 1. Synchronizer keeps OPA up to date with LDAP/AD
 1. OPA-enabled software system asks OPA for policy decisions
 
-{{< figure src="/img/best-practice-identity-push.png" width="80" caption="Push flow" >}}
+{{< figure src="best-practice-identity-push.png" width="80" caption="Push flow" >}}
 
 ### Updates
 
@@ -114,7 +114,7 @@ The key difference here is that every decision requires contacting LDAP/AD.  If 
 1. OPA-enabled service asks OPA for a decision
 1. OPA during evaluation asks LDAP/AD for user attributes
 
-{{< figure src="/img/best-practice-identity-remote.png" width="80" caption="Pull flow" >}}
+{{< figure src="best-practice-identity-remote.png" width="80" caption="Pull flow" >}}
 
 ### Updates
 LDAP/AD data is perfectly fresh.  There is no lag between an update to LDAP/AD and when OPA sees that update.
