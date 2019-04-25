@@ -1,4 +1,1 @@
-{{- $latestMode := eq (getenv "ENV") "local" -}}
-{{- if not $latestMode -}}
 {{ index site.Data.releases 0 }}
-{{- end -}}

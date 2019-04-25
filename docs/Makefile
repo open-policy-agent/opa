@@ -1,5 +1,7 @@
 clean:
+	rm -rf generated
 	rm -rf public
+	rm -rf resources
 
 load-docs:
 	scripts/load-docs.sh
@@ -8,22 +10,14 @@ setup:
 	npm install
 
 serve:
-	@echo "- latest" > ./data/releases.yaml
-	ENV=local hugo server \
-		--buildDrafts \
-		--buildFuture
+	hugo server --contentDir generated
 
 docker-serve:
 	docker run --rm -it \
 		-v $(PWD):/src \
 		-p 1313:1313 \
-		-e ENV=local \
 		klakegg/hugo:0.53-ext server \
-			--buildDrafts \
-			--buildFuture
-
-local-production-serve: clean load-docs
-	hugo server --contentDir generated
+			--contentDir /src/generated
 
 production-build: clean load-docs
 	hugo \
@@ -31,9 +25,9 @@ production-build: clean load-docs
 		--ignoreCache \
 		--minify
 
-preview-build: clean
-	@echo "- latest" > ./data/releases.yaml
-	ENV=local hugo \
+preview-build: clean load-docs
+	hugo \
+		--contentDir generated \
 		--baseURL $(DEPLOY_PRIME_URL) \
 		--buildDrafts \
 		--buildFuture \
@@ -42,9 +36,10 @@ preview-build: clean
 
 linkcheck-build:
 	hugo \
+		--contentDir generated \
 		--baseURL "/" \
 		--buildDrafts \
 		--buildFuture
 
-linkcheck: clean linkcheck-build
+linkcheck: clean load-docs linkcheck-build
 	htmlproofer ./public --empty-alt-ignore

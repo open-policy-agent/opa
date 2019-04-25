@@ -1,8 +1,6 @@
-{{- $localMode    := eq (getenv "ENV") "local" }}
 {{- $latest       := index site.Data.releases 0 -}}
 {{- $allDocs      := where site.RegularPages "Section" "docs" }}
 {{- $docRedirects := site.Data.redirects }}
-{{- if not $localMode }}
 # Redirect to latest doc version by default
 /docs     /docs/latest
 
@@ -19,5 +17,4 @@
 
 # Legacy git book redirects
 /docs/{{ . }}.html /docs/{{ $latest }}/{{ . }}
-{{- end }}
 {{- end }}
