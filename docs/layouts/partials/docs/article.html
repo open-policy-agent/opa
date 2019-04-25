@@ -1,4 +1,14 @@
+{{ $releases   := site.Data.releases }}
+{{ $latest     := printf "%s" (index $releases 0) }}
+{{ $version    := index (split .File.Path "/") 1 }}
 <article class="article">
+  {{ with (eq $version "edge") }}
+  <div class="message is-danger">
+    <div class="message-body">
+      This version is still under development! Latest stable release is <a href="/docs/{{ $latest }}">{{ $latest }}</a>
+    </div>
+  </div>
+  {{ end }}
   <div class="container">
     {{ partial "docs/hero.html" . }}
 

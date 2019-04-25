@@ -28,6 +28,10 @@
             <span class="tag latest-tag is-success is-small has-text-weight-bold">
               latest
             </span>
+            {{ else if (eq $version "edge") }}
+            <span class="tag latest-tag is-danger is-small has-text-weight-bold">
+              pre-release
+            </span>
             {{ else }}
             <span class="tag latest-tag is-warning is-small has-text-weight-bold">
               older
