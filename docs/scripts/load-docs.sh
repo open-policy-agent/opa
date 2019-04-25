@@ -62,9 +62,14 @@ for release in ${RELEASES}; do
     echo "Adding ${release} to releases.yaml"
     echo "- ${release}" >> ${RELEASES_YAML_FILE}
 
-    echo "Copying doc content from tag ${release}"
+    echo "Checking out release ${release}"
+    if [[ -z "$(git tag -l | grep ${release} || echo '')" ]]; then
+        echo "Unable to find tag locally, attempting to fetch from github.."
+        git fetch --tags https://github.com/open-policy-agent/opa.git
+    fi
     git checkout ${release}
 
+    echo "Copying doc content from tag ${release}"
     # TODO: Remove this check once we are no longer showing docs for v0.10.7 
     # or older those releases have the docs content in a different location.
     if [[ -d "${ROOT_DIR}/docs/content/code/" ]]; then
