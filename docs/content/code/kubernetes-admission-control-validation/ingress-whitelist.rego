@@ -33,6 +33,6 @@ fqdn_matches(str, pattern) {
 }
 
 fqdn_matches(str, pattern) {
-	not contains(pattern, "*")
-	str := pattern
+    not contains(pattern, "*")
+    str == pattern
 }

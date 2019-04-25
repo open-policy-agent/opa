@@ -199,6 +199,7 @@ authz {
 # Compute the score for a Terraform plan as the weighted sum of deletions, creations, modifications
 score = s {
     all := [ x |
+            var resource_type
             crud := weights[resource_type];
             del := crud["delete"] * num_deletes[resource_type];
             new := crud["create"] * num_creates[resource_type];
@@ -220,6 +221,7 @@ touches_iam {
 
 # list of all resources of a given type
 instance_names[resource_type] = all {
+    var resource_type
     resource_types[resource_type]
     all := [name |
         tfplan[name] = _
@@ -229,6 +231,7 @@ instance_names[resource_type] = all {
 
 # number of deletions of resources of a given type
 num_deletes[resource_type] = num {
+    var resource_type
     resource_types[resource_type]
     all := instance_names[resource_type]
     deletions := [name | name := all[_]; tfplan[name]["destroy"] == true]
@@ -237,6 +240,7 @@ num_deletes[resource_type] = num {
 
 # number of creations of resources of a given type
 num_creates[resource_type] = num {
+    var resource_type
     resource_types[resource_type]
     all := instance_names[resource_type]
     creates := [name | all[_] = name; tfplan[name]["id"] == ""]
@@ -245,6 +249,7 @@ num_creates[resource_type] = num {
 
 # number of modifications to resources of a given type
 num_modifies[resource_type] = num {
+    var resource_type
     resource_types[resource_type]
     all := instance_names[resource_type]
     modifies := [name | name := all[_]; obj := tfplan[name]; obj["destroy"] == false; not obj["id"]]

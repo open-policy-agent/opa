@@ -119,12 +119,13 @@ sod_roles = [
 
 # Find all users violating SOD
 sod_violation[user] {
-    # grab one role for a user
-    role1 := user_role[user][_]
-    # grab another role for that same user
-    role2 := user_role[user][_]
-    # check if those roles are forbidden by SOD
-    sod_roles[_] == [role1, role2]
+  var user
+  # grab one role for a user
+  role1 := user_role[user][_]
+  # grab another role for that same user
+  role2 := user_role[user][_]
+  # check if those roles are forbidden by SOD
+  sod_roles[_] == [role1, role2]
 }
 ```
 
