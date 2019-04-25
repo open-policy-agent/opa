@@ -1,4 +1,3 @@
-{{ $localMode  := eq (getenv "ENV") "local" }}
 {{ $docsHome   := .CurrentSection }}
 {{ $allDocs    := where site.RegularPages "Section" "docs" }}
 {{ $docs       := where $allDocs ".Params.kind" "eq" "documentation" }}
@@ -8,9 +7,5 @@
 {{ $pageUrl    := .URL }}
 {{ $isDocsHome := eq .URL $docsHome.URL }}
 <div class="docs-nav">
-  {{ if $localMode }}
-  {{ partial "docs/sidenav/local.html" . }}
-  {{ else }}
   {{ partial "docs/sidenav/production.html" . }}
-  {{ end }}
 </div>
