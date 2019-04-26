@@ -1,5 +1,5 @@
 [build]
-publish = "docs/public"
+publish = "docs/website/public"
 command = "make docs-production-build"
 
 [build.environment]
@@ -17,5 +17,5 @@ command = "make docs-preview-build"
 # NOTE: The command is from the root of the repo, not
 # the "base" directory.
 command = "make docs-hugo-serve"
-publish = "docs/public"
+publish = "docs/website/public"
 port = 1313

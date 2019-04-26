@@ -1,15 +1,18 @@
 # The OPA Website and Documentation
+The content and tooling is separated into a few places:
 
-This directory contains all of the Markdown, HTML, Sass/CSS, and other assets needed
-to build the [openpolicyagent.org](https://openpolicyagent.org) website. See the
-section below for steps to build the site and test documentation changes
-locally.
+[devel/](./devel/) - Developer documentation for OPA (not part of the website)
 
-The raw OPA documentation can be found under the [content/docs](./content/docs)
-directory.
 
-> ### Developing OPA
-> For documentation on developing OPA, see the [devel](./devel) directory.
+[website/](./website/) - This directory contains all of the Markdown, HTML, Sass/CSS,
+and other assets needed to build the [openpolicyagent.org](https://openpolicyagent.org)
+website. See the section below for steps to build the site and test documentation changes
+locally. This content is not versioned for each release, it is common scaffolding for
+the website.
+
+[content/](./content/) - The raw OPA documentation can be found under the 
+directory. This content is versioned for each release and should have all images
+and code snippets alongside the markdown content files.
 
 ## Run the site locally
 
@@ -27,9 +30,12 @@ To generate them run:
 ```shell
 make generate
 ```
-The content then will be placed into `docs/generated/docs/$VERSION/`.
+The content then will be placed into `docs/website/generated/docs/$VERSION/`.
 
 ### Run the site locally using Docker
+
+> Note: running with docker only uses the Hugo server and not Netlify locally.
+This means that redirects and other Netlify features the site relies on will not work.
 
 If [Docker is running](https://docs.docker.com/get-started/):
 
