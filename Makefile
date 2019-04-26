@@ -172,10 +172,6 @@ clean: wasm-clean
 	rm -f opa_*_*
 	rm -fr _test
 
-.PHONY: site
-site:
-	$(MAKE) -C docs -f Makefile.ghpages VERSION=$(VERSION)
-
 # The docs-% pattern target will shim to the
 # makefile in ./docs 
 .PHONY: docs-%
