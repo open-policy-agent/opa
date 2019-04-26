@@ -2,8 +2,6 @@
 
 set -xe
 
-RELEASES=$(cat RELEASES)
-
 ORIGINAL_COMMIT=$(git name-rev --name-only HEAD)
 # If no name can be found "git name-rev" returns
 # "undefined", in which case we'll just use the
@@ -13,8 +11,10 @@ if [[ "${ORIGINAL_COMMIT}" == "undefined" ]]; then
 fi
 
 ROOT_DIR=$(git rev-parse --show-toplevel)
-RELEASES_YAML_FILE=${ROOT_DIR}/docs/data/releases.yaml
+RELEASES_YAML_FILE=${ROOT_DIR}/docs/website/data/releases.yaml
 GIT_VERSION=$(git --version)
+
+RELEASES=$(cat ${ROOT_DIR}/docs/website/RELEASES)
 
 echo "Git version: ${GIT_VERSION}"
 
@@ -49,13 +49,13 @@ function cleanup {
 trap cleanup EXIT
 
 echo "Cleaning generated folder"
-rm -rf ${ROOT_DIR}/docs/generated/*
+rm -rf ${ROOT_DIR}/docs/website/generated/*
 
 echo "Removing data/releases.yaml file"
 rm -f ${RELEASES_YAML_FILE}
 
 for release in ${RELEASES}; do
-    version_docs_dir=${ROOT_DIR}/docs/generated/docs/${release}
+    version_docs_dir=${ROOT_DIR}/docs/website/generated/docs/${release}
 
     mkdir -p ${version_docs_dir}
 
@@ -75,6 +75,7 @@ for release in ${RELEASES}; do
     # if we were able to check out the version, otherwise skip it..
     if [[ "${errc}" == "0" ]]; then
         echo "Adding ${release} to releases.yaml"
+        mkdir -p $(dirname ${RELEASES_YAML_FILE})
         echo "- ${release}" >> ${RELEASES_YAML_FILE}
     else
         echo "WARNING: Failed to check out version ${version}!!"
@@ -102,4 +103,4 @@ echo "- edge" >> ${RELEASES_YAML_FILE}
 
 # Link instead of copy so we don't need to re-generate each time.
 # Use a relative link so it works in a container more easily.
-ln -s ../../content ${ROOT_DIR}/docs/generated/docs/edge
+ln -s ../../../content ${ROOT_DIR}/docs/website/generated/docs/edge

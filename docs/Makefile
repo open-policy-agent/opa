@@ -1,12 +1,12 @@
 .PHONY: clean
 clean:
-	rm -rf generated
-	rm -rf public
-	rm -rf resources
+	rm -rf $(CURDIR)/website/generated 
+	rm -rf $(CURDIR)/website/public 
+	rm -rf $(CURDIR)/website/esources
 
 .PHONY: generate
 generate:
-	scripts/load-docs.sh
+	$(CURDIR)/website/scripts/load-docs.sh
 
 .PHONY: setup
 setup:
@@ -16,6 +16,7 @@ setup:
 hugo-serve:
 	hugo \
 		server \
+		--source $(CURDIR)/website \
 		--contentDir generated \
 		--buildDrafts \
 		--buildFuture
@@ -24,19 +25,21 @@ hugo-serve:
 serve:
 	# must be run from root of repo for
 	# the netlify.toml config to work
-	cd .. && netlify dev --offline
+	cd $(CURDIR)/.. && netlify dev --offline
 
 .PHONY: docker-serve
 docker-serve:
 	docker run --rm -it \
-		-v $(PWD):/src \
+		-v $(CURDIR)/:/src \
 		-p 1313:1313 \
 		klakegg/hugo:0.53-ext server \
-			--contentDir /src/generated
+			--source /src/website \
+			--contentDir generated
 
 .PHONY: production-build
 production-build: clean generate
 	hugo \
+		--source $(CURDIR)/website \
 		--contentDir generated \
 		--ignoreCache \
 		--minify
@@ -44,6 +47,7 @@ production-build: clean generate
 .PHONY: preview-build
 preview-build: clean generate
 	hugo \
+		--source $(CURDIR)/website \
 		--contentDir generated \
 		--baseURL $(DEPLOY_PRIME_URL) \
 		--buildDrafts \
@@ -54,6 +58,7 @@ preview-build: clean generate
 .PHONY: linkcheck-build
 linkcheck-build:
 	hugo \
+		--source $(CURDIR)/website \
 		--contentDir generated \
 		--baseURL "/" \
 		--buildDrafts \
