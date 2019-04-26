@@ -59,15 +59,26 @@ for release in ${RELEASES}; do
 
     mkdir -p ${version_docs_dir}
 
-    echo "Adding ${release} to releases.yaml"
-    echo "- ${release}" >> ${RELEASES_YAML_FILE}
-
     echo "Checking out release ${release}"
     if [[ -z "$(git tag -l | grep ${release} || echo '')" ]]; then
         echo "Unable to find tag locally, attempting to fetch from github.."
         git fetch --tags https://github.com/open-policy-agent/opa.git
     fi
+
+    # Don't error if the checkout fails
+    set +e
     git checkout ${release}
+    errc=$?
+    set -e
+
+    # only add the version to the releases.yaml data file
+    # if we were able to check out the version, otherwise skip it..
+    if [[ "${errc}" == "0" ]]; then
+        echo "Adding ${release} to releases.yaml"
+        echo "- ${release}" >> ${RELEASES_YAML_FILE}
+    else
+        echo "WARNING: Failed to check out version ${version}!!"
+    fi
 
     echo "Copying doc content from tag ${release}"
     # TODO: Remove this check once we are no longer showing docs for v0.10.7 
