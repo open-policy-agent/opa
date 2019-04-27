@@ -35,6 +35,7 @@ import (
 	"github.com/open-policy-agent/opa/storage/inmem"
 	"github.com/open-policy-agent/opa/util"
 	"github.com/open-policy-agent/opa/util/test"
+	"github.com/open-policy-agent/opa/version"
 	"github.com/pkg/errors"
 )
 
@@ -1359,6 +1360,32 @@ p = [1, 2, 3, 4] { true }`, 200, "")
 		t.Fatalf("Expected %v but got: %v", expected, result.Result)
 	}
 
+}
+
+func TestDataProvenance(t *testing.T) {
+
+	f := newFixture(t)
+
+	// Dummy up since we are not using ld...
+	// Note:  No bundle 'revision'...
+	version.Version = "0.10.7"
+	version.Vcs = "ac23eb45"
+	version.Timestamp = "today"
+	version.Hostname = "foo.bar.com"
+
+	req := newReqV1(http.MethodPost, "/data?provenance", "")
+	f.reset()
+	f.server.Handler.ServeHTTP(f.recorder, req)
+
+	var result types.DataResponseV1
+
+	if err := util.NewJSONDecoder(f.recorder.Body).Decode(&result); err != nil {
+		t.Fatalf("Unexpected JSON decode error: %v", err)
+	}
+
+	if result.Provenance == nil {
+		t.Fatalf("Expected non-nil provenance: %v", result.Provenance)
+	}
 }
 
 func TestDataMetrics(t *testing.T) {
