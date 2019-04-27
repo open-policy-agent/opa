@@ -58,9 +58,15 @@ EOF
     mv _CHANGELOG.md CHANGELOG.md
 }
 
+update_website() {
+    local releases_file="docs/website/RELEASES"
+    echo "v${VERSION}" | cat - ${releases_file} > temp && mv temp ${releases_file}
+}
+
 main() {
     update_makefile
     update_changelog
+    update_website
     git --no-pager diff --no-color
 }
 

@@ -9,9 +9,9 @@ Versioning involves maintaining the following files:
 
 - **CHANGELOG.md** - this file contains a list of all the important changes in each release.
 - **Makefile** - the Makefile contains a VERSION variable that defines the version of the project.
-- **docs/config.toml*** - this file determines which version is displayed as latest
-  in the [documentation](https://openpolicyagent.org/docs) (using the `params.versions.latest`
-  variable)
+- **docs/website/RELEASES*** - this file determines which versions of documentation are displayed
+  in the public [documentation](https://openpolicyagent.org/docs). __The first entry on the list is
+  considered to be the latest.__
 
 The steps below explain how to update these files. In addition, the repository
 should be tagged with the semantic version identifying the release.
@@ -105,8 +105,16 @@ CHANGELOG.md snippet and uploading the binaries from the build phase.
 	- Copy the changelog content into the message.
 	- Upload the binaries.
 
+
 ## Notes
 
 - The openpolicyagent/opa Docker image is automatically built and published to
   Docker Hub as part of the Travis-CI pipeline. There are no manual steps
   involved here.
+- The docs and website should update and be published automatically. If they are not you can
+  trigger one by a couple of methods:
+	- Login to Netlify (requires permission for the project) and manually trigger a build.
+	- Post to the build webhook via:
+		```bash
+		curl -X POST -d {} https://api.netlify.com/build_hooks/5cc3aa86495f22c7a368f1d2
+		```
