@@ -836,7 +836,7 @@ func TestCheckRefErrInvalid(t *testing.T) {
 	}
 }
 
-func TestUserFunctionsTypeInference(t *testing.T) {
+func TestFunctionsTypeInference(t *testing.T) {
 	functions := []string{
 		`foo([a, b]) = y { split(a, b, y) }`,
 		`bar(x) = y { count(x, y) }`,
@@ -925,6 +925,33 @@ func TestUserFunctionsTypeInference(t *testing.T) {
 				t.Errorf("Expected success but got error: %v", c.Errors)
 			}
 		})
+	}
+}
+
+func TestFunctionTypeInferenceUnappliedWithObjectVarKey(t *testing.T) {
+
+	// Run type inference on a function that constructs an object with a key
+	// from args in the head.
+	module := MustParseModule(`
+		package test
+
+		f(x) = y { y = {x: 1} }
+	`)
+
+	env, err := newTypeChecker().CheckTypes(newTypeChecker().checkLanguageBuiltins(), []util.T{
+		module.Rules[0],
+	})
+
+	if len(err) > 0 {
+		t.Fatal(err)
+	}
+
+	// Check inferrred type for reference to function.
+	tpe := env.Get(MustParseRef("data.test.f"))
+	exp := types.NewFunction([]types.Type{types.A}, types.NewObject(nil, types.NewDynamicProperty(types.A, types.N)))
+
+	if types.Compare(tpe, exp) != 0 {
+		t.Fatalf("Expected %v but got %v", exp, tpe)
 	}
 }
 

@@ -373,7 +373,8 @@ func unify1(env *TypeEnv, term *Term, tpe types.Type, union bool) bool {
 			return unify1Object(env, v, tpe, union)
 		case types.Any:
 			if types.Compare(tpe, types.A) == 0 {
-				v.Foreach(func(_, value *Term) {
+				v.Foreach(func(key, value *Term) {
+					unify1(env, key, types.A, true)
 					unify1(env, value, types.A, true)
 				})
 				return true
