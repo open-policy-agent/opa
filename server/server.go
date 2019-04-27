@@ -892,6 +892,7 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 	explainMode := getExplain(r.URL.Query()["explain"], types.ExplainOffV1)
 	includeMetrics := getBoolParam(r.URL, types.ParamMetricsV1, true)
 	includeInstrumentation := getBoolParam(r.URL, types.ParamInstrumentV1, true)
+	provenance := getBoolParam(r.URL, types.ParamProvenanceV1, true)
 
 	m.Timer(metrics.RegoQueryParse).Start()
 
@@ -970,6 +971,10 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 
 	if includeMetrics || includeInstrumentation {
 		result.Metrics = m.All()
+	}
+
+	if provenance {
+		result.Provenance = getProvenance(s.revision)
 	}
 
 	if len(rs) == 0 {
@@ -1072,6 +1077,7 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 	includeMetrics := getBoolParam(r.URL, types.ParamMetricsV1, true)
 	includeInstrumentation := getBoolParam(r.URL, types.ParamInstrumentV1, true)
 	partial := getBoolParam(r.URL, types.ParamPartialV1, true)
+	provenance := getBoolParam(r.URL, types.ParamProvenanceV1, true)
 
 	m.Timer(metrics.RegoQueryParse).Start()
 
@@ -1143,6 +1149,10 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 
 	if includeMetrics || includeInstrumentation {
 		result.Metrics = m.All()
+	}
+
+	if provenance {
+		result.Provenance = getProvenance(s.revision)
 	}
 
 	if len(rs) == 0 {
@@ -2364,4 +2374,15 @@ func parseURL(s string, useHTTPSByDefault bool) (*url.URL, error) {
 		s = scheme + s
 	}
 	return url.Parse(s)
+}
+
+func getProvenance(revision string) *types.ProvenanceV1 {
+
+	return &types.ProvenanceV1{
+		Version:   version.Version,
+		Vcs:       version.Vcs,
+		Timestamp: version.Timestamp,
+		Hostname:  version.Hostname,
+		Revision:  revision,
+	}
 }
