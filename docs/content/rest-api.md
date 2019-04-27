@@ -725,6 +725,7 @@ The path separator is used to access values inside object and array documents. I
 
 - **input** - Provide an input document. Format is a JSON value that will be used as the value for the input document.
 - **pretty** - If parameter is `true`, response will formatted for humans.
+- **provenance** - If parameter is `true`, response will include build/version info in addition to the result.  See [Provenance](#provenance) for more detail.
 - **explain** - Return query explanation in addition to result. Values: **full**.
 - **metrics** - Return query performance metrics in addition to result. See [Performance Metrics](#performance-metrics) for more detail.
 - **instrument** - Instrument query evaluation and return a superset of performance metrics in addition to result. See [Performance Metrics](#performance-metrics) for more detail.
@@ -1042,6 +1043,7 @@ The request body contains an object that specifies a value for [The input Docume
 
 - **partial** - Use the partial evaluation (optimization) when evaluating the query.
 - **pretty** - If parameter is `true`, response will formatted for humans.
+- **provenance** - If parameter is `true`, response will include build/version info in addition to the result.  See [Provenance](#provenance) for more detail.
 - **explain** - Return query explanation in addition to result. Values: **full**.
 - **metrics** - Return query performance metrics in addition to result. See [Performance Metrics](#performance-metrics) for more detail.
 - **instrument** - Instrument query evaluation and return a superset of performance metrics in addition to result. See [Performance Metrics](#performance-metrics) for more detail.
@@ -1934,6 +1936,51 @@ specify the `instrument=true` query parameter when executing the API call.
 Query instrumentation can help diagnose performance problems, however, it can
 add significant overhead to query evaluation. We recommend leaving query
 instrumentation off unless you are debugging a performance problem.
+
+## Provenance
+
+OPA can report provenance information at runtime. Provenance information can
+be requested on individual API calls and are returned inline with the API
+response. To obtain provenance information on an API call, specify the
+`provenance=true` query parameter when executing the API call. Provenance information
+is currently supported for the following APIs:
+
+- Data API (GET and POST)
+
+For example:
+
+```http
+POST /v1/data/example?provenance=true HTTP/1.1
+```
+
+Response:
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+```
+
+```json
+{
+  "provenance": {
+    "build_commit": "1955fc4d",
+    "build_host": "foo.com",
+    "build_timestamp": "2019-04-29T23:42:04Z",
+    "revision": "ID-b1298a6c-6ad8-11e9-a26f-d38b5ceadad5",
+    "version": "0.10.8-dev"
+  },
+  "result": true
+}
+```
+
+OPA currently supports the following query provenance information:
+
+- **version**: The version of this OPA instance.
+- **build_commit**: The git commit id of this OPA build.
+- **build_timestamp**: The timestamp when this instance was built.
+- **build_host**: The hostname where this instance was built.
+- **revision**: The _revision_ string included in a .manifest file (if present) within a bundle.
+
 
 ## Watches
 
