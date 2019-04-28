@@ -17,7 +17,7 @@ recommend you review this section to familiarize yourself with the basics.
 
 OPA releases are available as images on Docker Hub.
 
-* [openpolicyagent/opa:{{< latest >}}](https://hub.docker.com/r/openpolicyagent/opa/)
+* [openpolicyagent/opa](https://hub.docker.com/r/openpolicyagent/opa/)
 
 ### Running with Docker
 
@@ -177,7 +177,7 @@ spec:
     spec:
       containers:
       - name: opa
-        image: openpolicyagent/opa:{{< latest >}}
+        image: openpolicyagent/opa:{{< current_docker_version >}}
         ports:
         - name: http
           containerPort: 8181
@@ -246,7 +246,7 @@ to call. For example:
 ```yaml
 containers:
 - name: opa
-  image: openpolicyagent/opa:{{< latest >}}
+  image: openpolicyagent/opa:{{< current_docker_version >}}
   ports:
   - name: http
     containerPort: 8181
