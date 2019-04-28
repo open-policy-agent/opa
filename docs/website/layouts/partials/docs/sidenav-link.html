@@ -1,0 +1,25 @@
+{{/* Expect to have context bound to ".ctx", and the top level
+     "version" and "pageUrl" passed in with the context.
+ */}}
+{{- $latest     := index site.Data.releases 0 -}}
+{{/* In the current "ctx" the file path refers to the doc we are linking to, not the page we are on */}}
+{{- $contentVersion := index (split .ctx.File.Path "/") 1 -}}
+{{- $isRoot := eq (len (split .ctx.File.Path "/")) 2 -}}
+{{- $isThisPage := eq .ctx.URL .pageUrl -}}
+{{- $title := cond (isset .ctx.Params "navtitle") (.ctx.Params.navtitle) .ctx.Title -}}
+{{- if not $isRoot -}}
+{{- if eq .version $contentVersion -}}
+{{- $linkRef := .ctx.URL -}}
+{{- if or (eq $contentVersion $latest) -}}
+{{- $linkRef = (replace $linkRef $contentVersion "latest") -}}
+{{- end -}}
+<a class="docs-nav-item{{ if $isThisPage }} is-active{{ end }}" href="{{ $linkRef }}">
+  {{ $title }}
+</a>
+{{- if $isThisPage -}}
+<div class="toc">
+  {{ .ctx.TableOfContents }}
+</div>
+{{- end -}}
+{{- end -}}
+{{- end -}}

@@ -45,7 +45,11 @@
           <div class="dropdown-content">
             {{ range $releases }}
             {{ $isLatest := eq . (index site.Data.releases 0) }}
-            <a href="/docs/{{ . }}" class="dropdown-item">
+            {{ $verRef := . }}
+            {{ if $isLatest }}
+              {{ $verRef = "latest" }}
+            {{ end }}
+            <a href="/docs/{{ $verRef }}" class="dropdown-item">
               {{ . }}
               {{ if $isLatest }}
               <span class="tag latest-tag is-success is-small has-text-weight-bold">

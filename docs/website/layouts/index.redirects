@@ -9,8 +9,8 @@
 /docs/latest/*     /docs/{{ $latest }}/:splat     200
 
 {{- range $docRedirects }}
-/docs/{{ . }}     /docs/{{ $latest }}/{{ . }}
+/docs/{{ . }}     /docs/latest/{{ . }}
 
 # Legacy git book redirects
-/docs/{{ . }}.html /docs/{{ $latest }}/{{ . }}
+/docs/{{ . }}.html /docs/latest/{{ . }}
 {{- end }}
