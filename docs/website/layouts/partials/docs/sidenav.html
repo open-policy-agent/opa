@@ -6,11 +6,16 @@
 {{ $pageUrl    := .URL }}
 {{ $isDocsHome := eq .URL $docsHome.URL }}
 {{ $version    := index (split .File.Path "/") 1 }}
+{{ $latest     := index site.Data.releases 0 }}
 <span class="docs-nav-title">
   Documentation
 </span>
 
-<a class="docs-nav-item{{ if $isDocsHome }} is-active{{ end }}" href="{{ $docsHome.URL }}">
+{{ $docsHomeVersion := $version }}
+{{ if or (eq $version $latest) }}
+  {{ $docsHomeVersion = "latest" }}
+{{ end }}
+<a class="docs-nav-item{{ if $isDocsHome }} is-active{{ end }}" href="/docs/{{ $docsHomeVersion }}">
   {{ $docsHome.Name }}
 </a>
 
@@ -21,21 +26,7 @@
 {{ end }}
 
 {{ range $docs }}
-{{ $isRoot     := eq (len (split .File.Path "/")) 2 }}
-{{ if not $isRoot }}
-{{ $isThisPage := eq .URL $pageUrl }}
-{{ if eq $version (index (split .File.Path "/") 1) }}
-{{ $title      := cond (isset .Params "navtitle") (.Params.navtitle) .Title }}
-<a class="docs-nav-item{{ if $isThisPage }} is-active{{ end }}" href="{{ .URL }}">
-  {{ $title }}
-</a>
-{{ if $isThisPage }}
-<div class="toc">
-  {{ .TableOfContents }}
-</div>
-{{ end }}
-{{ end }}
-{{ end }}
+  {{ partial "docs/sidenav-link.html" (dict "ctx" . "pageUrl" $pageUrl "version" $version) }}
 {{ end }}
 
 <hr class="docs-nav-hr" />
@@ -45,21 +36,7 @@
 </span>
 
 {{ range $tutorials }}
-{{ $isRoot     := eq (len (split .File.Path "/")) 2 }}
-{{ if not $isRoot }}
-{{ $isThisPage := eq .URL $pageUrl }}
-{{ if eq $version (index (split .File.Path "/") 1) }}
-{{ $title      := cond (isset .Params "navtitle") (.Params.navtitle) .Title }}
-<a class="docs-nav-item{{ if $isThisPage }} is-active{{ end }}" href="{{ .URL }}">
-  {{ $title }}
-</a>
-{{ if $isThisPage }}
-<div class="toc">
-  {{ .TableOfContents }}
-</div>
-{{ end }}
-{{ end }}
-{{ end }}
+{{ partial "docs/sidenav-link.html" (dict "ctx" . "pageUrl" $pageUrl "version" $version) }}
 {{ end }}
 
 {{ with $guides }}
@@ -70,20 +47,6 @@
 </span>
 
 {{ range . }}
-{{ $isRoot     := eq (len (split .File.Path "/")) 2 }}
-{{ if not $isRoot }}
-{{ $isThisPage := eq .URL $pageUrl }}
-{{ if eq $version (index (split .File.Path "/") 1) }}
-{{ $title      := cond (isset .Params "navtitle") (.Params.navtitle) .Title }}
-<a class="docs-nav-item{{ if $isThisPage }} is-active{{ end }}" href="{{ .URL }}">
-  {{ $title }}
-</a>
-{{ if $isThisPage }}
-<div class="toc">
-  {{ .TableOfContents }}
-</div>
-{{ end }}
-{{ end }}
-{{ end }}
+{{ partial "docs/sidenav-link.html" (dict "ctx" . "pageUrl" $pageUrl "version" $version) }}
 {{ end }}
 {{ end }}
