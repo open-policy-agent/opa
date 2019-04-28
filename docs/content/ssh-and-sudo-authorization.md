@@ -54,7 +54,7 @@ represent our backend and frontend hosts.
 version: '2'
 services:
   opa:
-    image: openpolicyagent/opa:{{< latest >}}
+    image: openpolicyagent/opa:{{< current_docker_version >}}
     ports:
       - 8181:8181
     # WARNING: OPA is NOT running with an authorization policy configured. This
