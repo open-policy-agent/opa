@@ -1,7 +1,7 @@
 ---
 title: Status
 kind: documentation
-weight: 9
+weight: 10
 ---
 
 OPA can periodically report status updates to remote HTTP servers. The

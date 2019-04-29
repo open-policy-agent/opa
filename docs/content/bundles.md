@@ -1,7 +1,7 @@
 ---
 title: Bundles
 kind: documentation
-weight: 8
+weight: 9
 ---
 
 OPA can periodically download bundles of policy and data from remote HTTP

@@ -1,7 +1,7 @@
 ---
 title: Decision Logs
 kind: documentation
-weight: 10
+weight: 11
 ---
 
 OPA can periodically report decision logs to remote HTTP servers. The decision

@@ -1,7 +1,7 @@
 ---
 title: Discovery
 kind: documentation
-weight: 12
+weight: 13
 ---
 
 OPA can be configured to download bundles of policy and data, report status, and
