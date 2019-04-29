@@ -1,7 +1,7 @@
 ---
 title: Monitoring
 kind: documentation
-weight: 11
+weight: 12
 ---
 
 ## Prometheus

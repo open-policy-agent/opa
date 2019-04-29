@@ -1,7 +1,7 @@
 ---
 title: Comparison to Other Systems
 kind: documentation
-weight: 15
+weight: 16
 ---
 
 Often the easiest way to understand a new language is by comparing

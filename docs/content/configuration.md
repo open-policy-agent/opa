@@ -1,7 +1,7 @@
 ---
 title: Configuration Reference
 kind: documentation
-weight: 5
+weight: 7
 ---
 
 This page defines the format of OPA configuration files. Fields marked as

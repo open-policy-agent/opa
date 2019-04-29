@@ -2,7 +2,7 @@
 title: Plugins (Experimental)
 navtitle: Plugins
 kind: documentation
-weight: 14
+weight: 15
 ---
 
 OPA can be extended with custom built-in functions and plugins that
