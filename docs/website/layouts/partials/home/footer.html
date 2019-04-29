@@ -1,9 +1,18 @@
 {{ $mainMenu   := site.Menus.main }}
 {{ $socialMenu := site.Menus.social }}
 {{ $year       := now.Year }}
+{{ $cncfLogo   := "/img/logos/cncf-white.png" | relURL }}
 <footer role="contentinfo">
   <div class="content">
     <nav class="nav--footer" role="navigation">
+      <div class="nav--cncf">
+        <p class="nav--footer-text">
+          Open Policy Agent is a <a href="https://cncf.io" target="_blank">Cloud Native Computing Foundation</a> incubating project.
+        </p>
+
+        <img class="nav--footer-cncf-logo" src="{{ $cncfLogo }}" alt="Cloud Native Computing Foundation logo">
+      </div>
+
       <ul class="nav--menu">
         {{ range $mainMenu }}
         <li class="nav--menu-item nav--docs">
