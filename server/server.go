@@ -1422,10 +1422,30 @@ func (s *Server) v1PoliciesPut(w http.ResponseWriter, r *http.Request) {
 	}
 
 	m.Timer("server_read_bytes").Stop()
+
+	txn, err := s.store.NewTransaction(ctx, storage.WriteParams)
+	if err != nil {
+		writer.ErrorAuto(w, err)
+		return
+	}
+
+	if bs, err := s.store.GetPolicy(ctx, txn, path); err != nil {
+		if !storage.IsNotFound(err) {
+			s.abortAuto(ctx, txn, w, err)
+			return
+		}
+	} else if bytes.Equal(buf, bs) {
+		s.store.Abort(ctx, txn)
+		response := types.PolicyPutResponseV1{}
+		if includeMetrics {
+			response.Metrics = m.All()
+		}
+		writer.JSON(w, http.StatusOK, response, pretty)
+		return
+	}
+
 	m.Timer(metrics.RegoModuleParse).Start()
-
 	parsedMod, err := ast.ParseModule(path, string(buf))
-
 	m.Timer(metrics.RegoModuleParse).Stop()
 
 	if err != nil {
@@ -1440,13 +1460,6 @@ func (s *Server) v1PoliciesPut(w http.ResponseWriter, r *http.Request) {
 
 	if parsedMod == nil {
 		writer.Error(w, http.StatusBadRequest, types.NewErrorV1(types.CodeInvalidParameter, "empty module"))
-		return
-	}
-
-	txn, err := s.store.NewTransaction(ctx, storage.WriteParams)
-
-	if err != nil {
-		writer.ErrorAuto(w, err)
 		return
 	}
 
