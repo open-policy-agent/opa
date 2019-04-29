@@ -214,6 +214,20 @@ main {
   font-size: 13px;
 }
 
+.nav--cncf {
+  max-width: 100%;
+}
+
+.nav--cncf .nav--footer-text {
+}
+
+.nav--cncf .nav--footer-cncf-logo {
+  display: block;
+  height: 3rem;
+  width: auto;
+  margin-bottom: 3rem;
+}
+
 .example {
   align-items: flex-start;
   display: flex;
@@ -447,8 +461,6 @@ main {
 
 .nav--footer {
   color: #fff;
-  display: flex;
-  justify-content: flex-start;
   margin: 24px 0;
 }
 
