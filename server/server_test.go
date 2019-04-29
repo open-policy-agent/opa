@@ -19,6 +19,7 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"reflect"
+	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -1596,6 +1597,49 @@ q[x] { p[x] }`,
 	if name.Compare(ast.String("test")) != 0 {
 		t.Fatalf("Expected name ot equal test but got: %v", name)
 	}
+}
+
+func TestPoliciesPutV1Noop(t *testing.T) {
+	f := newFixture(t)
+	f.v1("PUT", "/policies/test?metrics", `package foo`, 200, "")
+	f.reset()
+	f.v1("PUT", "/policies/test?metrics", `package foo`, 200, "")
+
+	var resp types.PolicyPutResponseV1
+	if err := json.NewDecoder(f.recorder.Body).Decode(&resp); err != nil {
+		t.Fatal(err)
+	}
+
+	exp := []string{"timer_server_read_bytes_ns"}
+
+	// Sort the metric keys and compare to expected value. We're assuming the
+	// server skips parsing if the bytes are equal.
+	result := []string{}
+
+	for k := range resp.Metrics {
+		result = append(result, k)
+	}
+
+	sort.Strings(result)
+
+	if !reflect.DeepEqual(exp, result) {
+		t.Fatalf("Expected %v but got %v", exp, result)
+	}
+
+	f.reset()
+
+	// Ensure subsequent update with changed policy parses the body.
+	f.v1("PUT", "/policies/test?metrics", "package foo\np = 1", 200, "")
+
+	var resp2 types.PolicyPutResponseV1
+	if err := json.NewDecoder(f.recorder.Body).Decode(&resp2); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, ok := resp2.Metrics["timer_rego_module_parse_ns"]; !ok {
+		t.Fatalf("Expected parse module metric in response but got %v", resp2)
+	}
+
 }
 
 func TestPoliciesListV1(t *testing.T) {
