@@ -218,14 +218,11 @@ main {
   max-width: 100%;
 }
 
-.nav--cncf .nav--footer-text {
-}
-
 .nav--cncf .nav--footer-cncf-logo {
   display: block;
-  height: 3rem;
-  width: auto;
+  max-height: 4rem;
   margin-bottom: 3rem;
+  max-width: 80%;
 }
 
 .example {
