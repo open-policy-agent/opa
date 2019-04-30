@@ -5,6 +5,17 @@
       404 Not Found | Open Policy Agent
     </title>
     {{ partial "css.html" . }}
+
+    <style>
+      a {
+        color: #566366 !important;
+        font-weight: 500;
+      }
+
+      a:hover {
+        color: #008a98 !important;
+      }
+    </style>
   </head>
   <body>
     <section class="hero is-light is-fullheight">
@@ -19,28 +30,27 @@
               We're sorry, but this page could not be found. Perhaps you were looking for one of the following:
             </p>
 
-            <ul>
-              <li>
-                <a href="/">
-                  Open Policy Agent main page
-                </a>
-              </li>
-              <li>
-                <a href="/docs/latest">
-                  Documentation
-                </a>
-              </li>
-              <li>
-                <a href="/docs/latest/get-started">
-                  Tutorials
-                </a>
-              </li>
-              <li>
-                <a href="https://play.openpolicyagent.org">
-                  Playground
-                </a>
-              </li>
-            </ul>
+            <a href="/">
+              Open Policy Agent main page
+            </a>
+
+            <br />
+
+            <a href="/docs/latest">
+              Documentation
+            </a>
+
+            <br />
+
+            <a href="/docs/latest/get-started">
+              Tutorials
+            </a>
+
+            <br />
+
+            <a href="https://play.openpolicyagent.org">
+              Playground
+            </a>
           </div>
         </div>
       </div>
