@@ -38,16 +38,18 @@
     var n = n || 1
 
     schedule(function () {
-      var diff = top - page.scrollTop
+      var currentY = window.pageYOffset
+      var diff = top - currentY
       var increment = scrollIncrement * n
 
-      if (diff) {
+      if (Math.floor(diff)) {
         if (Math.abs(diff) < increment) {
-          page.scrollTop += diff
+          window.scrollTo(0, currentY + diff)
         } else if (diff > 0) {
-          page.scrollTop += increment
+          window.scrollTo(0, currentY + increment)
+
         } else {
-          page.scrollTop -= increment
+          window.scrollTo(0, currentY - increment)
         }
 
         animateScrollTop(top, ++n)
@@ -73,8 +75,8 @@
     page = document.documentElement
 
     if (typeof requestAnimationFrame === 'function') {
-      clearFrame = cancelAnimationFrame
-      setFrame = requestAnimationFrame
+      clearSchedule = cancelAnimationFrame
+      setSchedule = requestAnimationFrame
     }
 
     var anchors = document.getElementsByTagName('a')
