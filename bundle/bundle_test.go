@@ -203,6 +203,7 @@ func TestReadErrorBadContents(t *testing.T) {
 			{"/a/b/data.json", "[1,2,3]"},
 			{"a/b/c/data.json", "true"},
 		}},
+		{[][2]string{{"/test.rego", ""}}},
 	}
 	for _, test := range tests {
 		buf := writeTarGz(test.files)

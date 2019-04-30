@@ -125,9 +125,11 @@ metadata. The file should contain a JSON serialized object.
   defaults to `[""]` which means that ALL data and policy must come
   from the bundle.
 
-OPA will only load data files named `data.json`, i.e., you MUST name files
-that contain data (which you want loaded into OPA) `data.json` -- otherwise
-they will be ignored.
+* OPA will only load data files named `data.json`, i.e., you MUST name files
+  that contain data (which you want loaded into OPA) `data.json` -- otherwise
+  they will be ignored.
+
+* The `*.rego` policy files must be valid [Modules](/docs/{{< current_version >}}/how-do-i-write-policies#modules)
 
 ## Multiple Sources of Policy and Data
 
