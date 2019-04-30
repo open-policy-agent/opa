@@ -1,24 +1,4 @@
 (function () {
-  var scrollIncrement = 4
-  var scrollTop = 0
-  var page
-
-  function clearSchedule(x) {
-    clearTimeout(x)
-  }
-
-  function setSchedule(x) {
-    setTimeout(x, 16)
-  }
-
-  function schedule(callback) {
-    var frameId
-
-    (function () {
-      clearSchedule(frameId)
-      frameId = setSchedule(callback)
-    }())
-  }
 
   function calculateScrollTop(el) {
     var y = 0
@@ -29,35 +9,60 @@
       node = node.offsetParent
     }
 
-    return y
+    return  y - 120 // margin of each "example/ use-case" is 160px
   }
 
-  var scrollIncrement = 4
+  function animateScrollTop(endPosition) {
+    let initialPosition = window.pageYOffset // Cross-compatible. Do not use window.scrollY
+    let difference = Math.abs(endPosition - initialPosition)
 
-  function animateScrollTop(top, n) {
-    var n = n || 1
+    let factor = 7
+    let scrollIncrement = 4
+    let afterIncrement = endPosition > initialPosition ? initialPosition + scrollIncrement : initialPosition - scrollIncrement
+    let time = 0
 
-    schedule(function () {
-      var diff = top - page.scrollTop
-      var increment = scrollIncrement * n
+    if (endPosition > initialPosition) { // downward scroll
+      for (let i = afterIncrement; i <= endPosition + scrollIncrement; i += scrollIncrement) {
+        afterIncrement += scrollIncrement
 
-      if (diff) {
-        if (Math.abs(diff) < increment) {
-          page.scrollTop += diff
-        } else if (diff > 0) {
-          page.scrollTop += increment
-        } else {
-          page.scrollTop -= increment
+        if (afterIncrement >= endPosition) {
+          afterIncrement = endPosition
         }
 
-        animateScrollTop(top, ++n)
+        (function(afterIncrement, time) {
+          setTimeout( () => {
+            window.scrollTo(0, afterIncrement)
+          }, factor * time)
+        })(afterIncrement, time)
+
+        time++
+        scrollIncrement++
       }
-    })
+      return;
+    }
+
+    for (let i = initialPosition; i > endPosition; i -= scrollIncrement) { // upward scroll
+      afterIncrement -= scrollIncrement
+
+      if (afterIncrement < endPosition){
+        afterIncrement = endPosition
+      }
+
+        (function(afterIncrement, time) {
+          setTimeout(() => {
+            window.scrollTo(0, afterIncrement)
+          }, time * factor)
+        })(afterIncrement, time)
+
+        time++
+        scrollIncrement++
+    }
   }
+
 
   function scrollIntoView(event) {
     var el = document.getElementById(event.currentTarget.getAttribute('href').substr(1))
-    animateScrollTop(calculateScrollTop(el) - 120)
+    animateScrollTop(calculateScrollTop(el))
 
     // XXX: When Chrome 70.0.3538.77 navigates to an internal anchor (#),
     // it breaks the page layout so we don’t want to do that.
@@ -70,7 +75,7 @@
   }
 
   function ready() {
-    page = document.documentElement
+    var page = document.documentElement
 
     if (typeof requestAnimationFrame === 'function') {
       clearFrame = cancelAnimationFrame
