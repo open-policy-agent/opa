@@ -177,6 +177,10 @@ func (r *Reader) Read() (Bundle, error) {
 			if err != nil {
 				return bundle, errors.Wrap(err, "bundle load failed")
 			}
+			if module == nil {
+				return bundle, errors.Wrap(fmt.Errorf("module '%s' is empty", path), "bundle load failed")
+			}
+
 			file := ModuleFile{
 				Path:   path,
 				Raw:    buf.Bytes(),
