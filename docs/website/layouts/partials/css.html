@@ -10,10 +10,14 @@
 {{ if $isHome }}
 <link media="screen" charset="utf-8" rel="stylesheet" href="/css/home.css">
 {{ else }}
+{{ if eq .Kind "404" }}
+<link media="screen" charset="utf-8" rel="stylesheet" href="/css/home.css">
+{{ else }}
 {{ if $inServerMode }}
 <link rel="stylesheet" href="{{ $css.RelPermalink }}">
 {{ else }}
 {{ $prodCss := $css | fingerprint }}
 <link rel="stylesheet" href="{{ $prodCss.RelPermalink }}" integrity="{{ $prodCss.Data.Integrity }}">
+{{ end }}
 {{ end }}
 {{ end }}
