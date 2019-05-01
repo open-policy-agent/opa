@@ -1,59 +1,49 @@
-<!DOCTYPE>
-<html>
+
+<!DOCTYPE html>
+<html lang="{{ site.LanguageCode }}">
   <head>
+    <link rel="icon" type="image/png" href="/favicon.png"/>
     <title>
-      404 Not Found | Open Policy Agent
+      404 - {{ block "title" . }}{{ site.Title }}{{ end }}
     </title>
     {{ partial "css.html" . }}
-
     <style>
       a {
-        color: #566366 !important;
+        display: block;
+        text-align: center;
+        color:#566366;
+        text-decoration: none;
         font-weight: 500;
       }
 
       a:hover {
-        color: #008a98 !important;
+        color: #008a98;
+      }
+
+     body,html {
+      height: 100%;
+      overflow: hidden;}
+
+      .headline--wave--fg { bottom: 200px;}
+      .headline--wave--bg { bottom: 230px;}
+
+      h1,p {
+        text-align: center;
       }
     </style>
   </head>
+
   <body>
-    <section class="hero is-light is-fullheight">
-      <div class="hero-body has-text-centered">
-        <div class="container">
-          <p class="title is-size-1 is-size-2-mobile has-text-weight-light">
-            404 Not Found
-          </p>
-
-          <div class="content is-medium">
-            <p>
-              We're sorry, but this page could not be found. Perhaps you were looking for one of the following:
-            </p>
-
-            <a href="/">
-              Open Policy Agent main page
-            </a>
-
-            <br />
-
-            <a href="/docs/latest">
-              Documentation
-            </a>
-
-            <br />
-
-            <a href="/docs/latest/get-started">
-              Tutorials
-            </a>
-
-            <br />
-
-            <a href="https://play.openpolicyagent.org">
-              Playground
-            </a>
-          </div>
-        </div>
-      </div>
-    </section>
+    <header role="banner">
+      <div class="headline--wave--bg" role="presentation"></div>
+      <div class="headline--wave--fg" role="presentation"></div>
+      <h1>Sorry, looks like this page was lost at sea!</h1>
+      <p class="headline--subtitle">Perhaps you could use one of the following:</p>
+      <a href="/">Open Policy Agent Home Page</a>
+      <a href="/docs/latest">Documentation</a>
+      <a href="/docs/latest/get-started">Tutorials</a>
+      <a href="https://play.openpolicyagent.org">Playground</a>
+    </header>
   </body>
+
 </html>
