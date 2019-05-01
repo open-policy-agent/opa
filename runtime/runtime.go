@@ -135,6 +135,10 @@ type Params struct {
 	// GracefulShutdownPeriod is the time (in seconds) to wait for the http
 	// server to shutdown gracefully.
 	GracefulShutdownPeriod int
+
+	// ignore queries are a list of query parameters that are ignored by
+	// the REST api.
+	IgnoreQueries string
 }
 
 // LoggingConfig stores the configuration for OPA's logging behaviour.
@@ -265,6 +269,7 @@ func (rt *Runtime) StartServer(ctx context.Context) {
 		WithDiagnosticsBuffer(rt.Params.DiagnosticsBuffer).
 		WithDecisionIDFactory(rt.decisionIDFactory).
 		WithDecisionLoggerWithErr(rt.decisionLogger).
+		WithIgnoreQueries(rt.Params.IgnoreQueries).
 		WithRuntime(rt.info).
 		Init(ctx)
 
@@ -276,6 +281,11 @@ func (rt *Runtime) StartServer(ctx context.Context) {
 		if err := rt.startWatcher(ctx, rt.Params.Paths, onReloadLogger); err != nil {
 			logrus.WithField("err", err).Fatalf("Unable to open watch.")
 		}
+	}
+
+	// Document configured ignored queries, since these are silently ignored.
+	if rt.Params.IgnoreQueries != "" {
+		logrus.WithField("params", rt.Params.IgnoreQueries).Infof("Ignored query parameters")
 	}
 
 	s.Handler = NewLoggingHandler(s.Handler)

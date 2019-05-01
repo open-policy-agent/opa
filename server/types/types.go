@@ -393,6 +393,44 @@ type QueryRequestV1 struct {
 	Query string `json:"query"`
 }
 
+// ignoreQueries is a map of all possible HTTP URL parameters with a default 'ignore' value.
+// All URL paramters will query this map to see if they should be ignored.
+var ignoreQueries = map[string]bool{
+	ParamQueryV1:            false,
+	ParamInputV1:            false,
+	ParamPrettyV1:           false,
+	ParamExplainV1:          false,
+	ParamMetricsV1:          false,
+	ParamInstrumentV1:       false,
+	ParamPartialV1:          false,
+	ParamProvenanceV1:       false,
+	ParamWatchV1:            false,
+	ParamBundleActivationV1: false,
+}
+
+func IgnoreQuery(param string) bool {
+	// Specifically catch the case where a new query
+	// parameter is not added to above map
+	return ignoreQueries[param]
+}
+
+func SetIgnoreQueries(queries string, state bool) error {
+
+	s := strings.Split(queries, ",")
+	for i, _ := range s {
+		if s[i] == "" {
+			continue
+		}
+		_, ok := ignoreQueries[s[i]]
+		if ok == false {
+			return fmt.Errorf("Invalid/Unknown query parameter: %s", s[i])
+		}
+		ignoreQueries[s[i]] = state
+	}
+
+	return nil
+}
+
 const (
 	// ParamQueryV1 defines the name of the HTTP URL parameter that specifies
 	// values for the request query.

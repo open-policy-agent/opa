@@ -54,6 +54,65 @@ type trw struct {
 	wait chan struct{}
 }
 
+func TestIgnoredQueries(t *testing.T) {
+
+	// Two valid and one invalid.  Invalid must be last (for reset below)
+	s := "explain,pretty,foo"
+
+	err := types.SetIgnoreQueries(s, true)
+	if err == nil {
+		t.Fatalf("SetIgnoreQueries returned nil error!")
+	}
+
+	b := types.IgnoreQuery("explain")
+	if b == false {
+		t.Fatalf("'explain' should be true, is false")
+	}
+
+	b = types.IgnoreQuery("watch")
+	if b == true {
+		t.Fatalf("'watch' should be false, is true")
+	}
+
+	// Reset to initial state.
+	types.SetIgnoreQueries(s, false)
+
+}
+
+func TestIngoredProvenance(t *testing.T) {
+
+	f := newFixture(t)
+
+	// Dummy up since we are not using ld...
+	version.Version = "0.10.7"
+	version.Vcs = "ac23eb45"
+	version.Timestamp = "today"
+	version.Hostname = "foo.bar.com"
+
+	// Ignore a 'provenance' query
+	err := types.SetIgnoreQueries("provenance", true)
+	if err != nil {
+		t.Fatalf("SetIgnoreQueries returned nil error!")
+	}
+
+	req := newReqV1(http.MethodPost, "/data?provenance", "")
+	f.reset()
+	f.server.Handler.ServeHTTP(f.recorder, req)
+
+	var result types.DataResponseV1
+
+	if err := util.NewJSONDecoder(f.recorder.Body).Decode(&result); err != nil {
+		t.Fatalf("Unexpected JSON decode error: %v", err)
+	}
+
+	if result.Provenance != nil {
+		t.Fatalf("Expected nil provenance: %v", result.Provenance)
+	}
+
+	// Reset...
+	types.SetIgnoreQueries("provenance", false)
+}
+
 func TestUnversionedGetHealth(t *testing.T) {
 
 	f := newFixture(t)

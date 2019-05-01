@@ -89,6 +89,7 @@ type Server struct {
 	router            *mux.Router
 	addrs             []string
 	insecureAddr      string
+	ignoredQueries    string
 	authentication    AuthenticationScheme
 	authorization     AuthorizationScheme
 	cert              *tls.Certificate
@@ -145,6 +146,12 @@ func (s *Server) Init(ctx context.Context) (*Server, error) {
 	}
 
 	txn, err := s.store.NewTransaction(ctx, storage.WriteParams)
+	if err != nil {
+		return nil, err
+	}
+
+	// Set the ignored query parameters
+	err = types.SetIgnoreQueries(s.ignoredQueries, true)
 	if err != nil {
 		return nil, err
 	}
@@ -218,6 +225,12 @@ func (s *Server) WithAddresses(addrs []string) *Server {
 // WithInsecureAddress sets the listening address that the server will bind to.
 func (s *Server) WithInsecureAddress(addr string) *Server {
 	s.insecureAddr = addr
+	return s
+}
+
+// WithIgnoreQueries sets the string of query params that will be ignored.
+func (s *Server) WithIgnoreQueries(ignored string) *Server {
+	s.ignoredQueries = ignored
 	return s
 }
 
@@ -2083,6 +2096,10 @@ func getBoolParam(url *url.URL, name string, ifEmpty bool) bool {
 		return false
 	}
 
+	if types.IgnoreQuery(name) {
+		return false
+	}
+
 	// Query params w/o values are represented as slice (of len 1) with an
 	// empty string.
 	if len(p) == 1 && p[0] == "" {
@@ -2099,10 +2116,19 @@ func getBoolParam(url *url.URL, name string, ifEmpty bool) bool {
 }
 
 func getWatch(p []string) (watch bool) {
+
+	if types.IgnoreQuery(types.ParamWatchV1) {
+		return false
+	}
 	return len(p) > 0
 }
 
 func getExplain(p []string, zero types.ExplainModeV1) types.ExplainModeV1 {
+
+	if types.IgnoreQuery(types.ParamExplainV1) {
+		return zero
+	}
+
 	for _, x := range p {
 		switch x {
 		case string(types.ExplainFullV1):
