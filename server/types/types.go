@@ -418,6 +418,11 @@ const (
 	// ParamWatchV1 defines the name of the HTTP URL parameter that indicates
 	// the client wants to set a watch on the current query or data reference.
 	ParamWatchV1 = "watch"
+
+	// ParamBundleActivationV1 defines the name of the HTTP URL parameter that
+	// indicates the client wants to include bundle activation in the results
+	// of the health API.
+	ParamBundleActivationV1 = "bundle"
 )
 
 // BadRequestErr represents an error condition raised if the caller passes
