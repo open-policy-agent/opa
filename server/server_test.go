@@ -21,6 +21,7 @@ import (
 	"reflect"
 	"sort"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -29,6 +30,7 @@ import (
 	"github.com/open-policy-agent/opa/internal/manifest"
 	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/plugins"
+	pluginBundle "github.com/open-policy-agent/opa/plugins/bundle"
 	"github.com/open-policy-agent/opa/server/identifier"
 	"github.com/open-policy-agent/opa/server/types"
 	"github.com/open-policy-agent/opa/storage"
@@ -59,6 +61,75 @@ func TestUnversionedGetHealth(t *testing.T) {
 	req := newReqUnversioned(http.MethodGet, "/health", "")
 	if err := f.executeRequest(req, 200, `{}`); err != nil {
 		t.Fatalf("Unexpected error while health check: %v", err)
+	}
+}
+
+func TestUnversionedGetHealthBundleNoBundleSet(t *testing.T) {
+
+	f := newFixture(t)
+
+	req := newReqUnversioned(http.MethodGet, "/health?bundle=true", "")
+	if err := f.executeRequest(req, 200, `{}`); err != nil {
+		t.Fatalf("Unexpected error while health check: %v", err)
+	}
+}
+
+func TestUnversionedGetHealthCheckBundleActivation(t *testing.T) {
+
+	f := newFixture(t)
+
+	// Initialize the server as if a bundle plugin was
+	// configured on the manager.
+	f.server.hasBundle = true
+	f.server.bundleStatusMtx = new(sync.RWMutex)
+
+	// The bundle hasnt been activated yet, expect it to be activated
+	req := newReqUnversioned(http.MethodGet, "/health?bundle=true", "")
+	if err := f.executeRequest(req, 500, `{}`); err != nil {
+		t.Fatalf("Unexpected error while health check: %v", err)
+	}
+
+	// Set the bundle to be activated.
+	status := pluginBundle.Status{}
+	status.SetActivateSuccess("")
+	f.server.updateBundleStatus(status)
+
+	// The heath check should now respond as healthy
+	req = newReqUnversioned(http.MethodGet, "/health?bundle=true", "")
+	if err := f.executeRequest(req, 200, `{}`); err != nil {
+		t.Fatalf("Unexpected error while health check: %v", err)
+	}
+}
+
+func TestInitWithBundlePlugin(t *testing.T) {
+	store := inmem.New()
+	m, err := plugins.New([]byte{}, "test", store)
+	if err != nil {
+		t.Fatalf("Unexpected error creating plugin manager: %s", err.Error())
+	}
+
+	m.Register(pluginBundle.Name, new(pluginBundle.Plugin))
+
+	server, err := New().
+		WithStore(store).
+		WithManager(m).
+		Init(context.Background())
+
+	if err != nil {
+		t.Fatalf("Unexpected error initializing server: %s", err.Error())
+	}
+
+	if server.hasBundle == false {
+		t.Error("server.hasBundle should be true")
+	}
+
+	if server.bundleStatusMtx == nil {
+		t.Error("server.bundleStatusMtx should be initialized")
+	}
+
+	isActivated := server.bundleActivated()
+	if isActivated {
+		t.Error("bundle should not be initialized to activated")
 	}
 }
 

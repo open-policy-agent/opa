@@ -261,18 +261,17 @@ containers:
     name: example-policy
   livenessProbe:
     httpGet:
-      path: /health
       scheme: HTTP              # assumes OPA listens on localhost:8181
       port: 8181
     initialDelaySeconds: 5      # tune these periods for your environemnt
     periodSeconds: 5
   readinessProbe:
     httpGet:
-      path: /health
+      path: /health?bundle=true  # Include bundle activation in readiness
       scheme: HTTP
       port: 8181
     initialDelaySeconds: 5
     periodSeconds: 5
 ```
 
-See the [Monitoring](../monitoring) documentation for more detail on the `/health` API endpoint.
+See the [Health API](/docs/{{< current_version >}}/rest-api#health-api) documentation for more detail on the `/health` API endpoint.

@@ -30,6 +30,7 @@ import (
 	"github.com/open-policy-agent/opa/internal/manifest"
 	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/plugins"
+	"github.com/open-policy-agent/opa/plugins/bundle"
 	"github.com/open-policy-agent/opa/rego"
 	"github.com/open-policy-agent/opa/server/authorizer"
 	"github.com/open-policy-agent/opa/server/identifier"
@@ -105,6 +106,9 @@ type Server struct {
 	pprofEnabled      bool
 	runtime           *ast.Term
 	httpListeners     []httpListener
+	bundleStatus      bundle.Status
+	bundleStatusMtx   *sync.RWMutex
+	hasBundle         bool
 }
 
 // Loop will contain all the calls from the server that we'll be listening on.
@@ -163,6 +167,15 @@ func (s *Server) Init(ctx context.Context) (*Server, error) {
 	}
 
 	s.partials = map[string]rego.PartialResult{}
+
+	bp := bundle.Lookup(s.manager)
+	if bp != nil {
+		s.bundleStatusMtx = new(sync.RWMutex)
+		s.hasBundle = true
+		bp.Register("REST API Server", func(status bundle.Status) {
+			s.updateBundleStatus(status)
+		})
+	}
 
 	return s, s.store.Commit(ctx, txn)
 }
@@ -762,27 +775,59 @@ func (s *Server) v1DiagnosticsGet(w http.ResponseWriter, r *http.Request) {
 	writer.JSON(w, 200, resp, pretty)
 }
 
-func (s *Server) unversionedGetHealth(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
+func (s *Server) updateBundleStatus(status bundle.Status) {
+	s.bundleStatusMtx.Lock()
+	defer s.bundleStatusMtx.Unlock()
+	s.bundleStatus = status
+}
+
+func (s *Server) canEval(ctx context.Context) bool {
 	// Create very simple query that binds a single variable.
 	eval := rego.New(rego.Compiler(s.getCompiler()),
 		rego.Store(s.store), rego.Query("x = 1"))
 	// Run evaluation.
 	rs, err := eval.Eval(ctx)
 	if err != nil {
-		writer.ErrorAuto(w, err)
-		return
+		return false
 	}
 	type emptyObject struct{}
 	v, ok := rs[0].Bindings["x"]
 	if ok {
 		jsonNumber, ok := v.(json.Number)
 		if ok && jsonNumber.String() == "1" {
-			writer.JSON(w, http.StatusOK, emptyObject{}, false)
-			return
+			return true
 		}
 	}
-	writer.JSON(w, http.StatusInternalServerError, emptyObject{}, false)
+	return false
+}
+
+func (s *Server) bundleActivated() bool {
+	s.bundleStatusMtx.RLock()
+	defer s.bundleStatusMtx.RUnlock()
+
+	// Ensure that the bundle status has an activation time set on it
+	return s.bundleStatus.LastSuccessfulActivation != time.Time{}
+}
+
+func (s *Server) unversionedGetHealth(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	includeBundleStatus := getBoolParam(r.URL, types.ParamBundleActivationV1, false)
+
+	// Ensure the server can evaluate a simple query
+	type emptyObject struct{}
+	if !s.canEval(ctx) {
+		writer.JSON(w, http.StatusInternalServerError, emptyObject{}, false)
+		return
+	}
+
+	// Ensure that bundles (if configured, and requested to be included in the result)
+	// have been activated successfully.
+	if includeBundleStatus && s.hasBundle && !s.bundleActivated() {
+		writer.JSON(w, http.StatusInternalServerError, emptyObject{}, false)
+		return
+	}
+
+	writer.JSON(w, http.StatusOK, emptyObject{}, false)
 }
 
 func (s *Server) v1CompilePost(w http.ResponseWriter, r *http.Request) {

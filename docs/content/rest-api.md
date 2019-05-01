@@ -2026,3 +2026,49 @@ The `bindings` field is a JSON object mapping `string`s to JSON values that desc
 If the watch was set on a data reference instead of a query, the `result` field will simply be the value of the document requested, instead of an array of values.
 
 
+## Health API
+
+The `/health` API endpoint executes a simple built-in policy query to verify
+that the server is operational. Optionally it can account for bundle activation as well
+(useful for "ready" checks at startup).
+
+#### Query Parameters
+`bundle` - Boolean parameter to account for bundle activation status in response.
+
+#### Status Codes
+- **200** - OPA service is healthy. If `bundle=true` the configured bundle has
+            been activated.
+- **500** - OPA service is not healthy. If `bundle=true` this can mean the
+            configured bundle has not yet been activated.
+
+> *Note*: The bundle activation check is only for initial startup. Subsequent downloads
+  will not affect the health check. The [Status](/docs/{{< current_version >}}/status)
+  API should be used for more fine-grained bundle status monitoring.
+
+#### Example Request
+```http
+GET /health HTTP/1.1
+```
+
+#### Example Request (bundle activation)
+```http
+GET /health?bundle=true HTTP/1.1
+```
+
+#### Healthy Response
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+```
+```json
+{}
+```
+
+#### Unhealthy Response
+```http
+HTTP/1.1 500 Internal Server Error
+Content-Type: application/json
+```
+```json
+{}
+```

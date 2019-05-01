@@ -26,12 +26,7 @@ scrape_configs:
 ## Health Checks
 
 OPA exposes a `/health` API endpoint that can be used to perform health checks.
-The `/health` API endpoint executes a simple built-in policy query to verify
-that the server is operational. Clients should check that OPA returns an HTTP
-`200 OK` status. If a non-200 status is returned, clients should alarm.
-
-> The current health check implementation does not take into account bundle
-> activation.
+See [Health API](/docs/{{< current_version >}}/rest-api#health-api) for details.
 
 ## Diagnostics (Deprecated)
 
