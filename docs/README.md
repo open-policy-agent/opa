@@ -14,6 +14,72 @@ the website.
 directory. This content is versioned for each release and should have all images
 and code snippets alongside the markdown content files.
 
+## Website Components
+
+The website ([openpolicyagent.org](https://openpolicyagent.org)) and doc's hosted there
+([openpolicyagent.org/docs](https://openpolicyagent.org/docs)) have a few components
+involved with the buildings and hosting.
+
+The static site is generated with [Hugo](https://gohugo.io/) which uses the markdown
+in [content/](./content) as its content for pages under `/docs/*`. There is a script
+to generate the previous supported versions, automated via `make generate`, and the
+latest (current working tree) documentations is under `/docs/edge/*`.
+
+The static site content is then hosted by [Netlify](https://www.netlify.com/). To
+support backwards compatible URLs (from pre-netlify days) and to have the `latest`
+version of the docs URLs work
+[openpolicyagent.org/docs/latest](https://openpolicyagent.org/docs/latest) the site
+relies on Netlify URL [redirects and rewrites](https://www.netlify.com/docs/redirects/)
+which are defined in [website/layouts/index.redirects](./webiste/layouts/index.redirects)
+and are build into a `_redirects` file when the Hugo build happens via
+`make production-build` or `make preview-build`.
+
+### How to Edit and Test
+
+Because of the different components at play there are a few different ways to
+test/view the website. The choice depends largely on what is being modified:
+
+#### Full Site Preview
+
+Go to [Netlify](https://www.netlify.com/) and log-in. Link to your public fork of
+OPA on github and have it deploy a site. As long as it is public this is free
+and can be configured to deploy test branches before opening PR's on the official
+OPA github repo.
+
+This approach gives the best simulation for what the website will behave like once
+code has merged.
+
+
+#### Modifying `content` (*.md)
+
+The majorify of this can be done with any markdown renderer (typically built-in or
+a plug-in for IDE's). The rendered output will be very similar to what Hugo will
+generate.
+ 
+> This excludes the Hugo shortcodes (places with `{{< SHORT_CODE >}}` in the markdown.
+  To see the output of these you'll need to involve Hugo
+
+#### Modifying the Hugo templates and/or website (HTML/CSS/JS)
+
+The easiest way is to run Hugo locally in dev mode. Changes made will be reflected
+immediately be the Hugo dev server. See 
+[Run the site locally using Docker](#run-the-site-locally-using-docker)
+
+> This approach will *not* include the Netlify redirects so urls like
+ `http://localhost:1313/docs/latest/` will not work. You must navigate directly to
+ the version of docs you want to test. Typically this will be
+ [http://localhost:1313/docs/edge/](http://localhost:1313/docs/edge/).
+
+
+#### Modifying the netlify config/redirects
+
+This requires either using the [Full Site Preview](#full-site-preview) or using
+the local dev tools as described below in:
+[Run the site locally without Docker](#run-the-site-locally-without-docker)
+
+The local dev tools will *not* give live updates as the content changes, but
+will give the most accurate production simulation.
+
 ## Run the site locally
 
 You can run the site locally [with Docker](#run-the-site-locally-using-docker) or
