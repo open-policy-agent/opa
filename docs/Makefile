@@ -22,7 +22,7 @@ hugo-serve:
 		--buildFuture
 
 .PHONY: serve
-serve:
+serve: production-build
 	# must be run from root of repo for
 	# the netlify.toml config to work
 	cd $(CURDIR)/.. && netlify dev --offline

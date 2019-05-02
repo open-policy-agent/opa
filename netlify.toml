@@ -12,10 +12,11 @@ command = "make docs-preview-build"
 command = "make docs-preview-build"
 
 [dev]
-# "netlify dev" will start the hugo dev server and act as a proxy
+# "netlify dev" will serve the static content using netlify locally
 # with all the redirects and other netlify specific rules in place.
-# NOTE: The command is from the root of the repo, not
-# the "base" directory.
-command = "make docs-hugo-serve"
 publish = "docs/website/public"
-port = 1313
+
+# To run the netlify dev service with hugo dev server "live" behind 
+# it uncomment these lines:
+#command = "make docs-hugo-serve"
+#port = 1313
