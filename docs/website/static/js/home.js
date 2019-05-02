@@ -34,25 +34,25 @@
 
   var scrollIncrement = 4
 
-  function animateScrollTop(top, n) {
+  function animateScrollTop(top, n, previousDiff = 0) {
     var n = n || 1
 
     schedule(function () {
       var currentY = window.pageYOffset
-      var diff = top - currentY
+      var currentDiff = Math.floor(top - currentY)
       var increment = scrollIncrement * n
 
-      if (Math.floor(diff)) {
-        if (Math.abs(diff) < increment) {
-          window.scrollTo(0, currentY + diff)
-        } else if (diff > 0) {
+      if (previousDiff !== currentDiff) { // check to see if we've scrolled as far as possible by checking if diff is repeated
+        if (Math.abs(currentDiff) < increment) {
+          window.scrollTo(0, currentY + currentDiff)
+        } else if (currentDiff > 0) {
           window.scrollTo(0, currentY + increment)
 
         } else {
           window.scrollTo(0, currentY - increment)
         }
 
-        animateScrollTop(top, ++n)
+        animateScrollTop(top, ++n, currentDiff)
       }
     })
   }
