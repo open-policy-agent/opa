@@ -1982,6 +1982,16 @@ OPA currently supports the following query provenance information:
 - **revision**: The _revision_ string included in a .manifest file (if present) within a bundle.
 
 
+## Restricting Query Parameters
+Some OPA deployments may need to restrict certain query parameters for security and/or other reasons. You can tell OPA to silently ignore specific query parameters by using the _--ignored-query-parameters_ commandline option.  When specfied, OPA will ignore the comma separated list of query parameters on all REST API calls.  For example:
+
+```
+opa run -s --ignored-query-parameters=metrics,explain
+```
+The above commandline tells OPA to silently ignore both _metrics_ and _explain_ query parameters on all REST API calls.  The response for those calls will be exactly as if the query parameter(s) were not present in the URLs.
+
+Note that OPA will add a startup log message with the value of the _--ignored-query-parameters_ option to the log.
+
 ## Watches
 
 OPA can set watches on queries and report whenever the result of evaluating the query has changed. When a watch is set on a query, the requesting connection will be maintained as the query results are streamed back in HTTP Chunked Encoding format. A notification reflecting a certain change to the query results will be delivered _at most once_. That is, if a watch is set on `data.x`, and then multiple writes are made to `data.x`, say `1`, `2` and `3`, only the notification reflecting `data.x=3` is always seen eventually (assuming the watch is not ended, there are no connection problems, etc). The notifications reflecting `data.x=1` and `data.x=2` _might_ be seen. However, the notifications sent are guaranteed to be in order (`data.x=2` will always come after `data.x=1`, if it comes).
