@@ -1199,7 +1199,7 @@ type set struct {
 func (s *set) Copy() Set {
 	cpy := NewSet()
 	s.Foreach(func(x *Term) {
-		cpy.Add(x)
+		cpy.Add(x.Copy())
 	})
 	return cpy
 }
