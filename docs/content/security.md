@@ -160,13 +160,18 @@ policy:
         # set to the Bearer token value.
         "identity": <String>,
 
-        # One of {GET, POST, PUT, PATCH, DELETE}.
+        # One of {"GET", "POST", "PUT", "PATCH", "DELETE"}.
         "method": <HTTP Method>,
 
         # URL path represented as an array.
         # For example: /v1/data/exempli-gratia
-        # is represented as [v1, data, exampli-gratia]
+        # is represented as ["v1", "data", "exampli-gratia"]
         "path": <HTTP URL Path>,
+
+        # URL parameters represented as an object of string arrays.
+        # For example: metrics&explain=true is represented as
+        # {"metrics": [""], "explain": ["true"]}
+        "params": <HTTP URL Parameters>
     }
 }
 ```
