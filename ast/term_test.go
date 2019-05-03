@@ -558,6 +558,25 @@ func TestSetOperations(t *testing.T) {
 	}
 }
 
+func TestSetCopy(t *testing.T) {
+	orig := MustParseTerm("{1,2,3}")
+	cpy := orig.Copy()
+	Walk(NewGenericVisitor(func(x interface{}) bool {
+		if Compare(IntNumberTerm(2), x) == 0 {
+			x.(*Term).Value = String("modified")
+		}
+		return false
+	}), orig)
+	expOrig := MustParseTerm(`{1, "modified", 3}`)
+	expCpy := MustParseTerm(`{1,2,3}`)
+	if !expOrig.Equal(orig) {
+		t.Errorf("Expected %v but got %v", expOrig, orig)
+	}
+	if !expCpy.Equal(cpy) {
+		t.Errorf("Expected %v but got %v", expCpy, cpy)
+	}
+}
+
 func TestArrayOperations(t *testing.T) {
 
 	arr := MustParseTerm(`[1,2,3,4]`).Value.(Array)
