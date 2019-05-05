@@ -6,6 +6,7 @@ package cmd
 
 import (
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/util"
 	"github.com/spf13/pflag"
 )
 
@@ -15,4 +16,18 @@ func setMaxErrors(fs *pflag.FlagSet, errLimit *int) {
 
 func setIgnore(fs *pflag.FlagSet, ignoreNames *[]string) {
 	fs.StringSliceVarP(ignoreNames, "ignore", "", []string{}, "set file and directory names to ignore during loading (e.g., '.*' excludes hidden files)")
+}
+
+const (
+	explainModeOff   = "off"
+	explainModeFull  = "full"
+	explainModeNotes = "notes"
+)
+
+func newExplainFlag(modes []string) *util.EnumFlag {
+	return util.NewEnumFlag(modes[0], modes)
+}
+
+func setExplain(fs *pflag.FlagSet, explain *util.EnumFlag) {
+	fs.VarP(explain, "explain", "", "enable query explanations")
 }
