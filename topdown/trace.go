@@ -157,7 +157,12 @@ func formatEvent(event *Event, depth int) string {
 	} else if event.Message != "" {
 		return fmt.Sprintf("%v%v %v %v", padding, event.Op, event.Node, event.Message)
 	} else {
-		return fmt.Sprintf("%v%v %v", padding, event.Op, event.Node)
+		switch node := event.Node.(type) {
+		case *ast.Rule:
+			return fmt.Sprintf("%v%v %v", padding, event.Op, node.Path())
+		default:
+			return fmt.Sprintf("%v%v %v", padding, event.Op, event.Node)
+		}
 	}
 }
 
