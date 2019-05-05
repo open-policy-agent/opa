@@ -12,6 +12,7 @@ import (
 
 	"github.com/open-policy-agent/opa/internal/runtime"
 	"github.com/open-policy-agent/opa/storage"
+	"github.com/open-policy-agent/opa/topdown/notes"
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/cover"
@@ -28,6 +29,7 @@ const (
 
 var testParams = struct {
 	verbose      bool
+	explain      *util.EnumFlag
 	errLimit     int
 	outputFormat *util.EnumFlag
 	coverage     bool
@@ -37,6 +39,7 @@ var testParams = struct {
 	failureLine  bool
 }{
 	outputFormat: util.NewEnumFlag(testPrettyOutput, []string{testPrettyOutput, testJSONOutput}),
+	explain:      newExplainFlag([]string{explainModeFull, explainModeNotes}),
 }
 
 var testCommand = &cobra.Command{
@@ -189,6 +192,10 @@ func opaTest(args []string) int {
 			if !tr.Pass() {
 				exitCode = 2
 			}
+			switch testParams.explain.String() {
+			case explainModeNotes:
+				tr.Trace = notes.Filter(tr.Trace)
+			}
 			dup <- tr
 		}
 	}()
@@ -213,5 +220,6 @@ func init() {
 	testCommand.Flags().Float64VarP(&testParams.threshold, "threshold", "", 0, "set coverage threshold and exit with non-zero status if coverage is less than threshold %")
 	setMaxErrors(testCommand.Flags(), &testParams.errLimit)
 	setIgnore(testCommand.Flags(), &testParams.ignore)
+	setExplain(testCommand.Flags(), testParams.explain)
 	RootCommand.AddCommand(testCommand)
 }
