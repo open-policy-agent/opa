@@ -78,45 +78,45 @@ func TestPrettyTrace(t *testing.T) {
 	expected := `Enter data.test.p = _
 | Eval data.test.p = _
 | Index data.test.p = _ (matched 1 rule)
-| Enter p = true { data.test.q[x]; plus(x, 1, n) }
+| Enter data.test.p
 | | Eval data.test.q[x]
 | | Index data.test.q[x] (matched 1 rule)
-| | Enter q[x] { x = data.a[_] }
+| | Enter data.test.q
 | | | Eval x = data.a[_]
-| | | Exit q[x] { x = data.a[_] }
+| | | Exit data.test.q
 | | Eval plus(x, 1, n)
-| | Exit p = true { data.test.q[x]; plus(x, 1, n) }
+| | Exit data.test.p
 | Exit data.test.p = _
 Redo data.test.p = _
 | Redo data.test.p = _
-| Redo p = true { data.test.q[x]; plus(x, 1, n) }
+| Redo data.test.p
 | | Redo plus(x, 1, n)
 | | Redo data.test.q[x]
-| | Redo q[x] { x = data.a[_] }
+| | Redo data.test.q
 | | | Redo x = data.a[_]
-| | | Exit q[x] { x = data.a[_] }
+| | | Exit data.test.q
 | | Eval plus(x, 1, n)
-| | Exit p = true { data.test.q[x]; plus(x, 1, n) }
-| Redo p = true { data.test.q[x]; plus(x, 1, n) }
+| | Exit data.test.p
+| Redo data.test.p
 | | Redo plus(x, 1, n)
 | | Redo data.test.q[x]
-| | Redo q[x] { x = data.a[_] }
+| | Redo data.test.q
 | | | Redo x = data.a[_]
-| | | Exit q[x] { x = data.a[_] }
+| | | Exit data.test.q
 | | Eval plus(x, 1, n)
-| | Exit p = true { data.test.q[x]; plus(x, 1, n) }
-| Redo p = true { data.test.q[x]; plus(x, 1, n) }
+| | Exit data.test.p
+| Redo data.test.p
 | | Redo plus(x, 1, n)
 | | Redo data.test.q[x]
-| | Redo q[x] { x = data.a[_] }
+| | Redo data.test.q
 | | | Redo x = data.a[_]
-| | | Exit q[x] { x = data.a[_] }
+| | | Exit data.test.q
 | | Eval plus(x, 1, n)
-| | Exit p = true { data.test.q[x]; plus(x, 1, n) }
-| Redo p = true { data.test.q[x]; plus(x, 1, n) }
+| | Exit data.test.p
+| Redo data.test.p
 | | Redo plus(x, 1, n)
 | | Redo data.test.q[x]
-| | Redo q[x] { x = data.a[_] }
+| | Redo data.test.q
 | | | Redo x = data.a[_]
 `
 
@@ -171,65 +171,65 @@ func TestTraceNote(t *testing.T) {
 	expected := `Enter data.test.p = _
 | Eval data.test.p = _
 | Index data.test.p = _ (matched 1 rule)
-| Enter p = true { data.test.q[x]; plus(x, 1, n); sprintf("n= %v", [n], __local0__); trace(__local0__) }
+| Enter data.test.p
 | | Eval data.test.q[x]
 | | Index data.test.q[x] (matched 1 rule)
-| | Enter q[x] { x = data.a[_] }
+| | Enter data.test.q
 | | | Eval x = data.a[_]
-| | | Exit q[x] { x = data.a[_] }
+| | | Exit data.test.q
 | | Eval plus(x, 1, n)
 | | Eval sprintf("n= %v", [n], __local0__)
 | | Eval trace(__local0__)
 | | Note "n= 2"
-| | Exit p = true { data.test.q[x]; plus(x, 1, n); sprintf("n= %v", [n], __local0__); trace(__local0__) }
+| | Exit data.test.p
 | Exit data.test.p = _
 Redo data.test.p = _
 | Redo data.test.p = _
-| Redo p = true { data.test.q[x]; plus(x, 1, n); sprintf("n= %v", [n], __local0__); trace(__local0__) }
+| Redo data.test.p
 | | Redo trace(__local0__)
 | | Redo sprintf("n= %v", [n], __local0__)
 | | Redo plus(x, 1, n)
 | | Redo data.test.q[x]
-| | Redo q[x] { x = data.a[_] }
+| | Redo data.test.q
 | | | Redo x = data.a[_]
-| | | Exit q[x] { x = data.a[_] }
+| | | Exit data.test.q
 | | Eval plus(x, 1, n)
 | | Eval sprintf("n= %v", [n], __local0__)
 | | Eval trace(__local0__)
 | | Note "n= 3"
-| | Exit p = true { data.test.q[x]; plus(x, 1, n); sprintf("n= %v", [n], __local0__); trace(__local0__) }
-| Redo p = true { data.test.q[x]; plus(x, 1, n); sprintf("n= %v", [n], __local0__); trace(__local0__) }
+| | Exit data.test.p
+| Redo data.test.p
 | | Redo trace(__local0__)
 | | Redo sprintf("n= %v", [n], __local0__)
 | | Redo plus(x, 1, n)
 | | Redo data.test.q[x]
-| | Redo q[x] { x = data.a[_] }
+| | Redo data.test.q
 | | | Redo x = data.a[_]
-| | | Exit q[x] { x = data.a[_] }
+| | | Exit data.test.q
 | | Eval plus(x, 1, n)
 | | Eval sprintf("n= %v", [n], __local0__)
 | | Eval trace(__local0__)
 | | Note "n= 4"
-| | Exit p = true { data.test.q[x]; plus(x, 1, n); sprintf("n= %v", [n], __local0__); trace(__local0__) }
-| Redo p = true { data.test.q[x]; plus(x, 1, n); sprintf("n= %v", [n], __local0__); trace(__local0__) }
+| | Exit data.test.p
+| Redo data.test.p
 | | Redo trace(__local0__)
 | | Redo sprintf("n= %v", [n], __local0__)
 | | Redo plus(x, 1, n)
 | | Redo data.test.q[x]
-| | Redo q[x] { x = data.a[_] }
+| | Redo data.test.q
 | | | Redo x = data.a[_]
-| | | Exit q[x] { x = data.a[_] }
+| | | Exit data.test.q
 | | Eval plus(x, 1, n)
 | | Eval sprintf("n= %v", [n], __local0__)
 | | Eval trace(__local0__)
 | | Note "n= 5"
-| | Exit p = true { data.test.q[x]; plus(x, 1, n); sprintf("n= %v", [n], __local0__); trace(__local0__) }
-| Redo p = true { data.test.q[x]; plus(x, 1, n); sprintf("n= %v", [n], __local0__); trace(__local0__) }
+| | Exit data.test.p
+| Redo data.test.p
 | | Redo trace(__local0__)
 | | Redo sprintf("n= %v", [n], __local0__)
 | | Redo plus(x, 1, n)
 | | Redo data.test.q[x]
-| | Redo q[x] { x = data.a[_] }
+| | Redo data.test.q
 | | | Redo x = data.a[_]
 `
 
