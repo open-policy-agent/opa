@@ -59,13 +59,11 @@ func newEvalCommandParams() evalCommandParams {
 			evalBindingsOutput,
 			evalPrettyOutput,
 		}),
-		explain: util.NewEnumFlag(explainModeOff, []string{explainModeFull}),
+		explain: newExplainFlag([]string{explainModeOff, explainModeFull}),
 	}
 }
 
 const (
-	explainModeOff     = ""
-	explainModeFull    = "full"
 	evalJSONOutput     = "json"
 	evalValuesOutput   = "values"
 	evalBindingsOutput = "bindings"
@@ -186,7 +184,6 @@ Set the output format with the --format flag.
 	evalCommand.Flags().BoolVarP(&params.stdin, "stdin", "", false, "read query from stdin")
 	evalCommand.Flags().BoolVarP(&params.stdinInput, "stdin-input", "I", false, "read input document from stdin")
 	evalCommand.Flags().BoolVarP(&params.metrics, "metrics", "", false, "report query performance metrics")
-	evalCommand.Flags().VarP(params.explain, "explain", "", "enable query explainations")
 	evalCommand.Flags().VarP(params.outputFormat, "format", "f", "set output format")
 	evalCommand.Flags().BoolVarP(&params.profile, "profile", "", false, "perform expression profiling")
 	evalCommand.Flags().VarP(&params.profileCriteria, "profile-sort", "", "set sort order of expression profiler results")
@@ -195,7 +192,7 @@ Set the output format with the --format flag.
 	evalCommand.Flags().BoolVarP(&params.fail, "fail", "", false, "exits with non-zero exit code on undefined/empty result and errors")
 	evalCommand.Flags().BoolVarP(&params.failDefined, "fail-defined", "", false, "exits with non-zero exit code on defined/non-empty result and errors")
 	setIgnore(evalCommand.Flags(), &params.ignore)
-
+	setExplain(evalCommand.Flags(), params.explain)
 	RootCommand.AddCommand(evalCommand)
 }
 
@@ -260,8 +257,7 @@ func eval(args []string, params evalCommandParams, w io.Writer) (bool, error) {
 
 	var tracer *topdown.BufferTracer
 
-	switch params.explain.String() {
-	case explainModeFull:
+	if params.explain.String() != explainModeOff {
 		tracer = topdown.NewBufferTracer()
 		regoArgs = append(regoArgs, rego.Tracer(tracer))
 	}
@@ -301,7 +297,8 @@ func eval(args []string, params evalCommandParams, w io.Writer) (bool, error) {
 		result.Partial, result.Error = eval.Partial(ctx)
 	}
 
-	if tracer != nil {
+	switch params.explain.String() {
+	case explainModeFull:
 		result.Explanation = *tracer
 	}
 
