@@ -571,6 +571,7 @@ func New(options ...func(r *Rego)) *Rego {
 
 	if r.instrument {
 		r.instrumentation = topdown.NewInstrumentation(r.metrics)
+		r.compiler.WithMetrics(r.metrics)
 	}
 
 	if r.trace {
@@ -743,7 +744,11 @@ func (r *Rego) PrepareForEval(ctx context.Context, opts ...PrepareOption) (Prepa
 		err := r.prepare(ctx, txn, partialResultQueryType, []extraStage{
 			{
 				after: "ResolveRefs",
-				stage: r.rewriteQueryForPartialEval,
+				stage: ast.QueryCompilerStageDefinition{
+					Name:       "RewriteForPartialEval",
+					MetricName: "query_compile_stage_rewrite_for_partial_eval",
+					Stage:      r.rewriteQueryForPartialEval,
+				},
 			},
 		})
 		if err != nil {
@@ -770,7 +775,11 @@ func (r *Rego) PrepareForEval(ctx context.Context, opts ...PrepareOption) (Prepa
 	err = r.prepare(ctx, txn, evalQueryType, []extraStage{
 		{
 			after: "ResolveRefs",
-			stage: r.rewriteQueryToCaptureValue,
+			stage: ast.QueryCompilerStageDefinition{
+				Name:       "RewriteToCaptureValue",
+				MetricName: "query_compile_stage_rewrite_to_capture_value",
+				Stage:      r.rewriteQueryToCaptureValue,
+			},
 		},
 	})
 	if err != nil {
@@ -806,7 +815,11 @@ func (r *Rego) PrepareForPartial(ctx context.Context, opts ...PrepareOption) (Pr
 	err = r.prepare(ctx, txn, partialQueryType, []extraStage{
 		{
 			after: "CheckSafety",
-			stage: r.rewriteEqualsForPartialQueryCompile,
+			stage: ast.QueryCompilerStageDefinition{
+				Name:       "RewriteEquals",
+				MetricName: "query_compile_stage_rewrite_equals",
+				Stage:      r.rewriteEqualsForPartialQueryCompile,
+			},
 		},
 	})
 
@@ -1304,7 +1317,7 @@ func (m rawModule) Parse() (*ast.Module, error) {
 
 type extraStage struct {
 	after string
-	stage ast.QueryCompilerStage
+	stage ast.QueryCompilerStageDefinition
 }
 
 func iteration(x interface{}) bool {

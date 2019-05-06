@@ -255,6 +255,72 @@ func TestRegoMetrics(t *testing.T) {
 	}
 }
 
+func TestRegoInstrumentExtraEvalCompilerStage(t *testing.T) {
+	m := metrics.New()
+	r := New(Query("foo = 1"), Module("foo.rego", "package x"), Metrics(m), Instrument(true))
+	ctx := context.Background()
+	_, err := r.Eval(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	exp := []string{
+		"timer_query_compile_stage_rewrite_to_capture_value_ns",
+	}
+
+	all := m.All()
+
+	for _, name := range exp {
+		if _, ok := all[name]; !ok {
+			t.Errorf("expected to find %v but did not", name)
+		}
+	}
+}
+
+func TestRegoInstrumentExtraPartialCompilerStage(t *testing.T) {
+	m := metrics.New()
+	r := New(Query("foo = 1"), Module("foo.rego", "package x"), Metrics(m), Instrument(true))
+	ctx := context.Background()
+	_, err := r.Partial(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	exp := []string{
+		"timer_query_compile_stage_rewrite_equals_ns",
+	}
+
+	all := m.All()
+
+	for _, name := range exp {
+		if _, ok := all[name]; !ok {
+			t.Errorf("Expected to find %v but did not", name)
+		}
+	}
+}
+
+func TestRegoInstrumentExtraPartialResultCompilerStage(t *testing.T) {
+	m := metrics.New()
+	r := New(Query("input.x"), Module("foo.rego", "package x"), Metrics(m), Instrument(true))
+	ctx := context.Background()
+	_, err := r.PartialResult(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	exp := []string{
+		"timer_query_compile_stage_rewrite_for_partial_eval_ns",
+	}
+
+	all := m.All()
+
+	for _, name := range exp {
+		if _, ok := all[name]; !ok {
+			t.Errorf("Expected to find '%v' in metrics\n\nActual:\n %+v", name, all)
+		}
+	}
+}
+
 func TestRegoCatchPathConflicts(t *testing.T) {
 	r := New(
 		Query("data"),
