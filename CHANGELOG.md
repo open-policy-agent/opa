@@ -14,6 +14,12 @@ project adheres to [Semantic Versioning](http://semver.org/).
   or `Partial` calls.
 - Add new metric `rego_input_parse` and no longer count input parsing as time spent
   in the `rego_query_compile` step.
+- Add new compiler metrics for each stage using `compiler_stage_*` and
+  `query_compiler_stage_*` naming for each. These are enabled when
+  instrumentation is turned on for the Rego API, REPL, and REST API.
+- Change the `ast.Compiler` and `ast.QueryCompiler` API's for `WithExtraStage`
+  to require both a stage name and metric name.
+  
 
 ## 0.10.7
 

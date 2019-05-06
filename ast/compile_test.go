@@ -11,6 +11,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/util"
 	"github.com/open-policy-agent/opa/util/test"
 )
@@ -111,7 +112,10 @@ func TestCompilerExample(t *testing.T) {
 }
 
 func TestCompilerWithStageAfter(t *testing.T) {
-	c := NewCompiler().WithStageAfter("CheckRecursion", mockStageFunctionCall)
+	c := NewCompiler().WithStageAfter(
+		"CheckRecursion",
+		CompilerStageDefinition{"MockStage", "mock_stage", mockStageFunctionCall},
+	)
 	m := MustParseModule(testModule)
 	c.Compile(map[string]*Module{"testMod": m})
 
@@ -2254,6 +2258,38 @@ grault = deadbeef { true }`)
 	}
 }
 
+func TestCompilerWithMetrics(t *testing.T) {
+	m := metrics.New()
+	c := NewCompiler().WithMetrics(m)
+	mod := MustParseModule(testModule)
+
+	c.Compile(map[string]*Module{"testMod": mod})
+	assertNotFailed(t, c)
+
+	if len(m.All()) == 0 {
+		t.Error("Expected to have metrics after compiling")
+	}
+}
+
+func TestCompilerWithStageAfterWithMetrics(t *testing.T) {
+	m := metrics.New()
+	c := NewCompiler().WithStageAfter(
+		"CheckRecursion",
+		CompilerStageDefinition{"MockStage", "mock_stage", mockStageFunctionCallNoErr},
+	)
+
+	c.WithMetrics(m)
+
+	mod := MustParseModule(testModule)
+
+	c.Compile(map[string]*Module{"testMod": mod})
+	assertNotFailed(t, c)
+
+	if len(m.All()) == 0 {
+		t.Error("Expected to have metrics after compiling")
+	}
+}
+
 func TestQueryCompiler(t *testing.T) {
 	tests := []struct {
 		note     string
@@ -2419,6 +2455,54 @@ func TestQueryCompilerRecompile(t *testing.T) {
 
 }
 
+func TestQueryCompilerWithMetrics(t *testing.T) {
+	m := metrics.New()
+	c := NewCompiler().WithMetrics(m)
+	c.Compile(getCompilerTestModules())
+	assertNotFailed(t, c)
+	m.Clear()
+
+	qc := c.QueryCompiler()
+
+	query := MustParseBody("a = 1; a > 2")
+	_, err := qc.Compile(query)
+	if err != nil {
+		t.Fatalf("Unexpected error from %v: %v", query, err)
+	}
+
+	if len(m.All()) == 0 {
+		t.Error("Expected to have metrics after compiling")
+	}
+}
+
+func TestQueryCompilerWithStageAfterWithMetrics(t *testing.T) {
+	m := metrics.New()
+	c := NewCompiler().WithMetrics(m)
+	c.Compile(getCompilerTestModules())
+	assertNotFailed(t, c)
+	m.Clear()
+
+	qc := c.QueryCompiler().WithStageAfter(
+		"CheckSafety",
+		QueryCompilerStageDefinition{
+			"MockStage",
+			"mock_stage",
+			func(qc QueryCompiler, b Body) (Body, error) {
+				return b, nil
+			},
+		})
+
+	query := MustParseBody("a = 1; a > 2")
+	_, err := qc.Compile(query)
+	if err != nil {
+		t.Fatalf("Unexpected error from %v: %v", query, err)
+	}
+
+	if len(m.All()) == 0 {
+		t.Error("Expected to have metrics after compiling")
+	}
+}
+
 func assertCompilerErrorStrings(t *testing.T, compiler *Compiler, expected []string) {
 	result := compilerErrsToStringSlice(compiler.Errors)
 
@@ -2440,6 +2524,10 @@ func assertNotFailed(t *testing.T, c *Compiler) {
 
 func mockStageFunctionCall(c *Compiler) *Error {
 	return NewError(CompileErr, &Location{}, "mock stage error")
+}
+
+func mockStageFunctionCallNoErr(c *Compiler) *Error {
+	return nil
 }
 
 func getCompilerWithParsedModules(mods map[string]string) *Compiler {

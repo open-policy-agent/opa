@@ -1924,6 +1924,7 @@ Content-Type: application/json
 
 OPA currently supports the following query performance metrics:
 
+- **timer_rego_input_parse_ns**: time taken (in nanoseconds) to parse the input
 - **timer_rego_query_parse_ns**: time taken (in nanonseconds) to parse the query.
 - **timer_rego_query_compile_ns**: time taken (in nanonseconds) to compile the query.
 - **timer_rego_query_eval_ns**: time taken (in nanonseconds) to evaluate the query.
@@ -1936,6 +1937,10 @@ specify the `instrument=true` query parameter when executing the API call.
 Query instrumentation can help diagnose performance problems, however, it can
 add significant overhead to query evaluation. We recommend leaving query
 instrumentation off unless you are debugging a performance problem.
+
+When instrumentation is enabled there are several additional performance metrics
+for the compilation stages. They follow the format of `timer_compile_stage_*_ns`
+and `timer_query_compile_stage_*_ns` for the query and module compilation stages.
 
 ## Provenance
 
@@ -1980,7 +1985,6 @@ OPA currently supports the following query provenance information:
 - **build_timestamp**: The timestamp when this instance was built.
 - **build_host**: The hostname where this instance was built.
 - **revision**: The _revision_ string included in a .manifest file (if present) within a bundle.
-
 
 ## Watches
 

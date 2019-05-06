@@ -9,6 +9,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/util"
 )
 
@@ -79,17 +80,26 @@ type Compiler struct {
 	moduleLoader ModuleLoader
 	ruleIndices  *util.HashMap
 	stages       []struct {
-		name string
-		f    func()
+		name       string
+		metricName string
+		f          func()
 	}
 	maxErrs    int
 	sorted     []string // list of sorted module names
 	pathExists func([]string) (bool, error)
-	after      map[string][]CompilerStage
+	after      map[string][]CompilerStageDefinition
+	metrics    metrics.Metrics
 }
 
 // CompilerStage defines the interface for stages in the compiler.
 type CompilerStage func(*Compiler) *Error
+
+// CompilerStageDefinition defines a compiler stage
+type CompilerStageDefinition struct {
+	Name       string
+	MetricName string
+	Stage      CompilerStage
+}
 
 // QueryContext contains contextual information for running an ad-hoc query.
 //
@@ -156,7 +166,7 @@ type QueryCompiler interface {
 
 	// WithStageAfter registers a stage to run during query compilation after
 	// the named stage.
-	WithStageAfter(after string, stage QueryCompilerStage) QueryCompiler
+	WithStageAfter(after string, stage QueryCompilerStageDefinition) QueryCompiler
 
 	// RewrittenVars maps generated vars in the compiled query to vars from the
 	// parsed query. For example, given the query "input := 1" the rewritten
@@ -166,6 +176,15 @@ type QueryCompiler interface {
 
 // QueryCompilerStage defines the interface for stages in the query compiler.
 type QueryCompilerStage func(QueryCompiler, Body) (Body, error)
+
+// QueryCompilerStageDefinition defines a QueryCompiler stage
+type QueryCompilerStageDefinition struct {
+	Name       string
+	MetricName string
+	Stage      QueryCompilerStage
+}
+
+const compileStageMetricPrefex = "ast_compile_stage_"
 
 // NewCompiler returns a new empty compiler.
 func NewCompiler() *Compiler {
@@ -180,7 +199,7 @@ func NewCompiler() *Compiler {
 			return x.(Ref).Hash()
 		}),
 		maxErrs: CompileErrorLimitDefault,
-		after:   map[string][]CompilerStage{},
+		after:   map[string][]CompilerStageDefinition{},
 	}
 
 	c.ModuleTree = NewModuleTree(nil)
@@ -190,29 +209,30 @@ func NewCompiler() *Compiler {
 	c.TypeEnv = checker.checkLanguageBuiltins()
 
 	c.stages = []struct {
-		name string
-		f    func()
+		name       string
+		metricName string
+		f          func()
 	}{
 		// Reference resolution should run first as it may be used to lazily
 		// load additional modules. If any stages run before resolution, they
 		// need to be re-run after resolution.
-		{"ResolveRefs", c.resolveAllRefs},
-		{"RewriteAssignments", c.rewriteLocalAssignments},
-		{"RewriteExprTerms", c.rewriteExprTerms},
-		{"SetModuleTree", c.setModuleTree},
-		{"SetRuleTree", c.setRuleTree},
-		{"SetGraph", c.setGraph},
-		{"RewriteComprehensionTerms", c.rewriteComprehensionTerms},
-		{"RewriteRefsInHead", c.rewriteRefsInHead},
-		{"RewriteWithValues", c.rewriteWithModifiers},
-		{"CheckRuleConflicts", c.checkRuleConflicts},
-		{"CheckSafetyRuleHeads", c.checkSafetyRuleHeads},
-		{"CheckSafetyRuleBodies", c.checkSafetyRuleBodies},
-		{"RewriteEquals", c.rewriteEquals},
-		{"RewriteDynamicTerms", c.rewriteDynamicTerms},
-		{"CheckRecursion", c.checkRecursion},
-		{"CheckTypes", c.checkTypes},
-		{"BuildRuleIndices", c.buildRuleIndices},
+		{"ResolveRefs", "compile_stage_resolve_refs", c.resolveAllRefs},
+		{"RewriteAssignments", "compile_stage_rewrite_assignments", c.rewriteLocalAssignments},
+		{"RewriteExprTerms", "compile_stage_rewrite_expr_terms", c.rewriteExprTerms},
+		{"SetModuleTree", "compile_stage_set_module_tree", c.setModuleTree},
+		{"SetRuleTree", "compile_stage_set_rule_tree", c.setRuleTree},
+		{"SetGraph", "compile_stage_set_graph", c.setGraph},
+		{"RewriteComprehensionTerms", "compile_stage_rewrite_comprehension_terms", c.rewriteComprehensionTerms},
+		{"RewriteRefsInHead", "compile_stage_rewrite_refs_in_head", c.rewriteRefsInHead},
+		{"RewriteWithValues", "compile_stage_rewrite_with_values", c.rewriteWithModifiers},
+		{"CheckRuleConflicts", "compile_stage_check_rule_conflicts", c.checkRuleConflicts},
+		{"CheckSafetyRuleHeads", "compile_stage_check_safety_rule_heads", c.checkSafetyRuleHeads},
+		{"CheckSafetyRuleBodies", "compile_stage_check_safety_rule_bodies", c.checkSafetyRuleBodies},
+		{"RewriteEquals", "compile_stage_rewrite_equals", c.rewriteEquals},
+		{"RewriteDynamicTerms", "compile_stage_rewrite_dynamic_terms", c.rewriteDynamicTerms},
+		{"CheckRecursion", "compile_stage_check_recursion", c.checkRecursion},
+		{"CheckTypes", "compile_stage_check_types", c.checkTypes},
+		{"BuildRuleIndices", "compile_stage_rebuild_indices", c.buildRuleIndices},
 	}
 
 	return c
@@ -235,8 +255,15 @@ func (c *Compiler) WithPathConflictsCheck(fn func([]string) (bool, error)) *Comp
 
 // WithStageAfter registers a stage to run during compilation after
 // the named stage.
-func (c *Compiler) WithStageAfter(after string, stage CompilerStage) *Compiler {
+func (c *Compiler) WithStageAfter(after string, stage CompilerStageDefinition) *Compiler {
 	c.after[after] = append(c.after[after], stage)
+	return c
+}
+
+// WithMetrics will set a metrics.Metrics and be used for profiling
+// the Compiler instance.
+func (c *Compiler) WithMetrics(metrics metrics.Metrics) *Compiler {
+	c.metrics = metrics
 	return c
 }
 
@@ -256,6 +283,7 @@ func (c *Compiler) Compile(modules map[string]*Module) {
 		c.sorted = append(c.sorted, k)
 	}
 	sort.Strings(c.sorted)
+
 	c.compile()
 }
 
@@ -621,6 +649,22 @@ func (c *Compiler) checkTypes() {
 	c.TypeEnv = env
 }
 
+func (c *Compiler) runStage(metricName string, f func()) {
+	if c.metrics != nil {
+		c.metrics.Timer(metricName).Start()
+		defer c.metrics.Timer(metricName).Stop()
+	}
+	f()
+}
+
+func (c *Compiler) runStageAfter(metricName string, s CompilerStage) *Error {
+	if c.metrics != nil {
+		c.metrics.Timer(metricName).Start()
+		defer c.metrics.Timer(metricName).Stop()
+	}
+	return s(c)
+}
+
 func (c *Compiler) compile() {
 	defer func() {
 		if r := recover(); r != nil && r != errLimitReached {
@@ -629,11 +673,13 @@ func (c *Compiler) compile() {
 	}()
 
 	for _, s := range c.stages {
-		if s.f(); c.Failed() {
+		c.runStage(s.metricName, s.f)
+		if c.Failed() {
 			return
 		}
 		for _, s := range c.after[s.name] {
-			if err := s(c); err != nil {
+			err := c.runStageAfter(s.MetricName, s.Stage)
+			if err != nil {
 				c.err(err)
 			}
 		}
@@ -943,14 +989,14 @@ type queryCompiler struct {
 	qctx      *QueryContext
 	typeEnv   *TypeEnv
 	rewritten map[Var]Var
-	after     map[string][]QueryCompilerStage
+	after     map[string][]QueryCompilerStageDefinition
 }
 
 func newQueryCompiler(compiler *Compiler) QueryCompiler {
 	qc := &queryCompiler{
 		compiler: compiler,
 		qctx:     nil,
-		after:    map[string][]QueryCompilerStage{},
+		after:    map[string][]QueryCompilerStageDefinition{},
 	}
 	return qc
 }
@@ -960,7 +1006,7 @@ func (qc *queryCompiler) WithContext(qctx *QueryContext) QueryCompiler {
 	return qc
 }
 
-func (qc *queryCompiler) WithStageAfter(after string, stage QueryCompilerStage) QueryCompiler {
+func (qc *queryCompiler) WithStageAfter(after string, stage QueryCompilerStageDefinition) QueryCompiler {
 	qc.after[after] = append(qc.after[after], stage)
 	return qc
 }
@@ -969,34 +1015,52 @@ func (qc *queryCompiler) RewrittenVars() map[Var]Var {
 	return qc.rewritten
 }
 
+func (qc *queryCompiler) runStage(metricName string, qctx *QueryContext, query Body, s func(*QueryContext, Body) (Body, error)) (Body, error) {
+	if qc.compiler.metrics != nil {
+		qc.compiler.metrics.Timer(metricName).Start()
+		defer qc.compiler.metrics.Timer(metricName).Stop()
+	}
+	return s(qctx, query)
+}
+
+func (qc *queryCompiler) runStageAfter(metricName string, query Body, s QueryCompilerStage) (Body, error) {
+	if qc.compiler.metrics != nil {
+		qc.compiler.metrics.Timer(metricName).Start()
+		defer qc.compiler.metrics.Timer(metricName).Stop()
+	}
+	return s(qc, query)
+}
+
 func (qc *queryCompiler) Compile(query Body) (Body, error) {
 
 	query = query.Copy()
 
 	stages := []struct {
-		name string
-		f    func(*QueryContext, Body) (Body, error)
+		name       string
+		metricName string
+		f          func(*QueryContext, Body) (Body, error)
 	}{
-		{"ResolveRefs", qc.resolveRefs},
-		{"RewriteAssignments", qc.rewriteLocalAssignments},
-		{"RewriteExprTerms", qc.rewriteExprTerms},
-		{"RewriteComprehensionTerms", qc.rewriteComprehensionTerms},
-		{"RewriteWithValues", qc.rewriteWithModifiers},
-		{"CheckSafety", qc.checkSafety},
-		{"RewriteDynamicTerms", qc.rewriteDynamicTerms},
-		{"CheckTypes", qc.checkTypes},
+		{"ResolveRefs", "query_compile_stage_resolve_refs", qc.resolveRefs},
+		{"RewriteAssignments", "query_compile_stage_rewrite_assignments", qc.rewriteLocalAssignments},
+		{"RewriteExprTerms", "query_compile_stage_rewrite_expr_terms", qc.rewriteExprTerms},
+		{"RewriteComprehensionTerms", "query_compile_stage_rewrite_comprehension_terms", qc.rewriteComprehensionTerms},
+		{"RewriteWithValues", "query_compile_stage_rewrite_with_values", qc.rewriteWithModifiers},
+		{"CheckSafety", "query_compile_stage_check_safety", qc.checkSafety},
+		{"RewriteDynamicTerms", "query_compile_stage_rewrite_dynamic_terms", qc.rewriteDynamicTerms},
+		{"CheckTypes", "query_compile_stage_check_types", qc.checkTypes},
 	}
 
 	qctx := qc.qctx.Copy()
 
 	for _, s := range stages {
 		var err error
-		if query, err = s.f(qctx, query); err != nil {
+		query, err = qc.runStage(s.metricName, qctx, query, s.f)
+		if err != nil {
 			return nil, qc.applyErrorLimit(err)
 		}
 		for _, s := range qc.after[s.name] {
-			var err error
-			if query, err = s(qc, query); err != nil {
+			query, err = qc.runStageAfter(s.MetricName, query, s.Stage)
+			if err != nil {
 				return nil, qc.applyErrorLimit(err)
 			}
 		}

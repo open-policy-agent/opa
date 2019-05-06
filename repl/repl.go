@@ -583,6 +583,10 @@ func (r *REPL) recompile(ctx context.Context, cpy *ast.Module) error {
 
 	compiler := ast.NewCompiler().SetErrorLimit(r.errLimit)
 
+	if r.instrument {
+		compiler.WithMetrics(r.metrics)
+	}
+
 	if compiler.Compile(policies); compiler.Failed() {
 		return compiler.Errors
 	}
@@ -632,6 +636,10 @@ func (r *REPL) compileRule(ctx context.Context, rule *ast.Rule, unset bool) erro
 	}
 
 	compiler := ast.NewCompiler().SetErrorLimit(r.errLimit)
+
+	if r.instrument {
+		compiler.WithMetrics(r.metrics)
+	}
 
 	if compiler.Compile(policies); compiler.Failed() {
 		mod.Rules = prev
@@ -728,6 +736,10 @@ func (r *REPL) loadCompiler(ctx context.Context) (*ast.Compiler, error) {
 	}
 
 	compiler := ast.NewCompiler().SetErrorLimit(r.errLimit)
+
+	if r.instrument {
+		compiler.WithMetrics(r.metrics)
+	}
 
 	if compiler.Compile(policies); compiler.Failed() {
 		return nil, compiler.Errors
