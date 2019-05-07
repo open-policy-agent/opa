@@ -191,8 +191,9 @@ type ExplainModeV1 string
 
 // Explanation mode enumeration.
 const (
-	ExplainOffV1  ExplainModeV1 = "off"
-	ExplainFullV1 ExplainModeV1 = "full"
+	ExplainOffV1   ExplainModeV1 = "off"
+	ExplainFullV1  ExplainModeV1 = "full"
+	ExplainNotesV1 ExplainModeV1 = "notes"
 )
 
 // TraceV1 models the trace result returned for queries that include the

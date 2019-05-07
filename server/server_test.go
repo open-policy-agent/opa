@@ -1433,6 +1433,43 @@ p = [1, 2, 3, 4] { true }`, 200, "")
 
 }
 
+func TestDataPostExplainNotes(t *testing.T) {
+	f := newFixture(t)
+
+	f.v1(http.MethodPut, "/policies/test", `
+		package test
+		p {
+			data.a[i] = x; x > 1
+			trace(sprintf("found x = %d", [x]))
+		}`, 200, "")
+
+	f.v1(http.MethodPut, "/data/a", `[1,2,3]`, 200, "")
+	f.reset()
+
+	req := newReqV1(http.MethodPost, "/data/test/p?explain=notes", "")
+	f.server.Handler.ServeHTTP(f.recorder, req)
+
+	var result types.DataResponseV1
+
+	if err := util.NewJSONDecoder(f.recorder.Body).Decode(&result); err != nil {
+		t.Fatalf("Unexpected JSON decode err: %v", err)
+	}
+
+	var trace types.TraceV1Raw
+
+	if err := trace.UnmarshalJSON(result.Explanation); err != nil {
+		t.Fatal(err)
+	}
+
+	if len(trace) != 6 || trace[2].Op != "note" || trace[5].Op != "note" {
+		t.Logf("Found %d events in trace", len(trace))
+		for i := range trace {
+			t.Logf("Event #%d: %v\n", i, trace[i])
+		}
+		t.Fatal("Unexpected trace")
+	}
+}
+
 func TestDataProvenance(t *testing.T) {
 
 	f := newFixture(t)
