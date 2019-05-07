@@ -253,13 +253,16 @@ func (e *eval) evalNot(iter evalIterator) error {
 	}
 
 	expr := e.query[e.index]
-	negation := expr.Complement().NoWith()
-	child := e.closure(ast.NewBody(negation))
+	negation := ast.NewBody(expr.Complement().NoWith())
+	child := e.closure(negation)
 
 	var defined bool
+	child.traceEnter(negation)
 
 	err := child.eval(func(*eval) error {
+		child.traceExit(negation)
 		defined = true
+		child.traceRedo(negation)
 		return nil
 	})
 
