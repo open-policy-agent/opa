@@ -38,6 +38,7 @@ import (
 	"github.com/open-policy-agent/opa/server/writer"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/topdown"
+	"github.com/open-policy-agent/opa/topdown/notes"
 	"github.com/open-policy-agent/opa/util"
 	"github.com/open-policy-agent/opa/version"
 	"github.com/open-policy-agent/opa/watch"
@@ -1857,6 +1858,12 @@ func (s *Server) evalDiagnosticPolicy(r *http.Request) (logger diagnosticsLogger
 
 func (s *Server) getExplainResponse(explainMode types.ExplainModeV1, trace []*topdown.Event, pretty bool) (explanation types.TraceV1) {
 	switch explainMode {
+	case types.ExplainNotesV1:
+		var err error
+		explanation, err = types.NewTraceV1(notes.Filter(trace), pretty)
+		if err != nil {
+			break
+		}
 	case types.ExplainFullV1:
 		var err error
 		explanation, err = types.NewTraceV1(trace, pretty)
@@ -2105,6 +2112,8 @@ func getWatch(p []string) (watch bool) {
 func getExplain(p []string, zero types.ExplainModeV1) types.ExplainModeV1 {
 	for _, x := range p {
 		switch x {
+		case string(types.ExplainNotesV1):
+			return types.ExplainNotesV1
 		case string(types.ExplainFullV1):
 			return types.ExplainFullV1
 		}
