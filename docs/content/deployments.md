@@ -275,3 +275,11 @@ containers:
 ```
 
 See the [Health API](/docs/{{< current_version >}}/rest-api#health-api) documentation for more detail on the `/health` API endpoint.
+
+## HTTP Proxies
+
+OPA uses the standard Go [net/http](https://golang.org/pkg/net/http/) package
+for outbound HTTP requests that download bundles, upload decision logs, etc. In
+environments where an HTTP proxy is required, you can configure OPA using the
+pseudo-standard `HTTP_PROXY`, `HTTPS_PROXY`, and `NO_PROXY` environment
+variables.
