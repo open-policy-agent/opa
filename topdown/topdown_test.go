@@ -6,8 +6,11 @@ package topdown
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/repenno/jwx-opa/jwk"
+	"github.com/repenno/jwx-opa/jws"
 	"os"
 	"reflect"
 	"sort"
@@ -1443,6 +1446,535 @@ func TestTopDownURLBuiltins(t *testing.T) {
 
 	for _, tc := range tests {
 		runTopDownTestCase(t, data, tc.note, tc.rules, tc.expected)
+	}
+}
+
+func TestTopDownJWTEncodeSignPayloadErrors(t *testing.T) {
+
+	const examplePayloadError = `{"iss:"joe",` + "\r\n" + ` "exp":1300819380,` + "\r\n" + ` "http://example.com/is_root":true}`
+	const hs256Hdr = `{"typ":"JWT",` + "\r\n " + `"alg":"HS256"}`
+
+	params := []struct {
+		note   string
+		input1 string
+		input2 string
+		input3 string
+		result string
+		err    string
+	}{
+		{
+			"No Payload",
+			hs256Hdr,
+			"",
+			`{
+"kty":"oct",
+"k":"AyM1SysPpbyDfgZld3umj1qzKObwVMkoqQ-EstJQLr_T-1qS0gZH75aKtMN3Yj0iPS4hcgUuTwjAzZr1Z9CAow"
+}`,
+
+			"",
+			"type is JWT but payload is not JSON",
+		},
+		{
+			"Payload JSON Error",
+			hs256Hdr,
+			examplePayloadError,
+			`{
+"kty":"oct",
+"k":"AyM1SysPpbyDfgZld3umj1qzKObwVMkoqQ-EstJQLr_T-1qS0gZH75aKtMN3Yj0iPS4hcgUuTwjAzZr1Z9CAow"
+}`,
+
+			"",
+			"type is JWT but payload is not JSON",
+		},
+		{
+			"Non JSON Error",
+			hs256Hdr,
+			"e",
+			`{
+"kty":"oct",
+"k":"AyM1SysPpbyDfgZld3umj1qzKObwVMkoqQ-EstJQLr_T-1qS0gZH75aKtMN3Yj0iPS4hcgUuTwjAzZr1Z9CAow"
+}`,
+
+			"",
+			"type is JWT but payload is not JSON",
+		},
+	}
+	type test struct {
+		note     string
+		rules    []string
+		expected interface{}
+	}
+	var tests []test
+
+	for _, p := range params {
+		var exp interface{}
+		exp = fmt.Sprintf(`%s`, p.result)
+		if p.err != "" {
+			exp = errors.New(p.err)
+		}
+
+		tests = append(tests, test{
+			p.note,
+			[]string{fmt.Sprintf(`p = x { io.jwt.encode_sign_raw(%q, %q, %q, x) }`, p.input1, p.input2, p.input3)},
+			exp,
+		})
+	}
+
+	data := loadSmallTestData()
+
+	for _, tc := range tests {
+		runTopDownTestCase(t, data, tc.note, tc.rules, tc.expected)
+	}
+
+}
+
+func TestTopDownJWTEncodeSignHeaderErrors(t *testing.T) {
+
+	const examplePayload = `{"iss":"joe",` + "\r\n" + ` "exp":1300819380,` + "\r\n" + ` "http://example.com/is_root":true}`
+	const hs256HdrError = `{"typ:"JWT",` + "\r\n " + `"alg":"HS256"}`
+
+	params := []struct {
+		note   string
+		input1 string
+		input2 string
+		input3 string
+		result string
+		err    string
+	}{
+		{
+			"Unknown signature algorithm",
+			hs256HdrError,
+			examplePayload,
+			`{
+"kty":"oct",
+"k":"AyM1SysPpbyDfgZld3umj1qzKObwVMkoqQ-EstJQLr_T-1qS0gZH75aKtMN3Yj0iPS4hcgUuTwjAzZr1Z9CAow"
+}`,
+
+			"",
+			"invalid character",
+		},
+		{
+			"Unknown signature algorithm",
+			`{"alg":"dummy"}`,
+			examplePayload,
+			`{
+"kty":"oct",
+"k":"AyM1SysPpbyDfgZld3umj1qzKObwVMkoqQ-EstJQLr_T-1qS0gZH75aKtMN3Yj0iPS4hcgUuTwjAzZr1Z9CAow"
+}`,
+
+			"",
+			"Unknown signature algorithm",
+		},
+		{
+			"Empty JSON header Error",
+			"{}",
+			examplePayload,
+			`{
+"kty":"oct",
+"k":"AyM1SysPpbyDfgZld3umj1qzKObwVMkoqQ-EstJQLr_T-1qS0gZH75aKtMN3Yj0iPS4hcgUuTwjAzZr1Z9CAow"
+}`,
+
+			"",
+			"unsupported signature algorithm",
+		},
+		{
+			"Empty headers input error",
+			"",
+			examplePayload,
+			`{
+"kty":"oct",
+"k":"AyM1SysPpbyDfgZld3umj1qzKObwVMkoqQ-EstJQLr_T-1qS0gZH75aKtMN3Yj0iPS4hcgUuTwjAzZr1Z9CAow"
+}`,
+
+			"",
+			"unexpected end of JSON input",
+		},
+		{
+			"No JSON Error",
+			"e",
+			examplePayload,
+			`{
+"kty":"oct",
+"k":"AyM1SysPpbyDfgZld3umj1qzKObwVMkoqQ-EstJQLr_T-1qS0gZH75aKtMN3Yj0iPS4hcgUuTwjAzZr1Z9CAow"
+}`,
+
+			"",
+			"invalid character",
+		},
+	}
+	type test struct {
+		note     string
+		rules    []string
+		expected interface{}
+	}
+	var tests []test
+
+	for _, p := range params {
+		var exp interface{}
+		exp = fmt.Sprintf(`%s`, p.result)
+		if p.err != "" {
+			exp = errors.New(p.err)
+		}
+
+		tests = append(tests, test{
+			p.note,
+			[]string{fmt.Sprintf(`p = x { io.jwt.encode_sign_raw(%q, %q, %q, x) }`, p.input1, p.input2, p.input3)},
+			exp,
+		})
+	}
+
+	data := loadSmallTestData()
+
+	for _, tc := range tests {
+		runTopDownTestCase(t, data, tc.note, tc.rules, tc.expected)
+	}
+}
+func TestTopDownJWTEncodeSignRaw(t *testing.T) {
+
+	const examplePayload = `{"iss":"joe",` + "\r\n" + ` "exp":1300819380,` + "\r\n" + ` "http://example.com/is_root":true}`
+	const hs256Hdr = `{"typ":"JWT",` + "\r\n " + `"alg":"HS256"}`
+	const rs256Hdr = `{"alg":"RS256"}`
+	const hs256HdrPlain = `{"typ":"text/plain",` + "\r\n " + `"alg":"HS256"}`
+	const symmetricKey = `{
+"kty":"oct",
+"k":"AyM1SysPpbyDfgZld3umj1qzKObwVMkoqQ-EstJQLr_T-1qS0gZH75aKtMN3Yj0iPS4hcgUuTwjAzZr1Z9CAow"
+}`
+	const rsaKey = `{
+    "kty":"RSA",
+    "n":"ofgWCuLjybRlzo0tZWJjNiuSfb4p4fAkd_wWJcyQoTbji9k0l8W26mPddxHmfHQp-Vaw-4qPCJrcS2mJPMEzP1Pt0Bm4d4QlL-yRT-SFd2lZS-pCgNMsD1W_YpRPEwOWvG6b32690r2jZ47soMZo9wGzjb_7OMg0LOL-bSf63kpaSHSXndS5z5rexMdbBYUsLA9e-KXBdQOS-UTo7WTBEMa2R2CapHg665xsmtdVMTBQY4uDZlxvb3qCo5ZwKh9kG4LT6_I5IhlJH7aGhyxXFvUK-DWNmoudF8NAco9_h9iaGNj8q2ethFkMLs91kzk2PAcDTW9gb54h4FRWyuXpoQ",
+    "e":"AQAB",
+    "d":"Eq5xpGnNCivDflJsRQBXHx1hdR1k6Ulwe2JZD50LpXyWPEAeP88vLNO97IjlA7_GQ5sLKMgvfTeXZx9SE-7YwVol2NXOoAJe46sui395IW_GO-pWJ1O0BkTGoVEn2bKVRUCgu-GjBVaYLU6f3l9kJfFNS3E0QbVdxzubSu3Mkqzjkn439X0M_V51gfpRLI9JYanrC4D4qAdGcopV_0ZHHzQlBjudU2QvXt4ehNYTCBr6XCLQUShb1juUO1ZdiYoFaFQT5Tw8bGUl_x_jTj3ccPDVZFD9pIuhLhBOneufuBiB4cS98l2SR_RQyGWSeWjnczT0QU91p1DhOVRuOopznQ",
+    "p":"4BzEEOtIpmVdVEZNCqS7baC4crd0pqnRH_5IB3jw3bcxGn6QLvnEtfdUdiYrqBdss1l58BQ3KhooKeQTa9AB0Hw_Py5PJdTJNPY8cQn7ouZ2KKDcmnPGBY5t7yLc1QlQ5xHdwW1VhvKn-nXqhJTBgIPgtldC-KDV5z-y2XDwGUc",
+    "q":"uQPEfgmVtjL0Uyyx88GZFF1fOunH3-7cepKmtH4pxhtCoHqpWmT8YAmZxaewHgHAjLYsp1ZSe7zFYHj7C6ul7TjeLQeZD_YwD66t62wDmpe_HlB-TnBA-njbglfIsRLtXlnDzQkv5dTltRJ11BKBBypeeF6689rjcJIDEz9RWdc",
+    "dp":"BwKfV3Akq5_MFZDFZCnW-wzl-CCo83WoZvnLQwCTeDv8uzluRSnm71I3QCLdhrqE2e9YkxvuxdBfpT_PI7Yz-FOKnu1R6HsJeDCjn12Sk3vmAktV2zb34MCdy7cpdTh_YVr7tss2u6vneTwrA86rZtu5Mbr1C1XsmvkxHQAdYo0",
+    "dq":"h_96-mK1R_7glhsum81dZxjTnYynPbZpHziZjeeHcXYsXaaMwkOlODsWa7I9xXDoRwbKgB719rrmI2oKr6N3Do9U0ajaHF-NKJnwgjMd2w9cjz3_-kyNlxAr2v4IKhGNpmM5iIgOS1VZnOZ68m6_pbLBSp3nssTdlqvd0tIiTHU",
+    "qi":"IYd7DHOhrWvxkwPQsRM2tOgrjbcrfvtQJipd-DlcxyVuuM9sQLdgjVk2oy26F0EmpScGLq2MowX7fhd_QJQ3ydy5cY7YIBi87w93IKLEdfnbJtoOPLUW0ITrJReOgo1cq9SbsxYawBgfp_gh6A5603k2-ZQwVK0JKSHuLFkuQ3U"
+  }`
+
+	params := []struct {
+		note   string
+		input1 string
+		input2 string
+		input3 string
+		result string
+		err    string
+	}{
+		{
+			"https://tools.ietf.org/html/rfc7515#appendix-A.1",
+			"`" + hs256Hdr + "`",
+			"`" + examplePayload + "`",
+			"`" + symmetricKey + "`",
+
+			`"eyJ0eXAiOiJKV1QiLA0KICJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJqb2UiLA0KICJleHAiOjEzMDA4MTkzODAsDQogImh0dHA6Ly9leGFtcGxlLmNvbS9pc19yb290Ijp0cnVlfQ.dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"`,
+			"",
+		},
+		{
+			"No Payload but Media Type is Plain",
+			"`" + hs256HdrPlain + "`",
+			"`" + "" + "`",
+			"`" + symmetricKey + "`",
+
+			`"eyJ0eXAiOiJ0ZXh0L3BsYWluIiwNCiAiYWxnIjoiSFMyNTYifQ..sXoGQMWwM-SmX495-htA7kndgbkwz1PnqsDeY275gnI""`,
+			"",
+		},
+		{
+			"text/plain media type",
+			"`" + hs256HdrPlain + "`",
+			"`" + "e" + "`",
+			"`" + symmetricKey + "`",
+
+			`"eyJ0eXAiOiJ0ZXh0L3BsYWluIiwNCiAiYWxnIjoiSFMyNTYifQ.ZQ.oO8Vnc4Jv7-J231a1bEcQrgXfKbNW-kEvVY7BP1v5rM""`,
+			"",
+		},
+		{
+			"Empty JSON payload",
+			"`" + hs256Hdr + "`",
+			"`" + "{}" + "`",
+			"`" + symmetricKey + "`",
+
+			`"eyJ0eXAiOiJKV1QiLA0KICJhbGciOiJIUzI1NiJ9.e30.KAml6HRetE0sq22SYNh_CQExhf-X31ChYTfGwUBIWu8"`,
+			"",
+		},
+		{
+			"https://tools.ietf.org/html/rfc7515#appendix-A.2",
+			"`" + rs256Hdr + "`",
+			"`" + examplePayload + "`",
+			"`" + rsaKey + "`",
+
+			`"eyJhbGciOiJSUzI1NiJ9.eyJpc3MiOiJqb2UiLA0KICJleHAiOjEzMDA4MTkzODAsDQogImh0dHA6Ly9leGFtcGxlLmNvbS9pc19yb290Ijp0cnVlfQ.cC4hiUPoj9Eetdgtv3hF80EGrhuB__dzERat0XF9g2VtQgr9PJbu3XOiZj5RZmh7AAuHIm4Bh-0Qc_lF5YKt_O8W2Fp5jujGbds9uJdbF9CUAr7t1dnZcAcQjbKBYNX4BAynRFdiuB--f_nZLgrnbyTyWzO75vRK5h6xBArLIARNPvkSjtQBMHlb1L07Qe7K0GarZRmB_eSN9383LcOLn6_dO--xi12jzDwusC-eOkHWEsqtFZESc6BfI7noOPqvhJ1phCnvWh6IeYI2w9QOYEUipUTI8np6LbgGY9Fs98rqVt5AXLIhWkWywlVmtVrBp0igcN_IoypGlUPQGe77Rw"`,
+			"",
+		},
+	}
+	type test struct {
+		note     string
+		rules    []string
+		expected interface{}
+	}
+	var rawTests []test
+
+	for _, p := range params {
+		var exp interface{}
+		exp = fmt.Sprintf(`%s`, p.result)
+		if p.err != "" {
+			exp = errors.New(p.err)
+		}
+
+		rawTests = append(rawTests, test{
+			p.note,
+			[]string{fmt.Sprintf(`p = x { io.jwt.encode_sign_raw(%s, %s, %s, x) }`, p.input1, p.input2, p.input3)},
+			exp,
+		})
+	}
+
+	data := loadSmallTestData()
+
+	for _, tc := range rawTests {
+		runTopDownTestCase(t, data, tc.note, tc.rules, tc.expected)
+	}
+
+}
+
+func TestTopDownJWTEncodeSignES256(t *testing.T) {
+
+	const examplePayload = `{"iss":"joe",` + "\r\n" + ` "exp":1300819380,` + "\r\n" + ` "http://example.com/is_root":true}`
+	const es256Hdr = `{"alg":"ES256"}`
+	const ecKey = `{
+    "kty":"EC",
+    "crv":"P-256",
+    "x":"f83OJ3D2xF1Bg8vub9tLe1gHMzV76e8Tus9uPHvRVEU",
+    "y":"x_FEzRu9m36HLN_tue659LNpXW6pCyStikYjKIWI5a0",
+    "d":"jpsQnnGQmL-YBIffH1136cspYG6-0iY7X1fCE9-E9LI"
+  }`
+
+	params := struct {
+		note   string
+		input1 string
+		input2 string
+		input3 string
+		err    string
+	}{
+
+		"https://tools.ietf.org/html/rfc7515#appendix-A.3",
+		"`" + es256Hdr + "`",
+		"`" + examplePayload + "`",
+		"`" + ecKey + "`",
+
+		"",
+	}
+	type test struct {
+		note  string
+		rules []string
+	}
+
+	tc := test{
+		params.note,
+		[]string{fmt.Sprintf(`p = x { io.jwt.encode_sign_raw(%s, %s, %s, x) }`, params.input1, params.input2, params.input3)},
+	}
+
+	compiler, err := compileRules(nil, tc.rules, nil)
+
+	if err != nil {
+		t.Errorf("%v: Compiler error: %v", tc.note, err)
+		return
+	}
+	store := inmem.New()
+	path := []string{"p"}
+	var inputTerm *ast.Term
+
+	ctx := context.Background()
+	txn := storage.NewTransactionOrDie(ctx, store)
+
+	defer store.Abort(ctx, txn)
+
+	var lhs *ast.Term
+	if len(path) == 0 {
+		lhs = ast.NewTerm(ast.DefaultRootRef)
+	} else {
+		lhs = ast.MustParseTerm("data." + strings.Join(path, "."))
+	}
+
+	rhs := ast.VarTerm(ast.WildcardPrefix + "result")
+	body := ast.NewBody(ast.Equality.Expr(lhs, rhs))
+
+	query := NewQuery(body).
+		WithCompiler(compiler).
+		WithStore(store).
+		WithTransaction(txn).
+		WithInput(inputTerm)
+
+	var tracer BufferTracer
+
+	if os.Getenv("OPA_TRACE_TEST") != "" {
+		query = query.WithTracer(&tracer)
+	}
+
+	qrs, err := query.Run(ctx)
+
+	if tracer != nil {
+		PrettyTrace(os.Stdout, tracer)
+	}
+
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	if len(qrs) == 0 {
+		t.Fatal("Undefined result")
+	}
+
+	result, err := ast.JSON(qrs[0][rhs.Value.(ast.Var)].Value)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Verification
+
+	standardHeaders := &jws.StandardHeaders{}
+	err = json.Unmarshal([]byte(es256Hdr), standardHeaders)
+	if err != nil {
+		t.Fatal("Failed to parse header")
+	}
+	alg := standardHeaders.GetAlgorithm()
+
+	keys, err := jwk.ParseString(ecKey)
+	if err != nil {
+		t.Fatal("Failed to parse JWK")
+	}
+	key, err := keys.Keys[0].Materialize()
+	if err != nil {
+		t.Fatal("Failed to create private key")
+	}
+	publicKey, err := jwk.GetPublicKey(key)
+	//ecdsaPrivateKey := key.(*ecdsa.PrivateKey)
+
+	// Verify with vendor library
+
+	verifiedPayload, err := jws.Verify([]byte(result.(string)), alg, publicKey)
+	if err != nil || string(verifiedPayload) != examplePayload {
+		t.Fatal("Failed to verify message")
+	}
+}
+
+// TestTopDownJWTEncodeSignEC needs to perform all tests inline because we do not know the
+// expected values before hand
+func TestTopDownJWTEncodeSignES512(t *testing.T) {
+
+	const examplePayload = `{"iss":"joe",` + "\r\n" + ` "exp":1300819380,` + "\r\n" + ` "http://example.com/is_root":true}`
+	const es512Hdr = `{"alg":"ES512"}`
+	const ecKey = `{
+"kty":"EC",
+"crv":"P-521",
+"x":"AekpBQ8ST8a8VcfVOTNl353vSrDCLLJXmPk06wTjxrrjcBpXp5EOnYG_NjFZ6OvLFV1jSfS9tsz4qUxcWceqwQGk",
+"y":"ADSmRA43Z1DSNx_RvcLI87cdL07l6jQyyBXMoxVg_l2Th-x3S1WDhjDly79ajL4Kkd0AZMaZmh9ubmf63e3kyMj2",
+"d":"AY5pb7A0UFiB3RELSD64fTLOSV_jazdF7fLYyuTw8lOfRhWg6Y6rUrPAxerEzgdRhajnu0ferB0d53vM9mE15j2C"
+}`
+
+	params := struct {
+		note   string
+		input1 string
+		input2 string
+		input3 string
+		err    string
+	}{
+
+		"https://tools.ietf.org/html/rfc7515#appendix-A.4",
+		"`" + es512Hdr + "`",
+		"`" + examplePayload + "`",
+		"`" + ecKey + "`",
+
+		"",
+	}
+	type test struct {
+		note  string
+		rules []string
+	}
+	var tests []test
+
+	tests = append(tests, test{
+		params.note,
+		[]string{fmt.Sprintf(`p = x { io.jwt.encode_sign_raw(%s, %s, %s, x) }`, params.input1, params.input2, params.input3)},
+	})
+
+	tc := tests[0]
+
+	compiler, err := compileRules(nil, tc.rules, nil)
+
+	if err != nil {
+		t.Errorf("%v: Compiler error: %v", tc.note, err)
+		return
+	}
+	store := inmem.New()
+	path := []string{"p"}
+	var inputTerm *ast.Term
+
+	ctx := context.Background()
+	txn := storage.NewTransactionOrDie(ctx, store)
+
+	defer store.Abort(ctx, txn)
+
+	var lhs *ast.Term
+	if len(path) == 0 {
+		lhs = ast.NewTerm(ast.DefaultRootRef)
+	} else {
+		lhs = ast.MustParseTerm("data." + strings.Join(path, "."))
+	}
+
+	rhs := ast.VarTerm(ast.WildcardPrefix + "result")
+	body := ast.NewBody(ast.Equality.Expr(lhs, rhs))
+
+	query := NewQuery(body).
+		WithCompiler(compiler).
+		WithStore(store).
+		WithTransaction(txn).
+		WithInput(inputTerm)
+
+	var tracer BufferTracer
+
+	if os.Getenv("OPA_TRACE_TEST") != "" {
+		query = query.WithTracer(&tracer)
+	}
+
+	qrs, err := query.Run(ctx)
+
+	if tracer != nil {
+		PrettyTrace(os.Stdout, tracer)
+	}
+
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	if len(qrs) == 0 {
+		t.Fatal("Undefined result")
+	}
+
+	result, err := ast.JSON(qrs[0][rhs.Value.(ast.Var)].Value)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Verification
+
+	standardHeaders := &jws.StandardHeaders{}
+	err = json.Unmarshal([]byte(es512Hdr), standardHeaders)
+	if err != nil {
+		t.Fatal("Failed to parse header")
+	}
+	alg := standardHeaders.GetAlgorithm()
+
+	keys, err := jwk.ParseString(ecKey)
+	if err != nil {
+		t.Fatal("Failed to parse JWK")
+	}
+	key, err := keys.Keys[0].Materialize()
+	if err != nil {
+		t.Fatal("Failed to create private key")
+	}
+	publicKey, err := jwk.GetPublicKey(key)
+
+	// Verify with vendor library
+
+	verifiedPayload, err := jws.Verify([]byte(result.(string)), alg, publicKey)
+	if err != nil || string(verifiedPayload) != examplePayload {
+		t.Fatal("Failed to verify message")
 	}
 }
 
@@ -3603,5 +4135,87 @@ func init() {
 		time.Sleep(d)
 		return ast.Null{}, nil
 	})
+
+}
+
+func TestTopDownJWTEncodeSign(t *testing.T) {
+
+	astHeaderHS256Term := ast.MustParseTerm(`{"typ": "JWT", "alg": "HS256"}`)
+	astPayloadTerm := ast.MustParseTerm(`{"iss": "joe", "exp": 1300819380, "aud": ["bob", "saul"], "http://example.com/is_root": true, "privateParams": {"private_one": "one", "private_two": "two"}}`)
+	astSymmetricKeyTerm := ast.MustParseTerm(`{"kty": "oct", "k": "AyM1SysPpbyDfgZld3umj1qzKObwVMkoqQ-EstJQLr_T-1qS0gZH75aKtMN3Yj0iPS4hcgUuTwjAzZr1Z9CAow"}`)
+
+	astHeaderHS256Obj := astHeaderHS256Term.Value.(ast.Object)
+	astPayloadObj := astPayloadTerm.Value.(ast.Object)
+	astSymmetricKeyObj := astSymmetricKeyTerm.Value.(ast.Object)
+
+	astHeaderRS256Term := ast.MustParseTerm(`{"alg": "RS256"}`)
+	astHeaderRS256Obj := astHeaderRS256Term.Value.(ast.Object)
+
+	astRSAKeyTerm := ast.MustParseTerm(`{"kty": "RSA", "n": "ofgWCuLjybRlzo0tZWJjNiuSfb4p4fAkd_wWJcyQoTbji9k0l8W26mPddxHmfHQp-Vaw-4qPCJrcS2mJPMEzP1Pt0Bm4d4QlL-yRT-SFd2lZS-pCgNMsD1W_YpRPEwOWvG6b32690r2jZ47soMZo9wGzjb_7OMg0LOL-bSf63kpaSHSXndS5z5rexMdbBYUsLA9e-KXBdQOS-UTo7WTBEMa2R2CapHg665xsmtdVMTBQY4uDZlxvb3qCo5ZwKh9kG4LT6_I5IhlJH7aGhyxXFvUK-DWNmoudF8NAco9_h9iaGNj8q2ethFkMLs91kzk2PAcDTW9gb54h4FRWyuXpoQ", "e": "AQAB", "d": "Eq5xpGnNCivDflJsRQBXHx1hdR1k6Ulwe2JZD50LpXyWPEAeP88vLNO97IjlA7_GQ5sLKMgvfTeXZx9SE-7YwVol2NXOoAJe46sui395IW_GO-pWJ1O0BkTGoVEn2bKVRUCgu-GjBVaYLU6f3l9kJfFNS3E0QbVdxzubSu3Mkqzjkn439X0M_V51gfpRLI9JYanrC4D4qAdGcopV_0ZHHzQlBjudU2QvXt4ehNYTCBr6XCLQUShb1juUO1ZdiYoFaFQT5Tw8bGUl_x_jTj3ccPDVZFD9pIuhLhBOneufuBiB4cS98l2SR_RQyGWSeWjnczT0QU91p1DhOVRuOopznQ", "p": "4BzEEOtIpmVdVEZNCqS7baC4crd0pqnRH_5IB3jw3bcxGn6QLvnEtfdUdiYrqBdss1l58BQ3KhooKeQTa9AB0Hw_Py5PJdTJNPY8cQn7ouZ2KKDcmnPGBY5t7yLc1QlQ5xHdwW1VhvKn-nXqhJTBgIPgtldC-KDV5z-y2XDwGUc", "q": "uQPEfgmVtjL0Uyyx88GZFF1fOunH3-7cepKmtH4pxhtCoHqpWmT8YAmZxaewHgHAjLYsp1ZSe7zFYHj7C6ul7TjeLQeZD_YwD66t62wDmpe_HlB-TnBA-njbglfIsRLtXlnDzQkv5dTltRJ11BKBBypeeF6689rjcJIDEz9RWdc", "dp": "BwKfV3Akq5_MFZDFZCnW-wzl-CCo83WoZvnLQwCTeDv8uzluRSnm71I3QCLdhrqE2e9YkxvuxdBfpT_PI7Yz-FOKnu1R6HsJeDCjn12Sk3vmAktV2zb34MCdy7cpdTh_YVr7tss2u6vneTwrA86rZtu5Mbr1C1XsmvkxHQAdYo0", "dq": "h_96-mK1R_7glhsum81dZxjTnYynPbZpHziZjeeHcXYsXaaMwkOlODsWa7I9xXDoRwbKgB719rrmI2oKr6N3Do9U0ajaHF-NKJnwgjMd2w9cjz3_-kyNlxAr2v4IKhGNpmM5iIgOS1VZnOZ68m6_pbLBSp3nssTdlqvd0tIiTHU", "qi": "IYd7DHOhrWvxkwPQsRM2tOgrjbcrfvtQJipd-DlcxyVuuM9sQLdgjVk2oy26F0EmpScGLq2MowX7fhd_QJQ3ydy5cY7YIBi87w93IKLEdfnbJtoOPLUW0ITrJReOgo1cq9SbsxYawBgfp_gh6A5603k2-ZQwVK0JKSHuLFkuQ3U"}`)
+
+	astRSAKeyObj := astRSAKeyTerm.Value.(ast.Object)
+
+	params := []struct {
+		note   string
+		input1 ast.Object
+		input2 ast.Object
+		input3 ast.Object
+		result string
+		err    string
+	}{
+		{
+			"https://tools.ietf.org/html/rfc7515#appendix-A.1",
+			astHeaderHS256Obj,
+			astPayloadObj,
+			astSymmetricKeyObj,
+
+			`"eyJhbGciOiAiSFMyNTYiLCAidHlwIjogIkpXVCJ9.eyJhdWQiOiBbImJvYiIsICJzYXVsIl0sICJleHAiOiAxMzAwODE5MzgwLCAiaHR0cDovL2V4YW1wbGUuY29tL2lzX3Jvb3QiOiB0cnVlLCAiaXNzIjogImpvZSIsICJwcml2YXRlUGFyYW1zIjogeyJwcml2YXRlX29uZSI6ICJvbmUiLCAicHJpdmF0ZV90d28iOiAidHdvIn19.M10TcaFADr_JYAx7qJ71wktdyuN4IAnhWvVbgrZ5j_4"`,
+			"",
+		},
+		{
+			"Empty JSON payload",
+			astHeaderHS256Obj,
+			ast.NewObject(),
+			astSymmetricKeyObj,
+
+			`"eyJhbGciOiAiSFMyNTYiLCAidHlwIjogIkpXVCJ9.e30.Odp4A0Fj6NoKsV4Gyoy1NAmSs6KVZiC15S9VRGZyR20"`,
+			"",
+		},
+		{
+			"https://tools.ietf.org/html/rfc7515#appendix-A.2",
+			astHeaderRS256Obj,
+			astPayloadObj,
+			astRSAKeyObj,
+
+			`"eyJhbGciOiAiUlMyNTYifQ.eyJhdWQiOiBbImJvYiIsICJzYXVsIl0sICJleHAiOiAxMzAwODE5MzgwLCAiaHR0cDovL2V4YW1wbGUuY29tL2lzX3Jvb3QiOiB0cnVlLCAiaXNzIjogImpvZSIsICJwcml2YXRlUGFyYW1zIjogeyJwcml2YXRlX29uZSI6ICJvbmUiLCAicHJpdmF0ZV90d28iOiAidHdvIn19.ITpfhDICCeVV__1nHRN2CvUFni0yyYESvhNlt4ET0yiySMzJ5iySGynrsM3kgzAv7mVmx5uEtSCs_xPHyLVfVnADKmDFtkZfuvJ8jHfcOe8TUqR1f7j1Zf_kDkdqJAsuGuqkJoFJ3S_gxWcZNwtDXV56O3k_7Mq03Ixuuxtip2oF0X3fB7QtUzjzB8mWPTJDFG2TtLLOYCcobPHmn36aAgesHMzJZj8U8sRLmqPXsIc-Lo_btt8gIUc9zZSgRiy7NOSHxw5mYcIMlKl93qvLXu7AaAcVLvzlIOCGWEnFpGGcRFgSOLnShQX6hDylWavKLQG-VOUJKmtXH99KBK-OYQ"`,
+			"",
+		},
+	}
+	type test struct {
+		note     string
+		rules    []string
+		expected interface{}
+	}
+	var tests []test
+
+	for _, p := range params {
+		var exp interface{}
+		exp = fmt.Sprintf(`%s`, p.result)
+		if p.err != "" {
+			exp = errors.New(p.err)
+		}
+
+		tests = append(tests, test{
+			p.note,
+			[]string{fmt.Sprintf(`p = x { io.jwt.encode_sign(%v, %v, %v, x) }`, p.input1, p.input2, p.input3)},
+			exp,
+		})
+	}
+
+	data := loadSmallTestData()
+
+	for _, tc := range tests {
+		runTopDownTestCase(t, data, tc.note, tc.rules, tc.expected)
+	}
 
 }

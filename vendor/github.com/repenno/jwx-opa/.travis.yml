@@ -1,0 +1,11 @@
+language: go
+sudo: false
+before_script:
+  - go get -t -u ./...
+script:
+  - go test -v ./...
+  - ./scripts/check-diff.sh
+go:
+    - 1.11.x
+    - 1.12.x
+    - tip

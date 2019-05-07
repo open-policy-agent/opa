@@ -12,8 +12,11 @@ import (
 	"crypto/sha256"
 	"crypto/x509"
 	"encoding/hex"
+	"encoding/json"
 	"encoding/pem"
 	"fmt"
+	"github.com/repenno/jwx-opa/jwk"
+	"github.com/repenno/jwx-opa/jws"
 	"math/big"
 	"strconv"
 	"strings"
@@ -635,7 +638,70 @@ func (header *tokenHeader) valid() bool {
 	return true
 }
 
-// The full verifier/decoder
+func commonBuiltinJWTEncodeSign(inputHeaders, jwsPayload, jwkSrc string) (v ast.Value, err error) {
+
+	keys, err := jwk.ParseString(jwkSrc)
+	if err != nil {
+		return nil, err
+	}
+	key, err := keys.Keys[0].Materialize()
+	if err != nil {
+		return nil, err
+	}
+	if jwk.GetKeyTypeFromKey(key) != keys.Keys[0].GetKeyType() {
+		return nil, fmt.Errorf("JWK derived key type and keyType parameter do not match")
+	}
+
+	standardHeaders := &jws.StandardHeaders{}
+	jwsHeaders := []byte(inputHeaders)
+	err = json.Unmarshal(jwsHeaders, standardHeaders)
+	if err != nil {
+		return nil, err
+	}
+	alg := standardHeaders.GetAlgorithm()
+
+	if (standardHeaders.Type == "" || standardHeaders.Type == "JWT") && !json.Valid([]byte(jwsPayload)) {
+		return nil, fmt.Errorf("type is JWT but payload is not JSON")
+	}
+
+	// process payload and sign
+	var jwsCompact []byte
+	jwsCompact, err = jws.SignLiteral([]byte(jwsPayload), alg, key, jwsHeaders)
+	if err != nil {
+		return nil, err
+	}
+	return ast.String(jwsCompact[:]), nil
+
+}
+
+func builtinJWTEncodeSign(a ast.Value, b ast.Value, c ast.Value) (v ast.Value, err error) {
+
+	jwkSrc := c.String()
+
+	inputHeaders := a.String()
+
+	jwsPayload := b.String()
+
+	return commonBuiltinJWTEncodeSign(inputHeaders, jwsPayload, jwkSrc)
+
+}
+
+func builtinJWTEncodeSignRaw(a ast.Value, b ast.Value, c ast.Value) (v ast.Value, err error) {
+
+	jwkSrc, err := builtins.StringOperand(c, 1)
+	if err != nil {
+		return nil, err
+	}
+	inputHeaders, err := builtins.StringOperand(a, 1)
+	if err != nil {
+		return nil, err
+	}
+	jwsPayload, err := builtins.StringOperand(b, 1)
+	if err != nil {
+		return nil, err
+	}
+	return commonBuiltinJWTEncodeSign(string(inputHeaders), string(jwsPayload), string(jwkSrc))
+}
 
 // Implements full JWT decoding, validation and verification.
 func builtinJWTDecodeVerify(a ast.Value, b ast.Value) (v ast.Value, err error) {
@@ -855,4 +921,6 @@ func init() {
 	RegisterFunctionalBuiltin2(ast.JWTVerifyES256.Name, builtinJWTVerifyES256)
 	RegisterFunctionalBuiltin2(ast.JWTVerifyHS256.Name, builtinJWTVerifyHS256)
 	RegisterFunctionalBuiltin2(ast.JWTDecodeVerify.Name, builtinJWTDecodeVerify)
+	RegisterFunctionalBuiltin3(ast.JWTEncodeSignRaw.Name, builtinJWTEncodeSignRaw)
+	RegisterFunctionalBuiltin3(ast.JWTEncodeSign.Name, builtinJWTEncodeSign)
 }

@@ -27,3 +27,4 @@ import:
 - package: golang.org/x/lint
   subpackages:
   - golint
+- package: github.com/repenno/jwx-opa
