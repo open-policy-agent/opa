@@ -18,7 +18,7 @@ import:
   version: v0.2.3
 - package: github.com/ghodss/yaml
 - package: github.com/sirupsen/logrus
-  version: v1.0.3
+  version: v1.4.1
 - package: github.com/prometheus/client_golang
   subpackages:
   - prometheus
