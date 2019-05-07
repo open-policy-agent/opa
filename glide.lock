@@ -1,5 +1,5 @@
-hash: cc2af9d664bb852b6f26b2b1db17a7a0d3706c8d581c6039457ac901cb7d04ac
-updated: 2018-10-26T10:45:23.034036+02:00
+hash: de88b520486912b209f8b8f66bcb4ef0ea695acc96513f3d663ed99a85ce76c7
+updated: 2019-05-07T14:30:55.094375-07:00
 imports:
 - name: github.com/beorn7/perks
   version: 3a771d992973f24aa725d07868b467d1ddfceafb
@@ -29,6 +29,8 @@ imports:
   version: 521ea7b17d02faf8d3afea6737573942ceac59c5
 - name: github.com/inconshreveable/mousetrap
   version: 76626ae9c91c4f2a10f34cad8ce83ea42c93bb75
+- name: github.com/konsorten/go-windows-terminal-sequences
+  version: f55edac94c9bbba5d6182a4be46d86a2c9b5b50e
 - name: github.com/mattn/go-runewidth
   version: b20a3daf6a39840c202fd42cc23d53607162b045
 - name: github.com/matttproud/golang_protobuf_extensions
@@ -70,17 +72,13 @@ imports:
 - name: github.com/rcrowley/go-metrics
   version: 3113b8401b8a98917cde58f8bbd42a1b1c03b1fd
 - name: github.com/sirupsen/logrus
-  version: f006c2ac4710855cf0f916dd6b77acf6b048dc6e
+  version: 8bdbc7bcc01dcbb8ec23dc8a28e332258d25251f
 - name: github.com/spf13/cobra
   version: fe5e611709b0c57fa4a89136deaa8e1d4004d053
 - name: github.com/spf13/pflag
   version: 082b515c9490f4eccc758469c3152b77d139f868
 - name: github.com/yashtewari/glob-intersection
   version: 5c77d914dd0ba7bedca923f97232d37137e038f3
-- name: golang.org/x/crypto
-  version: e84da0312774c21d64ee2317962ef669b27ffb41
-  subpackages:
-  - ssh/terminal
 - name: golang.org/x/lint
   version: 1baf3a9d7d675b3c7e974b7a00ded54b88a88379
   subpackages:
@@ -89,7 +87,6 @@ imports:
   version: 731415f00dce967a133e841b3079eda31c996761
   subpackages:
   - unix
-  - windows
 - name: golang.org/x/tools
   version: a2dc47679d30b6c496245bafc6a166b46c5fe318
   subpackages:
