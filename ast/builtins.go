@@ -123,6 +123,8 @@ var DefaultBuiltins = [...]*Builtin{
 	JWTVerifyES256,
 	JWTVerifyHS256,
 	JWTDecodeVerify,
+	JWTEncodeSignRaw,
+	JWTEncodeSign,
 
 	// Time
 	NowNanos,
@@ -1027,6 +1029,34 @@ var JWTDecodeVerify = &Builtin{
 			types.NewObject(nil, types.NewDynamicProperty(types.A, types.A)),
 			types.NewObject(nil, types.NewDynamicProperty(types.A, types.A)),
 		}, nil),
+	),
+}
+
+// JWTEncodeSignRaw encodes and optionally sign  a JSON Web Token.
+// Inputs are protected headers, payload, secret
+var JWTEncodeSignRaw = &Builtin{
+	Name: "io.jwt.encode_sign_raw",
+	Decl: types.NewFunction(
+		types.Args(
+			types.S,
+			types.S,
+			types.S,
+		),
+		types.S,
+	),
+}
+
+// JWTEncodeSign encodes and optionally sign  a JSON Web Token.
+// Inputs are protected headers, payload, secret
+var JWTEncodeSign = &Builtin{
+	Name: "io.jwt.encode_sign",
+	Decl: types.NewFunction(
+		types.Args(
+			types.NewObject(nil, types.NewDynamicProperty(types.S, types.A)),
+			types.NewObject(nil, types.NewDynamicProperty(types.S, types.A)),
+			types.NewObject(nil, types.NewDynamicProperty(types.S, types.A)),
+		),
+		types.S,
 	),
 }
 
