@@ -319,27 +319,39 @@ func TestShowDebug(t *testing.T) {
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
 	repl.OneShot(ctx, "show debug")
-	expected := `{
-	"trace": false,
-	"metrics": false,
-	"instrument": false,
-	"profile": false
-}
-`
-	assertREPLText(t, buffer, expected)
+
+	var result replDebug
+
+	if err := util.Unmarshal(buffer.Bytes(), &result); err != nil {
+		t.Fatal(err)
+	}
+
+	var exp replDebug
+
+	if !reflect.DeepEqual(result, exp) {
+		t.Fatalf("Expected %+v but got %+v", exp, result)
+	}
+
 	buffer.Reset()
+
 	repl.OneShot(ctx, "trace")
 	repl.OneShot(ctx, "metrics")
 	repl.OneShot(ctx, "instrument")
 	repl.OneShot(ctx, "profile")
 	repl.OneShot(ctx, "show debug")
-	expected = `{
-	"trace": true,
-	"metrics": true,
-	"instrument": true,
-	"profile": true
-}
-`
+
+	exp.Trace = true
+	exp.Metrics = true
+	exp.Instrument = true
+	exp.Profile = true
+
+	if err := util.Unmarshal(buffer.Bytes(), &result); err != nil {
+		t.Fatal(err)
+	}
+
+	if !reflect.DeepEqual(result, exp) {
+		t.Fatalf("Expected %+v but got %+v", exp, result)
+	}
 }
 
 func TestShow(t *testing.T) {
@@ -1929,6 +1941,28 @@ Redo data.a[i].b.c[j] = x; data.a[k].b.c[x] = 1
 +---+---+---+---+`)
 	expected += "\n"
 
+	if expected != buffer.String() {
+		t.Fatalf("Expected output to be exactly:\n%v\n\nGot:\n\n%v\n", expected, buffer.String())
+	}
+}
+
+func TestEvalNotes(t *testing.T) {
+	ctx := context.Background()
+	store := newTestStore()
+	var buffer bytes.Buffer
+	repl := newRepl(store, &buffer)
+	repl.OneShot(ctx, `p { a = [1,2,3]; a[i] = x; x > 1; trace(sprintf("x = %d", [x])) }`)
+	repl.OneShot(ctx, "notes")
+	buffer.Reset()
+	repl.OneShot(ctx, "p")
+	expected := strings.TrimSpace(`Enter data.repl.p = _
+| Enter data.repl.p
+| | Note "x = 2"
+Redo data.repl.p = _
+| Redo data.repl.p
+| | Note "x = 3"
+true`)
+	expected += "\n"
 	if expected != buffer.String() {
 		t.Fatalf("Expected output to be exactly:\n%v\n\nGot:\n\n%v\n", expected, buffer.String())
 	}
