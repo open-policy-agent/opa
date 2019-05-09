@@ -529,12 +529,14 @@ func onReloadPrinter(output io.Writer) func(time.Duration, error) {
 
 func setupLogging(config LoggingConfig) {
 	switch config.Format {
+	case "text":
+		logrus.SetFormatter(&logrus.TextFormatter{FullTimestamp: true})
+	case "json-pretty":
+		logrus.SetFormatter(&logrus.JSONFormatter{PrettyPrint: true})
 	case "json":
-		logrus.SetFormatter(&logrus.JSONFormatter{})
+		fallthrough
 	default:
-		logrus.SetFormatter(&logrus.TextFormatter{
-			FullTimestamp: true,
-		})
+		logrus.SetFormatter(&logrus.JSONFormatter{})
 	}
 
 	lvl := logrus.InfoLevel
