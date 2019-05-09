@@ -67,3 +67,21 @@ Decision log updates contain the following fields:
 | `[_].requested_by` | `string` | Identifier for client that executed policy query, e.g., the client address. |
 | `[_].timestamp` | `string` | RFC3999 timestamp of policy decision. |
 | `[_].metrics` | `object` | Key-value pairs of [performance metrics](../rest-api#performance-metrics). |
+
+### Basic Decision Logger
+There is a `basic_decision_logger` plugin available for use with OPA that will log to stdout
+alongside the OPA server log messages.
+
+To enable this configure the server with:
+
+```yaml
+decision_logger:
+  plugin: basic_decision_logger
+
+plugins:
+  basic_decision_logger:
+```
+
+There are currently no config options for the the plugin.
+
+> **WARNING:** The decision logs contain unfiltered inputs and results. This may contain sensitive data!

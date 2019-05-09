@@ -25,6 +25,7 @@ import (
 	"github.com/open-policy-agent/opa/plugins"
 	"github.com/open-policy-agent/opa/plugins/discovery"
 	"github.com/open-policy-agent/opa/plugins/logs"
+	"github.com/open-policy-agent/opa/plugins/logs/basic"
 	"github.com/open-policy-agent/opa/repl"
 	"github.com/open-policy-agent/opa/server"
 	"github.com/open-policy-agent/opa/storage"
@@ -48,6 +49,13 @@ func RegisterPlugin(name string, factory plugins.Factory) {
 	registeredPluginsMux.Lock()
 	defer registeredPluginsMux.Unlock()
 	registeredPlugins[name] = factory
+}
+
+func registerSystemPlugins() {
+	// Any plugins that are always included with the OPA runtime should be
+	// registered here. It causes a dependency cycle to register them in
+	// their own init function and to do blank imports with the runtime..
+	RegisterPlugin("basic_decision_logger", new(basic.DecisionLoggerFactory))
 }
 
 // Params stores the configuration for an OPA instance.
@@ -575,4 +583,5 @@ func uuid4() (string, error) {
 
 func init() {
 	registeredPlugins = make(map[string]plugins.Factory)
+	registerSystemPlugins()
 }

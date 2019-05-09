@@ -183,7 +183,7 @@ Finally, register your factory with OPA:
 
 ```golang
 func Init() {
-    runtime.RegisterPlugin("println_decision_logger", Factory{})
+    runtime.RegisterPlugin("println_decision_logger", new(Factory))
 }
 ```
 
