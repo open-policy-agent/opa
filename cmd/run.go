@@ -50,7 +50,7 @@ func init() {
 	var serverDiagnosticsBufferSize int
 
 	logLevel := util.NewEnumFlag("info", []string{"debug", "info", "error"})
-	logFormat := util.NewEnumFlag("text", []string{"text", "json"})
+	logFormat := util.NewEnumFlag("json", []string{"text", "json", "json-pretty"})
 
 	params := runtime.NewParams()
 

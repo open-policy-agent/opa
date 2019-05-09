@@ -32,7 +32,7 @@ command line arguments for OPA's server mode are:
 
 * `--addr` to set the listening address (default: `0.0.0.0:8181`).
 * `--log-level` (or `-l`) to set the log level (default: `"info"`).
-* `--log-format` to set the log format (default: `"text"`).
+* `--log-format` to set the log format (default: `"json"`).
 
 By default, OPA listens for normal HTTP connections on `0.0.0.0:8181`. To make
 OPA listen for HTTPS connections, see [Security](../security).
