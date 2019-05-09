@@ -19,6 +19,7 @@ import (
 	pr "github.com/open-policy-agent/opa/internal/presentation"
 	"github.com/open-policy-agent/opa/profiler"
 	"github.com/open-policy-agent/opa/rego"
+	"github.com/open-policy-agent/opa/topdown/notes"
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/format"
@@ -61,8 +62,9 @@ type REPL struct {
 type explainMode int
 
 const (
-	explainOff   explainMode = iota
-	explainTrace explainMode = iota
+	explainOff explainMode = iota
+	explainTrace
+	explainNotes
 )
 
 const defaultPrettyLimit = 80
@@ -225,6 +227,8 @@ func (r *REPL) OneShot(ctx context.Context, line string) error {
 				return r.cmdPrettyLimit(cmd.args)
 			case "trace":
 				return r.cmdTrace()
+			case "notes":
+				return r.cmdNotes()
 			case "metrics":
 				return r.cmdMetrics()
 			case "instrument":
@@ -398,7 +402,8 @@ func (r *REPL) cmdShow(args []string) error {
 		return nil
 	} else if strings.Compare(args[0], "debug") == 0 {
 		debug := replDebug{
-			Trace:      r.traceEnabled(),
+			Trace:      r.explain == explainTrace,
+			Notes:      r.explain == explainNotes,
 			Metrics:    r.metricsEnabled(),
 			Instrument: r.instrument,
 			Profile:    r.profilerEnabled(),
@@ -417,13 +422,19 @@ func (r *REPL) cmdShow(args []string) error {
 // We use this struct to print REPL debug information in JSON string format.
 type replDebug struct {
 	Trace      bool `json:"trace"`
+	Notes      bool `json:"notes"`
 	Metrics    bool `json:"metrics"`
 	Instrument bool `json:"instrument"`
 	Profile    bool `json:"profile"`
 }
 
-func (r *REPL) traceEnabled() bool {
-	return r.explain == explainTrace
+func (r *REPL) cmdNotes() error {
+	if r.explain == explainNotes {
+		r.explain = explainOff
+	} else {
+		r.explain = explainNotes
+	}
+	return nil
 }
 
 func (r *REPL) cmdTrace() error {
@@ -467,7 +478,6 @@ func (r *REPL) profilerEnabled() bool {
 	return r.profiler
 }
 
-// This function cmdProfile will turn tracing (explain) off if profile is turned on
 func (r *REPL) cmdProfile() error {
 	if r.profiler {
 		r.profiler = false
@@ -847,7 +857,7 @@ func (r *REPL) evalBody(ctx context.Context, compiler *ast.Compiler, input ast.V
 		rego.Runtime(r.runtime),
 	}
 
-	if r.explain == explainTrace {
+	if r.explain != explainOff {
 		tracebuf = topdown.NewBufferTracer()
 		args = append(args, rego.Tracer(tracebuf))
 	}
@@ -869,11 +879,14 @@ func (r *REPL) evalBody(ctx context.Context, compiler *ast.Compiler, input ast.V
 	if r.profiler {
 		output.Profile = prof.ReportTopNResults(-1, pr.DefaultProfileSortOrder)
 	}
+
 	output = output.WithLimit(r.prettyLimit)
 
-	if r.explain != explainOff {
-		mangleTrace(ctx, r.store, r.txn, *tracebuf)
+	switch r.explain {
+	case explainTrace:
 		output.Explanation = *tracebuf
+	case explainNotes:
+		output.Explanation = notes.Filter(*tracebuf)
 	}
 
 	switch r.outputFormat {
@@ -915,8 +928,11 @@ func (r *REPL) evalPartial(ctx context.Context, compiler *ast.Compiler, input as
 		Error:   err,
 	}
 
-	if buf != nil {
+	switch r.explain {
+	case explainTrace:
 		output.Explanation = *buf
+	case explainNotes:
+		output.Explanation = notes.Filter(*buf)
 	}
 
 	switch r.outputFormat {
@@ -1065,7 +1081,8 @@ var builtin = [...]commandDesc{
 	{"json", []string{}, "set output format to JSON"},
 	{"pretty", []string{}, "set output format to pretty"},
 	{"pretty-limit", []string{}, "set pretty value output limit"},
-	{"trace", []string{}, "toggle full trace and turns off profiler"},
+	{"trace", []string{}, "toggle full trace"},
+	{"notes", []string{}, "toggle notes trace"},
 	{"metrics", []string{}, "toggle metrics"},
 	{"instrument", []string{}, "toggle instrumentation"},
 	{"profile", []string{}, "toggle profiler and turns off trace"},
@@ -1115,51 +1132,6 @@ func dumpStorage(ctx context.Context, store storage.Store, txn storage.Transacti
 	}
 	e := json.NewEncoder(w)
 	return e.Encode(data)
-}
-
-func mangleTrace(ctx context.Context, store storage.Store, txn storage.Transaction, trace []*topdown.Event) error {
-	for _, event := range trace {
-		if err := mangleEvent(ctx, store, txn, event); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func mangleEvent(ctx context.Context, store storage.Store, txn storage.Transaction, event *topdown.Event) error {
-
-	// Replace bindings with ref values with the values from storage.
-	cpy := event.Locals.Copy()
-	var err error
-	event.Locals.Iter(func(k, v ast.Value) bool {
-		if r, ok := v.(ast.Ref); ok {
-			var path storage.Path
-			path, err = storage.NewPathForRef(r)
-			if err != nil {
-				return true
-			}
-			var doc interface{}
-			doc, err = store.Read(ctx, txn, path)
-			if err != nil {
-				return true
-			}
-			v, err = ast.InterfaceToValue(doc)
-			if err != nil {
-				return true
-			}
-			cpy.Put(k, v)
-		}
-		return false
-	})
-	event.Locals = cpy
-
-	switch node := event.Node.(type) {
-	case *ast.Rule:
-		event.Node = node.Head //topdown.PlugHead(node.Head, event.Locals.Get)
-	case *ast.Expr:
-		event.Node = node // topdown.PlugExpr(node, event.Locals.Get)
-	}
-	return nil
 }
 
 func printHelp(output io.Writer, initPrompt string) {
