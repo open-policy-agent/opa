@@ -70,6 +70,10 @@ func TestPlannerHelloWorld(t *testing.T) {
 			note:    "arrays pattern match",
 			queries: []string{"[x, 3, [2]] = [1, 3, [y]]"},
 		},
+		{
+			note:    "sets",
+			queries: []string{"x = {1,2,3}; x[y]"},
+		},
 	}
 
 	for _, tc := range tests {

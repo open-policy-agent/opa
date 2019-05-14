@@ -204,6 +204,29 @@ void test_opa_value_compare()
     test("objects", opa_value_compare(v2, v3) < 0);
     test("objects", opa_value_compare(v4, v1) > 0);
     test("objects", opa_value_compare(v4, v2) < 0);
+
+    opa_set_t *set1 = opa_cast_set(opa_set());
+    opa_set_add(set1, opa_string_terminated("a"));
+    opa_set_add(set1, opa_string_terminated("b"));
+
+    opa_set_t *set2 = opa_cast_set(opa_set());
+    opa_set_add(set2, opa_string_terminated("a"));
+    opa_set_add(set2, opa_string_terminated("c"));
+
+    opa_set_t *set3 = opa_cast_set(opa_set());
+    opa_set_add(set3, opa_string_terminated("a"));
+    opa_set_add(set3, opa_string_terminated("b"));
+    opa_set_add(set3, opa_string_terminated("c"));
+
+    v1 = &set1->hdr;
+    v2 = &set2->hdr;
+    v3 = &set3->hdr;
+
+    test("set/object", opa_value_compare(v1, opa_object()) > 0);
+    test("sets", opa_value_compare(v1, v1) == 0);
+    test("sets", opa_value_compare(v1, v2) < 0);
+    test("sets", opa_value_compare(v2, v3) > 0); // because c > b
+    test("sets", opa_value_compare(v3, v1) > 0);
 }
 
 int parse_crunch(const char *s, opa_value *exp)
@@ -286,13 +309,23 @@ opa_object_t *fixture_object2()
     return obj;
 }
 
+opa_set_t *fixture_set1()
+{
+    opa_set_t *set = opa_cast_set(opa_set());
+    opa_set_add(set, opa_string_terminated("a"));
+    opa_set_add(set, opa_string_terminated("b"));
+    return set;
+}
+
 void test_opa_value_length()
 {
     opa_array_t *arr = fixture_array1();
     opa_object_t *obj = fixture_object1();
+    opa_set_t *set = fixture_set1();
 
     test("arrays", opa_value_length(&arr->hdr) == 4);
     test("objects", opa_value_length(&obj->hdr) == 2);
+    test("sets", opa_value_length(&set->hdr) == 2);
 }
 
 void test_opa_value_get_array()
@@ -433,6 +466,31 @@ void test_opa_object_insert()
     }
 }
 
+void test_opa_set_add_and_get()
+{
+    opa_set_t *set = fixture_set1();
+    opa_set_add(set, opa_string_terminated("a"));
+
+    opa_set_t *cpy = fixture_set1();
+
+    if (opa_value_compare(&set->hdr, &cpy->hdr) != 0)
+    {
+        test_fatal("set was modified by add with duplicate element");
+    }
+
+    opa_set_add(set, opa_string_terminated("c"));
+
+    if (opa_value_compare(&set->hdr, &cpy->hdr) <= 0)
+    {
+        test_fatal("set should be greater than cpy")
+    }
+
+    if (opa_value_get(&set->hdr, opa_string_terminated("c")) == NULL)
+    {
+        test_fatal("set should contain string term c")
+    }
+}
+
 void test_opa_value_iter_object()
 {
     opa_object_t *obj = fixture_object1();
@@ -489,5 +547,36 @@ void test_opa_value_iter_array()
     if (opa_value_compare(k3, exp3) != 0)
     {
         test_fatal("array iter third did not return expected value");
+    }
+}
+
+void test_opa_value_iter_set()
+{
+    opa_set_t *set = opa_cast_set(opa_set());
+
+    opa_set_add(set, opa_number_int(1));
+    opa_set_add(set, opa_number_int(2));
+
+    opa_value *v1 = opa_value_iter(&set->hdr, NULL);
+    opa_value *v2 = opa_value_iter(&set->hdr, v1);
+    opa_value *v3 = opa_value_iter(&set->hdr, v2);
+
+    opa_value *exp1 = opa_number_int(1);
+    opa_value *exp2 = opa_number_int(2);
+    opa_value *exp3 = NULL;
+
+    if (opa_value_compare(v1, exp1) != 0)
+    {
+        test_fatal("set iter did not return expected value");
+    }
+
+    if (opa_value_compare(v2, exp2) != 0)
+    {
+        test_fatal("set iter second did not return expected value");
+    }
+
+    if (opa_value_compare(v3, exp3) != 0)
+    {
+        test_fatal("set iter third did not return expected value");
     }
 }

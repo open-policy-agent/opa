@@ -213,6 +213,11 @@ type MakeObjectStmt struct {
 	Target Local
 }
 
+// MakeSetStmt constructs a local variable that refers to a set value.
+type MakeSetStmt struct {
+	Target Local
+}
+
 // EqualStmt represents an value-equality check of two local variables.
 type EqualStmt struct {
 	A Local
@@ -272,4 +277,10 @@ type ObjectInsertStmt struct {
 	Key    Local
 	Value  Local
 	Object Local
+}
+
+// SetAddStmt represents a dynamic add operation of an element into a set.
+type SetAddStmt struct {
+	Value Local
+	Set   Local
 }

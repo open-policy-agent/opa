@@ -39,6 +39,8 @@ const (
 	opaArrayAppend       = "opa_array_append"
 	opaObject            = "opa_object"
 	opaObjectInsert      = "opa_object_insert"
+	opaSet               = "opa_set"
+	opaSetAdd            = "opa_set_add"
 	opaStringTerminated  = "opa_string_terminated"
 	opaValueBooleanSet   = "opa_value_boolean_set"
 	opaValueNumberSetInt = "opa_value_number_set_int"
@@ -284,6 +286,9 @@ func (c *Compiler) compileBlock(block ir.Block) ([]instruction.Instruction, erro
 		case ir.MakeObjectStmt:
 			instrs = append(instrs, instruction.Call{Index: c.function(opaObject)})
 			instrs = append(instrs, instruction.SetLocal{Index: c.local(stmt.Target)})
+		case ir.MakeSetStmt:
+			instrs = append(instrs, instruction.Call{Index: c.function(opaSet)})
+			instrs = append(instrs, instruction.SetLocal{Index: c.local(stmt.Target)})
 		case ir.IsArrayStmt:
 			instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.Source)})
 			instrs = append(instrs, instruction.Call{Index: c.function(opaValueType)})
@@ -305,6 +310,10 @@ func (c *Compiler) compileBlock(block ir.Block) ([]instruction.Instruction, erro
 			instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.Key)})
 			instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.Value)})
 			instrs = append(instrs, instruction.Call{Index: c.function(opaObjectInsert)})
+		case ir.SetAddStmt:
+			instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.Set)})
+			instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.Value)})
+			instrs = append(instrs, instruction.Call{Index: c.function(opaSetAdd)})
 		default:
 			var buf bytes.Buffer
 			ir.Pretty(&buf, stmt)
