@@ -233,7 +233,7 @@ func (p *Planner) planExprCall(e *ast.Expr, iter planiter) error {
 func (p *Planner) planUnify(a, b *ast.Term, iter planiter) error {
 
 	switch va := a.Value.(type) {
-	case ast.Null, ast.Boolean, ast.Number, ast.String, ast.Ref:
+	case ast.Null, ast.Boolean, ast.Number, ast.String, ast.Ref, ast.Set:
 		return p.planTerm(a, func() error {
 			return p.planUnifyLocal(p.ltarget, b, iter)
 		})
@@ -291,7 +291,7 @@ func (p *Planner) planUnifyVar(a ast.Var, b *ast.Term, iter planiter) error {
 
 func (p *Planner) planUnifyLocal(a ir.Local, b *ast.Term, iter planiter) error {
 	switch vb := b.Value.(type) {
-	case ast.Null, ast.Boolean, ast.Number, ast.String, ast.Ref:
+	case ast.Null, ast.Boolean, ast.Number, ast.String, ast.Ref, ast.Set:
 		return p.planTerm(b, func() error {
 			p.appendStmt(ir.EqualStmt{
 				A: a,
@@ -484,6 +484,8 @@ func (p *Planner) planTerm(t *ast.Term, iter planiter) error {
 		return p.planArray(v, iter)
 	case ast.Object:
 		return p.planObject(v, iter)
+	case ast.Set:
+		return p.planSet(v, iter)
 	default:
 		return fmt.Errorf("%v term not implemented", ast.TypeName(v))
 	}
@@ -619,13 +621,41 @@ func (p *Planner) planObjectRec(obj ast.Object, index int, keys []*ast.Term, lob
 	})
 }
 
-func (p *Planner) planRef(ref ast.Ref, iter planiter) error {
+func (p *Planner) planSet(set ast.Set, iter planiter) error {
+	lset := p.newLocal()
 
-	if !ref[0].Equal(ast.InputRootDocument) {
-		return fmt.Errorf("%v root document not implemented", ref[0])
+	p.appendStmt(ir.MakeSetStmt{
+		Target: lset,
+	})
+
+	return p.planSetRec(set, 0, set.Slice(), lset, iter)
+}
+
+func (p *Planner) planSetRec(set ast.Set, index int, elems []*ast.Term, lset ir.Local, iter planiter) error {
+	if index == len(elems) {
+		return iter()
 	}
 
-	p.ltarget = p.vars[ast.InputRootDocument.Value.(ast.Var)]
+	return p.planTerm(elems[index], func() error {
+		p.appendStmt(ir.SetAddStmt{
+			Value: p.ltarget,
+			Set:   lset,
+		})
+		return p.planSetRec(set, index+1, elems, lset, iter)
+	})
+}
+
+func (p *Planner) planRef(ref ast.Ref, iter planiter) error {
+
+	head, ok := ref[0].Value.(ast.Var)
+	if !ok {
+		return fmt.Errorf("illegal ref: non-var head")
+	}
+
+	p.ltarget, ok = p.vars[head]
+	if !ok {
+		return fmt.Errorf("illegal ref: unsafe head")
+	}
 
 	return p.planRefRec(ref, 1, iter)
 }
