@@ -13,7 +13,10 @@ This is a list of production adopters of OPA (in alphabetical order):
   access control and enumerate user->resource permissions in Chef
   Automate V2. The integration utilizes OPA's Partial Evaluation
   feature to reduce evaluation time (in exchange for higher update
-  latency.)
+  latency.) A high-level description can be found [in this blog
+  post](https://blog.chef.io/2019/01/24/introducing-the-chef-automate-identity-access-management-version-two-iam-v2-beta/),
+  and the code is Open Source, [see
+  `github.com/chef/automate`](https://github.com/chef/automate/tree/master/components/authz-service).
 
 * [Cloudflare](https://www.cloudflare.com/) uses OPA as a validating
   admission controller to prevent conflicting Ingresses in their
