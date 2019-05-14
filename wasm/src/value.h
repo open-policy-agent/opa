@@ -9,6 +9,7 @@
 #define OPA_STRING (4)
 #define OPA_ARRAY (5)
 #define OPA_OBJECT (6)
+#define OPA_SET (7)
 
 #define OPA_EXT_INT (1)
 #define OPA_EXT_FLOAT (2)
@@ -72,6 +73,20 @@ typedef struct
     opa_object_elem_t *head;
 } opa_object_t;
 
+typedef struct opa_set_elem_t opa_set_elem_t;
+
+struct opa_set_elem_t
+{
+    opa_value *v;
+    opa_set_elem_t *next;
+};
+
+typedef struct
+{
+    opa_value hdr;
+    opa_set_elem_t *head;
+} opa_set_t;
+
 typedef int (*opa_compare_fn)(opa_value *, opa_value *t);
 
 #define opa_cast_boolean(v) container_of(v, opa_boolean_t, hdr)
@@ -79,6 +94,7 @@ typedef int (*opa_compare_fn)(opa_value *, opa_value *t);
 #define opa_cast_string(v) container_of(v, opa_string_t, hdr)
 #define opa_cast_array(v) container_of(v, opa_array_t, hdr)
 #define opa_cast_object(v) container_of(v, opa_object_t, hdr)
+#define opa_cast_set(v) container_of(v, opa_set_t, hdr)
 
 int opa_value_type(opa_value *node);
 int opa_value_compare(opa_value *a, opa_value *b);
@@ -102,6 +118,7 @@ opa_value *opa_string_terminated(const char *v);
 opa_value *opa_array();
 opa_value *opa_array_with_cap(size_t cap);
 opa_value *opa_object();
+opa_value *opa_set();
 
 void opa_value_boolean_set(opa_value *v, int b);
 void opa_value_number_set_int(opa_value *v, long long i);
@@ -115,5 +132,10 @@ opa_array_t *opa_object_keys(opa_object_t *obj);
 void opa_object_insert(opa_object_t *obj, opa_value *k, opa_value *v);
 opa_object_elem_t *opa_object_get(opa_object_t *obj, opa_value *key);
 opa_object_elem_t *opa_object_iter(opa_object_t *obj, opa_object_elem_t *prev);
+
+void opa_set_free(opa_set_t *set);
+void opa_set_add(opa_set_t *set, opa_value *v);
+opa_set_elem_t *opa_set_get(opa_set_t *set, opa_value *v);
+opa_set_elem_t *opa_set_iter(opa_set_t *set, opa_set_elem_t *prev);
 
 #endif

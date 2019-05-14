@@ -21,6 +21,18 @@ opa_value *opa_value_get_object(opa_object_t *obj, opa_value *key)
     return NULL;
 }
 
+opa_value *opa_value_get_set(opa_set_t *set, opa_value *key)
+{
+    opa_set_elem_t *elem = opa_set_get(set, key);
+
+    if (elem != NULL)
+    {
+        return elem->v;
+    }
+
+    return NULL;
+}
+
 opa_value *opa_value_get_array_native(opa_array_t *arr, long long i)
 {
     if (i >= arr->len)
@@ -63,6 +75,8 @@ opa_value *opa_value_get(opa_value *node, opa_value *key)
             return opa_value_get_array(opa_cast_array(node), key);
         case OPA_OBJECT:
             return opa_value_get_object(opa_cast_object(node), key);
+        case OPA_SET:
+            return opa_value_get_set(opa_cast_set(node), key);
         }
     }
     return NULL;
@@ -85,6 +99,28 @@ opa_value *opa_value_iter_object(opa_object_t *obj, opa_value *prev)
     if (elem != NULL && elem->next != NULL)
     {
         return elem->next->k;
+    }
+
+    return NULL;
+}
+
+opa_value *opa_value_iter_set(opa_set_t *set, opa_value *prev)
+{
+    if (prev == NULL)
+    {
+        if (set->head == NULL)
+        {
+            return NULL;
+        }
+
+        return set->head->v;
+    }
+
+    opa_set_elem_t *elem = opa_set_get(set, prev);
+
+    if (elem != NULL && elem->next != NULL)
+    {
+        return elem->next->v;
     }
 
     return NULL;
@@ -135,6 +171,8 @@ opa_value *opa_value_iter(opa_value *node, opa_value *prev)
             return opa_value_iter_array(opa_cast_array(node), prev);
         case OPA_OBJECT:
             return opa_value_iter_object(opa_cast_object(node), prev);
+        case OPA_SET:
+            return opa_value_iter_set(opa_cast_set(node), prev);
         }
     }
 
@@ -145,6 +183,16 @@ size_t opa_value_length_object(opa_object_t *obj)
 {
     size_t i = 0;
     for (opa_object_elem_t *elem = obj->head; elem != NULL; elem = elem->next)
+    {
+        i++;
+    }
+    return i;
+}
+
+size_t opa_value_length_set(opa_set_t *set)
+{
+    size_t i = 0;
+    for (opa_set_elem_t *elem = set->head; elem != NULL; elem = elem->next)
     {
         i++;
     }
@@ -169,6 +217,8 @@ size_t opa_value_length(opa_value *node)
         return opa_value_length_array(opa_cast_array(node));
     case OPA_OBJECT:
         return opa_value_length_object(opa_cast_object(node));
+    case OPA_SET:
+        return opa_value_length_set(opa_cast_set(node));
     case OPA_STRING:
         return opa_value_length_string(opa_cast_string(node));
     default:
@@ -337,6 +387,37 @@ finish:
     return cmp;
 }
 
+int opa_value_compare_set(opa_set_t *a, opa_set_t *b)
+{
+    opa_set_elem_t *elem1 = a->head;
+    opa_set_elem_t *elem2 = b->head;
+
+    while (elem1 != NULL && elem2 != NULL)
+    {
+        int cmp = opa_value_compare(elem1->v, elem2->v);
+
+        if (cmp != 0)
+        {
+            return cmp;
+        }
+
+        elem1 = elem1->next;
+        elem2 = elem2->next;
+    }
+
+    if (elem1 == NULL)
+    {
+        if (elem2 == NULL)
+        {
+            return 0;
+        }
+
+        return -1;
+    }
+
+    return 1;
+}
+
 int opa_value_compare(opa_value *a, opa_value *b)
 {
     if (a == NULL && b == NULL)
@@ -395,6 +476,12 @@ int opa_value_compare(opa_value *a, opa_value *b)
         opa_object_t *b1 = opa_cast_object(b);
         return opa_value_compare_object(a1, b1);
     }
+    case OPA_SET:
+    {
+        opa_set_t *a1 = opa_cast_set(a);
+        opa_set_t *b1 = opa_cast_set(b);
+        return opa_value_compare_set(a1, b1);
+    }
     default:
     {
         opa_abort("illegal value");
@@ -424,6 +511,9 @@ void opa_value_free(opa_value *node)
         return;
     case OPA_OBJECT:
         opa_object_free(opa_cast_object(node));
+        return;
+    case OPA_SET:
+        opa_set_free(opa_cast_set(node));
         return;
     }
 }
@@ -558,6 +648,13 @@ opa_value *opa_object()
     return &ret->hdr;
 }
 
+opa_value *opa_set()
+{
+    opa_set_t *ret = (opa_set_t *)opa_malloc(sizeof(opa_set_t));
+    ret->hdr.type = OPA_SET;
+    return &ret->hdr;
+}
+
 void opa_value_boolean_set(opa_value *v, int b)
 {
     opa_boolean_t *ret = opa_cast_boolean(v);
@@ -633,6 +730,8 @@ void opa_object_free(opa_object_t *obj)
     {
         opa_free(prev);
     }
+
+    opa_free(obj);
 }
 
 opa_array_t *opa_object_keys(opa_object_t *obj)
@@ -708,4 +807,97 @@ opa_object_elem_t *opa_object_iter(opa_object_t *obj, opa_object_elem_t *prev)
     }
 
     return prev->next;
+}
+
+void opa_set_free(opa_set_t *set)
+{
+    opa_set_elem_t *prev = NULL;
+
+    for (opa_set_elem_t *curr = set->head; curr != NULL; curr = curr->next)
+    {
+        if (prev != NULL)
+        {
+            opa_free(prev);
+        }
+
+        prev = curr;
+    }
+
+    if (prev != NULL)
+    {
+        opa_free(prev);
+    }
+
+    opa_free(set);
+}
+
+opa_set_elem_t *__opa_set_elem_alloc(opa_value *v)
+{
+    opa_set_elem_t *elem = (opa_set_elem_t *)opa_malloc(sizeof(opa_set_elem_t));
+    elem->next = NULL;
+    elem->v = v;
+    return elem;
+}
+
+void opa_set_add(opa_set_t *set, opa_value *v)
+{
+    opa_set_elem_t *prev = NULL;
+    opa_set_elem_t *next = NULL;
+
+    for (opa_set_elem_t *curr = set->head; curr != NULL; curr = next)
+    {
+        next = curr->next;
+
+        int cmp = opa_value_compare(curr->v, v);
+
+        if (cmp == 0)
+        {
+            return;
+        }
+        else if (cmp > 0)
+        {
+            break;
+        }
+
+        prev = curr;
+    }
+
+    opa_set_elem_t *added = __opa_set_elem_alloc(v);
+
+    if (prev != NULL)
+    {
+        prev->next = added;
+    }
+    else
+    {
+        set->head = added;
+    }
+
+    if (next != NULL)
+    {
+        added->next = next;
+    }
+}
+
+opa_set_elem_t *opa_set_iter(opa_set_t *set, opa_set_elem_t *prev)
+{
+    if (prev == NULL)
+    {
+        return set->head;
+    }
+
+    return prev->next;
+}
+
+opa_set_elem_t *opa_set_get(opa_set_t *set, opa_value *v)
+{
+    for (opa_set_elem_t *curr = set->head; curr != NULL; curr = curr->next)
+    {
+        if (opa_value_compare(curr->v, v) == 0)
+        {
+            return curr;
+        }
+    }
+
+    return NULL;
 }

@@ -71,3 +71,11 @@ cases:
     query: 'input.x = {"a": 1, "b": 2}'
     input: {"x": {"a": 2, "b": 1}}
     return_code: 0
+  - note: eq/set-non-empty
+    query: '{input.a, input.b} = {input.b, input.a}'
+    input: {"a": 1, "b": 2}
+    return_code: 1
+  - note: eq/set-non-empty (negative)
+    query: '{input.a, input.b} = {input.a, input.c}'
+    input: {"a": 1, "b": 2, "c": 3}
+    return_code: 0
