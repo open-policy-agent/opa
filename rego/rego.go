@@ -662,11 +662,28 @@ func (r *Rego) Compile(ctx context.Context) (*CompileResult, error) {
 		return nil, err
 	}
 
-	if len(pq.Support) > 0 {
-		return nil, fmt.Errorf("modules not supported")
+	if r.dump != nil {
+		if len(pq.Queries) != 0 {
+			msg := fmt.Sprintf("QUERIES (%d total):", len(pq.Queries))
+			fmt.Fprintln(r.dump, msg)
+			fmt.Fprintln(r.dump, strings.Repeat("-", len(msg)))
+			for i := range pq.Queries {
+				fmt.Println(pq.Queries[i])
+			}
+			fmt.Fprintln(r.dump)
+		}
+		if len(pq.Support) != 0 {
+			msg := fmt.Sprintf("SUPPORT (%d total):", len(pq.Support))
+			fmt.Fprintln(r.dump, msg)
+			fmt.Fprintln(r.dump, strings.Repeat("-", len(msg)))
+			for i := range pq.Support {
+				fmt.Println(pq.Support[i])
+			}
+			fmt.Fprintln(r.dump)
+		}
 	}
 
-	policy, err := planner.New().WithQueries(pq.Queries).Plan()
+	policy, err := planner.New().WithQueries(pq.Queries).WithModules(pq.Support).Plan()
 	if err != nil {
 		return nil, err
 	}
