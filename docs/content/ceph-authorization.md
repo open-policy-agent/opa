@@ -520,7 +520,7 @@ spec:
     spec:
       containers:
         - name: opa
-          image: openpolicyagent/opa:{{< current_version >}}
+          image: openpolicyagent/opa:{{< current_docker_version >}}
           ports:
           - name: http
             containerPort: 8181
