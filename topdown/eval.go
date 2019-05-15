@@ -662,8 +662,20 @@ func (e *eval) biunifyObjectsRec(a, b ast.Object, b1, b2 *bindings, iter unifyIt
 
 func (e *eval) biunifyValues(a, b *ast.Term, b1, b2 *bindings, iter unifyIterator) error {
 
-	saveA := e.saveSet.Contains(a, b1)
-	saveB := e.saveSet.Contains(b, b2)
+	var saveA, saveB bool
+
+	if _, ok := a.Value.(ast.Set); ok {
+		saveA = e.saveSet.ContainsRecursive(a, b1)
+	} else {
+		saveA = e.saveSet.Contains(a, b1)
+	}
+
+	if _, ok := b.Value.(ast.Set); ok {
+		saveB = e.saveSet.ContainsRecursive(b, b2)
+	} else {
+		saveB = e.saveSet.Contains(b, b2)
+	}
+
 	_, refA := a.Value.(ast.Ref)
 	_, refB := b.Value.(ast.Ref)
 

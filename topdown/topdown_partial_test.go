@@ -553,6 +553,14 @@ func TestTopDownPartialEval(t *testing.T) {
 			},
 		},
 		{
+			note:  "save: set embedded",
+			query: `data.test.p = true`,
+			modules: []string{`
+				package test
+				p { x = input; {x} = {1} }`},
+			wantQueries: []string{`{input} = {1}`},
+		},
+		{
 			note:  "save: call embedded",
 			query: "x = input; a = [x]; count([a], n)",
 			wantQueries: []string{
