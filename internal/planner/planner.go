@@ -17,11 +17,12 @@ type binaryiter func(ir.Local, ir.Local) error
 
 // Planner implements a query planner for Rego queries.
 type Planner struct {
+	queries []ast.Body
+	modules []*ast.Module
 	strings []ir.StringConst
 	blocks  []ir.Block
 	curr    *ir.Block
 	vars    map[ast.Var]ir.Local
-	queries []ast.Body
 	ltarget ir.Local
 	lcurr   ir.Local
 }
@@ -42,8 +43,40 @@ func (p *Planner) WithQueries(queries []ast.Body) *Planner {
 	return p
 }
 
+// WithModules sets the module set that contains query dependencies.
+func (p *Planner) WithModules(modules []*ast.Module) *Planner {
+	p.modules = modules
+	return p
+}
+
 // Plan returns a IR plan for the policy query.
 func (p *Planner) Plan() (*ir.Policy, error) {
+
+	if err := p.planModules(); err != nil {
+		return nil, err
+	}
+
+	if err := p.planQueries(); err != nil {
+		return nil, err
+	}
+
+	policy := ir.Policy{
+		Static: ir.Static{
+			Strings: p.strings,
+		},
+		Plan: ir.Plan{
+			Blocks: p.blocks,
+		},
+	}
+
+	return &policy, nil
+}
+
+func (p *Planner) planModules() error {
+	return fmt.Errorf("not implemented")
+}
+
+func (p *Planner) planQueries() error {
 
 	for _, q := range p.queries {
 		p.curr = &ir.Block{}
@@ -56,7 +89,7 @@ func (p *Planner) Plan() (*ir.Policy, error) {
 			defined = true
 			return nil
 		}); err != nil {
-			return nil, err
+			return err
 		}
 
 		if defined {
@@ -72,16 +105,7 @@ func (p *Planner) Plan() (*ir.Policy, error) {
 		},
 	})
 
-	policy := ir.Policy{
-		Static: ir.Static{
-			Strings: p.strings,
-		},
-		Plan: ir.Plan{
-			Blocks: p.blocks,
-		},
-	}
-
-	return &policy, nil
+	return nil
 }
 
 func (p *Planner) planQuery(q ast.Body, index int, iter planiter) error {
