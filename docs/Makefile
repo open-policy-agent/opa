@@ -32,7 +32,7 @@ docker-serve:
 	docker run --rm -it \
 		-v $(CURDIR)/:/src \
 		-p 1313:1313 \
-		klakegg/hugo:0.53-ext server \
+		klakegg/hugo:0.55.5-ext server \
 			--source /src/website \
 			--contentDir generated
 
