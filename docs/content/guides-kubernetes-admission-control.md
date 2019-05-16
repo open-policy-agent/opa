@@ -560,10 +560,32 @@ sends HTTP `POST` requests. If there are no `POST` requests contained in the
 there is a network connectivity problem between the Kubernetes API server and
 OPA.
 
-* If you have access too the Kubernetes API server logs, review them to see if
+* If you have access to the Kubernetes API server logs, review them to see if
   they indicate the cause.
 * If you are running on AWS EKS make sure your security group settings allow
   traffic from Kubernetes "master" nodes to the node(s) where OPA is running.
+
+### Ensure the webhook is configured for the proper namespaces
+
+When you create the webhook according to the installation instructions,
+it includes a namespaceSelector so that you
+can decide which namespaces to ignore.
+
+```
+    namespaceSelector:
+      matchExpressions:
+      - key: openpolicyagent.org/webhook
+        operator: NotIn
+        values:
+        - ignore
+```
+
+If OPA seems to not be making the decisions you expect, check if the namespace
+is using the label `openpolicyagent.org/webhook: ignore`.
+
+If OPA is making decision on namespaces (like `kube-system`) that you would
+prefer OPA would ignore, assign the namespace the label
+`openpolicyagent.org/webhook: ignore`.
 
 ### Ensure mutating policies construct JSON Patches correctly
 
