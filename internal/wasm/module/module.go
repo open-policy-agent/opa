@@ -277,6 +277,28 @@ func (tpe FunctionType) String() string {
 	return "(" + strings.Join(params, ", ") + ") -> (" + strings.Join(results, ", ") + ")"
 }
 
+// Equal returns true if tpe equals other.
+func (tpe FunctionType) Equal(other FunctionType) bool {
+
+	if len(tpe.Params) != len(other.Params) || len(tpe.Results) != len(other.Results) {
+		return false
+	}
+
+	for i := range tpe.Params {
+		if tpe.Params[i] != other.Params[i] {
+			return false
+		}
+	}
+
+	for i := range tpe.Results {
+		if tpe.Results[i] != other.Results[i] {
+			return false
+		}
+	}
+
+	return true
+}
+
 func (imp Import) String() string {
 	return fmt.Sprintf("%v %v.%v", imp.Descriptor.String(), imp.Module, imp.Name)
 }
