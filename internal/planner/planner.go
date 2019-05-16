@@ -689,6 +689,7 @@ func (p *Planner) planArray(arr ast.Array, iter planiter) error {
 
 func (p *Planner) planArrayRec(arr ast.Array, index int, larr ir.Local, iter planiter) error {
 	if index == len(arr) {
+		p.ltarget = larr
 		return iter()
 	}
 
@@ -716,6 +717,7 @@ func (p *Planner) planObject(obj ast.Object, iter planiter) error {
 
 func (p *Planner) planObjectRec(obj ast.Object, index int, keys []*ast.Term, lobj ir.Local, iter planiter) error {
 	if index == len(keys) {
+		p.ltarget = lobj
 		return iter()
 	}
 
@@ -747,6 +749,7 @@ func (p *Planner) planSet(set ast.Set, iter planiter) error {
 
 func (p *Planner) planSetRec(set ast.Set, index int, elems []*ast.Term, lset ir.Local, iter planiter) error {
 	if index == len(elems) {
+		p.ltarget = lset
 		return iter()
 	}
 

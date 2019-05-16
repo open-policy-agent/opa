@@ -31,6 +31,22 @@ cases:
         package x
         p = y { x = 2; y = x }
     return_code: 0
+  - note: composites
+    disable_partial: true
+    query: data.x.p = [1]
+    modules:
+      - |
+        package x
+        p = [x] { x = 1 }
+    return_code: 1
+  - note: composites (negative)
+    disable_partial: true
+    query: data.x.p = [1]
+    modules:
+      - |
+        package x
+        p = [x] { x = 2 }
+    return_code: 0
   - note: conjunction
     disable_partial: true
     query: data.x.p = 1
