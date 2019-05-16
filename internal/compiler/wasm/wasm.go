@@ -62,9 +62,7 @@ type Compiler struct {
 
 	stringOffset int32             // null-terminated string data base offset
 	stringAddrs  []uint32          // null-terminated string constant addresses
-	stringData   []byte            // null-terminated strings to write into data section
 	funcs        map[string]uint32 // maps exported function names to function indices
-	evalIndex    uint32            // function section index of eval func
 
 	localMax uint32
 }
@@ -79,13 +77,7 @@ func New() *Compiler {
 	c.stages = []func() error{
 		c.initModule,
 		c.compileStrings,
-		c.emitEntry,
 		c.compilePlan,
-		c.emitLocals,
-		c.emitFunctionSection,
-		c.emitExportSection,
-		c.emitCodeSection,
-		c.emitDataSection,
 	}
 	return c
 }
@@ -133,6 +125,7 @@ func (c *Compiler) initModule() error {
 
 func (c *Compiler) compileStrings() error {
 
+	// compile the string constants into a buffer and build index.
 	c.stringAddrs = make([]uint32, len(c.policy.Static.Strings))
 	var buf bytes.Buffer
 
@@ -143,19 +136,29 @@ func (c *Compiler) compileStrings() error {
 		c.stringAddrs[i] = addr
 	}
 
-	c.stringData = buf.Bytes()
-	return nil
-}
+	// write string buffer into the module.
+	c.module.Data.Segments = append(c.module.Data.Segments, module.DataSegment{
+		Index: 0,
+		Offset: module.Expr{
+			Instrs: []instruction.Instruction{
+				instruction.I32Const{
+					Value: c.stringOffset,
+				},
+			},
+		},
+		Init: buf.Bytes(),
+	})
 
-func (c *Compiler) emitEntry() error {
-	c.appendInstr(instruction.GetLocal{Index: c.local(ir.InputRaw)})
-	c.appendInstr(instruction.GetLocal{Index: c.local(ir.InputLen)})
-	c.appendInstr(instruction.Call{Index: c.function(opaJSONParse)})
-	c.appendInstr(instruction.SetLocal{Index: c.local(ir.Input)})
 	return nil
 }
 
 func (c *Compiler) compilePlan() error {
+
+	// compile the code segment for the plan.
+	c.appendInstr(instruction.GetLocal{Index: c.local(ir.InputRaw)})
+	c.appendInstr(instruction.GetLocal{Index: c.local(ir.InputLen)})
+	c.appendInstr(instruction.Call{Index: c.function(opaJSONParse)})
+	c.appendInstr(instruction.SetLocal{Index: c.local(ir.Input)})
 
 	for i := range c.policy.Plan.Blocks {
 
@@ -171,7 +174,18 @@ func (c *Compiler) compilePlan() error {
 		}
 	}
 
-	return nil
+	c.code.Func.Locals = []module.LocalDeclaration{
+		{
+			Count: c.localMax + 1,
+			Type:  types.I32,
+		},
+	}
+
+	// write the raw code segment into the module.
+	return c.emitFunction("eval", c.code, module.FunctionType{
+		Params:  []types.ValueType{types.I32, types.I32},
+		Results: []types.ValueType{types.I32},
+	}, true)
 }
 
 func (c *Compiler) compileBlock(block ir.Block) ([]instruction.Instruction, error) {
@@ -381,85 +395,46 @@ func (c *Compiler) compileNot(not ir.NotStmt, result *[]instruction.Instruction)
 	return nil
 }
 
-func (c *Compiler) emitLocals() error {
-	c.code.Func.Locals = []module.LocalDeclaration{
-		{
-			Count: c.localMax + 1,
-			Type:  types.I32,
-		},
-	}
-	return nil
-}
+func (c *Compiler) emitFunction(name string, entry *module.CodeEntry, tpe module.FunctionType, export bool) error {
 
-func (c *Compiler) emitFunctionSection() error {
-
-	var found bool
-	var index uint32
-
-	for i, tpe := range c.module.Type.Functions {
-		if len(tpe.Params) == 2 && tpe.Params[0] == types.I32 && tpe.Params[1] == types.I32 {
-			if len(tpe.Results) == 1 && tpe.Results[0] == types.I32 {
-				index = uint32(i)
-				found = true
-				break
-			}
-		}
-	}
-
-	if !found {
-		return fmt.Errorf("expected to find (int32, int32) -> int32 in type section")
-	}
-
-	c.module.Function.TypeIndices = append(c.module.Function.TypeIndices, index)
-
-	var numFuncs int
-
-	for _, imp := range c.module.Import.Imports {
-		if imp.Descriptor.Kind() == module.FunctionImportType {
-			numFuncs++
-		}
-	}
-
-	c.evalIndex = uint32(numFuncs + len(c.module.Function.TypeIndices) - 1)
-
-	return nil
-}
-
-func (c *Compiler) emitExportSection() error {
-	c.module.Export.Exports = append(c.module.Export.Exports, module.Export{
-		Name: "eval",
-		Descriptor: module.ExportDescriptor{
-			Type:  module.FunctionExportType,
-			Index: c.evalIndex,
-		},
-	})
-	return nil
-}
-
-func (c *Compiler) emitCodeSection() error {
+	// emit code entry into the module.
 	var buf bytes.Buffer
-	if err := encoding.WriteCodeEntry(&buf, c.code); err != nil {
+
+	if err := encoding.WriteCodeEntry(&buf, entry); err != nil {
 		return err
 	}
-	c.module.Code.Segments = append(c.module.Code.Segments, module.RawCodeSegment{
-		Code: buf.Bytes(),
-	})
+
+	c.module.Code.Segments = append(c.module.Code.Segments, module.RawCodeSegment{Code: buf.Bytes()})
+	c.module.Function.TypeIndices = append(c.module.Function.TypeIndices, c.emitFunctionType(tpe))
+
+	// emit export if required.
+	if export {
+		var numFuncImports int
+		for _, imp := range c.module.Import.Imports {
+			if imp.Descriptor.Kind() == module.FunctionImportType {
+				numFuncImports++
+			}
+		}
+		c.module.Export.Exports = append(c.module.Export.Exports, module.Export{
+			Name: name,
+			Descriptor: module.ExportDescriptor{
+				Type:  module.FunctionExportType,
+				Index: uint32(numFuncImports + len(c.module.Function.TypeIndices) - 1),
+			},
+		})
+	}
+
 	return nil
 }
 
-func (c *Compiler) emitDataSection() error {
-	c.module.Data.Segments = append(c.module.Data.Segments, module.DataSegment{
-		Index: 0,
-		Offset: module.Expr{
-			Instrs: []instruction.Instruction{
-				instruction.I32Const{
-					Value: c.stringOffset,
-				},
-			},
-		},
-		Init: c.stringData,
-	})
-	return nil
+func (c *Compiler) emitFunctionType(tpe module.FunctionType) uint32 {
+	for i, other := range c.module.Type.Functions {
+		if tpe.Equal(other) {
+			return uint32(i)
+		}
+	}
+	c.module.Type.Functions = append(c.module.Type.Functions, tpe)
+	return uint32(len(c.module.Type.Functions) - 1)
 }
 
 func (c *Compiler) stringAddr(index int) int32 {
