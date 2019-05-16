@@ -340,6 +340,7 @@ const (
 	evalQueryType          queryType = iota
 	partialResultQueryType queryType = iota
 	partialQueryType       queryType = iota
+	compileQueryType       queryType = iota
 )
 
 // Rego constructs a query and can be evaluated to obtain results.
@@ -654,36 +655,102 @@ func (r *Rego) Partial(ctx context.Context) (*PartialQueries, error) {
 	return pq.Partial(ctx)
 }
 
+// CompileOption defines a function to set options on Compile calls.
+type CompileOption func(*CompileContext)
+
+// CompileContext contains options for Compile calls.
+type CompileContext struct {
+	partial bool
+}
+
+// CompilePartial defines an option to control whether partial evaluation is run
+// before the query is planned and compiled.
+func CompilePartial(yes bool) CompileOption {
+	return func(cfg *CompileContext) {
+		cfg.partial = yes
+	}
+}
+
 // Compile returns a compiled policy query.
-func (r *Rego) Compile(ctx context.Context) (*CompileResult, error) {
+func (r *Rego) Compile(ctx context.Context, opts ...CompileOption) (*CompileResult, error) {
 
-	pq, err := r.Partial(ctx)
-	if err != nil {
-		return nil, err
+	var cfg CompileContext
+
+	for _, opt := range opts {
+		opt(&cfg)
 	}
 
-	if r.dump != nil {
-		if len(pq.Queries) != 0 {
-			msg := fmt.Sprintf("QUERIES (%d total):", len(pq.Queries))
-			fmt.Fprintln(r.dump, msg)
-			fmt.Fprintln(r.dump, strings.Repeat("-", len(msg)))
-			for i := range pq.Queries {
-				fmt.Println(pq.Queries[i])
-			}
-			fmt.Fprintln(r.dump)
+	var queries []ast.Body
+	var modules []*ast.Module
+
+	if cfg.partial {
+
+		pq, err := r.Partial(ctx)
+		if err != nil {
+			return nil, err
 		}
-		if len(pq.Support) != 0 {
-			msg := fmt.Sprintf("SUPPORT (%d total):", len(pq.Support))
-			fmt.Fprintln(r.dump, msg)
-			fmt.Fprintln(r.dump, strings.Repeat("-", len(msg)))
-			for i := range pq.Support {
-				fmt.Println(pq.Support[i])
+		if r.dump != nil {
+			if len(pq.Queries) != 0 {
+				msg := fmt.Sprintf("QUERIES (%d total):", len(pq.Queries))
+				fmt.Fprintln(r.dump, msg)
+				fmt.Fprintln(r.dump, strings.Repeat("-", len(msg)))
+				for i := range pq.Queries {
+					fmt.Println(pq.Queries[i])
+				}
+				fmt.Fprintln(r.dump)
 			}
-			fmt.Fprintln(r.dump)
+			if len(pq.Support) != 0 {
+				msg := fmt.Sprintf("SUPPORT (%d total):", len(pq.Support))
+				fmt.Fprintln(r.dump, msg)
+				fmt.Fprintln(r.dump, strings.Repeat("-", len(msg)))
+				for i := range pq.Support {
+					fmt.Println(pq.Support[i])
+				}
+				fmt.Fprintln(r.dump)
+			}
+		}
+
+		queries = pq.Queries
+		modules = pq.Support
+
+		for _, module := range r.compiler.Modules {
+			modules = append(modules, module)
+		}
+	} else {
+
+		// execute block inside a closure so that transaction is closed before
+		// planner runs.
+		//
+		// TODO(tsandall): in future, planner could make use of store, in which
+		// case this will need to change.
+		err := func() error {
+			var err error
+			if r.txn == nil {
+				r.txn, err = r.store.NewTransaction(ctx)
+				if err != nil {
+					return err
+				}
+				defer r.store.Abort(ctx, r.txn)
+			}
+
+			if err := r.prepare(ctx, r.txn, compileQueryType, nil); err != nil {
+				return err
+			}
+
+			for _, module := range r.compiler.Modules {
+				modules = append(modules, module)
+			}
+
+			queries = []ast.Body{r.compiledQueries[compileQueryType].query}
+			return nil
+		}()
+
+		if err != nil {
+			return nil, err
 		}
 	}
 
-	policy, err := planner.New().WithQueries(pq.Queries).WithModules(pq.Support).Plan()
+	policy, err := planner.New().WithQueries(queries).WithModules(modules).Plan()
 	if err != nil {
 		return nil, err
 	}

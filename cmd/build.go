@@ -73,7 +73,7 @@ func build(args []string) error {
 	}
 
 	r := rego.New(regoArgs...)
-	cr, err := r.Compile(ctx)
+	cr, err := r.Compile(ctx, rego.CompilePartial(true))
 	if err != nil {
 		return err
 	}
