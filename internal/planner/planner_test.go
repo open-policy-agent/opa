@@ -24,6 +24,7 @@ func TestPlannerHelloWorld(t *testing.T) {
 	tests := []struct {
 		note    string
 		queries []string
+		modules []string
 		exp     ir.Policy
 	}{
 		{
@@ -74,6 +75,27 @@ func TestPlannerHelloWorld(t *testing.T) {
 			note:    "sets",
 			queries: []string{"x = {1,2,3}; x[y]"},
 		},
+		{
+			note:    "vars",
+			queries: []string{"x = 1"},
+		},
+		{
+			note:    "complete rules",
+			queries: []string{"true"},
+			modules: []string{`
+				package test
+				p = x { x = 1 }
+				p = y { y = 2 }
+			`},
+		},
+		{
+			note:    "complete rule reference",
+			queries: []string{"data.test.p = 10"},
+			modules: []string{`
+				package test
+				p = x { x = 10 }
+			`},
+		},
 	}
 
 	for _, tc := range tests {
@@ -82,7 +104,11 @@ func TestPlannerHelloWorld(t *testing.T) {
 			for i := range queries {
 				queries[i] = ast.MustParseBody(tc.queries[i])
 			}
-			planner := New().WithQueries(queries)
+			modules := make([]*ast.Module, len(tc.modules))
+			for i := range modules {
+				modules[i] = ast.MustParseModule(tc.modules[i])
+			}
+			planner := New().WithQueries(queries).WithModules(modules)
 			policy, err := planner.Plan()
 			if err != nil {
 				t.Fatal(err)

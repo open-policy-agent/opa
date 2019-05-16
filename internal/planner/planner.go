@@ -17,14 +17,15 @@ type binaryiter func(ir.Local, ir.Local) error
 
 // Planner implements a query planner for Rego queries.
 type Planner struct {
-	queries []ast.Body
-	modules []*ast.Module
-	strings []ir.StringConst
-	blocks  []ir.Block
-	curr    *ir.Block
-	vars    map[ast.Var]ir.Local
-	ltarget ir.Local
-	lcurr   ir.Local
+	queries []ast.Body           // input query to plan
+	modules []*ast.Module        // input modules to support queries
+	strings []ir.StringConst     // planned (global) string constants
+	blocks  []ir.Block           // planned blocks
+	funcs   *functrie            // planned functions to support blocks
+	curr    *ir.Block            // in-progress query block
+	vars    map[ast.Var]ir.Local // in-scope variables
+	ltarget ir.Local             // target variable of last planned statement
+	lcurr   ir.Local             // next variable to use
 }
 
 // New returns a new Planner object.
@@ -34,6 +35,7 @@ func New() *Planner {
 		vars: map[ast.Var]ir.Local{
 			ast.InputRootDocument.Value.(ast.Var): ir.Input,
 		},
+		funcs: newFunctrie(),
 	}
 }
 
@@ -67,13 +69,101 @@ func (p *Planner) Plan() (*ir.Policy, error) {
 		Plan: ir.Plan{
 			Blocks: p.blocks,
 		},
+		Funcs: ir.Funcs{
+			Funcs: p.funcs.Map(),
+		},
 	}
 
 	return &policy, nil
 }
 
 func (p *Planner) planModules() error {
-	return fmt.Errorf("not implemented")
+
+	rulesets := map[string][]*ast.Rule{}
+
+	for _, module := range p.modules {
+		for _, rule := range module.Rules {
+			name := rule.Path().String()
+			rulesets[name] = append(rulesets[name], rule)
+		}
+	}
+
+	for _, rs := range rulesets {
+		if err := p.planRules(rs); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (p *Planner) planRules(rules []*ast.Rule) error {
+
+	path := rules[0].Path()
+
+	fn := &ir.Func{
+		Name:   path.String(),
+		Params: []ir.Local{p.newLocal()},
+		Return: p.newLocal(),
+	}
+
+	// save current state of planner before recursing on the rule bodies.
+	//
+	// TODO(tsandall): perhaps we would be better off using stacks here or
+	// splitting block planner into separate struct that could be instantiated
+	// for rule and comprehension bodies.
+	currVars := p.vars
+	currBlock := p.curr
+
+	for _, rule := range rules {
+
+		// initialize planner state for rule body.
+		p.vars = map[ast.Var]ir.Local{
+			ast.InputRootDocument.Value.(ast.Var): fn.Params[0],
+		}
+
+		fn.Blocks = append(fn.Blocks, ir.Block{})
+		p.curr = &fn.Blocks[len(fn.Blocks)-1]
+
+		if rule.Else != nil {
+			return fmt.Errorf("not implemented: ordered rules")
+		} else if rule.Head.Key != nil {
+			return fmt.Errorf("not implemented: partial rules")
+		} else if rule.Default {
+			return fmt.Errorf("not implemented: default rules")
+		} else if len(rule.Head.Args) != 0 {
+			return fmt.Errorf("not implemented: functions")
+		}
+
+		// run planner on rule body.
+		if err := p.planQuery(rule.Body, 0, func() error {
+			return p.planTerm(rule.Head.Value, func() error {
+				p.appendStmt(ir.AssignVarOnceStmt{
+					Target: fn.Return,
+					Source: p.ltarget,
+				})
+				return nil
+			})
+		}); err != nil {
+			return err
+		}
+	}
+
+	fn.Blocks = append(fn.Blocks, ir.Block{
+		Stmts: []ir.Stmt{
+			ir.ReturnLocalStmt{
+				Source: fn.Return,
+			},
+		},
+	})
+
+	p.funcs.Insert(path, fn)
+
+	// restore old state of planner.
+	p.vars = currVars
+	p.curr = currBlock
+
+	return nil
 }
 
 func (p *Planner) planQueries() error {
@@ -676,6 +766,10 @@ func (p *Planner) planRef(ref ast.Ref, iter planiter) error {
 		return fmt.Errorf("illegal ref: non-var head")
 	}
 
+	if head.Compare(ast.DefaultRootDocument.Value) == 0 {
+		return p.planRefData(ref, iter)
+	}
+
 	p.ltarget, ok = p.vars[head]
 	if !ok {
 		return fmt.Errorf("illegal ref: unsafe head")
@@ -708,7 +802,7 @@ func (p *Planner) planRefRec(ref ast.Ref, index int, iter planiter) error {
 
 	case ast.Var:
 		if _, ok := p.vars[v]; !ok {
-			return p.planScan(ref, index, func() error {
+			return p.planRefScan(ref, index, func() error {
 				return p.planRefRec(ref, index+1, iter)
 			})
 		}
@@ -720,7 +814,7 @@ func (p *Planner) planRefRec(ref ast.Ref, index int, iter planiter) error {
 	}
 }
 
-func (p *Planner) planScan(ref ast.Ref, index int, iter planiter) error {
+func (p *Planner) planRefScan(ref ast.Ref, index int, iter planiter) error {
 
 	source := p.ltarget
 
@@ -771,6 +865,38 @@ func (p *Planner) planScan(ref ast.Ref, index int, iter planiter) error {
 
 		return nil
 	})
+}
+
+func (p *Planner) planRefData(ref ast.Ref, iter planiter) error {
+
+	// TODO(tsandall): this is very WIP. Many forms are not supported yet. For
+	// example, given:
+	//
+	//  package foo
+	//
+	//  p = {"a": 1, "b": 2}
+	//
+	// There are different ways to materialize p:
+	//
+	//  data.foo.p[x]
+	//  data.foo.p.b
+	//  data.foo
+	//  data.foo[x]
+	//
+	// Moreoever, JSON data may be loaded alongside p (e.g., at /foo/q) in which
+	// case the last two examples must account for this.
+	//
+	// For now we punt on this and let the compiler backend return an error if
+	// the call is not supported.
+	p.ltarget = p.newLocal()
+
+	p.appendStmt(ir.CallStmt{
+		Func:   ref.String(),
+		Args:   []ir.Local{p.vars[ast.InputRootDocument.Value.(ast.Var)]},
+		Result: p.ltarget,
+	})
+
+	return iter()
 }
 
 func (p *Planner) appendStmt(s ir.Stmt) {

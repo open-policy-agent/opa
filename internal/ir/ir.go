@@ -17,11 +17,28 @@ type (
 	Policy struct {
 		Static Static
 		Plan   Plan
+		Funcs  Funcs
 	}
 
 	// Static represents a static data segment that is indexed into by the policy.
 	Static struct {
 		Strings []StringConst
+	}
+
+	// Funcs represents a collection of planned functions to include in the
+	// policy.
+	Funcs struct {
+		Funcs map[string]*Func
+	}
+
+	// Func represents a named plan (function) that can be invoked. Functions
+	// accept one or more parameters and return a value. By convention, the
+	// input document is always passed as the first argument.
+	Func struct {
+		Name   string
+		Params []Local
+		Return Local
+		Blocks []Block // TODO(tsandall): should this be a plan?
 	}
 
 	// Plan represents an ordered series of blocks to execute. All plans contain a
@@ -44,6 +61,8 @@ type (
 	}
 
 	// Local represents a plan-scoped variable.
+	//
+	// TODO(tsandall): should this be int32 for safety?
 	Local int
 
 	// Const represents a constant value from the policy.
@@ -108,6 +127,14 @@ func (a Static) String() string {
 	return fmt.Sprintf("Static (%d strings)", len(a.Strings))
 }
 
+func (a Funcs) String() string {
+	return fmt.Sprintf("Funcs (%d funcs)", len(a.Funcs))
+}
+
+func (a *Func) String() string {
+	return fmt.Sprintf("%v (%d params: %v, %d blocks)", a.Name, len(a.Params), a.Params, len(a.Blocks))
+}
+
 func (a Plan) String() string {
 	return fmt.Sprintf("Plan (%d blocks)", len(a.Blocks))
 }
@@ -126,6 +153,19 @@ func (a StringConst) typeMarker()  {}
 // a plan with the given code.
 type ReturnStmt struct {
 	Code int32 // 32-bit integer for compatibility with languages like JavaScript.
+}
+
+// ReturnLocalStmt represents a return statement that yields a local value.
+type ReturnLocalStmt struct {
+	Source Local
+}
+
+// CallStmt represents a named function call. The result should be stored in the
+// result local.
+type CallStmt struct {
+	Func   string
+	Args   []Local
+	Result Local
 }
 
 // DotStmt represents a lookup operation on a value (e.g., array, object, etc.)
@@ -177,6 +217,15 @@ type AssignIntStmt struct {
 type AssignVarStmt struct {
 	Source Local
 	Target Local
+}
+
+// AssignVarOnceStmt represents an assignment of one local variable to another.
+// If the target is defined, execution aborts with a conflict error.
+//
+// TODO(tsandall): is there a better name for this?
+type AssignVarOnceStmt struct {
+	Target Local
+	Source Local
 }
 
 // MakeStringStmt constructs a local variable that refers to a string constant.
