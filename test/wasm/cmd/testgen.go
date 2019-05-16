@@ -9,6 +9,7 @@ import (
 	"compress/gzip"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
@@ -32,10 +33,13 @@ type testCaseSet struct {
 }
 
 type testCase struct {
-	Note       string       `json:"note"`
-	Query      string       `json:"query"`
-	Input      *interface{} `json:"input"`
-	ReturnCode int          `json:"return_code"`
+	Note           string       `json:"note"`
+	Query          string       `json:"query"`
+	Modules        []string     `json:"modules"`
+	DisablePartial bool         `json:"disable_partial"`
+	Input          *interface{} `json:"input"`
+	ReturnCode     int          `json:"return_code"`
+	WantError      string       `json:"want_error"`
 }
 
 type compiledTestCaseSet struct {
@@ -50,7 +54,13 @@ type compiledTestCase struct {
 func compileTestCases(ctx context.Context, tests testCaseSet) (*compiledTestCaseSet, error) {
 	var result []compiledTestCase
 	for _, tc := range tests.Cases {
-		cr, err := rego.New(rego.Query(tc.Query)).Compile(ctx)
+		args := []func(*rego.Rego){
+			rego.Query(tc.Query),
+		}
+		for idx, module := range tc.Modules {
+			args = append(args, rego.Module(fmt.Sprintf("module%d.rego", idx), module))
+		}
+		cr, err := rego.New(args...).Compile(ctx, rego.CompilePartial(!tc.DisablePartial))
 		if err != nil {
 			return nil, err
 		}

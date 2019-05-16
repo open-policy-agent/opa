@@ -1,7 +1,7 @@
 const { readFileSync, readdirSync } = require('fs');
 
 function stringDecoder(mem) {
-    return function(addr) {
+    return function (addr) {
         const i8 = new Int8Array(mem.buffer);
         const start = addr;
         var s = "";
@@ -47,10 +47,10 @@ function now() {
 function formatMicros(us) {
     if (us <= 1000) {
         return us + 'µs'
-    } else if (us <= 1000*1000) {
+    } else if (us <= 1000 * 1000) {
         return (us / 1000).toFixed(4) + 'ms'
     } else {
-        return (us / (1000*1000)).toFixed(4) + 's'
+        return (us / (1000 * 1000)).toFixed(4) + 's'
     }
 }
 
@@ -60,14 +60,14 @@ function evaluate(mem, policy, input) {
     const addr = policy.instance.exports.opa_malloc(str.length);
     const buf = new Uint8Array(mem.buffer);
 
-    for(let i = 0; i < str.length; i++) {
-        buf[addr+i] = str.charCodeAt(i);
+    for (let i = 0; i < str.length; i++) {
+        buf[addr + i] = str.charCodeAt(i);
     }
 
 
     const returnCode = policy.instance.exports.eval(addr, str.length);
 
-    return {returnCode: returnCode};
+    return { returnCode: returnCode };
 }
 
 function namespace(cache, key) {
@@ -82,7 +82,7 @@ function namespace(cache, key) {
 
 async function test() {
 
-    const mem = new WebAssembly.Memory({initial: 5});
+    const mem = new WebAssembly.Memory({ initial: 5 });
     const addr2string = stringDecoder(mem);
 
     const t0 = now();
@@ -115,12 +115,12 @@ async function test() {
     let dirty = false;
     let cache = {};
 
-    for(let i = 0; i < testCases.length; i++) {
+    for (let i = 0; i < testCases.length; i++) {
 
         const policy = await WebAssembly.instantiate(testCases[i].wasmBytes, {
             env: {
                 memory: mem,
-                opa_abort: function(addr) {
+                opa_abort: function (addr) {
                     throw addr2string(addr);
                 },
             },
@@ -132,9 +132,16 @@ async function test() {
         try {
             const result = evaluate(mem, policy, testCases[i].input);
             passed = result.returnCode === testCases[i].return_code;
-        } catch(e) {
-            passed = false;
-            error = e;
+        } catch (e) {
+            if (testCases[i].want_error === undefined) {
+                passed = false;
+                error = e;
+            } else if (e.message.includes(testCases[i].want_error)) {
+                passed = true;
+            } else {
+                passed = false;
+                error = e;
+            }
         }
 
         if (passed) {
@@ -152,7 +159,7 @@ async function test() {
     const dt_end = t_end - t_load;
 
     if (dirty) {
-      console.log();
+        console.log();
     }
 
     console.log('SUMMARY:');
@@ -170,7 +177,7 @@ async function test() {
     console.log();
     console.log('TOOK:', formatMicros(dt_end));
 
-    if ((numFailed+numErrors) > 0) {
+    if ((numFailed + numErrors) > 0) {
         process.exit(1);
     }
 }
