@@ -73,6 +73,21 @@ func (i Loop) Instructions() []Instruction {
 	return i.Instrs
 }
 
+// Br represents a WASM br instruction.
+type Br struct {
+	Index uint32
+}
+
+// Op returns the opcode of the instruction.
+func (Br) Op() opcode.Opcode {
+	return opcode.Br
+}
+
+// ImmediateArgs returns the block index to break to.
+func (i Br) ImmediateArgs() []interface{} {
+	return []interface{}{i.Index}
+}
+
 // BrIf represents a WASM br_if instruction.
 type BrIf struct {
 	Index uint32
