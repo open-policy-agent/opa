@@ -231,7 +231,7 @@ kubectl apply -f admission-controller.yaml
 
 When OPA starts, the `kube-mgmt` container will load Kubernetes Namespace and Ingress objects into OPA. You can configure the sidecar to load any kind of Kubernetes object into OPA. The sidecar establishes watches on the Kubernetes API server so that OPA has access to an eventually consistent cache of Kubernetes objects.
 
-Next, generate the manifest that will be used to register OPA as an admission controller:
+Next, generate the manifest that will be used to register OPA as an admission controller.  This webhook will ignore any namespace with the label `openpolicyagent.org/webhook=ignore`.
 
 ```bash
 cat > webhook-configuration.yaml <<EOF
@@ -241,6 +241,12 @@ metadata:
   name: opa-validating-webhook
 webhooks:
   - name: validating-webhook.openpolicyagent.org
+    namespaceSelector:
+      matchExpressions:
+      - key: openpolicyagent.org/webhook
+        operator: NotIn
+        values:
+        - ignore
     rules:
       - operations: ["CREATE", "UPDATE"]
         apiGroups: ["*"]
@@ -255,6 +261,13 @@ EOF
 ```
 
 The generated configuration file includes a base64 encoded representation of the CA certificate so that TLS connections can be established between the Kubernetes API server and OPA.
+
+Next label `kube-system` and the `opa` namespace so that OPA does not control the resources in those namespaces.
+
+```bash
+kubectl label ns kube-system openpolicyagent.org/webhook=ignore
+kubectl label ns opa openpolicyagent.org/webhook=ignore
+```
 
 Finally, register OPA as an admission controller:
 
