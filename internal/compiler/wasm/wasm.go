@@ -378,6 +378,7 @@ func (c *Compiler) compileScanBlock(scan ir.ScanStmt) ([]instruction.Instruction
 	}
 
 	instrs = append(instrs, nested...)
+	instrs = append(instrs, instruction.Br{Index: 0})
 
 	return instrs, nil
 }
