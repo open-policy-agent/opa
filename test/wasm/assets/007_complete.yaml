@@ -1,0 +1,170 @@
+cases:
+  - note: constants
+    disable_partial: true
+    query: data.x.p = 1
+    modules:
+      - |
+        package x
+        p = 1
+    return_code: 1
+  - note: constants (negative)
+    disable_partial: true
+    query: data.x.p = 1
+    modules:
+      - |
+        package x
+        p = 2
+    return_code: 0
+  - note: variable
+    disable_partial: true
+    query: data.x.p = 1
+    modules:
+      - |
+        package x
+        p = y { x = 1; y = x }
+    return_code: 1
+  - note: variable (negative)
+    disable_partial: true
+    query: data.x.p = 1
+    modules:
+      - |
+        package x
+        p = y { x = 2; y = x }
+    return_code: 0
+  - note: conjunction
+    disable_partial: true
+    query: data.x.p = 1
+    modules:
+      - |
+        package x
+        p = 1 { q; r }
+        q { true }
+        r { true }
+    return_code: 1
+  - note: conjunction (negative)
+    disable_partial: true
+    query: data.x.p = 1
+    modules:
+      - |
+        package x
+        p = 1 { q; r }
+        q { true }
+        r { false }
+    return_code: 0
+  - note: disjunction
+    disable_partial: true
+    query: data.x.p = 2
+    modules:
+      - |
+        package x
+        p = 1 { false }
+        p = 2 { true }
+        p = 3 { false }
+    return_code: 1
+  - note: disjunction (negative)
+    disable_partial: true
+    query: data.x.p = 1
+    modules:
+      - |
+        package x
+        p = 1 { false }
+        p = 2 { false }
+        p = 3 { true }
+    return_code: 0
+  - note: negation
+    disable_partial: true
+    query: not data.x.p = 1
+    modules:
+      - |
+        package x
+        p = 1 { false }  # undefined
+    return_code: 1
+  - note: negation (negative)
+    disable_partial: true
+    query: not data.x.p = 1
+    modules:
+      - |
+        package x
+        p = 1
+    return_code: 0
+  - note: chain
+    disable_partial: true
+    query: data.x.p = 1
+    modules:
+      - |
+        package x
+        p = q
+        q = r
+        r = 1
+    return_code: 1
+  - note: chain (negative)
+    disable_partial: true
+    query: data.x.p = 1
+    modules:
+      - |
+        package x
+        p = q
+        q = r
+        r = 2
+    return_code: 0
+  - note: chain input
+    disable_partial: true
+    query: data.x.p = true
+    modules:
+      - |
+        package x
+        p = q
+        q = r
+        r { input.x = 1 }
+    input: {"x": 1}
+    return_code: 1
+  - note: chain input (negative)
+    disable_partial: true
+    query: data.x.p = true
+    modules:
+      - |
+        package x
+        p = q
+        q = r
+        r { input.x = 2 }
+    input: {"x": 1}
+    return_code: 0
+  - note: iteration
+    disable_partial: true
+    query: data.x.p = 1
+    modules:
+      - |
+        package x
+        p = 1 { input[x] = 1 }
+    input: [3,2,1]
+    return_code: 1
+  - note: iteration (negative)
+    disable_partial: true
+    query: data.x.p = 1
+    modules:
+      - |
+        package x
+        p = 1 { input[x] = 4 }
+    input: [3,2,1]
+    return_code: 0
+  - note: conflict error
+    disable_partial: true
+    query: data.x.p = 1
+    modules:
+      - |
+        package x
+        p = 1
+        p = 2
+    want_error: "unreachable"  # TODO(tsandall): replace with conflict error.
+  - note: packages
+    disable_partial: true
+    query: data.x.p = 1
+    modules:
+      - |
+        package x
+        import data.y.p
+        p = p
+      - |
+        package y
+        p = 1
+    return_code: 1
