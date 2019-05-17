@@ -128,41 +128,64 @@ func (p *Planner) planRules(rules []*ast.Rule) error {
 
 	var defaultRule *ast.Rule
 
-	for _, rule := range rules {
+	for i := range rules {
 
-		if rule.Default {
-			defaultRule = rule
-			continue
-		}
-
-		// initialize planner state for rule body.
-		p.vars = map[ast.Var]ir.Local{
-			ast.InputRootDocument.Value.(ast.Var): fn.Params[0],
-		}
-
-		fn.Blocks = append(fn.Blocks, &ir.Block{})
-		p.curr = fn.Blocks[len(fn.Blocks)-1]
-
-		if rule.Else != nil {
-			return fmt.Errorf("not implemented: ordered rules")
-		} else if rule.Head.Key != nil {
+		if rules[i].Head.Key != nil {
 			return fmt.Errorf("not implemented: partial rules")
 		}
 
-		err := p.planFuncParams(params, rule.Head.Args, 0, func() error {
-			return p.planQuery(rule.Body, 0, func() error {
-				return p.planTerm(rule.Head.Value, func() error {
-					p.appendStmt(&ir.AssignVarOnceStmt{
-						Target: fn.Return,
-						Source: p.ltarget,
-					})
-					return nil
-				})
-			})
-		})
+		if rules[i].Default {
+			defaultRule = rules[i]
+			continue
+		}
 
-		if err != nil {
-			return err
+		var blocks *[]*ir.Block
+
+		if rules[i].Else == nil {
+			blocks = &fn.Blocks
+		} else {
+			stmt := &ir.BlockStmt{}
+			block := &ir.Block{Stmts: []ir.Stmt{stmt}}
+			fn.Blocks = append(fn.Blocks, block)
+			blocks = &stmt.Blocks
+		}
+
+		for rule := rules[i]; rule != nil; rule = rule.Else {
+
+			p.vars = map[ast.Var]ir.Local{
+				ast.InputRootDocument.Value.(ast.Var): fn.Params[0],
+			}
+
+			curr := &ir.Block{}
+			*blocks = append(*blocks, curr)
+			p.curr = curr
+
+			err := p.planFuncParams(params, rule.Head.Args, 0, func() error {
+				err := p.planQuery(rule.Body, 0, func() error {
+					return p.planTerm(rule.Head.Value, func() error {
+						p.appendStmt(&ir.AssignVarOnceStmt{
+							Target: fn.Return,
+							Source: p.ltarget,
+						})
+						return nil
+					})
+				})
+
+				if err != nil {
+					return err
+				}
+
+				if rule.Else != nil {
+					p.appendStmt(&ir.IsDefinedStmt{Source: fn.Return})
+					p.appendStmt(&ir.BreakStmt{Index: 1})
+				}
+
+				return nil
+			})
+
+			if err != nil {
+				return err
+			}
 		}
 	}
 

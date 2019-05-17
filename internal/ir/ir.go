@@ -168,6 +168,23 @@ type CallStmt struct {
 	Result Local
 }
 
+// BlockStmt represents a nested block. Nested blocks and break statements can
+// be used to short-circuit execution.
+type BlockStmt struct {
+	Blocks []*Block
+}
+
+func (a *BlockStmt) String() string {
+	return fmt.Sprintf("BlockStmt (%d blocks)", len(a.Blocks))
+}
+
+// BreakStmt represents a jump out of the current block. The index specifies how
+// many blocks to jump starting from zero (the current block). Execution will
+// continue from the end of the block that is jumped to.
+type BreakStmt struct {
+	Index uint32
+}
+
 // DotStmt represents a lookup operation on a value (e.g., array, object, etc.)
 // The source of a DotStmt may be a scalar value in which case the statement
 // will be undefined.
