@@ -462,6 +462,33 @@ func (c *Compiler) compileBlock(block *ir.Block) ([]instruction.Instruction, err
 			instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.Key)})
 			instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.Value)})
 			instrs = append(instrs, instruction.Call{Index: c.function(opaObjectInsert)})
+		case *ir.ObjectInsertOnceStmt:
+			tmp := c.genLocal()
+			instrs = append(instrs, instruction.Block{
+				Instrs: []instruction.Instruction{
+					instruction.Block{
+						Instrs: []instruction.Instruction{
+							instruction.GetLocal{Index: c.local(stmt.Object)},
+							instruction.GetLocal{Index: c.local(stmt.Key)},
+							instruction.Call{Index: c.function(opaValueGet)},
+							instruction.SetLocal{Index: tmp},
+							instruction.GetLocal{Index: tmp},
+							instruction.I32Eqz{},
+							instruction.BrIf{Index: 0},
+							instruction.GetLocal{Index: tmp},
+							instruction.GetLocal{Index: c.local(stmt.Value)},
+							instruction.Call{Index: c.function(opaValueCompare)},
+							instruction.I32Eqz{},
+							instruction.BrIf{Index: 1},
+							instruction.Unreachable{}, // TODO(tsandall): replace with conflict error
+						},
+					},
+					instruction.GetLocal{Index: c.local(stmt.Object)},
+					instruction.GetLocal{Index: c.local(stmt.Key)},
+					instruction.GetLocal{Index: c.local(stmt.Value)},
+					instruction.Call{Index: c.function(opaObjectInsert)},
+				},
+			})
 		case *ir.SetAddStmt:
 			instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.Set)})
 			instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.Value)})
@@ -586,6 +613,12 @@ func (c *Compiler) local(l ir.Local) uint32 {
 		c.nextLocal++
 	}
 	return u32
+}
+
+func (c *Compiler) genLocal() uint32 {
+	l := c.nextLocal
+	c.nextLocal++
+	return l
 }
 
 func (c *Compiler) function(name string) uint32 {

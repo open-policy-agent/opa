@@ -355,6 +355,15 @@ type ObjectInsertStmt struct {
 	Object Local
 }
 
+// ObjectInsertOnceStmt represents a dynamic insert operation of a key/value
+// pair into an object. If the key already exists and the value differs,
+// execution aborts with a conflict error.
+type ObjectInsertOnceStmt struct {
+	Key    Local
+	Value  Local
+	Object Local
+}
+
 // SetAddStmt represents a dynamic add operation of an element into a set.
 type SetAddStmt struct {
 	Value Local

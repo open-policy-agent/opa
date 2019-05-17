@@ -118,6 +118,24 @@ func TestPlannerHelloWorld(t *testing.T) {
 				}
 			`},
 		},
+		{
+			note:    "partial set",
+			queries: []string{"data.test.p = {1,2}"},
+			modules: []string{`
+				package test
+				p[1]
+				p[2]
+			`},
+		},
+		{
+			note:    "partial object",
+			queries: []string{`data.test.p = {"a": 1, "b": 2}`},
+			modules: []string{`
+				package test
+				p["a"] = 1
+				p["b"] = 2
+			`},
+		},
 	}
 
 	for _, tc := range tests {
