@@ -19,6 +19,7 @@ type binaryiter func(ir.Local, ir.Local) error
 type Planner struct {
 	queries []ast.Body           // input query to plan
 	modules []*ast.Module        // input modules to support queries
+	arities map[string]int       // input function arities
 	strings []ir.StringConst     // planned (global) string constants
 	blocks  []ir.Block           // planned blocks
 	funcs   *functrie            // planned functions to support blocks
@@ -31,7 +32,8 @@ type Planner struct {
 // New returns a new Planner object.
 func New() *Planner {
 	return &Planner{
-		lcurr: ir.Input + 1,
+		arities: map[string]int{},
+		lcurr:   ir.Input + 1,
 		vars: map[ast.Var]ir.Local{
 			ast.InputRootDocument.Value.(ast.Var): ir.Input,
 		},
@@ -84,6 +86,9 @@ func (p *Planner) planModules() error {
 	for _, module := range p.modules {
 		for _, rule := range module.Rules {
 			name := rule.Path().String()
+			if len(rule.Head.Args) > 0 {
+				p.arities[name] = len(rule.Head.Args)
+			}
 			rulesets[name] = append(rulesets[name], rule)
 		}
 	}
@@ -106,6 +111,12 @@ func (p *Planner) planRules(rules []*ast.Rule) error {
 		Params: []ir.Local{p.newLocal()},
 		Return: p.newLocal(),
 	}
+
+	for i := 0; i < len(rules[0].Head.Args); i++ {
+		fn.Params = append(fn.Params, p.newLocal())
+	}
+
+	params := fn.Params[1:]
 
 	// save current state of planner before recursing on the rule bodies.
 	//
@@ -131,20 +142,21 @@ func (p *Planner) planRules(rules []*ast.Rule) error {
 			return fmt.Errorf("not implemented: partial rules")
 		} else if rule.Default {
 			return fmt.Errorf("not implemented: default rules")
-		} else if len(rule.Head.Args) != 0 {
-			return fmt.Errorf("not implemented: functions")
 		}
 
-		// run planner on rule body.
-		if err := p.planQuery(rule.Body, 0, func() error {
-			return p.planTerm(rule.Head.Value, func() error {
-				p.appendStmt(ir.AssignVarOnceStmt{
-					Target: fn.Return,
-					Source: p.ltarget,
+		err := p.planFuncParams(params, rule.Head.Args, 0, func() error {
+			return p.planQuery(rule.Body, 0, func() error {
+				return p.planTerm(rule.Head.Value, func() error {
+					p.appendStmt(ir.AssignVarOnceStmt{
+						Target: fn.Return,
+						Source: p.ltarget,
+					})
+					return nil
 				})
-				return nil
 			})
-		}); err != nil {
+		})
+
+		if err != nil {
 			return err
 		}
 	}
@@ -164,6 +176,15 @@ func (p *Planner) planRules(rules []*ast.Rule) error {
 	p.curr = currBlock
 
 	return nil
+}
+
+func (p *Planner) planFuncParams(params []ir.Local, args ast.Args, idx int, iter planiter) error {
+	if idx >= len(args) {
+		return iter()
+	}
+	return p.planUnifyLocal(params[idx], args[idx], func() error {
+		return p.planFuncParams(params, args, idx+1, iter)
+	})
 }
 
 func (p *Planner) planQueries() error {
@@ -287,8 +308,8 @@ func (p *Planner) planExprTerm(e *ast.Expr, iter planiter) error {
 }
 
 func (p *Planner) planExprCall(e *ast.Expr, iter planiter) error {
-
-	switch e.Operator().String() {
+	operator := e.Operator().String()
+	switch operator {
 	case ast.Equality.Name:
 		return p.planUnify(e.Operand(0), e.Operand(1), iter)
 	case ast.Equal.Name:
@@ -340,8 +361,56 @@ func (p *Planner) planExprCall(e *ast.Expr, iter planiter) error {
 			return iter()
 		})
 	default:
-		return fmt.Errorf("%v operator not implemented", e.Operator())
+
+		arity, ok := p.arities[operator]
+		if !ok {
+			return fmt.Errorf("illegal call: unknown operator %v", operator)
+		}
+
+		args := []ir.Local{
+			p.vars[ast.InputRootDocument.Value.(ast.Var)],
+		}
+
+		operands := e.Operands()
+
+		if len(operands) == arity {
+			// rule: f(x) = x { ... }
+			// call: f(x) == 1 or f(x) # result not captured
+			return p.planCallArgs(operands, 0, args, func(args []ir.Local) error {
+				p.ltarget = p.newLocal()
+				p.appendStmt(ir.CallStmt{
+					Func:   operator,
+					Args:   args,
+					Result: p.ltarget,
+				})
+				return iter()
+			})
+		} else if len(operands) == arity+1 {
+			// rule: f(x) = x { ... }
+			// call: f(x, 1)  # caller captures result
+			return p.planCallArgs(operands[:len(operands)-1], 0, args, func(args []ir.Local) error {
+				result := p.newLocal()
+				p.appendStmt(ir.CallStmt{
+					Func:   operator,
+					Args:   args,
+					Result: result,
+				})
+				return p.planUnifyLocal(result, operands[len(operands)-1], iter)
+			})
+		}
+
+		return fmt.Errorf("illegal call: wrong number of operands: got %v, want %v)", len(operands), arity)
 	}
+}
+
+func (p *Planner) planCallArgs(terms []*ast.Term, idx int, args []ir.Local, iter func([]ir.Local) error) error {
+	if idx >= len(terms) {
+		return iter(args)
+	}
+	return p.planTerm(terms[idx], func() error {
+		args = append(args, p.ltarget)
+		return p.planCallArgs(terms, idx+1, args, iter)
+	})
 }
 
 func (p *Planner) planUnify(a, b *ast.Term, iter planiter) error {
