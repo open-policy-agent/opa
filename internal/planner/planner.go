@@ -20,8 +20,8 @@ type Planner struct {
 	queries []ast.Body           // input query to plan
 	modules []*ast.Module        // input modules to support queries
 	arities map[string]int       // input function arities
-	strings []ir.StringConst     // planned (global) string constants
-	blocks  []ir.Block           // planned blocks
+	strings []*ir.StringConst    // planned (global) string constants
+	blocks  []*ir.Block          // planned blocks
 	funcs   *functrie            // planned functions to support blocks
 	curr    *ir.Block            // in-progress query block
 	vars    map[ast.Var]ir.Local // in-scope variables
@@ -64,19 +64,19 @@ func (p *Planner) Plan() (*ir.Policy, error) {
 		return nil, err
 	}
 
-	policy := ir.Policy{
-		Static: ir.Static{
+	policy := &ir.Policy{
+		Static: &ir.Static{
 			Strings: p.strings,
 		},
-		Plan: ir.Plan{
+		Plan: &ir.Plan{
 			Blocks: p.blocks,
 		},
-		Funcs: ir.Funcs{
+		Funcs: &ir.Funcs{
 			Funcs: p.funcs.Map(),
 		},
 	}
 
-	return &policy, nil
+	return policy, nil
 }
 
 func (p *Planner) planModules() error {
@@ -140,8 +140,8 @@ func (p *Planner) planRules(rules []*ast.Rule) error {
 			ast.InputRootDocument.Value.(ast.Var): fn.Params[0],
 		}
 
-		fn.Blocks = append(fn.Blocks, ir.Block{})
-		p.curr = &fn.Blocks[len(fn.Blocks)-1]
+		fn.Blocks = append(fn.Blocks, &ir.Block{})
+		p.curr = fn.Blocks[len(fn.Blocks)-1]
 
 		if rule.Else != nil {
 			return fmt.Errorf("not implemented: ordered rules")
@@ -152,7 +152,7 @@ func (p *Planner) planRules(rules []*ast.Rule) error {
 		err := p.planFuncParams(params, rule.Head.Args, 0, func() error {
 			return p.planQuery(rule.Body, 0, func() error {
 				return p.planTerm(rule.Head.Value, func() error {
-					p.appendStmt(ir.AssignVarOnceStmt{
+					p.appendStmt(&ir.AssignVarOnceStmt{
 						Target: fn.Return,
 						Source: p.ltarget,
 					})
@@ -168,16 +168,16 @@ func (p *Planner) planRules(rules []*ast.Rule) error {
 
 	if defaultRule != nil {
 
-		fn.Blocks = append(fn.Blocks, ir.Block{
+		fn.Blocks = append(fn.Blocks, &ir.Block{
 			Stmts: []ir.Stmt{
-				ir.IsUndefinedStmt{Source: fn.Return},
+				&ir.IsUndefinedStmt{Source: fn.Return},
 			},
 		})
 
-		p.curr = &fn.Blocks[len(fn.Blocks)-1]
+		p.curr = fn.Blocks[len(fn.Blocks)-1]
 
 		if err := p.planTerm(defaultRule.Head.Value, func() error {
-			p.appendStmt(ir.AssignVarStmt{
+			p.appendStmt(&ir.AssignVarStmt{
 				Target: fn.Return,
 				Source: p.ltarget,
 			})
@@ -187,9 +187,9 @@ func (p *Planner) planRules(rules []*ast.Rule) error {
 		}
 	}
 
-	fn.Blocks = append(fn.Blocks, ir.Block{
+	fn.Blocks = append(fn.Blocks, &ir.Block{
 		Stmts: []ir.Stmt{
-			ir.ReturnLocalStmt{
+			&ir.ReturnLocalStmt{
 				Source: fn.Return,
 			},
 		},
@@ -220,7 +220,7 @@ func (p *Planner) planQueries() error {
 		defined := false
 
 		if err := p.planQuery(q, 0, func() error {
-			p.appendStmt(ir.ReturnStmt{
+			p.appendStmt(&ir.ReturnStmt{
 				Code: ir.Defined,
 			})
 			defined = true
@@ -230,13 +230,13 @@ func (p *Planner) planQueries() error {
 		}
 
 		if defined {
-			p.blocks = append(p.blocks, *p.curr)
+			p.blocks = append(p.blocks, p.curr)
 		}
 	}
 
-	p.blocks = append(p.blocks, ir.Block{
+	p.blocks = append(p.blocks, &ir.Block{
 		Stmts: []ir.Stmt{
-			ir.ReturnStmt{
+			&ir.ReturnStmt{
 				Code: ir.Undefined,
 			},
 		},
@@ -278,20 +278,21 @@ func (p *Planner) planNot(e *ast.Expr, iter planiter) error {
 
 	cond := p.newLocal()
 
-	p.appendStmt(ir.MakeBooleanStmt{
+	p.appendStmt(&ir.MakeBooleanStmt{
 		Value:  true,
 		Target: cond,
 	})
 
-	not := ir.NotStmt{
-		Cond: cond,
+	not := &ir.NotStmt{
+		Cond:  cond,
+		Block: &ir.Block{},
 	}
 
 	prev := p.curr
-	p.curr = &not.Block
+	p.curr = not.Block
 
 	if err := p.planExpr(e.Complement(), func() error {
-		p.appendStmt(ir.AssignBooleanStmt{
+		p.appendStmt(&ir.AssignBooleanStmt{
 			Value:  false,
 			Target: cond,
 		})
@@ -305,12 +306,12 @@ func (p *Planner) planNot(e *ast.Expr, iter planiter) error {
 
 	truth := p.newLocal()
 
-	p.appendStmt(ir.MakeBooleanStmt{
+	p.appendStmt(&ir.MakeBooleanStmt{
 		Value:  true,
 		Target: truth,
 	})
 
-	p.appendStmt(ir.EqualStmt{
+	p.appendStmt(&ir.EqualStmt{
 		A: cond,
 		B: truth,
 	})
@@ -321,11 +322,11 @@ func (p *Planner) planNot(e *ast.Expr, iter planiter) error {
 func (p *Planner) planExprTerm(e *ast.Expr, iter planiter) error {
 	return p.planTerm(e.Terms.(*ast.Term), func() error {
 		falsy := p.newLocal()
-		p.appendStmt(ir.MakeBooleanStmt{
+		p.appendStmt(&ir.MakeBooleanStmt{
 			Value:  false,
 			Target: falsy,
 		})
-		p.appendStmt(ir.NotEqualStmt{
+		p.appendStmt(&ir.NotEqualStmt{
 			A: p.ltarget,
 			B: falsy,
 		})
@@ -340,7 +341,7 @@ func (p *Planner) planExprCall(e *ast.Expr, iter planiter) error {
 		return p.planUnify(e.Operand(0), e.Operand(1), iter)
 	case ast.Equal.Name:
 		return p.planBinaryExpr(e, func(a, b ir.Local) error {
-			p.appendStmt(ir.EqualStmt{
+			p.appendStmt(&ir.EqualStmt{
 				A: a,
 				B: b,
 			})
@@ -348,7 +349,7 @@ func (p *Planner) planExprCall(e *ast.Expr, iter planiter) error {
 		})
 	case ast.LessThan.Name:
 		return p.planBinaryExpr(e, func(a, b ir.Local) error {
-			p.appendStmt(ir.LessThanStmt{
+			p.appendStmt(&ir.LessThanStmt{
 				A: a,
 				B: b,
 			})
@@ -356,7 +357,7 @@ func (p *Planner) planExprCall(e *ast.Expr, iter planiter) error {
 		})
 	case ast.LessThanEq.Name:
 		return p.planBinaryExpr(e, func(a, b ir.Local) error {
-			p.appendStmt(ir.LessThanEqualStmt{
+			p.appendStmt(&ir.LessThanEqualStmt{
 				A: a,
 				B: b,
 			})
@@ -364,7 +365,7 @@ func (p *Planner) planExprCall(e *ast.Expr, iter planiter) error {
 		})
 	case ast.GreaterThan.Name:
 		return p.planBinaryExpr(e, func(a, b ir.Local) error {
-			p.appendStmt(ir.GreaterThanStmt{
+			p.appendStmt(&ir.GreaterThanStmt{
 				A: a,
 				B: b,
 			})
@@ -372,7 +373,7 @@ func (p *Planner) planExprCall(e *ast.Expr, iter planiter) error {
 		})
 	case ast.GreaterThanEq.Name:
 		return p.planBinaryExpr(e, func(a, b ir.Local) error {
-			p.appendStmt(ir.GreaterThanEqualStmt{
+			p.appendStmt(&ir.GreaterThanEqualStmt{
 				A: a,
 				B: b,
 			})
@@ -380,7 +381,7 @@ func (p *Planner) planExprCall(e *ast.Expr, iter planiter) error {
 		})
 	case ast.NotEqual.Name:
 		return p.planBinaryExpr(e, func(a, b ir.Local) error {
-			p.appendStmt(ir.NotEqualStmt{
+			p.appendStmt(&ir.NotEqualStmt{
 				A: a,
 				B: b,
 			})
@@ -404,7 +405,7 @@ func (p *Planner) planExprCall(e *ast.Expr, iter planiter) error {
 			// call: f(x) == 1 or f(x) # result not captured
 			return p.planCallArgs(operands, 0, args, func(args []ir.Local) error {
 				p.ltarget = p.newLocal()
-				p.appendStmt(ir.CallStmt{
+				p.appendStmt(&ir.CallStmt{
 					Func:   operator,
 					Args:   args,
 					Result: p.ltarget,
@@ -416,7 +417,7 @@ func (p *Planner) planExprCall(e *ast.Expr, iter planiter) error {
 			// call: f(x, 1)  # caller captures result
 			return p.planCallArgs(operands[:len(operands)-1], 0, args, func(args []ir.Local) error {
 				result := p.newLocal()
-				p.appendStmt(ir.CallStmt{
+				p.appendStmt(&ir.CallStmt{
 					Func:   operator,
 					Args:   args,
 					Result: result,
@@ -490,7 +491,7 @@ func (p *Planner) planUnifyVar(a ast.Var, b *ast.Term, iter planiter) error {
 	return p.planTerm(b, func() error {
 		target := p.newLocal()
 		p.vars[a] = target
-		p.appendStmt(ir.AssignVarStmt{
+		p.appendStmt(&ir.AssignVarStmt{
 			Source: p.ltarget,
 			Target: target,
 		})
@@ -502,7 +503,7 @@ func (p *Planner) planUnifyLocal(a ir.Local, b *ast.Term, iter planiter) error {
 	switch vb := b.Value.(type) {
 	case ast.Null, ast.Boolean, ast.Number, ast.String, ast.Ref, ast.Set:
 		return p.planTerm(b, func() error {
-			p.appendStmt(ir.EqualStmt{
+			p.appendStmt(&ir.EqualStmt{
 				A: a,
 				B: p.ltarget,
 			})
@@ -510,7 +511,7 @@ func (p *Planner) planUnifyLocal(a ir.Local, b *ast.Term, iter planiter) error {
 		})
 	case ast.Var:
 		if lv, ok := p.vars[vb]; ok {
-			p.appendStmt(ir.EqualStmt{
+			p.appendStmt(&ir.EqualStmt{
 				A: a,
 				B: lv,
 			})
@@ -518,7 +519,7 @@ func (p *Planner) planUnifyLocal(a ir.Local, b *ast.Term, iter planiter) error {
 		}
 		lv := p.newLocal()
 		p.vars[vb] = lv
-		p.appendStmt(ir.AssignVarStmt{
+		p.appendStmt(&ir.AssignVarStmt{
 			Source: a,
 			Target: lv,
 		})
@@ -533,31 +534,31 @@ func (p *Planner) planUnifyLocal(a ir.Local, b *ast.Term, iter planiter) error {
 }
 
 func (p *Planner) planUnifyLocalArray(a ir.Local, b ast.Array, iter planiter) error {
-	p.appendStmt(ir.IsArrayStmt{
+	p.appendStmt(&ir.IsArrayStmt{
 		Source: a,
 	})
 
 	blen := p.newLocal()
 	alen := p.newLocal()
 
-	p.appendStmt(ir.LenStmt{
+	p.appendStmt(&ir.LenStmt{
 		Source: a,
 		Target: alen,
 	})
 
-	p.appendStmt(ir.MakeNumberIntStmt{
+	p.appendStmt(&ir.MakeNumberIntStmt{
 		Value:  int64(len(b)),
 		Target: blen,
 	})
 
-	p.appendStmt(ir.EqualStmt{
+	p.appendStmt(&ir.EqualStmt{
 		A: alen,
 		B: blen,
 	})
 
 	lkey := p.newLocal()
 
-	p.appendStmt(ir.MakeNumberIntStmt{
+	p.appendStmt(&ir.MakeNumberIntStmt{
 		Target: lkey,
 	})
 
@@ -571,12 +572,12 @@ func (p *Planner) planUnifyLocalArrayRec(a ir.Local, index int, b ast.Array, lke
 		return iter()
 	}
 
-	p.appendStmt(ir.AssignIntStmt{
+	p.appendStmt(&ir.AssignIntStmt{
 		Value:  int64(index),
 		Target: lkey,
 	})
 
-	p.appendStmt(ir.DotStmt{
+	p.appendStmt(&ir.DotStmt{
 		Source: a,
 		Key:    lkey,
 		Target: lval,
@@ -588,24 +589,24 @@ func (p *Planner) planUnifyLocalArrayRec(a ir.Local, index int, b ast.Array, lke
 }
 
 func (p *Planner) planUnifyLocalObject(a ir.Local, b ast.Object, iter planiter) error {
-	p.appendStmt(ir.IsObjectStmt{
+	p.appendStmt(&ir.IsObjectStmt{
 		Source: a,
 	})
 
 	blen := p.newLocal()
 	alen := p.newLocal()
 
-	p.appendStmt(ir.LenStmt{
+	p.appendStmt(&ir.LenStmt{
 		Source: a,
 		Target: alen,
 	})
 
-	p.appendStmt(ir.MakeNumberIntStmt{
+	p.appendStmt(&ir.MakeNumberIntStmt{
 		Value:  int64(b.Len()),
 		Target: blen,
 	})
 
-	p.appendStmt(ir.EqualStmt{
+	p.appendStmt(&ir.EqualStmt{
 		A: alen,
 		B: blen,
 	})
@@ -624,11 +625,11 @@ func (p *Planner) planUnifyLocalObjectRec(a ir.Local, index int, keys []*ast.Ter
 	}
 
 	return p.planTerm(keys[index], func() error {
-		p.appendStmt(ir.AssignVarStmt{
+		p.appendStmt(&ir.AssignVarStmt{
 			Source: p.ltarget,
 			Target: lkey,
 		})
-		p.appendStmt(ir.DotStmt{
+		p.appendStmt(&ir.DotStmt{
 			Source: a,
 			Key:    lkey,
 			Target: lval,
@@ -704,7 +705,7 @@ func (p *Planner) planNull(null ast.Null, iter planiter) error {
 
 	target := p.newLocal()
 
-	p.appendStmt(ir.MakeNullStmt{
+	p.appendStmt(&ir.MakeNullStmt{
 		Target: target,
 	})
 
@@ -717,7 +718,7 @@ func (p *Planner) planBoolean(b ast.Boolean, iter planiter) error {
 
 	target := p.newLocal()
 
-	p.appendStmt(ir.MakeBooleanStmt{
+	p.appendStmt(&ir.MakeBooleanStmt{
 		Value:  bool(b),
 		Target: target,
 	})
@@ -737,7 +738,7 @@ func (p *Planner) planNumber(num ast.Number, iter planiter) error {
 	i64 := int64(i)
 	target := p.newLocal()
 
-	p.appendStmt(ir.MakeNumberIntStmt{
+	p.appendStmt(&ir.MakeNumberIntStmt{
 		Value:  i64,
 		Target: target,
 	})
@@ -752,7 +753,7 @@ func (p *Planner) planString(str ast.String, iter planiter) error {
 	index := p.appendStringConst(string(str))
 	target := p.newLocal()
 
-	p.appendStmt(ir.MakeStringStmt{
+	p.appendStmt(&ir.MakeStringStmt{
 		Index:  index,
 		Target: target,
 	})
@@ -774,7 +775,7 @@ func (p *Planner) planArray(arr ast.Array, iter planiter) error {
 
 	larr := p.newLocal()
 
-	p.appendStmt(ir.MakeArrayStmt{
+	p.appendStmt(&ir.MakeArrayStmt{
 		Capacity: int32(len(arr)),
 		Target:   larr,
 	})
@@ -790,7 +791,7 @@ func (p *Planner) planArrayRec(arr ast.Array, index int, larr ir.Local, iter pla
 
 	return p.planTerm(arr[index], func() error {
 
-		p.appendStmt(ir.ArrayAppendStmt{
+		p.appendStmt(&ir.ArrayAppendStmt{
 			Value: p.ltarget,
 			Array: larr,
 		})
@@ -803,7 +804,7 @@ func (p *Planner) planObject(obj ast.Object, iter planiter) error {
 
 	lobj := p.newLocal()
 
-	p.appendStmt(ir.MakeObjectStmt{
+	p.appendStmt(&ir.MakeObjectStmt{
 		Target: lobj,
 	})
 
@@ -821,7 +822,7 @@ func (p *Planner) planObjectRec(obj ast.Object, index int, keys []*ast.Term, lob
 
 		return p.planTerm(obj.Get(keys[index]), func() error {
 			lval := p.ltarget
-			p.appendStmt(ir.ObjectInsertStmt{
+			p.appendStmt(&ir.ObjectInsertStmt{
 				Key:    lkey,
 				Value:  lval,
 				Object: lobj,
@@ -835,7 +836,7 @@ func (p *Planner) planObjectRec(obj ast.Object, index int, keys []*ast.Term, lob
 func (p *Planner) planSet(set ast.Set, iter planiter) error {
 	lset := p.newLocal()
 
-	p.appendStmt(ir.MakeSetStmt{
+	p.appendStmt(&ir.MakeSetStmt{
 		Target: lset,
 	})
 
@@ -849,7 +850,7 @@ func (p *Planner) planSetRec(set ast.Set, index int, elems []*ast.Term, lset ir.
 	}
 
 	return p.planTerm(elems[index], func() error {
-		p.appendStmt(ir.SetAddStmt{
+		p.appendStmt(&ir.SetAddStmt{
 			Value: p.ltarget,
 			Set:   lset,
 		})
@@ -889,7 +890,7 @@ func (p *Planner) planRefRec(ref ast.Ref, index int, iter planiter) error {
 		return p.planTerm(ref[index], func() error {
 			key := p.ltarget
 			target := p.newLocal()
-			p.appendStmt(ir.DotStmt{
+			p.appendStmt(&ir.DotStmt{
 				Source: source,
 				Key:    key,
 				Target: target,
@@ -922,26 +923,27 @@ func (p *Planner) planRefScan(ref ast.Ref, index int, iter planiter) error {
 		cond := p.newLocal()
 		value := p.newLocal()
 
-		p.appendStmt(ir.MakeBooleanStmt{
+		p.appendStmt(&ir.MakeBooleanStmt{
 			Value:  false,
 			Target: cond,
 		})
 
-		scan := ir.ScanStmt{
+		scan := &ir.ScanStmt{
 			Source: source,
 			Key:    key,
 			Value:  value,
+			Block:  &ir.Block{},
 		}
 
 		prev := p.curr
-		p.curr = &scan.Block
+		p.curr = scan.Block
 		p.ltarget = value
 
 		if err := iter(); err != nil {
 			return err
 		}
 
-		p.appendStmt(ir.AssignBooleanStmt{
+		p.appendStmt(&ir.AssignBooleanStmt{
 			Value:  true,
 			Target: cond,
 		})
@@ -951,12 +953,12 @@ func (p *Planner) planRefScan(ref ast.Ref, index int, iter planiter) error {
 
 		truth := p.newLocal()
 
-		p.appendStmt(ir.MakeBooleanStmt{
+		p.appendStmt(&ir.MakeBooleanStmt{
 			Value:  true,
 			Target: truth,
 		})
 
-		p.appendStmt(ir.EqualStmt{
+		p.appendStmt(&ir.EqualStmt{
 			A: cond,
 			B: truth,
 		})
@@ -988,7 +990,7 @@ func (p *Planner) planRefData(ref ast.Ref, iter planiter) error {
 	// the call is not supported.
 	p.ltarget = p.newLocal()
 
-	p.appendStmt(ir.CallStmt{
+	p.appendStmt(&ir.CallStmt{
 		Func:   ref.String(),
 		Args:   []ir.Local{p.vars[ast.InputRootDocument.Value.(ast.Var)]},
 		Result: p.ltarget,
@@ -1003,7 +1005,7 @@ func (p *Planner) appendStmt(s ir.Stmt) {
 
 func (p *Planner) appendStringConst(s string) int {
 	index := len(p.strings)
-	p.strings = append(p.strings, ir.StringConst{
+	p.strings = append(p.strings, &ir.StringConst{
 		Value: s,
 	})
 	return index

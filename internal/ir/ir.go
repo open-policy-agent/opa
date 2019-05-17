@@ -15,14 +15,14 @@ import (
 type (
 	// Policy represents a planned policy query.
 	Policy struct {
-		Static Static
-		Plan   Plan
-		Funcs  Funcs
+		Static *Static
+		Plan   *Plan
+		Funcs  *Funcs
 	}
 
 	// Static represents a static data segment that is indexed into by the policy.
 	Static struct {
-		Strings []StringConst
+		Strings []*StringConst
 	}
 
 	// Funcs represents a collection of planned functions to include in the
@@ -38,14 +38,14 @@ type (
 		Name   string
 		Params []Local
 		Return Local
-		Blocks []Block // TODO(tsandall): should this be a plan?
+		Blocks []*Block // TODO(tsandall): should this be a plan?
 	}
 
 	// Plan represents an ordered series of blocks to execute. All plans contain a
 	// final block that returns indicating the plan result was undefined. Plan
 	// execution stops when a block returns a value. Blocks are executed in-order.
 	Plan struct {
-		Blocks []Block
+		Blocks []*Block
 	}
 
 	// Block represents an ordered sequence of statements to execute. Blocks are
@@ -119,15 +119,15 @@ const (
 	Input Local = 2
 )
 
-func (a Policy) String() string {
+func (a *Policy) String() string {
 	return "Policy"
 }
 
-func (a Static) String() string {
+func (a *Static) String() string {
 	return fmt.Sprintf("Static (%d strings)", len(a.Strings))
 }
 
-func (a Funcs) String() string {
+func (a *Funcs) String() string {
 	return fmt.Sprintf("Funcs (%d funcs)", len(a.Funcs))
 }
 
@@ -135,19 +135,19 @@ func (a *Func) String() string {
 	return fmt.Sprintf("%v (%d params: %v, %d blocks)", a.Name, len(a.Params), a.Params, len(a.Blocks))
 }
 
-func (a Plan) String() string {
+func (a *Plan) String() string {
 	return fmt.Sprintf("Plan (%d blocks)", len(a.Blocks))
 }
 
-func (a Block) String() string {
+func (a *Block) String() string {
 	return fmt.Sprintf("Block (%d statements)", len(a.Stmts))
 }
 
-func (a BooleanConst) typeMarker() {}
-func (a NullConst) typeMarker()    {}
-func (a IntConst) typeMarker()     {}
-func (a FloatConst) typeMarker()   {}
-func (a StringConst) typeMarker()  {}
+func (a *BooleanConst) typeMarker() {}
+func (a *NullConst) typeMarker()    {}
+func (a *IntConst) typeMarker()     {}
+func (a *FloatConst) typeMarker()   {}
+func (a *StringConst) typeMarker()  {}
 
 // ReturnStmt represents a return statement. Return statements halt execution of
 // a plan with the given code.
@@ -190,14 +190,14 @@ type ScanStmt struct {
 	Source Local
 	Key    Local
 	Value  Local
-	Block  Block
+	Block  *Block
 }
 
 // NotStmt represents a negated statement. The last statement in the negation
 // block will set the condition to false.
 type NotStmt struct {
 	Cond  Local
-	Block Block
+	Block *Block
 }
 
 // AssignBooleanStmt represents an assignment of a boolean value to a local variable.
@@ -310,6 +310,11 @@ type IsArrayStmt struct {
 
 // IsObjectStmt represents a dynamic type check on a local variable.
 type IsObjectStmt struct {
+	Source Local
+}
+
+// IsDefinedStmt represents a check of whether a local variable is defined.
+type IsDefinedStmt struct {
 	Source Local
 }
 

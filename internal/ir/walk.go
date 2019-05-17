@@ -49,11 +49,11 @@ func (w *walkerImpl) walk(x interface{}) {
 		w.walk(x.Static)
 		w.walk(x.Plan)
 		w.walk(x.Funcs)
-	case Static:
+	case *Static:
 		for _, s := range x.Strings {
 			w.walk(s)
 		}
-	case Funcs:
+	case *Funcs:
 		keys := make([]string, 0, len(x.Funcs))
 		for k := range x.Funcs {
 			keys = append(keys, k)
@@ -66,17 +66,17 @@ func (w *walkerImpl) walk(x interface{}) {
 		for _, b := range x.Blocks {
 			w.walk(b)
 		}
-	case Plan:
+	case *Plan:
 		for _, b := range x.Blocks {
 			w.walk(b)
 		}
-	case Block:
+	case *Block:
 		for _, s := range x.Stmts {
 			w.walk(s)
 		}
-	case ScanStmt:
+	case *ScanStmt:
 		w.walk(x.Block)
-	case NotStmt:
+	case *NotStmt:
 		w.walk(x.Block)
 	}
 }
