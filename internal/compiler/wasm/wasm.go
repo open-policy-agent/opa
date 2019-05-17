@@ -273,19 +273,19 @@ func (c *Compiler) compileFunc(fn *ir.Func) error {
 	return c.emitFunction(fn.Name, c.code)
 }
 
-func (c *Compiler) compileBlock(block ir.Block) ([]instruction.Instruction, error) {
+func (c *Compiler) compileBlock(block *ir.Block) ([]instruction.Instruction, error) {
 
 	var instrs []instruction.Instruction
 
 	for _, stmt := range block.Stmts {
 		switch stmt := stmt.(type) {
-		case ir.ReturnStmt:
+		case *ir.ReturnStmt:
 			instrs = append(instrs, instruction.I32Const{Value: int32(stmt.Code)})
 			instrs = append(instrs, instruction.Return{})
-		case ir.ReturnLocalStmt:
+		case *ir.ReturnLocalStmt:
 			instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.Source)})
 			instrs = append(instrs, instruction.Return{})
-		case ir.CallStmt:
+		case *ir.CallStmt:
 			for _, arg := range stmt.Args {
 				instrs = append(instrs, instruction.GetLocal{Index: c.local(arg)})
 			}
@@ -294,10 +294,10 @@ func (c *Compiler) compileBlock(block ir.Block) ([]instruction.Instruction, erro
 			instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.Result)})
 			instrs = append(instrs, instruction.I32Eqz{})
 			instrs = append(instrs, instruction.BrIf{Index: 0})
-		case ir.AssignVarStmt:
+		case *ir.AssignVarStmt:
 			instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.Source)})
 			instrs = append(instrs, instruction.SetLocal{Index: c.local(stmt.Target)})
-		case ir.AssignVarOnceStmt:
+		case *ir.AssignVarOnceStmt:
 			instrs = append(instrs, instruction.Block{
 				Instrs: []instruction.Instruction{
 					instruction.Block{
@@ -317,7 +317,7 @@ func (c *Compiler) compileBlock(block ir.Block) ([]instruction.Instruction, erro
 					instruction.SetLocal{Index: c.local(stmt.Target)},
 				},
 			})
-		case ir.AssignBooleanStmt:
+		case *ir.AssignBooleanStmt:
 			instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.Target)})
 			if stmt.Value {
 				instrs = append(instrs, instruction.I32Const{Value: 1})
@@ -325,19 +325,19 @@ func (c *Compiler) compileBlock(block ir.Block) ([]instruction.Instruction, erro
 				instrs = append(instrs, instruction.I32Const{Value: 0})
 			}
 			instrs = append(instrs, instruction.Call{Index: c.function(opaValueBooleanSet)})
-		case ir.AssignIntStmt:
+		case *ir.AssignIntStmt:
 			instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.Target)})
 			instrs = append(instrs, instruction.I64Const{Value: stmt.Value})
 			instrs = append(instrs, instruction.Call{Index: c.function(opaValueNumberSetInt)})
-		case ir.ScanStmt:
+		case *ir.ScanStmt:
 			if err := c.compileScan(stmt, &instrs); err != nil {
 				return nil, err
 			}
-		case ir.NotStmt:
+		case *ir.NotStmt:
 			if err := c.compileNot(stmt, &instrs); err != nil {
 				return nil, err
 			}
-		case ir.DotStmt:
+		case *ir.DotStmt:
 			instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.Source)})
 			instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.Key)})
 			instrs = append(instrs, instruction.Call{Index: c.function(opaValueGet)})
@@ -345,54 +345,54 @@ func (c *Compiler) compileBlock(block ir.Block) ([]instruction.Instruction, erro
 			instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.Target)})
 			instrs = append(instrs, instruction.I32Eqz{})
 			instrs = append(instrs, instruction.BrIf{Index: 0})
-		case ir.LenStmt:
+		case *ir.LenStmt:
 			instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.Source)})
 			instrs = append(instrs, instruction.Call{Index: c.function(opaValueLength)})
 			instrs = append(instrs, instruction.Call{Index: c.function(opaNumberSize)})
 			instrs = append(instrs, instruction.SetLocal{Index: c.local(stmt.Target)})
-		case ir.EqualStmt:
+		case *ir.EqualStmt:
 			instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.A)})
 			instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.B)})
 			instrs = append(instrs, instruction.Call{Index: c.function(opaValueCompare)})
 			instrs = append(instrs, instruction.BrIf{Index: 0})
-		case ir.LessThanStmt:
+		case *ir.LessThanStmt:
 			instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.A)})
 			instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.B)})
 			instrs = append(instrs, instruction.Call{Index: c.function(opaValueCompare)})
 			instrs = append(instrs, instruction.I32Const{Value: 0})
 			instrs = append(instrs, instruction.I32GeS{})
 			instrs = append(instrs, instruction.BrIf{Index: 0})
-		case ir.LessThanEqualStmt:
+		case *ir.LessThanEqualStmt:
 			instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.A)})
 			instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.B)})
 			instrs = append(instrs, instruction.Call{Index: c.function(opaValueCompare)})
 			instrs = append(instrs, instruction.I32Const{Value: 0})
 			instrs = append(instrs, instruction.I32GtS{})
 			instrs = append(instrs, instruction.BrIf{Index: 0})
-		case ir.GreaterThanStmt:
+		case *ir.GreaterThanStmt:
 			instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.A)})
 			instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.B)})
 			instrs = append(instrs, instruction.Call{Index: c.function(opaValueCompare)})
 			instrs = append(instrs, instruction.I32Const{Value: 0})
 			instrs = append(instrs, instruction.I32LeS{})
 			instrs = append(instrs, instruction.BrIf{Index: 0})
-		case ir.GreaterThanEqualStmt:
+		case *ir.GreaterThanEqualStmt:
 			instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.A)})
 			instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.B)})
 			instrs = append(instrs, instruction.Call{Index: c.function(opaValueCompare)})
 			instrs = append(instrs, instruction.I32Const{Value: 0})
 			instrs = append(instrs, instruction.I32LtS{})
 			instrs = append(instrs, instruction.BrIf{Index: 0})
-		case ir.NotEqualStmt:
+		case *ir.NotEqualStmt:
 			instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.A)})
 			instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.B)})
 			instrs = append(instrs, instruction.Call{Index: c.function(opaValueCompare)})
 			instrs = append(instrs, instruction.I32Eqz{})
 			instrs = append(instrs, instruction.BrIf{Index: 0})
-		case ir.MakeNullStmt:
+		case *ir.MakeNullStmt:
 			instrs = append(instrs, instruction.Call{Index: c.function(opaNull)})
 			instrs = append(instrs, instruction.SetLocal{Index: c.local(stmt.Target)})
-		case ir.MakeBooleanStmt:
+		case *ir.MakeBooleanStmt:
 			instr := instruction.I32Const{}
 			if stmt.Value {
 				instr.Value = 1
@@ -402,51 +402,51 @@ func (c *Compiler) compileBlock(block ir.Block) ([]instruction.Instruction, erro
 			instrs = append(instrs, instr)
 			instrs = append(instrs, instruction.Call{Index: c.function(opaBoolean)})
 			instrs = append(instrs, instruction.SetLocal{Index: c.local(stmt.Target)})
-		case ir.MakeNumberIntStmt:
+		case *ir.MakeNumberIntStmt:
 			instrs = append(instrs, instruction.I64Const{Value: stmt.Value})
 			instrs = append(instrs, instruction.Call{Index: c.function(opaNumberInt)})
 			instrs = append(instrs, instruction.SetLocal{Index: c.local(stmt.Target)})
-		case ir.MakeStringStmt:
+		case *ir.MakeStringStmt:
 			instrs = append(instrs, instruction.I32Const{Value: c.stringAddr(stmt.Index)})
 			instrs = append(instrs, instruction.Call{Index: c.function(opaStringTerminated)})
 			instrs = append(instrs, instruction.SetLocal{Index: c.local(stmt.Target)})
-		case ir.MakeArrayStmt:
+		case *ir.MakeArrayStmt:
 			instrs = append(instrs, instruction.I32Const{Value: stmt.Capacity})
 			instrs = append(instrs, instruction.Call{Index: c.function(opaArrayWithCap)})
 			instrs = append(instrs, instruction.SetLocal{Index: c.local(stmt.Target)})
-		case ir.MakeObjectStmt:
+		case *ir.MakeObjectStmt:
 			instrs = append(instrs, instruction.Call{Index: c.function(opaObject)})
 			instrs = append(instrs, instruction.SetLocal{Index: c.local(stmt.Target)})
-		case ir.MakeSetStmt:
+		case *ir.MakeSetStmt:
 			instrs = append(instrs, instruction.Call{Index: c.function(opaSet)})
 			instrs = append(instrs, instruction.SetLocal{Index: c.local(stmt.Target)})
-		case ir.IsArrayStmt:
+		case *ir.IsArrayStmt:
 			instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.Source)})
 			instrs = append(instrs, instruction.Call{Index: c.function(opaValueType)})
 			instrs = append(instrs, instruction.I32Const{Value: opaTypeArray})
 			instrs = append(instrs, instruction.I32Ne{})
 			instrs = append(instrs, instruction.BrIf{Index: 0})
-		case ir.IsObjectStmt:
+		case *ir.IsObjectStmt:
 			instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.Source)})
 			instrs = append(instrs, instruction.Call{Index: c.function(opaValueType)})
 			instrs = append(instrs, instruction.I32Const{Value: opaTypeObject})
 			instrs = append(instrs, instruction.I32Ne{})
 			instrs = append(instrs, instruction.BrIf{Index: 0})
-		case ir.IsUndefinedStmt:
+		case *ir.IsUndefinedStmt:
 			instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.Source)})
 			instrs = append(instrs, instruction.I32Const{Value: 0})
 			instrs = append(instrs, instruction.I32Ne{})
 			instrs = append(instrs, instruction.BrIf{Index: 0})
-		case ir.ArrayAppendStmt:
+		case *ir.ArrayAppendStmt:
 			instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.Array)})
 			instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.Value)})
 			instrs = append(instrs, instruction.Call{Index: c.function(opaArrayAppend)})
-		case ir.ObjectInsertStmt:
+		case *ir.ObjectInsertStmt:
 			instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.Object)})
 			instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.Key)})
 			instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.Value)})
 			instrs = append(instrs, instruction.Call{Index: c.function(opaObjectInsert)})
-		case ir.SetAddStmt:
+		case *ir.SetAddStmt:
 			instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.Set)})
 			instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.Value)})
 			instrs = append(instrs, instruction.Call{Index: c.function(opaSetAdd)})
@@ -460,7 +460,7 @@ func (c *Compiler) compileBlock(block ir.Block) ([]instruction.Instruction, erro
 	return instrs, nil
 }
 
-func (c *Compiler) compileScan(scan ir.ScanStmt, result *[]instruction.Instruction) error {
+func (c *Compiler) compileScan(scan *ir.ScanStmt, result *[]instruction.Instruction) error {
 	var instrs = *result
 	instrs = append(instrs, instruction.I32Const{Value: 0})
 	instrs = append(instrs, instruction.SetLocal{Index: c.local(scan.Key)})
@@ -473,7 +473,7 @@ func (c *Compiler) compileScan(scan ir.ScanStmt, result *[]instruction.Instructi
 	return nil
 }
 
-func (c *Compiler) compileScanBlock(scan ir.ScanStmt) ([]instruction.Instruction, error) {
+func (c *Compiler) compileScanBlock(scan *ir.ScanStmt) ([]instruction.Instruction, error) {
 	var instrs []instruction.Instruction
 
 	// Execute iterator.
@@ -505,7 +505,7 @@ func (c *Compiler) compileScanBlock(scan ir.ScanStmt) ([]instruction.Instruction
 	return instrs, nil
 }
 
-func (c *Compiler) compileNot(not ir.NotStmt, result *[]instruction.Instruction) error {
+func (c *Compiler) compileNot(not *ir.NotStmt, result *[]instruction.Instruction) error {
 	var instrs = *result
 
 	nested, err := c.compileBlock(not.Block)
