@@ -106,19 +106,41 @@ func (p *Planner) planRules(rules []*ast.Rule) error {
 
 	path := rules[0].Path()
 
+	// Create function definitopn for rules.
 	fn := &ir.Func{
 		Name:   path.String(),
 		Params: []ir.Local{p.newLocal()},
 		Return: p.newLocal(),
 	}
 
+	// Initialize parameters for functions.
 	for i := 0; i < len(rules[0].Head.Args); i++ {
 		fn.Params = append(fn.Params, p.newLocal())
 	}
 
 	params := fn.Params[1:]
 
-	// save current state of planner before recursing on the rule bodies.
+	// Initialize return value for partial set/object rules. Complete docs do
+	// not require their return value to be initialized.
+	if rules[0].Head.DocKind() == ast.PartialObjectDoc {
+		fn.Blocks = append(fn.Blocks, &ir.Block{
+			Stmts: []ir.Stmt{
+				&ir.MakeObjectStmt{
+					Target: fn.Return,
+				},
+			},
+		})
+	} else if rules[0].Head.DocKind() == ast.PartialSetDoc {
+		fn.Blocks = append(fn.Blocks, &ir.Block{
+			Stmts: []ir.Stmt{
+				&ir.MakeSetStmt{
+					Target: fn.Return,
+				},
+			},
+		})
+	}
+
+	// Save current state of planner.
 	//
 	// TODO(tsandall): perhaps we would be better off using stacks here or
 	// splitting block planner into separate struct that could be instantiated
@@ -128,17 +150,18 @@ func (p *Planner) planRules(rules []*ast.Rule) error {
 
 	var defaultRule *ast.Rule
 
+	// Generate function blocks for rules.
 	for i := range rules {
 
-		if rules[i].Head.Key != nil {
-			return fmt.Errorf("not implemented: partial rules")
-		}
-
+		// Save default rule for the end.
 		if rules[i].Default {
 			defaultRule = rules[i]
 			continue
 		}
 
+		// Ordered rules are nested inside an additional block so that execution
+		// can short-circuit. For unordered rules blocks can be added directly
+		// to the function.
 		var blocks *[]*ir.Block
 
 		if rules[i].Else == nil {
@@ -150,8 +173,10 @@ func (p *Planner) planRules(rules []*ast.Rule) error {
 			blocks = &stmt.Blocks
 		}
 
+		// Unordered rules are treated as a special case of ordered rules.
 		for rule := rules[i]; rule != nil; rule = rule.Else {
 
+			// Setup planner for block.
 			p.vars = map[ast.Var]ir.Local{
 				ast.InputRootDocument.Value.(ast.Var): fn.Params[0],
 			}
@@ -160,21 +185,55 @@ func (p *Planner) planRules(rules []*ast.Rule) error {
 			*blocks = append(*blocks, curr)
 			p.curr = curr
 
+			// Complete and partial rules are treated as special cases of
+			// functions. If there are args, the first step is a no-op.
 			err := p.planFuncParams(params, rule.Head.Args, 0, func() error {
+
+				// Run planner on the rule body.
 				err := p.planQuery(rule.Body, 0, func() error {
-					return p.planTerm(rule.Head.Value, func() error {
-						p.appendStmt(&ir.AssignVarOnceStmt{
-							Target: fn.Return,
-							Source: p.ltarget,
+
+					// Run planner on the result.
+					switch rule.Head.DocKind() {
+					case ast.CompleteDoc:
+						return p.planTerm(rule.Head.Value, func() error {
+							p.appendStmt(&ir.AssignVarOnceStmt{
+								Target: fn.Return,
+								Source: p.ltarget,
+							})
+							return nil
 						})
-						return nil
-					})
+					case ast.PartialSetDoc:
+						return p.planTerm(rule.Head.Key, func() error {
+							p.appendStmt(&ir.SetAddStmt{
+								Set:   fn.Return,
+								Value: p.ltarget,
+							})
+							return nil
+						})
+					case ast.PartialObjectDoc:
+						return p.planTerm(rule.Head.Key, func() error {
+							key := p.ltarget
+							return p.planTerm(rule.Head.Value, func() error {
+								value := p.ltarget
+								p.appendStmt(&ir.ObjectInsertOnceStmt{
+									Object: fn.Return,
+									Key:    key,
+									Value:  value,
+								})
+								return nil
+							})
+						})
+					default:
+						return fmt.Errorf("illegal rule kind")
+					}
 				})
 
 				if err != nil {
 					return err
 				}
 
+				// Ordered rules are handled by short circuiting execution. The
+				// plan will jump out to the extra block that was planned above.
 				if rule.Else != nil {
 					p.appendStmt(&ir.IsDefinedStmt{Source: fn.Return})
 					p.appendStmt(&ir.BreakStmt{Index: 1})
@@ -189,6 +248,7 @@ func (p *Planner) planRules(rules []*ast.Rule) error {
 		}
 	}
 
+	// Default rules execute if the return is undefined.
 	if defaultRule != nil {
 
 		fn.Blocks = append(fn.Blocks, &ir.Block{
@@ -210,6 +270,7 @@ func (p *Planner) planRules(rules []*ast.Rule) error {
 		}
 	}
 
+	// All rules return a value.
 	fn.Blocks = append(fn.Blocks, &ir.Block{
 		Stmts: []ir.Stmt{
 			&ir.ReturnLocalStmt{
@@ -218,9 +279,10 @@ func (p *Planner) planRules(rules []*ast.Rule) error {
 		},
 	})
 
+	// Cache the planned function for lookups.
 	p.funcs.Insert(path, fn)
 
-	// restore old state of planner.
+	// Restore the state of the planner.
 	p.vars = currVars
 	p.curr = currBlock
 

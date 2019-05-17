@@ -1,0 +1,59 @@
+cases:
+  - note: additive
+    disable_partial: true
+    query: 'data.x.p = {"a": 1, "b": 2}'
+    modules:
+      - |
+        package x
+        p["a"] = 1
+        p["b"] = 2
+    return_code: 1
+  - note: additive (negative)
+    disable_partial: true
+    query:  'data.x.p = {"a": 1, "b": 2}'
+    modules:
+      - |
+        package x
+        p["a"] = 1
+        p["b"] = 2
+        p["c"] = 3
+    return_code: 0
+  - note: input
+    disable_partial: true
+    query: 'data.x.p = {"b": 2, "a": 1}'
+    modules:
+      - |
+        package x
+        p["a"] = 1 { input.x = 1 }
+        p["b"] = 2 { input.y = 2 }
+    return_code: 1
+    input: {"x": 1, "y": 2}
+  - note: input (negative)
+    disable_partial: true
+    query: 'data.x.p = {"a": 1, "b": 2}'
+    modules:
+      - |
+        package x
+        p["a"] = 1 { input.x = 1 }
+        p["b"] = 2 { input.y = 2 }
+        p["c"] = 3 { input.z = 3 }
+    return_code: 1
+    input: {"x": 1, "y": 2}
+  - note: composites
+    disable_partial: true
+    query: 'data.x.p = {"a": [1], "b": [2]}'
+    modules:
+      - |
+        package x
+        p[x] = [y] { x = "a"; y = 1 }
+        p[x] = [y] { x = "b"; y = 2 }
+    return_code: 1
+  - note: conflict error
+    disable_partial: true
+    query: 'data.x.p = {"a": 1}'
+    modules:
+      - |
+        package x
+        p["x"] = 1
+        p["x"] = 2
+    want_error: "unreachable"  # TODO(tsandall): replace with conflict error
