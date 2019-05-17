@@ -126,7 +126,14 @@ func (p *Planner) planRules(rules []*ast.Rule) error {
 	currVars := p.vars
 	currBlock := p.curr
 
+	var defaultRule *ast.Rule
+
 	for _, rule := range rules {
+
+		if rule.Default {
+			defaultRule = rule
+			continue
+		}
 
 		// initialize planner state for rule body.
 		p.vars = map[ast.Var]ir.Local{
@@ -140,8 +147,6 @@ func (p *Planner) planRules(rules []*ast.Rule) error {
 			return fmt.Errorf("not implemented: ordered rules")
 		} else if rule.Head.Key != nil {
 			return fmt.Errorf("not implemented: partial rules")
-		} else if rule.Default {
-			return fmt.Errorf("not implemented: default rules")
 		}
 
 		err := p.planFuncParams(params, rule.Head.Args, 0, func() error {
@@ -157,6 +162,27 @@ func (p *Planner) planRules(rules []*ast.Rule) error {
 		})
 
 		if err != nil {
+			return err
+		}
+	}
+
+	if defaultRule != nil {
+
+		fn.Blocks = append(fn.Blocks, ir.Block{
+			Stmts: []ir.Stmt{
+				ir.IsUndefinedStmt{Source: fn.Return},
+			},
+		})
+
+		p.curr = &fn.Blocks[len(fn.Blocks)-1]
+
+		if err := p.planTerm(defaultRule.Head.Value, func() error {
+			p.appendStmt(ir.AssignVarStmt{
+				Target: fn.Return,
+				Source: p.ltarget,
+			})
+			return nil
+		}); err != nil {
 			return err
 		}
 	}

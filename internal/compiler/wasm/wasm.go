@@ -432,6 +432,11 @@ func (c *Compiler) compileBlock(block ir.Block) ([]instruction.Instruction, erro
 			instrs = append(instrs, instruction.I32Const{Value: opaTypeObject})
 			instrs = append(instrs, instruction.I32Ne{})
 			instrs = append(instrs, instruction.BrIf{Index: 0})
+		case ir.IsUndefinedStmt:
+			instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.Source)})
+			instrs = append(instrs, instruction.I32Const{Value: 0})
+			instrs = append(instrs, instruction.I32Ne{})
+			instrs = append(instrs, instruction.BrIf{Index: 0})
 		case ir.ArrayAppendStmt:
 			instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.Array)})
 			instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.Value)})
