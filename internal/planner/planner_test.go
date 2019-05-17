@@ -96,6 +96,16 @@ func TestPlannerHelloWorld(t *testing.T) {
 				p = x { x = 10 }
 			`},
 		},
+		{
+			note:    "functions",
+			queries: []string{"data.test.f([1,x])"},
+			modules: []string{`
+				package test
+				f([a, b]) {
+					a = b
+				}
+			`},
+		},
 	}
 
 	for _, tc := range tests {
