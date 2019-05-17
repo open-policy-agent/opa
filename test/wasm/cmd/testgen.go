@@ -24,8 +24,9 @@ import (
 )
 
 type params struct {
-	Output   string
-	InputDir string
+	Output          string
+	InputDir        string
+	TestFilePattern string
 }
 
 type testCaseSet struct {
@@ -94,7 +95,7 @@ func run(params params, args []string) error {
 	}
 
 	for i := range files {
-		if strings.HasSuffix(files[i].Name(), ".yaml") {
+		if ok, err := path.Match(params.TestFilePattern, files[i].Name()); ok {
 
 			err := func() error {
 				bs, err := ioutil.ReadFile(filepath.Join(params.InputDir, files[i].Name()))
@@ -127,6 +128,8 @@ func run(params params, args []string) error {
 			if err != nil {
 				return errors.Wrap(err, files[i].Name())
 			}
+		} else if err != nil {
+			return errors.Wrap(err, files[i].Name())
 		}
 	}
 
@@ -191,8 +194,9 @@ func main() {
 		},
 	}
 
-	command.Flags().StringVarP(&params.Output, "output", "o", "", "set path of output file")
-	command.Flags().StringVarP(&params.InputDir, "input-dir", "i", "", "set path of input directory containing test files")
+	command.Flags().StringVarP(&params.Output, "output", "", "", "set path of output file")
+	command.Flags().StringVarP(&params.InputDir, "input-dir", "", "", "set path of input directory containing test files")
+	command.Flags().StringVarP(&params.TestFilePattern, "file-pattern", "", "*.yaml", "set filename pattern to match test files against")
 
 	if err := command.Execute(); err != nil {
 		os.Exit(1)

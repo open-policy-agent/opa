@@ -132,9 +132,7 @@ go-test: generate
 .PHONY: wasm-test
 wasm-test: generate
 ifeq ($(DOCKER_INSTALLED), 1)
-	@mkdir -p _test
-	@$(GO) run test/wasm/cmd/testgen.go --input-dir test/wasm/assets --output _test/testcases.tar.gz
-	@$(DOCKER) run -it --rm -e VERBOSE=$(VERBOSE) -v $(PWD):/src -w /src node:8 ./build/test-wasm.sh
+	@./build/run-wasm-tests.sh
 else
 	@echo "Docker not installed. Skipping WASM-based test execution."
 endif
