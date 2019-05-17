@@ -92,6 +92,8 @@ func (c *Compiler) Compile() (*module.Module, error) {
 	for _, stage := range c.stages {
 		if err := stage(); err != nil {
 			return nil, err
+		} else if len(c.errors) > 0 {
+			return nil, c.errors[0] // TODO(tsandall) return all errors.
 		}
 	}
 
@@ -624,7 +626,7 @@ func (c *Compiler) genLocal() uint32 {
 func (c *Compiler) function(name string) uint32 {
 	index, ok := c.funcs[name]
 	if !ok {
-		panic(fmt.Sprintf("illegal function name %q", name))
+		c.errors = append(c.errors, fmt.Errorf("illegal function reference %q", name))
 	}
 	return index
 }
