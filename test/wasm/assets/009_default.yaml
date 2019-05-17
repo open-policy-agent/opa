@@ -1,0 +1,36 @@
+cases:
+  - note: default
+    disable_partial: true
+    query: data.x.p = 1
+    modules:
+      - |
+        package x
+        default p = 1
+    return_code: 1
+  - note: default fallback
+    disable_partial: true
+    query: data.x.p = 1
+    modules:
+      - |
+        package x
+        default p = 1
+        p = 2 { false }
+    return_code: 1
+  - note: default fallback (negative)
+    disable_partial: true
+    query: data.x.p = 2
+    modules:
+      - |
+        package x
+        default p = 1
+        p = 2 { false }
+    return_code: 0
+  - note: default skipped
+    disable_partial: true
+    query: data.x.p = 2
+    modules:
+      - |
+        package x
+        default p = 1
+        p = 2
+    return_code: 1

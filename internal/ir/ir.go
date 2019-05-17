@@ -313,6 +313,11 @@ type IsObjectStmt struct {
 	Source Local
 }
 
+// IsUndefinedStmt represents a check of whether local variable is undefined.
+type IsUndefinedStmt struct {
+	Source Local
+}
+
 // ArrayAppendStmt represents a dynamic append operation of a value
 // onto an array.
 type ArrayAppendStmt struct {
