@@ -74,6 +74,10 @@ func (w *walkerImpl) walk(x interface{}) {
 		for _, s := range x.Stmts {
 			w.walk(s)
 		}
+	case *BlockStmt:
+		for _, b := range x.Blocks {
+			w.walk(b)
+		}
 	case *ScanStmt:
 		w.walk(x.Block)
 	case *NotStmt:

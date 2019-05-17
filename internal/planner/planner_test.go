@@ -106,6 +106,18 @@ func TestPlannerHelloWorld(t *testing.T) {
 				}
 			`},
 		},
+		{
+			note:    "else",
+			queries: []string{"data.test.p = 1"},
+			modules: []string{`
+				package test
+				p = 0 {
+					false
+				} else = 1 {
+					true
+				}
+			`},
+		},
 	}
 
 	for _, tc := range tests {
