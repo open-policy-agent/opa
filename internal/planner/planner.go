@@ -19,7 +19,6 @@ type binaryiter func(ir.Local, ir.Local) error
 type Planner struct {
 	queries []ast.Body           // input query to plan
 	modules []*ast.Module        // input modules to support queries
-	arities map[string]int       // input function arities
 	strings []*ir.StringConst    // planned (global) string constants
 	blocks  []*ir.Block          // planned blocks
 	funcs   *functrie            // planned functions to support blocks
@@ -32,8 +31,7 @@ type Planner struct {
 // New returns a new Planner object.
 func New() *Planner {
 	return &Planner{
-		arities: map[string]int{},
-		lcurr:   ir.Input + 1,
+		lcurr: ir.Input + 1,
 		vars: map[ast.Var]ir.Local{
 			ast.InputRootDocument.Value.(ast.Var): ir.Input,
 		},
@@ -72,7 +70,7 @@ func (p *Planner) Plan() (*ir.Policy, error) {
 			Blocks: p.blocks,
 		},
 		Funcs: &ir.Funcs{
-			Funcs: p.funcs.Map(),
+			Funcs: p.funcs.FuncMap(),
 		},
 	}
 
@@ -81,20 +79,18 @@ func (p *Planner) Plan() (*ir.Policy, error) {
 
 func (p *Planner) planModules() error {
 
-	rulesets := map[string][]*ast.Rule{}
+	funcs := map[*functrieValue]struct{}{}
 
 	for _, module := range p.modules {
 		for _, rule := range module.Rules {
-			name := rule.Path().String()
-			if len(rule.Head.Args) > 0 {
-				p.arities[name] = len(rule.Head.Args)
-			}
-			rulesets[name] = append(rulesets[name], rule)
+			val := p.funcs.LookupOrInsert(rule.Path(), &functrieValue{})
+			val.Rules = append(val.Rules, rule)
+			funcs[val] = struct{}{}
 		}
 	}
 
-	for _, rs := range rulesets {
-		if err := p.planRules(rs); err != nil {
+	for val := range funcs {
+		if err := p.planRules(val); err != nil {
 			return err
 		}
 	}
@@ -102,16 +98,18 @@ func (p *Planner) planModules() error {
 	return nil
 }
 
-func (p *Planner) planRules(rules []*ast.Rule) error {
+func (p *Planner) planRules(trieNode *functrieValue) error {
 
-	path := rules[0].Path()
+	rules := trieNode.Rules
 
-	// Create function definitopn for rules.
+	// Create function definiton for rules.
 	fn := &ir.Func{
-		Name:   path.String(),
+		Name:   rules[0].Path().String(),
 		Params: []ir.Local{p.newLocal()},
 		Return: p.newLocal(),
 	}
+
+	trieNode.Fn = fn
 
 	// Initialize parameters for functions.
 	for i := 0; i < len(rules[0].Head.Args); i++ {
@@ -278,9 +276,6 @@ func (p *Planner) planRules(rules []*ast.Rule) error {
 			},
 		},
 	})
-
-	// Cache the planned function for lookups.
-	p.funcs.Insert(path, fn)
 
 	// Restore the state of the planner.
 	p.vars = currVars
@@ -473,17 +468,17 @@ func (p *Planner) planExprCall(e *ast.Expr, iter planiter) error {
 			return iter()
 		})
 	default:
-
-		arity, ok := p.arities[operator]
-		if !ok {
+		trieNode := p.funcs.Lookup(e.Operator())
+		if trieNode == nil {
 			return fmt.Errorf("illegal call: unknown operator %v", operator)
 		}
+
+		arity := trieNode.Arity()
+		operands := e.Operands()
 
 		args := []ir.Local{
 			p.vars[ast.InputRootDocument.Value.(ast.Var)],
 		}
-
-		operands := e.Operands()
 
 		if len(operands) == arity {
 			// rule: f(x) = x { ... }
