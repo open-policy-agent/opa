@@ -1,6 +1,5 @@
 cases:
   - note: identity
-    disable_partial: true
     query: data.x.f(1, 1)
     modules:
       - |
@@ -8,7 +7,6 @@ cases:
         f(x) = x
     return_code: 1
   - note: identity (negative)
-    disable_partial: true
     query: data.x.f(1, 2)
     modules:
       - |
@@ -16,7 +14,6 @@ cases:
         f(x) = x
     return_code: 0
   - note: identity implicit
-    disable_partial: true
     query: data.x.f(1) = 1
     modules:
       - |
@@ -24,7 +21,6 @@ cases:
         f(x) = x
     return_code: 1
   - note: identity implicit (negative)
-    disable_partial: true
     query: data.x.f(1) = 2
     modules:
       - |
@@ -32,7 +28,6 @@ cases:
         f(x) = x
     return_code: 0
   - note: composite arg
-    disable_partial: true
     query: data.x.f([1]) = 1
     modules:
       - |
@@ -40,7 +35,6 @@ cases:
         f(x) = x[0]
     return_code: 1
   - note: composite param
-    disable_partial: true
     query: data.x.f([1]) = 1
     modules:
       - |
@@ -48,7 +42,6 @@ cases:
         f([x]) = x
     return_code: 1
   - note: multiple params
-    disable_partial: true
     query: data.x.f(1, 2) = [2, 1]
     modules:
       - |
@@ -56,7 +49,6 @@ cases:
         f(x, y) = [y, x]
     return_code: 1
   - note: multiple params (negative)
-    disable_partial: true
     query: data.x.f(1, 2) = [2, 1]
     modules:
       - |
@@ -64,7 +56,6 @@ cases:
         f(x, y) = [x, x]
     return_code: 0
   - note: disjunction
-    disable_partial: true
     query: data.x.f(1) = 0
     modules:
       - |
@@ -73,7 +64,6 @@ cases:
         f(x) = 0 { x > 0 }
     return_code: 1
   - note: disjunction (negative)
-    disable_partial: true
     query: data.x.f(1) = 2
     modules:
       - |
@@ -82,7 +72,6 @@ cases:
         f(x) = 0 { x > 0 }
     return_code: 0
   - note: negation
-    disable_partial: true
     query: not data.x.f(-1)
     modules:
       - |
@@ -90,7 +79,6 @@ cases:
         f(x) = x { x >= 0 }
     return_code: 1
   - note: input
-    disable_partial: true
     query: data.x.f(1) = 1
     modules:
       - |
@@ -100,7 +88,6 @@ cases:
     input: {"x": 1}
     return_code: 1
   - note: input (negative)
-    disable_partial: true
     query: data.x.f(1) = 1
     modules:
       - |
@@ -110,7 +97,6 @@ cases:
     input: {"x": 2}
     return_code: 0
   - note: conflict error
-    disable_partial: true
     query: data.x.f(1) = 1
     modules:
       - |
