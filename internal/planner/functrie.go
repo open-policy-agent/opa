@@ -10,7 +10,16 @@ import (
 // against the data document.
 type functrie struct {
 	children map[ast.Value]*functrie
-	fn       *ir.Func
+	val      *functrieValue
+}
+
+type functrieValue struct {
+	Fn    *ir.Func
+	Rules []*ast.Rule
+}
+
+func (val *functrieValue) Arity() int {
+	return len(val.Rules[0].Head.Args)
 }
 
 func newFunctrie() *functrie {
@@ -19,7 +28,7 @@ func newFunctrie() *functrie {
 	}
 }
 
-func (t *functrie) Insert(key ast.Ref, fn *ir.Func) {
+func (t *functrie) Insert(key ast.Ref, val *functrieValue) {
 	node := t
 	for _, elem := range key {
 		child, ok := node.children[elem.Value]
@@ -29,10 +38,10 @@ func (t *functrie) Insert(key ast.Ref, fn *ir.Func) {
 		}
 		node = child
 	}
-	node.fn = fn
+	node.val = val
 }
 
-func (t *functrie) Lookup(key ast.Ref) *ir.Func {
+func (t *functrie) Lookup(key ast.Ref) *functrieValue {
 	node := t
 	for _, elem := range key {
 		var ok bool
@@ -42,18 +51,26 @@ func (t *functrie) Lookup(key ast.Ref) *ir.Func {
 			return nil
 		}
 	}
-	return node.fn
+	return node.val
 }
 
-func (t *functrie) Map() map[string]*ir.Func {
+func (t *functrie) LookupOrInsert(key ast.Ref, orElse *functrieValue) *functrieValue {
+	if val := t.Lookup(key); val != nil {
+		return val
+	}
+	t.Insert(key, orElse)
+	return orElse
+}
+
+func (t *functrie) FuncMap() map[string]*ir.Func {
 	result := map[string]*ir.Func{}
 	t.toMap(result)
 	return result
 }
 
 func (t *functrie) toMap(result map[string]*ir.Func) {
-	if t.fn != nil {
-		result[t.fn.Name] = t.fn
+	if t.val != nil {
+		result[t.val.Fn.Name] = t.val.Fn
 		return
 	}
 	for _, node := range t.children {
