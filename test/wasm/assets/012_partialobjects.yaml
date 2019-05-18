@@ -1,6 +1,5 @@
 cases:
   - note: additive
-    disable_partial: true
     query: 'data.x.p = {"a": 1, "b": 2}'
     modules:
       - |
@@ -9,7 +8,6 @@ cases:
         p["b"] = 2
     return_code: 1
   - note: additive (negative)
-    disable_partial: true
     query:  'data.x.p = {"a": 1, "b": 2}'
     modules:
       - |
@@ -19,7 +17,6 @@ cases:
         p["c"] = 3
     return_code: 0
   - note: input
-    disable_partial: true
     query: 'data.x.p = {"b": 2, "a": 1}'
     modules:
       - |
@@ -29,7 +26,6 @@ cases:
     return_code: 1
     input: {"x": 1, "y": 2}
   - note: input (negative)
-    disable_partial: true
     query: 'data.x.p = {"a": 1, "b": 2}'
     modules:
       - |
@@ -40,7 +36,6 @@ cases:
     return_code: 1
     input: {"x": 1, "y": 2}
   - note: composites
-    disable_partial: true
     query: 'data.x.p = {"a": [1], "b": [2]}'
     modules:
       - |
@@ -49,7 +44,6 @@ cases:
         p[x] = [y] { x = "b"; y = 2 }
     return_code: 1
   - note: conflict error
-    disable_partial: true
     query: 'data.x.p = {"a": 1}'
     modules:
       - |

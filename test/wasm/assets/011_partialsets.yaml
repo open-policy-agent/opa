@@ -1,6 +1,5 @@
 cases:
   - note: additive
-    disable_partial: true
     query: data.x.p = {2,1}
     modules:
       - |
@@ -9,7 +8,6 @@ cases:
         p[2]
     return_code: 1
   - note: additive (negative)
-    disable_partial: true
     query: data.x.p = {2,1}
     modules:
       - |
@@ -19,7 +17,6 @@ cases:
         p[3]
     return_code: 0
   - note: input
-    disable_partial: true
     query: data.x.p = {2,1}
     modules:
       - |
@@ -29,7 +26,6 @@ cases:
     return_code: 1
     input: {"x": 1, "y": 2}
   - note: input (negative)
-    disable_partial: true
     query: data.x.p = {2,1}
     modules:
       - |
@@ -40,7 +36,6 @@ cases:
     return_code: 1
     input: {"x": 1, "y": 2}
   - note: composites
-    disable_partial: true
     query: data.x.p = {[2],[1]}
     modules:
       - |

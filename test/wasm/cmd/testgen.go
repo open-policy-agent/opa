@@ -34,13 +34,12 @@ type testCaseSet struct {
 }
 
 type testCase struct {
-	Note           string       `json:"note"`
-	Query          string       `json:"query"`
-	Modules        []string     `json:"modules"`
-	DisablePartial bool         `json:"disable_partial"`
-	Input          *interface{} `json:"input"`
-	ReturnCode     int          `json:"return_code"`
-	WantError      string       `json:"want_error"`
+	Note       string       `json:"note"`
+	Query      string       `json:"query"`
+	Modules    []string     `json:"modules"`
+	Input      *interface{} `json:"input"`
+	ReturnCode int          `json:"return_code"`
+	WantError  string       `json:"want_error"`
 }
 
 type compiledTestCaseSet struct {
@@ -61,7 +60,7 @@ func compileTestCases(ctx context.Context, tests testCaseSet) (*compiledTestCase
 		for idx, module := range tc.Modules {
 			args = append(args, rego.Module(fmt.Sprintf("module%d.rego", idx), module))
 		}
-		cr, err := rego.New(args...).Compile(ctx, rego.CompilePartial(!tc.DisablePartial))
+		cr, err := rego.New(args...).Compile(ctx)
 		if err != nil {
 			return nil, err
 		}
