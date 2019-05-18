@@ -136,6 +136,16 @@ func TestPlannerHelloWorld(t *testing.T) {
 				p["b"] = 2
 			`},
 		},
+		{
+			note:    "virtual extent",
+			queries: []string{`data`},
+			modules: []string{`
+				package test
+
+				p = 1
+			#	q = 2 { false }
+			`},
+		},
 	}
 
 	for _, tc := range tests {

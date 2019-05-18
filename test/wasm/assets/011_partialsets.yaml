@@ -43,3 +43,70 @@ cases:
         p[[x]] { x = 1 }
         p[[y]] { y = 2 }
     return_code: 1
+  - note: set membership
+    query: data.x.p[1]
+    modules:
+      - |
+        package x
+        p[1]
+        p[2]
+    return_code: 1
+  - note: set membership (negative)
+    query: data.x.p[3]
+    modules:
+      - |
+        package x
+        p[1]
+        p[2]
+    return_code: 0
+  - note: set membership (negation)
+    query: not data.x.p[3]
+    modules:
+      - |
+        package x
+        p[1]
+        p[2]
+    return_code: 1
+  - note: set iteration
+    query: data.x.p[x]; x > 1
+    modules:
+      - |
+        package x
+        p[1]
+        p[2]
+    return_code: 1
+  - note: set iteration (negative)
+    query: data.x.p[x]; x > 2
+    modules:
+      - |
+        package x
+        p[1]
+        p[2]
+    return_code: 0
+  - note: set composites
+    query: a := [1,x]; data.x.p[a]; x == "y"
+    modules:
+      - |
+        package x
+        p[[1, "x"]]
+        p[[1, "y"]]
+        p[[2, "x"]]
+    return_code: 1
+  - note: set dereference
+    query: data.x.p[x].a == 1; x.b == "y"
+    modules:
+      - |
+        package x
+        p[{"a": 1, "b": "x"}]
+        p[{"a": 1, "b": "y"}]
+        p[{"a": 1, "b": "y"}]
+    return_code: 1
+  - note: set dereference (negative)
+    query: data.x.p[x].a == 100
+    modules:
+      - |
+        package x
+        p[{"a": 1}]
+        p[{"a": 2}]
+        p[{"a": 3}]
+    return_code: 0
