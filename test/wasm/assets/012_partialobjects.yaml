@@ -51,3 +51,17 @@ cases:
         p["x"] = 1
         p["x"] = 2
     want_error: "unreachable"  # TODO(tsandall): replace with conflict error
+  - note: object dereference
+    query: data.x.p.a.b = 1
+    modules:
+      - |
+        package x
+        p["a"] = {"b": 1}
+    return_code: 1
+  - note: object dereference (negative)
+    query: data.x.p.a.b = 1
+    modules:
+      - |
+        package x
+        p["a"] = {"b": 2}
+    return_code: 0

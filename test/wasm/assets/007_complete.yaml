@@ -164,3 +164,27 @@ cases:
         package y
         p = 1
     return_code: 1
+  - note: dereference
+    query: data.x.p[0].a = 1
+    modules:
+      - |
+        package x
+        p = [{
+          "a": 1,
+          "b": 2
+        }]
+    return_code: 1
+  - note: iteration embedded
+    query: data.x.p[i].a[j] = 1
+    modules:
+      - |
+        package x
+        p = [{"a": [2, 3]}, {"a": [3, 1]}, {"a": []}]
+    return_code: 1
+  - note: iteration embedded (negative)
+    query: data.x.p[i].a[j] = 1
+    modules:
+      - |
+        package x
+        p = [{"a": [2, 3]}, {"a": [3, 2]}, {"a": []}]
+    return_code: 0

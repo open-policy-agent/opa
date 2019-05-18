@@ -79,9 +79,24 @@ func (p *Planner) Plan() (*ir.Policy, error) {
 
 func (p *Planner) planModules() error {
 
+	// Build a set of all the rulesets to plan.
 	funcs := map[*functrieValue]struct{}{}
 
 	for _, module := range p.modules {
+
+		// Create functrie node for empty packages so that extent queries return
+		// empty objects. For example:
+		//
+		// package x.y
+		//
+		// Query: data.x
+		//
+		// Expected result: {"y": {}}
+		if len(module.Rules) == 0 {
+			_ = p.funcs.LookupOrInsert(module.Package.Path, nil)
+			continue
+		}
+
 		for _, rule := range module.Rules {
 			val := p.funcs.LookupOrInsert(rule.Path(), &functrieValue{})
 			val.Rules = append(val.Rules, rule)
@@ -1049,33 +1064,110 @@ func (p *Planner) planRefScan(ref ast.Ref, index int, iter planiter) error {
 
 func (p *Planner) planRefData(ref ast.Ref, iter planiter) error {
 
-	// TODO(tsandall): this is very WIP. Many forms are not supported yet. For
-	// example, given:
+	// TODO(tsandall): This is still work in progress. Currently lacks support for:
 	//
-	//  package foo
-	//
-	//  p = {"a": 1, "b": 2}
-	//
-	// There are different ways to materialize p:
-	//
-	//  data.foo.p[x]
-	//  data.foo.p.b
-	//  data.foo
-	//  data.foo[x]
-	//
-	// Moreoever, JSON data may be loaded alongside p (e.g., at /foo/q) in which
-	// case the last two examples must account for this.
-	//
-	// For now we punt on this and let the compiler backend return an error if
-	// the call is not supported.
-	p.ltarget = p.newLocal()
+	// - Iterating over virtual docuemnts
+	// - Base documents (and combination of base and virtual documents)
 
-	p.appendStmt(&ir.CallStmt{
-		Func:   ref.String(),
-		Args:   []ir.Local{p.vars[ast.InputRootDocument.Value.(ast.Var)]},
-		Result: p.ltarget,
+	node := p.funcs
+
+	for i, term := range ref {
+
+		if _, ok := term.Value.(ast.String); !ok && i > 0 {
+			return fmt.Errorf("not implemented: refs with non-string operands")
+		}
+
+		child, ok := node.children[term.Value]
+		if !ok {
+			return nil
+		}
+
+		if child.val == nil {
+			node = child
+			continue
+		}
+
+		p.ltarget = p.newLocal()
+
+		p.appendStmt(&ir.CallStmt{
+			Func:   ref[:i+1].String(),
+			Args:   []ir.Local{p.vars[ast.InputRootDocument.Value.(ast.Var)]},
+			Result: p.ltarget,
+		})
+
+		return p.planRefRec(ref, i+1, iter)
+	}
+
+	return p.planRefDataVirtualExtent(node, iter)
+}
+
+func (p *Planner) planRefDataVirtualExtent(node *functrie, iter planiter) error {
+
+	// Create a new object document. The target is not set until the planner
+	// recurses so that we can build the hierarchy depth-first.
+	target := p.newLocal()
+
+	p.appendStmt(&ir.MakeObjectStmt{
+		Target: target,
 	})
 
+	for key, child := range node.children {
+
+		// Skip functions.
+		if child.val != nil && child.val.Arity() > 0 {
+			continue
+		}
+
+		lkey := p.newLocal()
+		idx := p.appendStringConst(string(key.(ast.String)))
+		p.appendStmt(&ir.MakeStringStmt{
+			Index:  idx,
+			Target: lkey,
+		})
+
+		// Build object hierarchy depth-first.
+		if child.val == nil {
+			err := p.planRefDataVirtualExtent(child, func() error {
+				p.appendStmt(&ir.ObjectInsertStmt{
+					Object: target,
+					Key:    lkey,
+					Value:  p.ltarget,
+				})
+				return nil
+			})
+			if err != nil {
+				return err
+			}
+			continue
+		}
+
+		// Generate virtual document for leaf.
+		lvalue := p.newLocal()
+
+		// Add leaf to object if defined.
+		p.appendStmt(&ir.BlockStmt{
+			Blocks: []*ir.Block{
+				&ir.Block{
+					Stmts: []ir.Stmt{
+						&ir.CallStmt{
+							Func:   child.val.Rules[0].Path().String(),
+							Args:   []ir.Local{p.vars[ast.InputRootDocument.Value.(ast.Var)]},
+							Result: lvalue,
+						},
+						&ir.ObjectInsertStmt{
+							Object: target,
+							Key:    lkey,
+							Value:  lvalue,
+						},
+					},
+				},
+			},
+		})
+
+	}
+
+	// Set target to object and recurse.
+	p.ltarget = target
 	return iter()
 }
 
