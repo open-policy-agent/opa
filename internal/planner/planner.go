@@ -1000,7 +1000,13 @@ func (p *Planner) planRefRec(ref ast.Ref, index int, iter planiter) error {
 				return p.planRefRec(ref, index+1, iter)
 			})
 		}
-		p.ltarget = p.vars[v]
+		target := p.newLocal()
+		p.appendStmt(&ir.DotStmt{
+			Source: p.ltarget,
+			Key:    p.vars[v],
+			Target: target,
+		})
+		p.ltarget = target
 		return p.planRefRec(ref, index+1, iter)
 
 	default:

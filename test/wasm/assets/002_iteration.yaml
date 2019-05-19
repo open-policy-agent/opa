@@ -23,3 +23,41 @@ cases:
     query: input.x[i].y[j] = 1
     input: {"x": [{"y": []}, {"y": [0]}, {"y": [0, 2]}]}
     return_code: 0
+  - note: iteration ground
+    query: input.x[i].y[i] = 2
+    input: {
+      "x": [
+        {
+          "y": [
+            1,
+            2,
+          ]
+        },
+        {
+          "y": [
+            1,
+            2,
+          ]
+        },
+      ]
+    }
+    return_code: 1
+  - note: iteration ground
+    query: input.x[i].y[i] = 1
+    input: {
+      "x": [
+        {
+          "y": [
+            2,
+            1,
+          ]
+        },
+        {
+          "y": [
+            1,
+            2,
+          ]
+        },
+      ]
+    }
+    return_code: 0
