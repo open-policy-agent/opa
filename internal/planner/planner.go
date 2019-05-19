@@ -961,7 +961,7 @@ func (p *Planner) planRef(ref ast.Ref, iter planiter) error {
 	}
 
 	if head.Compare(ast.DefaultRootDocument.Value) == 0 {
-		return p.planRefData(ref, iter)
+		return p.planRefData(p.funcs, ref, 0, iter)
 	}
 
 	p.ltarget, ok = p.vars[head]
@@ -1062,43 +1062,36 @@ func (p *Planner) planRefScan(ref ast.Ref, index int, iter planiter) error {
 	})
 }
 
-func (p *Planner) planRefData(ref ast.Ref, iter planiter) error {
+func (p *Planner) planRefData(node *functrie, ref ast.Ref, idx int, iter planiter) error {
 
-	// TODO(tsandall): This is still work in progress. Currently lacks support for:
-	//
-	// - Iterating over virtual docuemnts
-	// - Base documents (and combination of base and virtual documents)
-
-	node := p.funcs
-
-	for i, term := range ref {
-
-		if _, ok := term.Value.(ast.String); !ok && i > 0 {
-			return fmt.Errorf("not implemented: refs with non-string operands")
-		}
-
-		child, ok := node.children[term.Value]
-		if !ok {
-			return nil
-		}
-
-		if child.val == nil {
-			node = child
-			continue
-		}
-
-		p.ltarget = p.newLocal()
-
-		p.appendStmt(&ir.CallStmt{
-			Func:   ref[:i+1].String(),
-			Args:   []ir.Local{p.vars[ast.InputRootDocument.Value.(ast.Var)]},
-			Result: p.ltarget,
-		})
-
-		return p.planRefRec(ref, i+1, iter)
+	if idx >= len(ref) {
+		return p.planRefDataVirtualExtent(node, iter)
 	}
 
-	return p.planRefDataVirtualExtent(node, iter)
+	term := ref[idx]
+
+	if _, ok := term.Value.(ast.String); !ok && idx > 0 {
+		return fmt.Errorf("not implemented: refs with non-string operands")
+	}
+
+	child, ok := node.children[term.Value]
+	if !ok {
+		return nil
+	}
+
+	if child.val == nil {
+		return p.planRefData(child, ref, idx+1, iter)
+	}
+
+	p.ltarget = p.newLocal()
+
+	p.appendStmt(&ir.CallStmt{
+		Func:   ref[:idx+1].String(),
+		Args:   []ir.Local{p.vars[ast.InputRootDocument.Value.(ast.Var)]},
+		Result: p.ltarget,
+	})
+
+	return p.planRefRec(ref, idx+1, iter)
 }
 
 func (p *Planner) planRefDataVirtualExtent(node *functrie, iter planiter) error {
