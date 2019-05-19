@@ -193,7 +193,7 @@ The value of `q` is a set of names
 > q
 [
   "prod",
-  "smoke",
+  "smoke1",
   "dev"
 ]
 ```
@@ -293,7 +293,7 @@ Composite values can also be defined in terms of [Variables](#variables) or [Ref
 ```ruby
 > a := 42; b := false; c := null; d := {"a": a, "x": [b, c]}
 +----+-------+------+---------------------------+
-| A  |   B   |  C   |             D             |
+| a  |   b   |  c   |             d             |
 +----+-------+------+---------------------------+
 | 42 | false | null | {"a":42,"x":[false,null]} |
 +----+-------+------+---------------------------+
