@@ -471,18 +471,18 @@ func TestExprWith(t *testing.T) {
 	})
 }
 
-func TestVarDeclExpr(t *testing.T) {
+func TestSomeDeclExpr(t *testing.T) {
 
-	assertParseOneExpr(t, "one", "var x", &Expr{
-		Terms: &VarDecl{
+	assertParseOneExpr(t, "one", "some x", &Expr{
+		Terms: &SomeDecl{
 			Symbols: []*Term{
 				VarTerm("x"),
 			},
 		},
 	})
 
-	assertParseOneExpr(t, "multiple", "var x, y", &Expr{
-		Terms: &VarDecl{
+	assertParseOneExpr(t, "multiple", "some x, y", &Expr{
+		Terms: &SomeDecl{
 			Symbols: []*Term{
 				VarTerm("x"),
 				VarTerm("y"),
@@ -490,9 +490,9 @@ func TestVarDeclExpr(t *testing.T) {
 		},
 	})
 
-	assertParseOneExpr(t, "multiple split across lines", `var x, y,
+	assertParseOneExpr(t, "multiple split across lines", `some x, y,
 		z`, &Expr{
-		Terms: &VarDecl{
+		Terms: &SomeDecl{
 			Symbols: []*Term{
 				VarTerm("x"),
 				VarTerm("y"),
@@ -504,13 +504,13 @@ func TestVarDeclExpr(t *testing.T) {
 	assertParseRule(t, "whitespace separated", `
 
 		p[x] {
-			var x
+			some x
 			q[x]
 		}
 	`, &Rule{
 		Head: NewHead(Var("p"), VarTerm("x")),
 		Body: NewBody(
-			NewExpr(&VarDecl{Symbols: []*Term{VarTerm("x")}}),
+			NewExpr(&SomeDecl{Symbols: []*Term{VarTerm("x")}}),
 			NewExpr(RefTerm(VarTerm("q"), VarTerm("x"))),
 		),
 	})
@@ -518,13 +518,13 @@ func TestVarDeclExpr(t *testing.T) {
 	assertParseRule(t, "whitespace terminated", `
 
 	p[x] {
-		var x
+		some x
 		x
 	}
 `, &Rule{
 		Head: NewHead(Var("p"), VarTerm("x")),
 		Body: NewBody(
-			NewExpr(&VarDecl{Symbols: []*Term{VarTerm("x")}}),
+			NewExpr(&SomeDecl{Symbols: []*Term{VarTerm("x")}}),
 			NewExpr(VarTerm("x")),
 		),
 	})

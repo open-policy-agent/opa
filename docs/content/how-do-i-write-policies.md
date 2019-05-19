@@ -514,7 +514,7 @@ Rules are often written in terms of multiple expressions that contain references
 
 ```ruby
 apps_and_hostnames[[name, hostname]] {
-    var i, j, k
+    some i, j, k
     name := apps[i].name
     server := apps[i].servers[_]
     sites[j].servers[k].name == server
@@ -551,7 +551,7 @@ Using a different key on the same array or object provides the equivalent of sel
 
 ```ruby
 same_site[apps[k].name] {
-    var i, j, k
+    some i, j, k
     apps[i].name == "mysql"
     server := apps[i].servers[_]
     server == sites[j].servers[_].name
@@ -757,7 +757,7 @@ Rules that define objects are very similar to rules that define sets.
 
 ```ruby
 apps_by_hostname[hostname] = app {
-    var i
+    some i
     server := sites[_].servers[_]
     hostname := server.hostname
     apps[i].servers[_] = server.name
@@ -1143,10 +1143,10 @@ http_servers[server] {
 }
 ```
 
-## Var Keyword
+## Some Keyword
 
-The `var` keyword allows queries to explicitly declare local variables. Use the
-`var` keyword in rules that contain unification statements or references with
+The `some` keyword allows queries to explicitly declare local variables. Use the
+`some` keyword in rules that contain unification statements or references with
 variable operands **if** variables contained in those statements are not
 declared using `:=` .
 
@@ -1161,7 +1161,7 @@ tuple is the site index and the second element is the server index.
 
 ```ruby
 tuples[[i, j]] {
-    var i, j
+    some i, j
     sites[i].region == "west"
     server := sites[i].servers[j]    # note: 'server' is local because it's declared with :=
     contains(server.name, "db")
@@ -1203,11 +1203,11 @@ rules in the same package without affecting the result:
 ]
 ```
 
-If we had not declared `i` with the `var` keyword, introducing the `i` rule
+If we had not declared `i` with the `some` keyword, introducing the `i` rule
 above would have changed the result of `tuples` because the `i` symbol in the
 body would capture the global value.
 
-The `var` keyword is not required but it's recommended to avoid situations like
+The `some` keyword is not required but it's recommended to avoid situations like
 the one above where introduction of a rule inside a package could change
 behaviour of other rules.
 

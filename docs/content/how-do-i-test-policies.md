@@ -31,7 +31,7 @@ allow {
 }
 
 allow {
-    var profile_id
+    some profile_id
     input.path = ["users", profile_id]
     input.method == "GET"
     profile_id == input.user_id
@@ -476,7 +476,7 @@ roles = [
 default allow = false
 
 allow {
-    var role_name
+    some role_name
     user_has_role[role_name]
     role_has_permission[role_name]
 }

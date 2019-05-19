@@ -484,9 +484,9 @@ func TestWithString(t *testing.T) {
 	}
 }
 
-func TestVarDeclString(t *testing.T) {
+func TestSomeDeclString(t *testing.T) {
 
-	decl := &VarDecl{
+	decl := &SomeDecl{
 		Symbols: []*Term{
 			VarTerm("a"),
 			VarTerm("b"),

@@ -299,12 +299,12 @@ func makeLiteralExpr(loc *Location, lhs, rest interface{}) (interface{}, error) 
 	return expr, nil
 }
 
-func makeVarDeclLiteral(loc *Location, sl interface{}) (interface{}, error) {
+func makeSomeDeclLiteral(loc *Location, sl interface{}) (interface{}, error) {
 	symbols := sl.([]*Term)
-	return NewExpr(&VarDecl{Location: loc, Symbols: symbols}).SetLocation(loc), nil
+	return NewExpr(&SomeDecl{Location: loc, Symbols: symbols}).SetLocation(loc), nil
 }
 
-func makeVarDeclSymbols(head interface{}, rest interface{}) (interface{}, error) {
+func makeSomeDeclSymbols(head interface{}, rest interface{}) (interface{}, error) {
 
 	var symbols []*Term
 

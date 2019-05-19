@@ -136,7 +136,7 @@ violations[server] {
 }
 
 public_servers[server] {
-    var i, j
+    some i, j
     server := servers[_]
     server.ports[_] == ports[i].id
     ports[i].networks[_] == networks[j].id
@@ -424,7 +424,7 @@ violations[server] {
 
 # A server exists in the public_servers set if...
 public_servers[server] {
-    var i, j
+    some i, j
     # ...the server exists
     server := servers[_]
     # ...and the server is connected to a port

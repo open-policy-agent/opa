@@ -119,7 +119,7 @@ sod_roles = [
 
 # Find all users violating SOD
 sod_violation[user] {
-  var user
+  some user
   # grab one role for a user
   role1 := user_role[user][_]
   # grab another role for that same user

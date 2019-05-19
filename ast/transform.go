@@ -142,12 +142,12 @@ func Transform(t Transformer, x interface{}) (interface{}, error) {
 		return y, nil
 	case *Expr:
 		switch ts := y.Terms.(type) {
-		case *VarDecl:
+		case *SomeDecl:
 			decl, err := Transform(t, ts)
 			if err != nil {
 				return nil, err
 			}
-			if y.Terms, ok = decl.(*VarDecl); !ok {
+			if y.Terms, ok = decl.(*SomeDecl); !ok {
 				return nil, fmt.Errorf("illegal transform: %T != %T", y, decl)
 			}
 			return y, nil

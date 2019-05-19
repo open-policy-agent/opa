@@ -2178,7 +2178,7 @@ func declaredVars(x interface{}) VarSet {
 					vars.Add(v)
 					return false
 				})
-			} else if decl, ok := x.Terms.(*VarDecl); ok {
+			} else if decl, ok := x.Terms.(*SomeDecl); ok {
 				for i := range decl.Symbols {
 					vars.Add(decl.Symbols[i].Value.(Var))
 				}
@@ -2622,8 +2622,8 @@ func rewriteDeclaredVarsInBody(g *localVarGenerator, stack *localDeclaredVars, u
 		var expr *Expr
 		if body[i].IsAssignment() {
 			expr, errs = rewriteDeclaredAssignment(g, stack, body[i], errs)
-		} else if decl, ok := body[i].Terms.(*VarDecl); ok {
-			errs = rewriteVarDeclStatement(g, stack, decl, errs)
+		} else if decl, ok := body[i].Terms.(*SomeDecl); ok {
+			errs = rewriteSomeDeclStatement(g, stack, decl, errs)
 		} else {
 			expr, errs = rewriteDeclaredVarsInExpr(g, stack, body[i], errs)
 		}
@@ -2678,7 +2678,7 @@ func checkUnusedDeclaredVars(loc *Location, stack *localDeclaredVars, used VarSe
 	return errs
 }
 
-func rewriteVarDeclStatement(g *localVarGenerator, stack *localDeclaredVars, decl *VarDecl, errs Errors) Errors {
+func rewriteSomeDeclStatement(g *localVarGenerator, stack *localDeclaredVars, decl *SomeDecl, errs Errors) Errors {
 	for i := range decl.Symbols {
 		v := decl.Symbols[i].Value.(Var)
 		if _, err := rewriteDeclaredVar(g, stack, v, declaredVar); err != nil {

@@ -191,7 +191,7 @@ import data.networks
 import data.ports
 
 public_servers[s] {
-    var i, j
+    some i, j
     s := servers[_]
     s.ports[_] == ports[i].id
     ports[i].networks[_] == networks[j].id

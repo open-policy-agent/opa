@@ -305,8 +305,8 @@ func (w *writer) writeExpr(expr *ast.Expr, comments []*ast.Comment) []*ast.Comme
 	}
 
 	switch t := expr.Terms.(type) {
-	case *ast.VarDecl:
-		comments = w.writeVarDecl(t, comments)
+	case *ast.SomeDecl:
+		comments = w.writeSomeDecl(t, comments)
 	case []*ast.Term:
 		comments = w.writeFunctionCall(expr, comments)
 	case *ast.Term:
@@ -331,9 +331,9 @@ func (w *writer) writeExpr(expr *ast.Expr, comments []*ast.Comment) []*ast.Comme
 	return comments
 }
 
-func (w *writer) writeVarDecl(decl *ast.VarDecl, comments []*ast.Comment) []*ast.Comment {
+func (w *writer) writeSomeDecl(decl *ast.SomeDecl, comments []*ast.Comment) []*ast.Comment {
 	comments = w.insertComments(comments, decl.Location)
-	w.write("var ")
+	w.write("some ")
 
 	row := decl.Location.Row
 
