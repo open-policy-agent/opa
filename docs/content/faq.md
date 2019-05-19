@@ -136,7 +136,7 @@ For example, the following rule has one local variable `user`, and that variable
 
 ```ruby
 allow {
-  var user
+  some user
   input.method == "GET"
   input.path = ["accounts", user]
   input.user == user
@@ -180,7 +180,7 @@ In the linear fragment, OPA includes special algorithms that index rules efficie
 
 ```ruby
 allow {
-  var user
+  some user
   input.method == "GET"
   input.path = ["accounts", user]
   input.user == user
@@ -322,27 +322,27 @@ Examples:
 ```
 # Unsafe: x in head does not appear in body.
 #   There are infinitely many values that make p true
-p[x] { var y; q[y]; r[y] }
+p[x] { some y; q[y]; r[y] }
 
 # Safe.  q and r are both rules
 #   Both q and r are finite; therefore p is also finite.
-p[x] = y { var x, y; q[x]; r[y] }
+p[x] = y { some x, y; q[x]; r[y] }
 
 # Unsafe: y appears inside a builtin (+) but not in the body.
 #   y has infinitely many possible values; so too does x.
-p[x] { var y; x := y + 7 }
+p[x] { some y; x := y + 7 }
 
 # Safe: the only values for y are those in q.
 #   Since q is a rule and finite so is p finite.
-p[x] { var y; x := y + 7; q[y]}
+p[x] { some y; x := y + 7; q[y]}
 
 # Unsafe: x appears inside a negation
 #  If q is finite, all the x's not in q are infinite.
-p[x] { var x; not q[x] }
+p[x] { some x; not q[x] }
 
 # Safe: x appears inside of r so p is no larger than r
 #  Since r is finite, so too is p
-p[x] { var x; not q[x]; r[x] }
+p[x] { some x; not q[x]; r[x] }
 ```
 
 Safety has one implication about negation: you don't iterate over values NOT in a rule like `q`.  Instead, you iterate over values in another rule like `r` and then use negation to CHECK whether if that value is NOT in `q`.

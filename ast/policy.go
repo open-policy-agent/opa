@@ -84,7 +84,7 @@ var Keywords = [...]string{
 	"null",
 	"true",
 	"false",
-	"var",
+	"some",
 }
 
 // IsKeyword returns true if s is a language keyword.
@@ -187,8 +187,8 @@ type (
 		With      []*With     `json:"with,omitempty"`
 	}
 
-	// VarDecl represents a variable declaration statement. The symbols are variable.
-	VarDecl struct {
+	// SomeDecl represents a variable declaration statement. The symbols are variables.
+	SomeDecl struct {
 		Location *Location `json:"-"`
 		Symbols  []*Term   `json:"symbols"`
 	}
@@ -906,8 +906,8 @@ func (expr *Expr) Compare(other *Expr) int {
 		if cmp := termSliceCompare(t, other.Terms.([]*Term)); cmp != 0 {
 			return cmp
 		}
-	case *VarDecl:
-		if cmp := Compare(t, other.Terms.(*VarDecl)); cmp != 0 {
+	case *SomeDecl:
+		if cmp := Compare(t, other.Terms.(*SomeDecl)); cmp != 0 {
 			return cmp
 		}
 	}
@@ -917,7 +917,7 @@ func (expr *Expr) Compare(other *Expr) int {
 
 func (expr *Expr) sortOrder() int {
 	switch expr.Terms.(type) {
-	case *VarDecl:
+	case *SomeDecl:
 		return 0
 	case *Term:
 		return 1
@@ -933,7 +933,7 @@ func (expr *Expr) Copy() *Expr {
 	cpy := *expr
 
 	switch ts := expr.Terms.(type) {
-	case *VarDecl:
+	case *SomeDecl:
 		cpy.Terms = ts.Copy()
 	case []*Term:
 		cpyTs := make([]*Term, len(ts))
@@ -957,7 +957,7 @@ func (expr *Expr) Copy() *Expr {
 func (expr *Expr) Hash() int {
 	s := expr.Index
 	switch ts := expr.Terms.(type) {
-	case *VarDecl:
+	case *SomeDecl:
 		s += ts.Hash()
 	case []*Term:
 		for _, t := range ts {
@@ -1100,7 +1100,7 @@ func (expr *Expr) String() string {
 		}
 	case *Term:
 		buf = append(buf, t.String())
-	case *VarDecl:
+	case *SomeDecl:
 		buf = append(buf, t.String())
 	}
 
@@ -1134,7 +1134,7 @@ func NewBuiltinExpr(terms ...*Term) *Expr {
 	return &Expr{Terms: terms}
 }
 
-func (d *VarDecl) String() string {
+func (d *SomeDecl) String() string {
 	buf := make([]string, len(d.Symbols))
 	for i := range buf {
 		buf[i] = d.Symbols[i].String()
@@ -1143,17 +1143,17 @@ func (d *VarDecl) String() string {
 }
 
 // SetLoc sets the Location on d.
-func (d *VarDecl) SetLoc(loc *Location) {
+func (d *SomeDecl) SetLoc(loc *Location) {
 	d.Location = loc
 }
 
 // Loc returns the Location of d.
-func (d *VarDecl) Loc() *Location {
+func (d *SomeDecl) Loc() *Location {
 	return d.Location
 }
 
 // Copy returns a deep copy of d.
-func (d *VarDecl) Copy() *VarDecl {
+func (d *SomeDecl) Copy() *SomeDecl {
 	cpy := *d
 	cpy.Symbols = termSliceCopy(d.Symbols)
 	return &cpy
@@ -1161,12 +1161,12 @@ func (d *VarDecl) Copy() *VarDecl {
 
 // Compare returns an integer indicating whether d is less than, equal to, or
 // greater than other.
-func (d *VarDecl) Compare(other *VarDecl) int {
+func (d *SomeDecl) Compare(other *SomeDecl) int {
 	return termSliceCompare(d.Symbols, other.Symbols)
 }
 
 // Hash returns a hash code of d.
-func (d *VarDecl) Hash() int {
+func (d *SomeDecl) Hash() int {
 	return termSliceHash(d.Symbols)
 }
 

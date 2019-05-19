@@ -1672,13 +1672,13 @@ func TestEvalBodyRewrittenRef(t *testing.T) {
 	}
 }
 
-func TestEvalBodyVarDecl(t *testing.T) {
+func TestEvalBodySomeDecl(t *testing.T) {
 	ctx := context.Background()
 	store := newTestStore()
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
 	repl.OneShot(ctx, "json")
-	repl.OneShot(ctx, "var x; x = 1")
+	repl.OneShot(ctx, "some x; x = 1")
 	exp := util.MustUnmarshalJSON([]byte(`{
 		"result": [
 			{
@@ -1688,7 +1688,7 @@ func TestEvalBodyVarDecl(t *testing.T) {
 						"text": "x = 1",
 						"location": {
 							"row": 1,
-							"col": 8
+							"col": 9
 						}
 					}
 				],
@@ -1700,7 +1700,7 @@ func TestEvalBodyVarDecl(t *testing.T) {
 	}`))
 	result := util.MustUnmarshalJSON(buffer.Bytes())
 	if util.Compare(result, exp) != 0 {
-		t.Fatalf("Expected %v but got: %v", exp, buffer.String())
+		t.Fatalf("Expected %v but got: %v", exp, result)
 	}
 }
 

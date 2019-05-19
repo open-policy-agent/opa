@@ -1140,7 +1140,7 @@ func TestCompilerRewriteLocalAssignments(t *testing.T) {
 				p = {1,2,3}
 				x = 4
 				head_nested[p[x]] {
-					var x
+					some x
 				}`,
 			exp: `
 					package test
@@ -1154,7 +1154,7 @@ func TestCompilerRewriteLocalAssignments(t *testing.T) {
 				package test
 				p = {1,2}
 				head_closure_nested[p[x]] {
-					y = [true | var x; x = 1]
+					y = [true | some x; x = 1]
 				}
 			`,
 			exp: `
@@ -1490,7 +1490,7 @@ func TestRewriteDeclaredVars(t *testing.T) {
 				package test
 				x = 1
 				y = 2
-				p { var x; input = [x, y] }
+				p { some x; input = [x, y] }
 			`,
 			exp: `
 				package test
@@ -1505,7 +1505,7 @@ func TestRewriteDeclaredVars(t *testing.T) {
 				package test
 				x = []
 				y = {}
-				p { var x; walk(y, [x, y]) }
+				p { some x; walk(y, [x, y]) }
 			`,
 			exp: `
 				package test
@@ -1521,7 +1521,7 @@ func TestRewriteDeclaredVars(t *testing.T) {
 				x = "a"
 				y = 1
 				q[[2, "b"]]
-				p { var x; q[[y,x]] }
+				p { some x; q[[y,x]] }
 			`,
 			exp: `
 				package test
@@ -1538,9 +1538,9 @@ func TestRewriteDeclaredVars(t *testing.T) {
 				x = 1
 				y = 2
 				p {
-					var x, z
+					some x, z
 					z = 3
-					[x | x = 2; y = 2; var z; z = 4]
+					[x | x = 2; y = 2; some z; z = 4]
 				}
 			`,
 			exp: `
@@ -1561,7 +1561,7 @@ func TestRewriteDeclaredVars(t *testing.T) {
 				y = 1
 				z = 2
 				p[x] = [y, z] {
-					var x, z
+					some x, z
 					x = "b"
 					z = 4
 				}`,
@@ -1583,8 +1583,8 @@ func TestRewriteDeclaredVars(t *testing.T) {
 			module: `
 				package test
 				p {
-					var x
-					var x
+					some x
+					some x
 				}
 			`,
 			wantErr: errors.New("var x declared above"),
@@ -1595,7 +1595,7 @@ func TestRewriteDeclaredVars(t *testing.T) {
 				package test
 				p {
 					x := 1
-					var x
+					some x
 				}
 			`,
 			wantErr: errors.New("var x assigned above"),
@@ -1606,7 +1606,7 @@ func TestRewriteDeclaredVars(t *testing.T) {
 				package test
 				p {
 					data.q[x]
-					var x
+					some x
 				}
 			`,
 			wantErr: errors.New("var x referenced above"),
@@ -1616,7 +1616,7 @@ func TestRewriteDeclaredVars(t *testing.T) {
 			module: `
 				package test
 				p {
-					var x
+					some x
 				}
 			`,
 			wantErr: errors.New("declared var x unused"),
@@ -1627,7 +1627,7 @@ func TestRewriteDeclaredVars(t *testing.T) {
 			package test
 
 			f([a]) {
-				var a
+				some a
 				a = 1
 			}
 			`,

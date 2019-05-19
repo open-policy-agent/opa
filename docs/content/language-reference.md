@@ -301,9 +301,9 @@ rule-head       = var [ "(" rule-args ")" ] [ "[" term "]" ] [ = term ]
 rule-args       = term { "," term }
 rule-body       = [ else [ = term ] ] "{" query "}"
 query           = literal { ";" | [\r\n] literal }
-literal         = ( var-decl | expr | "not" expr ) { with-modifier }
+literal         = ( some-decl | expr | "not" expr ) { with-modifier }
 with-modifier   = "with" term "as" term
-var-decl        = "var" var { "," var }
+some-decl       = "some" var { "," var }
 expr            = term | expr-built-in | expr-infix
 expr-built-in   = var [ "." var ] "(" [ term { , term } ] ")"
 expr-infix      = [ term "=" ] term infix-operator term

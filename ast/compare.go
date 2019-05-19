@@ -19,7 +19,7 @@ import (
 // are sorted as follows:
 //
 // nil < Null < Boolean < Number < String < Var < Ref < Array < Object < Set <
-// ArrayComprehension < ObjectComprehension < SetComprehension < Expr < VarDecl
+// ArrayComprehension < ObjectComprehension < SetComprehension < Expr < SomeDecl
 // < With < Body < Rule < Import < Package < Module.
 //
 // Arrays and Refs are equal iff both a and b have the same length and all
@@ -148,8 +148,8 @@ func Compare(a, b interface{}) int {
 	case *Expr:
 		b := b.(*Expr)
 		return a.Compare(b)
-	case *VarDecl:
-		b := b.(*VarDecl)
+	case *SomeDecl:
+		b := b.(*SomeDecl)
 		return a.Compare(b)
 	case *With:
 		b := b.(*With)
@@ -217,7 +217,7 @@ func sortOrder(x interface{}) int {
 		return 13
 	case *Expr:
 		return 100
-	case *VarDecl:
+	case *SomeDecl:
 		return 101
 	case *With:
 		return 110
