@@ -110,3 +110,25 @@ cases:
         p[{"a": 2}]
         p[{"a": 3}]
     return_code: 0
+  - note: set chain
+    query: data.x.p[x]; x = 2
+    modules:
+      - |
+        package x
+        p[x] { q[x]; r[x] }
+        q[1]
+        q[2]
+        q[3]
+        r[2]
+    return_code: 1
+  - note: set chain (negative)
+    query: data.x.p[x]; x = 2
+    modules:
+      - |
+        package x
+        p[x] { q[x]; r[x] }
+        q[1]
+        q[2]
+        q[3]
+        r[3]
+    return_code: 0
