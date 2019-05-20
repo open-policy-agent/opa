@@ -46,10 +46,8 @@ build_release() {
     GOOS=darwin GOARCH=amd64 make build
     GOOS=linux GOARCH=amd64 make build
     GOOS=windows GOARCH=amd64 make build
-    make site
     mv opa_windows_amd64 opa_windows_amd64.exe
     mv opa_*_* $OUTPUT_DIR
-    mv docs/site.tar.gz $OUTPUT_DIR
 }
 
 clone_repo() {
