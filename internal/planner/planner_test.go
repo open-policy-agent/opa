@@ -143,7 +143,7 @@ func TestPlannerHelloWorld(t *testing.T) {
 				package test
 
 				p = 1
-			#	q = 2 { false }
+				q = 2 { false }
 			`},
 		},
 	}
