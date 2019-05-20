@@ -3,30 +3,93 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## 0.11.0
 
-Compatibility-related:
+### Compatibility Notes
 
-- Update topdown to return `eval_builtin_error` instead of
-  `eval_internal_error`.
-- Remove `ast.WithInput()` option for `ast.QueryCompiler` and the `Input` field from
-  the `QueryContext` struct.
-- Update compiler to stop users from redeclaring function args.
-- Update Rego to include 'var' keyword.
+This release includes a few small but backward incompatible
+changes:
 
-Miscellaneous:
+* The compiler will reject functions that redeclare arguments. A
+  search of public .rego files on GitHub only returned one result
+  which was contained in the OPA documentation. For example:
 
-- Add `rego.Rego#PrepareForEval()` and `rego.Rego#PrepareForPartial()` function to
-  pre-process the `Rego` object for performance improvements on subsequent `Eval`
-  or `Partial` calls.
-- Add new metric `rego_input_parse` and no longer count input parsing as time spent
-  in the `rego_query_compile` step.
-- Add new compiler metrics for each stage using `compiler_stage_*` and
-  `query_compiler_stage_*` naming for each. These are enabled when
-  instrumentation is turned on for the Rego API, REPL, and REST API.
-- Change the `ast.Compiler` and `ast.QueryCompiler` API's for `WithExtraStage`
-  to require both a stage name and metric name.
-  
+    ```
+    f(x) {
+        x := 1  # bad: redeclaration of 'x'
+        x == 1  # ok
+    }
+    ```
+
+* Errors returned by built-in calls are no longer coded as
+  `eval_internal_error`. Instead they are returned as
+  `eval_builtin_error`. This change is made so callers can
+  differentiate between actual internal errors and built-in errors
+  that are result of bad inputs from the policy.
+
+* The `ast.QueryCompiler#WithInput` function and
+  `ast.QueryContext#Input` field have been removed because they were
+  unused and had no affect.
+
+* The `ast.Compiler` and `ast.QueryCompiler` functions to register
+  extra changes now require a stage and metric name.
+
+### Major Features
+
+This release includes a few notable features and improvements:
+
+* The `some` keyword allows you to declare local variables to avoid
+  namespacing issues. See the [Some
+  Keyword](https://www.openpolicyagent.org/docs/edge/how-do-i-write-policies/#some-keyword)
+  section in the documentation for more detail.
+
+* The `opa test`, `eval`, REPL, and HTTP API have been extended with a
+  new explanation mode for filtering tracing notes. This makes it
+  easier to see the output of `trace(msg)` calls from your policy.
+
+* The WebAssembly (Wasm) compiler has been extended to include support for
+  compiling rules into Wasm. Previously the compiler relied on partial
+  evaluation to inline all rules. In some cases this is not possible
+  due to limitations on Rego queries. In coming releases, the Wasm
+  support will be extended to cover the entire language.
+
+* The `rego` package has been extended to support prepared
+  queries. Prepared queries cache the parsed and compiled query ASTs
+  for re-use across multiple `Eval` calls. For small policies the
+  speedup can be significant. See the [GoDoc](https://godoc.org/github.com/open-policy-agent/opa/rego#example-Rego-PrepareForEval) for details.
+
+### Fixes
+
+- Add Kubernetes admission control debugging tips ([#1039](https://github.com/open-policy-agent/opa/issues/1039))
+- Add docs on health check API endpoint ([#1086](https://github.com/open-policy-agent/opa/issues/1086))
+- Add hardened configuration example to security page ([#1172](https://github.com/open-policy-agent/opa/issues/1172))
+- Add support for with keyword stacking ([#802](https://github.com/open-policy-agent/opa/issues/802))
+- Fix type inferencing on object keys ([#1361](https://github.com/open-policy-agent/opa/issues/1361))
+- Fix simple Kubernetes deployment example ([#874](https://github.com/open-policy-agent/opa/issues/874))
+- Fix bug in data mocking that resulted in wrong iteration behavior ([#1261](https://github.com/open-policy-agent/opa/issues/1261))
+- Fix bug in set deep copy that caused panic ([#1406](https://github.com/open-policy-agent/opa/issues/1406))
+- Fix bug in REPL that prevented rules from being declared ([#1104](https://github.com/open-policy-agent/opa/issues/1104))
+
+### Miscellaneous
+
+- docs: Better documentation for providing the `input` document over HTTP ([#1293](https://github.com/open-policy-agent/opa/issues/1293))
+- docs: Add note about HTTP_PROXY  friends ([#1410](https://github.com/open-policy-agent/opa/issues/1410))
+- Add CLI config overrides and ENV injection
+- Add additional compiler metrics for each stage
+- Add an “edge” release to the docs
+- Add param to include bundle activation in /health response
+- Add provenance query output
+- Add support for graceful shutdown of OPA server
+- Improve discovery feature documentation
+- Make `json` logs the default and add `json-pretty`
+- Raise error when loading empty module in bundle
+- Return eval_builtin_error instead of eval_internal_error
+- Rewrite == to = in queries passed to the compile API
+- docs: Update bundle docs with caching info
+- Update logrus to 1.4.0
+- server: Add early exit on PUT /v1/policies
+- topdown: Fix set unification partial eval bug
+- topdown: Omit rule body from enter/redo events
 
 ## 0.10.7
 
