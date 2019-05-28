@@ -12,36 +12,48 @@
       .headline--wave--fg {
         position: absolute;
         top: 630px;
-        }
+        height: 100%;
+      }
+      .headline--wave--fg::after {
+        height:100%;
+      }
       .headline--wave--bg {
         position: absolute;
-        top: 600px;}
-      h1,p{
-        text-align: left;
-        margin-left: 10%;
+        top: 600px;
+      }
+      .headline--subtitle {
+        margin-bottom: 30px
+      }
+      .headline {
+        padding: 0px;
+      }
+      h1,p {
+        text-align: center;
       }
       img {
-        margin-left: -5%;
+        margin-left: -7%;
         height: 115px;
-      }
-      .anchorPoint{
-        position: relative;
       }
       .vikings {
         height: 50px;
+      }
+      .content {
+        width: max-content;
       }
       hr {
         height: 1px;
         background-color: #ddd;
         border: none;
       }
-      .container {
+      .anchor {
         display: flex;
-        margin-left: 10%;
+        margin: 0px auto;
+        width: max-content;
       }
       .description {
-        margin-left: 60px;
+        margin-left: 0px;
         margin-top: 35px;
+        text-align: left;
       }
     </style>
   </head>
@@ -122,19 +134,22 @@
           </li>
         </ul>
       </nav>
-      <div class="anchorPoint">
-        <div class="headline--wave--bg" role="presentation"></div>
-        <div class="headline--wave--fg" role="presentation"></div>
-      </div>
     </header>
-    <h1>Support</h1>
-    <br />
-    <p>Below is a list of companies that offer commercial support and other enterprise offerings for Open Policy Agent:</p>
-    <hr>
-    <div class="container">
-      <a href="https://registration.styra.com/openpolicyagentsupport"><img src="../img/logos/styra-logo.png"></img></a>
-      <p class="description">Styra is the original creator of Open Policy Agent and provides support, professional services, training, <br/> and enterprise products.
-        <a href="https://registration.styra.com/openpolicyagentsupport"> Learn More >> </a>
-      </p>
+    <div class="headline">
+      <div class="content">
+        <h1 class="headline--title">Support</h1>
+        <p class="headline--subtitle">Below is a list of companies that offer commercial support and other enterprise offerings for Open Policy Agent:</p>
+        </div>
     </div>
+    <div class="container">
+      <hr>
+      <div class="anchor">
+        <a href="https://registration.styra.com/openpolicyagentsupport"><img src="../img/logos/styra-logo.png"></img></a>
+          <div class="description">Styra is the original creator of Open Policy Agent and provides support,<br/>professional services, training, and enterprise products.
+            <a href="https://registration.styra.com/openpolicyagentsupport">Learn more &raquo;</a>
+          </div>
+      </div>
+    </div>
+    <div class="headline--wave--bg" role="presentation"></div>
+    <div class="headline--wave--fg" role="presentation"></div>
 </html>
