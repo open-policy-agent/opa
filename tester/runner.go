@@ -74,7 +74,7 @@ func (r Result) Pass() bool {
 }
 
 func (r *Result) String() string {
-	return fmt.Sprintf("%v.%v: %v (%v)", r.Package, r.Name, r.outcome(), r.Duration/time.Microsecond)
+	return fmt.Sprintf("%v.%v: %v (%v)", r.Package, r.Name, r.outcome(), r.Duration)
 }
 
 func (r *Result) outcome() string {
