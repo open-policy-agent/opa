@@ -76,6 +76,10 @@ func run(params params, args []string) error {
 
 	ctx := context.Background()
 
+	if err := os.MkdirAll(path.Dir(params.Output), 0755); err != nil {
+		return err
+	}
+
 	f, err := os.Create(params.Output)
 	if err != nil {
 		return err
