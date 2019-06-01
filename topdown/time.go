@@ -18,6 +18,7 @@ import (
 type nowKeyID string
 
 var nowKey = nowKeyID("time.now_ns")
+var tzCache map[string]*time.Location
 
 func builtinTimeNowNanos(bctx BuiltinContext, _ []*ast.Term, iter func(*ast.Term) error) error {
 
@@ -83,7 +84,7 @@ func builtinParseDurationNanos(a ast.Value) (ast.Value, error) {
 }
 
 func builtinDate(a ast.Value) (ast.Value, error) {
-	t, err := utcTime(a)
+	t, err := tzTime(a)
 	if err != nil {
 		return nil, err
 	}
@@ -93,7 +94,7 @@ func builtinDate(a ast.Value) (ast.Value, error) {
 }
 
 func builtinClock(a ast.Value) (ast.Value, error) {
-	t, err := utcTime(a)
+	t, err := tzTime(a)
 	if err != nil {
 		return nil, err
 	}
@@ -103,7 +104,7 @@ func builtinClock(a ast.Value) (ast.Value, error) {
 }
 
 func builtinWeekday(a ast.Value) (ast.Value, error) {
-	t, err := utcTime(a)
+	t, err := tzTime(a)
 	if err != nil {
 		return nil, err
 	}
@@ -111,8 +112,56 @@ func builtinWeekday(a ast.Value) (ast.Value, error) {
 	return ast.String(weekday), nil
 }
 
-func utcTime(a ast.Value) (time.Time, error) {
-	value, err := builtins.NumberOperand(a, 1)
+func tzTime(a ast.Value) (t time.Time, err error) {
+	var nVal ast.Value
+	loc := time.UTC
+
+	switch va := a.(type) {
+	case ast.Array:
+
+		// not sure what error to return if passed an empty array, but if this isn't handled it panics if passed an empty array
+		// if len(va) == 0 {
+		// 	return time.Time{}, builtins.NewOperandElementErr(<something>)
+		// }
+
+		nVal, err = builtins.NumberOperand(va[0].Value, 1)
+		if err != nil {
+			return time.Time{}, err
+		}
+
+		if len(va) > 1 {
+			tzVal, err := builtins.StringOperand(va[1].Value, 1)
+			if err != nil {
+				return time.Time{}, err
+			}
+
+			tzName := string(tzVal)
+
+			switch tzName {
+			case "", "UTC":
+				// loc is already UTC
+			case "Local":
+				loc = time.Local
+
+			default:
+				var ok bool
+				loc, ok = tzCache[tzName]
+
+				if !ok {
+					loc, err = time.LoadLocation(tzName)
+					if err != nil {
+						return time.Time{}, err
+					}
+					tzCache[tzName] = loc
+				}
+			}
+		}
+
+	case ast.Number:
+		nVal = a
+	}
+
+	value, err := builtins.NumberOperand(nVal, 1)
 	if err != nil {
 		return time.Time{}, err
 	}
@@ -123,7 +172,9 @@ func utcTime(a ast.Value) (time.Time, error) {
 		return time.Time{}, fmt.Errorf("timestamp too big")
 	}
 
-	return time.Unix(0, i64).UTC(), nil
+	t = time.Unix(0, i64).In(loc)
+
+	return t, nil
 }
 
 func int64ToJSONNumber(i int64) json.Number {
@@ -138,4 +189,5 @@ func init() {
 	RegisterFunctionalBuiltin1(ast.Date.Name, builtinDate)
 	RegisterFunctionalBuiltin1(ast.Clock.Name, builtinClock)
 	RegisterFunctionalBuiltin1(ast.Weekday.Name, builtinWeekday)
+	tzCache = make(map[string]*time.Location)
 }

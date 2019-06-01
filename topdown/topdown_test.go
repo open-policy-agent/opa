@@ -2062,7 +2062,13 @@ func TestTopDownTime(t *testing.T) {
 	`}, "100000000")
 
 	runTopDownTestCase(t, data, "date", []string{`
-		p = [year, month, day] { [year, month, day] := time.date(1517832000*1000*1000*1000) }`}, "[2018, 2, 5]")
+		p = [year, month, day] { [year, month, day] := time.date(1517814000*1000*1000*1000) }`}, "[2018, 2, 5]")
+
+	runTopDownTestCase(t, data, "date with LA tz", []string{`
+		p = [year, month, day] { [year, month, day] := time.date([ 1517814000*1000*1000*1000, "America/Los_Angeles" ]) }`}, "[2018, 2, 4]")
+
+	runTopDownTestCase(t, data, "date with empty tz", []string{`
+		p = [year, month, day] { [year, month, day] := time.date([ 1517832000*1000*1000*1000, "" ]) }`}, "[2018, 2, 5]")
 
 	runTopDownTestCase(t, data, "date leap day", []string{`
 		p = [year, month, day] { [year, month, day] := time.date(1582977600*1000*1000*1000) }`}, "[2020, 2, 29]")
@@ -2072,6 +2078,9 @@ func TestTopDownTime(t *testing.T) {
 
 	runTopDownTestCase(t, data, "clock", []string{`
 		p = [hour, minute, second] { [hour, minute, second] := time.clock(1517832000*1000*1000*1000) }`}, "[12, 0, 0]")
+
+	runTopDownTestCase(t, data, "clock with NY tz", []string{`
+		p = [hour, minute, second] { [hour, minute, second] := time.clock([ 1517832000*1000*1000*1000, "America/New_York" ]) }`}, "[7, 0, 0]")
 
 	runTopDownTestCase(t, data, "clock leap day", []string{`
 		p = [hour, minute, second] { [hour, minute, second] := time.clock(1582977600*1000*1000*1000) }`}, "[12, 0, 0]")

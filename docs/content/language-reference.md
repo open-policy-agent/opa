@@ -194,12 +194,20 @@ If there are any unrecognized constraints then the token is considered invalid.
 | <span class="opa-keep-it-together">``output := time.parse_ns(layout, value)``</span> | ``output`` is ``number`` representing the time ``value`` in nanoseconds since epoch. See the [Go `time` package documentation](https://golang.org/pkg/time/#Parse) for more details on ``layout``. |
 | <span class="opa-keep-it-together">``output := time.parse_rfc3339_ns(value)``</span> | ``output`` is ``number`` representing the time ``value`` in nanoseconds since epoch. |
 | <span class="opa-keep-it-together">``output := time.parse_duration_ns(duration)``</span> | ``output`` is ``number`` representing the duration ``duration`` in nanoseconds. See the [Go `time` package documentation](https://golang.org/pkg/time/#ParseDuration) for more details on ``duration``. |
-| <span class="opa-keep-it-together">``output := time.date(ns)``</span> | ``output`` is of the form ``[year, month, day]``, which includes the ``year``, ``month`` (0-12), and ``day`` (0-31) as ``number``s representing the date from the nanoseconds since epoch (``ns``). |
-| <span class="opa-keep-it-together">``output := time.clock(ns)``</span> | ``output`` is of the form ``[hour, minute, second]``, which outputs the ``hour``, ``minute`` (0-59), and ``second`` (0-59) as ``number``s representing the time of day for the nanoseconds since epoch (``ns``). |
-| <span class="opa-keep-it-together">``day := time.weekday(ns)``</span> | outputs the ``day`` as ``string`` representing the day of the week for the nanoseconds since epoch (``ns``). |
+| <span class="opa-keep-it-together">``output := time.date(ns)``<br/>``output := time.date([ns, tz])``</span> | ``output`` is of the form ``[year, month, day]``, which includes the ``year``, ``month`` (0-12), and ``day`` (0-31) as ``number``s representing the date from the nanoseconds since epoch (``ns``) in the timezone (``tz``), if supplied, or as UTC.|
+| <span class="opa-keep-it-together">``output := time.clock(ns)``<br/>``output := time.clock([ns, tz])``</span> | ``output`` is of the form ``[hour, minute, second]``, which outputs the ``hour``, ``minute`` (0-59), and ``second`` (0-59) as ``number``s representing the time of day for the nanoseconds since epoch (``ns``) in the timezone (``tz``), if supplied, or as UTC. |
+| <span class="opa-keep-it-together">``day := time.weekday(ns)``<br/>``day := time.weekday([ns, tz])``</span> | outputs the ``day`` as ``string`` representing the day of the week for the nanoseconds since epoch (``ns``) in the timezone (``tz``), if supplied, or as UTC. |
 
 > Multiple calls to the `time.now_ns` built-in function within a single policy
 evaluation query will always return the same value.
+
+Timezones can be specified as 
+
+* an [IANA Time Zone](https://www.iana.org/time-zones) string e.g. "America/New_York"
+* "UTC" or "", which are equivalent to not passing a timezone (i.e. will return as UTC)
+* "Local", which will use the local timezone. 
+
+Note that the opa executable will need access to the timezone files in the environment it is running in (see the [Go time.LoadLocation()](https://golang.org/pkg/time/#LoadLocation) documentation for more information).
 
 ### Cryptography
 
