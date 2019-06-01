@@ -107,9 +107,10 @@ func makeInput(r *http.Request) (interface{}, error) {
 	query := r.URL.Query()
 
 	input := map[string]interface{}{
-		"path":   path,
-		"method": method,
-		"params": query,
+		"path":    path,
+		"method":  method,
+		"params":  query,
+		"headers": r.Header,
 	}
 
 	identity, ok := identifier.Identity(r)

@@ -171,7 +171,28 @@ policy:
         # URL parameters represented as an object of string arrays.
         # For example: metrics&explain=true is represented as
         # {"metrics": [""], "explain": ["true"]}
-        "params": <HTTP URL Parameters>
+        "params": <HTTP URL Parameters>,
+
+        # Request headers represented as an object of string arrays.
+        #
+        # Example Request Headers:
+        #
+        #   host: acmecorp.com
+        #   x-custom: secretvalue
+        #
+        # Example input.headers Value:
+        #
+        #   {"Host": ["acmecorp.com"], "X-Custom": ["mysecret"]}
+        #
+        # Example header check:
+        #
+        #   input.headers["X-Custom"][_] = "mysecret"
+        #
+        # Header keys follow canonical MIME form. The first character and any
+        # characters following a hyphen are uppercase. The rest are lowercase.
+        # If the header key contains space or invalid header field bytes,
+        # no conversion is performed.
+        "headers": <HTTP Headers>
     }
 }
 ```
