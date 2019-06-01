@@ -237,6 +237,11 @@ func TestMakeInput(t *testing.T) {
 		panic(err)
 	}
 
+	req.Header.Add("x-custom", "foo")
+	req.Header.Add("X-custom", "bar")
+	req.Header.Add("x-custom-2", "baz")
+	req.Header.Add("custom-header-3?", "wat")
+
 	query := req.URL.Query()
 
 	// set query parameters
@@ -256,6 +261,11 @@ func TestMakeInput(t *testing.T) {
 		  "path": ["foo","bar"],
 		  "method": "GET",
 		  "identity": "bob",
+		  "headers": {
+			"X-Custom": ["foo", "bar"],
+			"X-Custom-2": ["baz"],
+			"custom-header-3?": ["wat"]
+		  },
 		  "params": {"explain": ["full"], "pretty": ["true"]}
 		}
 	`))
