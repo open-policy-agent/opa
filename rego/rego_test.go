@@ -704,3 +704,21 @@ func TestPartialResultWithInput(t *testing.T) {
 
 	assertEval(t, r2, "[[true]]")
 }
+
+func TestMissingLocation(t *testing.T) {
+
+	// Create a query programmatically and evaluate it. The Location information
+	// is not set so the resulting expression value will not have it.
+	r := New(ParsedQuery(ast.NewBody(ast.NewExpr(ast.BooleanTerm(true)))))
+	rs, err := r.Eval(context.Background())
+
+	if err != nil {
+		t.Fatal(err)
+	} else if len(rs) == 0 || !rs[0].Expressions[0].Value.(bool) {
+		t.Fatal("Unexpected result set:", rs)
+	}
+
+	if rs[0].Expressions[0].Location != nil {
+		t.Fatal("Expected location data to be unset.")
+	}
+}

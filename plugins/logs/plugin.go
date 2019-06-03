@@ -15,9 +15,12 @@ import (
 	"sync"
 	"time"
 
+	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/plugins"
 	"github.com/open-policy-agent/opa/plugins/rest"
+	"github.com/open-policy-agent/opa/rego"
 	"github.com/open-policy-agent/opa/server"
+	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/util"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -39,6 +42,7 @@ type EventV1 struct {
 	Query       string                 `json:"query,omitempty"`
 	Input       *interface{}           `json:"input,omitempty"`
 	Result      *interface{}           `json:"result,omitempty"`
+	Erased      []string               `json:"erased,omitempty"`
 	Error       error                  `json:"error,omitempty"`
 	RequestedBy string                 `json:"requested_by"`
 	Timestamp   time.Time              `json:"timestamp"`
@@ -52,6 +56,7 @@ const (
 	defaultMaxDelaySeconds      = int64(600)
 	defaultUploadSizeLimitBytes = int64(32768) // 32KB limit
 	defaultBufferSizeLimitBytes = int64(0)     // unlimited
+	defaultMaskDecisionPath     = "/system/log/mask"
 )
 
 // ReportingConfig represents configuration for the plugin's reporting behaviour.
@@ -68,6 +73,9 @@ type Config struct {
 	Service       string          `json:"service"`
 	PartitionName string          `json:"partition_name,omitempty"`
 	Reporting     ReportingConfig `json:"reporting"`
+	MaskDecision  *string         `json:"mask_decision"`
+
+	maskDecisionRef ast.Ref
 }
 
 func (c *Config) validateAndInjectDefaults(services []string, plugins []string) error {
@@ -139,18 +147,41 @@ func (c *Config) validateAndInjectDefaults(services []string, plugins []string) 
 
 	c.Reporting.BufferSizeLimitBytes = &bufferLimit
 
+	if c.MaskDecision == nil {
+		maskDecision := defaultMaskDecisionPath
+		c.MaskDecision = &maskDecision
+	}
+
+	var err error
+	c.maskDecisionRef, err = parsePathToRef(*c.MaskDecision)
+	if err != nil {
+		return errors.Wrap(err, "invalid mask_decision in decision_logs")
+	}
+
 	return nil
+}
+
+func parsePathToRef(s string) (ast.Ref, error) {
+	s = strings.Replace(strings.Trim(s, "/"), "/", ".", -1)
+	return ast.ParseRef("data." + s)
 }
 
 // Plugin implements decision log buffering and uploading.
 type Plugin struct {
-	manager  *plugins.Manager
-	config   Config
-	buffer   *logBuffer
-	enc      *chunkEncoder
-	mtx      sync.Mutex
-	stop     chan chan struct{}
-	reconfig chan interface{}
+	manager   *plugins.Manager
+	config    Config
+	buffer    *logBuffer
+	enc       *chunkEncoder
+	mtx       sync.Mutex
+	stop      chan chan struct{}
+	reconfig  chan reconfigure
+	mask      *rego.PreparedEvalQuery
+	maskMutex sync.Mutex
+}
+
+type reconfigure struct {
+	config interface{}
+	done   chan struct{}
 }
 
 // ParseConfig validates the config and injects default values.
@@ -181,8 +212,10 @@ func New(parsedConfig *Config, manager *plugins.Manager) *Plugin {
 		stop:     make(chan chan struct{}),
 		buffer:   newLogBuffer(*parsedConfig.Reporting.BufferSizeLimitBytes),
 		enc:      newChunkEncoder(*parsedConfig.Reporting.UploadSizeLimitBytes),
-		reconfig: make(chan interface{}),
+		reconfig: make(chan reconfigure),
 	}
+
+	manager.RegisterCompilerTrigger(plugin.compilerUpdated)
 
 	return plugin
 }
@@ -246,6 +279,13 @@ func (p *Plugin) Log(ctx context.Context, decision *server.Info) error {
 		return proxy.Log(ctx, event)
 	}
 
+	err := p.maskEvent(ctx, &event)
+	if err != nil {
+		// TODO(tsandall): see note below about error handling.
+		p.logError("Log event masking failed: %v.", err)
+		return nil
+	}
+
 	p.mtx.Lock()
 	defer p.mtx.Unlock()
 
@@ -267,7 +307,24 @@ func (p *Plugin) Log(ctx context.Context, decision *server.Info) error {
 
 // Reconfigure notifies the plugin with a new configuration.
 func (p *Plugin) Reconfigure(_ context.Context, config interface{}) {
-	p.reconfig <- config
+
+	done := make(chan struct{})
+	p.reconfig <- reconfigure{config: config, done: done}
+
+	p.maskMutex.Lock()
+	defer p.maskMutex.Unlock()
+	p.mask = nil
+
+	_ = <-done
+}
+
+// compilerUpdated is called when a compiler trigger on the plugin manager
+// fires. This indicates a new compiler instance is available. The decision
+// logger needs to prepare a new masking query.
+func (p *Plugin) compilerUpdated(txn storage.Transaction) {
+	p.maskMutex.Lock()
+	defer p.maskMutex.Unlock()
+	p.mask = nil
 }
 
 func (p *Plugin) loop() {
@@ -315,8 +372,9 @@ func (p *Plugin) loop() {
 			} else {
 				retry = 0
 			}
-		case newConfig := <-p.reconfig:
-			p.reconfigure(newConfig)
+		case update := <-p.reconfig:
+			p.reconfigure(update.config)
+			update.done <- struct{}{}
 		case done := <-p.stop:
 			cancel()
 			done <- struct{}{}
@@ -383,6 +441,58 @@ func (p *Plugin) bufferChunk(buffer *logBuffer, bs []byte) {
 	if dropped > 0 {
 		p.logError("Dropped %v chunks from buffer. Reduce reporting interval or increase buffer size.", dropped)
 	}
+}
+
+func (p *Plugin) maskEvent(ctx context.Context, event *EventV1) error {
+
+	err := func() error {
+
+		p.maskMutex.Lock()
+		defer p.maskMutex.Unlock()
+
+		if p.mask == nil {
+
+			query := ast.NewBody(ast.NewExpr(ast.NewTerm(p.config.maskDecisionRef)))
+
+			r := rego.New(
+				rego.ParsedQuery(query),
+				rego.Compiler(p.manager.GetCompiler()),
+				rego.Store(p.manager.Store),
+				rego.Runtime(p.manager.Info),
+			)
+
+			pq, err := r.PrepareForEval(context.Background())
+			if err != nil {
+				return err
+			}
+
+			p.mask = &pq
+		}
+
+		return nil
+	}()
+
+	if err != nil {
+		return err
+	}
+
+	rs, err := p.mask.Eval(ctx, rego.EvalInput(event))
+	if err != nil {
+		return err
+	} else if len(rs) == 0 {
+		return nil
+	}
+
+	ptrs, err := resultValueToPtrs(rs[0].Expressions[0].Value)
+	if err != nil {
+		return err
+	}
+
+	for _, ptr := range ptrs {
+		ptr.Erase(event)
+	}
+
+	return nil
 }
 
 func uploadChunk(ctx context.Context, client rest.Client, partitionName string, data []byte) error {
