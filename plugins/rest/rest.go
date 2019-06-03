@@ -8,25 +8,24 @@ package rest
 import (
 	"bytes"
 	"context"
-	"crypto/rsa"
-	"crypto/tls"
-	"crypto/x509"
 	"encoding/json"
-	"encoding/pem"
 	"errors"
-	"fmt"
 	"io"
-	"io/ioutil"
-	"net"
 	"net/http"
-	"net/url"
+	"reflect"
 	"strings"
-	"time"
 
 	"github.com/sirupsen/logrus"
 
 	"github.com/open-policy-agent/opa/util"
 )
+
+// An HTTPAuthPlugin represents a mechanism to construct and configure HTTP authentication for a REST service
+type HTTPAuthPlugin interface {
+	// implementations can assume NewClient will be called before Prepare
+	NewClient(c Config) (*http.Client, error)
+	Prepare(req *http.Request) error
+}
 
 // Config represents configuration for a REST client.
 type Config struct {
@@ -35,101 +34,45 @@ type Config struct {
 	Headers        map[string]string `json:"headers"`
 	AllowInsureTLS bool              `json:"allow_insecure_tls,omitempty"`
 	Credentials    struct {
-		Bearer *struct {
-			Scheme string `json:"scheme,omitempty"`
-			Token  string `json:"token"`
-		} `json:"bearer,omitempty"`
-		ClientTLS *struct {
-			Cert                 string `json:"cert"`
-			PrivateKey           string `json:"private_key"`
-			PrivateKeyPassphrase string `json:"private_key_passphrase,omitempty"`
-		} `json:"client_tls,omitempty"`
+		Bearer    *bearerAuthPlugin     `json:"bearer,omitempty"`
+		ClientTLS *clientTLSAuthPlugin  `json:"client_tls,omitempty"`
+		S3Signing *awsSigningAuthPlugin `json:"s3_signing,omitempty"`
 	} `json:"credentials"`
 }
 
-func (c *Config) validateAndInjectDefaults() (*tls.Config, error) {
-	c.URL = strings.TrimRight(c.URL, "/")
-	url, err := url.Parse(c.URL)
+func (c *Config) authPlugin() (HTTPAuthPlugin, error) {
+	// reflection avoids need for this code to change as auth plugins are added
+	s := reflect.ValueOf(c.Credentials)
+	var candidate HTTPAuthPlugin
+	for i := 0; i < s.NumField(); i++ {
+		if s.Field(i).IsNil() {
+			continue
+		}
+		if candidate != nil {
+			return nil, errors.New("a maximum one credential method must be specified")
+		}
+		candidate = s.Field(i).Interface().(HTTPAuthPlugin)
+	}
+	if candidate == nil {
+		return &defaultAuthPlugin{}, nil
+	}
+	return candidate, nil
+}
+
+func (c *Config) authHTTPClient() (*http.Client, error) {
+	plugin, err := c.authPlugin()
 	if err != nil {
 		return nil, err
 	}
-	if c.Credentials.Bearer != nil {
-		if c.Credentials.Bearer.Scheme == "" {
-			c.Credentials.Bearer.Scheme = "Bearer"
-		}
-	}
-	tlsConfig := &tls.Config{}
-	if url.Scheme == "https" {
-		tlsConfig.InsecureSkipVerify = c.AllowInsureTLS
-	}
-	if c.Credentials.ClientTLS != nil {
-		if err := c.readCertificate(tlsConfig); err != nil {
-			return nil, err
-		}
-	}
-	return tlsConfig, err
+	return plugin.NewClient(*c)
 }
 
-func (c *Config) readCertificate(t *tls.Config) error {
-	if c.Credentials.ClientTLS.Cert == "" {
-		return errors.New("client certificate is needed when client TLS is enabled")
-	}
-	if c.Credentials.ClientTLS.PrivateKey == "" {
-		return errors.New("private key is needed when client TLS is enabled")
-	}
-
-	var keyPEMBlock []byte
-	data, err := ioutil.ReadFile(c.Credentials.ClientTLS.PrivateKey)
+func (c *Config) authPrepare(req *http.Request) error {
+	plugin, err := c.authPlugin()
 	if err != nil {
 		return err
 	}
-
-	block, _ := pem.Decode(data)
-	if block == nil {
-		return errors.New("PEM data could not be found")
-	}
-
-	if x509.IsEncryptedPEMBlock(block) {
-		if c.Credentials.ClientTLS.PrivateKeyPassphrase == "" {
-			return errors.New("client certificate passphrase is need, because the certificate is password encrypted")
-		}
-		block, err := x509.DecryptPEMBlock(block, []byte(c.Credentials.ClientTLS.PrivateKeyPassphrase))
-		if err != nil {
-			return err
-		}
-		key, err := x509.ParsePKCS8PrivateKey(block)
-		if err != nil {
-			key, err = x509.ParsePKCS1PrivateKey(block)
-			if err != nil {
-				return fmt.Errorf("private key should be a PEM or plain PKCS1 or PKCS8; parse error: %v", err)
-			}
-		}
-		rsa, ok := key.(*rsa.PrivateKey)
-		if !ok {
-			return errors.New("private key is invalid")
-		}
-		keyPEMBlock = pem.EncodeToMemory(
-			&pem.Block{
-				Type:  "RSA PRIVATE KEY",
-				Bytes: x509.MarshalPKCS1PrivateKey(rsa),
-			},
-		)
-	} else {
-		keyPEMBlock = data
-	}
-
-	certPEMBlock, err := ioutil.ReadFile(c.Credentials.ClientTLS.Cert)
-	if err != nil {
-		return err
-	}
-
-	cert, err := tls.X509KeyPair(certPEMBlock, keyPEMBlock)
-	if err != nil {
-		return err
-	}
-
-	t.Certificates = []tls.Certificate{cert}
-	return nil
+	return plugin.Prepare(req)
 }
 
 // Client implements an HTTP/REST client for communicating with remote
@@ -157,43 +100,16 @@ func New(config []byte, opts ...func(*Client)) (Client, error) {
 		return Client{}, err
 	}
 
-	tlsConfig, err := parsedConfig.validateAndInjectDefaults()
+	parsedConfig.URL = strings.TrimRight(parsedConfig.URL, "/")
+
+	httpClient, err := parsedConfig.authHTTPClient()
 	if err != nil {
 		return Client{}, err
 	}
 
-	// Ensure we use a http.Transport with proper settings: the zero values are not
-	// a good choice, as they cause leaking connections:
-	// https://github.com/golang/go/issues/19620
-	//
-	// Also, there's no simple way to copy the values from http.DefaultTransport,
-	// see https://github.com/golang/go/issues/26013. Hence, we copy the settings
-	// used in the golang sources,
-	// https://github.com/golang/go/blob/5fae09b7386de26db59a1184f62fc7b22ec7667b/src/net/http/transport.go#L42-L53
-	//   Copyright 2011 The Go Authors. All rights reserved.
-	//   Use of this source code is governed by a BSD-style
-	//   license that can be found in the LICENSE file.
-	var tr http.RoundTripper = &http.Transport{
-		Proxy: http.ProxyFromEnvironment,
-		DialContext: (&net.Dialer{
-			Timeout:   30 * time.Second,
-			KeepAlive: 30 * time.Second,
-			DualStack: true,
-		}).DialContext,
-		MaxIdleConns:          100,
-		IdleConnTimeout:       90 * time.Second,
-		TLSHandshakeTimeout:   10 * time.Second,
-		ExpectContinueTimeout: 1 * time.Second,
-		TLSClientConfig:       tlsConfig,
-	}
-
-	// copy, we don't want to alter the default client's Transport
-	c := *http.DefaultClient
-	c.Transport = tr
-
 	client := Client{
 		config: parsedConfig,
-		Client: c,
+		Client: *httpClient,
 	}
 
 	for _, f := range opts {
@@ -263,11 +179,6 @@ func (c Client) Do(ctx context.Context, method, path string) (*http.Response, er
 
 	headers := map[string]string{}
 
-	// Set authorization header for credentials.
-	if c.config.Credentials.Bearer != nil {
-		req.Header.Add("Authorization", fmt.Sprintf("%v %v", c.config.Credentials.Bearer.Scheme, c.config.Credentials.Bearer.Token))
-	}
-
 	// Copy custom headers from config.
 	for key, value := range c.config.Headers {
 		headers[key] = value
@@ -283,6 +194,11 @@ func (c Client) Do(ctx context.Context, method, path string) (*http.Response, er
 	}
 
 	req = req.WithContext(ctx)
+
+	err = c.config.authPrepare(req)
+	if err != nil {
+		return nil, err
+	}
 
 	logrus.WithFields(logrus.Fields{
 		"method":  method,

@@ -177,11 +177,65 @@ multiple services.
 | `services[_].url` | `string` | Yes | Base URL to contact the service with. |
 | `services[_].headers` | `object` | No | HTTP headers to include in requests to the service. |
 | `services[_].allow_insecure_tls` | `bool` | No | Allow insecure TLS. |
-| `services[_].credentials.bearer.token` | `string` | No | Enables token-based authentication and supplies the bearer token to authenticate with. |
+
+Each service may optionally specify a credential mechanism by which OPA will authenticate
+itself to the service.
+
+### Bearer token
+
+OPA will authenticate using the specified bearer token and schema; to enable bearer token
+authentication, the token must be specified. The schema is optional and will default to `Bearer` 
+if unspecified.
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `services[_].credentials.bearer.token` | `string` | Yes | Enables token-based authentication and supplies the bearer token to authenticate with. |
 | `services[_].credentials.bearer.scheme` | `string` | No | Bearer token scheme to specify. |
-| `services[_].credentials.client_tls.cert` | `string` | No | The path to the client certificate to authenticate with. |
-| `services[_].credentials.client_tls.private_key` | `string` | No | The path to the private key of the client certificate. |
+
+### Client TLS certificate
+
+OPA will present the specified TLS certificate to authenticate. The paths to the client certificate
+and the private key are required; the passphrase for the private key is only required if the
+private key is encrypted.
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `services[_].credentials.client_tls.cert` | `string` | Yes | The path to the client certificate to authenticate with. |
+| `services[_].credentials.client_tls.private_key` | `string` | Yes | The path to the private key of the client certificate. |
 | `services[_].credentials.client_tls.private_key_passphrase` | `string` | No | The passphrase to use for the private key. |
+
+### AWS signature
+
+OPA will authenticate with an [AWS4 HMAC](https://docs.aws.amazon.com/AmazonS3/latest/API/sigv4-auth-using-authorization-header.html) signature. Two methods of obtaining the 
+necessary credentials are available; exactly one must be specified to use the AWS signature 
+authentication method.
+
+If specifying `environment_credentials`, OPA will expect to find environment variables
+for `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` and `AWS_REGION`, in accordance with the
+convention used by the [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-envvars.html).
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `services[_].credentials.s3_signing.environment_credentials` | `{}` | Yes | Enables AWS signing using environment variables to source the configuration and credentials |
+
+If specifying `metadata_credentials`, OPA will use the AWS metadata services for [EC2](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/iam-roles-for-amazon-ec2.html) 
+or [ECS](https://docs.aws.amazon.com/AmazonECS/latest/userguide/task-iam-roles.html)
+to obtain the necessary credentials when running within a supported virtual machine/container. 
+
+To use the EC2 metadata service, the IAM role to use and the AWS region for the resource must both 
+be specified as `iam_role` and `aws_region` respectively. 
+
+To use the ECS metadata service, specify only the AWS region for the resource as `aws_region`. ECS
+containers have at most one associated IAM role.
+
+**N.B.** Providing a value for `iam_role` will cause OPA to use the EC2 metadata service even 
+if running inside an ECS container. This may result in unexpected problems if, for example, 
+there is no route to the EC2 metadata service from inside the container or if the IAM role is only available within the container and not from the hosting EC2 instance. 
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `services[_].credentials.s3_signing.metadata_credentials.aws_region` | `string` | Yes | The AWS region to use for the AWS signing service credential method |
+| `services[_].credentials.s3_signing.metadata_credentials.iam_role` | `string` | No | The IAM role to use for the AWS signing service credential method |
 
 > Services can be defined as an array or object. When defined as an object, the
 > object keys override the `services[_].name` fields.
@@ -202,7 +256,7 @@ services:
     url: https://s2/
 ```
 
-## Miscellaenous
+## Miscellaneous
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
