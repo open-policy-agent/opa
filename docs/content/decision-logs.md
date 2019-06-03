@@ -14,7 +14,7 @@ field in API calls that return policy decisions.
 
 See the [Configuration Reference](../configuration) for configuration details.
 
-### Decision Log Service API
+## Decision Log Service API
 
 OPA expects the service to expose an API endpoint that will receive decision logs.
 
@@ -67,3 +67,72 @@ Decision log updates contain the following fields:
 | `[_].requested_by` | `string` | Identifier for client that executed policy query, e.g., the client address. |
 | `[_].timestamp` | `string` | RFC3999 timestamp of policy decision. |
 | `[_].metrics` | `object` | Key-value pairs of [performance metrics](../rest-api#performance-metrics). |
+| `[_].erased` | `array[string]` | Set of JSON Pointers specifying fields in the event that were erased. |
+
+## Masking Sensitive Data
+
+Policy queries may contain sensitive information in the `input` document that
+must be removed before decision logs are uploaded to the remote API (e.g.,
+usernames, passwords, etc.) Similarly, parts of the policy decision itself may
+be considered sensitive.
+
+By default, OPA queries the `data.system.log.mask` path prior to encoding and
+uploading decision logs. OPA provides the decision log event as input to the
+policy query and expects the query to return a set of JSON Pointers that refer
+to fields in the decision log event to erase.
+
+For example, assume OPA is queried with the following `input` document:
+
+```json
+{
+  "resource": "user",
+  "name": "bob",
+  "password": "passw0rd"
+}
+```
+
+To remove the `password` field from decision log events related to "user"
+resources, supply the following policy to OPA:
+
+```ruby
+package system.log
+
+mask["/input/password"] {
+  # OPA provides the entire decision log event as input to the masking policy.
+  # Refer to the original input document under input.input.
+  input.input.resource == "user"
+}
+
+# To mask certain fields unconditionally, omit the rule body.
+mask["/input/ssn"]
+```
+
+When the masking policy generates one or more JSON Pointers, they will be erased
+from the decision log event. The erased paths are recorded on the event itself:
+
+```json
+{
+  "decision_id": "b4638167-7fcb-4bc7-9e80-31f5f87cb738",
+  "erased": [
+    "/input/password",
+    "/input/ssn"
+  ],
+  "input": {
+    "name": "bob",
+    "resource": "user"
+  },
+------------------------- 8< -------------------------
+  "path": "system/main",
+  "requested_by": "127.0.0.1:36412",
+  "result": true,
+  "timestamp": "2019-06-03T20:07:16.939402185Z"
+}
+```
+
+There are a few restrictions on the JSON Pointers that OPA will erase:
+
+* Pointers must be prefixed with `/input` or `/result`.
+* Pointers may be undefined. For example `/input/name/first` in the example
+  above would be undefined. Undefined pointers are ignored.
+* Pointers must refer to object keys. Pointers to array elements will be treated
+  as undefined.

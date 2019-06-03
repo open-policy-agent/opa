@@ -276,14 +276,17 @@ type ExpressionValue struct {
 }
 
 func newExpressionValue(expr *ast.Expr, value interface{}) *ExpressionValue {
-	return &ExpressionValue{
+	result := &ExpressionValue{
 		Value: value,
-		Text:  string(expr.Location.Text),
-		Location: &Location{
+	}
+	if expr.Location != nil {
+		result.Text = string(expr.Location.Text)
+		result.Location = &Location{
 			Row: expr.Location.Row,
 			Col: expr.Location.Col,
-		},
+		}
 	}
+	return result
 }
 
 func (ev *ExpressionValue) String() string {
