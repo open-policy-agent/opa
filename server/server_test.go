@@ -2460,6 +2460,39 @@ func TestDecisionIDs(t *testing.T) {
 	}
 }
 
+func TestUserProvidedDecisionIDs(t *testing.T) {
+	f := newFixture(t)
+	f.server = f.server.WithDiagnosticsBuffer(NewBoundedBuffer(4))
+	decision_id := 6
+
+	enableDiagnostics := `
+		package system.diagnostics
+
+		config = {"mode": "on"}
+	`
+
+	if err := f.v1("PUT", "/policies/test", enableDiagnostics, 200, "{}"); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := f.v1("POST", "/data?decision_id=6", "", 200, `{"decision_id": "6", "result": {}}`); err != nil {
+		t.Fatal(err)
+	}
+
+	infos := []*Info{}
+
+	f.server.diagnostics.Iter(func(info *Info) {
+		if info.DecisionID != fmt.Sprint(decision_id) {
+			t.Fatalf("Expected decision ID to be %v but got: %v", decision_id, info.DecisionID)
+		}
+		infos = append(infos, info)
+	})
+
+	if len(infos) != 1 {
+		t.Fatalf("Expected exactly 1 elements but got: %v", len(infos))
+	}
+}
+
 func TestDecisionLogging(t *testing.T) {
 	f := newFixture(t)
 

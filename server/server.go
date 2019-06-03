@@ -1124,6 +1124,7 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 	includeInstrumentation := getBoolParam(r.URL, types.ParamInstrumentV1, true)
 	partial := getBoolParam(r.URL, types.ParamPartialV1, true)
 	provenance := getBoolParam(r.URL, types.ParamProvenanceV1, true)
+	decisionID = getStringParam(r.URL, types.ParamDecisionIdV1, decisionID)
 
 	m.Timer(metrics.RegoQueryParse).Start()
 
@@ -2081,6 +2082,22 @@ func validateParsedQuery(body ast.Body) ([]string, error) {
 		return false
 	})
 	return unsafeOperators, nil
+}
+
+func getStringParam(url *url.URL, name string, ifEmpty string) string {
+
+	p, ok := url.Query()[name]
+	if !ok {
+		return ifEmpty
+	}
+
+	// Query params w/o values are represented as slice (of len 1) with an
+	// empty string.
+	if len(p) == 1 && p[0] == "" {
+		return ifEmpty
+	}
+
+	return p[0]
 }
 
 func getBoolParam(url *url.URL, name string, ifEmpty bool) bool {
