@@ -80,6 +80,99 @@ func TestNew(t *testing.T) {
 			}`,
 			wantErr: true,
 		},
+		{
+			input: `{
+				"name": "foo",
+				"url": "http://localhost",
+				"credentials": {
+					"s3_signing": {
+					}
+				}
+			}`,
+			wantErr: true,
+		},
+		{
+			input: `{
+				"name": "foo",
+				"url": "http://localhost",
+				"credentials": {
+					"s3_signing": {
+						"environment_credentials": {}
+					}
+				}
+			}`,
+		},
+		{
+			input: `{
+				"name": "foo",
+				"url": "http://localhost",
+				"credentials": {
+					"s3_signing": {
+						"metadata_credentials": {
+							"aws_region": "us-east-1",
+							"iam_role": "my_iam_role"
+						}
+					}
+				}
+			}`,
+		},
+		{
+			input: `{
+				"name": "foo",
+				"url": "http://localhost",
+				"credentials": {
+					"s3_signing": {
+						"metadata_credentials": {
+							"aws_region": "us-east-1",
+						}
+					}
+				}
+			}`,
+		},
+		{
+			input: `{
+				"name": "foo",
+				"url": "http://localhost",
+				"credentials": {
+					"s3_signing": {
+						"metadata_credentials": {}
+					}
+				}
+			}`,
+			wantErr: true,
+		},
+		{
+			input: `{
+				"name": "foo",
+				"url": "http://localhost",
+				"credentials": {
+					"s3_signing": {
+						"metadata_credentials": {
+							"aws_region": "us-east-1",
+							"iam_role": "my_iam_role"
+						},
+						"environment_credentials": {}
+					}
+				}
+			}`,
+			wantErr: true,
+		},
+		{
+			input: `{
+				"name": "foo",
+				"url": "http://localhost",
+				"credentials": {
+					"s3_signing": {
+						"environment_credentials": {}
+					},
+					"bearer": {
+						"scheme": "Acmecorp-Token",
+						"token": "secret"
+					}					
+				}
+			}`,
+			wantErr: true,
+		},
 	}
 
 	var results []Client
