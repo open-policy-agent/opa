@@ -2086,18 +2086,10 @@ func validateParsedQuery(body ast.Body) ([]string, error) {
 
 func getStringParam(url *url.URL, name string, ifEmpty string) string {
 
-	p, ok := url.Query()[name]
-	if !ok {
-		return ifEmpty
+	if p := url.Query().Get(name); p != "" {
+		return p
 	}
-
-	// Query params w/o values are represented as slice (of len 1) with an
-	// empty string.
-	if len(p) == 1 && p[0] == "" {
-		return ifEmpty
-	}
-
-	return p[0]
+	return ifEmpty
 }
 
 func getBoolParam(url *url.URL, name string, ifEmpty bool) bool {
