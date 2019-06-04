@@ -439,7 +439,7 @@ const (
 	// of the health API.
 	ParamBundleActivationV1 = "bundle"
 
-	// ParamDecisionIdV1 defines the name of the HTTP URL parameter that
+	// ParamDecisionIDV1 defines the name of the HTTP URL parameter that
 	// the client provided the decision id
 	ParamDecisionIDV1 = "decision_id"
 )
