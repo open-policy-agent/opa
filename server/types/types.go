@@ -441,7 +441,7 @@ const (
 
 	// ParamDecisionIdV1 defines the name of the HTTP URL parameter that
 	// the client provided the decision id
-	ParamDecisionIdV1 = "decision_id"
+	ParamDecisionIDV1 = "decision_id"
 )
 
 // BadRequestErr represents an error condition raised if the caller passes

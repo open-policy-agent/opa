@@ -1049,7 +1049,7 @@ The request body contains an object that specifies a value for [The input Docume
 - **metrics** - Return query performance metrics in addition to result. See [Performance Metrics](#performance-metrics) for more detail.
 - **instrument** - Instrument query evaluation and return a superset of performance metrics in addition to result. See [Performance Metrics](#performance-metrics) for more detail.
 - **watch** - Set a watch on the data reference if the parameter is present. See [Watches](#watches) for more detail.
-- **decision_id** - The decision id to use for logging. Allow clients to supply it, instead of auto generated number.
+- **decision_id** - Client supplied decision ID to use for tracing. If not specified a random ID is generated automatically.
 
 #### Status Codes
 

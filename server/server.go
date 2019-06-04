@@ -1124,7 +1124,7 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 	includeInstrumentation := getBoolParam(r.URL, types.ParamInstrumentV1, true)
 	partial := getBoolParam(r.URL, types.ParamPartialV1, true)
 	provenance := getBoolParam(r.URL, types.ParamProvenanceV1, true)
-	decisionID = getStringParam(r.URL, types.ParamDecisionIdV1, decisionID)
+	decisionID = getStringParam(r.URL, types.ParamDecisionIDV1, decisionID)
 
 	m.Timer(metrics.RegoQueryParse).Start()
 

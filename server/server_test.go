@@ -2463,7 +2463,7 @@ func TestDecisionIDs(t *testing.T) {
 func TestUserProvidedDecisionIDs(t *testing.T) {
 	f := newFixture(t)
 	f.server = f.server.WithDiagnosticsBuffer(NewBoundedBuffer(4))
-	decision_id := 6
+	decisionID := 6
 
 	enableDiagnostics := `
 		package system.diagnostics
@@ -2482,8 +2482,8 @@ func TestUserProvidedDecisionIDs(t *testing.T) {
 	infos := []*Info{}
 
 	f.server.diagnostics.Iter(func(info *Info) {
-		if info.DecisionID != fmt.Sprint(decision_id) {
-			t.Fatalf("Expected decision ID to be %v but got: %v", decision_id, info.DecisionID)
+		if info.DecisionID != fmt.Sprint(decisionID) {
+			t.Fatalf("Expected decision ID to be %v but got: %v", decisionID, info.DecisionID)
 		}
 		infos = append(infos, info)
 	})
