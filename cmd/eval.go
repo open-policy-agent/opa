@@ -41,6 +41,7 @@ type evalCommandParams struct {
 	stdinInput        bool
 	explain           *util.EnumFlag
 	metrics           bool
+	instrument        bool
 	ignore            []string
 	outputFormat      *util.EnumFlag
 	profile           bool
@@ -159,6 +160,9 @@ Set the output format with the --format flag.
 			if params.profile {
 				params.metrics = true
 			}
+			if params.instrument {
+				params.metrics = true
+			}
 			return nil
 		},
 		Run: func(cmd *cobra.Command, args []string) {
@@ -185,6 +189,7 @@ Set the output format with the --format flag.
 	evalCommand.Flags().BoolVarP(&params.stdin, "stdin", "", false, "read query from stdin")
 	evalCommand.Flags().BoolVarP(&params.stdinInput, "stdin-input", "I", false, "read input document from stdin")
 	evalCommand.Flags().BoolVarP(&params.metrics, "metrics", "", false, "report query performance metrics")
+	evalCommand.Flags().BoolVarP(&params.instrument, "instrument", "", false, "enable query instrumentation metrics (implies --metrics)")
 	evalCommand.Flags().VarP(params.outputFormat, "format", "f", "set output format")
 	evalCommand.Flags().BoolVarP(&params.profile, "profile", "", false, "perform expression profiling")
 	evalCommand.Flags().VarP(&params.profileCriteria, "profile-sort", "", "set sort order of expression profiler results")
@@ -268,6 +273,10 @@ func eval(args []string, params evalCommandParams, w io.Writer) (bool, error) {
 	if params.metrics {
 		m = metrics.New()
 		regoArgs = append(regoArgs, rego.Metrics(m))
+	}
+
+	if params.instrument {
+		regoArgs = append(regoArgs, rego.Instrument(true))
 	}
 
 	var p *profiler.Profiler
