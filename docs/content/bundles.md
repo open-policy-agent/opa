@@ -111,7 +111,7 @@ In this example, the bundle contains one policy file (`authz.rego`) and two
 data files (`bindings/data.json` and `permissions/data.json`).
 
 Bundle files may contain an optional `.manifest` file that stores bundle
-metadata. The file should contain a JSON serialized object.
+metadata. The file should contain a JSON serialized object, with the following fields:
 
 * If the bundle service is capable of serving different revisions of the same
   bundle, the service should include a top-level `revision` field containing a
@@ -124,6 +124,16 @@ metadata. The file should contain a JSON serialized object.
   sources. If the `roots` field is not included in the manifest it
   defaults to `[""]` which means that ALL data and policy must come
   from the bundle.
+
+For example, this is a manifest file with `roots` and `revision`:
+```json
+{
+  "revision" : "1",
+  "roots": ["a/b", "a/c"]
+}
+```
+
+Please note:
 
 * OPA will only load data files named `data.json`, i.e., you MUST name files
   that contain data (which you want loaded into OPA) `data.json` -- otherwise
