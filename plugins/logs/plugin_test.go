@@ -856,6 +856,60 @@ func newTestFixture(t *testing.T) testFixture {
 
 }
 
+func TestParseConfigUseDefaultServiceNoConsole(t *testing.T) {
+	services := []string{
+		"s0",
+		"s1",
+		"s3",
+	}
+
+	loggerConfig := []byte(fmt.Sprintf(`{
+		"console": false
+	}`))
+
+	config, err := ParseConfig([]byte(loggerConfig), services, nil)
+
+	if err != nil {
+		t.Errorf("Unexpected error: %s", err)
+	}
+
+	if config.Service != services[0] {
+		t.Errorf("Expected %s service in config, actual = '%s'", services[0], config.Service)
+	}
+}
+
+func TestParseConfigDefaultServiceWithConsole(t *testing.T) {
+	services := []string{
+		"s0",
+		"s1",
+		"s3",
+	}
+
+	loggerConfig := []byte(fmt.Sprintf(`{
+		"console": true
+	}`))
+
+	config, err := ParseConfig([]byte(loggerConfig), services, nil)
+
+	if err != nil {
+		t.Errorf("Unexpected error: %s", err)
+	}
+
+	if config.Service != "" {
+		t.Errorf("Expected no service in config, actual = '%s'", config.Service)
+	}
+}
+
+func TestParseConfigDefaultServiceWithNoServiceOrConsole(t *testing.T) {
+	loggerConfig := []byte(fmt.Sprintf(`{}`))
+
+	_, err := ParseConfig([]byte(loggerConfig), []string{}, nil)
+
+	if err == nil {
+		t.Errorf("Expected an error but err==nil")
+	}
+}
+
 type testServer struct {
 	t       *testing.T
 	expCode int
