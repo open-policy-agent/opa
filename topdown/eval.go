@@ -26,31 +26,32 @@ func (f *queryIDFactory) Next() uint64 {
 }
 
 type eval struct {
-	ctx           context.Context
-	queryID       uint64
-	queryIDFact   *queryIDFactory
-	parent        *eval
-	cancel        Cancel
-	query         ast.Body
-	index         int
-	bindings      *bindings
-	store         storage.Store
-	baseCache     *baseCache
-	txn           storage.Transaction
-	compiler      *ast.Compiler
-	input         *ast.Term
-	data          *ast.Term
-	targetStack   *refStack
-	tracers       []Tracer
-	instr         *Instrumentation
-	builtinCache  builtins.Cache
-	virtualCache  *virtualCache
-	saveSet       *saveSet
-	saveStack     *saveStack
-	saveSupport   *saveSupport
-	saveNamespace *ast.Term
-	genvarprefix  string
-	runtime       *ast.Term
+	ctx             context.Context
+	queryID         uint64
+	queryIDFact     *queryIDFactory
+	parent          *eval
+	cancel          Cancel
+	query           ast.Body
+	index           int
+	bindings        *bindings
+	store           storage.Store
+	baseCache       *baseCache
+	txn             storage.Transaction
+	compiler        *ast.Compiler
+	input           *ast.Term
+	data            *ast.Term
+	targetStack     *refStack
+	tracers         []Tracer
+	instr           *Instrumentation
+	builtinCache    builtins.Cache
+	virtualCache    *virtualCache
+	saveSet         *saveSet
+	saveStack       *saveStack
+	saveSupport     *saveSupport
+	saveNamespace   *ast.Term
+	disableInlining []ast.Ref
+	genvarprefix    string
+	runtime         *ast.Term
 }
 
 func (e *eval) Run(iter evalIterator) error {
@@ -1579,6 +1580,12 @@ func (e evalVirtualPartial) eval(iter unifyIterator) error {
 		}
 	}
 
+	generateSupport := refSliceContainsPrefix(e.e.disableInlining, e.plugged[:e.pos+1])
+
+	if generateSupport {
+		return e.partialEvalSupport(iter)
+	}
+
 	for _, rule := range e.ir.Rules {
 		if err := e.evalOneRule(iter, rule, cacheKey); err != nil {
 			return err
@@ -1661,6 +1668,62 @@ func (e evalVirtualPartial) evalOneRule(iter unifyIterator, rule *ast.Rule, cach
 	return nil
 }
 
+func (e evalVirtualPartial) partialEvalSupport(iter unifyIterator) error {
+
+	path := e.plugged[:e.pos+1].Insert(e.e.saveNamespace, 1)
+
+	if !e.e.saveSupport.Exists(path) {
+		for i := range e.ir.Rules {
+			err := e.partialEvalSupportRule(iter, e.ir.Rules[i], path)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	rewritten := ast.NewTerm(e.ref.Insert(e.e.saveNamespace, 1))
+	return e.e.saveUnify(rewritten, e.rterm, e.bindings, e.rbindings, iter)
+}
+
+func (e evalVirtualPartial) partialEvalSupportRule(iter unifyIterator, rule *ast.Rule, path ast.Ref) error {
+
+	child := e.e.child(rule.Body)
+	child.traceEnter(rule)
+
+	e.e.saveStack.PushQuery(nil)
+	defer e.e.saveStack.PopQuery()
+
+	return child.eval(func(child *eval) error {
+		child.traceExit(rule)
+
+		current := e.e.saveStack.PopQuery()
+		defer e.e.saveStack.PushQuery(current)
+		plugged := current.Plug(child.bindings)
+
+		var key, value *ast.Term
+
+		if rule.Head.Key != nil {
+			key = child.bindings.PlugNamespaced(rule.Head.Key, child.bindings)
+		}
+
+		if rule.Head.Value != nil {
+			value = child.bindings.PlugNamespaced(rule.Head.Value, child.bindings)
+		}
+
+		head := ast.NewHead(rule.Head.Name, key, value)
+		p := copypropagation.New(head.Vars()).WithEnsureNonEmptyBody(true)
+
+		e.e.saveSupport.Insert(path, &ast.Rule{
+			Head:    head,
+			Body:    p.Apply(plugged),
+			Default: rule.Default,
+		})
+
+		child.traceRedo(rule)
+		return nil
+	})
+}
+
 func (e evalVirtualPartial) evalTerm(iter unifyIterator, term *ast.Term, termbindings *bindings) error {
 	eval := evalTerm{
 		e:            e.e,
@@ -1719,17 +1782,22 @@ func (e evalVirtualComplete) eval(iter unifyIterator) error {
 		return e.evalValue(iter)
 	}
 
-	if e.ir.Default != nil {
-		rterm := e.rbindings.Plug(e.rterm)
+	var generateSupport bool
 
+	if e.ir.Default != nil {
 		// If the other term is not constant OR it's equal to the default value, then
 		// a support rule must be produced as the default value _may_ be required. On
 		// the other hand, if the other term is constant (i.e., it does not require
 		// evaluation) and it differs from the default value then the default value is
 		// _not_ required, so partially evaluate the rule normally.
-		if !ast.IsConstant(rterm.Value) || e.ir.Default.Head.Value.Equal(rterm) {
-			return e.partialEvalDefault(iter)
-		}
+		rterm := e.rbindings.Plug(e.rterm)
+		generateSupport = !ast.IsConstant(rterm.Value) || e.ir.Default.Head.Value.Equal(rterm)
+	}
+
+	generateSupport = generateSupport || refSliceContainsPrefix(e.e.disableInlining, e.plugged[:e.pos+1])
+
+	if generateSupport {
+		return e.partialEvalSupport(iter)
 	}
 
 	return e.partialEval(iter)
@@ -1836,22 +1904,24 @@ func (e evalVirtualComplete) partialEval(iter unifyIterator) error {
 	return nil
 }
 
-func (e evalVirtualComplete) partialEvalDefault(iter unifyIterator) error {
+func (e evalVirtualComplete) partialEvalSupport(iter unifyIterator) error {
 
 	path := e.plugged[:e.pos+1].Insert(e.e.saveNamespace, 1)
 
 	if !e.e.saveSupport.Exists(path) {
 
 		for i := range e.ir.Rules {
-			err := e.partialEvalDefaultRule(iter, e.ir.Rules[i], path)
+			err := e.partialEvalSupportRule(iter, e.ir.Rules[i], path)
 			if err != nil {
 				return err
 			}
 		}
 
-		err := e.partialEvalDefaultRule(iter, e.ir.Default, path)
-		if err != nil {
-			return err
+		if e.ir.Default != nil {
+			err := e.partialEvalSupportRule(iter, e.ir.Default, path)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
@@ -1859,7 +1929,7 @@ func (e evalVirtualComplete) partialEvalDefault(iter unifyIterator) error {
 	return e.e.saveUnify(rewritten, e.rterm, e.bindings, e.rbindings, iter)
 }
 
-func (e evalVirtualComplete) partialEvalDefaultRule(iter unifyIterator, rule *ast.Rule, path ast.Ref) error {
+func (e evalVirtualComplete) partialEvalSupportRule(iter unifyIterator, rule *ast.Rule, path ast.Ref) error {
 
 	child := e.e.child(rule.Body)
 	child.traceEnter(rule)
@@ -2178,4 +2248,13 @@ func mergeObjects(objA, objB ast.Object) (result ast.Object, ok bool) {
 		}
 	})
 	return result, true
+}
+
+func refSliceContainsPrefix(sl []ast.Ref, prefix ast.Ref) bool {
+	for _, ref := range sl {
+		if ref.HasPrefix(prefix) {
+			return true
+		}
+	}
+	return false
 }

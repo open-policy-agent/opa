@@ -21,15 +21,16 @@ import (
 func TestTopDownPartialEval(t *testing.T) {
 
 	tests := []struct {
-		note        string
-		unknowns    []string
-		query       string
-		modules     []string
-		data        string
-		input       string
-		wantQueries []string
-		wantSupport []string
-		ignoreOrder bool
+		note            string
+		unknowns        []string
+		disableInlining []string
+		query           string
+		modules         []string
+		data            string
+		input           string
+		wantQueries     []string
+		wantSupport     []string
+		ignoreOrder     bool
 	}{
 		{
 			note:        "empty",
@@ -1378,6 +1379,101 @@ func TestTopDownPartialEval(t *testing.T) {
 			},
 		},
 		{
+			note:  "disable inlining: complete doc",
+			query: "data.test.p = true",
+			modules: []string{`
+				package test
+				p { q; r }
+				q { s[input] }
+				q { t[input] }
+				r { s[input] }
+				s[1]
+				s[2]
+				t[3]
+			`},
+			wantQueries: []string{
+				"data.partial.test.q; 1 = input",
+				"data.partial.test.q; 2 = input",
+			},
+			wantSupport: []string{
+				`package partial.test
+
+				q { 1 = input }
+				q { 2 = input }
+				q { 3 = input } `,
+			},
+			disableInlining: []string{`data.test.q`},
+		},
+		{
+			note:  "disable inlining: complete doc with suffix",
+			query: "data.test.p = true",
+			modules: []string{`
+				package test
+				p { s; q[x] }
+				q = ["a", "b"] { r[_] = input }
+				r = [1, 2]
+				s { r[_] = input }
+			`},
+			wantQueries: []string{
+				"1 = input; data.partial.test.q[x1]",
+				"2 = input; data.partial.test.q[x1]",
+			},
+			wantSupport: []string{
+				`package partial.test
+
+				q = ["a", "b"] { 1 = input }
+				q = ["a", "b"] { 2 = input }`,
+			},
+			disableInlining: []string{`data.test.q`},
+		},
+		{
+			note:  "disable inlining: partial doc",
+			query: "data.test.p = true",
+			modules: []string{`
+				package test
+				p { q[x]; r[x] }
+				q[x] { s[x] = input }
+				r[x] { s[x] = input }
+				s[1]
+				s[2]
+			`},
+			wantQueries: []string{
+				"data.partial.test.q[1]; 1 = input",
+				"data.partial.test.q[2]; 2 = input",
+			},
+			wantSupport: []string{
+				`package partial.test
+
+				q[1] { 1 = input }
+				q[2] { 2 = input }`,
+			},
+			disableInlining: []string{`data.test.q`},
+		},
+		{
+			note:  "disable inlining: partial doc with suffix",
+			query: "data.test.p = true",
+			modules: []string{`
+				package test
+				p { y = 0; q[x][y]; r }
+				q[x] = [1, 2] { s[x] = input }
+				r { input = 1 }
+				r { input = 2 }
+				s["a"] = 3
+				s["b"] = 4
+			`},
+			wantQueries: []string{
+				"data.partial.test.q[x1][0]; input = 1",
+				"data.partial.test.q[x1][0]; input = 2",
+			},
+			wantSupport: []string{
+				`package partial.test
+
+				q["a"] = [1, 2] { 3 = input }
+				q["b"] = [1, 2] { 4 = input }`,
+			},
+			disableInlining: []string{`data.test.q`},
+		},
+		{
 			note:  "comprehensions: ref heads (with namespacing)",
 			query: "data.test.p = true; input.x = x",
 			modules: []string{
@@ -1421,6 +1517,11 @@ func TestTopDownPartialEval(t *testing.T) {
 				unknowns[i] = ast.MustParseTerm(s)
 			}
 
+			disableInlining := make([]ast.Ref, len(tc.disableInlining))
+			for i, s := range tc.disableInlining {
+				disableInlining[i] = ast.MustParseRef(s)
+			}
+
 			var buf BufferTracer
 
 			query := NewQuery(f.query).
@@ -1429,7 +1530,8 @@ func TestTopDownPartialEval(t *testing.T) {
 				WithTransaction(f.txn).
 				WithInput(f.input).
 				WithTracer(&buf).
-				WithUnknowns(unknowns)
+				WithUnknowns(unknowns).
+				WithDisableInlining(disableInlining)
 
 			// Set genvarprefix so that tests can refer to vars in generated
 			// expressions.
