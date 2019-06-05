@@ -80,6 +80,7 @@ type EvalContext struct {
 	tracers          []topdown.Tracer
 	compiledQuery    compiledQuery
 	unknowns         []string
+	disableInlining  []ast.Ref
 	parsedUnknowns   []*ast.Term
 }
 
@@ -149,6 +150,14 @@ func EvalUnknowns(unknowns []string) EvalOption {
 	}
 }
 
+// EvalDisableInlining returns an argument that adds a set of paths to exclude from
+// partial evaluation inlining.
+func EvalDisableInlining(paths []ast.Ref) EvalOption {
+	return func(e *EvalContext) {
+		e.disableInlining = paths
+	}
+}
+
 // EvalParsedUnknowns returns an argument that sets the values to treat
 // as unknown during partial evaluation.
 func EvalParsedUnknowns(unknowns []*ast.Term) EvalOption {
@@ -182,6 +191,11 @@ func (pq preparedQuery) newEvalContext(ctx context.Context, options []EvalOption
 	}
 
 	var err error
+	ectx.disableInlining, err = parseStringsToRefs(pq.r.disableInlining)
+	if err != nil {
+		return nil, err
+	}
+
 	if ectx.txn == nil {
 		ectx.txn, err = pq.r.store.NewTransaction(ctx)
 		if err != nil {
@@ -359,6 +373,7 @@ type Rego struct {
 	parsedInput      ast.Value
 	unknowns         []string
 	parsedUnknowns   []*ast.Term
+	disableInlining  []string
 	partialNamespace string
 	modules          []rawModule
 	parsedModules    map[string]*ast.Module
@@ -457,6 +472,13 @@ func Unknowns(unknowns []string) func(r *Rego) {
 func ParsedUnknowns(unknowns []*ast.Term) func(r *Rego) {
 	return func(r *Rego) {
 		r.parsedUnknowns = unknowns
+	}
+}
+
+// DisableInlining adds a set of paths to exclude from partial evaluation inlining.
+func DisableInlining(paths []string) func(r *Rego) {
+	return func(r *Rego) {
+		r.disableInlining = paths
 	}
 }
 
@@ -790,7 +812,8 @@ type PrepareOption func(*PrepareConfig)
 // PrepareConfig holds settings to control the behavior of the
 // Prepare call.
 type PrepareConfig struct {
-	doPartialEval bool
+	doPartialEval   bool
+	disableInlining *[]string
 }
 
 // WithPartialEval configures an option for PrepareForEval
@@ -799,6 +822,13 @@ type PrepareConfig struct {
 func WithPartialEval() PrepareOption {
 	return func(p *PrepareConfig) {
 		p.doPartialEval = true
+	}
+}
+
+// WithNoInline adds a set of paths to exclude from partial evaluation inlining.
+func WithNoInline(paths []string) PrepareOption {
+	return func(p *PrepareConfig) {
+		p.disableInlining = &paths
 	}
 }
 
@@ -850,6 +880,17 @@ func (r *Rego) PrepareForEval(ctx context.Context, opts ...PrepareOption) (Prepa
 			tracers:          r.tracers,
 			compiledQuery:    r.compiledQueries[partialResultQueryType],
 			instrumentation:  r.instrumentation,
+		}
+
+		disableInlining := r.disableInlining
+
+		if pCfg.disableInlining != nil {
+			disableInlining = *pCfg.disableInlining
+		}
+
+		ectx.disableInlining, err = parseStringsToRefs(disableInlining)
+		if err != nil {
+			return PreparedEvalQuery{}, err
 		}
 
 		pr, err := r.partialResult(ctx, ectx, ast.Wildcard)
@@ -1254,6 +1295,7 @@ func (r *Rego) partial(ctx context.Context, ectx *EvalContext) (*PartialQueries,
 		WithMetrics(ectx.metrics).
 		WithInstrumentation(ectx.instrumentation).
 		WithUnknowns(unknowns).
+		WithDisableInlining(ectx.disableInlining).
 		WithRuntime(r.runtime)
 
 	for i := range ectx.tracers {
@@ -1441,4 +1483,18 @@ func iteration(x interface{}) bool {
 	ast.Walk(vis, x)
 
 	return stopped
+}
+
+func parseStringsToRefs(s []string) ([]ast.Ref, error) {
+
+	refs := make([]ast.Ref, len(s))
+	for i := range refs {
+		var err error
+		refs[i], err = ast.ParseRef(s[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return refs, nil
 }

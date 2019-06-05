@@ -33,6 +33,7 @@ type evalCommandParams struct {
 	coverage          bool
 	partial           bool
 	unknowns          []string
+	disableInlining   []string
 	dataPaths         repeatedStringFlag
 	inputPath         string
 	imports           repeatedStringFlag
@@ -182,6 +183,7 @@ Set the output format with the --format flag.
 	evalCommand.Flags().BoolVarP(&params.coverage, "coverage", "", false, "report coverage")
 	evalCommand.Flags().BoolVarP(&params.partial, "partial", "p", false, "perform partial evaluation")
 	evalCommand.Flags().StringSliceVarP(&params.unknowns, "unknowns", "u", []string{"input"}, "set paths to treat as unknown during partial evaluation")
+	evalCommand.Flags().StringSliceVarP(&params.disableInlining, "disable-inlining", "", []string{}, "set paths of documents to exclude from inlining")
 	evalCommand.Flags().VarP(&params.dataPaths, "data", "d", "set data file(s) or directory path(s)")
 	evalCommand.Flags().StringVarP(&params.inputPath, "input", "i", "", "set input file path")
 	evalCommand.Flags().VarP(&params.imports, "import", "", "set query import(s)")
@@ -288,6 +290,8 @@ func eval(args []string, params evalCommandParams, w io.Writer) (bool, error) {
 	if params.partial {
 		regoArgs = append(regoArgs, rego.Unknowns(params.unknowns))
 	}
+
+	regoArgs = append(regoArgs, rego.DisableInlining(params.disableInlining))
 
 	var c *cover.Cover
 
