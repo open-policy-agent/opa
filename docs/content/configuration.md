@@ -286,7 +286,7 @@ services:
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
-| `decision_logs.service` | `string` | Yes | Name of the service to use to contact remote server. |
+| `decision_logs.service` | `string` | No | Name of the service to use to contact remote server. If no `plugin` is specified, and `console` logging is disabled, this will default to the first `service` name defined in the Services configuration. |
 | `decision_logs.partition_name` | `string` | No | Path segment to include in status updates. |
 | `decision_logs.reporting.buffer_size_limit_bytes` | `int64` | No | Decision log buffer size limit in bytes. OPA will drop old events from the log if this limit is exceeded. By default, no limit is set. |
 | `decision_logs.reporting.upload_size_limit_bytes` | `int64` | No (default: `32768`) | Decision log upload size limit in bytes. OPA will chunk uploads to cap message body to this limit. |
@@ -294,6 +294,7 @@ services:
 | `decision_logs.reporting.max_delay_seconds` | `int64` | No (default: `600`) | Maximum amount of time to wait between uploads. |
 | `decision_logs.mask_decision` | `string` | No (default: `system/log/mask`) | Set path of masking decision. |
 | `decision_logs.plugin` | `string` | No | Use the named plugin for decision logging. If this field exists, the other configuration fields are not required. |
+| `decision_logs.console` | `boolean` | No (default: `false`) | Log the decisions locally at `info` level to the console. If enabled a `service` or `plugin` _must_ be specified | 
 
 ## Discovery
 

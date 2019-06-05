@@ -77,9 +77,11 @@ usernames, passwords, etc.) Similarly, parts of the policy decision itself may
 be considered sensitive.
 
 By default, OPA queries the `data.system.log.mask` path prior to encoding and
-uploading decision logs. OPA provides the decision log event as input to the
-policy query and expects the query to return a set of JSON Pointers that refer
-to fields in the decision log event to erase.
+uploading decision logs or calling custom decision log plugins.
+
+OPA provides the decision log event as input to the policy query and expects
+the query to return a set of JSON Pointers that refer to fields in the decision
+log event to erase.
 
 For example, assume OPA is queried with the following `input` document:
 
