@@ -7,6 +7,7 @@ package logs
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"math/rand"
 	"net/http"
@@ -74,6 +75,7 @@ type Config struct {
 	PartitionName string          `json:"partition_name,omitempty"`
 	Reporting     ReportingConfig `json:"reporting"`
 	MaskDecision  *string         `json:"mask_decision"`
+	ConsoleLogs   bool            `json:"console"`
 
 	maskDecisionRef ast.Ref
 }
@@ -91,9 +93,7 @@ func (c *Config) validateAndInjectDefaults(services []string, plugins []string) 
 		if !found {
 			return fmt.Errorf("invalid plugin name %q in decision_logs", *c.Plugin)
 		}
-	} else if c.Service == "" && len(services) != 0 {
-		c.Service = services[0]
-	} else {
+	} else if c.Service != "" {
 		found := false
 
 		for _, svc := range services {
@@ -106,6 +106,10 @@ func (c *Config) validateAndInjectDefaults(services []string, plugins []string) 
 		if !found {
 			return fmt.Errorf("invalid service name %q in decision_logs", c.Service)
 		}
+	}
+
+	if c.Plugin == nil && c.Service == "" && !c.ConsoleLogs {
+		return fmt.Errorf("invalid decision_log config, must have a `service`, `plugin`, or `console` logging enabled")
 	}
 
 	min := defaultMinDelaySeconds
@@ -233,17 +237,22 @@ func Lookup(manager *plugins.Manager) *Plugin {
 
 // Start starts the plugin.
 func (p *Plugin) Start(ctx context.Context) error {
-	p.logInfo("Starting decision log uploader.")
-	go p.loop()
+	p.logInfo("Starting decision logger.")
+	// only start the loop if we have a service or plugin
+	if !p.localOnly() {
+		go p.loop()
+	}
 	return nil
 }
 
 // Stop stops the plugin.
 func (p *Plugin) Stop(ctx context.Context) {
-	p.logInfo("Stopping decision log uploader.")
-	done := make(chan struct{})
-	p.stop <- done
-	_ = <-done
+	p.logInfo("Stopping decision logger.")
+	if !p.localOnly() {
+		done := make(chan struct{})
+		p.stop <- done
+		_ = <-done
+	}
 }
 
 // Log appends a decision log event to the buffer for uploading.
@@ -271,6 +280,17 @@ func (p *Plugin) Log(ctx context.Context, decision *server.Info) error {
 		event.Error = decision.Error
 	}
 
+	err := p.maskEvent(ctx, &event)
+	if err != nil {
+		// TODO(tsandall): see note below about error handling.
+		p.logError("Log event masking failed: %v.", err)
+		return nil
+	}
+
+	if p.config.ConsoleLogs {
+		p.logEvent(ctx, event)
+	}
+
 	if p.config.Plugin != nil {
 		proxy, ok := p.manager.Plugin(*p.config.Plugin).(Logger)
 		if !ok {
@@ -279,27 +299,22 @@ func (p *Plugin) Log(ctx context.Context, decision *server.Info) error {
 		return proxy.Log(ctx, event)
 	}
 
-	err := p.maskEvent(ctx, &event)
-	if err != nil {
-		// TODO(tsandall): see note below about error handling.
-		p.logError("Log event masking failed: %v.", err)
-		return nil
-	}
+	if p.config.Service != "" {
+		p.mtx.Lock()
+		defer p.mtx.Unlock()
 
-	p.mtx.Lock()
-	defer p.mtx.Unlock()
+		result, err := p.enc.Write(event)
+		if err != nil {
+			// TODO(tsandall): revisit this now that we have an API that
+			// can return an error. Should the default behaviour be to
+			// fail-closed as we do for plugins?
+			p.logError("Log encoding failed: %v.", err)
+			return nil
+		}
 
-	result, err := p.enc.Write(event)
-	if err != nil {
-		// TODO(tsandall): revisit this now that we have an API that
-		// can return an error. Should the default behaviour be to
-		// fail-closed as we do for plugins?
-		p.logError("Log encoding failed: %v.", err)
-		return nil
-	}
-
-	if result != nil {
-		p.bufferChunk(p.buffer, result)
+		if result != nil {
+			p.bufferChunk(p.buffer, result)
+		}
 	}
 
 	return nil
@@ -537,4 +552,22 @@ func (p *Plugin) logrusFields() logrus.Fields {
 	return logrus.Fields{
 		"plugin": Name,
 	}
+}
+
+func (p *Plugin) localOnly() bool {
+	return p.config.ConsoleLogs && p.config.Plugin == nil && p.config.Service == ""
+}
+
+func (p *Plugin) logEvent(ctx context.Context, event EventV1) error {
+	eventBuf, err := json.Marshal(&event)
+	if err != nil {
+		return err
+	}
+	fields := logrus.Fields{}
+	err = json.Unmarshal(eventBuf, &fields)
+	if err != nil {
+		return err
+	}
+	logrus.WithFields(fields).Info("Decision Log")
+	return nil
 }

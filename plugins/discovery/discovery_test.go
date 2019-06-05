@@ -114,7 +114,7 @@ func TestProcessBundle(t *testing.T) {
 			"config": {
 				"bundle": {"name": "test1"},
 				"status": {},
-				"decision_logs": {}
+				"decision_logs": {"service": "default"}
 			}
 		}
 	`)
@@ -133,7 +133,7 @@ func TestProcessBundle(t *testing.T) {
 			"config": {
 				"bundle": {"name": "test2"},
 				"status": {"partition_name": "foo"},
-				"decision_logs": {"partition_name": "bar"}
+				"decision_logs": {"service": "default", "partition_name": "bar"}
 			}
 		}
 	`)
