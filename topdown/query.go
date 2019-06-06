@@ -148,7 +148,7 @@ func (q *Query) PartialRun(ctx context.Context) (partials []ast.Body, support []
 		instr:         q.instr,
 		builtinCache:  builtins.Cache{},
 		virtualCache:  newVirtualCache(),
-		saveSet:       newSaveSet(q.unknowns, b),
+		saveSet:       newSaveSet(q.unknowns, b, q.instr),
 		saveStack:     newSaveStack(),
 		saveSupport:   newSaveSupport(),
 		saveNamespace: ast.StringTerm(q.partialNamespace),
@@ -170,6 +170,7 @@ func (q *Query) PartialRun(ctx context.Context) (partials []ast.Body, support []
 	p := copypropagation.New(livevars)
 
 	err = e.Run(func(e *eval) error {
+
 		// Build output from saved expressions.
 		body := ast.NewBody()
 
@@ -194,8 +195,7 @@ func (q *Query) PartialRun(ctx context.Context) (partials []ast.Body, support []
 			body.Append(bindingExprs[i])
 		}
 
-		body = p.Apply(body)
-		partials = append(partials, body)
+		partials = append(partials, applyCopyPropagation(p, e.instr, body))
 		return nil
 	})
 

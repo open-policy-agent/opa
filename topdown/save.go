@@ -14,12 +14,14 @@ import (
 // namespaced by the binding list they are added with. This means the save set
 // can be shared across queries.
 type saveSet struct {
-	l *list.List
+	instr *Instrumentation
+	l     *list.List
 }
 
-func newSaveSet(ts []*ast.Term, b *bindings) *saveSet {
+func newSaveSet(ts []*ast.Term, b *bindings, instr *Instrumentation) *saveSet {
 	ss := &saveSet{
-		l: list.New(),
+		l:     list.New(),
+		instr: instr,
 	}
 	ss.Push(ts, b)
 	return ss
@@ -38,10 +40,17 @@ func (ss *saveSet) Pop() {
 // prefix with a ref that was added (in either direction).
 func (ss *saveSet) Contains(t *ast.Term, b *bindings) bool {
 	if ss != nil {
-		for el := ss.l.Back(); el != nil; el = el.Prev() {
-			if el.Value.(*saveSetElem).Contains(t, b) {
-				return true
-			}
+		ss.instr.startTimer(partialOpSaveSetContains)
+		defer ss.instr.stopTimer(partialOpSaveSetContains)
+		return ss.contains(t, b)
+	}
+	return false
+}
+
+func (ss *saveSet) contains(t *ast.Term, b *bindings) bool {
+	for el := ss.l.Back(); el != nil; el = el.Prev() {
+		if el.Value.(*saveSetElem).Contains(t, b) {
+			return true
 		}
 	}
 	return false
@@ -51,15 +60,24 @@ func (ss *saveSet) Contains(t *ast.Term, b *bindings) bool {
 // contained in the save set. This function will close over the binding list
 // when it encounters vars.
 func (ss *saveSet) ContainsRecursive(t *ast.Term, b *bindings) bool {
-	found := false
+	if ss != nil {
+		ss.instr.startTimer(partialOpSaveSetContainsRec)
+		defer ss.instr.stopTimer(partialOpSaveSetContainsRec)
+		return ss.containsrec(t, b)
+	}
+	return false
+}
+
+func (ss *saveSet) containsrec(t *ast.Term, b *bindings) bool {
+	var found bool
 	ast.WalkTerms(t, func(x *ast.Term) bool {
 		if _, ok := x.Value.(ast.Var); ok {
 			x1, b1 := b.apply(x)
 			if x1 != x || b1 != b {
-				if ss.ContainsRecursive(x1, b1) {
+				if ss.containsrec(x1, b1) {
 					found = true
 				}
-			} else if ss.Contains(x1, b1) {
+			} else if ss.contains(x1, b1) {
 				found = true
 			}
 		}
