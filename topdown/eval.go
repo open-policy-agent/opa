@@ -397,7 +397,7 @@ func (e *eval) evalNotPartial(iter evalIterator) error {
 	child.eval(func(*eval) error {
 		query := e.saveStack.Peek()
 		plugged := query.Plug(caller)
-		result := p.Apply(plugged)
+		result := applyCopyPropagation(p, e.instr, plugged)
 		savedQueries = append(savedQueries, result)
 		return nil
 	})
@@ -944,6 +944,7 @@ func (e *eval) savePluggedExprs(exprs []*ast.Expr, iter unifyIterator) error {
 }
 
 func (e *eval) saveUnify(a, b *ast.Term, b1, b2 *bindings, iter unifyIterator) error {
+	e.instr.startTimer(partialOpSaveUnify)
 	expr := ast.Equality.Expr(a, b)
 	if pairs := getSavePairs(a, b1, nil); len(pairs) > 0 {
 		for _, p := range pairs {
@@ -960,6 +961,7 @@ func (e *eval) saveUnify(a, b *ast.Term, b1, b2 *bindings, iter unifyIterator) e
 	e.saveStack.Push(expr, b1, b2)
 	defer e.saveStack.Pop()
 	e.traceSave(expr)
+	e.instr.stopTimer(partialOpSaveUnify)
 	return iter()
 }
 
@@ -1877,7 +1879,7 @@ func (e evalVirtualComplete) partialEvalDefaultRule(iter unifyIterator, rule *as
 
 		e.e.saveSupport.Insert(path, &ast.Rule{
 			Head:    head,
-			Body:    p.Apply(plugged),
+			Body:    applyCopyPropagation(p, e.e.instr, plugged),
 			Default: rule.Default,
 		})
 
@@ -2035,6 +2037,13 @@ func (e evalTerm) save(iter unifyIterator) error {
 	}
 
 	return e.e.biunify(ast.NewTerm(ref), e.rterm, e.termbindings, e.rbindings, iter)
+}
+
+func applyCopyPropagation(p *copypropagation.CopyPropagator, instr *Instrumentation, body ast.Body) ast.Body {
+	instr.startTimer(partialOpCopyPropagation)
+	result := p.Apply(body)
+	instr.stopTimer(partialOpCopyPropagation)
+	return result
 }
 
 func nonGroundKeys(a ast.Object) bool {

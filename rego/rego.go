@@ -849,6 +849,7 @@ func (r *Rego) PrepareForEval(ctx context.Context, opts ...PrepareOption) (Prepa
 			partialNamespace: r.partialNamespace,
 			tracers:          r.tracers,
 			compiledQuery:    r.compiledQueries[partialResultQueryType],
+			instrumentation:  r.instrumentation,
 		}
 
 		pr, err := r.partialResult(ctx, ectx, ast.Wildcard)
