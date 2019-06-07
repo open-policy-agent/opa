@@ -512,7 +512,7 @@ func (c *Compiler) checkRecursion() {
 }
 
 func (c *Compiler) checkSelfPath(loc *Location, eq func(a, b util.T) bool, a, b util.T) {
-	tr := newgraphTraversal(c.Graph)
+	tr := NewGraphTraversal(c.Graph)
 	if p := util.DFSPath(tr, eq, a, b); len(p) > 0 {
 		n := []string{}
 		for _, x := range p {
@@ -1452,7 +1452,7 @@ type graphTraversal struct {
 	visited map[util.T]struct{}
 }
 
-func newgraphTraversal(graph *Graph) *graphTraversal {
+func NewGraphTraversal(graph *Graph) *graphTraversal {
 	return &graphTraversal{
 		graph:   graph,
 		visited: map[util.T]struct{}{},
