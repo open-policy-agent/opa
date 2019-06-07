@@ -119,10 +119,9 @@ func tzTime(a ast.Value) (t time.Time, err error) {
 	switch va := a.(type) {
 	case ast.Array:
 
-		// not sure what error to return if passed an empty array, but if this isn't handled it panics if passed an empty array
-		// if len(va) == 0 {
-		// 	return time.Time{}, builtins.NewOperandElementErr(<something>)
-		// }
+		if len(va) == 0 {
+			return time.Time{}, builtins.NewOperandTypeErr(1, a, "either number (ns) or [number (ns), string (tz)]")
+		}
 
 		nVal, err = builtins.NumberOperand(va[0].Value, 1)
 		if err != nil {
@@ -159,6 +158,9 @@ func tzTime(a ast.Value) (t time.Time, err error) {
 
 	case ast.Number:
 		nVal = a
+
+	default:
+		return time.Time{}, builtins.NewOperandTypeErr(1, a, "either number (ns) or [number (ns), string (tz)]")
 	}
 
 	value, err := builtins.NumberOperand(nVal, 1)
