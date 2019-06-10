@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"math/big"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/open-policy-agent/opa/ast"
@@ -19,6 +20,7 @@ type nowKeyID string
 
 var nowKey = nowKeyID("time.now_ns")
 var tzCache map[string]*time.Location
+var tzCacheMutex *sync.Mutex
 
 func builtinTimeNowNanos(bctx BuiltinContext, _ []*ast.Term, iter func(*ast.Term) error) error {
 
@@ -139,20 +141,25 @@ func tzTime(a ast.Value) (t time.Time, err error) {
 			switch tzName {
 			case "", "UTC":
 				// loc is already UTC
+
 			case "Local":
 				loc = time.Local
 
 			default:
 				var ok bool
+
+				tzCacheMutex.Lock()
 				loc, ok = tzCache[tzName]
 
 				if !ok {
 					loc, err = time.LoadLocation(tzName)
 					if err != nil {
+						tzCacheMutex.Unlock()
 						return time.Time{}, err
 					}
 					tzCache[tzName] = loc
 				}
+				tzCacheMutex.Unlock()
 			}
 		}
 
@@ -191,5 +198,6 @@ func init() {
 	RegisterFunctionalBuiltin1(ast.Date.Name, builtinDate)
 	RegisterFunctionalBuiltin1(ast.Clock.Name, builtinClock)
 	RegisterFunctionalBuiltin1(ast.Weekday.Name, builtinWeekday)
+	tzCacheMutex = &sync.Mutex{}
 	tzCache = make(map[string]*time.Location)
 }

@@ -1078,7 +1078,12 @@ var ParseDurationNanos = &Builtin{
 var Date = &Builtin{
 	Name: "time.date",
 	Decl: types.NewFunction(
-		types.Args(types.A),
+		types.Args(
+			types.NewAny(
+				types.N,
+				types.NewArray([]types.Type{types.N, types.S}, nil),
+			),
+		),
 		types.NewArray([]types.Type{types.N, types.N, types.N}, nil),
 	),
 }
@@ -1087,7 +1092,12 @@ var Date = &Builtin{
 var Clock = &Builtin{
 	Name: "time.clock",
 	Decl: types.NewFunction(
-		types.Args(types.A),
+		types.Args(
+			types.NewAny(
+				types.N,
+				types.NewArray([]types.Type{types.N, types.S}, nil),
+			),
+		),
 		types.NewArray([]types.Type{types.N, types.N, types.N}, nil),
 	),
 }
@@ -1096,7 +1106,12 @@ var Clock = &Builtin{
 var Weekday = &Builtin{
 	Name: "time.weekday",
 	Decl: types.NewFunction(
-		types.Args(types.A),
+		types.Args(
+			types.NewAny(
+				types.N,
+				types.NewArray([]types.Type{types.N, types.S}, nil),
+			),
+		),
 		types.S,
 	),
 }
