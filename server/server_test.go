@@ -1696,6 +1696,24 @@ func TestPoliciesPutV1ParseError(t *testing.T) {
 	if name.Compare(ast.String("test")) != 0 {
 		t.Fatalf("Expected name ot equal test but got: %v", name)
 	}
+
+	req = newReqV1(http.MethodPut, "/policies/test", ``)
+	f.reset()
+	f.server.Handler.ServeHTTP(f.recorder, req)
+	if f.recorder.Code != 400 {
+		t.Fatalf("Expected bad request but got %v", f.recorder)
+	}
+
+	req = newReqV1(http.MethodPut, "/policies/test", `
+	package a.b.c
+
+	p = true`)
+	f.reset()
+	f.server.Handler.ServeHTTP(f.recorder, req)
+	if f.recorder.Code != 200 {
+		t.Fatalf("Expected ok but got %v", f.recorder)
+	}
+
 }
 
 func TestPoliciesPutV1CompileError(t *testing.T) {
