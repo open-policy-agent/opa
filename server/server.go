@@ -1505,6 +1505,7 @@ func (s *Server) v1PoliciesPut(w http.ResponseWriter, r *http.Request) {
 	m.Timer(metrics.RegoModuleParse).Stop()
 
 	if err != nil {
+		s.store.Abort(ctx, txn)
 		switch err := err.(type) {
 		case ast.Errors:
 			writer.Error(w, http.StatusBadRequest, types.NewErrorV1(types.CodeInvalidParameter, types.MsgCompileModuleError).WithASTErrors(err))
@@ -1515,6 +1516,7 @@ func (s *Server) v1PoliciesPut(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if parsedMod == nil {
+		s.store.Abort(ctx, txn)
 		writer.Error(w, http.StatusBadRequest, types.NewErrorV1(types.CodeInvalidParameter, "empty module"))
 		return
 	}
