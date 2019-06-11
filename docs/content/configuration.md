@@ -319,5 +319,6 @@ services:
 | --- | --- | --- | --- |
 | `discovery.name` | `string` | Yes | Name of the discovery configuration to download. |
 | `discovery.prefix` | `string` | No (default: `bundles`) | Path prefix to use to download configuration from remote server. |
+| `discovery.decision` | `string` | No (default: value of `discovery.name` configuration field) | Name of the OPA query that will be used to calculate the configuration |
 | `discovery.polling.min_delay_seconds` | `int64` | No (default: `60`) | Minimum amount of time to wait between configuration downloads. |
 | `discovery.polling.max_delay_seconds` | `int64` | No (default: `120`) | Maximum amount of time to wait between configuration downloads. |
