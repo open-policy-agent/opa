@@ -16,8 +16,9 @@ import (
 // Config represents the configuration for the discovery feature.
 type Config struct {
 	download.Config         // bundle downloader configuration
-	Name            *string `json:"name"`   // name of the discovery bundle
-	Prefix          *string `json:"prefix"` // path prefix for downloader
+	Name            *string `json:"name"`     // name of the discovery bundle
+	Prefix          *string `json:"prefix"`   // path prefix for downloader
+	Decision        *string `json:"decision"` // the name of the query to run on the bundle to get the config
 
 	service string
 	path    string
@@ -51,13 +52,19 @@ func (c *Config) validateAndInjectDefaults(services []string) error {
 		c.Prefix = &s
 	}
 
-	if len(services) == 0 {
+	if len(services) != 1 {
 		return fmt.Errorf("discovery requires exactly one service")
+	}
+
+	decision := c.Decision
+
+	if decision == nil {
+		decision = c.Name
 	}
 
 	c.service = services[0]
 	c.path = fmt.Sprintf("%v/%v", strings.Trim(*c.Prefix, "/"), strings.Trim(*c.Name, "/"))
-	c.query = fmt.Sprintf("%v.%v", ast.DefaultRootDocument, strings.Replace(strings.Trim(*c.Name, "/"), "/", ".", -1))
+	c.query = fmt.Sprintf("%v.%v", ast.DefaultRootDocument, strings.Replace(strings.Trim(*decision, "/"), "/", ".", -1))
 
 	return c.Config.ValidateAndInjectDefaults()
 }
