@@ -16,42 +16,42 @@ import (
 )
 
 func BenchmarkAuthzForbidAuthn(b *testing.B) {
-	runAuthzBenchmark(b, forbidIdentity, 10)
+	runAuthzBenchmark(b, ForbidIdentity, 10)
 }
 
 func BenchmarkAuthzForbidPath(b *testing.B) {
-	runAuthzBenchmark(b, forbidPath, 10)
+	runAuthzBenchmark(b, ForbidPath, 10)
 }
 
 func BenchmarkAuthzForbidMethod(b *testing.B) {
-	runAuthzBenchmark(b, forbidMethod, 10)
+	runAuthzBenchmark(b, ForbidMethod, 10)
 }
 
 func BenchmarkAuthzAllow10Paths(b *testing.B) {
-	runAuthzBenchmark(b, allow, 10)
+	runAuthzBenchmark(b, Allow, 10)
 }
 
 func BenchmarkAuthzAllow100Paths(b *testing.B) {
-	runAuthzBenchmark(b, allow, 100)
+	runAuthzBenchmark(b, Allow, 100)
 }
 
 func BenchmarkAuthzAllow1000Paths(b *testing.B) {
-	runAuthzBenchmark(b, allow, 1000)
+	runAuthzBenchmark(b, Allow, 1000)
 }
 
-func runAuthzBenchmark(b *testing.B, mode inputMode, numPaths int) {
+func runAuthzBenchmark(b *testing.B, mode InputMode, numPaths int) {
 
-	profile := dataSetProfile{
-		numTokens: 1000,
-		numPaths:  numPaths,
+	profile := DataSetProfile{
+		NumTokens: 1000,
+		NumPaths:  numPaths,
 	}
 
 	ctx := context.Background()
-	data := generateDataset(profile)
+	data := GenerateDataset(profile)
 	store := inmem.NewFromObject(data)
 	txn := storage.NewTransactionOrDie(ctx, store)
 	compiler := ast.NewCompiler()
-	module := ast.MustParseModule(policy)
+	module := ast.MustParseModule(Policy)
 
 	compiler.Compile(map[string]*ast.Module{"": module})
 	if compiler.Failed() {
@@ -64,7 +64,7 @@ func runAuthzBenchmark(b *testing.B, mode inputMode, numPaths int) {
 		rego.Compiler(compiler),
 		rego.Store(store),
 		rego.Transaction(txn),
-		rego.Query("data.restauthz.allow"),
+		rego.Query(AllowQuery),
 	)
 
 	// Pre-process as much as we can
@@ -74,7 +74,7 @@ func runAuthzBenchmark(b *testing.B, mode inputMode, numPaths int) {
 	}
 
 	for i := 0; i < b.N; i++ {
-		input, expected := generateInput(profile, mode)
+		input, expected := GenerateInput(profile, mode)
 
 		rs, err := pq.Eval(ctx, rego.EvalInput(input))
 		if err != nil {

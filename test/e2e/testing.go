@@ -18,6 +18,7 @@ import (
 
 	"github.com/open-policy-agent/opa/runtime"
 	"github.com/open-policy-agent/opa/util"
+	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -111,12 +112,35 @@ func NewTestRuntime(params runtime.Params) (*TestRuntime, error) {
 // value is what should be used as the code in `os.Exit` in the
 // `TestMain` function.
 func (t *TestRuntime) RunAPIServerTests(m *testing.M) int {
+	return t.runTests(m, false)
+}
+
+// RunAPIServerBenchmarks will start the OPA runtime and do
+// `m.Run()` similar to how RunAPIServerTests works. This
+// will surpress logging output on stdout to prevent the tests
+// from being overly verbose. If log output is desired set
+// the `test.v` flag.
+func (t *TestRuntime) RunAPIServerBenchmarks(m *testing.M) int {
+	return t.runTests(m, !testing.Verbose())
+}
+
+func (t *TestRuntime) runTests(m *testing.M, surpressLogs bool) int {
 	// Start serving API requests in the background
 	done := make(chan error)
 	go func() {
+		// Surpress the stdlogger in the server
+		if surpressLogs {
+			logrus.SetOutput(ioutil.Discard)
+		}
 		err := t.Runtime.Serve(t.Ctx)
 		done <- err
 	}()
+
+	// Turns out this thread gets a different stdlogger
+	// so we need to set the output on it here too.
+	if surpressLogs {
+		logrus.SetOutput(ioutil.Discard)
+	}
 
 	// wait for the server to be ready
 	err := t.waitForServer()
