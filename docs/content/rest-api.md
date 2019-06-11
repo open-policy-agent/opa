@@ -1390,14 +1390,18 @@ main = msg {
 
 #### Example Request
 
+Request
 ```http
 POST /
 Content-Type: application/json
 ```
 
+Input
 ```json
 {
-  "user": ["alice"]
+  "input": {
+    "user": ["alice"]
+  }
 }
 ```
 
