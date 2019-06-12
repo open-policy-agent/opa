@@ -421,7 +421,7 @@ Both forms are valid, however, the dot-access style is typically more readable. 
   4. Composite keys which are described later.
 
 References are always prefixed with a variable that identifies the root
-document. In the example above this is `p`. The root document may be:
+document. In the example above this is `sites`. The root document may be:
 
   * a local variable inside a rule.
   * a rule inside the same package.
