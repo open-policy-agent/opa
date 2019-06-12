@@ -252,15 +252,20 @@ func eval(args []string, params evalCommandParams, w io.Writer) (bool, error) {
 		}
 	}
 
-	bs, err := readInputBytes(params)
+	inputBytes, err := readInputBytes(params)
 	if err != nil {
 		return false, err
-	} else if bs != nil {
-		term, err := ast.ParseTerm(string(bs))
+	} else if inputBytes != nil {
+		var input interface{}
+		err := util.Unmarshal(inputBytes, &input)
 		if err != nil {
-			return false, err
+			return false, fmt.Errorf("unable to parse input: %s", err.Error())
 		}
-		regoArgs = append(regoArgs, rego.ParsedInput(term.Value))
+		inputValue, err := ast.InterfaceToValue(input)
+		if err != nil {
+			return false, fmt.Errorf("unable to process input: %s", err.Error())
+		}
+		regoArgs = append(regoArgs, rego.ParsedInput(inputValue))
 	}
 
 	var tracer *topdown.BufferTracer
