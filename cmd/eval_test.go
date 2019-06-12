@@ -7,6 +7,8 @@ package cmd
 import (
 	"bufio"
 	"bytes"
+	"fmt"
+	"path/filepath"
 	"testing"
 
 	"github.com/open-policy-agent/opa/internal/presentation"
@@ -76,4 +78,90 @@ p = 1`,
 			t.Fatalf("Expected coverage in output but got: %v", buf.String())
 		}
 	})
+}
+
+func testEvalWithInputFile(t *testing.T, input string, query string) error {
+	files := map[string]string{
+		"input.json": input,
+	}
+
+	var err error
+	test.WithTempFS(files, func(path string) {
+
+		params := newEvalCommandParams()
+		params.inputPath = filepath.Join(path, "input.json")
+
+		var buf bytes.Buffer
+		var defined bool
+		defined, err = eval([]string{query}, params, &buf)
+		if !defined || err != nil {
+			err = fmt.Errorf("Unexpected error or undefined from evaluation: %v", err)
+			return
+		}
+
+		var output presentation.Output
+
+		if err := util.NewJSONDecoder(&buf).Decode(&output); err != nil {
+			t.Fatal(err)
+		}
+
+		rs := output.Result
+		if len(rs) != 1 {
+			t.Fatalf("Expected exactly 1 result, actual: %s", rs)
+		}
+
+		r := rs[0].Expressions
+		if len(r) != 1 {
+			t.Fatalf("Expected exactly 1 expression in the result, actual: %s", r)
+		}
+
+		if string(util.MustMarshalJSON(r[0].Value)) != "true" {
+			t.Fatalf("Expected result value to be true")
+		}
+	})
+
+	return err
+}
+
+func TestEvalWithJSONInputFile(t *testing.T) {
+
+	input := `{
+		"foo": "a",
+		"b": [
+			{
+				"a": 1,
+				"b": [1, 2, 3],
+				"c": null
+			}
+		]
+}`
+	query := "input.b[0].a == 1"
+	err := testEvalWithInputFile(t, input, query)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+}
+
+func TestEvalWithYAMLInputFile(t *testing.T) {
+	input := `
+foo: a
+b: 
+  - a: 1
+    b: [1, 2, 3]
+    c: 
+`
+	query := "input.b[0].a == 1"
+	err := testEvalWithInputFile(t, input, query)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+}
+
+func TestEvalWithInvalidInputFile(t *testing.T) {
+	input := `{badjson`
+	query := "input.b[0].a == 1"
+	err := testEvalWithInputFile(t, input, query)
+	if err == nil {
+		t.Fatalf("expected error but err == nil")
+	}
 }
