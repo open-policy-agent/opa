@@ -1421,11 +1421,11 @@ p {
 
 y = 100
 q {
-    y == 100   # true because x refers to the global variable
+    y == 100   # true because y refers to the global variable
 }
 
 r {
-    z == 100   # compiler error because y has not been assigned a value
+    z == 100   # compiler error because z has not been assigned a value
 }
 ```
 
