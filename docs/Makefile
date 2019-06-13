@@ -1,8 +1,9 @@
 .PHONY: clean
 clean:
+	rm -rf ${CURDIR}/website/data/releases.yaml
 	rm -rf $(CURDIR)/website/generated 
 	rm -rf $(CURDIR)/website/public 
-	rm -rf $(CURDIR)/website/esources
+	rm -rf $(CURDIR)/website/resources
 
 .PHONY: generate
 generate:
