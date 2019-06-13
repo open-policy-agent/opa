@@ -14,7 +14,40 @@ ROOT_DIR=$(git rev-parse --show-toplevel)
 RELEASES_YAML_FILE=${ROOT_DIR}/docs/website/data/releases.yaml
 GIT_VERSION=$(git --version)
 
-RELEASES=$(cat ${ROOT_DIR}/docs/website/RELEASES)
+# Look at the git tags and generate a list of releases
+# that we want to show docs for.
+if [[ -z ${OFFLINE} ]]; then
+    git fetch --tags ${REPOSITORY_URL:-https://github.com/open-policy-agent/opa.git}
+fi
+ALL_RELEASES=$(git tag -l | sort -r -V)
+RELEASES=()
+PREV_MAJOR_VER="-1"
+PREV_MINOR_VER="-1"
+for release in ${ALL_RELEASES}; do
+    CUR_SEM_VER=${release#"v"}
+    SEMVER_REGEX='[^0-9]*\([0-9]*\)[.]\([0-9]*\)[.]\([0-9]*\)\([0-9A-Za-z-]*\)'
+    CUR_MAJOR_VER=$(echo ${CUR_SEM_VER} | sed -e "s#${SEMVER_REGEX}#\1#")
+    CUR_MINOR_VER=$(echo ${CUR_SEM_VER} | sed -e "s#${SEMVER_REGEX}#\2#")
+    CUR_PATCH_VER=$(echo ${CUR_SEM_VER} | sed -e "s#${SEMVER_REGEX}#\3#")
+
+    # ignore versions from before we used this static site generator
+    if [[ (${CUR_MAJOR_VER} -lt 0) || \
+            (${CUR_MAJOR_VER} -le 0 && ${CUR_MINOR_VER} -lt 10) || \
+            (${CUR_MAJOR_VER} -le 0 && ${CUR_MINOR_VER} -le 10 && ${CUR_PATCH_VER} -le 5) ]]; then
+        continue
+    fi
+
+    # The releases are sorted in order by semver from newest to oldest, and we only want
+    # the latest point release for each minor version
+    if [[ "${CUR_MAJOR_VER}" != "${PREV_MAJOR_VER}" || \
+             ("${CUR_MAJOR_VER}" = "${PREV_MAJOR_VER}" && \
+                "${CUR_MINOR_VER}" != "${PREV_MINOR_VER}") ]]; then
+        RELEASES+=(${release})
+    fi
+
+    PREV_MAJOR_VER=${CUR_MAJOR_VER}
+    PREV_MINOR_VER=${CUR_MINOR_VER}
+done
 
 echo "Git version: ${GIT_VERSION}"
 
@@ -54,16 +87,12 @@ rm -rf ${ROOT_DIR}/docs/website/generated/*
 echo "Removing data/releases.yaml file"
 rm -f ${RELEASES_YAML_FILE}
 
-for release in ${RELEASES}; do
+for release in "${RELEASES[@]}"; do
     version_docs_dir=${ROOT_DIR}/docs/website/generated/docs/${release}
 
     mkdir -p ${version_docs_dir}
 
     echo "Checking out release ${release}"
-    if [[ -z "$(git tag -l | grep ${release} || echo '')" ]]; then
-        echo "Unable to find tag locally, attempting to fetch from github.."
-        git fetch --tags https://github.com/open-policy-agent/opa.git
-    fi
 
     # Don't error if the checkout fails
     set +e

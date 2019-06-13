@@ -98,6 +98,13 @@ make generate
 ```
 The content then will be placed into `docs/website/generated/docs/$VERSION/`.
 
+This will attempt to fetch the latest tags from git. The fetch will be skipped
+if the `OFFLINE` environment variable is defined. For example:
+
+```shell
+OFFLINE=1 make generate
+```
+
 ### Run the site locally using Docker
 
 > Note: running with docker only uses the Hugo server and not Netlify locally.
