@@ -137,4 +137,4 @@ There are a few restrictions on the JSON Pointers that OPA will erase:
 * Pointers may be undefined. For example `/input/name/first` in the example
   above would be undefined. Undefined pointers are ignored.
 * Pointers must refer to object keys. Pointers to array elements will be treated
-  as undefined.
+  as undefined. For example `/input/emails/0/value` is allowed but `/input/emails/0` is not.
