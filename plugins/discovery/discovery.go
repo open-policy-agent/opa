@@ -111,7 +111,7 @@ func (c *Discovery) processUpdate(ctx context.Context, u download.Update) {
 
 	if u.Error != nil {
 		c.logError("Discovery download failed: %v", u.Error)
-		c.status.SetError(u.Error)
+		c.status.SetError(u.Error, "download")
 		return
 	}
 
@@ -120,11 +120,11 @@ func (c *Discovery) processUpdate(ctx context.Context, u download.Update) {
 
 		if err := c.reconfigure(ctx, u); err != nil {
 			c.logError("Discovery reconfiguration error occurred: %v", err)
-			c.status.SetError(err)
+			c.status.SetError(err, "activate")
 			return
 		}
 
-		c.status.SetError(nil)
+		c.status.SetError(nil, "activate")
 		c.status.SetActivateSuccess(u.Bundle.Manifest.Revision)
 		if u.ETag != "" {
 			c.logInfo("Discovery update processed successfully. Etag updated to %v.", u.ETag)
@@ -137,7 +137,7 @@ func (c *Discovery) processUpdate(ctx context.Context, u download.Update) {
 
 	if u.ETag == c.etag {
 		c.logError("Discovery update skipped, server replied with not modified.")
-		c.status.SetError(nil)
+		c.status.SetError(nil, "download")
 		return
 	}
 }

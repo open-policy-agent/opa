@@ -433,8 +433,6 @@ func (s *Server) getListenerForUNIXSocket(u *url.URL) (Loop, httpListener, error
 }
 
 func (s *Server) initRouter() {
-
-	promRegistry := prometheus.NewRegistry()
 	duration := prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Name: "http_request_duration_seconds",
@@ -450,8 +448,7 @@ func (s *Server) initRouter() {
 	indexDur := duration.MustCurryWith(prometheus.Labels{"handler": PromHandlerIndex})
 	catchAllDur := duration.MustCurryWith(prometheus.Labels{"handler": PromHandlerCatch})
 	GetHealthDur := duration.MustCurryWith(prometheus.Labels{"handler": PromHandlerHealth})
-	promRegistry.MustRegister(duration)
-	promRegistry.MustRegister(prometheus.NewGoCollector())
+	prometheus.MustRegister(duration)
 
 	router := s.router
 
@@ -461,7 +458,7 @@ func (s *Server) initRouter() {
 
 	router.UseEncodedPath()
 	router.StrictSlash(true)
-	router.Handle("/metrics", promhttp.HandlerFor(promRegistry, promhttp.HandlerOpts{})).Methods(http.MethodGet)
+	router.Handle("/metrics", promhttp.Handler())
 	router.Handle("/health", promhttp.InstrumentHandlerDuration(GetHealthDur, http.HandlerFunc(s.unversionedGetHealth))).Methods(http.MethodGet)
 	if s.pprofEnabled {
 		router.HandleFunc("/debug/pprof/", pprof.Index)

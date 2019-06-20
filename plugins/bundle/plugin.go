@@ -41,6 +41,7 @@ func New(parsedConfig *Config, manager *plugins.Manager) *Plugin {
 			Name: parsedConfig.Name,
 		},
 	}
+	
 	p.initDownloader()
 	return p
 }
@@ -60,6 +61,7 @@ func Lookup(manager *plugins.Manager) *Plugin {
 // from the configured service. When a new bundle is downloaded, the data and
 // policies are extracted and inserted into storage.
 func (p *Plugin) Start(ctx context.Context) error {
+	
 	p.logInfo("Starting bundle downloader.")
 	p.mtx.Lock()
 	defer p.mtx.Unlock()
@@ -144,23 +146,23 @@ func (p *Plugin) oneShot(ctx context.Context, u download.Update) {
 }
 
 func (p *Plugin) process(ctx context.Context, u download.Update) {
-
 	if u.Error != nil {
 		p.logError("Bundle download failed: %v", u.Error)
-		p.status.SetError(u.Error)
+		p.status.SetError(u.Error, "download")
 		return
 	}
 
 	if u.Bundle != nil {
+		bundleStatusPhase.WithLabelValues("activate", "success", "").Set(1)
 		p.status.SetDownloadSuccess()
 
 		if err := p.activate(ctx, u.Bundle); err != nil {
 			p.logError("Bundle activation failed: %v", err)
-			p.status.SetError(err)
+			p.status.SetError(err, "activate")
 			return
 		}
 
-		p.status.SetError(nil)
+		p.status.SetError(nil, "activate")
 		p.status.SetActivateSuccess(u.Bundle.Manifest.Revision)
 		if u.ETag != "" {
 			p.logInfo("Bundle downloaded and activated successfully. Etag updated to %v.", u.ETag)
@@ -173,7 +175,7 @@ func (p *Plugin) process(ctx context.Context, u download.Update) {
 
 	if u.ETag == p.etag {
 		p.logDebug("Bundle download skipped, server replied with not modified.")
-		p.status.SetError(nil)
+		p.status.SetError(nil, "download")
 		return
 	}
 }
