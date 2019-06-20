@@ -130,7 +130,9 @@ The cloud team could have a more sophisticated scheme for combining policies, e.
 
 For low-latency/high-performance use-cases, e.g. microservice API authorization, policy evaluation has a budget on the order of 1 millisecond.  Not all use cases require that kind of performance, and OPA is powerful enough that you can write policies that take much longer than 1 millisecond to evaluate.  But for high-performance use cases, there is a fragment of the policy language that has been engineered to evaluate quickly.  Even as the size of the policies grow, the performance for this fragment can be nearly constant-time.
 
-**Linear fragment** The *linear fragment* of the language is all of those policies where evaluation amounts to walking over the policy once.  This means there is no search required to make a policy decision.  Any variables you use can be assigned at most one value.
+### Linear fragment
+
+ The *linear fragment* of the language is all of those policies where evaluation amounts to walking over the policy once.  This means there is no search required to make a policy decision.  Any variables you use can be assigned at most one value.
 
 For example, the following rule has one local variable `user`, and that variable can only be assigned one value.  Intuitively, evaluating this rule requires checking each of the conditions in the body, and if there were N of these rules, evaluation would only require walking over each of them as well.
 
@@ -143,7 +145,9 @@ allow {
 }
 ```
 
-**Use objects instead of arrays**.  One common mistake people make is using arrays when they could use objects.  For example, below is an array of ID/first-name/last-names where ID is unique, and you're looking up the first-name/last-name given the ID.
+### Use objects over arrays
+
+One common mistake people make is using arrays when they could use objects.  For example, below is an array of ID/first-name/last-names where ID is unique, and you're looking up the first-name/last-name given the ID.
 
 ```ruby
 # DO NOT DO THIS.
@@ -171,12 +175,15 @@ d = {"a123": {"first": "alice", "last": "smith"},
 d["a789"].first ...
 ```
 
+### Use indexed statements
 
-**Use simple equality statements for indexing**.  The linear-time fragment ensures that the cost of evaluation is no larger than the size of the policy.  OPA lets you write non-linear policies, because sometimes you need to, and because sometimes it's convenient.  The blog on [partial evaluation](https://blog.openpolicyagent.org/partial-evaluation-162750eaf422) describes one mechanism for converting non-linear policies into linear policies.
+The linear-time fragment ensures that the cost of evaluation is no larger than the size of the policy.  OPA lets you write non-linear policies, because sometimes you need to, and because sometimes it's convenient.  The blog on [partial evaluation](https://blog.openpolicyagent.org/partial-evaluation-162750eaf422) describes one mechanism for converting non-linear policies into linear policies.
 
 But as the size of the policy grows, the cost of evaluation grows with it.  Sometimes the policy can grow large enough that even the linear-fragment fails to meet the performance budget.
 
-In the linear fragment, OPA includes special algorithms that index rules efficiently, sometimes making evaluation constant-time, even as the policy grows.  The indexer looks for simple equality statements, so the more simple equality checks that appear in rules, the more effective the indexer is, and the fewer rules actually need to be evaluated.  Here is an example policy from the [rule-indexing blog](https://blog.openpolicyagent.org/optimizing-opa-rule-indexing-59f03f17caf3) giving the details for these algorithms.
+In the linear fragment, OPA includes special algorithms that **index rules efficiently**, sometimes making evaluation constant-time, even as the policy grows. The more effective the indexing is the fewer rules need to be evaluated.
+
+Here is an example policy from the [rule-indexing blog](https://blog.openpolicyagent.org/optimizing-opa-rule-indexing-59f03f17caf3) giving the details for these algorithms. See the rest of this section for details on indexed statements.
 
 ```ruby
 allow {
@@ -199,14 +206,36 @@ allow {
 }
 ```
 
-**Key takeaways**
+#### Equality statements
+
+For simple equality statements (`=` and `==`) to be indexed one side must be a non-nested reference that does not contain any variables and the other side must be a variable, scalar, or array (which may contain scalars and variables). For example:
+
+| Expression | Indexed | Reason |
+| --- | --- | --- |
+| `input.x = "foo"` | yes | n/a |
+| `input.x.y = "bar"` | yes | n/a |
+| `input.x = ["foo", i]` | yes | n/a |
+| `input.x[i] = "foo"` | no | reference contains variables |
+| `input.x[input.y] = "foo"]` | no | reference is nested |
+
+#### Glob statements
+
+For `glob.match(pattern, delimiter, match)` statements to be indexed the pattern must be recognized by the indexer and the match be a non-nested reference that does not contain any variables. The indexer recognizes patterns containing the normal glob (`*`) operator but not the super glob (`**`) or character pattern matching operators.
+
+| Expression | Indexed | Reason |
+| --- | --- | --- |
+| `glob.match("foo:*:bar", [":"], input.x)` | yes | n/a |
+| `glob.match("foo:**:bar", [":"], input.x)` | no | pattern contains `**` |
+| `glob.match("foo:*:bar", [":"], input.x[i])` | no | match contains variable(s) |
+
+### Key Takeaways
 
 For high-performance use cases:
 
 * Write your policies to minimize iteration and search.
   * Use objects instead of arrays when you have a unique identifier for the elements of the array.
   * Consider [partial-evaluation](https://blog.openpolicyagent.org/partial-evaluation-162750eaf422) to compile non-linear policies to linear policies.
-* Write your policies with simple equality statements so that [rule-indexing](https://blog.openpolicyagent.org/optimizing-opa-rule-indexing-59f03f17caf3) is effective.
+* Write your policies with indexed statements so that [rule-indexing](https://blog.openpolicyagent.org/optimizing-opa-rule-indexing-59f03f17caf3) is effective.
 
 ## Functions Versus Rules
 Rego lets you factor out common logic in 2 different and complementary ways.
