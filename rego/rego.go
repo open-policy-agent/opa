@@ -501,6 +501,21 @@ func Module(filename, input string) func(r *Rego) {
 	}
 }
 
+// ParsedModule returns an argument that adds a parsed Rego module. If a string
+// module with the same filename name is added, it will override the parsed
+// module.
+func ParsedModule(module *ast.Module) func(*Rego) {
+	return func(r *Rego) {
+		var filename string
+		if module.Package.Location != nil {
+			filename = module.Package.Location.File
+		} else {
+			filename = fmt.Sprintf("module_%p.rego", module)
+		}
+		r.parsedModules[filename] = module
+	}
+}
+
 // Compiler returns an argument that sets the Rego compiler.
 func Compiler(c *ast.Compiler) func(r *Rego) {
 	return func(r *Rego) {
@@ -575,6 +590,7 @@ func PrintTrace(w io.Writer, r *Rego) {
 func New(options ...func(r *Rego)) *Rego {
 
 	r := &Rego{
+		parsedModules:   map[string]*ast.Module{},
 		capture:         map[*ast.Expr]ast.Var{},
 		compiledQueries: map[queryType]compiledQuery{},
 	}
@@ -966,7 +982,7 @@ func (r *Rego) prepare(ctx context.Context, txn storage.Transaction, qType query
 		return err
 	}
 
-	r.parsedModules, err = r.parseModules(r.metrics)
+	err = r.parseModules(r.metrics)
 	if err != nil {
 		return err
 	}
@@ -986,26 +1002,24 @@ func (r *Rego) prepare(ctx context.Context, txn storage.Transaction, qType query
 	return r.compileAndCacheQuery(qType, r.parsedQuery, r.metrics, extras)
 }
 
-func (r *Rego) parseModules(m metrics.Metrics) (map[string]*ast.Module, error) {
+func (r *Rego) parseModules(m metrics.Metrics) error {
 	m.Timer(metrics.RegoModuleParse).Start()
 	defer m.Timer(metrics.RegoModuleParse).Stop()
 	var errs Errors
-	parsed := map[string]*ast.Module{}
-	if r.parsedModules != nil {
-		parsed = r.parsedModules
-	} else {
-		for _, module := range r.modules {
-			p, err := module.Parse()
-			if err != nil {
-				errs = append(errs, err)
-			}
-			parsed[module.filename] = p
+
+	for _, module := range r.modules {
+		p, err := module.Parse()
+		if err != nil {
+			errs = append(errs, err)
 		}
-		if len(errs) > 0 {
-			return nil, errors.New(errs.Error())
-		}
+		r.parsedModules[module.filename] = p
 	}
-	return parsed, nil
+
+	if len(errs) > 0 {
+		return errors.New(errs.Error())
+	}
+
+	return nil
 }
 
 func (r *Rego) parseInput() (ast.Value, error) {

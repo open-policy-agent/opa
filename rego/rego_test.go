@@ -722,3 +722,54 @@ func TestMissingLocation(t *testing.T) {
 		t.Fatal("Expected location data to be unset.")
 	}
 }
+
+func TestModulePassing(t *testing.T) {
+
+	// This module will not be loaded since it has the same filename as the
+	// file2.rego below and the raw modules override parsed modules.
+	module1, err := ast.ParseModule("file2.rego", `package file2
+
+	p = "deadbeef"
+	`)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	r := New(
+		Query("data"),
+		Module("file1.rego", `package file1
+
+		p = 1
+		`),
+		Module("file2.rego", `package file2
+
+		p = 2`),
+		ParsedModule(module1),
+		ParsedModule(ast.MustParseModule(`package file4
+
+		p = 4`)),
+	)
+
+	rs, err := r.Eval(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	exp := util.MustUnmarshalJSON([]byte(`
+	{
+		"file1": {
+			"p": 1
+		},
+		"file2": {
+			"p": 2
+		},
+		"file4": {
+			"p": 4
+		}
+	}
+	`))
+
+	if !reflect.DeepEqual(rs[0].Expressions[0].Value, exp) {
+		t.Fatalf("Expected %v but got %v", exp, rs[0].Expressions[0].Value)
+	}
+}
