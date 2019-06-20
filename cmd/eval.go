@@ -245,10 +245,12 @@ func eval(args []string, params evalCommandParams, w io.Writer) (bool, error) {
 		if err != nil {
 			return false, err
 		}
+
 		regoArgs = append(regoArgs, rego.Store(inmem.NewFromObject(loadResult.Documents)))
+
 		for _, file := range loadResult.Modules {
 			parsedModules[file.Name] = file.Parsed
-			regoArgs = append(regoArgs, rego.Module(file.Name, string(file.Raw)))
+			regoArgs = append(regoArgs, rego.ParsedModule(file.Parsed))
 		}
 	}
 
