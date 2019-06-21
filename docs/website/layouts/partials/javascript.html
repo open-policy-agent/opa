@@ -1,5 +1,23 @@
+{{ $isDocsPage := eq .Section "docs" }}
+{{ $app        := resources.Get "js/app.js" | resources.ExecuteAsTemplate "js/app.js" . | fingerprint }}
+<script type="text/javascript" src="https://cdn.jsdelivr.net/npm/docsearch.js@2/dist/cdn/docsearch.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/tocbot/4.7.0/tocbot.min.js"></script>
-{{ $app := resources.Get "js/app.js" | fingerprint }}
 <script src="{{ $app.RelPermalink }}" integrity="{{ $app.Data.Integrity }}"></script>
 <script src="/js/anchor.min.js"></script>
+
+{{ if $isDocsPage }}
+{{ $version := index (split .File.Path "/") 1 }}
+{{ $apiKey  := site.Params.algolia_api_key }}
+<script>
+  console.log("You are reading the docs for version {{ $version }} of Open Policy Agent");
+
+  docsearch({
+    apiKey: '{{ $apiKey }}',
+    indexName: 'openpolicyagent',
+    inputSelector: '#search-bar',
+    algoliaOptions: { 'facetFilters': ["version:{{ $version }}"] },
+    debug: true
+  });
+</script>
+{{ end }}
