@@ -1247,7 +1247,10 @@ func (r *Rego) partialResult(ctx context.Context, ectx *EvalContext, output *ast
 		r.compiler.Modules[fmt.Sprintf("__partialsupport%d__", i)] = module
 	}
 
+	r.metrics.Timer(metrics.RegoModuleCompile).Start()
 	r.compiler.Compile(r.compiler.Modules)
+	r.metrics.Timer(metrics.RegoModuleCompile).Stop()
+
 	if r.compiler.Failed() {
 		return PartialResult{}, r.compiler.Errors
 	}
