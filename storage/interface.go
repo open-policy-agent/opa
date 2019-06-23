@@ -44,6 +44,34 @@ type TransactionParams struct {
 
 	// Write indicates if this transaction will perform any write operations.
 	Write bool
+
+	// Context contains key/value pairs passed to triggers.
+	Context *Context
+}
+
+// Context is a simple container for key/value pairs.
+type Context struct {
+	values map[interface{}]interface{}
+}
+
+// NewContext returns a new context object.
+func NewContext() *Context {
+	return &Context{
+		values: map[interface{}]interface{}{},
+	}
+}
+
+// Get returns the key value in the context.
+func (ctx *Context) Get(key interface{}) interface{} {
+	if ctx == nil {
+		return nil
+	}
+	return ctx.values[key]
+}
+
+// Put adds a key/value pair to the context.
+func (ctx *Context) Put(key, value interface{}) {
+	ctx.values[key] = value
 }
 
 // WriteParams specifies the TransactionParams for a write transaction.
@@ -117,8 +145,9 @@ type DataEvent struct {
 
 // TriggerEvent describes the changes that caused the trigger to be invoked.
 type TriggerEvent struct {
-	Policy []PolicyEvent
-	Data   []DataEvent
+	Policy  []PolicyEvent
+	Data    []DataEvent
+	Context *Context
 }
 
 // IsZero returns true if the TriggerEvent indicates no changes occurred. This
