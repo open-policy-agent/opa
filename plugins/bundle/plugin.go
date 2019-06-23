@@ -181,7 +181,10 @@ func (p *Plugin) process(ctx context.Context, u download.Update) {
 func (p *Plugin) activate(ctx context.Context, b *bundle.Bundle) error {
 	p.logDebug("Bundle activation in progress. Opening storage transaction.")
 
-	return storage.Txn(ctx, p.manager.Store, storage.WriteParams, func(txn storage.Transaction) error {
+	params := storage.WriteParams
+	params.Context = storage.NewContext()
+
+	return storage.Txn(ctx, p.manager.Store, params, func(txn storage.Transaction) error {
 		p.logDebug("Opened storage transaction (%v).", txn.ID())
 		defer p.logDebug("Closing storage transaction (%v).", txn.ID())
 
@@ -207,7 +210,8 @@ func (p *Plugin) activate(ctx context.Context, b *bundle.Bundle) error {
 			return err
 		}
 
-		if err := p.erasePolicies(ctx, txn, erase); err != nil {
+		remaining, err := p.erasePolicies(ctx, txn, erase)
+		if err != nil {
 			return err
 		}
 
@@ -217,13 +221,16 @@ func (p *Plugin) activate(ctx context.Context, b *bundle.Bundle) error {
 			return err
 		}
 
-		if err := p.writeModules(ctx, txn, b.Modules); err != nil {
+		compiler, err := p.writeModules(ctx, txn, b.Modules, remaining)
+		if err != nil {
 			return err
 		}
 
 		if err := manifest.Write(ctx, p.manager.Store, txn, b.Manifest); err != nil {
 			return err
 		}
+
+		plugins.SetCompilerOnContext(params.Context, compiler)
 
 		return nil
 	})
@@ -246,34 +253,44 @@ func (p *Plugin) eraseData(ctx context.Context, txn storage.Transaction, roots m
 	return nil
 }
 
-func (p *Plugin) erasePolicies(ctx context.Context, txn storage.Transaction, roots map[string]struct{}) error {
+func (p *Plugin) erasePolicies(ctx context.Context, txn storage.Transaction, roots map[string]struct{}) (map[string]*ast.Module, error) {
+
 	ids, err := p.manager.Store.ListPolicies(ctx, txn)
 	if err != nil {
-		return err
+		return nil, err
 	}
+
+	remaining := map[string]*ast.Module{}
+
 	for _, id := range ids {
 		bs, err := p.manager.Store.GetPolicy(ctx, txn, id)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		module, err := ast.ParseModule(id, string(bs))
 		if err != nil {
-			return err
+			return nil, err
 		}
 		path, err := module.Package.Path.Ptr()
 		if err != nil {
-			return err
+			return nil, err
 		}
+		deleted := false
 		for root := range roots {
 			if strings.HasPrefix(path, root) {
 				if err := p.manager.Store.DeletePolicy(ctx, txn, id); err != nil {
-					return err
+					return nil, err
 				}
+				deleted = true
 				break
 			}
 		}
+		if !deleted {
+			remaining[id] = module
+		}
 	}
-	return nil
+
+	return remaining, nil
 }
 
 func (p *Plugin) writeData(ctx context.Context, txn storage.Transaction, roots []string, data map[string]interface{}) error {
@@ -296,22 +313,25 @@ func (p *Plugin) writeData(ctx context.Context, txn storage.Transaction, roots [
 	return nil
 }
 
-func (p *Plugin) writeModules(ctx context.Context, txn storage.Transaction, files []bundle.ModuleFile) error {
+func (p *Plugin) writeModules(ctx context.Context, txn storage.Transaction, files []bundle.ModuleFile, remaining map[string]*ast.Module) (*ast.Compiler, error) {
 	modules := map[string]*ast.Module{}
+	for name, module := range remaining {
+		modules[name] = module
+	}
 	for _, file := range files {
 		modules[file.Path] = file.Parsed
 	}
 	compiler := ast.NewCompiler().
 		WithPathConflictsCheck(storage.NonEmpty(ctx, p.manager.Store, txn))
 	if compiler.Compile(modules); compiler.Failed() {
-		return compiler.Errors
+		return nil, compiler.Errors
 	}
 	for _, file := range files {
 		if err := p.manager.Store.UpsertPolicy(ctx, txn, file.Path, file.Raw); err != nil {
-			return err
+			return nil, err
 		}
 	}
-	return nil
+	return compiler, nil
 }
 
 func (p *Plugin) logError(fmt string, a ...interface{}) {
