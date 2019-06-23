@@ -81,8 +81,10 @@ type handle struct {
 
 func (db *store) NewTransaction(ctx context.Context, params ...storage.TransactionParams) (storage.Transaction, error) {
 	var write bool
+	var context *storage.Context
 	if len(params) > 0 {
 		write = params[0].Write
+		context = params[0].Context
 	}
 	xid := atomic.AddUint64(&db.xid, uint64(1))
 	if write {
@@ -90,7 +92,7 @@ func (db *store) NewTransaction(ctx context.Context, params ...storage.Transacti
 	} else {
 		db.rmu.RLock()
 	}
-	return newTransaction(xid, write, db), nil
+	return newTransaction(xid, write, context, db), nil
 }
 
 func (db *store) Commit(ctx context.Context, txn storage.Transaction) error {

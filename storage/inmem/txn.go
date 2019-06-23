@@ -35,6 +35,7 @@ type transaction struct {
 	db       *store
 	updates  *list.List
 	policies map[string]policyUpdate
+	context  *storage.Context
 }
 
 type policyUpdate struct {
@@ -42,13 +43,14 @@ type policyUpdate struct {
 	remove bool
 }
 
-func newTransaction(xid uint64, write bool, db *store) *transaction {
+func newTransaction(xid uint64, write bool, context *storage.Context, db *store) *transaction {
 	return &transaction{
 		xid:      xid,
 		write:    write,
 		db:       db,
 		policies: map[string]policyUpdate{},
 		updates:  list.New(),
+		context:  context,
 	}
 }
 
@@ -139,6 +141,7 @@ func (txn *transaction) updateRoot(op storage.PatchOp, value interface{}) error 
 }
 
 func (txn *transaction) Commit() (result storage.TriggerEvent) {
+	result.Context = txn.context
 	for curr := txn.updates.Front(); curr != nil; curr = curr.Next() {
 		action := curr.Value.(*update)
 		updated := action.Apply(txn.db.data)
