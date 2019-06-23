@@ -15,6 +15,7 @@ import (
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/bundle"
 	"github.com/open-policy-agent/opa/download"
+	"github.com/open-policy-agent/opa/internal/manifest"
 	"github.com/open-policy-agent/opa/plugins"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/storage/inmem"
@@ -430,8 +431,10 @@ func TestPluginActivateScopedBundle(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Activate a bundle that is scoped to a/a3 ad a/a6.
-	module = "package a.a4\n\nbar=1"
+	// Activate a bundle that is scoped to a/a3 ad a/a6. Include a function
+	// inside package a.a4 that we can depend on outside of the bundle scope to
+	// exercise the compile check with remaining modules.
+	module = "package a.a4\n\nbar=1\n\nfunc(x) = x"
 
 	b = bundle.Bundle{
 		Manifest: bundle.Manifest{Revision: "quickbrownfaux", Roots: &[]string{"a/a3", "a/a4"}},
@@ -483,6 +486,89 @@ func TestPluginActivateScopedBundle(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	// Upsert policy outside of bundle scope that depends on bundle.
+	if err := storage.Txn(ctx, manager.Store, storage.WriteParams, func(txn storage.Transaction) error {
+		return manager.Store.UpsertPolicy(ctx, txn, "not_scoped", []byte("package not_scoped\np { data.a.a4.func(1) = 1 }"))
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	b = bundle.Bundle{
+		Manifest: bundle.Manifest{Revision: "quickbrownfaux-2", Roots: &[]string{"a/a3", "a/a4"}},
+		Data:     map[string]interface{}{},
+		Modules:  []bundle.ModuleFile{},
+	}
+
+	b.Manifest.Init()
+	plugin.oneShot(ctx, download.Update{Bundle: &b})
+
+	// Ensure bundle activation failed by checking that previous revision is
+	// still active.
+	if err := storage.Txn(ctx, manager.Store, storage.TransactionParams{}, func(txn storage.Transaction) error {
+		revision, err := manifest.ReadBundleRevision(ctx, manager.Store, txn)
+		if err != nil {
+			return err
+		}
+		if revision != "quickbrownfaux" {
+			return fmt.Errorf("Expected revision to be quickbrownfaux but got: %v", revision)
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestPluginSetCompilerOnContext(t *testing.T) {
+
+	ctx := context.Background()
+	manager := getTestManager()
+	plugin := Plugin{manager: manager, status: &Status{}}
+
+	module := `
+		package test
+
+		p = 1
+		`
+
+	b := bundle.Bundle{
+		Manifest: bundle.Manifest{Revision: "quickbrownfaux"},
+		Data:     map[string]interface{}{},
+		Modules: []bundle.ModuleFile{
+			bundle.ModuleFile{
+				Path:   "/test.rego",
+				Parsed: ast.MustParseModule(module),
+				Raw:    []byte(module),
+			},
+		},
+	}
+
+	b.Manifest.Init()
+
+	events := []storage.TriggerEvent{}
+
+	if err := storage.Txn(ctx, manager.Store, storage.WriteParams, func(txn storage.Transaction) error {
+		manager.Store.Register(ctx, txn, storage.TriggerConfig{
+			OnCommit: func(ctx context.Context, txn storage.Transaction, event storage.TriggerEvent) {
+				events = append(events, event)
+			},
+		})
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	plugin.oneShot(ctx, download.Update{Bundle: &b})
+
+	exp := ast.MustParseModule(module)
+
+	// Expect two events. One for trigger registration, one for policy update.
+	if len(events) != 2 {
+		t.Fatalf("Expected 2 events but got: %+v", events)
+	} else if compiler := plugins.GetCompilerOnContext(events[1].Context); compiler == nil {
+		t.Fatalf("Expected compiler on 2nd event but got: %+v", events)
+	} else if !compiler.Modules["/test.rego"].Equal(exp) {
+		t.Fatalf("Expected module on compiler but got: %v", compiler.Modules)
+	}
 }
 
 func getTestManager() *plugins.Manager {
