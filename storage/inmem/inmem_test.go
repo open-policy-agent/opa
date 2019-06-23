@@ -588,6 +588,35 @@ func TestInMemoryTriggersUnregister(t *testing.T) {
 	}
 }
 
+func TestInMemoryContext(t *testing.T) {
+
+	ctx := context.Background()
+	store := New()
+	params := storage.WriteParams
+	params.Context = storage.NewContext()
+	params.Context.Put("foo", "bar")
+
+	txn, err := store.NewTransaction(ctx, params)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	store.Register(ctx, txn, storage.TriggerConfig{
+		OnCommit: func(ctx context.Context, txn storage.Transaction, event storage.TriggerEvent) {
+			if event.Context.Get("foo") != "bar" {
+				t.Fatalf("Expected foo/bar in context but got: %+v", event.Context)
+			} else if event.Context.Get("deadbeef") != nil {
+				t.Fatalf("Got unexpected deadbeef value in context: %+v", event.Context)
+			}
+		},
+	})
+
+	if err := store.Commit(ctx, txn); err != nil {
+		t.Fatal(err)
+	}
+
+}
+
 func loadExpectedResult(input string) interface{} {
 	if len(input) == 0 {
 		return nil
