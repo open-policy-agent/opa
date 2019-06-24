@@ -283,7 +283,7 @@ kubectl logs -l app=opa -c opa
 
 ### 4. Define a policy and load it into OPA via Kubernetes
 
-To test admission control, create a policy that restricts the hostnames that an ingress can use ([ingress-whitelist.rego](https://github.com/open-policy-agent/opa/blob/master/docs/code/kubernetes-admission-control-validation/ingress-whitelist.rego)):
+To test admission control, create a policy that restricts the hostnames that an ingress can use ([ingress-whitelist.rego](https://github.com/open-policy-agent/opa/blob/master/docs/content/code/kubernetes-admission-control-validation/ingress-whitelist.rego)):
 
 {{< code file="kubernetes-admission-control-validation/ingress-whitelist.rego" lang="ruby" >}}
 
@@ -378,7 +378,7 @@ OPA allows you to modify policies on-the-fly without recompiling any of the serv
 
 To enforce the second half of the policy from the start of this tutorial you can load another policy into OPA that prevents Ingress objects in different namespaces from sharing the same hostname.
 
-[ingress-conflicts.rego](https://github.com/open-policy-agent/opa/blob/master/docs/code/kubernetes-admission-control-validation/ingress-conflicts.rego):
+[ingress-conflicts.rego](https://github.com/open-policy-agent/opa/blob/master/docs/content/code/kubernetes-admission-control-validation/ingress-conflicts.rego):
 
 {{< code file="kubernetes-admission-control-validation/ingress-conflicts.rego" lang="ruby" >}}
 
