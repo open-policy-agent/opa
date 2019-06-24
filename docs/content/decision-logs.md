@@ -69,6 +69,21 @@ Decision log updates contain the following fields:
 | `[_].metrics` | `object` | Key-value pairs of [performance metrics](../rest-api#performance-metrics). |
 | `[_].erased` | `array[string]` | Set of JSON Pointers specifying fields in the event that were erased. |
 
+
+## Local Decision Logs
+
+Local console logging of decisions can be enabled via the `console` config option.
+This does not require any remote server. Example of minimal config to enable:
+
+```yaml
+decision_logs:
+    console: true
+```
+
+This will dump all decision through the OPA logging system at the `info` level. See
+[Configuration Reference](../configuration) for more details.
+
+
 ## Masking Sensitive Data
 
 Policy queries may contain sensitive information in the `input` document that

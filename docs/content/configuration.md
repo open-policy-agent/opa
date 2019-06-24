@@ -312,7 +312,7 @@ services:
 | `decision_logs.reporting.max_delay_seconds` | `int64` | No (default: `600`) | Maximum amount of time to wait between uploads. |
 | `decision_logs.mask_decision` | `string` | No (default: `system/log/mask`) | Set path of masking decision. |
 | `decision_logs.plugin` | `string` | No | Use the named plugin for decision logging. If this field exists, the other configuration fields are not required. |
-| `decision_logs.console` | `boolean` | No (default: `false`) | Log the decisions locally at `info` level to the console. If enabled a `service` or `plugin` _must_ be specified | 
+| `decision_logs.console` | `boolean` | No (default: `false`) | Log the decisions locally at `info` level to the console. When enabled alongside a remote decision logging API the `service` must be configured, the default `service` selection will be disabled. | 
 
 ## Discovery
 
