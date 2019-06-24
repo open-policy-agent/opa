@@ -1047,6 +1047,22 @@ func TestTopDownPartialEval(t *testing.T) {
 			},
 		},
 		{
+			note:  "copy propagation: rewrite object key (bug 1177)",
+			query: `data.test.p = true`,
+			modules: []string{
+				`
+					package test
+
+					p {
+						x = input.x
+						y = input.y
+						x = {y: 1}
+					}
+				`,
+			},
+			wantQueries: []string{`input.x = {input.y: 1}`},
+		},
+		{
 			note:  "save set vars are namespaced",
 			query: "input = x; data.test.f(1)",
 			modules: []string{
