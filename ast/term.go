@@ -364,6 +364,22 @@ func (term *Term) Equal(other *Term) bool {
 	if term == other {
 		return true
 	}
+
+	// TODO(tsandall): This early-exit avoids allocations for types that have
+	// Equal() functions that just use == underneath. We should revisit the
+	// other types and implement Equal() functions that do not require
+	// allocations.
+	switch v := term.Value.(type) {
+	case Null:
+		return v.Equal(other.Value)
+	case Boolean:
+		return v.Equal(other.Value)
+	case String:
+		return v.Equal(other.Value)
+	case Var:
+		return v.Equal(other.Value)
+	}
+
 	return term.Value.Compare(other.Value) == 0
 }
 
