@@ -32,8 +32,6 @@ const (
 
 const bundleLimitBytes = (1024 * 1024 * 1024) + 1 // limit bundle reads to 1GB to protect against gzip bombs
 
-var manifestPath = []string{"system", "bundle", "manifest"}
-
 // Bundle represents a loaded bundle. The bundle can contain data and policies.
 type Bundle struct {
 	Manifest Manifest
@@ -234,8 +232,10 @@ func (r *Reader) Read() (Bundle, error) {
 			return bundle, errors.Wrap(err, "bundle load failed on manifest unmarshal")
 		}
 
-		if err := bundle.insert(manifestPath, metadata); err != nil {
-			return bundle, errors.Wrapf(err, "bundle load failed on %v", manifestPath)
+		// For backwards compatibility always write to the old unnamed manifest path
+		// This will *not* be correct if >1 bundle is in use...
+		if err := bundle.insert(legacyManifestStoragePath, metadata); err != nil {
+			return bundle, errors.Wrapf(err, "bundle load failed on %v", legacyRevisionStoragePath)
 		}
 	}
 

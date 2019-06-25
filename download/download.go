@@ -34,7 +34,7 @@ type Update struct {
 
 // Downloader implements low-level OPA bundle downloading. Downloader can be
 // started and stopped. After starting, the downloader will request bundle
-// updatest from the remote HTTP endpoint that the client is configured to
+// updates from the remote HTTP endpoint that the client is configured to
 // connect to.
 type Downloader struct {
 	config   Config                        // downloader configuration for tuning polling and other downloader behaviour
@@ -143,14 +143,18 @@ func (d *Downloader) download(ctx context.Context) (*bundle.Bundle, string, erro
 
 	switch resp.StatusCode {
 	case http.StatusOK:
-		d.logDebug("Download in progress.")
-
-		b, err := bundle.NewReader(resp.Body).Read()
-		if err != nil {
-			return nil, "", err
+		if resp.Body != nil {
+			d.logDebug("Download in progress.")
+			b, err := bundle.NewReader(resp.Body).Read()
+			if err != nil {
+				return nil, "", err
+			}
+			return &b, resp.Header.Get("ETag"), nil
 		}
 
-		return &b, resp.Header.Get("ETag"), nil
+		d.logDebug("Server replied with empty body.")
+		return nil, "", nil
+
 	case http.StatusNotModified:
 		return nil, resp.Header.Get("ETag"), nil
 	case http.StatusNotFound:

@@ -20,7 +20,8 @@ type Config struct {
 	Services                     json.RawMessage            `json:"services"`
 	Labels                       map[string]string          `json:"labels"`
 	Discovery                    json.RawMessage            `json:"discovery"`
-	Bundle                       json.RawMessage            `json:"bundle"`
+	Bundle                       json.RawMessage            `json:"bundle"` // Deprecated: Use `bundles` instead
+	Bundles                      json.RawMessage            `json:"bundles"`
 	DecisionLogs                 json.RawMessage            `json:"decision_logs"`
 	Status                       json.RawMessage            `json:"status"`
 	Plugins                      map[string]json.RawMessage `json:"plugins"`
@@ -40,7 +41,7 @@ func ParseConfig(raw []byte, id string) (*Config, error) {
 
 // PluginsEnabled returns true if one or more plugin features are enabled.
 func (c Config) PluginsEnabled() bool {
-	return c.Bundle != nil || c.DecisionLogs != nil || c.Status != nil || len(c.Plugins) > 0
+	return c.Bundle != nil || c.Bundles != nil || c.DecisionLogs != nil || c.Status != nil || len(c.Plugins) > 0
 }
 
 // DefaultDecisionRef returns the default decision as a reference.

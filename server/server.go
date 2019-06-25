@@ -11,6 +11,7 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"fmt"
+	"github.com/open-policy-agent/opa/bundle"
 	"html/template"
 	"io"
 	"io/ioutil"
@@ -27,10 +28,9 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/open-policy-agent/opa/ast"
-	"github.com/open-policy-agent/opa/bundle/manifest"
 	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/plugins"
-	"github.com/open-policy-agent/opa/plugins/bundle"
+	bundlePlugin "github.com/open-policy-agent/opa/plugins/bundle"
 	"github.com/open-policy-agent/opa/rego"
 	"github.com/open-policy-agent/opa/server/authorizer"
 	"github.com/open-policy-agent/opa/server/identifier"
@@ -101,15 +101,15 @@ type Server struct {
 	watcher           *watch.Watcher
 	decisionIDFactory func() string
 	diagnostics       Buffer
-	revision          string
+	revisions         map[string]string
+	legacyRevision    string
 	logger            func(context.Context, *Info) error
 	errLimit          int
 	pprofEnabled      bool
 	runtime           *ast.Term
 	httpListeners     []httpListener
-	bundleStatus      bundle.Status
+	bundleStatuses    map[string]*bundlePlugin.Status
 	bundleStatusMtx   *sync.RWMutex
-	hasBundle         bool
 }
 
 // Loop will contain all the calls from the server that we'll be listening on.
@@ -169,13 +169,23 @@ func (s *Server) Init(ctx context.Context) (*Server, error) {
 
 	s.partials = map[string]rego.PartialResult{}
 
-	bp := bundle.Lookup(s.manager)
+	bp := bundlePlugin.Lookup(s.manager)
 	if bp != nil {
 		s.bundleStatusMtx = new(sync.RWMutex)
-		s.hasBundle = true
-		bp.Register("REST API Server", func(status bundle.Status) {
-			s.updateBundleStatus(status)
-		})
+
+		// initialize statuses to empty defaults for server /health check
+		s.bundleStatuses = map[string]*bundlePlugin.Status{}
+		for bundleName := range bp.Config().Bundles {
+			s.bundleStatuses[bundleName] = &bundlePlugin.Status{Name: bundleName}
+		}
+
+		bp.RegisterBulkListener("REST API Server", s.updateBundleStatus)
+	}
+
+	// Check if there is a bundle revision available at the legacy storage path
+	rev, err := bundle.LegacyReadRevisionFromStore(ctx, s.store, txn)
+	if err == nil && rev != "" {
+		s.legacyRevision = rev
 	}
 
 	return s, s.store.Commit(ctx, txn)
@@ -714,16 +724,29 @@ func (s *Server) registerHandler(router *mux.Router, version int, path string, m
 }
 
 func (s *Server) reload(ctx context.Context, txn storage.Transaction, event storage.TriggerEvent) {
+	// reset some cached info
+	s.partials = map[string]rego.PartialResult{}
+	s.revisions = map[string]string{}
 
-	if revision, err := manifest.ReadBundleRevision(ctx, s.store, txn); err != nil {
-		if !storage.IsNotFound(err) {
-			panic(err)
-		}
-	} else {
-		s.revision = revision
+	// read all bundle revisions from storage (if any exist)
+	names, err := bundle.ReadBundleNamesFromStore(ctx, s.store, txn)
+	if err != nil && !storage.IsNotFound(err) {
+		panic(err)
 	}
 
-	s.partials = map[string]rego.PartialResult{}
+	for _, name := range names {
+		r, err := bundle.ReadBundleRevisionFromStore(ctx, s.store, txn, name)
+		if err != nil && !storage.IsNotFound(err) {
+			panic(err)
+		}
+		s.revisions[name] = r
+	}
+
+	// Check if we still have a legacy bundle manifest in the store
+	s.legacyRevision, err = bundle.LegacyReadRevisionFromStore(ctx, s.store, txn)
+	if err != nil && !storage.IsNotFound(err) {
+		panic(err)
+	}
 }
 
 func (s *Server) migrateWatcher(txn storage.Transaction) {
@@ -865,10 +888,10 @@ func (s *Server) v1DiagnosticsGet(w http.ResponseWriter, r *http.Request) {
 	writer.JSON(w, 200, resp, pretty)
 }
 
-func (s *Server) updateBundleStatus(status bundle.Status) {
+func (s *Server) updateBundleStatus(status map[string]*bundlePlugin.Status) {
 	s.bundleStatusMtx.Lock()
 	defer s.bundleStatusMtx.Unlock()
-	s.bundleStatus = status
+	s.bundleStatuses = status
 }
 
 func (s *Server) canEval(ctx context.Context) bool {
@@ -891,12 +914,18 @@ func (s *Server) canEval(ctx context.Context) bool {
 	return false
 }
 
-func (s *Server) bundleActivated() bool {
+func (s *Server) bundlesActivated() bool {
 	s.bundleStatusMtx.RLock()
 	defer s.bundleStatusMtx.RUnlock()
 
-	// Ensure that the bundle status has an activation time set on it
-	return s.bundleStatus.LastSuccessfulActivation != time.Time{}
+	for _, status := range s.bundleStatuses {
+		// Ensure that all of the bundle statuses have an activation time set on them
+		if (status.LastSuccessfulActivation == time.Time{}) {
+			return false
+		}
+	}
+
+	return true
 }
 
 func (s *Server) unversionedGetHealth(w http.ResponseWriter, r *http.Request) {
@@ -912,7 +941,7 @@ func (s *Server) unversionedGetHealth(w http.ResponseWriter, r *http.Request) {
 
 	// Ensure that bundles (if configured, and requested to be included in the result)
 	// have been activated successfully.
-	if includeBundleStatus && s.hasBundle && !s.bundleActivated() {
+	if includeBundleStatus && s.hasBundle() && !s.bundlesActivated() {
 		writer.JSON(w, http.StatusInternalServerError, emptyObject{}, false)
 		return
 	}
@@ -1107,7 +1136,7 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if provenance {
-		result.Provenance = getProvenance(s.revision)
+		result.Provenance = s.getProvenance()
 	}
 
 	if len(rs) == 0 {
@@ -1285,7 +1314,7 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if provenance {
-		result.Provenance = getProvenance(s.revision)
+		result.Provenance = s.getProvenance()
 	}
 
 	if len(rs) == 0 {
@@ -1881,7 +1910,7 @@ func (s *Server) checkPolicyPackageScope(ctx context.Context, txn storage.Transa
 
 func (s *Server) checkPathScope(ctx context.Context, txn storage.Transaction, path storage.Path) error {
 
-	roots, err := manifest.ReadBundleRoots(ctx, s.store, txn)
+	names, err := bundle.ReadBundleNamesFromStore(ctx, s.store, txn)
 	if err != nil {
 		if !storage.IsNotFound(err) {
 			return err
@@ -1889,11 +1918,22 @@ func (s *Server) checkPathScope(ctx context.Context, txn storage.Transaction, pa
 		return nil
 	}
 
+	bundleRoots := map[string][]string{}
+	for _, name := range names {
+		roots, err := bundle.ReadBundleRootsFromStore(ctx, s.store, txn, name)
+		if err != nil && !storage.IsNotFound(err) {
+			return err
+		}
+		bundleRoots[name] = roots
+	}
+
 	spath := strings.Trim(path.String(), "/")
 
-	for i := range roots {
-		if strings.HasPrefix(spath, roots[i]) || strings.HasPrefix(roots[i], spath) {
-			return types.BadRequestErr(fmt.Sprintf("path %v is owned by bundle", spath))
+	for name, roots := range bundleRoots {
+		for _, root := range roots {
+			if strings.HasPrefix(spath, root) || strings.HasPrefix(root, spath) {
+				return types.BadRequestErr(fmt.Sprintf("path %v is owned by bundle %q", spath, name))
+			}
 		}
 	}
 
@@ -1907,7 +1947,12 @@ func (s *Server) evalDiagnosticPolicy(r *http.Request) (logger diagnosticsLogger
 	// logger will make sure to call the decision logger regardless of whether a
 	// diagnostic policy is configured. In the future, we can refactor this.
 	defer func() {
-		logger.revision = s.revision
+		// For backwards compatibility use `revision` as needed.
+		if s.hasLegacyBundle() {
+			logger.revision = s.legacyRevision
+		} else {
+			logger.revisions = s.revisions
+		}
 		logger.logger = s.logger
 	}()
 
@@ -2099,6 +2144,39 @@ func (s *Server) generateDecisionID() string {
 		return s.decisionIDFactory()
 	}
 	return ""
+}
+
+func (s *Server) getProvenance() *types.ProvenanceV1 {
+
+	p := &types.ProvenanceV1{
+		Version:   version.Version,
+		Vcs:       version.Vcs,
+		Timestamp: version.Timestamp,
+		Hostname:  version.Hostname,
+	}
+
+	// For backwards compatibility, if the bundles are using the old
+	// style config we need to fill in the older `Revision` field.
+	// Otherwise use the newer `Bundles` keyword.
+	if s.hasLegacyBundle() {
+		p.Revision = s.legacyRevision
+	} else {
+		p.Bundles = map[string]types.ProvenanceBundleV1{}
+		for name, revision := range s.revisions {
+			p.Bundles[name] = types.ProvenanceBundleV1{Revision: revision}
+		}
+	}
+
+	return p
+}
+
+func (s *Server) hasBundle() bool {
+	return bundlePlugin.Lookup(s.manager) != nil || s.legacyRevision != ""
+}
+
+func (s *Server) hasLegacyBundle() bool {
+	bp := bundlePlugin.Lookup(s.manager)
+	return s.legacyRevision != "" || (bp != nil && !bp.Config().IsMultiBundle())
 }
 
 // parsePatchPathEscaped returns a new path for the given escaped str.
@@ -2455,7 +2533,8 @@ func renderVersion(w http.ResponseWriter) {
 
 type diagnosticsLogger struct {
 	logger     func(context.Context, *Info) error
-	revision   string
+	revisions  map[string]string
+	revision   string // Deprecated: Use `revisions` instead.
 	explain    bool
 	instrument bool
 	buffer     Buffer
@@ -2471,9 +2550,15 @@ func (l diagnosticsLogger) Instrument() bool {
 
 func (l diagnosticsLogger) Log(ctx context.Context, txn storage.Transaction, decisionID, remoteAddr, path string, query string, input *interface{}, results *interface{}, err error, m metrics.Metrics, tracer *topdown.BufferTracer) error {
 
+	bundles := map[string]BundleInfo{}
+	for name, rev := range l.revisions {
+		bundles[name] = BundleInfo{Revision: rev}
+	}
+
 	info := &Info{
 		Txn:        txn,
 		Revision:   l.revision,
+		Bundles:    bundles,
 		Timestamp:  time.Now().UTC(),
 		DecisionID: decisionID,
 		RemoteAddr: remoteAddr,
@@ -2518,15 +2603,4 @@ func parseURL(s string, useHTTPSByDefault bool) (*url.URL, error) {
 		s = scheme + s
 	}
 	return url.Parse(s)
-}
-
-func getProvenance(revision string) *types.ProvenanceV1 {
-
-	return &types.ProvenanceV1{
-		Version:   version.Version,
-		Vcs:       version.Vcs,
-		Timestamp: version.Timestamp,
-		Hostname:  version.Hostname,
-		Revision:  revision,
-	}
 }

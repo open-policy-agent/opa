@@ -70,6 +70,42 @@ func TestPluginCustomBackend(t *testing.T) {
 	if len(backend.events) != 2 || backend.events[0].Revision != "A" || backend.events[1].Revision != "B" {
 		t.Fatal("Unexpected events:", backend.events)
 	}
+
+	// Server events with only `Revision` should not include bundles in the EventV1 struct
+	for _, e := range backend.events {
+		if len(e.Bundles) > 0 {
+			t.Errorf("Unexpected `bundles` in event")
+		}
+	}
+}
+
+func TestPluginSingleBundle(t *testing.T) {
+	ctx := context.Background()
+	manager, _ := plugins.New(nil, "test-instance-id", inmem.New())
+
+	backend := &testPlugin{}
+	manager.Register("test_plugin", backend)
+
+	config, err := ParseConfig([]byte(`{"plugin": "test_plugin"}`), nil, []string{"test_plugin"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	plugin := New(config, manager)
+	plugin.Log(ctx, &server.Info{Bundles: map[string]server.BundleInfo{"b1": {Revision: "A"}}})
+
+	// Server events with `Bundles` should *not* have `Revision` set
+	if len(backend.events) != 1 {
+		t.Fatalf("Unexpected number of events: %v", backend.events)
+	}
+
+	if backend.events[0].Revision != "" || backend.events[0].Bundles["b1"].Revision != "A" {
+		t.Fatal("Unexpected events: ", backend.events)
+	}
+}
+
+func TestPluginMultiBundle(t *testing.T) {
+
 }
 
 func TestPluginErrorNoResult(t *testing.T) {

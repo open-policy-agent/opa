@@ -125,11 +125,17 @@ func (p PolicyV1) Equal(other PolicyV1) bool {
 
 // ProvenanceV1 models a collection of build/version information.
 type ProvenanceV1 struct {
-	Version   string `json:"version"`
-	Vcs       string `json:"build_commit"`
-	Timestamp string `json:"build_timestamp"`
-	Hostname  string `json:"build_hostname"`
-	Revision  string `json:"revision,omitempty"`
+	Version   string                        `json:"version"`
+	Vcs       string                        `json:"build_commit"`
+	Timestamp string                        `json:"build_timestamp"`
+	Hostname  string                        `json:"build_hostname"`
+	Revision  string                        `json:"revision,omitempty"` // Deprecated: Prefer `Bundles`
+	Bundles   map[string]ProvenanceBundleV1 `json:"bundles,omitempty"`
+}
+
+// ProvenanceBundleV1 models a bundle at some point in time
+type ProvenanceBundleV1 struct {
+	Revision string `json:"revision"`
 }
 
 // DataRequestV1 models the request message for Data API POST operations.

@@ -40,7 +40,11 @@ represents a policy decision returned by OPA.
       "version": "{{< current_version >}}"
     },
     "decision_id": "4ca636c1-55e4-417a-b1d8-4aceb67960d1",
-    "revision": "W3sibCI6InN5cy9jYXRhbG9nIiwicyI6NDA3MX1d",
+    "bundles": {
+      "authz": {
+        "revision": "W3sibCI6InN5cy9jYXRhbG9nIiwicyI6NDA3MX1d"
+      }    
+    }, 
     "path": "http/example/authz/allow",
     "input": {
       "method": "GET",
@@ -59,7 +63,9 @@ Decision log updates contain the following fields:
 | --- | --- | --- |
 | `[_].labels` | `object` | Set of key-value pairs that uniquely identify the OPA instance. |
 | `[_].decision_id` | `string` | Unique identifier generated for each decision for traceability. |
-| `[_].revision` | `string` | Bundle revision that contained the policy used to produce the decision. |
+| `[_].revision` | `string` | (Deprecated) Bundle revision that contained the policy used to produce the decision. Omitted when `bundles` are configured.  |
+| `[_].bundles` | `object` | Set of key-value pairs describing the bundles which contained policy used to produce the decision. |
+| `[_].bundles[_].revision` | `string` | Revision of the bundle at the time of evaluation. |
 | `[_].path` | `string` | Hierarchical policy decision path, e.g., `/http/example/authz/allow`. Receivers should tolerate slash-prefixed paths. |
 | `[_].query` | `string` | Ad-hoc Rego query received by Query API. |
 | `[_].input` | `any` | Input data provided in the policy query. |

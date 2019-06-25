@@ -6,14 +6,17 @@ package bundle
 
 import (
 	"fmt"
-
 	"github.com/open-policy-agent/opa/download"
 	"github.com/open-policy-agent/opa/util"
+	"path"
+	"strings"
 )
 
-// ParseConfig validates the config and injects default values.
+// ParseConfig validates the config and injects default values. This is
+// for the legacy single bundle configuration. This will add the bundle
+// to the `Bundles` map to provide compatibility with newer clients.
+// Deprecated: Use `ParseBundlesConfig` with `bundles` OPA config option instead
 func ParseConfig(config []byte, services []string) (*Config, error) {
-
 	if config == nil {
 		return nil, nil
 	}
@@ -28,20 +31,104 @@ func ParseConfig(config []byte, services []string) (*Config, error) {
 		return nil, err
 	}
 
+	// For forwards compatibility make a new Source as if the bundle
+	// was configured with `bundles` in the newer format.
+	parsedConfig.Bundles = map[string]*Source{
+		parsedConfig.Name: {
+			Config:   parsedConfig.Config,
+			Service:  parsedConfig.Service,
+			Resource: parsedConfig.generateLegacyResourcePath(),
+		},
+	}
+
 	return &parsedConfig, nil
 }
 
+// ParseBundlesConfig validates the config and injects default values for
+// the defined `bundles`. This expects a map of bundle names to resource
+// configurations.
+func ParseBundlesConfig(config []byte, services []string) (*Config, error) {
+	if config == nil {
+		return nil, nil
+	}
+
+	var bundleConfigs map[string]*Source
+
+	if err := util.Unmarshal(config, &bundleConfigs); err != nil {
+		return nil, err
+	}
+
+	// Build a `Config` out of the parsed map
+	c := Config{Bundles: map[string]*Source{}}
+	for name, source := range bundleConfigs {
+		if source != nil {
+			c.Bundles[name] = source
+		}
+	}
+
+	err := c.validateAndInjectDefaults(services)
+	if err != nil {
+		return nil, err
+	}
+
+	return &c, nil
+}
+
 // Config represents the configuration of the plugin.
+// The Config can define a single bundle source or a map of
+// `Source` objects defining where/how to download bundles. The
+// older single bundle configuration is deprecated and will be
+// removed in the future in favor of the `Bundles` map.
 type Config struct {
+	download.Config // Deprecated: Use `Bundles` map instead
+
+	Bundles map[string]*Source
+
+	Name    string  `json:"name"`    // Deprecated: Use `Bundles` map instead
+	Service string  `json:"service"` // Deprecated: Use `Bundles` map instead
+	Prefix  *string `json:"prefix"`  // Deprecated: Use `Bundles` map instead
+}
+
+// Source is a configured bundle source to download bundles from
+type Source struct {
 	download.Config
 
-	Name    string  `json:"name"`
-	Service string  `json:"service"`
-	Prefix  *string `json:"prefix"`
+	Service  string `json:"service"`
+	Resource string `json:"resource"`
+}
+
+// IsMultiBundle returns whether or not the config is the newer multi-bundle
+// style config that uses `bundles` instead of top level bundle information.
+// If/when we drop support for the older style config we can remove this too.
+func (c *Config) IsMultiBundle() bool {
+	// If a `Name` was set then the config is in "legacy" single plugin mode
+	return c.Name == ""
 }
 
 func (c *Config) validateAndInjectDefaults(services []string) error {
+	if c.Bundles == nil {
+		return c.validateAndInjectDefaultsLegacy(services)
+	}
 
+	for name, source := range c.Bundles {
+		if source.Resource == "" {
+			source.Resource = path.Join(defaultBundlePathPrefix, name)
+		}
+
+		var err error
+		source.Service, err = c.getServiceFromList(source.Service, services)
+		if err == nil {
+			err = source.Config.ValidateAndInjectDefaults()
+		}
+		if err != nil {
+			return fmt.Errorf("invalid configuration for bundle %q: %s", name, err.Error())
+		}
+	}
+
+	return nil
+}
+
+func (c *Config) validateAndInjectDefaultsLegacy(services []string) error {
 	if c.Name == "" {
 		return fmt.Errorf("invalid bundle name %q", c.Name)
 	}
@@ -51,24 +138,36 @@ func (c *Config) validateAndInjectDefaults(services []string) error {
 		c.Prefix = &s
 	}
 
-	if c.Service == "" && len(services) != 0 {
-		c.Service = services[0]
-	} else {
-		found := false
-
-		for _, svc := range services {
-			if svc == c.Service {
-				found = true
-				break
-			}
-		}
-
-		if !found {
-			return fmt.Errorf("invalid service name %q in bundle %q", c.Service, c.Name)
-		}
+	var err error
+	c.Service, err = c.getServiceFromList(c.Service, services)
+	if err == nil {
+		err = c.Config.ValidateAndInjectDefaults()
 	}
 
-	return c.ValidateAndInjectDefaults()
+	if err != nil {
+		return fmt.Errorf("invalid configuration for bundle %q: %s", c.Name, err.Error())
+	}
+
+	return nil
+}
+
+func (c *Config) getServiceFromList(service string, services []string) (string, error) {
+	if service == "" && len(services) != 0 {
+		return services[0], nil
+	}
+	for _, svc := range services {
+		if svc == service {
+			return service, nil
+		}
+	}
+	return service, fmt.Errorf("service name %q not found", service)
+}
+
+// generateLegacyDownloadPath will return the Resource path
+// from the older style prefix+name configuration.
+func (c *Config) generateLegacyResourcePath() string {
+	joined := path.Join(*c.Prefix, c.Name)
+	return strings.TrimPrefix(joined, "/")
 }
 
 const (
