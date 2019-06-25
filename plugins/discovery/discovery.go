@@ -21,6 +21,7 @@ import (
 	"github.com/open-policy-agent/opa/rego"
 	"github.com/open-policy-agent/opa/storage/inmem"
 	"github.com/sirupsen/logrus"
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 // Discovery implements configuration discovery for OPA. When discovery is
@@ -74,6 +75,13 @@ func New(manager *plugins.Manager, opts ...func(*Discovery)) (*Discovery, error)
 	result.status = &bundle.Status{
 		Name: *config.Name,
 	}
+
+	err = prometheus.Register(bundle.NewBundleCollector(*result.status))
+
+	if err != nil {
+		result.logInfo("Prometheus collector already registerd: %v", err)
+	}
+
 
 	return result, nil
 }

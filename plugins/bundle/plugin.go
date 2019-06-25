@@ -19,6 +19,7 @@ import (
 	"github.com/open-policy-agent/opa/plugins"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/sirupsen/logrus"
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 // Plugin implements bundle activation.
@@ -140,6 +141,12 @@ func (p *Plugin) oneShot(ctx context.Context, u download.Update) {
 	p.process(ctx, u)
 	status := *p.status
 
+	err := prometheus.Register(NewBundleCollector(status))
+
+	if err != nil {
+		p.logInfo("Prometheus collector already registerd: %v", err)
+	}
+
 	for _, listener := range p.listeners {
 		listener(status)
 	}
@@ -153,7 +160,6 @@ func (p *Plugin) process(ctx context.Context, u download.Update) {
 	}
 
 	if u.Bundle != nil {
-		bundleStatusPhase.WithLabelValues("activate", "success", "").Set(1)
 		p.status.SetDownloadSuccess()
 
 		if err := p.activate(ctx, u.Bundle); err != nil {

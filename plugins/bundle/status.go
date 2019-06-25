@@ -10,8 +10,6 @@ import (
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/server/types"
 	"github.com/pkg/errors"
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promauto"
 )
 
 const (
@@ -29,26 +27,16 @@ type Status struct {
 	Errors                   []error   `json:"errors,omitempty"`
 }
 
-
-var (
-	bundleStatusPhase = promauto.NewGaugeVec(prometheus.GaugeOpts{
-			Name: "bundle_status_phase",
-			Help: "The status of the bundle used by this instance",
-	},[]string{"phase", "status", "revision", "name"})
-)
-
 // SetActivateSuccess updates the status object to reflect a successful
 // activation.
 func (s *Status) SetActivateSuccess(revision string) {
 	s.LastSuccessfulActivation = time.Now().UTC()
 	s.ActiveRevision = revision
-	bundleStatusPhase.WithLabelValues("activate", "success", revision, s.Name).Set(1)
 }
 
 // SetDownloadSuccess updates the status object to reflect a successful
 // download.
 func (s *Status) SetDownloadSuccess() {
-	bundleStatusPhase.WithLabelValues("download", "success", "", s.Name).Set(1)
 	s.LastSuccessfulDownload = time.Now().UTC()
 }
 
@@ -62,8 +50,6 @@ func (s *Status) SetError(err error, phase string) {
 		s.Errors = nil
 		return
 	}
-
-	bundleStatusPhase.WithLabelValues(phase, "failure", "", s.Name).Set(1)
 
 	cause := errors.Cause(err)
 
