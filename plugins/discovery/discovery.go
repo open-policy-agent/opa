@@ -284,9 +284,17 @@ func getPluginSet(factories map[string]plugins.Factory, manager *plugins.Manager
 	}
 
 	// Parse and validate bundle/logs/status configurations.
+
+	// If `bundle` was configured use that, otherwise try the new `bundles` option
 	bundleConfig, err := bundle.ParseConfig(config.Bundle, manager.Services())
 	if err != nil {
 		return nil, err
+	}
+	if bundleConfig == nil {
+		bundleConfig, err = bundle.ParseBundlesConfig(config.Bundles, manager.Services())
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	decisionLogsConfig, err := logs.ParseConfig(config.DecisionLogs, manager.Services(), pluginNames)
@@ -391,7 +399,16 @@ func registerBundleStatusUpdates(m *plugins.Manager) {
 		return
 	}
 	type pluginlistener string
-	bp.Register(pluginlistener(status.Name), func(s bundle.Status) {
-		sp.UpdateBundleStatus(s)
-	})
+
+	// Depending on how the plugin was configured we will want to use different listeners
+	// for backwards compatibility.
+	if !bp.Config().IsMultiBundle() {
+		bp.Register(pluginlistener(status.Name), func(s bundle.Status) {
+			sp.UpdateBundleStatus(s)
+		})
+	} else {
+		bp.RegisterBulkListener(pluginlistener(status.Name), func(s map[string]*bundle.Status) {
+			sp.BulkUpdateBundleStatus(s)
+		})
+	}
 }

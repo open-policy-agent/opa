@@ -74,7 +74,8 @@ func (b *buffer) Iter(fn func(*Info)) {
 // Info contains information describing a policy decision.
 type Info struct {
 	Txn        storage.Transaction
-	Revision   string
+	Revision   string // Deprecated: Use `Bundles` instead
+	Bundles    map[string]BundleInfo
 	DecisionID string
 	RemoteAddr string
 	Query      string
@@ -85,4 +86,9 @@ type Info struct {
 	Error      error
 	Metrics    metrics.Metrics
 	Trace      []*topdown.Event
+}
+
+// BundleInfo contains information describing a bundle
+type BundleInfo struct {
+	Revision string
 }

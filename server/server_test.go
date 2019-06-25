@@ -27,7 +27,6 @@ import (
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/bundle"
-	"github.com/open-policy-agent/opa/bundle/manifest"
 	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/plugins"
 	pluginBundle "github.com/open-policy-agent/opa/plugins/bundle"
@@ -74,30 +73,88 @@ func TestUnversionedGetHealthBundleNoBundleSet(t *testing.T) {
 	}
 }
 
-func TestUnversionedGetHealthCheckBundleActivation(t *testing.T) {
+func TestUnversionedGetHealthCheckBundleActivationSingle(t *testing.T) {
 
 	f := newFixture(t)
+	bundleName := "test-bundle"
 
 	// Initialize the server as if a bundle plugin was
 	// configured on the manager.
-	f.server.hasBundle = true
+	f.server.manager.Register(pluginBundle.Name, &pluginBundle.Plugin{})
 	f.server.bundleStatusMtx = new(sync.RWMutex)
+	f.server.bundleStatuses = map[string]*pluginBundle.Status{
+		bundleName: &pluginBundle.Status{Name: bundleName},
+	}
 
-	// The bundle hasnt been activated yet, expect it to be activated
+	// The bundle hasn't been activated yet, expect the health check to fail
 	req := newReqUnversioned(http.MethodGet, "/health?bundle=true", "")
 	if err := f.executeRequest(req, 500, `{}`); err != nil {
-		t.Fatalf("Unexpected error while health check: %v", err)
+		t.Fatal(err)
 	}
 
 	// Set the bundle to be activated.
-	status := pluginBundle.Status{}
-	status.SetActivateSuccess("")
+	status := map[string]*pluginBundle.Status{
+		bundleName: &pluginBundle.Status{},
+	}
+	status[bundleName].SetActivateSuccess("")
 	f.server.updateBundleStatus(status)
 
 	// The heath check should now respond as healthy
 	req = newReqUnversioned(http.MethodGet, "/health?bundle=true", "")
 	if err := f.executeRequest(req, 200, `{}`); err != nil {
-		t.Fatalf("Unexpected error while health check: %v", err)
+		t.Fatal(err)
+	}
+}
+
+func TestUnversionedGetHealthCheckBundleActivationMulti(t *testing.T) {
+
+	f := newFixture(t)
+
+	// Initialize the server as if a bundle plugin was
+	// configured on the manager.
+	bp := pluginBundle.New(&pluginBundle.Config{Bundles: map[string]*pluginBundle.Source{
+		"b1": {Service: "s1", Resource: "bundle.tar.gz"},
+		"b2": {Service: "s2", Resource: "bundle.tar.gz"},
+		"b3": {Service: "s3", Resource: "bundle.tar.gz"},
+	}}, f.server.manager)
+	f.server.manager.Register(pluginBundle.Name, bp)
+	f.server.bundleStatusMtx = new(sync.RWMutex)
+	f.server.bundleStatuses = map[string]*pluginBundle.Status{
+		"b1": {Name: "b1"},
+		"b2": {Name: "b2"},
+		"b3": {Name: "b3"},
+	}
+
+	// No bundle has been activated yet, expect the health check to fail
+	req := newReqUnversioned(http.MethodGet, "/health?bundle=true", "")
+	if err := f.executeRequest(req, 500, `{}`); err != nil {
+		t.Fatal(err)
+	}
+
+	// Set one bundle to be activated
+	update := map[string]*pluginBundle.Status{
+		"b1": {Name: "b1"},
+		"b2": {Name: "b2"},
+		"b3": {Name: "b3"},
+	}
+	update["b2"].SetActivateSuccess("A")
+	f.server.updateBundleStatus(update)
+
+	// The heath check should still respond as unhealthy
+	req = newReqUnversioned(http.MethodGet, "/health?bundle=true", "")
+	if err := f.executeRequest(req, 500, `{}`); err != nil {
+		t.Fatal(err)
+	}
+
+	// Activate all the bundles
+	update["b1"].SetActivateSuccess("B")
+	update["b3"].SetActivateSuccess("C")
+	f.server.updateBundleStatus(update)
+
+	// The heath check should succeed now
+	req = newReqUnversioned(http.MethodGet, "/health?bundle=true", "")
+	if err := f.executeRequest(req, 200, `{}`); err != nil {
+		t.Fatal(err)
 	}
 }
 
@@ -108,7 +165,14 @@ func TestInitWithBundlePlugin(t *testing.T) {
 		t.Fatalf("Unexpected error creating plugin manager: %s", err.Error())
 	}
 
-	m.Register(pluginBundle.Name, new(pluginBundle.Plugin))
+	bundleName := "test-bundle"
+	bundleConf := &pluginBundle.Config{
+		Name:    bundleName,
+		Service: "s1",
+		Bundles: map[string]*pluginBundle.Source{"b1": {}},
+	}
+
+	m.Register(pluginBundle.Name, pluginBundle.New(bundleConf, m))
 
 	server, err := New().
 		WithStore(store).
@@ -119,7 +183,7 @@ func TestInitWithBundlePlugin(t *testing.T) {
 		t.Fatalf("Unexpected error initializing server: %s", err.Error())
 	}
 
-	if server.hasBundle == false {
+	if !server.hasBundle() {
 		t.Error("server.hasBundle should be true")
 	}
 
@@ -127,7 +191,45 @@ func TestInitWithBundlePlugin(t *testing.T) {
 		t.Error("server.bundleStatusMtx should be initialized")
 	}
 
-	isActivated := server.bundleActivated()
+	isActivated := server.bundlesActivated()
+	if isActivated {
+		t.Error("bundle should not be initialized to activated status")
+	}
+}
+
+func TestInitWithBundlePluginMultiBundle(t *testing.T) {
+	store := inmem.New()
+	m, err := plugins.New([]byte{}, "test", store)
+	if err != nil {
+		t.Fatalf("Unexpected error creating plugin manager: %s", err.Error())
+	}
+
+	bundleConf := &pluginBundle.Config{Bundles: map[string]*pluginBundle.Source{
+		"b1": {},
+		"b2": {},
+		"b3": {},
+	}}
+
+	m.Register(pluginBundle.Name, pluginBundle.New(bundleConf, m))
+
+	server, err := New().
+		WithStore(store).
+		WithManager(m).
+		Init(context.Background())
+
+	if err != nil {
+		t.Fatalf("Unexpected error initializing server: %s", err.Error())
+	}
+
+	if !server.hasBundle() {
+		t.Error("server.hasBundle should be true")
+	}
+
+	if server.bundleStatusMtx == nil {
+		t.Error("server.bundleStatusMtx should be initialized")
+	}
+
+	isActivated := server.bundlesActivated()
 	if isActivated {
 		t.Error("bundle should not be initialized to activated")
 	}
@@ -960,7 +1062,7 @@ func TestBundleScope(t *testing.T) {
 
 	txn := storage.NewTransactionOrDie(ctx, f.server.store, storage.WriteParams)
 
-	if err := manifest.Write(ctx, f.server.store, txn, bundle.Manifest{
+	if err := bundle.WriteManifestToStore(ctx, f.server.store, txn, "test-bundle", bundle.Manifest{
 		Revision: "AAAAA",
 		Roots:    &[]string{"a/b/c", "x/y"},
 	}); err != nil {
@@ -981,47 +1083,112 @@ func TestBundleScope(t *testing.T) {
 			path:   "/data/a/b",
 			body:   "1",
 			code:   http.StatusBadRequest,
-			resp:   `{"code": "invalid_parameter", "message": "path a/b is owned by bundle"}`,
+			resp:   `{"code": "invalid_parameter", "message": "path a/b is owned by bundle \"test-bundle\""}`,
 		},
 		{
 			method: "PUT",
 			path:   "/data/a/b/c",
 			body:   "1",
 			code:   http.StatusBadRequest,
-			resp:   `{"code": "invalid_parameter", "message": "path a/b/c is owned by bundle"}`,
+			resp:   `{"code": "invalid_parameter", "message": "path a/b/c is owned by bundle \"test-bundle\""}`,
 		},
 		{
 			method: "PUT",
 			path:   "/data/a/b/c/d",
 			body:   "1",
 			code:   http.StatusBadRequest,
-			resp:   `{"code": "invalid_parameter", "message": "path a/b/c/d is owned by bundle"}`,
+			resp:   `{"code": "invalid_parameter", "message": "path a/b/c/d is owned by bundle \"test-bundle\""}`,
 		},
 		{
 			method: "PATCH",
 			path:   "/data/a",
 			body:   `[{"path": "/b/c", "op": "add", "value": 1}]`,
 			code:   http.StatusBadRequest,
-			resp:   `{"code": "invalid_parameter", "message": "path a/b/c is owned by bundle"}`,
+			resp:   `{"code": "invalid_parameter", "message": "path a/b/c is owned by bundle \"test-bundle\""}`,
 		},
 		{
 			method: "DELETE",
 			path:   "/data/a",
 			code:   http.StatusBadRequest,
-			resp:   `{"code": "invalid_parameter", "message": "path a is owned by bundle"}`,
+			resp:   `{"code": "invalid_parameter", "message": "path a is owned by bundle \"test-bundle\""}`,
 		},
 		{
 			method: "PUT",
 			path:   "/policies/test1",
 			body:   `package a.b`,
 			code:   http.StatusBadRequest,
-			resp:   `{"code": "invalid_parameter", "message": "path a/b is owned by bundle"}`,
+			resp:   `{"code": "invalid_parameter", "message": "path a/b is owned by bundle \"test-bundle\""}`,
 		},
 		{
 			method: "DELETE",
 			path:   "/policies/someid",
 			code:   http.StatusBadRequest,
-			resp:   `{"code": "invalid_parameter", "message": "path x/y/z is owned by bundle"}`,
+			resp:   `{"code": "invalid_parameter", "message": "path x/y/z is owned by bundle \"test-bundle\""}`,
+		},
+		{
+			method: "PUT",
+			path:   "/data/foo/bar",
+			body:   "1",
+			code:   http.StatusNoContent,
+		},
+	}
+
+	if err := f.v1TestRequests(cases); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestBundleScopeMultiBundle(t *testing.T) {
+
+	ctx := context.Background()
+
+	f := newFixture(t)
+
+	txn := storage.NewTransactionOrDie(ctx, f.server.store, storage.WriteParams)
+
+	if err := bundle.WriteManifestToStore(ctx, f.server.store, txn, "test-bundle1", bundle.Manifest{
+		Revision: "AAAAA",
+		Roots:    &[]string{"a/b/c", "x/y"},
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := bundle.WriteManifestToStore(ctx, f.server.store, txn, "test-bundle2", bundle.Manifest{
+		Revision: "AAAAA",
+		Roots:    &[]string{"a/b/d"},
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := bundle.WriteManifestToStore(ctx, f.server.store, txn, "test-bundle3", bundle.Manifest{
+		Revision: "AAAAA",
+		Roots:    &[]string{"a/b/e", "a/b/f"},
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := f.server.store.UpsertPolicy(ctx, txn, "someid", []byte(`package x.y.z`)); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := f.server.store.Commit(ctx, txn); err != nil {
+		t.Fatal(err)
+	}
+
+	cases := []tr{
+		{
+			method: "PUT",
+			path:   "/data/x/y",
+			body:   "1",
+			code:   http.StatusBadRequest,
+			resp:   `{"code": "invalid_parameter", "message": "path x/y is owned by bundle \"test-bundle1\""}`,
+		},
+		{
+			method: "PUT",
+			path:   "/data/a/b/d",
+			body:   "1",
+			code:   http.StatusBadRequest,
+			resp:   `{"code": "invalid_parameter", "message": "path a/b/d is owned by bundle \"test-bundle2\""}`,
 		},
 		{
 			method: "PUT",
@@ -1481,7 +1648,7 @@ func TestDataPostExplainNotes(t *testing.T) {
 	}
 }
 
-func TestDataProvenance(t *testing.T) {
+func TestDataProvenanceSingleBundle(t *testing.T) {
 
 	f := newFixture(t)
 
@@ -1491,6 +1658,14 @@ func TestDataProvenance(t *testing.T) {
 	version.Vcs = "ac23eb45"
 	version.Timestamp = "today"
 	version.Hostname = "foo.bar.com"
+
+	// Initialize as if a bundle plugin is running
+	bp := pluginBundle.New(&pluginBundle.Config{Name: "b1"}, f.server.manager)
+	f.server.manager.Register(pluginBundle.Name, bp)
+	f.server.bundleStatusMtx = new(sync.RWMutex)
+	f.server.bundleStatuses = map[string]*pluginBundle.Status{
+		"b1": {Name: "b1"},
+	}
 
 	req := newReqV1(http.MethodPost, "/data?provenance", "")
 	f.reset()
@@ -1504,6 +1679,182 @@ func TestDataProvenance(t *testing.T) {
 
 	if result.Provenance == nil {
 		t.Fatalf("Expected non-nil provenance: %v", result.Provenance)
+	}
+
+	expectedProvenance := &types.ProvenanceV1{
+		Version:   version.Version,
+		Vcs:       version.Vcs,
+		Timestamp: version.Timestamp,
+		Hostname:  version.Hostname,
+	}
+
+	if !reflect.DeepEqual(result.Provenance, expectedProvenance) {
+		t.Errorf("Unexpected provenance data: \n\n%+v\n\nExpected:\n%+v\n\n", result.Provenance, expectedProvenance)
+	}
+
+	// Update bundle revision and request again
+	f.server.revisions["b1"] = "r1"
+	f.server.legacyRevision = "r1"
+
+	req = newReqV1(http.MethodPost, "/data?provenance", "")
+	f.reset()
+	f.server.Handler.ServeHTTP(f.recorder, req)
+
+	result = types.DataResponseV1{}
+
+	if err := util.NewJSONDecoder(f.recorder.Body).Decode(&result); err != nil {
+		t.Fatalf("Unexpected JSON decode error: %v", err)
+	}
+
+	if result.Provenance == nil {
+		t.Fatalf("Expected non-nil provenance: %v", result.Provenance)
+	}
+
+	expectedProvenance.Revision = "r1"
+	if !reflect.DeepEqual(result.Provenance, expectedProvenance) {
+		t.Errorf("Unexpected provenance data: \n\n%+v\n\nExpected:\n%+v\n\n", result.Provenance, expectedProvenance)
+	}
+}
+
+func TestDataProvenanceSingleFileBundle(t *testing.T) {
+
+	f := newFixture(t)
+
+	// Dummy up since we are not using ld...
+	// Note:  No bundle 'revision'...
+	version.Version = "0.10.7"
+	version.Vcs = "ac23eb45"
+	version.Timestamp = "today"
+	version.Hostname = "foo.bar.com"
+
+	// No bundle plugin initialized, just a legacy revision set
+	f.server.legacyRevision = "r1"
+
+	req := newReqV1(http.MethodPost, "/data?provenance", "")
+	f.reset()
+	f.server.Handler.ServeHTTP(f.recorder, req)
+
+	result := types.DataResponseV1{}
+
+	if err := util.NewJSONDecoder(f.recorder.Body).Decode(&result); err != nil {
+		t.Fatalf("Unexpected JSON decode error: %v", err)
+	}
+
+	if result.Provenance == nil {
+		t.Fatalf("Expected non-nil provenance: %v", result.Provenance)
+	}
+
+	expectedProvenance := &types.ProvenanceV1{
+		Version:   version.Version,
+		Vcs:       version.Vcs,
+		Timestamp: version.Timestamp,
+		Hostname:  version.Hostname,
+	}
+
+	expectedProvenance.Revision = "r1"
+	if !reflect.DeepEqual(result.Provenance, expectedProvenance) {
+		t.Errorf("Unexpected provenance data: \n\n%+v\n\nExpected:\n%+v\n\n", result.Provenance, expectedProvenance)
+	}
+}
+
+func TestDataProvenanceMultiBundle(t *testing.T) {
+
+	f := newFixture(t)
+
+	// Dummy up since we are not using ld...
+	version.Version = "0.10.7"
+	version.Vcs = "ac23eb45"
+	version.Timestamp = "today"
+	version.Hostname = "foo.bar.com"
+
+	// Initialize as if a bundle plugin is running with 2 bundles
+	bp := pluginBundle.New(&pluginBundle.Config{Bundles: map[string]*pluginBundle.Source{
+		"b1": {Service: "s1", Resource: "bundle.tar.gz"},
+		"b2": {Service: "s2", Resource: "bundle.tar.gz"},
+	}}, f.server.manager)
+	f.server.manager.Register(pluginBundle.Name, bp)
+
+	f.server.bundleStatusMtx = new(sync.RWMutex)
+	f.server.bundleStatuses = map[string]*pluginBundle.Status{
+		"b1": {Name: "b1"},
+		"b2": {Name: "b2"},
+	}
+
+	req := newReqV1(http.MethodPost, "/data?provenance", "")
+	f.reset()
+	f.server.Handler.ServeHTTP(f.recorder, req)
+
+	var result types.DataResponseV1
+
+	if err := util.NewJSONDecoder(f.recorder.Body).Decode(&result); err != nil {
+		t.Fatalf("Unexpected JSON decode error: %v", err)
+	}
+
+	if result.Provenance == nil {
+		t.Fatalf("Expected non-nil provenance: %v", result.Provenance)
+	}
+
+	expectedProvenance := &types.ProvenanceV1{
+		Version:   version.Version,
+		Vcs:       version.Vcs,
+		Timestamp: version.Timestamp,
+		Hostname:  version.Hostname,
+	}
+
+	if !reflect.DeepEqual(result.Provenance, expectedProvenance) {
+		t.Errorf("Unexpected provenance data: \n\n%+v\n\nExpected:\n%+v\n\n", result.Provenance, expectedProvenance)
+	}
+
+	// Update bundle revision for a single bundle and make the request again
+	f.server.revisions["b1"] = "r1"
+
+	req = newReqV1(http.MethodPost, "/data?provenance", "")
+	f.reset()
+	f.server.Handler.ServeHTTP(f.recorder, req)
+
+	result = types.DataResponseV1{}
+
+	if err := util.NewJSONDecoder(f.recorder.Body).Decode(&result); err != nil {
+		t.Fatalf("Unexpected JSON decode error: %v", err)
+	}
+
+	if result.Provenance == nil {
+		t.Fatalf("Expected non-nil provenance: %v", result.Provenance)
+	}
+
+	expectedProvenance.Bundles = map[string]types.ProvenanceBundleV1{
+		"b1": {Revision: "r1"},
+	}
+
+	if !reflect.DeepEqual(result.Provenance, expectedProvenance) {
+		t.Errorf("Unexpected provenance data: \n\n%+v\n\nExpected:\n%+v\n\n", result.Provenance, expectedProvenance)
+	}
+
+	// Update both and check again
+	f.server.revisions["b1"] = "r2"
+	f.server.revisions["b2"] = "r1"
+
+	req = newReqV1(http.MethodPost, "/data?provenance", "")
+	f.reset()
+	f.server.Handler.ServeHTTP(f.recorder, req)
+
+	result = types.DataResponseV1{}
+
+	if err := util.NewJSONDecoder(f.recorder.Body).Decode(&result); err != nil {
+		t.Fatalf("Unexpected JSON decode error: %v", err)
+	}
+
+	if result.Provenance == nil {
+		t.Fatalf("Expected non-nil provenance: %v", result.Provenance)
+	}
+
+	expectedProvenance.Bundles = map[string]types.ProvenanceBundleV1{
+		"b1": {Revision: "r2"},
+		"b2": {Revision: "r1"},
+	}
+
+	if !reflect.DeepEqual(result.Provenance, expectedProvenance) {
+		t.Errorf("Unexpected provenance data: \n\n%+v\n\nExpected:\n%+v\n\n", result.Provenance, expectedProvenance)
 	}
 }
 

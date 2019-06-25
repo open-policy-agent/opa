@@ -15,10 +15,8 @@ By configuring OPA to download bundles from a remote HTTP server, you can
 ensure that OPA has an up-to-date copy of policies and data required for
 enforcement at all times.
 
-OPA can only be configured to download one bundle at a time. You
-cannot configure OPA to download multiple bundles. By default, the OPA
-REST APIs will prevent you from modifying policy and data loaded via
-bundles. If you need to load policy and data from multiple sources,
+By default, the OPA REST APIs will prevent you from modifying policy and data
+loaded via bundles. If you need to load policy and data from multiple sources,
 see the section below.
 
 See the [Configuration Reference](../configuration) for configuration details.
@@ -26,10 +24,11 @@ See the [Configuration Reference](../configuration) for configuration details.
 ## Bundle Service API
 
 OPA expects the service to expose an API endpoint that serves bundles. The
-bundle API should allow clients to download named bundles.
+bundle API should allow clients to download bundles at an arbitrary URL. In
+combination with a service's `url` path.
 
 ```http
-GET /<bundle_prefix>/<name> HTTP/1.1
+GET /<service path>/<resource> HTTP/1.1
 ```
 
 If the bundle exists, the server should respond with an HTTP 200 OK status
@@ -51,28 +50,38 @@ services:
         token: "bGFza2RqZmxha3NkamZsa2Fqc2Rsa2ZqYWtsc2RqZmtramRmYWxkc2tm"
 
 bundle:
-  name: authz/bundle.tar.gz
-  prefix: somedir
-  service: acmecorp
-  polling:
+  authz:
+    service: acmecorp
+    resource: somedir/bundle.tar.gz
+    polling:
       min_delay_seconds: 10
       max_delay_seconds: 20
 ```
 
 Using this configuration, OPA will fetch bundles from
-`https://example.com/service/v1/somedir/authz/bundle.tar.gz`.
+`https://example.com/service/v1/somedir/bundle.tar.gz`.
 
 The URL is constructed as follows:
 
 ```
-https://example.com/service/v1/somedir/authz/bundle.tar.gz
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ ^^^^^^^ ^^^^^^^^^^^^^^^^^^^
-services[0].url                prefix  name
+https://example.com/service/v1/somedir/bundle.tar.gz
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+services[0].url                resource
 ```
 
-If the `bundle.prefix` field is not defined, the value defaults to `bundles`.
+If the `bundle.resource` field is not defined, the value defaults to `bundles/<name>`
+where the `name` is the key value in the configuration. For the example above this is `authz`
+and would default to `bundles/authz`.
+
+Bundle names can have any valid yaml characters in them, including `/`. This can
+be useful when relying on default `resource` behavior with a name like `authz/bundle.tar.gz`
+which results in a `resource` of `bundles/authz/bundle.tar.gz`.
 
 See the following section for details on the bundle file format.
+
+> Note: The `bundle` config keyword will still work with the current versions
+  of OPA, but has been deprecated. It is highly recommended to switch to the
+  `bundles` configuration.
 
 ### Caching
 
@@ -181,7 +190,9 @@ loaded under other roots is left intact.
 When OPA loads scoped bundles, it validates that:
 
 * The roots are not overlapping (e.g., `a/b/c` and `a/b` are
-  overlapped and will result in an error.)
+  overlapped and will result in an error.) Note: This is *not*
+  enforced across multiple bundles. Only within the same bundle
+  manifest.
 
 * The policies in the bundle are contained under the roots. This is
   determined by inspecting the `package` statement in each of the
@@ -193,6 +204,12 @@ When OPA loads scoped bundles, it validates that:
 
 If bundle validation fails, OPA will report the validation error via
 the Status API.
+
+> **Warning!** When using multiple bundles the roots are *not* checked
+  against other bundles. It is the responsibility of the bundle creator
+  to ensure the manifest claims roots that are unique to that bundle!
+  There are *no* ordering guarantees for which bundle loads first and
+  takes over some root. 
 
 ## Debugging Your Bundles
 

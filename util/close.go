@@ -14,7 +14,7 @@ import (
 // ensure that the connection is freed. If the body is not read and closed, a
 // leak can occur.
 func Close(resp *http.Response) {
-	if resp != nil {
+	if resp != nil && resp.Body != nil {
 		if _, err := io.Copy(ioutil.Discard, resp.Body); err != nil {
 			return
 		}

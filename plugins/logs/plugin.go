@@ -36,18 +36,24 @@ type Logger interface {
 
 // EventV1 represents a decision log event.
 type EventV1 struct {
-	Labels      map[string]string      `json:"labels"`
-	DecisionID  string                 `json:"decision_id"`
-	Revision    string                 `json:"revision,omitempty"`
-	Path        string                 `json:"path,omitempty"`
-	Query       string                 `json:"query,omitempty"`
-	Input       *interface{}           `json:"input,omitempty"`
-	Result      *interface{}           `json:"result,omitempty"`
-	Erased      []string               `json:"erased,omitempty"`
-	Error       error                  `json:"error,omitempty"`
-	RequestedBy string                 `json:"requested_by"`
-	Timestamp   time.Time              `json:"timestamp"`
-	Metrics     map[string]interface{} `json:"metrics,omitempty"`
+	Labels      map[string]string       `json:"labels"`
+	DecisionID  string                  `json:"decision_id"`
+	Revision    string                  `json:"revision,omitempty"` // Deprecated: Use Bundles instead
+	Bundles     map[string]BundleInfoV1 `json:"bundles,omitempty"`
+	Path        string                  `json:"path,omitempty"`
+	Query       string                  `json:"query,omitempty"`
+	Input       *interface{}            `json:"input,omitempty"`
+	Result      *interface{}            `json:"result,omitempty"`
+	Erased      []string                `json:"erased,omitempty"`
+	Error       error                   `json:"error,omitempty"`
+	RequestedBy string                  `json:"requested_by"`
+	Timestamp   time.Time               `json:"timestamp"`
+	Metrics     map[string]interface{}  `json:"metrics,omitempty"`
+}
+
+// BundleInfoV1 describes a bundle associated with a decision log event.
+type BundleInfoV1 struct {
+	Revision string `json:"revision,omitempty"`
 }
 
 const (
@@ -261,10 +267,16 @@ func (p *Plugin) Log(ctx context.Context, decision *server.Info) error {
 
 	path := strings.Replace(strings.TrimPrefix(decision.Path, "data."), ".", "/", -1)
 
+	bundles := map[string]BundleInfoV1{}
+	for name, info := range decision.Bundles {
+		bundles[name] = BundleInfoV1{Revision: info.Revision}
+	}
+
 	event := EventV1{
 		Labels:      p.manager.Labels(),
 		DecisionID:  decision.DecisionID,
 		Revision:    decision.Revision,
+		Bundles:     bundles,
 		Path:        path,
 		Query:       decision.Query,
 		Input:       decision.Input,
@@ -289,7 +301,10 @@ func (p *Plugin) Log(ctx context.Context, decision *server.Info) error {
 	}
 
 	if p.config.ConsoleLogs {
-		p.logEvent(ctx, event)
+		err := p.logEvent(ctx, event)
+		if err != nil {
+			p.logError("Failed to log to console: %v.", err)
+		}
 	}
 
 	if p.config.Plugin != nil {

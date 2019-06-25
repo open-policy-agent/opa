@@ -34,13 +34,13 @@ labels:
   region: west
   environment: production
 
-bundle:
-  name: http/example/authz
-  service: acmecorp
-  prefix: bundles
-  polling:
-    min_delay_seconds: 60
-    max_delay_seconds: 120
+bundles:
+  authz:
+    service: acmecorp
+    resource: bundles/http/example/authz.tar.gz
+    polling:
+      min_delay_seconds: 60
+      max_delay_seconds: 120
 
 decision_logs:
   service: acmecorp
@@ -314,6 +314,20 @@ services:
 | `plugins` | `object` | No (default: `{}`) | Location for custom plugin configuration. See [Plugins](../plugins) for details. |
 
 ## Bundles
+
+Bundles are defined with a key that is the `name` of the bundle. This `name` is used in the status API, decision logs,
+server provenance, etc.
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `bundles[_].resource` | `string` | No (default: `bundles/<name>`) | Resource path to use to download bundle from configured service. |
+| `bundles[_].service` | `string` | Yes | Name of service to use to contact remote server. |
+| `bundles[_].polling.min_delay_seconds` | `int64` | No (default: `60`) | Minimum amount of time to wait between bundle downloads. |
+| `bundles[_].polling.max_delay_seconds` | `int64` | No (default: `120`) | Maximum amount of time to wait between bundle downloads. |
+
+## Bundle (Deprecated)
+
+>  Deprecated in favor of `bundles` (see above).
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |

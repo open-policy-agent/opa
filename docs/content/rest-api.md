@@ -1971,7 +1971,11 @@ Content-Type: application/json
     "build_commit": "1955fc4d",
     "build_host": "foo.com",
     "build_timestamp": "2019-04-29T23:42:04Z",
-    "revision": "ID-b1298a6c-6ad8-11e9-a26f-d38b5ceadad5",
+    "bundles": {
+      "authz": {
+        "revision": "ID-b1298a6c-6ad8-11e9-a26f-d38b5ceadad5"
+      }
+    },
     "version": "0.10.8-dev"
   },
   "result": true
@@ -1984,7 +1988,11 @@ OPA currently supports the following query provenance information:
 - **build_commit**: The git commit id of this OPA build.
 - **build_timestamp**: The timestamp when this instance was built.
 - **build_host**: The hostname where this instance was built.
-- **revision**: The _revision_ string included in a .manifest file (if present) within a bundle.
+- **revision**: (Deprecated) The _revision_ string included in a .manifest file (if present) within
+  a bundle. Omitted when `bundles` are configured.
+- **bundles**: A set of key-value pairs describing each bundle activated on the server. Includes
+  the `revision` field which is the _revision_ string included in a .manifest file (if present)
+  within a bundle
 
 ## Watches
 
@@ -2040,10 +2048,10 @@ that the server is operational. Optionally it can account for bundle activation 
 `bundle` - Boolean parameter to account for bundle activation status in response.
 
 #### Status Codes
-- **200** - OPA service is healthy. If `bundle=true` the configured bundle has
+- **200** - OPA service is healthy. If `bundle=true` then all configured bundles have
             been activated.
-- **500** - OPA service is not healthy. If `bundle=true` this can mean the
-            configured bundle has not yet been activated.
+- **500** - OPA service is not healthy. If `bundle=true` this can mean any of the configured
+            bundles have not yet been activated.
 
 > *Note*: The bundle activation check is only for initial startup. Subsequent downloads
   will not affect the health check. The [Status](/docs/{{< current_version >}}/status)

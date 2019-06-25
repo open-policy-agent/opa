@@ -40,11 +40,12 @@ on the agent, updates will be sent to `/status`.
         "id": "1780d507-aea2-45cc-ae50-fa153c8e4a5a",
         "version": "{{< current_version >}}"
     },
-    "bundle": {
-        "name": "http/example/authz",
-        "active_revision": "TODO",
-        "last_successful_download": "2018-01-01T00:00:00.000Z",
-        "last_successful_activation": "2018-01-01T00:00:00.000Z"
+    "bundles": {
+        "http/example/authz": {
+            "active_revision": "TODO",
+            "last_successful_download": "2018-01-01T00:00:00.000Z",
+            "last_successful_activation": "2018-01-01T00:00:00.000Z"
+        }
     }
 }
 ```
@@ -54,10 +55,15 @@ Status updates contain the following fields:
 | Field | Type | Description |
 | --- | --- | --- |
 | `labels` | `object` | Set of key-value pairs that uniquely identify the OPA instance. |
-| `bundle.name` | `string` | Name of bundle that the OPA instance is configured to download. |
-| `bundle.active_revision` | `string` | Opaque revision identifier of the last successful activation. |
-| `bundle.last_successful_download` | `string` | RFC3339 timestamp of last successful bundle download. |
-| `bundle.last_successful_activation` | `string` | RFC3339 timestamp of last successful bundle activation. |
+| `bundle.name` | `string` | (Deprecated) Name of bundle that the OPA instance is configured to download. Omitted when `bundles` are configured. |
+| `bundle.active_revision` | `string` | (Deprecated) Opaque revision identifier of the last successful activation. Omitted when `bundles` are configured. |
+| `bundle.last_successful_download` | `string` | (Deprecated) RFC3339 timestamp of last successful bundle download. Omitted when `bundles` are configured. |
+| `bundle.last_successful_activation` | `string` | (Deprecated) RFC3339 timestamp of last successful bundle activation. Omitted when `bundles` are configured. |
+| `bundles` | `object` | Set of objects describing the status for each bundle configured with OPA. |
+| `bundles[_].name` | `string` | Name of bundle that the OPA instance is configured to download. |
+| `bundles[_].active_revision` | `string` | Opaque revision identifier of the last successful activation. |
+| `bundles[_].last_successful_download` | `string` | RFC3339 timestamp of last successful bundle download. |
+| `bundles[_].last_successful_activation` | `string` | RFC3339 timestamp of last successful bundle activation. |
 | `discovery.name` | `string` | Name of discovery bundle that the OPA instance is configured to download. |
 | `discovery.active_revision` | `string` | Opaque revision identifier of the last successful discovery activation. |
 | `discovery.last_successful_download` | `string` | RFC3339 timestamp of last successful discovery bundle download. |
