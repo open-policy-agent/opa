@@ -74,7 +74,8 @@ func (loc *Location) String() string {
 
 // Compare returns -1, 0, or 1 to indicate if this loc is less than, equal to,
 // or greater than the other. Comparison is performed on the file, row, and
-// column of the Location (but not on the text.)
+// column of the Location (but not on the text.) Nil locations are greater than
+// non-nil locations.
 func (loc *Location) Compare(other *Location) int {
 	if loc == nil && other == nil {
 		return 0

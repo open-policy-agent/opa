@@ -594,15 +594,15 @@ func (c *Compiler) checkSafetyRuleBodies() {
 		WalkRules(m, func(r *Rule) bool {
 			safe := ReservedVars.Copy()
 			safe.Update(r.Head.Args.Vars())
-			r.Body = c.checkBodySafety(safe, m, r.Body, r.Loc())
+			r.Body = c.checkBodySafety(safe, m, r.Body)
 			return false
 		})
 	}
 }
 
-func (c *Compiler) checkBodySafety(safe VarSet, m *Module, b Body, l *Location) Body {
+func (c *Compiler) checkBodySafety(safe VarSet, m *Module, b Body) Body {
 	reordered, unsafe := reorderBodyForSafety(c.GetArity, safe, b)
-	if errs := safetyErrorSlice(l, unsafe); len(errs) > 0 {
+	if errs := safetyErrorSlice(unsafe); len(errs) > 0 {
 		for _, err := range errs {
 			c.err(err)
 		}
@@ -1154,7 +1154,7 @@ func (qc *queryCompiler) rewriteLocalVars(_ *QueryContext, body Body) (Body, err
 func (qc *queryCompiler) checkSafety(_ *QueryContext, body Body) (Body, error) {
 	safe := ReservedVars.Copy()
 	reordered, unsafe := reorderBodyForSafety(qc.compiler.GetArity, safe, body)
-	if errs := safetyErrorSlice(body.Loc(), unsafe); len(errs) > 0 {
+	if errs := safetyErrorSlice(unsafe); len(errs) > 0 {
 		return nil, errs
 	}
 	return reordered, nil
@@ -1482,6 +1482,11 @@ type unsafePair struct {
 	Vars VarSet
 }
 
+type unsafeVarLoc struct {
+	Var Var
+	Loc *Location
+}
+
 type unsafeVars map[*Expr]VarSet
 
 func (vs unsafeVars) Add(e *Expr, v Var) {
@@ -1505,12 +1510,31 @@ func (vs unsafeVars) Update(o unsafeVars) {
 	}
 }
 
-func (vs unsafeVars) Vars() VarSet {
-	r := VarSet{}
-	for _, s := range vs {
-		r.Update(s)
+func (vs unsafeVars) Vars() (result []unsafeVarLoc) {
+
+	locs := map[Var]*Location{}
+
+	// If var appears in multiple sets then pick first by location.
+	for expr, vars := range vs {
+		for v := range vars {
+			if locs[v].Compare(expr.Location) > 0 {
+				locs[v] = expr.Location
+			}
+		}
 	}
-	return r
+
+	for v, loc := range locs {
+		result = append(result, unsafeVarLoc{
+			Var: v,
+			Loc: loc,
+		})
+	}
+
+	sort.Slice(result, func(i, j int) bool {
+		return result[i].Loc.Compare(result[j].Loc) < 0
+	})
+
+	return result
 }
 
 func (vs unsafeVars) Slice() (result []unsafePair) {
@@ -2962,15 +2986,15 @@ func isDataRef(term *Term) bool {
 	return false
 }
 
-func safetyErrorSlice(l *Location, unsafe unsafeVars) (result Errors) {
+func safetyErrorSlice(unsafe unsafeVars) (result Errors) {
 
 	if len(unsafe) == 0 {
 		return
 	}
 
-	for v := range unsafe.Vars() {
-		if !v.IsGenerated() {
-			result = append(result, NewError(UnsafeVarErr, l, "var %v is unsafe", v))
+	for _, pair := range unsafe.Vars() {
+		if !pair.Var.IsGenerated() {
+			result = append(result, NewError(UnsafeVarErr, pair.Loc, "var %v is unsafe", pair.Var))
 		}
 	}
 
