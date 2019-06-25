@@ -145,10 +145,10 @@ func TestEvalWithJSONInputFile(t *testing.T) {
 func TestEvalWithYAMLInputFile(t *testing.T) {
 	input := `
 foo: a
-b: 
+b:
   - a: 1
     b: [1, 2, 3]
-    c: 
+    c:
 `
 	query := "input.b[0].a == 1"
 	err := testEvalWithInputFile(t, input, query)
@@ -163,5 +163,13 @@ func TestEvalWithInvalidInputFile(t *testing.T) {
 	err := testEvalWithInputFile(t, input, query)
 	if err == nil {
 		t.Fatalf("expected error but err == nil")
+	}
+}
+
+func TestEvalReturnsRegoError(t *testing.T) {
+	buf := new(bytes.Buffer)
+	_, err := eval([]string{"1/0"}, newEvalCommandParams(), buf)
+	if _, ok := err.(regoError); !ok {
+		t.Fatal("expected regoError but got:", err)
 	}
 }

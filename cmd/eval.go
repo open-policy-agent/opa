@@ -78,6 +78,12 @@ const (
 	defaultPrettyLimit = 80
 )
 
+type regoError struct{}
+
+func (regoError) Error() string {
+	return "rego"
+}
+
 func init() {
 
 	params := newEvalCommandParams()
@@ -170,7 +176,9 @@ Set the output format with the --format flag.
 
 			defined, err := eval(args, params, os.Stdout)
 			if err != nil {
-				fmt.Fprintln(os.Stderr, err)
+				if _, ok := err.(regoError); !ok {
+					fmt.Fprintln(os.Stderr, err)
+				}
 				os.Exit(2)
 			}
 
@@ -358,7 +366,10 @@ func eval(args []string, params evalCommandParams, w io.Writer) (bool, error) {
 	if err != nil {
 		return false, err
 	} else if result.Error != nil {
-		return false, result.Error
+		// If the rego package returned an error, return a special error here so
+		// that the command doesn't print the same error twice. The error will
+		// have been printed above by the presentation package.
+		return false, regoError{}
 	} else if len(result.Result) == 0 {
 		return false, nil
 	} else {
