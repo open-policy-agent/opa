@@ -74,6 +74,9 @@ not obj.foo.bar.bar
 # check if "foo" belongs to the set
 a_set["foo"]
 
+# check if "foo" DOES NOT belong to the set
+not a_set["foo"]
+
 # check if the array ["a", "b", "c"] belongs to the set
 a_set[["a", "b", "c"]]
 
@@ -130,6 +133,34 @@ foo[k1] == foo[k2]; k1 != k2
 
 # multiple conditions: k has same value in both conditions
 foo[k].bar.baz[i] == 7; foo[k].qux > 3
+```
+
+#### For All
+
+```ruby
+# assert no values in set match predicate
+count({x | set[x]; f(x)}) == 0
+
+# assert all values in set make function f true
+count({x | set[x]; f(x)}) == count(set)
+
+# assert no values in set make function f true (using negation and helper rule)
+not any_match
+
+# assert all values in set make function f true (using negation and helper rule)
+not any_not_match
+```
+
+```ruby
+any_match {
+    set[x]
+    f(x)
+}
+
+any_not_match {
+    set[x]
+    not f(x)
+}
 ```
 
 ## Rules
