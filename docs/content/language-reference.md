@@ -123,24 +123,23 @@ The following table shows examples of how ``glob.match`` works:
 | ``output := glob.match(""{cat,bat,[fr]at}", [], "rat")`` | ``true`` | A glob with pattern-alternatives matchers. |
 | ``output := glob.match(""{cat,bat,[fr]at}", [], "at")`` | ``false`` | A glob with pattern-alternatives matchers. |
 
+### Conversions
+
+| Built-in | Description |
+| --- | --- |
+| <span class="opa-keep-it-together">``output := to_number(x)``</span> | ``output`` is ``x`` converted to a number. `null` is converted to zero, `true` and `false` are converted to one and zero (respectively), `string` values are interpreted as base 10, and `numbers` are a no-op. Other types are not supported. |
+
 ### Types
 
 | Built-in | Description |
 | ------- |-------------|
-| <span class="opa-keep-it-together">``output := to_number(x)``</span> | ``output`` is ``x`` converted to a number |
 | <span class="opa-keep-it-together">``output := is_number(x)``</span> | ``output`` is ``true`` if ``x`` is a number |
 | <span class="opa-keep-it-together">``output := is_string(x)``</span> | ``output`` is ``true`` if ``x`` is a string |
-| <span class="opa-keep-it-together">``output := cast_string(x)``</span> | ``output`` is ``x`` cast to a string |
 | <span class="opa-keep-it-together">``output := is_boolean(x)``</span> | ``output`` is ``true`` if ``x`` is a boolean |
-| <span class="opa-keep-it-together">``output := cast_boolean(x)``</span> | ``output`` is ``x`` cast to a boolean |
 | <span class="opa-keep-it-together">``output := is_array(x)``</span> | ``output`` is ``true`` if ``x`` is an array |
-| <span class="opa-keep-it-together">``output := cast_array(x)``</span> | ``output`` is ``x`` cast to an array |
 | <span class="opa-keep-it-together">``output := is_set(x)``</span> | ``output`` is ``true`` if ``x`` is a set |
-| <span class="opa-keep-it-together">``output := cast_set(x)``</span> | ``output`` is ``x`` cast to a set |
 | <span class="opa-keep-it-together">``output := is_object(x)``</span> | ``output`` is ``true`` if ``x`` is an object |
-| <span class="opa-keep-it-together">``output := cast_object(x)``</span> | ``output`` is ``x`` cast to an object |
 | <span class="opa-keep-it-together">``output := is_null(x)``</span> | ``output`` is ``true`` if ``x`` is null |
-| <span class="opa-keep-it-together">``output := cast_null(x)``</span> | ``output`` is ``x`` cast to null |
 | <span class="opa-keep-it-together">``output := type_name(x)``</span> | ``output`` is the type of ``x`` |
 
 ### Encoding
@@ -201,11 +200,11 @@ If there are any unrecognized constraints then the token is considered invalid.
 > Multiple calls to the `time.now_ns` built-in function within a single policy
 evaluation query will always return the same value.
 
-Timezones can be specified as 
+Timezones can be specified as
 
 * an [IANA Time Zone](https://www.iana.org/time-zones) string e.g. "America/New_York"
 * "UTC" or "", which are equivalent to not passing a timezone (i.e. will return as UTC)
-* "Local", which will use the local timezone. 
+* "Local", which will use the local timezone.
 
 Note that the opa executable will need access to the timezone files in the environment it is running in (see the [Go time.LoadLocation()](https://golang.org/pkg/time/#LoadLocation) documentation for more information).
 
