@@ -3610,13 +3610,73 @@ func TestShutdownMultipleErrors(t *testing.T) {
 	}
 }
 
+func TestAddrsNoListeners(t *testing.T) {
+	s := New()
+	a := s.Addrs()
+	if len(a) != 0 {
+		t.Errorf("expected an empty list of addresses, got: %+v", a)
+	}
+}
+
+func TestAddrsWithEmptyListenAddr(t *testing.T) {
+	s := New()
+	s.httpListeners = []httpListener{&mockHTTPListener{}}
+	a := s.Addrs()
+	if len(a) != 0 {
+		t.Errorf("expected an empty list of addresses, got: %+v", a)
+	}
+}
+
+func TestAddrsWithListenAddr(t *testing.T) {
+	s := New()
+	s.httpListeners = []httpListener{&mockHTTPListener{Addrs: ":8181"}}
+	a := s.Addrs()
+	if len(a) != 1 || a[0] != ":8181" {
+		t.Errorf("expected only an ':8181' address, got: %+v", a)
+	}
+}
+
+func TestAddrsWithMixedListenerAddr(t *testing.T) {
+	s := New()
+	addrs := []string{":8181", "", "unix:///var/tmp/foo.sock"}
+	expected := []string{":8181", "unix:///var/tmp/foo.sock"}
+
+	s.httpListeners = []httpListener{}
+	for _, addr := range addrs {
+		s.httpListeners = append(s.httpListeners, &mockHTTPListener{Addrs: addr})
+	}
+
+	a := s.Addrs()
+	if len(a) != 2 {
+		t.Errorf("expected 2 addresses, got: %+v", a)
+	}
+
+	for _, expectedAddr := range expected {
+		found := false
+		for _, actualAddr := range a {
+			if expectedAddr == actualAddr {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("expected %q in address list, got: %+v", expectedAddr, a)
+		}
+	}
+}
+
 type listenerHook func() error
 
 type mockHTTPListener struct {
 	ShutdownHook listenerHook
+	Addrs        string
 }
 
 var _ httpListener = (*mockHTTPListener)(nil)
+
+func (m mockHTTPListener) Addr() string {
+	return m.Addrs
+}
 
 func (m mockHTTPListener) ListenAndServe() error {
 	return errors.New("not implemented")

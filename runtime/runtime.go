@@ -159,6 +159,8 @@ type Runtime struct {
 	// TODO(tsandall): remove this field since it's available on the manager
 	// and doesn't have to duplicated here or on the server.
 	info *ast.Term // runtime information provided to evaluation engine
+
+	server *server.Server
 }
 
 // NewRuntime returns a new Runtime object initialized with params.
@@ -262,7 +264,8 @@ func (rt *Runtime) Serve(ctx context.Context) error {
 
 	defer rt.Manager.Stop(ctx)
 
-	s, err := server.New().
+	var err error
+	rt.server, err = server.New().
 		WithStore(rt.Store).
 		WithManager(rt.Manager).
 		WithCompilerErrorLimit(rt.Params.ErrorLimit).
@@ -291,9 +294,9 @@ func (rt *Runtime) Serve(ctx context.Context) error {
 		}
 	}
 
-	s.Handler = NewLoggingHandler(s.Handler)
+	rt.server.Handler = NewLoggingHandler(rt.server.Handler)
 
-	loops, err := s.Listeners()
+	loops, err := rt.server.Listeners()
 	if err != nil {
 		logrus.WithField("err", err).Error("Unable to create listeners.")
 		return err
@@ -312,13 +315,23 @@ func (rt *Runtime) Serve(ctx context.Context) error {
 	for {
 		select {
 		case <-ctx.Done():
-			return rt.gracefulServerShutdown(s)
+			return rt.gracefulServerShutdown(rt.server)
 		case <-signalc:
-			return rt.gracefulServerShutdown(s)
+			return rt.gracefulServerShutdown(rt.server)
 		case err := <-errc:
 			logrus.WithField("err", err).Fatal("Listener failed.")
 		}
 	}
+}
+
+// Addrs returns a list of addresses that the runtime is listening on (when
+// in server mode). Returns an empty list if it hasn't started listening.
+func (rt *Runtime) Addrs() []string {
+	if rt.server == nil {
+		return nil
+	}
+
+	return rt.server.Addrs()
 }
 
 // StartREPL starts the runtime in REPL mode. This function will block the calling goroutine.
