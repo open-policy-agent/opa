@@ -800,13 +800,18 @@ func (s *Server) v0QueryPath(w http.ResponseWriter, r *http.Request, path ast.Re
 	}
 
 	if len(rs) == 0 {
-		// Store decision logs with empty result and error.
-		err = diagLogger.Log(ctx, decisionID, r.RemoteAddr, path.String(), "", goInput, nil, nil, m, buf)
-		if err != nil {
-			writer.ErrorAuto(w, err)
+		// construct error to return to client.
+		err := types.NewErrorV1(types.CodeUndefinedDocument, fmt.Sprintf("%v: %v", types.MsgUndefinedError, path))
+
+		// emit decision log
+		if logErr := diagLogger.Log(ctx, decisionID, r.RemoteAddr, path.String(), "", goInput, nil, err, m, buf); logErr != nil {
+			// handle case where decision logging fails
+			writer.ErrorAuto(w, logErr)
 			return
 		}
-		writer.Error(w, 404, types.NewErrorV1(types.CodeUndefinedDocument, fmt.Sprintf("%v: %v", types.MsgUndefinedError, path)))
+
+		// send normal error back to the client
+		writer.Error(w, 404, err)
 		return
 	}
 
