@@ -7,6 +7,7 @@ package ast
 import (
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/open-policy-agent/opa/metrics"
@@ -77,6 +78,7 @@ type Compiler struct {
 	// TypeEnv holds type information for values inferred by the compiler.
 	TypeEnv *TypeEnv
 
+	localvargen  *localVarGenerator
 	moduleLoader ModuleLoader
 	ruleIndices  *util.HashMap
 	stages       []struct {
@@ -217,6 +219,12 @@ func NewCompiler() *Compiler {
 		// load additional modules. If any stages run before resolution, they
 		// need to be re-run after resolution.
 		{"ResolveRefs", "compile_stage_resolve_refs", c.resolveAllRefs},
+
+		// The local variable generator must be initialized after references are
+		// resolved and the dynamic module loader has run but before subsequent
+		// stages that need to generate variables.
+		{"InitLocalVarGen", "compile_stage_init_local_var_gen", c.initLocalVarGen},
+
 		{"RewriteLocalVars", "compile_stage_rewrite_local_vars", c.rewriteLocalVars},
 		{"RewriteExprTerms", "compile_stage_rewrite_expr_terms", c.rewriteExprTerms},
 		{"SetModuleTree", "compile_stage_set_module_tree", c.setModuleTree},
@@ -277,11 +285,14 @@ func (c *Compiler) QueryCompiler() QueryCompiler {
 // compiler. If the compilation process fails for any reason, the compiler will
 // contain a slice of errors.
 func (c *Compiler) Compile(modules map[string]*Module) {
+
 	c.Modules = make(map[string]*Module, len(modules))
+
 	for k, v := range modules {
 		c.Modules[k] = v.Copy()
 		c.sorted = append(c.sorted, k)
 	}
+
 	sort.Strings(c.sorted)
 
 	c.compile()
@@ -778,10 +789,14 @@ func (c *Compiler) resolveAllRefs() {
 	}
 }
 
+func (c *Compiler) initLocalVarGen() {
+	c.localvargen = newLocalVarGeneratorForModuleSet(c.sorted, c.Modules)
+}
+
 func (c *Compiler) rewriteComprehensionTerms() {
+	f := newEqualityFactory(c.localvargen)
 	for _, name := range c.sorted {
 		mod := c.Modules[name]
-		f := newEqualityFactory(newLocalVarGenerator(mod))
 		rewriteComprehensionTerms(f, mod)
 	}
 }
@@ -789,10 +804,9 @@ func (c *Compiler) rewriteComprehensionTerms() {
 func (c *Compiler) rewriteExprTerms() {
 	for _, name := range c.sorted {
 		mod := c.Modules[name]
-		gen := newLocalVarGenerator(mod)
 		WalkRules(mod, func(rule *Rule) bool {
-			rewriteExprTermsInHead(gen, rule)
-			rule.Body = rewriteExprTermsInBody(gen, rule.Body)
+			rewriteExprTermsInHead(c.localvargen, rule)
+			rule.Body = rewriteExprTermsInBody(c.localvargen, rule.Body)
 			return false
 		})
 	}
@@ -812,9 +826,9 @@ func (c *Compiler) rewriteExprTerms() {
 //
 // p[__local0__] { i < 100; __local0__ = {"foo": data.foo[i]} }
 func (c *Compiler) rewriteRefsInHead() {
+	f := newEqualityFactory(c.localvargen)
 	for _, name := range c.sorted {
 		mod := c.Modules[name]
-		f := newEqualityFactory(newLocalVarGenerator(mod))
 		WalkRules(mod, func(rule *Rule) bool {
 			if requiresEval(rule.Head.Key) {
 				expr := f.Generate(rule.Head.Key)
@@ -846,9 +860,9 @@ func (c *Compiler) rewriteEquals() {
 }
 
 func (c *Compiler) rewriteDynamicTerms() {
+	f := newEqualityFactory(c.localvargen)
 	for _, name := range c.sorted {
 		mod := c.Modules[name]
-		f := newEqualityFactory(newLocalVarGenerator(mod))
 		WalkRules(mod, func(rule *Rule) bool {
 			rule.Body = rewriteDynamics(f, rule.Body)
 			return false
@@ -860,7 +874,7 @@ func (c *Compiler) rewriteLocalVars() {
 
 	for _, name := range c.sorted {
 		mod := c.Modules[name]
-		gen := newLocalVarGenerator(mod)
+		gen := c.localvargen
 
 		WalkRules(mod, func(rule *Rule) bool {
 
@@ -963,9 +977,9 @@ func (c *Compiler) rewriteLocalVars() {
 }
 
 func (c *Compiler) rewriteWithModifiers() {
+	f := newEqualityFactory(c.localvargen)
 	for _, name := range c.sorted {
 		mod := c.Modules[name]
-		f := newEqualityFactory(newLocalVarGenerator(mod))
 		t := NewGenericTransformer(func(x interface{}) (interface{}, error) {
 			body, ok := x.(Body)
 			if !ok {
@@ -1905,35 +1919,35 @@ func (f *equalityFactory) Generate(other *Term) *Expr {
 	return expr
 }
 
-const localVarFmt = "__local%d__"
-
 type localVarGenerator struct {
-	exclude   VarSet
-	generated VarSet
+	exclude VarSet
+	next    int
+}
+
+func newLocalVarGeneratorForModuleSet(sorted []string, modules map[string]*Module) *localVarGenerator {
+	exclude := NewVarSet()
+	vis := &VarVisitor{vars: exclude}
+	for _, key := range sorted {
+		Walk(vis, modules[key])
+	}
+	return &localVarGenerator{exclude: exclude, next: 0}
 }
 
 func newLocalVarGenerator(node interface{}) *localVarGenerator {
 	exclude := NewVarSet()
-	vis := &VarVisitor{
-		vars: exclude,
-	}
+	vis := &VarVisitor{vars: exclude}
 	Walk(vis, node)
-	return &localVarGenerator{exclude, NewVarSet()}
+	return &localVarGenerator{exclude: exclude, next: 0}
 }
 
 func (l *localVarGenerator) Generate() Var {
-	name := Var("")
-	x := 0
-	for len(name) == 0 || l.generated.Contains(name) || l.exclude.Contains(name) {
-		name = Var(fmt.Sprintf(localVarFmt, x))
-		x++
+	for {
+		result := Var("__local" + strconv.Itoa(l.next) + "__")
+		l.next++
+		if !l.exclude.Contains(result) {
+			return result
+		}
 	}
-	l.generated.Add(name)
-	return name
-}
-
-func (l *localVarGenerator) Generated() VarSet {
-	return l.generated
 }
 
 func getGlobals(pkg *Package, rules []Var, imports []*Import) map[Var]Ref {
@@ -2300,62 +2314,57 @@ func rewriteEquals(x interface{}) {
 //
 // foo(data.bar) = 1
 //
-// The rewritten vresion will be:
+// The rewritten version will be:
 //
 // __local0__ = data.bar; foo(__local0__) = 1
 func rewriteDynamics(f *equalityFactory, body Body) Body {
-	cpy := Body{}
+	result := make(Body, 0, len(body))
 	for _, expr := range body {
-		var exprs []*Expr
-		switch expr.Terms.(type) {
-		case []*Term:
-			if expr.IsEquality() {
-				exprs = rewriteDynamicsEqExpr(f, expr)
-			} else {
-				exprs = rewriteDynamicsCallExpr(f, expr)
-			}
-		case *Term:
-			exprs = rewriteDynamicsTermExpr(f, expr)
-		}
-		for _, expr := range exprs {
-			cpy.Append(expr)
+		if expr.IsEquality() {
+			result = rewriteDynamicsEqExpr(f, expr, result)
+		} else if expr.IsCall() {
+			result = rewriteDynamicsCallExpr(f, expr, result)
+		} else {
+			result = rewriteDynamicsTermExpr(f, expr, result)
 		}
 	}
-	return cpy
+	return result
 }
 
-func rewriteDynamicsEqExpr(f *equalityFactory, expr *Expr) []*Expr {
-	var extras []*Expr
+func appendExpr(body Body, expr *Expr) Body {
+	body.Append(expr)
+	return body
+}
+
+func rewriteDynamicsEqExpr(f *equalityFactory, expr *Expr, result Body) Body {
 	if !validEqAssignArgCount(expr) {
-		return append(extras, expr)
+		return appendExpr(result, expr)
 	}
 	terms := expr.Terms.([]*Term)
-	extras, terms[1] = rewriteDynamicsInTerm(expr, f, terms[1], nil)
-	extras, terms[2] = rewriteDynamicsInTerm(expr, f, terms[2], extras)
-	return append(extras, expr)
+	result, terms[1] = rewriteDynamicsInTerm(expr, f, terms[1], result)
+	result, terms[2] = rewriteDynamicsInTerm(expr, f, terms[2], result)
+	return appendExpr(result, expr)
 }
 
-func rewriteDynamicsCallExpr(f *equalityFactory, expr *Expr) []*Expr {
+func rewriteDynamicsCallExpr(f *equalityFactory, expr *Expr, result Body) Body {
 	terms := expr.Terms.([]*Term)
-	var extras []*Expr
 	for i := 1; i < len(terms); i++ {
-		extras, terms[i] = rewriteDynamicsOne(expr, f, terms[i], extras)
+		result, terms[i] = rewriteDynamicsOne(expr, f, terms[i], result)
 	}
-	return append(extras, expr)
+	return appendExpr(result, expr)
 }
 
-func rewriteDynamicsTermExpr(f *equalityFactory, expr *Expr) []*Expr {
+func rewriteDynamicsTermExpr(f *equalityFactory, expr *Expr, result Body) Body {
 	term := expr.Terms.(*Term)
-	var extras []*Expr
-	extras, expr.Terms = rewriteDynamicsInTerm(expr, f, term, nil)
-	return append(extras, expr)
+	result, expr.Terms = rewriteDynamicsInTerm(expr, f, term, result)
+	return appendExpr(result, expr)
 }
 
-func rewriteDynamicsInTerm(original *Expr, f *equalityFactory, term *Term, extras []*Expr) ([]*Expr, *Term) {
+func rewriteDynamicsInTerm(original *Expr, f *equalityFactory, term *Term, result Body) (Body, *Term) {
 	switch v := term.Value.(type) {
 	case Ref:
 		for i := 1; i < len(v); i++ {
-			extras, v[i] = rewriteDynamicsOne(original, f, v[i], extras)
+			result, v[i] = rewriteDynamicsOne(original, f, v[i], result)
 		}
 	case *ArrayComprehension:
 		v.Body = rewriteDynamics(f, v.Body)
@@ -2364,56 +2373,60 @@ func rewriteDynamicsInTerm(original *Expr, f *equalityFactory, term *Term, extra
 	case *ObjectComprehension:
 		v.Body = rewriteDynamics(f, v.Body)
 	default:
-		extras, term = rewriteDynamicsOne(original, f, term, extras)
+		result, term = rewriteDynamicsOne(original, f, term, result)
 	}
-	return extras, term
+	return result, term
 }
 
-func rewriteDynamicsOne(original *Expr, f *equalityFactory, term *Term, extras []*Expr) ([]*Expr, *Term) {
+func rewriteDynamicsOne(original *Expr, f *equalityFactory, term *Term, result Body) (Body, *Term) {
 	switch v := term.Value.(type) {
 	case Ref:
 		for i := 1; i < len(v); i++ {
-			extras, v[i] = rewriteDynamicsOne(original, f, v[i], extras)
+			result, v[i] = rewriteDynamicsOne(original, f, v[i], result)
 		}
 		generated := f.Generate(term)
 		generated.With = original.With
-		extras = append(extras, generated)
-		return extras, extras[len(extras)-1].Operand(0)
+		result.Append(generated)
+		return result, result[len(result)-1].Operand(0)
 	case Array:
 		for i := 0; i < len(v); i++ {
-			extras, v[i] = rewriteDynamicsOne(original, f, v[i], extras)
+			result, v[i] = rewriteDynamicsOne(original, f, v[i], result)
 		}
-		return extras, term
+		return result, term
 	case Object:
-		term.Value, _ = v.Map(func(k, v *Term) (*Term, *Term, error) {
-			extras, k = rewriteDynamicsOne(original, f, k, extras)
-			extras, v = rewriteDynamicsOne(original, f, v, extras)
-			return k, v, nil
-		})
-		return extras, term
+		cpy := NewObject()
+		for _, key := range v.Keys() {
+			value := v.Get(key)
+			result, key = rewriteDynamicsOne(original, f, key, result)
+			result, value = rewriteDynamicsOne(original, f, value, result)
+			cpy.Insert(key, value)
+		}
+		return result, NewTerm(cpy).SetLocation(term.Location)
 	case Set:
-		v, _ = v.Map(func(term *Term) (*Term, error) {
-			extras, term = rewriteDynamicsOne(original, f, term, extras)
-			return term, nil
-		})
-		return extras, NewTerm(v).SetLocation(term.Location)
+		cpy := NewSet()
+		for _, term := range v.Slice() {
+			var rw *Term
+			result, rw = rewriteDynamicsOne(original, f, term, result)
+			cpy.Add(rw)
+		}
+		return result, NewTerm(cpy).SetLocation(term.Location)
 	case *ArrayComprehension:
 		var extra *Expr
 		v.Body, extra = rewriteDynamicsComprehensionBody(original, f, v.Body, term)
-		extras = append(extras, extra)
-		return extras, extras[len(extras)-1].Operand(0)
+		result.Append(extra)
+		return result, result[len(result)-1].Operand(0)
 	case *SetComprehension:
 		var extra *Expr
 		v.Body, extra = rewriteDynamicsComprehensionBody(original, f, v.Body, term)
-		extras = append(extras, extra)
-		return extras, extras[len(extras)-1].Operand(0)
+		result.Append(extra)
+		return result, result[len(result)-1].Operand(0)
 	case *ObjectComprehension:
 		var extra *Expr
 		v.Body, extra = rewriteDynamicsComprehensionBody(original, f, v.Body, term)
-		extras = append(extras, extra)
-		return extras, extras[len(extras)-1].Operand(0)
+		result.Append(extra)
+		return result, result[len(result)-1].Operand(0)
 	}
-	return extras, term
+	return result, term
 }
 
 func rewriteDynamicsComprehensionBody(original *Expr, f *equalityFactory, body Body, term *Term) (Body, *Expr) {

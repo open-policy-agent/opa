@@ -222,7 +222,12 @@ func WalkBodies(x interface{}, f func(Body) bool) {
 func WalkRules(x interface{}, f func(*Rule) bool) {
 	vis := &GenericVisitor{func(x interface{}) bool {
 		if r, ok := x.(*Rule); ok {
-			return f(r)
+			stop := f(r)
+			// NOTE(tsandall): since rules cannot be embedded inside of queries
+			// we can stop early if there is no else block.
+			if stop || r.Else == nil {
+				return true
+			}
 		}
 		return false
 	}}
