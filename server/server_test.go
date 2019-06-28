@@ -2579,6 +2579,16 @@ func TestDecisionLogging(t *testing.T) {
 			path:   "/data/fail_closed/decision_logger_err",
 			code:   500,
 		},
+		{
+			method: "POST",
+			v0:     true,
+			path:   "/data/test",
+			code:   404,
+			response: `{
+				"code": "undefined_document",
+				"message": "document missing or undefined: data.test"
+			  }`,
+		},
 	}
 
 	for _, r := range reqs {
@@ -2617,6 +2627,7 @@ func TestDecisionLogging(t *testing.T) {
 		{path: "data", wantErr: true},
 		{path: "data", wantErr: true},
 		{path: "data.system.main", wantErr: true},
+		{path: `data.test`, wantErr: true},
 	}
 
 	if len(decisions) != len(exp) {
