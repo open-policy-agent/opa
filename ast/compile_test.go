@@ -2896,6 +2896,8 @@ func compileStages(c *Compiler, upto func()) {
 		c.sorted = append(c.sorted, name)
 	}
 
+	c.localvargen = newLocalVarGeneratorForModuleSet(c.sorted, c.Modules)
+
 	sort.Strings(c.sorted)
 	c.SetErrorLimit(0)
 
