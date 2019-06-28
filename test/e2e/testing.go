@@ -12,7 +12,9 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -22,7 +24,7 @@ import (
 )
 
 const (
-	defaultAddr = ":8181" // default listening address for server
+	defaultAddr = ":0" // default listening address for server, use a random open port
 )
 
 // NewAPIServerTestParams creates a new set of runtime.Params with enough
@@ -44,39 +46,16 @@ func NewAPIServerTestParams() runtime.Params {
 	return params
 }
 
-func apiServerURL(params runtime.Params) (string, error) {
-
-	addr := (*params.Addrs)[0] // probably fine.. if not then test blows up ?
-
-	if strings.HasPrefix(addr, ":") {
-		addr = "localhost" + addr
-	}
-
-	if !strings.Contains(addr, "://") {
-		scheme := "http://"
-		if params.Certificate != nil {
-			scheme = "https://"
-		}
-		addr = scheme + addr
-	}
-
-	parsed, err := url.Parse(addr)
-	if err != nil {
-		return "", err
-	}
-
-	return parsed.String(), nil
-}
-
 // TestRuntime holds metadata and provides helper methods
 // to interact with the runtime being tested.
 type TestRuntime struct {
-	URL     string
 	Params  runtime.Params
 	Runtime *runtime.Runtime
 	Ctx     context.Context
 	Cancel  context.CancelFunc
 	Client  *http.Client
+	url     string
+	urlMtx  *sync.Mutex
 }
 
 // NewTestRuntime returns a new TestRuntime which
@@ -87,22 +66,16 @@ func NewTestRuntime(params runtime.Params) (*TestRuntime, error) {
 	rt, err := runtime.NewRuntime(ctx, params)
 	if err != nil {
 		cancel()
-		return nil, fmt.Errorf("Unable to create new runtime: %s", err)
-	}
-
-	url, err := apiServerURL(params)
-	if err != nil {
-		cancel()
-		return nil, fmt.Errorf("Unable to determine runtime URL: %s", err)
+		return nil, fmt.Errorf("unable to create new runtime: %s", err)
 	}
 
 	return &TestRuntime{
-		URL:     url,
 		Params:  params,
 		Runtime: rt,
 		Ctx:     ctx,
 		Cancel:  cancel,
 		Client:  &http.Client{},
+		urlMtx:  new(sync.Mutex),
 	}, nil
 }
 
@@ -117,19 +90,69 @@ func (t *TestRuntime) RunAPIServerTests(m *testing.M) int {
 
 // RunAPIServerBenchmarks will start the OPA runtime and do
 // `m.Run()` similar to how RunAPIServerTests works. This
-// will surpress logging output on stdout to prevent the tests
+// will suppress logging output on stdout to prevent the tests
 // from being overly verbose. If log output is desired set
 // the `test.v` flag.
 func (t *TestRuntime) RunAPIServerBenchmarks(m *testing.M) int {
 	return t.runTests(m, !testing.Verbose())
 }
 
-func (t *TestRuntime) runTests(m *testing.M, surpressLogs bool) int {
+// URL will return the URL that the server is listening on. If
+// the server hasn't started listening this will return an empty string.
+// It is not expected for the URL to change throughout the lifetime of the
+// TestRuntime. Runtimes configured with >1 address will only get the
+// first URL.
+func (t *TestRuntime) URL() string {
+	if t.url != "" {
+		// fast path once it has been computed
+		return t.url
+	}
+
+	t.urlMtx.Lock()
+	defer t.urlMtx.Unlock()
+
+	// check again in the lock, it might have changed on us..
+	if t.url != "" {
+		return t.url
+	}
+
+	addrs := t.Runtime.Addrs()
+	if len(addrs) == 0 {
+		return ""
+	}
+	// Just pick the first one, if a test was configured with >1 they
+	// will need to determine the URLs themselves.
+	addr := addrs[0]
+
+	if strings.HasPrefix(addr, ":") {
+		addr = "localhost" + addr
+	}
+
+	if !strings.Contains(addr, "://") {
+		scheme := "http://"
+		if t.Params.Certificate != nil {
+			scheme = "https://"
+		}
+		addr = scheme + addr
+	}
+
+	parsed, err := url.Parse(addr)
+	if err != nil {
+		fmt.Printf("Failed to parse listening address of server: %s", err)
+		os.Exit(1)
+	}
+
+	t.url = parsed.String()
+
+	return t.url
+}
+
+func (t *TestRuntime) runTests(m *testing.M, suppressLogs bool) int {
 	// Start serving API requests in the background
 	done := make(chan error)
 	go func() {
-		// Surpress the stdlogger in the server
-		if surpressLogs {
+		// Suppress the stdlogger in the server
+		if suppressLogs {
 			logrus.SetOutput(ioutil.Discard)
 		}
 		err := t.Runtime.Serve(t.Ctx)
@@ -138,7 +161,7 @@ func (t *TestRuntime) runTests(m *testing.M, surpressLogs bool) int {
 
 	// Turns out this thread gets a different stdlogger
 	// so we need to set the output on it here too.
-	if surpressLogs {
+	if suppressLogs {
 		logrus.SetOutput(ioutil.Discard)
 	}
 
@@ -168,9 +191,14 @@ func (t *TestRuntime) waitForServer() error {
 	delay := time.Duration(100) * time.Millisecond
 	retries := 100 // 10 seconds before we give up
 	for i := 0; i < retries; i++ {
-		resp, err := http.Get(t.URL + "/health")
-		if err == nil && resp.StatusCode == http.StatusOK {
-			return nil
+		// First make sure it has started listening and we have an address
+		if t.URL() != "" {
+			// Then make sure it has started serving
+			resp, err := http.Get(t.URL() + "/health")
+			if err == nil && resp.StatusCode == http.StatusOK {
+				logrus.Infof("Test server ready and listening on: %s", t.URL())
+				return nil
+			}
 		}
 		time.Sleep(delay)
 	}
@@ -179,7 +207,7 @@ func (t *TestRuntime) waitForServer() error {
 
 // UploadPolicy will upload the given policy to the runtime via the v1 policy API
 func (t *TestRuntime) UploadPolicy(name string, policy io.Reader) error {
-	req, err := http.NewRequest("PUT", t.URL+"/v1/policies/"+name, policy)
+	req, err := http.NewRequest("PUT", t.URL()+"/v1/policies/"+name, policy)
 	if err != nil {
 		return fmt.Errorf("Unexpected error creating request: %s", err)
 	}
@@ -196,7 +224,7 @@ func (t *TestRuntime) UploadPolicy(name string, policy io.Reader) error {
 // UploadData will upload the given data to the runtime via the v1 data API
 func (t *TestRuntime) UploadData(data io.Reader) error {
 	client := &http.Client{}
-	req, err := http.NewRequest("PUT", t.URL+"/v1/data", data)
+	req, err := http.NewRequest("PUT", t.URL()+"/v1/data", data)
 	if err != nil {
 		return fmt.Errorf("Unexpected error creating request: %s", err)
 	}
@@ -223,7 +251,7 @@ func (t *TestRuntime) GetDataWithInput(path string, input interface{}) ([]byte, 
 		path = "data/" + path
 	}
 
-	resp, err := http.Post(t.URL+"/v1/"+path, "application/json", bytes.NewReader(inputPayload))
+	resp, err := http.Post(t.URL()+"/v1/"+path, "application/json", bytes.NewReader(inputPayload))
 	if err != nil {
 		return nil, fmt.Errorf("Unexpected error: %s", err)
 	}

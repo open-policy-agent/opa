@@ -355,7 +355,35 @@ func (s *Server) Listeners() ([]Loop, error) {
 	return loops, nil
 }
 
+// Addrs returns a list of addresses that the server is listening on.
+// if the server hasn't been started it will not return an address.
+func (s *Server) Addrs() []string {
+	var addrs []string
+	for _, l := range s.httpListeners {
+		a := l.Addr()
+		if a != "" {
+			addrs = append(addrs, a)
+		}
+	}
+	return addrs
+}
+
+type tcpKeepAliveListener struct {
+	*net.TCPListener
+}
+
+func (ln tcpKeepAliveListener) Accept() (net.Conn, error) {
+	tc, err := ln.AcceptTCP()
+	if err != nil {
+		return nil, err
+	}
+	tc.SetKeepAlive(true)
+	tc.SetKeepAlivePeriod(3 * time.Minute)
+	return tc, nil
+}
+
 type httpListener interface {
+	Addr() string
 	ListenAndServe() error
 	ListenAndServeTLS(certFile, keyFile string) error
 	Shutdown(ctx context.Context) error
@@ -364,24 +392,61 @@ type httpListener interface {
 // baseHTTPListener is just a wrapper around http.Server
 type baseHTTPListener struct {
 	s *http.Server
+	l net.Listener
 }
 
 var _ httpListener = (*baseHTTPListener)(nil)
 
 func newHTTPListener(srvr *http.Server) httpListener {
-	return &baseHTTPListener{srvr}
+	return &baseHTTPListener{srvr, nil}
 }
 
-func (l *baseHTTPListener) ListenAndServe() error {
-	return l.s.ListenAndServe()
+func newHTTPUnixSocketListener(srvr *http.Server, l net.Listener) httpListener {
+	return &baseHTTPListener{srvr, l}
 }
 
-func (l *baseHTTPListener) ListenAndServeTLS(certFile, keyFile string) error {
-	return l.s.ListenAndServeTLS(certFile, keyFile)
+func (b *baseHTTPListener) ListenAndServe() error {
+	addr := b.s.Addr
+	if addr == "" {
+		addr = ":http"
+	}
+	var err error
+	b.l, err = net.Listen("tcp", addr)
+	if err != nil {
+		return err
+	}
+
+	return b.s.Serve(tcpKeepAliveListener{b.l.(*net.TCPListener)})
 }
 
-func (l *baseHTTPListener) Shutdown(ctx context.Context) error {
-	return l.s.Shutdown(ctx)
+func (b *baseHTTPListener) Addr() string {
+	if b.l != nil {
+		if addr := b.l.(*net.TCPListener).Addr(); addr != nil {
+			return addr.String()
+		}
+	}
+	return ""
+}
+
+func (b *baseHTTPListener) ListenAndServeTLS(certFile, keyFile string) error {
+	addr := b.s.Addr
+	if addr == "" {
+		addr = ":https"
+	}
+
+	var err error
+	b.l, err = net.Listen("tcp", addr)
+	if err != nil {
+		return err
+	}
+
+	defer b.l.Close()
+
+	return b.s.ServeTLS(tcpKeepAliveListener{b.l.(*net.TCPListener)}, certFile, keyFile)
+}
+
+func (b *baseHTTPListener) Shutdown(ctx context.Context) error {
+	return b.s.Shutdown(ctx)
 }
 
 func (s *Server) getListenerForHTTPServer(u *url.URL) (Loop, httpListener, error) {
@@ -390,7 +455,9 @@ func (s *Server) getListenerForHTTPServer(u *url.URL) (Loop, httpListener, error
 		Handler: s.Handler,
 	}
 
-	return httpServer.ListenAndServe, newHTTPListener(&httpServer), nil
+	l := newHTTPListener(&httpServer)
+
+	return l.ListenAndServe, l, nil
 }
 
 func (s *Server) getListenerForHTTPSServer(u *url.URL) (Loop, httpListener, error) {
@@ -411,9 +478,11 @@ func (s *Server) getListenerForHTTPSServer(u *url.URL) (Loop, httpListener, erro
 		httpsServer.TLSConfig.ClientAuth = tls.RequireAndVerifyClientCert
 	}
 
-	httpsLoop := func() error { return httpsServer.ListenAndServeTLS("", "") }
+	l := newHTTPListener(&httpsServer)
 
-	return httpsLoop, newHTTPListener(&httpsServer), nil
+	httpsLoop := func() error { return l.ListenAndServeTLS("", "") }
+
+	return httpsLoop, l, nil
 }
 
 func (s *Server) getListenerForUNIXSocket(u *url.URL) (Loop, httpListener, error) {
@@ -428,8 +497,10 @@ func (s *Server) getListenerForUNIXSocket(u *url.URL) (Loop, httpListener, error
 		return nil, nil, err
 	}
 
+	l := newHTTPUnixSocketListener(&domainSocketServer, unixListener)
+
 	domainSocketLoop := func() error { return domainSocketServer.Serve(unixListener) }
-	return domainSocketLoop, newHTTPListener(&domainSocketServer), nil
+	return domainSocketLoop, l, nil
 }
 
 func (s *Server) initRouter() {
