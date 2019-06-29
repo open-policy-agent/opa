@@ -206,7 +206,7 @@ EOF
 > Docker does not currently provide a way to authenticate clients. But in Docker
 > 1.12, clients can be authenticated using TLS and there are plans to include
 > other means of authentication. For the purpose of this tutorial, we assume that
-> an authentication system is place.
+> an authentication system is in place.
 
 ### 9. Update the policy to include basic user access controls.
 
