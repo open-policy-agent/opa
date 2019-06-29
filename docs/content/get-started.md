@@ -10,10 +10,10 @@ OPA provides a high-level **declarative language** for authoring policies and
 simple APIs to answer policy queries. Using OPA, you can offload policy
 decisions from your service such as:
 
-* Should this API call be allowed? E.g., `true` or `false`.
-* How much quota remains for this user? E.g., `1048`.
-* Which hosts can this container be deployed on? E.g., `["host1", "host40", ..., "host329"]`.
-* What updates must be applied to this resource? E.g., `{"labels": {"team": "products}}`.
+- Should this API call be allowed? E.g., `true` or `false`.
+- How much quota remains for this user? E.g., `1048`.
+- Which hosts can this container be deployed on? E.g., `["host1", "host40", ..., "host329"]`.
+- What updates must be applied to this resource? E.g., `{"labels": {"team": "products}}`.
 
 This tutorial shows how to get started with OPA using an interactive shell or [REPL (read-eval-print loop)](https://en.wikipedia.org/wiki/Read–eval–print_loop).
 
@@ -30,8 +30,8 @@ Inside the REPL, you will define rules that codify the policy stated above.
 
 Once you finish this tutorial, you will be familiar with:
 
-  * Running OPA as an interactive shell/REPL.
-  * Writing ad-hoc queries in [Rego](../how-do-i-write-policies).
+- Running OPA as an interactive shell/REPL.
+- Writing ad-hoc queries in [Rego](../how-do-i-write-policies).
 
 ## Prerequisites
 
@@ -55,6 +55,20 @@ Set permissions on the OPA executable:
 
 ```shell
 chmod 755 ./opa
+```
+
+(Optional) Add the OPA executable to your PATH for global access:
+
+Add the following to your .bash_profile
+
+```shell
+export PATH=/path/containing/executable:$PATH
+```
+
+Then open a new terminal or type:
+
+```shell
+source ~/.bash_profile
 ```
 
 ## Steps
@@ -144,7 +158,7 @@ The likes rule above defines a set of tuples specifying what each user likes.
 +---------+------------------------+
 ```
 
-When you enter expressions into the OPA REPL, you are effectively running *queries*. The REPL output shows the values of variables in the expression that make the query `true`. If there is no set of variables that would make the query `true`, the REPL prints `undefined`. If there are no variables in the query and the query evaluates successfully, then the REPL just prints `true`.
+When you enter expressions into the OPA REPL, you are effectively running _queries_. The REPL output shows the values of variables in the expression that make the query `true`. If there is no set of variables that would make the query `true`, the REPL prints `undefined`. If there are no variables in the query and the query evaluates successfully, then the REPL just prints `true`.
 
 Quit out of the REPL by pressing Control-D or typing `exit`:
 
