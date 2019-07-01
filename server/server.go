@@ -27,7 +27,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/open-policy-agent/opa/ast"
-	"github.com/open-policy-agent/opa/internal/manifest"
+	"github.com/open-policy-agent/opa/bundle/manifest"
 	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/plugins"
 	"github.com/open-policy-agent/opa/plugins/bundle"

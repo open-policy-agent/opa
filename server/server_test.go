@@ -27,7 +27,7 @@ import (
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/bundle"
-	"github.com/open-policy-agent/opa/internal/manifest"
+	"github.com/open-policy-agent/opa/bundle/manifest"
 	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/plugins"
 	pluginBundle "github.com/open-policy-agent/opa/plugins/bundle"
