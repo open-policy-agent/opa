@@ -319,7 +319,7 @@ array-compr     = "[" term "|" rule-body "]"
 set-compr       = "{" term "|" rule-body "}"
 object-compr    = "{" object-item "|" rule-body "}"
 infix-operator  = bool-operator | arith-operator | bin-operator
-bool-operator   = "=" | "!=" | "<" | ">" | ">=" | "<="
+bool-operator   = "==" | "!=" | "<" | ">" | ">=" | "<="
 arith-operator  = "+" | "-" | "*" | "/"
 bin-operator    = "&" | "|"
 ref             = var { ref-arg }
