@@ -45,7 +45,7 @@ func NewErrorV1(code, f string, a ...interface{}) *ErrorV1 {
 
 // This shall only used for debugging purpose.
 func (e *ErrorV1) Error() string {
-	return fmt.Sprintf("Code: %s, Message: %s", e.Code, e.Message)
+	return fmt.Sprintf("%s: %s", e.Code, e.Message)
 }
 
 // WithError updates e to include a detailed error.
