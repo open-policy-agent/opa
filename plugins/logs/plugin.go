@@ -281,7 +281,7 @@ func (p *Plugin) Log(ctx context.Context, decision *server.Info) error {
 		event.Error = decision.Error
 	}
 
-	err := p.maskEvent(ctx, &event)
+	err := p.maskEvent(ctx, decision.Txn, &event)
 	if err != nil {
 		// TODO(tsandall): see note below about error handling.
 		p.logError("Log event masking failed: %v.", err)
@@ -459,7 +459,7 @@ func (p *Plugin) bufferChunk(buffer *logBuffer, bs []byte) {
 	}
 }
 
-func (p *Plugin) maskEvent(ctx context.Context, event *EventV1) error {
+func (p *Plugin) maskEvent(ctx context.Context, txn storage.Transaction, event *EventV1) error {
 
 	err := func() error {
 
@@ -474,6 +474,7 @@ func (p *Plugin) maskEvent(ctx context.Context, event *EventV1) error {
 				rego.ParsedQuery(query),
 				rego.Compiler(p.manager.GetCompiler()),
 				rego.Store(p.manager.Store),
+				rego.Transaction(txn),
 				rego.Runtime(p.manager.Info),
 			)
 

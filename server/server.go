@@ -592,7 +592,7 @@ func (s *Server) initRouter() {
 	s.Handler = router
 }
 
-func (s *Server) execQuery(ctx context.Context, r *http.Request, decisionID string, parsedQuery ast.Body, input ast.Value, m metrics.Metrics, explainMode types.ExplainModeV1, includeMetrics, includeInstrumentation, pretty bool) (results types.QueryResponseV1, err error) {
+func (s *Server) execQuery(ctx context.Context, r *http.Request, txn storage.Transaction, decisionID string, parsedQuery ast.Body, input ast.Value, m metrics.Metrics, explainMode types.ExplainModeV1, includeMetrics, includeInstrumentation, pretty bool) (results types.QueryResponseV1, err error) {
 
 	diagLogger := s.evalDiagnosticPolicy(r)
 
@@ -620,6 +620,7 @@ func (s *Server) execQuery(ctx context.Context, r *http.Request, decisionID stri
 
 	rego := rego.New(
 		rego.Store(s.store),
+		rego.Transaction(txn),
 		rego.Compiler(compiler),
 		rego.ParsedQuery(parsedQuery),
 		rego.ParsedInput(input),
@@ -631,7 +632,7 @@ func (s *Server) execQuery(ctx context.Context, r *http.Request, decisionID stri
 
 	output, err := rego.Eval(ctx)
 	if err != nil {
-		_ = diagLogger.Log(ctx, decisionID, r.RemoteAddr, "", parsedQuery.String(), rawInput, nil, err, m, buf)
+		_ = diagLogger.Log(ctx, txn, decisionID, r.RemoteAddr, "", parsedQuery.String(), rawInput, nil, err, m, buf)
 		return results, err
 	}
 
@@ -648,7 +649,7 @@ func (s *Server) execQuery(ctx context.Context, r *http.Request, decisionID stri
 	}
 
 	var x interface{} = results.Result
-	err = diagLogger.Log(ctx, decisionID, r.RemoteAddr, "", parsedQuery.String(), rawInput, &x, nil, m, buf)
+	err = diagLogger.Log(ctx, txn, decisionID, r.RemoteAddr, "", parsedQuery.String(), rawInput, &x, nil, m, buf)
 	return results, err
 }
 
@@ -689,7 +690,15 @@ func (s *Server) indexGet(w http.ResponseWriter, r *http.Request) {
 
 	_, parsedQuery, _ := validateQuery(qStr)
 
-	results, err := s.execQuery(ctx, r, decisionID, parsedQuery, input, nil, explainMode, false, false, true)
+	txn, err := s.store.NewTransaction(ctx)
+	if err != nil {
+		renderQueryResult(w, nil, err, t0)
+		return
+	}
+
+	defer s.store.Abort(ctx, txn)
+
+	results, err := s.execQuery(ctx, r, txn, decisionID, parsedQuery, input, nil, explainMode, false, false, true)
 	if err != nil {
 		renderQueryResult(w, nil, err, t0)
 		return
@@ -794,28 +803,24 @@ func (s *Server) v0QueryPath(w http.ResponseWriter, r *http.Request, path ast.Re
 
 	// Handle results.
 	if err != nil {
-		_ = diagLogger.Log(ctx, decisionID, r.RemoteAddr, path.String(), "", goInput, nil, err, m, buf)
+		_ = diagLogger.Log(ctx, txn, decisionID, r.RemoteAddr, path.String(), "", goInput, nil, err, m, buf)
 		writer.ErrorAuto(w, err)
 		return
 	}
 
 	if len(rs) == 0 {
-		// construct error to return to client.
 		err := types.NewErrorV1(types.CodeUndefinedDocument, fmt.Sprintf("%v: %v", types.MsgUndefinedError, path))
 
-		// emit decision log
-		if logErr := diagLogger.Log(ctx, decisionID, r.RemoteAddr, path.String(), "", goInput, nil, err, m, buf); logErr != nil {
-			// handle case where decision logging fails
+		if logErr := diagLogger.Log(ctx, txn, decisionID, r.RemoteAddr, path.String(), "", goInput, nil, err, m, buf); logErr != nil {
 			writer.ErrorAuto(w, logErr)
 			return
 		}
 
-		// send normal error back to the client
 		writer.Error(w, 404, err)
 		return
 	}
 
-	err = diagLogger.Log(ctx, decisionID, r.RemoteAddr, path.String(), "", goInput, &rs[0].Expressions[0].Value, nil, m, buf)
+	err = diagLogger.Log(ctx, txn, decisionID, r.RemoteAddr, path.String(), "", goInput, &rs[0].Expressions[0].Value, nil, m, buf)
 	if err != nil {
 		writer.ErrorAuto(w, err)
 		return
@@ -1086,7 +1091,7 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 
 	// Handle results.
 	if err != nil {
-		_ = diagLogger.Log(ctx, decisionID, r.RemoteAddr, path.String(), "", goInput, nil, err, m, buf)
+		_ = diagLogger.Log(ctx, txn, decisionID, r.RemoteAddr, path.String(), "", goInput, nil, err, m, buf)
 		writer.ErrorAuto(w, err)
 		return
 	}
@@ -1112,7 +1117,7 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 				writer.ErrorAuto(w, err)
 			}
 		}
-		err = diagLogger.Log(ctx, decisionID, r.RemoteAddr, path.String(), "", goInput, nil, nil, m, buf)
+		err = diagLogger.Log(ctx, txn, decisionID, r.RemoteAddr, path.String(), "", goInput, nil, nil, m, buf)
 		if err != nil {
 			writer.ErrorAuto(w, err)
 			return
@@ -1127,7 +1132,7 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 		result.Explanation = s.getExplainResponse(explainMode, *buf, pretty)
 	}
 
-	err = diagLogger.Log(ctx, decisionID, r.RemoteAddr, path.String(), "", goInput, result.Result, nil, m, buf)
+	err = diagLogger.Log(ctx, txn, decisionID, r.RemoteAddr, path.String(), "", goInput, result.Result, nil, m, buf)
 	if err != nil {
 		writer.ErrorAuto(w, err)
 		return
@@ -1255,7 +1260,7 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 	rego, err := s.makeRego(ctx, partial, txn, input, path.String(), m, instrument, buf, opts)
 
 	if err != nil {
-		_ = diagLogger.Log(ctx, decisionID, r.RemoteAddr, path.String(), "", goInput, nil, err, m, nil)
+		_ = diagLogger.Log(ctx, txn, decisionID, r.RemoteAddr, path.String(), "", goInput, nil, err, m, nil)
 		writer.ErrorAuto(w, err)
 		return
 	}
@@ -1266,7 +1271,7 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 
 	// Handle results.
 	if err != nil {
-		_ = diagLogger.Log(ctx, decisionID, r.RemoteAddr, path.String(), "", goInput, nil, err, m, buf)
+		_ = diagLogger.Log(ctx, txn, decisionID, r.RemoteAddr, path.String(), "", goInput, nil, err, m, buf)
 		writer.ErrorAuto(w, err)
 		return
 	}
@@ -1290,7 +1295,7 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 				writer.ErrorAuto(w, err)
 			}
 		}
-		err = diagLogger.Log(ctx, decisionID, r.RemoteAddr, path.String(), "", goInput, nil, nil, m, buf)
+		err = diagLogger.Log(ctx, txn, decisionID, r.RemoteAddr, path.String(), "", goInput, nil, nil, m, buf)
 		if err != nil {
 			writer.ErrorAuto(w, err)
 			return
@@ -1305,7 +1310,7 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 		result.Explanation = s.getExplainResponse(explainMode, *buf, pretty)
 	}
 
-	err = diagLogger.Log(ctx, decisionID, r.RemoteAddr, path.String(), "", goInput, result.Result, nil, m, buf)
+	err = diagLogger.Log(ctx, txn, decisionID, r.RemoteAddr, path.String(), "", goInput, result.Result, nil, m, buf)
 	if err != nil {
 		writer.ErrorAuto(w, err)
 		return
@@ -1689,7 +1694,15 @@ func (s *Server) v1QueryGet(w http.ResponseWriter, r *http.Request) {
 	includeMetrics := getBoolParam(r.URL, types.ParamMetricsV1, true)
 	includeInstrumentation := getBoolParam(r.URL, types.ParamInstrumentV1, true)
 
-	results, err := s.execQuery(ctx, r, decisionID, parsedQuery, nil, m, explainMode, includeMetrics, includeInstrumentation, pretty)
+	txn, err := s.store.NewTransaction(ctx)
+	if err != nil {
+		writer.ErrorAuto(w, err)
+		return
+	}
+
+	defer s.store.Abort(ctx, txn)
+
+	results, err := s.execQuery(ctx, r, txn, decisionID, parsedQuery, nil, m, explainMode, includeMetrics, includeInstrumentation, pretty)
 	if err != nil {
 		switch err := err.(type) {
 		case ast.Errors:
@@ -1743,7 +1756,15 @@ func (s *Server) v1QueryPost(w http.ResponseWriter, r *http.Request) {
 	includeMetrics := getBoolParam(r.URL, types.ParamMetricsV1, true)
 	includeInstrumentation := getBoolParam(r.URL, types.ParamInstrumentV1, true)
 
-	results, err := s.execQuery(ctx, r, decisionID, parsedQuery, nil, m, explainMode, includeMetrics, includeInstrumentation, pretty)
+	txn, err := s.store.NewTransaction(ctx)
+	if err != nil {
+		writer.ErrorAuto(w, err)
+		return
+	}
+
+	defer s.store.Abort(ctx, txn)
+
+	results, err := s.execQuery(ctx, r, txn, decisionID, parsedQuery, nil, m, explainMode, includeMetrics, includeInstrumentation, pretty)
 	if err != nil {
 		switch err := err.(type) {
 		case ast.Errors:
@@ -2464,9 +2485,10 @@ func (l diagnosticsLogger) Instrument() bool {
 	return l.instrument
 }
 
-func (l diagnosticsLogger) Log(ctx context.Context, decisionID, remoteAddr, path string, query string, input *interface{}, results *interface{}, err error, m metrics.Metrics, tracer *topdown.BufferTracer) error {
+func (l diagnosticsLogger) Log(ctx context.Context, txn storage.Transaction, decisionID, remoteAddr, path string, query string, input *interface{}, results *interface{}, err error, m metrics.Metrics, tracer *topdown.BufferTracer) error {
 
 	info := &Info{
+		Txn:        txn,
 		Revision:   l.revision,
 		Timestamp:  time.Now().UTC(),
 		DecisionID: decisionID,

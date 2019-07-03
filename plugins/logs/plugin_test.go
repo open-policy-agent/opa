@@ -483,7 +483,7 @@ func TestPluginMasking(t *testing.T) {
 	event := &EventV1{
 		Input: &input,
 	}
-	if err := plugin.maskEvent(ctx, event); err != nil {
+	if err := plugin.maskEvent(ctx, nil, event); err != nil {
 		t.Fatal(err)
 	}
 
@@ -510,7 +510,7 @@ func TestPluginMasking(t *testing.T) {
 		Input: &input,
 	}
 
-	if err := plugin.maskEvent(ctx, event); err != nil {
+	if err := plugin.maskEvent(ctx, nil, event); err != nil {
 		t.Fatal(err)
 	}
 
@@ -544,7 +544,7 @@ func TestPluginMasking(t *testing.T) {
 		Input: &input,
 	}
 
-	if err := plugin.maskEvent(ctx, event); err != nil {
+	if err := plugin.maskEvent(ctx, nil, event); err != nil {
 		t.Fatal(err)
 	}
 
@@ -570,7 +570,7 @@ func TestPluginMasking(t *testing.T) {
 		Input: &input,
 	}
 
-	if err := plugin.maskEvent(ctx, event); err != nil {
+	if err := plugin.maskEvent(ctx, nil, event); err != nil {
 		t.Fatal(err)
 	}
 
@@ -739,7 +739,7 @@ func BenchmarkMaskingNop(b *testing.B) {
 
 		b.StartTimer()
 
-		if err := plugin.maskEvent(ctx, &event); err != nil {
+		if err := plugin.maskEvent(ctx, nil, &event); err != nil {
 			b.Fatal(err)
 		}
 	}
@@ -792,7 +792,7 @@ func BenchmarkMaskingErase(b *testing.B) {
 
 		b.StartTimer()
 
-		if err := plugin.maskEvent(ctx, &event); err != nil {
+		if err := plugin.maskEvent(ctx, nil, &event); err != nil {
 			b.Fatal(err)
 		}
 
