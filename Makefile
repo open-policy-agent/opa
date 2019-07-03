@@ -110,6 +110,9 @@ deploy-travis: docker-login image-quick push
 .PHONY: release-travis
 release-travis: deploy-travis tag-latest push-latest
 
+.PHONY: release-bugfix-travis
+release-bugfix-travis: deploy-travis
+
 .PHONY: install
 install: generate
 	$(GO) install -ldflags $(LDFLAGS)
@@ -171,7 +174,7 @@ clean: wasm-clean
 	rm -fr _test
 
 # The docs-% pattern target will shim to the
-# makefile in ./docs 
+# makefile in ./docs
 .PHONY: docs-%
 docs-%:
 	$(MAKE) -C docs $*
