@@ -5,6 +5,16 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+## 0.12.1
+
+### Fixes
+
+- Fix deadlock caused by log masking decision evaluation ([#1543](https://github.com/open-policy-agent/opa/issues/1543))
+
+### Miscellaneous
+
+- Add decision log event for undefined decision on `POST /` endpoint
+
 ## 0.12.0
 
 This release includes two new features and an important bug fix.
