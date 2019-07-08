@@ -159,6 +159,8 @@ type Runtime struct {
 	// TODO(tsandall): remove this field since it's available on the manager
 	// and doesn't have to duplicated here or on the server.
 	info *ast.Term // runtime information provided to evaluation engine
+
+	server *server.Server
 }
 
 // NewRuntime returns a new Runtime object initialized with params.
@@ -235,23 +237,35 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 	return rt, nil
 }
 
-// StartServer starts the runtime in server mode. This function will block the calling goroutine.
+// StartServer starts the runtime in server mode. This function will block the
+// calling goroutine and will exit the program on error.
 func (rt *Runtime) StartServer(ctx context.Context) {
+	err := rt.Serve(ctx)
+	if err != nil {
+		os.Exit(1)
+	}
+}
 
+// Serve will start a new REST API server and listen for requests. This
+// will block until either: an error occurs, the context is canceled, or
+// a SIGTERM or SIGKILL signal is sent.
+func (rt *Runtime) Serve(ctx context.Context) error {
 	setupLogging(rt.Params.Logging)
 
 	logrus.WithFields(logrus.Fields{
 		"addrs":         *rt.Params.Addrs,
 		"insecure_addr": rt.Params.InsecureAddr,
-	}).Infof("First line of log stream.")
+	}).Info("Initializing server.")
 
 	if err := rt.Manager.Start(ctx); err != nil {
-		logrus.WithField("err", err).Fatalf("Failed to start plugins.")
+		logrus.WithField("err", err).Error("Failed to start plugins.")
+		return err
 	}
 
 	defer rt.Manager.Stop(ctx)
 
-	s, err := server.New().
+	var err error
+	rt.server, err = server.New().
 		WithStore(rt.Store).
 		WithManager(rt.Manager).
 		WithCompilerErrorLimit(rt.Params.ErrorLimit).
@@ -269,20 +283,23 @@ func (rt *Runtime) StartServer(ctx context.Context) {
 		Init(ctx)
 
 	if err != nil {
-		logrus.WithField("err", err).Fatalf("Unable to initialize server.")
+		logrus.WithField("err", err).Error("Unable to initialize server.")
+		return err
 	}
 
 	if rt.Params.Watch {
 		if err := rt.startWatcher(ctx, rt.Params.Paths, onReloadLogger); err != nil {
-			logrus.WithField("err", err).Fatalf("Unable to open watch.")
+			logrus.WithField("err", err).Error("Unable to open watch.")
+			return err
 		}
 	}
 
-	s.Handler = NewLoggingHandler(s.Handler)
+	rt.server.Handler = NewLoggingHandler(rt.server.Handler)
 
-	loops, err := s.Listeners()
+	loops, err := rt.server.Listeners()
 	if err != nil {
-		logrus.WithField("err", err).Fatalf("Unable to create listeners.")
+		logrus.WithField("err", err).Error("Unable to create listeners.")
+		return err
 	}
 
 	errc := make(chan error)
@@ -292,26 +309,29 @@ func (rt *Runtime) StartServer(ctx context.Context) {
 		}(loop)
 	}
 
-	stopc := make(chan os.Signal)
-	signal.Notify(stopc, syscall.SIGINT, syscall.SIGTERM)
+	signalc := make(chan os.Signal)
+	signal.Notify(signalc, syscall.SIGINT, syscall.SIGTERM)
 
 	for {
 		select {
-		case <-stopc:
-			logrus.Info("Shutting down...")
-			ctx, cancel := context.WithTimeout(context.Background(), time.Duration(rt.Params.GracefulShutdownPeriod)*time.Second)
-			defer cancel()
-			err = s.Shutdown(ctx)
-			if err != nil {
-				logrus.WithField("err", err).Error("Failed to shutdown server gracefully.")
-			} else {
-				logrus.Info("Server shutdown.")
-			}
-			os.Exit(1)
+		case <-ctx.Done():
+			return rt.gracefulServerShutdown(rt.server)
+		case <-signalc:
+			return rt.gracefulServerShutdown(rt.server)
 		case err := <-errc:
 			logrus.WithField("err", err).Fatal("Listener failed.")
 		}
 	}
+}
+
+// Addrs returns a list of addresses that the runtime is listening on (when
+// in server mode). Returns an empty list if it hasn't started listening.
+func (rt *Runtime) Addrs() []string {
+	if rt.server == nil {
+		return nil
+	}
+
+	return rt.server.Addrs()
 }
 
 // StartREPL starts the runtime in REPL mode. This function will block the calling goroutine.
@@ -438,6 +458,19 @@ func (rt *Runtime) getBanner() string {
 	fmt.Fprintf(&buf, "\n")
 	fmt.Fprintf(&buf, "Run 'help' to see a list of commands.\n")
 	return buf.String()
+}
+
+func (rt *Runtime) gracefulServerShutdown(s *server.Server) error {
+	logrus.Info("Shutting down...")
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(rt.Params.GracefulShutdownPeriod)*time.Second)
+	defer cancel()
+	err := s.Shutdown(ctx)
+	if err != nil {
+		logrus.WithField("err", err).Error("Failed to shutdown server gracefully.")
+		return err
+	}
+	logrus.Info("Server shutdown.")
+	return nil
 }
 
 func compileAndStoreInputs(ctx context.Context, store storage.Store, txn storage.Transaction, modules map[string]*loader.RegoFile, errorLimit int) error {

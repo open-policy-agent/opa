@@ -736,7 +736,6 @@ The path separator is used to access values inside object and array documents. I
 
 - **200** - no error
 - **400** - bad request
-- **404** - not found
 - **500** - server error
 
 The server returns 400 if either:

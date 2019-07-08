@@ -108,10 +108,11 @@ http/example/authz/authz.rego
 ```
 
 In this example, the bundle contains one policy file (`authz.rego`) and two
-data files (`bindings/data.json` and `permissions/data.json`).
+data files (`roles/bindings/data.json` and `roles/permissions/data.json`).
 
 Bundle files may contain an optional `.manifest` file that stores bundle
-metadata. The file should contain a JSON serialized object.
+metadata. The file should contain a JSON serialized object, with the following
+fields:
 
 * If the bundle service is capable of serving different revisions of the same
   bundle, the service should include a top-level `revision` field containing a
@@ -125,11 +126,27 @@ metadata. The file should contain a JSON serialized object.
   defaults to `[""]` which means that ALL data and policy must come
   from the bundle.
 
-* OPA will only load data files named `data.json`, i.e., you MUST name files
-  that contain data (which you want loaded into OPA) `data.json` -- otherwise
-  they will be ignored.
+* OPA will only load data files named `data.json` or `data.yaml` (which contain
+  JSON or YAML respectively). Other JSON and YAML files will be ignored.
 
 * The `*.rego` policy files must be valid [Modules](/docs/{{< current_version >}}/how-do-i-write-policies#modules)
+
+> YAML data loaded into OPA is converted to JSON. Since JSON is a subset of
+> YAML, you are not allowed to use binary or null keys in objects and boolean
+> and number keys are converted to strings. Also, YAML !!binary tags are not
+> supported.
+
+For example, this manifest specifies a revision (which happens to be a Git
+commit hash) and a set of roots for the bundle contents. In this case, the
+manifest declares that it owns the roots `data.roles` and
+`data.http.example.authz`.
+
+```json
+{
+  "revision" : "7864d60dd78d748dbce54b569e939f5b0dc07486",
+  "roots": ["roles", "http/example/authz"]
+}
+```
 
 ## Multiple Sources of Policy and Data
 

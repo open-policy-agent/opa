@@ -5,6 +5,45 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+## 0.12.1
+
+### Fixes
+
+- Fix deadlock caused by log masking decision evaluation ([#1543](https://github.com/open-policy-agent/opa/issues/1543))
+
+### Miscellaneous
+
+- Add decision log event for undefined decision on `POST /` endpoint
+
+## 0.12.0
+
+This release includes two new features and an important bug fix.
+
+### Decision Log Masking
+
+This release includes an important feature for protecting sensitive
+information in decision logs: masking. With the new decision log
+masking feature you can configure OPA to remove sensitive information
+from the `input` and `result` fields of decision log events. See the
+[Decision Log](https://www.openpolicyagent.org/docs/edge/decision-logs/#masking-sensitive-data) documentation for details.
+
+### AWS Signing for Bundle Downloads
+
+This release adds support for signing bundle download requests using
+an AWS signing scheme. This feature allows you to configure OPA to
+download bundles directly from S3. See the [Configuration](https://www.openpolicyagent.org/docs/edge/configuration/#aws-signature)
+documentation for details.
+
+### Fixes
+
+* server: Fix deadlock caused by leaked write transaction ([#1478](https://github.com/open-policy-agent/opa/issues/1478))
+
+### Miscellaneous
+
+- server: Add request headers to authorization input ([#1456](https://github.com/open-policy-agent/opa/issues/1456))
+- rego: Add time zone support to time/date built-in functions
+- eval: Add --instrument flag for profiling evaluation via command line
+
 ## 0.11.0
 
 ### Compatibility Notes
@@ -156,7 +195,7 @@ pass `"force_json_decode": true` as in the `http.send` parameters.
 
 - Fix substring built-in bounds checking ([#1235](https://github.com/open-policy-agent/opa/issues/1235))
 - Add trailing newlines when pretty printing API responses
-- Add default Go metrics to Prometheus 
+- Add default Go metrics to Prometheus
 - Add pprof endpoint to HTTP server
 
 ## 0.10.4

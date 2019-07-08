@@ -11,6 +11,8 @@
 {{ $tutorials := where $allDocs ".Params.kind" "eq" "tutorial" }}
 {{ $guides    := where $allDocs ".Params.kind" "eq" "guides" }}
 {{ $version   := index (split .File.Path "/") 1 }}
+{{ $latest    := index site.Data.releases 0 }}
+{{ $pageUrl   := .URL }}
 <nav class="navbar is-primary">
   <div class="navbar-brand is-hidden-tablet">
     <a class="navbar-item" href="{{ $home }}">
@@ -35,13 +37,7 @@
       </a>
 
       {{ range $docs }}
-      {{ $isRoot           := eq (len (split .File.Path "/")) 2 }}
-      {{ $isCurrentVersion := eq $version (index (split .File.Path "/") 1) }}
-      {{ if and (not $isRoot) $isCurrentVersion }}
-      <a class="navbar-item" href="{{ .URL }}">
-        {{ .Title }}
-      </a>
-      {{ end }}
+        {{ partial "docs/navbar-link.html" (dict "ctx" . "pageUrl" $pageUrl "version" $version) }}
       {{ end }}
 
       <br />
@@ -51,13 +47,7 @@
       </span>
 
       {{ range $tutorials }}
-      {{ $isRoot := eq (len (split .File.Path "/")) 2 }}
-      {{ $isCurrentVersion := eq $version (index (split .File.Path "/") 1) }}
-      {{ if and (not $isRoot) $isCurrentVersion }}
-      <a class="navbar-item" href="{{ .URL }}">
-        {{ .Title }}
-      </a>
-      {{ end }}
+        {{ partial "docs/navbar-link.html" (dict "ctx" . "pageUrl" $pageUrl "version" $version) }}
       {{ end }}
 
       <br />
@@ -67,13 +57,7 @@
       </span>
 
       {{ range $guides }}
-      {{ $isRoot := eq (len (split .File.Path "/")) 2 }}
-      {{ $isCurrentVersion := eq $version (index (split .File.Path "/") 1) }}
-      {{ if and (not $isRoot) $isCurrentVersion }}
-      <a class="navbar-item" href="{{ .URL }}">
-        {{ .Title }}
-      </a>
-      {{ end }}
+      {{ partial "docs/navbar-link.html" (dict "ctx" . "pageUrl" $pageUrl "version" $version) }}
       {{ end }}
     </div>
 

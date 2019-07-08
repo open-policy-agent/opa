@@ -10,6 +10,16 @@ import (
 	"github.com/open-policy-agent/opa/ast"
 )
 
+func TestVirtualCacheCompositeKey(t *testing.T) {
+	cache := newVirtualCache()
+	ref := ast.MustParseRef("data.x.y[[1]].z")
+	cache.Put(ref, ast.BooleanTerm(true))
+	result := cache.Get(ref)
+	if !result.Equal(ast.BooleanTerm(true)) {
+		t.Fatalf("Expected true but got %v", result)
+	}
+}
+
 func TestVirtualCacheInvalidate(t *testing.T) {
 	cache := newVirtualCache()
 	cache.Push()

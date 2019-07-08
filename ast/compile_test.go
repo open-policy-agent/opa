@@ -344,8 +344,8 @@ func TestCompilerErrorLimit(t *testing.T) {
 
 	errs := c.Errors
 	exp := []string{
-		"2:2: rego_unsafe_var_error: var x is unsafe",
-		"2:2: rego_unsafe_var_error: var z is unsafe",
+		"2:20: rego_unsafe_var_error: var x is unsafe",
+		"2:20: rego_unsafe_var_error: var z is unsafe",
 		"rego_compile_error: error limit reached",
 	}
 
@@ -595,6 +595,30 @@ func TestCompilerCheckSafetyBodyErrors(t *testing.T) {
 			}
 
 		})
+	}
+}
+
+func TestCompilerCheckSafetyVarLoc(t *testing.T) {
+
+	_, err := CompileModules(map[string]string{"test.rego": `package test
+
+p {
+	not x
+	x > y
+}`})
+
+	if err == nil {
+		t.Fatal("expected error")
+	}
+
+	errs := err.(Errors)
+
+	if !strings.Contains(errs[0].Message, "var x is unsafe") || errs[0].Location.Row != 4 {
+		t.Fatal("expected error on row 4 but got:", err)
+	}
+
+	if !strings.Contains(errs[1].Message, "var y is unsafe") || errs[1].Location.Row != 5 {
+		t.Fatal("expected y is unsafe on row 5 but got:", err)
 	}
 }
 

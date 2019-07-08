@@ -31,6 +31,7 @@ type Query struct {
 	partialNamespace string
 	metrics          metrics.Metrics
 	instr            *Instrumentation
+	disableInlining  []ast.Ref
 	genvarprefix     string
 	runtime          *ast.Term
 }
@@ -111,6 +112,15 @@ func (q *Query) WithPartialNamespace(ns string) *Query {
 	return q
 }
 
+// WithDisableInlining adds a set of paths to the query that should be excluded from
+// inlining. Inlining during partial evaluation can be expensive in some cases
+// (e.g., when a cross-product is computed.) Disabling inlining avoids expensive
+// computation at the cost of generating support rules.
+func (q *Query) WithDisableInlining(paths []ast.Ref) *Query {
+	q.disableInlining = paths
+	return q
+}
+
 // WithRuntime sets the runtime data to execute the query with. The runtime data
 // can be returned by the `opa.runtime` built-in function.
 func (q *Query) WithRuntime(runtime *ast.Term) *Query {
@@ -132,28 +142,29 @@ func (q *Query) PartialRun(ctx context.Context) (partials []ast.Body, support []
 	f := &queryIDFactory{}
 	b := newBindings(0, q.instr)
 	e := &eval{
-		ctx:           ctx,
-		cancel:        q.cancel,
-		query:         q.query,
-		queryIDFact:   f,
-		queryID:       f.Next(),
-		bindings:      b,
-		compiler:      q.compiler,
-		store:         q.store,
-		baseCache:     newBaseCache(),
-		targetStack:   newRefStack(),
-		txn:           q.txn,
-		input:         q.input,
-		tracers:       q.tracers,
-		instr:         q.instr,
-		builtinCache:  builtins.Cache{},
-		virtualCache:  newVirtualCache(),
-		saveSet:       newSaveSet(q.unknowns, b),
-		saveStack:     newSaveStack(),
-		saveSupport:   newSaveSupport(),
-		saveNamespace: ast.StringTerm(q.partialNamespace),
-		genvarprefix:  q.genvarprefix,
-		runtime:       q.runtime,
+		ctx:             ctx,
+		cancel:          q.cancel,
+		query:           q.query,
+		queryIDFact:     f,
+		queryID:         f.Next(),
+		bindings:        b,
+		compiler:        q.compiler,
+		store:           q.store,
+		baseCache:       newBaseCache(),
+		targetStack:     newRefStack(),
+		txn:             q.txn,
+		input:           q.input,
+		tracers:         q.tracers,
+		instr:           q.instr,
+		builtinCache:    builtins.Cache{},
+		virtualCache:    newVirtualCache(),
+		saveSet:         newSaveSet(q.unknowns, b, q.instr),
+		saveStack:       newSaveStack(),
+		saveSupport:     newSaveSupport(),
+		saveNamespace:   ast.StringTerm(q.partialNamespace),
+		disableInlining: q.disableInlining,
+		genvarprefix:    q.genvarprefix,
+		runtime:         q.runtime,
 	}
 	q.startTimer(metrics.RegoPartialEval)
 	defer q.stopTimer(metrics.RegoPartialEval)
@@ -170,6 +181,7 @@ func (q *Query) PartialRun(ctx context.Context) (partials []ast.Body, support []
 	p := copypropagation.New(livevars)
 
 	err = e.Run(func(e *eval) error {
+
 		// Build output from saved expressions.
 		body := ast.NewBody()
 
@@ -194,8 +206,7 @@ func (q *Query) PartialRun(ctx context.Context) (partials []ast.Body, support []
 			body.Append(bindingExprs[i])
 		}
 
-		body = p.Apply(body)
-		partials = append(partials, body)
+		partials = append(partials, applyCopyPropagation(p, e.instr, body))
 		return nil
 	})
 

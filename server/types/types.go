@@ -43,6 +43,11 @@ func NewErrorV1(code, f string, a ...interface{}) *ErrorV1 {
 	}
 }
 
+// This shall only used for debugging purpose.
+func (e *ErrorV1) Error() string {
+	return fmt.Sprintf("%s: %s", e.Code, e.Message)
+}
+
 // WithError updates e to include a detailed error.
 func (e *ErrorV1) WithError(err error) *ErrorV1 {
 	e.Errors = append(e.Errors, err)

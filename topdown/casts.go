@@ -32,6 +32,7 @@ func builtinToNumber(a ast.Value) (ast.Value, error) {
 	return nil, builtins.NewOperandTypeErr(1, a, "null", "boolean", "number", "string")
 }
 
+// Deprecated in v0.13.0.
 func builtinToArray(a ast.Value) (ast.Value, error) {
 	switch val := a.(type) {
 	case ast.Array:
@@ -49,6 +50,7 @@ func builtinToArray(a ast.Value) (ast.Value, error) {
 	}
 }
 
+// Deprecated in v0.13.0.
 func builtinToSet(a ast.Value) (ast.Value, error) {
 	switch val := a.(type) {
 	case ast.Array:
@@ -60,6 +62,7 @@ func builtinToSet(a ast.Value) (ast.Value, error) {
 	}
 }
 
+// Deprecated in v0.13.0.
 func builtinToString(a ast.Value) (ast.Value, error) {
 	switch val := a.(type) {
 	case ast.String:
@@ -69,6 +72,7 @@ func builtinToString(a ast.Value) (ast.Value, error) {
 	}
 }
 
+// Deprecated in v0.13.0.
 func builtinToBoolean(a ast.Value) (ast.Value, error) {
 	switch val := a.(type) {
 	case ast.Boolean:
@@ -78,6 +82,7 @@ func builtinToBoolean(a ast.Value) (ast.Value, error) {
 	}
 }
 
+// Deprecated in v0.13.0.
 func builtinToNull(a ast.Value) (ast.Value, error) {
 	switch val := a.(type) {
 	case ast.Null:
@@ -87,6 +92,7 @@ func builtinToNull(a ast.Value) (ast.Value, error) {
 	}
 }
 
+// Deprecated in v0.13.0.
 func builtinToObject(a ast.Value) (ast.Value, error) {
 	switch val := a.(type) {
 	case ast.Object:

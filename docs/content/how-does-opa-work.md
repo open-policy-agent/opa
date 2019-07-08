@@ -34,7 +34,7 @@ The primary unit of data in OPA is a document, which is similar to a JSON value.
 
 ### Base Documents
 
-So-called base documents contain static, structured data stored in memory and optionally saved to disk for resiliency. Your service will publish and update base documents in order to describe its current state, and your users can do the same to include relevant data about the state of their own deployment context.
+So-called base documents contain static, structured data stored in-memory. Your service will publish and update base documents in order to describe its current state, and your users can do the same to include relevant data about the state of their own deployment context.
 
 Base documents are published and updated using OPA’s Data API. For example, the following request publishes a list of servers to OPA:
 

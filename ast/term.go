@@ -74,7 +74,8 @@ func (loc *Location) String() string {
 
 // Compare returns -1, 0, or 1 to indicate if this loc is less than, equal to,
 // or greater than the other. Comparison is performed on the file, row, and
-// column of the Location (but not on the text.)
+// column of the Location (but not on the text.) Nil locations are greater than
+// non-nil locations.
 func (loc *Location) Compare(other *Location) int {
 	if loc == nil && other == nil {
 		return 0
@@ -364,6 +365,22 @@ func (term *Term) Equal(other *Term) bool {
 	if term == other {
 		return true
 	}
+
+	// TODO(tsandall): This early-exit avoids allocations for types that have
+	// Equal() functions that just use == underneath. We should revisit the
+	// other types and implement Equal() functions that do not require
+	// allocations.
+	switch v := term.Value.(type) {
+	case Null:
+		return v.Equal(other.Value)
+	case Boolean:
+		return v.Equal(other.Value)
+	case String:
+		return v.Equal(other.Value)
+	case Var:
+		return v.Equal(other.Value)
+	}
+
 	return term.Value.Compare(other.Value) == 0
 }
 

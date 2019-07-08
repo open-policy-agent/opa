@@ -80,6 +80,7 @@ type EvalContext struct {
 	tracers          []topdown.Tracer
 	compiledQuery    compiledQuery
 	unknowns         []string
+	disableInlining  []ast.Ref
 	parsedUnknowns   []*ast.Term
 }
 
@@ -149,6 +150,14 @@ func EvalUnknowns(unknowns []string) EvalOption {
 	}
 }
 
+// EvalDisableInlining returns an argument that adds a set of paths to exclude from
+// partial evaluation inlining.
+func EvalDisableInlining(paths []ast.Ref) EvalOption {
+	return func(e *EvalContext) {
+		e.disableInlining = paths
+	}
+}
+
 // EvalParsedUnknowns returns an argument that sets the values to treat
 // as unknown during partial evaluation.
 func EvalParsedUnknowns(unknowns []*ast.Term) EvalOption {
@@ -182,6 +191,11 @@ func (pq preparedQuery) newEvalContext(ctx context.Context, options []EvalOption
 	}
 
 	var err error
+	ectx.disableInlining, err = parseStringsToRefs(pq.r.disableInlining)
+	if err != nil {
+		return nil, err
+	}
+
 	if ectx.txn == nil {
 		ectx.txn, err = pq.r.store.NewTransaction(ctx)
 		if err != nil {
@@ -276,14 +290,17 @@ type ExpressionValue struct {
 }
 
 func newExpressionValue(expr *ast.Expr, value interface{}) *ExpressionValue {
-	return &ExpressionValue{
+	result := &ExpressionValue{
 		Value: value,
-		Text:  string(expr.Location.Text),
-		Location: &Location{
+	}
+	if expr.Location != nil {
+		result.Text = string(expr.Location.Text)
+		result.Location = &Location{
 			Row: expr.Location.Row,
 			Col: expr.Location.Col,
-		},
+		}
 	}
+	return result
 }
 
 func (ev *ExpressionValue) String() string {
@@ -356,6 +373,7 @@ type Rego struct {
 	parsedInput      ast.Value
 	unknowns         []string
 	parsedUnknowns   []*ast.Term
+	disableInlining  []string
 	partialNamespace string
 	modules          []rawModule
 	parsedModules    map[string]*ast.Module
@@ -457,6 +475,13 @@ func ParsedUnknowns(unknowns []*ast.Term) func(r *Rego) {
 	}
 }
 
+// DisableInlining adds a set of paths to exclude from partial evaluation inlining.
+func DisableInlining(paths []string) func(r *Rego) {
+	return func(r *Rego) {
+		r.disableInlining = paths
+	}
+}
+
 // PartialNamespace returns an argument that sets the namespace to use for
 // partial evaluation results. The namespace must be a valid package path
 // component.
@@ -473,6 +498,21 @@ func Module(filename, input string) func(r *Rego) {
 			filename: filename,
 			module:   input,
 		})
+	}
+}
+
+// ParsedModule returns an argument that adds a parsed Rego module. If a string
+// module with the same filename name is added, it will override the parsed
+// module.
+func ParsedModule(module *ast.Module) func(*Rego) {
+	return func(r *Rego) {
+		var filename string
+		if module.Package.Location != nil {
+			filename = module.Package.Location.File
+		} else {
+			filename = fmt.Sprintf("module_%p.rego", module)
+		}
+		r.parsedModules[filename] = module
 	}
 }
 
@@ -550,6 +590,7 @@ func PrintTrace(w io.Writer, r *Rego) {
 func New(options ...func(r *Rego)) *Rego {
 
 	r := &Rego{
+		parsedModules:   map[string]*ast.Module{},
 		capture:         map[*ast.Expr]ast.Var{},
 		compiledQueries: map[queryType]compiledQuery{},
 	}
@@ -787,7 +828,8 @@ type PrepareOption func(*PrepareConfig)
 // PrepareConfig holds settings to control the behavior of the
 // Prepare call.
 type PrepareConfig struct {
-	doPartialEval bool
+	doPartialEval   bool
+	disableInlining *[]string
 }
 
 // WithPartialEval configures an option for PrepareForEval
@@ -796,6 +838,13 @@ type PrepareConfig struct {
 func WithPartialEval() PrepareOption {
 	return func(p *PrepareConfig) {
 		p.doPartialEval = true
+	}
+}
+
+// WithNoInline adds a set of paths to exclude from partial evaluation inlining.
+func WithNoInline(paths []string) PrepareOption {
+	return func(p *PrepareConfig) {
+		p.disableInlining = &paths
 	}
 }
 
@@ -846,6 +895,18 @@ func (r *Rego) PrepareForEval(ctx context.Context, opts ...PrepareOption) (Prepa
 			partialNamespace: r.partialNamespace,
 			tracers:          r.tracers,
 			compiledQuery:    r.compiledQueries[partialResultQueryType],
+			instrumentation:  r.instrumentation,
+		}
+
+		disableInlining := r.disableInlining
+
+		if pCfg.disableInlining != nil {
+			disableInlining = *pCfg.disableInlining
+		}
+
+		ectx.disableInlining, err = parseStringsToRefs(disableInlining)
+		if err != nil {
+			return PreparedEvalQuery{}, err
 		}
 
 		pr, err := r.partialResult(ctx, ectx, ast.Wildcard)
@@ -921,7 +982,7 @@ func (r *Rego) prepare(ctx context.Context, txn storage.Transaction, qType query
 		return err
 	}
 
-	r.parsedModules, err = r.parseModules(r.metrics)
+	err = r.parseModules(r.metrics)
 	if err != nil {
 		return err
 	}
@@ -941,26 +1002,24 @@ func (r *Rego) prepare(ctx context.Context, txn storage.Transaction, qType query
 	return r.compileAndCacheQuery(qType, r.parsedQuery, r.metrics, extras)
 }
 
-func (r *Rego) parseModules(m metrics.Metrics) (map[string]*ast.Module, error) {
+func (r *Rego) parseModules(m metrics.Metrics) error {
 	m.Timer(metrics.RegoModuleParse).Start()
 	defer m.Timer(metrics.RegoModuleParse).Stop()
 	var errs Errors
-	parsed := map[string]*ast.Module{}
-	if r.parsedModules != nil {
-		parsed = r.parsedModules
-	} else {
-		for _, module := range r.modules {
-			p, err := module.Parse()
-			if err != nil {
-				errs = append(errs, err)
-			}
-			parsed[module.filename] = p
+
+	for _, module := range r.modules {
+		p, err := module.Parse()
+		if err != nil {
+			errs = append(errs, err)
 		}
-		if len(errs) > 0 {
-			return nil, errors.New(errs.Error())
-		}
+		r.parsedModules[module.filename] = p
 	}
-	return parsed, nil
+
+	if len(errs) > 0 {
+		return errors.New(errs.Error())
+	}
+
+	return nil
 }
 
 func (r *Rego) parseInput() (ast.Value, error) {
@@ -1202,7 +1261,10 @@ func (r *Rego) partialResult(ctx context.Context, ectx *EvalContext, output *ast
 		r.compiler.Modules[fmt.Sprintf("__partialsupport%d__", i)] = module
 	}
 
+	r.metrics.Timer(metrics.RegoModuleCompile).Start()
 	r.compiler.Compile(r.compiler.Modules)
+	r.metrics.Timer(metrics.RegoModuleCompile).Stop()
+
 	if r.compiler.Failed() {
 		return PartialResult{}, r.compiler.Errors
 	}
@@ -1250,6 +1312,7 @@ func (r *Rego) partial(ctx context.Context, ectx *EvalContext) (*PartialQueries,
 		WithMetrics(ectx.metrics).
 		WithInstrumentation(ectx.instrumentation).
 		WithUnknowns(unknowns).
+		WithDisableInlining(ectx.disableInlining).
 		WithRuntime(r.runtime)
 
 	for i := range ectx.tracers {
@@ -1437,4 +1500,18 @@ func iteration(x interface{}) bool {
 	ast.Walk(vis, x)
 
 	return stopped
+}
+
+func parseStringsToRefs(s []string) ([]ast.Ref, error) {
+
+	refs := make([]ast.Ref, len(s))
+	for i := range refs {
+		var err error
+		refs[i], err = ast.ParseRef(s[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return refs, nil
 }

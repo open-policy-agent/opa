@@ -512,7 +512,7 @@ func (c *Compiler) checkRecursion() {
 }
 
 func (c *Compiler) checkSelfPath(loc *Location, eq func(a, b util.T) bool, a, b util.T) {
-	tr := newgraphTraversal(c.Graph)
+	tr := NewGraphTraversal(c.Graph)
 	if p := util.DFSPath(tr, eq, a, b); len(p) > 0 {
 		n := []string{}
 		for _, x := range p {
@@ -594,15 +594,15 @@ func (c *Compiler) checkSafetyRuleBodies() {
 		WalkRules(m, func(r *Rule) bool {
 			safe := ReservedVars.Copy()
 			safe.Update(r.Head.Args.Vars())
-			r.Body = c.checkBodySafety(safe, m, r.Body, r.Loc())
+			r.Body = c.checkBodySafety(safe, m, r.Body)
 			return false
 		})
 	}
 }
 
-func (c *Compiler) checkBodySafety(safe VarSet, m *Module, b Body, l *Location) Body {
+func (c *Compiler) checkBodySafety(safe VarSet, m *Module, b Body) Body {
 	reordered, unsafe := reorderBodyForSafety(c.GetArity, safe, b)
-	if errs := safetyErrorSlice(l, unsafe); len(errs) > 0 {
+	if errs := safetyErrorSlice(unsafe); len(errs) > 0 {
 		for _, err := range errs {
 			c.err(err)
 		}
@@ -1154,7 +1154,7 @@ func (qc *queryCompiler) rewriteLocalVars(_ *QueryContext, body Body) (Body, err
 func (qc *queryCompiler) checkSafety(_ *QueryContext, body Body) (Body, error) {
 	safe := ReservedVars.Copy()
 	reordered, unsafe := reorderBodyForSafety(qc.compiler.GetArity, safe, body)
-	if errs := safetyErrorSlice(body.Loc(), unsafe); len(errs) > 0 {
+	if errs := safetyErrorSlice(unsafe); len(errs) > 0 {
 		return nil, errs
 	}
 	return reordered, nil
@@ -1447,19 +1447,22 @@ func (sort *graphSort) Visit(node util.T) (ok bool) {
 	return true
 }
 
-type graphTraversal struct {
+// GraphTraversal is a Traversal that understands the dependency graph
+type GraphTraversal struct {
 	graph   *Graph
 	visited map[util.T]struct{}
 }
 
-func newgraphTraversal(graph *Graph) *graphTraversal {
-	return &graphTraversal{
+// NewGraphTraversal returns a Traversal for the dependency graph
+func NewGraphTraversal(graph *Graph) *GraphTraversal {
+	return &GraphTraversal{
 		graph:   graph,
 		visited: map[util.T]struct{}{},
 	}
 }
 
-func (g *graphTraversal) Edges(x util.T) []util.T {
+// Edges lists all dependency connections for a given node
+func (g *GraphTraversal) Edges(x util.T) []util.T {
 	r := []util.T{}
 	for v := range g.graph.Dependencies(x) {
 		r = append(r, v)
@@ -1467,7 +1470,8 @@ func (g *graphTraversal) Edges(x util.T) []util.T {
 	return r
 }
 
-func (g *graphTraversal) Visited(u util.T) bool {
+// Visited returns whether a node has been visited, setting a node to visited if not
+func (g *GraphTraversal) Visited(u util.T) bool {
 	_, ok := g.visited[u]
 	g.visited[u] = struct{}{}
 	return ok
@@ -1476,6 +1480,11 @@ func (g *graphTraversal) Visited(u util.T) bool {
 type unsafePair struct {
 	Expr *Expr
 	Vars VarSet
+}
+
+type unsafeVarLoc struct {
+	Var Var
+	Loc *Location
 }
 
 type unsafeVars map[*Expr]VarSet
@@ -1501,12 +1510,31 @@ func (vs unsafeVars) Update(o unsafeVars) {
 	}
 }
 
-func (vs unsafeVars) Vars() VarSet {
-	r := VarSet{}
-	for _, s := range vs {
-		r.Update(s)
+func (vs unsafeVars) Vars() (result []unsafeVarLoc) {
+
+	locs := map[Var]*Location{}
+
+	// If var appears in multiple sets then pick first by location.
+	for expr, vars := range vs {
+		for v := range vars {
+			if locs[v].Compare(expr.Location) > 0 {
+				locs[v] = expr.Location
+			}
+		}
 	}
-	return r
+
+	for v, loc := range locs {
+		result = append(result, unsafeVarLoc{
+			Var: v,
+			Loc: loc,
+		})
+	}
+
+	sort.Slice(result, func(i, j int) bool {
+		return result[i].Loc.Compare(result[j].Loc) < 0
+	})
+
+	return result
 }
 
 func (vs unsafeVars) Slice() (result []unsafePair) {
@@ -2958,15 +2986,15 @@ func isDataRef(term *Term) bool {
 	return false
 }
 
-func safetyErrorSlice(l *Location, unsafe unsafeVars) (result Errors) {
+func safetyErrorSlice(unsafe unsafeVars) (result Errors) {
 
 	if len(unsafe) == 0 {
 		return
 	}
 
-	for v := range unsafe.Vars() {
-		if !v.IsGenerated() {
-			result = append(result, NewError(UnsafeVarErr, l, "var %v is unsafe", v))
+	for _, pair := range unsafe.Vars() {
+		if !pair.Var.IsGenerated() {
+			result = append(result, NewError(UnsafeVarErr, pair.Loc, "var %v is unsafe", pair.Var))
 		}
 	}
 

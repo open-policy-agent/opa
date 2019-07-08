@@ -33,6 +33,7 @@ type evalCommandParams struct {
 	coverage          bool
 	partial           bool
 	unknowns          []string
+	disableInlining   []string
 	dataPaths         repeatedStringFlag
 	inputPath         string
 	imports           repeatedStringFlag
@@ -41,6 +42,7 @@ type evalCommandParams struct {
 	stdinInput        bool
 	explain           *util.EnumFlag
 	metrics           bool
+	instrument        bool
 	ignore            []string
 	outputFormat      *util.EnumFlag
 	profile           bool
@@ -75,6 +77,12 @@ const (
 
 	defaultPrettyLimit = 80
 )
+
+type regoError struct{}
+
+func (regoError) Error() string {
+	return "rego"
+}
 
 func init() {
 
@@ -159,13 +167,18 @@ Set the output format with the --format flag.
 			if params.profile {
 				params.metrics = true
 			}
+			if params.instrument {
+				params.metrics = true
+			}
 			return nil
 		},
 		Run: func(cmd *cobra.Command, args []string) {
 
 			defined, err := eval(args, params, os.Stdout)
 			if err != nil {
-				fmt.Fprintln(os.Stderr, err)
+				if _, ok := err.(regoError); !ok {
+					fmt.Fprintln(os.Stderr, err)
+				}
 				os.Exit(2)
 			}
 
@@ -178,6 +191,7 @@ Set the output format with the --format flag.
 	evalCommand.Flags().BoolVarP(&params.coverage, "coverage", "", false, "report coverage")
 	evalCommand.Flags().BoolVarP(&params.partial, "partial", "p", false, "perform partial evaluation")
 	evalCommand.Flags().StringSliceVarP(&params.unknowns, "unknowns", "u", []string{"input"}, "set paths to treat as unknown during partial evaluation")
+	evalCommand.Flags().StringSliceVarP(&params.disableInlining, "disable-inlining", "", []string{}, "set paths of documents to exclude from inlining")
 	evalCommand.Flags().VarP(&params.dataPaths, "data", "d", "set data file(s) or directory path(s)")
 	evalCommand.Flags().StringVarP(&params.inputPath, "input", "i", "", "set input file path")
 	evalCommand.Flags().VarP(&params.imports, "import", "", "set query import(s)")
@@ -185,6 +199,7 @@ Set the output format with the --format flag.
 	evalCommand.Flags().BoolVarP(&params.stdin, "stdin", "", false, "read query from stdin")
 	evalCommand.Flags().BoolVarP(&params.stdinInput, "stdin-input", "I", false, "read input document from stdin")
 	evalCommand.Flags().BoolVarP(&params.metrics, "metrics", "", false, "report query performance metrics")
+	evalCommand.Flags().BoolVarP(&params.instrument, "instrument", "", false, "enable query instrumentation metrics (implies --metrics)")
 	evalCommand.Flags().VarP(params.outputFormat, "format", "f", "set output format")
 	evalCommand.Flags().BoolVarP(&params.profile, "profile", "", false, "perform expression profiling")
 	evalCommand.Flags().VarP(&params.profileCriteria, "profile-sort", "", "set sort order of expression profiler results")
@@ -238,22 +253,29 @@ func eval(args []string, params evalCommandParams, w io.Writer) (bool, error) {
 		if err != nil {
 			return false, err
 		}
+
 		regoArgs = append(regoArgs, rego.Store(inmem.NewFromObject(loadResult.Documents)))
+
 		for _, file := range loadResult.Modules {
 			parsedModules[file.Name] = file.Parsed
-			regoArgs = append(regoArgs, rego.Module(file.Name, string(file.Raw)))
+			regoArgs = append(regoArgs, rego.ParsedModule(file.Parsed))
 		}
 	}
 
-	bs, err := readInputBytes(params)
+	inputBytes, err := readInputBytes(params)
 	if err != nil {
 		return false, err
-	} else if bs != nil {
-		term, err := ast.ParseTerm(string(bs))
+	} else if inputBytes != nil {
+		var input interface{}
+		err := util.Unmarshal(inputBytes, &input)
 		if err != nil {
-			return false, err
+			return false, fmt.Errorf("unable to parse input: %s", err.Error())
 		}
-		regoArgs = append(regoArgs, rego.ParsedInput(term.Value))
+		inputValue, err := ast.InterfaceToValue(input)
+		if err != nil {
+			return false, fmt.Errorf("unable to process input: %s", err.Error())
+		}
+		regoArgs = append(regoArgs, rego.ParsedInput(inputValue))
 	}
 
 	var tracer *topdown.BufferTracer
@@ -270,6 +292,10 @@ func eval(args []string, params evalCommandParams, w io.Writer) (bool, error) {
 		regoArgs = append(regoArgs, rego.Metrics(m))
 	}
 
+	if params.instrument {
+		regoArgs = append(regoArgs, rego.Instrument(true))
+	}
+
 	var p *profiler.Profiler
 	if params.profile {
 		p = profiler.New()
@@ -279,6 +305,8 @@ func eval(args []string, params evalCommandParams, w io.Writer) (bool, error) {
 	if params.partial {
 		regoArgs = append(regoArgs, rego.Unknowns(params.unknowns))
 	}
+
+	regoArgs = append(regoArgs, rego.DisableInlining(params.disableInlining))
 
 	var c *cover.Cover
 
@@ -338,7 +366,10 @@ func eval(args []string, params evalCommandParams, w io.Writer) (bool, error) {
 	if err != nil {
 		return false, err
 	} else if result.Error != nil {
-		return false, result.Error
+		// If the rego package returned an error, return a special error here so
+		// that the command doesn't print the same error twice. The error will
+		// have been printed above by the presentation package.
+		return false, regoError{}
 	} else if len(result.Result) == 0 {
 		return false, nil
 	} else {

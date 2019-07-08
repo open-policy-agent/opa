@@ -54,7 +54,7 @@ func TestSaveSet(t *testing.T) {
 		for i := range tc.terms {
 			terms[i] = ast.MustParseTerm(tc.terms[i])
 		}
-		saveSet := newSaveSet(terms, nil)
+		saveSet := newSaveSet(terms, nil, nil)
 		input := ast.MustParseTerm(tc.input)
 		if saveSet.Contains(input, nil) != tc.expected {
 			t.Errorf("Expected %v for %v contains %v", tc.expected, tc.terms, input)

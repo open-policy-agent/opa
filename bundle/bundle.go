@@ -23,10 +23,11 @@ import (
 
 // Common file extensions and file names.
 const (
-	RegoExt     = ".rego"
-	jsonExt     = ".json"
-	manifestExt = ".manifest"
-	dataFile    = "data.json"
+	RegoExt      = ".rego"
+	jsonExt      = ".json"
+	manifestExt  = ".manifest"
+	dataFile     = "data.json"
+	yamlDataFile = "data.yaml"
 )
 
 const bundleLimitBytes = (1024 * 1024 * 1024) + 1 // limit bundle reads to 1GB to protect against gzip bombs
@@ -193,16 +194,20 @@ func (r *Reader) Read() (Bundle, error) {
 			if err := util.NewJSONDecoder(&buf).Decode(&value); err != nil {
 				return bundle, errors.Wrapf(err, "bundle load failed on %v", path)
 			}
-			// Remove leading / and . characters from the directory path. If the bundle
-			// was written with OPA then the paths will contain a leading slash. On the
-			// other hand, if the path is empty, filepath.Dir will return '.'.
-			dirpath := strings.TrimLeft(filepath.Dir(path), "/.")
-			var key []string
-			if dirpath != "" {
-				key = strings.Split(dirpath, "/")
+
+			if err := insertValue(&bundle, path, value); err != nil {
+				return bundle, err
 			}
-			if err := bundle.insert(key, value); err != nil {
+
+		} else if filepath.Base(path) == yamlDataFile {
+
+			var value interface{}
+			if err := util.Unmarshal(buf.Bytes(), &value); err != nil {
 				return bundle, errors.Wrapf(err, "bundle load failed on %v", path)
+			}
+
+			if err := insertValue(&bundle, path, value); err != nil {
+				return bundle, err
 			}
 
 		} else if strings.HasSuffix(path, manifestExt) {
@@ -336,6 +341,23 @@ func (b *Bundle) mkdir(key []string) (map[string]interface{}, error) {
 		}
 	}
 	return obj, nil
+}
+
+func insertValue(b *Bundle, path string, value interface{}) error {
+
+	// Remove leading / and . characters from the directory path. If the bundle
+	// was written with OPA then the paths will contain a leading slash. On the
+	// other hand, if the path is empty, filepath.Dir will return '.'.
+	dirpath := strings.TrimLeft(filepath.Dir(path), "/.")
+	var key []string
+	if dirpath != "" {
+		key = strings.Split(dirpath, "/")
+	}
+	if err := b.insert(key, value); err != nil {
+		return errors.Wrapf(err, "bundle load failed on %v", path)
+	}
+
+	return nil
 }
 
 func writeFile(tw *tar.Writer, path string, bs []byte) error {

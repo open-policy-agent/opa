@@ -193,7 +193,7 @@ The value of `q` is a set of names
 > q
 [
   "prod",
-  "smoke",
+  "smoke1",
   "dev"
 ]
 ```
@@ -293,7 +293,7 @@ Composite values can also be defined in terms of [Variables](#variables) or [Ref
 ```ruby
 > a := 42; b := false; c := null; d := {"a": a, "x": [b, c]}
 +----+-------+------+---------------------------+
-| A  |   B   |  C   |             D             |
+| a  |   b   |  c   |             d             |
 +----+-------+------+---------------------------+
 | 42 | false | null | {"a":42,"x":[false,null]} |
 +----+-------+------+---------------------------+
@@ -421,7 +421,7 @@ Both forms are valid, however, the dot-access style is typically more readable. 
   4. Composite keys which are described later.
 
 References are always prefixed with a variable that identifies the root
-document. In the example above this is `p`. The root document may be:
+document. In the example above this is `sites`. The root document may be:
 
   * a local variable inside a rule.
   * a rule inside the same package.
@@ -1053,6 +1053,98 @@ The result:
 +-----------+------------------------+
 ```
 
+## Universal Quantification (FOR ALL)
+
+Like SQL, Rego does not have a direct way to express _universal quantification_
+("FOR ALL"). However, like SQL, you can use other language primitives (e.g.,
+[Negation](#negation)) to express FOR ALL. For example, imagine you want to
+express a policy that says (in English):
+
+```
+There must be no apps named "bitcoin-miner".
+```
+
+A common mistake is to try encoding the policy with a rule named
+`no_bitcoin_miners` like so:
+
+```ruby
+no_bitcoin_miners {
+    app := apps[_]
+    app.name != "bitcoin-miner"  # THIS IS NOT CORRECT.
+}
+```
+
+It becomes clear that this is incorrect when you use the [`some`](#some-keyword)
+keyword, because the rule is true whenever there is SOME app that is not a
+bitcoin-miner:
+
+```ruby
+no_bitcoin_miners {
+    some i
+    app := apps[i]
+    app.name != "bitcoin-miner"
+}
+```
+
+You can confirm this by testing the rule inside the REPL:
+
+```ruby
+> no_bitcoin_miners with apps as [{"name": "bitcoin-miner"}, {"name": "web"}]
+true
+```
+
+The reason the rule is incorrect is that variables in Rego are _existentially
+quantified_. This means that rule bodies and queries express FOR ANY and not FOR
+ALL. To express FOR ALL in Rego complement the logic in the rule body (e.g.,
+`!=` becomes `==`) and then complement the check using negation (e.g.,
+`no_bitcoin_miners` becomes `not any_bitcoin_miners`).
+
+For this policy, you define a rule that finds if there exists a bitcoin-mining
+app (which is easy using the `some` keyword). And then you use negation to check
+that there is NO bitcoin-mining app. Technically, you're using 2 negations and
+an existential quantifier, which is logically the same as a universal
+quantifier.
+
+For example:
+
+```ruby
+no_bitcoin_miners_using_negation {
+    not any_bitcoin_miners
+}
+
+any_bitcoin_miners {
+    some i
+    app := apps[i]
+    app.name == "bitcoin-miner"
+}
+```
+
+```ruby
+> no_bitcoin_miners_using_negation with apps as [{"name": "web"}]
+true
+> no_bitcoin_miners_using_negation with apps as [{"name": "bitcoin-miner"}, {"name": "web"}]
+undefined
+```
+
+> The `undefined` result above is expected because we did not define a default
+> value for `no_bitcoin_miners_using_negation`. Since the body of the rule fails
+> to match, there is no value generated.
+
+Alternatively, we can implement the same kind of logic inside a single rule
+using [Comprehensions](#comprehensions).
+
+```ruby
+no_bitcoin_miners_using_comprehension {
+    bitcoin_miners := {app | app := apps[_]; app.name == "bitcoin-miner"}
+    count(bitcoin_miners) == 0
+}
+```
+
+> Whether you use negation or comprehensions to express FOR ALL is up to you.
+> The comprehension version is more concise and does not require a helper rule
+> while the negation version is more verbose but a bit simpler and allows for
+> more complex ORs.
+
 ## Modules
 
 In Rego, policies are defined inside *modules*. Modules consist of:
@@ -1421,11 +1513,11 @@ p {
 
 y = 100
 q {
-    y == 100   # true because x refers to the global variable
+    y == 100   # true because y refers to the global variable
 }
 
 r {
-    z == 100   # compiler error because y has not been assigned a value
+    z == 100   # compiler error because z has not been assigned a value
 }
 ```
 

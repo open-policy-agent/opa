@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/open-policy-agent/opa/metrics"
+	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/topdown"
 )
 
@@ -72,6 +73,7 @@ func (b *buffer) Iter(fn func(*Info)) {
 
 // Info contains information describing a policy decision.
 type Info struct {
+	Txn        storage.Transaction
 	Revision   string
 	DecisionID string
 	RemoteAddr string

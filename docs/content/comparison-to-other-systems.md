@@ -101,6 +101,7 @@ For example, no one should be able to both create payments and approve payments.
 In RBAC, that means there are some pairs of roles that no one should be
 assigned simultaneously.  For example, any user assigned both of the roles
 in each pair below would violate SOD.
+
 * create-payment and approve-payment
 * create-vendor and pay-vendor
 
@@ -121,9 +122,9 @@ sod_roles = [
 sod_violation[user] {
   some user
   # grab one role for a user
-  role1 := user_role[user][_]
+  role1 := user_roles[user][_]
   # grab another role for that same user
-  role2 := user_role[user][_]
+  role2 := user_roles[user][_]
   # check if those roles are forbidden by SOD
   sod_roles[_] == [role1, role2]
 }
@@ -140,13 +141,14 @@ utilize those roles on the same transaction, which is out of scope for this docu
 With attribute-based access control, you make policy decisions using the
 attributes of the users, objects, and actions involved in the request.
 It has three main components:
+
 * Attributes for users
 * Attributes for objects
 * Logic dictating which attribute combinations are authorized
 
 
-
 For example, we might know the following attributes for our users
+
 * alice
   * joined the company 15 years ago
   * is a trader
@@ -155,6 +157,7 @@ For example, we might know the following attributes for our users
   * is an analyst
 
 We would also have attributes for the objects, in this case stock ticker symbols.
+
 * MSFT
   * is sold on NASDAQ
   * sells at $59.20 per share
@@ -163,6 +166,7 @@ We would also have attributes for the objects, in this case stock ticker symbols
   * sells at $813.64 per share
 
 An example ABAC policy in english might be:
+
 * Traders may purchase NASDAQ stocks for under $2M
 * Traders with 10+ years experience may purchase NASDAQ stocks for under $5M
 
@@ -220,17 +224,18 @@ allow {
 
 In OPA, there's nothing special about users and objects.  You can attach
 attributes to anything.  And the attributes can themselves be structured JSON objects
-and have attributes on attributes on attributes.  Because OPA was designed to work
+and have attributes on attributes on attributes, etc.  Because OPA was designed to work
 with arbitrarily nested JSON data, it supports incredibly rich ABAC policies.
 
 
 ## Amazon Web Services IAM
 
-Amazon Web Services (AWS) lets you create policies that you attach to users, roles, groups,
-and resources.  You write `allow` and `deny` statements to decide which users can
-execute which API calls on which resources.  By default all API access is denied;
-policy statements can explicitly allow API access.  If an API is both allowed and
-denied, it is always denied.
+Amazon Web Services (AWS) lets you create policies that can be attached to users, roles, groups,
+and selected resources. You write `allow` and `deny` statements to enforce which users/roles can/can't
+execute which API calls on which resources under certain conditions.
+By default all API access requests are implicitly denied (i.e., not allowed). Policy statements
+can explicitly allow or deny API requests. If a request is both allowed and denied, it is always denied. 
+Let's assume that the following [customer managed policy](https://docs.aws.amazon.com/IAM/latest/UserGuide/access_policies_managed-vs-inline.html#customer-managed-policies) is defined in AWS: 
 
 ```json
 {
@@ -264,32 +269,43 @@ denied, it is always denied.
 }
 ```
 
+And the above policy is attached to principal alice in AWS using 
+[attach-user-policy](https://docs.aws.amazon.com/cli/latest/reference/iam/attach-user-policy.html) API.
 In OPA, you write each of the AWS `allow` statements as a separate statement, and you
-expect the input to have `user`, `action`, and `resource` fields.
+expect the input to have `principal`, `action`, and `resource` fields.
 
 ```ruby
 package aws
 
 # input = {
-#     "user": "alice",
-#     "action": "ec2:StartInstance"
+#     "principal": "alice",
+#     "action": "ec2:StartInstance",
 #     "resource": "arn:aws:ec2:::instance/i78999879"
 # }
+default allow = false
+
+# principals_match is true if input.principal matches 
+principals_match {
+    input.principal == "alice"
+}
 
 # FirstStatement
 allow {
+    principals_match
     input.action == "iam:ChangePassword"
 }
 
 # SecondStatement
 allow {
+    principals_match
     input.action == "s3:ListAllMyBuckets"
 }
 
 # ThirdStatement
 #  Use helpers to handle implicit OR in the AWS policy.
-#  Below both 'actions_match' and 'resources_match' must be true.
+#  Below all of the 'principals_match', 'actions_match' and 'resources_match' must be true.
 allow {
+    principals_match
     actions_match
     resources_match
 }
@@ -313,7 +329,6 @@ resources_match {
 }
 
 ```
-
 
 
 ## XACML

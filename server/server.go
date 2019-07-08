@@ -355,7 +355,35 @@ func (s *Server) Listeners() ([]Loop, error) {
 	return loops, nil
 }
 
+// Addrs returns a list of addresses that the server is listening on.
+// if the server hasn't been started it will not return an address.
+func (s *Server) Addrs() []string {
+	var addrs []string
+	for _, l := range s.httpListeners {
+		a := l.Addr()
+		if a != "" {
+			addrs = append(addrs, a)
+		}
+	}
+	return addrs
+}
+
+type tcpKeepAliveListener struct {
+	*net.TCPListener
+}
+
+func (ln tcpKeepAliveListener) Accept() (net.Conn, error) {
+	tc, err := ln.AcceptTCP()
+	if err != nil {
+		return nil, err
+	}
+	tc.SetKeepAlive(true)
+	tc.SetKeepAlivePeriod(3 * time.Minute)
+	return tc, nil
+}
+
 type httpListener interface {
+	Addr() string
 	ListenAndServe() error
 	ListenAndServeTLS(certFile, keyFile string) error
 	Shutdown(ctx context.Context) error
@@ -364,24 +392,61 @@ type httpListener interface {
 // baseHTTPListener is just a wrapper around http.Server
 type baseHTTPListener struct {
 	s *http.Server
+	l net.Listener
 }
 
 var _ httpListener = (*baseHTTPListener)(nil)
 
 func newHTTPListener(srvr *http.Server) httpListener {
-	return &baseHTTPListener{srvr}
+	return &baseHTTPListener{srvr, nil}
 }
 
-func (l *baseHTTPListener) ListenAndServe() error {
-	return l.s.ListenAndServe()
+func newHTTPUnixSocketListener(srvr *http.Server, l net.Listener) httpListener {
+	return &baseHTTPListener{srvr, l}
 }
 
-func (l *baseHTTPListener) ListenAndServeTLS(certFile, keyFile string) error {
-	return l.s.ListenAndServeTLS(certFile, keyFile)
+func (b *baseHTTPListener) ListenAndServe() error {
+	addr := b.s.Addr
+	if addr == "" {
+		addr = ":http"
+	}
+	var err error
+	b.l, err = net.Listen("tcp", addr)
+	if err != nil {
+		return err
+	}
+
+	return b.s.Serve(tcpKeepAliveListener{b.l.(*net.TCPListener)})
 }
 
-func (l *baseHTTPListener) Shutdown(ctx context.Context) error {
-	return l.s.Shutdown(ctx)
+func (b *baseHTTPListener) Addr() string {
+	if b.l != nil {
+		if addr := b.l.(*net.TCPListener).Addr(); addr != nil {
+			return addr.String()
+		}
+	}
+	return ""
+}
+
+func (b *baseHTTPListener) ListenAndServeTLS(certFile, keyFile string) error {
+	addr := b.s.Addr
+	if addr == "" {
+		addr = ":https"
+	}
+
+	var err error
+	b.l, err = net.Listen("tcp", addr)
+	if err != nil {
+		return err
+	}
+
+	defer b.l.Close()
+
+	return b.s.ServeTLS(tcpKeepAliveListener{b.l.(*net.TCPListener)}, certFile, keyFile)
+}
+
+func (b *baseHTTPListener) Shutdown(ctx context.Context) error {
+	return b.s.Shutdown(ctx)
 }
 
 func (s *Server) getListenerForHTTPServer(u *url.URL) (Loop, httpListener, error) {
@@ -390,7 +455,9 @@ func (s *Server) getListenerForHTTPServer(u *url.URL) (Loop, httpListener, error
 		Handler: s.Handler,
 	}
 
-	return httpServer.ListenAndServe, newHTTPListener(&httpServer), nil
+	l := newHTTPListener(&httpServer)
+
+	return l.ListenAndServe, l, nil
 }
 
 func (s *Server) getListenerForHTTPSServer(u *url.URL) (Loop, httpListener, error) {
@@ -411,9 +478,11 @@ func (s *Server) getListenerForHTTPSServer(u *url.URL) (Loop, httpListener, erro
 		httpsServer.TLSConfig.ClientAuth = tls.RequireAndVerifyClientCert
 	}
 
-	httpsLoop := func() error { return httpsServer.ListenAndServeTLS("", "") }
+	l := newHTTPListener(&httpsServer)
 
-	return httpsLoop, newHTTPListener(&httpsServer), nil
+	httpsLoop := func() error { return l.ListenAndServeTLS("", "") }
+
+	return httpsLoop, l, nil
 }
 
 func (s *Server) getListenerForUNIXSocket(u *url.URL) (Loop, httpListener, error) {
@@ -428,8 +497,10 @@ func (s *Server) getListenerForUNIXSocket(u *url.URL) (Loop, httpListener, error
 		return nil, nil, err
 	}
 
+	l := newHTTPUnixSocketListener(&domainSocketServer, unixListener)
+
 	domainSocketLoop := func() error { return domainSocketServer.Serve(unixListener) }
-	return domainSocketLoop, newHTTPListener(&domainSocketServer), nil
+	return domainSocketLoop, l, nil
 }
 
 func (s *Server) initRouter() {
@@ -521,7 +592,7 @@ func (s *Server) initRouter() {
 	s.Handler = router
 }
 
-func (s *Server) execQuery(ctx context.Context, r *http.Request, decisionID string, parsedQuery ast.Body, input ast.Value, m metrics.Metrics, explainMode types.ExplainModeV1, includeMetrics, includeInstrumentation, pretty bool) (results types.QueryResponseV1, err error) {
+func (s *Server) execQuery(ctx context.Context, r *http.Request, txn storage.Transaction, decisionID string, parsedQuery ast.Body, input ast.Value, m metrics.Metrics, explainMode types.ExplainModeV1, includeMetrics, includeInstrumentation, pretty bool) (results types.QueryResponseV1, err error) {
 
 	diagLogger := s.evalDiagnosticPolicy(r)
 
@@ -549,6 +620,7 @@ func (s *Server) execQuery(ctx context.Context, r *http.Request, decisionID stri
 
 	rego := rego.New(
 		rego.Store(s.store),
+		rego.Transaction(txn),
 		rego.Compiler(compiler),
 		rego.ParsedQuery(parsedQuery),
 		rego.ParsedInput(input),
@@ -560,7 +632,7 @@ func (s *Server) execQuery(ctx context.Context, r *http.Request, decisionID stri
 
 	output, err := rego.Eval(ctx)
 	if err != nil {
-		_ = diagLogger.Log(ctx, decisionID, r.RemoteAddr, "", parsedQuery.String(), rawInput, nil, err, m, buf)
+		_ = diagLogger.Log(ctx, txn, decisionID, r.RemoteAddr, "", parsedQuery.String(), rawInput, nil, err, m, buf)
 		return results, err
 	}
 
@@ -577,7 +649,7 @@ func (s *Server) execQuery(ctx context.Context, r *http.Request, decisionID stri
 	}
 
 	var x interface{} = results.Result
-	err = diagLogger.Log(ctx, decisionID, r.RemoteAddr, "", parsedQuery.String(), rawInput, &x, nil, m, buf)
+	err = diagLogger.Log(ctx, txn, decisionID, r.RemoteAddr, "", parsedQuery.String(), rawInput, &x, nil, m, buf)
 	return results, err
 }
 
@@ -618,7 +690,15 @@ func (s *Server) indexGet(w http.ResponseWriter, r *http.Request) {
 
 	_, parsedQuery, _ := validateQuery(qStr)
 
-	results, err := s.execQuery(ctx, r, decisionID, parsedQuery, input, nil, explainMode, false, false, true)
+	txn, err := s.store.NewTransaction(ctx)
+	if err != nil {
+		renderQueryResult(w, nil, err, t0)
+		return
+	}
+
+	defer s.store.Abort(ctx, txn)
+
+	results, err := s.execQuery(ctx, r, txn, decisionID, parsedQuery, input, nil, explainMode, false, false, true)
 	if err != nil {
 		renderQueryResult(w, nil, err, t0)
 		return
@@ -723,17 +803,24 @@ func (s *Server) v0QueryPath(w http.ResponseWriter, r *http.Request, path ast.Re
 
 	// Handle results.
 	if err != nil {
-		_ = diagLogger.Log(ctx, decisionID, r.RemoteAddr, path.String(), "", goInput, nil, err, m, buf)
+		_ = diagLogger.Log(ctx, txn, decisionID, r.RemoteAddr, path.String(), "", goInput, nil, err, m, buf)
 		writer.ErrorAuto(w, err)
 		return
 	}
 
 	if len(rs) == 0 {
-		writer.Error(w, 404, types.NewErrorV1(types.CodeUndefinedDocument, fmt.Sprintf("%v: %v", types.MsgUndefinedError, path)))
+		err := types.NewErrorV1(types.CodeUndefinedDocument, fmt.Sprintf("%v: %v", types.MsgUndefinedError, path))
+
+		if logErr := diagLogger.Log(ctx, txn, decisionID, r.RemoteAddr, path.String(), "", goInput, nil, err, m, buf); logErr != nil {
+			writer.ErrorAuto(w, logErr)
+			return
+		}
+
+		writer.Error(w, 404, err)
 		return
 	}
 
-	err = diagLogger.Log(ctx, decisionID, r.RemoteAddr, path.String(), "", goInput, &rs[0].Expressions[0].Value, nil, m, buf)
+	err = diagLogger.Log(ctx, txn, decisionID, r.RemoteAddr, path.String(), "", goInput, &rs[0].Expressions[0].Value, nil, m, buf)
 	if err != nil {
 		writer.ErrorAuto(w, err)
 		return
@@ -1004,7 +1091,7 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 
 	// Handle results.
 	if err != nil {
-		_ = diagLogger.Log(ctx, decisionID, r.RemoteAddr, path.String(), "", goInput, nil, err, m, buf)
+		_ = diagLogger.Log(ctx, txn, decisionID, r.RemoteAddr, path.String(), "", goInput, nil, err, m, buf)
 		writer.ErrorAuto(w, err)
 		return
 	}
@@ -1030,7 +1117,7 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 				writer.ErrorAuto(w, err)
 			}
 		}
-		err = diagLogger.Log(ctx, decisionID, r.RemoteAddr, path.String(), "", goInput, nil, nil, m, buf)
+		err = diagLogger.Log(ctx, txn, decisionID, r.RemoteAddr, path.String(), "", goInput, nil, nil, m, buf)
 		if err != nil {
 			writer.ErrorAuto(w, err)
 			return
@@ -1045,7 +1132,7 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 		result.Explanation = s.getExplainResponse(explainMode, *buf, pretty)
 	}
 
-	err = diagLogger.Log(ctx, decisionID, r.RemoteAddr, path.String(), "", goInput, result.Result, nil, m, buf)
+	err = diagLogger.Log(ctx, txn, decisionID, r.RemoteAddr, path.String(), "", goInput, result.Result, nil, m, buf)
 	if err != nil {
 		writer.ErrorAuto(w, err)
 		return
@@ -1173,7 +1260,7 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 	rego, err := s.makeRego(ctx, partial, txn, input, path.String(), m, instrument, buf, opts)
 
 	if err != nil {
-		_ = diagLogger.Log(ctx, decisionID, r.RemoteAddr, path.String(), "", goInput, nil, err, m, nil)
+		_ = diagLogger.Log(ctx, txn, decisionID, r.RemoteAddr, path.String(), "", goInput, nil, err, m, nil)
 		writer.ErrorAuto(w, err)
 		return
 	}
@@ -1184,7 +1271,7 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 
 	// Handle results.
 	if err != nil {
-		_ = diagLogger.Log(ctx, decisionID, r.RemoteAddr, path.String(), "", goInput, nil, err, m, buf)
+		_ = diagLogger.Log(ctx, txn, decisionID, r.RemoteAddr, path.String(), "", goInput, nil, err, m, buf)
 		writer.ErrorAuto(w, err)
 		return
 	}
@@ -1208,7 +1295,7 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 				writer.ErrorAuto(w, err)
 			}
 		}
-		err = diagLogger.Log(ctx, decisionID, r.RemoteAddr, path.String(), "", goInput, nil, nil, m, buf)
+		err = diagLogger.Log(ctx, txn, decisionID, r.RemoteAddr, path.String(), "", goInput, nil, nil, m, buf)
 		if err != nil {
 			writer.ErrorAuto(w, err)
 			return
@@ -1223,7 +1310,7 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 		result.Explanation = s.getExplainResponse(explainMode, *buf, pretty)
 	}
 
-	err = diagLogger.Log(ctx, decisionID, r.RemoteAddr, path.String(), "", goInput, result.Result, nil, m, buf)
+	err = diagLogger.Log(ctx, txn, decisionID, r.RemoteAddr, path.String(), "", goInput, result.Result, nil, m, buf)
 	if err != nil {
 		writer.ErrorAuto(w, err)
 		return
@@ -1505,6 +1592,7 @@ func (s *Server) v1PoliciesPut(w http.ResponseWriter, r *http.Request) {
 	m.Timer(metrics.RegoModuleParse).Stop()
 
 	if err != nil {
+		s.store.Abort(ctx, txn)
 		switch err := err.(type) {
 		case ast.Errors:
 			writer.Error(w, http.StatusBadRequest, types.NewErrorV1(types.CodeInvalidParameter, types.MsgCompileModuleError).WithASTErrors(err))
@@ -1515,6 +1603,7 @@ func (s *Server) v1PoliciesPut(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if parsedMod == nil {
+		s.store.Abort(ctx, txn)
 		writer.Error(w, http.StatusBadRequest, types.NewErrorV1(types.CodeInvalidParameter, "empty module"))
 		return
 	}
@@ -1605,7 +1694,15 @@ func (s *Server) v1QueryGet(w http.ResponseWriter, r *http.Request) {
 	includeMetrics := getBoolParam(r.URL, types.ParamMetricsV1, true)
 	includeInstrumentation := getBoolParam(r.URL, types.ParamInstrumentV1, true)
 
-	results, err := s.execQuery(ctx, r, decisionID, parsedQuery, nil, m, explainMode, includeMetrics, includeInstrumentation, pretty)
+	txn, err := s.store.NewTransaction(ctx)
+	if err != nil {
+		writer.ErrorAuto(w, err)
+		return
+	}
+
+	defer s.store.Abort(ctx, txn)
+
+	results, err := s.execQuery(ctx, r, txn, decisionID, parsedQuery, nil, m, explainMode, includeMetrics, includeInstrumentation, pretty)
 	if err != nil {
 		switch err := err.(type) {
 		case ast.Errors:
@@ -1659,7 +1756,15 @@ func (s *Server) v1QueryPost(w http.ResponseWriter, r *http.Request) {
 	includeMetrics := getBoolParam(r.URL, types.ParamMetricsV1, true)
 	includeInstrumentation := getBoolParam(r.URL, types.ParamInstrumentV1, true)
 
-	results, err := s.execQuery(ctx, r, decisionID, parsedQuery, nil, m, explainMode, includeMetrics, includeInstrumentation, pretty)
+	txn, err := s.store.NewTransaction(ctx)
+	if err != nil {
+		writer.ErrorAuto(w, err)
+		return
+	}
+
+	defer s.store.Abort(ctx, txn)
+
+	results, err := s.execQuery(ctx, r, txn, decisionID, parsedQuery, nil, m, explainMode, includeMetrics, includeInstrumentation, pretty)
 	if err != nil {
 		switch err := err.(type) {
 		case ast.Errors:
@@ -2380,9 +2485,10 @@ func (l diagnosticsLogger) Instrument() bool {
 	return l.instrument
 }
 
-func (l diagnosticsLogger) Log(ctx context.Context, decisionID, remoteAddr, path string, query string, input *interface{}, results *interface{}, err error, m metrics.Metrics, tracer *topdown.BufferTracer) error {
+func (l diagnosticsLogger) Log(ctx context.Context, txn storage.Transaction, decisionID, remoteAddr, path string, query string, input *interface{}, results *interface{}, err error, m metrics.Metrics, tracer *topdown.BufferTracer) error {
 
 	info := &Info{
+		Txn:        txn,
 		Revision:   l.revision,
 		Timestamp:  time.Now().UTC(),
 		DecisionID: decisionID,

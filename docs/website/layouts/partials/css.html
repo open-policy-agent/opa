@@ -7,6 +7,9 @@
 {{ $cssProdOpts  := (dict "targetPath" $cssOutput "includePaths" $includePaths "outputStyle" "compressed") }}
 {{ $cssOpts      := cond $inServerMode $cssDevOpts $cssProdOpts }}
 {{ $css          := resources.Get $sass | toCSS $cssOpts }}
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tocbot/4.7.0/tocbot.css">
+
 {{ if $isHome }}
 <link media="screen" charset="utf-8" rel="stylesheet" href="/css/home.css">
 {{ else }}
