@@ -183,6 +183,36 @@ You can do this by setting the value with `null`. For example:
 opa run --set "decision_logger.plugin=my_plugin" --set "plugins.my_plugin=null"
 ```
 
+#### Keys with Special Characters
+
+If you have a key which contains a special character (`.`, `=`, etc), like `opa.example.com`, and want to use
+the `--set` or `--set-file` options you will need to escape the character with a backslash (`\`).
+
+For example a config section like:
+
+```yaml
+services:
+  opa.example.com:
+    url: https://opa.example.com
+```
+
+Could be specified with something like:
+
+`--set services.opa\.example\.com.url=https://opa.example.com`
+
+
+Note that when using it in a shell you may need to put it in quotes or escape the `\`
+character too. For example:
+
+
+`--set services."opa\.example\.com".url=https://opa.example.com`
+
+_or_
+
+`--set services.opa\\.example\\.com.url=https://opa.example.com`
+
+Where the end result passed into OPA still has the `\.` preserved.
+
 ## Services
 
 Services represent endpoints that implement one or more control plane APIs
