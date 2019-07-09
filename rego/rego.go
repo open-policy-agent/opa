@@ -157,13 +157,17 @@ func EvalParsedUnknowns(unknowns []*ast.Term) EvalOption {
 	}
 }
 
-func (pq preparedQuery) newEvalContext(ctx context.Context, options []EvalOption) (*EvalContext, error) {
+// newEvalContext creates a new EvalContext overlaying any EvalOptions over top
+// the Rego object on the preparedQuery. The returned function should be called
+// once the evaluation is complete to close any transactions that might have
+// been opened.
+func (pq preparedQuery) newEvalContext(ctx context.Context, options []EvalOption) (*EvalContext, func(context.Context), error) {
 	ectx := &EvalContext{
 		hasInput:         false,
 		rawInput:         nil,
 		parsedInput:      nil,
 		metrics:          pq.r.metrics,
-		txn:              pq.r.txn,
+		txn:              nil,
 		instrument:       pq.r.instrument,
 		instrumentation:  pq.r.instrumentation,
 		partialNamespace: pq.r.partialNamespace,
@@ -181,13 +185,18 @@ func (pq preparedQuery) newEvalContext(ctx context.Context, options []EvalOption
 		ectx.instrumentation = topdown.NewInstrumentation(ectx.metrics)
 	}
 
+	// Default to an empty "finish" function
+	finishFunc := func(context.Context) {}
+
 	var err error
 	if ectx.txn == nil {
 		ectx.txn, err = pq.r.store.NewTransaction(ctx)
 		if err != nil {
-			return nil, err
+			return nil, finishFunc, err
 		}
-		defer pq.r.store.Abort(ctx, ectx.txn)
+		finishFunc = func(ctx context.Context) {
+			pq.r.store.Abort(ctx, ectx.txn)
+		}
 	}
 
 	// If we didn't get an input specified in the Eval options
@@ -205,11 +214,11 @@ func (pq preparedQuery) newEvalContext(ctx context.Context, options []EvalOption
 		}
 		ectx.parsedInput, err = pq.r.parseRawInput(ectx.rawInput, ectx.metrics)
 		if err != nil {
-			return nil, err
+			return nil, finishFunc, err
 		}
 	}
 
-	return ectx, nil
+	return ectx, finishFunc, nil
 }
 
 // PreparedEvalQuery holds the prepared Rego state that has been pre-processed
@@ -221,11 +230,14 @@ type PreparedEvalQuery struct {
 // Eval evaluates this PartialResult's Rego object with additional eval options
 // and returns a ResultSet.
 // If options are provided they will override the original Rego options respective value.
+// The original Rego object transaction will *not* be re-used. A new transaction will be opened
+// if one is not provided with an EvalOption.
 func (pq PreparedEvalQuery) Eval(ctx context.Context, options ...EvalOption) (ResultSet, error) {
-	ectx, err := pq.newEvalContext(ctx, options)
+	ectx, finish, err := pq.newEvalContext(ctx, options)
 	if err != nil {
 		return nil, err
 	}
+	defer finish(ctx)
 
 	ectx.compiledQuery = pq.r.compiledQueries[evalQueryType]
 
@@ -239,11 +251,14 @@ type PreparedPartialQuery struct {
 }
 
 // Partial runs partial evaluation on the prepared query and returns the result.
+// The original Rego object transaction will *not* be re-used. A new transaction will be opened
+// if one is not provided with an EvalOption.
 func (pq PreparedPartialQuery) Partial(ctx context.Context, options ...EvalOption) (*PartialQueries, error) {
-	ectx, err := pq.newEvalContext(ctx, options)
+	ectx, finish, err := pq.newEvalContext(ctx, options)
 	if err != nil {
 		return nil, err
 	}
+	defer finish(ctx)
 
 	ectx.compiledQuery = pq.r.compiledQueries[partialQueryType]
 
@@ -606,7 +621,7 @@ func (r *Rego) Eval(ctx context.Context) (ResultSet, error) {
 		return nil, err
 	}
 
-	return pq.Eval(ctx)
+	return pq.Eval(ctx, EvalTransaction(r.txn))
 }
 
 // PartialEval has been deprecated and renamed to PartialResult.
@@ -655,7 +670,7 @@ func (r *Rego) Partial(ctx context.Context) (*PartialQueries, error) {
 		return nil, err
 	}
 
-	return pq.Partial(ctx)
+	return pq.Partial(ctx, EvalTransaction(r.txn))
 }
 
 // CompileOption defines a function to set options on Compile calls.
