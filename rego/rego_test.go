@@ -7,6 +7,7 @@ package rego
 import (
 	"context"
 	"encoding/json"
+	"github.com/open-policy-agent/opa/internal/storage/mock"
 	"reflect"
 	"testing"
 	"time"
@@ -439,13 +440,13 @@ func TestPrepareAndEvalNewMetrics(t *testing.T) {
 	}
 }
 
-func TestPrepareAndEvalNewTransaction(t *testing.T) {
+func TestPrepareAndEvalTransaction(t *testing.T) {
 	module := `
 	package test
 	x = data.foo.y
 	`
 	ctx := context.Background()
-	store := inmem.New()
+	store := mock.New()
 	txn := storage.NewTransactionOrDie(ctx, store, storage.WriteParams)
 
 	path, ok := storage.ParsePath("/foo")
@@ -475,21 +476,69 @@ func TestPrepareAndEvalNewTransaction(t *testing.T) {
 		t.Fatalf("Unexpected error: %s", err.Error())
 	}
 
-	assertPreparedEvalQueryEval(t, pq, nil, "[[1]]")
-	store.Commit(ctx, txn)
+	// Base case, expect it to use the transaction provided
+	assertPreparedEvalQueryEval(t, pq, []EvalOption{EvalTransaction(txn)}, "[[1]]")
 
-	// Update the store directly and get a new transaction
-	newTxn := storage.NewTransactionOrDie(ctx, store, storage.WriteParams)
-	err = store.Write(ctx, newTxn, storage.ReplaceOp, path, map[string]interface{}{"y": 2})
+	mockTxn := store.GetTransaction(txn.ID())
+	for _, read := range store.Reads {
+		if read.Transaction != mockTxn {
+			t.Errorf("Found read operation with an invalid transaction, expected: %d, found: %d", mockTxn.ID(), read.Transaction.ID())
+		}
+	}
+
+	store.AssertValid(t)
+	store.Reset()
+
+	// Case with an update to the store and a new transaction
+	txn = storage.NewTransactionOrDie(ctx, store, storage.WriteParams)
+	err = store.Write(ctx, txn, storage.AddOp, path, map[string]interface{}{"y": 2})
 	if err != nil {
 		t.Fatalf("Unexpected error writing to store: %s", err.Error())
 	}
-	defer store.Abort(ctx, newTxn)
 
-	// Expect that the old transaction and new transaction give
-	// different results.
-	assertPreparedEvalQueryEval(t, pq, []EvalOption{EvalTransaction(txn)}, "[[1]]")
-	assertPreparedEvalQueryEval(t, pq, []EvalOption{EvalTransaction(newTxn)}, "[[2]]")
+	// Expect the new result from the updated value on this transaction
+	assertPreparedEvalQueryEval(t, pq, []EvalOption{EvalTransaction(txn)}, "[[2]]")
+
+	err = store.Commit(ctx, txn)
+	if err != nil {
+		t.Fatalf("Unexpected error committing to store: %s", err)
+	}
+
+	newMockTxn := store.GetTransaction(txn.ID())
+	for _, read := range store.Reads {
+		if read.Transaction != newMockTxn {
+			t.Errorf("Found read operation with an invalid transaction, expected: %d, found: %d", mockTxn.ID(), read.Transaction.ID())
+		}
+	}
+
+	store.AssertValid(t)
+	store.Reset()
+
+	// Case with no transaction provided, should create a new one and see the latest value
+	txn = storage.NewTransactionOrDie(ctx, store, storage.WriteParams)
+	err = store.Write(ctx, txn, storage.AddOp, path, map[string]interface{}{"y": 3})
+	if err != nil {
+		t.Fatalf("Unexpected error writing to store: %s", err.Error())
+	}
+	err = store.Commit(ctx, txn)
+	if err != nil {
+		t.Fatalf("Unexpected error committing to store: %s", err)
+	}
+
+	assertPreparedEvalQueryEval(t, pq, nil, "[[3]]")
+
+	if len(store.Transactions) != 2 {
+		t.Fatalf("Expected only two transactions on store, found %d", len(store.Transactions))
+	}
+
+	autoTxn := store.Transactions[1]
+	for _, read := range store.Reads {
+		if read.Transaction != autoTxn {
+			t.Errorf("Found read operation with an invalid transaction, expected: %d, found: %d", autoTxn, read.Transaction.ID())
+		}
+	}
+	store.AssertValid(t)
+
 }
 
 func TestPrepareAndEvalIdempotent(t *testing.T) {
