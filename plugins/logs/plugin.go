@@ -477,7 +477,12 @@ func (p *Plugin) maskEvent(ctx context.Context, txn storage.Transaction, event *
 		return err
 	}
 
-	rs, err := p.mask.Eval(ctx, rego.EvalInput(event))
+	rs, err := p.mask.Eval(
+		ctx,
+		rego.EvalInput(event),
+		rego.EvalTransaction(txn),
+	)
+
 	if err != nil {
 		return err
 	} else if len(rs) == 0 {
