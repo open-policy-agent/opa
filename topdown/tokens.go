@@ -15,8 +15,6 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
-	"github.com/repenno/jwx-opa/jwk"
-	"github.com/repenno/jwx-opa/jws"
 	"math/big"
 	"strconv"
 	"strings"
@@ -26,6 +24,8 @@ import (
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/topdown/builtins"
+	"github.com/open-policy-agent/opa/topdown/internal/jwx/jwk"
+	"github.com/open-policy-agent/opa/topdown/internal/jwx/jws"
 )
 
 var (
