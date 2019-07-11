@@ -12,6 +12,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"reflect"
+	"sync"
 	"testing"
 	"time"
 
@@ -275,6 +276,7 @@ func TestReconfigure(t *testing.T) {
 
 type testServer struct {
 	t       *testing.T
+	mtx     sync.Mutex
 	server  *httptest.Server
 	updates []status.UpdateRequestV1
 }
@@ -287,6 +289,12 @@ func (ts *testServer) Stop() {
 	ts.server.Close()
 }
 
+func (ts *testServer) Updates() []status.UpdateRequestV1 {
+	ts.mtx.Lock()
+	defer ts.mtx.Unlock()
+	return ts.updates
+}
+
 func (ts *testServer) handle(w http.ResponseWriter, r *http.Request) {
 
 	var update status.UpdateRequestV1
@@ -295,7 +303,11 @@ func (ts *testServer) handle(w http.ResponseWriter, r *http.Request) {
 		ts.t.Fatal(err)
 	}
 
-	ts.updates = append(ts.updates, update)
+	func() {
+		ts.mtx.Lock()
+		defer ts.mtx.Unlock()
+		ts.updates = append(ts.updates, update)
+	}()
 
 	w.WriteHeader(200)
 }
@@ -355,19 +367,21 @@ func TestStatusUpdates(t *testing.T) {
 
 	// Check that all updates were received and active revisions are expected.
 	var ok bool
+	var updates []status.UpdateRequestV1
 	t0 := time.Now()
 
 	for !ok && time.Since(t0) < time.Second {
-		ok = len(ts.updates) == 5 &&
-			ts.updates[0].Discovery.ActiveRevision == "test-revision-1" && ts.updates[0].Discovery.Code == "" &&
-			ts.updates[1].Discovery.ActiveRevision == "test-revision-1" && ts.updates[1].Discovery.Code == "bundle_error" &&
-			ts.updates[2].Discovery.ActiveRevision == "test-revision-2" && ts.updates[2].Discovery.Code == "" &&
-			ts.updates[3].Discovery.ActiveRevision == "test-revision-2" && ts.updates[3].Discovery.Code == "bundle_error" &&
-			ts.updates[4].Discovery.ActiveRevision == "test-revision-2" && ts.updates[4].Discovery.Code == ""
+		updates = ts.Updates()
+		ok = len(updates) == 5 &&
+			updates[0].Discovery.ActiveRevision == "test-revision-1" && updates[0].Discovery.Code == "" &&
+			updates[1].Discovery.ActiveRevision == "test-revision-1" && updates[1].Discovery.Code == "bundle_error" &&
+			updates[2].Discovery.ActiveRevision == "test-revision-2" && updates[2].Discovery.Code == "" &&
+			updates[3].Discovery.ActiveRevision == "test-revision-2" && updates[3].Discovery.Code == "bundle_error" &&
+			updates[4].Discovery.ActiveRevision == "test-revision-2" && updates[4].Discovery.Code == ""
 	}
 
 	if !ok {
-		t.Fatalf("Did not receive expected updates before timeout expired. Received: %+v", ts.updates)
+		t.Fatalf("Did not receive expected updates before timeout expired. Received: %+v", updates)
 	}
 }
 
