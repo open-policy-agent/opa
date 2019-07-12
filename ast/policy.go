@@ -990,20 +990,12 @@ func (expr *Expr) NoWith() *Expr {
 
 // IsEquality returns true if this is an equality expression.
 func (expr *Expr) IsEquality() bool {
-	terms, ok := expr.Terms.([]*Term)
-	if !ok {
-		return false
-	}
-	return terms[0].Value.Compare(Equality.Ref()) == 0
+	return isglobalbuiltin(expr, Var(Equality.Name))
 }
 
 // IsAssignment returns true if this an assignment expression.
 func (expr *Expr) IsAssignment() bool {
-	terms, ok := expr.Terms.([]*Term)
-	if !ok {
-		return false
-	}
-	return terms[0].Value.Compare(Assign.Ref()) == 0
+	return isglobalbuiltin(expr, Var(Assign.Name))
 }
 
 // IsCall returns true if this expression calls a function.
@@ -1306,4 +1298,24 @@ func (s ruleSlice) Len() int           { return len(s) }
 // has a valid number of arguments.
 func validEqAssignArgCount(expr *Expr) bool {
 	return len(expr.Operands()) == 2
+}
+
+// this function checks if the expr refers to a non-namespaced (global) built-in
+// function like eq, gt, plus, etc.
+func isglobalbuiltin(expr *Expr, name Var) bool {
+	terms, ok := expr.Terms.([]*Term)
+	if !ok {
+		return false
+	}
+
+	// NOTE(tsandall): do not use Term#Equal or Value#Compare to avoid
+	// allocation here.
+	ref, ok := terms[0].Value.(Ref)
+	if !ok || len(ref) != 1 {
+		return false
+	} else if head, ok := ref[0].Value.(Var); !ok {
+		return false
+	} else {
+		return head.Equal(name)
+	}
 }
