@@ -27,4 +27,3 @@ import:
 - package: golang.org/x/lint
   subpackages:
   - golint
-  -
