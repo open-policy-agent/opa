@@ -176,6 +176,9 @@ var DefaultBuiltins = [...]*Builtin{
 	// Glob
 	GlobMatch,
 	GlobQuoteMeta,
+
+	// Byte calculations
+	ParseNumBytes,
 }
 
 // BuiltinMap provides a convenient mapping of built-in names to
@@ -780,6 +783,17 @@ var Sprintf = &Builtin{
 			types.NewArray(nil, types.A),
 		),
 		types.S,
+	),
+}
+
+// ParseNumBytes converts strings like 10GB, 5K, 4mb, and the like into an integer number of bytes.
+var ParseNumBytes = &Builtin{
+	Name: "units.parse_bytes",
+	Decl: types.NewFunction(
+		types.Args(
+			types.S,
+		),
+		types.N,
 	),
 }
 
