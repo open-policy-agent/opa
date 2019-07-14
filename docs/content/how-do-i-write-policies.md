@@ -108,7 +108,7 @@ bodies can separate expressions with newlines and omit the semicolon:
 t2 {
     x := 42
     y := 41
-    x > 1
+    x > y
 }
 ```
 
