@@ -7,6 +7,8 @@ package version
 
 import (
 	"context"
+	"fmt"
+	"runtime"
 
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/version"
@@ -33,3 +35,6 @@ func Write(ctx context.Context, store storage.Store, txn storage.Transaction) er
 
 	return nil
 }
+
+// UserAgent defines the current OPA instances User-Agent default header value
+var UserAgent = fmt.Sprintf("Open Policy Agent/%s (%s, %s)", version.Version, runtime.GOOS, runtime.GOARCH)

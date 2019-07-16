@@ -10,6 +10,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/open-policy-agent/opa/internal/version"
 	"io"
 	"net/http"
 	"reflect"
@@ -177,7 +178,9 @@ func (c Client) Do(ctx context.Context, method, path string) (*http.Response, er
 		return nil, err
 	}
 
-	headers := map[string]string{}
+	headers := map[string]string{
+		"User-Agent": version.UserAgent,
+	}
 
 	// Copy custom headers from config.
 	for key, value := range c.config.Headers {
