@@ -10,6 +10,7 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"fmt"
+	"github.com/open-policy-agent/opa/internal/version"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -119,7 +120,7 @@ func echoCustomHeaders(w http.ResponseWriter, r *http.Request) {
 	headers := make(map[string][]string)
 	w.Header().Set("Content-Type", "application/json")
 	for k, v := range r.Header {
-		if strings.HasPrefix(k, "X-") {
+		if strings.HasPrefix(k, "X-") || k == "User-Agent" {
 			headers[k] = v
 		}
 	}
@@ -134,14 +135,14 @@ func TestHTTPCustomHeaders(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(echoCustomHeaders))
 	defer ts.Close()
 
-	// expected result
+	// expected result with default User-Agent
 	expectedResult := make(map[string]interface{})
 	expectedResult["status"] = "200 OK"
 	expectedResult["status_code"] = http.StatusOK
 
-	bodyMap := map[string][]string{"X-Foo": {"ISO-8859-1,utf-8;q=0.7,*;q=0.7"}, "X-Opa": {"server"}}
+	bodyMap := map[string][]string{"X-Foo": {"ISO-8859-1,utf-8;q=0.7,*;q=0.7"}, "X-Opa": {"server"}, "User-Agent": {version.UserAgent}}
 	expectedResult["body"] = bodyMap
-	expectedResult["raw_body"] = "{\"X-Foo\":[\"ISO-8859-1,utf-8;q=0.7,*;q=0.7\"],\"X-Opa\":[\"server\"]}\n"
+	expectedResult["raw_body"] = fmt.Sprintf("{\"User-Agent\":[\"%s\"],\"X-Foo\":[\"ISO-8859-1,utf-8;q=0.7,*;q=0.7\"],\"X-Opa\":[\"server\"]}\n", version.UserAgent)
 
 	jsonString, err := json.Marshal(expectedResult)
 	if err != nil {
@@ -149,14 +150,28 @@ func TestHTTPCustomHeaders(t *testing.T) {
 	}
 	s := string(jsonString[:])
 
+	// expected result with custom User-Agent
+
+	bodyMap = map[string][]string{"X-Opa": {"server"}, "User-Agent": {"AuthZPolicy/0.0.1"}}
+	expectedResult["body"] = bodyMap
+	expectedResult["raw_body"] = "{\"User-Agent\":[\"AuthZPolicy/0.0.1\"],\"X-Opa\":[\"server\"]}\n"
+
+	jsonString, err = json.Marshal(expectedResult)
+	if err != nil {
+		panic(err)
+	}
+	s2 := string(jsonString[:])
+
 	// run the test
 	tests := []struct {
 		note     string
 		rules    []string
 		expected interface{}
 	}{
-		{"http.send", []string{fmt.Sprintf(
-			`p = x { http.send({"method": "get", "url": "%s", "headers": {"X-Foo":"ISO-8859-1,utf-8;q=0.7,*;q=0.7", "X-Opa": "server"}}, x) }`, ts.URL)}, s},
+		{"http.send custom headers", []string{fmt.Sprintf(
+			`p = x { http.send({"method": "get", "url": "%s", "headers": {"X-Foo": "ISO-8859-1,utf-8;q=0.7,*;q=0.7", "X-Opa": "server"}}, x) }`, ts.URL)}, s},
+		{"http.send custom UA", []string{fmt.Sprintf(
+			`p = x { http.send({"method": "get", "url": "%s", "headers": {"User-Agent": "AuthZPolicy/0.0.1", "X-Opa": "server"}}, x) }`, ts.URL)}, s2},
 	}
 
 	data := loadSmallTestData()

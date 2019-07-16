@@ -8,6 +8,7 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"github.com/open-policy-agent/opa/internal/version"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -334,6 +335,11 @@ func (t *testServer) handle(w http.ResponseWriter, r *http.Request) {
 			t.t.Fatal("Expected client certificate but didn't get any")
 		}
 	}
+	ua := r.Header.Get("user-Agent")
+	if ua != version.UserAgent {
+		t.t.Errorf("Unexpected User-Agent string: %s", ua)
+	}
+
 	w.WriteHeader(200)
 }
 
