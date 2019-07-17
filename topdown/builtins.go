@@ -100,6 +100,11 @@ func RegisterFunctionalBuiltin4(name string, fun FunctionalBuiltin4) {
 	builtinFunctions[name] = functionalWrapper4(name, fun)
 }
 
+// UnregisterBuiltin removes a built-in function from the evaluation engine.
+func UnregisterBuiltin(name string) {
+	delete(builtinFunctions, name)
+}
+
 // BuiltinEmpty is used to signal that the built-in function evaluated, but the
 // result is undefined so evaluation should not continue.
 type BuiltinEmpty struct{}

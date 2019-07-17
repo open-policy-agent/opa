@@ -23,6 +23,20 @@ func RegisterBuiltin(b *Builtin) {
 	}
 }
 
+// UnregisterBuiltin removes a built-in function from the registry.
+func UnregisterBuiltin(name string) {
+	idx := 0
+	for _, b := range Builtins {
+		if b.Name != name {
+			Builtins[idx] = b
+			idx++
+		}
+	}
+	Builtins = Builtins[:idx]
+
+	delete(BuiltinMap, name)
+}
+
 // DefaultBuiltins is the registry of built-in functions supported in OPA
 // by default. When adding a new built-in function to OPA, update this
 // list.

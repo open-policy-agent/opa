@@ -378,3 +378,26 @@ func ExampleRegisterFunctionalBuiltin1() {
 	//
 	// x: "CUSTOM"
 }
+
+func ExampleUnregisterBuiltin() {
+	// Rego includes a number of built-in functions. In some cases, you may not
+	// want all builtins to be available to a program. This test shows how to
+	// remove a built-in.
+
+	// Strictly speaking, only the first call is necessary but it is safer to
+	// remove the implementation as well as the definition.
+	ast.UnregisterBuiltin("re_match")
+	topdown.UnregisterBuiltin("re_match")
+
+	// This query should not compile because the `re_match` built-in is no
+	// longer available.
+	compiler := ast.NewCompiler()
+	_, err := compiler.QueryCompiler().Compile(ast.MustParseBody(`re_match("a", "a")`))
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	// Output:
+	//
+	// 1 error occurred: 1:1: rego_type_error: undefined function re_match
+}
