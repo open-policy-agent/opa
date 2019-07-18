@@ -104,15 +104,30 @@ push-latest:
 push-binary-edge:
 	aws s3 cp opa_linux_amd64 s3://opa-releases/edge/opa_linux_amd64
 
+.PHONY: tag-edge
+tag-edge:
+	docker tag $(IMAGE):$(VERSION) $(IMAGE):edge
+	docker tag $(IMAGE):$(VERSION)-debug $(IMAGE):edge-debug
+	docker tag $(IMAGE):$(VERSION)-rootless $(IMAGE):edge-rootless
+
+.PHONY: push-edge
+push-edge:
+	docker push $(IMAGE):edge
+	docker push $(IMAGE):edge-debug
+	docker push $(IMAGE):edge-rootless
+
 .PHONY: docker-login
 docker-login:
 	@docker login -u ${DOCKER_USER} -p ${DOCKER_PASSWORD}
 
+.PHONY: push-image
+push-image: docker-login image-quick push
+
 .PHONY: deploy-travis
-deploy-travis: docker-login image-quick push push-binary-edge
+deploy-travis: push-image tag-edge push-edge push-binary-edge
 
 .PHONY: release-travis
-release-travis: deploy-travis tag-latest push-latest
+release-travis: push-image tag-latest push-latest
 
 .PHONY: release-bugfix-travis
 release-bugfix-travis: deploy-travis
