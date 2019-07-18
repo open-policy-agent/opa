@@ -25,7 +25,7 @@ var fmtParams = struct {
 }{}
 
 var formatCommand = &cobra.Command{
-	Use:   "fmt",
+	Use:   "fmt <path> [path [...]]",
 	Short: "Format Rego source files",
 	Long: `Format Rego source files.
 
