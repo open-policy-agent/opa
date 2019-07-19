@@ -168,6 +168,7 @@ type (
 		Args     Args      `json:"args,omitempty"`
 		Key      *Term     `json:"key,omitempty"`
 		Value    *Term     `json:"value,omitempty"`
+		Assign   bool      `json:"assign,omitempty"`
 	}
 
 	// Args represents zero or more arguments to a rule.
@@ -590,6 +591,11 @@ func (head *Head) Compare(other *Head) int {
 	} else if other == nil {
 		return 1
 	}
+	if head.Assign && !other.Assign {
+		return -1
+	} else if !head.Assign && other.Assign {
+		return 1
+	}
 	if cmp := Compare(head.Args, other.Args); cmp != 0 {
 		return cmp
 	}
@@ -626,7 +632,11 @@ func (head *Head) String() string {
 		buf = append(buf, head.Name.String())
 	}
 	if head.Value != nil {
-		buf = append(buf, "=")
+		if head.Assign {
+			buf = append(buf, ":=")
+		} else {
+			buf = append(buf, "=")
+		}
 		buf = append(buf, head.Value.String())
 	}
 	return strings.Join(buf, " ")
