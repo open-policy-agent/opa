@@ -117,7 +117,7 @@ func (p *Planner) planRules(trieNode *functrieValue) error {
 
 	rules := trieNode.Rules
 
-	// Create function definiton for rules.
+	// Create function definition for rules.
 	fn := &ir.Func{
 		Name:   rules[0].Path().String(),
 		Params: []ir.Local{p.newLocal()},

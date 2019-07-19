@@ -190,7 +190,7 @@ func (i *refindices) Update(rule *Rule, expr *Expr) {
 
 // Sorted returns a sorted list of references that the indices were built from.
 // References that appear more frequently in the indexed rules are ordered
-// before less frequently appearing referneces.
+// before less frequently appearing references.
 func (i *refindices) Sorted() []Ref {
 
 	if i.sorted == nil {

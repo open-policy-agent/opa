@@ -579,7 +579,7 @@ var RegexTemplateMatch = &Builtin{
 	),
 }
 
-// RegexSplit splits the input string by the occurences of the given pattern.
+// RegexSplit splits the input string by the occurrences of the given pattern.
 var RegexSplit = &Builtin{
 	Name: "regex.split",
 	Decl: types.NewFunction(
