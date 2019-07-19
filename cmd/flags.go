@@ -22,6 +22,7 @@ const (
 	explainModeOff   = "off"
 	explainModeFull  = "full"
 	explainModeNotes = "notes"
+	explainModeFails = "fails"
 )
 
 func newExplainFlag(modes []string) *util.EnumFlag {

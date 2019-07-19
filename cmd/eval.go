@@ -23,7 +23,7 @@ import (
 	"github.com/open-policy-agent/opa/rego"
 	"github.com/open-policy-agent/opa/storage/inmem"
 	"github.com/open-policy-agent/opa/topdown"
-	"github.com/open-policy-agent/opa/topdown/notes"
+	"github.com/open-policy-agent/opa/topdown/lineage"
 	"github.com/open-policy-agent/opa/util"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -62,7 +62,7 @@ func newEvalCommandParams() evalCommandParams {
 			evalBindingsOutput,
 			evalPrettyOutput,
 		}),
-		explain: newExplainFlag([]string{explainModeOff, explainModeFull, explainModeNotes}),
+		explain: newExplainFlag([]string{explainModeOff, explainModeFull, explainModeNotes, explainModeFails}),
 	}
 }
 
@@ -330,7 +330,9 @@ func eval(args []string, params evalCommandParams, w io.Writer) (bool, error) {
 	case explainModeFull:
 		result.Explanation = *tracer
 	case explainModeNotes:
-		result.Explanation = notes.Filter(*tracer)
+		result.Explanation = lineage.Notes(*tracer)
+	case explainModeFails:
+		result.Explanation = lineage.Fails(*tracer)
 	}
 
 	if m != nil {

@@ -12,7 +12,7 @@ import (
 
 	"github.com/open-policy-agent/opa/internal/runtime"
 	"github.com/open-policy-agent/opa/storage"
-	"github.com/open-policy-agent/opa/topdown/notes"
+	"github.com/open-policy-agent/opa/topdown/lineage"
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/cover"
@@ -39,7 +39,7 @@ var testParams = struct {
 	failureLine  bool
 }{
 	outputFormat: util.NewEnumFlag(testPrettyOutput, []string{testPrettyOutput, testJSONOutput}),
-	explain:      newExplainFlag([]string{explainModeFull, explainModeNotes}),
+	explain:      newExplainFlag([]string{explainModeFails, explainModeFull, explainModeNotes}),
 }
 
 var testCommand = &cobra.Command{
@@ -194,7 +194,9 @@ func opaTest(args []string) int {
 			}
 			switch testParams.explain.String() {
 			case explainModeNotes:
-				tr.Trace = notes.Filter(tr.Trace)
+				tr.Trace = lineage.Notes(tr.Trace)
+			case explainModeFails:
+				tr.Trace = lineage.Fails(tr.Trace)
 			}
 			dup <- tr
 		}
