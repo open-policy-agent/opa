@@ -102,6 +102,10 @@ func makeImport(loc *Location, path, alias interface{}) (interface{}, error) {
 
 func makeDefaultRule(loc *Location, name, operator, value interface{}) (interface{}, error) {
 
+	if string(operator.([]uint8)) == Assign.Infix {
+		return nil, fmt.Errorf("default rules must use = operator (not := operator)")
+	}
+
 	term := value.(*Term)
 	var err error
 
@@ -134,7 +138,6 @@ func makeDefaultRule(loc *Location, name, operator, value interface{}) (interfac
 			Location: loc,
 			Name:     name.(*Term).Value.(Var),
 			Value:    value.(*Term),
-			Assign:   string(operator.([]uint8)) == Assign.Infix,
 		},
 		Body: body,
 	}

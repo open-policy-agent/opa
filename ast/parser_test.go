@@ -932,6 +932,7 @@ func TestRule(t *testing.T) {
 	// parser can be improved.
 	assertParseError(t, "dangling semicolon", "p { true; false; }")
 
+	assertParseErrorContains(t, "default assignment", "default p := 1", `default rules must use = operator (not := operator)`)
 	assertParseErrorContains(t, "partial assignment", `p[x] := y { true }`, "partial rules must use = operator (not := operator)")
 	assertParseErrorContains(t, "function assignment", `f(x) := y { true }`, "functions must use = operator (not := operator)")
 	assertParseErrorContains(t, "else assignment", `p := y { true } else = 2 { true } `, "else keyword cannot be used on rule declared with := operator")
