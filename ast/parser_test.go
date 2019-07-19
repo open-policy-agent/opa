@@ -1749,6 +1749,7 @@ func assertParsePackage(t *testing.T, msg string, input string, correct *Package
 }
 
 func assertParseOne(t *testing.T, msg string, input string, correct func(interface{})) {
+	t.Helper()
 	p, err := ParseStatement(input)
 	if err != nil {
 		t.Errorf("Error on test %s: parse error on %s: %s", msg, input, err)
@@ -1785,7 +1786,9 @@ func assertParseOneTermNegated(t *testing.T, msg string, input string, correct *
 }
 
 func assertParseRule(t *testing.T, msg string, input string, correct *Rule) {
+	t.Helper()
 	assertParseOne(t, msg, input, func(parsed interface{}) {
+		t.Helper()
 		rule := parsed.(*Rule)
 		if !rule.Equal(correct) {
 			t.Errorf("Error on test %s: rules not equal: %v (parsed), %v (correct)", msg, rule, correct)

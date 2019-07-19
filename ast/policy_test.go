@@ -512,18 +512,21 @@ func TestSomeDeclString(t *testing.T) {
 }
 
 func assertExprEqual(t *testing.T, a, b *Expr) {
+	t.Helper()
 	if !a.Equal(b) {
 		t.Errorf("Expressions are not equal (expected equal): a=%v b=%v", a, b)
 	}
 }
 
 func assertExprNotEqual(t *testing.T, a, b *Expr) {
+	t.Helper()
 	if a.Equal(b) {
 		t.Errorf("Expressions are equal (expected not equal): a=%v b=%v", a, b)
 	}
 }
 
 func assertExprString(t *testing.T, expr *Expr, expected string) {
+	t.Helper()
 	result := expr.String()
 	if result != expected {
 		t.Errorf("Expected %v but got %v", expected, result)
@@ -531,18 +534,21 @@ func assertExprString(t *testing.T, expr *Expr, expected string) {
 }
 
 func assertImportsEqual(t *testing.T, a, b *Import) {
+	t.Helper()
 	if !a.Equal(b) {
 		t.Errorf("Imports are not equal (expected equal): a=%v b=%v", a, b)
 	}
 }
 
 func assertImportsNotEqual(t *testing.T, a, b *Import) {
+	t.Helper()
 	if a.Equal(b) {
 		t.Errorf("Imports are equal (expected not equal): a=%v b=%v", a, b)
 	}
 }
 
 func assertImportToString(t *testing.T, imp *Import, expected string) {
+	t.Helper()
 	result := imp.String()
 	if result != expected {
 		t.Errorf("Expected %v but got %v", expected, result)
@@ -550,42 +556,49 @@ func assertImportToString(t *testing.T, imp *Import, expected string) {
 }
 
 func assertPackagesEqual(t *testing.T, a, b *Package) {
+	t.Helper()
 	if !a.Equal(b) {
 		t.Errorf("Packages are not equal (expected equal): a=%v b=%v", a, b)
 	}
 }
 
 func assertPackagesNotEqual(t *testing.T, a, b *Package) {
+	t.Helper()
 	if a.Equal(b) {
 		t.Errorf("Packages are not equal (expected not equal): a=%v b=%v", a, b)
 	}
 }
 
 func assertRulesEqual(t *testing.T, a, b *Rule) {
+	t.Helper()
 	if !a.Equal(b) {
 		t.Errorf("Rules are not equal (expected equal): a=%v b=%v", a, b)
 	}
 }
 
 func assertRulesNotEqual(t *testing.T, a, b *Rule) {
+	t.Helper()
 	if a.Equal(b) {
 		t.Errorf("Rules are equal (expected not equal): a=%v b=%v", a, b)
 	}
 }
 
 func assertHeadsEqual(t *testing.T, a, b *Head) {
+	t.Helper()
 	if !a.Equal(b) {
 		t.Errorf("Heads are not equal (expected equal): a=%v b=%v", a, b)
 	}
 }
 
 func assertHeadsNotEqual(t *testing.T, a, b *Head) {
+	t.Helper()
 	if a.Equal(b) {
 		t.Errorf("Heads are equal (expected not equal): a=%v b=%v", a, b)
 	}
 }
 
 func assertRuleString(t *testing.T, rule *Rule, expected string) {
+	t.Helper()
 	result := rule.String()
 	if result != expected {
 		t.Errorf("Expected %v but got %v", expected, result)
