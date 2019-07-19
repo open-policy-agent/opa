@@ -38,7 +38,7 @@ import (
 	"github.com/open-policy-agent/opa/server/writer"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/topdown"
-	"github.com/open-policy-agent/opa/topdown/notes"
+	"github.com/open-policy-agent/opa/topdown/lineage"
 	"github.com/open-policy-agent/opa/util"
 	"github.com/open-policy-agent/opa/version"
 	"github.com/open-policy-agent/opa/watch"
@@ -1965,7 +1965,13 @@ func (s *Server) getExplainResponse(explainMode types.ExplainModeV1, trace []*to
 	switch explainMode {
 	case types.ExplainNotesV1:
 		var err error
-		explanation, err = types.NewTraceV1(notes.Filter(trace), pretty)
+		explanation, err = types.NewTraceV1(lineage.Notes(trace), pretty)
+		if err != nil {
+			break
+		}
+	case types.ExplainFailsV1:
+		var err error
+		explanation, err = types.NewTraceV1(lineage.Fails(trace), pretty)
 		if err != nil {
 			break
 		}

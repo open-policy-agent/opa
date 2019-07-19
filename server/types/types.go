@@ -199,6 +199,7 @@ const (
 	ExplainOffV1   ExplainModeV1 = "off"
 	ExplainFullV1  ExplainModeV1 = "full"
 	ExplainNotesV1 ExplainModeV1 = "notes"
+	ExplainFailsV1 ExplainModeV1 = "fails"
 )
 
 // TraceV1 models the trace result returned for queries that include the
