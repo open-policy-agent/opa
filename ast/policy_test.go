@@ -38,6 +38,7 @@ f(x) = y { y = x }
 a = true { xs = {a: b | input.y[a] = "foo"; b = input.z["bar"]} }
 b = true { xs = {{"x": a[i].a} | a[i].n = "bob"; b[x]} }
 call_values { f(x) != g(x) }
+assigned := 1
 `)
 
 	bs, err := json.Marshal(mod)
@@ -392,12 +393,17 @@ func TestRuleBodyEquals(t *testing.T) {
 	// Different expressions/different order
 	assertRulesNotEqual(t, ruleTrue1, ruleFalse1)
 	assertRulesNotEqual(t, ruleTrueFalse, ruleFalseTrue)
+
+	// Assigned versus not.
+	assigned := ruleTrue1.Copy()
+	assigned.Head.Assign = true
+	assertRulesNotEqual(t, ruleTrue1, assigned)
 }
 
 func TestRuleString(t *testing.T) {
 
 	rule1 := &Rule{
-		Head: NewHead(Var("p")),
+		Head: NewHead(Var("p"), nil, BooleanTerm(true)),
 		Body: NewBody(
 			Equality.Expr(StringTerm("foo"), StringTerm("bar")),
 		),
@@ -429,10 +435,14 @@ func TestRuleString(t *testing.T) {
 		Body: NewBody(Plus.Expr(VarTerm("x"), VarTerm("y"), VarTerm("z"))),
 	}
 
-	assertRuleString(t, rule1, `p { "foo" = "bar" }`)
+	rule5 := rule1.Copy()
+	rule5.Head.Assign = true
+
+	assertRuleString(t, rule1, `p = true { "foo" = "bar" }`)
 	assertRuleString(t, rule2, `p[x] = y { "foo" = x; not a.b[x]; "b" = y }`)
 	assertRuleString(t, rule3, `default p = true`)
 	assertRuleString(t, rule4, "f(x, y) = z { plus(x, y, z) }")
+	assertRuleString(t, rule5, `p := true { "foo" = "bar" }`)
 }
 
 func TestModuleString(t *testing.T) {
