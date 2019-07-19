@@ -8,10 +8,11 @@ package mock
 import (
 	"context"
 	"fmt"
+	"testing"
+
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/storage/inmem"
-	"testing"
 )
 
 // Transaction is a mock storage.Transaction implementation for use in testing.

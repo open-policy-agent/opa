@@ -1,10 +1,11 @@
 package jwk_test
 
 import (
-	"github.com/open-policy-agent/opa/topdown/internal/jwx/jwa"
-	"github.com/open-policy-agent/opa/topdown/internal/jwx/jwk"
 	"reflect"
 	"testing"
+
+	"github.com/open-policy-agent/opa/topdown/internal/jwx/jwa"
+	"github.com/open-policy-agent/opa/topdown/internal/jwx/jwk"
 )
 
 func TestHeader(t *testing.T) {

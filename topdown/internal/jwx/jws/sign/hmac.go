@@ -4,8 +4,9 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"crypto/sha512"
-	"github.com/open-policy-agent/opa/topdown/internal/jwx/jwa"
 	"hash"
+
+	"github.com/open-policy-agent/opa/topdown/internal/jwx/jwa"
 
 	"github.com/pkg/errors"
 )

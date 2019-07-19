@@ -2,6 +2,7 @@ package jwa
 
 import (
 	"crypto/elliptic"
+
 	"github.com/open-policy-agent/opa/topdown/internal/jwx/buffer"
 )
 

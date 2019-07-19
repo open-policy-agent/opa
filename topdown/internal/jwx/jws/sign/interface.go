@@ -3,6 +3,7 @@ package sign
 import (
 	"crypto/ecdsa"
 	"crypto/rsa"
+
 	"github.com/open-policy-agent/opa/topdown/internal/jwx/jwa"
 )
 

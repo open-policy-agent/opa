@@ -10,7 +10,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"github.com/open-policy-agent/opa/internal/version"
 	"io"
 	"net/http"
 	"reflect"
@@ -18,6 +17,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 
+	"github.com/open-policy-agent/opa/internal/version"
 	"github.com/open-policy-agent/opa/util"
 )
 

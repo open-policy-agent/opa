@@ -8,14 +8,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
+	"strings"
+	"testing"
+
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/storage/inmem"
 	"github.com/open-policy-agent/opa/topdown/internal/jwx/jwk"
 	"github.com/open-policy-agent/opa/topdown/internal/jwx/jws"
-	"os"
-	"strings"
-	"testing"
 )
 
 func TestParseTokenConstraints(t *testing.T) {

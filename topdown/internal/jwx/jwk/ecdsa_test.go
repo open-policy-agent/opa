@@ -6,11 +6,12 @@ import (
 	"crypto/rand"
 	"encoding/json"
 	"fmt"
+	"reflect"
+	"testing"
+
 	"github.com/open-policy-agent/opa/topdown/internal/jwx/buffer"
 	"github.com/open-policy-agent/opa/topdown/internal/jwx/jwa"
 	"github.com/open-policy-agent/opa/topdown/internal/jwx/jwk"
-	"reflect"
-	"testing"
 )
 
 func TestECDSA(t *testing.T) {

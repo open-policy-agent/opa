@@ -9,7 +9,6 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
-	"github.com/open-policy-agent/opa/internal/version"
 	"io"
 	"io/ioutil"
 	"strconv"
@@ -20,6 +19,7 @@ import (
 	"time"
 
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/internal/version"
 	"github.com/open-policy-agent/opa/topdown/builtins"
 )
 

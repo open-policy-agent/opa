@@ -3,6 +3,7 @@ package verify
 import (
 	"crypto/ecdsa"
 	"crypto/rsa"
+
 	"github.com/open-policy-agent/opa/topdown/internal/jwx/jws/sign"
 )
 

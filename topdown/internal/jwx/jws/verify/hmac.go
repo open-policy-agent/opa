@@ -2,6 +2,7 @@ package verify
 
 import (
 	"crypto/hmac"
+
 	"github.com/open-policy-agent/opa/topdown/internal/jwx/jwa"
 	"github.com/open-policy-agent/opa/topdown/internal/jwx/jws/sign"
 	"github.com/pkg/errors"

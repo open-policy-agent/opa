@@ -7,12 +7,12 @@ package rego
 import (
 	"context"
 	"encoding/json"
-	"github.com/open-policy-agent/opa/internal/storage/mock"
 	"reflect"
 	"testing"
 	"time"
 
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/internal/storage/mock"
 	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/storage/inmem"
