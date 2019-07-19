@@ -78,7 +78,7 @@ func Ast(x interface{}) (formatted []byte, err error) {
 	case *ast.Rule:
 		w.writeRule(x, false, nil)
 	case *ast.Head:
-		w.writeHead(x, false, nil)
+		w.writeHead(x, false, false, nil)
 	case ast.Body:
 		w.writeBody(x, nil)
 	case *ast.Expr:
@@ -213,7 +213,7 @@ func (w *writer) writeRule(rule *ast.Rule, isElse bool, comments []*ast.Comment)
 	// pretend that the rule has no body in this case.
 	isExpandedConst := rule.Body.Equal(ast.NewBody(ast.NewExpr(ast.BooleanTerm(true)))) && rule.Else == nil
 
-	comments = w.writeHead(rule.Head, isExpandedConst, comments)
+	comments = w.writeHead(rule.Head, rule.Default, isExpandedConst, comments)
 
 	if (len(rule.Body) == 0 || isExpandedConst) && !isElse {
 		w.endLine()
@@ -249,7 +249,7 @@ func (w *writer) writeRule(rule *ast.Rule, isElse bool, comments []*ast.Comment)
 	return comments
 }
 
-func (w *writer) writeHead(head *ast.Head, isExpandedConst bool, comments []*ast.Comment) []*ast.Comment {
+func (w *writer) writeHead(head *ast.Head, isDefault bool, isExpandedConst bool, comments []*ast.Comment) []*ast.Comment {
 	w.write(head.Name.String())
 	if len(head.Args) > 0 {
 		w.write("(")
@@ -265,8 +265,12 @@ func (w *writer) writeHead(head *ast.Head, isExpandedConst bool, comments []*ast
 		comments = w.writeTerm(head.Key, comments)
 		w.write("]")
 	}
-	if head.Value != nil && (head.Key != nil || ast.Compare(head.Value, ast.BooleanTerm(true)) != 0 || isExpandedConst) {
-		w.write(" = ")
+	if head.Value != nil && (head.Key != nil || ast.Compare(head.Value, ast.BooleanTerm(true)) != 0 || isExpandedConst || isDefault) {
+		if head.Assign {
+			w.write(" := ")
+		} else {
+			w.write(" = ")
+		}
 		comments = w.writeTerm(head.Value, comments)
 	}
 	return comments
