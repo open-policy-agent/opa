@@ -909,6 +909,15 @@ func TestRule(t *testing.T) {
 		Body: NewBody(NewExpr(BooleanTerm(true))),
 	})
 
+	assertParseRule(t, "assignment operator", `x := 1 { true }`, &Rule{
+		Head: &Head{
+			Name:   Var("x"),
+			Value:  IntNumberTerm(1),
+			Assign: true,
+		},
+		Body: NewBody(NewExpr(BooleanTerm(true))),
+	})
+
 	assertParseErrorContains(t, "empty body", `f(_) = y {}`, "rego_parse_error: found empty body")
 	assertParseErrorContains(t, "object composite key", "p[[x,y]] = z { true }", "rego_parse_error: object key must be string, var, or ref, not array")
 	assertParseErrorContains(t, "default ref value", "default p = [data.foo]", "rego_parse_error: default rule value cannot contain ref")
@@ -922,6 +931,10 @@ func TestRule(t *testing.T) {
 	// and the current error message is not very good. Need to investigate if the
 	// parser can be improved.
 	assertParseError(t, "dangling semicolon", "p { true; false; }")
+
+	assertParseErrorContains(t, "partial assignment", `p[x] := y { true }`, "partial rules must use = operator (not := operator)")
+	assertParseErrorContains(t, "function assignment", `f(x) := y { true }`, "functions must use = operator (not := operator)")
+	assertParseErrorContains(t, "else assignment", `p := y { true } else = 2 { true } `, "else keyword cannot be used on rule declared with := operator")
 }
 
 func TestRuleElseKeyword(t *testing.T) {
@@ -1321,6 +1334,7 @@ input = 1
 data = 2
 f(1) = 2
 f(1)
+d1 := 1234
 `
 
 	assertParseModule(t, "rules from bodies", testModule, &Module{
@@ -1341,6 +1355,7 @@ f(1)
 			MustParseRule(`data = 2 { true }`),
 			MustParseRule(`f(1) = 2 { true }`),
 			MustParseRule(`f(1) = true { true }`),
+			MustParseRule("d1 := 1234 { true }"),
 		},
 	})
 
@@ -1360,7 +1375,7 @@ data = {"bar": 2} { true }`
 	multipleExprs := `
     package a.b.c
 
-    pi = 3.14159, pi > 3
+    pi = 3.14159; pi > 3
     `
 
 	nonEquality := `
@@ -1406,6 +1421,11 @@ data = {"bar": 2} { true }`
 
 	p()`
 
+	assignToTerm := `
+	package a.b.c
+
+	"foo" := 1`
+
 	assertParseModuleError(t, "multiple expressions", multipleExprs)
 	assertParseModuleError(t, "non-equality", nonEquality)
 	assertParseModuleError(t, "non-var name", nonVarName)
@@ -1415,6 +1435,7 @@ data = {"bar": 2} { true }`
 	assertParseModuleError(t, "negated", negated)
 	assertParseModuleError(t, "non ref term", nonRefTerm)
 	assertParseModuleError(t, "zero args", zeroArgs)
+	assertParseModuleError(t, "assign to term", assignToTerm)
 }
 
 func TestWildcards(t *testing.T) {
