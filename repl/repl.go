@@ -24,7 +24,7 @@ import (
 	"github.com/open-policy-agent/opa/rego"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/topdown"
-	"github.com/open-policy-agent/opa/topdown/notes"
+	"github.com/open-policy-agent/opa/topdown/lineage"
 	"github.com/peterh/liner"
 )
 
@@ -58,12 +58,13 @@ type REPL struct {
 	prettyLimit       int
 }
 
-type explainMode int
+type explainMode string
 
 const (
-	explainOff explainMode = iota
-	explainTrace
-	explainNotes
+	explainOff   explainMode = "off"
+	explainFull              = "full"
+	explainNotes             = "notes"
+	explainFails             = "fails"
 )
 
 const defaultPrettyLimit = 80
@@ -225,9 +226,11 @@ func (r *REPL) OneShot(ctx context.Context, line string) error {
 			case "pretty-limit":
 				return r.cmdPrettyLimit(cmd.args)
 			case "trace":
-				return r.cmdTrace()
+				return r.cmdTrace(explainFull)
 			case "notes":
-				return r.cmdNotes()
+				return r.cmdTrace(explainNotes)
+			case "fails":
+				return r.cmdTrace(explainFails)
 			case "metrics":
 				return r.cmdMetrics()
 			case "instrument":
@@ -400,9 +403,8 @@ func (r *REPL) cmdShow(args []string) error {
 		fmt.Fprint(r.output, string(bs))
 		return nil
 	} else if strings.Compare(args[0], "debug") == 0 {
-		debug := replDebug{
-			Trace:      r.explain == explainTrace,
-			Notes:      r.explain == explainNotes,
+		debug := replDebugState{
+			Explain:    r.explain,
 			Metrics:    r.metricsEnabled(),
 			Instrument: r.instrument,
 			Profile:    r.profilerEnabled(),
@@ -418,29 +420,18 @@ func (r *REPL) cmdShow(args []string) error {
 	}
 }
 
-// We use this struct to print REPL debug information in JSON string format.
-type replDebug struct {
-	Trace      bool `json:"trace"`
-	Notes      bool `json:"notes"`
-	Metrics    bool `json:"metrics"`
-	Instrument bool `json:"instrument"`
-	Profile    bool `json:"profile"`
+type replDebugState struct {
+	Explain    explainMode `json:"explain"`
+	Metrics    bool        `json:"metrics"`
+	Instrument bool        `json:"instrument"`
+	Profile    bool        `json:"profile"`
 }
 
-func (r *REPL) cmdNotes() error {
-	if r.explain == explainNotes {
+func (r *REPL) cmdTrace(mode explainMode) error {
+	if r.explain == mode {
 		r.explain = explainOff
 	} else {
-		r.explain = explainNotes
-	}
-	return nil
-}
-
-func (r *REPL) cmdTrace() error {
-	if r.explain == explainTrace {
-		r.explain = explainOff
-	} else {
-		r.explain = explainTrace
+		r.explain = mode
 	}
 	return nil
 }
@@ -872,10 +863,12 @@ func (r *REPL) evalBody(ctx context.Context, compiler *ast.Compiler, input ast.V
 	output = output.WithLimit(r.prettyLimit)
 
 	switch r.explain {
-	case explainTrace:
+	case explainFull:
 		output.Explanation = *tracebuf
 	case explainNotes:
-		output.Explanation = notes.Filter(*tracebuf)
+		output.Explanation = lineage.Notes(*tracebuf)
+	case explainFails:
+		output.Explanation = lineage.Fails(*tracebuf)
 	}
 
 	switch r.outputFormat {
@@ -918,10 +911,12 @@ func (r *REPL) evalPartial(ctx context.Context, compiler *ast.Compiler, input as
 	}
 
 	switch r.explain {
-	case explainTrace:
+	case explainFull:
 		output.Explanation = *buf
 	case explainNotes:
-		output.Explanation = notes.Filter(*buf)
+		output.Explanation = lineage.Notes(*buf)
+	case explainFails:
+		output.Explanation = lineage.Fails(*buf)
 	}
 
 	switch r.outputFormat {
@@ -1127,6 +1122,7 @@ var builtin = [...]commandDesc{
 	{"pretty-limit", []string{}, "set pretty value output limit"},
 	{"trace", []string{}, "toggle full trace"},
 	{"notes", []string{}, "toggle notes trace"},
+	{"fails", []string{}, "toggle fails trace"},
 	{"metrics", []string{}, "toggle metrics"},
 	{"instrument", []string{}, "toggle instrumentation"},
 	{"profile", []string{}, "toggle profiler and turns off trace"},
