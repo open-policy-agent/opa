@@ -664,7 +664,13 @@ p { true }`,
 		"mod6.rego": `package badrules.existserr
 
 p { true }`,
-	})
+		"mod7.rego": `package badrules.redeclaration
+
+p1 := 1
+p1 := 2
+
+p2 = 1
+p2 := 2`})
 
 	c.WithPathConflictsCheck(func(path []string) (bool, error) {
 		if reflect.DeepEqual(path, []string{"badrules", "dataoverlap", "p"}) {
@@ -687,6 +693,8 @@ p { true }`,
 		"rego_type_error: multiple default rules named foo found",
 		"rego_type_error: package badrules.r conflicts with rule defined at mod1.rego:7",
 		"rego_type_error: package badrules.r conflicts with rule defined at mod1.rego:8",
+		"rego_type_error: rule named p1 redeclared at mod7.rego:4",
+		"rego_type_error: rule named p2 redeclared at mod7.rego:7",
 	}
 
 	assertCompilerErrorStrings(t, c, expected)
