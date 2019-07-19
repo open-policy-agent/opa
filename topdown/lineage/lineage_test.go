@@ -2,7 +2,7 @@
 // Use of this source code is governed by an Apache2
 // license that can be found in the LICENSE file.
 
-package notes
+package lineage
 
 import (
 	"bytes"
@@ -176,7 +176,7 @@ Enter data.test.p = x
 				t.Fatalf("Unexpected result: %v", rs)
 			}
 
-			filtered := Filter(*buf)
+			filtered := Notes(*buf)
 
 			buffer := bytes.NewBuffer(nil)
 			topdown.PrettyTrace(buffer, filtered)

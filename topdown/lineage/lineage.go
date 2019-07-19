@@ -2,22 +2,35 @@
 // Use of this source code is governed by an Apache2
 // license that can be found in the LICENSE file.
 
-package notes
+package lineage
 
 import (
 	"github.com/open-policy-agent/opa/topdown"
 )
 
-// Filter returns a filtered trace that contains Note events contained in the
-// trace. The filtered trace also includes Enter and Redo events to explain the
-// lineage of the Note events.
-func Filter(trace []*topdown.Event) (result []*topdown.Event) {
+// Notes returns a filtered trace that contains Note events and context to
+// understand where the Note was emitted.
+func Notes(trace []*topdown.Event) []*topdown.Event {
+	return filter(trace, func(event *topdown.Event) bool {
+		return event.Op == topdown.NoteOp
+	})
+}
+
+// Fails returns a filtered trace that contains Fail events and context to
+// understand where the Fail occurred.
+func Fails(trace []*topdown.Event) []*topdown.Event {
+	return filter(trace, func(event *topdown.Event) bool {
+		return event.Op == topdown.FailOp
+	})
+}
+
+func filter(trace []*topdown.Event, filter func(*topdown.Event) bool) (result []*topdown.Event) {
 
 	qids := map[uint64]*topdown.Event{}
 
 	for _, event := range trace {
-		switch event.Op {
-		case topdown.NoteOp:
+
+		if filter(event) {
 			// Path will end with the Note event.
 			path := []*topdown.Event{event}
 
@@ -39,8 +52,9 @@ func Filter(trace []*topdown.Event) (result []*topdown.Event) {
 			}
 
 			qids = map[uint64]*topdown.Event{}
+		}
 
-		case topdown.EnterOp, topdown.RedoOp:
+		if event.Op == topdown.EnterOp || event.Op == topdown.RedoOp {
 			if event.HasRule() || event.HasBody() {
 				qids[event.QueryID] = event
 			}
