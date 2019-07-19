@@ -25,11 +25,12 @@ var fmtParams = struct {
 }{}
 
 var formatCommand = &cobra.Command{
-	Use:   "fmt <path> [path [...]]",
+	Use:   "fmt [path [...]]",
 	Short: "Format Rego source files",
 	Long: `Format Rego source files.
 
-The 'fmt' command takes a Rego source file and outputs a reformatted version.
+The 'fmt' command takes a Rego source file and outputs a reformatted version. If no file path
+is provided - this tool will use stdin.
 The format of the output is not defined specifically; whatever this tool outputs
 is considered correct format (with the exception of bugs).
 
