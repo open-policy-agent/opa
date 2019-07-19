@@ -46,7 +46,7 @@ import (
 // Validate receives a slice of bytes representing plugin
 // configuration and returns a configuration value that can be used to
 // instantiate your plugin. The manager is provided to give access to
-// the OPA's compiler, storage layer, adn global configuration. Your
+// the OPA's compiler, storage layer, and global configuration. Your
 // Validate function will typically:
 //
 //  1. Deserialize the raw config bytes
@@ -104,7 +104,7 @@ type managerContextKey string
 const managerCompilerContextKey = managerContextKey("compiler")
 
 // SetCompilerOnContext puts the compiler into the storage context. Calling this
-// function before commiting updated policies to storage allows the manager to
+// function before committing updated policies to storage allows the manager to
 // skip parsing and compiling of modules. Instead, the manager will use the
 // compiler that was stored on the context.
 func SetCompilerOnContext(context *storage.Context, compiler *ast.Compiler) {

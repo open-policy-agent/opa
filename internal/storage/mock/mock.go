@@ -93,7 +93,7 @@ func (s *Store) GetTransaction(id uint64) *Transaction {
 	return nil
 }
 
-// Errors retuns a list of errors for each invalid state found.
+// Errors returns a list of errors for each invalid state found.
 // If any Transactions are invalid or reads/writes were
 // unsafe an error will be returned for each problem.
 func (s *Store) Errors() []error {
