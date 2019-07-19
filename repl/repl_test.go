@@ -320,13 +320,14 @@ func TestShowDebug(t *testing.T) {
 	repl := newRepl(store, &buffer)
 	repl.OneShot(ctx, "show debug")
 
-	var result replDebug
+	var result replDebugState
 
 	if err := util.Unmarshal(buffer.Bytes(), &result); err != nil {
 		t.Fatal(err)
 	}
 
-	var exp replDebug
+	var exp replDebugState
+	exp.Explain = explainOff
 
 	if !reflect.DeepEqual(result, exp) {
 		t.Fatalf("Expected %+v but got %+v", exp, result)
@@ -340,7 +341,7 @@ func TestShowDebug(t *testing.T) {
 	repl.OneShot(ctx, "profile")
 	repl.OneShot(ctx, "show debug")
 
-	exp.Trace = true
+	exp.Explain = explainFull
 	exp.Metrics = true
 	exp.Instrument = true
 	exp.Profile = true
