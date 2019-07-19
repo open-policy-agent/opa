@@ -191,6 +191,10 @@ vardecls {
         v5 # c3
 }
 
+declare1 := 1
+
+declare2 := 2 { false }
+
 # more comments!
 # more comments!
 # more comments!
