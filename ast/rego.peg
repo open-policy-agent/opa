@@ -20,15 +20,15 @@ Import <- "import" ws path:(Ref / Var) alias:(ws "as" ws Var)? {
 
 Rules <- DefaultRules / NormalRules
 
-DefaultRules <- "default" ws name:Var _ "=" _ value:Term {
-    return makeDefaultRule(currentLocation(c), name, value)
+DefaultRules <- "default" ws name:Var _ operator:( ":=" / "=" ) _ value:Term {
+    return makeDefaultRule(currentLocation(c), name, operator, value)
 }
 
 NormalRules <- head:RuleHead _ rest:(NonEmptyBraceEnclosedBody ( _ RuleExt)* ) {
     return makeRule(currentLocation(c), head, rest)
 }
 
-RuleHead <- name:Var args:( _ "(" _ Args _ ")" _ )? key:( _ "[" _ ExprTerm _ "]" _ )? value:( _ "=" _ ExprTerm )? {
+RuleHead <- name:Var args:( _ "(" _ Args _ ")" _ )? key:( _ "[" _ ExprTerm _ "]" _ )? value:( _ ( ":=" / "=" ) _ ExprTerm )? {
     return makeRuleHead(currentLocation(c), name, args, key, value)
 }
 

@@ -151,26 +151,59 @@ func ParseRuleFromExpr(module *Module, expr *Expr) (*Rule, error) {
 		}
 	}
 
-	if !expr.IsEquality() && expr.IsCall() {
-		if _, ok := BuiltinMap[expr.Operator().String()]; ok {
-			return nil, fmt.Errorf("rule name conflicts with built-in function")
+	if expr.IsAssignment() {
+
+		lhs, rhs := expr.Operand(0), expr.Operand(1)
+		rule, err := ParseCompleteDocRuleFromAssignmentExpr(module, lhs, rhs)
+
+		if err == nil {
+			return rule, nil
+		} else if _, ok := lhs.Value.(Call); ok {
+			return nil, errFunctionAssignOperator
+		} else if _, ok := lhs.Value.(Ref); ok {
+			return nil, errPartialRuleAssignOperator
 		}
-		return ParseRuleFromCallExpr(module, expr.Terms.([]*Term))
+
+		return nil, errTermAssignOperator(lhs.Value)
 	}
 
-	lhs, rhs := expr.Operand(0), expr.Operand(1)
+	if expr.IsEquality() {
+
+		lhs, rhs := expr.Operand(0), expr.Operand(1)
+		rule, err := ParseCompleteDocRuleFromEqExpr(module, lhs, rhs)
+
+		if err == nil {
+			return rule, nil
+		}
+
+		rule, err = ParseRuleFromCallEqExpr(module, lhs, rhs)
+		if err == nil {
+			return rule, nil
+		}
+
+		return ParsePartialObjectDocRuleFromEqExpr(module, lhs, rhs)
+	}
+
+	if _, ok := BuiltinMap[expr.Operator().String()]; ok {
+		return nil, fmt.Errorf("rule name conflicts with built-in function")
+	}
+
+	return ParseRuleFromCallExpr(module, expr.Terms.([]*Term))
+}
+
+// ParseCompleteDocRuleFromAssignmentExpr returns a rule if the expression can
+// be interpreted as a complete document definition declared with the assignment
+// operator.
+func ParseCompleteDocRuleFromAssignmentExpr(module *Module, lhs, rhs *Term) (*Rule, error) {
 
 	rule, err := ParseCompleteDocRuleFromEqExpr(module, lhs, rhs)
-	if err == nil {
-		return rule, nil
+	if err != nil {
+		return nil, err
 	}
 
-	rule, err = ParseRuleFromCallEqExpr(module, lhs, rhs)
-	if err == nil {
-		return rule, nil
-	}
+	rule.Head.Assign = true
 
-	return ParsePartialObjectDocRuleFromEqExpr(module, lhs, rhs)
+	return rule, nil
 }
 
 // ParseCompleteDocRuleFromEqExpr returns a rule if the expression can be

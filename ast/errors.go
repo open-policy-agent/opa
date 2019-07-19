@@ -105,3 +105,13 @@ func NewError(code string, loc *Location, f string, a ...interface{}) *Error {
 		Message:  fmt.Sprintf(f, a...),
 	}
 }
+
+var (
+	errPartialRuleAssignOperator = fmt.Errorf("partial rules must use = operator (not := operator)")
+	errElseAssignOperator        = fmt.Errorf("else keyword cannot be used on rule declared with := operator")
+	errFunctionAssignOperator    = fmt.Errorf("functions must use = operator (not := operator)")
+)
+
+func errTermAssignOperator(x interface{}) error {
+	return fmt.Errorf("cannot assign to %v", TypeName(x))
+}
