@@ -405,6 +405,7 @@ type Rego struct {
 	termVarID        int
 	dump             io.Writer
 	runtime          *ast.Term
+	unsafeBuiltins   map[string]struct{}
 }
 
 // Dump returns an argument that sets the writer to dump debugging information to.
@@ -601,6 +602,23 @@ func PrintTrace(w io.Writer, r *Rego) {
 	topdown.PrettyTrace(w, *r.tracebuf)
 }
 
+// UnsafeBuiltins is a helper that sets a set of unsafe builtins on the
+// compiler.
+//
+// If a rule or query is found to refer to an unsafe a built-in function, an
+// error will be returned when the Rego object is executed.
+func UnsafeBuiltins(unsafeBuiltins map[string]struct{}) func(r *Rego) {
+	return func(r *Rego) {
+		if r.unsafeBuiltins == nil && len(unsafeBuiltins) > 0 {
+			r.unsafeBuiltins = make(map[string]struct{})
+		}
+
+		for name := range unsafeBuiltins {
+			r.unsafeBuiltins[name] = struct{}{}
+		}
+	}
+}
+
 // New returns a new Rego object.
 func New(options ...func(r *Rego)) *Rego {
 
@@ -638,6 +656,10 @@ func New(options ...func(r *Rego)) *Rego {
 
 	if r.partialNamespace == "" {
 		r.partialNamespace = defaultPartialNamespace
+	}
+
+	if r.unsafeBuiltins != nil {
+		r.compiler.WithUnsafeBuiltins(r.unsafeBuiltins)
 	}
 
 	return r
