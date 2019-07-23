@@ -81,7 +81,7 @@ const (
 )
 
 // map of unsafe buitins
-var unsafeBuiltinsMap = map[string]bool{ast.HTTPSend.Name: true}
+var unsafeBuiltinsMap = map[string]struct{}{ast.HTTPSend.Name: struct{}{}}
 
 // Server represents an instance of OPA running in server mode.
 type Server struct {
@@ -628,6 +628,7 @@ func (s *Server) execQuery(ctx context.Context, r *http.Request, txn storage.Tra
 		rego.Instrument(instrument),
 		rego.Tracer(buf),
 		rego.Runtime(s.runtime),
+		rego.UnsafeBuiltins(unsafeBuiltinsMap),
 	)
 
 	output, err := rego.Eval(ctx)
@@ -688,7 +689,7 @@ func (s *Server) indexGet(w http.ResponseWriter, r *http.Request) {
 		input = t.Value
 	}
 
-	_, parsedQuery, _ := validateQuery(qStr)
+	parsedQuery, _ := validateQuery(qStr)
 
 	txn, err := s.store.NewTransaction(ctx)
 	if err != nil {
@@ -795,6 +796,7 @@ func (s *Server) v0QueryPath(w http.ResponseWriter, r *http.Request, path ast.Re
 		rego.Instrument(diagLogger.Instrument()),
 		rego.Tracer(buf),
 		rego.Runtime(s.runtime),
+		rego.UnsafeBuiltins(unsafeBuiltinsMap),
 	)
 
 	rs, err := rego.Eval(ctx)
@@ -935,15 +937,6 @@ func (s *Server) v1CompilePost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	unsafeBuiltins, err := validateParsedQuery(request.Query)
-	if err != nil {
-		writer.ErrorAuto(w, err)
-		return
-	} else if len(unsafeBuiltins) > 0 {
-		writer.Error(w, http.StatusBadRequest, types.NewErrorV1(types.CodeInvalidParameter, "unsafe built-in function calls in query: %v", strings.Join(unsafeBuiltins, ",")))
-		return
-	}
-
 	m.Timer(metrics.RegoQueryParse).Stop()
 
 	txn, err := s.store.NewTransaction(ctx)
@@ -975,11 +968,17 @@ func (s *Server) v1CompilePost(w http.ResponseWriter, r *http.Request) {
 		rego.Instrument(instrument),
 		rego.Metrics(m),
 		rego.Runtime(s.runtime),
+		rego.UnsafeBuiltins(unsafeBuiltinsMap),
 	)
 
 	pq, err := eval.Partial(ctx)
 	if err != nil {
-		writer.ErrorAuto(w, err)
+		switch err := err.(type) {
+		case ast.Errors:
+			writer.Error(w, http.StatusBadRequest, types.NewErrorV1(types.CodeInvalidParameter, types.MsgCompileModuleError).WithASTErrors(err))
+		default:
+			writer.ErrorAuto(w, err)
+		}
 		return
 	}
 
@@ -1085,6 +1084,7 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 		rego.Tracer(buf),
 		rego.Instrument(instrument),
 		rego.Runtime(s.runtime),
+		rego.UnsafeBuiltins(unsafeBuiltinsMap),
 	)
 
 	rs, err := rego.Eval(ctx)
@@ -1668,7 +1668,7 @@ func (s *Server) v1QueryGet(w http.ResponseWriter, r *http.Request) {
 	}
 	qStr := qStrs[len(qStrs)-1]
 
-	unsafeBuiltins, parsedQuery, err := validateQuery(qStr)
+	parsedQuery, err := validateQuery(qStr)
 	if err != nil {
 		switch err := err.(type) {
 		case ast.Errors:
@@ -1678,9 +1678,6 @@ func (s *Server) v1QueryGet(w http.ResponseWriter, r *http.Request) {
 			writer.ErrorAuto(w, err)
 			return
 		}
-	} else if len(unsafeBuiltins) > 0 {
-		writer.Error(w, http.StatusBadRequest, types.NewErrorV1(types.CodeInvalidParameter, "unsafe built-in function calls in query: %v", strings.Join(unsafeBuiltins, ",")))
-		return
 	}
 
 	watch := getWatch(r.URL.Query()[types.ParamWatchV1])
@@ -1730,7 +1727,7 @@ func (s *Server) v1QueryPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	qStr := request.Query
-	unsafeBuiltins, parsedQuery, err := validateQuery(qStr)
+	parsedQuery, err := validateQuery(qStr)
 	if err != nil {
 		switch err := err.(type) {
 		case ast.Errors:
@@ -1740,9 +1737,6 @@ func (s *Server) v1QueryPost(w http.ResponseWriter, r *http.Request) {
 			writer.ErrorAuto(w, err)
 			return
 		}
-	} else if len(unsafeBuiltins) > 0 {
-		writer.Error(w, http.StatusBadRequest, types.NewErrorV1(types.CodeInvalidParameter, "unsafe built-in function calls in query: %v", strings.Join(unsafeBuiltins, ",")))
-		return
 	}
 
 	watch := getWatch(r.URL.Query()[types.ParamWatchV1])
@@ -2044,7 +2038,7 @@ func (s *Server) makeRego(ctx context.Context, partial bool, txn storage.Transac
 		return pr.Rego(opts...), nil
 	}
 
-	opts = append(opts, rego.Transaction(txn), rego.Query(path), rego.ParsedInput(input), rego.Metrics(m), rego.Tracer(tracer), rego.Instrument(instrument), rego.Runtime(s.runtime))
+	opts = append(opts, rego.Transaction(txn), rego.Query(path), rego.ParsedInput(input), rego.Metrics(m), rego.Tracer(tracer), rego.Instrument(instrument), rego.Runtime(s.runtime), rego.UnsafeBuiltins(unsafeBuiltinsMap))
 	return rego.New(opts...), nil
 }
 
@@ -2162,30 +2156,14 @@ func stringPathToRef(s string) (r ast.Ref) {
 	return r
 }
 
-func validateQuery(query string) ([]string, ast.Body, error) {
+func validateQuery(query string) (ast.Body, error) {
 
 	var body ast.Body
 	body, err := ast.ParseBody(query)
 	if err != nil {
-		return []string{}, nil, err
+		return nil, err
 	}
-
-	unsafeOperators, nil := validateParsedQuery(body)
-	return unsafeOperators, body, nil
-}
-
-func validateParsedQuery(body ast.Body) ([]string, error) {
-	unsafeOperators := []string{}
-	ast.WalkExprs(body, func(x *ast.Expr) bool {
-		if x.IsCall() {
-			operator := x.Operator().String()
-			if _, ok := unsafeBuiltinsMap[operator]; ok {
-				unsafeOperators = append(unsafeOperators, operator)
-			}
-		}
-		return false
-	})
-	return unsafeOperators, nil
+	return body, nil
 }
 
 func getBoolParam(url *url.URL, name string, ifEmpty bool) bool {

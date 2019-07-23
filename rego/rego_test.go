@@ -822,3 +822,26 @@ func TestModulePassing(t *testing.T) {
 		t.Fatalf("Expected %v but got %v", exp, rs[0].Expressions[0].Value)
 	}
 }
+
+func TestUnsafeBuiltins(t *testing.T) {
+	r1 := New(
+		Query(`count([1, 2, 3])`),
+		UnsafeBuiltins(map[string]struct{}{"count": struct{}{}}),
+	)
+	if _, err := r1.Eval(context.Background()); err == nil {
+		t.Fatal("Expected error for unsafe built-in")
+	}
+
+	r2 := New(
+		Query(`data.pkg.deny`),
+		Module("pkg.rego", `package pkg
+        deny {
+            count(input.requests) > 10
+        }
+        `),
+		UnsafeBuiltins(map[string]struct{}{"count": struct{}{}}),
+	)
+	if _, err := r2.Eval(context.Background()); err == nil {
+		t.Fatal("Expected error for unsafe built-in")
+	}
+}

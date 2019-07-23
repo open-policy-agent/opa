@@ -3051,3 +3051,31 @@ func runQueryCompilerTest(t *testing.T, note, q, pkg string, imports []string, e
 		}
 	})
 }
+
+func TestCompilerWithUnsafeBuiltins(t *testing.T) {
+	// Rego includes a number of built-in functions. In some cases, you may not
+	// want all builtins to be available to a program. This test shows how to
+	// mark a built-in as unsafe.
+	compiler := NewCompiler().WithUnsafeBuiltins(map[string]struct{}{"re_match": struct{}{}})
+
+	// This query should not compile because the `re_match` built-in is no
+	// longer available.
+	_, err := compiler.QueryCompiler().Compile(MustParseBody(`re_match("a", "a")`))
+	if err == nil {
+		t.Fatalf("Expected error for unsafe built-in")
+	} else if !strings.Contains(err.Error(), "unsafe built-in function") {
+		t.Fatalf("Expected error for unsafe built-in but got %v", err)
+	}
+
+	// These modules should not compile for the same reason.
+	modules := map[string]*Module{"mod1": MustParseModule(`package a.b.c
+deny {
+    re_match(input.user, ".*bob.*")
+}`)}
+	compiler.Compile(modules)
+	if !compiler.Failed() {
+		t.Fatalf("Expected error for unsafe built-in")
+	} else if !strings.Contains(compiler.Errors[0].Error(), "unsafe built-in function") {
+		t.Fatalf("Expected error for unsafe built-in but got %v", err)
+	}
+}

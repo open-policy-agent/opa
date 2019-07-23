@@ -91,6 +91,10 @@ type Compiler struct {
 	pathExists func([]string) (bool, error)
 	after      map[string][]CompilerStageDefinition
 	metrics    metrics.Metrics
+
+	// This is a set of unsafe built-in functions that we are not allowed to
+	// use.
+	unsafeBuiltinsMap map[string]struct{}
 }
 
 // CompilerStage defines the interface for stages in the compiler.
@@ -200,8 +204,9 @@ func NewCompiler() *Compiler {
 		}, func(x util.T) int {
 			return x.(Ref).Hash()
 		}),
-		maxErrs: CompileErrorLimitDefault,
-		after:   map[string][]CompilerStageDefinition{},
+		maxErrs:           CompileErrorLimitDefault,
+		after:             map[string][]CompilerStageDefinition{},
+		unsafeBuiltinsMap: map[string]struct{}{},
 	}
 
 	c.ModuleTree = NewModuleTree(nil)
@@ -240,6 +245,7 @@ func NewCompiler() *Compiler {
 		{"RewriteDynamicTerms", "compile_stage_rewrite_dynamic_terms", c.rewriteDynamicTerms},
 		{"CheckRecursion", "compile_stage_check_recursion", c.checkRecursion},
 		{"CheckTypes", "compile_stage_check_types", c.checkTypes},
+		{"CheckUnsafeBuiltins", "compile_state_check_unsafe_builtins", c.checkUnsafeBuiltins},
 		{"BuildRuleIndices", "compile_stage_rebuild_indices", c.buildRuleIndices},
 	}
 
@@ -272,6 +278,14 @@ func (c *Compiler) WithStageAfter(after string, stage CompilerStageDefinition) *
 // the Compiler instance.
 func (c *Compiler) WithMetrics(metrics metrics.Metrics) *Compiler {
 	c.metrics = metrics
+	return c
+}
+
+// WithUnsafeBuiltins will add all built-ins in the map to the "blacklist".
+func (c *Compiler) WithUnsafeBuiltins(unsafeBuiltins map[string]struct{}) *Compiler {
+	for name := range unsafeBuiltins {
+		c.unsafeBuiltinsMap[name] = struct{}{}
+	}
 	return c
 }
 
@@ -658,6 +672,15 @@ func (c *Compiler) checkTypes() {
 		c.err(err)
 	}
 	c.TypeEnv = env
+}
+
+func (c *Compiler) checkUnsafeBuiltins() {
+	for _, name := range c.sorted {
+		errs := checkUnsafeBuiltins(c.unsafeBuiltinsMap, c.Modules[name])
+		for _, err := range errs {
+			c.err(err)
+		}
+	}
 }
 
 func (c *Compiler) runStage(metricName string, f func()) {
@@ -1072,6 +1095,7 @@ func (qc *queryCompiler) Compile(query Body) (Body, error) {
 		{"CheckSafety", "query_compile_stage_check_safety", qc.checkSafety},
 		{"RewriteDynamicTerms", "query_compile_stage_rewrite_dynamic_terms", qc.rewriteDynamicTerms},
 		{"CheckTypes", "query_compile_stage_check_types", qc.checkTypes},
+		{"CheckUnsafeBuiltins", "query_compile_stage_check_unsafe_builtins", qc.checkUnsafeBuiltins},
 	}
 
 	qctx := qc.qctx.Copy()
@@ -1178,6 +1202,14 @@ func (qc *queryCompiler) checkTypes(qctx *QueryContext, body Body) (Body, error)
 	var errs Errors
 	checker := newTypeChecker()
 	qc.typeEnv, errs = checker.CheckBody(qc.compiler.TypeEnv, body)
+	if len(errs) > 0 {
+		return nil, errs
+	}
+	return body, nil
+}
+
+func (qc *queryCompiler) checkUnsafeBuiltins(qctx *QueryContext, body Body) (Body, error) {
+	errs := checkUnsafeBuiltins(qc.compiler.unsafeBuiltinsMap, body)
 	if len(errs) > 0 {
 		return nil, errs
 	}
@@ -3040,4 +3072,18 @@ func safetyErrorSlice(unsafe unsafeVars) (result Errors) {
 	}
 
 	return
+}
+
+func checkUnsafeBuiltins(unsafeBuiltinsMap map[string]struct{}, node interface{}) Errors {
+	errs := make(Errors, 0)
+	WalkExprs(node, func(x *Expr) bool {
+		if x.IsCall() {
+			operator := x.Operator().String()
+			if _, ok := unsafeBuiltinsMap[operator]; ok {
+				errs = append(errs, NewError(TypeErr, x.Loc(), "unsafe built-in function calls in expression: %v", operator))
+			}
+		}
+		return false
+	})
+	return errs
 }

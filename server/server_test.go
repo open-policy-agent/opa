@@ -434,7 +434,18 @@ func TestCompileV1UnsafeBuiltin(t *testing.T) {
 	query := `{"query": "http.send({\"method\": \"get\", \"url\": \"foo.com\"}, x)"}`
 	expResp := `{
   "code": "invalid_parameter",
-  "message": "unsafe built-in function calls in query: http.send"
+  "message": "error(s) occurred while compiling module(s)",
+  "errors": [
+    {
+      "code": "rego_type_error",
+      "message": "unsafe built-in function calls in expression: http.send",
+      "location": {
+        "file": "",
+        "row": 1,
+        "col": 1
+      }
+    }
+  ]
 }`
 
 	if err := f.v1(http.MethodPost, `/compile`, query, 400, expResp); err != nil {
@@ -2893,7 +2904,18 @@ func TestQueryV1UnsafeBuiltin(t *testing.T) {
 
 	expected := `{
   "code": "invalid_parameter",
-  "message": "unsafe built-in function calls in query: http.send"
+  "message": "error(s) occurred while compiling query",
+  "errors": [
+    {
+      "code": "rego_type_error",
+      "message": "unsafe built-in function calls in expression: http.send",
+      "location": {
+        "file": "",
+        "row": 1,
+        "col": 1
+      }
+    }
+  ]
 }`
 
 	if err := f.v1(http.MethodGet, query, "", 400, expected); err != nil {
