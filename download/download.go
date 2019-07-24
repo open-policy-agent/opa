@@ -12,11 +12,12 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
+
 	"github.com/open-policy-agent/opa/bundle"
 	"github.com/open-policy-agent/opa/plugins/rest"
 	"github.com/open-policy-agent/opa/util"
-	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 const (

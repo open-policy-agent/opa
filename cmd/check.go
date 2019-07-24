@@ -9,10 +9,11 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/spf13/cobra"
+
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/loader"
 	"github.com/open-policy-agent/opa/util"
-	"github.com/spf13/cobra"
 )
 
 var checkParams = struct {

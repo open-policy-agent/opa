@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/olekukonko/tablewriter"
+
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/cover"
 	"github.com/open-policy-agent/opa/format"

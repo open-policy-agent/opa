@@ -7,8 +7,9 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/open-policy-agent/opa/version"
 	"github.com/spf13/cobra"
+
+	"github.com/open-policy-agent/opa/version"
 )
 
 func init() {

@@ -12,8 +12,9 @@ import (
 	"github.com/open-policy-agent/opa/loader"
 	"github.com/open-policy-agent/opa/storage/inmem"
 
-	"github.com/open-policy-agent/opa/rego"
 	"github.com/spf13/cobra"
+
+	"github.com/open-policy-agent/opa/rego"
 )
 
 var buildParams = struct {

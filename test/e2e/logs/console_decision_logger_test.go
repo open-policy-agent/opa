@@ -13,8 +13,9 @@ import (
 
 	"github.com/sirupsen/logrus"
 
-	"github.com/open-policy-agent/opa/test/e2e"
 	"github.com/sirupsen/logrus/hooks/test"
+
+	"github.com/open-policy-agent/opa/test/e2e"
 )
 
 var testRuntime *e2e.TestRuntime

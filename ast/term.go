@@ -15,8 +15,9 @@ import (
 	"strings"
 
 	"github.com/OneOfOne/xxhash"
-	"github.com/open-policy-agent/opa/util"
 	"github.com/pkg/errors"
+
+	"github.com/open-policy-agent/opa/util"
 )
 
 // Location records a position in source code

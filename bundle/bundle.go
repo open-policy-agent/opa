@@ -16,9 +16,10 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/pkg/errors"
+
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/util"
-	"github.com/pkg/errors"
 )
 
 // Common file extensions and file names.

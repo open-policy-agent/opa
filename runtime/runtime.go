@@ -18,6 +18,10 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
+	fsnotify "gopkg.in/fsnotify.v1"
+
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/internal/runtime"
 	storedversion "github.com/open-policy-agent/opa/internal/version"
@@ -30,9 +34,6 @@ import (
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/storage/inmem"
 	"github.com/open-policy-agent/opa/version"
-	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
-	fsnotify "gopkg.in/fsnotify.v1"
 )
 
 var (

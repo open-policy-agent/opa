@@ -5,9 +5,10 @@
 package cmd
 
 import (
+	"github.com/spf13/pflag"
+
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/util"
-	"github.com/spf13/pflag"
 )
 
 func setMaxErrors(fs *pflag.FlagSet, errLimit *int) {

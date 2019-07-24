@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/ghodss/yaml"
+
 	"github.com/open-policy-agent/opa/internal/strvals"
 )
 

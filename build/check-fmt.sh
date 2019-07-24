@@ -8,7 +8,7 @@ function opa::check_fmt() {
     exit_code=0
     for pkg in $(opa::go_packages); do
         for file in $(opa::go_files_in_package $pkg); do
-            __diff=$(gofmt -d $file | tee >(cat - >&5))
+            __diff=$(goimports -local github.com/open-policy-agent/opa -format-only -d $file | tee >(cat - >&5))
             if [ ! -z "$__diff" ]; then
                 exit_code=1
             fi

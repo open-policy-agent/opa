@@ -16,6 +16,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/peterh/liner"
+
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/format"
 	pr "github.com/open-policy-agent/opa/internal/presentation"
@@ -25,7 +27,6 @@ import (
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/topdown"
 	"github.com/open-policy-agent/opa/topdown/lineage"
-	"github.com/peterh/liner"
 )
 
 // REPL represents an instance of the interactive shell.
