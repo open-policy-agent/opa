@@ -904,6 +904,14 @@ func TestEvalConstantRuleAssignment(t *testing.T) {
 	repl.OneShot(ctx, "x := 2")
 	assertREPLText(t, buffer, redefined)
 	buffer.Reset()
+
+	repl.OneShot(ctx, "show")
+	assertREPLText(t, buffer, `package repl
+
+x := 2
+`)
+	buffer.Reset()
+
 	repl.OneShot(ctx, "x := 3")
 	assertREPLText(t, buffer, redefined)
 	buffer.Reset()
