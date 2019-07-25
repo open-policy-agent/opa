@@ -610,10 +610,13 @@ func (r *REPL) compileBody(ctx context.Context, compiler *ast.Compiler, body ast
 	return body, qc.TypeEnv(), err
 }
 
-func (r *REPL) compileRule(ctx context.Context, rule *ast.Rule, unset bool) error {
+func (r *REPL) compileRule(ctx context.Context, rule *ast.Rule) error {
 
-	if unset {
-		_, err := r.unsetRule(ctx, rule.Head.Name)
+	var unset bool
+
+	if rule.Head.Assign {
+		var err error
+		unset, err = r.unsetRule(ctx, rule.Head.Name)
 		if err != nil {
 			return err
 		}
@@ -810,7 +813,7 @@ func (r *REPL) evalStatement(ctx context.Context, stmt interface{}) error {
 
 		return err
 	case *ast.Rule:
-		return r.compileRule(ctx, stmt, false)
+		return r.compileRule(ctx, stmt)
 	case *ast.Import:
 		return r.evalImport(ctx, stmt)
 	case *ast.Package:
@@ -991,9 +994,9 @@ func (r *REPL) interpretAsRule(ctx context.Context, compiler *ast.Compiler, body
 	}
 
 	if expr.IsAssignment() {
-		rule, err := ast.ParseCompleteDocRuleFromEqExpr(r.getCurrentOrDefaultModule(), expr.Operand(0), expr.Operand(1))
+		rule, err := ast.ParseCompleteDocRuleFromAssignmentExpr(r.getCurrentOrDefaultModule(), expr.Operand(0), expr.Operand(1))
 		if err == nil {
-			if err := r.compileRule(ctx, rule, expr.IsAssignment()); err != nil {
+			if err := r.compileRule(ctx, rule); err != nil {
 				return false, err
 			}
 		}
@@ -1010,7 +1013,7 @@ func (r *REPL) interpretAsRule(ctx context.Context, compiler *ast.Compiler, body
 
 	rule, err := ast.ParseCompleteDocRuleFromEqExpr(r.getCurrentOrDefaultModule(), expr.Operand(0), expr.Operand(1))
 	if err == nil {
-		if err := r.compileRule(ctx, rule, expr.IsAssignment()); err != nil {
+		if err := r.compileRule(ctx, rule); err != nil {
 			return false, err
 		}
 	}
