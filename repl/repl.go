@@ -1179,18 +1179,23 @@ func dumpStorage(ctx context.Context, store storage.Store, txn storage.Transacti
 
 func isGlobalInModule(compiler *ast.Compiler, module *ast.Module, term *ast.Term) bool {
 
-	v, ok := term.Value.(ast.Var)
-	if !ok {
+	var name ast.Var
+
+	if ast.RootDocumentRefs.Contains(term) {
+		name = term.Value.(ast.Ref)[0].Value.(ast.Var)
+	} else if v, ok := term.Value.(ast.Var); ok {
+		name = v
+	} else {
 		return false
 	}
 
 	for _, imp := range module.Imports {
-		if imp.Name().Compare(v) == 0 {
+		if imp.Name().Compare(name) == 0 {
 			return true
 		}
 	}
 
-	path := module.Package.Path.Copy().Append(ast.StringTerm(string(v)))
+	path := module.Package.Path.Copy().Append(ast.StringTerm(string(name)))
 	node := compiler.RuleTree
 
 	for _, elem := range path {
