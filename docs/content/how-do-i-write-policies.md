@@ -160,7 +160,6 @@ s {
     y := 41
     x := 42
     x > y
-
 }
 ```
 
@@ -885,6 +884,20 @@ undefined
 ```
 
 In some cases, having an undefined result for a document is not desirable. In those cases, policies can use the [Default Keyword](#default-keyword) to provide a fallback value.
+
+Like variables declared in rules, there can be at most one complete definition
+name declared with the `:=` operator per package. The compiler checks for
+redeclaration of complete definitions with the `:=` operator:
+
+```
+package example
+
+pi := 3.14
+
+# some other rules...
+
+pi := 3.14156   # Redeclaration error because 'pi' already declared above.
+```
 
 ### Functions
 
