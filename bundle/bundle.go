@@ -16,7 +16,10 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/open-policy-agent/opa/internal/file/archive"
+
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/internal/file"
 	"github.com/open-policy-agent/opa/util"
 	"github.com/pkg/errors"
 )
@@ -24,7 +27,6 @@ import (
 // Common file extensions and file names.
 const (
 	RegoExt      = ".rego"
-	jsonExt      = ".json"
 	manifestExt  = ".manifest"
 	dataFile     = "data.json"
 	yamlDataFile = "data.yaml"
@@ -119,14 +121,22 @@ type ModuleFile struct {
 
 // Reader contains the reader to load the bundle from.
 type Reader struct {
-	r                     io.Reader
+	loader                file.DirectoryLoader
 	includeManifestInData bool
 }
 
 // NewReader returns a new Reader.
+// Deprecated: Use NewCustomReader with TarballLoader instead
 func NewReader(r io.Reader) *Reader {
-	nr := Reader{}
-	nr.r = r
+	return NewCustomReader(file.NewTarballLoader(r))
+}
+
+// NewCustomReader returns a new Reader configured to use the
+// specified DirectoryLoader.
+func NewCustomReader(loader file.DirectoryLoader) *Reader {
+	nr := Reader{
+		loader: loader,
+	}
 	return &nr
 }
 
@@ -144,34 +154,25 @@ func (r *Reader) Read() (Bundle, error) {
 
 	bundle.Data = map[string]interface{}{}
 
-	gr, err := gzip.NewReader(r.r)
-	if err != nil {
-		return bundle, errors.Wrap(err, "bundle read failed")
-	}
-
-	tr := tar.NewReader(gr)
-
 	for {
-		header, err := tr.Next()
+		f, err := r.loader.NextFile()
 		if err == io.EOF {
 			break
-		} else if err != nil {
+		}
+		if err != nil {
 			return bundle, errors.Wrap(err, "bundle read failed")
 		}
 
-		if header.Typeflag != tar.TypeReg {
-			continue
-		}
-
 		var buf bytes.Buffer
-		n, err := io.CopyN(&buf, tr, bundleLimitBytes)
+		n, err := f.Read(&buf, bundleLimitBytes)
+		f.Close() // always close, even on error
 		if err != nil && err != io.EOF {
 			return bundle, err
 		} else if err == nil && n >= bundleLimitBytes {
 			return bundle, fmt.Errorf("bundle exceeded max size (%v bytes)", bundleLimitBytes-1)
 		}
 
-		path := header.Name
+		path := f.Path()
 
 		if strings.HasSuffix(path, RegoExt) {
 			module, err := ast.ParseModule(path, buf.String())
@@ -182,12 +183,12 @@ func (r *Reader) Read() (Bundle, error) {
 				return bundle, errors.Wrap(fmt.Errorf("module '%s' is empty", path), "bundle load failed")
 			}
 
-			file := ModuleFile{
+			mf := ModuleFile{
 				Path:   path,
 				Raw:    buf.Bytes(),
 				Parsed: module,
 			}
-			bundle.Modules = append(bundle.Modules, file)
+			bundle.Modules = append(bundle.Modules, mf)
 
 		} else if filepath.Base(path) == dataFile {
 			var value interface{}
@@ -255,12 +256,12 @@ func Write(w io.Writer, bundle Bundle) error {
 		return err
 	}
 
-	if err := writeFile(tw, "data.json", buf.Bytes()); err != nil {
+	if err := archive.WriteFile(tw, "data.json", buf.Bytes()); err != nil {
 		return err
 	}
 
 	for _, module := range bundle.Modules {
-		if err := writeFile(tw, module.Path, module.Raw); err != nil {
+		if err := archive.WriteFile(tw, module.Path, module.Raw); err != nil {
 			return err
 		}
 	}
@@ -284,7 +285,7 @@ func writeManifest(tw *tar.Writer, bundle Bundle) error {
 		return err
 	}
 
-	return writeFile(tw, manifestExt, buf.Bytes())
+	return archive.WriteFile(tw, manifestExt, buf.Bytes())
 }
 
 // Equal returns true if this bundle's contents equal the other bundle's
@@ -381,23 +382,6 @@ func insertValue(b *Bundle, path string, value interface{}) error {
 	}
 
 	return nil
-}
-
-func writeFile(tw *tar.Writer, path string, bs []byte) error {
-
-	hdr := &tar.Header{
-		Name:     "/" + strings.TrimLeft(path, "/"),
-		Mode:     0600,
-		Typeflag: tar.TypeReg,
-		Size:     int64(len(bs)),
-	}
-
-	if err := tw.WriteHeader(hdr); err != nil {
-		return err
-	}
-
-	_, err := tw.Write(bs)
-	return err
 }
 
 func dfs(value interface{}, path string, fn func(string, interface{}) (bool, error)) error {

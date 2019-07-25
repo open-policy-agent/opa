@@ -5,12 +5,13 @@
 package bundle
 
 import (
-	"archive/tar"
 	"bytes"
 	"compress/gzip"
 	"encoding/json"
 	"strings"
 	"testing"
+
+	"github.com/open-policy-agent/opa/internal/file/archive"
 
 	"github.com/open-policy-agent/opa/ast"
 )
@@ -24,7 +25,7 @@ func TestRead(t *testing.T) {
 		{"/example/example.rego", `package example`},
 	}
 
-	buf := writeTarGz(files)
+	buf := archive.MustWriteTarGz(files)
 	bundle, err := NewReader(buf).Read()
 	if err != nil {
 		t.Fatal(err)
@@ -62,7 +63,7 @@ func TestReadWithManifest(t *testing.T) {
 	files := [][2]string{
 		{"/.manifest", `{"revision": "quickbrownfaux"}`},
 	}
-	buf := writeTarGz(files)
+	buf := archive.MustWriteTarGz(files)
 	bundle, err := NewReader(buf).Read()
 	if err != nil {
 		t.Fatal(err)
@@ -76,7 +77,7 @@ func TestReadWithManifestInData(t *testing.T) {
 	files := [][2]string{
 		{"/.manifest", `{"revision": "quickbrownfaux"}`},
 	}
-	buf := writeTarGz(files)
+	buf := archive.MustWriteTarGz(files)
 	bundle, err := NewReader(buf).IncludeManifestInData(true).Read()
 	if err != nil {
 		t.Fatal(err)
@@ -168,7 +169,7 @@ func TestReadRootValidation(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.note, func(t *testing.T) {
-			buf := writeTarGz(tc.files)
+			buf := archive.MustWriteTarGz(tc.files)
 			_, err := NewReader(buf).IncludeManifestInData(true).Read()
 			if tc.err == "" && err != nil {
 				t.Fatal("Unexpected error occurred:", err)
@@ -217,7 +218,7 @@ func TestReadErrorBadContents(t *testing.T) {
 		{[][2]string{{"/test.rego", ""}}},
 	}
 	for _, test := range tests {
-		buf := writeTarGz(test.files)
+		buf := archive.MustWriteTarGz(test.files)
 		_, err := NewReader(buf).Read()
 		if err == nil {
 			t.Fatal("expected error")
@@ -263,20 +264,6 @@ func TestRoundtrip(t *testing.T) {
 		t.Fatal("Exp:", bundle, "\n\nGot:", bundle2)
 	}
 
-}
-
-func writeTarGz(files [][2]string) *bytes.Buffer {
-	var buf bytes.Buffer
-	gw := gzip.NewWriter(&buf)
-	defer gw.Close()
-	tw := tar.NewWriter(gw)
-	defer tw.Close()
-	for _, file := range files {
-		if err := writeFile(tw, file[0], []byte(file[1])); err != nil {
-			panic(err)
-		}
-	}
-	return &buf
 }
 
 func TestRootPathsOverlap(t *testing.T) {
