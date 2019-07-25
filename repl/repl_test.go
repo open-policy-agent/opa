@@ -887,6 +887,20 @@ func TestEvalConstantRule(t *testing.T) {
 	}
 }
 
+func TestEvalConstantRuleDefaultRootDoc(t *testing.T) {
+	ctx := context.Background()
+	store := newTestStore()
+	var buffer bytes.Buffer
+	repl := newRepl(store, &buffer)
+	repl.OneShot(ctx, "input = 1")
+	buffer.Reset()
+	repl.OneShot(ctx, "input = 2")
+	assertREPLText(t, buffer, "undefined\n")
+	buffer.Reset()
+	repl.OneShot(ctx, "input = 1")
+	assertREPLText(t, buffer, "true\n")
+}
+
 func TestEvalConstantRuleAssignment(t *testing.T) {
 	ctx := context.Background()
 	store := newTestStore()
