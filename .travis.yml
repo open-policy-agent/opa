@@ -3,6 +3,9 @@ language: go
 go_import_path: github.com/open-policy-agent/opa
 go:
 - "1.11"
+install:
+  # AWS CLI is required for pushing the edge binaries to S3.
+  - pip install --user awscli
 env:
   global:
   - secure: "STFHbK4N70sU+mekByuMx6uQTcAhD7sy+PEJUILlTnL2O56OlCuyjFt8nQ28LCEhLd1HJ+SQff7Uuv4jBkYLfhrR3ptQ5l5AdRpPBQ9PcH839DloAdOB/V7Rkfe15QlUaphvNe6lcsMt+i0TnfEJ0adh784h5B8jA9KiXE7LDfbxKBj8KewfRRlHnyH/H0Qy8Wk4afVNqTUbFucbSm82IneykzHEhIMOsY1/CqbMndUFmrs/TmRY0+K2YVw7sAMobrXWgCuYJo3e5xDGqi3zm2i8/AQHpbx0dYjTJWTnv7inujvCABLCsI1hKqMarOQr4COHk6wBOXMClLOSl7JmmFm5vmQIZyWBRJHZBbbloQGWMDjw/BniV3K9W33tfq3s90cI0MqtjSSwdY/l6tBMMxtIyUTDtOqF576OFghYdvA39MShzI1KC0qh2a9x6Bk15ATRMdTRCXPM6ZIZaIlmuP4Z1ETuQ3MUIpiQpJxKfeZ3UHwxMoSP9R8LzR2qFT+AauW8E+0nVf+mOYEDgenuAvX5b+rEAN1E8ef9HTHzhW8tjSZxLU1P5jaWAFZUw3/T0E0/XdieJOyTzwR/7ZHivceODz/x7GWg9HiwFPxt4PvYTw5QjPqkruq7YMP0B7aX7gF+30nEG8ljJT6egGJ1scLDv7pc/J28O8GAwo2YgeE="
