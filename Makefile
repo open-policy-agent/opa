@@ -100,12 +100,16 @@ push-latest:
 	docker push $(IMAGE):latest-debug
 	docker push $(IMAGE):latest-rootless
 
+.PHONY: push-binary-edge
+push-binary-edge:
+	aws s3 cp opa_linux_amd64 s3://opa-releases/edge/opa_linux_amd64
+
 .PHONY: docker-login
 docker-login:
 	@docker login -u ${DOCKER_USER} -p ${DOCKER_PASSWORD}
 
 .PHONY: deploy-travis
-deploy-travis: docker-login image-quick push
+deploy-travis: docker-login image-quick push push-binary-edge
 
 .PHONY: release-travis
 release-travis: deploy-travis tag-latest push-latest
