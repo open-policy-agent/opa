@@ -60,10 +60,6 @@ type Params struct {
 	// Addrs are the listening addresses that the OPA server will bind to.
 	Addrs *[]string
 
-	// InsecureAddr is the listening address that the OPA server will bind to
-	// in addition to Addr if TLS is enabled.
-	InsecureAddr string
-
 	// Authentication is the type of authentication scheme to use.
 	Authentication server.AuthenticationScheme
 
@@ -253,8 +249,7 @@ func (rt *Runtime) Serve(ctx context.Context) error {
 	setupLogging(rt.Params.Logging)
 
 	logrus.WithFields(logrus.Fields{
-		"addrs":         *rt.Params.Addrs,
-		"insecure_addr": rt.Params.InsecureAddr,
+		"addrs": *rt.Params.Addrs,
 	}).Info("Initializing server.")
 
 	if err := rt.Manager.Start(ctx); err != nil {
@@ -271,7 +266,6 @@ func (rt *Runtime) Serve(ctx context.Context) error {
 		WithCompilerErrorLimit(rt.Params.ErrorLimit).
 		WithPprofEnabled(rt.Params.PprofEnabled).
 		WithAddresses(*rt.Params.Addrs).
-		WithInsecureAddress(rt.Params.InsecureAddr).
 		WithCertificate(rt.Params.Certificate).
 		WithCertPool(rt.Params.CertPool).
 		WithAuthentication(rt.Params.Authentication).
