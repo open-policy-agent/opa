@@ -20,7 +20,6 @@ func TestMain(m *testing.M) {
 	testServerParams := e2e.NewAPIServerTestParams()
 	testServerParams.Addrs = &[]string{":0"}
 	testServerParams.DiagnosticAddrs = &[]string{":0"}
-	testServerParams.InsecureAddr = ":0"
 	testServerParams.H2CEnabled = true
 
 	var err error
@@ -45,7 +44,7 @@ func TestH2CHTTPListeners(t *testing.T) {
 
 	addrs := append(testRuntime.Runtime.Addrs(), testRuntime.Runtime.DiagnosticAddrs()...)
 
-	if expected, actual := 3, len(addrs); expected != actual {
+	if expected, actual := 2, len(addrs); expected != actual {
 		t.Fatalf("expected %d addresses, found %d", expected, actual)
 	}
 
