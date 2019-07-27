@@ -32,6 +32,7 @@ import (
 type transaction struct {
 	xid      uint64
 	write    bool
+	stale    bool
 	db       *store
 	updates  *list.List
 	policies map[string]policyUpdate

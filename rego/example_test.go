@@ -338,16 +338,14 @@ func ExampleRego_Eval_transactions() {
 	// Run evaluation AFTER the transaction commits.
 	rs, err = outside.Eval(ctx)
 	if err != nil {
-		// Handle error.
+		fmt.Println("error (after txn):", err)
 	}
-
-	fmt.Println("value (after txn):", rs[0].Expressions[0].Value)
 
 	// Output:
 	//
 	// value (inside txn): pepperoni
 	// value (outside txn): cheese
-	// value (after txn): pepperoni
+	// error (after txn): storage_invalid_txn_error: stale transaction
 }
 
 func ExampleRego_Eval_errors() {
