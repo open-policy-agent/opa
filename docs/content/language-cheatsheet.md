@@ -236,6 +236,26 @@ f(x) = "B" { x >= 80; x < 90 }
 f(x) = "C" { x >= 70; x < 80 }
 ```
 
+## Patterns
+
+#### Merge Objects
+
+```ruby
+merge_objects({"a": true, "b": false}, {"b": "foo", "c": 4})
+```
+
+```ruby
+has_key(x, k) { _ = x[k] }
+
+pick_first(k, a, b) = a[k]
+pick_first(k, a, b) = b[k] { not has_key(a, k) }
+
+merge_objects(a, b) = c {
+    ks := {k | some k; _ = a[k]} | {k | some k; _ = b[k]}
+    c := {k: v | some k; ks[k]; v := pick_first(k, b, a)}
+}
+```
+
 ## Tests
 
 ```ruby
