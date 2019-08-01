@@ -185,6 +185,20 @@ spec:
             - readOnly: true
               mountPath: /certs
               name: opa-server
+          readinessProbe:
+            httpGet:
+              path: /health
+              scheme: HTTPS
+              port: 443
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /health
+              scheme: HTTPS
+              port: 443
+            initialDelaySeconds: 3
+            periodSeconds: 5
         - name: kube-mgmt
           image: openpolicyagent/kube-mgmt:0.8
           args:
