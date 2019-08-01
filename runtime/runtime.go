@@ -111,6 +111,7 @@ type Params struct {
 	DecisionIDFactory func() string
 
 	// DiagnosticsBuffer is used by the server to record policy decisions.
+	// DEPRECATED. Use decision logging instead.
 	DiagnosticsBuffer server.Buffer
 
 	// Logging configures the logging behaviour.
@@ -276,7 +277,6 @@ func (rt *Runtime) Serve(ctx context.Context) error {
 		WithCertPool(rt.Params.CertPool).
 		WithAuthentication(rt.Params.Authentication).
 		WithAuthorization(rt.Params.Authorization).
-		WithDiagnosticsBuffer(rt.Params.DiagnosticsBuffer).
 		WithDecisionIDFactory(rt.decisionIDFactory).
 		WithDecisionLoggerWithErr(rt.decisionLogger).
 		WithRuntime(rt.info).
@@ -368,10 +368,16 @@ func (rt *Runtime) decisionIDFactory() string {
 }
 
 func (rt *Runtime) decisionLogger(ctx context.Context, event *server.Info) error {
+
+	if rt.Params.DiagnosticsBuffer != nil {
+		rt.Params.DiagnosticsBuffer.Push(event)
+	}
+
 	plugin := logs.Lookup(rt.Manager)
 	if plugin == nil {
 		return nil
 	}
+
 	return plugin.Log(ctx, event)
 }
 
@@ -493,16 +499,7 @@ func compileAndStoreInputs(ctx context.Context, store storage.Store, txn storage
 		}
 	}
 
-	warnDiagnosticPolicyDeprecated(c)
-
 	return nil
-}
-
-func warnDiagnosticPolicyDeprecated(c *ast.Compiler) {
-	rules := c.GetRules(ast.MustParseRef("data.system.diagnostics"))
-	if len(rules) > 0 {
-		logrus.Warn("The diagnostics feature has been deprecated and will be removed. Use the Decision Logging feature. See https://www.openpolicyagent.org/docs/decision_logs.html for information.")
-	}
 }
 
 func getWatcher(rootPaths []string) (*fsnotify.Watcher, error) {

@@ -12,7 +12,6 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"fmt"
-	"github.com/open-policy-agent/opa/bundle"
 	"html/template"
 	"io"
 	"io/ioutil"
@@ -29,6 +28,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/bundle"
 	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/plugins"
 	bundlePlugin "github.com/open-policy-agent/opa/plugins/bundle"
@@ -101,9 +101,9 @@ type Server struct {
 	manager           *plugins.Manager
 	watcher           *watch.Watcher
 	decisionIDFactory func() string
-	diagnostics       Buffer
 	revisions         map[string]string
 	legacyRevision    string
+	buffer            Buffer
 	logger            func(context.Context, *Info) error
 	errLimit          int
 	pprofEnabled      bool
@@ -279,12 +279,6 @@ func (s *Server) WithCompilerErrorLimit(limit int) *Server {
 // WithPprofEnabled sets whether pprof endpoints are enabled
 func (s *Server) WithPprofEnabled(pprofEnabled bool) *Server {
 	s.pprofEnabled = pprofEnabled
-	return s
-}
-
-// WithDiagnosticsBuffer sets the diagnostics buffer used by the server. DEPRECATED.
-func (s *Server) WithDiagnosticsBuffer(buf Buffer) *Server {
-	s.diagnostics = buf
 	return s
 }
 
@@ -575,7 +569,6 @@ func (s *Server) initRouter() {
 	}
 	s.registerHandler(router, 0, "/data/{path:.+}", http.MethodPost, instrumentHandler(s.v0DataPost, v0DataDur, v0DataCancellations))
 	s.registerHandler(router, 0, "/data", http.MethodPost, instrumentHandler(s.v0DataPost, v0DataDur, v0DataCancellations))
-	s.registerHandler(router, 1, "/data/system/diagnostics", http.MethodGet, instrumentHandler(s.v1DiagnosticsGet, v1DataDur, v1DataCancellations))
 	s.registerHandler(router, 1, "/data/{path:.+}", http.MethodDelete, instrumentHandler(s.v1DataDelete, v1DataDur, v1DataCancellations))
 	s.registerHandler(router, 1, "/data/{path:.+}", http.MethodPut, instrumentHandler(s.v1DataPut, v1DataDur, v1DataCancellations))
 	s.registerHandler(router, 1, "/data", http.MethodPut, instrumentHandler(s.v1DataPut, v1DataDur, v1DataCancellations))
@@ -622,17 +615,11 @@ func (s *Server) initRouter() {
 
 func (s *Server) execQuery(ctx context.Context, r *http.Request, txn storage.Transaction, decisionID string, parsedQuery ast.Body, input ast.Value, m metrics.Metrics, explainMode types.ExplainModeV1, includeMetrics, includeInstrumentation, pretty bool) (results types.QueryResponseV1, err error) {
 
-	diagLogger := s.evalDiagnosticPolicy(r)
+	logger := s.getDecisionLogger()
 
 	var buf *topdown.BufferTracer
-	if explainMode != types.ExplainOffV1 || diagLogger.Explain() {
+	if explainMode != types.ExplainOffV1 {
 		buf = topdown.NewBufferTracer()
-	}
-
-	var instrument bool
-
-	if includeInstrumentation || diagLogger.Instrument() {
-		instrument = true
 	}
 
 	var rawInput *interface{}
@@ -653,7 +640,7 @@ func (s *Server) execQuery(ctx context.Context, r *http.Request, txn storage.Tra
 		rego.ParsedQuery(parsedQuery),
 		rego.ParsedInput(input),
 		rego.Metrics(m),
-		rego.Instrument(instrument),
+		rego.Instrument(includeInstrumentation),
 		rego.Tracer(buf),
 		rego.Runtime(s.runtime),
 		rego.UnsafeBuiltins(unsafeBuiltinsMap),
@@ -661,7 +648,7 @@ func (s *Server) execQuery(ctx context.Context, r *http.Request, txn storage.Tra
 
 	output, err := rego.Eval(ctx)
 	if err != nil {
-		_ = diagLogger.Log(ctx, txn, decisionID, r.RemoteAddr, "", parsedQuery.String(), rawInput, nil, err, m, buf)
+		_ = logger.Log(ctx, txn, decisionID, r.RemoteAddr, "", parsedQuery.String(), rawInput, nil, err, m)
 		return results, err
 	}
 
@@ -678,7 +665,7 @@ func (s *Server) execQuery(ctx context.Context, r *http.Request, txn storage.Tra
 	}
 
 	var x interface{} = results.Result
-	err = diagLogger.Log(ctx, txn, decisionID, r.RemoteAddr, "", parsedQuery.String(), rawInput, &x, nil, m, buf)
+	err = logger.Log(ctx, txn, decisionID, r.RemoteAddr, "", parsedQuery.String(), rawInput, &x, nil, m)
 	return results, err
 }
 
@@ -795,7 +782,7 @@ func (s *Server) v0QueryPath(w http.ResponseWriter, r *http.Request, path ast.Re
 	decisionID := s.generateDecisionID()
 
 	ctx := r.Context()
-	diagLogger := s.evalDiagnosticPolicy(r)
+	logger := s.getDecisionLogger()
 	input, err := readInputV0(r)
 	if err != nil {
 		writer.ErrorString(w, http.StatusBadRequest, types.CodeInvalidParameter, errors.Wrapf(err, "unexpected parse error for input"))
@@ -821,12 +808,6 @@ func (s *Server) v0QueryPath(w http.ResponseWriter, r *http.Request, path ast.Re
 
 	defer s.store.Abort(ctx, txn)
 
-	var buf *topdown.BufferTracer
-
-	if diagLogger.Explain() {
-		buf = topdown.NewBufferTracer()
-	}
-
 	rego := rego.New(
 		rego.Compiler(s.getCompiler()),
 		rego.Store(s.store),
@@ -834,8 +815,6 @@ func (s *Server) v0QueryPath(w http.ResponseWriter, r *http.Request, path ast.Re
 		rego.ParsedInput(input),
 		rego.Query(path.String()),
 		rego.Metrics(m),
-		rego.Instrument(diagLogger.Instrument()),
-		rego.Tracer(buf),
 		rego.Runtime(s.runtime),
 		rego.UnsafeBuiltins(unsafeBuiltinsMap),
 	)
@@ -846,7 +825,7 @@ func (s *Server) v0QueryPath(w http.ResponseWriter, r *http.Request, path ast.Re
 
 	// Handle results.
 	if err != nil {
-		_ = diagLogger.Log(ctx, txn, decisionID, r.RemoteAddr, path.String(), "", goInput, nil, err, m, buf)
+		_ = logger.Log(ctx, txn, decisionID, r.RemoteAddr, path.String(), "", goInput, nil, err, m)
 		writer.ErrorAuto(w, err)
 		return
 	}
@@ -854,7 +833,7 @@ func (s *Server) v0QueryPath(w http.ResponseWriter, r *http.Request, path ast.Re
 	if len(rs) == 0 {
 		err := types.NewErrorV1(types.CodeUndefinedDocument, fmt.Sprintf("%v: %v", types.MsgUndefinedError, path))
 
-		if logErr := diagLogger.Log(ctx, txn, decisionID, r.RemoteAddr, path.String(), "", goInput, nil, err, m, buf); logErr != nil {
+		if logErr := logger.Log(ctx, txn, decisionID, r.RemoteAddr, path.String(), "", goInput, nil, err, m); logErr != nil {
 			writer.ErrorAuto(w, logErr)
 			return
 		}
@@ -863,47 +842,13 @@ func (s *Server) v0QueryPath(w http.ResponseWriter, r *http.Request, path ast.Re
 		return
 	}
 
-	err = diagLogger.Log(ctx, txn, decisionID, r.RemoteAddr, path.String(), "", goInput, &rs[0].Expressions[0].Value, nil, m, buf)
+	err = logger.Log(ctx, txn, decisionID, r.RemoteAddr, path.String(), "", goInput, &rs[0].Expressions[0].Value, nil, m)
 	if err != nil {
 		writer.ErrorAuto(w, err)
 		return
 	}
 
 	writer.JSON(w, 200, rs[0].Expressions[0].Value, false)
-}
-
-func (s *Server) v1DiagnosticsGet(w http.ResponseWriter, r *http.Request) {
-	pretty := getBoolParam(r.URL, types.ParamPrettyV1, true)
-	if s.diagnostics == nil {
-		writer.ErrorAuto(w, fmt.Errorf(types.MsgDiagnosticsDisabled))
-		return
-	}
-	explainMode := getExplain(r.URL.Query()[types.ParamExplainV1], types.ExplainFullV1)
-	resp := types.DiagnosticsResponseV1{
-		Result: []types.DiagnosticsResponseElementV1{},
-	}
-	s.diagnostics.Iter(func(i *Info) {
-		item := types.DiagnosticsResponseElementV1{
-			Revision:   i.Revision,
-			DecisionID: i.DecisionID,
-			RemoteAddr: i.RemoteAddr,
-			Timestamp:  i.Timestamp.UTC().Format(time.RFC3339Nano),
-			Query:      i.Query,
-			Path:       i.Path,
-			Input:      i.Input,
-			Metrics:    i.Metrics.All(),
-		}
-		if i.Trace != nil {
-			item.Explanation = s.getExplainResponse(explainMode, i.Trace, pretty)
-		}
-		if i.Error != nil {
-			item.Error = types.NewErrorV1(types.CodeInternal, i.Error.Error())
-		} else {
-			item.Result = i.Results
-		}
-		resp.Result = append(resp.Result, item)
-	})
-	writer.JSON(w, 200, resp, pretty)
 }
 
 func (s *Server) updateBundleStatus(status map[string]*bundlePlugin.Status) {
@@ -999,11 +944,6 @@ func (s *Server) v1CompilePost(w http.ResponseWriter, r *http.Request) {
 		buf = topdown.NewBufferTracer()
 	}
 
-	var instrument bool
-	if includeInstrumentation {
-		instrument = true
-	}
-
 	eval := rego.New(
 		rego.Compiler(s.getCompiler()),
 		rego.Store(s.store),
@@ -1012,7 +952,7 @@ func (s *Server) v1CompilePost(w http.ResponseWriter, r *http.Request) {
 		rego.ParsedInput(request.Input),
 		rego.ParsedUnknowns(request.Unknowns),
 		rego.Tracer(buf),
-		rego.Instrument(instrument),
+		rego.Instrument(includeInstrumentation),
 		rego.Metrics(m),
 		rego.Runtime(s.runtime),
 		rego.UnsafeBuiltins(unsafeBuiltinsMap),
@@ -1059,7 +999,7 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	vars := mux.Vars(r)
 	path := stringPathToDataRef(vars["path"])
-	diagLogger := s.evalDiagnosticPolicy(r)
+	logger := s.getDecisionLogger()
 
 	watch := getWatch(r.URL.Query()[types.ParamWatchV1])
 	if watch {
@@ -1111,14 +1051,8 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 
 	var buf *topdown.BufferTracer
 
-	if explainMode != types.ExplainOffV1 || diagLogger.Explain() {
+	if explainMode != types.ExplainOffV1 {
 		buf = topdown.NewBufferTracer()
-	}
-
-	var instrument bool
-
-	if includeInstrumentation || diagLogger.Instrument() {
-		instrument = true
 	}
 
 	rego := rego.New(
@@ -1129,7 +1063,7 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 		rego.Query(path.String()),
 		rego.Metrics(m),
 		rego.Tracer(buf),
-		rego.Instrument(instrument),
+		rego.Instrument(includeInstrumentation),
 		rego.Runtime(s.runtime),
 		rego.UnsafeBuiltins(unsafeBuiltinsMap),
 	)
@@ -1138,7 +1072,7 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 
 	// Handle results.
 	if err != nil {
-		_ = diagLogger.Log(ctx, txn, decisionID, r.RemoteAddr, path.String(), "", goInput, nil, err, m, buf)
+		_ = logger.Log(ctx, txn, decisionID, r.RemoteAddr, path.String(), "", goInput, nil, err, m)
 		writer.ErrorAuto(w, err)
 		return
 	}
@@ -1164,7 +1098,7 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 				writer.ErrorAuto(w, err)
 			}
 		}
-		err = diagLogger.Log(ctx, txn, decisionID, r.RemoteAddr, path.String(), "", goInput, nil, nil, m, buf)
+		err = logger.Log(ctx, txn, decisionID, r.RemoteAddr, path.String(), "", goInput, nil, nil, m)
 		if err != nil {
 			writer.ErrorAuto(w, err)
 			return
@@ -1179,7 +1113,7 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 		result.Explanation = s.getExplainResponse(explainMode, *buf, pretty)
 	}
 
-	err = diagLogger.Log(ctx, txn, decisionID, r.RemoteAddr, path.String(), "", goInput, result.Result, nil, m, buf)
+	err = logger.Log(ctx, txn, decisionID, r.RemoteAddr, path.String(), "", goInput, result.Result, nil, m)
 	if err != nil {
 		writer.ErrorAuto(w, err)
 		return
@@ -1244,7 +1178,7 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	vars := mux.Vars(r)
 	path := stringPathToDataRef(vars["path"])
-	diagLogger := s.evalDiagnosticPolicy(r)
+	logger := s.getDecisionLogger()
 
 	watch := getWatch(r.URL.Query()[types.ParamWatchV1])
 	if watch {
@@ -1294,20 +1228,14 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 
 	var buf *topdown.BufferTracer
 
-	if explainMode != types.ExplainOffV1 || diagLogger.Explain() {
+	if explainMode != types.ExplainOffV1 {
 		buf = topdown.NewBufferTracer()
 	}
 
-	var instrument bool
-
-	if includeInstrumentation || diagLogger.Instrument() {
-		instrument = true
-	}
-
-	rego, err := s.makeRego(ctx, partial, txn, input, path.String(), m, instrument, buf, opts)
+	rego, err := s.makeRego(ctx, partial, txn, input, path.String(), m, includeInstrumentation, buf, opts)
 
 	if err != nil {
-		_ = diagLogger.Log(ctx, txn, decisionID, r.RemoteAddr, path.String(), "", goInput, nil, err, m, nil)
+		_ = logger.Log(ctx, txn, decisionID, r.RemoteAddr, path.String(), "", goInput, nil, err, m)
 		writer.ErrorAuto(w, err)
 		return
 	}
@@ -1318,7 +1246,7 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 
 	// Handle results.
 	if err != nil {
-		_ = diagLogger.Log(ctx, txn, decisionID, r.RemoteAddr, path.String(), "", goInput, nil, err, m, buf)
+		_ = logger.Log(ctx, txn, decisionID, r.RemoteAddr, path.String(), "", goInput, nil, err, m)
 		writer.ErrorAuto(w, err)
 		return
 	}
@@ -1342,7 +1270,7 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 				writer.ErrorAuto(w, err)
 			}
 		}
-		err = diagLogger.Log(ctx, txn, decisionID, r.RemoteAddr, path.String(), "", goInput, nil, nil, m, buf)
+		err = logger.Log(ctx, txn, decisionID, r.RemoteAddr, path.String(), "", goInput, nil, nil, m)
 		if err != nil {
 			writer.ErrorAuto(w, err)
 			return
@@ -1357,7 +1285,7 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 		result.Explanation = s.getExplainResponse(explainMode, *buf, pretty)
 	}
 
-	err = diagLogger.Log(ctx, txn, decisionID, r.RemoteAddr, path.String(), "", goInput, result.Result, nil, m, buf)
+	err = logger.Log(ctx, txn, decisionID, r.RemoteAddr, path.String(), "", goInput, result.Result, nil, m)
 	if err != nil {
 		writer.ErrorAuto(w, err)
 		return
@@ -1958,64 +1886,16 @@ func (s *Server) checkPathScope(ctx context.Context, txn storage.Transaction, pa
 	return nil
 }
 
-func (s *Server) evalDiagnosticPolicy(r *http.Request) (logger diagnosticsLogger) {
-
-	// XXX(tsandall): set the decision logger on the diagnostic logger. The
-	// diagnostic logger is called in all the necessary locations. The diagnostic
-	// logger will make sure to call the decision logger regardless of whether a
-	// diagnostic policy is configured. In the future, we can refactor this.
-	defer func() {
-		// For backwards compatibility use `revision` as needed.
-		if s.hasLegacyBundle() {
-			logger.revision = s.legacyRevision
-		} else {
-			logger.revisions = s.revisions
-		}
-		logger.logger = s.logger
-	}()
-
-	if s.diagnostics == nil {
-		return diagnosticsLogger{}
+func (s *Server) getDecisionLogger() (logger decisionLogger) {
+	// For backwards compatibility use `revision` as needed.
+	if s.hasLegacyBundle() {
+		logger.revision = s.legacyRevision
+	} else {
+		logger.revisions = s.revisions
 	}
-
-	input, err := makeDiagnosticsInput(r)
-	if err != nil {
-		return diagnosticsLogger{}
-	}
-
-	compiler := s.getCompiler()
-
-	rego := rego.New(
-		rego.Store(s.store),
-		rego.Compiler(compiler),
-		rego.Query(`data.system.diagnostics.config`),
-		rego.Input(input),
-		rego.Runtime(s.runtime),
-	)
-
-	output, err := rego.Eval(r.Context())
-	if err != nil {
-		return diagnosticsLogger{}
-	}
-
-	if len(output) == 1 {
-		if config, ok := output[0].Expressions[0].Value.(map[string]interface{}); ok {
-			switch config["mode"] {
-			case "on":
-				return diagnosticsLogger{
-					buffer: s.diagnostics,
-				}
-			case "all":
-				return diagnosticsLogger{
-					buffer:     s.diagnostics,
-					instrument: true,
-					explain:    true,
-				}
-			}
-		}
-	}
-
-	return diagnosticsLogger{}
+	logger.logger = s.logger
+	logger.buffer = s.buffer
+	return logger
 }
 
 func (s *Server) getExplainResponse(explainMode types.ExplainModeV1, trace []*topdown.Event, pretty bool) (explanation types.TraceV1) {
@@ -2341,50 +2221,6 @@ func getExplain(p []string, zero types.ExplainModeV1) types.ExplainModeV1 {
 	return zero
 }
 
-func makeDiagnosticsInput(r *http.Request) (map[string]interface{}, error) {
-	var body interface{}
-	if r.Body != nil {
-		buf, err := ioutil.ReadAll(r.Body)
-		if err != nil {
-			return nil, err
-		}
-		r.Body = ioutil.NopCloser(bytes.NewReader(buf))
-
-		decoder := util.NewJSONDecoder(bytes.NewReader(buf))
-		if err := decoder.Decode(&body); err != nil {
-			body = nil
-		}
-	}
-
-	input := map[string]interface{}{
-		"method": r.Method,
-		"path":   r.URL.Path,
-		"body":   body,
-	}
-
-	params := map[string]interface{}{}
-	for param, value := range r.URL.Query() {
-		var ifaces []interface{}
-		for _, v := range value {
-			ifaces = append(ifaces, v)
-		}
-		params[param] = ifaces
-	}
-	input["params"] = params
-
-	header := map[string]interface{}{}
-	for key, value := range r.Header {
-		var ifaces []interface{}
-		for _, v := range value {
-			ifaces = append(ifaces, v)
-		}
-		header[key] = ifaces
-	}
-	input["header"] = header
-
-	return input, nil
-}
-
 func readInputV0(r *http.Request) (ast.Value, error) {
 	bs, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -2584,24 +2420,14 @@ func renderVersion(w http.ResponseWriter) {
 	fmt.Fprintln(w, "<br>")
 }
 
-type diagnosticsLogger struct {
-	logger     func(context.Context, *Info) error
-	revisions  map[string]string
-	revision   string // Deprecated: Use `revisions` instead.
-	explain    bool
-	instrument bool
-	buffer     Buffer
+type decisionLogger struct {
+	revisions map[string]string
+	revision  string // Deprecated: Use `revisions` instead.
+	logger    func(context.Context, *Info) error
+	buffer    Buffer
 }
 
-func (l diagnosticsLogger) Explain() bool {
-	return l.explain
-}
-
-func (l diagnosticsLogger) Instrument() bool {
-	return l.instrument
-}
-
-func (l diagnosticsLogger) Log(ctx context.Context, txn storage.Transaction, decisionID, remoteAddr, path string, query string, input *interface{}, results *interface{}, err error, m metrics.Metrics, tracer *topdown.BufferTracer) error {
+func (l decisionLogger) Log(ctx context.Context, txn storage.Transaction, decisionID, remoteAddr, path string, query string, input *interface{}, results *interface{}, err error, m metrics.Metrics) error {
 
 	bundles := map[string]BundleInfo{}
 	for name, rev := range l.revisions {
@@ -2623,21 +2449,16 @@ func (l diagnosticsLogger) Log(ctx context.Context, txn storage.Transaction, dec
 		Metrics:    m,
 	}
 
-	if tracer != nil {
-		info.Trace = *tracer
-	}
-
 	if l.logger != nil {
 		if err := l.logger(ctx, info); err != nil {
 			return err
 		}
 	}
 
-	if l.buffer == nil {
-		return nil
+	if l.buffer != nil {
+		l.buffer.Push(info)
 	}
 
-	l.buffer.Push(info)
 	return nil
 }
 
