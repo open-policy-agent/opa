@@ -27,8 +27,3 @@ scrape_configs:
 
 OPA exposes a `/health` API endpoint that can be used to perform health checks.
 See [Health API](/docs/{{< current_version >}}/rest-api#health-api) for details.
-
-## Diagnostics (Deprecated)
-
-The diagnostics feature is deprecated. If you need to monitor OPA decisions, see
-the [Decision Log](../decision-logs) API.

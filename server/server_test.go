@@ -2275,7 +2275,6 @@ func TestQueryPostBasic(t *testing.T) {
 		WithAddresses([]string{":8182"}).
 		WithStore(f.server.store).
 		WithManager(f.server.manager).
-		WithDiagnosticsBuffer(NewBoundedBuffer(8)).
 		Init(context.Background())
 
 	setup := []tr{
@@ -2550,203 +2549,6 @@ func TestQueryWatchMigrateInvalidate(t *testing.T) {
 	}
 }
 
-func TestDiagnostics(t *testing.T) {
-	f := newFixture(t)
-	f.server, _ = New().
-		WithAddresses([]string{":8182"}).
-		WithStore(f.server.store).
-		WithManager(f.server.manager).
-		WithDiagnosticsBuffer(NewBoundedBuffer(8)).
-		Init(context.Background())
-
-	queriesOnly := `package system.diagnostics
-
-	default config = {"mode": "off"}
-
-	config = {"mode": "on"} {
-		input.path = "/v1/query"
-	}`
-
-	setup := []tr{
-		{http.MethodPut, "/data", `{"foo": "bar", "y": 7, "x": [1, 2, 3], "bar": null}`, 204, ""},
-		{http.MethodPut, "/policies/main", "package system\nmain = \"foo\"", 200, ""},
-
-		// Diagnostics should be disabled by default.
-		{http.MethodGet, "/data/y", "", 200, `{"result":7}`},
-		{http.MethodPost, "/data/y", "", 200, `{"result":7}`},
-		{http.MethodGet, "/query?q=a=data.y", "", 200, `{"result":[{"a":7}]}`},
-
-		// We should only get back metrics.
-		{http.MethodPut, "/policies/diagnostics", "package system.diagnostics\nconfig = {\"mode\": \"on\"}", 200, ""},
-		{http.MethodGet, "/data/y", "", 200, `{"result":7}`}, // This one should fall off the ring buffer.
-		{http.MethodGet, "/data/x", "", 200, `{"result":[1,2,3]}`},
-		{http.MethodPost, "/data/x", `{"input":{"test":"foo"}}`, 200, `{"result":[1,2,3]}`},
-		{http.MethodGet, "/query?q=a=data.x", "", 200, `{"result":[{"a":[1,2,3]}]}`},
-
-		// We should get back everything.
-		{http.MethodPut, "/policies/diagnostics", "package system.diagnostics\nconfig = {\"mode\": \"all\"}", 200, ""},
-		{http.MethodGet, "/data/x", "", 200, `{"result":[1,2,3]}`},
-		{http.MethodPost, "/data/z", "", 200, ``},
-		{http.MethodGet, "/query?q=a=data.x", "", 200, `{"result":[{"a":[1,2,3]}]}`},
-
-		// We should get back nothing.
-		{http.MethodPut, "/policies/diagnostics", "package system.diagnostics\nconfig = {\"mode\": \"off\"}", 200, ""},
-		{http.MethodGet, "/data/x", "", 200, `{"result":[1,2,3]}`},
-		{http.MethodPost, "/data/x", "", 200, `{"result":[1,2,3]}`},
-		{http.MethodGet, "/query?q=a=data.x", "", 200, `{"result":[{"a":[1,2,3]}]}`},
-
-		// We should get back only the query request.
-		{http.MethodPut, "/policies/diagnostics", queriesOnly, 200, ""},
-		{http.MethodGet, "/data/y", "", 200, `{"result":7}`},
-		{http.MethodPost, "/data/y", "", 200, `{"result":7}`},
-		{http.MethodGet, "/query?q=a=data.y", "", 200, `{"result":[{"a":7}]}`},
-
-		// We should get back the results of the webhook.
-		{http.MethodPut, "/policies/diagnostics", "package system.diagnostics\nconfig = {\"mode\": \"on\"}", 200, ""},
-	}
-
-	for _, tr := range setup {
-
-		req := newReqV1(tr.method, tr.path, tr.body)
-		req.RemoteAddr = "testaddr"
-
-		if err := f.executeRequest(req, tr.code, tr.resp); err != nil {
-			t.Fatal(err)
-		}
-	}
-
-	get := newReqUnversioned(http.MethodPost, `/`, "")
-	if err := f.executeRequest(get, 200, `"foo"`); err != nil {
-		t.Fatal(err)
-	}
-
-	expList := interface{}([]interface{}{json.Number("1"), json.Number("2"), json.Number("3")})
-	expMap1 := interface{}([]interface{}{map[string]interface{}{"a": expList}})
-	expMap2 := interface{}([]interface{}{map[string]interface{}{"a": json.Number("7")}})
-	expStr := interface{}("foo")
-
-	exp := []struct {
-		remoteAddr string
-		query      string
-		path       string
-		input      interface{}
-		result     *interface{}
-		metrics    bool
-		instrument bool
-		explainLen int
-	}{
-		{
-			remoteAddr: "testaddr",
-			path:       "data.x",
-			result:     &expList,
-			metrics:    true,
-		},
-		{
-			path:    "data.x",
-			input:   map[string]interface{}{"test": "foo"},
-			result:  &expList,
-			metrics: true,
-		},
-		{
-			query:   "a = data.x",
-			result:  &expMap1,
-			metrics: true,
-		},
-		{
-			path:       "data.x",
-			result:     &expList,
-			metrics:    true,
-			instrument: true,
-			explainLen: 5,
-		},
-		{
-			path:       "data.z",
-			result:     nil,
-			metrics:    true,
-			instrument: true,
-			explainLen: 3,
-		},
-		{
-			query:      "a = data.x",
-			result:     &expMap1,
-			metrics:    true,
-			instrument: true,
-			explainLen: 5,
-		},
-		{
-			query:  "a = data.y",
-			result: &expMap2,
-		},
-		{
-			path:   "data.system.main",
-			result: &expStr,
-		},
-	}
-
-	get = newReqV1(http.MethodGet, `/data/system/diagnostics`, "")
-	f.reset()
-	f.server.Handler.ServeHTTP(f.recorder, get)
-
-	var resp types.DiagnosticsResponseV1
-	decoder := util.NewJSONDecoder(f.recorder.Body)
-	if err := decoder.Decode(&resp); err != nil {
-		t.Fatal(err)
-	}
-
-	if len(resp.Result) != len(exp) {
-		t.Fatalf("Expected %d diagnostics, got %d", len(exp), len(resp.Result))
-	}
-
-	for i, d := range resp.Result {
-		test.Subtest(t, fmt.Sprint(i), func(t *testing.T) {
-			e := exp[i]
-			if e.query != d.Query {
-				t.Fatalf("Expected query to be %v, got %v", e.query, d.Query)
-			} else if e.path != d.Path {
-				t.Fatalf("Expected query to be %v, got %v", e.query, d.Query)
-			}
-
-			if !reflect.DeepEqual(e.input, d.Input) {
-				t.Fatalf("Expected input to be %v, got %v", e.input, d.Input)
-			}
-
-			if !reflect.DeepEqual(e.result, d.Result) {
-				t.Fatalf("Expected result to be %v but got: %v", e.result, d.Result)
-			}
-
-			if e.metrics {
-				if len(d.Metrics) == 0 {
-					t.Fatal("Expected metrics")
-				}
-			}
-
-			if e.instrument {
-				found := false
-				for k := range d.Metrics {
-					if strings.Contains(k, "eval_op_plug") {
-						found = true
-						break
-					}
-				}
-				if !found {
-					t.Fatalf("Expected to find instrumentation result: %v", d.Metrics)
-				}
-			}
-
-			var trace types.TraceV1Raw
-			if d.Explanation != nil {
-				if err := trace.UnmarshalJSON(d.Explanation); err != nil {
-					t.Fatal(err)
-				}
-			}
-
-			if len(trace) != e.explainLen {
-				t.Fatalf("Expected explanation of length %d, got %d", e.explainLen, len(trace))
-			}
-		})
-	}
-}
-
 func TestMetricsEndpoint(t *testing.T) {
 
 	f := newFixture(t)
@@ -2788,25 +2590,34 @@ func TestMetricsEndpoint(t *testing.T) {
 
 }
 
+type mockDecisionBuffer struct {
+	decisions []*Info
+}
+
+func (t *mockDecisionBuffer) Push(info *Info) {
+	t.decisions = append(t.decisions, info)
+}
+
+func (t *mockDecisionBuffer) Iter(iter func(*Info)) {
+	for i := range t.decisions {
+		iter(t.decisions[i])
+	}
+}
+
 func TestDecisionIDs(t *testing.T) {
+
 	f := newFixture(t)
-	f.server = f.server.WithDiagnosticsBuffer(NewBoundedBuffer(4))
+
+	ids := []string{}
 	ctr := 0
 
-	f.server = f.server.WithDecisionIDFactory(func() string {
+	f.server = f.server.WithDecisionLoggerWithErr(func(_ context.Context, info *Info) error {
+		ids = append(ids, info.DecisionID)
+		return nil
+	}).WithDecisionIDFactory(func() string {
 		ctr++
 		return fmt.Sprint(ctr)
 	})
-
-	enableDiagnostics := `
-		package system.diagnostics
-
-		config = {"mode": "on"}
-	`
-
-	if err := f.v1("PUT", "/policies/test", enableDiagnostics, 200, "{}"); err != nil {
-		t.Fatal(err)
-	}
 
 	if err := f.v1("GET", "/data/undefined", "", 200, `{"decision_id": "1"}`); err != nil {
 		t.Fatal(err)
@@ -2824,19 +2635,10 @@ func TestDecisionIDs(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	infos := []*Info{}
-	ctr = 0
+	exp := []string{"1", "2", "3", "4"}
 
-	f.server.diagnostics.Iter(func(info *Info) {
-		ctr++
-		if info.DecisionID != fmt.Sprint(ctr) {
-			t.Fatalf("Expected decision ID to be %v but got: %v", ctr, info.DecisionID)
-		}
-		infos = append(infos, info)
-	})
-
-	if len(infos) != 4 {
-		t.Fatalf("Expected exactly 4 elements but got: %v", infos)
+	if !reflect.DeepEqual(ids, exp) {
+		t.Fatalf("Expected %v but got %v", exp, ids)
 	}
 }
 

@@ -80,7 +80,6 @@ const (
 	MsgUnauthorizedUndefinedError = "authorization policy missing or undefined"
 	MsgUnauthorizedError          = "request rejected by administrative policy"
 	MsgUndefinedError             = "document missing or undefined"
-	MsgDiagnosticsDisabled        = "diagnostics are not enabled"
 	MsgPluginConfigError          = "error(s) occurred while configuring plugin(s)"
 )
 
@@ -150,27 +149,6 @@ type DataResponseV1 struct {
 	Explanation TraceV1       `json:"explanation,omitempty"`
 	Metrics     MetricsV1     `json:"metrics,omitempty"`
 	Result      *interface{}  `json:"result,omitempty"`
-}
-
-// DiagnosticsResponseV1 models the response message for diagnostics reads.
-type DiagnosticsResponseV1 struct {
-	Result []DiagnosticsResponseElementV1 `json:"result"`
-}
-
-// DiagnosticsResponseElementV1 models an element in the response message for the
-// Diagnostics API.
-type DiagnosticsResponseElementV1 struct {
-	Revision    string       `json:"revision,omitempty"`
-	DecisionID  string       `json:"decision_id,omitempty"`
-	RemoteAddr  string       `json:"remote_addr"`
-	Query       string       `json:"query"`
-	Path        string       `json:"path"`
-	Timestamp   string       `json:"timestamp"`
-	Input       interface{}  `json:"input,omitempty"`
-	Result      *interface{} `json:"result,omitempty"`
-	Error       *ErrorV1     `json:"error,omitempty"`
-	Explanation TraceV1      `json:"explanation,omitempty"`
-	Metrics     MetricsV1    `json:"metrics,omitempty"`
 }
 
 // MetricsV1 models a collection of performance metrics.

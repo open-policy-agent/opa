@@ -21,9 +21,8 @@ import (
 )
 
 const (
-	defaultAddr                        = ":8181"        // default listening address for server
-	defaultHistoryFile                 = ".opa_history" // default filename for shell history
-	defaultServerDiagnosticsBufferSize = 10             // default number of items to keep in diagnostics buffer for server
+	defaultAddr        = ":8181"        // default listening address for server
+	defaultHistoryFile = ".opa_history" // default filename for shell history
 )
 
 func init() {
@@ -46,8 +45,6 @@ func init() {
 		"basic": server.AuthorizationBasic,
 		"off":   server.AuthorizationOff,
 	}
-
-	var serverDiagnosticsBufferSize int
 
 	logLevel := util.NewEnumFlag("info", []string{"debug", "info", "error"})
 	logFormat := util.NewEnumFlag("json", []string{"text", "json", "json-pretty"})
@@ -114,7 +111,6 @@ the data document with the following syntax:
 				Level:  logLevel.String(),
 				Format: logFormat.String(),
 			}
-			params.DiagnosticsBuffer = server.NewBoundedBuffer(serverDiagnosticsBufferSize)
 			params.Paths = args
 			params.Filter = loaderFilter{
 				Ignore: ignore,
@@ -146,8 +142,6 @@ the data document with the following syntax:
 	runCommand.Flags().BoolVarP(&params.Watch, "watch", "w", false, "watch command line files for changes")
 	setMaxErrors(runCommand.Flags(), &params.ErrorLimit)
 	runCommand.Flags().BoolVarP(&params.PprofEnabled, "pprof", "", false, "enables pprof endpoints")
-	runCommand.Flags().IntVarP(&serverDiagnosticsBufferSize, "server-diagnostics-buffer-size", "", defaultServerDiagnosticsBufferSize, "set the size of the server's diagnostics buffer")
-	runCommand.Flags().MarkDeprecated("server-diagnostics-buffer-size", "use decision logging instead")
 	runCommand.Flags().StringVarP(&tlsCertFile, "tls-cert-file", "", "", "set path of TLS certificate file")
 	runCommand.Flags().StringVarP(&tlsPrivateKeyFile, "tls-private-key-file", "", "", "set path of TLS private key file")
 	runCommand.Flags().StringVarP(&tlsCACertFile, "tls-ca-cert-file", "", "", "set path of TLS CA cert file")
