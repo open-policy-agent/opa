@@ -11,7 +11,6 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"fmt"
-	"github.com/open-policy-agent/opa/bundle"
 	"html/template"
 	"io"
 	"io/ioutil"
@@ -28,6 +27,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/bundle"
 	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/plugins"
 	bundlePlugin "github.com/open-policy-agent/opa/plugins/bundle"
@@ -515,7 +515,6 @@ func (s *Server) getListenerForUNIXSocket(u *url.URL) (Loop, httpListener, error
 
 func (s *Server) initRouter() {
 
-	promRegistry := prometheus.NewRegistry()
 	duration := prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Name: "http_request_duration_seconds",
@@ -531,8 +530,7 @@ func (s *Server) initRouter() {
 	indexDur := duration.MustCurryWith(prometheus.Labels{"handler": PromHandlerIndex})
 	catchAllDur := duration.MustCurryWith(prometheus.Labels{"handler": PromHandlerCatch})
 	GetHealthDur := duration.MustCurryWith(prometheus.Labels{"handler": PromHandlerHealth})
-	promRegistry.MustRegister(duration)
-	promRegistry.MustRegister(prometheus.NewGoCollector())
+	metrics.GlobalMetricsRegistry.MustRegister(duration)
 
 	router := s.router
 
@@ -542,7 +540,7 @@ func (s *Server) initRouter() {
 
 	router.UseEncodedPath()
 	router.StrictSlash(true)
-	router.Handle("/metrics", promhttp.HandlerFor(promRegistry, promhttp.HandlerOpts{})).Methods(http.MethodGet)
+	router.Handle("/metrics", promhttp.HandlerFor(metrics.GlobalMetricsRegistry, promhttp.HandlerOpts{})).Methods(http.MethodGet)
 	router.Handle("/health", promhttp.InstrumentHandlerDuration(GetHealthDur, http.HandlerFunc(s.unversionedGetHealth))).Methods(http.MethodGet)
 	if s.pprofEnabled {
 		router.HandleFunc("/debug/pprof/", pprof.Index)

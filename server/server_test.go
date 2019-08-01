@@ -174,6 +174,7 @@ func TestInitWithBundlePlugin(t *testing.T) {
 
 	m.Register(pluginBundle.Name, pluginBundle.New(bundleConf, m))
 
+	metrics.ResetGlobalMetricsRegistry()
 	server, err := New().
 		WithStore(store).
 		WithManager(m).
@@ -212,6 +213,7 @@ func TestInitWithBundlePluginMultiBundle(t *testing.T) {
 
 	m.Register(pluginBundle.Name, pluginBundle.New(bundleConf, m))
 
+	metrics.ResetGlobalMetricsRegistry()
 	server, err := New().
 		WithStore(store).
 		WithManager(m).
@@ -2271,6 +2273,7 @@ func TestPoliciesPathSlashes(t *testing.T) {
 
 func TestQueryPostBasic(t *testing.T) {
 	f := newFixture(t)
+	metrics.ResetGlobalMetricsRegistry()
 	f.server, _ = New().
 		WithAddresses([]string{":8182"}).
 		WithStore(f.server.store).
@@ -2552,6 +2555,7 @@ func TestQueryWatchMigrateInvalidate(t *testing.T) {
 
 func TestDiagnostics(t *testing.T) {
 	f := newFixture(t)
+	metrics.ResetGlobalMetricsRegistry()
 	f.server, _ = New().
 		WithAddresses([]string{":8182"}).
 		WithStore(f.server.store).
@@ -3368,7 +3372,7 @@ func TestAuthorization(t *testing.T) {
 	if err := store.Commit(ctx, txn); err != nil {
 		panic(err)
 	}
-
+	metrics.ResetGlobalMetricsRegistry()
 	server, err := New().
 		WithAddresses([]string{":8182"}).
 		WithStore(store).
@@ -3512,6 +3516,7 @@ func TestQueryBindingIterationError(t *testing.T) {
 		panic(err)
 	}
 
+	metrics.ResetGlobalMetricsRegistry()
 	server, err := New().WithStore(mock).WithManager(m).WithAddresses([]string{":8182"}).Init(ctx)
 	if err != nil {
 		panic(err)
@@ -3560,6 +3565,7 @@ func newFixture(t *testing.T) *fixture {
 		panic(err)
 	}
 
+	metrics.ResetGlobalMetricsRegistry()
 	server, err := New().
 		WithAddresses([]string{":8182"}).
 		WithStore(store).
@@ -3838,6 +3844,7 @@ allow {
 		t.Fatal(err)
 	}
 
+	metrics.ResetGlobalMetricsRegistry()
 	server, err := New().
 		WithAddresses([]string{"https://127.0.0.1:8182"}).
 		WithStore(store).

@@ -19,6 +19,7 @@ import (
 	"github.com/open-policy-agent/opa/storage/inmem"
 	"github.com/open-policy-agent/opa/util"
 	"github.com/open-policy-agent/opa/version"
+	dto "github.com/prometheus/client_model/go"
 )
 
 func TestMain(m *testing.M) {
@@ -227,6 +228,38 @@ func TestPluginReconfigure(t *testing.T) {
 
 	if fixture.plugin.config.PartitionName != "test" {
 		t.Fatalf("Expected partition name: test but got %v", fixture.plugin.config.PartitionName)
+	}
+}
+
+func TestMetrics(t *testing.T) {
+	fixture := newTestFixture(t)
+	fixture.server.ch = make(chan UpdateRequestV1)
+	fixture.plugin.config.IncludeMetrics = true
+	defer fixture.server.stop()
+
+	ctx := context.Background()
+
+	fixture.plugin.Start(ctx)
+	defer fixture.plugin.Stop(ctx)
+
+	status := testStatus()
+
+	fixture.plugin.BulkUpdateBundleStatus(map[string]*bundle.Status{"bundle": status})
+	result := <-fixture.server.ch
+	// check some well-known metrics that must be present in the result
+	for _, name := range []string{"go_info", "go_threads", "go_goroutines"} {
+		var metric *dto.MetricFamily
+		for _, v := range result.Metrics {
+			if *v.Name == name {
+				metric = v
+				break
+			}
+		}
+		if metric == nil {
+			t.Errorf("Metric %s is not found", name)
+		} else if len(metric.Metric) == 0 {
+			t.Errorf("Metric %s is empty", name)
+		}
 	}
 }
 

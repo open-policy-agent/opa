@@ -343,6 +343,7 @@ server provenance, etc.
 | --- | --- | --- | --- |
 | `status.service` | `string` | Yes | Name of service to use to contact remote server. |
 | `status.partition_name` | `string` | No | Path segment to include in status updates. |
+| `status.include_metrics` | `boolean` | (default: `false`)  | Include Prometheus metrics in status updates. |
 
 ## Decision Logs
 

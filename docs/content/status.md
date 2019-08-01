@@ -46,7 +46,74 @@ on the agent, updates will be sent to `/status`.
             "last_successful_download": "2018-01-01T00:00:00.000Z",
             "last_successful_activation": "2018-01-01T00:00:00.000Z"
         }
-    }
+    }, 
+    "metrics": [
+        {
+            "help": "A summary of the GC invocation durations.",
+            "name": "go_gc_duration_seconds",
+            "type": 2,
+            "metric": [
+                {
+                    "summary": {
+                        "quantile": [
+                            {
+                                "quantile": 0,
+                                "value": 0.000044358
+                            },
+                            {
+                                "quantile": 0.25,
+                                "value": 0.000045003
+                            },
+                            {
+                                "quantile": 0.5,
+                                "value": 0.000049726
+                            },
+                            {
+                                "quantile": 0.75,
+                                "value": 0.000219553
+                            },
+                            {
+                                "quantile": 1,
+                                "value": 0.000219553
+                            }
+                        ],
+                       "sample_count": 4,
+                       "sample_sum": 0.00035864
+                    }
+                }
+            ]
+        },
+        {
+            "help": "Number of goroutines that currently exist.",
+            "name": "go_goroutines",
+            "type": 1,
+            "metric": [
+                {
+                    "gauge": {
+                        "value": 11
+                    }
+                }
+            ]
+        },
+        {
+            "help": "Information about the Go environment.",
+            "name": "go_info",
+            "type": 1,
+            "metric": [
+                {
+                    "gauge": {
+                        "value": 1
+                    },
+                    "label": [
+                        {
+                            "name": "version",
+                            "value": "go1.12.7"
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
 }
 ```
 
@@ -68,6 +135,7 @@ Status updates contain the following fields:
 | `discovery.active_revision` | `string` | Opaque revision identifier of the last successful discovery activation. |
 | `discovery.last_successful_download` | `string` | RFC3339 timestamp of last successful discovery bundle download. |
 | `discovery.last_successful_activation` | `string` | RFC3339 timestamp of last successful discovery bundle activation. |
+| `metrics` | `array` | Prometheus metrics as returned by the Gather method. See [Prometheus Go client](https://github.com/prometheus/client_golang/blob/v1.1.0/prometheus/registry.go) for exact format.|
 
 If the bundle download or activation failed, the status update will contain
 the following additional fields.

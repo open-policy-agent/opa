@@ -11,10 +11,12 @@ import (
 	"net/http"
 	"reflect"
 
+	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/plugins"
 	"github.com/open-policy-agent/opa/plugins/bundle"
 	"github.com/open-policy-agent/opa/util"
 	"github.com/pkg/errors"
+	dto "github.com/prometheus/client_model/go"
 	"github.com/sirupsen/logrus"
 )
 
@@ -25,6 +27,7 @@ type UpdateRequestV1 struct {
 	Bundle    *bundle.Status            `json:"bundle,omitempty"` // Deprecated: Use bulk `bundles` status updates instead
 	Bundles   map[string]*bundle.Status `json:"bundles,omitempty"`
 	Discovery *bundle.Status            `json:"discovery,omitempty"`
+	Metrics   []*dto.MetricFamily       `json:"metrics,omitempty"`
 }
 
 // Plugin implements status reporting. Updates can be triggered by the caller.
@@ -43,8 +46,9 @@ type Plugin struct {
 
 // Config contains configuration for the plugin.
 type Config struct {
-	Service       string `json:"service"`
-	PartitionName string `json:"partition_name,omitempty"`
+	Service        string `json:"service"`
+	PartitionName  string `json:"partition_name,omitempty"`
+	IncludeMetrics bool   `json:"include_metrics"`
 }
 
 func (c *Config) validateAndInjectDefaults(services []string) error {
@@ -195,12 +199,20 @@ func (p *Plugin) loop() {
 }
 
 func (p *Plugin) oneShot(ctx context.Context) error {
-
 	req := &UpdateRequestV1{
 		Labels:    p.manager.Labels(),
 		Discovery: p.lastDiscoStatus,
 		Bundle:    p.lastBundleStatus,
 		Bundles:   p.lastBundleStatuses,
+	}
+
+	if p.config.IncludeMetrics {
+		globalMetrics, err := metrics.GlobalMetricsRegistry.Gather()
+		if err != nil {
+			p.logError("Cannot gather metrics: %v.", err)
+		} else {
+			req.Metrics = globalMetrics
+		}
 	}
 
 	resp, err := p.manager.Client(p.config.Service).
