@@ -5,6 +5,7 @@
 package server
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"crypto/tls"
@@ -530,9 +531,26 @@ func (s *Server) initRouter() {
 	v1CompileDur := duration.MustCurryWith(prometheus.Labels{"handler": PromHandlerV1Compile})
 	indexDur := duration.MustCurryWith(prometheus.Labels{"handler": PromHandlerIndex})
 	catchAllDur := duration.MustCurryWith(prometheus.Labels{"handler": PromHandlerCatch})
-	GetHealthDur := duration.MustCurryWith(prometheus.Labels{"handler": PromHandlerHealth})
+	getHealthDur := duration.MustCurryWith(prometheus.Labels{"handler": PromHandlerHealth})
 	promRegistry.MustRegister(duration)
 	promRegistry.MustRegister(prometheus.NewGoCollector())
+
+	cancellations := prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "http_request_cancellations",
+			Help: "A count of cancelled requests.",
+		},
+		[]string{"code", "handler", "method"},
+	)
+	v0DataCancellations := cancellations.MustCurryWith(prometheus.Labels{"handler": PromHandlerV0Data})
+	v1DataCancellations := cancellations.MustCurryWith(prometheus.Labels{"handler": PromHandlerV1Data})
+	v1PoliciesCancellations := cancellations.MustCurryWith(prometheus.Labels{"handler": PromHandlerV1Policies})
+	v1QueryCancellations := cancellations.MustCurryWith(prometheus.Labels{"handler": PromHandlerV1Query})
+	v1CompileCancellations := cancellations.MustCurryWith(prometheus.Labels{"handler": PromHandlerV1Compile})
+	indexCancellations := cancellations.MustCurryWith(prometheus.Labels{"handler": PromHandlerIndex})
+	catchAllCancellations := cancellations.MustCurryWith(prometheus.Labels{"handler": PromHandlerCatch})
+	getHealthCancellations := cancellations.MustCurryWith(prometheus.Labels{"handler": PromHandlerHealth})
+	promRegistry.MustRegister(cancellations)
 
 	router := s.router
 
@@ -543,7 +561,7 @@ func (s *Server) initRouter() {
 	router.UseEncodedPath()
 	router.StrictSlash(true)
 	router.Handle("/metrics", promhttp.HandlerFor(promRegistry, promhttp.HandlerOpts{})).Methods(http.MethodGet)
-	router.Handle("/health", promhttp.InstrumentHandlerDuration(GetHealthDur, http.HandlerFunc(s.unversionedGetHealth))).Methods(http.MethodGet)
+	router.Handle("/health", instrumentHandler(s.unversionedGetHealth, getHealthDur, getHealthCancellations)).Methods(http.MethodGet)
 	if s.pprofEnabled {
 		router.HandleFunc("/debug/pprof/", pprof.Index)
 		router.Handle("/debug/pprof/allocs", pprof.Handler("allocs"))
@@ -555,49 +573,49 @@ func (s *Server) initRouter() {
 		router.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
 		router.HandleFunc("/debug/pprof/trace", pprof.Trace)
 	}
-	s.registerHandler(router, 0, "/data/{path:.+}", http.MethodPost, promhttp.InstrumentHandlerDuration(v0DataDur, http.HandlerFunc(s.v0DataPost)))
-	s.registerHandler(router, 0, "/data", http.MethodPost, promhttp.InstrumentHandlerDuration(v0DataDur, http.HandlerFunc(s.v0DataPost)))
-	s.registerHandler(router, 1, "/data/system/diagnostics", http.MethodGet, promhttp.InstrumentHandlerDuration(v1DataDur, http.HandlerFunc(s.v1DiagnosticsGet)))
-	s.registerHandler(router, 1, "/data/{path:.+}", http.MethodDelete, promhttp.InstrumentHandlerDuration(v1DataDur, http.HandlerFunc(s.v1DataDelete)))
-	s.registerHandler(router, 1, "/data/{path:.+}", http.MethodPut, promhttp.InstrumentHandlerDuration(v1DataDur, http.HandlerFunc(s.v1DataPut)))
-	s.registerHandler(router, 1, "/data", http.MethodPut, promhttp.InstrumentHandlerDuration(v1DataDur, http.HandlerFunc(s.v1DataPut)))
-	s.registerHandler(router, 1, "/data/{path:.+}", http.MethodGet, promhttp.InstrumentHandlerDuration(v1DataDur, http.HandlerFunc(s.v1DataGet)))
-	s.registerHandler(router, 1, "/data", http.MethodGet, promhttp.InstrumentHandlerDuration(v1DataDur, http.HandlerFunc(s.v1DataGet)))
-	s.registerHandler(router, 1, "/data/{path:.+}", http.MethodPatch, promhttp.InstrumentHandlerDuration(v1DataDur, http.HandlerFunc(s.v1DataPatch)))
-	s.registerHandler(router, 1, "/data", http.MethodPatch, promhttp.InstrumentHandlerDuration(v1DataDur, http.HandlerFunc(s.v1DataPatch)))
-	s.registerHandler(router, 1, "/data/{path:.+}", http.MethodPost, promhttp.InstrumentHandlerDuration(v1DataDur, http.HandlerFunc(s.v1DataPost)))
-	s.registerHandler(router, 1, "/data", http.MethodPost, promhttp.InstrumentHandlerDuration(v1DataDur, http.HandlerFunc(s.v1DataPost)))
-	s.registerHandler(router, 1, "/policies", http.MethodGet, promhttp.InstrumentHandlerDuration(v1PoliciesDur, http.HandlerFunc(s.v1PoliciesList)))
-	s.registerHandler(router, 1, "/policies/{path:.+}", http.MethodDelete, promhttp.InstrumentHandlerDuration(v1PoliciesDur, http.HandlerFunc(s.v1PoliciesDelete)))
-	s.registerHandler(router, 1, "/policies/{path:.+}", http.MethodGet, promhttp.InstrumentHandlerDuration(v1PoliciesDur, http.HandlerFunc(s.v1PoliciesGet)))
-	s.registerHandler(router, 1, "/policies/{path:.+}", http.MethodPut, promhttp.InstrumentHandlerDuration(v1PoliciesDur, http.HandlerFunc(s.v1PoliciesPut)))
-	s.registerHandler(router, 1, "/query", http.MethodGet, promhttp.InstrumentHandlerDuration(v1QueryDur, http.HandlerFunc(s.v1QueryGet)))
-	s.registerHandler(router, 1, "/query", http.MethodPost, promhttp.InstrumentHandlerDuration(v1QueryDur, http.HandlerFunc(s.v1QueryPost)))
-	s.registerHandler(router, 1, "/compile", http.MethodPost, promhttp.InstrumentHandlerDuration(v1CompileDur, http.HandlerFunc(s.v1CompilePost)))
-	router.HandleFunc("/", promhttp.InstrumentHandlerDuration(indexDur, http.HandlerFunc(s.unversionedPost))).Methods(http.MethodPost)
-	router.HandleFunc("/", promhttp.InstrumentHandlerDuration(indexDur, http.HandlerFunc(s.indexGet))).Methods(http.MethodGet)
+	s.registerHandler(router, 0, "/data/{path:.+}", http.MethodPost, instrumentHandler(s.v0DataPost, v0DataDur, v0DataCancellations))
+	s.registerHandler(router, 0, "/data", http.MethodPost, instrumentHandler(s.v0DataPost, v0DataDur, v0DataCancellations))
+	s.registerHandler(router, 1, "/data/system/diagnostics", http.MethodGet, instrumentHandler(s.v1DiagnosticsGet, v1DataDur, v1DataCancellations))
+	s.registerHandler(router, 1, "/data/{path:.+}", http.MethodDelete, instrumentHandler(s.v1DataDelete, v1DataDur, v1DataCancellations))
+	s.registerHandler(router, 1, "/data/{path:.+}", http.MethodPut, instrumentHandler(s.v1DataPut, v1DataDur, v1DataCancellations))
+	s.registerHandler(router, 1, "/data", http.MethodPut, instrumentHandler(s.v1DataPut, v1DataDur, v1DataCancellations))
+	s.registerHandler(router, 1, "/data/{path:.+}", http.MethodGet, instrumentHandler(s.v1DataGet, v1DataDur, v1DataCancellations))
+	s.registerHandler(router, 1, "/data", http.MethodGet, instrumentHandler(s.v1DataGet, v1DataDur, v1DataCancellations))
+	s.registerHandler(router, 1, "/data/{path:.+}", http.MethodPatch, instrumentHandler(s.v1DataPatch, v1DataDur, v1DataCancellations))
+	s.registerHandler(router, 1, "/data", http.MethodPatch, instrumentHandler(s.v1DataPatch, v1DataDur, v1DataCancellations))
+	s.registerHandler(router, 1, "/data/{path:.+}", http.MethodPost, instrumentHandler(s.v1DataPost, v1DataDur, v1DataCancellations))
+	s.registerHandler(router, 1, "/data", http.MethodPost, instrumentHandler(s.v1DataPost, v1DataDur, v1DataCancellations))
+	s.registerHandler(router, 1, "/policies", http.MethodGet, instrumentHandler(s.v1PoliciesList, v1PoliciesDur, v1PoliciesCancellations))
+	s.registerHandler(router, 1, "/policies/{path:.+}", http.MethodDelete, instrumentHandler(s.v1PoliciesDelete, v1PoliciesDur, v1PoliciesCancellations))
+	s.registerHandler(router, 1, "/policies/{path:.+}", http.MethodGet, instrumentHandler(s.v1PoliciesGet, v1PoliciesDur, v1PoliciesCancellations))
+	s.registerHandler(router, 1, "/policies/{path:.+}", http.MethodPut, instrumentHandler(s.v1PoliciesPut, v1PoliciesDur, v1PoliciesCancellations))
+	s.registerHandler(router, 1, "/query", http.MethodGet, instrumentHandler(s.v1QueryGet, v1QueryDur, v1QueryCancellations))
+	s.registerHandler(router, 1, "/query", http.MethodPost, instrumentHandler(s.v1QueryPost, v1QueryDur, v1QueryCancellations))
+	s.registerHandler(router, 1, "/compile", http.MethodPost, instrumentHandler(s.v1CompilePost, v1CompileDur, v1CompileCancellations))
+	router.HandleFunc("/", instrumentHandler(s.unversionedPost, indexDur, indexCancellations)).Methods(http.MethodPost)
+	router.HandleFunc("/", instrumentHandler(s.indexGet, indexDur, indexCancellations)).Methods(http.MethodGet)
 	// These are catch all handlers that respond 405 for resources that exist but the method is not allowed
-	router.HandleFunc("/v0/data/{path:.*}", promhttp.InstrumentHandlerDuration(catchAllDur, http.HandlerFunc(writer.HTTPStatus(405)))).Methods(http.MethodGet, http.MethodHead,
+	router.HandleFunc("/v0/data/{path:.*}", instrumentHandler(writer.HTTPStatus(405), catchAllDur, catchAllCancellations)).Methods(http.MethodGet, http.MethodHead,
 		http.MethodConnect, http.MethodDelete, http.MethodOptions, http.MethodPatch, http.MethodPut, http.MethodTrace)
-	router.HandleFunc("/v0/data", promhttp.InstrumentHandlerDuration(catchAllDur, http.HandlerFunc(writer.HTTPStatus(405)))).Methods(http.MethodGet, http.MethodHead,
+	router.HandleFunc("/v0/data", instrumentHandler(writer.HTTPStatus(405), catchAllDur, catchAllCancellations)).Methods(http.MethodGet, http.MethodHead,
 		http.MethodConnect, http.MethodDelete, http.MethodOptions, http.MethodPatch, http.MethodPut,
 		http.MethodTrace)
 	// v1 Data catch all
-	router.HandleFunc("/v1/data/{path:.*}", promhttp.InstrumentHandlerDuration(catchAllDur, http.HandlerFunc(writer.HTTPStatus(405)))).Methods(http.MethodHead,
+	router.HandleFunc("/v1/data/{path:.*}", instrumentHandler(writer.HTTPStatus(405), catchAllDur, catchAllCancellations)).Methods(http.MethodHead,
 		http.MethodConnect, http.MethodOptions, http.MethodTrace)
-	router.HandleFunc("/v1/data", promhttp.InstrumentHandlerDuration(catchAllDur, http.HandlerFunc(writer.HTTPStatus(405)))).Methods(http.MethodHead,
+	router.HandleFunc("/v1/data", instrumentHandler(writer.HTTPStatus(405), catchAllDur, catchAllCancellations)).Methods(http.MethodHead,
 		http.MethodConnect, http.MethodDelete, http.MethodOptions, http.MethodTrace)
 	// Policies catch all
-	router.HandleFunc("/v1/policies", promhttp.InstrumentHandlerDuration(catchAllDur, http.HandlerFunc(writer.HTTPStatus(405)))).Methods(http.MethodHead,
+	router.HandleFunc("/v1/policies", instrumentHandler(writer.HTTPStatus(405), catchAllDur, catchAllCancellations)).Methods(http.MethodHead,
 		http.MethodConnect, http.MethodDelete, http.MethodOptions, http.MethodTrace, http.MethodPost, http.MethodPut,
 		http.MethodPatch)
 	// Policies (/policies/{path.+} catch all
-	router.HandleFunc("/v1/policies/{path:.*}", promhttp.InstrumentHandlerDuration(catchAllDur, http.HandlerFunc(writer.HTTPStatus(405)))).Methods(http.MethodHead,
+	router.HandleFunc("/v1/policies/{path:.*}", instrumentHandler(writer.HTTPStatus(405), catchAllDur, catchAllCancellations)).Methods(http.MethodHead,
 		http.MethodConnect, http.MethodOptions, http.MethodTrace, http.MethodPost)
 	// Query catch all
-	router.HandleFunc("/v1/query/{path:.*}", promhttp.InstrumentHandlerDuration(catchAllDur, http.HandlerFunc(writer.HTTPStatus(405)))).Methods(http.MethodHead,
+	router.HandleFunc("/v1/query/{path:.*}", instrumentHandler(writer.HTTPStatus(405), catchAllDur, catchAllCancellations)).Methods(http.MethodHead,
 		http.MethodConnect, http.MethodDelete, http.MethodOptions, http.MethodTrace, http.MethodPost, http.MethodPut, http.MethodPatch)
-	router.HandleFunc("/v1/query", promhttp.InstrumentHandlerDuration(catchAllDur, http.HandlerFunc(writer.HTTPStatus(405)))).Methods(http.MethodHead,
+	router.HandleFunc("/v1/query", instrumentHandler(writer.HTTPStatus(405), catchAllDur, catchAllCancellations)).Methods(http.MethodHead,
 		http.MethodConnect, http.MethodDelete, http.MethodOptions, http.MethodTrace, http.MethodPut, http.MethodPatch)
 	s.Handler = router
 }
@@ -2177,6 +2195,41 @@ func (s *Server) hasBundle() bool {
 func (s *Server) hasLegacyBundle() bool {
 	bp := bundlePlugin.Lookup(s.manager)
 	return s.legacyRevision != "" || (bp != nil && !bp.Config().IsMultiBundle())
+}
+
+type captureStatusResponseWriter struct {
+	http.ResponseWriter
+	status int
+}
+
+type hijacker struct {
+	http.ResponseWriter
+	hijacker http.Hijacker
+}
+
+func (h *hijacker) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return h.hijacker.Hijack()
+}
+
+func (c *captureStatusResponseWriter) WriteHeader(statusCode int) {
+	c.ResponseWriter.WriteHeader(statusCode)
+	c.status = statusCode
+}
+
+func instrumentHandler(handler func(http.ResponseWriter, *http.Request), durationCollector prometheus.ObserverVec, cancellationsCollector *prometheus.CounterVec) http.HandlerFunc {
+	return promhttp.InstrumentHandlerDuration(durationCollector, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		csrw := &captureStatusResponseWriter{ResponseWriter: w, status: http.StatusOK}
+		var rw http.ResponseWriter
+		if h, ok := w.(http.Hijacker); ok {
+			rw = &hijacker{ResponseWriter: csrw, hijacker: h}
+		} else {
+			rw = csrw
+		}
+		handler(rw, r)
+		if r.Context().Err() != nil {
+			cancellationsCollector.With(prometheus.Labels{"code": strconv.Itoa(csrw.status), "method": r.Method}).Inc()
+		}
+	}))
 }
 
 // parsePatchPathEscaped returns a new path for the given escaped str.
