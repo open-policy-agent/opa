@@ -1,0 +1,21 @@
+#!/bin/bash
+
+# To be called from live-blocks/
+
+# Install dependencies if needed
+npm run install-deps
+
+# Bundle web js and css if needed
+if ! [ -d "dist/" ]; then
+  npm run --silent bundle-web
+fi
+
+# Copy everything over
+# NOTE: Update package.json, src/constants.js, and static/opening-in-playground.html with any changes.
+cp dist/live-blocks.js ../../public/js/ # Bundles
+cp dist/live-blocks.css ../../public/css/
+mkdir -p ../../public/live-blocks # Other assets
+cp -r static/* ../../public/live-blocks/
+
+# Preprocess the docs
+npm run --silent preprocess ../../public/docs/*/*/*.html
