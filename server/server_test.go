@@ -27,6 +27,7 @@ import (
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/bundle"
+	imetrics "github.com/open-policy-agent/opa/internal/metrics"
 	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/plugins"
 	pluginBundle "github.com/open-policy-agent/opa/plugins/bundle"
@@ -2550,8 +2551,13 @@ func TestQueryWatchMigrateInvalidate(t *testing.T) {
 }
 
 func TestMetricsEndpoint(t *testing.T) {
-
-	f := newFixture(t)
+	f := newFixture(t, func(s *Server) {
+		gm, err := imetrics.NewGlobalMetrics("prometheus", nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		s.WithMetrics(gm)
+	})
 
 	module := `package test
 
@@ -3350,7 +3356,7 @@ type fixture struct {
 	t        *testing.T
 }
 
-func newFixture(t *testing.T) *fixture {
+func newFixture(t *testing.T, opts ...func(*Server)) *fixture {
 	ctx := context.Background()
 	store := inmem.New()
 	m, err := plugins.New([]byte{}, "test", store)
@@ -3362,11 +3368,14 @@ func newFixture(t *testing.T) *fixture {
 		panic(err)
 	}
 
-	server, err := New().
+	server := New().
 		WithAddresses([]string{":8182"}).
 		WithStore(store).
-		WithManager(m).
-		Init(ctx)
+		WithManager(m)
+	for _, opt := range opts {
+		opt(server)
+	}
+	server, err = server.Init(ctx)
 	if err != nil {
 		panic(err)
 	}

@@ -14,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/plugins"
 	"github.com/open-policy-agent/opa/plugins/bundle"
 	"github.com/open-policy-agent/opa/storage/inmem"
@@ -30,7 +31,7 @@ func TestMain(m *testing.M) {
 
 func TestPluginStart(t *testing.T) {
 
-	fixture := newTestFixture(t)
+	fixture := newTestFixture(t, nil)
 	fixture.server.ch = make(chan UpdateRequestV1)
 	defer fixture.server.stop()
 
@@ -60,7 +61,7 @@ func TestPluginStart(t *testing.T) {
 
 func TestPluginStartBulkUpdate(t *testing.T) {
 
-	fixture := newTestFixture(t)
+	fixture := newTestFixture(t, nil)
 	fixture.server.ch = make(chan UpdateRequestV1)
 	defer fixture.server.stop()
 
@@ -90,7 +91,7 @@ func TestPluginStartBulkUpdate(t *testing.T) {
 
 func TestPluginStartBulkUpdateMultiple(t *testing.T) {
 
-	fixture := newTestFixture(t)
+	fixture := newTestFixture(t, nil)
 	fixture.server.ch = make(chan UpdateRequestV1)
 	defer fixture.server.stop()
 
@@ -142,7 +143,7 @@ func TestPluginStartBulkUpdateMultiple(t *testing.T) {
 
 func TestPluginStartDiscovery(t *testing.T) {
 
-	fixture := newTestFixture(t)
+	fixture := newTestFixture(t, nil)
 	fixture.server.ch = make(chan UpdateRequestV1)
 	defer fixture.server.stop()
 
@@ -171,7 +172,7 @@ func TestPluginStartDiscovery(t *testing.T) {
 }
 
 func TestPluginBadAuth(t *testing.T) {
-	fixture := newTestFixture(t)
+	fixture := newTestFixture(t, nil)
 	ctx := context.Background()
 	fixture.server.expCode = 401
 	defer fixture.server.stop()
@@ -183,7 +184,7 @@ func TestPluginBadAuth(t *testing.T) {
 }
 
 func TestPluginBadPath(t *testing.T) {
-	fixture := newTestFixture(t)
+	fixture := newTestFixture(t, nil)
 	ctx := context.Background()
 	fixture.server.expCode = 404
 	defer fixture.server.stop()
@@ -195,7 +196,7 @@ func TestPluginBadPath(t *testing.T) {
 }
 
 func TestPluginBadStatus(t *testing.T) {
-	fixture := newTestFixture(t)
+	fixture := newTestFixture(t, nil)
 	ctx := context.Background()
 	fixture.server.expCode = 500
 	defer fixture.server.stop()
@@ -208,7 +209,7 @@ func TestPluginBadStatus(t *testing.T) {
 
 func TestPluginReconfigure(t *testing.T) {
 	ctx := context.Background()
-	fixture := newTestFixture(t)
+	fixture := newTestFixture(t, nil)
 	defer fixture.server.stop()
 
 	if err := fixture.plugin.Start(ctx); err != nil {
@@ -230,13 +231,35 @@ func TestPluginReconfigure(t *testing.T) {
 	}
 }
 
+func TestMetrics(t *testing.T) {
+	testMetrics := []interface{}{"a", "b", "c"}
+	fixture := newTestFixture(t, &testMetricsProvider{data: testMetrics})
+	fixture.server.ch = make(chan UpdateRequestV1)
+	fixture.plugin.config.IncludeMetrics = true
+	defer fixture.server.stop()
+
+	ctx := context.Background()
+
+	fixture.plugin.Start(ctx)
+	defer fixture.plugin.Stop(ctx)
+
+	status := testStatus()
+
+	fixture.plugin.BulkUpdateBundleStatus(map[string]*bundle.Status{"bundle": status})
+	result := <-fixture.server.ch
+
+	if !reflect.DeepEqual(result.Metrics, map[string]interface{}{"test": testMetrics}) {
+		t.Error("Test metrics were not returned")
+	}
+}
+
 type testFixture struct {
 	manager *plugins.Manager
 	plugin  *Plugin
 	server  *testServer
 }
 
-func newTestFixture(t *testing.T) testFixture {
+func newTestFixture(t *testing.T, globalMetrics metrics.GlobalMetrics) testFixture {
 
 	ts := testServer{
 		t:       t,
@@ -271,9 +294,9 @@ func newTestFixture(t *testing.T) testFixture {
 			"service": "example",
 		}`))
 
-	config, _ := ParseConfig([]byte(pluginConfig), manager.Services())
+	config, _ := ParseConfig(pluginConfig, manager.Services())
 
-	p := New(config, manager)
+	p := New(config, manager).WithMetrics(globalMetrics)
 
 	return testFixture{
 		manager: manager,
@@ -326,4 +349,23 @@ func testStatus() *bundle.Status {
 	}
 
 	return &status
+}
+
+type testMetricsProvider struct {
+	data interface{}
+}
+
+func (t testMetricsProvider) RegisterEndpoints(registrar func(path, method string, handler http.Handler)) {
+}
+
+func (t testMetricsProvider) InstrumentHandler(handler http.Handler, label string) http.Handler {
+	return handler
+}
+
+func (t testMetricsProvider) Gather() (interface{}, error) {
+	return t.data, nil
+}
+
+func (t testMetricsProvider) Name() string {
+	return "test"
 }
