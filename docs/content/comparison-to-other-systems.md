@@ -51,25 +51,17 @@ In this example, RBAC makes the following authorization decisions:
 With OPA, you can write the following snippets to implement the
 example RBAC policy shown above.
 
-```ruby
+```live:rbac:module:openable
 package rbac.authz
 
-# Policy decisions are made using the following input
-#   Not part of the policy but good as documentation
-# input = {
-#     "user": "bob",
-#     "action": "read",
-#     "object": "server123"
-# }
-
 # user-role assignments
-user_roles = {
+user_roles := {
     "alice": ["engineering", "webdev"],
     "bob": ["hr"]
 }
 
 # role-permissions assignments
-role_permissions = {
+role_permissions := {
     "engineering": [{"action": "read",  "object": "server123"}],
     "webdev":      [{"action": "read",  "object": "server123"},
                     {"action": "write", "object": "server123"}],
@@ -90,6 +82,25 @@ allow {
     # check if the permission granted to r matches the user's request
     p == {"action": input.action, "object": input.object}
 }
+```
+
+```live:rbac:query:hidden
+allow
+```
+
+As you can see, querying the `allow` rule with the following input
+
+```live:rbac:input
+{
+  "user": "bob",
+  "action": "read",
+  "object": "server123"
+}
+```
+
+Results in the response you'd expect.
+
+```live:rbac:output
 ```
 
 ### RBAC Separation of duty (SOD)

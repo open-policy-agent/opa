@@ -57,7 +57,10 @@ a plug-in for IDE's). The rendered output will be very similar to what Hugo will
 generate.
  
 > This excludes the Hugo shortcodes (places with `{{< SHORT_CODE >}}` in the markdown.
-  To see the output of these you'll need to involve Hugo
+  To see the output of these you'll need to involve Hugo. Additionally, to validate
+  and view live code blocks, a full site build is required (e.g. `make serve`,
+  details below). See the "Live Code Blocks" section for more information on
+  how to write them.
 
 #### Modifying the Hugo templates and/or website (HTML/CSS/JS)
 
@@ -66,9 +69,11 @@ immediately be the Hugo dev server. See
 [Run the site locally using Docker](#run-the-site-locally-using-docker)
 
 > This approach will *not* include the Netlify redirects so urls like
- `http://localhost:1313/docs/latest/` will not work. You must navigate directly to
- the version of docs you want to test. Typically this will be
- [http://localhost:1313/docs/edge/](http://localhost:1313/docs/edge/).
+  `http://localhost:1313/docs/latest/` will not work. You must navigate directly to
+  the version of docs you want to test. Typically this will be
+  [http://localhost:1313/docs/edge/](http://localhost:1313/docs/edge/).
+  It will also not include the processing required for live code blocks
+  to show up correctly.
 
 
 #### Modifying the netlify config/redirects
@@ -108,7 +113,9 @@ OFFLINE=1 make generate
 ### Run the site locally using Docker
 
 > Note: running with docker only uses the Hugo server and not Netlify locally.
-This means that redirects and other Netlify features the site relies on will not work.
+  This means that redirects and other Netlify features the site relies on will not work.
+  It will also not include the processing required for live code blocks
+  to show up correctly.
 
 If [Docker is running](https://docs.docker.com/get-started/):
 
@@ -126,6 +133,7 @@ on your system:
 
 - The [Hugo](#installing-hugo) static site generator
 - The [Netlify dev CLI](https://www.netlify.com/products/dev/)
+- [NodeJS](https://nodejs.org) (and NPM)
 
 The site will be running from the Hugo dev server and fronted through netlify running
 as a local reverse proxy. This more closely simulates the production environment but
@@ -179,3 +187,147 @@ Then run:
 ```bash
 make linkcheck
 ```
+
+## Live Code Blocks
+
+Live blocks enable readers to interact with and change Rego snippets from within the docs.
+They are written as standard markdown code blocks with a special syntax in the language label
+and are enabled used a postprocessing step during full site builds.
+
+> For them to render correctly you must build the site using `make serve` or Netlify.
+  If the live blocks build starts failing, try running `make live-blocks-clear-caches` from the `docs/` folder.
+  For the page to be able to live update code blocks, you may also want to
+  disable your browser's CORS checks when developing. For chrome you can use the command-line flags
+  `--disable-web-security --user-data-dir=/tmp/$RANDOM`; this will open a new window
+  that isn't tied to your existing user data.
+
+Here's what they look like:
+
+``````markdown
+In this module:
+
+```live:rule_body:module
+package example
+
+u {
+  "foo" == "foo"
+}
+```
+
+The rule `u` evaluates to true:
+
+```live:rule_body:output
+```
+``````
+
+### Groups
+
+Each live block group within a page has a unique name, for example `rule_body` above.
+Each group can be composed of up to 1 of each type of live block:
+
+- `module` - A complete or partial rego module.
+- `query` - Rego expressions for which to show output instead of the module.
+- `input` - JSON input with which to evaluate the module/ query.
+- `output` - A block to contain the output for the group, contents will be inserted automatically.
+
+Groups can also be structured hierarchically using slashes in their names. When evaluated, the module blocks will be concatenated and any other missing blocks will be inherited from ancestors.
+Here's what a more complex set of blocks could look like:
+
+``````markdown
+```live:eg:module:hidden
+package example
+```
+
+We can define a scalar rule:
+
+```live:eg/string:module
+string = "hello"
+```
+
+Which generates the document you'd expect:
+
+```live:eg/string:output
+```
+
+We can then define a rule that uses the value of `string`:
+
+```live:eg/string/rule:module
+r { input.value == string }
+```
+
+And query it with some input:
+
+```live:eg/string/rule:input
+{
+  "value": "world"
+}
+```
+```live:eg/string/rule:query:hidden
+r
+```
+
+with which it will be undefined:
+
+```live:eg/string/rule:output:expect_undefined
+```
+``````
+
+In that example, the output for `eg/string` is evaluated with only the module:
+
+```
+package example
+
+string = "hello"
+```
+
+Whereas the `eg/string/rule` output is evaluated with the module:
+
+```
+package example
+
+string = "hello"
+
+r { input.value == string }
+```
+
+as well the given query and input.
+
+If any of the blocks that impact the output are edited by a reader,
+the output will update accordingly
+
+### Tags
+
+You'll notice in the previous example that some blocks have an additional section after the type, these are tags.
+
+> To apply multiple tags to a block, separate them with commas. E.g. `live:group_name:block_type:tag1,tag2,tag2`
+
+Some tags can be applied to any block:
+
+- `hidden` - Hide the code block.
+- `read_only` - Prevent editing of the block.
+- `merge_down` - Visually merge this code block with the one below it (remove bottom margin).
+- `openable` - Add a button to the block that opens its group in the Rego Playground. This should typically
+  only be used on complete module blocks.
+
+Outputs can also be tagged as expecting various errors. If one is tagged as expecting errors that do not occur
+or errors occur that it is not tagged as expecting, the build will fail noisily.
+
+More specific errors appear before less specific ones in this list, try to use them.
+If you think a more specific tag could be added for your case, please create an issue.
+
+- `expect_undefined` - The query result is undefined. If all the rules in a module are undefined, the output is simply `{}`.
+- `expect_assigned_above` - A variable is already `:=` assigned.
+- `expect_referenced_above` - A variable is used before it is `:=` assigned.
+- `expect_compile_error`
+- `expect_rego_type_error` - A compile-time type error.
+- `expect_unsafe_var`
+- `expect_recursion`
+- `expect_rego_error` - Any parse/compile-time error.
+- `expect_conflict`
+- `expect_eval_type_error` - An evaluation-time type error.
+- `expect_builtin_error`
+- `expect_with_merge_error`
+- `expect_eval_error` - Any evaluation-time error.
+- `expect_error` - Any OPA error. This should generally not be used.
+
+> At this time, due to the way OPA loads modules on the CLI, expecting parse errors is not possible.

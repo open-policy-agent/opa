@@ -44,6 +44,8 @@ production-build: clean generate
 		--contentDir generated \
 		--ignoreCache \
 		--minify
+	make live-blocks-inject
+	
 
 .PHONY: preview-build
 preview-build: clean generate
@@ -55,6 +57,7 @@ preview-build: clean generate
 		--buildFuture \
 		--ignoreCache \
 		--minify
+	make live-blocks-inject
 
 .PHONY: linkcheck-build
 linkcheck-build:
@@ -68,3 +71,9 @@ linkcheck-build:
 .PHONY: linkcheck
 linkcheck: clean generate linkcheck-build
 	htmlproofer ./public --empty-alt-ignore
+
+# The live-blocks-% pattern target will shim to the
+# npm scripts in ./website/scripts/live-blocks
+.PHONY: live-blocks-%
+live-blocks-%:
+	cd $(CURDIR)/website/scripts/live-blocks && npm run --silent $*

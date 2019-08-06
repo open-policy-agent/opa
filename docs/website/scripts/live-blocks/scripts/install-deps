@@ -1,0 +1,8 @@
+#!/bin/bash
+
+# To be called from live-blocks/
+
+# Only run install if node_modules does not exist
+if ! [ -d "node_modules/" ]; then
+  npm i
+fi
