@@ -3,7 +3,85 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## 0.13.0
+
+### Multiple Bundles
+
+This release adds support for downloading multiple bundles to OPA
+using the new `bundles` key in the configuration. APIs that include
+bundle information have been updated to support multiple bundles:
+
+* Status API messages include the status and revision of each bundle.
+* Decision Log API messages include the revision of each bundle.
+* Data API responses include the revision of each bundle in the
+  provenance field if requested.
+* Health API waits for all bundles to activate if requested.
+
+These changes are **backwards compatible**. If you are using the
+existing `bundle` key in the configuration, you will not see any
+changes in the APIs listed above.
+
+We recommend that you switch to the new `bundles` key and update
+consumers of the above APIs to support multiple bundles.
+
+For more information on bundles see the [this
+page](https://www.openpolicyagent.org/docs/latest/bundles/) in the OPA
+documentation.
+
+### Console Decision Logger
+
+This release adds support for emitting decision logs to stdout. This
+is useful for shipping decision logs directly to existing logging
+backends.
+
+You can enable console decision logging on the command line:
+
+```
+opa run --server --set decision_logs.console=true
+```
+
+Console decision logging can be enabled alongside normal and custom
+decision logging.
+
+### Fixes
+
+- ast: Report safety errors on line where expression starts ([#1497](https://github.com/open-policy-agent/opa/issues/1497))
+- ast: Update rule index to support glob.match ([#1496](https://github.com/open-policy-agent/opa/issues/1496))
+- bundle: Add support for loading YAML files from bundles ([#1471](https://github.com/open-policy-agent/opa/issues/1471))
+- bundle: Cache compiler on storage context ([#1515](https://github.com/open-policy-agent/opa/issues/1515))
+- cmd: Fix double print of rego errors ([#1518](https://github.com/open-policy-agent/opa/issues/1518))
+- docs: Add section on how to express "FOR ALL" in Rego ([#1307](https://github.com/open-policy-agent/opa/issues/1307))
+- docs: Fix mention of reference head var ([#1477](https://github.com/open-policy-agent/opa/issues/1477))
+- docs: Remove cast_xyz functions from docs ([#1405](https://github.com/open-policy-agent/opa/issues/1405))
+- server: Pass transaction in decision log event ([#1543](https://github.com/open-policy-agent/opa/issues/1543))
+- storage: Add safety checks to in-memory store ([#1594](https://github.com/open-policy-agent/opa/issues/1594))
+- topdown: Fix corrupt object panic caused by copy propagation ([#1177](https://github.com/open-policy-agent/opa/issues/1177))
+- topdown: Fix virtual cache to allow composite key terms ([#1197](https://github.com/open-policy-agent/opa/issues/1197))
+
+### Miscellaneous
+
+- OPA sets the User-Agent header in requests made to services.
+- `openpolicyagent/opa:edge` Docker images are available now. The
+  `edge` tag refers to the tip of master.
+- OPA supports signing and encoding of JWTs. See [Token
+  Signing](https://www.openpolicyagent.org/docs/latest/language-reference/#token-signing)
+  for details.
+- Prometheus metrics include cancelled HTTP requests.
+- Compiler exposes optional unsafe built-in function check.
+- Discovery query can be configured now. See [Discovery
+  Configuration](https://www.openpolicyagent.org/docs/latest/configuration/#discovery)
+  for details.
+- Optimized rewriteDynamics stage in compiler to reduce allocations.
+- OPA subcommands support "fails" explanation now. The "fails"
+  explanation is similar to the "notes" explanation except that it
+  prints Fail events instead of Note events. This is useful for among
+  other things, debugging test failures.
+- Partial evaluation can disable inlining on specific virtual
+  documents. If set correctly this can improve partial evaluation
+  performance significantly because OPA can avoid computing
+  cross-products.
+- `rego.Rego#PrepareForEVal` now times partial evaluation properly.
+- The diagnostics feature deprecated in v0.10.1 has been removed.
 
 ## 0.12.2
 
