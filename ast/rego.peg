@@ -234,7 +234,7 @@ VarChecked <- val:VarUnchecked !{
     return IsKeyword(string(val.(*Term).Value.(Var))), nil
 }
 
-VarUnchecked <- AsciiLetter (AsciiLetter / DecimalDigit)* {
+VarUnchecked <- VarStart VarChar* {
     return makeVar(currentLocation(c), c.text)
 }
 
@@ -266,13 +266,17 @@ RawString <- '`' [^`]* '`' {
     return makeRawString(currentLocation(c), c.text)
 }
 
-Bool <- val:("true" / "false") {
+Bool <- val:("true" / "false") !VarChar {
     return makeBool(currentLocation(c), c.text)
 }
 
-Null <- "null" {
+Null <- "null" !VarChar {
     return makeNull(currentLocation(c))
 }
+
+VarStart <- AsciiLetter
+
+VarChar <- AsciiLetter / DecimalDigit
 
 AsciiLetter <- [A-Za-z_]
 
