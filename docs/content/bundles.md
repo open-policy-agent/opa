@@ -49,7 +49,7 @@ services:
       bearer:
         token: "bGFza2RqZmxha3NkamZsa2Fqc2Rsa2ZqYWtsc2RqZmtramRmYWxkc2tm"
 
-bundle:
+bundles:
   authz:
     service: acmecorp
     resource: somedir/bundle.tar.gz
@@ -69,13 +69,14 @@ https://example.com/service/v1/somedir/bundle.tar.gz
 services[0].url                resource
 ```
 
-If the `bundle.resource` field is not defined, the value defaults to `bundles/<name>`
-where the `name` is the key value in the configuration. For the example above this is `authz`
-and would default to `bundles/authz`.
+If the `bundles[_].resource` field is not defined, the value defaults to
+`bundles/<name>` where the `name` is the key value in the configuration. For the
+example above this is `authz` and would default to `bundles/authz`.
 
-Bundle names can have any valid yaml characters in them, including `/`. This can
-be useful when relying on default `resource` behavior with a name like `authz/bundle.tar.gz`
-which results in a `resource` of `bundles/authz/bundle.tar.gz`.
+Bundle names can have any valid YAML characters in them, including `/`. This can
+be useful when relying on default `resource` behavior with a name like
+`authz/bundle.tar.gz` which results in a `resource` of
+`bundles/authz/bundle.tar.gz`.
 
 See the following section for details on the bundle file format.
 
@@ -209,7 +210,7 @@ the Status API.
   against other bundles. It is the responsibility of the bundle creator
   to ensure the manifest claims roots that are unique to that bundle!
   There are *no* ordering guarantees for which bundle loads first and
-  takes over some root. 
+  takes over some root.
 
 ## Debugging Your Bundles
 

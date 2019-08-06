@@ -494,8 +494,8 @@ opa run \
     --addr=https://localhost:8181 \
     --tls-cert-file=/var/tmp/server.crt \
     --tls-private-key-file=/var/tmp/server.key \
-    --set=bundle.service=default \
-    --set=bundle.name=myapp_authz_bundle \
+    --set=bundles.authz.service=default \
+    --set=bundles.authz.resource=myapp_authz_bundle \
     --set=services.default.url=https://control.acmecorp.com \
     --set-file=services.default.credentials.bearer.token=/var/tmp/secret-bearer-token
 ```
