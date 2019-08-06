@@ -11,6 +11,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
+	"github.com/open-policy-agent/opa/metrics"
 	"io"
 	"os"
 	"os/signal"
@@ -19,6 +20,7 @@ import (
 	"time"
 
 	"github.com/open-policy-agent/opa/ast"
+	imetrics "github.com/open-policy-agent/opa/internal/metrics"
 	"github.com/open-policy-agent/opa/internal/runtime"
 	storedversion "github.com/open-policy-agent/opa/internal/version"
 	"github.com/open-policy-agent/opa/loader"
@@ -32,7 +34,7 @@ import (
 	"github.com/open-policy-agent/opa/version"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
-	fsnotify "gopkg.in/fsnotify.v1"
+	"gopkg.in/fsnotify.v1"
 )
 
 var (
@@ -161,7 +163,8 @@ type Runtime struct {
 	// and doesn't have to duplicated here or on the server.
 	info *ast.Term // runtime information provided to evaluation engine
 
-	server *server.Server
+	server        *server.Server
+	globalMetrics metrics.GlobalMetrics
 }
 
 // NewRuntime returns a new Runtime object initialized with params.
@@ -221,7 +224,11 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		return nil, errors.Wrapf(err, "config error")
 	}
 
-	disco, err := discovery.New(manager, discovery.Factories(registeredPlugins))
+	gm, err := imetrics.NewGlobalMetrics(manager.Config.MetricsProvider.Name, manager.Config.MetricsProvider.Config)
+	if err != nil {
+		return nil, errors.Wrapf(err, "config error")
+	}
+	disco, err := discovery.New(manager, discovery.Factories(registeredPlugins), discovery.WithMetrics(gm))
 	if err != nil {
 		return nil, errors.Wrapf(err, "config error")
 	}
@@ -229,10 +236,11 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 	manager.Register("discovery", disco)
 
 	rt := &Runtime{
-		Store:   store,
-		Params:  params,
-		Manager: manager,
-		info:    info,
+		Store:         store,
+		Params:        params,
+		Manager:       manager,
+		info:          info,
+		globalMetrics: gm,
 	}
 
 	return rt, nil
@@ -280,6 +288,7 @@ func (rt *Runtime) Serve(ctx context.Context) error {
 		WithDecisionIDFactory(rt.decisionIDFactory).
 		WithDecisionLoggerWithErr(rt.decisionLogger).
 		WithRuntime(rt.info).
+		WithMetrics(rt.globalMetrics).
 		Init(ctx)
 
 	if err != nil {
