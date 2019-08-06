@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"reflect"
 
+	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/plugins"
 	"github.com/open-policy-agent/opa/plugins/bundle"
 	"github.com/open-policy-agent/opa/util"
@@ -25,6 +26,7 @@ type UpdateRequestV1 struct {
 	Bundle    *bundle.Status            `json:"bundle,omitempty"` // Deprecated: Use bulk `bundles` status updates instead
 	Bundles   map[string]*bundle.Status `json:"bundles,omitempty"`
 	Discovery *bundle.Status            `json:"discovery,omitempty"`
+	Metrics   map[string]interface{}    `json:"metrics,omitempty"`
 }
 
 // Plugin implements status reporting. Updates can be triggered by the caller.
@@ -39,12 +41,14 @@ type Plugin struct {
 	lastDiscoStatus    *bundle.Status
 	stop               chan chan struct{}
 	reconfig           chan interface{}
+	globalMetrics      metrics.GlobalMetrics
 }
 
 // Config contains configuration for the plugin.
 type Config struct {
-	Service       string `json:"service"`
-	PartitionName string `json:"partition_name,omitempty"`
+	Service        string `json:"service"`
+	PartitionName  string `json:"partition_name,omitempty"`
+	IncludeMetrics bool   `json:"include_metrics"`
 }
 
 func (c *Config) validateAndInjectDefaults(services []string) error {
@@ -91,8 +95,7 @@ func ParseConfig(config []byte, services []string) (*Config, error) {
 
 // New returns a new Plugin with the given config.
 func New(parsedConfig *Config, manager *plugins.Manager) *Plugin {
-
-	plugin := &Plugin{
+	return &Plugin{
 		manager:      manager,
 		config:       *parsedConfig,
 		bundleCh:     make(chan bundle.Status),
@@ -101,8 +104,12 @@ func New(parsedConfig *Config, manager *plugins.Manager) *Plugin {
 		stop:         make(chan chan struct{}),
 		reconfig:     make(chan interface{}),
 	}
+}
 
-	return plugin
+// WithMetrics sets the global metrics provider to be used by the plugin.
+func (p *Plugin) WithMetrics(globalMetrics metrics.GlobalMetrics) *Plugin {
+	p.globalMetrics = globalMetrics
+	return p
 }
 
 // Name identifies the plugin on manager.
@@ -195,7 +202,6 @@ func (p *Plugin) loop() {
 }
 
 func (p *Plugin) oneShot(ctx context.Context) error {
-
 	req := &UpdateRequestV1{
 		Labels:    p.manager.Labels(),
 		Discovery: p.lastDiscoStatus,
@@ -203,6 +209,15 @@ func (p *Plugin) oneShot(ctx context.Context) error {
 		Bundles:   p.lastBundleStatuses,
 	}
 
+	if p.config.IncludeMetrics && p.globalMetrics != nil {
+		name := p.globalMetrics.Name()
+		globalMetrics, err := p.globalMetrics.Gather()
+		if err != nil {
+			p.logError("Cannot gather metrics: %v.", err)
+		} else if name != "" {
+			req.Metrics = map[string]interface{}{name: globalMetrics}
+		}
+	}
 	resp, err := p.manager.Client(p.config.Service).
 		WithJSON(req).
 		Do(ctx, "POST", fmt.Sprintf("/status/%v", p.config.PartitionName))

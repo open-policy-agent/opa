@@ -120,7 +120,7 @@ func TestProcessBundle(t *testing.T) {
 		}
 	`)
 
-	_, ps, err := processBundle(ctx, manager, nil, initialBundle, "data.config")
+	_, ps, err := processBundle(ctx, manager, nil, initialBundle, "data.config", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -139,7 +139,7 @@ func TestProcessBundle(t *testing.T) {
 		}
 	`)
 
-	_, ps, err = processBundle(ctx, manager, nil, updatedBundle, "data.config")
+	_, ps, err = processBundle(ctx, manager, nil, updatedBundle, "data.config", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -156,7 +156,7 @@ func TestProcessBundle(t *testing.T) {
 		}
 	`)
 
-	_, _, err = processBundle(ctx, manager, nil, updatedBundle, "data.config")
+	_, _, err = processBundle(ctx, manager, nil, updatedBundle, "data.config", nil)
 	if err == nil {
 		t.Fatal("Expected error but got success")
 	}
@@ -419,7 +419,7 @@ bundle:
   service: s2
 `
 	manager := getTestManager(t, conf)
-	_, err := getPluginSet(nil, manager, manager.Config)
+	_, err := getPluginSet(nil, manager, manager.Config, nil)
 	if err != nil {
 		t.Fatalf("Unexpected error: %s", err)
 	}
@@ -455,7 +455,7 @@ bundles:
     service: s1
 `
 	manager := getTestManager(t, conf)
-	_, err := getPluginSet(nil, manager, manager.Config)
+	_, err := getPluginSet(nil, manager, manager.Config, nil)
 	if err != nil {
 		t.Fatalf("Unexpected error: %s", err)
 	}
