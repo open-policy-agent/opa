@@ -23,6 +23,10 @@ This is a list of production adopters of OPA (in alphabetical order):
   Kubernetes clusters that host a mix of production and test
   workloads.
 
+* [Fugue](https://fugue.co) is a cloud security SaaS that uses OPA to
+  classify compliance violations and security risks in AWS and Azure
+  accounts and generate compliance reports and notifications.
+
 * [Intuit](https://www.intuit.com/company/) uses OPA as a validating
   and mutating admission controller to implement various security,
   multi-tenancy, and risk management policies across approximately 50
