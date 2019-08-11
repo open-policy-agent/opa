@@ -8,6 +8,7 @@
 {{ $docsHome  := .CurrentSection }}
 {{ $allDocs   := where site.RegularPages "Section" "docs" }}
 {{ $docs      := where $allDocs ".Params.kind" "eq" "documentation" }}
+{{ $kubernetes := where $allDocs ".Params.kind" "eq" "kubernetes" }}
 {{ $tutorials := where $allDocs ".Params.kind" "eq" "tutorial" }}
 {{ $guides    := where $allDocs ".Params.kind" "eq" "guides" }}
 {{ $version   := index (split .File.Path "/") 1 }}
@@ -37,28 +38,15 @@
       </a>
 
       {{ range $docs }}
-        {{ partial "docs/navbar-link.html" (dict "ctx" . "pageUrl" $pageUrl "version" $version) }}
-      {{ end }}
-
-      <br />
-
-      <span class="navbar-item is-size-5 has-text-weight-light is-uppercase">
-        Tutorials
-      </span>
-
-      {{ range $tutorials }}
-        {{ partial "docs/navbar-link.html" (dict "ctx" . "pageUrl" $pageUrl "version" $version) }}
-      {{ end }}
-
-      <br />
-
-      <span class="navbar-item is-size-5 has-text-weight-light is-uppercase">
-        Guides
-      </span>
-
-      {{ range $guides }}
       {{ partial "docs/navbar-link.html" (dict "ctx" . "pageUrl" $pageUrl "version" $version) }}
       {{ end }}
+
+      {{ partial "docs/navbar-section.html" ( dict "ctx" . "sectionTitle" "Kubernetes" "section" $kubernetes "pageUrl" $pageUrl "version" $version ) }}
+
+      {{ partial "docs/navbar-section.html" ( dict "ctx" . "sectionTitle" "Tutorials" "section" $tutorials "pageUrl" $pageUrl "version" $version ) }}
+
+      {{ partial "docs/navbar-section.html" ( dict "ctx" . "sectionTitle" "Guides" "section" $guides "pageUrl" $pageUrl "version" $version ) }}
+
     </div>
 
     <div class="navbar-end">
