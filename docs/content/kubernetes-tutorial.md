@@ -1,14 +1,11 @@
 ---
-title: Kubernetes Admission Control
-kind: tutorial
-weight: 6
+title: "Admission Control Tutorial: Ingress Validation"
+kind: kubernetes
+weight: 10
 ---
 
-In Kubernetes, [Admission Controllers](https://kubernetes.io/docs/admin/admission-controllers/) enforce semantic validation of objects during create, update, and delete operations. With OPA you can enforce custom policies on Kubernetes objects without recompiling or reconfiguring the Kubernetes API server.
-
-## Goals
-
-This tutorial shows how to enforce custom policies on Kubernetes objects using OPA. In this tutorial, you will define admission control rules that prevent users from creating Kubernetes Ingress objects that violate the following organization policy:
+This tutorial shows how to deploy OPA as an admission controller from scratch.
+For the purpose of the tutorial we will deploy two policies that ensure:
 
 - Ingress hostnames must be whitelisted on the Namespace containing the Ingress.
 - Two ingresses in different namespaces must not have the same hostname.
