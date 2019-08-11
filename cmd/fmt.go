@@ -40,7 +40,7 @@ instead of printing to stdout.
 If the '-d' option is supplied, the 'fmt' command will output a diff between the
 original and formatted source.
 
-If the '-l' option is suppled, the 'fmt' command will output the names of files
+If the '-l' option is supplied, the 'fmt' command will output the names of files
 that would change if formatted. The '-l' option will suppress any other output
 to stdout from the 'fmt' command.`,
 	Run: func(cmd *cobra.Command, args []string) {
