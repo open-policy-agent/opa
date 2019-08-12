@@ -49,9 +49,6 @@ type PartialResult struct {
 }
 
 // Rego returns an object that can be evaluated to produce a query result.
-// If rego.Rego#Prepare was used to create the PartialResult this may lose
-// the pre-parsed/compiled parts of the original Rego object. In those cases
-// using rego.PartialResult#Eval is likely to be more performant.
 func (pr PartialResult) Rego(options ...func(*Rego)) *Rego {
 	options = append(options, Compiler(pr.compiler), Store(pr.store), ParsedQuery(pr.body))
 	return New(options...)
