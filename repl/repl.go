@@ -1119,7 +1119,7 @@ var extra = [...]commandDesc{
 var builtin = [...]commandDesc{
 	{"show", []string{""}, "show active module definition"},
 	{"show debug", []string{""}, "show REPL settings"},
-	{"unset", []string{"<var>"}, "undefine rules in currently active module"},
+	{"unset", []string{"<var>"}, "unset rules in currently active module"},
 	{"json", []string{}, "set output format to JSON"},
 	{"pretty", []string{}, "set output format to pretty"},
 	{"pretty-limit", []string{}, "set pretty value output limit"},
