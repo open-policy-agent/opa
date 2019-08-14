@@ -5,7 +5,7 @@
 VERSION := 0.14.0-dev
 
 GO := go
-GOVERSION := 1.11
+GOVERSION := 1.12
 GOARCH := $(shell go env GOARCH)
 GOOS := $(shell go env GOOS)
 
