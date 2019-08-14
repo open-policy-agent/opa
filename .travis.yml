@@ -2,7 +2,7 @@ sudo: required
 language: go
 go_import_path: github.com/open-policy-agent/opa
 go:
-- "1.12"
+- "1.12.8"
 install:
   # AWS CLI is required for pushing the edge binaries to S3.
   - pip install --user awscli

@@ -5,7 +5,7 @@
 VERSION := 0.13.2-dev
 
 GO := go
-GOVERSION := 1.12
+GOVERSION := 1.12.8
 GOARCH := $(shell go env GOARCH)
 GOOS := $(shell go env GOOS)
 
@@ -21,7 +21,7 @@ BUILD_COMMIT := $(shell ./build/get-build-commit.sh)
 BUILD_TIMESTAMP := $(shell ./build/get-build-timestamp.sh)
 BUILD_HOSTNAME := $(shell ./build/get-build-hostname.sh)
 
-RELEASE_BUILDER_VERSION := 1.2
+RELEASE_BUILDER_VERSION := 1.3
 
 LDFLAGS := "-X github.com/open-policy-agent/opa/version.Version=$(VERSION) \
 	-X github.com/open-policy-agent/opa/version.Vcs=$(BUILD_COMMIT) \
