@@ -3,7 +3,13 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## 0.13.2
+
+This release updates OPA to use the latest stable Golang release
+(1.12.8) that includes important fixes in the net/http package. See
+this
+[golang-nuts](https://groups.google.com/forum/#!topic/golang-nuts/fCQWxqxP8aA)
+group message for details.
 
 ## 0.13.0
 
