@@ -127,9 +127,8 @@ code is kept in the repository so that commands such as `go get` work.
 
 ## Go
 
-If you need to update the version of Go that OPA's CI and release
-builder use, update the Go version in the Makefile and .travis.yml
-files. You will also need to bump the version of the release builder
-and re-build it using the `release-builder` target. Note, you will
-need push access on the openpolicyagent DockerHub account to release
-the new version of the `release-builder` as this is not automated yet.
+If you need to update the version of Go used to build OPA you must update two
+files in the root of this repository:
+
+* `.travis.yml` which is used to configure the Travis CI build environment.
+* `Makefile`- which is used to produce releases locally. Update the `GOVERSION` variable.

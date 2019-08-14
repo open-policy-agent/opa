@@ -21,7 +21,7 @@ BUILD_COMMIT := $(shell ./build/get-build-commit.sh)
 BUILD_TIMESTAMP := $(shell ./build/get-build-timestamp.sh)
 BUILD_HOSTNAME := $(shell ./build/get-build-hostname.sh)
 
-RELEASE_BUILDER_VERSION := 1.3
+RELEASE_BUILD_IMAGE := golang:$(GOVERSION)
 
 LDFLAGS := "-X github.com/open-policy-agent/opa/version.Version=$(VERSION) \
 	-X github.com/open-policy-agent/opa/version.Vcs=$(BUILD_COMMIT) \
@@ -204,22 +204,12 @@ docs-%:
 #
 ######################################################
 
-.PHONY: release-builder
-release-builder:
-	sed -e s/GOVERSION/$(GOVERSION)/g Dockerfile_release-builder.in > .Dockerfile_release-builder
-	docker build -f .Dockerfile_release-builder -t $(REPOSITORY)/release-builder:$(RELEASE_BUILDER_VERSION) -t $(REPOSITORY)/release-builder:latest .
-
-.PHONY: push-release-builder
-push-release-builder:
-	docker push $(REPOSITORY)/release-builder:latest
-	docker push $(REPOSITORY)/release-builder:$(RELEASE_BUILDER_VERSION)
-
 .PHONY: release
 release:
 	docker run -it --rm \
 		-v $(PWD)/_release/$(VERSION):/_release/$(VERSION) \
 		-v $(PWD):/_src \
-		$(REPOSITORY)/release-builder:$(RELEASE_BUILDER_VERSION) \
+		$(RELEASE_BUILD_IMAGE) \
 		/_src/build/build-release.sh --version=$(VERSION) --output-dir=/_release/$(VERSION) --source-url=/_src
 
 .PHONY: release-local
@@ -227,7 +217,7 @@ release-local:
 	docker run -it --rm \
 		-v $(PWD)/_release/$(VERSION):/_release/$(VERSION) \
 		-v $(PWD):/_src \
-		$(REPOSITORY)/release-builder:$(RELEASE_BUILDER_VERSION) \
+		$(RELEASE_BUILD_IMAGE) \
 		/_src/build/build-release.sh --output-dir=/_release/$(VERSION) --source-url=/_src
 
 .PHONY: release-patch
