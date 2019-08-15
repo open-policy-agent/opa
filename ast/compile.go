@@ -807,7 +807,7 @@ func (c *Compiler) resolveAllRefs() {
 		}
 
 		for id, module := range parsed {
-			c.Modules[id] = module
+			c.Modules[id] = module.Copy()
 			c.sorted = append(c.sorted, id)
 		}
 
