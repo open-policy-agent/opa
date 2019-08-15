@@ -90,7 +90,7 @@ type PatchV1 struct {
 	Value interface{} `json:"value"`
 }
 
-// PolicyListResponseV1 models the response mesasge for the Policy API list operation.
+// PolicyListResponseV1 models the response message for the Policy API list operation.
 type PolicyListResponseV1 struct {
 	Result []PolicyV1 `json:"result"`
 }
@@ -365,7 +365,7 @@ type CompileRequestV1 struct {
 	Unknowns *[]string    `json:"unknowns"`
 }
 
-// CompileResponseV1 models the response messaage for Compile API operations.
+// CompileResponseV1 models the response message for Compile API operations.
 type CompileResponseV1 struct {
 	Result      *interface{} `json:"result,omitempty"`
 	Explanation TraceV1      `json:"explanation,omitempty"`
