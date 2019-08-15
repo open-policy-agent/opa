@@ -6,26 +6,28 @@ package prometheus
 
 import (
 	"bufio"
+	"encoding/json"
 	"net"
 	"net/http"
 	"strconv"
 
+	"github.com/open-policy-agent/opa/metrics"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
-// ProviderName is the Prometheus provider name
-const ProviderName = "prometheus"
-
-// Provider is the prometheus
+// Provider wraps a metrics.Metrics provider with a Prometheus registry that can
+// instrument the HTTP server's handlers.
 type Provider struct {
 	registry             *prometheus.Registry
 	durationHistogram    *prometheus.HistogramVec
 	cancellationCounters *prometheus.CounterVec
+	inner                metrics.Metrics
+	logger               func(attrs map[string]interface{}, f string, a ...interface{})
 }
 
-// NewPrometheusProvider creates new instance of the prometheus provider
-func NewPrometheusProvider() *Provider {
+// New returns a new Provider object.
+func New(inner metrics.Metrics, logger func(attrs map[string]interface{}, f string, a ...interface{})) *Provider {
 	registry := prometheus.NewRegistry()
 	registry.MustRegister(prometheus.NewGoCollector())
 	durationHistogram := prometheus.NewHistogramVec(
@@ -50,6 +52,8 @@ func NewPrometheusProvider() *Provider {
 		registry:             registry,
 		durationHistogram:    durationHistogram,
 		cancellationCounters: cancellationCounters,
+		inner:                inner,
+		logger:               logger,
 	}
 }
 
@@ -77,14 +81,58 @@ func (p *Provider) InstrumentHandler(handler http.Handler, label string) http.Ha
 	}))
 }
 
-// Gather collects and returns all registered metrics
-func (p *Provider) Gather() (interface{}, error) {
-	return p.registry.Gather()
+// Info returns attributes that describe the metric provider.
+func (p *Provider) Info() metrics.Info {
+	return metrics.Info{
+		Name: "prometheus",
+	}
 }
 
-// Name returns the provider name
-func (p *Provider) Name() string {
-	return ProviderName
+// All returns the union of the inner metric provider and the underlying
+// prometheus registry.
+func (p *Provider) All() map[string]interface{} {
+
+	all := p.inner.All()
+
+	families, err := p.registry.Gather()
+	if err != nil && p.logger != nil {
+		p.logger(map[string]interface{}{
+			"err": err,
+		}, "Failed to gather metrics from Prometheus registry.")
+	}
+
+	for _, f := range families {
+		all[f.GetName()] = f
+	}
+
+	return all
+}
+
+// MarshalJSON returns a JSON representation of the unioned metrics.
+func (p *Provider) MarshalJSON() ([]byte, error) {
+	return json.Marshal(p.All())
+}
+
+// Timer returns a named timer.
+func (p *Provider) Timer(name string) metrics.Timer {
+	return p.inner.Timer(name)
+}
+
+// Counter returns a named counter.
+func (p *Provider) Counter(name string) metrics.Counter {
+	return p.inner.Counter(name)
+}
+
+// Histogram returns a named histogram.
+func (p *Provider) Histogram(name string) metrics.Histogram {
+	return p.inner.Histogram(name)
+}
+
+// Clear resets the inner metric provider. The Prometheus registry does not
+// expose an interface to clear the metrics so this call has no affect on
+// metrics tracked by Prometheus.
+func (p *Provider) Clear() {
+	p.inner.Clear()
 }
 
 type captureStatusResponseWriter struct {

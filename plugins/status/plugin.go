@@ -41,14 +41,13 @@ type Plugin struct {
 	lastDiscoStatus    *bundle.Status
 	stop               chan chan struct{}
 	reconfig           chan interface{}
-	globalMetrics      metrics.GlobalMetrics
+	metrics            metrics.Metrics
 }
 
 // Config contains configuration for the plugin.
 type Config struct {
-	Service        string `json:"service"`
-	PartitionName  string `json:"partition_name,omitempty"`
-	IncludeMetrics bool   `json:"include_metrics"`
+	Service       string `json:"service"`
+	PartitionName string `json:"partition_name,omitempty"`
 }
 
 func (c *Config) validateAndInjectDefaults(services []string) error {
@@ -107,8 +106,8 @@ func New(parsedConfig *Config, manager *plugins.Manager) *Plugin {
 }
 
 // WithMetrics sets the global metrics provider to be used by the plugin.
-func (p *Plugin) WithMetrics(globalMetrics metrics.GlobalMetrics) *Plugin {
-	p.globalMetrics = globalMetrics
+func (p *Plugin) WithMetrics(m metrics.Metrics) *Plugin {
+	p.metrics = m
 	return p
 }
 
@@ -202,6 +201,7 @@ func (p *Plugin) loop() {
 }
 
 func (p *Plugin) oneShot(ctx context.Context) error {
+
 	req := &UpdateRequestV1{
 		Labels:    p.manager.Labels(),
 		Discovery: p.lastDiscoStatus,
@@ -209,15 +209,10 @@ func (p *Plugin) oneShot(ctx context.Context) error {
 		Bundles:   p.lastBundleStatuses,
 	}
 
-	if p.config.IncludeMetrics && p.globalMetrics != nil {
-		name := p.globalMetrics.Name()
-		globalMetrics, err := p.globalMetrics.Gather()
-		if err != nil {
-			p.logError("Cannot gather metrics: %v.", err)
-		} else if name != "" {
-			req.Metrics = map[string]interface{}{name: globalMetrics}
-		}
+	if p.metrics != nil {
+		req.Metrics = map[string]interface{}{p.metrics.Info().Name: p.metrics.All()}
 	}
+
 	resp, err := p.manager.Client(p.config.Service).
 		WithJSON(req).
 		Do(ctx, "POST", fmt.Sprintf("/status/%v", p.config.PartitionName))

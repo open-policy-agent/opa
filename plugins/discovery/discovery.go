@@ -9,6 +9,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+
 	"github.com/open-policy-agent/opa/metrics"
 
 	"github.com/open-policy-agent/opa/ast"
@@ -28,13 +29,13 @@ import (
 // started it will periodically download a configuration bundle and try to
 // reconfigure the OPA.
 type Discovery struct {
-	manager       *plugins.Manager
-	config        *Config
-	factories     map[string]plugins.Factory
-	downloader    *download.Downloader // discovery bundle downloader
-	status        *bundle.Status       // discovery status
-	etag          string               // discovery bundle etag for caching purposes
-	globalMetrics metrics.GlobalMetrics
+	manager    *plugins.Manager
+	config     *Config
+	factories  map[string]plugins.Factory
+	downloader *download.Downloader // discovery bundle downloader
+	status     *bundle.Status       // discovery status
+	etag       string               // discovery bundle etag for caching purposes
+	metrics    metrics.Metrics
 }
 
 // Factories provides a set of factory functions to use for
@@ -45,10 +46,10 @@ func Factories(fs map[string]plugins.Factory) func(*Discovery) {
 	}
 }
 
-// WithMetrics sets the GlobalMetrics instance to use for instantiations
-func WithMetrics(globalMetrics metrics.GlobalMetrics) func(*Discovery) {
+// Metrics provides a metrics provider to pass to plugins.
+func Metrics(m metrics.Metrics) func(*Discovery) {
 	return func(d *Discovery) {
-		d.globalMetrics = globalMetrics
+		d.metrics = m
 	}
 }
 
@@ -68,7 +69,7 @@ func New(manager *plugins.Manager, opts ...func(*Discovery)) (*Discovery, error)
 	if err != nil {
 		return nil, err
 	} else if config == nil {
-		if _, err := getPluginSet(result.factories, manager, manager.Config, result.globalMetrics); err != nil {
+		if _, err := getPluginSet(result.factories, manager, manager.Config, result.metrics); err != nil {
 			return nil, err
 		}
 		return result, nil
@@ -153,7 +154,7 @@ func (c *Discovery) processUpdate(ctx context.Context, u download.Update) {
 
 func (c *Discovery) reconfigure(ctx context.Context, u download.Update) error {
 
-	config, ps, err := processBundle(ctx, c.manager, c.factories, u.Bundle, c.config.query, c.globalMetrics)
+	config, ps, err := processBundle(ctx, c.manager, c.factories, u.Bundle, c.config.query, c.metrics)
 	if err != nil {
 		return err
 	}
@@ -199,14 +200,14 @@ func (c *Discovery) logrusFields() logrus.Fields {
 	}
 }
 
-func processBundle(ctx context.Context, manager *plugins.Manager, factories map[string]plugins.Factory, b *bundleApi.Bundle, query string, globalMetrics metrics.GlobalMetrics) (*config.Config, *pluginSet, error) {
+func processBundle(ctx context.Context, manager *plugins.Manager, factories map[string]plugins.Factory, b *bundleApi.Bundle, query string, m metrics.Metrics) (*config.Config, *pluginSet, error) {
 
 	config, err := evaluateBundle(ctx, manager.ID, manager.Info, b, query)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	ps, err := getPluginSet(factories, manager, config, globalMetrics)
+	ps, err := getPluginSet(factories, manager, config, m)
 	return config, ps, err
 }
 
@@ -266,7 +267,7 @@ type pluginfactory struct {
 	config  interface{}
 }
 
-func getPluginSet(factories map[string]plugins.Factory, manager *plugins.Manager, config *config.Config, globalMetrics metrics.GlobalMetrics) (*pluginSet, error) {
+func getPluginSet(factories map[string]plugins.Factory, manager *plugins.Manager, config *config.Config, m metrics.Metrics) (*pluginSet, error) {
 
 	// Parse and validate plugin configurations.
 	pluginNames := []string{}
@@ -339,7 +340,7 @@ func getPluginSet(factories map[string]plugins.Factory, manager *plugins.Manager
 	}
 
 	if statusConfig != nil {
-		p, created := getStatusPlugin(manager, statusConfig, globalMetrics)
+		p, created := getStatusPlugin(manager, statusConfig, m)
 		if created {
 			starts = append(starts, p)
 		} else if p != nil {
@@ -375,12 +376,12 @@ func getDecisionLogsPlugin(m *plugins.Manager, config *logs.Config) (plugin *log
 	return plugin, created
 }
 
-func getStatusPlugin(m *plugins.Manager, config *status.Config, globalMetrics metrics.GlobalMetrics) (plugin *status.Plugin, created bool) {
+func getStatusPlugin(m *plugins.Manager, config *status.Config, metrics metrics.Metrics) (plugin *status.Plugin, created bool) {
 
 	plugin = status.Lookup(m)
 
 	if plugin == nil {
-		plugin = status.New(config, m).WithMetrics(globalMetrics)
+		plugin = status.New(config, m).WithMetrics(metrics)
 		m.Register(status.Name, plugin)
 		registerBundleStatusUpdates(m)
 		created = true

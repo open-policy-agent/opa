@@ -52,9 +52,6 @@ status:
   service: acmecorp
 
 default_decision: /http/example/authz/allow
-
-metrics_provider:
-    name: prometheus
 ```
 
 ## Environment Variable Substitution
@@ -346,7 +343,6 @@ server provenance, etc.
 | --- | --- | --- | --- |
 | `status.service` | `string` | Yes | Name of service to use to contact remote server. |
 | `status.partition_name` | `string` | No | Path segment to include in status updates. |
-| `status.include_metrics` | `boolean` | (default: `false`)  | Include Prometheus metrics in status updates. |
 
 ## Decision Logs
 
@@ -371,15 +367,3 @@ server provenance, etc.
 | `discovery.decision` | `string` | No (default: value of `discovery.name` configuration field) | Name of the OPA query that will be used to calculate the configuration |
 | `discovery.polling.min_delay_seconds` | `int64` | No (default: `60`) | Minimum amount of time to wait between configuration downloads. |
 | `discovery.polling.max_delay_seconds` | `int64` | No (default: `120`) | Maximum amount of time to wait between configuration downloads. |
-
-
-## Metrics provider
-
-| Field | Type | Required | Description |
-| --- | --- | --- | --- |
-| `metrics_provider.name` | `string` | No | Name of the metrics provider to use. |
-| `metrics_provider.config` | `object` | No | Provider-specific configuration (not used as of now). |
-
-Available metrics providers:
-* `prometheus` (default)
-*  (empty string): do not collect metrics
