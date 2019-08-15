@@ -11,7 +11,6 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
-	"github.com/open-policy-agent/opa/metrics"
 	"io"
 	"os"
 	"os/signal"
@@ -20,10 +19,11 @@ import (
 	"time"
 
 	"github.com/open-policy-agent/opa/ast"
-	imetrics "github.com/open-policy-agent/opa/internal/metrics"
+	"github.com/open-policy-agent/opa/internal/prometheus"
 	"github.com/open-policy-agent/opa/internal/runtime"
 	storedversion "github.com/open-policy-agent/opa/internal/version"
 	"github.com/open-policy-agent/opa/loader"
+	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/plugins"
 	"github.com/open-policy-agent/opa/plugins/discovery"
 	"github.com/open-policy-agent/opa/plugins/logs"
@@ -163,8 +163,8 @@ type Runtime struct {
 	// and doesn't have to duplicated here or on the server.
 	info *ast.Term // runtime information provided to evaluation engine
 
-	server        *server.Server
-	globalMetrics metrics.GlobalMetrics
+	server  *server.Server
+	metrics *prometheus.Provider
 }
 
 // NewRuntime returns a new Runtime object initialized with params.
@@ -224,11 +224,9 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		return nil, errors.Wrapf(err, "config error")
 	}
 
-	gm, err := imetrics.NewGlobalMetrics(manager.Config.MetricsProvider.Name, manager.Config.MetricsProvider.Config)
-	if err != nil {
-		return nil, errors.Wrapf(err, "config error")
-	}
-	disco, err := discovery.New(manager, discovery.Factories(registeredPlugins), discovery.WithMetrics(gm))
+	metrics := prometheus.New(metrics.New(), errorLogger)
+
+	disco, err := discovery.New(manager, discovery.Factories(registeredPlugins), discovery.Metrics(metrics))
 	if err != nil {
 		return nil, errors.Wrapf(err, "config error")
 	}
@@ -236,11 +234,11 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 	manager.Register("discovery", disco)
 
 	rt := &Runtime{
-		Store:         store,
-		Params:        params,
-		Manager:       manager,
-		info:          info,
-		globalMetrics: gm,
+		Store:   store,
+		Params:  params,
+		Manager: manager,
+		info:    info,
+		metrics: metrics,
 	}
 
 	return rt, nil
@@ -288,7 +286,7 @@ func (rt *Runtime) Serve(ctx context.Context) error {
 		WithDecisionIDFactory(rt.decisionIDFactory).
 		WithDecisionLoggerWithErr(rt.decisionLogger).
 		WithRuntime(rt.info).
-		WithMetrics(rt.globalMetrics).
+		WithMetrics(rt.metrics).
 		Init(ctx)
 
 	if err != nil {
@@ -589,6 +587,10 @@ func setupLogging(config LoggingConfig) {
 	}
 
 	logrus.SetLevel(lvl)
+}
+
+func errorLogger(attrs map[string]interface{}, f string, a ...interface{}) {
+	logrus.WithFields(logrus.Fields(attrs)).Errorf(f, a...)
 }
 
 func generateInstanceID() (string, error) {

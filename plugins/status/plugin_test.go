@@ -232,10 +232,8 @@ func TestPluginReconfigure(t *testing.T) {
 }
 
 func TestMetrics(t *testing.T) {
-	testMetrics := []interface{}{"a", "b", "c"}
-	fixture := newTestFixture(t, &testMetricsProvider{data: testMetrics})
+	fixture := newTestFixture(t, metrics.New())
 	fixture.server.ch = make(chan UpdateRequestV1)
-	fixture.plugin.config.IncludeMetrics = true
 	defer fixture.server.stop()
 
 	ctx := context.Background()
@@ -248,8 +246,10 @@ func TestMetrics(t *testing.T) {
 	fixture.plugin.BulkUpdateBundleStatus(map[string]*bundle.Status{"bundle": status})
 	result := <-fixture.server.ch
 
-	if !reflect.DeepEqual(result.Metrics, map[string]interface{}{"test": testMetrics}) {
-		t.Error("Test metrics were not returned")
+	exp := map[string]interface{}{"<built-in>": map[string]interface{}{}}
+
+	if !reflect.DeepEqual(result.Metrics, exp) {
+		t.Fatalf("Expected %v but got %v", exp, result.Metrics)
 	}
 }
 
@@ -259,7 +259,7 @@ type testFixture struct {
 	server  *testServer
 }
 
-func newTestFixture(t *testing.T, globalMetrics metrics.GlobalMetrics) testFixture {
+func newTestFixture(t *testing.T, m metrics.Metrics) testFixture {
 
 	ts := testServer{
 		t:       t,
@@ -296,7 +296,7 @@ func newTestFixture(t *testing.T, globalMetrics metrics.GlobalMetrics) testFixtu
 
 	config, _ := ParseConfig(pluginConfig, manager.Services())
 
-	p := New(config, manager).WithMetrics(globalMetrics)
+	p := New(config, manager).WithMetrics(m)
 
 	return testFixture{
 		manager: manager,
@@ -349,23 +349,4 @@ func testStatus() *bundle.Status {
 	}
 
 	return &status
-}
-
-type testMetricsProvider struct {
-	data interface{}
-}
-
-func (t testMetricsProvider) RegisterEndpoints(registrar func(path, method string, handler http.Handler)) {
-}
-
-func (t testMetricsProvider) InstrumentHandler(handler http.Handler, label string) http.Handler {
-	return handler
-}
-
-func (t testMetricsProvider) Gather() (interface{}, error) {
-	return t.data, nil
-}
-
-func (t testMetricsProvider) Name() string {
-	return "test"
 }

@@ -26,8 +26,6 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
-	"github.com/pkg/errors"
-
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/bundle"
 	"github.com/open-policy-agent/opa/metrics"
@@ -44,6 +42,7 @@ import (
 	"github.com/open-policy-agent/opa/util"
 	"github.com/open-policy-agent/opa/version"
 	"github.com/open-policy-agent/opa/watch"
+	"github.com/pkg/errors"
 )
 
 // AuthenticationScheme enumerates the supported authentication schemes. The
@@ -109,7 +108,14 @@ type Server struct {
 	httpListeners     []httpListener
 	bundleStatuses    map[string]*bundlePlugin.Status
 	bundleStatusMtx   *sync.RWMutex
-	globalMetrics     metrics.GlobalMetrics
+	metrics           Metrics
+}
+
+// Metrics defines the interface that the server requires for recording HTTP
+// handler metrics.
+type Metrics interface {
+	RegisterEndpoints(registrar func(path, method string, handler http.Handler))
+	InstrumentHandler(handler http.Handler, label string) http.Handler
 }
 
 // Loop will contain all the calls from the server that we'll be listening on.
@@ -262,8 +268,8 @@ func (s *Server) WithStore(store storage.Store) *Server {
 }
 
 // WithMetrics sets the metrics provider used by the server.
-func (s *Server) WithMetrics(globalMetrics metrics.GlobalMetrics) *Server {
-	s.globalMetrics = globalMetrics
+func (s *Server) WithMetrics(m Metrics) *Server {
+	s.metrics = m
 	return s
 }
 
@@ -521,8 +527,8 @@ func (s *Server) initRouter() {
 
 	router.UseEncodedPath()
 	router.StrictSlash(true)
-	if s.globalMetrics != nil {
-		s.globalMetrics.RegisterEndpoints(func(path, method string, handler http.Handler) {
+	if s.metrics != nil {
+		s.metrics.RegisterEndpoints(func(path, method string, handler http.Handler) {
 			router.Handle(path, handler).Methods(method)
 		})
 	}
@@ -585,8 +591,8 @@ func (s *Server) initRouter() {
 }
 
 func (s *Server) instrumentHandler(handler func(http.ResponseWriter, *http.Request), label string) http.Handler {
-	if s.globalMetrics != nil {
-		return s.globalMetrics.InstrumentHandler(http.HandlerFunc(handler), label)
+	if s.metrics != nil {
+		return s.metrics.InstrumentHandler(http.HandlerFunc(handler), label)
 	}
 	return http.HandlerFunc(handler)
 }

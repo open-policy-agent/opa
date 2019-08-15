@@ -27,13 +27,6 @@ type Config struct {
 	Plugins                      map[string]json.RawMessage `json:"plugins"`
 	DefaultDecision              *string                    `json:"default_decision"`
 	DefaultAuthorizationDecision *string                    `json:"default_authorization_decision"`
-	MetricsProvider              *MetricsProviderConfig     `json:"metrics_provider"`
-}
-
-// MetricsProviderConfig represents metrics_provider config section
-type MetricsProviderConfig struct {
-	Name   string          `json:"name"`
-	Config json.RawMessage `json:"config"`
 }
 
 // ParseConfig returns a valid Config object with defaults injected. The id
@@ -92,10 +85,6 @@ func (c *Config) validateAndInjectDefaults(id string) error {
 
 	c.Labels["id"] = id
 	c.Labels["version"] = version.Version
-
-	if c.MetricsProvider == nil {
-		c.MetricsProvider = &MetricsProviderConfig{Name: "prometheus"}
-	}
 
 	return nil
 }

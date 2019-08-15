@@ -47,75 +47,119 @@ on the agent, updates will be sent to `/status`.
             "last_successful_activation": "2018-01-01T00:00:00.000Z"
         }
     },
-    "metrics": {
-        "prometheus":  [
-            {
-                "help": "A summary of the GC invocation durations.",
-                "name": "go_gc_duration_seconds",
-                "type": 2,
-                "metric": [
-                    {
-                        "summary": {
-                            "quantile": [
-                                {
-                                    "quantile": 0,
-                                    "value": 0.000044358
-                                },
-                                {
-                                    "quantile": 0.25,
-                                    "value": 0.000045003
-                                },
-                                {
-                                    "quantile": 0.5,
-                                    "value": 0.000049726
-                                },
-                                {
-                                    "quantile": 0.75,
-                                    "value": 0.000219553
-                                },
-                                {
-                                    "quantile": 1,
-                                    "value": 0.000219553
-                                }
-                            ],
-                           "sample_count": 4,
-                           "sample_sum": 0.00035864
-                        }
-                    }
-                ]
-            },
-            {
-                "help": "Number of goroutines that currently exist.",
-                "name": "go_goroutines",
-                "type": 1,
-                "metric": [
-                    {
-                        "gauge": {
-                            "value": 11
-                        }
-                    }
-                ]
-            },
-            {
-                "help": "Information about the Go environment.",
-                "name": "go_info",
-                "type": 1,
-                "metric": [
-                    {
-                        "gauge": {
-                            "value": 1
-                        },
-                        "label": [
-                            {
-                                "name": "version",
-                                "value": "go1.12.7"
-                            }
-                        ]
-                    }
-                ]
+  "metrics": {
+    "prometheus": {
+      "go_gc_duration_seconds": {
+        "help": "A summary of the GC invocation durations.",
+        "metric": [
+          {
+            "summary": {
+              "quantile": [
+                {
+                  "quantile": 0,
+                  "value": 0.000011799
+                },
+                {
+                  "quantile": 0.25,
+                  "value": 0.000011905
+                },
+                {
+                  "quantile": 0.5,
+                  "value": 0.000040002
+                },
+                {
+                  "quantile": 0.75,
+                  "value": 0.000065238
+                },
+                {
+                  "quantile": 1,
+                  "value": 0.000104897
+                }
+              ],
+              "sample_count": 7,
+              "sample_sum": 0.000309117
             }
-        ]
+          }
+        ],
+        "name": "go_gc_duration_seconds",
+        "type": 2
+      },
+------------------------------8< SNIP 8<------------------------------
+      "http_request_duration_seconds": {
+        "help": "A histogram of duration for requests.",
+        "metric": [
+          {
+            "histogram": {
+              "bucket": [
+                {
+                  "cumulative_count": 1,
+                  "upper_bound": 0.005
+                },
+                {
+                  "cumulative_count": 1,
+                  "upper_bound": 0.01
+                },
+                {
+                  "cumulative_count": 1,
+                  "upper_bound": 0.025
+                },
+                {
+                  "cumulative_count": 1,
+                  "upper_bound": 0.05
+                },
+                {
+                  "cumulative_count": 1,
+                  "upper_bound": 0.1
+                },
+                {
+                  "cumulative_count": 1,
+                  "upper_bound": 0.25
+                },
+                {
+                  "cumulative_count": 1,
+                  "upper_bound": 0.5
+                },
+                {
+                  "cumulative_count": 1,
+                  "upper_bound": 1
+                },
+                {
+                  "cumulative_count": 1,
+                  "upper_bound": 2.5
+                },
+                {
+                  "cumulative_count": 1,
+                  "upper_bound": 5
+                },
+                {
+                  "cumulative_count": 1,
+                  "upper_bound": 10
+                }
+              ],
+              "sample_count": 1,
+              "sample_sum": 0.003157399
+            },
+            "label": [
+              {
+                "name": "code",
+                "value": "200"
+              },
+              {
+                "name": "handler",
+                "value": "v1/data"
+              },
+              {
+                "name": "method",
+                "value": "get"
+              }
+            ]
+          }
+        ],
+        "name": "http_request_duration_seconds",
+        "type": 4
+      }
     }
+  }
 }
 ```
 
@@ -137,8 +181,7 @@ Status updates contain the following fields:
 | `discovery.active_revision` | `string` | Opaque revision identifier of the last successful discovery activation. |
 | `discovery.last_successful_download` | `string` | RFC3339 timestamp of last successful discovery bundle download. |
 | `discovery.last_successful_activation` | `string` | RFC3339 timestamp of last successful discovery bundle activation. |
-| `metrics` | `object` | Application metrics. Optional, single key object. |
-| `metrics[provider_name]` | JSON (`interface{}`) | Metrics in provider-dependent format. |
+| `metrics.prometheus` | `object` | Global performance metrics for the OPA instance. |
 
 If the bundle download or activation failed, the status update will contain
 the following additional fields.

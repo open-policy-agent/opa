@@ -29,9 +29,15 @@ const (
 	RegoInputParse    = "rego_input_parse"
 )
 
+// Info contains attributes describing the underlying metrics provider.
+type Info struct {
+	Name string `json:"name"` // name is a unique human-readable identifier for the provider.
+}
+
 // Metrics defines the interface for a collection of performance metrics in the
 // policy engine.
 type Metrics interface {
+	Info() Info
 	Timer(name string) Timer
 	Histogram(name string) Histogram
 	Counter(name string) Counter
@@ -57,6 +63,12 @@ func New() Metrics {
 type metric struct {
 	Key   string
 	Value interface{}
+}
+
+func (m *metrics) Info() Info {
+	return Info{
+		Name: "<built-in>",
+	}
 }
 
 func (m *metrics) String() string {
