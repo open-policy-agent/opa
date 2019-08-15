@@ -1029,6 +1029,37 @@ func TestCheckErrorDetails(t *testing.T) {
 	}
 }
 
+func TestCheckErrorOrdering(t *testing.T) {
+
+	mod := MustParseModule(`
+		package test
+
+		q = true
+
+		p { data.test.q = 1 }  # type error: bool = number
+		p { data.test.q = 2 }  # type error: bool = number
+	`)
+
+	input := make([]util.T, len(mod.Rules))
+	inputReversed := make([]util.T, len(mod.Rules))
+
+	for i := range input {
+		input[i] = mod.Rules[i]
+		inputReversed[i] = mod.Rules[i]
+	}
+
+	tmp := inputReversed[1]
+	inputReversed[1] = inputReversed[2]
+	inputReversed[2] = tmp
+
+	_, errs1 := newTypeChecker().CheckTypes(nil, input)
+	_, errs2 := newTypeChecker().CheckTypes(nil, inputReversed)
+
+	if errs1.Error() != errs2.Error() {
+		t.Fatalf("Expected error slices to be equal. errs1:\n\n%v\n\nerrs2:\n\n%v\n\n", errs1, errs2)
+	}
+}
+
 func newTestEnv(rs []string) *TypeEnv {
 	module := MustParseModule(`
 		package test

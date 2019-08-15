@@ -92,6 +92,7 @@ func (tc *typeChecker) CheckTypes(env *TypeEnv, sorted []util.T) (*TypeEnv, Erro
 	for _, s := range sorted {
 		tc.checkRule(env, s.(*Rule))
 	}
+	tc.errs.Sort()
 	return env, tc.errs
 }
 
