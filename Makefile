@@ -37,6 +37,8 @@ export GO15VENDOREXPERIMENT
 #
 ######################################################
 
+# If you update the 'all' target check/update the 'travis-all' target to make
+# sure they're consistent.
 .PHONY: all
 all: deps build test perf check
 
@@ -69,68 +71,8 @@ go-build: generate
 	$(GO) build -o $(BIN) -ldflags $(LDFLAGS)
 
 .PHONY: image
-image:
-	@$(MAKE) build GOOS=linux
+image: build-linux
 	@$(MAKE) image-quick
-
-.PHONY: image-quick
-image-quick:
-	sed -e 's/GOARCH/$(GOARCH)/g' Dockerfile.in > .Dockerfile_$(GOARCH)
-	sed -e 's/GOARCH/$(GOARCH)/g' Dockerfile_debug.in > .Dockerfile_debug_$(GOARCH)
-	sed -e 's/GOARCH/$(GOARCH)/g' Dockerfile_rootless.in > .Dockerfile_rootless_$(GOARCH)
-	docker build -t $(IMAGE):$(VERSION)	-f .Dockerfile_$(GOARCH) .
-	docker build -t $(IMAGE):$(VERSION)-debug -f .Dockerfile_debug_$(GOARCH) .
-	docker build -t $(IMAGE):$(VERSION)-rootless -f .Dockerfile_rootless_$(GOARCH) .
-
-.PHONY: push
-push:
-	docker push $(IMAGE):$(VERSION)
-	docker push $(IMAGE):$(VERSION)-debug
-	docker push $(IMAGE):$(VERSION)-rootless
-
-.PHONY: tag-latest
-tag-latest:
-	docker tag $(IMAGE):$(VERSION) $(IMAGE):latest
-	docker tag $(IMAGE):$(VERSION)-debug $(IMAGE):latest-debug
-	docker tag $(IMAGE):$(VERSION)-rootless $(IMAGE):latest-rootless
-
-.PHONY: push-latest
-push-latest:
-	docker push $(IMAGE):latest
-	docker push $(IMAGE):latest-debug
-	docker push $(IMAGE):latest-rootless
-
-.PHONY: push-binary-edge
-push-binary-edge:
-	aws s3 cp opa_linux_amd64 s3://opa-releases/edge/opa_linux_amd64
-
-.PHONY: tag-edge
-tag-edge:
-	docker tag $(IMAGE):$(VERSION) $(IMAGE):edge
-	docker tag $(IMAGE):$(VERSION)-debug $(IMAGE):edge-debug
-	docker tag $(IMAGE):$(VERSION)-rootless $(IMAGE):edge-rootless
-
-.PHONY: push-edge
-push-edge:
-	docker push $(IMAGE):edge
-	docker push $(IMAGE):edge-debug
-	docker push $(IMAGE):edge-rootless
-
-.PHONY: docker-login
-docker-login:
-	@docker login -u ${DOCKER_USER} -p ${DOCKER_PASSWORD}
-
-.PHONY: push-image
-push-image: docker-login image-quick push
-
-.PHONY: deploy-travis
-deploy-travis: push-image tag-edge push-edge push-binary-edge
-
-.PHONY: release-travis
-release-travis: push-image tag-latest push-latest
-
-.PHONY: release-bugfix-travis
-release-bugfix-travis: deploy-travis
 
 .PHONY: install
 install: generate
@@ -197,6 +139,89 @@ clean: wasm-clean
 .PHONY: docs-%
 docs-%:
 	$(MAKE) -C docs $*
+
+######################################################
+#
+# CI targets
+#
+######################################################
+
+.PHONY: travis-all
+travis-all: deps build-linux build-darwin build-windows test perf check
+
+.PHONY: build-linux
+build-linux:
+	@$(MAKE) build GOOS=linux
+
+.PHONY: build-darwin
+build-darwin:
+	@$(MAKE) build GOOS=darwin
+
+.PHONY: build-windows
+build-windows:
+	@$(MAKE) build GOOS=windows
+	mv opa_windows_$(GOARCH) opa_windows_$(GOARCH).exe
+
+.PHONY: image-quick
+image-quick:
+	sed -e 's/GOARCH/$(GOARCH)/g' Dockerfile.in > .Dockerfile_$(GOARCH)
+	sed -e 's/GOARCH/$(GOARCH)/g' Dockerfile_debug.in > .Dockerfile_debug_$(GOARCH)
+	sed -e 's/GOARCH/$(GOARCH)/g' Dockerfile_rootless.in > .Dockerfile_rootless_$(GOARCH)
+	docker build -t $(IMAGE):$(VERSION)	-f .Dockerfile_$(GOARCH) .
+	docker build -t $(IMAGE):$(VERSION)-debug -f .Dockerfile_debug_$(GOARCH) .
+	docker build -t $(IMAGE):$(VERSION)-rootless -f .Dockerfile_rootless_$(GOARCH) .
+
+.PHONY: push
+push:
+	docker push $(IMAGE):$(VERSION)
+	docker push $(IMAGE):$(VERSION)-debug
+	docker push $(IMAGE):$(VERSION)-rootless
+
+.PHONY: tag-latest
+tag-latest:
+	docker tag $(IMAGE):$(VERSION) $(IMAGE):latest
+	docker tag $(IMAGE):$(VERSION)-debug $(IMAGE):latest-debug
+	docker tag $(IMAGE):$(VERSION)-rootless $(IMAGE):latest-rootless
+
+.PHONY: push-latest
+push-latest:
+	docker push $(IMAGE):latest
+	docker push $(IMAGE):latest-debug
+	docker push $(IMAGE):latest-rootless
+
+.PHONY: push-binary-edge
+push-binary-edge:
+	aws s3 cp opa_darwin_$(GOARCH) s3://opa-releases/edge/opa_darwin_$(GOARCH)
+	aws s3 cp opa_windows_$(GOARCH).exe s3://opa-releases/edge/opa_windows_$(GOARCH).exe
+	aws s3 cp opa_linux_$(GOARCH) s3://opa-releases/edge/opa_linux_$(GOARCH)
+
+.PHONY: tag-edge
+tag-edge:
+	docker tag $(IMAGE):$(VERSION) $(IMAGE):edge
+	docker tag $(IMAGE):$(VERSION)-debug $(IMAGE):edge-debug
+	docker tag $(IMAGE):$(VERSION)-rootless $(IMAGE):edge-rootless
+
+.PHONY: push-edge
+push-edge:
+	docker push $(IMAGE):edge
+	docker push $(IMAGE):edge-debug
+	docker push $(IMAGE):edge-rootless
+
+.PHONY: docker-login
+docker-login:
+	@docker login -u ${DOCKER_USER} -p ${DOCKER_PASSWORD}
+
+.PHONY: push-image
+push-image: docker-login image-quick push
+
+.PHONY: deploy-travis
+deploy-travis: push-image tag-edge push-edge push-binary-edge
+
+.PHONY: release-travis
+release-travis: push-image tag-latest push-latest
+
+.PHONY: release-bugfix-travis
+release-bugfix-travis: deploy-travis
 
 ######################################################
 #
