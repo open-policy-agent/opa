@@ -2516,10 +2516,12 @@ import data.x.z1 as z2
 
 p = true { q; r }
 q = true { z2 }`)
+	orig1 := mod1.Copy()
 
 	mod2 := MustParseModule(`package a.b.c
 
 r = true { true }`)
+	orig2 := mod2.Copy()
 
 	mod3 := MustParseModule(`package x
 
@@ -2527,10 +2529,12 @@ import data.foo.bar
 import input.input
 
 z1 = true { [localvar | count(bar.baz.qux, localvar)] }`)
+	orig3 := mod3.Copy()
 
 	mod4 := MustParseModule(`package foo.bar.baz
 
 qux = grault { true }`)
+	orig4 := mod4.Copy()
 
 	mod5 := MustParseModule(`package foo.bar.baz
 
@@ -2538,6 +2542,7 @@ import data.d.e.f
 
 deadbeef = f { true }
 grault = deadbeef { true }`)
+	orig5 := mod5.Copy()
 
 	// testLoader will return 4 rounds of parsed modules.
 	rounds := []map[string]*Module{
@@ -2603,6 +2608,11 @@ grault = deadbeef { true }`)
 
 	if compiler.Compile(nil); compiler.Failed() {
 		t.Fatalf("Got unexpected error from compiler: %v", compiler.Errors)
+	}
+
+	// Check the original modules are still untouched.
+	if !mod1.Equal(orig1) || !mod2.Equal(orig2) || !mod3.Equal(orig3) || !mod4.Equal(orig4) || !mod5.Equal(orig5) {
+		t.Errorf("Compiler lazy loading modified the original modules")
 	}
 }
 
