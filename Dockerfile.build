@@ -1,0 +1,13 @@
+# Copyright 2019 The OPA Authors.  All rights reserved.
+# Use of this source code is governed by an Apache2
+# license that can be found in the LICENSE file.
+
+# global ARG vars, see https://github.com/moby/moby/issues/37345
+ARG GOVERSION
+
+FROM golang:${GOVERSION}
+ARG GOARCH=amd64
+WORKDIR /go/src/github.com/open-policy-agent/opa
+COPY . .
+RUN make deps build-linux build-darwin build-windows test perf check
+RUN mkdir /out && cp opa_linux_${GOARCH} opa_darwin_${GOARCH} opa_windows_${GOARCH}.exe /out

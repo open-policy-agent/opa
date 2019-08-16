@@ -9,7 +9,7 @@ Requirements:
 
 - Git
 - GitHub account (if you are contributing)
-- Go (version 1.11 is supported though older versions are likely to work)
+- Go (version 1.12 is supported though older versions are likely to work)
 - GNU Make
 
 ## Getting Started
@@ -139,8 +139,7 @@ code is kept in the repository so that commands such as `go get` work.
 
 ## Go
 
-If you need to update the version of Go used to build OPA you must update two
+If you need to update the version of Go used to build OPA you must update these
 files in the root of this repository:
 
-* `.travis.yml` which is used to configure the Travis CI build environment.
 * `Makefile`- which is used to produce releases locally. Update the `GOVERSION` variable.

@@ -5,7 +5,7 @@
 VERSION := 0.14.0-dev
 
 GO := go
-GOVERSION := 1.12.8
+GOVERSION := 1.12.9
 GOARCH := $(shell go env GOARCH)
 GOOS := $(shell go env GOOS)
 
@@ -37,8 +37,8 @@ export GO15VENDOREXPERIMENT
 #
 ######################################################
 
-# If you update the 'all' target check/update the 'travis-all' target to make
-# sure they're consistent.
+# If you update the 'all' target check/update the call in Dockerfile.build target
+# to make sure they're consistent.
 .PHONY: all
 all: deps build test perf check
 
@@ -138,7 +138,6 @@ wasm-clean:
 
 .PHONY: clean
 clean: wasm-clean
-	rm -f .Dockerfile_*
 	rm -f opa_*_*
 	rm -fr _test
 
@@ -154,8 +153,16 @@ docs-%:
 #
 ######################################################
 
+.PHONY: travis-build
+travis-build: wasm-build opa-wasm-test
+	# this image is used in `Dockerfile` for image-quick
+	docker build -t build-$(BUILD_COMMIT) --build-arg GOVERSION=$(GOVERSION) -f Dockerfile.build .
+	# the '/.' means "don't create the directory, copy its content only"
+	# note: we don't bother cleaning up the container
+	docker cp "$$(docker create build-$(BUILD_COMMIT)):/out/." .
+
 .PHONY: travis-all
-travis-all: deps build-linux build-darwin build-windows test fuzzit-local-regression perf check
+travis-all: travis-build wasm-test fuzzit-local-regression
 
 .PHONY: build-linux
 build-linux:
@@ -172,12 +179,9 @@ build-windows:
 
 .PHONY: image-quick
 image-quick:
-	sed -e 's/GOARCH/$(GOARCH)/g' Dockerfile.in > .Dockerfile_$(GOARCH)
-	sed -e 's/GOARCH/$(GOARCH)/g' Dockerfile_debug.in > .Dockerfile_debug_$(GOARCH)
-	sed -e 's/GOARCH/$(GOARCH)/g' Dockerfile_rootless.in > .Dockerfile_rootless_$(GOARCH)
-	docker build -t $(IMAGE):$(VERSION)	-f .Dockerfile_$(GOARCH) .
-	docker build -t $(IMAGE):$(VERSION)-debug -f .Dockerfile_debug_$(GOARCH) .
-	docker build -t $(IMAGE):$(VERSION)-rootless -f .Dockerfile_rootless_$(GOARCH) .
+	docker build --build-arg BUILD_COMMIT=$(BUILD_COMMIT) -t $(IMAGE):$(VERSION) .
+	docker build --build-arg BUILD_COMMIT=$(BUILD_COMMIT) -t $(IMAGE):$(VERSION)-debug --build-arg VARIANT=:debug .
+	docker build --build-arg BUILD_COMMIT=$(BUILD_COMMIT) -t $(IMAGE):$(VERSION)-rootless --build-arg USER=1 .
 
 .PHONY: push
 push:
