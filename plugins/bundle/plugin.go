@@ -303,6 +303,35 @@ func (p *Plugin) activate(ctx context.Context, name string, b *bundle.Bundle) er
 			}
 		}
 
+		// Before changing anything make sure the roots don't collide with any
+		// other bundles that already are activated.
+		collisions := map[string]struct{}{}
+		names, err := bundle.ReadBundleNamesFromStore(ctx, p.manager.Store, txn)
+		if err != nil && !storage.IsNotFound(err) {
+			return err
+		}
+		for _, otherBundle := range names {
+			if otherBundle == name {
+				// ignore the bundle we are in the process of activating
+				continue
+			}
+			roots, err := bundle.ReadBundleRootsFromStore(ctx, p.manager.Store, txn, otherBundle)
+			if err != nil && !storage.IsNotFound(err) {
+				return err
+			}
+			for _, existingRoot := range roots {
+				for newRoot := range newRoots {
+					if strings.HasPrefix(newRoot, existingRoot) || strings.HasPrefix(existingRoot, newRoot) {
+						collisions[newRoot] = struct{}{}
+					}
+				}
+			}
+		}
+
+		if len(collisions) > 0 {
+			return fmt.Errorf("detected overlapping roots in bundle manifest")
+		}
+
 		// Erase data and policies at new + old roots, and remove the old
 		// manifest before activating a new bundle.
 		remaining, err := p.deactivate(ctx, txn, name, newRoots)
