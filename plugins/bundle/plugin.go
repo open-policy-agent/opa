@@ -303,6 +303,13 @@ func (p *Plugin) activate(ctx context.Context, name string, b *bundle.Bundle) er
 			}
 		}
 
+		// Before changing anything make sure the roots don't collide with any
+		// other bundles that already are activated.
+		err := p.hasRootsOverlap(ctx, txn, name, newRoots)
+		if err != nil {
+			return err
+		}
+
 		// Erase data and policies at new + old roots, and remove the old
 		// manifest before activating a new bundle.
 		remaining, err := p.deactivate(ctx, txn, name, newRoots)
@@ -518,6 +525,41 @@ func (p *Plugin) configDelta(newConfig *Config) (map[string]*Source, map[string]
 	}
 
 	return newBundles, updatedBundles, deletedBundles
+}
+
+func (p *Plugin) hasRootsOverlap(ctx context.Context, txn storage.Transaction, bundleName string, bundleRoots map[string]struct{}) error {
+	collisions := map[string][]string{}
+	allBundles, err := bundle.ReadBundleNamesFromStore(ctx, p.manager.Store, txn)
+	if err != nil && !storage.IsNotFound(err) {
+		return err
+	}
+	for _, otherBundle := range allBundles {
+		if otherBundle == bundleName {
+			// ignore the bundle we are in the process of activating
+			continue
+		}
+		otherRoots, err := bundle.ReadBundleRootsFromStore(ctx, p.manager.Store, txn, otherBundle)
+		if err != nil && !storage.IsNotFound(err) {
+			return err
+		}
+		for _, existingRoot := range otherRoots {
+			for newRoot := range bundleRoots {
+				if strings.HasPrefix(newRoot, existingRoot) || strings.HasPrefix(existingRoot, newRoot) {
+					collisions[otherBundle] = append(collisions[otherBundle], newRoot)
+				}
+			}
+		}
+	}
+
+	if len(collisions) > 0 {
+		var bundleNames []string
+		for name := range collisions {
+			bundleNames = append(bundleNames, name)
+		}
+		p.logDebug(bundleName, fmt.Sprintf("bundle root collisions: %+v", collisions))
+		return fmt.Errorf("detected overlapping roots in bundle manifest with: %s", bundleNames)
+	}
+	return nil
 }
 
 func lookup(path storage.Path, data map[string]interface{}) (interface{}, bool) {

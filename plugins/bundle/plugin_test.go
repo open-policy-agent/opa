@@ -226,6 +226,73 @@ func TestPluginOneShotActivationRemovesOld(t *testing.T) {
 	}
 }
 
+func TestPluginOneShotActivationConflictingRoots(t *testing.T) {
+	ctx := context.Background()
+	manager := getTestManager()
+	plugin := Plugin{manager: manager, status: map[string]*Status{}, etags: map[string]string{}}
+	bundleNames := []string{"test-bundle1", "test-bundle2", "test-bundle3"}
+
+	for _, name := range bundleNames {
+		plugin.status[name] = &Status{Name: name}
+	}
+
+	// Start with non-conflicting updates
+	plugin.oneShot(ctx, bundleNames[0], download.Update{Bundle: &bundle.Bundle{
+		Manifest: bundle.Manifest{
+			Roots: &[]string{"a/b"},
+		},
+	}})
+
+	plugin.oneShot(ctx, bundleNames[1], download.Update{Bundle: &bundle.Bundle{
+		Manifest: bundle.Manifest{
+			Roots: &[]string{"a/c"},
+		},
+	}})
+
+	// ensure that both bundles are *not* in error status
+	ensureBundleStatus(t, &plugin, bundleNames, []bool{false, false, false})
+
+	// Add a third bundle that conflicts with one
+	plugin.oneShot(ctx, bundleNames[2], download.Update{Bundle: &bundle.Bundle{
+		Manifest: bundle.Manifest{
+			Roots: &[]string{"a/b/aa"},
+		},
+	}})
+
+	// ensure that both in the conflict go into error state
+	ensureBundleStatus(t, &plugin, bundleNames, []bool{false, false, true})
+
+	// Update to fix conflict
+	plugin.oneShot(ctx, bundleNames[2], download.Update{Bundle: &bundle.Bundle{
+		Manifest: bundle.Manifest{
+			Roots: &[]string{"b"},
+		},
+	}})
+
+	ensureBundleStatus(t, &plugin, bundleNames, []bool{false, false, false})
+
+	// Ensure empty roots conflict with all roots
+	plugin.oneShot(ctx, bundleNames[2], download.Update{Bundle: &bundle.Bundle{
+		Manifest: bundle.Manifest{
+			Roots: &[]string{""},
+		},
+	}})
+
+	ensureBundleStatus(t, &plugin, bundleNames, []bool{false, false, true})
+}
+
+func ensureBundleStatus(t *testing.T, p *Plugin, bundleNames []string, expectedErrs []bool) {
+	t.Helper()
+	for i, name := range bundleNames {
+		hasErr := p.status[name].Message != ""
+		if expectedErrs[i] && !hasErr {
+			t.Fatalf("expected bundle %s to be in an error state", name)
+		} else if !expectedErrs[i] && hasErr {
+			t.Fatalf("unexpected error state for bundle %s", name)
+		}
+	}
+}
+
 func TestPluginListener(t *testing.T) {
 
 	ctx := context.Background()
@@ -378,6 +445,7 @@ func TestPluginBulkListener(t *testing.T) {
 	b := bundle.Bundle{
 		Manifest: bundle.Manifest{
 			Revision: "quickbrownfaux",
+			Roots:    &[]string{"gork"},
 		},
 		Data: map[string]interface{}{},
 		Modules: []bundle.ModuleFile{
@@ -486,6 +554,7 @@ func TestPluginBulkListener(t *testing.T) {
 	b1 := bundle.Bundle{
 		Manifest: bundle.Manifest{
 			Revision: "123",
+			Roots:    &[]string{"p1"},
 		},
 		Data: map[string]interface{}{},
 		Modules: []bundle.ModuleFile{
