@@ -9,13 +9,13 @@ import (
 	"time"
 )
 
-// DefaultBackoff returns a delay with an expontential backoff based on the
+// DefaultBackoff returns a delay with an exponential backoff based on the
 // number of retries.
 func DefaultBackoff(base, max float64, retries int) time.Duration {
 	return Backoff(base, max, .2, 1.6, retries)
 }
 
-// Backoff returns a delay with an expontential backoff based on the number of
+// Backoff returns a delay with an exponential backoff based on the number of
 // retries. Same algorithm used in gRPC.
 func Backoff(base, max, jitter, factor float64, retries int) time.Duration {
 	if retries == 0 {

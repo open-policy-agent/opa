@@ -197,7 +197,7 @@ func readBody(r io.ReadCloser) ([]byte, io.ReadCloser, error) {
 	return buf.Bytes(), ioutil.NopCloser(bytes.NewReader(buf.Bytes())), nil
 }
 
-// prettyFormatteer implements the Logrus Formatter interface
+// prettyFormatter implements the Logrus Formatter interface
 // and provides a more simple, but easier to read, text formatter
 // option than the default logrus.TextFormatter.
 type prettyFormatter struct {

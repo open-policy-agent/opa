@@ -245,7 +245,7 @@ func allRec(path string, filter Filter, errors *loaderErrors, loaded *Result, de
 	}
 
 	// If we are recursing on directories then content must be loaded under path
-	// speciifed by directory hierarchy.
+	// specified by directory hierarchy.
 	if depth > 0 {
 		loaded = loaded.withParent(info.Name())
 	}
