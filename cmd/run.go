@@ -86,6 +86,10 @@ Data file and directory paths can be prefixed with the desired destination in
 the data document with the following syntax:
 
 	<dotted-path>:<file-path>
+
+File paths can be specified as URLs to resolve ambiguity in paths containing colons:
+
+	$ opa run file:///c:/path/to/data.json
 `,
 		Run: func(cmd *cobra.Command, args []string) {
 

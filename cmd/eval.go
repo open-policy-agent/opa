@@ -107,6 +107,10 @@ To evaluate a query against JSON data:
 
 	$ opa eval --data data.json 'data.names[_] = name'
 
+To evaluate a query against JSON data supplied with a file:// URL:
+
+	$ opa eval --data file:///path/to/file.json 'data'
+
 File Loading
 ------------
 

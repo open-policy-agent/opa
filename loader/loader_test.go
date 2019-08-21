@@ -349,6 +349,96 @@ func TestLoadErrors(t *testing.T) {
 	})
 }
 
+func TestLoadFileURL(t *testing.T) {
+	files := map[string]string{
+		"/a/a/1.json": `1`,        // this will load as a directory (e.g., file://a/a)
+		"b.json":      `{"b": 2}`, // this will load as a normal file
+		"c.json":      `3`,        // this will loas as rooted file
+	}
+	test.WithTempFS(files, func(rootDir string) {
+
+		paths := mustListPaths(rootDir, false)[1:]
+		sort.Strings(paths)
+
+		for i := range paths {
+			paths[i] = "file://" + paths[i]
+		}
+
+		paths[2] = "c:" + paths[2]
+
+		result, err := All(paths)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		exp := parseJSON(`{"a": 1, "b": 2, "c": 3}`)
+		if !reflect.DeepEqual(exp, result.Documents) {
+			t.Fatalf("Expected %v but got %v", exp, result.Documents)
+		}
+	})
+}
+
+func TestUnsupportedURLScheme(t *testing.T) {
+	_, err := All([]string{"http://openpolicyagent.org"})
+	if err == nil || !strings.Contains(err.Error(), "unsupported URL scheme: http://openpolicyagent.org") {
+		t.Fatal(err)
+	}
+}
+
+func TestSplitPrefix(t *testing.T) {
+
+	tests := []struct {
+		input     string
+		wantParts []string
+		wantPath  string
+	}{
+		{
+			input:    "foo/bar",
+			wantPath: "foo/bar",
+		},
+		{
+			input:     "foo:/bar",
+			wantParts: []string{"foo"},
+			wantPath:  "/bar",
+		},
+		{
+			input:     "foo.bar:/baz",
+			wantParts: []string{"foo", "bar"},
+			wantPath:  "/baz",
+		},
+		{
+			input:    "file:///a/b/c",
+			wantPath: "file:///a/b/c",
+		},
+		{
+			input:     "x.y:file:///a/b/c",
+			wantParts: []string{"x", "y"},
+			wantPath:  "file:///a/b/c",
+		},
+		{
+			input:    "file:///c:/a/b/c",
+			wantPath: "file:///c:/a/b/c",
+		},
+		{
+			input:     "x.y:file:///c:/a/b/c",
+			wantParts: []string{"x", "y"},
+			wantPath:  "file:///c:/a/b/c",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.input, func(t *testing.T) {
+			parts, path := SplitPrefix(tc.input)
+			if !reflect.DeepEqual(parts, tc.wantParts) {
+				t.Errorf("wanted parts %v but got %v", tc.wantParts, parts)
+			}
+			if path != tc.wantPath {
+				t.Errorf("wanted path %q but got %q", path, tc.wantPath)
+			}
+		})
+	}
+}
+
 func TestLoadRegos(t *testing.T) {
 	files := map[string]string{
 		"/x.rego": `
