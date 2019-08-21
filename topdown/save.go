@@ -41,8 +41,9 @@ func (ss *saveSet) Pop() {
 func (ss *saveSet) Contains(t *ast.Term, b *bindings) bool {
 	if ss != nil {
 		ss.instr.startTimer(partialOpSaveSetContains)
-		defer ss.instr.stopTimer(partialOpSaveSetContains)
-		return ss.contains(t, b)
+		ret := ss.contains(t, b)
+		ss.instr.stopTimer(partialOpSaveSetContains)
+		return ret
 	}
 	return false
 }
@@ -62,8 +63,9 @@ func (ss *saveSet) contains(t *ast.Term, b *bindings) bool {
 func (ss *saveSet) ContainsRecursive(t *ast.Term, b *bindings) bool {
 	if ss != nil {
 		ss.instr.startTimer(partialOpSaveSetContainsRec)
-		defer ss.instr.stopTimer(partialOpSaveSetContainsRec)
-		return ss.containsrec(t, b)
+		ret := ss.containsrec(t, b)
+		ss.instr.stopTimer(partialOpSaveSetContainsRec)
+		return ret
 	}
 	return false
 }
