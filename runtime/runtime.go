@@ -127,7 +127,7 @@ type Params struct {
 	// conform to the syntax defined in the `strval` package
 	ConfigOverrides []string
 
-	// ConfigOverrideFiles Similar to `ConfigOverrides` execept they are in the
+	// ConfigOverrideFiles Similar to `ConfigOverrides` except they are in the
 	// form of `key=path/to/file`where the file contains the value to be used.
 	ConfigOverrideFiles []string
 

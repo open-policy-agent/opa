@@ -66,7 +66,7 @@ type (
 	// BuiltinFunc defines an interface for implementing built-in functions.
 	// The built-in function is called with the plugged operands from the call
 	// (including the output operands.) The implementation should evaluate the
-	// operands and invoke the iteraror for each successful/defined output
+	// operands and invoke the iterator for each successful/defined output
 	// value.
 	BuiltinFunc func(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error
 )
