@@ -2,7 +2,7 @@
 # Use of this source code is governed by an Apache2
 # license that can be found in the LICENSE file.
 
-VERSION := 0.13.3-dev
+VERSION := 0.13.3
 
 GO := go
 GOVERSION := 1.12.8
