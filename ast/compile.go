@@ -2184,30 +2184,30 @@ func resolveRefsInTerm(globals map[Var]Ref, ignore *declaredVarStack, term *Term
 	case *ArrayComprehension:
 		ac := &ArrayComprehension{}
 		ignore.Push(declaredVars(v.Body))
-		defer ignore.Pop()
 		ac.Term = resolveRefsInTerm(globals, ignore, v.Term)
 		ac.Body = resolveRefsInBody(globals, ignore, v.Body)
 		cpy := *term
 		cpy.Value = ac
+		ignore.Pop()
 		return &cpy
 	case *ObjectComprehension:
 		oc := &ObjectComprehension{}
 		ignore.Push(declaredVars(v.Body))
-		defer ignore.Pop()
 		oc.Key = resolveRefsInTerm(globals, ignore, v.Key)
 		oc.Value = resolveRefsInTerm(globals, ignore, v.Value)
 		oc.Body = resolveRefsInBody(globals, ignore, v.Body)
 		cpy := *term
 		cpy.Value = oc
+		ignore.Pop()
 		return &cpy
 	case *SetComprehension:
 		sc := &SetComprehension{}
 		ignore.Push(declaredVars(v.Body))
-		defer ignore.Pop()
 		sc.Term = resolveRefsInTerm(globals, ignore, v.Term)
 		sc.Body = resolveRefsInBody(globals, ignore, v.Body)
 		cpy := *term
 		cpy.Value = sc
+		ignore.Pop()
 		return &cpy
 	default:
 		return term
