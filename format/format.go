@@ -304,6 +304,10 @@ func (w *writer) writeBody(body ast.Body, comments []*ast.Comment) []*ast.Commen
 
 func (w *writer) writeExpr(expr *ast.Expr, comments []*ast.Comment) []*ast.Comment {
 	comments = w.insertComments(comments, expr.Location)
+	if !w.inline {
+		w.startLine()
+	}
+
 	if expr.Negated {
 		w.write("not ")
 	}
