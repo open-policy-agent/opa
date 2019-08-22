@@ -26,4 +26,4 @@ scrape_configs:
 ## Health Checks
 
 OPA exposes a `/health` API endpoint that can be used to perform health checks.
-See [Health API](/docs/{{< current_version >}}/rest-api#health-api) for details.
+See [Health API](../rest-api#health-api) for details.
