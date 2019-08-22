@@ -61,13 +61,15 @@ func (m *Manifest) validateAndInjectDefaults(b Bundle) error {
 
 	// Validate roots in bundle.
 	roots := *m.Roots
+
+	// Standardize the roots (no starting or trailing slash)
 	for i := range roots {
 		roots[i] = strings.Trim(roots[i], "/")
 	}
 
 	for i := 0; i < len(roots)-1; i++ {
 		for j := i + 1; j < len(roots); j++ {
-			if strings.HasPrefix(roots[i], roots[j]) || strings.HasPrefix(roots[j], roots[i]) {
+			if RootPathsOverlap(roots[i], roots[j]) {
 				return fmt.Errorf("manifest has overlapped roots: %v and %v", roots[i], roots[j])
 			}
 		}
@@ -341,6 +343,27 @@ func (b *Bundle) mkdir(key []string) (map[string]interface{}, error) {
 		}
 	}
 	return obj, nil
+}
+
+// RootPathsOverlap takes in two bundle root paths and returns
+// true if they overlap.
+func RootPathsOverlap(pathA string, pathB string) bool {
+
+	// Special case for empty prefixes, they always overlap
+	if pathA == "" || pathB == "" {
+		return true
+	}
+
+	aParts := strings.Split(pathA, "/")
+	bParts := strings.Split(pathB, "/")
+
+	for i := 0; i < len(aParts) && i < len(bParts); i++ {
+		if aParts[i] != bParts[i] {
+			// Found diverging path segments, no overlap
+			return false
+		}
+	}
+	return true
 }
 
 func insertValue(b *Bundle, path string, value interface{}) error {
