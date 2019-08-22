@@ -206,11 +206,10 @@ When OPA loads scoped bundles, it validates that:
 If bundle validation fails, OPA will report the validation error via
 the Status API.
 
-> **Warning!** When using multiple bundles the roots are *not* checked
-  against other bundles. It is the responsibility of the bundle creator
-  to ensure the manifest claims roots that are unique to that bundle!
-  There are *no* ordering guarantees for which bundle loads first and
-  takes over some root.
+> **Warning!** There are *no* ordering guarantees for which bundle loads first and
+  takes over some root. If multiple bundles conflict, but are loaded at different
+  times, OPA may go into an error state. It is highly recommended to use
+  the health check and include bundle state: [Monitoring OPA](../monitoring/#health-checks)
 
 ## Debugging Your Bundles
 
