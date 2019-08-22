@@ -2780,6 +2780,22 @@ func TestDecisionLogging(t *testing.T) {
 
 }
 
+func TestDecisionLogErrorMessage(t *testing.T) {
+
+	f := newFixture(t)
+
+	f.server.WithDecisionLoggerWithErr(func(context.Context, *Info) error {
+		return fmt.Errorf("xxx")
+	})
+
+	if err := f.v1(http.MethodPost, "/data", "", 500, `{
+		"code": "internal_error",
+		"message": "decision_logs: xxx"
+	}`); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestWatchParams(t *testing.T) {
 	f := newFixture(t)
 	r1 := newMockConn()
