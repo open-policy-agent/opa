@@ -96,6 +96,18 @@ with `make check`.
 
    > If you are not familiar with squashing commits, see [the following blog post for a good overview](http://gitready.com/advanced/2009/02/10/squashing-commits-with-rebase.html).
 
+## Benchmarks
+
+Several packages in this repository implement benchmark tests. To execute the
+benchmarks you can run `make perf` in the top-level directory. We use the Go
+benchmarking framework for all benchmarks. The benchmarks run on every pull
+request.
+
+To help catch performance regressions we also run a batch job that compares the
+benchmark results from the tip of master against the last major release. All of
+the results are posted and can be viewed
+[here](https://opa-benchmark-results.s3.amazonaws.com/index.html).
+
 ## Dependencies
 
 [Glide](https://github.com/Masterminds/glide) is a command line tool used for
