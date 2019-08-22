@@ -38,16 +38,18 @@ func Compare(a, b interface{}) int {
 
 	if t, ok := a.(*Term); ok {
 		if t == nil {
-			return Compare(nil, b)
+			a = nil
+		} else {
+			a = t.Value
 		}
-		return Compare(t.Value, b)
 	}
 
 	if t, ok := b.(*Term); ok {
 		if t == nil {
-			return Compare(a, nil)
+			b = nil
+		} else {
+			b = t.Value
 		}
-		return Compare(a, t.Value)
 	}
 
 	if a == nil {
