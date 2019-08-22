@@ -542,9 +542,9 @@ func (p *Plugin) hasRootsOverlap(ctx context.Context, txn storage.Transaction, b
 		if err != nil && !storage.IsNotFound(err) {
 			return err
 		}
-		for _, existingRoot := range otherRoots {
+		for i := range otherRoots {
 			for newRoot := range bundleRoots {
-				if strings.HasPrefix(newRoot, existingRoot) || strings.HasPrefix(existingRoot, newRoot) {
+				if bundle.RootPathsOverlap(otherRoots[i], newRoot) {
 					collisions[otherBundle] = append(collisions[otherBundle], newRoot)
 				}
 			}

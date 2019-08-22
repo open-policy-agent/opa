@@ -250,7 +250,7 @@ func TestPluginOneShotActivationConflictingRoots(t *testing.T) {
 	}})
 
 	// ensure that both bundles are *not* in error status
-	ensureBundleStatus(t, &plugin, bundleNames, []bool{false, false, false})
+	ensureBundleOverlapStatus(t, &plugin, bundleNames, []bool{false, false, false})
 
 	// Add a third bundle that conflicts with one
 	plugin.oneShot(ctx, bundleNames[2], download.Update{Bundle: &bundle.Bundle{
@@ -260,7 +260,7 @@ func TestPluginOneShotActivationConflictingRoots(t *testing.T) {
 	}})
 
 	// ensure that both in the conflict go into error state
-	ensureBundleStatus(t, &plugin, bundleNames, []bool{false, false, true})
+	ensureBundleOverlapStatus(t, &plugin, bundleNames, []bool{false, false, true})
 
 	// Update to fix conflict
 	plugin.oneShot(ctx, bundleNames[2], download.Update{Bundle: &bundle.Bundle{
@@ -269,7 +269,7 @@ func TestPluginOneShotActivationConflictingRoots(t *testing.T) {
 		},
 	}})
 
-	ensureBundleStatus(t, &plugin, bundleNames, []bool{false, false, false})
+	ensureBundleOverlapStatus(t, &plugin, bundleNames, []bool{false, false, false})
 
 	// Ensure empty roots conflict with all roots
 	plugin.oneShot(ctx, bundleNames[2], download.Update{Bundle: &bundle.Bundle{
@@ -278,10 +278,45 @@ func TestPluginOneShotActivationConflictingRoots(t *testing.T) {
 		},
 	}})
 
-	ensureBundleStatus(t, &plugin, bundleNames, []bool{false, false, true})
+	ensureBundleOverlapStatus(t, &plugin, bundleNames, []bool{false, false, true})
 }
 
-func ensureBundleStatus(t *testing.T, p *Plugin, bundleNames []string, expectedErrs []bool) {
+func TestPluginOneShotActivationPrefixMatchingRoots(t *testing.T) {
+	ctx := context.Background()
+	manager := getTestManager()
+	plugin := Plugin{manager: manager, status: map[string]*Status{}, etags: map[string]string{}}
+	bundleNames := []string{"test-bundle1", "test-bundle2"}
+
+	for _, name := range bundleNames {
+		plugin.status[name] = &Status{Name: name}
+	}
+
+	plugin.oneShot(ctx, bundleNames[0], download.Update{Bundle: &bundle.Bundle{
+		Manifest: bundle.Manifest{
+			Roots: &[]string{"a/b/c"},
+		},
+	}})
+
+	plugin.oneShot(ctx, bundleNames[1], download.Update{Bundle: &bundle.Bundle{
+		Manifest: bundle.Manifest{
+			Roots: &[]string{"a/b/cat"},
+		},
+	}})
+
+	ensureBundleOverlapStatus(t, &plugin, bundleNames, []bool{false, false})
+
+	// Ensure that empty roots conflict
+	plugin.oneShot(ctx, bundleNames[1], download.Update{Bundle: &bundle.Bundle{
+		Manifest: bundle.Manifest{
+			Roots: &[]string{""},
+		},
+	}})
+
+	ensureBundleOverlapStatus(t, &plugin, bundleNames, []bool{false, true})
+
+}
+
+func ensureBundleOverlapStatus(t *testing.T, p *Plugin, bundleNames []string, expectedErrs []bool) {
 	t.Helper()
 	for i, name := range bundleNames {
 		hasErr := p.status[name].Message != ""
@@ -289,6 +324,8 @@ func ensureBundleStatus(t *testing.T, p *Plugin, bundleNames []string, expectedE
 			t.Fatalf("expected bundle %s to be in an error state", name)
 		} else if !expectedErrs[i] && hasErr {
 			t.Fatalf("unexpected error state for bundle %s", name)
+		} else if hasErr && expectedErrs[i] && !strings.Contains(p.status[name].Message, "detected overlapping roots") {
+			t.Fatalf("expected bundle overlap error for bundle %s, got: %s", name, p.status[name].Message)
 		}
 	}
 }

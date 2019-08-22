@@ -140,6 +140,13 @@ func TestReadRootValidation(t *testing.T) {
 			err: "manifest has overlapped roots: a/b and a",
 		},
 		{
+			note: "edge: overlapped partial segment",
+			files: [][2]string{
+				{"/.manifest", `{"revision": "abcd", "roots": ["a", "another_root"]}`},
+			},
+			err: "",
+		},
+		{
 			note: "err: package outside scope",
 			files: [][2]string{
 				{"/.manifest", `{"revision": "abcd", "roots": ["a", "b", "c/d"]}`},
@@ -270,4 +277,31 @@ func writeTarGz(files [][2]string) *bytes.Buffer {
 		}
 	}
 	return &buf
+}
+
+func TestRootPathsOverlap(t *testing.T) {
+	cases := []struct {
+		note     string
+		rootA    string
+		rootB    string
+		expected bool
+	}{
+		{"both empty", "", "", true},
+		{"a empty", "", "foo/bar", true},
+		{"b empty", "foo/bar", "", true},
+		{"no overlap", "a/b/c", "x/y", false},
+		{"partial segment overlap a", "a/b", "a/banana", false},
+		{"partial segment overlap b", "a/banana", "a/b", false},
+		{"overlap a", "a/b", "a/b/c", true},
+		{"overlap b", "a/b/c", "a/b", true},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.note, func(t *testing.T) {
+			actual := RootPathsOverlap(tc.rootA, tc.rootB)
+			if actual != tc.expected {
+				t.Errorf("Expected %t, got %t", tc.expected, actual)
+			}
+		})
+	}
 }
