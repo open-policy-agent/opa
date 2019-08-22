@@ -9,8 +9,7 @@ your existing infrastructure to match. OPA makes it possible to write policies t
 Terraform is about to make before it makes them. Such tests help in different ways:
 
 * tests help individual developers sanity check their Terraform changes
-* tests can auto-approve run-of-the-mill infrastructure changes and reduce
-the burden of peer-review
+* tests can auto-approve run-of-the-mill infrastructure changes and reduce the burden of peer-review
 * tests can help catch problems that arise when applying Terraform to production after applying it to staging
 
 
@@ -23,12 +22,11 @@ and delete auto-scaling groups and servers.
 
 This tutorial requires
 
-* [Terraform 0.8](https://releases.hashicorp.com/terraform/0.8.8/)
+* [Terraform 0.12.6](https://releases.hashicorp.com/terraform/0.12.6/)
 * [OPA](https://github.com/open-policy-agent/opa/releases)
-* [tfjson](https://github.com/palantir/tfjson) (`go get github.com/palantir/tfjson`): a Go utility that converts Terraform plans into JSON
 
-(This tutorial *should* also work with the [latest version of Terraform](https://www.terraform.io/downloads.html)
-and the [latest version of tfjson](https://github.com/philips/tfjson), but it is untested.  Contributions welcome!)
+(This tutorial *should* also work with the [latest version of Terraform](https://www.terraform.io/downloads.html), but 
+it is untested.  Contributions welcome!)
 
 ## Steps
 
@@ -65,93 +63,383 @@ resource "aws_launch_configuration" "my_web_config" {
 }
 ```
 
-Then ask Terraform to calculate what changes it will make and store the output in `plan.binary`.
+Then initialize Terraform and ask it to calculate what changes it will make and store the output in `plan.binary`.
 
 ```shell
+terraform init
 terraform plan --out tfplan.binary
 ```
 
 ### 2. Convert the Terraform plan into JSON
 
-Use the `tfjson` tool to convert the Terraform plan into JSON so that OPA can read the plan.
+Use the command [terraform show](https://www.terraform.io/docs/commands/show.html) to convert the Terraform plan into 
+JSON so that OPA can read the plan.
 
 ```shell
-tfjson tfplan.binary > tfplan.json
+terraform show -json tfplan.binary > tfplan.json
 ```
 
 Here is the expected contents of `tfplan.json`.
 
-```json
+```live:terraform:input
 {
-    "aws_autoscaling_group.my_asg": {
-        "arn": "",
-        "availability_zones.#": "1",
-        "availability_zones.3205754986": "us-west-1a",
-        "default_cooldown": "",
-        "desired_capacity": "4",
-        "destroy": false,
-        "destroy_tainted": false,
-        "force_delete": "true",
-        "health_check_grace_period": "300",
-        "health_check_type": "ELB",
-        "id": "",
-        "launch_configuration": "my_web_config",
-        "load_balancers.#": "",
-        "max_size": "5",
-        "metrics_granularity": "1Minute",
-        "min_size": "1",
-        "name": "my_asg",
-        "protect_from_scale_in": "false",
-        "vpc_zone_identifier.#": "",
-        "wait_for_capacity_timeout": "10m"
+  "format_version": "0.1",
+  "terraform_version": "0.12.6",
+  "planned_values": {
+    "root_module": {
+      "resources": [
+        {
+          "address": "aws_autoscaling_group.my_asg",
+          "mode": "managed",
+          "type": "aws_autoscaling_group",
+          "name": "my_asg",
+          "provider_name": "aws",
+          "schema_version": 0,
+          "values": {
+            "availability_zones": [
+              "us-west-1a"
+            ],
+            "desired_capacity": 4,
+            "enabled_metrics": null,
+            "force_delete": true,
+            "health_check_grace_period": 300,
+            "health_check_type": "ELB",
+            "initial_lifecycle_hook": [],
+            "launch_configuration": "my_web_config",
+            "launch_template": [],
+            "max_size": 5,
+            "metrics_granularity": "1Minute",
+            "min_elb_capacity": null,
+            "min_size": 1,
+            "mixed_instances_policy": [],
+            "name": "my_asg",
+            "name_prefix": null,
+            "placement_group": null,
+            "protect_from_scale_in": false,
+            "suspended_processes": null,
+            "tag": [],
+            "tags": null,
+            "termination_policies": null,
+            "timeouts": null,
+            "wait_for_capacity_timeout": "10m",
+            "wait_for_elb_capacity": null
+          }
+        },
+        {
+          "address": "aws_instance.web",
+          "mode": "managed",
+          "type": "aws_instance",
+          "name": "web",
+          "provider_name": "aws",
+          "schema_version": 1,
+          "values": {
+            "ami": "ami-09b4b74c",
+            "credit_specification": [],
+            "disable_api_termination": null,
+            "ebs_optimized": null,
+            "get_password_data": false,
+            "iam_instance_profile": null,
+            "instance_initiated_shutdown_behavior": null,
+            "instance_type": "t2.micro",
+            "monitoring": null,
+            "source_dest_check": true,
+            "tags": null,
+            "timeouts": null,
+            "user_data": null,
+            "user_data_base64": null
+          }
+        },
+        {
+          "address": "aws_launch_configuration.my_web_config",
+          "mode": "managed",
+          "type": "aws_launch_configuration",
+          "name": "my_web_config",
+          "provider_name": "aws",
+          "schema_version": 0,
+          "values": {
+            "associate_public_ip_address": false,
+            "enable_monitoring": true,
+            "ephemeral_block_device": [],
+            "iam_instance_profile": null,
+            "image_id": "ami-09b4b74c",
+            "instance_type": "t2.micro",
+            "name": "my_web_config",
+            "name_prefix": null,
+            "placement_tenancy": null,
+            "security_groups": null,
+            "spot_price": null,
+            "user_data": null,
+            "user_data_base64": null,
+            "vpc_classic_link_id": null,
+            "vpc_classic_link_security_groups": null
+          }
+        }
+      ]
+    }
+  },
+  "resource_changes": [
+    {
+      "address": "aws_autoscaling_group.my_asg",
+      "mode": "managed",
+      "type": "aws_autoscaling_group",
+      "name": "my_asg",
+      "provider_name": "aws",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "before": null,
+        "after": {
+          "availability_zones": [
+            "us-west-1a"
+          ],
+          "desired_capacity": 4,
+          "enabled_metrics": null,
+          "force_delete": true,
+          "health_check_grace_period": 300,
+          "health_check_type": "ELB",
+          "initial_lifecycle_hook": [],
+          "launch_configuration": "my_web_config",
+          "launch_template": [],
+          "max_size": 5,
+          "metrics_granularity": "1Minute",
+          "min_elb_capacity": null,
+          "min_size": 1,
+          "mixed_instances_policy": [],
+          "name": "my_asg",
+          "name_prefix": null,
+          "placement_group": null,
+          "protect_from_scale_in": false,
+          "suspended_processes": null,
+          "tag": [],
+          "tags": null,
+          "termination_policies": null,
+          "timeouts": null,
+          "wait_for_capacity_timeout": "10m",
+          "wait_for_elb_capacity": null
+        },
+        "after_unknown": {
+          "arn": true,
+          "availability_zones": [
+            false
+          ],
+          "default_cooldown": true,
+          "id": true,
+          "initial_lifecycle_hook": [],
+          "launch_template": [],
+          "load_balancers": true,
+          "mixed_instances_policy": [],
+          "service_linked_role_arn": true,
+          "tag": [],
+          "target_group_arns": true,
+          "vpc_zone_identifier": true
+        }
+      }
     },
-    "aws_instance.web": {
-        "ami": "ami-09b4b74c",
-        "associate_public_ip_address": "",
-        "availability_zone": "",
-        "destroy": false,
-        "destroy_tainted": false,
-        "ebs_block_device.#": "",
-        "ephemeral_block_device.#": "",
-        "id": "",
-        "instance_state": "",
-        "instance_type": "t2.micro",
-        "ipv6_addresses.#": "",
-        "key_name": "",
-        "network_interface_id": "",
-        "placement_group": "",
-        "private_dns": "",
-        "private_ip": "",
-        "public_dns": "",
-        "public_ip": "",
-        "root_block_device.#": "",
-        "security_groups.#": "",
-        "source_dest_check": "true",
-        "subnet_id": "",
-        "tenancy": "",
-        "vpc_security_group_ids.#": ""
+    {
+      "address": "aws_instance.web",
+      "mode": "managed",
+      "type": "aws_instance",
+      "name": "web",
+      "provider_name": "aws",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "before": null,
+        "after": {
+          "ami": "ami-09b4b74c",
+          "credit_specification": [],
+          "disable_api_termination": null,
+          "ebs_optimized": null,
+          "get_password_data": false,
+          "iam_instance_profile": null,
+          "instance_initiated_shutdown_behavior": null,
+          "instance_type": "t2.micro",
+          "monitoring": null,
+          "source_dest_check": true,
+          "tags": null,
+          "timeouts": null,
+          "user_data": null,
+          "user_data_base64": null
+        },
+        "after_unknown": {
+          "arn": true,
+          "associate_public_ip_address": true,
+          "availability_zone": true,
+          "cpu_core_count": true,
+          "cpu_threads_per_core": true,
+          "credit_specification": [],
+          "ebs_block_device": true,
+          "ephemeral_block_device": true,
+          "host_id": true,
+          "id": true,
+          "instance_state": true,
+          "ipv6_address_count": true,
+          "ipv6_addresses": true,
+          "key_name": true,
+          "network_interface": true,
+          "network_interface_id": true,
+          "password_data": true,
+          "placement_group": true,
+          "primary_network_interface_id": true,
+          "private_dns": true,
+          "private_ip": true,
+          "public_dns": true,
+          "public_ip": true,
+          "root_block_device": true,
+          "security_groups": true,
+          "subnet_id": true,
+          "tenancy": true,
+          "volume_tags": true,
+          "vpc_security_group_ids": true
+        }
+      }
     },
-    "aws_launch_configuration.my_web_config": {
-        "associate_public_ip_address": "false",
-        "destroy": false,
-        "destroy_tainted": false,
-        "ebs_block_device.#": "",
-        "ebs_optimized": "",
-        "enable_monitoring": "true",
-        "id": "",
-        "image_id": "ami-09b4b74c",
-        "instance_type": "t2.micro",
-        "key_name": "",
-        "name": "my_web_config",
-        "root_block_device.#": ""
+    {
+      "address": "aws_launch_configuration.my_web_config",
+      "mode": "managed",
+      "type": "aws_launch_configuration",
+      "name": "my_web_config",
+      "provider_name": "aws",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "before": null,
+        "after": {
+          "associate_public_ip_address": false,
+          "enable_monitoring": true,
+          "ephemeral_block_device": [],
+          "iam_instance_profile": null,
+          "image_id": "ami-09b4b74c",
+          "instance_type": "t2.micro",
+          "name": "my_web_config",
+          "name_prefix": null,
+          "placement_tenancy": null,
+          "security_groups": null,
+          "spot_price": null,
+          "user_data": null,
+          "user_data_base64": null,
+          "vpc_classic_link_id": null,
+          "vpc_classic_link_security_groups": null
+        },
+        "after_unknown": {
+          "ebs_block_device": true,
+          "ebs_optimized": true,
+          "ephemeral_block_device": [],
+          "id": true,
+          "key_name": true,
+          "root_block_device": true
+        }
+      }
+    }
+  ],
+  "configuration": {
+    "provider_config": {
+      "aws": {
+        "name": "aws",
+        "expressions": {
+          "region": {
+            "constant_value": "us-west-1"
+          }
+        }
+      }
     },
-    "destroy": false
+    "root_module": {
+      "resources": [
+        {
+          "address": "aws_autoscaling_group.my_asg",
+          "mode": "managed",
+          "type": "aws_autoscaling_group",
+          "name": "my_asg",
+          "provider_config_key": "aws",
+          "expressions": {
+            "availability_zones": {
+              "constant_value": [
+                "us-west-1a"
+              ]
+            },
+            "desired_capacity": {
+              "constant_value": 4
+            },
+            "force_delete": {
+              "constant_value": true
+            },
+            "health_check_grace_period": {
+              "constant_value": 300
+            },
+            "health_check_type": {
+              "constant_value": "ELB"
+            },
+            "launch_configuration": {
+              "constant_value": "my_web_config"
+            },
+            "max_size": {
+              "constant_value": 5
+            },
+            "min_size": {
+              "constant_value": 1
+            },
+            "name": {
+              "constant_value": "my_asg"
+            }
+          },
+          "schema_version": 0
+        },
+        {
+          "address": "aws_instance.web",
+          "mode": "managed",
+          "type": "aws_instance",
+          "name": "web",
+          "provider_config_key": "aws",
+          "expressions": {
+            "ami": {
+              "constant_value": "ami-09b4b74c"
+            },
+            "instance_type": {
+              "constant_value": "t2.micro"
+            }
+          },
+          "schema_version": 1
+        },
+        {
+          "address": "aws_launch_configuration.my_web_config",
+          "mode": "managed",
+          "type": "aws_launch_configuration",
+          "name": "my_web_config",
+          "provider_config_key": "aws",
+          "expressions": {
+            "image_id": {
+              "constant_value": "ami-09b4b74c"
+            },
+            "instance_type": {
+              "constant_value": "t2.micro"
+            },
+            "name": {
+              "constant_value": "my_web_config"
+            }
+          },
+          "schema_version": 0
+        }
+      ]
+    }
+  }
 }
 ```
+
+The json plan output produced by terraform contains a lot of information. For this tutorial, we will be interested by:
+
+* `.resource_changes`: array containing all the actions that terraform will apply on the infrastructure.
+* `.resource_changes[].type`: the type of resource (eg `aws_instance` , `aws_iam` ...)
+* `.resource_changes[].change.actions`: array of actions applied on the resource (`create`, `update`, `delete`...)
+
+For more information about the json plan representation, please check the [terraform documentation](https://www.terraform.io/docs/internals/json-format.html#plan-representation)
 
 ### 3. Write the OPA policy to check the plan
 
 The policy computes a score for a Terraform that combines
+
 * The number of deletions of each resource type
 * The number of creations of each resource type
 * The number of modifications of each resource type
@@ -163,7 +451,7 @@ practice you would vary the threshold depending on the user.)
 
 **terraform.rego**:
 
-```ruby
+```live:terraform:module:openable
 package terraform.analysis
 
 import input as tfplan
@@ -210,7 +498,7 @@ score = s {
 
 # Whether there is any change to IAM
 touches_iam {
-    all := instance_names["aws_iam"]
+    all := resources["aws_iam"]
     count(all) > 0
 }
 
@@ -219,39 +507,40 @@ touches_iam {
 ####################
 
 # list of all resources of a given type
-instance_names[resource_type] = all {
+resources[resource_type] = all {
     some resource_type
     resource_types[resource_type]
     all := [name |
-        tfplan[name] = _
-        startswith(name, resource_type)
+        name:= tfplan.resource_changes[_]
+        name.type == resource_type
     ]
-}
-
-# number of deletions of resources of a given type
-num_deletes[resource_type] = num {
-    some resource_type
-    resource_types[resource_type]
-    all := instance_names[resource_type]
-    deletions := [name | name := all[_]; tfplan[name]["destroy"] == true]
-    num := count(deletions)
 }
 
 # number of creations of resources of a given type
 num_creates[resource_type] = num {
     some resource_type
     resource_types[resource_type]
-    all := instance_names[resource_type]
-    creates := [name | all[_] = name; tfplan[name]["id"] == ""]
+    all := resources[resource_type]
+    creates := [res |  res:= all[_]; res.change.actions[_] == "create"]
     num := count(creates)
+}
+
+
+# number of deletions of resources of a given type
+num_deletes[resource_type] = num {
+    some resource_type
+    resource_types[resource_type]
+    all := resources[resource_type]
+    deletions := [res |  res:= all[_]; res.change.actions[_] == "delete"]
+    num := count(deletions)
 }
 
 # number of modifications to resources of a given type
 num_modifies[resource_type] = num {
     some resource_type
     resource_types[resource_type]
-    all := instance_names[resource_type]
-    modifies := [name | name := all[_]; obj := tfplan[name]; obj["destroy"] == false; not obj["id"]]
+    all := resources[resource_type]
+    modifies := [res |  res:= all[_]; res.change.actions[_] == "update"]
     num := count(modifies)
 }
 ```
@@ -264,12 +553,24 @@ ask it to evaluate `data.terraform.analysis.authz`.
 ```shell
 opa eval --data terraform.rego --input tfplan.json "data.terraform.analysis.authz"
 ```
+```live:terraform/authz:query:hidden
+data.terraform.analysis.authz
+```
+```live:terraform/authz:output
+```
+
 
 If you're curious, you can ask for the score that the policy used to make the authorization decision.
 In our example, it is 11 (10 for the creation of the auto-scaling group and 1 for the creation of the server).
 
 ```shell
 opa eval --data terraform.rego --input tfplan.json "data.terraform.analysis.score"
+```
+
+```live:terraform/score:query:hidden
+data.terraform.analysis.score
+```
+```live:terraform/score:output
 ```
 
 If as suggested in the previous step, you want to modify your policy to make an authorization decision
@@ -336,8 +637,9 @@ EOF
 Generate the Terraform plan and convert it to JSON.
 
 ```shell
+terraform init
 terraform plan --out tfplan_large.binary
-tfjson tfplan_large.binary > tfplan_large.json
+terraform show -json tfplan_large.binary > tfplan_large.json
 ```
 
 Evaluate the policy to see that it fails the policy tests and check the score.
@@ -346,7 +648,6 @@ Evaluate the policy to see that it fails the policy tests and check the score.
 opa eval --data terraform.rego --input tfplan_large.json "data.terraform.analysis.authz"
 opa eval --data terraform.rego --input tfplan_large.json "data.terraform.analysis.score"
 ```
-
 
 ### 6. (Optional) Run OPA as a daemon and evaluate policy
 
@@ -375,6 +676,7 @@ You learned a number of things about Terraform Testing with OPA:
 * You can use data other than the plan itself (e.g. the user) when writing authorization policies.
 
 Keep in mind that it's up to you to decide how to use OPA's Terraform tests and authorization decision.  Here are some ideas.
+
 * Add it as part of your Terraform wrapper to implement unit tests on Terraform plans
 * Use it to automatically approve run-of-the-mill Terraform changes to reduce the burden of peer-review
 * Embed it into your deployment system to catch problems that arise when applying Terraform to production after applying it to staging
