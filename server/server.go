@@ -2400,7 +2400,7 @@ func (l decisionLogger) Log(ctx context.Context, txn storage.Transaction, decisi
 
 	if l.logger != nil {
 		if err := l.logger(ctx, info); err != nil {
-			return err
+			return errors.Wrap(err, "decision_logs")
 		}
 	}
 
