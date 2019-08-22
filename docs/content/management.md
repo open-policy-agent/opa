@@ -319,13 +319,36 @@ example. with the boot configuration above, OPA executes the following query:
 data.example.discovery
 ```
 
+As an alternative, you can also provide a `decision` field, to specifiy the name of the query. For example, with this configuration:
+```yaml
+services:
+  - name: acmecorp
+    url: https://example.com/control-plane-api/v1
+    credentials:
+      bearer:
+        token: "bGFza2RqZmxha3NkamZsa2Fqc2Rsa2ZqYWtsc2RqZmtramRmYWxkc2tm"
+discovery:
+  name: /example/discovery
+  prefix: configuration
+  decision: config
+```
+OPA executes the following query:
+```
+data.config
+```
+
 If the discovery bundle contained the following Rego file:
 
 ```ruby
 package example
 
 discovery = {
-  "bundle": {"name": bundle_name},
+  "bundles": {
+    "main": {
+      "service": "acmecorp",
+      "resource": bundle_name
+    },
+  },
   "default_decision": "acmecorp/httpauthz/allow"
 }
 
@@ -336,8 +359,11 @@ The subsequent configuration would be:
 
 ```json
 {
-  "bundle": {
-    "name": "acmecorp/httpauthz"
+  "bundles": {
+    "main": {
+      "service": "acmecorp",
+      "resource": "acmecorp/httpauthz"
+    },
   },
   "default_decision": "acmecorp/httpauthz/allow"
 }
@@ -350,9 +376,12 @@ could be achieved by constructing the discovery bundle with a static JSON file:
 {
   "example": {
     "discovery": {
-      "bundle": {
-        "name": "acmecorp/httpauthz"
-      },
+      "bundles": {
+        "main": {
+          "service": "acmecorp",
+          "resource": "acmecorp/httpauthz"
+        },
+      }, 
       "default_decision": "acmecorp/httpauthz/allow"
     }
   }
@@ -382,8 +411,11 @@ Below is a policy file which generates an OPA congfiguration.
 package example
 
 discovery = {
-  "bundle": {
-    "name": bundle_name                # line 5
+  "bundles": {
+    "main": {
+      "service": "acmecorp", 
+      "resource": bundle_name #line 7
+    }
   }
 }
 
@@ -398,7 +430,7 @@ region_bundle = {
 }
 ```
 
-The `bundle_name` variable in `line 5` of the above policy will be dynamically selected based on the value of the label `region`. So if an OPA was started with `region: "US"`, then the `bundle_name` will be `example/test1/p`.
+The `bundle_name` variable in `line 7` of the above policy will be dynamically selected based on the value of the label `region`. So if an OPA was started with `region: "US"`, then the `bundle_name` will be `example/test1/p`.
 
 Start an OPA with a boot configuration as shown below:
 
