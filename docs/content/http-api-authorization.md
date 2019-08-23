@@ -44,7 +44,8 @@ services:
     command:
       - "run"
       - "--server"
-      - "--log-level=debug"
+      - "--log-format=json-pretty"
+      - "--set=decision_logs.console=true"
   api_server:
     image: openpolicyagent/demo-restful-api:0.2
     ports:
@@ -91,14 +92,14 @@ else:
 
 ```
 
-
 ### 2. Load a policy into OPA.
 
 In another terminal, create a policy that allows users to
 request their own salary as well as the salary of their direct subordinates.
 
-```shell
-cat >example.rego <<EOF
+**example.rego**:
+
+```live:example:module:openable
 package httpapi.authz
 
 # bob is alice's manager, and betty is charlie's.
@@ -124,7 +125,6 @@ allow {
   input.path = ["finance", "salary", username]
   subordinates[input.user][_] == username
 }
-EOF
 ```
 
 Then load the policy via OPA's REST API.
@@ -140,6 +140,30 @@ The following command will succeed.
 
 ```shell
 curl --user alice:password localhost:5000/finance/salary/alice
+```
+
+The webserver queries OPA to authorize the request. In the query, the webserver
+includes JSON data describing the incoming request.
+
+```live:example:input
+{
+  "method": "GET",
+  "path": ["finance", "salary", "alice"],
+  "user": "alice"
+}
+```
+
+When the webserver queries OPA it asks for a specific policy decision. In this
+case, the integration is hardcoded to ask for `/v1/data/httpapi/authz`. OPA
+translates this URL path into a query:
+
+```live:example:query
+data.httpapi.authz
+```
+
+The answer returned by OPA for the input above is:
+
+```live:example:output
 ```
 
 ### 4. Check that `bob` can see `alice`'s salary (because `bob` is `alice`'s manager.)
@@ -162,8 +186,9 @@ Suppose the organization now includes an HR department. The organization wants
 members of HR to be able to see any salary. Let's extend the policy to handle
 this.
 
-```shell
-cat >example-hr.rego <<EOF
+**example-hr.rego**:
+
+```live:hr_example:module:read_only,openable
 package httpapi.authz
 
 import input
@@ -179,7 +204,6 @@ allow {
 hr = [
   "david",
 ]
-EOF
 ```
 
 Upload the new policy to OPA.
@@ -211,21 +235,10 @@ real world, let's try a similar exercise utilizing the JWT utilities of OPA.
 Shut down your `docker-compose` instance from before with `^C` and then restart it to
 ensure you are working with a fresh instance of OPA.
 
-Then update the policy:
+**example.rego**:
 
-```shell
-cat >example.rego <<EOF
+```live:jwt_example:module:openable
 package httpapi.authz
-
-import input
-
-# io.jwt.decode takes one argument (the encoded token) and has three outputs:
-# the decoded header, payload and signature, in that order. Our policy only
-# cares about the payload, so we ignore the others.
-token = {"payload": payload} { io.jwt.decode(input.token, [_, payload, _]) }
-
-# Ensure that the token was issued to the user supplying it.
-user_owns_token { input.user == token.payload.azp }
 
 default allow = false
 
@@ -254,7 +267,22 @@ allow {
   token.payload.hr == true
   user_owns_token
 }
-EOF
+
+# Ensure that the token was issued to the user supplying it.
+user_owns_token { input.user == token.payload.azp }
+
+# Helper to get the token payload.
+token = {"payload": payload} {
+  [header, payload, signature] := io.jwt.decode(input.token)
+}
+```
+
+```live:jwt_example:input:hidden
+{
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyIjoiYWxpY2UiLCJhenAiOiJhbGljZSIsInN1Ym9yZGluYXRlcyI6W10sImhyIjpmYWxzZX0.rz3jTY033z-NrKfwrK89_dcLF7TN4gwCMj-fVBDyLoM",
+  "method": "GET",
+  "path": ["finance", "salary", "alice"],
+  "user": "alice"
 ```
 
 And load it into OPA:
@@ -275,7 +303,7 @@ export DAVID_TOKEN="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyIjoiZGF2aWQiLCJ
 ```
 
 These tokens encode the same information as the policies we did before (`bob` is `alice`'s manager, `betty` is `charlie`'s, `david` is the only HR member, etc).
-If you want to inspect their contents, start up the OPA REPL and execute `io.jwt.decode(<token here>, [header, payload, signature])`.
+If you want to inspect their contents, start up the OPA REPL and execute `io.jwt.decode(<token here>, [header, payload, signature])` or open the example above in the Playground.
 
 Let's try a few queries (note: you may need to escape the `?` characters in the queries for your shell):
 

@@ -63,7 +63,6 @@ resource "aws_launch_configuration" "my_web_config" {
     image_id = "ami-09b4b74c"
     instance_type = "t2.micro"
 }
-EOF
 ```
 
 Then ask Terraform to calculate what changes it will make and store the output in `plan.binary`.

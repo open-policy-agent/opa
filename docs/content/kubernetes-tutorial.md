@@ -178,6 +178,8 @@ spec:
             - "--tls-private-key-file=/certs/tls.key"
             - "--addr=0.0.0.0:443"
             - "--addr=http://127.0.0.1:8181"
+            - "--log-format=json-pretty"
+            - "--set=decision_logs.console=true"
           volumeMounts:
             - readOnly: true
               mountPath: /certs
@@ -289,14 +291,56 @@ kubectl apply -f webhook-configuration.yaml
 You can follow the OPA logs to see the webhook requests being issued by the Kubernetes API server:
 
 ```
-kubectl logs -l app=opa -c opa
+# ctrl-c to exit
+kubectl logs -l app=opa -c opa -f
 ```
 
 ### 4. Define a policy and load it into OPA via Kubernetes
 
-To test admission control, create a policy that restricts the hostnames that an ingress can use ([ingress-whitelist.rego](https://github.com/open-policy-agent/opa/blob/master/docs/content/code/kubernetes-admission-control-validation/ingress-whitelist.rego)):
+To test admission control, create a policy that restricts the hostnames that an ingress can use.
 
-{{< code file="kubernetes-admission-control-validation/ingress-whitelist.rego" lang="ruby" >}}
+**ingress-whitelist.rego**:
+
+```live:ingress_whitelist:module:read_only
+package kubernetes.admission
+
+import data.kubernetes.namespaces
+
+operations = {"CREATE", "UPDATE"}
+
+deny[msg] {
+	input.request.kind.kind == "Ingress"
+	operations[input.request.operation]
+	host := input.request.object.spec.rules[_].host
+	not fqdn_matches_any(host, valid_ingress_hosts)
+	msg := sprintf("invalid ingress host %q", [host])
+}
+
+valid_ingress_hosts = {host |
+	whitelist := namespaces[input.request.namespace].metadata.annotations["ingress-whitelist"]
+	hosts := split(whitelist, ",")
+	host := hosts[_]
+}
+
+fqdn_matches_any(str, patterns) {
+	fqdn_matches(str, patterns[_])
+}
+
+fqdn_matches(str, pattern) {
+	pattern_parts := split(pattern, ".")
+	pattern_parts[0] == "*"
+	str_parts := split(str, ".")
+	n_pattern_parts := count(pattern_parts)
+	n_str_parts := count(str_parts)
+	suffix := trim(pattern, "*.")
+	endswith(str, suffix)
+}
+
+fqdn_matches(str, pattern) {
+    not contains(pattern, "*")
+    str == pattern
+}
+```
 
 Store the policy in Kubernetes as a ConfigMap. By default kube-mgmt will try to load policies out of configmaps in the opa namespace OR configmaps in other namespaces labelled openpolicyagent.org/policy=rego.
 
@@ -389,9 +433,24 @@ OPA allows you to modify policies on-the-fly without recompiling any of the serv
 
 To enforce the second half of the policy from the start of this tutorial you can load another policy into OPA that prevents Ingress objects in different namespaces from sharing the same hostname.
 
-[ingress-conflicts.rego](https://github.com/open-policy-agent/opa/blob/master/docs/content/code/kubernetes-admission-control-validation/ingress-conflicts.rego):
+**ingress-conflicts**:
 
-{{< code file="kubernetes-admission-control-validation/ingress-conflicts.rego" lang="ruby" >}}
+```live:ingress_conflicts:module:read_only
+package kubernetes.admission
+
+import data.kubernetes.ingresses
+
+deny[msg] {
+    some other_ns, other_ingress
+    input.request.kind.kind == "Ingress"
+    input.request.operation == "CREATE"
+    host := input.request.object.spec.rules[_].host
+    ingress := ingresses[other_ns][other_ingress]
+    other_ns != input.request.namespace
+    ingress.spec.rules[_].host == host
+    msg := sprintf("invalid ingress host %q (conflicts with %v/%v)", [host, other_ns, other_ingress])
+}
+```
 
 ```bash
 kubectl create configmap ingress-conflicts --from-file=ingress-conflicts.rego

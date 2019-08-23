@@ -8,7 +8,7 @@ toc: true
 
 ## Assignment and Equality
 
-```ruby
+```live:assign_equality:query:read_only
 # assign variable x to value of field foo.bar.baz in input
 x := input.foo.bar.baz
 
@@ -27,7 +27,7 @@ x == {"foo", "bar"}
 
 #### Arrays
 
-```ruby
+```live:lookup/arrays:query:read_only
 # lookup value at index 0
 val := arr[0]
 
@@ -43,7 +43,7 @@ val := arr[count(arr)-1]
 
 #### Objects
 
-```ruby
+```live:lookup/objects:query:read_only
 # lookup value for key "foo"
 val := obj["foo"]
 
@@ -70,7 +70,7 @@ not obj.foo.bar.bar
 
 #### Sets
 
-```ruby
+```live:lookup/sets:query:read_only
 # check if "foo" belongs to the set
 a_set["foo"]
 
@@ -88,7 +88,7 @@ a_set[[x, "b", z]]
 
 #### Arrays
 
-```ruby
+```live:iteration/arrays:query:read_only
 # iterate over indices i
 arr[i]
 
@@ -101,7 +101,7 @@ val := arr[i]
 
 #### Objects
 
-```ruby
+```live:iteration/objects:query:read_only
 # iterate over keys
 obj[key]
 
@@ -114,14 +114,14 @@ val := obj[key]
 
 #### Sets
 
-```ruby
+```live:iteration/sets:query:read_only
 # iterate over values
 set[val]
 ```
 
 #### Advanced
 
-```ruby
+```live:iteration/advanced:query:read_only
 # nested: find key k whose bar.baz array index i is 7
 foo[k].bar.baz[i] == 7
 
@@ -137,7 +137,7 @@ foo[k].bar.baz[i] == 7; foo[k].qux > 3
 
 #### For All
 
-```ruby
+```live:iteration/forall:query:read_only
 # assert no values in set match predicate
 count({x | set[x]; f(x)}) == 0
 
@@ -151,7 +151,7 @@ not any_match
 not any_not_match
 ```
 
-```ruby
+```live:iteration/forall:module:read_only
 any_match {
     set[x]
     f(x)
@@ -169,7 +169,7 @@ In the examples below `...` represents one or more conditions.
 
 #### Constants
 
-```ruby
+```live:rules/constants:module:read_only
 a = {1, 2, 3}
 b = {4, 5, 6}
 c = a | b
@@ -177,7 +177,7 @@ c = a | b
 
 #### Conditionals (Boolean)
 
-```ruby
+```live:rules/condbool:module:read_only
 # p is true if ...
 p = true { ...}
 
@@ -188,7 +188,7 @@ p { ... }
 
 #### Conditionals
 
-```ruby
+```live:rules/cond:module:read_only
 default a = 1
 a = 5 { ... }
 a = 100 { ... }
@@ -196,7 +196,7 @@ a = 100 { ... }
 
 #### Incremental
 
-```ruby
+```live:rules/incremental:module:read_only
 # a_set will contain values of x and values of y
 a_set[x] { ... }
 a_set[y] { ... }
@@ -208,7 +208,7 @@ a_map[w] = z { ... }
 
 #### Ordered (Else)
 
-```ruby
+```live:rules/ordered:module:read_only
 default a = 1
 a = 5 { ... }
 else = 10 { ... }
@@ -216,7 +216,7 @@ else = 10 { ... }
 
 #### Functions (Boolean)
 
-```ruby
+```live:rules/funcs:module:read_only
 f(x, y) {
     ...
 }
@@ -230,7 +230,7 @@ f(x, y) = true {
 
 #### Functions (Conditionals)
 
-```ruby
+```live:rules/condfuncs:module:read_only
 f(x) = "A" { x >= 90 }
 f(x) = "B" { x >= 80; x < 90 }
 f(x) = "C" { x >= 70; x < 80 }
@@ -240,11 +240,14 @@ f(x) = "C" { x >= 70; x < 80 }
 
 #### Merge Objects
 
-```ruby
-merge_objects({"a": true, "b": false}, {"b": "foo", "c": 4})
+```live:rules/merge:query:read_only
+x := {"a": true, "b": false}
+y := {"b": "foo", "c": 4}
+z := {"a": true, "b": "foo", "c": 4}
+merge_objects(x, y) == z
 ```
 
-```ruby
+```live:rules/merge:module:read_only
 has_key(x, k) { _ = x[k] }
 
 pick_first(k, a, b) = a[k]
@@ -258,7 +261,7 @@ merge_objects(a, b) = c {
 
 ## Tests
 
-```ruby
+```live:tests:module:read_only
 # define a rule that starts with test_
 test_NAME { ... }
 

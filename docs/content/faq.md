@@ -14,7 +14,7 @@ weight: 17
 In Rego (OPA's policy language), you can write statements that both allow and
 deny a request, such as
 
-```ruby
+```live:conflict_resolution:module:read_only
 package foo
 allow { input.name == "alice" }
 deny { input.name == "alice" }
@@ -28,7 +28,7 @@ you create a virtual document called `authz` and define it so that `allow`
 overrides `deny` or vice versa.  Then when asking for a policy decision, you
 ask for `foo/authz`.
 
-```ruby
+```live:conflict_resolution_deny_by_default:module:read_only
 # deny everything by default
 default authz = false
 
@@ -43,33 +43,63 @@ If instead you want to resolve conflicts using a first-match strategy (where
 the first statement applicable makes the decision), see the FAQ entry on
 [statement order](#statement-order).
 
-
 ## Does Statement Order Matter? {#statement-order}
 
 The order in which statements occur does not matter in Rego.  Reorder any two statements
 and the policy means exactly the same thing.  For example, the following two statements
 mean the same thing whichever order you write them in.
 
-```ruby
+```live:unordered:module:openable
+package unordered
+
 ratelimit = 4 { input.name = "alice" }
-ratelimit = 5 { input.owner = "bob" }
+ratelimit = 5 { input.name = "bob" }
+```
+
+```live:unordered:input
+{
+  "name": "bob"
+}
+```
+
+```live:unordered:query:hidden
+ratelimit
+```
+
+```live:unordered:output
 ```
 
 Sometimes, though, you want the statement order to matter.  For example, you might put more specific statements before more general statements so that the more specific statements take precedence (e.g. for [conflict resolution](#conflict-resolution)).  Rego lets you do that using the `else` keyword.  For example, if you want to make the first statement above take precedence, you would write the following Rego.
 
-```ruby
+```live:ordered:module:openable
+package ordered
+
 ratelimit = 4 {
-    input.name == "alice"
-} else = 5 {
     input.owner == "bob"
+} else = 5 {
+    input.name == "alice"
 }
+```
+
+```live:ordered:input
+{
+  "name": "alice",
+  "owner": "bob"
+}
+```
+
+```live:ordered:query:hidden
+ratelimit
+```
+
+```live:ordered:output
 ```
 
 ## Which Equality Operator Should I Use?
 
 Rego supports three kinds of equality: assignment (`:=`), comparison (`==`), and unification `=`.  Both assignment (`:=`) and comparison (`==`) are only available inside of rules (and in the REPL), and we recommend using them whenever possible for policies that are easier to read and write.
 
-```ruby
+```live:equality:query:read_only
 # Assignment: declare local variable x and give it value 7
 # If x appears before this statement in the rule, compiler throws error.
 x := 7
@@ -93,24 +123,24 @@ OPA lets multiple teams contribute independent policies that you can then combin
 
 For example, suppose there is a network team, a storage team, and a compute team.  Suppose they each write their own policy:
 
-```ruby
+```live:collab_compute:module:read_only
 package compute
 allow { ... }
 ```
 
-```ruby
+```live:collab_network:module:read_only
 package network
 allow { ... }
 ```
 
-```ruby
+```live:collab_storage:module:read_only
 package storage
 allow { ... }
 ```
 
 Now the cloud team, who is in charge of the overall decision, writes another policy that combines the decisions for each of the team policies.  In the example below, all 3 teams must allow for the overall decision to be allowed.
 
-```ruby
+```live:collab_main:module:read_only
 package main
 import data.compute
 import data.storage
@@ -136,12 +166,14 @@ For low-latency/high-performance use-cases, e.g. microservice API authorization,
 
 For example, the following rule has one local variable `user`, and that variable can only be assigned one value.  Intuitively, evaluating this rule requires checking each of the conditions in the body, and if there were N of these rules, evaluation would only require walking over each of them as well.
 
-```ruby
+```live:linear:module:read_only,openable
+package linear
+
 allow {
   some user
-  input.method == "GET"
+  input.method = "GET"
   input.path = ["accounts", user]
-  input.user == user
+  input.user = user
 }
 ```
 
@@ -149,7 +181,7 @@ allow {
 
 One common mistake people make is using arrays when they could use objects.  For example, below is an array of ID/first-name/last-names where ID is unique, and you're looking up the first-name/last-name given the ID.
 
-```ruby
+```live:prefer_objects/bad:query
 # DO NOT DO THIS.
 # Array of objects where each object has a unique identifier
 d = [{"id": "a123", "first": "alice", "last": "smith"},
@@ -163,7 +195,7 @@ d[i].first ...
 
 Instead, use a dictionary where the key is the ID and the value is the first-name/last-name.  Given the ID, you can lookup the name information directly.
 
-```ruby
+```live:prefer_objects/good:query
 # DO THIS INSTEAD OF THE ABOVE
 # Use object whose keys are the IDs for the objects.
 #   Looking up an object given its ID requires NO search
@@ -185,17 +217,21 @@ In the linear fragment, OPA includes special algorithms that **index rules effic
 
 Here is an example policy from the [rule-indexing blog](https://blog.openpolicyagent.org/optimizing-opa-rule-indexing-59f03f17caf3) giving the details for these algorithms. See the rest of this section for details on indexed statements.
 
-```ruby
+```live:indexed:module:openable
+package indexed
+
+default allow = false
+
 allow {
   some user
-  input.method == "GET"
+  input.method = "GET"
   input.path = ["accounts", user]
-  input.user == user
+  input.user = user
 }
 
 allow {
-  input.method == "GET"
-  input.path == ["accounts", "report"]
+  input.method = "GET"
+  input.path = ["accounts", "report"]
   roles[input.user][_] = "admin"
 }
 
@@ -204,6 +240,26 @@ allow {
   input.path = ["accounts"]
   roles[input.user][_] = "admin"
 }
+
+roles = {
+  "bob": ["admin", "hr"],
+  "alice": ["procurement"],
+}
+```
+
+```live:indexed:query:hidden
+allow
+```
+
+```live:indexed:input
+{
+  "user": "bob",
+  "path": ["accounts", "bob"],
+  "method": "GET"
+}
+```
+
+```live:indexed:output
 ```
 
 #### Equality statements
@@ -242,96 +298,122 @@ Rego lets you factor out common logic in 2 different and complementary ways.
 
 One is the *function*, which is conceptually identical to functions from most programming languages.  It takes any input and returns any output.  Importantly, a function can take infinitely many inputs, e.g. any string.
 
-```ruby
+```live:functions:module:openable
+package functions
+
 trim_and_split(s) = result {
      t := trim(s, " ")
      result := split(t, ".")
 }
 ```
+
+```live:functions:query
+trim_and_split("  hello.world  ")
+```
+
+```live:functions:output
+```
+
 The other way to factor out common logic is with a *rule*.  Rules differ in that (i) they support automatic iteration and (ii) they are only defined for finitely many inputs.  (Those obviously go hand-in-hand.)  For example, you could define a rule that maps an application to the hostnames that app is running on:
 
-```ruby
+```live:rules:module:openable
+package rules
+
 app_to_hostnames[app_name] = hostnames {
-    app := apps[_]
-    app_name := app.name
-    hostnames := [hostname | name := app.servers[_]
-                            s := sites[_].servers[_]
-                            s.name == name
-                            hostname := s.hostname]
+  app := apps[_]
+  app_name := app.name
+  hostnames := [hostname | name := app.servers[_]
+                           s := sites[_].servers[_]
+                           s.name == name
+                           hostname := s.hostname]
 }
+
+apps = [
+  {
+    "name": "web",
+    "servers": ["s1", "s2"],
+  },
+  {
+    "name": "mysql",
+    "servers": ["s3"],
+  },
+  {
+    "name": "mongodb",
+    "servers": ["s4"],
+  },
+]
+
+sites = [
+  {
+    "servers": [
+      {
+        "name": "s1",
+        "hostname": "hydrogen",
+      },
+      {
+        "name": "s3",
+        "hostname": "helium",
+      },
+      {
+        "name": "s4",
+        "hostname": "nitrogen",
+      },
+    ],
+  },
+  {
+    "servers": [
+      {
+        "name": "s2",
+        "hostname": "carbon",
+      },
+    ],
+  },
+]
 ```
 
 And then we can iterate over all the key/value pairs of that app-to-hostname mapping (just like we could iterate over all key/value pairs of a hardcoded JSON object).  You can also iterate over just the keys or just the values or you can look up the value for a key or lookup all the keys for a single value.
 
-```ruby
+```live:rules/all_pairs:query
 # iterate over all key/value pairs
-> app_to_hostnames[app]
-+-----------+------------------------------------------------------+
-|    app    |                app_to_hostnames[app]                 |
-+-----------+------------------------------------------------------+
-| "web"     | ["hydrogen","helium","beryllium","boron","nitrogen"] |
-| "mysql"   | ["lithium","carbon"]                                 |
-| "mongodb" | ["oxygen"]                                           |
-+-----------+------------------------------------------------------+
+app_to_hostnames[app]
 ```
 
-```ruby
+```live:rules/all_pairs:output
+```
+
+```live:rules/all_values:query
 # iterate over all values
-> app_to_hostnames[_]
-+------------------------------------------------------+
-|                 app_to_hostnames[_]                  |
-+------------------------------------------------------+
-| ["hydrogen","helium","beryllium","boron","nitrogen"] |
-| ["lithium","carbon"]                                 |
-| ["oxygen"]                                           |
-+------------------------------------------------------+
+app_to_hostnames[_]
 ```
 
-```ruby
+```live:rules/all_values:output
+```
+
+```live:rules/all_keys:query
 # iterate over all keys
-> app_to_hostnames[x] = _
-+-----------+
-|     x     |
-+-----------+
-| "web"     |
-| "mysql"   |
-| "mongodb" |
-+-----------+
+app_to_hostnames[x] = _
 ```
 
-```ruby
+```live:rules/all_keys:output
+```
+
+```live:rules/lookup_key:query
 # lookup the value for key "web"
-> app_to_hostnames["web"]
-[
-  "hydrogen",
-  "helium",
-  "beryllium",
-  "boron",
-  "nitrogen"
-]
+app_to_hostnames["web"]
 ```
 
-```ruby
-# lookup keys where value includes "lithium"
-> app_to_hostnames[k][_] == "lithium"
-+---------+
-|    k    |
-+---------+
-| "mysql" |
-+---------+
+```live:rules/lookup_key:output
 ```
 
+```live:rules/lookup_value:query
+# lookup keys where value includes "carbon"
+app_to_hostnames[k][_] == "carbon"
+```
+
+```live:rules/lookup_value:output
+```
 
 Obviously with the `trim_and_split` function we cannot ask for all the inputs/outputs since there are infinitely many.  We can't provide 1 input and ask for all the other inputs that make the function return true, again, because there could be infinitely many.  The only thing we can do with a function is provide it all the inputs and ask for the output.
-
-```ruby
-> trim_and_split("   foo.bar.baz  ")
-[
-  "foo",
-  "bar",
-  "baz"
-]
-```
 
 Functions allow you to factor out common logic that has infinitely-many input/output pairs; rules allow you to factor out common logic with finitely many input/outputs and allow you to iterate over them in the same way as native JSON objects.
 
@@ -348,7 +430,8 @@ Safety: every variable appearing in the head or in a builtin or inside a negatio
 ```
 
 Examples:
-```
+
+```live:safety:module:read_only
 # Unsafe: x in head does not appear in body.
 #   There are infinitely many values that make p true
 p[x] { some y; q[y]; r[y] }
@@ -377,7 +460,8 @@ p[x] { some x; not q[x]; r[x] }
 Safety has one implication about negation: you don't iterate over values NOT in a rule like `q`.  Instead, you iterate over values in another rule like `r` and then use negation to CHECK whether if that value is NOT in `q`.
 
 Embedded terms like `not p[q[_]]` sometimes produce difficult to decipher error messages.  We recommend pulling the embedded terms out into the rule--the meaning is the same and often creates easier to read error messages:
-```
+
+```live:safety/nested:query:read_only
 x := q[_]
 not p[x]
 ```
@@ -389,37 +473,65 @@ not p[x]
 All JWTs with OPA come in as strings.  That string is a JSON Web Token encoded with JWS Compact Serialization. JWE and JWS JSON Serialization are not supported.
 
 You can verify tokens are properly signed.
-```ruby
+
+```live:jwt_verify:query:read_only
 # RS256 signature
-valid := io.jwt.verify_rs256(string, certificate)
+io.jwt.verify_rs256(string, certificate)
+
 # PS256 signature
-valid := io.jwt.verify_ps256(string, certificate)
+io.jwt.verify_ps256(string, certificate)
+
 # ES256 signature
-valid := io.jwt.verify_es256(string, certificate)
+io.jwt.verify_es256(string, certificate)
+
 # HS256 signature
-valid := io.jwt.verify_hs256(string, certificate)
+io.jwt.verify_hs256(string, certificate)
 ```
 
 You can decode JWTs and use the contents of the JWT to make policy decisions.
 
-```ruby
-# If nested signing was used, the header, payload and signature will represent the most deeply nested token.
-[header, payload, signature] = io.jwt.decode(string)
-
-# Verify and decode, where constraints include cert, secret, the
-#   algorithm name to use, and additional parameters for the verification
-[valid, header, payload] = io.jwt.decode_verify(string, constraints)
+```live:jwt_decode:module:hidden
+package jwt_decode
 ```
 
-For details see the [language reference section on tokens](https://www.openpolicyagent.org/docs/language-reference.html#tokens).
+```live:jwt_decode:input
+{
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyIjoiYWxpY2UiLCJhenAiOiJhbGljZSIsInN1Ym9yZGluYXRlcyI6W10sImhyIjpmYWxzZX0.rz3jTY033z-NrKfwrK89_dcLF7TN4gwCMj-fVBDyLoM"
+}
+```
+
+```live:jwt_decode:query
+io.jwt.decode(input.token)
+```
+
+```live:jwt_decode:output
+```
+
+> If nested signing was used, the header, payload and signature will represent the most deeply nested token.
+
+You can decode **and** verify using `io.jwt.decode_verify`.
+
+```live:jwt_decode/verify:query
+io.jwt.decode_verify(input.token, {
+  "secret": "secret",
+  "alg": "hs256",
+})
+```
+
+```live:jwt_decode/verify:output
+```
+
+See the [Language Reference](../language-reference#tokens) for additional verification constraints.
 
 To get certificates into the policy, you can either hardcode them or provide them as environmental variables to OPA and then use the `opa.runtime` builtin to retrieve those variables.
 
-```ruby
+```live:runtime:query:read_only
 # all runtime information
 runtime := opa.runtime()
+
 # environment variables provided when OPA started
 runtime.env
+
 # the env variable PROD_CERTIFICATE
 runtime.env.PROD_CERTIFICATE
 ```

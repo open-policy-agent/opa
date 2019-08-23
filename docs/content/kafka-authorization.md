@@ -37,7 +37,7 @@ mkdir -p policies
 
 **policies/tutorial.rego**:
 
-```ruby
+```live:start:module:read_only
 package kafka.authz
 
 allow = true
@@ -116,17 +116,17 @@ example below shows the input structure.
 ```json
 {
   "operation": {
-    "name": "Write",
+    "name": "Write"
   },
   "resource": {
     "resourceType": {
-      "name": "Topic",
+      "name": "Topic"
     },
     "name": "credit-scores"
   },
   "session": {
     "principal": {
-      "principalType": "User",
+      "principalType": "User"
     },
     "clientAddress": "172.21.0.5",
     "sanitizedUser": "CN%3Danon_producer.tutorial.openpolicyagent.org%2COU%3DTUTORIAL%2CO%3DOPA%2CL%3DSF%2CST%3DCA%2CC%3DUS"
@@ -157,7 +157,7 @@ The Kafka image used in this tutorial includes a pre-installed JAR file that imp
 
 Update the `policies/tutorial.rego` with the following content.
 
-```ruby
+```live:example:module:openable
 #-----------------------------------------------------------------------------
 # High level policy for controlling access to Kafka.
 #
@@ -237,6 +237,41 @@ parse_user(user) = {key: value |
 }
 ```
 
+The Kafka authorization plugin is configured to query for the
+`data.kafka.authz.allow` decision. If the response is `true` the operation is
+allowed, otherwise the operation is denied. When the integration queries OPA it
+supplies a JSON representation of the operation, resource, and principal.
+
+```live:example:query:hidden
+data.kafka.authz.allow
+```
+
+```live:example:input
+{
+  "operation": {
+    "name": "Write"
+  },
+  "resource": {
+    "resourceType": {
+      "name": "Topic"
+    },
+    "name": "credit-scores"
+  },
+  "session": {
+    "principal": {
+      "principalType": "User"
+    },
+    "clientAddress": "172.21.0.5",
+    "sanitizedUser": "CN%3Danon_producer.tutorial.openpolicyagent.org%2COU%3DTUTORIAL%2CO%3DOPA%2CL%3DSF%2CST%3DCA%2CC%3DUS"
+  }
+}
+```
+
+With the input value above, the answer is:
+
+```live:example:output
+```
+
 The `./policies` directory is mounted into the Docker container running OPA.
 When the files under this directory change, OPA is notified and the policies
 are automatically reloaded.
@@ -301,8 +336,7 @@ Processed a total of 0 messages
 
 First, add the following content to the policy file (`./policies/tutorial.rego`):
 
-
-```ruby
+```live:example/deny:module:openable
 deny {
   is_write_operation
   topic_has_large_fanout
@@ -327,7 +361,7 @@ producer_is_whitelisted_for_large_fanout {
 Next, update the `topic_metadata` data structure in the same file to indicate
 that the `click-stream` topic has a high fanout.
 
-```ruby
+```live:updated_metadata:module:read_only
 topic_metadata = {
   "click-stream": {
     "tags": ["large-fanout"],

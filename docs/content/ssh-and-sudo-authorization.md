@@ -65,7 +65,7 @@ services:
     command:
       - "run"
       - "--server"
-      - "--log-level=debug"
+      - "--set=decision_logs.console=true"
   frontend:
     image: openpolicyagent/demo-pam
     ports:
@@ -112,8 +112,9 @@ First, create a policy that will tell the PAM module to collect context that is 
 For more details on what this policy should look like, see
 [this documentation](https://github.com/open-policy-agent/contrib/tree/master/pam_authz/pam#pull).
 
-```shell
-cat >pull.rego <<EOF
+**pull.rego**:
+
+```live:ssh_pull:module:read_only
 package pull
 
 # Which files should be loaded into the context?
@@ -121,8 +122,6 @@ files = ["/etc/host_identity.json"]
 
 # Which environment variables should be loaded into the context?
 env_vars = []
-
-EOF
 ```
 Load this policy into OPA.
 
@@ -144,8 +143,9 @@ In production, it makes more sense to have this separation for *display* and *pu
 Create the SSH authorization policy. It should allow admins to SSH into all hosts,
 and non-admins to only SSH into hosts that they contributed code to.
 
-```shell
-cat >sshd_authz.rego <<EOF
+**sshd_authz.rego**:
+
+```live:sshd_authz:module:read_only
 package sshd.authz
 
 import input.pull_responses
@@ -173,13 +173,12 @@ allow {
     hosts[pull_responses.files["/etc/host_identity.json"].host_id].contributors[_] == sysinfo.pam_username
 }
 
-
 # If the user is not authorized, then include an error message in the response.
 errors["Request denied by administrative policy"] {
     not allow
 }
-EOF
 ```
+
 Load this policy into OPA.
 
 ```shell
@@ -189,8 +188,9 @@ curl -X PUT --data-binary @sshd_authz.rego \
 
 Create the `sudo` authorization policy. It should allow only admins to use `sudo`.
 
-```shell
-cat >sudo_authz.rego <<EOF
+**sudo_authz.rego**:
+
+```live:sudo_authz:module:read_only
 package sudo.authz
 
 # By default, users are not authorized.
@@ -205,7 +205,6 @@ allow {
 errors["Request denied by administrative policy"] {
     not allow
 }
-EOF
 ```
 
 Load this policy into OPA.
@@ -308,8 +307,10 @@ they should be able to SSH into all servers.
 Let's write policy to ensure that this happens.
 
 First, we need to make the PAM module take input from the user.
-```shell
-cat >display.rego <<EOF
+
+**display.rego**:
+
+```live:display:module:read_only
 package display
 
 # What should be prompted to the user?
@@ -320,9 +321,8 @@ display_spec = [
     "key": "ticket"
   }
 ]
-
-EOF
 ```
+
 Load this policy into OPA.
 
 ```shell
@@ -332,8 +332,7 @@ curl -X PUT --data-binary @display.rego \
 
 Then we need to make sure that the authorization takes this input into account.
 
-```shell
-cat >sudo_authz_elevated.rego <<EOF
+```live:sudo_authz/elevate:module:read_only
 # A package can be defined across multiple files.
 package sudo.authz
 
@@ -346,7 +345,6 @@ import input.display_responses
 allow {
   elevate.tickets[sysinfo.pam_username] == display_responses.ticket
 }
-EOF
 ```
 
 Load this policy into OPA.
@@ -364,11 +362,11 @@ ssh -p 2222 frontend-dev@localhost \
 
 sudo ls /
 ```
+
 You should be prompted with the message that we defined in our *display* policy
 for both the SSH and `sudo` authorization cycles.
 This happens because the *display* policy is shared by the PAM configurations of SSH and `sudo`.
 In production, it is more practical to use separate policy packages for each PAM configuration.
-
 
 We have not defined the SSH *authz* policy to work with elevation, so you can enter any value
 into the prompt that comes up for for SSH.
