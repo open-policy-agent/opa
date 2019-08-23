@@ -88,7 +88,7 @@ data.example.discovery
 
 If the discovery bundle contained the following Rego file:
 
-```ruby
+```live:discovery_static:module:read_only
 package example
 
 discovery = {
@@ -145,7 +145,7 @@ Below is a policy file which generates an OPA congfiguration.
 
 **example.rego**
 
-```ruby
+```live:discovery_dynamic:module:read_only
 package example
 
 discovery = {

@@ -109,9 +109,13 @@ server, you must use the `base64.encode` built-in function to encode the JSON
 Patch objects. DO NOT use the `base64url.encode` function because the Kubernetes
 API server will not process it:
 
+```live:patch:module:read_only,hidden
+package system
+```
+
 **Correct**:
 
-```ruby
+```live:patch/good:module:read_only,openable
 main = {
 	"apiVersion": "admission.k8s.io/v1beta1",
 	"kind": "AdmissionReview",
@@ -135,7 +139,7 @@ patches = [
 
 **Incorrect**:
 
-```ruby
+```live:patch/bad:module:read_only
 main = {
 	"apiVersion": "admission.k8s.io/v1beta1",
 	"kind": "AdmissionReview",

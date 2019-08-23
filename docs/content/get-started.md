@@ -1,5 +1,5 @@
 ---
-title: Get started
+title: Get Started
 kind: tutorial
 weight: 1
 ---
@@ -182,8 +182,9 @@ EOF
 
 Also, let's include a rule that defines a set of servers that are attached to public networks:
 
-```shell
-cat >example.rego <<EOF
+**example.rego**:
+
+```live:example:module:read_only
 package opa.example
 
 import data.servers
@@ -197,7 +198,6 @@ public_servers[s] {
     ports[i].networks[_] == networks[j].id
     networks[j].public == true
 }
-EOF
 ```
 
 ### 3. Run the REPL with the data file and policy module as input.

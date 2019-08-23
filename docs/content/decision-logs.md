@@ -43,8 +43,8 @@ represents a policy decision returned by OPA.
     "bundles": {
       "authz": {
         "revision": "W3sibCI6InN5cy9jYXRhbG9nIiwicyI6NDA3MX1d"
-      }    
-    }, 
+      }
+    },
     "path": "http/example/authz/allow",
     "input": {
       "method": "GET",
@@ -117,7 +117,7 @@ For example, assume OPA is queried with the following `input` document:
 To remove the `password` field from decision log events related to "user"
 resources, supply the following policy to OPA:
 
-```ruby
+```live:logmask:module:openable
 package system.log
 
 mask["/input/password"] {
@@ -128,6 +128,27 @@ mask["/input/password"] {
 
 # To mask certain fields unconditionally, omit the rule body.
 mask["/input/ssn"]
+```
+
+OPA queries `data.system.log.mask` internally to decide what to erase. For
+example:
+
+```live:logmask:query:hidden
+mask
+```
+
+```live:logmask:input
+{
+  "input": {
+    "resource": "user",
+    "password": "passw0rd",
+    "name": "bob",
+    "ssn": "111-222-3333"
+  }
+}
+```
+
+```live:logmask:output
 ```
 
 When the masking policy generates one or more JSON Pointers, they will be erased

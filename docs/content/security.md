@@ -127,7 +127,7 @@ enabled by starting OPA with ``--authorization=basic``.
 When the `basic` authorization scheme is enabled, a minimal authorization policy
 must be provided on startup. The authorization policy must be structured as follows:
 
-```ruby
+```live:system_ns:module:read_only
 # The "system" namespace is reserved for internal use
 # by OPA. Authorization policy must be defined under
 # system.authz as follows:
@@ -149,58 +149,56 @@ If the document produced by the ``allow`` rule is ``true``, the request is
 processed normally. If the document is undefined or **not** ``true``, the
 request is rejected immediately.
 
-OPA provides the following input document when executing the authorization
+OPA provides the following `input` document when executing the authorization
 policy:
 
-```ruby
+```json
 {
-    "input": {
-        # Identity established by authentication scheme.
-        # When Bearer tokens are used, the identity is
-        # set to the Bearer token value.
-        "identity": <String>,
+    # Identity established by authentication scheme.
+    # When Bearer tokens are used, the identity is
+    # set to the Bearer token value.
+    "identity": "",
 
-        # One of {"GET", "POST", "PUT", "PATCH", "DELETE"}.
-        "method": <HTTP Method>,
+    # One of {"GET", "POST", "PUT", "PATCH", "DELETE"}.
+    "method": "",
 
-        # URL path represented as an array.
-        # For example: /v1/data/exempli-gratia
-        # is represented as ["v1", "data", "exampli-gratia"]
-        "path": <HTTP URL Path>,
+    # URL path represented as an array.
+    # For example: /v1/data/exempli-gratia
+    # is represented as ["v1", "data", "exampli-gratia"]
+    "path": [...],
 
-        # URL parameters represented as an object of string arrays.
-        # For example: metrics&explain=true is represented as
-        # {"metrics": [""], "explain": ["true"]}
-        "params": <HTTP URL Parameters>,
+    # URL parameters represented as an object of string arrays.
+    # For example: metrics&explain=true is represented as
+    # {"metrics": [""], "explain": ["true"]}
+    "params": {"...": ...},
 
-        # Request headers represented as an object of string arrays.
-        #
-        # Example Request Headers:
-        #
-        #   host: acmecorp.com
-        #   x-custom: secretvalue
-        #
-        # Example input.headers Value:
-        #
-        #   {"Host": ["acmecorp.com"], "X-Custom": ["mysecret"]}
-        #
-        # Example header check:
-        #
-        #   input.headers["X-Custom"][_] = "mysecret"
-        #
-        # Header keys follow canonical MIME form. The first character and any
-        # characters following a hyphen are uppercase. The rest are lowercase.
-        # If the header key contains space or invalid header field bytes,
-        # no conversion is performed.
-        "headers": <HTTP Headers>
-    }
+    # Request headers represented as an object of string arrays.
+    #
+    # Example Request Headers:
+    #
+    #   host: acmecorp.com
+    #   x-custom: secretvalue
+    #
+    # Example input.headers Value:
+    #
+    #   {"Host": ["acmecorp.com"], "X-Custom": ["mysecret"]}
+    #
+    # Example header check:
+    #
+    #   input.headers["X-Custom"][_] = "mysecret"
+    #
+    # Header keys follow canonical MIME form. The first character and any
+    # characters following a hyphen are uppercase. The rest are lowercase.
+    # If the header key contains space or invalid header field bytes,
+    # no conversion is performed.
+    "headers": {"...": [...]}
 }
 ```
 
 At a minimum, the authorization policy should grant access to a special root
 identity:
 
-```ruby
+```live:system_authz_secret:module:read_only
 package system.authz
 
 default allow = false           # Reject requests by default.
@@ -251,7 +249,7 @@ Content-Type: application/json
 When Bearer tokens are used for authentication, the policy should at minimum
 validate the identity:
 
-```ruby
+```live:system_authz_bearer:module:read_only
 package system.authz
 
 # Tokens may defined in policy or pushed into OPA as data.
@@ -281,7 +279,7 @@ allow {                        # Allow request if...
 To complete this example, the policy could further restrict tokens to specific
 documents:
 
-```ruby
+```live:system_authz_bearer_complete:module:read_only
 package system.authz
 
 # Rights may be defined in policy or pushed into OPA as data.
@@ -316,13 +314,16 @@ allow {                             # Allow request if...
     some right
     identity_rights[right]          # Rights for identity exist, and...
     right.path == "*"               # Right.path is '*'.
-} {                                 # Or...
+}
+
+allow {                             # Allow request if...
     some right
     identity_rights[right]          # Rights for identity exist, and...
     right.path == input.path        # Right.path matches input.path.
 }
 
 identity_rights[right] {             # Right is in the identity_rights set if...
+    some role
     token := tokens[input.identity]  # Token exists for identity, and...
     role := token.roles[_]           # Token has a role, and...
     right := rights[role]            # Role has rights defined.
@@ -381,7 +382,8 @@ openssl x509 -req -in csr.pem -CA ca.pem -CAkey ca-key.pem -CAcreateserial -out 
 ```
 
 We also create a simple authorization policy file, called `check.rego`:
-```ruby
+
+```live:system_authz_x509:module:read_only
 package system.authz
 
 # client_cns may defined in policy or pushed into OPA as data.
@@ -468,7 +470,7 @@ With OPA configured to fetch policies using the [Bundles](../bundles) feature
 you can configure OPA with a restrictive authorization policy that only grants
 clients access to the default policy decision, i.e., `POST /`:
 
-```ruby
+```live:hardened_example:module:read_only
 package system.authz
 
 # Deny access by default.

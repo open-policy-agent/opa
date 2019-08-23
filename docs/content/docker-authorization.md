@@ -58,11 +58,14 @@ restart, you will need root access.
 
 ```shell
 mkdir -p /etc/docker/policies
-cat >/etc/docker/policies/authz.rego <<EOF
+```
+
+**/etc/docker/policies/authz.rego**:
+
+```live:docker_authz:module:read_only
 package docker.authz
 
 allow = true
-EOF
 ```
 
 This policy defines a single rule named `allow` that always produces the
@@ -104,12 +107,12 @@ expect to see log messages from OPA and the plugin.
 
 Let’s modify our policy to **deny** all requests:
 
-```shell
-cat >/etc/docker/policies/authz.rego <<EOF
+**/etc/docker/policies/authz.rego**:
+
+```live:docker_authz_deny_all:module:read_only
 package docker.authz
 
 allow = false
-EOF
 ```
 
 In OPA, rules defines the content of documents. Documents be boolean values
@@ -139,8 +142,9 @@ Now let's change the policy so that it's a bit more useful.
 
 ### 6. Update the policy to reject requests with the unconfined [seccomp](https://en.wikipedia.org/wiki/Seccomp) profile:
 
-```shell
-cat >/etc/docker/policies/authz.rego <<EOF
+**/etc/docker/policies/authz.rego**:
+
+```live:docker_authz_deny_unconfined:module:openable
 package docker.authz
 
 default allow = false
@@ -158,8 +162,132 @@ seccomp_unconfined {
     # to an element in the array SecurityOpt referenced on the left-hand side.
     input.Body.HostConfig.SecurityOpt[_] == "seccomp:unconfined"
 }
-EOF
 ```
+
+The plugin queries the `allow` rule to authorize requests to Docker. The `input`
+document is set to the attributes passed from Docker.
+
+```live:docker_authz_deny_unconfined:query:hidden
+allow
+```
+
+```live:docker_authz_deny_unconfined:input
+{
+  "AuthMethod": "",
+  "Body": {
+    "AttachStderr": true,
+    "AttachStdin": false,
+    "AttachStdout": true,
+    "Cmd": null,
+    "Domainname": "",
+    "Entrypoint": null,
+    "Env": [],
+    "HostConfig": {
+      "AutoRemove": false,
+      "Binds": null,
+      "BlkioDeviceReadBps": null,
+      "BlkioDeviceReadIOps": null,
+      "BlkioDeviceWriteBps": null,
+      "BlkioDeviceWriteIOps": null,
+      "BlkioWeight": 0,
+      "BlkioWeightDevice": [],
+      "CapAdd": null,
+      "CapDrop": null,
+      "Cgroup": "",
+      "CgroupParent": "",
+      "ConsoleSize": [
+        0,
+        0
+      ],
+      "ContainerIDFile": "",
+      "CpuCount": 0,
+      "CpuPercent": 0,
+      "CpuPeriod": 0,
+      "CpuQuota": 0,
+      "CpuRealtimePeriod": 0,
+      "CpuRealtimeRuntime": 0,
+      "CpuShares": 0,
+      "CpusetCpus": "",
+      "CpusetMems": "",
+      "DeviceCgroupRules": null,
+      "Devices": [],
+      "DiskQuota": 0,
+      "Dns": [],
+      "DnsOptions": [],
+      "DnsSearch": [],
+      "ExtraHosts": null,
+      "GroupAdd": null,
+      "IOMaximumBandwidth": 0,
+      "IOMaximumIOps": 0,
+      "IpcMode": "",
+      "Isolation": "",
+      "KernelMemory": 0,
+      "Links": null,
+      "LogConfig": {
+        "Config": {},
+        "Type": ""
+      },
+      "MaskedPaths": null,
+      "Memory": 0,
+      "MemoryReservation": 0,
+      "MemorySwap": 0,
+      "MemorySwappiness": -1,
+      "NanoCpus": 0,
+      "NetworkMode": "default",
+      "OomKillDisable": false,
+      "OomScoreAdj": 0,
+      "PidMode": "",
+      "PidsLimit": 0,
+      "PortBindings": {},
+      "Privileged": false,
+      "PublishAllPorts": false,
+      "ReadonlyPaths": null,
+      "ReadonlyRootfs": false,
+      "RestartPolicy": {
+        "MaximumRetryCount": 0,
+        "Name": "no"
+      },
+      "SecurityOpt": null,
+      "ShmSize": 0,
+      "UTSMode": "",
+      "Ulimits": null,
+      "UsernsMode": "",
+      "VolumeDriver": "",
+      "VolumesFrom": null
+    },
+    "Hostname": "",
+    "Image": "hello-world",
+    "Labels": {},
+    "NetworkingConfig": {
+      "EndpointsConfig": {}
+    },
+    "OnBuild": null,
+    "OpenStdin": false,
+    "StdinOnce": false,
+    "Tty": false,
+    "User": "",
+    "Volumes": {},
+    "WorkingDir": ""
+  },
+  "Headers": {
+    "Content-Length": "1470",
+    "Content-Type": "application/json",
+    "User-Agent": "Docker-Client/18.06.1-ce (linux)"
+  },
+  "Method": "POST",
+  "Path": "/v1.38/containers/create",
+  "User": ""
+}
+```
+
+For the input above, the value of `allow` is:
+
+```live:docker_authz_deny_unconfined:output
+```
+
+> Many of the examples in the documentation are interactive. Try editing the
+> input above by setting `Body.HostConfig.SecurityOpt` to
+> `["seccomp:unconfined"]`.
 
 ### 7. Test the policy is working by running a simple container:
 
@@ -210,8 +338,7 @@ EOF
 
 ### 9. Update the policy to include basic user access controls.
 
-```shell
-cat >/etc/docker/policies/authz.rego <<EOF
+```live:docker_authz_users:module:read_only,openable
 package docker.authz
 
 default allow = false
@@ -236,7 +363,6 @@ users = {
     "bob": {"readOnly": true},
     "alice": {"readOnly": false},
 }
-EOF
 ```
 
 ### 10. Attempt to run a container.

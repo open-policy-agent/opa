@@ -70,7 +70,7 @@ OPA evaluates the policies it has loaded using the admission review as `input`.
 For example, the following policy denies objects that include container images
 referring to illegal registries:
 
-```ruby
+```live:container_image:module:openable
 package kubernetes.admission
 
 deny[reason] {
@@ -89,6 +89,14 @@ input_containers[container] {
 }
 ```
 
+When `deny` is evaluated with the input defined below the answer is:
+
+```live:container_image:query:hidden
+deny
+```
+```live:container_image:output
+```
+
 The `input` document contains the following fields:
 
 * `input.request.kind` specifies the type of the object (e.g., `Pod`, `Service`,
@@ -102,7 +110,7 @@ The `input` document contains the following fields:
 
 Here is an example of a Pod being created:
 
-```json
+```live:container_image:input
 {
   "kind": "AdmissionReview",
   "apiVersion": "admission.k8s.io/v1beta1",

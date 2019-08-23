@@ -22,7 +22,7 @@ profile.
 
 **example.rego**:
 
-```ruby
+```live:example:module:read_only,openable
 package authz
 
 allow {
@@ -42,7 +42,7 @@ To test this policy, we will create a separate Rego file that contains test case
 
 **example_test.rego**:
 
-```ruby
+```live:example/test:module:read_only,openable
 package authz
 
 test_post_allowed {
@@ -101,7 +101,7 @@ FAIL: 1/4
 Tests are expressed as standard Rego rules with a convention that the rule
 name is prefixed with `test_`.
 
-```ruby
+```live:example_format:module:read_only
 package mypackage
 
 test_some_descriptive_name {
@@ -125,7 +125,7 @@ test result is marked as `PASS`.
 
 **pass_fail_error_test.rego**:
 
-```ruby
+```live:example_results:module:read_only
 package example
 
 # This test will pass.
@@ -216,7 +216,7 @@ OPA's `with` keyword can be used to replace the data document. Both base and vir
 
 **authz.rego**:
 
-```ruby
+```live:with_keyword:module:read_only,openable
 package authz
 
 allow {
@@ -234,7 +234,7 @@ Below is the Rego file to test the above policy.
 
 **authz_test.rego**:
 
-```ruby
+```live:with_keyword/tests:module:read_only,openable
 package authz
 
 policies = [{"name": "test_policy"}]
@@ -258,7 +258,7 @@ Below is an example to replace a rule without arguments.
 
 **authz.rego**:
 
-```ruby
+```live:with_keyword_rules:module:read_only
 package authz
 
 allow1 {
@@ -272,7 +272,7 @@ allow2 {
 
 **authz_test.rego**:
 
-```ruby
+```live:with_keyword_rules/tests:module:read_only
 package authz
 
 test_replace_rule {
@@ -287,11 +287,11 @@ data.authz.test_replace_rule: PASS (328ns)
 PASS: 1/1
 ```
 
-Functions with arguments cannot be replaced by the `with` keyword. For example, in the below policy the function `cannot_replace` cannot be replaced.
+Functions cannot be replaced by the `with` keyword. For example, in the below policy the function `cannot_replace` cannot be replaced.
 
 **authz.rego**:
 
-```ruby
+```live:with_keyword_funcs:module:read_only
 package authz
 
 invalid_replace {
@@ -305,7 +305,7 @@ cannot_replace(label) {
 
 **authz_test.rego**:
 
-```ruby
+```live:with_keyword_funcs/tests:module:read_only
 package authz
 
 test_invalid_replace {
@@ -434,7 +434,7 @@ while `line` has the **lowest**.
 The different profiling examples shown later on this page use the below
 sample policy.
 
-```ruby
+```live:profile:module:read_only,openable
 package rbac
 
 # Example input request

@@ -963,7 +963,7 @@ As we saw earlier, the OPA spec contained a ConfigMap that defined the policy to
 
 **authz.rego**
 
-```ruby
+```live:example:module:read_only
 package ceph.authz
 
 default allow = false

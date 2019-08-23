@@ -189,126 +189,90 @@ The following algorithms are supported:
 | <span class="opa-keep-it-together">``output := io.jwt.encode_sign_raw(headers, payload, key)``</span> | ``headers``, ``payload`` and  ``key`` as strings that represent the JWS Protected Header, JWS Payload and JSON Web Key ([RFC7517](https://tools.ietf.org/html/rfc7517)) respectively.|
 ``output := io.jwt.encode_sign(headers, payload, key)``</span> | ``headers``, ``payload`` and  ``key`` are JSON objects that represent the JWS Protected Header, JWS Payload and JSON Web Key ([RFC7517](https://tools.ietf.org/html/rfc7517)) respectively.|
 
-#### Raw Token Signing Examples
+#### Token Signing Examples
 
-These examples were capture on a Unix operating system, therefore line endings are "\n" as opposed to "\r\n".
-
-
-##### Symmetric Key (HMAC with SHA-256)
-
-    io.jwt.encode_sign_raw(`{"typ":"JWT",
-     "alg":"HS256"}`, `{"iss":"joe",
-     "exp":1300819380,
-     "http://example.com/is_root":true}`, `{
-    "kty":"oct",
-    "k":"AyM1SysPpbyDfgZld3umj1qzKObwVMkoqQ-EstJQLr_T-1qS0gZH75aKtMN3Yj0iPS4hcgUuTwjAzZr1Z9CAow"
-    }`)
-
-Result:
-
-    "eyJ0eXAiOiJKV1QiLAogImFsZyI6IkhTMjU2In0.eyJpc3MiOiJqb2UiLAogImV4cCI6MTMwMDgxOTM4MCwKICJodHRwOi8vZXhhbXBsZS5jb20vaXNfcm9vdCI6dHJ1ZX0.RJVB43UNCkaDVDMvUPwBBqnvDDUps7RBNA9dIskhBc4"
-
-##### Symmetric Key with text/plain media-type and empty payload
-
-
-    io.jwt.encode_sign_raw(`{"typ":"text/plain",
-     "alg":"HS256"}`, ``, `{
-    "kty":"oct",
-    "k":"AyM1SysPpbyDfgZld3umj1qzKObwVMkoqQ-EstJQLr_T-1qS0gZH75aKtMN3Yj0iPS4hcgUuTwjAzZr1Z9CAow"
-    }`)
-
-Result:
-
-    "eyJ0eXAiOiJ0ZXh0L3BsYWluIiwKICJhbGciOiJIUzI1NiJ9..HaluGRTtER-vgr8paR8vISpkt0QabijXCCb5RzPecLQ"
-
-
-##### Symmetric Key with text/plain media-type and string payload
-
-
-    io.jwt.encode_sign_raw(`{"typ":"text/plain",
-     "alg":"HS256"}`, `e`, `{
-    "kty":"oct",
-    "k":"AyM1SysPpbyDfgZld3umj1qzKObwVMkoqQ-EstJQLr_T-1qS0gZH75aKtMN3Yj0iPS4hcgUuTwjAzZr1Z9CAow"
-    }`)
-
-Result
-
-    "eyJ0eXAiOiJ0ZXh0L3BsYWluIiwKICJhbGciOiJIUzI1NiJ9.ZQ.PtWB-gqL27aU9m5QFGAhwIxmDmy1TKD0pOPMFC69_RA"
-
-##### Symmetric Key with empty JSON payload
-
-    io.jwt.encode_sign_raw(`{"typ":"JWT",
-     "alg":"HS256"}`, `{}`, `{
-    "kty":"oct",
-    "k":"AyM1SysPpbyDfgZld3umj1qzKObwVMkoqQ-EstJQLr_T-1qS0gZH75aKtMN3Yj0iPS4hcgUuTwjAzZr1Z9CAow"
-    }`)
-
-Result:
-
-    "eyJ0eXAiOiJKV1QiLAogImFsZyI6IkhTMjU2In0.e30.gSXjs_ibPCwfAvcEMDxqb9Ya6tyTNNUuCWSvAxWHSnM"
-
-##### RSA Key (RSA Signature with SHA-256)
-
-    io.jwt.encode_sign_raw(`{"alg":"RS256"}`, `{"iss":"joe",
-     "exp":1300819380,
-     "http://example.com/is_root":true}`, `{
-        "kty":"RSA",
-        "n":"ofgWCuLjybRlzo0tZWJjNiuSfb4p4fAkd_wWJcyQoTbji9k0l8W26mPddxHmfHQp-Vaw-4qPCJrcS2mJPMEzP1Pt0Bm4d4QlL-yRT-SFd2lZS-pCgNMsD1W_YpRPEwOWvG6b32690r2jZ47soMZo9wGzjb_7OMg0LOL-bSf63kpaSHSXndS5z5rexMdbBYUsLA9e-KXBdQOS-UTo7WTBEMa2R2CapHg665xsmtdVMTBQY4uDZlxvb3qCo5ZwKh9kG4LT6_I5IhlJH7aGhyxXFvUK-DWNmoudF8NAco9_h9iaGNj8q2ethFkMLs91kzk2PAcDTW9gb54h4FRWyuXpoQ",
-        "e":"AQAB",
-        "d":"Eq5xpGnNCivDflJsRQBXHx1hdR1k6Ulwe2JZD50LpXyWPEAeP88vLNO97IjlA7_GQ5sLKMgvfTeXZx9SE-7YwVol2NXOoAJe46sui395IW_GO-pWJ1O0BkTGoVEn2bKVRUCgu-GjBVaYLU6f3l9kJfFNS3E0QbVdxzubSu3Mkqzjkn439X0M_V51gfpRLI9JYanrC4D4qAdGcopV_0ZHHzQlBjudU2QvXt4ehNYTCBr6XCLQUShb1juUO1ZdiYoFaFQT5Tw8bGUl_x_jTj3ccPDVZFD9pIuhLhBOneufuBiB4cS98l2SR_RQyGWSeWjnczT0QU91p1DhOVRuOopznQ",
-        "p":"4BzEEOtIpmVdVEZNCqS7baC4crd0pqnRH_5IB3jw3bcxGn6QLvnEtfdUdiYrqBdss1l58BQ3KhooKeQTa9AB0Hw_Py5PJdTJNPY8cQn7ouZ2KKDcmnPGBY5t7yLc1QlQ5xHdwW1VhvKn-nXqhJTBgIPgtldC-KDV5z-y2XDwGUc",
-        "q":"uQPEfgmVtjL0Uyyx88GZFF1fOunH3-7cepKmtH4pxhtCoHqpWmT8YAmZxaewHgHAjLYsp1ZSe7zFYHj7C6ul7TjeLQeZD_YwD66t62wDmpe_HlB-TnBA-njbglfIsRLtXlnDzQkv5dTltRJ11BKBBypeeF6689rjcJIDEz9RWdc",
-        "dp":"BwKfV3Akq5_MFZDFZCnW-wzl-CCo83WoZvnLQwCTeDv8uzluRSnm71I3QCLdhrqE2e9YkxvuxdBfpT_PI7Yz-FOKnu1R6HsJeDCjn12Sk3vmAktV2zb34MCdy7cpdTh_YVr7tss2u6vneTwrA86rZtu5Mbr1C1XsmvkxHQAdYo0",
-        "dq":"h_96-mK1R_7glhsum81dZxjTnYynPbZpHziZjeeHcXYsXaaMwkOlODsWa7I9xXDoRwbKgB719rrmI2oKr6N3Do9U0ajaHF-NKJnwgjMd2w9cjz3_-kyNlxAr2v4IKhGNpmM5iIgOS1VZnOZ68m6_pbLBSp3nssTdlqvd0tIiTHU",
-        "qi":"IYd7DHOhrWvxkwPQsRM2tOgrjbcrfvtQJipd-DlcxyVuuM9sQLdgjVk2oy26F0EmpScGLq2MowX7fhd_QJQ3ydy5cY7YIBi87w93IKLEdfnbJtoOPLUW0ITrJReOgo1cq9SbsxYawBgfp_gh6A5603k2-ZQwVK0JKSHuLFkuQ3U"
-      }`)
-
-Result:
-
-    "eyJhbGciOiJSUzI1NiJ9.eyJpc3MiOiJqb2UiLAogImV4cCI6MTMwMDgxOTM4MCwKICJodHRwOi8vZXhhbXBsZS5jb20vaXNfcm9vdCI6dHJ1ZX0.n-SBlC7HG9s1X653mZXZro_OfkFW79qocYmOMYeW7TkvuBe9FvVdGOz8RJiE-aOUiqLfcWRau-x3b3E6q9kGdNcyQ5ArPEd4aSdh9sk2rOolwUK148yn5Oh5ccrRoL8gWL_fihTV35Ym2rLnogSFu7hbRSwMy9kSW61k4A5EMnRckyr5N7VZF0mNI-A7Z1p03igyFqsd4wb44mlOKmLIz6q-8mOg1PTMJrw6ygASeuHB5kqz1v-UfIfhgkxX8sOGcQ1JwwWDWV31RTojqlYblJGAjl54IA2EDUBKAuyl7jbrwNvGq0TbSOpOGS0cjYZBlpE_B3wI5TPrrpcJEsh9cA"
-
-##### Elliptic Curve Key (ECDSA using P-256 and SHA-256)
-
-    io.jwt.encode_sign_raw(`{"alg":"ES256"}`, `{"iss":"joe",
-     "exp":1300819380,
-     "http://example.com/is_root":true}`, `{
-        "kty":"EC",
-        "crv":"P-256",
-        "x":"f83OJ3D2xF1Bg8vub9tLe1gHMzV76e8Tus9uPHvRVEU",
-        "y":"x_FEzRu9m36HLN_tue659LNpXW6pCyStikYjKIWI5a0",
-        "d":"jpsQnnGQmL-YBIffH1136cspYG6-0iY7X1fCE9-E9LI"
-      }`)
-
-Result:
-
-    "eyJhbGciOiJFUzI1NiJ9.eyJpc3MiOiJqb2UiLAogImV4cCI6MTMwMDgxOTM4MCwKICJodHRwOi8vZXhhbXBsZS5jb20vaXNfcm9vdCI6dHJ1ZX0.MQ7eJ37o11XfLrUVTkcjsAfzlISsf1MIWeiwvRYA3gX5z-bbuWlwjdBDrMTSVbr_h6lUTKYDT6w9eFysrdkZDw"
-
-#### Object Token Signing Examples
-
+```live:jwt:module:hidden
+package jwt
+```
 
 ##### Symmetric Key (HMAC with SHA-256)
 
-    io.jwt.encode_sign({"typ": "JWT", "alg": "HS256"}, {"iss": "joe", "exp": 1300819380, "aud": ["bob", "saul"], "http://example.com/is_root": true, "privateParams": {"private_one": "one", "private_two": "two"}}, {"kty": "oct", "k": "AyM1SysPpbyDfgZld3umj1qzKObwVMkoqQ-EstJQLr_T-1qS0gZH75aKtMN3Yj0iPS4hcgUuTwjAzZr1Z9CAow"})
-
-Result:
-
-    "eyJhbGciOiAiSFMyNTYiLCAidHlwIjogIkpXVCJ9.eyJhdWQiOiBbImJvYiIsICJzYXVsIl0sICJleHAiOiAxMzAwODE5MzgwLCAiaHR0cDovL2V4YW1wbGUuY29tL2lzX3Jvb3QiOiB0cnVlLCAiaXNzIjogImpvZSIsICJwcml2YXRlUGFyYW1zIjogeyJwcml2YXRlX29uZSI6ICJvbmUiLCAicHJpdmF0ZV90d28iOiAidHdvIn19.M10TcaFADr_JYAx7qJ71wktdyuN4IAnhWvVbgrZ5j_4"
+```live:jwt/hs256:query:merge_down
+io.jwt.encode_sign({
+    "typ": "JWT",
+    "alg": "HS256"
+}, {
+    "iss": "joe",
+    "exp": 1300819380,
+    "aud": ["bob", "saul"],
+    "http://example.com/is_root": true,
+    "privateParams": {
+        "private_one": "one",
+        "private_two": "two"
+    }
+}, {
+    "kty": "oct",
+    "k": "AyM1SysPpbyDfgZld3umj1qzKObwVMkoqQ-EstJQLr_T-1qS0gZH75aKtMN3Yj0iPS4hcgUuTwjAzZr1Z9CAow"
+})
+```
+```live:jwt/hs256:output
+```
 
 ##### Symmetric Key with empty JSON payload
 
-    io.jwt.encode_sign({"typ": "JWT", "alg": "HS256"}, {}, {"kty": "oct", "k": "AyM1SysPpbyDfgZld3umj1qzKObwVMkoqQ-EstJQLr_T-1qS0gZH75aKtMN3Yj0iPS4hcgUuTwjAzZr1Z9CAow"})
-
-Result:
-
-    "eyJhbGciOiAiSFMyNTYiLCAidHlwIjogIkpXVCJ9.e30.Odp4A0Fj6NoKsV4Gyoy1NAmSs6KVZiC15S9VRGZyR20"
+```live:jwt/hs256_nopayload:query:merge_down
+io.jwt.encode_sign({
+    "typ": "JWT",
+    "alg": "HS256"},
+    {}, {
+    "kty": "oct",
+    "k": "AyM1SysPpbyDfgZld3umj1qzKObwVMkoqQ-EstJQLr_T-1qS0gZH75aKtMN3Yj0iPS4hcgUuTwjAzZr1Z9CAow"
+})
+```
+```live:jwt/hs256_nopayload:output
+```
 
 ##### RSA Key (RSA Signature with SHA-256)
 
-    io.jwt.encode_sign({"alg": "RS256"}, {"iss": "joe", "exp": 1300819380, "aud": ["bob", "saul"], "http://example.com/is_root": true, "privateParams": {"private_one": "one", "private_two": "two"}}, {"kty": "RSA", "n": "ofgWCuLjybRlzo0tZWJjNiuSfb4p4fAkd_wWJcyQoTbji9k0l8W26mPddxHmfHQp-Vaw-4qPCJrcS2mJPMEzP1Pt0Bm4d4QlL-yRT-SFd2lZS-pCgNMsD1W_YpRPEwOWvG6b32690r2jZ47soMZo9wGzjb_7OMg0LOL-bSf63kpaSHSXndS5z5rexMdbBYUsLA9e-KXBdQOS-UTo7WTBEMa2R2CapHg665xsmtdVMTBQY4uDZlxvb3qCo5ZwKh9kG4LT6_I5IhlJH7aGhyxXFvUK-DWNmoudF8NAco9_h9iaGNj8q2ethFkMLs91kzk2PAcDTW9gb54h4FRWyuXpoQ", "e": "AQAB", "d": "Eq5xpGnNCivDflJsRQBXHx1hdR1k6Ulwe2JZD50LpXyWPEAeP88vLNO97IjlA7_GQ5sLKMgvfTeXZx9SE-7YwVol2NXOoAJe46sui395IW_GO-pWJ1O0BkTGoVEn2bKVRUCgu-GjBVaYLU6f3l9kJfFNS3E0QbVdxzubSu3Mkqzjkn439X0M_V51gfpRLI9JYanrC4D4qAdGcopV_0ZHHzQlBjudU2QvXt4ehNYTCBr6XCLQUShb1juUO1ZdiYoFaFQT5Tw8bGUl_x_jTj3ccPDVZFD9pIuhLhBOneufuBiB4cS98l2SR_RQyGWSeWjnczT0QU91p1DhOVRuOopznQ", "p": "4BzEEOtIpmVdVEZNCqS7baC4crd0pqnRH_5IB3jw3bcxGn6QLvnEtfdUdiYrqBdss1l58BQ3KhooKeQTa9AB0Hw_Py5PJdTJNPY8cQn7ouZ2KKDcmnPGBY5t7yLc1QlQ5xHdwW1VhvKn-nXqhJTBgIPgtldC-KDV5z-y2XDwGUc", "q": "uQPEfgmVtjL0Uyyx88GZFF1fOunH3-7cepKmtH4pxhtCoHqpWmT8YAmZxaewHgHAjLYsp1ZSe7zFYHj7C6ul7TjeLQeZD_YwD66t62wDmpe_HlB-TnBA-njbglfIsRLtXlnDzQkv5dTltRJ11BKBBypeeF6689rjcJIDEz9RWdc", "dp": "BwKfV3Akq5_MFZDFZCnW-wzl-CCo83WoZvnLQwCTeDv8uzluRSnm71I3QCLdhrqE2e9YkxvuxdBfpT_PI7Yz-FOKnu1R6HsJeDCjn12Sk3vmAktV2zb34MCdy7cpdTh_YVr7tss2u6vneTwrA86rZtu5Mbr1C1XsmvkxHQAdYo0", "dq": "h_96-mK1R_7glhsum81dZxjTnYynPbZpHziZjeeHcXYsXaaMwkOlODsWa7I9xXDoRwbKgB719rrmI2oKr6N3Do9U0ajaHF-NKJnwgjMd2w9cjz3_-kyNlxAr2v4IKhGNpmM5iIgOS1VZnOZ68m6_pbLBSp3nssTdlqvd0tIiTHU", "qi": "IYd7DHOhrWvxkwPQsRM2tOgrjbcrfvtQJipd-DlcxyVuuM9sQLdgjVk2oy26F0EmpScGLq2MowX7fhd_QJQ3ydy5cY7YIBi87w93IKLEdfnbJtoOPLUW0ITrJReOgo1cq9SbsxYawBgfp_gh6A5603k2-ZQwVK0JKSHuLFkuQ3U"})
+```live:jwt/rs256:query:merge_down
+io.jwt.encode_sign({
+    "alg": "RS256"
+}, {
+    "iss": "joe",
+    "exp": 1300819380,
+    "aud": ["bob", "saul"],
+    "http://example.com/is_root": true,
+    "privateParams": {
+        "private_one": "one",
+        "private_two": "two"
+    }
+},
+{
+    "kty": "RSA",
+    "n": "ofgWCuLjybRlzo0tZWJjNiuSfb4p4fAkd_wWJcyQoTbji9k0l8W26mPddxHmfHQp-Vaw-4qPCJrcS2mJPMEzP1Pt0Bm4d4QlL-yRT-SFd2lZS-pCgNMsD1W_YpRPEwOWvG6b32690r2jZ47soMZo9wGzjb_7OMg0LOL-bSf63kpaSHSXndS5z5rexMdbBYUsLA9e-KXBdQOS-UTo7WTBEMa2R2CapHg665xsmtdVMTBQY4uDZlxvb3qCo5ZwKh9kG4LT6_I5IhlJH7aGhyxXFvUK-DWNmoudF8NAco9_h9iaGNj8q2ethFkMLs91kzk2PAcDTW9gb54h4FRWyuXpoQ",
+    "e": "AQAB",
+    "d": "Eq5xpGnNCivDflJsRQBXHx1hdR1k6Ulwe2JZD50LpXyWPEAeP88vLNO97IjlA7_GQ5sLKMgvfTeXZx9SE-7YwVol2NXOoAJe46sui395IW_GO-pWJ1O0BkTGoVEn2bKVRUCgu-GjBVaYLU6f3l9kJfFNS3E0QbVdxzubSu3Mkqzjkn439X0M_V51gfpRLI9JYanrC4D4qAdGcopV_0ZHHzQlBjudU2QvXt4ehNYTCBr6XCLQUShb1juUO1ZdiYoFaFQT5Tw8bGUl_x_jTj3ccPDVZFD9pIuhLhBOneufuBiB4cS98l2SR_RQyGWSeWjnczT0QU91p1DhOVRuOopznQ",
+    "p": "4BzEEOtIpmVdVEZNCqS7baC4crd0pqnRH_5IB3jw3bcxGn6QLvnEtfdUdiYrqBdss1l58BQ3KhooKeQTa9AB0Hw_Py5PJdTJNPY8cQn7ouZ2KKDcmnPGBY5t7yLc1QlQ5xHdwW1VhvKn-nXqhJTBgIPgtldC-KDV5z-y2XDwGUc",
+    "q": "uQPEfgmVtjL0Uyyx88GZFF1fOunH3-7cepKmtH4pxhtCoHqpWmT8YAmZxaewHgHAjLYsp1ZSe7zFYHj7C6ul7TjeLQeZD_YwD66t62wDmpe_HlB-TnBA-njbglfIsRLtXlnDzQkv5dTltRJ11BKBBypeeF6689rjcJIDEz9RWdc",
+    "dp": "BwKfV3Akq5_MFZDFZCnW-wzl-CCo83WoZvnLQwCTeDv8uzluRSnm71I3QCLdhrqE2e9YkxvuxdBfpT_PI7Yz-FOKnu1R6HsJeDCjn12Sk3vmAktV2zb34MCdy7cpdTh_YVr7tss2u6vneTwrA86rZtu5Mbr1C1XsmvkxHQAdYo0",
+    "dq": "h_96-mK1R_7glhsum81dZxjTnYynPbZpHziZjeeHcXYsXaaMwkOlODsWa7I9xXDoRwbKgB719rrmI2oKr6N3Do9U0ajaHF-NKJnwgjMd2w9cjz3_-kyNlxAr2v4IKhGNpmM5iIgOS1VZnOZ68m6_pbLBSp3nssTdlqvd0tIiTHU",
+    "qi": "IYd7DHOhrWvxkwPQsRM2tOgrjbcrfvtQJipd-DlcxyVuuM9sQLdgjVk2oy26F0EmpScGLq2MowX7fhd_QJQ3ydy5cY7YIBi87w93IKLEdfnbJtoOPLUW0ITrJReOgo1cq9SbsxYawBgfp_gh6A5603k2-ZQwVK0JKSHuLFkuQ3U"
+})
+```
+```live:jwt/rs256:output
+```
 
-Result:
+##### Raw Token Signing
 
-    "eyJhbGciOiAiUlMyNTYifQ.eyJhdWQiOiBbImJvYiIsICJzYXVsIl0sICJleHAiOiAxMzAwODE5MzgwLCAiaHR0cDovL2V4YW1wbGUuY29tL2lzX3Jvb3QiOiB0cnVlLCAiaXNzIjogImpvZSIsICJwcml2YXRlUGFyYW1zIjogeyJwcml2YXRlX29uZSI6ICJvbmUiLCAicHJpdmF0ZV90d28iOiAidHdvIn19.ITpfhDICCeVV__1nHRN2CvUFni0yyYESvhNlt4ET0yiySMzJ5iySGynrsM3kgzAv7mVmx5uEtSCs_xPHyLVfVnADKmDFtkZfuvJ8jHfcOe8TUqR1f7j1Zf_kDkdqJAsuGuqkJoFJ3S_gxWcZNwtDXV56O3k_7Mq03Ixuuxtip2oF0X3fB7QtUzjzB8mWPTJDFG2TtLLOYCcobPHmn36aAgesHMzJZj8U8sRLmqPXsIc-Lo_btt8gIUc9zZSgRiy7NOSHxw5mYcIMlKl93qvLXu7AaAcVLvzlIOCGWEnFpGGcRFgSOLnShQX6hDylWavKLQG-VOUJKmtXH99KBK-OYQ"
+If you need to generate the signature for a serialized token you an use the
+`io.jwt.encode_sign_raw` built-in function which accepts JSON serialized string
+parameters.
+
+```live:jwt/raw:query:merge_down
+io.jwt.encode_sign_raw(`{"typ":"JWT","alg":"HS256"}`, `{"iss":"joe","exp":1300819380,"http://example.com/is_root":true}`, `{"kty":"oct","k":"AyM1SysPpbyDfgZld3umj1qzKObwVMkoqQ-EstJQLr_T-1qS0gZH75aKtMN3Yj0iPS4hcgUuTwjAzZr1Z9CAow"}`)
+```
+```live:jwt/raw:output
+```
 
 ### Token Verification
 

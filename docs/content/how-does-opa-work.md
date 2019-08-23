@@ -122,7 +122,7 @@ PUT https://example.com/v1/policies/exempli-gratia HTTP/1.1
 Content-Type: text/plain
 ```
 
-```ruby
+```live:example:module:read_only
 package opa.examples
 
 import data.servers
@@ -174,7 +174,7 @@ Example `data` document:
 
 As a result, any document, base or virtual, can be accessed hierarchically starting from the root data node – either as an identifier:
 
-```ruby
+```live:imports:module:read_only
 import data.servers                            # Base document
 import data.opa.examples.violations            # Virtual document
 ```
@@ -217,7 +217,9 @@ Example `input` document:
 
 The `input` document can be referenced just like the `data` document.
 
-```ruby
+```live:example_authz:module:read_only
+package opa.examples
+
 # Let 'bob' perform read-only operations.
 allow {
   input.user == "bob"
@@ -401,7 +403,7 @@ The response is an object that contains the array of servers:
 
 Now let’s write a policy that enumerates servers that are connected to public networks and that are using HTTP. These servers are violating a business rule that states that all public servers must use HTTPS.
 
-```ruby
+```live:example_final/complete:module:read_only
 # This policy module belongs to the opa.examples package.
 package opa.examples
 

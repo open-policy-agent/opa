@@ -82,16 +82,20 @@ file system as command line arguments. When running inside Docker, you can
 provide files via volume mounts.
 
 ```bash
-docker run -v $PWD:/example openpolicyagent/opa eval --data /example 'data.example.greeting'
+docker run -v $PWD:/example openpolicyagent/opa eval -d /example 'data.example.greeting'
 ```
 
-#### <code>$PWD/example/[data.json](https://github.com/open-policy-agent/opa/tree/master/docs/code/deployments-docker/example/data.json)</code>
+**policy.rego**:
 
-{{< code file="deployments-docker/example/data.json" lang="json" >}}
+```live:docker_hello_world:module:read_only
+package example
 
-#### <code>$PWD/example/[policy.rego](https://github.com/open-policy-agent/opa/tree/master/docs/code/deployments-docker/example/data.json/deployments-docker/example/policy.rego)</code>
-
-{{< code file="deployments-docker/example/policy.rego" lang="ruby" >}}
+greeting = msg {
+    info := opa.runtime()
+    hostname := info.env["HOSTNAME"] # Docker sets the HOSTNAME environment variable.
+    msg := sprintf("hello from container %q!", [hostname])
+}
+```
 
 #### More Information
 
@@ -143,10 +147,17 @@ In this case, the policy file does not contain sensitive information so it's
 fine to store as a ConfigMap. If the file contained sensitive information, then
 we recommend you store it as a Secret.
 
-#### [`example.rego`](https://github.com/open-policy-agent/opa/tree/master/docs/code/deployments-kubernetes/example.rego)
+**example.rego**:
 
-{{< code file="deployments-kubernetes/example.rego" lang="ruby" >}}
+```live:k8s_deployment_hello_world:module:read_only
+package example
 
+greeting = msg {
+    info := opa.runtime()
+    hostname := info.env["HOSTNAME"] # Kubernetes sets the HOSTNAME environment variable.
+    msg := sprintf("hello from pod %q!", [hostname])
+}
+```
 
 ```bash
 kubectl create configmap example-policy --from-file example.rego
@@ -156,7 +167,7 @@ Next, create a Deployment to run OPA. The ConfigMap containing the policy is
 volume mounted into the container. This allows OPA to load the policy from
 the file system.
 
-**`deployment-opa.yaml`**:
+**deployment-opa.yaml**:
 
 ```yaml
 apiVersion: extensions/v1beta1
@@ -201,10 +212,25 @@ kubectl create -f deployment-opa.yaml
 At this point OPA is up and running. Create a Service to expose the OPA API so
 that you can query it:
 
-#### [`service-opa.yaml`](https://github.com/open-policy-agent/opa/tree/master/docs/code/deployments-kubernetes/service-opa.yaml)
+**service-opa.yaml**:
 
-{{< code file="deployments-kubernetes/service-opa.yaml" lang="yaml" >}}
-
+```yaml
+kind: Service
+apiVersion: v1
+metadata:
+  name: opa
+  labels:
+    app: opa
+spec:
+  type: NodePort
+  selector:
+    app: opa
+  ports:
+    - name: http
+      protocol: TCP
+      port: 8181
+      targetPort: 8181
+```
 
 ```bash
 kubectl create -f service-opa.yaml
