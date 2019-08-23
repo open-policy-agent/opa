@@ -1,8 +1,8 @@
 .PHONY: clean
 clean:
 	rm -rf ${CURDIR}/website/data/releases.yaml
-	rm -rf $(CURDIR)/website/generated 
-	rm -rf $(CURDIR)/website/public 
+	rm -rf $(CURDIR)/website/generated
+	rm -rf $(CURDIR)/website/public
 	rm -rf $(CURDIR)/website/resources
 
 .PHONY: generate
@@ -45,7 +45,6 @@ production-build: clean generate
 		--ignoreCache \
 		--minify
 	make live-blocks-inject
-	
 
 .PHONY: preview-build
 preview-build: clean generate
