@@ -58,11 +58,12 @@ export async function shareToPlayground(groups, groupName) {
 
 // Constructs a the fetch options for querying the playground with a DataRequest. Throws an error with a user-friendly message if it can't.
 function createDataRequestOpts(groups, groupName) {
-  const {module, query, input} = getGroupData(groups, groupName) // Throws user-friendly messages.
+  const {module, package: pkg, query, input, included} = getGroupData(groups, groupName) // Throws user-friendly messages.
 
   try {
     const body = {} // In the format accepted by playground backend
-    body.rego_modules = {[EVAL_MODULE_NAME]: module}
+    body.rego_modules = {[EVAL_MODULE_NAME]: module, ...included}
+    body.query_package = pkg
     if (query) {
       body.rego = query
     }

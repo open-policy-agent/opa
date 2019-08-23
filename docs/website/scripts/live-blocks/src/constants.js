@@ -23,8 +23,12 @@ export const CLASSES = {
 }
 
 // --- LABELS ---
-// prefix for "lang" labels for live code blocks
+// Prefix for "lang" labels for live code blocks
 export const LABEL_PREFIX = 'live:'
+
+// Regular expressions for recognizing group names.
+const GROUP_NAME_FRAGMENT_REG_EXP = '\\w+'
+const GROUP_NAME_REG_EXP = `${GROUP_NAME_FRAGMENT_REG_EXP}(?:\\/${GROUP_NAME_FRAGMENT_REG_EXP})*`
 
 // The types of live code blocks with their names as found in labels
 export const BLOCK_TYPES = {
@@ -56,8 +60,18 @@ export const EXPECTED_ERROR_TAG_TYPES = {
   EXPECT_REFERENCED_ABOVE: 'expect_referenced_above',
 }
 
-// The types of tags that blocks can have with their names as found in labels
-export const TAG_TYPES = {
+// The types of eval configuration tags that output blocks can have with a `match` string used to build LABEL_REG_EXP and an `exec` function used to extract the value.
+const config = (name, contents) => ({match: `${name}\\(${contents}\\)`, exec: (tag) => {
+  const res = (new RegExp(`^${name}\\((${contents})\\)$`)).exec(tag)
+  return res ? res[1] : res // get the captured value if it matches
+}})
+export const EVAL_CONFIG_TAG_TYPES = {
+  INCLUDE: config('include', GROUP_NAME_REG_EXP),
+  // NOTE: This could potentially include options for setting the query package/ imports.
+}
+
+// The non-variable types of tags that blocks can have with their names as found in labels.
+export const STATIC_TAG_TYPES = {
   HIDDEN: 'hidden',
   READ_ONLY: 'read_only',
   MERGE_DOWN: 'merge_down',
@@ -66,10 +80,10 @@ export const TAG_TYPES = {
   ...EXPECTED_ERROR_TAG_TYPES,
 }
 
-// Regular expressions for breaking apart labels, contructing them this way makes it easier to only accept valid ones while only specifying them in one place.
+// Regular expressions for breaking apart labels, contructing them this way makes it easier to only accept valid ones while only specifying things in one place.
 const BLOCK_REG_EXP = Object.values(BLOCK_TYPES).join('|')
-const TAG_REG_EXP = Object.values(TAG_TYPES).join('|')
-export const LABEL_REG_EXP = new RegExp(`^${LABEL_PREFIX}(\\w+(?:\\/\\w+)*):(${BLOCK_REG_EXP})(:(?:(?:${TAG_REG_EXP}),)*(?:${TAG_REG_EXP})|)$`)
+const TAG_REG_EXP = Object.values(STATIC_TAG_TYPES).concat(Object.values(EVAL_CONFIG_TAG_TYPES).map((cfg) => cfg.match)).join('|')
+export const LABEL_REG_EXP = new RegExp(`^${LABEL_PREFIX}(${GROUP_NAME_REG_EXP}):(${BLOCK_REG_EXP})(:(?:(?:${TAG_REG_EXP}),)*(?:${TAG_REG_EXP})|)$`)
 
 // CSS-style selector for finding the live code blocks in a document
 export const BLOCK_SELECTOR = `code[data-lang^="${LABEL_PREFIX}"]`

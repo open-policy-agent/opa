@@ -332,3 +332,8 @@ If you think a more specific tag could be added for your case, please create an 
 - `expect_error` - Any OPA error. This should generally not be used.
 
 > At this time, due to the way OPA loads modules on the CLI, expecting parse errors is not possible.
+
+Finally, outputs can also be tagged one or more times with `include(<group name>)`, which will include
+another group's module when evaluating (e.g. so that they can be imported).
+
+> If a query isn't specified for the output's group, when other modules are included the default becomes `data` instead of `data.<package name>`.

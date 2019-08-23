@@ -7,8 +7,8 @@ import 'codemirror/lib/codemirror.css'
 import 'codemirror/mode/javascript/javascript'
 
 import './style.css'
-import {BASE_EDITOR_OPTS, BLOCK_SELECTOR, BLOCK_TYPES, CLASSES, EDITOR_MODES, HYDRATION_QUEUE_SORT_PERIOD, ICONS, INTERACTIVE_PATH, LINE_NUMBERS_EDITOR_OPTS, OPENING_IN_PLAYGROUND_PATH, READ_ONLY_EDITOR_OPTS, TAG_TYPES} from '../constants'
-import {batchProcess, delay, getAllGroupModules, getGroupField, handleLater, infoFromLabel, report} from '../helpers'
+import {BASE_EDITOR_OPTS, BLOCK_SELECTOR, BLOCK_TYPES, CLASSES, EDITOR_MODES, HYDRATION_QUEUE_SORT_PERIOD, ICONS, INTERACTIVE_PATH, LINE_NUMBERS_EDITOR_OPTS, OPENING_IN_PLAYGROUND_PATH, READ_ONLY_EDITOR_OPTS, STATIC_TAG_TYPES} from '../constants'
+import {batchProcess, delay, getAllGroupModules, getGroupField, handleLater, includedGroupNames, infoFromLabel, report} from '../helpers'
 import {OPAErrors} from '../errors'
 
 import {playgroundEval, shareToPlayground} from './playground'
@@ -100,8 +100,11 @@ function registerChangeHandlers(groups) {
     if (!output) { // Not all groups have outputs
       continue
     }
-    // Output contents depend on non-undefined query and input blocks in this groups and this group's chain of inherited module blocks.
-    const dependencies = [BLOCK_TYPES.QUERY, BLOCK_TYPES.INPUT].map((type) => getGroupField(groups, groupName, type)).filter((block) => !!block).concat(getAllGroupModules(groups, groupName))
+    // Output contents depend on non-undefined query and input blocks in this group/a parent, this group's chain of inherited module blocks, as well as any included module blocks.
+    const dependencies = [BLOCK_TYPES.QUERY, BLOCK_TYPES.INPUT].map((type) => getGroupField(groups, groupName, type)).filter((block) => !!block)
+    dependencies.push(...getAllGroupModules(groups, groupName))
+    dependencies.push(...(includedGroupNames(output.tags).reduce((iMs, iGN) => iMs.concat(getAllGroupModules(groups, iGN)), [])))
+
     for (let dependency of dependencies) {
       dependency.changeHandlers.push(() => updateOutput(groups, groupName, output))
     }
@@ -135,7 +138,7 @@ async function hydrate(groups) {
 
 // Hydrate visible editors
 function hydrateEditor(type, block) {
-  if (!block.tags.includes(TAG_TYPES.HIDDEN)) { // Only bother adding the editor to visible blocks
+  if (!block.tags.includes(STATIC_TAG_TYPES.HIDDEN)) { // Only bother adding the editor to visible blocks
     // Replace intermediate container and hydrate it
     const cmDiv = document.createElement('div')
     block.codeElt.parentNode.replaceWith(cmDiv)
@@ -179,7 +182,7 @@ function hydrateButtons(groups, groupName, type, block) {
     block.iconBar.appendChild(restoreButton)
   }
 
-  if (isInteractive(block.tags) && block.tags.includes(TAG_TYPES.OPENABLE)) {
+  if (isInteractive(block.tags) && block.tags.includes(STATIC_TAG_TYPES.OPENABLE)) {
     // The three versions of the "Open in Playground" button.
     const readyButton = createButton(ICONS.PLAYGROUND.READY)
     const workingButton = createButton(ICONS.PLAYGROUND.WORKING)
@@ -260,7 +263,7 @@ async function runHandlers(handlers) {
 
 // Determines whether a block can be interacted with (a lower bar than editability) based on its tags and the current page's path.
 function isInteractive(tags) {
-  if (tags.includes(TAG_TYPES.HIDDEN)) {
+  if (tags.includes(STATIC_TAG_TYPES.HIDDEN)) {
     return false
   }
   if (!INTERACTIVE_PATH.test(window.location.pathname)) {
@@ -277,7 +280,7 @@ function isEditable(type, tags) {
   if (type === BLOCK_TYPES.OUTPUT) {
     return false
   }
-  if (tags.includes(TAG_TYPES.READ_ONLY)) {
+  if (tags.includes(STATIC_TAG_TYPES.READ_ONLY)) {
     return false
   }
   return true
@@ -293,7 +296,7 @@ function constructEditorOptions(type, tags) {
     Object.assign(out, READ_ONLY_EDITOR_OPTS)
   }
 
-  if (tags.includes(TAG_TYPES.LINE_NUMBERS)) {
+  if (tags.includes(STATIC_TAG_TYPES.LINE_NUMBERS)) {
     Object.assign(out, LINE_NUMBERS_EDITOR_OPTS)
   }
 

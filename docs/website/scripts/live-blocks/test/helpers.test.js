@@ -3,18 +3,18 @@ import chaiAsPromised from 'chai-as-promised'
 import sinon from 'sinon'
 import {describe, it} from 'mocha'
 
-import {batchMapFold, batchProcess, delay, expectedErrorTags, getAllGroupModules, getGroupData, getGroupField, handleLater, infoFromLabel, toArray} from '../src/helpers'
-import {BLOCK_TYPES, TAG_TYPES} from '../src/constants'
+import {batchMapFold, batchProcess, delay, expectedErrorTags, getAllGroupModules, getGroupData, getGroupField, handleLater, includedGroupNames, infoFromLabel, toArray} from '../src/helpers'
+import {BLOCK_TYPES, STATIC_TAG_TYPES} from '../src/constants'
 
 chai.use(chaiAsPromised)
 
 describe('infoFromLabel', () => {
   it('parses a label', () => {
-    const res = infoFromLabel('live:eg/pi:output:merge_down,expect_undefined')
+    const res = infoFromLabel('live:eg/pi:output:merge_down,expect_undefined,include(foobar/barfoo)')
     expect(res).has.keys(['group', 'type', 'tags'])
     expect(res.group).equals('eg/pi')
     expect(res.type).equals(BLOCK_TYPES.OUTPUT)
-    expect(res.tags).lengthOf(2).and.contains('merge_down').and.contains('expect_undefined')
+    expect(res.tags).lengthOf(3).and.contains('merge_down').and.contains('expect_undefined').and.contains('include(foobar/barfoo)')
   })
 
   it('parses a label without tags', () => {
@@ -35,6 +35,7 @@ describe('infoFromLabel', () => {
     expect(() => infoFromLabel('live:eg:module:')).to.throw()
     expect(() => infoFromLabel('live:eg:module:foobar')).to.throw()
     expect(() => infoFromLabel('live:eg:module:expect_undefined')).to.throw()
+    expect(() => infoFromLabel('live:eg:module:include(foobar/barfoo)')).to.throw()
   })
 })
 
@@ -44,29 +45,66 @@ describe('expectedErrorTags', () => {
   })
 
   it('can consume only non-expectations', () => {
-    expect(expectedErrorTags([TAG_TYPES.HIDDEN, TAG_TYPES.MERGE_DOWN])).deep.equals([])
+    expect(expectedErrorTags([STATIC_TAG_TYPES.HIDDEN, STATIC_TAG_TYPES.MERGE_DOWN, 'include(foobar)'])).deep.equals([])
   })
 
   it('can consume only expectations', () => {
-    expect(expectedErrorTags([TAG_TYPES.EXPECT_BUILTIN_ERROR, TAG_TYPES.EXPECT_ERROR]))
+    expect(expectedErrorTags([STATIC_TAG_TYPES.EXPECT_BUILTIN_ERROR, STATIC_TAG_TYPES.EXPECT_ERROR]))
       .has.lengthOf(2)
-      .and.contains(TAG_TYPES.EXPECT_BUILTIN_ERROR)
-      .and.contains(TAG_TYPES.EXPECT_ERROR)
+      .and.contains(STATIC_TAG_TYPES.EXPECT_BUILTIN_ERROR)
+      .and.contains(STATIC_TAG_TYPES.EXPECT_ERROR)
   })
 
   it('can consume a mixture', () => {
-    expect(expectedErrorTags([TAG_TYPES.HIDDEN, TAG_TYPES.EXPECT_BUILTIN_ERROR, TAG_TYPES.MERGE_DOWN, TAG_TYPES.EXPECT_ERROR]))
+    expect(expectedErrorTags([STATIC_TAG_TYPES.HIDDEN, STATIC_TAG_TYPES.EXPECT_BUILTIN_ERROR, STATIC_TAG_TYPES.MERGE_DOWN, STATIC_TAG_TYPES.EXPECT_ERROR]))
       .has.lengthOf(2)
-      .and.contains(TAG_TYPES.EXPECT_BUILTIN_ERROR)
-      .and.contains(TAG_TYPES.EXPECT_ERROR)
+      .and.contains(STATIC_TAG_TYPES.EXPECT_BUILTIN_ERROR)
+      .and.contains(STATIC_TAG_TYPES.EXPECT_ERROR)
   })
 
   it('doesn\'t mutate argument', () => {
-    const tags = [TAG_TYPES.HIDDEN, TAG_TYPES.EXPECT_BUILTIN_ERROR, TAG_TYPES.MERGE_DOWN, TAG_TYPES.EXPECT_ERROR]
+    const tags = [STATIC_TAG_TYPES.HIDDEN, STATIC_TAG_TYPES.EXPECT_BUILTIN_ERROR, STATIC_TAG_TYPES.MERGE_DOWN, STATIC_TAG_TYPES.EXPECT_ERROR]
     const args = tags.slice()
 
-    expectedErrorTags([TAG_TYPES.HIDDEN, TAG_TYPES.EXPECT_BUILTIN_ERROR, TAG_TYPES.MERGE_DOWN, TAG_TYPES.EXPECT_ERROR])
+    expectedErrorTags([STATIC_TAG_TYPES.HIDDEN, STATIC_TAG_TYPES.EXPECT_BUILTIN_ERROR, STATIC_TAG_TYPES.MERGE_DOWN, STATIC_TAG_TYPES.EXPECT_ERROR])
     expect(args).to.deep.equal(tags)
+  })
+})
+
+describe('includedGroupNames', () => {
+  it('accepts an empty array', () => {
+    expect(includedGroupNames([])).deep.equals([])
+  })
+
+  it('can consume only non-includes', () => {
+    expect(includedGroupNames([STATIC_TAG_TYPES.HIDDEN, STATIC_TAG_TYPES.MERGE_DOWN, STATIC_TAG_TYPES.EXPECT_ASSIGNED_ABOVE])).deep.equals([])
+  })
+
+  it('can consume only includes', () => {
+    expect(includedGroupNames(['include(foo/bar)', 'include(eg)']))
+      .has.lengthOf(2)
+      .and.contains('foo/bar')
+      .and.contains('eg')
+  })
+
+  it('can consume a mixture', () => {
+    expect(includedGroupNames([STATIC_TAG_TYPES.HIDDEN, 'include(foo/bar)', STATIC_TAG_TYPES.EXPECT_BUILTIN_ERROR, STATIC_TAG_TYPES.MERGE_DOWN, 'include(eg)', STATIC_TAG_TYPES.EXPECT_ERROR]))
+      .has.lengthOf(2)
+      .and.contains('foo/bar')
+      .and.contains('eg')
+  })
+
+  it('doesn\'t mutate argument', () => {
+    const tags = [STATIC_TAG_TYPES.HIDDEN, 'include(foo/bar)', STATIC_TAG_TYPES.EXPECT_BUILTIN_ERROR, STATIC_TAG_TYPES.MERGE_DOWN, 'include(eg)', STATIC_TAG_TYPES.EXPECT_ERROR]
+    const args = tags.slice()
+
+    includedGroupNames([STATIC_TAG_TYPES.HIDDEN, STATIC_TAG_TYPES.EXPECT_BUILTIN_ERROR, STATIC_TAG_TYPES.MERGE_DOWN, STATIC_TAG_TYPES.EXPECT_ERROR])
+    expect(args).to.deep.equal(tags)
+  })
+
+  it('only accepts properly formated tags', () => {
+    expect(includedGroupNames(['include(foo-bar)', 'include', 'include()', 'include(foo/bar/)']))
+      .has.lengthOf(0)
   })
 })
 
@@ -137,9 +175,9 @@ describe('getAllGroupModules', () => {
 describe('getGroupData', () => {
   it('concatenates module blocks', () => {
     expect(getGroupData({
-      'a': {module: {get: () => 'a'}},
+      'a': {module: {get: () => 'package foo\na'}},
       'a/b/c': {module: {get: () => 'c'}}
-    }, 'a/b/c/d').module).to.equal('a\n\nc')
+    }, 'a/b/c/d').module).to.equal('package foo\na\n\nc')
   })
 
   it('errors when there are no module blocks', () => {
@@ -149,26 +187,40 @@ describe('getGroupData', () => {
     }, 'a/b/c/d')).to.throw('no module')
   })
 
+  it('get\'s the module package', () => {
+    expect(getGroupData({
+      'a': {module: {get: () => 'package foo\na'}},
+      'a/b/c': {module: {get: () => 'c'}}
+    }, 'a/b/c/d').package).to.equal('foo')
+  })
+
+  it('errors when there is no package declaration', () => {
+    expect(() => getGroupData({
+      'a': {module: {get: () => 'a'}},
+      'a/b/c': {module: {get: () => 'c'}}
+    }, 'a/b/c/d')).to.throw(/package/)
+  })
+
   const egInput = ['foo', {bar: 'baz'}]
   const strInput = JSON.stringify(egInput)
 
   it('parses input from block', () => {
     expect(getGroupData({
-      'a': {input: {get: () => 'foobar'}, module: {get: () => 'a'}}, // Will error if gets from this parent
+      'a': {input: {get: () => 'foobar'}, module: {get: () => 'package foo\na'}}, // Will error if gets from this parent
       'a/b/c': {input: {get: () => strInput}, module: {get: () => 'c'}}
     }, 'a/b/c').input).to.deep.equal(egInput)
   })
 
   it('can get input from parents', () => {
     expect(getGroupData({
-      'a': {input: {get: () => 'foobar'}, module: {get: () => 'a'}}, // Will error if gets from this parent
+      'a': {input: {get: () => 'foobar'}, module: {get: () => 'package foo\na'}}, // Will error if gets from this parent
       'a/b/c': {input: {get: () => strInput}, module: {get: () => 'c'}}
     }, 'a/b/c/d').input).to.deep.equal(egInput)
   })
 
   it('errors when input cannot be parsed', () => {
     expect(() => getGroupData({
-      'a': {input: {get: () => 'foobar'}, module: {get: () => 'a'}},
+      'a': {input: {get: () => 'foobar'}, module: {get: () => 'package foo\na'}},
     }, 'a')).to.throw('can\'t parse input')
   })
 
@@ -176,7 +228,7 @@ describe('getGroupData', () => {
     expect(getGroupData({
       'a': {query: {get: () => {
         throw new Error()
-      }}, module: {get: () => 'a'}}, // Will error if gets from this parent
+      }}, module: {get: () => 'package foo\na'}}, // Will error if gets from this parent
       'a/b/c': {query: {get: () => 'foobar'}, module: {get: () => 'c'}}
     }, 'a/b/c').query).to.equal('foobar')
   })
@@ -185,14 +237,22 @@ describe('getGroupData', () => {
     expect(getGroupData({
       'a': {query: {get: () => {
         throw new Error()
-      }}, module: {get: () => 'a'}}, // Will error if gets from this parent
+      }}, module: {get: () => 'package foo\na'}}, // Will error if gets from this parent
       'a/b/c': {query: {get: () => 'foobar'}, module: {get: () => 'c'}}
     }, 'a/b/c/d').query).to.equal('foobar')
   })
 
+  it('includes other modules', () => {
+    expect(getGroupData({
+      'a': {module: {get: () => 'package foo\na'}},
+      'a/b/c': {module: {get: () => 'c'}, output: {tags: ['include(d)']}},
+      'd': {module: {get: () => 'd'}}
+    }, 'a/b/c').included.d).to.equal('d')
+  })
+
   it('doesn\'t mutate groups', () => {
     const groups = {
-      'a': {input: {get: () => '{}'}, module: {get: () => 'a'}}, // Will error if gets from this parent
+      'a': {input: {get: () => '{}'}, module: {get: () => 'package foo\na'}}, // Will error if gets from this parent
       'a/b/c': {query: {get: () => 'foobar'}, module: {get: () => 'c'}}
     }
     const arg = Object.fromEntries(Object.entries(groups).map(([key, value]) => [key, Object.assign({}, value)])) // depth 2 object clone
