@@ -7,7 +7,7 @@ import 'codemirror/lib/codemirror.css'
 import 'codemirror/mode/javascript/javascript'
 
 import './style.css'
-import {BASE_EDITOR_OPTS, BLOCK_SELECTOR, BLOCK_TYPES, CLASSES, EDITABLE_PATH, EDITOR_MODES, HYDRATION_QUEUE_SORT_PERIOD, ICONS, OPENING_IN_PLAYGROUND_PATH, READ_ONLY_EDITOR_OPTS, TAG_TYPES} from '../constants'
+import {BASE_EDITOR_OPTS, BLOCK_SELECTOR, BLOCK_TYPES, CLASSES, EDITOR_MODES, HYDRATION_QUEUE_SORT_PERIOD, ICONS, INTERACTIVE_PATH, LINE_NUMBERS_EDITOR_OPTS, OPENING_IN_PLAYGROUND_PATH, READ_ONLY_EDITOR_OPTS, TAG_TYPES} from '../constants'
 import {batchProcess, delay, getAllGroupModules, getGroupField, handleLater, infoFromLabel, report} from '../helpers'
 import {OPAErrors} from '../errors'
 
@@ -177,23 +177,23 @@ function hydrateButtons(groups, groupName, type, block) {
     const restoreButton = createButton(ICONS.RESTORE)
     restoreButton.addEventListener('click', () => block.restore())
     block.iconBar.appendChild(restoreButton)
+  }
 
-    if (block.tags.includes(TAG_TYPES.OPENABLE)) {
-      // The three versions of the "Open in Playground" button.
-      const readyButton = createButton(ICONS.PLAYGROUND.READY)
-      const workingButton = createButton(ICONS.PLAYGROUND.WORKING)
-      const errorButton = createButton(ICONS.PLAYGROUND.ERROR)
+  if (isInteractive(block.tags) && block.tags.includes(TAG_TYPES.OPENABLE)) {
+    // The three versions of the "Open in Playground" button.
+    const readyButton = createButton(ICONS.PLAYGROUND.READY)
+    const workingButton = createButton(ICONS.PLAYGROUND.WORKING)
+    const errorButton = createButton(ICONS.PLAYGROUND.ERROR)
 
-      // Handler to open in the playground.
-      const open = createOpenInPlaygroundHandler(groups, groupName, block, readyButton, workingButton, errorButton)
+    // Handler to open in the playground.
+    const open = createOpenInPlaygroundHandler(groups, groupName, block, readyButton, workingButton, errorButton)
 
-      // Only ready and error trigger an open, if "working", forces user to wait until it completes.
-      readyButton.addEventListener('click', open)
-      errorButton.addEventListener('click', open)
+    // Only ready and error trigger an open, if "working", forces user to wait until it completes.
+    readyButton.addEventListener('click', open)
+    errorButton.addEventListener('click', open)
 
-      // Hydrate
-      putOpenInPlaygroundButton(block, readyButton)
-    }
+    // Hydrate
+    putOpenInPlaygroundButton(block, readyButton)
   }
 }
 
@@ -258,15 +258,26 @@ async function runHandlers(handlers) {
   }
 }
 
-// Determines whether a block should be editable based on it's type, tags, and the current page's path.
+// Determines whether a block can be interacted with (a lower bar than editability) based on its tags and the current page's path.
+function isInteractive(tags) {
+  if (tags.includes(TAG_TYPES.HIDDEN)) {
+    return false
+  }
+  if (!INTERACTIVE_PATH.test(window.location.pathname)) {
+    return false
+  }
+  return true
+}
+
+// Determines whether a block should be editable based on its type, tags, and the current page's path.
 function isEditable(type, tags) {
+  if (!isInteractive(tags)) {
+    return false
+  }
   if (type === BLOCK_TYPES.OUTPUT) {
     return false
   }
-  if (tags.includes(TAG_TYPES.HIDDEN) || tags.includes(TAG_TYPES.READ_ONLY)) {
-    return false
-  }
-  if (!EDITABLE_PATH.test(window.location.pathname)) {
+  if (tags.includes(TAG_TYPES.READ_ONLY)) {
     return false
   }
   return true
@@ -280,6 +291,10 @@ function constructEditorOptions(type, tags) {
 
   if (!isEditable(type, tags)) {
     Object.assign(out, READ_ONLY_EDITOR_OPTS)
+  }
+
+  if (tags.includes(TAG_TYPES.LINE_NUMBERS)) {
+    Object.assign(out, LINE_NUMBERS_EDITOR_OPTS)
   }
 
   return out

@@ -308,6 +308,7 @@ Some tags can be applied to any block:
 - `merge_down` - Visually merge this code block with the one below it (remove bottom margin).
 - `openable` - Add a button to the block that opens its group in the Rego Playground. This should typically
   only be used on complete module blocks.
+- `line_numbers` - Show line numbers in the block. This should be used sparingly; the code will visually shift when they appear.
 
 Outputs can also be tagged as expecting various errors. If one is tagged as expecting errors that do not occur
 or errors occur that it is not tagged as expecting, the build will fail noisily.

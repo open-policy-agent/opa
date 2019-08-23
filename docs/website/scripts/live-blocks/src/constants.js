@@ -62,6 +62,7 @@ export const TAG_TYPES = {
   READ_ONLY: 'read_only',
   MERGE_DOWN: 'merge_down',
   OPENABLE: 'openable',
+  LINE_NUMBERS: 'line_numbers',
   ...EXPECTED_ERROR_TAG_TYPES,
 }
 
@@ -106,8 +107,8 @@ export const JS_BUNDLE_PATH = pkg.browser.replace(/dist/, '/js')
 export const CSS_BUNDLE_BATH = JS_BUNDLE_PATH.replace(/js/g, 'css')
 
 // --- UI ---
-// Only blocks on pages whose paths match this regexp will be editable (for limiting live functionality to the version that the playground supports).
-export const EDITABLE_PATH = /^\/docs\/edge/ // TODO update to /^\/docs\/latest/ once backported and/or there's a new release.
+// Only blocks on pages whose paths match this regexp will be interactive (for limiting live functionality to the version that the playground supports).
+export const INTERACTIVE_PATH = /^\/docs\/edge/ // TODO update to /^\/docs\/latest/ once backported and/or there's a new release.
 
 // The path to initially open a new tab to with when opening a group in the playground
 export const OPENING_IN_PLAYGROUND_PATH = '/live-blocks/opening-in-playground'
@@ -123,6 +124,10 @@ export const BASE_EDITOR_OPTS = {
 export const READ_ONLY_EDITOR_OPTS = {
   readOnly: true,
   cursorBlinkRate: -1 // Hides cursor w/o readOnly = 'nocursor' so that editor can be focused and copy/pasting still works
+}
+
+export const LINE_NUMBERS_EDITOR_OPTS = {
+  lineNumbers: true,
 }
 
 const REGO_MODE = 'rego'
