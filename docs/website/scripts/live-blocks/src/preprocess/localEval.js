@@ -21,13 +21,17 @@ const tmpFile = util.promisify(tmp.file)
 export default async function localEval(groups, groupName, opaVersion) {
   const opa = await acquireOPAVersion(opaVersion) // Get the path (and download if necessary) the required version of OPA.
 
-  const [args, tmpModulePath] = await prepEval(groups, groupName) // Save the group data to temporary files
+  const [args, moduleFilenameMap] = await prepEval(groups, groupName) // Save the group data to temporary files
 
   try {
     return (await execFile(opa, args('pretty'))).stdout.replace(/\n$/, '') // Evaluate, retrieving the pretty-formatted output
   } catch (e) {
     if (e.stdout) { // OPA returned an error message
-      const pretty = e.stdout.replace(/\n$/, '').replace(new RegExp(tmpModulePath, 'g'), EVAL_MODULE_NAME) // Replace the module file name with what the playground will use.
+      let pretty = e.stdout.replace(/\n$/, '')
+      // Replace the module file names with what the playground will use.
+      for (let [tmp, replacement] of Object.entries(moduleFilenameMap)) {
+        pretty = pretty.replace(new RegExp(tmp, 'g'), replacement)
+      }
 
       if (pretty === 'undefined') { // Special undefined case, use the same message as the playground.
         throw new OPAErrors('undefined decision', undefined)
@@ -56,21 +60,18 @@ export default async function localEval(groups, groupName, opaVersion) {
   }
 }
 
-// Returns 1st a function that consumes a string for the output format you want and produces an array of arguments and 2nd the name of the module file used in those arguments. May throw a user-friendly error.
+// Returns 1st a function that consumes a string for the output format you want and produces an array of arguments and 2nd a map of module file names to strings that should be replaced in error messages. May throw a user-friendly error.
 async function prepEval(groups, groupName) {
-  const {module, query, input} = getGroupData(groups, groupName)
+  const {module, package: pkg, query, input, included} = getGroupData(groups, groupName)
   const base = ['eval', '--fail'] // Fail on undefined
   const rest = []
+  const moduleFilenameMap = {}
 
-  let pkgRegexRes = /^package[ \t]+([\w.-]+)[ \t]*#*.*$/m.exec(module)
-  if (!pkgRegexRes) {
-    throw new Error('couldn\'t find package declaration in module')
-  }
   try {
-    const pkg = pkgRegexRes[1]
     let tmpModule = await tmpFile({postfix: '.rego'})
     await promFS.writeFile(tmpModule, module)
     rest.push('-d', tmpModule, '--package', pkg)
+    moduleFilenameMap[tmpModule] = EVAL_MODULE_NAME
 
     if (input) {
       let stringified = ''
@@ -86,11 +87,24 @@ async function prepEval(groups, groupName) {
 
     if (query) {
       rest.push(query)
-    } else {
-      rest.push(`data.${pkg}`)
+    } else { // Simulate playground default behavior
+      if (included) {
+        rest.push('data')
+      } else {
+        rest.push(`data.${pkg}`)
+      }
     }
 
-    return [(format) => [...base, `--format=${format}`, ...rest], tmpModule]
+    if (included) {
+      for (let [incName, incModule] of Object.entries(included)) {
+        let tmpIncluded = await tmpFile({postfix: '.rego'})
+        await promFS.writeFile(tmpIncluded, incModule)
+        rest.push('-d', tmpIncluded)
+        moduleFilenameMap[tmpIncluded] = incName
+      }
+    }
+
+    return [(format) => [...base, `--format=${format}`, ...rest], moduleFilenameMap]
   } catch (e) {
     throw new ChainedError('a problem occured while preparing to evaluate', e)
   }

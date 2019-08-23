@@ -1,7 +1,8 @@
-import {BLOCK_TYPES, EXPECTED_ERROR_TAG_TYPES, LABEL_REG_EXP} from './constants'
+import {BLOCK_TYPES, EVAL_CONFIG_TAG_TYPES, EXPECTED_ERROR_TAG_TYPES, LABEL_REG_EXP} from './constants'
+import {ChainedError} from './errors'
 
 // --- LABELS ---
-// Takes a string that can be formatted like live:GROUP:BLOCK_TYPE[:TAG_TYPE[,TAG_TYPE[...]]], returns {group: /\w+/, type: BLOCK_TYPES[?], tags: [ TAG_TYPES[?] ]}.
+// Takes a string that can be formatted like live:GROUP:BLOCK_TYPE[:TAG_TYPE[,TAG_TYPE[...]]], returns {group: /\w+/, type: BLOCK_TYPES[?], tags: [ string ]}.
 // Throws an error if it looks like a live code block but the label can't be parsed.
 export function infoFromLabel(label) {
   const info = LABEL_REG_EXP.exec(label)
@@ -18,6 +19,9 @@ export function infoFromLabel(label) {
   if (info[2] !== BLOCK_TYPES.OUTPUT && expectedErrorTags(tags).length) { // Only outputs can expect errors
     throw new Error(`${info[2]}s cannot expect errors (only outputs): ${label}`)
   }
+  if (info[2] !== BLOCK_TYPES.OUTPUT && includedGroupNames(tags).length) { // Only outputs can include groups for evaluation
+    throw new Error(`${info[2]}s cannot include modules for evaluation (only outputs): ${label}`)
+  }
 
   // Looks good
   return {
@@ -31,6 +35,17 @@ export function infoFromLabel(label) {
 export function expectedErrorTags(tags) {
   const errors = Object.values(EXPECTED_ERROR_TAG_TYPES)
   return tags.filter((tag) => errors.includes(tag))
+}
+
+// Returns an array of the included group names from `include(...)` tags in the provided array.
+export function includedGroupNames(tags) {
+  return tags.reduce((iGNs, t) => {
+    const res = EVAL_CONFIG_TAG_TYPES.INCLUDE.exec(t)
+    if (res) {
+      iGNs.push(res)
+    }
+    return iGNs
+  }, [])
 }
 
 // --- GROUPS AND BLOCKS ---
@@ -65,17 +80,19 @@ export function getAllGroupModules(groups, groupName) {
   return out.reverse() // Correct the order
 }
 
-// Returns an object of the form {module: string[, input: value][, query: string]}, throws an error with a human-readable message if the group doesn't have a module or if the input cannot be parsed.
+// Returns an object of the form {module: string, package: string[, input: value][, query: string][, included: map[filename]string}, throws an error with a human-readable message if the specified or any included groups don't have modules, the group's package cannot be found, or if the input cannot be parsed.
 export function getGroupData(groups, groupName) {
-  const moduleBlocks = getAllGroupModules(groups, groupName)
   const queryBlock = getGroupField(groups, groupName, BLOCK_TYPES.QUERY)
   const inputBlock = getGroupField(groups, groupName, BLOCK_TYPES.INPUT)
 
-  if (!moduleBlocks.length) {
-    throw new Error('no module')
-  }
+  const out = {module: getCompleteGroupModule(groups, groupName)}
 
-  const out = {module: moduleBlocks.map((block) => block.get()).join('\n\n')}
+  let pkgRegexRes = /^package[ \t]+([\w.-]+)[ \t]*#*.*$/m.exec(out.module)
+  if (!pkgRegexRes) {
+    throw new Error('couldn\'t find package declaration in module')
+  }
+  out.package = pkgRegexRes[1]
+
   if (queryBlock) {
     out.query = queryBlock.get()
   }
@@ -86,7 +103,31 @@ export function getGroupData(groups, groupName) {
       throw new Error('can\'t parse input', e)
     }
   }
+  if (groupName in groups && BLOCK_TYPES.OUTPUT in groups[groupName]) {
+    const included = includedGroupNames(groups[groupName][BLOCK_TYPES.OUTPUT].tags)
+    if (included.length) {
+      out.included = {}
+      for (let name of included) {
+        try {
+          out.included[`${name}.rego`] = getCompleteGroupModule(groups, name)
+        } catch (e) {
+          throw new ChainedError(`unable to include ${name}: ${e.message}`, e)
+        }
+      }
+    }
+  }
   return out
+}
+
+// Returns the string of the full group's module or throws a user friendly error if there are no module blocks.
+function getCompleteGroupModule(groups, groupName) {
+  const moduleBlocks = getAllGroupModules(groups, groupName)
+
+  if (!moduleBlocks.length) {
+    throw new Error('no module')
+  }
+
+  return moduleBlocks.map((block) => block.get()).join('\n\n')
 }
 
 // --- ASYNC ---

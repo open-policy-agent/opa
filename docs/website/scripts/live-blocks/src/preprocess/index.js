@@ -4,7 +4,7 @@ import {promises as promFS} from 'fs'
 import cheerio from 'cheerio'
 
 import {batchMapFold, batchProcess, expectedErrorTags, infoFromLabel, println, report, toArray} from '../helpers.js'
-import {BLOCK_SELECTOR, BLOCK_TYPES, CLASSES, CSS_BUNDLE_BATH, ICONS, JS_BUNDLE_PATH, MAX_CONCUR_FILE_EVALS, MAX_CONCUR_FILES, TAG_TYPES, VERSION_EDGE} from '../constants.js'
+import {BLOCK_SELECTOR, BLOCK_TYPES, CLASSES, CSS_BUNDLE_BATH, ICONS, JS_BUNDLE_PATH, MAX_CONCUR_FILE_EVALS, MAX_CONCUR_FILES, STATIC_TAG_TYPES, VERSION_EDGE} from '../constants.js'
 import {ChainedError, OPAErrors} from '../errors.js'
 
 import localEval from './localEval.js'
@@ -161,12 +161,12 @@ function styleBlocks(groups) {
       block.set(content)
 
       // Hide if tagged
-      if (block.tags.includes(TAG_TYPES.HIDDEN)) {
+      if (block.tags.includes(STATIC_TAG_TYPES.HIDDEN)) {
         block.container.css('display', 'none')
       }
 
       // Merge if tagged
-      if (block.tags.includes(TAG_TYPES.MERGE_DOWN)) {
+      if (block.tags.includes(STATIC_TAG_TYPES.MERGE_DOWN)) {
         block.container.addClass(CLASSES.BLOCK_CONTAINER_MERGED_DOWN)
       }
 
@@ -207,7 +207,7 @@ async function populateOutputs(groups, opaVersion) {
 
       }
       // Errors are not from OPA, something bad happened.
-      throw new ChainedError(`${groupName} evaluation failed for an unexpectable reason (check for additional logs): ${e.message}`, e)
+      throw new ChainedError(`${groupName} evaluation failed for an unexpectable, possibly internal reason (check for additional logs): ${e.message}`, e)
     }
 
     // If there's not an error, one might have been expected.
