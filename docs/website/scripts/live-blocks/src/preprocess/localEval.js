@@ -62,7 +62,7 @@ async function prepEval(groups, groupName) {
   const base = ['eval', '--fail'] // Fail on undefined
   const rest = []
 
-  let pkgRegexRes = /^package[ \t]+([\w.-]+)[ \t]*$/m.exec(module)
+  let pkgRegexRes = /^package[ \t]+([\w.-]+)[ \t]*#*.*$/m.exec(module)
   if (!pkgRegexRes) {
     throw new Error('couldn\'t find package declaration in module')
   }
