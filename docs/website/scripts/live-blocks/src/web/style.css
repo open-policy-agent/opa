@@ -115,12 +115,10 @@
   margin: 0 !important;
 }
 
-.live--block-container .cm-variable {
-  color: #003c66; /* Just overriding the default theme for variables (otherwise black), we may want a custom theme later. */
+.live--block-container .CodeMirror-gutter-wrapper {
+  transform: translateX(-1.5em); /* Undo positioning from sizer padding */
 }
 
-/* --- MISC --- */
-
-.content {
-  padding-bottom: 5rem !important; /* Fixes an weird bug that only seems to happen in certain cases (development environment and mobile) on firefox... */
+.live--block-container .cm-variable {
+  color: #003c66; /* Just overriding the default theme for variables (otherwise black), we may want a custom theme later. */
 }

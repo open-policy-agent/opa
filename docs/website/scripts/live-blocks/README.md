@@ -135,10 +135,10 @@ The preprocessor handles all doc versions the same, downloading the correct vers
 (based on the file's path) from either GitHub or S3 (the latter for current edge builds).
 
 The web script always hydrates the blocks but only allows them to be edited if the page's path conforms
-with `EDITABLE_PATH` in `constants.js`. This restricts the live functionality to the current version of the
+with `INTERACTIVE_PATH` in `constants.js`. This restricts the live functionality to the current version of the
 Rego Playground.
 
 ## TODO
 
-The `EDITABLE_PATH` should eventually only allow the current docs but currently it only allows edge.
+The `INTERACTIVE_PATH` should eventually only allow the current docs but currently it only allows edge.
 Once doc updates are backported or there's a new OPA release, this will need to be updated in `src/constants.js`.
