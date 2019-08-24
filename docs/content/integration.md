@@ -1,7 +1,7 @@
 ---
-title: How Do I Integrate OPA?
-kind: documentation
-weight: 4
+title: Integration
+kind: operations
+weight: 1
 restrictedtoc: true
 ---
 

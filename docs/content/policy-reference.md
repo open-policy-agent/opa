@@ -1,5 +1,5 @@
 ---
-title: Language Reference
+title: Policy Reference
 kind: documentation
 weight: 4
 toc: true

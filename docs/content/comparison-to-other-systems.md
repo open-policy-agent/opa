@@ -1,6 +1,6 @@
 ---
 title: Comparison to Other Systems
-kind: documentation
+kind: misc
 weight: 16
 ---
 

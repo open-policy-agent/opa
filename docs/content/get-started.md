@@ -1,6 +1,6 @@
 ---
-title: Get Started
-kind: tutorial
+title: "Tutorial: First Policy"
+kind: documentation
 weight: 1
 ---
 

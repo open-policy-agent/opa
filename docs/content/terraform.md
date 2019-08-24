@@ -1,7 +1,7 @@
 ---
-title: Terraform Testing
+title: Terraform
 kind: tutorial
-weight: 7
+weight: 1
 ---
 
 Terraform lets you describe the infrastructure you want and automatically creates, deletes, and modifies

@@ -1,6 +1,6 @@
 ---
 title: Security
-kind: documentation
+kind: operations
 weight: 14
 ---
 

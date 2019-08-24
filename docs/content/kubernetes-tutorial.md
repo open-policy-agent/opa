@@ -1,5 +1,5 @@
 ---
-title: "Admission Control Tutorial: Ingress Validation"
+title: "Tutorial: Ingress Validation"
 kind: kubernetes
 weight: 10
 ---
