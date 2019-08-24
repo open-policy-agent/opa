@@ -96,8 +96,11 @@ func (u *bindings) Plug(a *ast.Term) *ast.Term {
 func (u *bindings) PlugNamespaced(a *ast.Term, caller *bindings) *ast.Term {
 	if u != nil {
 		u.instr.startTimer(evalOpPlug)
-		defer u.instr.stopTimer(evalOpPlug)
+		t := u.plugNamespaced(a, caller)
+		u.instr.stopTimer(evalOpPlug)
+		return t
 	}
+
 	return u.plugNamespaced(a, caller)
 }
 
