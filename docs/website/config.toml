@@ -25,7 +25,7 @@ slack = "https://slack.openpolicyagent.org"
 github = "https://github.com/open-policy-agent/opa"
 
 [params.logos]
-sidebar = "/img/logos/opa-stacked-color.png"
+sidebar = "/img/logos/opa-horizontal-color.png"
 navbar = "/img/logos/opa-icon-white.png"
 
 [menu]

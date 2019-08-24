@@ -1,5 +1,5 @@
 ---
-title: Admission Control Guide
+title: Policy Primer via Examples
 kind: kubernetes
 weight: 2
 ---

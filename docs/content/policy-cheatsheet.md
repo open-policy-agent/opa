@@ -1,6 +1,6 @@
 ---
-title: Language Cheatsheet
-navtitle: Language Cheatsheet
+title: Policy Cheatsheet
+navtitle: Policy Cheatsheet
 kind: documentation
 weight: 5
 toc: true

@@ -1,7 +1,7 @@
 ---
-title: Kafka Authorization
+title: Kafka
 kind: tutorial
-weight: 5
+weight: 1
 ---
 
 [Apache Kafka](https://kafka.apache.org/) is a high-performance distributed

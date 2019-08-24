@@ -1,7 +1,7 @@
 ---
-title: SSH and sudo Authorization
+title: SSH and sudo
 kind: tutorial
-weight: 4
+weight: 1
 ---
 
 Host-level access controls are an important part of every organization's

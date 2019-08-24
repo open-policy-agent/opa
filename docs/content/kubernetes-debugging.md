@@ -1,5 +1,5 @@
 ---
-title: Admission Control Debugging Tips
+title: Debugging Tips
 kind: kubernetes
 weight: 100
 ---

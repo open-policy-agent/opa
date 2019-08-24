@@ -1,5 +1,5 @@
 ---
-title: Admission Control  Introduction
+title: Overview & Architecture
 kind: kubernetes
 weight: 1
 ---

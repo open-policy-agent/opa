@@ -1,7 +1,7 @@
 ---
-title: Deployments
-kind: documentation
-weight: 8
+title: Deployment
+kind: operations
+weight: 1
 ---
 
 This document helps you get OPA up and running in different deployment

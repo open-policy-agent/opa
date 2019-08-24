@@ -1,5 +1,5 @@
 ---
-title: How Do I Write Policies?
+title: Policy Language
 kind: documentation
 weight: 2
 toc: true
