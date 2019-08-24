@@ -1030,9 +1030,9 @@ func (e *eval) getRules(ref ast.Ref) (*ast.IndexResult, error) {
 
 func (e *eval) Resolve(ref ast.Ref) (ast.Value, error) {
 	e.instr.startTimer(evalOpResolve)
-	defer e.instr.stopTimer(evalOpResolve)
 
 	if e.saveSet.Contains(ast.NewTerm(ref), nil) {
+		e.instr.stopTimer(evalOpResolve)
 		return nil, ast.UnknownValueErr{}
 	}
 
@@ -1040,10 +1040,12 @@ func (e *eval) Resolve(ref ast.Ref) (ast.Value, error) {
 		if e.input != nil {
 			v, err := e.input.Value.Find(ref[1:])
 			if err != nil {
-				return nil, nil
+				v = nil
 			}
+			e.instr.stopTimer(evalOpResolve)
 			return v, nil
 		}
+		e.instr.stopTimer(evalOpResolve)
 		return nil, nil
 	}
 
@@ -1060,6 +1062,7 @@ func (e *eval) Resolve(ref ast.Ref) (ast.Value, error) {
 		}
 
 		if e.targetStack.Prefixed(ref) {
+			e.instr.stopTimer(evalOpResolve)
 			return repValue, nil
 		}
 
@@ -1074,22 +1077,22 @@ func (e *eval) Resolve(ref ast.Ref) (ast.Value, error) {
 		if realValue != nil {
 			e.instr.counterIncr(evalOpBaseCacheHit)
 			if repValue == nil {
+				e.instr.stopTimer(evalOpResolve)
 				return realValue, nil
 			}
 			var ok bool
 			merged, ok = merge(repValue, realValue)
 			if !ok {
-				return nil, mergeConflictErr(ref[0].Location)
+				err = mergeConflictErr(ref[0].Location)
 			}
 		} else {
 			e.instr.counterIncr(evalOpBaseCacheMiss)
 			merged, err = e.resolveReadFromStorage(ref, repValue)
-			if err != nil {
-				return nil, err
-			}
 		}
-		return merged, nil
+		e.instr.stopTimer(evalOpResolve)
+		return merged, err
 	}
+	e.instr.stopTimer(evalOpResolve)
 	return nil, fmt.Errorf("illegal ref")
 }
 

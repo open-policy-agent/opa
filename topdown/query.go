@@ -250,8 +250,7 @@ func (q *Query) Iter(ctx context.Context, iter func(QueryResult) error) error {
 		runtime:      q.runtime,
 	}
 	q.startTimer(metrics.RegoQueryEval)
-	defer q.stopTimer(metrics.RegoQueryEval)
-	return e.Run(func(e *eval) error {
+	err := e.Run(func(e *eval) error {
 		qr := QueryResult{}
 		e.bindings.Iter(nil, func(k, v *ast.Term) error {
 			qr[k.Value.(ast.Var)] = v
@@ -259,6 +258,8 @@ func (q *Query) Iter(ctx context.Context, iter func(QueryResult) error) error {
 		})
 		return iter(qr)
 	})
+	q.stopTimer(metrics.RegoQueryEval)
+	return err
 }
 
 func (q *Query) startTimer(name string) {
